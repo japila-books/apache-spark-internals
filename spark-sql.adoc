@@ -13,6 +13,76 @@ to find max/min or any other aggregates? SELECT MAX(column_name) FROM dftable_na
 
 Looks like something to transform into a working example.
 
+=== Reading JSON file
+
+Execute the following using `./bin/spark-shell` (it provides `sc` for SparkContext and `sqlContext` for Spark SQL context):
+
+```
+val hello = sc.textFile("/Users/jacek/dev/sandbox/hello.json")
+val helloDF = sqlContext.read.json(hello)
+```
+
+Depending on the content of `hello.json` you may see different schema. The point, however, is that you can parse JSON files and let the _schema inferencer_ to deduct the schema.
+
+```
+scala> helloDF.printSchema
+root
+```
+
+Go on...
+
+```
+helloDF.registerTempTable("helloT")
+```
+
+And save it using custom serializer using http://spark-packages.org/package/databricks/spark-avro[spark-avro].
+
+Run Spark shell with `--packages com.databricks:spark-avro_2.11:2.0.0` (see https://github.com/databricks/spark-avro/issues/85[2.0.0 artifact is not in any public maven repo] why `--repositories` is required).
+
+```
+./bin/spark-shell --packages com.databricks:spark-avro_2.11:2.0.0 --repositories "http://dl.bintray.com/databricks/maven"
+```
+
+And then...
+
+```
+val outputF = "test.avro"
+helloDF.write.format("com.databricks.spark.avro").save(outputF)
+```
+
+=== Group and aggregate
+
+```
+val df = sc.parallelize(Seq(
+  (1441637160, 10.0),
+  (1441637170, 20.0),
+  (1441637180, 30.0),
+  (1441637210, 40.0),
+  (1441637220, 10.0),
+  (1441637230, 0.0))).toDF("timestamp", "value")
+
+import org.apache.spark.sql.types._
+
+val tsGroup = (floor($"timestamp" / lit(60)) * lit(60)).cast(IntegerType).alias("timestamp")
+
+df.groupBy(tsGroup).agg(mean($"value").alias("value")).show
+```
+
+The above example yields the following result:
+
+```
++----------+-----+
+| timestamp|value|
++----------+-----+
+|1441637160| 25.0|
+|1441637220|  5.0|
++----------+-----+
+```
+
+See http://stackoverflow.com/a/32443728/1305344[the answer on StackOverflow].
+
+=== More examples
+
 Another example:
 
 ```
