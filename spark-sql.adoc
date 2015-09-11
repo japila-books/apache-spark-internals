@@ -4,6 +4,13 @@
 
 Home page: http://spark.apache.org/sql/
 
+FIXME
+
+* What does `sqlContex` offer?
+** `sqlContext.createDataFrame`
+* what formats does `sqlContext.read` support?
+** `sqlContext.read.parquet`
+
 From user@spark:
 
 > If you already loaded csv data into a dataframe, why not register it as a table, and use Spark SQL
@@ -12,6 +19,39 @@ to find max/min or any other aggregates? SELECT MAX(column_name) FROM dftable_na
 > you're more comfortable with SQL, it might worth registering this DataFrame as a table and generating SQL query to it (generate a string with a series of min-max calls)
 
 Looks like something to transform into a working example.
+
+=== Creating DataFrames
+
+From http://stackoverflow.com/a/32514683/1305344:
+
+```
+val df = sc.parallelize(Seq(
+   Tuple1("08/11/2015"), Tuple1("09/11/2015"), Tuple1("09/12/2015")
+)).toDF("date_string")
+
+df.registerTempTable("df")
+
+sqlContext.sql(
+  """SELECT date_string,
+        from_unixtime(unix_timestamp(date_string,'MM/dd/yyyy'), 'EEEEE') AS dow
+      FROM df"""
+).show
+```
+
+The result:
+
+```
++-----------+--------+
+|date_string|     dow|
++-----------+--------+
+| 08/11/2015| Tuesday|
+| 09/11/2015|  Friday|
+| 09/12/2015|Saturday|
++-----------+--------+
+```
+
+* Where do `from_unixtime` and `unix_timestamp` come from? `HiveContext` perhaps? How are they registered
+* What other UDFs are available?
 
 === Reading JSON file
 
@@ -29,13 +69,22 @@ scala> helloDF.printSchema
 root
 ```
 
-Go on...
+Register temp table to use for queries:
 
 ```
 helloDF.registerTempTable("helloT")
 ```
 
-And save it using custom serializer using http://spark-packages.org/package/databricks/spark-avro[spark-avro].
+=== Reading data via JDBC
+
+```
+scala> sqlContext.read.format("jdbc")
+res0: org.apache.spark.sql.DataFrameReader = org.apache.spark.sql.DataFrameReader@46baac0d
+```
+
+=== Handling data in Avro format
+
+Use custom serializer using http://spark-packages.org/package/databricks/spark-avro[spark-avro].
 
 Run Spark shell with `--packages com.databricks:spark-avro_2.11:2.0.0` (see https://github.com/databricks/spark-avro/issues/85[2.0.0 artifact is not in any public maven repo] why `--repositories` is required).
 
@@ -46,8 +95,25 @@ Run Spark shell with `--packages com.databricks:spark-avro_2.11:2.0.0` (see http
 And then...
 
 ```
+val fileRdd = sc.textFile("README.md")
+val df = fileRdd.toDF
+
+import org.apache.spark.sql.SaveMode
+
 val outputF = "test.avro"
-helloDF.write.format("com.databricks.spark.avro").save(outputF)
+df.write.mode(SaveMode.Append).format("com.databricks.spark.avro").save(outputF)
+```
+
+See https://spark.apache.org/docs/latest/api/java/index.html#org.apache.spark.sql.SaveMode[org.apache.spark.sql.SaveMode] (and perhaps https://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.sql.SaveMode[org.apache.spark.sql.SaveMode] from Scala's perspective).
+
+```
+val df = sqlContext.read.format("com.databricks.spark.avro").load("test.avro")
+```
+
+Show the result:
+
+```
+df.show
 ```
 
 === Group and aggregate
