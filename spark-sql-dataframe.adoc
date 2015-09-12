@@ -1,6 +1,6 @@
-=== DataFrame
+== DataFrame
 
-A *DataFrame* in Apache Spark is *a distributed collection of structured data organized into named columns*. It is equivalent to a relational table in Spark SQL. It provides operations to filter, group, or compute aggregates, or convert to a RDD.
+A *DataFrame* in Spark SQL is *a distributed collection of structured data organized into named columns*. It is equivalent to a relational table and provides operations to filter, group, or compute aggregates, or convert to a RDD.
 
 You can create DataFrames by loading data from structured files, RDDs, tables in Hive, or external databases. You can also create DataFrames from scratch and build upon them. See https://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.sql.DataFrame[DataFrame API].
 
@@ -17,197 +17,343 @@ As you may have noticed, `sqlContext` in Spark shell is actually a  https://spar
 
 > The Apache Hive™ data warehouse software facilitates querying and managing large datasets residing in distributed storage.
 
-==== Creating DataFrames
+=== Creating DataFrames from scratch
 
 Use Spark shell as described in link:spark-shell.adoc[Spark shell].
 
-* `emptyDataFrame`
+==== SQLContext.emptyDataFrame
 
-  scala> val df = sqlContext.emptyDataFrame
-  df: org.apache.spark.sql.DataFrame = []
+Spark SQL 1.3 offers https://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.sql.SQLContext[SQLContext.emptyDataFrame] operation to create a dataframe from nothing.
 
-  scala> val adf = df.withColumn("a", lit(1))
-  adf: org.apache.spark.sql.DataFrame = [a: int]
+```
+scala> val df = sqlContext.emptyDataFrame
+df: org.apache.spark.sql.DataFrame = []
 
-  scala> adf.registerTempTable("t")
+scala> val adf = df.withColumn("a", lit(1))
+adf: org.apache.spark.sql.DataFrame = [a: int]
 
-  scala> sqlContext.sql("select a from t")
-  15/09/12 12:07:54 INFO ParseDriver: Parsing command: select a from t
-  15/09/12 12:07:54 INFO ParseDriver: Parse Completed
-  res32: org.apache.spark.sql.DataFrame = [a: int]
+scala> adf.registerTempTable("t")
 
-* Creating DataFrame from CSV file
+scala> sqlContext.sql("select a from t")
+res32: org.apache.spark.sql.DataFrame = [a: int]
+```
 
-  scala> val lines = sc.textFile("Cartier+for+WinnersCurse.csv")
-  lines: org.apache.spark.rdd.RDD[String] = MapPartitionsRDD[3] at textFile at <console>:24
+==== Custom DataFrame Creation using createDataFrame
 
-  scala> val header = lines.first
-  header: String = auctionid,bid,bidtime,bidder,bidderrate,openbid,price
+https://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.sql.SQLContext[SQLContext] offers a family of `createDataFrame` operations.
 
-  scala> lines.count
-  res3: Long = 1349
+```
+scala> val lines = sc.textFile("Cartier+for+WinnersCurse.csv")
+lines: org.apache.spark.rdd.RDD[String] = MapPartitionsRDD[3] at textFile at <console>:24
 
-  scala> case class Auction(auctionid: String, bid: Float, bidtime: Float, bidder: String, bidderrate: Int, openbid: Float, price: Float)
-  defined class Auction
+scala> val headers = lines.first
+headers: String = auctionid,bid,bidtime,bidder,bidderrate,openbid,price
 
-  scala> val noheader = lines.filter(_ != header)
-  noheader: org.apache.spark.rdd.RDD[String] = MapPartitionsRDD[53] at filter at <console>:31
+scala> import org.apache.spark.sql.types.{StructField, StringType}
+import org.apache.spark.sql.types.{StructField, StringType}
 
-  scala> val auctions = noheader.map(_.split(",")).map(r => Auction(r(0), r(1).toFloat, r(2).toFloat, r(3), r(4).toInt, r(5).toFloat, r(6).toFloat))
-  auctions: org.apache.spark.rdd.RDD[Auction] = MapPartitionsRDD[59] at map at <console>:35
+scala> val fs = headers.split(",").map(f => StructField(f, StringType))
+fs: Array[org.apache.spark.sql.types.StructField] = Array(StructField(auctionid,StringType,true), StructField(bid,StringType,true), StructField(bidtime,StringType,true), StructField(bidder,StringType,true), StructField(bidderrate,StringType,true), StructField(openbid,StringType,true), StructField(price,StringType,true))
 
-  scala> val df = auctions.toDF
-  df: org.apache.spark.sql.DataFrame = [auctionid: string, bid: float, bidtime: float, bidder: string, bidderrate: int, openbid: float, price: float]
+scala> import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.types.StructType
 
-  scala> df.printSchema
-  root
-   |-- auctionid: string (nullable = true)
-   |-- bid: float (nullable = false)
-   |-- bidtime: float (nullable = false)
-   |-- bidder: string (nullable = true)
-   |-- bidderrate: integer (nullable = false)
-   |-- openbid: float (nullable = false)
-   |-- price: float (nullable = false)
+scala> val schema = StructType(fs)
+schema: org.apache.spark.sql.types.StructType = StructType(StructField(auctionid,StringType,true), StructField(bid,StringType,true), StructField(bidtime,StringType,true), StructField(bidder,StringType,true), StructField(bidderrate,StringType,true), StructField(openbid,StringType,true), StructField(price,StringType,true))
 
-  scala> df.show
-  +----------+------+----------+-----------------+----------+-------+------+
-  | auctionid|   bid|   bidtime|           bidder|bidderrate|openbid| price|
-  +----------+------+----------+-----------------+----------+-------+------+
-  |1638843936| 500.0|0.47836804|        kona-java|       181|  500.0|1625.0|
-  |1638843936| 800.0| 0.8263889|           doc213|        60|  500.0|1625.0|
-  |1638843936| 600.0| 3.7611227|             zmxu|         7|  500.0|1625.0|
-  |1638843936|1500.0| 5.2263775|      carloss8055|         5|  500.0|1625.0|
-  |1638843936|1600.0|  6.570625|          jdrinaz|         6|  500.0|1625.0|
-  |1638843936|1550.0| 6.8929167|      carloss8055|         5|  500.0|1625.0|
-  |1638843936|1625.0| 6.8931136|      carloss8055|         5|  500.0|1625.0|
-  |1638844284| 225.0|  1.237419|dre_313@yahoo.com|         0|  200.0| 500.0|
-  |1638844284| 500.0| 1.2524074|        njbirdmom|        33|  200.0| 500.0|
-  |1638844464| 300.0| 1.8111342|          aprefer|        58|  300.0| 740.0|
-  |1638844464| 305.0| 3.2126737|        19750926o|         3|  300.0| 740.0|
-  |1638844464| 450.0| 4.1657987|         coharley|        30|  300.0| 740.0|
-  |1638844464| 450.0| 6.7363195|        adammurry|         5|  300.0| 740.0|
-  |1638844464| 500.0| 6.7364697|        adammurry|         5|  300.0| 740.0|
-  |1638844464|505.78| 6.9881945|        19750926o|         3|  300.0| 740.0|
-  |1638844464| 551.0| 6.9896526|        19750926o|         3|  300.0| 740.0|
-  |1638844464| 570.0| 6.9931483|        19750926o|         3|  300.0| 740.0|
-  |1638844464| 601.0| 6.9939003|        19750926o|         3|  300.0| 740.0|
-  |1638844464| 610.0|  6.994965|        19750926o|         3|  300.0| 740.0|
-  |1638844464| 560.0| 6.9953704|            ps138|         5|  300.0| 740.0|
-  +----------+------+----------+-----------------+----------+-------+------+
-  only showing top 20 rows
+scala> val noheaders = lines.filter(_ != header)
+noheaders: org.apache.spark.rdd.RDD[String] = MapPartitionsRDD[10] at filter at <console>:33
 
-* Query DataFrame
+scala> import org.apache.spark.sql.Row
+import org.apache.spark.sql.Row
 
-  scala> df.select("auctionid").distinct.count
-  res88: Long = 97
+scala> val rows = noheaders.map(_.split(",")).map(a => Row.fromSeq(a))
+rows: org.apache.spark.rdd.RDD[org.apache.spark.sql.Row] = MapPartitionsRDD[12] at map at <console>:35
 
-  scala> df.groupBy("bidder").count.show
-  +--------------------+-----+
-  |              bidder|count|
-  +--------------------+-----+
-  |    dennisthemenace1|    1|
-  |            amskymom|    5|
-  | nguyenat@san.rr.com|    4|
-  |           millyjohn|    1|
-  |ykelectro@hotmail...|    2|
-  |   shetellia@aol.com|    1|
-  |              rrolex|    1|
-  |            bupper99|    2|
-  |           cheddaboy|    2|
-  |             adcc007|    1|
-  |           varvara_b|    1|
-  |            yokarine|    4|
-  |          steven1328|    1|
-  |              anjara|    2|
-  |              roysco|    1|
-  |lennonjasonmia@ne...|    2|
-  |northwestportland...|    4|
-  |             bosspad|   10|
-  |        31strawberry|    6|
-  |          nana-tyler|   11|
-  +--------------------+-----+
-  only showing top 20 rows
+scala> val auctions = sqlContext.createDataFrame(rows, schema)
+auctions: org.apache.spark.sql.DataFrame = [auctionid: string, bid: string, bidtime: string, bidder: string, bidderrate: string, openbid: string, price: string]
 
-* Query DataFrame using SQL
+scala> auctions.printSchema
+root
+ |-- auctionid: string (nullable = true)
+ |-- bid: string (nullable = true)
+ |-- bidtime: string (nullable = true)
+ |-- bidder: string (nullable = true)
+ |-- bidderrate: string (nullable = true)
+ |-- openbid: string (nullable = true)
+ |-- price: string (nullable = true)
 
-Register a DataFrame as a temporary table and then run SQL.
+scala> auctions.dtypes
+res28: Array[(String, String)] = Array((auctionid,StringType), (bid,StringType), (bidtime,StringType), (bidder,StringType), (bidderrate,StringType), (openbid,StringType), (price,StringType))
 
-  scala> df.registerTempTable("auctions")
+scala> auctions.show(5)
++----------+----+-----------+-----------+----------+-------+-----+
+| auctionid| bid|    bidtime|     bidder|bidderrate|openbid|price|
++----------+----+-----------+-----------+----------+-------+-----+
+|1638843936| 500|0.478368056|  kona-java|       181|    500| 1625|
+|1638843936| 800|0.826388889|     doc213|        60|    500| 1625|
+|1638843936| 600|3.761122685|       zmxu|         7|    500| 1625|
+|1638843936|1500|5.226377315|carloss8055|         5|    500| 1625|
+|1638843936|1600|   6.570625|    jdrinaz|         6|    500| 1625|
++----------+----+-----------+-----------+----------+-------+-----+
+only showing top 5 rows
+```
 
-  scala> val sql = sqlContext.sql("SELECT count(*) AS count FROM auctions")
-  sql: org.apache.spark.sql.DataFrame = [count: bigint]
+=== Loading data from structured files
 
-You can execute a SQL query on a DataFrame using `sql` operation, but before the query is executed it is optimized by *Catalyst query optimizer*. You can print the physical plan for a DataFrame using the `explain` operation.
+==== Creating DataFrame from CSV file
 
-  scala> sql.explain
-  == Physical Plan ==
-  TungstenAggregate(key=[], functions=[(count(1),mode=Final,isDistinct=false)], output=[count#148L])
-   TungstenExchange SinglePartition
-    TungstenAggregate(key=[], functions=[(count(1),mode=Partial,isDistinct=false)], output=[currentCount#156L])
-     TungstenProject
-      Scan PhysicalRDD[auctionid#49,bid#50,bidtime#51,bidder#52,bidderrate#53,openbid#54,price#55]
+Let's start with an example in which *schema inference* relies on a custom case class in Scala.
 
-  scala> sql.show
-  +-----+
-  |count|
-  +-----+
-  | 1348|
-  +-----+
+```
+scala> val lines = sc.textFile("Cartier+for+WinnersCurse.csv")
+lines: org.apache.spark.rdd.RDD[String] = MapPartitionsRDD[3] at textFile at <console>:24
 
-  scala> val count = sql.collect()(0).getLong(0)
-  count: Long = 1348
+scala> val header = lines.first
+header: String = auctionid,bid,bidtime,bidder,bidderrate,openbid,price
 
-* Creating DataFrame from CSV files using spark-csv module
+scala> lines.count
+res3: Long = 1349
+
+scala> case class Auction(auctionid: String, bid: Float, bidtime: Float, bidder: String, bidderrate: Int, openbid: Float, price: Float)
+defined class Auction
+
+scala> val noheader = lines.filter(_ != header)
+noheader: org.apache.spark.rdd.RDD[String] = MapPartitionsRDD[53] at filter at <console>:31
+
+scala> val auctions = noheader.map(_.split(",")).map(r => Auction(r(0), r(1).toFloat, r(2).toFloat, r(3), r(4).toInt, r(5).toFloat, r(6).toFloat))
+auctions: org.apache.spark.rdd.RDD[Auction] = MapPartitionsRDD[59] at map at <console>:35
+
+scala> val df = auctions.toDF
+df: org.apache.spark.sql.DataFrame = [auctionid: string, bid: float, bidtime: float, bidder: string, bidderrate: int, openbid: float, price: float]
+
+scala> df.printSchema
+root
+ |-- auctionid: string (nullable = true)
+ |-- bid: float (nullable = false)
+ |-- bidtime: float (nullable = false)
+ |-- bidder: string (nullable = true)
+ |-- bidderrate: integer (nullable = false)
+ |-- openbid: float (nullable = false)
+ |-- price: float (nullable = false)
+
+scala> df.show
++----------+------+----------+-----------------+----------+-------+------+
+| auctionid|   bid|   bidtime|           bidder|bidderrate|openbid| price|
++----------+------+----------+-----------------+----------+-------+------+
+|1638843936| 500.0|0.47836804|        kona-java|       181|  500.0|1625.0|
+|1638843936| 800.0| 0.8263889|           doc213|        60|  500.0|1625.0|
+|1638843936| 600.0| 3.7611227|             zmxu|         7|  500.0|1625.0|
+|1638843936|1500.0| 5.2263775|      carloss8055|         5|  500.0|1625.0|
+|1638843936|1600.0|  6.570625|          jdrinaz|         6|  500.0|1625.0|
+|1638843936|1550.0| 6.8929167|      carloss8055|         5|  500.0|1625.0|
+|1638843936|1625.0| 6.8931136|      carloss8055|         5|  500.0|1625.0|
+|1638844284| 225.0|  1.237419|dre_313@yahoo.com|         0|  200.0| 500.0|
+|1638844284| 500.0| 1.2524074|        njbirdmom|        33|  200.0| 500.0|
+|1638844464| 300.0| 1.8111342|          aprefer|        58|  300.0| 740.0|
+|1638844464| 305.0| 3.2126737|        19750926o|         3|  300.0| 740.0|
+|1638844464| 450.0| 4.1657987|         coharley|        30|  300.0| 740.0|
+|1638844464| 450.0| 6.7363195|        adammurry|         5|  300.0| 740.0|
+|1638844464| 500.0| 6.7364697|        adammurry|         5|  300.0| 740.0|
+|1638844464|505.78| 6.9881945|        19750926o|         3|  300.0| 740.0|
+|1638844464| 551.0| 6.9896526|        19750926o|         3|  300.0| 740.0|
+|1638844464| 570.0| 6.9931483|        19750926o|         3|  300.0| 740.0|
+|1638844464| 601.0| 6.9939003|        19750926o|         3|  300.0| 740.0|
+|1638844464| 610.0|  6.994965|        19750926o|         3|  300.0| 740.0|
+|1638844464| 560.0| 6.9953704|            ps138|         5|  300.0| 740.0|
++----------+------+----------+-----------------+----------+-------+------+
+only showing top 20 rows
+```
+
+==== Creating DataFrame from CSV files using spark-csv module
 
 You're going to use https://github.com/databricks/spark-csv[spark-csv] to load the CSV file above for proper parsing and loading.
 
 Start the Spark shell using `--packages` option as follows:
 
-  ➜  spark git:(master) ✗ ./bin/spark-shell --packages com.databricks:spark-csv_2.11:1.2.0
-  Ivy Default Cache set to: /Users/jacek/.ivy2/cache
-  The jars for the packages stored in: /Users/jacek/.ivy2/jars
-  :: loading settings :: url = jar:file:/Users/jacek/dev/oss/spark/assembly/target/scala-2.11/spark-assembly-1.5.0-SNAPSHOT-hadoop2.7.1.jar!/org/apache/ivy/core/settings/ivysettings.xml
-  com.databricks#spark-csv_2.11 added as a dependency
+```
+➜  spark git:(master) ✗ ./bin/spark-shell --packages com.databricks:spark-csv_2.11:1.2.0
+Ivy Default Cache set to: /Users/jacek/.ivy2/cache
+The jars for the packages stored in: /Users/jacek/.ivy2/jars
+:: loading settings :: url = jar:file:/Users/jacek/dev/oss/spark/assembly/target/scala-2.11/spark-assembly-1.5.0-SNAPSHOT-hadoop2.7.1.jar!/org/apache/ivy/core/settings/ivysettings.xml
+com.databricks#spark-csv_2.11 added as a dependency
 
-  scala> val df = sqlContext.read.format("com.databricks.spark.csv").option("header", "true").load("Cartier+for+WinnersCurse.csv")
-  df: org.apache.spark.sql.DataFrame = [auctionid: string, bid: string, bidtime: string, bidder: string, bidderrate: string, openbid: string, price: string]
+scala> val df = sqlContext.read.format("com.databricks.spark.csv").option("header", "true").load("Cartier+for+WinnersCurse.csv")
+df: org.apache.spark.sql.DataFrame = [auctionid: string, bid: string, bidtime: string, bidder: string, bidderrate: string, openbid: string, price: string]
 
-  scala> df.printSchema
-  root
-   |-- auctionid: string (nullable = true)
-   |-- bid: string (nullable = true)
-   |-- bidtime: string (nullable = true)
-   |-- bidder: string (nullable = true)
-   |-- bidderrate: string (nullable = true)
-   |-- openbid: string (nullable = true)
-   |-- price: string (nullable = true)
+scala> df.printSchema
+root
+ |-- auctionid: string (nullable = true)
+ |-- bid: string (nullable = true)
+ |-- bidtime: string (nullable = true)
+ |-- bidder: string (nullable = true)
+ |-- bidderrate: string (nullable = true)
+ |-- openbid: string (nullable = true)
+ |-- price: string (nullable = true)
 
-   scala> df.show
-   +----------+------+-----------+-----------------+----------+-------+-----+
-   | auctionid|   bid|    bidtime|           bidder|bidderrate|openbid|price|
-   +----------+------+-----------+-----------------+----------+-------+-----+
-   |1638843936|   500|0.478368056|        kona-java|       181|    500| 1625|
-   |1638843936|   800|0.826388889|           doc213|        60|    500| 1625|
-   |1638843936|   600|3.761122685|             zmxu|         7|    500| 1625|
-   |1638843936|  1500|5.226377315|      carloss8055|         5|    500| 1625|
-   |1638843936|  1600|   6.570625|          jdrinaz|         6|    500| 1625|
-   |1638843936|  1550|6.892916667|      carloss8055|         5|    500| 1625|
-   |1638843936|  1625|6.893113426|      carloss8055|         5|    500| 1625|
-   |1638844284|   225|1.237418982|dre_313@yahoo.com|         0|    200|  500|
-   |1638844284|   500|1.252407407|        njbirdmom|        33|    200|  500|
-   |1638844464|   300|1.811134259|          aprefer|        58|    300|  740|
-   |1638844464|   305|3.212673611|        19750926o|         3|    300|  740|
-   |1638844464|   450|4.165798611|         coharley|        30|    300|  740|
-   |1638844464|   450|6.736319444|        adammurry|         5|    300|  740|
-   |1638844464|   500|6.736469907|        adammurry|         5|    300|  740|
-   |1638844464|505.78|6.988194444|        19750926o|         3|    300|  740|
-   |1638844464|   551|6.989652778|        19750926o|         3|    300|  740|
-   |1638844464|   570|6.993148148|        19750926o|         3|    300|  740|
-   |1638844464|   601|6.993900463|        19750926o|         3|    300|  740|
-   |1638844464|   610|6.994965278|        19750926o|         3|    300|  740|
-   |1638844464|   560| 6.99537037|            ps138|         5|    300|  740|
-   +----------+------+-----------+-----------------+----------+-------+-----+
-   only showing top 20 rows
+ scala> df.show
+ +----------+------+-----------+-----------------+----------+-------+-----+
+ | auctionid|   bid|    bidtime|           bidder|bidderrate|openbid|price|
+ +----------+------+-----------+-----------------+----------+-------+-----+
+ |1638843936|   500|0.478368056|        kona-java|       181|    500| 1625|
+ |1638843936|   800|0.826388889|           doc213|        60|    500| 1625|
+ |1638843936|   600|3.761122685|             zmxu|         7|    500| 1625|
+ |1638843936|  1500|5.226377315|      carloss8055|         5|    500| 1625|
+ |1638843936|  1600|   6.570625|          jdrinaz|         6|    500| 1625|
+ |1638843936|  1550|6.892916667|      carloss8055|         5|    500| 1625|
+ |1638843936|  1625|6.893113426|      carloss8055|         5|    500| 1625|
+ |1638844284|   225|1.237418982|dre_313@yahoo.com|         0|    200|  500|
+ |1638844284|   500|1.252407407|        njbirdmom|        33|    200|  500|
+ |1638844464|   300|1.811134259|          aprefer|        58|    300|  740|
+ |1638844464|   305|3.212673611|        19750926o|         3|    300|  740|
+ |1638844464|   450|4.165798611|         coharley|        30|    300|  740|
+ |1638844464|   450|6.736319444|        adammurry|         5|    300|  740|
+ |1638844464|   500|6.736469907|        adammurry|         5|    300|  740|
+ |1638844464|505.78|6.988194444|        19750926o|         3|    300|  740|
+ |1638844464|   551|6.989652778|        19750926o|         3|    300|  740|
+ |1638844464|   570|6.993148148|        19750926o|         3|    300|  740|
+ |1638844464|   601|6.993900463|        19750926o|         3|    300|  740|
+ |1638844464|   610|6.994965278|        19750926o|         3|    300|  740|
+ |1638844464|   560| 6.99537037|            ps138|         5|    300|  740|
+ +----------+------+-----------+-----------------+----------+-------+-----+
+ only showing top 20 rows
+```
+
+==== Loading DataFrames using read
+
+Spark SQL 1.4 offers https://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.sql.SQLContext[SQLContext.read] operation to build a dataframe from external storage systems, e.g. file systems, key-value stores, etc.
+
+The supported structured data (file) formats are:
+
+* JSON
+* Parquet
+* JDBC
+* ORC
+* Hive tables
+
+```
+scala> val r = sqlContext.read
+r: org.apache.spark.sql.DataFrameReader = org.apache.spark.sql.DataFrameReader@59e67a18
+
+scala> r.parquet("/path/to/file.parquet")
+scala> r.schema(schema).json("/path/to/file.json")
+```
+
+=== Querying DataFrame
+
+==== Using Spark SQL's Query DSL (like Pandas)
+
+```
+scala> auctions.groupBy("bidder").count().show(5)
++--------------------+-----+
+|              bidder|count|
++--------------------+-----+
+|    dennisthemenace1|    1|
+|            amskymom|    5|
+| nguyenat@san.rr.com|    4|
+|           millyjohn|    1|
+|ykelectro@hotmail...|    2|
++--------------------+-----+
+only showing top 5 rows
+```
+
+In the following example you query for the top 5 of the most active bidders.
+
+Note the _tiny_ `$` and `desc` together with the column name to sort the rows by.
+
+```
+scala> auctions.groupBy("bidder").count().sort($"count".desc).show(5)
++------------+-----+
+|      bidder|count|
++------------+-----+
+|    lass1004|   22|
+|  pascal1666|   19|
+|     freembd|   17|
+|restdynamics|   17|
+|   happyrova|   17|
++------------+-----+
+only showing top 5 rows
+
+scala> import org.apache.spark.sql.functions._
+import org.apache.spark.sql.functions._
+
+scala> auctions.groupBy("bidder").count().sort(desc("count")).show(5)
++------------+-----+
+|      bidder|count|
++------------+-----+
+|    lass1004|   22|
+|  pascal1666|   19|
+|     freembd|   17|
+|restdynamics|   17|
+|   happyrova|   17|
++------------+-----+
+only showing top 5 rows
+```
+
+```
+scala> df.select("auctionid").distinct.count
+res88: Long = 97
+
+scala> df.groupBy("bidder").count.show
++--------------------+-----+
+|              bidder|count|
++--------------------+-----+
+|    dennisthemenace1|    1|
+|            amskymom|    5|
+| nguyenat@san.rr.com|    4|
+|           millyjohn|    1|
+|ykelectro@hotmail...|    2|
+|   shetellia@aol.com|    1|
+|              rrolex|    1|
+|            bupper99|    2|
+|           cheddaboy|    2|
+|             adcc007|    1|
+|           varvara_b|    1|
+|            yokarine|    4|
+|          steven1328|    1|
+|              anjara|    2|
+|              roysco|    1|
+|lennonjasonmia@ne...|    2|
+|northwestportland...|    4|
+|             bosspad|   10|
+|        31strawberry|    6|
+|          nana-tyler|   11|
++--------------------+-----+
+only showing top 20 rows
+```
+
+==== Using SQL
+
+Register a DataFrame as a named temporary table to run SQL.
+
+```
+scala> df.registerTempTable("auctions")
+
+scala> val sql = sqlContext.sql("SELECT count(*) AS count FROM auctions")
+sql: org.apache.spark.sql.DataFrame = [count: bigint]
+```
+
+You can execute a SQL query on a DataFrame using `sql` operation, but before the query is executed it is optimized by *Catalyst query optimizer*. You can print the physical plan for a DataFrame using the `explain` operation.
+
+```
+scala> sql.explain
+== Physical Plan ==
+TungstenAggregate(key=[], functions=[(count(1),mode=Final,isDistinct=false)], output=[count#148L])
+ TungstenExchange SinglePartition
+  TungstenAggregate(key=[], functions=[(count(1),mode=Partial,isDistinct=false)], output=[currentCount#156L])
+   TungstenProject
+    Scan PhysicalRDD[auctionid#49,bid#50,bidtime#51,bidder#52,bidderrate#53,openbid#54,price#55]
+
+scala> sql.show
++-----+
+|count|
++-----+
+| 1348|
++-----+
+
+scala> val count = sql.collect()(0).getLong(0)
+count: Long = 1348
+```
 
 ==== Example Datasets
 
