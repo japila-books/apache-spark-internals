@@ -1,0 +1,93 @@
+== Windows in DataFrames
+
+* Window-based framework since 1.4
+* Define a (row) window to execute aggregations on
+
+Two samples from https://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.sql.expressions.Window$[org.apache.spark.sql.expressions.Window] scaladoc:
+
+```
+// PARTITION BY country ORDER BY date ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+Window.partitionBy("country").orderBy("date").rowsBetween(Long.MinValue, 0)
+```
+
+```
+// PARTITION BY country ORDER BY date ROWS BETWEEN 3 PRECEDING AND 3 FOLLOWING
+Window.partitionBy("country").orderBy("date").rowsBetween(-3, 3)
+```
+
+=== Example: Compute diff on column
+
+Compute a difference between values in rows in a column.
+
+```
+scala> val pairs = (1 to 10).zip(10 to 100 by 10).flatMap(x => Seq(x,x))
+pairs: scala.collection.immutable.IndexedSeq[(Int, Int)] = Vector((1,10), (1,10), (2,20), (2,20), (3,30), (3,30), (4,40), (4,40), (5,50), (5,50), (6,60), (6,60), (7,70), (7,70), (8,80), (8,80), (9,90), (9,90), (10,100), (10,100))
+
+scala> val df = sc.parallelize(pairs).toDF("ns", "tens")
+df: org.apache.spark.sql.DataFrame = [ns: int, tens: int]
+
+scala> df.show
++---+----+
+| ns|tens|
++---+----+
+|  1|  10|
+|  1|  10|
+|  2|  20|
+|  2|  20|
+|  3|  30|
+|  3|  30|
+|  4|  40|
+|  4|  40|
+|  5|  50|
+|  5|  50|
+|  6|  60|
+|  6|  60|
+|  7|  70|
+|  7|  70|
+|  8|  80|
+|  8|  80|
+|  9|  90|
+|  9|  90|
+| 10| 100|
+| 10| 100|
++---+----+
+
+scala> import org.apache.spark.sql.expressions.Window
+import org.apache.spark.sql.expressions.Window
+
+scala> val overNs = Window.partitionBy("ns").orderBy("tens")
+overNs: org.apache.spark.sql.expressions.WindowSpec = org.apache.spark.sql.expressions.WindowSpec@35fc3588
+
+scala> val diff = lead(df("tens"), 1).over(overNs)
+diff: org.apache.spark.sql.Column = 'lead(tens,0,null) WindowSpecDefinition ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+
+scala> df.withColumn("diff", diff - df("tens")).show
++---+----+----+
+| ns|tens|diff|
++---+----+----+
+|  1|  10|   0|
+|  1|  10|null|
+|  2|  20|   0|
+|  2|  20|null|
+|  3|  30|   0|
+|  3|  30|null|
+|  4|  40|   0|
+|  4|  40|null|
+|  5|  50|   0|
+|  5|  50|null|
+|  6|  60|   0|
+|  6|  60|null|
+|  7|  70|   0|
+|  7|  70|null|
+|  8|  80|   0|
+|  8|  80|null|
+|  9|  90|   0|
+|  9|  90|null|
+| 10| 100|   0|
+| 10| 100|null|
++---+----+----+
+```
+
+Please note that http://stackoverflow.com/a/32379437/1305344[Why do Window functions fail with "Window function X does not take a frame specification"?]
+
+The key here is to remember that DataFrames are RDDs under the covers and hence aggregation like grouping by a key in DataFrames is RDD's `groupBy` (or worse, `reduceByKey` or `aggregateByKey` transformations).
