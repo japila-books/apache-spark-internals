@@ -1,7 +1,73 @@
 == Windows in DataFrames
 
 * Window-based framework since 1.4
+* Window function support in Spark SQL
 * Define a (row) window to execute aggregations on
+* Operate on a group of rows to return a single value for every input row
+* Before 1.4, merely two kinds of functions in Spark SQL to calculate a single return value:
+** *Built-in functions* or *UDFs* - `substr` or `round` - take values from a single row as input, and they generate a single return value for every input row
+** *Aggregate functions*, such as `SUM` or `MAX`, operate on a group of rows and calculate a single return value for every group.
+
+A window specification defines the *partitioning*, *ordering*, and *frame boundaries* (see https://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.sql.expressions.WindowSpec[org.apache.spark.sql.expressions.WindowSpec] API).
+
+Spark SQL supports three kinds of window functions: *ranking* functions, *analytic* functions, and *aggregate* functions.
+
+IMPORTANT: Where are they defined in the code?
+
+.Window functions in Spark SQL (see https://databricks.com/blog/2015/07/15/introducing-window-functions-in-spark-sql.html[Introducing Window Functions in Spark SQL])
+[align="center",width="80%",frame="topbot",options="header"]
+|======================
+| |SQL |DataFrame API
+.5+^.^|*Ranking functions* |rank |rank
+|dense_rank|denseRank
+|percent_rank|percentRank
+|ntile|ntile
+|row_number|rowNumber
+.5+^.^|*Analytic functions* |cume_dist |cumeDist
+|first_value |firstValue
+|last_value |lastValue
+|lag |lag
+|lead |lead
+|======================
+
+For aggregate functions, users can use any existing aggregate function as a window function.
+
+=== Window functions
+
+You can mark a function _window_ by the `OVER` clause after a supported function in SQL, e.g. `avg(revenue) OVER (...);` or the `over` method on a supported function in the DataFrame API, e.g. `rank().over(...)`.
+
+=== Window Specification
+
+Any window function needs a *Window specification*. A window specification defines which rows are included in the frame associated with a given input row.
+
+A window specification includes three parts:
+
+1. *Partitioning Specification* controls which rows will be in the same partition with the given row. Also, the user might want to make sure all rows having the same value for  the category column are collected to the same machine before ordering and calculating the frame.  If no partitioning specification is given, then all data must be collected to a single machine.
+1. *Ordering Specification* controls the way that rows in a partition are ordered, determining the position of the given row in its partition.
+1. *Frame Specification* (unsupported in Hive; see http://stackoverflow.com/a/32379437/1305344[Why do Window functions fail with "Window function X does not take a frame specification"?]) states which rows are included in the frame for the current input row, based on their relative position to the current row.  For example, _“the three rows preceding the current row to the current row”_ describes a frame including the current input row and three rows appearing before the current row.
+
+=== Frames
+
+At its core, a window function calculates a return value for every input row of a table based on a group of rows, called the *frame*. Every input row can have a unique frame associated with it.
+
+When you define a frame you have to specify three components of a frame specification - the *start and end boundaries*, and the *type*.
+
+Types of boundaries (two positions and three offsets):
+
+* `UNBOUNDED PRECEDING` - the first row of the partition
+* `UNBOUNDED FOLLOWING` - the last row of the partition
+* `CURRENT ROW`
+* `<value> PRECEDING`
+* `<value> FOLLOWING`
+
+Offsets specify the offset from the current input row.
+
+Types of frames:
+
+* `ROW` - based on _physical offsets_ from the position of the current input row
+* `RANGE` - based on _logical offsets_ from the position of the current input row
+
+=== Examples
 
 Two samples from https://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.sql.expressions.Window$[org.apache.spark.sql.expressions.Window] scaladoc:
 
@@ -15,7 +81,161 @@ Window.partitionBy("country").orderBy("date").rowsBetween(Long.MinValue, 0)
 Window.partitionBy("country").orderBy("date").rowsBetween(-3, 3)
 ```
 
-=== Example: Compute diff on column
+IMPORTANT: Present input data as a colorful table (headers, rows) and ask the question to be answered in an example.
+
+==== Computing the first and second best-sellers in category
+
+NOTE: This example is borrowed from an _excellent_ article  https://databricks.com/blog/2015/07/15/introducing-window-functions-in-spark-sql.html[Introducing Window Functions in Spark SQL].
+
+.Table PRODUCT_REVENUE
+[align="center",width="80%",frame="topbot",options="header,footer"]
+|======================
+|product |category |revenue
+|      Thin|cell phone|   6000
+|    Normal|    tablet|   1500
+|      Mini|    tablet|   5500
+|Ultra thin|cell phone|   5000
+| Very thin|cell phone|   6000
+|       Big|    tablet|   2500
+|  Bendable|cell phone|   3000
+|  Foldable|cell phone|   3000
+|       Pro|    tablet|   4500
+|      Pro2|    tablet|   6500
+|======================
+
+Question: What are the best-selling and the second best-selling products in every category?
+
+```
+scala> val schema = Seq("product", "category", "revenue")
+schema: Seq[String] = List(product, category, revenue)
+
+scala> val data = Seq(
+     |   ("Thin",       "cell phone", 6000),
+     |   ("Normal",     "tablet",     1500),
+     |   ("Mini",       "tablet",     5500),
+     |   ("Ultra thin", "cell phone", 5000),
+     |   ("Very thin",  "cell phone", 6000),
+     |   ("Big",        "tablet",     2500),
+     |   ("Bendable",   "cell phone", 3000),
+     |   ("Foldable",   "cell phone", 3000),
+     |   ("Pro",        "tablet",     4500),
+     |   ("Pro2",       "tablet",     6500)
+     | )
+data: Seq[(String, String, Int)] = List((Thin,cell phone,6000), (Normal,tablet,1500), (Mini,tablet,5500), (Ultra thin,cell phone,5000), (Very thin,cell phone,6000), (Big,tablet,2500), (Bendable,cell phone,3000), (Foldable,cell phone,3000), (Pro,tablet,4500), (Pro2,tablet,6500))
+
+scala> val df = sc.parallelize(data).toDF(schema: _*)
+df: org.apache.spark.sql.DataFrame = [product: string, category: string, revenue: int]
+
+scala> df.select('*).show
++----------+----------+-------+
+|   product|  category|revenue|
++----------+----------+-------+
+|      Thin|cell phone|   6000|
+|    Normal|    tablet|   1500|
+|      Mini|    tablet|   5500|
+|Ultra thin|cell phone|   5000|
+| Very thin|cell phone|   6000|
+|       Big|    tablet|   2500|
+|  Bendable|cell phone|   3000|
+|  Foldable|cell phone|   3000|
+|       Pro|    tablet|   4500|
+|      Pro2|    tablet|   6500|
++----------+----------+-------+
+
+scala> df.where(df("category") === "tablet").show
++-------+--------+-------+
+|product|category|revenue|
++-------+--------+-------+
+| Normal|  tablet|   1500|
+|   Mini|  tablet|   5500|
+|    Big|  tablet|   2500|
+|    Pro|  tablet|   4500|
+|   Pro2|  tablet|   6500|
++-------+--------+-------+
+```
+
+The question boils down to ranking products in a category based on their revenue, and to pick the best selling and the second best-selling products based the ranking.
+
+```
+scala> import org.apache.spark.sql.expressions.Window
+import org.apache.spark.sql.expressions.Window
+
+scala> val overCategory = Window.partitionBy("category").orderBy(desc("revenue"))
+overCategory: org.apache.spark.sql.expressions.WindowSpec = org.apache.spark.sql.expressions.WindowSpec@168cffde
+
+// or alternatively using $
+scala> val overCategory = Window.partitionBy("category").orderBy($"revenue".desc)
+overCategory: org.apache.spark.sql.expressions.WindowSpec = org.apache.spark.sql.expressions.WindowSpec@5c2a04b1
+```
+
+IMPORTANT: Explain the difference between `desc` and `$...desc`.
+
+```
+scala> val rank = denseRank.over(overCategory)
+rank: org.apache.spark.sql.Column = 'dense_rank() WindowSpecDefinition UnspecifiedFrame
+
+scala> val ranked = df.withColumn("rank", rank)
+
+scala> ranked.show
++----------+----------+-------+----+
+|   product|  category|revenue|rank|
++----------+----------+-------+----+
+|      Pro2|    tablet|   6500|   1|
+|      Mini|    tablet|   5500|   2|
+|       Pro|    tablet|   4500|   3|
+|       Big|    tablet|   2500|   4|
+|    Normal|    tablet|   1500|   5|
+|      Thin|cell phone|   6000|   1|
+| Very thin|cell phone|   6000|   1|
+|Ultra thin|cell phone|   5000|   2|
+|  Bendable|cell phone|   3000|   3|
+|  Foldable|cell phone|   3000|   3|
++----------+----------+-------+----+
+
+scala> ranked.where(ranked("rank") <= 2).show
++----------+----------+-------+----+
+|   product|  category|revenue|rank|
++----------+----------+-------+----+
+|      Pro2|    tablet|   6500|   1|
+|      Mini|    tablet|   5500|   2|
+|      Thin|cell phone|   6000|   1|
+| Very thin|cell phone|   6000|   1|
+|Ultra thin|cell phone|   5000|   2|
++----------+----------+-------+----+
+```
+
+==== Computing the first and second best-sellers in category
+
+NOTE: This example is the 2nd example from an _excellent_ article  https://databricks.com/blog/2015/07/15/introducing-window-functions-in-spark-sql.html[Introducing Window Functions in Spark SQL].
+
+```
+scala> import org.apache.spark.sql.expressions.Window
+import org.apache.spark.sql.expressions.Window
+
+scala> val overCategory = Window.partitionBy("category").orderBy($"revenue".desc)
+overCategory: org.apache.spark.sql.expressions.WindowSpec = org.apache.spark.sql.expressions.WindowSpec@5d699206
+
+scala> val reveDiff = max(df("revenue")).over(overCategory) - df("revenue")
+reveDiff: org.apache.spark.sql.Column = ('max(revenue) WindowSpecDefinition UnspecifiedFrame - revenue)
+
+scala> df.select('*, reveDiff as "revenue_difference").show
++----------+----------+-------+------------------+
+|   product|  category|revenue|revenue_difference|
++----------+----------+-------+------------------+
+|      Pro2|    tablet|   6500|                 0|
+|      Mini|    tablet|   5500|              1000|
+|       Pro|    tablet|   4500|              2000|
+|       Big|    tablet|   2500|              4000|
+|    Normal|    tablet|   1500|              5000|
+|      Thin|cell phone|   6000|                 0|
+| Very thin|cell phone|   6000|                 0|
+|Ultra thin|cell phone|   5000|              1000|
+|  Bendable|cell phone|   3000|              3000|
+|  Foldable|cell phone|   3000|              3000|
++----------+----------+-------+------------------+
+```
+
+==== Compute difference on column
 
 Compute a difference between values in rows in a column.
 
@@ -91,3 +311,25 @@ scala> df.withColumn("diff", diff - df("tens")).show
 Please note that http://stackoverflow.com/a/32379437/1305344[Why do Window functions fail with "Window function X does not take a frame specification"?]
 
 The key here is to remember that DataFrames are RDDs under the covers and hence aggregation like grouping by a key in DataFrames is RDD's `groupBy` (or worse, `reduceByKey` or `aggregateByKey` transformations).
+
+==== Accessing values of earlier rows
+
+FIXME What's the value of rows before current one?
+
+==== Calculate rank of row
+
+==== Calculate moving average
+
+==== Calculate cumulative sum
+
+=== Interval data type for Date and Timestamp types
+
+See https://issues.apache.org/jira/browse/SPARK-8943[[SPARK-8943\] CalendarIntervalType for time intervals].
+
+With the Interval data type, you could use intervals as values specified in `<value> PRECEDING` and `<value> FOLLOWING` for `RANGE` frame. It is specifically suited for time-series analysis with window functions.
+
+=== User-defined aggregate functions
+
+See https://issues.apache.org/jira/browse/SPARK-3947[[SPARK-3947\] Support Scala/Java UDAF].
+
+With the window function support, you could use user-defined aggregate functions as window functions.
