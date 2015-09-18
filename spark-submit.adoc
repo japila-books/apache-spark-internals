@@ -1,3 +1,44 @@
 == spark-submit script
 
-See https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/deploy/SparkSubmit.scala[core/src/main/scala/org/apache/spark/deploy/SparkSubmit.scala]
+You use `spark-submit` script to launch a Spark application.
+
+You can find `spark-submit` script in `bin` directory.
+
+The source code of the script lies in https://github.com/apache/spark/blob/master/bin/spark-submit.
+
+=== Under the covers of spark-submit
+
+When you execute the `spark-submit` script you basically launch https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/deploy/SparkSubmit.scala[org.apache.spark.deploy.SparkSubmit] class (via another `spark-class` script) passing on the command line arguments.
+
+At startup, the `spark-class` script loads additional environment settings (see <<sparkenv,section on spark-env.sh in this document>>).
+
+And then `spark-class` searches for so-called *the Spark assembly jar* ( `spark-assembly.*hadoop.*.jar`) in `SPARK_HOME/lib` or `SPARK_HOME/assembly/target/scala-$SPARK_SCALA_VERSION` for a binary distribution or Spark built from sources, respectively.
+
+NOTE: Set `SPARK_PREPEND_CLASSES` to have the Spark launcher classes (from `$SPARK_HOME/launcher/target/scala-$SPARK_SCALA_VERSION/classes`) to appear before the Spark assembly jar. It's useful for development so your changes don't require rebuilding Spark from the beginning.
+
+As the last step in the process, https://github.com/apache/spark/blob/master/launcher/src/main/java/org/apache/spark/launcher/Main.java[org.apache.spark.launcher.Main] class is executed with `org.apache.spark.deploy.SparkSubmit` and the other command line arguments (given to `spark-submit` at the very beginning). The Main class programmatically computes the final command to be executed.
+
+NOTE: Set `SPARK_PRINT_LAUNCH_COMMAND` to see the final command to be executed, e.g. `SPARK_PRINT_LAUNCH_COMMAND=1 ./bin/spark-shell`
+
+TODO (further review)
+
+* OptionParser class
+* `spark-defaults.conf` in `SPARK_CONF_DIR` or `$SPARK_HOME/conf`
+* SparkSubmit itself
+
+==== [[sparkenv]]spark-env.sh - load additional environment settings
+
+* `spark-env.sh` consists of environment settings to configure Spark for your site.
+
+  export JAVA_HOME=/your/directory/java
+  export HADOOP_HOME=/usr/lib/hadoop
+  export SPARK_WORKER_CORES=2
+  export SPARK_WORKER_MEMORY=1G
+
+* `spark-env.sh` is loaded at the startup of Spark's command line scripts.
+* `SPARK_ENV_LOADED` env var is to ensure the `spark-env.sh` script is loaded once.
+* `SPARK_CONF_DIR` points at the directory with `spark-env.sh` or `$SPARK_HOME/conf` is used.
+* `spark-env.sh` is executed if it exists.
+* `$SPARK_HOME/conf` directory has `spark-env.sh.template` file that serves as a template for your own custom configuration.
+
+Consult http://spark.apache.org/docs/latest/configuration.html#environment-variables[Environment Variables] in the official documentation.
