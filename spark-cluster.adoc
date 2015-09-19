@@ -1,19 +1,53 @@
 == Running Spark in cluster
 
-Spark can run on the following (open source) cluster managers:
+Spark can run on the following (open source) *cluster managers*:
 
-* Spark's Standalone cluster manager
-* Hadoop YARN
-* Apache Mesos
+* Spark's own *Standalone cluster* manager
+* *Hadoop YARN*
+* *Apache Mesos*
 
 It can be on-premise or in cloud.
 
+=== Master/slave architecture of Spark
+
+Spark uses a *master/slave architecture*. It has a single coordinator, *driver*, that communicates with one or more distributed workers, i.e. *executors*. The driver and the executors run in their own Java processes. You can run them all on the same (_horizontal cluster_) or separate machines (_vertical cluster_) or in a mixed machine configuration.
+
+.FIXME Diagram of Spark architecture
+
 Master/slave architecture of Spark in cluster:
 
-* a single *driver* = coordinates workers and execution; that is the process that launches the `main` method of your application.
-* *executors* = one or more distributed workers
+* *driver* coordinates workers and execution. The driver is the process that launches the `main` method of your Spark application. It splits Spark applications into tasks and schedules them to run on the available executors.
+* *executors* are distributed workers that run tasks for a Spark *job*. They typically run for the entire lifetime of the Spark application. They communicate with the driver to send computation results back. Executors provide in-memory storage for RDDs that are cached in Spark applications (via Block Manager).
 
 All run as separate Java processes.
+
+When you submit a Spark application to the cluster this is what happens (see the answers to http://stackoverflow.com/q/32621990/1305344[the answer to What are workers, executors, cores in Spark Standalone cluster?] on StackOverflow):
+
+* The Spark driver is launched to invoke the `main` method of the Spark application.
+* The driver asks the cluster manager for resources to run the application, i.e. to launch executors that run tasks.
+* The cluster manager launches executors.
+* The driver runs the Spark application and sends tasks to the executors.
+* Executors run the tasks and save the results.
+* Right after `SparkContext.stop()` is executed from the driver or the `main` method has exited all the executors are terminated and the cluster resources are released by the cluster manager.
+
+When executors are started they register themselves with the driver and communicate directly. The workers are in charge of communicating the cluster manager the availability of their resources.
+
+* How many executors are spawned per worker?
+* How many cores are assigned per executor?
+
+NOTE: _There's not a good reason to run more than one worker per machine._ by *Sean Owen* in http://stackoverflow.com/q/24696777/1305344[What is the relationship between workers, worker instances, and executors?]
+
+=== Multiple executors per worker in Standalone mode
+
+Since the change https://issues.apache.org/jira/browse/SPARK-1706[SPARK-1706 Allow multiple executors per worker in Standalone mode] in Spark 1.4 it's currently possible to start multiple executors in a single JVM process of a worker.
+
+To launch multiple executors on a machine you start multiple standalone workers, each with its own JVM. It introduces unnecessary overhead due to these JVM processes, provided that there are enough cores on that worker.
+
+=== Two modes of launching executors
+
+WARNING: Review core/src/main/scala/org/apache/spark/deploy/master/Master.scala
+
+=== Others
 
 *Spark application* can be split into the part written in Scala, Java, and Python with the cluster itself in which the application is going to run.
 
