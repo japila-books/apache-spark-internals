@@ -1,0 +1,96 @@
+== Spark Standalone cluster
+
+=== 2-workers-on-1-node cluster (one executor per worker)
+
+1. Start a standalone master server.
+
+  ./sbin/start-master.sh
++
+NOTE: The command above in turn executes `org.apache.spark.deploy.master.Master --ip japila.local --port 7077 --webui-port 8080`
+
+1. Open master’s web UI at http://localhost:8080 to know the current setup - no workers and applications.
++
+.Master's web UI with no workers and applications
+image::images/spark-standalone-console-master-only.png[]
+
+1. Start the first worker.
+
+  ./sbin/start-slave.sh spark://japila.local:7077
++
+NOTE: The command above in turn executes `org.apache.spark.deploy.worker.Worker --webui-port 8081 spark://japila.local:7077`
+
+1. Check out master’s web UI at http://localhost:8080 to know the current setup - one worker.
++
+.Master's web UI with one worker ALIVE
+image::images/spark-standalone-console-one-worker.png[]
++
+Note the number of CPUs and memory, 8 and 15 GBs, respectively (one gigabyte left for the OS -- _oh, how generous, my dear Spark!_).
+
+1. Let's stop the worker to start over with custom configuration. You use `./sbin/stop-slave.sh` to stop the worker.
+
+  ./sbin/stop-slave.sh
+
+1. Check out master’s web UI at http://localhost:8080 to know the current setup - one worker in *DEAD* state.
++
+.Master's web UI with one worker DEAD
+image::images/spark-standalone-console-worker-dead.png[]
+
+1. Start a worker using `--cores 2` and `--memory 4g` for two CPU cores and 4 GB of RAM.
+
+  ./sbin/start-slave.sh spark://japila.local:7077 --cores 2 --memory 4g
++
+NOTE: The command translates to `org.apache.spark.deploy.worker.Worker --webui-port 8081 spark://japila.local:7077 --cores 2 --memory 4g`
+
+1. Check out master’s web UI at http://localhost:8080 to know the current setup - one worker *ALIVE* and another *DEAD*.
++
+.Master's web UI with one worker ALIVE and one DEAD
+image::images/spark-standalone-console-workers-alive-and-dead.png[]
+
+1. Configuring cluster using `conf/spark-env.sh`
++
+There's the `conf/spark-env.sh.template` template to start from.
++
+We're going to use the following `conf/spark-env.sh`:
++
+[source,shell]
+.conf/spark-env.sh
+----
+SPARK_WORKER_CORES=2 # <1>
+SPARK_WORKER_INSTANCES=2 # <2>
+SPARK_WORKER_MEMORY=2g
+----
+<1> the number of cores per worker
+<2> the number of workers per node (a machine)
+
+
+1. Start the workers.
+
+  ./sbin/start-slave.sh spark://japila.local:7077
++
+As the command progresses, it prints out _starting org.apache.spark.deploy.worker.Worker, logging to_ for each worker. You defined two workers in `conf/spark-env.sh` using `SPARK_WORKER_INSTANCES`, so you should see two lines.
++
+  $ ./sbin/start-slave.sh spark://japila.local:7077
+  starting org.apache.spark.deploy.worker.Worker, logging to ../logs/spark-jacek-org.apache.spark.deploy.worker.Worker-1-japila.local.out
+  starting org.apache.spark.deploy.worker.Worker, logging to ../logs/spark-jacek-org.apache.spark.deploy.worker.Worker-2-japila.local.out
+
+1. Check out master’s web UI at http://localhost:8080 to know the current setup - at least two workers should be *ALIVE*.
++
+.Master's web UI with two workers ALIVE
+image::images/spark-standalone-console-two-workers-alive.png[]
++
+[NOTE]
+====
+Use `jps` on master to see the instances given they all run on the same machine, e.g. `localhost`).
+
+....
+$ jps
+6580 Worker
+4872 Master
+6874 Jps
+6539 Worker
+....
+====
+
+1. Stop all instances - the driver and the workers.
+
+  ./sbin/stop-all.sh
