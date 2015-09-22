@@ -2,9 +2,26 @@
 
 This page gives you the exact steps to develop and run a Spark application using http://www.scala-lang.org/[Scala] programming language.
 
+[TIP]
 Refer to the official http://people.apache.org/~pwendell/spark-nightly/spark-master-docs/latest/quick-start.html#self-contained-applications[Self-Contained Applications].
 
+The sample application called *SparkMe App* is...FIXME
+
+=== Overview
+
+You're going to use http://www.scala-sbt.org/[sbt] as the project build tool. It uses `build.sbt` for the project's description as well as the dependencies, i.e. Apache Spark and others.
+
+The application's main code is under `src/main/scala` directory, in `SparkMeApp.scala` file.
+
+With the files in a directory, executing `sbt package` results in a package that can be deployed onto a Spark cluster using `spark-submit`.
+
+In this example, you're going to use Spark's `local` mode, i.e. no clusters yet.
+
 === Project's build - build.sbt
+
+Any Scala project managed by sbt uses `build.sbt` as the central place for configuration, including project dependencies as `libraryDependencies`.
+
+*build.sbt*
 
 ```
 name         := "SparkMe Project"
@@ -17,7 +34,11 @@ libraryDependencies += "org.apache.spark" %% "spark-core" % "1.6.0-SNAPSHOT"
 resolvers += Resolver.mavenLocal
 ```
 
-=== SparkMeApp
+=== SparkMe Application
+
+The following code is a complete Spark application.
+
+The application uses a single command-line parameter (as `args(0)`) that is the file to process. The file is read and the number of lines printed out.
 
 ```
 package io.deepsense
@@ -26,13 +47,10 @@ import org.apache.spark.{SparkContext, SparkConf}
 
 object SparkMeApp {
   def main(args: Array[String]) {
-    println(s"Creating context for [${args(0)}]")
-    val conf = new SparkConf()
-      .setAppName("SparkMe Application")
-      .setMaster(args(0))
+    val conf = new SparkConf().setAppName("SparkMe Application")
     val sc = new SparkContext(conf)
 
-    val fileName = "README.md"
+    val fileName = args(0)
     val lines = sc.textFile(fileName).cache()
 
     val c = lines.count()
@@ -43,100 +61,42 @@ object SparkMeApp {
 
 === sbt version - project/build.properties
 
+sbt (launcher) uses `project/build.properties` file to set (the real) sbt up
+
 ```
 sbt.version=0.13.9
 ```
+
+TIP: With the file the build is more predictable as the version of sbt doesn't depend on the sbt launcher.
 
 === Packaging Application
 
 Execute `sbt package` to package the application.
 
 ```
-➜  spark-me-app  sbt package
-[info] Set current project to SparkMe Project (in build file:/Users/jacek/dev/sandbox/spark-me-app/)
-[info] Updating {file:/Users/jacek/dev/sandbox/spark-me-app/}spark-me-app...
-[info] Resolving jline#jline;2.12.1 ...
-[info] Done updating.
-[info] Compiling 1 Scala source to /Users/jacek/dev/sandbox/spark-me-app/target/scala-2.11/classes...
-[info] Packaging /Users/jacek/dev/sandbox/spark-me-app/target/scala-2.11/sparkme-project_2.11-1.0.jar ...
+➜  sparkme-app  sbt package
+[info] Loading global plugins from /Users/jacek/.sbt/0.13/plugins
+[info] Loading project definition from /Users/jacek/dev/sandbox/sparkme-app/project
+[info] Set current project to SparkMe Project (in build file:/Users/jacek/dev/sandbox/sparkme-app/)
+[info] Compiling 1 Scala source to /Users/jacek/dev/sandbox/sparkme-app/target/scala-2.11/classes...
+[info] Packaging /Users/jacek/dev/sandbox/sparkme-app/target/scala-2.11/sparkme-project_2.11-1.0.jar ...
 [info] Done packaging.
-[success] Total time: 9 s, completed Sep 22, 2015 11:42:50 PM
+[success] Total time: 3 s, completed Sep 23, 2015 12:47:52 AM
 ```
 
-In `target/scala-2.11/sparkme-project_2.11-1.0.jar` is the final application ready for deployment.
+The application doesn't rely on non-Spark jars so `package` is all that is needed.
 
-=== Submitting Application to Spark
+In `target/scala-2.11/sparkme-project_2.11-1.0.jar` there is the final application ready for deployment.
 
-`spark-submit` the application.
+=== Submitting Application to Spark (local)
 
-```
-➜  spark-me-app  ~/dev/oss/spark/bin/spark-submit --class SparkMeApp target/scala-2.11/sparkme-project_2.11-1.0.jar "local[*]"
-```
-
-=== textFile reads compressed files
+`spark-submit` the application with a file to process, e.g. `build.sbt` of the project.
 
 ```
-scala> val f = sc.textFile("f.txt.gz")
-f: org.apache.spark.rdd.RDD[String] = MapPartitionsRDD[5] at textFile at <console>:24
-
-scala> f.foreach(println)
-...
-15/09/13 19:06:52 INFO HadoopRDD: Input split: file:/Users/jacek/dev/oss/spark/f.txt.gz:0+38
-15/09/13 19:06:52 INFO CodecPool: Got brand-new decompressor [.gz]
-Ala ma kota
+➜  sparkme-app  ~/dev/oss/spark/bin/spark-submit --master "local[*]" --class io.deepsense.SparkMeApp target/scala-2.11/sparkme-project_2.11-1.0.jar build.sbt
+Using Spark's repl log4j profile: org/apache/spark/log4j-defaults-repl.properties
+To adjust logging level use sc.setLogLevel("INFO")
+15/09/23 01:06:02 WARN NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
+15/09/23 01:06:04 WARN MetricsSystem: Using default name DAGScheduler for source because spark.app.id is not set.
+There are 8 lines in build.sbt
 ```
-
-=== Changing log levels
-
-Create `conf/log4j.properties` out of the Spark template:
-
-```
-cp conf/log4j.properties.template conf/log4j.properties
-```
-
-Edit `conf/log4j.properties` so the line `log4j.rootCategory` uses appropriate log level, e.g.
-
-```
-log4j.rootCategory=ERROR, console
-```
-
-If you want to do it from the code instead, do as follows:
-
-```
-import org.apache.log4j.Logger
-import org.apache.log4j.Level
-
-Logger.getLogger("org").setLevel(Level.OFF)
-Logger.getLogger("akka").setLevel(Level.OFF)
-```
-
-=== FIXME
-
-Describe the other computing models using Spark SQL, MLlib, Spark Streaming, and GraphX.
-
-```
-$ ./bin/spark-shell
-...
-Spark context available as sc.
-...
-SQL context available as sqlContext.
-Welcome to
-      ____              __
-     / __/__  ___ _____/ /__
-    _\ \/ _ \/ _ `/ __/  '_/
-   /___/ .__/\_,_/_/ /_/\_\   version 1.5.0-SNAPSHOT
-      /_/
-
-Using Scala version 2.11.7 (Java HotSpot(TM) 64-Bit Server VM, Java 1.8.0_60)
-Type in expressions to have them evaluated.
-Type :help for more information.
-
-scala> sc.addFile("/Users/jacek/dev/sandbox/hello.json")
-
-scala> import org.apache.spark.SparkFiles
-import org.apache.spark.SparkFiles
-
-scala> SparkFiles.get("/Users/jacek/dev/sandbox/hello.json")
-```
-
-See https://spark.apache.org/docs/latest/api/java/org/apache/spark/SparkFiles.html[org.apache.spark.SparkFiles].
