@@ -1,24 +1,76 @@
 == Your first Spark application (using Scala and sbt)
 
-This page should give you the steps to develop and run a Spark application using http://www.scala-lang.org/[Scala].
+This page gives you the exact steps to develop and run a Spark application using http://www.scala-lang.org/[Scala] programming language.
 
-=== main
+Refer to the official http://people.apache.org/~pwendell/spark-nightly/spark-master-docs/latest/quick-start.html#self-contained-applications[Self-Contained Applications].
+
+=== Project's build - build.sbt
 
 ```
+name         := "SparkMe Project"
+version      := "1.0"
+organization := "io.deepsense"
+
+scalaVersion := "2.11.7"
+
+libraryDependencies += "org.apache.spark" %% "spark-core" % "1.6.0-SNAPSHOT"
+resolvers += Resolver.mavenLocal
+```
+
+=== SparkMeApp
+
+```
+package io.deepsense
+
 import org.apache.spark.{SparkContext, SparkConf}
-import org.apache.spark.sql.SQLContext
 
-val conf = new SparkConf()
-  .setAppName("Example")
-  .setMaster("local[*]")
+object SparkMeApp {
+  def main(args: Array[String]) {
+    println(s"Creating context for [${args(0)}]")
+    val conf = new SparkConf()
+      .setAppName("SparkMe Application")
+      .setMaster(args(0))
+    val sc = new SparkContext(conf)
 
-val sc = new SparkContext(conf)
-val sqlContext = new SQLContext(sc)
+    val fileName = "README.md"
+    val lines = sc.textFile(fileName).cache()
 
-import sqlContext.implicits._
+    val c = lines.count()
+    println(s"There are $c lines in $fileName")
+  }
+}
+```
 
-val df = sc.parallelize((0 to 10), 4).toDF()
-df.show()
+=== sbt version - project/build.properties
+
+```
+sbt.version=0.13.9
+```
+
+=== Packaging Application
+
+Execute `sbt package` to package the application.
+
+```
+➜  spark-me-app  sbt package
+[info] Set current project to SparkMe Project (in build file:/Users/jacek/dev/sandbox/spark-me-app/)
+[info] Updating {file:/Users/jacek/dev/sandbox/spark-me-app/}spark-me-app...
+[info] Resolving jline#jline;2.12.1 ...
+[info] Done updating.
+[info] Compiling 1 Scala source to /Users/jacek/dev/sandbox/spark-me-app/target/scala-2.11/classes...
+[info] Packaging /Users/jacek/dev/sandbox/spark-me-app/target/scala-2.11/sparkme-project_2.11-1.0.jar ...
+[info] Done packaging.
+[success] Total time: 9 s, completed Sep 22, 2015 11:42:50 PM
+```
+
+In `target/scala-2.11/sparkme-project_2.11-1.0.jar` is the final application ready for deployment.
+
+=== Submitting Application to Spark
+
+`spark-submit` the application.
+
+```
+➜  spark-me-app  ~/dev/oss/spark/bin/spark-submit --class SparkMeApp target/scala-2.11/sparkme-project_2.11-1.0.jar "local[*]"
 ```
 
 === textFile reads compressed files
