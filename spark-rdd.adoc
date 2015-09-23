@@ -1,23 +1,44 @@
 == RDD - Resilient Distributed Dataset
 
-The original paper that gave birth to the concept of RDD - https://www.cs.berkeley.edu/~matei/papers/2012/nsdi_spark.pdf[Resilient Distributed Datasets: A Fault-Tolerant Abstraction for
-In-Memory Cluster Computing]
+TIP: The original paper that gave birth to the concept of RDD - https://www.cs.berkeley.edu/~matei/papers/2012/nsdi_spark.pdf[Resilient Distributed Datasets: A Fault-Tolerant Abstraction for
+In-Memory Cluster Computing].
 
-* Transformations and actions
-* checkpointing (how it works, what is checkpointed, and at what frequency)
+RDD = *Resilient Distributed Dataset*
+
+* *Resilient* means fault-tolerant (since RDDs are *distributed* and nodes will fail and often).
+* *Distributed* means using many machines (aka nodes).
+* *Dataset* is a collection of data (since RDDs are *partitioned* across distributed nodes).
+
+TIP: RDD is the only abstraction in Spark. Learn it in depth and you understand Spark.
+
+Beside the above traits (that are directly embedded in the name of the data abstraction - RDD) it has the following additional traits:
+
+* *immutable*, i.e. it does not change once created.
+* *lazy evaluated*, i.e. the data inside is not going to be transformed until action execution.
+* *cacheable*, i.e. you can hold all the data in a persistent "storage" like memory (the most preferred) or disk (the least preferred due to access speed).
+
+RDDs are distributed by definition and to achieve proper *data distribution* as well as leverage *data locality* (in distributed systems like HDFS or Cassandra), it is *partitioned* to a fixed number of *partitions* - logical chunks (parts) of data. The logical division is for processing only and internally it is not divided whatsoever. Each partition comprises of a number of records.
+
+RDD data is a collection of partitions that are in turn references to physical chunks of data. There's a one-to-one mapping between data in HDFS and partitions (see link:spark-data-locality.adoc[data locality]).
+
+In general, data distribution can help executing processing in parallel so a task processes a chunk of data that it could eventually keep in memory.
+
+Partitions are the units of parallelism.
+
+Spark does jobs in parallel, and RDDs are split into partitions to be processed and written in parallel. Inside a partition, data is processed serially.
+
+Saving partitions results in part-files instead of one single file.
+
+=== Transformations and actions
 
 * *Actions* launch *a job* to return a value to the user program
 ** See `sc.runJob`
-* an RDD comprises a fixed number of *partitions*
-* each partition comprises of a number of records.
 * _narrow_ transformations - the result of `map`, `filter` and such is from the data from a single partition. An output RDD has partitions with records that originate from a single partition in the parent RDD. Only a limited subset of partitions used to calculate the result.
 * _wide_ transformations - the result of `groupByKey` and `reduceByKey`. the data required to compute the records in a single partition may reside in many partitions of the parent RDD. All of the tuples with the same key must end up in the same partition, processed by the same task. To satisfy these operations, Spark must execute a shuffle, which transfers data around the cluster and results in a new stage with a new set of partitions.
 
-Spark does jobs in parallel, and RDDs and dataframes are split into parts, processed and written in parallel, and saving the parts results in part-files instead of single csv.
+Explore:
 
-Interesting methods:
-
-* `coalesce`
+* `coalesce` method
 
 === Creating RDDs
 
@@ -93,7 +114,7 @@ Concepts:
 Depending on how you look at Spark (programmer, devop, admin), an RDD is about the content (developer's and data scientist's perspective) or how it gets spread out over a cluster (performance), i.e. how many partitions an RDD represents.
 
 [TIP]
-Read https://github.com/databricks/spark-knowledgebase/blob/master/performance_optimization/how_many_partitions_does_an_rdd_have.md#how-many-partitions-does-an-rdd-have[How Many Partitions Does An RDD Have?]
+Read https://databricks.gitbooks.io/databricks-spark-knowledge-base/content/performance_optimization/how_many_partitions_does_an_rdd_have.html[How Many Partitions Does An RDD Have?]
 
 RDDs get partitioned automatically without programmer intervention. However, there are times when you'd like to adjust the size and number of partitions or the partitioning scheme according to the needs of your application.
 
@@ -143,6 +164,16 @@ res1: Long = 100
 
 .Total tasks in UI shows 2 partitions
 image::images/spark-partitions-ui-stages-2-partitions.png[]
+
+You can always ask for the number of partitions using `partitions` method of a RDD:
+
+```
+scala> val ints = sc.parallelize(1 to 100, 4)
+ints: org.apache.spark.rdd.RDD[Int] = ParallelCollectionRDD[1] at parallelize at <console>:24
+
+scala> ints.partitions.size
+res2: Int = 4
+```
 
 In general, smaller/more numerous partitions allow work to be distributed among more workers, but larger/fewer partitions allow work to be done in larger chunks,  which may result in the work getting done more quickly as long as all workers are kept busy, due to reduced overhead. Also, the number of partitions determines how many files get generated by actions that save RDDs to files.
 
