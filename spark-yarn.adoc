@@ -1,5 +1,22 @@
 == Spark on YARN
 
 * `SPARK_YARN_MODE` property and environment variable
+* `yarn-cluster` and `yarn-client` modes
+* `spark-submit --deploy-mode cluster`
 * `org.apache.spark.deploy.yarn.YarnSparkHadoopUtil`
-* YARN integration has some advantages, like *dynamic allocation*.
+* YARN integration has some advantages, like *dynamic allocation*. If you enable dynamic allocation, after the stage including InputSplits gets submitted, Spark will try to request an appropriate number of executors.
+* On YARN, a Spark executor maps to a single YARN container.
+* The memory in the YARN resource requests is `--executor-memory` + what's set for `spark.yarn.executor.memoryOverhead`, which defaults to 10% of `--executor-memory`.
+* if YARN has enough resources it will deploy the executors distributed across the cluster, then each of them will try to process the data locally (`NODE_LOCAL` in Spark Web UI), with as many splits in parallel as you defined in `spark.executor.cores`.
+* _"YarnClusterScheduler: Initial job has not accepted any resources; check your cluster UI to ensure that workers are registered and have sufficient resources"_
+* `spark-defaults.conf`:
++
+```
+spark.dynamicAllocation.enabled  true
+spark.dynamicAllocation.minExecutors 1
+spark.shuffle.service.enabled true
+spark.master yarn-client
+```
+* `spark.dynamicAllocation.minExecutors` requires `spark.dynamicAllocation.initialExecutors`
+* YARN UI under scheduler - pools where Spark operates
+* `spark.scheduler.mode=FIFO` on the Spark UI
