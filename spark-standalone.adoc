@@ -2,9 +2,49 @@
 
 === Introduction
 
-In standalone mode Spark allocates resources based on cores. By default, an application will grab all the cores in the cluster unless `spark.cores.max` is specified. It means an application could get executors of different sizes (in terms of cores).
+In *Standalone cluster mode* Spark allocates resources based on cores. By default, an application will grab all the cores in the cluster unless `spark.cores.max` is specified. It means an application could get executors of different sizes (in terms of cores).
 
-Standalone mode is subject to the constraint that only one executor can be allocated on each worker per application.
+Standalone cluster mode is subject to the constraint that only one executor can be allocated on each worker per application.
+
+A node is a machine, and there's not a good reason to run more than one worker per machine. So two worker nodes typically means two machines, each a Spark worker.
+
+Workers hold many executors for many applications. One application has executors on many workers.
+
+=== SPARK_WORKER_INSTANCES (and SPARK_WORKER_CORES)
+
+There is really no need to run multiple workers per machine in Spark 1.5 (perhaps in 1.4, too). You can run multiple executors on the same machine with one worker.
+
+Use `SPARK_WORKER_INSTANCES` in `spark-env.sh` to define the number of worker instances (default: 1).
+
+If you use `SPARK_WORKER_INSTANCES`, make sure to set `SPARK_WORKER_CORES` explicitly to limit the cores per worker, or else each worker will try to use all the cores.
+
+You can set up the number of cores as an command line argument when you start a worker daemon using `--cores`.
+
+There are two reasons why you want to have multiple instances:
+
+* garbage pauses collector can hurt throughput for large JVMs
+* Heap size of >32 GB can’t use CompressedOoops
+
+=== Multiple executors per worker in Standalone mode
+
+CAUTION: It can be a duplicate of the above section.
+
+Since the change https://issues.apache.org/jira/browse/SPARK-1706[SPARK-1706 Allow multiple executors per worker in Standalone mode] in Spark 1.4 it's currently possible to start multiple executors in a single JVM process of a worker.
+
+To launch multiple executors on a machine you start multiple standalone workers, each with its own JVM. It introduces unnecessary overhead due to these JVM processes, provided that there are enough cores on that worker.
+
+If you are running Spark in standalone mode on memory rich nodes it can be beneficial to have multiple worker instances on the same node as a very large heap size has two disadvantages:
+
+* Garbage collector pauses can hurt throughput of Spark jobs.
+* Heap size of >32 GB can’t use CompressedOoops. So https://blog.codecentric.de/en/2014/02/35gb-heap-less-32gb-java-jvm-memory-oddities/[35 GB is actually less than 32 GB].
+
+Mesos and YARN can, out of the box, support packing multiple, smaller executors onto the same physical host, so requesting smaller executors doesn’t mean your application will have fewer overall resources.
+
+The following command will launch 3 worker instances on each node. Each worker instance will use two cores.
+
+```
+SPARK_WORKER_INSTANCES=3 SPARK_WORKER_CORES=2 ./sbin/start-slaves.sh
+```
 
 === Example 2-workers-on-1-node cluster (one executor per worker)
 
