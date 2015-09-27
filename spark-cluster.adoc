@@ -1,6 +1,6 @@
 == Running Spark in cluster
 
-Spark can run on the following (open source) *cluster managers*:
+Spark can run on the following (open source) *cluster managers* (also called *schedulers*):
 
 * Spark's own *Standalone cluster* manager
 * *Hadoop YARN*
@@ -10,7 +10,11 @@ It can be on-premise or in cloud.
 
 Running Spark in cluster requires workload and resource management on distributed systems.
 
-Spark driver communicates with cluster manager for resources, e.g. CPU, memory, disk. The cluster manager spawns Spark executors in the cluster. After the executors are started, the Spark driver communicates with the Spark executors directly to launch jobs (as tasks). Executors remain alive after jobs are finished for future ones. This allows for better data utilization as intermediate data is cached in memory.
+Spark driver communicates with cluster manager for resources, e.g. CPU, memory, disk. The cluster manager spawns Spark executors in the cluster. After the executors are started, the Spark driver communicates with the Spark executors directly to launch jobs (as tasks).
+
+Communication with a driver is through a RPC interface (at the moment Akka), except link:spark-mesos.adoc[Mesos in fine-grained mode].
+
+Executors remain alive after jobs are finished for future ones. This allows for better data utilization as intermediate data is cached in memory.
 
 Spark reuses resources in a cluster for:
 
@@ -28,6 +32,8 @@ Spark uses a *master/slave architecture*. It has a single coordinator, *driver* 
 
 The driver and the executors run in their own Java processes. You can run them all on the same (_horizontal cluster_) or separate machines (_vertical cluster_) or in a mixed machine configuration.
 
+Internally, a Spark executor is backed by a threadpool to run tasks.
+
 Each executor can run multiple tasks over its lifetime, both parallel and sequentially.
 
 It’s recommended to have as many executors as data nodes and as many cores as you can get from the cluster.
@@ -37,7 +43,7 @@ It’s recommended to have as many executors as data nodes and as many cores as 
 Master/slave architecture of Spark in cluster:
 
 * *driver* coordinates workers and execution. The driver is the process that launches the `main` method of your Spark application. It splits Spark applications into tasks and schedules them to run on the available executors.
-* *executors* are distributed workers that run tasks for a Spark *job*. They typically run for the entire lifetime of the Spark application. They communicate with the driver to send computation results back. Executors provide in-memory storage for RDDs that are cached in Spark applications (via Block Manager).
+* *executors* are distributed workers that run tasks for a Spark *job*. They typically run for the entire lifetime of the Spark application. They communicate with the driver to send computation results back. Executors provide in-memory storage for RDDs that are cached in Spark applications (via link:spark-blockmanager.adoc[Block Manager]).
 
 When you submit a Spark application to the cluster this is what happens (see the answers to http://stackoverflow.com/q/32621990/1305344[the answer to What are workers, executors, cores in Spark Standalone cluster?] on StackOverflow):
 
@@ -56,6 +62,43 @@ When executors are started they register themselves with the driver and communic
 NOTE: _"There's not a good reason to run more than one worker per machine."_ by *Sean Owen* in http://stackoverflow.com/q/24696777/1305344[What is the relationship between workers, worker instances, and executors?]
 
 CAUTION: One executor per node may not always be ideal, esp. when your nodes have lots of RAM. On the other hand, using fewer executors has benefits like more efficient broadcasts.
+
+=== Executors
+
+An executor has its own id, hostname, classpath, environment (as `SparkEnv`), and `isLocal` (FIXME What's that?!)
+
+When an executor is started the following message is printed out in the logs:
+
+  Starting executor ID $executorId on host $executorHostname
+
+TIP: Enable `INFO` logging level for `org.apache.spark.executor.Executor` logger to see what's going under the hood in executors.
+
+Executors use daemon cached thread pools for sending metrics and execute tasks. They also use a `driver-heartbeater` daemon single thread executor for sending heartbeats back to the driver. Heartbeats and partial metrics for active tasks are sent to the driver every `spark.executor.heartbeatInterval` (default: `10s`).
+
+It creates an RPC endpoint for receiving RPCs from the driver.
+
+FIXME How to know the available endpoints?
+
+`spark.executor.userClassPathFirst` (default: `false`) controls whether to load classes in user jars before those in Spark jars.
+
+=== Executor backends
+
+An *executor backend* manages a single executor. At startup, it connects to the driver and creates an executor. It then launches and kills tasks. It stops when the driver orders so.
+
+An executor backend acts as a bridge between the driver and an executor, i.e. there are two endpoints.
+
+FIXME `CoarseGrainedExecutorBackend` class comes with `main`. Where is this used?
+
+It asks the driver for the driver's Spark properties
+
+TIP: Enable `INFO` for `org.apache.spark.executor.CoarseGrainedExecutorBackend` to see the inner-workings.
+
+There are the following kinds of executor backends:
+
+* local executor backend
+* coarse-grained executor backend
+** used for YARN and coarse-grained mode in Mesos
+* Mesos executor backend
 
 === Two modes of launching executors
 
