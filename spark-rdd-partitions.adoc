@@ -34,20 +34,6 @@ As noted in https://github.com/databricks/spark-knowledgebase/blob/master/perfor
 Start `spark-shell` and see it yourself!
 
 ```
-$ ./bin/spark-shell
-Spark context available as sc.
-
-Welcome to
-      ____              __
-     / __/__  ___ _____/ /__
-    _\ \/ _ \/ _ `/ __/  '_/
-   /___/ .__/\_,_/_/ /_/\_\   version 1.6.0-SNAPSHOT
-      /_/
-
-Using Scala version 2.11.7 (Java HotSpot(TM) 64-Bit Server VM, Java 1.8.0_60)
-Type in expressions to have them evaluated.
-Type :help for more information.
-
 scala> sc.parallelize(1 to 100).count
 res0: Long = 100
 ```
@@ -106,9 +92,42 @@ It will only work as described for uncompressed files.
 
 When using `textFile` with compressed files (`file.txt.gz` not `file.txt` or similar), Spark disables splitting that makes for an RDD with only 1 partition (as reads against gzipped files cannot be parallelized). In this case, to change the number of partitions you should do <<repartitioning, repartitioning>>.
 
+Some operations, e.g. `map`, `flatMap`, `filter`, don't preserve partitioning.
+
+`map`, `flatMap`, `filter` operations apply a function to every partition.
+
 === [[repartitioning]]Repartitioning
 
-For compressed files, Spark disables splitting and creates RDDs with only 1 partition. In such cases, it's helpful to use `sc.textFile('demo.gz')` and do repartitioning using `rdd.repartition(100)` as follows:
+* `def repartition(numPartitions: Int)(implicit ord: Ordering[T] = null)` does repartitioning with exactly `numPartitions` partitions. It uses `coalesce` and `shuffle` to redistribute data.
+
+With the following computation you can see that `repartition(5)` causes 5 tasks to be started using `NODE_LOCAL` link:spark-data-locality.adoc[data locality].
+
+```
+scala> lines.repartition(5).count
+...
+15/10/07 08:10:00 INFO DAGScheduler: Submitting 5 missing tasks from ResultStage 7 (MapPartitionsRDD[19] at repartition at <console>:27)
+15/10/07 08:10:00 INFO TaskSchedulerImpl: Adding task set 7.0 with 5 tasks
+15/10/07 08:10:00 INFO TaskSetManager: Starting task 0.0 in stage 7.0 (TID 17, localhost, partition 0,NODE_LOCAL, 2089 bytes)
+15/10/07 08:10:00 INFO TaskSetManager: Starting task 1.0 in stage 7.0 (TID 18, localhost, partition 1,NODE_LOCAL, 2089 bytes)
+15/10/07 08:10:00 INFO TaskSetManager: Starting task 2.0 in stage 7.0 (TID 19, localhost, partition 2,NODE_LOCAL, 2089 bytes)
+15/10/07 08:10:00 INFO TaskSetManager: Starting task 3.0 in stage 7.0 (TID 20, localhost, partition 3,NODE_LOCAL, 2089 bytes)
+15/10/07 08:10:00 INFO TaskSetManager: Starting task 4.0 in stage 7.0 (TID 21, localhost, partition 4,NODE_LOCAL, 2089 bytes)
+...
+```
+
+You can see a change after executing `repartition(1)` causes 2 tasks to be started using `PROCESS_LOCAL` link:spark-data-locality.adoc[data locality].
+
+```
+scala> lines.repartition(1).count
+...
+15/10/07 08:14:09 INFO DAGScheduler: Submitting 2 missing tasks from ShuffleMapStage 8 (MapPartitionsRDD[20] at repartition at <console>:27)
+15/10/07 08:14:09 INFO TaskSchedulerImpl: Adding task set 8.0 with 2 tasks
+15/10/07 08:14:09 INFO TaskSetManager: Starting task 0.0 in stage 8.0 (TID 22, localhost, partition 0,PROCESS_LOCAL, 2058 bytes)
+15/10/07 08:14:09 INFO TaskSetManager: Starting task 1.0 in stage 8.0 (TID 23, localhost, partition 1,PROCESS_LOCAL, 2058 bytes)
+...
+```
+
+Please note that Spark disables splitting for compressed files and creates RDDs with only 1 partition. In such cases, it's helpful to use `sc.textFile('demo.gz')` and do repartitioning using `rdd.repartition(100)` as follows:
 
 ```
 rdd = sc.textFile('demo.gz')

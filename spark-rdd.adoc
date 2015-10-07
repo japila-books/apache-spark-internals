@@ -1,44 +1,121 @@
 == RDD - Resilient Distributed Dataset
 
+=== Introduction
+
 TIP: The original paper that gave birth to the concept of RDD - https://www.cs.berkeley.edu/~matei/papers/2012/nsdi_spark.pdf[Resilient Distributed Datasets: A Fault-Tolerant Abstraction for
 In-Memory Cluster Computing].
 
 RDD = *Resilient Distributed Dataset*
 
-* *Resilient* means fault-tolerant (since RDDs are *distributed* and nodes will fail and often).
-* *Distributed* means using many machines (aka nodes).
+* *Resilient*, i.e. fault-tolerant (since RDDs are *distributed* and nodes will fail and often).
+* *Distributed*, i.e. using many machines (aka nodes).
 * *Dataset* is a collection of data (since RDDs are *partitioned* across distributed nodes).
 
-TIP: RDD is the only abstraction in Spark. Learn it in depth and you understand Spark.
+TIP: RDD is the only abstraction in Spark. Learn it in depth and you understand Spark from developer's point of view.
+
+The scaladoc of http://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.rdd.RDD[org.apache.spark.rdd.RDD] says:
+
+> A Resilient Distributed Dataset (RDD), the basic abstraction in Spark. Represents an immutable, partitioned collection of elements that can be operated on in parallel.
 
 Beside the above traits (that are directly embedded in the name of the data abstraction - RDD) it has the following additional traits:
 
-* *immutable*, i.e. it does not change once created.
-* *lazy evaluated*, i.e. the data inside is not going to be transformed until action execution.
-* *cacheable*, i.e. you can hold all the data in a persistent "storage" like memory (the most preferred) or disk (the least preferred due to access speed).
+* *Immutable*, i.e. it does not change once created.
+* *Lazy evaluated*, i.e. the data inside is not going to be transformed until action execution.
+* *Cacheable*, i.e. you can hold all the data in a persistent "storage" like memory (the most preferred) or disk (the least preferred due to access speed).
 
-RDDs are distributed by definition and to achieve even *data distribution* as well as leverage *data locality* (in distributed systems like HDFS or Cassandra), it is *partitioned* to a fixed number of *partitions* - logical chunks (parts) of data. The logical division is for processing only and internally it is not divided whatsoever. Each partition comprises of a number of records.
+RDDs are distributed by definition and to achieve even *data distribution* as well as leverage *data locality* (in distributed systems like HDFS or Cassandra), it is *partitioned* to a fixed number of link:spark-rdd-partitions.adoc[partitions], i.e. logical chunks (parts) of data. The logical division is for processing only and internally it is not divided whatsoever. Each partition comprises of a number of *records*.
 
-RDDs are a container of instructions on how to materialize big (arrays of) data, and how to split it into partitions so executors can hold some of them.
+Partitions are the units of parallelism. You can influence the number of partitions of a RDD using `repartition` or `coalesce` operations.
+
+Internally, each RDD is characterized by five main properties:
+
+* Partitions
+* A function to compute splits
+* Dependencies on other RDDs
+* Optionally, a Partitioner for key-value RDDs
+* Optionally, a list of preferred locations to compute each split on, e.g. block locations for an HDFS file
 
 RDD data is a collection of partitions that are in turn references to physical chunks of data. There's a one-to-one mapping between data in HDFS and partitions (see link:spark-data-locality.adoc[data locality]).
+
+RDDs are a container of instructions on how to materialize big (arrays of) distributed data, and how to split it into partitions so Spark (using *executors*) can hold some of them.
 
 In general, data distribution can help executing processing in parallel so a task processes a chunk of data that it could eventually keep in memory.
 
 Increasing partitions count will make each partition to have less data.
 
-Partitions are the units of parallelism.
-
 Spark does jobs in parallel, and RDDs are split into partitions to be processed and written in parallel. Inside a partition, data is processed sequentially.
 
-Saving partitions results in part-files instead of one single file.
+Saving partitions results in part-files instead of one single file (unless there is a single partition).
+
+=== Types of RDDs
+
+There are four types of RDDs:
+
+* `PairRDD` (implicit conversion as `org.apache.spark.rdd.PairRDDFunctions`) that is an RDD of key-value pairs that is a result of `groupByKey` and `join` operations.
+* `DoubleRDD` (implicit conversion as `org.apache.spark.rdd.DoubleRDDFunctions`) that is an RDD of `Double` type.
+* `SequenceFileRDD` (implicit conversion as `org.apache.spark.rdd.SequenceFileRDDFunctions`) that is an RDD that can be saved as a `SequenceFile`.
+* The other non-specialized RDD.
+
+Appropriate operations of a given RDD type are automatically available on a RDD of the right type, e.g. RDD[(Int, Int)], through implicit conversion in Scala.
 
 === Transformations and actions
 
-* *Actions* launch *a job* to return a value to the user program
-** See `sc.runJob`
+* A *transformation* is a (lazy) operation that returns an RDD, e.g. `RDD.flatMap`.
++
+```
+scala> val words = lines.flatMap(_.split("\\s+"))
+words: org.apache.spark.rdd.RDD[String] = MapPartitionsRDD[27] at flatMap at <console>:26
+```
+
+* An *action* launches *a job* (on all partitions in an RDD) to return a value to the user program, e.g. `RDD.count`.
++
+```
+scala> words.count
+res20: Long = 502
+```
++
+** Internally, actions use `SparkContext.runJob` to schedule their jobs.
++
+```
+scala> sc.runJob(lines, (t: TaskContext, i: Iterator[String]) => 1)
+res22: Array[Int] = Array(1, 1)
+```
+** `SparkContext.runJob` uses `DAGScheduler.runJob` and does link:spark-rdd-checkpointing.adoc[checkpointing].
+
+CAUTION: FIXME What does the setting `spark.logLineage` do?
+
+```
+
+15/10/07 08:41:21 INFO DAGScheduler: Got job 7 (count at <console>:29) with 2 output partitions
+15/10/07 08:41:21 INFO DAGScheduler: Final stage: ResultStage 12 (count at <console>:29)
+15/10/07 08:41:21 INFO DAGScheduler: Parents of final stage: List()
+15/10/07 08:41:21 INFO DAGScheduler: Missing parents: List()
+15/10/07 08:41:21 INFO DAGScheduler: Submitting ResultStage 12 (MapPartitionsRDD[27] at flatMap at <console>:26), which has no missing parents
+15/10/07 08:41:21 INFO MemoryStore: ensureFreeSpace(3080) called with curMem=359568, maxMem=555755765
+15/10/07 08:41:21 INFO MemoryStore: Block broadcast_13 stored as values in memory (estimated size 3.0 KB, free 529.7 MB)
+15/10/07 08:41:21 INFO MemoryStore: ensureFreeSpace(1788) called with curMem=362648, maxMem=555755765
+15/10/07 08:41:21 INFO MemoryStore: Block broadcast_13_piece0 stored as bytes in memory (estimated size 1788.0 B, free 529.7 MB)
+15/10/07 08:41:21 INFO BlockManagerInfo: Added broadcast_13_piece0 in memory on localhost:53263 (size: 1788.0 B, free: 530.0 MB)
+15/10/07 08:41:21 INFO SparkContext: Created broadcast 13 from broadcast at DAGScheduler.scala:1003
+15/10/07 08:41:21 INFO DAGScheduler: Submitting 2 missing tasks from ResultStage 12 (MapPartitionsRDD[27] at flatMap at <console>:26)
+15/10/07 08:41:21 INFO TaskSchedulerImpl: Adding task set 12.0 with 2 tasks
+15/10/07 08:41:21 INFO TaskSetManager: Starting task 0.0 in stage 12.0 (TID 29, localhost, partition 0,PROCESS_LOCAL, 2069 bytes)
+15/10/07 08:41:21 INFO TaskSetManager: Starting task 1.0 in stage 12.0 (TID 30, localhost, partition 1,PROCESS_LOCAL, 2069 bytes)
+15/10/07 08:41:21 INFO Executor: Running task 0.0 in stage 12.0 (TID 29)
+15/10/07 08:41:21 INFO Executor: Running task 1.0 in stage 12.0 (TID 30)
+15/10/07 08:41:21 INFO HadoopRDD: Input split: file:/Users/jacek/dev/oss/spark/README.md:1784+1784
+15/10/07 08:41:21 INFO HadoopRDD: Input split: file:/Users/jacek/dev/oss/spark/README.md:0+1784
+15/10/07 08:41:21 INFO Executor: Finished task 1.0 in stage 12.0 (TID 30). 2082 bytes result sent to driver
+15/10/07 08:41:21 INFO Executor: Finished task 0.0 in stage 12.0 (TID 29). 2082 bytes result sent to driver
+15/10/07 08:41:21 INFO TaskSetManager: Finished task 1.0 in stage 12.0 (TID 30) in 5 ms on localhost (1/2)
+15/10/07 08:41:21 INFO TaskSetManager: Finished task 0.0 in stage 12.0 (TID 29) in 5 ms on localhost (2/2)
+15/10/07 08:41:21 INFO TaskSchedulerImpl: Removed TaskSet 12.0, whose tasks have all completed, from pool
+15/10/07 08:41:21 INFO DAGScheduler: ResultStage 12 (count at <console>:29) finished in 0.005 s
+15/10/07 08:41:21 INFO DAGScheduler: Job 7 finished: count at <console>:29, took 0.009739 s
+```
+
 * _narrow_ transformations - the result of `map`, `filter` and such is from the data from a single partition. An output RDD has partitions with records that originate from a single partition in the parent RDD. Only a limited subset of partitions used to calculate the result.
-* _wide_ transformations - the result of `groupByKey` and `reduceByKey`. the data required to compute the records in a single partition may reside in many partitions of the parent RDD. All of the tuples with the same key must end up in the same partition, processed by the same task. To satisfy these operations, Spark must execute a shuffle, which transfers data around the cluster and results in a new stage with a new set of partitions.
+* _wide_ transformations - the result of `groupByKey` and `reduceByKey`. The data required to compute the records in a single partition may reside in many partitions of the parent RDD. All of the tuples with the same key must end up in the same partition, processed by the same task. To satisfy these operations, Spark must execute link:spark-shuffle-service.adoc[shuffle], which transfers data around the cluster and results in a new stage with a new set of partitions.
 
 Explore:
 
@@ -75,13 +152,13 @@ res0: org.apache.spark.rdd.RDD[Int] = ParallelCollectionRDD[1] at makeRDD at <co
 
 Given the reason to use Spark to process more data than your own laptop could handle, `SparkContext.parallelize` is mainly used to learn Spark in the Spark shell. `SparkContext.parallelize` requires all the data to be available on a single machine - the Spark driver - that eventually hits the limits of your laptop.
 
-The other option to create RDDs is to use `sc.textFile` (see http://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.SparkContext[SparkContext] API) that automatically distributes the data across a Spark cluster.
+The other option to create RDDs is to use link:spark-files.adoc[SparkContext.textFile()] that automatically distributes the data across a Spark cluster.
 
 === RDDs in Web UI
 
-It's quite informative to look at RDDs in the Web UI that is at http://localhost:4040 for `spark-shell`.
+It's quite informative to look at RDDs in the Web UI that is at http://localhost:4040 for link:spark-shell.adoc[spark-shell].
 
-Execute the following Spark application:
+Execute the following Spark application (type all the lines in `spark-shell`):
 
 [source,scala]
 ----
@@ -114,6 +191,21 @@ ints.repartition(2).count
 .Number of tasks after repartition
 image::images/spark-ui-repartition-2.png[]
 
-=== Different sorts of RDDs
+=== Internals of RDDs
 
-* `reduceByKey`
+* `compute(split: Partition, context: TaskContext): Iterator[T]` has to be implemented by subclasses to compute a given partition.
+* `def getPartitions: Array[Partition]` returns the set of partitions in this RDD.
+* `def getDependencies: Seq[Dependency[_]]` returns how this RDD depends on parent RDDs.
++
+```
+scala> lines.dependencies
+res3: Seq[org.apache.spark.Dependency[_]] = List(org.apache.spark.OneToOneDependency@56d5a50f)
+```
+* `def getPreferredLocations(split: Partition): Seq[String]` specifies placement preferences.
+* `val partitioner: Option[Partitioner]` specifies how they are partitioned (FIXME: Who is _they_?)
+
+=== Other findings
+
+* An RDD has a unique id (within a `SparkContext`).
+* An RDD can optionally have a friendly name accessible using `name` that can be changed using `def setName(_name: String)`.
+* Some (all?) operations of an RDD clean computations (closures) so they are ready to be serialized and sent to tasks. Cleaning computations throws `SparkException` if computation cannot be cleaned.
