@@ -2,30 +2,45 @@
 
 === Introduction
 
-TIP: The original paper that gave birth to the concept of RDD - https://www.cs.berkeley.edu/~matei/papers/2012/nsdi_spark.pdf[Resilient Distributed Datasets: A Fault-Tolerant Abstraction for
-In-Memory Cluster Computing].
+TIP: The original paper that gave birth to the concept of RDD - https://www.cs.berkeley.edu/~matei/papers/2012/nsdi_spark.pdf[Resilient Distributed Datasets: A Fault-Tolerant Abstraction for In-Memory Cluster Computing].
 
-RDD = *Resilient Distributed Dataset*
+*Resilient Distributed Dataset (RDD)* is the main data abstraction in Spark. It is simply the bread and butter of Spark. With RDD the creators of Spark managed to hide data partitioning and distribution that in turn allowed them to design parallel computational framework with a higher-level programming interface (API).
 
-* *Resilient*, i.e. fault-tolerant (since RDDs are *distributed* and nodes will fail and often).
-* *Distributed*, i.e. using many machines (aka nodes).
-* *Dataset* is a collection of data (since RDDs are *partitioned* across distributed nodes).
+TIP: Learn it in depth and you understand Spark to become a professional Spark developer.
 
-TIP: RDD is the only abstraction in Spark. Learn it in depth and you understand Spark from developer's point of view.
+Learning about RDD from its name:
 
-The scaladoc of http://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.rdd.RDD[org.apache.spark.rdd.RDD] says:
+* *Resilient*, i.e. fault-tolerant and so able to recompute missing or damaged parts on node failures using <<lineage, RDD Lineage>>.
+* *Distributed* across link:spark-cluster.adoc[clusters].
+* *Dataset* is a collection of link:spark-rdd-partitions.adoc[partitioned data].
+
+From the scaladoc of http://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.rdd.RDD[org.apache.spark.rdd.RDD]:
 
 > A Resilient Distributed Dataset (RDD), the basic abstraction in Spark. Represents an immutable, partitioned collection of elements that can be operated on in parallel.
+
+From the original paper about RDD - https://www.cs.berkeley.edu/~matei/papers/2012/nsdi_spark.pdf[Resilient Distributed Datasets: A Fault-Tolerant Abstraction for In-Memory Cluster Computing]:
+
+> Resilient Distributed Datasets (RDDs) are a distributed memory abstraction that lets programmers perform in-memory computations on large clusters in a
+fault-tolerant manner.
 
 Beside the above traits (that are directly embedded in the name of the data abstraction - RDD) it has the following additional traits:
 
 * *Immutable*, i.e. it does not change once created.
-* *Lazy evaluated*, i.e. the data inside is not going to be transformed until action execution.
-* *Cacheable*, i.e. you can hold all the data in a persistent "storage" like memory (the most preferred) or disk (the least preferred due to access speed).
+* *Lazy evaluated*, i.e. the data inside is not transformed until action is executed.
+* *Cacheable*, i.e. you can hold all the data in a persistent "storage" like memory (default and the most preferred) or disk (the least preferred due to access speed).
+* *Parallel*, i.e. process in parallel.
 
-RDDs are distributed by definition and to achieve even *data distribution* as well as leverage *data locality* (in distributed systems like HDFS or Cassandra), it is *partitioned* to a fixed number of link:spark-rdd-partitions.adoc[partitions], i.e. logical chunks (parts) of data. The logical division is for processing only and internally it is not divided whatsoever. Each partition comprises of a number of *records*.
+RDDs are distributed by definition and to achieve even *data distribution* as well as leverage link:spark-data-locality.adoc[data locality] (in distributed systems like HDFS or Cassandra in which data is partitioned by default), they are *partitioned* to a fixed number of link:spark-rdd-partitions.adoc[partitions] that are logical chunks (parts) of data. The logical division is for processing only and internally it is not divided whatsoever. Each partition comprises of a number of *records*.
 
-Partitions are the units of parallelism. You can influence the number of partitions of a RDD using `repartition` or `coalesce` operations.
+link:spark-rdd-partitions.adoc[Partitions are the units of parallelism]. You can control the number of partitions of a RDD using `repartition` or `coalesce` operations. Spark tries to be as close to data as possible without wasting time to send data across network, i.e. link:spark-rdd-shuffling.adoc[RDD shuffling], and creates as many partitions as required to follow the storage layout to optimize data access. It leads to a one-to-one mapping between (physical) data in HDFS or Cassandra and partitions.
+
+The motivation to create RDD were (https://www.cs.berkeley.edu/~matei/papers/2012/nsdi_spark.pdf[after the authors]) two types of applications that current computing frameworks handle inefficiently:
+
+* *iterative algorithms* in machine learning and graph computations.
+* *interactive data mining tools* as ad-hoc queries on the same dataset.
+
+The goal is to reuse intermediate in-memory results across multiple data-intensive workloads with no need for copying large amounts of data over the
+network.
 
 Internally, each RDD is characterized by five main properties:
 
@@ -34,8 +49,6 @@ Internally, each RDD is characterized by five main properties:
 * Dependencies on other RDDs
 * Optionally, a Partitioner for key-value RDDs
 * Optionally, a list of preferred locations to compute each split on, e.g. block locations for an HDFS file
-
-RDD data is a collection of partitions that are in turn references to physical chunks of data. There's a one-to-one mapping between data in HDFS and partitions (see link:spark-data-locality.adoc[data locality]).
 
 RDDs are a container of instructions on how to materialize big (arrays of) distributed data, and how to split it into partitions so Spark (using *executors*) can hold some of them.
 
@@ -58,7 +71,9 @@ There are four types of RDDs:
 
 Appropriate operations of a given RDD type are automatically available on a RDD of the right type, e.g. RDD[(Int, Int)], through implicit conversion in Scala.
 
-=== Transformations and actions
+=== [[transformation]] Transformations and Actions
+
+CAUTION: FIXME Make transformations and actions separate sections.
 
 * A *transformation* is a (lazy) operation that returns an RDD, e.g. `RDD.flatMap`.
 +
@@ -85,7 +100,6 @@ res22: Array[Int] = Array(1, 1)
 CAUTION: FIXME What does the setting `spark.logLineage` do?
 
 ```
-
 15/10/07 08:41:21 INFO DAGScheduler: Got job 7 (count at <console>:29) with 2 output partitions
 15/10/07 08:41:21 INFO DAGScheduler: Final stage: ResultStage 12 (count at <console>:29)
 15/10/07 08:41:21 INFO DAGScheduler: Parents of final stage: List()
@@ -123,6 +137,8 @@ Explore:
 
 === Creating RDDs
 
+==== SparkContext.parallelize
+
 One way to create a RDD is with `SparkContext.parallelize` method. It accepts a collection of elements as shown below (`sc` is a SparkContext instance):
 
 ```
@@ -143,16 +159,35 @@ scala> val rdd = sc.parallelize(data)
 rdd: org.apache.spark.rdd.RDD[Int] = ParallelCollectionRDD[0] at parallelize at <console>:29
 ```
 
-FIXME: How is this different from `makeRDD`?
+Given the reason to use Spark to process more data than your own laptop could handle, `SparkContext.parallelize` is mainly used to learn Spark in the Spark shell. `SparkContext.parallelize` requires all the data to be available on a single machine - the Spark driver - that eventually hits the limits of your laptop.
+
+==== SparkContext.makeRDD
+
+CAUTION: FIXME What's the use case for `makeRDD`?
 
 ```
 scala> sc.makeRDD(0 to 1000)
 res0: org.apache.spark.rdd.RDD[Int] = ParallelCollectionRDD[1] at makeRDD at <console>:25
 ```
 
-Given the reason to use Spark to process more data than your own laptop could handle, `SparkContext.parallelize` is mainly used to learn Spark in the Spark shell. `SparkContext.parallelize` requires all the data to be available on a single machine - the Spark driver - that eventually hits the limits of your laptop.
+==== SparkContext.textFile
 
-The other option to create RDDs is to use link:spark-files.adoc[SparkContext.textFile()] that automatically distributes the data across a Spark cluster.
+One of the easiest ways to create an RDD is to use `SparkContext.textFile` to read files. You can use the local `README.md` file (and then `map` it over to have an RDD of sequences of words):
+
+```
+scala> val words = sc.textFile("README.md").flatMap(_.split("\\s+")).cache()
+words: org.apache.spark.rdd.RDD[String] = MapPartitionsRDD[27] at flatMap at <console>:24
+```
+
+NOTE: You `cache()` it so the computation is not performed every time you work with `words`.
+
+Refer to link:spark-files.adoc[Using Files] to learn about creating RDDs out of files.
+
+==== Transformations
+
+RDD transformations by definition transform an RDD into another RDD and hance are the way to create new ones.
+
+Refer to <<transformation, Transformations and Actions>> section to learn more.
 
 === RDDs in Web UI
 
@@ -203,6 +238,10 @@ res3: Seq[org.apache.spark.Dependency[_]] = List(org.apache.spark.OneToOneDepend
 ```
 * `def getPreferredLocations(split: Partition): Seq[String]` specifies placement preferences.
 * `val partitioner: Option[Partitioner]` specifies how they are partitioned (FIXME: Who is _they_?)
+
+=== [[lineage]] RDD Lineage
+
+...FIXME
 
 === Other findings
 
