@@ -88,8 +88,14 @@ Transformations do nothing until an action executes and triggers execution.
 
 There are two types of transformations:
 
-* *narrow transformations* - the result of `map`, `filter` and such is from the data from a single partition. An output RDD has partitions with records that originate from a single partition in the parent RDD. Only a limited subset of partitions used to calculate the result.
-* *wide transformations* - the result of `groupByKey` and `reduceByKey`. The data required to compute the records in a single partition may reside in many partitions of the parent RDD. All of the tuples with the same key must end up in the same partition, processed by the same task. To satisfy these operations, Spark must execute link:spark-shuffle-service.adoc[shuffle], which transfers data around the cluster and results in a new stage with a new set of partitions.
+* *narrow transformations* - the result of `map`, `filter` and such that is from the data from a single partition only, i.e. it is a self-sustain.
++
+An output RDD has partitions with records that originate from a single partition in the parent RDD. Only a limited subset of partitions used to calculate the result.
++
+Spark groups narrow transformations as a stage.
+* *wide transformations* - the result of `groupByKey` and `reduceByKey`. The data required to compute the records in a single partition may reside in many partitions of the parent RDD.
++
+All of the tuples with the same key must end up in the same partition, processed by the same task. To satisfy these operations, Spark must execute link:spark-rdd-shuffling.adoc[RDD shuffling], which transfers data across cluster and results in a new stage with a new set of partitions.
 
 Transformation operations:
 
@@ -126,46 +132,9 @@ Internally, actions launch *jobs* (on all partitions in an RDD) to return a valu
 
 TIP: You should `cache` an RDD you work with when you want to execute two or more actions on it for better performance. Refer to link:spark-rdd-caching.adoc[RDD Caching / Persistence].
 
-Actions use `SparkContext.runJob` to schedule their jobs.
-
-[source,scala]
-----
-scala> sc.runJob(lines, (t: TaskContext, i: Iterator[String]) => 1)
-res22: Array[Int] = Array(1, 1)
-----
-
-`SparkContext.runJob` uses `DAGScheduler.runJob` and does link:spark-rdd-checkpointing.adoc[checkpointing].
+Refer to link:spark-execution-model.adoc[Spark Execution Model] to learn the low-level details of actions.
 
 CAUTION: FIXME What does the setting `spark.logLineage` do?
-
-```
-15/10/07 08:41:21 INFO DAGScheduler: Got job 7 (count at <console>:29) with 2 output partitions
-15/10/07 08:41:21 INFO DAGScheduler: Final stage: ResultStage 12 (count at <console>:29)
-15/10/07 08:41:21 INFO DAGScheduler: Parents of final stage: List()
-15/10/07 08:41:21 INFO DAGScheduler: Missing parents: List()
-15/10/07 08:41:21 INFO DAGScheduler: Submitting ResultStage 12 (MapPartitionsRDD[27] at flatMap at <console>:26), which has no missing parents
-15/10/07 08:41:21 INFO MemoryStore: ensureFreeSpace(3080) called with curMem=359568, maxMem=555755765
-15/10/07 08:41:21 INFO MemoryStore: Block broadcast_13 stored as values in memory (estimated size 3.0 KB, free 529.7 MB)
-15/10/07 08:41:21 INFO MemoryStore: ensureFreeSpace(1788) called with curMem=362648, maxMem=555755765
-15/10/07 08:41:21 INFO MemoryStore: Block broadcast_13_piece0 stored as bytes in memory (estimated size 1788.0 B, free 529.7 MB)
-15/10/07 08:41:21 INFO BlockManagerInfo: Added broadcast_13_piece0 in memory on localhost:53263 (size: 1788.0 B, free: 530.0 MB)
-15/10/07 08:41:21 INFO SparkContext: Created broadcast 13 from broadcast at DAGScheduler.scala:1003
-15/10/07 08:41:21 INFO DAGScheduler: Submitting 2 missing tasks from ResultStage 12 (MapPartitionsRDD[27] at flatMap at <console>:26)
-15/10/07 08:41:21 INFO TaskSchedulerImpl: Adding task set 12.0 with 2 tasks
-15/10/07 08:41:21 INFO TaskSetManager: Starting task 0.0 in stage 12.0 (TID 29, localhost, partition 0,PROCESS_LOCAL, 2069 bytes)
-15/10/07 08:41:21 INFO TaskSetManager: Starting task 1.0 in stage 12.0 (TID 30, localhost, partition 1,PROCESS_LOCAL, 2069 bytes)
-15/10/07 08:41:21 INFO Executor: Running task 0.0 in stage 12.0 (TID 29)
-15/10/07 08:41:21 INFO Executor: Running task 1.0 in stage 12.0 (TID 30)
-15/10/07 08:41:21 INFO HadoopRDD: Input split: file:/Users/jacek/dev/oss/spark/README.md:1784+1784
-15/10/07 08:41:21 INFO HadoopRDD: Input split: file:/Users/jacek/dev/oss/spark/README.md:0+1784
-15/10/07 08:41:21 INFO Executor: Finished task 1.0 in stage 12.0 (TID 30). 2082 bytes result sent to driver
-15/10/07 08:41:21 INFO Executor: Finished task 0.0 in stage 12.0 (TID 29). 2082 bytes result sent to driver
-15/10/07 08:41:21 INFO TaskSetManager: Finished task 1.0 in stage 12.0 (TID 30) in 5 ms on localhost (1/2)
-15/10/07 08:41:21 INFO TaskSetManager: Finished task 0.0 in stage 12.0 (TID 29) in 5 ms on localhost (2/2)
-15/10/07 08:41:21 INFO TaskSchedulerImpl: Removed TaskSet 12.0, whose tasks have all completed, from pool
-15/10/07 08:41:21 INFO DAGScheduler: ResultStage 12 (count at <console>:29) finished in 0.005 s
-15/10/07 08:41:21 INFO DAGScheduler: Job 7 finished: count at <console>:29, took 0.009739 s
-```
 
 === Creating RDDs
 

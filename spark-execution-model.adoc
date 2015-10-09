@@ -1,8 +1,24 @@
-=== Spark's Execution model
+=== Spark Execution Model
 
-Driver, Workers, Jobs, Tasks, Stages in Spark
+[CAUTION]
+====
+Todos:
 
-A *driver* is...
+* Review `DAGScheduler.handleJobSubmitted`
+* Review DEBUG logs of `DAGScheduler` - see `DAGScheduler.submitStage`
+* Review `Job` class
+* Review `ShuffleMapStage` and `numPartitions`
+* Review `ResultStage`
+* `SparkEnv.get.closureSerializer.newInstance()`
+* `TaskSchedulerImpl.submitTasks`
+* `TaskSetManager`
+* `SchedulableBuilder`
+** FIFO
+** Fair
+* `HadoopRDD.compute`
+====
+
+A *driver* is where the task scheduler lives and spawns tasks across workers. Tasks are spawned one by one for each stage and data partition.
 
 A *worker* is...
 
@@ -20,15 +36,19 @@ A *task* is a command sent from the driver to an executor by serializing your `F
 
 Shortly speaking, an application in Spark is executed in three steps:
 
-* Create RDD graph
-* Create execution plan according to the RDD graph. Stages are created in this step
-* Generate tasks based on the plan and get them scheduled across workers
+1. Create RDD graph, i.e. DAG (directed acyclic graph) of RDDs to represent entire computation.
+1. Create stage graph, i.e. a DAG of stages that is a logical execution plan based on the RDD graph. Stages are created by breaking the RDD graph at shuffle boundaries.
+1. Based on the plan, schedule and execute tasks on workers.
 
-link:spark-examples-wordcount-spark-shell.adoc[In the WordCount example], the RDD graph is rather simple, and it's something as follows:
+link:spark-examples-wordcount-spark-shell.adoc[In the WordCount example], the RDD graph is as follows:
 
 file -> lines -> words -> per-word count -> global word count -> output
 
-Based on this graph, two stages are created. The stage creation rule is based on the idea to pipeline as many link:spark-rdd.adoc[narrow transformations] as possible. In the example, the narrow transformation finishes at per-word count. Therefore, you get two stages:
+Based on this graph, two stages are created. The *stage* creation rule is based on the idea of *pipelining* as many link:spark-rdd.adoc[narrow transformations] as possible. RDD operations with "narrow" dependencies, like `map()` and `filter()`, are pipelined together into one set of tasks in each stage.
+
+In the end, every stage will only have shuffle dependencies on other stages, and may compute multiple operations inside it.
+
+In the WordCount example, the narrow transformation finishes at per-word count. Therefore, you get two stages:
 
 * file -> lines -> words -> per-word count
 * global word count -> output
@@ -43,10 +63,31 @@ The number of tasks being generated in each stage will be equal to the number of
 
 spark compute nodes
 
-* *actions*
-* *jobs* - triggered as a result of executing an action in a Spark application. Spark examines the graph of RDDs and creates an execution plan.
-* *execution plan* - starts with the earliest RDDs (those with no dependencies on other RDDs or reference cached data) and ends with the RDD that produces the result of the action that has been called to execute.
-* *stages* - transformations; a collection of tasks that execute the same code, each on separate subset of data. Each stage contains a sequence of transformations that can be completed without _shuffling_ the entire data set.
-* *tasks* - units of physical execution that run parts of your Spark application
+* *jobs* - the top-level work items submitted to the scheduler that are triggered as a result of executing an action in a Spark application.
++
+Actions use `SparkContext.runJob` to schedule their jobs.
++
+[source,scala]
+----
+scala> sc.runJob(lines, (t: TaskContext, i: Iterator[String]) => 1)
+res22: Array[Int] = Array(1, 1)
+----
++
+`SparkContext.runJob` uses `DAGScheduler.runJob` and also does link:spark-rdd-checkpointing.adoc[checkpointing].
++
+Each job may require the execution of multiple stages to build intermediate data.
 
-Jobs are at the top of the execution hierarchy.
+* *execution plan* - starts with the earliest RDDs (those with no dependencies on other RDDs or reference cached data) and ends with the RDD that produces the result of the action that has been called to execute.
+
+* *stages* - a collection of tasks that compute intermediate results in jobs where each task execute the same code on separate partitions of the RDD.
++
+Each stage contains a sequence of link:spark-rdd.adoc[narrow transformations] that can be completed without link:spark-rdd-shuffling.adoc[shuffling] the entire data set, separated at shuffle boundaries.
++
+There are two types of stages:
+
+** ResultStage for the final stage that executes an action.
+** ShuffleMapStage which writes map output files for a shuffle.
+
+* *shuffle boundaries* introduce a barrier where tasks must wait for the previous stage to finish to fetch output data.
+
+* *tasks* - individual units of physical execution (computation) that run on a single machine for parts of your Spark application on a data. All tasks in a stage should be completed before moving on to another stage.
