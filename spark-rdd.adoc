@@ -2,11 +2,14 @@
 
 === Introduction
 
-TIP: The original paper that gave birth to the concept of RDD - https://www.cs.berkeley.edu/~matei/papers/2012/nsdi_spark.pdf[Resilient Distributed Datasets: A Fault-Tolerant Abstraction for In-Memory Cluster Computing].
+.The origins of RDD
+****
+The original paper that gave birth to the concept of RDD is https://www.cs.berkeley.edu/~matei/papers/2012/nsdi_spark.pdf[Resilient Distributed Datasets: A Fault-Tolerant Abstraction for In-Memory Cluster Computing] by Matei Zaharia, et al.
+****
 
 *Resilient Distributed Dataset (RDD)* is the main data abstraction in Spark. It is simply the bread and butter of Spark. With RDD the creators of Spark managed to hide data partitioning and distribution that in turn allowed them to design parallel computational framework with a higher-level programming interface (API).
 
-TIP: Learn it in depth and you understand Spark to become a professional Spark developer.
+TIP: Learn the concept of RDD in depth and you understand Spark to become a professional Spark developer.
 
 Learning about RDD from its name:
 
@@ -26,9 +29,9 @@ fault-tolerant manner.
 Beside the above traits (that are directly embedded in the name of the data abstraction - RDD) it has the following additional traits:
 
 * *Immutable*, i.e. it does not change once created.
-* *Lazy evaluated*, i.e. the data inside is not transformed until action is executed.
+* *Lazy evaluated*, i.e. the data inside RDD is not available or transformed until an action is executed that triggers the execution.
 * *Cacheable*, i.e. you can hold all the data in a persistent "storage" like memory (default and the most preferred) or disk (the least preferred due to access speed).
-* *Parallel*, i.e. process in parallel.
+* *Parallel*, i.e. process data in parallel.
 
 RDDs are distributed by definition and to achieve even *data distribution* as well as leverage link:spark-data-locality.adoc[data locality] (in distributed systems like HDFS or Cassandra in which data is partitioned by default), they are *partitioned* to a fixed number of link:spark-rdd-partitions.adoc[partitions] that are logical chunks (parts) of data. The logical division is for processing only and internally it is not divided whatsoever. Each partition comprises of a number of *records*.
 
@@ -71,31 +74,67 @@ There are four types of RDDs:
 
 Appropriate operations of a given RDD type are automatically available on a RDD of the right type, e.g. RDD[(Int, Int)], through implicit conversion in Scala.
 
-=== [[transformation]] Transformations and Actions
+=== [[transformations]] Transformations
 
-CAUTION: FIXME Make transformations and actions separate sections.
+A *transformation* is a lazy operation of a RDD that returns another RDD, e.g. `RDD.flatMap`.
 
-* A *transformation* is a (lazy) operation that returns an RDD, e.g. `RDD.flatMap`.
-+
-```
+[source,scala]
+----
 scala> val words = lines.flatMap(_.split("\\s+"))
 words: org.apache.spark.rdd.RDD[String] = MapPartitionsRDD[27] at flatMap at <console>:26
-```
+----
 
-* An *action* launches *a job* (on all partitions in an RDD) to return a value to the user program, e.g. `RDD.count`.
-+
-```
+Transformations do nothing until an action executes and triggers execution.
+
+There are two types of transformations:
+
+* *narrow transformations* - the result of `map`, `filter` and such is from the data from a single partition. An output RDD has partitions with records that originate from a single partition in the parent RDD. Only a limited subset of partitions used to calculate the result.
+* *wide transformations* - the result of `groupByKey` and `reduceByKey`. The data required to compute the records in a single partition may reside in many partitions of the parent RDD. All of the tuples with the same key must end up in the same partition, processed by the same task. To satisfy these operations, Spark must execute link:spark-shuffle-service.adoc[shuffle], which transfers data around the cluster and results in a new stage with a new set of partitions.
+
+Transformation operations:
+
+* `map`
+* `filter`
+* `flatMap`
+* `reduceByKey`
+* `join`
+* `cogroup`
+
+=== [[actions]] Actions
+
+An *action* triggers execution of <<transformations, RDD transformations>> and return a value (to a Spark driver).
+
+You can think of actions as a valve and until no action is fired, the data to be processed is not even in the pipes, i.e. transformations. The flow is closed. It is only actions to materialize the entire processing pipeline with real data.
+
+[source,scala]
+----
 scala> words.count
 res20: Long = 502
-```
-+
-** Internally, actions use `SparkContext.runJob` to schedule their jobs.
-+
-```
+----
+
+Action operations:
+
+* `count`
+* `reduce`
+* `collect`
+* `take`
+* `saveAsTextFile`
+* `saveAsHadoopFile`
+* `countByValue`
+
+Internally, actions launch *jobs* (on all partitions in an RDD) to return a value to the user program, e.g. `RDD.count`.
+
+TIP: You should `cache` an RDD you work with when you want to execute two or more actions on it for better performance. Refer to link:spark-rdd-caching.adoc[RDD Caching / Persistence].
+
+Actions use `SparkContext.runJob` to schedule their jobs.
+
+[source,scala]
+----
 scala> sc.runJob(lines, (t: TaskContext, i: Iterator[String]) => 1)
 res22: Array[Int] = Array(1, 1)
-```
-** `SparkContext.runJob` uses `DAGScheduler.runJob` and does link:spark-rdd-checkpointing.adoc[checkpointing].
+----
+
+`SparkContext.runJob` uses `DAGScheduler.runJob` and does link:spark-rdd-checkpointing.adoc[checkpointing].
 
 CAUTION: FIXME What does the setting `spark.logLineage` do?
 
@@ -127,13 +166,6 @@ CAUTION: FIXME What does the setting `spark.logLineage` do?
 15/10/07 08:41:21 INFO DAGScheduler: ResultStage 12 (count at <console>:29) finished in 0.005 s
 15/10/07 08:41:21 INFO DAGScheduler: Job 7 finished: count at <console>:29, took 0.009739 s
 ```
-
-* _narrow_ transformations - the result of `map`, `filter` and such is from the data from a single partition. An output RDD has partitions with records that originate from a single partition in the parent RDD. Only a limited subset of partitions used to calculate the result.
-* _wide_ transformations - the result of `groupByKey` and `reduceByKey`. The data required to compute the records in a single partition may reside in many partitions of the parent RDD. All of the tuples with the same key must end up in the same partition, processed by the same task. To satisfy these operations, Spark must execute link:spark-shuffle-service.adoc[shuffle], which transfers data around the cluster and results in a new stage with a new set of partitions.
-
-Explore:
-
-* `coalesce` method
 
 === Creating RDDs
 
@@ -187,11 +219,11 @@ Refer to link:spark-files.adoc[Using Files] to learn about creating RDDs out of 
 
 RDD transformations by definition transform an RDD into another RDD and hance are the way to create new ones.
 
-Refer to <<transformation, Transformations and Actions>> section to learn more.
+Refer to <<transformations, Transformations>> section to learn more.
 
 === RDDs in Web UI
 
-It's quite informative to look at RDDs in the Web UI that is at http://localhost:4040 for link:spark-shell.adoc[spark-shell].
+It is quite informative to look at RDDs in the Web UI that is at http://localhost:4040 for link:spark-shell.adoc[Spark shell].
 
 Execute the following Spark application (type all the lines in `spark-shell`):
 
@@ -242,6 +274,21 @@ res3: Seq[org.apache.spark.Dependency[_]] = List(org.apache.spark.OneToOneDepend
 === [[lineage]] RDD Lineage
 
 ...FIXME
+
+=== toDebugString
+
+```
+scala> val wordsCount = sc.textFile("README.md").flatMap(_.split("\\s+")).map((_, 1)).reduceByKey(_ + _)
+wordsCount: org.apache.spark.rdd.RDD[(String, Int)] = ShuffledRDD[24] at reduceByKey at <console>:24
+
+scala> wordsCount.toDebugString
+res2: String =
+(2) ShuffledRDD[24] at reduceByKey at <console>:24 []
+ +-(2) MapPartitionsRDD[23] at map at <console>:24 []
+    |  MapPartitionsRDD[22] at flatMap at <console>:24 []
+    |  MapPartitionsRDD[21] at textFile at <console>:24 []
+    |  README.md HadoopRDD[20] at textFile at <console>:24 []
+```
 
 === Other findings
 
