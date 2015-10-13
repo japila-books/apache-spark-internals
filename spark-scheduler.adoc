@@ -2,13 +2,24 @@
 
 *DAGScheduler* uses an event queue architecture in which a thread can post an `DAGSchedulerEvent` event, e.g. a new job being submitted (`JobSubmitted`), that the scheduler reads and executes, sequentially.
 
+[TIP]
+====
+Add the following line to `conf/log4j.properties` to see what happens under the covers of `DAGScheduler`:
+
+```
+log4j.logger.org.apache.spark.scheduler.DAGScheduler=DEBUG
+```
+====
+
 === Job submission
 
-When a new job is submitted, a new `ResultStage` is created (with the parent stages linked in `newResultStage`).
+When a new job is submitted (link:spark-rdd.adoc[as a result of calling an action]), a new `ResultStage` is created (with the parent stages linked in `newResultStage`).
 
-CAUTION: FIXME This is the moment where stages show up and their relationship between jobs is built. Make a note of it.
+This is the moment where `DAGScheduler` transforms a job into a collection of stages - it could be a single stage or a list of stages ordered by their ids in increasing order.
 
-The following INFO message is printed out in the logs:
+CAUTION: Review `Stage`.
+
+The following INFO messages show in the logs:
 
 ```
 15/10/13 08:30:16 INFO DAGScheduler: Got job 0 (count at <console>:25) with 2 output partitions
@@ -19,7 +30,7 @@ INFO DAGScheduler: Missing parents: List()
 
 A `SparkListenerJobStart` event is posted to link:spark-listeners.adoc[listenerBus].
 
-The (final) stage is submitted that triggers the missing parents of the stage being recursively submitted, too.
+The (final) stage is submitted that may trigger other stages of the missing parents of the stage being recursively submitted, too.
 
 [CAUTION]
 ====
@@ -28,10 +39,50 @@ FIXME Code review
 * `DAGScheduler.submitStage` and DEBUG logs of `DAGScheduler`
 ====
 
-When the
+When the current stage has no parent stages to submit, it is submitted.
 
 ```
 INFO DAGScheduler: Submitting ResultStage 0 (MapPartitionsRDD[9] at map at <console>:25), which has no missing parents
+```
+
+There are two types of stages:
+
+* `ShuffleMapStage`
+* `ResultStage`
+
+[CAUTION]
+====
+FIXME What's `ShuffleMapStage.outputLocs`?
+====
+
+`DAGScheduler` keeps track of stages in different states:
+
+* waiting
+* running
+* failed
+
+At some point of time in a stage's life, every partition of the stage gets transformed into a task - `ShuffleMapTask` or `ResultTask` for `ShuffleMapStage` and `ResultStage`, respectively.
+
+`DAGScheduler` prints the following INFO message when there are tasks to submit:
+
+```
+INFO DAGScheduler: Submitting 1 missing tasks from ResultStage 36 (ShuffledRDD[86] at reduceByKey at <console>:24)
+```
+
+There is also the following DEBUG message with pending partitions:
+
+```
+DEBUG DAGScheduler: New pending partitions: Set(0)
+```
+
+Tasks are then submitted to `TaskScheduler` (via `taskScheduler.submitTasks`).
+
+CAUTION: FIXME Review `TaskScheduler`.
+
+When no tasks in a stage are to be submitted, the following DEBUG message shows in the logs:
+
+```
+FIXME
 ```
 
 === Event loop
