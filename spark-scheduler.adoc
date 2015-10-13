@@ -1,1 +1,60 @@
 == DAGScheduler
+
+*DAGScheduler* uses an event queue architecture in which a thread can post an `DAGSchedulerEvent` event, e.g. a new job being submitted (`JobSubmitted`), that the scheduler reads and executes, sequentially.
+
+=== Job submission
+
+When a new job is submitted, a new `ResultStage` is created (with the parent stages linked in `newResultStage`).
+
+CAUTION: FIXME This is the moment where stages show up and their relationship between jobs is built. Make a note of it.
+
+The following INFO message is printed out in the logs:
+
+```
+15/10/13 08:30:16 INFO DAGScheduler: Got job 0 (count at <console>:25) with 2 output partitions
+15/10/13 08:30:16 INFO DAGScheduler: Final stage: ResultStage 0 (count at <console>:25)
+15/10/13 08:30:16 INFO DAGScheduler: Parents of final stage: List()
+INFO DAGScheduler: Missing parents: List()
+```
+
+A `SparkListenerJobStart` event is posted to link:spark-listeners.adoc[listenerBus].
+
+The (final) stage is submitted that triggers the missing parents of the stage being recursively submitted, too.
+
+[CAUTION]
+====
+FIXME Code review
+
+* `DAGScheduler.submitStage` and DEBUG logs of `DAGScheduler`
+====
+
+When the
+
+```
+INFO DAGScheduler: Submitting ResultStage 0 (MapPartitionsRDD[9] at map at <console>:25), which has no missing parents
+```
+
+=== Event loop
+
+`DAGScheduler.eventProcessLoop` (of type `DAGSchedulerEventProcessLoop`) - is the event process loop to which Spark posts jobs to schedule execution.
+
+Internally, it uses https://docs.oracle.com/javase/7/docs/api/java/util/concurrent/LinkedBlockingDeque.html[java.util.concurrent.LinkedBlockingDeque] blocking deque that grows indefinitely (i.e. up to https://docs.oracle.com/javase/7/docs/api/java/lang/Integer.html#MAX_VALUE[Integer.MAX_VALUE] events).
+
+The name of the thread is `dag-scheduler-event-loop`.
+
+```
+"dag-scheduler-event-loop" #89 daemon prio=5 os_prio=31 tid=0x00007f809bc0a000 nid=0xc903 waiting on condition [0x0000000125826000]
+   java.lang.Thread.State: WAITING (parking)
+	at sun.misc.Unsafe.park(Native Method)
+	- parking to wait for  <0x0000000784823db8> (a java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject)
+	at java.util.concurrent.locks.LockSupport.park(LockSupport.java:175)
+	at java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.await(AbstractQueuedSynchronizer.java:2039)
+	at java.util.concurrent.LinkedBlockingDeque.takeFirst(LinkedBlockingDeque.java:492)
+	at java.util.concurrent.LinkedBlockingDeque.take(LinkedBlockingDeque.java:680)
+	at org.apache.spark.util.EventLoop$$anon$1.run(EventLoop.scala:46)
+```
+
+The following are the current types of `DAGSchedulerEvent` events:
+
+* `JobSubmitted` - a result-yielding job
+* ...others
