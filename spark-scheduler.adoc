@@ -11,13 +11,30 @@ log4j.logger.org.apache.spark.scheduler.DAGScheduler=DEBUG
 ```
 ====
 
-=== Job submission
+=== Stages (aka job submission)
 
-When a new job is submitted (link:spark-rdd.adoc[as a result of calling an action]), a new `ResultStage` is created (with the parent stages linked in `newResultStage`).
+A *stage* is a set of parallel tasks that compute results of the same function on partitions of the same RDD that need to run as part of a Spark job.
 
-This is the moment where `DAGScheduler` transforms a job into a collection of stages - it could be a single stage or a list of stages ordered by their ids in increasing order.
+Each stage contains a sequence of link:spark-rdd.adoc[narrow transformations] that can be completed without link:spark-rdd-shuffling.adoc[shuffling] the entire data set, separated at shuffle boundaries.
 
-CAUTION: Review `Stage`.
+*Shuffle boundaries* introduce a barrier where stages/tasks must wait for the previous stage to finish to fetch outputs.
+
+When a job is submitted (link:spark-rdd.adoc[as a result of calling an action]), a new `ResultStage` is created (with the parent stages linked in `newResultStage`).
+
+This is the moment where `DAGScheduler` splits up a job into a collection of one or many stages. Stages are split up at the boundaries where shuffle occurs.
+
+.DAGScheduler splits a job into stages
+image::diagrams/scheduler-job-splits-into-stages.png[]
+
+DAGScheduler runs stages in topological order.
+
+There are two types of stages:
+
+* `ShuffleMapStage` is an intermediate stage (in the execution of a DAG) that produces data for other stage(s). It writes *map output files* for a shuffle.
+* `ResultStage` is the final stage that executes a Spark action, e.g. `count()`, `save()`, by running a function on an RDD.
+
+.DAGScheduler and Stages for a job
+image::diagrams/scheduler-job-shuffles-result-stages.png[]
 
 The following INFO messages show in the logs:
 
@@ -28,9 +45,7 @@ The following INFO messages show in the logs:
 INFO DAGScheduler: Missing parents: List()
 ```
 
-A `SparkListenerJobStart` event is posted to link:spark-listeners.adoc[listenerBus].
-
-The (final) stage is submitted that may trigger other stages of the missing parents of the stage being recursively submitted, too.
+When DAGScheduler executes a job it first submits the final stage that may in turn trigger submission of the other stages of the missing parents of the stage (recursively).
 
 [CAUTION]
 ====
@@ -44,11 +59,6 @@ When the current stage has no parent stages to submit, it is submitted.
 ```
 INFO DAGScheduler: Submitting ResultStage 0 (MapPartitionsRDD[9] at map at <console>:25), which has no missing parents
 ```
-
-There are two types of stages:
-
-* `ShuffleMapStage`
-* `ResultStage`
 
 [CAUTION]
 ====
@@ -79,11 +89,67 @@ Tasks are then submitted to `TaskScheduler` (via `taskScheduler.submitTasks`).
 
 CAUTION: FIXME Review `TaskScheduler`.
 
-When no tasks in a stage are to be submitted, the following DEBUG message shows in the logs:
+When no tasks in a stage can be submitted, the following DEBUG message shows in the logs:
 
 ```
 FIXME
 ```
+
+Each Stage also has a `firstJobId`, identifying the job that first submitted the stage.
+
+==== Stage sharing
+
+Stages can be shared across multiple jobs, if these jobs reuse the same RDDs.
+
+FIXME: Where in the code is this used?
+
+==== ShuffleMapStage
+
+`org.apache.spark.scheduler.ShuffleMapStage` is an intermediate stage (in the execution of a DAG) that produces data for link:spark-rdd-shuffling.adoc[a shuffle] and is an input for the other stages in the DAG of stages.
+
+In other words, `ShuffleMapStage` is a stage with additional `ShuffleDependency` - the shuffle that it is part of.
+
+ShuffleMapStages can also be submitted independently as jobs with `DAGScheduler.submitMapStage`.
+
+CAUTION: FIXME Understand the scaladoc
+
+[CAUTION]
+====
+FIXME Where is `ShuffleMapStage` used?
+
+* `newShuffleMapStage`
+* `getShuffleMapStage`
+* `newOrUsedShuffleStage`
+* `handleMapStageSubmitted`
+* `shuffleToMapStage` - `private[scheduler]` HashMap
+* `ActiveJob`
+====
+
+=== RDD, job execution, stages, and partitions
+
+When link:spark-scheduler.adoc[DAGScheduler schedules a job to execute an action on a RDD], it spawns parallel tasks to compute (partial) results per partition.
+
+The number of partition in a job depends on the type of a stage - be it `ResultStage` or `ShuffleMapStage` (refer to link:spark-scheduler.adoc[Stages (aka job submission)]).
+
+For some actions like `first()` and `lookup()`, there is no need to compute all the partitions of a job of a target RDD.
+
+=== Fault recovery - stage attempts
+
+A single stage can be re-executed in multiple *attempts* due to fault recovery. The number of attempts is configured (FIXME).
+
+If `TaskScheduler` reports that a task failed because a map output file from a previous stage was lost, the DAGScheduler resubmits that lost stage. This is detected through a `CompletionEvent` with `FetchFailed`, or an `ExecutorLost` event. `DAGScheduler` will wait a small amount of time to see whether other nodes or tasks fail, then resubmit `TaskSets` for any lost stage(s) that compute the missing tasks.
+
+Please note that tasks from the old attempts of a stage could still be running.
+
+A stage object tracks multiple `StageInfo` objects to pass to Spark listeners or the web UI.
+
+The latest `StageInfo` for the most recent attempt for a stage is accessible through `latestInfo`.
+
+=== Execution Events
+
+A `SparkListenerJobStart` event is posted to link:spark-listeners.adoc[listenerBus].
+
+CAUTION: FIXME What events are posted and when?
 
 === Event loop
 
@@ -91,7 +157,7 @@ FIXME
 
 Internally, it uses https://docs.oracle.com/javase/7/docs/api/java/util/concurrent/LinkedBlockingDeque.html[java.util.concurrent.LinkedBlockingDeque] blocking deque that grows indefinitely (i.e. up to https://docs.oracle.com/javase/7/docs/api/java/lang/Integer.html#MAX_VALUE[Integer.MAX_VALUE] events).
 
-The name of the thread is `dag-scheduler-event-loop`.
+The name of the single "logic" thread that reads events and takes decisions is `dag-scheduler-event-loop`.
 
 ```
 "dag-scheduler-event-loop" #89 daemon prio=5 os_prio=31 tid=0x00007f809bc0a000 nid=0xc903 waiting on condition [0x0000000125826000]
@@ -105,7 +171,40 @@ The name of the thread is `dag-scheduler-event-loop`.
 	at org.apache.spark.util.EventLoop$$anon$1.run(EventLoop.scala:46)
 ```
 
-The following are the current types of `DAGSchedulerEvent` events:
+The following are the current types of `DAGSchedulerEvent` events that can be handled by `DAGScheduler`:
 
-* `JobSubmitted` - a result-yielding job
-* ...others
+* `JobSubmitted` - posted when a result-yielding job (aka an action job) is submitted to DAGScheduler.
++
+`dagScheduler.handleJobSubmitted` is executed in turn.
+* `MapStageSubmitted` - posted when a shuffle map stage is submitted.
++
+`dagScheduler.handleMapStageSubmitted` is executed in turn.
+* `StageCancelled`
+* `JobCancelled`
+* `JobGroupCancelled`
+* `AllJobsCancelled`
+* `BeginEvent` - posted when `TaskSetManager` reports that a task is starting.
++
+`dagScheduler.handleBeginEvent` is executed in turn.
+* `GettingResultEvent` - posted when `TaskSetManager` reports that a task has completed and results are being fetched remotely.
++
+`dagScheduler.handleGetTaskResult` executes in turn.
+* `CompletionEvent` - posted when `TaskSetManager` reports that a task has completed successfully or failed.
++
+`dagScheduler.handleTaskCompletion` executes in turn.
++
+It causes `updateAccumulators` call. FIXME What does it?
+* `ExecutorAdded`
+* `ExecutorLost`
+* `TaskSetFailed`
+* `ResubmitFailedStages`
+
+[CAUTION]
+====
+FIXME
+
+* Where and how is `JobSubmitted` used?
+* What is approximate job (as in `DAGScheduler.runApproximateJob`)?
+* What is *adaptive query planning*?
+* statistics? `MapOutputStatistics`?
+====
