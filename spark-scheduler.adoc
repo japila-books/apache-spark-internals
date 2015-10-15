@@ -1,5 +1,28 @@
 == DAGScheduler
 
+[NOTE]
+====
+The introduction that follows is an almost exact copy of scaladoc of https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/scheduler/DAGScheduler.scala[org.apache.spark.scheduler.DAGScheduler]. As a private class it does not appear in the official API documentation, though. You are strongly encouraged to read https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/scheduler/DAGScheduler.scala[the sources] and read the page afterwards.
+
+_"Reading the sources"_?! Yes, I _am_ kidding!
+====
+
+=== Introduction
+
+*DAGScheduler* is the present and only scheduling layer in Apache Spark that implements stage-oriented scheduling.
+
+It does three things in Spark (detailed explanations follow):
+
+* It computes a DAG of stages for a job.
+* It determines the preferred locations to run each task on.
+* It handles failures due to shuffle output files being lost.
+
+It computes https://en.wikipedia.org/wiki/Directed_acyclic_graph[a directed acyclic graph (DAG)] of stages for each job, keeps track of which RDDs and stage outputs are materialized, and finds a minimal schedule to run the job. It then submits stages to link:spark-taskscheduler.adoc[TaskScheduler] that runs them on the cluster.
+
+In addition to coming up with the DAG of stages, DAGScheduler also determines the preferred locations to run each task on, based on the current cache status, and passes these to link:spark-taskscheduler.adoc[TaskScheduler].
+
+Furthermore, it handles failures due to shuffle output files being lost, in which case old stages may need to be resubmitted. Failures *within* a stage that are not caused by shuffle file loss are handled by the TaskScheduler, which will retry each task a small number of times before cancelling the whole stage.
+
 *DAGScheduler* uses an event queue architecture in which a thread can post an `DAGSchedulerEvent` event, e.g. a new job being submitted (`JobSubmitted`), that the scheduler reads and executes, sequentially.
 
 [TIP]
@@ -11,9 +34,32 @@ log4j.logger.org.apache.spark.scheduler.DAGScheduler=DEBUG
 ```
 ====
 
-=== Stages (aka job submission)
+=== Jobs
 
-A *stage* is a set of parallel tasks that compute results of the same function on partitions of the same RDD that need to run as part of a Spark job.
+*Jobs* (aka _action jobs_) are top-level work items submitted to the scheduler that are triggered as a result of executing an action in a Spark user program.
+
+Each job may require the execution of multiple stages to build intermediate data.
+
+Actions, like `count()`, use `SparkContext.runJob[T, U: ClassTag](rdd: RDD[T], func: Iterator[T] => U): Array[U]` to schedule jobs (that are run on all partitions of the RDD and return the results in an array).
+
+[source,scala]
+----
+scala> sc.runJob(lines, (t: TaskContext, i: Iterator[String]) => 1)
+res0: Array[Int] = Array(1, 1)
+----
+
+`SparkContext.runJob` uses link:spark-scheduler.adoc[DAGScheduler.runJob()] and also does link:spark-rdd-checkpointing.adoc[checkpointing].
+
+The following are the types of jobs:
+
+* `JobWaiter` waits until link:spark-scheduler.adoc[DAGScheduler] completes the job and passes the results of tasks to a `resultHandler` function.
+* FIXME others
+
+=== Stages (and a bit on job submission)
+
+A *stage* is a set of (parallel) tasks that compute results of a function on partitions of the RDD that need to run as part of a Spark job.
+
+Spark stages are created by breaking the RDD graph at shuffle boundaries. RDD operations with "narrow" dependencies, like `map()` and `filter()`, are pipelined together into one set of tasks in each stage, but operations with shuffle dependencies require multiple stages, i.e. one to write a set of map output files, and another to read those files after a barrier. In the end, every stage will have only shuffle dependencies on other stages, and may compute multiple operations inside it. The actual pipelining of these operations happens in the `RDD.compute()` functions of various RDDs, e.g. MappedRDD, FilteredRDD, etc.
 
 Each stage contains a sequence of link:spark-rdd.adoc[narrow transformations] that can be completed without link:spark-rdd-shuffling.adoc[shuffling] the entire data set, separated at shuffle boundaries.
 
@@ -208,3 +254,11 @@ FIXME
 * What is *adaptive query planning*?
 * statistics? `MapOutputStatistics`?
 ====
+
+=== [[cache-tracking]] Cache Tracking
+
+DAGScheduler figures out (tracks?) which RDDs are cached to avoid recomputing them and likewise remembers which shuffle map stages have already produced output files to avoid redoing the map side of a shuffle.
+
+=== Preferred Locations
+
+DAGScheduler computes where to run each task in a stage based on link:spark-rdd.adoc[the preferred locations of its underlying RDDs], or <<cache-tracking, the location of cached or shuffle data>>.
