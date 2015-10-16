@@ -2,7 +2,7 @@
 
 [NOTE]
 ====
-The introduction that follows is an almost exact copy of scaladoc of https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/scheduler/DAGScheduler.scala[org.apache.spark.scheduler.DAGScheduler]. As a private class it does not appear in the official API documentation, though. You are strongly encouraged to read https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/scheduler/DAGScheduler.scala[the sources] and read the page afterwards.
+The introduction that follows is an almost exact copy of scaladoc of https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/scheduler/DAGScheduler.scala[org.apache.spark.scheduler.DAGScheduler]. As DAGScheduler is a private class it does not appear in the official API documentation. You are strongly encouraged to read https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/scheduler/DAGScheduler.scala[the sources] and read the page afterwards.
 
 _"Reading the sources"_?! Yes, I _am_ kidding!
 ====
@@ -34,11 +34,13 @@ log4j.logger.org.apache.spark.scheduler.DAGScheduler=DEBUG
 ```
 ====
 
+DAGScheduler has a direct dependency on link:spark-taskscheduler.adoc[Task Scheduler], link:spark-listeners.adoc[Listener Bus], MapOutputTrackerMaster (TK) and link:spark-block-manager.adoc[Block Manager]. It also  reports metrics about its execution (refer to the section <<metrics, Metrics>>).
+
 === Jobs
 
 *Jobs* (aka _action jobs_) are top-level work items submitted to the scheduler that are triggered as a result of executing an action in a Spark user program.
 
-Each job may require the execution of multiple stages to build intermediate data.
+Each job may require the execution of multiple <<stages, stages>> to build intermediate data.
 
 Actions, like `count()`, use `SparkContext.runJob[T, U: ClassTag](rdd: RDD[T], func: Iterator[T] => U): Array[U]` to schedule jobs (that are run on all partitions of the RDD and return the results in an array).
 
@@ -48,29 +50,31 @@ scala> sc.runJob(lines, (t: TaskContext, i: Iterator[String]) => 1)
 res0: Array[Int] = Array(1, 1)
 ----
 
-`SparkContext.runJob` uses link:spark-scheduler.adoc[DAGScheduler.runJob()] and also does link:spark-rdd-checkpointing.adoc[checkpointing].
+Eventually, `SparkContext.runJob` uses link:spark-scheduler.adoc[DAGScheduler.runJob()] (and also does link:spark-rdd-checkpointing.adoc[checkpointing]).
 
 The following are the types of jobs:
 
-* `JobWaiter` waits until link:spark-scheduler.adoc[DAGScheduler] completes the job and passes the results of tasks to a `resultHandler` function.
+* `JobWaiter` waits until DAGScheduler completes the job and passes the results of tasks to a `resultHandler` function.
 * FIXME others
 
-=== Stages (and a bit on job submission)
+=== [[stages]] Stages (and a bit on job submission)
 
-A *stage* is a set of (parallel) tasks that compute results of a function on partitions of the RDD that need to run as part of a Spark job.
+When a job is submitted (link:spark-rdd.adoc[as a result of calling an action]), a new `ResultStage` stage is created (with the parent stages linked in `newResultStage`).
 
-Spark stages are created by breaking the RDD graph at shuffle boundaries. RDD operations with "narrow" dependencies, like `map()` and `filter()`, are pipelined together into one set of tasks in each stage, but operations with shuffle dependencies require multiple stages, i.e. one to write a set of map output files, and another to read those files after a barrier. In the end, every stage will have only shuffle dependencies on other stages, and may compute multiple operations inside it. The actual pipelining of these operations happens in the `RDD.compute()` functions of various RDDs, e.g. MappedRDD, FilteredRDD, etc.
+A *stage* is a set of (parallel) tasks that compute results of a function on partitions of a RDD that need to run as part of a Spark job.
 
-Each stage contains a sequence of link:spark-rdd.adoc[narrow transformations] that can be completed without link:spark-rdd-shuffling.adoc[shuffling] the entire data set, separated at shuffle boundaries.
+Spark stages are created by breaking the RDD graph at shuffle boundaries. DAGScheduler splits up a job into a collection of one or many stages. Stages are split up at the boundaries where shuffle occurs, called *shuffle boundaries*.
 
 *Shuffle boundaries* introduce a barrier where stages/tasks must wait for the previous stage to finish to fetch outputs.
 
-When a job is submitted (link:spark-rdd.adoc[as a result of calling an action]), a new `ResultStage` is created (with the parent stages linked in `newResultStage`).
-
-This is the moment where `DAGScheduler` splits up a job into a collection of one or many stages. Stages are split up at the boundaries where shuffle occurs.
-
 .DAGScheduler splits a job into stages
 image::diagrams/scheduler-job-splits-into-stages.png[]
+
+RDD operations with link:spark-rdd.adoc[narrow dependencies], like `map()` and `filter()`, are pipelined together into one set of tasks in each stage, but operations with shuffle dependencies require multiple stages, i.e. one to write a set of map output files, and another to read those files after a barrier.
+
+In the end, every stage will have only shuffle dependencies on other stages, and may compute multiple operations inside it. The actual pipelining of these operations happens in the `RDD.compute()` functions of various RDDs, e.g. `MappedRDD`, `FilteredRDD`, etc.
+
+Each stage contains a sequence of link:spark-rdd.adoc[narrow transformations] that can be completed without link:spark-rdd-shuffling.adoc[shuffling] the entire data set, separated at shuffle boundaries.
 
 DAGScheduler runs stages in topological order.
 
@@ -262,3 +266,19 @@ DAGScheduler figures out (tracks?) which RDDs are cached to avoid recomputing th
 === Preferred Locations
 
 DAGScheduler computes where to run each task in a stage based on link:spark-rdd.adoc[the preferred locations of its underlying RDDs], or <<cache-tracking, the location of cached or shuffle data>>.
+
+=== [[metrics]] Metrics
+
+Spark's DAGScheduler uses link:spark-metricks.adoc[Spark Metrics System] (via `DAGSchedulerSource`) to report metrics about its execution.
+
+The name of the source is *DAGScheduler*.
+
+It emits the following numbers:
+
+* stage / failedStages - the number of failed stages
+* stage / runningStages - the number of running stages
+* stage / waitingStages - the number of waiting stages
+* job / allJobs - the number of all jobs
+* job / activeJobs - the number of active jobs
+
+CAUTION: FIXME How to use the metrics to monitor Spark using jconsole?
