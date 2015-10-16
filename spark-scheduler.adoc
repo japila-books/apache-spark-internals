@@ -42,6 +42,10 @@ DAGScheduler has a direct dependency on link:spark-taskscheduler.adoc[Task Sched
 
 Each job may require the execution of multiple <<stages, stages>> to build intermediate data.
 
+Internally, a running job is represented by the private class `ActiveJob`.
+
+CAUTION: FIXME Review `ActiveJob`
+
 Actions, like `count()`, use `SparkContext.runJob[T, U: ClassTag](rdd: RDD[T], func: Iterator[T] => U): Array[U]` to schedule jobs (that are run on all partitions of the RDD and return the results in an array).
 
 [source,scala]
@@ -145,7 +149,9 @@ When no tasks in a stage can be submitted, the following DEBUG message shows in 
 FIXME
 ```
 
-Each Stage also has a `firstJobId`, identifying the job that first submitted the stage.
+Each stage has also a `firstJobId`, identifying the job that first submitted the stage.
+
+A stage has an *id*.
 
 ==== Stage sharing
 
@@ -172,7 +178,6 @@ FIXME Where is `ShuffleMapStage` used?
 * `newOrUsedShuffleStage`
 * `handleMapStageSubmitted`
 * `shuffleToMapStage` - `private[scheduler]` HashMap
-* `ActiveJob`
 ====
 
 === RDD, job execution, stages, and partitions
@@ -261,7 +266,21 @@ FIXME
 
 === [[cache-tracking]] Cache Tracking
 
-DAGScheduler figures out (tracks?) which RDDs are cached to avoid recomputing them and likewise remembers which shuffle map stages have already produced output files to avoid redoing the map side of a shuffle.
+DAGScheduler tracks which RDDs are cached to avoid recomputing them and likewise remembers which shuffle map stages have already produced output files to avoid redoing the map side of a shuffle.
+
+The internal `cacheLocs` is a map with keys being RDD ids and the values being arrays indexed by partition numbers. Each array value is the set of locations where that RDD partition is cached.
+
+[CAUTION]
+====
+FIXME:
+
+* A diagram would be awesome.
+* Review the use of `cacheLocs`
+====
+
+If link:spark-rdd-caching.adoc[a storage level of an RDD is NONE], there is no need to get locations from link:spark-blockmanager.adoc[block manager]. Otherwise, `RDDBlockId` is created and Block Manager gets asked for locations.
+
+CAUTION: FIXME Review `TaskLocation`
 
 === Preferred Locations
 
