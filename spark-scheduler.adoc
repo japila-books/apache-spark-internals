@@ -42,14 +42,7 @@ DAGScheduler has a direct dependency on link:spark-taskscheduler.adoc[Task Sched
 
 Each job may require the execution of multiple <<stages, stages>> to build intermediate data.
 
-Internally, a running job is represented by the `private[spark]` class `ActiveJob`.
-
-[CAUTION]
-====
-FIXME
-
-* When can ActiveJob (and hence a Spark job) have `finalStage` `ResultStage` vs `ShuffleMapStage`?
-====
+Internally, a running job is represented by instances of the `private[spark]` class `ActiveJob`.
 
 All <<spark-rdd.adoc#actions,actions>> in Spark use `SparkContext.runJob[T, U: ClassTag](rdd: RDD[T], func: Iterator[T] => U): Array[U]` to schedule jobs (that are run on all partitions of the RDD and return the results in an array).
 
@@ -61,10 +54,23 @@ res0: Array[Int] = Array(1, 1)
 
 Eventually, `SparkContext.runJob` uses link:spark-scheduler.adoc[DAGScheduler.runJob() and submitJob()] (and also does link:spark-rdd-checkpointing.adoc[checkpointing]). It triggers posting `JobSubmitted` event (see <<event-loop,Event loop>>).
 
-The following are the types of jobs:
+Jobs can be of two (logical) types:
+
+* *result job* that computes a `ResultStage` to execute an action
+* *map-stage job* that computes the map outputs for a `ShuffleMapStage` (for `submitMapStage`) before any downstream stages are submitted. It is used for *adaptive query planning*, to look at map output statistics before submitting later stages.
+
+Jobs track how many partitions have already been computed (using `finished` array of `Boolean` field).
+
+==== Job Listener and Events
+
+You can listen for job completion or failure events after submitting a job to the DAGScheduler using `JobListener`.
+
+The job listener is notified each time a task succeeds, as well as if the whole job fails (and no further `taskSucceeded` events will happen).
+
+The following are the job listeners used:
 
 * `JobWaiter` waits until DAGScheduler completes the job and passes the results of tasks to a `resultHandler` function.
-* FIXME others
+* `ApproximateActionListener` FIXME
 
 === [[stages]] Stages (and a bit on job submission)
 
@@ -132,6 +138,8 @@ FIXME What's `ShuffleMapStage.outputLocs`?
 
 At some point of time in a stage's life, every partition of the stage gets transformed into a task - `ShuffleMapTask` or `ResultTask` for `ShuffleMapStage` and `ResultStage`, respectively.
 
+Partitions are computed in jobs, and result stages may not always need to compute all partitions in their target RDD, e.g. for actions like `first()` and `lookup()`.
+
 `DAGScheduler` prints the following INFO message when there are tasks to submit:
 
 ```
@@ -144,9 +152,7 @@ There is also the following DEBUG message with pending partitions:
 DEBUG DAGScheduler: New pending partitions: Set(0)
 ```
 
-Tasks are then submitted to `TaskScheduler` (via `taskScheduler.submitTasks`).
-
-CAUTION: FIXME Review `TaskScheduler`.
+Tasks are later submitted to link:spark-taskscheduler.adoc[Task Scheduler] (via `taskScheduler.submitTasks`).
 
 When no tasks in a stage can be submitted, the following DEBUG message shows in the logs:
 

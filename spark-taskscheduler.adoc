@@ -2,12 +2,39 @@
 
 *Tasks* are individual units of work, each sent to one machine.
 
+Each Task Scheduler schedules tasks for a single SparkContext.
+
+These schedulers get sets of tasks submitted to them from the DAGScheduler for each stage, and are responsible for sending the tasks to the cluster, running them, retrying if there are failures, and mitigating stragglers.
+
+They return events to the DAGScheduler.
+
+Task Scheduler is currently implemented exclusively (FIXME ?) by `TaskSchedulerImpl`.
+
+Task Scheduler can work in two scheduling modes - *FAIR* and *FIFO* - that determine policy to order tasks across a Schedulable's sub-queues. *NONE* means no sub-queues.
+
+* *FIFO* - no pools; one root pool with TaskSetManagers; lower priority gets Schedulable sooner or earlier stage wins.
+* *FAIR* - more advanced
+
 A `TaskSet` contains fully independent tasks that can run right away based on the data that is already on the cluster, e.g. map output files from previous stages, though it may fail if this data becomes unavailable.
+
+Settings:
+
+* `spark.task.maxFailures` (default: `4`)
+* `spark.speculation.interval` (default: `100ms`)
+* `spark.task.cpus` (default: `1`) - how many CPUs to request per task.
+* `spark.scheduler.mode` (default: `FIFO`)
 
 [CAUTION]
 ====
 Todos:
 
 * `TaskSetManager`
-* `TaskSchedulerImpl.submitTasks`
 ====
+
+Tasks are submitted for execution using `submitTasks(taskSet: TaskSet)`.
+
+```
+INFO TaskSchedulerImpl: Adding task set 1.0 with 4 tasks
+```
+
+TaskSet belongs to a single stage.

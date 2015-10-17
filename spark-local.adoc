@@ -1,18 +1,58 @@
 == Spark local
 
-You can run Spark in *local mode*. In this non-distributed single-JVM mode, Spark spawns all the execution components - the driver et al. - in the same JVM.
+You can run Spark in *local mode*. In this non-distributed single-JVM mode, Spark spawns all the execution components - the executor, backend, and master - in the same JVM.
 
-The local mode is very convenient for testing, debugging or demonstration purposes as it requires no ealier setup to launch Spark applications.
+The local mode is very convenient for testing, debugging or demonstration purposes as it requires no earlier setup to launch Spark applications.
 
 This mode of operation is also called  http://spark.apache.org/docs/latest/programming-guide.html#initializing-spark[Spark in-process] or (less commonly) *a local version of Spark*.
 
-You can run a Spark application in local mode using `local` or `local[n]` (with `n` being the number of cores to use) or the most general `local[*]` for the master URL.
+You can run Spark in local mode using `local` or `local[n]` (with `n` being the number of cores to use) or the most general `local[*]` for the master URL.
 
 `SparkContext.isLocal` returns `true` when Spark runs in local mode.
 
-The Spark shell defaults to local mode (unless `--master` is used with non-`local` URL).
+link:spark-shell.adoc[Spark shell] defaults to local mode (unless `--master` is used with non-`local` master URL).
 
 ```
 scala> sc.isLocal
 res0: Boolean = true
+```
+
+Tasks are not re-executed on failure in local mode.
+
+link:spark-taskscheduler.adoc[The task scheduler] used in local mode is `TaskSchedulerImpl` with `LocalBackend` task scheduler backend.
+
+Settings:
+
+* `spark.executor.extraClassPath` - a list of URLs representing the user classpath. Each entry is separated by system-dependent path separator, i.e. `:` on Unix/MacOS systems and `;` on Microsoft Windows.
+
+```
+scala> sc.getConf.getOption("spark.executor.extraClassPath")
+res12: Option[String] = None
+```
+
+=== LocalEndpoint
+
+When Spark local starts up it prints out the following messages:
+
+```
+INFO Executor: Starting executor ID driver on host localhost
+INFO Executor: Using REPL class URI: http://192.168.1.4:56131
+```
+
+It is a local endpoint with id *driver* running on *localhost* hostname that hosts a Spark *executor* (slave) backed by a thread pool to run tasks.
+
+The thread pool's name is `Executor task launch worker`
+
+When you execute an action that ultimately triggers task execution you should see the following INFO logs:
+
+```
+INFO Executor: Running task 0.0 in stage 2.0 (TID 8)
+```
+
+`TID` is the task's id being executed in `Executor task launch worker-8`.
+
+You can later see the INFO log:
+
+```
+INFO Executor: Finished task 0.0 in stage 2.0 (TID 8). 2082 bytes result sent to driver
 ```
