@@ -88,7 +88,7 @@ Transformations do nothing until an action executes and triggers execution.
 
 There are two types of transformations:
 
-* *narrow transformations* - the result of `map`, `filter` and such that is from the data from a single partition only, i.e. it is a self-sustain.
+* *narrow transformations* - the result of `map`, `filter` and such that is from the data from a single partition only, i.e. it is self-sustained.
 +
 An output RDD has partitions with records that originate from a single partition in the parent RDD. Only a limited subset of partitions used to calculate the result.
 +
@@ -108,15 +108,9 @@ Transformation operations:
 
 === [[actions]] Actions
 
-An *action* triggers execution of <<transformations, RDD transformations>> and return a value (to a Spark driver).
+An *action* triggers execution of <<transformations, RDD transformations>> and returns a value (to a Spark driver).
 
-You can think of actions as a valve and until no action is fired, the data to be processed is not even in the pipes, i.e. transformations. The flow is closed. It is only actions to materialize the entire processing pipeline with real data.
-
-[source,scala]
-----
-scala> words.count
-res20: Long = 502
-----
+You can think of actions as a valve and until no action is fired, the data to be processed is not even in the pipes, i.e. transformations. They are only actions to materialize the entire processing pipeline with real data.
 
 Action operations:
 
@@ -124,17 +118,27 @@ Action operations:
 * `reduce`
 * `collect`
 * `take`
+* `first`
 * `saveAsTextFile`
 * `saveAsHadoopFile`
 * `countByValue`
 
-Internally, actions launch *jobs* (on all partitions in an RDD) to return a value to the user program, e.g. `RDD.count`.
+Internally, actions launch *jobs* (on all partitions of an RDD) to return a value to the user program.
+
+[source,scala]
+----
+scala> words.count  // <1>
+res0: Long = 502
+----
+<1> `words` is an RDD of `String`.
 
 TIP: You should `cache` an RDD you work with when you want to execute two or more actions on it for better performance. Refer to link:spark-rdd-caching.adoc[RDD Caching / Persistence].
 
-Refer to link:spark-execution-model.adoc[Spark Execution Model] to learn the low-level details of actions.
+Before calling an action, Spark does closure/function cleaning (using `SparkContext.clean`) to make it ready to be serialized and send to tasks.
 
-CAUTION: FIXME What does the setting `spark.logLineage` do?
+NOTE: Spark uses `ClosureCleaner` to clean closures.
+
+Refer to link:spark-execution-model.adoc[Spark Execution Model] to learn the low-level details of actions.
 
 === Creating RDDs
 
@@ -243,9 +247,7 @@ res3: Seq[org.apache.spark.Dependency[_]] = List(org.apache.spark.OneToOneDepend
 
 === [[lineage]] RDD Lineage
 
-...FIXME
-
-=== toDebugString
+==== toDebugString
 
 ```
 scala> val wordsCount = sc.textFile("README.md").flatMap(_.split("\\s+")).map((_, 1)).reduceByKey(_ + _)
@@ -258,6 +260,24 @@ res2: String =
     |  MapPartitionsRDD[22] at flatMap at <console>:24 []
     |  MapPartitionsRDD[21] at textFile at <console>:24 []
     |  README.md HadoopRDD[20] at textFile at <console>:24 []
+```
+
+==== spark.logLineage
+
+Enable `spark.logLineage` (assumed: `false`) to see recursive dependencies of RDDs using `RDD.toDebugString` method every time an action is called.
+
+```
+$ ./bin/spark-shell --conf spark.logLineage=true
+...
+scala> System.getProperty("spark.logLineage")
+res0: String = true
+
+scala> sc.textFile("README.md", 4).count
+...
+15/10/17 14:46:42 INFO SparkContext: Starting job: count at <console>:25
+15/10/17 14:46:42 INFO SparkContext: RDD's recursive dependencies:
+(4) MapPartitionsRDD[1] at textFile at <console>:25 []
+ |  README.md HadoopRDD[0] at textFile at <console>:25 []
 ```
 
 === Other findings

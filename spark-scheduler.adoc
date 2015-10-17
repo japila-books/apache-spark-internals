@@ -38,15 +38,20 @@ DAGScheduler has a direct dependency on link:spark-taskscheduler.adoc[Task Sched
 
 === Jobs
 
-*Jobs* (aka _action jobs_) are top-level work items submitted to the scheduler that are triggered as a result of executing an action in a Spark user program.
+*Jobs* (aka _action jobs_) are top-level work items submitted to DAGScheduler that are triggered as a result of executing an action in a Spark user program.
 
 Each job may require the execution of multiple <<stages, stages>> to build intermediate data.
 
-Internally, a running job is represented by the private class `ActiveJob`.
+Internally, a running job is represented by the `private[spark]` class `ActiveJob`.
 
-CAUTION: FIXME Review `ActiveJob`
+[CAUTION]
+====
+FIXME
 
-Actions, like `count()`, use `SparkContext.runJob[T, U: ClassTag](rdd: RDD[T], func: Iterator[T] => U): Array[U]` to schedule jobs (that are run on all partitions of the RDD and return the results in an array).
+* When can ActiveJob (and hence a Spark job) have `finalStage` `ResultStage` vs `ShuffleMapStage`?
+====
+
+All <<spark-rdd.adoc#actions,actions>> in Spark use `SparkContext.runJob[T, U: ClassTag](rdd: RDD[T], func: Iterator[T] => U): Array[U]` to schedule jobs (that are run on all partitions of the RDD and return the results in an array).
 
 [source,scala]
 ----
@@ -54,7 +59,7 @@ scala> sc.runJob(lines, (t: TaskContext, i: Iterator[String]) => 1)
 res0: Array[Int] = Array(1, 1)
 ----
 
-Eventually, `SparkContext.runJob` uses link:spark-scheduler.adoc[DAGScheduler.runJob()] (and also does link:spark-rdd-checkpointing.adoc[checkpointing]).
+Eventually, `SparkContext.runJob` uses link:spark-scheduler.adoc[DAGScheduler.runJob() and submitJob()] (and also does link:spark-rdd-checkpointing.adoc[checkpointing]). It triggers posting `JobSubmitted` event (see <<event-loop,Event loop>>).
 
 The following are the types of jobs:
 
@@ -167,12 +172,15 @@ In other words, `ShuffleMapStage` is a stage with additional `ShuffleDependency`
 
 ShuffleMapStages can also be submitted independently as jobs with `DAGScheduler.submitMapStage`.
 
-CAUTION: FIXME Understand the scaladoc
+The number of the partitions of an RDD is exactly the number of the tasks in a `ShuffleMapStage`.
+
+The output locations (`outputLocs`) of a `ShuffleMapStage` are the same as used by its `ShuffleDependency`. Output locations can be missing, i.e. partitions have not been cached or are lost.
 
 [CAUTION]
 ====
 FIXME Where is `ShuffleMapStage` used?
 
+* Review `ShuffleMapStage`'s scaladoc
 * `newShuffleMapStage`
 * `getShuffleMapStage`
 * `newOrUsedShuffleStage`
@@ -206,7 +214,7 @@ A `SparkListenerJobStart` event is posted to link:spark-listeners.adoc[listenerB
 
 CAUTION: FIXME What events are posted and when?
 
-=== Event loop
+=== [[event-loop]]Event loop
 
 `DAGScheduler.eventProcessLoop` (of type `DAGSchedulerEventProcessLoop`) - is the event process loop to which Spark posts jobs to schedule execution.
 
@@ -301,3 +309,8 @@ It emits the following numbers:
 * job / activeJobs - the number of active jobs
 
 CAUTION: FIXME How to use the metrics to monitor Spark using jconsole?
+
+=== Other goodies
+
+* List of `ScheduledExecutorService` in DAGScheduler (perhaps should be described for Spark in general):
+** `dag-scheduler-message` - a daemon thread pool using `j.u.c.ScheduledThreadPoolExecutor` with core pool size `1`. It is used to post `ResubmitFailedStages` when `FetchFailed` is reported.
