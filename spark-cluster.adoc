@@ -2,15 +2,26 @@
 
 Spark can run on the following (open source) *cluster managers* (also called *schedulers*):
 
-* Spark's own *Standalone cluster* manager
-* *Hadoop YARN*
-* *Apache Mesos*
+* link:spark-standalone.adoc[Spark's own Standalone cluster manager]
+* link:spark-yarn.adoc[Hadoop YARN]
+* link:spark-mesos.adoc[Apache Mesos]
 
 It can be on-premise or in cloud.
 
 Running Spark in cluster requires workload and resource management on distributed systems.
 
-Spark driver communicates with cluster manager for resources, e.g. CPU, memory, disk. The cluster manager spawns Spark executors in the cluster. After the executors are started, the Spark driver communicates with the Spark executors directly to launch jobs (as tasks).
+Spark driver communicates with a cluster manager for resources, e.g. CPU, memory, disk. The cluster manager spawns Spark executors in the cluster.
+
+[CAUTION]
+====
+FIXME
+
+* Spark execution in cluster - Diagram of the communication between driver, cluster manager, workers with executors and tasks. See http://spark.apache.org/docs/latest/cluster-overview.html[Cluster Mode Overview].
+** Show Spark's driver with the main code in Scala in the box
+** Nodes with executors with tasks
+====
+
+The workers are in charge of communicating the cluster manager the availability of their resources.
 
 Communication with a driver is through a RPC interface (at the moment Akka), except link:spark-mesos.adoc[Mesos in fine-grained mode].
 
@@ -24,26 +35,9 @@ Spark reuses resources in a cluster for:
 
 Reusing also means the the resources can be hold onto for a long time.
 
-Spark reuses long-running executors for speed (contrary to MR using short-lived containers for each task).
+Spark reuses long-running executors for speed (contrary to Hadoop MapReduce using short-lived containers for each task).
 
-=== Master/slave architecture of Spark
-
-Spark uses a *master/slave architecture*. It has a single coordinator, *driver* (also called *master*, internally), that communicates with one or more distributed workers, i.e. *executors*.
-
-The driver and the executors run in their own Java processes. You can run them all on the same (_horizontal cluster_) or separate machines (_vertical cluster_) or in a mixed machine configuration.
-
-Internally, a Spark executor is backed by a threadpool to run tasks.
-
-Each executor can run multiple tasks over its lifetime, both parallel and sequentially.
-
-It’s recommended to have as many executors as data nodes and as many cores as you can get from the cluster.
-
-.FIXME Diagram of Spark architecture
-
-Master/slave architecture of Spark in cluster:
-
-* *driver* coordinates workers and execution. The driver is the process that launches the `main` method of your Spark application. It splits Spark applications into tasks and schedules them to run on the available executors.
-* *executors* are distributed workers that run tasks for a Spark *job*. They typically run for the entire lifetime of the Spark application. They communicate with the driver to send computation results back. Executors provide in-memory storage for RDDs that are cached in Spark applications (via link:spark-blockmanager.adoc[Block Manager]).
+=== Spark Application Submission to Cluster
 
 When you submit a Spark application to the cluster this is what happens (see the answers to http://stackoverflow.com/q/32621990/1305344[the answer to What are workers, executors, cores in Spark Standalone cluster?] on StackOverflow):
 
@@ -54,52 +48,9 @@ When you submit a Spark application to the cluster this is what happens (see the
 * Executors run the tasks and save the results.
 * Right after `SparkContext.stop()` is executed from the driver or the `main` method has exited all the executors are terminated and the cluster resources are released by the cluster manager.
 
-When executors are started they register themselves with the driver and communicate directly. The workers are in charge of communicating the cluster manager the availability of their resources.
-
-* How many executors are spawned per worker?
-* How many cores are assigned per executor?
-
 NOTE: _"There's not a good reason to run more than one worker per machine."_ by *Sean Owen* in http://stackoverflow.com/q/24696777/1305344[What is the relationship between workers, worker instances, and executors?]
 
 CAUTION: One executor per node may not always be ideal, esp. when your nodes have lots of RAM. On the other hand, using fewer executors has benefits like more efficient broadcasts.
-
-=== Executors
-
-An executor has its own id, hostname, classpath, environment (as `SparkEnv`), and whether it runs in link:spark-local.adoc[local] or cluster mode (aka `isLocal`).
-
-When an executor is started the following message is printed out in the logs:
-
-```
-INFO Executor: Starting executor ID [executorId] on host [executorHostname]
-INFO Executor: Using REPL class URI: http://192.168.1.4:56131
-```
-
-TIP: Enable `INFO` logging level for `org.apache.spark.executor.Executor` logger to see what happens under the hood in executors.
-
-Executors use daemon cached thread pools for sending metrics and execute tasks. They also use a `driver-heartbeater` daemon single thread executor for sending heartbeats back to the driver. Heartbeats and partial metrics for active tasks are sent to the driver every `spark.executor.heartbeatInterval` (default: `10s`).
-
-It creates an RPC endpoint for receiving RPCs from the driver.
-
-FIXME How to know the available endpoints?
-
-`spark.executor.userClassPathFirst` (default: `false`) controls whether to load classes in user jars before those in Spark jars.
-
-=== Executor backends (and schedulers)
-
-An *executor backend* manages a single executor. At startup, it connects to the driver and creates an executor. It then launches and kills tasks. It stops when the driver orders so.
-
-An executor backend acts as a bridge between the driver and an executor, i.e. there are two endpoints.
-
-It asks the driver for the driver's Spark properties
-
-TIP: Enable `INFO` for `org.apache.spark.executor.CoarseGrainedExecutorBackend` to see the inner-workings.
-
-There are the following kinds of executor backends:
-
-* local executor backend
-* <<coarse-grained, coarse-grained executor backend>>
-** used for YARN and coarse-grained mode in Mesos
-* Mesos executor backend
 
 ==== [[coarse-grained]] CoarseGrainedExecutorBackend
 
@@ -128,7 +79,11 @@ A Spark application consists of a single driver process and a set of executor pr
 
 Both the driver and the executors usually run as long as the application. The concept of *dynamic resource allocation* has changed it.
 
-*TODO* Figure
+CAUTION: FIXME Figure
+
+A node is a machine, and there's not a good reason to run more than one worker per machine. So two worker nodes typically means two machines, each a Spark worker.
+
+Workers hold many executors for many applications. One application has executors on many workers.
 
 === Spark Master
 
@@ -147,23 +102,11 @@ Both the driver and the executors usually run as long as the application. The co
 ** Creates SparkContext that's available as `sc`.
 * Launches link:spark-execution-model.adoc[tasks]
 
+There are two submit mode, i.e. where a driver runs. In *client-mode*, it runs on the machine that submits the job whereas in *cluster-mode*, a driver runs on a (random) machine in the cluster.
+
 === Executors
 
 * Distributed workers
 * Responsible for executing link:spark-execution-model.adoc[tasks]
 * Responsible for storing any data that the user chooses to cache
 * Can run many tasks in parallel
-
-=== Cluster Managers
-
-==== Spark's Standalone cluster manager
-
-It's *a Spark built-in cluster manager* that comes with the Apache Spark distribution.
-
-==== Spark on Hadoop YARN
-
-...
-
-==== Spark on Mesos
-
-...

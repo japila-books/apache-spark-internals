@@ -12,11 +12,19 @@ Todos:
 ** Fair
 ====
 
+Spark Deployment modes:
+
+* *local*
+* *cluster*
+** link:spark-standalone.adoc[Spark Standalone]
+** link:spark-yarn.adoc[Spark on YARN]
+** link:spark-mesos.adoc[Spark on Mesos]
+
 A *driver* is where the task scheduler lives and spawns tasks across workers. Tasks are spawned one by one for each stage and data partition.
 
-A *worker* is...
+A *worker* is where the executors live and tasks execute.
 
-FIXME Diagram of a driver with workers as boxes.
+CAUTION: FIXME Diagram of a driver with workers as boxes.
 
 Explain task execution in Spark and understand Spark’s underlying execution model.
 
@@ -56,6 +64,74 @@ Therefore, you should not map your steps to tasks directly. A task belongs to a 
 The number of tasks being generated in each stage will be equal to the number of partitions.
 
 spark compute nodes
+
+
+=== Master/slave architecture of Spark
+
+Spark uses a *master/slave architecture*. It has a single coordinator, *driver* (also called *master*, internally), that communicates with one or more distributed workers, i.e. *executors*.
+
+The driver and the executors run in their own Java processes. You can run them all on the same (_horizontal cluster_) or separate machines (_vertical cluster_) or in a mixed machine configuration.
+
+Internally, a Spark executor is backed by a thread pool to run tasks.
+
+Each executor can run multiple tasks over its lifetime, both parallel and sequentially.
+
+It’s recommended to have as many executors as data nodes and as many cores as you can get from the cluster.
+
+.FIXME Diagram of Spark architecture
+
+Master/slave architecture of Spark in cluster:
+
+* *driver* coordinates workers and execution. The driver is the process that launches the `main` method of your Spark application. It splits Spark applications into tasks and schedules them to run on the available executors.
+* *executors* are distributed workers that run tasks for a Spark *job*. They typically run for the entire lifetime of the Spark application. They communicate with the driver to send computation results back. Executors provide in-memory storage for RDDs that are cached in Spark applications (via link:spark-blockmanager.adoc[Block Manager]).
+
+When executors are started they register themselves with the driver and communicate directly to launch jobs (as tasks).
+
+[CAUTION]
+====
+FIXME
+
+* How many executors are spawned per worker?
+* How many cores are assigned per executor?
+====
+
+=== Executors
+
+An executor has its own id, hostname, classpath, environment (as `SparkEnv`), and whether it runs in link:spark-local.adoc[local] or cluster mode (aka `isLocal`).
+
+When an executor is started the following message is printed out in the logs:
+
+```
+INFO Executor: Starting executor ID [executorId] on host [executorHostname]
+INFO Executor: Using REPL class URI: http://192.168.1.4:56131
+```
+
+TIP: Enable `INFO` logging level for `org.apache.spark.executor.Executor` logger to see what happens under the hood in executors.
+
+Executors use daemon cached thread pools for sending metrics and execute tasks. They also use a `driver-heartbeater` daemon single thread executor for sending heartbeats back to the driver. Heartbeats and partial metrics for active tasks are sent to the driver every `spark.executor.heartbeatInterval` (default: `10s`).
+
+It creates an RPC endpoint for receiving RPCs from the driver.
+
+FIXME How to know the available endpoints?
+
+`spark.executor.userClassPathFirst` (default: `false`) controls whether to load classes in user jars before those in Spark jars.
+
+=== [[executor-backends]] Executor backends (and schedulers)
+
+An *executor backend* manages a single executor. At startup, it connects to the driver and creates an executor. It then launches and kills tasks. It stops when the driver orders so.
+
+An executor backend acts as a bridge between the driver and an executor, i.e. there are two endpoints.
+
+It asks the driver for the driver's Spark properties
+
+TIP: Enable `INFO` for `org.apache.spark.executor.CoarseGrainedExecutorBackend` to see the inner-workings.
+
+There are the following kinds of executor backends:
+
+* local executor backend
+* <<coarse-grained, coarse-grained executor backend>>
+** used for YARN and coarse-grained mode in Mesos
+* Mesos executor backend
 
 === Others
 

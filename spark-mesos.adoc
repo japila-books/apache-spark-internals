@@ -1,11 +1,5 @@
 == Spark on Mesos
 
-From https://developer.ibm.com/bluemix/2015/09/09/four-reasons-pay-attention-to-apache-mesos/[Four reasons to pay attention to Apache Mesos]:
-
-> Spark workloads can also be sensitive to the physical characteristics of the infrastructure, such as memory size of the node, access to fast solid state disk, or proximity to the data source.
-
-> to run Spark workloads well you need a resource manager that not only can handle the rapid swings in load inherent in analytics processing, but one that can do to smartly. Matching of the task to the RIGHT resources is crucial and awareness of the physical environment is a must. Mesos is designed to manage this problem on behalf of workloads like Spark.
-
 [CAUTION]
 ====
 Review:
@@ -16,13 +10,24 @@ Review:
 
 === Introduction to Mesos
 
-* Mesos is _a scheduler of schedulers_
-* Mesos is _a distributed systems kernel_
+* Mesos is _a distributed system kernel_
 * Mesos essentially uses a container architecture but is abstracted enough to allow seamless execution of multiple, sometimes identical, distributed systems on the same architecture, minus the resource overhead of virtualization systems. This includes appropriate resource isolation while still allowing for data locality needed for frameworks like MapReduce.
+* Mesos' computation-agnostic approach makes it suitable for
++
+> Program against your datacenter as a single pool of resources.
+* Concepts in Mesos:
+** *(Resource) Offers*, i.e. CPU cores, memory, ports, disk
+*** Mesos _offers resources_ to frameworks
+** *Frameworks*
+*** Frameworks _accept_ or _reject offers_
+*** (Mesos-specific) Chronos, Marathon
+*** Spark, HDFS, YARN (Myriad), Jenkins, Cassandra
+
+* Mesos is _a scheduler of schedulers_
+** Mesos is really an additional layer of (resource) scheduling on top of application frameworks that each bring their own brand of scheduling. Application schedulers interface with a Mesos master setup in a familiar Zookeeper-coordinated active-passive architecture, which passes jobs down to compute slaves to run the application of choice.
 * Mesos assigns jobs
-* Mesos itself is really an additional layer of scheduling on top of application frameworks that each bring their own brand of scheduling. Application schedulers interface with a Mesos master setup in a familiar Zookeeper-coordinated active-passive architecture, which passes jobs down to compute slaves to run the application of choice.
 * Mesos uses Zookeeper for master election and discovery. Apache Auroa is a scheduler that runs on Mesos.
-* Mesos slaves, masters, schedulers, executors, tasks, frameworks
+* Mesos slaves, masters, schedulers, executors, tasks
 * Mesos makes use of event-driven message passing.
 * Mesos is written in C++, not Java, and includes support for Docker along with other frameworks. Mesos, then, is the core of the Mesos Data Center Operating System, or DCOS, as it was coined by Mesosphere.
 * This Operating System includes other handy components such as Marathon and Chronos. Marathon provides cluster-wide “init” capabilities for application in containers like Docker or cgroups. This allows one to programmatically automate the launching of large cluster-based applications. Chronos acts as a Mesos API for longer-running batch type jobs while the core Mesos SDK provides an entry point for other applications like Hadoop and Spark.
@@ -34,16 +39,21 @@ Review:
 ** making the execution of YARN work on Mesos scheduled systems transparent, multi-tenant, and smoothly managed
 ** to allow Mesos to centrally schedule YARN work via a Mesos based framework, including a REST API for scaling up or down
 ** includes a Mesos executor for launching the node manager
-* Mesos frameworks
-** Chronos, Spark, YARN (Myriad), Jenkins, Marathon
-* Spark on Mesos supports link:spark-dynamic-allocation.adoc[dynamic allocation] in the Mesos coarse-grained scheduler
 
 === Schedulers in Mesos
 
-* the coarse-grained scheduler
-* `spark.mesos.coarse=true`
+Available scheduler modes:
 
-*Coarse grain mode* pre-starts all the Spark executor backends, so has the least overhead comparing to *fine grain*.
+* *fine-grained mode*
+* *coarse-grained mode* - `spark.mesos.coarse=true`
+
+The main difference between these two scheduler modes is the number of tasks per Spark executor per a single Mesos executor. In fine-grained mode, there is a single task in a single Spark executor that shares a single Mesos executor with the other Spark executors. In coarse-grained mode, there is a single Spark executor per Mesos executor with many Spark tasks.
+
+*Coarse-grained mode* pre-starts all the Spark executor backends, so it has the least overhead comparing to *fine-grain mode*. Since the executors are up before tasks get launched, it is better for interactive sessions. It also means that the resources are locked up in a task.
+
+Spark on Mesos supports link:spark-dynamic-allocation.adoc[dynamic allocation] in the Mesos coarse-grained scheduler since Spark 1.5. It can add/remove executors based on load, i.e. kills idle executors and adds executors when tasks queue up. It needs an link:spark-shuffle-service.adoc[external shuffle service] on each node.
+
+Mesos Fine-Grained Mode offers a better resource utilization. It has a slower startup for tasks and hence  it is fine for batch and relatively static streaming.
 
 === Commands
 
@@ -52,3 +62,11 @@ The following command is how you could execute a Spark application on Mesos:
 ```
 ./bin/spark-submit --master mesos://iq-cluster-master:5050 --total-executor-cores 2 --executor-memory 3G --conf spark.mesos.role=dev ./examples/src/main/python/pi.py 100
 ```
+
+=== Other Findings
+
+From https://developer.ibm.com/bluemix/2015/09/09/four-reasons-pay-attention-to-apache-mesos/[Four reasons to pay attention to Apache Mesos]:
+
+> Spark workloads can also be sensitive to the physical characteristics of the infrastructure, such as memory size of the node, access to fast solid state disk, or proximity to the data source.
+
+> to run Spark workloads well you need a resource manager that not only can handle the rapid swings in load inherent in analytics processing, but one that can do to smartly. Matching of the task to the RIGHT resources is crucial and awareness of the physical environment is a must. Mesos is designed to manage this problem on behalf of workloads like Spark.
