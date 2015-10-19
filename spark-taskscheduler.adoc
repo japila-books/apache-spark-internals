@@ -55,7 +55,7 @@ log4j.logger.org.apache.spark.scheduler.TaskSetManager=DEBUG
 * `spark.scheduler.executorTaskBlacklistTime` (default: `0L`) - time interval to pass after which a task can be re-launched on an executor where it has just failed. It can prevent repeated task failures.
 * `spark.speculation` (default: `false`)
 * `spark.speculation.interval` (default: `100ms`)
-* `spark.speculation.quantile` (default: `0.75`)
+* `spark.speculation.quantile` (default: `0.75`) - the percentage of tasks that has not finished yet.
 * `spark.speculation.multiplier` (default: `1.5`)
 
 ==== [[zombie-state]] Zombie state
@@ -64,13 +64,15 @@ TaskSetManager enters *zombie* state when at least one attempt of each task has 
 
 TaskSetManager remains in the zombie state until all tasks have finished running, i.e. to continue to track and account for the running tasks.
 
-=== Speculative execution of tasks
+=== [[speculative-execution]] Speculative execution of tasks
 
-*Speculative execution of tasks* is a process that checks for tasks to be *speculated*, i.e. running slower in a stage than the median of all successfully completed tasks in a taskset so they will be re-launched.
+*Speculative tasks* (also *speculatable tasks* or *task strugglers*) are tasks that run slower than most of the all tasks in a job.
 
-It is executed periodically by the TaskScheduler for link:spark-clusters.adoc[non-local deployment modes], i.e. clustered deployments, when <<tasksetmanager-settings, spark.speculation>> is enabled.
+*Speculative execution of tasks* is a health-check procedure that checks for tasks to be *speculated*, i.e. running slower in a stage than the median of all successfully completed tasks in a taskset. Such slow tasks will be re-launched in another worker. It will not stop the slow tasks, but run a new copy in parallel.
 
-When it is enabled, the following INFO message appears in the logs:
+It is executed periodically by the TaskScheduler for link:spark-clusters.adoc[clustered deployment modes], when <<tasksetmanager-settings, spark.speculation>> is enabled (`true`).
+
+With `spark.speculation` enabled, the following INFO message appears in the logs:
 
 ```
 INFO Starting speculative execution thread
@@ -88,7 +90,7 @@ You can find the DEBUG message in the logs:
 DEBUG Checking for speculative tasks: minFinished =
 ```
 
-It then computes the median duration of all the completed task length threshold for speculation to have it multiplied by <<tasksetmanager-settings, spark.speculation.multiplier>>. It has to be at least 100.
+It then computes the median duration of all the completed task length threshold for speculation to have it multiplied by <<tasksetmanager-settings, spark.speculation.multiplier>>. It has to be at least `100`.
 
 In the logs at DEBUG level:
 
@@ -103,3 +105,7 @@ In the logs at INFO level:
 ```
 INFO Marking task %d in stage %s (on %s) as speculatable because it ran more than %.0f ms
 ```
+
+The job with speculatable tasks should finish while speculative tasks are running, and it will leave these tasks running - no KILL command yet.
+
+1. How does Spark handle repeated results of speculative tasks since there are copies launched?
