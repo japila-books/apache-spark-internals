@@ -4,6 +4,9 @@
 
 Each Task Scheduler schedules tasks for a single SparkContext.
 
+.TaskScheduler works for a single SparkContext
+image::diagrams/taskscheduler-single-sparkcontext.png[align="center"]
+
 These schedulers get sets of tasks submitted to them from the DAGScheduler for each stage, and are responsible for sending the tasks to the cluster, running them, retrying if there are failures, and mitigating stragglers.
 
 They return events to the DAGScheduler.
@@ -24,13 +27,6 @@ Settings:
 * `spark.task.cpus` (default: `1`) - how many CPUs to request per task.
 * `spark.scheduler.mode` (default: `FIFO`)
 
-[CAUTION]
-====
-Todos:
-
-* `TaskSetManager`
-====
-
 Tasks are submitted for execution using `submitTasks(taskSet: TaskSet)`.
 
 ```
@@ -38,3 +34,72 @@ INFO TaskSchedulerImpl: Adding task set 1.0 with 4 tasks
 ```
 
 TaskSet belongs to a single stage.
+
+=== TaskSetManager
+
+`TaskSetManager` directly depends on `TaskSchedulerImpl`, `TaskSet`.
+
+It is an `Schedulable`.
+
+[TIP]
+====
+Add the following line to `conf/log4j.properties` to see what happens under the covers of `TaskSetManager`:
+
+```
+log4j.logger.org.apache.spark.scheduler.TaskSetManager=DEBUG
+```
+====
+
+==== [[tasksetmanager-settings]]Settings
+
+* `spark.scheduler.executorTaskBlacklistTime` (default: `0L`) - time interval to pass after which a task can be re-launched on an executor where it has just failed. It can prevent repeated task failures.
+* `spark.speculation` (default: `false`)
+* `spark.speculation.interval` (default: `100ms`)
+* `spark.speculation.quantile` (default: `0.75`)
+* `spark.speculation.multiplier` (default: `1.5`)
+
+==== [[zombie-state]] Zombie state
+
+TaskSetManager enters *zombie* state when at least one attempt of each task has completed successfully, or if the task set is aborted, e.g. because it was killed. In this zombie state, no more tasks should be launched for this TaskSetManager.
+
+TaskSetManager remains in the zombie state until all tasks have finished running, i.e. to continue to track and account for the running tasks.
+
+=== Speculative execution of tasks
+
+*Speculative execution of tasks* is a process that checks for tasks to be *speculated*, i.e. running slower in a stage than the median of all successfully completed tasks in a taskset so they will be re-launched.
+
+It is executed periodically by the TaskScheduler for link:spark-clusters.adoc[non-local deployment modes], i.e. clustered deployments, when <<tasksetmanager-settings, spark.speculation>> is enabled.
+
+When it is enabled, the following INFO message appears in the logs:
+
+```
+INFO Starting speculative execution thread
+```
+
+It is scheduled using *task-scheduler-speculation* daemon thread pool using `j.u.c.ScheduledThreadPoolExecutor` with core pool size `1`.
+
+It is executed for <<zombie-state,non-zombie TaskSetManagers>> with more than one task to execute.
+
+The process computes <<tasksetmanager-settings, spark.speculation.quantile>> of all the tasks and checks whether the number is greater than the number of tasks completed successfully.
+
+You can find the DEBUG message in the logs:
+
+```
+DEBUG Checking for speculative tasks: minFinished =
+```
+
+It then computes the median duration of all the completed task length threshold for speculation to have it multiplied by <<tasksetmanager-settings, spark.speculation.multiplier>>. It has to be at least 100.
+
+In the logs at DEBUG level:
+
+```
+DEBUG Task length threshold for speculation:
+```
+
+For each active task for which there is only one copy running and the task takes more than the threshold, it gets marked as *speculatable*.
+
+In the logs at INFO level:
+
+```
+INFO Marking task %d in stage %s (on %s) as speculatable because it ran more than %.0f ms
+```
