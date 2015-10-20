@@ -2,7 +2,9 @@
 
 === Introduction
 
-*Standalone cluster manager* is the Spark built-in cluster manager that comes with the Apache Spark distribution.
+*Standalone cluster manager* is the Spark built-in cluster manager that comes with any Apache Spark binary distribution.
+
+It is one of the three available clustering options in Apache Spark, among Spark on YARN and Spark on Mesos (see link:spark-cluster.adoc[Running Spark on cluster]).
 
 In Standalone cluster mode Spark allocates resources based on cores. By default, an application will grab all the cores in the cluster unless `spark.cores.max` is specified. It means an application could get executors of different sizes (in terms of cores).
 
@@ -12,16 +14,11 @@ Standalone cluster mode is subject to the constraint that only one executor can 
 
 There is really no need to run multiple workers per machine in Spark 1.5 (perhaps in 1.4, too). You can run multiple executors on the same machine with one worker.
 
-Use `SPARK_WORKER_INSTANCES` in `spark-env.sh` to define the number of worker instances (default: 1).
+Use `SPARK_WORKER_INSTANCES` (default: `1`) in `spark-env.sh` to define the number of worker instances.
 
 If you use `SPARK_WORKER_INSTANCES`, make sure to set `SPARK_WORKER_CORES` explicitly to limit the cores per worker, or else each worker will try to use all the cores.
 
 You can set up the number of cores as an command line argument when you start a worker daemon using `--cores`.
-
-There are two reasons why you want to have multiple instances:
-
-* garbage pauses collector can hurt throughput for large JVMs
-* Heap size of >32 GB can’t use CompressedOoops
 
 === Multiple executors per worker in Standalone mode
 
@@ -31,12 +28,55 @@ Since the change https://issues.apache.org/jira/browse/SPARK-1706[SPARK-1706 All
 
 To launch multiple executors on a machine you start multiple standalone workers, each with its own JVM. It introduces unnecessary overhead due to these JVM processes, provided that there are enough cores on that worker.
 
-If you are running Spark in standalone mode on memory rich nodes it can be beneficial to have multiple worker instances on the same node as a very large heap size has two disadvantages:
+If you are running Spark in standalone mode on memory-rich nodes it can be beneficial to have multiple worker instances on the same node as a very large heap size has two disadvantages:
 
 * Garbage collector pauses can hurt throughput of Spark jobs.
 * Heap size of >32 GB can’t use CompressedOoops. So https://blog.codecentric.de/en/2014/02/35gb-heap-less-32gb-java-jvm-memory-oddities/[35 GB is actually less than 32 GB].
 
 Mesos and YARN can, out of the box, support packing multiple, smaller executors onto the same physical host, so requesting smaller executors doesn’t mean your application will have fewer overall resources.
+
+=== Starting Spark workers on node using sbin/start-slave.sh
+
+`sbin/start-slave.sh` script starts Spark workers on the machine this script is executed on. It launches `SPARK_WORKER_INSTANCES` instances.
+
+```
+./sbin/start-slave.sh [master URL]
+```
+
+The mandatory `master URL` parameter is like `spark://localhost:7077`.
+
+The script uses the following environment variables:
+
+* `SPARK_WORKER_INSTANCES` (default: `1`) - the number of worker instances to run on this slave.
+* `SPARK_WORKER_PORT` - the base port number for the first worker. If set, subsequent workers will increment this number. If unset, Spark will try to find a valid port number.
+* `SPARK_WORKER_WEBUI_PORT` (default: `8081`) - the base port for the web interface of the first worker. Subsequent workers will increment this number.
+
+The script uses the following helper scripts:
+
+* `sbin/spark-config.sh`
+* `bin/load-spark-env.sh`
+
+Ultimately, the script calls `sbin/spark-daemon.sh start` to kick off `org.apache.spark.deploy.worker.Worker` with `--webui-port`, `--port` and master URL.
+
+=== sbin/start-slaves.sh script starts slave instances
+
+The `./sbin/start-slaves.sh` script starts slave instances on each machine specified in the `conf/slaves` file.
+
+It has support Tachyon using `--with-tachyon` command line option. It assumes `tachyon/bin/tachyon` command be available in Spark's home directory.
+
+The script uses the following helper scripts:
+
+* `sbin/spark-config.sh`
+* `bin/load-spark-env.sh`
+* `conf/spark-env.sh`
+
+The script uses the following environment variables (and sets them when unavailable):
+
+* `SPARK_PREFIX`
+* `SPARK_HOME`
+* `SPARK_CONF_DIR`
+* `SPARK_MASTER_PORT`
+* `SPARK_MASTER_IP`
 
 The following command will launch 3 worker instances on each node. Each worker instance will use two cores.
 
