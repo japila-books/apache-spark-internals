@@ -1,0 +1,175 @@
+== RPC Environment (RpcEnv)
+
+*RPC Environment* (aka *RpcEnv*) is an environment for RpcEndpoints to live and process messages. It manages the entire lifecycle of RpcEndpoints:
+
+* registers (sets up) endpoints (by name or uri)
+* routes incoming messages to them
+* stops them
+
+*RpcEndpoints* define what *functions* to trigger given a *message*. RpcEndpoints register (with a name or uri) to RpcEnv to receive messages from *RpcEndpointRefs*.
+
+.RpcEnvironment with RpcEndpoints and RpcEndpointRefs
+image::diagrams/rpcenv-endpoints.png[align="center"]
+
+RpcEndpointRefs can be looked up by *name* or *uri* (because different RpcEnvs may have different naming schemes).
+
+=== RpcEnvFactory
+
+Spark provides `RpcEnvFactory` as the factory class to create a RPC Environment. `org.apache.spark.rpc` package contains the machinery for RPC communication in Spark.
+
+There are two `RpcEnvFactory` implementations available in Spark:
+
+* `netty` using `org.apache.spark.rpc.netty.NettyRpcEnvFactory`. As of Spark 1.6.0-SNAPSHOT it is the default factory for RpcEnv.
+* `akka` using `org.apache.spark.rpc.akka.AkkaRpcEnvFactory`
+
+You can control an RPC implementation being used by setting up `spark.rpc` in SparkConf (default: `netty`).
+
+=== RpcEndpoint
+
+*RpcEndpoints* define what *functions* to trigger given a *message*. RpcEndpoints live inside RpcEnv after being registered with a name.
+
+A RpcEndpoint can be registered to one and only one RpcEnv.
+
+The lifecycle of a RpcEndpoint is `onStart`, `receive` and `onStop` in sequence.
+
+`receive` can be called concurrently. If you want `receive` to be thread-safe, please use `ThreadSafeRpcEndpoint`.
+
+`onError` method is called for any exception thrown.
+
+=== RpcEndpointRef
+
+A *RpcEndpointRef* is a reference for a RpcEndpoint in a RpcEnv.
+
+It is serializable entity and so you can send it over a network or save it for later use (it can however be deserialized using the owning RpcEnv).
+
+A RpcEndpointRef has <<rpcaddress, an address>> (a Spark URL), and a name.
+
+You can send asynchronous one-way messages to the corresponding RpcEndpoint using `send` method.
+
+You can send a semi-synchronous message, i.e. "subscribe" to be notified when a response arrives, using `ask` method. You can also block the current calling thread for a response using `askWithRetry` method.
+
+* `spark.rpc.numRetries` (default: `3`) - the number of times to retry connection attempts.
+* `spark.rpc.retry.wait` (default: `3s`) - the number of milliseconds to wait on each retry.
+
+It also uses <<endpoint-lookup-timeout, lookup timeouts>>.
+
+=== [[rpcaddress]] RpcAddress
+
+*RpcAddress* is the logical address for an RPC environment, with hostname and port.
+
+RpcAddress is encoded as a *Spark URL*, i.e. `spark://host:port`.
+
+=== [[endpoint-lookup-timeout]] Endpoint lookup timeout
+
+The following is the prioritized list of *lookup timeout* properties (the higher on the list, the more important):
+
+* `spark.rpc.lookupTimeout`
+* `spark.network.timeout`
+
+Their value can be a number alone and it is assumed to be in seconds or any number with time suffix, e.g. `50s`, `100ms`, or `250us`.
+
+The default lookup timeout value is `120s`.
+
+=== Exceptions
+
+When RpcEnv catches uncaught exceptions, it uses `RpcCallContext.sendFailure` to send exceptions back to the sender, or logging them if no such sender or `NotSerializableException`.
+
+If any error is thrown from one of RpcEndpoint methods except `onError`, `onError` will be invoked with the cause. If `onError` throws an error, RpcEnv will ignore it.
+
+=== Others
+
+link:spark-standalone.adoc[The Worker class] calls `startRpcEnvAndEndpoint` with the following configuration options:
+
+* host
+* port
+* webUiPort
+* cores
+* memory
+* masters
+* workDir
+
+It starts `sparkWorker[N]` where `N` is the identifier of a worker.
+
+=== [[developing-custom-rpcenv]] Exercise: Developing Custom RpcEnv
+
+FIXME Create the exercise
+
+Start simple using the following command:
+
+```
+$ ./bin/spark-shell --conf spark.rpc=doesnotexist --conf spark.logConf=true
+...
+15/10/21 12:06:11 INFO SparkContext: Running Spark version 1.6.0-SNAPSHOT
+15/10/21 12:06:11 INFO SparkContext: Spark configuration:
+spark.app.name=Spark shell
+spark.home=/Users/jacek/dev/oss/spark
+spark.jars=
+spark.logConf=true
+spark.master=local[*]
+spark.repl.class.uri=http://192.168.1.4:57082
+spark.rpc=doesnotexist
+spark.submit.deployMode=client
+...
+15/10/21 12:06:11 ERROR SparkContext: Error initializing SparkContext.
+java.lang.ClassNotFoundException: doesnotexist
+	at scala.reflect.internal.util.AbstractFileClassLoader.findClass(AbstractFileClassLoader.scala:62)
+	at java.lang.ClassLoader.loadClass(ClassLoader.java:424)
+	at java.lang.ClassLoader.loadClass(ClassLoader.java:357)
+	at java.lang.Class.forName0(Native Method)
+	at java.lang.Class.forName(Class.java:348)
+	at org.apache.spark.util.Utils$.classForName(Utils.scala:173)
+	at org.apache.spark.rpc.RpcEnv$.getRpcEnvFactory(RpcEnv.scala:38)
+	at org.apache.spark.rpc.RpcEnv$.create(RpcEnv.scala:49)
+	at org.apache.spark.SparkEnv$.create(SparkEnv.scala:257)
+	at org.apache.spark.SparkEnv$.createDriverEnv(SparkEnv.scala:198)
+	at org.apache.spark.SparkContext.createSparkEnv(SparkContext.scala:272)
+	at org.apache.spark.SparkContext.<init>(SparkContext.scala:441)
+	at org.apache.spark.repl.Main$.createSparkContext(Main.scala:79)
+	at $line3.$read$$iw$$iw.<init>(<console>:12)
+	at $line3.$read$$iw.<init>(<console>:21)
+	at $line3.$read.<init>(<console>:23)
+	at $line3.$read$.<init>(<console>:27)
+	at $line3.$read$.<clinit>(<console>)
+	at $line3.$eval$.$print$lzycompute(<console>:7)
+	at $line3.$eval$.$print(<console>:6)
+	at $line3.$eval.$print(<console>)
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.lang.reflect.Method.invoke(Method.java:497)
+	at scala.tools.nsc.interpreter.IMain$ReadEvalPrint.call(IMain.scala:784)
+	at scala.tools.nsc.interpreter.IMain$Request.loadAndRun(IMain.scala:1039)
+	at scala.tools.nsc.interpreter.IMain$WrappedRequest$$anonfun$loadAndRunReq$1.apply(IMain.scala:636)
+	at scala.tools.nsc.interpreter.IMain$WrappedRequest$$anonfun$loadAndRunReq$1.apply(IMain.scala:635)
+	at scala.reflect.internal.util.ScalaClassLoader$class.asContext(ScalaClassLoader.scala:31)
+	at scala.reflect.internal.util.AbstractFileClassLoader.asContext(AbstractFileClassLoader.scala:19)
+	at scala.tools.nsc.interpreter.IMain$WrappedRequest.loadAndRunReq(IMain.scala:635)
+	at scala.tools.nsc.interpreter.IMain.interpret(IMain.scala:567)
+	at scala.tools.nsc.interpreter.IMain.interpret(IMain.scala:563)
+	at scala.tools.nsc.interpreter.ILoop.reallyInterpret$1(ILoop.scala:802)
+	at scala.tools.nsc.interpreter.ILoop.interpretStartingWith(ILoop.scala:836)
+	at scala.tools.nsc.interpreter.ILoop.command(ILoop.scala:694)
+	at scala.tools.nsc.interpreter.ILoop.processLine(ILoop.scala:404)
+	at org.apache.spark.repl.SparkILoop$$anonfun$initializeSpark$1.apply$mcZ$sp(SparkILoop.scala:39)
+	at org.apache.spark.repl.SparkILoop$$anonfun$initializeSpark$1.apply(SparkILoop.scala:38)
+	at org.apache.spark.repl.SparkILoop$$anonfun$initializeSpark$1.apply(SparkILoop.scala:38)
+	at scala.tools.nsc.interpreter.IMain.beQuietDuring(IMain.scala:213)
+	at org.apache.spark.repl.SparkILoop.initializeSpark(SparkILoop.scala:38)
+	at org.apache.spark.repl.SparkILoop.loadFiles(SparkILoop.scala:94)
+	at scala.tools.nsc.interpreter.ILoop$$anonfun$process$1.apply$mcZ$sp(ILoop.scala:922)
+	at scala.tools.nsc.interpreter.ILoop$$anonfun$process$1.apply(ILoop.scala:911)
+	at scala.tools.nsc.interpreter.ILoop$$anonfun$process$1.apply(ILoop.scala:911)
+	at scala.reflect.internal.util.ScalaClassLoader$.savingContextLoader(ScalaClassLoader.scala:97)
+	at scala.tools.nsc.interpreter.ILoop.process(ILoop.scala:911)
+	at org.apache.spark.repl.Main$.main(Main.scala:49)
+	at org.apache.spark.repl.Main.main(Main.scala)
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.lang.reflect.Method.invoke(Method.java:497)
+	at org.apache.spark.deploy.SparkSubmit$.org$apache$spark$deploy$SparkSubmit$$runMain(SparkSubmit.scala:680)
+	at org.apache.spark.deploy.SparkSubmit$.doRunMain$1(SparkSubmit.scala:180)
+	at org.apache.spark.deploy.SparkSubmit$.submit(SparkSubmit.scala:205)
+	at org.apache.spark.deploy.SparkSubmit$.main(SparkSubmit.scala:120)
+	at org.apache.spark.deploy.SparkSubmit.main(SparkSubmit.scala)
+```
