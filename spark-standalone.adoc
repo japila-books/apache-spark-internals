@@ -35,103 +35,19 @@ If you are running Spark in standalone mode on memory-rich nodes it can be benef
 
 Mesos and YARN can, out of the box, support packing multiple, smaller executors onto the same physical host, so requesting smaller executors doesn’t mean your application will have fewer overall resources.
 
-=== Starting Spark workers on node using sbin/start-slave.sh
-
-`sbin/start-slave.sh` script starts Spark workers on the machine this script is executed on. It launches `SPARK_WORKER_INSTANCES` instances.
-
-```
-./sbin/start-slave.sh [master URL]
-```
-
-The mandatory `master URL` parameter is of the form `spark://hostname:port`, e.g. `spark://localhost:7077`. It is also possible to specify a comma-separated master URLs of the form `spark://hostname1:port1,hostname2:port2,...` with each element to be `hostname:port`.
-
-The order of importance of Spark configuration is as follows (from least to the most important):
-
-* System environment variables
-* Command-line options
-* Spark properties
-
-==== System environment variables
-
-The script uses the following system environment variables (directly or indirectly):
-
-* `SPARK_WORKER_INSTANCES` (default: `1`) - the number of worker instances to run on this slave.
-* `SPARK_WORKER_PORT` - the base port number to listen on for the first worker. If set, subsequent workers will increment this number. If unset, Spark will pick a random port.
-* `SPARK_WORKER_WEBUI_PORT` (default: `8081`) - the base port for the web UI of the first worker. Subsequent workers will increment this number.
-* `SPARK_WORKER_CORES` - the number of cores to use
-* `SPARK_WORKER_MEMORY` (default: `1G`)- the amount of memory to use, e.g. `1000M`, `2G`
-* `SPARK_WORKER_DIR` (default: `$SPARK_HOME/work`) - the directory to run apps in
-
-The script uses the following helper scripts:
-
-* `sbin/spark-config.sh`
-* `bin/load-spark-env.sh`
-
-==== Command-line options
-
-You can use the following command-line options:
-
-* `--host` or `-h` - the hostname to listen on
-* `--port` or `-p` - similar to `SPARK_WORKER_PORT`
-* `--cores` or `-c` (default: the number of processors available to the JVM)- similar to `SPARK_WORKER_CORES`
-* `--memory` or `-m` - similar to `SPARK_WORKER_MEMORY`
-* `--work-dir` or `-d` - similar to `SPARK_WORKER_DIR`
-* `--webui-port` - similar to `SPARK_WORKER_WEBUI_PORT`
-* `--properties-file` (default: `conf/spark-defaults.conf`) - the path to a custom Spark properties file
-* `--help`
-
-==== Spark properties
-
-After loading the default Spark properties file or `--properties-file`, when `spark.worker.ui.port` is specified, it is used as web UI's port.
-
-==== sbin/spark-daemon.sh
-
-Ultimately, the script calls `sbin/spark-daemon.sh start` to kick off `org.apache.spark.deploy.worker.Worker` with `--webui-port`, `--port` and the master URL.
-
-==== Internals of org.apache.spark.deploy.worker.Worker
-
-Upon starting, a Spark worker creates <<spark-configuration.adoc#default-configuration, the default SparkConf>>.
-
-It parses command-line arguments for the worker using `WorkerArguments` class.
-
-* `SPARK_LOCAL_HOSTNAME` - custom host name
-* `SPARK_LOCAL_IP` - custom IP to use (when `SPARK_LOCAL_HOSTNAME` is not set or hostname resolves to incorrect IP)
-
-It starts link:spark-rpc.adoc[RPC Environment] and waits until the RpcEnv terminates.
-
-==== RPC environment
-
-The `org.apache.spark.deploy.worker.Worker` class starts its own link:spark-rpc.adoc[RPC environment].
-
-=== sbin/start-slaves.sh script starts slave instances
-
-The `./sbin/start-slaves.sh` script starts slave instances on each machine specified in the `conf/slaves` file.
-
-It has support Tachyon using `--with-tachyon` command line option. It assumes `tachyon/bin/tachyon` command be available in Spark's home directory.
-
-The script uses the following helper scripts:
-
-* `sbin/spark-config.sh`
-* `bin/load-spark-env.sh`
-* `conf/spark-env.sh`
-
-The script uses the following environment variables (and sets them when unavailable):
-
-* `SPARK_PREFIX`
-* `SPARK_HOME`
-* `SPARK_CONF_DIR`
-* `SPARK_MASTER_PORT`
-* `SPARK_MASTER_IP`
-
-The following command will launch 3 worker instances on each node. Each worker instance will use two cores.
-
-```
-SPARK_WORKER_INSTANCES=3 SPARK_WORKER_CORES=2 ./sbin/start-slaves.sh
-```
-
 === Example 2-workers-on-1-node cluster (one executor per worker)
 
-The following steps are a recipe for a Spark Standalone cluster with 2 workers on a single machine that could easily be your laptop.
+The following steps are a recipe for a Spark Standalone cluster with 2 workers on a single machine.
+
+The aim is to have a complete Spark-clustered environment at your laptop.
+
+[TIP]
+====
+Consult the following documents:
+
+* link:spark-standalone-master-operation.adoc[Operating Spark master]
+* link:spark-standalone-start-slave-script.adoc[Starting Spark workers on node using sbin/start-slave.sh]
+====
 
 [IMPORTANT]
 ====
