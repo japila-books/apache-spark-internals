@@ -2,23 +2,25 @@
 
 *Tasks* are individual units of work, each sent to one machine.
 
-Each Task Scheduler schedules tasks for a single SparkContext.
+Each Task Scheduler schedules tasks for a single link:spark-sparkcontext.adoc[SparkContext].
 
 .TaskScheduler works for a single SparkContext
 image::diagrams/taskscheduler-single-sparkcontext.png[align="center"]
 
-These schedulers get sets of tasks submitted to them from the DAGScheduler for each stage, and are responsible for sending the tasks to the cluster, running them, retrying if there are failures, and mitigating stragglers.
+Task schedulers get sets of tasks submitted to them from the link:spark-scheduler.adoc[DAGScheduler] for each stage, and are responsible for sending the tasks to the cluster, running them, retrying if there are failures, and mitigating stragglers.
 
 They return events to the DAGScheduler.
 
-Task Scheduler is currently implemented exclusively (FIXME ?) by `TaskSchedulerImpl`.
+Task Scheduler is currently implemented exclusively by `TaskSchedulerImpl`.
 
-Task Scheduler can work in two scheduling modes - *FAIR* and *FIFO* - that determine policy to order tasks across a Schedulable's sub-queues. *NONE* means no sub-queues.
+Task Scheduler can work in one of two scheduling modes - *FAIR* and *FIFO* - that determine policy to order tasks across a Schedulable's sub-queues. *NONE* means no sub-queues.
 
 * *FIFO* - no pools; one root pool with TaskSetManagers; lower priority gets Schedulable sooner or earlier stage wins.
 * *FAIR* - more advanced
 
-A `TaskSet` contains fully independent tasks that can run right away based on the data that is already on the cluster, e.g. map output files from previous stages, though it may fail if this data becomes unavailable.
+You can submit `TaskSet` to Task Scheduler and cancel tasks in a stage.
+
+A `TaskSet` contains a fully-independent sequence of tasks that can run right away based on the data that is already on the cluster, e.g. map output files from previous stages, though it may fail if this data becomes unavailable.
 
 Settings:
 
@@ -27,19 +29,15 @@ Settings:
 * `spark.task.cpus` (default: `1`) - how many CPUs to request per task.
 * `spark.scheduler.mode` (default: `FIFO`)
 
-Tasks are submitted for execution using `submitTasks(taskSet: TaskSet)`.
+=== TaskSet
 
-```
-INFO TaskSchedulerImpl: Adding task set 1.0 with 4 tasks
-```
-
-TaskSet belongs to a single stage.
+TaskSet is a set of tasks that all belong to a single stage and an attempt.
 
 === TaskSetManager
 
-`TaskSetManager` directly depends on `TaskSchedulerImpl`, `TaskSet`.
+For each submitted `TaskSet`, a new `TaskSetManager` is created.
 
-It is an `Schedulable`.
+It is an `Schedulable` that works with `TaskSchedulerImpl`.
 
 [TIP]
 ====
@@ -109,3 +107,15 @@ INFO Marking task %d in stage %s (on %s) as speculatable because it ran more tha
 The job with speculatable tasks should finish while speculative tasks are running, and it will leave these tasks running - no KILL command yet.
 
 1. How does Spark handle repeated results of speculative tasks since there are copies launched?
+
+=== submitTasks
+
+Tasks are submitted for execution using `submitTasks(taskSet: TaskSet)`.
+
+You should see the following INFO in the logs:
+
+```
+INFO TaskSchedulerImpl: Adding task set 1.0 with 4 tasks
+```
+
+TaskSet belongs to a single stage.
