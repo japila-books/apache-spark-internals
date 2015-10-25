@@ -7,9 +7,9 @@
 The original paper that gave birth to the concept of RDD is https://www.cs.berkeley.edu/~matei/papers/2012/nsdi_spark.pdf[Resilient Distributed Datasets: A Fault-Tolerant Abstraction for In-Memory Cluster Computing] by Matei Zaharia, et al.
 ****
 
-*Resilient Distributed Dataset (RDD)* is the main data abstraction in Spark. It is simply the bread and butter of Spark. With RDD the creators of Spark managed to hide data partitioning and distribution that in turn allowed them to design parallel computational framework with a higher-level programming interface (API).
+*Resilient Distributed Dataset (RDD)* is the main data abstraction in Spark. It is simply the bread and butter of Spark, and mastering the concept is of utmost importance to become a Spark pro.
 
-TIP: Learn the concept of RDD in depth and you understand Spark to become a professional Spark developer.
+With RDD the creators of Spark managed to hide data partitioning and distribution that in turn allowed them to design parallel computational framework with a higher-level programming interface (API).
 
 Learning about RDD from its name:
 
@@ -33,9 +33,14 @@ Beside the above traits (that are directly embedded in the name of the data abst
 * *Cacheable*, i.e. you can hold all the data in a persistent "storage" like memory (default and the most preferred) or disk (the least preferred due to access speed).
 * *Parallel*, i.e. process data in parallel.
 
-RDDs are distributed by definition and to achieve even *data distribution* as well as leverage link:spark-data-locality.adoc[data locality] (in distributed systems like HDFS or Cassandra in which data is partitioned by default), they are *partitioned* to a fixed number of link:spark-rdd-partitions.adoc[partitions] that are logical chunks (parts) of data. The logical division is for processing only and internally it is not divided whatsoever. Each partition comprises of a number of *records*.
+RDDs are distributed by definition and to achieve even *data distribution* as well as leverage link:spark-data-locality.adoc[data locality] (in distributed systems like HDFS or Cassandra in which data is partitioned by default), they are *partitioned* to a fixed number of link:spark-rdd-partitions.adoc[partitions] - logical chunks (parts) of data. The logical division is for processing only and internally it is not divided whatsoever. Each partition comprises of *records*.
 
-link:spark-rdd-partitions.adoc[Partitions are the units of parallelism]. You can control the number of partitions of a RDD using `repartition` or `coalesce` operations. Spark tries to be as close to data as possible without wasting time to send data across network, i.e. link:spark-rdd-shuffle.adoc[RDD shuffling], and creates as many partitions as required to follow the storage layout to optimize data access. It leads to a one-to-one mapping between (physical) data in HDFS or Cassandra and partitions.
+link:spark-rdd-partitions.adoc[Partitions are the units of parallelism]. You can control the number of partitions of a RDD using `repartition` or `coalesce` operations. Spark tries to be as close to data as possible without wasting time to send data across network by link:spark-rdd-shuffle.adoc[RDD shuffling], and creates as many partitions as required to follow the storage layout and thus optimize data access. It leads to a one-to-one mapping between (physical) data in distributed data storage, e.g. HDFS or Cassandra, and partitions.
+
+RDDs support two kinds of operations:
+
+* <<transformations, transformations>> - lazy operations that return another RDD.
+* <<actions, actions>> - operations that trigger computation and return values.
 
 The motivation to create RDD were (https://www.cs.berkeley.edu/~matei/papers/2012/nsdi_spark.pdf[after the authors]) two types of applications that current computing frameworks handle inefficiently:
 
@@ -57,7 +62,7 @@ RDDs are a container of instructions on how to materialize big (arrays of) distr
 
 In general, data distribution can help executing processing in parallel so a task processes a chunk of data that it could eventually keep in memory.
 
-Increasing partitions count will make each partition to have less data.
+Increasing partitions count will make each partition to have less data (or even not at all!)
 
 Spark does jobs in parallel, and RDDs are split into partitions to be processed and written in parallel. Inside a partition, data is processed sequentially.
 
@@ -76,7 +81,7 @@ Appropriate operations of a given RDD type are automatically available on a RDD 
 
 === [[transformations]] Transformations
 
-A *transformation* is a lazy operation on a RDD that returns another RDD, e.g. `RDD.flatMap`.
+A *transformation* is a lazy operation on a RDD that returns another RDD, e.g. `RDD.map`, `RDD.filter`, `RDD.flatMap`, `RDD.reduceByKey`, `RDD.join`, `RDD.cogroup`.
 
 [source,scala]
 ----
@@ -84,27 +89,26 @@ scala> val words = lines.flatMap(_.split("\\s+"))
 words: org.apache.spark.rdd.RDD[String] = MapPartitionsRDD[27] at flatMap at <console>:26
 ----
 
-Transformations do nothing until an action executes and triggers execution.
+You can chain transformations to create *pipelines* (lazy computations), but their execution is only performed after an action executes.
 
-There are two types of transformations:
+There are two kinds of transformations:
 
-* *narrow transformations* - the result of `map`, `filter` and such that is from the data from a single partition only, i.e. it is self-sustained.
-+
+* <<narrow-transformations, narrow transformations>>
+* <<wide-transformations, wide transformations>>
+
+==== [[narrow-transformations]] Narrow transformations
+
+*Narrow transformations* are the result of `map`, `filter` and such that is from the data from a single partition only, i.e. it is self-sustained.
+
 An output RDD has partitions with records that originate from a single partition in the parent RDD. Only a limited subset of partitions used to calculate the result.
-+
+
 Spark groups narrow transformations as a stage.
-* *wide transformations* - the result of `groupByKey` and `reduceByKey`. The data required to compute the records in a single partition may reside in many partitions of the parent RDD.
-+
-All of the tuples with the same key must end up in the same partition, processed by the same task. To satisfy these operations, Spark must execute link:spark-rdd-shuffle.adoc[RDD shuffling], which transfers data across cluster and results in a new stage with a new set of partitions.
 
-Transformation operations:
+==== [[wide-transformations]] Wide transformations
 
-* `map`
-* `filter`
-* `flatMap`
-* `reduceByKey`
-* `join`
-* `cogroup`
+*Wide transformations* are the result of `groupByKey` and `reduceByKey`. The data required to compute the records in a single partition may reside in many partitions of the parent RDD.
+
+All of the tuples with the same key must end up in the same partition, processed by the same task. To satisfy these operations, Spark must execute link:spark-rdd-shuffle.adoc[RDD shuffle], which transfers data across cluster and results in a new stage with a new set of partitions.
 
 === [[actions]] Actions
 
