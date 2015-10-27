@@ -20,11 +20,11 @@ Task Scheduler can work in one of two scheduling modes - *FAIR* and *FIFO* - tha
 
 DAGScheduler uses <<submitTasks, submitTasks() operation >> to submit a TaskSet to Task Scheduler and can cancel tasks in a stage.
 
-=== TaskSet
+=== [[taskset]] TaskSet
 
 *TaskSet* is a set of tasks that belong to a single stage and an attempt. The pair of a stage and an attempt uniquely describes a TaskSet. TaskSet represents missing partitions of a stage.
 
-TaskSet has assigned *priority* and *properties*.
+TaskSet has *priority* and *properties*. Priority is used in FIFO scheduling mode. Properties are the first job in a stage's properties.
 
 A TaskSet contains a fully-independent sequence of tasks that can run right away based on the data that is already on the cluster, e.g. map output files from previous stages, though it may fail if this data becomes unavailable.
 
@@ -32,12 +32,21 @@ TaskSet can be <<submitTasks, submitted>>, i.e. started.
 
 === TaskSetManager
 
-For each submitted TaskSet, a new *TaskSetManager* is created. A TaskSetManager completely and exclusively owns a TaskSet submitted for execution.
+*TaskSetManager* manages execution of the tasks in a TaskSet. It schedules the tasks and keeps track of their execution, retries them upon failure (up to <<settings, spark.task.maxFailures>>), and handles locality-aware scheduling for this TaskSet via delay scheduling.
+
+[CAUTION]
+====
+FIXME
+
+1. When is this class called? By whom?
+====
+
+For each submitted <<taskset, TaskSet>>, a new *TaskSetManager* is created. A TaskSetManager completely and exclusively owns a TaskSet submitted for execution.
 
 .TaskSetManager owns TaskSet
 image::diagrams/tasksetmanager-taskset.png[align="center"]
 
-It is an `Schedulable` that works with `TaskSchedulerImpl`.
+It is an `Schedulable` that works with `TaskSchedulerImpl`. As an `Schedulable` it has a *priority* property (among others).
 
 [TIP]
 ====
@@ -48,7 +57,7 @@ log4j.logger.org.apache.spark.scheduler.TaskSetManager=DEBUG
 ```
 ====
 
-==== [[tasksetmanager-settings]]Settings
+==== [[tasksetmanager-settings]] Settings
 
 * `spark.scheduler.executorTaskBlacklistTime` (default: `0L`) - time interval to pass after which a task can be re-launched on an executor where it has just failed. It can prevent repeated task failures.
 * `spark.speculation` (default: `false`)
@@ -56,11 +65,66 @@ log4j.logger.org.apache.spark.scheduler.TaskSetManager=DEBUG
 * `spark.speculation.quantile` (default: `0.75`) - the percentage of tasks that has not finished yet.
 * `spark.speculation.multiplier` (default: `1.5`)
 
+==== Task retries and spark.task.maxFailures
+
+CAUTION: FIXME Review `handleFailedTask`
+
+When you start Spark program you set up <<settings, spark.task.maxFailures>> for the number of failures that are acceptable until TaskSetManager gives up and marks a job failed.
+
+In Spark shell with local master, `spark.task.maxFailures` is fixed to `1` and you need to use link:spark-local.adoc[local-with-failures master] to change it to some other value.
+
+In the following example, you are going to execute a job with two partitions and keep one failing at all times (by throwing an exception). The aim is to learn the behavior of retrying task execution in a stage in TaskSet. You will only look at a single task execution, namely `0.0`.
+
+```
+$ ./bin/spark-shell --master "local[*, 5]"
+...
+scala> sc.textFile("README.md", 2).mapPartitionsWithIndex((idx, it) => if (idx == 0) throw new Exception("Partition 2 marked failed") else it).count
+...
+15/10/27 17:24:56 INFO DAGScheduler: Submitting 2 missing tasks from ResultStage 1 (MapPartitionsRDD[7] at mapPartitionsWithIndex at <console>:25)
+15/10/27 17:24:56 DEBUG DAGScheduler: New pending partitions: Set(0, 1)
+15/10/27 17:24:56 INFO TaskSchedulerImpl: Adding task set 1.0 with 2 tasks
+...
+15/10/27 17:24:56 INFO TaskSetManager: Starting task 0.0 in stage 1.0 (TID 2, localhost, partition 0,PROCESS_LOCAL, 2062 bytes)
+...
+15/10/27 17:24:56 INFO Executor: Running task 0.0 in stage 1.0 (TID 2)
+...
+15/10/27 17:24:56 ERROR Executor: Exception in task 0.0 in stage 1.0 (TID 2)
+java.lang.Exception: Partition 2 marked failed
+...
+15/10/27 17:24:56 INFO TaskSetManager: Starting task 0.1 in stage 1.0 (TID 4, localhost, partition 0,PROCESS_LOCAL, 2062 bytes)
+15/10/27 17:24:56 INFO Executor: Running task 0.1 in stage 1.0 (TID 4)
+15/10/27 17:24:56 INFO HadoopRDD: Input split: file:/Users/jacek/dev/oss/spark/README.md:0+1784
+15/10/27 17:24:56 ERROR Executor: Exception in task 0.1 in stage 1.0 (TID 4)
+java.lang.Exception: Partition 2 marked failed
+...
+15/10/27 17:24:56 ERROR Executor: Exception in task 0.4 in stage 1.0 (TID 7)
+java.lang.Exception: Partition 2 marked failed
+...
+15/10/27 17:24:56 INFO TaskSetManager: Lost task 0.4 in stage 1.0 (TID 7) on executor localhost: java.lang.Exception (Partition 2 marked failed) [duplicate 4]
+15/10/27 17:24:56 ERROR TaskSetManager: Task 0 in stage 1.0 failed 5 times; aborting job
+15/10/27 17:24:56 INFO TaskSchedulerImpl: Removed TaskSet 1.0, whose tasks have all completed, from pool
+15/10/27 17:24:56 INFO TaskSchedulerImpl: Cancelling stage 1
+15/10/27 17:24:56 INFO DAGScheduler: ResultStage 1 (count at <console>:25) failed in 0.058 s
+15/10/27 17:24:56 DEBUG DAGScheduler: After removal of stage 1, remaining stages = 0
+15/10/27 17:24:56 INFO DAGScheduler: Job 1 failed: count at <console>:25, took 0.085810 s
+org.apache.spark.SparkException: Job aborted due to stage failure: Task 0 in stage 1.0 failed 5 times, most recent failure: Lost task 0.4 in stage 1.0 (TID 7, localhost): java.lang.Exception: Partition 2 marked failed
+```
+
 ==== [[zombie-state]] Zombie state
 
 TaskSetManager enters *zombie* state when at least one attempt of each task has completed successfully, or if the task set is aborted, e.g. because it was killed. In this zombie state, no more tasks should be launched for this TaskSetManager.
 
 TaskSetManager remains in the zombie state until all tasks have finished running, i.e. to continue to track and account for the running tasks.
+
+=== TaskSet's priority field and FIFO scheduling
+
+A TaskSet has `priority` field that turns into the *priority* field's value of TaskSetManager (which is a Schedulable).
+
+The `priority` field is used in `FIFOSchedulingAlgorithm` in which equal priorities give stages an advantage (not to say _priority_).
+
+`FIFOSchedulingAlgorithm` is only used for `FIFO` scheduling mode in a `Pool` which is a Schedulable collection of `Schedulable`'s.
+
+Effectively, the `priority` field is the job's id of the first job this stage was part of (for FIFO scheduling).
 
 === [[speculative-execution]] Speculative execution of tasks
 
@@ -118,9 +182,11 @@ You should see the following INFO in the logs:
 INFO TaskSchedulerImpl: Adding task set 1.0 with 4 tasks
 ```
 
-=== Settings
+=== [[settings]] Settings
 
-* `spark.task.maxFailures` (default: `4`)
+* `spark.task.maxFailures` (default: `4` for link:spark-cluster.adoc[cluster mode] and `1` for link:spark-local.adoc[local] except link:spark-local.adoc[local-with-failures]) - The number of individual task failures before giving up on the entire TaskSet and then the job.
++
+Internally, it is used in `org.apache.spark.scheduler.TaskSchedulerImpl` to initialize `org.apache.spark.scheduler.TaskSetManager`.
 * `spark.speculation.interval` (default: `100ms`)
 * `spark.task.cpus` (default: `1`) - how many CPUs to request per task.
 * `spark.scheduler.mode` (default: `FIFO`)
