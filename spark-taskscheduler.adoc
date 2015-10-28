@@ -1,15 +1,13 @@
 == Task Scheduler
 
-*Tasks* are individual units of work, each sent to one machine.
-
-*Task Scheduler* schedules tasks for a single link:spark-sparkcontext.adoc[SparkContext].
+*Task Scheduler* schedules <<tasks, tasks>> for a single link:spark-sparkcontext.adoc[SparkContext].
 
 .TaskScheduler works for a single SparkContext
 image::diagrams/taskscheduler-single-sparkcontext.png[align="center"]
 
-Task schedulers get sets of tasks submitted to them from the link:spark-scheduler.adoc[DAGScheduler] for each stage, and are responsible for sending the tasks to the cluster, running them, retrying if there are failures, and mitigating stragglers.
+A TaskScheduler gets sets of tasks (as <<taskset, TaskSets>>) submitted to it from the link:spark-scheduler.adoc[DAGScheduler] for each stage, and is responsible for sending the tasks to the cluster, running them, retrying if there are failures, and mitigating stragglers.
 
-They return events to the DAGScheduler.
+A TaskScheduler emits events to the DAGScheduler.
 
 Task Scheduler is currently implemented exclusively by `TaskSchedulerImpl`.
 
@@ -19,6 +17,37 @@ Task Scheduler can work in one of two scheduling modes - *FAIR* and *FIFO* - tha
 * *FAIR* - more advanced
 
 DAGScheduler uses <<submitTasks, submitTasks() operation >> to submit a TaskSet to Task Scheduler and can cancel tasks in a stage.
+
+=== [[tasks]] Tasks
+
+A *Task* is an individual unit of work that is sent to one machine to execute.
+
+A task can also be considered a computation in a stage on a partition in a given job attempt.
+
+A Task belongs to a single stage and operates on a single partition (a part of an RDD).
+
+CAUTION: FIXME What are `stageAttemptId` and `taskAttemptId`?
+
+There are two kinds of tasks:
+
+* *ShuffleMapTask* that executes a task and divides the task's output to multiple buckets (based on the task's partitioner).
+* *ResultTask* that executes a task and sends the task's output back to the driver application.
+
+The very last stage in a job consists of multiple `ResultTasks`, while earlier stages consist of `ShuffleMapTasks`.
+
+TaskRunner calls `Task.run` to execute a task.
+
+==== TaskContextImpl
+
+* stage
+* partition
+* task attempt
+* attempt number
+* runningLocally = false
+
+==== TaskMemoryManager
+
+==== TaskMetrics
 
 === [[taskset]] TaskSet
 
