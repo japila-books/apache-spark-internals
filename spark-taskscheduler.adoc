@@ -30,12 +30,18 @@ CAUTION: FIXME What are `stageAttemptId` and `taskAttemptId`?
 
 There are two kinds of tasks:
 
-* *ShuffleMapTask* that executes a task and divides the task's output to multiple buckets (based on the task's partitioner).
+* *ShuffleMapTask* that executes a task and divides the task's output to multiple buckets (based on the task's partitioner). See <<shufflemaptask, ShuffleMapTask>>.
 * *ResultTask* that executes a task and sends the task's output back to the driver application.
 
 The very last stage in a job consists of multiple `ResultTasks`, while earlier stages consist of `ShuffleMapTasks`.
 
 TaskRunner calls `Task.run` to execute a task.
+
+==== [[shufflemaptask]] ShuffleMapTask
+
+A ShuffleMapTask divides the elements of an RDD into multiple buckets (based on a partitioner specified in the ShuffleDependency).
+
+
 
 ==== TaskContextImpl
 
@@ -59,7 +65,7 @@ A TaskSet contains a fully-independent sequence of tasks that can run right away
 
 TaskSet can be <<submitTasks, submitted>>, i.e. started.
 
-=== TaskSetManager
+=== [[tasksetmanager]] TaskSetManager
 
 *TaskSetManager* manages execution of the tasks in a TaskSet. It schedules the tasks and keeps track of their execution, retries them upon failure (up to <<settings, spark.task.maxFailures>>), and handles locality-aware scheduling for this TaskSet via delay scheduling.
 
@@ -85,6 +91,16 @@ Add the following line to `conf/log4j.properties` to see what happens under the 
 log4j.logger.org.apache.spark.scheduler.TaskSetManager=DEBUG
 ```
 ====
+
+When a task has finished, it triggers TaskSetManager to send link:spark-scheduler.adoc#completionevent[a CompletionEvent message to DAGScheduler].
+
+CAUTION: FIXME Make it less code-oriented
+
+The following "events" trigger communication between TaskSetManager and DAGScheduler:
+
+* `handleSuccessfulTask` - `Success` (`TaskEndReason`)
+* `handleFailedTask` with the reason for the failure
+* `executorLost` - `Resubmitted` (`TaskFailedReason`)
 
 ==== [[tasksetmanager-settings]] Settings
 
