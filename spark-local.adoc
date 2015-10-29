@@ -1,6 +1,6 @@
 == Spark local
 
-You can run Spark in *local mode*. In this non-distributed single-JVM deployment mode, Spark spawns all the execution components - the executor, backend, and master - in the same JVM.
+You can run Spark in *local mode*. In this non-distributed single-JVM deployment mode, Spark spawns all the execution components - the link:spark-execution-model.adoc#executors[executor], backend, and master - in the same JVM.
 
 The local mode is very convenient for testing, debugging or demonstration purposes as it requires no earlier setup to launch Spark applications.
 
@@ -8,7 +8,7 @@ This mode of operation is also called  http://spark.apache.org/docs/latest/progr
 
 You can run Spark in local mode using `local` or `local[n]` (with `n` being the number of cores to use) or the most general `local[*]` for the master URL.
 
-You can also use *local-with-failures*, i.e. `local[N, M]` where `N` is `*` or any number of cores to use (as explained above) and `M` being the value of link:spark-taskscheduler.adoc#settings[spark.task.maxFailures].
+You can also use *local-with-failures*, i.e. `local[N, M]` where `N` is `*` or the number of cores to use (as explained above) and `M` being the value of link:spark-taskscheduler.adoc#settings[spark.task.maxFailures].
 
 `SparkContext.isLocal` returns `true` when Spark runs in local mode.
 
@@ -19,42 +19,34 @@ scala> sc.isLocal
 res0: Boolean = true
 ```
 
-Tasks are not re-executed on failure in local mode.
+Tasks are not re-executed on failure in local mode (unless the local-with-failures master URL is used).
 
-link:spark-taskscheduler.adoc[The task scheduler] used in local mode is `TaskSchedulerImpl` with `LocalBackend` task scheduler backend.
+link:spark-taskscheduler.adoc[The task scheduler] that is used in the local mode is `TaskSchedulerImpl` with <<local-backend, LocalBackend>> task scheduler backend.
 
-Settings:
+=== [[local-endpoint]] LocalEndpoint
 
-* `spark.executor.extraClassPath` - a list of URLs representing the user classpath. Each entry is separated by system-dependent path separator, i.e. `:` on Unix/MacOS systems and `;` on Microsoft Windows.
+*LocalEndpoint* is a (thread-safe) link:spark-rpc.adoc#rpcendpoint[RPC Endpoint] that hosts an link:spark-execution-model.adoc#executor[executor] with id `driver` and hostname `localhost`.
 
-```
-scala> sc.getConf.getOption("spark.executor.extraClassPath")
-res12: Option[String] = None
-```
-
-=== LocalEndpoint
-
-When Spark local starts up it prints out the following messages:
+When Spark local starts up, it starts up LocalEndpoint that prints out the following messages:
 
 ```
 INFO Executor: Starting executor ID driver on host localhost
 INFO Executor: Using REPL class URI: http://192.168.1.4:56131
 ```
 
-It is a local endpoint with id *driver* running on *localhost* hostname that hosts a Spark *executor* (slave) backed by a thread pool to run tasks.
+==== [[messages]] Messages
 
-The thread pool's name is `Executor task launch worker`
+LocalEndpoint accepts the following message types:
 
-When you execute an action that ultimately triggers task execution you should see the following INFO logs:
+* `ReviveOffers` (receive-only, non-blocking) - it offers link:spark-taskscheduler.adoc[TaskScheduler] a `WorkerOffer` and launches tasks on the executor with <<localbackend, LocalBackend>>.
+* `StatusUpdate` (receive-only, non-blocking) that passes the message to TaskScheduler (using `statusUpdate`) and if link:spark-taskscheduler.adoc#tasks[the task's status is finished], it revives offers (see `ReviveOffers`).
+* `KillTask` (receive-only, non-blocking) that kills the task that is currently running on the executor.
+* `StopExecutor` (receive-reply, blocking) that stops the executor.
 
-```
-INFO Executor: Running task 0.0 in stage 2.0 (TID 8)
-```
+=== [[local-backend]] LocalBackend
 
-`TID` is the task's id being executed in `Executor task launch worker-8`.
+A *LocalBackend* is a SchedulerBackend and a ExecutorBackend.
 
-You can later see the INFO log:
+CAUTION: FIXME: What does the above sentence mean?
 
-```
-INFO Executor: Finished task 0.0 in stage 2.0 (TID 8). 2082 bytes result sent to driver
-```
+It communicates with <<local-endpoint, LocalEndpoint>> using <<messages, messages>>. This communication effectively sets up LocalBackend in full control of LocalEndpoint's lifecycle.
