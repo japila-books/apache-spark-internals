@@ -1,6 +1,6 @@
 == Task Scheduler
 
-*Task Scheduler* schedules <<tasks, tasks>> for a single link:spark-sparkcontext.adoc[SparkContext].
+A *Task Scheduler* schedules <<tasks, tasks>> for a single link:spark-sparkcontext.adoc[SparkContext].
 
 .TaskScheduler works for a single SparkContext
 image::diagrams/taskscheduler-single-sparkcontext.png[align="center"]
@@ -9,12 +9,18 @@ A TaskScheduler gets sets of tasks (as <<taskset, TaskSets>>) submitted to it fr
 
 A TaskScheduler emits events to the DAGScheduler.
 
-Task Scheduler is currently implemented exclusively by `TaskSchedulerImpl`.
+The base task scheduler implementation in Spark is https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/scheduler/TaskSchedulerImpl.scala[org.apache.spark.scheduler.TaskSchedulerImpl]. There are two specialized implementations for link:spark-yarn.adoc[Spark on YARN cluster mode] - https://github.com/apache/spark/blob/master/yarn/src/main/scala/org/apache/spark/scheduler/cluster/YarnScheduler.scala[YarnScheduler] and https://github.com/apache/spark/blob/master/yarn/src/main/scala/org/apache/spark/scheduler/cluster/YarnClusterScheduler.scala[YarnClusterScheduler].
 
-Task Scheduler can work in one of two scheduling modes - *FAIR* and *FIFO* - that determine policy to order tasks across a Schedulable's sub-queues. *NONE* means no sub-queues.
+The default implementation `TaskSchedulerImpl` can schedule tasks for multiple types of clusters by acting through a link:spark-execution-model.adoc#scheduler-backends[SchedulerBackend]. It handles common logic, like determining a scheduling order across jobs, waking up to launch speculative tasks, etc.
+
+.TaskScheduler uses SchedulerBackend for different clusters
+image::diagrams/taskscheduler-uses-schedulerbackend.png[align="center"]
+
+Task Scheduler can work in one of two scheduling modes - *FAIR* and *FIFO* - that determine policy to order tasks across a Schedulable's sub-queues. It is controlled by <<settings, spark.scheduler.mode>> property.
 
 * *FIFO* - no pools; one root pool with TaskSetManagers; lower priority gets Schedulable sooner or earlier stage wins.
 * *FAIR* - more advanced
+* *NONE* means no sub-queues
 
 DAGScheduler uses <<submitTasks, submitTasks() operation >> to submit a TaskSet to Task Scheduler and can cancel tasks in a stage.
 
@@ -119,7 +125,7 @@ The following "events" trigger communication between TaskSetManager and DAGSched
 
 * `spark.scheduler.executorTaskBlacklistTime` (default: `0L`) - time interval to pass after which a task can be re-launched on an executor where it has just failed. It can prevent repeated task failures.
 * `spark.speculation` (default: `false`)
-* `spark.speculation.interval` (default: `100ms`)
+* `spark.speculation.interval` (default: `100ms`) - how often to check for speculative tasks.
 * `spark.speculation.quantile` (default: `0.75`) - the percentage of tasks that has not finished yet.
 * `spark.speculation.multiplier` (default: `1.5`)
 
@@ -245,6 +251,5 @@ INFO TaskSchedulerImpl: Adding task set 1.0 with 4 tasks
 * `spark.task.maxFailures` (default: `4` for link:spark-cluster.adoc[cluster mode] and `1` for link:spark-local.adoc[local] except link:spark-local.adoc[local-with-failures]) - The number of individual task failures before giving up on the entire TaskSet and then the job.
 +
 Internally, it is used in `org.apache.spark.scheduler.TaskSchedulerImpl` to initialize `org.apache.spark.scheduler.TaskSetManager`.
-* `spark.speculation.interval` (default: `100ms`)
 * `spark.task.cpus` (default: `1`) - how many CPUs to request per task.
-* `spark.scheduler.mode` (default: `FIFO`)
+* `spark.scheduler.mode` (default: `FIFO`) can be of any of `FAIR`, `FIFO`, or `NONE`.
