@@ -36,15 +36,27 @@ log4j.logger.org.apache.spark.scheduler.DAGScheduler=DEBUG
 
 DAGScheduler has a direct dependency on link:spark-taskscheduler.adoc[Task Scheduler], link:spark-listeners.adoc[Listener Bus], MapOutputTrackerMaster (TK) and link:spark-blockmanager.adoc[Block Manager]. It also  reports metrics about its execution (refer to the section <<metrics, Metrics>>).
 
-=== Jobs
+=== [[jobs]] Jobs
 
-*Jobs* (aka _action jobs_) are top-level work items submitted to DAGScheduler that are triggered as a result of executing an action in a Spark user program.
+A *job* (aka _action job_ or _active job_) is a top-level work item (computation) submitted to DAGScheduler to compute a <<stages, stage>> as a result of executing an <<spark-rdd.adoc#actions,action>> in a Spark user program.
 
-A Spark job consists of one or more <<stages, stages>>.
+.Job "wraps" a stage that can depends on a series of stages
+image::diagrams/job-stage.png[align="center"]
 
-Internally, a running job is represented by instances of the `private[spark]` class `ActiveJob`.
+The stage of a job can depend on other stages and so execution of a single job can trigger execution of a series of stages.
 
-All <<spark-rdd.adoc#actions,actions>> in Spark use `SparkContext.runJob[T, U: ClassTag](rdd: RDD[T], func: Iterator[T] => U): Array[U]` to schedule jobs (that are run on all partitions of the RDD and return the results in an array).
+Computing a job is equivalent to computing the partitions of the RDD the action has been executed upon. Note that not all partitions have always to be computed for <<ResultStage, ResultStages>> for actions like `first()` and `lookup()`.
+
+.Computing a job is computing the partitions of an RDD
+image::diagrams/rdd-job-partitions.png[align="center"]
+
+Internally, a running job is represented by an instance of https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/scheduler/ActiveJob.scala[private[spark\] class org.apache.spark.scheduler.ActiveJob].
+
+CAUTION: FIXME: Where are instances of ActiveJob used?
+
+
+
+All actions in Spark use `SparkContext.runJob[T, U: ClassTag](rdd: RDD[T], func: Iterator[T] => U): Array[U]` to schedule jobs (that are run on all partitions of the RDD and return the results in an array).
 
 [source,scala]
 ----
@@ -52,12 +64,12 @@ scala> sc.runJob(lines, (t: TaskContext, i: Iterator[String]) => 1)
 res0: Array[Int] = Array(1, 1)
 ----
 
-Eventually, `SparkContext.runJob` uses link:spark-scheduler.adoc[DAGScheduler.runJob() and submitJob()] (and also does link:spark-rdd-checkpointing.adoc[checkpointing]). It triggers posting `JobSubmitted` event (see <<event-loop,Event loop>>).
+Eventually, `SparkContext.runJob` uses `DAGScheduler.runJob()` and `submitJob()` (and also does link:spark-rdd-checkpointing.adoc[checkpointing]). It triggers posting `JobSubmitted` event (see <<event-loop,Event loop>>).
 
-Jobs can be of two (logical) types:
+A job can be one of two logical types (that are only distinguished by an internal `finalStage` field of `ActiveJob`):
 
-* *result job* that computes a `ResultStage` to execute an action
-* *map-stage job* that computes the map outputs for a `ShuffleMapStage` (for `submitMapStage`) before any downstream stages are submitted. It is used for *adaptive query planning*, to look at map output statistics before submitting later stages.
+* *Map-stage job* that computes the map output files for a <<ShuffleMapStage, ShuffleMapStage>> (for `submitMapStage`) before any downstream stages are submitted. It is used for *adaptive query planning*, to look at map output statistics before submitting later stages.
+* *Result job* that computes a <<ResultStage, ResultStage>> to execute an action
 
 Jobs track how many partitions have already been computed (using `finished` array of `Boolean` field).
 
@@ -83,7 +95,7 @@ Spark stages are created by breaking the RDD graph at shuffle boundaries. DAGSch
 *Shuffle boundaries* introduce a barrier where stages/tasks must wait for the previous stage to finish to fetch outputs.
 
 .DAGScheduler splits a job into stages
-image::diagrams/scheduler-job-splits-into-stages.png[]
+image::diagrams/scheduler-job-splits-into-stages.png[align="center"]
 
 RDD operations with link:spark-rdd.adoc[narrow dependencies], like `map()` and `filter()`, are pipelined together into one set of tasks in each stage, but operations with shuffle dependencies require multiple stages, i.e. one to write a set of map output files, and another to read those files after a barrier.
 
@@ -95,11 +107,11 @@ DAGScheduler runs stages in topological order.
 
 There are two types of stages:
 
-* `ShuffleMapStage` is an intermediate stage (in the execution of a DAG) that produces data for other stage(s). It writes *map output files* for a shuffle.
-* `ResultStage` is the final stage that executes a Spark action, e.g. `count()`, `save()`, by running a function on an RDD.
+* <<ShuffleMapStage, ShuffleMapStage>> is an intermediate stage (in the execution of a DAG) that produces data for other stage(s). It writes *map output files* for a shuffle.
+* <<ResultStage, ResultStage>> is the final stage that executes a Spark action, e.g. `count()`, `save()`, by running a function on an RDD.
 
 .DAGScheduler and Stages for a job
-image::diagrams/scheduler-job-shuffles-result-stages.png[]
+image::diagrams/scheduler-job-shuffles-result-stages.png[align="center"]
 
 The following INFO messages show in the logs:
 
@@ -170,7 +182,7 @@ Stages can be shared across multiple jobs, if these jobs reuse the same RDDs.
 
 FIXME: Where in the code is this used?
 
-==== ShuffleMapStage
+==== [[ShuffleMapStage]] ShuffleMapStage
 
 `org.apache.spark.scheduler.ShuffleMapStage` is an intermediate stage (in the execution of a DAG) that produces data for link:spark-rdd-shuffle.adoc[a shuffle] and is an input for the other stages in the DAG of stages.
 
@@ -193,6 +205,10 @@ FIXME Where is `ShuffleMapStage` used?
 * `handleMapStageSubmitted`
 * `shuffleToMapStage` - `private[scheduler]` HashMap
 ====
+
+==== [[ResultStage]] ResultStage
+
+FIXME
 
 === RDD, job execution, stages, and partitions
 
