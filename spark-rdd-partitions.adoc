@@ -160,9 +160,43 @@ TIP: If partitioning scheme doesn't work for you, you can write your own custom 
 
 TIP: It's useful to get familiar with https://hadoop.apache.org/docs/current/api/org/apache/hadoop/mapred/TextInputFormat.html[Hadoop's TextInputFormat].
 
-=== coalesce
+=== [[coalesce]] coalesce
 
-The `coalesce` function is used to change the number of partitions depending on the second boolean input parameter.
+```
+def coalesce(numPartitions: Int, shuffle: Boolean = false)(implicit ord: Ordering[T] = null): RDD[T]
+```
+
+The `coalesce` transformation is used to change the number of partitions depending on the second `shuffle` boolean input parameter.
+
+In the following sample, you `parallelize` a local sequence and `coalesce` it with or without shuffling. You use `toDebugString` to know the RDDs employed.
+
+```
+scala> val rdd = sc.parallelize(0 to 10)
+rdd: org.apache.spark.rdd.RDD[Int] = ParallelCollectionRDD[0] at parallelize at <console>:24
+
+scala> rdd.partitions.size
+res0: Int = 8
+
+scala> rdd.coalesce(numPartitions=8, shuffle=false)   // <1>
+res1: org.apache.spark.rdd.RDD[Int] = CoalescedRDD[1] at coalesce at <console>:27
+
+scala> res1.toDebugString
+res2: String =
+(8) CoalescedRDD[1] at coalesce at <console>:27 []
+ |  ParallelCollectionRDD[0] at parallelize at <console>:24 []
+
+scala> rdd.coalesce(numPartitions=8, shuffle=true)
+res3: org.apache.spark.rdd.RDD[Int] = MapPartitionsRDD[5] at coalesce at <console>:27
+
+scala> res3.toDebugString
+res4: String =
+(8) MapPartitionsRDD[5] at coalesce at <console>:27 []
+ |  CoalescedRDD[4] at coalesce at <console>:27 []
+ |  ShuffledRDD[3] at coalesce at <console>:27 []
+ +-(8) MapPartitionsRDD[2] at coalesce at <console>:27 []
+    |  ParallelCollectionRDD[0] at parallelize at <console>:24 []
+```
+<1> `shuffle` is `false` by default and it's explicitly used here for demo's purposes. Note the number of partitions that doesn't change to the number of the source RDD `rdd`.
 
 === PairRDDFunctions - groupByKey, reduceByKey, partitionBy
 
