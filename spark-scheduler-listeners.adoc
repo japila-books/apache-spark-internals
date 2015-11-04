@@ -1,16 +1,8 @@
 == Scheduler Listeners
 
-[CAUTION]
-====
-FIXME:
+A Spark *listener* is a class that listens to execution events from link:spark-scheduler.adoc[Spark's DAGScheduler]. It extends https://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.scheduler.SparkListener[org.apache.spark.scheduler.SparkListener] that is a Developer API and so can change between Spark releases.
 
-* Code review `StatsReportListener`
-
-====
-
-A Spark *listener* is a class that listening to events from link:spark-scheduler.adoc[Spark's DAGScheduler]. It extends https://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.scheduler.SparkListener[org.apache.spark.scheduler.SparkListener].
-
-This is a Developer API and can change between Spark releases.
+TIP: Developing a custom SparkListener can be an excellent introduction to low-level details of link:spark-execution-model.adoc[Spark's Execution Model]. Check out the exercise link:exercises/spark-exercise-custom-scheduler-listener.adoc[Developing Custom SparkListener to monitor DAGScheduler in Scala].
 
 It can receive events about:
 
@@ -35,27 +27,10 @@ It can receive events about:
 The `spark.extraListeners` (default: empty) setting is a comma-separated list of listener class names that are registered with Spark's listener bus when link:spark-sparkcontext.adoc[SparkContext is initialized].
 
 ```
-$ ./bin/spark-shell --conf spark.extraListeners=i.do.not.exist.CustomSparkListener
-...
-org.apache.spark.SparkException: Exception when registering SparkListener
-  at org.apache.spark.SparkContext.setupAndStartListenerBus(SparkContext.scala:2145)
-  at org.apache.spark.SparkContext.<init>(SparkContext.scala:562)
-  at org.apache.spark.repl.Main$.createSparkContext(Main.scala:79)
-  ... 47 elided
-Caused by: java.lang.ClassNotFoundException: i.do.not.exist.CustomSparkListener
-  at scala.reflect.internal.util.AbstractFileClassLoader.findClass(AbstractFileClassLoader.scala:62)
-  at java.lang.ClassLoader.loadClass(ClassLoader.java:424)
-  at java.lang.ClassLoader.loadClass(ClassLoader.java:357)
-  at java.lang.Class.forName0(Native Method)
-  at java.lang.Class.forName(Class.java:348)
-  at org.apache.spark.util.Utils$.classForName(Utils.scala:173)
-  at org.apache.spark.SparkContext$$anonfun$setupAndStartListenerBus$1.apply(SparkContext.scala:2113)
-  at org.apache.spark.SparkContext$$anonfun$setupAndStartListenerBus$1.apply(SparkContext.scala:2110)
-  at scala.collection.IndexedSeqOptimized$class.foreach(IndexedSeqOptimized.scala:33)
-  at scala.collection.mutable.WrappedArray.foreach(WrappedArray.scala:35)
-  at org.apache.spark.SparkContext.setupAndStartListenerBus(SparkContext.scala:2110)
-  ... 49 more
+$ ./bin/spark-shell --conf spark.extraListeners=pl.japila.spark.CustomSparkListener
 ```
+
+You can also register a Spark listener in a Spark application using `SparkContext.addSparkListener(listener: SparkListener)` method.
 
 It is assumed that the classes come with one of the following (in this order):
 
@@ -65,16 +40,65 @@ It is assumed that the classes come with one of the following (in this order):
 [TIP]
 ====
 Set `INFO` on `org.apache.spark.SparkContext` logger to see the extra listeners being registered.
+
+```
+INFO SparkContext: Registered listener pl.japila.spark.CustomSparkListener
+```
 ====
 
 Internal listeners:
 
 * web UI and <<event-logging, event logging>> listeners
 
+=== [[SparkListenerBus]] SparkListenerBus
+
+FIXME
+
 === [[event-logging]] Event Logging
 
-* `spark.eventLog.enabled` (default: `false`)
+Spark comes with its own `EventLoggingListener` listener that logs events to persistent storage.
+
+When the listener starts, it prints out the INFO message `Logging events to [logPath]` and logs JSON-encoded events using `JsonProtocol` class.
+
+`EventLoggingListener` uses the following properties:
+
+* `spark.eventLog.enabled` (default: `false`) - whether to log Spark events that encode the information displayed in the UI to persisted storage. It is useful for reconstructing the Web UI after a Spark application has finished.
+* `spark.eventLog.compress` (default: `false`) - whether to compress logged events.
+* `spark.eventLog.overwrite` (default: `false`) - whether to overwrite any existing files.
+* `spark.eventLog.dir` (default: `/tmp/spark-events`) - path to the directory in which events are logged, e.g. `hdfs://namenode:8021/directory`. The directory must exist before Spark starts up.
+* `spark.eventLog.buffer.kb` (default: `100`) - buffer size to use when writing to output streams.
+* `spark.eventLog.testing` (default: `false`)
+
+=== StatsReportListener - Logging summary statistics
+
+*org.apache.spark.scheduler.StatsReportListener* (see https://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.scheduler.StatsReportListener[the class' scaladoc]) is a SparkListener that logs a few summary statistics when each stage completes.
+
+It listens to `SparkListenerTaskEnd`, `SparkListenerStageCompleted` events.
+
+```
+$ ./bin/spark-shell --conf \
+      spark.extraListeners=org.apache.spark.scheduler.StatsReportListener
+...
+INFO SparkContext: Registered listener org.apache.spark.scheduler.StatsReportListener
+...
+
+scala> sc.parallelize(0 to 10).count
+...
+15/11/04 15:39:45 INFO StatsReportListener: Finished stage: org.apache.spark.scheduler.StageInfo@4d3956a4
+15/11/04 15:39:45 INFO StatsReportListener: task runtime:(count: 8, mean: 36.625000, stdev: 5.893588, max: 52.000000, min: 33.000000)
+15/11/04 15:39:45 INFO StatsReportListener: 	0%	5%	10%	25%	50%	75%	90%	95%	100%
+15/11/04 15:39:45 INFO StatsReportListener: 	33.0 ms	33.0 ms	33.0 ms	34.0 ms	35.0 ms	36.0 ms	52.0 ms	52.0 ms	52.0 ms
+15/11/04 15:39:45 INFO StatsReportListener: task result size:(count: 8, mean: 953.000000, stdev: 0.000000, max: 953.000000, min: 953.000000)
+15/11/04 15:39:45 INFO StatsReportListener: 	0%	5%	10%	25%	50%	75%	90%	95%	100%
+15/11/04 15:39:45 INFO StatsReportListener: 	953.0 B	953.0 B	953.0 B	953.0 B	953.0 B	953.0 B	953.0 B	953.0 B	953.0 B
+15/11/04 15:39:45 INFO StatsReportListener: executor (non-fetch) time pct: (count: 8, mean: 17.660220, stdev: 1.948627, max: 20.000000, min: 13.461538)
+15/11/04 15:39:45 INFO StatsReportListener: 	0%	5%	10%	25%	50%	75%	90%	95%	100%
+15/11/04 15:39:45 INFO StatsReportListener: 	13 %	13 %	13 %	17 %	18 %	20 %	20 %	20 %	20 %
+15/11/04 15:39:45 INFO StatsReportListener: other time pct: (count: 8, mean: 82.339780, stdev: 1.948627, max: 86.538462, min: 80.000000)
+15/11/04 15:39:45 INFO StatsReportListener: 	0%	5%	10%	25%	50%	75%	90%	95%	100%
+15/11/04 15:39:45 INFO StatsReportListener: 	80 %	80 %	80 %	82 %	82 %	83 %	87 %	87 %	87 %
+```
 
 === Exercise
 
-In link:exercises/spark-exercise-custom-scheduler-listener.adoc[Developing Custom DAGScheduler Listener to monitor DAGScheduler in Scala] you can find a complete custom Scheduler Listener using Scala and sbt.
+In link:exercises/spark-exercise-custom-scheduler-listener.adoc[Developing Custom SparkListener to monitor DAGScheduler in Scala] you can find a complete custom Scheduler Listener using Scala and sbt.
