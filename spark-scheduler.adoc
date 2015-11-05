@@ -9,15 +9,15 @@ _"Reading the sources"_?! Yes, I _am_ kidding!
 
 === Introduction
 
-*DAGScheduler* is the present and only scheduling layer in Apache Spark that implements stage-oriented scheduling.
+*DAGScheduler* is the present and only scheduling layer in Apache Spark that implements stage-oriented scheduling, i.e. actions trigger jobs that become stages with tasks (see link:spark-execution-model.adoc[Execution Model]).
 
-It does three things in Spark (detailed explanations follow):
+DAGScheduler does three things in Spark (detailed explanations follow):
 
-* It computes a DAG of stages for a job.
-* It determines the preferred locations to run each task on.
-* It handles failures due to shuffle output files being lost.
+* It computes a *DAG of stages* for a job.
+* It determines the <<preferred-locations, preferred locations>> to run each task on.
+* It handles failures due to *shuffle output files* being lost.
 
-It computes https://en.wikipedia.org/wiki/Directed_acyclic_graph[a directed acyclic graph (DAG)] of stages for each job, keeps track of which RDDs and stage outputs are materialized, and finds a minimal schedule to run the job. It then submits stages to link:spark-taskscheduler.adoc[TaskScheduler] that runs them on the cluster.
+It computes https://en.wikipedia.org/wiki/Directed_acyclic_graph[a directed acyclic graph (DAG)] of stages for each job, keeps track of which RDDs and stage outputs are materialized, and finds a minimal schedule to run the job. It then submits stages to link:spark-taskscheduler.adoc[TaskScheduler] that spawns tasks to compute results (link:spark-local.adoc[locally] or link:spark-cluster.adoc[on cluster]).
 
 In addition to coming up with the DAG of stages, DAGScheduler also determines the preferred locations to run each task on, based on the current cache status, and passes these to link:spark-taskscheduler.adoc[TaskScheduler].
 
@@ -45,12 +45,14 @@ image::diagrams/job-stage.png[align="center"]
 
 The stage of a job can depend on other stages and so execution of a single job can trigger execution of a series of stages.
 
-Computing a job is equivalent to computing the partitions of the RDD the action has been executed upon. Note that not all partitions have always to be computed for <<ResultStage, ResultStages>> for actions like `first()` and `lookup()`.
+Computing a job is equivalent to computing the partitions of the RDD the action has been executed upon.
 
 .Computing a job is computing the partitions of an RDD
 image::diagrams/rdd-job-partitions.png[align="center"]
 
-Internally, a running job is represented by an instance of https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/scheduler/ActiveJob.scala[private[spark\] class org.apache.spark.scheduler.ActiveJob].
+Note that not all partitions have always to be computed for <<ResultStage, ResultStages>> for actions like `first()` and `lookup()`.
+
+Internally, a job is represented by an instance of https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/scheduler/ActiveJob.scala[private[spark\] class org.apache.spark.scheduler.ActiveJob].
 
 [CAUTION]
 ====
@@ -58,16 +60,6 @@ FIXME
 
 * Where are instances of ActiveJob used?
 ====
-
-All actions in Spark use `SparkContext.runJob[T, U: ClassTag](rdd: RDD[T], func: Iterator[T] => U): Array[U]` to schedule jobs (that are run on all partitions of the RDD and return the results in an array).
-
-[source,scala]
-----
-scala> sc.runJob(lines, (t: TaskContext, i: Iterator[String]) => 1)
-res0: Array[Int] = Array(1, 1)
-----
-
-Eventually, `SparkContext.runJob` uses `DAGScheduler.runJob()` and `submitJob()` (and also does link:spark-rdd-checkpointing.adoc[checkpointing]). It triggers posting `JobSubmitted` event (see <<event-loop,Event loop>>).
 
 A job can be one of two logical types (that are only distinguished by an internal `finalStage` field of `ActiveJob`):
 
@@ -236,13 +228,13 @@ https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark
 
 === RDD, job execution, stages, and partitions
 
-When link:spark-scheduler.adoc[DAGScheduler schedules a job to execute an action on a RDD], it spawns parallel tasks to compute (partial) results per partition.
+When DAGScheduler schedules a job to execute an action on a RDD, it spawns parallel tasks to compute (partial) results per partition.
 
-The number of partition in a job depends on the type of a stage - be it `ResultStage` or `ShuffleMapStage` (refer to link:spark-scheduler.adoc[Stages (aka job submission)]).
+The number of partition in a job depends on the type of a stage - be it <<ResultStage, ResultStage>> or <<ShuffleMapStage, ShuffleMapStage>>.
 
 For some actions like `first()` and `lookup()`, there is no need to compute all the partitions of a job of a target RDD.
 
-=== Fault recovery - stage attempts
+=== [[stage-attempts]] Fault recovery - stage attempts
 
 A single stage can be re-executed in multiple *attempts* due to fault recovery. The number of attempts is configured (FIXME).
 
@@ -336,7 +328,7 @@ If link:spark-rdd-caching.adoc[a storage level of an RDD is NONE], there is no n
 
 CAUTION: FIXME Review `TaskLocation`
 
-=== Preferred Locations
+=== [[preferred-locations]] Preferred Locations
 
 DAGScheduler computes where to run each task in a stage based on link:spark-rdd.adoc#preferred-locations[the preferred locations of its underlying RDDs], or <<cache-tracking, the location of cached or shuffle data>>.
 
@@ -354,7 +346,10 @@ It emits the following numbers:
 * job / allJobs - the number of all jobs
 * job / activeJobs - the number of active jobs
 
-=== Other goodies
+=== ScheduledExecutorService daemon services
 
-* List of `ScheduledExecutorService` in DAGScheduler (perhaps should be described for Spark in general):
-** `dag-scheduler-message` - a daemon thread pool using `j.u.c.ScheduledThreadPoolExecutor` with core pool size `1`. It is used to post `ResubmitFailedStages` when `FetchFailed` is reported.
+DAGScheduler uses the following ScheduledThreadPoolExecutors (with the policy of removing cancelled tasks from a work queue at time of cancellation):
+
+* `dag-scheduler-message` - a daemon thread pool using `j.u.c.ScheduledThreadPoolExecutor` with core pool size `1`. It is used to post `ResubmitFailedStages` when `FetchFailed` is reported.
+
+They are created using `ThreadUtils.newDaemonSingleThreadScheduledExecutor` method that uses Guava DSL to instantiate a ThreadFactory.

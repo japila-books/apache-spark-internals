@@ -23,11 +23,37 @@ URLs supported:
 
 The general rule seems to be to use HDFS to read files multiple times with S3 as a storage for a one-time access.
 
-=== Saving files
+=== [[saving-rdds-to-files]] Saving RDDs to files - saveAs* actions
 
-You use link:spark-rdd.adoc#saving-content-to-files[saveAs* actions] to save an RDD to a file, i.e. the content of the partitions to a file by partition.
+An RDD can be saved to a file using the following actions:
 
-FIXME
+* saveAsTextFile
+* saveAsObjectFile
+* saveAsSequenceFile
+* saveAsHadoopFile
+
+Since an RDD is actually a set of partitions that make for it, saving an RDD to a file saves the content of each partition to a file (per partition).
+
+.saveAs on RDD
+image::diagrams/rdd-saveas.png[align="center"]
+
+If you want to reduce the number of files, you will need to link:spark-rdd-partitions.adoc#repartitioning[repartition] the RDD you are saving to the number of files you want, say 1.
+
+```
+scala> sc.parallelize(0 to 10, 4).saveAsTextFile("numbers") // <1>
+...
+INFO FileOutputCommitter: Saved output of task 'attempt_201511050904_0000_m_000001_1' to file:/Users/jacek/dev/oss/spark/numbers/_temporary/0/task_201511050904_0000_m_000001
+INFO FileOutputCommitter: Saved output of task 'attempt_201511050904_0000_m_000002_2' to file:/Users/jacek/dev/oss/spark/numbers/_temporary/0/task_201511050904_0000_m_000002
+INFO FileOutputCommitter: Saved output of task 'attempt_201511050904_0000_m_000000_0' to file:/Users/jacek/dev/oss/spark/numbers/_temporary/0/task_201511050904_0000_m_000000
+INFO FileOutputCommitter: Saved output of task 'attempt_201511050904_0000_m_000003_3' to file:/Users/jacek/dev/oss/spark/numbers/_temporary/0/task_201511050904_0000_m_000003
+...
+
+scala> sc.parallelize(0 to 10, 4).repartition(1).saveAsTextFile("numbers1") // <2>
+...
+INFO FileOutputCommitter: Saved output of task 'attempt_201511050907_0002_m_000000_8' to file:/Users/jacek/dev/oss/spark/numbers1/_temporary/0/task_201511050907_0002_m_000000
+```
+<1> `parallelize` uses `4` to denote the number of partitions so there are going to be 4 files saved.
+<2> `repartition(1)` to reduce the number of the files saved to 1.
 
 === [[S3]] S3
 
@@ -134,12 +160,5 @@ java.io.IOException: No FileSystem for scheme: http
   at org.apache.spark.rdd.RDD$$anonfun$partitions$2.apply(RDD.scala:237)
   at scala.Option.getOrElse(Option.scala:121)
   at org.apache.spark.rdd.RDD.partitions(RDD.scala:237)
-  at org.apache.spark.SparkContext.runJob(SparkContext.scala:1914)
-  at org.apache.spark.rdd.RDD$$anonfun$foreach$1.apply(RDD.scala:890)
-  at org.apache.spark.rdd.RDD$$anonfun$foreach$1.apply(RDD.scala:888)
-  at org.apache.spark.rdd.RDDOperationScope$.withScope(RDDOperationScope.scala:150)
-  at org.apache.spark.rdd.RDDOperationScope$.withScope(RDDOperationScope.scala:111)
-  at org.apache.spark.rdd.RDD.withScope(RDD.scala:306)
-  at org.apache.spark.rdd.RDD.foreach(RDD.scala:888)
-  ... 48 elided
+...
 ```
