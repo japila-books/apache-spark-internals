@@ -40,7 +40,7 @@ DAGScheduler has a direct dependency on link:spark-taskscheduler.adoc[Task Sched
 
 A *job* (aka _action job_ or _active job_) is a top-level work item (computation) submitted to DAGScheduler to <<stages, compute a stage>> as either <<ResultStage, ResultStage>> that is <<spark-rdd.adoc#actions,a result of executing an action on an RDD>> in a Spark user program or (_still work in progress_) <<ShuffleMapStage, ShuffleMapStage>> for <<adaptive-query-planning, adaptive query planning>>.
 
-.Job "wraps" a stage that can depends on a series of stages
+.Job "wraps" a stage that can be many other stages
 image::diagrams/job-stage.png[align="center"]
 
 The stage of a job can depend on other stages and so execution of a single job can trigger execution of a series of stages.
@@ -115,21 +115,6 @@ The following INFO messages show in the logs:
 15/10/13 08:30:16 INFO DAGScheduler: Final stage: ResultStage 0 (count at <console>:25)
 15/10/13 08:30:16 INFO DAGScheduler: Parents of final stage: List()
 INFO DAGScheduler: Missing parents: List()
-```
-
-When DAGScheduler executes a job it first submits the final stage that may in turn trigger submission of the other stages of the missing parents of the stage (recursively).
-
-[CAUTION]
-====
-FIXME Code review
-
-* `DAGScheduler.submitStage` and DEBUG logs of `DAGScheduler`
-====
-
-When the current stage has no parent stages to submit, it is submitted.
-
-```
-INFO DAGScheduler: Submitting ResultStage 0 (MapPartitionsRDD[9] at map at <console>:25), which has no missing parents
 ```
 
 [CAUTION]
@@ -208,16 +193,12 @@ A *ResultStage* is the final stage that applies a function on some partitions of
 .Job creates ResultStage
 image::diagrams/dagscheduler-job-resultstage.png[align="center"]
 
-* `JobSubmitted` message => `DAGScheduler.handleJobSubmitted` creates `ResultStage`
-
 [CAUTION]
 ====
 FIXME
 
 * How is the stage used?
-** DAGScheduler.handleJobSubmitted
 ** DAGScheduler.newResultStage
-** DAGScheduler.submitMissingTasks
 ====
 
 === [[adaptive-query-planning]] Adaptive Query Planning
@@ -226,25 +207,31 @@ See https://issues.apache.org/jira/browse/SPARK-9850[SPARK-9850 Adaptive executi
 
 https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/scheduler/DAGScheduler.scala#L661[DAGScheduler.submitMapStage] method is used for adaptive query planning, to run map stages and look at statistics about their outputs before submitting downstream stages.
 
-=== RDD, job execution, stages, and partitions
+=== [[runJob]] RDD, job execution, stages, and partitions
 
-When DAGScheduler schedules a job to execute an action on a RDD, it spawns parallel tasks to compute (partial) results per partition.
+When DAGScheduler schedules a job as a result of link:spark-rdd.adoc#actions[executing an action on a RDD] or link:spark-sparkcontext.adoc#running-jobs[calling SparkContext.runJob() method directly], it spawns parallel tasks to compute (partial) results per partition.
 
-The number of partition in a job depends on the type of a stage - be it <<ResultStage, ResultStage>> or <<ShuffleMapStage, ShuffleMapStage>>.
+The number of partition in a job depends on the type of a stage - <<ResultStage, ResultStage>> or <<ShuffleMapStage, ShuffleMapStage>>.
 
-For some actions like `first()` and `lookup()`, there is no need to compute all the partitions of a job of a target RDD.
+A job starts with a single target RDD, but can ultimately include other RDDs that are all link:spark-rdd#lineage[the target RDD's lineage].
 
-=== [[stage-attempts]] Fault recovery - stage attempts
+`DAGScheduler.runJob` triggers `DAGScheduler.submitJob` and then waits till a result comes using `JobWaiter` object. A job can succeed or fail. Since JobWaiter object is a `JobListener` it gets notifications about `taskSucceeded` and `jobFailed`. When the total number of tasks (that equals the number of partitions to compute) equals the number of `taskSucceeded`, the JobWaiter instance is marked succeeded. A `jobFailed` event marks the JobWaiter instance failed.
 
-A single stage can be re-executed in multiple *attempts* due to fault recovery. The number of attempts is configured (FIXME).
+When a job succeeds, the following INFO shows up in the logs:
 
-If `TaskScheduler` reports that a task failed because a map output file from a previous stage was lost, the DAGScheduler resubmits that lost stage. This is detected through a `CompletionEvent` with `FetchFailed`, or an `ExecutorLost` event. `DAGScheduler` will wait a small amount of time to see whether other nodes or tasks fail, then resubmit `TaskSets` for any lost stage(s) that compute the missing tasks.
+```
+Job %d finished: %s, took %f s
+```
 
-Please note that tasks from the old attempts of a stage could still be running.
+When a job fails, the following INFO shows up in the logs:
 
-A stage object tracks multiple `StageInfo` objects to pass to Spark listeners or the web UI.
+```
+Job %d failed: %s, took %f s
+```
 
-The latest `StageInfo` for the most recent attempt for a stage is accessible through `latestInfo`.
+Job ids are tracked by DAGScheduler and incremented by one every `submitJob`.
+
+Ultimately, `submitJob` posts `JobSubmitted` event on <<event-loop, dag-scheduler-event-loop>> (that releases the current thread and let the event loop handle the event on a separate thread - asynchronously).
 
 === [[execution-events]] Execution Events
 
@@ -254,9 +241,11 @@ CAUTION: FIXME What events are posted and when?
 
 === [[event-loop]] Event loop - dag-scheduler-event-loop
 
-`DAGScheduler.eventProcessLoop` (of type `DAGSchedulerEventProcessLoop`) - is the event process loop to which Spark posts jobs to schedule their execution.
+`DAGScheduler.eventProcessLoop` (of type `DAGSchedulerEventProcessLoop`) - is the event process loop to which Spark (by <<runJob, DAGScheduler.submitJob>>) posts jobs to schedule their execution. Later on, link:spark-taskscheduler.adoc#tasksetmanager[TaskSetManager] talks back to DAGScheduler to inform about the status of the tasks using the same "communication channel".
 
-Internally, it uses https://docs.oracle.com/javase/7/docs/api/java/util/concurrent/LinkedBlockingDeque.html[java.util.concurrent.LinkedBlockingDeque] blocking deque that grows indefinitely (i.e. up to https://docs.oracle.com/javase/7/docs/api/java/lang/Integer.html#MAX_VALUE[Integer.MAX_VALUE] events).
+...IMAGE...FIXME
+
+Internally, DAGSchedulerEventProcessLoop uses https://docs.oracle.com/javase/7/docs/api/java/util/concurrent/LinkedBlockingDeque.html[java.util.concurrent.LinkedBlockingDeque] blocking deque that grows indefinitely (i.e. up to https://docs.oracle.com/javase/7/docs/api/java/lang/Integer.html#MAX_VALUE[Integer.MAX_VALUE] events).
 
 The name of the single "logic" thread that reads events and takes decisions is *dag-scheduler-event-loop*.
 
@@ -266,7 +255,7 @@ The name of the single "logic" thread that reads events and takes decisions is *
 
 The following are the current types of `DAGSchedulerEvent` events that are handled by `DAGScheduler`:
 
-* `JobSubmitted` - posted when an action job is submitted to DAGScheduler (via `submitJob` or `runApproximateJob`). It then calls `DAGScheduler.handleJobSubmitted`.
+* <<JobSubmitted, JobSubmitted>> - posted when an action job is submitted to DAGScheduler (via `submitJob` or `runApproximateJob`).
 * `MapStageSubmitted` - posted when a shuffle map stage is submitted (via `submitMapStage`). It then calls `DAGScheduler.handleMapStageSubmitted`.
 * `StageCancelled`
 * `JobCancelled`
@@ -278,7 +267,7 @@ The following are the current types of `DAGSchedulerEvent` events that are handl
 * `GettingResultEvent` - posted when `TaskSetManager` reports that a task has completed and results are being fetched remotely.
 +
 `dagScheduler.handleGetTaskResult` executes in turn.
-* `CompletionEvent` - posted when link:spark-taskscheduler.adoc#tasksetmanager[TaskSetManager] reports that a task has completed successfully or failed. See <<completionevent, CompletionEvent>>.
+* <<CompletionEvent, CompletionEvent>> - posted when link:spark-taskscheduler.adoc#tasksetmanager[TaskSetManager] reports that a task has completed successfully or failed.
 * `ExecutorAdded`
 * `ExecutorLost`
 * `TaskSetFailed`
@@ -292,7 +281,116 @@ FIXME
 * statistics? `MapOutputStatistics`?
 ====
 
-==== [[completionevent]] CompletionEvent
+==== [[JobSubmitted]] JobSubmitted and handleJobSubmitted
+
+When DAGScheduler receives *JobSubmitted* event it calls `dagScheduler.handleJobSubmitted` method.
+
+`handleJobSubmitted` has access to the final RDD, the partitions to compute, and the JobListener for the job, i.e. JobWaiter.
+
+It creates a new <<ResultStage, ResultStage>> (FIXME review `newResultStage`) and instantiates `ActiveJob`.
+
+You should see the following INFOs in the logs:
+
+```
+Got job %s (%s) with %d output partitions
+Final stage: [finalStage] ([finalStage.name])
+Parents of final stage: [finalStage.parents]
+Missing parents:
+```
+
+Then, the stage is told about the ActiveJob instance and some housekeeping is performed to track the job.
+
+`SparkListenerJobStart` event is posted to `listenerBus` (so other listeners know about the event - not only DAGScheduler).
+
+When DAGScheduler executes a job it first submits the final stage (using `DAGScheduler.submitStage(finalStage)`) that in turn submits any missing parents of the stage (recursively).
+
+A DEBUG message shows up in the logs (DAGScheduler logger):
+
+```
+submitStage([stage])
+```
+
+and then another DEBUG:
+
+```
+missing:
+```
+
+When the current stage has no parent stages to submit, it is submitted and the INFO message shows up in the logs:
+
+```
+INFO DAGScheduler: Submitting ResultStage 0 (MapPartitionsRDD[9] at map at <console>:25), which has no missing parents
+```
+
+CAUTION: FIXME: Review `getMissingParentStages`
+
+And <<submitMissingTasks, submitMissingTasks>> is called. It is the moment when the stage's parents are available.
+
+If however there are missing parent stages for the stage, all stages are `submitStage`.
+
+If there's no active job for a stage, the stage and all the dependent jobs are aborted.
+
+```
+Job aborted due to stage failure: No active job for stage [stage.id]
+```
+
+No dependent jobs lead to the INFO message:
+
+```
+Ignoring failure of [failedStage] because all jobs depending on it are done
+```
+
+`submitWaitingStages()` called at the end.
+
+[TIP]
+====
+Enable TRACE level for DAGScheduler to see statistics for running, waiting, and failed stages, i.e.
+
+```
+Checking for newly runnable parent stages
+running:
+waiting:
+failed:
+```
+====
+
+===== [[submitMissingTasks]] submitMissingTasks
+
+`DAGScheduler.submitMissingTasks` is called when the current stage's parents are available and it can now do its task(s).
+
+```
+DEBUG DAGScheduler: submitMissingTasks(ResultStage 4)
+```
+
+DAGScheduler finds missing partitions of the target RDD to compute.
+
+The stage is added to an internal set of running stages.
+
+`outputCommitCoordinator.stageStart` is called.
+
+`SparkListenerStageSubmitted` is posted.
+
+`closureSerializer.serialize` is called to calculate `taskBinaryBytes` that is then `sc.broadcast`.
+
+For each partition for the stage, `ShuffleMapTask` and
+`ResultTask` are `taskScheduler.submitTasks`.
+
+...IMAGE...FIXME...DAGScheduler calls taskScheduler.submitTasks
+
+The following INFO and DEBUG messages are in the logs:
+
+```
+INFO Submitting " + tasks.size + " missing tasks from " + stage + " (" + stage.rdd + ")
+DEBUG "New pending partitions: " + stage.pendingPartitions
+```
+
+In case of no tasks to be submitted for a stage, the DEBUG message shows up in the logs:
+
+```
+DEBUG Stage ${stage} is actually done;
+```
+
+==== [[CompletionEvent]] CompletionEvent
 
 CAUTION: FIXME Unfinished
 
@@ -309,6 +407,18 @@ FIXME Communication Flow Diagram
 Internally, link:spark-taskscheduler.adoc#tasksetmanager[TaskSetManager] calls `DAGScheduler.taskEnded` to post the `CompletionEvent` event on `eventProcessLoop`.
 
 * `DAGScheduler.onReceive` calls `dagScheduler.handleTaskCompletion(completion)`
+
+=== [[stage-attempts]] Fault recovery - stage attempts
+
+A single stage can be re-executed in multiple *attempts* due to fault recovery. The number of attempts is configured (FIXME).
+
+If `TaskScheduler` reports that a task failed because a map output file from a previous stage was lost, the DAGScheduler resubmits that lost stage. This is detected through a `CompletionEvent` with `FetchFailed`, or an `ExecutorLost` event. `DAGScheduler` will wait a small amount of time to see whether other nodes or tasks fail, then resubmit `TaskSets` for any lost stage(s) that compute the missing tasks.
+
+Please note that tasks from the old attempts of a stage could still be running.
+
+A stage object tracks multiple `StageInfo` objects to pass to Spark listeners or the web UI.
+
+The latest `StageInfo` for the most recent attempt for a stage is accessible through `latestInfo`.
 
 === [[cache-tracking]] Cache Tracking
 

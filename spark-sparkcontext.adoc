@@ -117,19 +117,42 @@ SparkContext keeps track of:
 
 === [[running-jobs]] Running jobs
 
-All link:spark-rdd.adoc#actions[RDD actions] in Spark launch link:spark-scheduler.adoc#jobs[jobs] (that are run on all partitions of the RDD) using `SparkContext.runJob[T, U: ClassTag](rdd: RDD[T], func: Iterator[T] => U): Array[U]`.
+All link:spark-rdd.adoc#actions[RDD actions] in Spark launch link:spark-scheduler.adoc#jobs[jobs] (that are run on one or many partitions of the RDD) using `SparkContext.runJob(rdd: RDD[T], func: Iterator[T] => U): Array[U]`.
+
+TIP: For some actions like `first()` and `lookup()`, there is no need to compute all the partitions of the RDD in a job. And Spark knows it.
 
 [source,scala]
 ----
-scala> sc.runJob(lines, (t: TaskContext, i: Iterator[String]) => 1)
-res0: Array[Int] = Array(1, 1)
+scala> import org.apache.spark.TaskContext
+import org.apache.spark.TaskContext
+
+scala> sc.runJob(lines, (t: TaskContext, i: Iterator[String]) => 1) // <1>
+res0: Array[Int] = Array(1, 1)  // <2>
+----
+<1> Run a job using `runJob` on `lines` RDD with a function that returns 1 for every partition (of `lines` RDD).
+<2> What can you say about the number of partitions of the `lines` RDD? Is your result `res0` different than mine? Why?
+
+Running a job is essentially executing the `func` function on the `rdd` RDD and returning the result as an array (with elements being the results per partition).
+
+`SparkContext.runJob` calls link:spark-scheduler.adoc#runJob[DAGScheduler.runJob()]. Before the method finishes, it does link:spark-rdd-checkpointing.adoc[checkpointing]. It triggers posting `JobSubmitted` event (see <<event-loop,Event loop>>).
+
+When you stop SparkContext using `sc.stop`, you can no longer launch jobs using `runJob`. An attempt to do so will result in `java.lang.IllegalStateException`.
+
+[source, scala]
+----
+scala> sc.stop
+...
+INFO SparkContext: Successfully stopped SparkContext
+
+scala> sc.runJob(lines, (t: TaskContext, i: Iterator[Int]) => 1)
+java.lang.IllegalStateException: SparkContext has been shutdown
+  at org.apache.spark.SparkContext.runJob(SparkContext.scala:1812)
+  at org.apache.spark.SparkContext.runJob(SparkContext.scala:1833)
+  at org.apache.spark.SparkContext.runJob(SparkContext.scala:1910)
+  ... 48 elided
 ----
 
-Running a job is essentially executing the function (given as the input parameter `func`) on the RDD (using the input parameter `rdd`) and return the result in an array (an element per partition).
-
-`SparkContext.runJob` uses `DAGScheduler.runJob()` and `submitJob()` (and also does link:spark-rdd-checkpointing.adoc[checkpointing]). It triggers posting `JobSubmitted` event (see <<event-loop,Event loop>>).
-
-FIXME
+By default, SparkContext uses (`private[spark]` class) `org.apache.spark.scheduler.DAGScheduler`, but you can develop your own custom DAGScheduler implementation, and use (`private[spark]`) `SparkContext.dagScheduler_=(ds: DAGScheduler)` method to assign yours.
 
 === Others
 
