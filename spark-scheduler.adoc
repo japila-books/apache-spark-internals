@@ -9,9 +9,9 @@ _"Reading the sources"_?! Yes, I _am_ kidding!
 
 === Introduction
 
-*DAGScheduler* is the present and only scheduling layer in Apache Spark that implements stage-oriented scheduling, i.e. actions trigger jobs that become stages with tasks (see link:spark-execution-model.adoc[Execution Model]).
+*DAGScheduler* is the present and only scheduling layer in Apache Spark that implements stage-oriented scheduling, i.e. RDD actions trigger jobs that become stages with tasks (see link:spark-execution-model.adoc[Execution Model]).
 
-DAGScheduler does three things in Spark (detailed explanations follow):
+DAGScheduler does three things in Spark (explanations follow):
 
 * It computes a *DAG of stages* for a job.
 * It determines the <<preferred-locations, preferred locations>> to run each task on.
@@ -23,18 +23,20 @@ In addition to coming up with the DAG of stages, DAGScheduler also determines th
 
 Furthermore, it handles failures due to shuffle output files being lost, in which case old stages may need to be resubmitted. Failures *within* a stage that are not caused by shuffle file loss are handled by the TaskScheduler, which will retry each task a small number of times before cancelling the whole stage.
 
-*DAGScheduler* uses an event queue architecture in which a thread can post an `DAGSchedulerEvent` event, e.g. a new job being submitted (`JobSubmitted`), that the scheduler reads and executes, sequentially.
+DAGScheduler uses an event queue architecture in which a thread can post an `DAGSchedulerEvent` event, e.g. a new job being submitted (`JobSubmitted`), that the scheduler reads and executes, sequentially. See the section <<event-loop, Internal Event Loop - dag-scheduler-event-loop>>.
 
 [TIP]
 ====
 Add the following line to `conf/log4j.properties` to see what happens under the covers of `DAGScheduler`:
 
 ```
-log4j.logger.org.apache.spark.scheduler.DAGScheduler=DEBUG
+log4j.logger.org.apache.spark.scheduler.DAGScheduler=TRACE
 ```
 ====
 
-DAGScheduler has a direct dependency on link:spark-taskscheduler.adoc[Task Scheduler], link:spark-scheduler-listeners.adoc[Listener Bus], spark-service-mapoutputtracker.adoc#MapOutputTrackerMaster[MapOutputTrackerMaster] and link:spark-blockmanager.adoc[Block Manager]. It also  reports metrics about its execution (refer to the section <<metrics, Metrics>>).
+DAGScheduler has a direct dependency on link:spark-taskscheduler.adoc[Task Scheduler], link:spark-scheduler-listeners.adoc[Listener Bus], link:spark-service-mapoutputtracker.adoc#MapOutputTrackerMaster[MapOutputTrackerMaster] and link:spark-blockmanager.adoc[Block Manager].
+
+DAGScheduler reports metrics about its execution (refer to the section <<metrics, Metrics>>).
 
 === [[jobs]] Jobs
 
@@ -63,12 +65,14 @@ FIXME
 
 A job can be one of two logical types (that are only distinguished by an internal `finalStage` field of `ActiveJob`):
 
-* *Map-stage job* that computes the map output files for a <<ShuffleMapStage, ShuffleMapStage>> (for `submitMapStage`) before any downstream stages are submitted. It is used for <<adaptive-query-planning, adaptive query planning>>, to look at map output statistics before submitting later stages.
-* *Result job* that computes a <<ResultStage, ResultStage>> to execute an action
+* *Map-stage job* that computes the map output files for a <<ShuffleMapStage, ShuffleMapStage>> (for `submitMapStage`) before any downstream stages are submitted.
++
+It is also used for <<adaptive-query-planning, adaptive query planning>>, to look at map output statistics before submitting later stages.
+* *Result job* that computes a <<ResultStage, ResultStage>> to execute an action.
 
-Jobs track how many partitions have already been computed (using `finished` array of `Boolean` field).
+Jobs track how many partitions have already been computed (using `finished` array of `Boolean` elements).
 
-==== Job Listener and Events
+==== [[job-listener]] Job Listener and Completion Events
 
 You can listen for job completion or failure events after submitting a job to the DAGScheduler using `JobListener`.
 
@@ -81,7 +85,7 @@ The following are the job listeners used:
 
 === [[stages]] Stages (and a bit on job submission)
 
-When a job is submitted, a new <<ResultStage, ResultStage>> stage is created (with the parent stages linked in `newResultStage`).
+When a job is submitted, a new <<ResultStage, ResultStage>> stage is created with the parent ShuffleMapStages linked (they can thus be created or linked to if other stages use them already).
 
 The stage is then transformed into a set of (parallel) tasks that all compute results of a function on partitions of a RDD that need to run as part of a Spark job.
 
@@ -117,11 +121,6 @@ The following INFO messages show in the logs:
 INFO DAGScheduler: Missing parents: List()
 ```
 
-[CAUTION]
-====
-FIXME What's `ShuffleMapStage.outputLocs`?
-====
-
 `DAGScheduler` keeps track of stages in different states:
 
 * waiting
@@ -156,6 +155,8 @@ Each stage has also a `firstJobId`, identifying the job that first submitted the
 
 A stage has an *id*.
 
+Every time a stage is created, DAGScheduler increments internal counter (`nextStageId`) to keep track of the number of stage submissions.
+
 ==== Stage sharing
 
 Stages can be shared across multiple jobs, if these jobs reuse the same RDDs.
@@ -164,7 +165,7 @@ FIXME: Where in the code is this used?
 
 ==== [[ShuffleMapStage]] ShuffleMapStage
 
-A *ShuffleMapStage* (represented by  https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/scheduler/ShuffleMapStage.scala[org.apache.spark.scheduler.ShuffleMapStage]) is an intermediate stage (in the execution of a DAG) that produces data for link:spark-rdd-shuffle.adoc[a shuffle] and is an input for the other stages in the DAG of stages.
+A *ShuffleMapStage* (represented by  https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/scheduler/ShuffleMapStage.scala[org.apache.spark.scheduler.ShuffleMapStage]) is an intermediate stage (in the execution DAG) that produces data for link:spark-rdd-shuffle.adoc[a shuffle] and is an input for the other stages in the DAG of stages.
 
 In other words, ShuffleMapStage is a stage with additional link:spark-rdd-dependencies.adoc#shuffle-dependency[ShuffleDependency] - the shuffle that it is part of.
 
@@ -176,11 +177,12 @@ The output locations (`outputLocs`) of a ShuffleMapStage are the same as used by
 
 [CAUTION]
 ====
-FIXME Where is `ShuffleMapStage` used?
+FIXME
 
+* Where is `ShuffleMapStage` used?
+* What's `ShuffleMapStage.outputLocs`?
 * Review `ShuffleMapStage`'s scaladoc
 * `newShuffleMapStage`
-* `getShuffleMapStage`
 * `newOrUsedShuffleStage`
 * `handleMapStageSubmitted`
 * `shuffleToMapStage` - `private[scheduler]` HashMap
@@ -188,24 +190,25 @@ FIXME Where is `ShuffleMapStage` used?
 
 ==== [[ResultStage]] ResultStage
 
-A *ResultStage* is the final stage that applies a function on some partitions of an RDD to compute the result of an action.
+A *ResultStage* is the final stage in running a job (as a result of executing an RDD action) that applies a function on one or more partitions of the target RDD and returns a value of the action.
 
-.Job creates ResultStage
+.Job creates ResultStage as the first stage
 image::diagrams/dagscheduler-job-resultstage.png[align="center"]
+
+To calculate a list of the parent stages of a stage DAGScheduler uses an RDD and a job's id. The parent stages are actually only the instances of <<ShuffleMapStage, ShuffleMapStage>>.
+
+...FIXME...IMAGE with parent stages being ShuffleMapStage only.
+
+It then traverses the RDD's dependencies and for every link:spark-rdd-dependencies.adoc#shuffle-dependency[ShuffleDependency] gets or creates a new <<ShuffleMapStage, ShuffleMapStage>>.
+
+...FIXME...IMAGE with ShuffleDependencies queried
+
+DAGScheduler tracks the mapping between shuffle id (FIXME tracked by SparkContext) and ShuffleMapStage in `shuffleToMapStage`. When there is no ShuffleMapStage for the shuffle id, one is created with the ancestor shuffle dependencies of the stage being registered to link:spark-service-mapoutputtracker.adoc[MapOutputTrackerMaster].
 
 [CAUTION]
 ====
-FIXME
-
-* How is the stage used?
-** DAGScheduler.newResultStage
+FIXME What does this mean "getShuffleMapStage = Get or create a shuffle map stage for the given shuffle dependency's map side."?
 ====
-
-=== [[adaptive-query-planning]] Adaptive Query Planning
-
-See https://issues.apache.org/jira/browse/SPARK-9850[SPARK-9850 Adaptive execution in Spark] for the design document. The work is currently in progress.
-
-https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/scheduler/DAGScheduler.scala#L661[DAGScheduler.submitMapStage] method is used for adaptive query planning, to run map stages and look at statistics about their outputs before submitting downstream stages.
 
 === [[runJob]] RDD, job execution, stages, and partitions
 
@@ -233,13 +236,7 @@ Job ids are tracked by DAGScheduler and incremented by one every `submitJob`.
 
 Ultimately, `submitJob` posts `JobSubmitted` event on <<event-loop, dag-scheduler-event-loop>> (that releases the current thread and let the event loop handle the event on a separate thread - asynchronously).
 
-=== [[execution-events]] Execution Events
-
-A `SparkListenerJobStart` event is posted to link:spark-scheduler-listeners.adoc[listenerBus].
-
-CAUTION: FIXME What events are posted and when?
-
-=== [[event-loop]] Event loop - dag-scheduler-event-loop
+=== [[event-loop]] Internal Event Loop - dag-scheduler-event-loop
 
 `DAGScheduler.eventProcessLoop` (of type `DAGSchedulerEventProcessLoop`) - is the event process loop to which Spark (by <<runJob, DAGScheduler.submitJob>>) posts jobs to schedule their execution. Later on, link:spark-taskscheduler.adoc#tasksetmanager[TaskSetManager] talks back to DAGScheduler to inform about the status of the tasks using the same "communication channel".
 
@@ -356,13 +353,15 @@ failed:
 
 ===== [[submitMissingTasks]] submitMissingTasks
 
-`DAGScheduler.submitMissingTasks` is called when the current stage's parents are available and it can now do its task(s).
+`DAGScheduler.submitMissingTasks` is called when the current stage's parents, i.e. <<ShuffleMapStage, ShuffleMapStages>>, are available and it is now possible to run task(s) for the current <<ResultStage, ResultStage>> stage.
+
+In the logs you should see the following DEBUG message:
 
 ```
 DEBUG DAGScheduler: submitMissingTasks(ResultStage 4)
 ```
 
-DAGScheduler finds missing partitions of the target RDD to compute.
+DAGScheduler finds missing partitions of the target RDD to compute. The *missing partitions* are partitions for which the ActiveJob doesn't know are finished.
 
 The stage is added to an internal set of running stages.
 
@@ -441,6 +440,12 @@ CAUTION: FIXME Review `TaskLocation`
 === [[preferred-locations]] Preferred Locations
 
 DAGScheduler computes where to run each task in a stage based on link:spark-rdd.adoc#preferred-locations[the preferred locations of its underlying RDDs], or <<cache-tracking, the location of cached or shuffle data>>.
+
+=== [[adaptive-query-planning]] Adaptive Query Planning
+
+See https://issues.apache.org/jira/browse/SPARK-9850[SPARK-9850 Adaptive execution in Spark] for the design document. The work is currently in progress.
+
+https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/scheduler/DAGScheduler.scala#L661[DAGScheduler.submitMapStage] method is used for adaptive query planning, to run map stages and look at statistics about their outputs before submitting downstream stages.
 
 === [[metrics]] Metrics
 
