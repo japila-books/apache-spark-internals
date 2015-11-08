@@ -2,32 +2,34 @@
 
 [NOTE]
 ====
-The introduction that follows is an almost exact copy of scaladoc of https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/scheduler/DAGScheduler.scala[org.apache.spark.scheduler.DAGScheduler]. As DAGScheduler is a private class it does not appear in the official API documentation. You are strongly encouraged to read https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/scheduler/DAGScheduler.scala[the sources] and read the page afterwards.
+The introduction that follows was highly influenced by the scaladoc of https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/scheduler/DAGScheduler.scala[org.apache.spark.scheduler.DAGScheduler]. As DAGScheduler is a private class it does not appear in the official API documentation. You are strongly encouraged to read https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/scheduler/DAGScheduler.scala[the sources] and read the page afterwards.
 
-_"Reading the sources"_?! Yes, I _am_ kidding!
+_"Reading the sources"_, you say?! Yes, I _am_ kidding!
 ====
 
 === Introduction
 
-*DAGScheduler* is the present and only scheduling layer in Apache Spark that implements stage-oriented scheduling, i.e. RDD actions trigger jobs that become stages with tasks (see link:spark-execution-model.adoc[Execution Model]).
+*DAGScheduler* is the present and only scheduling layer in Apache Spark that implements stage-oriented scheduling, i.e. RDD actions trigger jobs that become stages with parallel tasks (see link:spark-execution-model.adoc[Execution Model]).
 
-DAGScheduler does three things in Spark (explanations follow):
+DAGScheduler does three things in Spark (thorough explanations follow):
 
-* It computes a *DAG of stages* for a job.
+* It computes an *execution DAG*, i.e. DAG of stages, for a job.
 * It determines the <<preferred-locations, preferred locations>> to run each task on.
 * It handles failures due to *shuffle output files* being lost.
 
-It computes https://en.wikipedia.org/wiki/Directed_acyclic_graph[a directed acyclic graph (DAG)] of stages for each job, keeps track of which RDDs and stage outputs are materialized, and finds a minimal schedule to run the job. It then submits stages to link:spark-taskscheduler.adoc[TaskScheduler] that spawns tasks to compute results (link:spark-local.adoc[locally] or link:spark-cluster.adoc[on cluster]).
+It computes https://en.wikipedia.org/wiki/Directed_acyclic_graph[a directed acyclic graph (DAG)] of stages for each job, keeps track of which RDDs and stage outputs are materialized, and finds a minimal schedule to run jobs. It then submits stages to link:spark-taskscheduler.adoc[TaskScheduler] that spawns tasks to compute results (link:spark-local.adoc[locally] or link:spark-cluster.adoc[on cluster]).
 
-In addition to coming up with the DAG of stages, DAGScheduler also determines the preferred locations to run each task on, based on the current cache status, and passes these to link:spark-taskscheduler.adoc[TaskScheduler].
+In addition to coming up with the execution DAG, DAGScheduler also determines the preferred locations to run each task on, based on the current cache status, and passes the information to link:spark-taskscheduler.adoc[TaskScheduler].
 
-Furthermore, it handles failures due to shuffle output files being lost, in which case old stages may need to be resubmitted. Failures *within* a stage that are not caused by shuffle file loss are handled by the TaskScheduler, which will retry each task a small number of times before cancelling the whole stage.
+Furthermore, it handles failures due to shuffle output files being lost, in which case old stages may need to be resubmitted. Failures within a stage that are not caused by shuffle file loss are handled by the TaskScheduler itself, which will retry each task a small number of times before cancelling the whole stage.
 
-DAGScheduler uses an event queue architecture in which a thread can post an `DAGSchedulerEvent` event, e.g. a new job being submitted (`JobSubmitted`), that the scheduler reads and executes, sequentially. See the section <<event-loop, Internal Event Loop - dag-scheduler-event-loop>>.
+DAGScheduler uses an *event queue architecture* in which a thread can post `DAGSchedulerEvent` events, e.g. a new job or stage being submitted, that DAGScheduler reads and executes sequentially. See the section <<event-loop, Internal Event Loop - dag-scheduler-event-loop>>.
 
 [TIP]
 ====
-Add the following line to `conf/log4j.properties` to see what happens under the covers of `DAGScheduler`:
+Turn `DEBUG` or even `TRACE` logging to see what happens inside `DAGScheduler`.
+
+Add the following line to `conf/log4j.properties` with requested log level - `DEBUG` or `TRACE`:
 
 ```
 log4j.logger.org.apache.spark.scheduler.DAGScheduler=TRACE
@@ -40,12 +42,12 @@ DAGScheduler reports metrics about its execution (refer to the section <<metrics
 
 === [[jobs]] Jobs
 
-A *job* (aka _action job_ or _active job_) is a top-level work item (computation) submitted to DAGScheduler to <<stages, compute a stage>> as either <<ResultStage, ResultStage>> that is <<spark-rdd.adoc#actions,a result of executing an action on an RDD>> in a Spark user program or (_still work in progress_) <<ShuffleMapStage, ShuffleMapStage>> for <<adaptive-query-planning, adaptive query planning>>.
+A *job* (aka _action job_ or _active job_) is a top-level work item (computation) submitted to DAGScheduler to <<stages, compute a stage>>.
 
-.Job "wraps" a stage that can be many other stages
+A stage of a job can depend on other stages and so execution of a single job with a stage can trigger execution of a series of dependent stages.
+
+.Job "wraps" a stage that can depend on other stages
 image::diagrams/job-stage.png[align="center"]
-
-The stage of a job can depend on other stages and so execution of a single job can trigger execution of a series of stages.
 
 Computing a job is equivalent to computing the partitions of the RDD the action has been executed upon.
 
@@ -85,7 +87,9 @@ The following are the job listeners used:
 
 === [[stages]] Stages (and a bit on job submission)
 
-When a job is submitted, a new <<ResultStage, ResultStage>> stage is created with the parent ShuffleMapStages linked (they can be created from scratch or linked to, i.e. shared, if other jobs use them already).
+A job computes a stage as either <<ResultStage, ResultStage>> that is <<spark-rdd.adoc#actions,a result of executing an action on an RDD>> in a Spark user program or (_still work in progress_) <<ShuffleMapStage, ShuffleMapStage>> for <<adaptive-query-planning, adaptive query planning>>.
+
+When a job is submitted, a new ResultStage stage is created with the parent ShuffleMapStages linked (they can be created from scratch or linked to, i.e. shared, if other jobs use them already).
 
 .DAGScheduler and Stages for a job
 image::diagrams/scheduler-job-shuffles-result-stages.png[align="center"]
@@ -159,7 +163,7 @@ A stage has an *id*.
 
 Every time a stage is created, DAGScheduler increments internal counter (`nextStageId`) to keep track of the number of stage submissions.
 
-==== Stage sharing
+==== [[stage-sharing]] Stage sharing
 
 Stages can be shared across multiple jobs, if these jobs reuse the same RDDs.
 
@@ -191,19 +195,27 @@ The number of the partitions of an RDD is exactly the number of the tasks in a S
 
 The output locations (`outputLocs`) of a ShuffleMapStage are the same as used by its link:spark-rdd-dependencies.adoc#shuffle-dependency[ShuffleDependency]. Output locations can be missing, i.e. partitions have not been cached or are lost.
 
+DAGScheduler tracks the mapping of shuffles (by their ids from SparkContext) to corresponding ShuffleMapStages that compute them in `shuffleToMapStage`.
+
+FIXME: Where's shuffleToMapStage used?
+
+When there is no ShuffleMapStage for a shuffle id, one is created with the ancestor shuffle dependencies of the stage being registered to link:spark-service-mapoutputtracker.adoc[MapOutputTrackerMaster].
+
 FIXME Where is `ShuffleMapStage` used?
 
-* newShuffleMapStage <- newShuffleMapStage
+* newShuffleMapStage - the proper way to create shuffle map stages (with the additional setup steps)
 * <<MapStageSubmitted, MapStageSubmitted>>
+* `getShuffleMapStage` - FIXME
+
 
 [CAUTION]
 ====
 FIXME
 
+* Code review `getShuffleMapStage` - what it takes to create a shuffle map stage?
 * What's `ShuffleMapStage.outputLocs` and `MapStatus`?
 * `newShuffleMapStage`
 * `newOrUsedShuffleStage`
-* `shuffleToMapStage` - `private[scheduler]` HashMap
 ====
 
 ==== [[ResultStage]] ResultStage
@@ -220,13 +232,6 @@ To calculate a list of the parent stages of a stage DAGScheduler uses an RDD and
 It then traverses the RDD's dependencies and for every link:spark-rdd-dependencies.adoc#shuffle-dependency[ShuffleDependency] gets or creates a new <<ShuffleMapStage, ShuffleMapStage>>.
 
 ...FIXME...IMAGE with ShuffleDependencies queried
-
-DAGScheduler tracks the mapping between shuffle id (FIXME tracked by SparkContext) and ShuffleMapStage in `shuffleToMapStage`. When there is no ShuffleMapStage for the shuffle id, one is created with the ancestor shuffle dependencies of the stage being registered to link:spark-service-mapoutputtracker.adoc[MapOutputTrackerMaster].
-
-[CAUTION]
-====
-FIXME What does this mean "getShuffleMapStage = Get or create a shuffle map stage for the given shuffle dependency's map side."?
-====
 
 === [[runJob]] RDD, job execution, stages, and partitions
 
@@ -322,11 +327,12 @@ The execution procedure of MapStageSubmitted events is then exactly (FIXME ?) as
 
 [TIP]
 ====
-The difference between `handleMapStageSubmitted` and `handleJobSubmitted`:
+The difference between `handleMapStageSubmitted` and <<JobSubmitted, handleJobSubmitted>>:
 
 * `handleMapStageSubmitted` has `ShuffleDependency` among the input parameters while `handleJobSubmitted` has `finalRDD`, `func`, and `partitions`.
 * `handleMapStageSubmitted` initializes `finalStage` as `getShuffleMapStage(dependency, jobId)` while `handleJobSubmitted` as `finalStage = newResultStage(finalRDD, func, partitions, jobId, callSite)`
 * `handleMapStageSubmitted` INFO logs `Got map stage job %s (%s) with %d output partitions` with `dependency.rdd.partitions.length` while `handleJobSubmitted` does `Got job %s (%s) with %d output partitions` with `partitions.length`.
+* FIXME: Could the above be cut to `ActiveJob.numPartitions`?
 * `handleMapStageSubmitted` adds a new job with `finalStage.addActiveJob(job)` while `handleJobSubmitted` sets with `finalStage.setActiveJob(job)`.
 * `handleMapStageSubmitted` checks if the final stage has already finished, tells the listener and removes it using the code:
 +
