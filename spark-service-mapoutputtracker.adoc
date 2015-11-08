@@ -1,13 +1,50 @@
 == MapOutputTracker
 
-A *MapOutputTracker* is...FIXME
+A *MapOutputTracker* is a Spark service to track the locations of the (shuffle) map output of a stage. It uses an internal MapStatus map with an array of `MapStatus` for every partition for a shuffle id.
 
-The service is available under `SparkEnv.get.mapOutputTracker`.
+MapOutputTracker is available under `SparkEnv.get.mapOutputTracker`. It is also available as `MapOutputTracker` on the driver in a RPC Environment.
+
+[TIP]
+====
+Use `DEBUG` log level to see what happens inside MapOutputTrackers.
+
+Add the following line to `conf/log4j.properties`:
+
+```
+org.apache.spark.MapOutputTracker=DEBUG
+```
+====
+
+You should see the following INFO message when the MapOutputTrackerMaster is created (FIXME it uses `MapOutputTrackerMasterEndpoint`):
+
+```
+INFO SparkEnv: Registering MapOutputTracker
+```
 
 It works with link:spark-rdd-shuffledrdd.adoc[ShuffledRDD] when it asks for *preferred locations for a shuffle* using `tracker.getPreferredLocationsForShuffle`.
 
 It is also used for `mapOutputTracker.containsShuffle` and `mapOutputTracker.registerShuffle` when a new `ShuffleMapStage` is created.
 
+FIXME `DAGScheduler.mapOutputTracker`
+
+`mapOutputTracker.getStatistics(dependency)` returns MapOutputStatistics that becomes the result of `JobWaiter.taskSucceeded` for ShuffleMapStage if it's the final stage in a job.
+
+`mapOutputTracker.registerMapOutputs` for a shuffle id and a list of `MapStatus` when a ShuffleMapStage is finished.
+
 === [[MapOutputTrackerMaster]] MapOutputTrackerMaster
 
-A *MapOutputTrackerMaster* is...FIXME
+A *MapOutputTrackerMaster* is MapOutputTracker for the driver.
+
+A MapOutputTrackerMaster maintains a map of `MapStatus`'es (map outputs) recorded from ShuffleMapTasks.
+
+* `spark.shuffle.reduceLocality.enabled` (default: true) - whether to compute locality preferences for reduce tasks.
++
+If `true`, `MapOutputTrackerMaster` computes the preferred hosts on which to run a given map output partition in a given shuffle, i.e. the nodes that the most outputs for that partition are on.
+
+FIXME: Where is shuffleLocalityEnabled used?
+
+There is currently a limit of map and reduce tasks above which Spark does not assign preferred locations based on map output sizes -- `1000` for map and reduce each.
+
+=== [[MapOutputTrackerWorker]] MapOutputTrackerWorker
+
+A *MapOutputTrackerWorker* is MapOutputTracker for workers / executors that fetch map output information from the driver's <<MapOutputTrackerMaster, MapOutputTrackerMaster>>.

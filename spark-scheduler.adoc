@@ -163,27 +163,38 @@ A stage has an *id*.
 
 Every time a stage is created, DAGScheduler increments internal counter (`nextStageId`) to keep track of the number of stage submissions.
 
-==== [[stage-sharing]] Stage sharing
+==== [[stage-sharing]] ShuffleMapStage sharing
 
-Stages can be shared across multiple jobs, if these jobs reuse the same RDDs.
+ShuffleMapStages can be shared across multiple jobs, if these jobs reuse the same RDDs.
 
-FIXME: Where in the code is this used?
+When a ShuffleMapStage is submitted to DAGScheduler to execute, `getShuffleMapStage` is called (as part of <<MapStageSubmitted, handleMapStageSubmitted>> while `newResultStage` - note the `new` part - for <<JobSubmitted, handleJobSubmitted>>).
+
+[source, scala]
+----
+scala> val rdd = sc.parallelize(0 to 5).map((_,1)).sortByKey()  // <1>
+
+scala> rdd.count  // <2>
+
+scala> rdd.count  // <3>
+----
+<1> Shuffle at `sortByKey()`
+<2> Submits a job with two stages with two being executed
+<3> Intentionally repeat the last action that submits a new job with two stages with one being shared as already-computed
+
+.Skipped Stages are already-computed ShuffleMapStages
+image::images/dagscheduler-webui-skipped-stages.png[align="center"]
 
 ==== [[ShuffleMapStage]] ShuffleMapStage
 
-A *ShuffleMapStage* (aka *shuffle map stage*, or simply *map stage*) is an intermediate stage in the execution DAG that produces data for link:spark-rdd-shuffle.adoc[shuffle operation]. It is an input for the other following stages in the DAG of stages.
+A *ShuffleMapStage* (aka *shuffle map stage*, or simply *map stage*) is an intermediate stage in the execution DAG that produces data for link:spark-rdd-shuffle.adoc[shuffle operation]. It is an input for the other following stages in the DAG of stages. That is why it is also called a *shuffle dependency's map side* (see link:spark-rdd-dependencies.adoc#shuffle-dependency[ShuffleDependency])
 
-ShuffleMapStage is also known as a *shuffle dependency's map side* (see link:spark-rdd-dependencies.adoc#shuffle-dependency[ShuffleDependency])
-
-ShuffleMapStages might contain multiple pipelined operations, e.g. `map` and `filter`, before shuffle operation.
+ShuffleMapStages usually contain multiple pipelined operations, e.g. `map` and `filter`, before shuffle operation.
 
 CAUTION: FIXME: Show the example and the logs + figures
 
-A single ShuffleMapStage can be part of many jobs.
+A single ShuffleMapStage can be part of many jobs -- refer to the section <<stage-sharing, ShuffleMapStage sharing>>.
 
-CAUTION: FIXME: Show the example and the logs + figures
-
-A ShuffleMapStage is a stage with additional link:spark-rdd-dependencies.adoc#shuffle-dependency[ShuffleDependency] - the shuffle that it is part of and `outputLocs` and `numAvailableOutputs` track how many map outputs are ready.
+A ShuffleMapStage is a stage with a link:spark-rdd-dependencies.adoc#shuffle-dependency[ShuffleDependency] - the shuffle that it is part of and `outputLocs` and `numAvailableOutputs` track how many map outputs are ready.
 
 NOTE: ShuffleMapStages can also be submitted independently as jobs with `DAGScheduler.submitMapStage` for <<adaptive-query-planning, Adaptive Query Planning>>.
 
@@ -195,27 +206,32 @@ The number of the partitions of an RDD is exactly the number of the tasks in a S
 
 The output locations (`outputLocs`) of a ShuffleMapStage are the same as used by its link:spark-rdd-dependencies.adoc#shuffle-dependency[ShuffleDependency]. Output locations can be missing, i.e. partitions have not been cached or are lost.
 
-DAGScheduler tracks the mapping of shuffles (by their ids from SparkContext) to corresponding ShuffleMapStages that compute them in `shuffleToMapStage`.
+ShuffleMapStages are registered to DAGScheduler that tracks the mapping of shuffles (by their ids from SparkContext) to corresponding ShuffleMapStages that compute them, stored in `shuffleToMapStage`.
 
-FIXME: Where's shuffleToMapStage used?
+A new ShuffleMapStage is created from an input <<spark-rdd-dependencies.adoc#shuffle-dependency, ShuffleDependency>> and a job's id (in `DAGScheduler#newOrUsedShuffleStage`).
 
-When there is no ShuffleMapStage for a shuffle id, one is created with the ancestor shuffle dependencies of the stage being registered to link:spark-service-mapoutputtracker.adoc[MapOutputTrackerMaster].
+FIXME: Where's `shuffleToMapStage` used?
+
+* getShuffleMapStage - see <<stage-sharing, Stage sharing>>
+* getAncestorShuffleDependencies
+* cleanupStateForJobAndIndependentStages
+* FetchFailed in `handleTaskCompletion`
+* handleExecutorLost
+
+When there is no ShuffleMapStage for a shuffle id (of a ShuffleDependency), one is created with the ancestor shuffle dependencies of the RDD (of a ShuffleDependency) that are registered to link:spark-service-mapoutputtracker.adoc[MapOutputTrackerMaster].
 
 FIXME Where is `ShuffleMapStage` used?
 
 * newShuffleMapStage - the proper way to create shuffle map stages (with the additional setup steps)
 * <<MapStageSubmitted, MapStageSubmitted>>
-* `getShuffleMapStage` - FIXME
-
+* `getShuffleMapStage` - see <<stage-sharing, Stage sharing>>
 
 [CAUTION]
 ====
 FIXME
 
-* Code review `getShuffleMapStage` - what it takes to create a shuffle map stage?
 * What's `ShuffleMapStage.outputLocs` and `MapStatus`?
 * `newShuffleMapStage`
-* `newOrUsedShuffleStage`
 ====
 
 ==== [[ResultStage]] ResultStage
