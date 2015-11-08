@@ -167,13 +167,15 @@ FIXME: Where in the code is this used?
 
 ==== [[ShuffleMapStage]] ShuffleMapStage
 
-A *ShuffleMapStage* (represented by  https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/scheduler/ShuffleMapStage.scala[org.apache.spark.scheduler.ShuffleMapStage]) is an intermediate stage (in the execution DAG) that produces data for link:spark-rdd-shuffle.adoc[shuffle operation] and is an input for the other following stages in the DAG of stages.
+A *ShuffleMapStage* (aka *shuffle map stage*, or simply *map stage*) is an intermediate stage in the execution DAG that produces data for link:spark-rdd-shuffle.adoc[shuffle operation]. It is an input for the other following stages in the DAG of stages.
 
-ShuffleMapStages might contain multiple pipelined operations before shuffle operation, e.g. `map` and `filter`.
+ShuffleMapStage is also known as a *shuffle dependency's map side* (see link:spark-rdd-dependencies.adoc#shuffle-dependency[ShuffleDependency])
+
+ShuffleMapStages might contain multiple pipelined operations, e.g. `map` and `filter`, before shuffle operation.
 
 CAUTION: FIXME: Show the example and the logs + figures
 
-There can be multiple jobs trying to compute the same ShuffleMapStage.
+A single ShuffleMapStage can be part of many jobs.
 
 CAUTION: FIXME: Show the example and the logs + figures
 
@@ -189,16 +191,18 @@ The number of the partitions of an RDD is exactly the number of the tasks in a S
 
 The output locations (`outputLocs`) of a ShuffleMapStage are the same as used by its link:spark-rdd-dependencies.adoc#shuffle-dependency[ShuffleDependency]. Output locations can be missing, i.e. partitions have not been cached or are lost.
 
+FIXME Where is `ShuffleMapStage` used?
+
+* newShuffleMapStage <- newShuffleMapStage
+* <<MapStageSubmitted, MapStageSubmitted>>
+
 [CAUTION]
 ====
 FIXME
 
-* Where is `ShuffleMapStage` used?
-* What's `ShuffleMapStage.outputLocs`?
-* Review `ShuffleMapStage`'s scaladoc
+* What's `ShuffleMapStage.outputLocs` and `MapStatus`?
 * `newShuffleMapStage`
 * `newOrUsedShuffleStage`
-* `handleMapStageSubmitted`
 * `shuffleToMapStage` - `private[scheduler]` HashMap
 ====
 
@@ -267,7 +271,7 @@ The name of the single "logic" thread that reads events and takes decisions is *
 The following are the current types of `DAGSchedulerEvent` events that are handled by `DAGScheduler`:
 
 * <<JobSubmitted, JobSubmitted>> - posted when an action job is submitted to DAGScheduler (via `submitJob` or `runApproximateJob`).
-* `MapStageSubmitted` - posted when a shuffle map stage is submitted (via `submitMapStage`). It then calls `DAGScheduler.handleMapStageSubmitted`.
+* <<MapStageSubmitted, MapStageSubmitted>> - posted when a ShuffleMapStage is submitted (via `submitMapStage`).
 * `StageCancelled`
 * `JobCancelled`
 * `JobGroupCancelled`
@@ -292,6 +296,48 @@ FIXME
 * statistics? `MapOutputStatistics`?
 ====
 
+==== [[MapStageSubmitted]] MapStageSubmitted and handleMapStageSubmitted
+
+When a *MapStageSubmitted* event is posted, it triggers execution of `DAGScheduler.handleMapStageSubmitted` method.
+
+.DAGScheduler.handleMapStageSubmitted handles MapStageSubmitted events
+image::diagrams/scheduler-handlemapstagesubmitted.png[align="center"]
+
+It is called with a job id (for a new job to be created), a link:spark-rdd-dependencies.adoc#shuffle-dependency[ShuffleDependency], and a JobListener.
+
+CAUTION: FIXME `clearCacheLocs` clears an internal field is called in handle* methods. How many instances of DAGScheduler are created and when?
+
+You should see the following INFOs in the logs:
+
+```
+Got map stage job %s (%s) with %d output partitions
+Final stage: [finalStage] ([finalStage.name])
+Parents of final stage: [finalStage.parents]
+Missing parents: [list of stages]
+```
+
+A SparkListenerJobStart event is posted to `listenerBus` (so other event listeners know about the event - not only DAGScheduler).
+
+The execution procedure of MapStageSubmitted events is then exactly (FIXME ?) as for <<JobSubmitted, JobSubmitted>>.
+
+[TIP]
+====
+The difference between `handleMapStageSubmitted` and `handleJobSubmitted`:
+
+* `handleMapStageSubmitted` has `ShuffleDependency` among the input parameters while `handleJobSubmitted` has `finalRDD`, `func`, and `partitions`.
+* `handleMapStageSubmitted` initializes `finalStage` as `getShuffleMapStage(dependency, jobId)` while `handleJobSubmitted` as `finalStage = newResultStage(finalRDD, func, partitions, jobId, callSite)`
+* `handleMapStageSubmitted` INFO logs `Got map stage job %s (%s) with %d output partitions` with `dependency.rdd.partitions.length` while `handleJobSubmitted` does `Got job %s (%s) with %d output partitions` with `partitions.length`.
+* `handleMapStageSubmitted` adds a new job with `finalStage.addActiveJob(job)` while `handleJobSubmitted` sets with `finalStage.setActiveJob(job)`.
+* `handleMapStageSubmitted` checks if the final stage has already finished, tells the listener and removes it using the code:
++
+[source, scala]
+----
+if (finalStage.isAvailable) {
+  markMapStageJobAsFinished(job, mapOutputTracker.getStatistics(dependency))
+}
+----
+====
+
 ==== [[JobSubmitted]] JobSubmitted and handleJobSubmitted
 
 When DAGScheduler receives *JobSubmitted* event it calls `dagScheduler.handleJobSubmitted` method.
@@ -306,12 +352,12 @@ You should see the following INFOs in the logs:
 Got job %s (%s) with %d output partitions
 Final stage: [finalStage] ([finalStage.name])
 Parents of final stage: [finalStage.parents]
-Missing parents:
+Missing parents: [list of stages]
 ```
 
 Then, the stage is told about the ActiveJob instance and some housekeeping is performed to track the job.
 
-`SparkListenerJobStart` event is posted to `listenerBus` (so other listeners know about the event - not only DAGScheduler).
+`SparkListenerJobStart` event is posted to `listenerBus` (so other event listeners know about the event - not only DAGScheduler).
 
 When DAGScheduler executes a job it first submits the final stage (using `DAGScheduler.submitStage(finalStage)`) that in turn submits any missing parents of the stage (recursively).
 
@@ -352,18 +398,6 @@ Ignoring failure of [failedStage] because all jobs depending on it are done
 ```
 
 `submitWaitingStages()` called at the end.
-
-[TIP]
-====
-Enable TRACE level for DAGScheduler to see statistics for running, waiting, and failed stages, i.e.
-
-```
-Checking for newly runnable parent stages
-running:
-waiting:
-failed:
-```
-====
 
 ===== [[submitMissingTasks]] submitMissingTasks
 
