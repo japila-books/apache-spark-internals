@@ -85,22 +85,33 @@ The following are the job listeners used:
 * `JobWaiter` waits until DAGScheduler completes the job and passes the results of tasks to a `resultHandler` function.
 * `ApproximateActionListener` FIXME
 
-=== [[stages]] Stages (and a bit on job submission)
+=== [[stages]] Stages
 
-A job computes a stage as either <<ResultStage, ResultStage>> that is <<spark-rdd.adoc#actions,a result of executing an action on an RDD>> in a Spark user program or (_still work in progress_) <<ShuffleMapStage, ShuffleMapStage>> for <<adaptive-query-planning, adaptive query planning>>.
+A job computes a *stage*.
 
-When a job is submitted, a new ResultStage stage is created with the parent ShuffleMapStages linked (they can be created from scratch or linked to, i.e. shared, if other jobs use them already).
+There are two types of stages:
+
+* <<ShuffleMapStage, ShuffleMapStage>> is an intermediate stage (in the execution DAG) that produces data for other stage(s). It writes *map output files* for a shuffle. It can also be a final stage in a job in <<adaptive-query-planning, adaptive query planning>>.
+* <<ResultStage, ResultStage>> is the stage that executes link:spark-rdd.adoc#actions[a Spark action] in a user program by running a function on an RDD.
+
+A stage has an *id*.
+
+Every time a stage is created, DAGScheduler increments internal counter `nextStageId` to keep track of the number of stage submissions.
+
+When a job is submitted, a new stage (usually ResultStage) is created with the parent ShuffleMapStages linked -- they can be created from scratch or linked to, i.e. shared, if other jobs use them already.
 
 .DAGScheduler and Stages for a job
 image::diagrams/scheduler-job-shuffles-result-stages.png[align="center"]
+
+A stage knows about the jobs it belongs to (using `jobIds` internal field)
 
 CAUTION: FIXME Show an code example with shared ShuffleMapStages between jobs.
 
 The stage is then transformed into a set of (parallel) tasks that all compute results of a function on partitions of a RDD that need to run as part of a Spark job.
 
-Stages are created by breaking the RDD graph at shuffle boundaries. DAGScheduler splits up a job into a collection of one or many stages. Stages are split up at the boundaries where shuffle occurs, called *shuffle boundaries*.
+DAGScheduler splits up a job into a collection of stages. Each stage contains a sequence of link:spark-rdd.adoc[narrow transformations] that can be completed without link:spark-rdd-shuffle.adoc[shuffling] the entire data set, separated at *shuffle boundaries*, i.e. where shuffle occurs. Stages are thus a result of breaking the RDD graph at shuffle boundaries.
 
-*Shuffle boundaries* introduce a barrier where stages/tasks must wait for the previous stage to finish to fetch outputs.
+Shuffle boundaries introduce a barrier where stages/tasks must wait for the previous stage to finish before they fetch map outputs.
 
 .DAGScheduler splits a job into stages
 image::diagrams/scheduler-job-splits-into-stages.png[align="center"]
@@ -109,23 +120,7 @@ RDD operations with link:spark-rdd.adoc[narrow dependencies], like `map()` and `
 
 In the end, every stage will have only shuffle dependencies on other stages, and may compute multiple operations inside it. The actual pipelining of these operations happens in the `RDD.compute()` functions of various RDDs, e.g. `MappedRDD`, `FilteredRDD`, etc.
 
-Each stage contains a sequence of link:spark-rdd.adoc[narrow transformations] that can be completed without link:spark-rdd-shuffle.adoc[shuffling] the entire data set, separated at shuffle boundaries.
-
 DAGScheduler runs stages in topological order.
-
-There are two types of stages:
-
-* <<ShuffleMapStage, ShuffleMapStage>> is an intermediate stage (in the execution of a DAG) that produces data for other stage(s). It writes *map output files* for a shuffle.
-* <<ResultStage, ResultStage>> is the final stage that executes a Spark action, e.g. `count()`, `save()`, by running a function on an RDD.
-
-The following INFO messages show in the logs:
-
-```
-15/10/13 08:30:16 INFO DAGScheduler: Got job 0 (count at <console>:25) with 2 output partitions
-15/10/13 08:30:16 INFO DAGScheduler: Final stage: ResultStage 0 (count at <console>:25)
-15/10/13 08:30:16 INFO DAGScheduler: Parents of final stage: List()
-INFO DAGScheduler: Missing parents: List()
-```
 
 `DAGScheduler` keeps track of stages in different states:
 
@@ -158,10 +153,6 @@ FIXME
 ```
 
 Each stage has also a `firstJobId`, identifying the job that first submitted the stage.
-
-A stage has an *id*.
-
-Every time a stage is created, DAGScheduler increments internal counter (`nextStageId`) to keep track of the number of stage submissions.
 
 ==== [[stage-sharing]] ShuffleMapStage sharing
 
@@ -371,10 +362,13 @@ It creates a new <<ResultStage, ResultStage>> (FIXME review `newResultStage`) an
 You should see the following INFOs in the logs:
 
 ```
-Got job %s (%s) with %d output partitions
-Final stage: [finalStage] ([finalStage.name])
-Parents of final stage: [finalStage.parents]
-Missing parents: [list of stages]
+scala> sc.parallelize(0 to 5, 2).map((_,1)).reduceByKey(_ + _).count
+...
+INFO DAGScheduler: Got job 1 (count at <console>:25) with 2 output partitions
+INFO DAGScheduler: Final stage: ResultStage 2 (count at <console>:25)
+INFO DAGScheduler: Parents of final stage: List(ShuffleMapStage 1)
+INFO DAGScheduler: Missing parents: List(ShuffleMapStage 1)
+...
 ```
 
 Then, the stage is told about the ActiveJob instance and some housekeeping is performed to track the job.
@@ -383,22 +377,17 @@ Then, the stage is told about the ActiveJob instance and some housekeeping is pe
 
 When DAGScheduler executes a job it first submits the final stage (using `DAGScheduler.submitStage(finalStage)`) that in turn submits any missing parents of the stage (recursively).
 
-A DEBUG message shows up in the logs (DAGScheduler logger):
+Two DEBUG messages show up in the logs:
 
 ```
-submitStage([stage])
-```
-
-and then another DEBUG:
-
-```
-missing:
+DEBUG DAGScheduler: submitStage(ResultStage 2)
+DEBUG DAGScheduler: missing: List(ShuffleMapStage 1)
 ```
 
 When the current stage has no parent stages to submit, it is submitted and the INFO message shows up in the logs:
 
 ```
-INFO DAGScheduler: Submitting ResultStage 0 (MapPartitionsRDD[9] at map at <console>:25), which has no missing parents
+INFO DAGScheduler: Submitting ShuffleMapStage 1 (MapPartitionsRDD[5] at map at <console>:25), which has no missing parents
 ```
 
 CAUTION: FIXME: Review `getMissingParentStages`
@@ -423,7 +412,7 @@ Ignoring failure of [failedStage] because all jobs depending on it are done
 
 ===== [[submitMissingTasks]] submitMissingTasks
 
-`DAGScheduler.submitMissingTasks` is called when the current stage's parents, i.e. <<ShuffleMapStage, ShuffleMapStages>>, are available and it is now possible to run task(s) for the current <<ResultStage, ResultStage>> stage.
+`DAGScheduler.submitMissingTasks` is called when the parent stages of the current stage are already finished and it is now possible to run tasks for the current stage.
 
 In the logs you should see the following DEBUG message:
 
@@ -431,32 +420,40 @@ In the logs you should see the following DEBUG message:
 DEBUG DAGScheduler: submitMissingTasks(ResultStage 4)
 ```
 
-DAGScheduler finds missing partitions of the target RDD to compute. The *missing partitions* are partitions for which the ActiveJob doesn't know are finished.
+The method marks the current stage running.
 
-The stage is added to an internal set of running stages.
-
-`outputCommitCoordinator.stageStart` is called.
+`outputCommitCoordinator.stageStart` is called. FIXME
 
 `SparkListenerStageSubmitted` is posted.
 
 `closureSerializer.serialize` is called to calculate `taskBinaryBytes` that is then `sc.broadcast`.
 
-For each partition for the stage, <<spark-taskscheduler.adoc#shufflemaptask, ShuffleMapTask>> and
-`ResultTask` are `taskScheduler.submitTasks`.
+For each partition to compute for the stage, a collection of <<spark-taskscheduler.adoc#shufflemaptask, ShuffleMapTask>> and
+`ResultTask` is created.
 
 ...IMAGE...FIXME...DAGScheduler calls taskScheduler.submitTasks
 
 The following INFO and DEBUG messages are in the logs:
 
 ```
-INFO Submitting " + tasks.size + " missing tasks from " + stage + " (" + stage.rdd + ")
-DEBUG "New pending partitions: " + stage.pendingPartitions
+INFO DAGScheduler: Submitting 2 missing tasks from ShuffleMapStage 1 (MapPartitionsRDD[5] at map at <console>:25)
+DEBUG DAGScheduler: New pending partitions: Set(0, 1)
 ```
 
-In case of no tasks to be submitted for a stage, the DEBUG message shows up in the logs:
+The task collection becomes a `TaskSet` for `taskScheduler.submitTasks`.
+
+In case of no tasks to be submitted for a stage, a DEBUG message shows up in the logs.
+
+For ShuffleMapStage:
 
 ```
-DEBUG Stage ${stage} is actually done;
+DEBUG DAGScheduler: Stage [stage] is actually done; (available: ${stage.isAvailable},available outputs: ${stage.numAvailableOutputs},partitions: ${stage.numPartitions})
+```
+
+For ResultStage:
+
+```
+DEBUG DAGScheduler: Stage ${stage} is actually done; (partitions: ${stage.numPartitions})
 ```
 
 ==== [[CompletionEvent]] CompletionEvent
