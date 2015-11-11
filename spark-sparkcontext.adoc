@@ -16,6 +16,8 @@ You use `SparkContext` for the following functions:
 
 Read the scaladoc of  http://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.SparkContext[org.apache.spark.SparkContext].
 
+CAUTION: FIXME SparkStatusTracker
+
 === [[creating-sparkcontext]] Creating SparkContext
 
 You create a `SparkContext` instance using link:spark-configuration.adoc[Spark application's configuration] using a `SparkConfig` object.
@@ -34,8 +36,13 @@ scala> val sc = new SparkContext(conf)
 sc: org.apache.spark.SparkContext = org.apache.spark.SparkContext@50ee2523
 ```
 
-Only one SparkContext may be running in a single JVM (check out https://issues.apache.org/jira/browse/SPARK-2243[SPARK-2243 Support multiple SparkContexts in the same JVM]). Sharing access to a SparkContext in the JVM is the solution to share data within Spark (without relying on other means of data sharing using external data stores).
+When a Spark context starts up you should see the following INFO in the logs:
 
+```
+INFO SparkContext: Running Spark version 1.6.0-SNAPSHOT
+```
+
+Only one SparkContext may be running in a single JVM (check out https://issues.apache.org/jira/browse/SPARK-2243[SPARK-2243 Support multiple SparkContexts in the same JVM]). Sharing access to a SparkContext in the JVM is the solution to share data within Spark (without relying on other means of data sharing using external data stores).
 
 ==== spark.driver.allowMultipleContexts
 
@@ -72,13 +79,18 @@ Read link:spark-shell.adoc[Spark shell].
 
 Read link:spark-rdd.adoc#creating-rdds[Creating RDDs] in link:spark-rdd.adoc[RDD - Resilient Distributed Dataset].
 
-=== SparkContext.addJar / --jars
+=== [[jars]] Distribute JARs to workers
 
 The jar you specify with `SparkContext.addJar` will be copied to all the worker nodes.
 
-From http://deploymentzone.com/2015/01/30/spark-and-merged-csv-files/[SPARK AND MERGED CSV FILES]:
+The configuration setting `spark.jars` is a comma-separated list of jar paths to be included in all tasks executed from this SparkContext. A path can either be a local file, a file in HDFS (or other Hadoop-supported filesystems), an HTTP, HTTPS or FTP URI, or `local:/path` for a file on every worker node.
 
-> Spark is like Hadoop - uses Hadoop, in fact - for performing actions like outputting data to HDFS. You'll know what I mean the first time you try to save "all-the-data.csv" and are surprised to find a directory named all-the-data.csv/ containing a 0 byte _SUCCESS file and then several part-0000n files for each partition that took part in the job.
+```
+scala> sc.addJar("build.sbt")
+15/11/11 21:54:54 INFO SparkContext: Added JAR build.sbt at http://192.168.1.4:49427/jars/build.sbt with timestamp 1447275294457
+```
+
+CAUTION: FIXME Why is HttpFileServer used for addJar?
 
 === SparkContext as the global configuration for services
 
@@ -131,9 +143,11 @@ java.lang.IllegalStateException: SparkContext has been shutdown
   ... 48 elided
 ----
 
-=== [[custom-dagscheduler]] Custom DAGScheduler
+=== [[custom-dagscheduler]] Custom SchedulerBackend, TaskScheduler and DAGScheduler
 
 By default, SparkContext uses (`private[spark]` class) `org.apache.spark.scheduler.DAGScheduler`, but you can develop your own custom DAGScheduler implementation, and use (`private[spark]`) `SparkContext.dagScheduler_=(ds: DAGScheduler)` method to assign yours.
+
+It is also applicable to `SchedulerBackend` and `TaskScheduler` using `schedulerBackend_=(sb: SchedulerBackend)` and `taskScheduler_=(ts: TaskScheduler)` methods, respectively.
 
 CAUTION: FIXME Make it an advanced exercise.
 
@@ -144,6 +158,17 @@ CAUTION: FIXME Make it an advanced exercise.
 .SparkContext creates Task Scheduler and Scheduler Backend
 image::diagrams/sparkcontext-createtaskscheduler.png[align="center"]
 
-==== [[executor-allocation-client]] ExecutorAllocationClient and CoarseGrainedSchedulerBackends
+=== [[events]] Events
 
-SparkContext is an *ExecutorAllocationClient* for link:spark-execution-model.adoc#scheduler-backends[CoarseGrainedSchedulerBackends], i.e. a client that communicates with a (coarse-grain) cluster manager to request or kill executors.
+When a Spark context starts, it triggers `SparkListenerEnvironmentUpdate` and `SparkListenerApplicationStart` events.
+
+=== [[setting-default-log-level]] Setting Default Log Level Programatically
+
+To adjust logging level in a Spark application, e.g. link:spark-shell.adoc[Spark shell], use `SparkContext.setLogLevel(logLevel: String)`.
+
+[TIP]
+====
+`sc.setLogLevel("INFO")` becomes `org.apache.log4j.Level.toLevel(logLevel)` and `org.apache.log4j.Logger.getRootLogger().setLevel(l)` internally.
+
+See https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/SparkContext.scala#L367-L378[org/apache/spark/SparkContext.scala].
+====
