@@ -1,57 +1,21 @@
 == SparkContext - the door to Spark
 
-CAUTION: FIXME Review the code of `SparkContext`
+*SparkContext* (aka *Spark context*) is where most things in Spark are born.
+A SparkContext represents the connection to a Spark execution environment, called *execution mode*, and can only then be used to create RDDs, accumulators and broadcast variables, access Spark services and run jobs.
 
-From the scaladoc of  http://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.SparkContext[org.apache.spark.SparkContext]:
+A Spark context is essentially a client of Spark.
 
-> *SparkContext* is the main entry point for Spark functionality.
-> A SparkContext represents the connection to a Spark cluster,
-> and can be used to create RDDs, accumulators and broadcast variables on that cluster.
-
-You use `SparkContext` for the following group of functionalities:
+You use `SparkContext` for the following functions:
 
 * link:spark-cluster.adoc[Connect to a cluster]
 * link:spark-configuration.adoc[Specify mandatory application name]
-* link:spark-rdd.adoc[Create RDDs]
+* <<creating-rdds, Creating RDDs>>
 * link:spark-broadcast.adoc[Create broadcast variables]
 * link:spark-accumulators.adoc[Use accumulators]
-* Use services, e.g. link:spark-taskscheduler.adoc[Task Scheduler], link:spark-scheduler-listeners.adoc[Listener Bus], link:spark-blockmanager.adoc[Block Manager], <<coarse-grained-scheduler-backends, CoarseGrainedSchedulerBackends>>, link:spark-shuffle-service.adoc[Shuffle Service].
+* Access services, e.g. link:spark-taskscheduler.adoc[Task Scheduler], link:spark-scheduler-listeners.adoc[Listener Bus], link:spark-blockmanager.adoc[Block Manager], <<coarse-grained-scheduler-backends, CoarseGrainedSchedulerBackends>>, link:spark-shuffle-service.adoc[Shuffle Service].
 * <<running-jobs, Run jobs>>
 
-Spark context is essentially a client of Spark.
-
-=== [[sparkcontext-and-rdd]] SparkContext and RDDs
-
-A SparkContext is a logical boundary for visibility of RDDs, and so RDDs can't be shared between SparkContexts.
-
-.SparkContext is a living space for RDDs
-image::diagrams/sparkcontext-rdds.png[align="center"]
-
-=== [[master-urls]] Master URLs
-
-Spark supports the following master URLs (see https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/SparkContext.scala#L2729-L2742[private object SparkMasterRegex]):
-
-* *local*, *local[N]* and *local[{asterisk}]* for link:spark-local.adoc[Spark local]
-* *local[N, maxRetries]* for link:spark-local.adoc[Spark local-with-retries]
-* *local-cluster[N, cores, memory]* for simulating a Spark cluster of [N, cores, memory] locally
-* *spark://host:port,host1:port1,...* for connecting to link:spark-standalone.adoc[Spark Standalone cluster(s)]
-* *mesos://* or *zk://* for link:spark-mesos.adoc[Spark on Mesos cluster]
-* *yarn-cluster* (deprecated: *yarn-standalone*) for link:spark-yarn.adoc[Spark on YARN (cluster mode)]
-* *yarn-client* for link:spark-yarn.adoc[Spark on YARN cluster (client mode)]
-* *simr://* for Simr cluster
-
-You use a master URL with link:spark-submit.adoc[spark-submit for `--master` command-line option] or <<creating-sparkcontext, when creating SparkContext with `setMaster` method>>.
-
-=== Instantiating Scheduler Backend and Task Scheduler
-
-`SparkContext.createTaskScheduler` is executed as part of SparkContext's initialization to create a link:spark-taskscheduler.adoc[task scheduler] (based on a given master URL) and link:spark-execution-model.adoc#scheduler-backends[scheduler backend].
-
-.SparkContext creates Task Scheduler and Scheduler Backend
-image::diagrams/sparkcontext-createtaskscheduler.png[align="center"]
-
-==== [[executor-allocation-client]] ExecutorAllocationClient and CoarseGrainedSchedulerBackends
-
-SparkContext is an *ExecutorAllocationClient* for link:spark-execution-model.adoc#scheduler-backends[CoarseGrainedSchedulerBackends], i.e. a client that communicates with a (coarse-grain) cluster manager to request or kill executors.
+Read the scaladoc of  http://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.SparkContext[org.apache.spark.SparkContext].
 
 === [[creating-sparkcontext]] Creating SparkContext
 
@@ -71,53 +35,74 @@ scala> val sc = new SparkContext(conf)
 sc: org.apache.spark.SparkContext = org.apache.spark.SparkContext@50ee2523
 ```
 
+Only one SparkContext may be running in a single JVM (check out https://issues.apache.org/jira/browse/SPARK-2243[SPARK-2243 Support multiple SparkContexts in the same JVM]). Sharing access to a SparkContext in the JVM is the solution to share data within Spark (without relying on other means of data sharing using external data stores).
+
+
+==== spark.driver.allowMultipleContexts
+
+Quoting the scaladoc of  http://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.SparkContext[org.apache.spark.SparkContext]:
+
+> Only one SparkContext may be active per JVM. You must `stop()` the active SparkContext before creating a new one.
+
+The above quote is not necessarily correct when `spark.driver.allowMultipleContexts` is `true` (default: `false`). If `true`, Spark logs warnings instead of throwing exceptions when multiple SparkContexts are active, i.e. multiple SparkContext are running in this JVM. When creating an instance of `SparkContext`, Spark marks the current thread as having it being created (very early in the instantiation process).
+
+CAUTION: It's not guaranteed that Spark will work properly with two or more SparkContexts. Consider the feature a work in progress.
+
+=== [[sparkcontext-and-rdd]] SparkContext and RDDs
+
+You use a Spark context to create RDDs (see <<creating-rdds, Creating RDD>>).
+
+When an RDD is created, it belongs to and is completely owned by the Spark context it originated from. RDDs can't by design be shared between SparkContexts.
+
+.A Spark context creates a living space for RDDs.
+image::diagrams/sparkcontext-rdds.png[align="center"]
+
+=== [[master-urls]] Master URLs
+
+Spark supports the following *master URLs* (see https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/SparkContext.scala#L2729-L2742[private object SparkMasterRegex]):
+
+* *local*, *local[N]* and *local[{asterisk}]* for link:spark-local.adoc[Spark local]
+* *local[N, maxRetries]* for link:spark-local.adoc[Spark local-with-retries]
+* *local-cluster[N, cores, memory]* for simulating a Spark cluster of [N, cores, memory] locally
+* *spark://host:port,host1:port1,...* for connecting to link:spark-standalone.adoc[Spark Standalone cluster(s)]
+* *mesos://* or *zk://* for link:spark-mesos.adoc[Spark on Mesos cluster]
+* *yarn-cluster* (deprecated: *yarn-standalone*) for link:spark-yarn.adoc[Spark on YARN (cluster mode)]
+* *yarn-client* for link:spark-yarn.adoc[Spark on YARN cluster (client mode)]
+* *simr://* for Simr cluster
+
+You use a master URL with link:spark-submit.adoc[spark-submit for `--master` command-line option] or <<creating-sparkcontext, when creating SparkContext with `setMaster` method>>.
+
 === SparkContext in Spark shell
 
 In link:spark-shell.adoc[Spark shell], an instance of `SparkContext` is automatically created for you under the name `sc`.
 
-You should see the name in the logs while `spark-shell` starts.
+Read link:spark-shell.adoc[Spark shell].
 
-```
-$ ./bin/spark-shell
-Spark context available as sc.
-SQL context available as sqlContext.
-Welcome to
-      ____              __
-     / __/__  ___ _____/ /__
-    _\ \/ _ \/ _ `/ __/  '_/
-   /___/ .__/\_,_/_/ /_/\_\   version 1.6.0-SNAPSHOT
-      /_/
-
-Using Scala version 2.11.7 (Java HotSpot(TM) 64-Bit Server VM, Java 1.8.0_60)
-Type in expressions to have them evaluated.
-Type :help for more information.
-
-scala>
-```
+=== [[creating-rdds]] Creating RDD
 
 `SparkContext` allows you to create many different RDDs from input sources like:
 
 * Scala's collections, i.e. `sc.parallelize(0 to 100)`
 * local or remote filesystems, i.e. `sc.textFile("README.md")`
-* Any Hadoop `InputSource`, i.e.
-+
-```
-sc.newAPIHadoopFile("filepath1, filepath2", classOf[NewTextInputFormat], classOf[LongWritable], classOf[Text])
-```
+* Any Hadoop `InputSource` using `sc.newAPIHadoopFile`
 
-Refer to link:spark-io.adoc[Using Input and Output (I/O)] to find out more on the IO API to create RDDs.
+Read link:spark-rdd.adoc#creating-rdds[Creating RDDs] in link:spark-rdd.adoc[RDD - Resilient Distributed Dataset].
 
-You can also use `SparkContext` to create counters and link:spark-accumulators.adoc[accumulators].
+=== SparkContext.addJar / --jars
 
-Using `SparkContext` allows you to configure Spark context, i.e. properties that govern things like link:spark-cluster.adoc[master URL], link:spark-hadoop.adoc[Hadoop API], etc.
+The jar you specify with `SparkContext.addJar` will be copied to all the worker nodes.
 
-=== SparkContext as the global configuration of services
+From http://deploymentzone.com/2015/01/30/spark-and-merged-csv-files/[SPARK AND MERGED CSV FILES]:
+
+> Spark is like Hadoop - uses Hadoop, in fact - for performing actions like outputting data to HDFS. You'll know what I mean the first time you try to save "all-the-data.csv" and are surprised to find a directory named all-the-data.csv/ containing a 0 byte _SUCCESS file and then several part-0000n files for each partition that took part in the job.
+
+=== SparkContext as the global configuration for services
 
 SparkContext keeps track of:
 
 * shuffle ids using `nextShuffleId` internal field for link:spark-dagscheduler.adoc#ShuffleMapStage[registering shuffle dependencies] to link:spark-shuffle-service.adoc[Shuffle Service].
 
-=== [[running-jobs]] Running jobs
+=== [[running-jobs]] Running Jobs
 
 All link:spark-rdd.adoc#actions[RDD actions] in Spark launch link:spark-dagscheduler.adoc#jobs[jobs] (that are run on one or many partitions of the RDD) using `SparkContext.runJob(rdd: RDD[T], func: Iterator[T] => U): Array[U]`.
 
@@ -138,7 +123,15 @@ Running a job is essentially executing the `func` function on the `rdd` RDD and 
 
 `SparkContext.runJob` calls link:spark-dagscheduler.adoc#runJob[DAGScheduler.runJob()]. Before the method finishes, it does link:spark-rdd-checkpointing.adoc[checkpointing]. It triggers posting `JobSubmitted` event (see <<event-loop,Event loop>>).
 
-When you stop SparkContext using `sc.stop`, you can no longer launch jobs using `runJob`. An attempt to do so will result in `java.lang.IllegalStateException`.
+You can only run jobs when a Spark context is active, i.e. started. See <<stopping-spark-context, Stopping Spark context>>.
+
+=== [[stopping-spark-context]] Stopping Spark Context
+
+You can stop a Spark context using `SparkContext.stop` method. Stopping a Spark context stops a Spark application.
+
+You have to create a new Spark context before using Spark features and services.
+
+An attempt to use a Spark context after it was stopped will result in `java.lang.IllegalStateException: SparkContext has been shutdown`.
 
 [source, scala]
 ----
@@ -154,30 +147,19 @@ java.lang.IllegalStateException: SparkContext has been shutdown
   ... 48 elided
 ----
 
+=== [[custom-dagscheduler]] Custom DAGScheduler
+
 By default, SparkContext uses (`private[spark]` class) `org.apache.spark.scheduler.DAGScheduler`, but you can develop your own custom DAGScheduler implementation, and use (`private[spark]`) `SparkContext.dagScheduler_=(ds: DAGScheduler)` method to assign yours.
 
-=== Others
+CAUTION: FIXME Make it an advanced exercise.
 
-I'm unsure where to put them, but since I found them interesting, they should be _somewhere_.
+=== Creating Scheduler Backend and Task Scheduler
 
-==== spark.driver.allowMultipleContexts
+`SparkContext.createTaskScheduler` is executed as part of SparkContext's initialization to create a link:spark-taskscheduler.adoc[task scheduler] (based on a <<master-urls, given master URL>>) and link:spark-execution-model.adoc#scheduler-backends[scheduler backend].
 
-Found in the scaladoc of  http://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.SparkContext[org.apache.spark.SparkContext]:
+.SparkContext creates Task Scheduler and Scheduler Backend
+image::diagrams/sparkcontext-createtaskscheduler.png[align="center"]
 
-> Only one SparkContext may be active per JVM. You must `stop()` the active SparkContext before creating a new one.
+==== [[executor-allocation-client]] ExecutorAllocationClient and CoarseGrainedSchedulerBackends
 
-The above quote is not necessarily correct when `spark.driver.allowMultipleContexts` is `true` (default: `false`). If `true`, Spark logs warnings instead of throwing exceptions when multiple SparkContexts are active, i.e. no other SparkContext is running in this JVM. Upon creating an instance of `SparkContext`, Spark marks the current thread as having it being created (very early in the instantiation process).
-
-==== SparkContext.addJar / --jars
-
-The jar you specify with `SparkContext.addJar` will be copied to all the worker nodes.
-
-From http://deploymentzone.com/2015/01/30/spark-and-merged-csv-files/[SPARK AND MERGED CSV FILES]:
-
-> Spark is like Hadoop - uses Hadoop, in fact - for performing actions like outputting data to HDFS. You'll know what I mean the first time you try to save "all-the-data.csv" and are surprised to find a directory named all-the-data.csv/ containing a 0 byte _SUCCESS file and then several part-0000n files for each partition that took part in the job.
-
-==== Gotchas - things to watch for
-
-Even you don't access it explicitly it cannot be referenced inside a closure as it is serialized and carried around across executors.
-
-See https://issues.apache.org/jira/browse/SPARK-5063
+SparkContext is an *ExecutorAllocationClient* for link:spark-execution-model.adoc#scheduler-backends[CoarseGrainedSchedulerBackends], i.e. a client that communicates with a (coarse-grain) cluster manager to request or kill executors.
