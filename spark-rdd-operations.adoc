@@ -4,13 +4,34 @@
 
 A *transformation* is a lazy operation on a RDD that returns another RDD, like `map`, `flatMap`, `filter`, `reduceByKey`, `join`, `cogroup`, etc.
 
+.From SparkContext by transformations to the result
+image::diagrams/rdd-sparkcontext-transformations-action.png[align="center"]
+
+You can chain transformations to create *pipelines* (lazy computations), but their execution is performed only after an action executes.
+
 [source,scala]
 ----
-scala> val words = lines.flatMap(_.split("\\s+"))
-words: org.apache.spark.rdd.RDD[String] = MapPartitionsRDD[27] at flatMap at <console>:26
-----
+scala> val file = sc.textFile("README.md")
+file: org.apache.spark.rdd.RDD[String] = MapPartitionsRDD[54] at textFile at <console>:24
 
-You can chain transformations to create *pipelines* (lazy computations), but their execution is only performed after an action executes.
+scala> val allWords = file.flatMap(_.split("\\s+"))
+allWords: org.apache.spark.rdd.RDD[String] = MapPartitionsRDD[55] at flatMap at <console>:26
+
+scala> val words = allWords.filter(!_.isEmpty)
+words: org.apache.spark.rdd.RDD[String] = MapPartitionsRDD[56] at filter at <console>:28
+
+scala> val pairs = words.map((_,1))
+pairs: org.apache.spark.rdd.RDD[(String, Int)] = MapPartitionsRDD[57] at map at <console>:30
+
+scala> val reducedByKey = pairs.reduceByKey(_ + _)
+reducedByKey: org.apache.spark.rdd.RDD[(String, Int)] = ShuffledRDD[59] at reduceByKey at <console>:32
+
+scala> val top10words = reducedByKey.takeOrdered(10)(Ordering[Int].reverse.on(_._2))
+INFO SparkContext: Starting job: takeOrdered at <console>:34
+...
+INFO DAGScheduler: Job 18 finished: takeOrdered at <console>:34, took 0.074386 s
+top10words: Array[(String, Int)] = Array((the,21), (to,14), (Spark,13), (for,11), (and,10), (##,8), (a,8), (run,7), (can,6), (is,6))
+----
 
 There are two kinds of transformations:
 

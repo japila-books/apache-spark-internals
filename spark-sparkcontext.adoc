@@ -2,9 +2,12 @@
 
 *SparkContext* (aka *Spark context*) represents the connection to a Spark execution environment, called link:spark-deployment-modes.adoc[deployment mode], and can only then be used to create RDDs, accumulators and broadcast variables, access Spark services and run jobs.
 
-A Spark context is essentially a client of Spark.
+A Spark context is essentially a client of Spark's execution environment and acts as the master of your Spark application.
 
-You use `SparkContext` for the following functions:
+.Spark context acts as the master of your Spark application
+image::diagrams/sparkcontext-services.png[align="center"]
+
+As a developer, you can use `SparkContext` for the following functions:
 
 * link:spark-cluster.adoc[Connect to a cluster]
 * link:spark-configuration.adoc[Specify mandatory application name]
@@ -13,6 +16,7 @@ You use `SparkContext` for the following functions:
 * link:spark-accumulators.adoc[Use accumulators]
 * Access services, e.g. link:spark-taskscheduler.adoc[Task Scheduler], link:spark-scheduler-listeners.adoc[Listener Bus], link:spark-blockmanager.adoc[Block Manager], <<coarse-grained-scheduler-backends, CoarseGrainedSchedulerBackends>>, link:spark-shuffle-service.adoc[Shuffle Service].
 * <<running-jobs, Run jobs>>
+* <<custom-schedulers, Setting up custom Scheduler Backend, Task Scheduler and DAGScheduler>>
 
 Read the scaladoc of  http://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.SparkContext[org.apache.spark.SparkContext].
 
@@ -22,19 +26,21 @@ CAUTION: FIXME SparkStatusTracker
 
 You create a `SparkContext` instance using link:spark-configuration.adoc[Spark application's configuration] using a `SparkConfig` object.
 
-```
+[source, scala]
+----
 scala> import org.apache.spark.SparkConf
 import org.apache.spark.SparkConf
 
-scala> val conf = new SparkConf().setMaster("local[*]").setAppName("Hello world!")
+scala> val conf = new SparkConf().setMaster("local[*]").setAppName("SparkMe App")
 conf: org.apache.spark.SparkConf = org.apache.spark.SparkConf@7a8f69d6
 
 scala> import org.apache.spark.SparkContext
 import org.apache.spark.SparkContext
 
-scala> val sc = new SparkContext(conf)
+scala> val sc = new SparkContext(conf)  // <1>
 sc: org.apache.spark.SparkContext = org.apache.spark.SparkContext@50ee2523
-```
+----
+<1> You can also use the other constructor of `SparkContext`, i.e. `new SparkContext(master="local[*]", appName="SparkMe App", new SparkConf)`, with master and application name specified explicitly
 
 When a Spark context starts up you should see the following INFO in the logs:
 
@@ -143,7 +149,7 @@ java.lang.IllegalStateException: SparkContext has been shutdown
   ... 48 elided
 ----
 
-=== [[custom-dagscheduler]] Custom SchedulerBackend, TaskScheduler and DAGScheduler
+=== [[custom-schedulers]] Custom SchedulerBackend, TaskScheduler and DAGScheduler
 
 By default, SparkContext uses (`private[spark]` class) `org.apache.spark.scheduler.DAGScheduler`, but you can develop your own custom DAGScheduler implementation, and use (`private[spark]`) `SparkContext.dagScheduler_=(ds: DAGScheduler)` method to assign yours.
 
