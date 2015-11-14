@@ -24,7 +24,7 @@ CAUTION: FIXME SparkStatusTracker
 
 === [[creating-sparkcontext]] Creating SparkContext
 
-You create a `SparkContext` instance using link:spark-configuration.adoc[Spark application's configuration] using a `SparkConfig` object.
+You create a `SparkContext` instance using a link:spark-configuration.adoc[SparkConf] object.
 
 [source, scala]
 ----
@@ -42,7 +42,7 @@ sc: org.apache.spark.SparkContext = org.apache.spark.SparkContext@50ee2523
 ----
 <1> You can also use the other constructor of `SparkContext`, i.e. `new SparkContext(master="local[*]", appName="SparkMe App", new SparkConf)`, with master and application name specified explicitly
 
-When a Spark context starts up you should see the following INFO in the logs:
+When a Spark context starts up you should see the following INFO in the logs (amongst the other messages that come from services):
 
 ```
 INFO SparkContext: Running Spark version 1.6.0-SNAPSHOT
@@ -168,6 +168,10 @@ image::diagrams/sparkcontext-createtaskscheduler.png[align="center"]
 
 When a Spark context starts, it triggers `SparkListenerEnvironmentUpdate` and `SparkListenerApplicationStart` events.
 
+=== [[persistentRdds]] Persisted RDDs
+
+FIXME When is the internal field `persistentRdds` used?
+
 === [[setting-default-log-level]] Setting Default Log Level Programatically
 
 To adjust logging level in a Spark application, e.g. link:spark-shell.adoc[Spark shell], use `SparkContext.setLogLevel(logLevel: String)`.
@@ -178,3 +182,63 @@ To adjust logging level in a Spark application, e.g. link:spark-shell.adoc[Spark
 
 See https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/SparkContext.scala#L367-L378[org/apache/spark/SparkContext.scala].
 ====
+
+=== SparkContext's initialization
+
+Let's walk through a typical initialization code of SparkContext in a Spark application and see what happens under the covers.
+
+[source, scala]
+----
+import org.apache.spark.{SparkConf, SparkContext}
+
+// 1. Create Spark configuration
+val conf = new SparkConf()
+  .setAppName("SparkMe Application")
+  .setMaster("local[*]")
+
+// 2. Create Spark context
+val sc = new SparkContext(conf)
+----
+
+The very first information printed out is the following INFO message:
+
+```
+INFO SparkContext: Running Spark version 1.6.0-SNAPSHOT
+```
+
+Up to this point SparkContext did nothing (beside checking whether SparkContexts can be shared or not).
+
+CAUTION: FIXME: What's `externalBlockStoreFolderName`?
+
+An instance of link:spark-scheduler-listeners.adoc#SparkListenerBus[Listener Bus] is created.
+
+It reads the current user name, i.e. a value of `SPARK_USER` environment variable or the currently logged-in user. It becomes `sparkUser`.
+
+```
+scala> sc.sparkUser
+res8: String = jacek
+```
+
+CAUTION: FIXME Where is `sparkUser` useful?
+
+It checks whether a master URL under `spark.master` and an application name under `spark.app.name` are defined and throws SparkException if not.
+
+When `spark.logConf` is `true` (default: `false`) link:spark-configuration.adoc[SparkConf.toDebugString] is called.
+
+CAUTION: `SparkConf.toDebugString` is called a bit too early as there are other settings configured afterwards and they are not in the printout.
+
+It sets Spark driver host (`spark.driver.host` to localhost) and port (`spark.driver.port` to `0`) system properties unless already defined.
+
+It sets `spark.executor.id` as `driver`.
+
+It sets the jars and files based on `spark.jars` and `spark.files`, respectively.
+
+If `spark.eventLog.enabled` was `true` (default: `false`), the internal field `_eventLogDir` is set to the value of `spark.eventLog.dir` property or simply `/tmp/spark-events`. Also, if `spark.eventLog.compress` is `true` (default: `false`), the short name of the CompressionCodec is assigned to _eventLogCodec. The config key is `spark.io.compression.codec` (default: `snappy`). The supported codecs are: `lz4`, `lzf`, and `snappy` or their short class names.
+
+It sets `spark.externalBlockStore.folderName` to the value of `externalBlockStoreFolderName`.
+
+For `yarn-client` master URL, the system property `SPARK_YARN_MODE` is set to `true`.
+
+An instance of `JobProgressListener` is created and becomes a listener in `listenerBus`.
+
+To be continued...
