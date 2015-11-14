@@ -22,14 +22,18 @@ RpcEndpointRefs can be looked up by *name* or *uri* (because different RpcEnvs m
 
 === RpcEnvFactory
 
-Spark provides `RpcEnvFactory` as the factory class to create a RPC Environment. `org.apache.spark.rpc` package contains the machinery for RPC communication in Spark.
+Spark provides `RpcEnvFactory`  which is the factory class to create a RPC Environment.
+
+`org.apache.spark.rpc` package contains the machinery for RPC communication in Spark.
 
 There are two `RpcEnvFactory` implementations available in Spark:
 
-* `netty` using `org.apache.spark.rpc.netty.NettyRpcEnvFactory`. As of Spark 1.6.0-SNAPSHOT it is the default factory for RpcEnv.
+* `netty` using `org.apache.spark.rpc.netty.NettyRpcEnvFactory`. This is the default factory for RpcEnv as of Spark 1.6.0-SNAPSHOT.
 * `akka` using `org.apache.spark.rpc.akka.AkkaRpcEnvFactory`
 
 You can control an RPC implementation being used by setting up `spark.rpc` in SparkConf (default: `netty`).
+
+RpcEnvFactory uses `RpcEnvConfig` to hold a Spark configuration, name, hostname, port, security manager, and a boolean value of <<client-mode, client mode>>.
 
 === [[rpcendpoint]] RpcEndpoint
 
@@ -83,11 +87,19 @@ When RpcEnv catches uncaught exceptions, it uses `RpcCallContext.sendFailure` to
 
 If any error is thrown from one of RpcEndpoint methods except `onError`, `onError` will be invoked with the cause. If `onError` throws an error, RpcEnv will ignore it.
 
-=== clientMode
+=== [[client-mode]] clientMode
 
-When a RPC Environment is initialized (using `RpcEnv.create`), it uses `clientMode`.
+When an RPC Environment is initialized link:spark-runtime-environment.adoc#createDriverEnv[as part of the initialization of the driver] or link:spark-runtime-environment.adoc#createExecutorEnv[executors] (using `RpcEnv.create`), `clientMode` is `false` for the driver and `true` for executors.
 
-FIXME
+```
+RpcEnv.create(actorSystemName, hostname, port, conf, securityManager, clientMode = !isDriver)
+```
+
+It helps to ensure that the RPC environment for Netty, *NettyRpcEnv*, is only started on the driver (not executors).
+
+=== [[RpcEnvConfig]] RpcEnvConfig
+
+
 
 === Others
 
