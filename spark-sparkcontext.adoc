@@ -168,6 +168,8 @@ image::diagrams/sparkcontext-createtaskscheduler.png[align="center"]
 
 When a Spark context starts, it triggers `SparkListenerEnvironmentUpdate` and `SparkListenerApplicationStart` events.
 
+Refer to the section <<initialization, SparkContext's initialization>>.
+
 === [[persistentRdds]] Persisted RDDs
 
 FIXME When is the internal field `persistentRdds` used?
@@ -200,17 +202,17 @@ val conf = new SparkConf()
 val sc = new SparkContext(conf)
 ----
 
+It all starts with checking <<allowMultipleContexts, whether SparkContexts can be shared or not using `spark.driver.allowMultipleContexts`>>.
+
 The very first information printed out is the following INFO message:
 
 ```
 INFO SparkContext: Running Spark version 1.6.0-SNAPSHOT
 ```
 
-Up to this point SparkContext has done nothing (beside checking <<allowMultipleContexts, whether SparkContexts can be shared or not using `spark.driver.allowMultipleContexts`>>).
-
 An instance of link:spark-scheduler-listeners.adoc#SparkListenerBus[Listener Bus] is created.
 
-It reads the current user name, i.e. a value of `SPARK_USER` environment variable or the currently logged-in user. It becomes `sparkUser`.
+It reads the current user name, i.e. a value of `SPARK_USER` environment variable or the currently logged-in user. It is available as `sparkUser`.
 
 ```
 scala> sc.sparkUser
@@ -239,11 +241,9 @@ CAUTION: FIXME: What's `externalBlockStoreFolderName`?
 
 For `yarn-client` master URL, the system property `SPARK_YARN_MODE` is set to `true`.
 
-An instance of `JobProgressListener` is created and becomes a listener in `listenerBus`.
+An instance of link:spark-webui.adoc#JobProgressListener[JobProgressListener] is created and registered (to link:spark-scheduler-listeners.adoc#listener-bus[Listener Bus]).
 
-`createSparkEnv` is called to create the Spark execution environment.
-
-CAUTION: FIXME Step through the code
+A link:spark-runtime-environment.adoc#SparkEnv[Spark execution environment] is created (using `createSparkEnv` that in turn calls link:spark-runtime-environment.adoc#createDriverEnv[SparkEnv.createDriverEnv]).
 
 `MetadataCleaner` is created.
 
@@ -316,17 +316,27 @@ CAUTION: FIXME It'd be quite useful to have all the properties with their defaul
 
 `setupAndStartListenerBus` link:spark-scheduler-listeners.adoc[registers user-defined listeners] and starts the listener bus that starts event delivery to the listeners.
 
-The following methods are called (in the order given):
+`postEnvironmentUpdate` is called to post `SparkListenerEnvironmentUpdate` event over link:spark-scheduler-listeners.adoc[Listener Bus] with information about Task Scheduler's scheduling mode, added jar and file paths, and other environmental details. They are eventually visible in Web UI's Environment tab.
 
-* postEnvironmentUpdate
-* postApplicationStart
-* _taskScheduler.postStartHook()
-* _env.metricsSystem.registerSource(new BlockManagerSource(_env.blockManager))
-* _env.metricsSystem.registerSource(e.executorAllocationManagerSource) if `_executorAllocationManager` set.
-* _shutdownHookRef = ShutdownHookManager.addShutdownHook(
+`postApplicationStart` is called to post `SparkListenerApplicationStart` event over link:spark-scheduler-listeners.adoc[Listener Bus].
 
-CAUTION: FIXME What are the above methods doing?
+`_taskScheduler.postStartHook()` is called to wait until link:spark-runtime-environment.adoc#scheduler-backends[Scheduler Backend] is ready.
+
+CAUTION: FIXME When is a Scheduler Backend assigned to Task Scheduler and when is it ready?
+
+Two new metrics sources are registered (via `_env.metricsSystem`):
+
+* link:spark-blockmanager.adoc#metrics[BlockManagerSource]
+* link:spark-dynamic-allocation.adoc#metrics[ExecutorAllocationManagerSource] (only when `_executorAllocationManager` is set)
+
+`ShutdownHookManager.addShutdownHook()` is called to do SparkContext's cleanup.
+
+CAUTION: FIXME What exactly does `ShutdownHookManager.addShutdownHook()` do?
 
 Any non-fatal Exception leads to termination of the Spark context instance.
 
 CAUTION: FIXME What does `NonFatal` represent in Scala?
+
+`nextShuffleId` and `nextRddId` start with `0`.
+
+A new instance of Spark context is created.
