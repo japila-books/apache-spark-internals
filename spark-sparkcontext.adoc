@@ -50,7 +50,7 @@ INFO SparkContext: Running Spark version 1.6.0-SNAPSHOT
 
 Only one SparkContext may be running in a single JVM (check out https://issues.apache.org/jira/browse/SPARK-2243[SPARK-2243 Support multiple SparkContexts in the same JVM]). Sharing access to a SparkContext in the JVM is the solution to share data within Spark (without relying on other means of data sharing using external data stores).
 
-==== spark.driver.allowMultipleContexts
+==== [[allowMultipleContexts]] spark.driver.allowMultipleContexts
 
 Quoting the scaladoc of  http://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.SparkContext[org.apache.spark.SparkContext]:
 
@@ -157,7 +157,7 @@ It is also applicable to `SchedulerBackend` and `TaskScheduler` using `scheduler
 
 CAUTION: FIXME Make it an advanced exercise.
 
-=== Creating Scheduler Backend and Task Scheduler
+=== [[createTaskScheduler]] Creating Scheduler Backend and Task Scheduler
 
 `SparkContext.createTaskScheduler` is executed as part of SparkContext's initialization to create a link:spark-taskscheduler.adoc[task scheduler] (based on a link:spark-deployment-modes.adoc#master-urls[ given master URL]) and link:spark-execution-model.adoc#scheduler-backends[scheduler backend].
 
@@ -183,7 +183,7 @@ To adjust logging level in a Spark application, e.g. link:spark-shell.adoc[Spark
 See https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/SparkContext.scala#L367-L378[org/apache/spark/SparkContext.scala].
 ====
 
-=== SparkContext's initialization
+=== [[initialization]] SparkContext's initialization
 
 Let's walk through a typical initialization code of SparkContext in a Spark application and see what happens under the covers.
 
@@ -206,9 +206,7 @@ The very first information printed out is the following INFO message:
 INFO SparkContext: Running Spark version 1.6.0-SNAPSHOT
 ```
 
-Up to this point SparkContext did nothing (beside checking whether SparkContexts can be shared or not).
-
-CAUTION: FIXME: What's `externalBlockStoreFolderName`?
+Up to this point SparkContext has done nothing (beside checking <<allowMultipleContexts, whether SparkContexts can be shared or not using `spark.driver.allowMultipleContexts`>>).
 
 An instance of link:spark-scheduler-listeners.adoc#SparkListenerBus[Listener Bus] is created.
 
@@ -237,8 +235,98 @@ If `spark.eventLog.enabled` was `true` (default: `false`), the internal field `_
 
 It sets `spark.externalBlockStore.folderName` to the value of `externalBlockStoreFolderName`.
 
+CAUTION: FIXME: What's `externalBlockStoreFolderName`?
+
 For `yarn-client` master URL, the system property `SPARK_YARN_MODE` is set to `true`.
 
 An instance of `JobProgressListener` is created and becomes a listener in `listenerBus`.
 
-To be continued...
+`createSparkEnv` is called to create the Spark execution environment.
+
+CAUTION: FIXME Step through the code
+
+`MetadataCleaner` is created.
+
+CAUTION: FIXME What's MetadataCleaner?
+
+`SparkStatusTracker` is created.
+
+CAUTION: FIXME What's SparkStatusTracker?
+
+`_progressBar` is initialized to `ConsoleProgressBar` if the value of the boolean property `spark.ui.showConsoleProgress` (default: `true`) is `true` and SparkContext's INFO log level is disabled.
+
+CAUTION: FIXME What's ConsoleProgressBar and non-INFO SparkContext. Where are the *visible* results? Where is `_progressBar` used?
+
+`SparkUI.createLiveUI` gets called to set `_ui` if the property `spark.ui.enabled` (default: `true`) is `true`.
+
+CAUTION: FIXME Step through SparkUI.createLiveUI. Where's `_ui` used?
+
+`_hadoopConfiguration = SparkHadoopUtil.get.newConfiguration(_conf)` - FIXME What's that?
+
+If there are jars given through the SparkContext constructor, they are added using `addJar`. Same for files using `addFile`.
+
+`_executorMemory` is set to `spark.executor.memory` setting, or `SPARK_EXECUTOR_MEMORY` env var, or  (deprecated) `SPARK_MEM` env var, or eventually `1024` (FIXME: What's the unit of the value exactly?)
+
+The value of `SPARK_PREPEND_CLASSES` environment variable is included in `executorEnvs`.
+
+[CAUTION]
+====
+FIXME
+
+* What's `_executorMemory`?
+* What are "SPARK_TESTING", "spark.testing"? How do they contribute to `executorEnvs`?
+* What's `executorEnvs`?
+====
+
+The Mesos scheduler backend's configuration is included in `executorEnvs`, i.e. `SPARK_EXECUTOR_MEMORY`, `_conf.getExecutorEnv`, and `SPARK_USER`.
+
+*HeartbeatReceiver* RPC Endpoint is created using `HeartbeatReceiver`.
+
+CAUTION: FIXME What's `_heartbeatReceiver`? Why does Spark need it?
+
+<<createTaskScheduler, SparkContext.createTaskScheduler>> is executed (using the master URL).
+
+CAUTION: FIXME Why is `_heartbeatReceiver.ask[Boolean](TaskSchedulerIsSet)` important?
+
+Task Scheduler is started.
+
+One SparkContext corresponds to one application.
+
+The internal fields, `_applicationId` and `_applicationAttemptId`, are set. Application and attempt ids are specific to the implementation of link:spark-taskscheduler.adoc[Task Scheduler].
+
+The setting *spark.app.id* is set to `_applicationId` and Web UI gets notified about the new value (using `setAppId(_applicationId)`). And also Block Manager (using `.initialize(_applicationId)`).
+
+CAUTION: FIXME Why should UI and Block Manager know about the application id?
+
+link:spark-metrics.adoc[Metric System] is started (after the application id is set using `spark.app.id`).
+
+CAUTION: FIXME Why does Metric System need the application id?
+
+The driver's metrics (servlet handler) are attached to the web ui after the metrics system is started.
+
+`_eventLogger` is created and started if `isEventLogEnabled`. It uses `EventLoggingListener` that gets registered to `listenerBus`.
+
+CAUTION: FIXME Why is `_eventLogger` required to be the internal field of SparkContext? Where is this used?
+
+If link:spark-dynamic-allocation.adoc[dynamic allocation] is enabled, `_executorAllocationManager` is set to `ExecutorAllocationManager` and started.
+
+`_cleaner` is set to link:spark-service-contextcleaner.adoc[ContextCleaner] if `spark.cleaner.referenceTracking` is `true` (default: `true`).
+
+CAUTION: FIXME It'd be quite useful to have all the properties with their default values in `sc.getConf.toDebugString`, so when a configuration is not included but changes Spark runtime configuration, let's add it to `_conf`.
+
+`setupAndStartListenerBus` link:spark-scheduler-listeners.adoc[registers user-defined listeners] and starts the listener bus that starts event delivery to the listeners.
+
+The following methods are called (in the order given):
+
+* postEnvironmentUpdate
+* postApplicationStart
+* _taskScheduler.postStartHook()
+* _env.metricsSystem.registerSource(new BlockManagerSource(_env.blockManager))
+* _env.metricsSystem.registerSource(e.executorAllocationManagerSource) if `_executorAllocationManager` set.
+* _shutdownHookRef = ShutdownHookManager.addShutdownHook(
+
+CAUTION: FIXME What are the above methods doing?
+
+Any non-fatal Exception leads to termination of the Spark context instance.
+
+CAUTION: FIXME What does `NonFatal` represent in Scala?
