@@ -4,14 +4,29 @@ TIP: Read link:spark-rpc.adoc[RPC Environment (RpcEnv)] about the concept of Rpc
 
 The class https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/rpc/netty/NettyRpcEnv.scala[org.apache.spark.rpc.netty.NettyRpcEnv] is the implementation of link:spark-rpc.adoc[RpcEnv] using http://netty.io/[Netty] - _"an asynchronous event-driven network application framework for rapid development of maintainable high performance protocol servers & clients"_.
 
-The Netty-based implementation uses the following properties:
+It uses Java's built-in serialization (the implementation of `JavaSerializerInstance`).
 
-* `spark.shuffle.io.numConnectionsPerPeer` (default: `1`)
-* `spark.rpc.io.threads` (default: `0`) - the number of threads to use for the Netty client and server thread pools, and up to `8`.
-** `spark.shuffle.io.serverThreads`
-** `spark.shuffle.io.clientThreads`
-* `spark.rpc.netty.dispatcher.numThreads` (default: the maximum number of processors available to JVM)
-* `spark.rpc.connect.threads` (default: `64`) - used in cluster mode to communicate with a remote RPC endpoint
+CAUTION: FIXME What other choices of JavaSerializerInstance are available in Spark?
+
+NettyRpcEnv is only started on the driver.
+
+When NettyRpcEnv starts, the following INFO message is printed out in the logs:
+
+```
+INFO Utils: Successfully started service 'NettyRpcEnv' on port 0.
+```
+
+=== [[thread-pools]] Thread Pools
+
+==== dispatcher-event-loop-ID
+
+NettyRpcEnv's Dispatcher uses the daemon fixed thread pool with <<settings, spark.rpc.netty.dispatcher.numThreads>> threads.
+
+Thread names are formatted as `dispatcher-event-loop-ID`, where `ID` is a unique, sequentially assigned integer.
+
+It starts the message processing loop on all of the threads.
+
+==== netty-rpc-env-timeout
 
 NettyRpcEnv uses the daemon single-thread scheduled thread pool `netty-rpc-env-timeout`.
 
@@ -19,13 +34,25 @@ NettyRpcEnv uses the daemon single-thread scheduled thread pool `netty-rpc-env-t
 "netty-rpc-env-timeout" #87 daemon prio=5 os_prio=31 tid=0x00007f887775a000 nid=0xc503 waiting on condition [0x0000000123397000]
 ```
 
-Upon NettyRpcEnv startup, the following message is printed out as INFO in the logs:
+==== netty-rpc-connection-ID
 
-```
-INFO Utils: Successfully started service 'NettyRpcEnv' on port 0.
-```
+NettyRpcEnv uses the daemon cached thread pool with up to <<settings, spark.rpc.connect.threads>> threads.
 
-=== Netty RPC Endpoints
+Thread names are formatted as `netty-rpc-connection-ID`, where `ID` is a unique, sequentially assigned integer.
+
+=== [[settings]] Settings
+
+The Netty-based implementation uses the following properties:
+
+* `spark.shuffle.io.numConnectionsPerPeer` always equals `1`
+* `spark.rpc.io.threads` (default: `0`; maximum: `8`) - the number of threads to use for the Netty client and server thread pools.
+** `spark.shuffle.io.serverThreads` (default: the value of `spark.rpc.io.threads`)
+** `spark.shuffle.io.clientThreads` (default: the value of `spark.rpc.io.threads`)
+* `spark.rpc.netty.dispatcher.numThreads` (default: the number of processors available to JVM)
+* `spark.rpc.connect.threads` (default: `64`) - used in cluster mode to communicate with a remote RPC endpoint
+* `spark.port.maxRetries` (default: `16` or `100` for testing when `spark.testing` is set) controls the maximum number of retries when binding to a port before giving up.
+
+=== [[endpoints]] Endpoints
 
 * `endpoint-verifier`
 
