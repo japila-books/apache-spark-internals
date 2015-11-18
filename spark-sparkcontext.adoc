@@ -252,6 +252,8 @@ https://youtu.be/uEmcGo8rwek[Watch the short video] that show ConsoleProgressBar
 
 Let's walk through a typical initialization code of SparkContext in a Spark application and see what happens under the covers.
 
+NOTE: The example uses Spark in link:spark-local.adoc[local mode], i.e. `setMaster("local[*]")`, but the initialization with link:spark-cluster.adoc[the other cluster modes] is similar.
+
 [source, scala]
 ----
 import org.apache.spark.{SparkConf, SparkContext}
@@ -267,34 +269,36 @@ val sc = new SparkContext(conf)
 
 It all starts with checking <<allowMultipleContexts, whether SparkContexts can be shared or not using `spark.driver.allowMultipleContexts`>>.
 
-The very first information printed out is the following INFO message:
+The very first information printed out is the version of Spark as an INFO message:
 
 ```
 INFO SparkContext: Running Spark version 1.6.0-SNAPSHOT
 ```
 
-An instance of link:spark-scheduler-listeners.adoc#SparkListenerBus[Listener Bus] is created.
+An instance of link:spark-scheduler-listeners.adoc#SparkListenerBus[Listener Bus] is created (but not started yet).
 
-It reads the current user name, i.e. a value of `SPARK_USER` environment variable or the currently logged-in user. It is available as `sparkUser`.
+The current user name is computed, i.e. read from a value of `SPARK_USER` environment variable or the currently logged-in user. It is available as later on as `sparkUser`.
 
 ```
 scala> sc.sparkUser
-res8: String = jacek
+res0: String = jacek
 ```
 
 CAUTION: FIXME Where is `sparkUser` useful?
 
-It checks whether a master URL under `spark.master` and an application name under `spark.app.name` are defined and throws SparkException if not.
+The initialization then checks whether a master URL as `spark.master` and an application name as `spark.app.name` are defined. SparkException is thrown if not.
 
 When `spark.logConf` is `true` (default: `false`) link:spark-configuration.adoc[SparkConf.toDebugString] is called.
 
-CAUTION: `SparkConf.toDebugString` is called a bit too early as there are other settings configured afterwards and they are not in the printout.
+NOTE: `SparkConf.toDebugString` is called very early in the initialization process and other settings configured afterwards are not included. Use `sc.getConf.toDebugString` once SparkContext is initialized.
 
-It sets Spark driver host (`spark.driver.host` to localhost) and port (`spark.driver.port` to `0`) system properties unless already defined.
+The Spark driver host (`spark.driver.host` to localhost) and port (`spark.driver.port` to `0`) system properties are set unless they are already defined.
 
-It sets `spark.executor.id` as `driver`.
+`spark.executor.id` is set as `driver`.
 
-It sets the jars and files based on `spark.jars` and `spark.files`, respectively.
+TIP: Use `sc.getConf.get("spark.executor.id")` to know where the code is executed - link:spark-runtime-environment.adoc[driver or executors].
+
+It sets the jars and files based on `spark.jars` and `spark.files`, respectively. These are files that are required for proper task execution on executors.
 
 If `spark.eventLog.enabled` was `true` (default: `false`), the internal field `_eventLogDir` is set to the value of `spark.eventLog.dir` property or simply `/tmp/spark-events`. Also, if `spark.eventLog.compress` is `true` (default: `false`), the short name of the CompressionCodec is assigned to _eventLogCodec. The config key is `spark.io.compression.codec` (default: `snappy`). The supported codecs are: `lz4`, `lzf`, and `snappy` or their short class names.
 
@@ -304,7 +308,7 @@ CAUTION: FIXME: What's `externalBlockStoreFolderName`?
 
 For `yarn-client` master URL, the system property `SPARK_YARN_MODE` is set to `true`.
 
-An instance of link:spark-webui.adoc#JobProgressListener[JobProgressListener] is created and registered (to link:spark-scheduler-listeners.adoc#listener-bus[Listener Bus]).
+An instance of link:spark-webui.adoc#JobProgressListener[JobProgressListener] is created and registered to link:spark-scheduler-listeners.adoc#listener-bus[Listener Bus].
 
 A link:spark-runtime-environment.adoc#SparkEnv[Spark execution environment] (`SparkEnv`) is created (using `createSparkEnv` that in turn calls link:spark-runtime-environment.adoc#createDriverEnv[SparkEnv.createDriverEnv]).
 
@@ -316,13 +320,13 @@ Optional <<ConsoleProgressBar, ConsoleProgressBar>> with <<SparkStatusTracker, S
 
 `SparkUI.createLiveUI` gets called to set `_ui` if the property `spark.ui.enabled` (default: `true`) is `true`.
 
-CAUTION: FIXME Step through SparkUI.createLiveUI. Where's `_ui` used?
+CAUTION: FIXME Step through `SparkUI.createLiveUI`. Where's `_ui` used?
 
 `_hadoopConfiguration = SparkHadoopUtil.get.newConfiguration(_conf)` - FIXME What's that?
 
 If there are jars given through the SparkContext constructor, they are added using `addJar`. Same for files using `addFile`.
 
-`_executorMemory` is set to `spark.executor.memory` setting, or `SPARK_EXECUTOR_MEMORY` env var, or  (deprecated) `SPARK_MEM` env var, or eventually `1024` (FIXME: What's the unit of the value exactly?)
+`_executorMemory` is set to `spark.executor.memory` setting, or `SPARK_EXECUTOR_MEMORY` environment variable, or  (now deprecated) `SPARK_MEM` environment variable, or eventually `1024`
 
 The value of `SPARK_PREPEND_CLASSES` environment variable is included in `executorEnvs`.
 
@@ -331,6 +335,7 @@ The value of `SPARK_PREPEND_CLASSES` environment variable is included in `execut
 FIXME
 
 * What's `_executorMemory`?
+* What's the unit of the value of `_executorMemory` exactly?
 * What are "SPARK_TESTING", "spark.testing"? How do they contribute to `executorEnvs`?
 * What's `executorEnvs`?
 ====
@@ -345,13 +350,16 @@ CAUTION: FIXME What's `_heartbeatReceiver`? Why does Spark need it?
 
 CAUTION: FIXME Why is `_heartbeatReceiver.ask[Boolean](TaskSchedulerIsSet)` important?
 
-Task Scheduler is started.
-
-One SparkContext corresponds to one application.
+link:spark-taskscheduler.adoc[Task Scheduler] is started.
 
 The internal fields, `_applicationId` and `_applicationAttemptId`, are set. Application and attempt ids are specific to the implementation of link:spark-taskscheduler.adoc[Task Scheduler].
 
-The setting *spark.app.id* is set to `_applicationId` and Web UI gets notified about the new value (using `setAppId(_applicationId)`). And also Block Manager (using `.initialize(_applicationId)`).
+The setting `spark.app.id` is set to `_applicationId` and Web UI gets notified about the new value (using `setAppId(_applicationId)`). And also Block Manager (using `initialize(_applicationId)`).
+
+```
+scala> sc.getConf.get("spark.app.id")
+res1: String = local-1447834845413
+```
 
 CAUTION: FIXME Why should UI and Block Manager know about the application id?
 
@@ -369,13 +377,13 @@ If link:spark-dynamic-allocation.adoc[dynamic allocation] is enabled, `_executor
 
 `_cleaner` is set to link:spark-service-contextcleaner.adoc[ContextCleaner] if `spark.cleaner.referenceTracking` is `true` (default: `true`).
 
-CAUTION: FIXME It'd be quite useful to have all the properties with their default values in `sc.getConf.toDebugString`, so when a configuration is not included but changes Spark runtime configuration, let's add it to `_conf`.
+CAUTION: FIXME It'd be quite useful to have all the properties with their default values in `sc.getConf.toDebugString`, so when a configuration is not included but does change Spark runtime configuration, it should be added to `_conf`.
 
-`setupAndStartListenerBus` link:spark-scheduler-listeners.adoc[registers user-defined listeners] and starts the listener bus that starts event delivery to the listeners.
+`setupAndStartListenerBus` link:spark-scheduler-listeners.adoc[registers user-defined listeners] and starts link:spark-scheduler-listeners.adoc#listener-bus[Listener Bus] that starts event delivery to the listeners.
 
-`postEnvironmentUpdate` is called to post `SparkListenerEnvironmentUpdate` event over link:spark-scheduler-listeners.adoc[Listener Bus] with information about Task Scheduler's scheduling mode, added jar and file paths, and other environmental details. They are eventually visible in Web UI's Environment tab.
+`postEnvironmentUpdate` is called to post `SparkListenerEnvironmentUpdate` event over link:spark-scheduler-listeners.adoc#listener-bus[Listener Bus] with information about Task Scheduler's scheduling mode, added jar and file paths, and other environmental details. They are displayed in link:spark-webui.adoc#environment-tab[Web UI's Environment tab].
 
-`postApplicationStart` is called to post `SparkListenerApplicationStart` event over link:spark-scheduler-listeners.adoc[Listener Bus].
+`postApplicationStart` is called to post `SparkListenerApplicationStart` event over link:spark-scheduler-listeners.adoc#listener-bus[Listener Bus].
 
 `_taskScheduler.postStartHook()` is called to wait until link:spark-runtime-environment.adoc#scheduler-backends[Scheduler Backend] is ready.
 
@@ -396,4 +404,4 @@ CAUTION: FIXME What does `NonFatal` represent in Scala?
 
 `nextShuffleId` and `nextRddId` start with `0`.
 
-A new instance of Spark context is created.
+A new instance of Spark context is created and ready for operation.
