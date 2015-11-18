@@ -1,6 +1,6 @@
 == SparkContext - the door to Spark
 
-*SparkContext* (aka *Spark context*) represents the connection to a link:spark-deployment-modes.adoc[Spark execution environment (deployment mode)], and can only then be used to create RDDs, accumulators and broadcast variables, access Spark services and run jobs.
+*SparkContext* (aka *Spark context*) represents the connection to a link:spark-deployment-modes.adoc[Spark execution environment (deployment mode)], and can only then be used to <<creating-rdds, create RDDs>>, <<creating-accumulators, accumulators>> and <<creating-broadcasts, broadcast variables>>, access Spark services and <<running-jobs, run jobs>>.
 
 A Spark context is essentially a client of Spark's execution environment and acts as the master of your Spark application.
 
@@ -9,18 +9,16 @@ image::diagrams/sparkcontext-services.png[align="center"]
 
 As a developer, you can use `SparkContext` for the following functions:
 
-* link:spark-cluster.adoc[Connect to a cluster]
-* link:spark-configuration.adoc[Specify mandatory application name]
+* link:spark-cluster.adoc[Connecting to a cluster]
+* link:spark-configuration.adoc[Specifing mandatory application name]
 * <<creating-rdds, Creating RDDs>>
-* link:spark-broadcast.adoc[Create broadcast variables]
-* link:spark-accumulators.adoc[Use accumulators]
-* Access services, e.g. link:spark-taskscheduler.adoc[Task Scheduler], link:spark-scheduler-listeners.adoc[Listener Bus], link:spark-blockmanager.adoc[Block Manager], <<coarse-grained-scheduler-backends, CoarseGrainedSchedulerBackends>>, link:spark-shuffle-service.adoc[Shuffle Service].
-* <<running-jobs, Run jobs>>
+* <<creating-accumulators, Creating accumulators>>
+* <<creating-broadcasts, Creating broadcast variables>>
+* Accessing services, e.g. link:spark-taskscheduler.adoc[Task Scheduler], link:spark-scheduler-listeners.adoc[Listener Bus], link:spark-blockmanager.adoc[Block Manager], <<coarse-grained-scheduler-backends, CoarseGrainedSchedulerBackends>>, link:spark-shuffle-service.adoc[Shuffle Service].
+* <<running-jobs, Running jobs>>
 * <<custom-schedulers, Setting up custom Scheduler Backend, Task Scheduler and DAGScheduler>>
 
 Read the scaladoc of  http://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.SparkContext[org.apache.spark.SparkContext].
-
-CAUTION: FIXME SparkStatusTracker
 
 === [[creating-sparkcontext]] Creating SparkContext
 
@@ -84,6 +82,18 @@ Read link:spark-shell.adoc[Spark shell].
 * Any Hadoop `InputSource` using `sc.newAPIHadoopFile`
 
 Read link:spark-rdd.adoc#creating-rdds[Creating RDDs] in link:spark-rdd.adoc[RDD - Resilient Distributed Dataset].
+
+=== [[creating-accumulators]] Creating accumulators
+
+CAUTION: FIXME
+
+Read link:spark-accumulators.adoc[Use accumulators].
+
+=== [[creating-broadcasts]] Creating broadcast variables
+
+CAUTION: FIXME
+
+Read link:spark-broadcast.adoc[Create broadcast variables].
 
 === [[jars]] Distribute JARs to workers
 
@@ -185,6 +195,59 @@ To adjust logging level in a Spark application, e.g. link:spark-shell.adoc[Spark
 See https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/SparkContext.scala#L367-L378[org/apache/spark/SparkContext.scala].
 ====
 
+=== [[SparkStatusTracker]] SparkStatusTracker
+
+`SparkStatusTracker` requires a Spark context to work. It is created as part of <<initialization, SparkContext's initialization>>.
+
+SparkStatusTracker is only used by <<ConsoleProgressBar, ConsoleProgressBar>>.
+
+=== [[ConsoleProgressBar]] ConsoleProgressBar
+
+`ConsoleProgressBar` shows the progress of active stages in console (to `stderr`). It polls the status of stages from <<SparkStatusTracker, SparkStatusTracker>> periodically and prints out active stages with more than one task. It keeps overwriting itself to hold in one line. The number of stages displayed at a time is at most 3.
+
+```
+[Stage 1:====================================>                      (5 + 3) / 8]
+```
+
+The progress includes the stage's id, the number of completed, active, and total tasks.
+
+It is useful when you `ssh` to workers and want to see the progress of active stages.
+
+It is only instantiated if the value of the boolean property `spark.ui.showConsoleProgress` (default: `true`) is `true` and the `INFO` log level of `org.apache.spark.SparkContext` logger is disabled (refer to link:spark-logging.adoc[Logging]).
+
+[source, scala]
+----
+import org.apache.log4j._
+Logger.getLogger("org.apache.spark.SparkContext").setLevel(Level.WARN)
+----
+
+To print the progress nicely ConsoleProgressBar uses `COLUMNS` environment variable to know the width of the terminal. It assumes `80` columns.
+
+The progress bar prints out the status after a stage has ran at least `500ms`, every `200ms` (the values are not configurable).
+
+See the progress bar in Spark shell with the following:
+
+[source]
+----
+$ ./bin/spark-shell --conf spark.ui.showConsoleProgress=true  # <1>
+
+scala> sc.setLogLevel("OFF")  // <2>
+
+scala> Logger.getLogger("org.apache.spark.SparkContext").setLevel(Level.WARN)  // <3>
+
+scala> sc.parallelize(1 to 4, 4).map { n => Thread.sleep(500 + 200 * n); n }.count  // <4>
+[Stage 2:>                                                          (0 + 4) / 4]
+[Stage 2:==============>                                            (1 + 3) / 4]
+[Stage 2:=============================>                             (2 + 2) / 4]
+[Stage 2:============================================>              (3 + 1) / 4]
+----
+<1> Make sure `spark.ui.showConsoleProgress` is `true`. It is by default.
+<2> Disable (`OFF`) the root logger (that includes Spark's logger)
+<3> Make sure `org.apache.spark.SparkContext` logger is at least `WARN`.
+<4> Run a job with 4 tasks with 500ms initial sleep and 200ms sleep chunks to see the progress bar.
+
+https://youtu.be/uEmcGo8rwek[Watch the short video] that show ConsoleProgressBar in action.
+
 === [[initialization]] SparkContext's initialization
 
 Let's walk through a typical initialization code of SparkContext in a Spark application and see what happens under the covers.
@@ -249,13 +312,7 @@ A link:spark-runtime-environment.adoc#SparkEnv[Spark execution environment] (`Sp
 
 CAUTION: FIXME What's MetadataCleaner?
 
-`SparkStatusTracker` is created.
-
-CAUTION: FIXME What's SparkStatusTracker?
-
-`_progressBar` is initialized to `ConsoleProgressBar` if the value of the boolean property `spark.ui.showConsoleProgress` (default: `true`) is `true` and SparkContext's INFO log level is disabled.
-
-CAUTION: FIXME What's ConsoleProgressBar and non-INFO SparkContext. Where are the *visible* results? Where is `_progressBar` used?
+Optional <<ConsoleProgressBar, ConsoleProgressBar>> with <<SparkStatusTracker, SparkStatusTracker>> are created.
 
 `SparkUI.createLiveUI` gets called to set `_ui` if the property `spark.ui.enabled` (default: `true`) is `true`.
 
