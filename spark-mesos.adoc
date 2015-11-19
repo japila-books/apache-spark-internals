@@ -1,5 +1,67 @@
 == Spark on Mesos
 
+=== Running Spark on Mesos
+
+A Mesos cluster needs at least one Mesos Master to coordinate and dispatch tasks onto Mesos Slaves.
+
+```
+$ mesos-master --registry=in_memory --ip=127.0.0.1
+I1119 12:30:22.153122 2107527936 main.cpp:229] Build: 2015-11-15 11:52:29 by brew
+I1119 12:30:22.153700 2107527936 main.cpp:231] Version: 0.25.0
+I1119 12:30:22.153736 2107527936 main.cpp:252] Using 'HierarchicalDRF' allocator
+I1119 12:30:22.155131 2107527936 main.cpp:465] Starting Mesos master
+I1119 12:30:22.161689 2107527936 master.cpp:376] Master 91979713-a32d-4e08-aaea-5dffbfd44e5d (localhost) started on 127.0.0.1:5050
+...
+```
+
+Visit the management console at http://localhost:5050.
+
+.Mesos Management Console
+image::images/mesos-console.png[align="center"]
+
+Run Mesos Slave onto which Master will dispatch jobs.
+
+```
+$ mesos-slave --master=127.0.0.1:5050
+I1119 12:35:18.750463 2107527936 main.cpp:185] Build: 2015-11-15 11:52:29 by brew
+I1119 12:35:18.750747 2107527936 main.cpp:187] Version: 0.25.0
+I1119 12:35:18.753484 2107527936 containerizer.cpp:143] Using isolation: posix/cpu,posix/mem,filesystem/posix
+I1119 12:35:18.763685 2107527936 main.cpp:272] Starting Mesos slave
+I1119 12:35:18.766768 219140096 slave.cpp:190] Slave started on 1)@192.168.1.4:5051
+...
+I1119 12:35:18.787820 217530368 slave.cpp:741] Detecting new master
+I1119 12:35:19.639030 218066944 slave.cpp:880] Registered with master master@127.0.0.1:5050; given slave ID 91979713-a32d-4e08-aaea-5dffbfd44e5d-S0
+...
+```
+
+.Mesos Management Console (Slaves tab) with one slave running
+image::images/mesos-console-slaves.png[align="center"]
+
+```
+$ export MESOS_NATIVE_JAVA_LIBRARY=/usr/local/lib/libmesos.dylib
+
+$ ./bin/spark-shell --master mesos://127.0.0.1:5050 --conf spark.executor.uri=/Users/jacek/Downloads/spark-1.5.2-bin-hadoop2.6.tgz
+...
+I1119 13:02:55.468960 747294720 sched.cpp:164] Version: 0.25.0
+I1119 13:02:55.470788 698224640 sched.cpp:262] New master detected at master@127.0.0.1:5050
+I1119 13:02:55.470947 698224640 sched.cpp:272] No credentials provided. Attempting to register without authentication
+I1119 13:02:55.471592 734216192 sched.cpp:641] Framework registered with 91979713-a32d-4e08-aaea-5dffbfd44e5d-0002
+...
+```
+
+.Mesos Management Console (Frameworks tab) with Spark shell active
+image::images/spark-mesos-frameworks-one-active.png[align="center"]
+
+TIP: Consult slave logs under `/tmp/mesos/slaves` when facing troubles.
+
+```
+scala> sc.parallelize(0 to 10, 8).count
+res0: Long = 11
+```
+
+.Completed tasks in Mesos Management Console
+image::images/spark-mesos-completed-tasks.png[align="center"]
+
 [CAUTION]
 ====
 Review:
