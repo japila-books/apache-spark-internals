@@ -11,8 +11,40 @@ The driver and the executors run in their own Java processes. You can run them a
 
 [TIP]
 ====
-Enable `DEBUG` logging level for `org.apache.spark.SparkEnv` logger to learn the low-level details of SparkEnv.
+Turn `DEBUG` logging level for `org.apache.spark.SparkEnv` logger on to learn the low-level details of `SparkEnv`.
+
+Add the following line to `conf/log4j.properties` with requested `DEBUG` log level:
+
+```
+log4j.logger.org.apache.spark.SparkEnv=DEBUG
+```
 ====
+
+=== [[driver]] Driver
+
+A Spark *driver* is the process that launches the `main` method of your Spark application and manages the execution of jobs and tasks (using link:spark-dagscheduler.adoc[DAGScheduler] and link:spark-taskscheduler.adoc[Task Scheduler]). It hosts link:spark-webui.adoc[Web UI] for the environment.
+
+.Driver with the services
+image::images/spark-driver.png[align="center"]
+
+It splits a Spark application into tasks and schedules them to run on executors.
+
+A driver is where the task scheduler lives and spawns tasks across workers.
+
+A driver coordinates workers and overall execution of tasks.
+
+Driver requires the additional services (beside the common ones like link:spark-shuffle-service.adoc[ShuffleManager], MemoryManager, BlockTransferService, link:spark-service-broadcastmanager.adoc[BroadcastManager], link:spark-cachemanager.adoc[CacheManager]):
+
+* Listener Bus
+* driverActorSystemName
+* link:spark-rpc.adoc[RPC Environment] (for Netty and Akka)
+* link:spark-service-mapoutputtracker.adoc#MapOutputTrackerMaster[MapOutputTrackerMaster] with the name *MapOutputTracker*
+* link:spark-blockmanager.adoc#BlockManagerMaster[BlockManagerMaster] with the name *BlockManagerMaster*
+* link:spark-http-file-server.adoc[HttpFileServer]
+* link:spark-metrics.adoc[MetricsSystem] with the name *driver*
+* link:spark-service-outputcommitcoordinator.adoc[OutputCommitCoordinator] with the endpoint's name *OutputCommitCoordinator*
+
+CAUTION: FIXME Diagram of RpcEnv for a driver (and later executors). Perhaps it should be in the notes about RpcEnv?
 
 === [[master]] Master
 
@@ -71,32 +103,6 @@ Therefore, you should not map your steps to tasks directly. A task belongs to a 
 
 The number of tasks being generated in each stage will be equal to the number of partitions.
 
-=== [[driver]] Driver
-
-A *driver* is the process that launches the `main` method of your Spark application.
-
-.Driver with the services
-image::images/spark-driver.png[align="center"]
-
-It splits a Spark application into tasks and schedules them to run on executors.
-
-A driver is where the task scheduler lives and spawns tasks across workers.
-
-A driver coordinates workers and overall execution of tasks.
-
-Driver requires the additional services (beside the common ones like link:spark-shuffle-service.adoc[ShuffleManager], MemoryManager, BlockTransferService, link:spark-service-broadcastmanager.adoc[BroadcastManager], link:spark-cachemanager.adoc[CacheManager]):
-
-* Listener Bus
-* driverActorSystemName
-* link:spark-rpc.adoc[RPC Environment] (for Netty and Akka)
-* link:spark-service-mapoutputtracker.adoc#MapOutputTrackerMaster[MapOutputTrackerMaster] with the name *MapOutputTracker*
-* link:spark-blockmanager.adoc#BlockManagerMaster[BlockManagerMaster] with the name *BlockManagerMaster*
-* link:spark-http-file-server.adoc[HttpFileServer]
-* link:spark-metrics.adoc[MetricsSystem] with the name *driver*
-* link:spark-service-outputcommitcoordinator.adoc[OutputCommitCoordinator] with the endpoint's name *OutputCommitCoordinator*
-
-CAUTION: FIXME Diagram of RpcEnv for a driver (and later executors). Perhaps it should be in the notes about RpcEnv?
-
 ==== [[createDriverEnv]] SparkEnv.createDriverEnv
 
 `SparkEnv.createDriverEnv` creates the Spark execution environment for a driver, aka *driver's (execution) environment*.
@@ -110,7 +116,7 @@ The following two driver's properties are expected to be available in the Spark 
 
 For Akka-based RPC Environment (obsolete since Spark 1.6.0-SNAPSHOT), the name of the actor system for the driver is *sparkDriver*. See link:spark-rpc.adoc#client-mode[clientMode] how it is created in detail.
 
-=== [[executors]] Executors
+=== [[executor]] Executor
 
 *Executors* are distributed agents that run tasks for link:spark-dagscheduler.adoc#jobs[a Spark job]. They typically run for the entire lifetime of the Spark application. They communicate with the driver to send computation results back.
 
@@ -212,7 +218,7 @@ For Akka-based RPC Environment (obsolete since Spark 1.6.0-SNAPSHOT), the name o
 
 === [[scheduler-backends]] Scheduler Backends
 
-Spark comes with a pluggable backend mechanism called scheduler backend for different modes of scheduling tasks.
+Spark comes with a pluggable backend mechanism called *scheduler backend* for different modes of scheduling tasks.
 
 A *Scheduler Backend* is the Spark interface to different task scheduling systems, i.e. link:spark-local.adoc#local-backend[Spark local], link:spark-standalone.adoc[Spark Standalone], link:spark-mesos.adoc[Mesos] or link:spark-yarn.adoc[YARN].
 
@@ -227,14 +233,38 @@ The default unique identifier for a Spark application is *spark-application-* + 
 Spark comes with the following scheduler backends:
 
 * *LocalBackend* that is used in link:spark-local.adoc#local-backend[Spark local mode].
-* *CoarseGrainedSchedulerBackend*
-** *SparkDeploySchedulerBackend* used in link:spark-standalone.adoc#spark-deply-scheduler-backend[Spark Standalone] (and local-cluster - FIXME)
+* <<CoarseGrainedSchedulerBackend, CoarseGrainedSchedulerBackend>>
+** *SparkDeploySchedulerBackend* used in link:spark-standalone.adoc#spark-deploy-scheduler-backend[Spark Standalone] (and local-cluster - FIXME)
 ** YarnSchedulerBackend
 *** YarnClientSchedulerBackend
 *** *YarnClusterSchedulerBackend* used in link:spark-yarn.adoc#yarn-cluster-scheduler-backend[Spark on YARN in cluster mode]
 ** CoarseMesosSchedulerBackend
 ** SimrSchedulerBackend
 * *MesosSchedulerBackend*
+
+==== [[CoarseGrainedSchedulerBackend]] CoarseGrainedSchedulerBackend
+
+*CoarseGrainedSchedulerBackend* is a scheduler backend that waits for coarse-grained executors to connect to it through Akka (FIXME Akka? Still? You sure?). It talks to a cluster manager for resources for executors (register, remove).
+
+*Coarse-grained executors* are executors that this backend holds for the duration of the Spark job rather than relinquishing executors whenever a task is done and asking the scheduler to launch a new executor for each new task.
+
+It uses link:spark-scheduler-listeners.adoc[Listener Bus].
+
+It uses RPC Environment to talk to the driver (`driverEndpoint`).
+
+It tracks:
+
+* the total number of cores in the cluster
+* the total number of executors that are currently registered
+* executors (`ExecutorData`)
+* hosts and the number of possible tasks possibly running on them
+* lost executors with no real exit reason
+* tasks per slaves (`taskIdsOnSlave`)
+
+CAUTION: FIXME Where are these counters used?
+
+* `spark.scheduler.minRegisteredResourcesRatio` (default: `0`) - double value between 0 and 1. FIXME
+* `spark.scheduler.maxRegisteredResourcesWaitingTime` (default: `30s`) FIXME
 
 === [[executor-backends]] Executor Backends
 

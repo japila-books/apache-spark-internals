@@ -169,7 +169,9 @@ CAUTION: FIXME Make it an advanced exercise.
 
 === [[createTaskScheduler]] Creating Scheduler Backend and Task Scheduler
 
-`SparkContext.createTaskScheduler` is executed as part of SparkContext's initialization to create a link:spark-taskscheduler.adoc[task scheduler] (based on a link:spark-deployment-modes.adoc#master-urls[ given master URL]) and link:spark-execution-model.adoc#scheduler-backends[scheduler backend].
+`SparkContext.createTaskScheduler` is executed as part of <<initialization, SparkContext's initialization>> to create link:spark-taskscheduler.adoc[Task Scheduler] and link:spark-execution-model.adoc#scheduler-backends[Scheduler Backend].
+
+It uses the link:spark-deployment-modes.adoc#master-urls[given master URL] and information gathered so far.
 
 .SparkContext creates Task Scheduler and Scheduler Backend
 image::diagrams/sparkcontext-createtaskscheduler.png[align="center"]
@@ -261,7 +263,7 @@ scala> a.union(b).count()
 
 Let's walk through a typical initialization code of SparkContext in a Spark application and see what happens under the covers.
 
-NOTE: The example uses Spark in link:spark-local.adoc[local mode], i.e. `setMaster("local[*]")`, but the initialization with link:spark-cluster.adoc[the other cluster modes] is similar.
+NOTE: The example uses Spark in link:spark-local.adoc[local mode], i.e. `setMaster("local[*]")`, but the initialization with link:spark-cluster.adoc[the other cluster modes] would follow similar steps.
 
 [source, scala]
 ----
@@ -335,7 +337,9 @@ CAUTION: FIXME Step through `SparkUI.createLiveUI`. Where's `_ui` used?
 
 If there are jars given through the SparkContext constructor, they are added using `addJar`. Same for files using `addFile`.
 
-`_executorMemory` is set to `spark.executor.memory` setting, or `SPARK_EXECUTOR_MEMORY` environment variable, or  (now deprecated) `SPARK_MEM` environment variable, or eventually `1024`
+The amount of memory to allocate to each executor in Mb (as `_executorMemory`) is calculated. It is the value of `spark.executor.memory` setting, or `SPARK_EXECUTOR_MEMORY` environment variable, or (now deprecated) `SPARK_MEM` environment variable, or eventually `1024`.
+
+`_executorMemory` is later available as `sc.executorMemory` and used for LOCAL_CLUSTER_REGEX, SparkDeploySchedulerBackend, to set `executorEnvs("SPARK_EXECUTOR_MEMORY")`, MesosSchedulerBackend, CoarseMesosSchedulerBackend.
 
 The value of `SPARK_PREPEND_CLASSES` environment variable is included in `executorEnvs`.
 
@@ -412,5 +416,7 @@ Any non-fatal Exception leads to termination of the Spark context instance.
 CAUTION: FIXME What does `NonFatal` represent in Scala?
 
 `nextShuffleId` and `nextRddId` start with `0`.
+
+CAUTION: FIXME Where are `nextShuffleId` and `nextRddId` used?
 
 A new instance of Spark context is created and ready for operation.
