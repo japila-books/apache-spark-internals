@@ -62,9 +62,62 @@ res0: Long = 11
 .Completed tasks in Mesos Management Console
 image::images/spark-mesos-completed-tasks.png[align="center"]
 
+Stop Spark shell.
+
+```
+scala> Stopping spark context.
+I1119 16:01:37.831179 206073856 sched.cpp:1771] Asked to stop the driver
+I1119 16:01:37.831310 698224640 sched.cpp:1040] Stopping framework '91979713-a32d-4e08-aaea-5dffbfd44e5d-0002'
+```
+
+=== [[CoarseMesosSchedulerBackend]] CoarseMesosSchedulerBackend
+
+CAUTION: Does `zk://` master URL work? It is accepted in `MESOS_REGEX`.
+
+`CoarseMesosSchedulerBackend` is the default scheduler backend for Spark on Mesos.
+
+It requires a link:spark-taskscheduler.adoc[Task Scheduler], link:spark-sparkcontext.adoc[Spark context], `mesos://` master URL, and link:spark-security.adoc[Security Manager].
+
+It is a specialized link:spark-runtime-environment.adoc#CoarseGrainedSchedulerBackend[CoarseGrainedSchedulerBackend] and implements Mesos's org.apache.mesos.Scheduler interface.
+
+It accepts only two failures before blacklisting a Mesos slave (it is hardcoded and not configurable).
+
+It tracks:
+
+* the number of tasks already submitted (`nextMesosTaskId`)
+* the number of cores per task (`coresByTaskId`)
+* the total number of cores acquired (`totalCoresAcquired`)
+* slave ids with executors (`slaveIdsWithExecutors`)
+* slave ids per host (`slaveIdToHost`)
+* task ids per slave (`taskIdToSlaveId`)
+* How many times tasks on each slave failed (`failuresBySlaveId`)
+
+TIP: `createSchedulerDriver` instantiates Mesos's org.apache.mesos.MesosSchedulerDriver
+
+CoarseMesosSchedulerBackend starts the *MesosSchedulerUtils-mesos-driver* daemon thread with Mesos's org.apache.mesos.MesosSchedulerDriver.
+
+==== [[settings]] Settings
+
+* `spark.cores.max` (default: `Int.MaxValue`) - maximum number of cores to acquire
+* `spark.mesos.extra.cores` (default: `0`) - extra cores per slave (`extraCoresPerSlave`) FIXME
+* `spark.mesos.constraints` (default: (empty)) - offer constraints FIXME `slaveOfferConstraints`
+* `spark.mesos.rejectOfferDurationForUnmetConstraints` (default: `120s`) - reject offers with mismatched constraints in seconds
+
+=== [[MesosExternalShuffleClient]] MesosExternalShuffleClient
+
+FIXME
+
+=== [[MesosSchedulerBackend]] (Fine)MesosSchedulerBackend
+
+When <<settings, spark.mesos.coarse>> is `false`, Spark on Mesos uses `MesosSchedulerBackend`
+
+=== [[settings]] Settings
+
+* `spark.mesos.coarse` (default: `true`) controls whether the scheduler backend for Mesos works in coarse- (`CoarseMesosSchedulerBackend`) or fine-grained mode (`MesosSchedulerBackend`).
+
 [CAUTION]
 ====
-Review:
+FIXME Review
 
 *  https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/scheduler/cluster/mesos/MesosClusterScheduler.scala[MesosClusterScheduler.scala]
 * MesosExternalShuffleService
