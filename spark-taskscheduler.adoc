@@ -86,9 +86,17 @@ A *ShuffleMapTask* divides the elements of an RDD into multiple buckets (based o
 
 === [[taskset]] TaskSet
 
-*TaskSet* is a set of tasks that belong to a single stage and an attempt. The pair of a stage and an attempt uniquely describes a TaskSet. TaskSet represents missing partitions of a stage.
+A *TaskSet* is a set of tasks submitted together to TaskScheduler that belong to a single stage and an attempt. A TaskSet represents the missing partitions of a stage.
 
-TaskSet has *priority* and *properties*. Priority is used in FIFO scheduling mode. Properties are the first job in a stage's properties.
+The pair of a stage and an attempt uniquely describes a TaskSet and that is what you can see in the logs:
+
+```
+TaskSet [stageId].[stageAttemptId]
+```
+
+TaskSet has *priority* and *properties*. Priority is used in FIFO scheduling mode. Properties are the properties of the first job in a stage.
+
+CAUTION: FIXME Where are `properties` of a TaskSet used?
 
 A TaskSet contains a fully-independent sequence of tasks that can run right away based on the data that is already on the cluster, e.g. map output files from previous stages, though it may fail if this data becomes unavailable.
 
@@ -96,7 +104,9 @@ TaskSet can be <<submitTasks, submitted>>, i.e. started.
 
 === [[tasksetmanager]] TaskSetManager
 
-*TaskSetManager* manages execution of the tasks in a TaskSet. It schedules the tasks and keeps track of their execution, retries them upon failure (up to <<settings, spark.task.maxFailures>>), and handles locality-aware scheduling for this TaskSet via delay scheduling.
+*TaskSetManager* manages execution of the tasks in a <<taskset, TaskSet>>.
+
+It schedules the tasks and keeps track of their execution, retries them upon failure (up to <<settings, spark.task.maxFailures>>), and handles locality-aware scheduling for this TaskSet via delay scheduling.
 
 [CAUTION]
 ====
@@ -141,7 +151,7 @@ The following "events" trigger communication between TaskSetManager and DAGSched
 
 ==== [[tasksetmanager-settings]] Settings
 
-* `spark.scheduler.executorTaskBlacklistTime` (default: `0L`) - time interval to pass after which a task can be re-launched on an executor where it has just failed. It can prevent repeated task failures.
+* `spark.scheduler.executorTaskBlacklistTime` (default: `0L`) - time interval to pass after which a task can be re-launched on the executor where it has once failed. It can prevent repeated task failures due to executor failures.
 * `spark.speculation` (default: `false`)
 * `spark.speculation.quantile` (default: `0.75`) - the percentage of tasks that has not finished yet.
 * `spark.speculation.multiplier` (default: `1.5`)
@@ -269,13 +279,18 @@ The job with speculatable tasks should finish while speculative tasks are runnin
 
 === [[submitTasks]] submitTasks
 
-Tasks are submitted for execution using `submitTasks(taskSet: TaskSet)`.
+Tasks (as a <<taskset, TaskSet>>) are submitted for execution using `submitTasks(taskSet: TaskSet)` method.
+
+.TaskScheduler.submitTasks
+image::images/taskscheduler-submitTasks.png[align="center"]
 
 You should see the following INFO in the logs:
 
 ```
-INFO TaskSchedulerImpl: Adding task set 1.0 with 4 tasks
+INFO TaskSchedulerImpl: Adding task set 0.0 with 8 tasks
 ```
+
+TIP: Use `dag-scheduler-event-loop` thread to step through the code in a debugger.
 
 === [[settings]] Settings
 
