@@ -1,21 +1,25 @@
-== Operating Spark master
+== Operating Spark Standalone master
 
-You start link:spark-standalone.adoc[Spark Standalone]'s *master* using <<start-script, sbin/start-master.sh>> and later stop it using <<stop-script, sbin/stop-master.sh>>.
+You can start a link:spark-standalone.adoc[Spark Standalone] *master* using <<start-script, sbin/start-master.sh>> and stop it using <<stop-script, sbin/stop-master.sh>>.
 
-The initialization is as follows:
-
-* Start <<rpcenv, sparkMaster RPC Environment>>
-* ...
+The initialization is described in <<startup-internals, Internals of org.apache.spark.deploy.master.Master>>.
 
 === [[start-script]] sbin/start-master.sh
 
-`sbin/start-master.sh` script starts a Spark master on the machine this script is executed on.
+`sbin/start-master.sh` script starts a Spark master on the machine the script is executed on.
 
 ```
 ./sbin/start-master.sh
 ```
 
-The script prepares the command line to start `org.apache.spark.deploy.master.Master`.
+The script prepares the command line to start the class `org.apache.spark.deploy.master.Master` and by default runs as follows:
+
+```
+org.apache.spark.deploy.master.Master \
+  --ip japila.local --port 7077 --webui-port 8080
+```
+
+NOTE: The command uses `SPARK_PRINT_LAUNCH_COMMAND` (default: `1`) that when set prints out the launch command to standard error output (`System.err`).
 
 It has support for starting Tachyon using `--with-tachyon` command line option. It assumes `tachyon/bin/tachyon` command be available in Spark's home directory.
 
@@ -24,21 +28,22 @@ The script uses the following helper scripts:
 * `sbin/spark-config.sh`
 * `bin/load-spark-env.sh`
 
-Ultimately, the script calls `sbin/spark-daemon.sh start` to kick off `org.apache.spark.deploy.master.Master` with parameter `1` and `--ip`, `--port`, and `--webui-port`.
+Ultimately, the script calls `sbin/spark-daemon.sh start` to kick off `org.apache.spark.deploy.master.Master` with parameter `1` and `--ip`, `--port`, and `--webui-port` <<options, command-line options>>.
 
-==== Command-line options
+==== [[command-line-options]] Command-line Options
 
 You can use the following command-line options:
 
-* `--host` or `-h` - the hostname to listen on; similar to `SPARK_MASTER_HOST`.
-* `--port` or `-p` - similar to `SPARK_MASTER_PORT`
-* `--webui-port` - similar to `SPARK_MASTER_WEBUI_PORT`
-* `--properties-file` (default: `conf/spark-defaults.conf`) - the path to a custom Spark properties file
+* `--host` or `-h` the hostname to listen on; overrides <<environment-variables, SPARK_MASTER_HOST>>.
+* `--ip` or `-i` (deprecated) the IP to listen on
+* `--port` or `-p` - command-line version of <<environment-variables, SPARK_MASTER_PORT>> that overrides it.
+* `--webui-port` - command-line version of <<environment-variables, SPARK_MASTER_WEBUI_PORT>> that overrides it.
+* `--properties-file` (default: `$SPARK_HOME/conf/spark-defaults.conf`) - the path to a custom Spark properties file
 * `--help`
 
 === [[stop-script]] sbin/stop-master.sh
 
-`sbin/stop-master.sh` script stops a Spark master on the machine this script is executed on.
+You can stop a Spark Standalone master using `sbin/stop-master.sh` script.
 
 ```
 ./sbin/stop-master.sh
@@ -54,14 +59,18 @@ You should see the ERROR in master's logs:
 ERROR Master: RECEIVED SIGNAL 15: SIGTERM
 ```
 
-=== System environment variables
+=== [[environment-variables]] System environment variables
 
 Master uses the following system environment variables (directly or indirectly):
 
-* `SPARK_MASTER_PORT` (default: `7077`)
+* `SPARK_LOCAL_HOSTNAME` - the custom host name
+* `SPARK_LOCAL_IP` - the custom IP to use when `SPARK_LOCAL_HOSTNAME` is not set
+* `SPARK_MASTER_HOST` (not `SPARK_MASTER_IP` as used in `start-master.sh` script above!) - the master custom host
+* `SPARK_MASTER_PORT` (default: `7077`) - the master custom port
 * `SPARK_MASTER_IP` (default: `hostname` command's output)
-* `SPARK_MASTER_WEBUI_PORT` (default: `8080`)
-* `SPARK_PUBLIC_DNS` (default: hostname) - master's public hostname for WebUI's http URL
+* `SPARK_MASTER_WEBUI_PORT` (default: `8080`) - the port of the master's WebUI. Overriden by `spark.master.ui.port` if set in the properties file.
+* `SPARK_PUBLIC_DNS` (default: hostname) - the custom master hostname for WebUI's http URL
+* `SPARK_CONF_DIR` (default: `$SPARK_HOME/conf`) - the directory of the default properties file `spark-defaults.conf` from which all properties that start with `spark.` prefix are loaded.
 
 === States
 
@@ -72,13 +81,9 @@ Master can be in the following states:
 * `RECOVERING`
 * `COMPLETING_RECOVERY`
 
-FIXME
+CAUTION: FIXME
 
-=== Spark properties
-
-After loading the default Spark properties file or `--properties-file`, if `spark.master.ui.port` is specified, it is used as web UI's port.
-
-=== [[rpcenv]] RPC environment
+=== [[rpcenv]] RPC Environment
 
 The `org.apache.spark.deploy.master.Master` class starts its own link:spark-rpc.adoc[sparkMaster RPC environment] with `Master` endpoint.
 
@@ -197,12 +202,24 @@ The following message types are accepted by master (see `Master#receive` or `Mas
 * `RequestExecutors`
 * `KillExecutors`
 
-=== Internals of org.apache.spark.deploy.master.Master
+=== [[startup-internals]] Internals of org.apache.spark.deploy.master.Master
 
-When `Master` (`main`) starts, it creates <<spark-configuration.adoc#default-configuration, the default SparkConf>>.
+[TIP]
+====
+You can debug a Standalone master using the following command:
 
-It parses command-line arguments for the master using `MasterArguments` class.
+[source]
+----
+java -agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005 -cp /Users/jacek/dev/oss/spark/conf/:/Users/jacek/dev/oss/spark/assembly/target/scala-2.11/spark-assembly-1.6.0-SNAPSHOT-hadoop2.7.1.jar:/Users/jacek/dev/oss/spark/lib_managed/jars/datanucleus-api-jdo-3.2.6.jar:/Users/jacek/dev/oss/spark/lib_managed/jars/datanucleus-core-3.2.10.jar:/Users/jacek/dev/oss/spark/lib_managed/jars/datanucleus-rdbms-3.2.9.jar -Xms1g -Xmx1g org.apache.spark.deploy.master.Master --ip japila.local --port 7077 --webui-port 8080
+----
 
-It uses the following environment variables:
+The above command suspends (`suspend=y`) the process until a JPDA debugging client, e.g. your IDE, is connected, and that Spark is available under `/Users/jacek/dev/oss/spark`. Change it to meet your environment.
+====
 
-* `SPARK_MASTER_HOST` (not `SPARK_MASTER_IP` as used in the script above!)
+When `Master` starts, it first creates the <<spark-configuration.adoc#default-configuration, default SparkConf configuration>> whose values it then overrides using  <<environment-variables, environment variables>> and <<command-line-options, command-line options>>.
+
+A fully-configured master instance requires `host`, `port` (default: `7077`), `webUiPort` (default: `8080`) settings defined.
+
+TIP: When in troubles, consult link:spark-tips-and-tricks.adoc[Spark Tips and Tricks] document.
+
+It starts <<rpcenv, RPC Environment>> with necessary endpoints and lives until the RPC environment terminates.
