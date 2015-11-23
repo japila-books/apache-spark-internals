@@ -13,9 +13,11 @@ FIXME
 * routes incoming messages to them
 * stops them
 
-The default implementation of RPC Environment is link:spark-rpc-netty.adoc[Netty-based implementation], but Akka-based one is still started (perhaps for backward compatibility until no services in Spark uses it).
+A RPC Environment is defined by the *name*, *host*, and *port*. It can also be controlled by a *security manager*.
 
-*RpcEndpoints* define what *functions* to trigger given a *message*. RpcEndpoints register (with a name or uri) to RpcEnv to receive messages from *RpcEndpointRefs*.
+The default implementation of RPC Environment is link:spark-rpc-netty.adoc[Netty-based implementation], but Akka-based implementation is still started (perhaps for backward compatibility until no services in Spark use it). Read the section <<RpcEnvFactory, RpcEnvFactory>>.
+
+*RpcEndpoints* define how to handle *messages* (what *functions* to execute given a message). RpcEndpoints register (with a name or uri) to RpcEnv to receive messages from *RpcEndpointRefs*.
 
 .RpcEnvironment with RpcEndpoints and RpcEndpointRefs
 image::diagrams/rpcenv-endpoints.png[align="center"]
@@ -35,7 +37,7 @@ There are two `RpcEnvFactory` implementations in Spark:
 * `netty` using `org.apache.spark.rpc.netty.NettyRpcEnvFactory`. This is the default factory for RpcEnv as of Spark 1.6.0-SNAPSHOT.
 * `akka` using `org.apache.spark.rpc.akka.AkkaRpcEnvFactory`
 
-You can choose an RPC implementation to use by `spark.rpc` setting (defaults to `netty`). The setting can be one of the two short names for the known RpcEnvFactories - `netty` or `akka` - or a fully-qualified class name of your custom factory (including Netty-based and Akka-based implementations).
+You can choose an RPC implementation to use by <<settings, spark.rpc>> (default: `netty`). The setting can be one of the two short names for the known RpcEnvFactories - `netty` or `akka` - or a fully-qualified class name of your custom factory (including Netty-based and Akka-based implementations).
 
 ```
 $ ./bin/spark-shell --conf spark.rpc=netty
@@ -45,21 +47,21 @@ $ ./bin/spark-shell --conf spark.rpc=org.apache.spark.rpc.akka.AkkaRpcEnvFactory
 
 === [[rpcendpoint]] RpcEndpoint
 
-*RpcEndpoints* define what *functions* to trigger given a *message*. RpcEndpoints live inside RpcEnv after being registered with a name.
+*RpcEndpoints* define how to handle *messages* (what *functions* to execute given a message). RpcEndpoints live inside RpcEnv after being registered by a name.
 
 A RpcEndpoint can be registered to one and only one RpcEnv.
 
 The lifecycle of a RpcEndpoint is `onStart`, `receive` and `onStop` in sequence.
 
-`receive` can be called concurrently. If you want `receive` to be thread-safe, please use `ThreadSafeRpcEndpoint`.
+`receive` can be called concurrently. If you want `receive` to be thread-safe, use `ThreadSafeRpcEndpoint`.
 
 `onError` method is called for any exception thrown.
 
 === RpcEndpointRef
 
-A *RpcEndpointRef* is a reference for a RpcEndpoint in a RpcEnv.
+A *RpcEndpointRef* is a reference for a <<rpcendpoint, RpcEndpoint>> in a RpcEnv.
 
-It is serializable entity and so you can send it over a network or save it for later use (it can however be deserialized using the owning RpcEnv).
+It is serializable entity and so you can send it over a network or save it for later use (it can however be deserialized using the owning RpcEnv only).
 
 A RpcEndpointRef has <<rpcaddress, an address>> (a Spark URL), and a name.
 
@@ -72,11 +74,17 @@ You can send a semi-synchronous message, i.e. "subscribe" to be notified when a 
 
 It also uses <<endpoint-lookup-timeout, lookup timeouts>>.
 
-=== [[rpcaddress]] RpcAddress
+=== [[RpcAddress]] RpcAddress
 
-*RpcAddress* is the logical address for an RPC environment, with hostname and port.
+*RpcAddress* is the logical address for an RPC Environment, with hostname and port.
 
 RpcAddress is encoded as a *Spark URL*, i.e. `spark://host:port`.
+
+=== [[RpcEndpointAddress]] RpcEndpointAddress
+
+*RpcEndpointAddress* is the logical address for an endpoint registered to an RPC Environment, with <<RpcAddress, RpcAddress>> and *name*.
+
+It is in the format of *spark://[name]@[rpcAddress.host]:[rpcAddress.port]*.
 
 === [[endpoint-lookup-timeout]] Endpoint lookup timeout
 
@@ -131,6 +139,7 @@ CAUTION: FIXME A potential issue with `driverEndpoint.asInstanceOf[NettyRpcEndpo
 
 === [[settings]] Settings
 
+* `spark.rpc` (default: `netty` since Spark 1.6.0-SNAPSHOT) - the RPC implementation to use. See <<RpcEnvFactory, RpcEnvFactory>>.
 * `spark.rpc.lookupTimeout` (default: `120s`) - the default timeout to use for RPC remote endpoint lookup.
 * `spark.network.timeout` (default: `120s`) - the default network timeout to use for RPC remote endpoint lookup.
 

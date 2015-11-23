@@ -69,14 +69,14 @@ Master uses the following system environment variables (directly or indirectly):
 * `SPARK_MASTER_PORT` (default: `7077`) - the master custom port
 * `SPARK_MASTER_IP` (default: `hostname` command's output)
 * `SPARK_MASTER_WEBUI_PORT` (default: `8080`) - the port of the master's WebUI. Overriden by `spark.master.ui.port` if set in the properties file.
-* `SPARK_PUBLIC_DNS` (default: hostname) - the custom master hostname for WebUI's http URL
+* `SPARK_PUBLIC_DNS` (default: hostname) - the custom master hostname for WebUI's http URL and master's address.
 * `SPARK_CONF_DIR` (default: `$SPARK_HOME/conf`) - the directory of the default properties file `spark-defaults.conf` from which all properties that start with `spark.` prefix are loaded.
 
 === States
 
 Master can be in the following states:
 
-* `STANDBY`
+* `STANDBY` - the initial state while Master is initializing
 * `ALIVE`
 * `RECOVERING`
 * `COMPLETING_RECOVERY`
@@ -85,14 +85,18 @@ CAUTION: FIXME
 
 === [[rpcenv]] RPC Environment
 
-The `org.apache.spark.deploy.master.Master` class starts its own link:spark-rpc.adoc[sparkMaster RPC environment] with `Master` endpoint.
-
-The following INFO shows up when the Master Endpoint starts up (`Master#onStart` is called):
+The `org.apache.spark.deploy.master.Master` class starts link:spark-rpc.adoc[sparkMaster RPC environment].
 
 ```
-INFO Master: Starting Spark master at spark://japila.local:7077
-INFO Master: Running Spark version 1.6.0-SNAPSHOT
+INFO Utils: Successfully started service 'sparkMaster' on port 7077.
 ```
+
+It then registers `Master` endpoint.
+
+.sparkMaster - the RPC Environment for Spark Standalone's master
+image::images/sparkMaster-rpcenv.png[align="center"]
+
+Master endpoint is a `ThreadSafeRpcEndpoint` and `LeaderElectable` (see <<leader-election, Leader Election>>).
 
 The Master endpoint starts the daemon single-thread scheduler pool `master-forward-message-thread`. It is used for worker management, i.e. removing any timed-out workers.
 
@@ -100,7 +104,34 @@ The Master endpoint starts the daemon single-thread scheduler pool `master-forwa
 "master-forward-message-thread" #46 daemon prio=5 os_prio=31 tid=0x00007ff322abb000 nid=0x7f03 waiting on condition [0x000000011cad9000]
 ```
 
+Application ids follows the pattern `app-yyyyMMddHHmmss`.
+
+Master keeps track of the following:
+
+* workers (`workers`)
+* mapping between ids and applications (`idToApp`)
+* waiting applications (`waitingApps`)
+* applications (`apps`)
+* mapping between ids and workers (`idToWorker`)
+* mapping between RPC address and workers (`addressToWorker`)
+* `endpointToApp`
+* `addressToApp`
+* `completedApps`
+* `nextAppNumber`
+* mapping between application ids and their Web UIs (`appIdToUI`)
+* drivers (`drivers`)
+* `completedDrivers`
+* drivers currently spooled for scheduling (`waitingDrivers`)
+* `nextDriverNumber`
+
 The Master is in fact the Master RPC Endpoint that you can access using RPC port (low-level operation communication) or link:spark-webui.adoc[WebUI].
+
+The following INFO shows up when the Master endpoint starts up (`Master#onStart` is called):
+
+```
+INFO Master: Starting Spark master at spark://japila.local:7077
+INFO Master: Running Spark version 1.6.0-SNAPSHOT
+```
 
 === [[metrics]] Metrics
 
@@ -115,13 +146,29 @@ It emits the following metrics:
 * `apps` - the number of applications
 * `waitingApps` - the number of waiting applications
 
-FIXME How to access the metrics for master? See `Master#onStart`
+The name of the other source is *applications*
+
+[CAUTION]
+====
+FIXME
+
+* Review `org.apache.spark.metrics.MetricsConfig`
+* How to access the metrics for master? See `Master#onStart`
+* Review `masterMetricsSystem` and `applicationMetricsSystem`
+====
 
 === [[properties]] Properties
 
+[CAUTION]
+====
+FIXME
+
+* Where are `RETAINED_`'s properties used?
+====
+
 Master uses the following properties:
 
-* `spark.worker.timeout` (default: `60`) - time (in seconds) when no heartbeat from a worker means it's lost.
+* `spark.worker.timeout` (default: `60`) - time (in seconds) when no heartbeat from a worker means it is lost.
 * `spark.deploy.retainedApplications` (default: `200`)
 * `spark.deploy.retainedDrivers` (default: `200`)
 * `spark.dead.worker.persistence` (default: `15`)
@@ -174,7 +221,9 @@ INFO MasterWebUI: Started MasterWebUI at http://192.168.1.4:8080
 
 === [[leader-election]] Leader Election
 
-FIXME
+Master endpoint is `LeaderElectable`, i.e. FIXME
+
+CAUTION: FIXME
 
 === Messages
 

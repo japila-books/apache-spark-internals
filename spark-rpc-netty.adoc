@@ -1,8 +1,10 @@
 == Netty-based RpcEnv
 
-TIP: Read link:spark-rpc.adoc[RPC Environment (RpcEnv)] about the concept of RpcEnv in Spark.
+TIP: Read link:spark-rpc.adoc[RPC Environment (RpcEnv)] about the concept of RPC Environment in Spark.
 
 The class https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/rpc/netty/NettyRpcEnv.scala[org.apache.spark.rpc.netty.NettyRpcEnv] is the implementation of link:spark-rpc.adoc[RpcEnv] using http://netty.io/[Netty] - _"an asynchronous event-driven network application framework for rapid development of maintainable high performance protocol servers & clients"_.
+
+Netty-based RPC Environment is created by `NettyRpcEnvFactory` when link:spark-rpc.adoc#settings[spark.rpc] is `netty` or `org.apache.spark.rpc.netty.NettyRpcEnvFactory`.
 
 It uses Java's built-in serialization (the implementation of `JavaSerializerInstance`).
 
@@ -10,13 +12,35 @@ CAUTION: FIXME What other choices of JavaSerializerInstance are available in Spa
 
 NettyRpcEnv is only started on link:spark-runtime-environment.adoc#driver[the driver].
 
+The default port to listen to is `7077`.
+
 When NettyRpcEnv starts, the following INFO message is printed out in the logs:
 
 ```
 INFO Utils: Successfully started service 'NettyRpcEnv' on port 0.
 ```
 
+[TIP]
+====
+Set `DEBUG` for `org.apache.spark.network.server.TransportServer` logger to know when Shuffle server/NettyRpcEnv starts listening to messages.
+
+```
+DEBUG Shuffle server started on port :
+```
+
+FIXME: The message above in TransportServer has a space before `:`.
+
+====
+
 === [[thread-pools]] Thread Pools
+
+==== shuffle-server-ID
+
+`EventLoopGroup` uses a daemon thread pool called `shuffle-server-ID`, where `ID` is a unique integer for `NioEventLoopGroup` (`NIO`) or `EpollEventLoopGroup` (`EPOLL`) for the Shuffle server.
+
+CAUTION: FIXME Review Netty's `NioEventLoopGroup`.
+
+CAUTION: FIXME Where are `SO_BACKLOG`, `SO_RCVBUF`, `SO_SNDBUF` channel options used?
 
 ==== dispatcher-event-loop-ID
 
@@ -44,17 +68,20 @@ Thread names are formatted as `netty-rpc-connection-ID`, where `ID` is a unique,
 
 The Netty-based implementation uses the following properties:
 
+* `spark.rpc.io.mode` (default: `NIO`) - `NIO` or `EPOLL` for low-level IO. `NIO` is always available, while `EPOLL` is only available on Linux. `NIO` uses `io.netty.channel.nio.NioEventLoopGroup` while `EPOLL` `io.netty.channel.epoll.EpollEventLoopGroup`.
 * `spark.shuffle.io.numConnectionsPerPeer` always equals `1`
 * `spark.rpc.io.threads` (default: `0`; maximum: `8`) - the number of threads to use for the Netty client and server thread pools.
 ** `spark.shuffle.io.serverThreads` (default: the value of `spark.rpc.io.threads`)
 ** `spark.shuffle.io.clientThreads` (default: the value of `spark.rpc.io.threads`)
 * `spark.rpc.netty.dispatcher.numThreads` (default: the number of processors available to JVM)
 * `spark.rpc.connect.threads` (default: `64`) - used in cluster mode to communicate with a remote RPC endpoint
-* `spark.port.maxRetries` (default: `16` or `100` for testing when `spark.testing` is set) controls the maximum number of retries when binding to a port before giving up.
+* `spark.port.maxRetries` (default: `16` or `100` for testing when `spark.testing` is set) controls the maximum number of binding attempts/retries to a port before giving up.
 
 === [[endpoints]] Endpoints
 
-* `endpoint-verifier`
+* `endpoint-verifier` (`RpcEndpointVerifier`) - a RpcEndpoint for remote RpcEnvs to query whether an RpcEndpoint exists or not. It uses `Dispatcher` that keeps track of registered endpoints and responds `true`/`false` to `CheckExistence` message.
+
+CAUTION: FIXME Who'd like to use `endpoint-verifier` and how?
 
 === Message Dispatcher
 
