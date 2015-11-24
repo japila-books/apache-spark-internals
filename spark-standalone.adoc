@@ -10,6 +10,88 @@ In Standalone cluster mode Spark allocates resources based on cores. By default,
 
 Standalone cluster mode is subject to the constraint that only one executor can be allocated on each worker per application.
 
+The initialization of a standalone Master is described in <<startup-internals, Internals of org.apache.spark.deploy.master.Master>>.
+
+=== [[round-robin-scheduling]] Round-robin Scheduling Across Nodes
+
+<<properties, spark.deploy.spreadOut>> property controls whether or not to perform round-robin scheduling across the nodes (spreading out each app among all the nodes). It defaults to `true`.
+
+FIXME
+
+=== Master WebUI
+
+FIXME MasterWebUI
+
+```
+INFO Utils: Successfully started service 'MasterUI' on port 8080.
+INFO MasterWebUI: Started MasterWebUI at http://192.168.1.4:8080
+```
+
+=== [[rest-server]] REST Server
+
+The standalone Master starts the REST Server service for alternative application submission that is supposed to work across Spark versions. It is enabled by default (see <<properties, spark.master.rest.enabled>>).
+
+`RestSubmissionClient` is the client.
+
+The server includes a JSON representation of `SubmitRestProtocolResponse` in the HTTP body.
+
+The following INFOs show up when the Master Endpoint starts up (`Master#onStart` is called) with REST Server enabled:
+
+```
+INFO Utils: Successfully started service on port 6066.
+INFO StandaloneRestServer: Started REST server for submitting applications on port 6066
+```
+
+=== [[recovery-mode]] Recovery Mode
+
+A standalone Master can run with *recovery mode* enabled and be able to recover state among the available swarm of masters. By default, there is no recovery, i.e. no persistence and no election.
+
+It uses `spark.deploy.recoveryMode` to define the recovery mode for master (see <<properties, spark.deploy.recoveryMode>>).
+
+The Recovery Mode enables election of the leader master among the masters.
+
+FIXME Why would I want to have many masters? What are the use cases?
+
+=== [[leader-election]] Leader Election
+
+Master endpoint is `LeaderElectable`, i.e. FIXME
+
+CAUTION: FIXME
+
+=== RPC Messages
+
+Master communicates with drivers, executors and configures itself using *RPC messages*.
+
+The following message types are accepted by master (see `Master#receive` or `Master#receiveAndReply` methods):
+
+* `ElectedLeader` for <<leader-election, Leader Election>>
+* `CompleteRecovery`
+* `RevokedLeadership`
+* <<RegisterApplication, RegisterApplication>>
+* `ExecutorStateChanged`
+* `DriverStateChanged`
+* `Heartbeat`
+* `MasterChangeAcknowledged`
+* `WorkerSchedulerStateResponse`
+* `UnregisterApplication`
+* `CheckForWorkerTimeOut`
+* `RegisterWorker`
+* `RequestSubmitDriver`
+* `RequestKillDriver`
+* `RequestDriverStatus`
+* `RequestMasterState`
+* `BoundPortsRequest`
+* `RequestExecutors`
+* `KillExecutors`
+
+==== [[RegisterApplication]] RegisterApplication event
+
+A *RegisterApplication* event is sent by link:spark-standalone.adoc#AppClient[AppClient] to standalone Master. The event holds information about the application being deployed (`ApplicationDescription`) and the driver's endpoint reference.
+
+`ApplicationDescription` describes an application by its name, maximum number of cores, executor's memory, command, appUiUrl, and user with optional eventLogDir and eventLogCodec for Event Logs, and the number of cores per executor.
+
+FIXME
+
 === SPARK_WORKER_INSTANCES (and SPARK_WORKER_CORES)
 
 There is really no need to run multiple workers per machine in Spark 1.5 (perhaps in 1.4, too). You can run multiple executors on the same machine with one worker.
@@ -34,131 +116,6 @@ If you are running Spark in standalone mode on memory-rich nodes it can be benef
 * Heap size of >32 GB can’t use CompressedOoops. So https://blog.codecentric.de/en/2014/02/35gb-heap-less-32gb-java-jvm-memory-oddities/[35 GB is actually less than 32 GB].
 
 Mesos and YARN can, out of the box, support packing multiple, smaller executors onto the same physical host, so requesting smaller executors doesn’t mean your application will have fewer overall resources.
-
-=== Example 2-workers-on-1-node cluster (one executor per worker)
-
-The following steps are a recipe for a Spark Standalone cluster with 2 workers on a single machine.
-
-The aim is to have a complete Spark-clustered environment at your laptop.
-
-[TIP]
-====
-Consult the following documents:
-
-* link:spark-standalone-master-operation.adoc[Operating Spark master]
-* link:spark-standalone-start-slave-script.adoc[Starting Spark workers on node using sbin/start-slave.sh]
-====
-
-[IMPORTANT]
-====
-You can use the Spark Standalone cluster in the following ways:
-
-* Use `spark-shell` with `--master MASTER_URL`
-* Use http://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.SparkConf[SparkConf.setMaster(MASTER_URL)] in your Spark application
-
-For our learning purposes, `MASTER_URL` is `spark://localhost:7077`.
-====
-
-1. Start a standalone master server.
-
-  ./sbin/start-master.sh
-+
-Notes:
-
-* Read link:spark-standalone-master-operation.adoc[Operating Spark Standalone master]
-* Use `SPARK_CONF_DIR` for the configuration directory (defaults to `$SPARK_HOME/conf`).
-* Use `spark.deploy.retainedApplications` (default: `200`)
-* Use `spark.deploy.retainedDrivers` (default: `200`)
-* Use `spark.deploy.recoveryMode` (default: `NONE`)
-* Use `spark.deploy.spreadOut` (default: `true`) to allow users to set a flag that will perform round-robin scheduling across the nodes (spreading out each app among all the nodes) instead of trying to consolidate each app onto a small # of nodes.
-* Use `spark.deploy.defaultCores` (default: `Int.MaxValue`)
-
-1. Open master’s web UI at http://localhost:8080 to know the current setup - no workers and applications.
-+
-.Master's web UI with no workers and applications
-image::images/spark-standalone-console-master-only.png[]
-
-1. Start the first worker.
-
-  ./sbin/start-slave.sh spark://japila.local:7077
-+
-NOTE: The command above in turn executes `org.apache.spark.deploy.worker.Worker --webui-port 8081 spark://japila.local:7077`
-
-1. Check out master’s web UI at http://localhost:8080 to know the current setup - one worker.
-+
-.Master's web UI with one worker ALIVE
-image::images/spark-standalone-console-one-worker.png[]
-+
-Note the number of CPUs and memory, 8 and 15 GBs, respectively (one gigabyte left for the OS -- _oh, how generous, my dear Spark!_).
-
-1. Let's stop the worker to start over with custom configuration. You use `./sbin/stop-slave.sh` to stop the worker.
-
-  ./sbin/stop-slave.sh
-
-1. Check out master’s web UI at http://localhost:8080 to know the current setup - one worker in *DEAD* state.
-+
-.Master's web UI with one worker DEAD
-image::images/spark-standalone-console-worker-dead.png[]
-
-1. Start a worker using `--cores 2` and `--memory 4g` for two CPU cores and 4 GB of RAM.
-
-  ./sbin/start-slave.sh spark://japila.local:7077 --cores 2 --memory 4g
-+
-NOTE: The command translates to `org.apache.spark.deploy.worker.Worker --webui-port 8081 spark://japila.local:7077 --cores 2 --memory 4g`
-
-1. Check out master’s web UI at http://localhost:8080 to know the current setup - one worker *ALIVE* and another *DEAD*.
-+
-.Master's web UI with one worker ALIVE and one DEAD
-image::images/spark-standalone-console-workers-alive-and-dead.png[]
-
-1. Configuring cluster using `conf/spark-env.sh`
-+
-There's the `conf/spark-env.sh.template` template to start from.
-+
-We're going to use the following `conf/spark-env.sh`:
-+
-[source,shell]
-.conf/spark-env.sh
-----
-SPARK_WORKER_CORES=2 # <1>
-SPARK_WORKER_INSTANCES=2 # <2>
-SPARK_WORKER_MEMORY=2g
-----
-<1> the number of cores per worker
-<2> the number of workers per node (a machine)
-
-
-1. Start the workers.
-
-  ./sbin/start-slave.sh spark://japila.local:7077
-+
-As the command progresses, it prints out _starting org.apache.spark.deploy.worker.Worker, logging to_ for each worker. You defined two workers in `conf/spark-env.sh` using `SPARK_WORKER_INSTANCES`, so you should see two lines.
-+
-  $ ./sbin/start-slave.sh spark://japila.local:7077
-  starting org.apache.spark.deploy.worker.Worker, logging to ../logs/spark-jacek-org.apache.spark.deploy.worker.Worker-1-japila.local.out
-  starting org.apache.spark.deploy.worker.Worker, logging to ../logs/spark-jacek-org.apache.spark.deploy.worker.Worker-2-japila.local.out
-
-1. Check out master’s web UI at http://localhost:8080 to know the current setup - at least two workers should be *ALIVE*.
-+
-.Master's web UI with two workers ALIVE
-image::images/spark-standalone-console-two-workers-alive.png[]
-+
-[NOTE]
-====
-Use `jps` on master to see the instances given they all run on the same machine, e.g. `localhost`).
-
-....
-$ jps
-6580 Worker
-4872 Master
-6874 Jps
-6539 Worker
-....
-====
-
-1. Stop all instances - the driver and the workers.
-
-  ./sbin/stop-all.sh
 
 === [[initialization]] SparkContext initialization in Standalone cluster
 
@@ -206,3 +163,161 @@ INFO AppClient$ClientEndpoint: Connecting to master spark://localhost:7077...
 ```
 
 An AppClient tries connecting to a standalone master 3 times every 20 seconds per master before giving up. They are not configurable parameters.
+
+=== [[startup-internals]] Internals of org.apache.spark.deploy.master.Master
+
+[TIP]
+====
+You can debug a Standalone master using the following command:
+
+[source]
+----
+java -agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005 -cp /Users/jacek/dev/oss/spark/conf/:/Users/jacek/dev/oss/spark/assembly/target/scala-2.11/spark-assembly-1.6.0-SNAPSHOT-hadoop2.7.1.jar:/Users/jacek/dev/oss/spark/lib_managed/jars/datanucleus-api-jdo-3.2.6.jar:/Users/jacek/dev/oss/spark/lib_managed/jars/datanucleus-core-3.2.10.jar:/Users/jacek/dev/oss/spark/lib_managed/jars/datanucleus-rdbms-3.2.9.jar -Xms1g -Xmx1g org.apache.spark.deploy.master.Master --ip japila.local --port 7077 --webui-port 8080
+----
+
+The above command suspends (`suspend=y`) the process until a JPDA debugging client, e.g. your IDE, is connected, and that Spark is available under `/Users/jacek/dev/oss/spark`. Change it to meet your environment.
+====
+
+When `Master` starts, it first creates the <<spark-configuration.adoc#default-configuration, default SparkConf configuration>> whose values it then overrides using  <<environment-variables, environment variables>> and <<command-line-options, command-line options>>.
+
+A fully-configured master instance requires `host`, `port` (default: `7077`), `webUiPort` (default: `8080`) settings defined.
+
+TIP: When in troubles, consult link:spark-tips-and-tricks.adoc[Spark Tips and Tricks] document.
+
+It starts <<rpcenv, RPC Environment>> with necessary endpoints and lives until the RPC environment terminates.
+
+=== [[worker-management]] Worker Management
+
+Master uses `master-forward-message-thread` to schedule a thread every `spark.worker.timeout` to check workers' availability and remove timed-out workers.
+
+It is that Master sends `CheckForWorkerTimeOut` message to itself to trigger verification.
+
+When a worker hasn't responded for `spark.worker.timeout`, it is assumed dead and the following WARN message appears in the logs:
+
+```
+WARN Removing [worker.id] because we got no heartbeat in [spark.worker.timeout] seconds
+```
+
+=== [[properties]] Properties
+
+[CAUTION]
+====
+FIXME
+
+* Where are `RETAINED_`'s properties used?
+====
+
+Master uses the following properties:
+
+* `spark.worker.timeout` (default: `60`) - time (in seconds) when no heartbeat from a worker means it is lost. See <<worker-management, Worker Management>>.
+* `spark.deploy.retainedApplications` (default: `200`)
+* `spark.deploy.retainedDrivers` (default: `200`)
+* `spark.dead.worker.persistence` (default: `15`)
+* `spark.deploy.recoveryMode` (default: `NONE`) - possible modes: `ZOOKEEPER`, `FILESYSTEM`, or `CUSTOM`. Refer to <<recovery-mode, Recovery Mode>>.
+* `spark.deploy.recoveryMode.factory` - the class name of the custom `StandaloneRecoveryModeFactory`.
+* `spark.deploy.recoveryDirectory` (default: empty) - the directory to persist recovery state
+* `spark.deploy.spreadOut` (default: `true`) - perform round-robin scheduling across the nodes (spreading out each app among all the nodes). Refer to <<round-robin-scheduling, Round-robin Scheduling Across Nodes>>
+* `spark.deploy.defaultCores` (default: `Int.MaxValue`, i.e. unbounded)- the number of maxCores for applications that don't specify it.
+* `spark.master.rest.enabled` (default: `true`) - <<rest-server, master's REST Server>> for alternative application submission that is supposed to work across Spark versions.
+* `spark.master.rest.port` (default: `6066`) - the port of <<rest-server, master's REST Server>>
+* `spark.ui.killEnabled` (default: `true`)
+
+=== [[environment-variables]] System Environment Variables
+
+Master uses the following system environment variables (directly or indirectly):
+
+* `SPARK_LOCAL_HOSTNAME` - the custom host name
+* `SPARK_LOCAL_IP` - the custom IP to use when `SPARK_LOCAL_HOSTNAME` is not set
+* `SPARK_MASTER_HOST` (not `SPARK_MASTER_IP` as used in `start-master.sh` script above!) - the master custom host
+* `SPARK_MASTER_PORT` (default: `7077`) - the master custom port
+* `SPARK_MASTER_IP` (default: `hostname` command's output)
+* `SPARK_MASTER_WEBUI_PORT` (default: `8080`) - the port of the master's WebUI. Overriden by `spark.master.ui.port` if set in the properties file.
+* `SPARK_PUBLIC_DNS` (default: hostname) - the custom master hostname for WebUI's http URL and master's address.
+* `SPARK_CONF_DIR` (default: `$SPARK_HOME/conf`) - the directory of the default properties file `spark-defaults.conf` from which all properties that start with `spark.` prefix are loaded.
+
+=== States
+
+Master can be in the following states:
+
+* `STANDBY` - the initial state while Master is initializing
+* `ALIVE`
+* `RECOVERING`
+* `COMPLETING_RECOVERY`
+
+CAUTION: FIXME
+
+=== [[rpcenv]] RPC Environment
+
+The `org.apache.spark.deploy.master.Master` class starts link:spark-rpc.adoc[sparkMaster RPC environment].
+
+```
+INFO Utils: Successfully started service 'sparkMaster' on port 7077.
+```
+
+It then registers `Master` endpoint.
+
+.sparkMaster - the RPC Environment for Spark Standalone's master
+image::images/sparkMaster-rpcenv.png[align="center"]
+
+Master endpoint is a `ThreadSafeRpcEndpoint` and `LeaderElectable` (see <<leader-election, Leader Election>>).
+
+The Master endpoint starts the daemon single-thread scheduler pool `master-forward-message-thread`. It is used for worker management, i.e. removing any timed-out workers.
+
+```
+"master-forward-message-thread" #46 daemon prio=5 os_prio=31 tid=0x00007ff322abb000 nid=0x7f03 waiting on condition [0x000000011cad9000]
+```
+
+Application ids follows the pattern `app-yyyyMMddHHmmss`.
+
+Master keeps track of the following:
+
+* workers (`workers`)
+* mapping between ids and applications (`idToApp`)
+* waiting applications (`waitingApps`)
+* applications (`apps`)
+* mapping between ids and workers (`idToWorker`)
+* mapping between RPC address and workers (`addressToWorker`)
+* `endpointToApp`
+* `addressToApp`
+* `completedApps`
+* `nextAppNumber`
+* mapping between application ids and their Web UIs (`appIdToUI`)
+* drivers (`drivers`)
+* `completedDrivers`
+* drivers currently spooled for scheduling (`waitingDrivers`)
+* `nextDriverNumber`
+
+The Master is in fact the Master RPC Endpoint that you can access using RPC port (low-level operation communication) or link:spark-webui.adoc[Web UI].
+
+`MasterWebUI` is the Web UI server for the standalone master. Master starts Web UI to listen to `http://[master's hostname]:webUIPort`, e.g. `http://localhost:8080`.
+
+The following INFO shows up when the Master endpoint starts up (`Master#onStart` is called):
+
+```
+INFO Master: Starting Spark master at spark://japila.local:7077
+INFO Master: Running Spark version 1.6.0-SNAPSHOT
+```
+
+=== [[metrics]] Metrics
+
+Master uses link:spark-metrics.adoc[Spark Metrics System] (via `MasterSource`) to report metrics about internal status.
+
+The name of the source is *master*.
+
+It emits the following metrics:
+
+* `workers` - the number of all workers (any state)
+* `aliveWorkers` - the number of alive workers
+* `apps` - the number of applications
+* `waitingApps` - the number of waiting applications
+
+The name of the other source is *applications*
+
+[CAUTION]
+====
+FIXME
+
+* Review `org.apache.spark.metrics.MetricsConfig`
+* How to access the metrics for master? See `Master#onStart`
+* Review `masterMetricsSystem` and `applicationMetricsSystem`
+====
