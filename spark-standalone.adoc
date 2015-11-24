@@ -72,7 +72,6 @@ Notes:
 * Use `spark.deploy.recoveryMode` (default: `NONE`)
 * Use `spark.deploy.spreadOut` (default: `true`) to allow users to set a flag that will perform round-robin scheduling across the nodes (spreading out each app among all the nodes) instead of trying to consolidate each app onto a small # of nodes.
 * Use `spark.deploy.defaultCores` (default: `Int.MaxValue`)
-* `spark.master.rest.enabled` (default: `true`)
 
 1. Open master’s web UI at http://localhost:8080 to know the current setup - no workers and applications.
 +
@@ -187,8 +186,23 @@ CAUTION: FIXME `AppClientListener` & `LauncherBackend` & `ApplicationDescription
 
 === [[AppClient]] AppClient
 
-`AppClient` registers *AppClient* RPC endpoint (using `ClientEndpoint`).
+`AppClient` is an interface to allow Spark applications to talk to a Spark deploy cluster (using a RPC Environment). It takes an RPC Environment, a collection of master URLs, a `ApplicationDescription`, and a `AppClientListener`.
 
-It uses a thread pool for registering with masters with one thread per master. The threads' names follow the pattern `appclient-register-master-threadpool-ID` with a separate ID per master.
+`AppClient` registers *AppClient* RPC endpoint (using `ClientEndpoint`) to a given RPC Environment.
 
-It uses `appclient-registration-retry-thread` and `appclient-receive-and-reply-threadpool`. FIXME
+CAUTION: FIXME What RPC Env does it belong to?
+
+It uses `appclient-receive-and-reply-threadpool`. FIXME
+
+An AppClient registers the application to a single master (regardless of link:spark-deployment-modes.adoc#master-urls[the number of the standalone masters given in the master URL]).
+
+.AppClient registers application to standalone Master
+image::images/appclient-registerapplication.png[align="center"]
+
+It uses the separate thread pool *appclient-register-master-threadpool* to asynchronously sent `RegisterApplication` messages, one per standalone master.
+
+```
+INFO AppClient$ClientEndpoint: Connecting to master spark://localhost:7077...
+```
+
+An AppClient tries connecting to a standalone master 3 times every 20 seconds per master before giving up. They are not configurable parameters.

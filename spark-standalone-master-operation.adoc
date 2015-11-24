@@ -1,6 +1,6 @@
 == Operating Spark Standalone master
 
-You can start a link:spark-standalone.adoc[Spark Standalone] *master* using <<start-script, sbin/start-master.sh>> and stop it using <<stop-script, sbin/stop-master.sh>>.
+You can start a link:spark-standalone.adoc[Spark Standalone] *master* (aka _standalone Master_) using <<start-script, sbin/start-master.sh>> and stop it using <<stop-script, sbin/stop-master.sh>>.
 
 The initialization is described in <<startup-internals, Internals of org.apache.spark.deploy.master.Master>>.
 
@@ -207,9 +207,11 @@ FIXME Why would I want to have many masters? What are the use cases?
 
 === [[rest-server]] REST Server
 
-Master starts REST Server for alternative application submission that is supposed to work across Spark versions. It enabled by default (see <<properties, spark.master.rest.enabled>>).
+The standalone Master starts the REST Server service for alternative application submission that is supposed to work across Spark versions. It is enabled by default (see <<properties, spark.master.rest.enabled>>).
 
-FIXME StandaloneRestServer
+`RestSubmissionClient` is the client.
+
+The server includes a JSON representation of `SubmitRestProtocolResponse` in the HTTP body.
 
 The following INFOs show up when the Master Endpoint starts up (`Master#onStart` is called) with REST Server enabled:
 
@@ -239,16 +241,16 @@ Master endpoint is `LeaderElectable`, i.e. FIXME
 
 CAUTION: FIXME
 
-=== Messages
+=== RPC Messages
 
-Master communicates with drivers, executors and sets itself up using *messages*.
+Master communicates with drivers, executors and configures itself using *RPC messages*.
 
 The following message types are accepted by master (see `Master#receive` or `Master#receiveAndReply` methods):
 
-* `ElectedLeader` for <<leader-election, Leader Election>>)
+* `ElectedLeader` for <<leader-election, Leader Election>>
 * `CompleteRecovery`
 * `RevokedLeadership`
-* `RegisterApplication`
+* <<RegisterApplication, RegisterApplication>>
 * `ExecutorStateChanged`
 * `DriverStateChanged`
 * `Heartbeat`
@@ -264,6 +266,14 @@ The following message types are accepted by master (see `Master#receive` or `Mas
 * `BoundPortsRequest`
 * `RequestExecutors`
 * `KillExecutors`
+
+==== [[RegisterApplication]] RegisterApplication event
+
+A *RegisterApplication* event is sent by link:spark-standalone.adoc#AppClient[AppClient] to standalone Master. The event holds information about the application being deployed (`ApplicationDescription`) and the driver's endpoint reference.
+
+`ApplicationDescription` describes an application by its name, maximum number of cores, executor's memory, command, appUiUrl, and user with optional eventLogDir and eventLogCodec for Event Logs, and the number of cores per executor.
+
+FIXME
 
 === [[startup-internals]] Internals of org.apache.spark.deploy.master.Master
 
