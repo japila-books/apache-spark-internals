@@ -10,6 +10,15 @@
 
 Spark Standalone cluster is one of the three available clustering options in Spark (refer to link:spark-cluster.adoc[Running Spark on cluster]).
 
+[CAUTION]
+====
+FIXME A figure with SparkDeploySchedulerBackend sending messages to AppClient and AppClient RPC Endpoint and later to Master.
+
+SparkDeploySchedulerBackend --> AppClient --> AppClient RPC Endpoint --> Master
+
+Add SparkDeploySchedulerBackend as AppClientListener in the picture
+====
+
 In Standalone cluster mode Spark allocates resources based on cores. By default, an application will grab all the cores in the cluster (refer to <<settings, Settings>>).
 
 Standalone cluster mode is subject to the constraint that only one executor can be allocated on each worker per application.
@@ -90,11 +99,11 @@ The following message types are accepted by master (see `Master#receive` or `Mas
 
 ==== [[RegisterApplication]] RegisterApplication event
 
-A *RegisterApplication* event is sent by link:spark-standalone.adoc#AppClient[AppClient] to standalone Master. The event holds information about the application being deployed (`ApplicationDescription`) and the driver's endpoint reference.
+A *RegisterApplication* event is sent by link:spark-standalone.adoc#AppClient[AppClient] to the standalone Master. The event holds information about the application being deployed (`ApplicationDescription`) and the driver's endpoint reference.
 
 `ApplicationDescription` describes an application by its name, maximum number of cores, executor's memory, command, appUiUrl, and user with optional eventLogDir and eventLogCodec for Event Logs, and the number of cores per executor.
 
-FIXME
+CAUTION: FIXME Finish
 
 === SPARK_WORKER_INSTANCES (and SPARK_WORKER_CORES)
 
@@ -146,23 +155,23 @@ image::images/SparkDeploySchedulerBackend-AppClient-start.png[align="center"]
 
 CAUTION: FIXME `AppClientListener` & `LauncherBackend` & `ApplicationDescription`
 
+It uses <<AppClient, AppClient>> to talk to executors.
+
 === [[AppClient]] AppClient
 
-`AppClient` is an interface to allow Spark applications to talk to a Spark deploy cluster (using a RPC Environment). It takes an RPC Environment, a collection of master URLs, a `ApplicationDescription`, and a `AppClientListener`.
+`AppClient` is an interface to allow Spark applications to talk to a Standalone cluster (using a RPC Environment). It takes an RPC Environment, a collection of master URLs, a `ApplicationDescription`, and a `AppClientListener`.
 
-`AppClient` registers *AppClient* RPC endpoint (using `ClientEndpoint`) to a given RPC Environment.
+It is solely used by <<spark-deploy-scheduler-backend, SparkDeploySchedulerBackend>>.
 
-CAUTION: FIXME What RPC Env does it belong to?
+`AppClient` registers *AppClient* RPC endpoint (using `ClientEndpoint` class) to a given RPC Environment.
 
-It uses `appclient-receive-and-reply-threadpool`. FIXME
+`AppClient` uses a daemon cached thread pool (`askAndReplyThreadPool`) with threads' name in the format of `appclient-receive-and-reply-threadpool-ID`, where `ID` is a unique integer for asynchronous asks and replies. It is used for requesting executors (via `RequestExecutors` message) and kill executors (via `KillExecutors`).
+
+`sendToMaster` sends one-way `ExecutorStateChanged` and `UnregisterApplication` messages to master.
 
 ==== [[appclient-initialization]] Initialization - AppClient.start() method
 
 When AppClient starts, `AppClient.start()` method is called that merely registers <<appclient-rpc-endpoint, AppClient RPC Endpoint>>.
-
-==== [[appclient-rpc-endpoint]] AppClient RPC Endpoint
-
-...FIXME
 
 ==== Others
 
@@ -170,20 +179,86 @@ When AppClient starts, `AppClient.start()` method is called that merely register
 * start
 * stop
 
-==== [[RegisterApplication]] RegisterApplication message
+==== [[appclient-rpc-endpoint]] AppClient RPC Endpoint
 
-An AppClient registers the application to a single master (regardless of link:spark-deployment-modes.adoc#master-urls[the number of the standalone masters given in the master URL]).
+*AppClient* RPC endpoint is started as part of <<appclient-initialization, AppClient's initialization>> (that is in turn part of <<spark-deploy-scheduler-backend, SparkDeploySchedulerBackend's initialization, i.e. the scheduler backend for Spark Standalone>>).
+
+It is a `ThreadSafeRpcEndpoint` that knows about the RPC endpoint of the primary active standalone Master (there can be a couple of them, but only one can be active and hence primary).
+
+When it starts, it sends <<RegisterApplication, RegisterApplication>> message to register an application and itself.
+
+===== [[RegisterApplication]] RegisterApplication RPC message
+
+An AppClient registers the Spark application to a single master (regardless of link:spark-deployment-modes.adoc#master-urls[the number of the standalone masters given in the master URL]).
 
 .AppClient registers application to standalone Master
 image::images/appclient-registerapplication.png[align="center"]
 
-It uses the separate thread pool *appclient-register-master-threadpool* to asynchronously sent `RegisterApplication` messages, one per standalone master.
+It uses a dedicated thread pool *appclient-register-master-threadpool* to asynchronously send `RegisterApplication` messages, one per standalone master.
 
 ```
 INFO AppClient$ClientEndpoint: Connecting to master spark://localhost:7077...
 ```
 
 An AppClient tries connecting to a standalone master 3 times every 20 seconds per master before giving up. They are not configurable parameters.
+
+The appclient-register-master-threadpool thread pool is used until the registration is finished, i.e. AppClient is connected to the primary standalone Master or the registration fails. It is then `shutdown`.
+
+===== [[RegisteredApplication]] RegisteredApplication RPC message
+
+`RegisteredApplication` is a one-way message from the primary master to confirm successful application registration. It comes with the application id and the master's RPC endpoint reference.
+
+The `AppClientListener` gets notified about the event via `listener.connected(appId)` with `appId` being an application id.
+
+===== [[ApplicationRemoved]] ApplicationRemoved RPC message
+
+`ApplicationRemoved` is received from the primary master to inform about having removed the application. AppClient RPC endpoint is stopped afterwards.
+
+It can come from the standalone Master after a kill request from Web UI, application has finished properly or the executor where the application was still running on has been killed, failed, lost or exited.
+
+===== [[ExecutorAdded]] ExecutorAdded RPC message
+
+`ExecutorAdded` is received from the primary master to inform about...FIXME
+
+CAUTION: FIXME the message
+
+```
+INFO Executor added: %s on %s (%s) with %d cores
+```
+
+===== [[ExecutorUpdated]] ExecutorUpdated RPC message
+
+`ExecutorUpdated` is received from the primary master to inform about...FIXME
+
+CAUTION: FIXME the message
+
+```
+INFO Executor updated: %s is now %s%s
+```
+
+===== [[MasterChanged]] MasterChanged RPC message
+
+`MasterChanged` is received from the primary master to inform about...FIXME
+
+CAUTION: FIXME the message
+
+```
+INFO Master has changed, new master is at
+```
+
+===== [[StopAppClient]] StopAppClient RPC message
+
+`StopAppClient` is a reply-response message from the SparkDeploySchedulerBackend to stop the AppClient after the SparkContext has been stopped (and so should the running application on the standalone cluster).
+
+It stops the AppClient RPC endpoint.
+
+===== [[RequestExecutors]] RequestExecutors RPC message
+
+`RequestExecutors` is a reply-response message from the SparkDeploySchedulerBackend that is passed on to the master to request executors for the application.
+
+===== [[KillExecutors]] KillExecutors RPC message
+
+`KillExecutors` is a reply-response message from the SparkDeploySchedulerBackend that is passed on to the master to kill executors assigned to the application.
 
 === [[startup-internals]] Internals of org.apache.spark.deploy.master.Master
 
