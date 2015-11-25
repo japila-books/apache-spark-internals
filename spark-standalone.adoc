@@ -2,19 +2,21 @@
 
 === Introduction
 
-*Spark Standalone cluster manager* is the Spark built-in cluster manager.
+*Spark Standalone cluster* (aka _Spark deploy cluster_ or _standalone cluster_) is the Spark built-in cluster.
 
-It is one of the three available clustering options in Apache Spark, among Spark on YARN and Spark on Mesos (see link:spark-cluster.adoc[Running Spark on cluster]).
+*Standalone Master* (often written _standalone Master_) is the cluster manager for Spark Standalone cluster. It can be started and stopped using link:spark-standalone-master-scripts.adoc[custom management scripts].
 
-In Standalone cluster mode Spark allocates resources based on cores. By default, an application will grab all the cores in the cluster unless `spark.cores.max` is specified. It means an application could get executors of different sizes (in terms of cores).
+It is one of the three available clustering options in Spark (refer to link:spark-cluster.adoc[Running Spark on cluster]).
+
+In Standalone cluster mode Spark allocates resources based on cores. By default, an application will grab all the cores in the cluster (refer to <<settings, Settings>>).
 
 Standalone cluster mode is subject to the constraint that only one executor can be allocated on each worker per application.
 
-The initialization of a standalone Master is described in <<startup-internals, Internals of org.apache.spark.deploy.master.Master>>.
+Once a Spark Standalone cluster has been started, you can access it using `spark://` master URL (refer to link:spark-deployment-modes.adoc#master-urls[Master URLs]).
 
 === [[round-robin-scheduling]] Round-robin Scheduling Across Nodes
 
-<<properties, spark.deploy.spreadOut>> property controls whether or not to perform round-robin scheduling across the nodes (spreading out each app among all the nodes). It defaults to `true`.
+<<settings, spark.deploy.spreadOut>> setting controls whether or not to perform round-robin scheduling across the nodes (spreading out each app among all the nodes). It defaults to `true`.
 
 FIXME
 
@@ -29,7 +31,7 @@ INFO MasterWebUI: Started MasterWebUI at http://192.168.1.4:8080
 
 === [[rest-server]] REST Server
 
-The standalone Master starts the REST Server service for alternative application submission that is supposed to work across Spark versions. It is enabled by default (see <<properties, spark.master.rest.enabled>>).
+The standalone Master starts the REST Server service for alternative application submission that is supposed to work across Spark versions. It is enabled by default (see <<settings, spark.master.rest.enabled>>).
 
 `RestSubmissionClient` is the client.
 
@@ -46,7 +48,7 @@ INFO StandaloneRestServer: Started REST server for submitting applications on po
 
 A standalone Master can run with *recovery mode* enabled and be able to recover state among the available swarm of masters. By default, there is no recovery, i.e. no persistence and no election.
 
-It uses `spark.deploy.recoveryMode` to define the recovery mode for master (see <<properties, spark.deploy.recoveryMode>>).
+It uses `spark.deploy.recoveryMode` to define the recovery mode for master (see <<settings, spark.deploy.recoveryMode>>).
 
 The Recovery Mode enables election of the leader master among the masters.
 
@@ -137,12 +139,10 @@ It requires a link:spark-taskscheduler.adoc[Task Scheduler], a link:spark-sparkc
 
 It is a specialized link:spark-runtime-environment.adoc#CoarseGrainedSchedulerBackend[CoarseGrainedSchedulerBackend] that uses <<AppClient, AppClient>> and is a `AppClientListener`.
 
-.Dependencies of SparkDeploySchedulerBackend
-image::images/SparkDeploySchedulerBackend.png[align="center"]
+.SparkDeploySchedulerBackend.start() (while SparkContext starts)
+image::images/SparkDeploySchedulerBackend-AppClient-start.png[align="center"]
 
 CAUTION: FIXME `AppClientListener` & `LauncherBackend` & `ApplicationDescription`
-
-* `spark.cores.max` (default: `0`) - total expected number of cores (FIXME `totalExpectedCores`)
 
 === [[AppClient]] AppClient
 
@@ -153,6 +153,22 @@ CAUTION: FIXME `AppClientListener` & `LauncherBackend` & `ApplicationDescription
 CAUTION: FIXME What RPC Env does it belong to?
 
 It uses `appclient-receive-and-reply-threadpool`. FIXME
+
+==== [[appclient-initialization]] Initialization - AppClient.start() method
+
+When AppClient starts, `AppClient.start()` method is called that merely registers <<appclient-rpc-endpoint, AppClient RPC Endpoint>>.
+
+==== [[appclient-rpc-endpoint]] AppClient RPC Endpoint
+
+...FIXME
+
+==== Others
+
+* killExecutors
+* start
+* stop
+
+==== [[RegisterApplication]] RegisterApplication message
 
 An AppClient registers the application to a single master (regardless of link:spark-deployment-modes.adoc#master-urls[the number of the standalone masters given in the master URL]).
 
@@ -200,30 +216,6 @@ When a worker hasn't responded for `spark.worker.timeout`, it is assumed dead an
 ```
 WARN Removing [worker.id] because we got no heartbeat in [spark.worker.timeout] seconds
 ```
-
-=== [[properties]] Properties
-
-[CAUTION]
-====
-FIXME
-
-* Where are `RETAINED_`'s properties used?
-====
-
-Master uses the following properties:
-
-* `spark.worker.timeout` (default: `60`) - time (in seconds) when no heartbeat from a worker means it is lost. See <<worker-management, Worker Management>>.
-* `spark.deploy.retainedApplications` (default: `200`)
-* `spark.deploy.retainedDrivers` (default: `200`)
-* `spark.dead.worker.persistence` (default: `15`)
-* `spark.deploy.recoveryMode` (default: `NONE`) - possible modes: `ZOOKEEPER`, `FILESYSTEM`, or `CUSTOM`. Refer to <<recovery-mode, Recovery Mode>>.
-* `spark.deploy.recoveryMode.factory` - the class name of the custom `StandaloneRecoveryModeFactory`.
-* `spark.deploy.recoveryDirectory` (default: empty) - the directory to persist recovery state
-* `spark.deploy.spreadOut` (default: `true`) - perform round-robin scheduling across the nodes (spreading out each app among all the nodes). Refer to <<round-robin-scheduling, Round-robin Scheduling Across Nodes>>
-* `spark.deploy.defaultCores` (default: `Int.MaxValue`, i.e. unbounded)- the number of maxCores for applications that don't specify it.
-* `spark.master.rest.enabled` (default: `true`) - <<rest-server, master's REST Server>> for alternative application submission that is supposed to work across Spark versions.
-* `spark.master.rest.port` (default: `6066`) - the port of <<rest-server, master's REST Server>>
-* `spark.ui.killEnabled` (default: `true`)
 
 === [[environment-variables]] System Environment Variables
 
@@ -324,3 +316,28 @@ FIXME
 * How to access the metrics for master? See `Master#onStart`
 * Review `masterMetricsSystem` and `applicationMetricsSystem`
 ====
+
+=== [[settings]] Settings
+
+[CAUTION]
+====
+FIXME
+
+* Where are `RETAINED_`'s properties used?
+====
+
+Master uses the following properties:
+
+* `spark.cores.max` (default: `0`) - total expected number of cores (FIXME `totalExpectedCores`). When set, an application could get executors of different sizes (in terms of cores).
+* `spark.worker.timeout` (default: `60`) - time (in seconds) when no heartbeat from a worker means it is lost. See <<worker-management, Worker Management>>.
+* `spark.deploy.retainedApplications` (default: `200`)
+* `spark.deploy.retainedDrivers` (default: `200`)
+* `spark.dead.worker.persistence` (default: `15`)
+* `spark.deploy.recoveryMode` (default: `NONE`) - possible modes: `ZOOKEEPER`, `FILESYSTEM`, or `CUSTOM`. Refer to <<recovery-mode, Recovery Mode>>.
+* `spark.deploy.recoveryMode.factory` - the class name of the custom `StandaloneRecoveryModeFactory`.
+* `spark.deploy.recoveryDirectory` (default: empty) - the directory to persist recovery state
+* `spark.deploy.spreadOut` (default: `true`) - perform round-robin scheduling across the nodes (spreading out each app among all the nodes). Refer to <<round-robin-scheduling, Round-robin Scheduling Across Nodes>>
+* `spark.deploy.defaultCores` (default: `Int.MaxValue`, i.e. unbounded)- the number of maxCores for applications that don't specify it.
+* `spark.master.rest.enabled` (default: `true`) - <<rest-server, master's REST Server>> for alternative application submission that is supposed to work across Spark versions.
+* `spark.master.rest.port` (default: `6066`) - the port of <<rest-server, master's REST Server>>
+* `spark.ui.killEnabled` (default: `true`)
