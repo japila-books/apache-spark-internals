@@ -1,8 +1,144 @@
 == spark-submit script
 
-You use `spark-submit` script to launch a Spark application.
+You use `spark-submit` script to launch a Spark application, i.e. submit the application to a Spark deployment environment.
 
 You can find `spark-submit` script in `bin` directory of the Spark distribution.
+
+=== [[command-line-options]] Command-line Options
+
+Execute `./bin/spark-submit --help` to know about the command-line options supported.
+
+```
+➜  spark git:(master) ✗ ./bin/spark-submit --help
+Usage: spark-submit [options] <app jar | python file> [app arguments]
+Usage: spark-submit --kill [submission ID] --master [spark://...]
+Usage: spark-submit --status [submission ID] --master [spark://...]
+
+Options:
+  --master MASTER_URL         spark://host:port, mesos://host:port, yarn, or local.
+  --deploy-mode DEPLOY_MODE   Whether to launch the driver program locally ("client") or
+                              on one of the worker machines inside the cluster ("cluster")
+                              (Default: client).
+  --class CLASS_NAME          Your application's main class (for Java / Scala apps).
+  --name NAME                 A name of your application.
+  --jars JARS                 Comma-separated list of local jars to include on the driver
+                              and executor classpaths.
+  --packages                  Comma-separated list of maven coordinates of jars to include
+                              on the driver and executor classpaths. Will search the local
+                              maven repo, then maven central and any additional remote
+                              repositories given by --repositories. The format for the
+                              coordinates should be groupId:artifactId:version.
+  --exclude-packages          Comma-separated list of groupId:artifactId, to exclude while
+                              resolving the dependencies provided in --packages to avoid
+                              dependency conflicts.
+  --repositories              Comma-separated list of additional remote repositories to
+                              search for the maven coordinates given with --packages.
+  --py-files PY_FILES         Comma-separated list of .zip, .egg, or .py files to place
+                              on the PYTHONPATH for Python apps.
+  --files FILES               Comma-separated list of files to be placed in the working
+                              directory of each executor.
+
+  --conf PROP=VALUE           Arbitrary Spark configuration property.
+  --properties-file FILE      Path to a file from which to load extra properties. If not
+                              specified, this will look for conf/spark-defaults.conf.
+
+  --driver-memory MEM         Memory for driver (e.g. 1000M, 2G) (Default: 1024M).
+  --driver-java-options       Extra Java options to pass to the driver.
+  --driver-library-path       Extra library path entries to pass to the driver.
+  --driver-class-path         Extra class path entries to pass to the driver. Note that
+                              jars added with --jars are automatically included in the
+                              classpath.
+
+  --executor-memory MEM       Memory per executor (e.g. 1000M, 2G) (Default: 1G).
+
+  --proxy-user NAME           User to impersonate when submitting the application.
+
+  --help, -h                  Show this help message and exit
+  --verbose, -v               Print additional debug output
+  --version,                  Print the version of current Spark
+
+ Spark standalone with cluster deploy mode only:
+  --driver-cores NUM          Cores for driver (Default: 1).
+
+ Spark standalone or Mesos with cluster deploy mode only:
+  --supervise                 If given, restarts the driver on failure.
+  --kill SUBMISSION_ID        If given, kills the driver specified.
+  --status SUBMISSION_ID      If given, requests the status of the driver specified.
+
+ Spark standalone and Mesos only:
+  --total-executor-cores NUM  Total cores for all executors.
+
+ Spark standalone and YARN only:
+  --executor-cores NUM        Number of cores per executor. (Default: 1 in YARN mode,
+                              or all available cores on the worker in standalone mode)
+
+ YARN-only:
+  --driver-cores NUM          Number of cores used by the driver, only in cluster mode
+                              (Default: 1).
+  --queue QUEUE_NAME          The YARN queue to submit to (Default: "default").
+  --num-executors NUM         Number of executors to launch (Default: 2).
+  --archives ARCHIVES         Comma separated list of archives to be extracted into the
+                              working directory of each executor.
+  --principal PRINCIPAL       Principal to be used to login to KDC, while running on
+                              secure HDFS.
+  --keytab KEYTAB             The full path to the file that contains the keytab for the
+                              principal specified above. This keytab will be copied to
+                              the node running the Application Master via the Secure
+                              Distributed Cache, for renewing the login tickets and the
+                              delegation tokens periodically.
+```
+
+* `--class`
+* `--conf` or `-c`
+* `--deploy-mode`
+* `--driver-class-path`
+* `--driver-cores` for link:spark-standalone.adoc[Standalone cluster mode] only
+* `--driver-java-options`
+* `--driver-library-path`
+* `--driver-memory`
+* `--executor-memory`
+* `--files`
+* `--jars`
+* `--kill` for link:spark-standalone.adoc[Standalone cluster mode] only
+* `--master`
+* `--name`
+* `--packages`
+* `--exclude-packages`
+* `--properties-file`
+* `--proxy-user`
+* `--py-files`
+* `--repositories`
+* `--status` for link:spark-standalone.adoc[Standalone cluster mode] only
+* `--total-executor-cores`
+
+List of switches, i.e. command-line options that do not take parameters:
+
+* `--help` or `-h`
+* `--supervise` for link:spark-standalone.adoc[Standalone cluster mode] only
+* `--usage-error`
+* `--verbose` or `-v`
+* `--version`
+
+YARN-only options:
+
+* `--archives`
+* `--executor-cores`
+* `--keytab`
+* `--num-executors`
+* `--principal`
+* `--queue`
+
+=== [[environment-variables]] Environment Variables
+
+The following is the list of environment variables that are considered when command-line options are not specified:
+
+* `MASTER` for `--master`
+* `SPARK_DRIVER_MEMORY` for `--driver-memory`
+* `SPARK_EXECUTOR_MEMORY`
+* `SPARK_EXECUTOR_CORES`
+* `DEPLOY_MODE`
+* `SPARK_YARN_APP_NAME`
+* `_SPARK_CMD_USAGE`
 
 === External packages and custom repositories
 
@@ -16,7 +152,18 @@ The `spark-submit` utility supports specifying external packages using Maven coo
 
 FIXME Why should I care?
 
-=== Under the covers of spark-submit
+=== Low-level details of spark-submit
+
+[NOTE]
+====
+Set `SPARK_PRINT_LAUNCH_COMMAND` to see the final command to be executed, e.g.
+
+```
+SPARK_PRINT_LAUNCH_COMMAND=1 ./bin/spark-shell
+```
+
+Refer to link:spark-tips-and-tricks.adoc#SPARK_PRINT_LAUNCH_COMMAND[Print Launch Command of Spark Scripts].
+====
 
 The source code of the script lies in https://github.com/apache/spark/blob/master/bin/spark-submit.
 
@@ -29,17 +176,6 @@ And then `spark-class` searches for so-called *the Spark assembly jar* ( `spark-
 NOTE: Set `SPARK_PREPEND_CLASSES` to have the Spark launcher classes (from `$SPARK_HOME/launcher/target/scala-$SPARK_SCALA_VERSION/classes`) to appear before the Spark assembly jar. It's useful for development so your changes don't require rebuilding Spark from the beginning.
 
 As the last step in the process, https://github.com/apache/spark/blob/master/launcher/src/main/java/org/apache/spark/launcher/Main.java[org.apache.spark.launcher.Main] class is executed with `org.apache.spark.deploy.SparkSubmit` and the other command line arguments (given to `spark-submit` at the very beginning). The Main class programmatically computes the final command to be executed.
-
-[NOTE]
-====
-Set `SPARK_PRINT_LAUNCH_COMMAND` to see the final command to be executed, e.g.
-
-```
-SPARK_PRINT_LAUNCH_COMMAND=1 ./bin/spark-shell
-```
-
-Refer to link:spark-tips-and-tricks.adoc#SPARK_PRINT_LAUNCH_COMMAND[Print Launch Command of Spark Scripts].
-====
 
 TODO (further review)
 
