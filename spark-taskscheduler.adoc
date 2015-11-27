@@ -65,6 +65,97 @@ The very last stage in a job consists of multiple `ResultTasks`, while earlier s
 
 TaskRunner calls `Task.run` to execute a task.
 
+TaskRunner is a thread that requires a `ExecutorBackend`, task and attempt ids, task name, and serialized version of the task (as `ByteBuffer`).
+
+CAUTION: FIXME What's the cardinality between TaskRunner and Task?
+
+CAUTION: FIXME TaskMemoryManager and task serialization and deserialization
+
+When a `TaskRunner` starts running, it prints out the following INFO to the logs:
+
+```
+INFO Running [taskName] (TID [taskId])
+```
+
+Informs the `ExecutorBackend` that the task is running and deserializes the task (using globally-configured `Serializer`) and sets the `TaskMemoryManager` for the task.
+
+```
+Task [taskId]'s epoch is [task.epoch]
+```
+
+TaskRunner sends update of the epoch of the task to `MapOutputTracker`.
+
+CAUTION: FIXME Why is `MapOutputTracker.updateEpoch` needed?
+
+Task runs (with `taskId`, `attemptNumber`, and the globally-configured `MetricsSystem`). When a task finishes, it returns a value and `accumUpdates`.
+
+CAUTION: FIXME What are `accumUpdates`?
+
+The result value is serialized (using the other instance of `Serializer`, i.e. `serializer` - there are two `Serializer` instances in `SparkContext.env`).
+
+A `DirectTaskResult` that contains the serialized result and `accumUpdates` is serialized.
+
+If `maxResultSize` is set and the size of the serialized result exceeds its value, ...FIXME.
+
+```
+scala> sc.getConf.get("spark.driver.maxResultSize")
+res5: String = 1m
+
+scala> sc.parallelize(0 to 1024*1024+10, 1).collect
+...
+INFO DAGScheduler: Job 3 failed: collect at <console>:25, took 0.075073 s
+org.apache.spark.SparkException: Job aborted due to stage failure: Total size of serialized results of 1 tasks (4.0 MB) is bigger than spark.driver.maxResultSize (1024.0 KB)
+  at org.apache.spark.scheduler.DAGScheduler.org$apache$spark$scheduler$DAGScheduler$$failJobAndIndependentStages(DAGScheduler.scala:1430)
+  at org.apache.spark.scheduler.DAGScheduler$$anonfun$abortStage$1.apply(DAGScheduler.scala:1418)
+  at org.apache.spark.scheduler.DAGScheduler$$anonfun$abortStage$1.apply(DAGScheduler.scala:1417)
+  at scala.collection.mutable.ResizableArray$class.foreach(ResizableArray.scala:59)
+  at scala.collection.mutable.ArrayBuffer.foreach(ArrayBuffer.scala:48)
+  at org.apache.spark.scheduler.DAGScheduler.abortStage(DAGScheduler.scala:1417)
+  at org.apache.spark.scheduler.DAGScheduler$$anonfun$handleTaskSetFailed$1.apply(DAGScheduler.scala:799)
+  at org.apache.spark.scheduler.DAGScheduler$$anonfun$handleTaskSetFailed$1.apply(DAGScheduler.scala:799)
+  at scala.Option.foreach(Option.scala:257)
+  at org.apache.spark.scheduler.DAGScheduler.handleTaskSetFailed(DAGScheduler.scala:799)
+  at org.apache.spark.scheduler.DAGSchedulerEventProcessLoop.doOnReceive(DAGScheduler.scala:1639)
+  at org.apache.spark.scheduler.DAGSchedulerEventProcessLoop.onReceive(DAGScheduler.scala:1598)
+  at org.apache.spark.scheduler.DAGSchedulerEventProcessLoop.onReceive(DAGScheduler.scala:1587)
+  at org.apache.spark.util.EventLoop$$anon$1.run(EventLoop.scala:48)
+  at org.apache.spark.scheduler.DAGScheduler.runJob(DAGScheduler.scala:620)
+  at org.apache.spark.SparkContext.runJob(SparkContext.scala:1832)
+  at org.apache.spark.SparkContext.runJob(SparkContext.scala:1845)
+  at org.apache.spark.SparkContext.runJob(SparkContext.scala:1858)
+  at org.apache.spark.SparkContext.runJob(SparkContext.scala:1929)
+  at org.apache.spark.rdd.RDD$$anonfun$collect$1.apply(RDD.scala:921)
+  at org.apache.spark.rdd.RDDOperationScope$.withScope(RDDOperationScope.scala:150)
+  at org.apache.spark.rdd.RDDOperationScope$.withScope(RDDOperationScope.scala:111)
+  at org.apache.spark.rdd.RDD.withScope(RDD.scala:310)
+  at org.apache.spark.rdd.RDD.collect(RDD.scala:920)
+  ... 48 elided
+```
+
+If however the size exceeds `akkaFrameSize`, ...FIXME.
+
+As the final check, if the size is acceptable, the following INFO message appears in the logs:
+
+```
+INFO Finished [taskName] (TID [taskId]). [resultSize] bytes result sent to driver
+```
+
+For example:
+
+```
+INFO Executor: Finished task 0.0 in stage 4.0 (TID 4). 953 bytes result sent to driver
+```
+
+The result is sent to the driver using `execBackend.statusUpdate(taskId, TaskState.FINISHED, serializedResult)`. FIXME
+
+[CAUTION]
+====
+FIXME
+
+* What's `execBackend`?
+* Review `task.run()`
+====
+
 Task can be in one of the states:
 
 * LAUNCHING
@@ -108,11 +199,16 @@ A TaskSet contains a fully-independent sequence of tasks that can run right away
 
 TaskSet can be <<submitTasks, submitted>>, i.e. started.
 
-=== [[tasksetmanager]] TaskSetManager
+=== [[TaskSetManager]] TaskSetManager
 
-*TaskSetManager* manages execution of the tasks in a <<taskset, TaskSet>>.
+*TaskSetManager* manages execution of the tasks in a single <<taskset, TaskSet>>.
 
-It schedules the tasks and keeps track of their execution, retries them upon failure (up to <<settings, spark.task.maxFailures>>), and handles locality-aware scheduling for this TaskSet via delay scheduling.
+.TaskSetManager and its Dependencies
+image::images/TaskSetManager-TaskSchedulerImpl-TaskSet.png[align="center"]
+
+It schedules the tasks from the taskset and keeps track of their execution, i.e. retries them upon failure (up to <<settings, spark.task.maxFailures>> attempts), and handles locality-aware scheduling for the taskset via delay scheduling.
+
+It also keeps track of the tasks pending execution per executor, host, rack or with no locality preferences.
 
 [CAUTION]
 ====
@@ -127,8 +223,23 @@ FIXME
 
 For each submitted <<taskset, TaskSet>>, a new *TaskSetManager* is created. A TaskSetManager completely and exclusively owns a TaskSet submitted for execution.
 
-.TaskSetManager owns TaskSet
-image::diagrams/tasksetmanager-taskset.png[align="center"]
+TaskSetManager requests the current epoch from the map output tracker and sets it on all tasks in the taskset.
+
+You should see the following DEBUG in the logs:
+
+```
+DEBUG Epoch for [taskSet]: [epoch]
+```
+
+CAUTION: FIXME What's epoch. Why is this important?
+
+TaskSetManager computes locality levels for the TaskSet for delay scheduling. While computing you should see the following DEBUG in the logs:
+
+```
+DEBUG Valid locality levels for [taskSet]:  [levels]
+```
+
+CAUTION: FIXME What's delay scheduling?
 
 It is an `Schedulable` that works with `TaskSchedulerImpl`. As an `Schedulable` it has a *priority* property (among others).
 
@@ -157,10 +268,16 @@ The following "events" trigger communication between TaskSetManager and DAGSched
 
 ==== [[tasksetmanager-settings]] Settings
 
-* `spark.scheduler.executorTaskBlacklistTime` (default: `0L`) - time interval to pass after which a task can be re-launched on the executor where it has once failed. It can prevent repeated task failures due to executor failures.
+* `spark.scheduler.executorTaskBlacklistTime` (default: `0L`) - time interval to pass after which a task can be re-launched on the executor where it has once failed. It is to prevent repeated task failures due to executor failures.
 * `spark.speculation` (default: `false`)
-* `spark.speculation.quantile` (default: `0.75`) - the percentage of tasks that has not finished yet.
+* `spark.speculation.quantile` (default: `0.75`) - the percentage of tasks that has not finished yet at which to start speculation.
 * `spark.speculation.multiplier` (default: `1.5`)
+* `spark.driver.maxResultSize` (default: `1g`) is the limit of bytes for total size of results. If the value is smaller than `1m` or `1048576` (1024 * 1024), it becomes 0.
+* `spark.logging.exceptionPrintInterval` (default: `10000`) - how frequently to reprint duplicate exceptions in full, in milliseconds
+* `spark.locality.wait` (default: `3s`) - for locality-aware delay scheduling for PROCESS_LOCAL, NODE_LOCAL, and RACK_LOCAL when locality-specific setting is not set.
+* `spark.locality.wait.process` (default: the value of `spark.locality.wait`) - delay for PROCESS_LOCAL
+* `spark.locality.wait.node` (default: the value of `spark.locality.wait`) - delay for NODE_LOCAL
+* `spark.locality.wait.rack` (default: the value of `spark.locality.wait`) - delay for RACK_LOCAL
 
 ==== Task retries and spark.task.maxFailures
 
@@ -207,9 +324,15 @@ java.lang.Exception: Partition 2 marked failed
 org.apache.spark.SparkException: Job aborted due to stage failure: Task 0 in stage 1.0 failed 5 times, most recent failure: Lost task 0.4 in stage 1.0 (TID 7, localhost): java.lang.Exception: Partition 2 marked failed
 ```
 
+==== [[aborting-taskset]] Aborting TaskSet
+
+CAUTION: When can `TaskSetManager.abort` be called?
+
 ==== [[zombie-state]] Zombie state
 
-TaskSetManager enters *zombie* state when at least one attempt of each task has completed successfully, or if the task set is aborted, e.g. because it was killed. In this zombie state, no more tasks should be launched for this TaskSetManager.
+TaskSetManager enters *zombie* state when all tasks in a taskset have completed successfully (regardless of the number of task attempts), or if the task set has been aborted (see <<aborting-taskset, Aborting TaskSet>>).
+
+While in zombie state, TaskSetManager can launch no more tasks.
 
 TaskSetManager remains in the zombie state until all tasks have finished running, i.e. to continue to track and account for the running tasks.
 
@@ -271,7 +394,7 @@ In the logs at DEBUG level:
 DEBUG Task length threshold for speculation:
 ```
 
-For each active task for which there is only one copy running and the task takes more than the threshold, it gets marked as *speculatable*.
+For each active task for which there is only one copy running and the task takes more time than the threshold, it gets marked as *speculatable*.
 
 In the logs at INFO level:
 
@@ -280,6 +403,8 @@ INFO Marking task %d in stage %s (on %s) as speculatable because it ran more tha
 ```
 
 The job with speculatable tasks should finish while speculative tasks are running, and it will leave these tasks running - no KILL command yet.
+
+The check procedure is in `TaskSetManager.checkSpeculatableTasks` method.
 
 1. How does Spark handle repeated results of speculative tasks since there are copies launched?
 
