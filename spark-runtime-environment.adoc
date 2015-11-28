@@ -219,59 +219,6 @@ It uses SparkConf, the executor's identifier, hostname, port, the number of core
 
 For Akka-based RPC Environment (obsolete since Spark 1.6.0-SNAPSHOT), the name of the actor system for an executor is *sparkExecutor*.
 
-=== [[scheduler-backends]] Scheduler Backends
-
-Spark comes with a pluggable backend mechanism called *scheduler backend* for different modes of scheduling tasks.
-
-A *Scheduler Backend* is the Spark interface to different task scheduling systems, i.e. link:spark-local.adoc#local-backend[Spark local], link:spark-standalone.adoc[Spark Standalone], link:spark-mesos.adoc[Mesos] or link:spark-yarn.adoc[YARN].
-
-Being a scheduler backend assumes a http://mesos.apache.org/[Apache Mesos]-like model in which "an application" gets *resource offers* as machines become available and can launch tasks on them.
-
-Scheduler backends can be started and stopped. They can reviveOffers, calculate defaultParallelism, kill tasks, return application attempt id (supported only by `YarnClusterSchedulerBackend`) and URLs for the driver logs.
-
-Q: How does it correspond to jobs?
-
-The default unique identifier for a Spark application is *spark-application-* + the current time millis. The format depends on the scheduler implementation (?)
-
-Spark comes with the following scheduler backends:
-
-* *LocalBackend* that is used in link:spark-local.adoc#local-backend[Spark local mode].
-* <<CoarseGrainedSchedulerBackend, CoarseGrainedSchedulerBackend>>
-** *SparkDeploySchedulerBackend* used in link:spark-standalone.adoc#spark-deploy-scheduler-backend[Spark Standalone] (and local-cluster - FIXME)
-** YarnSchedulerBackend
-*** YarnClientSchedulerBackend
-*** *YarnClusterSchedulerBackend* used in link:spark-yarn.adoc#yarn-cluster-scheduler-backend[Spark on YARN in cluster mode]
-** link:spark-mesos.adoc#CoarseMesosSchedulerBackend[CoarseMesosSchedulerBackend]
-** SimrSchedulerBackend
-* link:spark-mesos.adoc#MesosSchedulerBackend[MesosSchedulerBackend]
-
-==== [[CoarseGrainedSchedulerBackend]] CoarseGrainedSchedulerBackend
-
-*CoarseGrainedSchedulerBackend* is a scheduler backend that waits for coarse-grained executors to connect to it through Akka (FIXME Akka? Still? You sure?). It talks to a cluster manager for resources for executors (register, remove).
-
-*Coarse-grained executors* are executors that this backend holds for the duration of the Spark job rather than relinquishing executors whenever a task is done and asking the scheduler to launch a new executor for each new task.
-
-It requires a link:spark-taskscheduler.adoc[Task Scheduler], and a link:spark-rpc.adoc[RPC Environment].
-
-It uses link:spark-scheduler-listeners.adoc[Listener Bus].
-
-It registers the `CoarseGrainedScheduler` RPC endpoint (`driverEndpoint` internal field).
-
-It tracks:
-
-* the total number of cores in the cluster
-* the total number of executors that are currently registered
-* executors (`ExecutorData`)
-* executors to be removed (`executorsPendingToRemove`)
-* hosts and the number of possible tasks possibly running on them
-* lost executors with no real exit reason
-* tasks per slaves (`taskIdsOnSlave`)
-
-CAUTION: FIXME Where are these counters used?
-
-* `spark.scheduler.minRegisteredResourcesRatio` (default: `0`) - double value between 0 and 1. FIXME
-* `spark.scheduler.maxRegisteredResourcesWaitingTime` (default: `30s`) FIXME
-
 === [[executor-backends]] Executor Backends
 
 An *Executor Backend* manages a single executor. At startup, it connects to the driver and creates an executor. It then launches and kills tasks. It stops when the driver orders so.

@@ -1,6 +1,6 @@
 == Spark local
 
-You can run Spark in *local mode*. In this non-distributed single-JVM deployment mode, Spark spawns all the execution components - link:spark-runtime-environment.adoc#executor[driver executor], <<local-backend, backend>>, and master - in the same JVM.
+You can run Spark in *local mode*. In this non-distributed single-JVM deployment mode, Spark spawns all the execution components - link:spark-runtime-environment.adoc#executor[driver executor], <<LocalBackend, backend>>, and master - in the same JVM.
 
 .Architecture of Spark local
 image::diagrams/spark-local-architecture.png[align="center"]
@@ -24,13 +24,13 @@ res0: Boolean = true
 
 Tasks are not re-executed on failure in local mode (unless the local-with-retries master URL is used).
 
-The link:spark-taskscheduler.adoc[task scheduler] in local mode works with <<local-backend, LocalBackend>> task scheduler backend.
+The link:spark-taskscheduler.adoc[task scheduler] in local mode works with <<LocalBackend, LocalBackend>> task scheduler backend.
 
-=== [[local-backend]] LocalBackend
+=== [[LocalBackend]] LocalBackend
 
-A *LocalBackend* is a link:spark-execution-model.adoc#scheduler-backends[scheduler backend] and a ExecutorBackend for Spark local mode.
+`LocalBackend` is a link:spark-schedulerbackends.adoc[scheduler backend] and a link:spark-runtime-environment.adoc#executor-backends[ExecutorBackend] for Spark local mode.
 
-The application ids are in the format of `local-` + current time millis.
+The application ids are in the format of `local-[current time millis]`.
 
 When LocalBackend starts up, it registers a new link:spark-rpc.adoc#rpcendpoint[RPC Endpoint] called *LocalBackendEndpoint* that is backed by <<local-endpoint, LocalEndpoint>>. This is announced over `listenerBus` as `driver` (`SparkListenerExecutorAdded` as a `SparkListenerEvent`).
 
@@ -38,16 +38,14 @@ It communicates with <<local-endpoint, LocalEndpoint>> using <<messages, RPC mes
 
 === [[local-endpoint]] LocalEndpoint
 
-*LocalEndpoint* is a (thread-safe) link:spark-rpc.adoc#rpcendpoint[RPC Endpoint] that hosts an link:spark-runtime-environment.adoc#executor[executor] with id `driver` and hostname `localhost`.
+*LocalEndpoint* is the communication channel between link:spark-taskscheduler.adoc[Task Scheduler] and <<LocalBackend, LocalBackend>>. It is a (thread-safe) link:spark-rpc.adoc#rpcendpoint[RPC Endpoint] that hosts an link:spark-runtime-environment.adoc#executor[executor] (with id `driver` and hostname `localhost`) for Spark local mode.
 
-When Spark local starts up, it starts up LocalEndpoint that prints out the following messages:
+When a LocalEndpoint starts up (as part of Spark local's initialization) it prints out the following INFO messages to the logs:
 
 ```
 INFO Executor: Starting executor ID driver on host localhost
 INFO Executor: Using REPL class URI: http://192.168.1.4:56131
 ```
-
-This is the communication channel between link:spark-taskscheduler.adoc[Task Scheduler] and <<local-backend, LocalBackend>>.
 
 ==== [[messages]] Messages
 
@@ -60,4 +58,4 @@ LocalEndpoint accepts the following message types:
 
 === [[settings]] Settings
 
-* `spark.default.parallelism` (default: total cores as parameter) - the default parallelism for <<local-backend, LocalBackend>>.
+* `spark.default.parallelism` (default: total cores as parameter) - the default parallelism for <<LocalBackend, LocalBackend>>.
