@@ -199,143 +199,6 @@ A TaskSet contains a fully-independent sequence of tasks that can run right away
 
 TaskSet can be <<submitTasks, submitted>>, i.e. started.
 
-=== [[TaskSetManager]] TaskSetManager
-
-*TaskSetManager* manages execution of the tasks in a single <<taskset, TaskSet>>.
-
-.TaskSetManager and its Dependencies
-image::images/TaskSetManager-TaskSchedulerImpl-TaskSet.png[align="center"]
-
-It schedules the tasks from the taskset and keeps track of their execution, i.e. retries them upon failure (up to <<settings, spark.task.maxFailures>> attempts), and handles locality-aware scheduling for the taskset via delay scheduling.
-
-It also keeps track of the tasks pending execution per executor, host, rack or with no locality preferences.
-
-[CAUTION]
-====
-FIXME
-
-1. When is this class called? By whom?
-* `SchedulableBuilder`
-** FIFO
-** Fair
-
-====
-
-For each submitted <<taskset, TaskSet>>, a new *TaskSetManager* is created. A TaskSetManager completely and exclusively owns a TaskSet submitted for execution.
-
-TaskSetManager requests the current epoch from the map output tracker and sets it on all tasks in the taskset.
-
-You should see the following DEBUG in the logs:
-
-```
-DEBUG Epoch for [taskSet]: [epoch]
-```
-
-CAUTION: FIXME What's epoch. Why is this important?
-
-TaskSetManager computes locality levels for the TaskSet for delay scheduling. While computing you should see the following DEBUG in the logs:
-
-```
-DEBUG Valid locality levels for [taskSet]:  [levels]
-```
-
-CAUTION: FIXME What's delay scheduling?
-
-It is an `Schedulable` that works with `TaskSchedulerImpl`. As an `Schedulable` it has a *priority* property (among others).
-
-[TIP]
-====
-Add the following line to `conf/log4j.properties` to see what happens under the covers of `TaskSetManager`:
-
-```
-log4j.logger.org.apache.spark.scheduler.TaskSetManager=DEBUG
-```
-====
-
-When a task has finished, TaskSetManager sends link:spark-dagscheduler.adoc#CompletionEvent[a CompletionEvent message] to DAGScheduler.
-
-CAUTION: FIXME Make it less code-oriented
-
-The following "events" trigger communication between TaskSetManager and DAGScheduler:
-
-* `handleSuccessfulTask` - `Success` (`TaskEndReason`)
-** `TaskSchedulerImpl` calls `taskSetManager.handleSuccessfulTask`
-** `TaskResultGetter` calls `scheduler.handleSuccessfulTask`
-** `TaskSchedulerImpl.statusUpdate` calls `TaskResultGetter.enqueueSuccessfulTask`
-** ...FIXME Finish me...
-* `handleFailedTask` with the reason for the failure
-* `executorLost` - `Resubmitted` (`TaskFailedReason`)
-
-==== [[tasksetmanager-settings]] Settings
-
-* `spark.scheduler.executorTaskBlacklistTime` (default: `0L`) - time interval to pass after which a task can be re-launched on the executor where it has once failed. It is to prevent repeated task failures due to executor failures.
-* `spark.speculation` (default: `false`)
-* `spark.speculation.quantile` (default: `0.75`) - the percentage of tasks that has not finished yet at which to start speculation.
-* `spark.speculation.multiplier` (default: `1.5`)
-* `spark.driver.maxResultSize` (default: `1g`) is the limit of bytes for total size of results. If the value is smaller than `1m` or `1048576` (1024 * 1024), it becomes 0.
-* `spark.logging.exceptionPrintInterval` (default: `10000`) - how frequently to reprint duplicate exceptions in full, in milliseconds
-* `spark.locality.wait` (default: `3s`) - for locality-aware delay scheduling for PROCESS_LOCAL, NODE_LOCAL, and RACK_LOCAL when locality-specific setting is not set.
-* `spark.locality.wait.process` (default: the value of `spark.locality.wait`) - delay for PROCESS_LOCAL
-* `spark.locality.wait.node` (default: the value of `spark.locality.wait`) - delay for NODE_LOCAL
-* `spark.locality.wait.rack` (default: the value of `spark.locality.wait`) - delay for RACK_LOCAL
-
-==== Task retries and spark.task.maxFailures
-
-CAUTION: FIXME Review `handleFailedTask`
-
-When you start Spark program you set up <<settings, spark.task.maxFailures>> for the number of failures that are acceptable until TaskSetManager gives up and marks a job failed.
-
-In Spark shell with local master, `spark.task.maxFailures` is fixed to `1` and you need to use link:spark-local.adoc[local-with-retries master] to change it to some other value.
-
-In the following example, you are going to execute a job with two partitions and keep one failing at all times (by throwing an exception). The aim is to learn the behavior of retrying task execution in a stage in TaskSet. You will only look at a single task execution, namely `0.0`.
-
-```
-$ ./bin/spark-shell --master "local[*, 5]"
-...
-scala> sc.textFile("README.md", 2).mapPartitionsWithIndex((idx, it) => if (idx == 0) throw new Exception("Partition 2 marked failed") else it).count
-...
-15/10/27 17:24:56 INFO DAGScheduler: Submitting 2 missing tasks from ResultStage 1 (MapPartitionsRDD[7] at mapPartitionsWithIndex at <console>:25)
-15/10/27 17:24:56 DEBUG DAGScheduler: New pending partitions: Set(0, 1)
-15/10/27 17:24:56 INFO TaskSchedulerImpl: Adding task set 1.0 with 2 tasks
-...
-15/10/27 17:24:56 INFO TaskSetManager: Starting task 0.0 in stage 1.0 (TID 2, localhost, partition 0,PROCESS_LOCAL, 2062 bytes)
-...
-15/10/27 17:24:56 INFO Executor: Running task 0.0 in stage 1.0 (TID 2)
-...
-15/10/27 17:24:56 ERROR Executor: Exception in task 0.0 in stage 1.0 (TID 2)
-java.lang.Exception: Partition 2 marked failed
-...
-15/10/27 17:24:56 INFO TaskSetManager: Starting task 0.1 in stage 1.0 (TID 4, localhost, partition 0,PROCESS_LOCAL, 2062 bytes)
-15/10/27 17:24:56 INFO Executor: Running task 0.1 in stage 1.0 (TID 4)
-15/10/27 17:24:56 INFO HadoopRDD: Input split: file:/Users/jacek/dev/oss/spark/README.md:0+1784
-15/10/27 17:24:56 ERROR Executor: Exception in task 0.1 in stage 1.0 (TID 4)
-java.lang.Exception: Partition 2 marked failed
-...
-15/10/27 17:24:56 ERROR Executor: Exception in task 0.4 in stage 1.0 (TID 7)
-java.lang.Exception: Partition 2 marked failed
-...
-15/10/27 17:24:56 INFO TaskSetManager: Lost task 0.4 in stage 1.0 (TID 7) on executor localhost: java.lang.Exception (Partition 2 marked failed) [duplicate 4]
-15/10/27 17:24:56 ERROR TaskSetManager: Task 0 in stage 1.0 failed 5 times; aborting job
-15/10/27 17:24:56 INFO TaskSchedulerImpl: Removed TaskSet 1.0, whose tasks have all completed, from pool
-15/10/27 17:24:56 INFO TaskSchedulerImpl: Cancelling stage 1
-15/10/27 17:24:56 INFO DAGScheduler: ResultStage 1 (count at <console>:25) failed in 0.058 s
-15/10/27 17:24:56 DEBUG DAGScheduler: After removal of stage 1, remaining stages = 0
-15/10/27 17:24:56 INFO DAGScheduler: Job 1 failed: count at <console>:25, took 0.085810 s
-org.apache.spark.SparkException: Job aborted due to stage failure: Task 0 in stage 1.0 failed 5 times, most recent failure: Lost task 0.4 in stage 1.0 (TID 7, localhost): java.lang.Exception: Partition 2 marked failed
-```
-
-==== [[aborting-taskset]] Aborting TaskSet
-
-CAUTION: When can `TaskSetManager.abort` be called?
-
-==== [[zombie-state]] Zombie state
-
-TaskSetManager enters *zombie* state when all tasks in a taskset have completed successfully (regardless of the number of task attempts), or if the task set has been aborted (see <<aborting-taskset, Aborting TaskSet>>).
-
-While in zombie state, TaskSetManager can launch no more tasks.
-
-TaskSetManager remains in the zombie state until all tasks have finished running, i.e. to continue to track and account for the running tasks.
-
 === [[TaskResultGetter]] TaskResultGetter
 
 FIXME
@@ -346,13 +209,13 @@ Task Scheduler uses a scheduling mode that determines policy to order tasks acro
 
 It is configured by <<settings, spark.scheduler.mode>> setting that can accept the following values:
 
-* *FIFO* - no pools; one root pool with TaskSetManagers; lower priority gets Schedulable sooner or earlier stage wins.
+* *FIFO* - no pools; one root pool with link:spark-tasksetmanager.adoc[TaskSetManager]; lower priority gets Schedulable sooner or earlier stage wins.
 * *FAIR* - more advanced FIXME
 * *NONE* means no sub-queues
 
 === TaskSet's priority field and FIFO scheduling
 
-A TaskSet has `priority` field that turns into the *priority* field's value of TaskSetManager (which is a Schedulable).
+A TaskSet has `priority` field that turns into the *priority* field's value of link:spark-tasksetmanager.adoc[TaskSetManager] (which is a Schedulable).
 
 The `priority` field is used in `FIFOSchedulingAlgorithm` in which equal priorities give stages an advantage (not to say _priority_).
 
@@ -366,7 +229,7 @@ Effectively, the `priority` field is the job's id of the first job this stage wa
 
 *Speculative execution of tasks* is a health-check procedure that checks for tasks to be *speculated*, i.e. running slower in a stage than the median of all successfully completed tasks in a taskset. Such slow tasks will be re-launched in another worker. It will not stop the slow tasks, but run a new copy in parallel.
 
-It is executed periodically by the TaskScheduler for link:spark-cluster.adoc[clustered deployment modes], when <<tasksetmanager-settings, spark.speculation>> is enabled (`true`).
+It is executed periodically by the TaskScheduler for link:spark-cluster.adoc[clustered deployment modes], when link:spark-tasksetmanager.adoc#tasksetmanager-settings[spark.speculation] is enabled (`true`).
 
 With `spark.speculation` enabled, the following INFO message appears in the logs:
 
@@ -376,9 +239,9 @@ INFO Starting speculative execution thread
 
 It is scheduled using *task-scheduler-speculation* daemon thread pool using `j.u.c.ScheduledThreadPoolExecutor` with core pool size `1`.
 
-It is executed for <<zombie-state,non-zombie TaskSetManagers>> with more than one task to execute.
+It is executed for link:spark-tasksetmanager.adoc#zombie-state[non-zombie TaskSetManagers] with more than one task to execute.
 
-The process computes <<tasksetmanager-settings, spark.speculation.quantile>> of all the tasks and checks whether the number is greater than the number of tasks completed successfully.
+The process computes link:spark-tasksetmanager.adoc#tasksetmanager-settings[spark.speculation.quantile] of all the tasks and checks whether the number is greater than the number of tasks completed successfully.
 
 You can find the DEBUG message in the logs:
 
@@ -386,7 +249,7 @@ You can find the DEBUG message in the logs:
 DEBUG Checking for speculative tasks: minFinished =
 ```
 
-It then computes the median duration of all the completed task length threshold for speculation to have it multiplied by <<tasksetmanager-settings, spark.speculation.multiplier>>. It has to be at least `100`.
+It then computes the median duration of all the completed task length threshold for speculation to have it multiplied by link:spark-tasksetmanager.adoc#tasksetmanager-settings[spark.speculation.multiplier]. It has to be at least `100`.
 
 In the logs at DEBUG level:
 
@@ -404,7 +267,7 @@ INFO Marking task %d in stage %s (on %s) as speculatable because it ran more tha
 
 The job with speculatable tasks should finish while speculative tasks are running, and it will leave these tasks running - no KILL command yet.
 
-The check procedure is in `TaskSetManager.checkSpeculatableTasks` method.
+The check procedure is in link:spark-tasksetmanager.adoc[TaskSetManager.checkSpeculatableTasks] method.
 
 1. How does Spark handle repeated results of speculative tasks since there are copies launched?
 
@@ -425,9 +288,9 @@ TIP: Use `dag-scheduler-event-loop` thread to step through the code in a debugge
 
 === [[settings]] Settings
 
-* `spark.task.maxFailures` (default: `4` for link:spark-cluster.adoc[cluster mode] and `1` for link:spark-local.adoc[local] except link:spark-local.adoc[local-with-retries]) - The number of individual task failures before giving up on the entire TaskSet and then the job.
+* `spark.task.maxFailures` (default: `4` for link:spark-cluster.adoc[cluster mode] and `1` for link:spark-local.adoc[local] except link:spark-local.adoc[local-with-retries]) - The number of individual task failures before giving up on the entire TaskSet and the job afterwards.
 +
-Internally, it is used in `org.apache.spark.scheduler.TaskSchedulerImpl` to initialize `org.apache.spark.scheduler.TaskSetManager`.
+Internally, it is used in `org.apache.spark.scheduler.TaskSchedulerImpl` to initialize link:spark-tasksetmanager.adoc[TaskSetManager].
 * `spark.task.cpus` (default: `1`) - how many CPUs to request per task.
 * `spark.scheduler.mode` (default: `FIFO`) can be of any of `FAIR`, `FIFO`, or `NONE`. Refer to <<scheduling-mode, scheduling mode>>.
 * `spark.speculation.interval` (default: `100ms`) - how often to check for speculative tasks.
@@ -436,13 +299,6 @@ Internally, it is used in `org.apache.spark.scheduler.TaskSchedulerImpl` to init
 === Misc Findings
 
 CAUTION: FIXME Review `Task.serializeWithDependencies`
-CAUTION: FIXME Review `TaskSetManager.resourceOffer`
-
-From `TaskSetManager.resourceOffer`:
-
-```
-INFO TaskSetManager: Starting task 0.0 in stage 0.0 (TID 0, 192.168.1.4, partition 0,PROCESS_LOCAL, 1997 bytes)
-```
 
 It's on dispatcher-event-loop.
 
