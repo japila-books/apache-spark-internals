@@ -1,13 +1,24 @@
 == TaskSetManager
 
-*TaskSetManager* manages execution of the tasks in a single <<taskset, TaskSet>>.
+*TaskSetManager* manages execution of the tasks in a single <<taskset, TaskSet>> (as handed over by link:spark-taskscheduler.adoc[TaskScheduler]).
 
 .TaskSetManager and its Dependencies
 image::images/TaskSetManager-TaskSchedulerImpl-TaskSet.png[align="center"]
 
-It schedules the tasks from the taskset and keeps track of their execution, i.e. retries them upon failure (up to <<settings, spark.task.maxFailures>> attempts), and handles locality-aware scheduling for the taskset via delay scheduling.
+The responsibilities of a TaskSetManager include (follow along the links to corresponding sections to learn more):
 
-It also keeps track of the tasks pending execution per executor, host, rack or with no locality preferences.
+* <<scheduling-tasks, Scheduling the tasks from a taskset>>
+* <<task-retries, Retrying tasks on failure>>
+* <<locality-aware-scheduling, Handling locality-aware scheduling via delay scheduling>>
+
+[TIP]
+====
+Add the following line to `conf/log4j.properties` to see what happens under the covers of `TaskSetManager`:
+
+```
+log4j.logger.org.apache.spark.scheduler.TaskSetManager=DEBUG
+```
+====
 
 [CAUTION]
 ====
@@ -20,9 +31,25 @@ FIXME
 
 ====
 
+It is an `Schedulable` that works with `TaskSchedulerImpl`. As an `Schedulable` it has a *priority* property (among others).
+
+=== [[resourceOffer]] resourceOffer
+
+CAUTION: FIXME Review `TaskSetManager.resourceOffer` + Does this have anything related to the following section about scheduling tasks?
+
+From `TaskSetManager.resourceOffer`:
+
+```
+INFO TaskSetManager: Starting task 0.0 in stage 0.0 (TID 0, 192.168.1.4, partition 0,PROCESS_LOCAL, 1997 bytes)
+```
+
+=== [[scheduling-tasks]] Scheduling Tasks from TaskSet
+
+CAUTION: FIXME
+
 For each submitted <<taskset, TaskSet>>, a new *TaskSetManager* is created. A TaskSetManager completely and exclusively owns a TaskSet submitted for execution.
 
-TaskSetManager requests the current epoch from the map output tracker and sets it on all tasks in the taskset.
+TaskSetManager requests the current epoch from link:spark-service-mapoutputtracker.adoc[MapOutputTracker] and sets it on all tasks in the taskset.
 
 You should see the following DEBUG in the logs:
 
@@ -32,6 +59,16 @@ DEBUG Epoch for [taskSet]: [epoch]
 
 CAUTION: FIXME What's epoch. Why is this important?
 
+TaskSetManager keeps track of the tasks pending execution per executor, host, rack or with no locality preferences.
+
+=== [[task-retries]] Retrying tasks on failure
+
+FIXME
+
+Up to <<settings, spark.task.maxFailures>> attempts
+
+=== [[locality-aware-scheduling]] Locality-Aware Scheduling aka Delay Scheduling
+
 TaskSetManager computes locality levels for the TaskSet for delay scheduling. While computing you should see the following DEBUG in the logs:
 
 ```
@@ -40,16 +77,7 @@ DEBUG Valid locality levels for [taskSet]:  [levels]
 
 CAUTION: FIXME What's delay scheduling?
 
-It is an `Schedulable` that works with `TaskSchedulerImpl`. As an `Schedulable` it has a *priority* property (among others).
-
-[TIP]
-====
-Add the following line to `conf/log4j.properties` to see what happens under the covers of `TaskSetManager`:
-
-```
-log4j.logger.org.apache.spark.scheduler.TaskSetManager=DEBUG
-```
-====
+=== [[events]] Events
 
 When a task has finished, TaskSetManager sends link:spark-dagscheduler.adoc#CompletionEvent[a CompletionEvent message] to DAGScheduler.
 
@@ -65,28 +93,7 @@ The following "events" trigger communication between TaskSetManager and DAGSched
 * `handleFailedTask` with the reason for the failure
 * `executorLost` - `Resubmitted` (`TaskFailedReason`)
 
-CAUTION: FIXME Review `TaskSetManager.resourceOffer`
-
-From `TaskSetManager.resourceOffer`:
-
-```
-INFO TaskSetManager: Starting task 0.0 in stage 0.0 (TID 0, 192.168.1.4, partition 0,PROCESS_LOCAL, 1997 bytes)
-```
-
-==== [[tasksetmanager-settings]] Settings
-
-* `spark.scheduler.executorTaskBlacklistTime` (default: `0L`) - time interval to pass after which a task can be re-launched on the executor where it has once failed. It is to prevent repeated task failures due to executor failures.
-* `spark.speculation` (default: `false`)
-* `spark.speculation.quantile` (default: `0.75`) - the percentage of tasks that has not finished yet at which to start speculation.
-* `spark.speculation.multiplier` (default: `1.5`)
-* `spark.driver.maxResultSize` (default: `1g`) is the limit of bytes for total size of results. If the value is smaller than `1m` or `1048576` (1024 * 1024), it becomes 0.
-* `spark.logging.exceptionPrintInterval` (default: `10000`) - how frequently to reprint duplicate exceptions in full, in milliseconds
-* `spark.locality.wait` (default: `3s`) - for locality-aware delay scheduling for PROCESS_LOCAL, NODE_LOCAL, and RACK_LOCAL when locality-specific setting is not set.
-* `spark.locality.wait.process` (default: the value of `spark.locality.wait`) - delay for PROCESS_LOCAL
-* `spark.locality.wait.node` (default: the value of `spark.locality.wait`) - delay for NODE_LOCAL
-* `spark.locality.wait.rack` (default: the value of `spark.locality.wait`) - delay for RACK_LOCAL
-
-==== Task retries and spark.task.maxFailures
+=== Task retries and spark.task.maxFailures
 
 CAUTION: FIXME Review `handleFailedTask`
 
@@ -131,14 +138,27 @@ java.lang.Exception: Partition 2 marked failed
 org.apache.spark.SparkException: Job aborted due to stage failure: Task 0 in stage 1.0 failed 5 times, most recent failure: Lost task 0.4 in stage 1.0 (TID 7, localhost): java.lang.Exception: Partition 2 marked failed
 ```
 
-==== [[aborting-taskset]] Aborting TaskSet
+=== [[aborting-taskset]] Aborting TaskSet
 
 CAUTION: When can `TaskSetManager.abort` be called?
 
-==== [[zombie-state]] Zombie state
+=== [[zombie-state]] Zombie state
 
 TaskSetManager enters *zombie* state when all tasks in a taskset have completed successfully (regardless of the number of task attempts), or if the task set has been aborted (see <<aborting-taskset, Aborting TaskSet>>).
 
 While in zombie state, TaskSetManager can launch no more tasks.
 
 TaskSetManager remains in the zombie state until all tasks have finished running, i.e. to continue to track and account for the running tasks.
+
+=== [[tasksetmanager-settings]] Settings
+
+* `spark.scheduler.executorTaskBlacklistTime` (default: `0L`) - time interval to pass after which a task can be re-launched on the executor where it has once failed. It is to prevent repeated task failures due to executor failures.
+* `spark.speculation` (default: `false`)
+* `spark.speculation.quantile` (default: `0.75`) - the percentage of tasks that has not finished yet at which to start speculation.
+* `spark.speculation.multiplier` (default: `1.5`)
+* `spark.driver.maxResultSize` (default: `1g`) is the limit of bytes for total size of results. If the value is smaller than `1m` or `1048576` (1024 * 1024), it becomes 0.
+* `spark.logging.exceptionPrintInterval` (default: `10000`) - how frequently to reprint duplicate exceptions in full, in milliseconds
+* `spark.locality.wait` (default: `3s`) - for locality-aware delay scheduling for PROCESS_LOCAL, NODE_LOCAL, and RACK_LOCAL when locality-specific setting is not set.
+* `spark.locality.wait.process` (default: the value of `spark.locality.wait`) - delay for PROCESS_LOCAL
+* `spark.locality.wait.node` (default: the value of `spark.locality.wait`) - delay for NODE_LOCAL
+* `spark.locality.wait.rack` (default: the value of `spark.locality.wait`) - delay for RACK_LOCAL
