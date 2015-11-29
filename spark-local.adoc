@@ -36,6 +36,14 @@ The link:spark-taskscheduler.adoc[task scheduler] in local mode works with <<Loc
 .TaskSchedulerImpl.submitTasks in local mode
 image::images/TaskSchedulerImpl-submitTasks-local-mode.png[align="center"]
 
+When `ReviveOffers` or `StatusUpdate` messages are received, `LocalEndpoint` launches a task (using `reviveOffers()` method). The number of tasks to be launched is controlled by the master URL that says how many threads can be used in total:
+
+* For `local` master URL there is only 1 core available.
+
+* For `local[n]` master URL there are `n` cores available.
+
+* For `local[*]` master URL there are https://docs.oracle.com/javase/8/docs/api/java/lang/Runtime.html#availableProcessors--[Runtime.getRuntime.availableProcessors()] cores available, i.e. the number of processors available to the Java virtual machine.
+
 === [[LocalBackend]] LocalBackend
 
 `LocalBackend` is a link:spark-schedulerbackends.adoc[scheduler backend] and a link:spark-runtime-environment.adoc#executor-backends[ExecutorBackend] for Spark local mode.
@@ -63,11 +71,14 @@ INFO Executor: Using REPL class URI: http://192.168.1.4:56131
 
 ==== [[messages]] Messages
 
-LocalEndpoint accepts the following message types:
+LocalEndpoint accepts the following RPC message types:
 
 * `ReviveOffers` (receive-only, non-blocking) - it offers link:spark-taskscheduler.adoc[TaskScheduler] a `WorkerOffer` and launches tasks on the executor with <<localbackend, LocalBackend>>.
+
 * `StatusUpdate` (receive-only, non-blocking) that passes the message to TaskScheduler (using `statusUpdate`) and if link:spark-taskscheduler.adoc#tasks[the task's status is finished], it revives offers (see `ReviveOffers`).
+
 * `KillTask` (receive-only, non-blocking) that kills the task that is currently running on the executor.
+
 * `StopExecutor` (receive-reply, blocking) that stops the executor.
 
 === [[settings]] Settings
