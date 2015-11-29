@@ -1,13 +1,12 @@
 == Spark Runtime Environment
 
-*Spark Runtime Environment* is the runtime environment for Spark services that interact with each other to build Spark - a link:spark-overview.adoc#overview[open-source parallel distributed general-purpose cluster computing platform].
+*Spark Runtime Environment* is the runtime environment with Spark services that interact with each other to build Spark computing platform.
 
-Spark uses a *master/slave architecture* in which there is a single coordinator, *master*, that hosts a *driver* and communicates with one or more distributed *workers* in which *executors* run.
+<<SparkEnv, SparkEnv>> holds all runtime environment services for a running Spark instance.
 
-.Spark architecture
-image::images/driver-sparkcontext-clustermanager-workers-executors.png[align="center"]
+=== [[SparkEnv]] SparkEnv
 
-The driver and the executors run in their own Java processes. You can run them all on the same (_horizontal cluster_) or separate machines (_vertical cluster_) or in a mixed machine configuration.
+*SparkEnv* holds all runtime environment objects for a running Spark instance, either link:spark-execution-model.adoc#master[master] or link:spark-execution-model.adoc#worker[worker].
 
 [TIP]
 ====
@@ -19,126 +18,6 @@ Add the following line to `conf/log4j.properties` with requested `DEBUG` log lev
 log4j.logger.org.apache.spark.SparkEnv=DEBUG
 ```
 ====
-
-.Spark architecture in detail
-image::images/sparkapp-sparkcontext-master-slaves.png[align="center"]
-
-=== [[driver]] Driver
-
-A Spark *driver* is the process that creates and owns an instance of link:spark-sparkcontext.adoc[SparkContext]. It is your Spark application that launches the `main` method in which the instance of SparkContext is created. It is the cockpit of jobs and tasks execution (using link:spark-dagscheduler.adoc[DAGScheduler] and link:spark-taskscheduler.adoc[Task Scheduler]). It hosts link:spark-webui.adoc[Web UI] for the environment.
-
-.Driver with the services
-image::images/spark-driver.png[align="center"]
-
-It splits a Spark application into tasks and schedules them to run on executors.
-
-A driver is where the task scheduler lives and spawns tasks across workers.
-
-A driver coordinates workers and overall execution of tasks.
-
-Driver requires the additional services (beside the common ones like link:spark-shuffle-service.adoc[ShuffleManager], MemoryManager, BlockTransferService, link:spark-service-broadcastmanager.adoc[BroadcastManager], link:spark-cachemanager.adoc[CacheManager]):
-
-* Listener Bus
-* driverActorSystemName
-* link:spark-rpc.adoc[RPC Environment] (for Netty and Akka)
-* link:spark-service-mapoutputtracker.adoc#MapOutputTrackerMaster[MapOutputTrackerMaster] with the name *MapOutputTracker*
-* link:spark-blockmanager.adoc#BlockManagerMaster[BlockManagerMaster] with the name *BlockManagerMaster*
-* link:spark-http-file-server.adoc[HttpFileServer]
-* link:spark-metrics.adoc[MetricsSystem] with the name *driver*
-* link:spark-service-outputcommitcoordinator.adoc[OutputCommitCoordinator] with the endpoint's name *OutputCommitCoordinator*
-
-CAUTION: FIXME Diagram of RpcEnv for a driver (and later executors). Perhaps it should be in the notes about RpcEnv?
-
-=== [[master]] Master
-
-A *master* is a running Spark instance that connects to a cluster manager for resources.
-
-The master acquires cluster nodes to run executors.
-
-CAUTION: FIXME Add it to the Spark architecture figure above.
-
-=== [[worker]] Workers / Slaves
-
-*Workers* (aka *slaves*) are running Spark instances where executors live to execute tasks. They are the compute nodes in Spark.
-
-CAUTION: FIXME How many executors are spawned per worker?
-
-A worker receives serialized tasks that it runs in a thread pool.
-
-It hosts a local link:spark-blockmanager.adoc[Block Manager] that serves blocks to other workers in a Spark cluster. Workers communicate among themselves using their Block Manager instances.
-
-CAUTION: FIXME Diagram of a driver with workers as boxes.
-
-Explain task execution in Spark and understand Spark’s underlying execution model.
-
-New vocabulary often faced in Spark UI
-
-link:spark-sparkcontext.adoc[When you create SparkContext], each worker starts an executor. This is a separate process (JVM), and it loads your jar, too. The executors connect back to your driver program. Now the driver can send them commands, like `flatMap`, `map` and `reduceByKey`. When the driver quits, the executors shut down.
-
-A new process is not started for each step. A new process is started on each worker when the SparkContext is constructed.
-
-The executor deserializes the command (this is possible because it has loaded your jar), and executes it on a partition.
-
-Shortly speaking, an application in Spark is executed in three steps:
-
-1. Create RDD graph, i.e. DAG (directed acyclic graph) of RDDs to represent entire computation.
-2. Create stage graph, i.e. a DAG of stages that is a logical execution plan based on the RDD graph. Stages are created by breaking the RDD graph at shuffle boundaries.
-3. Based on the plan, schedule and execute tasks on workers.
-
-link:spark-examples-wordcount-spark-shell.adoc[In the WordCount example], the RDD graph is as follows:
-
-file -> lines -> words -> per-word count -> global word count -> output
-
-Based on this graph, two stages are created. The *stage* creation rule is based on the idea of *pipelining* as many link:spark-rdd.adoc[narrow transformations] as possible. RDD operations with "narrow" dependencies, like `map()` and `filter()`, are pipelined together into one set of tasks in each stage.
-
-In the end, every stage will only have shuffle dependencies on other stages, and may compute multiple operations inside it.
-
-In the WordCount example, the narrow transformation finishes at per-word count. Therefore, you get two stages:
-
-* file -> lines -> words -> per-word count
-* global word count -> output
-
-Once stages are defined, Spark will generate tasks from stages. The first stage will create a series of <<spark-taskscheduler.adoc#shufflemaptask, ShuffleMapTask>> and the last stage will create ResultTasks because in the last stage, one action operation is included to produce results.
-
-The number of tasks to be generated depends on how your files are distributed. Suppose that you have 3 three different files in three different nodes, the first stage will generate 3 tasks: one task per partition.
-
-Therefore, you should not map your steps to tasks directly. A task belongs to a stage, and is related to a partition.
-
-The number of tasks being generated in each stage will be equal to the number of partitions.
-
-==== [[createDriverEnv]] SparkEnv.createDriverEnv
-
-`SparkEnv.createDriverEnv` creates the Spark execution environment for a driver, aka *driver's (execution) environment*.
-
-The method accepts an instance of link:spark-configuration.adoc[SparkConf], link:spark-deployment-modes.adoc[whether it runs in local mode or not], link:spark-scheduler-listeners.adoc#listener-bus[an instance of listener bus], the number of driver's cores to use for execution in local mode or `0` otherwise, and a link:spark-service-outputcommitcoordinator.adoc[OutputCommitCoordinator] (default: none).
-
-The following two driver's properties are expected to be available in the Spark configuration:
-
-* `spark.driver.host` - the hostname of the driver
-* `spark.driver.port` - the port of the driver.
-
-For Akka-based RPC Environment (obsolete since Spark 1.6.0-SNAPSHOT), the name of the actor system for the driver is *sparkDriver*. See link:spark-rpc.adoc#client-mode[clientMode] how it is created in detail.
-
-=== [[executor-backends]] Executor Backends
-
-An *Executor Backend* manages a single executor. At startup, it connects to the driver and creates an executor. It then launches and kills tasks. It stops when the driver orders so.
-
-An executor backend acts as a bridge between the driver and an executor, i.e. there are two endpoints.
-
-It asks the driver for the driver's Spark properties
-
-TIP: Enable `INFO` for `org.apache.spark.executor.CoarseGrainedExecutorBackend` to see the inner-workings.
-
-There are the following kinds of executor backends:
-
-* local executor backend
-* <<coarse-grained, coarse-grained executor backend>>
-** used for YARN and coarse-grained mode in Mesos
-* Mesos executor backend
-
-=== [[SparkEnv]] SparkEnv
-
-*SparkEnv* holds all runtime environment objects for a running Spark instance, either link:spark-execution-model.adoc#master[master] or link:spark-execution-model.adoc#worker[worker].
 
 You can access the Spark environment using `SparkEnv.get`.
 
