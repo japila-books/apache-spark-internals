@@ -6,11 +6,11 @@
 
 === [[SparkEnv]] SparkEnv
 
-*SparkEnv* holds all runtime environment objects for a running Spark instance, either link:spark-master.adoc[master] or link:spark-workers.adoc[worker].
+*SparkEnv* holds all runtime objects for a running Spark instance, using <<createDriverEnv, SparkEnv.createDriverEnv()>> for a driver and <<createExecutorEnv, SparkEnv.createExecutorEnv()>> for an executor.
 
 [TIP]
 ====
-Turn `DEBUG` logging level for `org.apache.spark.SparkEnv` logger on to learn the low-level details of `SparkEnv`.
+Enable `DEBUG` logging level for `org.apache.spark.SparkEnv` logger to learn the low-level details of `SparkEnv`.
 
 Add the following line to `conf/log4j.properties` with requested `DEBUG` log level:
 
@@ -29,9 +29,45 @@ scala> SparkEnv.get
 res0: org.apache.spark.SparkEnv = org.apache.spark.SparkEnv@2220c5f7
 ```
 
-=== [[createDriverEnv]] SparkEnv.createDriverEnv
+=== [[create]] SparkEnv.create()
 
-`SparkEnv.createDriverEnv` creates the Spark execution environment for a driver, aka *driver's (execution) environment*.
+`SparkEnv.create` is a common initialization procedure to create a Spark execution environment for either a driver or an executor.
+
+It is called by <<createDriverEnv, SparkEnv.createDriverEnv()>> and <<createExecutorEnv, SparkEnv.createExecutorEnv()>>.
+
+When executed, it creates a Serializer (based on <<settings, spark.serializer>>) and, at `DEBUG` logging level, prints out the following message to the logs:
+
+```
+DEBUG Using serializer: [serializer.getClass]
+```
+
+It creates another Serializer (based on <<settings, spark.closure.serializer>>).
+
+It creates a ShuffleManager based on <<settings, spark.shuffle.manager>> setting.
+
+It creates a MemoryManager based on <<settings, spark.memory.useLegacyMode>> setting.
+
+CAUTION: FIXME What's MemoryManager?
+
+It creates a NettyBlockTransferService.
+
+It creates a BlockManagerMaster.
+
+It creates a BlockManager.
+
+It creates a BroadcastManager.
+
+It creates a CacheManager.
+
+It creates a MetricsSystem different for a driver and a worker.
+
+It initializes `userFiles` temporary directory used for downloading dependencies for a driver while this is the executor's current working directory for an executor.
+
+An OutputCommitCoordinator is created.
+
+=== [[createDriverEnv]] SparkEnv.createDriverEnv()
+
+`SparkEnv.createDriverEnv` creates a *driver's (execution) environment* that is the Spark execution environment for a driver.
 
 The method accepts an instance of link:spark-configuration.adoc[SparkConf], link:spark-deployment-modes.adoc[whether it runs in local mode or not], link:spark-scheduler-listeners.adoc#listener-bus[an instance of listener bus], the number of driver's cores to use for execution in local mode or `0` otherwise, and a link:spark-service-outputcommitcoordinator.adoc[OutputCommitCoordinator] (default: none).
 
@@ -42,10 +78,32 @@ The following two driver's properties are expected to be available in the Spark 
 
 For Akka-based RPC Environment (obsolete since Spark 1.6.0-SNAPSHOT), the name of the actor system for the driver is *sparkDriver*. See link:spark-rpc.adoc#client-mode[clientMode] how it is created in detail.
 
-=== [[createExecutorEnv]] SparkEnv.createExecutorEnv
+It creates `MapOutputTrackerMaster` object and registers `MapOutputTracker` RPC endpoint as an instance of `MapOutputTrackerMasterEndpoint`. See link:spark-service-mapoutputtracker.adoc[MapOutputTracker].
 
-`SparkEnv.createExecutorEnv` creates an Spark environment for an executor.
+It creates a MetricsSystem for *driver*.
+
+An OutputCommitCoordinator is created and *OutputCommitCoordinator* RPC endpoint registered.
+
+=== [[createExecutorEnv]] SparkEnv.createExecutorEnv()
+
+`SparkEnv.createExecutorEnv` creates an *executor's (execution) environment* that is the Spark execution environment for an executor.
 
 It uses SparkConf, the executor's identifier, hostname, port, the number of cores, and whether or not it runs in local mode.
 
 For Akka-based RPC Environment (obsolete since Spark 1.6.0-SNAPSHOT), the name of the actor system for an executor is *sparkExecutor*.
+
+It creates `MapOutputTrackerWorker` object and looks up `MapOutputTracker` RPC endpoint. See link:spark-service-mapoutputtracker.adoc[MapOutputTracker].
+
+It creates a MetricsSystem for *executor* and starts it.
+
+An OutputCommitCoordinator is created and *OutputCommitCoordinator* RPC endpoint looked up.
+
+=== [[settings]] Settings
+
+* `spark.serializer` (default: `org.apache.spark.serializer.JavaSerializer`) - the Serializer.
+* `spark.closure.serializer` (default: `org.apache.spark.serializer.JavaSerializer`) - the Serializer.
+* `spark.shuffle.manager` (default: `sort`) - one of the three available implementations of link:spark-shuffle-service.adoc[ShuffleManager] or a fully-qualified class name of a custom implementation of `ShuffleManager`.
+** `hash` or `org.apache.spark.shuffle.hash.HashShuffleManager`
+** `sort` or `org.apache.spark.shuffle.sort.SortShuffleManager`
+** `tungsten-sort` or `org.apache.spark.shuffle.sort.SortShuffleManager`
+* `spark.memory.useLegacyMode` (default: `false`) - `StaticMemoryManager` (`true`) or `UnifiedMemoryManager` (`false`).
