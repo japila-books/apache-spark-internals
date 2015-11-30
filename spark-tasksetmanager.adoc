@@ -13,7 +13,9 @@ The responsibilities of a TaskSetManager include (follow along the links to lear
 
 [TIP]
 ====
-Add the following line to `conf/log4j.properties` to see what happens under the covers of `TaskSetManager`:
+Enable `DEBUG` logging level for `org.apache.spark.scheduler.TaskSetManager` logger to see what happens under the covers in TaskSetManager.
+
+Add the following line to `conf/log4j.properties`:
 
 ```
 log4j.logger.org.apache.spark.scheduler.TaskSetManager=DEBUG
@@ -33,11 +35,19 @@ FIXME
 
 It is an `Schedulable` that works with `TaskSchedulerImpl`. As an `Schedulable` it has a *priority* property (among others).
 
+=== [[parent-pool]] Parent Pool
+
+CAUTION: FIXME When is `parent` Pool set and how is this used?
+
 === [[resourceOffer]] resourceOffer
 
 CAUTION: FIXME Review `TaskSetManager.resourceOffer` + Does this have anything related to the following section about scheduling tasks?
 
 For every TaskSet submitted for execution, TaskSchedulerImpl creates a new instance of TaskSetManager. It then calls `SchedulerBackend.reviveOffers()` (refer to link:spark-taskscheduler.adoc#submitTasks[submitTasks]).
+
+CAUTION: FIXME picture of the calls between components
+
+`resourceOffer` method responds to an offer of a single executor from the scheduler by finding a task (as a `TaskDescription`). It works in <<zombie-state, non-zombie state>> only. It dequeues a pending task from the taskset by checking pending tasks per executor (using `pendingTasksForExecutor`), host (using `pendingTasksForHost`), with no localization preferences (using `pendingTasksWithNoPrefs`), rack (uses `TaskSchedulerImpl.getRackForHost` that seems to return "non-zero" value for link:spark-yarn.adoc#YarnScheduler[YarnScheduler] only)
 
 From `TaskSetManager.resourceOffer`:
 
@@ -45,11 +55,35 @@ From `TaskSetManager.resourceOffer`:
 INFO TaskSetManager: Starting task 0.0 in stage 0.0 (TID 0, 192.168.1.4, partition 0,PROCESS_LOCAL, 1997 bytes)
 ```
 
+If a serialized task is bigger than `100` kB (it is not a configurable value), a WARN message is printed out to the logs (only once per taskset):
+
+```
+WARN TaskSetManager: Stage [task.stageId] contains a task of very large size ([serializedTask.limit / 1024] KB). The maximum recommended task size is 100 KB.
+```
+
+A task id is added to `runningTasksSet` set and <<parent-pool, parent pool>> notified (using `increaseRunningTasks(1)` up the chain of pools).
+
+The following INFO message appears in the logs:
+
+```
+INFO TaskSetManager: Starting task [id] in stage [taskSet.id] (TID [taskId], [host], partition [task.partitionId],[taskLocality], [serializedTask.limit] bytes)
+```
+
+For example:
+
+```
+INFO TaskSetManager: Starting task 1.0 in stage 0.0 (TID 1, localhost, partition 1,PROCESS_LOCAL, 2054 bytes)
+```
+
 === [[scheduling-tasks]] Scheduling Tasks from TaskSet
 
 CAUTION: FIXME
 
-For each submitted <<taskset, TaskSet>>, a new *TaskSetManager* is created. A TaskSetManager completely and exclusively owns a TaskSet submitted for execution.
+For each submitted <<taskset, TaskSet>>, a new TaskSetManager is created. The TaskSetManager completely and exclusively owns a TaskSet submitted for execution.
+
+CAUTION: FIXME A picture with TaskSetManager owning TaskSet
+
+CAUTION: FIXME What component knows about TaskSet and TaskSetManager. Isn't it that TaskSets are *created* by  DAGScheduler while TaskSetManager is used by TaskSchedulerImpl only?
 
 TaskSetManager requests the current epoch from link:spark-service-mapoutputtracker.adoc[MapOutputTracker] and sets it on all tasks in the taskset.
 
@@ -148,7 +182,7 @@ CAUTION: When can `TaskSetManager.abort` be called?
 
 TaskSetManager enters *zombie* state when all tasks in a taskset have completed successfully (regardless of the number of task attempts), or if the task set has been aborted (see <<aborting-taskset, Aborting TaskSet>>).
 
-While in zombie state, TaskSetManager can launch no more tasks.
+While in zombie state, TaskSetManager can launch no new tasks and <<resourceOffer, responds with no `TaskDescription` to resourceOffers>>.
 
 TaskSetManager remains in the zombie state until all tasks have finished running, i.e. to continue to track and account for the running tasks.
 

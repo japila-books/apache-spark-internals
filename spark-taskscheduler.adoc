@@ -183,7 +183,9 @@ A *ShuffleMapTask* divides the elements of an RDD into multiple buckets (based o
 
 === [[taskset]] TaskSet
 
-A *TaskSet* is a set of tasks submitted together to TaskScheduler that belong to a single stage and an attempt. A TaskSet represents the missing partitions of a stage.
+A *TaskSet* is a set of tasks submitted together to TaskScheduler that belong to a single stage and an attempt.
+
+A TaskSet represents the missing partitions of a stage.
 
 The pair of a stage and an attempt uniquely describes a TaskSet and that is what you can see in the logs:
 
@@ -294,11 +296,50 @@ TIP: Use `dag-scheduler-event-loop` thread to step through the code in a debugge
 
 === [[resourceOffers]] resourceOffers
 
-`resourceOffers` method is called by a cluster manager to offer resources on slaves.
+`resourceOffers(offers: Seq[WorkerOffer])` method is called by a cluster manager or `LocalEndpoint` for local mode to offer free resources available on the executors to run tasks on.
 
-See link:spark-local.adoc#LocalBackend[LocalBackend] for Spark local mode.
+.TaskSchedulerImpl.resourceOffers under the hood
+image::images/taskscheduler-resourceOffers.png[align="center"]
 
-CAUTION: FIXME
+Consult link:spark-local.adoc#LocalBackend[LocalBackend] for Spark local mode.
+
+A `WorkerOffer` is a 3-tuple with executor id, host, and free cores available.
+
+For each offer, the method tracks hosts per executor id (using `executorIdToHost`) and sets `0` as the number of tasks running on the executor if there is no tasks running already (using `executorIdToTaskCount`). It also tracks executor id per host.
+
+WARNING: FIXME BUG? Why is the executor id *not* added to `executorsByHost`?
+
+`DAGScheduler.executorAdded(executorId, host)` is called for a new host.
+
+WARNING: FIXME BUG? Why is `executorAdded` called for a new host added? Can't we have more executors on a host? The name of the method is misleading then.
+
+CAUTION: FIXME a picture with `executorAdded` call from TaskSchedulerImpl to DAGScheduler.
+
+FIXME Why is `getRackForHost` important?
+
+It builds a list of tasks (using `TaskDescription`) to assign to each worker.
+
+CAUTION: FIXME What does the line `val sortedTaskSets = rootPool.getSortedTaskSetQueue` mean? It uses no method's local variables. There can be many TaskSetManagers in the result.
+
+`rootPool.getSortedTaskSetQueue` is called to build a collection of tasksets (as TaskSetManagers in `sortedTaskSets`).
+
+For each taskset (represented by a TaskSetManager), the following DEBUG message is printed out to the logs:
+
+```
+DEBUG parentName: [taskSet.parent.name], name: [taskSet.name], runningTasks: [taskSet.runningTasks]
+```
+
+And if a new host was added to the pool (using `newExecAvail` - FIXME when exactly?), each TaskSetManager gets notified about new executor added (using `TaskSetManager.executorAdded()`). FIXME So what?
+
+WARNING: FIXME BUG? Why is the name `newExecAvail` since it's called for a new host added? Can't we have more executors on a host? The name of the method could be misleading.
+
+For each taskset in `sortedTaskSets`, different locality preferences are checked...FIXME
+
+Check whether the number of cores in an offer is more than the number of cores needed for a task (using <<settings, spark.task.cpus>>).
+
+When `resourceOffers` managed to launch a task, the internal field `hasLaunchedTask` is set.
+
+CAUTION: FIXME Why is there a need for `hasLaunchedTask`? Can TaskSchedulerImpl launch more tasks later?
 
 === [[settings]] Settings
 
