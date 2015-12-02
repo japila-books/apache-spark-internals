@@ -1,5 +1,48 @@
 == Broadcast variables
 
+From http://spark.apache.org/docs/latest/programming-guide.html#broadcast-variables[the official documentation about Broadcast Variables]:
+
+> Broadcast variables allow the programmer to keep a read-only variable cached on each machine rather than shipping a copy of it with tasks.
+
+=== [[introductory-example]] Introductory Example
+
+Let's start with an introductory example to check out how to use broadcast variables and build your initial understanding.
+
+You're going to use a static mapping of interesting projects with their websites, i.e. `Map[String, String]` that the tasks, i.e. closures (anonymous functions) in transformations, use.
+
+```
+scala> val pws = Map("Apache Spark" -> "http://spark.apache.org/", "Scala" -> "http://www.scala-lang.org/")
+pws: scala.collection.immutable.Map[String,String] = Map(Apache Spark -> http://spark.apache.org/, Scala -> http://www.scala-lang.org/)
+
+scala> val websites = sc.parallelize(Seq("Apache Spark", "Scala")).map(pws).collect
+...
+websites: Array[String] = Array(http://spark.apache.org/, http://www.scala-lang.org/)
+```
+
+It works, but is very ineffective as the `pws` map is sent over the wire to executors while it could have been there already. If there were more tasks that need the `pws` map, you could improve their performance by minimizing the number of bytes that are going to be sent over the network for task execution.
+
+Enter broadcast variables.
+
+```
+scala> val pwsB = sc.broadcast(pws)
+INFO MemoryStore: Ensuring 1048576 bytes of free space for block broadcast_8(free: 771881313, max: 771883008)
+INFO MemoryStore: Ensuring 360 bytes of free space for block broadcast_8(free: 771881313, max: 771883008)
+INFO MemoryStore: Block broadcast_8 stored as values in memory (estimated size 360.0 B, free 2.0 KB)
+INFO MemoryStore: Ensuring 205 bytes of free space for block broadcast_8_piece0(free: 771880953, max: 771883008)
+INFO MemoryStore: Block broadcast_8_piece0 stored as bytes in memory (estimated size 205.0 B, free 2.2 KB)
+INFO BlockManagerInfo: Added broadcast_8_piece0 in memory on localhost:54142 (size: 205.0 B, free: 736.1 MB)
+INFO SparkContext: Created broadcast 8 from broadcast at <console>:26
+pwsB: org.apache.spark.broadcast.Broadcast[scala.collection.immutable.Map[String,String]] = Broadcast(8)
+
+scala> val websites = sc.parallelize(Seq("Apache Spark", "Scala")).map(pwsB.value).collect
+...
+websites: Array[String] = Array(http://spark.apache.org/, http://www.scala-lang.org/)
+```
+
+Semantically, the two computations are exactly the same, but the broadcast-based one wins performance-wise when there are more computations that use `pws` map.
+
+=== [[introduction]] Introduction
+
 *Broadcast* is a part of Spark responsible for broadcasting information in a cluster.
 
 Spark comes with a BitTorrent implementation.
