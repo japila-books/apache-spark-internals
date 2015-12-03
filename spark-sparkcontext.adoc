@@ -2,7 +2,7 @@
 
 *SparkContext* (aka *Spark context*) represents the connection to a link:spark-deployment-modes.adoc[Spark execution environment (deployment mode)].
 
-You have to create a Spark context before using Spark features and services in your application. A Spark context can be used to <<creating-rdds, create RDDs>>, <<creating-accumulators, accumulators>> and <<creating-broadcasts, broadcast variables>>, access Spark services and <<running-jobs, run jobs>>.
+You have to create a Spark context before using Spark features and services in your application. A Spark context can be used to <<creating-rdds, create RDDs>>, <<creating-accumulators, accumulators>> and <<creating-broadcast-variables, broadcast variables>>, access Spark services and <<running-jobs, run jobs>>.
 
 A Spark context is essentially a client of Spark's execution environment and acts as the _master of your Spark application_ (don't get confused with the other meaning of link:spark-master.adoc[Master] in Spark, though).
 
@@ -15,7 +15,7 @@ As a developer, you can use `SparkContext` for the following functions:
 * link:spark-configuration.adoc[Specifing mandatory application name]
 * <<creating-rdds, Creating RDDs>>
 * <<creating-accumulators, Creating accumulators>>
-* <<creating-broadcasts, Creating broadcast variables>>
+* <<creating-broadcast-variables, Creating broadcast variables>>
 * Accessing services, e.g. link:spark-taskscheduler.adoc[Task Scheduler], link:spark-scheduler-listeners.adoc[Listener Bus], link:spark-blockmanager.adoc[Block Manager], <<coarse-grained-scheduler-backends, CoarseGrainedSchedulerBackends>>, link:spark-shuffle-service.adoc[Shuffle Service].
 * <<running-jobs, Running jobs>>
 * <<custom-schedulers, Setting up custom Scheduler Backend, Task Scheduler and DAGScheduler>>
@@ -91,11 +91,50 @@ CAUTION: FIXME
 
 Read link:spark-accumulators.adoc[Use accumulators].
 
-=== [[creating-broadcasts]] Creating broadcast variables
+=== [[creating-broadcast-variables]] Creating Broadcast Variables
 
-CAUTION: FIXME
+TIP: Consult link:spark-broadcast.adoc[Broadcast Variables] to learn about broadcast variables.
 
-Read link:spark-broadcast.adoc[Create broadcast variables].
+SparkContext comes with `broadcast` method to broadcast a value among Spark executors.
+
+```
+def broadcast[T: ClassTag](value: T): Broadcast[T]
+```
+
+It returns a `Broadcast[T]` instance that is a handle to a shared memory on executors.
+
+```
+scala> sc.broadcast("hello")
+INFO MemoryStore: Ensuring 1048576 bytes of free space for block broadcast_0(free: 535953408, max: 535953408)
+INFO MemoryStore: Ensuring 80 bytes of free space for block broadcast_0(free: 535953408, max: 535953408)
+INFO MemoryStore: Block broadcast_0 stored as values in memory (estimated size 80.0 B, free 80.0 B)
+INFO MemoryStore: Ensuring 34 bytes of free space for block broadcast_0_piece0(free: 535953328, max: 535953408)
+INFO MemoryStore: Block broadcast_0_piece0 stored as bytes in memory (estimated size 34.0 B, free 114.0 B)
+INFO BlockManagerInfo: Added broadcast_0_piece0 in memory on localhost:61505 (size: 34.0 B, free: 511.1 MB)
+INFO SparkContext: Created broadcast 0 from broadcast at <console>:25
+res0: org.apache.spark.broadcast.Broadcast[String] = Broadcast(0)
+```
+
+Spark transfers the value to Spark executors _once_, and tasks can share it without incurring repetitive network transmissions when requested multiple times.
+
+.Broadcasting a value to executors
+image::images/sparkcontext-broadcast-executors.png[align="center"]
+
+When a broadcast value is created the following INFO message appears in the logs:
+
+```
+INFO SparkContext: Created broadcast [id] from broadcast at <console>:25
+```
+
+You should _not_ broadcast a RDD to use in tasks and Spark will warn you. It will not stop you, though. Consult https://issues.apache.org/jira/browse/SPARK-5063[SPARK-5063 Display more helpful error messages for several invalid operations].
+
+```
+scala> val rdd = sc.parallelize(0 to 10)
+rdd: org.apache.spark.rdd.RDD[Int] = ParallelCollectionRDD[1] at parallelize at <console>:24
+
+scala> sc.broadcast(rdd)
+WARN SparkContext: Can not directly broadcast RDDs; instead, call collect() and broadcast the result (see SPARK-5063)
+```
 
 === [[jars]] Distribute JARs to workers
 
