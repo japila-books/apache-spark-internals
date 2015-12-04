@@ -1,3 +1,33 @@
 == Broadcast Manager
 
-FIXME See BroadcastManager
+*Broadcast Manager* is a Spark service to manage broadcast values in Spark jobs. It is created for a Spark application as part of SparkContext's initialization.
+
+It tracks broadcast values by their id (using the internal field `nextBroadcastId`).
+
+The idea is to transfer values used in transformations from a driver to executors in a most effective way so they are copied once and used many times by tasks (rather than being copied every time a task is launched).
+
+When `BroadcastManager` is initialized an instance of `BroadcastFactory` is created based on <<settings, spark.broadcast.factory setting>> that defaults to `org.apache.spark.broadcast.TorrentBroadcastFactory`.
+
+=== [[BroadcastFactory]] BroadcastFactory
+
+`BroadcastFactory` is a pluggable interface for broadcast implementations in Spark. It is exclusively used and instantiated inside of `BroadcastManager` to manage broadcast variables.
+
+It comes with 4 methods:
+
+* `def initialize(isDriver: Boolean, conf: SparkConf, securityMgr: SecurityManager): Unit`
+* `def newBroadcast[T: ClassTag](value: T, isLocal: Boolean, id: Long): Broadcast[T]`
+* `def unbroadcast(id: Long, removeFromDriver: Boolean, blocking: Boolean): Unit`
+* `def stop(): Unit`
+
+=== [[TorrentBroadcast]] TorrentBroadcast
+
+The default implementation of the `BroadcastManager` interface is `org.apache.spark.broadcast.TorrentBroadcast`. It uses a BitTorrent-like protocol to do the distribution.
+
+.TorrentBroadcast - broadcasting using BitTorrent
+image::images/sparkcontext-broadcast-bittorrent.png[align="center"]
+
+`TorrentBroadcastFactory` is the factory of `TorrentBroadcast`-based broadcast values.
+
+=== [[settings]] Settings
+
+* `spark.broadcast.factory` (default: `org.apache.spark.broadcast.TorrentBroadcastFactory`) - the fully-qualified class name for the instance of `BroadcastFactory` in a SparkContext.
