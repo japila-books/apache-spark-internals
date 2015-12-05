@@ -9,7 +9,12 @@ _"Reading the sources"_, you say?! Yes, I _am_ kidding!
 
 === Introduction
 
-*DAGScheduler* is the present and only scheduling layer in Apache Spark that implements stage-oriented scheduling, i.e. RDD actions trigger jobs that become stages with parallel tasks (see link:spark-execution-model.adoc[Execution Model]).
+*DAGScheduler* is the default and only scheduling layer in Apache Spark that implements stage-oriented scheduling, i.e. RDD actions trigger jobs that become stages with parallel tasks (see link:spark-execution-model.adoc[Execution Model]).
+
+DAGScheduler works on a driver. It is created as part of link:spark-sparkcontext.adoc#initialization[SparkContext's initialization], right after link:spark-taskscheduler.adoc[TaskScheduler] and link:spark-schedulerbackends.adoc[SchedulerBackend] are ready.
+
+.DAGScheduler as created by SparkContext with other services
+image::images/dagscheduler-new-instance.png[align="center"]
 
 DAGScheduler does three things in Spark (thorough explanations follow):
 
@@ -25,6 +30,8 @@ Furthermore, it handles failures due to shuffle output files being lost, in whic
 
 DAGScheduler uses an *event queue architecture* in which a thread can post `DAGSchedulerEvent` events, e.g. a new job or stage being submitted, that DAGScheduler reads and executes sequentially. See the section <<event-loop, Internal Event Loop - dag-scheduler-event-loop>>.
 
+DAGScheduler keeps track of the number of jobs already submitted (using `nextJobId` internal field and `numTotalJobs` method) as well as the number of stages (using `nextStageId`).
+
 [TIP]
 ====
 Turn `DEBUG` or more detailed `TRACE` logging to see what happens inside `DAGScheduler`.
@@ -36,7 +43,7 @@ log4j.logger.org.apache.spark.scheduler.DAGScheduler=TRACE
 ```
 ====
 
-DAGScheduler needs link:spark-sparkcontext.adoc[SparkContext], link:spark-taskscheduler.adoc[Task Scheduler], link:spark-scheduler-listeners.adoc[Listener Bus], link:spark-service-mapoutputtracker.adoc[MapOutputTracker] and link:spark-blockmanager.adoc[Block Manager] for work. However, at the very minimum, DAGScheduler needs SparkContext only (and asks SparkContext for the other services).
+DAGScheduler needs link:spark-sparkcontext.adoc[SparkContext], link:spark-taskscheduler.adoc[Task Scheduler], link:spark-scheduler-listeners.adoc[Listener Bus], link:spark-service-mapoutputtracker.adoc[MapOutputTracker] and link:spark-blockmanager.adoc[Block Manager] to work. However, at the very minimum, DAGScheduler needs SparkContext only (and asks SparkContext for the other services).
 
 DAGScheduler reports metrics about its execution (refer to the section <<metrics, Metrics>>).
 
@@ -262,7 +269,7 @@ When a job fails, the following INFO shows up in the logs:
 Job %d failed: %s, took %f s
 ```
 
-Job ids are tracked by DAGScheduler and incremented by one every `submitJob`. It is tracked using `nextJobId` internal field.
+Job ids are tracked by DAGScheduler and incremented by one every `submitJob`.
 
 Ultimately, `submitJob` posts `JobSubmitted` event on <<event-loop, dag-scheduler-event-loop>> (that releases the current thread and let the event loop handle the event on a separate thread - asynchronously).
 
@@ -531,11 +538,11 @@ The name of the source is *DAGScheduler*.
 
 It emits the following numbers:
 
-* stage / failedStages - the number of failed stages
-* stage / runningStages - the number of running stages
-* stage / waitingStages - the number of waiting stages
-* job / allJobs - the number of all jobs
-* job / activeJobs - the number of active jobs
+* *stage.failedStages* - the number of failed stages
+* *stage.runningStages* - the number of running stages
+* *stage.waitingStages* - the number of waiting stages
+* *job.allJobs* - the number of all jobs
+* *job.activeJobs* - the number of active jobs
 
 === ScheduledExecutorService daemon services
 
