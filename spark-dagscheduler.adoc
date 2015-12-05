@@ -9,7 +9,10 @@ _"Reading the sources"_, you say?! Yes, I _am_ kidding!
 
 === Introduction
 
-*DAGScheduler* is the default and only scheduling layer in Apache Spark that implements stage-oriented scheduling, i.e. RDD actions trigger jobs that become stages with parallel tasks (see link:spark-execution-model.adoc[Execution Model]).
+*DAGScheduler* is the scheduling layer in Apache Spark that implements stage-oriented scheduling, i.e. RDD actions trigger jobs that become stages with parallel tasks (see link:spark-execution-model.adoc[Execution Model]).
+
+.Executing action leads to new ResultStage and ActiveJob in DAGScheduler
+image::images/dagscheduler-rdd-partitions-job-resultstage.png[align="center"]
 
 DAGScheduler works on a driver. It is created as part of link:spark-sparkcontext.adoc#initialization[SparkContext's initialization], right after link:spark-taskscheduler.adoc[TaskScheduler] and link:spark-schedulerbackends.adoc[SchedulerBackend] are ready.
 
@@ -490,44 +493,49 @@ It clears the internal `waitingStages` set with stages that wait for their paren
 
 It goes over the waiting stages sorted by job ids in increasing order and calls <<stage-submission, submitStage>> method.
 
-=== [[stage-submission]] Stage submission
+=== [[stage-submission]] submitStage - Stage Submission
 
 CAUTION: FIXME
 
-`DAGScheduler.submitStage` is called when a stage is ready to be submitted for execution.
+`DAGScheduler.submitStage(stage: Stage)` is called when `stage` is ready for submission.
 
-It in turn submits any missing parents of the stage (recursively).
+It recursively submits any missing parents of the stage.
 
-Two DEBUG messages show up in the logs:
-
-```
-DEBUG DAGScheduler: submitStage(ResultStage 2)
-DEBUG DAGScheduler: missing: List(ShuffleMapStage 1)
-```
-
-When the current stage has no parent stages to submit, it is submitted and the INFO message shows up in the logs:
-
-```
-INFO DAGScheduler: Submitting ShuffleMapStage 1 (MapPartitionsRDD[5] at map at <console>:25), which has no missing parents
-```
-
-CAUTION: FIXME: Review `getMissingParentStages`
-
-And <<submitMissingTasks, submitMissingTasks>> is called. It is the moment when the stage's parents are available.
-
-If however there are missing parent stages for the stage, all stages are `submitStage`.
-
-If there's no active job for a stage, the stage and all the dependent jobs are aborted.
+There has to be an ActiveJob instance for the stage to proceed. Otherwise the stage and all the dependent jobs are aborted (using `abortStage`) with the message:
 
 ```
 Job aborted due to stage failure: No active job for stage [stage.id]
 ```
 
-No dependent jobs lead to the INFO message:
+For a stage with ActiveJob available, the following DEBUG message show up in the logs:
 
 ```
-Ignoring failure of [failedStage] because all jobs depending on it are done
+DEBUG DAGScheduler: submitStage([stage])
 ```
+
+Only when the stage is not in waiting (`waitingStages`), running (`runningStages`) or failed (`failedStages`) states can this stage be processed.
+
+A list of missing parent stages of the stage is calculated (see <<calculating-missing-parent-stages, Calculating Missing Parent Stages>>) and the following DEBUG message shows up in the logs:
+
+```
+DEBUG DAGScheduler: missing: [missing]
+```
+
+When the stage has no parent stages missing, it is submitted and the INFO message shows up in the logs:
+
+```
+INFO DAGScheduler: Submitting [stage] ([stage.rdd]), which has no missing parents
+```
+
+And <<submitMissingTasks, submitMissingTasks>> is called. That finishes the stage submission.
+
+If however there are missing parent stages for the stage, all stages are processed recursively (using `submitStage`), and the stage is added to `waitingStages` set.
+
+=== [[calculating-missing-parent-stages]] Calculating Missing Parent Stages
+
+CAUTION: FIXME
+
+`DAGScheduler.getMissingParentStages(stage: Stage)` calculates missing parent stages for the given `stage`.
 
 === [[stage-attempts]] Fault recovery - stage attempts
 
