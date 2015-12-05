@@ -2,11 +2,9 @@
 
 The *Block Manager* is a key-value store for blocks that acts as a cache. It provides interfaces for putting and retrieving blocks both locally and remotely into various stores, i.e. memory, disk, and off-heap.
 
-A Block Manager manages the storage for most of the data in Spark, i.e. block that represent a cached RDD partition, intermediate shuffle data, broadcast data etc.
+A Block Manager manages the storage for most of the data in Spark, i.e. block that represent a cached RDD partition, intermediate shuffle data, broadcast data etc. See <<BlockId, BlockId>>.
 
-A Block Manager instance runs on every node - driver and executors - in a Spark network. It is created when `SparkEnv.create` is called.
-
-FIXME: Review `SparkEnv.create`
+A Block Manager instance runs on every node - driver and executors - in a Spark runtime environment. It is created when link:spark-runtime-environment.adoc#create[SparkEnv.create()] is called.
 
 A Block Manager relies on the following services:
 
@@ -21,6 +19,17 @@ A Block Manager relies on the following services:
 
 Block Manager is a BlockDataManager.
 
+[TIP]
+====
+Enable `TRACE` logging level for `org.apache.spark.storage.BlockManager` logger to see what happens in BlockManager.
+
+Add the following line to `conf/log4j.properties`:
+
+```
+log4j.logger.org.apache.spark.storage.BlockManager=TRACE
+```
+====
+
 [CAUTION]
 ====
 FIXME
@@ -28,6 +37,46 @@ FIXME
 * When is Block Manager instantiates? What are the initialization params?
 * BlockDataManager?
 ====
+
+=== [[BlockId]] BlockId
+
+*BlockId* identifies a block of data. It has a globally unique identifier (`name`)
+
+There are the following types of `BlockId`:
+
+* *RDDBlockId* - described by `rddId` and `splitIndex`
+* *ShuffleBlockId* - described by `shuffleId`, `mapId` and `reduceId`
+* *ShuffleDataBlockId* - described by `shuffleId`, `mapId` and `reduceId`
+* *ShuffleIndexBlockId* - described by `shuffleId`, `mapId` and `reduceId`
+* *BroadcastBlockId* - described by `broadcastId` and optional `field` - a piece of broadcast value
+* *TaskResultBlockId* - described by `taskId`
+* *StreamBlockId* - described by `streamId` and `uniqueId`
+
+=== [[broadcast]] Broadcast Values
+
+When a new broadcast value is created, `TorrentBroadcast` - the default implementation of `Broadcast` - blocks are put in the block manager. See link:spark-service-broadcastmanager.adoc#TorrentBroadcast[TorrentBroadcast].
+
+You should see the following `TRACE` message:
+
+```
+TRACE Put for block [blockId] took [startTimeMs] to get into synchronized block
+```
+
+It puts the data in the memory first and drop to disk if the memory store can't hold it.
+
+```
+DEBUG Put block [blockId] locally took [startTimeMs]
+```
+
+=== [[stores]] Stores
+
+A *Store* is the place where blocks are held.
+
+There are the following possible stores:
+
+* `MemoryStore` for memory storage level.
+* `DiskStore` for disk storage level.
+* `ExternalBlockStore` for OFF_HEAP storage level.
 
 === [[BlockManagerMaster]] BlockManagerMaster
 
