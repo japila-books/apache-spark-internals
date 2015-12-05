@@ -200,7 +200,7 @@ image::images/dagscheduler-webui-skipped-stages.png[align="center"]
 
 ==== [[ShuffleMapStage]] ShuffleMapStage
 
-A *ShuffleMapStage* (aka *shuffle map stage*, or simply *map stage*) is an intermediate stage in the execution DAG that produces data for link:spark-rdd-shuffle.adoc[shuffle operation]. It is an input for the other following stages in the DAG of stages. That is why it is also called a *shuffle dependency's map side* (see link:spark-rdd-dependencies.adoc#shuffle-dependency[ShuffleDependency])
+A *ShuffleMapStage* (aka *shuffle map stage*, or simply *map stage*) is an intermediate stage in the execution DAG that produces data for link:spark-rdd-shuffle.adoc[shuffle operation]. It is an input for the other following stages in the DAG of stages. That is why it is also called a *shuffle dependency's map side* (see link:spark-rdd-dependencies.adoc#ShuffleDependency[ShuffleDependency])
 
 ShuffleMapStages usually contain multiple pipelined operations, e.g. `map` and `filter`, before shuffle operation.
 
@@ -208,7 +208,7 @@ CAUTION: FIXME: Show the example and the logs + figures
 
 A single ShuffleMapStage can be part of many jobs -- refer to the section <<stage-sharing, ShuffleMapStage sharing>>.
 
-A ShuffleMapStage is a stage with a link:spark-rdd-dependencies.adoc#shuffle-dependency[ShuffleDependency] - the shuffle that it is part of and `outputLocs` and `numAvailableOutputs` track how many map outputs are ready.
+A ShuffleMapStage is a stage with a link:spark-rdd-dependencies.adoc#ShuffleDependency[ShuffleDependency] - the shuffle that it is part of and `outputLocs` and `numAvailableOutputs` track how many map outputs are ready.
 
 NOTE: ShuffleMapStages can also be submitted independently as jobs with `DAGScheduler.submitMapStage` for <<adaptive-query-planning, Adaptive Query Planning>>.
 
@@ -218,7 +218,7 @@ CAUTION: FIXME Figure with ShuffleMapStages saving files
 
 The number of the partitions of an RDD is exactly the number of the tasks in a ShuffleMapStage.
 
-The output locations (`outputLocs`) of a ShuffleMapStage are the same as used by its link:spark-rdd-dependencies.adoc#shuffle-dependency[ShuffleDependency]. Output locations can be missing, i.e. partitions have not been cached or are lost.
+The output locations (`outputLocs`) of a ShuffleMapStage are the same as used by its link:spark-rdd-dependencies.adoc#ShuffleDependency[ShuffleDependency]. Output locations can be missing, i.e. partitions have not been cached or are lost.
 
 ShuffleMapStages are registered to DAGScheduler that tracks the mapping of shuffles (by their ids from SparkContext) to corresponding ShuffleMapStages that compute them, stored in `shuffleToMapStage`.
 
@@ -259,7 +259,7 @@ To calculate a list of the parent stages of a stage DAGScheduler uses an RDD and
 
 ...FIXME...IMAGE with parent stages being ShuffleMapStage only.
 
-It then traverses the RDD's dependencies and for every link:spark-rdd-dependencies.adoc#shuffle-dependency[ShuffleDependency] gets or creates a new <<ShuffleMapStage, ShuffleMapStage>>.
+It then traverses the RDD's dependencies and for every link:spark-rdd-dependencies.adoc#ShuffleDependency[ShuffleDependency] gets or creates a new <<ShuffleMapStage, ShuffleMapStage>>.
 
 ...FIXME...IMAGE with ShuffleDependencies queried
 
@@ -341,7 +341,7 @@ When a *MapStageSubmitted* event is posted, it triggers execution of `DAGSchedul
 .DAGScheduler.handleMapStageSubmitted handles MapStageSubmitted events
 image::diagrams/scheduler-handlemapstagesubmitted.png[align="center"]
 
-It is called with a job id (for a new job to be created), a link:spark-rdd-dependencies.adoc#shuffle-dependency[ShuffleDependency], and a JobListener.
+It is called with a job id (for a new job to be created), a link:spark-rdd-dependencies.adoc#ShuffleDependency[ShuffleDependency], and a JobListener.
 
 You should see the following INFOs in the logs:
 
@@ -538,7 +538,17 @@ If however there are missing parent stages for the stage, all stages are process
 
 CAUTION: FIXME
 
-`DAGScheduler.getMissingParentStages(stage: Stage)` calculates missing parent stages for the given `stage`.
+`DAGScheduler.getMissingParentStages(stage: Stage)` calculates missing parent stages for a given `stage`.
+
+It starts with the target RDD of `stage` given as an input parameter for which `cacheLocs` map is checked by the RDD's id.
+
+If the RDD's storage level is `NONE`, it is assumed that no partition cache location are available. Otherwise, the block manager `BlockManagerMaster` is queried with `RDDBlockId` for each partition using `BlockManagerMaster.getLocations`. A collection of `TaskLocation` is built out of it.
+
+If at least one partition has been found uncached, `rdd.dependencies` are consulted to find `ShuffleDependency` dependencies for their corresponding `ShuffleMapStage` (using `getShuffleMapStage`).
+
+CAUTION: FIXME Review `getShuffleMapStage`
+
+A missing `ShuffleMapStage` gets added to the set of missing map stages.
 
 === [[stage-attempts]] Fault recovery - stage attempts
 
