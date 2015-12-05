@@ -231,11 +231,30 @@ A *preferred location* (aka _locality preferences_ or _placement preferences_) i
 
 === [[lineage]] RDD Lineage Graph
 
-A *RDD Lineage Graph* (aka _RDD operator graph_) is a graph of the parents of an RDD that is the result of translating transformations of a RDD (that create corresponding RDDs) and the parent-child relationship between them. It is a graph of what needs to be calculated when an action is called.
+A *RDD Lineage Graph* (aka _RDD operator graph_) is a graph of the parent RDD of a RDD. It is built as a result of applying transformations to the RDD.
+
+.RDD lineage
+image::images/rdd-lineage.png[align="center"]
+
+The above RDD graph could be the result of the following series of transformations:
+
+```
+val r00 = sc.parallelize(0 to 9)
+val r01 = sc.parallelize(0 to 90 by 10)
+val r10 = r00 cartesian r01
+val r11 = r00.map(n => (n, n))
+val r12 = r00 zip r01
+val r13 = r01.keyBy(_ / 20)
+val r20 = Seq(r11, r12, r13).foldLeft(r10)(_ union _)
+```
+
+A RDD lineage graph is hence a graph of what transformations need to be executed after an action has been called.
 
 You can learn about a RDD lineage graph using <<toDebugString, RDD.toDebugString>> method.
 
 ==== [[toDebugString]] toDebugString
+
+You can learn about a <<lineage, RDD lineage graph>> using `RDD.toDebugString` method.
 
 ```
 scala> val wordsCount = sc.textFile("README.md").flatMap(_.split("\\s+")).map((_, 1)).reduceByKey(_ + _)
@@ -255,7 +274,7 @@ res2: String =
 Enable `spark.logLineage` (assumed: `false`) to see a RDD lineage graph using <<toDebugString, RDD.toDebugString>> method every time an action on a RDD is called.
 
 ```
-$ ./bin/spark-shell --conf spark.logLineage=true
+$ ./bin/spark-shell -c spark.logLineage=true
 
 scala> sc.textFile("README.md", 4).count
 ...
