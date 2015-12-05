@@ -47,6 +47,16 @@ DAGScheduler needs link:spark-sparkcontext.adoc[SparkContext], link:spark-tasksc
 
 DAGScheduler reports metrics about its execution (refer to the section <<metrics, Metrics>>).
 
+DAGScheduler keeps track of the following information:
+
+* a mapping between jobs to their stages (using `jobIdToStageIds`)
+* a mapping between stage ids to stage instances (using `stageIdToStage`)
+* a mapping between ids to ShuffleMapStages (using `shuffleToMapStage`) - FIXME
+* a mapping between job ids to ActiveJob instances (using `jobIdToActiveJob`)
+* sets of stages in different states - waiting (`waitingStages`), running (`runningStages`), and failed (`failedStages`).
+* a set of ActiveJob instances (`activeJobs`)
+* a mapping between RDD ids and their cache preferences (`cacheLocs`)
+
 === [[jobs]] Jobs
 
 A *job* (aka _action job_ or _active job_) is a top-level work item (computation) submitted to DAGScheduler to <<stages, compute a stage>>.
@@ -305,7 +315,7 @@ The following are the current types of `DAGSchedulerEvent` events that are handl
 +
 `dagScheduler.handleGetTaskResult` executes in turn.
 * <<CompletionEvent, CompletionEvent>> - posted when link:spark-tasksetmanager.adoc[TaskSetManager] reports that a task has completed successfully or failed.
-* `ExecutorAdded`
+* `ExecutorAdded` - executor (`execId`) has been spawned on a host (`host`). Remove it from the failed executors list if it was included, and `submitWaitingStages()`.
 * `ExecutorLost`
 * `TaskSetFailed`
 * `ResubmitFailedStages`
@@ -368,57 +378,30 @@ image::images/dagscheduler-handleJobSubmitted.png[align="center"]
 
 `handleJobSubmitted` has access to the final RDD, the partitions to compute, and the JobListener for the job, i.e. `JobWaiter`.
 
-It creates a new <<ResultStage, ResultStage>> (FIXME review `newResultStage`) and instantiates `ActiveJob`.
+It creates a new <<ResultStage, ResultStage>> (as `finalStage` on the picture) and instantiates `ActiveJob`.
+
+CAUTION: FIXME review `newResultStage`
 
 CAUTION: FIXME `clearCacheLocs` clears an internal field is called in handle* methods. How many instances of DAGScheduler are created and when?
 
-You should see the following INFOs in the logs:
+You should see the following INFO messages in the logs:
 
 ```
-INFO DAGScheduler: Got job 1 (count at <console>:25) with 2 output partitions
-INFO DAGScheduler: Final stage: ResultStage 2 (count at <console>:25)
-INFO DAGScheduler: Parents of final stage: List(ShuffleMapStage 1)
-INFO DAGScheduler: Missing parents: List(ShuffleMapStage 1)
+INFO DAGScheduler: Got job [jobId] ([callSite.shortForm]) with [partitions.length] output partitions
+INFO DAGScheduler: Final stage: [finalStage] ([finalStage.name])
+INFO DAGScheduler: Parents of final stage: [finalStage.parents]
+INFO DAGScheduler: Missing parents: [getMissingParentStages(finalStage)]
 ```
 
-Then, the stage is told about the ActiveJob instance and some housekeeping is performed to track the job.
+Then, the `finalStage` stage is given the ActiveJob instance and some housekeeping is performed to track the job (using `jobIdToActiveJob` and `activeJobs`).
 
-`SparkListenerJobStart` event is posted to `listenerBus` (so other event listeners know about the event - not only DAGScheduler).
+`SparkListenerJobStart` event is posted to `listenerBus`.
 
-When DAGScheduler executes a job it first submits the final stage (using `DAGScheduler.submitStage(finalStage)`) that in turn submits any missing parents of the stage (recursively).
+CAUTION: FIXME `jobIdToStageIds` and `stageIdToStage` - they're already computed. When? Where?
 
-Two DEBUG messages show up in the logs:
+When DAGScheduler executes a job it first submits the final stage (using <<stage-submission, submitStage>>).
 
-```
-DEBUG DAGScheduler: submitStage(ResultStage 2)
-DEBUG DAGScheduler: missing: List(ShuffleMapStage 1)
-```
-
-When the current stage has no parent stages to submit, it is submitted and the INFO message shows up in the logs:
-
-```
-INFO DAGScheduler: Submitting ShuffleMapStage 1 (MapPartitionsRDD[5] at map at <console>:25), which has no missing parents
-```
-
-CAUTION: FIXME: Review `getMissingParentStages`
-
-And <<submitMissingTasks, submitMissingTasks>> is called. It is the moment when the stage's parents are available.
-
-If however there are missing parent stages for the stage, all stages are `submitStage`.
-
-If there's no active job for a stage, the stage and all the dependent jobs are aborted.
-
-```
-Job aborted due to stage failure: No active job for stage [stage.id]
-```
-
-No dependent jobs lead to the INFO message:
-
-```
-Ignoring failure of [failedStage] because all jobs depending on it are done
-```
-
-`submitWaitingStages()` called at the end.
+Right before `handleJobSubmitted` finishes, <<submitWaitingStages, submitWaitingStages()>> is called.
 
 ===== [[submitMissingTasks]] submitMissingTasks
 
@@ -490,6 +473,62 @@ Internally, link:spark-tasksetmanager.adoc[TaskSetManager] calls `DAGScheduler.t
 
 * `DAGScheduler.onReceive` calls `dagScheduler.handleTaskCompletion(completion)`
 
+=== [[submitWaitingStages]] submitWaitingStages
+
+`DAGScheduler.submitWaitingStages` method checks for waiting or failed stages that could now be eligible for submission.
+
+The following TRACE messages show in the logs when the method is called:
+
+```
+TRACE DAGScheduler: Checking for newly runnable parent stages
+TRACE DAGScheduler: running: [runningStages]
+TRACE DAGScheduler: waiting: [waitingStages]
+TRACE DAGScheduler: failed: [failedStages]
+```
+
+It clears the internal `waitingStages` set with stages that wait for their parent stages to finish.
+
+It goes over the waiting stages sorted by job ids in increasing order and calls <<stage-submission, submitStage>> method.
+
+=== [[stage-submission]] Stage submission
+
+CAUTION: FIXME
+
+`DAGScheduler.submitStage` is called when a stage is ready to be submitted for execution.
+
+It in turn submits any missing parents of the stage (recursively).
+
+Two DEBUG messages show up in the logs:
+
+```
+DEBUG DAGScheduler: submitStage(ResultStage 2)
+DEBUG DAGScheduler: missing: List(ShuffleMapStage 1)
+```
+
+When the current stage has no parent stages to submit, it is submitted and the INFO message shows up in the logs:
+
+```
+INFO DAGScheduler: Submitting ShuffleMapStage 1 (MapPartitionsRDD[5] at map at <console>:25), which has no missing parents
+```
+
+CAUTION: FIXME: Review `getMissingParentStages`
+
+And <<submitMissingTasks, submitMissingTasks>> is called. It is the moment when the stage's parents are available.
+
+If however there are missing parent stages for the stage, all stages are `submitStage`.
+
+If there's no active job for a stage, the stage and all the dependent jobs are aborted.
+
+```
+Job aborted due to stage failure: No active job for stage [stage.id]
+```
+
+No dependent jobs lead to the INFO message:
+
+```
+Ignoring failure of [failedStage] because all jobs depending on it are done
+```
+
 === [[stage-attempts]] Fault recovery - stage attempts
 
 A single stage can be re-executed in multiple *attempts* due to fault recovery. The number of attempts is configured (FIXME).
@@ -550,4 +589,10 @@ DAGScheduler uses the following ScheduledThreadPoolExecutors (with the policy of
 
 * `dag-scheduler-message` - a daemon thread pool using `j.u.c.ScheduledThreadPoolExecutor` with core pool size `1`. It is used to post `ResubmitFailedStages` when `FetchFailed` is reported.
 
+CAUTION: FIXME When are FetchFaileds reported?
+
 They are created using `ThreadUtils.newDaemonSingleThreadScheduledExecutor` method that uses Guava DSL to instantiate a ThreadFactory.
+
+=== [[settings]] Settings
+
+* `spark.test.noStageRetry` (default: `false`) - if enabled, FetchFailed will not cause stage retry, in order to surface the problem. Used for testing.
