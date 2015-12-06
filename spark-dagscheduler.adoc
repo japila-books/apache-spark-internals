@@ -9,10 +9,12 @@ _"Reading the sources"_, I say?! Yes, I _am_ kidding!
 
 === Introduction
 
-*DAGScheduler* is the scheduling layer in Apache Spark that implements *stage-oriented scheduling*, i.e. RDD actions trigger jobs that become stages with parallel tasks (see link:spark-execution-model.adoc[Execution Model]).
+*DAGScheduler* is the scheduling layer in Apache Spark that implements *stage-oriented scheduling*, i.e. RDD actions submit jobs that ultimately become stages with parallel tasks (see link:spark-execution-model.adoc[Execution Model]).
 
 .Executing action leads to new ResultStage and ActiveJob in DAGScheduler
 image::images/dagscheduler-rdd-partitions-job-resultstage.png[align="center"]
+
+The fundamental concepts of DAGScheduler are *jobs* and *stages* (refer to link:spark-dagscheduler-jobs.adoc[Jobs] and link:spark-dagscheduler-stages.adoc[Stages] respectively).
 
 DAGScheduler works on a driver. It is created as part of link:spark-sparkcontext.adoc#initialization[SparkContext's initialization], right after link:spark-taskscheduler.adoc[TaskScheduler] and link:spark-schedulerbackends.adoc[SchedulerBackend] are ready.
 
@@ -32,6 +34,14 @@ In addition to coming up with the execution DAG, DAGScheduler also determines th
 Furthermore, it handles failures due to shuffle output files being lost, in which case old stages may need to be resubmitted. Failures within a stage that are not caused by shuffle file loss are handled by the TaskScheduler itself, which will retry each task a small number of times before cancelling the whole stage.
 
 DAGScheduler uses an *event queue architecture* in which a thread can post `DAGSchedulerEvent` events, e.g. a new job or stage being submitted, that DAGScheduler reads and executes sequentially. See the section <<event-loop, Internal Event Loop - dag-scheduler-event-loop>>.
+
+DAGScheduler runs stages in topological order.
+
+DAGScheduler maintains different sets of stages in per execution state:
+
+* waiting (`waitingStages`)
+* running (`runningStages`)
+* failed (`failedStages`)
 
 DAGScheduler keeps track of the number of jobs already submitted (using `nextJobId` internal field and `numTotalJobs` method) as well as the number of stages (using `nextStageId`).
 
@@ -56,22 +66,10 @@ DAGScheduler keeps track of the following information:
 * a mapping between stage ids to stage instances (using `stageIdToStage`)
 * a mapping between ids to ShuffleMapStages (using `shuffleToMapStage`) - FIXME
 * a mapping between job ids to ActiveJob instances (using `jobIdToActiveJob`)
-* sets of stages in different states - waiting (`waitingStages`), running (`runningStages`), and failed (`failedStages`).
 * a set of ActiveJob instances (`activeJobs`)
 * a mapping between RDD ids and their cache preferences (`cacheLocs`)
 
-=== [[job-listener]] Job Listener and Completion Events
-
-You can listen for job completion or failure events after submitting a job to the DAGScheduler using `JobListener`.
-
-The job listener is notified each time a task succeeds, as well as if the whole job fails (and no further `taskSucceeded` events will happen).
-
-The following are the job listeners used:
-
-* `JobWaiter` waits until DAGScheduler completes the job and passes the results of tasks to a `resultHandler` function.
-* `ApproximateActionListener` FIXME
-
-=== [[runJob]] RDD, job execution, stages, and partitions
+=== [[runJob]] RDDs, Job Execution, Stages, and Partitions
 
 When DAGScheduler schedules a job as a result of link:spark-rdd.adoc#actions[executing an action on a RDD] or link:spark-sparkcontext.adoc#running-jobs[calling SparkContext.runJob() method directly], it spawns parallel tasks to compute (partial) results per partition.
 
@@ -100,7 +98,18 @@ Ultimately, `submitJob` posts `JobSubmitted` event on <<event-loop, dag-schedule
 .DAGScheduler.submitJob
 image::images/dagscheduler-submitjob.png[align="center"]
 
-=== [[event-loop]] Internal Event Loop - dag-scheduler-event-loop
+=== [[job-listener]] Job Listener and Completion Events
+
+You can listen for job completion or failure events after submitting a job to the DAGScheduler using `JobListener`.
+
+The job listener is notified each time a task succeeds, as well as if the whole job fails (and no further `taskSucceeded` events will happen).
+
+The following are the job listeners used:
+
+* `JobWaiter` waits until DAGScheduler completes the job and passes the results of tasks to a `resultHandler` function.
+* `ApproximateActionListener` FIXME
+
+=== [[event-loop]] dag-scheduler-event-loop - Internal Event Loop
 
 `DAGScheduler.eventProcessLoop` (of type `DAGSchedulerEventProcessLoop`) - is the event process loop to which Spark (by <<runJob, DAGScheduler.submitJob>>) posts jobs to schedule their execution. Later on, link:spark-tasksetmanager.adoc[TaskSetManager] talks back to DAGScheduler to inform about the status of the tasks using the same "communication channel".
 
@@ -217,58 +226,6 @@ When DAGScheduler executes a job it first submits the final stage (using <<stage
 
 Right before `handleJobSubmitted` finishes, <<submitWaitingStages, submitWaitingStages()>> is called.
 
-===== [[submitMissingTasks]] submitMissingTasks
-
-`DAGScheduler.submitMissingTasks` is called when the parent stages of the current stage are already finished and it is now possible to run tasks for the current stage.
-
-In the logs you should see the following DEBUG message:
-
-```
-DEBUG DAGScheduler: submitMissingTasks(ResultStage 4)
-```
-
-The method marks the current stage running.
-
-`outputCommitCoordinator.stageStart` is called.
-
-CAUTION: FIXME Review `outputCommitCoordinator.stageStart`
-
-`SparkListenerStageSubmitted` is posted.
-
-CAUTION: FIXME `SparkEnv.get.closureSerializer.newInstance()`
-
-`closureSerializer.serialize` is called to calculate `taskBinaryBytes` - an array of bytes of (rdd, func) for `ResultStage` and (rdd, shuffleDep) for `ShuffleMapStage` - that is `sc.broadcast` afterwards.
-
-CAUTION: FIXME Review `taskBinaryBytes` and what happens when `sc.broadcast(taskBinaryBytes)`.
-
-For each partition to compute for the stage, a collection of <<spark-taskscheduler.adoc#shufflemaptask, ShuffleMapTask>> and
-`ResultTask` is created.
-
-...IMAGE...FIXME...DAGScheduler calls taskScheduler.submitTasks
-
-The following INFO and DEBUG messages are in the logs:
-
-```
-INFO DAGScheduler: Submitting 2 missing tasks from ShuffleMapStage 1 (MapPartitionsRDD[5] at map at <console>:25)
-DEBUG DAGScheduler: New pending partitions: Set(0, 1)
-```
-
-The task collection becomes a `TaskSet` for `taskScheduler.submitTasks`.
-
-In case of no tasks to be submitted for a stage, a DEBUG message shows up in the logs.
-
-For ShuffleMapStage:
-
-```
-DEBUG DAGScheduler: Stage [stage] is actually done; (available: ${stage.isAvailable},available outputs: ${stage.numAvailableOutputs},partitions: ${stage.numPartitions})
-```
-
-For ResultStage:
-
-```
-DEBUG DAGScheduler: Stage ${stage} is actually done; (partitions: ${stage.numPartitions})
-```
-
 ==== [[CompletionEvent]] CompletionEvent
 
 CAUTION: FIXME Unfinished
@@ -291,7 +248,7 @@ Internally, link:spark-tasksetmanager.adoc[TaskSetManager] calls `DAGScheduler.t
 
 `DAGScheduler.submitWaitingStages` method checks for waiting or failed stages that could now be eligible for submission.
 
-The following TRACE messages show in the logs when the method is called:
+The following `TRACE` messages show in the logs when the method is called:
 
 ```
 TRACE DAGScheduler: Checking for newly runnable parent stages
@@ -300,7 +257,7 @@ TRACE DAGScheduler: waiting: [waitingStages]
 TRACE DAGScheduler: failed: [failedStages]
 ```
 
-It clears the internal `waitingStages` set with stages that wait for their parent stages to finish.
+The method clears the internal `waitingStages` set with stages that wait for their parent stages to finish.
 
 It goes over the waiting stages sorted by job ids in increasing order and calls <<stage-submission, submitStage>> method.
 
@@ -350,11 +307,15 @@ CAUTION: FIXME
 
 It starts with the target RDD of `stage` given as an input parameter for which `cacheLocs` map is checked by the RDD's id.
 
+The parent stages are actually only the instances of link:spark-dagscheduler-stages.adoc#ShuffleMapStage[ShuffleMapStage].
+
 If the RDD's storage level is `NONE`, it is assumed that no partition cache location are available. Otherwise, the block manager `BlockManagerMaster` is queried with `RDDBlockId` for each partition using `BlockManagerMaster.getLocations`. A collection of `TaskLocation` is built out of it.
 
-If at least one partition has been found uncached, `rdd.dependencies` are consulted to find `ShuffleDependency` dependencies for their corresponding `ShuffleMapStage` (using `getShuffleMapStage`).
+If at least one partition of an RDD has been found uncached, the list of dependencies (using `RDD.dependencies`) is traversed to find link:spark-rdd-dependencies.adoc#ShuffleDependency[ShuffleDependency] dependencies for their corresponding link:spark-dagscheduler-stages.adoc#ShuffleMapStage[ShuffleMapStage] (using `getShuffleMapStage`).
 
 CAUTION: FIXME Review `getShuffleMapStage`
+
+CAUTION: FIXME...IMAGE with ShuffleDependencies queried
 
 A missing `ShuffleMapStage` gets added to the set of missing map stages.
 
@@ -421,6 +382,58 @@ DAGScheduler uses the following ScheduledThreadPoolExecutors (with the policy of
 CAUTION: FIXME When are FetchFaileds reported?
 
 They are created using `ThreadUtils.newDaemonSingleThreadScheduledExecutor` method that uses Guava DSL to instantiate a ThreadFactory.
+
+=== [[submitMissingTasks]] submitMissingTasks
+
+`DAGScheduler.submitMissingTasks` is called when the parent stages of the current stage are already finished and it is now possible to run tasks for the current stage.
+
+In the logs you should see the following DEBUG message:
+
+```
+DEBUG DAGScheduler: submitMissingTasks(ResultStage 4)
+```
+
+The method marks the current stage running.
+
+`outputCommitCoordinator.stageStart` is called.
+
+CAUTION: FIXME Review `outputCommitCoordinator.stageStart`
+
+`SparkListenerStageSubmitted` is posted.
+
+CAUTION: FIXME `SparkEnv.get.closureSerializer.newInstance()`
+
+`closureSerializer.serialize` is called to calculate `taskBinaryBytes` - an array of bytes of (rdd, func) for `ResultStage` and (rdd, shuffleDep) for `ShuffleMapStage` - that is `sc.broadcast` afterwards.
+
+CAUTION: FIXME Review `taskBinaryBytes` and what happens when `sc.broadcast(taskBinaryBytes)`.
+
+For each partition to compute for the stage, a collection of <<spark-taskscheduler.adoc#shufflemaptask, ShuffleMapTask>> and
+`ResultTask` is created.
+
+...IMAGE...FIXME...DAGScheduler calls taskScheduler.submitTasks
+
+The following INFO and DEBUG messages are in the logs:
+
+```
+INFO DAGScheduler: Submitting 2 missing tasks from ShuffleMapStage 1 (MapPartitionsRDD[5] at map at <console>:25)
+DEBUG DAGScheduler: New pending partitions: Set(0, 1)
+```
+
+The task collection becomes a `TaskSet` for `taskScheduler.submitTasks`.
+
+In case of no tasks to be submitted for a stage, a DEBUG message shows up in the logs.
+
+For ShuffleMapStage:
+
+```
+DEBUG DAGScheduler: Stage [stage] is actually done; (available: ${stage.isAvailable},available outputs: ${stage.numAvailableOutputs},partitions: ${stage.numPartitions})
+```
+
+For ResultStage:
+
+```
+DEBUG DAGScheduler: Stage ${stage} is actually done; (partitions: ${stage.numPartitions})
+```
 
 === [[settings]] Settings
 
