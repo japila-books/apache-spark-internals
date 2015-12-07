@@ -1,6 +1,6 @@
 == Executors
 
-*Executors* are distributed agents running on hosts that run tasks. They typically (?) run for the entire lifetime of a Spark application. Executors communicate with the driver to send computation results back.
+*Executors* are distributed agents to run tasks. They typically (?) run for the entire lifetime of a Spark application. Executors communicate with the driver to send computation results back.
 
 CAUTION: FIXME image - see the images above
 
@@ -8,9 +8,9 @@ Executor offers are described by executor id and the host the executor runs on (
 
 Executors provide in-memory storage for RDDs that are cached in Spark applications (via link:spark-blockmanager.adoc[Block Manager]).
 
-When executors are started they register themselves with the driver and communicate directly to launch jobs (as tasks).
+When executors are started they register themselves with the driver and communicate directly to execute tasks.
 
-Internally, a Spark executor is backed by a thread pool to run tasks.
+Internally, executors use a daemon cached thread pool `Executor task launch worker-ID` for <<metrics, sending metrics>> and execute tasks.
 
 Each executor can run multiple tasks over its lifetime, both parallel and sequentially.
 
@@ -20,7 +20,7 @@ An executor is described by id, hostname, environment (as `SparkEnv`), classpath
 
 [TIP]
 ====
-Enable `INFO` logging level for `org.apache.spark.executor.Executor` logger to see what happens under the covers in executors.
+Enable `INFO` or `DEBUG` logging levels for `org.apache.spark.executor.Executor` logger to see what happens in executors.
 
 Add the following line to `conf/log4j.properties`:
 
@@ -35,8 +35,6 @@ When an executor is started the following INFO messages are printed out in the l
 INFO Executor: Starting executor ID [executorId] on host [executorHostname]
 INFO Executor: Using REPL class URI: http://192.168.1.4:56131
 ```
-
-Executors use a daemon cached thread pool `Executor task launch worker-ID` for <<metrics,sending metrics>> and execute tasks.
 
 (only for non-local mode) Executors initialize the application using `BlockManager.initialize()`.
 
@@ -72,6 +70,19 @@ A worker requires the additional services (beside the common ones like ...):
 
 CAUTION: FIXME How many cores are assigned per executor?
 
+=== [[FetchFailedException]] FetchFailedException
+
+`FetchFailedException` exception is thrown when an executor failed to fetch a shuffle block.
+
+It contains the following:
+
+* an unique identifier for a BlockManager (as `BlockManagerId`)
+* `shuffleId`
+* `mapId`
+* `reduceId`
+* `message` - a short exception message
+* `cause` - a `Throwable` object
+
 === [[resource-offers]] Resource Offers
 
 Read link:spark-taskscheduler.adoc#resourceOffers[resourceOffers] in TaskSchedulerImpl and link:spark-tasksetmanager.adoc##resourceOffers[resourceOffer] in TaskSetManager.
@@ -81,7 +92,7 @@ Read link:spark-taskscheduler.adoc#resourceOffers[resourceOffers] in TaskSchedul
 
 Executors use link:spark-metrics.adoc[Metrics System] (via `ExecutorSource`) to report metrics about internal status.
 
-NOTE: Metrics are only available for non-local mode.
+NOTE: Metrics are only available for cluster modes, i.e. `local` mode turns metrics off.
 
 The name of the source is *executor*.
 
