@@ -1,16 +1,16 @@
 == Executors
 
-*Executors* are distributed agents to run tasks. They typically (?) run for the entire lifetime of a Spark application. Executors communicate with the driver to send computation results back.
+*Executors* are distributed agents responsible for executing link:spark-taskscheduler-tasks.adoc[tasks]. They typically (?) run for the entire lifetime of a Spark application. Executors communicate with the driver to send computation results back.
 
 CAUTION: FIXME image - see the images above
 
-Executor offers are described by executor id and the host the executor runs on (see <<resource-offers, Resource Offers>> in this document).
+Executor offers are described by executor id and the host on which an executor runs (see <<resource-offers, Resource Offers>> in this document).
 
 Executors provide in-memory storage for RDDs that are cached in Spark applications (via link:spark-blockmanager.adoc[Block Manager]).
 
 When executors are started they register themselves with the driver and communicate directly to execute tasks.
 
-Internally, executors use a daemon cached thread pool `Executor task launch worker-ID` for <<metrics, sending metrics>> and execute tasks.
+Executors use a <<thread-pool, thread pool>> for <<metrics, sending metrics>> and <<launching-tasks, launching tasks>> (by means of <<TaskRunner, TaskRunner>>).
 
 Each executor can run multiple tasks over its lifetime, both parallel and sequentially.
 
@@ -40,26 +40,7 @@ INFO Executor: Using REPL class URI: http://192.168.1.4:56131
 
 CAUTION: FIXME What does `BlockManager.initialize()`?
 
-Executors maintain a list of running tasks (in `runningTasks` as instances of `TaskRunner`).
-
-When an executor starts you should see the following INFO message in the logs:
-
-```
-INFO Executor: Running task 0.0 in stage 2.0 (TID 8)
-```
-
-`TID` is the task's id being executed in `Executor task launch worker-8`.
-
-You can later see the INFO log:
-
-```
-INFO Executor: Finished task 0.0 in stage 2.0 (TID 8). 2082 bytes result sent to driver
-```
-
-* Distributed workers
-* Responsible for executing link:spark-taskscheduler.adoc#tasks[tasks]
-* Responsible for storing any data that the user chooses to cache
-* Can run many tasks in parallel
+Executors maintain a list of running tasks (in `runningTasks` as instances of <<TaskRunner,TaskRunner>>).
 
 A worker requires the additional services (beside the common ones like ...):
 
@@ -69,6 +50,79 @@ A worker requires the additional services (beside the common ones like ...):
 * link:spark-metrics.adoc[MetricsSystem] with the name `executor`
 
 CAUTION: FIXME How many cores are assigned per executor?
+
+=== [[thread-pool]] Executor task launch worker Thread Pool
+
+Executors use a daemon cached thread pool *Executor task launch worker-ID* for <<launching-tasks, launching tasks>>.
+
+=== [[launching-tasks]] Launching Tasks
+
+`Executor.launchTask` is the method to launch tasks. It accepts the context (as link:spark-executor-backends.adoc[ExecutorBackend]), attempt number, and the id, name and serialized form of the task.
+
+It creates a <<TaskRunner,TaskRunner>> that is executed on <<thread-pool, Executor task launch worker Thread Pool>>.
+
+TaskRunner is registered in `runningTasks` map.
+
+=== [[TaskRunner]] TaskRunner
+
+*TaskRunner* is a thread of execution that runs a task. It requires a link:spark-executor-backends.adoc[ExecutorBackend], task and attempt ids, task name, and serialized version of the task (as `ByteBuffer`). It then keeps sending updates about task execution to the executor backend.
+
+When a `TaskRunner` starts running, it prints the following INFO message to the logs:
+
+```
+INFO Executor: Running [taskName] (TID [taskId])
+```
+
+`taskId` is the id of the task being executed in `Executor task launch worker-[taskId]`.
+
+TaskRunner calls `Task.run` to execute a task.
+
+CAUTION: FIXME Review `task.run()`
+
+CAUTION: FIXME What's the cardinality between TaskRunner and Task?
+
+CAUTION: FIXME TaskMemoryManager and task serialization and deserialization
+
+It deserializes the task (using globally-configured `Serializer`) and sets the `TaskMemoryManager` for the task.
+
+```
+DEBUG Task [taskId]'s epoch is [task.epoch]
+```
+
+TaskRunner sends update of the epoch of the task to `MapOutputTracker`.
+
+CAUTION: FIXME Why is `MapOutputTracker.updateEpoch` needed?
+
+Task runs (with `taskId`, `attemptNumber`, and the globally-configured `MetricsSystem`). When a task finishes, it returns a value and `accumUpdates`.
+
+CAUTION: FIXME What are `accumUpdates`?
+
+The result value is serialized (using the other instance of `Serializer`, i.e. `serializer` - there are two `Serializer` instances in `SparkContext.env`).
+
+A `DirectTaskResult` that contains the serialized result and `accumUpdates` is serialized.
+
+If `maxResultSize` is set and the size of the serialized result exceeds the value, a SparkException is reported.
+
+```
+scala> sc.getConf.get("spark.driver.maxResultSize")
+res5: String = 1m
+
+scala> sc.parallelize(0 to 1024*1024+10, 1).collect
+...
+INFO DAGScheduler: Job 3 failed: collect at <console>:25, took 0.075073 s
+org.apache.spark.SparkException: Job aborted due to stage failure: Total size of serialized results of 1 tasks (4.0 MB) is bigger than spark.driver.maxResultSize (1024.0 KB)
+  at org.apache.spark.scheduler.DAGScheduler.org$apache$spark$scheduler$DAGScheduler$$failJobAndIndependentStages(DAGScheduler.scala:1430)
+```
+
+If however the size exceeds `akkaFrameSize`, ...FIXME.
+
+A successful execution is "announced" as INFO to the logs:
+
+```
+INFO Executor: Finished [taskName] (TID [taskId]). [resultSize] bytes result sent to driver
+```
+
+The result is sent to the driver using `execBackend.statusUpdate(taskId, TaskState.FINISHED, serializedResult)`. FIXME
 
 === [[FetchFailedException]] FetchFailedException
 
@@ -86,7 +140,6 @@ It contains the following:
 === [[resource-offers]] Resource Offers
 
 Read link:spark-taskscheduler.adoc#resourceOffers[resourceOffers] in TaskSchedulerImpl and link:spark-tasksetmanager.adoc##resourceOffers[resourceOffer] in TaskSetManager.
-
 
 === [[metrics]] Metrics
 
