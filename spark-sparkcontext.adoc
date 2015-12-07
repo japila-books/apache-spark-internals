@@ -9,7 +9,7 @@ A Spark context is essentially a client of Spark's execution environment and act
 .Spark context acts as the master of your Spark application
 image::diagrams/sparkcontext-services.png[align="center"]
 
-As a developer, you can use `SparkContext` for the following functions:
+`SparkContext` offers the following functions:
 
 * link:spark-cluster.adoc[Connecting to a cluster]
 * link:spark-configuration.adoc[Specifing mandatory application name]
@@ -19,6 +19,7 @@ As a developer, you can use `SparkContext` for the following functions:
 * Accessing services, e.g. link:spark-taskscheduler.adoc[Task Scheduler], link:spark-scheduler-listeners.adoc[Listener Bus], link:spark-blockmanager.adoc[Block Manager], <<coarse-grained-scheduler-backends, CoarseGrainedSchedulerBackends>>, link:spark-shuffle-service.adoc[Shuffle Service].
 * <<running-jobs, Running jobs>>
 * <<custom-schedulers, Setting up custom Scheduler Backend, Task Scheduler and DAGScheduler>>
+* <<closure-cleaning, Closure Cleaning>>
 
 Read the scaladoc of  http://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.SparkContext[org.apache.spark.SparkContext].
 
@@ -307,6 +308,41 @@ scala> val a = sc.makeRDD(1 to 1000, 10000).map(x => (x, x)).reduceByKey(_ + _)
 scala> val b = sc.makeRDD(1 to 1000, 10000).map(x => (x, x)).reduceByKey(_ + _)
 scala> a.union(b).count()
 ```
+
+=== [[closure-cleaning]] Closure Cleaning
+
+Every time an action is called, Spark cleans up the closure, i.e. the body of the action, before it is serialized and sent over the wire to executors.
+
+SparkContext comes with `clean(f: F, checkSerializable: Boolean = true)` method that does this. It in turn calls `ClosureCleaner.clean` method.
+
+Not only does `ClosureCleaner.clean` method clean the closure, but also does it transitively, i.e. referenced closures are cleaned transitively.
+
+A closure is considered serializable as long as it does not explicitly reference unserializable objects. It does so by traversing the hierarchy of enclosing closures and null out any references that are not actually used by the starting closure.
+
+[TIP]
+====
+Enable `DEBUG` logging level for `org.apache.spark.util.ClosureCleaner` logger to see what happens inside the class.
+
+Add the following line to `conf/log4j.properties`:
+
+```
+log4j.logger.org.apache.spark.util.ClosureCleaner=DEBUG
+```
+====
+
+With `DEBUG` logging level you should see the following messages in the logs:
+
+```
++++ Cleaning closure [func] ([func.getClass.getName]) +++
+ + declared fields: [declaredFields.size]
+     [field]
+ ...
++++ closure [func] ([func.getClass.getName]) is now cleaned +++
+```
+
+Serialization is verified using a new instance of `Serializer` (as `SparkEnv.get.closureSerializer`). Refer to link:spark-serialization.adoc[Serialization].
+
+CAUTION: FIXME an example, please.
 
 === [[initialization]] SparkContext's initialization
 
