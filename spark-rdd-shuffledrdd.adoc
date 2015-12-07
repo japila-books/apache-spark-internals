@@ -1,6 +1,24 @@
 == ShuffledRDD
 
-*ShuffledRDD* is the result RDD of a link:spark-rdd-shuffle.adoc[shuffle], i.e. the result of `coalesce` transformation with `shuffle` input parameter being `true` (defaults to `false`).
+*ShuffledRDD* is the result RDD of a transformation that triggers link:spark-rdd-shuffle.adoc[shuffle] at execution. Such a transformation ultimately call `coalesce` transformation with `shuffle` input parameter `true` (default: `false`).
+
+Let's have a look at the below example with `groupBy` transformation:
+
+```
+scala> val r = sc.parallelize(0 to 9, 3).groupBy(_ / 3)
+r: org.apache.spark.rdd.RDD[(Int, Iterable[Int])] = ShuffledRDD[2] at groupBy at <console>:18
+
+scala> r.toDebugString
+res0: String =
+(3) ShuffledRDD[2] at groupBy at <console>:18 []
+ +-(3) MapPartitionsRDD[1] at groupBy at <console>:18 []
+    |  ParallelCollectionRDD[0] at parallelize at <console>:18 []
+```
+
+As you may have noticed, `groupBy` transformation adds `ShuffledRDD` RDD that will execute shuffling at execution time (as depicted in the following screenshot).
+
+.Two stages in a job due to shuffling
+image::images/spark-webui-job-two-stages.png[align="center"]
 
 It's also known as *a shuffle step* (see https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/rdd/RDD.scala#L403[this line in org/apache/spark/rdd/RDD.scala]).
 
