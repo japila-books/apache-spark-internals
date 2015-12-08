@@ -2,8 +2,6 @@
 
 *Executors* are distributed agents responsible for executing link:spark-taskscheduler-tasks.adoc[tasks]. They typically (?) run for the entire lifetime of a Spark application. Executors communicate with the driver to send computation results back.
 
-CAUTION: FIXME image - see the images above
-
 Executor offers are described by executor id and the host on which an executor runs (see <<resource-offers, Resource Offers>> in this document).
 
 Executors provide in-memory storage for RDDs that are cached in Spark applications (via link:spark-blockmanager.adoc[Block Manager]).
@@ -53,21 +51,42 @@ A worker requires the additional services (beside the common ones like ...):
 
 CAUTION: FIXME How many cores are assigned per executor?
 
-=== [[thread-pool]] Executor task launch worker Thread Pool
-
-Executors use a daemon cached thread pool *Executor task launch worker-ID* for <<launching-tasks, launching tasks>>.
-
 === [[launching-tasks]] Launching Tasks
 
-`Executor.launchTask` is the method to launch tasks. It accepts the context (as link:spark-executor-backends.adoc[ExecutorBackend]), attempt number, and the id, name and serialized form of the task.
+`Executor.launchTask` creates a <<TaskRunner,TaskRunner>> that is executed on <<thread-pool, Executor task launch worker Thread Pool>>.
 
-It creates a <<TaskRunner,TaskRunner>> that is executed on <<thread-pool, Executor task launch worker Thread Pool>>.
+.Launching tasks on executor using TaskRunners
+image::images/executor-taskrunner-executorbackend.png[align="center"]
+
+It accepts the context (as link:spark-executor-backends.adoc[ExecutorBackend]), attempt number, and the id, name and serialized form of the task.
 
 TaskRunner is registered in the internal `runningTasks` map.
 
+=== [[heartbeats-and-active-task-metrics]] Heartbeats with Active Task Metrics
+
+Executors keep sending <<metrics, active task metrics>> to a driver every <<settings, spark.executor.heartbeatInterval>>.
+
+.Executors use HeartbeatReceiver endpoint to report task metrics
+image::images/executor-heartbeatReceiver-endpoint.png[align="center"]
+
+The structure sent is an array of `(Long, TaskMetrics)`.
+
+[CAUTION]
+====
+FIXME
+
+* What's in `taskRunner.task.metrics`?
+* What's in `Heartbeat`? Why is `blockManagerId` sent?
+* What's in `RpcUtils.makeDriverRef`?
+====
+
+Executors use internal `driver-heartbeater` daemon single-thread scheduled pool executor, i.e. `ScheduledThreadPoolExecutor`.
+
 === [[TaskRunner]] TaskRunner
 
-*TaskRunner* is a thread of execution that runs a task. It requires a link:spark-executor-backends.adoc[ExecutorBackend], task and attempt ids, task name, and serialized version of the task (as `ByteBuffer`). It then keeps sending updates about task execution to the executor backend.
+*TaskRunner* is a thread of execution that runs a task. It requires a link:spark-executor-backends.adoc[ExecutorBackend], task and attempt ids, task name, and serialized version of the task (as `ByteBuffer`). It sends updates about task execution to the executor backend.
+
+Sending task status updates to the executor backend is a mechanism to inform the executor backend about task being started (`TaskState.RUNNING`), task finish together with the serialized result (`TaskState.FINISHED`), task being killed (`TaskState.KILLED`) and task failures (`TaskState.FAILED`).
 
 When a `TaskRunner` starts running, it prints the following INFO message to the logs:
 
@@ -77,11 +96,9 @@ INFO Executor: Running [taskName] (TID [taskId])
 
 `taskId` is the id of the task being executed in `Executor task launch worker-[taskId]`.
 
-TaskRunner calls `Task.run` to execute a task.
+TaskRunner link:spark-taskscheduler-tasks.adoc#execution[executes a task].
 
-CAUTION: FIXME Review `task.run()`
-
-TaskRunner can run a single task only. When TaskRunner finishes (running a task), it is removed from `runningTasks`.
+TaskRunner can run a single task only. When TaskRunner finishes, it is removed from `runningTasks`.
 
 CAUTION: FIXME TaskMemoryManager and task serialization and deserialization
 
@@ -124,9 +141,11 @@ A successful execution is "announced" as INFO to the logs:
 INFO Executor: Finished [taskName] (TID [taskId]). [resultSize] bytes result sent to driver
 ```
 
-The result is sent to the driver using `execBackend.statusUpdate(taskId, TaskState.FINISHED, serializedResult)`. FIXME
+The serialized result is sent to the driver using `execBackend.statusUpdate(taskId, TaskState.FINISHED, serializedResult)`.
 
 === [[FetchFailedException]] FetchFailedException
+
+CAUTION: FIXME
 
 `FetchFailedException` exception is thrown when an executor failed to fetch a shuffle block.
 
@@ -142,6 +161,10 @@ It contains the following:
 === [[resource-offers]] Resource Offers
 
 Read link:spark-taskscheduler.adoc#resourceOffers[resourceOffers] in TaskSchedulerImpl and link:spark-tasksetmanager.adoc##resourceOffers[resourceOffer] in TaskSetManager.
+
+=== [[thread-pool]] Executor task launch worker Thread Pool
+
+Executors use a daemon cached thread pool *Executor task launch worker-ID* for <<launching-tasks, launching tasks>>.
 
 === [[metrics]] Metrics
 
@@ -167,26 +190,6 @@ It emits the following numbers:
 * *filesystem.file.read_ops*
 * *filesystem.file.largeRead_ops*
 * *filesystem.file.write_ops*
-
-=== [[heartbeats-and-active-task-metrics]] Heartbeats with Active Task Metrics
-
-Executors keep sending <<metrics, active task metrics>> every <<settings, spark.executor.heartbeatInterval>>.
-
-.Executors use HeartbeatReceiver endpoint to report task metrics
-image::images/executor-heartbeatReceiver-endpoint.png[align="center"]
-
-The structure with the information is an array of `(Long, TaskMetrics)`.
-
-[CAUTION]
-====
-FIXME
-
-* What's in `taskRunner.task.metrics`?
-* What's in `Heartbeat`? Why is `blockManagerId` sent?
-* What's in `RpcUtils.makeDriverRef`?
-====
-
-Executors use internal `driver-heartbeater` daemon single-thread scheduled pool executor, i.e. `ScheduledThreadPoolExecutor`.
 
 === [[settings]] Settings
 
