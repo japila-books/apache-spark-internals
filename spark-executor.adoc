@@ -12,7 +12,7 @@ When executors are started they register themselves with the driver and communic
 
 Executors use a <<thread-pool, thread pool>> for <<metrics, sending metrics>> and <<launching-tasks, launching tasks>> (by means of <<TaskRunner, TaskRunner>>).
 
-Each executor can run multiple tasks over its lifetime, both parallel and sequentially.
+Each executor can run multiple tasks over its lifetime, both in parallel and sequentially.
 
 It is recommended to have as many executors as data nodes and as many cores as you can get from the cluster.
 
@@ -36,11 +36,13 @@ INFO Executor: Starting executor ID [executorId] on host [executorHostname]
 INFO Executor: Using REPL class URI: http://192.168.1.4:56131
 ```
 
+It creates an RPC endpoint for receiving RPCs from the driver.
+
 (only for non-local mode) Executors initialize the application using `BlockManager.initialize()`.
 
 CAUTION: FIXME What does `BlockManager.initialize()`?
 
-Executors maintain a list of running tasks (in `runningTasks` as instances of <<TaskRunner,TaskRunner>>).
+Executors maintain a mapping between task ids and running tasks (as instances of <<TaskRunner,TaskRunner>>) in `runningTasks` internal map.
 
 A worker requires the additional services (beside the common ones like ...):
 
@@ -61,7 +63,7 @@ Executors use a daemon cached thread pool *Executor task launch worker-ID* for <
 
 It creates a <<TaskRunner,TaskRunner>> that is executed on <<thread-pool, Executor task launch worker Thread Pool>>.
 
-TaskRunner is registered in `runningTasks` map.
+TaskRunner is registered in the internal `runningTasks` map.
 
 === [[TaskRunner]] TaskRunner
 
@@ -79,7 +81,7 @@ TaskRunner calls `Task.run` to execute a task.
 
 CAUTION: FIXME Review `task.run()`
 
-CAUTION: FIXME What's the cardinality between TaskRunner and Task?
+TaskRunner can run a single task only. When TaskRunner finishes (running a task), it is removed from `runningTasks`.
 
 CAUTION: FIXME TaskMemoryManager and task serialization and deserialization
 
@@ -166,16 +168,14 @@ It emits the following numbers:
 * *filesystem.file.largeRead_ops*
 * *filesystem.file.write_ops*
 
-=== [[heartbeats-and-partial-metrics]] Sending heartbeats and partial metrics for active tasks
+=== [[heartbeats-and-active-task-metrics]] Heartbeats with Active Task Metrics
 
-`driver-heartbeater` is a daemon single-thread scheduled pool executor, i.e. `ScheduledThreadPoolExecutor`, used by executor to send heartbeats and partial task metrics to a driver. They are sent to the driver every <<settings, spark.executor.heartbeatInterval>>.
+Executors keep sending <<metrics, active task metrics>> every <<settings, spark.executor.heartbeatInterval>>.
 
-.Executors use HeartbeatReceiver endpoint to report heartbeats and task metrics
+.Executors use HeartbeatReceiver endpoint to report task metrics
 image::images/executor-heartbeatReceiver-endpoint.png[align="center"]
 
 The structure with the information is an array of `(Long, TaskMetrics)`.
-
-CAUTION: FIXME `startDriverHeartbeater()` might be called too early in intialization of Executor before `heartbeater` internal field is initialized.
 
 [CAUTION]
 ====
@@ -186,7 +186,7 @@ FIXME
 * What's in `RpcUtils.makeDriverRef`?
 ====
 
-It creates an RPC endpoint for receiving RPCs from the driver.
+Executors use internal `driver-heartbeater` daemon single-thread scheduled pool executor, i.e. `ScheduledThreadPoolExecutor`.
 
 === [[settings]] Settings
 
