@@ -86,16 +86,27 @@ RpcAddress is encoded as a *Spark URL*, i.e. `spark://host:port`.
 
 It is in the format of *spark://[name]@[rpcAddress.host]:[rpcAddress.port]*.
 
-=== [[endpoint-lookup-timeout]] Endpoint lookup timeout
+=== [[endpoint-lookup-timeout]] Endpoint Lookup Timeout
 
-The following is the prioritized list of *lookup timeout* properties (the higher on the list, the more important):
+When a remote endpoint is resolved, a local RPC environment connects to the remote one. It is called *endpoint lookup*. To configure the time needed for the endpoint lookup you can use the following settings.
+
+It is a prioritized list of *lookup timeout* properties (the higher on the list, the more important):
 
 * `spark.rpc.lookupTimeout`
 * `spark.network.timeout`
 
-Their value can be a number alone and it is assumed to be in seconds or any number with time suffix, e.g. `50s`, `100ms`, or `250us`.
+Their value can be a number alone (seconds) or any number with time suffix, e.g. `50s`, `100ms`, or `250us`. See <<settings, Settings>>.
 
-The default lookup timeout value is `120s`.
+=== [[ask-timeout]] Ask Operation Timeout
+
+*Ask operation* is when a RPC client expects a response to a message. It is a blocking operation.
+
+You can control the time to wait for a response using the following settings (in that order):
+
+* `spark.rpc.askTimeout`
+* `spark.network.timeout`
+
+Their value can be a number alone (seconds) or any number with time suffix, e.g. `50s`, `100ms`, or `250us`. See <<settings, Settings>>.
 
 === Exceptions
 
@@ -103,7 +114,7 @@ When RpcEnv catches uncaught exceptions, it uses `RpcCallContext.sendFailure` to
 
 If any error is thrown from one of RpcEndpoint methods except `onError`, `onError` will be invoked with the cause. If `onError` throws an error, RpcEnv will ignore it.
 
-=== [[client-mode]] clientMode = is this an executor or the driver?
+=== [[client-mode]] Client Mode = is this an executor or the driver?
 
 When an RPC Environment is initialized link:spark-runtime-environment.adoc#createDriverEnv[as part of the initialization of the driver] or link:spark-runtime-environment.adoc#createExecutorEnv[executors] (using `RpcEnv.create`), `clientMode` is `false` for the driver and `true` for executors.
 
@@ -111,7 +122,7 @@ When an RPC Environment is initialized link:spark-runtime-environment.adoc#creat
 RpcEnv.create(actorSystemName, hostname, port, conf, securityManager, clientMode = !isDriver)
 ```
 
-It helps to ensure that the RPC environment for Netty, *NettyRpcEnv*, is only started on the driver (not executors).
+Refer to link:#client-mode[Client Mode] in Netty-based RpcEnv for the implementation-specific details.
 
 === [[RpcEnvConfig]] RpcEnvConfig
 
@@ -126,8 +137,11 @@ It assumes that you have a <<RpcEnvFactory, RpcEnvFactory>> with an empty constr
 === [[settings]] Settings
 
 * `spark.rpc` (default: `netty` since Spark 1.6.0-SNAPSHOT) - the RPC implementation to use. See <<RpcEnvFactory, RpcEnvFactory>>.
-* `spark.rpc.lookupTimeout` (default: `120s`) - the default timeout to use for RPC remote endpoint lookup.
+* `spark.rpc.lookupTimeout` (default: `120s`) - the default timeout to use for RPC remote endpoint lookup. Refer to <<endpoint-lookup-timeout, Endpoint Lookup Timeout>>.
 * `spark.network.timeout` (default: `120s`) - the default network timeout to use for RPC remote endpoint lookup.
+* `spark.rpc.numRetries` (default: `3`) - the number of attempts to send a message and receive a response from a remote endpoint.
+* `spark.rpc.retry.wait` (default: `3s`) - the time to wait on each retry.
+* `spark.rpc.askTimeout` (default: `120s`) - the default timeout to use for RPC ask operations. Refer to <<ask-timeout, Ask Operation Timeout>>.
 
 === Others
 

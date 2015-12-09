@@ -1,0 +1,51 @@
+== CoarseGrainedSchedulerBackend
+
+*CoarseGrainedSchedulerBackend* is a scheduler backend that waits for link:spark-executor-backends.adoc#CoarseGrainedExecutorBackend[coarse-grained executors] to connect to it (using link:spark-rpc.adoc[RPC Environment]) and run tasks. It talks to a cluster manager for resources for executors (register, remove).
+
+This backend holds executors for the duration of the Spark job rather than relinquishing executors whenever a task is done and asking the scheduler to launch a new executor for each new task.
+
+It requires a link:spark-taskscheduler.adoc[Task Scheduler], and a link:spark-rpc.adoc[RPC Environment].
+
+It uses link:spark-scheduler-listeners.adoc[Listener Bus].
+
+It registers <<CoarseGrainedScheduler, CoarseGrainedScheduler RPC Endpoint>> (`driverEndpoint` internal field) that executors use for RPC communication.
+
+It tracks:
+
+* the total number of cores in the cluster
+* the total number of executors that are currently registered
+* executors (`ExecutorData`)
+* executors to be removed (`executorsPendingToRemove`)
+* hosts and the number of possible tasks possibly running on them
+* lost executors with no real exit reason
+* tasks per slaves (`taskIdsOnSlave`)
+
+CAUTION: FIXME Where are these counters used?
+
+* `spark.scheduler.minRegisteredResourcesRatio` (default: `0`) - double value between 0 and 1. FIXME
+* `spark.scheduler.maxRegisteredResourcesWaitingTime` (default: `30s`) FIXME
+
+=== [[CoarseGrainedScheduler]] CoarseGrainedScheduler RPC Endpoint
+
+When CoarseGrainedSchedulerBackend starts, it registers *CoarseGrainedScheduler* RPC endpoint.
+
+It tracks:
+
+* RPC addresses for executors (`addressToExecutorId`)
+
+It uses `driver-revive-thread` daemon single-thread thread pool for ...FIXME
+
+CAUTION: FIXME A potential issue with `driverEndpoint.asInstanceOf[NettyRpcEndpointRef].toURI` - doubles `spark://` prefix.
+
+* `spark.scheduler.revive.interval` (default: `1s`) - time between reviving offers.
+
+=== [[messages]] Messages
+
+* `StatusUpdate(executorId, taskId, state, data)`
+* `ReviveOffers`
+* `KillTask(taskId, executorId, interruptThread)`
+* `RegisterExecutor(executorId, executorRef, hostPort, cores, logUrls)`
+* `StopDriver`
+* `StopExecutors`
+* `RemoveExecutor`
+* `RetrieveSparkProps`
