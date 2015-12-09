@@ -30,17 +30,22 @@ There are the following types of executor backends:
 
 === [[CoarseGrainedExecutorBackend]] CoarseGrainedExecutorBackend
 
-*CoarseGrainedExecutorBackend* is an executor backend for link:spark-executor.adoc#coarse-grained-executor[coarse-grained executors].
+*CoarseGrainedExecutorBackend* is an executor backend for link:spark-executor.adoc#coarse-grained-executor[coarse-grained executors] that live until it terminates.
 
-It connects to link:spark-scheduler-backends-coarse-grained.adoc[CoarseGrainedSchedulerBackend] for tasks to run.
+.CoarseGrainedExecutorBackend and Others
+image::images/CoarseGrainedExecutorBackend.png[align="center"]
 
-It keeps a connection to one and only one executor (`executorId` and `hostPort`).
+CoarseGrainedExecutorBackend is a link:spark-rpc.adoc#rpcendpoint[RPC Endpoint] registered under the name *Executor*.
+
+When started it connects to `driverUrl` (given as <<main, an option on command line>>), i.e.  link:spark-scheduler-backends-coarse-grained.adoc[CoarseGrainedSchedulerBackend], for tasks to run.
+
+After the connection to driver is established, it spawns an link:spark-executor.adoc[executor].
 
 CAUTION: What are `RegisterExecutor` and `RegisterExecutorResponse`? Why does `CoarseGrainedExecutorBackend` send it in `onStart`?
 
 WARNING: FIXME Why does it send `RegisterExecutorResponse` to itself in `onStart`? It doesn't seem to be necessary? It can even be considered a bug since the message type is not handled.
 
-When it cannot connect to `driverUrl`, it terminates itself (with the exit code `1`).
+When it cannot connect to `driverUrl`, it terminates (with the exit code `1`).
 
 CAUTION: What are `SPARK_LOG_URL_` env vars? Who sets them?
 
@@ -50,7 +55,7 @@ When the driver terminates, CoarseGrainedExecutorBackend exits (with exit code `
 ERROR Driver [remoteAddress] disassociated! Shutting down.
 ```
 
-When CoarseGrainedExecutorBackend is started (`onStart`), it prints out INFO message to the logs:
+When *Executor* RPC Endpoint is started (`onStart`), it prints out INFO message to the logs:
 
 ```
 INFO Connecting to driver: [driverUrl]
@@ -78,7 +83,7 @@ log4j.logger.org.apache.spark.executor.CoarseGrainedExecutorBackend=INFO
 
 ==== [[driverURL]] Driver's URL
 
-The driver's URL is of the format `spark://[RpcEndpoint name]@[hostname]:[port]`, e.g. `spark://localhost:7077`.
+The driver's URL is of the format `spark://[RpcEndpoint name]@[hostname]:[port]`, e.g. `spark://CoarseGrainedScheduler@localhost:7077`.
 
 ==== [[main]] main
 
@@ -111,13 +116,17 @@ $ ./bin/spark-class org.apache.spark.executor.CoarseGrainedExecutorBackend
    --user-class-path <url>
 ```
 
-It first fetches Spark properties from link:spark-scheduler-backends-coarse-grained.adoc[CoarseGrainedSchedulerBackend] (using the `driverPropsFetcher` RPC Environment and the endpoint reference given in <<driverURL, driver's URL>>)
+It first fetches Spark properties from link:spark-scheduler-backends-coarse-grained.adoc[CoarseGrainedSchedulerBackend] (using the `driverPropsFetcher` RPC Environment and the endpoint reference given in <<driverURL, driver's URL>>).
 
 For this, it creates `SparkConf`, reads `spark.executor.port` setting (defaults to `0`) and creates the `driverPropsFetcher` RPC Environment in link:spark-rpc.adoc#client-mode[client mode]. The RPC environment is used to resolve the driver's endpoint to post `RetrieveSparkProps` message.
 
-It sends a (blocking) `RetrieveSparkProps` message to the driver (using the value for `driverUrl` command-line option). It also adds `spark.app.id` (using the value for `appid` command-line option) to the driver's Spark properties.
+It sends a (blocking) `RetrieveSparkProps` message to the driver (using the value for `driverUrl` command-line option). When the response (the driver's `SparkConf`) arrives it adds `spark.app.id` (using the value for `appid` command-line option) and creates a brand new `SparkConf`.
 
+If `spark.yarn.credentials.file` is set, ...FIXME
 
+A SparkEnv is created using link:spark-runtime-environment.adoc#createExecutorEnv[SparkEnv.createExecutorEnv] (with `isLocal` being `false`).
+
+CAUTION: FIXME
 
 ==== [[usage]] Usage
 
