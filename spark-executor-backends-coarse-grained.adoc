@@ -9,11 +9,9 @@ CoarseGrainedExecutorBackend registers itself as a link:spark-rpc.adoc#rpcendpoi
 
 When started it connects to `driverUrl` (given as <<main, an option on command line>>), i.e.  link:spark-scheduler-backends-coarse-grained.adoc[CoarseGrainedSchedulerBackend], for tasks to run.
 
-After the connection to driver is established, it spawns an link:spark-executor.adoc[executor].
+After the connection to driver is established (<<messages, RegisteredExecutor>>), it spawns an link:spark-executor.adoc[executor].
 
 CAUTION: What are `RegisterExecutor` and `RegisterExecutorResponse`? Why does `CoarseGrainedExecutorBackend` send it in `onStart`?
-
-WARNING: FIXME Why does it send `RegisterExecutorResponse` to itself in `onStart`? It doesn't seem to be necessary? It can even be considered a bug since the message type is not handled.
 
 When it cannot connect to `driverUrl`, it terminates (with the exit code `1`).
 
@@ -28,7 +26,7 @@ ERROR Driver [remoteAddress] disassociated! Shutting down.
 When *Executor* RPC Endpoint is started (`onStart`), it prints out INFO message to the logs:
 
 ```
-INFO Connecting to driver: [driverUrl]
+INFO CoarseGrainedExecutorBackend: Connecting to driver:  [driverUrl]
 ```
 
 All task status updates are sent along to `driverRef` as `StatusUpdate` messages.
@@ -53,7 +51,7 @@ log4j.logger.org.apache.spark.executor.CoarseGrainedExecutorBackend=INFO
 
 ==== [[driverURL]] Driver's URL
 
-The driver's URL is of the format `spark://[RpcEndpoint name]@[hostname]:[port]`, e.g. `spark://CoarseGrainedScheduler@localhost:7077`.
+The driver's URL is of the format `spark://[RpcEndpoint name]@[hostname]:[port]`, e.g. `spark://CoarseGrainedScheduler@192.168.1.6:64859`.
 
 ==== [[main]] main
 
@@ -66,7 +64,7 @@ It accepts the following options:
 * `--hostname` (required) - the name of the host
 * `--cores` (required) - the number of cores (must be more than `0`)
 * `--app-id` (required) - the id of the application
-* `--worker-url` - the worker's URL
+* `--worker-url` - the worker's URL, e.g. `spark://Worker@192.168.1.6:64557`
 * `--user-class-path` - a URL/path to a resource to be added to CLASSPATH; can be specified multiple times.
 
 Unrecognized options or required options missing cause displaying usage help and exit.
@@ -114,33 +112,35 @@ It is used in:
 * `RegisteredExecutor(hostname)` - received to confirm successful registration to a driver. This is when `executor` is created.
 +
 ```
-INFO Successfully registered with driver
+INFO CoarseGrainedExecutorBackend: Successfully registered with driver
 ```
 
 * `RegisterExecutorFailed` - registration to a driver failed. It exits CoarseGrainedExecutorBackend with exit code `1`.
 +
 ```
-ERROR Slave registration failed: [message]
+ERROR CoarseGrainedExecutorBackend: Slave registration failed: [message]
 ```
 
-* `LaunchTask(data)` - checks whether an executor has been created. It exits if not.
+* `LaunchTask(data)` - checks whether an executor has been created and prints the following ERROR if not:
 +
 ```
-ERROR Received LaunchTask command but executor was null
+ERROR CoarseGrainedExecutorBackend: Received LaunchTask command but executor was null
 ```
 +
-It deserializes `TaskDescription` (as `data`) and calls `executor.launchTask`.
+Otherwise, it deserializes `TaskDescription` (from `data`).
 +
 ```
-INFO Got assigned task [taskId]
+INFO CoarseGrainedExecutorBackend: Got assigned task [taskId]
 ```
++
+Finally, it launches the task on the executor (calls link:spark-executor.adoc#launching-tasks[Executor.launchTask] method).
 
 * `KillTask` kills a task (calls `executor.killTask`)
 
 * `StopExecutor` prints INFO message and sends `Shutdown` to itself.
 +
 ```
-INFO Driver commanded a shutdown
+INFO CoarseGrainedExecutorBackend: Driver commanded a shutdown
 ```
 
 * `Shutdown` stops the executor, itself and RPC Environment.

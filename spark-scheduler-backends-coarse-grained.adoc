@@ -1,6 +1,6 @@
 == CoarseGrainedSchedulerBackend
 
-*CoarseGrainedSchedulerBackend* is a scheduler backend that waits for link:spark-executor-backends-coarse-grained.adoc[coarse-grained executors] to connect to it (using link:spark-rpc.adoc[RPC Environment]) and run tasks. It talks to a cluster manager for resources for executors (register, remove).
+*CoarseGrainedSchedulerBackend* is a scheduler backend that waits for link:spark-executor-backends-coarse-grained.adoc[coarse-grained executors] to connect to it (using link:spark-rpc.adoc[RPC Environment]) and <<launching-tasks, launch tasks>>. It talks to a cluster manager for resources for executors (register, remove).
 
 This backend holds executors for the duration of the Spark job rather than relinquishing executors whenever a task is done and asking the scheduler to launch a new executor for each new task.
 
@@ -35,6 +35,22 @@ Add the following line to `conf/log4j.properties`:
 log4j.logger.org.apache.spark.scheduler.cluster.CoarseGrainedSchedulerBackend=DEBUG
 ```
 ====
+
+=== [[launching-tasks]] Launching Tasks
+
+`launchTasks` gets called...
+
+CAUTION: FIXME Who's calling `launchTasks`?
+
+CAUTION: FIXME Why is there `Seq[Seq[TaskDescription]]`?
+
+Tasks are serialized and their size checked to fit <<settings, spark.akka.frameSize>>.
+
+If the serialized task's size is over the frame size, the TaskSetManager of the task is called using link:spark-tasksetmanager.adoc#aborting-taskset[TaskSetManager.abort] method. It is link:spark-taskscheduler.adoc[TaskSchedulerImpl] to be queried for the TaskSetManager of the task.
+
+CAUTION: FIXME At that point, tasks have their executor assigned. When and how did that happen?
+
+The number of free cores of the executor for the task is decremented (by link:spark-taskscheduler.adoc#settings[spark.task.cpus]) and link:spark-executor-backends-coarse-grained.adoc#messages[LaunchTask] message is sent to it.
 
 === [[CoarseGrainedScheduler]] CoarseGrainedScheduler RPC Endpoint
 
@@ -91,3 +107,7 @@ It then announces the new executor by posting `SparkListenerExecutorAdded` on li
 `makeOffers` is called. It is described as _"Make fake resource offers on all executors"_.
 
 CAUTION: FIXME What are *fake resource offers*? Review `makeOffers` in `DriverEndpoint`.
+
+=== [[settings]] Settings
+
+* `spark.akka.frameSize` (default: `128` and not greater than `2047m` - `200k` for extra data in an Akka message) - largest frame size for Akka messages (serialized tasks or task results) in MB.

@@ -7,7 +7,7 @@ image::images/TaskSetManager-TaskSchedulerImpl-TaskSet.png[align="center"]
 
 The responsibilities of a TaskSetManager include (follow along the links to learn more in the corresponding sections):
 
-* <<scheduling-tasks, Scheduling the tasks from a taskset>>
+* <<scheduling-tasks, Scheduling the tasks in a taskset>>
 * <<task-retries, Retrying tasks on failure>>
 * <<locality-aware-scheduling, Locality-aware scheduling via delay scheduling>>
 
@@ -75,7 +75,7 @@ For example:
 INFO TaskSetManager: Starting task 1.0 in stage 0.0 (TID 1, localhost, partition 1,PROCESS_LOCAL, 2054 bytes)
 ```
 
-=== [[scheduling-tasks]] Scheduling Tasks from TaskSet
+=== [[scheduling-tasks]] Scheduling Tasks in TaskSet
 
 CAUTION: FIXME
 
@@ -174,10 +174,6 @@ java.lang.Exception: Partition 2 marked failed
 org.apache.spark.SparkException: Job aborted due to stage failure: Task 0 in stage 1.0 failed 5 times, most recent failure: Lost task 0.4 in stage 1.0 (TID 7, localhost): java.lang.Exception: Partition 2 marked failed
 ```
 
-=== [[aborting-taskset]] Aborting TaskSet
-
-CAUTION: When can `TaskSetManager.abort` be called?
-
 === [[zombie-state]] Zombie state
 
 TaskSetManager enters *zombie* state when all tasks in a taskset have completed successfully (regardless of the number of task attempts), or if the task set has been aborted (see <<aborting-taskset, Aborting TaskSet>>).
@@ -185,6 +181,18 @@ TaskSetManager enters *zombie* state when all tasks in a taskset have completed 
 While in zombie state, TaskSetManager can launch no new tasks and <<resourceOffer, responds with no `TaskDescription` to resourceOffers>>.
 
 TaskSetManager remains in the zombie state until all tasks have finished running, i.e. to continue to track and account for the running tasks.
+
+=== [[aborting-taskset]] Aborting TaskSet
+
+When a task in a TaskSet exceeds the largest acceptable frame size, the TaskSetManager for the task is called using `TaskSetManager.abort` method (see link:spark-scheduler-backends-coarse-grained.adoc#launching-tasks[Launching Tasks] in CoarseGrainedSchedulerBackend).
+
+DAGScheduler is also told about it using `taskSetFailed` method.
+
+The TaskSetManager enters <<zombie-state, zombie state>>.
+
+`maybeFinishTaskSet` method is called.
+
+CAUTION: FIXME Why is `maybeFinishTaskSet` method called? When is `runningTasks` `0`?
 
 === [[tasksetmanager-settings]] Settings
 
