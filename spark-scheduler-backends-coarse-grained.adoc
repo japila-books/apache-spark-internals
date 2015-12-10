@@ -25,13 +25,27 @@ CAUTION: FIXME Where are these counters used?
 * `spark.scheduler.minRegisteredResourcesRatio` (default: `0`) - double value between 0 and 1. FIXME
 * `spark.scheduler.maxRegisteredResourcesWaitingTime` (default: `30s`) FIXME
 
+[TIP]
+====
+Enable `DEBUG` logging level for `org.apache.spark.scheduler.cluster.CoarseGrainedSchedulerBackend` logger to see what happens inside.
+
+Add the following line to `conf/log4j.properties`:
+
+```
+log4j.logger.org.apache.spark.scheduler.cluster.CoarseGrainedSchedulerBackend=DEBUG
+```
+====
+
 === [[CoarseGrainedScheduler]] CoarseGrainedScheduler RPC Endpoint
 
 When CoarseGrainedSchedulerBackend starts, it registers *CoarseGrainedScheduler* RPC endpoint.
 
 It tracks:
 
-* RPC addresses for executors (`addressToExecutorId`)
+* Executor addresses (host and port) for executors (`addressToExecutorId`) - it is set when an executor connects to register itself. See <<RegisterExecutor, RegisterExecutor>> RPC message.
+* Total number of core count (`totalCoreCount`) - the sum of all cores on all executors. See <<RegisterExecutor, RegisterExecutor>> RPC message.
+* The number of executors available (`totalRegisteredExecutors`). See <<RegisterExecutor, RegisterExecutor>> RPC message.
+* `ExecutorData` for each registered executor (`executorDataMap`). See <<RegisterExecutor, RegisterExecutor>> RPC message.
 
 It uses `driver-revive-thread` daemon single-thread thread pool for ...FIXME
 
@@ -39,13 +53,41 @@ CAUTION: FIXME A potential issue with `driverEndpoint.asInstanceOf[NettyRpcEndpo
 
 * `spark.scheduler.revive.interval` (default: `1s`) - time between reviving offers.
 
-=== [[messages]] Messages
+=== [[messages]] RPC Messages
 
 * `StatusUpdate(executorId, taskId, state, data)`
 * `ReviveOffers`
 * `KillTask(taskId, executorId, interruptThread)`
-* `RegisterExecutor(executorId, executorRef, hostPort, cores, logUrls)`
 * `StopDriver`
 * `StopExecutors`
 * `RemoveExecutor`
 * `RetrieveSparkProps`
+
+==== [[RegisterExecutor]] RegisterExecutor
+
+`RegisterExecutor(executorId, executorRef, hostPort, cores, logUrls)` is sent by link:spark-executor-backends.adoc#CoarseGrainedExecutorBackend[CoarseGrainedExecutorBackend] to register itself.
+
+.Executor registration (RegisterExecutor RPC message flow)
+image::images/CoarseGrainedSchedulerBackend-RegisterExecutor-event.png[align="center"]
+
+Only one executor can register as `executorId`.
+
+```
+INFO Registered executor [executorRef] ([executorAddress]) with ID [executorId]
+```
+
+It does internal bookkeeping like updating `addressToExecutorId`, `totalCoreCount`, and `totalRegisteredExecutors`, `executorDataMap`.
+
+When `numPendingExecutors` is more than `0`, the following is printed out to the logs:
+
+```
+DEBUG Decremented number of pending executors ([numPendingExecutors] left)
+```
+
+It replies with `RegisteredExecutor(executorAddress.host)` (consult link:spark-executor-backends.adoc#messages[RPC Messages] of CoarseGrainedExecutorBackend).
+
+It then announces the new executor by posting `SparkListenerExecutorAdded` on link:spark-scheduler-listeners.adoc#listener-bus[LiveListenerBus].
+
+`makeOffers` is called. It is described as _"Make fake resource offers on all executors"_.
+
+CAUTION: FIXME What are *fake resource offers*? Review `makeOffers` in `DriverEndpoint`.
