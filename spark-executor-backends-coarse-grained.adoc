@@ -1,0 +1,146 @@
+== CoarseGrainedExecutorBackend
+
+*CoarseGrainedExecutorBackend* is an executor backend for link:spark-executor.adoc#coarse-grained-executor[coarse-grained executors] that live until it terminates.
+
+.CoarseGrainedExecutorBackend and Others
+image::images/CoarseGrainedExecutorBackend.png[align="center"]
+
+CoarseGrainedExecutorBackend registers itself as a link:spark-rpc.adoc#rpcendpoint[RPC Endpoint] under the name *Executor*.
+
+When started it connects to `driverUrl` (given as <<main, an option on command line>>), i.e.  link:spark-scheduler-backends-coarse-grained.adoc[CoarseGrainedSchedulerBackend], for tasks to run.
+
+After the connection to driver is established, it spawns an link:spark-executor.adoc[executor].
+
+CAUTION: What are `RegisterExecutor` and `RegisterExecutorResponse`? Why does `CoarseGrainedExecutorBackend` send it in `onStart`?
+
+WARNING: FIXME Why does it send `RegisterExecutorResponse` to itself in `onStart`? It doesn't seem to be necessary? It can even be considered a bug since the message type is not handled.
+
+When it cannot connect to `driverUrl`, it terminates (with the exit code `1`).
+
+CAUTION: What are `SPARK_LOG_URL_` env vars? Who sets them?
+
+When the driver terminates, CoarseGrainedExecutorBackend exits (with exit code `1`).
+
+```
+ERROR Driver [remoteAddress] disassociated! Shutting down.
+```
+
+When *Executor* RPC Endpoint is started (`onStart`), it prints out INFO message to the logs:
+
+```
+INFO Connecting to driver: [driverUrl]
+```
+
+All task status updates are sent along to `driverRef` as `StatusUpdate` messages.
+
+[CAUTION]
+====
+FIXME Review the use of:
+
+* Used in `SparkContext.createTaskScheduler`
+====
+
+[TIP]
+====
+Enable `INFO` logging level for `org.apache.spark.executor.CoarseGrainedExecutorBackend` logger to see what happens inside.
+
+Add the following line to `conf/log4j.properties`:
+
+```
+log4j.logger.org.apache.spark.executor.CoarseGrainedExecutorBackend=INFO
+```
+====
+
+==== [[driverURL]] Driver's URL
+
+The driver's URL is of the format `spark://[RpcEndpoint name]@[hostname]:[port]`, e.g. `spark://CoarseGrainedScheduler@localhost:7077`.
+
+==== [[main]] main
+
+CoarseGrainedExecutorBackend is a command-line application (it comes with `main` method).
+
+It accepts the following options:
+
+* `--driver-url` (required) - the driver's URL. See <<driverURL, driver's URL>>.
+* `--executor-id` (required) - the executor's id
+* `--hostname` (required) - the name of the host
+* `--cores` (required) - the number of cores (must be more than `0`)
+* `--app-id` (required) - the id of the application
+* `--worker-url` - the worker's URL
+* `--user-class-path` - a URL/path to a resource to be added to CLASSPATH; can be specified multiple times.
+
+Unrecognized options or required options missing cause displaying usage help and exit.
+
+```
+$ ./bin/spark-class org.apache.spark.executor.CoarseGrainedExecutorBackend
+
+"Usage: CoarseGrainedExecutorBackend [options]
+
+ Options are:
+   --driver-url <driverUrl>
+   --executor-id <executorId>
+   --hostname <hostname>
+   --cores <cores>
+   --app-id <appid>
+   --worker-url <workerUrl>
+   --user-class-path <url>
+```
+
+It first fetches Spark properties from link:spark-scheduler-backends-coarse-grained.adoc[CoarseGrainedSchedulerBackend] (using the `driverPropsFetcher` RPC Environment and the endpoint reference given in <<driverURL, driver's URL>>).
+
+For this, it creates `SparkConf`, reads `spark.executor.port` setting (defaults to `0`) and creates the `driverPropsFetcher` RPC Environment in link:spark-rpc.adoc#client-mode[client mode]. The RPC environment is used to resolve the driver's endpoint to post `RetrieveSparkProps` message.
+
+It sends a (blocking) `RetrieveSparkProps` message to the driver (using the value for `driverUrl` command-line option). When the response (the driver's `SparkConf`) arrives it adds `spark.app.id` (using the value for `appid` command-line option) and creates a brand new `SparkConf`.
+
+If `spark.yarn.credentials.file` is set, ...FIXME
+
+A SparkEnv is created using link:spark-runtime-environment.adoc#createExecutorEnv[SparkEnv.createExecutorEnv] (with `isLocal` being `false`).
+
+CAUTION: FIXME
+
+==== [[usage]] Usage
+
+CAUTION: FIXME Where is `org.apache.spark.executor.CoarseGrainedExecutorBackend` used?
+
+It is used in:
+
+* `SparkDeploySchedulerBackend`
+* `CoarseMesosSchedulerBackend`
+* `SparkClassCommandBuilder` - ???
+* `ExecutorRunnable`
+
+==== [[messages]] RPC Messages
+
+* `RegisteredExecutor(hostname)` - received to confirm successful registration to a driver. This is when `executor` is created.
++
+```
+INFO Successfully registered with driver
+```
+
+* `RegisterExecutorFailed` - registration to a driver failed. It exits CoarseGrainedExecutorBackend with exit code `1`.
++
+```
+ERROR Slave registration failed: [message]
+```
+
+* `LaunchTask(data)` - checks whether an executor has been created. It exits if not.
++
+```
+ERROR Received LaunchTask command but executor was null
+```
++
+It deserializes `TaskDescription` (as `data`) and calls `executor.launchTask`.
++
+```
+INFO Got assigned task [taskId]
+```
+
+* `KillTask` kills a task (calls `executor.killTask`)
+
+* `StopExecutor` prints INFO message and sends `Shutdown` to itself.
++
+```
+INFO Driver commanded a shutdown
+```
+
+* `Shutdown` stops the executor, itself and RPC Environment.
