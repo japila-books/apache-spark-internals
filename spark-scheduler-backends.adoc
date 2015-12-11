@@ -1,18 +1,68 @@
 == Scheduler Backends
 
-Spark comes with a pluggable backend mechanism called *scheduler backend* (aka _backend scheduler_) to support various backend schedulers, each with their own custom task scheduling modes and resource offers mechanism. It is the approach to plug in other task schedulers.
+=== Introduction
 
-`SchedulerBackend` is the Spark interface to different task scheduling systems, i.e. link:spark-local.adoc#LocalBackend[Spark local], link:spark-standalone.adoc[Spark Standalone], link:spark-mesos.adoc[Mesos] or link:spark-yarn.adoc[YARN].
+Spark comes with a pluggable backend mechanism called *scheduler backend* (aka _backend scheduler_) to support various cluster managers, each with their own custom task scheduling modes and resource offers mechanism. It is the approach to plug in other task schedulers.
 
-CAUTION: FIXME Have an exercise to create a SchedulerBackend.
+NOTE: A scheduler backend is created and started as part of SparkContext's initialization (see link:spark-sparkcontext.adoc#createTaskScheduler[Creating Scheduler Backend and Task Scheduler]).
+
+CAUTION: FIXME Image how it gets created with SparkContext in play here or in SparkContext doc.
+
+`SchedulerBackend` is the Spark interface to different task scheduling systems (cluster managers), e.g. link:spark-local.adoc#LocalBackend[Spark local], link:spark-standalone.adoc[Spark Standalone], link:spark-mesos.adoc[Mesos] or link:spark-yarn.adoc[YARN].
 
 Being a scheduler backend in Spark assumes a http://mesos.apache.org/[Apache Mesos]-like model in which "an application" gets *resource offers* as machines become available and can launch tasks on them. Once a scheduler backend obtains the resource allocation, it can start executors.
 
 TIP: Understanding how Apache Mesos works can greatly improve understanding Spark.
 
-Scheduler backends are started (using `start()` method) and stopped (using `stop()` method) as part of TaskSchedulerImpl's initialization and stopping.
+Scheduler backends are started and stopped as part of TaskSchedulerImpl's initialization and stopping.
 
-A scheduler backend can `reviveOffers`, calculate `defaultParallelism`, kill tasks, return application attempt ids (supported only by `YarnClusterSchedulerBackend`) and URLs for the driver logs.
+=== SchedulerBackend Contract
+
+Being a scheduler backend is to offer the following services:
+
+* Can be started (using `start()`) and stopped (using `stop()`)
+* Do `reviveOffers`
+* Calculate default parallelism (see <<defaultParallelism, Default Level of Parallelism>>)
+* Be able to `killTask(taskId: Long, executorId: String, interruptThread: Boolean)`
+* Answers `isReady()` to tell about its started/stopped state
+* Knows the application id for a job (using `applicationId()`)
+
+CAUTION: FIXME `applicationId()` doesn't accept an input parameter. How is Scheduler Backend related to a job and an application?
+
+* Knows an application attempt id (see <<applicationAttemptId,applicationAttemptId>>)
+* Knows the URLs for the driver's logs (see <<getDriverLogUrls, getDriverLogUrls>>).
+
+CAUTION: FIXME Screenshot the tab and the links
+
+CAUTION: FIXME Have an exercise to create a SchedulerBackend.
+
+==== [[defaultParallelism]] Default Level of Parallelism
+
+NOTE: Default parallelism is used in `TaskSchedulerImpl.defaultParallelism`.
+
+*Default level of parallelism* is used by link:spark-taskscheduler.adoc[TaskScheduler] to use as a hint for sizing jobs.
+
+Refer to link:spark-local.adoc#LocalBackend[LocalBackend] for local mode.
+
+Refer to link:spark-scheduler-backends-coarse-grained.adoc#defaultParallelism[Default Level of Parallelism] for CoarseGrainedSchedulerBackend.
+
+Refer to link:spark-mesos.adoc#defaultParallelism[Default Level of Parallelism] for CoarseMesosSchedulerBackend.
+
+No other custom implementations of `defaultParallelism()` exists.
+
+==== [[applicationAttemptId]] applicationAttemptId
+
+`applicationAttemptId(): Option[String]` returns no application attempt id.
+
+It is currently only supported by YARN cluster scheduler backend as the YARN cluster manager supports multiple attempts.
+
+==== [[getDriverLogUrls]] getDriverLogUrls
+
+`getDriverLogUrls: Option[Map[String, String]]` returns no URLs by default.
+
+It is currently only supported by link:spark-yarn.adoc#YarnClusterSchedulerBackend[YarnClusterSchedulerBackend].
+
+=== Available Implementations
 
 Spark comes with the following scheduler backends:
 

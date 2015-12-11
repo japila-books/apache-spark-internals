@@ -1,6 +1,6 @@
 == Spark local
 
-You can run Spark in *local mode*. In this non-distributed single-JVM deployment mode, Spark spawns all the execution components - link:spark-driver.adoc[driver], link:spark-executor.adoc[executor], <<LocalBackend, backend>>, and link:spark-master.adoc[master] - in the same JVM. This is the only mode where a driver can be used for execution.
+You can run Spark in *local mode*. In this non-distributed single-JVM deployment mode, Spark spawns all the execution components - link:spark-driver.adoc[driver], link:spark-executor.adoc[executor], <<LocalBackend, backend>>, and link:spark-master.adoc[master] - in the same JVM. The default parallelism is the number of threads as specified in the <<masterURL, master URL>>. This is the only mode where a driver is used for execution.
 
 .Architecture of Spark local
 image::diagrams/spark-local-architecture.png[align="center"]
@@ -8,12 +8,6 @@ image::diagrams/spark-local-architecture.png[align="center"]
 The local mode is very convenient for testing, debugging or demonstration purposes as it requires no earlier setup to launch Spark applications.
 
 This mode of operation is also called  http://spark.apache.org/docs/latest/programming-guide.html#initializing-spark[Spark in-process] or (less commonly) *a local version of Spark*.
-
-You can run Spark in local mode using `local` or `local[n]` (with `n` being the number of cores to use) or the most general `local[*]` for link:spark-deployment-environments.adoc#master-urls[the master URL].
-
-CAUTION: FIXME What happens when there's less cores than `n` in the master URL? It is a question from twitter.
-
-You can also use *local-with-retries*, i.e. `local[N, M]` where `N` is `*` or the number of cores to use (as explained above) and `M` being the value of link:spark-taskscheduler.adoc#settings[spark.task.maxFailures].
 
 `SparkContext.isLocal` returns `true` when Spark runs in local mode.
 
@@ -29,22 +23,34 @@ scala> sc.master
 res0: String = local[*]
 ```
 
-Tasks are not re-executed on failure in local mode (unless the local-with-retries master URL is used).
+Tasks are not re-executed on failure in local mode (unless <<masterURL, local-with-retries master URL>> is used).
 
 The link:spark-taskscheduler.adoc[task scheduler] in local mode works with <<LocalBackend, LocalBackend>> task scheduler backend.
+
+=== [[masterURL]] Master URL
+
+You can run Spark in local mode using `local`, `local[n]` or the most general `local[*]` for link:spark-deployment-environments.adoc#master-urls[the master URL].
+
+The URL says how many threads can be used in total:
+
+* `local` uses 1 thread only.
+
+* `local[n]` uses `n` threads.
+
+* `local[*]` uses as many threads as the number of processors available to the Java virtual machine (it uses https://docs.oracle.com/javase/8/docs/api/java/lang/Runtime.html#availableProcessors--[Runtime.getRuntime.availableProcessors()] to know the number).
+
+CAUTION: FIXME What happens when there's less cores than `n` in the master URL? It is a question from twitter.
+
+* `local[N, M]` (called *local-with-retries*) with `N` being `*` or the number of threads to use (as explained above) and `M` being the value of link:spark-taskscheduler.adoc#settings[spark.task.maxFailures].
 
 === [[task-submission]] Task Submission
 
 .TaskSchedulerImpl.submitTasks in local mode
 image::images/taskscheduler-submitTasks-local-mode.png[align="center"]
 
-When `ReviveOffers` or `StatusUpdate` messages are received, `LocalEndpoint` launches a task (using `reviveOffers()` method). The number of tasks to be launched is controlled by the master URL that says how many threads can be used in total:
+When `ReviveOffers` or `StatusUpdate` messages are received, `LocalEndpoint` launches a task (using `reviveOffers()` method).
 
-* For `local` master URL there is only 1 core available.
-
-* For `local[n]` master URL there are `n` cores available.
-
-* For `local[*]` master URL there are https://docs.oracle.com/javase/8/docs/api/java/lang/Runtime.html#availableProcessors--[Runtime.getRuntime.availableProcessors()] cores available, i.e. the number of processors available to the Java virtual machine.
+The number of tasks to be launched is controlled by the number of threads as specified in <<masterURL, master URL>>.
 
 === [[LocalBackend]] LocalBackend
 
@@ -64,6 +70,8 @@ When LocalBackend starts up, it registers a new link:spark-rpc.adoc#rpcendpoint[
 The application ids are in the format of `local-[current time millis]`.
 
 It communicates with <<local-endpoint, LocalEndpoint>> using <<messages, RPC messages>>.
+
+The default parallelism is controlled using <<settings, spark.default.parallelism>>.
 
 === [[local-endpoint]] LocalEndpoint
 
@@ -90,4 +98,4 @@ LocalEndpoint accepts the following RPC message types:
 
 === [[settings]] Settings
 
-* `spark.default.parallelism` (default: total cores as parameter) - the default parallelism for <<LocalBackend, LocalBackend>>.
+* `spark.default.parallelism` (default: the number of threads as specified in <<masterURL, master URL>>) - the default parallelism for <<LocalBackend, LocalBackend>>.
