@@ -43,14 +43,16 @@ CAUTION: FIXME What happens when there's less cores than `n` in the master URL? 
 
 * `local[N, M]` (called *local-with-retries*) with `N` being `*` or the number of threads to use (as explained above) and `M` being the value of link:spark-taskscheduler.adoc#settings[spark.task.maxFailures].
 
-=== [[task-submission]] Task Submission
+=== [[task-submission]] Task Submission a.k.a. reviveOffers
 
 .TaskSchedulerImpl.submitTasks in local mode
 image::images/taskscheduler-submitTasks-local-mode.png[align="center"]
 
-When `ReviveOffers` or `StatusUpdate` messages are received, `LocalEndpoint` launches a task (using `reviveOffers()` method).
+When `ReviveOffers` or `StatusUpdate` messages are received, `LocalEndpoint` places an offer to `TaskSchedulerImpl` (using `TaskSchedulerImpl.resourceOffers`).
 
-The number of tasks to be launched is controlled by the number of threads as specified in <<masterURL, master URL>>.
+If there is one or more tasks that match the offer, they are launched (using `executor.launchTask` method).
+
+The number of tasks to be launched is controlled by the number of threads as specified in <<masterURL, master URL>>. The executor uses threads to spawn the tasks.
 
 === [[LocalBackend]] LocalBackend
 
@@ -88,7 +90,7 @@ INFO Executor: Using REPL class URI: http://192.168.1.4:56131
 
 LocalEndpoint accepts the following RPC message types:
 
-* `ReviveOffers` (receive-only, non-blocking) - it offers link:spark-taskscheduler.adoc[TaskScheduler] a `WorkerOffer` and launches tasks on the executor with <<localbackend, LocalBackend>>.
+* `ReviveOffers` (receive-only, non-blocking) - read <<task-submission, Task Submission a.k.a. reviveOffers>>.
 
 * `StatusUpdate` (receive-only, non-blocking) that passes the message to TaskScheduler (using `statusUpdate`) and if link:spark-taskscheduler-tasks.adoc[the task's status is finished], it revives offers (see `ReviveOffers`).
 

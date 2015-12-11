@@ -35,9 +35,7 @@ log4j.logger.org.apache.spark.scheduler.cluster.CoarseGrainedSchedulerBackend=DE
 
 === [[launching-tasks]] Launching Tasks
 
-`launchTasks` gets called...
-
-CAUTION: FIXME Who's calling `launchTasks`?
+`launchTasks` gets called when making offers (using `makeOffers` method).
 
 CAUTION: FIXME Why is there `Seq[Seq[TaskDescription]]`?
 
@@ -52,6 +50,12 @@ The number of free cores of the executor for the task is decremented (by link:sp
 === [[defaultParallelism]] Default Level of Parallelism
 
 The default parallelism is controlled by <<settings, spark.default.parallelism>> or is at least `2` or `totalCoreCount`.
+
+=== [[reviveOffers]] reviveOffers
+
+It sends <<ReviveOffers, ReviveOffers>> message to `driverEndpoint`.
+
+CAUTION: FIXME Image
 
 === Stopping
 
@@ -92,11 +96,25 @@ CAUTION: FIXME A potential issue with `driverEndpoint.asInstanceOf[NettyRpcEndpo
 
 === [[messages]] RPC Messages
 
-==== StatusUpdate(executorId, taskId, state, data)
-
-==== ReviveOffers
-
 ====  KillTask(taskId, executorId, interruptThread)
+
+==== RemoveExecutor
+
+==== RetrieveSparkProps
+
+==== [[ReviveOffers]] ReviveOffers
+
+`ReviveOffers` calls `makeOffers()` that makes fake resource offers on all executors that are alive.
+
+CAUTION: FIXME When is an executor alive? What other states can an executor be in?
+
+CAUTION: FIXME What is *fake resource offers*?
+
+A collection of `WorkerOffer` for each active executor is offered to `TaskSchedulerImpl` (refer to link:spark-taskscheduler.adoc#resourceOffers[resourceOffers] in Task Scheduler).
+
+It then <<launching-tasks, launches tasks>> for the resource offers.
+
+==== StatusUpdate(executorId, taskId, state, data)
 
 ==== [[StopDriver]] StopDriver
 
@@ -111,10 +129,6 @@ INFO Asking each executor to shut down
 ```
 
 It then sends a link:spark-executor-backends-coarse-grained.adoc#StopExecutor[StopExecutor] message to every registered executor (from `executorDataMap`).
-
-==== RemoveExecutor
-
-==== RetrieveSparkProps
 
 ==== [[RegisterExecutor]] RegisterExecutor
 
