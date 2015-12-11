@@ -1,6 +1,6 @@
 == CoarseGrainedExecutorBackend
 
-*CoarseGrainedExecutorBackend* is an executor backend for link:spark-executor.adoc#coarse-grained-executor[coarse-grained executors] that live until it terminates.
+*CoarseGrainedExecutorBackend* is an link:spark-executor-backends.adoc[executor backend] for link:spark-executor.adoc#coarse-grained-executor[coarse-grained executors] that live until it terminates.
 
 .CoarseGrainedExecutorBackend and Others
 image::images/CoarseGrainedExecutorBackend.png[align="center"]
@@ -109,38 +109,56 @@ It is used in:
 
 ==== [[messages]] RPC Messages
 
-* `RegisteredExecutor(hostname)` - received to confirm successful registration to a driver. This is when `executor` is created.
-+
+===== RegisteredExecutor(hostname)
+
+`RegisteredExecutor(hostname)` is received to confirm successful registration to a driver. This is when `executor` is created.
+
 ```
 INFO CoarseGrainedExecutorBackend: Successfully registered with driver
 ```
 
-* `RegisterExecutorFailed` - registration to a driver failed. It exits CoarseGrainedExecutorBackend with exit code `1`.
-+
+===== RegisterExecutorFailed(message)
+
+`RegisterExecutorFailed(message)` is to inform that registration to a driver failed. It exits CoarseGrainedExecutorBackend with exit code `1`.
+
 ```
 ERROR CoarseGrainedExecutorBackend: Slave registration failed: [message]
 ```
 
-* `LaunchTask(data)` - checks whether an executor has been created and prints the following ERROR if not:
-+
+===== [[LaunchTask]] LaunchTask(data)
+
+`LaunchTask(data)` checks whether an executor has been created and prints the following ERROR if not:
+
 ```
 ERROR CoarseGrainedExecutorBackend: Received LaunchTask command but executor was null
 ```
-+
+
 Otherwise, it deserializes `TaskDescription` (from `data`).
-+
+
 ```
 INFO CoarseGrainedExecutorBackend: Got assigned task [taskId]
 ```
-+
+
 Finally, it launches the task on the executor (calls link:spark-executor.adoc#launching-tasks[Executor.launchTask] method).
 
-* `KillTask` kills a task (calls `executor.killTask`)
+===== KillTask(taskId, _, interruptThread)
 
-* `StopExecutor` prints INFO message and sends `Shutdown` to itself.
-+
+`KillTask(taskId, _, interruptThread)` message kills a task (calls `Executor.killTask`).
+
+If an executor has not been initialized yet (FIXME: why?), the following ERROR message is printed out to the logs and CoarseGrainedExecutorBackend exits:
+
+```
+ERROR Received KillTask command but executor was null
+```
+
+===== StopExecutor
+
+`StopExecutor` message prints INFO message and sends `Shutdown` to itself.
+
 ```
 INFO CoarseGrainedExecutorBackend: Driver commanded a shutdown
 ```
 
-* `Shutdown` stops the executor, itself and RPC Environment.
+===== Shutdown
+
+`Shutdown` stops the executor, itself and RPC Environment.
