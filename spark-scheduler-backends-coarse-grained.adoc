@@ -8,7 +8,7 @@ It requires a link:spark-taskscheduler.adoc[Task Scheduler], and a link:spark-rp
 
 It uses link:spark-scheduler-listeners.adoc[Listener Bus].
 
-It registers <<CoarseGrainedScheduler, CoarseGrainedScheduler RPC Endpoint>> (`driverEndpoint` internal field) that executors use for RPC communication.
+It registers <<CoarseGrainedScheduler, CoarseGrainedScheduler RPC Endpoint>> that executors use for RPC communication.
 
 It tracks:
 
@@ -52,9 +52,29 @@ CAUTION: FIXME At that point, tasks have their executor assigned. When and how d
 
 The number of free cores of the executor for the task is decremented (by link:spark-taskscheduler.adoc#settings[spark.task.cpus]) and link:spark-executor-backends-coarse-grained.adoc#LaunchTask[LaunchTask] message is sent to it.
 
+=== Stopping
+
+`stop()` method stops <<CoarseGrainedScheduler, CoarseGrainedScheduler RPC Endpoint>> and executors (using `stopExecutors()`).
+
+NOTE: When called with no `driverEndpoint` both `stop()` and `stopExecutors()` do nothing. `driverEndpoint` is initialized in `start` and the initialization order matters.
+
+It prints INFO to the logs:
+
+```
+INFO Shutting down all executors
+```
+
+It then sends <<StopExecutors, StopExecutors>> message to `driverEndpoint`. It disregards the response.
+
+It sends <<StopDriver, StopDriver>> message to `driverEndpoint`. It disregards the response.
+
 === [[CoarseGrainedScheduler]] CoarseGrainedScheduler RPC Endpoint
 
-When CoarseGrainedSchedulerBackend starts, it registers *CoarseGrainedScheduler* RPC endpoint.
+When CoarseGrainedSchedulerBackend starts, it registers *CoarseGrainedScheduler* RPC endpoint (`driverEndpoint` internal field).
+
+It is called *standalone scheduler's driver endpoint* internally.
+
+CAUTION: FIXME Why is the field's name `driverEndpoint`?
 
 It tracks:
 
@@ -71,13 +91,29 @@ CAUTION: FIXME A potential issue with `driverEndpoint.asInstanceOf[NettyRpcEndpo
 
 === [[messages]] RPC Messages
 
-* `StatusUpdate(executorId, taskId, state, data)`
-* `ReviveOffers`
-* `KillTask(taskId, executorId, interruptThread)`
-* `StopDriver`
-* `StopExecutors`
-* `RemoveExecutor`
-* `RetrieveSparkProps`
+==== StatusUpdate(executorId, taskId, state, data)
+
+==== ReviveOffers
+
+====  KillTask(taskId, executorId, interruptThread)
+
+==== [[StopDriver]] StopDriver
+
+`StopDriver` message stops the RPC endpoint.
+
+==== StopExecutors
+
+`StopExecutors` message is receive-reply and blocking. When received, the following INFO message appears in the logs:
+
+```
+INFO Asking each executor to shut down
+```
+
+It then sends a link:spark-executor-backends-coarse-grained.adoc#StopExecutor[StopExecutor] message to every registered executor (from `executorDataMap`).
+
+==== RemoveExecutor
+
+==== RetrieveSparkProps
 
 ==== [[RegisterExecutor]] RegisterExecutor
 
