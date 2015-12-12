@@ -1,0 +1,121 @@
+== TaskSchedulerImpl - Default TaskScheduler
+
+The default implementation of link:spark-taskscheduler.adoc#contract[TaskScheduler Contract] is `TaskSchedulerImpl`.
+
+TIP: The sources are at https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/scheduler/TaskSchedulerImpl.scala[org.apache.spark.scheduler.TaskSchedulerImpl]
+
+`TaskSchedulerImpl` can schedule tasks for multiple types of clusters by acting through a link:spark-scheduler-backends.adoc[Scheduler Backend].
+
+TaskSchedulerImpl tracks the following:
+
+* TaskSets by stage and attempt ids (`taskSetsByStageIdAndAttempt`)
+* tasks to their link:spark-tasksetmanager.adoc[TaskSetManagers] (`taskIdToTaskSetManager`)
+* tasks to link:spark-executor.adoc[executors] (`taskIdToExecutorId`)
+* the number of tasks running per link:spark-executor.adoc[executor] (`executorIdToTaskCount`)
+* the set of link:spark-executor.adoc[executors] on each host (`executorsByHost`)
+* the set of hosts per rack (`hostsByRack`)
+* executor ids to corresponding host (`executorIdToHost`).
+* the number of tasks already scheduled for execution (`nextTaskId`).
+
+CAUTION: FIXME How are these mappings used?
+
+CAUTION: FIXME Why `hasReceivedTask` and `hasLaunchedTask`?
+
+=== [[starting]] Starting
+
+When TaskSchedulerImpl is started (using `start()` method), it starts the link:spark-scheduler-backends.adoc[scheduler backend] it manages.
+
+.Starting TaskScheduler in Spark Standalone mode
+image::images/taskscheduler-start.png[align="center"]
+
+TIP: SparkContext starts a TaskScheduler.
+
+=== [[defaultParallelism]] Default Level of Parallelism
+
+*Default level of parallelism* is a hint for sizing jobs.
+
+The default implementation of `TaskScheduler` contract, i.e. `TaskSchedulerImpl`, uses link:spark-scheduler-backends.adoc#defaultParallelism[SchedulerBackend.defaultParallelism()] to calculate it.
+
+=== [[submitTasks]] submitTasks
+
+Tasks (as a link:spark-taskscheduler-tasksets.adoc[TaskSet]) are submitted for execution using `submitTasks(taskSet: TaskSet)` method.
+
+.TaskScheduler.submitTasks
+image::images/taskscheduler-submitTasks.png[align="center"]
+
+You should see the following INFO message in the logs:
+
+```
+INFO TaskSchedulerImpl: Adding task set 0.0 with 8 tasks
+```
+
+It creates a new link:spark-tasksetmanager.adoc[TaskSetManager] for the given TaskSet and the acceptable number of task failures.
+
+CAUTION: FIXME There are other steps not included here.
+
+It then calls `backend.reviveOffers()`.
+
+TIP: Use `dag-scheduler-event-loop` thread to step through the code in a debugger.
+
+=== [[resourceOffers]] resourceOffers
+
+`resourceOffers(offers: Seq[WorkerOffer])` method is called by a cluster manager or `LocalEndpoint` for local mode to offer free resources available on the executors to run tasks on.
+
+.TaskSchedulerImpl.resourceOffers under the hood
+image::images/taskscheduler-resourceOffers.png[align="center"]
+
+Consult link:spark-local.adoc#LocalBackend[LocalBackend] for Spark local mode.
+
+A `WorkerOffer` is a 3-tuple with executor id, host, and free cores available.
+
+For each offer, the method tracks hosts per executor id (using `executorIdToHost`) and sets `0` as the number of tasks running on the executor if there is no tasks running already (using `executorIdToTaskCount`). It also tracks executor id per host.
+
+WARNING: FIXME BUG? Why is the executor id *not* added to `executorsByHost`?
+
+`DAGScheduler.executorAdded(executorId, host)` is called for a new host.
+
+WARNING: FIXME BUG? Why is `executorAdded` called for a new host added? Can't we have more executors on a host? The name of the method is misleading then.
+
+CAUTION: FIXME a picture with `executorAdded` call from TaskSchedulerImpl to DAGScheduler.
+
+FIXME Why is `getRackForHost` important?
+
+It builds a list of tasks (using `TaskDescription`) to assign to each worker.
+
+CAUTION: FIXME What does the line `val sortedTaskSets = rootPool.getSortedTaskSetQueue` mean? It uses no method's local variables. There can be many TaskSetManagers in the result.
+
+`rootPool.getSortedTaskSetQueue` is called to build a collection of tasksets (as TaskSetManagers in `sortedTaskSets`).
+
+For each taskset (represented by a TaskSetManager), the following DEBUG message is printed out to the logs:
+
+```
+DEBUG parentName: [taskSet.parent.name], name: [taskSet.name], runningTasks: [taskSet.runningTasks]
+```
+
+And if a new host was added to the pool (using `newExecAvail` - FIXME when exactly?), each TaskSetManager gets notified about new executor added (using `TaskSetManager.executorAdded()`). FIXME So what?
+
+WARNING: FIXME BUG? Why is the name `newExecAvail` since it's called for a new host added? Can't we have more executors on a host? The name of the method could be misleading.
+
+For each taskset in `sortedTaskSets`, different locality preferences are checked...FIXME
+
+Check whether the number of cores in an offer is more than the number of cores needed for a task (using <<settings, spark.task.cpus>>).
+
+When `resourceOffers` managed to launch a task, the internal field `hasLaunchedTask` is set.
+
+CAUTION: FIXME Why is there a need for `hasLaunchedTask`? Can TaskSchedulerImpl launch more tasks later?
+
+=== [[postStartHook]] Post-Start Initialization
+
+TaskSchedulerImpl comes with its own `postStartHook()` (see <<contract, TaskScheduler Contract>>) to wait until a scheduler backend is ready (see link:spark-scheduler-backends.adoc#contract[SchedulerBackend Contract]).
+
+Internally, it uses `waitBackendReady()` to do the waiting and looping.
+
+=== [[settings]] Settings
+
+* `spark.task.maxFailures` (default: `4` for link:spark-cluster.adoc[cluster mode] and `1` for link:spark-local.adoc[local] except link:spark-local.adoc[local-with-retries]) - The number of individual task failures before giving up on the entire TaskSet and the job afterwards.
++
+Internally, it is used in `org.apache.spark.scheduler.TaskSchedulerImpl` to initialize link:spark-tasksetmanager.adoc[TaskSetManager].
+* `spark.task.cpus` (default: `1`) - how many CPUs to request per task in a SparkContext. You cannot have different number of CPUs per task in a single SparkContext.
+* `spark.scheduler.mode` (default: `FIFO`) can be of any of `FAIR`, `FIFO`, or `NONE`. Refer to <<scheduling-mode, scheduling mode>>.
+* `spark.speculation.interval` (default: `100ms`) - how often to check for speculative tasks.
+* `spark.starvation.timeout` (default: `15s`) - Threshold above which Spark warns a user that an initial TaskSet may be starved.
