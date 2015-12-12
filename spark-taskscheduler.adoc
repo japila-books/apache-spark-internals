@@ -5,7 +5,7 @@ A *Task Scheduler* schedules link:spark-taskscheduler-tasks.adoc[tasks] for a li
 .TaskScheduler works for a single SparkContext
 image::images/sparkstandalone-sparkcontext-taskscheduler-schedulerbackend.png[align="center"]
 
-A Task Scheduler tracks the following mappings:
+A Task Scheduler tracks the following:
 
 * TaskSets by stage and attempt ids (`taskSetsByStageIdAndAttempt`)
 * tasks to their link:spark-tasksetmanager.adoc[TaskSetManagers] (`taskIdToTaskSetManager`)
@@ -14,20 +14,19 @@ A Task Scheduler tracks the following mappings:
 * the set of link:spark-executor.adoc[executors] on each host (`executorsByHost`)
 * the set of hosts per rack (`hostsByRack`)
 * executor ids to corresponding host (`executorIdToHost`).
+* the number of tasks already scheduled for execution (`nextTaskId`).
 
 CAUTION: FIXME How are these mappings used?
 
 CAUTION: FIXME Why `hasReceivedTask` and `hasLaunchedTask`?
 
-It counts how many tasks have already been scheduled for execution (`nextTaskId`).
-
-A TaskScheduler gets sets of tasks (as <<taskset, TaskSets>>) submitted to it from the link:spark-dagscheduler.adoc[DAGScheduler] for each stage, and is responsible for sending the tasks to the cluster, running them, retrying if there are failures, and mitigating stragglers.
-
-A TaskScheduler emits events to the DAGScheduler.
+A TaskScheduler gets sets of tasks (as link:spark-taskscheduler-tasksets.adoc[TaskSets]) submitted to it from the link:spark-dagscheduler.adoc[DAGScheduler] for each stage, and is responsible for sending the tasks to the cluster, running them, retrying if there are failures, and mitigating stragglers.
 
 The base implementation of Task Scheduler in Spark is https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/scheduler/TaskSchedulerImpl.scala[org.apache.spark.scheduler.TaskSchedulerImpl]. There are two specialized implementations for link:spark-yarn.adoc[Spark on YARN cluster mode] - https://github.com/apache/spark/blob/master/yarn/src/main/scala/org/apache/spark/scheduler/cluster/YarnScheduler.scala[YarnScheduler] and https://github.com/apache/spark/blob/master/yarn/src/main/scala/org/apache/spark/scheduler/cluster/YarnClusterScheduler.scala[YarnClusterScheduler].
 
-The default implementation `TaskSchedulerImpl` can schedule tasks for multiple types of clusters by acting through a link:spark-scheduler-backends.adoc[Scheduler Backend]. It handles common logic, like determining a scheduling order across jobs, waking up to launch speculative tasks, etc.
+The default implementation `TaskSchedulerImpl` can schedule tasks for multiple types of clusters by acting through a link:spark-scheduler-backends.adoc[Scheduler Backend].
+
+A TaskScheduler emits events to the DAGScheduler.
 
 .TaskScheduler uses SchedulerBackend for different clusters
 image::diagrams/taskscheduler-uses-schedulerbackend.png[align="center"]
@@ -62,26 +61,6 @@ CAUTION: FIXME
 === TaskMetrics
 
 CAUTION: FIXME
-
-=== [[taskset]] TaskSet
-
-A *TaskSet* is a set of tasks submitted together to TaskScheduler that belong to a single stage and an attempt.
-
-A TaskSet represents the missing partitions of a stage.
-
-The pair of a stage and an attempt uniquely describes a TaskSet and that is what you can see in the logs:
-
-```
-TaskSet [stageId].[stageAttemptId]
-```
-
-TaskSet has *priority* and *properties*. Priority is used in FIFO scheduling mode. Properties are the properties of the first job in a stage.
-
-CAUTION: FIXME Where are `properties` of a TaskSet used?
-
-A TaskSet contains a fully-independent sequence of tasks that can run right away based on the data that is already on the cluster, e.g. map output files from previous stages, though it may fail if this data becomes unavailable.
-
-TaskSet can be <<submitTasks, submitted>>, i.e. started.
 
 === [[TaskResultGetter]] TaskResultGetter
 
@@ -157,7 +136,7 @@ The check procedure is in link:spark-tasksetmanager.adoc[TaskSetManager.checkSpe
 
 === [[submitTasks]] submitTasks
 
-Tasks (as a <<taskset, TaskSet>>) are submitted for execution using `submitTasks(taskSet: TaskSet)` method.
+Tasks (as a link:spark-taskscheduler-tasksets.adoc[TaskSet]) are submitted for execution using `submitTasks(taskSet: TaskSet)` method.
 
 .TaskScheduler.submitTasks
 image::images/taskscheduler-submitTasks.png[align="center"]

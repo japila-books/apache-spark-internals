@@ -1,6 +1,6 @@
 == CoarseGrainedSchedulerBackend
 
-*CoarseGrainedSchedulerBackend* is a scheduler backend that waits for link:spark-executor-backends-coarse-grained.adoc[coarse-grained executors] to connect to it (using link:spark-rpc.adoc[RPC Environment]) and <<launching-tasks, launch tasks>>. It talks to a cluster manager for resources for executors (register, remove).
+*CoarseGrainedSchedulerBackend* is a link:spark-scheduler-backends.adoc[scheduler backend] that waits for link:spark-executor-backends-coarse-grained.adoc[coarse-grained executors] to connect to it (using link:spark-rpc.adoc[RPC Environment]) and <<launching-tasks, launch tasks>>. It talks to a cluster manager for resources for executors (register, remove).
 
 This backend holds executors for the duration of the Spark job rather than relinquishing executors whenever a task is done and asking the scheduler to launch a new executor for each new task.
 
@@ -72,6 +72,30 @@ INFO Shutting down all executors
 It then sends <<StopExecutors, StopExecutors>> message to `driverEndpoint`. It disregards the response.
 
 It sends <<StopDriver, StopDriver>> message to `driverEndpoint`. It disregards the response.
+
+=== [[isReady]] isReady - Delaying Task Launching
+
+`CoarseGrainedSchedulerBackend` comes with its own implementation of `isReady()` method (see link:spark-scheduler-backends.adoc#contract[SchedulerBackend Contract]).
+
+It starts by ensuring that sufficient resources are available to launch tasks using its own `sufficientResourcesRegistered` method. It gives custom implementations of itself a way to handle the question properly. It assumes resources are available by default.
+
+It prints out the following INFO to the logs:
+
+```
+INFO SchedulerBackend is ready for scheduling beginning after reached minRegisteredResourcesRatio: [minRegisteredRatio]
+```
+
+`minRegisteredRatio` in the logs above is in the range 0 to 1 (uses <<settings, spark.scheduler.minRegisteredResourcesRatio>>) to denote the minimum ratio of registered resources to total expected resources before submitting tasks.
+
+In case there are no sufficient resources available yet (the above requirement does not hold), it checks whether the time from the startup passed <<settings, spark.scheduler.maxRegisteredResourcesWaitingTime>> to give a way to submit tasks (despite minRegisteredRatio not being reached yet).
+
+You should see the following INFO in the logs:
+
+```
+INFO SchedulerBackend is ready for scheduling beginning after waiting maxRegisteredResourcesWaitingTime: [maxRegisteredWaitingTimeMs](ms)
+```
+
+Otherwise, it keeps delaying task launching until enough resources register or <<settings, spark.scheduler.maxRegisteredResourcesWaitingTime>> passes.
 
 === [[CoarseGrainedScheduler]] CoarseGrainedScheduler RPC Endpoint
 
@@ -163,5 +187,5 @@ CAUTION: FIXME What are *fake resource offers*? Review `makeOffers` in `DriverEn
 
 * `spark.akka.frameSize` (default: `128` and not greater than `2047m` - `200k` for extra data in an Akka message) - largest frame size for Akka messages (serialized tasks or task results) in MB.
 * `spark.default.parallelism` (default: maximum of `totalCoreCount` and 2) - link:spark-scheduler-backends.adoc#defaultParallelism[default parallelism] for the scheduler backend.
-* `spark.scheduler.minRegisteredResourcesRatio` (default: `0`) - double value between 0 and 1. FIXME
-* `spark.scheduler.maxRegisteredResourcesWaitingTime` (default: `30s`) FIXME
+* `spark.scheduler.minRegisteredResourcesRatio` (default: `0`) - a double value between 0 and 1 (including) that controls the minimum ratio of (registered resources / total expected resources) before submitting tasks. See <<isReady, isReady>>.
+* `spark.scheduler.maxRegisteredResourcesWaitingTime` (default: `30s`) - the time to wait for sufficient resources available. See <<isReady, isReady>>.
