@@ -1,9 +1,11 @@
-== Task Scheduler
+== Task Schedulers
 
 A *Task Scheduler* schedules link:spark-taskscheduler-tasks.adoc[tasks] for a link:spark-anatomy-spark-application.adoc[single Spark application] according to <<scheduling-mode, scheduling mode>> (aka *order task policy*).
 
 .TaskScheduler works for a single SparkContext
 image::images/sparkstandalone-sparkcontext-taskscheduler-schedulerbackend.png[align="center"]
+
+A TaskScheduler gets sets of tasks (as link:spark-taskscheduler-tasksets.adoc[TaskSets]) submitted to it from the link:spark-dagscheduler.adoc[DAGScheduler] for each stage, and is responsible for sending the tasks to the cluster, running them, retrying if there are failures, and mitigating stragglers.
 
 A Task Scheduler tracks the following:
 
@@ -20,8 +22,6 @@ CAUTION: FIXME How are these mappings used?
 
 CAUTION: FIXME Why `hasReceivedTask` and `hasLaunchedTask`?
 
-A TaskScheduler gets sets of tasks (as link:spark-taskscheduler-tasksets.adoc[TaskSets]) submitted to it from the link:spark-dagscheduler.adoc[DAGScheduler] for each stage, and is responsible for sending the tasks to the cluster, running them, retrying if there are failures, and mitigating stragglers.
-
 The base implementation of Task Scheduler in Spark is https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/scheduler/TaskSchedulerImpl.scala[org.apache.spark.scheduler.TaskSchedulerImpl]. There are two specialized implementations for link:spark-yarn.adoc[Spark on YARN cluster mode] - https://github.com/apache/spark/blob/master/yarn/src/main/scala/org/apache/spark/scheduler/cluster/YarnScheduler.scala[YarnScheduler] and https://github.com/apache/spark/blob/master/yarn/src/main/scala/org/apache/spark/scheduler/cluster/YarnClusterScheduler.scala[YarnClusterScheduler].
 
 The default implementation `TaskSchedulerImpl` can schedule tasks for multiple types of clusters by acting through a link:spark-scheduler-backends.adoc[Scheduler Backend].
@@ -31,12 +31,37 @@ A TaskScheduler emits events to the DAGScheduler.
 .TaskScheduler uses SchedulerBackend for different clusters
 image::diagrams/taskscheduler-uses-schedulerbackend.png[align="center"]
 
-When a Task Scheduler is started, it starts a Scheduler Backend.
+DAGScheduler uses <<submitTasks, submitTasks() operation >> to submit a TaskSet to Task Scheduler and can cancel tasks in a stage.
 
-.TaskScheduler.start
+=== [[starting]] Starting
+
+When TaskSchedulerImpl is started (using `start()` method), it starts the link:spark-scheduler-backends.adoc[scheduler backend] it manages.
+
+.Starting TaskScheduler in Spark Standalone mode
 image::images/taskscheduler-start.png[align="center"]
 
-DAGScheduler uses <<submitTasks, submitTasks() operation >> to submit a TaskSet to Task Scheduler and can cancel tasks in a stage.
+TIP: SparkContext starts a TaskScheduler.
+
+=== [[contract]] TaskScheduler Contract
+
+NOTE: `org.apache.spark.scheduler.TaskScheduler` is a `private[spark]` Scala trait in Spark.
+
+Every task scheduler has to offer the following services:
+
+* Return `Pool` (using `rootPool`)
+* Return `SchedulingMode` (using `schedulingMode`)
+* Can be started (using `start()`) and stopped (using `stop()`)
+* (optionally) `postStartHook()` if needed for additional post-start initialization. It does nothing by default. It is called at the very end of link:spark-sparkcontext.adoc#initialization[SparkContext's initialization].
+* `submitTasks(taskSet: TaskSet)`
+* `cancelTasks(stageId: Int, interruptThread: Boolean)` to cancel all tasks in a stage.
+* `setDAGScheduler(dagScheduler: DAGScheduler)` to set custom link:spark-dagscheduler.adoc[DAGScheduler].
+* Return the default level of parallelism (using `defaultParallelism()`)
+* `executorHeartbeatReceived`
+* (optionally) Return an application id for the current job (using `applicationId()`). It returns `spark-application-[System.currentTimeMillis]` by default.
+* Handle executor lost events (using `executorLost(executorId: String, reason: ExecutorLossReason)`)
+* Return an application attempt ID associated with the job (using `applicationAttemptId`)
+
+CAUTION: FIXME Have an exercise to create a SchedulerBackend.
 
 === [[defaultParallelism]] Default Level of Parallelism
 
@@ -201,6 +226,12 @@ Check whether the number of cores in an offer is more than the number of cores n
 When `resourceOffers` managed to launch a task, the internal field `hasLaunchedTask` is set.
 
 CAUTION: FIXME Why is there a need for `hasLaunchedTask`? Can TaskSchedulerImpl launch more tasks later?
+
+=== [[postStartHook]] Post-Start Initialization
+
+TaskSchedulerImpl comes with its own `postStartHook()` (see <<contract, TaskScheduler Contract>>) to wait until a scheduler backend is ready (see link:spark-scheduler-backends.adoc#contract[SchedulerBackend Contract]).
+
+Internally, it uses `waitBackendReady()` to do the waiting and looping.
 
 === [[settings]] Settings
 

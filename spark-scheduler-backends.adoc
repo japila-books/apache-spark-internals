@@ -2,31 +2,29 @@
 
 === Introduction
 
-Spark comes with a pluggable backend mechanism called *scheduler backend* (aka _backend scheduler_) to support various cluster managers, each with their own custom task scheduling modes and resource offers mechanism. It is the approach to plug in other task schedulers.
+Spark comes with a pluggable backend mechanism called *scheduler backend* (aka _backend scheduler_) to support various cluster managers, e.g. link:spark-mesos.adoc[Apache Mesos], link:spark-yarn.adoc[Hadoop YARN] or Spark's own link:spark-standalone.adoc[Spark Standalone] and link:spark-local.adoc#LocalBackend[Spark local]. These cluster managers differ by their custom task scheduling modes and resource offers mechanisms, and Spark's approach is to abstract the differences in <<contract, SchedulerBackend Contract>>.
 
-NOTE: A scheduler backend is created and started as part of SparkContext's initialization (see link:spark-sparkcontext.adoc#createTaskScheduler[Creating Scheduler Backend and Task Scheduler]).
+A scheduler backend is created and started as part of SparkContext's initialization (when link:spark-taskscheduler.adoc[TaskSchedulerImpl] is started - see link:spark-sparkcontext.adoc#createTaskScheduler[Creating Scheduler Backend and Task Scheduler]).
 
 CAUTION: FIXME Image how it gets created with SparkContext in play here or in SparkContext doc.
 
-`SchedulerBackend` is the Spark interface to different task scheduling systems (cluster managers), e.g. link:spark-local.adoc#LocalBackend[Spark local], link:spark-standalone.adoc[Spark Standalone], link:spark-mesos.adoc[Mesos] or link:spark-yarn.adoc[YARN].
+Scheduler backends are started and stopped as part of TaskSchedulerImpl's initialization and stopping.
 
 Being a scheduler backend in Spark assumes a http://mesos.apache.org/[Apache Mesos]-like model in which "an application" gets *resource offers* as machines become available and can launch tasks on them. Once a scheduler backend obtains the resource allocation, it can start executors.
 
-TIP: Understanding how Apache Mesos works can greatly improve understanding Spark.
-
-Scheduler backends are started and stopped as part of TaskSchedulerImpl's initialization and stopping.
+TIP: Understanding how http://mesos.apache.org/[Apache Mesos] works can greatly improve understanding Spark.
 
 === [[contract]] SchedulerBackend Contract
 
-NOTE: `org.apache.spark.scheduler.SchedulerBackend` is a `private[spark]` trait in Scala.
+NOTE: `org.apache.spark.scheduler.SchedulerBackend` is a `private[spark]` Scala trait in Spark.
 
 Every scheduler backend has to offer the following services:
 
 * Can be started (using `start()`) and stopped (using `stop()`).
-* Do `reviveOffers`.
+* Do <<reviveOffers, reviveOffers>>
 * Calculate <<defaultParallelism, default level of parallelism>>.
 * Be able to `killTask(taskId: Long, executorId: String, interruptThread: Boolean)`.
-* Answers `isReady()` to tell about its started/stopped state.
+* Answers `isReady()` to tell about its started/stopped state. It returns `true` by default.
 * Knows the application id for a job (using `applicationId()`).
 
 CAUTION: FIXME `applicationId()` doesn't accept an input parameter. How is Scheduler Backend related to a job and an application?
