@@ -54,11 +54,11 @@ When TaskSchedulerImpl is stopped (using `stop()` method), it does the following
 
 *Default level of parallelism* is a hint for sizing jobs.
 
-The default implementation of `TaskScheduler` contract, i.e. `TaskSchedulerImpl`, uses link:spark-scheduler-backends.adoc#defaultParallelism[SchedulerBackend.defaultParallelism()] to calculate it.
+`TaskSchedulerImpl` uses link:spark-scheduler-backends.adoc#defaultParallelism[SchedulerBackend.defaultParallelism()] to calculate the value, i.e. it just passes it along to a scheduler backend.
 
 === [[submitTasks]] Task Submission
 
-Tasks (as a link:spark-taskscheduler-tasksets.adoc[TaskSet]) are submitted for execution using `submitTasks(taskSet: TaskSet)` method.
+link:spark-taskscheduler-tasks.adoc[Tasks] are submitted for execution using `submitTasks(taskSet: TaskSet)` method. They come in as a link:spark-taskscheduler-tasksets.adoc[TaskSet].
 
 .TaskScheduler.submitTasks
 image::images/taskscheduler-submitTasks.png[align="center"]
@@ -79,16 +79,14 @@ TIP: Use `dag-scheduler-event-loop` thread to step through the code in a debugge
 
 === [[resourceOffers]] Resource Offers
 
-`resourceOffers(offers: Seq[WorkerOffer])` method is called by a cluster manager or `LocalEndpoint` for local mode to offer free resources available on the executors to run tasks on.
+`resourceOffers(offers: Seq[WorkerOffer])` method is called by a cluster manager or link:spark-local.adoc#LocalBackend[LocalBackend] (for local mode) to offer free resources available on the executors to run tasks on.
 
 .TaskSchedulerImpl.resourceOffers under the hood
 image::images/taskscheduler-resourceOffers.png[align="center"]
 
-Consult link:spark-local.adoc#LocalBackend[LocalBackend] for Spark local mode.
-
 A `WorkerOffer` is a 3-tuple with executor id, host, and free cores available.
 
-For each offer, the method tracks hosts per executor id (using `executorIdToHost`) and sets `0` as the number of tasks running on the executor if there is no tasks running already (using `executorIdToTaskCount`). It also tracks executor id per host.
+For each offer, the `resourceOffers` method tracks hosts per executor id (using `executorIdToHost`) and sets `0` as the number of tasks running on the executor if there is no tasks running already (using `executorIdToTaskCount`). It also tracks executor id per host.
 
 WARNING: FIXME BUG? Why is the executor id *not* added to `executorsByHost`?
 
@@ -98,7 +96,7 @@ WARNING: FIXME BUG? Why is `executorAdded` called for a new host added? Can't we
 
 CAUTION: FIXME a picture with `executorAdded` call from TaskSchedulerImpl to DAGScheduler.
 
-FIXME Why is `getRackForHost` important?
+CAUTION: FIXME Why is `getRackForHost` important?
 
 It builds a list of tasks (using `TaskDescription`) to assign to each worker.
 
@@ -172,11 +170,21 @@ The check procedure is in link:spark-tasksetmanager.adoc[TaskSetManager.checkSpe
 
 1. How does Spark handle repeated results of speculative tasks since there are copies launched?
 
+=== [[scheduling-mode]] Scheduling Modes
+
+Task Scheduler uses a scheduling mode that determines policy to order tasks across a Schedulable's sub-queues.
+
+It is configured by <<settings, spark.scheduler.mode>> setting that can accept the following values:
+
+* *FIFO* - no pools; one root pool with link:spark-tasksetmanager.adoc[TaskSetManager]; lower priority gets Schedulable sooner or earlier stage wins.
+* *FAIR* - more advanced FIXME
+* *NONE* means no sub-queues
+
 === [[settings]] Settings
 
 * `spark.task.maxFailures` (default: `4` for link:spark-cluster.adoc[cluster mode] and `1` for link:spark-local.adoc[local] except link:spark-local.adoc[local-with-retries]) - The number of individual task failures before giving up on the entire TaskSet and the job afterwards.
 +
-Internally, it is used in `org.apache.spark.scheduler.TaskSchedulerImpl` to initialize link:spark-tasksetmanager.adoc[TaskSetManager].
+It is used in TaskSchedulerImpl to initialize link:spark-tasksetmanager.adoc[TaskSetManager].
 * `spark.task.cpus` (default: `1`) - how many CPUs to request per task in a SparkContext. You cannot have different number of CPUs per task in a single SparkContext.
 * `spark.scheduler.mode` (default: `FIFO`) can be of any of `FAIR`, `FIFO`, or `NONE`. Refer to <<scheduling-mode, scheduling mode>>.
 * `spark.speculation.interval` (default: `100ms`) - how often to check for speculative tasks.
