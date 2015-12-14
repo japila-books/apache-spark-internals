@@ -399,22 +399,32 @@ The stage is asked for partitions to compute (see link:spark-dagscheduler-stages
 
 The method adds the stage to `runningStages`.
 
-`outputCommitCoordinator.stageStart` is called.
+The stage is told to be started to link:spark-service-outputcommitcoordinator.adoc[OutputCommitCoordinator] (using `outputCommitCoordinator.stageStart`)
 
 CAUTION: FIXME Review `outputCommitCoordinator.stageStart`
+
+The mapping between task ids and task preferred locations is computed (see <<computing-preferred-locations, getPreferredLocs - Computing Preferred Locations for Tasks and Partitions>>).
+
+A new stage attempt is created (using `Stage.makeNewStageAttempt`).
 
 `SparkListenerStageSubmitted` is posted.
 
 CAUTION: FIXME `SparkEnv.get.closureSerializer.newInstance()`
 
-`closureSerializer.serialize` is called to calculate `taskBinaryBytes` - an array of bytes of (rdd, func) for `ResultStage` and (rdd, shuffleDep) for `ShuffleMapStage` - that is `sc.broadcast` afterwards.
+The stage is serialized and broadcast to workers using link:spark-sparkcontext.adoc#creating-broadcast-variables[SparkContext.broadcast] method, i.e. it is `Serializer.serialize` to calculate `taskBinaryBytes` - an array of bytes of (rdd, func) for `ResultStage` and (rdd, shuffleDep) for `ShuffleMapStage`.
 
-CAUTION: FIXME Review `taskBinaryBytes` and what happens when `sc.broadcast(taskBinaryBytes)`.
+CAUTION: FIXME Review `taskBinaryBytes`.
+
+When serializing the stage fails, the stage is removed from the internal `runningStages` set, `abortStage` is called and the method stops.
+
+CAUTION: FIXME Review `abortStage`.
+
+At this point in time, the stage is on workers.
 
 For each partition to compute for the stage, a collection of <<spark-taskscheduler.adoc#shufflemaptask, ShuffleMapTask>> and
 `ResultTask` is created.
 
-...IMAGE...FIXME...DAGScheduler calls taskScheduler.submitTasks
+CAUTION: FIXME Image with creating tasks for partitions in the stage.
 
 The following INFO and DEBUG messages are in the logs:
 
@@ -438,6 +448,12 @@ For ResultStage:
 ```
 DEBUG DAGScheduler: Stage ${stage} is actually done; (partitions: ${stage.numPartitions})
 ```
+
+=== [[computing-preferred-locations]] getPreferredLocs - Computing Preferred Locations for Tasks and Partitions
+
+CAUTION: FIXME Review + why does the method return a sequence of TaskLocations?
+
+NOTE: Task ids correspond to partition ids.
 
 === [[stopping]] Stopping
 
