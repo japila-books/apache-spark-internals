@@ -127,7 +127,7 @@ The following are the current types of `DAGSchedulerEvent` events that are handl
 
 * <<JobSubmitted, JobSubmitted>> - posted when an action job is submitted to DAGScheduler (via `submitJob` or `runApproximateJob`).
 * <<MapStageSubmitted, MapStageSubmitted>> - posted when a ShuffleMapStage is submitted (via `submitMapStage`).
-* `StageCancelled`
+* <<StageCancelled, StageCancelled>>
 * `JobCancelled`
 * `JobGroupCancelled`
 * `AllJobsCancelled`
@@ -150,6 +150,50 @@ FIXME
 * What is an approximate job (as in `DAGScheduler.runApproximateJob`)?
 * statistics? `MapOutputStatistics`?
 ====
+
+==== [[StageCancelled]] StageCancelled and handleStageCancellation
+
+`StageCancelled(stageId: Int)` event is posted to cancel a stage and all jobs associated with it. It triggers execution of `DAGScheduler.handleStageCancellation(stageId)`.
+
+It is the result of executing `SparkContext.cancelStage(stageId: Int)` that is called from the web UI (controlled by link:spark-webui.adoc#settings[spark.ui.killEnabled]).
+
+CAUTION: FIXME Image of the tab with kill
+
+`DAGScheduler.handleStageCancellation(stageId)` checks whether the `stageId` stage exists and for each job associated with the stage, it calls `handleJobCancellation(jobId, s"because Stage [stageId] was cancelled")`.
+
+NOTE: A stage knows what jobs it is part of using the internal set `jobIds`.
+
+`def handleJobCancellation(jobId: Int, reason: String = "")` checks whether the job exists in `jobIdToStageIds` and if not, prints the following DEBUG to the logs:
+
+```
+DEBUG Trying to cancel unregistered job [jobId]
+```
+
+However, if the job exists, the job and all the stages that are only used by it (using `failJobAndIndependentStages` method).
+
+For each running stage associated with the job (`jobIdToStageIds`), if there is only one job for the stage (`stageIdToStage`), link:spark-taskscheduler.adoc#contract[TaskScheduler.cancelTasks] is called, `outputCommitCoordinator.stageEnd(stage.id)`, and `SparkListenerStageCompleted` is posted. The stage is no longer a running one (removed from `runningStages`).
+
+CAUTION: FIXME Image please with the call to TaskScheduler.
+
+* `spark.job.interruptOnCancel` (default: `false`) - controls whether or not to interrupt a job on cancel.
+
+In case link:spark-taskscheduler.adoc#contract[TaskScheduler.cancelTasks] completed successfully, `JobListener` is informed about job failure, `cleanupStateForJobAndIndependentStages` is called, and `SparkListenerJobEnd` posted.
+
+CAUTION: FIXME `cleanupStateForJobAndIndependentStages` code review.
+
+CAUTION: FIXME Where are `job.properties` assigned to a job?
+
+```
+"Job %d cancelled %s".format(jobId, reason)
+```
+
+If no stage exists for `stageId`, the following INFO message shows in the logs:
+
+```
+INFO No active jobs to kill for Stage [stageId]
+```
+
+At the end, <<submitWaitingStages, DAGScheduler.submitWaitingStages()>> is called.
 
 ==== [[MapStageSubmitted]] MapStageSubmitted and handleMapStageSubmitted
 
@@ -224,7 +268,7 @@ CAUTION: FIXME `jobIdToStageIds` and `stageIdToStage` - they're already computed
 
 When DAGScheduler executes a job it first submits the final stage (using <<stage-submission, submitStage>>).
 
-Right before `handleJobSubmitted` finishes, <<submitWaitingStages, submitWaitingStages()>> is called.
+Right before `handleJobSubmitted` finishes, <<submitWaitingStages, DAGScheduler.submitWaitingStages()>> is called.
 
 ==== [[CompletionEvent]] CompletionEvent
 
@@ -359,20 +403,6 @@ See https://issues.apache.org/jira/browse/SPARK-9850[SPARK-9850 Adaptive executi
 
 https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/scheduler/DAGScheduler.scala#L661[DAGScheduler.submitMapStage] method is used for adaptive query planning, to run map stages and look at statistics about their outputs before submitting downstream stages.
 
-=== [[metrics]] Metrics
-
-Spark's DAGScheduler uses link:spark-metrics.adoc[Spark Metrics System] (via `DAGSchedulerSource`) to report metrics about internal status.
-
-The name of the source is *DAGScheduler*.
-
-It emits the following numbers:
-
-* *stage.failedStages* - the number of failed stages
-* *stage.runningStages* - the number of running stages
-* *stage.waitingStages* - the number of waiting stages
-* *job.allJobs* - the number of all jobs
-* *job.activeJobs* - the number of active jobs
-
 === ScheduledExecutorService daemon services
 
 DAGScheduler uses the following ScheduledThreadPoolExecutors (with the policy of removing cancelled tasks from a work queue at time of cancellation):
@@ -458,6 +488,20 @@ NOTE: Task ids correspond to partition ids.
 === [[stopping]] Stopping
 
 When a DAGScheduler stops (via `stop()`), it stops the internal `dag-scheduler-message` thread pool, <<event-loop, dag-scheduler-event-loop>>, and link:spark-taskscheduler.adoc[TaskScheduler].
+
+=== [[metrics]] Metrics
+
+Spark's DAGScheduler uses link:spark-metrics.adoc[Spark Metrics System] (via `DAGSchedulerSource`) to report metrics about internal status.
+
+The name of the source is *DAGScheduler*.
+
+It emits the following numbers:
+
+* *stage.failedStages* - the number of failed stages
+* *stage.runningStages* - the number of running stages
+* *stage.waitingStages* - the number of waiting stages
+* *job.allJobs* - the number of all jobs
+* *job.activeJobs* - the number of active jobs
 
 === [[settings]] Settings
 
