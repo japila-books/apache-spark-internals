@@ -69,49 +69,100 @@ DAGScheduler keeps track of the following information:
 * a set of ActiveJob instances (`activeJobs`)
 * a mapping between RDD ids and their cache preferences (`cacheLocs`)
 
-=== [[runJob]] RDDs, Job Execution, Stages, and Partitions
-
 When DAGScheduler schedules a job as a result of link:spark-rdd.adoc#actions[executing an action on a RDD] or link:spark-sparkcontext.adoc#running-jobs[calling SparkContext.runJob() method directly], it spawns parallel tasks to compute (partial) results per partition.
 
 The number of partition in a job depends on the type of a stage - <<ResultStage, ResultStage>> or <<ShuffleMapStage, ShuffleMapStage>>.
 
 A job starts with a single target RDD, but can ultimately include other RDDs that are all part of link:spark-rdd#lineage[the target RDD's lineage graph].
 
-`DAGScheduler.runJob` triggers `DAGScheduler.submitJob` and then waits till a result comes using `JobWaiter` object. A job can succeed or fail. Since JobWaiter object is a `JobListener` it gets notifications about `taskSucceeded` and `jobFailed`. When the total number of tasks (that equals the number of partitions to compute) equals the number of `taskSucceeded`, the JobWaiter instance is marked succeeded. A `jobFailed` event marks the JobWaiter instance failed.
+=== [[runJob]] DAGScheduler.runJob
+
+When executed, `DAGScheduler.runJob` is given the following arguments:
+
+* A *RDD* to run job on.
+* A *function* to run on each partition of the RDD.
+* A set of *partitions* to run on (not all partitions are always required to compute a job for actions like `first()` or `take()`).
+* A callback *function* `resultHandler` to pass results of executing the function to.
+* *Properties* to attach to a job.
+
+It calls <<submitJob, DAGScheduler.submitJob>> and then waits until a result comes using a <<JobWaiter, JobWaiter>> object. A job can succeed or fail.
 
 When a job succeeds, the following INFO shows up in the logs:
 
 ```
-Job %d finished: %s, took %f s
+INFO Job [jobId] finished: [callSite], took [time] s
 ```
 
 When a job fails, the following INFO shows up in the logs:
 
 ```
-Job %d failed: %s, took %f s
+INFO Job [jobId] failed: [callSite], took [time] s
 ```
 
-Job ids are tracked by DAGScheduler and incremented by one every `submitJob`.
+The method finishes by throwing an exception.
 
-Ultimately, `submitJob` posts `JobSubmitted` event on <<event-loop, dag-scheduler-event-loop>> (that releases the current thread and let the event loop handle the event on a separate thread - asynchronously).
+=== [[submitJob]] DAGScheduler.submitJob
+
+`DAGScheduler.submitJob` is called by `SparkContext.submitJob` and <<runJob, DAGScheduler.runJob>>.
+
+When called, it does the following:
+
+* Checks whether the set of partitions to run a function on are in the the range of available partitions of the RDD.
+* Increments the internal `nextJobId` job counter.
+* Returns a 0-task <<JobWaiter, JobWaiter>> when no partitions are passed in.
+* Or posts <<JobSubmitted, JobSubmitted>> event to <<event-loop, dag-scheduler-event-loop>> and returns a <<JobWaiter, JobWaiter>>.
 
 .DAGScheduler.submitJob
 image::images/dagscheduler-submitjob.png[align="center"]
 
-=== [[job-listener]] Job Listener and Completion Events
+You may see an exception thrown when the partitions in the set are outside the range:
 
-You can listen for job completion or failure events after submitting a job to the DAGScheduler using `JobListener`.
+```
+Attempting to access a non-existent partition: [p]. Total number of partitions: [maxPartitions]
+```
 
-The job listener is notified each time a task succeeds, as well as if the whole job fails (and no further `taskSucceeded` events will happen).
+=== [[JobListener]] JobListener and Completion Events
+
+You can listen for job completion or failure events after submitting a job to the DAGScheduler using `JobListener`. It is a `private[spark]` contract (a Scala trait) with the following two methods:
+
+[source, scala]
+----
+private[spark] trait JobListener {
+  def taskSucceeded(index: Int, result: Any)
+  def jobFailed(exception: Exception)
+}
+----
+
+A job listener is notified each time a task succeeds (by `def taskSucceeded(index: Int, result: Any)`), as well as if the whole job fails (by `def jobFailed(exception: Exception)`).
+
+An instance of `JobListener` is used in the following places:
+
+* In `ActiveJob` as a listener to notify if tasks in this job finish or the job fails.
+* In `DAGScheduler.handleJobSubmitted`
+* In `DAGScheduler.handleMapStageSubmitted`
+* In `JobSubmitted`
+* In `MapStageSubmitted`
 
 The following are the job listeners used:
 
-* `JobWaiter` waits until DAGScheduler completes the job and passes the results of tasks to a `resultHandler` function.
+* <<JobWaiter, JobWaiter>> waits until DAGScheduler completes the job and passes the results of tasks to a `resultHandler` function.
 * `ApproximateActionListener` FIXME
+
+==== [[JobWaiter]] JobWaiter
+
+A `JobWaiter` is an extension of <<JobListener, JobListener>>. It is used as the return value of <<submitJob, DAGScheduler.submitJob>> and `DAGScheduler.submitMapStage`. You can use a JobWaiter to block until the job finishes executing or to cancel it.
+
+While the methods execute, `JobSubmitted` and `MapStageSubmitted` events are posted that reference the JobWaiter.
+
+Since a `JobWaiter` object is a `JobListener` it gets notifications about `taskSucceeded` and `jobFailed`. When the total number of tasks (that equals the number of partitions to compute) equals the number of `taskSucceeded`, the `JobWaiter` instance is marked succeeded. A `jobFailed` event marks the `JobWaiter` instance failed.
+
+* FIXME Who's using `submitMapStage`?
 
 === [[event-loop]] dag-scheduler-event-loop - Internal Event Loop
 
-`DAGScheduler.eventProcessLoop` (of type `DAGSchedulerEventProcessLoop`) - is the event process loop to which Spark (by <<runJob, DAGScheduler.submitJob>>) posts jobs to schedule their execution. Later on, link:spark-tasksetmanager.adoc[TaskSetManager] talks back to DAGScheduler to inform about the status of the tasks using the same "communication channel".
+`DAGScheduler.eventProcessLoop` (of type `DAGSchedulerEventProcessLoop`) - is the event process loop to which Spark (by <<submitJob, DAGScheduler.submitJob>>) posts jobs to schedule their execution. Later on, link:spark-tasksetmanager.adoc[TaskSetManager] talks back to DAGScheduler to inform about the status of the tasks using the same "communication channel".
+
+It allows Spark to release the current thread when posting happens and let the event loop handle events on a separate thread - asynchronously.
 
 ...IMAGE...FIXME
 
@@ -125,7 +176,7 @@ The name of the single "logic" thread that reads events and takes decisions is *
 
 The following are the current types of `DAGSchedulerEvent` events that are handled by `DAGScheduler`:
 
-* <<JobSubmitted, JobSubmitted>> - posted when an action job is submitted to DAGScheduler (via `submitJob` or `runApproximateJob`).
+* <<JobSubmitted, JobSubmitted>> - posted when an action job is submitted to DAGScheduler (via <<submitJob, submitJob>> or `runApproximateJob`).
 * <<MapStageSubmitted, MapStageSubmitted>> - posted when a ShuffleMapStage is submitted (via `submitMapStage`).
 * <<StageCancelled, StageCancelled>>
 * <<JobCancelled, JobCancelled>>
@@ -157,13 +208,15 @@ FIXME
 
 NOTE: It seems that although `SparkContext.cancelJob(jobId: Int)` calls `DAGScheduler.cancelJob`, no feature/code in Spark calls `SparkContext.cancelJob(jobId: Int)`. A dead code?
 
-When `JobWaiter.cancel` is called, it calls `DAGScheduler.cancelJob`. You should see the following INFO message in the logs:
+When <<JobWaiter, JobWaiter.cancel>> is called, it calls `DAGScheduler.cancelJob`. You should see the following INFO message in the logs:
 
 ```
 INFO Asked to cancel job [jobId]
 ```
 
 It is a signal to the DAGScheduler to cancel the job.
+
+CAUTION: FIXME
 
 ==== [[StageCancelled]] StageCancelled and handleStageCancellation
 
@@ -191,7 +244,7 @@ CAUTION: FIXME Image please with the call to TaskScheduler.
 
 * `spark.job.interruptOnCancel` (default: `false`) - controls whether or not to interrupt a job on cancel.
 
-In case link:spark-taskscheduler.adoc#contract[TaskScheduler.cancelTasks] completed successfully, `JobListener` is informed about job failure, `cleanupStateForJobAndIndependentStages` is called, and `SparkListenerJobEnd` posted.
+In case link:spark-taskscheduler.adoc#contract[TaskScheduler.cancelTasks] completed successfully, <<JobListener, JobListener>> is informed about job failure, `cleanupStateForJobAndIndependentStages` is called, and `SparkListenerJobEnd` posted.
 
 CAUTION: FIXME `cleanupStateForJobAndIndependentStages` code review.
 
@@ -216,7 +269,7 @@ When a *MapStageSubmitted* event is posted, it triggers execution of `DAGSchedul
 .DAGScheduler.handleMapStageSubmitted handles MapStageSubmitted events
 image::diagrams/scheduler-handlemapstagesubmitted.png[align="center"]
 
-It is called with a job id (for a new job to be created), a link:spark-rdd-dependencies.adoc#ShuffleDependency[ShuffleDependency], and a JobListener.
+It is called with a job id (for a new job to be created), a link:spark-rdd-dependencies.adoc#ShuffleDependency[ShuffleDependency], and a <<JobListener, JobListener>>.
 
 You should see the following INFOs in the logs:
 
@@ -257,7 +310,7 @@ When DAGScheduler receives *JobSubmitted* event it calls `DAGScheduler.handleJob
 .DAGScheduler.handleJobSubmitted
 image::images/dagscheduler-handleJobSubmitted.png[align="center"]
 
-`handleJobSubmitted` has access to the final RDD, the partitions to compute, and the JobListener for the job, i.e. `JobWaiter`.
+`handleJobSubmitted` has access to the final RDD, the partitions to compute, and the <<JobListener, JobListener>> for the job, i.e. <<JobWaiter, JobWaiter>>.
 
 It creates a new <<ResultStage, ResultStage>> (as `finalStage` on the picture) and instantiates `ActiveJob`.
 
