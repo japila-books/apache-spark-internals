@@ -7,19 +7,6 @@ When your Spark application starts, i.e. at the time when an instance of SparkCo
 .TaskSchedulerImpl and Other Services
 image::images/taskschedulerimpl-sparkcontext-schedulerbackend-dagscheduler.png[align="center"]
 
-TaskSchedulerImpl tracks the following:
-
-* the number of link:spark-taskscheduler-tasks.adoc[tasks] already scheduled for execution (`nextTaskId`).
-* link:spark-taskscheduler-tasksets.adoc[TaskSets] by stage and attempt ids (`taskSetsByStageIdAndAttempt`)
-* link:spark-taskscheduler-tasks.adoc[tasks] to their link:spark-tasksetmanager.adoc[TaskSetManagers] (`taskIdToTaskSetManager`)
-* link:spark-taskscheduler-tasks.adoc[tasks] to link:spark-executor.adoc[executors] (`taskIdToExecutorId`)
-* the number of link:spark-taskscheduler-tasks.adoc[tasks] running per link:spark-executor.adoc[executor] (`executorIdToTaskCount`)
-* the set of link:spark-executor.adoc[executors] on each host (`executorsByHost`)
-* the set of hosts per rack (`hostsByRack`)
-* executor ids to corresponding host (`executorIdToHost`).
-
-CAUTION: FIXME How are these mappings used?
-
 CAUTION: FIXME Why `hasReceivedTask` and `hasLaunchedTask`?
 
 NOTE: The source code is in https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/scheduler/TaskSchedulerImpl.scala[org.apache.spark.scheduler.TaskSchedulerImpl].
@@ -124,6 +111,21 @@ When `resourceOffers` managed to launch a task, the internal field `hasLaunchedT
 
 CAUTION: FIXME Why is there a need for `hasLaunchedTask`? Can TaskSchedulerImpl launch more tasks later?
 
+=== [[internal-data-structures]] Internal Data Structures
+
+CAUTION: FIXME How/where are these mappings used?
+
+TaskSchedulerImpl tracks the following information in its internal data structures:
+
+* the number of link:spark-taskscheduler-tasks.adoc[tasks] already scheduled for execution (`nextTaskId`).
+* link:spark-taskscheduler-tasksets.adoc[TaskSets] by stage and attempt ids (`taskSetsByStageIdAndAttempt`)
+* link:spark-taskscheduler-tasks.adoc[tasks] to their link:spark-tasksetmanager.adoc[TaskSetManagers] (`taskIdToTaskSetManager`)
+* link:spark-taskscheduler-tasks.adoc[tasks] to link:spark-executor.adoc[executors] (`taskIdToExecutorId`)
+* the number of link:spark-taskscheduler-tasks.adoc[tasks] running per link:spark-executor.adoc[executor] (`executorIdToTaskCount`)
+* the set of link:spark-executor.adoc[executors] on each host (`executorsByHost`)
+* the set of hosts per rack (`hostsByRack`)
+* executor ids to corresponding host (`executorIdToHost`).
+
 === [[speculative-execution]] Speculative execution of tasks
 
 *Speculative tasks* (also *speculatable tasks* or *task strugglers*) are tasks that run slower than most of the all tasks in a job.
@@ -171,6 +173,40 @@ The job with speculatable tasks should finish while speculative tasks are runnin
 The check procedure is in link:spark-tasksetmanager.adoc[TaskSetManager.checkSpeculatableTasks] method.
 
 1. How does Spark handle repeated results of speculative tasks since there are copies launched?
+
+=== [[statusUpdate]] statusUpdate
+
+`statusUpdate(tid: Long, state: TaskState, serializedData: ByteBuffer)` is called by link:spark-scheduler-backends.adoc[scheduler backends] to inform about task state changes (see link:spark-taskscheduler-tasks.adoc#states[Task States] in Tasks).
+
+CAUTION: FIXME image with scheduler backends calling `TaskSchedulerImpl.statusUpdate`.
+
+It is called by:
+
+* link:spark-scheduler-backends-coarse-grained.adoc[CoarseGrainedSchedulerBackend] when `StatusUpdate(executorId, taskId, state, data)` comes.
+* link:spark-mesos.adoc#MesosSchedulerBackend[MesosSchedulerBackend] when `org.apache.mesos.Scheduler.statusUpdate` is called.
+* link:spark-local.adoc#LocalEndpoint[LocalEndpoint] when `StatusUpdate(taskId, state, serializedData)` comes.
+
+When `statusUpdate` starts, it checks the current state of the task and act accordingly.
+
+If a task became `TaskState.LOST` and there is still an executor assigned for the task (it seems it may not given the check), the executor is marked as lost (or sometimes called failed). The executor is later announced as such using `DAGScheduler.executorLost` with link:spark-scheduler-backends.adoc#reviveOffers[SchedulerBackend.reviveOffers()] being called afterwards.
+
+CAUTION: FIXME Why is link:spark-scheduler-backends.adoc#reviveOffers[SchedulerBackend.reviveOffers()] called only for lost executors?
+
+CAUTION: FIXME Review `TaskSchedulerImpl.removeExecutor`
+
+The method looks up the link:spark-tasksetmanager.adoc[TaskSetManager] for the task (using `taskIdToTaskSetManager`).
+
+When the TaskSetManager is found and the task is in finished state, the task is removed from the internal data structures, i.e. `taskIdToTaskSetManager` and `taskIdToExecutorId`, and the number of currently running tasks for the executor(s) is decremented (using `executorIdToTaskCount`).
+
+For a `FINISHED` task, link:spark-taskscheduler-tasksets.adoc[TaskSet.removeRunningTask] is called and then link:spark-taskscheduler.adoc#TaskResultGetter[TaskResultGetter.enqueueSuccessfulTask].
+
+For a task in `FAILED`, `KILLED`, or `LOST` state, link:spark-taskscheduler-tasksets.adoc[TaskSet.removeRunningTask] is called (as for the `FINISHED` state) and then link:spark-taskscheduler.adoc#TaskResultGetter[TaskResultGetter.enqueueFailedTask].
+
+If the TaskSetManager could not be found, the following ERROR shows in the logs:
+
+```
+ERROR Ignoring update with state [state] for TID [tid] because its task set is gone (this is likely the result of receiving duplicate task finished status updates)
+```
 
 === [[scheduling-mode]] Scheduling Modes
 
