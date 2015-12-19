@@ -193,7 +193,7 @@ The methods use the internal (daemon thread) thread pool *task-result-getter* (a
 
 ==== [[enqueueSuccessfulTask]] enqueueSuccessfulTask
 
-`enqueueSuccessfulTask(taskSetManager: TaskSetManager, tid: Long, serializedData: ByteBuffer)` first deserializes `TaskResult` (from `serializedData` using `SparkEnv.closureSerializer`).
+`enqueueSuccessfulTask(taskSetManager: TaskSetManager, tid: Long, serializedData: ByteBuffer)` starts by deserializing `TaskResult` (from `serializedData` using `SparkEnv.closureSerializer`).
 
 If the result is `DirectTaskResult`, the method checks `taskSetManager.canFetchMoreResults(serializedData.limit())` and possibly quits. If not, it deserializes the result (using `SparkEnv.serializer`).
 
@@ -217,7 +217,15 @@ Any `ClassNotFoundException` or non fatal exceptions lead to `TaskSetManager.abo
 
 ==== [[enqueueFailedTask]] enqueueFailedTask
 
-CAUTION: FIXME
+`enqueueFailedTask(taskSetManager: TaskSetManager, tid: Long, taskState: TaskState, serializedData: ByteBuffer)` checks whether `serializedData` contains any data and if it does it deserializes it to a `TaskEndReason` (using `SparkEnv.closureSerializer`).
+
+Either `UnknownReason` or the deserialized instance is passed on to `TaskSchedulerImpl.handleFailedTask` as the reason of the failure.
+
+Any `ClassNotFoundException` leads to printing out the ERROR message to the logs:
+
+```
+ERROR Could not deserialize TaskEndReason: ClassNotFound with classloader [loader]
+```
 
 ==== [[settings]] Settings
 
