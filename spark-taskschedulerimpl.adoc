@@ -207,7 +207,7 @@ DEBUG Fetching indirect task result for TID [tid]
 
 `scheduler.handleTaskGettingResult(taskSetManager, tid)` gets called. And `sparkEnv.blockManager.getRemoteBytes(blockId)`.
 
-Failure in getting task result from BlockManager results in calling `scheduler.handleFailedTask(taskSetManager, tid, TaskState.FINISHED, TaskResultLost)` and quit.
+Failure in getting task result from BlockManager results in calling `TaskSchedulerImpl.handleFailedTask(taskSetManager, tid, TaskState.FINISHED, TaskResultLost)` and quit.
 
 The task result is deserialized to `DirectTaskResult` (using `SparkEnv.closureSerializer`) and `sparkEnv.blockManager.master.removeBlock(blockId)` is called afterwards.
 
@@ -264,6 +264,16 @@ If the TaskSetManager could not be found, the following ERROR shows in the logs:
 ```
 ERROR Ignoring update with state [state] for TID [tid] because its task set is gone (this is likely the result of receiving duplicate task finished status updates)
 ```
+
+=== [[handleFailedTask]] handleFailedTask
+
+`TaskSchedulerImpl.handleFailedTask(taskSetManager: TaskSetManager, tid: Long, taskState: TaskState, reason: TaskEndReason)` is called when <<enqueueSuccessfulTask, TaskResultGetter.enqueueSuccessfulTask>> failed to fetch bytes from BlockManager or as part of <<enqueueFailedTask, TaskResultGetter.enqueueFailedTask>>.
+
+Either way there is an error related to task execution.
+
+It calls `TaskSetManager.handleFailedTask`.
+
+If link:spark-tasksetmanager.adoc#zombie-state[the TaskSetManager is not a zombie] and the task's state is not `KILLED`, link:spark-scheduler-backends.adoc#reviveOffers[SchedulerBackend.reviveOffers] is called.
 
 === [[scheduling-mode]] Scheduling Modes
 
