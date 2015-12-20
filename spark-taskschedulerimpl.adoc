@@ -11,6 +11,16 @@ CAUTION: FIXME Why `hasReceivedTask` and `hasLaunchedTask`?
 
 NOTE: The source code is in https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/scheduler/TaskSchedulerImpl.scala[org.apache.spark.scheduler.TaskSchedulerImpl].
 
+=== [[initialization]] Initialization
+
+`initialize(backend: SchedulerBackend)` method is responsible for initializing a `TaskSchedulerImpl`.
+
+It has to be called after a `TaskSchedulerImpl` is created and before it can be <<starting, started>> to know about the link:spark-scheduler-backends.adoc[SchedulerBackend] to use.
+
+NOTE: link:spark-sparkcontext.adoc#createTaskScheduler[SparkContext] initializes TaskSchedulerImpl.
+
+Besides being assigned the instance of `SchedulerBackend`, it sets up `rootPool` (as part of link:spark-taskscheduler.adoc#contract[TaskScheduler Contract]). It uses a scheduling mode (as configured by <<settings, spark.scheduler.mode>>) to build a <<SchedulableBuilder, SchedulableBuilder>> and finally calls `SchedulableBuilder.buildPools()`.
+
 === [[starting]] Starting
 
 When TaskSchedulerImpl is started (using `start()` method), it starts the link:spark-scheduler-backends.adoc[scheduler backend] it manages.
@@ -89,17 +99,13 @@ CAUTION: FIXME Why is `getRackForHost` important?
 
 It builds a list of tasks (using `TaskDescription`) to assign to each worker.
 
-CAUTION: FIXME What does the line `val sortedTaskSets = rootPool.getSortedTaskSetQueue` mean? It uses no method's local variables. There can be many TaskSetManagers in the result.
-
-`rootPool.getSortedTaskSetQueue` is called to build a collection of tasksets (as TaskSetManagers in `sortedTaskSets`).
-
-For each taskset (represented by a TaskSetManager), the following DEBUG message is printed out to the logs:
+link:spark-taskscheduler.adoc#Schedulable[rootPool.getSortedTaskSetQueue] is called for available TaskSetManagers and for each TaskSetManager the DEBUG message is printed out to the logs:
 
 ```
 DEBUG parentName: [taskSet.parent.name], name: [taskSet.name], runningTasks: [taskSet.runningTasks]
 ```
 
-And if a new host was added to the pool (using `newExecAvail` - FIXME when exactly?), each TaskSetManager gets notified about new executor added (using `TaskSetManager.executorAdded()`). FIXME So what?
+Moreover, if a new host was added to the pool (using `newExecAvail` - FIXME when exactly?), TaskSetManagers get informed about the new executor (using link:spark-tasksetmanager.adoc#executorAdded[TaskSetManager.executorAdded()]).
 
 WARNING: FIXME BUG? Why is the name `newExecAvail` since it's called for a new host added? Can't we have more executors on a host? The name of the method could be misleading.
 
@@ -273,13 +279,42 @@ If link:spark-tasksetmanager.adoc#zombie-state[the TaskSetManager is not a zombi
 
 === [[scheduling-mode]] Scheduling Modes
 
-Task Scheduler uses a scheduling mode that determines policy to order tasks across a Schedulable's sub-queues.
+The scheduling mode in `TaskSchedulerImpl` is configured by <<settings, spark.scheduler.mode>> setting that can be one of the following values:
 
-It is configured by <<settings, spark.scheduler.mode>> setting that can accept the following values:
-
-* *FIFO* - no pools; one root pool with link:spark-tasksetmanager.adoc[TaskSetManager]; lower priority gets Schedulable sooner or earlier stage wins.
-* *FAIR* - more advanced FIXME
+* *FIFO* with no pools; one root pool with instances of link:spark-tasksetmanager.adoc[TaskSetManager]; lower priority gets link:spark-taskscheduler.adoc#Schedulable[Schedulable] sooner or earlier stage wins.
+* *FAIR*
 * *NONE* means no sub-queues
+
+See <<SchedulableBuilder, SchedulableBuilder>>.
+
+==== [[SchedulableBuilder]] SchedulableBuilder
+
+CAUTION: FIXME
+
+`SchedulableBuilder` offers the following methods:
+
+* `rootPool` to return a link:spark-taskscheduler.adoc#Pool[Pool].
+* `buildPools()`
+* `addTaskSetManager(manager: Schedulable, properties: Properties)`
+
+There are two implementations available (click the links to go to their sections):
+
+* <<FIFOSchedulableBuilder, FIFOSchedulableBuilder>>
+* <<FairSchedulableBuilder, FairSchedulableBuilder>>
+
+==== [[FIFOSchedulableBuilder]] FIFOSchedulableBuilder
+
+`FIFOSchedulableBuilder` is a _very basic_ `SchedulableBuilder`.
+
+* `rootPool` is given as a mandatory input parameter to the constructor.
+
+* `buildPools` does nothing.
+
+* `addTaskSetManager` passes the Schedulable to `rootPool` (using `Pool.addSchedulable`).
+
+==== [[FairSchedulableBuilder]] FairSchedulableBuilder
+
+CAUTION: FIXME
 
 === [[settings]] Settings
 
@@ -287,7 +322,7 @@ It is configured by <<settings, spark.scheduler.mode>> setting that can accept t
 +
 It is used in TaskSchedulerImpl to initialize link:spark-tasksetmanager.adoc[TaskSetManager].
 * `spark.task.cpus` (default: `1`) - how many CPUs to request per task in a SparkContext. You cannot have different number of CPUs per task in a single SparkContext.
-* `spark.scheduler.mode` (default: `FIFO`) can be of any of `FAIR`, `FIFO`, or `NONE`. Refer to <<scheduling-mode, scheduling mode>>.
+* `spark.scheduler.mode` (default: `FIFO`) can be of any of `FAIR`, `FIFO`, or `NONE`. Refer to <<scheduling-mode, Scheduling Modes>>.
 * `spark.speculation.interval` (default: `100ms`) - how often to check for speculative tasks.
 * `spark.starvation.timeout` (default: `15s`) - Threshold above which Spark warns a user that an initial TaskSet may be starved.
 
