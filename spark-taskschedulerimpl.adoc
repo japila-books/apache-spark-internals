@@ -53,14 +53,14 @@ When TaskSchedulerImpl is stopped (using `stop()` method), it does the following
 
 `TaskSchedulerImpl` uses link:spark-scheduler-backends.adoc#defaultParallelism[SchedulerBackend.defaultParallelism()] to calculate the value, i.e. it just passes it along to a scheduler backend.
 
-=== [[submitTasks]] Task Submission
+=== [[submitTasks]] Task Submission (using submitTasks)
 
 link:spark-taskscheduler-tasks.adoc[Tasks] are submitted for execution as a link:spark-taskscheduler-tasksets.adoc[TaskSet] using `submitTasks(taskSet: TaskSet)` method.
 
-.TaskScheduler.submitTasks
+.TaskSchedulerImpl.submitTasks
 image::images/taskscheduler-submitTasks.png[align="center"]
 
-If there are tasks to launch for missing partitions in a stage, DAGScheduler executes `submitTasks` (see link:spark-dagscheduler.adoc#submitMissingTasks[submitMissingTasks for Stage and Job]).
+NOTE: If there are tasks to launch for missing partitions in a stage, DAGScheduler executes `submitTasks` (see link:spark-dagscheduler.adoc#submitMissingTasks[submitMissingTasks for Stage and Job]).
 
 When this method is called, you should see the following INFO message in the logs:
 
@@ -70,9 +70,25 @@ INFO TaskSchedulerImpl: Adding task set [taskSet.id] with [tasks.length] tasks
 
 It creates a new link:spark-tasksetmanager.adoc[TaskSetManager] for the given TaskSet and the acceptable number of task failures.
 
-CAUTION: FIXME There are other steps not included here.
+`taskSetsByStageIdAndAttempt`, i.e. a mapping of stages and another mapping of attempt ids and TaskSetManagers, is checked for conflicting TaskSetManagers, i.e. TaskSetManagers for which the TaskSets are different and TaskSetManager is not zombie. If there is one, an `IllegalStateException` is thrown with the message:
 
-It then calls `backend.reviveOffers()`.
+```
+more than one active taskSet for stage [stage]: [TaskSet ids]
+```
+
+Otherwise, <<SchedulableBuilder, SchedulableBuilder.addTaskSetManager>> is called.
+
+For cluster modes, and if `hasReceivedTask` is `false`, `starvationTimer` is scheduled at fixed rate, i.e. every <<settings, spark.starvation.timeout>> after the first <<settings, spark.starvation.timeout>> passes. `TaskSchedulerImpl` is then marked as `hasReceivedTask`.
+
+Every time the starvation timer thread is executed, it checks whether `hasLaunchedTask` is `false`, and logs the WARNING:
+
+```
+WARNING Initial job has not accepted any resources; check your cluster UI to ensure that workers are registered and have sufficient resources
+```
+
+Otherwise, the timer thread cancels itself.
+
+It then calls link:spark-scheduler-backends.adoc#reviveOffers[SchedulerBackend.reviveOffers()].
 
 TIP: Use `dag-scheduler-event-loop` thread to step through the code in a debugger.
 
