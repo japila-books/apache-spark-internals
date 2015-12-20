@@ -121,9 +121,125 @@ The following "events" trigger communication between TaskSetManager and DAGSched
 ** ...FIXME Finish me...
 * `executorLost` - `Resubmitted` (`TaskFailedReason`)
 
+=== [[handleFailedTask]] TaskSetManager.handleFailedTask
+
+`handleFailedTask(tid: Long, state: TaskState, reason: TaskEndReason)` method is called by link:spark-taskschedulerimpl.adoc#handleFailedTask[TaskSchedulerImpl] or <<executorLost, executorLost>>.
+
+CAUTION: FIXME image with `handleFailedTask` (and perhaps the other parties involved)
+
+The method first checks whether the task has already been marked as failed (using <<internal-data-structures, taskInfos>>) and if it has, it quits.
+
+It removes the task from <<internal-data-structures, runningTasksSet>> and informs <<internal-data-structures, the parent pool>> to decrease its running tasks.
+
+It marks the TaskInfo as failed and grabs its index so the number of copies running of the task is decremented (see <<internal-data-structures, copiesRunning>>).
+
+CAUTION: FIXME Describe `TaskInfo`
+
+The method calculates the failure exception to report per `TaskEndReason`. See below for the possible cases of TaskEndReason.
+
+CAUTION: FIXME Describe `TaskEndReason`.
+
+The executor for the failed task is added to <<internal-data-structures, failedExecutors>>.
+
+It informs DAGScheduler that the task ended (using  `DAGScheduler.taskEnded`).
+
+The task is then added to the list of pending tasks.
+
+CAUTION: FIXME Review `addPendingTask`
+
+If the TaskSetManager is not a <<zombie-state, zombie>>, and the task was not `KILLED`, and the task failure should be counted towards the maximum number of times the task is allowed to fail before the stage is aborted (`TaskFailedReason.countTowardsTaskFailures` is `true`), <<internal-data-structures, numFailures>> is incremented and if the number of failures of the task equals or is greater than assigned to the TaskSetManager (`maxTaskFailures`), the ERROR appears in the logs:
+
+```
+ERROR Task [id] in stage [id] failed [maxTaskFailures] times; aborting job
+```
+
+And `abort` is called, and the method quits.
+
+Otherwise, `TaskSchedulerImpl.taskSetFinished` is called when the TaskSetManager is <<zombie-state, zombie>> and there are no running tasks.
+
+==== FetchFailed
+
+For `FetchFailed`, it logs WARNING:
+
+```
+WARNING Lost task [id] in stage [id] (TID [id], [host]): [reason.toErrorString]
+```
+
+Unless it has already been marked as successful (in <<internal-data-structures, successful>>), the task becomes so and <<internal-data-structures, tasksSuccessful>> is incremented.
+
+The TaskSetManager becomes <<zombie-state, zombie>>.
+
+No exception is returned.
+
+==== ExceptionFailure
+
+For `ExceptionFailure`, it grabs `TaskMetrics` if available.
+
+If it is a `NotSerializableException`, it logs ERROR:
+
+```
+ERROR Task [id] in stage [id] (TID [tid]) had a not serializable result: [exception.description]; not retrying"
+```
+
+It calls `abort` and returns no failure exception.
+
+It continues if it is not a `NotSerializableException`.
+
+It grabs the description and the time of the ExceptionFailure.
+
+If the description, i.e. the ExceptionFailure, has already been reported (and is therefore a duplication), <<settings, spark.logging.exceptionPrintInterval>> is checked before reprinting the duplicate exception in full.
+
+For full printout of the ExceptionFailure, the following WARNING appears in the logs:
+
+```
+WARNING Lost task [id] in stage [id] (TID [id], [host]): [reason.toErrorString]
+```
+
+Otherwise, the following INFO appears in the logs:
+
+```
+INFO Lost task [id] in stage [id] (TID [id]) on executor [host]: [ef.className] ([ef.description]) [duplicate [count]]
+```
+
+The ExceptionFailure becomes failure exception.
+
+==== ExecutorLostFailure
+
+For `ExecutorLostFailure` if not `exitCausedByApp`, the following INFO appears in the logs:
+
+```
+INFO Task [tid] failed because while it was being computed, its executor exited for a reason unrelated to the task. Not counting this failure towards the maximum number of failures for the task.
+```
+
+No failure exception is returned.
+
+==== Other TaskFailedReasons
+
+For the other TaskFailedReasons, the WARNING appears in the logs:
+
+```
+WARNING Lost task [id] in stage [id] (TID [id], [host]): [reason.toErrorString]
+```
+
+No failure exception is returned.
+
+==== Other TaskEndReason
+
+For the other TaskEndReasons, the ERROR appears in the logs:
+
+```
+ERROR Unknown TaskEndReason: [e]
+```
+
+No failure exception is returned.
+
+=== [[executorLost]] executorLost
+
+CAUTION: FIXME
+
 === [[task-retries]] Retrying Tasks on Failure
 
-FIXME
+CAUTION: FIXME
 
 Up to <<settings, spark.task.maxFailures>> attempts
 
@@ -189,6 +305,33 @@ The TaskSetManager enters <<zombie-state, zombie state>>.
 `maybeFinishTaskSet` method is called.
 
 CAUTION: FIXME Why is `maybeFinishTaskSet` method called? When is `runningTasks` `0`?
+
+=== [[internal-data-structures]] Internal Data Structures
+
+* `copiesRunning`
+* `successful`
+* `numFailures`
+* `failedExecutors` contains a mapping of TaskInfo's indices that failed to executor ids and the time of the failure. It is used in <<handleFailedTask, handleFailedTask>>.
+* `taskAttempts`
+* `tasksSuccessful`
+* `weight` (default: `1`)
+* `minShare` (default: `0`)
+* `priority` (default: `taskSet.priority`)
+* `stageId` (default: `taskSet.stageId`)
+* `name` (default: `TaskSet_[taskSet.stageId]`)
+* `parent`
+* `totalResultSize`
+* `calculatedTasks`
+* `runningTasksSet`
+* `isZombie` (default: `false`)
+* `pendingTasksForExecutor`
+* `pendingTasksForHost`
+* `pendingTasksForRack`
+* `pendingTasksWithNoPrefs`
+* `allPendingTasks`
+* `speculatableTasks`
+* `taskInfos` is the mapping between task ids and their `TaskInfo`
+* `recentExceptions`
 
 === [[tasksetmanager-settings]] Settings
 
