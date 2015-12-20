@@ -30,7 +30,33 @@ CAUTION: FIXME When is `parent` Pool set and how is this used?
 
 === [[executorAdded]] executorAdded
 
-CAUTION: FIXME
+`executorAdded` is simply an alias for `recomputeLocality` method, i.e. the former passes the call to the latter.
+
+=== [[recomputeLocality]] recomputeLocality
+
+`recomputeLocality` (re)computes locality levels as a indexed collection of task localities, i.e. `Array[TaskLocality.TaskLocality]`.
+
+NOTE: `TaskLocality` is an enumeration with `PROCESS_LOCAL`, `NODE_LOCAL`, `NO_PREF`, `RACK_LOCAL`, `ANY` values.
+
+The method starts with `currentLocalityIndex` being `0`.
+
+It checks whether `pendingTasksForExecutor` has at least one element, and if so, it looks up <<settings, spark.locality.wait.*>> for `PROCESS_LOCAL` and checks whether there is an executor for which `TaskSchedulerImpl.isExecutorAlive` is `true`. If the checks pass, `PROCESS_LOCAL` becomes an element of the result collection of task localities.
+
+The same checks are performed for `pendingTasksForHost`, `NODE_LOCAL`, and `TaskSchedulerImpl.hasExecutorsAliveOnHost` to add `NODE_LOCAL` to the result collection of task localities.
+
+Then, the method checks `pendingTasksWithNoPrefs` and if it's not empty, `NO_PREF` becomes an element of the levels collection.
+
+If `pendingTasksForRack` is not empty, and the wait time for `RACK_LOCAL` is defined, and there is an executor for which `TaskSchedulerImpl.hasHostAliveOnRack` is `true`, `RACK_LOCAL` is added to the levels collection.
+
+`ANY` is the last and always-added element in the levels collection.
+
+Right before the method finishes, it prints out the following DEBUG to the logs:
+
+```
+DEBUG Valid locality levels for [taskSet]: [levels]
+```
+
+`myLocalityLevels`, `localityWaits`, and `currentLocalityIndex` are recomputed.
 
 === [[resourceOffer]] resourceOffer
 
@@ -334,7 +360,7 @@ CAUTION: FIXME Why is `maybeFinishTaskSet` method called? When is `runningTasks`
 * `spark.speculation.multiplier` (default: `1.5`)
 * `spark.driver.maxResultSize` (default: `1g`) is the limit of bytes for total size of results. If the value is smaller than `1m` or `1048576` (1024 * 1024), it becomes 0.
 * `spark.logging.exceptionPrintInterval` (default: `10000`) - how frequently to reprint duplicate exceptions in full, in milliseconds
-* `spark.locality.wait` (default: `3s`) - for locality-aware delay scheduling for PROCESS_LOCAL, NODE_LOCAL, and RACK_LOCAL when locality-specific setting is not set.
-* `spark.locality.wait.process` (default: the value of `spark.locality.wait`) - delay for PROCESS_LOCAL
-* `spark.locality.wait.node` (default: the value of `spark.locality.wait`) - delay for NODE_LOCAL
-* `spark.locality.wait.rack` (default: the value of `spark.locality.wait`) - delay for RACK_LOCAL
+* `spark.locality.wait` (default: `3s`) - for locality-aware delay scheduling for `PROCESS_LOCAL`, `NODE_LOCAL`, and `RACK_LOCAL` when locality-specific setting is not set.
+* `spark.locality.wait.process` (default: the value of `spark.locality.wait`) - delay for `PROCESS_LOCAL`
+* `spark.locality.wait.node` (default: the value of `spark.locality.wait`) - delay for `NODE_LOCAL`
+* `spark.locality.wait.rack` (default: the value of `spark.locality.wait`) - delay for `RACK_LOCAL`
