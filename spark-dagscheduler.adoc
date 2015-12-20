@@ -2,14 +2,14 @@
 
 [NOTE]
 ====
-The introduction that follows was highly influenced by the scaladoc of https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/scheduler/DAGScheduler.scala[org.apache.spark.scheduler.DAGScheduler]. As DAGScheduler is a private class it does not appear in the official API documentation. You are strongly encouraged to read https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/scheduler/DAGScheduler.scala[the sources] and read this and the related pages afterwards.
+The introduction that follows was highly influenced by the scaladoc of https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/scheduler/DAGScheduler.scala[org.apache.spark.scheduler.DAGScheduler]. As DAGScheduler is a private class it does not appear in the official API documentation. You are strongly encouraged to read https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/scheduler/DAGScheduler.scala[the sources] and only then read this and the related pages afterwards.
 
 _"Reading the sources"_, I say?! Yes, I _am_ kidding!
 ====
 
 === Introduction
 
-*DAGScheduler* is the scheduling layer in Apache Spark that implements *stage-oriented scheduling*, i.e. RDD actions submit jobs that ultimately become stages with parallel tasks (see link:spark-execution-model.adoc[Execution Model]).
+*DAGScheduler* is the scheduling layer of Apache Spark that implements *stage-oriented scheduling*, i.e. after an RDD action has been called it becomes a job that is then transformed into a set of stages that are submitted as TaskSets for execution (see link:spark-execution-model.adoc[Execution Model]).
 
 .Executing action leads to new ResultStage and ActiveJob in DAGScheduler
 image::images/dagscheduler-rdd-partitions-job-resultstage.png[align="center"]
@@ -23,11 +23,11 @@ image::images/dagscheduler-new-instance.png[align="center"]
 
 DAGScheduler does three things in Spark (thorough explanations follow):
 
-* It computes an *execution DAG*, i.e. DAG of stages, for a job.
-* It determines the <<preferred-locations, preferred locations>> to run each task on.
-* It handles failures due to *shuffle output files* being lost.
+* Computes an *execution DAG*, i.e. DAG of stages, for a job.
+* Determines the <<preferred-locations, preferred locations>> to run each task on.
+* Handles failures due to *shuffle output files* being lost.
 
-It computes https://en.wikipedia.org/wiki/Directed_acyclic_graph[a directed acyclic graph (DAG)] of stages for each job, keeps track of which RDDs and stage outputs are materialized, and finds a minimal schedule to run jobs. It then submits stages to link:spark-taskscheduler.adoc[TaskScheduler] that spawns tasks to compute results (link:spark-local.adoc[locally] or link:spark-cluster.adoc[on cluster]).
+It computes https://en.wikipedia.org/wiki/Directed_acyclic_graph[a directed acyclic graph (DAG)] of stages for each job, keeps track of which RDDs and stage outputs are materialized, and finds a minimal schedule to run jobs. It then submits stages to link:spark-taskscheduler.adoc[TaskScheduler].
 
 In addition to coming up with the execution DAG, DAGScheduler also determines the preferred locations to run each task on, based on the current cache status, and passes the information to link:spark-taskscheduler.adoc[TaskScheduler].
 
@@ -60,7 +60,15 @@ DAGScheduler needs link:spark-sparkcontext.adoc[SparkContext], link:spark-tasksc
 
 DAGScheduler reports metrics about its execution (refer to the section <<metrics, Metrics>>).
 
-DAGScheduler keeps track of the following information:
+When DAGScheduler schedules a job as a result of link:spark-rdd.adoc#actions[executing an action on a RDD] or link:spark-sparkcontext.adoc#running-jobs[calling SparkContext.runJob() method directly], it spawns parallel tasks to compute (partial) results per partition.
+
+The number of partition in a job depends on the type of a stage - <<ResultStage, ResultStage>> or <<ShuffleMapStage, ShuffleMapStage>>.
+
+A job starts with a single target RDD, but can ultimately include other RDDs that are all part of link:spark-rdd#lineage[the target RDD's lineage graph].
+
+=== [[internal-registries]] Internal Registries
+
+DAGScheduler maintains the following information in its internal registries:
 
 * a mapping between jobs to their stages (using `jobIdToStageIds`)
 * a mapping between stage ids to stage instances (using `stageIdToStage`)
@@ -68,12 +76,6 @@ DAGScheduler keeps track of the following information:
 * a mapping between job ids to ActiveJob instances (using `jobIdToActiveJob`)
 * a set of ActiveJob instances (`activeJobs`)
 * a mapping between RDD ids and their cache preferences (`cacheLocs`)
-
-When DAGScheduler schedules a job as a result of link:spark-rdd.adoc#actions[executing an action on a RDD] or link:spark-sparkcontext.adoc#running-jobs[calling SparkContext.runJob() method directly], it spawns parallel tasks to compute (partial) results per partition.
-
-The number of partition in a job depends on the type of a stage - <<ResultStage, ResultStage>> or <<ShuffleMapStage, ShuffleMapStage>>.
-
-A job starts with a single target RDD, but can ultimately include other RDDs that are all part of link:spark-rdd#lineage[the target RDD's lineage graph].
 
 === [[failedStages]] Failed Stages
 
