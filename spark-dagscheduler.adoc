@@ -54,10 +54,6 @@ DAGScheduler reports metrics about its execution (refer to the section <<metrics
 
 When DAGScheduler schedules a job as a result of link:spark-rdd.adoc#actions[executing an action on a RDD] or link:spark-sparkcontext.adoc#running-jobs[calling SparkContext.runJob() method directly], it spawns parallel tasks to compute (partial) results per partition.
 
-The number of partition in a job depends on the type of a stage - <<ResultStage, ResultStage>> or <<ShuffleMapStage, ShuffleMapStage>>.
-
-A job starts with a single target RDD, but can ultimately include other RDDs that are all part of link:spark-rdd#lineage[the target RDD's lineage graph].
-
 === [[internal-registries]] Internal Registries
 
 DAGScheduler maintains the following information in internal registries:
@@ -417,25 +413,19 @@ And <<submitMissingTasks, submitMissingTasks>> is called. That finishes the stag
 
 If however there are missing parent stages for the stage, all stages are processed recursively (using `submitStage`), and the stage is added to `waitingStages` set.
 
-=== [[calculating-missing-parent-stages]] Calculating Missing Parent Stages
+=== [[calculating-missing-parent-stages]] Calculating Missing Parent Map Stages
 
-CAUTION: FIXME
+`DAGScheduler.getMissingParentStages(stage: Stage)` calculates missing parent map stages for a given `stage`.
 
-`DAGScheduler.getMissingParentStages(stage: Stage)` calculates missing parent stages for a given `stage`.
+It starts with the stage's target RDD (as `stage.rdd`). If there are <<cache-tracking, uncached partitions>>, it traverses the dependencies of the RDD (as `RDD.dependencies`) that can be the instances of link:spark-rdd-dependencies.adoc#ShuffleDependency[ShuffleDependency] or link:spark-rdd-dependencies.adoc#NarrowDependency[NarrowDependency].
 
-It starts with the target RDD of `stage` given as an input parameter and <<internal-registries, cacheLocs>> mapping is checked by the RDD's id.
-
-The parent stages are actually only the instances of link:spark-dagscheduler-stages.adoc#ShuffleMapStage[ShuffleMapStage].
-
-If the RDD's storage level is `NONE`, it is assumed that no partition cache location are available. Otherwise, the block manager `BlockManagerMaster` is queried with `RDDBlockId` for each partition using `BlockManagerMaster.getLocations`. A collection of `TaskLocation` is built out of it.
-
-If at least one partition of an RDD has been found uncached, the list of dependencies (using `RDD.dependencies`) is traversed to find link:spark-rdd-dependencies.adoc#ShuffleDependency[ShuffleDependency] dependencies for their corresponding link:spark-dagscheduler-stages.adoc#ShuffleMapStage[ShuffleMapStage] (using `getShuffleMapStage`).
+For each ShuffleDependency, the method searches for the corresponding link:spark-dagscheduler-stages.adoc#ShuffleMapStage[ShuffleMapStage] (using `getShuffleMapStage`) and if unavailable, the method adds it to a set of missing (map) stages.
 
 CAUTION: FIXME Review `getShuffleMapStage`
 
 CAUTION: FIXME...IMAGE with ShuffleDependencies queried
 
-A missing `ShuffleMapStage` gets added to the set of missing map stages.
+It continues traversing the chain for each NarrowDependency (using `Dependency.rdd`).
 
 === [[stage-attempts]] Fault recovery - stage attempts
 
@@ -459,9 +449,9 @@ The internal `cacheLocs` is a mapping between RDD ids and the values being array
 
 CAUTION: FIXME: A diagram, please
 
-If link:spark-rdd-caching.adoc[a storage level of an RDD is NONE], there is no caching and hence whenever asked DAGScheduler returns a collection with empty-location elements for each partition.
+If link:spark-rdd-caching.adoc[the storage level of an RDD is NONE], there is no caching and hence no partition cache locations are available. In such cases, whenever asked, DAGScheduler returns a collection with empty-location elements for each partition. The empty-location elements are to mark *uncached partitions*.
 
-Otherwise, a collection of `RDDBlockId` instances for each partition is created and link:spark-blockmanager.adoc[BlockManager] is asked for locations (using `BlockManagerMaster.getLocations`). The result is then mapped to a collection of `TaskLocation` for host and executor id.
+Otherwise, a collection of `RDDBlockId` instances for each partition is created and link:spark-blockmanager.adoc[BlockManagerMaster] is asked for locations (using `BlockManagerMaster.getLocations`). The result is then mapped to a collection of `TaskLocation` for host and executor id.
 
 === [[preferred-locations]] Preferred Locations
 
