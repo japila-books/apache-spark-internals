@@ -37,14 +37,6 @@ DAGScheduler uses an *event queue architecture* in which a thread can post `DAGS
 
 DAGScheduler runs stages in topological order.
 
-DAGScheduler maintains different sets of stages per execution state:
-
-* waiting (`waitingStages`)
-* running (`runningStages`)
-* <<failedStages, failed>> (`failedStages`)
-
-DAGScheduler keeps track of the number of jobs already submitted (using `nextJobId` internal field and `numTotalJobs` method) as well as the number of stages (using `nextStageId`).
-
 [TIP]
 ====
 Turn `DEBUG` or more detailed `TRACE` logging to see what happens inside `DAGScheduler`.
@@ -68,14 +60,21 @@ A job starts with a single target RDD, but can ultimately include other RDDs tha
 
 === [[internal-registries]] Internal Registries
 
-DAGScheduler maintains the following information in its internal registries:
+DAGScheduler maintains the following information in internal registries:
 
-* a mapping between jobs to their stages (using `jobIdToStageIds`)
-* a mapping between stage ids to stage instances (using `stageIdToStage`)
-* a mapping between ids to ShuffleMapStages (using `shuffleToMapStage`) - FIXME
-* a mapping between job ids to ActiveJob instances (using `jobIdToActiveJob`)
-* a set of ActiveJob instances (`activeJobs`)
-* a mapping between RDD ids and their cache preferences (`cacheLocs`)
+* `nextJobId` for the next job id
+* `numTotalJobs` (alias of `nextJobId`) for the total number of submitted
+* `nextStageId` for the next stage id
+* `jobIdToStageIds` for a mapping between jobs and their stages
+* `stageIdToStage` for a mapping between stage ids to stages
+* `shuffleToMapStage` for a mapping between ids to ShuffleMapStages
+* `jobIdToActiveJob` for a mapping between job ids to ActiveJobs
+* `waitingStages` for stages with parents to be computed
+* `runningStages` for stages currently being run
+* `failedStages` for stages that need to be resubmitted due to fetch failures (see <<failedStages, Failed Stages>>).
+* `activeJobs` for a collection of ActiveJob instances
+* `cacheLocs` for a mapping between RDD ids and their cache preferences per partition. See <<cache-tracking, Cache Tracking>>.
+* `failedEpoch` for a mapping between...FIXME
 
 === [[failedStages]] Failed Stages
 
@@ -326,8 +325,6 @@ It creates a new <<ResultStage, ResultStage>> (as `finalStage` on the picture) a
 
 CAUTION: FIXME review `newResultStage`
 
-CAUTION: FIXME `clearCacheLocs` clears an internal field is called in handle* methods. How many instances of DAGScheduler are created and when?
-
 You should see the following INFO messages in the logs:
 
 ```
@@ -426,7 +423,7 @@ CAUTION: FIXME
 
 `DAGScheduler.getMissingParentStages(stage: Stage)` calculates missing parent stages for a given `stage`.
 
-It starts with the target RDD of `stage` given as an input parameter for which `cacheLocs` map is checked by the RDD's id.
+It starts with the target RDD of `stage` given as an input parameter and <<internal-registries, cacheLocs>> mapping is checked by the RDD's id.
 
 The parent stages are actually only the instances of link:spark-dagscheduler-stages.adoc#ShuffleMapStage[ShuffleMapStage].
 
@@ -456,19 +453,15 @@ The latest `StageInfo` for the most recent attempt for a stage is accessible thr
 
 DAGScheduler tracks which RDDs are cached to avoid recomputing them and likewise remembers which shuffle map stages have already produced output files to avoid redoing the map side of a shuffle.
 
-The internal `cacheLocs` is a map with keys being RDD ids and the values being arrays indexed by partition numbers. Each array value is the set of locations where that RDD partition is cached.
+DAGScheduler is only interested in cache location coordinates, i.e. host and executor id, per partition of an RDD.
 
-[CAUTION]
-====
-FIXME:
+The internal `cacheLocs` is a mapping between RDD ids and the values being arrays indexed by partition numbers. Each array value is the set of locations where that RDD partition is cached.
 
-* A diagram would be awesome.
-* Review the use of `cacheLocs`
-====
+CAUTION: FIXME: A diagram, please
 
-If link:spark-rdd-caching.adoc[a storage level of an RDD is NONE], there is no need to get locations from link:spark-blockmanager.adoc[block manager]. Otherwise, `RDDBlockId` is created and Block Manager gets asked for locations.
+If link:spark-rdd-caching.adoc[a storage level of an RDD is NONE], there is no caching and hence whenever asked DAGScheduler returns a collection with empty-location elements for each partition.
 
-CAUTION: FIXME Review `TaskLocation`
+Otherwise, a collection of `RDDBlockId` instances for each partition is created and link:spark-blockmanager.adoc[BlockManager] is asked for locations (using `BlockManagerMaster.getLocations`). The result is then mapped to a collection of `TaskLocation` for host and executor id.
 
 === [[preferred-locations]] Preferred Locations
 
