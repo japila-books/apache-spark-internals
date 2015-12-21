@@ -80,6 +80,15 @@ CAUTION: FIXME
 
 New failed stages are added when `FetchFailed` event gets posted.
 
+[CAUTION]
+====
+FIXME Review
+
+* `cleanupStateForJobAndIndependentStages`
+* `resubmitFailedStages`
+* `submitWaitingStages`
+====
+
 === [[runJob]] DAGScheduler.runJob
 
 When executed, `DAGScheduler.runJob` is given the following arguments:
@@ -358,7 +367,114 @@ Internally, link:spark-tasksetmanager.adoc[TaskSetManager] calls `DAGScheduler.t
 
 * `DAGScheduler.onReceive` calls `dagScheduler.handleTaskCompletion(completion)`
 
-=== [[submitWaitingStages]] submitWaitingStages
+=== [[handleTaskCompletion]] handleTaskCompletion
+
+`handleTaskCompletion(event: CompletionEvent)` method is called...FIXME
+
+<<CompletionEvent, CompletionEvent>> holds information about the task.
+
+The task knows about the stage it belongs to (using `Task.stageId`), the partition it works on (using `Task.partitionId`), and the stage attempt (using `Task.stageAttemptId`).
+
+`OutputCommitCoordinator.taskCompleted` is called.
+
+If the reason for task completion is not `Success`, `SparkListenerTaskEnd` is posted on `listenerBus`. The only difference with <<handleTaskCompletion-Success, TaskEndReason: Success>> is how the stage attempt id is calculated. Here, it is `Task.stageAttemptId` (not `Stage.latestInfo.attemptId`).
+
+CAUTION: FIXME What is the difference between stage attempt ids?
+
+If the stage the task belongs to has been cancelled, `stageIdToStage` should not contain it, and the method quits.
+
+The main processing begins now depending on `TaskEndReason` - the reason for task completion (using `event.reason`). The method skips processing `TaskEndReasons`: `TaskCommitDenied`, `ExceptionFailure`, `TaskResultLost`, `ExecutorLostFailure`, `TaskKilled`, and `UnknownReason`, i.e. it does nothing.
+
+==== [[handleTaskCompletion-Success]] TaskEndReason: Success
+
+`SparkListenerTaskEnd` is posted on `listenerBus`.
+
+The partition the task worked on is removed from `pendingPartitions` of the stage.
+
+The processing splits per task type - ResultTask or ShuffleMapTask - and <<submitWaitingStages, submitWaitingStages()>> is called.
+
+===== [[handleTaskCompletion-Success-ResultTask]] ResultTask
+
+For ResultTask, the stage is `ResultStage`. If there is no job active for the stage (using `resultStage.activeJob`), the following INFO message appears in the logs:
+
+```
+INFO Ignoring result from [task] because its job has finished
+```
+
+Otherwise, check whether the task is marked as running for the job (using `job.finished`) and proceed. The method skips execution when the task has already been marked as completed in the job.
+
+CAUTION: FIXME When could a task that has just finished be ignored, i.e. the job has already marked `finished`? Could it be for stragglers?
+
+`updateAccumulators(event)` is called.
+
+The partition is marked as `finished` (using `job.finished`) and the number of partitions calculated increased (using `job.numFinished`).
+
+If the whole job has finished (when `job.numFinished == job.numPartitions`), then:
+
+* `markStageAsFinished` is called
+* `cleanupStateForJobAndIndependentStages(job)`
+* `SparkListenerJobEnd` is posted on `listenerBus` with `JobSucceeded`
+
+The `JobListener` of the job (using `job.listener`) is informed about the task completion (using `job.listener.taskSucceeded(rt.outputId, event.result)`). If the step fails, i.e. throws an exception, the JobListener is informed about it (using `job.listener.jobFailed(new SparkDriverExecutionException(e))`).
+
+CAUTION: FIXME When would `job.listener.taskSucceeded` throw an exception? How?
+
+===== [[handleTaskCompletion-Success-ShuffleMapTask]] ShuffleMapTask
+
+For ShuffleMapTask, the stage is `ShuffleMapStage`.
+
+`updateAccumulators(event)` is called.
+
+`event.result` is `MapStatus` that knows the executor id where the task has finished (using `status.location.executorId`).
+
+You should see the following DEBUG message in the logs:
+
+```
+DEBUG ShuffleMapTask finished on [execId]
+```
+
+If `failedEpoch` contains the executor and the epoch of the ShuffleMapTask is not greater than that in `failedEpoch`, you should see the following INFO message in the logs:
+
+```
+INFO Ignoring possibly bogus [task] completion from executor [executorId]
+```
+
+Otherwise, `shuffleStage.addOutputLoc(smt.partitionId, status)` is called.
+
+The method does more processing only if the internal `runningStages` contains the ShuffleMapStage with no more pending partitions to compute (using `shuffleStage.pendingPartitions`).
+
+`markStageAsFinished(shuffleStage)` is called.
+
+The following INFO logs appear in the logs:
+
+```
+INFO looking for newly runnable stages
+INFO running: [runningStages]
+INFO waiting: [waitingStages]
+INFO failed: [failedStages]
+```
+
+`mapOutputTracker.registerMapOutputs` with `changeEpoch` is called.
+
+`cacheLocs.clear()` is called.
+
+If the map stage is ready, i.e. all partitions have shuffle outputs, map-stage jobs waiting on this stage (using `shuffleStage.mapStageJobs`) are marked as finished. `mapOutputTracker.getStatistics(shuffleStage.shuffleDep)` is called and every map-stage job is `markMapStageJobAsFinished(job, stats)`.
+
+Otherwise, if the map stage is _not_ ready, the following INFO message appears in the logs:
+
+```
+INFO Resubmitting [shuffleStage] ([shuffleStage.name]) because some of its tasks had failed: [missingPartitions]
+```
+
+`submitStage(shuffleStage)` is called.
+
+CAUTION: FIXME All _"...is called"_ above should be rephrased to use links to appropriate sections.
+
+==== TaskEndReason: Resubmitted
+
+==== TaskEndReason: FetchFailed
+
+=== [[submitWaitingStages]] Submit Waiting Stages (using submitWaitingStages)
 
 `DAGScheduler.submitWaitingStages` method checks for waiting or failed stages that could now be eligible for submission.
 
