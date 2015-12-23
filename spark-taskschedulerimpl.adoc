@@ -68,7 +68,9 @@ When this method is called, you should see the following INFO message in the log
 INFO TaskSchedulerImpl: Adding task set [taskSet.id] with [tasks.length] tasks
 ```
 
-It creates a new link:spark-tasksetmanager.adoc[TaskSetManager] for the given TaskSet and the acceptable number of task failures.
+It creates a new link:spark-tasksetmanager.adoc[TaskSetManager] for the given TaskSet `taskSet` and the acceptable number of task failures (as `maxTaskFailures`).
+
+NOTE: `maxTaskFailures` that is the acceptable number of task failures is given when a `TaskSchedulerImpl` is created.
 
 `taskSetsByStageIdAndAttempt`, i.e. a mapping of stages and another mapping of attempt ids and TaskSetManagers, is checked for conflicting TaskSetManagers, i.e. TaskSetManagers for which the TaskSets are different and TaskSetManager is not zombie. If there is one, an `IllegalStateException` is thrown with the message:
 
@@ -76,7 +78,7 @@ It creates a new link:spark-tasksetmanager.adoc[TaskSetManager] for the given Ta
 more than one active taskSet for stage [stage]: [TaskSet ids]
 ```
 
-Otherwise, <<SchedulableBuilder, SchedulableBuilder.addTaskSetManager>> is called.
+Otherwise, <<SchedulableBuilder, SchedulableBuilder.addTaskSetManager>> is called with the `manager` being the TaskSetManager just created.
 
 For cluster modes, and if `hasReceivedTask` is `false`, `starvationTimer` is scheduled at fixed rate, i.e. every <<settings, spark.starvation.timeout>> after the first <<settings, spark.starvation.timeout>> passes. `TaskSchedulerImpl` is then marked as `hasReceivedTask`.
 
@@ -336,6 +338,8 @@ CAUTION: FIXME
 * `buildPools()`
 * `addTaskSetManager(manager: Schedulable, properties: Properties)`
 
+NOTE: `SchedulableBuilder.addTaskSetManager` is called by <<submitTasks, TaskSchedulerImpl.submitTasks>> when a TaskSet is submitted for execution.
+
 There are two implementations available (click the links to go to their sections):
 
 * <<FIFOSchedulableBuilder, FIFOSchedulableBuilder>>
@@ -349,7 +353,7 @@ There are two implementations available (click the links to go to their sections
 
 * `buildPools` does nothing.
 
-* `addTaskSetManager` passes the Schedulable to `rootPool` (using `Pool.addSchedulable`).
+* `addTaskSetManager(manager: Schedulable, properties: Properties)` adds the `manager` Schedulable to `rootPool` (using `Pool.addSchedulable`).
 
 ==== [[FairSchedulableBuilder]] FairSchedulableBuilder
 
