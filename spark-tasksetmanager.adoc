@@ -42,9 +42,43 @@ log4j.logger.org.apache.spark.scheduler.TaskSetManager=DEBUG
 * <<checkSpeculatableTasks, checkSpeculatableTasks>>
 * `getSortedTaskSetQueue` returns a one-element collection with the sole element being itself.
 
-=== [[checkSpeculatableTasks]] checkSpeculatableTasks
+=== [[checkSpeculatableTasks]] TaskSetManager.checkSpeculatableTasks
 
-CAUTION: FIXME
+`checkSpeculatableTasks` checks whether there are speculatable tasks in the TaskSet.
+
+NOTE: `checkSpeculatableTasks` is called by link:spark-taskschedulerimpl.adoc#speculative-execution[TaskSchedulerImpl.checkSpeculatableTasks].
+
+If the TaskSetManager is <<zombie-state, zombie>> or has a single task in TaskSet, it assumes no speculatable tasks.
+
+The method goes on with the assumption of no speculatable tasks by default.
+
+It computes the minimum number of finished tasks for speculation (as <<settings, spark.speculation.quantile>> of all the finished tasks).
+
+You should see the DEBUG message in the logs:
+
+```
+DEBUG Checking for speculative tasks: minFinished = [minFinishedForSpeculation]
+```
+
+It then checks whether the number is equal or greater than the number of tasks completed successfully (using `tasksSuccessful`).
+
+Having done that, it computes the median duration of all the successfully completed tasks (using `taskInfos`) and task length threshold using the median duration multiplied by <<settings, spark.speculation.multiplier>> that has to be equal or less than `100`.
+
+You should see the DEBUG message in the logs:
+
+```
+DEBUG Task length threshold for speculation: [threshold]
+```
+
+For each task (using `taskInfos`) that is not marked as successful yet (using `successful`) for which there is only one copy running (using `copiesRunning`) and the task takes more time than the calculated threshold, but it was not in `speculatableTasks` it is assumed *speculatable*.
+
+You should see the following INFO message in the logs:
+
+```
+INFO Marking task [index] in stage [taskSet.id] (on [info.host]) as speculatable because it ran more than [threshold] ms
+```
+
+The task gets added to the internal `speculatableTasks` collection. The method responds positively.
 
 === [[executorLost]] TaskSetManager.executorLost
 
@@ -66,11 +100,11 @@ For the other cases, i.e. if the TaskSet is for link:spark-dagscheduler-stages.a
 
 Eventually, <<recomputeLocality, recomputeLocality()>> is called.
 
-=== [[executorAdded]] executorAdded
+=== [[executorAdded]] TaskSetManager.executorAdded
 
 `executorAdded` simply calls <<recomputeLocality, recomputeLocality>> method.
 
-=== [[recomputeLocality]] recomputeLocality
+=== [[recomputeLocality]] TaskSetManager.recomputeLocality
 
 `recomputeLocality` (re)computes locality levels as a indexed collection of task localities, i.e. `Array[TaskLocality.TaskLocality]`.
 
@@ -96,7 +130,7 @@ DEBUG Valid locality levels for [taskSet]: [levels]
 
 `myLocalityLevels`, `localityWaits`, and `currentLocalityIndex` are recomputed.
 
-=== [[resourceOffer]] resourceOffer
+=== [[resourceOffer]] TaskSetManager.resourceOffer
 
 CAUTION: FIXME Review `TaskSetManager.resourceOffer` + Does this have anything related to the following section about scheduling tasks?
 
@@ -414,7 +448,7 @@ CAUTION: FIXME Why is `maybeFinishTaskSet` method called? When is `runningTasks`
 * `taskInfos` is the mapping between task ids and their `TaskInfo`
 * `recentExceptions`
 
-=== [[tasksetmanager-settings]] Settings
+=== [[settings]] Settings
 
 * `spark.scheduler.executorTaskBlacklistTime` (default: `0L`) - time interval to pass after which a task can be re-launched on the executor where it has once failed. It is to prevent repeated task failures due to executor failures.
 * `spark.speculation` (default: `false`)

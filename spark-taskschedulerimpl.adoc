@@ -150,53 +150,27 @@ TaskSchedulerImpl tracks the following information in its internal data structur
 * the set of hosts per rack (`hostsByRack`)
 * executor ids to corresponding host (`executorIdToHost`).
 
-=== [[speculative-execution]] Speculative execution of tasks
+=== [[speculative-execution]] Speculative Execution of Tasks
 
-*Speculative tasks* (also *speculatable tasks* or *task strugglers*) are tasks that run slower than most of the all tasks in a job.
+*Speculative tasks* (also *speculatable tasks* or *task strugglers*) are tasks that run slower than most (FIXME the setting) of the all tasks in a job.
 
-*Speculative execution of tasks* is a health-check procedure that checks for tasks to be *speculated*, i.e. running slower in a stage than the median of all successfully completed tasks in a taskset. Such slow tasks will be re-launched in another worker. It will not stop the slow tasks, but run a new copy in parallel.
+*Speculative execution of tasks* is a health-check procedure that checks for tasks to be *speculated*, i.e. running slower in a stage than the median of all successfully completed tasks in a taskset (FIXME the setting). Such slow tasks will be re-launched in another worker. It will not stop the slow tasks, but run a new copy in parallel.
 
-It is executed periodically by the TaskScheduler for link:spark-cluster.adoc[clustered deployment modes], when link:spark-tasksetmanager.adoc#tasksetmanager-settings[spark.speculation] is enabled (`true`).
+The thread starts as `TaskSchedulerImpl` starts in link:spark-cluster.adoc[clustered deployment modes] with link:spark-tasksetmanager.adoc#settings[spark.speculation] enabled. It executes periodically every <<settings, spark.speculation.interval>> after <<settings, spark.speculation.interval>> passes.
 
-With `spark.speculation` enabled, the following INFO message appears in the logs:
+When enabled, you should see the following INFO message in the logs:
 
 ```
 INFO Starting speculative execution thread
 ```
 
-It is scheduled using *task-scheduler-speculation* daemon thread pool using `j.u.c.ScheduledThreadPoolExecutor` with core pool size `1`.
-
-It is executed for link:spark-tasksetmanager.adoc#zombie-state[non-zombie TaskSetManagers] with more than one task to execute.
-
-The process computes link:spark-tasksetmanager.adoc#tasksetmanager-settings[spark.speculation.quantile] of all the tasks and checks whether the number is greater than the number of tasks completed successfully.
-
-You can find the DEBUG message in the logs:
-
-```
-DEBUG Checking for speculative tasks: minFinished =
-```
-
-It then computes the median duration of all the completed task length threshold for speculation to have it multiplied by link:spark-tasksetmanager.adoc#tasksetmanager-settings[spark.speculation.multiplier]. It has to be at least `100`.
-
-In the logs at DEBUG level:
-
-```
-DEBUG Task length threshold for speculation:
-```
-
-For each active task for which there is only one copy running and the task takes more time than the threshold, it gets marked as *speculatable*.
-
-In the logs at INFO level:
-
-```
-INFO Marking task %d in stage %s (on %s) as speculatable because it ran more than %.0f ms
-```
+It works as *task-scheduler-speculation* daemon thread pool using `j.u.c.ScheduledThreadPoolExecutor` with core pool size `1`.
 
 The job with speculatable tasks should finish while speculative tasks are running, and it will leave these tasks running - no KILL command yet.
 
-The check procedure is in link:spark-tasksetmanager.adoc[TaskSetManager.checkSpeculatableTasks] method.
+It uses `checkSpeculatableTasks` method that asks `rootPool` to check for speculatable tasks. If there are any, SchedulerBackend is called for link:spark-scheduler-backends.adoc#reviveOffers[reviveOffers].
 
-1. How does Spark handle repeated results of speculative tasks since there are copies launched?
+CAUTION: FIXME How does Spark handle repeated results of speculative tasks since there are copies launched?
 
 === [[TaskResultGetter]] TaskResultGetter
 
