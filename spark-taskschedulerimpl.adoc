@@ -7,23 +7,21 @@ When your Spark application starts, i.e. at the time when an instance of SparkCo
 .TaskSchedulerImpl and Other Services
 image::images/taskschedulerimpl-sparkcontext-schedulerbackend-dagscheduler.png[align="center"]
 
-CAUTION: FIXME Why `hasReceivedTask` and `hasLaunchedTask`?
-
 NOTE: The source code is in https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/scheduler/TaskSchedulerImpl.scala[org.apache.spark.scheduler.TaskSchedulerImpl].
 
-=== [[initialization]] Initialization
+=== [[initialization]] TaskSchedulerImpl.initialize
 
 `initialize(backend: SchedulerBackend)` method is responsible for initializing a `TaskSchedulerImpl`.
 
-It has to be called after a `TaskSchedulerImpl` is created and before it can be <<starting, started>> to know about the link:spark-scheduler-backends.adoc[SchedulerBackend] to use.
+It has to be called after a `TaskSchedulerImpl` is created and before it can be <<start, started>> to know about the link:spark-scheduler-backends.adoc[SchedulerBackend] to use.
 
 NOTE: link:spark-sparkcontext.adoc#createTaskScheduler[SparkContext] initializes TaskSchedulerImpl.
 
 Besides being assigned the instance of `SchedulerBackend`, it sets up `rootPool` (as part of link:spark-taskscheduler.adoc#contract[TaskScheduler Contract]). It uses a scheduling mode (as configured by <<settings, spark.scheduler.mode>>) to build a <<SchedulableBuilder, SchedulableBuilder>> and call `SchedulableBuilder.buildPools()`.
 
-=== [[starting]] Starting
+=== [[start]] TaskSchedulerImpl.start
 
-When TaskSchedulerImpl is started (using `start()` method), it starts the link:spark-scheduler-backends.adoc[scheduler backend] it manages.
+When `TaskSchedulerImpl` is started (using `start()` method), it starts the link:spark-scheduler-backends.adoc[scheduler backend] it manages.
 
 Below is a figure of the method calls in Spark Standalone mode.
 
@@ -32,20 +30,44 @@ image::images/taskschedulerimpl-start-standalone.png[align="center"]
 
 TIP: SparkContext starts a TaskScheduler.
 
-=== [[postStartHook]] Post-Start Initialization
+It also starts the *task-scheduler-speculation* executor pool. See <<speculative-execution, Speculative Execution of Tasks>>.
 
-TaskSchedulerImpl comes with its own `postStartHook()` (see <<contract, TaskScheduler Contract>>) to wait until a scheduler backend is ready (see link:spark-scheduler-backends.adoc#contract[SchedulerBackend Contract]).
+=== [[postStartHook]] Post-Start Initialization (using postStartHook)
+
+`TaskSchedulerImpl` comes with a custom `postStartHook()` (see <<contract, TaskScheduler Contract>>) to wait until a scheduler backend is ready (see link:spark-scheduler-backends.adoc#contract[SchedulerBackend Contract]).
 
 Internally, it uses `waitBackendReady()` to do the waiting and looping.
 
-=== [[stopping]] Stopping
+=== [[stopping]] TaskSchedulerImpl.stop
 
-When TaskSchedulerImpl is stopped (using `stop()` method), it does the following:
+When `TaskSchedulerImpl` is stopped (using `stop()` method), it does the following:
 
 * Shuts down the internal `task-scheduler-speculation` thread pool executor (used for <<speculative-execution, Speculative execution of tasks>>).
 * Stops link:spark-scheduler-backends.adoc[SchedulerBackend].
 * Stops link:spark-taskscheduler.adoc#TaskResultGetter[TaskResultGetter].
 * Cancels `starvationTimer` timer.
+
+=== [[speculative-execution]] Speculative Execution of Tasks
+
+*Speculative tasks* (also *speculatable tasks* or *task strugglers*) are tasks that run slower than most (FIXME the setting) of the all tasks in a job.
+
+*Speculative execution of tasks* is a health-check procedure that checks for tasks to be *speculated*, i.e. running slower in a stage than the median of all successfully completed tasks in a taskset (FIXME the setting). Such slow tasks will be re-launched in another worker. It will not stop the slow tasks, but run a new copy in parallel.
+
+The thread starts as `TaskSchedulerImpl` starts in link:spark-cluster.adoc[clustered deployment modes] with link:spark-tasksetmanager.adoc#settings[spark.speculation] enabled. It executes periodically every <<settings, spark.speculation.interval>> after <<settings, spark.speculation.interval>> passes.
+
+When enabled, you should see the following INFO message in the logs:
+
+```
+INFO Starting speculative execution thread
+```
+
+It works as *task-scheduler-speculation* daemon thread pool using `j.u.c.ScheduledThreadPoolExecutor` with core pool size `1`.
+
+The job with speculatable tasks should finish while speculative tasks are running, and it will leave these tasks running - no KILL command yet.
+
+It uses `checkSpeculatableTasks` method that asks `rootPool` to check for speculatable tasks. If there are any, SchedulerBackend is called for link:spark-scheduler-backends.adoc#reviveOffers[reviveOffers].
+
+CAUTION: FIXME How does Spark handle repeated results of speculative tasks since there are copies launched?
 
 === [[defaultParallelism]] Default Level of Parallelism
 
@@ -80,7 +102,7 @@ more than one active taskSet for stage [stage]: [TaskSet ids]
 
 Otherwise, <<SchedulableBuilder, SchedulableBuilder.addTaskSetManager>> is called with the `manager` being the TaskSetManager just created.
 
-For cluster modes, and if `hasReceivedTask` is `false`, `starvationTimer` is scheduled at fixed rate, i.e. every <<settings, spark.starvation.timeout>> after the first <<settings, spark.starvation.timeout>> passes. `TaskSchedulerImpl` is then marked as `hasReceivedTask`.
+When the method is called the first time (`hasReceivedTask` is `false`) in cluster mode, `starvationTimer` is scheduled at fixed rate, i.e. every <<settings, spark.starvation.timeout>> after the first <<settings, spark.starvation.timeout>> passes (`hasReceivedTask` becomes `true`).
 
 Every time the starvation timer thread is executed, it checks whether `hasLaunchedTask` is `false`, and logs the WARNING:
 
@@ -94,7 +116,7 @@ It then calls link:spark-scheduler-backends.adoc#reviveOffers[SchedulerBackend.r
 
 TIP: Use `dag-scheduler-event-loop` thread to step through the code in a debugger.
 
-=== [[resourceOffers]] Resource Offers
+=== [[resourceOffers]] Offerring Resources (using resourceOffers)
 
 `resourceOffers(offers: Seq[WorkerOffer])` method is called by a cluster manager or link:spark-local.adoc#LocalBackend[LocalBackend] (for local mode) to offer free resources available on the executors to run tasks on.
 
@@ -131,46 +153,7 @@ For each taskset in `sortedTaskSets`, different locality preferences are checked
 
 Check whether the number of cores in an offer is more than the number of cores needed for a task (using <<settings, spark.task.cpus>>).
 
-When `resourceOffers` managed to launch a task, the internal field `hasLaunchedTask` is set.
-
-CAUTION: FIXME Why is there a need for `hasLaunchedTask`? Can TaskSchedulerImpl launch more tasks later?
-
-=== [[internal-registries]] Internal Registries
-
-CAUTION: FIXME How/where are these mappings used?
-
-TaskSchedulerImpl tracks the following information in its internal data structures:
-
-* the number of link:spark-taskscheduler-tasks.adoc[tasks] already scheduled for execution (`nextTaskId`).
-* link:spark-taskscheduler-tasksets.adoc[TaskSets] by stage and attempt ids (`taskSetsByStageIdAndAttempt`)
-* link:spark-taskscheduler-tasks.adoc[tasks] to their link:spark-tasksetmanager.adoc[TaskSetManagers] (`taskIdToTaskSetManager`)
-* link:spark-taskscheduler-tasks.adoc[tasks] to link:spark-executor.adoc[executors] (`taskIdToExecutorId`)
-* the number of link:spark-taskscheduler-tasks.adoc[tasks] running per link:spark-executor.adoc[executor] (`executorIdToTaskCount`)
-* the set of link:spark-executor.adoc[executors] on each host (`executorsByHost`)
-* the set of hosts per rack (`hostsByRack`)
-* executor ids to corresponding host (`executorIdToHost`).
-
-=== [[speculative-execution]] Speculative Execution of Tasks
-
-*Speculative tasks* (also *speculatable tasks* or *task strugglers*) are tasks that run slower than most (FIXME the setting) of the all tasks in a job.
-
-*Speculative execution of tasks* is a health-check procedure that checks for tasks to be *speculated*, i.e. running slower in a stage than the median of all successfully completed tasks in a taskset (FIXME the setting). Such slow tasks will be re-launched in another worker. It will not stop the slow tasks, but run a new copy in parallel.
-
-The thread starts as `TaskSchedulerImpl` starts in link:spark-cluster.adoc[clustered deployment modes] with link:spark-tasksetmanager.adoc#settings[spark.speculation] enabled. It executes periodically every <<settings, spark.speculation.interval>> after <<settings, spark.speculation.interval>> passes.
-
-When enabled, you should see the following INFO message in the logs:
-
-```
-INFO Starting speculative execution thread
-```
-
-It works as *task-scheduler-speculation* daemon thread pool using `j.u.c.ScheduledThreadPoolExecutor` with core pool size `1`.
-
-The job with speculatable tasks should finish while speculative tasks are running, and it will leave these tasks running - no KILL command yet.
-
-It uses `checkSpeculatableTasks` method that asks `rootPool` to check for speculatable tasks. If there are any, SchedulerBackend is called for link:spark-scheduler-backends.adoc#reviveOffers[reviveOffers].
-
-CAUTION: FIXME How does Spark handle repeated results of speculative tasks since there are copies launched?
+When `resourceOffers` managed to launch a task, the internal field `hasLaunchedTask` becomes `true` (that effectively means what the name says _"There were executors and I managed to launch a task"_).
 
 === [[TaskResultGetter]] TaskResultGetter
 
@@ -227,7 +210,7 @@ Any `ClassNotFoundException` leads to printing out the ERROR message to the logs
 ERROR Could not deserialize TaskEndReason: ClassNotFound with classloader [loader]
 ```
 
-=== [[statusUpdate]] statusUpdate
+=== [[statusUpdate]] TaskSchedulerImpl.statusUpdate
 
 `statusUpdate(tid: Long, state: TaskState, serializedData: ByteBuffer)` is called by link:spark-scheduler-backends.adoc[scheduler backends] to inform about task state changes (see link:spark-taskscheduler-tasks.adoc#states[Task States] in Tasks).
 
@@ -261,7 +244,7 @@ If the TaskSetManager could not be found, the following ERROR shows in the logs:
 ERROR Ignoring update with state [state] for TID [tid] because its task set is gone (this is likely the result of receiving duplicate task finished status updates)
 ```
 
-=== [[handleFailedTask]] handleFailedTask
+=== [[handleFailedTask]] TaskSchedulerImpl.handleFailedTask
 
 `TaskSchedulerImpl.handleFailedTask(taskSetManager: TaskSetManager, tid: Long, taskState: TaskState, reason: TaskEndReason)` is called when <<enqueueSuccessfulTask, TaskResultGetter.enqueueSuccessfulTask>> failed to fetch bytes from BlockManager or as part of <<enqueueFailedTask, TaskResultGetter.enqueueFailedTask>>.
 
@@ -332,6 +315,21 @@ There are two implementations available (click the links to go to their sections
 ==== [[FairSchedulableBuilder]] FairSchedulableBuilder
 
 CAUTION: FIXME
+
+=== [[internal-registries]] Internal Registries
+
+CAUTION: FIXME How/where are these mappings used?
+
+TaskSchedulerImpl tracks the following information in its internal data structures:
+
+* the number of link:spark-taskscheduler-tasks.adoc[tasks] already scheduled for execution (`nextTaskId`).
+* link:spark-taskscheduler-tasksets.adoc[TaskSets] by stage and attempt ids (`taskSetsByStageIdAndAttempt`)
+* link:spark-taskscheduler-tasks.adoc[tasks] to their link:spark-tasksetmanager.adoc[TaskSetManagers] (`taskIdToTaskSetManager`)
+* link:spark-taskscheduler-tasks.adoc[tasks] to link:spark-executor.adoc[executors] (`taskIdToExecutorId`)
+* the number of link:spark-taskscheduler-tasks.adoc[tasks] running per link:spark-executor.adoc[executor] (`executorIdToTaskCount`)
+* the set of link:spark-executor.adoc[executors] on each host (`executorsByHost`)
+* the set of hosts per rack (`hostsByRack`)
+* executor ids to corresponding host (`executorIdToHost`).
 
 === [[settings]] Settings
 
