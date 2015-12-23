@@ -46,13 +46,29 @@ log4j.logger.org.apache.spark.scheduler.TaskSetManager=DEBUG
 
 CAUTION: FIXME
 
-=== [[executorLost]] executorLost
+=== [[executorLost]] TaskSetManager.executorLost
 
-CAUTION: FIXME
+`executorLost(execId: String, host: String, reason: ExecutorLossReason)` is part of <<schedulable, Schedulable contract>> that TaskSetManager follows.
+
+It first checks whether the TaskSet is for a link:spark-dagscheduler-stages.adoc#ShuffleMapStage[ShuffleMapStage], i.e. all `TaskSet.tasks` are instances of link:spark-taskscheduler-tasks.adoc#shufflemaptask[ShuffleMapTask]. At the same time, it also checks whether an external shuffle server is used (using `env.blockManager.externalShuffleServiceEnabled`) that could serve the shuffle outputs.
+
+If the above checks pass, tasks (using `taskInfos`) are checked for their executors and whether the failed one is among them.
+
+For each task that executed on the failed executor, if it was not marked as successful already (using `successful`), it is:
+
+* marked as failed (using `successful`)
+* removed from `copiesRunning`
+* the number of successful tasks is decremented (using `tasksSuccessful`)
+* the task gets added to the collection of pending tasks (using `addPendingTask` method)
+* DAGScheduler is informed about resubmission (using link:spark-dagscheduler.adoc#taskEnded[DAGScheduler.taskEnded] with the `reason` being `Resubmitted`).
+
+For the other cases, i.e. if the TaskSet is for link:spark-dagscheduler-stages.adoc#ResultStage[ResultStage] or an external shuffle service is used, for all running tasks for the failed executor, <<handleFailedTask, handleFailedTask>> is called with the task state being `FAILED`.
+
+Eventually, <<recomputeLocality, recomputeLocality()>> is called.
 
 === [[executorAdded]] executorAdded
 
-`executorAdded` is simply an alias for `recomputeLocality` method, i.e. the former passes the call to the latter.
+`executorAdded` simply calls <<recomputeLocality, recomputeLocality>> method.
 
 === [[recomputeLocality]] recomputeLocality
 
@@ -154,7 +170,7 @@ When a task has finished, link:spark-tasksetmanager.adoc[TaskSetManager] calls l
 
 CAUTION: FIXME
 
-=== [[handleFailedTask]] TaskSetManager.handleSuccessfulTask
+=== [[handleSuccessfulTask]] TaskSetManager.handleSuccessfulTask
 
 `handleSuccessfulTask(tid: Long, result: DirectTaskResult[_])` method marks the task (by `tid`) as successful and notifies the DAGScheduler that the task has ended.
 
