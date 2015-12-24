@@ -69,8 +69,8 @@ DAGScheduler maintains the following information in internal registries:
 * `runningStages` for stages currently being run
 * `failedStages` for stages that need to be resubmitted due to fetch failures (see <<failedStages, Failed Stages>>).
 * `activeJobs` for a collection of ActiveJob instances
-* `cacheLocs` for a mapping between RDD ids and their cache preferences per partition. See <<cache-tracking, Cache Tracking>>.
-* `failedEpoch` for a mapping between...FIXME
+* `cacheLocs` is a mapping between RDD ids and their cache preferences per partition (as arrays indexed by partition numbers). Each array value is the set of locations where that RDD partition is cached on. See <<cache-tracking, Cache Tracking>>.
+* `failedEpoch` is a mapping between failed executors and the epoch number when the failure was caught per executor.
 
 === [[failedStages]] Failed Stages
 
@@ -213,7 +213,7 @@ The following are the current types of `DAGSchedulerEvent` events that are handl
 `dagScheduler.handleGetTaskResult` executes in turn.
 * <<CompletionEvent, CompletionEvent>> - posted when link:spark-tasksetmanager.adoc[TaskSetManager] reports that a task has completed successfully or failed.
 * <<ExecutorAdded, ExecutorAdded>> - executor (`execId`) has been spawned on a host (`host`). Remove it from the failed executors list if it was included, and <<submitWaitingStages, submitWaitingStages()>>.
-* `ExecutorLost`
+* <<ExecutorLost, ExecutorLost>>
 * `TaskSetFailed`
 * `ResubmitFailedStages`
 
@@ -245,13 +245,50 @@ CAUTION: FIXME
 
 `ExecutorAdded(execId, host)` event triggers execution of `DAGScheduler.handleExecutorAdded(execId: String, host: String)`.
 
-It checks `failedEpoch` for the executor id (using `execId`) and if it is found the following INFO message appears in the logs:
+It checks <<internal-registries, failedEpoch>> for the executor id (using `execId`) and if it is found the following INFO message appears in the logs:
 
 ```
 INFO Host added was in lost list earlier: [host]
 ```
 
 The executor is removed from the list of failed nodes.
+
+At the end, <<submitWaitingStages, DAGScheduler.submitWaitingStages()>> is called.
+
+==== [[ExecutorLost]] ExecutorLost and handleExecutorLost
+
+`ExecutorLost(execId)` event triggers execution of `DAGScheduler.handleExecutorLost(execId: String, fetchFailed: Boolean, maybeEpoch: Option[Long] = None)`.
+
+`handleExecutorLost` recognizes two cases for executor being lost - when it has happened during fetch (`fetchFailed` is `true`) or not (`fetchFailed` is `false`).
+
+There can be epoch provided or it is calculated by querying link:spark-service-mapoutputtracker.adoc#MapOutputTrackerMaster[MapOutputTrackerMaster] for current epoch number.
+
+CAUTION: FIXME image with DAGScheduler and MapOutputTrackerMaster, BlockManagerMaster and whoever causes ExecutorLost event.
+
+Recurring ExecutorLost events merely lead to the following DEBUG message in the logs:
+
+```
+DEBUG Additional executor lost message for [execId] (epoch [currentEpoch])
+```
+
+If however the executor is not in the list of executor lost or the failed epoch number is smaller than the current one, the executor is added to <<internal-registries, failedEpoch>>.
+
+The following INFO message appears in the logs:
+
+```
+INFO Executor lost: [execId] (epoch [currentEpoch])
+```
+
+`BlockManagerMaster.removeExecutor(execId)` is called.
+
+If an external shuffle service is not used or the ExecutorLost event was for a map output fetch operation, all ShuffleMapStages (using `shuffleToMapStage`) are called (in order):
+
+* `ShuffleMapStage.removeOutputsOnExecutor(execId)`
+* `MapOutputTrackerMaster.registerMapOutputs(shuffleId, stage.outputLocInMapOutputTrackerFormat(), changeEpoch = true)`
+
+For no ShuffleMapStages (in `shuffleToMapStage`), `MapOutputTrackerMaster.incrementEpoch()` is called.
+
+<<internal-registries, cacheLocs>> is cleared.
 
 At the end, <<submitWaitingStages, DAGScheduler.submitWaitingStages()>> is called.
 
@@ -441,7 +478,7 @@ You should see the following DEBUG message in the logs:
 DEBUG ShuffleMapTask finished on [execId]
 ```
 
-If `failedEpoch` contains the executor and the epoch of the ShuffleMapTask is not greater than that in `failedEpoch`, you should see the following INFO message in the logs:
+If <<internal-registries, failedEpoch>> contains the executor and the epoch of the ShuffleMapTask is not greater than that in <<internal-registries, failedEpoch>>, you should see the following INFO message in the logs:
 
 ```
 INFO Ignoring possibly bogus [task] completion from executor [executorId]
@@ -464,7 +501,7 @@ INFO failed: [failedStages]
 
 `mapOutputTracker.registerMapOutputs` with `changeEpoch` is called.
 
-`cacheLocs.clear()` is called.
+<<internal-registries, cacheLocs>> is cleared.
 
 If the map stage is ready, i.e. all partitions have shuffle outputs, map-stage jobs waiting on this stage (using `shuffleStage.mapStageJobs`) are marked as finished. `mapOutputTracker.getStatistics(shuffleStage.shuffleDep)` is called and every map-stage job is `markMapStageJobAsFinished(job, stats)`.
 
@@ -636,7 +673,7 @@ It continues traversing the chain for each NarrowDependency (using `Dependency.r
 
 A single stage can be re-executed in multiple *attempts* due to fault recovery. The number of attempts is configured (FIXME).
 
-If `TaskScheduler` reports that a task failed because a map output file from a previous stage was lost, the DAGScheduler resubmits that lost stage. This is detected through a `CompletionEvent` with `FetchFailed`, or an `ExecutorLost` event. `DAGScheduler` will wait a small amount of time to see whether other nodes or tasks fail, then resubmit `TaskSets` for any lost stage(s) that compute the missing tasks.
+If `TaskScheduler` reports that a task failed because a map output file from a previous stage was lost, the DAGScheduler resubmits that lost stage. This is detected through a `CompletionEvent` with `FetchFailed`, or an <<ExecutorLost, ExecutorLost>> event. `DAGScheduler` will wait a small amount of time to see whether other nodes or tasks fail, then resubmit `TaskSets` for any lost stage(s) that compute the missing tasks.
 
 Please note that tasks from the old attempts of a stage could still be running.
 
@@ -649,8 +686,6 @@ The latest `StageInfo` for the most recent attempt for a stage is accessible thr
 DAGScheduler tracks which RDDs are cached to avoid recomputing them and likewise remembers which shuffle map stages have already produced output files to avoid redoing the map side of a shuffle.
 
 DAGScheduler is only interested in cache location coordinates, i.e. host and executor id, per partition of an RDD.
-
-The internal `cacheLocs` is a mapping between RDD ids and the values being arrays indexed by partition numbers. Each array value is the set of locations where that RDD partition is cached.
 
 CAUTION: FIXME: A diagram, please
 
