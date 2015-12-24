@@ -67,26 +67,31 @@ DAGScheduler maintains the following information in internal registries:
 * `jobIdToActiveJob` for a mapping between job ids to ActiveJobs
 * `waitingStages` for stages with parents to be computed
 * `runningStages` for stages currently being run
-* `failedStages` for stages that need to be resubmitted due to fetch failures (see <<failedStages, Failed Stages>>).
+* `failedStages` for stages that failed due to fetch failures (as reported by <<handleTaskCompletion-FetchFailed, CompletionEvents for FetchFailed end reasons>>) and are going to be <<resubmitFailedStages, resubmitted>>.
 * `activeJobs` for a collection of ActiveJob instances
 * `cacheLocs` is a mapping between RDD ids and their cache preferences per partition (as arrays indexed by partition numbers). Each array value is the set of locations where that RDD partition is cached on. See <<cache-tracking, Cache Tracking>>.
 * `failedEpoch` is a mapping between failed executors and the epoch number when the failure was caught per executor.
-
-=== [[failedStages]] Failed Stages
-
-CAUTION: FIXME
-
-`failedStages` is an internal set of failed Stages in DAGScheduler.
-
-New failed stages are added when `FetchFailed` event gets posted.
 
 [CAUTION]
 ====
 FIXME Review
 
 * `cleanupStateForJobAndIndependentStages`
-* `resubmitFailedStages`
 ====
+
+=== [[resubmitFailedStages]] DAGScheduler.resubmitFailedStages
+
+`resubmitFailedStages()` is called to go over <<internal-registries, failedStages>> collection (of failed stages) and submit them (using <<submitStage, submitStage>>).
+
+If the failed stages collection contains any stage, the following INFO message appears in the logs:
+
+```
+INFO Resubmitting failed stages
+```
+
+`cacheLocs` and <<internal-registries, failedStages>> are cleared, and failed stages are <<submitStage, submitStage>> one by one, ordered by job ids (in an increasing order).
+
+Ultimately, all waiting stages are submitted (using <<submitWaitingStages, submitWaitingStages>>).
 
 === [[runJob]] DAGScheduler.runJob
 
@@ -405,7 +410,7 @@ Then, the `finalStage` stage is given the ActiveJob instance and some housekeepi
 
 CAUTION: FIXME `jobIdToStageIds` and `stageIdToStage` - they're already computed. When? Where?
 
-When DAGScheduler executes a job it first submits the final stage (using <<stage-submission, submitStage>>).
+When DAGScheduler executes a job it first submits the final stage (using <<submitStage, submitStage>>).
 
 Right before `handleJobSubmitted` finishes, <<submitWaitingStages, DAGScheduler.submitWaitingStages()>> is called.
 
@@ -511,7 +516,7 @@ Otherwise, if the map stage is _not_ ready, the following INFO message appears i
 INFO Resubmitting [shuffleStage] ([shuffleStage.name]) because some of its tasks had failed: [missingPartitions]
 ```
 
-`submitStage(shuffleStage)` is called.
+<<submitStage, submitStage(shuffleStage)>> is called.
 
 CAUTION: FIXME All _"...is called"_ above should be rephrased to use links to appropriate sections.
 
@@ -527,7 +532,7 @@ The task (by `task.partitionId`) is added to the collection of pending partition
 
 TIP: A stage knows how many partitions are yet to be calculated. A task knows about the partition id for which it was launched.
 
-==== TaskEndReason: FetchFailed
+==== [[handleTaskCompletion-FetchFailed]] TaskEndReason: FetchFailed
 
 `FetchFailed(bmAddress, shuffleId, mapId, reduceId, failureMessage)` comes with `BlockManagerId` (as `bmAddress`) and the other self-explanatory values.
 
@@ -573,7 +578,7 @@ abortStage(failedStage, s"$failedStage (${failedStage.name}) has failed the maxi
 
 CAUTION: FIXME What does `failedStage.failedOnFetchAndShouldAbort` do?
 
-If `failedStages` is empty, the following INFO shows in the logs:
+If there are no failed stages reported (<<internal-registries, failedStages>> is empty), the following INFO shows in the logs:
 
 ```
 INFO Resubmitting [mapStage] ([mapStage.name]) and [failedStage] ([failedStage.name]) due to fetch failure
@@ -590,13 +595,13 @@ messageScheduler.schedule(
 
 CAUTION: FIXME What does the above code do?
 
-For all the cases, the failed stage and map stages are both added to `failedStage` set.
+For all the cases, the failed stage and map stages are both added to <<internal-registries, failedStages>> set.
 
-If `mapId` (in the `FetchFailed` case) is provided, the map stage output is cleaned up (as it is broken) using `mapStage.removeOutputLoc(mapId, bmAddress)` and `mapOutputTracker.unregisterMapOutput(shuffleId, mapId, bmAddress)` methods.
+If `mapId` (in the `FetchFailed` object for the case) is provided, the map stage output is cleaned up (as it is broken) using `mapStage.removeOutputLoc(mapId, bmAddress)` and `mapOutputTracker.unregisterMapOutput(shuffleId, mapId, bmAddress)` methods.
 
 CAUTION: FIXME What do `mapStage.removeOutputLoc` and `mapOutputTracker.unregisterMapOutput` methods do?
 
-If `bmAddress` (in the `FetchFailed` case) is provided, `handleExecutorLost(bmAddress.executorId, fetchFailed = true, Some(task.epoch))` is called.
+If `bmAddress` (in the `FetchFailed` object for the case) is provided, `handleExecutorLost(bmAddress.executorId, fetchFailed = true, Some(task.epoch))` is called.
 
 CAUTION: FIXME What does `handleExecutorLost` do?
 
@@ -615,9 +620,9 @@ TRACE DAGScheduler: failed: [failedStages]
 
 The method clears the internal `waitingStages` set with stages that wait for their parent stages to finish.
 
-It goes over the waiting stages sorted by job ids in increasing order and calls <<stage-submission, submitStage>> method.
+It goes over the waiting stages sorted by job ids in increasing order and calls <<submitStage, submitStage>> method.
 
-=== [[stage-submission]] submitStage - Stage Submission
+=== [[submitStage]] submitStage - Stage Submission
 
 CAUTION: FIXME
 
@@ -653,7 +658,7 @@ INFO DAGScheduler: Submitting [stage] ([stage.rdd]), which has no missing parent
 
 And <<submitMissingTasks, submitMissingTasks>> is called. That finishes the stage submission.
 
-If however there are missing parent stages for the stage, all stages are processed recursively (using `submitStage`), and the stage is added to `waitingStages` set.
+If however there are missing parent stages for the stage, all stages are processed recursively (using <<submitStage, submitStage>>), and the stage is added to `waitingStages` set.
 
 === [[calculating-missing-parent-stages]] Calculating Missing Parent Map Stages
 
@@ -803,4 +808,4 @@ It emits the following numbers:
 
 === [[settings]] Settings
 
-* `spark.test.noStageRetry` (default: `false`) - if enabled, FetchFailed will not cause stage retry, in order to surface the problem. Used for testing.
+* `spark.test.noStageRetry` (default: `false`) - if enabled, FetchFailed will not cause stage retries, in order to surface the problem. Used for testing.
