@@ -86,7 +86,6 @@ FIXME Review
 
 * `cleanupStateForJobAndIndependentStages`
 * `resubmitFailedStages`
-* `submitWaitingStages`
 ====
 
 === [[runJob]] DAGScheduler.runJob
@@ -172,6 +171,10 @@ Since a `JobWaiter` object is a `JobListener` it gets notifications about `taskS
 
 * FIXME Who's using `submitMapStage`?
 
+=== [[executorAdded]] DAGScheduler.executorAdded
+
+`executorAdded(execId: String, host: String)` method simply posts a <<ExecutorAdded, ExecutorAdded>> event to `eventProcessLoop`.
+
 === [[taskEnded]] DAGScheduler.taskEnded
 
 `taskEnded(task: Task[_], reason: TaskEndReason, result: Any, accumUpdates: Map[Long, Any], taskInfo: TaskInfo, taskMetrics: TaskMetrics)` method simply posts a <<CompletionEvent, CompletionEvent>> event to `eventProcessLoop`.
@@ -209,7 +212,7 @@ The following are the current types of `DAGSchedulerEvent` events that are handl
 +
 `dagScheduler.handleGetTaskResult` executes in turn.
 * <<CompletionEvent, CompletionEvent>> - posted when link:spark-tasksetmanager.adoc[TaskSetManager] reports that a task has completed successfully or failed.
-* `ExecutorAdded` - executor (`execId`) has been spawned on a host (`host`). Remove it from the failed executors list if it was included, and `submitWaitingStages()`.
+* <<ExecutorAdded, ExecutorAdded>> - executor (`execId`) has been spawned on a host (`host`). Remove it from the failed executors list if it was included, and <<submitWaitingStages, submitWaitingStages()>>.
 * `ExecutorLost`
 * `TaskSetFailed`
 * `ResubmitFailedStages`
@@ -237,6 +240,20 @@ INFO Asked to cancel job [jobId]
 It is a signal to the DAGScheduler to cancel the job.
 
 CAUTION: FIXME
+
+==== [[ExecutorAdded]] ExecutorAdded and handleExecutorAdded
+
+`ExecutorAdded(execId, host)` event triggers execution of `DAGScheduler.handleExecutorAdded(execId: String, host: String)`.
+
+It checks `failedEpoch` for the executor id (using `execId`) and if it is found the following INFO message appears in the logs:
+
+```
+INFO Host added was in lost list earlier: [host]
+```
+
+The executor is removed from the list of failed nodes.
+
+At the end, <<submitWaitingStages, DAGScheduler.submitWaitingStages()>> is called.
 
 ==== [[StageCancelled]] StageCancelled and handleStageCancellation
 
