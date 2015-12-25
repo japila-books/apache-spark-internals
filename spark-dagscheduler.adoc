@@ -39,9 +39,9 @@ DAGScheduler runs stages in topological order.
 
 [TIP]
 ====
-Turn `DEBUG` or more detailed `TRACE` logging to see what happens inside `DAGScheduler`.
+Turn `DEBUG` or more detailed `TRACE` logging level to see what happens inside `DAGScheduler`.
 
-Add the following line to `conf/log4j.properties` with requested log level - `DEBUG` or `TRACE`:
+Add the following line to `conf/log4j.properties` with requested logging level - `DEBUG` or `TRACE`:
 
 ```
 log4j.logger.org.apache.spark.scheduler.DAGScheduler=TRACE
@@ -266,9 +266,12 @@ At the end, <<submitWaitingStages, DAGScheduler.submitWaitingStages()>> is calle
 
 `handleExecutorLost` recognizes two cases for executor being lost - when it has happened during fetch (`fetchFailed` is `true`) or not (`fetchFailed` is `false`).
 
-There can be epoch provided or it is calculated by querying link:spark-service-mapoutputtracker.adoc#MapOutputTrackerMaster[MapOutputTrackerMaster] for current epoch number.
+The current epoch number could be provided (as `maybeEpoch`) or it is calculated by requesting it from  link:spark-service-mapoutputtracker.adoc#MapOutputTrackerMaster[MapOutputTrackerMaster] (using link:spark-service-mapoutputtracker.adoc#getEpoch[MapOutputTrackerMaster.getEpoch]).
 
-CAUTION: FIXME image with DAGScheduler and MapOutputTrackerMaster, BlockManagerMaster and whoever causes ExecutorLost event.
+CAUTION: FIXME When is `maybeEpoch` passed to `handleExecutorLost`?
+
+.DAGScheduler.handleExecutorLost
+image::images/dagscheduler-handleExecutorLost.png[align="center"]
 
 Recurring ExecutorLost events merely lead to the following DEBUG message in the logs:
 
@@ -286,12 +289,12 @@ INFO Executor lost: [execId] (epoch [currentEpoch])
 
 `BlockManagerMaster.removeExecutor(execId)` is called.
 
-If an external shuffle service is not used or the ExecutorLost event was for a map output fetch operation, all ShuffleMapStages (using `shuffleToMapStage`) are called (in order):
+If no external shuffle service is in use or the `ExecutorLost` event was for a map output fetch operation, all ShuffleMapStages (using `shuffleToMapStage`) are called (in order):
 
 * `ShuffleMapStage.removeOutputsOnExecutor(execId)`
-* `MapOutputTrackerMaster.registerMapOutputs(shuffleId, stage.outputLocInMapOutputTrackerFormat(), changeEpoch = true)`
+* link:spark-service-mapoutputtracker.adoc#registerMapOutputs[MapOutputTrackerMaster.registerMapOutputs(shuffleId, stage.outputLocInMapOutputTrackerFormat(), changeEpoch = true)]
 
-For no ShuffleMapStages (in `shuffleToMapStage`), `MapOutputTrackerMaster.incrementEpoch()` is called.
+For no ShuffleMapStages (in `shuffleToMapStage`), link:spark-service-mapoutputtracker.adoc#incrementEpoch[MapOutputTrackerMaster.incrementEpoch] is called.
 
 <<internal-registries, cacheLocs>> is cleared.
 
@@ -504,11 +507,11 @@ INFO waiting: [waitingStages]
 INFO failed: [failedStages]
 ```
 
-`mapOutputTracker.registerMapOutputs` with `changeEpoch` is called.
+link:spark-service-mapoutputtracker.adoc#registerMapOutputs[mapOutputTracker.registerMapOutputs] with `changeEpoch` is called.
 
 <<internal-registries, cacheLocs>> is cleared.
 
-If the map stage is ready, i.e. all partitions have shuffle outputs, map-stage jobs waiting on this stage (using `shuffleStage.mapStageJobs`) are marked as finished. `mapOutputTracker.getStatistics(shuffleStage.shuffleDep)` is called and every map-stage job is `markMapStageJobAsFinished(job, stats)`.
+If the map stage is ready, i.e. all partitions have shuffle outputs, map-stage jobs waiting on this stage (using `shuffleStage.mapStageJobs`) are marked as finished. link:spark-service-mapoutputtracker.adoc#getStatistics[MapOutputTrackerMaster.getStatistics(shuffleStage.shuffleDep)] is called and every map-stage job is `markMapStageJobAsFinished(job, stats)`.
 
 Otherwise, if the map stage is _not_ ready, the following INFO message appears in the logs:
 
@@ -595,9 +598,9 @@ CAUTION: FIXME What does the above code do?
 
 For all the cases, the failed stage and map stages are both added to <<internal-registries, failedStages>> set.
 
-If `mapId` (in the `FetchFailed` object for the case) is provided, the map stage output is cleaned up (as it is broken) using `mapStage.removeOutputLoc(mapId, bmAddress)` and `mapOutputTracker.unregisterMapOutput(shuffleId, mapId, bmAddress)` methods.
+If `mapId` (in the `FetchFailed` object for the case) is provided, the map stage output is cleaned up (as it is broken) using `mapStage.removeOutputLoc(mapId, bmAddress)` and link:spark-service-mapoutputtracker.adoc#unregisterMapOutput[MapOutputTrackerMaster.unregisterMapOutput(shuffleId, mapId, bmAddress)] methods.
 
-CAUTION: FIXME What do `mapStage.removeOutputLoc` and `mapOutputTracker.unregisterMapOutput` methods do?
+CAUTION: FIXME What does `mapStage.removeOutputLoc` do?
 
 If `bmAddress` (in the `FetchFailed` object for the case) is provided, `handleExecutorLost(bmAddress.executorId, fetchFailed = true, Some(task.epoch))` is called.
 
