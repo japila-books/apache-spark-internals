@@ -1,6 +1,10 @@
 == ShuffledRDD
 
-*ShuffledRDD* is the result RDD of a transformation that triggers link:spark-rdd-shuffle.adoc[shuffle] at execution. Such a transformation ultimately call `coalesce` transformation with `shuffle` input parameter `true` (default: `false`).
+*ShuffledRDD* is an RDD of (key, value) pairs. It is a shuffle step (the result RDD) for transformations that trigger link:spark-rdd-shuffle.adoc[shuffle] at execution. Such transformations ultimately call `coalesce` transformation with `shuffle` input parameter `true` (default: `false`).
+
+By default, the map-side combining flag (`mapSideCombine`) is `false`. It can however be changed using `ShuffledRDD.setMapSideCombine(mapSideCombine: Boolean)` method (and is used in <<combineByKeyWithClassTag, PairRDDFunctions.combineByKeyWithClassTag>> that sets it `true` by default).
+
+The only dependency of ShuffledRDD is a single-element collection of link:spark-rdd-dependencies.adoc#ShuffleDependency[ShuffleDependency]. Partitions are of type `ShuffledRDDPartition`.
 
 Let's have a look at the below example with `groupBy` transformation:
 
@@ -20,27 +24,19 @@ As you may have noticed, `groupBy` transformation adds `ShuffledRDD` RDD that wi
 .Two stages in a job due to shuffling
 image::images/spark-webui-job-two-stages.png[align="center"]
 
-It's also known as *a shuffle step* (see https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/rdd/RDD.scala#L403[this line in org/apache/spark/rdd/RDD.scala]).
-
-A parent RDD is a pair RDD which means ShuffleRDD works with RDDs of pairs.
-
-It is also the result of RDD transformations using Scala implicits:
+It can be the result of RDD transformations using Scala implicits:
 
 * `repartitionAndSortWithinPartitions`
 * `sortByKey` (be very careful due to https://issues.apache.org/jira/browse/SPARK-1021[[SPARK-1021\]
 sortByKey() launches a cluster job when it shouldn't])
-* `combineByKeyWithClassTag` (only when the input partitioner is different from the current one in an RDD)
 * `partitionBy` (only when the input partitioner is different from the current one in an RDD)
 
 It uses link:spark-rdd-partitions.adoc#partitioner[Partitioner].
 
-ShuffledRDD's RDD Dependencies are always a single-element link:spark-rdd-dependencies.adoc#ShuffleDependency[ShuffleDependency]. Partitions are of type `ShuffledRDDPartition`.
-
 It uses link:spark-service-mapoutputtracker.adoc#MapOutputTrackerMaster[MapOutputTrackerMaster] to get preferred locations for a shuffle, i.e. a ShuffleDependency.
 
-[CAUTION]
-====
-FIXME
+=== [[combineByKeyWithClassTag]] PairRDDFunctions.combineByKeyWithClassTag
 
-* Where's `mapSideCombine` flag used?
-====
+`PairRDDFunctions.combineByKeyWithClassTag` function assumes `mapSideCombine` as `true` by default. It then creates `ShuffledRDD` with the value of `mapSideCombine` when the input partitioner is different from the current one in an RDD.
+
+The function is a generic base function for `combineByKey`-based functions, `combineByKeyWithClassTag`-based functions, `aggregateByKey`, `foldByKey`, `reduceByKey`, `countApproxDistinctByKey`, `groupByKey`, `combineByKeyWithClassTag`-based functions.
