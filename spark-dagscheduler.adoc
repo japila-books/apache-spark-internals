@@ -260,15 +260,19 @@ The executor is removed from the list of failed nodes.
 
 At the end, <<submitWaitingStages, DAGScheduler.submitWaitingStages()>> is called.
 
-==== [[ExecutorLost]] ExecutorLost and handleExecutorLost
+==== [[ExecutorLost]] ExecutorLost and handleExecutorLost (with fetchFailed being false)
 
-`ExecutorLost(execId)` event triggers execution of `DAGScheduler.handleExecutorLost(execId: String, fetchFailed: Boolean, maybeEpoch: Option[Long] = None)`.
+`ExecutorLost(execId)` event triggers execution of `DAGScheduler.handleExecutorLost(execId: String, fetchFailed: Boolean, maybeEpoch: Option[Long] = None)` with `fetchFailed` being `false`.
 
-`handleExecutorLost` recognizes two cases for executor being lost - when it has happened during fetch (`fetchFailed` is `true`) or not (`fetchFailed` is `false`).
+[NOTE]
+====
+`handleExecutorLost` recognizes two cases (by means of `fetchFailed`):
+
+* fetch failures (`fetchFailed` is `true`) from executors that are indirectly assumed lost. See <<handleTaskCompletion-FetchFailed, FetchFailed case in handleTaskCompletion>.
+* lost executors (`fetchFailed` is `false`) for executors that did not report being alive in a given timeframe
+====
 
 The current epoch number could be provided (as `maybeEpoch`) or it is calculated by requesting it from  link:spark-service-mapoutputtracker.adoc#MapOutputTrackerMaster[MapOutputTrackerMaster] (using link:spark-service-mapoutputtracker.adoc#getEpoch[MapOutputTrackerMaster.getEpoch]).
-
-CAUTION: FIXME When is `maybeEpoch` passed to `handleExecutorLost`?
 
 .DAGScheduler.handleExecutorLost
 image::images/dagscheduler-handleExecutorLost.png[align="center"]
@@ -602,7 +606,7 @@ If `mapId` (in the `FetchFailed` object for the case) is provided, the map stage
 
 CAUTION: FIXME What does `mapStage.removeOutputLoc` do?
 
-If `bmAddress` (in the `FetchFailed` object for the case) is provided, `handleExecutorLost(bmAddress.executorId, fetchFailed = true, Some(task.epoch))` is called.
+If `bmAddress` (in the `FetchFailed` object for the case) is provided, `handleExecutorLost(bmAddress.executorId, fetchFailed = true, Some(task.epoch))` is called. See <<ExecutorLost, ExecutorLost and handleExecutorLost (with fetchFailed being false)>>.
 
 CAUTION: FIXME What does `handleExecutorLost` do?
 
