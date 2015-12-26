@@ -1,12 +1,14 @@
 == Block Manager
 
-The *Block Manager* is a key-value store for blocks that acts as a cache. It provides interfaces for putting and retrieving blocks both locally and remotely into various stores, i.e. memory, disk, and off-heap.
+*Block Manager* is a key-value store for blocks that acts as a cache. It runs on every node, i.e. a driver and executors, in a Spark runtime environment. It provides interfaces for putting and retrieving blocks both locally and remotely into various stores, i.e. memory, disk, and off-heap.
 
-A Block Manager manages the storage for most of the data in Spark, i.e. block that represent a cached RDD partition, intermediate shuffle data, broadcast data etc. See <<BlockId, BlockId>>.
+A BlockManager manages the storage for most of the data in Spark, i.e. block that represent a cached RDD partition, intermediate shuffle data, broadcast data, etc. See <<BlockId, BlockId>>.
 
-A Block Manager instance runs on every node - driver and executors - in a Spark runtime environment. It is created when link:spark-runtime-environment.adoc#create[SparkEnv.create()] is called.
+It is created when a Spark application starts, i.e. as part of link:spark-runtime-environment.adoc#create[SparkEnv.create()].
 
-A Block Manager relies on the following services:
+A BlockManager must be <<initialize,initialized>> before it is fully operable.
+
+A BlockManager relies on the following services:
 
 * RpcEnv
 * BlockManagerMaster
@@ -14,10 +16,12 @@ A Block Manager relies on the following services:
 * MemoryManager
 * link:spark-service-mapoutputtracker.adoc[MapOutputTracker]
 * ShuffleManager
-* BlockTransferService
+* <<BlockTransferService, BlockTransferService>>
 * SecurityManager
 
-Block Manager is a BlockDataManager.
+BlockManager is a BlockDataManager.
+
+CAUTION: FIXME Review `BlockDataManager`
 
 [TIP]
 ====
@@ -30,13 +34,85 @@ log4j.logger.org.apache.spark.storage.BlockManager=TRACE
 ```
 ====
 
-[CAUTION]
-====
-FIXME
+=== [[initialize]] BlockManager.initialize
 
-* When is Block Manager instantiates? What are the initialization params?
-* BlockDataManager?
+`initialize(appId: String)` method is called to initialize a BlockManager instance.
+
+NOTE: The method must be called before a BlockManager can be fully operable.
+
+It does the following:
+
+* It initializes <<BlockTransferService, BlockTransferService>>
+* It initializes a shuffle client, be it <<ExternalShuffleClient, ExternalShuffleClient>> or <<BlockTransferService, BlockTransferService>>.
+* It creates an instance of <<BlockManagerId, BlockManagerId>> given an executor id, host name and port for BlockTransferService.
+* It creates the address of the server that serves this executor's shuffle files (using `shuffleServerId`)
+
+If an external shuffle service is used, the following INFO appears in the logs:
+
+```
+INFO external shuffle service port = [externalShuffleServicePort]
+```
+
+* It registers itself to <<BlockManagerMaster, BlockManagerMaster>> (using <<registerBlockManager, BlockManagerMaster.registerBlockManager>>).
+
+* At the end, if an external shuffle service is used, and it is not a driver, it registers to the external shuffle service.
+
+While registering to the external shuffle service, you should see the following INFO message in the logs:
+
+```
+INFO Registering executor with local external shuffle service.
+```
+
+Using `shuffleClient` (that is <<ExternalShuffleClient, ExternalShuffleClient>>) it calls `registerWithShuffleServer` synchronously using `shuffleServerId` and a ExecutorShuffleInfo (based on <<DiskBlockManager, DiskBlockManager>> for the executor and the short name of link:spark-shuffle-manager.adoc[ShuffleManager]).
+
+Any issues while connecting to the external shuffle service are reported as ERROR messages in the logs:
+
+```
+ERROR Failed to connect to external shuffle server, will retry [attempts] more times after waiting [SLEEP_TIME_SECS] seconds...
+```
+
+=== [[BlockManagerSlaveEndpoint]] BlockManagerSlaveEndpoint
+
+`BlockManagerSlaveEndpoint` is a RPC endpoint for remote communication between workers and the driver.
+
+When a BlockManager is created, it sets up the RPC endpoint with the name *BlockManagerEndpoint[randomId]* and `BlockManagerSlaveEndpoint` as the class to handle <<BlockManagerSlaveEndpoint-messages, RPC messages>>.
+
+==== [[BlockManagerSlaveEndpoint-messages]] RPC Messages
+
+[TIP]
 ====
+Enable `DEBUG` logging level for `org.apache.spark.storage.BlockManagerSlaveEndpoint` logger to see what happens in BlockManagerSlaveEndpoint.
+
+Add the following line to `conf/log4j.properties`:
+
+```
+log4j.logger.org.apache.spark.storage.BlockManagerSlaveEndpoint=DEBUG
+```
+====
+
+`BlockManagerSlaveEndpoint` accepts the following RPC messages. The processing is slow and hence is deliberately done asynchronously (on a separate thread).
+
+* `RemoveBlock(blockId)` to remove a block `blockId`. It calls `BlockManager.removeBlock`.
+
+* `RemoveRdd(rddId)` to remove a RDD `rddId`. It calls `BlockManager.removeRdd`.
+
+* `RemoveShuffle(shuffleId)` to remove a shuffle `shuffleId`. It unregisters it from MapOutputTracker if available (using  `MapOutputTracker.unregisterShuffle`). It calls ShuffleManager to unregister the shuffle (using `ShuffleManager.unregisterShuffle`).
+
+* `RemoveBroadcast(broadcastId, _)` to remove a broadcast `broadcastId`. It calls `BlockManager.removeBroadcast`.
+
+* `GetBlockStatus(blockId, _)` to return the status of a block `blockId` (using `BlockManager.getStatus`).
+
+* `GetMatchingBlockIds(filter, _)` to return the matching block ids for `filter` (using `BlockManager.getMatchingBlockIds`).
+
+* `TriggerThreadDump` to get a thread dump of all threads (using `Utils.getThreadDump()`).
+
+=== [[BlockTransferService]] BlockTransferService
+
+CAUTION: FIXME
+
+=== [[ExternalShuffleClient]] ExternalShuffleClient
+
+CAUTION: FIXME
 
 === [[BlockId]] BlockId
 
@@ -83,6 +159,10 @@ There are the following possible stores:
 CAUTION: FIXME
 
 *BlockManagerMaster* is the Block Manager that runs on the driver only. It registers itself as `BlockManagerMaster` endpoint in link:spark-rpc.adoc[RPC Environment].
+
+==== [[registerBlockManager]] BlockManagerMaster.registerBlockManager
+
+CAUTION: FIXME
 
 ==== [[BlockManagerMasterEndpoint]] BlockManagerMasterEndpoint
 
@@ -149,3 +229,15 @@ The underlying abstraction for blocks in Spark is a `ByteBuffer` that limits the
 When a non-local executor starts, it initializes a Block Manager object for `spark.app.id` id.
 
 If a task result is bigger than Akka's message frame size - `spark.akka.frameSize` - executors use the block manager to send the result back. Task results are configured using `spark.driver.maxResultSize` (default: `1g`).
+
+=== [[settings]] Settings
+
+* `spark.shuffle.service.enabled` (default: `false`) whether an external shuffle service is enabled or not. See link:spark-shuffle-manager.adoc#external-shuffle-service[External Shuffle Service].
+
+* `spark.broadcast.compress` (default: `true`) whether to compress stored broadcast variables.
+
+* `spark.shuffle.compress` (default: `true`) whether to compress stored shuffle output.
+
+* `spark.rdd.compress` (default: `false`) whether to compress RDD partitions that are stored serialized.
+
+* `spark.shuffle.spill.compress` (default: `true`) whether to compress shuffle output temporarily spilled to disk.
