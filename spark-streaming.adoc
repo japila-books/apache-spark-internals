@@ -4,9 +4,147 @@ Spark Streaming runs a collection of SparkStreaming jobs in batches.
 
 === [[JobScheduler]] JobScheduler
 
-`JobScheduler` schedules jobs to be run on Spark.
+`JobScheduler` schedules jobs to be run on Spark. It is created as part of creating a <<creating-instance, StreamingContext>> and starts with it.
 
-It is started as <<StreamingContext, StreamingContext>> starts.
+It uses <<RecurringTimer, RecurringTimer>> (as `timer` with name being `JobGenerator`) to post `GenerateJobs` events on `eventLoop`.
+
+[TIP]
+====
+Enable `DEBUG` logging level for `org.apache.spark.streaming.scheduler.JobScheduler` logger to see what happens in JobScheduler.
+
+Add the following line to `conf/log4j.properties`:
+
+```
+log4j.logger.org.apache.spark.streaming.scheduler.JobScheduler=DEBUG
+```
+====
+
+With DEBUG logging level you should see the following message in the logs:
+
+```
+DEBUG Starting JobScheduler
+```
+
+When `JobScheduler` starts, it starts <<JobScheduler-eventLoop, eventLoop - JobSchedulerEvent Handler>> and <<ReceiverTracker, ReceiverTracker>>. It also starts the <<JobGenerator, JobGenerator>>.
+
+At the end, it prints the following INFO message to the logs:
+
+```
+INFO JobScheduler: Started JobScheduler
+```
+
+==== [[JobScheduler-eventLoop]] eventLoop - JobSchedulerEvent Handler
+
+JobScheduler uses `EventLoop` for JobSchedulerEvent events. It accepts <<JobStarted,JobStarted>> and <<JobCompleted, JobCompleted>> events. It also processes `ErrorReported` events.
+
+===== [[JobStarted]] JobStarted and handleJobStart
+
+CAUTION: FIXME
+
+===== [[JobCompleted]] JobCompleted and handleJobCompletion
+
+CAUTION: FIXME
+
+==== [[RecurringTimer]] RecurringTimer
+
+CAUTION: FIXME
+
+`RecurringTimer` uses a daemon thread prefixed `RecurringTimer - [name]` that executes `callback` every batch duration. The sleeping is achieved by `Clock.waitTillTime`.
+
+==== [[StreamingListenerBus]] StreamingListenerBus
+
+CAUTION: FIXME
+
+==== [[StreamingJobProgressListener]] StreamingJobProgressListener
+
+CAUTION: FIXME
+
+=== [[ReceiverTracker]] ReceiverTracker
+
+CAUTION: FIXME
+
+`ReceiverTracker` manages the execution of the receivers of ReceiverInputDStreams.
+
+If there is at least one `ReceiverInputDStreams` the RPC endpoint `ReceiverTracker` using <<ReceiverTrackerEndpoint, ReceiverTrackerEndpoint>> is set up.
+
+When `ReceiverTracker` starts, you should see the following INFO message in the logs:
+
+```
+INFO ReceiverTracker: Starting [receivers.length] receivers
+```
+
+It posts `StartAllReceivers` to `ReceiverTracker` RPC endpoint.
+
+You should then see the following INFO message in the logs:
+
+```
+INFO ReceiverTracker: ReceiverTracker started
+```
+
+==== [[ReceiverTrackerEndpoint]] ReceiverTrackerEndpoint
+
+CAUTION: FIXME
+
+=== [[JobGenerator]] JobGenerator
+
+CAUTION: FIXME
+
+When `JobGenerator` starts, it starts <<JobGenerator-eventLoop, eventLoop - JobGeneratorEvent Handler>>.
+
+[TIP]
+====
+Enable `DEBUG` logging level for `org.apache.spark.streaming.scheduler.JobGenerator` logger to see what happens in JobGenerator.
+
+Add the following line to `conf/log4j.properties`:
+
+```
+log4j.logger.org.apache.spark.streaming.scheduler.JobGenerator=DEBUG
+```
+====
+
+For every `JobGeneratorEvent` event, you should see the following DEBUG message in the logs:
+
+```
+DEBUG Got event [event]
+```
+
+You should see the following INFO message in the logs when it starts:
+
+```
+INFO JobGenerator: Started JobGenerator at [startTime] ms
+```
+
+==== [[JobGenerator-eventLoop]] eventLoop - JobGeneratorEvent Handler
+
+JobGenerator uses `EventLoop` for JobGeneratorEvent events.
+
+See below for extensive coverage of event types it handles.
+
+===== [[GenerateJobs]] GenerateJobs and generateJobs
+
+CAUTION: FIXME
+
+===== [[ClearMetadata]] ClearMetadata and clearMetadata
+
+CAUTION: FIXME
+
+===== [[DoCheckpoint]] DoCheckpoint and doCheckpoint
+
+CAUTION: FIXME
+
+===== [[ClearCheckpointData]] ClearCheckpointData and clearCheckpointData
+
+CAUTION: FIXME
+
+=== [[RateController]] RateController
+
+CAUTION: FIXME
+
+InputDStreams can define a `RateController` that is registered to JobScheduler's `listenerBus`  (using `ssc.addStreamingListener`) when JobScheduler starts.
+
+=== [[StreamingTab]] StreamingTab
+
+CAUTION: FIXME
 
 === [[StreamingContext]] StreamingContext
 
@@ -16,6 +154,51 @@ CAUTION: FIXME
 
 CAUTION: FIXME
 
+=== [[DStreamGraph]] DStreamGraph
+
+CAUTION: FIXME
+
+It knows about `inputStreams` and `outputStreams`.
+
+=== [[internal-registries]] Internal Registries
+
+* `nextInputStreamId` - the current InputStream id
+
+=== [[creating-instance]] Creating Instance
+
+When you create a new instance of `StreamingContext` (and you will eventually) it first checks whether a link:spark-sparkcontext.adoc[SparkContext] or the checkpoint directory are given.
+
+[TIP]
+====
+StreamingContext will warn you when you use `local` or `local[1]` link:spark-deployment-environments.adoc#master-urls[master URLs]:
+
+```
+WARN StreamingContext: spark.master should be set as local[n], n > 1 in local mode if you have receivers to get data, otherwise Spark jobs will not get resources to process the received data.
+```
+====
+
+A <<DStreamGraph, DStreamGraph>> is created.
+
+A <<JobScheduler, JobScheduler>> is created.
+
+A <<StreamingJobProgressListener, StreamingJobProgressListener>> is created.
+
+The <<StreamingTab, Streaming tab>> in web UI is created (when spark.ui.enabled is set).
+
+A <<StreamingSource, StreamingSource>> is instantiated.
+
+At this point, it is assumed that the StreamingContext is `INITIALIZED`.
+
+=== [[StreamingSource]] StreamingSource
+
+CAUTION: FIXME
+
 === [[settings]] Settings
 
 * `spark.streaming.concurrentJobs` (default: `1`) is the number of concurrent jobs, i.e. threads in streaming-job-executor thread pool to run collections of <<JobHandler, JobHandler>>.
+
+* `spark.streaming.clock` (default: `org.apache.spark.util.SystemClock`) specifies a fully-qualified class name that extends `org.apache.spark.util.Clock` to mock time.
+
+* `spark.streaming.ui.retainedBatches` (default: `1000`)
+
+* `spark.streaming.checkpoint.directory`
