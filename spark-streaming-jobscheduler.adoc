@@ -1,0 +1,72 @@
+== JobScheduler
+
+`JobScheduler` schedules jobs to be run on Spark. It is created as part of link:spark-streaming.adoc#creating-streamingcontext-instance[creating a StreamingContext] and starts with it.
+
+It uses <<RecurringTimer, RecurringTimer>> (as `timer` with name being `JobGenerator`) to post link:spark-streaming.adoc#GenerateJobs[GenerateJobs] events to link:spark-streaming.adoc#JobGenerator-eventLoop[JobGenerator eventLoop].
+
+[TIP]
+====
+Enable `DEBUG` logging level for `org.apache.spark.streaming.scheduler.JobScheduler` logger to see what happens in JobScheduler.
+
+Add the following line to `conf/log4j.properties`:
+
+```
+log4j.logger.org.apache.spark.streaming.scheduler.JobScheduler=DEBUG
+```
+====
+
+With DEBUG logging level you should see the following message in the logs:
+
+```
+DEBUG Starting JobScheduler
+```
+
+When `JobScheduler` starts, it starts <<JobScheduler-eventLoop, eventLoop - JobSchedulerEvent Handler>> and link:spark-streaming.adoc#ReceiverTracker[ReceiverTracker]. It also starts the link:spark-streaming.adoc#JobGenerator[JobGenerator].
+
+At the end, it prints the following INFO message to the logs:
+
+```
+INFO JobScheduler: Started JobScheduler
+```
+
+=== [[JobScheduler-eventLoop]] eventLoop - JobSchedulerEvent Handler
+
+JobScheduler uses `EventLoop` for `JobSchedulerEvent` events. It accepts <<JobStarted,JobStarted>> and <<JobCompleted, JobCompleted>> events. It also processes `ErrorReported` events.
+
+==== [[JobStarted]] JobStarted and JobScheduler.handleJobStart
+
+`handleJobStart(job: Job, startTime: Long)` takes a `JobSet` (from `jobSets`) and checks whether it has already been started.
+
+It posts `StreamingListenerBatchStarted` to <<StreamingListenerBus, StreamingListenerBus>> when the JobSet is about to start.
+
+It posts `StreamingListenerOutputOperationStarted` to <<StreamingListenerBus, StreamingListenerBus>>.
+
+You should see the following INFO message in the logs:
+
+```
+INFO JobScheduler: Starting job [job.id] from job set of time [jobSet.time] ms
+```
+
+==== [[JobCompleted]] JobCompleted and JobScheduler.handleJobCompletion
+
+CAUTION: FIXME
+
+=== [[RecurringTimer]] RecurringTimer
+
+CAUTION: FIXME
+
+`RecurringTimer` uses a daemon thread prefixed `RecurringTimer - [name]` that executes `callback` every batch duration. The sleeping is achieved by `Clock.waitTillTime`.
+
+=== [[StreamingListenerBus]] StreamingListenerBus and StreamingListenerEvents
+
+`StreamingListenerBus` is a asynchronous listener bus for `StreamingListener` to receive `StreamingListenerEvent`.
+
+* `StreamingListenerBatchStarted` triggers `StreamingListener.onBatchStarted`
+
+=== [[StreamingJobProgressListener]] StreamingJobProgressListener
+
+`StreamingJobProgressListener` is a `StreamingListener` to listen to `StreamingListenerEvent` events from <<StreamingListenerBus, StreamingListenerBus>>.
+
+It is created while link:spark-streaming.adoc#creating-streamingcontext-instance[StreamingContext is created] and later registered as a `StreamingListener` and `SparkListener` when link:spark-streaming.adoc#StreamingTab[Streaming tab] is created.
+
+CAUTION: FIXME How does this contribute to the result shown in the tab?
