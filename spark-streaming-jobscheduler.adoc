@@ -21,7 +21,7 @@ With DEBUG logging level you should see the following message in the logs:
 DEBUG Starting JobScheduler
 ```
 
-When `JobScheduler` starts, it starts <<JobScheduler-eventLoop, eventLoop - JobSchedulerEvent Handler>> and link:spark-streaming.adoc#ReceiverTracker[ReceiverTracker]. It also starts the link:spark-streaming.adoc#JobGenerator[JobGenerator].
+When `JobScheduler` starts, it starts <<eventLoop, eventLoop - JobSchedulerEvent Handler>> and link:spark-streaming.adoc#ReceiverTracker[ReceiverTracker]. It also starts the link:spark-streaming.adoc#JobGenerator[JobGenerator].
 
 At the end, it prints the following INFO message to the logs:
 
@@ -29,7 +29,43 @@ At the end, it prints the following INFO message to the logs:
 INFO JobScheduler: Started JobScheduler
 ```
 
-=== [[JobScheduler-eventLoop]] eventLoop - JobSchedulerEvent Handler
+=== [[submitJobSet]] submitJobSet
+
+When `submitJobSet(jobSet: JobSet)` is called, it behaves differently per the given `jobSet` <<JobSet, JobSet>>.
+
+When no jobs are inside the JobSet, it simply prints out the following INFO to the logs:
+
+```
+INFO No jobs added for time [jobSet.time]
+```
+
+Otherwise, when there is at least one job inside the JobSet, `StreamingListenerBatchSubmitted` is posted to <<StreamingListenerBus, StreamingListenerBus>>.
+
+The JobSet is added to <<internal-registries, jobSets>>.
+
+It then goes over every job in the JobSet and executes a <<JobHandler, JobHandler>> (using <<streaming-job-executor, jobExecutor Thread Pool>>).
+
+At the end, you should see the following INFO message in the logs:
+
+```
+INFO Added jobs for time [jobSet.time]
+```
+
+The method is called as part of link:spark-streaming.adoc#GenerateJobs[JobGenerator.generateJobs] and `JobGenerator.restart`.
+
+=== [[JobHandler]] JobHandler
+
+CAUTION: FIXME
+
+=== [[streaming-job-executor]] jobExecutor Thread Pool
+
+While `JobScheduler` is instantiated, the daemon thread pool `streaming-job-executor-ID` with <<settings, spark.streaming.concurrentJobs>> threads is created.
+
+It is used to execute <<JobHandler, JobHandler>> for jobs in JobSet (see <<submitJobSet, submitJobSet>> in this document).
+
+It is shut down when a StreamingContext stops.
+
+=== [[eventLoop]] eventLoop - JobSchedulerEvent Handler
 
 JobScheduler uses `EventLoop` for `JobSchedulerEvent` events. It accepts <<JobStarted,JobStarted>> and <<JobCompleted, JobCompleted>> events. It also processes `ErrorReported` events.
 
@@ -63,6 +99,8 @@ CAUTION: FIXME
 
 * `StreamingListenerBatchStarted` triggers `StreamingListener.onBatchStarted`
 
+* `StreamingListenerBatchSubmitted` triggers ...FIXME
+
 === [[StreamingJobProgressListener]] StreamingJobProgressListener
 
 `StreamingJobProgressListener` is a `StreamingListener` to listen to `StreamingListenerEvent` events from <<StreamingListenerBus, StreamingListenerBus>>.
@@ -70,3 +108,17 @@ CAUTION: FIXME
 It is created while link:spark-streaming.adoc#creating-streamingcontext-instance[StreamingContext is created] and later registered as a `StreamingListener` and `SparkListener` when link:spark-streaming.adoc#StreamingTab[Streaming tab] is created.
 
 CAUTION: FIXME How does this contribute to the result shown in the tab?
+
+=== [[JobSet]] JobSet
+
+CAUTION: FIXME
+
+=== [[internal-registries]] Internal Registries
+
+`JobScheduler` maintains the following information in internal registries:
+
+* `jobSets` - a mapping between time and JobSets. See <<JobSet, JobSet>>.
+
+=== [[settings]] Settings
+
+* `spark.streaming.concurrentJobs` (default: `1`) is the number of concurrent jobs, i.e. threads in <<streaming-job-executor, streaming-job-executor thread pool>>.
