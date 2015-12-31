@@ -71,6 +71,10 @@ JobScheduler uses `EventLoop` for `JobSchedulerEvent` events. It accepts <<JobSt
 
 ==== [[JobStarted]] JobStarted and JobScheduler.handleJobStart
 
+When `JobStarted` event is received, `JobScheduler.handleJobStart` is called.
+
+NOTE: It is <<JobHandler, JobHandler>> to post `JobStarted`.
+
 `handleJobStart(job: Job, startTime: Long)` takes a `JobSet` (from `jobSets`) and checks whether it has already been started.
 
 It posts `StreamingListenerBatchStarted` to <<StreamingListenerBus, StreamingListenerBus>> when the JobSet is about to start.
@@ -85,7 +89,31 @@ INFO JobScheduler: Starting job [job.id] from job set of time [jobSet.time] ms
 
 ==== [[JobCompleted]] JobCompleted and JobScheduler.handleJobCompletion
 
-CAUTION: FIXME
+When `JobCompleted` event is received, `JobScheduler.handleJobCompletion` is called.
+
+NOTE: It is <<JobHandler, JobHandler>> to post `JobCompleted`.
+
+`handleJobCompletion(job: Job, completedTime: Long)` takes the JobSet (using <<internal-registries, jobSets>>) and calls `jobSet.handleJobCompletion(job)` upon it. It also calls `job.setEndTime(completedTime)`.
+
+It posts `StreamingListenerOutputOperationCompleted` to <<StreamingListenerBus, StreamingListenerBus>>.
+
+You should see the following INFO message in the logs:
+
+```
+INFO Finished job [job.id] from job set of time [jobSet.time]
+```
+
+If the entire JobSet is completed, it removes it from <<internal-registries, jobSets>>, and calls `jobGenerator.onBatchCompletion`.
+
+You should see the following INFO message in the logs:
+
+```
+INFO Total delay: [totalDelay] s for time [time] (execution: [processingDelay] s)
+```
+
+It posts `StreamingListenerBatchCompleted` to <<StreamingListenerBus, StreamingListenerBus>>.
+
+It reports an error if the job's result is a failure.
 
 === [[RecurringTimer]] RecurringTimer
 
@@ -112,6 +140,12 @@ CAUTION: FIXME How does this contribute to the result shown in the tab?
 === [[JobSet]] JobSet
 
 CAUTION: FIXME
+
+It is used in:
+
+* <<submitJobSet, submitJobSet(jobSet: JobSet)>>
+* <<JobStarted, handleJobStart(job: Job, startTime: Long)>>
+* <<JobCompleted, handleJobCompletion(job: Job, completedTime: Long)>>
 
 === [[internal-registries]] Internal Registries
 
