@@ -1,8 +1,6 @@
 == JobGenerator
 
-CAUTION: FIXME
-
-When `JobGenerator` is created, it creates link:spark-streaming-jobscheduler.adoc#RecurringTimer[RecurringTimer] (as `timer` with name being `JobGenerator`) to post link:spark-streaming.adoc#GenerateJobs[GenerateJobs] events to <<eventLoop, JobGenerator eventLoop>> (it is only when `JobGenerator` is started when the JobGenerator eventLoop starts processing events).
+When `JobGenerator` is created, it creates `timer` link:spark-streaming-jobscheduler.adoc#RecurringTimer[RecurringTimer] (with the name being `JobGenerator`) that later, when started, posts link:spark-streaming.adoc#GenerateJobs[GenerateJobs] events to <<eventLoop, JobGenerator eventLoop>> (it is only when `JobGenerator` is started when the JobGenerator eventLoop starts processing events).
 
 [TIP]
 ====
@@ -15,33 +13,35 @@ log4j.logger.org.apache.spark.streaming.scheduler.JobGenerator=DEBUG
 ```
 ====
 
-For every `JobGeneratorEvent` event, you should see the following DEBUG message in the logs:
-
-```
-DEBUG Got event [event]
-```
-
-You should see the following INFO message in the logs when it starts:
+You should see the following INFO message in the logs when `JobGenerator` starts:
 
 ```
 INFO JobGenerator: Started JobGenerator at [startTime] ms
 ```
 
+Once started, `timer` RecurringTimer starts posting `GenerateJobs` every `ssc.graph.batchDuration.milliseconds`.
+
 === [[eventLoop]] JobGenerator eventLoop and JobGeneratorEvent Handler
 
-JobGenerator uses `EventLoop` for JobGeneratorEvent events.
+JobGenerator uses `EventLoop` to process `JobGeneratorEvent` events asynchronously (one event at a time).
 
-See below for extensive coverage of event types it handles.
+For every event, you should see the following DEBUG message in the logs:
+
+```
+DEBUG JobGenerator: Got event [event]
+```
+
+See below for the extensive coverage of supported event types.
 
 ==== [[GenerateJobs]] GenerateJobs and JobGenerator.generateJobs
 
-CAUTION: FIXME
+When `GenerateJobs` is received `JobGenerator.generateJobs(time: Time)` is executed to process it.
 
-When `GenerateJobs` is received (FIXME when?) `JobGenerator.generateJobs(time: Time)` is executed to process it.
+NOTE: `GenerateJobs` events are posted by `JobGenerator` regularly every batch interval (using `timer` RecurringTimer).
 
 It calls `JobScheduler.receiverTracker.allocateBlocksToBatch`, and then calls link:spark-streaming.adoc#DStreamGraph-generateJobs[DStreamGraph.generateJobs(time: Time)].
 
-When it finishes successfully, a collection of jobs is given that are passed to link:spark-streaming-jobscheduler.adoc#submitJobSet[JobScheduler.submitJobSet] as a `JobSet`.
+When the above two calls have finished successfully, the collection of jobs is passed to link:spark-streaming-jobscheduler.adoc#submitJobSet[JobScheduler.submitJobSet] as a link:spark-streaming-jobscheduler.adoc[JobSet].
 
 Ultimately, it posts <<DoCheckpoint, DoCheckpoint>> event.
 
@@ -54,5 +54,11 @@ CAUTION: FIXME
 CAUTION: FIXME
 
 ==== [[ClearCheckpointData]] ClearCheckpointData and clearCheckpointData
+
+CAUTION: FIXME
+
+=== [[stop]] JobGenerator.stop
+
+`JobGenerator.stop(processReceivedData: Boolean)` stops a JobGenerator.
 
 CAUTION: FIXME
