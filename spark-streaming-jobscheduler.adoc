@@ -2,7 +2,9 @@
 
 `JobScheduler` schedules jobs to be run on Spark. It is created as part of link:spark-streaming-streamingcontext.adoc#creating-instance[creating a StreamingContext] and starts with it.
 
-It uses <<RecurringTimer, RecurringTimer>> (as `timer` with name being `JobGenerator`) to post link:spark-streaming.adoc#GenerateJobs[GenerateJobs] events to link:spark-streaming.adoc#JobGenerator-eventLoop[JobGenerator eventLoop].
+It tracks jobs submitted for execution (as <<JobSet, JobSets>> via <<submitJobSet, submitJobSet>> method) in <<internal-registries, jobSets>> internal map.
+
+NOTE: JobSets are submitted by link:spark-streaming.adoc#JobGenerator[JobGenerator].
 
 [TIP]
 ====
@@ -29,6 +31,12 @@ At the end, it prints the following INFO message to the logs:
 INFO JobScheduler: Started JobScheduler
 ```
 
+=== [[JobHandler]] JobHandler
+
+`JobHandler` is a thread of execution for link:spark-streaming.adoc#Job[jobs] (it simply executes `Job.run`).
+
+It is run when a new <<JobSet, JobSet>> is submitted (see <<submitJobSet, submitJobSet>> in this document).
+
 === [[submitJobSet]] submitJobSet
 
 When `submitJobSet(jobSet: JobSet)` is called, it behaves differently per the given `jobSet` <<JobSet, JobSet>>.
@@ -52,10 +60,6 @@ INFO Added jobs for time [jobSet.time]
 ```
 
 The method is called as part of link:spark-streaming.adoc#GenerateJobs[JobGenerator.generateJobs] and `JobGenerator.restart`.
-
-=== [[JobHandler]] JobHandler
-
-CAUTION: FIXME
 
 === [[streaming-job-executor]] jobExecutor Thread Pool
 
@@ -139,9 +143,15 @@ CAUTION: FIXME How does this contribute to the result shown in the tab?
 
 === [[JobSet]] JobSet
 
-CAUTION: FIXME
+A `JobSet` represents a collection of link:spark-streaming.adoc#Job[jobs] that belong to a batch.
 
-It is used in:
+It can be in created, started (after `JobSet.handleJobStart` is called), or completed (after `JobSet.handleJobCompletion`) state.
+
+The time it takes to process all the jobs in a JobSet is called *processing delay*. The time from when the JobSet was created up to when it was completed is *total delay*.
+
+NOTE: Total delay is greater than or equal to processing delay.
+
+`JobSet` is used in:
 
 * <<submitJobSet, submitJobSet(jobSet: JobSet)>>
 * <<JobStarted, handleJobStart(job: Job, startTime: Long)>>

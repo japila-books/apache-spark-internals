@@ -5,9 +5,23 @@ Spark Streaming runs a collection of SparkStreaming jobs in batches.
 Essential concepts in Spark Streaming:
 
 * link:spark-streaming-streamingcontext.adoc[StreamingContext]
-* Time
-* Job
-* link:spark-streaming-jobscheduler.adoc#JobSet[JobSet]
+* <<batch, Batch>> (time) and link:spark-streaming-jobscheduler.adoc#JobSet[JobSet]
+* <<Job, Job>>
+* <<DStream, DStream>>
+
+=== [[batch]] Batch
+
+A *batch* is represented as a link:spark-streaming-jobscheduler.adoc#JobSet[JobSet].
+
+=== [[Job]] Job
+
+A Streaming `Job` represents a Spark computation with one or many Spark jobs.
+
+It is identified (in the logs) as as `streaming job [time].[outputOpId]` with `outputOpId` being the position in the sequence of jobs in a link:spark-streaming-jobscheduler.adoc#JobSet[JobSet].
+
+When it runs, it calls the computation (the input `func` function).
+
+A collection of Streaming jobs is generated for a batch using <<DStreamGraph-generateJobs, DStreamGraph.generateJobs(time: Time)>>.
 
 === [[ReceiverTracker]] ReceiverTracker
 
@@ -38,6 +52,8 @@ CAUTION: FIXME
 === [[JobGenerator]] JobGenerator
 
 CAUTION: FIXME
+
+When `JobGenerator` is created, it creates <<RecurringTimer, RecurringTimer>> (as `timer` with name being `JobGenerator`) to post link:spark-streaming.adoc#GenerateJobs[GenerateJobs] events to link:spark-streaming.adoc#JobGenerator-eventLoop[JobGenerator eventLoop].
 
 When `JobGenerator` starts, it starts <<JobGenerator-eventLoop, eventLoop - JobGeneratorEvent Handler>>.
 
@@ -76,7 +92,7 @@ CAUTION: FIXME
 
 When `GenerateJobs` is received (FIXME when?) `JobGenerator.generateJobs(time: Time)` is executed to process it.
 
-It calls `JobScheduler.receiverTracker.allocateBlocksToBatch`, and then calls <<DStreamGraph, DStreamGraph.generateJobs(time: Time)>>.
+It calls `JobScheduler.receiverTracker.allocateBlocksToBatch`, and then calls <<DStreamGraph-generateJobs, DStreamGraph.generateJobs(time: Time)>>.
 
 When it finishes successfully, a collection of jobs is given that are passed to link:spark-streaming-jobscheduler.adoc#submitJobSet[JobScheduler.submitJobSet] as a `JobSet`.
 
@@ -104,6 +120,10 @@ InputDStreams can define a `RateController` that is registered to link:spark-str
 
 CAUTION: FIXME
 
+=== [[DStream]] DStream
+
+CAUTION: FIXME
+
 === [[DStreamGraph]] DStreamGraph
 
 CAUTION: FIXME
@@ -121,13 +141,21 @@ log4j.logger.org.apache.spark.streaming.DStreamGraph=DEBUG
 ```
 ====
 
-When `DStreamGraph.generateJobs(time: Time)` is called, you should see the following DEBUG message in the logs:
+==== [[DStreamGraph-generateJobs]] DStreamGraph.generateJobs(time: Time)
+
+`DStreamGraph.generateJobs(time: Time)` method is called to generate a Spark job for each registered output stream (using `DStream.generateJob`).
+
+When it runs, you should see the following DEBUG message in the logs before the jobs are generated for a time:
 
 ```
 DEBUG Generating jobs for time [time]
 ```
 
-Each registered output stream (using `outputStreams`) gets called using `generateJob`.
+You should also see the following DEBUG message when the jobs have been generated:
+
+```
+DEBUG Generated [jobs.length] jobs for time [time]
+```
 
 === [[internal-registries]] Internal Registries
 
