@@ -1,10 +1,16 @@
 == ReceiverSupervisors
 
-CAUTION: FIXME
-
 `ReceiverSupervisor` is an (abstract) handler object that is responsible for supervising a link:spark-streaming-receivers.adoc[receiver] (that runs on the worker). It assumes that implementations offer concrete methods to push received data to Spark.
 
-It can be started and stopped. When a supervisor is started, it calls (empty by default) `onStart()` and `startReceiver()` afterwards.
+NOTE: link:spark-streaming-receivers.adoc[Receiver]'s `store` methods pass calls to respective `push` methods of ReceiverSupervisors.
+
+NOTE: link:spark-streaming-receivertracker.adoc[ReceiverTracker] starts a ReceiverSupervisor per receiver.
+
+`ReceiverSupervisor` can be started and stopped. When a supervisor is started, it calls (empty by default) `onStart()` and `startReceiver()` afterwards.
+
+It attaches itself to the receiver it is a supervisor for (using `Receiver.attachSupervisor(this)`). That is how a receiver knows about its supervisor.
+
+=== [[starting-receivers]] Starting Receivers
 
 `startReceiver()` calls (abstract) `onReceiverStart()`. When `true` (it is unknown at this point to know when it happens to be `true` or `false` since it is an abstract method), it prints the following INFO message to the logs:
 
@@ -20,9 +26,9 @@ INFO Called receiver onStart
 
 If however `onReceiverStart()` returns `false`, the supervisor is to be stopped (using `stop`).
 
-`stop` method is called with a message and an optional cause of the stop (called `error`). It calls `stopReceiver` method that prints the INFO message and checks the state of the receiver to react appropriately.
+=== [[stopping-receivers]] Stopping Receivers
 
-NOTE: A receiver can be in one of the three states: `Initialized`, `Started`, and `Stopped`.
+`stop` method is called with a message and an optional cause of the stop (called `error`). It calls `stopReceiver` method that prints the INFO message and checks the state of the receiver to react appropriately.
 
 When the receiver is in `Started` state, `stopReceiver` calls `Receiver.onStop()`, prints the following INFO message, and `onReceiverStop(message, error)`.
 
@@ -30,16 +36,86 @@ When the receiver is in `Started` state, `stopReceiver` calls `Receiver.onStop()
 INFO Called receiver onStop
 ```
 
-It attaches itself to the receiver it is a supervisor for (using `Receiver.attachSupervisor(this)`). That is how a receiver knows about its supervisor.
+=== [[restarting-receivers]] Restarting Receivers
 
-It uses link:spark-streaming.adoc#settings[spark.streaming.receiverRestartDelay] to control ...FIXME
+A `ReceiverSupervisor` uses link:spark-streaming.adoc#settings[spark.streaming.receiverRestartDelay] to restart the receiver with delay.
 
-CAUTION: FIXME What is maximum rate limit for a receiver?
+NOTE: Receivers can request to be restarted using `restart` methods.
+
+When requested to restart a receiver, it uses a separate thread to perform it asynchronously. It prints the WARNING message to the logs:
+
+```
+WARNING Restarting receiver with delay [delay] ms: [message]
+```
+
+It then stops the receiver, sleeps for `delay` milliseconds and starts the receiver (using `startReceiver()`).
+
+You should see the following messages in the logs:
+
+```
+DEBUG Sleeping for [delay]
+INFO Starting receiver again
+INFO Receiver started again
+```
 
 CAUTION: FIXME What is a backend data store?
 
-`ReceiverSupervisorImpl` is an implementation of `ReceiverSupervisor` contract.
+=== [[awaitTermination]] Awaiting Termination
+
+`awaitTermination` method blocks the current thread to wait for the receiver to be stopped.
+
+NOTE: ReceiverTracker uses `awaitTermination` to wait for receivers to stop (see link:spark-streaming-receivertracker.adoc#ReceiverTrackerEndpoint-StartAllReceivers[StartAllReceivers]).
+
+When called, you should see the following INFO message in the logs:
+
+```
+INFO Waiting for receiver to be stopped
+```
+
+If a receiver has terminated successfully, you should see the following INFO message in the logs:
+
+```
+INFO Stopped receiver without error
+```
+
+Otherwise, you should see the ERROR message in the logs:
+
+```
+ERROR Stopped receiver with error: [stoppingError]
+```
+
+`stoppingError` is the exception associated with the stopping of the receiver and is rethrown.
+
+NOTE: Internally, ReceiverSupervisor uses https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CountDownLatch.html[java.util.concurrent.CountDownLatch] with count `1` to await the termination.
+
+==== Internals - How to count stopLatch down
+
+`stopLatch` is decremented when ReceiverSupervisor's `stop` is called which is in the following cases:
+
+* When a receiver itself calls `stop(message: String)` or `stop(message: String, error: Throwable)`
+* When <<ReceiverSupervisorImpl-onReceiverStart, ReceiverSupervisor.onReceiverStart()>> returns `false` or `NonFatal` (less severe) exception is thrown in `ReceiverSupervisor.startReceiver`.
+* When `ReceiverTracker.stop` is called that posts `StopAllReceivers` message to `ReceiverTrackerEndpoint`. It in turn sends `StopReceiver` to the `ReceiverSupervisorImpl` for every `ReceiverSupervisor` that calls `ReceiverSupervisorImpl.stop`.
+
+[CAUTION]
+====
+FIXME Prepare exercises
+
+* for a receiver to call `stop(message: String)` when a custom "TERMINATE" message arrives
+* send `StopReceiver` to a ReceiverTracker
+====
+
+=== [[ReceiverSupervisorImpl]] ReceiverSupervisorImpl
+
+`ReceiverSupervisorImpl` is the implementation of ReceiverSupervisor contract.
 
 NOTE: A dedicated `ReceiverSupervisorImpl` is started for every receiver when <<introduction, ReceiverTracker starts>>. See <<ReceiverTrackerEndpoint-startReceiver, ReceiverTrackerEndpoint.startReceiver>>.
 
 It communicates with the <<ReceiverTracker, ReceiverTracker>> (by posting messages using the <<ReceiverTrackerEndpoint, ReceiverTracker RPC endpoint>>).
+
+==== [[ReceiverSupervisorImpl-onReceiverStart]] ReceiverSupervisorImpl.onReceiverStart
+
+`ReceiverSupervisorImpl.onReceiverStart` sends a blocking `RegisterReceiver` message to link:spark-streaming-receivertracker.adoc[ReceiverTracker] that responds with a boolean value.
+
+==== [[ReceiverSupervisorImpl-currentRateLimit]] Current Rate Limit
+
+`getCurrentRateLimit` controls the current rate limit. It asks the `BlockGenerator` for the value (using `getCurrentLimit`).
