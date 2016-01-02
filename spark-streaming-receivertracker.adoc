@@ -1,17 +1,12 @@
 == ReceiverTracker
 
-`ReceiverTracker` manages execution of the link:spark-streaming.adoc#Receiver[receivers] of link:spark-streaming-dstreams.adoc#ReceiverInputDStream[ReceiverInputDStreams].
+=== [[introduction]] Introduction
+
+`ReceiverTracker` manages execution of all the spark-streaming-receivers.adoc[Receivers] of link:spark-streaming-dstreams.adoc#ReceiverInputDStream[ReceiverInputDStreams]. It uses link:spark-rpc.adoc[RPC environment] for communication with link:spark-streaming-receiversupervisors.adoc[ReceiverSupervisors].
 
 NOTE: It is started when link:spark-streaming-jobscheduler.adoc[JobScheduler] starts.
 
-If there is at least one link:spark-streaming-dstreams.adoc#ReceiverInputDStream[ReceiverInputDStreams] the RPC endpoint `ReceiverTracker` (in <<ReceiverTrackerEndpoint, ReceiverTrackerEndpoint>>) is set up.
-
-`ReceiverTracker` can be in one of the following states:
-
-* `Initialized` - it is in the state after having been instantiated.
-* `Started`
-* `Stopping`
-* `Stopped`
+It can only be started once and sets up the `ReceiverTracker` RPC endpoint (using <<ReceiverTrackerEndpoint, ReceiverTrackerEndpoint>>).
 
 When `ReceiverTracker` starts, you should see the following INFO message in the logs:
 
@@ -19,9 +14,16 @@ When `ReceiverTracker` starts, you should see the following INFO message in the 
 INFO ReceiverTracker: Starting [receivers.length] receivers
 ```
 
+`ReceiverTracker` can be in one of the following states:
+
+* `Initialized` - it is in the state after having been instantiated.
+* `Started` - <<ReceiverTrackerEndpoint, ReceiverTrackerEndpoint>> has been set up.
+* `Stopping`
+* `Stopped`
+
 It posts <<ReceiverTrackerEndpoint-StartAllReceivers, StartAllReceivers>> to <<ReceiverTrackerEndpoint, ReceiverTracker RPC endpoint>>.
 
-You should then see the following INFO message in the logs:
+A successful startup of `ReceiverTracker` finishes with the following INFO message in the logs:
 
 ```
 INFO ReceiverTracker: ReceiverTracker started
@@ -45,7 +47,7 @@ CAUTION: FIXME What is _the_ bookkeeping?
 
 It finally starts every receiver (using the helper method <<ReceiverTrackerEndpoint-startReceiver, ReceiverTrackerEndpoint.startReceiver>>).
 
-==== [[ReceiverTrackerEndpoint-startReceiver]] ReceiverTrackerEndpoint.startReceiver
+===== [[ReceiverTrackerEndpoint-startReceiver]] ReceiverTrackerEndpoint.startReceiver
 
 CAUTION: FIXME When is the method called?
 
@@ -59,7 +61,7 @@ Namely, the internal `startReceiverFunc` function checks that the task attempt i
 
 CAUTION: FIXME When could `TaskContext.get().attemptNumber()` be different than `0`?
 
-It then starts the <<ReceiverSupervisor, ReceiverSupervisor>> for `receiver` and keeps awaiting termination, i.e. once the task is run it does so until _a termination message_ comes from _some_ other external source). The task is a long-running task for `receiver`.
+It then starts a link:spark-streaming-receiversupervisors.adoc[ReceiverSupervisor] for `receiver` and keeps awaiting termination, i.e. once the task is run it does so until _a termination message_ comes from _some_ other external source). The task is a long-running task for `receiver`.
 
 CAUTION: FIXME When does `supervisor.awaitTermination()` finish?
 
@@ -97,7 +99,3 @@ Ultimately, right before the method exits, the following INFO message appears in
 ```
 INFO Receiver [receiver.streamId] started
 ```
-
-=== [[ReceiverSupervisor]] ReceiverSupervisor
-
-CAUTION: FIXME

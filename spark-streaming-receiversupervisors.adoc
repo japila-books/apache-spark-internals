@@ -1,0 +1,47 @@
+== ReceiverSupervisors
+
+CAUTION: FIXME
+
+`ReceiverSupervisor` is an (abstract) handler object that is responsible for supervising a receiver (that runs on the worker). It assumes that implementations offer concrete methods to push received data to Spark.
+
+It can be started and stopped. When a supervisor is started, it calls (empty by default) `onStart()` and `startReceiver()` afterwards.
+
+`startReceiver()` calls (abstract) `onReceiverStart()`. When `true` (it is unknown at this point to know when it happens to be `true` or `false` since it is an abstract method), it prints the following INFO message to the logs:
+
+```
+INFO Starting receiver
+```
+
+The receiver's `onStart()` is called and another INFO message appears in the logs:
+
+```
+INFO Called receiver onStart
+```
+
+If however `onReceiverStart()` returns `false`, the supervisor is to be stopped (using `stop`).
+
+`stop` method is called with a message and an optional cause of the stop (called `error`). It calls `stopReceiver` method that prints the INFO message and checks the state of the receiver to react appropriately.
+
+NOTE: A receiver can be in one of the three states: `Initialized`, `Started`, and `Stopped`.
+
+When the receiver is in `Started` state, `stopReceiver` calls `Receiver.onStop()`, prints the following INFO message, and `onReceiverStop(message, error)`.
+
+```
+INFO Called receiver onStop
+```
+
+It attaches itself to the receiver it is a supervisor for (using `receiver.attachSupervisor(this)`). That is how a receiver knows about a supervisor.
+
+CAUTION: FIXME Why does a receiver want to know it?
+
+It uses link:spark-streaming.adoc#settings[spark.streaming.receiverRestartDelay] to control ...FIXME
+
+CAUTION: FIXME What is maximum rate limit for a receiver?
+
+CAUTION: FIXME What is a backend data store?
+
+`ReceiverSupervisorImpl` is an implementation of `ReceiverSupervisor` contract.
+
+NOTE: A dedicated `ReceiverSupervisorImpl` is started for every receiver when <<introduction, ReceiverTracker starts>>. See <<ReceiverTrackerEndpoint-startReceiver, ReceiverTrackerEndpoint.startReceiver>>.
+
+It communicates with the <<ReceiverTracker, ReceiverTracker>> (by posting messages using the <<ReceiverTrackerEndpoint, ReceiverTracker RPC endpoint>>).
