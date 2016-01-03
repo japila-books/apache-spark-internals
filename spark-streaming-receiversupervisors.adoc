@@ -8,11 +8,25 @@ NOTE: link:spark-streaming-receivertracker.adoc[ReceiverTracker] starts a Receiv
 
 `ReceiverSupervisor` can be started and stopped. When a supervisor is started, it calls (empty by default) `onStart()` and `startReceiver()` afterwards.
 
-It attaches itself to the receiver it is a supervisor for (using `Receiver.attachSupervisor(this)`). That is how a receiver knows about its supervisor.
+It attaches itself to the receiver it is a supervisor of (using `Receiver.attachSupervisor`). That is how a receiver knows about its supervisor (and can hence offer the `store` and management methods).
+
+=== [[contract]] ReceiverSupervisor Contract
+
+`ReceiverSupervisor` is a `private[streaming] abstract class` that assumes that concrete implementations offer the following *push methods*:
+
+* `pushBytes`
+* `pushIterator`
+* `pushArrayBuffer`
+
+There are the other methods required:
+
+* `createBlockGenerator`
+* `reportError`
+* `onReceiverStart`
 
 === [[starting-receivers]] Starting Receivers
 
-`startReceiver()` calls (abstract) `onReceiverStart()`. When `true` (it is unknown at this point to know when it happens to be `true` or `false` since it is an abstract method), it prints the following INFO message to the logs:
+`startReceiver()` calls (abstract) `onReceiverStart()`. When `true` (it is unknown at this point to know when it is `true` or `false` since it is an abstract method - see <<ReceiverSupervisorImpl-onReceiverStart, ReceiverSupervisorImpl.onReceiverStart>> for the default implementation), it prints the following INFO message to the logs:
 
 ```
 INFO Starting receiver
@@ -24,7 +38,7 @@ The receiver's `onStart()` is called and another INFO message appears in the log
 INFO Called receiver onStart
 ```
 
-If however `onReceiverStart()` returns `false`, the supervisor is to be stopped (using `stop`).
+If however `onReceiverStart()` returns `false`, the supervisor stops (using `stop`).
 
 === [[stopping-receivers]] Stopping Receivers
 
@@ -106,11 +120,26 @@ FIXME Prepare exercises
 
 === [[ReceiverSupervisorImpl]] ReceiverSupervisorImpl
 
-`ReceiverSupervisorImpl` is the implementation of ReceiverSupervisor contract.
+`ReceiverSupervisorImpl` is the implementation of <<contract, ReceiverSupervisor contract>>.
 
 NOTE: A dedicated `ReceiverSupervisorImpl` is started for every receiver when <<introduction, ReceiverTracker starts>>. See <<ReceiverTrackerEndpoint-startReceiver, ReceiverTrackerEndpoint.startReceiver>>.
 
-It communicates with the <<ReceiverTracker, ReceiverTracker>> (by posting messages using the <<ReceiverTrackerEndpoint, ReceiverTracker RPC endpoint>>).
+It communicates with <<ReceiverTracker, ReceiverTracker>> that runs on the driver (by posting messages using the <<ReceiverTrackerEndpoint, ReceiverTracker RPC endpoint>>).
+
+[TIP]
+====
+Enable `DEBUG` logging level for `org.apache.spark.streaming.receiver.ReceiverSupervisorImpl` logger to see what happens in `ReceiverSupervisorImpl`.
+
+Add the following line to `conf/log4j.properties`:
+
+```
+log4j.logger.org.apache.spark.streaming.receiver.ReceiverSupervisorImpl=DEBUG
+```
+====
+
+==== [[ReceiverSupervisorImpl-push-methods]] push Methods
+
+<<contract, push methods>>, i.e. `pushArrayBuffer`, `pushIterator`, and `pushBytes` solely pass calls on to <<ReceiverSupervisorImpl-pushAndReportBlock, ReceiverSupervisorImpl.pushAndReportBlock>>.
 
 ==== [[ReceiverSupervisorImpl-onReceiverStart]] ReceiverSupervisorImpl.onReceiverStart
 
@@ -119,3 +148,31 @@ It communicates with the <<ReceiverTracker, ReceiverTracker>> (by posting messag
 ==== [[ReceiverSupervisorImpl-currentRateLimit]] Current Rate Limit
 
 `getCurrentRateLimit` controls the current rate limit. It asks the `BlockGenerator` for the value (using `getCurrentLimit`).
+
+==== [[ReceiverSupervisorImpl-receivedBlockHandler]] ReceivedBlockHandler
+
+`ReceiverSupervisorImpl` uses the internal field `receivedBlockHandler` for link:spark-streaming-receivedblockhandlers.adoc[ReceivedBlockHandler] to use.
+
+It defaults to link:spark-streaming-receivedblockhandlers.adoc#BlockManagerBasedBlockHandler[BlockManagerBasedBlockHandler], but could use link:spark-streaming-receivedblockhandlers.adoc#WriteAheadLogBasedBlockHandler[WriteAheadLogBasedBlockHandler] instead when link:spark-streaming-settings.adoc[spark.streaming.receiver.writeAheadLog.enable] is `true`.
+
+It uses `ReceivedBlockHandler` to `storeBlock` (see link:spark-streaming-receivedblockhandlers.adoc#contract[ReceivedBlockHandler Contract] for more coverage and <<ReceiverSupervisorImpl-pushAndReportBlock, ReceiverSupervisorImpl.pushAndReportBlock>> in this document).
+
+==== [[ReceiverSupervisorImpl-pushAndReportBlock]] ReceiverSupervisorImpl.pushAndReportBlock
+
+`ReceiverSupervisorImpl.pushAndReportBlock(receivedBlock: ReceivedBlock, metadataOption: Option[Any], blockIdOption: Option[StreamBlockId])` stores `receivedBlock` using `ReceivedBlockHandler.storeBlock` and reports it to the driver.
+
+NOTE: `ReceiverSupervisorImpl.pushAndReportBlock` is only used by the <<ReceiverSupervisorImpl-push-methods, push methods>>, i.e. `pushArrayBuffer`, `pushIterator`, and `pushBytes`. Calling the method is actually all they do.
+
+When it calls `ReceivedBlockHandler.storeBlock`, you should see the following DEBUG message in the logs:
+
+```
+DEBUG Pushed block [blockId] in [time] ms
+```
+
+It then sends `AddBlock` (with `ReceivedBlockInfo` for `streamId`, `BlockStoreResult.numRecords`, `metadataOption`, and the result of `ReceivedBlockHandler.storeBlock`) to link:spark-streaming-receivertracker.adoc#ReceiverTrackerEndpoint[ReceiverTracker RPC endpoint] (that runs on the driver).
+
+When a response comes, you should see the following DEBUG message in the logs:
+
+```
+DEBUG Reported block [blockId]
+```
