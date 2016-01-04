@@ -1,5 +1,23 @@
 == ReceiverInputDStreams
 
-`ReceiverInputDStream` is a specialized abstract class for defining link:spark-streaming-inputdstreams.adoc[InputDStreams] that start a link:spark-streaming-receivers.adoc[receiver] on worker nodes to receive external data.
+`ReceiverInputDStream` is a specialized abstract class for defining link:spark-streaming-inputdstreams.adoc[InputDStreams] that start a link:spark-streaming-receivers.adoc[receiver] on worker nodes to receive external data (and hence the name `ReceiverInputDStream` which stands for an `InputDStream` with a receiver).
 
 NOTE: The source code of `ReceiverInputDStream` is https://github.com/apache/spark/blob/master/streaming/src/main/scala/org/apache/spark/streaming/dstream/ReceiverInputDStream.scala[here].
+
+`ReceiverInputDStream` uses `ReceiverRateController` when link:spark-streaming-settings.adoc[spark.streaming.backpressure.enabled] is enabled.
+
+Custom implementations of `ReceiverInputDStream` must define `def getReceiver(): Receiver[T]` method that creates the receiver object `Receiver` that is sent to worker nodes to receive data.
+
+NOTE: Both, `start()` and `stop` methods are implemented and do nothing since it is link:spark-streaming-receivertracker.adoc[ReceiverTracker] to look after `ReceiverInputDStream`.
+
+=== [[compute]] Generate RDDs (using compute method)
+
+The abstract `compute(validTime: Time): Option[RDD[T]]` method (from link:spark-streaming-dstreams.adoc[DStream]) uses link:spark-streaming-dstreams.adoc#DStreamGraph[DStreamGraph.startTime] which is the start time of StreamingContext.
+
+If the time to generate RDDs (`validTime`) is earlier than the start time of StreamingContext, an empty `BlockRDD` is generated.
+
+Otherwise, link:spark-streaming-receivertracker.adoc[ReceiverTracker] is requested for all the blocks that have been allocated to this stream for this batch (using `ReceiverTracker.getBlocksOfBatch`).
+
+The number of records received for the batch for the input stream (as `StreamInputInfo` aka *input blocks information*) is registered to link:spark-streaming-jobscheduler.adoc#InputInfoTracker[InputInfoTracker] (using `InputInfoTracker.reportInfo`).
+
+If all link:spark-blockmanager.adoc#BlockId[BlockIds] have `WriteAheadLogRecordHandle`, a `WriteAheadLogBackedBlockRDD` is generated. Otherwise, a `BlockRDD` is.
