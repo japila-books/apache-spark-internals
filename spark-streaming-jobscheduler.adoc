@@ -20,7 +20,7 @@ log4j.logger.org.apache.spark.streaming.scheduler.JobScheduler=DEBUG
 With DEBUG logging level you should see the following message in the logs:
 
 ```
-DEBUG Starting JobScheduler
+DEBUG JobScheduler: Starting JobScheduler
 ```
 
 When `JobScheduler` starts, it starts <<eventLoop, eventLoop - JobSchedulerEvent Handler>> and link:spark-streaming-receivertracker.adoc[ReceiverTracker]. It also starts the link:spark-streaming-jobgenerator.adoc[JobGenerator].
@@ -29,6 +29,50 @@ At the end, it prints the following INFO message to the logs:
 
 ```
 INFO JobScheduler: Started JobScheduler
+```
+
+=== [[stopping]] Stopping JobScheduler (using stop method)
+
+`JobScheduler.stop(processAllReceivedData: Boolean)` stops `JobScheduler`.
+
+NOTE: It is called when link:spark-streaming-streamingcontext.adoc#stopping[StreamingContext is being stopped].
+
+You should see the following DEBUG message in the logs:
+
+```
+DEBUG JobScheduler: Stopping JobScheduler
+```
+
+link:spark-streaming-receivertracker.adoc#stopping[ReceiverTracker is stopped] (unless it is not assigned yet).
+
+NOTE: link:spark-streaming-receivertracker.adoc[ReceiverTracker] is only assigned (and started) while JobScheduler is starting.
+
+It stops generating jobs (using link:spark-streaming-jobgenerator.adoc#stop[JobGenerator.stop(processAllReceivedData)]).
+
+You should see the following DEBUG message in the logs:
+
+```
+DEBUG JobScheduler: Stopping job executor
+```
+
+<<streaming-job-executor, jobExecutor Thread Pool>> is shut down (using `jobExecutor.shutdown()`).
+
+If the stop should wait for all received data to be processed (the input parameter `processAllReceivedData` is `true`), `stop` awaits termination of <<streaming-job-executor, jobExecutor Thread Pool>> for *1 hour* (it is assumed that it is enough and is not configurable). Otherwise, it waits for *2 seconds*.
+
+<<streaming-job-executor, jobExecutor Thread Pool>>  is forcefully shut down (using `jobExecutor.shutdownNow()`) unless it has terminated already.
+
+You should see the following DEBUG message in the logs:
+
+```
+DEBUG JobScheduler: Stopped job executor
+```
+
+<<StreamingListenerBus, StreamingListenerBus>> and <<eventLoop, eventLoop - JobSchedulerEvent Handler>> are stopped.
+
+You should see the following INFO message in the logs:
+
+```
+JobScheduler: Stopped JobScheduler
 ```
 
 === [[JobHandler]] JobHandler
