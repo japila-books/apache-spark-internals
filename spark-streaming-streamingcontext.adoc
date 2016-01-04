@@ -10,9 +10,10 @@ When you create a new instance of `StreamingContext` (and you will eventually) i
 ====
 `StreamingContext` will warn you when you use `local` or `local[1]` link:spark-deployment-environments.adoc#master-urls[master URLs]:
 
-```
+[options="wrap"]
+----
 WARN StreamingContext: spark.master should be set as local[n], n > 1 in local mode if you have receivers to get data, otherwise Spark jobs will not get resources to process the received data.
-```
+----
 ====
 
 A link:spark-streaming.adoc#DStreamGraph[DStreamGraph] is created.
@@ -27,6 +28,55 @@ A link:spark-streaming.adoc#StreamingSource[StreamingSource] is instantiated.
 
 At this point, it is assumed that the StreamingContext is `INITIALIZED`.
 
-=== [[stopping]] Stopping
+You should see the following INFO message in the logs upon successful start:
 
-CAUTION: FIXME
+```
+INFO StreamingContext: StreamingContext started
+```
+
+=== [[stopping]] Stopping StreamingContext (using stop methods)
+
+You stop `StreamingContext` using one of the three variants of `stop` method:
+
+* `stop(stopSparkContext: Boolean = true)`
+* `stop(stopSparkContext: Boolean, stopGracefully: Boolean)`
+
+NOTE: The first `stop` method uses link:spark-streaming-settings.adoc[spark.streaming.stopSparkContextByDefault] configuration setting that controls `stopSparkContext` input parameter.
+
+`stop` methods stop the execution of the streams immediately (`stopGracefully` is `false`) or wait for the processing of all received data to be completed (`stopGracefully` is `true`).
+
+`stop` reacts appropriately depending on the state of `StreamingContext`. The end state is always `STOPPED`.
+
+When `INITIALIZED`, it prints the WARNING message to the logs:
+
+```
+WARNING StreamingContext has not been started yet
+```
+
+When `STOPPED`, it prints the WARNING message to the logs:
+
+```
+WARNING StreamingContext has already been stopped
+```
+
+It is only in `ACTIVE` state when `stop` does more than printing out a WARNING message to the logs, i.e. it does the following (in order):
+
+* link:spark-streaming-jobscheduler.adoc[JobScheduler] is stopped (using `JobScheduler.stop(stopGracefully)`)
+
+* link:spark-streaming.adoc#StreamingSource[StreamingSource] is removed from link:spark-metrics.adoc[MetricsSystem] (using `MetricsSystem.removeSource`)
+
+* link:spark-streaming.adoc#StreamingTab[Streaming tab] is detached (using `StreamingTab.detach`).
+
+* `ContextWaiter` is `notifyStop()`
+
+* `shutdownHookRef` is cleared.
+
+CAUTION: FIXME When is `shutdownHookRef` executed? It doesn't seem to be so at `stop`?
+
+At that point, the following INFO message is printed out to the logs and `StreamingContext` enters `STOPPED` state.
+
+```
+INFO StreamingContext: StreamingContext stopped successfully
+```
+
+If a user requested to stop the underlying SparkContext (using `stopSparkContext`), it is now attempted to be stopped.
