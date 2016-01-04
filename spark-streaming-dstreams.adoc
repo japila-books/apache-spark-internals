@@ -1,9 +1,68 @@
 == DStreams
 
-=== [[InputDStream]] InputDStream
+*Discretized Stream (DStream)* is the fundamental concept in Spark Streaming. It is modelled as the `org.apache.spark.streaming.dstream.DStream` abstract class.
 
-CAUTION: FIXME
+It requires link:spark-streaming-streamingcontext.adoc[StreamingContext] to be created.
+
+NOTE: New DStreams can only be created when link:spark-streaming-streamingcontext.adoc[StreamingContext] is in `INITIALIZED` state (before it is started). All other states lead to `IllegalStateException` being thrown.
+
+As a Scala abstract class it requires the following methods to be implemented by subclasses:
+
+* `def slideDuration: Duration` that is the time interval after which the DStream generates a RDD.
+* `def dependencies: List[DStream[_]]` that is a collection of parent `DStreams` on which this `DStream` depends on.
+* `def compute(validTime: Time): Option[RDD[T]]` that knows how to generate a RDD for the given time
+
+[TIP]
+====
+Enable `INFO` logging level for `org.apache.spark.streaming.dstream.DStream` logger to see what happens inside any `DStream`.
+
+Add the following line to `conf/log4j.properties`:
+
+```
+log4j.logger.org.apache.spark.streaming.dstream.DStream=INFO
+```
+====
+
+=== [[operations]] DStream Operations
+
+All `DStream` implementations offer the following operations:
+
+* `map`
+* `flatMap`
+* `filter`
+* `glom`
+* `repartition`
+* `mapPartitions`
+* `reduce`
+* `count`
+* `countByValue`
+* a family of `foreachRDD`
+* a family of `transform`
+* a family of `transformWith`
+* `print` to print 10 elements using `print(num: Int)`
+* a family of `window`
+* a family of `reduceByWindow`
+* `countByWindow`
+* `countByValueAndWindow`
+* `union`
+* a family of `slice`
+* `saveAsObjectFiles`
+* `saveAsTextFiles`
+
+NOTE: `DStream` Scala companion object offers an implicit to convert `DStream[(K, V)]` to `PairDStreamFunctions` with methods on DStreams of key-value pairs.
+
+=== [[internal-registries]] Internal Registries
+
+`DStream` implementations maintain the following internal registries:
+
+* `generatedRDDs` as a mapping between times and generated RDDs.
+* `zeroTime` as the zero time.
+* `rememberDuration` as the duration for which the `DStream` will remember each RDD created.
+* `storageLevel` (default: `NONE`) as the link:spark-rdd-caching.adoc#StorageLevel[StorageLevel] of the RDDs in the `DStream`.
+* `checkpointDuration` as the duration for checkpoint (that is set using `def checkpoint(interval: Duration)` method)
+* `restoredFromCheckpointData` about whether it was restored from checkpoint.
+* `graph` as the reference to the whole link:spark-streaming.adoc#DStreamGraph[DStreamGraph].
 
 === [[ReceiverInputDStream]] ReceiverInputDStream
 
-CAUTION: FIXME
+`ReceiverInputDStream` is a specialized abstract class for defining link:spark-streaming-inputdstreams.adoc[InputDStreams].
