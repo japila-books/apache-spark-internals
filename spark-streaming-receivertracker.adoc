@@ -33,6 +33,14 @@ INFO ReceiverTracker: ReceiverTracker started
 
 CAUTION: FIXME
 
+==== [[ReceiverTrackerEndpoint-StopAllReceivers]] StopAllReceivers
+
+CAUTION: FIXME
+
+==== [[ReceiverTrackerEndpoint-AllReceiverIds]] AllReceiverIds
+
+CAUTION: FIXME
+
 ==== [[ReceiverTrackerEndpoint-StartAllReceivers]] StartAllReceivers
 
 `StartAllReceivers(receivers)` is a local message sent by <<ReceiverTracker, ReceiverTracker>> when it starts (using `ReceiverTracker.launchReceivers()`).
@@ -100,6 +108,49 @@ Ultimately, right before the method exits, the following INFO message appears in
 INFO Receiver [receiver.streamId] started
 ```
 
-=== [[stopping]] Stopping
+=== [[stopping]] Stopping ReceiverTracker (using stop method)
+
+`ReceiverTracker.stop(graceful: Boolean)` stops `ReceiverTracker` only when it is in `Started` state. Otherwise, it does nothing and exits.
+
+NOTE: The `stop` method is called while link:spark-streaming-jobscheduler.adoc#stopping[JobScheduler is being stopped].
+
+The state of `ReceiverTracker` is marked `Stopping`.
+
+It then sends the stop signal to all the receivers (using posts <<ReceiverTrackerEndpoint-StopAllReceivers, StopAllReceivers>> to <<ReceiverTrackerEndpoint, ReceiverTracker RPC endpoint>>) and waits *10 seconds* for all the receivers to quit gracefully unless `graceful` flag is set.
+
+NOTE: The 10-second wait time for graceful quit is not configurable.
+
+You should see the following INFO messages if the `graceful` flag is enabled which means that the receivers quit in a graceful manner:
+
+```
+INFO ReceiverTracker: Waiting for receiver job to terminate gracefully
+INFO ReceiverTracker: Waited for receiver job to terminate gracefully
+```
+
+It then checks whether all the receivers have been deregistered or not by posting <<ReceiverTrackerEndpoint-AllReceiverIds, AllReceiverIds>> to <<ReceiverTrackerEndpoint, ReceiverTracker RPC endpoint>>.
+
+You should see the following INFO message in the logs if they have:
+
+```
+INFO ReceiverTracker: All of the receivers have deregistered successfully
+```
+
+Otherwise, when there were receivers not having been deregistered properly, the following WARN message appears in the logs:
+
+```
+WARN ReceiverTracker: Not all of the receivers have deregistered, [receivers]
+```
+
+It stops <<ReceiverTrackerEndpoint, ReceiverTracker RPC endpoint>> as well as <<ReceivedBlockTracker, ReceivedBlockTracker>>.
+
+You should see the following INFO message in the logs:
+
+```
+INFO ReceiverTracker: ReceiverTracker stopped
+```
+
+The state of `ReceiverTracker` is marked `Stopped`.
+
+=== [[ReceivedBlockTracker]] ReceivedBlockTracker
 
 CAUTION: FIXME
