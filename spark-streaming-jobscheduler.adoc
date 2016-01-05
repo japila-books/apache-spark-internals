@@ -2,6 +2,9 @@
 
 `JobScheduler` schedules jobs to be run on Spark. It is created as part of link:spark-streaming-streamingcontext.adoc#creating-instance[creating a StreamingContext] and starts with it.
 
+.JobScheduler with Dependencies
+image::images/streaming-jobscheduler.png[align="center"]
+
 It tracks jobs submitted for execution (as <<JobSet, JobSets>> via <<submitJobSet, submitJobSet>> method) in <<internal-registries, jobSets>> internal map.
 
 NOTE: JobSets are submitted by link:spark-streaming-jobgenerator.adoc[JobGenerator].
@@ -25,9 +28,9 @@ When `JobScheduler` starts, it prints out following DEBUG message in the logs:
 DEBUG JobScheduler: Starting JobScheduler
 ```
 
-When `JobScheduler` starts, it starts <<eventLoop, eventLoop - JobSchedulerEvent Handler>>, StreamingListenerBus, link:spark-streaming-receivertracker.adoc[ReceiverTracker], and link:spark-streaming-jobgenerator.adoc[JobGenerator]. It instantiates <<InputInfoTracker, InputInfoTracker>> to track...FIXME
+It then starts <<eventLoop, eventLoop - JobSchedulerEvent Handler>>, <<StreamingListenerBus, StreamingListenerBus>>, link:spark-streaming-receivertracker.adoc[ReceiverTracker], and link:spark-streaming-jobgenerator.adoc[JobGenerator]. It instantiates <<InputInfoTracker, InputInfoTracker>>.
 
-At the end, it prints the following INFO message to the logs:
+It finishes `start` by printing the following INFO message to the logs:
 
 ```
 INFO JobScheduler: Started JobScheduler
@@ -74,23 +77,25 @@ DEBUG JobScheduler: Stopped job executor
 You should see the following INFO message in the logs:
 
 ```
-JobScheduler: Stopped JobScheduler
+INFO JobScheduler: Stopped JobScheduler
 ```
 
 === [[JobHandler]] JobHandler
 
 `JobHandler` is a thread of execution for link:spark-streaming.adoc#Job[jobs] (it simply executes `Job.run`).
 
-It is run when a new <<JobSet, JobSet>> is submitted (see <<submitJobSet, submitJobSet>> in this document).
+It runs when a new <<JobSet, JobSet>> is submitted (see <<submitJobSet, submitJobSet>> in this document).
 
 === [[submitJobSet]] submitJobSet
 
-When `submitJobSet(jobSet: JobSet)` is called, it behaves differently per the given `jobSet` <<JobSet, JobSet>>.
+When `submitJobSet(jobSet: JobSet)` is called, it behaves differently per given `jobSet` <<JobSet, JobSet>>.
+
+NOTE: The method is called as part of link:spark-streaming-jobgenerator.adoc#GenerateJobs[JobGenerator.generateJobs] and `JobGenerator.restart`.
 
 When no jobs are inside the JobSet, it simply prints out the following INFO to the logs:
 
 ```
-INFO No jobs added for time [jobSet.time]
+INFO JobScheduler: No jobs added for time [jobSet.time]
 ```
 
 Otherwise, when there is at least one job inside the JobSet, `StreamingListenerBatchSubmitted` is posted to <<StreamingListenerBus, StreamingListenerBus>>.
@@ -105,15 +110,13 @@ At the end, you should see the following INFO message in the logs:
 INFO JobScheduler: Added jobs for time [jobSet.time] ms
 ```
 
-The method is called as part of link:spark-streaming-jobgenerator.adoc#GenerateJobs[JobGenerator.generateJobs] and `JobGenerator.restart`.
-
 === [[streaming-job-executor]] jobExecutor Thread Pool
 
 While `JobScheduler` is instantiated, the daemon thread pool `streaming-job-executor-ID` with link:spark-streaming-settings.adoc[spark.streaming.concurrentJobs] threads is created.
 
 It is used to execute <<JobHandler, JobHandler>> for jobs in JobSet (see <<submitJobSet, submitJobSet>> in this document).
 
-It is shut down when a link:spark-streaming-streamingcontext.adoc#stop[StreamingContext] stops.
+It shuts down when link:spark-streaming-streamingcontext.adoc#stop[StreamingContext] stops.
 
 === [[eventLoop]] eventLoop - JobSchedulerEvent Handler
 
@@ -179,11 +182,11 @@ INFO RecurringTimer: Started timer for JobGenerator at time [nextTime]
 
 === [[StreamingListenerBus]] StreamingListenerBus and StreamingListenerEvents
 
-`StreamingListenerBus` is a asynchronous listener bus for `StreamingListener` to receive `StreamingListenerEvent`.
+`StreamingListenerBus` is a asynchronous listener bus for `StreamingListener` to receive `StreamingListenerEvent`:
 
 * `StreamingListenerBatchStarted` triggers `StreamingListener.onBatchStarted`
 
-* `StreamingListenerBatchSubmitted` triggers ...FIXME
+* `StreamingListenerBatchSubmitted` triggers `StreamingListener.onBatchSubmitted`
 
 === [[StreamingJobProgressListener]] StreamingJobProgressListener
 
