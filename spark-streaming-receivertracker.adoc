@@ -2,26 +2,36 @@
 
 === [[introduction]] Introduction
 
-`ReceiverTracker` manages execution of all the link:spark-streaming-receivers.adoc[Receivers] of link:spark-streaming-receiverinputdstreams.adoc[ReceiverInputDStreams]. It uses link:spark-rpc.adoc[RPC environment] for communication with link:spark-streaming-receiversupervisors.adoc[ReceiverSupervisors].
+`ReceiverTracker` manages execution of all link:spark-streaming-receivers.adoc[Receivers]. It uses link:spark-rpc.adoc[RPC environment] for communication with link:spark-streaming-receiversupervisors.adoc[ReceiverSupervisors].
 
-NOTE: It is started when link:spark-streaming-jobscheduler.adoc[JobScheduler] starts.
+NOTE: `ReceiverTracker` is started when link:spark-streaming-jobscheduler.adoc[JobScheduler] starts.
 
-It can only be started once and sets up the `ReceiverTracker` RPC endpoint (using <<ReceiverTrackerEndpoint, ReceiverTrackerEndpoint>>).
-
-When `ReceiverTracker` starts, you should see the following INFO message in the logs:
-
-```
-INFO ReceiverTracker: Starting [receivers.length] receivers
-```
+It can only be started once and only when at least one input receiver has been registered.
 
 `ReceiverTracker` can be in one of the following states:
 
 * `Initialized` - it is in the state after having been instantiated.
-* `Started` - <<ReceiverTrackerEndpoint, ReceiverTrackerEndpoint>> has been set up.
+* `Started` -
 * `Stopping`
 * `Stopped`
 
-It posts <<ReceiverTrackerEndpoint-StartAllReceivers, StartAllReceivers>> to <<ReceiverTrackerEndpoint, ReceiverTracker RPC endpoint>>.
+=== [[starting]] Starting ReceiverTracker (using start method)
+
+NOTE: You can only start `ReceiverTracker` once and multiple attempts lead to throwing `SparkException` exception.
+
+NOTE: Starting `ReceiverTracker` when no link:spark-streaming-receiverinputdstreams.adoc[ReceiverInputDStream] has registered does nothing.
+
+When `ReceiverTracker` starts, it first sets <<ReceiverTrackerEndpoint, ReceiverTracker RPC endpoint>> up.
+
+It then launches receivers, i.e. it collects receivers for all registered `ReceiverDStream` and posts them as  <<ReceiverTrackerEndpoint-StartAllReceivers, StartAllReceivers>> to <<ReceiverTrackerEndpoint, ReceiverTracker RPC endpoint>>.
+
+In the meantime, receivers have their ids assigned that correspond to the unique identifier of their `ReceiverDStream`.
+
+You should see the following INFO message in the logs:
+
+```
+INFO ReceiverTracker: Starting [receivers.length] receivers
+```
 
 A successful startup of `ReceiverTracker` finishes with the following INFO message in the logs:
 
@@ -29,21 +39,15 @@ A successful startup of `ReceiverTracker` finishes with the following INFO messa
 INFO ReceiverTracker: ReceiverTracker started
 ```
 
-=== [[ReceiverTrackerEndpoint]] ReceiverTrackerEndpoint
+`ReceiverTracker` enters `Started` state.
 
-CAUTION: FIXME
-
-==== [[ReceiverTrackerEndpoint-StopAllReceivers]] StopAllReceivers
-
-CAUTION: FIXME
-
-==== [[ReceiverTrackerEndpoint-AllReceiverIds]] AllReceiverIds
+=== [[ReceiverTrackerEndpoint]] ReceiverTracker RPC endpoint
 
 CAUTION: FIXME
 
 ==== [[ReceiverTrackerEndpoint-StartAllReceivers]] StartAllReceivers
 
-`StartAllReceivers(receivers)` is a local message sent by <<ReceiverTracker, ReceiverTracker>> when it starts (using `ReceiverTracker.launchReceivers()`).
+`StartAllReceivers(receivers)` is a local message sent by <<ReceiverTracker, ReceiverTracker>> when <<starting, it starts>> (using `ReceiverTracker.launchReceivers()`).
 
 It schedules receivers (using `ReceiverSchedulingPolicy.scheduleReceivers(receivers, getExecutors)`).
 
@@ -108,15 +112,23 @@ Ultimately, right before the method exits, the following INFO message appears in
 INFO Receiver [receiver.streamId] started
 ```
 
+==== [[ReceiverTrackerEndpoint-StopAllReceivers]] StopAllReceivers
+
+CAUTION: FIXME
+
+==== [[ReceiverTrackerEndpoint-AllReceiverIds]] AllReceiverIds
+
+CAUTION: FIXME
+
 === [[stopping]] Stopping ReceiverTracker (using stop method)
 
-`ReceiverTracker.stop(graceful: Boolean)` stops `ReceiverTracker` only when it is in `Started` state. Otherwise, it does nothing and exits.
+`ReceiverTracker.stop(graceful: Boolean)` stops `ReceiverTracker` only when it is in `Started` state. Otherwise, it does nothing and simply exits.
 
 NOTE: The `stop` method is called while link:spark-streaming-jobscheduler.adoc#stopping[JobScheduler is being stopped].
 
 The state of `ReceiverTracker` is marked `Stopping`.
 
-It then sends the stop signal to all the receivers (using posts <<ReceiverTrackerEndpoint-StopAllReceivers, StopAllReceivers>> to <<ReceiverTrackerEndpoint, ReceiverTracker RPC endpoint>>) and waits *10 seconds* for all the receivers to quit gracefully unless `graceful` flag is set.
+It then sends the stop signal to all the receivers (i.e. posts <<ReceiverTrackerEndpoint-StopAllReceivers, StopAllReceivers>> to <<ReceiverTrackerEndpoint, ReceiverTracker RPC endpoint>>) and waits *10 seconds* for all the receivers to quit gracefully (unless `graceful` flag is set).
 
 NOTE: The 10-second wait time for graceful quit is not configurable.
 
