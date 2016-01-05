@@ -20,19 +20,39 @@ A link:spark-streaming-dstreams.adoc#DStreamGraph[DStreamGraph] is created.
 
 A link:spark-streaming-jobscheduler.adoc[JobScheduler] is created.
 
-A link:spark-streaming.adoc#StreamingJobProgressListener[StreamingJobProgressListener] is created.
+A link:spark-streaming-jobscheduler.adoc#StreamingJobProgressListener[StreamingJobProgressListener] is created.
 
 The link:spark-streaming.adoc#StreamingTab[Streaming tab] in web UI is created (when spark.ui.enabled is set).
 
 A link:spark-streaming.adoc#StreamingSource[StreamingSource] is instantiated.
 
-At this point, it is assumed that the StreamingContext is `INITIALIZED`.
+At this point, `StreamingContext` enters `INITIALIZED` state.
 
 You should see the following INFO message in the logs upon successful start:
 
 ```
 INFO StreamingContext: StreamingContext started
 ```
+
+=== [[creating-receivers]] Creating ReceiverInputDStreams
+
+`StreamingContext` offers the following methods to create link:spark-streaming-receiverinputdstreams.adoc[ReceiverInputDStreams]:
+
+* `receiverStream[T](receiver: Receiver[T]): ReceiverInputDStream[T]`
+* `actorStream[T](props: Props, name: String, storageLevel: StorageLevel = StorageLevel.MEMORY_AND_DISK_SER_2, supervisorStrategy: SupervisorStrategy = ActorSupervisorStrategy.defaultStrategy): ReceiverInputDStream[T]`
+* `socketTextStream(hostname: String, port: Int, storageLevel: StorageLevel = StorageLevel.MEMORY_AND_DISK_SER_2): ReceiverInputDStream[String]`
+* `socketStream[T](hostname: String, port: Int, converter: (InputStream) => Iterator[T], storageLevel: StorageLevel): ReceiverInputDStream[T]`
+* `rawSocketStream[T](hostname: String, port: Int, storageLevel: StorageLevel = StorageLevel.MEMORY_AND_DISK_SER_2): ReceiverInputDStream[T]`
+
+`StreamingContext` offers the following methods to create link:spark-streaming-inputdstreams.adoc[InputDStreams]:
+
+* `queueStream[T](queue: Queue[RDD[T]], oneAtATime: Boolean = true): InputDStream[T]`
+* `queueStream[T](queue: Queue[RDD[T]], oneAtATime: Boolean, defaultRDD: RDD[T]): InputDStream[T]`
+
+You can also use two additional methods in `StreamingContext` to build (or better called _compose_) custom link:spark-streaming-dstreams.adoc[DStream]:
+
+* `union[T](streams: Seq[DStream[T]]): DStream[T]`
+* `transform[T](dstreams: Seq[DStream[_]], transformFunc: (Seq[RDD[_]], Time) => RDD[T]): DStream[T]`
 
 === [[stopping]] Stopping StreamingContext (using stop methods)
 
@@ -47,13 +67,13 @@ NOTE: The first `stop` method uses link:spark-streaming-settings.adoc[spark.stre
 
 `stop` reacts appropriately depending on the state of `StreamingContext`. The end state is always `STOPPED`.
 
-When `INITIALIZED`, it prints the WARN message to the logs:
+When in `INITIALIZED` state, it prints the WARN message to the logs:
 
 ```
 WARN StreamingContext: StreamingContext has not been started yet
 ```
 
-When `STOPPED`, it prints the WARN message to the logs:
+When in `STOPPED` state, it prints the WARN message to the logs:
 
 ```
 WARN StreamingContext: StreamingContext has already been stopped
