@@ -1,6 +1,62 @@
-== Data Ingestion using Apache Kafka
+== Ingesting Data from Apache Kafka
 
-Kafka concepts:
+Spark Streaming comes with two ways of ingesting data from http://kafka.apache.org/[Apache Kafka]:
+
+* Using receivers
+* <<no-receivers, With no receivers>>
+
+There is yet another "middle-ground" approach (so-called unofficial one since it is not available by default in Spark Streaming):
+
+* ...
+
+=== [[no-receivers]] Data Ingestion with no Receivers
+
+There are two modes of ingesting data from Kafka *with no receivers*:
+
+* *Streaming mode* using `KafkaUtils.createDirectStream` that creates an link:spark-streaming-inputdstreams.adoc[input stream] that directly pulls messages from Kafka Brokers (with no receivers).
+* *Non-streaming mode* using `KafkaUtils.createRDD` that just creates a link:spark-streaming-kafka-kafkardd.adoc[KafkaRDD] of key-value pairs, i.e. `RDD[(K, V)]`.
+
+=== spark-streaming-kafka Library Dependency
+
+The new API for both Kafka RDD and DStream is in the `spark-streaming-kafka` artifact. Add the following dependency to sbt project to use the streaming integration:
+
+```
+libraryDependencies += "org.apache.spark" %% "spark-streaming-kafka" % "2.0.0-SNAPSHOT"
+```
+
+NOTE: Replace `"2.0.0-SNAPSHOT"` with available version as found at http://search.maven.org/#search%7Cgav%7C1%7Cg%3A%22org.apache.spark%22%20AND%20a%3A%22spark-streaming-kafka_2.11%22[The Central Repository's search].
+
+=== DirectKafkaInputDStream
+
+`DirectKafkaInputDStream` is an link:spark-streaming-inputdstreams.adoc[input stream] of link:spark-streaming-kafka-kafkardd.adoc[KafkaRDD] batches.
+
+As an input stream, it implements the _five_ mandatory abstract methods - three from `DStream` and two from `InputDStream`:
+
+* `dependencies: List[DStream[_]]` returns an empty collection, i.e. it has no dependencies on other streams (other than Kafka brokers to read data from).
+* `slideDuration: Duration` passes all calls on to link:spark-streaming-dstreams.adoc#DStreamGraph[DStreamGraph.batchDuration].
+* `compute(validTime: Time): Option[RDD[T]]` - consult <<compute, Computing RDDs (using compute Method)>> section.
+* `start()` does nothing.
+* `stop()` does nothing.
+
+It uses link:spark-streaming-settings.adoc[spark.streaming.kafka.maxRetries] setting while computing `latestLeaderOffsets` (i.e. a mapping of `kafka.common.TopicAndPartition` and <<LeaderOffset, LeaderOffset>>).
+
+==== [[compute]] Computing RDDs (using compute Method)
+
+`DirectKafkaInputDStream.compute` _always_ computes a link:spark-streaming-kafka-kafkardd.adoc[KafkaRDD] instance (despite the link:spark-streaming-dstreams.adoc#contract[DStream contract] that says it may or may not generate one).
+
+CAUTION: FIXME When and how often is `compute` called? It is probably a note in `DStream` page.
+
+Every time the method is called, `latestLeaderOffsets` calculates the latest offsets (as `Map[TopicAndPartition, LeaderOffset]`).
+
+NOTE: Every call to `compute` does call Kafka brokers for the offsets.
+
+The _moving_ parts of generated `KafkaRDD` instances are offsets. Others are taken directly from `DirectKafkaInputDStream` (given at the time of instantiation).
+
+It then filters out empty offset ranges to build `StreamInputInfo` for link:spark-streaming-jobscheduler.adoc#InputInfoTracker[InputInfoTracker.reportInfo].
+
+It sets the just-calculated offsets as current (using `currentOffsets`) and returns a new link:spark-streaming-kafka-kafkardd.adoc[KafkaRDD] instance.
+
+=== Kafka Concepts
 
 * `broker`
 * `leader`
@@ -9,15 +65,6 @@ Kafka concepts:
 * `offset`
 * `exactly-once semantics`
 * `Kafka high-level consumer`
-
-There are two modes of ingesting data from Kafka:
-
-* *Streaming mode* using `KafkaUtils.createDirectStream` that is particularly useful in Spark Streaming.
-* *Non-streaming mode* using `KafkaUtils.createRDD` that just creates a link:spark-streaming-kafka-kafkardd.adoc[KafkaRDD] of key-value pairs, i.e. `RDD[(K, V)]`.
-
-`DirectKafkaInputDStream` is an link:spark-streaming-inputdstreams.adoc[input stream] of link:spark-streaming-kafka-kafkardd.adoc[KafkaRDD] batches. It uses link:spark-streaming-settings.adoc[spark.streaming.kafka.maxRetries] setting while computing `latestLeaderOffsets` (i.e. a mapping of `kafka.common.TopicAndPartition` and <<LeaderOffset, LeaderOffset>>) .
-
-The new API for both Kafka RDD and DStream is in the spark-streaming-kafka artifact.
 
 === [[LeaderOffset]] LeaderOffset
 
