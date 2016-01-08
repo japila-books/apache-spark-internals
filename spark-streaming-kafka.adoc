@@ -13,8 +13,34 @@ There is yet another "middle-ground" approach (so-called unofficial one since it
 
 There are two modes of ingesting data from Kafka *with no receivers*:
 
-* *Streaming mode* using `KafkaUtils.createDirectStream` that creates an link:spark-streaming-inputdstreams.adoc[input stream] that directly pulls messages from Kafka Brokers (with no receivers).
+* *Streaming mode* using `KafkaUtils.createDirectStream` that creates an link:spark-streaming-inputdstreams.adoc[input stream] that directly pulls messages from Kafka Brokers (with no receivers). See <<streaming-mode, Streaming mode>> section.
 * *Non-streaming mode* using `KafkaUtils.createRDD` that just creates a link:spark-streaming-kafka-kafkardd.adoc[KafkaRDD] of key-value pairs, i.e. `RDD[(K, V)]`.
+
+==== [[streaming-mode]] Streaming mode
+
+You create <<DirectKafkaInputDStream, DirectKafkaInputDStream>> using `KafkaUtils.createDirectStream`.
+
+NOTE: You have to specify `metadata.broker.list` or `bootstrap.servers` (in that order of precedence) for your Kafka environment.
+
+`metadata.broker.list` is a comma-separated list of (seed) brokers in the format of `<host>:<port>`.
+
+NOTE: Kafka brokers have to be up and running _before_ you can create a direct stream.
+
+[source, scala]
+----
+val scfg = new SparkConf().setMaster("local[*]").setAppName("Ingesting Data from Kafka")
+val ssc = new StreamingContext(scfg, Seconds(15))
+
+import org.apache.spark.streaming.kafka._
+val kafkaParams = Map("metadata.broker.list" -> "localhost:9092")
+val kafkaTopics = Set("spark-topic")
+val kafkaIn = KafkaUtils.createDirectStream(ssc, kafkaParams, kafkaTopics)
+kafkaIn.print()
+
+ssc.start
+----
+
+If `zookeeper.connect` or `group.id` parameters are not set, they are added with their values being empty strings.
 
 === spark-streaming-kafka Library Dependency
 
@@ -26,7 +52,7 @@ libraryDependencies += "org.apache.spark" %% "spark-streaming-kafka" % "2.0.0-SN
 
 NOTE: Replace `"2.0.0-SNAPSHOT"` with available version as found at http://search.maven.org/#search%7Cgav%7C1%7Cg%3A%22org.apache.spark%22%20AND%20a%3A%22spark-streaming-kafka_2.11%22[The Central Repository's search].
 
-=== DirectKafkaInputDStream
+=== [[DirectKafkaInputDStream]] DirectKafkaInputDStream
 
 `DirectKafkaInputDStream` is an link:spark-streaming-inputdstreams.adoc[input stream] of link:spark-streaming-kafka-kafkardd.adoc[KafkaRDD] batches.
 
@@ -37,6 +63,8 @@ As an input stream, it implements the _five_ mandatory abstract methods - three 
 * `compute(validTime: Time): Option[RDD[T]]` - consult <<compute, Computing RDDs (using compute Method)>> section.
 * `start()` does nothing.
 * `stop()` does nothing.
+
+The `name` of the input stream is *Kafka direct stream [id]*. You can find the name in the link:spark-streaming.adoc#StreamingTab[Streaming tab] of the web UI (in the details of a batch in *Input Metadata* section).
 
 It uses link:spark-streaming-settings.adoc[spark.streaming.kafka.maxRetries] setting while computing `latestLeaderOffsets` (i.e. a mapping of `kafka.common.TopicAndPartition` and <<LeaderOffset, LeaderOffset>>).
 
