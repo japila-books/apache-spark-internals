@@ -88,9 +88,9 @@ Executors use internal `driver-heartbeater` daemon single-thread scheduled pool 
 
 === [[TaskRunner]] TaskRunner
 
-*TaskRunner* is a thread of execution that runs a task. It requires a link:spark-executor-backends.adoc[ExecutorBackend], task and attempt ids, task name, and serialized version of the task (as `ByteBuffer`). It sends updates about task execution to the executor backend.
+*TaskRunner* is a thread of execution that runs a task. It requires a link:spark-executor-backends.adoc[ExecutorBackend] (to send status updates to), task and attempt ids, task name, and serialized version of the task (as `ByteBuffer`). It sends updates about task execution to the link:spark-executor-backends.adoc[ExecutorBackend].
 
-Sending task status updates to the executor backend is a mechanism to inform the executor backend about task being started (`TaskState.RUNNING`), task finish together with the serialized result (`TaskState.FINISHED`), task being killed (`TaskState.KILLED`) and task failures (`TaskState.FAILED`).
+Sending task status updates to link:spark-executor-backends.adoc[ExecutorBackend] is a mechanism to inform the executor backend about task being started (`TaskState.RUNNING`), task finish together with the serialized result (`TaskState.FINISHED`), task being killed (`TaskState.KILLED`) and task failures (`TaskState.FAILED`).
 
 When a `TaskRunner` starts running, it prints the following INFO message to the logs:
 
@@ -98,27 +98,33 @@ When a `TaskRunner` starts running, it prints the following INFO message to the 
 INFO Executor: Running [taskName] (TID [taskId])
 ```
 
-`taskId` is the id of the task being executed in `Executor task launch worker-[taskId]`.
+`taskId` is the id of the task being executed in <<thread-pool, Executor task launch worker-[taskId]>>.
 
-TaskRunner link:spark-taskscheduler-tasks.adoc#execution[executes a task].
+Information about it is sent to the driver using link:spark-executor-backends.adoc[ExecutorBackend] as `TaskState.RUNNING` and zero-byte `ByteBuffer`.
 
-TaskRunner can run a single task only. When TaskRunner finishes, it is removed from `runningTasks`.
+TaskRunner can run a single task only. When TaskRunner finishes, it is removed from the internal `runningTasks` map.
 
 CAUTION: FIXME TaskMemoryManager and task serialization and deserialization
 
-It deserializes the task (using globally-configured `Serializer`) and sets the `TaskMemoryManager` for the task.
+It first deserializes the task (using `Task.deserializeWithDependencies`), `updateDependencies(taskFiles, taskJars)`, and deserializes the task bytes into a `Task` instance (using the globally-configured `Serializer`). The `Task` instance has the link:spark-taskscheduler.adoc#TaskMemoryManager[TaskMemoryManager] set.
+
+This is the moment when a task can stop its execution if it was killed while being deserialized. If not killed, `TaskRunner` continues executing the task.
+
+You should see the following DEBUG message in the logs:
 
 ```
 DEBUG Task [taskId]'s epoch is [task.epoch]
 ```
 
-TaskRunner sends update of the epoch of the task to `MapOutputTracker`.
+TaskRunner sends update of the epoch of the task to link:spark-service-mapoutputtracker.adoc[MapOutputTracker].
 
 CAUTION: FIXME Why is `MapOutputTracker.updateEpoch` needed?
 
-Task runs (with `taskId`, `attemptNumber`, and the globally-configured `MetricsSystem`). When a task finishes, it returns a value and `accumUpdates`.
+Task runs (with `taskId`, `attemptNumber`, and the globally-configured `MetricsSystem`). See link:spark-taskscheduler-tasks.adoc#execution[Task Execution].
 
-CAUTION: FIXME What are `accumUpdates`?
+When a task finishes, it returns a value and `accumUpdates`.
+
+CAUTION: FIXME What are `accumUpdates`? It should perhaps be described in link:spark-taskscheduler-tasks.adoc#execution[Task Execution].
 
 The result value is serialized (using the other instance of `Serializer`, i.e. `serializer` - there are two `Serializer` instances in `SparkContext.env`).
 
@@ -145,7 +151,7 @@ A successful execution is "announced" as INFO to the logs:
 INFO Executor: Finished [taskName] (TID [taskId]). [resultSize] bytes result sent to driver
 ```
 
-The serialized result is sent to the driver using `execBackend.statusUpdate(taskId, TaskState.FINISHED, serializedResult)`.
+The serialized result is sent to the driver using link:spark-executor-backends.adoc[ExecutorBackend] as `TaskState.FINISHED` and `serializedResult`.
 
 === [[FetchFailedException]] FetchFailedException
 
@@ -172,7 +178,7 @@ Read link:spark-taskschedulerimpl.adoc#resourceOffers[resourceOffers] in TaskSch
 
 === [[thread-pool]] Executor task launch worker Thread Pool
 
-Executors use a daemon cached thread pool *Executor task launch worker-ID* for <<launching-tasks, launching tasks>>.
+Executors use daemon cached thread pools called *Executor task launch worker-ID* (with `ID` being the task id) for <<launching-tasks, launching tasks>>.
 
 === [[memory]] Executor Memory
 
