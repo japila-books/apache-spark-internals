@@ -1,12 +1,12 @@
 == Executors
 
-*Executors* are distributed agents responsible for link:spark-taskscheduler-tasks.adoc#execution[executing tasks]. They typically (?) run for the entire lifetime of a Spark application. Executors send <<heartbeats-and-active-task-metrics, active task metrics>> to a driver and send task status updates, task results including, to link:spark-executor-backends.adoc[executor backends].
-
-Executor offers are described by executor id and the host on which an executor runs (see <<resource-offers, Resource Offers>> in this document).
+*Executors* are distributed agents responsible for link:spark-taskscheduler-tasks.adoc#execution[executing tasks]. They _typically_ (i.e. not always) run for the entire lifetime of a Spark application. Executors send <<heartbeats-and-active-task-metrics, active task metrics>> to a link:spark-driver.adoc[driver]. They also inform link:spark-executor-backends.adoc[executor backends] about task status updates (task results including).
 
 Executors provide in-memory storage for RDDs that are cached in Spark applications (via link:spark-blockmanager.adoc[Block Manager]).
 
 When executors are started they register themselves with the driver and communicate directly to execute tasks.
+
+*Executor offers* are described by executor id and the host on which an executor runs (see <<resource-offers, Resource Offers>> in this document).
 
 Executors use a <<thread-pool, thread pool>> for <<metrics, sending metrics>> and <<launching-tasks, launching tasks>> (by means of <<TaskRunner, TaskRunner>>).
 
@@ -14,7 +14,7 @@ Each executor can run multiple tasks over its lifetime, both in parallel and seq
 
 It is recommended to have as many executors as data nodes and as many cores as you can get from the cluster.
 
-An executor is described by id, hostname, environment (as `SparkEnv`), classpath, and whether it runs in link:spark-local.adoc[local] or link:spark-cluster.adoc[cluster mode].
+Executors are described by their *id*, *hostname*, *environment* (as `SparkEnv`), and *classpath* (and, less importantly, and more for internal optimization, whether they run in link:spark-local.adoc[local] or link:spark-cluster.adoc[cluster mode]).
 
 [TIP]
 ====
@@ -27,14 +27,14 @@ log4j.logger.org.apache.spark.executor.Executor=INFO
 ```
 ====
 
-When an executor is started the following INFO messages are printed out in the logs:
+When an executor is started you should see the following INFO messages in the logs:
 
 ```
 INFO Executor: Starting executor ID [executorId] on host [executorHostname]
 INFO Executor: Using REPL class URI: http://[executorHostname]:56131
 ```
 
-It creates an RPC endpoint for receiving RPCs from the driver.
+It creates an RPC endpoint for communication with the driver.
 
 (only for non-local mode) Executors initialize the application using `BlockManager.initialize()`.
 
@@ -174,6 +174,18 @@ Read link:spark-taskschedulerimpl.adoc#resourceOffers[resourceOffers] in TaskSch
 
 Executors use a daemon cached thread pool *Executor task launch worker-ID* for <<launching-tasks, launching tasks>>.
 
+=== [[memory]] Executor Memory
+
+You can control the amount of memory per executor using <<settings, spark.executor.memory>> setting. It sets the available memory equally for all executors for the application.
+
+NOTE: `spark.executor.memory` is looked up when link:spark-sparkcontext.adoc#initialization[creating a SparkContext].
+
+You can however change the assigned memory per executor per node for link:spark-standalone.adoc[standalone cluster mode] using link:spark-sparkcontext.adoc#environment-variables[SPARK_EXECUTOR_MEMORY] environment variable.
+
+You can find the value displayed as *Memory per Node* in link:spark-standalone-master.adoc[web UI for standalone Master].
+
+CAUTION: FIXME screenshot
+
 === [[metrics]] Metrics
 
 Executors use link:spark-metrics.adoc[Metrics System] (via `ExecutorSource`) to report metrics about internal status.
@@ -213,7 +225,7 @@ It emits the following numbers:
 * `spark.executor.logs.rolling.maxRetainedFiles`
 * `spark.executor.logs.rolling.strategy`
 * `spark.executor.logs.rolling.time.interval`
-* `spark.executor.memory` (default: `1024` mebibytes) - the amount of memory to use per executor process. It is equivalent to `SPARK_EXECUTOR_MEMORY` (and now deprecated `SPARK_MEM`).
+* `spark.executor.memory` (default: `1024` mebibytes) - the amount of memory to use per executor process (equivalent to link:spark-sparkcontext.adoc#environment-variables[SPARK_EXECUTOR_MEMORY] environment variable).
 * `spark.executor.port`
 * `spark.executor.uri` - equivalent to `SPARK_EXECUTOR_URI`
 * `spark.repl.class.uri` (default: `null`) used when in `spark-shell` to create REPL ClassLoader to load new classes defined in the Scala REPL as a user types code.
