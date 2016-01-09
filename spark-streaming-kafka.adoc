@@ -20,9 +20,11 @@ There are two modes of ingesting data from Kafka *with no receivers*:
 
 You create <<DirectKafkaInputDStream, DirectKafkaInputDStream>> using `KafkaUtils.createDirectStream`.
 
+NOTE: Use explicitly-typed version of `KafkaUtils.createDirectStream`, e.g. `KafkaUtils.createDirectStream[String, String, StringDecoder, StringDecoder]`, so proper decoders are used to decode messages from Kafka.
+
 NOTE: You have to specify `metadata.broker.list` or `bootstrap.servers` (in that order of precedence) for your Kafka environment.
 
-`metadata.broker.list` is a comma-separated list of (seed) brokers in the format of `<host>:<port>`.
+`metadata.broker.list` is a comma-separated list of Kafka's (seed) brokers in the format of `<host>:<port>`.
 
 NOTE: Kafka brokers have to be up and running _before_ you can create a direct stream.
 
@@ -31,16 +33,36 @@ NOTE: Kafka brokers have to be up and running _before_ you can create a direct s
 val scfg = new SparkConf().setMaster("local[*]").setAppName("Ingesting Data from Kafka")
 val ssc = new StreamingContext(scfg, Seconds(15))
 
-import org.apache.spark.streaming.kafka._
+// Connect to Kafka
+import org.apache.spark.streaming.kafka.KafkaUtils
+import _root_.kafka.serializer.StringDecoder
 val kafkaParams = Map("metadata.broker.list" -> "localhost:9092")
 val kafkaTopics = Set("spark-topic")
-val kafkaIn = KafkaUtils.createDirectStream(ssc, kafkaParams, kafkaTopics)
-kafkaIn.print()
+val messages = KafkaUtils.createDirectStream[String, String, StringDecoder, StringDecoder](ssc, kafkaParams, kafkaTopics)
 
+// print 10 last messages
+messages.print()
+
+// start streaming computation
 ssc.start
 ----
 
 If `zookeeper.connect` or `group.id` parameters are not set, they are added with their values being empty strings.
+
+In this mode, you will only see jobs submitted (in the *Jobs* tab in link:spark-webui.adoc[web UI]) when a message comes in.
+
+.Complete Jobs in web UI for batch time 22:17:15
+image::images/spark-streaming-kafka-webui-jobs.png[align="center"]
+
+It corresponds to *Input size* larger than `0` in the *Streaming* tab in the web UI.
+
+.Completed Batch in web UI for batch time 22:17:15
+image::images/spark-streaming-kafka-webui-streaming.png[align="center"]
+
+Click the link in Completed Jobs for a batch and you see the details.
+
+.Details of batch in web UI for batch time 22:17:15
+image::images/spark-streaming-kafka-webui-details-batch.png[align="center"]
 
 === spark-streaming-kafka Library Dependency
 
