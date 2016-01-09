@@ -2,6 +2,8 @@
 
 *Executors* are distributed agents responsible for link:spark-taskscheduler-tasks.adoc#execution[executing tasks]. They _typically_ (i.e. not always) run for the entire lifetime of a Spark application. Executors send <<heartbeats-and-active-task-metrics, active task metrics>> to a link:spark-driver.adoc[driver]. They also inform link:spark-executor-backends.adoc[executor backends] about task status updates (task results including).
 
+NOTE: Executors are managed solely by link:spark-executor-backends.adoc[executor backends].
+
 Executors provide in-memory storage for RDDs that are cached in Spark applications (via link:spark-blockmanager.adoc[Block Manager]).
 
 When executors are started they register themselves with the driver and communicate directly to execute tasks.
@@ -36,11 +38,9 @@ INFO Executor: Using REPL class URI: http://[executorHostname]:56131
 
 It creates an RPC endpoint for communication with the driver.
 
-(only for non-local mode) Executors initialize the application using `BlockManager.initialize()`.
+(only for non-local mode) Executors initialize the application using link:spark-blockmanager.adoc#initialize[BlockManager.initialize()].
 
-CAUTION: FIXME What does `BlockManager.initialize()`?
-
-Executors maintain a mapping between task ids and running tasks (as instances of <<TaskRunner,TaskRunner>>) in `runningTasks` internal map.
+Executors maintain a mapping between task ids and running tasks (as instances of <<TaskRunner,TaskRunner>>) in `runningTasks` internal map. Consult <<launching-tasks, Launching Tasks>> section.
 
 A worker requires the additional services (beside the common ones like ...):
 
@@ -57,18 +57,18 @@ CAUTION: FIXME How many cores are assigned per executor?
 
 === [[launching-tasks]] Launching Tasks
 
-`Executor.launchTask` creates a <<TaskRunner,TaskRunner>> that is executed on <<thread-pool, Executor task launch worker Thread Pool>>.
+`Executor.launchTask` creates a <<TaskRunner,TaskRunner>> that is then executed on <<thread-pool, Executor task launch worker Thread Pool>>.
 
 .Launching tasks on executor using TaskRunners
 image::images/executor-taskrunner-executorbackend.png[align="center"]
 
 It accepts the context (as link:spark-executor-backends.adoc[ExecutorBackend]), attempt number, and the id, name and serialized form of the task.
 
-TaskRunner is registered in the internal `runningTasks` map.
+The newly-created `TaskRunner` is registered in the internal `runningTasks` map.
 
-=== [[heartbeats-and-active-task-metrics]] Heartbeats with Active Task Metrics
+=== [[heartbeats-and-active-task-metrics]] Heartbeats with Active Tasks Metrics
 
-Executors keep sending <<metrics, active task metrics>> to a driver every <<settings, spark.executor.heartbeatInterval>>.
+Executors keep sending <<metrics, active tasks metrics>> to a driver every <<settings, spark.executor.heartbeatInterval>>.
 
 .Executors use HeartbeatReceiver endpoint to report task metrics
 image::images/executor-heartbeatReceiver-endpoint.png[align="center"]
