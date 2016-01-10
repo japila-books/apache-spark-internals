@@ -1,5 +1,7 @@
 == JobGenerator
 
+`JobGenerator` triggers processing received events from input streams.
+
 When `JobGenerator` is created, it creates `timer` link:spark-streaming-jobscheduler.adoc#RecurringTimer[RecurringTimer] (with the name being `JobGenerator`) that later, when started, posts link:spark-streaming.adoc#GenerateJobs[GenerateJobs] events to <<eventLoop, JobGenerator eventLoop>> (it is only when `JobGenerator` is started when the JobGenerator eventLoop starts processing events).
 
 [TIP]
@@ -19,7 +21,7 @@ You should see the following INFO message in the logs when `JobGenerator` starts
 INFO JobGenerator: Started JobGenerator at [startTime] ms
 ```
 
-Once started, `timer` RecurringTimer starts posting `GenerateJobs` every `DStreamGraph.batchDuration` milliseconds.
+Once started, `timer` RecurringTimer starts posting `GenerateJobs` every link:spark-streaming-dstreams.adoc#DStreamGraph[DStreamGraph.batchDuration] milliseconds.
 
 === [[eventLoop]] JobGenerator eventLoop and JobGeneratorEvent Handler
 
@@ -35,13 +37,15 @@ See below for the extensive coverage of supported event types.
 
 ==== [[GenerateJobs]] GenerateJobs and JobGenerator.generateJobs
 
-When `GenerateJobs` is received `JobGenerator.generateJobs(time: Time)` is executed to process it.
+When `GenerateJobs` is received `JobGenerator.generateJobs(time: Time)` is called.
 
 NOTE: `GenerateJobs` events are posted by `JobGenerator` regularly every batch interval (using `timer` RecurringTimer).
 
 It calls link:spark-streaming-receivertracker.adoc[ReceiverTracker.allocateBlocksToBatch], and then calls link:spark-streaming-dstreams.adoc#DStreamGraph-generateJobs[DStreamGraph.generateJobs(time: Time)].
 
 When the above two calls have finished successfully, the collection of jobs is passed to link:spark-streaming-jobscheduler.adoc#submitJobSet[JobScheduler.submitJobSet] as a link:spark-streaming-jobscheduler.adoc[JobSet].
+
+In case of any failures, `JobScheduler.reportError` is called.
 
 Ultimately, it posts <<DoCheckpoint, DoCheckpoint>> event.
 

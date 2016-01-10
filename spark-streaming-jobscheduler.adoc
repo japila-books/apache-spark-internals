@@ -82,27 +82,46 @@ INFO JobScheduler: Stopped JobScheduler
 
 === [[JobHandler]] JobHandler
 
-`JobHandler` is a thread of execution for link:spark-streaming.adoc#Job[jobs] (it simply executes `Job.run`).
+`JobHandler` is a thread of execution for a link:spark-streaming.adoc#Job[streaming job] (that executes `Job.run`).
 
-It runs when a new <<JobSet, JobSet>> is submitted (see <<submitJobSet, submitJobSet>> in this document).
+NOTE: It is called when a new <<JobSet, JobSet>> is submitted (see <<submitJobSet, submitJobSet>> in this document).
 
-=== [[submitJobSet]] submitJobSet
+The method prepares the environment (so the streaming job can be nicely displayed in the web UI under `/streaming/batch/?id=[milliseconds]`) and posts `JobStarted` event to <<eventLoop, JobSchedulerEvent event loop>>.
 
-When `submitJobSet(jobSet: JobSet)` is called, it behaves differently per given `jobSet` <<JobSet, JobSet>>.
+It runs the streaming job (that runs on Spark as a Spark job).
+
+You may see similar-looking INFO messages in the logs (it depends on the actions you use on input streams):
+
+```
+INFO SparkContext: Starting job: print at <console>:39
+INFO DAGScheduler: Got job 0 (print at <console>:39) with 1 output partitions
+...
+INFO DAGScheduler: Submitting 1 missing tasks from ResultStage 0 (KafkaRDD[2] at createDirectStream at <console>:36)
+...
+INFO Executor: Finished task 0.0 in stage 0.0 (TID 0). 987 bytes result sent to driver
+...
+INFO DAGScheduler: Job 0 finished: print at <console>:39, took 0.178689 s
+```
+
+It posts `JobCompleted` event to <<eventLoop, JobSchedulerEvent event loop>>.
+
+=== [[submitJobSet]] Submit Jobs for Execution
+
+When `submitJobSet(jobSet: JobSet)` is called, it reacts appropriately per `jobSet` <<JobSet, JobSet>> given.
 
 NOTE: The method is called as part of link:spark-streaming-jobgenerator.adoc#GenerateJobs[JobGenerator.generateJobs] and `JobGenerator.restart`.
 
-When no jobs are inside the JobSet, it simply prints out the following INFO to the logs:
+When no jobs are inside the JobSet, you should see the following INFO in the logs:
 
 ```
 INFO JobScheduler: No jobs added for time [jobSet.time]
 ```
 
-Otherwise, when there is at least one job inside the JobSet, `StreamingListenerBatchSubmitted` is posted to <<StreamingListenerBus, StreamingListenerBus>>.
+Otherwise, when there is at least one job inside the `jobSet`, `StreamingListenerBatchSubmitted` is posted to <<StreamingListenerBus, StreamingListenerBus>>.
 
-The JobSet is added to <<internal-registries, jobSets>>.
+The JobSet is added to the internal <<internal-registries, jobSets>> registry.
 
-It then goes over every job in the JobSet and executes a <<JobHandler, JobHandler>> (using <<streaming-job-executor, jobExecutor Thread Pool>>).
+It then goes over every job in the `jobSet` and executes a <<JobHandler, JobHandler>> (on <<streaming-job-executor, jobExecutor Thread Pool>>).
 
 At the end, you should see the following INFO message in the logs:
 
@@ -144,7 +163,7 @@ INFO JobScheduler: Starting job [job.id] from job set of time [jobSet.time] ms
 
 When `JobCompleted` event is received, `JobScheduler.handleJobCompletion` is called.
 
-NOTE: It is <<JobHandler, JobHandler>> to post `JobCompleted`.
+NOTE: <<JobHandler, JobHandler>> posts `JobCompleted` events when it finishes running a streaming job.
 
 `handleJobCompletion(job: Job, completedTime: Long)` takes the JobSet (using <<internal-registries, jobSets>>) and calls `jobSet.handleJobCompletion(job)` upon it. It also calls `job.setEndTime(completedTime)`.
 

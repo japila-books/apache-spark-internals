@@ -55,25 +55,59 @@ All `DStream` implementations offer the following operations:
 
 NOTE: `DStream` companion object offers a Scala implicit to convert `DStream[(K, V)]` to `PairDStreamFunctions` with methods on DStreams of key-value pairs.
 
+=== [[generateJob]] Generating Streaming Jobs (using generateJob Method)
+
+The internal `DStream.generateJob(time: Time)` method generates a streaming job for a batch (given `time`). It is acceptable to generate no streaming job for a batch.
+
+NOTE: It is called when <<DStreamGraph-generateJobs, DStreamGraph generates jobs for a batch>>.
+
+It <<getOrCompute, computes an RDD for the batch>> and returns a streaming `Job` instance with the job function running a Spark job (using `SparkContext.runJob`) when executed.
+
+NOTE: The Spark job uses an empty function to calculate partitions of a RDD.
+
+CAUTION: FIXME What happens when `SparkContext.runJob(rdd, emptyFunc)` is called with the empty function, i.e. `(iterator: Iterator[T]) => {}`?
+
+=== [[getOrCompute]] Computing RDD for Batch (using getOrCompute Method)
+
+The internal (`private final`) `getOrCompute(time: Time)` method returns an optional RDD for a batch (`time`).
+
+It uses <<internal-registries, generatedRDDs>> to return the RDD if it has already been generated for the `time`. If not, it generates one by <<contract, computing the input stream>> (using `compute(validTime: Time)` method).
+
+If there was anything to process in the input stream, i.e. <<contract, computing the input stream returned a RDD>>, the RDD is first link:spark-rdd-caching.adoc[persisted] (only if `storageLevel` for the input stream is different from `StorageLevel.NONE`).
+
+You should see the following DEBUG message in the logs:
+
+```
+DEBUG Persisting RDD [id] for time [time] to [storageLevel]
+```
+
+The generated RDD is link:spark-rdd-checkpointing.adoc[checkpointed] if <<internal-registries, checkpointDuration>> is defined and the time interval between current and <<internal-registries, zero>> times is a multiple of <<internal-registries, checkpointDuration>>.
+
+You should see the following DEBUG message in the logs:
+
+```
+DEBUG Marking RDD [id] for time [time] for checkpointing
+```
+
+The generated RDD is saved in the <<internal-registries, internal generatedRDDs registry>>.
+
 === [[internal-registries]] Internal Registries
 
 `DStream` implementations maintain the following internal registries:
 
-* `generatedRDDs` as a mapping between times and generated RDDs.
+* `generatedRDDs` is the mapping between batches (per time) and generated RDDs. See <<getOrCompute, Computing RDD for Batch (using getOrCompute Method)>> in this document.
 * `zeroTime` as the zero time.
 * `rememberDuration` as the duration for which the `DStream` will remember each RDD created.
 * `storageLevel` (default: `NONE`) as the link:spark-rdd-caching.adoc#StorageLevel[StorageLevel] of the RDDs in the `DStream`.
 * `checkpointDuration` as the duration for checkpoint (that is set using `def checkpoint(interval: Duration)` method)
-* `restoredFromCheckpointData` about whether it was restored from checkpoint.
-* `graph` as the reference to the whole link:spark-streaming.adoc#DStreamGraph[DStreamGraph].
+* `restoredFromCheckpointData` is a flag to inform whether it was restored from checkpoint.
+* `graph` as the reference to the <<DStreamGraph, DStreamGraph>>.
 
 === [[DStreamGraph]] DStreamGraph
 
 `DStreamGraph` (is a final helper class that) manages link:spark-streaming-dstreams.adoc[input and output streams].
 
-CAUTION: FIXME What exactly is this class doing with regards to managing streams?
-
-It maintains the collections of `inputStreams`, i.e. link:spark-streaming-inputdstreams.adoc[InputDStream] instances and `outputStreams`, i.e. link:spark-streaming-dstreams.adoc[DStream] instances.
+It maintains the collections of link:spark-streaming-inputdstreams.adoc[InputDStream] instances (as `inputStreams`) and output link:spark-streaming-dstreams.adoc[DStream] instances (as `outputStreams`), but, more importantly, <<DStreamGraph-generateJobs, it generates streaming jobs for output streams for a batch>>.
 
 [NOTE]
 ====
@@ -97,17 +131,19 @@ log4j.logger.org.apache.spark.streaming.DStreamGraph=DEBUG
 ```
 ====
 
-==== [[DStreamGraph-generateJobs]] DStreamGraph.generateJobs(time: Time)
+==== [[DStreamGraph-generateJobs]] Generating Streaming Jobs for Output Streams for Batch
 
-`DStreamGraph.generateJobs(time: Time)` method is called to generate a Spark job for each registered output stream (using `DStream.generateJob`).
+`DStreamGraph` is responsible for generating streaming jobs for output streams for a batch (given `Time`). When requested, it uses `DStreamGraph.generateJobs(time: Time)` to walk over each registered output stream and generates a streaming job (using `DStream.generateJob`).
 
-When it runs, you should see the following DEBUG message in the logs before the jobs are generated for a batch at a time:
+NOTE: Who's calling it and when?
+
+When the method runs, you should see the following DEBUG message in the logs before the jobs are generated for a batch:
 
 ```
 DEBUG DStreamGraph: Generating jobs for time [time] ms
 ```
 
-You should also see the following DEBUG message when the jobs have been generated:
+Right before the method finishes, you should see the following DEBUG message with the number of streaming jobs generated (as `jobs.length`):
 
 ```
 DEBUG DStreamGraph: Generated [jobs.length] jobs for time [time] ms
