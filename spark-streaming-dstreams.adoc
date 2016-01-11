@@ -2,9 +2,9 @@
 
 *Discretized Stream (DStream)* is the fundamental concept in Spark Streaming. It is modelled as `org.apache.spark.streaming.dstream.DStream` abstract class.
 
-To create a `DStream` instance you need to have a  link:spark-streaming-streamingcontext.adoc[StreamingContext].
+To create a `DStream` instance you use link:spark-streaming-streamingcontext.adoc#creating-receivers[StreamingContext].
 
-NOTE: New `DStreams` can only be created (and hence registered) before link:spark-streaming-streamingcontext.adoc[StreamingContext] is started (it is in `INITIALIZED` state). All other states lead to `IllegalStateException` being thrown.
+NOTE: New `DStreams` can only be created (and hence registered) before link:spark-streaming-streamingcontext.adoc#start[StreamingContext is started]. All other states lead to `IllegalStateException` being thrown.
 
 [TIP]
 ====
@@ -35,7 +35,7 @@ You apply transformations (using *stream operators*) to create stream pipelines 
 
 There are two types of operators:
 
-* *output operators* that turn input streams into output ones, i.e. they register the input streams as output to <<DStreamGraph, DStreamGraph>> (using `DStreamGraph.addOutputStream`).
+* *output operators* that turn input streams into output ones, i.e. they register the input streams as output to link:spark-streaming-dstreamgraph.adoc[DStreamGraph] (using `DStreamGraph.addOutputStream`).
 * ...
 
 All `DStreams` offer the following operations:
@@ -78,7 +78,7 @@ Time: [time] ms
 -------------------------------------------
 ```
 
-It calls `RDD.take(num + 1)` (see link:spark-rdd-operations.adoc#actions[take action]) on each RDD in the stream to print `num` elements. It then prints `...` if there are more elements in the RDD.
+It calls `RDD.take(num + 1)` (see link:spark-rdd-operations.adoc#actions[take action]) on each RDD in the stream to print `num` elements. It then prints `...` if there are more elements in the RDD (that would otherwise exceed `num` elements being printed out).
 
 It creates link:spark-streaming-foreachdstreams.adoc[ForEachDStream] stream and register it as an output stream.
 
@@ -86,7 +86,7 @@ It creates link:spark-streaming-foreachdstreams.adoc[ForEachDStream] stream and 
 
 The internal `DStream.generateJob(time: Time)` method generates a streaming job for a batch (given `time`). It is acceptable to generate no streaming job for a batch.
 
-NOTE: It is called when <<DStreamGraph-generateJobs, DStreamGraph generates jobs for a batch>>.
+NOTE: It is called when link:spark-streaming-dstreamgraph.adoc#DStreamGraph-generateJobs[DStreamGraph generates jobs for a batch].
 
 It <<getOrCompute, computes an RDD for the batch>> and returns a streaming `Job` instance with the job function running a Spark job (using `SparkContext.runJob`) when executed.
 
@@ -128,56 +128,4 @@ The generated RDD is saved in the <<internal-registries, internal generatedRDDs 
 * `storageLevel` (default: `NONE`) as the link:spark-rdd-caching.adoc#StorageLevel[StorageLevel] of the RDDs in the `DStream`.
 * `checkpointDuration` as the duration for checkpoint (that is set using `def checkpoint(interval: Duration)` method)
 * `restoredFromCheckpointData` is a flag to inform whether it was restored from checkpoint.
-* `graph` as the reference to the <<DStreamGraph, DStreamGraph>>.
-
-=== [[DStreamGraph]] DStreamGraph
-
-`DStreamGraph` (is a final helper class that) manages link:spark-streaming-dstreams.adoc[input and output streams].
-
-It maintains the collections of link:spark-streaming-inputdstreams.adoc[InputDStream] instances (as `inputStreams`) and output link:spark-streaming-dstreams.adoc[DStream] instances (as `outputStreams`), but, more importantly, <<DStreamGraph-generateJobs, it generates streaming jobs for output streams for a batch>>.
-
-[NOTE]
-====
-`DStreamGraph` holds `batchDuration` (using `setBatchDuration(duration: Duration)`) for other parts of the Streaming application.
-
-It appears that it is _the_ place for the value since it must be set before link:spark-streaming-jobgenerator.adoc[JobGenerator] can be instantiated.
-
-It _is_ set while link:spark-streaming-streamingcontext.adoc[StreamingContext] is being instantiated and is validated (using `validate()` method of `StreamingContext` and `DStreamGraph`) before `StreamingContext` is started.
-====
-
-When `DStreamGraph` is started (using `start(time: Time)` method), it saves `time` as `startTime`, and calls `initialize()` and `remember()` methods on every output stream (one by one). It then starts the input streams (in parallel).
-
-[TIP]
-====
-Enable `DEBUG` logging level for `org.apache.spark.streaming.DStreamGraph` logger to see what happens in `DStreamGraph`.
-
-Add the following line to `conf/log4j.properties`:
-
-```
-log4j.logger.org.apache.spark.streaming.DStreamGraph=DEBUG
-```
-====
-
-==== [[DStreamGraph-generateJobs]] Generating Streaming Jobs for Output Streams for Batch
-
-`DStreamGraph` is responsible for generating streaming jobs for output streams for a batch (given `Time`). When requested, it uses `DStreamGraph.generateJobs(time: Time)` to walk over each registered output stream and generates a streaming job (using `DStream.generateJob`).
-
-NOTE: Who's calling it and when?
-
-When the method runs, you should see the following DEBUG message in the logs before the jobs are generated for a batch:
-
-```
-DEBUG DStreamGraph: Generating jobs for time [time] ms
-```
-
-Right before the method finishes, you should see the following DEBUG message with the number of streaming jobs generated (as `jobs.length`):
-
-```
-DEBUG DStreamGraph: Generated [jobs.length] jobs for time [time] ms
-```
-
-==== [[dstreamgraph-validation]] Validation Check (using validate method)
-
-`validate()` method checks whether batch duration and at least one output stream have been set. It will throw `java.lang.IllegalArgumentException` when either is not.
-
-NOTE: It is called when link:spark-streaming-streamingcontext.adoc#start[StreamingContext starts].
+* `graph` being the reference to link:spark-streaming-dstreamgraph.adoc[DStreamGraph].
