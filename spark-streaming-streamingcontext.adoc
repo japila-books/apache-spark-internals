@@ -1,10 +1,29 @@
 == StreamingContext
 
-`StreamingContext` is the main entry point for all Spark Streaming functionality.
+`StreamingContext` is the main entry point for all Spark Streaming functionality. Whatever you do in Spark Streaming has to start from <<creating-instance, creating an instance of StreamingContext>>.
+
+Having an instance of `StreamingContext`, you can <<creating-receivers, create ReceiverInputDStreams>> that you apply transformations to to build a streaming pipeline.
+
+Once satisfied, you <<start, start StreamingContext>> that sets the stream transformations in motion.
 
 === [[creating-instance]] Creating Instance
 
-When you create a new instance of `StreamingContext` (and you will eventually) it first checks whether a link:spark-sparkcontext.adoc[SparkContext] or the checkpoint directory are given.
+You can create a new instance of `StreamingContext` (and you will eventually) using the following constructors:
+
+* `StreamingContext(path: String)`
+* `StreamingContext(path: String, hadoopConf: Configuration)`
+* `StreamingContext(path: String, sparkContext: SparkContext)`
+* `StreamingContext(conf: SparkConf, batchDuration: Duration)`
+* `StreamingContext(master: String, appName: String, batchDuration: Duration, sparkHome: String, jars: Seq[String], environment: Map[String,String])`
+* `StreamingContext(sparkContext: SparkContext, batchDuration: Duration)`
+
+where:
+
+* `path` is the checkpoint directory.
+
+NOTE: `StreamingContext(conf: SparkConf, batchDuration: Duration)` constructor seems the most often used in Spark Streaming applications.
+
+Internally, when you create a new instance of `StreamingContext`  it first checks whether a link:spark-sparkcontext.adoc[SparkContext] or the checkpoint directory are given.
 
 [TIP]
 ====
@@ -31,12 +50,6 @@ A link:spark-streaming.adoc#StreamingSource[StreamingSource] is instantiated.
 
 At this point, `StreamingContext` enters `INITIALIZED` state.
 
-You should see the following INFO message in the logs upon successful start:
-
-```
-INFO StreamingContext: StreamingContext started
-```
-
 === [[creating-receivers]] Creating ReceiverInputDStreams
 
 `StreamingContext` offers the following methods to create link:spark-streaming-receiverinputdstreams.adoc[ReceiverInputDStreams]:
@@ -56,6 +69,33 @@ You can also use two additional methods in `StreamingContext` to build (or bette
 
 * `union[T](streams: Seq[DStream[T]]): DStream[T]`
 * `transform[T](dstreams: Seq[DStream[_]], transformFunc: (Seq[RDD[_]], Time) => RDD[T]): DStream[T]`
+
+=== [[start]] Starting StreamingContext (using start method)
+
+You start stream processing using `StreamingContext.start()` method.
+
+You should see the following INFO message in the logs upon successful start:
+
+```
+INFO StreamingContext: StreamingContext started
+```
+
+When you call `start()`, it checks out the state of `StreamingContext` that can only be `INITIALIZED` to do anything meaningful.
+
+When in `INITIALIZED` state, it first checks whether another `StreamingContext` instance has already been started and throws `IllegalStateException` exception if it was.
+
+Otherwise, when no other `StreamingContext` instance is started, it performs setup validation, i.e.:
+
+* It does link:spark-streaming-dstreams.adoc#dstreamgraph-validation[validation of DStreamGraph].
+
+* It checks proper configuration of checkpoint (directory and duration are set, and that the `DStream` checkpoint is serializable).
+
+* When link:spark-dynamic-allocation.adoc[dynamic allocation] is enabled, it prints the following WARN message to the logs:
++
+[options="wrap"]
+----
+WARN StreamingContext: Dynamic Allocation is enabled for this application. Enabling Dynamic allocation for Spark Streaming applications can cause data loss if Write Ahead Log is not enabled for non-replayable sources like Flume. See the programming guide for details on how to enable the Write Ahead Log
+----
 
 === [[stopping]] Stopping StreamingContext (using stop methods)
 
