@@ -2,9 +2,9 @@
 
 *Discretized Stream (DStream)* is the fundamental concept in Spark Streaming. It is modelled as `org.apache.spark.streaming.dstream.DStream` abstract class.
 
-It requires link:spark-streaming-streamingcontext.adoc[StreamingContext] to be created.
+To create a `DStream` instance you need to have a  link:spark-streaming-streamingcontext.adoc[StreamingContext].
 
-NOTE: New `DStreams` can only be created when link:spark-streaming-streamingcontext.adoc[StreamingContext] is in `INITIALIZED` state (before it is started). All other states lead to `IllegalStateException` being thrown.
+NOTE: New `DStreams` can only be created (and hence registered) before link:spark-streaming-streamingcontext.adoc[StreamingContext] is started (it is in `INITIALIZED` state). All other states lead to `IllegalStateException` being thrown.
 
 [TIP]
 ====
@@ -15,6 +15,8 @@ Add the following line to `conf/log4j.properties`:
 ```
 log4j.logger.org.apache.spark.streaming.dstream.DStream=INFO
 ```
+
+Refer to link:spark-logging.adoc[Logging].
 ====
 
 === [[contract]] DStream Contract
@@ -27,7 +29,12 @@ A `DStream` is defined by the following properties (with the names of the corres
 
 * How to generate a RDD for the given batch (as `def compute(validTime: Time): Option[RDD[T]]`)
 
-=== [[operations]] DStream Operations
+=== [[operators]] DStream Operators
+
+There are two types of operators:
+
+* *output operators* that turn input streams into output ones, i.e. they register the input streams as output to <<DStreamGraph, DStreamGraph>> (using `DStreamGraph.addOutputStream`).
+* ...
 
 All `DStream` implementations offer the following operations:
 
@@ -43,7 +50,7 @@ All `DStream` implementations offer the following operations:
 * a family of `foreachRDD`
 * a family of `transform`
 * a family of `transformWith`
-* `print` to print 10 elements using `print(num: Int)`
+* `print` to print 10 elements and a general version `print(num: Int)`. See <<print, print operation>> in this document.
 * a family of `window`
 * a family of `reduceByWindow`
 * `countByWindow`
@@ -54,6 +61,24 @@ All `DStream` implementations offer the following operations:
 * `saveAsTextFiles`
 
 NOTE: `DStream` companion object offers a Scala implicit to convert `DStream[(K, V)]` to `PairDStreamFunctions` with methods on DStreams of key-value pairs.
+
+==== [[print]] print operator
+
+`print` operation uses `print(num: Int)` to print the first 10  elements of each RDD in the input stream.
+
+It is a *output operator* (that returns `Unit`).
+
+For each batch, it prints the following header to the standard output:
+
+```
+-------------------------------------------
+Time: [time] ms
+-------------------------------------------
+```
+
+It calls `RDD.take(num + 1)` (see link:spark-rdd-operations.adoc#actions[take action]) on each RDD in the stream to print `num` elements. It then prints `...` if there are more elements in the RDD.
+
+It uses `ForEachDStream`.
 
 === [[generateJob]] Generating Streaming Jobs (using generateJob Method)
 
