@@ -8,12 +8,12 @@ NOTE: New `DStreams` can only be created (and hence registered) before link:spar
 
 [TIP]
 ====
-Enable `INFO` logging level for `org.apache.spark.streaming.dstream.DStream` logger to see what happens inside any `DStream`.
+Enable `DEBUG` logging level for `org.apache.spark.streaming.dstream.DStream` logger to see what happens inside any `DStream`.
 
 Add the following line to `conf/log4j.properties`:
 
 ```
-log4j.logger.org.apache.spark.streaming.dstream.DStream=INFO
+log4j.logger.org.apache.spark.streaming.dstream.DStream=DEBUG
 ```
 
 Refer to link:spark-logging.adoc[Logging].
@@ -117,6 +117,44 @@ DEBUG Marking RDD [id] for time [time] for checkpointing
 ```
 
 The generated RDD is saved in the <<internal-registries, internal generatedRDDs registry>>.
+
+=== [[clearMetadata]] Metadata Cleanup
+
+NOTE: It is called when  link:spark-streaming-dstreamgraph.adoc#clearMetadata[DStreamGraph clears metadata for every output stream].
+
+`clearMetadata(time: Time)` is called to remove old RDDs that have been generated so far (and collected in <<internal-registries, generatedRDDs>>). It is a sort of _garbage collector_.
+
+When `clearMetadata(time: Time)` is called, it checks link:spark-streaming-settings.adoc[spark.streaming.unpersist] flag (default enabled).
+
+It collects generated RDDs (from <<internal-registries, generatedRDDs>>) that are older than <<internal-registries, rememberDuration>>.
+
+You should see the following DEBUG message in the logs:
+
+```
+DEBUG Clearing references to old RDDs: [[time] -> [rddId], ...]
+```
+
+Regardless of link:spark-streaming-settings.adoc[spark.streaming.unpersist] flag, all the collected RDDs are removed from <<internal-registries, generatedRDDs>>.
+
+When link:spark-streaming-settings.adoc[spark.streaming.unpersist] flag is set (it is by default), you should see the following DEBUG message in the logs:
+
+```
+DEBUG Unpersisting old RDDs: [id1, id2, ...]
+```
+
+For every RDD in the list, it link:spark-rdd-caching.adoc#unpersist[unpersists them (without blocking)] one by one and explicitly link:spark-rdd-blockrdd.adoc[removes blocks for BlockRDDs]. You should see the following INFO message in the logs:
+
+```
+INFO Removing blocks of RDD [blockRDD] of time [time]
+```
+
+After RDDs have been removed from <<internal-registries, generatedRDDs>> (and perhaps unpersisted), you should see the following DEBUG message in the logs:
+
+```
+DEBUG Cleared [size] RDDs that were older than [time]: [time1, time2, ...]
+```
+
+The stream passes the call to clear metadata to its <<contract, dependencies>>.
 
 === [[internal-registries]] Internal Registries
 
