@@ -15,14 +15,48 @@ By default, you apply transformations using different link:spark-streaming-dstre
 
 You can however build datasets based upon the past ones, and that is when windowed operators enter the stage. Using them allows you to cross the boundary of a single dataset (per batch) and have a series of datasets in your hands (as if the data they hold arrived in a single batch interval).
 
-=== [[window]] window Operator
+=== [[slice]] slice Operators
 
-`window(windowDuration: Duration): DStream[T]` operator creates a new stream that generates RDDs containing all the elements received during `windowDuration`. It generates the RDDs using the source stream's link:spark-streaming-dstreams.adoc#contract[slide duration]
+[source,scala]
+----
+def slice(interval: Interval): Seq[RDD[T]]
+def slice(fromTime: Time, toTime: Time): Seq[RDD[T]]
+----
+
+`slice` operators return a collection of RDDs that were generated during time interval inclusive, given as `Interval` or a pair of `Time` ends.
+
+Both `Time` ends have to be a multiple of this stream's slide duration. Otherwise, they are aligned using `Time.floor` method.
+
+When used, you should see the following INFO message in the logs:
+
+```
+INFO Slicing from [fromTime] to [toTime] (aligned to [alignedFromTime] and [alignedToTime])
+```
+
+For every batch in the slicing interval, link:spark-streaming-dstreams.adoc#getOrCompute[a RDD is computed].
+
+=== [[window]] window Operators
+
+[source,scala]
+----
+def window(windowDuration: Duration): DStream[T]
+def window(windowDuration: Duration, slideDuration: Duration): DStream[T]
+----
+
+`window(windowDuration: Duration, slideDuration: Duration): DStream[T]` operator creates a new stream that generates RDDs containing all the elements received during `windowDuration` with `slideDuration` link:spark-streaming-dstreams.adoc#contract[slide duration].
 
 NOTE: `windowDuration` must be a multiple of the slide duration of the source stream.
+
+`window(windowDuration: Duration): DStream[T]` operator uses `window(windowDuration: Duration, slideDuration: Duration)` with the source stream's link:spark-streaming-dstreams.adoc#contract[slide duration].
 
 ```
 messages.window(Seconds(10))
 ```
 
 It creates link:spark-streaming-windoweddstreams.adoc[WindowedDStream] stream and register it as an output stream.
+
+NOTE: `window` operator is used by `reduceByWindow`, `reduceByKeyAndWindow` and `groupByKeyAndWindow` operators.
+
+=== [[reduceByWindow]] reduceByWindow Operator
+
+CAUTION: FIXME
