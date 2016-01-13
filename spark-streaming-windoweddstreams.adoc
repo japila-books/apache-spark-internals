@@ -1,0 +1,42 @@
+== WindowedDStreams
+
+`WindowedDStream` (aka *windowed stream*) is an internal link:spark-streaming-dstreams.adoc[DStream] with dependency on the `parent` stream.
+
+`windowDuration` has to be a multiple of the parent stream's slide duration.
+
+`slideDuration` has to be a multiple of the parent stream's slide duration.
+
+NOTE: When `windowDuration` or `slideDuration` are _not_ multiples of the parent stream's slide duration, `Exception` is reported.
+
+The parent's RDDs are automatically changed to be link:spark-rdd-caching.adoc[persisted] at link:spark-rdd-caching.adoc#StorageLevel[StorageLevel.MEMORY_ONLY_SER] level (since they need to last longer than the parent's slide duration for this stream to generate its own RDDs).
+
+Obviously, slide duration of the stream is given explicitly (and must be a multiple of the parent's slide duration).
+
+`parentRememberDuration` is extended to cover the parent's `rememberDuration` and the window duration.
+
+The `compute` method uses `slice` operator on the parent stream (using the slice window of `[now - windowDuration + parent.slideDuration, now]`).
+
+It creates `PartitionerAwareUnionRDD` or `UnionRDD` depending on the number of the link:spark-rdd-partitions.adoc#partitioner[partitioners] defined by the RDDs in the window.
+
+If only one partitioner is used across the RDDs in window, `PartitionerAwareUnionRDD` is created and you should see the following DEBUG message in the logs:
+
+```
+DEBUG WindowedDStream: Using partition aware union for windowing at [time]
+```
+
+Otherwise, when there are multiple different partitioners in use, `UnionRDD` is created and you should see the following DEBUG message in the logs:
+
+```
+DEBUG WindowedDStream: Using normal union for windowing at [time]
+```
+
+[TIP]
+====
+Enable `DEBUG` logging level for `org.apache.spark.streaming.dstream.WindowedDStream` logger to see what happens inside `WindowedDStream`.
+
+Add the following line to `conf/log4j.properties`:
+
+```
+log4j.logger.org.apache.spark.streaming.dstream.WindowedDStream=DEBUG
+```
+====
