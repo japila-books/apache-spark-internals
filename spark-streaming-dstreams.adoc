@@ -45,19 +45,19 @@ Every `DStream` offers the following operators:
 * `print` to print 10 elements only or the more general version `print(num: Int)` to print up to `num` elements. See <<print, print operation>> in this document.
 * link:spark-streaming-windowedoperators.adoc#slice[slice]
 * link:spark-streaming-windowedoperators.adoc#slice[window]
-* `map`
+* link:spark-streaming-windowedoperators.adoc#reduceByWindow[reduceByWindow]
+* <<reduce, reduce>>
+* <<map, map>>
 * `flatMap`
 * `filter`
 * `glom`
 * `repartition`
 * `mapPartitions`
-* `reduce`
 * `count`
 * `countByValue`
 * a family of `foreachRDD`
 * a family of `transform`
 * a family of `transformWith`
-* a family of `reduceByWindow`
 * `countByWindow`
 * `countByValueAndWindow`
 * `union`
@@ -85,6 +85,56 @@ Time: [time] ms
 Internally, it calls `RDD.take(num + 1)` (see link:spark-rdd-operations.adoc#actions[take action]) on each RDD in the stream to print `num` elements. It then prints `...` if there are more elements in the RDD (that would otherwise exceed `num` elements being requested to print).
 
 It creates link:spark-streaming-foreachdstreams.adoc[ForEachDStream] stream and register it as an output stream.
+
+==== [[reduce]] reduce Operator
+
+```
+reduce(reduceFunc: (T, T) => T): DStream[T]
+```
+
+`reduce` operator creates a new stream of RDDs of a single element that is a result of applying `reduceFunc` to the data received.
+
+Internally, it uses <<map, map>> and <<reduceByKey, reduceByKey>> operators.
+
+===== [[reduce-example]] reduce Example
+
+```
+val clicks: InputDStream[(String, String)] = messages
+type T = (String, String)
+val reduceFunc: (T, T) => T = {
+  case in @ ((k1, v1), (k2, v2)) =>
+    println(s">>> input: $in")
+    (k2, s"$v1 + $v2")
+}
+val reduceClicks: DStream[(String, String)] = clicks.reduce(reduceFunc)
+reduceClicks.print
+```
+
+==== [[map]] map Operator
+
+```
+map[U](mapFunc: T => U): DStream[U]
+```
+
+`map` operator creates a new stream with the source elements being mapped over using `mapFunc` function.
+
+It creates `MappedDStream` stream that, when requested to compute a RDD, uses link:spark-rdd-operations.adoc[RDD.map] operator.
+
+===== Example
+
+```
+val clicks: DStream[...] =
+val mappedClicks: ... = clicks.map(...)
+```
+
+==== [[reduceByKey]] reduceByKey Operator
+
+```
+reduceByKey(reduceFunc: (V, V) => V): DStream[(K, V)]
+reduceByKey(reduceFunc: (V, V) => V, numPartitions: Int): DStream[(K, V)]
+reduceByKey(reduceFunc: (V, V) => V, partitioner: Partitioner): DStream[(K, V)]
+
+```
 
 === [[generateJob]] Generating Streaming Jobs (using generateJob Method)
 
