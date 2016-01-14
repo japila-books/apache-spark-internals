@@ -1,14 +1,16 @@
 == Discretized Streams (DStreams)
 
-*Discretized Stream (DStream)* is the fundamental concept in Spark Streaming. It is modelled as `org.apache.spark.streaming.dstream.DStream` abstract class.
+*Discretized Stream (DStream)* is the fundamental concept of Spark Streaming. It is basically a stream of link:spark-rdd.adoc[RDDs] with elements being the data received from input streams over link:spark-streaming-streamingcontext.adoc[batch duration].
 
-To create a `DStream` instance you use link:spark-streaming-streamingcontext.adoc#creating-receivers[StreamingContext].
+It is modelled as `org.apache.spark.streaming.dstream.DStream` abstract class.
+
+To create a `DStream` instance you use link:spark-streaming-streamingcontext.adoc#creating-receivers[StreamingContext] or other specialized add-ons for external input data sources that extend the built-in input stream constructors, e.g. link:spark-streaming-kafka.adoc[Kafka].
 
 NOTE: New `DStreams` can only be created (and hence registered) before link:spark-streaming-streamingcontext.adoc#start[StreamingContext is started]. All other states lead to `IllegalStateException` being thrown.
 
 [TIP]
 ====
-Enable `DEBUG` logging level for `org.apache.spark.streaming.dstream.DStream` logger to see what happens inside any `DStream`.
+Enable `DEBUG` logging level for `org.apache.spark.streaming.dstream.DStream` logger to see what happens inside a `DStream`.
 
 Add the following line to `conf/log4j.properties`:
 
@@ -23,31 +25,54 @@ Refer to link:spark-logging.adoc[Logging].
 
 A `DStream` is defined by the following properties (with the names of the corresponding methods that subclasses have to implement):
 
-* A collection of parent `DStreams` on which this `DStream` depends on (as `def dependencies: List[DStream[_]]`)
+* A collection of parent `DStreams` that this `DStream` depends on
++
+```
+def dependencies: List[DStream[_]]
+```
 
-* A *slide duration* being a time interval after which the stream generates a RDD (as `def slideDuration: Duration`).
+* A *slide duration* being a time interval after which the stream generates a RDD
++
+```
+def slideDuration: Duration
+```
 
-* How to generate a RDD for the given batch (as `def compute(validTime: Time): Option[RDD[T]]`)
+* How to generate a RDD for the given batch
++
+```
+def compute(validTime: Time): Option[RDD[T]]
+```
 
-CAUTION: FIXME How does slide duration relate to batch interval? Is there any relation?
+=== [[register]] Registering Output Streams
+
+`DStream` by design has no notion of being an input or output stream. It is link:spark-streaming-dstreamgraph.adoc[DStreamGraph] to differentiate between input and output stream.
+
+`DStream` comes with internal `register` method that registers a `DStream` as an output stream.
+
+The internal `foreachRDD` method uses `register` to register output streams. Whenever called, it creates link:spark-streaming-foreachdstreams.adoc[ForEachDStream] and calls `register` upon it.
+
+
 
 === [[operators]] Stream Operators
 
-You apply transformations (using *stream operators*) to create stream pipelines on datasets built out of the data received from input streams. You may use datasets as RDDs from other (non-streaming) data sources, but the datasets from input streams are the reason to use Spark Streaming in the first place, _ain't it_?
+You use *stream operators* to apply transformations to the elements received from input streams.
+
+NOTE: You may use RDDs from other (non-streaming) data sources.
 
 There are two types of operators:
 
-* *output operators* that turn input streams into output ones, i.e. they register the input streams as output to link:spark-streaming-dstreamgraph.adoc[DStreamGraph] (using `DStreamGraph.addOutputStream`).
-* ...
+* *transformations* that transform elements in input data RDDs
+* *output operators* that <<register, register input streams as output streams>> so the execution starts.
 
 Every `DStream` offers the following operators:
 
-* `print` to print 10 elements only or the more general version `print(num: Int)` to print up to `num` elements. See <<print, print operation>> in this document.
+* (output operator) `print` to print 10 elements only or the more general version `print(num: Int)` to print up to `num` elements. See <<print, print operation>> in this document.
 * link:spark-streaming-windowedoperators.adoc#slice[slice]
 * link:spark-streaming-windowedoperators.adoc#slice[window]
 * link:spark-streaming-windowedoperators.adoc#reduceByWindow[reduceByWindow]
 * <<reduce, reduce>>
 * <<map, map>>
+* (output operator) <<foreachRDD, foreachRDD>>
 * `flatMap`
 * `filter`
 * `glom`
@@ -55,14 +80,13 @@ Every `DStream` offers the following operators:
 * `mapPartitions`
 * `count`
 * `countByValue`
-* a family of `foreachRDD`
 * a family of `transform`
 * a family of `transformWith`
 * `countByWindow`
 * `countByValueAndWindow`
 * `union`
-* `saveAsObjectFiles`
-* `saveAsTextFiles`
+* (output operator) `saveAsObjectFiles`
+* (output operator) `saveAsTextFiles`
 
 NOTE: `DStream` companion object offers a Scala implicit to convert `DStream[(K, V)]` to `PairDStreamFunctions` with methods on DStreams of key-value pairs.
 
@@ -85,6 +109,25 @@ Time: [time] ms
 Internally, it calls `RDD.take(num + 1)` (see link:spark-rdd-operations.adoc#actions[take action]) on each RDD in the stream to print `num` elements. It then prints `...` if there are more elements in the RDD (that would otherwise exceed `num` elements being requested to print).
 
 It creates link:spark-streaming-foreachdstreams.adoc[ForEachDStream] stream and register it as an output stream.
+
+==== [[foreachRDD]] foreachRDD Operators
+
+```
+foreachRDD(foreachFunc: RDD[T] => Unit): Unit
+foreachRDD(foreachFunc: (RDD[T], Time) => Unit): Unit
+```
+
+`foreachRDD` operator applies `foreachFunc` function to every RDD in the stream.
+
+It creates link:spark-streaming-foreachdstreams.adoc[ForEachDStream] stream and register it as an output stream.
+
+===== [[reduce-example]] reduce Example
+
+```
+val clicks: InputDStream[(String, String)] = messages
+// println every single data received in clicks input stream
+clicks.foreachRDD(rdd => rdd.foreach(println))
+```
 
 ==== [[reduce]] reduce Operator
 
