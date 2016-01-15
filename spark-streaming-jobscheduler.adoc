@@ -1,6 +1,6 @@
 == JobScheduler
 
-`JobScheduler` schedules jobs to be run on Spark. It is created as part of link:spark-streaming-streamingcontext.adoc#creating-instance[creating a StreamingContext] and starts with it.
+`JobScheduler` schedules streaming jobs to be run as Spark jobs. It is created as part of link:spark-streaming-streamingcontext.adoc#creating-instance[creating a StreamingContext] and starts with it.
 
 .JobScheduler and Dependencies
 image::images/streaming-jobscheduler.png[align="center"]
@@ -82,17 +82,43 @@ You should see the following INFO message in the logs:
 INFO JobScheduler: Stopped JobScheduler
 ```
 
+=== [[submitJobSet]] Submitting Collection of Jobs for Execution (submitJobSet method)
+
+When `submitJobSet(jobSet: JobSet)` is called, it reacts appropriately per `jobSet` <<JobSet, JobSet>> given.
+
+NOTE: The method is called by link:spark-streaming-jobgenerator.adoc[JobGenerator] only (as part of link:spark-streaming-jobgenerator.adoc#GenerateJobs[JobGenerator.generateJobs] and link:spark-streaming-jobgenerator.adoc#restarting[JobGenerator.restart]).
+
+When no jobs are inside the `jobSet`, you should see the following INFO in the logs:
+
+```
+INFO JobScheduler: No jobs added for time [jobSet.time]
+```
+
+Otherwise, when there is at least one job inside the `jobSet`, `StreamingListenerBatchSubmitted` is posted to <<StreamingListenerBus, StreamingListenerBus>>.
+
+The JobSet is added to the internal <<internal-registries, jobSets>> registry.
+
+It then goes over every streaming job in the `jobSet` and executes a <<JobHandler, JobHandler>> (on <<streaming-job-executor, jobExecutor Thread Pool>>).
+
+At the end, you should see the following INFO message in the logs:
+
+```
+INFO JobScheduler: Added jobs for time [jobSet.time] ms
+```
+
 === [[JobHandler]] JobHandler
 
-`JobHandler` is a thread of execution for a link:spark-streaming.adoc#Job[streaming job] (that executes `Job.run`).
+`JobHandler` is a thread of execution for a link:spark-streaming.adoc#Job[streaming job] (that simply calls `Job.run`).
 
 NOTE: It is called when a new <<JobSet, JobSet>> is submitted (see <<submitJobSet, submitJobSet>> in this document).
 
 When started, it prepares the environment (so the streaming job can be nicely displayed in the web UI under `/streaming/batch/?id=[milliseconds]`) and posts `JobStarted` event to <<eventLoop, JobSchedulerEvent event loop>>.
 
-It runs the link:spark-streaming.adoc#Job[streaming job].
+It runs the link:spark-streaming.adoc#Job[streaming job] that executes the job function as defined while link:spark-streaming-dstreams.adoc#generateJob[generating a streaming job for an output stream].
 
-You may see similar-looking INFO messages in the logs (it depends on the actions you use on input streams):
+NOTE: This is the moment when a link:spark-sparkcontext.adoc#running-jobs[Spark (core) job is run].
+
+You may see similar-looking INFO messages in the logs (it depends on the link:spark-streaming-operators.adoc[operators] you use):
 
 ```
 INFO SparkContext: Starting job: print at <console>:39
@@ -106,30 +132,6 @@ INFO DAGScheduler: Job 0 finished: print at <console>:39, took 0.178689 s
 ```
 
 It posts `JobCompleted` event to <<eventLoop, JobSchedulerEvent event loop>>.
-
-=== [[submitJobSet]] Submit Jobs for Execution
-
-When `submitJobSet(jobSet: JobSet)` is called, it reacts appropriately per `jobSet` <<JobSet, JobSet>> given.
-
-NOTE: The method is called as part of link:spark-streaming-jobgenerator.adoc#GenerateJobs[JobGenerator.generateJobs] and `JobGenerator.restart`.
-
-When no jobs are inside the JobSet, you should see the following INFO in the logs:
-
-```
-INFO JobScheduler: No jobs added for time [jobSet.time]
-```
-
-Otherwise, when there is at least one job inside the `jobSet`, `StreamingListenerBatchSubmitted` is posted to <<StreamingListenerBus, StreamingListenerBus>>.
-
-The JobSet is added to the internal <<internal-registries, jobSets>> registry.
-
-It then goes over every job in the `jobSet` and executes a <<JobHandler, JobHandler>> (on <<streaming-job-executor, jobExecutor Thread Pool>>).
-
-At the end, you should see the following INFO message in the logs:
-
-```
-INFO JobScheduler: Added jobs for time [jobSet.time] ms
-```
 
 === [[streaming-job-executor]] jobExecutor Thread Pool
 

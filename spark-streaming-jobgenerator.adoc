@@ -1,8 +1,8 @@
 == JobGenerator
 
-`JobGenerator` triggers processing received events from link:spark-streaming-inputdstreams.adoc[input streams].
+`JobGenerator` asynchronously <<GenerateJobs, generates streaming jobs>> at link:spark-streaming-dstreamgraph.adoc#batchDuration[batch duration] intervals.
 
-NOTE: link:spark-streaming-jobscheduler.adoc[JobScheduler] manages `JobGenerator`, i.e. `JobScheduler` creates an instance and starts it when link:spark-streaming-jobscheduler.adoc#starting[JobScheduler starts].
+NOTE: `JobGenerator` is completely owned and managed by link:spark-streaming-jobscheduler.adoc[JobScheduler], i.e. `JobScheduler` creates an instance and starts it (while link:spark-streaming-jobscheduler.adoc#starting[being started]).
 
 When `JobGenerator` is created, it creates `timer` link:spark-streaming-jobscheduler.adoc#RecurringTimer[RecurringTimer] (with the name being `JobGenerator`) that later, when started, posts link:spark-streaming.adoc#GenerateJobs[GenerateJobs] events to <<eventLoop, JobGenerator eventLoop>> (it is only when `JobGenerator` is started when the JobGenerator eventLoop starts processing events).
 
@@ -18,10 +18,6 @@ log4j.logger.org.apache.spark.streaming.scheduler.JobGenerator=DEBUG
 
 Refer to link:spark-logging.adoc[Logging].
 ====
-
-=== [[restarting]] Restarting JobGenerator from Checkpoint (restart method)
-
-CAUTION: FIXME
 
 === [[starting]] Starting JobGenerator (start method)
 
@@ -41,11 +37,25 @@ INFO JobGenerator: Started JobGenerator at [startTime] ms
 
 CAUTION: FIXME What happens when checkpoint exists.
 
+=== [[stopping]] Stopping JobGenerator (stop method)
+
+`JobGenerator.stop(processReceivedData: Boolean)` stops a `JobGenerator`.
+
+NOTE: `JobGenerator` is stopped when...TK
+
+CAUTION: FIXME
+
+=== [[restarting]] Restarting JobGenerator from Checkpoint (restart method)
+
+CAUTION: FIXME
+
 === [[eventLoop]] JobGenerator eventLoop and JobGeneratorEvent Handler
 
-JobGenerator uses `EventLoop` to process `JobGeneratorEvent` events asynchronously (one event at a time).
+`JobGenerator` uses `EventLoop` event loop to process `JobGeneratorEvent` events asynchronously (one event at a time) by a dedicated _single_ event thread.
 
-For every event, you should see the following DEBUG message in the logs:
+NOTE: `EventLoop` uses unbounded https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/LinkedBlockingDeque.html[java.util.concurrent.LinkedBlockingDeque] internally.
+
+For every `JobGeneratorEvent` event, you should see the following DEBUG message in the logs:
 
 ```
 DEBUG JobGenerator: Got event [event]
@@ -53,21 +63,21 @@ DEBUG JobGenerator: Got event [event]
 
 See below for the extensive coverage of supported event types.
 
-==== [[GenerateJobs]] GenerateJobs and JobGenerator.generateJobs
+==== [[GenerateJobs]] GenerateJobs Event
 
-When `GenerateJobs` is received `JobGenerator.generateJobs(time: Time)` is called.
+When `GenerateJobs(time: Time)` event is received `JobGenerator.generateJobs(time: Time)` is called.
 
-NOTE: `GenerateJobs` events are posted by `JobGenerator` regularly every batch interval (using `timer` RecurringTimer).
+NOTE: `GenerateJobs` events are posted by `JobGenerator` regularly every batch interval (by `timer` RecurringTimer).
 
-It calls link:spark-streaming-receivertracker.adoc[ReceiverTracker.allocateBlocksToBatch], and then calls link:spark-streaming-dstreamgraph.adoc#DStreamGraph-generateJobs[DStreamGraph.generateJobs(time: Time)].
+It calls link:spark-streaming-receivertracker.adoc[ReceiverTracker.allocateBlocksToBatch], and then calls link:spark-streaming-dstreamgraph.adoc#generateJobs[DStreamGraph.generateJobs].
 
-When the above two calls have finished successfully, the collection of jobs is passed to link:spark-streaming-jobscheduler.adoc#submitJobSet[JobScheduler.submitJobSet] as a link:spark-streaming-jobscheduler.adoc[JobSet].
+If the above two calls have finished successfully, link:spark-streaming-jobscheduler.adoc#InputInfoTracker[InputInfoTracker] is requested for information about input streams for the given batch time that together with the collection of jobs (from link:spark-streaming-dstreamgraph.adoc#generateJobs[DStreamGraph.generateJobs]) is passed on to link:spark-streaming-jobscheduler.adoc#submitJobSet[JobScheduler.submitJobSet] (as a link:spark-streaming-jobscheduler.adoc[JobSet]).
 
-In case of any failures, `JobScheduler.reportError` is called.
+In case of failure, `JobScheduler.reportError` is called.
 
-Ultimately, it posts <<DoCheckpoint, DoCheckpoint>> event.
+Ultimately, <<DoCheckpoint, DoCheckpoint>> event is posted (with `clearCheckpointDataLater` being `false`).
 
-==== [[ClearMetadata]] ClearMetadata and clearMetadata
+==== [[ClearMetadata]] ClearMetadata Event
 
 It is called to periodically remove old RDDs that have been generated and collected so far by output streams (managed by link:spark-streaming-dstreamgraph.adoc[DStreamGraph]). It is a sort of _garbage collector_.
 
@@ -81,16 +91,10 @@ CAUTION: FIXME Finish that part.
 
 It marks the batch fully processed (saving the `time` in the internal `lastProcessedBatch` that tracks the time of the last batch of which cleanup metadata completed successfully).
 
-==== [[DoCheckpoint]] DoCheckpoint and doCheckpoint
+==== [[DoCheckpoint]] DoCheckpoint Event
 
 CAUTION: FIXME
 
-==== [[ClearCheckpointData]] ClearCheckpointData and clearCheckpointData
-
-CAUTION: FIXME
-
-=== [[stopping]] Stopping JobGenerator (using stop method)
-
-`JobGenerator.stop(processReceivedData: Boolean)` stops a `JobGenerator`.
+==== [[ClearCheckpointData]] ClearCheckpointData Event
 
 CAUTION: FIXME
