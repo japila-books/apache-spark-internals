@@ -88,13 +88,13 @@ When `submitJobSet(jobSet: JobSet)` is called, it reacts appropriately per `jobS
 
 NOTE: The method is called by link:spark-streaming-jobgenerator.adoc[JobGenerator] only (as part of link:spark-streaming-jobgenerator.adoc#GenerateJobs[JobGenerator.generateJobs] and link:spark-streaming-jobgenerator.adoc#restarting[JobGenerator.restart]).
 
-When no jobs are inside the `jobSet`, you should see the following INFO in the logs:
+When no streaming jobs are inside the `jobSet`, you should see the following INFO in the logs:
 
 ```
 INFO JobScheduler: No jobs added for time [jobSet.time]
 ```
 
-Otherwise, when there is at least one job inside the `jobSet`, `StreamingListenerBatchSubmitted` is posted to <<StreamingListenerBus, StreamingListenerBus>>.
+Otherwise, when there is at least one streaming job inside the `jobSet`, <<StreamingListenerBus, StreamingListenerBatchSubmitted>> (with data statistics of every registered input stream for which the streaming jobs were generated) is posted to <<StreamingListenerBus, StreamingListenerBus>>.
 
 The JobSet is added to the internal <<internal-registries, jobSets>> registry.
 
@@ -205,19 +205,7 @@ INFO RecurringTimer: Started timer for JobGenerator at time [nextTime]
 
 === [[StreamingListenerBus]] StreamingListenerBus and StreamingListenerEvents
 
-`StreamingListenerBus` is a asynchronous listener bus for `StreamingListener` to receive `StreamingListenerEvent`:
-
-* `StreamingListenerBatchStarted` triggers `StreamingListener.onBatchStarted`
-
-* `StreamingListenerBatchSubmitted` triggers `StreamingListener.onBatchSubmitted`
-
-=== [[StreamingJobProgressListener]] StreamingJobProgressListener
-
-`StreamingJobProgressListener` is a `StreamingListener` to listen to `StreamingListenerEvent` events from <<StreamingListenerBus, StreamingListenerBus>>.
-
-It is created while link:spark-streaming-streamingcontext.adoc#creating-instance[StreamingContext is created] and later registered as a `StreamingListener` and `SparkListener` when link:spark-streaming.adoc#StreamingTab[Streaming tab] is created.
-
-CAUTION: FIXME How does this contribute to the result shown in the tab?
+`StreamingListenerBus` is a asynchronous listener bus to post `StreamingListenerEvent` events to link:spark-streaming-streaminglisteners.adoc[streaming listeners].
 
 === [[JobSet]] JobSet
 
@@ -243,13 +231,26 @@ NOTE: Total delay is greater than or equal to processing delay.
 
 === [[InputInfoTracker]] InputInfoTracker
 
-`InputInfoTracker` is the class to track batch times and input data statistics (as `StreamInputInfo`) for link:spark-streaming-inputdstreams.adoc[input streams] (when they `compute` RDDs).
+`InputInfoTracker` tracks batch times and data statistics for link:spark-streaming-inputdstreams.adoc[input streams] (per input stream id with `StreamInputInfo`). It is later used when link:spark-streaming-jobgenerator.adoc#GenerateJobs[JobGenerator submits streaming jobs for a batch time] (and propagated to interested listeners as <<StreamingListenerBus, StreamingListenerBatchSubmitted>> event).
 
-NOTE: It is created when <<starting, JobScheduler starts>>.
+NOTE: `InputInfoTracker` is managed by `JobScheduler`, i.e. it is created when <<starting, JobScheduler starts>> and <<stopping, is stopped alongside>>.
 
-CAUTION: FIXME Why does the class collect the information? Where is this used?
+`InputInfoTracker` uses internal registry `batchTimeToInputInfos` to maintain the mapping of batch times and link:spark-streaming-inputdstreams.adoc[input streams] (i.e.  another mapping between input stream ids and `StreamInputInfo`).
 
-You should see the following INFO message when cleanup of old batches is requested:
+It accumulates statistics at every batch time when link:spark-streaming-dstreams.adoc#contract[input streams are computing RDDs] (and explicitly call `InputInfoTracker.reportInfo` method).
+
+[NOTE]
+====
+It is up to an input stream to have these statistics collected (and requires calling `InputInfoTracker.reportInfo` method explicitly).
+
+The following input streams report information:
+
+* link:spark-streaming-kafka.adoc#DirectKafkaInputDStream[DirectKafkaInputDStream]
+* link:spark-streaming-receiverinputdstreams.adoc[ReceiverInputDStreams - Input Streams with Receivers]
+* FileInputDStream
+====
+
+You should see the following INFO message when cleanup of old batch times is requested (akin to _garbage collection_):
 
 ```
 INFO InputInfoTracker: remove old batch metadata: [timesToCleanup]
