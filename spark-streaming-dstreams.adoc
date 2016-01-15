@@ -25,159 +25,31 @@ Refer to link:spark-logging.adoc[Logging].
 
 A `DStream` is defined by the following properties (with the names of the corresponding methods that subclasses have to implement):
 
-* A collection of parent `DStreams` that this `DStream` depends on
+* A collection of parent `DStreams` that this `DStream` depends on.
 +
 ```
 def dependencies: List[DStream[_]]
 ```
 
-* A *slide duration* being a time interval after which the stream generates a RDD
+* A *slide duration* being a time interval after which the stream generates a RDD.
 +
 ```
 def slideDuration: Duration
 ```
 
-* How to generate a RDD for the given batch
+* How to *compute* (_generate_) a RDD for the given batch.
 +
 ```
 def compute(validTime: Time): Option[RDD[T]]
 ```
 
-=== [[register]] Registering Output Streams
+=== [[register]] Registering Output Streams (register Method)
 
-`DStream` by design has no notion of being an input or output stream. It is link:spark-streaming-dstreamgraph.adoc[DStreamGraph] to differentiate between input and output stream.
+`DStream` by design has no notion of being an input or output stream. It is link:spark-streaming-dstreamgraph.adoc[DStreamGraph] to know and be able to differentiate between input and output stream.
 
 `DStream` comes with internal `register` method that registers a `DStream` as an output stream.
 
-The internal `foreachRDD` method uses `register` to register output streams. Whenever called, it creates link:spark-streaming-foreachdstreams.adoc[ForEachDStream] and calls `register` upon it.
-
-
-
-=== [[operators]] Stream Operators
-
-You use *stream operators* to apply transformations to the elements received from input streams.
-
-NOTE: You may use RDDs from other (non-streaming) data sources.
-
-There are two types of operators:
-
-* *transformations* that transform elements in input data RDDs
-* *output operators* that <<register, register input streams as output streams>> so the execution starts.
-
-Every `DStream` offers the following operators:
-
-* (output operator) `print` to print 10 elements only or the more general version `print(num: Int)` to print up to `num` elements. See <<print, print operation>> in this document.
-* link:spark-streaming-windowedoperators.adoc#slice[slice]
-* link:spark-streaming-windowedoperators.adoc#slice[window]
-* link:spark-streaming-windowedoperators.adoc#reduceByWindow[reduceByWindow]
-* <<reduce, reduce>>
-* <<map, map>>
-* (output operator) <<foreachRDD, foreachRDD>>
-* `flatMap`
-* `filter`
-* `glom`
-* `repartition`
-* `mapPartitions`
-* `count`
-* `countByValue`
-* a family of `transform`
-* a family of `transformWith`
-* `countByWindow`
-* `countByValueAndWindow`
-* `union`
-* (output operator) `saveAsObjectFiles`
-* (output operator) `saveAsTextFiles`
-
-NOTE: `DStream` companion object offers a Scala implicit to convert `DStream[(K, V)]` to `PairDStreamFunctions` with methods on DStreams of key-value pairs.
-
-==== [[print]] print Operator
-
-`print(num: Int)` operator prints `num` first elements of each RDD in the input stream.
-
-`print` uses `print(num: Int)` with `num` being `10`.
-
-It is a *output operator* (that returns `Unit`).
-
-For each batch, `print` operator prints the following header to the standard output (regardless of the number of elements to be printed out):
-
-```
--------------------------------------------
-Time: [time] ms
--------------------------------------------
-```
-
-Internally, it calls `RDD.take(num + 1)` (see link:spark-rdd-operations.adoc#actions[take action]) on each RDD in the stream to print `num` elements. It then prints `...` if there are more elements in the RDD (that would otherwise exceed `num` elements being requested to print).
-
-It creates link:spark-streaming-foreachdstreams.adoc[ForEachDStream] stream and register it as an output stream.
-
-==== [[foreachRDD]] foreachRDD Operators
-
-```
-foreachRDD(foreachFunc: RDD[T] => Unit): Unit
-foreachRDD(foreachFunc: (RDD[T], Time) => Unit): Unit
-```
-
-`foreachRDD` operator applies `foreachFunc` function to every RDD in the stream.
-
-It creates link:spark-streaming-foreachdstreams.adoc[ForEachDStream] stream and register it as an output stream.
-
-===== [[reduce-example]] reduce Example
-
-```
-val clicks: InputDStream[(String, String)] = messages
-// println every single data received in clicks input stream
-clicks.foreachRDD(rdd => rdd.foreach(println))
-```
-
-==== [[reduce]] reduce Operator
-
-```
-reduce(reduceFunc: (T, T) => T): DStream[T]
-```
-
-`reduce` operator creates a new stream of RDDs of a single element that is a result of applying `reduceFunc` to the data received.
-
-Internally, it uses <<map, map>> and <<reduceByKey, reduceByKey>> operators.
-
-===== [[reduce-example]] reduce Example
-
-```
-val clicks: InputDStream[(String, String)] = messages
-type T = (String, String)
-val reduceFunc: (T, T) => T = {
-  case in @ ((k1, v1), (k2, v2)) =>
-    println(s">>> input: $in")
-    (k2, s"$v1 + $v2")
-}
-val reduceClicks: DStream[(String, String)] = clicks.reduce(reduceFunc)
-reduceClicks.print
-```
-
-==== [[map]] map Operator
-
-```
-map[U](mapFunc: T => U): DStream[U]
-```
-
-`map` operator creates a new stream with the source elements being mapped over using `mapFunc` function.
-
-It creates `MappedDStream` stream that, when requested to compute a RDD, uses link:spark-rdd-operations.adoc[RDD.map] operator.
-
-===== Example
-
-```
-val clicks: DStream[...] =
-val mappedClicks: ... = clicks.map(...)
-```
-
-==== [[reduceByKey]] reduceByKey Operator
-
-```
-reduceByKey(reduceFunc: (V, V) => V): DStream[(K, V)]
-reduceByKey(reduceFunc: (V, V) => V, numPartitions: Int): DStream[(K, V)]
-reduceByKey(reduceFunc: (V, V) => V, partitioner: Partitioner): DStream[(K, V)]
-
-```
+The internal private `foreachRDD` method uses `register` to register output streams to link:spark-streaming-dstreamgraph.adoc[DStreamGraph]. Whenever called, it creates link:spark-streaming-foreachdstreams.adoc[ForEachDStream] and calls `register` upon it. That is how streams become output streams.
 
 === [[generateJob]] Generating Streaming Jobs (using generateJob Method)
 
