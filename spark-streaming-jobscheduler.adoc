@@ -1,6 +1,6 @@
 == JobScheduler
 
-`JobScheduler` schedules streaming jobs to be run as Spark jobs. It is created as part of link:spark-streaming-streamingcontext.adoc#creating-instance[creating a StreamingContext] and starts with it.
+*Streaming scheduler* (`JobScheduler`) schedules streaming jobs to be run as Spark jobs. It is created as part of link:spark-streaming-streamingcontext.adoc#creating-instance[creating a StreamingContext] and starts with it.
 
 .JobScheduler and Dependencies
 image::images/streaming-jobscheduler.png[align="center"]
@@ -8,6 +8,8 @@ image::images/streaming-jobscheduler.png[align="center"]
 It tracks jobs submitted for execution (as <<JobSet, JobSets>> via <<submitJobSet, submitJobSet>> method) in <<internal-registries, jobSets>> internal map.
 
 NOTE: JobSets are submitted by link:spark-streaming-jobgenerator.adoc[JobGenerator].
+
+It uses a *streaming scheduler queue* for streaming jobs to be executed.
 
 [TIP]
 ====
@@ -209,9 +211,26 @@ INFO RecurringTimer: Started timer for JobGenerator at time [nextTime]
 
 === [[JobSet]] JobSet
 
-A `JobSet` represents a collection of link:spark-streaming.adoc#Job[jobs] that belong to a batch.
+A `JobSet` represents a collection of link:spark-streaming.adoc#Job[streaming jobs] that were created at (batch) `time` for input streams that...
 
-It can be in created, started (after `JobSet.handleJobStart` is called), or completed (after `JobSet.handleJobCompletion`) state.
+CAUTION: FIXME When is a JobSet created? Does `time` exactly correspond to a batch (or could there be a slight difference)?
+
+It tracks what streaming jobs are in incomplete state (in `incompleteJobs` internal registry). At the time of `JobSet` being created, all streaming jobs are marked incomplete.
+
+CAUTION: FIXME There is a duplication in how streaming jobs are tracked as completed since a `Job` knows about its `_endTime`. Is this a optimization? How much time does it buy us?
+
+A `JobSet` tracks the following times in its lifecycle:
+
+* `submissionTime` being the time when the instance was created (FIXME when?).
+
+* `processingStartTime` being the time when the first streaming job in the collection was started.
+
+* `processingEndTime` being the time when the last streaming job in the collection finished processing.
+
+A `JobSet` changes state over time. It can be in created, started (after `JobSet.handleJobStart` was called), or completed (after `JobSet.handleJobCompletion` when no more jobs are incomplete) state.
+
+.JobSet States
+image::images/spark-streaming-jobset-states.png[align="center"]
 
 The time it takes to process all the jobs in a JobSet is called *processing delay*. The time from when the JobSet was created up to when it was completed is *total delay*.
 
