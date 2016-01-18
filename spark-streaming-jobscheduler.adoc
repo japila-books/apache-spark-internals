@@ -209,6 +209,12 @@ INFO RecurringTimer: Started timer for JobGenerator at time [nextTime]
 
 `StreamingListenerBus` is a asynchronous listener bus to post `StreamingListenerEvent` events to link:spark-streaming-streaminglisteners.adoc[streaming listeners].
 
+=== [[internal-registries]] Internal Registries
+
+`JobScheduler` maintains the following information in internal registries:
+
+* `jobSets` - a mapping between time and JobSets. See <<JobSet, JobSet>>.
+
 === [[JobSet]] JobSet
 
 A `JobSet` represents a collection of link:spark-streaming.adoc#Job[streaming jobs] that were created at (batch) `time` for input streams that...
@@ -219,7 +225,7 @@ It tracks what streaming jobs are in incomplete state (in `incompleteJobs` inter
 
 CAUTION: FIXME There is a duplication in how streaming jobs are tracked as completed since a `Job` knows about its `_endTime`. Is this a optimization? How much time does it buy us?
 
-A `JobSet` tracks the following times in its lifecycle:
+A `JobSet` tracks the following moments in its lifecycle:
 
 * `submissionTime` being the time when the instance was created (FIXME when?).
 
@@ -227,26 +233,34 @@ A `JobSet` tracks the following times in its lifecycle:
 
 * `processingEndTime` being the time when the last streaming job in the collection finished processing.
 
-A `JobSet` changes state over time. It can be in created, started (after `JobSet.handleJobStart` was called), or completed (after `JobSet.handleJobCompletion` when no more jobs are incomplete) state.
+A `JobSet` changes state over time. It can be in the following states:
+
+* *Created* after a `JobSet` was created. `submissionTime` is set.
+* *Started* after `JobSet.handleJobStart` was called. `processingStartTime` is set.
+* *Completed* after `JobSet.handleJobCompletion` and no more jobs are incomplete (in `incompleteJobs` internal registry). `processingEndTime` is set.
 
 .JobSet States
 image::images/spark-streaming-jobset-states.png[align="center"]
 
-The time it takes to process all the jobs in a JobSet is called *processing delay*. The time from when the JobSet was created up to when it was completed is *total delay*.
+Given the states a `JobSet` has *delays*:
 
-NOTE: Total delay is greater than or equal to processing delay.
+* *Processing delay* is the time spent for processing all the streaming jobs in a `JobSet` from the time the very first job was started, i.e. the time between started and completed states.
+
+* *Total delay* is the time from the batch time until the `JobSet` was completed.
+
+NOTE: Total delay is always longer than processing delay.
+
+You can map a `JobSet` to a `BatchInfo` using `toBatchInfo` method.
+
+CAUTION: Where is `BatchInfo` used?
 
 `JobSet` is used in:
 
-* <<submitJobSet, submitJobSet(jobSet: JobSet)>>
+* <<submitJobSet, JobScheduler.submitJobSet(jobSet: JobSet)>>
+* JobScheduler.generateJobs
+* JobScheduler.restart
 * <<JobStarted, handleJobStart(job: Job, startTime: Long)>>
 * <<JobCompleted, handleJobCompletion(job: Job, completedTime: Long)>>
-
-=== [[internal-registries]] Internal Registries
-
-`JobScheduler` maintains the following information in internal registries:
-
-* `jobSets` - a mapping between time and JobSets. See <<JobSet, JobSet>>.
 
 === [[InputInfoTracker]] InputInfoTracker
 
