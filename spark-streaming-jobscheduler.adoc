@@ -167,11 +167,11 @@ INFO JobScheduler: Starting job [job.id] from job set of time [jobSet.time] ms
 
 ==== [[JobCompleted]] JobCompleted and JobScheduler.handleJobCompletion
 
-When `JobCompleted` event is received, `JobScheduler.handleJobCompletion` is called.
+When `JobCompleted` event is received, it triggers `JobScheduler.handleJobCompletion(job: Job, completedTime: Long)`.
 
 NOTE: <<JobHandler, JobHandler>> posts `JobCompleted` events when it finishes running a streaming job.
 
-`handleJobCompletion(job: Job, completedTime: Long)` takes the JobSet (using <<internal-registries, jobSets>>) and calls `jobSet.handleJobCompletion(job)` upon it. It also calls `job.setEndTime(completedTime)`.
+`handleJobCompletion` looks the <<JobSet, JobSet>> up (from the <<internal-registries, jobSets>> internal registry) and calls <<JobSet, JobSet.handleJobCompletion(job)>> (that marks the `JobSet` as completed when no more streaming jobs are incomplete). It also calls `Job.setEndTime(completedTime)`.
 
 It posts `StreamingListenerOutputOperationCompleted` to <<StreamingListenerBus, StreamingListenerBus>>.
 
@@ -217,17 +217,20 @@ INFO RecurringTimer: Started timer for JobGenerator at time [nextTime]
 
 === [[JobSet]] JobSet
 
-A `JobSet` represents a collection of link:spark-streaming.adoc#Job[streaming jobs] that were created at (batch) `time` for input streams that...
+A `JobSet` represents a collection of link:spark-streaming.adoc#Job[streaming jobs] that were created at (batch) `time` for link:spark-streaming-dstreamgraph.adoc#generateJobs[output streams] (that have ultimately produced a streaming job as they may opt out).
 
-CAUTION: FIXME When is a JobSet created? Does `time` exactly correspond to a batch (or could there be a slight difference)?
+.JobSet Created and Submitted to JobScheduler
+image::images/spark-streaming-jobset-generatejobs-event.png[align="center"]
 
-It tracks what streaming jobs are in incomplete state (in `incompleteJobs` internal registry). At the time of `JobSet` being created, all streaming jobs are marked incomplete.
+`JobSet` tracks what streaming jobs are in incomplete state (in `incompleteJobs` internal registry).
+
+NOTE: At the beginning (when `JobSet` is created) all streaming jobs are incomplete.
 
 CAUTION: FIXME There is a duplication in how streaming jobs are tracked as completed since a `Job` knows about its `_endTime`. Is this a optimization? How much time does it buy us?
 
 A `JobSet` tracks the following moments in its lifecycle:
 
-* `submissionTime` being the time when the instance was created (FIXME when?).
+* `submissionTime` being the time when the instance was created.
 
 * `processingStartTime` being the time when the first streaming job in the collection was started.
 
@@ -252,15 +255,15 @@ NOTE: Total delay is always longer than processing delay.
 
 You can map a `JobSet` to a `BatchInfo` using `toBatchInfo` method.
 
-CAUTION: Where is `BatchInfo` used?
+NOTE: `BatchInfo` is used to create and post link:spark-streaming-streaminglisteners.adoc#StreamingListenerEvent[StreamingListenerBatchSubmitted], link:spark-streaming-streaminglisteners.adoc#StreamingListenerEvent[StreamingListenerBatchStarted], and link:spark-streaming-streaminglisteners.adoc#StreamingListenerEvent[StreamingListenerBatchCompleted] events.
 
-`JobSet` is used in:
+`JobSet` is used (created or processed) in:
 
+* link:spark-streaming-jobgenerator.adoc#GenerateJobs[JobGenerator.generateJobs]
 * <<submitJobSet, JobScheduler.submitJobSet(jobSet: JobSet)>>
-* JobScheduler.generateJobs
-* JobScheduler.restart
-* <<JobStarted, handleJobStart(job: Job, startTime: Long)>>
-* <<JobCompleted, handleJobCompletion(job: Job, completedTime: Long)>>
+* link:spark-streaming-jobgenerator.adoc#restarting[JobGenerator.restart]
+* <<JobStarted, JobScheduler.handleJobStart(job: Job, startTime: Long)>>
+* <<JobCompleted, JobScheduler.handleJobCompletion(job: Job, completedTime: Long)>>
 
 === [[InputInfoTracker]] InputInfoTracker
 
