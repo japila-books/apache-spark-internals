@@ -55,7 +55,7 @@ Time: [time] ms
 
 Internally, it calls `RDD.take(num + 1)` (see link:spark-rdd-operations.adoc#actions[take action]) on each RDD in the stream to print `num` elements. It then prints `...` if there are more elements in the RDD (that would otherwise exceed `num` elements being requested to print).
 
-It creates link:spark-streaming-foreachdstreams.adoc[ForEachDStream] stream and register it as an output stream.
+It creates a link:spark-streaming-foreachdstreams.adoc[ForEachDStream] stream and link:spark-streaming-dstreams.adoc#register[registers it as an output stream].
 
 === [[foreachRDD]] foreachRDD Operators
 
@@ -66,7 +66,7 @@ foreachRDD(foreachFunc: (RDD[T], Time) => Unit): Unit
 
 `foreachRDD` operator applies `foreachFunc` function to every RDD in the stream.
 
-It creates link:spark-streaming-foreachdstreams.adoc[ForEachDStream] stream and link:spark-streaming-dstreams.adoc#register[register it as an output stream].
+It creates a link:spark-streaming-foreachdstreams.adoc[ForEachDStream] stream and link:spark-streaming-dstreams.adoc#register[registers it as an output stream].
 
 ==== [[foreachRDD-example]] foreachRDD Example
 
@@ -139,3 +139,40 @@ reduceByKey(reduceFunc: (V, V) => V, partitioner: Partitioner): DStream[(K, V)]
 === [[mapWithState]] mapWithState Operator
 
 CAUTION: FIXME
+
+[source, scala]
+----
+mapWithState(spec: StateSpec[K, V, ST, MT]): MapWithStateDStream[K, V, ST, MT]
+----
+
+It is part of the set of additional operators available on DStreams of key-value pairs, i.e. `DStream[(K, V)]`.
+
+NOTE: `mapWithState` is added through an Scala implicit conversion `DStream.toPairDStreamFunctions`.
+
+`StateSpec.function` creates a `StateSpec` for `mapWithState` operator.
+
+Every `StateSpec.function` is `ClosureCleaner.clean` before being used (and passed along to `StateSpecImpl`).
+
+It creates a link:spark-streaming-mapwithstatedstreams.adoc[MapWithStateDStream] stream.
+
+=== [[mapWithState-example]] mapWithState Example
+
+[source, scala]
+----
+val clicks: InputDStream[(String, String)] = messages
+
+import org.apache.spark.streaming.StateSpec
+def mapping(batchTime: Time, key: String, value: Option[String], state: State[Int]) = {
+  println(s">>> batchTime = $batchTime")
+  println(s">>> key       = $key")
+  println(s">>> value     = $value")
+  println(s">>> state     = $state")
+  val sum = value.getOrElse("").size + state.getOption.getOrElse(0)
+  state.update(sum)
+  Some((key, value, sum))  // mapped value
+}
+val spec = StateSpec.function(mapping _)
+val statefulStream: MapWithStateDStream[String,String,Int,(String, Option[String], Int)] = clicks.mapWithState(spec)
+
+statefulStream.print()
+----
