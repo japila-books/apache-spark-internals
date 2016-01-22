@@ -1,0 +1,64 @@
+== Stateful Operators
+
+=== [[mapWithState]] mapWithState Operator
+
+[source, scala]
+----
+mapWithState(spec: StateSpec[K, V, ST, MT]): MapWithStateDStream[K, V, ST, MT]
+----
+
+`mapWithState` is part of the set of additional operators available on link:spark-streaming-dstreams.adoc[DStreams] of key-value pairs, i.e. instances of `DStream[(K, V)]`.
+
+NOTE: `mapWithState` is added through an Scala implicit conversion `DStream.toPairDStreamFunctions`.
+
+You create <<StateSpec, StateSpec>> instances for `mapWithState` operator using the factory methods `StateSpec.function`.
+
+`mapWithState` creates a link:spark-streaming-mapwithstatedstreams.adoc[MapWithStateDStream] stream.
+
+==== [[mapWithState-example]] mapWithState Example
+
+[source, scala]
+----
+val clicks: InputDStream[(String, String)] = messages
+
+import org.apache.spark.streaming.StateSpec
+def mapping(batchTime: Time, key: String, value: Option[String], state: State[Int]) = {
+  println(s">>> batchTime = $batchTime")
+  println(s">>> key       = $key")
+  println(s">>> value     = $value")
+  println(s">>> state     = $state")
+  val sum = value.getOrElse("").size + state.getOption.getOrElse(0)
+  state.update(sum)
+  Some((key, value, sum))  // mapped value
+}
+val spec = StateSpec.function(mapping _)
+val statefulStream: MapWithStateDStream[String,String,Int,(String, Option[String], Int)] = clicks.mapWithState(spec)
+
+statefulStream.print()
+----
+
+==== [[StateSpec]] StateSpec - Specification of mapWithState
+
+`StateSpec` is a specification of <<mapWithState, mapWithState>> and describes how the state RDD should work.
+
+NOTE: `StateSpec` is a Scala `sealed abstract class` and hence all the implementations are in the same compilation unit, i.e. source file.
+
+It provides the following:
+
+* `initialState` which is the initial state of the transformation, i.e. paired `RDD[(KeyType, StateType)`.
+
+* `numPartitions` which is the number of partitions of the state RDD. It uses link:spark-rdd-partitions.adoc#HashPartitioner[HashPartitioner] with the given number of partitions.
+
+* `partitioner` is the partitioner of the state RDD.
+
+* `timeout` that sets the idle duration after which the state of an _idle_ key will be removed. A key and its state is considered _idle_ if it has not received any data for at least the given idle duration.
+
+You create `StateSpec` instances using the factory methods `StateSpec.function`:
+
+[source, scala]
+----
+StateSpec.function(f: (Time, K, Option[V], State[S]) => Option[M]): StateSpec[K, V, S, M]
+StateSpec.function(f: (K, Option[V], State[S]) => M): StateSpec[K, V, S, M]
+----
+
+A `StateSpec.function` calls `ClosureCleaner.clean` before the input function can be used.

@@ -4,7 +4,7 @@ You use *stream operators* to apply transformations to the elements received fro
 
 NOTE: You may use RDDs from other (non-streaming) data sources.
 
-There are two types of operators:
+There are two main types of operators:
 
 * *transformations* that transform elements in input data RDDs
 * *output operators* that link:spark-streaming-dstreams.adoc#register[register input streams as output streams] so the execution starts.
@@ -33,9 +33,9 @@ Every `DStream` offers the following operators:
 * `countByValueAndWindow`
 * `union`
 
-NOTE: `DStream` companion object offers a Scala implicit to convert `DStream[(K, V)]` to `PairDStreamFunctions` with methods on DStreams of key-value pairs, e.g. <<mapWithState, mapWithState>>.
+NOTE: `DStream` companion object offers a Scala implicit to convert `DStream[(K, V)]` to `PairDStreamFunctions` with methods on DStreams of key-value pairs, e.g. link:spark-streaming-operators-stateful.adoc#mapWithState[mapWithState].
 
-Most streaming operators come with their own custom `DStream` to offer the service that very often boils down to overriding the link:spark-streaming-dstreams.adoc#contract[compute] method and applying corresponding link:spark-rdd-operations.adoc[RDD operator] on a generated RDD.
+Most streaming operators come with their own custom `DStream` to offer the service. It however very often boils down to overriding the link:spark-streaming-dstreams.adoc#contract[compute] method and applying corresponding link:spark-rdd-operations.adoc[RDD operator] on a generated RDD.
 
 === [[print]] print Operator
 
@@ -134,45 +134,4 @@ val mappedClicks: ... = clicks.map(...)
 reduceByKey(reduceFunc: (V, V) => V): DStream[(K, V)]
 reduceByKey(reduceFunc: (V, V) => V, numPartitions: Int): DStream[(K, V)]
 reduceByKey(reduceFunc: (V, V) => V, partitioner: Partitioner): DStream[(K, V)]
-----
-
-=== [[mapWithState]] mapWithState Operator
-
-CAUTION: FIXME
-
-[source, scala]
-----
-mapWithState(spec: StateSpec[K, V, ST, MT]): MapWithStateDStream[K, V, ST, MT]
-----
-
-It is part of the set of additional operators available on DStreams of key-value pairs, i.e. `DStream[(K, V)]`.
-
-NOTE: `mapWithState` is added through an Scala implicit conversion `DStream.toPairDStreamFunctions`.
-
-`StateSpec.function` creates a `StateSpec` for `mapWithState` operator.
-
-Every `StateSpec.function` is `ClosureCleaner.clean` before being used (and passed along to `StateSpecImpl`).
-
-It creates a link:spark-streaming-mapwithstatedstreams.adoc[MapWithStateDStream] stream.
-
-=== [[mapWithState-example]] mapWithState Example
-
-[source, scala]
-----
-val clicks: InputDStream[(String, String)] = messages
-
-import org.apache.spark.streaming.StateSpec
-def mapping(batchTime: Time, key: String, value: Option[String], state: State[Int]) = {
-  println(s">>> batchTime = $batchTime")
-  println(s">>> key       = $key")
-  println(s">>> value     = $value")
-  println(s">>> state     = $state")
-  val sum = value.getOrElse("").size + state.getOption.getOrElse(0)
-  state.update(sum)
-  Some((key, value, sum))  // mapped value
-}
-val spec = StateSpec.function(mapping _)
-val statefulStream: MapWithStateDStream[String,String,Int,(String, Option[String], Int)] = clicks.mapWithState(spec)
-
-statefulStream.print()
 ----
