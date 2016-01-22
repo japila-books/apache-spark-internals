@@ -1,4 +1,4 @@
-== Stateful Operators
+== Working with State using Stateful Operators
 
 === [[mapWithState]] mapWithState Operator
 
@@ -22,28 +22,28 @@ You create <<StateSpec, StateSpec>> instances for `mapWithState` operator using 
 val clicks: InputDStream[(String, String)] = messages
 
 import org.apache.spark.streaming.StateSpec
-def mapping(batchTime: Time, key: String, value: Option[String], state: State[Int]) = {
+val updateState = (batchTime: Time, key: String, value: Option[String], state: State[Int]) => {
   println(s">>> batchTime = $batchTime")
   println(s">>> key       = $key")
   println(s">>> value     = $value")
   println(s">>> state     = $state")
   val sum = value.getOrElse("").size + state.getOption.getOrElse(0)
   state.update(sum)
-  Some((key, value, sum))  // mapped value
+  Some((key, value, sum)) // mapped value
 }
-val spec = StateSpec.function(mapping _)
-val statefulStream: MapWithStateDStream[String,String,Int,(String, Option[String], Int)] = clicks.mapWithState(spec)
+val spec = StateSpec.function(updateState)
+val mappedStatefulStream: MapWithStateDStream[String,String,Int,(String, Option[String], Int)] = clicks.mapWithState(spec)
 
-statefulStream.print()
+mappedStatefulStream.print()
 ----
 
 ==== [[StateSpec]] StateSpec - Specification of mapWithState
 
-`StateSpec` is a specification of <<mapWithState, mapWithState>> and describes how the state RDD should work.
+`StateSpec` is a specification of <<mapWithState, mapWithState>> and describes how the state RDD should work and maintain a state.
 
 NOTE: `StateSpec` is a Scala `sealed abstract class` and hence all the implementations are in the same compilation unit, i.e. source file.
 
-It provides the following:
+It requires the following:
 
 * `initialState` which is the initial state of the transformation, i.e. paired `RDD[(KeyType, StateType)`.
 
@@ -53,12 +53,15 @@ It provides the following:
 
 * `timeout` that sets the idle duration after which the state of an _idle_ key will be removed. A key and its state is considered _idle_ if it has not received any data for at least the given idle duration.
 
-You create `StateSpec` instances using the factory methods `StateSpec.function`:
+You create `StateSpec` instances using the factory methods `StateSpec.function` (that differ in whether or not you want to access to the batch time and return optional mapped value):
 
 [source, scala]
 ----
+// batch time and optional mapped return value
 StateSpec.function(f: (Time, K, Option[V], State[S]) => Option[M]): StateSpec[K, V, S, M]
+
+// no batch time and mandatory mapped value
 StateSpec.function(f: (K, Option[V], State[S]) => M): StateSpec[K, V, S, M]
 ----
 
-A `StateSpec.function` calls `ClosureCleaner.clean` before the input function can be used.
+Internally, a `StateSpec.function` calls `ClosureCleaner.clean` to clean up the input function and ensure that it can be serialized and sent over the wire (cf. link:spark-sparkcontext.adoc#closure-cleaning[Closure Cleaning (clean method)]). It will throw an exception when the input function cannot be serialized.
