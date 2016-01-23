@@ -1,0 +1,34 @@
+== StateDStream
+
+`StateDStream` is a custom link:spark-streaming-dstreams.adoc[DStream] being the result of link:spark-streaming-operators.adoc#updateStateByKey[updateStateByKey] stateful operator.
+
+It requires `parent` key-value pair stream, `updateFunc` state update function, a `partitioner`, whether or not to `preservePartitioning` and an optional key-value pair `initialRDD`.
+
+It works with link:spark-rdd-caching.adoc#StorageLevel[MEMORY_ONLY_SER] storage level.
+
+It solely depends on the `parent` key-value pair stream.
+
+The slide duration is exactly the same as that in `parent`.
+
+It forces link:spark-streaming-checkpointing.adoc[checkpointing] regardless of configuration (as `mustCheckpoint` is enabled).
+
+When link:spark-streaming-dstreams.adoc#contract[computing a RDD] it first attempts to get the *state RDD* for the previous batch (using link:spark-streaming-dstreams.adoc#getOrCompute[DStream.getOrCompute]). If there is one, `parent` stream is requested for a RDD for the current batch (using link:spark-streaming-dstreams.adoc#getOrCompute[DStream.getOrCompute]). If `parent` has computed one,  <<computeUsingPreviousRDD, computeUsingPreviousRDD(parentRDD, prevStateRDD)>> is called.
+
+Otherwise, when `parent` has not generated a RDD for the current batch but the state RDD existed, `updateFn` is called for every key of the state RDD to generate a new state per partition (using link:spark-rdd-operators-mapPartitions.adoc[RDD.mapPartitions])
+
+NOTE: No input data for already-running input stream triggers (re)computation of the state RDD (per partition).
+
+.Computing stateful RDDs (StateDStream.compute)
+image::images/spark-streaming-StateDStream-compute.png[align="center"]
+
+If the state RDD has been found, which means that this is the first input data batch, `parent` stream is requested to link:spark-streaming-dstreams.adoc#getOrCompute[getOrCompute] the RDD for the current batch.
+
+Otherwise, when no state RDD exists, `parent` stream is requested for a RDD for the current batch (using link:spark-streaming-dstreams.adoc#getOrCompute[DStream.getOrCompute]) and when no RDD was generated for the batch, no computation is triggered.
+
+NOTE: When the stream processing starts, i.e. no state RDD exists, and there is no input data received, no computation is triggered.
+
+Given no state RDD and with `parent` RDD computed, when `initialRDD` is `NONE`, the input data batch (as `parent` RDD) is grouped by key (using link:spark-rdd-partitions.adoc#PairRDDFunctions[groupByKey] with `partitioner`) and then the update state function `updateFunc` is applied to the partitioned input data (using link:spark-rdd-operators-mapPartitions.adoc[mapPartitions]) with `None` state. Otherwise, <<computeUsingPreviousRDD, computeUsingPreviousRDD(parentRDD, initialStateRDD)>> is called.
+
+=== [[computeUsingPreviousRDD]] computeUsingPreviousRDD
+
+CAUTION: FIXME
