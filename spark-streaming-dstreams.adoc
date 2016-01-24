@@ -1,12 +1,8 @@
 == Discretized Streams (DStreams)
 
-*Discretized Stream (DStream)* is the fundamental concept of Spark Streaming. It is basically a stream of link:spark-rdd.adoc[RDDs] with elements being the data received from input streams over link:spark-streaming-streamingcontext.adoc[batch duration].
+*Discretized Stream (DStream)* is the fundamental concept of Spark Streaming. It is basically a stream of link:spark-rdd.adoc[RDDs] with elements being the data received from input streams over link:spark-streaming-streamingcontext.adoc[batch duration] (possibly extended in scope by link:spark-streaming-windowedoperators.adoc[windowed] or link:spark-streaming-operators-stateful.adoc[stateful] operators).
 
-It is modelled as `org.apache.spark.streaming.dstream.DStream` abstract class.
-
-To create a `DStream` instance you use link:spark-streaming-streamingcontext.adoc#creating-receivers[StreamingContext] or other specialized add-ons for external input data sources that extend the built-in input stream constructors, e.g. link:spark-streaming-kafka.adoc[Kafka].
-
-NOTE: New `DStreams` can only be created (and hence registered) before link:spark-streaming-streamingcontext.adoc#start[StreamingContext is started]. All other states lead to `IllegalStateException` being thrown.
+It is represented as https://github.com/apache/spark/blob/master/streaming/src/main/scala/org/apache/spark/streaming/dstream/DStream.scala[org.apache.spark.streaming.dstream.DStream] abstract class.
 
 [TIP]
 ====
@@ -25,31 +21,73 @@ Refer to link:spark-logging.adoc[Logging].
 
 A `DStream` is defined by the following properties (with the names of the corresponding methods that subclasses have to implement):
 
-* A collection of parent `DStreams` that this `DStream` depends on.
+* *dstream dependencies*, i.e. a collection of `DStreams` that this `DStream` depends on. They are often referred to as *parent dstreams*.
 +
 ```
 def dependencies: List[DStream[_]]
 ```
 
-* A *slide duration* being a time interval after which the stream generates a RDD.
+* *slide duration*, i.e. a time interval after which the stream is requested to generate a RDD out of input data it consumes.
 +
 ```
 def slideDuration: Duration
 ```
 
-* How to *compute* (_generate_) a RDD for the given batch.
+* How to *compute* (_generate_) an optional RDD for the given batch if any. `validTime` is a point in time that marks the end boundary of slide duration.
 +
 ```
 def compute(validTime: Time): Option[RDD[T]]
 ```
 
-=== [[validateAtStart]] Configuration Validation at Start
+=== [[creating-dstreams]] Creating DStreams
+
+You can create a `DStream` instance through link:spark-streaming-streamingcontext.adoc#creating-receivers[StreamingContext] or other specialized add-ons for external input data sources that extend the built-in input stream constructors, e.g. link:spark-streaming-kafka.adoc[Kafka].
+
+NOTE: New `DStreams` can only be created (and hence registered) before link:spark-streaming-streamingcontext.adoc#start[StreamingContext is started]. All other states lead to `IllegalStateException` being thrown.
+
+=== [[initialize]] Initializing DStreams (initialize method)
+
+After <<creating-dstreams, a DStream is created>>, it is initialized by calling internal `initialize(time: Time)` method.
+
+It sets *zero time* (as `zeroTime`) which is the time when it was initialized. The zero time of a dstream can only be set once or be set again to the same zero time. Otherwise, it throws `SparkException` as follows:
+
+```
+ZeroTime is already initialized to [zeroTime], cannot initialize it again to [time]
+```
+
+It makes sure that <<checkpointing, checkpoint interval>> is defined when <<checkpointing, mustCheckpoint>> was enabled (by default, `mustCheckpoint` is disabled). If `mustCheckpoint` is enabled and the checkpoint interval was not set, it becomes the slide interval or 10 seconds, whichever is longer. You should see the following INFO message in the logs when the checkpoint interval was set automatically:
+
+```
+INFO [DStreamType]: Checkpoint interval automatically set to [checkpointDuration]
+```
+
+It then ensures that <<internal-registries, rememberDuration>> is at least twice the checkpoint interval (only if defined) or the slide duration.
+
+At the very end, it initializes the parent dstreams (see <<contract, dependencies>>) that recursively initializes the entire graph of dstreams.
+
+=== [[checkpointing]] Checkpointing
+
+DStreams can link:spark-streaming-checkpointing.adoc[checkpoint] input data at specified time intervals.
+
+The following settings are internal to a dstream and define how it checkpoints the input data if any.
+
+* `mustCheckpoint` (default: `false`) is an internal private flag that marks a dstream as being checkpointed (`true`) or not (`false`). It is an implementation detail and the author of a `DStream` implementation sets it.
++
+Refer to <<initialize, Initializing DStreams (initialize method)>> to learn how it is used to set the checkpoint interval, i.e. `checkpointDuration`.
+
+* `checkpointDuration` is a configurable property that says how often a dstream checkpoints data. It is often called *checkpoint interval*. If not set explicitly, but the dstream is checkpointed, it will be while <<initialize, initializing dstreams>>.
+
+* `checkpointData` is an instance of `DStreamCheckpointData`.
+
+* `restoredFromCheckpointData` (default: `false`) is an internal flag to describe the initial state of a dstream, i.e.. whether (`true`) or not (`false`) it was started by restoring state from checkpoint.
+
+=== [[validateAtStart]] Validating Configuration at Startup
 
 CAUTION: FIXME What does it do and when is it called?
 
 === [[register]] Registering Output Streams (register method)
 
-`DStream` by design has no notion of being an input or output stream. It is link:spark-streaming-dstreamgraph.adoc[DStreamGraph] to know and be able to differentiate between input and output stream.
+`DStream` by design has no notion of being an input or output stream. It is link:spark-streaming-dstreamgraph.adoc[DStreamGraph] to know and be able to differentiate between input and output streams.
 
 `DStream` comes with internal `register` method that registers a `DStream` as an output stream.
 
