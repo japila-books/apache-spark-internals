@@ -4,7 +4,7 @@
 
 NOTE: `JobGenerator` is completely owned and managed by link:spark-streaming-jobscheduler.adoc[JobScheduler], i.e. `JobScheduler` creates an instance and starts it (while link:spark-streaming-jobscheduler.adoc#starting[being started]).
 
-When `JobGenerator` is created, it creates `timer` link:spark-streaming-jobscheduler.adoc#RecurringTimer[RecurringTimer] (with the name being `JobGenerator`) that later, when <<starting, started>>, posts link:spark-streaming.adoc#GenerateJobs[GenerateJobs] events to <<eventLoop, JobGenerator eventLoop>> (it is only when `JobGenerator` is started when the JobGenerator eventLoop starts processing events).
+When `JobGenerator` is created, it creates `timer` link:spark-streaming-recurringtimer.adoc[RecurringTimer] (with the name being `JobGenerator`) that later, when <<starting, started>>, posts <<GenerateJobs, GenerateJobs>> every link:spark-streaming-dstreamgraph.adoc[DStreamGraph.batchDuration] milliseconds (it is only when `JobGenerator` is started when the JobGenerator eventLoop starts processing events).
 
 [TIP]
 ====
@@ -43,7 +43,13 @@ Depending on whether checkpoint directory is available or not it <<restarting, r
 startFirstTime(): Unit
 ----
 
-When `startFirstTime` is called, it starts link:spark-streaming-dstreamgraph.adoc[DStreamGraph] and the `timer` that posts <<GenerateJobs, GenerateJobs>> every link:spark-streaming-dstreamgraph.adoc[DStreamGraph.batchDuration] milliseconds. It uses the internal `startFirstTime` method.
+`startFirstTime` starts link:spark-streaming-dstreamgraph.adoc[DStreamGraph] and the `timer` link:spark-streaming-recurringtimer.adoc[RecurringTimer].
+
+It first requests `timer` for the *start time* and passes it along to link:spark-streaming-dstreamgraph.adoc#start[DStreamGraph.start] and link:spark-streaming-recurringtimer.adoc[RecurringTimer.start].
+
+NOTE: The start time has the property of being a multiple of link:spark-streaming-dstreamgraph.adoc#batchDuration[batch interval] and after the current system time. It is in the hands of link:spark-streaming-recurringtimer.adoc[RecurringTimer] to offer a time with the property.
+
+Because of the property of the start time, link:spark-streaming-dstreamgraph.adoc#start[DStreamGraph.start] is passed the time of one batch interval before the start time.
 
 NOTE: `startFirstTime` is called when <<starting, JobGenerator starts (and checkpoint directory is not available)>>.
 
@@ -81,7 +87,7 @@ See below for the extensive coverage of supported event types.
 
 ==== [[GenerateJobs]] GenerateJobs Event
 
-NOTE: `GenerateJobs` events are posted regularly by the internal `timer` link:spark-streaming-jobscheduler.adoc#RecurringTimer[RecurringTimer], every link:spark-streaming-dstreamgraph.adoc#batchDuration[batch interval].
+NOTE: `GenerateJobs` events are posted regularly by the internal `timer` link:spark-streaming-recurringtimer.adoc[RecurringTimer], every link:spark-streaming-dstreamgraph.adoc#batchDuration[batch interval].
 
 When `GenerateJobs(time: Time)` event is received `JobGenerator.generateJobs(time: Time)` is called to link:spark-streaming-jobscheduler.adoc#submitJobSet[submit a collection of streaming jobs for execution].
 
