@@ -27,7 +27,7 @@ NOTE: `JobGenerator` is started when link:spark-streaming-jobscheduler.adoc#star
 
 It starts the internal <<eventLoop, eventLoop>> that processes `JobGeneratorEvent` events.
 
-When it started for the first time (not from checkpoint), it starts link:spark-streaming-dstreamgraph.adoc[DStreamGraph] and the `timer` that posts <<GenerateJobs, GenerateJobs>> every link:spark-streaming-dstreamgraph.adoc[DStreamGraph.batchDuration] milliseconds.
+When it started for the first time (not from checkpoint), it starts link:spark-streaming-dstreamgraph.adoc[DStreamGraph] and the `timer` that posts <<GenerateJobs, GenerateJobs>> every link:spark-streaming-dstreamgraph.adoc[DStreamGraph.batchDuration] milliseconds. It uses the internal `startFirstTime` method.
 
 You should see the following INFO message in the logs:
 
@@ -94,6 +94,18 @@ It marks the batch fully processed (saving the `time` in the internal `lastProce
 ==== [[DoCheckpoint]] DoCheckpoint Event
 
 CAUTION: FIXME
+
+It calls `doCheckpoint(time: Time, clearCheckpointDataLater: Boolean)` method.
+
+`doCheckpoint` method does nothing when `shouldCheckpoint` is disabled or the current batch `time` is not a multiplier of checkpoint interval (as `ssc.checkpointDuration`).
+
+Otherwise, when it should do checkpointing, you should see the following INFO message in the logs:
+
+```
+INFO JobGenerator: Checkpointing graph for time [time] ms
+```
+
+It then executes link:spark-streaming-dstreamgraph.adoc[DStreamGraph.updateCheckpointData(time)] and `CheckpointWriter.write(new Checkpoint(ssc, time), clearCheckpointDataLater)`.
 
 ==== [[ClearCheckpointData]] ClearCheckpointData Event
 

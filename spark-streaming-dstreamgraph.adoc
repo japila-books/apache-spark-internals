@@ -1,6 +1,6 @@
 == DStreamGraph
 
-`DStreamGraph` (is a final helper class that) manages *input* and *output dstreams*.
+`DStreamGraph` (is a final helper class that) manages *input* and *output dstreams*. It also holds <<zeroTime, zero time>> for the other components that marks the time when the <<start, dstream graph has been started>>.
 
 It maintains the collections of link:spark-streaming-inputdstreams.adoc[InputDStream] instances (as `inputStreams`) and output link:spark-streaming-dstreams.adoc[DStream] instances (as `outputStreams`), but, more importantly, <<generateJobs, it generates streaming jobs for output streams for a batch>>.
 
@@ -30,20 +30,43 @@ Refer to link:spark-logging.adoc[Logging].
 
 *Zero time* (internally `zeroTime`) is the time when <<start, DStreamGraph has been started>>.
 
-=== [[start]] Start Method
+It is passed on down the output dstream graph so link:spark-streaming-dstreams.adoc#initialize[output dstreams can initialize themselves].
+
+=== [[startTime]] Start Time (aka startTime)
+
+*Start time* (internally `startTime`) is the time when <<start, DStreamGraph has been started>> or <<restart, restarted>>.
+
+NOTE: At regular start start time is exactly <<zeroTime, zero time>>.
+
+=== [[start]] start Method
 
 [source, scala]
 ----
 start(time: Time): Unit
 ----
 
-When `DStreamGraph` is started (using `start` method), it sets <<zeroTime, zero time>> and *start time* (`startTime`).
+When `DStreamGraph` is started (using `start` method), it sets <<zeroTime, zero time>> and <<startTime, start time>>.
+
+NOTE: `start` method is called when link:spark-streaming-jobgenerator.adoc#starting[JobGenerator starts for the first time] (not from a checkpoint).
 
 NOTE: You can start `DStreamGraph` as many times until `time` is not `null` and <<zeroTime, zero time>> has been set.
 
 (output streams) It then walks over the collection of output dstreams and for each output dstream, one at a time, calls their link:spark-streaming-dstreams.adoc#initialize[initialize(zeroTime)], link:spark-streaming-dstreams.adoc#remember[remember(rememberDuration)], and link:spark-streaming-dstreams.adoc#validateAtStart[validateAtStart] methods.
 
 (input streams) When all the output streams are processed, it starts the input dstreams (in parallel) using `start` method.
+
+=== [[restart]] restart Method
+
+[source, scala]
+----
+restart(time: Time): Unit
+----
+
+`restart` sets <<startTime, start time>> to be `time` input parameter.
+
+NOTE: This is the only moment when <<zeroTime, zero time>> can be different than <<startTime, start time>>.
+
+CAUTION: `restart` doesn't seem to be called ever.
 
 === [[batchDuration]] Batch Interval
 
@@ -91,4 +114,27 @@ When finishes, you should see the following DEBUG message in the logs:
 
 ```
 DEBUG DStreamGraph: Cleared old metadata for time [time] ms
+```
+
+=== [[updateCheckpointData]] updateCheckpointData
+
+[source, scala]
+----
+updateCheckpointData(time: Time): Unit
+----
+
+NOTE: It is called when link:spark-streaming-jobgenerator.adoc#DoCheckpoint[JobGenerator processes DoCheckpoint events].
+
+When `updateCheckpointData` is called, you should see the following INFO message in the logs:
+
+```
+INFO DStreamGraph: Updating checkpoint data for time [time] ms
+```
+
+It then walks over every output dstream and calls its link:spark-streaming-dstreams.adoc#updateCheckpointData[updateCheckpointData(time)].
+
+When `updateCheckpointData` finishes it prints out the following INFO message to the logs:
+
+```
+INFO DStreamGraph: Updated checkpoint data for time [time] ms
 ```
