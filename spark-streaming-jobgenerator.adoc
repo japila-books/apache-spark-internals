@@ -1,10 +1,10 @@
 == JobGenerator
 
-`JobGenerator` asynchronously <<GenerateJobs, generates streaming jobs>> at link:spark-streaming-dstreamgraph.adoc#batchDuration[batch duration] intervals.
+`JobGenerator` asynchronously <<GenerateJobs, generates streaming jobs>> at link:spark-streaming-dstreamgraph.adoc#batchDuration[batch intervals].
 
 NOTE: `JobGenerator` is completely owned and managed by link:spark-streaming-jobscheduler.adoc[JobScheduler], i.e. `JobScheduler` creates an instance and starts it (while link:spark-streaming-jobscheduler.adoc#starting[being started]).
 
-When `JobGenerator` is created, it creates `timer` link:spark-streaming-jobscheduler.adoc#RecurringTimer[RecurringTimer] (with the name being `JobGenerator`) that later, when started, posts link:spark-streaming.adoc#GenerateJobs[GenerateJobs] events to <<eventLoop, JobGenerator eventLoop>> (it is only when `JobGenerator` is started when the JobGenerator eventLoop starts processing events).
+When `JobGenerator` is created, it creates `timer` link:spark-streaming-jobscheduler.adoc#RecurringTimer[RecurringTimer] (with the name being `JobGenerator`) that later, when <<starting, started>>, posts link:spark-streaming.adoc#GenerateJobs[GenerateJobs] events to <<eventLoop, JobGenerator eventLoop>> (it is only when `JobGenerator` is started when the JobGenerator eventLoop starts processing events).
 
 [TIP]
 ====
@@ -21,21 +21,37 @@ Refer to link:spark-logging.adoc[Logging].
 
 === [[starting]] Starting JobGenerator (start method)
 
-`JobGenerator.start()` starts a `JobGenerator`.
+[source, scala]
+----
+start(): Unit
+----
 
-NOTE: `JobGenerator` is started when link:spark-streaming-jobscheduler.adoc#starting[JobScheduler starts].
+`start` method creates and starts the internal <<eventLoop, eventLoop>>.
 
-It starts the internal <<eventLoop, eventLoop>> that processes `JobGeneratorEvent` events.
+NOTE: `start` is called when link:spark-streaming-jobscheduler.adoc#starting[JobScheduler starts].
 
-When it started for the first time (not from checkpoint), it starts link:spark-streaming-dstreamgraph.adoc[DStreamGraph] and the `timer` that posts <<GenerateJobs, GenerateJobs>> every link:spark-streaming-dstreamgraph.adoc[DStreamGraph.batchDuration] milliseconds. It uses the internal `startFirstTime` method.
+It first checks whether or not the internal <<eventLoop, eventLoop>> has already been created which is the way to know that the JobScheduler was started. If so, it does nothing and exists.
+
+It creates `checkpointWriter`. It then creates and starts the internal <<eventLoop, eventLoop>>.
+
+Depending on whether checkpoint directory is available or not it <<restarting, restarts itself>> (from the checkpoint directory) or <<startFirstTime, starts>>, respectively.
+
+=== [[startFirstTime]] startFirstTime Method
+
+[source, scala]
+----
+startFirstTime(): Unit
+----
+
+When `startFirstTime` is called, it starts link:spark-streaming-dstreamgraph.adoc[DStreamGraph] and the `timer` that posts <<GenerateJobs, GenerateJobs>> every link:spark-streaming-dstreamgraph.adoc[DStreamGraph.batchDuration] milliseconds. It uses the internal `startFirstTime` method.
+
+NOTE: `startFirstTime` is called when <<starting, JobGenerator starts (and checkpoint directory is not available)>>.
 
 You should see the following INFO message in the logs:
 
 ```
 INFO JobGenerator: Started JobGenerator at [startTime] ms
 ```
-
-CAUTION: FIXME What happens when checkpoint exists.
 
 === [[stopping]] Stopping JobGenerator (stop method)
 
