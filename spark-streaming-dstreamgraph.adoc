@@ -1,17 +1,10 @@
 == DStreamGraph
 
-`DStreamGraph` (is a final helper class that) manages *input* and *output dstreams*. It also holds <<zeroTime, zero time>> for the other components that marks the time when the <<start, dstream graph has been started>>.
+`DStreamGraph` (is a final helper class that) manages *input* and *output dstreams*. It also holds <<zeroTime, zero time>> for the other components that marks the time when <<start, it was started>>.
 
-It maintains the collections of link:spark-streaming-inputdstreams.adoc[InputDStream] instances (as `inputStreams`) and output link:spark-streaming-dstreams.adoc[DStream] instances (as `outputStreams`), but, more importantly, <<generateJobs, it generates streaming jobs for output streams for a batch>>.
+`DStreamGraph` maintains the collections of link:spark-streaming-inputdstreams.adoc[InputDStream] instances (as `inputStreams`) and output link:spark-streaming-dstreams.adoc[DStream] instances (as `outputStreams`), but, more importantly, <<generateJobs, it generates streaming jobs for output streams for a batch (time)>>.
 
-[NOTE]
-====
-`DStreamGraph` holds `batchDuration` (using `setBatchDuration(duration: Duration)`) for other parts of the Streaming application.
-
-It appears that it is _the_ place for the value since it must be set before link:spark-streaming-jobgenerator.adoc[JobGenerator] can be instantiated.
-
-It _is_ set while link:spark-streaming-streamingcontext.adoc[StreamingContext] is being instantiated and is validated (using `validate()` method of `StreamingContext` and `DStreamGraph`) before `StreamingContext` is started.
-====
+`DStreamGraph` holds the <<batchDuration, batch interval>> for the other parts of a Streaming application.
 
 [TIP]
 ====
@@ -37,6 +30,22 @@ It is passed on down the output dstream graph so link:spark-streaming-dstreams.a
 *Start time* (internally `startTime`) is the time when <<start, DStreamGraph has been started>> or <<restart, restarted>>.
 
 NOTE: At regular start start time is exactly <<zeroTime, zero time>>.
+
+=== [[batchDuration]] Batch Interval (aka batchDuration)
+
+`DStreamGraph` holds the *batch interval* (as `batchDuration`) for the other parts of a Streaming application.
+
+`setBatchDuration(duration: Duration)` is the method to set the batch interval.
+
+It appears that it is _the_ place for the value since it must be set before link:spark-streaming-jobgenerator.adoc[JobGenerator] can be instantiated.
+
+It _is_ set while link:spark-streaming-streamingcontext.adoc[StreamingContext] is being instantiated and is validated (using `validate()` method of `StreamingContext` and `DStreamGraph`) before `StreamingContext` is started.
+
+=== [[output-stream]] Output Streams
+
+`DStream` by design has no notion of being an output dstream. To mark a dstream as output you need to link:spark-streaming-dstreams.adoc#register[register a dstream (using DStream.register method)] which happens for...FIXME
+
+
 
 === [[start]] start Method
 
@@ -68,13 +77,14 @@ NOTE: This is the only moment when <<zeroTime, zero time>> can be different than
 
 CAUTION: `restart` doesn't seem to be called ever.
 
-=== [[batchDuration]] Batch Interval
-
-CAUTION: FIXME
-
 === [[generateJobs]] Generating Streaming Jobs for Output Streams for Batch Time
 
-`generateJobs(time: Time): Seq[Job]` generates a collection of streaming jobs for output streams for a given batch `time`. It walks over each link:spark-streaming-dstreams.adoc#register[registered output stream] (in `outputStreams` internal registry) and link:spark-streaming-dstreams.adoc#generateJob[requests the streams for a streaming job]
+[source, scala]
+----
+generateJobs(time: Time): Seq[Job]
+----
+
+`generateJobs` method generates a collection of streaming jobs for output streams for a given batch `time`. It walks over each link:spark-streaming-dstreams.adoc#register[registered output stream] (in `outputStreams` internal registry) and link:spark-streaming-dstreams.adoc#generateJob[requests each stream for a streaming job]
 
 NOTE: `generateJobs` is called by link:spark-streaming-jobgenerator.adoc[JobGenerator] to link:spark-streaming-jobgenerator.adoc#GenerateJobs[generate jobs for a given batch time] or link:spark-streaming-jobgenerator.adoc#restarting[when restarted from checkpoint].
 
@@ -92,7 +102,7 @@ Right before the method finishes, you should see the following DEBUG message wit
 DEBUG DStreamGraph: Generated [jobs.length] jobs for time [time] ms
 ```
 
-=== [[dstreamgraph-validation]] Validation Check (using validate method)
+=== [[dstreamgraph-validation]] Validation Check (validate method)
 
 `validate()` method checks whether batch duration and at least one output stream have been set. It will throw `java.lang.IllegalArgumentException` when either is not.
 
@@ -116,7 +126,7 @@ When finishes, you should see the following DEBUG message in the logs:
 DEBUG DStreamGraph: Cleared old metadata for time [time] ms
 ```
 
-=== [[updateCheckpointData]] updateCheckpointData
+=== [[updateCheckpointData]] updateCheckpointData Method
 
 [source, scala]
 ----

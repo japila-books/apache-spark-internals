@@ -2,6 +2,8 @@
 
 *Discretized Stream (DStream)* is the fundamental concept of Spark Streaming. It is basically a stream of link:spark-rdd.adoc[RDDs] with elements being the data received from input streams over link:spark-streaming-streamingcontext.adoc[batch duration] (possibly extended in scope by link:spark-streaming-windowedoperators.adoc[windowed] or link:spark-streaming-operators-stateful.adoc[stateful] operators).
 
+There is no notion of input and output dstreams. DStreams are all instances of `DStream` abstract class (see <<contract, DStream Contract>> in this document). You may however _correctly_ assume that all dstreams are input. And it happens to be so until you <<register, register a dstream>> that marks it as output.
+
 It is represented as https://github.com/apache/spark/blob/master/streaming/src/main/scala/org/apache/spark/streaming/dstream/DStream.scala[org.apache.spark.streaming.dstream.DStream] abstract class.
 
 [TIP]
@@ -41,13 +43,21 @@ def compute(validTime: Time): Option[RDD[T]]
 
 === [[creating-dstreams]] Creating DStreams
 
-You can create a `DStream` instance through link:spark-streaming-streamingcontext.adoc#creating-receivers[StreamingContext] or other specialized add-ons for external input data sources that extend the built-in input stream constructors, e.g. link:spark-streaming-kafka.adoc[Kafka].
+You can link:spark-streaming-streamingcontext.adoc#creating-receivers[create a dstream through streaming context] or other specialized add-ons for external input data sources that extend the built-in input stream constructors, e.g. link:spark-streaming-kafka.adoc[Kafka].
 
-NOTE: New `DStreams` can only be created (and hence registered) before link:spark-streaming-streamingcontext.adoc#start[StreamingContext is started]. All other states lead to `IllegalStateException` being thrown.
+NOTE: DStreams can only be created before link:spark-streaming-streamingcontext.adoc#start[StreamingContext is started].
 
 === [[zeroTime]] Zero Time (aka zeroTime)
 
 *Zero time* (internally `zeroTime`) is the time when a <<initialize, dstream was initialized>>.
+
+CAUTION: FIXME Why is this important? Why is this needed at all since DStreamGraph has the zero time?
+
+=== [[rememberDuration]] Remember Interval (aka rememberDuration)
+
+*Remember interval* (internally `rememberDuration`) is the time interval for how long to remember every RDD created.
+
+CAUTION: FIXME What is to remember a RDD? Are they remembered by default? Why?
 
 === [[initialize]] Initializing DStreams (initialize method)
 
@@ -66,19 +76,19 @@ The zero time of a dstream can only be set once or be set again to the same zero
 ZeroTime is already initialized to [zeroTime], cannot initialize it again to [time]
 ```
 
-It verifies that <<checkpointing, checkpoint interval>> is defined when <<checkpointing, mustCheckpoint>> was enabled (by default, `mustCheckpoint` is disabled). If `mustCheckpoint` is enabled and the checkpoint interval was not set, it becomes the slide interval or 10 seconds, whichever is longer. You should see the following INFO message in the logs when the checkpoint interval was set automatically:
+It verifies that <<checkpointing, checkpoint interval>> is defined when <<checkpointing, mustCheckpoint>> was enabled.
+
+NOTE: The internal `mustCheckpoint` flag is disabled by default. It is set by custom dstreams like link:spark-streaming-statedstreams.adoc[StateDStreams].
+
+If `mustCheckpoint` is enabled and the checkpoint interval was not set, it is automatically set to the slide interval or 10 seconds, whichever is longer. You should see the following INFO message in the logs when the checkpoint interval was set automatically:
 
 ```
 INFO [DStreamType]: Checkpoint interval automatically set to [checkpointDuration]
 ```
 
-It then ensures that <<internal-registries, rememberDuration>> is at least twice the checkpoint interval (only if defined) or the slide duration.
+It then ensures that <<rememberDuration, remember interval>> is at least twice the checkpoint interval (only if defined) or the slide duration.
 
-At the very end, it initializes the parent dstreams (see <<contract, dependencies>>) that recursively initializes the entire graph of dstreams.
-
-=== [[rememberDuration]] Remember Interval (aka rememberDuration)
-
-*Remember interval* (internally `rememberDuration`) is the time to remember every RDD created.
+At the very end, it initializes the parent dstreams (available as <<contract, dependencies>>) that recursively initializes the entire graph of dstreams.
 
 === [[remember]] remember Method
 
@@ -123,7 +133,12 @@ CAUTION: FIXME Describe me!
 
 === [[register]] Registering Output Streams (register method)
 
-`DStream` by design has no notion of being an input or output stream. It is link:spark-streaming-dstreamgraph.adoc[DStreamGraph] to know and be able to differentiate between input and output streams.
+[source, scala]
+----
+register(): DStream[T]
+----
+
+`DStream` by design has no notion of being an output stream. It is link:spark-streaming-dstreamgraph.adoc[DStreamGraph] to know and be able to differentiate between input and output streams.
 
 `DStream` comes with internal `register` method that registers a `DStream` as an output stream.
 
@@ -131,7 +146,12 @@ The internal private `foreachRDD` method uses `register` to register output stre
 
 === [[generateJob]] Generating Streaming Jobs (generateJob method)
 
-The internal `DStream.generateJob(time: Time)` method generates a streaming job for a batch `time`. It may or may not generate a streaming job for a batch time.
+[source, scala]
+----
+generateJob(time: Time): Option[Job]
+----
+
+The internal `generateJob` method generates a streaming job for a batch `time` for a (output) dstream. It may or may not generate a streaming job for the requested batch `time`.
 
 NOTE: It is called when link:spark-streaming-dstreamgraph.adoc#generateJobs[DStreamGraph generates jobs for a batch time].
 

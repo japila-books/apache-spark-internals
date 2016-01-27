@@ -168,9 +168,14 @@ INFO ReceiverTracker: ReceiverTracker stopped
 
 The state of `ReceiverTracker` is marked `Stopped`.
 
-=== [[allocateBlocksToBatch]] allocateBlocksToBatch
+=== [[allocateBlocksToBatch]] allocateBlocksToBatch Method
 
-`allocateBlocksToBatch(batchTime: Time)` simply passes all the calls on to <<ReceivedBlockTracker, ReceivedBlockTracker>>, but only when there _are_ link:spark-streaming-receiverinputdstreams.adoc[receiver input streams] registered (in `receiverInputStreams` internal registry).
+[source, scala]
+----
+allocateBlocksToBatch(batchTime: Time): Unit
+----
+
+`allocateBlocksToBatch` simply passes all the calls on to <<ReceivedBlockTracker-allocateBlocksToBatch, ReceivedBlockTracker.allocateBlocksToBatch>>, but only when there _are_ link:spark-streaming-receiverinputdstreams.adoc[receiver input streams] registered (in `receiverInputStreams` internal registry).
 
 NOTE: When there are no link:spark-streaming-receiverinputdstreams.adoc[receiver input streams] in use, the method does nothing.
 
@@ -182,4 +187,23 @@ You should see the following INFO message in the logs when `cleanupOldBatches` i
 
 ```
 INFO ReceivedBlockTracker: Deleting batches [timesToCleanup]
+```
+
+==== [[ReceivedBlockTracker-allocateBlocksToBatch]] allocateBlocksToBatch Method
+
+[source, scala]
+----
+allocateBlocksToBatch(batchTime: Time): Unit
+----
+
+`allocateBlocksToBatch` starts by checking whether the internal `lastAllocatedBatchTime` is younger than (after) the current batch time `batchTime`.
+
+If so, it grabs all unallocated blocks per stream (using `getReceivedBlockQueue` method) and creates a map of stream ids and sequences of their `ReceivedBlockInfo`. It then writes the received blocks to *write-ahead log (WAL)* (using `writeToLog` method).
+
+`allocateBlocksToBatch` stores the allocated blocks with the current batch time in `timeToAllocatedBlocks` internal registry. It also sets `lastAllocatedBatchTime` to the current batch time `batchTime`.
+
+If there has been an error while writing to WAL or the batch time is older than `lastAllocatedBatchTime`, you should see the following INFO message in the logs:
+
+```
+INFO Possibly processed batch [batchTime] needs to be processed again in WAL recovery
 ```
