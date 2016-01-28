@@ -4,7 +4,7 @@
 
 NOTE: `JobGenerator` is completely owned and managed by link:spark-streaming-jobscheduler.adoc[JobScheduler], i.e. `JobScheduler` creates an instance of JobGenerator and starts it (while link:spark-streaming-jobscheduler.adoc#starting[being started itself]).
 
-When `JobGenerator` is created, it creates `timer` link:spark-streaming-recurringtimer.adoc[RecurringTimer] (with the name being `JobGenerator`) that later, when <<starting, started>>, posts <<GenerateJobs, GenerateJobs>> events to the internal <<eventLoop, event loop>> every link:spark-streaming-dstreamgraph.adoc#batchDuration[batch interval]. The reason for this is to process JobGeneratorEvent events on a separate dedicated thread.
+When `JobGenerator` is created, it creates `timer` link:spark-streaming-recurringtimer.adoc[RecurringTimer] (with the name being `JobGenerator`) that later, when <<starting, started>>, posts <<GenerateJobs, GenerateJobs>> events to the internal <<eventLoop, event loop>> every link:spark-streaming-dstreamgraph.adoc#batchDuration[batch interval]. Using the event loop allows for asynchronous processing of JobGeneratorEvent events on a separate dedicated thread.
 
 [TIP]
 ====
@@ -26,17 +26,21 @@ Refer to link:spark-logging.adoc[Logging].
 start(): Unit
 ----
 
-`start` method creates and starts the internal <<eventLoop, eventLoop>>.
+`start` method creates and starts the internal <<eventLoop, event loop>>.
 
 NOTE: `start` is called when link:spark-streaming-jobscheduler.adoc#starting[JobScheduler starts].
 
-It first checks whether or not the internal <<eventLoop, eventLoop>> has already been created which is the way to know that the JobScheduler was started. If so, it does nothing and exists.
+It first checks whether or not the internal event loop has already been created which is the way to know that the JobScheduler was started. If so, it does nothing and exits.
 
-It creates `checkpointWriter`. It then creates and starts the internal <<eventLoop, eventLoop>>.
+If checkpointing is enabled, it creates <<CheckpointWriter, CheckpointWriter>>.
 
-Depending on whether checkpoint directory is available or not it <<restarting, restarts itself>> (from the checkpoint directory) or <<startFirstTime, starts>>, respectively.
+NOTE: Whether or not checkpointing is enabled is controlled by two settings of StreamingContext - `checkpointDuration` and `checkpointDir`. See <<CheckpointWriter, CheckpointWriter>> later in the document.
 
-When it starts (as part of JobGenerator start), you should see the following INFO message in the logs:
+It then creates and starts the internal event loop.
+
+Depending on whether checkpoint directory is available or not it <<restarting, restarts itself>> or <<startFirstTime, starts>>, respectively.
+
+When it is started it starts its own link:spark-streaming-recurringtimer.adoc[recurring timer] and so you should see the following INFO message in the logs:
 
 ```
 INFO RecurringTimer: Started timer for JobGenerator at time [nextTime]
@@ -67,11 +71,18 @@ INFO JobGenerator: Started JobGenerator at [startTime] ms
 
 === [[stopping]] Stopping JobGenerator (stop method)
 
-`JobGenerator.stop(processReceivedData: Boolean)` stops a `JobGenerator`.
+CAUTION: FIXME
+
+[source, scala]
+----
+stop(processReceivedData: Boolean): Unit
+----
+
+`stop(processReceivedData: Boolean)` stops a `JobGenerator`.
 
 NOTE: `JobGenerator` is stopped when...TK
 
-CAUTION: FIXME
+If checkpointing was enabled, it stops <<CheckpointWriter, CheckpointWriter>>.
 
 === [[restarting]] Restarting JobGenerator from Checkpoint (restart method)
 
@@ -126,22 +137,65 @@ CAUTION: FIXME Finish that part.
 
 It marks the batch fully processed (saving the `time` in the internal `lastProcessedBatch` that tracks the time of the last batch of which cleanup metadata completed successfully).
 
-==== [[DoCheckpoint]] DoCheckpoint Event
+==== [[DoCheckpoint]] DoCheckpoint Event and doCheckpoint method
 
-CAUTION: FIXME
+CAUTION: When is `DoCheckpoint` posted? When is `clearCheckpointDataLater` set?
 
-It calls `doCheckpoint(time: Time, clearCheckpointDataLater: Boolean)` method.
+A `DoCheckpoint` event triggers `doCheckpoint(time: Time, clearCheckpointDataLater: Boolean)` method.
 
-`doCheckpoint` method does nothing when `shouldCheckpoint` is disabled or the current batch `time` is not a multiplier of checkpoint interval (as `ssc.checkpointDuration`).
+If checkpointing is disabled or the current batch `time` is not eligible for checkpointing, the method does nothing and exits.
 
-Otherwise, when it should do checkpointing, you should see the following INFO message in the logs:
+CAUTION: FIXME Explain "eligible for checkpointing", i.e. `(time - graph.zeroTime).isMultipleOf(ssc.checkpointDuration)`
+
+Otherwise, when checkpointing should be executed, you should see the following INFO message in the logs:
 
 ```
 INFO JobGenerator: Checkpointing graph for time [time] ms
 ```
 
-It then executes link:spark-streaming-dstreamgraph.adoc[DStreamGraph.updateCheckpointData(time)] and `CheckpointWriter.write(new Checkpoint(ssc, time), clearCheckpointDataLater)`.
+It requests link:spark-streaming-dstreamgraph.adoc#updateCheckpointData[DStreamGraph for updating checkpoint data] and <<CheckpointWriter-write, CheckpointWriter for writing a new checkpoint>>. Both are given the current batch `time`.
 
 ==== [[ClearCheckpointData]] ClearCheckpointData Event
 
 CAUTION: FIXME
+
+=== [[checkpointing]] Checkpointing
+
+CAUTION: FIXME
+
+When is checkpointing enabled?
+
+=== [[CheckpointWriter]] CheckpointWriter
+
+An instance of `CheckpointWriter` is created (lazily) when `JobGenerator` is and `shouldCheckpoint` is enabled.
+
+`shouldCheckpoint` is an internal flag that is enabled (i.e. `true`) when `ssc.checkpointDuration` and `ssc.checkpointDir` are set (i.e. not `null`)
+
+CAUTION: FIXME When and what for are they set?
+
+CAUTION: FIXME Can one of `ssc.checkpointDuration` and `ssc.checkpointDir` be `null`? Do they all have to be set and is this checked somewhere?
+
+==== [[CheckpointWriter-write]] Writing Checkpoint for Batch Time (write method)
+
+[source, scala]
+----
+write(checkpoint: Checkpoint, clearCheckpointDataLater: Boolean): Unit
+----
+
+`write` method serializes the checkpoint and attempts to write the serialized checkpoint data asynchronously (i.e. on a separate thread).
+
+NOTE: It is called when <<checkpointing, checkpointing is enabled>> and <<DoCheckpoint, JobGenerator processes a DoCheckpoint event>>.
+
+CAUTION: FIXME Describe `Checkpoint.serialize(checkpoint, conf)` and `executor.execute(new CheckpointWriteHandler...`.
+
+You should see the following INFO message in the logs:
+
+```
+INFO Submitted checkpoint of time [checkpoint.checkpointTime] writer queue
+```
+
+If the asynchronous checkpoint write fails, you should see the following ERROR in the logs:
+
+```
+ERROR Could not submit checkpoint task to the thread pool executor
+```
