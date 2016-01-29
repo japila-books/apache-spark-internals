@@ -35,9 +35,28 @@ NOTE: A collection of streaming jobs is generated for a batch using link:spark-s
 
 === [[RateController]] RateController
 
-CAUTION: FIXME
+`RateController` is a contract for single-dstream link:spark-streaming-streaminglisteners.adoc[StreamingListeners] that listens to link:spark-streaming-streaminglisteners.adoc#onBatchCompleted[batch completed updates] for a dstream and maintain a *rate limit*, i.e. an estimate of the speed at which this stream should ingest messages.
+
+NOTE: `RateController` works for a single stream and requires a <<RateEstimator, RateEstimator>>.
+
+The contract says that RateControllers offer the following method:
+
+[source, scala]
+----
+protected def publish(rate: Long): Unit
+----
+
+When created, it creates a daemon single-thread executor service called *stream-rate-update* and initializes the internal `rateLimit` counter which is the current message-ingestion speed.
+
+When a batch completed update happens, a `RateController` grabs `processingEndTime`, `processingDelay`, `schedulingDelay`, and `numRecords` processed for the batch. and computes a rate limit and publish the current value. The computed value is set as the present rate limit, and published (using the sole abstract `publish` method). Computing a rate limit happens using the RateEstimator's `compute` method.
+
+CAUTION: FIXME Where is this used? What are the use cases?
 
 link:spark-streaming-inputdstreams.adoc[InputDStreams] can define a `RateController` that is registered to link:spark-streaming-jobscheduler.adoc[JobScheduler]'s `listenerBus`  (using `ssc.addStreamingListener`) when link:spark-streaming-jobscheduler.adoc[JobScheduler] starts.
+
+==== [[RateEstimator]] RateEstimator
+
+CAUTION: FIXME
 
 === [[internal-registries]] Internal Registries
 
