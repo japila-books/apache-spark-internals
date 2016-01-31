@@ -69,7 +69,7 @@ You should see the following INFO message in the logs:
 INFO JobGenerator: Started JobGenerator at [startTime] ms
 ```
 
-=== [[stopping]] Stopping JobGenerator (stop method)
+=== [[stop]] Stopping JobGenerator (stop method)
 
 CAUTION: FIXME
 
@@ -87,6 +87,14 @@ If checkpointing was enabled, it stops <<CheckpointWriter, CheckpointWriter>>.
 === [[restarting]] Restarting JobGenerator from Checkpoint (restart method)
 
 CAUTION: FIXME
+
+=== [[lastProcessedBatch]] Last Processed Batch (aka lastProcessedBatch)
+
+JobGenerator tracks the last batch time for which the batch was completed and cleanups performed using the internal `lastProcessedBatch` property.
+
+The only purpose of the `lastProcessedBatch` property is to allow for <<stop, stopping the streaming context gracefully>>, i.e. to wait until all streaming jobs are completed.
+
+NOTE: It is set to the batch time after <<ClearMetadata, ClearMetadata Event>> is processed (when <<checkpointing, checkpointing is disabled>>).
 
 === [[eventLoop]] JobGenerator eventLoop and JobGeneratorEvent Handler
 
@@ -109,11 +117,16 @@ There are 4 `JobGeneratorEvent` event types:
 
 See below in the document for the extensive coverage of the supported `JobGeneratorEvent` event types.
 
-==== [[GenerateJobs]] GenerateJobs Event
+==== [[generateJobs]][[GenerateJobs]] GenerateJobs Event and generateJobs method
 
-NOTE: `GenerateJobs` events are posted regularly by the internal `timer` link:spark-streaming-recurringtimer.adoc[RecurringTimer] every link:spark-streaming-dstreamgraph.adoc#batchDuration[batch interval].
+NOTE: `GenerateJobs` events are posted regularly by the internal `timer` link:spark-streaming-recurringtimer.adoc[RecurringTimer] every link:spark-streaming-dstreamgraph.adoc#batchDuration[batch interval]. The `time` parameter is exactly the current batch time.
 
-When `GenerateJobs(time: Time)` event is received `JobGenerator.generateJobs(time: Time)` method is called that link:spark-streaming-jobscheduler.adoc#submitJobSet[submits a collection of streaming jobs for execution].
+When `GenerateJobs(time: Time)` event is received the internal `generateJobs` method is called that link:spark-streaming-jobscheduler.adoc#submitJobSet[submits a collection of streaming jobs for execution].
+
+[source, scala]
+----
+generateJobs(time: Time)
+----
 
 It first calls link:spark-streaming-receivertracker.adoc#allocateBlocksToBatch[ReceiverTracker.allocateBlocksToBatch] (it does nothing when there are no link:spark-streaming-receiverinputdstreams.adoc[receiver input streams] in use), and then requests link:spark-streaming-dstreamgraph.adoc#generateJobs[DStreamGraph for streaming jobs for a given batch time].
 
@@ -121,35 +134,42 @@ If the above two calls have finished successfully, link:spark-streaming-jobsched
 
 In case of failure, `JobScheduler.reportError` is called.
 
-Ultimately, <<DoCheckpoint, DoCheckpoint>> event is posted (with `clearCheckpointDataLater` being `false`).
+Ultimately, <<DoCheckpoint, DoCheckpoint>> event is posted (with `clearCheckpointDataLater` being disabled, i.e. `false`).
 
-==== [[ClearMetadata]] ClearMetadata Event
+==== [[clearMetadata]][[ClearMetadata]] ClearMetadata Event and clearMetadata method
 
-It is called to periodically remove old RDDs that have been generated and collected so far by output streams (managed by link:spark-streaming-dstreamgraph.adoc[DStreamGraph]). It is a sort of _garbage collector_.
+NOTE: `ClearMetadata` are posted after a micro-batch for a batch time has completed.
+
+It removes old RDDs that have been generated and collected so far by output streams (managed by link:spark-streaming-dstreamgraph.adoc[DStreamGraph]). It is a sort of _garbage collector_.
 
 When `ClearMetadata(time)` arrives, it first asks link:spark-streaming-dstreamgraph.adoc#clearMetadata[DStreamGraph to clear metadata for the given time].
 
-If checkpointing is enabled, it posts <<DoCheckpoint, DoCheckpoint>> (with `clearCheckpointDataLater = true`).
+If <<checkpointing, checkpointing is enabled>>, it posts a <<DoCheckpoint, DoCheckpoint>> event (with `clearCheckpointDataLater` being enabled, i.e. `true`) and exits.
 
 Otherwise, when checkpointing is disabled, it asks link:spark-streaming-dstreamgraph.adoc[DStreamGraph for the maximum remember duration across all the input streams] and requests ReceiverTracker and InputInfoTracker to do their cleanups.
 
-CAUTION: FIXME Finish that part.
+CAUTION: FIXME Describe cleanups of ReceiverTracker and InputInfoTracker.
 
-It marks the batch fully processed (saving the `time` in the internal `lastProcessedBatch` that tracks the time of the last batch of which cleanup metadata completed successfully).
+Eventually, it marks the batch as fully processed, i.e. that the batch completed as well as checkpointing or metadata cleanups, using the <<lastProcessedBatch, internal lastProcessedBatch marker>>.
 
-==== [[DoCheckpoint]] DoCheckpoint Event and doCheckpoint method
+==== [[doCheckpoint]][[DoCheckpoint]] DoCheckpoint Event and doCheckpoint method
 
-CAUTION: When is `DoCheckpoint` posted? When is `clearCheckpointDataLater` set?
+NOTE: `DoCheckpoint` events are posted by JobGenerator itself as part of <<generateJobs, generating streaming jobs>> (with `clearCheckpointDataLater` being disabled, i.e. `false`) and <<clearMetadata, clearing metadata>> (with `clearCheckpointDataLater` being enabled, i.e. `true`).
 
-A `DoCheckpoint` event triggers `doCheckpoint(time: Time, clearCheckpointDataLater: Boolean)` method.
+`DoCheckpoint` events trigger execution of `doCheckpoint` method.
+
+[source, scala]
+----
+doCheckpoint(time: Time, clearCheckpointDataLater: Boolean)
+----
 
 If <<checkpointing, checkpointing is disabled>> or the current batch `time` is not eligible for checkpointing, the method does nothing and exits.
 
-NOTE: Current batch may not be eligible for checkpointing when the time interval between current batch `time` and link:spark-streaming-dstreamgraph.adoc#zero-time[zero time] is not a multiple of link:spark-streaming-streamingcontext.adoc#checkpoint-interval[checkpoint interval].
+NOTE: A current batch is *eligible for checkpointing* when the time interval between current batch `time` and link:spark-streaming-dstreamgraph.adoc#zero-time[zero time] is a multiple of link:spark-streaming-streamingcontext.adoc#checkpoint-interval[checkpoint interval].
 
-CAUTION: FIXME Can a streaming context have different batch interval across checkpoints? Can _ever_ the note above be met?
+CAUTION: FIXME Can a streaming context have different batch intervals across checkpoints? When can the note above be missed?
 
-Otherwise, when checkpointing should be executed, you should see the following INFO message in the logs:
+Otherwise, when checkpointing should be performed, you should see the following INFO message in the logs:
 
 ```
 INFO JobGenerator: Checkpointing graph for time [time] ms
