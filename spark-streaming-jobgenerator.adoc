@@ -71,18 +71,93 @@ INFO JobGenerator: Started JobGenerator at [startTime] ms
 
 === [[stop]] Stopping JobGenerator (stop method)
 
-CAUTION: FIXME
-
 [source, scala]
 ----
 stop(processReceivedData: Boolean): Unit
 ----
 
-`stop(processReceivedData: Boolean)` stops a `JobGenerator`.
+`stop` stops a `JobGenerator`. The `processReceivedData` flag tells whether to stop `JobGenerator` gracefully, i.e. after having processed all received data and pending streaming jobs, or not.
 
-NOTE: `JobGenerator` is stopped when...TK
+[NOTE]
+====
+`JobGenerator` is stopped as link:spark-streaming-jobscheduler.adoc#stop[JobScheduler stops].
 
-If checkpointing was enabled, it stops <<CheckpointWriter, CheckpointWriter>>.
+`processReceivedData` flag in `JobGenerator` corresponds to the value of `processAllReceivedData` in `JobScheduler`.
+====
+
+It first checks whether `eventLoop` internal event loop was ever started (through checking `null`).
+
+WARNING: It doesn't set `eventLoop` to null (however it is assumed to be the marker).
+
+When `JobGenerator` should stop immediately, i.e. ignoring unprocessed data and pending streaming jobs (`processReceivedData` flag is disabled), you should see the following INFO message in the logs:
+
+```
+INFO JobGenerator: Stopping JobGenerator immediately
+```
+
+It requests link:spark-streaming-recurringtimer.adoc#stop[the timer to stop forcefully] (`interruptTimer` is enabled) and link:spark-streaming-dstreamgraph.adoc#stop[stops the graph].
+
+Otherwise, when `JobGenerator` should stop gracefully, i.e. `processReceivedData` flag is enabled, you should see the following INFO message in the logs:
+
+```
+INFO JobGenerator: Stopping JobGenerator gracefully
+```
+
+You should immediately see the following INFO message in the logs:
+
+```
+INFO JobGenerator: Waiting for all received blocks to be consumed for job generation
+```
+
+`JobGenerator` waits link:spark-streaming-settings.adoc[spark.streaming.gracefulStopTimeout] milliseconds or until link:spark-streaming-receivertracker.adoc#hasUnallocatedBlocks[ReceiverTracker has any blocks left to be processed] (whatever is shorter) before continuing.
+
+NOTE: Sleeping time is `100` milliseconds and is not configurable.
+
+When a timeout occurs, you should see the WARN message in the logs:
+
+```
+WARN JobGenerator: Timed out while stopping the job generator (timeout = [stopTimeoutMs])
+```
+
+After the waiting is over, you should see the following INFO message in the logs:
+
+```
+INFO JobGenerator: Waited for all received blocks to be consumed for job generation
+```
+
+It requests link:spark-streaming-recurringtimer.adoc#stop[timer to stop generating streaming jobs] (`interruptTimer` flag is disabled) and link:spark-streaming-dstreamgraph.adoc#stop[stops the graph].
+
+You should see the following INFO message in the logs:
+
+```
+INFO JobGenerator: Stopped generation timer
+```
+
+You should immediately see the following INFO message in the logs:
+
+```
+INFO JobGenerator: Waiting for jobs to be processed and checkpoints to be written
+```
+
+`JobGenerator` waits link:spark-streaming-settings.adoc[spark.streaming.gracefulStopTimeout] milliseconds or until all the batches have been processed (whatever is shorter) before continuing. It waits for batches to complete using <<lastProcessedBatch, last processed batch>> internal property that should eventually be exactly the time when the link:spark-streaming-recurringtimer.adoc#stop[timer was stopped] (it returns the last time for which the streaming job was generated).
+
+NOTE: link:spark-streaming-settings.adoc[spark.streaming.gracefulStopTimeout] is ten times the link:spark-streaming-dstreamgraph.adoc#batch-interval[batch interval] by default.
+
+After the waiting is over, you should see the following INFO message in the logs:
+
+```
+INFO JobGenerator: Waited for jobs to be processed and checkpoints to be written
+```
+
+Regardless of `processReceivedData` flag, if <<checkpointing, checkpointing was enabled>>, it stops <<CheckpointWriter, CheckpointWriter>>.
+
+It then stops the <<eventLoop, event loop>>.
+
+As the last step, when `JobGenerator` is assumed to be stopped completely, you should see the following INFO message in the logs:
+
+```
+INFO JobGenerator: Stopped JobGenerator
+```
 
 === [[restarting]] Restarting JobGenerator from Checkpoint (restart method)
 
@@ -90,9 +165,9 @@ CAUTION: FIXME
 
 === [[lastProcessedBatch]] Last Processed Batch (aka lastProcessedBatch)
 
-JobGenerator tracks the last batch time for which the batch was completed and cleanups performed using the internal `lastProcessedBatch` property.
+JobGenerator tracks the last batch time for which the batch was completed and cleanups performed as `lastProcessedBatch` internal property.
 
-The only purpose of the `lastProcessedBatch` property is to allow for <<stop, stopping the streaming context gracefully>>, i.e. to wait until all streaming jobs are completed.
+The only purpose of the `lastProcessedBatch` property is to allow for <<stop, stopping the streaming context gracefully>>, i.e. to wait until all generated streaming jobs are completed.
 
 NOTE: It is set to the batch time after <<ClearMetadata, ClearMetadata Event>> is processed (when <<checkpointing, checkpointing is disabled>>).
 
