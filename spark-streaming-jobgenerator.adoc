@@ -4,7 +4,7 @@
 
 NOTE: `JobGenerator` is completely owned and managed by link:spark-streaming-jobscheduler.adoc[JobScheduler], i.e. `JobScheduler` creates an instance of JobGenerator and starts it (while link:spark-streaming-jobscheduler.adoc#starting[being started itself]).
 
-When `JobGenerator` is created, it creates `timer` link:spark-streaming-recurringtimer.adoc[RecurringTimer] (with the name being `JobGenerator`) that later, when <<starting, started>>, posts <<GenerateJobs, GenerateJobs>> events to the internal <<eventLoop, event loop>> every link:spark-streaming-dstreamgraph.adoc#batchDuration[batch interval]. Using the event loop allows for asynchronous processing of JobGeneratorEvent events on a separate dedicated thread.
+When `JobGenerator` is created, it creates `timer` link:spark-streaming-recurringtimer.adoc[RecurringTimer] (with the name being `JobGenerator`) that later, when <<starting, started>>, posts <<GenerateJobs, GenerateJobs>> events to the internal <<eventLoop, event loop>> every link:spark-streaming-dstreamgraph.adoc#batchDuration[batch interval]. Using the event loop allows for asynchronous processing of <<JobGeneratorEvent, JobGeneratorEvent events>> on a separate dedicated thread.
 
 [TIP]
 ====
@@ -32,9 +32,7 @@ NOTE: `start` is called when link:spark-streaming-jobscheduler.adoc#starting[Job
 
 It first checks whether or not the internal event loop has already been created which is the way to know that the JobScheduler was started. If so, it does nothing and exits.
 
-If checkpointing is enabled, it creates <<CheckpointWriter, CheckpointWriter>>.
-
-NOTE: Whether or not checkpointing is enabled is controlled by two settings of StreamingContext - `checkpointDuration` and `checkpointDir`. See <<CheckpointWriter, CheckpointWriter>> later in the document.
+If <<shouldCheckpoint, checkpointing is enabled>>, it creates <<CheckpointWriter, CheckpointWriter>>.
 
 It then creates and starts the internal event loop.
 
@@ -87,7 +85,7 @@ stop(processReceivedData: Boolean): Unit
 
 It first checks whether `eventLoop` internal event loop was ever started (through checking `null`).
 
-WARNING: It doesn't set `eventLoop` to null (however it is assumed to be the marker).
+WARNING: It doesn't set `eventLoop` to `null` (but it is assumed to be the marker).
 
 When `JobGenerator` should stop immediately, i.e. ignoring unprocessed data and pending streaming jobs (`processReceivedData` flag is disabled), you should see the following INFO message in the logs:
 
@@ -111,7 +109,7 @@ INFO JobGenerator: Waiting for all received blocks to be consumed for job genera
 
 `JobGenerator` waits link:spark-streaming-settings.adoc[spark.streaming.gracefulStopTimeout] milliseconds or until link:spark-streaming-receivertracker.adoc#hasUnallocatedBlocks[ReceiverTracker has any blocks left to be processed] (whatever is shorter) before continuing.
 
-NOTE: Sleeping time is `100` milliseconds and is not configurable.
+NOTE: Poll (sleeping) time is `100` milliseconds and is not configurable.
 
 When a timeout occurs, you should see the WARN message in the logs:
 
@@ -171,7 +169,7 @@ The only purpose of the `lastProcessedBatch` property is to allow for <<stop, st
 
 NOTE: It is set to the batch time after <<ClearMetadata, ClearMetadata Event>> is processed (when <<checkpointing, checkpointing is disabled>>).
 
-=== [[eventLoop]] JobGenerator eventLoop and JobGeneratorEvent Handler
+=== [[JobGeneratorEvent]][[eventLoop]] JobGenerator eventLoop and JobGeneratorEvent Handler
 
 `JobGenerator` uses the internal `EventLoop` event loop to process `JobGeneratorEvent` events asynchronously (one event at a time) by a dedicated _single_ event thread.
 
@@ -227,7 +225,7 @@ CAUTION: FIXME Describe cleanups of ReceiverTracker and InputInfoTracker.
 
 Eventually, it marks the batch as fully processed, i.e. that the batch completed as well as checkpointing or metadata cleanups, using the <<lastProcessedBatch, internal lastProcessedBatch marker>>.
 
-==== [[doCheckpoint]][[DoCheckpoint]] DoCheckpoint Event and doCheckpoint method
+==== [[DoCheckpoint]][[doCheckpoint]] DoCheckpoint Event and doCheckpoint method
 
 NOTE: `DoCheckpoint` events are posted by JobGenerator itself as part of <<generateJobs, generating streaming jobs>> (with `clearCheckpointDataLater` being disabled, i.e. `false`) and <<clearMetadata, clearing metadata>> (with `clearCheckpointDataLater` being enabled, i.e. `true`).
 
@@ -252,27 +250,34 @@ INFO JobGenerator: Checkpointing graph for time [time] ms
 
 It requests link:spark-streaming-dstreamgraph.adoc#updateCheckpointData[DStreamGraph for updating checkpoint data] and <<CheckpointWriter-write, CheckpointWriter for writing a new checkpoint>>. Both are given the current batch `time`.
 
-==== [[ClearCheckpointData]] ClearCheckpointData Event
+==== [[ClearCheckpointData]][[clearCheckpointData]] ClearCheckpointData Event and clearCheckpointData method
 
-CAUTION: FIXME
+`ClearCheckpointData` events trigger execution of `clearCheckpointData` method.
 
-=== [[checkpointing]] Checkpointing
+[source, scala]
+----
+clearCheckpointData(time: Time)
+----
 
-CAUTION: FIXME
+When executed, `clearCheckpointData` first requests link:spark-streaming-dstreamgraph.adoc#clearCheckpointData[DStreamGraph to clear checkpoint data for the given batch time].
 
-link:spark-streaming-checkpointing.adoc[Checkpointing] is only enabled when `StreamingContext.checkpointDuration` is defined (which is either restored from existing checkpoint data or link:spark-streaming-dstreamgraph.adoc#batchDuration[batch interval]) and link:spark-streaming-streamingcontext.adoc#checkpoint-directory[checkpoint directory is set].
+CAUTION: FIXME Finish me.
+
+=== [[shouldCheckpoint]][[checkpointing]] Whether or Not to Checkpoint (aka shouldCheckpoint)
+
+`JobGenerator` requests StreamingContext for link:spark-streaming-streamingcontext.adoc#checkpointDuration[checkpoint interval] and link:spark-streaming-streamingcontext.adoc#checkpointDir[checkpoint directory] to control the internal `shouldCheckpoint` flag.
+
+`shouldCheckpoint` flag is enabled (i.e. `true`) when the checkpoint interval and directory are defined.
+
+CAUTION: FIXME When and what for are they set? Can one of `ssc.checkpointDuration` and `ssc.checkpointDir` be `null`? Do they all have to be set and is this checked somewhere?
+
+NOTE: `shouldCheckpoint` flag is later used to control a <<CheckpointWriter, CheckpointWriter>> as well as whether to <<clearMetadata, post DoCheckpoint in clearMetadata or not>>.
 
 CAUTION: Potential bug: Can `StreamingContext` have no checkpoint duration set? At least, the batch interval *must* be set. In other words, it's StreamingContext to say whether to checkpoint or not and there should be a method in StreamingContext _not_ JobGenerator.
 
 === [[CheckpointWriter]] CheckpointWriter
 
-An instance of `CheckpointWriter` is created (lazily) when `JobGenerator` is and `shouldCheckpoint` is enabled.
-
-`shouldCheckpoint` is an internal flag that is enabled (i.e. `true`) when `ssc.checkpointDuration` and `ssc.checkpointDir` are set (i.e. not `null`)
-
-CAUTION: FIXME When and what for are they set?
-
-CAUTION: FIXME Can one of `ssc.checkpointDuration` and `ssc.checkpointDir` be `null`? Do they all have to be set and is this checked somewhere?
+An instance of `CheckpointWriter` is created (lazily) when `JobGenerator` is, but only when <<shouldCheckpoint, JobGenerator should checkpoint>>.
 
 ==== [[CheckpointWriter-write]] Writing Checkpoint for Batch Time (write method)
 
