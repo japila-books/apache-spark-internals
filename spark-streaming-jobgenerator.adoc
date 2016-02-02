@@ -1,6 +1,6 @@
 == JobGenerator
 
-`JobGenerator` asynchronously <<GenerateJobs, generates streaming jobs>> every link:spark-streaming-dstreamgraph.adoc#batchDuration[batch interval].
+`JobGenerator` asynchronously <<GenerateJobs, generates streaming jobs>> every link:spark-streaming-dstreamgraph.adoc#batchDuration[batch interval]. It also periodically cleans up metadata and checkpoint data per input stream accumulated over time.
 
 NOTE: `JobGenerator` is completely owned and managed by link:spark-streaming-jobscheduler.adoc[JobScheduler], i.e. `JobScheduler` creates an instance of JobGenerator and starts it (while link:spark-streaming-jobscheduler.adoc#starting[being started itself]).
 
@@ -19,7 +19,7 @@ log4j.logger.org.apache.spark.streaming.scheduler.JobGenerator=DEBUG
 Refer to link:spark-logging.adoc[Logging].
 ====
 
-=== [[starting]] Starting JobGenerator (start method)
+=== [[start]][[starting]] Starting JobGenerator (start method)
 
 [source, scala]
 ----
@@ -157,9 +157,56 @@ As the last step, when `JobGenerator` is assumed to be stopped completely, you s
 INFO JobGenerator: Stopped JobGenerator
 ```
 
-=== [[restarting]] Restarting JobGenerator from Checkpoint (restart method)
+=== [[restarting]] Restarting from Checkpoint (restart method)
 
-CAUTION: FIXME
+[source, scala]
+----
+restart(): Unit
+----
+
+`restart` restarts JobGenerator from checkpoint.
+
+NOTE: `restart` is called when <<start, JobGenerator starts and checkpoint is present>>.
+
+`restart` first calculates the batches that have been missed while `JobGenerator` was down, i.e. time between the current restart time and the time of link:spark-streaming-streamingcontext.adoc#initialCheckpoint[initial checkpoint].
+
+WARNING: `restart` doesn't check whether the initial checkpoint exists or not that may lead to NPE.
+
+You should see the following INFO message in the logs:
+
+```
+INFO JobGenerator: Batches during down time ([size] batches): [downTimes]
+```
+
+It then ask the initial checkpoint for pending batches, i.e. the times of streaming job sets.
+
+CAUTION: FIXME What are the pending batches? How does the initial checkpoint track them?
+
+You should see the following INFO message in the logs:
+
+```
+INFO JobGenerator: Batches pending processing ([size] batches): [pendingTimes]
+```
+
+It then computes the batches to reschedule, i.e. pending and down time batches that are before restart time.
+
+You should see the following INFO message in the logs:
+
+```
+INFO JobGenerator: Batches to reschedule ([size] batches): [timesToReschedule]
+```
+
+For each batch to reschedule, `restart` requests link:spark-streaming-receivertracker.adoc#allocateBlocksToBatch[ReceiverTracker to allocate blocks to batch] and link:spark-streaming-jobscheduler.adoc#submitJobSet[submits streaming job sets for execution].
+
+NOTE: `restart` mimics <<generateJobs, generateJobs>> method.
+
+It link:spark-streaming-recurringtimer.adoc#start[restarts the timer] (by using `restartTime` as `startTime`).
+
+You should see the following INFO message in the logs:
+
+```
+INFO JobGenerator: Restarted JobGenerator at [restartTime]
+```
 
 === [[lastProcessedBatch]] Last Processed Batch (aka lastProcessedBatch)
 
