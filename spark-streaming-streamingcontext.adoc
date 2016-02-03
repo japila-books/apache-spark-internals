@@ -117,30 +117,62 @@ NOTE: Calling `checkpoint` with `null` as `directory` clears the checkpoint dire
 
 === [[start]] Starting StreamingContext (using start method)
 
-You start stream processing using `StreamingContext.start()` method.
+[source, scala]
+----
+start(): Unit
+----
 
-You should see the following INFO message in the logs upon successful start:
+You start stream processing by calling `start()` method. It acts differently per <<states, state of StreamingContext>> and only <<INITIALIZED, INITIALIZED>> state makes for a proper startup.
+
+NOTE: There are three states: `INITIALIZED`, `ACTIVE`, and `STOPPED`. Consult <<states, States>> section in this document.
+
+==== [[ACTIVE]] ACTIVE state
+
+When in `ACTIVE` state, you should see the following WARN message in the logs:
+
+```
+WARN StreamingContext: StreamingContext has already been started
+```
+
+==== [[STOPPED]] STOPPED state
+
+Attempting to start `StreamingContext` in `STOPPED` state leads to the `IllegalStateException` exception:
+
+```
+java.lang.IllegalStateException: StreamingContext has already been stopped
+```
+
+==== [[INITIALIZED]] INITIALIZED state
+
+When in `INITIALIZED` state, `start` first checks whether another `StreamingContext` instance has already been started in the JVM. It throws `IllegalStateException` exception if it was and exits.
+
+[options="wrap"]
+----
+java.lang.IllegalStateException: Only one StreamingContext may be started in this JVM. Currently running StreamingContext was started at [startSite]
+----
+
+If no other StreamingContext exists, it performs <<validate, setup validation>> and link:spark-streaming-jobscheduler.adoc#start[starts JobScheduler] (in a separate dedicated daemon thread called *streaming-start*).
+
+.When started, StreamingContext starts JobScheduler
+image::images/spark-streaming-StreamingContext-start.png[align="center"]
+
+It changes to `ACTIVE` state.
+
+It then register the <<stopOnShutdown, shutdown hook stopOnShutdown>> and <<streamingSource, registers streaming metrics source>>. If web UI is enabled (by `spark.ui.enabled`), it attaches the link:spark-streaming-webui.adoc[Streaming tab].
+
+Given all the above has have finished properly, it is assumed that the StreamingContext started fine and so you should see the following INFO message in the logs:
 
 ```
 INFO StreamingContext: StreamingContext started
 ```
 
-When you call `start()`, it checks out the state of `StreamingContext` that can only be `INITIALIZED` to do anything meaningful.
+=== [[streamingSource]] Streaming Metrics Source
 
-When in `INITIALIZED` state, it first checks whether another `StreamingContext` instance has already been started and throws `IllegalStateException` exception if it was.
+CAUTION: FIXME
 
-Otherwise, when no other `StreamingContext` instance is started, it performs setup validation, i.e.:
+=== [[stopOnShutdown]] stopOnShutdown Shutdown Hook
 
-* It does link:spark-streaming-dstreamgraph.adoc#dstreamgraph-validation[validation of DStreamGraph].
-
-* It checks proper configuration of link:spark-streaming-checkpointing.adoc[checkpointing] (directory and duration are set, and that the `DStream` checkpoint is serializable).
-
-* When link:spark-dynamic-allocation.adoc[dynamic allocation] is enabled, it prints the following WARN message to the logs:
-+
-[options="wrap"]
-----
-WARN StreamingContext: Dynamic Allocation is enabled for this application. Enabling Dynamic allocation for Spark Streaming applications can cause data loss if Write Ahead Log is not enabled for non-replayable sources like Flume. See the programming guide for details on how to enable the Write Ahead Log
-----
+CAUTION: FIXME
 
 === [[stopping]] Stopping StreamingContext (using stop methods)
 
@@ -195,4 +227,16 @@ CAUTION: FIXME There are different states StreamingContext can be in. Describe i
 
 === [[validate]] Setup Validation
 
-CAUTION: FIXME Describe `validate` method
+
+* It does link:spark-streaming-dstreamgraph.adoc#dstreamgraph-validation[validation of DStreamGraph].
+
+* It checks proper configuration of link:spark-streaming-checkpointing.adoc[checkpointing] (directory and duration are set, and that the `DStream` checkpoint is serializable).
+
+* When link:spark-dynamic-allocation.adoc[dynamic allocation] is enabled, it prints the following WARN message to the logs:
++
+[options="wrap"]
+----
+WARN StreamingContext: Dynamic Allocation is enabled for this application. Enabling Dynamic allocation for Spark Streaming applications can cause data loss if Write Ahead Log is not enabled for non-replayable sources like Flume. See the programming guide for details on how to enable the Write Ahead Log
+----
+
+NOTE: StreamingContext's setup validation is executed when it is <<start, started>>.
