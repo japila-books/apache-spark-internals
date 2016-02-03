@@ -1,10 +1,8 @@
 == JobGenerator
 
-`JobGenerator` asynchronously <<GenerateJobs, generates streaming jobs>> every link:spark-streaming-dstreamgraph.adoc#batchDuration[batch interval]. It also periodically cleans up metadata and checkpoint data per input stream accumulated over time.
+`JobGenerator` asynchronously <<GenerateJobs, generates streaming jobs>> every link:spark-streaming-dstreamgraph.adoc#batchDuration[batch interval] (using <<timer, recurring timer>>). It also periodically requests <<clearMetadata, clearing up metadata>> and <<clearCheckpointData, checkpoint data>> for each input stream.
 
 NOTE: `JobGenerator` is completely owned and managed by link:spark-streaming-jobscheduler.adoc[JobScheduler], i.e. `JobScheduler` creates an instance of JobGenerator and starts it (while link:spark-streaming-jobscheduler.adoc#starting[being started itself]).
-
-When `JobGenerator` is created, it creates `timer` link:spark-streaming-recurringtimer.adoc[RecurringTimer] (with the name being `JobGenerator`) that later, when <<starting, started>>, posts <<GenerateJobs, GenerateJobs>> events to the internal <<eventLoop, event loop>> every link:spark-streaming-dstreamgraph.adoc#batchDuration[batch interval]. Using the event loop allows for asynchronous processing of <<JobGeneratorEvent, JobGeneratorEvent events>> on a separate dedicated thread.
 
 [TIP]
 ====
@@ -18,6 +16,14 @@ log4j.logger.org.apache.spark.streaming.scheduler.JobGenerator=DEBUG
 
 Refer to link:spark-logging.adoc[Logging].
 ====
+
+=== [[timer]] timer RecurringTimer
+
+`timer` link:spark-streaming-recurringtimer.adoc[RecurringTimer] (with the name being `JobGenerator`) is used to posts <<GenerateJobs, GenerateJobs>> events to the internal <<eventLoop, event loop>> every link:spark-streaming-dstreamgraph.adoc#batchDuration[batch interval].
+
+NOTE: `timer` is created (but not started) when `JobGenerator` is.
+
+NOTE: It is started while <<startFirstTime, JobGenerator starts for the first time>>.
 
 === [[start]][[starting]] Starting JobGenerator (start method)
 
@@ -51,13 +57,13 @@ INFO RecurringTimer: Started timer for JobGenerator at time [nextTime]
 startFirstTime(): Unit
 ----
 
-`startFirstTime` starts link:spark-streaming-dstreamgraph.adoc[DStreamGraph] and the `timer` link:spark-streaming-recurringtimer.adoc[RecurringTimer].
+`startFirstTime` starts link:spark-streaming-dstreamgraph.adoc[DStreamGraph] and the <<timer, timer>>.
 
-NOTE: `startFirstTime` is called when <<starting, JobGenerator starts (and checkpoint directory is not available)>>.
+NOTE: `startFirstTime` is called when <<starting, JobGenerator starts (and no checkpoint directory is available)>>.
 
-It first requests `timer` for the *start time* and passes it along to link:spark-streaming-dstreamgraph.adoc#start[DStreamGraph.start] and link:spark-streaming-recurringtimer.adoc[RecurringTimer.start].
+It first requests <<timer, timer>> for the *start time* and passes it along to link:spark-streaming-dstreamgraph.adoc#start[DStreamGraph.start] and link:spark-streaming-recurringtimer.adoc[RecurringTimer.start].
 
-NOTE: The start time has the property of being a multiple of link:spark-streaming-dstreamgraph.adoc#batchDuration[batch interval] and after the current system time. It is in the hands of link:spark-streaming-recurringtimer.adoc[RecurringTimer] to calculate a time with the property.
+NOTE: The start time has the property of being a multiple of link:spark-streaming-dstreamgraph.adoc#batchDuration[batch interval] and after the current system time. It is in the hands of link:spark-streaming-recurringtimer.adoc[RecurringTimer] to calculate a time with the property given a batch interval.
 
 NOTE: Because of the property of the start time, link:spark-streaming-dstreamgraph.adoc#start[DStreamGraph.start] is passed the time of one batch interval before the calculated start time.
 
@@ -218,7 +224,7 @@ NOTE: It is set to the batch time after <<ClearMetadata, ClearMetadata Event>> i
 
 === [[JobGeneratorEvent]][[eventLoop]] JobGenerator eventLoop and JobGeneratorEvent Handler
 
-`JobGenerator` uses the internal `EventLoop` event loop to process `JobGeneratorEvent` events asynchronously (one event at a time) by a dedicated _single_ event thread.
+`JobGenerator` uses the internal `EventLoop` event loop to process `JobGeneratorEvent` events asynchronously (one event at a time) on a separate dedicated _single_ thread.
 
 NOTE: `EventLoop` uses unbounded https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/LinkedBlockingDeque.html[java.util.concurrent.LinkedBlockingDeque].
 
@@ -321,13 +327,20 @@ Having done that, the current batch `time` is marked as <<lastProcessedBatch, fu
 
 === [[shouldCheckpoint]][[checkpointing]] Whether or Not to Checkpoint (aka shouldCheckpoint)
 
-`JobGenerator` requests StreamingContext for link:spark-streaming-streamingcontext.adoc#checkpointDuration[checkpoint interval] and link:spark-streaming-streamingcontext.adoc#checkpointDir[checkpoint directory] to control the internal `shouldCheckpoint` flag.
+`shouldCheckpoint` flag is used to control a <<CheckpointWriter, CheckpointWriter>> as well as whether to <<clearMetadata, post DoCheckpoint in clearMetadata or not>>.
 
-`shouldCheckpoint` flag is enabled (i.e. `true`) when the checkpoint interval and directory are defined.
+`shouldCheckpoint` flag is enabled (i.e. `true`) when link:spark-streaming-streamingcontext.adoc#checkpointDuration[checkpoint interval] and link:spark-streaming-streamingcontext.adoc#checkpointDir[checkpoint directory] are defined (i.e. not `null`) in StreamingContext.
 
-CAUTION: FIXME When and what for are they set? Can one of `ssc.checkpointDuration` and `ssc.checkpointDir` be `null`? Do they all have to be set and is this checked somewhere?
+NOTE: However the flag is completely based on the properties of StreamingContext, these dependent properties are used by JobScheduler only. _Really?_
 
-NOTE: `shouldCheckpoint` flag is later used to control a <<CheckpointWriter, CheckpointWriter>> as well as whether to <<clearMetadata, post DoCheckpoint in clearMetadata or not>>.
+[CAUTION]
+====
+FIXME Report an issue
+
+When and what for are they set? Can one of `ssc.checkpointDuration` and `ssc.checkpointDir` be `null`? Do they all have to be set and is this checked somewhere?
+
+Answer: See link:spark-streaming-streamingcontext.adoc#validate[Setup Validation].
+====
 
 CAUTION: Potential bug: Can `StreamingContext` have no checkpoint duration set? At least, the batch interval *must* be set. In other words, it's StreamingContext to say whether to checkpoint or not and there should be a method in StreamingContext _not_ JobGenerator.
 
