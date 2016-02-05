@@ -21,9 +21,7 @@ Refer to link:spark-logging.adoc[Logging].
 
 `timer` link:spark-streaming-recurringtimer.adoc[RecurringTimer] (with the name being `JobGenerator`) is used to posts <<GenerateJobs, GenerateJobs>> events to the internal <<eventLoop, event loop>> every link:spark-streaming-dstreamgraph.adoc#batchDuration[batch interval].
 
-NOTE: `timer` is created (but not started) when `JobGenerator` is.
-
-NOTE: It is started while <<startFirstTime, JobGenerator starts for the first time>>.
+NOTE: `timer` is created when `JobGenerator` is. It starts when <<startFirstTime, JobGenerator starts (for the first time only)>>.
 
 === [[start]][[starting]] Starting JobGenerator (start method)
 
@@ -36,22 +34,16 @@ start(): Unit
 
 NOTE: `start` is called when link:spark-streaming-jobscheduler.adoc#starting[JobScheduler starts].
 
-.JobGenerator Start procedure
+.JobGenerator Start (First Time) procedure
 image::images/spark-streaming-JobGenerator-start.png[align="center"]
 
 It first checks whether or not the internal event loop has already been created which is the way to know that the JobScheduler was started. If so, it does nothing and exits.
 
-If <<shouldCheckpoint, checkpointing is enabled>>, it creates <<CheckpointWriter, CheckpointWriter>>.
+Only if <<shouldCheckpoint, checkpointing is enabled>>, it creates <<CheckpointWriter, CheckpointWriter>>.
 
-It then creates and starts the internal event loop.
+It then creates and starts the internal <<eventLoop, JobGeneratorEvent handler>>.
 
-Depending on whether checkpoint directory is available or not it <<restarting, restarts itself>> or <<startFirstTime, starts>>, respectively.
-
-When it is started it starts its own link:spark-streaming-recurringtimer.adoc[recurring timer] and so you should see the following INFO message in the logs:
-
-```
-INFO RecurringTimer: Started timer for JobGenerator at time [nextTime]
-```
+Depending on whether link:spark-streaming-streamingcontext.adoc#isCheckpointPresent[checkpoint directory is available or not] it <<restarting, restarts itself>> or <<startFirstTime, starts>>, respectively.
 
 === [[startFirstTime]] Start Time and startFirstTime Method
 
@@ -64,13 +56,22 @@ startFirstTime(): Unit
 
 NOTE: `startFirstTime` is called when <<starting, JobGenerator starts (and no checkpoint directory is available)>>.
 
-It first requests <<timer, timer>> for the *start time* and passes it along to link:spark-streaming-dstreamgraph.adoc#start[DStreamGraph.start] and link:spark-streaming-recurringtimer.adoc[RecurringTimer.start].
+It first requests <<timer, timer>> for the *start time* and passes the start time along to link:spark-streaming-dstreamgraph.adoc#start[DStreamGraph.start] and link:spark-streaming-recurringtimer.adoc[RecurringTimer.start].
 
-NOTE: The start time has the property of being a multiple of link:spark-streaming-dstreamgraph.adoc#batchDuration[batch interval] and after the current system time. It is in the hands of link:spark-streaming-recurringtimer.adoc[RecurringTimer] to calculate a time with the property given a batch interval.
+NOTE: The start time has the property of being a multiple of link:spark-streaming-dstreamgraph.adoc#batchDuration[batch interval] and after the current system time. It is in the hands of link:spark-streaming-recurringtimer.adoc[recurring timer] to calculate a time with the property given a batch interval.
 
 NOTE: Because of the property of the start time, link:spark-streaming-dstreamgraph.adoc#start[DStreamGraph.start] is passed the time of one batch interval before the calculated start time.
 
-You should see the following INFO message in the logs:
+[NOTE]
+====
+When link:spark-streaming-recurringtimer.adoc[recurring timer] starts for `JobGenerator`, you should see the following INFO message in the logs:
+
+```
+INFO RecurringTimer: Started timer for JobGenerator at time [nextTime]
+```
+====
+
+Right before the method finishes, you should see the following INFO message in the logs:
 
 ```
 INFO JobGenerator: Started JobGenerator at [startTime] ms
@@ -173,11 +174,11 @@ INFO JobGenerator: Stopped JobGenerator
 restart(): Unit
 ----
 
-`restart` restarts JobGenerator from checkpoint.
+`restart` restarts JobGenerator from link:spark-streaming-checkpointing.adoc[checkpoint].
 
 NOTE: `restart` is called when <<start, JobGenerator starts and checkpoint is present>>.
 
-`restart` first calculates the batches that have been missed while `JobGenerator` was down, i.e. time between the current restart time and the time of link:spark-streaming-streamingcontext.adoc#initialCheckpoint[initial checkpoint].
+`restart` first calculates the batches that have been missed while `JobGenerator` was down, i.e. batch times between the current restart time and the time of link:spark-streaming-streamingcontext.adoc#initialCheckpoint[initial checkpoint].
 
 WARNING: `restart` doesn't check whether the initial checkpoint exists or not that may lead to NPE.
 
