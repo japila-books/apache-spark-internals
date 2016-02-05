@@ -21,11 +21,11 @@ You can create a new instance of `StreamingContext` (and you will eventually) us
 
 where:
 
-* `path` is the checkpoint directory.
+* `path` is the <<checkpoint-directory, checkpoint directory>>.
 
-NOTE: `StreamingContext(conf: SparkConf, batchDuration: Duration)` constructor seems the most often used in Spark Streaming applications.
+NOTE: `StreamingContext(conf: SparkConf, batchDuration: Duration)` constructor seems to be the most often used in Spark Streaming applications.
 
-Internally, when you create a new instance of `StreamingContext`  it first checks whether a link:spark-sparkcontext.adoc[SparkContext] or the checkpoint directory are given.
+Internally, when you create a new instance of `StreamingContext`  it first checks whether a link:spark-sparkcontext.adoc[SparkContext] or the <<checkpoint-directory, checkpoint directory>> are given (but not both!)
 
 [TIP]
 ====
@@ -86,7 +86,7 @@ CAUTION: FIXME It can also be restored from a checkpoint. Can it be different th
 
 === [[checkpointDir]][[checkpoint-directory]] Checkpoint Directory
 
-A *checkpoint directory* is a HDFS-compatible directory where link:spark-streaming-checkpointing.adoc[checkpoints] can be stored.
+A *checkpoint directory* is a HDFS-compatible directory where link:spark-streaming-checkpointing.adoc[checkpoints] are written to.
 
 You can set the checkpoint directory when a <<creating-instance, StreamingContext is created>> or later using <<checkpoint, checkpoint>> method.
 
@@ -94,14 +94,14 @@ Internally, a checkpoint directory is tracked as `checkpointDir`.
 
 === [[initialCheckpoint]] Initial Checkpoint
 
-*Initial checkpoint* is the checkpoint `StreamingContext` has been recreated from.
+*Initial checkpoint* is the last checkpoint (file) `StreamingContext` has been recreated from.
 
-[NOTE]
-====
-You can create `StreamingContext` using either link:spark-sparkcontext.adoc[SparkContext] or link:spark-streaming-checkpointing.adoc#Checkpoint[checkpoint] (not both!)
+The initial checkpoint is specified when a <<creating-instance, StreamingContext is created>>.
 
-Refer to <<creating-instance, Creating Instance>> section in this document.
-====
+[source, scala]
+----
+val ssc = new StreamingContext("_checkpoint")
+----
 
 === [[isCheckpointPresent]] Was Checkpoint Given to Create StreamingContext (isCheckpointPresent method)
 
@@ -129,29 +129,13 @@ NOTE: Calling `checkpoint` with `null` as `directory` clears the checkpoint dire
 start(): Unit
 ----
 
-You start stream processing by calling `start()` method. It acts differently per <<states, state of StreamingContext>> and only <<INITIALIZED, INITIALIZED>> state makes for a proper startup.
+You start stream processing by calling `start()` method. It acts differently per <<states, state of StreamingContext>> and only <<start-INITIALIZED, INITIALIZED>> state makes for a proper startup.
 
-NOTE: There are three states: `INITIALIZED`, `ACTIVE`, and `STOPPED`. Consult <<states, States>> section in this document.
+NOTE: Consult <<states, States>> section in this document to learn about the states of StreamingContext.
 
-==== [[ACTIVE]] ACTIVE state
+==== [[start-INITIALIZED]] Starting in INITIALIZED state
 
-When in `ACTIVE` state, you should see the following WARN message in the logs:
-
-```
-WARN StreamingContext: StreamingContext has already been started
-```
-
-==== [[STOPPED]] STOPPED state
-
-Attempting to start `StreamingContext` in `STOPPED` state leads to the `IllegalStateException` exception:
-
-```
-java.lang.IllegalStateException: StreamingContext has already been stopped
-```
-
-==== [[INITIALIZED]] INITIALIZED state
-
-When in `INITIALIZED` state, `start` first checks whether another `StreamingContext` instance has already been started in the JVM. It throws `IllegalStateException` exception if it was and exits.
+Right after StreamingContext has been instantiated, it enters `INITIALIZED` state in which `start` first checks whether another `StreamingContext` instance has already been started in the JVM. It throws `IllegalStateException` exception if it was and exits.
 
 [options="wrap"]
 ----
@@ -163,7 +147,7 @@ If no other StreamingContext exists, it performs <<validate, setup validation>> 
 .When started, StreamingContext starts JobScheduler
 image::images/spark-streaming-StreamingContext-start.png[align="center"]
 
-It changes to `ACTIVE` state.
+It enters `ACTIVE` state.
 
 It then register the <<stopOnShutdown, shutdown hook stopOnShutdown>> and <<streamingSource, registers streaming metrics source>>. If web UI is enabled (by `spark.ui.enabled`), it attaches the link:spark-streaming-webui.adoc[Streaming tab].
 
@@ -171,6 +155,22 @@ Given all the above has have finished properly, it is assumed that the Streaming
 
 ```
 INFO StreamingContext: StreamingContext started
+```
+
+==== [[start-ACTIVE]] Starting in ACTIVE state
+
+When in `ACTIVE` state, i.e. <<start-INITIALIZED, after it has been started>>, executing `start` merely leads to the following WARN message in the logs:
+
+```
+WARN StreamingContext: StreamingContext has already been started
+```
+
+==== [[start-STOPPED]] Starting in STOPPED state
+
+Attempting to start `StreamingContext` in `STOPPED` state, i.e. <<stop, after it has been stopped>>, leads to the `IllegalStateException` exception:
+
+```
+java.lang.IllegalStateException: StreamingContext has already been stopped
 ```
 
 === [[addStreamingListener]] Registering Streaming Listeners
@@ -185,7 +185,7 @@ CAUTION: FIXME
 
 CAUTION: FIXME
 
-=== [[stopping]] Stopping StreamingContext (using stop methods)
+=== [[stop]][[stopping]] Stopping StreamingContext (using stop methods)
 
 You stop `StreamingContext` using one of the three variants of `stop` method:
 
@@ -234,10 +234,13 @@ If a user requested to stop the underlying SparkContext (when `stopSparkContext`
 
 === [[states]] States
 
-CAUTION: FIXME There are different states StreamingContext can be in. Describe it.
+`StreamingContext` can be in three states:
+
+* `INITIALIZED`, i.e. after <<creating-instance, it was instantiated>>.
+* `ACTIVE`, i.e. after <<start-INITIALIZED, it was started>>.
+* `STOPPED`, i.e. after <<stop, it has been stopped>>
 
 === [[validate]] Setup Validation
-
 
 * It does link:spark-streaming-dstreamgraph.adoc#dstreamgraph-validation[validation of DStreamGraph].
 
