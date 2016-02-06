@@ -1,6 +1,6 @@
 == JobGenerator
 
-`JobGenerator` asynchronously <<GenerateJobs, generates streaming jobs>> every link:spark-streaming-dstreamgraph.adoc#batchDuration[batch interval] (using <<timer, recurring timer>>). It also periodically requests <<clearMetadata, clearing up metadata>> and <<clearCheckpointData, checkpoint data>> for each input stream.
+`JobGenerator` asynchronously <<GenerateJobs, generates streaming jobs>> every link:spark-streaming-dstreamgraph.adoc#batchDuration[batch interval] (using <<timer, recurring timer>>) that <<doCheckpoint, may or may not be checkpointed>> afterwards. It also periodically requests <<clearMetadata, clearing up metadata>> and <<clearCheckpointData, checkpoint data>> for each input dstream.
 
 NOTE: `JobGenerator` is completely owned and managed by link:spark-streaming-jobscheduler.adoc[JobScheduler], i.e. `JobScheduler` creates an instance of JobGenerator and starts it (while link:spark-streaming-jobscheduler.adoc#starting[being started itself]).
 
@@ -161,18 +161,18 @@ As the last step, when `JobGenerator` is assumed to be stopped completely, you s
 INFO JobGenerator: Stopped JobGenerator
 ```
 
-=== [[restarting]] Restarting from Checkpoint (restart method)
+=== [[restarting]] Starting from Checkpoint (restart method)
 
 [source, scala]
 ----
 restart(): Unit
 ----
 
-`restart` restarts JobGenerator from link:spark-streaming-checkpointing.adoc[checkpoint].
+`restart` starts `JobGenerator` from link:spark-streaming-checkpointing.adoc[checkpoint]. It basically reconstructs the runtime environment of the past execution that may have stopped immediately, i.e. without waiting for all the streaming jobs to complete when checkpoint was enabled, or due to a abrupt shutdown (a unrecoverable failure or similar).
 
 NOTE: `restart` is called when <<start, JobGenerator starts and checkpoint is present>>.
 
-`restart` first calculates the batches that have been missed while `JobGenerator` was down, i.e. batch times between the current restart time and the time of link:spark-streaming-streamingcontext.adoc#initialCheckpoint[initial checkpoint].
+`restart` first calculates the batches that may have been missed while `JobGenerator` was down, i.e. batch times between the current restart time and the time of link:spark-streaming-streamingcontext.adoc#initialCheckpoint[initial checkpoint].
 
 WARNING: `restart` doesn't check whether the initial checkpoint exists or not that may lead to NPE.
 
@@ -184,7 +184,7 @@ INFO JobGenerator: Batches during down time ([size] batches): [downTimes]
 
 It then ask the initial checkpoint for pending batches, i.e. the times of streaming job sets.
 
-CAUTION: FIXME What are the pending batches? How does the initial checkpoint track them?
+CAUTION: FIXME What are the pending batches? Why would they ever exist?
 
 You should see the following INFO message in the logs:
 
@@ -235,8 +235,8 @@ DEBUG JobGenerator: Got event [event]
 There are 4 `JobGeneratorEvent` event types:
 
 * <<GenerateJobs, GenerateJobs>>
-* <<ClearMetadata, ClearMetadata>>
 * <<DoCheckpoint, DoCheckpoint>>
+* <<ClearMetadata, ClearMetadata>>
 * <<ClearCheckpointData, ClearCheckpointData>>
 
 See below in the document for the extensive coverage of the supported `JobGeneratorEvent` event types.
@@ -275,7 +275,9 @@ If <<checkpointing, checkpointing is disabled>> or the current batch `time` is n
 
 NOTE: A current batch is *eligible for checkpointing* when the time interval between current batch `time` and link:spark-streaming-dstreamgraph.adoc#zero-time[zero time] is a multiple of link:spark-streaming-streamingcontext.adoc#checkpoint-interval[checkpoint interval].
 
-CAUTION: FIXME Can a streaming context have different batch intervals across checkpoints? When can the note above be missed?
+CAUTION: FIXME Who checks and when whether checkpoint interval is greater than batch interval or not? What about checking whether a checkpoint interval is a multiple of batch time?
+
+CAUTION: FIXME What happens when you start a StreamingContext with a checkpoint directory that was used before?
 
 Otherwise, when checkpointing should be performed, you should see the following INFO message in the logs:
 

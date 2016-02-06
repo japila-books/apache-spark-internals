@@ -58,9 +58,15 @@ NOTE: By default, `DStreamCheckpointData` records the checkpoint files to which 
 
 === [[Checkpoint]] Checkpoint
 
-`Checkpoint` class requires a link:spark-streaming-streamingcontext.adoc[StreamingContext] and `checkpointTime` time to be created.
+CAUTION: FIXME Describe where and how this class is used?
 
-It collects the following properties about the current streaming runtime environment from the input `StreamingContext` (and indirectly from the corresponding link:spark-streaming-jobscheduler.adoc[JobScheduler] and link:spark-sparkcontext.adoc[SparkContext]):
+`Checkpoint` class requires a link:spark-streaming-streamingcontext.adoc[StreamingContext] and `checkpointTime` time to be instantiated.
+
+It is merely a collection of the settings of the current streaming runtime environment that allows...FIXME
+
+CAUTION: FIXME above
+
+It collects the settings from the input `StreamingContext` (and indirectly from the corresponding link:spark-streaming-jobscheduler.adoc[JobScheduler] and link:spark-sparkcontext.adoc[SparkContext]):
 
 * The link:spark-sparkcontext.adoc#master-url[master URL from SparkContext] as `master`.
 * The link:spark-sparkcontext.adoc#application-name[mandatory application name from SparkContext] as `framework`.
@@ -71,9 +77,63 @@ It collects the following properties about the current streaming runtime environ
 * The link:spark-streaming-jobscheduler.adoc#getPendingTimes[collection of pending batches to process] as `pendingTimes`
 * The link:spark-sparkcontext.adoc#spark-configuration[Spark configuration (aka SparkConf)] as `sparkConfPairs`
 
+[TIP]
+====
+Enable `INFO` logging level for `org.apache.spark.streaming.Checkpoint` logger to see what happens inside.
+
+Add the following line to `conf/log4j.properties`:
+
+```
+log4j.logger.org.apache.spark.streaming.Checkpoint=INFO
+```
+
+Refer to link:spark-logging.adoc[Logging].
+====
+
+==== [[Checkpoint-serialize]] Serializing Checkpoint (serialize method)
+
+[source, scala]
+----
+serialize(checkpoint: Checkpoint, conf: SparkConf): Array[Byte]
+----
+
+`serialize` serializes the `checkpoint` object. It does so by creating a compression codec to write the input `checkpoint` object with and returns the result as a collection of bytes.
+
+CAUTION: FIXME Describe compression codecs in Spark.
+
+==== [[Checkpoint-deserialize]] Deserializing Checkpoint (deserialize method)
+
+[source, scala]
+----
+deserialize(inputStream: InputStream, conf: SparkConf): Checkpoint
+----
+
+`deserialize` reconstructs a <<Checkpoint, Checkpoint>> object from the input `inputStream`. It uses a compression codec and once read <<Checkpoint-validate, the just-built Checkpoint object is validated>> and returned back.
+
+==== [[Checkpoint-validate]] Validating Checkpoint (validate method)
+
+[source, scala]
+----
+validate()
+----
+
+`validate` validates the <<Checkpoint, Checkpoint>>. It ensures that `master`, `framework`, `graph`, and `checkpointTime` are defined, i.e. not `null`.
+
+You should see the following INFO message in the logs when the object passes the validation:
+
+```
+INFO Checkpoint for time [checkpointTime] validated
+```
+
 === [[CheckpointWriter]] CheckpointWriter
 
-An instance of `CheckpointWriter` is created (lazily) when `JobGenerator` is, but only when link:spark-streaming-jobgenerator.adoc#shouldCheckpoint[JobGenerator should checkpoint].
+An instance of `CheckpointWriter` is created (lazily) when `JobGenerator` is, but only when link:spark-streaming-jobgenerator.adoc#shouldCheckpoint[JobGenerator is configured for checkpointing].
+
+It uses the internal <<CheckpointWriter-executor, single-thread thread pool executor>> to <<CheckpointWriteHandler, process checkpoint writes asynchronously>>.
+
+==== [[CheckpointWriter-executor]] Single-Thread Thread Pool Executor
+
+`executor` is the internal single-thread thread pool executor for executing ...FIXME
 
 ==== [[CheckpointWriter-write]] Writing Checkpoint for Batch Time (write method)
 
@@ -82,11 +142,9 @@ An instance of `CheckpointWriter` is created (lazily) when `JobGenerator` is, bu
 write(checkpoint: Checkpoint, clearCheckpointDataLater: Boolean): Unit
 ----
 
-`write` method serializes the checkpoint and attempts to write the serialized checkpoint data asynchronously (i.e. on a separate thread).
+`write` method <<Checkpoint-serialize, serializes the checkpoint object>> and passes the serialized form to <<CheckpointWriteHandler, CheckpointWriteHandler>> to write asynchronously (i.e. on a separate thread) using <<CheckpointWriter-executor, single-thread thread pool executor>>.
 
 NOTE: It is called when link:spark-streaming-jobgenerator.adoc#checkpointing[checkpointing is enabled] and link:spark-streaming-jobgenerator.adoc#DoCheckpoint[JobGenerator processes a DoCheckpoint event].
-
-CAUTION: FIXME Describe `Checkpoint.serialize(checkpoint, conf)` and `executor.execute(new CheckpointWriteHandler...`.
 
 You should see the following INFO message in the logs:
 
@@ -99,3 +157,11 @@ If the asynchronous checkpoint write fails, you should see the following ERROR i
 ```
 ERROR Could not submit checkpoint task to the thread pool executor
 ```
+
+=== [[CheckpointWriteHandler]] CheckpointWriteHandler
+
+`CheckpointWriteHandler` is an internal thread of execution that...
+
+NOTE: It is used by ... when ...
+
+CAUTION: FIXME
