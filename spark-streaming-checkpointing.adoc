@@ -1,6 +1,6 @@
 == Checkpointing
 
-*Checkpointing* is a process that allows you to create *fault-tolerant stream processing pipelines* by saving received records on a highly-available HDFS-compatible storage.
+*Checkpointing* is a process that allows you to create *fault-tolerant stream processing pipelines* by writing received records to a highly-available HDFS-compatible storage.
 
 link:spark-streaming-dstreams.adoc[DStreams] can checkpoint <<checkpoint-data, input data>> at specified <<checkpoing-interval, time intervals>>.
 
@@ -58,15 +58,44 @@ NOTE: By default, `DStreamCheckpointData` records the checkpoint files to which 
 
 === [[Checkpoint]] Checkpoint
 
-`Checkpoint` class is created for a StreamingContext and `checkpointTime` time.
+`Checkpoint` class requires a link:spark-streaming-streamingcontext.adoc[StreamingContext] and `checkpointTime` time to be created.
 
-It collects the following internal properties from the `StreamingContext` given:
+It collects the following properties about the current streaming runtime environment from the input `StreamingContext` (and indirectly from the corresponding link:spark-streaming-jobscheduler.adoc[JobScheduler] and link:spark-sparkcontext.adoc[SparkContext]):
 
-* `master`
-* `framework`
-* `jars`
-* `graph`
-* `checkpointDir`
-* `checkpointDuration`
-* `pendingTimes`
-* `sparkConfPairs`
+* The link:spark-sparkcontext.adoc#master-url[master URL from SparkContext] as `master`.
+* The link:spark-sparkcontext.adoc#application-name[mandatory application name from SparkContext] as `framework`.
+* The link:spark-sparkcontext.adoc#jars[jars to distribute to workers from SparkContext] as `jars`.
+* The link:spark-streaming-dstreamgraph.adoc[DStreamGraph] as `graph`
+* The link:spark-streaming-streamingcontext.adoc#checkpoint-directory[checkpoint directory] as `checkpointDir`
+* The link:spark-streaming-streamingcontext.adoc#checkpoint-interval[checkpoint interval] as `checkpointDuration`
+* The link:spark-streaming-jobscheduler.adoc#getPendingTimes[collection of pending batches to process] as `pendingTimes`
+* The link:spark-sparkcontext.adoc#spark-configuration[Spark configuration (aka SparkConf)] as `sparkConfPairs`
+
+=== [[CheckpointWriter]] CheckpointWriter
+
+An instance of `CheckpointWriter` is created (lazily) when `JobGenerator` is, but only when link:spark-streaming-jobgenerator.adoc#shouldCheckpoint[JobGenerator should checkpoint].
+
+==== [[CheckpointWriter-write]] Writing Checkpoint for Batch Time (write method)
+
+[source, scala]
+----
+write(checkpoint: Checkpoint, clearCheckpointDataLater: Boolean): Unit
+----
+
+`write` method serializes the checkpoint and attempts to write the serialized checkpoint data asynchronously (i.e. on a separate thread).
+
+NOTE: It is called when link:spark-streaming-jobgenerator.adoc#checkpointing[checkpointing is enabled] and link:spark-streaming-jobgenerator.adoc#DoCheckpoint[JobGenerator processes a DoCheckpoint event].
+
+CAUTION: FIXME Describe `Checkpoint.serialize(checkpoint, conf)` and `executor.execute(new CheckpointWriteHandler...`.
+
+You should see the following INFO message in the logs:
+
+```
+INFO Submitted checkpoint of time [checkpoint.checkpointTime] writer queue
+```
+
+If the asynchronous checkpoint write fails, you should see the following ERROR in the logs:
+
+```
+ERROR Could not submit checkpoint task to the thread pool executor
+```
