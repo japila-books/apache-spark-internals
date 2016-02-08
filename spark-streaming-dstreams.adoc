@@ -111,6 +111,37 @@ It always calls a _slightly different_ method `parentRememberDuration` on every 
 
 CAUTION: What is the reason for not using `rememberDuration` directly but using `parentRememberDuration` method that gives  `rememberDuration`? Why is the indirection? See https://github.com/apache/spark/blob/master/streaming/src/main/scala/org/apache/spark/streaming/dstream/DStream.scala#L305[the sources in the repo on GitHub].
 
+=== [[checkpoint]] Checkpointing DStreams (checkpoint method)
+
+[source, scala]
+----
+checkpoint(interval: Duration): DStream[T]
+----
+
+You use `checkpoint(interval: Duration)` method to set up a periodic checkpointing every (checkpoint) `interval`.
+
+You can only enable checkpointing and set the checkpoint interval before link:spark-streaming-streamingcontext.adoc#start[StreamingContext is started] or `UnsupportedOperationException` is thrown as follows:
+
+```
+java.lang.UnsupportedOperationException: Cannot change checkpoint interval of an DStream after streaming context has started
+  at org.apache.spark.streaming.dstream.DStream.checkpoint(DStream.scala:177)
+  ... 43 elided
+```
+
+Internally, `checkpoint` method calls link:spark-streaming-dstreams.adoc#cache-persist[persist] (that sets the default `MEMORY_ONLY_SER` storage level).
+
+If checkpoint interval is set, the link:spark-streaming-streamingcontext.adoc#checkpoint-directory[checkpoint directory] is mandatory. Spark validates it when link:spark-streaming-streamingcontext.adoc#start[StreamingContext starts] and throws a `IllegalArgumentException` exception if not set.
+
+```
+java.lang.IllegalArgumentException: requirement failed: The checkpoint directory has not been set. Please set it by StreamingContext.checkpoint().
+```
+
+You can see the value of the checkpoint interval for a dstream in the logs when  link:spark-streaming-dstreams.adoc#validateAtStart[it is validated]:
+
+```
+INFO Checkpoint interval = [checkpointDuration]
+```
+
 === [[checkpointing]] Checkpointing
 
 DStreams can link:spark-streaming-checkpointing.adoc[checkpoint] input data at specified time intervals.

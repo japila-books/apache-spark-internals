@@ -13,31 +13,19 @@ You use link:spark-streaming-streamingcontext.adoc#checkpoint[StreamingContext.c
 ssc.checkpoint("_checkpoint")
 ----
 
-=== [[checkpoing-interval]] Checkpoint Interval
+=== [[checkpoing-interval]] Checkpoint Interval and Checkpointing DStreams
 
-You can set up periodic checkpointing every *checkpoint interval* using `checkpoint(interval: Duration)` method.
+You can set up periodic checkpointing of a dstream every *checkpoint interval* using link:spark-streaming-dstreams.adoc#checkpoint[DStream.checkpoint] method.
 
 [source, scala]
 ----
-checkpoint(interval: Duration): DStream[T]
+val ssc: StreamingContext = ...
+// set the checkpoint directory
+ssc.checkpoint("_checkpoint")
+val ds: DStream[Int] = ...
+val cds: DStream[Int] = ds.checkpoint(Seconds(5))
+ssc.start
 ----
-
-NOTE: You can only enable checkpointing and set the checkpoint interval before link:spark-streaming-streamingcontext.adoc#start[StreamingContext is started]. Otherwise, `UnsupportedOperationException` is thrown.
-
-CAUTION: FIXME the exception
-
-Internally, `checkpoint` method calls link:spark-streaming-dstreams.adoc#cache-persist[persist] (that sets the default `MEMORY_ONLY_SER` storage level).
-
-If checkpoint interval has been enabled, the <<streamingcontext-checkpoint, checkpoint directory>> is mandatory. Spark validates it when link:spark-streaming-streamingcontext.adoc#start[StreamingContext starts]. Otherwise, `IllegalArgumentException` is thrown  (as depicted in the following figure).
-
-.StreamingContext refuses to start when checkpoint directory not set
-image::images/spark-streaming-checkpoint-directory-not-set.png[align="center"]
-
-You can see the checkpoint interval for a stream in the logs when the link:spark-streaming-dstreams.adoc#validateAtStart[DStream is validated]:
-
-```
-INFO Checkpoint interval = [checkpointDuration]
-```
 
 === [[checkpoint-data]] Checkpoint Data
 
@@ -139,7 +127,7 @@ write(checkpoint: Checkpoint, clearCheckpointDataLater: Boolean): Unit
 
 `write` method <<Checkpoint-serialize, serializes the checkpoint object>> and passes the serialized form to <<CheckpointWriteHandler, CheckpointWriteHandler>> to write asynchronously (i.e. on a separate thread) using <<CheckpointWriter-executor, single-thread thread pool executor>>.
 
-NOTE: It is called when link:spark-streaming-jobgenerator.adoc#checkpointing[checkpointing is enabled] and link:spark-streaming-jobgenerator.adoc#DoCheckpoint[JobGenerator processes a DoCheckpoint event].
+NOTE: It is called when  link:spark-streaming-jobgenerator.adoc#DoCheckpoint[JobGenerator receives DoCheckpoint event and the batch time is eligible for checkpointing].
 
 You should see the following INFO message in the logs:
 
@@ -153,13 +141,65 @@ If the asynchronous checkpoint write fails, you should see the following ERROR i
 ERROR Could not submit checkpoint task to the thread pool executor
 ```
 
-=== [[CheckpointWriteHandler]] CheckpointWriteHandler
-
-`CheckpointWriteHandler` is an internal thread of execution that...
-
-NOTE: It is used by ... when ...
+==== [[CheckpointWriter-stop]] Stopping CheckpointWriter (using stop method)
 
 CAUTION: FIXME
+
+=== [[CheckpointWriteHandler]] CheckpointWriteHandler
+
+`CheckpointWriteHandler` is an (internal) thread of execution that does checkpoint writes. It is executed with `checkpointTime`, the serialized form of the checkpoint, and whether to clean checkpoint data later flag (as `clearCheckpointDataLater`).
+
+NOTE: It is used by CheckpointWriter to queue a <<CheckpointWriter-write, checkpoint write for a batch time>>.
+
+It records the current checkpoint time (in `latestCheckpointTime`) and calculates the name of the checkpoint file.
+
+NOTE: The name of the checkpoint file is `checkpoint-[checkpointTime.milliseconds]`.
+
+CAUTION: FIXME Is `checkpointTime.milliseconds` a batch time?
+
+It uses a backup file to do atomic write, i.e. it writes to the checkpoint backup file first and renames the result file to the final checkpoint file name.
+
+NOTE: The name of the checkpoint backup file is `checkpoint-[checkpointTime.milliseconds].bk`.
+
+NOTE: `CheckpointWriteHandler` does 3 write attempts at the maximum. The value is not configurable.
+
+When attempting to write, you should see the following INFO message in the logs:
+
+```
+INFO CheckpointWriter: Saving checkpoint for time [checkpointTime] ms to file '[checkpointFile]'
+```
+
+NOTE: It deletes any checkpoint backup files that may exist from the previous attempts.
+
+It then deletes checkpoint files when there are more than 10.
+
+NOTE: The number of checkpoint files when the deletion happens, i.e. *10*, is fixed and not configurable.
+
+You should see the following INFO message in the logs:
+
+```
+INFO CheckpointWriter: Deleting [file]
+```
+
+If all went fine, you should see the following INFO message in the logs:
+
+```
+INFO CheckpointWriter: Checkpoint for time [checkpointTime] ms saved to file '[checkpointFile]', took [bytes] bytes and [time] ms
+```
+
+link:spark-streaming-jobgenerator.adoc#onCheckpointCompletion[JobGenerator is informed that the checkpoint write completed] (with `checkpointTime` and `clearCheckpointDataLater` flag).
+
+In case of write failures, you can see the following WARN message in the logs:
+
+```
+WARN CheckpointWriter: Error in attempt [attempts] of writing checkpoint to [checkpointFile]
+```
+
+If the number of write attempts exceeded (the fixed) 10 or <<CheckpointWriter-stop, CheckpointWriter was stopped>> before any successful checkpoint write, you should see the following WARN message in the logs:
+
+```
+WARN CheckpointWriter: Could not write checkpoint for time [checkpointTime] to file [checkpointFile]'
+```
 
 === [[CheckpointReader]] CheckpointReader
 
