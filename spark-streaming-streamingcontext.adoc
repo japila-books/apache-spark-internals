@@ -50,7 +50,7 @@ link:spark-streaming-webui.adoc[Streaming tab] in web UI is created (when link:s
 
 A link:spark-streaming.adoc#StreamingSource[StreamingSource] is instantiated.
 
-At this point, `StreamingContext` enters `INITIALIZED` state.
+At this point, `StreamingContext` enters <<states, INITIALIZED>> state.
 
 === [[creating-receivers]] Creating ReceiverInputDStreams
 
@@ -147,7 +147,7 @@ If no other StreamingContext exists, it performs <<validate, setup validation>> 
 .When started, StreamingContext starts JobScheduler
 image::images/spark-streaming-StreamingContext-start.png[align="center"]
 
-It enters `ACTIVE` state.
+It enters <<states, ACTIVE>> state.
 
 It then register the <<stopOnShutdown, shutdown hook stopOnShutdown>> and <<streamingSource, registers streaming metrics source>>. If web UI is enabled (by `spark.ui.enabled`), it attaches the link:spark-streaming-webui.adoc[Streaming tab].
 
@@ -167,7 +167,7 @@ WARN StreamingContext: StreamingContext has already been started
 
 ==== [[start-STOPPED]] Starting in STOPPED state
 
-Attempting to start `StreamingContext` in `STOPPED` state, i.e. <<stop, after it has been stopped>>, leads to the `IllegalStateException` exception:
+Attempting to start `StreamingContext` in <<states, STOPPED>> state, i.e. <<stop, after it has been stopped>>, leads to the `IllegalStateException` exception:
 
 ```
 java.lang.IllegalStateException: StreamingContext has already been stopped
@@ -196,49 +196,56 @@ NOTE: The first `stop` method uses link:spark-streaming-settings.adoc[spark.stre
 
 `stop` methods stop the execution of the streams immediately (`stopGracefully` is `false`) or wait for the processing of all received data to be completed (`stopGracefully` is `true`).
 
-`stop` reacts appropriately depending on the state of `StreamingContext`. The end state is always `STOPPED`.
+`stop` reacts appropriately per the state of `StreamingContext`, but the end state is always <<states, STOPPED>> state with shutdown hook removed.
 
-When in `INITIALIZED` state, it prints the WARN message to the logs:
+If a user requested to stop the underlying SparkContext (when `stopSparkContext` flag is enabled, i.e. `true`), link:spark-sparkcontext.adoc#stopping[it is now attempted to be stopped].
 
-```
-WARN StreamingContext: StreamingContext has not been started yet
-```
+==== [[stop-ACTIVE]] Stopping in ACTIVE state
 
-When in `STOPPED` state, it prints the WARN message to the logs:
+It is only in <<states, ACTIVE>> state when `stop` does more than printing out WARN messages to the logs.
 
-```
-WARN StreamingContext: StreamingContext has already been stopped
-```
+.StreamingContext Stop Procedure
+image::images/spark-streaming-StreamingContext-stop.png[align="center"]
 
-It is only in `ACTIVE` state when `stop` does more than printing out the WARN messages to the logs, i.e. it does the following (in order):
+It does the following (in order):
 
-* link:spark-streaming-jobscheduler.adoc#stopping[JobScheduler is stopped].
+1. link:spark-streaming-jobscheduler.adoc#stopping[JobScheduler is stopped].
 
-* link:spark-streaming.adoc#StreamingSource[StreamingSource] is removed from link:spark-metrics.adoc[MetricsSystem] (using `MetricsSystem.removeSource`)
+1. link:spark-streaming.adoc#StreamingSource[StreamingSource] is removed from link:spark-metrics.adoc[MetricsSystem] (using `MetricsSystem.removeSource`)
 
-* link:spark-streaming-webui.adoc[Streaming tab] is detached (using `StreamingTab.detach`).
+1. link:spark-streaming-webui.adoc[Streaming tab] is detached (using `StreamingTab.detach`).
 
-* `ContextWaiter` is `notifyStop()`
+1. `ContextWaiter` is `notifyStop()`
 
-* `shutdownHookRef` is cleared.
+1. `shutdownHookRef` is cleared.
 
-CAUTION: FIXME When is `shutdownHookRef` executed? It doesn't seem to be so at `stop`?
-
-At that point, the following INFO message is printed out to the logs and `StreamingContext` enters `STOPPED` state.
+At that point, you should see the following INFO message in the logs:
 
 ```
 INFO StreamingContext: StreamingContext stopped successfully
 ```
 
-If a user requested to stop the underlying SparkContext (when `stopSparkContext` is `true`), link:spark-sparkcontext.adoc#stopping[it is now attempted to be stopped].
+`StreamingContext` enters <<states, STOPPED>> state.
 
-=== [[states]] States
+==== [[stop-INITIALIZED]] Stopping in INITIALIZED state
 
-`StreamingContext` can be in three states:
+When in <<states, INITIALIZED>> state, you should see the following WARN message in the logs:
 
-* `INITIALIZED`, i.e. after <<creating-instance, it was instantiated>>.
-* `ACTIVE`, i.e. after <<start-INITIALIZED, it was started>>.
-* `STOPPED`, i.e. after <<stop, it has been stopped>>
+```
+WARN StreamingContext: StreamingContext has not been started yet
+```
+
+`StreamingContext` enters <<states, STOPPED>> state.
+
+==== [[stop-STOPPED]] Stopping in STOPPED state
+
+When in <<states, STOPPED>> state, it prints the WARN message to the logs:
+
+```
+WARN StreamingContext: StreamingContext has already been stopped
+```
+
+`StreamingContext` enters <<states, STOPPED>> state.
 
 === [[validate]] Setup Validation
 
@@ -249,9 +256,9 @@ validate()
 
 `validate()` method validates configuration of `StreamingContext`.
 
-NOTE: It is executed when ...
+NOTE: The method is executed when `StreamingContext` is <<start, started>>.
 
-CAUTION: FIXME
+CAUTION: FIXME Describe me!
 
 * It does link:spark-streaming-dstreamgraph.adoc#dstreamgraph-validation[validation of DStreamGraph].
 
@@ -264,4 +271,10 @@ If link:spark-streaming-checkpointing.adoc[checkpointing] is enabled, i.e. when 
 WARN StreamingContext: Dynamic Allocation is enabled for this application. Enabling Dynamic allocation for Spark Streaming applications can cause data loss if Write Ahead Log is not enabled for non-replayable sources like Flume. See the programming guide for details on how to enable the Write Ahead Log
 ----
 
-NOTE: StreamingContext's setup validation is executed when it is <<start, started>>.
+=== [[states]] States
+
+`StreamingContext` can be in three states:
+
+* `INITIALIZED`, i.e. after <<creating-instance, it was instantiated>>.
+* `ACTIVE`, i.e. after <<start-INITIALIZED, it was started>>.
+* `STOPPED`, i.e. after <<stop, it has been stopped>>
