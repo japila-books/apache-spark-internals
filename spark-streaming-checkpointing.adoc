@@ -1,6 +1,6 @@
 == Checkpointing
 
-*Checkpointing* is a process that allows you to create *fault-tolerant stream processing pipelines* by <<CheckpointWriter-write, writing received records>> to a <<streamingcontext-checkpoint, highly-available HDFS-compatible storage>>.
+*Checkpointing* is a process of <<CheckpointWriter-write, writing received records (by means of input dstreams)>> to a <<streamingcontext-checkpoint, highly-available HDFS-compatible storage>> that in turn allows creating *fault-tolerant stream processing pipelines*.
 
 link:spark-streaming-dstreams.adoc[DStreams] can checkpoint <<checkpoint-data, input data>> at specified <<checkpoing-interval, time intervals>>.
 
@@ -24,7 +24,8 @@ val ssc: StreamingContext = ...
 ssc.checkpoint("_checkpoint")
 val ds: DStream[Int] = ...
 val cds: DStream[Int] = ds.checkpoint(Seconds(5))
-ssc.start
+// do something with the input dstream
+cds.print
 ----
 
 === [[checkpoint-data]] Checkpoint Data
@@ -41,7 +42,7 @@ NOTE: By default, `DStreamCheckpointData` records the checkpoint files to which 
 
 === [[Checkpoint]] Checkpoint
 
-`Checkpoint` class requires a link:spark-streaming-streamingcontext.adoc[StreamingContext] and `checkpointTime` time to be instantiated.
+`Checkpoint` class requires a link:spark-streaming-streamingcontext.adoc[StreamingContext] and `checkpointTime` time to be instantiated. The internal property `checkpointTime` corresponds to the batch time it represents.
 
 NOTE: `Checkpoint` class is written to a persistent storage (aka _serialized_) using <<CheckpointWriter-write, CheckpointWriter.write>> method and read back (aka _deserialize_) using <<Checkpoint-deserialize, Checkpoint.deserialize>>.
 
@@ -112,11 +113,7 @@ INFO Checkpoint for time [checkpointTime] validated
 
 An instance of `CheckpointWriter` is created (lazily) when `JobGenerator` is, but only when link:spark-streaming-jobgenerator.adoc#shouldCheckpoint[JobGenerator is configured for checkpointing].
 
-It uses the internal <<CheckpointWriter-executor, single-thread thread pool executor>> to <<CheckpointWriteHandler, process checkpoint writes asynchronously>>.
-
-==== [[CheckpointWriter-executor]] Single-Thread Thread Pool Executor
-
-`executor` is the internal single-thread thread pool executor for executing ...FIXME
+It uses the internal <<CheckpointWriter-executor, single-thread thread pool executor>> to <<CheckpointWriteHandler, execute checkpoint writes asynchronously>> and does so until it is <<CheckpointWriter-stop, stopped>>.
 
 ==== [[CheckpointWriter-write]] Writing Checkpoint for Batch Time (write method)
 
@@ -143,19 +140,46 @@ ERROR Could not submit checkpoint task to the thread pool executor
 
 ==== [[CheckpointWriter-stop]] Stopping CheckpointWriter (using stop method)
 
-CAUTION: FIXME
+[source, scala]
+----
+stop(): Unit
+----
 
-=== [[CheckpointWriteHandler]] CheckpointWriteHandler
+`CheckpointWriter` uses the internal `stopped` flag to mark whether it is stopped or not.
 
-`CheckpointWriteHandler` is an (internal) thread of execution that does checkpoint writes. It is executed with `checkpointTime`, the serialized form of the checkpoint, and whether to clean checkpoint data later flag (as `clearCheckpointDataLater`).
+NOTE: `stopped` flag is disabled, i.e. `false`, when `CheckpointWriter` is created.
 
-NOTE: It is used by CheckpointWriter to queue a <<CheckpointWriter-write, checkpoint write for a batch time>>.
+`stop` method checks the internal `stopped` flag and returns if it says it is stopped already.
+
+If not, it orderly shuts down the <<CheckpointWriter-executor, internal single-thread thread pool executor>> and awaits termination for 10 seconds. During that time, any asynchronous checkpoint writes can be safely finished, but no new tasks will be accepted.
+
+NOTE: The wait time before `executor` stops is fixed, i.e. not configurable, and is set to 10 seconds.
+
+After 10 seconds, when the thread pool did not terminate, `stop` stops it forcefully.
+
+You should see the following INFO message in the logs:
+
+```
+INFO CheckpointWriter: CheckpointWriter executor terminated? [terminated], waited for [time] ms.
+```
+
+`CheckpointWriter` is marked as stopped, i.e. `stopped` flag is set to `true`.
+
+==== [[CheckpointWriter-executor]] Single-Thread Thread Pool Executor
+
+`executor` is an internal single-thread thread pool executor for executing <<CheckpointWriteHandler, asynchronous checkpoint writes using CheckpointWriteHandler>>.
+
+It shuts down when <<CheckpointWriter-stop, CheckpointWriter is stopped>> (with a 10-second graceful period before it terminated forcefully).
+
+=== [[CheckpointWriteHandler]] CheckpointWriteHandler -- Asynchronous Checkpoint Writes
+
+`CheckpointWriteHandler` is an (internal) thread of execution that does checkpoint writes. It is instantiated with `checkpointTime`, the serialized form of the checkpoint, and whether or not to clean checkpoint data later flag (as `clearCheckpointDataLater`).
+
+NOTE: It is only used by <<CheckpointWriter, CheckpointWriter>> to queue a <<CheckpointWriter-write, checkpoint write for a batch time>>.
 
 It records the current checkpoint time (in `latestCheckpointTime`) and calculates the name of the checkpoint file.
 
 NOTE: The name of the checkpoint file is `checkpoint-[checkpointTime.milliseconds]`.
-
-CAUTION: FIXME Is `checkpointTime.milliseconds` a batch time?
 
 It uses a backup file to do atomic write, i.e. it writes to the checkpoint backup file first and renames the result file to the final checkpoint file name.
 
