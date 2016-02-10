@@ -4,9 +4,9 @@
 
 NOTE: `StreamingContext` belongs to `org.apache.spark.streaming` package.
 
-Having an instance of `StreamingContext`, you can <<creating-receivers, create ReceiverInputDStreams>> that you apply transformations to to build a streaming pipeline.
+With an instance of `StreamingContext` in your hands, you can <<creating-receivers, create ReceiverInputDStreams>> or <<checkpoint, set the checkpoint directory>>.
 
-Once satisfied, you <<start, start StreamingContext>> that sets the stream transformations in motion.
+Once streaming pipelines are developed, you <<start, start StreamingContext>> to set the stream transformations in motion. You <<stop, stop>> the instance when you are done.
 
 === [[creating-instance]] Creating Instance
 
@@ -54,7 +54,7 @@ At this point, `StreamingContext` enters <<states, INITIALIZED>> state.
 
 === [[creating-receivers]] Creating ReceiverInputDStreams
 
-`StreamingContext` offers the following methods to create link:spark-streaming-receiverinputdstreams.adoc[ReceiverInputDStreams]:
+`StreamingContext` offers the following methods to create link:spark-streaming-receiverinputdstreams.adoc[ReceiverInputDStreams] (that you apply transformations to in order to build streaming pipelines):
 
 * `receiverStream[T](receiver: Receiver[T]): ReceiverInputDStream[T]`
 * `actorStream[T](props: Props, name: String, storageLevel: StorageLevel = StorageLevel.MEMORY_AND_DISK_SER_2, supervisorStrategy: SupervisorStrategy = ActorSupervisorStrategy.defaultStrategy): ReceiverInputDStream[T]`
@@ -74,13 +74,9 @@ You can also use two additional methods in `StreamingContext` to build (or bette
 
 === [[checkpoint-interval]][[checkpointDuration]] Checkpoint Interval
 
-The *checkpoint interval* is an internal property of `StreamingContext` and corresponds to link:spark-streaming-dstreamgraph.adoc#batch-interval[batch interval] or checkpoint interval of the checkpoint (when <<isCheckpointPresent, checkpoint was present>>).
+The *checkpoint interval* is an internal property of `StreamingContext` and corresponds to link:spark-streaming-dstreamgraph.adoc#batch-interval[batch interval] or link:spark-streaming-checkpointing.adoc#Checkpoint[checkpoint interval of the checkpoint] (when <<isCheckpointPresent, checkpoint was present>>).
 
 NOTE: The checkpoint interval property is also called *graph checkpointing interval*.
-
-CAUTION: FIXME Describe _checkpoint interval of the checkpoint_ above. Could it be the batch interval anyway?
-
-CAUTION: FIXME It can also be restored from a checkpoint. Can it be different than the batch interval..._ever_?
 
 <<validate, checkpoint interval is mandatory>> when <<checkpointDir, checkpoint directory>> is defined (i.e. not `null`).
 
@@ -173,18 +169,6 @@ Attempting to start `StreamingContext` in <<states, STOPPED>> state, i.e. <<stop
 java.lang.IllegalStateException: StreamingContext has already been stopped
 ```
 
-=== [[addStreamingListener]] Registering Streaming Listeners
-
-CAUTION: FIXME
-
-=== [[streamingSource]] Streaming Metrics Source
-
-CAUTION: FIXME
-
-=== [[stopOnShutdown]] stopOnShutdown Shutdown Hook
-
-CAUTION: FIXME
-
 === [[stop]][[stopping]] Stopping StreamingContext (using stop methods)
 
 You stop `StreamingContext` using one of the three variants of `stop` method:
@@ -247,6 +231,22 @@ WARN StreamingContext: StreamingContext has already been stopped
 
 `StreamingContext` enters <<states, STOPPED>> state.
 
+=== [[stopOnShutdown]] stopOnShutdown Shutdown Hook
+
+`stopOnShutdown` is a https://docs.oracle.com/javase/8/docs/api/java/lang/Runtime.html#addShutdownHook-java.lang.Thread-[JVM shutdown hook] to clean up after `StreamingContext` when the JVM shuts down, e.g. all non-daemon thread exited, `System.exit` was called or `^C` was typed.
+
+NOTE: It is registered to ShutdownHookManager when <<start-INITIALIZED, StreamingContext starts>>.
+
+NOTE: `ShutdownHookManager` uses `org.apache.hadoop.util.ShutdownHookManager` for its work.
+
+When executed, it first reads link:spark-streaming-settings.adoc[spark.streaming.stopGracefullyOnShutdown] setting that controls <<stop, whether to stop StreamingContext gracefully or not>>. You should see the following INFO message in the logs:
+
+```
+INFO Invoking stop(stopGracefully=[stopGracefully]) from shutdown hook
+```
+
+With the setting it <<stop, stops StreamingContext>> without stopping the accompanying `SparkContext` (i.e. `stopSparkContext` parameter is disabled).
+
 === [[validate]] Setup Validation
 
 [source, scala]
@@ -270,6 +270,14 @@ If link:spark-streaming-checkpointing.adoc[checkpointing] is enabled, i.e. when 
 ----
 WARN StreamingContext: Dynamic Allocation is enabled for this application. Enabling Dynamic allocation for Spark Streaming applications can cause data loss if Write Ahead Log is not enabled for non-replayable sources like Flume. See the programming guide for details on how to enable the Write Ahead Log
 ----
+
+=== [[addStreamingListener]] Registering Streaming Listeners
+
+CAUTION: FIXME
+
+=== [[streamingSource]] Streaming Metrics Source
+
+CAUTION: FIXME
 
 === [[states]] States
 
