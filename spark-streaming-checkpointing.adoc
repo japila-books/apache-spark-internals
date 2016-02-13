@@ -112,7 +112,7 @@ deserialize(inputStream: InputStream, conf: SparkConf): Checkpoint
 
 [source, scala]
 ----
-validate()
+validate(): Unit
 ----
 
 `validate` validates the <<Checkpoint, Checkpoint>>. It ensures that `master`, `framework`, `graph`, and `checkpointTime` are defined, i.e. not `null`.
@@ -122,6 +122,15 @@ You should see the following INFO message in the logs when the object passes the
 ```
 INFO Checkpoint for time [checkpointTime] validated
 ```
+
+==== [[Checkpoint-getCheckpointFiles]] ... (getCheckpointFiles method)
+
+[source, scala]
+----
+getCheckpointFiles(checkpointDir: String, fsOption: Option[FileSystem] = None): Seq[Path]
+----
+
+CAUTION: FIXME
 
 === [[CheckpointWriter]] CheckpointWriter
 
@@ -241,8 +250,60 @@ WARN CheckpointWriter: Could not write checkpoint for time [checkpointTime] to f
 
 === [[CheckpointReader]] CheckpointReader
 
-CAUTION: FIXME Describe me!
+`CheckpointReader` is a `private[streaming]` helper class to <<CheckpointReader-read, read the latest valid checkpoint file to recreate StreamingContext from (given the checkpoint directory)>>.
 
 ==== [[CheckpointReader-read]] Reading Latest Valid Checkpoint File
 
-CAUTION: FIXME
+[source, scala]
+----
+read(checkpointDir: String): Option[Checkpoint]
+read(checkpointDir: String, conf: SparkConf,
+     hadoopConf: Configuration, ignoreReadError: Boolean = false): Option[Checkpoint]
+----
+
+`read` methods read the latest valid checkpoint file from a checkpoint directory `checkpointDir`. They differ in whether Spark configuration `conf` and Hadoop configuration `hadoopConf` are given or created in place.
+
+NOTE: The 4-parameter `read` method is used by <<recreating-streamingcontext, StreamingContext to recreate itself from a checkpoint file>>.
+
+The first `read` throws no `SparkException` when no checkpoint file could be read.
+
+NOTE: It appears that no part of Spark Streaming uses the simplified version of `read`.
+
+`read` uses Apache Hadoop's https://github.com/apache/hadoop/blob/trunk/hadoop-common-project/hadoop-common/src/main/java/org/apache/hadoop/fs/Path.java[Path] and https://github.com/apache/hadoop/blob/trunk/hadoop-common-project/hadoop-common/src/main/java/org/apache/hadoop/conf/Configuration.java[Configuration] to get the checkpoint files (using <<Checkpoint-getCheckpointFiles, Checkpoint.getCheckpointFiles>>) in reverse order.
+
+If there is no checkpoint file in the checkpoint directory, it returns None.
+
+You should see the following INFO message in the logs:
+
+```
+INFO CheckpointReader: Checkpoint files found: [checkpointFiles]
+```
+
+The method reads all the checkpoints (from the youngest to the oldest) until one is successfully loaded, i.e. <<Checkpoint-deserialize, deserialized>>.
+
+You should see the following INFO message in the logs just before deserializing a checkpoint `file`:
+
+```
+INFO CheckpointReader: Attempting to load checkpoint from file [file]
+```
+
+If the checkpoint file was loaded, you should see the following INFO messages in the logs:
+
+```
+INFO CheckpointReader: Checkpoint successfully loaded from file [file]
+INFO CheckpointReader: Checkpoint was generated at time [checkpointTime]
+```
+
+In case of any issues while loading a checkpoint file, you should see the following WARN in the logs and the corresponding exception:
+
+```
+WARN CheckpointReader: Error reading checkpoint from file [file]
+```
+
+Unless `ignoreReadError` flag is disabled, when no checkpoint file could be read, `SparkException` is thrown with the following message:
+
+```
+Failed to read checkpoint from directory [checkpointPath]
+```
+
+`None` is returned at this point and the method finishes.
