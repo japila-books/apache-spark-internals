@@ -1,6 +1,6 @@
 == Checkpointing
 
-*Checkpointing* is a process of <<CheckpointWriter-write, writing received records (by means of input dstreams)>> to a <<streamingcontext-checkpoint, highly-available HDFS-compatible storage>> that in turn allows creating *fault-tolerant stream processing pipelines*.
+*Checkpointing* is a process of <<CheckpointWriter-write, writing received records (by means of input dstreams)>> to a <<streamingcontext-checkpoint, highly-available HDFS-compatible storage>>. It allows creating *fault-tolerant stream processing pipelines* so when a failure occurs input dstreams can restore the before-failure streaming state and continue stream processing (as if nothing had happened).
 
 link:spark-streaming-dstreams.adoc[DStreams] can checkpoint <<checkpoint-data, input data>> at specified <<checkpoing-interval, time intervals>>.
 
@@ -41,6 +41,36 @@ CAUTION: FIXME Review `this(path: String)` regarding `SparkHadoopUtil`.
 Effectively, the two variants use `StreamingContext(path: String, hadoopConf: Configuration)` constructor that <<CheckpointReader-read, reads the latest valid checkpoint file>>.
 
 NOTE: `SparkContext` and batch interval are set to their corresponding values using the checkpoint file.
+
+==== [[recreating-streamingcontext-example]] Example: Recreating StreamingContext from Checkpoint
+
+The following Scala code demonstrates how to use the checkpoint directory `_checkpoint` to (re)create the StreamingContext or create one from scratch.
+
+[source, scala]
+----
+val appName = "Recreating StreamingContext from Checkpoint"
+val sc = new SparkContext("local[*]", appName, new SparkConf())
+
+val checkpointDir = "_checkpoint"
+
+def createSC(): StreamingContext = {
+  val ssc = new StreamingContext(sc, batchDuration = Seconds(5))
+  ssc.checkpoint(checkpointDir)
+  ssc
+}
+val ssc = StreamingContext.getOrCreate(checkpointDir, createSC)
+
+// Create constant input dstream with the RDD
+val rdd = sc.parallelize(0 to 9)
+import org.apache.spark.streaming.dstream.ConstantInputDStream
+val cis = new ConstantInputDStream(ssc, rdd)
+
+// Sample stream computation
+cis.print
+
+// Start streaming processing
+ssc.start
+----
 
 === [[checkpoint-data]] Checkpoint Data
 
@@ -108,6 +138,8 @@ deserialize(inputStream: InputStream, conf: SparkConf): Checkpoint
 
 `deserialize` reconstructs a <<Checkpoint, Checkpoint>> object from the input `inputStream`. It uses a compression codec and once read <<Checkpoint-validate, the just-built Checkpoint object is validated>> and returned back.
 
+NOTE: `deserialize` is called when <<CheckpointReader-read, reading the latest valid checkpoint file>>.
+
 ==== [[Checkpoint-validate]] Validating Checkpoint (validate method)
 
 [source, scala]
@@ -117,20 +149,24 @@ validate(): Unit
 
 `validate` validates the <<Checkpoint, Checkpoint>>. It ensures that `master`, `framework`, `graph`, and `checkpointTime` are defined, i.e. not `null`.
 
+NOTE: `validate` is called when a <<Checkpoint-deserialize, checkpoint is deserialized from an input stream>>.
+
 You should see the following INFO message in the logs when the object passes the validation:
 
 ```
-INFO Checkpoint for time [checkpointTime] validated
+INFO Checkpoint: Checkpoint for time [checkpointTime] ms validated
 ```
 
-==== [[Checkpoint-getCheckpointFiles]] ... (getCheckpointFiles method)
+==== [[Checkpoint-getCheckpointFiles]] Get Collection of Checkpoint Files from Directory (getCheckpointFiles method)
 
 [source, scala]
 ----
 getCheckpointFiles(checkpointDir: String, fsOption: Option[FileSystem] = None): Seq[Path]
 ----
 
-CAUTION: FIXME
+`getCheckpointFiles` method returns a collection of checkpoint files from the given checkpoint directory `checkpointDir`.
+
+The method sorts the checkpoint files by time with a temporary `.bk` checkpoint file first (given a pair of a checkpoint file and its backup file).
 
 === [[CheckpointWriter]] CheckpointWriter
 
@@ -152,7 +188,7 @@ NOTE: It is called when  link:spark-streaming-jobgenerator.adoc#DoCheckpoint[Job
 You should see the following INFO message in the logs:
 
 ```
-INFO Submitted checkpoint of time [checkpoint.checkpointTime] writer queue
+INFO CheckpointWriter: Submitted checkpoint of time [checkpoint.checkpointTime] ms writer queue
 ```
 
 If the asynchronous checkpoint write fails, you should see the following ERROR in the logs:
