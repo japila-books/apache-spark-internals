@@ -72,11 +72,7 @@ ssc.start
 
 === [[checkpoint-data]][[DStreamCheckpointData]] DStreamCheckpointData
 
-CAUTION: What is checkpoint data? Code review `DStreamCheckpointData`.
-
 `DStreamCheckpointData` works with a single dstream. An instance of `DStreamCheckpointData` is created when a dstream is.
-
-It is used in `clearCheckpointData` or `restoreCheckpointData`.
 
 It tracks checkpoint data in the internal `data` registry that records batch time and the checkpoint data at that time. The internal checkpoint data can be anything that a dstream wants to checkpoint. `DStreamCheckpointData` returns the registry when `currentCheckpointFiles` method is called.
 
@@ -116,6 +112,57 @@ The collection of the batches and their checkpointed RDDs is recorded in an inte
 The collection is also added to an internal _transient_ (non-serializable) mapping `timeToCheckpointFile` and the oldest checkpoint (given batch times) is recorded in an internal _transient_ mapping for the current `time`.
 
 NOTE: It is called by link:spark-streaming-dstreams.adoc#updateCheckpointData[DStream.updateCheckpointData(currentTime: Time)].
+
+==== [[DStreamCheckpointData-cleanup]] Deleting Old Checkpoint Files (cleanup method)
+
+[source, scala]
+----
+cleanup(time: Time): Unit
+----
+
+`cleanup` deletes checkpoint files older than the oldest batch for the input `time`.
+
+It first gets the oldest batch time for the input `time` (see <<DStreamCheckpointData-update, Updating Collection of Batches and Checkpoint Directories (update method)>>).
+
+If the (batch) time has been found, all the checkpoint files older are deleted (as tracked in the internal `timeToCheckpointFile` mapping).
+
+You should see the following DEBUG message in the logs:
+
+```
+DEBUG Files to delete:
+[comma-separated files to delete]
+```
+
+For each checkpoint file successfully deleted, you should see the following INFO message in the logs:
+
+```
+INFO Deleted checkpoint file '[file]' for time [time]
+```
+
+Errors in checkpoint deletion are reported as WARN messages in the logs:
+
+```
+WARN Error deleting old checkpoint file '[file]' for time [time]
+```
+
+Otherwise, when no (batch) time has been found for the given input `time`, you should see the following DEBUG message in the logs:
+
+```
+DEBUG Nothing to delete
+```
+
+NOTE: It is called by link:spark-streaming-dstreams.adoc#clearCheckpointData[DStream.clearCheckpointData(time: Time)].
+
+==== [[DStreamCheckpointData-restore]] ... (restore method)
+
+[source, scala]
+----
+restore(): Unit
+----
+
+CAUTION: FIXME Describe me!
+
+NOTE: It is called by link:spark-streaming-dstreams.adoc#restoreCheckpointData[DStream.restoreCheckpointData()].
 
 === [[Checkpoint]] Checkpoint
 
