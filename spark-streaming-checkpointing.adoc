@@ -36,8 +36,6 @@ NOTE: You can also link:spark-streaming-streamingcontext.adoc#creating-instance[
 
 When you use `StreamingContext(path: String)` constructor (or link:spark-streaming-streamingcontext.adoc#creating-instance[the variants thereof]), it uses link:spark-sparkcontext.adoc#hadoopConfiguration[Hadoop configuration] to access `path` directory on a Hadoop-supported file system.
 
-CAUTION: FIXME Review `this(path: String)` regarding `SparkHadoopUtil`.
-
 Effectively, the two variants use `StreamingContext(path: String, hadoopConf: Configuration)` constructor that <<CheckpointReader-read, reads the latest valid checkpoint file>>.
 
 NOTE: `SparkContext` and batch interval are set to their corresponding values using the checkpoint file.
@@ -72,17 +70,52 @@ cis.print
 ssc.start
 ----
 
-=== [[checkpoint-data]] Checkpoint Data
+=== [[checkpoint-data]][[DStreamCheckpointData]] DStreamCheckpointData
 
 CAUTION: What is checkpoint data? Code review `DStreamCheckpointData`.
 
 `DStreamCheckpointData` works with a single dstream. An instance of `DStreamCheckpointData` is created when a dstream is.
 
-It is used in `updateCheckpointData`, `clearCheckpointData` or `restoreCheckpointData`.
+It is used in `clearCheckpointData` or `restoreCheckpointData`.
 
 It tracks checkpoint data in the internal `data` registry that records batch time and the checkpoint data at that time. The internal checkpoint data can be anything that a dstream wants to checkpoint. `DStreamCheckpointData` returns the registry when `currentCheckpointFiles` method is called.
 
 NOTE: By default, `DStreamCheckpointData` records the checkpoint files to which the generated RDDs of the DStream has been saved.
+
+[TIP]
+====
+Enable `DEBUG` logging level for `org.apache.spark.streaming.dstream.DStreamCheckpointData` logger to see what happens inside.
+
+Add the following line to `conf/log4j.properties`:
+
+```
+log4j.logger.org.apache.spark.streaming.dstream.DStreamCheckpointData=DEBUG
+```
+
+Refer to link:spark-logging.adoc[Logging].
+====
+
+==== [[DStreamCheckpointData-update]] Updating Collection of Batches and Checkpoint Directories (update method)
+
+[source, scala]
+----
+update(time: Time): Unit
+----
+
+`update` collects batches and the directory names where the corresponding RDDs were checkpointed (filtering link:spark-streaming-dstreams.adoc#generatedRDDs[the dstream's internal generatedRDDs mapping]).
+
+You should see the following DEBUG message in the logs:
+
+```
+DEBUG Current checkpoint files:
+[checkpointFile per line]
+```
+
+The collection of the batches and their checkpointed RDDs is recorded in an internal field for serialization (i.e. it becomes the current value of the internal field `currentCheckpointFiles` that is serialized when requested).
+
+The collection is also added to an internal _transient_ (non-serializable) mapping `timeToCheckpointFile` and the oldest checkpoint (given batch times) is recorded in an internal _transient_ mapping for the current `time`.
+
+NOTE: It is called by link:spark-streaming-dstreams.adoc#updateCheckpointData[DStream.updateCheckpointData(currentTime: Time)].
 
 === [[Checkpoint]] Checkpoint
 
