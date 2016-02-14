@@ -53,18 +53,22 @@ val checkpointDir = "_checkpoint"
 
 def createSC(): StreamingContext = {
   val ssc = new StreamingContext(sc, batchDuration = Seconds(5))
+
+  // NOTE: You have to create dstreams inside the method
+  // See http://stackoverflow.com/q/35090180/1305344
+
+  // Create constant input dstream with the RDD
+  val rdd = sc.parallelize(0 to 9)
+  import org.apache.spark.streaming.dstream.ConstantInputDStream
+  val cis = new ConstantInputDStream(ssc, rdd)
+
+  // Sample stream computation
+  cis.print
+
   ssc.checkpoint(checkpointDir)
   ssc
 }
 val ssc = StreamingContext.getOrCreate(checkpointDir, createSC)
-
-// Create constant input dstream with the RDD
-val rdd = sc.parallelize(0 to 9)
-import org.apache.spark.streaming.dstream.ConstantInputDStream
-val cis = new ConstantInputDStream(ssc, rdd)
-
-// Sample stream computation
-cis.print
 
 // Start streaming processing
 ssc.start
@@ -153,14 +157,22 @@ DEBUG Nothing to delete
 
 NOTE: It is called by link:spark-streaming-dstreams.adoc#clearCheckpointData[DStream.clearCheckpointData(time: Time)].
 
-==== [[DStreamCheckpointData-restore]] ... (restore method)
+==== [[DStreamCheckpointData-restore]] Restoring Generated RDDs from Checkpoint Files (restore method)
 
 [source, scala]
 ----
 restore(): Unit
 ----
 
-CAUTION: FIXME Describe me!
+`restore` restores the dstream's link:spark-streaming-dstreams.adoc#generatedRDDs[generatedRDDs] given persistent internal `data` mapping with batch times and corresponding checkpoint files.
+
+`restore` takes the current checkpoint files and restores checkpointed RDDs from each checkpoint file (using `SparkContext.checkpointFile`).
+
+You should see the following INFO message in the logs per checkpoint file:
+
+```
+INFO Restoring checkpointed RDD for time [time] from file '[file]'
+```
 
 NOTE: It is called by link:spark-streaming-dstreams.adoc#restoreCheckpointData[DStream.restoreCheckpointData()].
 

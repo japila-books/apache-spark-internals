@@ -196,7 +196,7 @@ CAUTION: FIXME What happens when `SparkContext.runJob(rdd, emptyFunc)` is called
 
 The internal (`private final`) `getOrCompute(time: Time)` method returns an optional RDD for a batch (`time`).
 
-It uses <<internal-registries, generatedRDDs>> to return the RDD if it has already been generated for the `time`. If not, it generates one by <<contract, computing the input stream>> (using `compute(validTime: Time)` method).
+It uses <<generatedRDDs, generatedRDDs>> to return the RDD if it has already been generated for the `time`. If not, it generates one by <<contract, computing the input stream>> (using `compute(validTime: Time)` method).
 
 If there was anything to process in the input stream, i.e. <<contract, computing the input stream returned a RDD>>, the RDD is first link:spark-rdd-caching.adoc[persisted] (only if `storageLevel` for the input stream is different from `StorageLevel.NONE`).
 
@@ -224,15 +224,40 @@ CAUTION: FIXME
 
 CAUTION:FIXME
 
+=== [[restoreCheckpointData]] restoreCheckpointData
+
+[source, scala]
+----
+restoreCheckpointData(): Unit
+----
+
+`restoreCheckpointData` does its work only when the internal _transient_ `restoredFromCheckpointData` flag is disabled (i.e. `false`) and is so initially.
+
+NOTE: `restoreCheckpointData` method is called when link:spark-streaming-dstreamgraph.adoc#restoreCheckpointData[DStreamGraph is requested to restore state of output dstreams].
+
+If `restoredFromCheckpointData` is disabled, you should see the following INFO message in the logs:
+
+```
+INFO ...DStream: Restoring checkpoint data
+```
+
+link:spark-streaming-checkpointing.adoc#DStreamCheckpointData-restore[DStreamCheckpointData.restore()] is executed. And then `restoreCheckpointData` method is executed for every dstream the current dstream depends on (see <<contract, DStream Contract>>).
+
+Once completed, the internal `restoredFromCheckpointData` flag is enabled (i.e. `true`) and you should see the following INFO message in the logs:
+
+```
+INFO Restored checkpoint data
+```
+
 === [[clearMetadata]] Metadata Cleanup
 
 NOTE: It is called when  link:spark-streaming-dstreamgraph.adoc#clearMetadata[DStreamGraph clears metadata for every output stream].
 
-`clearMetadata(time: Time)` is called to remove old RDDs that have been generated so far (and collected in <<internal-registries, generatedRDDs>>). It is a sort of _garbage collector_.
+`clearMetadata(time: Time)` is called to remove old RDDs that have been generated so far (and collected in <<generatedRDDs, generatedRDDs>>). It is a sort of _garbage collector_.
 
 When `clearMetadata(time: Time)` is called, it checks link:spark-streaming-settings.adoc[spark.streaming.unpersist] flag (default enabled).
 
-It collects generated RDDs (from <<internal-registries, generatedRDDs>>) that are older than <<internal-registries, rememberDuration>>.
+It collects generated RDDs (from <<generatedRDDs, generatedRDDs>>) that are older than <<internal-registries, rememberDuration>>.
 
 You should see the following DEBUG message in the logs:
 
@@ -240,7 +265,7 @@ You should see the following DEBUG message in the logs:
 DEBUG Clearing references to old RDDs: [[time] -> [rddId], ...]
 ```
 
-Regardless of link:spark-streaming-settings.adoc[spark.streaming.unpersist] flag, all the collected RDDs are removed from <<internal-registries, generatedRDDs>>.
+Regardless of link:spark-streaming-settings.adoc[spark.streaming.unpersist] flag, all the collected RDDs are removed from <<generatedRDDs, generatedRDDs>>.
 
 When link:spark-streaming-settings.adoc[spark.streaming.unpersist] flag is set (it is by default), you should see the following DEBUG message in the logs:
 
@@ -254,7 +279,7 @@ For every RDD in the list, it link:spark-rdd-caching.adoc#unpersist[unpersists t
 INFO Removing blocks of RDD [blockRDD] of time [time]
 ```
 
-After RDDs have been removed from <<internal-registries, generatedRDDs>> (and perhaps unpersisted), you should see the following DEBUG message in the logs:
+After RDDs have been removed from <<generatedRDDs, generatedRDDs>> (and perhaps unpersisted), you should see the following DEBUG message in the logs:
 
 ```
 DEBUG Cleared [size] RDDs that were older than [time]: [time1, time2, ...]
