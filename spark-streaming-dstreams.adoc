@@ -59,6 +59,22 @@ CAUTION: FIXME Why is this important? Why is this needed at all since DStreamGra
 
 CAUTION: FIXME What is to remember a RDD? Are they remembered by default? Why?
 
+=== [[generatedRDDs]] generatedRDDs - Internal Cache of Batch Times and Corresponding RDDs
+
+`generatedRDDs` is an internal collection of pairs of batch times and the corresponding RDDs that were generated for the batch. It acts as a cache when <<getOrCompute, a dstream is requested to compute a RDD for batch>> (i.e. `generatedRDDs` may already have the RDD or gets a new RDD added).
+
+`generatedRDDs` is empty initially, i.e. when a dstream is created.
+
+It is a _transient_ data structure so it is not serialized when a dstream is. It is initialized to an empty collection when deserialized. You should see the following DEBUG message in the logs when it happens:
+
+```
+DEBUG [the simple class name of dstream].readObject used
+```
+
+As new RDDs are added, dstreams offer a way <<clearMetadata, to clear the old metadata>> during which the old RDDs are removed from `generatedRDDs` collection.
+
+If link:spark-streaming-checkpointing.adoc[checkpointing is used], `generatedRDDs` collection can be link:spark-streaming-checkpointing.adoc#DStreamCheckpointData-restore[recreated from a storage].
+
 === [[initialize]] Initializing DStreams (initialize method)
 
 [source, scala]
@@ -309,12 +325,6 @@ When `updateCheckpointData` finishes, you should see the following DEBUG message
 ```
 DEBUG Updated checkpoint data for time [currentTime]: [checkpointData]
 ```
-
-=== [[generatedRDDs]] generatedRDDs
-
-CAUTION: FIXME
-
-* `generatedRDDs` is the mapping between batches (per time) and generated RDDs. See <<getOrCompute, Computing RDD for Batch (using getOrCompute Method)>> in this document.
 
 === [[internal-registries]] Internal Registries
 
