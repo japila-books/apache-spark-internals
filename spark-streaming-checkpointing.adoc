@@ -1,6 +1,6 @@
 == Checkpointing
 
-*Checkpointing* is a process of <<CheckpointWriter-write, writing received records (by means of input dstreams)>> to a <<streamingcontext-checkpoint, highly-available HDFS-compatible storage>>. It allows creating *fault-tolerant stream processing pipelines* so when a failure occurs input dstreams can restore the before-failure streaming state and continue stream processing (as if nothing had happened).
+*Checkpointing* is a process of <<CheckpointWriter-write, writing received records>> (by means of link:spark-streaming-inputdstreams.adoc[input dstreams]) at <<checkpoing-interval, checkpoint intervals>> to a <<streamingcontext-checkpoint, highly-available HDFS-compatible storage>>. It allows creating *fault-tolerant stream processing pipelines* so when a failure occurs input dstreams can restore the before-failure streaming state and continue stream processing (as if nothing had happened).
 
 link:spark-streaming-dstreams.adoc[DStreams] can checkpoint <<checkpoint-data, input data>> at specified <<checkpoing-interval, time intervals>>.
 
@@ -30,13 +30,15 @@ cds.print
 
 === [[recreating-streamingcontext]] Recreating StreamingContext from Checkpoint
 
-You can create a StreamingContext from a link:spark-streaming-streamingcontext.adoc#checkpoint-directory[checkpoint directory], i.e. recreate a fully-working StreamingContext as recorded in the last valid checkpoint file that was written to the checkpoint directory.
+You can create a StreamingContext from a link:spark-streaming-streamingcontext.adoc#checkpoint-directory[checkpoint directory], i.e. recreate a fully-working StreamingContext as recorded in the <<CheckpointReader-read, last valid checkpoint file that was written to the checkpoint directory>>.
 
 NOTE: You can also link:spark-streaming-streamingcontext.adoc#creating-instance[create a brand new StreamingContext] (and putting checkpoints aside).
 
+WARNING: You must not create input dstreams using a StreamingContext that has been recreated from checkpoint. Otherwise, you will not start the StreamingContext at all.
+
 When you use `StreamingContext(path: String)` constructor (or link:spark-streaming-streamingcontext.adoc#creating-instance[the variants thereof]), it uses link:spark-sparkcontext.adoc#hadoopConfiguration[Hadoop configuration] to access `path` directory on a Hadoop-supported file system.
 
-Effectively, the two variants use `StreamingContext(path: String, hadoopConf: Configuration)` constructor that <<CheckpointReader-read, reads the latest valid checkpoint file>>.
+Effectively, the two variants use `StreamingContext(path: String, hadoopConf: Configuration)` constructor that <<CheckpointReader-read, reads the latest valid checkpoint file>> (and hence enables )
 
 NOTE: `SparkContext` and batch interval are set to their corresponding values using the checkpoint file.
 
@@ -389,7 +391,7 @@ read(checkpointDir: String, conf: SparkConf,
      hadoopConf: Configuration, ignoreReadError: Boolean = false): Option[Checkpoint]
 ----
 
-`read` methods read the latest valid checkpoint file from a checkpoint directory `checkpointDir`. They differ in whether Spark configuration `conf` and Hadoop configuration `hadoopConf` are given or created in place.
+`read` methods read the latest valid checkpoint file from the link:spark-streaming-streamingcontext.adoc#checkpoint-directory[checkpoint directory] `checkpointDir`. They differ in whether Spark configuration `conf` and Hadoop configuration `hadoopConf` are given or created in place.
 
 NOTE: The 4-parameter `read` method is used by <<recreating-streamingcontext, StreamingContext to recreate itself from a checkpoint file>>.
 

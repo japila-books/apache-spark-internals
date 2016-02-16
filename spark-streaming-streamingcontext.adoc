@@ -23,6 +23,8 @@ You can create a new instance of `StreamingContext` using the following construc
 
 NOTE: `StreamingContext(path: String)` uses link:spark-hadoop.adoc#SparkHadoopUtil[SparkHadoopUtil.get.conf].
 
+NOTE: When a StreamingContext is created and link:spark-streaming-settings.adoc#checkpointing[spark.streaming.checkpoint.directory] setting is set, the value gets passed on to <<checkpoint, checkpoint>> method.
+
 ==== [[creating-instance-from-scratch]] Creating StreamingContext from Scratch
 
 When you create a new instance of `StreamingContext`, it first checks whether a link:spark-sparkcontext.adoc[SparkContext] or the <<checkpoint-directory, checkpoint directory>> are given (but not both!)
@@ -84,13 +86,19 @@ NOTE: The checkpoint interval property is also called *graph checkpointing inter
 
 A *checkpoint directory* is a HDFS-compatible directory where link:spark-streaming-checkpointing.adoc[checkpoints] are written to.
 
+NOTE: _"A HDFS-compatible directory"_ means that it is Hadoop's Path class to handle all file system-related operations.
+
+Its initial value depends on whether the link:spark-streaming-checkpointing.adoc#recreating-streamingcontext[StreamingContext was (re)created from a checkpoint] or not, and is the checkpoint directory if so. Otherwise, it is not set (i.e. `null`).
+
 You can set the checkpoint directory when a <<creating-instance, StreamingContext is created>> or later using <<checkpoint, checkpoint>> method.
 
 Internally, a checkpoint directory is tracked as `checkpointDir`.
 
+TIP: Refer to link:spark-streaming-checkpointing.adoc[Checkpointing] for more detailed coverage.
+
 === [[initial-checkpoint]][[initialCheckpoint]] Initial Checkpoint
 
-*Initial checkpoint* is the latest/youngest checkpoint (file) `StreamingContext` has been recreated from.
+*Initial checkpoint* is the link:spark-streaming-checkpointing.adoc#recreating-streamingcontext[checkpoint (file) this StreamingContext has been recreated from].
 
 The initial checkpoint is specified when a <<creating-instance, StreamingContext is created>>.
 
@@ -99,9 +107,11 @@ The initial checkpoint is specified when a <<creating-instance, StreamingContext
 val ssc = new StreamingContext("_checkpoint")
 ----
 
-=== [[isCheckpointPresent]] Was Checkpoint Given to Create StreamingContext (isCheckpointPresent method)
+=== [[isCheckpointPresent]] Marking StreamingContext As Recreated from Checkpoint (isCheckpointPresent method)
 
-`isCheckpointPresent` internal method is to tell the other parts of a streaming application whether the `StreamingContext` instance was created from a <<initialCheckpoint, (initial) checkpoint>> or not.
+`isCheckpointPresent` internal method behaves like a flag that remembers whether the `StreamingContext` instance was created from a <<initialCheckpoint, checkpoint>> or not so the other internal parts of a streaming application can make decisions how to initialize themselves (or just be initialized).
+
+`isCheckpointPresent` checks the existence of the <<initialCheckpoint, initial checkpoint>> that gave birth to the StreamingContext.
 
 === [[checkpoint]] Setting Checkpoint Directory (checkpoint method)
 
@@ -110,13 +120,15 @@ val ssc = new StreamingContext("_checkpoint")
 checkpoint(directory: String): Unit
 ----
 
-You use `checkpoint` method to set up a HDFS-compatible `directory` where the checkpoint data will be persisted (refer to link:spark-streaming-checkpointing.adoc[Checkpointing] for more detailed coverage).
+You use `checkpoint` method to set `directory` as the current <<checkpointDir, checkpoint directory>>.
 
 NOTE: Spark creates the directory unless it exists already.
 
-It uses link:spark-sparkcontext.adoc#hadoopConfiguration[SparkContext.hadoopConfiguration] to get the file system to `mkdir` the directory on. Once created, the full directory path is passed on to link:spark-sparkcontext.adoc#setCheckpointDir[SparkContext.setCheckpointDir] method.
+`checkpoint` uses link:spark-sparkcontext.adoc#hadoopConfiguration[SparkContext.hadoopConfiguration] to get the file system and create `directory` on. The full path of the directory is passed on to link:spark-sparkcontext.adoc#setCheckpointDir[SparkContext.setCheckpointDir] method.
 
 NOTE: Calling `checkpoint` with `null` as `directory` clears the checkpoint directory that effectively disables checkpointing.
+
+NOTE: When <<creating-instance, StreamingContext is created>> and link:spark-streaming-settings.adoc#checkpointing[spark.streaming.checkpoint.directory] setting is set, the value gets passed on to `checkpoint` method.
 
 === [[start]] Starting StreamingContext (using start method)
 
