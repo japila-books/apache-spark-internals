@@ -29,7 +29,7 @@ A `DStream` is defined by the following properties (with the names of the corres
 def dependencies: List[DStream[_]]
 ```
 
-* *slide duration*, i.e. a time interval after which the stream is requested to generate a RDD out of input data it consumes.
+* *slide duration* (aka _slide interval_), i.e. a time interval after which the stream is requested to generate a RDD out of input data it consumes.
 +
 ```
 def slideDuration: Duration
@@ -55,9 +55,15 @@ CAUTION: FIXME Why is this important? Why is this needed at all since DStreamGra
 
 === [[rememberDuration]][[remember-interval]] Remember Interval (aka rememberDuration)
 
-*Remember interval* (internally `rememberDuration`) is the time interval for how long to remember every RDD created.
+*Remember interval* (internally `rememberDuration`) is the time interval for how long a dstream is supposed to remember (aka _cache_) RDDs created. This is a mandatory attribute of every dstream which is <<validateAtStart, validated at startup>>.
 
-CAUTION: FIXME What is to remember a RDD? Are they remembered by default? Why?
+NOTE: It is used for <<clearMetadata, metadata cleanup>> of a dstream.
+
+Initially, when a <<creating-dstreams, dstream is created>>, the remember interval is not set (i.e. `null`), but is set when the <<initialize, dstream is initialized>>.
+
+It can be set to a custom value using <<remember, remember>> method.
+
+NOTE: You may see the current value of remember interval when a dstream is <<validateAtStart, validated at startup>> and the log level is INFO.
 
 === [[generatedRDDs]] generatedRDDs - Internal Cache of Batch Times and Corresponding RDDs
 
@@ -82,7 +88,7 @@ If link:spark-streaming-checkpointing.adoc[checkpointing is used], `generatedRDD
 initialize(time: Time): Unit
 ----
 
-`initialize` method sets <<zeroTime, zero time>>.
+`initialize` method sets <<zeroTime, zero time>> and optionally <<checkpointDuration, checkpoint interval>> (if the dstream <<checkpointing, must checkpoint>> and the interval was not set already) and <<remember-interval, remember duration>>.
 
 NOTE: `initialize` method is called for output dstreams only when link:spark-streaming-dstreamgraph.adoc#start[DStreamGraph is started].
 
@@ -96,7 +102,7 @@ It verifies that <<checkpointing, checkpoint interval>> is defined when <<checkp
 
 NOTE: The internal `mustCheckpoint` flag is disabled by default. It is set by custom dstreams like link:spark-streaming-statedstreams.adoc[StateDStreams].
 
-If `mustCheckpoint` is enabled and the checkpoint interval was not set, it is automatically set to the slide interval or 10 seconds, whichever is longer. You should see the following INFO message in the logs when the checkpoint interval was set automatically:
+If `mustCheckpoint` is enabled and the checkpoint interval was not set, it is automatically set to the <<contract, slide interval>> or 10 seconds, whichever is longer. You should see the following INFO message in the logs when the checkpoint interval was set automatically:
 
 ```
 INFO [DStreamType]: Checkpoint interval automatically set to [checkpointDuration]
@@ -113,19 +119,17 @@ At the very end, it initializes the parent dstreams (available as <<contract, de
 remember(duration: Duration): Unit
 ----
 
-`remember` sets <<rememberDuration, remember interval>> for the current dstream as well as for the dstreams it depends on.
+`remember` sets <<rememberDuration, remember interval>> for the current dstream and the dstreams it depends on (see <<contract, dependencies>>).
 
-`remember` method first checks whether `duration` was specified or not. It goes straight to calling the method on dependent dstreams when `duration` input parameter is not given. If however `duration` was specified and the dstream's remember interval is either not being initialized yet or shorter than the input `duration`, the dstream's remember interval becomes the value of `duration` input parameter.
+If the input `duration` is specified (i.e. not `null`), `remember` allows setting the remember interval (only when the current value was not set already) or extend it (when the current value is shorter).
 
-You should see the following INFO message in the logs:
+You should see the following INFO message in the logs when the remember interval changes:
 
 ```
 INFO Duration for remembering RDDs set to [rememberDuration] for [dstream]
 ```
 
-It always calls a _slightly different_ method `parentRememberDuration` on every dstream it depends on.
-
-CAUTION: What is the reason for not using `rememberDuration` directly but using `parentRememberDuration` method that gives  `rememberDuration`? Why is the indirection? See https://github.com/apache/spark/blob/master/streaming/src/main/scala/org/apache/spark/streaming/dstream/DStream.scala#L305[the sources in the repo on GitHub].
+At the end, `remember` always sets the current <<rememberDuration, remember interval>> (whether it was set, extended or did not change).
 
 === [[checkpoint]] Checkpointing DStreams (checkpoint method)
 
