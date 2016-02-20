@@ -1,16 +1,16 @@
 == StateDStream
 
-`StateDStream` is a custom link:spark-streaming-dstreams.adoc[DStream] that is the result of link:spark-streaming-operators-stateful.adoc#updateStateByKey[updateStateByKey] stateful operator.
+`StateDStream` is the specialized link:spark-streaming-dstreams.adoc[DStream] that is the result of link:spark-streaming-operators-stateful.adoc#updateStateByKey[updateStateByKey] stateful operator. It is a wrapper around a `parent` key-value pair dstream to build stateful computation (using `updateStateByKey` operator) and as a stateful dstream it forces link:spark-streaming-checkpointing.adoc[checkpointing] (and hence some additional setup).
 
-It operates on a `parent` key-value pair dstream, <<updateFunc, updateFunc>> update state function, a `partitioner`, whether or not to `preservePartitioning` and an optional key-value pair `initialRDD`.
+It uses a `parent` key-value pair dstream, <<updateFunc, updateFunc>> update state function, a `partitioner`, a flag whether or not to `preservePartitioning` and an optional key-value pair `initialRDD`.
 
 It works with link:spark-rdd-caching.adoc#StorageLevel[MEMORY_ONLY_SER] storage level enabled.
 
-The only link:spark-streaming-dstreams.adoc#contract[dependency] of `StateDStream` is the `parent` key-value pair dstream.
+The only link:spark-streaming-dstreams.adoc#contract[dependency] of `StateDStream` is the input `parent` key-value pair dstream.
 
 The link:spark-streaming-dstreams.adoc#contract[slide duration] is exactly the same as that in `parent`.
 
-It forces link:spark-streaming-checkpointing.adoc[checkpointing] regardless of dstream configuration, i.e. the internal `mustCheckpoint` is enabled.
+It forces link:spark-streaming-checkpointing.adoc[checkpointing] regardless of the current dstream configuration, i.e. the internal link:spark-streaming-dstreams.adoc#checkpointing[mustCheckpoint] is enabled.
 
 When requested to link:spark-streaming-dstreams.adoc#contract[compute a RDD] it first attempts to get the *state RDD* for the previous batch (using link:spark-streaming-dstreams.adoc#getOrCompute[DStream.getOrCompute]). If there is one, `parent` stream is requested for a RDD for the current batch (using link:spark-streaming-dstreams.adoc#getOrCompute[DStream.getOrCompute]). If `parent` has computed one,  <<computeUsingPreviousRDD, computeUsingPreviousRDD(parentRDD, prevStateRDD)>> is called.
 
@@ -38,6 +38,8 @@ The signature of `updateFunc` is as follows:
 updateFunc: (Iterator[(K, Seq[V], Option[S])]) => Iterator[(K, S)]
 ----
 
+It should be read as given a collection of triples of a key, new records for the key, and the current state for the key, generate a collection of keys and their state.
+
 === [[computeUsingPreviousRDD]] computeUsingPreviousRDD
 
 [source, scala]
@@ -46,6 +48,16 @@ computeUsingPreviousRDD(parentRDD: RDD[(K, V)], prevStateRDD: RDD[(K, S)]): Opti
 ----
 
 The `computeUsingPreviousRDD` method uses `cogroup` and `mapPartitions` to build the optional final state RDD.
+
+[NOTE]
+====
+The signature of `cogroup` is as follows and applies to key-value pair RDDs, i.e. `RDD[(K, V)]`.
+
+[source, scala]
+----
+cogroup[W](other: RDD[(K, W)], partitioner: Partitioner): RDD[(K, (Iterable[V], Iterable[W]))]
+----
+====
 
 It first performs `cogroup` of `parentRDD` and `prevStateRDD` using the constructor's `partitioner`.
 
