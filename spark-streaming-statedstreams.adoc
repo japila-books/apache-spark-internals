@@ -1,20 +1,20 @@
 == StateDStream
 
-`StateDStream` is a custom link:spark-streaming-dstreams.adoc[DStream] being the result of link:spark-streaming-operators.adoc#updateStateByKey[updateStateByKey] stateful operator.
+`StateDStream` is a custom link:spark-streaming-dstreams.adoc[DStream] that is the result of link:spark-streaming-operators-stateful.adoc#updateStateByKey[updateStateByKey] stateful operator.
 
-It requires `parent` key-value pair stream, `updateFunc` state update function, a `partitioner`, whether or not to `preservePartitioning` and an optional key-value pair `initialRDD`.
+It operates on a `parent` key-value pair dstream, <<updateFunc, updateFunc>> update state function, a `partitioner`, whether or not to `preservePartitioning` and an optional key-value pair `initialRDD`.
 
-It works with link:spark-rdd-caching.adoc#StorageLevel[MEMORY_ONLY_SER] storage level.
+It works with link:spark-rdd-caching.adoc#StorageLevel[MEMORY_ONLY_SER] storage level enabled.
 
-It solely depends on the `parent` key-value pair stream.
+The only link:spark-streaming-dstreams.adoc#contract[dependency] of `StateDStream` is the `parent` key-value pair dstream.
 
-The slide duration is exactly the same as that in `parent`.
+The link:spark-streaming-dstreams.adoc#contract[slide duration] is exactly the same as that in `parent`.
 
 It forces link:spark-streaming-checkpointing.adoc[checkpointing] regardless of dstream configuration, i.e. the internal `mustCheckpoint` is enabled.
 
-When link:spark-streaming-dstreams.adoc#contract[computing a RDD] it first attempts to get the *state RDD* for the previous batch (using link:spark-streaming-dstreams.adoc#getOrCompute[DStream.getOrCompute]). If there is one, `parent` stream is requested for a RDD for the current batch (using link:spark-streaming-dstreams.adoc#getOrCompute[DStream.getOrCompute]). If `parent` has computed one,  <<computeUsingPreviousRDD, computeUsingPreviousRDD(parentRDD, prevStateRDD)>> is called.
+When requested to link:spark-streaming-dstreams.adoc#contract[compute a RDD] it first attempts to get the *state RDD* for the previous batch (using link:spark-streaming-dstreams.adoc#getOrCompute[DStream.getOrCompute]). If there is one, `parent` stream is requested for a RDD for the current batch (using link:spark-streaming-dstreams.adoc#getOrCompute[DStream.getOrCompute]). If `parent` has computed one,  <<computeUsingPreviousRDD, computeUsingPreviousRDD(parentRDD, prevStateRDD)>> is called.
 
-Otherwise, when `parent` has not generated a RDD for the current batch but the state RDD existed, `updateFn` is called for every key of the state RDD to generate a new state per partition (using link:spark-rdd-operators-mapPartitions.adoc[RDD.mapPartitions])
+If however `parent` has not generated a RDD for the current batch but the state RDD existed, `updateFn` is called for every key of the state RDD to generate a new state per partition (using link:spark-rdd-operators-mapPartitions.adoc[RDD.mapPartitions])
 
 NOTE: No input data for already-running input stream triggers (re)computation of the state RDD (per partition).
 
@@ -29,6 +29,26 @@ NOTE: When the stream processing starts, i.e. no state RDD exists, and there is 
 
 Given no state RDD and with `parent` RDD computed, when `initialRDD` is `NONE`, the input data batch (as `parent` RDD) is grouped by key (using link:spark-rdd-partitions.adoc#PairRDDFunctions[groupByKey] with `partitioner`) and then the update state function `updateFunc` is applied to the partitioned input data (using link:spark-rdd-operators-mapPartitions.adoc[mapPartitions]) with `None` state. Otherwise, <<computeUsingPreviousRDD, computeUsingPreviousRDD(parentRDD, initialStateRDD)>> is called.
 
+=== [[updateFunc]] updateFunc - State Update Function
+
+The signature of `updateFunc` is as follows:
+
+[source, scala]
+----
+updateFunc: (Iterator[(K, Seq[V], Option[S])]) => Iterator[(K, S)]
+----
+
 === [[computeUsingPreviousRDD]] computeUsingPreviousRDD
 
-CAUTION: FIXME
+[source, scala]
+----
+computeUsingPreviousRDD(parentRDD: RDD[(K, V)], prevStateRDD: RDD[(K, S)]): Option[RDD[(K, S)]]
+----
+
+The `computeUsingPreviousRDD` method uses `cogroup` and `mapPartitions` to build the optional final state RDD.
+
+It first performs `cogroup` of `parentRDD` and `prevStateRDD` using the constructor's `partitioner`.
+
+It defines an internal update function that takes the first element from the state's iterator of elements for a key (if exists) and builds a triple of the key, a collection of the input records for the key, and the optional state for the key. With the triple, the internal update function calls the constructor's <<updateFunc, updateFunc>>.
+
+The state RDD becomes the cogrouped RDD with elements `mapPartitions` with the internal update function and the constructor's `preservePartitioning`.
