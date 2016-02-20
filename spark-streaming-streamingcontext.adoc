@@ -69,10 +69,28 @@ At this point, `StreamingContext` enters <<states, INITIALIZED>> state.
 * `queueStream[T](queue: Queue[RDD[T]], oneAtATime: Boolean = true): InputDStream[T]`
 * `queueStream[T](queue: Queue[RDD[T]], oneAtATime: Boolean, defaultRDD: RDD[T]): InputDStream[T]`
 
-You can also use two additional methods in `StreamingContext` to build (or better called _compose_) custom link:spark-streaming-dstreams.adoc[DStream]:
+You can also use two additional methods in `StreamingContext` to build (or better called _compose_) a custom link:spark-streaming-dstreams.adoc[DStream]:
 
 * `union[T](streams: Seq[DStream[T]]): DStream[T]`
-* `transform[T](dstreams: Seq[DStream[_]], transformFunc: (Seq[RDD[_]], Time) => RDD[T]): DStream[T]`
+* <<transform, transform(dstreams, transformFunc): DStream[T]>>
+
+=== [[transform]] transform method
+
+[source, scala]
+----
+transform[T](dstreams: Seq[DStream[_]], transformFunc: (Seq[RDD[_]], Time) => RDD[T]): DStream[T]
+----
+
+==== [[transform-example]] transform Example
+
+[source, scala]
+----
+import org.apache.spark.rdd.RDD
+def union(rdds: Seq[RDD[_]], time: Time) = {
+  rdds.head.context.union(rdds.map(_.asInstanceOf[RDD[Int]]))
+}
+ssc.transform(Seq(cis), union)
+----
 
 === [[remember]] remember method
 
@@ -274,21 +292,21 @@ With the setting it <<stop, stops StreamingContext>> without stopping the accomp
 
 [source, scala]
 ----
-validate()
+validate(): Unit
 ----
 
 `validate()` method validates configuration of `StreamingContext`.
 
 NOTE: The method is executed when `StreamingContext` is <<start, started>>.
 
-CAUTION: FIXME Describe me!
+It first asserts that `DStreamGraph` has been assigned (i.e. `graph` field is not `null`) and triggers link:spark-streaming-dstreamgraph.adoc#dstreamgraph-validation[validation of DStreamGraph].
 
-* It does link:spark-streaming-dstreamgraph.adoc#dstreamgraph-validation[validation of DStreamGraph].
+CAUTION: It appears that `graph` could never be `null`, though.
 
-If link:spark-streaming-checkpointing.adoc[checkpointing] is enabled, i.e. when the <<checkpointDir, checkpoint directory is set>>, it checks whether the current streaming runtime environment can be safely serialized later on by link:spark-streaming-checkpointing.adoc#Checkpoint-serialize[serializing a checkpoint for fictitious batch time 0] (not link:spark-streaming-dstreamgraph.adoc#zero-time[zero time]!).
+If <<isCheckpointingEnabled, checkpointing is enabled>>, it ensures that <<checkpointDuration, checkpoint interval>> is set and checks whether the current streaming runtime environment can be safely serialized by link:spark-streaming-checkpointing.adoc#Checkpoint-serialize[serializing a checkpoint for fictitious batch time 0] (not link:spark-streaming-dstreamgraph.adoc#zero-time[zero time]).
 
-* When link:spark-dynamic-allocation.adoc[dynamic allocation] is enabled, it prints the following WARN message to the logs:
-+
+If link:spark-dynamic-allocation.adoc[dynamic allocation] is enabled, it prints the following WARN message to the logs:
+
 [options="wrap"]
 ----
 WARN StreamingContext: Dynamic Allocation is enabled for this application. Enabling Dynamic allocation for Spark Streaming applications can cause data loss if Write Ahead Log is not enabled for non-replayable sources like Flume. See the programming guide for details on how to enable the Write Ahead Log
