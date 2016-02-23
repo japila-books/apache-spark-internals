@@ -75,19 +75,25 @@ Internally, the `StateSpec.function` executes `ClosureCleaner.clean` to clean up
 [source, scala]
 ----
 updateStateByKey(updateFn: (Seq[V], Option[S]) => Option[S]): DStream[(K, S)] // <1>
-updateStateByKey(updateFn: (Seq[V], Option[S]) => Option[S], numPartitions: Int): DStream[(K, S)] // <2>
-updateStateByKey(
-  updateFn: (Seq[V], Option[S]) => Option[S],
-  partitioner: Partitioner): DStream[(K, S)]  // <3>
-updateStateByKey(
-  updateFn: (Iterator[(K, Seq[V], Option[S])]) => Iterator[(K, S)],
-  partitioner: Partitioner,
-  rememberPartitioner: Boolean): DStream[(K, S)]
+updateStateByKey(updateFn: (Seq[V], Option[S]) => Option[S],
+      numPartitions: Int): DStream[(K, S)]  // <2>
+updateStateByKey(updateFn: (Seq[V], Option[S]) => Option[S],
+      partitioner: Partitioner): DStream[(K, S)]  // <3>
+updateStateByKey(updateFn: (Iterator[(K, Seq[V], Option[S])]) => Iterator[(K, S)],
+      partitioner: Partitioner,
+      rememberPartitioner: Boolean): DStream[(K, S)]  // <4>
+updateStateByKey(updateFn: (Seq[V], Option[S]) => Option[S],
+      partitioner: Partitioner,
+      initialRDD: RDD[(K, S)]): DStream[(K, S)]
+updateStateByKey(updateFn: (Iterator[(K, Seq[V], Option[S])]) => Iterator[(K, S)],
+      partitioner: Partitioner,
+      rememberPartitioner: Boolean,
+      initialRDD: RDD[(K, S)]): DStream[(K, S)]
 ----
-
 <1> When not specified explicitly, the partitioner used is link:spark-rdd-partitions.adoc#HashPartitioner[HashPartitioner] with the number of partitions being the default level of parallelism of a link:spark-taskscheduler.adoc[Task Scheduler].
 <2> You may however specify the number of partitions explicitly for link:spark-rdd-partitions.adoc#HashPartitioner[HashPartitioner] to use.
 <3> This is the "canonical" `updateStateByKey` the other two variants (without a partitioner or the number of partitions) use that allows specifying a partitioner explicitly. It then executes the "last" `updateStateByKey` with `rememberPartitioner` enabled.
+<4> The "last" `updateStateByKey`
 
 The state update function `updateFn` generates a new state for every key given a collection of values per key in a batch and the current state for the key (if exists).
 
@@ -102,7 +108,15 @@ Internally, `updateStateByKey` executes  link:spark-sparkcontext.adoc#closure-cl
 
 [source, scala]
 ----
-val clicks: InputDStream[(String, String)] = messages
+import org.apache.spark.streaming.{ StreamingContext, Seconds }
+val ssc = new StreamingContext(sc, batchDuration = Seconds(5))
+
+// checkpointing is mandatory
+ssc.checkpoint("_checkpoints")
+
+val rdd = sc.parallelize(0 to 9).map(n => (n, n % 2 toString))
+import org.apache.spark.streaming.dstream.ConstantInputDStream
+val clicks = new ConstantInputDStream(ssc, rdd)
 
 // helper functions
 val inc = (n: Int) => n + 1
