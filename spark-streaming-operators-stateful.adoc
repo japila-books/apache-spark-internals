@@ -2,7 +2,9 @@
 
 > Building Stateful Stream Processing Pipelines using Spark (Streaming)
 
-*Stateful operators* (like <<mapWithState, mapWithState>> or <<updateStateByKey, updateStateByKey>>) are part of the set of additional operators available on link:spark-streaming-dstreams.adoc[DStreams] of key-value pairs, i.e. instances of `DStream[(K, V)]`. They allow you to build *stateful stream processing pipelines*.
+*Stateful operators* (like <<mapWithState, mapWithState>> or <<updateStateByKey, updateStateByKey>>) are part of the set of additional operators available on link:spark-streaming-dstreams.adoc[DStreams] of key-value pairs, i.e. instances of `DStream[(K, V)]`. They allow you to build *stateful stream processing pipelines* and are also called https://databricks.gitbooks.io/databricks-spark-reference-applications/content/logs_analyzer/chapter1/total.html[cumulative calculations].
+
+The motivation for the stateful operators is that by design streaming operators are stateless and know nothing about the previous records and hence a state. If you'd like to react to new records appropriately given the previous records you would have to resort to using persistent storages outside Spark Streaming.
 
 NOTE: These additional operators are available automatically on pair DStreams through the Scala implicit conversion `DStream.toPairDStreamFunctions`.
 
@@ -21,10 +23,18 @@ You create <<StateSpec, StateSpec>> instances for `mapWithState` operator using 
 
 [source, scala]
 ----
-val clicks: InputDStream[(String, String)] = messages
+import org.apache.spark.streaming.{ StreamingContext, Seconds }
+val ssc = new StreamingContext(sc, batchDuration = Seconds(5))
 
-import org.apache.spark.streaming.StateSpec
-val updateState = (batchTime: Time, key: String, value: Option[String], state: State[Int]) => {
+// checkpointing is mandatory
+ssc.checkpoint("_checkpoints")
+
+val rdd = sc.parallelize(0 to 9).map(n => (n, n % 2 toString))
+import org.apache.spark.streaming.dstream.ConstantInputDStream
+val sessions = new ConstantInputDStream(ssc, rdd)
+
+import org.apache.spark.streaming.{State, StateSpec, Time}
+val updateState = (batchTime: Time, key: Int, value: Option[String], state: State[Int]) => {
   println(s">>> batchTime = $batchTime")
   println(s">>> key       = $key")
   println(s">>> value     = $value")
@@ -34,7 +44,7 @@ val updateState = (batchTime: Time, key: String, value: Option[String], state: S
   Some((key, value, sum)) // mapped value
 }
 val spec = StateSpec.function(updateState)
-val mappedStatefulStream: MapWithStateDStream[String,String,Int,(String, Option[String], Int)] = clicks.mapWithState(spec)
+val mappedStatefulStream = sessions.mapWithState(spec)
 
 mappedStatefulStream.print()
 ----
@@ -95,12 +105,20 @@ updateStateByKey(updateFn: (Iterator[(K, Seq[V], Option[S])]) => Iterator[(K, S)
 <3> This is the "canonical" `updateStateByKey` the other two variants (without a partitioner or the number of partitions) use that allows specifying a partitioner explicitly. It then executes the "last" `updateStateByKey` with `rememberPartitioner` enabled.
 <4> The "last" `updateStateByKey`
 
-The state update function `updateFn` generates a new state for every key given a collection of values per key in a batch and the current state for the key (if exists).
+`updateStateByKey` stateful operator allows for maintaining per-key state and updating it using `updateFn`. The `updateFn` is called for each key, and uses new data and existing state of the key, to generate an updated state.
+
+TIP: You should use <<mapWithState, mapWithState operator>> instead as a much performance effective alternative.
+
+NOTE: Please consult https://issues.apache.org/jira/browse/SPARK-2629[SPARK-2629 Improved state management for Spark Streaming] for performance-related changes to the operator.
+
+The state update function `updateFn` scans every key and generates a new state for every key given a collection of values per key in a batch and the current state for the key (if exists).
 
 .updateStateByKey in motion
 image::images/spark-streaming-updateStateByKey.png[align="center"]
 
 Internally, `updateStateByKey` executes  link:spark-sparkcontext.adoc#closure-cleaning[SparkContext.clean] on the input function `updateFn`.
+
+NOTE: The operator does not offer any timeout of idle data.
 
 `updateStateByKey` creates a link:spark-streaming-statedstreams.adoc[StateDStream] stream.
 
