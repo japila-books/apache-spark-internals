@@ -1,3 +1,53 @@
 == mapPartitions Operator
 
-CAUTION: FIXME
+Unlike *map*, which applies a certain function to each element in an RDD:
+
+[source,scala]
+---
+map[U](f: (T) ⇒ U): RDD[U]		// (signature truncated to the necessary minimum)
+---
+
+*mapPartitions* operates on an iterator containing all of the RDD partition's objects:
+
+[source,scala]
+---
+mapPartitions[U](f: (Iterator[T]) ⇒ Iterator[U]): RDD[U]
+---
+
+The *mapPartitions* operation is very useful every time the processing of the RDD elements requires some common setup (e.g. opening a DB connection).
+Consider the following scenario:
+
+[source,scala]
+----
+  val words = loadData()
+
+  val translated = words.map { word: String =>
+    withDbConnection("...") { implicit connection =>
+      fetchTranslation(word, "PL").getOrElse(word)
+    }
+  }
+
+  def withDbConnection[T](url: String)(f: Connection => T): T = ...
+  def loadData(): RDD[String] = ...
+  def fetchTranslation(word: String, lang: String)(implicit connection: Connection): Option[String] = ...
+----
+
+The translation requires establishing a new database connection for each processed word, which is obviously a huge waste of resources.
+Operating on a per-partition basis, one could do it much more efficiently:
+
+[source,scala]
+----
+  val words = loadData()
+
+  val translated = words.mapPartitions { wordsInPartition: Iterator[String] =>
+    withDbConnection("...") { implicit connection =>
+      wordsInPartition.map( word => fetchTranslation(word, "PL").getOrElse(word) )
+    }
+  }
+
+  def withDbConnection[T](url: String)(f: Connection => T) = ...
+  def loadData(): RDD[String] = ...
+  def fetchTranslation(word: String, lang: String)(implicit connection: Connection): Option[String] = ...
+----
+
+Now only one database connection is used for processing all the words residing on a partition.
