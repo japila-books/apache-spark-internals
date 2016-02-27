@@ -2,20 +2,20 @@
 
 You use *stream operators* to apply *transformations* to the elements received (often called *records*) from input streams and ultimately trigger computations using *output operators*.
 
-Transformations are mostly *stateless*, but Spark Streaming comes with an _experimental_ support for link:spark-streaming-operators-stateful.adoc[stateful operators] (e.g. link:spark-streaming-operators-stateful.adoc#mapWithState[mapWithState] or link:spark-streaming-operators-stateful.adoc#updateStateByKey[updateStateByKey]). It also offers link:spark-streaming-windowedoperators.adoc[windowed operators] that can work across batches.
+Transformations are *stateless*, but Spark Streaming comes with an _experimental_ support for link:spark-streaming-operators-stateful.adoc[stateful operators] (e.g. link:spark-streaming-operators-stateful.adoc#mapWithState[mapWithState] or link:spark-streaming-operators-stateful.adoc#updateStateByKey[updateStateByKey]). It also offers link:spark-streaming-windowedoperators.adoc[windowed operators] that can work across batches.
 
 NOTE: You may use RDDs from other (non-streaming) data sources to build more advanced pipelines.
 
 There are two main types of operators:
 
 * *transformations* that transform elements in input data RDDs
-* *output operators* that link:spark-streaming-dstreams.adoc#register[register input streams as output streams] so the execution starts.
+* *output operators* that link:spark-streaming-dstreams.adoc#register[register input streams as output streams] so the execution can start.
 
-Every `DStream` offers the following operators:
+Every link:spark-streaming-dstreams.adoc[Discretized Stream (DStream)] offers the following operators:
 
 * (output operator) `print` to print 10 elements only or the more general version `print(num: Int)` to print up to `num` elements. See <<print, print operation>> in this document.
 * link:spark-streaming-windowedoperators.adoc#slice[slice]
-* link:spark-streaming-windowedoperators.adoc#slice[window]
+* link:spark-streaming-windowedoperators.adoc#window[window]
 * link:spark-streaming-windowedoperators.adoc#reduceByWindow[reduceByWindow]
 * <<reduce, reduce>>
 * <<map, map>>
@@ -24,13 +24,13 @@ Every `DStream` offers the following operators:
 * (output operator) link:spark-streaming-operators-saveas.adoc[saveAsObjectFiles]
 * (output operator) link:spark-streaming-operators-saveas.adoc[saveAsTextFiles]
 * <<transform, transform>>
+* <<transformWith, transformWith>>
 * `flatMap`
 * `filter`
 * `repartition`
 * `mapPartitions`
 * `count`
 * `countByValue`
-* a family of `transformWith`
 * `countByWindow`
 * `countByValueAndWindow`
 * `union`
@@ -141,8 +141,8 @@ reduceByKey(reduceFunc: (V, V) => V, partitioner: Partitioner): DStream[(K, V)]
 === [[transform]] transform Operators
 
 ```
-transform[U](transformFunc: RDD[T] => RDD[U]): DStream[U]
-transform[U](transformFunc: (RDD[T], Time) => RDD[U]): DStream[U]
+transform(transformFunc: RDD[T] => RDD[U]): DStream[U]
+transform(transformFunc: (RDD[T], Time) => RDD[U]): DStream[U]
 ```
 
 `transform` operator applies `transformFunc` function to the generated RDD for a batch.
@@ -174,4 +174,45 @@ val transformFunc: RDD[Int] => RDD[Int] = { inputRDD =>
   inputRDD
 }
 clicks.transform(transformFunc).print
+```
+
+=== [[transformWith]] transformWith Operators
+
+```
+transformWith(other: DStream[U], transformFunc: (RDD[T], RDD[U]) => RDD[V]): DStream[V]
+transformWith(other: DStream[U], transformFunc: (RDD[T], RDD[U], Time) => RDD[V]): DStream[V]
+```
+
+`transformWith` operators apply the `transformFunc` function to two generated RDD for a batch.
+
+It creates a link:spark-streaming-transformeddstreams.adoc[TransformedDStream] stream.
+
+NOTE: It asserts that two and exactly two RDDs have been generated for a batch before calling the `transformFunc`.
+
+NOTE: It is not allowed to return `null` from `transformFunc` or  a `SparkException` is reported. See link:spark-streaming-transformeddstreams.adoc[TransformedDStream].
+
+==== [[transformWith-example]] transformWith Example
+
+```
+import org.apache.spark.streaming.{ StreamingContext, Seconds }
+val ssc = new StreamingContext(sc, batchDuration = Seconds(5))
+
+val ns = sc.parallelize(0 to 2)
+import org.apache.spark.streaming.dstream.ConstantInputDStream
+val nums = new ConstantInputDStream(ssc, ns)
+
+val ws = sc.parallelize(Seq("zero", "one", "two"))
+import org.apache.spark.streaming.dstream.ConstantInputDStream
+val words = new ConstantInputDStream(ssc, ws)
+
+import org.apache.spark.rdd.RDD
+import org.apache.spark.streaming.Time
+val transformFunc: (RDD[Int], RDD[String], Time) => RDD[(Int, String)] = { case (ns, ws, time) =>
+  println(s">>> ns: $ns")
+  println(s">>> ws: $ws")
+  println(s">>> batch: $time")
+
+  ns.zip(ws)
+}
+nums.transformWith(words, transformFunc).print
 ```
