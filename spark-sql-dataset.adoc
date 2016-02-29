@@ -1,16 +1,66 @@
 == Dataset
 
-*Dataset* is an experimental feature of Spark SQL first introduced in Apache Spark 1.6.0. It aims at offering simplicity of link:spark-sql-dataframe.adoc[DataFrames] with strong type-safety (of Scala the programming language).
+*Dataset* is an experimental feature of Spark SQL first introduced in Apache Spark 1.6.0. It aims at expanding on link:spark-sql-dataframe.adoc[DataFrames] with strong type-safety (of Scala the programming language) at compile time and giving you a functional programming interface to work with structured data.
 
 A `Dataset` object requires a link:spark-sql-sqlcontext.adoc[SQLContext], a <<QueryExecution, QueryExecution>>, and an <<Encoder, Encoder>>.
 
-NOTE: `SQLContext` and `QueryExecution` are transient and do not participate in serialization process. The only _firmly-tied_ feature of a Dataset is the Encoder.
+NOTE: `SQLContext` and `QueryExecution` are transient and hence do not participate when a dataset is serialized. The only _firmly-tied_ feature of a Dataset is the Encoder.
 
 A `Dataset` is <<Queryable, Queryable>> and `Serializable`, i.e. can be saved to a persistent storage.
 
 A Dataset has a <<schema, schema>>.
 
 You can convert a Dataset to a DataFrame (using `toDF()` method) or an RDD (using `rdd` method).
+
+[source, scala]
+----
+case class Token(name: String, productId: Int, score: Double)
+val data = Token("aaa", 100, 0.12) ::
+  Token("aaa", 200, 0.29) ::
+  Token("bbb", 200, 0.53) ::
+  Token("bbb", 300, 0.42) :: Nil
+
+org.apache.spark.sql.catalyst.encoders.OuterScopes.addOuterScope(this)  // <1>
+
+val ds = data.toDS
+
+scala> ds.show
++----+---------+-----+
+|name|productId|score|
++----+---------+-----+
+| aaa|      100| 0.12|
+| aaa|      200| 0.29|
+| bbb|      200| 0.53|
+| bbb|      300| 0.42|
++----+---------+-----+
+
+scala> ds.printSchema
+root
+ |-- name: string (nullable = true)
+ |-- productId: integer (nullable = false)
+ |-- score: double (nullable = false)
+----
+<1> Alas, you need to use the line to make the converstion work.
+<2> Create a Dataset of Token instances.
+
+[TIP]
+====
+In spark-shell, you have to use the following line to successfully register custom case classes:
+
+```
+org.apache.spark.sql.catalyst.encoders.OuterScopes.addOuterScope(this)
+```
+====
+
+=== Converting Datasets into RDDs (using rdd method)
+
+Whenever in need to convert a Dataset into a RDD, executing `rdd` method gives you a RDD of the proper input type (not `Row` as in DataFrames).
+
+[source, scala]
+----
+scala> val rdd = ds.rdd
+rdd: org.apache.spark.rdd.RDD[Token] = MapPartitionsRDD[11] at rdd at <console>:30
+----
 
 === [[schema]] Schema
 
@@ -31,6 +81,8 @@ CAUTION: FIXME
 CAUTION: FIXME
 
 It works with the type of the accompanying Dataset.
+
+An `Encoder` converts a JVM object into a Dataset row that is supposed to give fast serialization.
 
 === [[QueryExecution]] QueryExecution
 
