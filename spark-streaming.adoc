@@ -1,6 +1,6 @@
 == Spark Streaming
 
-Spark Streaming runs <<Job, streaming jobs>> per <<batch, batch>> (time) to pull and process data (often called _records_) from one or many link:spark-streaming-inputdstreams.adoc[input streams] periodically, after link:spark-streaming-streamingcontext.adoc[batch duration]. Each batch link:spark-streaming-dstreams.adoc#contract[computes] (_generates_) RDDs based on data received from input streams and link:spark-streaming-jobgenerator.adoc#GenerateJobs[submits a Spark job to compute the final result for a batch]. It does this over and over again until link:spark-streaming-streamingcontext.adoc#stopping[the streaming context is stopped] (and the owning streaming application terminated).
+Spark Streaming runs <<Job, streaming jobs>> per <<batch, batch>> (time) to pull and process data (often called _records_) from one or many link:spark-streaming-inputdstreams.adoc[input streams] periodically at fixed <<batch-interval, batch interval>>. Each batch link:spark-streaming-dstreams.adoc#contract[computes] (_generates_) RDDs based on data received from input streams and link:spark-streaming-jobgenerator.adoc#GenerateJobs[submits a Spark job to compute the final result for a batch]. It does this over and over again until link:spark-streaming-streamingcontext.adoc#stopping[the streaming context is stopped] (and the owning streaming application terminated).
 
 To avoid losing records in case of failure, Spark Streaming supports link:spark-streaming-checkpointing.adoc[checkpointing that writes received records to a highly-available HDFS-compatible storage] and allows to recover from temporary downtimes.
 
@@ -23,9 +23,15 @@ Other concepts often used in Spark Streaming:
 
 * *ingestion* = the act of processing streaming data.
 
-=== [[batch]] Batch
+=== [[batch]][[micro-batch]] Micro Batch
 
-A *batch* is represented as a link:spark-streaming-jobscheduler.adoc#JobSet[JobSet].
+*Micro Batch* is a collection of input records as collected by Spark Streaming that is later represented as an RDD.
+
+A *batch* is internally represented as a link:spark-streaming-jobscheduler.adoc#JobSet[JobSet].
+
+=== [[batchDuration]][[batch-interval]] Batch Interval (aka batchDuration)
+
+*Batch Interval* is a property of a Streaming application that describes how often an RDD of input records is generated. It is the time to collect input records before they become a <<micro-batch, micro-batch>>.
 
 === [[Job]] Streaming Job
 
@@ -36,124 +42,6 @@ It is identified (in the logs) as `streaming job [time].[outputOpId]` with `outp
 When executed, it runs the computation (the input `func` function).
 
 NOTE: A collection of streaming jobs is generated for a batch using link:spark-streaming-dstreamgraph.adoc#generateJobs[DStreamGraph.generateJobs(time: Time)].
-
-=== [[back-pressure]][[RateController]] Back Pressure and RateController
-
-TIP: Read up on https://en.wikipedia.org/wiki/Back_pressure[back pressure] in Wikipedia.
-
-`RateController` is a contract for single-dstream link:spark-streaming-streaminglisteners.adoc[StreamingListeners] that listen to link:spark-streaming-streaminglisteners.adoc#onBatchCompleted[batch completed updates] for a dstream and maintain a *rate limit*, i.e. an estimate of the speed at which this stream should ingest messages.
-
-NOTE: `RateController` works for a single stream and requires a <<RateEstimator, RateEstimator>>.
-
-The contract says that RateControllers offer the following method:
-
-[source, scala]
-----
-protected def publish(rate: Long): Unit
-----
-
-When created, it creates a daemon single-thread executor service called *stream-rate-update* and initializes the internal `rateLimit` counter which is the current message-ingestion speed.
-
-When a batch completed update happens, a `RateController` grabs `processingEndTime`, `processingDelay`, `schedulingDelay`, and `numRecords` processed for the batch. and computes a rate limit and publish the current value. The computed value is set as the present rate limit, and published (using the sole abstract `publish` method). Computing a rate limit happens using the RateEstimator's `compute` method.
-
-CAUTION: FIXME Where is this used? What are the use cases?
-
-link:spark-streaming-inputdstreams.adoc[InputDStreams] can define a `RateController` that is registered to link:spark-streaming-jobscheduler.adoc[JobScheduler]'s `listenerBus`  (using `ssc.addStreamingListener`) when link:spark-streaming-jobscheduler.adoc[JobScheduler] starts.
-
-==== [[RateEstimator]] RateEstimator
-
-`RateEstimator` computes the rate given the input `time`, `elements`, `processingDelay`, and `schedulingDelay`.
-
-It is an abstract class with the following abstract method:
-
-[source, scala]
-----
-def compute(
-    time: Long,
-    elements: Long,
-    processingDelay: Long,
-    schedulingDelay: Long): Option[Double]
-----
-
-You can control what `RateEstimator` to use through  link:spark-streaming-settings.adoc[spark.streaming.backpressure.rateEstimator] setting.
-
-The only possible `RateEstimator` to use is the <<PIDRateEstimator, pid rate estimator>>.
-
-==== [[PIDRateEstimator]] PID Rate Estimator
-
-*PID Rate Estimator* (represented as `PIDRateEstimator`) implements a https://en.wikipedia.org/wiki/PID_controller[proportional-integral-derivative (PID) controller] which acts on the speed of ingestion of records into an input dstream.
-
-WARNING: The *PID rate estimator* is the only possible estimator. All other rate estimators lead to `IllegalArgumentException` being thrown.
-
-It uses the following settings:
-
-* `spark.streaming.backpressure.pid.proportional` (default: 1.0) can be 0 or greater.
-* `spark.streaming.backpressure.pid.integral` (default: 0.2) can be 0 or greater.
-* `spark.streaming.backpressure.pid.derived` (default: 0.0) can be 0 or greater.
-* `spark.streaming.backpressure.pid.minRate` (default: 100) must be greater than 0.
-
-NOTE: The PID rate estimator is used by link:spark-streaming-kafka.adoc#back-pressure[DirectKafkaInputDStream] and link:spark-streaming-receiverinputdstreams.adoc#back-pressure[input dstreams with receivers (aka ReceiverInputDStreams)].
-
-[TIP]
-====
-Enable `INFO` or `TRACE` logging level for `org.apache.spark.streaming.scheduler.rate.PIDRateEstimator` logger to see what happens inside.
-
-Add the following line to `conf/log4j.properties`:
-
-```
-log4j.logger.org.apache.spark.streaming.scheduler.rate.PIDRateEstimator=TRACE
-```
-
-Refer to link:spark-logging.adoc[Logging].
-====
-
-When the PID rate estimator is created you should see the following INFO message in the logs:
-
-```
-INFO PIDRateEstimator: Created PIDRateEstimator with proportional = [proportional], integral = [integral], derivative = [derivative], min rate = [minRate]
-```
-
-When the pid rate estimator computes the rate limit for the current time, you should see the following TRACE message in the logs:
-
-```
-TRACE PIDRateEstimator:
-time = [time], # records = [numElements], processing time = [processingDelay], scheduling delay = [schedulingDelay]
-```
-
-If the time to compute the current rate limit for is before the latest time or the number of records is 0 or less, or processing delay is 0 or less, the rate estimation is skipped. You should see the following TRACE message in the logs:
-
-```
-TRACE PIDRateEstimator: Rate estimation skipped
-```
-
-And no rate limit is returned.
-
-Otherwise, when this is to compute the rate estimation for next time and there are records processed as well as the processing delay is positive, it computes the rate estimate.
-
-Once the new rate has already been computed, you should see the following TRACE message in the logs:
-
-```
-TRACE PIDRateEstimator:
- latestRate = [latestRate], error = [error]
- latestError = [latestError], historicalError = [historicalError]
- delaySinceUpdate = [delaySinceUpdate], dError = [dError]
-```
-
-If it was the first computation of the limit rate, you should see the following TRACE message in the logs:
-
-```
-TRACE PIDRateEstimator: First run, rate estimation skipped
-```
-
-No rate limit is returned.
-
-Otherwise, when it is another limit rate, you should see the following TRACE message in the logs:
-
-```
-TRACE PIDRateEstimator: New rate = [newRate]
-```
-
-And the current rate limit is returned.
 
 === [[internal-registries]] Internal Registries
 
