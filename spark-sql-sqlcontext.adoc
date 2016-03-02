@@ -8,9 +8,9 @@ A `SQLContext` object requires a `SparkContext`, a `CacheManager`, and a `SQLLis
 
 You can create a `SQLContext` using the following constructors:
 
-* `SQLContext(sparkContext: SparkContext)`
-* `SQLContext.getOrCreate`
-* `newSession(): SQLContext` allows for creating a new instance of `SQLContext` with a separate SQL configuration (through a shared `SparkContext`).
+* `SQLContext(sc: SparkContext)`
+* `SQLContext.getOrCreate(sc: SparkContext)`
+* `SQLContext.newSession()` allows for creating a new instance of `SQLContext` with a separate SQL configuration (through a shared `SparkContext`).
 
 === Configuration Properties
 
@@ -37,6 +37,25 @@ emptyDataFrame: DataFrame
 ----
 
 `emptyDataFrame` creates an empty DataFrame. It calls `createDataFrame` with an empty `RDD[Row]` and an empty schema `StructType(Nil)`.
+
+==== createDataFrame for RDD and Seq
+
+[source, scala]
+----
+createDataFrame[A <: Product](rdd: RDD[A]): DataFrame
+createDataFrame[A <: Product](data: Seq[A]): DataFrame
+----
+
+`createDataFrame` family of methods can create a `DataFrame` from an `RDD` of Scala's Product types like case classes or tuples or `Seq` thereof.
+
+==== createDataFrame for RDD of Row with Explicit Schema
+
+[source, scala]
+----
+createDataFrame(rowRDD: RDD[Row], schema: StructType): DataFrame
+----
+
+This variant of `createDataFrame` creates a `DataFrame` from `RDD` of `Row` and explicit schema.
 
 === Registering User-Defined Functions (UDF)
 
@@ -73,9 +92,9 @@ clearCache(): Unit
 
 `uncacheTable` and `clearCache` remove one or all in-memory cached tables.
 
-=== Implicits - SQLContext.implicits
+=== [[implicits]] Implicits - SQLContext.implicits
 
-The `implicits` object is a helper class for converting Scala objects into DataFrames and ...FIXME
+The `implicits` object is a helper class with methods to convert Scala objects into Datasets, DataFrames, and ...FIXME
 
 [source, scala]
 ----
@@ -83,4 +102,10 @@ val sqlContext = new SQLContext(sc)
 import sqlContext.implicits._
 ----
 
-It holds link:spark-sql-dataset.adoc#Encoder[Encoders] for Scala types like `Int`, `Double`, `String`, etc.
+It holds link:spark-sql-dataset.adoc#Encoder[Encoders] for Scala "primitive" types like `Int`, `Double`, `String`, and their collections.
+
+It offers support for creating `Dataset` from `RDD` of any types (for which an Encoder exists in scope), or case classes or tuples, and `Seq`.
+
+It also offers conversions from Scala's `Symbol` or `$` to `Column`.
+
+It also offers conversions from `RDD` or `Seq` of `Product` types like case classes or tuples to `DataFrame`. It has direct conversions from `RDD` of Int, Long and String to `DataFrame` with a single column name `_1`.
