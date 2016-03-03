@@ -4,6 +4,22 @@
 
 A `SQLContext` object requires a `SparkContext`, a `CacheManager`, and a `SQLListener`. They are all `transient` and do not participate in serializing a SQLContext.
 
+You should use `SQLContext` for the following:
+
+* <<creating-datasets, Creating Datasets>>
+* <<creating-dataframes, Creating DataFrames>>
+* <<range-method, Creating DataFrames from Range (range method)>>
+* <<creating-dataframes-for-table, Creating DataFrames for Table>>
+* <<accessing-DataFrameReader, Accessing DataFrameReader>>
+* <<accessing-ContinuousQueryManager, Accessing ContinuousQueryManager>>
+* <<registering-udfs, Registering User-Defined Functions (UDF)>>
+* <<caching-dataframes, Caching DataFrames in In-Memory Cache>>
+* <<setting-configuration-properties, Setting Configuration Properties>>
+* <<implicits, Bringing Converter Objects into Scope>>
+* <<creating-external-tables, Creating External Tables>>
+* <<dropping-temporary-tables, Dropping Temporary Tables>>
+* <<listing-existing-tables, Listing Existing Tables>>
+
 === [[creating-instance]] Creating SQLContext Instance
 
 You can create a `SQLContext` using the following constructors:
@@ -12,7 +28,7 @@ You can create a `SQLContext` using the following constructors:
 * `SQLContext.getOrCreate(sc: SparkContext)`
 * `SQLContext.newSession()` allows for creating a new instance of `SQLContext` with a separate SQL configuration (through a shared `SparkContext`).
 
-=== Configuration Properties
+=== [[setting-configuration-properties]] Setting Configuration Properties
 
 You can set Spark SQL configuration properties using:
 
@@ -27,7 +43,7 @@ You can get the current value of a configuration property by key using:
 
 NOTE: Properties that start with *spark.sql* are reserved for Spark SQL.
 
-=== Creating DataFrames
+=== [[creating-dataframes]] Creating DataFrames
 
 ==== emptyDataFrame
 
@@ -57,7 +73,7 @@ createDataFrame(rowRDD: RDD[Row], schema: StructType): DataFrame
 
 This variant of `createDataFrame` creates a `DataFrame` from `RDD` of `Row` and explicit schema.
 
-=== Registering User-Defined Functions (UDF)
+=== [[registering-udfs]] Registering User-Defined Functions (UDF)
 
 [source, scala]
 ----
@@ -66,7 +82,7 @@ udf: UDFRegistration
 
 `udf` method gives access to `UDFRegistration` to manipulate user-defined functions.
 
-=== Caching DataFrames in In-Memory Cache
+=== [[caching-dataframes]] Caching DataFrames in In-Memory Cache
 
 [source, scala]
 ----
@@ -94,13 +110,18 @@ clearCache(): Unit
 
 === [[implicits]] Implicits - SQLContext.implicits
 
-The `implicits` object is a helper class with methods to convert Scala objects into Datasets, DataFrames, and ...FIXME
+The `implicits` object is a helper class with methods to convert  objects into link:spark-sql-dataset.adoc[Datasets], link:spark-sql-dataframe.adoc[DataFrames], and comes with many link:spark-sql-dataset.adoc#Encoder[Encoders] for "primitive" types as well as the collections thereof.
+
+[NOTE]
+====
+Import the implicits by `import sqlContext.implicits._` as follows:
 
 [source, scala]
 ----
 val sqlContext = new SQLContext(sc)
 import sqlContext.implicits._
 ----
+====
 
 It holds link:spark-sql-dataset.adoc#Encoder[Encoders] for Scala "primitive" types like `Int`, `Double`, `String`, and their collections.
 
@@ -108,4 +129,106 @@ It offers support for creating `Dataset` from `RDD` of any types (for which an E
 
 It also offers conversions from Scala's `Symbol` or `$` to `Column`.
 
-It also offers conversions from `RDD` or `Seq` of `Product` types like case classes or tuples to `DataFrame`. It has direct conversions from `RDD` of Int, Long and String to `DataFrame` with a single column name `_1`.
+It also offers conversions from `RDD` or `Seq` of `Product` types (e.g. case classes or tuples) to `DataFrame`. It has direct conversions from `RDD` of Int, Long and String to `DataFrame` with a single column name `_1`.
+
+=== [[creating-datasets]] Creating Datasets
+
+[source, scala]
+----
+createDataset[T: Encoder](data: Seq[T]): Dataset[T]
+createDataset[T: Encoder](data: RDD[T]): Dataset[T]
+----
+
+`createDataset` family of methods creates a link:spark-sql-dataset.adoc[Dataset] from a collection of elements of type `T`, be it a regular Scala `Seq` or Spark's `RDD`.
+
+It requires that there is an link:spark-sql-dataset.adoc#Encoder[Encoder] in scope.
+
+NOTE: <<implicits, Importing SQLContext.implicits>> brings many Encoders available in scope.
+
+=== [[accessing-DataFrameReader]] Accessing DataFrameReader
+
+[source, scala]
+----
+read: DataFrameReader
+----
+
+The experimental `read` method returns a link:spark-sql-dataframereader.adoc[DataFrameReader] that is used to read data from external storage systems and load it into a `DataFrame`.
+
+=== [[creating-external-tables]] Creating External Tables
+
+[source, scala]
+----
+createExternalTable(tableName: String, path: String): DataFrame
+createExternalTable(tableName: String, path: String, source: String): DataFrame
+createExternalTable(tableName: String, source: String, options: Map[String, String]): DataFrame
+createExternalTable(tableName: String, source: String, schema: StructType, options: Map[String, String]): DataFrame
+----
+
+The experimental `createExternalTable` family of methods is used to create an external table `tableName` and return a corresponding `DataFrame`.
+
+CAUTION: FIXME What is an external table?
+
+=== [[dropping-temporary-tables]] Dropping Temporary Tables
+
+[source, scala]
+----
+dropTempTable(tableName: String): Unit
+----
+
+`dropTempTable` method drops a temporary table `tableName`.
+
+CAUTION: FIXME What is a temporary table?
+
+=== [[range-method]] Creating DataFrames from Range (range method)
+
+[source, scala]
+----
+range(end: Long): DataFrame
+range(start: Long, end: Long): DataFrame
+range(start: Long, end: Long, step: Long): DataFrame
+range(start: Long, end: Long, step: Long, numPartitions: Int): DataFrame
+----
+
+The `range` family of methods creates a `DataFrame` with the sole `id` column of `LongType` for given `start`, `end`, and `step`.
+
+NOTE: The three first variants use link:spark-sparkcontext.adoc#defaultParallelism[SparkContext.defaultParallelism] for the number of partitions `numPartitions`.
+
+=== [[creating-dataframes-for-table]] Creating DataFrames for Table
+
+[source, scala]
+----
+table(tableName: String): DataFrame
+----
+
+`table` method creates a `tableName` table and returns a corresponding `DataFrame`.
+
+=== [[listing-existing-tables]] Listing Existing Tables
+
+[source, scala]
+----
+tables(): DataFrame
+tables(databaseName: String): DataFrame
+----
+
+`table` methods return a `DataFrame` that holds names of existing tables in a database. The schema consists of two columns - `tableName` of `StringType` and `isTemporary` of `BooleanType`.
+
+NOTE: `tables` is a result of `SHOW TABLES [IN databaseName]`.
+
+[source, scala]
+----
+tableNames(): Array[String]
+tableNames(databaseName: String): Array[String]
+----
+
+`tableNames` are similar to `tables` with the only difference that they return `Array[String]` which is a collection of table names.
+
+=== [[accessing-ContinuousQueryManager]] Accessing ContinuousQueryManager
+
+[source, scala]
+----
+streams: ContinuousQueryManager
+----
+
+The `streams` method returns a link:spark-sql-continuousquerymanager.adoc[ContinuousQueryManager] that is used to...TK
+
+CAUTION: FIXME
