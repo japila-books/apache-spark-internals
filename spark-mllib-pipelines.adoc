@@ -2,6 +2,8 @@
 
 NOTE: Both http://scikit-learn.org/stable/modules/generated/sklearn.pipeline.Pipeline.html[scikit-learn] and http://graphlab.com/learn/userguide/index.html#Deployment[GraphLab] have the concept of *pipelines* built into their system.
 
+The beauty of using Spark MLlib is that the ML dataset is simply a DataFrame (from Spark SQL).
+
 Concepts:
 
 * <<transformers, Transformers>>
@@ -40,6 +42,14 @@ It can help creating domain-specific feature transformers, general purpose trans
 === [[pipeline]] Pipelines
 
 A *ML pipeline* (or a *ML workflow*) is a sequence of <<transformers, Transformers>> and <<estimators, Estimators>> to build a model out of input data.
+
+Features of ML Pipelines in Spark MLlib:
+
+* Using link:spark-sql-dataframe.adoc[DataFrame] as a dataset format
+* ML Pipelines API is similar to scikit-learn
+* Easy debugging (via inspecting columns added during execution)
+* Parameter tuning
+* Compositions (to build more complex pipelines out of existing ones)
 
 === [[transformers]] Transformers
 
@@ -168,7 +178,7 @@ The _train a model_ phase uses the logistic regression machine learning algorith
 ----
 scala> import org.apache.spark.ml.feature.RegexTokenizer
 
-scala> val tokenizer = new RegexTokenizer().setInputCol("text").setOutputCol("words").setPattern("s")
+scala> val tokenizer = new RegexTokenizer().setInputCol("text").setOutputCol("words").setPattern("\\s+")
 tokenizer: org.apache.spark.ml.feature.RegexTokenizer = regexTok_f5a01fb6646a
 
 scala> import org.apache.spark.ml.feature.HashingTF
@@ -186,8 +196,8 @@ lr: org.apache.spark.ml.classification.LogisticRegression = logreg_c346fddce901
 scala> import org.apache.spark.ml.Pipeline
 import org.apache.spark.ml.Pipeline
 
-scala> val pipeline = new Pipeline().setStages(Array(regexTok, hashingTF, lr))
-pipeline: org.apache.spark.ml.Pipeline = pipeline_88711f477c1b
+scala> val pipeline = new Pipeline().setStages(Array(tokenizer, hashingTF, lr))
+pipeline: org.apache.spark.ml.Pipeline = pipeline_c1feff10b9bb
 ----
 
 It uses two columns, namely `label` and `features` vector to build a logistic regression model to make predictions.
@@ -208,6 +218,20 @@ scala> predictions.show
 |  2| sci.physics| Hello, Physics!|  1.0|[hello, phy, ic, !]|(5000,[33,2499,33...|[-4.4061570147914...|[0.01205488687952...|       1.0|
 +---+------------+----------------+-----+-------------------+--------------------+--------------------+--------------------+----------+
 
+// Notice that the computations add new columns
+scala> predictions.printSchema
+root
+ |-- id: long (nullable = false)
+ |-- topic: string (nullable = true)
+ |-- text: string (nullable = true)
+ |-- label: double (nullable = true)
+ |-- words: array (nullable = true)
+ |    |-- element: string (containsNull = true)
+ |-- features: vector (nullable = true)
+ |-- rawPrediction: vector (nullable = true)
+ |-- probability: vector (nullable = true)
+ |-- prediction: double (nullable = true)
+
 scala> import org.apache.spark.ml.evaluation.BinaryClassificationEvaluator
 import org.apache.spark.ml.evaluation.BinaryClassificationEvaluator
 
@@ -216,6 +240,40 @@ evaluator: org.apache.spark.ml.evaluation.BinaryClassificationEvaluator = binEva
 
 scala> evaluator.evaluate(predictions)
 res42: Double = 1.0
+----
+
+Let's tune the model (using "tools" from https://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.ml.tuning.package[org.apache.spark.ml.tuning] package).
+
+CAUTION: FIXME Review the available classes in the org.apache.spark.ml.tuning package.
+
+[source, scala]
+----
+import org.apache.spark.ml.tuning.ParamGridBuilder
+val paramGrid = new ParamGridBuilder()
+  .addGrid(hashingTF.numFeatures, Array(1000, 10000))
+  .addGrid(lr.regParam, Array(0.05, 0.2))
+  .build
+
+import org.apache.spark.ml.tuning.CrossValidator
+import org.apache.spark.ml.param._
+val cv = new CrossValidator()
+  .setEstimator(pipeline)
+  .setEvaluator(evaluator)
+  .setEstimatorParamMaps(paramGrid)
+  .setNumFolds(2)
+
+val cvModel = cv.fit(training)
+----
+
+CAUTION: FIXME Review https://github.com/apache/spark/blob/master/mllib/src/test/scala/org/apache/spark/ml/tuning/CrossValidatorSuite.scala
+
+You can eventually save the model for later use (using `DataFrame.write`).
+
+[source, scala]
+----
+cvModel.transform(test).select("id", "prediction")
+  .write
+  .json("/demo/predictions")
 ----
 
 === Further reading or watching
