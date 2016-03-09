@@ -69,13 +69,25 @@ It is an <<Estimator, Estimator>>.
 
 The https://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.ml.PipelineStage[PipelineStage] abstract class represents a single stage in a <<Pipeline, Pipeline>>.
 
-As an abstract class it has the following direct implementations (of which few are abstract classes, too):
+`PipelineStage` has the following direct implementations (of which few are abstract classes, too):
 
 * <<Estimator, Estimator>>
 * Model
 * Pipeline
 * Predictor
 * <<Transformer, Transformer>>
+
+Each `PipelineStage` transforms schema using `transformSchema` family of methods:
+
+* `transformSchema(schema: StructType): StructType`
+* `transformSchema(schema: StructType, logging: Boolean): StructType`
+
+NOTE: `StructType` is a Spark SQL type. Read up on it in link:spark-sql-dataframe.adoc#traits[Traits of DataFrame].
+
+[TIP]
+====
+Enable `DEBUG` logging level for the respective `PipelineStage` implementations to see what happens beneath.
+====
 
 === [[Transformer]] Transformers
 
@@ -98,6 +110,23 @@ The direct descendents of the `Transformer` abstract class are:
 ==== [[UnaryTransformer]] UnaryTransformers
 
 The https://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.ml.UnaryTransformer[UnaryTransformer] abstract class is a specialized `Transformer` that applies transformation to one input column and writes results to another (by appending a new column).
+
+Each `UnaryTransformer` defines the input and output columns using the following "chain" methods (they return the transformer on which they were executed):
+
+* `setInputCol(value: String)`
+* `setOutputCol(value: String)`
+
+Each `UnaryTransformer` calls `validateInputType` while executing `transformSchema(schema: StructType)` (that is part of <<PipelineStage, PipelineStage>> contract).
+
+NOTE: A `UnaryTransformer` is a `PipelineStage`.
+
+When `transform` is called, it first calls `transformSchema` (with DEBUG logging enabled) and then adds the column as a result of calling a protected abstract `createTransformFunc`.
+
+NOTE: `createTransformFunc` function is abstract and defined by concrete `UnaryTransformer` objects.
+
+Internally, `transform` methods uses Spark SQL's link:spark-sql-udfs.adoc#udf-function[udf] to define a function (based on `createTransformFunc` function described above) that will create the new output column (with appropriate `outputDataType`). The UDF is later applied to the input column of the input DataFrame and the result becomes the output column (using link:spark-sql-dataframe.adoc#withColumn[DataFrame.withColumn] method).
+
+NOTE: Using `udf` and `withColumn` methods from Spark SQL demonstrates integration between the Spark modules: MLlib and SQL.
 
 ==== [[Transformer-examples]] Examples of Transformers
 
