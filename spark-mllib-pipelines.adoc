@@ -4,6 +4,10 @@ NOTE: Both http://scikit-learn.org/stable/modules/generated/sklearn.pipeline.Pip
 
 The beauty of using Spark MLlib is that the ML dataset is simply a DataFrame (from Spark SQL).
 
+NOTE: The Pipeline API lives under https://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.ml.package[spark.ml] package.
+
+The goal of the Pipeline API is to let users quickly assemble and configure practical machine learning pipelines.
+
 Concepts:
 
 * <<transformers, Transformers>>
@@ -13,10 +17,10 @@ Concepts:
 
 Use of a machine learning algorithm is only one component of *a predictive analytic workflow*. There can also be *pre-processing steps* for the machine learning algorithm to work.
 
-A typical ML workflow is to:
+A typical standard machine learning workflow is to:
 
 1. Load the data
-2. Extract features
+2. Extract features (aka _feature extraction_)
 3. Train model
 4. Evaluate (or _predictionize_)
 
@@ -39,23 +43,63 @@ Pipelines become objects that can be saved out and applied in real-time to new d
 
 It can help creating domain-specific feature transformers, general purpose transformers, statistical utilities and nodes.
 
-=== [[pipeline]] Pipelines
+=== Features of Pipeline API
 
-A *ML pipeline* (or a *ML workflow*) is a sequence of <<transformers, Transformers>> and <<estimators, Estimators>> to build a model out of input data.
+The features of the Pipeline API in Spark MLlib:
 
-Features of ML Pipelines in Spark MLlib:
-
-* Using link:spark-sql-dataframe.adoc[DataFrame] as a dataset format
-* ML Pipelines API is similar to scikit-learn
+* link:spark-sql-dataframe.adoc[DataFrame] as a dataset format
+* ML Pipelines API is similar to http://scikit-learn.org/stable/modules/generated/sklearn.pipeline.Pipeline.html[scikit-learn]
 * Easy debugging (via inspecting columns added during execution)
 * Parameter tuning
 * Compositions (to build more complex pipelines out of existing ones)
 
-=== [[transformers]] Transformers
+=== [[Pipeline]] Pipelines
+
+A *ML pipeline* (or a *ML workflow*) is a sequence of <<transformers, Transformers>> and <<estimators, Estimators>> to build a model out of input data.
+
+A pipeline is represented by https://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.ml.Pipeline[Pipeline] class.
+
+```
+import org.apache.spark.ml.Pipeline
+```
+
+It is an <<Estimator, Estimator>>.
+
+=== [[PipelineStage]] PipelineStage
+
+The https://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.ml.PipelineStage[PipelineStage] abstract class represents a single stage in a <<Pipeline, Pipeline>>.
+
+As an abstract class it has the following direct implementations (of which few are abstract classes, too):
+
+* <<Estimator, Estimator>>
+* Model
+* Pipeline
+* Predictor
+* <<Transformer, Transformer>>
+
+=== [[Transformer]] Transformers
 
 A *transformer* is a function that maps a `DataFrame` into another `DataFrame`.
 
-Transformers are instances of http://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.ml.Transformer[org.apache.spark.ml.Transformer] abstract class.
+Transformers are instances of http://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.ml.Transformer[org.apache.spark.ml.Transformer] abstract class that offers `transform` family of methods:
+
+[source, scala]
+----
+transform(dataset: DataFrame): DataFrame
+transform(dataset: DataFrame, paramMap: ParamMap): DataFrame
+transform(dataset: DataFrame, firstParamPair: ParamPair[_], otherParamPairs: ParamPair[_]*): DataFrame
+----
+
+The direct descendents of the `Transformer` abstract class are:
+
+* Model
+* <<UnaryTransformer, UnaryTransformers>>
+
+==== [[UnaryTransformer]] UnaryTransformers
+
+The https://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.ml.UnaryTransformer[UnaryTransformer] abstract class is a specialized `Transformer` that applies transformation to one input column and writes results to another (by appending a new column).
+
+==== [[Transformer-examples]] Examples of Transformers
 
 One example of a transformer is http://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.ml.feature.RegexTokenizer[org.apache.spark.ml.feature.RegexTokenizer].
 
@@ -75,7 +119,24 @@ scala> val hashingTF = new HashingTF().setInputCol("text").setOutputCol("feature
 hashingTF: org.apache.spark.ml.feature.HashingTF = hashingTF_16ecd3b7e333
 ----
 
-=== [[estimators]] Estimators
+In this example you use https://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.ml.feature.NGram[org.apache.spark.ml.feature.NGram] that converts the input collection of strings into a collection of n-grams (of `n` words).
+
+[source, scala]
+----
+import org.apache.spark.ml.feature.NGram
+
+val bigram = new NGram("bigrams")
+val df = Seq((0, Seq("hello", "world"))).toDF("id", "tokens")
+bigram.setInputCol("tokens").transform(df).show
+
++---+--------------+---------------+
+| id|        tokens|bigrams__output|
++---+--------------+---------------+
+|  0|[hello, world]|  [hello world]|
++---+--------------+---------------+
+----
+
+=== [[Estimator]] Estimators
 
 A *estimator* is a function that maps a `DataFrame` into a `Model`. It takes a DataFrame, trains on it and produces a Model.
 
