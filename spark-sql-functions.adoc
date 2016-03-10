@@ -1,0 +1,78 @@
+== Standard Functions for DataFrames (functions object)
+
+`org.apache.spark.sql.functions` object comes with many functions for column manipulation in DataFrames.
+
+NOTE: The `functions` object is an experimental feature of Spark since version 1.3.0.
+
+You can access the functions using the following import statement:
+
+[source, scala]
+----
+import org.apache.spark.sql.functions._
+----
+
+There are nearly 50 or more functions in the `functions` object. They are grouped by functional areas:
+
+* <<udf, Defining UDFs>>
+* Aggregate functions
+* Date time functions
+* ..._and others_
+
+TIP: You should read the http://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.sql.functions$[official documentation of the functions object].
+
+=== [[udf]] Defining UDFs (udf factories)
+
+[source, scala]
+----
+udf(f: FunctionN[...]): UserDefinedFunction
+----
+
+The `udf` family of functions allows you to create link:spark-sql-udfs.adoc[user-defined functions (UDFs)] based on a user-defined function in Scala. It accepts `f` function of 0 to 10 arguments and the input and output types are automatically inferred (given the types of the respective input and output types of the function `f`).
+
+[source, scala]
+----
+import org.apache.spark.sql.functions._
+val _length: String => Int = _.length
+val _lengthUDF = udf(_length)
+
+// define a dataframe
+val df = sc.parallelize(0 to 3).toDF("num")
+
+// apply the user-defined function to "num" column
+scala> df.withColumn("len", _lengthUDF($"num")).show
++---+---+
+|num|len|
++---+---+
+|  0|  1|
+|  1|  1|
+|  2|  1|
+|  3|  1|
++---+---+
+----
+
+Since Spark 2.0.0, there is another variant of `udf` function:
+
+[source, scala]
+----
+udf(f: AnyRef, dataType: DataType): UserDefinedFunction
+----
+
+`udf(f: AnyRef, dataType: DataType)` allows you to use a Scala closure for the function argument (as `f`) and explicitly declaring the output data type (as `dataType`).
+
+[source, scala]
+----
+// given the dataframe above
+
+import org.apache.spark.sql.types.IntegerType
+val byTwo = udf((n: Int) => n * 2, IntegerType)
+
+scala> df.withColumn("len", byTwo($"num")).show
++---+---+
+|num|len|
++---+---+
+|  0|  0|
+|  1|  2|
+|  2|  4|
+|  3|  6|
++---+---+
+----
