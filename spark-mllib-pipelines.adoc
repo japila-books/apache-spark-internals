@@ -79,6 +79,62 @@ read: MLReader[Pipeline]
 load(path: String): Pipeline
 ----
 
+You can create a `Pipeline` with an optional `uid` identifier. It is of the format `pipeline_[randomUid]` when unspecified.
+
+[source, scala]
+----
+scala> val pipeline = new Pipeline()
+pipeline: org.apache.spark.ml.Pipeline = pipeline_54bf3f5002e2
+
+scala> pipeline.uid
+res1: String = pipeline_54bf3f5002e2
+
+scala> val pipeline = new Pipeline("my_pipeline")
+pipeline: org.apache.spark.ml.Pipeline = my_pipeline
+
+scala> pipeline.uid
+res2: String = my_pipeline
+----
+
+The identifier `uid` is used to create an instance of <<PipelineModel, PipelineModel>> to return from `fit(dataset: DataFrame): PipelineModel` method.
+
+[source, scala]
+----
+scala> val pipeline = new Pipeline("my_pipeline")
+pipeline: org.apache.spark.ml.Pipeline = my_pipeline
+
+scala> val df = sc.parallelize(0 to 9).toDF("num")
+df: org.apache.spark.sql.DataFrame = [num: int]
+
+scala> val model = pipeline.setStages(Array()).fit(df)
+model: org.apache.spark.ml.PipelineModel = my_pipeline
+----
+
+The `stages` mandatory parameter can be set using `setStages(value: Array[PipelineStage]): this.type` method.
+
+==== [[Pipeline-fit]] Fit Pipeline (fit method)
+
+[source, scala]
+----
+fit(dataset: DataFrame): PipelineModel
+----
+
+The `fit` method returns a <<PipelineModel, PipelineModel>> that holds a collection of `Transformer` objects that are results of  `Estimator.fit` method for every `Estimator` in the Pipeline (with possibly-modified `dataset`) or simply input `Transformer` objects. The input `dataset` DataFrame is passed to `transform` for every `Transformer` instance in the Pipeline.
+
+It first transforms the schema of the input `dataset` DataFrame.
+
+It then searches for the index of the last <<Estimator, Estimator>> to calculate <<Transformer, Transformers>> for <<Estimator, Estimator>> and simply return <<Transformer, Transformers>> back up to the index in the pipeline. For each <<Estimator, Estimator>> the `fit` method is called with the input `dataset`. The result DataFrame is passed to the next `Transformer` in the chain.
+
+NOTE: An `IllegalArgumentException` exception is thrown when a stage is neither `Estimator` or `Transformer`.
+
+`transform` method is called for every `Transformer` calculated but the last one (that is the result of executing `fit` on the last `Estimator`).
+
+The calculated Transformers are collected.
+
+After the last `Estimator` there can only be `Transformer` stages.
+
+The method returns a `PipelineModel` with `uid` and transformers. The parent `Estimator` is the `Pipeline` itself.
+
 === [[PipelineStage]] PipelineStage
 
 The https://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.ml.PipelineStage[PipelineStage] abstract class represents a single stage in a <<Pipeline, Pipeline>>.
@@ -199,10 +255,14 @@ CAUTION: FIXME What does `a fitted model` mean? What are the other kinds of mode
 
 There are two direct implementations of the `Model` class that are not directly related to a ML algorithm:
 
-* `PipelineModel`
+* <<PipelineModel, PipelineModel>>
 * <<PredictionModel, PredictionModel>>
 
+==== [[PipelineModel]] PipelineModel
+
 CAUTION: `PipelineModel` is a `private[ml]` class so _perhaps_ of less interest to end users like me (as of today).
+
+CAUTION: FIXME
 
 ==== [[PredictionModel]] PredictionModel
 
