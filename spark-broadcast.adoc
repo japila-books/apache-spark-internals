@@ -11,7 +11,7 @@ And later in the document:
 .Broadcasting a value to executors
 image::images/sparkcontext-broadcast-executors.png[align="center"]
 
-To use a broadcast value in a transformation you have to create it first using <<sparkcontext-broadcast, SparkContext.broadcast()>> and then use `value` method to access the shared value. Learn it in <<introductory-example, Introductory Example>>.
+To use a broadcast value in a transformation you have to create it first using <<sparkcontext-broadcast, SparkContext.broadcast()>> and then use `value` method to access the shared value. Learn it in <<introductory-example, Introductory Example>> section.
 
 The Broadcast feature in Spark uses SparkContext to create broadcast values and link:spark-service-broadcastmanager.adoc[BroadcastManager] and link:spark-service-contextcleaner.adoc[ContextCleaner] to manage their lifecycle.
 
@@ -38,19 +38,9 @@ It works, but is very ineffective as the `pws` map is sent over the wire to exec
 Enter broadcast variables.
 
 ```
-scala> val pwsB = sc.broadcast(pws)
-INFO MemoryStore: Ensuring 1048576 bytes of free space for block broadcast_8(free: 771881313, max: 771883008)
-INFO MemoryStore: Ensuring 360 bytes of free space for block broadcast_8(free: 771881313, max: 771883008)
-INFO MemoryStore: Block broadcast_8 stored as values in memory (estimated size 360.0 B, free 2.0 KB)
-INFO MemoryStore: Ensuring 205 bytes of free space for block broadcast_8_piece0(free: 771880953, max: 771883008)
-INFO MemoryStore: Block broadcast_8_piece0 stored as bytes in memory (estimated size 205.0 B, free 2.2 KB)
-INFO BlockManagerInfo: Added broadcast_8_piece0 in memory on localhost:54142 (size: 205.0 B, free: 736.1 MB)
-INFO SparkContext: Created broadcast 8 from broadcast at <console>:26
-pwsB: org.apache.spark.broadcast.Broadcast[scala.collection.immutable.Map[String,String]] = Broadcast(8)
-
-scala> val websites = sc.parallelize(Seq("Apache Spark", "Scala")).map(pwsB.value).collect
-...
-websites: Array[String] = Array(http://spark.apache.org/, http://www.scala-lang.org/)
+val pwsB = sc.broadcast(pws)
+val websites = sc.parallelize(Seq("Apache Spark", "Scala")).map(pwsB.value).collect
+// websites: Array[String] = Array(http://spark.apache.org/, http://www.scala-lang.org/)
 ```
 
 Semantically, the two computations - with and without the broadcast value - are exactly the same, but the broadcast-based one wins performance-wise when there are more executors spawned to execute many tasks that use `pws` map.
@@ -59,14 +49,32 @@ Semantically, the two computations - with and without the broadcast value - are 
 
 *Broadcast* is part of Spark that is responsible for broadcasting information across nodes in a cluster.
 
+You use broadcast variable to implement *map-side join*, i.e. a join using a `map`. For this, lookup tables are distributed across nodes in a cluster using `broadcast` and then looked up inside `map` (to do the join implicitly).
+
 When you broadcast a value, it is copied to executors only once (while it is copied multiple times for tasks otherwise). It means that broadcast can help to get your Spark application faster if you have a large value to use in tasks or there are more tasks than executors.
+
+It appears that a Spark idiom emerges that uses `broadcast` with `collectAsMap` to create a `Map` for broadcast. When an RDD is `map` over to a smaller dataset (column-wise not record-wise), `collectAsMap`, and `broadcast`, using the very big RDD to map its elements to the broadcast RDDs is computationally faster.
+
+[source, scala]
+----
+val acMap = sc.broadcast(myRDD.map { case (a,b,c,b) => (a, c) }.collectAsMap)
+val otherMap = sc.broadcast(myOtherRDD.collectAsMap)
+
+myBigRDD.map { case (a, b, c, d) =>
+  (acMap.value.get(a).get, otherMap.value.get(c).get)
+}.collect
+----
+
+Use large broadcasted HashMaps over RDDs whenever possible and leave RDDs with a key to lookup necessary data as demonstrated above.
 
 Spark comes with a BitTorrent implementation.
 
 It is not enabled by default.
 
-* Use large broadcasted HashMaps over RDDs whenever possible and leave RDDs with a key to lookup necessary data -- FIXME: elaborate why
-
 === [[sparkcontext-broadcast]] SparkContext.broadcast
 
 Read about `SparkContext.broadcast` method in link:spark-sparkcontext.adoc#creating-broadcast-variables[Creating broadcast variables].
+
+=== Further Reading
+
+* http://dmtolpeko.com/2015/02/20/map-side-join-in-spark/[Map-Side Join in Spark]

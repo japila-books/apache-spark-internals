@@ -11,13 +11,18 @@ You can access the functions using the following import statement:
 import org.apache.spark.sql.functions._
 ----
 
-There are nearly 50 or more functions in the `functions` object. They are grouped by functional areas:
+There are nearly 50 or more functions in the `functions` object. Some functions are transformations of `Column` objects (or column names) into other `Column` objects or transform `DataFrame` into `DataFrame`.
+
+The functions are grouped by functional areas:
 
 * <<udf, Defining UDFs>>
-* String functions
+* <<string-functions, String functions>>
 ** <<split, split>>
 ** <<upper, upper>> (chained with `reverse`)
 * Aggregate functions
+* <<non-aggregate-functions, Non-aggregate functions>> (aka _normal functions_)
+** <<struct, struct>>
+** <<broadcast, broadcast>> (for `DataFrame`)
 * Date time functions
 * ..._and others_
 
@@ -80,7 +85,7 @@ scala> df.withColumn("len", byTwo($"num")).show
 +---+---+
 ----
 
-=== String functions
+=== [[string-functions]] String functions
 
 ==== [[split]] split function
 
@@ -133,4 +138,57 @@ scala> withUpperReversed.show
 |  2|  3|world|DLROW|
 |  2|  4|  ala|  ALA|
 +---+---+-----+-----+
+----
+
+=== [[non-aggregate-functions]] Non-aggregate functions
+
+They are also called *normal functions*.
+
+==== [[struct]] struct functions
+
+[source, scala]
+----
+struct(cols: Column*): Column
+struct(colName: String, colNames: String*): Column
+----
+
+`struct` family of functions allows you to create a new struct column based on a collection of `Column` or their names.
+
+NOTE: The difference between `struct` and another similar `array` function is that the types of the columns can be different (in `struct`).
+
+[source, scala]
+----
+scala> df.withColumn("struct", struct($"name", $"val")).show
++---+---+-----+---------+
+| id|val| name|   struct|
++---+---+-----+---------+
+|  0|  1|hello|[hello,1]|
+|  2|  3|world|[world,3]|
+|  2|  4|  ala|  [ala,4]|
++---+---+-----+---------+
+----
+
+==== [[broadcast]] broadcast function
+
+[source, scala]
+----
+broadcast(df: DataFrame): DataFrame
+----
+
+`broadcast` function creates a new `DataFrame` (out of the input `DataFrame`) and marks the logical plan to be broadcast when used in a `join` operator.
+
+TIP: Consult link:spark-sql-joins.adoc#broadcast-join[Broadcast Join] document.
+
+[source, scala]
+----
+val left = Seq((0, "aa"), (0, "bb")).toDF("id", "token")
+val right = Seq(("aa", 0.99), ("bb", 0.57)).toDF("token", "prob")
+
+scala> left.join(broadcast(right), "token").show
++-----+---+----+
+|token| id|prob|
++-----+---+----+
+|   aa|  0|0.99|
+|   bb|  0|0.57|
++-----+---+----+
 ----
