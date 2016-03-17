@@ -1,0 +1,41 @@
+== PairRDDFunctions
+
+TIP: Read up the scaladoc of http://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.rdd.PairRDDFunctions[PairRDDFunctions].
+
+`PairRDDFunctions` are available in RDDs of key-value pairs via Scala's implicit conversion.
+
+=== groupByKey, reduceByKey, partitionBy
+
+You may want to look at the number of partitions from another angle.
+
+It may often not be important to have a given number of partitions upfront (at RDD creation time upon link:spark-data-sources.adoc[loading data from data sources]), so only "regrouping" the data by key after it is an RDD might be...the key (_pun not intended_).
+
+You can use `groupByKey` or another `PairRDDFunctions` method to have a key in one processing flow.
+
+You could use `partitionBy` that is available for RDDs to be RDDs of tuples, i.e. `PairRDD`:
+
+```
+rdd.keyBy(_.kind)
+  .partitionBy(new HashPartitioner(PARTITIONS))
+  .foreachPartition(...)
+```
+
+Think of situations where `kind` has low cardinality or highly skewed distribution and using the technique for partitioning might be not an optimal solution.
+
+You could do as follows:
+
+```
+rdd.keyBy(_.kind).reduceByKey(....)
+```
+
+or `mapValues` or plenty of other solutions. _FIXME, man_.
+
+=== [[mapValues]][[flatMapValues]] mapValues, flatMapValues
+
+CAUTION: FIXME
+
+=== [[combineByKeyWithClassTag]] combineByKeyWithClassTag
+
+`PairRDDFunctions.combineByKeyWithClassTag` function assumes `mapSideCombine` as `true` by default. It then creates `ShuffledRDD` with the value of `mapSideCombine` when the input partitioner is different from the current one in an RDD.
+
+The function is a generic base function for `combineByKey`-based functions, `combineByKeyWithClassTag`-based functions, `aggregateByKey`, `foldByKey`, `reduceByKey`, `countApproxDistinctByKey`, `groupByKey`, `combineByKeyWithClassTag`-based functions.
