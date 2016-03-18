@@ -83,17 +83,15 @@ You can create a `Pipeline` with an optional `uid` identifier. It is of the form
 
 [source, scala]
 ----
-scala> val pipeline = new Pipeline()
-pipeline: org.apache.spark.ml.Pipeline = pipeline_54bf3f5002e2
+val pipeline = new Pipeline()
 
-scala> pipeline.uid
-res1: String = pipeline_54bf3f5002e2
+scala> println(pipeline.uid)
+pipeline_94be47c3b709
 
-scala> val pipeline = new Pipeline("my_pipeline")
-pipeline: org.apache.spark.ml.Pipeline = my_pipeline
+val pipeline = new Pipeline("my_pipeline")
 
-scala> pipeline.uid
-res2: String = my_pipeline
+scala> println(pipeline.uid)
+my_pipeline
 ----
 
 The identifier `uid` is used to create an instance of <<PipelineModel, PipelineModel>> to return from `fit(dataset: DataFrame): PipelineModel` method.
@@ -163,7 +161,7 @@ Enable `DEBUG` logging level for the respective `PipelineStage` implementations 
 
 === [[transformers]][[Transformer]] Transformers
 
-A *transformer* is a function that maps a `DataFrame` into another `DataFrame`.
+A *transformer* is a function that maps (aka _transforms_) a `DataFrame` into another `DataFrame`. It simply prepares a dataset for an machine learning algorithm to work with.
 
 Transformers are instances of http://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.ml.Transformer[org.apache.spark.ml.Transformer] abstract class that offers `transform` family of methods:
 
@@ -208,18 +206,61 @@ One example of a transformer is http://spark.apache.org/docs/latest/api/scala/in
 
 [source, scala]
 ----
-scala> import org.apache.spark.ml.feature.RegexTokenizer
+import org.apache.spark.ml.feature.RegexTokenizer
+val regexTok = new RegexTokenizer()
+  .setInputCol("text")
+  .setOutputCol("words")
+  .setPattern("\\s+")
 
-scala> val regexTok = new RegexTokenizer().setInputCol("text").setOutputCol("words").setPattern("s")
-regexTok: org.apache.spark.ml.feature.RegexTokenizer = regexTok_31b044abd10c
+// Create DataFrame with rows with tabs and spaces
+val df = Seq((0, s"""hello\tworld"""), (1, "two  spaces inside")).toDF("id", "text")
+
+// Use RegexTokenizer
+scala> regexTok.transform(df).show(false)
++---+------------------+---------------------+
+|id |text              |words                |
++---+------------------+---------------------+
+|0  |hello	world       |[hello, world]       |
+|1  |two  spaces inside|[two, spaces, inside]|
++---+------------------+---------------------+
 ----
 
-Another example of a transformer could be http://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.ml.feature.HashingTF[org.apache.spark.ml.feature.HashingTF].
+Another example of a transformer could be http://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.ml.feature.HashingTF[org.apache.spark.ml.feature.HashingTF] that works on a `Column` of `ArrayType`.
 
 [source, scala]
 ----
-scala> val hashingTF = new HashingTF().setInputCol("text").setOutputCol("features").setNumFeatures(5000)
-hashingTF: org.apache.spark.ml.feature.HashingTF = hashingTF_16ecd3b7e333
+import org.apache.spark.ml.feature.HashingTF
+val hashingTF = new HashingTF()
+  .setInputCol("words")
+  .setOutputCol("features")
+  .setNumFeatures(5000)
+
+// see above for regexTok transformer
+val regexDF = regexTok.transform(df)
+
+scala> hashingTF.transform(regexDF).show(false)
++---+------------------+---------------------+-----------------------------------+
+|id |text              |words                |features                           |
++---+------------------+---------------------+-----------------------------------+
+|0  |hello	world       |[hello, world]       |(5000,[2322,3802],[1.0,1.0])       |
+|1  |two  spaces inside|[two, spaces, inside]|(5000,[276,940,2533],[1.0,1.0,1.0])|
++---+------------------+---------------------+-----------------------------------+
+----
+
+The name of the output column is optional, and if not specified, it becomes the identifier of a `HashingTF` object with the `__output` suffix.
+
+[source, scala]
+----
+scala> hashingTF.uid
+res7: String = hashingTF_fe3554836819
+
+scala> hashingTF.transform(regexDF).show(false)
++---+------------------+---------------------+-------------------------------------------+
+|id |text              |words                |hashingTF_fe3554836819__output             |
++---+------------------+---------------------+-------------------------------------------+
+|0  |hello	world       |[hello, world]       |(262144,[71890,72594],[1.0,1.0])           |
+|1  |two  spaces inside|[two, spaces, inside]|(262144,[53244,77869,115276],[1.0,1.0,1.0])|
++---+------------------+---------------------+-------------------------------------------+
 ----
 
 In this example you use https://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.ml.feature.NGram[org.apache.spark.ml.feature.NGram] that converts the input collection of strings into a collection of n-grams (of `n` words).
