@@ -1,10 +1,10 @@
 == Estimators
 
-An *estimator* takes a `DataFrame` and parameters (as `ParamMap`) and fits a model. It is a function that maps a `DataFrame` into a `Model` that takes a `DataFrame`, trains on it and produces a `Model`.
+An *estimator* takes a `DataFrame` and parameters (as `ParamMap`) and fits a model. It is basically a function that maps a `DataFrame` into a `Model` that takes a `DataFrame`, trains on it and produces a `Model`.
 
 CAUTION: FIXME What does _fitting a model_ mean?
 
-Estimators are instances of http://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.ml.Estimator[org.apache.spark.ml.Estimator] abstract class that comes with `fit` method (with `M` being a `PredictionModel`):
+Estimators are instances of http://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.ml.Estimator[org.apache.spark.ml.Estimator] abstract class that comes with `fit` method (with the return type `M` being a `PredictionModel`):
 
 [source, scala]
 ----
@@ -17,8 +17,206 @@ The direct specialized extensions of the `Estimator` abstract class are:
 
 * <<Predictor, Predictor>>
 
-==== [[Predictor]] Predictors
-
-CAUTION: FIXME
+=== [[Predictor]] Predictors
 
 A `Predictor` is an link:spark-mllib-pipelines.adoc#Estimator[Estimator] for a `PredictionModel`.
+
+It implements the abstract `fit(dataset: DataFrame)` of the `Estimator` abstract class that validates and transforms the schema of a dataset, and then calls its own abstract `train` method.
+
+[source, scala]
+----
+train(dataset: DataFrame): M
+----
+
+The `train` method is supposed to ease dealing with schema validation and copying parameters into the trained model.
+
+==== [[LinearRegression]] LinearRegression
+
+`LinearRegression` is an example of <<Predictor, Predictor>> (indirectly through the specialized `Regressor` private abstract class) that represents the https://en.wikipedia.org/wiki/Simple_linear_regression[linear regression] in machine learning.
+
+`LinearRegression` belongs to `org.apache.spark.ml.regression` package.
+
+TIP: Read the scaladoc of https://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.ml.regression.LinearRegression[LinearRegression].
+
+It expects `org.apache.spark.mllib.linalg.Vector` as the input type of the column in a dataset and produces `LinearRegressionModel`.
+
+[source, scala]
+----
+import org.apache.spark.ml.regression.LinearRegression
+val lr = new LinearRegression
+----
+
+The acceptable parameters:
+
+[source, scala]
+----
+scala> println(lr.explainParams)
+elasticNetParam: the ElasticNet mixing parameter, in range [0, 1]. For alpha = 0, the penalty is an L2 penalty. For alpha = 1, it is an L1 penalty (default: 0.0)
+featuresCol: features column name (default: features)
+fitIntercept: whether to fit an intercept term (default: true)
+labelCol: label column name (default: label)
+maxIter: maximum number of iterations (>= 0) (default: 100)
+predictionCol: prediction column name (default: prediction)
+regParam: regularization parameter (>= 0) (default: 0.0)
+solver: the solver algorithm for optimization. If this is not set or empty, default value is 'auto' (default: auto)
+standardization: whether to standardize the training features before fitting the model (default: true)
+tol: the convergence tolerance for iterative algorithms (default: 1.0E-6)
+weightCol: weight column name. If this is not set or empty, we treat all instance weights as 1.0 (default: )
+----
+
+CAUTION: FIXME Describe `LinearRegression.train`.
+
+===== Example
+
+```
+$ bin/spark-shell
+...
+SQL context available as sqlContext.
+Welcome to
+      ____              __
+     / __/__  ___ _____/ /__
+    _\ \/ _ \/ _ `/ __/  '_/
+   /___/ .__/\_,_/_/ /_/\_\   version 2.0.0-SNAPSHOT
+      /_/
+
+Using Scala version 2.11.7 (Java HotSpot(TM) 64-Bit Server VM, Java 1.8.0_74)
+Type in expressions to have them evaluated.
+Type :help for more information.
+
+scala> import org.apache.spark.mllib.linalg.Vectors
+import org.apache.spark.mllib.linalg.Vectors
+
+scala> import org.apache.spark.mllib.regression.LabeledPoint
+import org.apache.spark.mllib.regression.LabeledPoint
+
+scala> val data = (0 to 9).map(_.toDouble).map(n => (n, n)).map { case (label, feature) => LabeledPoint(label, Vectors.dense(feature)) }.toDF
+data: org.apache.spark.sql.DataFrame = [label: double, features: vector]
+
+scala> data.show
++-----+--------+
+|label|features|
++-----+--------+
+|  0.0|   [0.0]|
+|  1.0|   [1.0]|
+|  2.0|   [2.0]|
+|  3.0|   [3.0]|
+|  4.0|   [4.0]|
+|  5.0|   [5.0]|
+|  6.0|   [6.0]|
+|  7.0|   [7.0]|
+|  8.0|   [8.0]|
+|  9.0|   [9.0]|
++-----+--------+
+
+
+scala> import org.apache.spark.ml.regression.LinearRegression
+import org.apache.spark.ml.regression.LinearRegression
+
+scala> val lr = new LinearRegression
+lr: org.apache.spark.ml.regression.LinearRegression = linReg_c227301cf2c3
+
+scala> val model = lr.fit(data)
+16/03/04 10:07:45 WARN WeightedLeastSquares: regParam is zero, which might cause numerical instability and overfitting.
+16/03/04 10:07:45 WARN BLAS: Failed to load implementation from: com.github.fommil.netlib.NativeSystemBLAS
+16/03/04 10:07:45 WARN BLAS: Failed to load implementation from: com.github.fommil.netlib.NativeRefBLAS
+16/03/04 10:07:45 WARN LAPACK: Failed to load implementation from: com.github.fommil.netlib.NativeSystemLAPACK
+16/03/04 10:07:45 WARN LAPACK: Failed to load implementation from: com.github.fommil.netlib.NativeRefLAPACK
+model: org.apache.spark.ml.regression.LinearRegressionModel = linReg_c227301cf2c3
+
+scala> model.intercept
+res1: Double = 0.0
+
+scala> model.coefficients
+res2: org.apache.spark.mllib.linalg.Vector = [1.0]
+
+// make predictions
+scala> val predictions = model.transform(data)
+predictions: org.apache.spark.sql.DataFrame = [label: double, features: vector ... 1 more field]
+
+scala> predictions.show
++-----+--------+----------+
+|label|features|prediction|
++-----+--------+----------+
+|  0.0|   [0.0]|       0.0|
+|  1.0|   [1.0]|       1.0|
+|  2.0|   [2.0]|       2.0|
+|  3.0|   [3.0]|       3.0|
+|  4.0|   [4.0]|       4.0|
+|  5.0|   [5.0]|       5.0|
+|  6.0|   [6.0]|       6.0|
+|  7.0|   [7.0]|       7.0|
+|  8.0|   [8.0]|       8.0|
+|  9.0|   [9.0]|       9.0|
++-----+--------+----------+
+
+scala> import org.apache.spark.ml.evaluation.RegressionEvaluator
+import org.apache.spark.ml.evaluation.RegressionEvaluator
+
+// rmse is the default metric
+// We're explicit here for learning purposes
+scala> val evaluator = new RegressionEvaluator().setMetricName("rmse")
+evaluator: org.apache.spark.ml.evaluation.RegressionEvaluator = regEval_bed1f4fc840d
+
+scala> val rmse = evaluator.evaluate(predictions)
+rmse: Double = 0.0
+
+scala> println(s"Root Mean Squared Error: $rmse")
+Root Mean Squared Error: 0.0
+
+scala> import org.apache.spark.mllib.linalg.DenseVector
+import org.apache.spark.mllib.linalg.DenseVector
+
+scala> predictions.rdd.map(r => (r(0).asInstanceOf[Double], r(1).asInstanceOf[DenseVector](0).toDouble, r(2).asInstanceOf[Double])).toDF("label", "feature0", "prediction").show
++-----+--------+----------+
+|label|feature0|prediction|
++-----+--------+----------+
+|  0.0|     0.0|       0.0|
+|  1.0|     1.0|       1.0|
+|  2.0|     2.0|       2.0|
+|  3.0|     3.0|       3.0|
+|  4.0|     4.0|       4.0|
+|  5.0|     5.0|       5.0|
+|  6.0|     6.0|       6.0|
+|  7.0|     7.0|       7.0|
+|  8.0|     8.0|       8.0|
+|  9.0|     9.0|       9.0|
++-----+--------+----------+
+
+// Let's make it nicer to the eyes using a Scala case class
+scala> :pa
+// Entering paste mode (ctrl-D to finish)
+
+import org.apache.spark.sql.Row
+import org.apache.spark.mllib.linalg.DenseVector
+case class Prediction(label: Double, feature0: Double, prediction: Double)
+object Prediction {
+  def apply(r: Row) = new Prediction(
+    label = r(0).asInstanceOf[Double],
+    feature0 = r(1).asInstanceOf[DenseVector](0).toDouble,
+    prediction = r(2).asInstanceOf[Double])
+}
+
+// Exiting paste mode, now interpreting.
+
+import org.apache.spark.sql.Row
+import org.apache.spark.mllib.linalg.DenseVector
+defined class Prediction
+defined object Prediction
+
+scala> predictions.rdd.map(Prediction.apply).toDF.show
++-----+--------+----------+
+|label|feature0|prediction|
++-----+--------+----------+
+|  0.0|     0.0|       0.0|
+|  1.0|     1.0|       1.0|
+|  2.0|     2.0|       2.0|
+|  3.0|     3.0|       3.0|
+|  4.0|     4.0|       4.0|
+|  5.0|     5.0|       5.0|
+|  6.0|     6.0|       6.0|
+|  7.0|     7.0|       7.0|
+|  8.0|     8.0|       8.0|
+|  9.0|     9.0|       9.0|
++-----+--------+----------+
+
+```
