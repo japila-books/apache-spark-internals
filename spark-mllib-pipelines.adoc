@@ -18,8 +18,7 @@ NOTE: The Pipeline API lives under https://spark.apache.org/docs/latest/api/scal
 Concepts:
 
 * <<pipelines, Pipelines>> and <<PipelineStage, PipelineStages>>
-* <<transformers, Transformers>>
-** <<UnaryTransformer, UnaryTransformers>>
+* link:spark-mllib-transformers.adoc[Transformers]
 * <<Estimator, Estimators>>
 * <<evaluators, Evaluators>>
 * <<Model, Models>>
@@ -38,7 +37,7 @@ Pipelines are like a query plan in a database system.
 Components of ML Pipeline:
 
 * *Pipeline Construction Framework* – A DSL for the construction of pipelines that includes concepts of *Nodes* and *Pipelines*.
-** Nodes are data transformation steps (*transformers*)
+** Nodes are data transformation steps (link:spark-mllib-transformers.adoc[Transformers])
 ** Pipelines are a DAG of Nodes.
 +
 Pipelines become objects that can be saved out and applied in real-time to new data.
@@ -61,7 +60,7 @@ The features of the Pipeline API in Spark MLlib:
 
 === [[pipelines]][[Pipeline]] Pipelines
 
-A *ML pipeline* (or a *ML workflow*) is a sequence of <<transformers, Transformers>> and <<estimators, Estimators>> to build a model out of input dataset.
+A *ML pipeline* (or a *ML workflow*) is a sequence of link:spark-mllib-transformers.adoc[Transformers] and <<estimators, Estimators>> to build a model out of input dataset.
 
 A pipeline is represented by https://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.ml.Pipeline[Pipeline] class.
 
@@ -121,7 +120,7 @@ The `fit` method returns a <<PipelineModel, PipelineModel>> that holds a collect
 
 It first transforms the schema of the input `dataset` DataFrame.
 
-It then searches for the index of the last <<Estimator, Estimator>> to calculate <<Transformer, Transformers>> for <<Estimator, Estimator>> and simply return <<Transformer, Transformers>> back up to the index in the pipeline. For each <<Estimator, Estimator>> the `fit` method is called with the input `dataset`. The result DataFrame is passed to the next `Transformer` in the chain.
+It then searches for the index of the last <<Estimator, Estimator>> to calculate link:spark-mllib-transformers.adoc[Transformers] for <<Estimator, Estimator>> and simply return `Transformer` back up to the index in the pipeline. For each <<Estimator, Estimator>> the `fit` method is called with the input `dataset`. The result DataFrame is passed to the next `Transformer` in the chain.
 
 NOTE: An `IllegalArgumentException` exception is thrown when a stage is neither `Estimator` or `Transformer`.
 
@@ -143,7 +142,7 @@ The https://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.m
 * <<Model, Model>>
 * <<Pipeline, Pipeline>>
 * Predictor
-* <<Transformer, Transformer>>
+* link:spark-mllib-transformers.adoc[Transformer]
 
 Each `PipelineStage` transforms schema using `transformSchema` family of methods:
 
@@ -159,127 +158,6 @@ NOTE: `StructType` is a Spark SQL type. Read up on it in link:spark-sql-datafram
 Enable `DEBUG` logging level for the respective `PipelineStage` implementations to see what happens beneath.
 ====
 
-=== [[transformers]][[Transformer]] Transformers
-
-A *transformer* is a function that maps (aka _transforms_) a `DataFrame` into another `DataFrame`. It simply prepares a dataset for an machine learning algorithm to work with.
-
-Transformers are instances of http://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.ml.Transformer[org.apache.spark.ml.Transformer] abstract class that offers `transform` family of methods:
-
-[source, scala]
-----
-transform(dataset: DataFrame): DataFrame
-transform(dataset: DataFrame, paramMap: ParamMap): DataFrame
-transform(dataset: DataFrame, firstParamPair: ParamPair[_], otherParamPairs: ParamPair[_]*): DataFrame
-----
-
-A `Transformer` is a <<PipelineStage, PipelineStage>> (so it can be a part of a <<Pipeline, Pipeline>>).
-
-The direct descendents of the `Transformer` abstract class are:
-
-* <<Model, Model>>
-* <<UnaryTransformer, UnaryTransformers>>
-
-==== [[UnaryTransformer]] UnaryTransformers
-
-The https://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.ml.UnaryTransformer[UnaryTransformer] abstract class is a specialized `Transformer` that applies transformation to one input column and writes results to another (by appending a new column).
-
-Each `UnaryTransformer` defines the input and output columns using the following "chain" methods (they return the transformer on which they were executed):
-
-* `setInputCol(value: String)`
-* `setOutputCol(value: String)`
-
-Each `UnaryTransformer` calls `validateInputType` while executing `transformSchema(schema: StructType)` (that is part of <<PipelineStage, PipelineStage>> contract).
-
-NOTE: A `UnaryTransformer` is a `PipelineStage`.
-
-When `transform` is called, it first calls `transformSchema` (with DEBUG logging enabled) and then adds the column as a result of calling a protected abstract `createTransformFunc`.
-
-NOTE: `createTransformFunc` function is abstract and defined by concrete `UnaryTransformer` objects.
-
-Internally, `transform` methods uses Spark SQL's link:spark-sql-udfs.adoc#udf-function[udf] to define a function (based on `createTransformFunc` function described above) that will create the new output column (with appropriate `outputDataType`). The UDF is later applied to the input column of the input DataFrame and the result becomes the output column (using link:spark-sql-dataframe.adoc#withColumn[DataFrame.withColumn] method).
-
-NOTE: Using `udf` and `withColumn` methods from Spark SQL demonstrates integration between the Spark modules: MLlib and SQL.
-
-==== [[Transformer-examples]] Examples of Transformers
-
-One example of a transformer is http://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.ml.feature.RegexTokenizer[org.apache.spark.ml.feature.RegexTokenizer].
-
-[source, scala]
-----
-import org.apache.spark.ml.feature.RegexTokenizer
-val regexTok = new RegexTokenizer()
-  .setInputCol("text")
-  .setOutputCol("words")
-  .setPattern("\\s+")
-
-// Create DataFrame with rows with tabs and spaces
-val df = Seq((0, s"""hello\tworld"""), (1, "two  spaces inside")).toDF("id", "text")
-
-// Use RegexTokenizer
-scala> regexTok.transform(df).show(false)
-+---+------------------+---------------------+
-|id |text              |words                |
-+---+------------------+---------------------+
-|0  |hello	world       |[hello, world]       |
-|1  |two  spaces inside|[two, spaces, inside]|
-+---+------------------+---------------------+
-----
-
-Another example of a transformer could be http://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.ml.feature.HashingTF[org.apache.spark.ml.feature.HashingTF] that works on a `Column` of `ArrayType`.
-
-[source, scala]
-----
-import org.apache.spark.ml.feature.HashingTF
-val hashingTF = new HashingTF()
-  .setInputCol("words")
-  .setOutputCol("features")
-  .setNumFeatures(5000)
-
-// see above for regexTok transformer
-val regexDF = regexTok.transform(df)
-
-scala> hashingTF.transform(regexDF).show(false)
-+---+------------------+---------------------+-----------------------------------+
-|id |text              |words                |features                           |
-+---+------------------+---------------------+-----------------------------------+
-|0  |hello	world       |[hello, world]       |(5000,[2322,3802],[1.0,1.0])       |
-|1  |two  spaces inside|[two, spaces, inside]|(5000,[276,940,2533],[1.0,1.0,1.0])|
-+---+------------------+---------------------+-----------------------------------+
-----
-
-The name of the output column is optional, and if not specified, it becomes the identifier of a `HashingTF` object with the `__output` suffix.
-
-[source, scala]
-----
-scala> hashingTF.uid
-res7: String = hashingTF_fe3554836819
-
-scala> hashingTF.transform(regexDF).show(false)
-+---+------------------+---------------------+-------------------------------------------+
-|id |text              |words                |hashingTF_fe3554836819__output             |
-+---+------------------+---------------------+-------------------------------------------+
-|0  |hello	world       |[hello, world]       |(262144,[71890,72594],[1.0,1.0])           |
-|1  |two  spaces inside|[two, spaces, inside]|(262144,[53244,77869,115276],[1.0,1.0,1.0])|
-+---+------------------+---------------------+-------------------------------------------+
-----
-
-In this example you use https://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.ml.feature.NGram[org.apache.spark.ml.feature.NGram] that converts the input collection of strings into a collection of n-grams (of `n` words).
-
-[source, scala]
-----
-import org.apache.spark.ml.feature.NGram
-
-val bigram = new NGram("bigrams")
-val df = Seq((0, Seq("hello", "world"))).toDF("id", "tokens")
-bigram.setInputCol("tokens").transform(df).show
-
-+---+--------------+---------------+
-| id|        tokens|bigrams__output|
-+---+--------------+---------------+
-|  0|[hello, world]|  [hello world]|
-+---+--------------+---------------+
-----
-
 === [[Estimator]] Estimators
 
 An *estimator* takes a `DataFrame` and parameters (as `ParamMap`) and fits a model. It is a function that maps a `DataFrame` into a `Model` that takes a `DataFrame`, trains on it and produces a `Model`.
@@ -294,7 +172,7 @@ A *evaluator* is a function that maps a `DataFrame` into a metric indicating how
 
 === [[Model]] Models
 
-`Model` abstract class is a <<Transformer, Transformer>> with the optional <<Estimator, Estimator>> that has produced it (as a transient `parent` field).
+`Model` abstract class is a link:spark-mllib-transformers.adoc[Transformers] with the optional <<Estimator, Estimator>> that has produced it (as a transient `parent` field).
 
 NOTE: <<Estimator, Estimator>> is optional.
 
