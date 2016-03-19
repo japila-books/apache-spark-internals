@@ -32,7 +32,7 @@ The `train` method is supposed to ease dealing with schema validation and copyin
 
 ==== [[LinearRegression]] LinearRegression
 
-`LinearRegression` is an example of <<Predictor, Predictor>> (indirectly through the specialized `Regressor` private abstract class) that represents the https://en.wikipedia.org/wiki/Simple_linear_regression[linear regression] in machine learning.
+`LinearRegression` is an example of <<Predictor, Predictor>> (indirectly through the specialized `Regressor` private abstract class), and hence Estimator, that represents the https://en.wikipedia.org/wiki/Simple_linear_regression[linear regression] in machine learning.
 
 `LinearRegression` belongs to `org.apache.spark.ml.regression` package.
 
@@ -64,33 +64,45 @@ tol: the convergence tolerance for iterative algorithms (default: 1.0E-6)
 weightCol: weight column name. If this is not set or empty, we treat all instance weights as 1.0 (default: )
 ----
 
-CAUTION: FIXME Describe `LinearRegression.train`.
+===== [[LinearRegression-train]] LinearRegression.train
 
-===== Example
+[source, scala]
+----
+train(dataset: DataFrame): LinearRegressionModel
+----
 
-```
-$ bin/spark-shell
-...
-SQL context available as sqlContext.
-Welcome to
-      ____              __
-     / __/__  ___ _____/ /__
-    _\ \/ _ \/ _ `/ __/  '_/
-   /___/ .__/\_,_/_/ /_/\_\   version 2.0.0-SNAPSHOT
-      /_/
+`train` (protected) method of `LinearRegression` expects a `dataset` DataFrame with two columns:
 
-Using Scala version 2.11.7 (Java HotSpot(TM) 64-Bit Server VM, Java 1.8.0_74)
-Type in expressions to have them evaluated.
-Type :help for more information.
+1. `label` of type `DoubleType`.
+2. `features` of type link:spark-mllib-vector.adoc[Vector].
 
-scala> import org.apache.spark.mllib.linalg.Vectors
+It returns `LinearRegressionModel`.
+
+It first counts the number of elements in features column (usually `features`). The column has to be of link:spark-mllib-vector.adoc[mllib.linalg.Vector] type.
+
+[source, scala]
+----
+// Create a Vector and a proper DataFrame
+val sv = Vectors.sparse(elements.size, elements)
+val ds = sc.parallelize(Seq((0.5, sv))).toDF("label", "features")
+
+// the following calls train by the Predictor contract (see above)
+val model = lr.fit(ds)
+----
+
+=== [[example]] Example
+
+The following example uses <<LinearRegression, LinearRegression>> estimator.
+
+[source, scala]
+----
 import org.apache.spark.mllib.linalg.Vectors
-
-scala> import org.apache.spark.mllib.regression.LabeledPoint
 import org.apache.spark.mllib.regression.LabeledPoint
-
-scala> val data = (0 to 9).map(_.toDouble).map(n => (n, n)).map { case (label, feature) => LabeledPoint(label, Vectors.dense(feature)) }.toDF
-data: org.apache.spark.sql.DataFrame = [label: double, features: vector]
+val data = (0.0 to 9.0 by 1)                      // create a collection of Doubles
+  .map(n => (n, n))                               // make it pairs
+  .map { case (label, feature) =>
+    LabeledPoint(label, Vectors.dense(feature)) } // create labeled points of dense vectors
+  .toDF                                           // make it a DataFrame
 
 scala> data.show
 +-----+--------+
@@ -108,20 +120,10 @@ scala> data.show
 |  9.0|   [9.0]|
 +-----+--------+
 
-
-scala> import org.apache.spark.ml.regression.LinearRegression
 import org.apache.spark.ml.regression.LinearRegression
+val lr = new LinearRegression
 
-scala> val lr = new LinearRegression
-lr: org.apache.spark.ml.regression.LinearRegression = linReg_c227301cf2c3
-
-scala> val model = lr.fit(data)
-16/03/04 10:07:45 WARN WeightedLeastSquares: regParam is zero, which might cause numerical instability and overfitting.
-16/03/04 10:07:45 WARN BLAS: Failed to load implementation from: com.github.fommil.netlib.NativeSystemBLAS
-16/03/04 10:07:45 WARN BLAS: Failed to load implementation from: com.github.fommil.netlib.NativeRefBLAS
-16/03/04 10:07:45 WARN LAPACK: Failed to load implementation from: com.github.fommil.netlib.NativeSystemLAPACK
-16/03/04 10:07:45 WARN LAPACK: Failed to load implementation from: com.github.fommil.netlib.NativeRefLAPACK
-model: org.apache.spark.ml.regression.LinearRegressionModel = linReg_c227301cf2c3
+val model = lr.fit(data)
 
 scala> model.intercept
 res1: Double = 0.0
@@ -149,24 +151,21 @@ scala> predictions.show
 |  9.0|   [9.0]|       9.0|
 +-----+--------+----------+
 
-scala> import org.apache.spark.ml.evaluation.RegressionEvaluator
 import org.apache.spark.ml.evaluation.RegressionEvaluator
 
 // rmse is the default metric
 // We're explicit here for learning purposes
-scala> val evaluator = new RegressionEvaluator().setMetricName("rmse")
-evaluator: org.apache.spark.ml.evaluation.RegressionEvaluator = regEval_bed1f4fc840d
-
-scala> val rmse = evaluator.evaluate(predictions)
-rmse: Double = 0.0
+val evaluator = new RegressionEvaluator().setMetricName("rmse")
+val rmse = evaluator.evaluate(predictions)
 
 scala> println(s"Root Mean Squared Error: $rmse")
 Root Mean Squared Error: 0.0
 
-scala> import org.apache.spark.mllib.linalg.DenseVector
 import org.apache.spark.mllib.linalg.DenseVector
-
-scala> predictions.rdd.map(r => (r(0).asInstanceOf[Double], r(1).asInstanceOf[DenseVector](0).toDouble, r(2).asInstanceOf[Double])).toDF("label", "feature0", "prediction").show
+// NOTE Follow along to learn spark.ml-way (not RDD-way)
+predictions.rdd.map { r =>
+  (r(0).asInstanceOf[Double], r(1).asInstanceOf[DenseVector](0).toDouble, r(2).asInstanceOf[Double]))
+  .toDF("label", "feature0", "prediction").show
 +-----+--------+----------+
 |label|feature0|prediction|
 +-----+--------+----------+
@@ -218,5 +217,4 @@ scala> predictions.rdd.map(Prediction.apply).toDF.show
 |  8.0|     8.0|       8.0|
 |  9.0|     9.0|       9.0|
 +-----+--------+----------+
-
-```
+----
