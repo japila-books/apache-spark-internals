@@ -2,7 +2,13 @@
 
 `Model` abstract class is a link:spark-mllib-transformers.adoc[Transformer] with the optional link:spark-mllib-estimators.adoc[Estimator] that has produced it (as a transient `parent` field).
 
+```
+model: DataFrame => DataFrame (with predictions)
+```
+
 NOTE: An `Estimator` is optional.
+
+As a `Transformer` it takes a `DataFrame` and transforms it to a result `DataFrame` with ... columns added.
 
 CAUTION: FIXME What does it mean when a Estimator is not known? When could an Estimator be missing?
 
@@ -21,7 +27,7 @@ CAUTION: FIXME
 
 === [[PredictionModel]] PredictionModel
 
-`PredictionModel` is an abstract class to represent a model for prediction algorithms like regression and classification (that have their own specialized models - read on).
+`PredictionModel` is an abstract class to represent a model for prediction algorithms like regression and classification (that have their own specialized models - details coming up below).
 
 The direct non-algorithm-specific extensions of the `PredictionModel` class are:
 
@@ -38,12 +44,12 @@ It comes with no own methods or values and so is more a _marker_ abstract class 
 
 `LinearRegressionModel` represents a model produced by a link:spark-mllib-estimators.adoc#LinearRegression[LinearRegression] estimator.
 
-NOTE: It is a `private[ml]` class so what you may eventually work with `RegressionModel`, and since <<RegressionModel, RegressionModel is just a marker no-method abstract class>>, it is more a <<PredictionModel, PredictionModel>>.
+NOTE: It is a `private[ml]` class so what you, a developer, may eventually work with `RegressionModel`, and since <<RegressionModel, RegressionModel is just a marker no-method abstract class>>, it is more a <<PredictionModel, PredictionModel>>.
 
-As a linear regression model that extends `LinearRegressionParams` it expects the following columns:
+As a linear regression model that extends `LinearRegressionParams` it expects the following columns in an input `DataFrame`:
 
-* `label`
-* `features`
+* `label` (required)
+* `features` (required)
 * `prediction`
 * `regParam`
 * `elasticNetParam`
@@ -55,3 +61,31 @@ As a linear regression model that extends `LinearRegressionParams` it expects th
 * `solver` (String)
 
 (New in *1.6.0*) It is also a `MLWritable` (so you can save it to a persistent storage for later reuse).
+
+=== [[LinearRegressionModel-example]] LinearRegressionModel Example
+
+[source, scala]
+----
+// Create a (sparse) Vector
+import org.apache.spark.mllib.linalg.Vectors
+val indices = 0 to 4
+val elements = indices.zip(Stream.continually(1.0))
+val sv = Vectors.sparse(elements.size, elements)
+
+// Create a proper DataFrame
+val ds = sc.parallelize(Seq((0.5, sv))).toDF("label", "features")
+
+import org.apache.spark.ml.regression.LinearRegression
+val lr = new LinearRegression
+
+import org.apache.spark.ml.regression.LinearRegressionModel
+val model: LinearRegressionModel = lr.fit(ds)
+
+// Use the same ds - just for learning purposes
+scala> model.transform(ds).show
++-----+--------------------+----------+
+|label|            features|prediction|
++-----+--------------------+----------+
+|  0.5|(5,[0,1,2,3,4],[1...|       0.5|
++-----+--------------------+----------+
+----
