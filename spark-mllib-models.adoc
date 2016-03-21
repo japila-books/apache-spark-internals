@@ -8,7 +8,7 @@ model: DataFrame => DataFrame (with predictions)
 
 NOTE: An `Estimator` is optional.
 
-As a `Transformer` it takes a `DataFrame` and transforms it to a result `DataFrame` with ... columns added.
+As a `Transformer` it takes a `DataFrame` and transforms it to a result `DataFrame` with `prediction` column added.
 
 CAUTION: FIXME What does it mean when a Estimator is not known? When could an Estimator be missing?
 
@@ -29,18 +29,55 @@ CAUTION: FIXME
 
 `PredictionModel` is an abstract class to represent a model for prediction algorithms like regression and classification (that have their own specialized models - details coming up below).
 
-The direct non-algorithm-specific extensions of the `PredictionModel` class are:
+`PredictionModel` is basically a link:spark-mllib-transformers.adoc[Transformer] with `predict` method to calculate predictions (that end up in `prediction` column).
+
+`PredictionModel` belongs to `org.apache.spark.ml` package.
+
+[source, scala]
+----
+import org.apache.spark.ml.PredictionModel
+----
+
+The contract of `PredictionModel` class requires that every custom implementation defines `predict` method.
+
+[source, scala]
+----
+predict(features: FeaturesType): Double
+----
+
+The direct less-algorithm-specific extensions of the `PredictionModel` class are:
 
 * <<RegressionModel, RegressionModel>>
 * `ClassificationModel`
 
-==== [[RegressionModel]] RegressionModel
+As a custom `Transformer` it comes with a custom `transform` method.
 
-`RegressionModel` is a <<PredictionModel, PredictionModel>> with `label`, `features`, and `prediction` columns (when seen as a `DataFrame`).
+`transform` first ensures that the type of the `features` column matches the type of the model and adds the `prediction` column of type `Double` to the schema of the result `DataFrame`.
+
+It then creates the result `DataFrame` and adds the `prediction` column with a `predictUDF` function applied to the values of the `features` column.
+
+CAUTION: FIXME A diagram to show the transformation from a dataframe (on the left) and another (on the right) with an arrow to represent the transformation method.
+
+[TIP]
+====
+Enable `DEBUG` logging level for a `PredictionModel` implementation, e.g. <<LinearRegressionModel, LinearRegressionModel>>, to see what happens inside.
+
+Add the following line to `conf/log4j.properties`:
+
+```
+log4j.logger.org.apache.spark.ml.regression.LinearRegressionModel=DEBUG
+```
+
+Refer to link:spark-logging.adoc[Logging].
+====
+
+=== [[RegressionModel]] RegressionModel
+
+`RegressionModel` is a <<PredictionModel, PredictionModel>> that transforms a `DataFrame` with mandatory `label`, `features`, and `prediction` columns.
 
 It comes with no own methods or values and so is more a _marker_ abstract class (to combine different features into one type).
 
-===== [[LinearRegressionModel]] LinearRegressionModel
+==== [[LinearRegressionModel]] LinearRegressionModel
 
 `LinearRegressionModel` represents a model produced by a link:spark-mllib-estimators.adoc#LinearRegression[LinearRegression] estimator.
 
@@ -62,7 +99,14 @@ As a linear regression model that extends `LinearRegressionParams` it expects th
 
 (New in *1.6.0*) It is also a `MLWritable` (so you can save it to a persistent storage for later reuse).
 
-=== [[LinearRegressionModel-example]] LinearRegressionModel Example
+With `DEBUG` logging enabled (see above) you can see the following messages in the logs when `transform` is called and transforms the schema.
+
+```
+16/03/21 06:55:32 DEBUG LinearRegressionModel: Input schema: {"type":"struct","fields":[{"name":"label","type":"double","nullable":false,"metadata":{}},{"name":"features","type":{"type":"udt","class":"org.apache.spark.mllib.linalg.VectorUDT","pyClass":"pyspark.mllib.linalg.VectorUDT","sqlType":{"type":"struct","fields":[{"name":"type","type":"byte","nullable":false,"metadata":{}},{"name":"size","type":"integer","nullable":true,"metadata":{}},{"name":"indices","type":{"type":"array","elementType":"integer","containsNull":false},"nullable":true,"metadata":{}},{"name":"values","type":{"type":"array","elementType":"double","containsNull":false},"nullable":true,"metadata":{}}]}},"nullable":true,"metadata":{}}]}
+16/03/21 06:55:32 DEBUG LinearRegressionModel: Expected output schema: {"type":"struct","fields":[{"name":"label","type":"double","nullable":false,"metadata":{}},{"name":"features","type":{"type":"udt","class":"org.apache.spark.mllib.linalg.VectorUDT","pyClass":"pyspark.mllib.linalg.VectorUDT","sqlType":{"type":"struct","fields":[{"name":"type","type":"byte","nullable":false,"metadata":{}},{"name":"size","type":"integer","nullable":true,"metadata":{}},{"name":"indices","type":{"type":"array","elementType":"integer","containsNull":false},"nullable":true,"metadata":{}},{"name":"values","type":{"type":"array","elementType":"double","containsNull":false},"nullable":true,"metadata":{}}]}},"nullable":true,"metadata":{}},{"name":"prediction","type":"double","nullable":false,"metadata":{}}]}
+```
+
+==== [[LinearRegressionModel-example]] LinearRegressionModel Example
 
 [source, scala]
 ----
