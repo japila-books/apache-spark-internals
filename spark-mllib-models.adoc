@@ -52,7 +52,7 @@ The direct less-algorithm-specific extensions of the `PredictionModel` class are
 
 As a custom `Transformer` it comes with a custom `transform` method.
 
-`transform` first ensures that the type of the `features` column matches the type of the model and adds the `prediction` column of type `Double` to the schema of the result `DataFrame`.
+Internally, `transform` first ensures that the type of the `features` column matches the type of the model and adds the `prediction` column of type `Double` to the schema of the result `DataFrame`.
 
 It then creates the result `DataFrame` and adds the `prediction` column with a `predictUDF` function applied to the values of the `features` column.
 
@@ -79,11 +79,11 @@ It comes with no own methods or values and so is more a _marker_ abstract class 
 
 ==== [[LinearRegressionModel]] LinearRegressionModel
 
-`LinearRegressionModel` represents a model produced by a link:spark-mllib-estimators.adoc#LinearRegression[LinearRegression] estimator.
+`LinearRegressionModel` represents a model produced by a link:spark-mllib-estimators.adoc#LinearRegression[LinearRegression] estimator. It transforms the required `features` column of type link:spark-mllib-vector.adoc[org.apache.spark.mllib.linalg.Vector].
 
-NOTE: It is a `private[ml]` class so what you, a developer, may eventually work with `RegressionModel`, and since <<RegressionModel, RegressionModel is just a marker no-method abstract class>>, it is more a <<PredictionModel, PredictionModel>>.
+NOTE: It is a `private[ml]` class so what you, a developer, may eventually work with is the more general `RegressionModel`, and since <<RegressionModel, RegressionModel is just a marker no-method abstract class>>, it is more a <<PredictionModel, PredictionModel>>.
 
-As a linear regression model that extends `LinearRegressionParams` it expects the following columns in an input `DataFrame`:
+As a linear regression model that extends `LinearRegressionParams` it expects the following schema of an input `DataFrame`:
 
 * `label` (required)
 * `features` (required)
@@ -97,7 +97,7 @@ As a linear regression model that extends `LinearRegressionParams` it expects th
 * `weightCol` (String)
 * `solver` (String)
 
-(New in *1.6.0*) It is also a `MLWritable` (so you can save it to a persistent storage for later reuse).
+(New in *1.6.0*) `LinearRegressionModel` is also a `MLWritable` (so you can save it to a persistent storage for later reuse).
 
 With `DEBUG` logging enabled (see above) you can see the following messages in the logs when `transform` is called and transforms the schema.
 
@@ -105,6 +105,10 @@ With `DEBUG` logging enabled (see above) you can see the following messages in t
 16/03/21 06:55:32 DEBUG LinearRegressionModel: Input schema: {"type":"struct","fields":[{"name":"label","type":"double","nullable":false,"metadata":{}},{"name":"features","type":{"type":"udt","class":"org.apache.spark.mllib.linalg.VectorUDT","pyClass":"pyspark.mllib.linalg.VectorUDT","sqlType":{"type":"struct","fields":[{"name":"type","type":"byte","nullable":false,"metadata":{}},{"name":"size","type":"integer","nullable":true,"metadata":{}},{"name":"indices","type":{"type":"array","elementType":"integer","containsNull":false},"nullable":true,"metadata":{}},{"name":"values","type":{"type":"array","elementType":"double","containsNull":false},"nullable":true,"metadata":{}}]}},"nullable":true,"metadata":{}}]}
 16/03/21 06:55:32 DEBUG LinearRegressionModel: Expected output schema: {"type":"struct","fields":[{"name":"label","type":"double","nullable":false,"metadata":{}},{"name":"features","type":{"type":"udt","class":"org.apache.spark.mllib.linalg.VectorUDT","pyClass":"pyspark.mllib.linalg.VectorUDT","sqlType":{"type":"struct","fields":[{"name":"type","type":"byte","nullable":false,"metadata":{}},{"name":"size","type":"integer","nullable":true,"metadata":{}},{"name":"indices","type":{"type":"array","elementType":"integer","containsNull":false},"nullable":true,"metadata":{}},{"name":"values","type":{"type":"array","elementType":"double","containsNull":false},"nullable":true,"metadata":{}}]}},"nullable":true,"metadata":{}},{"name":"prediction","type":"double","nullable":false,"metadata":{}}]}
 ```
+
+The implementation of `predict` for `LinearRegressionModel` calculates `dot(v1, v2)` of two Vectors - `features` and `coefficients` - (of `DenseVector` or `SparseVector` types) of the same size and adds `intercept`.
+
+NOTE: The `coefficients` Vector and `intercept` Double are the integral part of `LinearRegressionModel` as the required input parameters of the constructor.
 
 ==== [[LinearRegressionModel-example]] LinearRegressionModel Example
 
@@ -122,6 +126,8 @@ val ds = sc.parallelize(Seq((0.5, sv))).toDF("label", "features")
 import org.apache.spark.ml.regression.LinearRegression
 val lr = new LinearRegression
 
+// Importing LinearRegressionModel and being explicit about the type of model value
+// is for learning purposes only
 import org.apache.spark.ml.regression.LinearRegressionModel
 val model: LinearRegressionModel = lr.fit(ds)
 
