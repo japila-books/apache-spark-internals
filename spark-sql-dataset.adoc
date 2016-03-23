@@ -1,6 +1,8 @@
 == Dataset
 
-*Dataset* is an experimental feature of Spark SQL that has first been introduced in Apache Spark 1.6.0. It aims at expanding on link:spark-sql-dataframe.adoc[DataFrames] to offer strong type-safety (of Scala the programming language) at compile time and a functional programming interface to work with structured data.
+*Dataset* is an experimental feature of Spark SQL that has first been introduced in Apache Spark *1.6.0*. It aims at expanding on link:spark-sql-dataframe.adoc[DataFrames] to offer strong type-safety (of Scala the programming language) at compile time and a functional programming interface to work with structured data.
+
+Using `Dataset` objects turns `DataFrames` of `Rows` into a `DataFrames` of case classes with proper names and types (following their equivalents in the case classes). Instead of using indices to access respective fields in a DataFrame and cast it to a type, all this is automatically handled by Datasets.
 
 A `Dataset` object requires a link:spark-sql-sqlcontext.adoc[SQLContext], a <<QueryExecution, QueryExecution>>, and an <<Encoder, Encoder>>. link:spark-sql-sqlcontext.adoc#creating-datasets[In same cases], a `Dataset` can also be seen as a pair of <<LogicalPlan, LogicalPlan>> in a given link:spark-sql-sqlcontext.adoc[SQLContext].
 
@@ -22,7 +24,15 @@ val data = Token("aaa", 100, 0.12) ::
   Token("bbb", 200, 0.53) ::
   Token("bbb", 300, 0.42) :: Nil
 
-val ds = data.toDS
+// The following doesn't seem to work
+// See https://issues.apache.org/jira/browse/SPARK-13456
+// val ds = data.toDS
+
+// Transform data into a DataFrame with no explicit schema
+val df = data.toDF
+
+// Transform DataFrame into a Dataset
+val ds = df.as[Token]
 
 scala> ds.show
 +----+---------+-----+
@@ -39,6 +49,38 @@ root
  |-- name: string (nullable = true)
  |-- productId: integer (nullable = false)
  |-- score: double (nullable = false)
+
+// In DataFrames we work with Row instances
+scala> df.map(_.getClass.getName).show(false)
++--------------------------------------------------------------+
+|value                                                         |
++--------------------------------------------------------------+
+|org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema|
+|org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema|
+|org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema|
+|org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema|
++--------------------------------------------------------------+
+
+// In Datasets we work with case class instances
+scala> ds.map(_.getClass.getName).show(false)
++---------------------------+
+|value                      |
++---------------------------+
+|$line40.$read$$iw$$iw$Token|
+|$line40.$read$$iw$$iw$Token|
+|$line40.$read$$iw$$iw$Token|
+|$line40.$read$$iw$$iw$Token|
++---------------------------+
+
+scala> ds.map(_.name).show
++-----+
+|value|
++-----+
+|  aaa|
+|  aaa|
+|  bbb|
+|  bbb|
++-----+
 ----
 <1> Alas, you need to use the line to make the converstion work.
 <2> Create a Dataset of Token instances.
