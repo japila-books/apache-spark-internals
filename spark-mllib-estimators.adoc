@@ -17,15 +17,22 @@ fit(dataset: DataFrame): M
 
 A `Estimator` is a link:spark-mllib-pipelines.adoc#PipelineStage[PipelineStage] (so it can be a part of a link:spark-mllib-pipelines.adoc#Pipeline[Pipeline]).
 
-The direct specialized extensions of the `Estimator` abstract class are:
+The direct specialized implementation of the `Estimator` abstract class is:
 
 * <<Predictor, Predictor>>
 
 === [[Predictor]] Predictors
 
-A `Predictor` is an link:spark-mllib-pipelines.adoc#Estimator[Estimator] for a `PredictionModel`.
+A `Predictor` is a specialization of link:spark-mllib-pipelines.adoc#Estimator[Estimator] for a link:spark-mllib-models.adoc#PredictionModel[PredictionModel] with its own abstract `train` method.
 
-A `Predictor` is basically a functions that maps a `DataFrame` onto a `PredictionModel`.
+[source, scala]
+----
+train(dataset: DataFrame): M
+----
+
+The `train` method is supposed to ease dealing with schema validation and copying parameters to a trained `PredictionModel` model. It also sets the parent of the model to itself.
+
+A `Predictor` is basically a function that maps a `DataFrame` onto a `PredictionModel`.
 
 ```
 estimator: DataFrame => PredictionModel
@@ -33,12 +40,17 @@ estimator: DataFrame => PredictionModel
 
 It implements the abstract `fit(dataset: DataFrame)` of the `Estimator` abstract class that validates and transforms the schema of a dataset (using a custom `transformSchema` of link:spark-mllib-pipelines.adoc#PipelineStage[PipelineStage]), and then calls the abstract `train` method.
 
-[source, scala]
-----
-train(dataset: DataFrame): M
-----
+Validation and transformation of a schema (using `transformSchema`) makes sure that:
 
-The `train` method is supposed to ease dealing with schema validation and copying parameters into a trained model. It also sets the parent of the model to itself.
+1. `features` column exists and is of correct type (defaults to link:spark-mllib-vector.adoc[Vector]).
+1. `label` column exists and is of `Double` type.
+
+As the last step, it adds the `prediction` column of `Double` type.
+
+The following is a list of `Predictor` examples for different learning algorithms:
+
+* <<LinearRegression, LinearRegression>>
+* <<RandomForestRegressor, RandomForestRegressor>>
 
 ==== [[LinearRegression]] LinearRegression
 
@@ -106,6 +118,43 @@ val lr = new LinearRegression
 
 // the following calls train by the Predictor contract (see above)
 val model = lr.fit(ds)
+----
+
+==== [[RandomForestRegressor]] RandomForestRegressor
+
+`RandomForestRegressor` is a concrete <<Predictor, Predictor>> for http://en.wikipedia.org/wiki/Random_forest[Random Forest] learning algorithm. It trains `RandomForestRegressionModel` using `DataFrame` with `features` column of `Vector` type.
+
+CAUTION: FIXME
+
+[source, scala]
+----
+import org.apache.spark.mllib.linalg.Vectors
+import org.apache.spark.mllib.regression.LabeledPoint
+val data = (0.0 to 9.0 by 1)                      // create a collection of Doubles
+  .map(n => (n, n))                               // make it pairs
+  .map { case (label, feature) =>
+    LabeledPoint(label, Vectors.dense(feature)) } // create labeled points of dense vectors
+  .toDF                                           // make it a DataFrame
+
+scala> data.show
++-----+--------+
+|label|features|
++-----+--------+
+|  0.0|   [0.0]|
+|  1.0|   [1.0]|
+|  2.0|   [2.0]|
+|  3.0|   [3.0]|
+|  4.0|   [4.0]|
+|  5.0|   [5.0]|
+|  6.0|   [6.0]|
+|  7.0|   [7.0]|
+|  8.0|   [8.0]|
+|  9.0|   [9.0]|
++-----+--------+
+
+import org.apache.spark.ml.regression.{ RandomForestRegressor, RandomForestRegressionModel }
+val rfr = new RandomForestRegressor
+val model: RandomForestRegressionModel = rfr.fit(data)
 ----
 
 === [[example]] Example
