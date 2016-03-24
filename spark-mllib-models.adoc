@@ -6,15 +6,13 @@
 model: DataFrame => DataFrame (with predictions)
 ```
 
-NOTE: An `Estimator` is optional.
+NOTE: An `Estimator` is optional and is only available after `fit` (of link:spark-mllib-pipelines.adoc#Pipeline[Pipeline]) is called.
 
 As a `Transformer` it takes a `DataFrame` and transforms it to a result `DataFrame` with `prediction` column added.
 
-CAUTION: FIXME What does it mean when a Estimator is not known? When could an Estimator be missing?
-
 CAUTION: FIXME What does `a fitted model` mean? What are the other kinds of models?
 
-There are two direct implementations of the `Model` class that are not directly related to a ML algorithm:
+There are two direct implementations of the `Model` class that are not directly related to a concrete ML algorithm:
 
 * <<PipelineModel, PipelineModel>>
 * <<PredictionModel, PredictionModel>>
@@ -38,7 +36,7 @@ CAUTION: FIXME
 import org.apache.spark.ml.PredictionModel
 ----
 
-The contract of `PredictionModel` class requires that every custom implementation defines `predict` method.
+The contract of `PredictionModel` class requires that every custom implementation defines `predict` method (with `FeaturesType` type being the type of `features`).
 
 [source, scala]
 ----
@@ -48,10 +46,10 @@ predict(features: FeaturesType): Double
 The direct less-algorithm-specific extensions of the `PredictionModel` class are:
 
 * <<RegressionModel, RegressionModel>>
-* `ClassificationModel`
+* <<ClassificationModel, ClassificationModel>>
 * <<RandomForestRegressionModel, RandomForestRegressionModel>>
 
-As a custom `Transformer` it comes with a custom `transform` method.
+As a custom `Transformer` it comes with its own custom `transform` method.
 
 Internally, `transform` first ensures that the type of the `features` column matches the type of the model and adds the `prediction` column of type `Double` to the schema of the result `DataFrame`.
 
@@ -72,11 +70,27 @@ log4j.logger.org.apache.spark.ml.regression.LinearRegressionModel=DEBUG
 Refer to link:spark-logging.adoc[Logging].
 ====
 
+=== [[ClassificationModel]] ClassificationModel
+
+`ClassificationModel` is a <<PredictionModel, PredictionModel>> that transforms a `DataFrame` with mandatory `features`, `label`, and `rawPrediction` (of type link:spark-mllib-vector.adoc[Vector]) columns to a DataFrame with `prediction` column added.
+
+NOTE: A `Model` with `ClassifierParams` parameters, e.g. `ClassificationModel`, requires that a DataFrame have the mandatory `features`, `label` (of type `Double`), and `rawPrediction` (of type link:spark-mllib-vector.adoc[Vector]) columns.
+
+`ClassificationModel` comes with its own `transform` (as link:spark-mllib-transformers.adoc[Transformer]) and `predict` (as <<PredictionModel, PredictionModel>>).
+
+The following is a list of the known `ClassificationModel` custom implementations (as of March, 24th):
+
+* `ProbabilisticClassificationModel` (the `abstract` parent of the other classification models)
+** `DecisionTreeClassificationModel` (`final`)
+** `LogisticRegressionModel`
+** `NaiveBayesModel`
+** `RandomForestClassificationModel` (`final`)
+
 === [[RegressionModel]] RegressionModel
 
 `RegressionModel` is a <<PredictionModel, PredictionModel>> that transforms a `DataFrame` with mandatory `label`, `features`, and `prediction` columns.
 
-It comes with no own methods or values and so is more a _marker_ abstract class (to combine different features into one type).
+It comes with no own methods or values and so is more a _marker_ abstract class (to combine different features of regression models under one type).
 
 ==== [[LinearRegressionModel]] LinearRegressionModel
 
