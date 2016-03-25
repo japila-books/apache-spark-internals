@@ -1,12 +1,12 @@
 == Transformers
 
-A *transformer* is a function that maps (aka _transforms_) a `DataFrame` into another `DataFrame`.
+A *transformer* is a function that maps (aka _transforms_) a `DataFrame` into another `DataFrame` (both called _datasets_).
 
 ```
 transformer: DataFrame => DataFrame
 ```
 
-It simply prepares a dataset for an machine learning algorithm to work with.
+Transformers prepare a dataset for an machine learning algorithm to work with. They are also very helpful to transform DataFrames in general outside Machine Learning space.
 
 Transformers are instances of http://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.ml.Transformer[org.apache.spark.ml.Transformer] abstract class that offers `transform` family of methods:
 
@@ -28,7 +28,7 @@ The direct specialized extensions of the `Transformer` abstract class are:
 
 The https://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.ml.UnaryTransformer[UnaryTransformer] abstract class is a specialized `Transformer` that applies transformation to one input column and writes results to another (by appending a new column).
 
-Each `UnaryTransformer` defines the input and output columns using the following "chain" methods (they return the transformer on which they were executed):
+Each `UnaryTransformer` defines the input and output columns using the following "chain" methods (they return the transformer on which they were executed and so are _chainable_):
 
 * `setInputCol(value: String)`
 * `setOutputCol(value: String)`
@@ -41,9 +41,9 @@ When `transform` is called, it first calls `transformSchema` (with DEBUG logging
 
 NOTE: `createTransformFunc` function is abstract and defined by concrete `UnaryTransformer` objects.
 
-Internally, `transform` methods uses Spark SQL's link:spark-sql-udfs.adoc#udf-function[udf] to define a function (based on `createTransformFunc` function described above) that will create the new output column (with appropriate `outputDataType`). The UDF is later applied to the input column of the input DataFrame and the result becomes the output column (using link:spark-sql-dataframe.adoc#withColumn[DataFrame.withColumn] method).
+Internally, `transform` method uses Spark SQL's link:spark-sql-udfs.adoc#udf-function[udf] to define a function (based on `createTransformFunc` function described above) that will create the new output column (with appropriate `outputDataType`). The UDF is later applied to the input column of the input `DataFrame` and the result becomes the output column (using link:spark-sql-dataframe.adoc#withColumn[DataFrame.withColumn] method).
 
-NOTE: Using `udf` and `withColumn` methods from Spark SQL demonstrates integration between the Spark modules: MLlib and SQL.
+NOTE: Using `udf` and `withColumn` methods from Spark SQL demonstrates an excellent integration between the Spark modules: MLlib and SQL.
 
 === [[RegexTokenizer]] RegexTokenizer
 
@@ -87,15 +87,28 @@ It has `gaps` parameter that indicates whether regex splits on gaps (`true`) or 
 
 When set to `true` (i.e. splits on gaps) it uses http://www.scala-lang.org/api/current/index.html#scala.util.matching.Regex[Regex.split] while http://www.scala-lang.org/api/current/index.html#scala.util.matching.Regex[Regex.findAllIn] for `false`.
 
-CAUTION: FIXME Example
+[source,scala]
+----
+scala> rt.setInputCol("line").setGaps(false).transform(df).show
++---+--------------------+-----------------------------+
+| id|                line|regexTok_8c74c5e8b83a__output|
++---+--------------------+-----------------------------+
+|  1|         hello world|                          [ ]|
+|  2|yet another sentence|                       [ ,  ]|
++---+--------------------+-----------------------------+
+
+scala> rt.setInputCol("line").setGaps(false).setPattern("\\w+").transform(df).show(false)
++---+--------------------+-----------------------------+
+|id |line                |regexTok_8c74c5e8b83a__output|
++---+--------------------+-----------------------------+
+|1  |hello world         |[hello, world]               |
+|2  |yet another sentence|[yet, another, sentence]     |
++---+--------------------+-----------------------------+
+----
 
 It has `pattern` parameter that is the regex for tokenizing. It uses Scala's http://www.scala-lang.org/api/current/index.html#scala.collection.immutable.StringOps@r:scala.util.matching.Regex[.r] method to convert the string to regex. Use `setPattern` to set it. It defaults to `\\s+`.
 
-CAUTION: FIXME Example
-
 It has `toLowercase` parameter that indicates whether to convert all characters to lowercase before tokenizing. Use `setToLowercase` to change it. It defaults to `true`.
-
-CAUTION: FIXME Example
 
 === [[Transformer-examples]] Examples of Transformers
 
