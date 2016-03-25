@@ -45,7 +45,36 @@ Internally, `transform` method uses Spark SQL's link:spark-sql-udfs.adoc#udf-fun
 
 NOTE: Using `udf` and `withColumn` methods from Spark SQL demonstrates an excellent integration between the Spark modules: MLlib and SQL.
 
-=== [[RegexTokenizer]] RegexTokenizer
+The following are `UnaryTransformer` implementations in spark.ml:
+
+* <<Tokenizer, Tokenizer>> that converts the input string to lowercase and then splits it by white spaces.
+* <<RegexTokenizer, RegexTokenizer>> that extracts tokens.
+* `NGram` that converts the input array of strings into an array of n-grams.
+
+==== [[Tokenizer]] Tokenizer
+
+`Tokenizer` is a <<UnaryTransformer, UnaryTransformer>> that converts the input string to lowercase and then splits it by white spaces.
+
+[source,scala]
+----
+import org.apache.spark.ml.feature.Tokenizer
+val tok = new Tokenizer()
+
+// dataset to transform
+val df = Seq((1, "Hello world!"), (2, "Here is yet another sentence.")).toDF("label", "sentence")
+
+val tokenized = tok.setInputCol("sentence").transform(df)
+
+scala> tokenized.show(false)
++-----+-----------------------------+-----------------------------------+
+|label|sentence                     |tok_b66af4001c8d__output           |
++-----+-----------------------------+-----------------------------------+
+|1    |Hello world!                 |[hello, world!]                    |
+|2    |Here is yet another sentence.|[here, is, yet, another, sentence.]|
++-----+-----------------------------+-----------------------------------+
+----
+
+==== [[RegexTokenizer]] RegexTokenizer
 
 `RegexTokenizer` is a <<UnaryTransformer, UnaryTransformer>> that tokenizes a `String` into a collection of `String`.
 
@@ -55,17 +84,17 @@ import org.apache.spark.ml.feature.RegexTokenizer
 val rt = new RegexTokenizer()
 
 // dataset to transform
-val df = Seq((1, "hello world"), (2, "yet another sentence")).toDF("id", "line")
+val df = Seq((1, "hello world"), (2, "yet another sentence")).toDF("label", "line")
 
 val tokenized = rt.setInputCol("line").transform(df)
 
 scala> tokenized.show(false)
-+---+--------------------+-----------------------------+
-|id |line                |regexTok_ee6470a56f98__output|
-+---+--------------------+-----------------------------+
-|1  |hello world         |[hello, world]               |
-|2  |yet another sentence|[yet, another, sentence]     |
-+---+--------------------+-----------------------------+
++-----+--------------------+-----------------------------+
+|label|line                |regexTok_8c74c5e8b83a__output|
++-----+--------------------+-----------------------------+
+|1    |hello world         |[hello, world]               |
+|2    |yet another sentence|[yet, another, sentence]     |
++-----+--------------------+-----------------------------+
 ----
 
 It supports `minTokenLength` parameter that is the minimum token length that you can change using `setMinTokenLength` method. It simply filters out smaller tokens and defaults to `1`.
@@ -75,12 +104,12 @@ It supports `minTokenLength` parameter that is the minimum token length that you
 // see above to set up the vals
 
 scala> rt.setInputCol("line").setMinTokenLength(6).transform(df).show
-+---+--------------------+-----------------------------+
-| id|                line|regexTok_ee6470a56f98__output|
-+---+--------------------+-----------------------------+
-|  1|         hello world|                           []|
-|  2|yet another sentence|          [another, sentence]|
-+---+--------------------+-----------------------------+
++-----+--------------------+-----------------------------+
+|label|                line|regexTok_8c74c5e8b83a__output|
++-----+--------------------+-----------------------------+
+|    1|         hello world|                           []|
+|    2|yet another sentence|          [another, sentence]|
++-----+--------------------+-----------------------------+
 ----
 
 It has `gaps` parameter that indicates whether regex splits on gaps (`true`) or matches tokens (`false`). You can set it using `setGaps`. It defaults to `true`.
@@ -90,20 +119,20 @@ When set to `true` (i.e. splits on gaps) it uses http://www.scala-lang.org/api/c
 [source,scala]
 ----
 scala> rt.setInputCol("line").setGaps(false).transform(df).show
-+---+--------------------+-----------------------------+
-| id|                line|regexTok_8c74c5e8b83a__output|
-+---+--------------------+-----------------------------+
-|  1|         hello world|                          [ ]|
-|  2|yet another sentence|                       [ ,  ]|
-+---+--------------------+-----------------------------+
++-----+--------------------+-----------------------------+
+|label|                line|regexTok_8c74c5e8b83a__output|
++-----+--------------------+-----------------------------+
+|    1|         hello world|                           []|
+|    2|yet another sentence|          [another, sentence]|
++-----+--------------------+-----------------------------+
 
-scala> rt.setInputCol("line").setGaps(false).setPattern("\\w+").transform(df).show(false)
-+---+--------------------+-----------------------------+
-|id |line                |regexTok_8c74c5e8b83a__output|
-+---+--------------------+-----------------------------+
-|1  |hello world         |[hello, world]               |
-|2  |yet another sentence|[yet, another, sentence]     |
-+---+--------------------+-----------------------------+
+scala> rt.setInputCol("line").setGaps(false).setPattern("\\W").transform(df).show(false)
++-----+--------------------+-----------------------------+
+|label|line                |regexTok_8c74c5e8b83a__output|
++-----+--------------------+-----------------------------+
+|1    |hello world         |[]                           |
+|2    |yet another sentence|[another, sentence]          |
++-----+--------------------+-----------------------------+
 ----
 
 It has `pattern` parameter that is the regex for tokenizing. It uses Scala's http://www.scala-lang.org/api/current/index.html#scala.collection.immutable.StringOps@r:scala.util.matching.Regex[.r] method to convert the string to regex. Use `setPattern` to set it. It defaults to `\\s+`.
