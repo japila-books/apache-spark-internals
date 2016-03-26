@@ -3,7 +3,7 @@
 A *transformer* is a function that maps (aka _transforms_) a `DataFrame` into another `DataFrame` (both called _datasets_).
 
 ```
-transformer: DataFrame => DataFrame
+transformer: DataFrame =[transform]=> DataFrame
 ```
 
 Transformers prepare a dataset for an machine learning algorithm to work with. They are also very helpful to transform DataFrames in general outside Machine Learning space.
@@ -19,10 +19,45 @@ transform(dataset: DataFrame, firstParamPair: ParamPair[_], otherParamPairs: Par
 
 A `Transformer` is a <<PipelineStage, PipelineStage>> (so it can be a part of a <<Pipeline, Pipeline>>).
 
-The direct specialized extensions of the `Transformer` abstract class are:
+A few examples of the available custom implementations of `Transformer`:
 
-* link:spark-mllib-models.adoc[Model]
+* <<SQLTransformer, SQLTransformer>>
 * <<UnaryTransformer, UnaryTransformer>>
+** <<Tokenizer, Tokenizer>>
+** <<RegexTokenizer, RegexTokenizer>>
+** <<NGram, NGram>>
+** <<HashingTF, HashingTF>>
+** <<OneHotEncoder, OneHotEncoder>>
+* link:spark-mllib-models.adoc[Model]
+
+=== [[SQLTransformer]] SQLTransformer
+
+`SQLTransformer` is a `Tokenizer` that does transformations by executing `SELECT ... FROM __THIS__` with `__THIS__` being the underlying temporary table registered for the input dataset.
+
+NOTE: It has been available since Spark **1.6.0**.
+
+It requires that the SELECT query uses `__THIS__` that corresponds to a temporary table and simply executes the mandatory `statement` using `DataFrame.sqlContext.sql` method.
+
+You have to specify the mandatory `statement` parameter using `setStatement` method.
+
+[source, scala]
+----
+import org.apache.spark.ml.feature.SQLTransformer
+val sql = new SQLTransformer()
+
+// dataset to work with
+val df = Seq((0, s"""hello\tworld"""), (1, "two  spaces inside")).toDF("label", "sentence")
+
+scala> sql.setStatement("SELECT sentence FROM __THIS__ WHERE label = 0").transform(df).show
++-----------+
+|   sentence|
++-----------+
+|hello	world|
++-----------+
+
+scala> println(sql.explainParams)
+statement: SQL statement (current: SELECT sentence FROM __THIS__ WHERE label = 0)
+----
 
 === [[UnaryTransformer]] UnaryTransformers
 
@@ -49,7 +84,9 @@ The following are `UnaryTransformer` implementations in spark.ml:
 
 * <<Tokenizer, Tokenizer>> that converts the input string to lowercase and then splits it by white spaces.
 * <<RegexTokenizer, RegexTokenizer>> that extracts tokens.
-* `NGram` that converts the input array of strings into an array of n-grams.
+* <<NGram, NGram>> that converts the input array of strings into an array of n-grams.
+* <<HashingTF, HashingTF>> that maps a sequence of terms to their term frequencies (cf. https://issues.apache.org/jira/browse/SPARK-13998[SPARK-13998 HashingTF should extend UnaryTransformer])
+* <<OneHotEncoder, OneHotEncoder>> that maps a numeric input column of label indices onto a column of binary vectors.
 
 ==== [[Tokenizer]] Tokenizer
 
@@ -81,21 +118,23 @@ scala> tokenized.show(false)
 [source,scala]
 ----
 import org.apache.spark.ml.feature.RegexTokenizer
-val rt = new RegexTokenizer()
+val regexTok = new RegexTokenizer()
 
-// dataset to transform
-val df = Seq((1, "hello world"), (2, "yet another sentence")).toDF("label", "line")
+// dataset to transform with tabs and spaces
+val df = Seq((0, s"""hello\tworld"""), (1, "two  spaces inside")).toDF("label", "sentence")
 
-val tokenized = rt.setInputCol("line").transform(df)
+val tokenized = regexTok.setInputCol("sentence").transform(df)
 
 scala> tokenized.show(false)
-+-----+--------------------+-----------------------------+
-|label|line                |regexTok_8c74c5e8b83a__output|
-+-----+--------------------+-----------------------------+
-|1    |hello world         |[hello, world]               |
-|2    |yet another sentence|[yet, another, sentence]     |
-+-----+--------------------+-----------------------------+
++-----+------------------+-----------------------------+
+|label|sentence          |regexTok_810b87af9510__output|
++-----+------------------+-----------------------------+
+|0    |hello	world       |[hello, world]               |
+|1    |two  spaces inside|[two, spaces, inside]        |
++-----+------------------+-----------------------------+
 ----
+
+NOTE: Read the official scaladoc for http://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.ml.feature.RegexTokenizer[org.apache.spark.ml.feature.RegexTokenizer].
 
 It supports `minTokenLength` parameter that is the minimum token length that you can change using `setMinTokenLength` method. It simply filters out smaller tokens and defaults to `1`.
 
@@ -139,32 +178,26 @@ It has `pattern` parameter that is the regex for tokenizing. It uses Scala's htt
 
 It has `toLowercase` parameter that indicates whether to convert all characters to lowercase before tokenizing. Use `setToLowercase` to change it. It defaults to `true`.
 
-=== [[Transformer-examples]] Examples of Transformers
+==== [[NGram]] NGram
 
-One example of a transformer is http://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.ml.feature.RegexTokenizer[org.apache.spark.ml.feature.RegexTokenizer].
+In this example you use https://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.ml.feature.NGram[org.apache.spark.ml.feature.NGram] that converts the input collection of strings into a collection of n-grams (of `n` words).
 
 [source, scala]
 ----
-import org.apache.spark.ml.feature.RegexTokenizer
-val regexTok = new RegexTokenizer()
-  .setInputCol("text")
-  .setOutputCol("words")
-  .setPattern("\\s+")
+import org.apache.spark.ml.feature.NGram
 
-// Create DataFrame with rows with tabs and spaces
-val df = Seq((0, s"""hello\tworld"""), (1, "two  spaces inside")).toDF("id", "text")
+val bigram = new NGram("bigrams")
+val df = Seq((0, Seq("hello", "world"))).toDF("id", "tokens")
+bigram.setInputCol("tokens").transform(df).show
 
-// Use RegexTokenizer
-val regexedDF = regexTok.transform(df)
-
-scala> regexedDF.show(false)
-+---+------------------+---------------------+
-|id |text              |words                |
-+---+------------------+---------------------+
-|0  |hello	world       |[hello, world]       |
-|1  |two  spaces inside|[two, spaces, inside]|
-+---+------------------+---------------------+
++---+--------------+---------------+
+| id|        tokens|bigrams__output|
++---+--------------+---------------+
+|  0|[hello, world]|  [hello world]|
++---+--------------+---------------+
 ----
+
+==== [[HashingTF]] HashingTF
 
 Another example of a transformer could be http://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.ml.feature.HashingTF[org.apache.spark.ml.feature.HashingTF] that works on a `Column` of `ArrayType`.
 
@@ -207,19 +240,41 @@ scala> hashingTF.transform(regexDF).show(false)
 +---+------------------+---------------------+-------------------------------------------+
 ----
 
-In this example you use https://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.ml.feature.NGram[org.apache.spark.ml.feature.NGram] that converts the input collection of strings into a collection of n-grams (of `n` words).
+==== [[OneHotEncoder]] OneHotEncoder
+
+`OneHotEncoder` is a `Tokenizer` that maps a numeric input column of label indices onto a column of binary vectors.
 
 [source, scala]
 ----
-import org.apache.spark.ml.feature.NGram
+import org.apache.spark.ml.feature.OneHotEncoder
+val oneHot = new OneHotEncoder()
+  .setInputCol("cat_index")
+  .setOutputCol("cat_vec")
 
-val bigram = new NGram("bigrams")
-val df = Seq((0, Seq("hello", "world"))).toDF("id", "tokens")
-bigram.setInputCol("tokens").transform(df).show
+// dataset to transform
+val df = Seq(
+  (0, "a"), (1, "b"),
+  (2, "c"), (3, "a"),
+  (4, "a"), (5, "c"))
+  .toDF("label", "category")
+import org.apache.spark.ml.feature.StringIndexer
+val indexer = new StringIndexer().setInputCol("category").setOutputCol("cat_index").fit(df)
+val indexed = indexer.transform(df)
 
-+---+--------------+---------------+
-| id|        tokens|bigrams__output|
-+---+--------------+---------------+
-|  0|[hello, world]|  [hello world]|
-+---+--------------+---------------+
+import org.apache.spark.sql.types.NumericType
+
+scala> indexed.schema("cat_index").dataType.isInstanceOf[NumericType]
+res0: Boolean = true
+
+scala> oneHot.transform(indexed).show(false)
++-----+--------+---------+-------------+
+|label|category|cat_index|cat_vec      |
++-----+--------+---------+-------------+
+|0    |a       |0.0      |(2,[0],[1.0])|
+|1    |b       |2.0      |(2,[],[])    |
+|2    |c       |1.0      |(2,[1],[1.0])|
+|3    |a       |0.0      |(2,[0],[1.0])|
+|4    |a       |0.0      |(2,[0],[1.0])|
+|5    |c       |1.0      |(2,[1],[1.0])|
++-----+--------+---------+-------------+
 ----
