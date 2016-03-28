@@ -17,9 +17,41 @@ There are two direct implementations of the `Model` class that are not directly 
 
 === [[PipelineModel]] PipelineModel
 
-CAUTION: `PipelineModel` is a `private[ml]` class so _perhaps_ of less interest to end users like me (as of today).
+CAUTION: `PipelineModel` is a `private[ml]` class.
 
-CAUTION: FIXME
+`PipelineModel` is a `Model` of link:spark-mllib-pipelines.adoc#Pipeline[Pipeline] estimator.
+
+Once fit, you can use the result model as any other models to transform datasets (as `DataFrame`).
+
+A very interesting use case of `PipelineModel` is when a `Pipeline` is made up of link:spark-mllib-transformers.adoc[Transformer] instances.
+
+[source,scala]
+----
+// Transformer #1
+import org.apache.spark.ml.feature.Tokenizer
+val tok = new Tokenizer().setInputCol("text")
+
+// Transformer #2
+import org.apache.spark.ml.feature.HashingTF
+val hashingTF = new HashingTF().setInputCol(tok.getOutputCol).setOutputCol("features")
+
+// Fuse the Transformers in a Pipeline
+import org.apache.spark.ml.Pipeline
+val pipeline = new Pipeline().setStages(Array(tok, hashingTF))
+
+val dataset = Seq((0, "hello world")).toDF("id", "text")
+
+// Since there's no fitting, any dataset works fine
+val featurize = pipeline.fit(dataset)
+
+// Use the pipelineModel as a series of Transformers
+scala> featurize.transform(dataset).show(false)
++---+-----------+------------------------+--------------------------------+
+|id |text       |tok_8aec9bfad04a__output|features                        |
++---+-----------+------------------------+--------------------------------+
+|0  |hello world|[hello, world]          |(262144,[71890,72594],[1.0,1.0])|
++---+-----------+------------------------+--------------------------------+
+----
 
 === [[PredictionModel]] PredictionModel
 
