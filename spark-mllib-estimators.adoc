@@ -4,7 +4,7 @@ An *estimator* is an abstraction of a *learning algorithm* that *fits a model* o
 
 NOTE: That was so machine learning to explain an estimator this way, _wasn't it?_  It is that the more I spend time with Pipeline API the often I use the terms and phrases from this space. Sorry.
 
-Technically, an `Estimator` produces a link:spark-mllib-models.adoc[Model] (i.e. a link:spark-mllib-transformers.adoc[Transformer]) for a given `DataFrame` and parameters (as `ParamMap`). It fits a model to the input `DataFrame` and `ParamMap` to produce a `Transformer` (a `Model`) that can calculate predictions for any `DataFrame`-based datasets.
+Technically, an `Estimator` produces a link:spark-mllib-models.adoc[Model] (i.e. a link:spark-mllib-transformers.adoc[Transformer]) for a given `DataFrame` and parameters (as `ParamMap`). It fits a model to the input `DataFrame` and `ParamMap` to produce a `Transformer` (a `Model`) that can calculate predictions for any `DataFrame`-based input datasets.
 
 It is basically a function that maps a `DataFrame` onto a `Model` through `fit` method, i.e. it takes a `DataFrame` and produces a `Transformer` as a `Model`.
 
@@ -25,13 +25,53 @@ NOTE: `Pipeline` considers `Estimator` special and executes `fit` method before 
 
 As an example you could use <<LinearRegression, LinearRegression>> learning algorithm estimator to train a link:spark-mllib-models.adoc#LinearRegressionModel[LinearRegressionModel].
 
-The direct specialized implementation of the `Estimator` abstract class could be the following:
+Some of the direct specialized implementations of the `Estimator` abstract class are as follows:
 
+* <<KMeans, KMeans>>
 * <<Predictor, Predictor>>
+
+=== [[KMeans]] KMeans
+
+`KMeans` class is the implementation of the Machine Learning clustering algorithm with support for *k-means||* (aka *k-means parallel*) in Spark MLlib.
+
+It is a specialization of `Estimator` to produce a link:spark-mllib-models.adoc#KMeansModel[KMeansModel].
+
+TIP: Do `import org.apache.spark.ml.clustering._` to work with `KMeans` algorithm.
+
+`KMeans` defaults to use the following values:
+
+* Number of clusters (`k`): `2`
+* Maximum number of iterations (`maxIter`): `20`
+* Initialization algorithm (`initMode`): `k-means||`
+* Number of steps for the k-means|| (`initSteps`): `5`
+* Convergence tolerance (`tol`): `1e-4`
+
+CAUTION: FIXME Explain the parameters
+
+`fit` method simply passes calls on to the MLlib variant of KMeans in `org.apache.spark.mllib.clustering.KMeans`.
+
+[source,scala]
+----
+// Prepare a training dataset
+import org.apache.spark.mllib.linalg.Vectors
+val trainingDF = Seq(
+  (0.1, Vectors.dense(0.1, 0.1)),
+  (0.2, Vectors.dense(0.1, 0.2)),
+  (0.3, Vectors.dense(0.1, 0.3)),
+  (0.4, Vectors.dense(0.1, 0.4))).toDF("label", "features")
+
+import org.apache.spark.ml.clustering.KMeans
+val kmeans = new KMeans
+
+val kmModel = kmeans.fit(trainingDF)
+
+scala> kmModel.clusterCenters
+res0: Array[org.apache.spark.mllib.linalg.Vector] = Array([0.1,0.3], [0.1,0.1])
+----
 
 === [[Predictor]] Predictors
 
-A `Predictor` is a specialization of link:spark-mllib-pipelines.adoc#Estimator[Estimator] for a link:spark-mllib-models.adoc#PredictionModel[PredictionModel] with its own abstract `train` method.
+A `Predictor` is a specialization of `Estimator` for a link:spark-mllib-models.adoc#PredictionModel[PredictionModel] with its own abstract `train` method.
 
 [source, scala]
 ----
@@ -112,20 +152,17 @@ It first counts the number of elements in features column (usually `features`). 
 
 [source, scala]
 ----
-// Create a Vector
 import org.apache.spark.mllib.linalg.Vectors
-val indices = 0 to 4
-val elements = indices.zip(Stream.continually(1.0))
-val sv = Vectors.sparse(elements.size, elements)
+val features = Vectors.sparse(10, Seq((2, 0.2), (4, 0.4)))
 
-// Create a proper DataFrame
-val ds = sc.parallelize(Seq((0.5, sv))).toDF("label", "features")
+// Create a training dataset
+val trainData = Seq((1.0, features)).toDF("label", "features")
 
 import org.apache.spark.ml.regression.LinearRegression
 val lr = new LinearRegression
 
 // the following calls train by the Predictor contract (see above)
-val model = lr.fit(ds)
+val lrModel = lr.fit(trainData)
 ----
 
 ==== [[RandomForestRegressor]] RandomForestRegressor
@@ -136,24 +173,22 @@ CAUTION: FIXME
 
 [source, scala]
 ----
-val data = (0.0 to 4.0 by 1).map(d => (d, Vectors.dense(d))).toDF("label", "features")
+import org.apache.spark.mllib.linalg.Vectors
+val features = Vectors.sparse(10, Seq((2, 0.2), (4, 0.4)))
+
+val data = (0.0 to 4.0 by 1).map(d => (d, features)).toDF("label", "features")
 // data.as[LabeledPoint]
 
-scala> data.show
-+-----+--------+
-|label|features|
-+-----+--------+
-|  0.0|   [0.0]|
-|  1.0|   [1.0]|
-|  2.0|   [2.0]|
-|  3.0|   [3.0]|
-|  4.0|   [4.0]|
-|  5.0|   [5.0]|
-|  6.0|   [6.0]|
-|  7.0|   [7.0]|
-|  8.0|   [8.0]|
-|  9.0|   [9.0]|
-+-----+--------+
+scala> data.show(false)
++-----+--------------------------+
+|label|features                  |
++-----+--------------------------+
+|0.0  |(10,[2,4,6],[0.2,0.4,0.6])|
+|1.0  |(10,[2,4,6],[0.2,0.4,0.6])|
+|2.0  |(10,[2,4,6],[0.2,0.4,0.6])|
+|3.0  |(10,[2,4,6],[0.2,0.4,0.6])|
+|4.0  |(10,[2,4,6],[0.2,0.4,0.6])|
++-----+--------------------------+
 
 import org.apache.spark.ml.regression.{ RandomForestRegressor, RandomForestRegressionModel }
 val rfr = new RandomForestRegressor
