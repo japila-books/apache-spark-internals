@@ -1,6 +1,6 @@
 == Evaluators
 
-A *evaluator* is a function that maps a `DataFrame` into a metric indicating how good the model is. By default, it assumes that larger value is better.
+A *evaluator* is a transformation that maps a `DataFrame` into a metric indicating how good a model is.
 
 ```
 evaluator: DataFrame =[evaluate]=> Double
@@ -14,21 +14,77 @@ evaluate(dataset: DataFrame): Double
 evaluate(dataset: DataFrame, paramMap: ParamMap): Double
 ----
 
-It uses `isLargerBetter` method to indicate whether or not the `Double` metric should be maximized (`true`) or minimized (`false`). It defaults to consider a larger value better (`true`).
+It employs `isLargerBetter` method to indicate whether the `Double` metric should be maximized (`true`) or minimized (`false`). It considers a larger value better (`true`) by default.
 
-The following is a list of the available `Evaluator` implementations:
+[source, scala]
+----
+isLargerBetter: Boolean = true
+----
+
+The following is a list of some of the available `Evaluator` implementations:
 
 * <<RegressionEvaluator, RegressionEvaluator>>
 
 === [[RegressionEvaluator]] RegressionEvaluator
 
-`RegressionEvaluator` is a concrete `Evaluator` for regression that works with two columns `prediction` and `label` in the input `DataFrame`.
+`RegressionEvaluator` is a concrete `Evaluator` for regression that expects datasets (of `DataFrame` type) with the following two columns:
+
+* `prediction` of `float` or `double` values
+* `label` of `float` or `double` values
+
+When executed (via `evaluate`) it prepares a `RDD[Double, Double]` with `(prediction, label)` pairs and passes it on to `org.apache.spark.mllib.evaluation.RegressionMetrics` (from the "old" Spark MLlib).
+
+`RegressionEvaluator` can evaluate the following metrics:
+
+* `rmse` (default; larger is better? no) is the *root mean squared error*.
+* `mse` (larger is better? no) is the *mean squared error*.
+* `r2` (larger is better?: yes)
+* `mae` (larger is better? no) is the *mean absolute error*.
 
 [source,scala]
 ----
-import org.apache.spark.ml.evaluation.RegressionEvaluator
-// "rmse" is the default metric anyway
-val regEval = new RegressionEvaluator().setMetricName("rmse")
-----
+// prepare a fake input dataset using transformers
+import org.apache.spark.ml.feature.Tokenizer
+val tok = new Tokenizer().setInputCol("text")
 
-CAUTION: FIXME
+import org.apache.spark.ml.feature.HashingTF
+val hashTF = new HashingTF()
+  .setInputCol(tok.getOutputCol)  // it reads the output of tok
+  .setOutputCol("features")
+
+// Scala trick to chain transform methods
+// It's of little to no use since we've got Pipelines
+// Just to have it as an alternative
+val transform = (tok.transform _).andThen(hashTF.transform _)
+
+val dataset = Seq((0, "hello world", 0.0)).toDF("id", "text", "label")
+
+// we're using Linear Regression algorithm
+import org.apache.spark.ml.regression.LinearRegression
+val lr = new LinearRegression
+
+import org.apache.spark.ml.Pipeline
+val pipeline = new Pipeline().setStages(Array(tok, hashTF, lr))
+
+val model = pipeline.fit(dataset)
+
+// Let's do prediction
+// Note that we're using the same dataset as for fitting the model
+// Something you'd definitely not be doing in prod
+val predictions = model.transform(dataset)
+
+// Now we're ready to evaluate the model
+// Evaluator works on datasets with predictions
+
+import org.apache.spark.ml.evaluation.RegressionEvaluator
+val regEval = new RegressionEvaluator
+
+// check the available parameters
+scala> println(regEval.explainParams)
+labelCol: label column name (default: label)
+metricName: metric name in evaluation (mse|rmse|r2|mae) (default: rmse)
+predictionCol: prediction column name (default: prediction)
+
+scala> regEval.evaluate(predictions)
+res0: Double = 0.0
+----
