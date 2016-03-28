@@ -1,16 +1,23 @@
 == CrossValidator
 
-CAUTION: FIXME Needs more love to be finished, and looks as if I were crossing mostly-Scala boundary and entering a ML land (which I'm not prepared yet for).
+CAUTION: FIXME Needs more love to be finished.
 
-`CrossValidator` is an link:spark-mllib-estimators.adoc[Estimator] for link:spark-mllib-models.adoc[CrossValidatorModel].
+`CrossValidator` is an link:spark-mllib-estimators.adoc[Estimator] for link:spark-mllib-models.adoc[CrossValidatorModel], i.e. it can fit a `CrossValidatorModel` for an input dataset.
 
 It belongs to `org.apache.spark.ml.tuning` package.
 
+[source, scala]
+----
+import org.apache.spark.ml.tuning.CrossValidator
+----
+
 `CrossValidator` accepts `numFolds` parameter (amongst the others).
+
+NOTE: What makes `CrossValidator` a very useful tool for _model selection_ is its ability to work with any link:spark-mllib-estimators.adoc[Estimator] instance, link:spark-mllib-pipelines.adoc[Pipelines] including that can preprocess datasets before passed on. This gives you a way to work with any dataset and preprocess it before a new (possibly better) model could be fit to it.
 
 [source, scala]
 ----
-import org.apache.spark.ml.tuning._
+import org.apache.spark.ml.tuning.CrossValidator
 val cv = new CrossValidator
 
 scala> println(cv.explainParams)
@@ -19,47 +26,52 @@ estimatorParamMaps: param maps for the estimator (undefined)
 evaluator: evaluator used to select hyper-parameters that maximize the validated metric (undefined)
 numFolds: number of folds for cross validation (>= 2) (default: 3)
 seed: random seed (default: -1191137437)
+----
 
-import org.apache.spark.mllib.linalg._
+=== [[example]] Example (no Pipeline)
+
+[source, scala]
+----
+import org.apache.spark.mllib.linalg.Vectors
 val features = Vectors.sparse(3, Array(1), Array(1d))
-val df = Seq((0, "hello world", 0.5, features)).toDF("id", "text", "label", "features")
+val df = Seq(
+  (0, "hello world", 0.0, features),
+  (1, "just hello",  1.0, features)).toDF("id", "text", "label", "features")
 
-import org.apache.spark.ml.classification._
+import org.apache.spark.ml.classification.LogisticRegression
 val lr = new LogisticRegression
 
 import org.apache.spark.ml.evaluation.RegressionEvaluator
 val regEval = new RegressionEvaluator
 
-val paramGrid = new ParamGridBuilder().build()
-cv.setEstimatorParamMaps(paramGrid).setEstimator(lr).setEvaluator(regEval)
+import org.apache.spark.ml.tuning.ParamGridBuilder
+// Parameterize the only estimator used, i.e. LogisticRegression
+// Use println(lr.explainParams) to learn about the supported parameters
+val paramGrid = new ParamGridBuilder()
+  .addGrid(lr.regParam, Array(0.1, 0.01))
+  .build()
 
-val model = cv.fit(df)
+import org.apache.spark.ml.tuning.CrossValidator
+val cv = new CrossValidator()
+  .setEstimator(lr) // just LogisticRegression not Pipeline
+  .setEvaluator(regEval)
+  .setEstimatorParamMaps(paramGrid)
 
 // FIXME
-java.lang.UnsupportedOperationException: empty.max
-  at scala.collection.TraversableOnce$class.max(TraversableOnce.scala:227)
-  at scala.collection.AbstractTraversable.max(Traversable.scala:104)
-  at org.apache.spark.ml.classification.MultiClassSummarizer.numClasses(LogisticRegression.scala:739)
-  at org.apache.spark.ml.classification.MultiClassSummarizer.histogram(LogisticRegression.scala:743)
-  at org.apache.spark.ml.classification.LogisticRegression.train(LogisticRegression.scala:288)
-  at org.apache.spark.ml.classification.LogisticRegression.train(LogisticRegression.scala:261)
-  at org.apache.spark.ml.classification.LogisticRegression.train(LogisticRegression.scala:160)
-  at org.apache.spark.ml.Predictor.fit(Predictor.scala:90)
-  at org.apache.spark.ml.Predictor.fit(Predictor.scala:71)
-  at org.apache.spark.ml.Estimator.fit(Estimator.scala:59)
-  at org.apache.spark.ml.Estimator$$anonfun$fit$1.apply(Estimator.scala:78)
-  at org.apache.spark.ml.Estimator$$anonfun$fit$1.apply(Estimator.scala:78)
-  at scala.collection.TraversableLike$$anonfun$map$1.apply(TraversableLike.scala:245)
-  at scala.collection.TraversableLike$$anonfun$map$1.apply(TraversableLike.scala:245)
-  at scala.collection.IndexedSeqOptimized$class.foreach(IndexedSeqOptimized.scala:33)
-  at scala.collection.mutable.ArrayOps$ofRef.foreach(ArrayOps.scala:186)
-  at scala.collection.TraversableLike$class.map(TraversableLike.scala:245)
-  at scala.collection.mutable.ArrayOps$ofRef.map(ArrayOps.scala:186)
-  at org.apache.spark.ml.Estimator.fit(Estimator.scala:78)
-  at org.apache.spark.ml.tuning.CrossValidator$$anonfun$fit$1.apply(CrossValidator.scala:110)
+
+scala> val cvModel = cv.fit(df)
+java.lang.IllegalArgumentException: requirement failed: Nothing has been added to this summarizer.
+  at scala.Predef$.require(Predef.scala:219)
+  at org.apache.spark.mllib.stat.MultivariateOnlineSummarizer.normL2(MultivariateOnlineSummarizer.scala:270)
+  at org.apache.spark.mllib.evaluation.RegressionMetrics.SSerr$lzycompute(RegressionMetrics.scala:65)
+  at org.apache.spark.mllib.evaluation.RegressionMetrics.SSerr(RegressionMetrics.scala:65)
+  at org.apache.spark.mllib.evaluation.RegressionMetrics.meanSquaredError(RegressionMetrics.scala:99)
+  at org.apache.spark.mllib.evaluation.RegressionMetrics.rootMeanSquaredError(RegressionMetrics.scala:108)
+  at org.apache.spark.ml.evaluation.RegressionEvaluator.evaluate(RegressionEvaluator.scala:94)
+  at org.apache.spark.ml.tuning.CrossValidator$$anonfun$fit$1.apply(CrossValidator.scala:115)
   at org.apache.spark.ml.tuning.CrossValidator$$anonfun$fit$1.apply(CrossValidator.scala:105)
   at scala.collection.IndexedSeqOptimized$class.foreach(IndexedSeqOptimized.scala:33)
   at scala.collection.mutable.ArrayOps$ofRef.foreach(ArrayOps.scala:186)
   at org.apache.spark.ml.tuning.CrossValidator.fit(CrossValidator.scala:105)
-  ... 55 elided
+  ... 61 elided
 ----
