@@ -2,7 +2,7 @@
 
 CAUTION: FIXME Needs more love to be finished.
 
-`CrossValidator` is an link:spark-mllib-estimators.adoc[Estimator] for link:spark-mllib-models.adoc[CrossValidatorModel], i.e. it can fit a `CrossValidatorModel` for an input dataset.
+`CrossValidator` is an link:spark-mllib-estimators.adoc[Estimator] for link:spark-mllib-models.adoc[CrossValidatorModel], i.e. it can fit a `CrossValidatorModel` for a given input dataset.
 
 It belongs to `org.apache.spark.ml.tuning` package.
 
@@ -13,7 +13,7 @@ import org.apache.spark.ml.tuning.CrossValidator
 
 `CrossValidator` accepts `numFolds` parameter (amongst the others).
 
-NOTE: What makes `CrossValidator` a very useful tool for _model selection_ is its ability to work with any link:spark-mllib-estimators.adoc[Estimator] instance, link:spark-mllib-pipelines.adoc[Pipelines] including that can preprocess datasets before passed on. This gives you a way to work with any dataset and preprocess it before a new (possibly better) model could be fit to it.
+NOTE: What makes `CrossValidator` a very useful tool for _model selection_ is its ability to work with any link:spark-mllib-estimators.adoc[Estimator] instance, link:spark-mllib-pipelines.adoc[Pipelines] including, that can preprocess datasets before passing them on. This gives you a way to work with any dataset and preprocess it before a new (possibly better) model could be fit to it.
 
 [source, scala]
 ----
@@ -40,6 +40,7 @@ import org.apache.spark.ml.feature.HashingTF
 val hashTF = new HashingTF()
   .setInputCol(tok.getOutputCol)
   .setOutputCol("features")
+  .setNumFeatures(10)
 
 import org.apache.spark.ml.clustering.KMeans
 val kmeans = new KMeans
@@ -53,9 +54,42 @@ val trainDS = Seq(
   (0L, "[science] hello world", 0),
   (1L, "long text", 1),
   (2L, "[science] hello all people", 0),
-  (3L, "[science] hello hello", 0)).toDF("id", "text", "label")
+  (3L, "[science] hello hello", 0)).toDF("id", "text", "label").cache
 
-val model = pipeline.fit(trainDS)
+// Check out the train dataset
+// Values in label and prediction columns should be alike
+val sampleModel = pipeline.fit(trainDS)
+scala> sampleModel.transform(trainDS).select("text", "label", "features", "prediction").show(false)
++--------------------------+-----+--------------------------------+----------+
+|text                      |label|features                        |prediction|
++--------------------------+-----+--------------------------------+----------+
+|[science] hello world     |0    |(10,[0,2],[1.0,2.0])            |0         |
+|long text                 |1    |(10,[2,3],[1.0,1.0])            |1         |
+|[science] hello all people|0    |(10,[0,2,3,9],[1.0,1.0,1.0,1.0])|1         |
+|[science] hello hello     |0    |(10,[0,2],[1.0,2.0])            |0         |
++--------------------------+-----+--------------------------------+----------+
+
+val input = Seq("Hello ScienCE").toDF("text")
+scala> sampleModel.transform(input).show(false)
++-------------+------------------------+--------------------+----------+
+|text         |tok_4174a05fbc07__output|features            |prediction|
++-------------+------------------------+--------------------+----------+
+|Hello ScienCE|[hello, science]        |(10,[2,6],[1.0,1.0])|1         |
++-------------+------------------------+--------------------+----------+
+
+import org.apache.spark.ml.tuning.ParamGridBuilder
+val paramGrid = new ParamGridBuilder().build()
+
+import org.apache.spark.ml.evaluation.RegressionEvaluator
+val regEval = new RegressionEvaluator
+
+import org.apache.spark.ml.tuning.CrossValidator
+val cv = new CrossValidator()
+  .setEstimator(pipeline) // <-- pipeline is the estimator
+  .setEvaluator(regEval)
+  .setEstimatorParamMaps(paramGrid)
+
+val cvModel = cv.fit(trainDS)
 ----
 
 === [[example-without-pipeline]] Example (no Pipeline)
