@@ -21,6 +21,7 @@ A `Transformer` is a <<PipelineStage, PipelineStage>> (so it can be a part of a 
 
 A few examples of the available custom implementations of `Transformer`:
 
+* <<Binarizer, Binarizer>>
 * <<SQLTransformer, SQLTransformer>>
 * <<UnaryTransformer, UnaryTransformer>>
 ** <<Tokenizer, Tokenizer>>
@@ -29,6 +30,48 @@ A few examples of the available custom implementations of `Transformer`:
 ** <<HashingTF, HashingTF>>
 ** <<OneHotEncoder, OneHotEncoder>>
 * link:spark-mllib-models.adoc[Model]
+
+=== [[Binarizer]] Binarizer
+
+`Binarizer` is a `Tokenizer` that splits the values in the input column into two groups - "ones" for values larger than the `threshold` and "zeros" for the others.
+
+It works with DataFrames with the input column of `DoubleType` or link:spark-mllib-vector.adoc[VectorUDT]. The type of the result output column matches the type of the input column, i.e. `DoubleType` or `VectorUDT`.
+
+[source, scala]
+----
+import org.apache.spark.ml.feature.Binarizer
+val bin = new Binarizer()
+  .setInputCol("rating")
+  .setOutputCol("label")
+  .setThreshold(3.5)
+
+scala> println(bin.explainParams)
+inputCol: input column name (current: rating)
+outputCol: output column name (default: binarizer_dd9710e2a831__output, current: label)
+threshold: threshold used to binarize continuous features (default: 0.0, current: 3.5)
+
+val doubles = Seq((0, 1d), (1, 1d), (2, 5d)).toDF("id", "rating")
+
+scala> bin.transform(doubles).show
++---+------+-----+
+| id|rating|label|
++---+------+-----+
+|  0|   1.0|  0.0|
+|  1|   1.0|  0.0|
+|  2|   5.0|  1.0|
++---+------+-----+
+
+import org.apache.spark.mllib.linalg.Vectors
+val denseVec = Vectors.dense(Array(4.0, 0.4, 3.7, 1.5))
+val vectors = Seq((0, denseVec)).toDF("id", "rating")
+
+scala> bin.transform(vectors).show
++---+-----------------+-----------------+
+| id|           rating|            label|
++---+-----------------+-----------------+
+|  0|[4.0,0.4,3.7,1.5]|[1.0,0.0,1.0,0.0]|
++---+-----------------+-----------------+
+----
 
 === [[SQLTransformer]] SQLTransformer
 
