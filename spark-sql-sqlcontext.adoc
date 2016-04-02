@@ -72,7 +72,7 @@ createDataFrame[A <: Product](data: Seq[A]): DataFrame
 createDataFrame(rowRDD: RDD[Row], schema: StructType): DataFrame
 ----
 
-This variant of `createDataFrame` creates a `DataFrame` from `RDD` of `Row` and explicit schema.
+This variant of `createDataFrame` creates a `DataFrame` from `RDD` of link:spark-sql-dataframe-row.adoc[Row] and explicit schema.
 
 === [[registering-udfs]] Registering User-Defined Functions (UDF)
 
@@ -81,7 +81,47 @@ This variant of `createDataFrame` creates a `DataFrame` from `RDD` of `Row` and 
 udf: UDFRegistration
 ----
 
-`udf` method gives access to `UDFRegistration` to manipulate user-defined functions.
+`udf` method gives you access to `UDFRegistration` to manipulate user-defined functions. Functions registered using `udf` are available for Hive queries only.
+
+TIP: Read up on UDFs in link:spark-sql-udfs.adoc[UDFs -- User-Defined Functions] document.
+
+[source, scala]
+----
+// Create a DataFrame
+val df = Seq("hello", "world!").zip(0 to 1).toDF("text", "id")
+
+// Register the DataFrame as a temporary table in Hive
+df.registerTempTable("texts")
+
+scala> sql("SHOW TABLES").show
++---------+-----------+
+|tableName|isTemporary|
++---------+-----------+
+|    texts|       true|
++---------+-----------+
+
+scala> sql("SELECT * FROM texts").show
++------+---+
+|  text| id|
++------+---+
+| hello|  0|
+|world!|  1|
++------+---+
+
+// Just a Scala function
+val my_upper: String => String = _.toUpperCase
+
+// Register the function as UDF
+sqlContext.udf.register("my_upper", my_upper)
+
+scala> sql("SELECT *, my_upper(text) AS MY_UPPER FROM texts").show
++------+---+--------+
+|  text| id|MY_UPPER|
++------+---+--------+
+| hello|  0|   HELLO|
+|world!|  1|  WORLD!|
++------+---+--------+
+----
 
 === [[caching-dataframes]] Caching DataFrames in In-Memory Cache
 
