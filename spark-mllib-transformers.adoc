@@ -19,7 +19,7 @@ transform(dataset: DataFrame, firstParamPair: ParamPair[_], otherParamPairs: Par
 
 A `Transformer` is a <<PipelineStage, PipelineStage>> (so it can be a part of a <<Pipeline, Pipeline>>).
 
-A few examples of the available custom implementations of `Transformer`:
+A few examples of the available implementations of `Transformer`:
 
 * <<Binarizer, Binarizer>>
 * <<SQLTransformer, SQLTransformer>>
@@ -30,6 +30,8 @@ A few examples of the available custom implementations of `Transformer`:
 ** <<HashingTF, HashingTF>>
 ** <<OneHotEncoder, OneHotEncoder>>
 * link:spark-mllib-models.adoc[Model]
+
+See <<custom-transformer, Custom UnaryTransformer>> section for a custom `Transformer` implementation.
 
 === [[Binarizer]] Binarizer
 
@@ -334,4 +336,48 @@ root
 
 scala> oneHotted.schema("cat_vec").dataType.isInstanceOf[VectorUDT]
 res1: Boolean = true
+----
+
+==== [[custom-transformer]] Custom UnaryTransformer
+
+The following class is a custom `UnaryTransformer` that transforms words using upper letters.
+
+[source, scala]
+----
+package pl.japila.spark
+
+import org.apache.spark.ml._
+import org.apache.spark.ml.util.Identifiable
+import org.apache.spark.sql.types._
+
+class UpperTransformer(override val uid: String)
+    extends UnaryTransformer[String, String, UpperTransformer] {
+
+  def this() = this(Identifiable.randomUID("upper"))
+
+  override protected def validateInputType(inputType: DataType): Unit = {
+    require(inputType == StringType)
+  }
+
+  protected def createTransformFunc: String => String = {
+    _.toUpperCase
+  }
+
+  protected def outputDataType: DataType = StringType
+}
+----
+
+Given a `DataFrame` you could use it as follows:
+
+[source, scala]
+----
+val upper = new UpperTransformer
+
+scala> upper.setInputCol("text").transform(df).show
++---+-----+--------------------------+
+| id| text|upper_0b559125fd61__output|
++---+-----+--------------------------+
+|  0|hello|                     HELLO|
+|  1|world|                     WORLD|
++---+-----+--------------------------+
 ----
