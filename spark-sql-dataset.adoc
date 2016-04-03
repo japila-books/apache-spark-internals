@@ -1,8 +1,34 @@
 == Dataset
 
-*Dataset* is an experimental feature of Spark SQL that has first been introduced in Apache Spark *1.6.0*. It aims at expanding on link:spark-sql-dataframe.adoc[DataFrames] to offer strong type-safety (of Scala the programming language) at compile time and a functional programming interface to work with structured data.
+*Dataset* offers convenience of RDDs with the performance optimizations of DataFrames and the strong type-safety of Scala. All brought together gives you a more functional programming interface to work with structured data.
 
-Using `Dataset` objects turns `DataFrames` of link:spark-sql-dataframe-row.adoc[Row] instances into a `DataFrames` of case classes with proper names and types (following their equivalents in the case classes). Instead of using indices to access respective fields in a DataFrame and cast it to a type, all this is automatically handled by Datasets.
+[NOTE]
+====
+`Dataset` was first introduced in Apache Spark *1.6.0* as an experimental feature, but has since turned itself into a fully supported one. As a matter of fact, link:spark-sql-dataframe.adoc[DataFrame] - the flagship of previous versions of Spark SQL - is currently a _mere_ type alias for `Dataset[Row]`:
+
+[source, scala]
+----
+type DataFrame = Dataset[Row]
+----
+
+See  https://github.com/apache/spark/blob/master/sql/core/src/main/scala/org/apache/spark/sql/package.scala#L45[package object sql].
+====
+
+It is only with Datasets to have syntax and analysis checks at compile time (that is not possible using link:spark-sql-dataframe.adoc[DataFrame], regular SQL queries or even RDDs).
+
+Using `Dataset` objects turns `DataFrames` of link:spark-sql-dataframe-row.adoc[Row] instances into a `DataFrames` of case classes with proper names and types (following their equivalents in the case classes). Instead of using indices to access respective fields in a DataFrame and cast it to a type, all this is automatically handled by Datasets (and checked by the Scala compiler).
+
+[source, scala]
+----
+scala> val ds = Seq("I am a shiny Dataset!").zipWithIndex.toDS
+ds: org.apache.spark.sql.Dataset[(String, Int)] = [_1: string, _2: int]
+
+scala> val df = Seq("I am an old grumpy DataFrame!").zipWithIndex.toDF
+df: org.apache.spark.sql.DataFrame = [_1: string, _2: int]
+
+scala> val df = Seq("I am an old grumpy DataFrame!").zipWithIndex.toDF("text", "id")
+df: org.apache.spark.sql.DataFrame = [text: string, id: int]
+----
 
 A `Dataset` object requires a link:spark-sql-sqlcontext.adoc[SQLContext], a <<QueryExecution, QueryExecution>>, and an <<Encoder, Encoder>>. link:spark-sql-sqlcontext.adoc#creating-datasets[In same cases], a `Dataset` can also be seen as a pair of <<LogicalPlan, LogicalPlan>> in a given link:spark-sql-sqlcontext.adoc[SQLContext].
 
@@ -85,13 +111,51 @@ scala> ds.map(_.name).show
 <1> Alas, you need to use the line to make the converstion work.
 <2> Create a Dataset of Token instances.
 
-=== Converting Datasets into RDDs (using rdd method)
+=== [[features]] Features of Dataset API
 
-Whenever in need to convert a Dataset into a RDD, executing `rdd` method gives you a RDD of the proper input type (not `Row` as in DataFrames).
+The features of the Dataset API in Spark SQL:
+
+* **Type-safety** as Datasets are Scala domain objects and operations operate on their attributes. All is checked by the Scala compiler at compile time.
+
+=== [[implicits]] Type Conversions to Dataset[T]
+
+`DatasetHolder` case class offers three methods that do the conversions from `T` type to `Dataset[T]`:
+
+* `toDS(): Dataset[T]`
+* `toDF(): DataFrame`
+* `toDF(colNames: String*): DataFrame`
+
+NOTE: `DataFrame` is a type alias of `Dataset[Row]`.
+
+`DatasetHolder` is used by `SQLImplicits` that is available to use after importing `implicits` object of `SQLContext`.
 
 [source, scala]
 ----
-scala> val rdd = ds.rdd
+// NOTE sqlContext is an SQLContext instance
+import sqlContext.implicits._
+----
+
+[NOTE]
+====
+This import is automatically executed in link:spark-shell.adoc[Spark Shell].
+
+```
+scala> sc.version
+res11: String = 2.0.0-SNAPSHOT
+
+scala> :imports
+ 1) import sqlContext.implicits._  (52 terms, 31 are implicit)
+ 2) import sqlContext.sql          (1 terms)
+```
+====
+
+=== [[rdd]] Converting Datasets into RDDs (using rdd method)
+
+Whenever in need to convert a Dataset into a RDD, executing `rdd` method gives you a RDD of the proper input object type (not link:spark-sql-dataframe.adoc#features[`Row` as in DataFrames]).
+
+[source, scala]
+----
+scala> val rdd = tokens.rdd
 rdd: org.apache.spark.rdd.RDD[Token] = MapPartitionsRDD[11] at rdd at <console>:30
 ----
 
@@ -109,15 +173,21 @@ You may also use the following methods to learn about the schema:
 
 CAUTION: FIXME
 
+=== [[types]] Supported Types
+
+CAUTION: FIXME What types are supported by Encoders
+
 === [[Encoder]] Encoder
 
 CAUTION: FIXME
 
 It works with the type of the accompanying Dataset.
 
-An `Encoder` object is used to convert a JVM object into a Dataset row. It is designed for fast serialization and deserialization.
+An `Encoder` object is used to convert your domain object (a JVM object) into Spark's internal representation. It is designed for fast serialization and deserialization.
 
 NOTE: link:spark-sql-sqlcontext.adoc#implicits[SQLContext.implicits] object comes with Encoders for many types in Scala.
+
+Encoders map columns (of your dataset) to field (of your JVM object) by name. It is by Encoders that you can bridge JVM objects and data sources (CSV, JDBC, Parquet, Avro, JSON, Cassandra, Elasticsearch, memsql).
 
 === [[QueryExecution]] QueryExecution
 
@@ -132,3 +202,7 @@ CAUTION: FIXME
 === [[LogicalPlan]] LogicalPlan
 
 CAUTION: FIXME
+
+=== [[i-want-more]] Further reading or watching
+
+* (video) https://youtu.be/i7l3JQRx7Qw[Structuring Spark: DataFrames, Datasets, and Streaming]
