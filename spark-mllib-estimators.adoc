@@ -32,23 +32,42 @@ Some of the direct specialized implementations of the `Estimator` abstract class
 
 === [[KMeans]] KMeans
 
-`KMeans` class is the implementation of the Machine Learning clustering algorithm with support for *k-means||* (aka *k-means parallel*) in Spark MLlib.
+`KMeans` class is an implementation of the machine learning clustering algorithm with support for *k-means||* (aka *k-means parallel*) in Spark MLlib.
 
-It is a specialization of `Estimator` to produce a link:spark-mllib-models.adoc#KMeansModel[KMeansModel].
+Shortly speaking, k-means is a highly iterative machine learning algorithm which assigns data set of points to `k` clusters (by the nearest mean). The algorithm has gained popularity for its relative simplicity and parallelism.
+
+NOTE: K-Means algorithm uses https://en.wikipedia.org/wiki/Lloyd%27s_algorithm[Lloyd's algorithm] in computer science.
+
+It is an `Estimator` that produces a link:spark-mllib-models.adoc#KMeansModel[KMeansModel].
 
 TIP: Do `import org.apache.spark.ml.clustering.KMeans` to work with `KMeans` algorithm.
 
 `KMeans` defaults to use the following values:
 
-* Number of clusters (`k`): `2`
+* Number of clusters or centroids (`k`): `2`
 * Maximum number of iterations (`maxIter`): `20`
 * Initialization algorithm (`initMode`): `k-means||`
 * Number of steps for the k-means|| (`initSteps`): `5`
 * Convergence tolerance (`tol`): `1e-4`
 
-CAUTION: FIXME Explain the parameters
+`KMeans` assumes that `featuresCol` is of type link:spark-mllib-vector.adoc[VectorUDT] and appends `predictionCol` of type `IntegerType`.
 
-`fit` method simply passes calls on to the MLlib variant of KMeans in `org.apache.spark.mllib.clustering.KMeans`.
+`fit` method "unwraps" the feature vector out of `featuresCol` column in the input `DataFrame` and creates an `RDD[Vector]`. It then hands the call over to the MLlib variant of KMeans in `org.apache.spark.mllib.clustering.KMeans`. The result is copied to `KMeansModel` with a calculated `KMeansSummary`.
+
+[TIP]
+====
+Enable `INFO` logging level for `org.apache.spark.mllib.clustering.KMeans` logger to see what happens inside a `KMeans`.
+
+Add the following line to `conf/log4j.properties`:
+
+```
+log4j.logger.org.apache.spark.mllib.clustering.KMeans=INFO
+```
+
+Refer to link:spark-logging.adoc[Logging].
+====
+
+==== [[kmeans-example]] KMeans Example
 
 [source,scala]
 ----
@@ -63,7 +82,17 @@ val trainingDF = Seq(
 import org.apache.spark.ml.clustering.KMeans
 val kmeans = new KMeans
 
-val kmModel = kmeans.fit(trainingDF)
+scala> val kmModel = kmeans.fit(trainingDF)
+16/04/02 23:04:07 WARN KMeans: The input data is not directly cached, which may hurt performance if its parent RDDs are also uncached.
+16/04/02 23:04:07 WARN BLAS: Failed to load implementation from: com.github.fommil.netlib.NativeSystemBLAS
+16/04/02 23:04:07 WARN BLAS: Failed to load implementation from: com.github.fommil.netlib.NativeRefBLAS
+16/04/02 23:04:08 INFO KMeans: Initialization with k-means|| took 0.805 seconds.
+16/04/02 23:04:08 INFO KMeans: Run 0 finished in 1 iterations
+16/04/02 23:04:08 INFO KMeans: Iterations took 0.041 seconds.
+16/04/02 23:04:08 INFO KMeans: KMeans converged in 1 iterations.
+16/04/02 23:04:08 INFO KMeans: The cost for the best run is 0.020000000000000073.
+16/04/02 23:04:08 WARN KMeans: The input data was not directly cached, which may hurt performance if its parent RDDs are also uncached.
+kmModel: org.apache.spark.ml.clustering.KMeansModel = kmeans_3309bcc56cee
 
 scala> kmModel.clusterCenters
 res0: Array[org.apache.spark.mllib.linalg.Vector] = Array([0.1,0.3], [0.1,0.1])
