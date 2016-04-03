@@ -6,7 +6,7 @@ A *transformer* is a function that maps (aka _transforms_) a `DataFrame` into an
 transformer: DataFrame =[transform]=> DataFrame
 ```
 
-Transformers prepare a dataset for an machine learning algorithm to work with. They are also very helpful to transform DataFrames in general outside Machine Learning space.
+Transformers prepare a dataset for an machine learning algorithm to work with. They are also very helpful to transform DataFrames in general, outside the machine learning space.
 
 Transformers are instances of http://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.ml.Transformer[org.apache.spark.ml.Transformer] abstract class that offers `transform` family of methods:
 
@@ -21,6 +21,7 @@ A `Transformer` is a <<PipelineStage, PipelineStage>> (so it can be a part of a 
 
 A few examples of the available implementations of `Transformer`:
 
+* <<StopWordsRemover, StopWordsRemover>>
 * <<Binarizer, Binarizer>>
 * <<SQLTransformer, SQLTransformer>>
 * <<UnaryTransformer, UnaryTransformer>>
@@ -32,6 +33,58 @@ A few examples of the available implementations of `Transformer`:
 * link:spark-mllib-models.adoc[Model]
 
 See <<custom-transformer, Custom UnaryTransformer>> section for a custom `Transformer` implementation.
+
+=== [[StopWordsRemover]] StopWordsRemover
+
+`StopWordsRemover` is a machine learning feature transformer that takes a string array column and outputs a string array column with all defined stop words removed. The transformer comes with a standard set of http://en.wikipedia.org/wiki/Stop_words[English stop words] as default (that are the same as scikit-learn uses, i.e. http://ir.dcs.gla.ac.uk/resources/linguistic_utils/stop_words[from the Glasgow Information Retrieval Group]).
+
+NOTE: It works as if it were a <<UnaryTransformer, UnaryTransformer>> but https://issues.apache.org/jira/browse/SPARK-13998[it has not been migrated to extend the class yet].
+
+`StopWordsRemover` class belongs to `org.apache.spark.ml.feature` package.
+
+[source, scala]
+----
+import org.apache.spark.ml.feature.StopWordsRemover
+val stopWords = new StopWordsRemover
+----
+
+It accepts the following parameters:
+
+[source, scala]
+----
+scala> println(stopWords.explainParams)
+caseSensitive: whether to do case-sensitive comparison during filtering (default: false)
+inputCol: input column name (undefined)
+outputCol: output column name (default: stopWords_9c2c0fdd8a68__output)
+stopWords: stop words (default: [Ljava.lang.String;@5dabe7c8)
+----
+
+NOTE: `null` values from the input array are preserved unless adding `null` to `stopWords` explicitly.
+
+[source, scala]
+----
+import org.apache.spark.ml.feature.RegexTokenizer
+val regexTok = new RegexTokenizer("regexTok")
+  .setInputCol("text")
+  .setPattern("\\W+")
+
+import org.apache.spark.ml.feature.StopWordsRemover
+val stopWords = new StopWordsRemover("stopWords")
+  .setInputCol(regexTok.getOutputCol)
+
+val df = Seq("please find it done (and empty)", "About to be rich!", "empty")
+  .zipWithIndex
+  .toDF("text", "id")
+
+scala> stopWords.transform(regexTok.transform(df)).show(false)
++-------------------------------+---+------------------------------------+-----------------+
+|text                           |id |regexTok__output                    |stopWords__output|
++-------------------------------+---+------------------------------------+-----------------+
+|please find it done (and empty)|0  |[please, find, it, done, and, empty]|[]               |
+|About to be rich!              |1  |[about, to, be, rich]               |[rich]           |
+|empty                          |2  |[empty]                             |[]               |
++-------------------------------+---+------------------------------------+-----------------+
+----
 
 === [[Binarizer]] Binarizer
 
