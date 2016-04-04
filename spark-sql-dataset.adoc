@@ -1,6 +1,6 @@
 == Dataset
 
-*Dataset* offers convenience of RDDs with the performance optimizations of DataFrames and the strong type-safety of Scala. All brought together gives you a more functional programming interface to work with structured data.
+*Dataset* offers convenience of RDDs with the performance optimizations of DataFrames and the strong static type-safety of Scala. The last feature of bringing the strong type-safety to link:spark-sql-dataframe.adoc[DataFrame] makes Dataset so appealing. All the features together give you a more functional programming interface to work with structured data.
 
 [NOTE]
 ====
@@ -17,6 +17,8 @@ See  https://github.com/apache/spark/blob/master/sql/core/src/main/scala/org/apa
 It is only with Datasets to have syntax and analysis checks at compile time (that is not possible using link:spark-sql-dataframe.adoc[DataFrame], regular SQL queries or even RDDs).
 
 Using `Dataset` objects turns `DataFrames` of link:spark-sql-dataframe-row.adoc[Row] instances into a `DataFrames` of case classes with proper names and types (following their equivalents in the case classes). Instead of using indices to access respective fields in a DataFrame and cast it to a type, all this is automatically handled by Datasets (and checked by the Scala compiler).
+
+Datasets run on link:spark-sql-tungsten.adoc[Tungsten] to optimize its performance.
 
 [source, scala]
 ----
@@ -45,14 +47,16 @@ You can convert a Dataset to a DataFrame (using `toDF()` method) or an RDD (usin
 import sqlContext.implicits._
 
 case class Token(name: String, productId: Int, score: Double)
-val data = Token("aaa", 100, 0.12) ::
-  Token("aaa", 200, 0.29) ::
-  Token("bbb", 200, 0.53) ::
-  Token("bbb", 300, 0.42) :: Nil
+val data = Seq(
+  Token("aaa", 100, 0.12),
+  Token("aaa", 200, 0.29),
+  Token("bbb", 200, 0.53),
+  Token("bbb", 300, 0.42))
 
-// The following doesn't seem to work
-// See https://issues.apache.org/jira/browse/SPARK-13456
-// val ds = data.toDS
+// Transform data to a Dataset[Token]
+// It doesn't work with type annotation yet
+// https://issues.apache.org/jira/browse/SPARK-13456
+val ds: Dataset[Token] = data.toDS
 
 // Transform data into a DataFrame with no explicit schema
 val df = data.toDF
@@ -108,8 +112,6 @@ scala> ds.map(_.name).show
 |  bbb|
 +-----+
 ----
-<1> Alas, you need to use the line to make the converstion work.
-<2> Create a Dataset of Token instances.
 
 === [[features]] Features of Dataset API
 
