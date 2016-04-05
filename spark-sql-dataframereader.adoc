@@ -1,9 +1,232 @@
 == DataFrameReader
 
-CAUTION: FIXME
+`DataFrameReader` is an interface to return `DataFrame` from <<format, many storage formats>> in external storage systems (e.g. <<creating-dataframes-from-tables, databases>> or <<creating-dataframes-from-files, files>>) and <<stream, streams>>.
+
+Use link:spark-sql-sqlcontext.adoc#read[SQLContext.read] to access it.
+
+[source, scala]
+----
+import org.apache.spark.sql.DataFrameReader
+val reader: DataFrameReader = sqlContext.read
+----
+
+It has a direct support for many <<creating-dataframes-from-files, file formats>> and <<format, interface for new ones>>.
+
+=== [[format]] Specifying Data Format (format method)
+
+[source, scala]
+----
+format(source: String): DataFrameReader
+----
+
+You use `format` to configure `DataFrameReader` to use appropriate `source` format.
+
+Supported file formats:
+
+* `json`
+* `csv` (since **2.0.0**)
+* `parquet`
+* `orc`
+* `text`
+
+=== [[schema]] Schema Support (schema method)
+
+[source, scala]
+----
+schema(schema: StructType): DataFrameReader
+----
+
+You can apply `schema` to the data source.
+
+TIP: Refer to link:spark-sql-dataframe-schema.adoc[Schema].
+
+=== [[option]] Option Support (option and options methods)
+
+[source, scala]
+----
+option(key: String, value: String): DataFrameReader
+option(key: String, value: Boolean): DataFrameReader  // <1>
+option(key: String, value: Long): DataFrameReader     // <1>
+option(key: String, value: Double): DataFrameReader   // <1>
+----
+<1> Available since Spark **2.0.0**
+
+You can also use `options` method to describe different options in a single `Map`.
+
+[source, scala]
+----
+options(options: scala.collection.Map[String, String]): DataFrameReader
+----
+
+=== [[load]] load methods
+
+[source, scala]
+----
+load(): DataFrame
+load(path: String): DataFrame
+----
+
+`load` loads input data as a `DataFrame`.
+
+[source, scala]
+----
+val csv = sqlContext.read
+  .format("csv")
+  .load("text-id.csv")
+----
+
+=== [[stream]] stream methods
 
 [source, scala]
 ----
 stream(): DataFrame
 stream(path: String): DataFrame
+----
+
+CAUTION: FIXME Review 915a75398ecbccdbf9a1e07333104c857ae1ce5e
+
+`stream` loads input data stream in as a `DataFrame`.
+
+[source, scala]
+----
+Seq("hello", "world").zipWithIndex.toDF("text", "id").write.format("csv").save("text-id.csv")
+
+val csvStream = sqlContext.read.format("csv").stream("text-id.csv")
+----
+
+=== [[creating-dataframes-from-tables]] Creating DataFrames from Tables
+
+==== [[jdbc]] jdbc method
+
+[source, scala]
+----
+jdbc(url: String, table: String, properties: Properties): DataFrame
+jdbc(url: String, table: String,
+  parts: Array[Partition],
+  connectionProperties: Properties): DataFrame
+jdbc(url: String, table: String,
+  predicates: Array[String],
+  connectionProperties: Properties): DataFrame
+jdbc(url: String, table: String,
+  columnName: String,
+  lowerBound: Long,
+  upperBound: Long,
+  numPartitions: Int,
+  connectionProperties: Properties): DataFrame
+----
+
+`jdbc` allows you to create `DataFrame` that represents `table` in the database available as `url`.
+
+==== [[table]] table method
+
+[source, scala]
+----
+table(tableName: String): DataFrame
+----
+
+`table` method returns the `tableName` table as a `DataFrame`.
+
+[source, scala]
+----
+scala> sqlContext.sql("SHOW TABLES").show(false)
++---------+-----------+
+|tableName|isTemporary|
++---------+-----------+
+|dafa     |false      |
++---------+-----------+
+
+scala> sqlContext.read.table("dafa").show(false)
++---+-------+
+|id |text   |
++---+-------+
+|1  |swiecie|
+|0  |hello  |
++---+-------+
+----
+
+CAUTION: FIXME The method uses `sqlContext.sessionState.sqlParser.parseTableIdentifier(tableName)` and `sqlContext.sessionState.catalog.lookupRelation`. Would be nice to learn a bit more on their internals, huh?
+
+=== [[creating-dataframes-from-files]] Creating DataFrames from Files
+
+`DataFrameReader` comes with a direct support for multiple file formats:
+
+* <<json, JSON>>
+* <<csv, CSV>>
+* <<parquet, parquet>>
+* <<orc, ORC>>
+* <<text, text>>
+
+==== [[json]] json method
+
+[source, scala]
+----
+json(path: String): DataFrame
+json(paths: String*): DataFrame
+json(jsonRDD: RDD[String]): DataFrame
+----
+
+New in **2.0.0**: `prefersDecimal`
+
+==== [[csv]] csv method
+
+[source, scala]
+----
+csv(paths: String*): DataFrame
+----
+
+==== [[parquet]] parquet method
+
+[source, scala]
+----
+parquet(paths: String*): DataFrame
+----
+
+==== [[orc]] orc method
+
+[source, scala]
+----
+orc(path: String): DataFrame
+----
+
+==== [[text]] text method
+
+`text` method loads a text file.
+
+[source, scala]
+----
+text(paths: String*): Dataset[String]
+----
+
+===== [[text-example]] Example
+
+[source, scala]
+----
+val lines: Dataset[String] = sqlContext.read.text("README.md")
+
+scala> lines.show
++--------------------+
+|               value|
++--------------------+
+|      # Apache Spark|
+|                    |
+|Spark is a fast a...|
+|high-level APIs i...|
+|supports general ...|
+|rich set of highe...|
+|MLlib for machine...|
+|and Spark Streami...|
+|                    |
+|<http://spark.apa...|
+|                    |
+|                    |
+|## Online Documen...|
+|                    |
+|You can find the ...|
+|guide, on the [pr...|
+|and [project wiki...|
+|This README file ...|
+|                    |
+|   ## Building Spark|
++--------------------+
+only showing top 20 rows
 ----
