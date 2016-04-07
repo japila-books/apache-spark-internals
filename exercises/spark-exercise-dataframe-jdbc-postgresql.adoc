@@ -1,0 +1,231 @@
+== Creating DataFrames from Tables using JDBC and PostgreSQL
+
+Start `spark-shell` with the proper JDBC driver.
+
+NOTE: Download PostgreSQL JDBC Driver JDBC 4.1 (`postgresql-9.4.1208.jar`) from http://central.maven.org/maven2/org/postgresql/postgresql/9.4.1208/postgresql-9.4.1208.jar[the Maven repository].
+
+[TIP]
+====
+Execute the command to have the jar downloaded into `~/.ivy2/jars` directory by `spark-shell`:
+
+```
+./bin/spark-shell --packages org.postgresql:postgresql:9.4.1208
+```
+
+The entire path to the driver file is like `/Users/jacek/.ivy2/jars/org.postgresql_postgresql-9.4.1208.jar`.
+====
+
+Start `./bin/spark-shell` with `--driver-class-path` command line option and the driver jar.
+
+```
+SPARK_PRINT_LAUNCH_COMMAND=1 ./bin/spark-shell --driver-class-path /Users/jacek/.m2/repository/org/postgresql/postgresql/9.4.1207.jre7/postgresql-9.4.1207.jre7.jar
+```
+
+It will give you the proper setup for accessing PostgreSQL using the JDBC driver.
+
+Execute the following to access `projects` table in `sparkdb`.
+
+[source, scala]
+----
+val opts = Map(
+  "url" -> "jdbc:postgresql:sparkdb",
+  "dbtable" -> "projects")
+val df = sqlContext
+  .read
+  .format("jdbc")
+  .options(opts)
+  .load
+
+scala> df.show(false)
++---+------------+-----------------------+
+|id |name        |website                |
++---+------------+-----------------------+
+|1  |Apache Spark|http://spark.apache.org|
+|2  |Apache Hive |http://hive.apache.org |
+|3  |Apache Kafka|http://kafka.apache.org|
+|4  |Apache Flink|http://flink.apache.org|
++---+------------+-----------------------+
+----
+
+=== Troubleshooting
+
+If things can go wrong, they sooner or later go wrong. Here is a list of possible issues and their solutions.
+
+==== java.sql.SQLException: No suitable driver
+
+Ensure that the JDBC driver sits on the CLASSPATH. Use `--driver-class-path` as described above.
+
+```
+scala> sqlContext.read.format("jdbc").options(Map("url" -> "jdbc:postgresql:dbserver", "dbtable" -> "projects")).load
+java.sql.SQLException: No suitable driver
+  at java.sql.DriverManager.getDriver(DriverManager.java:315)
+  at org.apache.spark.sql.execution.datasources.jdbc.JdbcUtils$$anonfun$2.apply(JdbcUtils.scala:50)
+  at org.apache.spark.sql.execution.datasources.jdbc.JdbcUtils$$anonfun$2.apply(JdbcUtils.scala:50)
+  at scala.Option.getOrElse(Option.scala:121)
+  at org.apache.spark.sql.execution.datasources.jdbc.JdbcUtils$.createConnectionFactory(JdbcUtils.scala:49)
+  at org.apache.spark.sql.execution.datasources.jdbc.JDBCRDD$.resolveTable(JDBCRDD.scala:123)
+  at org.apache.spark.sql.execution.datasources.jdbc.JDBCRelation.<init>(JDBCRelation.scala:97)
+  at org.apache.spark.sql.execution.datasources.jdbc.DefaultSource.createRelation(DefaultSource.scala:57)
+  at org.apache.spark.sql.execution.datasources.DataSource.resolveRelation(DataSource.scala:225)
+  at org.apache.spark.sql.DataFrameReader.load(DataFrameReader.scala:132)
+  ... 48 elided
+```
+
+=== PostgreSQL Setup
+
+NOTE: I'm on Mac OS X so YMMV (aka _Your Mileage May Vary_).
+
+Use the sections to have a properly configured PostgreSQL database.
+
+* <<installation, Installation>>
+* <<starting-database-server, Starting Database Server>>
+* <<creating-database, Create Database>>
+* <<accessing-database, Accessing Database>>
+* <<creating-table, Creating Table>>
+* <<dropping-database, Dropping Database>>
+* <<stopping-database-server, Stopping Database Server>>
+
+==== [[installation]] Installation
+
+Install PostgreSQL as described in...TK
+
+CAUTION: This page serves as a cheatsheet for the author so he does not have to search Internet to find the installation steps.
+
+```
+$ initdb /usr/local/var/postgres -E utf8
+The files belonging to this database system will be owned by user "jacek".
+This user must also own the server process.
+
+The database cluster will be initialized with locale "pl_pl.utf-8".
+initdb: could not find suitable text search configuration for locale "pl_pl.utf-8"
+The default text search configuration will be set to "simple".
+
+Data page checksums are disabled.
+
+creating directory /usr/local/var/postgres ... ok
+creating subdirectories ... ok
+selecting default max_connections ... 100
+selecting default shared_buffers ... 128MB
+selecting dynamic shared memory implementation ... posix
+creating configuration files ... ok
+creating template1 database in /usr/local/var/postgres/base/1 ... ok
+initializing pg_authid ... ok
+initializing dependencies ... ok
+creating system views ... ok
+loading system objects' descriptions ... ok
+creating collations ... ok
+creating conversions ... ok
+creating dictionaries ... ok
+setting privileges on built-in objects ... ok
+creating information schema ... ok
+loading PL/pgSQL server-side language ... ok
+vacuuming database template1 ... ok
+copying template1 to template0 ... ok
+copying template1 to postgres ... ok
+syncing data to disk ... ok
+
+WARNING: enabling "trust" authentication for local connections
+You can change this by editing pg_hba.conf or using the option -A, or
+--auth-local and --auth-host, the next time you run initdb.
+
+Success. You can now start the database server using:
+
+    pg_ctl -D /usr/local/var/postgres -l logfile start
+```
+
+==== [[starting-database-server]] Starting Database Server
+
+NOTE: Consult http://www.postgresql.org/docs/current/static/server-start.html[17.3. Starting the Database Server] in the official documentation.
+
+Start the database server using `pg_ctl`.
+
+```
+$ pg_ctl -D /usr/local/var/postgres -l logfile start
+server starting
+```
+
+Alternatively, you can run the database server using `postgres`.
+
+```
+$ postgres -D /usr/local/var/postgres
+```
+
+==== [[creating-database]] Create Database
+
+```
+$ createdb sparkdb
+```
+
+TIP: Consult http://www.postgresql.org/docs/current/static/app-createdb.html[createdb] in the official documentation.
+
+==== Accessing Database
+
+Use `psql sparkdb` to access the database.
+
+```
+$ psql sparkdb
+psql (9.5.2)
+Type "help" for help.
+
+sparkdb=#
+```
+
+Execute `SELECT version()` to know the version of the database server you have connected to.
+
+```
+sparkdb=# SELECT version();
+                                                   version
+--------------------------------------------------------------------------------------------------------------
+ PostgreSQL 9.5.2 on x86_64-apple-darwin14.5.0, compiled by Apple LLVM version 7.0.2 (clang-700.1.81), 64-bit
+(1 row)
+```
+
+Use `\h` for help and `\q` to leave a session.
+
+==== Creating Table
+
+Create a table using `CREATE TABLE` command.
+
+```
+CREATE TABLE projects (
+  id SERIAL PRIMARY KEY,
+  name text,
+  website text
+);
+```
+
+Insert rows to initialize the table with data.
+
+```
+INSERT INTO projects (name, website) VALUES ('Apache Spark', 'http://spark.apache.org');
+INSERT INTO projects (name, website) VALUES ('Apache Hive', 'http://hive.apache.org');
+INSERT INTO projects VALUES (DEFAULT, 'Apache Kafka', 'http://kafka.apache.org');
+INSERT INTO projects VALUES (DEFAULT, 'Apache Flink', 'http://flink.apache.org');
+```
+
+Execute `select * from projects;` to ensure that you have the following records in `projects` table:
+
+```
+sparkdb=# select * from projects;
+ id |     name     |         website
+----+--------------+-------------------------
+  1 | Apache Spark | http://spark.apache.org
+  2 | Apache Hive  | http://hive.apache.org
+  3 | Apache Kafka | http://kafka.apache.org
+  4 | Apache Flink | http://flink.apache.org
+(4 rows)
+```
+
+==== Dropping Database
+
+```
+$ dropdb sparkdb
+```
+
+TIP: Consult http://www.postgresql.org/docs/current/static/app-dropdb.html[dropdb] in the official documentation.
+
+==== Stopping Database Server
+
+```
+pg_ctl -D /usr/local/var/postgres stop
+```
