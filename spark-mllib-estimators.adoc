@@ -34,7 +34,7 @@ Some of the direct specialized implementations of the `Estimator` abstract class
 
 `KMeans` class is an implementation of the machine learning clustering algorithm with support for *k-means||* (aka *k-means parallel*) in Spark MLlib.
 
-Shortly speaking, k-means is a highly iterative machine learning algorithm which assigns data set of points to `k` clusters (by the nearest mean). The algorithm has gained popularity for its relative simplicity and parallelism.
+Shortly speaking, k-means is a highly iterative machine learning algorithm which groups data set of points to a predefined number of `k` clusters (by the nearest mean). The algorithm has gained popularity for its relative simplicity and parallelism in an unsupervised way.
 
 NOTE: K-Means algorithm uses https://en.wikipedia.org/wiki/Lloyd%27s_algorithm[Lloyd's algorithm] in computer science.
 
@@ -50,9 +50,27 @@ TIP: Do `import org.apache.spark.ml.clustering.KMeans` to work with `KMeans` alg
 * Number of steps for the k-means|| (`initSteps`): `5`
 * Convergence tolerance (`tol`): `1e-4`
 
+[source, scala]
+----
+import org.apache.spark.ml.clustering._
+val kmeans = new KMeans()
+
+scala> println(kmeans.explainParams)
+featuresCol: features column name (default: features)
+initMode: initialization algorithm (default: k-means||)
+initSteps: number of steps for k-means|| (default: 5)
+k: number of clusters to create (default: 2)
+maxIter: maximum number of iterations (>= 0) (default: 20)
+predictionCol: prediction column name (default: prediction)
+seed: random seed (default: -1689246527)
+tol: the convergence tolerance for iterative algorithms (default: 1.0E-4)
+----
+
 `KMeans` assumes that `featuresCol` is of type link:spark-mllib-vector.adoc[VectorUDT] and appends `predictionCol` of type `IntegerType`.
 
-`fit` method "unwraps" the feature vector out of `featuresCol` column in the input `DataFrame` and creates an `RDD[Vector]`. It then hands the call over to the MLlib variant of KMeans in `org.apache.spark.mllib.clustering.KMeans`. The result is copied to `KMeansModel` with a calculated `KMeansSummary`.
+Internally, `fit` method "unwraps" the feature vector in `featuresCol` column in the input `DataFrame` and creates an `RDD[Vector]`. It then hands the call over to the MLlib variant of KMeans in `org.apache.spark.mllib.clustering.KMeans`. The result is copied to `KMeansModel` with a calculated `KMeansSummary`.
+
+Each item (row) in a data set is described by a numeric vector of attributes called `features`. A single feature (a dimension of the vector) represents a word (token) with a value that is a metric that defines the importance of that word or term in the document.
 
 [TIP]
 ====
@@ -69,33 +87,72 @@ Refer to link:spark-logging.adoc[Logging].
 
 ==== [[kmeans-example]] KMeans Example
 
+You can represent a text corpus (document collection) using the vector space model. In this representation, the vectors have dimension that is the number of different words in the corpus. It is quite natural to have vectors with a lot of zero values as not all words will be in a document. We will use an optimized memory representation to avoid zero values using link:spark-mllib-vector.adoc[sparse vectors].
+
+This example shows how to use k-means to classify emails as a spam or not.
+
 [source,scala]
 ----
-// Prepare a training dataset
-import org.apache.spark.mllib.linalg.Vectors
-val trainingDF = Seq(
-  (0.1, Vectors.dense(0.1, 0.1)),
-  (0.2, Vectors.dense(0.1, 0.2)),
-  (0.3, Vectors.dense(0.1, 0.3)),
-  (0.4, Vectors.dense(0.1, 0.4))).toDF("label", "features")
+// NOTE Don't copy and paste the final case class with the other lines
+// It won't work with paste mode in spark-shell
+final case class Email(id: Int, text: String)
+
+val emails = Seq(
+  "This is an email from your lovely wife. Your mom says...",
+  "SPAM SPAM spam",
+  "Hello, We'd like to offer you").zipWithIndex.map(_.swap).toDF("id", "text").as[Email]
+
+// Prepare data for k-means
+// Pass emails through a "pipeline" of transformers
+import org.apache.spark.ml.feature._
+val tok = new RegexTokenizer()
+  .setInputCol("text")
+  .setOutputCol("tokens")
+  .setPattern("\\W+")
+
+val hashTF = new HashingTF()
+  .setInputCol("tokens")
+  .setOutputCol("features")
+  .setNumFeatures(20)
+
+val preprocess = (tok.transform _).andThen(hashTF.transform)
+
+val features = preprocess(emails.toDF)
+
+scala> features.select('text, 'features).show(false)
++--------------------------------------------------------+------------------------------------------------------------+
+|text                                                    |features                                                    |
++--------------------------------------------------------+------------------------------------------------------------+
+|This is an email from your lovely wife. Your mom says...|(20,[0,3,6,8,10,11,17,19],[1.0,2.0,1.0,1.0,2.0,1.0,2.0,1.0])|
+|SPAM SPAM spam                                          |(20,[13],[3.0])                                             |
+|Hello, We'd like to offer you                           |(20,[0,2,7,10,11,19],[2.0,1.0,1.0,1.0,1.0,1.0])             |
++--------------------------------------------------------+------------------------------------------------------------+
 
 import org.apache.spark.ml.clustering.KMeans
 val kmeans = new KMeans
 
-scala> val kmModel = kmeans.fit(trainingDF)
-16/04/02 23:04:07 WARN KMeans: The input data is not directly cached, which may hurt performance if its parent RDDs are also uncached.
-16/04/02 23:04:07 WARN BLAS: Failed to load implementation from: com.github.fommil.netlib.NativeSystemBLAS
-16/04/02 23:04:07 WARN BLAS: Failed to load implementation from: com.github.fommil.netlib.NativeRefBLAS
-16/04/02 23:04:08 INFO KMeans: Initialization with k-means|| took 0.805 seconds.
-16/04/02 23:04:08 INFO KMeans: Run 0 finished in 1 iterations
-16/04/02 23:04:08 INFO KMeans: Iterations took 0.041 seconds.
-16/04/02 23:04:08 INFO KMeans: KMeans converged in 1 iterations.
-16/04/02 23:04:08 INFO KMeans: The cost for the best run is 0.020000000000000073.
-16/04/02 23:04:08 WARN KMeans: The input data was not directly cached, which may hurt performance if its parent RDDs are also uncached.
-kmModel: org.apache.spark.ml.clustering.KMeansModel = kmeans_3309bcc56cee
+scala> val kmModel = kmeans.fit(features.toDF)
+16/04/08 15:57:37 WARN KMeans: The input data is not directly cached, which may hurt performance if its parent RDDs are also uncached.
+16/04/08 15:57:37 INFO KMeans: Initialization with k-means|| took 0.219 seconds.
+16/04/08 15:57:37 INFO KMeans: Run 0 finished in 1 iterations
+16/04/08 15:57:37 INFO KMeans: Iterations took 0.030 seconds.
+16/04/08 15:57:37 INFO KMeans: KMeans converged in 1 iterations.
+16/04/08 15:57:37 INFO KMeans: The cost for the best run is 5.000000000000002.
+16/04/08 15:57:37 WARN KMeans: The input data was not directly cached, which may hurt performance if its parent RDDs are also uncached.
+kmModel: org.apache.spark.ml.clustering.KMeansModel = kmeans_7a13a617ce0b
 
-scala> kmModel.clusterCenters
-res0: Array[org.apache.spark.mllib.linalg.Vector] = Array([0.1,0.3], [0.1,0.1])
+scala> kmModel.clusterCenters.map(_.toSparse)
+res36: Array[org.apache.spark.mllib.linalg.SparseVector] = Array((20,[13],[3.0]), (20,[0,2,3,6,7,8,10,11,17,19],[1.5,0.5,1.0,0.5,0.5,0.5,1.5,1.0,1.0,1.0]))
+
+val email = Seq("hello mom").toDF("text")
+val result = kmModel.transform(preprocess(email))
+
+scala> .show(false)
++---------+------------+---------------------+----------+
+|text     |tokens      |features             |prediction|
++---------+------------+---------------------+----------+
+|hello mom|[hello, mom]|(20,[2,19],[1.0,1.0])|1         |
++---------+------------+---------------------+----------+
 ----
 
 === [[Predictor]] Predictors
