@@ -16,7 +16,7 @@ See  https://github.com/apache/spark/blob/master/sql/core/src/main/scala/org/apa
 
 It is only with Datasets to have syntax and analysis checks at compile time (that is not possible using link:spark-sql-dataframe.adoc[DataFrame], regular SQL queries or even RDDs).
 
-Using `Dataset` objects turns `DataFrames` of link:spark-sql-dataframe-row.adoc[Row] instances into a `DataFrames` of case classes with proper names and types (following their equivalents in the case classes). Instead of using indices to access respective fields in a DataFrame and cast it to a type, all this is automatically handled by Datasets (and checked by the Scala compiler).
+Using `Dataset` objects turns `DataFrames` of link:spark-sql-dataframe-row.adoc[Row] instances into a `DataFrames` of case classes with proper names and types (following their equivalents in the case classes). Instead of using indices to access respective fields in a DataFrame and cast it to a type, all this is automatically handled by Datasets and checked by the Scala compiler.
 
 Datasets run on link:spark-sql-tungsten.adoc[Tungsten] to optimize its performance.
 
@@ -121,7 +121,7 @@ The features of the Dataset API in Spark SQL:
 
 === [[implicits]] Type Conversions to Dataset[T]
 
-`DatasetHolder` case class offers three methods that do the conversions from `T` type to `Dataset[T]`:
+`DatasetHolder` case class offers three methods that do the conversions from `Seq[T]` or `RDD[T]` type to `Dataset[T]`:
 
 * `toDS(): Dataset[T]`
 * `toDF(): DataFrame`
@@ -129,12 +129,21 @@ The features of the Dataset API in Spark SQL:
 
 NOTE: `DataFrame` is a type alias of `Dataset[Row]`.
 
-`DatasetHolder` is used by `SQLImplicits` that is available to use after importing `implicits` object of `SQLContext`.
+`DatasetHolder` is used by `SQLImplicits` that is available to use after link:spark-sql-sqlcontext.adoc#implicits[importing implicits object of SQLContext].
 
 [source, scala]
 ----
-// NOTE sqlContext is an SQLContext instance
-import sqlContext.implicits._
+scala> Seq("hello").toDS
+res0: org.apache.spark.sql.Dataset[String] = [value: string]
+
+scala> Seq("hello").toDF
+res1: org.apache.spark.sql.DataFrame = [value: string]
+
+scala> Seq("hello").toDF("text")
+res2: org.apache.spark.sql.DataFrame = [text: string]
+
+scala> sc.parallelize(Seq("hello")).toDS
+res3: org.apache.spark.sql.Dataset[String] = [value: string]
 ----
 
 [NOTE]
@@ -183,13 +192,73 @@ CAUTION: FIXME What types are supported by Encoders
 
 CAUTION: FIXME
 
-It works with the type of the accompanying Dataset.
+`Encoder` works with the type of the accompanying Dataset.
 
 An `Encoder` object is used to convert your domain object (a JVM object) into Spark's internal representation. It is designed for fast serialization and deserialization.
 
+NOTE: Encoders are part of link:spark-sql-catalyst.adoc[Catalyst Optimizer].
+
 NOTE: link:spark-sql-sqlcontext.adoc#implicits[SQLContext.implicits] object comes with Encoders for many types in Scala.
 
-Encoders map columns (of your dataset) to field (of your JVM object) by name. It is by Encoders that you can bridge JVM objects and data sources (CSV, JDBC, Parquet, Avro, JSON, Cassandra, Elasticsearch, memsql).
+Encoders map columns (of your dataset) to field (of your JVM object) by name. It is by Encoders that you can bridge JVM objects to data sources (CSV, JDBC, Parquet, Avro, JSON, Cassandra, Elasticsearch, memsql) and vice versa.
+
+=== [[toJSON]] toJSON
+
+`toJSON` maps the content of `Dataset` to a `Dataset` of JSON strings.
+
+NOTE: A new feature in Spark **2.0.0**.
+
+[source, scala]
+----
+scala> val ds = Seq("hello", "world", "foo bar").toDS
+ds: org.apache.spark.sql.Dataset[String] = [value: string]
+
+scala> ds.toJSON.show
++-------------------+
+|              value|
++-------------------+
+|  {"value":"hello"}|
+|  {"value":"world"}|
+|{"value":"foo bar"}|
++-------------------+
+----
+
+=== [[explain]] explain
+
+[source, scala]
+----
+explain(): Unit
+explain(extended: Boolean): Unit
+----
+
+`explain` prints the logical and physical plans to the console. You can use it for debugging.
+
+[source, scala]
+----
+scala> ds.explain
+== Physical Plan ==
+LocalTableScan [value#35], [[0,1000000005,6f6c6c6568],[0,1000000005,646c726f77],[0,1000000007,726162206f6f66]]
+
+scala> ds.explain(true)
+== Parsed Logical Plan ==
+LocalRelation [value#35], [[0,1000000005,6f6c6c6568],[0,1000000005,646c726f77],[0,1000000007,726162206f6f66]]
+
+== Analyzed Logical Plan ==
+value: string
+LocalRelation [value#35], [[0,1000000005,6f6c6c6568],[0,1000000005,646c726f77],[0,1000000007,726162206f6f66]]
+
+== Optimized Logical Plan ==
+LocalRelation [value#35], [[0,1000000005,6f6c6c6568],[0,1000000005,646c726f77],[0,1000000007,726162206f6f66]]
+
+== Physical Plan ==
+LocalTableScan [value#35], [[0,1000000005,6f6c6c6568],[0,1000000005,646c726f77],[0,1000000007,726162206f6f66]]
+----
+
+=== [[isStreaming]] isStreaming
+
+`isStreaming` returns `true` when `Dataset` contains `StreamingRelation` or `StreamingExecutionRelation` that represent *streaming sources*.
+
+NOTE: A new feature in Spark **2.0.0**.
 
 === [[QueryExecution]] QueryExecution
 
