@@ -1,0 +1,109 @@
+== Hive Integration
+
+Spark SQL supports http://hive.apache.org/[Apache Hive] using `HiveContext`. It uses the Spark SQL execution engine to work with data stored in Hive.
+
+[NOTE]
+====
+From https://en.wikipedia.org/wiki/Apache_Hive[Wikipedia, the free encyclopedia]:
+
+> Apache Hive supports analysis of large datasets stored in Hadoop's HDFS and compatible file systems such as Amazon S3 filesystem.
+>
+> It provides an SQL-like language called HiveQL with schema on read and transparently converts queries to Hadoop MapReduce, Apache Tez and Apache Spark jobs.
+>
+> All three execution engines can run in Hadoop YARN.
+====
+
+`HiveContext` is a specialized `SQLContext` to work with Hive.
+
+TIP: Import `org.apache.spark.sql.hive` package to use `HiveContext`.
+
+[TIP]
+====
+Enable `DEBUG` logging level for `HiveContext` to see what happens inside.
+
+Add the following line to `conf/log4j.properties`:
+
+```
+log4j.logger.org.apache.spark.sql.hive.HiveContext=DEBUG
+```
+
+Refer to link:spark-logging.adoc[Logging].
+====
+
+=== Hive Configuration - hive-site.xml
+
+The configuration for Hive is in `hive-site.xml` on the classpath.
+
+The default configuration uses Hive 1.2.1 with the default warehouse in `/user/hive/warehouse`.
+
+```
+16/04/09 13:37:54 INFO HiveContext: Initializing execution hive, version 1.2.1
+16/04/09 13:37:58 WARN ObjectStore: Version information not found in metastore. hive.metastore.schema.verification is not enabled so recording the schema version 1.2.0
+16/04/09 13:37:58 WARN ObjectStore: Failed to get database default, returning NoSuchObjectException
+16/04/09 13:37:58 INFO HiveContext: default warehouse location is /user/hive/warehouse
+16/04/09 13:37:58 INFO HiveContext: Initializing HiveMetastoreConnection version 1.2.1 using Spark classes.
+16/04/09 13:38:01 DEBUG HiveContext: create HiveContext
+```
+
+=== HiveSessionState
+
+CAUTION: FIXME
+
+=== current_database function
+
+`current_database` function returns the current database of Hive metadata.
+
+```
+scala> sql("select current_database()").show(false)
+16/04/09 13:52:13 INFO HiveSqlParser: Parsing command: select current_database()
++-----------------+
+|currentdatabase()|
++-----------------+
+|default          |
++-----------------+
+```
+
+`current_database` function is registered when `HiveContext` is initialized.
+
+Internally, it uses private `CurrentDatabase` class that uses `HiveContext.sessionState.catalog.getCurrentDatabase`.
+
+=== Analyzing Tables
+
+[source, scala]
+----
+analyze(tableName: String)
+----
+
+`analyze` analyzes `tableName` table for query optimizations. It currently supports only Hive tables.
+
+```
+scala> sql("show tables").show(false)
+16/04/09 14:04:10 INFO HiveSqlParser: Parsing command: show tables
++---------+-----------+
+|tableName|isTemporary|
++---------+-----------+
+|dafa     |false      |
++---------+-----------+
+
+scala> sqlContext.asInstanceOf[HiveContext].analyze("dafa")
+16/04/09 14:02:56 INFO HiveSqlParser: Parsing command: dafa
+java.lang.UnsupportedOperationException: Analyze only works for Hive tables, but dafa is a LogicalRelation
+  at org.apache.spark.sql.hive.HiveContext.analyze(HiveContext.scala:304)
+  ... 50 elided
+```
+
+=== Hive Thrift server
+
+CAUTION: FIXME
+
+=== Experimental: Metastore Tables with non-Hive SerDe
+
+CAUTION: FIXME Review the uses of `convertMetastoreParquet`, `convertMetastoreParquetWithSchemaMerging`, `convertMetastoreOrc`, `convertCTAS`.
+
+=== [[settings]] Settings
+
+* `spark.sql.hive.metastore.version` (default: `1.2.1`) - the version of the Hive metastore. Supported versions from `0.12.0` up to and including `1.2.1`.
+
+* `spark.sql.hive.version` (default: `1.2.1`) - the version of Hive used by Spark SQL.
+
+CAUTION: FIXME Review `HiveContext` object.
