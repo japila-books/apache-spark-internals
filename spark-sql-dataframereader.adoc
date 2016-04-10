@@ -29,6 +29,7 @@ Supported data formats:
 * `orc`
 * `text`
 * `jdbc`
+* `libsvm` (using `sqlContext.read.format("libsvm")`)
 
 NOTE: You can improve your understanding of `format("jdbc")` with the exercise link:exercises/spark-exercise-dataframe-jdbc-postgresql.adoc[Creating DataFrames from Tables using JDBC and PostgreSQL].
 
@@ -130,6 +131,61 @@ csv(paths: String*): DataFrame
 [source, scala]
 ----
 parquet(paths: String*): DataFrame
+----
+
+The supported options:
+
+* <<compression, compression>> (default: `snappy`)
+
+New in *2.0.0*: `snappy` is the default Parquet codec. See https://github.com/apache/spark/commit/2f0b882e5c8787b09bedcc8208e6dcc5662dbbab[[SPARK-14482\][SQL\] Change default Parquet codec from gzip to snappy].
+
+[[compression]] The compressions supported:
+
+* `none` or `uncompressed`
+* `snappy` - the default codec in Spark *2.0.0*.
+* `gzip` - the default codec in Spark before *2.0.0*
+* `lzo`
+
+[source, scala]
+----
+val tokens = Seq("hello", "henry", "and", "harry")
+  .zipWithIndex
+  .map(_.swap)
+  .toDF("id", "token")
+
+val parquetWriter = tokens.write
+parquetWriter.option("compression", "none").save("hello-none")
+
+// The exception is mostly for my learning purposes
+// so I know where and how to find the trace to the compressions
+// Sorry...
+scala> parquetWriter.option("compression", "unsupported").save("hello-unsupported")
+java.lang.IllegalArgumentException: Codec [unsupported] is not available. Available codecs are uncompressed, gzip, lzo, snappy, none.
+  at org.apache.spark.sql.execution.datasources.parquet.ParquetOptions.<init>(ParquetOptions.scala:43)
+  at org.apache.spark.sql.execution.datasources.parquet.DefaultSource.prepareWrite(ParquetRelation.scala:77)
+  at org.apache.spark.sql.execution.datasources.InsertIntoHadoopFsRelation$$anonfun$run$1$$anonfun$4.apply(InsertIntoHadoopFsRelation.scala:122)
+  at org.apache.spark.sql.execution.datasources.InsertIntoHadoopFsRelation$$anonfun$run$1$$anonfun$4.apply(InsertIntoHadoopFsRelation.scala:122)
+  at org.apache.spark.sql.execution.datasources.BaseWriterContainer.driverSideSetup(WriterContainer.scala:103)
+  at org.apache.spark.sql.execution.datasources.InsertIntoHadoopFsRelation$$anonfun$run$1.apply$mcV$sp(InsertIntoHadoopFsRelation.scala:141)
+  at org.apache.spark.sql.execution.datasources.InsertIntoHadoopFsRelation$$anonfun$run$1.apply(InsertIntoHadoopFsRelation.scala:116)
+  at org.apache.spark.sql.execution.datasources.InsertIntoHadoopFsRelation$$anonfun$run$1.apply(InsertIntoHadoopFsRelation.scala:116)
+  at org.apache.spark.sql.execution.SQLExecution$.withNewExecutionId(SQLExecution.scala:53)
+  at org.apache.spark.sql.execution.datasources.InsertIntoHadoopFsRelation.run(InsertIntoHadoopFsRelation.scala:116)
+  at org.apache.spark.sql.execution.command.ExecutedCommand.sideEffectResult$lzycompute(commands.scala:61)
+  at org.apache.spark.sql.execution.command.ExecutedCommand.sideEffectResult(commands.scala:59)
+  at org.apache.spark.sql.execution.command.ExecutedCommand.doExecute(commands.scala:73)
+  at org.apache.spark.sql.execution.SparkPlan$$anonfun$execute$1.apply(SparkPlan.scala:118)
+  at org.apache.spark.sql.execution.SparkPlan$$anonfun$execute$1.apply(SparkPlan.scala:118)
+  at org.apache.spark.sql.execution.SparkPlan$$anonfun$executeQuery$1.apply(SparkPlan.scala:137)
+  at org.apache.spark.rdd.RDDOperationScope$.withScope(RDDOperationScope.scala:151)
+  at org.apache.spark.sql.execution.SparkPlan.executeQuery(SparkPlan.scala:134)
+  at org.apache.spark.sql.execution.SparkPlan.execute(SparkPlan.scala:117)
+  at org.apache.spark.sql.execution.QueryExecution.toRdd$lzycompute(QueryExecution.scala:65)
+  at org.apache.spark.sql.execution.QueryExecution.toRdd(QueryExecution.scala:65)
+  at org.apache.spark.sql.execution.datasources.DataSource.write(DataSource.scala:390)
+  at org.apache.spark.sql.DataFrameWriter.save(DataFrameWriter.scala:247)
+  at org.apache.spark.sql.DataFrameWriter.save(DataFrameWriter.scala:230)
+  ... 48 elided
 ----
 
 ==== [[orc]] orc method
