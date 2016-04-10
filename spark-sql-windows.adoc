@@ -1,4 +1,4 @@
-== Windows in DataFrames
+== Windows
 
 * Window-based framework since 1.4
 * Window function support in Spark SQL
@@ -32,13 +32,78 @@ IMPORTANT: Where are they defined in the code?
 
 For aggregate functions, users can use any existing aggregate function as a window function.
 
+=== [[window-object]] Window object
+
+`Window` object defines functions to define windows.
+
+CAUTION: FIXME What is a window? How is this different from groups like `groupBy`?
+
+NOTE: It is an experimental feature since Spark *1.4.0*.
+
+There are two families of the available functions in `Window` object that create <<WindowSpec, WindowSpec>> instance for one or many link:spark-sql-columns.adoc[Column] instances:
+
+* <<partitionBy, partitionBy>>
+* <<orderBy, orderBy>>
+
+`Window` object lives in `org.apache.spark.sql.expressions` package. Import it to use `Window` functions.
+
+[source, scala]
+----
+import org.apache.spark.sql.expressions.Window
+----
+
+==== [[partitionBy]] partitionBy
+
+[source, scala]
+----
+partitionBy(colName: String, colNames: String*): WindowSpec
+partitionBy(cols: Column*): WindowSpec
+----
+
+`partitionBy` creates an instance of `WindowSpec` with partition expression(s) defined for one or more columns.
+
+[source, scala]
+----
+val byHTokens = Window.partitionBy('token startsWith "h")
+val result = tokens.select('*, sum('id) over byHTokens as "sum over h tokens").orderBy('id)
+
+scala> .show
++---+-----+-----------------+
+| id|token|sum over h tokens|
++---+-----+-----------------+
+|  0|hello|                4|
+|  1|henry|                4|
+|  2|  and|                2|
+|  3|harry|                4|
++---+-----+-----------------+
+----
+
+==== [[orderBy]] orderBy
+
+[source, scala]
+----
+orderBy(colName: String, colNames: String*): WindowSpec
+orderBy(cols: Column*): WindowSpec
+----
+
 === Window functions
 
 You can mark a function _window_ by the `OVER` clause after a supported function in SQL, e.g. `avg(revenue) OVER (...);` or the `over` method on a supported function in the DataFrame API, e.g. `rank().over(...)`.
 
-=== Window Specification
+=== [[WindowSpec]] WindowSpec - Window Specification
 
-Any window function needs a *Window specification*. A window specification defines which rows are included in the frame associated with a given input row.
+Any window function needs a *window specification* which is an instance of `WindowSpec` class.
+
+NOTE: `WindowSpec` class is marked as experimental since *1.4.0*.
+
+A window specification defines which rows are included in a frame (associated with a given input row) by *partitioning* an entire data set and specifying *frame boundary* with *ordering*.
+
+NOTE: Use static methods in <<window-object, Window object>> to create a `WindowSpec`.
+
+[source, scala]
+----
+
+----
 
 A window specification includes three parts:
 
