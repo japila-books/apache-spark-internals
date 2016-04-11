@@ -2,26 +2,79 @@
 
 `DataFrameWriter` is used to write link:spark-sql-dataframe.adoc[DataFrame] to external storage systems or <<streams, data streams>>.
 
-=== [[streams]] Data Streams
-
-`DataFrameWriter` comes with `stream` methods to return a link:spark-sql-continuousquery.adoc[ContinuousQuery] object.
+Use link:spark-sql-dataframe.adoc#write[write method] on a `DataFrame` to access it.
 
 [source, scala]
 ----
-stream(): ContinuousQuery // <1>
-stream(path: String): ContinuousQuery
+import org.apache.spark.sql.DataFrameWriter
+val df = ...
+val writer: DataFrameWriter = df.write
 ----
-<1> Uses `queryName` option or generates a random name.
+
+It has a direct support for many <<writing-dataframes-to-files, file formats>> and <<format, interface for new ones>>. It assumes <<parquet, parquet>> as the default data source format that you can change using link:spark-sql-settings.adoc[spark.sql.sources.default] setting.
+
+=== [[writing-dataframes-to-files]] Writing DataFrames to Files
+
+CAUTION: FIXME
+
+=== [[format]] Specifying Data Format (format method)
+
+CAUTION: FIXME Compare to DataFrameReader.
+
+=== [[parquet]] Parquet
+
+CAUTION: FIXME
+
+NOTE: Parquet is the default data source format.
+
+=== [[streams]] Data Streams (startStream methods)
+
+`DataFrameWriter` comes with `startStream` methods to return a link:spark-sql-continuousquery.adoc[ContinuousQuery] object.
+
+NOTE: It is available since Spark *2.0.0*.
 
 [source, scala]
 ----
-scala> val df = sqlContext.read.option("inferSchema", "true").format("csv").stream("input")
-df: org.apache.spark.sql.DataFrame = [C0: string]
-
-scala> val handle = df.write.format("text").stream("output")
-java.lang.UnsupportedOperationException: Data source text does not support streamed writing
-  at org.apache.spark.sql.execution.datasources.ResolvedDataSource$.createSink(ResolvedDataSource.scala:118)
-  at org.apache.spark.sql.DataFrameWriter.stream(DataFrameWriter.scala:238)
-  at org.apache.spark.sql.DataFrameWriter.stream(DataFrameWriter.scala:227)
-  ... 49 elided
+startStream(): ContinuousQuery
+startStream(path: String): ContinuousQuery
 ----
+
+`startStream(path: String)` sets `path` option to `path` and calls `startStream()`.
+
+==== [[streams-MemorySink]] MemorySink
+
+`MemorySink` is an internal sink exposed for testing. It is available as `memory` format that requires a query name (by `queryName` method or `queryName` option).
+
+NOTE: It was introduced in the https://github.com/apache/spark/pull/12119[pull request for [SPARK-14288\][SQL\] Memory Sink for streaming].
+
+Its aim is to allow users to test streaming applications in the Spark shell or other local tests.
+
+You can set `checkpointLocation` using `option` method or it will be set to link:spark-sql-settings.adoc#spark.sql.streaming.checkpointLocation[spark.sql.streaming.checkpointLocation] setting.
+
+If `spark.sql.streaming.checkpointLocation` is set, the code uses `$location/$queryName` directory.
+
+Finally, when no `spark.sql.streaming.checkpointLocation` is set, a temporary directory `memory.stream` under `java.io.tmpdir` is used with `offsets` subdirectory inside.
+
+NOTE: The directory is cleaned up at shutdown using `ShutdownHookManager.registerShutdownDeleteDir`.
+
+[source, scala]
+----
+val nums = (0 to 10).toDF("num")
+
+scala> val outStream = nums.write
+  .format("memory")
+  .queryName("memStream")
+  .startStream()
+16/04/11 19:37:05 INFO HiveSqlParser: Parsing command: memStream
+outStream: org.apache.spark.sql.ContinuousQuery = Continuous Query - memStream [state = ACTIVE]
+----
+
+It creates `MemorySink` instance based on the schema of the DataFrame it operates on.
+
+It creates a new DataFrame using `MemoryPlan` with `MemorySink` instance created earlier and registers it as a temporary table (using link:spark-sql-dataframe.adoc#registerTempTable[DataFrame.registerTempTable] method).
+
+NOTE: At this point you can query the table as if it were a regular non-streaming table using link:spark-sql-sqlcontext.adoc#sql[sql] method.
+
+A new link:spark-sql-continuousquery.adoc[ContinuousQuery] is started (using link:spark-sql-continuousquerymanager.adoc#startQuery[ContinuousQueryManager.startQuery]) and returned.
+
+CAUTION: FIXME Describe `else` part.
