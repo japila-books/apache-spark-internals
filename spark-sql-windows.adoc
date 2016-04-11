@@ -2,17 +2,87 @@
 
 *Windowed Aggregates* (aka *Windows*) operate on a group of rows (a row set) called a *window* to apply aggregation on. They calculate a value for every input row for its window.
 
-NOTE: Window-based framework is available since Spark *1.4.0*.
+NOTE: Window-based framework is available as an experimental feature since Spark *1.4.0*.
 
-A window specification defines the *partitioning*, *ordering*, and *frame boundaries*.
+Spark SQL supports three kinds of <<functions, windowed aggregate function>>: *ranking* functions, *analytic* functions, and *aggregate* functions.
 
-Spark SQL supports three kinds of <<functions, window functions>>: *ranking* functions, *analytic* functions, and *aggregate* functions.
+A <<WindowSpec, window specification>> defines the *partitioning*, *ordering*, and *frame boundaries*.
+
+=== [[functions]] Windowed Aggregate Functions
+
+A *windowed aggregate function* calculates a return value over a set of rows called *window* that are _somehow_ related to the current row.
+
+Although similar to link:spark-sql-aggregation.adoc[aggregate functions], a window function does not group rows into a single output row and retains their separate identities. A window function can access rows that are linked to the current row.
+
+TIP: See <<examples, Examples>> section in this document.
+
+Spark SQL supports three kinds of window functions:
+
+* *ranking* functions
+* *analytic* functions
+* *aggregate* functions
+
+.Window functions in Spark SQL (see https://databricks.com/blog/2015/07/15/introducing-window-functions-in-spark-sql.html[Introducing Window Functions in Spark SQL])
+[align="center",width="80%",frame="topbot",options="header"]
+|======================
+|                           |SQL          |DataFrame API
+.5+^.^|*Ranking functions*  |RANK         |rank
+                            |DENSE_RANK   |dense_rank
+                            |PERCENT_RANK |percent_rank
+                            |NTILE        |ntile
+                            |ROW_NUMBER   |row_number
+.5+^.^|*Analytic functions* |CUME_DIST    |cume_dist
+                            |LAG          |lag
+                            |LEAD         |lead
+|======================
+
+For aggregate functions, you can use the existing link:spark-sql-aggregation.adoc[aggregate functions] as window functions.
+
+You can mark a function _window_ by `OVER` clause after a function in SQL, e.g. `avg(revenue) OVER (...)` or link:spark-sql-columns.adoc#over[over method] on a function in the Dataset API, e.g. `rank().over(...)`.
+
+When executed, a window function computes a value for each row in a window.
+
+NOTE: Window functions belong to http://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.sql.functions$[Window functions group] in Spark's Scala API.
+
+=== [[WindowSpec]] WindowSpec - Window Specification
+
+A window function needs a window specification which is an instance of `WindowSpec` class.
+
+NOTE: `WindowSpec` class is marked as experimental since *1.4.0*.
+
+TIP: Consult https://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.sql.expressions.WindowSpec[org.apache.spark.sql.expressions.WindowSpec] API.
+
+A *window specification* defines which rows are included in a *window* (aka a _frame_), i.e. set of rows, that is associated with a given input row. It does so by *partitioning* an entire data set and specifying *frame boundary* with *ordering*.
+
+NOTE: Use static methods in <<window-object, Window object>> to create a `WindowSpec`.
+
+[source, scala]
+----
+import org.apache.spark.sql.expressions.Window
+
+scala> val byHTokens = Window.partitionBy('token startsWith "h")
+byHTokens: org.apache.spark.sql.expressions.WindowSpec = org.apache.spark.sql.expressions.WindowSpec@574985d8
+----
+
+A window specification includes three parts:
+
+1. *Partitioning Specification* defines which rows will be in the same partition for a given row.
+2. *Ordering Specification* defines how rows in a partition are ordered, determining the position of the given row in its partition.
+3. *Frame Specification* (unsupported in Hive; see http://stackoverflow.com/a/32379437/1305344[Why do Window functions fail with "Window function X does not take a frame specification"?]) defines the rows to be included in the frame for the current input row, based on their relative position to the current row. For example, _“the three rows preceding the current row to the current row”_ describes a frame including the current input row and three rows appearing before the current row.
+
+Once `WindowSpec` instance has been created using <<window-object, Window object>>, you can further expand on window specification using the following methods to define <<frame, frames>>:
+
+* `rowsBetween(start: Long, end: Long): WindowSpec`
+* `rangeBetween(start: Long, end: Long): WindowSpec`
+
+Besides the two above, you can also use the following methods (that correspond to the methods in <<window-object, Window object>>):
+
+* `partitionBy`
+* `orderBy`
 
 === [[window-object]] Window object
 
-`Window` object defines functions to define windows.
-
-NOTE: It is an experimental feature since Spark *1.4.0*.
+`Window` object provides functions to define windows (as <<WindowSpec, WindowSpec>> instances).
 
 `Window` object lives in `org.apache.spark.sql.expressions` package. Import it to use `Window` functions.
 
@@ -20,8 +90,6 @@ NOTE: It is an experimental feature since Spark *1.4.0*.
 ----
 import org.apache.spark.sql.expressions.Window
 ----
-
-CAUTION: FIXME What is a window? How is this different from groups like `groupBy`?
 
 There are two families of the functions available in `Window` object that create <<WindowSpec, WindowSpec>> instance for one or many link:spark-sql-columns.adoc[Column] instances:
 
@@ -67,79 +135,21 @@ orderBy(colName: String, colNames: String*): WindowSpec
 orderBy(cols: Column*): WindowSpec
 ----
 
-=== [[functions]] Window functions
-
-Spark SQL supports three kinds of window functions:
-
-* *ranking* functions
-* *analytic* functions
-* *aggregate* functions
-
-.Window functions in Spark SQL (see https://databricks.com/blog/2015/07/15/introducing-window-functions-in-spark-sql.html[Introducing Window Functions in Spark SQL])
-[align="center",width="80%",frame="topbot",options="header"]
-|======================
-| |SQL |DataFrame API
-.5+^.^|*Ranking functions* |rank |rank
-|dense_rank|denseRank
-|percent_rank|percentRank
-|ntile|ntile
-|row_number|rowNumber
-.5+^.^|*Analytic functions* |cume_dist |cumeDist
-|first_value |firstValue
-|last_value |lastValue
-|lag |lag
-|lead |lead
-|======================
-
-For aggregate functions, you can use the existing link:spark-sql-aggregation.adoc[aggregate functions] as window functions.
-
-You can mark a function _window_ by `OVER` clause after a function in SQL, e.g. `avg(revenue) OVER (...)` or link:spark-sql-columns.adoc#over[over method] on a function in the Dataset API, e.g. `rank().over(...)`.
-
-When executed, a window function computes a value for each row in a window.
-
-CAUTION: FIXME How to know what functions to use to `over` the frame? They need to create a frame/window. How to know what functions create it?
-
-=== [[WindowSpec]] WindowSpec - Window Specification
-
-A window function needs a window specification which is an instance of `WindowSpec` class.
-
-NOTE: `WindowSpec` class is marked as experimental since *1.4.0*.
-
-TIP: Consult https://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.sql.expressions.WindowSpec[org.apache.spark.sql.expressions.WindowSpec] API.
-
-A *window specification* defines which rows are included in a *window* (aka a _frame_), i.e. set of rows, that is associated with a given input row. It does so by *partitioning* an entire data set and specifying *frame boundary* with *ordering*.
-
-NOTE: Use static methods in <<window-object, Window object>> to create a `WindowSpec`.
-
-[source, scala]
-----
-import org.apache.spark.sql.expressions.Window
-
-scala> val byHTokens = Window.partitionBy('token startsWith "h")
-byHTokens: org.apache.spark.sql.expressions.WindowSpec = org.apache.spark.sql.expressions.WindowSpec@574985d8
-----
-
-A window specification includes three parts:
-
-1. *Partitioning Specification* defines which rows will be in the same partition for a given row.
-2. *Ordering Specification* defines how rows in a partition are ordered, determining the position of the given row in its partition.
-3. *Frame Specification* (unsupported in Hive; see http://stackoverflow.com/a/32379437/1305344[Why do Window functions fail with "Window function X does not take a frame specification"?]) defines the rows to be included in the frame for the current input row, based on their relative position to the current row. For example, _“the three rows preceding the current row to the current row”_ describes a frame including the current input row and three rows appearing before the current row.
-
-==== [[WindowSpec-examples]] WindowSpec Examples
+==== [[WindowSpec-examples]] Window Examples
 
 Two samples from https://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.sql.expressions.Window$[org.apache.spark.sql.expressions.Window] scaladoc:
 
 ```
 // PARTITION BY country ORDER BY date ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
-Window.partitionBy("country").orderBy("date").rowsBetween(Long.MinValue, 0)
+Window.partitionBy('country).orderBy('date).rowsBetween(Long.MinValue, 0)
 ```
 
 ```
 // PARTITION BY country ORDER BY date ROWS BETWEEN 3 PRECEDING AND 3 FOLLOWING
-Window.partitionBy("country").orderBy("date").rowsBetween(-3, 3)
+Window.partitionBy('country).orderBy('date).rowsBetween(-3, 3)
 ```
 
-=== Frames
+=== [[frame]] Frame
 
 At its core, a window function calculates a return value for every input row of a table based on a group of rows, called the *frame*. Every input row can have a unique frame associated with it.
 
@@ -159,6 +169,13 @@ Types of frames:
 
 * `ROW` - based on _physical offsets_ from the position of the current input row
 * `RANGE` - based on _logical offsets_ from the position of the current input row
+
+In the current implementation of <<WindowSpec, WindowSpec>> you can use two methods to define a frame:
+
+* `rowsBetween`
+* `rangeBetween`
+
+See <<WindowSpec, WindowSpec>> for their coverage.
 
 === [[examples]] Examples
 
@@ -187,8 +204,7 @@ NOTE: This example is borrowed from an _excellent_ article  https://databricks.c
 Question: What are the best-selling and the second best-selling products in every category?
 
 ```
-val columns = Seq("product", "category", "revenue")
-val data = Seq(
+val dataset = Seq(
   ("Thin",       "cell phone", 6000),
   ("Normal",     "tablet",     1500),
   ("Mini",       "tablet",     5500),
@@ -199,9 +215,9 @@ val data = Seq(
   ("Foldable",   "cell phone", 3000),
   ("Pro",        "tablet",     4500),
   ("Pro2",       "tablet",     6500))
-  .toDF(columns: _*)
+  .toDF("product", "category", "revenue")
 
-scala> data.show
+scala> dataset.show
 +----------+----------+-------+
 |   product|  category|revenue|
 +----------+----------+-------+
@@ -217,7 +233,7 @@ scala> data.show
 |      Pro2|    tablet|   6500|
 +----------+----------+-------+
 
-scala> data.where($"category" === "tablet").show
+scala> data.where('category === "tablet").show
 +-------+--------+-------+
 |product|category|revenue|
 +-------+--------+-------+
@@ -233,7 +249,7 @@ The question boils down to ranking products in a category based on their revenue
 
 ```
 import org.apache.spark.sql.expressions.Window
-val overCategory = Window.partitionBy("category").orderBy($"revenue".desc)
+val overCategory = Window.partitionBy('category).orderBy('revenue.desc)
 val rank = dense_rank.over(overCategory)
 
 val ranked = data.withColumn("rank", dense_rank.over(overCategory))
@@ -254,7 +270,7 @@ scala> ranked.show
 |  Foldable|cell phone|   3000|   3|
 +----------+----------+-------+----+
 
-scala> ranked.where($"rank" <= 2).show
+scala> ranked.where('rank <= 2).show
 +----------+----------+-------+----+
 |   product|  category|revenue|rank|
 +----------+----------+-------+----+
@@ -273,9 +289,9 @@ NOTE: This example is the 2nd example from an _excellent_ article  https://datab
 ```
 import org.apache.spark.sql.expressions.Window
 val reveDesc = Window.partitionBy('category).orderBy('revenue.desc)
-val reveDiff = max('revenue).over(reveDesc) - $"revenue"
+val reveDiff = max('revenue).over(reveDesc) - 'revenue
 
-scala> data.select('*, reveDiff as "revenue_diff").show
+scala> data.select('*, reveDiff as 'revenue_diff).show
 +----------+----------+-------+------------+
 |   product|  category|revenue|revenue_diff|
 +----------+----------+-------+------------+
@@ -320,7 +336,7 @@ scala> ds.show
 +---+----+
 
 import org.apache.spark.sql.expressions.Window
-val overNs = Window.partitionBy("ns").orderBy("tens")
+val overNs = Window.partitionBy('ns).orderBy('tens)
 val diff = lead('tens, 1).over(overNs)
 
 scala> ds.withColumn("diff", diff - 'tens).show
@@ -344,6 +360,74 @@ Please note that http://stackoverflow.com/a/32379437/1305344[Why do Window funct
 
 The key here is to remember that DataFrames are RDDs under the covers and hence aggregation like grouping by a key in DataFrames is RDD's `groupBy` (or worse, `reduceByKey` or `aggregateByKey` transformations).
 
+==== [[example-running-total]] Running Total
+
+The *running total* is the sum of all previous lines including the current one.
+
+[source, scala]
+----
+val sales = Seq(
+  (0, 0, 0, 5),
+  (1, 0, 1, 3),
+  (2, 0, 2, 1),
+  (3, 1, 0, 2),
+  (4, 2, 0, 8),
+  (5, 2, 2, 8))
+  .toDF("id", "orderID", "prodID", "orderQty")
+
+scala> sales.show
++---+-------+------+--------+
+| id|orderID|prodID|orderQty|
++---+-------+------+--------+
+|  0|      0|     0|       5|
+|  1|      0|     1|       3|
+|  2|      0|     2|       1|
+|  3|      1|     0|       2|
+|  4|      2|     0|       8|
+|  5|      2|     2|       8|
++---+-------+------+--------+
+
+val orderedByID = Window.orderBy('id)
+
+val totalQty = sum('orderQty).over(orderedByID).as('running_total)
+val salesTotalQty = sales.select('*, totalQty).orderBy('id)
+
+scala> salesTotalQty.show
+16/04/10 23:01:52 WARN Window: No Partition Defined for Window operation! Moving all data to a single partition, this can cause serious performance degradation.
++---+-------+------+--------+-------------+
+| id|orderID|prodID|orderQty|running_total|
++---+-------+------+--------+-------------+
+|  0|      0|     0|       5|            5|
+|  1|      0|     1|       3|            8|
+|  2|      0|     2|       1|            9|
+|  3|      1|     0|       2|           11|
+|  4|      2|     0|       8|           19|
+|  5|      2|     2|       8|           27|
++---+-------+------+--------+-------------+
+
+val byOrderId = orderedByID.partitionBy('orderID)
+val totalQtyPerOrder = sum('orderQty).over(byOrderId).as('running_total_per_order)
+val salesTotalQtyPerOrder = sales.select('*, totalQtyPerOrder).orderBy('id)
+
+scala> salesTotalQtyPerOrder.show
++---+-------+------+--------+-----------------------+
+| id|orderID|prodID|orderQty|running_total_per_order|
++---+-------+------+--------+-----------------------+
+|  0|      0|     0|       5|                      5|
+|  1|      0|     1|       3|                      8|
+|  2|      0|     2|       1|                      9|
+|  3|      1|     0|       2|                      2|
+|  4|      2|     0|       8|                      8|
+|  5|      2|     2|       8|                     16|
++---+-------+------+--------+-----------------------+
+----
+
+=== Interval data type for Date and Timestamp types
+
+See https://issues.apache.org/jira/browse/SPARK-8943[[SPARK-8943\] CalendarIntervalType for time intervals].
+
+With the Interval data type, you could use intervals as values specified in `<value> PRECEDING` and `<value> FOLLOWING` for `RANGE` frame. It is specifically suited for time-series analysis with window functions.
+
 ==== Accessing values of earlier rows
 
 FIXME What's the value of rows before current one?
@@ -355,14 +439,6 @@ FIXME What's the value of rows before current one?
 ==== [[example-cumulative-aggregates]] Cumulative Aggregates
 
 Eg. cumulative sum
-
-==== [[example-running-totals]] Running Totals
-
-=== Interval data type for Date and Timestamp types
-
-See https://issues.apache.org/jira/browse/SPARK-8943[[SPARK-8943\] CalendarIntervalType for time intervals].
-
-With the Interval data type, you could use intervals as values specified in `<value> PRECEDING` and `<value> FOLLOWING` for `RANGE` frame. It is specifically suited for time-series analysis with window functions.
 
 === User-defined aggregate functions
 
