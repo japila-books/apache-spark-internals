@@ -2,31 +2,43 @@
 
 NOTE: `ContinuousQueryManager` is an experimental feature of Spark 2.0.0.
 
-A `ContinuousQueryManager` is the Management API for Continuous Queries to manage link:spark-sql-continuousquery.adoc[ContinuousQuery] instances per single `SQLContext`.
+A `ContinuousQueryManager` is the Management API for Continuous Queries to manage link:spark-sql-continuousquery.adoc[ContinuousQuery] instances per `SQLContext`.
 
 You can access `ContinuousQueryManager` for the current session using link:spark-sql-sqlcontext.adoc#accessing-ContinuousQueryManager[SQLContext.streams] method. It is lazily created when a `SQLContext` instance starts.
 
 [source, scala]
 ----
-scala> val queries = sqlContext.streams
-queries: org.apache.spark.sql.ContinuousQueryManager = org.apache.spark.sql.ContinuousQueryManager@3b22bcad
+val queries = sqlContext.streams
 ----
 
 NOTE: There is a single `ContinuousQueryManager` instance per `SQLContext` session.
+
+=== Initialization
+
+`ContinuousQueryManager` manages the following instances:
+
+* `StateStoreCoordinatorRef` (as `stateStoreCoordinator`)
+* `ContinuousQueryListenerBus` (as `listenerBus`)
+* `activeQueries` which is a mutable mapping between query names and `ContinuousQuery` objects.
 
 === [[startQuery]] startQuery
 
 [source, scala]
 ----
-startQuery(
-  name: String,
-  checkpointLocation: String,
-  df: DataFrame,
-  sink: Sink,
+startQuery(name: String, checkpointLocation: String,
+  df: DataFrame, sink: Sink,
   trigger: Trigger = ProcessingTime(0)): ContinuousQuery
 ----
 
 `startQuery` is a `private[sql]` method to start a link:spark-sql-continuousquery.adoc[ContinuousQuery].
+
+NOTE: It is called exclusively by link:spark-sql-dataframewriter.adoc#startStream[DataFrameWriter.startStream].
+
+`startQuery` makes sure that `activeQueries` internal registry does not contain the query under `name`. It throws an `IllegalArgumentException` if it does.
+
+It transforms the link:spark-sql-logical-plan.adoc[LogicalPlan] of the input DataFrame `df` so all `StreamingRelation` "nodes" become `StreamingExecutionRelation`. It uses link:spark-sql-datasource.adoc#createSource[DataSource.createSource(metadataPath)] where `metadataPath` is `$checkpointLocation/sources/$nextSourceId`. Otherwise, it returns the `LogicalPlan` untouched.
+
+It finally creates link:spark-sql-streamexecution.adoc[StreamExecution] and starts it. It also registers the `StreamExecution` instance in `activeQueries` internal registry.
 
 === [[ContinuousQueryManager-active]] Return All Active Continuous Queries per SQLContext
 
@@ -58,8 +70,40 @@ java.lang.IllegalArgumentException: There is no active query with name hello
   ... 49 elided
 ```
 
+=== [[addListener]][[removeListener]] ContinuousQueryListener Management - Adding or Removing Listeners
+
+* `addListener(listener: ContinuousQueryListener): Unit` adds `listener` to the internal `listenerBus`.
+* `removeListener(listener: ContinuousQueryListener): Unit` removes `listener` from the internal `listenerBus`.
+
+=== [[postListenerEvent]] postListenerEvent
+
+[source, scala]
+----
+postListenerEvent(event: ContinuousQueryListener.Event): Unit
+----
+
+`postListenerEvent` posts a `ContinuousQueryListener.Event` to `listenerBus`.
+
 === [[ContinuousQueryListener]] ContinuousQueryListener
 
 CAUTION: FIXME
 
 `ContinuousQueryListener` is an interface for listening to query life cycle events, i.e. a query start, progress and termination events.
+
+=== [[lastTerminatedQuery]] lastTerminatedQuery - internal barrier
+
+CAUTION: FIXME Why is `lastTerminatedQuery` needed?
+
+Used in:
+
+* `awaitAnyTermination`
+* `awaitAnyTermination(timeoutMs: Long)`
+
+They all wait `10` millis before doing the check of `lastTerminatedQuery` being non-null.
+
+It is set in:
+
+* `resetTerminated()` resets `lastTerminatedQuery`, i.e. sets it to `null`.
+* `notifyQueryTermination(terminatedQuery: ContinuousQuery)` sets `lastTerminatedQuery` to be `terminatedQuery` and notifies all the threads that wait on `awaitTerminationLock`.
++
+It is called from link:spark-sql-streamexecution.adoc#runBatches[StreamExecution.runBatches].
