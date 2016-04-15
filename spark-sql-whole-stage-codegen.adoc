@@ -1,0 +1,60 @@
+== [[WholeStageCodegen]] Whole Stage Codegen
+
+NOTE: Review https://issues.apache.org/jira/browse/SPARK-12795[SPARK-12795 Whole stage codegen] to learn about the work to support it.
+
+*Whole stage codegen* compiles a subtree of plans that support codegen together into a single Java function.
+
+[source, scala]
+----
+val df = sqlContext.range(5)
+
+scala> df.filter(_ % 2 == 0).explain
+== Physical Plan ==
+WholeStageCodegen
+:  +- Filter <function1>.apply
+:     +- Range 0, 1, 8, 5, [id#0L]
+----
+
+The supported plans that support codegen extend `CodegenSupport`:
+
+* Project
+* Filter
+
+It is used by some modern massively parallel processing (MPP) databases to archive great performance. See http://www.vldb.org/pvldb/vol4/p539-neumann.pdf[Efficiently Compiling Efficient Query Plans for Modern Hardware (PDF)].
+
+It uses link:spark-sql-settings.adoc#spark.sql.codegen.wholeStage[spark.sql.codegen.wholeStage] to control...FIXME
+
+=== [[CodegenSupport]] CodegenSupport Trait
+
+`CodegenSupport` is a trait for physical operators with support for codegen. `CodegenSupport` extends `SparkPlan`.
+
+=== [[BenchmarkWholeStageCodegen]] BenchmarkWholeStageCodegen - Performance Benchmark
+
+`BenchmarkWholeStageCodegen` class provides a benchmark to measure whole stage codegen performance.
+
+You can execute it using the command:
+
+```
+build/sbt 'sql/testOnly *BenchmarkWholeStageCodegen'
+```
+
+NOTE: You need to un-ignore tests in `BenchmarkWholeStageCodegen` by replacing `ignore` with `test`.
+
+```
+$ build/sbt 'sql/testOnly *BenchmarkWholeStageCodegen'
+...
+Running benchmark: range/limit/sum
+  Running case: range/limit/sum codegen=false
+22:55:23.028 WARN org.apache.hadoop.util.NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
+  Running case: range/limit/sum codegen=true
+
+Java HotSpot(TM) 64-Bit Server VM 1.8.0_77-b03 on Mac OS X 10.10.5
+Intel(R) Core(TM) i7-4870HQ CPU @ 2.50GHz
+
+range/limit/sum:                    Best/Avg Time(ms)    Rate(M/s)   Per Row(ns)   Relative
+-------------------------------------------------------------------------------------------
+range/limit/sum codegen=false             376 /  433       1394.5           0.7       1.0X
+range/limit/sum codegen=true              332 /  388       1581.3           0.6       1.1X
+
+[info] - range/limit/sum (10 seconds, 74 milliseconds)
+```
