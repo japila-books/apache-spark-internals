@@ -1,10 +1,14 @@
 == Source
 
-`Source` represents a continuous data stream for a streaming query. It generates batches of DataFrame for given offsets.
+`Source` represents a continuous data stream for a streaming query. It generates batches of link:spark-sql-dataframe.adoc[DataFrame] for given start and end offsets. For fault tolerance, a source must be able to replay data given a start offset.
 
-`Source` knows `schema` (as link:spark-sql-dataframe.adoc#StructType[StructType]) of the data, tracks the maximum *offset* (as `Offset`) and can create *batches* for start and end offsets.
+`Source` trait has the following features:
 
-It belongs to `org.apache.spark.sql.execution.streaming` package.
+* *schema* of the data (as link:spark-sql-dataframe.adoc#StructType[StructType] using `schema` method)
+* the maximum *offset* (of type `Offset` using `getOffset` method)
+* Returns a *batch* for start and end offsets (of type DataFrame).
+
+It lives in `org.apache.spark.sql.execution.streaming` package.
 
 [source, scala]
 ----
@@ -18,7 +22,11 @@ There are two available `Source` implementations:
 
 === [[FileStreamSource]] FileStreamSource
 
-`FileStreamSource` is a `Source` implementation that reads text files from the given directory as they appear.
+`FileStreamSource` is a `Source` implementation that reads text files from `path` directory as they appear. It uses `LongOffset` offsets.
+
+You can provide the <<FileStreamSource-schema, schema>> of the data and `dataFrameBuilder` - the function to build a `DataFrame` in <<FileStreamSource-getBatch, getBatch>> at instantiation time.
+
+Batches are indexed.
 
 It lives in `org.apache.spark.sql.execution.streaming` package.
 
@@ -36,5 +44,48 @@ log4j.logger.org.apache.spark.sql.execution.streaming.FileStreamSource=DEBUG
 
 Refer to link:spark-logging.adoc[Logging].
 ====
+
+==== [[FileStreamSource-schema]] schema
+
+If the schema is specified at instantiation time (using `dataSchema` constructor parameter) it is returned.
+
+Otherwise, `fetchAllFiles` internal method is called to list all the files in a directory.
+
+When there is at least one file the schema is calculated using `dataFrameBuilder` constructor parameter function. Else, an `IllegalArgumentException("No schema specified")` is thrown unless it is for *text* provider (as `providerName` constructor parameter) where the default schema with a single `value` column of type `StringType` is assumed.
+
+NOTE: *text* as the value of `providerName` constructor parameter denotes *text file stream provider*.
+
+==== [[FileStreamSource-getOffset]] getOffset
+
+The maximum offset (`getOffset`) is calculated by fetching all the files in `path` excluding files that start with `_` (underscore).
+
+When computing the maximum offset using `getOffset`, you should see the following DEBUG message in the logs:
+
+```
+DEBUG Listed ${files.size} in ${(endTime.toDouble - startTime) / 1000000}ms
+```
+
+When computing the maximum offset using `getOffset`, it also filters out the files that were already seen (tracked in `seenFiles` internal registry).
+
+You should see the following DEBUG message in the logs (depending on the status of a file):
+
+```
+new file: $file
+// or
+old file: $file
+```
+
+==== [[FileStreamSource-getBatch]] getBatch
+
+`FileStreamSource.getBatch` asks `metadataLog` for the batch.
+
+You should see the following INFO and DEBUG messages in the logs:
+
+```
+INFO Processing ${files.length} files from ${startId + 1}:$endId
+DEBUG Streaming ${files.mkString(", ")}
+```
+
+The method to create a result batch is given at instantiation time (as `dataFrameBuilder` constructor parameter).
 
 === [[MemoryStream]] MemoryStream
