@@ -24,7 +24,28 @@ There are two available `Source` implementations:
 
 `FileStreamSource` is a `Source` implementation that reads text files from `path` directory as they appear. It uses `LongOffset` offsets.
 
+NOTE: It is used by link:spark-sql-datasource.adoc#createSource[DataSource.createSource] for `FileFormat`.
+
 You can provide the <<FileStreamSource-schema, schema>> of the data and `dataFrameBuilder` - the function to build a `DataFrame` in <<FileStreamSource-getBatch, getBatch>> at instantiation time.
+
+[source, scala]
+----
+// NOTE The directory must exist
+// mkdir hello
+
+val textReader = sqlContext.read.format("text")
+val in = textReader.stream("hello")
+
+scala> in.printSchema
+root
+ |-- value: string (nullable = true)
+
+val textWriter = in.write.format("text")
+val opts = Map("checkpointLocation" -> "hello-checkpoint")
+val out = textWriter.options(opts).startStream("hello-out")
+
+// NOTE Check out hello-out and hello-checkpoint directories
+----
 
 Batches are indexed.
 
@@ -47,7 +68,7 @@ Refer to link:spark-logging.adoc[Logging].
 
 ==== [[FileStreamSource-schema]] schema
 
-If the schema is specified at instantiation time (using `dataSchema` constructor parameter) it is returned.
+If the schema is specified at instantiation time (using optional `dataSchema` constructor parameter) it is returned.
 
 Otherwise, `fetchAllFiles` internal method is called to list all the files in a directory.
 
@@ -77,7 +98,7 @@ old file: $file
 
 ==== [[FileStreamSource-getBatch]] getBatch
 
-`FileStreamSource.getBatch` asks `metadataLog` for the batch.
+`FileStreamSource.getBatch` asks <<FileStreamSource-metadataLog, metadataLog>> for the batch.
 
 You should see the following INFO and DEBUG messages in the logs:
 
@@ -87,5 +108,13 @@ DEBUG Streaming ${files.mkString(", ")}
 ```
 
 The method to create a result batch is given at instantiation time (as `dataFrameBuilder` constructor parameter).
+
+==== [[FileStreamSource-metadataLog]] metadataLog
+
+`metadataLog` is a metadata storage using `metadataPath` path (which is a constructor parameter).
+
+NOTE: It extends `HDFSMetadataLog[Seq[String]]`.
+
+CAUTION: FIXME Review `HDFSMetadataLog`
 
 === [[MemoryStream]] MemoryStream
