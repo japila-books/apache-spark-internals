@@ -2,31 +2,43 @@
 
 NOTE: Review https://issues.apache.org/jira/browse/SPARK-12795[SPARK-12795 Whole stage codegen] to learn about the work to support it.
 
-*Whole stage codegen* compiles a subtree of plans that support codegen together into a single Java function.
+*Whole stage codegen* (aka *WholeStageCodegen*) compiles a subtree of plans that support codegen together into a single Java function.
+
+TIP: Use link:spark-sql-dataset.adoc#explain[Dataset.explain] method to know the physical plan of a query and find out whether or not `WholeStageCodegen` is in use.
+
+TIP: If you are serious about whole stage codegen support you could also use the link:spark-sql-query-execution.adoc#debug[Debugging Query Execution facility] to deep dive into it.
 
 [source, scala]
 ----
-val df = sqlContext.range(5)
-
-scala> df.filter(_ % 2 == 0).explain
+scala> sqlContext.range(10).select('id as 'asId).where('id === 4).explain
 == Physical Plan ==
 WholeStageCodegen
-:  +- Filter <function1>.apply
-:     +- Range 0, 1, 8, 5, [id#0L]
+:  +- Project [id#24L AS asId#27L]
+:     +- Filter (id#24L = 4)
+:        +- Range 0, 1, 8, 10, [id#24L]
 ----
 
-The supported plans that support codegen extend `CodegenSupport`:
+The supported plans that support codegen extend <<CodegenSupport, CodegenSupport>>:
 
-* Project
-* Filter
+* `Project` (`as`)
+* `Filter` (`where` or `filter`)
+* `Range`
 
-It is used by some modern massively parallel processing (MPP) databases to archive great performance. See http://www.vldb.org/pvldb/vol4/p539-neumann.pdf[Efficiently Compiling Efficient Query Plans for Modern Hardware (PDF)].
+NOTE: Whole stage codegen is used by some modern massively parallel processing (MPP) databases to archive great performance. See http://www.vldb.org/pvldb/vol4/p539-neumann.pdf[Efficiently Compiling Efficient Query Plans for Modern Hardware (PDF)].
 
-It uses link:spark-sql-settings.adoc#spark.sql.codegen.wholeStage[spark.sql.codegen.wholeStage] to control...FIXME
+Whole stage codegen uses link:spark-sql-settings.adoc#spark.sql.codegen.wholeStage[spark.sql.codegen.wholeStage] setting to control...FIXME
+
+NOTE: Janino is used to compile a Java source code into a Java class.
+
+Before a query is executed, <<CollapseCodegenStages, CollapseCodegenStages>> case class is used to find the plans that support codegen and collapse them together as `WholeStageCodegen`. It is a part of the sequence of rules link:spark-sql-query-execution.adoc#preparations[QueryExecution.preparations] that will be applied in order to the physical plan before execution.
+
+=== [[CollapseCodegenStages]] CollapseCodegenStages
+
+CAUTION: FIXME
 
 === [[CodegenSupport]] CodegenSupport Trait
 
-`CodegenSupport` is a trait for physical operators with support for codegen. `CodegenSupport` extends `SparkPlan`.
+`CodegenSupport` is a trait for physical operators that support codegen. `CodegenSupport` extends `SparkPlan`.
 
 === [[BenchmarkWholeStageCodegen]] BenchmarkWholeStageCodegen - Performance Benchmark
 
