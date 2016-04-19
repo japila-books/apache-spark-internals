@@ -1,6 +1,8 @@
 == Dataset
 
-*Dataset* can be seen as a SQL query or the result thereof in Spark SQL. It offers convenience of RDDs with the performance optimizations of DataFrames and the strong static type-safety of Scala. The last feature of bringing the strong type-safety to link:spark-sql-dataframe.adoc[DataFrame] makes Dataset so appealing. All the features together give you a more functional programming interface to work with structured data.
+*Dataset* can be seen as a SQL query or the result thereof over structured data.
+
+It offers convenience of RDDs with the performance optimizations of DataFrames and the strong static type-safety of Scala. The last feature of bringing the strong type-safety to link:spark-sql-dataframe.adoc[DataFrame] makes Dataset so appealing. All the features together give you a more functional programming interface to work with structured data.
 
 [NOTE]
 ====
@@ -20,29 +22,64 @@ It is only with Datasets to have syntax and analysis checks at compile time (tha
 
 Using `Dataset` objects turns `DataFrames` of link:spark-sql-dataframe-row.adoc[Row] instances into a `DataFrames` of case classes with proper names and types (following their equivalents in the case classes). Instead of using indices to access respective fields in a DataFrame and cast it to a type, all this is automatically handled by Datasets and checked by the Scala compiler.
 
-Datasets run on link:spark-sql-tungsten.adoc[Tungsten] to optimize its performance.
-
-[source, scala]
-----
-scala> val ds = Seq("I am a shiny Dataset!").zipWithIndex.toDS
-ds: org.apache.spark.sql.Dataset[(String, Int)] = [_1: string, _2: int]
-
-scala> val df = Seq("I am an old grumpy DataFrame!").zipWithIndex.toDF
-df: org.apache.spark.sql.DataFrame = [_1: string, _2: int]
-
-scala> val df = Seq("I am an old grumpy DataFrame!").zipWithIndex.toDF("text", "id")
-df: org.apache.spark.sql.DataFrame = [text: string, id: int]
-----
+Datasets use link:spark-sql-catalyst.adoc[Catalyst Query Optimizer] and link:spark-sql-tungsten.adoc[Tungsten] to optimize their performance.
 
 A `Dataset` object requires a link:spark-sql-sqlcontext.adoc[SQLContext], a link:spark-sql-query-execution.adoc[QueryExecution], and an <<Encoder, Encoder>>. link:spark-sql-sqlcontext.adoc#creating-datasets[In same cases], a `Dataset` can also be seen as a pair of link:spark-sql-logical-plan.adoc[LogicalPlan] in a given link:spark-sql-sqlcontext.adoc[SQLContext].
 
-NOTE: `SQLContext` and link:spark-sql-query-execution.adoc[QueryExecution] are transient and hence do not participate in Dataset serialization. The only _firmly-tied_ feature of a Dataset is the Encoder.
+NOTE: `SQLContext` and link:spark-sql-query-execution.adoc[QueryExecution] are transient and hence do not participate in Dataset serialization. The only _firmly-tied_ feature of a Dataset is the `Encoder`.
 
 A `Dataset` is <<Queryable, Queryable>> and `Serializable`, i.e. can be saved to a persistent storage.
 
-A Dataset has a <<schema, schema>>.
+It also has a <<schema, schema>>.
 
-You can convert a Dataset to a DataFrame (using `toDF()` method) or an RDD (using `rdd` method).
+You can convert a Dataset to a DataFrame (see <<implicits, Type Conversions to Dataset[T]>>) or a RDD (see <<rdd, Converting Datasets into RDDs (using rdd method)>>). It should give you a more pleasant experience while transitioning from legacy RDD-based or DataFrame-based APIs.
+
+=== [[features]] Features of Dataset API
+
+The features of the Dataset API in Spark SQL:
+
+* **Type-safety** as Datasets are Scala domain objects and operations operate on their attributes. All is checked by the Scala compiler at compile time.
+
+=== [[implicits]] Type Conversions to Dataset[T]
+
+`DatasetHolder` case class offers three methods that do the conversions from `Seq[T]` or `RDD[T]` type to `Dataset[T]`:
+
+* `toDS(): Dataset[T]`
+* `toDF(): DataFrame`
+* `toDF(colNames: String*): DataFrame`
+
+NOTE: `DataFrame` is a _mere_ type alias for `Dataset[Row]` since Spark *2.0.0*.
+
+`DatasetHolder` is used by `SQLImplicits` that is available to use after link:spark-sql-sqlcontext.adoc#implicits[importing implicits object of SQLContext].
+
+[source, scala]
+----
+scala> val ds = Seq("I am a shiny Dataset!").toDS
+ds: org.apache.spark.sql.Dataset[String] = [value: string]
+
+scala> val df = Seq("I am an old grumpy DataFrame!").toDF
+df: org.apache.spark.sql.DataFrame = [value: string]
+
+scala> val df = Seq("I am an old grumpy DataFrame!").toDF("text")
+df: org.apache.spark.sql.DataFrame = [text: string]
+
+scala> val ds = sc.parallelize(Seq("hello")).toDS
+ds: org.apache.spark.sql.Dataset[String] = [value: string]
+----
+
+[NOTE]
+====
+This import is automatically executed in link:spark-shell.adoc[Spark Shell].
+
+```
+scala> sc.version
+res11: String = 2.0.0-SNAPSHOT
+
+scala> :imports
+ 1) import sqlContext.implicits._  (59 terms, 38 are implicit)
+ 2) import sqlContext.sql          (1 terms)
+```
+====
 
 [source, scala]
 ----
@@ -115,56 +152,9 @@ scala> ds.map(_.name).show
 +-----+
 ----
 
-=== [[features]] Features of Dataset API
-
-The features of the Dataset API in Spark SQL:
-
-* **Type-safety** as Datasets are Scala domain objects and operations operate on their attributes. All is checked by the Scala compiler at compile time.
-
-=== [[implicits]] Type Conversions to Dataset[T]
-
-`DatasetHolder` case class offers three methods that do the conversions from `Seq[T]` or `RDD[T]` type to `Dataset[T]`:
-
-* `toDS(): Dataset[T]`
-* `toDF(): DataFrame`
-* `toDF(colNames: String*): DataFrame`
-
-NOTE: `DataFrame` is a type alias of `Dataset[Row]`.
-
-`DatasetHolder` is used by `SQLImplicits` that is available to use after link:spark-sql-sqlcontext.adoc#implicits[importing implicits object of SQLContext].
-
-[source, scala]
-----
-scala> Seq("hello").toDS
-res0: org.apache.spark.sql.Dataset[String] = [value: string]
-
-scala> Seq("hello").toDF
-res1: org.apache.spark.sql.DataFrame = [value: string]
-
-scala> Seq("hello").toDF("text")
-res2: org.apache.spark.sql.DataFrame = [text: string]
-
-scala> sc.parallelize(Seq("hello")).toDS
-res3: org.apache.spark.sql.Dataset[String] = [value: string]
-----
-
-[NOTE]
-====
-This import is automatically executed in link:spark-shell.adoc[Spark Shell].
-
-```
-scala> sc.version
-res11: String = 2.0.0-SNAPSHOT
-
-scala> :imports
- 1) import sqlContext.implicits._  (52 terms, 31 are implicit)
- 2) import sqlContext.sql          (1 terms)
-```
-====
-
 === [[rdd]] Converting Datasets into RDDs (using rdd method)
 
-Whenever in need to convert a Dataset into a RDD, executing `rdd` method gives you a RDD of the proper input object type (not link:spark-sql-dataframe.adoc#features[`Row` as in DataFrames]).
+Whenever you are in need to convert a `Dataset` into a `RDD`, executing `rdd` method gives you a RDD of the proper input object type (not link:spark-sql-dataframe.adoc#features[Row as in DataFrames]).
 
 [source, scala]
 ----
@@ -174,17 +164,20 @@ rdd: org.apache.spark.rdd.RDD[Token] = MapPartitionsRDD[11] at rdd at <console>:
 
 === [[schema]] Schema
 
-A Dataset has a *schema* that is available as `schema`.
+A `Dataset` has a *schema*.
 
+[source, scala]
+----
+schema: StructType
+----
+
+[TIP]
+====
 You may also use the following methods to learn about the schema:
 
 * `printSchema(): Unit`
-* `explain(): Unit`
-* `explain(extended: Boolean): Unit`
-
-=== [[plans]] Logical and Physical Plans
-
-CAUTION: FIXME
+* <<explain, explain>>
+====
 
 === [[types]] Supported Types
 
@@ -233,7 +226,7 @@ explain(): Unit
 explain(extended: Boolean): Unit
 ----
 
-`explain` prints the logical and physical plans to the console. You can use it for debugging.
+`explain` prints the link:spark-sql-logical-plan.adoc[logical] and physical plans to the console. You can use it for debugging.
 
 TIP: If you are serious about query debugging you could also use the link:spark-sql-query-execution.adoc#debug[Debugging Query Execution facility].
 
@@ -334,8 +327,6 @@ randomSplit(weights: Array[Double], seed: Long): Array[Dataset[T]]
 
 You can define `seed` and if you don't, a random `seed` will be used.
 
-NOTE: A new feature in Spark **2.0.0**.
-
 NOTE: It is used in link:spark-mllib-estimators.adoc#TrainValidationSplit[TrainValidationSplit] to split dataset into training and validation datasets.
 
 [source, scala]
@@ -362,6 +353,8 @@ scala> ds.randomSplit(Array[Double](2, 3)).foreach(_.show)
 |  9|
 +---+
 ----
+
+NOTE: A new feature in Spark **2.0.0**.
 
 === [[Queryable]] Queryable
 
