@@ -1,0 +1,164 @@
+== TaskContext
+
+`TaskContext` allows a task to access <<contextual-information, contextual information>> about itself as well as <<registering-task-listeners, register task listeners>>.
+
+Using `TaskContext` you can <<getLocalProperty, access local properties>> that were set by the driver. You can also access <<metrics, task metrics>>.
+
+You can access the active `TaskContext` instance using <<get, TaskContext.get>> method.
+
+`TaskContext` belongs to `org.apache.spark` package.
+
+[source, scala]
+----
+import org.apache.spark.TaskContext
+----
+
+NOTE: `TaskContext` is serializable.
+
+=== [[contextual-information]] Contextual Information
+
+* `stageId` is the id of the stage the task belongs to.
+* `partitionId` is the id of the partition computed by the task.
+* `attemptNumber` is to denote how many times the task has been attempted (starting from 0).
+* `taskAttemptId` is the id of the attempt of the task.
+* `isCompleted` returns `true` when a task is completed.
+* `isInterrupted` returns `true` when a task was killed.
+
+=== [[registering-task-listeners]] Registering Task Listeners
+
+Using `TaskContext` object you can register task listeners for <<addTaskCompletionListener, task completion regardless of the final state>> and <<addTaskFailureListener, task failures only>>.
+
+==== [[addTaskCompletionListener]] addTaskCompletionListener
+
+`addTaskCompletionListener` registers a `TaskCompletionListener` listener that will be executed on task completion.
+
+NOTE: It will be executed regardless of the final state of a task - success, failure, or cancellation.
+
+[source, scala]
+----
+val rdd = sc.range(0, 5, numSlices = 1)
+
+import org.apache.spark.TaskContext
+val printTaskInfo = (tc: TaskContext) => {
+  val msg = s"""|-------------------
+                |partitionId:   ${tc.partitionId}
+                |stageId:       ${tc.stageId}
+                |attemptNum:    ${tc.attemptNumber}
+                |taskAttemptId: ${tc.taskAttemptId}
+                |-------------------""".stripMargin
+  println(msg)
+}
+
+rdd.foreachPartition { _ =>
+  val tc = TaskContext.get
+  tc.addTaskCompletionListener(printTaskInfo)
+}
+----
+
+==== [[addTaskFailureListener]] addTaskFailureListener
+
+`addTaskFailureListener` registers a `TaskFailureListener` listener that will only be executed on task failure. It can be executed multiple times since a task can be re-attempted when it fails.
+
+[source, scala]
+----
+val rdd = sc.range(0, 2, numSlices = 2)
+
+import org.apache.spark.TaskContext
+val printTaskErrorInfo = (tc: TaskContext, error: Throwable) => {
+  val msg = s"""|-------------------
+                |partitionId:   ${tc.partitionId}
+                |stageId:       ${tc.stageId}
+                |attemptNum:    ${tc.attemptNumber}
+                |taskAttemptId: ${tc.taskAttemptId}
+                |error:         ${error.toString}
+                |-------------------""".stripMargin
+  println(msg)
+}
+
+val throwExceptionForOddNumber = (n: Long) => {
+  if (n % 2 == 1) {
+    throw new Exception(s"No way it will pass for odd number: $n")
+  }
+}
+
+// FIXME It won't work.
+rdd.map(throwExceptionForOddNumber).foreachPartition { _ =>
+  val tc = TaskContext.get
+  tc.addTaskFailureListener(printTaskErrorInfo)
+}
+
+// Listener registration matters.
+rdd.mapPartitions { (it: Iterator[Long]) =>
+  val tc = TaskContext.get
+  tc.addTaskFailureListener(printTaskErrorInfo)
+  it
+}.map(throwExceptionForOddNumber).count
+----
+
+=== [[getLocalProperty]] Accessing Local Properties (getLocalProperty method)
+
+[source, scala]
+----
+getLocalProperty(key: String): String
+----
+
+You can use `getLocalProperty` method to access local properties that were set by the driver using link:spark-sparkcontext.adoc#setting-local-properties[SparkContext.setLocalProperty].
+
+=== [[metrics]] Task Metrics
+
+[source, scala]
+----
+taskMetrics(): TaskMetrics
+----
+
+`taskMetrics` method is part of the Developer API that allows to access the instance of link:spark-taskscheduler-taskmetrics.adoc[TaskMetrics] for a task.
+
+[source, scala]
+----
+getMetricsSources(sourceName: String): Seq[Source]
+----
+
+`getMetricsSources` allows to access all metrics sources for `sourceName` name which are associated with the instance that runs the task.
+
+=== [[get]] Accessing Active TaskContext (TaskContext.get method)
+
+[source, scala]
+----
+get(): TaskContext
+----
+
+`TaskContext.get` method returns `TaskContext` instance for the active task (as a <<TaskContextImpl, TaskContextImpl>> object). There can only be one instance and tasks can use the object to access contextual information about themselves.
+
+[source, scala]
+----
+val rdd = sc.range(0, 3, numSlices = 3)
+
+scala> rdd.partitions.size
+res0: Int = 3
+
+rdd.foreach { n =>
+  import org.apache.spark.TaskContext
+  val tc = TaskContext.get
+  val msg = s"""|-------------------
+                |partitionId:   ${tc.partitionId}
+                |stageId:       ${tc.stageId}
+                |attemptNum:    ${tc.attemptNumber}
+                |taskAttemptId: ${tc.taskAttemptId}
+                |-------------------""".stripMargin
+  println(msg)
+}
+----
+
+NOTE: `TaskContext` object uses https://docs.oracle.com/javase/8/docs/api/java/lang/ThreadLocal.html[ThreadLocal] to keep it thread-local, i.e. to associate state with the thread of a task.
+
+=== [[TaskContextImpl]] TaskContextImpl
+
+`TaskContextImpl` is the sole implementation of <<TaskContext, TaskContext>> abstract class.
+
+CAUTION: FIXME
+
+* stage
+* partition
+* task attempt
+* attempt number
+* runningLocally = false
