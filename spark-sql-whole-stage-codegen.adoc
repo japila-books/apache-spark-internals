@@ -2,11 +2,13 @@
 
 NOTE: Review https://issues.apache.org/jira/browse/SPARK-12795[SPARK-12795 Whole stage codegen] to learn about the work to support it.
 
-*Whole stage codegen* (aka *WholeStageCodegen*) compiles a subtree of plans that support codegen together into a single Java function.
+*Whole stage codegen* (aka *WholeStageCodegen*) compiles a subtree of <<CodegenSupport, plans that support codegen>> together into a single Java function.
+
+`WholeStageCodegen` case class represents a unary node in a link:spark-sql-spark-plan.adoc[SparkPlan] with <<CodegenSupport, support for codegen>>.
 
 TIP: Use link:spark-sql-dataset.adoc#explain[Dataset.explain] method to know the physical plan of a query and find out whether or not `WholeStageCodegen` is in use.
 
-TIP: If you are serious about whole stage codegen support you could also use the link:spark-sql-query-execution.adoc#debug[Debugging Query Execution facility] to deep dive into it.
+TIP: Consider using link:spark-sql-query-execution.adoc#debug[Debugging Query Execution facility] to deep dive into whole stage codegen.
 
 [source, scala]
 ----
@@ -32,10 +34,6 @@ NOTE: Janino is used to compile a Java source code into a Java class.
 
 Before a query is executed, <<CollapseCodegenStages, CollapseCodegenStages>> case class is used to find the plans that support codegen and collapse them together as `WholeStageCodegen`. It is a part of the sequence of rules link:spark-sql-query-execution.adoc#preparations[QueryExecution.preparations] that will be applied in order to the physical plan before execution.
 
-=== [[CollapseCodegenStages]] CollapseCodegenStages
-
-CAUTION: FIXME
-
 === [[CodegenSupport]] CodegenSupport Contract
 
 `CodegenSupport` is a custom link:spark-sql-spark-plan.adoc[SparkPlan] for operators that support codegen.
@@ -45,6 +43,22 @@ It however allows custom implementations to optionally disable codegen using `su
 It assumes that custom implementations define:
 
 * `doProduce(ctx: CodegenContext): String`
+
+=== [[CollapseCodegenStages]] CollapseCodegenStages
+
+`CollapseCodegenStages` is a `Rule[SparkPlan]`, i.e. a transformation of link:spark-sql-spark-plan.adoc[SparkPlan] into another `SparkPlan`.
+
+NOTE: `CollapseCodegenStages` is used in link:spark-sql-query-execution.adoc#preparations[the sequence of rules to apply to a SparkPlan before query execution].
+
+It searches for sub-plans (aka _stages_) that support codegen and collapse them together as a `WholeStageCodegen`.
+
+NOTE: Only <<CodegenSupport, CodegenSupport>> SparkPlans support codegen for which `supportCodegen` attribute is positive (`true`).
+
+It is assumed that all `Expression` instances except `CodegenFallback` support codegen.
+
+`CollapseCodegenStages` uses the internal setting `spark.sql.codegen.maxFields` (default: `200`) to control the number of fields in input and output schemas before deactivating whole-stage codegen. It counts the nested fields, too, i.e. `StructType`, `MapType`, `ArrayType`, `UserDefinedType`, and their combinations.
+
+It inserts `InputAdapter` leaf nodes in a SparkPlan recursively that is then used to generate code that consumes an RDD iterator of `InternalRow`.
 
 === [[BenchmarkWholeStageCodegen]] BenchmarkWholeStageCodegen - Performance Benchmark
 
