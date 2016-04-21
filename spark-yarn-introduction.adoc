@@ -1,0 +1,88 @@
+== Introduction to Hadoop YARN
+
+http://www.ibm.com/developerworks/library/bd-yarn-intro/index.html[Introduction to YARN] by *Adam Kawa* is an excellent introduction to YARN. Here come my notes.
+
+* Hadoop 2.0 comes with *Yet Another Resource Negotiator (YARN)* that is _a generic cluster resource management framework that can run applications on a Hadoop cluster._ (see http://twill.incubator.apache.org/[Apache Twill])
+
+* YARN model of computation (aka YARN components):
+** *ResourceManager* runs as a master daemon and manages ApplicationMasters and NodeManagers.
+** *ApplicationMaster* is a lightweight process that coordinates the execution of tasks of an application and asks the ResourceManager for resource containers for tasks. It monitors tasks, restarts failed ones, etc. It can run any type of tasks, be them MapReduce tasks or Giraph tasks, or Spark tasks.
+** *NodeManager* offers resources (memory and CPU) as resource containers.
+** *NameNode*
+** *Container* can run tasks, including ApplicationMasters.
+* YARN manages distributed applications.
+* YARN offers (macro-level) container allocation.
+* Hadoop for storing and processing large amount of data on a cluster of commodity hardware.
+* The Pre-YARN MapReduce engine - *MRv1* - was rewritten for YARN. It became yet another YARN distributed application called *MRv2*.
+
+There's another article that covers the fundamentals of YARN - http://blog.cloudera.com/blog/2015/09/untangling-apache-hadoop-yarn-part-1/[Untangling Apache Hadoop YARN, Part 1]. Notes follow:
+
+* A *host* is the Hadoop term for a computer (also called a *node*, in YARN terminology).
+* A *cluster* is two or more hosts connected by a high-speed local network.
+** It can technically also be a single host used for debugging and simple testing.
+** Master hosts are a small number of hosts reserved to control the rest of the cluster. Worker hosts are the non-master hosts in the cluster.
+** A *master* host is the communication point for a client program. A master host sends the work to the rest of the cluster, which consists of *worker* hosts.
+* In a YARN cluster, there are two types of hosts:
+** The *ResourceManager* is the master daemon that communicates with the client, tracks resources on the cluster, and orchestrates work by assigning tasks to NodeManagers.
+*** In a Hadoop cluster with YARN running, the master process is called the ResourceManager and the worker processes are called NodeManagers.
+** A *NodeManager* is a worker daemon that launches and tracks processes spawned on worker hosts.
+** The NodeManager on each host keeps track of the local host’s resources, and the ResourceManager keeps track of the cluster’s total.
+* The YARN configuration file is an XML file that contains properties. This file is placed in a well-known location on each host in the cluster and is used to configure the ResourceManager and NodeManager. By default, this file is named `yarn-site.xml`.
+* YARN currently defines two resources, vcores and memory.
+** vcore = usage share of a CPU core.
+* Each NodeManager tracks its own local resources and communicates its resource configuration to the ResourceManager, which keeps a running total of the cluster’s available resources.
+** By keeping track of the total, the ResourceManager knows how to allocate resources as they are requested.
+* A *container* in YARN holds resources on the YARN cluster.
+** A container hold request consists of vcore and memory.
+* Once a hold has been granted on a host, the NodeManager launches a process called a *task*.
+* An application is a YARN client program that is made up of one or more tasks.
+* For each running application, a special piece of code called an ApplicationMaster helps coordinate tasks on the YARN cluster. The ApplicationMaster is the first process run after the application starts.
+* An application in YARN comprises three parts:
+** The application client, which is how a program is run on the cluster.
+** An ApplicationMaster which provides YARN with the ability to perform allocation on behalf of the application.
+** One or more tasks that do the actual work (runs in a process) in the container allocated by YARN.
+
+* An application running tasks on a YARN cluster consists of the following steps:
+** The application starts and talks to the ResourceManager (running on the master) for the cluster.
+** The ResourceManager makes a single container request on behalf of the application.
+** The ApplicationMaster starts running within that container.
+** The ApplicationMaster requests subsequent containers from the ResourceManager that are allocated to run tasks for the application. Those tasks do most of the status communication with the ApplicationMaster.
+** Once all tasks are finished, the ApplicationMaster exits. The last container is de-allocated from the cluster.
+** The application client exits. (The ApplicationMaster launched in a container is more specifically called a managed AM).
+* The ResourceManager, NodeManager, and ApplicationMaster work together to manage the cluster’s resources and ensure that the tasks, as well as the corresponding application, finish cleanly.
+
+[CAUTION]
+====
+FIXME: Where is `ApplicationMaster.registerAM` used?
+
+* Registering the ApplicationMaster with the RM.
+* Contains a map with hints about where to allocate containers.
+====
+
+=== Hadoop YARN
+
+From https://hadoop.apache.org/[Apache Hadoop]'s web site:
+
+> Hadoop YARN: A framework for job scheduling and cluster resource management.
+
+* YARN could be considered a cornerstone of Hadoop OS (operating system) for big distributed data with HDFS as the storage along with YARN as a process scheduler.
+* YARN is essentially a container system and scheduler designed primarily for use with a Hadoop-based cluster.
+* The containers in YARN are capable of running various types of tasks.
+* Resource manager, node manager, container, application master, jobs
+* focused on data storage and offline batch analysis
+* Hadoop is storage and compute platform:
+** MapReduce is the computing part.
+** HDFS is the storage.
+* Hadoop is a resource and cluster manager (YARN)
+* Spark runs on YARN clusters, and can read from and save data to HDFS.
+** leverages link:spark-data-locality.adoc[data locality]
+* Spark needs distributed file system and HDFS (or Amazon S3, but slower) is a great choice.
+* HDFS allows for link:spark-data-locality.adoc[data locality].
+* Excellent throughput when Spark and Hadoop are both distributed and co-located on the same (YARN or Mesos) cluster nodes.
+* HDFS offers (important for initial loading of data):
+** high data locality
+** high throughput when co-located with Spark
+** low latency because of data locality
+** very reliable because of replication
+* When reading data from HDFS, each `InputSplit` maps to exactly one Spark partition.
+* HDFS is distributing files on data-nodes and storing a file on the filesystem, it will be split into partitions.
