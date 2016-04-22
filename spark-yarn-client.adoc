@@ -1,6 +1,6 @@
 == Client
 
-`org.apache.spark.deploy.yarn.Client` is a standalone application used for link:spark-submit.adoc#submit[application submission] to a YARN cluster (regardless of the deployment mode).
+`org.apache.spark.deploy.yarn.Client` is a standalone application used for link:spark-submit.adoc#submit[application submission] to a YARN cluster (regardless of the link:spark-submit.adoc#deploy-mode[deploy mode]).
 
 Precisely, it is <<main, Client.main>> method that is invoked.
 
@@ -21,7 +21,7 @@ WARN Client: WARNING: This client is deprecated and will be removed in a future 
 ```
 ====
 
-It first sets `SPARK_YARN_MODE` system property to `true`.
+`main` first sets `SPARK_YARN_MODE` system property to `true`.
 
 CAUTION: FIXME Why is this property needed?
 
@@ -29,6 +29,53 @@ It then instantiates link:spark-configuration.adoc[SparkConf], parses command-li
 
 === [[run]] run
 
-`run` submits a Spark application to link:spark-yarn-introduction.adoc[YARN ResourceManager].
+`run` <<submitApplication, submits a Spark application>> to link:spark-yarn-introduction.adoc[YARN ResourceManager].
+
+=== [[submitApplication]] submitApplication
+
+`submitApplication` submits a Spark application to YARN ResourceManager and returns its unique https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/api/records/ApplicationId.html[ApplicationId].
+
+NOTE: `submitApplication` is called from <<run, run>>.
+
+Internally, it executes `LauncherBackend.connect` first and then executes `Client.setupCredentials` to set up credentials for future calls.
+
+CAUTION: FIXME What's `LauncherBackend`?
+
+It creates a YARN client (using Hadoop's https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/client/api/YarnClient.html#createYarnClient()[YarnClient.createYarnClient]), https://hadoop.apache.org/docs/current/api/org/apache/hadoop/service/AbstractService.html#init(org.apache.hadoop.conf.Configuration)[inits it] with a https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/conf/YarnConfiguration.html[YarnConfiguration] and https://hadoop.apache.org/docs/current/api/org/apache/hadoop/service/AbstractService.html#start()[starts it]. All this happens using Hadoop API.
+
+You should see the following INFO in the logs:
+
+```
+INFO Client: Requesting a new application from cluster with [yarnClient.getYarnClusterMetrics.getNumNodeManagers] NodeManagers
+```
+
+It then https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/client/api/YarnClient.html#createApplication()[YarnClient.createApplication()] to create a new application in YARN and obtains the application id.
+
+The `LauncherBackend` instance changes state to SUBMITTED with the application id.
+
+CAUTION: FIXME Why is this important?
+
+`submitApplication` verifies whether the cluster has resources for the ApplicationManager (using <<verifyClusterResources, verifyClusterResources>>).
+
+It then <<createContainerLaunchContext, createContainerLaunchContext>> and <<createApplicationSubmissionContext, createApplicationSubmissionContext>>.
+
+It submits the application to YARN ResourceManager.
+
+```
+INFO Client: Submitting application [applicationId.getId] to ResourceManager
+```
+
+And finally submits a new application to YARN (using Hadoop's https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/client/api/YarnClient.html#submitApplication(org.apache.hadoop.yarn.api.records.ApplicationSubmissionContext)[YarnClient.submitApplication]) and waits until it is accepted by YARN ResourceManager.
+
+=== [[verifyClusterResources]] verifyClusterResources
+
+```
+INFO Client: Verifying our application has not requested more than the maximum memory capability of the cluster (8192 MB per container)
+INFO Client: Will allocate AM container, with 896 MB memory including 384 MB overhead
+```
+
+=== [[createContainerLaunchContext]] createContainerLaunchContext
+
+=== [[createApplicationSubmissionContext]] createApplicationSubmissionContext
 
 === [[ClientArguments]] ClientArguments
