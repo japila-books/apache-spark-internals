@@ -1,26 +1,38 @@
 == Tasks
 
-*Task*  (aka _command_) is an individual unit of work for executors to run.
-
-It is an individual unit of physical execution (computation) that runs on a single machine for parts of your Spark application on a data. All tasks in a stage should be completed before moving on to another stage.
+*Task*  (aka _command_) is an individual unit of work that an executor runs on a single machine. It is represented by <<Task, Task>> abstract class.
 
 .Tasks correspond to partitions in RDD
 image::images/rdd-partitions-job-tasks.png[align="center"]
 
-A task can also be considered a computation in a stage on a partition in a given job attempt.
+In other words, a task is a computation on a data partition in a stage in a job attempt.
 
-A Task belongs to a single stage and operates on a single partition (a part of an RDD).
+A task can only belong to one stage and operates on a single partition (that is a part of an RDD). All tasks in a stage must be completed before the stages the follow can start.
 
-Tasks are spawned one by one for each stage and data partition.
+Tasks are spawned one by one for each stage and partition.
 
 CAUTION: FIXME What are `stageAttemptId` and `taskAttemptId`?
 
 There are two kinds of tasks:
 
 * *ShuffleMapTask* that executes a task and divides the task's output to multiple buckets (based on the task's partitioner). See <<shufflemaptask, ShuffleMapTask>>.
-* *ResultTask* that executes a task and sends the task's output back to the driver application.
+* *ResultTask* that executes a task and sends the task's output back to the driver application. See <<ResultTask, ResultTask>>.
 
-The very last stage in a job consists of multiple `ResultTasks`, while earlier stages consist of <<shufflemaptask, ShuffleMapTask>>'s.
+The very last stage in a job consists of multiple `ResultTasks`, while earlier stages consist of <<shufflemaptask, ShuffleMapTasks>>.
+
+=== [[attributes]] Task Attributes
+
+A `Task` instance is uniquely identified by the following task attributes:
+
+* `stageId` - there can be many stages in a job. Every stage has its own unique `stageId` that the task belongs to.
+
+* `stageAttemptId` - a stage can be re-attempted for execution in case of failure. `stageAttemptId` represents the attempt id of a stage that the task belongs to.
+
+* `partitionId` - a task is a unit of work on a partitioned distributed dataset. Every partition has its own unique `partitionId` that a task processes.
+
+* `metrics` - an instance of link:spark-taskscheduler-taskmetrics.adoc[TaskMetrics] for the task.
+
+* `localProperties` - local private properties of the task.
 
 === [[execution]] Task Execution
 
@@ -47,6 +59,8 @@ Task is finished when it is in one of `FINISHED`, `FAILED`, `KILLED`, `LOST`
 
 NOTE: Task states correspond to https://github.com/apache/mesos/blob/master/include/mesos/mesos.proto[org.apache.mesos.Protos.TaskState].
 
-=== [[shufflemaptask]] ShuffleMapTask
+=== [[ShuffleMapTask]][[shufflemaptask]] ShuffleMapTask
 
 A *ShuffleMapTask* divides the elements of an RDD into multiple buckets (based on a partitioner specified in link:spark-rdd-dependencies.adoc#ShuffleDependency[ShuffleDependency]).
+
+=== [[ResultTask]] ResultTask
