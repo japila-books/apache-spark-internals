@@ -6,6 +6,19 @@ Precisely, it is <<main, Client.main>> method that is invoked.
 
 Depending on the deploy mode in use (`spark.submit.deployMode`) it calls link:spark-yarn-applicationmaster.adoc[org.apache.spark.deploy.yarn.ApplicationMaster] or ApplicationMaster's wrapper link:spark-yarn-applicationmaster.adoc#ExecutorLauncher[org.apache.spark.deploy.yarn.ExecutorLauncher] by their class names (so the instantiation is implicit and dynamic, i.e. happens at runtime).
 
+[TIP]
+====
+Enable `DEBUG` logging level for `org.apache.spark.deploy.yarn.Client` logger to see what happens inside.
+
+Add the following line to `conf/log4j.properties`:
+
+```
+log4j.logger.org.apache.spark.deploy.yarn.Client=DEBUG
+```
+
+Refer to link:spark-logging.adoc[Logging].
+====
+
 === [[main]] main
 
 `main` method is invoked while a Spark application is being deployed to a YARN cluster.
@@ -49,7 +62,54 @@ CAUTION: FIXME What are `YarnApplicationState` and `FinalApplicationStatus` stat
 
 === [[monitorApplication]] monitorApplication
 
-`monitorApplication` ...
+[source, scala]
+----
+monitorApplication(
+  appId: ApplicationId,
+  returnOnRunning: Boolean = false,
+  logApplicationReport: Boolean = true): (YarnApplicationState, FinalApplicationStatus)
+----
+
+`monitorApplication` continuously reports the status of an application `appId` every link:spark-yarn.adoc#spark.yarn.report.interval[spark.yarn.report.interval].
+
+NOTE: It is used in <<run, Client.run>> and link:spark-yarn.adoc#YarnClientSchedulerBackend[YarnClientSchedulerBackend] (inside `waitForApplication` and `MonitorThread.run`).
+
+It gets the application's report from the ResourceManager to access `YarnApplicationState`.
+
+TIP: It uses Hadoop's `YarnClient.getApplicationReport(appId)`.
+
+Unless `logApplicationReport` is disabled, it prints the following INFO message to the logs:
+
+```
+INFO Client: Application report for [appId] (state: $state)
+```
+
+If `logApplicationReport` and DEBUG log level are enabled, it prints report details every time interval to the logs:
+
+```
+16/04/23 13:21:36 INFO Client:
+	 client token: N/A
+	 diagnostics: N/A
+	 ApplicationMaster host: N/A
+	 ApplicationMaster RPC port: -1
+	 queue: default
+	 start time: 1461410495109
+	 final status: UNDEFINED
+	 tracking URL: http://japila.local:8088/proxy/application_1461410200840_0001/
+	 user: jacek
+```
+
+For INFO log level it prints report details only when the application changes state.
+
+When the application's state changes, `LauncherBackend` is notified (using `LauncherBackend.setState`).
+
+NOTE: The application's state is Hadoop's `YarnApplicationState`.
+
+For states `FINISHED`, `FAILED` or `KILLED`, `cleanupStagingDir(appId)` is called and the method returns a pair of the current state and the final application status.
+
+For cases where `returnOnRunning` is enabled (it is not by default) and the application's state is indeed `RUNNING`, the method returns a pair of the current state `RUNNING` and the final application status.
+
+The current state is recorded for future checks (in the loop).
 
 === [[submitApplication]] submitApplication
 
