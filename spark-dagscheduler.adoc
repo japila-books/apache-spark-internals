@@ -182,13 +182,24 @@ Since a `JobWaiter` object is a `JobListener` it gets notifications about `taskS
 
 === [[taskEnded]] DAGScheduler.taskEnded
 
-`taskEnded(task: Task[_], reason: TaskEndReason, result: Any, accumUpdates: Map[Long, Any], taskInfo: TaskInfo, taskMetrics: TaskMetrics)` method simply posts a <<CompletionEvent, CompletionEvent>> event to `eventProcessLoop`.
+[source, scala]
+----
+taskEnded(
+  task: Task[_],
+  reason: TaskEndReason,
+  result: Any,
+  accumUpdates: Map[Long, Any],
+  taskInfo: TaskInfo,
+  taskMetrics: TaskMetrics): Unit
+----
 
-NOTE: `DAGScheduler.taskEnded` method is called by a TaskSetManager to report task completions, failures including.
+`taskEnded` method simply posts a <<CompletionEvent, CompletionEvent>> event to the <<eventProcessLoop, DAGScheduler's internal event loop>>.
+
+NOTE: `DAGScheduler.taskEnded` method is called by a link:spark-tasksetmanager.adoc[TaskSetManager] to report task completions, failures including.
 
 TIP: Read about `TaskMetrics` in link:spark-taskscheduler-taskmetrics.adoc[TaskMetrics].
 
-=== [[event-loop]] dag-scheduler-event-loop - Internal Event Loop
+=== [[event-loop]][[eventProcessLoop]] dag-scheduler-event-loop - Internal Event Loop
 
 `DAGScheduler.eventProcessLoop` (of type `DAGSchedulerEventProcessLoop`) - is the event process loop to which Spark (by <<submitJob, DAGScheduler.submitJob>>) posts jobs to schedule their execution. Later on, link:spark-tasksetmanager.adoc[TaskSetManager] talks back to DAGScheduler to inform about the status of the tasks using the same "communication channel".
 
@@ -464,7 +475,7 @@ Otherwise, check whether the task is marked as running for the job (using `job.f
 
 CAUTION: FIXME When could a task that has just finished be ignored, i.e. the job has already marked `finished`? Could it be for stragglers?
 
-`updateAccumulators(event)` is called.
+<<updateAccumulators, updateAccumulators(event)>> is called.
 
 The partition is marked as `finished` (using `job.finished`) and the number of partitions calculated increased (using `job.numFinished`).
 
@@ -482,7 +493,7 @@ CAUTION: FIXME When would `job.listener.taskSucceeded` throw an exception? How?
 
 For ShuffleMapTask, the stage is `ShuffleMapStage`.
 
-`updateAccumulators(event)` is called.
+<<updateAccumulators, updateAccumulators(event)>> is called.
 
 `event.result` is `MapStatus` that knows the executor id where the task has finished (using `status.location.executorId`).
 
@@ -812,6 +823,26 @@ It emits the following numbers:
 * *stage.waitingStages* - the number of waiting stages
 * *job.allJobs* - the number of all jobs
 * *job.activeJobs* - the number of active jobs
+
+=== [[updateAccumulators]] Updating Accumulators with Partial Values from Completed Tasks (updateAccumulators method)
+
+[source, scala]
+----
+updateAccumulators(event: CompletionEvent): Unit
+----
+
+The private `updateAccumulators` method merges the partial values of accumulators from a completed task into their "source" accumulators on the driver.
+
+NOTE: It is called by <<handleTaskCompletion, handleTaskCompletion>>.
+
+For each `AccumulableInfo` in the `CompletionEvent`, a partial value from a task is obtained (from `AccumulableInfo.update`) and added to the driver's accumulator (using `Accumulable.++=` method).
+
+For named accumulators with the update value being a non-zero value, i.e. not `Accumulable.zero`:
+
+* `stage.latestInfo.accumulables` for the `AccumulableInfo.id` is set
+* `CompletionEvent.taskInfo.accumulables` gets `AccumulableInfo`.
+
+CAUTION: FIXME Where are `Stage.latestInfo.accumulables` and `CompletionEvent.taskInfo.accumulables` used?
 
 === [[settings]] Settings
 
