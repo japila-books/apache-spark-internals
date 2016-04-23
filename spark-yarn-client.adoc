@@ -29,19 +29,41 @@ It then instantiates link:spark-configuration.adoc[SparkConf], parses command-li
 
 === [[run]] run
 
-`run` <<submitApplication, submits a Spark application>> to link:spark-yarn-introduction.adoc[YARN ResourceManager].
+`run` <<submitApplication, submits a Spark application>> to a link:spark-yarn-introduction.adoc[YARN ResourceManager] (RM).
+
+If `LauncherBackend` is not connected to a RM, i.e. `LauncherBackend.isConnected` returns `false`, and `fireAndForget` is enabled, ...FIXME
+
+CAUTION: FIXME When could `LauncherBackend` lost the connection since it was connected in <<submitApplication, submitApplication>>?
+
+CAUTION: FIXME What is `fireAndForget`?
+
+Otherwise, when `LauncherBackend` is connected or `fireAndForget` is disabled, <<monitorApplication, monitorApplication>> is called. It returns a pair of `yarnApplicationState` and `finalApplicationStatus` that is checked against three different states that lead to a `SparkException` being thrown:
+
+* `YarnApplicationState.KILLED` or `FinalApplicationStatus.KILLED` lead to `SparkException` with the message "Application [appId] is killed".
+
+* `YarnApplicationState.FAILED` or `FinalApplicationStatus.FAILED` lead to `SparkException` with the message "Application [appId] finished with failed status".
+
+* `FinalApplicationStatus.UNDEFINED` leads to `SparkException` with the message "The final status of application [appId] is undefined".
+
+CAUTION: FIXME What are `YarnApplicationState` and `FinalApplicationStatus` statuses?
+
+=== [[monitorApplication]] monitorApplication
+
+`monitorApplication` ...
 
 === [[submitApplication]] submitApplication
 
-`submitApplication` submits a Spark application to YARN ResourceManager and returns its unique https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/api/records/ApplicationId.html[ApplicationId].
+`submitApplication` submits a Spark application to a YARN ResourceManager. It waits until the application is running and eventually returns its unique https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/api/records/ApplicationId.html[ApplicationId].
 
-NOTE: `submitApplication` is called from <<run, run>>.
+NOTE: `submitApplication` is used in <<run, Client.run>> and link:spark-yarn.adoc#YarnClientSchedulerBackend[YarnClientSchedulerBackend.start].
 
 Internally, it executes `LauncherBackend.connect` first and then executes `Client.setupCredentials` to set up credentials for future calls.
 
 CAUTION: FIXME What's `LauncherBackend`?
 
 It creates a YARN client (using Hadoop's https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/client/api/YarnClient.html#createYarnClient()[YarnClient.createYarnClient]), https://hadoop.apache.org/docs/current/api/org/apache/hadoop/service/AbstractService.html#init(org.apache.hadoop.conf.Configuration)[inits it] with a https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/conf/YarnConfiguration.html[YarnConfiguration] and https://hadoop.apache.org/docs/current/api/org/apache/hadoop/service/AbstractService.html#start()[starts it]. All this happens using Hadoop API.
+
+CAUTION: FIXME How to configure `YarnClient`? What is `getYarnClusterMetrics`?
 
 You should see the following INFO in the logs:
 
