@@ -1,6 +1,6 @@
 == Client
 
-`org.apache.spark.deploy.yarn.Client` is a standalone application used for link:spark-submit.adoc#submit[application submission] to a YARN cluster (regardless of the link:spark-submit.adoc#deploy-mode[deploy mode]).
+`org.apache.spark.deploy.yarn.Client` is a standalone application used for link:spark-submit.adoc#submit[application submission] to a YARN cluster.
 
 Precisely, it is <<main, Client.main>> method that is invoked.
 
@@ -50,7 +50,7 @@ CAUTION: FIXME When could `LauncherBackend` lost the connection since it was con
 
 CAUTION: FIXME What is `fireAndForget`?
 
-Otherwise, when `LauncherBackend` is connected or `fireAndForget` is disabled, <<monitorApplication, monitorApplication>> is called. It returns a pair of `yarnApplicationState` and `finalApplicationStatus` that is checked against three different states that lead to a `SparkException` being thrown:
+Otherwise, when `LauncherBackend` is connected or `fireAndForget` is disabled, <<monitorApplication, monitorApplication>> is called. It returns a pair of `yarnApplicationState` and `finalApplicationStatus` that is checked against three different state pairs and throw a `SparkException`:
 
 * `YarnApplicationState.KILLED` or `FinalApplicationStatus.KILLED` lead to `SparkException` with the message "Application [appId] is killed".
 
@@ -70,7 +70,7 @@ monitorApplication(
   logApplicationReport: Boolean = true): (YarnApplicationState, FinalApplicationStatus)
 ----
 
-`monitorApplication` continuously reports the status of an application `appId` every link:spark-yarn.adoc#spark.yarn.report.interval[spark.yarn.report.interval].
+`monitorApplication` continuously reports the status of an application `appId` every link:spark-yarn.adoc#spark.yarn.report.interval[spark.yarn.report.interval] (unless `returnOnRunning` is enabled).
 
 NOTE: It is used in <<run, Client.run>> and link:spark-yarn.adoc#YarnClientSchedulerBackend[YarnClientSchedulerBackend] (inside `waitForApplication` and `MonitorThread.run`).
 
@@ -99,17 +99,33 @@ If `logApplicationReport` and DEBUG log level are enabled, it prints report deta
 	 user: jacek
 ```
 
-For INFO log level it prints report details only when the application changes state.
+For INFO log level it prints report details only when the application state changes.
 
-When the application's state changes, `LauncherBackend` is notified (using `LauncherBackend.setState`).
+When the application state changes, `LauncherBackend` is notified (using `LauncherBackend.setState`).
 
-NOTE: The application's state is Hadoop's `YarnApplicationState`.
+NOTE: The application state is an instance of Hadoop's `YarnApplicationState`.
 
-For states `FINISHED`, `FAILED` or `KILLED`, `cleanupStagingDir(appId)` is called and the method returns a pair of the current state and the final application status.
+For states `FINISHED`, `FAILED` or `KILLED`, <<cleanupStagingDir, cleanupStagingDir>> is called and the method finishes by returning a pair of the current state and the final application status.
 
-For cases where `returnOnRunning` is enabled (it is not by default) and the application's state is indeed `RUNNING`, the method returns a pair of the current state `RUNNING` and the final application status.
+If `returnOnRunning` is enabled (it is disabled by default) and the application state turns `RUNNING`, the method returns a pair of the current state `RUNNING` and the final application status.
+
+NOTE: <<cleanupStagingDir, cleanupStagingDir>> won't be called when `returnOnRunning` is enabled and an application turns RUNNING. _I guess it is likely a left-over since the Client is deprecated now_.
 
 The current state is recorded for future checks (in the loop).
+
+=== [[cleanupStagingDir]] cleanupStagingDir
+
+`cleanupStagingDir` clears the staging directory of an application.
+
+NOTE: It is used in <<submitApplication, submitApplication>> when there is an exception and <<monitorApplication, monitorApplication>> when an application finishes and the method quits.
+
+It uses link:spark-yarn-settings.adoc#spark.yarn.stagingDir[spark.yarn.stagingDir] setting or falls back to a user's home directory for the staging directory. If link:spark-yarn-settings.adoc#spark.yarn.preserve.staging.files[cleanup is enabled], it deletes the entire staging directory for the application.
+
+You should see the following INFO message in the logs:
+
+```
+INFO Deleting staging directory [stagingDirPath]
+```
 
 === [[submitApplication]] submitApplication
 
