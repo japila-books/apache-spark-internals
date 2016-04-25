@@ -12,7 +12,7 @@ Transformations are lazy and thus are not executed immediately. Only after calli
 
 After executing a transformation, the result RDD(s) will always be different from their parents and can be smaller (e.g. `filter`, `count`, `distinct`, `sample`), bigger (e.g. `flatMap`, `union`, `cartesian`) or the same size (e.g. `map`).
 
-NOTE: There are a couple of transformations that do trigger jobs, e.g. `sortBy`, `zipWithIndex`, etc.
+CAUTION: There are transformations that may trigger jobs, e.g. `sortBy`, <<zipWithIndex, zipWithIndex>>, etc.
 
 .From SparkContext by transformations to the result
 image::diagrams/rdd-sparkcontext-transformations-action.png[align="center"]
@@ -69,3 +69,39 @@ CAUTION: FIXME
 Using an external key-value store (like HBase, Redis, Cassandra) and performing lookups/updates inside of your mappers (creating a connection within a link:spark-rdd-transformations.adoc#mapPartitions[mapPartitions] code block to avoid the connection setup/teardown overhead) might be a better solution.
 
 If hbase is used as the external key value store, atomicity is guaranteed
+
+=== [[zipWithIndex]] zipWithIndex
+
+[source, scala]
+----
+zipWithIndex(): RDD[(T, Long)]
+----
+
+`zipWithIndex` zips this `RDD[T]` with its element indices.
+
+[CAUTION]
+====
+If the number of partitions of the source RDD is greater than 1, it will submit an additional job to calculate start indices.
+
+[source, scala]
+----
+val onePartition = sc.parallelize(0 to 9, 1)
+
+scala> onePartition.partitions.length
+res0: Int = 1
+
+// no job submitted
+onePartition.zipWithIndex
+
+val eightPartitions = sc.parallelize(0 to 9, 8)
+
+scala> eightPartitions.partitions.length
+res1: Int = 8
+
+// submits a job
+eightPartitions.zipWithIndex
+----
+
+.Spark job submitted by zipWithIndex transformation
+image::images/spark-transformations-zipWithIndex-webui.png[align="center"]
+====
