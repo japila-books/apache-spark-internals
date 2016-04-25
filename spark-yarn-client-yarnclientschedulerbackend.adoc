@@ -1,0 +1,60 @@
+== Client Deploy Mode and YarnClientSchedulerBackend
+
+Spark on YARN supports submitting Spark applications in link:spark-submit.adoc#deploy-mode[client deploy mode]. This is the default deploy mode in Spark on YARN (and in general).
+
+In client deploy mode Spark on YARN uses <<YarnClientSchedulerBackend, YarnClientSchedulerBackend>>.
+
+=== [[YarnClientSchedulerBackend]] YarnClientSchedulerBackend
+
+`YarnClientSchedulerBackend` is the link:spark-scheduler-backends.adoc[SchedulerBackend] for Spark on YARN with `client` deploy mode.
+
+`YarnClientSchedulerBackend` is an extension of `YarnSchedulerBackend` and belongs to `org.apache.spark.scheduler.cluster` package.
+
+It requires link:spark-taskschedulerimpl.adoc[TaskSchedulerImpl] and link:spark-sparkcontext.adoc[SparkContext] to work.
+
+[TIP]
+====
+Enable `DEBUG` logging level for `org.apache.spark.scheduler.cluster.YarnClientSchedulerBackend` logger to see what happens inside `YarnClientSchedulerBackend`.
+
+Add the following line to `conf/log4j.properties`:
+
+```
+log4j.logger.org.apache.spark.scheduler.cluster.YarnClientSchedulerBackend=DEBUG
+```
+
+Refer to link:spark-logging.adoc[Logging].
+====
+
+When `start` method is called, it sets `spark.driver.appUIAddress` to be `SparkUI.appUIAddress`.
+
+CAUTION: FIXME When is `start` called?
+
+With DEBUG log level enabled you should see the following DEBUG message in the logs:
+
+```
+DEBUG YarnClientSchedulerBackend: ClientArguments called with: [argsArrayBuf]
+```
+
+NOTE: `argsArrayBuf` is link:spark-runtime-environment.adoc#settings[spark.driver.host] and link:spark-runtime-environment.adoc#settings[spark.driver.port] separated by `:`, e.g. `--arg 192.168.99.1:64905`.
+
+It then creates an instance of link:spark-yarn-client.adoc#ClientArguments[ClientArguments] with `argsArrayBuf`.
+
+It sets the internal `totalExpectedExecutors` to be `YarnSparkHadoopUtil.getInitialTargetExecutorNumber`.
+
+It creates an instance of link:spark-yarn-client.adoc[Client] using the instance of `ClientArguments` and `SparkConf`.
+
+`bindToYarn` is called with the application id (being the result of calling link:spark-yarn-client.adoc#submitApplication[Client.submitApplication]) and `None` for the optional `attemptId`.
+
+`super.start()` is executed.
+
+CAUTION: FIXME What does `super.start()` do?
+
+`waitForApplication` is executed.
+
+CAUTION: FIXME What does `waitForApplication` do?
+
+If link:spark-yarn-settings.adoc#spark.yarn.credentials.file[spark.yarn.credentials.file] is defined, `YarnSparkHadoopUtil.get.startExecutorDelegationTokenRenewer(conf)` is called.
+
+CAUTION: FIXME Why?
+
+An internal `MonitorThread` reference is initialized (using `asyncMonitorApplication`) and started.
