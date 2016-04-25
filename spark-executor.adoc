@@ -1,6 +1,8 @@
 == Executors
 
-*Executors* are distributed agents responsible for link:spark-taskscheduler-tasks.adoc#execution[executing tasks]. They _typically_ (i.e. not always) run for the entire lifetime of a Spark application. Executors send <<heartbeats-and-active-task-metrics, active task metrics>> to a link:spark-driver.adoc[driver]. They also inform link:spark-executor-backends.adoc[executor backends] about task status updates (task results including).
+*Executors* are distributed agents that execute link:spark-taskscheduler-tasks.adoc#execution[tasks].
+
+They _typically_ (i.e. not always) run for the entire lifetime of a Spark application. Executors send <<heartbeats-and-active-task-metrics, active task metrics>> to a link:spark-driver.adoc[driver] and inform link:spark-executor-backends.adoc[executor backends] about task status updates (task results including).
 
 NOTE: Executors are managed solely by link:spark-executor-backends.adoc[executor backends].
 
@@ -30,6 +32,8 @@ log4j.logger.org.apache.spark.executor.Executor=INFO
 
 Refer to link:spark-logging.adoc[Logging].
 ====
+
+=== Starting Executor
 
 When an executor is started you should see the following INFO messages in the logs:
 
@@ -92,7 +96,11 @@ Executors use internal `driver-heartbeater` daemon single-thread scheduled pool 
 
 === [[TaskRunner]] TaskRunner
 
-*TaskRunner* is a thread of execution that runs a task. It requires a link:spark-executor-backends.adoc[ExecutorBackend] (to send status updates to), task and attempt ids, task name, and serialized version of the task (as `ByteBuffer`). It sends updates about task execution to the link:spark-executor-backends.adoc[ExecutorBackend].
+*TaskRunner* is a thread of execution that runs a task.
+
+NOTE: TaskRunner can run a single task only. When TaskRunner finishes, it is removed from the internal `runningTasks` map.
+
+It requires a link:spark-executor-backends.adoc[ExecutorBackend] (to send status updates to), task and attempt ids, task name, and serialized version of the task (as `ByteBuffer`). It sends updates about task execution to the link:spark-executor-backends.adoc[ExecutorBackend].
 
 Sending task status updates to link:spark-executor-backends.adoc[ExecutorBackend] is a mechanism to inform the executor backend about task being started (`TaskState.RUNNING`), task finish together with the serialized result (`TaskState.FINISHED`), task being killed (`TaskState.KILLED`) and task failures (`TaskState.FAILED`).
 
@@ -105,8 +113,6 @@ INFO Executor: Running [taskName] (TID [taskId])
 `taskId` is the id of the task being executed in <<thread-pool, Executor task launch worker-[taskId]>>.
 
 Information about it is sent to the driver using link:spark-executor-backends.adoc[ExecutorBackend] as `TaskState.RUNNING` and zero-byte `ByteBuffer`.
-
-TaskRunner can run a single task only. When TaskRunner finishes, it is removed from the internal `runningTasks` map.
 
 CAUTION: FIXME TaskMemoryManager and task serialization and deserialization
 
@@ -126,28 +132,31 @@ CAUTION: FIXME Why is `MapOutputTracker.updateEpoch` needed?
 
 Task runs (with `taskId`, `attemptNumber`, and the globally-configured `MetricsSystem`). See link:spark-taskscheduler-tasks.adoc#execution[Task Execution].
 
-When a task finishes, it returns a value and `accumUpdates`.
+When a task finishes, it returns a value and `accumUpdates`, i.e. the result of link:spark-taskscheduler-tasks.adoc#collectAccumulatorUpdates[Task.collectAccumulatorUpdates] that collects the latest values of accumulators used.
 
-CAUTION: FIXME What are `accumUpdates`? It should perhaps be described in link:spark-taskscheduler-tasks.adoc#execution[Task Execution].
+The result value is serialized (using the other instance of `Serializer`, i.e. `serializer`).
 
-The result value is serialized (using the other instance of `Serializer`, i.e. `serializer` - there are two `Serializer` instances in `SparkContext.env`).
+NOTE: There are two `Serializer` instances in `SparkContext.env`.
 
-A `DirectTaskResult` that contains the serialized result and `accumUpdates` is serialized.
+It creates an instance of `DirectTaskResult` with the serialized result and the accumulators' values (as `accumUpdates`).
 
-If `maxResultSize` is set and the size of the serialized result exceeds the value, a SparkException is reported.
+`run` serializes the `DirectTaskResult` (using `SparkEnv.closureSerializer`) and calculates the result's size.
+
+If `maxResultSize` is set and the size of the serialized result exceeds it, a `SparkException` is reported.
 
 ```
+$ ./bin/spark-shell -c spark.driver.maxResultSize=1m
+
 scala> sc.getConf.get("spark.driver.maxResultSize")
-res5: String = 1m
+res0: String = 1m
 
-scala> sc.parallelize(0 to 1024*1024+10, 1).collect
+scala> sc.range(0, 1024 * 1024 + 10, 1).collect
 ...
-INFO DAGScheduler: Job 3 failed: collect at <console>:25, took 0.075073 s
-org.apache.spark.SparkException: Job aborted due to stage failure: Total size of serialized results of 1 tasks (4.0 MB) is bigger than spark.driver.maxResultSize (1024.0 KB)
-  at org.apache.spark.scheduler.DAGScheduler.org$apache$spark$scheduler$DAGScheduler$$failJobAndIndependentStages(DAGScheduler.scala:1430)
+org.apache.spark.SparkException: Job aborted due to stage failure: Total size of serialized results of 1 tasks (1031.4 KB) is bigger than spark.driver.maxResultSize (1024.0 KB)
+  at org.apache.spark.scheduler.DAGScheduler.org$apache$spark$scheduler$DAGScheduler$$failJobAndIndependentStages(DAGScheduler.scala:1450)
 ```
 
-If however the size exceeds `akkaFrameSize`, ...FIXME.
+CAUTION: FIXME Complete me.
 
 A successful execution is "announced" as INFO to the logs:
 
