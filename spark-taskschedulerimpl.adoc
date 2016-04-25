@@ -1,23 +1,36 @@
 == [[TaskSchedulerImpl]] TaskSchedulerImpl - Default TaskScheduler
 
-`TaskSchedulerImpl` is the default implementation of link:spark-taskscheduler.adoc#contract[TaskScheduler Contract]. It can schedule tasks for multiple types of cluster managers by using a link:spark-scheduler-backends.adoc[Scheduler Backend].
+`TaskSchedulerImpl` is the default implementation of link:spark-taskscheduler.adoc#contract[TaskScheduler Contract]. It can schedule tasks for multiple types of cluster managers by means of link:spark-scheduler-backends.adoc[Scheduler Backends].
 
-When your Spark application starts, i.e. at the time when an instance of SparkContext is created, TaskSchedulerImpl with a SchedulerBackend and DAGScheduler are created and started, too.
+It <<submitTasks, submits tasks>> using link:spark-taskscheduler-schedulablebuilders.adoc[SchedulableBuilders].
+
+When a Spark application starts (and an instance of SparkContext is created) `TaskSchedulerImpl` with a `SchedulerBackend` and link:spark-dagscheduler.adoc[DAGScheduler] are created and started, too.
 
 .TaskSchedulerImpl and Other Services
 image::images/taskschedulerimpl-sparkcontext-schedulerbackend-dagscheduler.png[align="center"]
 
 NOTE: The source code is in https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/scheduler/TaskSchedulerImpl.scala[org.apache.spark.scheduler.TaskSchedulerImpl].
 
-=== [[initialization]] TaskSchedulerImpl.initialize
+=== [[initialization]][[initialize]] Initialization (initialize method)
 
-`initialize(backend: SchedulerBackend)` method is responsible for initializing a `TaskSchedulerImpl`.
+[source, scala]
+----
+initialize(backend: SchedulerBackend): Unit
+----
 
-It has to be called after a `TaskSchedulerImpl` is created and before it can be <<start, started>> to know about the link:spark-scheduler-backends.adoc[SchedulerBackend] to use.
+`initialize` initializes a `TaskSchedulerImpl`.
 
-NOTE: link:spark-sparkcontext.adoc#createTaskScheduler[SparkContext] initializes TaskSchedulerImpl.
+NOTE: link:spark-sparkcontext.adoc#createTaskScheduler[SparkContext] initializes `TaskSchedulerImpl`.
 
-Besides being assigned the instance of `SchedulerBackend`, it sets up `rootPool` (as part of link:spark-taskscheduler.adoc#contract[TaskScheduler Contract]). It uses a scheduling mode (as configured by <<settings, spark.scheduler.mode>>) to build a <<SchedulableBuilder, SchedulableBuilder>> and call `SchedulableBuilder.buildPools()`.
+It saves the reference to `SchedulerBackend` (as `backend`) for future use.
+
+It then initializes the internal `rootPool` (a part of link:spark-taskscheduler.adoc#contract[TaskScheduler Contract]).
+
+NOTE: It creates an unnamed  link:spark-taskscheduler.adoc#Pool[Pool] with scheduling mode as <<spark.scheduler.mode, spark.scheduler.mode>> or `FIFO`. See <<scheduling-mode, Scheduling Modes>> in this document.
+
+It also initializes the internal link:spark-taskscheduler-schedulablebuilders.adoc[SchedulableBuilder] (as `schedulableBuilder`) and ultimately calls its link:spark-taskscheduler-schedulablebuilders.adoc#buildPools[SchedulableBuilder.buildPools].
+
+NOTE: `schedulableBuilder` can be link:spark-taskscheduler-schedulablebuilders.adoc#FIFOSchedulableBuilder[FIFOSchedulableBuilder] (for `FIFO` scheduling mode) or link:spark-taskscheduler-schedulablebuilders.adoc#FairSchedulableBuilder[FairSchedulableBuilder] (for `FAIR` scheduling mode).
 
 === [[start]] TaskSchedulerImpl.start
 
@@ -100,7 +113,7 @@ NOTE: `maxTaskFailures` that is the acceptable number of task failures is given 
 more than one active taskSet for stage [stage]: [TaskSet ids]
 ```
 
-Otherwise, <<SchedulableBuilder, SchedulableBuilder.addTaskSetManager>> is called with the `manager` being the TaskSetManager just created.
+Otherwise, link:spark-taskscheduler-schedulablebuilders.adoc[SchedulableBuilder.addTaskSetManager] is called with the `manager` being the `TaskSetManager` just created.
 
 When the method is called the first time (`hasReceivedTask` is `false`) in cluster mode, `starvationTimer` is scheduled at fixed rate, i.e. every <<settings, spark.starvation.timeout>> after the first <<settings, spark.starvation.timeout>> passes (`hasReceivedTask` becomes `true`).
 
@@ -277,44 +290,15 @@ INFO Removed TaskSet [manager.taskSet.id], whose tasks have all completed, from 
 
 === [[scheduling-mode]] Scheduling Modes
 
-The scheduling mode in `TaskSchedulerImpl` is configured by <<settings, spark.scheduler.mode>> setting that can be one of the following values:
+The scheduling mode in `TaskSchedulerImpl` is configured by <<spark.scheduler.mode, spark.scheduler.mode>> setting.
+
+It can be the following values:
 
 * *FIFO* with no pools; one root pool with instances of link:spark-tasksetmanager.adoc[TaskSetManager]; lower priority gets link:spark-taskscheduler.adoc#Schedulable[Schedulable] sooner or earlier stage wins.
 * *FAIR*
 * *NONE* means no sub-queues
 
-See <<SchedulableBuilder, SchedulableBuilder>>.
-
-==== [[SchedulableBuilder]] SchedulableBuilder
-
-CAUTION: FIXME
-
-`SchedulableBuilder` offers the following methods:
-
-* `rootPool` to return a link:spark-taskscheduler.adoc#Pool[Pool].
-* `buildPools()`
-* `addTaskSetManager(manager: Schedulable, properties: Properties)`
-
-NOTE: `SchedulableBuilder.addTaskSetManager` is called by <<submitTasks, TaskSchedulerImpl.submitTasks>> when a TaskSet is submitted for execution.
-
-There are two implementations available (click the links to go to their sections):
-
-* <<FIFOSchedulableBuilder, FIFOSchedulableBuilder>>
-* <<FairSchedulableBuilder, FairSchedulableBuilder>>
-
-==== [[FIFOSchedulableBuilder]] FIFOSchedulableBuilder
-
-`FIFOSchedulableBuilder` is a _very basic_ `SchedulableBuilder`.
-
-* `rootPool` is given as a mandatory input parameter to the constructor.
-
-* `buildPools` does nothing.
-
-* `addTaskSetManager(manager: Schedulable, properties: Properties)` adds the `manager` Schedulable to `rootPool` (using `Pool.addSchedulable`).
-
-==== [[FairSchedulableBuilder]] FairSchedulableBuilder
-
-CAUTION: FIXME
+TIP: Refer to link:spark-taskscheduler-schedulablebuilders.adoc[SchedulableBuilder].
 
 === [[executorAdded]] TaskSchedulerImpl.executorAdded
 
@@ -343,6 +327,8 @@ TaskSchedulerImpl tracks the following information in its internal data structur
 +
 It is used in TaskSchedulerImpl to initialize link:spark-tasksetmanager.adoc[TaskSetManager].
 * `spark.task.cpus` (default: `1`) - how many CPUs to request per task in a SparkContext. You cannot have different number of CPUs per task in a single SparkContext.
+
+[[spark.scheduler.mode]]
 * `spark.scheduler.mode` (default: `FIFO`) can be of any of `FAIR`, `FIFO`, or `NONE`. Refer to <<scheduling-mode, Scheduling Modes>>.
 * `spark.speculation.interval` (default: `100ms`) - how often to check for speculative tasks.
 * `spark.starvation.timeout` (default: `15s`) - Threshold above which Spark warns a user that an initial TaskSet may be starved.
