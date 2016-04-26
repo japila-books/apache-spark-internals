@@ -1,8 +1,10 @@
 == Client Deploy Mode and YarnClientSchedulerBackend
 
-Spark on YARN supports submitting Spark applications in link:spark-submit.adoc#deploy-mode[client deploy mode]. This is the default deploy mode in Spark on YARN (and in general).
+Spark on YARN supports submitting Spark applications in link:spark-submit.adoc#deploy-mode[client deploy mode].
 
-In client deploy mode Spark on YARN uses <<YarnClientSchedulerBackend, YarnClientSchedulerBackend>>.
+NOTE: This is the default deploy mode of Spark on YARN.
+
+In client deploy mode Spark on YARN uses <<YarnClientSchedulerBackend, YarnClientSchedulerBackend>> to talk to YARN ResourceManager and submit tasks.
 
 === [[YarnClientSchedulerBackend]] YarnClientSchedulerBackend
 
@@ -25,9 +27,16 @@ log4j.logger.org.apache.spark.scheduler.cluster.YarnClientSchedulerBackend=DEBUG
 Refer to link:spark-logging.adoc[Logging].
 ====
 
-When `start` method is called, it sets `spark.driver.appUIAddress` to be `SparkUI.appUIAddress`.
+==== [[start]] start
 
-CAUTION: FIXME When is `start` called?
+[source, scala]
+----
+start()
+----
+
+`start` sets `spark.driver.appUIAddress` to be `SparkUI.appUIAddress` (link:spark-sparkcontext.adoc#initialization[if Spark's web UI is enabled]).
+
+NOTE: `start` is called when link:spark-taskschedulerimpl.adoc#start[TaskSchedulerImpl starts].
 
 With DEBUG log level enabled you should see the following DEBUG message in the logs:
 
@@ -41,20 +50,58 @@ It then creates an instance of link:spark-yarn-client.adoc#ClientArguments[Clien
 
 It sets the internal `totalExpectedExecutors` to be `YarnSparkHadoopUtil.getInitialTargetExecutorNumber`.
 
+NOTE: `totalExpectedExecutors` is an internal field of the supertype `YarnSchedulerBackend`.
+
+CAUTION: FIXME Why is this part of subtypes since they both set it to the same value?
+
 It creates an instance of link:spark-yarn-client.adoc[Client] using the instance of `ClientArguments` and `SparkConf`.
 
-`bindToYarn` is called with the application id (being the result of calling link:spark-yarn-client.adoc#submitApplication[Client.submitApplication]) and `None` for the optional `attemptId`.
+`bindToYarn` method is called with the current application id (being the result of calling link:spark-yarn-client.adoc#submitApplication[Client.submitApplication]) and `None` for the optional `attemptId`.
 
-`super.start()` is executed.
+NOTE: `bindToYarn` sets the internal `appId` that the supertype `YarnSchedulerBackend`'s `start` requires, i.e. it asserts that `appId` is set for `SchedulerExtensionServiceBinding` to call.
 
-CAUTION: FIXME What does `super.start()` do?
+The supertype `YarnSchedulerBackend`'s `start` is called.
 
-`waitForApplication` is executed.
-
-CAUTION: FIXME What does `waitForApplication` do?
+<<waitForApplication, waitForApplication>> is executed that blocks until the application is running or an `SparkException` is thrown.
 
 If link:spark-yarn-settings.adoc#spark.yarn.credentials.file[spark.yarn.credentials.file] is defined, `YarnSparkHadoopUtil.get.startExecutorDelegationTokenRenewer(conf)` is called.
 
-CAUTION: FIXME Why?
+CAUTION: FIXME Why? What does `startExecutorDelegationTokenRenewer` do?
 
-An internal `MonitorThread` reference is initialized (using `asyncMonitorApplication`) and started.
+A <<MonitorThread, MonitorThread>> object is created (using `asyncMonitorApplication`) and started to asynchronously monitor the currently running application.
+
+==== [[waitForApplication]] waitForApplication
+
+[source, scala]
+----
+waitForApplication(): Unit
+----
+
+`waitForApplication` is an internal (private) method that waits until the current application is running (using link:spark-yarn-client.adoc#monitorApplication[Client.monitorApplication]).
+
+If the application has `FINISHED`, `FAILED`, or has been `KILLED`, a `SparkException` is thrown with the following message:
+
+```
+Yarn application has already ended! It might have been killed or unable to launch application master.
+```
+
+You should see the following INFO message in the logs for `RUNNING` state:
+
+```
+INFO YarnClientSchedulerBackend: Application [appId] has started running.
+```
+
+==== [[asyncMonitorApplication]] asyncMonitorApplication
+
+[source, scala]
+----
+asyncMonitorApplication(): MonitorThread
+----
+
+`asyncMonitorApplication` creates a separate daemon <<MonitorThread, MonitorThread>> thread with the name "Yarn application state monitor".
+
+NOTE: `asyncMonitorApplication` does not start the daemon thread.
+
+=== [[MonitorThread]] MonitorThread
+
+CAUTION: FIXME Describe me.
