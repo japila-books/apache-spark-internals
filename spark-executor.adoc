@@ -1,6 +1,6 @@
 == Executors
 
-*Executors* are distributed agents that execute link:spark-taskscheduler-tasks.adoc#execution[tasks].
+*Executors* are distributed agents that execute link:spark-taskscheduler-tasks.adoc[tasks].
 
 They _typically_ (i.e. not always) run for the entire lifetime of a Spark application. Executors send <<heartbeats-and-active-task-metrics, active task metrics>> to a link:spark-driver.adoc[driver] and inform link:spark-executor-backends.adoc[executor backends] about task status updates (task results including).
 
@@ -96,13 +96,34 @@ Executors use internal `driver-heartbeater` daemon single-thread scheduled pool 
 
 === [[TaskRunner]] TaskRunner
 
-*TaskRunner* is a thread of execution that runs a task.
+*TaskRunner* is a thread of execution that runs a link:spark-taskscheduler-tasks.adoc[Task].
 
-NOTE: TaskRunner can run a single task only. When TaskRunner finishes, it is removed from the internal `runningTasks` map.
+NOTE: `TaskRunner` can run a single task only. When TaskRunner finishes, it is removed from the internal `runningTasks` map.
 
-It requires a link:spark-executor-backends.adoc[ExecutorBackend] (to send status updates to), task and attempt ids, task name, and serialized version of the task (as `ByteBuffer`). It sends updates about task execution to the link:spark-executor-backends.adoc[ExecutorBackend].
+It requires a link:spark-executor-backends.adoc[ExecutorBackend] (to send the task's status updates to), task and attempt ids, task name, and serialized version of the task (as `ByteBuffer`).
 
-Sending task status updates to link:spark-executor-backends.adoc[ExecutorBackend] is a mechanism to inform the executor backend about task being started (`TaskState.RUNNING`), task finish together with the serialized result (`TaskState.FINISHED`), task being killed (`TaskState.KILLED`) and task failures (`TaskState.FAILED`).
+Sending task status updates to link:spark-executor-backends.adoc[ExecutorBackend] is a mechanism to inform the executor backend about the task's state changes:
+
+* the task being started, i.e. `TaskState.RUNNING`
+* the task finish together with the serialized result, i.e. `TaskState.FINISHED`
+* the task being killed, i.e. `TaskState.KILLED`
+* the task failures, i.e. `TaskState.FAILED`
+
+==== [[kill]] Killing Task (kill method)
+
+`kill` marks the task (handled by a `TaskRunner`) to be killed.
+
+When executed, you should see the following INFO message in the logs:
+
+```
+INFO TaskRunner: Executor is trying to kill [taskName] (TID [taskId])
+```
+
+Internally, `kill` enables the internal flag `killed` and only if the task is available kills it (using link:spark-taskscheduler-tasks.adoc#kill[Task.kill]).
+
+CAUTION: FIXME When could `task` not be set?
+
+==== [[run]] Executing Task (run method)
 
 When a `TaskRunner` starts running, it prints the following INFO message to the logs:
 
