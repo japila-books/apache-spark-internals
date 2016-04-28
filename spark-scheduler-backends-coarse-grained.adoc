@@ -1,6 +1,8 @@
 == CoarseGrainedSchedulerBackend
 
-*CoarseGrainedSchedulerBackend* is a link:spark-scheduler-backends.adoc[scheduler backend] that waits for link:spark-executor-backends-coarse-grained.adoc[coarse-grained executors] to connect to it (using link:spark-rpc.adoc[RPC Environment]) and <<launching-tasks, launch tasks>>. It talks to a cluster manager for resources for executors (register, remove).
+*CoarseGrainedSchedulerBackend* is a link:spark-scheduler-backends.adoc[scheduler backend] that <<launching-tasks, launches tasks>> on link:spark-executor-backends-coarse-grained.adoc[coarse-grained executors].
+
+It talks to a cluster manager for resources for executors (register, remove).
 
 This backend holds executors for the duration of the Spark job rather than relinquishing executors whenever a task is done and asking the scheduler to launch a new executor for each new task.
 
@@ -32,20 +34,6 @@ Add the following line to `conf/log4j.properties`:
 log4j.logger.org.apache.spark.scheduler.cluster.CoarseGrainedSchedulerBackend=DEBUG
 ```
 ====
-
-=== [[launching-tasks]] Launching Tasks
-
-`launchTasks` gets called when making offers (using `makeOffers` method).
-
-CAUTION: FIXME Why is there `Seq[Seq[TaskDescription]]`?
-
-Tasks are serialized and their size checked to fit <<settings, spark.akka.frameSize>>.
-
-If the serialized task's size is over the frame size, the TaskSetManager of the task is called using link:spark-tasksetmanager.adoc#aborting-taskset[TaskSetManager.abort] method. It is link:spark-taskscheduler.adoc[TaskSchedulerImpl] to be queried for the TaskSetManager of the task.
-
-CAUTION: FIXME At that point, tasks have their executor assigned. When and how did that happen?
-
-The number of free cores of the executor for the task is decremented (by link:spark-taskscheduler.adoc#settings[spark.task.cpus]) and link:spark-executor-backends-coarse-grained.adoc#LaunchTask[LaunchTask] message is sent to it.
 
 === [[defaultParallelism]] Default Level of Parallelism
 
@@ -129,15 +117,9 @@ CAUTION: FIXME A potential issue with `driverEndpoint.asInstanceOf[NettyRpcEndpo
 
 ==== [[ReviveOffers]] ReviveOffers
 
-`ReviveOffers` calls `makeOffers()` that makes fake resource offers on all executors that are alive.
+`ReviveOffers` simply passes the call on to <<makeOffers, makeOffers>>.
 
 CAUTION: FIXME When is an executor alive? What other states can an executor be in?
-
-CAUTION: FIXME What is *fake resource offers*?
-
-A collection of `WorkerOffer` for each active executor is offered to `TaskSchedulerImpl` (refer to link:spark-taskschedulerimpl.adoc#resourceOffers[resourceOffers] in TaskSchedulerImpl).
-
-It then <<launching-tasks, launches tasks>> for the resource offers.
 
 ==== StatusUpdate(executorId, taskId, state, data)
 
@@ -157,7 +139,12 @@ It then sends a link:spark-executor-backends-coarse-grained.adoc#StopExecutor[St
 
 ==== [[RegisterExecutor]] RegisterExecutor
 
-`RegisterExecutor(executorId, executorRef, hostPort, cores, logUrls)` is sent by link:spark-executor-backends-coarse-grained.adoc[CoarseGrainedExecutorBackend] to register itself.
+[source, scala]
+----
+RegisterExecutor(executorId, executorRef, cores, logUrls)
+----
+
+`RegisterExecutor` is sent by link:spark-executor-backends-coarse-grained.adoc[CoarseGrainedExecutorBackend] to register itself.
 
 .Executor registration (RegisterExecutor RPC message flow)
 image::images/CoarseGrainedSchedulerBackend-RegisterExecutor-event.png[align="center"]
@@ -180,13 +167,52 @@ It replies with `RegisteredExecutor(executorAddress.host)` (consult link:spark-e
 
 It then announces the new executor by posting link:spark-scheduler-listeners.adoc#SparkListenerExecutorAdded[SparkListenerExecutorAdded] on link:spark-scheduler-listeners.adoc#listener-bus[Listener Bus].
 
-`makeOffers` is called. It is described as _"Make fake resource offers on all executors"_.
+Ultimately, <<makeOffers, makeOffers>> is called.
 
-CAUTION: FIXME What are *fake resource offers*? Review `makeOffers` in `DriverEndpoint`.
+=== [[DriverEndpoint]] DriverEndpoint
+
+`DriverEndpoint` is a `ThreadSafeRpcEndpoint`.
+
+==== [[makeOffers]] makeOffers
+
+`makeOffers` uses active executors (using `executorDataMap` internal map) and creates a collection of `WorkerOffer` objects (one for an executor with its `id` and executor's host and free cores).
+
+It then calls link:spark-taskschedulerimpl.adoc#resourceOffers[TaskSchedulerImpl.resourceOffers] to create a collection of `TaskDescription` collections that it in turn uses to call <<launchTasks, launchTasks>>.
+
+=== [[launchTasks]][[launching-tasks]] Launching Tasks (launchTasks method)
+
+[source, scala]
+----
+launchTasks(tasks: Seq[Seq[TaskDescription]])
+----
+
+`launchTasks` iterates over `TaskDescription` objects in the `tasks` input collection.
+
+NOTE: `launchTasks` gets called when making offers (using `makeOffers` method).
+
+CAUTION: FIXME Why is there `Seq[Seq[TaskDescription]]`?
+
+It serializes a `TaskDescription` (using `SparkEnv.closureSerializer`) to a serialized task and the size is checked to fit <<spark.rpc.message.maxSize, spark.rpc.message.maxSize>> max message size for messages.
+
+If the serialized task's size is over the maximum message size, the task's link:spark-tasksetmanager.adoc[TaskSetManager] is called to link:spark-tasksetmanager.adoc#aborting-taskset[abort].
+
+CAUTION: FIXME At that point, tasks have their executor assigned. When and how did that happen?
+
+From the internal `executorDataMap`, the `ExecutorData` for the executor id is obtained. `ExecutorData` keeps track of the number of free cores of the executor and it is decremented by `CPUS_PER_TASK` (i.e. link:spark-taskschedulerimpl.adoc#spark.task.cpus[spark.task.cpus]).
+
+You should see the following INFO in the logs:
+
+```
+INFO DriverEndpoint: Launching task [taskId] on executor id: [executorId] hostname: [executorHost].
+```
+
+Using `ExecutorData` it gets the executor's RPC endpoint to send link:spark-executor-backends-coarse-grained.adoc#LaunchTask[LaunchTask] message to. The serialized task is wrapped in a `SerializableBuffer` object.
 
 === [[settings]] Settings
 
-* `spark.akka.frameSize` (default: `128` and not greater than `2047m` - `200k` for extra data in an Akka message) - largest frame size for Akka messages (serialized tasks or task results) in MB.
+[[spark.rpc.message.maxSize]]
+* `spark.rpc.message.maxSize` (default: `128` and not greater than `2047m` - `200k` for the largest frame size for RPM messages (serialized tasks or task results) in MB.
+
 * `spark.default.parallelism` (default: maximum of `totalCoreCount` and 2) - link:spark-scheduler-backends.adoc#defaultParallelism[default parallelism] for the scheduler backend.
 * `spark.scheduler.minRegisteredResourcesRatio` (default: `0`) - a double value between 0 and 1 (including) that controls the minimum ratio of (registered resources / total expected resources) before submitting tasks. See <<isReady, isReady>>.
 * `spark.scheduler.maxRegisteredResourcesWaitingTime` (default: `30s`) - the time to wait for sufficient resources available. See <<isReady, isReady>>.

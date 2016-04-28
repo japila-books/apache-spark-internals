@@ -1,15 +1,15 @@
 == CoarseGrainedExecutorBackend
 
-*CoarseGrainedExecutorBackend* is an link:spark-executor-backends.adoc[executor backend] for link:spark-executor.adoc#coarse-grained-executor[coarse-grained executors] that live until it terminates.
+`CoarseGrainedExecutorBackend` manages a single link:spark-executor.adoc[executor] object. The internal `executor` object is created after a connection to a driver is established (i.e. after <<RegisteredExecutor, RegisteredExecutor>> has arrived).
 
 .CoarseGrainedExecutorBackend and Others
 image::images/CoarseGrainedExecutorBackend.png[align="center"]
 
-CoarseGrainedExecutorBackend registers itself as a link:spark-rpc.adoc#rpcendpoint[RPC Endpoint] under the name *Executor*.
+`CoarseGrainedExecutorBackend` is an link:spark-executor-backends.adoc[executor backend] for link:spark-executor.adoc#coarse-grained-executor[coarse-grained executors] that live until the executor backend terminates.
+
+`CoarseGrainedExecutorBackend` registers itself as a link:spark-rpc.adoc#rpcendpoint[RPC Endpoint] under the name *Executor*.
 
 When started it connects to `driverUrl` (given as <<main, an option on command line>>), i.e.  link:spark-scheduler-backends-coarse-grained.adoc[CoarseGrainedSchedulerBackend], for tasks to run.
-
-After the connection to driver is established (<<messages, RegisteredExecutor>>), it spawns an link:spark-executor.adoc[executor].
 
 CAUTION: What are `RegisterExecutor` and `RegisterExecutorResponse`? Why does `CoarseGrainedExecutorBackend` send it in `onStart`?
 
@@ -17,7 +17,7 @@ When it cannot connect to `driverUrl`, it terminates (with the exit code `1`).
 
 CAUTION: What are `SPARK_LOG_URL_` env vars? Who sets them?
 
-When the driver terminates, CoarseGrainedExecutorBackend exits (with exit code `1`).
+When the driver terminates, `CoarseGrainedExecutorBackend` exits (with exit code `1`).
 
 ```
 ERROR Driver [remoteAddress] disassociated! Shutting down.
@@ -109,37 +109,60 @@ It is used in:
 
 === [[messages]] RPC Messages
 
-==== RegisteredExecutor(hostname)
+==== [[RegisteredExecutor]] RegisteredExecutor
 
-`RegisteredExecutor(hostname)` is received to confirm successful registration to a driver. This is when `executor` is created.
+[source, scala]
+----
+RegisteredExecutor(hostname)
+----
+
+When `RegisteredExecutor` message arrives, you should see the following INFO in the logs:
 
 ```
 INFO CoarseGrainedExecutorBackend: Successfully registered with driver
 ```
 
-==== RegisterExecutorFailed(message)
+The internal `executor` is created using `executorId` constructor parameter, with `hostname` that has arrived and others.
 
-`RegisterExecutorFailed(message)` is to inform that registration to a driver failed. It exits CoarseGrainedExecutorBackend with exit code `1`.
+==== [[RegisterExecutorFailed]] RegisterExecutorFailed
+
+[source, scala]
+----
+RegisterExecutorFailed(message)
+----
+
+When a `RegisterExecutorFailed` message arrives, the following ERROR is printed out to the logs:
 
 ```
 ERROR CoarseGrainedExecutorBackend: Slave registration failed: [message]
 ```
 
-==== [[LaunchTask]] LaunchTask(data)
+`CoarseGrainedExecutorBackend` then exits with the exit code `1`.
 
-`LaunchTask(data)` checks whether an executor has been created and prints the following ERROR if not:
+==== [[LaunchTask]] LaunchTask
 
-```
-ERROR CoarseGrainedExecutorBackend: Received LaunchTask command but executor was null
-```
+[source, scala]
+----
+LaunchTask(data: SerializableBuffer)
+----
 
-Otherwise, it deserializes `TaskDescription` (from `data`).
+The `LaunchTask` handler deserializes `TaskDescription` from `data` (using `SparkEnv.closureSerializer`).
+
+NOTE: `LaunchTask` message is sent by link:spark-scheduler-backends-coarse-grained.adoc#launchTasks[CoarseGrainedSchedulerBackend.launchTasks].
 
 ```
 INFO CoarseGrainedExecutorBackend: Got assigned task [taskId]
 ```
 
-Finally, it launches the task on the executor (calls link:spark-executor.adoc#launching-tasks[Executor.launchTask] method).
+It then launches the task on the executor (using link:spark-executor.adoc#launching-tasks[Executor.launchTask] method).
+
+If however the internal `executor` field has not been created yet, it prints out the following ERROR to the logs:
+
+```
+ERROR CoarseGrainedExecutorBackend: Received LaunchTask command but executor was null
+```
+
+And it then exits.
 
 ==== KillTask(taskId, _, interruptThread)
 
