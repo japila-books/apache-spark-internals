@@ -1,0 +1,78 @@
+== YarnSchedulerBackend
+
+`YarnSchedulerBackend` is an abstract link:spark-executor-backends-coarse-grained.adoc[CoarseGrainedSchedulerBackend] for YARN that contains common logic between the client and cluster YARN scheduler backends, i.e. link:spark-yarn-client-yarnclientschedulerbackend.adoc[YarnClientSchedulerBackend] and link:spark-yarn-cluster-yarnclusterschedulerbackend.adoc[YarnClusterSchedulerBackend] respectively.
+
+`YarnSchedulerBackend` expects link:spark-taskschedulerimpl.adoc[TaskSchedulerImpl] and link:spark-sparkcontext.adoc[SparkContext] to initialize itself.
+
+It works for a single Spark application (as `appId` of type `ApplicationId`)
+
+CAUTION: FIXME It may be a note for scheduler backends in general.
+
+=== [[initialization]] Initialization
+
+`YarnSchedulerBackend` uses the internal `minRegisteredRatio` to be <<spark.scheduler.minRegisteredResourcesRatio, spark.scheduler.minRegisteredResourcesRatio>> or the parent's `minRegisteredRatio`.
+
+CAUTION: FIXME What is `minRegisteredRatio` for?
+
+`totalExpectedExecutors` is set to the initial value `0` and is expected to be changed later on.
+
+It creates `YarnSchedulerEndpoint` (as `yarnSchedulerEndpoint`) that is registered as *YarnScheduler* in link:spark-rpc.adoc[RPC Environment].
+
+CAUTION: FIXME Where's `yarnSchedulerEndpointRef` used?
+
+It sets the internal `askTimeout` link:spark-rpc.adoc#ask-timeout[Spark timeout for RPC ask operations] using the `SparkContext` constructor parameter.
+
+It sets optional `appId` (of type `ApplicationId`), `attemptId` (for cluster mode only and of type `ApplicationAttemptId`).
+
+It also creates `SchedulerExtensionServices` object (as `services`).
+
+CAUTION: FIXME What is `SchedulerExtensionServices`?
+
+It disables the internal `shouldResetOnAmRegister` flag.
+
+CAUTION: FIXME What is `shouldResetOnAmRegister`?
+
+=== [[start]] Starting the Backend (start method)
+
+`start` creates a `SchedulerExtensionServiceBinding` object (using `SparkContext`, `appId`, and `attemptId`) and starts it (using `SchedulerExtensionServices.start(binding)`).
+
+NOTE: A `SchedulerExtensionServices` object is created when <<initialization, YarnSchedulerBackend is initialized>> and available as `services`.
+
+Ultimately, it calls the parent's link:spark-executor-backends-coarse-grained.adoc#start[CoarseGrainedSchedulerBackend.start].
+
+[NOTE]
+====
+`start` throws `IllegalArgumentException` when the internal `appId` has not been set yet.
+
+```
+java.lang.IllegalArgumentException: requirement failed: application ID unset
+```
+====
+
+=== [[stop]] Stopping the Backend (stop method)
+
+`stop` calls the parent's link:spark-executor-backends-coarse-grained.adoc#requestTotalExecutors[CoarseGrainedSchedulerBackend.requestTotalExecutors] (using `(0, 0, Map.empty)` parameters).
+
+CAUTION: FIXME Explain what `0, 0, Map.empty` means after the method's described for the parent.
+
+It calls the parent's link:spark-executor-backends-coarse-grained.adoc#stop[CoarseGrainedSchedulerBackend.stop].
+
+Ultimately, it stops the internal `SchedulerExtensionServiceBinding` object (using `services.stop()`).
+
+CAUTION: FIXME Link the description of `services.stop()` here.
+
+=== [[bindToYarn]] Recording Application and Attempt Ids (bindToYarn method)
+
+[source, scala]
+----
+bindToYarn(appId: ApplicationId, attemptId: Option[ApplicationAttemptId]): Unit
+----
+
+`bindToYarn` sets the internal `appId` and `attemptId` to the value of the input parameters, `appId` and `attemptId`, respectively.
+
+NOTE: <<start, start>> requires `appId`.
+
+=== [[settings]] Settings
+
+[[spark.scheduler.minRegisteredResourcesRatio]]
+* `spark.scheduler.minRegisteredResourcesRatio` (default: `0.8`)
