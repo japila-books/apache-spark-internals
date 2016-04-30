@@ -1,12 +1,12 @@
 == TaskRunner
 
-*TaskRunner* is a thread of execution that runs a link:spark-taskscheduler-tasks.adoc[Task].
+*TaskRunner* is a thread of execution that manages a single link:spark-taskscheduler-tasks.adoc[Task], i.e. it can be <<run, run>> or <<kill, killed>>.
 
-NOTE: `TaskRunner` can run a single task only. When TaskRunner finishes, it is removed from the internal `runningTasks` map.
+NOTE: `TaskRunner` runs a single task only. When `TaskRunner` finishes, it is removed from the internal `runningTasks` map.
 
 A `TaskRunner` object is created when link:spark-executor.adoc#launchTask[an executor is requested to launch a task].
 
-It requires an link:spark-executor-backends.adoc[ExecutorBackend] (to send the task's status updates to), task and attempt ids, task name, and serialized version of the task (as `ByteBuffer`).
+It is created with an link:spark-executor-backends.adoc[ExecutorBackend] (to send the task's status updates to), task and attempt ids, task name, and serialized version of the task (as `ByteBuffer`).
 
 Sending task status updates to link:spark-executor-backends.adoc[ExecutorBackend] is a mechanism to inform the executor backend about the task's state changes:
 
@@ -15,51 +15,76 @@ Sending task status updates to link:spark-executor-backends.adoc[ExecutorBackend
 * the task being killed, i.e. `TaskState.KILLED`
 * the task failures, i.e. `TaskState.FAILED`
 
-=== [[kill]] Killing Task (kill method)
+[TIP]
+====
+Enable `INFO` or `DEBUG` logging level for `org.apache.spark.executor.Executor` logger to see what happens inside `TaskRunner` (since `TaskRunner` is an internal class of `Executor`).
 
-`kill` marks `TaskRunner` as killed and passes the call to kill a task on to the task itself.
-
-When executed, you should see the following INFO message in the logs:
+Add the following line to `conf/log4j.properties`:
 
 ```
-INFO TaskRunner: Executor is trying to kill [taskName] (TID [taskId])
+log4j.logger.org.apache.spark.executor.Executor=DEBUG
 ```
 
-Internally, `kill` enables the internal flag `killed` and if the task is available executes its link:spark-taskscheduler-tasks.adoc#kill[kill] method.
+Refer to link:spark-logging.adoc[Logging].
+====
 
-NOTE: The internal flag `killed` is checked in <<run, run>> to stop executing the task. Calling link:spark-taskscheduler-tasks.adoc#kill[Task.kill] method allows for further task interruptions.
+=== [[run]] Running Task (run method)
 
-=== [[run]] Executing Task (run method)
+NOTE: `run` is a part of https://docs.oracle.com/javase/8/docs/api/java/lang/Runnable.html[java.lang.Runnable] interface.
 
-When a `TaskRunner` starts running, it prints the following INFO message to the logs:
+When `run` is executed, it creates a link:spark-taskscheduler.adoc#TaskMemoryManager[TaskMemoryManager] object (using the global link:spark-sparkenv.adoc#MemoryManager[MemoryManager] and the constructor's `taskId`).
+
+It starts measuring the time to deserialize a task.
+
+It sets the current context classloader.
+
+CAUTION: FIXME What is part of the classloader?
+
+It creates a new instance of the global link:spark-sparkenv.adoc#closureSerializer[closure Serializer].
+
+You should see the following INFO message in the logs:
 
 ```
 INFO Executor: Running [taskName] (TID [taskId])
 ```
 
-`taskId` is the id of the task being executed in <<thread-pool, Executor task launch worker-[taskId]>>.
+At this point, the task is considered running and the link:spark-executor-backends.adoc[ExecutorBackend.statusUpdate] is executed (with `taskId` and `TaskState.RUNNING` state).
 
-Information about it is sent to the driver using link:spark-executor-backends.adoc[ExecutorBackend] as `TaskState.RUNNING` and zero-byte `ByteBuffer`.
+`run` deserializes the task's environment (from `serializedTask` bytes using `Task.deserializeWithDependencies`) to have the task's files, jars and properties, and the proper task's bytes.
 
-CAUTION: FIXME TaskMemoryManager and task serialization and deserialization
+NOTE: The target task to run is not deserialized yet, but only its environment - the files, jars, and properties.
 
-`run` first deserializes the task (using `Task.deserializeWithDependencies`), `updateDependencies(taskFiles, taskJars)`, and deserializes `serializedTask` task byte buffer into a link:spark-taskscheduler-tasks.adoc[Task] object (using the globally-configured `Serializer`). The task instance has the link:spark-taskscheduler.adoc#TaskMemoryManager[TaskMemoryManager] set.
+CAUTION: FIXME Describe `Task.deserializeWithDependencies`.
+
+`updateDependencies(taskFiles, taskJars)` is called.
+
+CAUTION: FIXME What does `updateDependencies` do?
+
+This is the moment when the proper link:spark-taskscheduler-tasks.adoc[Task] object is deserialized (from `taskBytes`) using the earlier-created link:spark-sparkenv.adoc#closureSerializer[closure Serializer] object. The local properties (as `localProperties`) are initialized to be the task's properties (from the earlier call to `Task.deserializeWithDependencies`) and link:spark-taskscheduler.adoc#TaskMemoryManager[TaskMemoryManager].
+
+NOTE: The task's properties were part of the serialized object passed on to the current `TaskRunner` object.
 
 NOTE: Until `run` deserializes the task object, it is only available as the `serializedTask` byte buffer.
 
-This is the moment when a task can stop its execution if it was killed while being deserialized. If not killed, `TaskRunner` continues executing the task.
+If <<kill, kill>> method has been called in the meantime, the execution stops by throwing a `TaskKilledException`. Otherwise, `TaskRunner` continues executing the task.
 
 You should see the following DEBUG message in the logs:
 
 ```
-DEBUG Task [taskId]'s epoch is [task.epoch]
+DEBUG Executor: Task [taskId]'s epoch is [task.epoch]
 ```
 
 TaskRunner sends update of the epoch of the task to link:spark-service-mapoutputtracker.adoc[MapOutputTracker].
 
 CAUTION: FIXME Why is `MapOutputTracker.updateEpoch` needed?
 
-Task runs (with `taskId`, `attemptNumber`, and the globally-configured `MetricsSystem`). See link:spark-taskscheduler-tasks.adoc#execution[Task Execution].
+link:spark-taskscheduler-tasks.adoc#run[Task runs] (with `taskId`, `attemptNumber`, and the globally-configured `MetricsSystem`).
+
+CAUTION: FIXME Describe `finally` block.
+
+If link:spark-taskscheduler-tasks.adoc#kill[the task was killed] a `TaskKilledException` is thrown (and the `TaskRunner` quits).
+
+CAUTION: FIXME Finish me!
 
 When a task finishes, it returns a value and `accumUpdates`, i.e. the result of link:spark-taskscheduler-tasks.adoc#collectAccumulatorUpdates[Task.collectAccumulatorUpdates] that collects the latest values of accumulators used.
 
@@ -69,7 +94,7 @@ NOTE: There are two `Serializer` instances in `SparkContext.env`.
 
 It creates an instance of `DirectTaskResult` with the serialized result and the accumulators' values (as `accumUpdates`).
 
-`run` serializes the `DirectTaskResult` (using `SparkEnv.closureSerializer`) and calculates the result's size.
+`run` serializes the `DirectTaskResult` (using the global link:spark-sparkenv.adoc#closureSerializer[closure Serializer]) and calculates the result's size.
 
 If `maxResultSize` is set and the size of the serialized result exceeds it, a `SparkException` is reported.
 
@@ -94,3 +119,22 @@ INFO Executor: Finished [taskName] (TID [taskId]). [resultSize] bytes result sen
 ```
 
 The serialized result is sent to the driver using link:spark-executor-backends.adoc[ExecutorBackend] as `TaskState.FINISHED` and `serializedResult`.
+
+=== [[kill]] Killing Task (kill method)
+
+[source, scala]
+----
+kill(interruptThread: Boolean): Unit
+----
+
+`kill` marks the current instance of `TaskRunner` as killed and passes the call to kill a task on to the task itself (if available).
+
+When executed, you should see the following INFO message in the logs:
+
+```
+INFO TaskRunner: Executor is trying to kill [taskName] (TID [taskId])
+```
+
+Internally, `kill` enables the internal flag `killed` and executes its link:spark-taskscheduler-tasks.adoc#kill[Task.kill] method if a task is available.
+
+NOTE: The internal flag `killed` is checked in <<run, run>> to stop executing the task. Calling link:spark-taskscheduler-tasks.adoc#kill[Task.kill] method allows for task interruptions later on.
