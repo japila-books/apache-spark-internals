@@ -64,13 +64,13 @@ It then sends <<StopExecutors, StopExecutors>> message to `driverEndpoint`. It d
 
 It sends <<StopDriver, StopDriver>> message to `driverEndpoint`. It disregards the response.
 
-=== [[defaultParallelism]] Default Level of Parallelism (defaultParallelism method)
+=== [[defaultParallelism]] Compute Default Level of Parallelism (defaultParallelism method)
 
 The default parallelism is controlled by <<settings, spark.default.parallelism>> or is at least `2` or `totalCoreCount`.
 
 NOTE: `defaultParallelism` is part of the link:spark-scheduler-backends.adoc#contract[SchedulerBackend Contract].
 
-=== [[reviveOffers]] reviveOffers
+=== [[reviveOffers]] Revive Offers (reviveOffers method)
 
 `reviveOffers` just sends a <<ReviveOffers, ReviveOffers>> message to <<driverEndpoint, driverEndpoint>>.
 
@@ -111,7 +111,7 @@ INFO SchedulerBackend is ready for scheduling beginning after waiting maxRegiste
 
 Otherwise, it keeps delaying task launching until enough resources register or <<settings, spark.scheduler.maxRegisteredResourcesWaitingTime>> passes.
 
-=== [[stopExecutors]] stopExecutors
+=== [[stopExecutors]] Stop All Executors (stopExecutors method)
 
 `stopExecutors` sends a blocking <<StopExecutors, StopExecutors>> message to <<driverEndpoint, driverEndpoint>> (if already initialized).
 
@@ -122,6 +122,31 @@ You should see the following INFO message in the logs:
 ```
 INFO CoarseGrainedSchedulerBackend: Shutting down all executors
 ```
+
+=== [[reset]] Reset State (reset method)
+
+`reset` resets the internal state:
+
+1. Sets `numPendingExecutors` to 0
+2. Clears `executorsPendingToRemove`
+3. Sends a blocking <<RemoveExecutor, RemoveExecutor>> message to <<driverEndpoint, driverEndpoint>> for every executor (in the internal `executorDataMap`) to inform it about `SlaveLost` with the message:
++
+```
+Stale executor after cluster manager re-registered.
+```
+
+`reset` is a method that is defined in `CoarseGrainedSchedulerBackend`, but used and overriden exclusively by link:spark-yarn-yarnschedulerbackend.adoc[YarnSchedulerBackend].
+
+=== [[removeExecutor]] Remove Executor (removeExecutor method)
+
+[source, scala]
+----
+removeExecutor(executorId: String, reason: ExecutorLossReason)
+----
+
+`removeExecutor` sends a blocking <<RemoveExecutor, RemoveExecutor>> message to <<driverEndpoint, driverEndpoint>>.
+
+NOTE: It is called by subclasses link:spark-standalone.adoc#SparkDeploySchedulerBackend[SparkDeploySchedulerBackend], link:spark-mesos.adoc#CoarseMesosSchedulerBackend[CoarseMesosSchedulerBackend], and link:spark-yarn-yarnschedulerbackend.adoc[YarnSchedulerBackend].
 
 === [[driverEndpoint]][[CoarseGrainedScheduler]] CoarseGrainedScheduler RPC Endpoint (driverEndpoint)
 
