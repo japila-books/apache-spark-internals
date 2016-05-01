@@ -37,18 +37,20 @@ log4j.logger.org.apache.spark.scheduler.cluster.CoarseGrainedSchedulerBackend=DE
 
 === [[start]] Starting (start method)
 
-`start` initializes the internal `driverEndpoint` RPC endpoint to be a <<DriverEndpoint, DriverEndpoint>> object registered under the name of *CoarseGrainedScheduler*.
+`start` initializes <<CoarseGrainedScheduler, CoarseGrainedScheduler RPC Endpoint>>.
 
 .CoarseGrainedScheduler Endpoint
 image::images/CoarseGrainedScheduler-rpc-endpoint.png[align="center"]
 
-NOTE: `start` is a part of the link:spark-scheduler-backends.adoc#contract[SchedulerBackend Contract].
+NOTE: `start` is part of the link:spark-scheduler-backends.adoc#contract[SchedulerBackend Contract].
 
 NOTE: The RPC Environment is passed on as an constructor parameter.
 
 === [[stop]] Stopping (stop method)
 
-`stop()` method stops <<CoarseGrainedScheduler, CoarseGrainedScheduler RPC Endpoint>> and executors (using `stopExecutors()`).
+`stop` method <<stopExecutors, stops executors>> and <<CoarseGrainedScheduler, CoarseGrainedScheduler RPC endpoint>>.
+
+NOTE: `stop` is part of the link:spark-scheduler-backends.adoc#contract[SchedulerBackend Contract].
 
 NOTE: When called with no `driverEndpoint` both `stop()` and `stopExecutors()` do nothing. `driverEndpoint` is initialized in `start` and the initialization order matters.
 
@@ -62,21 +64,33 @@ It then sends <<StopExecutors, StopExecutors>> message to `driverEndpoint`. It d
 
 It sends <<StopDriver, StopDriver>> message to `driverEndpoint`. It disregards the response.
 
-=== [[defaultParallelism]] Default Level of Parallelism
+=== [[defaultParallelism]] Default Level of Parallelism (defaultParallelism method)
 
 The default parallelism is controlled by <<settings, spark.default.parallelism>> or is at least `2` or `totalCoreCount`.
 
+NOTE: `defaultParallelism` is part of the link:spark-scheduler-backends.adoc#contract[SchedulerBackend Contract].
+
 === [[reviveOffers]] reviveOffers
 
-It sends <<ReviveOffers, ReviveOffers>> message to `driverEndpoint`.
+`reviveOffers` just sends a <<ReviveOffers, ReviveOffers>> message to <<driverEndpoint, driverEndpoint>>.
 
 CAUTION: FIXME Image
 
-=== [[isReady]] isReady - Delaying Task Launching
+NOTE: `reviveOffers` is part of the link:spark-scheduler-backends.adoc#contract[SchedulerBackend Contract].
 
-`CoarseGrainedSchedulerBackend` comes with its own implementation of `isReady()` method (see link:spark-scheduler-backends.adoc#contract[SchedulerBackend Contract]).
+=== [[killTask]] Killing Task (killTask method)
 
-It starts by ensuring that sufficient resources are available to launch tasks using its own `sufficientResourcesRegistered` method. It gives custom implementations of itself a way to handle the question properly. It assumes resources are available by default.
+`killTask` just sends a <<KillTask, KillTask>> message to <<driverEndpoint, driverEndpoint>>.
+
+CAUTION: FIXME Image
+
+NOTE: `killTask` is part of the link:spark-scheduler-backends.adoc#contract[SchedulerBackend Contract].
+
+=== [[isReady]] Delaying Task Launching (isReady method)
+
+`isReady` starts checking whether there are sufficient resources available to launch tasks using its own `sufficientResourcesRegistered` method. It gives custom implementations of itself a way to handle the question properly. It assumes resources are available by default.
+
+NOTE: `isReady` is part of the link:spark-scheduler-backends.adoc#contract[SchedulerBackend Contract].
 
 It prints out the following INFO to the logs:
 
@@ -97,13 +111,27 @@ INFO SchedulerBackend is ready for scheduling beginning after waiting maxRegiste
 
 Otherwise, it keeps delaying task launching until enough resources register or <<settings, spark.scheduler.maxRegisteredResourcesWaitingTime>> passes.
 
-=== [[CoarseGrainedScheduler]] CoarseGrainedScheduler RPC Endpoint
+=== [[stopExecutors]] stopExecutors
 
-When CoarseGrainedSchedulerBackend starts, it registers *CoarseGrainedScheduler* RPC endpoint (`driverEndpoint` internal field).
+`stopExecutors` sends a blocking <<StopExecutors, StopExecutors>> message to <<driverEndpoint, driverEndpoint>> (if already initialized).
+
+NOTE: It is called exclusively while `CoarseGrainedSchedulerBackend` is <<stop, being stopped>>.
+
+You should see the following INFO message in the logs:
+
+```
+INFO CoarseGrainedSchedulerBackend: Shutting down all executors
+```
+
+=== [[driverEndpoint]][[CoarseGrainedScheduler]] CoarseGrainedScheduler RPC Endpoint (driverEndpoint)
+
+When <<start, CoarseGrainedSchedulerBackend starts>>, it registers *CoarseGrainedScheduler* RPC endpoint to be the driver's communication endpoint.
+
+Internally, it is a <<DriverEndpoint, DriverEndpoint>> object available as the `driverEndpoint` internal field.
+
+NOTE: `CoarseGrainedSchedulerBackend` is created while link:spark-sparkcontext.adoc#createTaskScheduler[SparkContext is being created] that in turn lives inside a link:spark-driver.adoc[Spark driver]. That explains the name `driverEndpoint` (at least partially).
 
 It is called *standalone scheduler's driver endpoint* internally.
-
-CAUTION: FIXME Why is the field's name `driverEndpoint`?
 
 It tracks:
 
