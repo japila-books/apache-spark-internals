@@ -1,0 +1,57 @@
+== TaskMemoryManager
+
+`TaskMemoryManager` manages the memory allocated by link:spark-taskscheduler-tasks.adoc[an individual task].
+
+[TIP]
+====
+Enable `INFO`, `DEBUG` or even `TRACE` logging levels for `org.apache.spark.memory.TaskMemoryManager` logger to see what happens inside.
+
+Add the following line to `conf/log4j.properties`:
+
+```
+log4j.logger.org.apache.spark.memory.TaskMemoryManager=TRACE
+```
+
+Refer to link:spark-logging.adoc[Logging].
+====
+
+NOTE: It is used to create a link:spark-taskscheduler-taskcontext.adoc#TaskContextImpl[TaskContextImpl] instance.
+
+=== [[creating-instance]] Creating Instance
+
+NOTE: When link:spark-executor-taskrunner.adoc#run[a TaskRunner starts running], it creates a new instance of `TaskMemoryManager` for the task by `taskId`. It then assigns the `TaskMemoryManager` to the individual task before it runs.
+
+CAUTION: FIXME A figure with TaskRunner and TaskMemoryManager and Task to show how they relate to each other.
+
+[source, java]
+----
+TaskMemoryManager(MemoryManager memoryManager, long taskAttemptId)
+----
+
+A single `TaskMemoryManager` manages a single task's memory (by the task's `taskAttemptId`).
+
+NOTE: Although the constructor parameter `taskAttemptId` refers to a task's attempt id it is really a `taskId`. It should be changed perhaps?
+
+While being created, the constructor uses the global link:spark-sparkenv.adoc#MemoryManager[MemoryManager] to know whether it is in link:spark-sparkenv.adoc#MemoryManager-tungstenMemoryMode[Tungsten memory mode] (defaults to being disabled) and saves the `MemoryManager` and `taskAttemptId` for later use.
+
+It also initializes the internal `consumers` collection of...FIXME.
+
+CAUTION: FIXME What are `consumers`?
+
+=== [[cleanUpAllAllocatedMemory]] cleanUpAllAllocatedMemory
+
+It clears `pageTable` internal array.
+
+All `consumers` are queried for the size of used memory. If the memory used is greater than 0, the following WARN message is printed out to the logs:
+
+```
+WARN TaskMemoryManager: leak [bytes] memory from [consumer]
+```
+
+The `consumers` collection is then cleared.
+
+link:spark-sparkenv.adoc#MemoryManager-releaseExecutionMemory[MemoryManager.releaseExecutionMemory] is executed to release the memory that is not used by any consumer.
+
+Before `cleanUpAllAllocatedMemory` returns, it calls link:spark-sparkenv.adoc#MemoryManager-releaseAllExecutionMemoryForTask[MemoryManager.releaseAllExecutionMemoryForTask] that in turn becomes the return value.
+
+CAUTION: FIXME Image with the interactions to `MemoryManager`.

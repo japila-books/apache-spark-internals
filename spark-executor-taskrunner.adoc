@@ -27,7 +27,7 @@ It is created with an link:spark-executor-backends.adoc[ExecutorBackend] (to sen
 
 NOTE: `run` is a part of https://docs.oracle.com/javase/8/docs/api/java/lang/Runnable.html[java.lang.Runnable] interface.
 
-When `run` is executed, it creates a link:spark-taskscheduler.adoc#TaskMemoryManager[TaskMemoryManager] object (using the global link:spark-sparkenv.adoc#MemoryManager[MemoryManager] and the constructor's `taskId`).
+When `run` is executed, it creates a link:spark-taskscheduler-taskmemorymanager.adoc[TaskMemoryManager] object (using the global link:spark-sparkenv.adoc#MemoryManager[MemoryManager] and the constructor's `taskId`). It manages the memory allocated while running the task.
 
 It starts measuring the time to deserialize a task.
 
@@ -55,7 +55,7 @@ CAUTION: FIXME Describe `Task.deserializeWithDependencies`.
 
 CAUTION: FIXME What does `updateDependencies` do?
 
-This is the moment when the proper link:spark-taskscheduler-tasks.adoc[Task] object is deserialized (from `taskBytes`) using the earlier-created link:spark-sparkenv.adoc#closureSerializer[closure Serializer] object. The local properties (as `localProperties`) are initialized to be the task's properties (from the earlier call to `Task.deserializeWithDependencies`) and link:spark-taskscheduler.adoc#TaskMemoryManager[TaskMemoryManager].
+This is the moment when the proper link:spark-taskscheduler-tasks.adoc[Task] object is deserialized (from `taskBytes`) using the earlier-created link:spark-sparkenv.adoc#closureSerializer[closure Serializer] object. The local properties (as `localProperties`) are initialized to be the task's properties (from the earlier call to `Task.deserializeWithDependencies`) and link:spark-taskscheduler-taskmemorymanager.adoc[TaskMemoryManager].
 
 NOTE: The task's properties were part of the serialized object passed on to the current `TaskRunner` object.
 
@@ -74,6 +74,22 @@ TaskRunner sends update of the epoch of the task to link:spark-service-mapoutput
 CAUTION: FIXME Why is `MapOutputTracker.updateEpoch` needed?
 
 link:spark-taskscheduler-tasks.adoc#run[Task runs] (with `taskId`, `attemptNumber`, and the globally-configured `MetricsSystem`).
+
+Finally, regardless of whether any exception has occurred while running the task or not, `BlockManager.releaseAllLocksForTask` is called for the task.
+
+It link:spark-taskscheduler-taskmemorymanager.adoc#cleanUpAllAllocatedMemory[queries TaskMemoryManager for memory leaks]. If there is any (i.e. the memory freed after the call is greater than 0) and <<spark.unsafe.exceptionOnMemoryLeak, spark.unsafe.exceptionOnMemoryLeak>> is enabled (by default it is not) with no exception having been thrown while running the task, a `SparkException` is thrown:
+
+```
+Managed memory leak detected; size = [freedMemory] bytes, TID = [taskId]
+```
+
+Otherwise, if <<spark.unsafe.exceptionOnMemoryLeak, spark.unsafe.exceptionOnMemoryLeak>> is disabled or an exception was thrown by a task, the following ERROR message appears in the logs:
+
+```
+ERROR Executor: Managed memory leak detected; size = [freedMemory] bytes, TID = [taskId]
+```
+
+NOTE: If there is a memory leak detected, it leads to a `SparkException` or ERROR message in the logs.
 
 CAUTION: FIXME Describe `finally` block.
 
@@ -135,3 +151,8 @@ INFO TaskRunner: Executor is trying to kill [taskName] (TID [taskId])
 Internally, `kill` enables the internal flag `killed` and executes its link:spark-taskscheduler-tasks.adoc#kill[Task.kill] method if a task is available.
 
 NOTE: The internal flag `killed` is checked in <<run, run>> to stop executing the task. Calling link:spark-taskscheduler-tasks.adoc#kill[Task.kill] method allows for task interruptions later on.
+
+=== [[settings]] Settings
+
+[[spark.unsafe.exceptionOnMemoryLeak]]
+* `spark.unsafe.exceptionOnMemoryLeak` (default: `false`)
