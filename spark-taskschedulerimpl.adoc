@@ -32,7 +32,7 @@ It also initializes the internal link:spark-taskscheduler-schedulablebuilders.ad
 
 NOTE: `schedulableBuilder` can be link:spark-taskscheduler-schedulablebuilders.adoc#FIFOSchedulableBuilder[FIFOSchedulableBuilder] (for `FIFO` scheduling mode) or link:spark-taskscheduler-schedulablebuilders.adoc#FairSchedulableBuilder[FairSchedulableBuilder] (for `FAIR` scheduling mode).
 
-=== [[start]] TaskSchedulerImpl.start
+=== [[start]] Starting TaskSchedulerImpl (start method)
 
 When `TaskSchedulerImpl` is started (using `start()` method), it starts the link:spark-scheduler-backends.adoc[scheduler backend] it manages.
 
@@ -47,11 +47,23 @@ It also starts the *task-scheduler-speculation* executor pool. See <<speculative
 
 === [[postStartHook]] Post-Start Initialization (using postStartHook)
 
-`TaskSchedulerImpl` comes with a custom `postStartHook()` (see <<contract, TaskScheduler Contract>>) to wait until a scheduler backend is ready (see link:spark-scheduler-backends.adoc#contract[SchedulerBackend Contract]).
+`postStartHook` is a custom implementation of link:spark-taskscheduler.adoc#contract[postStartHook from the TaskScheduler Contract] that waits until a scheduler backend is ready (using the internal blocking <<waitBackendReady, waitBackendReady>>).
 
-Internally, it uses `waitBackendReady()` to do the waiting and looping.
+NOTE: `postStartHook` is used when link:spark-sparkcontext.adoc#initialization[SparkContext is created] (before it is fully created) and link:spark-taskscheduler.adoc#implementations[YarnClusterScheduler.postStartHook].
 
-=== [[stopping]] TaskSchedulerImpl.stop
+=== [[waitBackendReady]] Waiting Until SchedulerBackend is Ready (waitBackendReady method)
+
+The private `waitBackendReady` method waits until a link:spark-scheduler-backends.adoc#contract[SchedulerBackend is ready].
+
+It keeps on checking the status every 100 milliseconds until the SchedulerBackend is ready or the link:spark-sparkcontext.adoc#stop[SparkContext is stopped].
+
+If the SparkContext happens to be stopped while doing the waiting, a `IllegalStateException` is thrown with the message:
+
+```
+Spark context stopped while waiting for backend
+```
+
+=== [[stopping]] Stopping TaskSchedulerImpl (stop method)
 
 When `TaskSchedulerImpl` is stopped (using `stop()` method), it does the following:
 
