@@ -11,13 +11,14 @@ A TaskScheduler gets sets of tasks (as link:spark-taskscheduler-tasksets.adoc[Ta
 
 NOTE: https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/scheduler/TaskScheduler.scala[org.apache.spark.scheduler.TaskScheduler] is a `private[spark]` Scala trait.
 
-Every task scheduler has to offer the following services:
+Every `TaskScheduler` has to follow the following contract:
 
+* It can be <<start, started>>.
+* It can be <<stop, stopped>>.
+* It can <<postStartHook, do post-start initialization>> if needed for additional post-start initialization.
+* It <<submitTasks, submits TaskSets for execution>>.
 * Return <<Pool, Pool>> (using `rootPool`)
 * Return `SchedulingMode` (using `schedulingMode`) that determines policy to order tasks.
-* Can be started (using `start()`) and stopped (using `stop()`)
-* (optionally) `postStartHook()` if needed for additional post-start initialization. It does nothing by default. It is called at the very end of link:spark-sparkcontext.adoc#initialization[SparkContext's initialization].
-* `submitTasks(taskSet: TaskSet)`
 * `cancelTasks(stageId: Int, interruptThread: Boolean)` to cancel all tasks in a stage.
 * Setting a custom link:spark-dagscheduler.adoc[DAGScheduler] (using `setDAGScheduler(dagScheduler: DAGScheduler)`).
 * Return the default level of parallelism (using `defaultParallelism()`)
@@ -28,18 +29,75 @@ Every task scheduler has to offer the following services:
 
 CAUTION: FIXME Have an exercise to create a SchedulerBackend.
 
+=== [[lifecycle]] TaskScheduler's Lifecycle
+
+A `TaskScheduler` is created while link:spark-sparkcontext.adoc#initialization[SparkContext is being created] (by calling link:spark-sparkcontext.adoc#createTaskScheduler[SparkContext.createTaskScheduler] for a given link:spark-deployment-environments.adoc[master URL] and link:spark-submit.adoc#deploy-mode[deploy mode]).
+
+.TaskScheduler uses SchedulerBackend to support different clusters
+image::diagrams/taskscheduler-uses-schedulerbackend.png[align="center"]
+
+At this point in SparkContext's lifecycle, the internal `_taskScheduler` points at the `TaskScheduler` and it is "announced" by sending a blocking `TaskSchedulerIsSet` message to HeartbeatReceiver RPC endpoint.
+
+The <<start, TaskScheduler is started>> right after the blocking `TaskSchedulerIsSet` message receives a response.
+
+The application ID and attempt ID are set at this point (and SparkContext uses the application id to set up `spark.app.id`, SparkUI, and BlockManager).
+
+CAUTION: FIXME The application id is described as "associated with the job." in TaskScheduler, but I think it is "associated with the application".
+
+Right before SparkContext is fully initialized, <<postStartHook, TaskScheduler.postStartHook>> is called.
+
+The internal `_taskScheduler` is cleared (i.e. set to `null`) while link:spark-sparkcontext.adoc#stop[SparkContext is being stopped].
+
+<<stop, TaskScheduler is stopped>> while link:spark-dagscheduler.adoc#stop[DAGScheduler is being stopped].
+
+WARNING: FIXME If it is SparkContext to start a TaskScheduler, shouldn't SparkContext stop it too? Why is this the way it is now?
+
+=== [[start]] Starting TaskScheduler
+
+[source, scala]
+----
+start(): Unit
+----
+
+A `TaskScheduler` is started while link:spark-sparkcontext.adoc#initialization[SparkContext is being created].
+
+=== [[stop]] Stopping TaskScheduler
+
+[source, scala]
+----
+stop(): Unit
+----
+
+A `TaskScheduler` is stopped while link:spark-dagscheduler.adoc#stop[DAGScheduler is being stopped].
+
+=== [[postStartHook]] Post-Start Initialization (postStartHook method)
+
+[source, scala]
+----
+postStartHook() {}
+----
+
+`postStartHook` is called right before link:spark-sparkcontext.adoc#initialization[SparkContext's initialization finishes].
+
+`postStartHook` does nothing by default, but allows custom implementations to do some post-start initialization.
+
+=== [[submitTasks]] Submitting TaskSets for Execution
+
+[source, scala]
+----
+submitTasks(taskSet: TaskSet): Unit
+----
+
+`submitTasks` accepts a link:spark-taskscheduler-tasksets.adoc[TaskSet] for execution.
+
+It is called by link:spark-dagscheduler.adoc#submitMissingTasks[DAGScheduler when there are tasks to be executed for a stage].
+
 === [[implementations]] Available Implementations
 
 Spark comes with the following task schedulers:
 
 * link:spark-taskschedulerimpl.adoc[TaskSchedulerImpl]
-* https://github.com/apache/spark/blob/master/yarn/src/main/scala/org/apache/spark/scheduler/cluster/YarnScheduler.scala[YarnScheduler] for link:spark-yarn.adoc[Spark on YARN]
-* https://github.com/apache/spark/blob/master/yarn/src/main/scala/org/apache/spark/scheduler/cluster/YarnClusterScheduler.scala[YarnClusterScheduler] for link:spark-yarn.adoc[Spark on YARN]
-
-A TaskScheduler emits events to the DAGScheduler.
-
-.TaskScheduler uses SchedulerBackend for different clusters
-image::diagrams/taskscheduler-uses-schedulerbackend.png[align="center"]
+* https://github.com/apache/spark/blob/master/yarn/src/main/scala/org/apache/spark/scheduler/cluster/YarnScheduler.scala[YarnScheduler] and https://github.com/apache/spark/blob/master/yarn/src/main/scala/org/apache/spark/scheduler/cluster/YarnClusterScheduler.scala[YarnClusterScheduler] (for link:spark-yarn.adoc[Spark on YARN])
 
 === [[Schedulable]] Schedulable Contract
 
