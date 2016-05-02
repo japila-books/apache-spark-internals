@@ -17,15 +17,14 @@ Every `TaskScheduler` has to follow the following contract:
 * It can be <<stop, stopped>>.
 * It can <<postStartHook, do post-start initialization>> if needed for additional post-start initialization.
 * It <<submitTasks, submits TaskSets for execution>>.
+* It can <<cancelTasks, cancel tasks for a stage>>.
+* It can <<setDAGScheduler, set a custom DAGScheduler>>.
+* It can calculate <<defaultParallelism, the default level of parallelism>>.
+* It <<applicationId, returns a custom application id>>.
+* It <<applicationAttemptId, returns an application attempt id>>.
+* It can handle <<executorHeartbeatReceived, executor's heartbeats>> and <<executorLost, executor lost events>>.
 * Return <<Pool, Pool>> (using `rootPool`)
 * Return `SchedulingMode` (using `schedulingMode`) that determines policy to order tasks.
-* `cancelTasks(stageId: Int, interruptThread: Boolean)` to cancel all tasks in a stage.
-* Setting a custom link:spark-dagscheduler.adoc[DAGScheduler] (using `setDAGScheduler(dagScheduler: DAGScheduler)`).
-* Return the default level of parallelism (using `defaultParallelism()`)
-* `executorHeartbeatReceived`
-* (optionally) Return an application id for the current job (using `applicationId()`). It returns `spark-application-[System.currentTimeMillis]` by default.
-* Handle executor lost events (using `executorLost(executorId: String, reason: ExecutorLossReason)`)
-* Return an application attempt ID associated with the job (using `applicationAttemptId`)
 
 CAUTION: FIXME Have an exercise to create a SchedulerBackend.
 
@@ -59,7 +58,7 @@ WARNING: FIXME If it is SparkContext to start a TaskScheduler, shouldn't SparkCo
 start(): Unit
 ----
 
-A `TaskScheduler` is started while link:spark-sparkcontext.adoc#initialization[SparkContext is being created].
+`start` is currently called while link:spark-sparkcontext.adoc#initialization[SparkContext is being created].
 
 === [[stop]] Stopping TaskScheduler
 
@@ -68,7 +67,7 @@ A `TaskScheduler` is started while link:spark-sparkcontext.adoc#initialization[S
 stop(): Unit
 ----
 
-A `TaskScheduler` is stopped while link:spark-dagscheduler.adoc#stop[DAGScheduler is being stopped].
+`stop` is currently called while link:spark-dagscheduler.adoc#stop[DAGScheduler is being stopped].
 
 === [[postStartHook]] Post-Start Initialization (postStartHook method)
 
@@ -77,9 +76,9 @@ A `TaskScheduler` is stopped while link:spark-dagscheduler.adoc#stop[DAGSchedule
 postStartHook() {}
 ----
 
-`postStartHook` is called right before link:spark-sparkcontext.adoc#initialization[SparkContext's initialization finishes].
-
 `postStartHook` does nothing by default, but allows custom implementations to do some post-start initialization.
+
+NOTE: It is currently called right before link:spark-sparkcontext.adoc#initialization[SparkContext's initialization finishes].
 
 === [[submitTasks]] Submitting TaskSets for Execution
 
@@ -90,7 +89,89 @@ submitTasks(taskSet: TaskSet): Unit
 
 `submitTasks` accepts a link:spark-taskscheduler-tasksets.adoc[TaskSet] for execution.
 
-It is called by link:spark-dagscheduler.adoc#submitMissingTasks[DAGScheduler when there are tasks to be executed for a stage].
+NOTE: It is currently called by link:spark-dagscheduler.adoc#submitMissingTasks[DAGScheduler when there are tasks to be executed for a stage].
+
+=== [[cancelTasks]] Cancelling Tasks for Stage (cancelTasks method)
+
+[source, scala]
+----
+cancelTasks(stageId: Int, interruptThread: Boolean): Unit
+----
+
+`cancelTasks` cancels all tasks submitted for execution in a stage `stageId`.
+
+NOTE: It is currently called by link:spark-dagscheduler.adoc#failJobAndIndependentStages[DAGScheduler when it cancels a stage].
+
+=== [[setDAGScheduler]] Setting Custom DAGScheduler
+
+[source, scala]
+----
+setDAGScheduler(dagScheduler: DAGScheduler): Unit
+----
+
+`setDAGScheduler` sets a custom `DAGScheduler`.
+
+NOTE: It is currently called by link:spark-dagscheduler.adoc#initialization[DAGScheduler when it is created].
+
+=== [[defaultParallelism]] Calculating Default Level of Parallelism (defaultParallelism method)
+
+[source, scala]
+----
+defaultParallelism(): Int
+----
+
+`defaultParallelism` calculates the default level of parallelism to use in a cluster that is a hint to sizing jobs.
+
+NOTE: It is currently called by link:spark-sparkcontext.adoc#defaultParallelism[SparkContext for its defaultParallelism].
+
+=== [[applicationId]] Calculating Application ID (applicationId method)
+
+[source, scala]
+----
+applicationId(): String
+----
+
+`applicationId` gives the current application's id. It is in the format `spark-application-[System.currentTimeMillis]` by default.
+
+NOTE: It is currently used in link:spark-sparkcontext.adoc#initialization[SparkContext while it is being initialized].
+
+=== [[applicationAttemptId]] Calculating Application Attempt ID (applicationAttemptId method)
+
+[source, scala]
+----
+applicationAttemptId(): Option[String]
+----
+
+`applicationAttemptId` gives the current application's attempt id.
+
+NOTE: It is currently used in link:spark-sparkcontext.adoc#initialization[SparkContext while it is being initialized].
+
+=== [[executorHeartbeatReceived]] Handling Executor's Heartbeats (executorHeartbeatReceived method)
+
+[source, scala]
+----
+executorHeartbeatReceived(
+  execId: String,
+  accumUpdates: Array[(Long, Seq[AccumulatorV2[_, _]])],
+  blockManagerId: BlockManagerId): Boolean
+----
+
+`executorHeartbeatReceived` handles heartbeats from an executor `execId` with the partial values of accumulators and `BlockManagerId`.
+
+It is expected to be positive (i.e. return `true`) when the executor `execId` is managed by the `TaskScheduler`.
+
+NOTE: It is currently used in link:spark-sparkcontext.adoc#HeartbeatReceiver[HeartbeatReceiver RPC endpoint in SparkContext to handle heartbeats from executors].
+
+=== [[executorLost]] Handling Executor Lost Events (executorLost method)
+
+[source, scala]
+----
+executorLost(executorId: String, reason: ExecutorLossReason): Unit
+----
+
+`executorLost` handles events about an executor `executorId` being lost for a given `reason`.
+
+NOTE: It is currently used in link:spark-sparkcontext.adoc#HeartbeatReceiver[HeartbeatReceiver RPC endpoint in SparkContext to process host expiration events] and to remove executors in scheduler backends.
 
 === [[implementations]] Available Implementations
 
