@@ -72,7 +72,7 @@ NOTE: `defaultParallelism` is part of the link:spark-scheduler-backends.adoc#con
 
 === [[reviveOffers]] Revive Offers (reviveOffers method)
 
-`reviveOffers` just sends a <<ReviveOffers, ReviveOffers>> message to <<driverEndpoint, driverEndpoint>>.
+`reviveOffers` simply sends a <<ReviveOffers, ReviveOffers>> message to <<driverEndpoint, driverEndpoint>>.
 
 CAUTION: FIXME Image
 
@@ -80,7 +80,7 @@ NOTE: `reviveOffers` is part of the link:spark-scheduler-backends.adoc#contract[
 
 === [[killTask]] Killing Task (killTask method)
 
-`killTask` just sends a <<KillTask, KillTask>> message to <<driverEndpoint, driverEndpoint>>.
+`killTask` simply sends a <<KillTask, KillTask>> message to <<driverEndpoint, driverEndpoint>>.
 
 CAUTION: FIXME Image
 
@@ -88,28 +88,41 @@ NOTE: `killTask` is part of the link:spark-scheduler-backends.adoc#contract[Sche
 
 === [[isReady]] Delaying Task Launching (isReady method)
 
-`isReady` starts checking whether there are sufficient resources available to launch tasks using its own `sufficientResourcesRegistered` method. It gives custom implementations of itself a way to handle the question properly. It assumes resources are available by default.
+`isReady` is a custom implementation of link:spark-scheduler-backends.adoc#contract[isReady from the SchedulerBackend Contract] that allows to delay task launching until sufficient resources are registered or <<settings, spark.scheduler.maxRegisteredResourcesWaitingTime>> passes.
 
-NOTE: `isReady` is part of the link:spark-scheduler-backends.adoc#contract[SchedulerBackend Contract].
+It starts checking whether there are sufficient resources available (using <<sufficientResourcesRegistered, sufficientResourcesRegistered>> method that custom scheduler backends are supposed to override).
 
-It prints out the following INFO to the logs:
+NOTE: By default `sufficientResourcesRegistered` always responds that sufficient resources are available.
 
-```
+If <<sufficientResourcesRegistered, sufficient resources are available>>, you should see the following INFO message in the logs:
+
+[options="wrap"]
+----
 INFO SchedulerBackend is ready for scheduling beginning after reached minRegisteredResourcesRatio: [minRegisteredRatio]
-```
+----
 
-`minRegisteredRatio` in the logs above is in the range 0 to 1 (uses <<settings, spark.scheduler.minRegisteredResourcesRatio>>) to denote the minimum ratio of registered resources to total expected resources before submitting tasks.
+The method finishes positive (i.e. returns `true`).
 
-In case there are no sufficient resources available yet (the above requirement does not hold), it checks whether the time from the startup passed <<settings, spark.scheduler.maxRegisteredResourcesWaitingTime>> to give a way to submit tasks (despite minRegisteredRatio not being reached yet).
+NOTE: `minRegisteredRatio` in the logs above is in the range 0 to 1 (uses <<settings, spark.scheduler.minRegisteredResourcesRatio>>) to denote the minimum ratio of registered resources to total expected resources before submitting tasks.
 
-You should see the following INFO in the logs:
+In case there are no sufficient resources available yet (the above requirement does not hold), it checks whether the time from the startup (as `createTime`) passed <<settings, spark.scheduler.maxRegisteredResourcesWaitingTime>> to give a way to submit tasks (despite `minRegisteredRatio` not being reached yet).
+
+You should see the following INFO message in the logs:
 
 [options="wrap"]
 ----
 INFO SchedulerBackend is ready for scheduling beginning after waiting maxRegisteredResourcesWaitingTime: [maxRegisteredWaitingTimeMs](ms)
 ----
 
-Otherwise, it keeps delaying task launching until enough resources register or <<settings, spark.scheduler.maxRegisteredResourcesWaitingTime>> passes.
+The method finishes positive (i.e. returns `true`).
+
+Otherwise it finishes negative (i.e. returns `false`).
+
+=== [[sufficientResourcesRegistered]] sufficientResourcesRegistered
+
+`sufficientResourcesRegistered` always responds that sufficient resources are available.
+
+It is expected that custom scheduler backends are supposed to override.
 
 === [[stopExecutors]] Stop All Executors (stopExecutors method)
 

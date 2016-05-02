@@ -4,7 +4,7 @@
 
 They _typically_ (i.e. not always) run for the entire lifetime of a Spark application. Executors send <<heartbeats-and-active-task-metrics, active task metrics>> to a link:spark-driver.adoc[driver] and inform link:spark-executor-backends.adoc[executor backends] about task status updates (task results including).
 
-NOTE: Executors are managed solely by link:spark-executor-backends.adoc[executor backends].
+NOTE: Executors are managed exclusively by link:spark-executor-backends.adoc[executor backends].
 
 Executors provide in-memory storage for RDDs that are cached in Spark applications (via link:spark-blockmanager.adoc[Block Manager]).
 
@@ -12,9 +12,9 @@ When executors are started they register themselves with the driver and communic
 
 *Executor offers* are described by executor id and the host on which an executor runs (see <<resource-offers, Resource Offers>> in this document).
 
-Executors use a <<thread-pool, thread pool>> for <<metrics, sending metrics>> and <<launching-tasks, launching tasks>> (using link:spark-executor-taskrunner.adoc[TaskRunner]).
+Executors can run multiple tasks over its lifetime, both in parallel and sequentially. They track link:spark-executor-taskrunner.adoc[running tasks] by their task ids in `runningTasks` internal map. Consult <<launching-tasks, Launching Tasks>> section.
 
-Each executor can run multiple tasks over its lifetime, both in parallel and sequentially.
+Executors use a <<thread-pool, thread pool>> for <<launching-tasks, launching tasks>> and <<metrics, sending metrics>>.
 
 It is recommended to have as many executors as data nodes and as many cores as you can get from the cluster.
 
@@ -46,8 +46,6 @@ It creates an RPC endpoint for communication with the driver.
 
 (only for non-local mode) Executors initialize the application using link:spark-blockmanager.adoc#initialize[BlockManager.initialize()].
 
-Executors maintain a mapping between task ids and running tasks (as instances of link:spark-executor-taskrunner.adoc[TaskRunner]) in `runningTasks` internal map. Consult <<launching-tasks, Launching Tasks>> section.
-
 A worker requires the additional services (beside the common ones like ...):
 
 * executorActorSystemName
@@ -56,10 +54,6 @@ A worker requires the additional services (beside the common ones like ...):
 * link:spark-metrics.adoc[MetricsSystem] with the name `executor`
 
 CAUTION: FIXME How many cores are assigned per executor?
-
-=== [[coarse-grained-executor]] Coarse-Grained Executors
-
-*Coarse-grained executors* are executors that use link:spark-executor-backends-coarse-grained.adoc[CoarseGrainedExecutorBackend] for task scheduling.
 
 === [[launchTask]][[launching-tasks]] Launching Tasks (launchTask method)
 
@@ -95,12 +89,15 @@ TIP: Read about `TaskMetrics` in link:spark-taskscheduler-taskmetrics.adoc[TaskM
 ====
 FIXME
 
-* What's in `taskRunner.task.metrics`?
 * What's in `Heartbeat`? Why is `blockManagerId` sent?
 * What's in `RpcUtils.makeDriverRef`?
 ====
 
 Executors use internal `driver-heartbeater` daemon single-thread scheduled pool executor, i.e. `ScheduledThreadPoolExecutor`.
+
+=== [[coarse-grained-executor]] Coarse-Grained Executors
+
+*Coarse-grained executors* are executors that use link:spark-executor-backends-coarse-grained.adoc[CoarseGrainedExecutorBackend] for task scheduling.
 
 === [[FetchFailedException]] FetchFailedException
 
