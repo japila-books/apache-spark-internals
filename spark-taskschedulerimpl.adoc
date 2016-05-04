@@ -11,6 +11,17 @@ image::images/taskschedulerimpl-sparkcontext-schedulerbackend-dagscheduler.png[a
 
 NOTE: The source code is in https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/scheduler/TaskSchedulerImpl.scala[org.apache.spark.scheduler.TaskSchedulerImpl].
 
+[TIP]
+====
+Enable `INFO` or `DEBUG` logging level for `org.apache.spark.scheduler.TaskSchedulerImpl` logger to see what happens inside.
+
+Add the following line to `conf/log4j.properties`:
+
+```
+log4j.logger.org.apache.spark.scheduler.TaskSchedulerImpl=DEBUG
+```
+====
+
 === [[initialization]][[initialize]] Initialization (initialize method)
 
 [source, scala]
@@ -141,20 +152,34 @@ It then calls link:spark-scheduler-backends.adoc#reviveOffers[SchedulerBackend.r
 
 TIP: Use `dag-scheduler-event-loop` thread to step through the code in a debugger.
 
-=== [[resourceOffers]] Offerring Resources (using resourceOffers)
+=== [[resourceOffers]] Offering Resources (using resourceOffers)
+
+[source, scala]
+----
+resourceOffers(offers: Seq[WorkerOffer]): Seq[Seq[TaskDescription]]
+----
 
 `resourceOffers(offers: Seq[WorkerOffer])` method is called by a cluster manager or link:spark-local.adoc#LocalBackend[LocalBackend] (for local mode) to offer free resources available on the executors to run tasks on.
 
 .TaskSchedulerImpl.resourceOffers under the hood
 image::images/taskscheduler-resourceOffers.png[align="center"]
 
-A `WorkerOffer` is a 3-tuple with executor id, host, and free cores available.
+A `WorkerOffer` is a 3-tuple with executor id, host, and the number of free cores available.
 
-For each offer, the `resourceOffers` method tracks hosts per executor id (using `executorIdToHost`) and sets `0` as the number of tasks running on the executor if there is no tasks running already (using `executorIdToTaskCount`). It also tracks executor id per host.
+[source, scala]
+----
+WorkerOffer(executorId: String, host: String, cores: Int)
+----
+
+For each `WorkerOffer` the `resourceOffers` method tracks hosts per executor id (using the internal `executorIdToHost`) and sets `0` as the number of tasks running on the executor if there is no tasks running already (using `executorIdToTaskCount`). It also tracks executor id per host.
 
 WARNING: FIXME BUG? Why is the executor id *not* added to `executorsByHost`?
 
-`DAGScheduler.executorAdded(executorId, host)` is called for a new host.
+For the offers with a host that has not been tracked yet (in the internal `executorsByHost` registry) the following occurs:
+
+1. A new entry for the host in the offer is added to the internal `executorsByHost` registry.
+2. <<executorAdded, executorAdded>> is called (with the executor id and the host from the offer).
+3. `newExecAvail` is enabled (it is later used to inform `TaskSetManagers` about the new executor).
 
 WARNING: FIXME BUG? Why is `executorAdded` called for a new host added? Can't we have more executors on a host? The name of the method is misleading then.
 
@@ -164,13 +189,15 @@ CAUTION: FIXME Why is `getRackForHost` important?
 
 It builds a list of tasks (using `TaskDescription`) to assign to each worker.
 
-link:spark-taskscheduler-schedulable.adoc[rootPool.getSortedTaskSetQueue] is called for available TaskSetManagers and for each TaskSetManager the DEBUG message is printed out to the logs:
+link:spark-taskscheduler-schedulable.adoc[rootPool.getSortedTaskSetQueue] is called and for each `TaskSetManager` the DEBUG message is printed out to the logs:
 
 ```
-DEBUG parentName: [taskSet.parent.name], name: [taskSet.name], runningTasks: [taskSet.runningTasks]
+DEBUG TaskSchedulerImpl: parentName: [taskSet.parent.name], name: [taskSet.name], runningTasks: [taskSet.runningTasks]
 ```
 
-Moreover, if a new host was added to the pool (using `newExecAvail` - FIXME when exactly?), TaskSetManagers get informed about the new executor (using link:spark-tasksetmanager.adoc#executorAdded[TaskSetManager.executorAdded()]).
+NOTE: The internal `rootPool` is configured while <<initialize, TaskSchedulerImpl is being initialized>>.
+
+While iterating over the sorted `TaskSetManager` queue, if a new host was added to the pool, all `TaskSetManagers` are link:spark-tasksetmanager.adoc#executorAdded[informed about the new executor].
 
 WARNING: FIXME BUG? Why is the name `newExecAvail` since it's called for a new host added? Can't we have more executors on a host? The name of the method could be misleading.
 
@@ -314,7 +341,12 @@ TIP: Refer to link:spark-taskscheduler-schedulablebuilders.adoc[SchedulableBuild
 
 === [[executorAdded]] TaskSchedulerImpl.executorAdded
 
-`executorAdded(execId: String, host: String)` method simply passes the notification along to DAGScheduler (using link:spark-dagscheduler.adoc#executorAdded[DAGScheduler.executorAdded])
+[source, scala]
+----
+executorAdded(execId: String, host: String)
+----
+
+`executorAdded` method simply passes the notification on to the `DAGScheduler` (using link:spark-dagscheduler.adoc#executorAdded[DAGScheduler.executorAdded])
 
 CAUTION: FIXME Image with a call from TaskSchedulerImpl to DAGScheduler, please.
 
