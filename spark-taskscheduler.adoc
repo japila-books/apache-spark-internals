@@ -1,6 +1,6 @@
 == [[TaskScheduler]] TaskScheduler
 
-A `TaskScheduler` schedules link:spark-taskscheduler-tasks.adoc[tasks] for a link:spark-anatomy-spark-application.adoc[single Spark application] according to <<scheduling-mode, scheduling mode>> (aka *order task policy*).
+A `TaskScheduler` schedules link:spark-taskscheduler-tasks.adoc[tasks] for a link:spark-anatomy-spark-application.adoc[single Spark application] according to link:spark-taskscheduler-schedulingmode.adoc[scheduling mode].
 
 .TaskScheduler works for a single SparkContext
 image::images/sparkstandalone-sparkcontext-taskscheduler-schedulerbackend.png[align="center"]
@@ -23,8 +23,8 @@ Every `TaskScheduler` follows the following contract:
 * It <<applicationId, returns a custom application id>>.
 * It <<applicationAttemptId, returns an application attempt id>>.
 * It can handle <<executorHeartbeatReceived, executor's heartbeats>> and <<executorLost, executor lost events>>.
-* It owns link:spark-taskscheduler-pool.adoc[Pool] (using `rootPool`)
-* Return `SchedulingMode` (using `schedulingMode`) that determines policy to order tasks.
+* It has a link:spark-taskscheduler-pool.adoc[Pool] (as `rootPool`) of link:spark-taskscheduler-schedulable.adoc[Schedulables].
+* It orders tasks according to a link:spark-taskscheduler-schedulingmode.adoc[scheduling policy] (as `schedulingMode`).
 
 CAUTION: FIXME Have an exercise to create a SchedulerBackend.
 
@@ -35,13 +35,13 @@ A `TaskScheduler` is created while link:spark-sparkcontext.adoc#initialization[S
 .TaskScheduler uses SchedulerBackend to support different clusters
 image::diagrams/taskscheduler-uses-schedulerbackend.png[align="center"]
 
-At this point in SparkContext's lifecycle, the internal `_taskScheduler` points at the `TaskScheduler` and it is "announced" by sending a blocking `TaskSchedulerIsSet` message to HeartbeatReceiver RPC endpoint.
+At this point in SparkContext's lifecycle, the internal `_taskScheduler` points at the `TaskScheduler` and it is "announced" by sending a blocking `TaskSchedulerIsSet` message to link:spark-sparkcontext.adoc#HeartbeatReceiver[HeartbeatReceiver] RPC endpoint.
 
 The <<start, TaskScheduler is started>> right after the blocking `TaskSchedulerIsSet` message receives a response.
 
-The application ID and attempt ID are set at this point (and SparkContext uses the application id to set up `spark.app.id`, SparkUI, and BlockManager).
+The <<applicationId, application ID>> and the <<applicationAttemptId, application's attempt ID>> are set at this point (and `SparkContext` uses the application id to set up `spark.app.id`, `SparkUI`, and link:spark-blockmanager.adoc[BlockManager]).
 
-CAUTION: FIXME The application id is described as "associated with the job." in TaskScheduler, but I think it is "associated with the application".
+CAUTION: FIXME The application id is described as "associated with the job." in TaskScheduler, but I think it is "associated with the application" and you can have many jobs per application.
 
 Right before SparkContext is fully initialized, <<postStartHook, TaskScheduler.postStartHook>> is called.
 

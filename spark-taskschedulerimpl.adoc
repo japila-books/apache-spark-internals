@@ -4,12 +4,12 @@
 
 It <<submitTasks, submits tasks>> using link:spark-taskscheduler-schedulablebuilders.adoc[SchedulableBuilders].
 
-When a Spark application starts (and an instance of SparkContext is created) `TaskSchedulerImpl` with a `SchedulerBackend` and link:spark-dagscheduler.adoc[DAGScheduler] are created and started, too.
+When a Spark application starts (and an instance of link:spark-sparkcontext.adoc#creating-instance[SparkContext is created]) `TaskSchedulerImpl` with a link:spark-scheduler-backends.adoc[SchedulerBackend] and link:spark-dagscheduler.adoc[DAGScheduler] are created and soon started.
 
 .TaskSchedulerImpl and Other Services
 image::images/taskschedulerimpl-sparkcontext-schedulerbackend-dagscheduler.png[align="center"]
 
-NOTE: The source code is in https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/scheduler/TaskSchedulerImpl.scala[org.apache.spark.scheduler.TaskSchedulerImpl].
+NOTE: `TaskSchedulerImpl` is a `private[spark]` class with the source code in https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/scheduler/TaskSchedulerImpl.scala[org.apache.spark.scheduler.TaskSchedulerImpl].
 
 [TIP]
 ====
@@ -22,24 +22,54 @@ log4j.logger.org.apache.spark.scheduler.TaskSchedulerImpl=DEBUG
 ```
 ====
 
-=== [[initialization]][[initialize]] Initialization (initialize method)
+=== [[creating-instance]] Creating TaskSchedulerImpl
+
+Creating a `TaskSchedulerImpl` object requires a link:spark-sparkcontext.adoc[SparkContext] object, the <<maxTaskFailures, maximum number of task failures>> (`maxTaskFailures`) and optional <<isLocal, isLocal>> flag (disabled by default, i.e. `false`).
+
+NOTE: There is another `TaskSchedulerImpl` constructor that requires a link:spark-sparkcontext.adoc[SparkContext] object only and sets <<maxTaskFailures, maxTaskFailures>> to <<spark.task.maxFailures, spark.task.maxFailures>> or, if `spark.task.maxFailures` is not set, defaults to `4`.
+
+While being created, it initializes <<internal-registries, internal registries>> to their default values.
+
+It then sets link:spark-taskscheduler.adoc#contract[schedulingMode] to the value of <<spark.scheduler.mode, spark.scheduler.mode>> setting or `FIFO`.
+
+NOTE: `schedulingMode` is part of link:spark-taskscheduler.adoc#contract[TaskScheduler Contract].
+
+Failure to set `schedulingMode` results in a `SparkException`:
+
+```
+Unrecognized spark.scheduler.mode: [schedulingModeConf]
+```
+
+It sets `taskResultGetter` as a <<TaskResultGetter, TaskResultGetter>>.
+
+CAUTION: FIXME Where is `taskResultGetter` used?
+
+=== [[maxTaskFailures]] Maximum Number of Task Failures (maxTaskFailures attribute)
+
+The maximum number of task failures can be explicitly defined when <<creating-instance, creating TaskSchedulerImpl instance>> or based on <<spark.task.maxFailures, spark.task.maxFailures>> setting that defaults to 4 failures.
+
+NOTE: It is exclusively used when <<submitTasks, submitting tasks>> through link:spark-tasksetmanager.adoc[TaskSetManager].
+
+=== [[isLocal]] Local vs Non-Local Mode (isLocal attribute)
+
+CAUTION: FIXME
+
+=== [[initialization]][[initialize]] Initializing TaskSchedulerImpl (initialize method)
 
 [source, scala]
 ----
 initialize(backend: SchedulerBackend): Unit
 ----
 
-`initialize` initializes a `TaskSchedulerImpl`.
+`initialize` initializes a `TaskSchedulerImpl` object.
 
 NOTE: link:spark-sparkcontext.adoc#createTaskScheduler[SparkContext] initializes `TaskSchedulerImpl`.
 
-It saves the reference to `SchedulerBackend` (as `backend`) for future use.
+Internally, `initialize` saves the reference to link:spark-scheduler-backends.adoc[SchedulerBackend] (as `backend`) and sets `rootPool` to be an empty-named link:spark-taskscheduler-pool.adoc[Pool] with already-initialized `schedulingMode` (while <<creating-instance, creating a TaskSchedulerImpl object>>), `initMinShare` and `initWeight` as `0`.
 
-It then initializes the internal `rootPool` (a part of link:spark-taskscheduler.adoc#contract[TaskScheduler Contract]).
+NOTE: `schedulingMode` and `rootPool` are part of link:spark-taskscheduler.adoc#contract[TaskScheduler Contract].
 
-NOTE: It creates an unnamed link:spark-taskscheduler-pool.adoc[Pool] with scheduling mode as <<spark.scheduler.mode, spark.scheduler.mode>> or `FIFO`. See <<scheduling-mode, Scheduling Modes>> in this document.
-
-It also initializes the internal link:spark-taskscheduler-schedulablebuilders.adoc[SchedulableBuilder] (as `schedulableBuilder`) and ultimately calls its link:spark-taskscheduler-schedulablebuilders.adoc#buildPools[SchedulableBuilder.buildPools].
+It then initializes the internal link:spark-taskscheduler-schedulablebuilders.adoc[SchedulableBuilder] (as `schedulableBuilder`) and calls its link:spark-taskscheduler-schedulablebuilders.adoc#buildPools[SchedulableBuilder.buildPools] afterwards.
 
 NOTE: `schedulableBuilder` can be link:spark-taskscheduler-schedulablebuilders.adoc#FIFOSchedulableBuilder[FIFOSchedulableBuilder] (for `FIFO` scheduling mode) or link:spark-taskscheduler-schedulablebuilders.adoc#FairSchedulableBuilder[FairSchedulableBuilder] (for `FAIR` scheduling mode).
 
@@ -152,14 +182,14 @@ It then calls link:spark-scheduler-backends.adoc#reviveOffers[SchedulerBackend.r
 
 TIP: Use `dag-scheduler-event-loop` thread to step through the code in a debugger.
 
-=== [[resourceOffers]] Offering Resources (using resourceOffers)
+=== [[resourceOffers]] Processing Resource Offers (using resourceOffers)
 
 [source, scala]
 ----
 resourceOffers(offers: Seq[WorkerOffer]): Seq[Seq[TaskDescription]]
 ----
 
-`resourceOffers(offers: Seq[WorkerOffer])` method is called by a cluster manager or link:spark-local.adoc#LocalBackend[LocalBackend] (for local mode) to offer free resources available on the executors to run tasks on.
+`resourceOffers` method is called by a cluster manager or link:spark-local.adoc#LocalBackend[LocalBackend] (for local mode) to offer free resources available on the executors to run tasks on.
 
 .TaskSchedulerImpl.resourceOffers under the hood
 image::images/taskscheduler-resourceOffers.png[align="center"]
@@ -215,7 +245,7 @@ CAUTION: FIXME Image with the dependencies
 
 TIP: Consult link:spark-taskscheduler-tasks.adoc#states[Task States] in Tasks to learn about the different task states.
 
-The only instance of `TaskResultGetter` is created as part of a `TaskSchedulerImpl` creation (as `taskResultGetter`) . It requires a `SparkEnv` and `TaskSchedulerImpl`. It is stopped when `TaskSchedulerImpl` stops.
+NOTE: The only instance of `TaskResultGetter` is created while <<creating-instance, TaskSchedulerImpl is being created>> (as `taskResultGetter`). It requires a `SparkEnv` and `TaskSchedulerImpl`. It is stopped when `TaskSchedulerImpl` stops.
 
 `TaskResultGetter` offers the following methods:
 
@@ -327,18 +357,6 @@ You should see the following INFO message in the logs:
 INFO Removed TaskSet [manager.taskSet.id], whose tasks have all completed, from pool [manager.parent.name]
 ```
 
-=== [[scheduling-mode]] Scheduling Modes
-
-The scheduling mode in `TaskSchedulerImpl` is configured by <<spark.scheduler.mode, spark.scheduler.mode>> setting.
-
-It can be the following values:
-
-* *FIFO* with no pools; one root pool with instances of link:spark-tasksetmanager.adoc[TaskSetManager]; lower priority gets link:spark-taskscheduler-schedulable.adoc[Schedulable] sooner or earlier stage wins.
-* *FAIR*
-* *NONE* means no sub-queues
-
-TIP: Refer to link:spark-taskscheduler-schedulablebuilders.adoc[SchedulableBuilder].
-
 === [[executorAdded]] TaskSchedulerImpl.executorAdded
 
 [source, scala]
@@ -367,15 +385,16 @@ CAUTION: FIXME How/where are these mappings used?
 
 === [[settings]] Settings
 
-* `spark.task.maxFailures` (default: `4` for link:spark-cluster.adoc[cluster mode] and `1` for link:spark-local.adoc[local] except link:spark-local.adoc[local-with-retries]) - The number of individual task failures before giving up on the entire TaskSet and the job afterwards.
+[[spark.task.maxFailures]]
+* `spark.task.maxFailures` (default: `4` for link:spark-cluster.adoc[cluster mode] and `1` for link:spark-local.adoc[local] except link:spark-local.adoc[local-with-retries]) - The number of individual task failures before giving up on the entire link:spark-taskscheduler-tasksets.adoc[TaskSet] and the job afterwards.
 +
-It is used in TaskSchedulerImpl to initialize link:spark-tasksetmanager.adoc[TaskSetManager].
+It is used in `TaskSchedulerImpl` to initialize a link:spark-tasksetmanager.adoc[TaskSetManager].
 
 [[spark.task.cpus]]
 * `spark.task.cpus` (default: `1`) - how many CPUs to request per task in a SparkContext. You cannot have different number of CPUs per task in a single SparkContext.
 
 [[spark.scheduler.mode]]
-* `spark.scheduler.mode` (default: `FIFO`) can be of any of `FAIR`, `FIFO`, or `NONE`. Refer to <<scheduling-mode, Scheduling Modes>>.
+* `spark.scheduler.mode` (default: `FIFO`) is a case-insensitive `FAIR`, `FIFO`, or `NONE`. See link:spark-taskscheduler-schedulingmode.adoc[SchedulingMode].
 * `spark.speculation.interval` (default: `100ms`) - how often to check for speculative tasks.
 * `spark.starvation.timeout` (default: `15s`) - Threshold above which Spark warns a user that an initial TaskSet may be starved.
 
