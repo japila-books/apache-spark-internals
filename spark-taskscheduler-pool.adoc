@@ -1,16 +1,47 @@
-== Pool
+== Schedulable Pool
 
-`Pool` is a link:spark-taskscheduler-schedulable.adoc[Schedulable].
+`Pool` is a link:spark-taskscheduler-schedulable.adoc[Schedulable] entity that represents collection of (other) `Pools` or link:spark-tasksetmanager.adoc[TaskSetManagers].
 
-It requires a name, a scheduling mode, initial `minShare` and `weight` when created.
+It requires a name, a link:spark-taskscheduler-schedulingmode.adoc[scheduling mode], initial `minShare` and `weight` when created.
 
 NOTE: An instance of `Pool` is created when link:spark-taskschedulerimpl.adoc#initialize[TaskSchedulerImpl is initialized].
+
+=== [[taskSetSchedulingAlgorithm]] taskSetSchedulingAlgorithm Attribute
+
+Using the link:spark-taskscheduler-schedulingmode.adoc[scheduling mode] (given when a `Pool` object is created), `Pool` selects <<SchedulingAlgorithm, SchedulingAlgorithm>> and sets `taskSetSchedulingAlgorithm`:
+
+* <<FIFOSchedulingAlgorithm, FIFOSchedulingAlgorithm>> for FIFO scheduling mode.
+* <<FairSchedulingAlgorithm, FairSchedulingAlgorithm>> for FAIR scheduling mode.
+
+It throws an `IllegalArgumentException` when unsupported scheduling mode is passed on:
+
+```
+Unsupported spark.scheduler.mode: [schedulingMode]
+```
+
+TIP: Read about the scheduling modes in link:spark-taskscheduler-schedulingmode.adoc[SchedulingMode].
+
+NOTE: `taskSetSchedulingAlgorithm` is used in <<getSortedTaskSetQueue, getSortedTaskSetQueue>>.
+
+=== [[addSchedulable]] addSchedulable
+
+NOTE: `addSchedulable` is part of the link:spark-taskscheduler-schedulable.adoc#contract[Schedulable Contract].
+
+`addSchedulable` adds a `Schedulable` to the link:spark-taskscheduler-schedulable.adoc#contract[schedulableQueue] and <<schedulableNameToSchedulable, schedulableNameToSchedulable>>.
+
+More importantly, it sets the `Schedulable` entity's link:spark-taskscheduler-schedulable.adoc#contract[parent] to itself.
 
 === [[getSortedTaskSetQueue]] getSortedTaskSetQueue
 
 NOTE: `getSortedTaskSetQueue` is part of the link:spark-taskscheduler-schedulable.adoc#contract[Schedulable Contract].
 
-`getSortedTaskSetQueue` sorts all the link:spark-taskscheduler-schedulable.adoc[Schedulables] in link:spark-taskscheduler-schedulable.adoc#contract[schedulableQueue] queue by a <<SchedulingAlgorithm, SchedulingAlgorithm>> (as the internal `taskSetSchedulingAlgorithm`).
+`getSortedTaskSetQueue` sorts all the link:spark-taskscheduler-schedulable.adoc[Schedulables] in link:spark-taskscheduler-schedulable.adoc#contract[schedulableQueue] queue by a <<SchedulingAlgorithm, SchedulingAlgorithm>> (from the internal <<taskSetSchedulingAlgorithm, taskSetSchedulingAlgorithm>>).
+
+=== [[schedulableNameToSchedulable]] Schedulable lookups by Name (schedulableNameToSchedulable registry)
+
+`Pool` maintains `schedulableNameToSchedulable` which is the mapping between `Schedulable` names to the `Schedulable` objects themselves.
+
+Beside the uses in housekeeping methods like `addSchedulable`, `removeSchedulable`, `getSchedulableByName` from the link:spark-taskscheduler-schedulable.adoc#contract[Schedulable Contract], it is exclusively used in link:spark-sparkcontext.adoc#getPoolForName[SparkContext.getPoolForName].
 
 === [[SchedulingAlgorithm]] SchedulingAlgorithm
 
