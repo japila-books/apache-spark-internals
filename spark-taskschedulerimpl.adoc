@@ -24,7 +24,7 @@ log4j.logger.org.apache.spark.scheduler.TaskSchedulerImpl=DEBUG
 
 === [[creating-instance]] Creating TaskSchedulerImpl
 
-Creating a `TaskSchedulerImpl` object requires a link:spark-sparkcontext.adoc[SparkContext] object, the <<maxTaskFailures, maximum number of task failures>> (`maxTaskFailures`) and optional <<isLocal, isLocal>> flag (disabled by default, i.e. `false`).
+Creating a `TaskSchedulerImpl` object requires a link:spark-sparkcontext.adoc[SparkContext] object, the <<maxTaskFailures, acceptable number of task failures>> (`maxTaskFailures`) and optional <<isLocal, isLocal>> flag (disabled by default, i.e. `false`).
 
 NOTE: There is another `TaskSchedulerImpl` constructor that requires a link:spark-sparkcontext.adoc[SparkContext] object only and sets <<maxTaskFailures, maxTaskFailures>> to <<spark.task.maxFailures, spark.task.maxFailures>> or, if `spark.task.maxFailures` is not set, defaults to `4`.
 
@@ -54,7 +54,7 @@ NOTE: It is exclusively used when <<submitTasks, submitting tasks>> through link
 
 CAUTION: FIXME
 
-=== [[initialization]][[initialize]] Initializing TaskSchedulerImpl (initialize method)
+=== [[initialization]][[initialize]] TaskSchedulerImpl Initialization (initialize method)
 
 [source, scala]
 ----
@@ -63,15 +63,23 @@ initialize(backend: SchedulerBackend): Unit
 
 `initialize` initializes a `TaskSchedulerImpl` object.
 
-NOTE: link:spark-sparkcontext.adoc#createTaskScheduler[SparkContext] initializes `TaskSchedulerImpl`.
+.TaskSchedulerImpl initialization
+image::images/TaskSchedulerImpl-initialize.png[align="center"]
 
-Internally, `initialize` saves the reference to link:spark-scheduler-backends.adoc[SchedulerBackend] (as `backend`) and sets `rootPool` to be an empty-named link:spark-taskscheduler-pool.adoc[Pool] with already-initialized `schedulingMode` (while <<creating-instance, creating a TaskSchedulerImpl object>>), `initMinShare` and `initWeight` as `0`.
+NOTE: `initialize` is called when link:spark-sparkcontext.adoc#createTaskScheduler[SparkContext creates SchedulerBackend and TaskScheduler].
+
+`initialize` saves the reference to link:spark-scheduler-backends.adoc[SchedulerBackend] (as `backend`) and sets `rootPool` to be an empty-named link:spark-taskscheduler-pool.adoc[Pool] with already-initialized `schedulingMode` (while <<creating-instance, creating a TaskSchedulerImpl object>>), `initMinShare` and `initWeight` as `0`.
 
 NOTE: `schedulingMode` and `rootPool` are part of link:spark-taskscheduler.adoc#contract[TaskScheduler Contract].
 
-It then initializes the internal link:spark-taskscheduler-schedulablebuilders.adoc[SchedulableBuilder] (as `schedulableBuilder`) and calls its link:spark-taskscheduler-schedulablebuilders.adoc#buildPools[SchedulableBuilder.buildPools] afterwards.
+It then creates the internal link:spark-taskscheduler-schedulablebuilders.adoc[SchedulableBuilder] object (as `schedulableBuilder`) based on `schedulingMode`:
 
-NOTE: `schedulableBuilder` can be link:spark-taskscheduler-schedulablebuilders.adoc#FIFOSchedulableBuilder[FIFOSchedulableBuilder] (for `FIFO` scheduling mode) or link:spark-taskscheduler-schedulablebuilders.adoc#FairSchedulableBuilder[FairSchedulableBuilder] (for `FAIR` scheduling mode).
+* link:spark-taskscheduler-schedulablebuilders.adoc#FIFOSchedulableBuilder[FIFOSchedulableBuilder] for `FIFO` scheduling mode
+* link:spark-taskscheduler-schedulablebuilders.adoc#FairSchedulableBuilder[FairSchedulableBuilder] for `FAIR` scheduling mode
+
+With the `schedulableBuilder` object created, `initialize` requests it to link:spark-taskscheduler-schedulablebuilders.adoc#buildPools[build pools].
+
+CAUTION: FIXME Why are `rootPool` and `schedulableBuilder` created only now? What do they need that it is not available when `TaskSchedulerImpl` is created?
 
 === [[start]] Starting TaskSchedulerImpl (start method)
 
