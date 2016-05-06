@@ -44,9 +44,9 @@ It sets `taskResultGetter` as a <<TaskResultGetter, TaskResultGetter>>.
 
 CAUTION: FIXME Where is `taskResultGetter` used?
 
-=== [[maxTaskFailures]] Maximum Number of Task Failures (maxTaskFailures attribute)
+=== [[maxTaskFailures]] Acceptable Number of Task Failures (maxTaskFailures attribute)
 
-The maximum number of task failures can be explicitly defined when <<creating-instance, creating TaskSchedulerImpl instance>> or based on <<spark.task.maxFailures, spark.task.maxFailures>> setting that defaults to 4 failures.
+The acceptable number of task failures (`maxTaskFailures`) can be explicitly defined when <<creating-instance, creating TaskSchedulerImpl instance>> or based on <<spark.task.maxFailures, spark.task.maxFailures>> setting that defaults to 4 failures.
 
 NOTE: It is exclusively used when <<submitTasks, submitting tasks>> through link:spark-tasksetmanager.adoc[TaskSetManager].
 
@@ -143,10 +143,12 @@ CAUTION: FIXME How does Spark handle repeated results of speculative tasks since
 
 === [[submitTasks]] Task Submission (using submitTasks)
 
-link:spark-taskscheduler-tasks.adoc[Tasks] are submitted for execution as a link:spark-taskscheduler-tasksets.adoc[TaskSet] using `submitTasks(taskSet: TaskSet)` method.
+link:spark-taskscheduler-tasks.adoc[Tasks] are submitted for execution as a link:spark-taskscheduler-tasksets.adoc[TaskSet] using `submitTasks`.
 
 .TaskSchedulerImpl.submitTasks
 image::images/taskschedulerImpl-submitTasks.png[align="center"]
+
+NOTE: `submitTasks` is part of the link:spark-taskscheduler.adoc#contract[TaskScheduler Contract].
 
 NOTE: If there are tasks to launch for missing partitions in a stage, DAGScheduler executes `submitTasks` (see link:spark-dagscheduler.adoc#submitMissingTasks[submitMissingTasks for Stage and Job]).
 
@@ -156,17 +158,17 @@ When this method is called, you should see the following INFO message in the log
 INFO TaskSchedulerImpl: Adding task set [taskSet.id] with [tasks.length] tasks
 ```
 
-It creates a new link:spark-tasksetmanager.adoc[TaskSetManager] for the given TaskSet `taskSet` and the acceptable number of task failures (as `maxTaskFailures`).
+It creates a new link:spark-tasksetmanager.adoc[TaskSetManager] for the given TaskSet `taskSet` and the <<maxTaskFailures, acceptable number of task failures>>.
 
-NOTE: `maxTaskFailures` that is the acceptable number of task failures is given when a `TaskSchedulerImpl` is created.
+NOTE: The acceptable number of task failures is specified when a <<creating-instance, TaskSchedulerImpl is created>>.
 
-`taskSetsByStageIdAndAttempt`, i.e. a mapping of stages and another mapping of attempt ids and TaskSetManagers, is checked for conflicting TaskSetManagers, i.e. TaskSetManagers for which the TaskSets are different and TaskSetManager is not zombie. If there is one, an `IllegalStateException` is thrown with the message:
+`taskSetsByStageIdAndAttempt`, i.e. a mapping of stages and another mapping of attempt ids and TaskSetManagers, is checked for conflicting TaskSetManagers, i.e. TaskSetManagers for which the TaskSets are different and TaskSetManager is not a zombie. If there is one, an `IllegalStateException` is thrown with the message:
 
 ```
 more than one active taskSet for stage [stage]: [TaskSet ids]
 ```
 
-Otherwise, link:spark-taskscheduler-schedulablebuilders.adoc[SchedulableBuilder.addTaskSetManager] is called with the `manager` being the `TaskSetManager` just created.
+Otherwise, the just-created `TaskSetManager` is link:spark-taskscheduler-schedulablebuilders.adoc[added].
 
 When the method is called the first time (`hasReceivedTask` is `false`) in cluster mode, `starvationTimer` is scheduled at fixed rate, i.e. every <<settings, spark.starvation.timeout>> after the first <<settings, spark.starvation.timeout>> passes (`hasReceivedTask` becomes `true`).
 
