@@ -1,13 +1,54 @@
 == YarnClusterSchedulerBackend for Cluster Deploy Mode
 
-Spark on YARN supports submitting Spark applications in link:spark-submit.adoc#deploy-mode[cluster deploy mode].
+`YarnClusterSchedulerBackend` is a custom link:spark-yarn-yarnschedulerbackend.adoc[YarnSchedulerBackend] for Spark on YARN in <<cluster-mode, cluster deploy mode>>.
 
-<<YarnClusterSchedulerBackend, YarnClusterSchedulerBackend>> is the link:spark-scheduler-backends.adoc[scheduler backend] for Spark on YARN in cluster deploy mode.
-
-=== [[YarnClusterSchedulerBackend]] YarnClusterSchedulerBackend
-
-`YarnClusterSchedulerBackend` is a link:spark-scheduler-backends.adoc[scheduler backend] for Spark on YARN in <<cluster-mode, cluster deploy mode>>.
-
-This is the only scheduler backend that supports <<multiple-application-attempts, multiple application attempts>> and link:spark-scheduler-backends.adoc#getDriverLogUrls[URLs for driver's logs] to display as links in the web UI in the Executors tab for the driver.
+This is a scheduler backend that supports <<multiple-application-attempts, multiple application attempts>> and link:spark-scheduler-backends.adoc#getDriverLogUrls[URLs for driver's logs] to display as links in the web UI in the Executors tab for the driver.
 
 It uses `spark.yarn.app.attemptId` under the covers (that the YARN resource manager sets?).
+
+NOTE: `YarnClusterSchedulerBackend` is a `private[spark]` Scala class. You can find the sources in https://github.com/apache/spark/blob/master/yarn/src/main/scala/org/apache/spark/scheduler/cluster/YarnClusterSchedulerBackend.scala[org.apache.spark.scheduler.cluster.YarnClusterSchedulerBackend].
+
+[TIP]
+====
+Enable `DEBUG` logging level for `org.apache.spark.scheduler.cluster.YarnClusterSchedulerBackend` logger to see what happens inside.
+
+Add the following line to `conf/log4j.properties`:
+
+```
+log4j.logger.org.apache.spark.scheduler.cluster.YarnClusterSchedulerBackend=DEBUG
+```
+
+Refer to link:spark-logging.adoc[Logging].
+====
+
+=== [[creating-instance]] Creating YarnClusterSchedulerBackend
+
+Creating a `YarnClusterSchedulerBackend` object requires a link:spark-taskschedulerimpl.adoc[TaskSchedulerImpl] and link:spark-sparkcontext.adoc[SparkContext] objects.
+
+=== [[start]] Starting YarnClusterSchedulerBackend (start method)
+
+`YarnClusterSchedulerBackend` comes with a custom `start` method.
+
+NOTE: `start` is part of the link:spark-scheduler-backends.adoc#contract[SchedulerBackend Contract].
+
+Internally, it first link:spark-yarn-applicationmaster.adoc#getAttemptId[queries ApplicationMaster for attemptId] and link:spark-yarn-yarnschedulerbackend.adoc#bindToYarn[records the application and attempt ids].
+
+It then calls the link:spark-yarn-yarnschedulerbackend.adoc#start[parent's start] and sets the parent's `totalExpectedExecutors` to the result of `YarnSparkHadoopUtil.getInitialTargetExecutorNumber(sc.conf)`.
+
+CAUTION: FIXME Where is `totalExpectedExecutors` used?
+
+CAUTION: FIXME What is `YarnSparkHadoopUtil.getInitialTargetExecutorNumber(sc.conf)` doing?
+
+=== [[getDriverLogUrls]] Calculating Driver Log URLs (getDriverLogUrls method)
+
+`getDriverLogUrls` in `YarnClusterSchedulerBackend` calculates the URLs for the driver's logs - standard output (stdout) and standard error (stderr).
+
+NOTE: `getDriverLogUrls` is part of the link:spark-scheduler-backends.adoc#contract[SchedulerBackend Contract].
+
+Internally, it retrieves the container id (using `YarnSparkHadoopUtil.getContainerId`) and through environment variables computes the base URL.
+
+You should see the following DEBUG in the logs:
+
+```
+DEBUG Base URL for logs: [baseUrl]
+```
