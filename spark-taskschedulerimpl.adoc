@@ -1,6 +1,6 @@
 == [[TaskSchedulerImpl]] TaskSchedulerImpl - Default TaskScheduler
 
-`TaskSchedulerImpl` is the default implementation of link:spark-taskscheduler.adoc#contract[TaskScheduler Contract]. It can schedule tasks for multiple types of cluster managers by means of link:spark-scheduler-backends.adoc[Scheduler Backends].
+`TaskSchedulerImpl` is the default implementation of link:spark-taskscheduler.adoc#contract[TaskScheduler Contract] and extends it <<getRackForHost, to track racks per host and port>>. It can schedule tasks for multiple types of cluster managers by means of link:spark-scheduler-backends.adoc[Scheduler Backends].
 
 It uses link:spark-taskscheduler-schedulablebuilders.adoc[SchedulableBuilders] that exclusively manage (a pool of) `TaskSetManagers`.
 
@@ -23,6 +23,34 @@ Add the following line to `conf/log4j.properties`:
 log4j.logger.org.apache.spark.scheduler.TaskSchedulerImpl=DEBUG
 ```
 ====
+
+=== [[getRackForHost]] Tracking Racks per Hosts and Ports (getRackForHost method)
+
+[source, scala]
+----
+getRackForHost(value: String): Option[String]
+----
+
+`getRackForHost` is a method to know about the racks per hosts and ports. By default, it assumes that racks are unknown (i.e. the method returns `None`).
+
+NOTE: It is overriden by the YARN-specific TaskScheduler link:spark-yarn-yarnscheduler.adoc[YarnScheduler].
+
+`getRackForHost` is currently used in two places:
+
+* <<resourceOffers, TaskSchedulerImpl.resourceOffers>> to track hosts per rack (using the <<internal-registries, internal `hostsByRack` registry>>) while processing resource offers.
+
+* <<removeExecutor, TaskSchedulerImpl.removeExecutor>> to...FIXME
+
+* link:spark-tasksetmanager.adoc#addPendingTask[TaskSetManager.addPendingTask], link:spark-tasksetmanager.adoc#[TaskSetManager.dequeueTask], and link:spark-tasksetmanager.adoc#dequeueSpeculativeTask[TaskSetManager.dequeueSpeculativeTask]
+
+=== [[removeExecutor]] Internal Cleanup After Removing Executor (removeExecutor method)
+
+[source, scala]
+----
+removeExecutor(executorId: String, reason: ExecutorLossReason): Unit
+----
+
+`removeExecutor`...FIXME
 
 === [[creating-instance]] Creating TaskSchedulerImpl
 
@@ -100,7 +128,7 @@ It also starts the *task-scheduler-speculation* executor pool. See <<speculative
 
 `postStartHook` is a custom implementation of link:spark-taskscheduler.adoc#contract[postStartHook from the TaskScheduler Contract] that waits until a scheduler backend is ready (using the internal blocking <<waitBackendReady, waitBackendReady>>).
 
-NOTE: `postStartHook` is used when link:spark-sparkcontext.adoc#initialization[SparkContext is created] (before it is fully created) and link:spark-taskscheduler.adoc#implementations[YarnClusterScheduler.postStartHook].
+NOTE: `postStartHook` is used when link:spark-sparkcontext.adoc#initialization[SparkContext is created] (before it is fully created) and link:spark-yarn-yarnclusterscheduler.adoc#postStartHook[YarnClusterScheduler.postStartHook].
 
 === [[waitBackendReady]] Waiting Until SchedulerBackend is Ready (waitBackendReady method)
 
@@ -227,8 +255,6 @@ WARNING: FIXME BUG? Why is `executorAdded` called for a new host added? Can't we
 
 CAUTION: FIXME a picture with `executorAdded` call from TaskSchedulerImpl to DAGScheduler.
 
-CAUTION: FIXME Why is `getRackForHost` important?
-
 It builds a list of tasks (using `TaskDescription`) to assign to each worker.
 
 link:spark-taskscheduler-schedulable.adoc[rootPool.getSortedTaskSetQueue] is called to build a sorted `TaskSetManager` queue.
@@ -325,8 +351,6 @@ When `statusUpdate` starts, it checks the current state of the task and act acco
 If a task became `TaskState.LOST` and there is still an executor assigned for the task (it seems it may not given the check), the executor is marked as lost (or sometimes called failed). The executor is later announced as such using `DAGScheduler.executorLost` with link:spark-scheduler-backends.adoc#reviveOffers[SchedulerBackend.reviveOffers()] being called afterwards.
 
 CAUTION: FIXME Why is link:spark-scheduler-backends.adoc#reviveOffers[SchedulerBackend.reviveOffers()] called only for lost executors?
-
-CAUTION: FIXME Review `TaskSchedulerImpl.removeExecutor`
 
 The method looks up the link:spark-tasksetmanager.adoc[TaskSetManager] for the task (using `taskIdToTaskSetManager`).
 
