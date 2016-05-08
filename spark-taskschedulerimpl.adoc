@@ -43,15 +43,6 @@ NOTE: It is overriden by the YARN-specific TaskScheduler link:spark-yarn-yarnsch
 
 * link:spark-tasksetmanager.adoc#addPendingTask[TaskSetManager.addPendingTask], link:spark-tasksetmanager.adoc#[TaskSetManager.dequeueTask], and link:spark-tasksetmanager.adoc#dequeueSpeculativeTask[TaskSetManager.dequeueSpeculativeTask]
 
-=== [[removeExecutor]] Internal Cleanup After Removing Executor (removeExecutor method)
-
-[source, scala]
-----
-removeExecutor(executorId: String, reason: ExecutorLossReason): Unit
-----
-
-`removeExecutor`...FIXME
-
 === [[creating-instance]] Creating TaskSchedulerImpl
 
 Creating a `TaskSchedulerImpl` object requires a link:spark-sparkcontext.adoc[SparkContext] object, the <<maxTaskFailures, acceptable number of task failures>> (`maxTaskFailures`) and optional <<isLocal, isLocal>> flag (disabled by default, i.e. `false`).
@@ -79,6 +70,19 @@ CAUTION: FIXME Where is `taskResultGetter` used?
 The acceptable number of task failures (`maxTaskFailures`) can be explicitly defined when <<creating-instance, creating TaskSchedulerImpl instance>> or based on <<spark.task.maxFailures, spark.task.maxFailures>> setting that defaults to 4 failures.
 
 NOTE: It is exclusively used when <<submitTasks, submitting tasks>> through link:spark-tasksetmanager.adoc[TaskSetManager].
+
+=== [[removeExecutor]] Internal Cleanup After Removing Executor (removeExecutor method)
+
+[source, scala]
+----
+removeExecutor(executorId: String, reason: ExecutorLossReason): Unit
+----
+
+`removeExecutor` removes the `executorId` executor from the <<internal-registries, internal registries>>: `executorIdToTaskCount`, `executorIdToHost`, `executorsByHost`, and `hostsByRack`. If the affected hosts and racks are the last entries in `executorsByHost` and `hostsByRack`, appropriately, they are removed from the registries.
+
+Unless `reason` is `LossReasonPending`, the executor is removed from `executorIdToHost` registry and link:spark-taskscheduler-schedulable.adoc#executorLost[TaskSetManagers get notified].
+
+NOTE: The internal `removeExecutor` is called as part of <<statusUpdate, statusUpdate>> and link:spark-taskscheduler.adoc#executorLost[executorLost].
 
 === [[isLocal]] Local vs Non-Local Mode (isLocal attribute)
 
