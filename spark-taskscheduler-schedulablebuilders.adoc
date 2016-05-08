@@ -1,12 +1,17 @@
 == [[SchedulableBuilder]] Schedulable Builders
 
-`SchedulableBuilder` is a <<contract, contract>> of <<implementations, schedulable builders>> that operate on a link:spark-taskscheduler-pool.adoc[Pool] (<<rootPool, rootPool>>) from an owning link:spark-taskschedulerimpl.adoc[TaskSchedulerImpl].
+`SchedulableBuilder` is a <<contract, contract of schedulable builders>> that operate on a <<rootPool, pool of TaskSetManagers>> (from an owning link:spark-taskschedulerimpl.adoc[TaskSchedulerImpl]).
 
 Schedulable builders can <<buildPools, build pools>> and <<addTaskSetManager, add new Schedulable entities to the pool>>.
 
 A `SchedulableBuilder` is configured when <<initialize, TaskSchedulerImpl is being initialized>>.
 
 NOTE: `SchedulableBuilder` is a `private[spark]` Scala trait. You can find the sources in https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/scheduler/SchedulableBuilder.scala[org.apache.spark.scheduler.SchedulableBuilder].
+
+Spark comes with two implementations of the <<contract, SchedulableBuilder Contract>>:
+
+* link:spark-taskscheduler-FIFOSchedulableBuilder.adoc[FIFOSchedulableBuilder] - the default `SchedulableBuilder`
+* link:spark-taskscheduler-FairSchedulableBuilder.adoc[FairSchedulableBuilder]
 
 === [[contract]] SchedulableBuilder Contract
 
@@ -50,146 +55,3 @@ addTaskSetManager(manager: Schedulable, properties: Properties): Unit
 NOTE: `addTaskSetManager` is currently exclusively used by link:spark-taskschedulerimpl.adoc#submitTasks[TaskSchedulerImpl to submit a task set for a stage for execution].
 
 CAUTION: FIXME What are the possible properties?
-
-=== [[implementations]] Available Implementations
-
-Spark comes with two implementations of the <<contract, SchedulableBuilder Contract>>:
-
-* <<FIFOSchedulableBuilder, FIFOSchedulableBuilder>> - the default `SchedulableBuilder`
-* <<FairSchedulableBuilder, FairSchedulableBuilder>>
-
-=== [[FIFOSchedulableBuilder]] FIFOSchedulableBuilder
-
-`FIFOSchedulableBuilder` is a <<SchedulableBuilder,SchedulableBuilder>> that is a _mere_ wrapper around a single link:spark-taskscheduler-pool.adoc[Pool] (the only constructor parameter).
-
-NOTE: `FIFOSchedulableBuilder` is the default `SchedulableBuilder` for `TaskSchedulerImpl` (see link:spark-taskschedulerimpl.adoc#creating-instance[Creating TaskSchedulerImpl]).
-
-NOTE: When `FIFOSchedulableBuilder` is created, the `TaskSchedulerImpl` passes its own `rootPool` (that belongs to the link:spark-taskscheduler.adoc#contract[TaskScheduler Contract] that `TaskSchedulerImpl` follows).
-
-`FIFOSchedulableBuilder` obeys the <<contract, SchedulableBuilder Contract>> as follows:
-
-* <<buildPools, buildPools>> does nothing.
-
-* `addTaskSetManager` link:spark-taskscheduler-pool.adoc#addSchedulable[passes the input `Schedulable` to the one and only rootPool Pool (using `addSchedulable`)].
-
-=== [[FairSchedulableBuilder]] FairSchedulableBuilder
-
-`FairSchedulableBuilder` is a <<SchedulableBuilder, SchedulableBuilder>> with the pools configured in an <<FairSchedulableBuilder-allocations-file, optional allocations configuration file>>.
-
-It reads the allocations file using the internal <<FairSchedulableBuilder-buildFairSchedulerPool, buildFairSchedulerPool>> method.
-
-[TIP]
-====
-Enable `INFO` logging level for `org.apache.spark.scheduler.FairSchedulableBuilder` logger to see what happens inside.
-
-Add the following line to `conf/log4j.properties`:
-
-```
-log4j.logger.org.apache.spark.scheduler.FairSchedulableBuilder=INFO
-```
-
-Refer to link:spark-logging.adoc[Logging].
-====
-
-==== [[FairSchedulableBuilder-buildPools]] buildPools
-
-`buildPools` <<FairSchedulableBuilder-buildFairSchedulerPool, builds the `rootPool` based on the allocations configuration file>> from the optional <<spark.scheduler.allocation.file, spark.scheduler.allocation.file>> or `fairscheduler.xml` (on the classpath).
-
-NOTE: `buildPools` is part of the <<contract, SchedulableBuilder Contract>>.
-
-TIP: Spark comes with `fairscheduler.xml.template` to use as a template for the allocations configuration file to start from.
-
-It then <<FairSchedulableBuilder-buildDefaultPool, ensures that the default pool is also registered>>.
-
-==== [[FairSchedulableBuilder-addTaskSetManager]] addTaskSetManager
-
-`addTaskSetManager` link:spark-taskscheduler-schedulable.adoc#contract[looks up the default pool (using Pool.getSchedulableByName)].
-
-NOTE: `addTaskSetManager` is part of the <<contract, SchedulableBuilder Contract>>.
-
-NOTE: Although the `Pool.getSchedulableByName` method may return no schedulable, the default root pool does exist as <<FairSchedulableBuilder-buildDefaultPool, it is assumed it was registered before>>.
-
-If `properties` for the `Schedulable` were given, `spark.scheduler.pool` property is looked up and becomes the pool name (or defaults to `default`).
-
-If the pool name is not available, it is registered with the pool name, `FIFO` scheduling mode, minimum share `0`, and weight `1`.
-
-After the new pool was registered, you should see the following INFO message in the logs:
-
-```
-INFO FairSchedulableBuilder: Created pool [poolName], schedulingMode: FIFO, minShare: 0, weight: 1
-```
-
-The `manager` schedulable is registered to the pool (either the one that already existed or was created just now).
-
-You should see the following INFO message in the logs:
-
-```
-INFO FairSchedulableBuilder: Added task set [manager.name] to pool [poolName]
-```
-
-==== [[FairSchedulableBuilder-buildDefaultPool]] Ensure Default Pool is Registered (buildDefaultPool method)
-
-`buildDefaultPool` method checks whether `default` was defined already and if not it adds the `default` pool with `FIFO` scheduling mode, minimum share `0`, and weight `1`.
-
-You should see the following INFO message in the logs:
-
-```
-INFO FairSchedulableBuilder: Created default pool default, schedulingMode: FIFO, minShare: 0, weight: 1
-```
-
-==== [[FairSchedulableBuilder-buildFairSchedulerPool]] Build Pools from XML Allocations File (buildFairSchedulerPool method)
-
-[source, scala]
-----
-buildFairSchedulerPool(is: InputStream)
-----
-
-`buildFairSchedulerPool` reads link:spark-taskscheduler-pool.adoc[Pools] from the allocations configuration file (as `is`).
-
-For each `pool` element, it reads its name (from `name` attribute) and assumes the default pool configuration to be `FIFO` scheduling mode, minimum share `0`, and weight `1` (unless overrode later).
-
-CAUTION: FIXME Why is the difference between `minShare` 0 and `weight` 1 vs `rootPool` in `TaskSchedulerImpl.initialize` - 0 and 0? It is definitely an inconsistency.
-
-If `schedulingMode` element exists and is not empty for the pool it becomes the current pool's scheduling mode. It is case sensitive, i.e. with all uppercase letters.
-
-If `minShare` element exists and is not empty for the pool it becomes the current pool's `minShare`. It must be an integer number.
-
-If `weight` element exists and is not empty for the pool it becomes the current pool's `weight`. It must be an integer number.
-
-The pool is then <<addSchedulable, registered to `rootPool`>>.
-
-If all is successful, you should see the following INFO message in the logs:
-
-```
-INFO FairSchedulableBuilder: Created pool [poolName], schedulingMode: [schedulingMode], minShare: [minShare], weight: [weight]
-```
-
-==== [[FairSchedulableBuilder-allocations-file]] fairscheduler.xml Allocations Configuration File
-
-The allocations configuration file is an XML file.
-
-The default `conf/fairscheduler.xml.template` looks as follows:
-
-[source, xml]
-----
-<?xml version="1.0"?>
-<allocations>
-  <pool name="production">
-    <schedulingMode>FAIR</schedulingMode>
-    <weight>1</weight>
-    <minShare>2</minShare>
-  </pool>
-  <pool name="test">
-    <schedulingMode>FIFO</schedulingMode>
-    <weight>2</weight>
-    <minShare>3</minShare>
-  </pool>
-</allocations>
-----
-
-TIP: The top-level element's name `allocations` can be anything. Spark does not insist on `allocations` and accepts any name.
-
-==== [[FairSchedulableBuilder-settings]] Settings
-
-[[spark.scheduler.allocation.file]]
-* `spark.scheduler.allocation.file` is the file path of an optional scheduler configuration file that <<FairSchedulableBuilder-buildPools, FairSchedulableBuilder.buildPools>> uses to build pools.
