@@ -75,11 +75,48 @@ It is used for the methods like `SparkContext.parallelize`, `SparkContext.range`
 
 SparkContext queries link:spark-taskscheduler.adoc[TaskScheduler] for the default level of parallelism (refer to link:spark-taskscheduler.adoc#contract[TaskScheduler Contract]).
 
-=== [[setting-local-properties]] Setting Local Properties
+=== [[setting-local-properties]][[setLocalProperty]] Setting Local Properties
 
-CAUTION: FIXME
+[source, scala]
+----
+setLocalProperty(key: String, value: String): Unit
+----
 
-CAUTION: FIXME It'd be nice to have an intro page about local properties. Dunno where it could belong to (?)
+`setLocalProperty` sets a local thread-scoped `key` property to `value`.
+
+[source, scala]
+----
+sc.setLocalProperty("spark.scheduler.pool", "myPool")
+----
+
+The goal of the local property concept is to differentiate between jobs submitted from different threads that may have different local properties set.
+
+NOTE: It is used to link:spark-taskscheduler-FairSchedulableBuilder.adoc#spark.scheduler.pool[group jobs into pools in FAIR job scheduler by spark.scheduler.pool per-thread property].
+
+If `value` is `null` the `key` property is removed the `key` from the local properties
+
+[source, scala]
+----
+sc.setLocalProperty("spark.scheduler.pool", null)
+----
+
+A common use case for the local property concept is to set a local property in a thread, say link:spark-taskscheduler-FairSchedulableBuilder.adoc[spark.scheduler.pool], after which all jobs submitted within the thread will be grouped, say into a pool by FAIR job scheduler.
+
+[source, scala]
+----
+val rdd = sc.parallelize(0 to 9)
+
+sc.setLocalProperty("spark.scheduler.pool", "myPool")
+
+// these two jobs (one per action) will run in the myPool pool
+rdd.count
+rdd.collect
+
+sc.setLocalProperty("spark.scheduler.pool", null)
+
+// this job will run in the default pool
+rdd.count
+----
 
 === [[makeRDD]] SparkContext.makeRDD
 
