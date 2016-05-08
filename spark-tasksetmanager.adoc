@@ -1,11 +1,11 @@
 == [[TaskSetManager]] TaskSetManager
 
-A `TaskSetManager` manages execution of the tasks in a single <<taskset, TaskSet>> (after having it been handed over by link:spark-taskscheduler.adoc[TaskScheduler]).
+A `TaskSetManager` <<schedulable, is a Schedulable>> that manages execution of the tasks in a single link:spark-taskscheduler-tasksets.adoc[TaskSet] (after having it been handed over by link:spark-taskscheduler.adoc[TaskScheduler]).
 
 .TaskSetManager and its Dependencies
 image::images/TaskSetManager-TaskSchedulerImpl-TaskSet.png[align="center"]
 
-The responsibilities of a TaskSetManager include (follow along the links to learn more in the corresponding sections):
+The responsibilities of a `TaskSetManager` include (follow along the links to learn more in the corresponding sections):
 
 * <<scheduling-tasks, Scheduling the tasks in a taskset>>
 * <<task-retries, Retrying tasks on failure>>
@@ -26,23 +26,46 @@ log4j.logger.org.apache.spark.scheduler.TaskSetManager=DEBUG
 
 `TaskSetManager` is a link:spark-taskscheduler-schedulable.adoc[Schedulable] with the following implementation:
 
-* no `parent` assigned, i.e. it is always `null`.
-* `schedulableQueue` returns no queue, i.e. `null`.
-* schedulingMode returns `SchedulingMode.NONE`.
+* `name` is `TaskSet_[taskSet.stageId.toString]`
+* no `parent` is ever assigned, i.e. it is always `null`.
++
+It means that it can only be a leaf in the tree of Schedulables (with link:spark-taskscheduler-pool.adoc[Pools] being the nodes).
+
+* `schedulingMode` always returns `SchedulingMode.NONE` (since there is nothing to schedule).
 * `weight` is always `1`.
 * `minShare` is always `0`.
 * `runningTasks` is the number of running tasks in the internal  `runningTasksSet`.
-* `priority` is the priority of the TaskSet (using `taskSet.priority`).
-* `stageId` is the stage id of the TaskSet (using `taskSet.stageId`).
-* `name` is `TaskSet_[taskSet.stageId.toString]`
-* `addSchedulable` does nothing.
-* `removeSchedulable` does nothing.
+* `priority` is the priority of the owned link:spark-taskscheduler-tasksets.adoc[TaskSet] (using `taskSet.priority`).
+* `stageId` is the stage id of the owned link:spark-taskscheduler-tasksets.adoc[TaskSet] (using `taskSet.stageId`).
+
+* `schedulableQueue` returns no queue, i.e. `null`.
+* `addSchedulable` and `removeSchedulable` do nothing.
 * `getSchedulableByName` always returns `null`.
-* <<executorLost, executorLost>>
-* <<checkSpeculatableTasks, checkSpeculatableTasks>>
+
 * `getSortedTaskSetQueue` returns a one-element collection with the sole element being itself.
 
-=== [[checkSpeculatableTasks]] TaskSetManager.checkSpeculatableTasks
+* <<executorLost, executorLost>>
+* <<checkSpeculatableTasks, checkSpeculatableTasks>>
+
+=== [[executorLost]] Handling Executor Lost Events (executorLost method)
+
+NOTE: `executorLost` is part of the link:spark-taskscheduler-schedulable.adoc#contract[Schedulable Contract] which is called by link:spark-taskschedulerimpl.adoc#removeExecutor[TaskSchedulerImpl] to inform `TaskSetManagers` about executors being lost.
+
+Since `TaskSetManager` manages execution of the tasks in a single link:spark-taskscheduler-tasksets.adoc[TaskSet], when an executor gets lost, the affected tasks that have been running on the failed executor need to be re-enqueued. `executorLost` is the mechanism to "announce" the event to all `TaskSetManagers`.
+
+`executorLost` first checks whether the `TaskSet` is for a link:spark-dagscheduler-stages.adoc#ShuffleMapStage[ShuffleMapStage] (in which case all `TaskSet.tasks` are instances of link:spark-taskscheduler-tasks.adoc#shufflemaptask[ShuffleMapTask]) as well as whether an link:spark-shuffle-manager.adoc#external-shuffle-service[external shuffle server] is used (that could serve the shuffle outputs in case of failure).
+
+If it is indeed for a failed `ShuffleMapStage` and no external shuffle server is enabled, all successfully-completed tasks for the failed executor (using `taskInfos` <<internal-registries, internal registry>>) <<addPendingTask, get added to the collection of pending tasks>> and the link:spark-dagscheduler.adoc#taskEnded[DAGScheduler is informed about resubmission] (as link:spark-dagscheduler.adoc#TaskEndReason-Resubmitted[`Resubmitted` end reason]).
+
+The <<internal-registries, internal registries>> - `successful`, `copiesRunning`, and `tasksSuccessful` - are updated.
+
+Regardless of the above check, all currently-running tasks for the failed executor are <<handleFailedTask, reported as failed>> (with the task state being `FAILED`).
+
+<<recomputeLocality, recomputeLocality>> is called.
+
+=== [[checkSpeculatableTasks]] Checking Speculatable Tasks (checkSpeculatableTasks method)
+
+NOTE: `checkSpeculatableTasks` is part of the link:spark-taskscheduler-schedulable.adoc#contract[Schedulable Contract].
 
 `checkSpeculatableTasks` checks whether there are speculatable tasks in the TaskSet.
 
@@ -91,26 +114,6 @@ CAUTION: FIXME
 === [[dequeueTask]] dequeueTask
 
 CAUTION: FIXME
-
-=== [[executorLost]] TaskSetManager.executorLost
-
-`executorLost(execId: String, host: String, reason: ExecutorLossReason)` is part of link:spark-taskscheduler-schedulable.adoc[Schedulable Contract] that `TaskSetManager` follows.
-
-It first checks whether the TaskSet is for a link:spark-dagscheduler-stages.adoc#ShuffleMapStage[ShuffleMapStage], i.e. all `TaskSet.tasks` are instances of link:spark-taskscheduler-tasks.adoc#shufflemaptask[ShuffleMapTask]. At the same time, it also checks whether an external shuffle server is used (using `env.blockManager.externalShuffleServiceEnabled`) that could serve the shuffle outputs.
-
-If the above checks pass, tasks (using `taskInfos`) are checked for their executors and whether the failed one is among them.
-
-For each task that executed on the failed executor, if it was not marked as successful already (using `successful`), it is:
-
-* marked as failed (using `successful`)
-* removed from `copiesRunning`
-* the number of successful tasks is decremented (using `tasksSuccessful`)
-* the task gets added to the collection of pending tasks (using <<addPendingTask, addPendingTask>> method)
-* DAGScheduler is informed about resubmission (using link:spark-dagscheduler.adoc#taskEnded[DAGScheduler.taskEnded] with the `reason` being `Resubmitted`).
-
-For the other cases, i.e. if the TaskSet is for link:spark-dagscheduler-stages.adoc#ResultStage[ResultStage] or link:spark-shuffle-manager.adoc#external-shuffle-service[an external shuffle service is used], for all running tasks for the failed executor, <<handleFailedTask, handleFailedTask>> is called with the task state being `FAILED`.
-
-Eventually, <<recomputeLocality, recomputeLocality()>> is called.
 
 === [[executorAdded]] TaskSetManager.executorAdded
 
@@ -212,7 +215,7 @@ CAUTION: FIXME What's delay scheduling?
 
 === [[events]] Events
 
-When a task has finished, link:spark-tasksetmanager.adoc[TaskSetManager] calls link:spark-dagscheduler.adoc#CompletionEvent[DAGScheduler.taskEnded].
+When a task has finished, the `TaskSetManager` calls link:spark-dagscheduler.adoc#CompletionEvent[DAGScheduler.taskEnded].
 
 CAUTION: FIXME
 
@@ -439,12 +442,7 @@ CAUTION: FIXME Why is `maybeFinishTaskSet` method called? When is `runningTasks`
 * `failedExecutors` contains a mapping of TaskInfo's indices that failed to executor ids and the time of the failure. It is used in <<handleFailedTask, handleFailedTask>>.
 * `taskAttempts`
 * `tasksSuccessful`
-* `weight` (default: `1`)
-* `minShare` (default: `0`)
-* `priority` (default: `taskSet.priority`)
 * `stageId` (default: `taskSet.stageId`)
-* `name` (default: `TaskSet_[taskSet.stageId]`)
-* `parent`
 * `totalResultSize`
 * `calculatedTasks`
 * `runningTasksSet`
