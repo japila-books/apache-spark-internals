@@ -1,10 +1,10 @@
 == Block Manager
 
-*Block Manager* is a key-value store for blocks that acts as a cache. It runs on every node, i.e. a driver and executors, in a Spark runtime environment. It provides interfaces for putting and retrieving blocks both locally and remotely into various stores, i.e. memory, disk, and off-heap.
+*Block Manager* is a key-value store for blocks. It acts as a local cache and runs on every node, i.e. a link:spark-driver.adoc[driver] and link:spark-executor.adoc[executors]. It provides interface for putting and retrieving blocks both locally and remotely into various stores, i.e. memory, disk, and off-heap.
 
-A BlockManager manages the storage for most of the data in Spark, i.e. block that represent a cached RDD partition, intermediate shuffle data, broadcast data, etc. See <<BlockId, BlockId>>.
+A BlockManager manages the storage for most of the data in Spark which can be a block that represents a cached RDD partition, an intermediate shuffle data, a broadcast data, etc. See <<BlockId, BlockId>>.
 
-It is created when a Spark application starts, i.e. as part of link:spark-sparkenv.adoc#create[SparkEnv.create()].
+It is created when a Spark application starts (as part of link:spark-sparkenv.adoc#create[SparkEnv.create]).
 
 A BlockManager must be <<initialize,initialized>> before it is fully operable.
 
@@ -15,7 +15,7 @@ A BlockManager relies on the following services:
 * Serializer
 * MemoryManager
 * link:spark-service-mapoutputtracker.adoc[MapOutputTracker]
-* ShuffleManager
+* link:spark-shuffle-manager.adoc[ShuffleManager]
 * <<BlockTransferService, BlockTransferService>>
 * SecurityManager
 
@@ -25,25 +25,27 @@ CAUTION: FIXME Review `BlockDataManager`
 
 [TIP]
 ====
-Enable `TRACE` logging level for `org.apache.spark.storage.BlockManager` logger to see what happens in BlockManager.
+Enable `TRACE` logging level for `org.apache.spark.storage.BlockManager` logger to see what happens inside.
 
 Add the following line to `conf/log4j.properties`:
 
 ```
 log4j.logger.org.apache.spark.storage.BlockManager=TRACE
 ```
+
+Refer to link:spark-logging.adoc[Logging].
 ====
 
 [TIP]
 ====
-You may want to shut off WARN messages being printed out about the current state of blocks using the following line:
+You may want to shut off WARN messages being printed out about the current state of blocks using the following line to cut the noise:
 
 ```
 log4j.logger.org.apache.spark.storage.BlockManager=OFF
 ```
 ====
 
-=== [[reregister]] reregister
+=== [[getCurrentBlockStatus]] getCurrentBlockStatus
 
 CAUTION: FIXME
 
@@ -71,7 +73,7 @@ If an external shuffle service is used, the following INFO appears in the logs:
 INFO external shuffle service port = [externalShuffleServicePort]
 ```
 
-* It registers itself to <<BlockManagerMaster, BlockManagerMaster>> (using <<registerBlockManager, BlockManagerMaster.registerBlockManager>>).
+* It registers itself to <<BlockManagerMaster, BlockManagerMaster>> (using <<registerBlockManager, BlockManagerMaster.registerBlockManager>>) passing the <<BlockManagerId, BlockManagerId>>, the maximum memory (as `maxMemory`), and the <<BlockManagerSlaveEndpoint, BlockManagerSlaveEndpoint>>.
 
 * At the end, if an external shuffle service is used, and it is not a driver, it registers to the external shuffle service.
 
@@ -88,6 +90,43 @@ Any issues while connecting to the external shuffle service are reported as ERRO
 ```
 ERROR Failed to connect to external shuffle server, will retry [attempts] more times after waiting [SLEEP_TIME_SECS] seconds...
 ```
+
+=== [[reregister]] Re-registering Blocks to Master (reregister method)
+
+[source, scala]
+----
+reregister(): Unit
+----
+
+When is called, you should see the following INFO in the logs:
+
+```
+INFO BlockManager: BlockManager re-registering with master
+```
+
+It registers itself to the driver's <<BlockManagerMaster, BlockManagerMaster>> (using <<registerBlockManager, BlockManagerMaster.registerBlockManager>> just like it has happened while <<initialize, BlockManager was initializing>>). It passes the <<BlockManagerId, BlockManagerId>>, the maximum memory (as `maxMemory`), and the <<BlockManagerSlaveEndpoint, BlockManagerSlaveEndpoint>>.
+
+CAUTION: FIXME Where is `maxMemory` used once passed to the driver?
+
+`reregister` will then report all the local blocks to the <<BlockManagerMaster, BlockManagerMaster>>.
+
+You should see the following INFO message in the logs:
+
+```
+INFO BlockManager: Reporting [blockInfoManager.size] blocks to the master.
+```
+
+For each block metadata (in `BlockInfoManager`) it <<getCurrentBlockStatus, gets block current status>> and <<tryToReportBlockStatus, sends it to the BlockManagerMaster>>.
+
+If there is an issue communicating to the `BlockManagerMaster`, you should see the following ERROR message in the logs:
+
+```
+ERROR BlockManager: Failed to report [blockId] to master; giving up.
+```
+
+After the ERROR message, `reregister` stops reporting.
+
+NOTE: `reregister` is called by link:spark-executor.adoc#heartbeats-and-active-task-metrics[Executor when it was told to re-register while sending heartbeats].
 
 === [[BlockManagerSlaveEndpoint]] BlockManagerSlaveEndpoint
 
