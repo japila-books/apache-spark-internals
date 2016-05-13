@@ -1,8 +1,10 @@
 == Block Manager
 
-*Block Manager* is a key-value store for blocks. It acts as a local cache and runs on every node, i.e. a link:spark-driver.adoc[driver] and link:spark-executor.adoc[executors]. It provides interface for putting and retrieving blocks both locally and remotely into various stores, i.e. memory, disk, and off-heap.
+*Block Manager* is a key-value store for blocks of data. It acts as a local cache that runs on every node in Spark cluster, i.e. a link:spark-driver.adoc[driver] and link:spark-executor.adoc[executors]. It provides interface for putting and retrieving blocks both locally and remotely into various stores, i.e. memory, disk, and off-heap. See <<stores, Stores>> in this document.
 
-A BlockManager manages the storage for most of the data in Spark which can be a block that represents a cached RDD partition, an intermediate shuffle data, a broadcast data, etc. See <<BlockId, BlockId>>.
+A `BlockManager` manages the storage for blocks that represents a cached RDD partition, an intermediate shuffle data, a broadcast data, etc. See <<BlockId, BlockId>> in this document.
+
+*Cached blocks* are blocks with non-zero sum of memory and disk sizes.
 
 It is created when a Spark application starts (as part of link:spark-sparkenv.adoc#create[SparkEnv.create]).
 
@@ -45,7 +47,37 @@ log4j.logger.org.apache.spark.storage.BlockManager=OFF
 ```
 ====
 
-=== [[getCurrentBlockStatus]] getCurrentBlockStatus
+=== [[stores]] Stores
+
+A *Store* is the place where blocks are held.
+
+There are the following possible stores:
+
+* `MemoryStore` for memory storage level.
+* `DiskStore` for disk storage level.
+* `ExternalBlockStore` for OFF_HEAP storage level.
+
+==== [[MemoryStore]] MemoryStore
+
+CAUTION: FIXME
+
+==== [[DiskStore]] DiskStore
+
+CAUTION: FIXME
+
+=== [[doPutBytes]] doPutBytes
+
+CAUTION: FIXME
+
+=== [[doPutIterator]] doPutIterator
+
+CAUTION: FIXME
+
+=== [[removeBlock]] Removing Blocks From Memory and Disk (removeBlock method)
+
+CAUTION: FIXME
+
+=== [[dropFromMemory]] Removing Blocks From Memory Only (dropFromMemory method)
 
 CAUTION: FIXME
 
@@ -128,6 +160,25 @@ After the ERROR message, `reregister` stops reporting.
 
 NOTE: `reregister` is called by link:spark-executor.adoc#heartbeats-and-active-task-metrics[Executor when it was told to re-register while sending heartbeats].
 
+=== [[getCurrentBlockStatus]] Calculate Current Block Status (getCurrentBlockStatus method)
+
+[source, scala]
+----
+getCurrentBlockStatus(blockId: BlockId, info: BlockInfo): BlockStatus
+----
+
+`getCurrentBlockStatus` returns the current `BlockStatus` of the `BlockId` block (with the block's current link:spark-rdd-caching.adoc#StorageLevel[StorageLevel], memory and disk sizes). It uses <<MemoryStore, MemoryStore>> and <<DiskStore, DiskStore>> for size and other information.
+
+NOTE: Most of the information to build `BlockStatus` is already in `BlockInfo` except that it may not necessarily reflect the current state per <<MemoryStore, MemoryStore>> and <<DiskStore, DiskStore>>.
+
+Internally, it uses the input `BlockInfo` to know about the block's storage level. If the storage level is not set (i.e. `null`), the returned `BlockStatus` assumes the link:spark-rdd-caching.adoc#StorageLevel[default NONE storage level] and the memory and disk sizes being `0`.
+
+If however the storage level is set, `getCurrentBlockStatus` uses <<MemoryStore, MemoryStore>> or <<DiskStore, DiskStore>> to check whether the block is stored in the storages or not and request for their sizes in the storages respectively (using their `getSize` or assume `0`).
+
+NOTE: It is acceptable that the `BlockInfo` says to use memory or disk yet the block is not in the storages (yet or anymore). The method will give current status.
+
+NOTE: `getCurrentBlockStatus` is used when <<reregister, executor's BlockManager is requested to report the current status of the local blocks to the master>>, <<doPutBytes, saving a block to a storage>> or <<dropFromMemory, removing a block from memory only>> or <<removeBlock, both, i.e. from memory and disk>>.
+
 === [[BlockManagerSlaveEndpoint]] BlockManagerSlaveEndpoint
 
 `BlockManagerSlaveEndpoint` is a RPC endpoint for remote communication between workers and the driver.
@@ -200,16 +251,6 @@ It puts the data in the memory first and drop to disk if the memory store can't 
 ```
 DEBUG Put block [blockId] locally took [startTimeMs]
 ```
-
-=== [[stores]] Stores
-
-A *Store* is the place where blocks are held.
-
-There are the following possible stores:
-
-* `MemoryStore` for memory storage level.
-* `DiskStore` for disk storage level.
-* `ExternalBlockStore` for OFF_HEAP storage level.
 
 === [[BlockManagerMaster]] BlockManagerMaster
 
