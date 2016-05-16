@@ -262,21 +262,14 @@ TIP: Read link:spark-broadcast.adoc[Broadcast Variables] to get more in-depth in
 SparkContext comes with `broadcast` method to broadcast a value among Spark executors.
 
 ```
-def broadcast[T: ClassTag](value: T): Broadcast[T]
+def broadcast(value: T): Broadcast[T]
 ```
 
 It returns a `Broadcast[T]` instance that is a handle to a shared memory on executors.
 
 ```
-scala> sc.broadcast("hello")
-INFO MemoryStore: Ensuring 1048576 bytes of free space for block broadcast_0(free: 535953408, max: 535953408)
-INFO MemoryStore: Ensuring 80 bytes of free space for block broadcast_0(free: 535953408, max: 535953408)
-INFO MemoryStore: Block broadcast_0 stored as values in memory (estimated size 80.0 B, free 80.0 B)
-INFO MemoryStore: Ensuring 34 bytes of free space for block broadcast_0_piece0(free: 535953328, max: 535953408)
-INFO MemoryStore: Block broadcast_0_piece0 stored as bytes in memory (estimated size 34.0 B, free 114.0 B)
-INFO BlockManagerInfo: Added broadcast_0_piece0 in memory on localhost:61505 (size: 34.0 B, free: 511.1 MB)
-INFO SparkContext: Created broadcast 0 from broadcast at <console>:25
-res0: org.apache.spark.broadcast.Broadcast[String] = Broadcast(0)
+scala> val hello = sc.broadcast("hello")
+hello: org.apache.spark.broadcast.Broadcast[String] = Broadcast(0)
 ```
 
 Spark transfers the value to Spark executors _once_, and tasks can share it without incurring repetitive network transmissions when requested multiple times.
@@ -290,15 +283,18 @@ When a broadcast value is created the following INFO message appears in the logs
 INFO SparkContext: Created broadcast [id] from broadcast at <console>:25
 ```
 
-You should _not_ broadcast a RDD to use in tasks and Spark will warn you. It will not stop you, though. Consult https://issues.apache.org/jira/browse/SPARK-5063[SPARK-5063 Display more helpful error messages for several invalid operations].
+[NOTE]
+====
+Spark does not support broadcasting RDDs.
 
 ```
-scala> val rdd = sc.parallelize(0 to 10)
-rdd: org.apache.spark.rdd.RDD[Int] = ParallelCollectionRDD[1] at parallelize at <console>:24
-
-scala> sc.broadcast(rdd)
-WARN SparkContext: Can not directly broadcast RDDs; instead, call collect() and broadcast the result (see SPARK-5063)
+scala> sc.broadcast(sc.range(0, 10))
+java.lang.IllegalArgumentException: requirement failed: Can not directly broadcast RDDs; instead, call collect() and broadcast the result.
+  at scala.Predef$.require(Predef.scala:224)
+  at org.apache.spark.SparkContext.broadcast(SparkContext.scala:1370)
+  ... 48 elided
 ```
+====
 
 === [[jars]] Distribute JARs to workers
 
@@ -441,14 +437,14 @@ FIXME When is the internal field `persistentRdds` used?
 
 === [[setting-default-log-level]] Setting Default Log Level Programatically
 
-You can use `SparkContext.setLogLevel(logLevel: String)` to adjust logging level in a Spark application, e.g. link:spark-shell.adoc[Spark shell].
+[source, scala]
+----
+setLogLevel(logLevel: String)
+----
 
-[TIP]
-====
-`sc.setLogLevel("INFO")` becomes `org.apache.log4j.Level.toLevel(logLevel)` and `org.apache.log4j.Logger.getRootLogger().setLevel(l)` internally.
+`setLogLevel` allows you to set the root logging level in a Spark application, e.g. link:spark-shell.adoc[Spark shell].
 
-See https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/SparkContext.scala#L367-L378[org/apache/spark/SparkContext.scala].
-====
+Internally, `setLogLevel` calls `org.apache.log4j.Level.toLevel(logLevel)` and `org.apache.log4j.Logger.getRootLogger().setLevel(l)`.
 
 === [[SparkStatusTracker]] SparkStatusTracker
 
@@ -651,23 +647,18 @@ link:spark-sparkcontext-HeartbeatReceiver.adoc[HeartbeatReceiver RPC endpoint] i
 
 NOTE: The internal `_schedulerBackend` and `_taskScheduler` are used by `schedulerBackend` and `taskScheduler` methods, respectively.
 
-[[TaskSchedulerIsSet]]
-`SparkContext` sends a blocking link:spark-sparkcontext-HeartbeatReceiver.adoc#TaskSchedulerIsSet[`TaskSchedulerIsSet` message to HeartbeatReceiver RPC endpoint] to inform it that the `TaskScheduler` is now available.
-
 link:spark-dagscheduler.adoc#creating-instance[DAGScheduler is created] (as `_dagScheduler`).
 
-link:spark-taskscheduler.adoc[Task Scheduler] is started.
+[[TaskSchedulerIsSet]]
+`SparkContext` sends a blocking link:spark-sparkcontext-HeartbeatReceiver.adoc#TaskSchedulerIsSet[`TaskSchedulerIsSet` message to HeartbeatReceiver RPC endpoint] (to inform that the `TaskScheduler` is now available).
 
-The internal fields, `_applicationId` and `_applicationAttemptId`, are set. Application and attempt ids are specific to the implementation of link:spark-taskscheduler.adoc[Task Scheduler].
+link:spark-taskscheduler.adoc#start[TaskScheduler is started].
 
-The setting `spark.app.id` is set to `_applicationId` and Web UI gets notified about the new value (using `setAppId(_applicationId)`). And also Block Manager (using `initialize(_applicationId)`).
+The internal fields, `_applicationId` and `_applicationAttemptId`, are set (using `applicationId` and `applicationAttemptId` from the link:spark-taskscheduler.adoc#contract[TaskScheduler Contract]).
 
-```
-scala> sc.getConf.get("spark.app.id")
-res1: String = local-1447834845413
-```
+The setting `spark.app.id` is set to the current application id and Web UI gets notified about it if used (using `setAppId(_applicationId)`). The application id is also passed on to the link:spark-blockmanager.adoc#initialize[BlockManager to initialize it].
 
-CAUTION: FIXME Why should UI and Block Manager know about the application id?
+CAUTION: FIXME Why should UI know about the application id?
 
 link:spark-metrics.adoc[Metric System] is started (after the application id is set using `spark.app.id`).
 
