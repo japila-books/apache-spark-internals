@@ -235,7 +235,7 @@ You should see the following INFO message in the logs:
 INFO BlockManager: Reporting [blockInfoManager.size] blocks to the master.
 ```
 
-For each block metadata (in `BlockInfoManager`) it <<getCurrentBlockStatus, gets block current status>> and <<tryToReportBlockStatus, sends it to the BlockManagerMaster>>.
+For each block metadata (in `BlockInfoManager`) it <<getCurrentBlockStatus, gets block current status>> and <<tryToReportBlockStatus, tries to send it to the BlockManagerMaster>>.
 
 If there is an issue communicating to the link:spark-BlockManagerMaster.adoc[BlockManagerMaster], you should see the following ERROR message in the logs:
 
@@ -320,7 +320,7 @@ reportBlockStatus(
   droppedMemorySize: Long = 0L): Unit
 ----
 
-`reportBlockStatus` is an internal method for reporting a block status to the driver (calls `tryToReportBlockStatus`) and if told to reregister it prints out the following INFO message to the logs:
+`reportBlockStatus` is an internal method for <<tryToReportBlockStatus, reporting a block status to the driver>> and if told to re-register it prints out the following INFO message to the logs:
 
 ```
 INFO BlockManager: Got told to re-register updating block [blockId]
@@ -335,6 +335,23 @@ DEBUG BlockManager: Told master about block [blockId]
 ```
 
 NOTE: `reportBlockStatus` is called by <<doPutBytes, doPutBytes>>, <<doPutIterator, doPutIterator>>, <<dropFromMemory, dropFromMemory>>, and <<removeBlock, removeBlock>>.
+
+==== [[tryToReportBlockStatus]] tryToReportBlockStatus
+
+[source, scala]
+----
+def tryToReportBlockStatus(
+  blockId: BlockId,
+  info: BlockInfo,
+  status: BlockStatus,
+  droppedMemorySize: Long = 0L): Boolean
+----
+
+`tryToReportBlockStatus` is an internal method to report block status to the driver.
+
+It executes link:spark-BlockManagerMaster.adoc#updateBlockInfo[BlockManagerMaster.updateBlockInfo] only if the state changes should be reported to the driver (i.e. `info.tellMaster` is enabled).
+
+It returns `true` or link:spark-BlockManagerMaster.adoc#updateBlockInfo[BlockManagerMaster.updateBlockInfo]'s response.
 
 === [[BlockEvictionHandler]] BlockEvictionHandler
 
