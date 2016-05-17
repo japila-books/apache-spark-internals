@@ -194,20 +194,33 @@ INFO external shuffle service port = [externalShuffleServicePort]
 
 It link:spark-BlockManagerMaster.adoc#registerBlockManager[registers itself to the driver's BlockManagerMaster] passing the <<BlockManagerId, BlockManagerId>>, the maximum memory (as `maxMemory`), and the <<BlockManagerSlaveEndpoint, BlockManagerSlaveEndpoint>>.
 
-Ultimately, if the initialization happens on an executor and an external shuffle service is used, it registers to the external shuffle service.
+Ultimately, if the initialization happens on an executor and an external shuffle service is used, it <<registerWithExternalShuffleServer, registers to the external shuffle service>>.
 
-While registering to the external shuffle service, you should see the following INFO message in the logs:
+==== [[registerWithExternalShuffleServer]] Registering Executor's BlockManager to External Shuffle Server (registerWithExternalShuffleServer method)
+
+[source, scala]
+----
+registerWithExternalShuffleServer(): Unit
+----
+
+`registerWithExternalShuffleServer` is an internal helper method to register the `BlockManager` (that serves an executor's shuffle files) with an external shuffle server.
+
+When executed, you should see the following INFO message in the logs:
 
 ```
 INFO Registering executor with local external shuffle service.
 ```
 
-Using `shuffleClient` (that is link:spark-shuffleclient.adoc#ExternalShuffleClient[ExternalShuffleClient]) it calls `registerWithShuffleServer` synchronously using `shuffleServerId` and a ExecutorShuffleInfo (based on <<DiskBlockManager, DiskBlockManager>> for the executor and the short name of link:spark-shuffle-manager.adoc[ShuffleManager]).
+It uses `shuffleClient` (that is assumed link:spark-shuffleclient.adoc#ExternalShuffleClient[ExternalShuffleClient]) to call `registerWithShuffleServer` synchronously using `shuffleServerId` and a `ExecutorShuffleInfo` (based on <<DiskBlockManager, DiskBlockManager>> for the executor and the short name of link:spark-shuffle-manager.adoc[ShuffleManager]).
+
+It tries to register at most 3 times with 5-second sleeps in-between.
+
+NOTE: The maximum number of attempts and the sleep time in-between are hard-coded, i.e. they are not parameterized.
 
 Any issues while connecting to the external shuffle service are reported as ERROR messages in the logs:
 
 ```
-ERROR Failed to connect to external shuffle server, will retry [attempts] more times after waiting [SLEEP_TIME_SECS] seconds...
+ERROR Failed to connect to external shuffle server, will retry [#attempts] more times after waiting 5 seconds...
 ```
 
 === [[reregister]] Re-registering Blocks to Driver (reregister method)
