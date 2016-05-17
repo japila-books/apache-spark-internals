@@ -23,7 +23,7 @@ A `BlockManager` relies on the following services:
 
 [TIP]
 ====
-Enable `INFO` or `TRACE` logging level for `org.apache.spark.storage.BlockManager` logger to see what happens inside.
+Enable `INFO`, `DEBUG` or `TRACE` logging level for `org.apache.spark.storage.BlockManager` logger to see what happens inside.
 
 Add the following line to `conf/log4j.properties`:
 
@@ -79,6 +79,10 @@ CAUTION: FIXME
 * `spark.storage.unrollMemoryThreshold` (default: `1024 * 1024`) controls...
 
 ==== [[DiskStore]] DiskStore
+
+CAUTION: FIXME
+
+===== [[DiskStore-remove]] Removing Block
 
 CAUTION: FIXME
 
@@ -152,9 +156,40 @@ CAUTION: FIXME
 
 CAUTION: FIXME
 
-=== [[removeBlock]] Removing Blocks From Memory and Disk (removeBlock method)
+=== [[removeBlock]] Removing Block From Memory and Disk (removeBlock method)
 
-CAUTION: FIXME
+[source, scala]
+----
+removeBlock(blockId: BlockId, tellMaster: Boolean = true): Unit
+----
+
+`removeBlock` removes the `blockId` block from <<MemoryStore, memory>> and <<DiskStore, disk>>.
+
+When executed, it prints out the following DEBUG message to the logs:
+
+```
+DEBUG Removing block [blockId]
+```
+
+It requests `BlockInfoManager` for lock for writing for the `blockId` block. If it receives none, it prints out the following WARN message to the logs and quits.
+
+```
+WARN Asked to remove block [blockId], which does not exist
+```
+
+Otherwise, with a write lock for the block, the block is removed from MemoryStore and DiskStore (see <<MemoryStore-remove, Removing Block in MemoryStore>> and <<DiskStore-remove, Removing Block in DiskStore>>).
+
+If both removals fail, it prints out the following WARN message:
+
+```
+WARN Block [blockId] could not be removed as it was not found in either the disk, memory, or external block store
+```
+
+The block is removed from `BlockInfoManager`.
+
+It then <<getCurrentBlockStatus, calculates the current block status>> that is used to <<reportBlockStatus, report the block status to the driver>> (if the input `tellMaster` and the info's `tellMaster` are both enabled, i.e. `true`) and the link:spark-taskscheduler-taskmetrics.adoc#incUpdatedBlockStatuses[current TaskContext metrics are updated with the change].
+
+NOTE: It is used to <<removeRdd, remove RDDs>> and <<removeBroadcast, broadcast>> as well as in <<BlockManagerSlaveEndpoint-RemoveBlock, BlockManagerSlaveEndpoint while handling `RemoveBlock` messages>>.
 
 === [[removeRdd]] Removing RDD (removeRdd method)
 
@@ -625,11 +660,7 @@ The underlying abstraction for blocks in Spark is a `ByteBuffer` that limits the
 
 When a non-local executor starts, it initializes a `BlockManager` object for the `spark.app.id` id.
 
-If a task result is bigger than the message frame size - `spark.akka.frameSize` - executors use the block manager to send the result back. Task results are configured using `spark.driver.maxResultSize` (default: `1g`).
-
 === [[settings]] Settings
-
-* `spark.shuffle.service.enabled` (default: `false`) whether an external shuffle service is enabled or not. See link:spark-shuffle-manager.adoc#external-shuffle-service[External Shuffle Service].
 
 * `spark.broadcast.compress` (default: `true`) whether to compress stored broadcast variables.
 
