@@ -4,6 +4,19 @@
 
 Spark Runtime Environment is represented by a <<SparkEnv, SparkEnv>> object that holds all the required services for a running Spark instance, i.e. a master or an executor.
 
+[TIP]
+====
+Enable `INFO` or `DEBUG` logging level for `org.apache.spark.SparkEnv` logger to see what happens inside.
+
+Add the following line to `conf/log4j.properties`:
+
+```
+log4j.logger.org.apache.spark.SparkEnv=DEBUG
+```
+
+Refer to link:spark-logging.adoc[Logging].
+====
+
 === [[SparkEnv]] SparkEnv
 
 *SparkEnv* holds all runtime objects for a running Spark instance, using <<createDriverEnv, SparkEnv.createDriverEnv()>> for a driver and <<createExecutorEnv, SparkEnv.createExecutorEnv()>> for an executor.
@@ -17,19 +30,6 @@ import org.apache.spark._
 scala> SparkEnv.get
 res0: org.apache.spark.SparkEnv = org.apache.spark.SparkEnv@2220c5f7
 ```
-
-[TIP]
-====
-Enable `DEBUG` logging level for `org.apache.spark.SparkEnv` logger to see what happens inside.
-
-Add the following line to `conf/log4j.properties`:
-
-```
-log4j.logger.org.apache.spark.SparkEnv=DEBUG
-```
-
-Refer to link:spark-logging.adoc[Logging].
-====
 
 === [[create]] Creating SparkEnv (create method)
 
@@ -68,6 +68,9 @@ It creates a link:spark-blocktransferservice.adoc#NettyBlockTransferService[Nett
 [[BlockManagerMaster]]
 It creates a link:spark-BlockManagerMaster.adoc[BlockManagerMaster] object with the `BlockManagerMaster` RPC endpoint reference (by <<registerOrLookupEndpoint, registering or looking it up by name>> and link:spark-BlockManagerMaster.adoc#BlockManagerMasterEndpoint[BlockManagerMasterEndpoint]), the input link:spark-configuration.adoc[SparkConf], and the input `isDriver` flag.
 
+.Creating BlockManager for the Driver
+image::images/sparkenv-driver-blockmanager.png[align="center"]
+
 NOTE: `create` registers the *BlockManagerMaster* RPC endpoint for the driver and looks it up for executors.
 
 It creates a link:spark-blockmanager.adoc#creating-instance[BlockManager] (using the above `BlockManagerMaster` object and other services).
@@ -96,7 +99,7 @@ registerOrLookupEndpoint(name: String, endpointCreator: => RpcEndpoint)
 If called from the driver, you should see the following INFO message in the logs:
 
 ```
-INFO Registering [name]
+INFO SparkEnv: Registering [name]
 ```
 
 And the RPC endpoint is registered in the RPC environment.
@@ -128,7 +131,7 @@ It then passes the call straight on to the <<create, create helper method>> (wit
 
 NOTE: `createDriverEnv` is exclusively used by link:spark-sparkcontext.adoc#createSparkEnv[SparkContext to create a `SparkEnv`] (while a link:spark-sparkcontext.adoc#creating-instance[SparkContext is being created for the driver]).
 
-=== [[createExecutorEnv]] SparkEnv.createExecutorEnv
+=== [[createExecutorEnv]] Creating SparkEnv for Executor (createExecutorEnv method)
 
 `SparkEnv.createExecutorEnv` creates an *executor's (execution) environment* that is the Spark execution environment for an executor.
 
