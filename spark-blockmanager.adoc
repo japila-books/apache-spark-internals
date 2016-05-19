@@ -10,17 +10,6 @@ It is created when a Spark application starts (as part of link:spark-sparkenv.ad
 
 A `BlockManager` must be <<initialize,initialized>> before it is fully operable.
 
-A `BlockManager` relies on the following services:
-
-* link:spark-rpc.adoc[RpcEnv]
-* link:spark-BlockManagerMaster.adoc[BlockManagerMaster]
-* Serializer
-* MemoryManager
-* link:spark-service-mapoutputtracker.adoc[MapOutputTracker]
-* link:spark-shuffle-manager.adoc[ShuffleManager]
-* link:spark-blocktransferservice.adoc[BlockTransferService]
-* SecurityManager
-
 [TIP]
 ====
 Enable `INFO`, `DEBUG` or `TRACE` logging level for `org.apache.spark.storage.BlockManager` logger to see what happens inside.
@@ -42,36 +31,6 @@ You may want to shut off WARN messages being printed out about the current state
 log4j.logger.org.apache.spark.storage.BlockManager=OFF
 ```
 ====
-
-=== [[creating-instance]] Creating BlockManager Instance
-
-When a `BlockManager` instance is created it first reads the value of the link:spark-shuffle-manager.adoc#spark.shuffle.service.enabled[spark.shuffle.service.enabled] setting (as `externalShuffleServiceEnabled`).
-
-It creates an instance of <<DiskBlockManager, DiskBlockManager>> (requesting `deleteFilesOnStop` when an external shuffle service is not in use).
-
-It creates an instance of <<BlockInfoManager, BlockInfoManager>> (as `blockInfoManager`).
-
-It creates *block-manager-future* daemon cached thread pool with 128 threads maximum (as `futureExecutionContext`).
-
-It creates <<MemoryStore, MemoryStore>> and <<DiskStore, DiskStore>>.
-
-link:spark-sparkenv.adoc#MemoryManager[MemoryManager] gets the `MemoryStore` object assigned.
-
-It requests the current maximum memory from `MemoryManager` (using `maxOnHeapStorageMemory` as `maxMemory`).
-
-It calculates the port used by the external shuffle service (as `externalShuffleServicePort`).
-
-NOTE: It is computed specially in Spark on YARN.
-
-CAUTION: FIXME Describe the YARN-specific part.
-
-It creates a client to read other executors' shuffle files (as `shuffleClient`). If the external shuffle service is used an link:spark-shuffleclient.adoc#ExternalShuffleClient[ExternalShuffleClient] is created or the input link:spark-blocktransferservice.adoc[BlockTransferService] is used.
-
-It sets <<spark.block.failures.beforeLocationRefresh, the maximum number of failures before this block manager refreshes the block locations from the driver>> (as `maxFailuresBeforeLocationRefresh`).
-
-It registers <<BlockManagerSlaveEndpoint, BlockManagerSlaveEndpoint>> (as `slaveEndpoint`).
-
-NOTE: A `BlockManager` instance is created while link:spark-sparkenv.adoc#create[SparkEnv is being created].
 
 === [[BlockInfoManager]] BlockInfoManager
 
@@ -270,6 +229,53 @@ NOTE: It is used by <<BlockManagerSlaveEndpoint-RemoveBroadcast, BlockManagerSla
 === [[getStatus]] Getting Block Status (getStatus method)
 
 CAUTION: FIXME
+
+=== [[creating-instance]] Creating BlockManager Instance
+
+A `BlockManager` needs the following services to be created:
+
+* `executorId` (for the driver and executors)
+* link:spark-rpc.adoc[RpcEnv]
+* link:spark-BlockManagerMaster.adoc[BlockManagerMaster]
+* `SerializerManager`
+* link:spark-configuration.adoc[SparkConf]
+* `MemoryManager`
+* link:spark-service-mapoutputtracker.adoc[MapOutputTracker]
+* link:spark-shuffle-manager.adoc[ShuffleManager]
+* link:spark-blocktransferservice.adoc[BlockTransferService]
+* `SecurityManager`
+
+NOTE: `executorId` is `SparkContext.DRIVER_IDENTIFIER`, i.e. `driver` for the driver and the value of link:spark-executor-backends-coarse-grained.adoc#executor-id[--executor-id] command-line argument for link:spark-executor-backends-coarse-grained.adoc[CoarseGrainedExecutorBackend] executors or link:spark-executor-backends.adoc#MesosExecutorBackend[MesosExecutorBackend].
+
+CAUTION: FIXME Elaborate on the executor backends and executor ids.
+
+When a `BlockManager` instance is created it first reads the value of the link:spark-shuffle-manager.adoc#spark.shuffle.service.enabled[spark.shuffle.service.enabled] setting (as `externalShuffleServiceEnabled`).
+
+It creates an instance of <<DiskBlockManager, DiskBlockManager>> (requesting `deleteFilesOnStop` when an external shuffle service is not in use).
+
+It creates an instance of <<BlockInfoManager, BlockInfoManager>> (as `blockInfoManager`).
+
+It creates *block-manager-future* daemon cached thread pool with 128 threads maximum (as `futureExecutionContext`).
+
+It creates <<MemoryStore, MemoryStore>> and <<DiskStore, DiskStore>>.
+
+link:spark-sparkenv.adoc#MemoryManager[MemoryManager] gets the `MemoryStore` object assigned.
+
+It requests the current maximum memory from `MemoryManager` (using `maxOnHeapStorageMemory` as `maxMemory`).
+
+It calculates the port used by the external shuffle service (as `externalShuffleServicePort`).
+
+NOTE: It is computed specially in Spark on YARN.
+
+CAUTION: FIXME Describe the YARN-specific part.
+
+It creates a client to read other executors' shuffle files (as `shuffleClient`). If the external shuffle service is used an link:spark-shuffleclient.adoc#ExternalShuffleClient[ExternalShuffleClient] is created or the input link:spark-blocktransferservice.adoc[BlockTransferService] is used.
+
+It sets <<spark.block.failures.beforeLocationRefresh, the maximum number of failures before this block manager refreshes the block locations from the driver>> (as `maxFailuresBeforeLocationRefresh`).
+
+It <<BlockManagerSlaveEndpoint, registers BlockManagerSlaveEndpoint>> with the input link:spark-rpc.adoc[RpcEnv], itself, and link:spark-service-mapoutputtracker.adoc[MapOutputTracker] (as `slaveEndpoint`).
+
+NOTE: A `BlockManager` instance is created while link:spark-sparkenv.adoc#create[SparkEnv is being created].
 
 === [[initialize]] Initializing BlockManager (initialize method)
 
@@ -490,7 +496,7 @@ NOTE: `dropFromMemory` is called when  <<MemoryStore-evictBlocksToFreeSpace, Mem
 
 CAUTION: FIXME the intro needs more love.
 
-When a BlockManager is created, it sets up the RPC endpoint with the name *BlockManagerEndpoint[randomId]* and `BlockManagerSlaveEndpoint` as the class to handle <<BlockManagerSlaveEndpoint-messages, RPC messages>>.
+While a <<creating-instance, BlockManager is being created>> so is the `BlockManagerSlaveEndpoint` RPC endpoint with the name *BlockManagerEndpoint[randomId]* to handle <<BlockManagerSlaveEndpoint-messages, RPC messages>>.
 
 [TIP]
 ====

@@ -49,8 +49,6 @@ create(
 
 `create` is a internal helper method to create a `SparkEnv` for either a driver or an executor.
 
-It is called by <<createDriverEnv, SparkEnv.createDriverEnv()>> and <<createExecutorEnv, SparkEnv.createExecutorEnv()>>.
-
 When executed, it creates a Serializer (based on <<settings, spark.serializer>>) and, at `DEBUG` logging level, prints out the following message to the logs:
 
 ```
@@ -67,9 +65,12 @@ CAUTION: FIXME What's MemoryManager?
 
 It creates a link:spark-blocktransferservice.adoc#NettyBlockTransferService[NettyBlockTransferService].
 
-It creates a spark-BlockManagerMaster.adoc[BlockManagerMaster].
+[[BlockManagerMaster]]
+It creates a link:spark-BlockManagerMaster.adoc[BlockManagerMaster] object with the `BlockManagerMaster` RPC endpoint reference (by <<registerOrLookupEndpoint, registering or looking it up by name>> and link:spark-BlockManagerMaster.adoc#BlockManagerMasterEndpoint[BlockManagerMasterEndpoint]), the input link:spark-configuration.adoc[SparkConf], and the input `isDriver` flag.
 
-It creates a link:spark-blockmanager.adoc#creating-instance[BlockManager].
+NOTE: `create` registers the *BlockManagerMaster* RPC endpoint for the driver and looks it up for executors.
+
+It creates a link:spark-blockmanager.adoc#creating-instance[BlockManager] (using the above `BlockManagerMaster` object and other services).
 
 It creates a link:spark-service-broadcastmanager.adoc[BroadcastManager].
 
@@ -81,24 +82,51 @@ It initializes `userFiles` temporary directory used for downloading dependencies
 
 An OutputCommitCoordinator is created.
 
-=== [[createDriverEnv]] SparkEnv.createDriverEnv
+NOTE: `create` is called by <<createDriverEnv, createDriverEnv>> and <<createExecutorEnv, createExecutorEnv>>.
 
-`SparkEnv.createDriverEnv` creates a *driver's (execution) environment* that is the Spark execution environment for a driver.
+=== [[registerOrLookupEndpoint]] Registering or Looking up RPC Endpoint by Name (registerOrLookupEndpoint method)
+
+[source, scala]
+----
+registerOrLookupEndpoint(name: String, endpointCreator: => RpcEndpoint)
+----
+
+`registerOrLookupEndpoint` registers or looks up a RPC endpoint by `name`.
+
+If called from the driver, you should see the following INFO message in the logs:
+
+```
+INFO Registering [name]
+```
+
+And the RPC endpoint is registered in the RPC environment.
+
+Otherwise, it obtains a RPC endpoint reference by `name`.
+
+=== [[createDriverEnv]] Creating SparkEnv for Driver (createDriverEnv method)
+
+[source, scala]
+----
+createDriverEnv(
+  conf: SparkConf,
+  isLocal: Boolean,
+  listenerBus: LiveListenerBus,
+  numCores: Int,
+  mockOutputCommitCoordinator: Option[OutputCommitCoordinator] = None): SparkEnv
+----
+
+`createDriverEnv` creates a `SparkEnv` execution environment for the driver.
 
 .Spark Environment for driver
 image::images/sparkenv-driver.png[align="center"]
 
 The method accepts an instance of link:spark-configuration.adoc[SparkConf], link:spark-deployment-environments.adoc[whether it runs in local mode or not], link:spark-scheduler-listeners.adoc#listener-bus[an instance of listener bus], the number of driver's cores to use for execution in local mode or `0` otherwise, and a link:spark-service-outputcommitcoordinator.adoc[OutputCommitCoordinator] (default: none).
 
-Two driver-related properties <<spark.driver.host, spark.driver.host>> and <<spark.driver.port, spark.driver.port>> are expected in the Spark configuration.
+`createDriverEnv` ensures that <<spark.driver.host, spark.driver.host>> and <<spark.driver.port, spark.driver.port>> settings are set in `conf` link:spark-configuration.adoc[SparkConf].
 
-For Akka-based RPC Environment (obsolete since Spark 1.6.0-SNAPSHOT), the name of the actor system for the driver is *sparkDriver*. See link:spark-rpc.adoc#client-mode[clientMode] how it is created in detail.
+It then passes the call straight on to the <<create, create helper method>> (with `driver` executor id, `isDriver` enabled, and the input parameters).
 
-It creates `MapOutputTrackerMaster` object and registers `MapOutputTracker` RPC endpoint as an instance of `MapOutputTrackerMasterEndpoint`. See link:spark-service-mapoutputtracker.adoc[MapOutputTracker].
-
-It creates a MetricsSystem for *driver*.
-
-An OutputCommitCoordinator is created and *OutputCommitCoordinator* RPC endpoint registered.
+NOTE: `createDriverEnv` is exclusively used by link:spark-sparkcontext.adoc#createSparkEnv[SparkContext to create a `SparkEnv`] (while a link:spark-sparkcontext.adoc#creating-instance[SparkContext is being created for the driver]).
 
 === [[createExecutorEnv]] SparkEnv.createExecutorEnv
 
