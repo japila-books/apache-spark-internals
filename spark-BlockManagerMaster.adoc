@@ -1,6 +1,6 @@
 == BlockManagerMaster - BlockManager for Driver
 
-`BlockManagerMaster` link:spark-sparkenv.adoc#BlockManagerMaster[runs on the driver and executors]. It uses <<BlockManagerMasterEndpoint, BlockManagerMasterEndpoint>> registered under `BlockManagerMaster` RPC endpoint name on the driver with the `BlockManagerMaster` RPC endpoint's references on executors.
+`BlockManagerMaster` link:spark-sparkenv.adoc#BlockManagerMaster[runs on the driver and executors]. It uses <<BlockManagerMasterEndpoint, BlockManagerMasterEndpoint>> registered under `BlockManagerMaster` RPC endpoint name on the driver with the endpoint references on executors.
 
 NOTE: An instance of `BlockManagerMaster` is created in link:spark-sparkenv.adoc#BlockManagerMaster[SparkEnv (for the driver and executors)], and immediately used to create their link:spark-blockmanager.adoc[BlockManagers].
 
@@ -32,7 +32,64 @@ removeBlock(blockId: BlockId)
 
 `removeBlock` removes `blockId` block ...FIXME
 
-It posts a blocking `RemoveBlock` message to the input `driverEndpoint` RPC endpoint reference.
+It posts a `RemoveBlock` message to the input `driverEndpoint` RPC endpoint reference and waits for a response.
+
+=== [[removeRdd]] Removing RDD Blocks (removeRdd method)
+
+[source, scala]
+----
+removeRdd(rddId: Int, blocking: Boolean)
+----
+
+`removeRdd` removes all the blocks of `rddId` RDD, possibly in a `blocking` fashion.
+
+It posts a `RemoveRdd(rddId)` message to the input `driverEndpoint` RPC endpoint reference on a separate thread.
+
+If there is an issue, you should see the following WARN message in the logs and the entire exception:
+
+```
+WARN Failed to remove RDD [rddId] - [exception]
+```
+
+If it is a `blocking` operation, it waits for a result for link:spark-rpc.adoc#spark.rpc.askTimeout[spark.rpc.askTimeout], link:spark-rpc.adoc#spark.network.timeout[spark.network.timeout] or `120` secs.
+
+=== [[removeShuffle]] Removing Shuffle Blocks (removeShuffle method)
+
+[source, scala]
+----
+removeShuffle(shuffleId: Int, blocking: Boolean)
+----
+
+`removeShuffle` removes all the blocks of `shuffleId` shuffle, possibly in a `blocking` fashion.
+
+It posts a `RemoveShuffle(shuffleId)` message to the input `driverEndpoint` RPC endpoint reference on a separate thread.
+
+If there is an issue, you should see the following WARN message in the logs and the entire exception:
+
+```
+WARN Failed to remove shuffle [shuffleId] - [exception]
+```
+
+If it is a `blocking` operation, it waits for the result for link:spark-rpc.adoc#spark.rpc.askTimeout[spark.rpc.askTimeout], link:spark-rpc.adoc#spark.network.timeout[spark.network.timeout] or `120` secs.
+
+=== [[removeBroadcast]] Removing Broadcast Blocks (removeBroadcast method)
+
+[source, scala]
+----
+removeBroadcast(broadcastId: Long, removeFromMaster: Boolean, blocking: Boolean)
+----
+
+`removeBroadcast` removes all the blocks of `broadcastId` broadcast, possibly in a `blocking` fashion.
+
+It posts a `RemoveBroadcast(broadcastId, removeFromMaster)` message to the input `driverEndpoint` RPC endpoint reference on a separate thread.
+
+If there is an issue, you should see the following WARN message in the logs and the entire exception:
+
+```
+WARN Failed to remove broadcast [broadcastId] with removeFromMaster = [removeFromMaster] - [exception]
+```
+
+If it is a `blocking` operation, it waits for the result for link:spark-rpc.adoc#spark.rpc.askTimeout[spark.rpc.askTimeout], link:spark-rpc.adoc#spark.network.timeout[spark.network.timeout] or `120` secs.
 
 === [[stop]] Stopping BlockManagerMaster (stop method)
 
@@ -41,7 +98,9 @@ It posts a blocking `RemoveBlock` message to the input `driverEndpoint` RPC endp
 stop(): Unit
 ----
 
-`stop` sends `StopBlockManagerMaster` to <<BlockManagerMasterEndpoint, BlockManagerMaster RPC endpoint>> and waits for a response.
+`stop` sends a `StopBlockManagerMaster` message to <<BlockManagerMasterEndpoint, BlockManagerMaster RPC endpoint>> and waits for a response.
+
+NOTE: It is only executed for the driver.
 
 If all goes fine, you should see the following INFO message in the logs:
 
@@ -108,6 +167,99 @@ DEBUG BlockManagerMaster: Updated info of block [blockId]
 ```
 
 The response from the BlockManagerMaster RPC endpoint is returned.
+
+=== [[getLocations-block]] Get Block Locations of One Block (getLocations method)
+
+[source, scala]
+----
+getLocations(blockId: BlockId): Seq[BlockManagerId]
+----
+
+`getLocations` posts `GetLocations(blockId)` message to the input `driverEndpoint` RPC endpoint reference and waits for a response which becomes the return value.
+
+=== [[getLocations-block-array]] Get Block Locations for Multiple Blocks (getLocations method)
+
+[source, scala]
+----
+getLocations(blockIds: Array[BlockId]): IndexedSeq[Seq[BlockManagerId]]
+----
+
+`getLocations` posts `GetLocationsMultipleBlockIds(blockIds)` message to the input `driverEndpoint` RPC endpoint reference and waits for a response which becomes the return value.
+
+=== [[getPeers]] getPeers
+
+[source, scala]
+----
+getPeers(blockManagerId: BlockManagerId): Seq[BlockManagerId]
+----
+
+`getPeers` posts `GetPeers(blockManagerId)` message to the input `driverEndpoint` RPC endpoint reference and waits for a response which becomes the return value.
+
+=== [[getExecutorEndpointRef]] getExecutorEndpointRef
+
+[source, scala]
+----
+getExecutorEndpointRef(executorId: String): Option[RpcEndpointRef]
+----
+
+`getExecutorEndpointRef` posts `GetExecutorEndpointRef(executorId)` message to the input `driverEndpoint` RPC endpoint reference and waits for a response which becomes the return value.
+
+=== [[getMemoryStatus]] getMemoryStatus
+
+[source, scala]
+----
+getMemoryStatus: Map[BlockManagerId, (Long, Long)]
+----
+
+`getMemoryStatus` posts a `GetMemoryStatus` message to the input `driverEndpoint` RPC endpoint reference and waits for a response which becomes the return value.
+
+=== [[getStorageStatus]] getStorageStatus
+
+[source, scala]
+----
+getStorageStatus: Array[StorageStatus]
+----
+
+`getStorageStatus` posts a `GetStorageStatus` message to the input `driverEndpoint` RPC endpoint reference and waits for a response which becomes the return value.
+
+=== [[getBlockStatus]] getBlockStatus
+
+[source, scala]
+----
+getBlockStatus(
+  blockId: BlockId,
+  askSlaves: Boolean = true): Map[BlockManagerId, BlockStatus]
+----
+
+`getBlockStatus` posts a `GetBlockStatus(blockId, askSlaves)` message to the input `driverEndpoint` RPC endpoint reference and waits for a response (of type `Map[BlockManagerId, Future[Option[BlockStatus]]]`).
+
+It then builds a sequence of future results that are `BlockStatus` statuses and waits for a result for link:spark-rpc.adoc#spark.rpc.askTimeout[spark.rpc.askTimeout], link:spark-rpc.adoc#spark.network.timeout[spark.network.timeout] or `120` secs.
+
+No result leads to a `SparkException` with the following message:
+
+```
+BlockManager returned null for BlockStatus query: [blockId]
+```
+
+=== [[getMatchingBlockIds]] getMatchingBlockIds
+
+[source, scala]
+----
+getMatchingBlockIds(
+  filter: BlockId => Boolean,
+  askSlaves: Boolean): Seq[BlockId]
+----
+
+`getMatchingBlockIds` posts a `GetMatchingBlockIds(filter, askSlaves)` message to the input `driverEndpoint` RPC endpoint reference and waits for a response which becomes the result for link:spark-rpc.adoc#spark.rpc.askTimeout[spark.rpc.askTimeout], link:spark-rpc.adoc#spark.network.timeout[spark.network.timeout] or `120` secs.
+
+=== [[hasCachedBlocks]] hasCachedBlocks
+
+[source, scala]
+----
+hasCachedBlocks(executorId: String): Boolean
+----
+
+`hasCachedBlocks` posts a `HasCachedBlocks(executorId)` message to the input `driverEndpoint` RPC endpoint reference and waits for a response which becomes the result.
 
 === [[BlockManagerMasterEndpoint]] BlockManagerMasterEndpoint - BlockManagerMaster RPC Endpoint
 
