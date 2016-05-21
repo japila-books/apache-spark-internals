@@ -1,8 +1,8 @@
-== [[SparkContext]] SparkContext - the door to Spark
+== [[SparkContext]] SparkContext - Entry Point to Spark
 
-*SparkContext* (aka *Spark context*) represents the connection to a link:spark-deployment-environments.adoc[Spark execution environment (deployment mode)].
+`SparkContext` (aka *Spark context*) is the entry point to Spark. It <<creating-instance-internals, sets up internal services>> and establishes a connection to a link:spark-deployment-environments.adoc[Spark execution environment (deployment mode)].
 
-You have to create a Spark context before using Spark features and services in your application. A Spark context can be used to <<creating-rdds, create RDDs>>, <<creating-accumulators, accumulators>> and <<creating-broadcast-variables, broadcast variables>>, access Spark services and <<running-jobs, run jobs>>.
+Once a <<creating-instance, `SparkContext` instance is created>> you can use it to <<creating-rdds, create RDDs>>, <<creating-accumulators, accumulators>> and <<creating-broadcast-variables, broadcast variables>>, access Spark services and <<running-jobs, run jobs>>.
 
 A Spark context is essentially a client of Spark's execution environment and acts as the _master of your Spark application_ (don't get confused with the other meaning of link:spark-master.adoc[Master] in Spark, though).
 
@@ -17,15 +17,81 @@ image::diagrams/sparkcontext-services.png[align="center"]
 * <<creating-rdds, Creating RDDs>>
 * <<creating-accumulators, Creating accumulators>>
 * <<creating-broadcast-variables, Creating broadcast variables>>
-* Accessing services, e.g. link:spark-taskscheduler.adoc[Task Scheduler], link:spark-scheduler-listeners.adoc[Listener Bus], link:spark-blockmanager.adoc[Block Manager], link:spark-scheduler-backends.adoc[Scheduler Backends], link:spark-shuffle-manager.adoc[Shuffle Manager].
+* Accessing services, e.g. link:spark-taskscheduler.adoc[TaskScheduler], link:spark-scheduler-listeners.adoc[ListenerBus], link:spark-blockmanager.adoc[BlockManager], link:spark-scheduler-backends.adoc[SchedulerBackends], link:spark-shuffle-manager.adoc[ShuffleManager].
 * <<running-jobs, Running jobs>>
-* <<custom-schedulers, Setting up custom Scheduler Backend, Task Scheduler and DAGScheduler>>
+* <<custom-schedulers, Setting up custom Scheduler Backend, TaskScheduler and DAGScheduler>>
 * <<closure-cleaning, Closure Cleaning>>
 * <<submitJob, Submitting Jobs Asynchronously>>
 * <<unpersist, Unpersisting RDDs, i.e. marking RDDs as non-persistent>>
 * <<setting-local-properties, Setting local properties>>
+* <<setting-default-log-level, Setting default log level programatically>>
 
-Read the scaladoc of  http://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.SparkContext[org.apache.spark.SparkContext].
+TIP: Read the scaladoc of  http://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.SparkContext[org.apache.spark.SparkContext].
+
+=== [[creating-instance]] Creating SparkContext
+
+You can create a `SparkContext` instance with or without creating a link:spark-configuration.adoc[SparkConf] object first.
+
+==== [[getOrCreate]] Getting Existing or Creating New SparkContext (getOrCreate methods)
+
+[source, scala]
+----
+getOrCreate(): SparkContext
+getOrCreate(conf: SparkConf): SparkContext
+----
+
+`SparkContext.getOrCreate` methods allow you to get the existing `SparkContext` or create a new one.
+
+[source, scala]
+----
+import org.apache.spark.SparkContext
+val sc = SparkContext.getOrCreate()
+
+// Using an explicit SparkConf object
+import org.apache.spark.SparkConf
+val conf = new SparkConf()
+  .setMaster("local[*]")
+  .setAppName("SparkMe App")
+val sc = SparkContext.getOrCreate(conf)
+----
+
+The no-param `getOrCreate` method requires that the two mandatory Spark settings - <<master, master>> and <<appName, application name>> - are specified using link:spark-submit.adoc[spark-submit].
+
+==== [[constructors]] Constructors
+
+[source, scala]
+----
+SparkContext()
+SparkContext(conf: SparkConf)
+SparkContext(master: String, appName: String, conf: SparkConf)
+SparkContext(
+  master: String,
+  appName: String,
+  sparkHome: String = null,
+  jars: Seq[String] = Nil,
+  environment: Map[String, String] = Map())
+----
+
+You can create a `SparkContext` instance using the four constructors.
+
+[source, scala]
+----
+import org.apache.spark.SparkConf
+val conf = new SparkConf()
+  .setMaster("local[*]")
+  .setAppName("SparkMe App")
+
+import org.apache.spark.SparkContext
+val sc = new SparkContext(conf)
+----
+
+When a Spark context starts up you should see the following INFO in the logs (amongst the other messages that come from the Spark services):
+
+```
+INFO SparkContext: Running Spark version 2.0.0-SNAPSHOT
+```
+
+NOTE: Only one SparkContext may be running in a single JVM (check out https://issues.apache.org/jira/browse/SPARK-2243[SPARK-2243 Support multiple SparkContexts in the same JVM]). Sharing access to a SparkContext in the JVM is the solution to share data within Spark (without relying on other means of data sharing using external data stores).
 
 === [[master]][[master-url]] Master URL
 
@@ -139,35 +205,7 @@ It is used in:
 
 CAUTION: FIXME
 
-=== [[creating-instance]] Creating SparkContext
-
-You create a `SparkContext` instance using a link:spark-configuration.adoc[SparkConf] object.
-
-[source, scala]
-----
-scala> import org.apache.spark.SparkConf
-import org.apache.spark.SparkConf
-
-scala> val conf = new SparkConf().setMaster("local[*]").setAppName("SparkMe App")
-conf: org.apache.spark.SparkConf = org.apache.spark.SparkConf@7a8f69d6
-
-scala> import org.apache.spark.SparkContext
-import org.apache.spark.SparkContext
-
-scala> val sc = new SparkContext(conf)  // <1>
-sc: org.apache.spark.SparkContext = org.apache.spark.SparkContext@50ee2523
-----
-<1> You can also use the other constructor of `SparkContext`, i.e. `new SparkContext(master="local[*]", appName="SparkMe App", new SparkConf)`, with master and application name specified explicitly
-
-When a Spark context starts up you should see the following INFO in the logs (amongst the other messages that come from services):
-
-```
-INFO SparkContext: Running Spark version 1.6.0-SNAPSHOT
-```
-
-Only one SparkContext may be running in a single JVM (check out https://issues.apache.org/jira/browse/SPARK-2243[SPARK-2243 Support multiple SparkContexts in the same JVM]). Sharing access to a SparkContext in the JVM is the solution to share data within Spark (without relying on other means of data sharing using external data stores).
-
-==== [[allowMultipleContexts]] spark.driver.allowMultipleContexts
+=== [[allowMultipleContexts]] spark.driver.allowMultipleContexts
 
 Quoting the scaladoc of  http://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.SparkContext[org.apache.spark.SparkContext]:
 
@@ -185,12 +223,6 @@ When an RDD is created, it belongs to and is completely owned by the Spark conte
 
 .A Spark context creates a living space for RDDs.
 image::diagrams/sparkcontext-rdds.png[align="center"]
-
-=== SparkContext in Spark shell
-
-In link:spark-shell.adoc[Spark shell], an instance of `SparkContext` is automatically created for you under the name `sc`.
-
-Read link:spark-shell.adoc[Spark shell].
 
 === [[creating-rdds]] Creating RDD
 
@@ -219,7 +251,7 @@ setCheckpointDir(directory: String)
 
 CAUTION: FIXME
 
-=== [[creating-accumulators]][[accumulator]] Creating accumulators
+=== [[creating-accumulators]][[accumulator]] Creating Accumulators
 
 [source, scala]
 ----
@@ -418,7 +450,7 @@ createTaskScheduler(
   deployMode: String): (SchedulerBackend, TaskScheduler)
 ----
 
-The private `createTaskScheduler` is executed as part of <<initialization, SparkContext's initialization>> to create link:spark-taskscheduler.adoc[Task Scheduler] and link:spark-scheduler-backends.adoc[Scheduler Backend] objects.
+The private `createTaskScheduler` is executed as part of <<creating-instance, SparkContext's initialization>> to create link:spark-taskscheduler.adoc[Task Scheduler] and link:spark-scheduler-backends.adoc[Scheduler Backend] objects.
 
 It uses the link:spark-deployment-environments.adoc#master-urls[master URL] to select right implementations.
 
@@ -429,7 +461,7 @@ image::diagrams/sparkcontext-createtaskscheduler.png[align="center"]
 
 When a Spark context starts, it triggers `SparkListenerEnvironmentUpdate` and `SparkListenerApplicationStart` events.
 
-Refer to the section <<initialization, SparkContext's initialization>>.
+Refer to the section <<creating-instance, SparkContext's initialization>>.
 
 === [[persistentRdds]] Persisted RDDs
 
@@ -448,7 +480,7 @@ Internally, `setLogLevel` calls `org.apache.log4j.Level.toLevel(logLevel)` and `
 
 === [[SparkStatusTracker]] SparkStatusTracker
 
-`SparkStatusTracker` requires a Spark context to work. It is created as part of <<initialization, SparkContext's initialization>>.
+`SparkStatusTracker` requires a Spark context to work. It is created as part of <<creating-instance, SparkContext's initialization>>.
 
 SparkStatusTracker is only used by <<ConsoleProgressBar, ConsoleProgressBar>>.
 
@@ -543,9 +575,29 @@ Serialization is verified using a new instance of `Serializer` (as link:spark-sp
 
 CAUTION: FIXME an example, please.
 
-=== [[initialization]][[creating-instance]] Creating SparkContext Instance
+=== [[hadoopConfiguration]] Hadoop Configuration
 
-Let's walk through a typical initialization code of SparkContext in a Spark application and see what happens under the covers.
+While a <<creating-instance, `SparkContext` is being created>>, so is a Hadoop configuration (as an instance of https://hadoop.apache.org/docs/current/api/org/apache/hadoop/conf/Configuration.html[org.apache.hadoop.conf.Configuration] that is available as `_hadoopConfiguration`).
+
+NOTE: link:spark-hadoop.adoc#SparkHadoopUtil[SparkHadoopUtil.get.newConfiguration] is used.
+
+If a SparkConf is provided it is used to build the configuration as described. Otherwise, the default `Configuration` object is returned.
+
+If `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` are both available, the following settings are set for the Hadoop configuration:
+
+* `fs.s3.awsAccessKeyId`, `fs.s3n.awsAccessKeyId`, `fs.s3a.access.key` are set to the value of `AWS_ACCESS_KEY_ID`
+* `fs.s3.awsSecretAccessKey`, `fs.s3n.awsSecretAccessKey`, and `fs.s3a.secret.key` are set to the value of `AWS_SECRET_ACCESS_KEY`
+
+Every `spark.hadoop.` setting becomes a setting of the configuration with the prefix `spark.hadoop.` removed for the key.
+
+The value of `spark.buffer.size` (default: `65536`) is used as the value of `io.file.buffer.size`.
+
+=== [[environment-variables]] Environment Variables
+
+* `SPARK_EXECUTOR_MEMORY` sets the amount of memory to allocate to each executor. See link:spark-executor.adoc#memory[Executor Memory].
+
+=== [[creating-instance-internals]] Internals of Creating SparkContext
+Let's walk through the initialization sequence of SparkContext in a Spark application and see what happens under the covers.
 
 [source, scala]
 ----
@@ -567,7 +619,7 @@ It all starts with checking <<allowMultipleContexts, whether SparkContexts can b
 The very first information printed out is the version of Spark as an INFO message:
 
 ```
-INFO SparkContext: Running Spark version 1.6.0-SNAPSHOT
+INFO SparkContext: Running Spark version 2.0.0-SNAPSHOT
 ```
 
 An instance of link:spark-scheduler-listeners.adoc#listener-bus[Listener Bus] is created (but not started yet).
@@ -725,27 +777,6 @@ It calculates the number of cores to `1` for `local` master URL, the number of p
 
 It starts by checking `SPARK_LOCAL_HOSTNAME` environment variable for the value. If it is not defined, it uses `SPARK_LOCAL_IP` to find the name (using `InetAddress.getByName`). If it is not defined either, it calls `InetAddress.getLocalHost` for the name.
 
-NOTE: `Utils.localHostName` is executed when <<initialization, SparkContext is being created>>.
+NOTE: `Utils.localHostName` is executed when <<creating-instance, SparkContext is being created>>.
 
 CAUTION: FIXME Review the rest.
-
-=== [[hadoopConfiguration]] Hadoop Configuration
-
-While <<initialization, a SparkContext is created>>, so is a Hadoop configuration (as an instance of https://hadoop.apache.org/docs/current/api/org/apache/hadoop/conf/Configuration.html[org.apache.hadoop.conf.Configuration] that is available as `_hadoopConfiguration`).
-
-NOTE: link:spark-hadoop.adoc#SparkHadoopUtil[SparkHadoopUtil.get.newConfiguration] is used.
-
-If a SparkConf is provided it is used to build the configuration as described. Otherwise, the default `Configuration` object is returned.
-
-If `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` are both available, the following settings are set for the Hadoop configuration:
-
-* `fs.s3.awsAccessKeyId`, `fs.s3n.awsAccessKeyId`, `fs.s3a.access.key` are set to the value of `AWS_ACCESS_KEY_ID`
-* `fs.s3.awsSecretAccessKey`, `fs.s3n.awsSecretAccessKey`, and `fs.s3a.secret.key` are set to the value of `AWS_SECRET_ACCESS_KEY`
-
-Every `spark.hadoop.` setting becomes a setting of the configuration with the prefix `spark.hadoop.` removed for the key.
-
-The value of `spark.buffer.size` (default: `65536`) is used as the value of `io.file.buffer.size`.
-
-=== [[environment-variables]] Environment Variables
-
-* `SPARK_EXECUTOR_MEMORY` sets the amount of memory to allocate to each executor. See link:spark-executor.adoc#memory[Executor Memory].
