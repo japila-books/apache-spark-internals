@@ -306,6 +306,14 @@ log4j.logger.org.apache.spark.storage.BlockManagerMasterEndpoint=INFO
 Refer to link:spark-logging.adoc[Logging].
 ====
 
+==== [[BlockManagerMasterEndpoint-internal-registries]] Internal Registries
+
+===== [[BlockManagerMasterEndpoint-blockLocations]] blockLocations
+
+`blockLocations` is a collection of `BlockId` and its locations (as `BlockManagerId`).
+
+NOTE: It is used in `removeRdd` to remove blocks for a RDD, `removeBlockManager` to remove blocks after a BlockManager gets removed, `removeBlockFromWorkers`, `updateBlockInfo`, and <<BlockManagerMasterEndpoint-getLocations, getLocations>>.
+
 ==== RemoveExecutor
 
 [source, scala]
@@ -314,6 +322,17 @@ RemoveExecutor(execId: String)
 ----
 
 When `RemoveExecutor` is received, <<BlockManagerMasterEndpoint-removeExecutor, executor `execId` is removed>> and the response `true` sent back.
+
+==== [[GetLocations]] GetLocations
+
+[source, scala]
+----
+GetLocations(blockId: BlockId)
+----
+
+When `GetLocations` comes in, the internal <<BlockManagerMasterEndpoint-getLocations, getLocations>> method is executed and the result becomes the response sent back.
+
+NOTE: `GetLocations` is used to <<getLocations, get the block locations of a single block>>.
 
 ==== [[RegisterBlockManager]] RegisterBlockManager
 
@@ -367,7 +386,6 @@ CAUTION: FIXME Describe `listenerBus` + omnigraffle it.
 ==== Other RPC Messages
 
 * UpdateBlockInfo
-* GetLocations
 * GetLocationsMultipleBlockIds
 * GetPeers
 * GetRpcHostPortForExecutor
@@ -418,3 +436,12 @@ You should then see the following INFO message in the logs:
 ```
 INFO BlockManagerMasterEndpoint: Removing block manager [blockManagerId]
 ```
+
+==== [[BlockManagerMasterEndpoint-getLocations]] Get Block Locations (getLocations method)
+
+[source, scala]
+----
+getLocations(blockId: BlockId): Seq[BlockManagerId]
+----
+
+When executed, `getLocations` looks up `blockId` in the `blockLocations` internal registry and returns the locations (as a collection of `BlockManagerId`) or an empty collection.
