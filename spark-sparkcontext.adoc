@@ -11,20 +11,26 @@ image::diagrams/sparkcontext-services.png[align="center"]
 
 `SparkContext` offers the following functions:
 
-* <<defaultParallelism, Default Level of Parallelism>>
-* <<master-url, Specifying mandatory master URL>>
-* <<application-name, Specifying mandatory application name>>
-* <<creating-rdds, Creating RDDs>>
-* <<creating-accumulators, Creating accumulators>>
-* <<creating-broadcast-variables, Creating broadcast variables>>
+* Getting current configuration
+** <<getConf, SparkConf>>
+** <<master, deployment environment>>
+** <<appName, application name>>
+** <<deployMode, deploy mode>>
+** <<defaultParallelism, default level of parallelism>>
+* Setting configuration
+** <<master-url, mandatory master URL>>
+** <<setting-local-properties, local properties>>
+** <<setting-default-log-level, default log level>>
+* Creating objects
+** <<creating-rdds, RDDs>>
+** <<creating-accumulators, accumulators>>
+** <<creating-broadcast-variables, broadcast variables>>
 * Accessing services, e.g. link:spark-taskscheduler.adoc[TaskScheduler], link:spark-scheduler-listeners.adoc[ListenerBus], link:spark-blockmanager.adoc[BlockManager], link:spark-scheduler-backends.adoc[SchedulerBackends], link:spark-shuffle-manager.adoc[ShuffleManager].
 * <<running-jobs, Running jobs>>
 * <<custom-schedulers, Setting up custom Scheduler Backend, TaskScheduler and DAGScheduler>>
 * <<closure-cleaning, Closure Cleaning>>
 * <<submitJob, Submitting Jobs Asynchronously>>
 * <<unpersist, Unpersisting RDDs, i.e. marking RDDs as non-persistent>>
-* <<setting-local-properties, Setting local properties>>
-* <<setting-default-log-level, Setting default log level programatically>>
 
 TIP: Read the scaladoc of  http://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.SparkContext[org.apache.spark.SparkContext].
 
@@ -93,19 +99,47 @@ INFO SparkContext: Running Spark version 2.0.0-SNAPSHOT
 
 NOTE: Only one SparkContext may be running in a single JVM (check out https://issues.apache.org/jira/browse/SPARK-2243[SPARK-2243 Support multiple SparkContexts in the same JVM]). Sharing access to a SparkContext in the JVM is the solution to share data within Spark (without relying on other means of data sharing using external data stores).
 
-=== [[master]][[master-url]] Master URL
+=== [[getConf]] Getting Current SparkConf (getConf method)
 
-CAUTION: FIXME
+[source, scala]
+----
+getConf: SparkConf
+----
 
-link:spark-cluster.adoc[Connecting to a cluster]
+`getConf` returns the current link:spark-configuration.adoc[SparkConf].
 
-=== [[appName]][[application-name]] Application Name
+NOTE: Changing the `SparkConf` object does not change the current configuration (as the method returns a copy).
 
-CAUTION: FIXME
+=== [[master]][[master-url]] Getting Deployment Environment (master method)
 
-link:spark-configuration.adoc[Specifying mandatory application name]
+[source, scala]
+----
+master: String
+----
 
-=== [[getPoolForName]] Get Pool by Name (getPoolForName method)
+`master` method returns the current value of link:spark-configuration.adoc#spark.master[spark.master] which is the link:link:spark-deployment-environments.adoc[deployment environment] in use.
+
+=== [[appName]] Getting Application Name (appName method)
+
+[source, scala]
+----
+appName: String
+----
+
+`appName` returns the value of the mandatory link:spark-configuration.adoc#mandatory-settings[spark.app.name] setting.
+
+NOTE: It is used in link:spark-standalone.adoc#SparkDeploySchedulerBackend[SparkDeploySchedulerBackend (to create a ApplicationDescription when it starts)], for link:spark-webui.adoc[SparkUI.createLiveUI] (when link:spark-webui.adoc#spark.ui.enabled[spark.ui.enabled] is enabled), when `postApplicationStart` is executed, and for Mesos and checkpointing in Spark Streaming.
+
+=== [[deployMode]] Getting Deploy Mode (deployMode method)
+
+[source,scala]
+----
+deployMode: String
+----
+
+`deployMode` returns the current value of link:spark-deploy-mode.adoc[spark.submit.deployMode] setting or `client` if not set.
+
+=== [[getPoolForName]] Getting Pool by Name (getPoolForName method)
 
 [source, scala]
 ----
@@ -118,7 +152,7 @@ NOTE: `getPoolForName` is part of the Developer's API.
 
 CAUTION: FIXME Where is `getPoolForName` used?
 
-=== [[getAllPools]] Get All Pools (getAllPools method)
+=== [[getAllPools]] Getting All Pools (getAllPools method)
 
 [source, scala]
 ----
@@ -133,7 +167,7 @@ NOTE: `getAllPools` is part of the Developer's API.
 
 CAUTION: FIXME Where is the method used?
 
-=== [[defaultParallelism]] Default Level of Parallelism
+=== [[defaultParallelism]] Getting Default Level of Parallelism
 
 *Default level of parallelism* is the number of link:spark-rdd-partitions.adoc[partitions] when not specified explicitly by a user.
 
@@ -467,7 +501,7 @@ Refer to the section <<creating-instance, SparkContext's initialization>>.
 
 FIXME When is the internal field `persistentRdds` used?
 
-=== [[setting-default-log-level]] Setting Default Log Level Programatically
+=== [[setting-default-log-level]] Setting Default Log Level
 
 [source, scala]
 ----
@@ -597,6 +631,7 @@ The value of `spark.buffer.size` (default: `65536`) is used as the value of `io.
 * `SPARK_EXECUTOR_MEMORY` sets the amount of memory to allocate to each executor. See link:spark-executor.adoc#memory[Executor Memory].
 
 === [[creating-instance-internals]] Internals of Creating SparkContext
+
 Let's walk through the initialization sequence of SparkContext in a Spark application and see what happens under the covers.
 
 [source, scala]
