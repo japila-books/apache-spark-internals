@@ -34,6 +34,100 @@ image::diagrams/sparkcontext-services.png[align="center"]
 
 TIP: Read the scaladoc of  http://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.SparkContext[org.apache.spark.SparkContext].
 
+=== [[listenerBus]] listenerBus
+
+`listenerBus` is a <<LiveListenerBus, LiveListenerBus>> object in `SparkContext`.
+
+NOTE: `listenerBus` is a `private[spark]` value in `SparkContext`.
+
+==== [[LiveListenerBus]] LiveListenerBus
+
+`LiveListenerBus` is a <<SparkListenerBus, SparkListenerBus>> that...FIXME
+
+==== [[SparkListenerBus]] SparkListenerBus
+
+`SparkListenerBus` is a <<ListenerBus, ListenerBus>> that manages <<SparkListenerInterface, SparkListenerInterface>> listeners that process <<SparkListenerEvent, SparkListenerEvent>> events.
+
+It comes with a custom `doPostEvent` method.
+
+[source, scala]
+----
+doPostEvent(
+  listener: SparkListenerInterface,
+  event: SparkListenerEvent): Unit
+----
+
+`doPostEvent` method simply relays `SparkListenerEvent` events to `SparkListenerInterface` methods as follows:
+
+* `SparkListenerStageSubmitted` => `onStageSubmitted`
+* `SparkListenerStageCompleted` => `onStageCompleted`
+* `SparkListenerJobStart` => `onJobStart`
+* `SparkListenerJobEnd` => `onJobEnd`
+* `SparkListenerTaskStart` => `onTaskStart`
+* `SparkListenerTaskGettingResult` => `onTaskGettingResult`
+* `SparkListenerTaskEnd` => `onTaskEnd`
+* `SparkListenerEnvironmentUpdate` => `onEnvironmentUpdate`
+* `SparkListenerBlockManagerAdded` => `onBlockManagerAdded`
+* `SparkListenerBlockManagerRemoved` => `onBlockManagerRemoved`
+* `SparkListenerUnpersistRDD` => `onUnpersistRDD`
+* `SparkListenerApplicationStart` => `onApplicationStart`
+* `SparkListenerApplicationEnd` => `onApplicationEnd`
+* `SparkListenerExecutorMetricsUpdate` => `onExecutorMetricsUpdate`
+* `SparkListenerExecutorAdded` => `onExecutorAdded`
+* `SparkListenerExecutorRemoved` => `onExecutorRemoved`
+* `SparkListenerBlockUpdated` => `onBlockUpdated`
+* `SparkListenerLogStart` => event ignored
+* other event types => `onOtherEvent`
+
+NOTE: There are two custom `SparkListenerBus` listeners: <<LiveListenerBus, LiveListenerBus>> and <<ReplayListenerBus, ReplayListenerBus>>.
+
+==== [[ReplayListenerBus]] ReplayListenerBus
+
+==== [[SparkListenerInterface]] SparkListenerInterface
+
+==== [[SparkListenerEvent]] SparkListenerEvent
+
+==== [[ListenerBus]] ListenerBus
+
+[source, scala]
+----
+ListenerBus[L <: AnyRef, E]
+----
+
+`ListenerBus` is an event bus that post events (of type `E`) to all registered listeners (of type `L`).
+
+NOTE: There are three custom `ListenerBus` listeners: <<SparkListenerBus, SparkListenerBus>>, link:spark-sql-continuousquerymanager.adoc#ContinuousQueryListenerBus[ContinuousQueryListenerBus], and link:spark-streaming-jobscheduler.adoc#StreamingListenerBus[StreamingListenerBus].
+
+It manages `listeners` of type `L`, i.e. it can add to and remove listeners from an internal `listeners` collection.
+
+It can post events of type `E` to all registered listeners (using `postToAll` method). It simply iterates over the internal `listeners` collection and executes the abstract `doPostEvent` method.
+
+[source, scala]
+----
+doPostEvent(listener: L, event: E): Unit
+----
+
+NOTE: `doPostEvent` is provided by more specialized `ListenerBus` event buses.
+
+In case of exception while posting an event to a listener you should see the following ERROR message in the logs and the exception.
+
+```
+ERROR Listener [listener] threw an exception
+```
+
+[TIP]
+====
+Enable `ERROR` logging level for `org.apache.spark.util.ListenerBus` logger to see what happens inside.
+
+Add the following line to `conf/log4j.properties`:
+
+```
+log4j.logger.org.apache.spark.util.ListenerBus=ERROR
+```
+
+Refer to link:spark-logging.adoc[Logging].
+====
+
 === [[creating-instance]] Creating SparkContext
 
 You can create a `SparkContext` instance with or without creating a link:spark-configuration.adoc[SparkConf] object first.
@@ -632,7 +726,7 @@ The value of `spark.buffer.size` (default: `65536`) is used as the value of `io.
 
 === [[creating-instance-internals]] Internals of Creating SparkContext
 
-Let's walk through the initialization sequence of SparkContext in a Spark application and see what happens under the covers.
+Let's walk through the initialization sequence of `SparkContext` in a Spark application and learn about what happens under the covers.
 
 [source, scala]
 ----
@@ -668,17 +762,39 @@ res0: String = jacek
 
 CAUTION: FIXME Where is `sparkUser` useful?
 
-The initialization then checks whether a master URL as `spark.master` and an application name as `spark.app.name` are defined. SparkException is thrown if not.
+It saves the input `SparkConf` (as `_conf`).
 
-When `spark.logConf` is `true` (default: `false`) link:spark-configuration.adoc[SparkConf.toDebugString] is called.
+CAUTION: FIXME Review `_conf.validateSettings()`
+
+It ensures that the first mandatory setting - `spark.master` is defined. `SparkException` is thrown if not.
+
+```
+A master URL must be set in your configuration
+```
+
+It ensures that the other mandatory setting - `spark.app.name` is defined. `SparkException` is thrown if not.
+
+```
+An application name must be set in your configuration
+```
+
+For link:spark-yarn-cluster-yarnclusterschedulerbackend.adoc[Spark on YARN in cluster deploy mode], it checks existence of `spark.yarn.app.id`. `SparkException` is thrown if it does not exist.
+
+```
+Detected yarn cluster mode, but isn't running on a cluster. Deployment to YARN is not supported directly by SparkContext. Please use spark-submit.
+```
+
+CAUTION: FIXME How to "trigger" the exception? What are the steps?
+
+When `spark.logConf` is enabled link:spark-configuration.adoc[SparkConf.toDebugString] is called.
 
 NOTE: `SparkConf.toDebugString` is called very early in the initialization process and other settings configured afterwards are not included. Use `sc.getConf.toDebugString` once SparkContext is initialized.
 
-The driver's host and port are set when missing. `spark.driver.host` becomes the value of <<localHostName, Utils.localHostName>> (or an exception is thrown) whereas `spark.driver.port`is set to `0`.
+The driver's host and port are set if missing. `spark.driver.host` becomes the value of <<localHostName, Utils.localHostName>> (or an exception is thrown) while `spark.driver.port` is set to `0`.
 
 NOTE: `spark.driver.host` and `spark.driver.port` are expected to be set on the driver. It is later asserted by link:spark-sparkenv.adoc#createDriverEnv[SparkEnv.createDriverEnv].
 
-`spark.executor.id` is set as `driver`.
+`spark.executor.id` setting is set to `driver`.
 
 TIP: Use `sc.getConf.get("spark.executor.id")` to know where the code is executed - link:spark-sparkenv.adoc[driver or executors].
 
@@ -690,7 +806,9 @@ It sets `spark.externalBlockStore.folderName` to the value of `externalBlockStor
 
 CAUTION: FIXME: What's `externalBlockStoreFolderName`?
 
-For `yarn-client` master URL, the system property `SPARK_YARN_MODE` is set to `true`.
+For link:spark-yarn-client-yarnclientschedulerbackend.adoc[Spark on YARN in client deploy mode], the system property `SPARK_YARN_MODE` is set to `true`.
+
+CAUTION: FIXME Why is `SPARK_YARN_MODE` system env required?
 
 An instance of link:spark-webui.adoc#JobProgressListener[JobProgressListener] is created and registered to link:spark-scheduler-listeners.adoc#listener-bus[Listener Bus].
 
@@ -767,7 +885,9 @@ CAUTION: FIXME It'd be quite useful to have all the properties with their defaul
 
 `postEnvironmentUpdate` is called to post `SparkListenerEnvironmentUpdate` event over link:spark-scheduler-listeners.adoc#listener-bus[Listener Bus] with information about Task Scheduler's scheduling mode, added jar and file paths, and other environmental details. They are displayed in link:spark-webui.adoc#environment-tab[Web UI's Environment tab].
 
-`postApplicationStart` is called to post `SparkListenerApplicationStart` event over link:spark-scheduler-listeners.adoc#listener-bus[Listener Bus].
+`SparkListenerApplicationStart` event is posted to link:spark-scheduler-listeners.adoc#listener-bus[Listener Bus] (using internal `postApplicationStart` method).
+
+CAUTION: FIXME Why is this needed?
 
 link:spark-taskscheduler.adoc#contract[TaskScheduler.postStartHook] is called.
 
