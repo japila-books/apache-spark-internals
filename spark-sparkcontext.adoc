@@ -36,13 +36,74 @@ TIP: Read the scaladoc of  http://spark.apache.org/docs/latest/api/scala/index.h
 
 === [[listenerBus]] listenerBus
 
-`listenerBus` is a <<LiveListenerBus, LiveListenerBus>> object in `SparkContext`.
+`listenerBus` is a <<LiveListenerBus, LiveListenerBus>> object that acts as a mechanism to announce events to other services in Spark.
+
+NOTE: It is created while <<creating-instance-internals, SparkContext is being created>> and, since it is a single-JVM event bus, it is exclusively used on the driver.
 
 NOTE: `listenerBus` is a `private[spark]` value in `SparkContext`.
 
 ==== [[LiveListenerBus]] LiveListenerBus
 
-`LiveListenerBus` is a <<SparkListenerBus, SparkListenerBus>> that...FIXME
+`LiveListenerBus` is a single-JVM <<SparkListenerBus, SparkListenerBus>> that uses <<LiveListenerBus-listenerThread, listenerThread to poll events>>. Emitters are supposed to use <<post, `post` method to post `SparkListenerEvent` events>>.
+
+NOTE: The event queue is http://docs.oracle.com/javase/8/docs/api/java/util/concurrent/LinkedBlockingQueue.html[java.util.concurrent.LinkedBlockingQueue] with capacity of 10000 `SparkListenerEvent` events.
+
+NOTE: An instance of `LiveListenerBus` is <<listenerBus, created in SparkContext>>.
+
+===== [[LiveListenerBus-post]] Posting SparkListenerEvent Events
+
+[source, scala]
+----
+post(event: SparkListenerEvent): Unit
+----
+
+`post` places the `SparkListenerEvent` event onto the internal `eventQueue` queue.
+
+If the placement was not successful (it could not since it is tapped at 10000 events) <<LiveListenerBus-onDropEvent, onDropEvent>> method is called instead.
+
+If the listener has already been stopped, the following ERROR appears in the logs:
+
+```
+ERROR [name] has already stopped! Dropping event [event]
+```
+
+===== [[LiveListenerBus-onDropEvent]] Event Dropped Callback (onDropEvent method)
+
+[source, scala]
+----
+onDropEvent(event: SparkListenerEvent): Unit
+----
+
+`onDropEvent` is called when no further events can be added to the internal `eventQueue` queue (while <<LiveListenerBus-post, posting a SparkListenerEvent event>>).
+
+It simply prints out the following ERROR message to the logs and ensures that it happens only once.
+
+```
+ERROR Dropping SparkListenerEvent because no remaining room in event queue. This likely means one of the SparkListeners is too slow and cannot keep up with the rate at which tasks are being started by the scheduler.
+```
+
+NOTE: It uses the internal `logDroppedEvent` atomic variable to track the state.
+
+===== [[LiveListenerBus-start]] Starting LiveListenerBus (start method)
+
+[source, scala]
+----
+start(sc: SparkContext): Unit
+----
+
+`start` sets `SparkContext` to `LiveListenerBus` and starts <<LiveListenerBus-listenerThread, listenerThread to process events>>.
+
+If `LiveListenerBus` has already been started, a `IllegalStateException` is thrown:
+
+```
+[name] already started!
+```
+
+===== [[LiveListenerBus-listenerThread]] listenerThread to Poll Events
+
+`LiveListenerBus` uses `SparkListenerBus` single daemon thread that ensures that the polling events from the event queue is only after <<LiveListenerBus-start, the listener was started>> and only one event at a time.
+
+CAUTION: FIXME There is some logic around no events in the queue.
 
 ==== [[SparkListenerBus]] SparkListenerBus
 
@@ -52,9 +113,7 @@ It comes with a custom `doPostEvent` method.
 
 [source, scala]
 ----
-doPostEvent(
-  listener: SparkListenerInterface,
-  event: SparkListenerEvent): Unit
+doPostEvent(listener: SparkListenerInterface, event: SparkListenerEvent): Unit
 ----
 
 `doPostEvent` method simply relays `SparkListenerEvent` events to `SparkListenerInterface` methods as follows:
@@ -96,8 +155,6 @@ ListenerBus[L <: AnyRef, E]
 
 `ListenerBus` is an event bus that post events (of type `E`) to all registered listeners (of type `L`).
 
-NOTE: There are three custom `ListenerBus` listeners: <<SparkListenerBus, SparkListenerBus>>, link:spark-sql-continuousquerymanager.adoc#ContinuousQueryListenerBus[ContinuousQueryListenerBus], and link:spark-streaming-jobscheduler.adoc#StreamingListenerBus[StreamingListenerBus].
-
 It manages `listeners` of type `L`, i.e. it can add to and remove listeners from an internal `listeners` collection.
 
 It can post events of type `E` to all registered listeners (using `postToAll` method). It simply iterates over the internal `listeners` collection and executes the abstract `doPostEvent` method.
@@ -114,6 +171,8 @@ In case of exception while posting an event to a listener you should see the fol
 ```
 ERROR Listener [listener] threw an exception
 ```
+
+NOTE: There are three custom `ListenerBus` listeners: <<SparkListenerBus, SparkListenerBus>>, link:spark-sql-continuousquerymanager.adoc#ContinuousQueryListenerBus[ContinuousQueryListenerBus], and link:spark-streaming-jobscheduler.adoc#StreamingListenerBus[StreamingListenerBus].
 
 [TIP]
 ====
@@ -751,7 +810,7 @@ The very first information printed out is the version of Spark as an INFO messag
 INFO SparkContext: Running Spark version 2.0.0-SNAPSHOT
 ```
 
-An instance of link:spark-scheduler-listeners.adoc#listener-bus[Listener Bus] is created (but not started yet).
+<<listenerBus, listenerBus>> is created.
 
 The current user name is computed, i.e. read from a value of `SPARK_USER` environment variable or the currently logged-in user. It is available as later on as `sparkUser`.
 
@@ -881,7 +940,7 @@ If link:spark-dynamic-allocation.adoc[dynamic allocation] is enabled, `_executor
 
 CAUTION: FIXME It'd be quite useful to have all the properties with their default values in `sc.getConf.toDebugString`, so when a configuration is not included but does change Spark runtime configuration, it should be added to `_conf`.
 
-`setupAndStartListenerBus` link:spark-scheduler-listeners.adoc[registers user-defined listeners] and starts link:spark-scheduler-listeners.adoc#listener-bus[Listener Bus] that starts event delivery to the listeners.
+`setupAndStartListenerBus` link:spark-scheduler-listeners.adoc[registers user-defined listeners] and starts <<listenerBus, listenerBus>> that starts event delivery to the listeners.
 
 `postEnvironmentUpdate` is called to post `SparkListenerEnvironmentUpdate` event over link:spark-scheduler-listeners.adoc#listener-bus[Listener Bus] with information about Task Scheduler's scheduling mode, added jar and file paths, and other environmental details. They are displayed in link:spark-webui.adoc#environment-tab[Web UI's Environment tab].
 
