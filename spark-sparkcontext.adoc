@@ -36,7 +36,7 @@ TIP: Read the scaladoc of  http://spark.apache.org/docs/latest/api/scala/index.h
 
 === [[listenerBus]] listenerBus
 
-`listenerBus` is a <<LiveListenerBus, LiveListenerBus>> object that acts as a mechanism to announce events to other services in Spark.
+`listenerBus` is a <<LiveListenerBus, LiveListenerBus>> object that acts as a mechanism to announce events to other services on the link:spark-driver.adoc[driver].
 
 NOTE: It is created while <<creating-instance-internals, SparkContext is being created>> and, since it is a single-JVM event bus, it is exclusively used on the driver.
 
@@ -146,7 +146,7 @@ NOTE: There are two custom `SparkListenerBus` listeners: <<LiveListenerBus, Live
 
 ==== [[SparkListenerEvent]] SparkListenerEvent
 
-==== [[ListenerBus]] ListenerBus
+==== [[ListenerBus]][[ListenerBus-addListener]] ListenerBus
 
 [source, scala]
 ----
@@ -156,6 +156,12 @@ ListenerBus[L <: AnyRef, E]
 `ListenerBus` is an event bus that post events (of type `E`) to all registered listeners (of type `L`).
 
 It manages `listeners` of type `L`, i.e. it can add to and remove listeners from an internal `listeners` collection.
+
+[source, scala]
+----
+addListener(listener: L): Unit
+removeListener(listener: L): Unit
+----
 
 It can post events of type `E` to all registered listeners (using `postToAll` method). It simply iterates over the internal `listeners` collection and executes the abstract `doPostEvent` method.
 
@@ -936,11 +942,11 @@ CAUTION: FIXME Why is `_eventLogger` required to be the internal field of SparkC
 
 If link:spark-dynamic-allocation.adoc[dynamic allocation] is enabled, `_executorAllocationManager` is set to `ExecutorAllocationManager` and started.
 
-`_cleaner` is set to link:spark-service-contextcleaner.adoc[ContextCleaner] if `spark.cleaner.referenceTracking` is `true` (default: `true`).
+`_cleaner` is set to link:spark-service-contextcleaner.adoc[ContextCleaner] if `spark.cleaner.referenceTracking` is enabled (i.e. `true`). By default it is enabled.
 
 CAUTION: FIXME It'd be quite useful to have all the properties with their default values in `sc.getConf.toDebugString`, so when a configuration is not included but does change Spark runtime configuration, it should be added to `_conf`.
 
-`setupAndStartListenerBus` link:spark-scheduler-listeners.adoc[registers user-defined listeners] and starts <<listenerBus, listenerBus>> that starts event delivery to the listeners.
+It <<setupAndStartListenerBus, registers user-defined listeners and starts event delivery to the listeners>>.
 
 `postEnvironmentUpdate` is called to post `SparkListenerEnvironmentUpdate` event over link:spark-scheduler-listeners.adoc#listener-bus[Listener Bus] with information about Task Scheduler's scheduling mode, added jar and file paths, and other environmental details. They are displayed in link:spark-webui.adoc#environment-tab[Web UI's Environment tab].
 
@@ -970,6 +976,35 @@ CAUTION: FIXME What does `NonFatal` represent in Scala?
 CAUTION: FIXME Where are `nextShuffleId` and `nextRddId` used?
 
 A new instance of Spark context is created and ready for operation.
+
+==== [[setupAndStartListenerBus]] setupAndStartListenerBus
+
+[source, scala]
+----
+setupAndStartListenerBus(): Unit
+----
+
+`setupAndStartListenerBus` is an internal method that reads link:spark-scheduler-listeners.adoc#spark.extraListeners[spark.extraListeners] setting from the current link:spark-configuration.adoc[SparkConf] to create and register <<SparkListenerInterface, SparkListenerInterface>> listeners.
+
+It expects that the class name represents a `SparkListenerInterface` listener with a constructor taking a `SparkConf` or no arguments and <<ListenerBus-addListener, register>> it to <<LiveListenerBus, LiveListenerBus>>. You should see the following INFO message in the logs:
+
+```
+INFO Registered listener [className]
+```
+
+It <<LiveListenerBus-start, starts LiveListenerBus>> and records it in the internal `_listenerBusStarted`.
+
+When no single-`SparkConf` or zero-argument constructor could be found for a class name in `spark.extraListeners`, a `SparkException` is thrown with the message:
+
+```
+[className] did not have a zero-argument constructor or a single-argument constructor that accepts SparkConf. Note: if the class is defined inside of another Scala class, then its constructors may accept an implicit parameter that references the enclosing class; in this case, you must define the listener as a top-level class in order to prevent this extra parameter from breaking Spark's ability to find a valid constructor.
+```
+
+Any exception while registering a `SparkListenerInterface` listener <<stop, stops the SparkContext>> and a `SparkException` is thrown and the source exception's message.
+
+```
+Exception when registering SparkListener
+```
 
 ==== [[createSparkEnv]] Creating SparkEnv for Driver (createSparkEnv method)
 
