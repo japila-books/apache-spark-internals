@@ -1,0 +1,73 @@
+== BlockInfoManager
+
+`BlockInfoManager` tracks <<infos, metadata for blocks>> and manages <<lockForReading, read locks>>.
+
+NOTE: `BlockInfoManager` is a `private[storage]` class that belongs to `org.apache.spark.storage` package.
+
+TIP: *Locks* are the mechanism to control concurrent access to data and prevent destructive interaction between operations that use the same resource.
+
+[TIP]
+====
+Enable `TRACE` logging level for `org.apache.spark.storage.BlockInfoManager` logger to see what happens inside.
+
+Add the following line to `conf/log4j.properties`:
+
+```
+log4j.logger.org.apache.spark.storage.BlockInfoManager=TRACE
+```
+
+Refer to link:spark-logging.adoc[Logging].
+====
+
+=== [[lockForReading]] Obtaining Read Lock (lockForReading method)
+
+[source, scala]
+----
+lockForReading(
+  blockId: BlockId,
+  blocking: Boolean = true): Option[BlockInfo]
+----
+
+When executed, `lockForReading` prints out the following TRACE message to the logs:
+
+```
+TRACE BlockInfoManager: Task [currentTaskAttemptId] trying to acquire read lock for [blockId]
+```
+
+It looks up the metadata (in <<infos, infos>> registry).
+
+If no metadata could be found, it returns `None` which means that the block does not exist or was removed and anybody could acquire a write lock.
+
+Otherwise, when the metadata was registered, it checks so-called _writerTask_. Only `NO_WRITER` are allowed to obtain a lock. The `readerCount` of the block metadata is incremented and the block is recorded in the internal <<readLocksByTask, readLocksByTask>> registry.
+
+You should see the following TRACE message in the logs:
+
+```
+TRACE BlockInfoManager: Task [taskAttemptId] acquired read lock for [blockId]
+```
+
+NOTE: `-1024` is a special `taskAttemptId` used to mark a non-task thread, e.g. by a driver thread or by unit test code.
+
+For blocks with `writerTask` other than `NO_WRITER`, when `blocking` is enabled, it waits.
+
+CAUTION: FIXME When does it wake up, i.e. the wait is over? Who is to stop the waiting?
+
+With `blocking` enabled, it will repeat the waiting-for-read-lock sequence until either `None` or the lock is obtained.
+
+When `blocking` is disabled and the lock could not be obtained, `None` is returned immediately.
+
+NOTE: `lockForReading` is a `synchronized` method, i.e. no two objects can use this and other instance methods.
+
+=== [[assertBlockIsLockedForWriting]] assertBlockIsLockedForWriting
+
+CAUTION: FIXME
+
+=== [[internal-registries]] Internal Registries
+
+==== [[infos]] infos
+
+`infos` is used to track <<BlockInfo, BlockInfo>> per block (identified by link:spark-blockdatamanager.adoc#BlockId[BlockId]).
+
+==== [[readLocksByTask]] readLocksByTask
+
+`readLocksByTask` is used to track tasks (by `TaskAttemptId`) and the blocks they locked for reading (identified by <<BlockId, BlockId>>)

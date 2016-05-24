@@ -1,12 +1,12 @@
 == Block Manager
 
-*Block Manager* is a key-value store for blocks of data in Spark. Block Manager acts as a local cache that runs on every node in Spark cluster, i.e. the link:spark-driver.adoc[driver] and link:spark-executor.adoc[executors]. It provides interface for uploading and fetching blocks both locally and remotely using various stores, i.e. memory, disk, and off-heap. See <<stores, Stores>> in this document.
+`BlockManager` is a key-value store for blocks of data in Spark. `BlockManager` acts as a local cache that runs on every node in Spark cluster, i.e. the link:spark-driver.adoc[driver] and link:spark-executor.adoc[executors]. It provides interface for uploading and fetching blocks both locally and remotely using various stores, i.e. memory, disk, and off-heap. See <<stores, Stores>> in this document.
 
 A `BlockManager` is a link:spark-blockdatamanager.adoc[BlockDataManager], i.e. manages the storage for blocks that can represent a cached RDD partition, an intermediate shuffle data, a broadcast data, etc. It is also a <<BlockEvictionHandler, BlockEvictionHandler>> that drops a block from memory and storing it on a disk if applicable.
 
 *Cached blocks* are blocks with non-zero sum of memory and disk sizes.
 
-It is created when a Spark application starts (as part of link:spark-sparkenv.adoc#create[SparkEnv.create]).
+`BlockManager` is created as a link:spark-sparkenv.adoc#create[Spark application starts].
 
 A `BlockManager` must be <<initialize,initialized>> before it is fully operable.
 
@@ -32,9 +32,9 @@ log4j.logger.org.apache.spark.storage.BlockManager=OFF
 ```
 ====
 
-=== [[BlockInfoManager]] BlockInfoManager
+=== [[BlockInfo]] BlockInfo
 
-CAUTION: FIXME
+`BlockInfo` is a metadata of <<BlockId, BlockId>>.
 
 === [[stores]] Stores
 
@@ -52,7 +52,7 @@ There are the following possible stores:
 
 TIP: `entries` is Java's https://docs.oracle.com/javase/8/docs/api/java/util/LinkedHashMap.html[java.util.LinkedHashMap].
 
-`MemoryStore` requires link:spark-configuration.adoc[SparkConf], <<BlockInfoManager, BlockInfoManager>>, `SerializerManager`, link:spark-sparkenv.adoc#MemoryManager[MemoryManager] and `BlockEvictionHandler` to be created.
+`MemoryStore` requires link:spark-configuration.adoc[SparkConf], link:spark-BlockInfoManager.adoc[BlockInfoManager], `SerializerManager`, link:spark-sparkenv.adoc#MemoryManager[MemoryManager] and `BlockEvictionHandler` to be created.
 
 CAUTION: FIXME Where are these dependencies used?
 
@@ -164,7 +164,7 @@ When executed, it prints out the following DEBUG message to the logs:
 DEBUG Removing block [blockId]
 ```
 
-It requests <<BlockInfoManager, BlockInfoManager>> for lock for writing for the `blockId` block. If it receives none, it prints out the following WARN message to the logs and quits.
+It requests link:spark-BlockInfoManager.adoc[BlockInfoManager] for lock for writing for the `blockId` block. If it receives none, it prints out the following WARN message to the logs and quits.
 
 ```
 WARN Asked to remove block [blockId], which does not exist
@@ -178,7 +178,7 @@ If both removals fail, it prints out the following WARN message:
 WARN Block [blockId] could not be removed as it was not found in either the disk, memory, or external block store
 ```
 
-The block is removed from <<BlockInfoManager, BlockInfoManager>>.
+The block is removed from link:spark-BlockInfoManager.adoc[BlockInfoManager].
 
 It then <<getCurrentBlockStatus, calculates the current block status>> that is used to <<reportBlockStatus, report the block status to the driver>> (if the input `tellMaster` and the info's `tellMaster` are both enabled, i.e. `true`) and the link:spark-taskscheduler-taskmetrics.adoc#incUpdatedBlockStatuses[current TaskContext metrics are updated with the change].
 
@@ -199,7 +199,7 @@ It prints out the following INFO message to the logs:
 INFO Removing RDD [rddId]
 ```
 
-It then requests RDD blocks from <<BlockInfoManager, BlockInfoManager>> and <<removeBlock, removes them (from memory and disk)>> (without informing the driver).
+It then requests RDD blocks from link:spark-BlockInfoManager.adoc[BlockInfoManager] and <<removeBlock, removes them (from memory and disk)>> (without informing the driver).
 
 The number of blocks removed is the final result.
 
@@ -220,7 +220,7 @@ It prints out the following DEBUG message to the logs:
 DEBUG Removing broadcast [broadcastId]
 ```
 
-It then requests all `BroadcastBlockId` objects that belong to the `broadcastId` broadcast from <<BlockInfoManager, BlockInfoManager>> and <<removeBlock, removes them (from memory and disk)>>.
+It then requests all `BroadcastBlockId` objects that belong to the `broadcastId` broadcast from link:spark-BlockInfoManager.adoc[BlockInfoManager] and <<removeBlock, removes them (from memory and disk)>>.
 
 The number of blocks removed is the final result.
 
@@ -253,7 +253,7 @@ When a `BlockManager` instance is created it first reads the value of the link:s
 
 It creates an instance of <<DiskBlockManager, DiskBlockManager>> (requesting `deleteFilesOnStop` when an external shuffle service is not in use).
 
-It creates an instance of <<BlockInfoManager, BlockInfoManager>> (as `blockInfoManager`).
+It creates an instance of link:spark-BlockInfoManager.adoc[BlockInfoManager] (as `blockInfoManager`).
 
 It creates *block-manager-future* daemon cached thread pool with 128 threads maximum (as `futureExecutionContext`).
 
@@ -357,7 +357,7 @@ You should see the following INFO message in the logs:
 INFO BlockManager: Reporting [blockInfoManager.size] blocks to the master.
 ```
 
-For each block metadata (in <<BlockInfoManager, BlockInfoManager>>) it <<getCurrentBlockStatus, gets block current status>> and <<tryToReportBlockStatus, tries to send it to the BlockManagerMaster>>.
+For each block metadata (in link:spark-BlockInfoManager.adoc[BlockInfoManager]) it <<getCurrentBlockStatus, gets block current status>> and <<tryToReportBlockStatus, tries to send it to the BlockManagerMaster>>.
 
 If there is an issue communicating to the link:spark-BlockManagerMaster.adoc[BlockManagerMaster], you should see the following ERROR message in the logs:
 
@@ -403,7 +403,7 @@ When `dropFromMemory` is executed, you should see the following INFO message in 
 INFO BlockManager: Dropping block [blockId] from memory
 ```
 
-It then asserts that the `blockId` block is locked for writing (using <<BlockInfoManager, BlockInfoManager.assertBlockIsLockedForWriting>>).
+It then asserts that the `blockId` block is link:spark-BlockInfoManager.adoc#assertBlockIsLockedForWriting[locked for writing].
 
 If the block's StorageLevel uses disks and the internal <<DiskStore, DiskStore>> object (`diskStore`) does not contain the block, it is saved then. You should see the following INFO message in the logs:
 
