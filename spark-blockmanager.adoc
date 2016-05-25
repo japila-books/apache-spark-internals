@@ -1,4 +1,4 @@
-== Block Manager
+== BlockManager
 
 `BlockManager` is a key-value store for blocks of data in Spark. `BlockManager` acts as a local cache that runs on every node in Spark cluster, i.e. the link:spark-driver.adoc[driver] and link:spark-executor.adoc[executors]. It provides interface for uploading and fetching blocks both locally and remotely using various stores, i.e. memory, disk, and off-heap. See <<stores, Stores>> in this document.
 
@@ -35,6 +35,14 @@ log4j.logger.org.apache.spark.storage.BlockManager=OFF
 === [[BlockInfo]] BlockInfo
 
 `BlockInfo` is a metadata of <<BlockId, BlockId>>.
+
+It consists of link:spark-rdd-caching.adoc#StorageLevel[StorageLevel], `ClassTag` and `tellMaster` flag.
+
+It has a size and the number of readers. It is assumed that the number of readers is non-negative, i.e. `0` or more.
+
+It knows a so-called writer task.
+
+It defaults to `0` for the size and the number of readers.
 
 === [[stores]] Stores
 
@@ -107,13 +115,13 @@ def doPutBytes[T](
   keepReadLock: Boolean = false): Boolean
 ----
 
-`doPutBytes` is an internal method that calls the helper <<doPut, doPut>> with `putBody` being a function that accepts a `BlockInfo` and does the uploading.
+`doPutBytes` is an internal method that calls the internal helper <<doPut, doPut>> with `putBody` being a function that accepts a `BlockInfo` and does the uploading.
 
 If the replication storage level is greater than 1, replication starts in a separate thread (using the internal <<replicate, replicate>> method).
 
 CAUTION: FIXME When is replication storage level greater than 1?
 
-For a memory storage level, depending on whether it is a deserialized one or not, `MemoryStore`'s `putIteratorAsValues` or `putBytes` are used, respectively. If the put did not succeed and the storage level is also a disk one, you should see the following WARN message in the logs:
+For a memory storage level, depending on whether it is a deserialized one or not, `putIteratorAsValues` or `putBytes` of `MemoryStore` are used, respectively. If the put did not succeed and the storage level is also a disk one, you should see the following WARN message in the logs:
 
 ```
 WARN BlockManager: Persisting block [blockId] to disk instead.
@@ -147,7 +155,47 @@ CAUTION: FIXME
 
 === [[doPut]] doPut
 
-CAUTION: FIXME
+[source, scala]
+----
+doPut[T](
+  blockId: BlockId,
+  level: StorageLevel,
+  classTag: ClassTag[_],
+  tellMaster: Boolean,
+  keepReadLock: Boolean)(putBody: BlockInfo => Option[T]): Option[T]
+----
+
+`doPut` is an internal helper method for <<doPutBytes, doPutBytes>> and <<doPutIterator, doPutIterator>>.
+
+`doPut` executes the input `putBody` function with a <<BlockInfo, BlockInfo>> being a new `BlockInfo` object that link:spark-BlockInfoManager.adoc#lockNewBlockForWriting[BlockInfoManager managed to create a lock for writing].
+
+If the block has already been created, the following WARN message is printed out to the logs:
+
+```
+WARN Block [blockId] already exists on this machine; not re-adding it
+```
+
+It <<releaseLock, releases the read lock for the block>> when `keepReadLock` flag is disabled. `doPut` returns `None` immediately.
+
+`putBody` is executed.
+
+If the result of `putBody` is `None` the block is considered saved successfully.
+
+For successful save and `keepReadLock` enabled, `blockInfoManager.downgradeLock(blockId)` is called.
+
+For successful save and `keepReadLock` disabled, `blockInfoManager.unlock(blockId)` is called.
+
+For unsuccessful save, `blockInfoManager.removeBlock(blockId)` is called and the following WARN message is printed out to the logs:
+
+```
+WARN Putting block [blockId] failed
+```
+
+Ultimately, the following DEBUG message is printed out to the logs:
+
+```
+DEBUG Putting block [blockId] [withOrWithout] replication took [usedTime] ms
+```
 
 === [[removeBlock]] Removing Block From Memory and Disk (removeBlock method)
 
