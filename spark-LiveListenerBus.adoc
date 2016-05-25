@@ -2,7 +2,7 @@
 
 `LiveListenerBus` asynchronously passes <<events, listener events>> to registered <<spark-listeners, Spark listeners>>.
 
-`LiveListenerBus` is a single-JVM <<SparkListenerBus, SparkListenerBus>> that uses <<LiveListenerBus-listenerThread, listenerThread to poll events>>. Emitters are supposed to use <<post, `post` method to post `SparkListenerEvent` events>>.
+`LiveListenerBus` is a single-JVM <<SparkListenerBus, SparkListenerBus>> that uses <<listenerThread, listenerThread to poll events>>. Emitters are supposed to use <<post, `post` method to post `SparkListenerEvent` events>>.
 
 NOTE: The event queue is http://docs.oracle.com/javase/8/docs/api/java/util/concurrent/LinkedBlockingQueue.html[java.util.concurrent.LinkedBlockingQueue] with capacity of 10000 `SparkListenerEvent` events.
 
@@ -12,7 +12,7 @@ NOTE: An instance of `LiveListenerBus` is <<listenerBus, created in SparkContext
 
 CAUTION: FIXME Remove the anchor
 
-=== [[LiveListenerBus-post]] Posting SparkListenerEvent Events (post method)
+=== [[post]] Posting SparkListenerEvent Events (post method)
 
 [source, scala]
 ----
@@ -21,7 +21,7 @@ post(event: SparkListenerEvent): Unit
 
 `post` places the `SparkListenerEvent` event onto the internal `eventQueue` queue.
 
-If the placement was not successful (it could not since it is tapped at 10000 events) <<LiveListenerBus-onDropEvent, onDropEvent>> method is called instead.
+If the placement was not successful (it could not since it is tapped at 10000 events) <<onDropEvent, onDropEvent>> method is called instead.
 
 If the listener has already been stopped, the following ERROR appears in the logs:
 
@@ -29,14 +29,14 @@ If the listener has already been stopped, the following ERROR appears in the log
 ERROR [name] has already stopped! Dropping event [event]
 ```
 
-=== [[LiveListenerBus-onDropEvent]] Event Dropped Callback (onDropEvent method)
+=== [[onDropEvent]] Event Dropped Callback (onDropEvent method)
 
 [source, scala]
 ----
 onDropEvent(event: SparkListenerEvent): Unit
 ----
 
-`onDropEvent` is called when no further events can be added to the internal `eventQueue` queue (while <<LiveListenerBus-post, posting a SparkListenerEvent event>>).
+`onDropEvent` is called when no further events can be added to the internal `eventQueue` queue (while <<post, posting a SparkListenerEvent event>>).
 
 It simply prints out the following ERROR message to the logs and ensures that it happens only once.
 
@@ -46,14 +46,14 @@ ERROR Dropping SparkListenerEvent because no remaining room in event queue. This
 
 NOTE: It uses the internal `logDroppedEvent` atomic variable to track the state.
 
-=== [[LiveListenerBus-start]] Starting LiveListenerBus (start method)
+=== [[start]] Starting LiveListenerBus (start method)
 
 [source, scala]
 ----
 start(sc: SparkContext): Unit
 ----
 
-`start` sets `SparkContext` to `LiveListenerBus` and starts <<LiveListenerBus-listenerThread, listenerThread to process events>>.
+`start` sets `SparkContext` to `LiveListenerBus` and starts <<listenerThread, listenerThread to process events>>.
 
 If `LiveListenerBus` has already been started, a `IllegalStateException` is thrown:
 
@@ -61,9 +61,9 @@ If `LiveListenerBus` has already been started, a `IllegalStateException` is thro
 [name] already started!
 ```
 
-=== [[LiveListenerBus-listenerThread]] listenerThread to Poll Events
+=== [[listenerThread]] listenerThread to Poll Events
 
-`LiveListenerBus` uses `SparkListenerBus` single daemon thread that ensures that the polling events from the event queue is only after <<LiveListenerBus-start, the listener was started>> and only one event at a time.
+`LiveListenerBus` uses `SparkListenerBus` single daemon thread that ensures that the polling events from the event queue is only after <<start, the listener was started>> and only one event at a time.
 
 CAUTION: FIXME There is some logic around no events in the queue.
 
