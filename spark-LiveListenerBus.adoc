@@ -12,6 +12,23 @@ NOTE: An instance of `LiveListenerBus` is <<listenerBus, created in SparkContext
 
 CAUTION: FIXME Remove the anchor
 
+=== [[start]] Starting LiveListenerBus (start method)
+
+[source, scala]
+----
+start(sc: SparkContext): Unit
+----
+
+`start` starts <<listenerThread, processing events>>.
+
+Internally, it saves the input `SparkContext` for later use and starts <<listenerThread, listenerThread>>. It makes sure that it only happens when `LiveListenerBus` has not been started before (i.e. `started` is disabled).
+
+If however `LiveListenerBus` has already been started, a `IllegalStateException` is thrown:
+
+```
+[name] already started!
+```
+
 === [[post]] Posting SparkListenerEvent Events (post method)
 
 [source, scala]
@@ -19,11 +36,13 @@ CAUTION: FIXME Remove the anchor
 post(event: SparkListenerEvent): Unit
 ----
 
-`post` places the `SparkListenerEvent` event onto the internal `eventQueue` queue.
+`post` puts the input `event` onto the internal `eventQueue` queue and releases the internal `eventLock` semaphore. If the event placement was not successful (and it could happen since it is tapped at 10000 events) <<onDropEvent, onDropEvent>> method is called.
 
-If the placement was not successful (it could not since it is tapped at 10000 events) <<onDropEvent, onDropEvent>> method is called instead.
+The event publishing is only possible when `stopped` flag has been enabled.
 
-If the listener has already been stopped, the following ERROR appears in the logs:
+CAUTION: FIXME Who's enabling the `stopped` flag and when/why?
+
+If `LiveListenerBus` has been stopped, the following ERROR appears in the logs:
 
 ```
 ERROR [name] has already stopped! Dropping event [event]
@@ -46,22 +65,24 @@ ERROR Dropping SparkListenerEvent because no remaining room in event queue. This
 
 NOTE: It uses the internal `logDroppedEvent` atomic variable to track the state.
 
-=== [[start]] Starting LiveListenerBus (start method)
+=== [[stop]] Stopping LiveListenerBus
 
 [source, scala]
 ----
-start(sc: SparkContext): Unit
+stop(): Unit
 ----
 
-`start` sets `SparkContext` to `LiveListenerBus` and starts <<listenerThread, listenerThread to process events>>.
+`stop` releases the internal `eventLock` semaphore and waits until <<listenerThread, listenerThread>> dies. It can only happen after all events were posted (and polling `eventQueue` gives nothing).
 
-If `LiveListenerBus` has already been started, a `IllegalStateException` is thrown:
+It checks that `started` flag is enabled (i.e. `true`) and throws a `IllegalStateException` otherwise.
 
 ```
-[name] already started!
+Attempted to stop [name] that has not yet started!
 ```
 
-=== [[listenerThread]] listenerThread to Poll Events
+`stopped` flag is enabled.
+
+=== [[listenerThread]] listenerThread for Event Polling
 
 `LiveListenerBus` uses `SparkListenerBus` single daemon thread that ensures that the polling events from the event queue is only after <<start, the listener was started>> and only one event at a time.
 
