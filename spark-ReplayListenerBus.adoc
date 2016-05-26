@@ -1,0 +1,34 @@
+== ReplayListenerBus
+
+`ReplayListenerBus` is a custom link:spark-LiveListenerBus.adoc#SparkListenerBus[SparkListenerBus] that can <<replay, replay JSON-encoded `SparkListenerEvent` events from a stream and post them to listeners>>.
+
+NOTE: `ReplayListenerBus` is a `private[spark]` class in `org.apache.spark.scheduler` package.
+
+==== [[replay]] Replaying JSON-encoded SparkListenerEvents from Stream (replay method)
+
+[source, scala]
+----
+replay(
+  logData: InputStream,
+  sourceName: String,
+  maybeTruncated: Boolean = false): Unit
+----
+
+`replay` reads JSON-encoded link:spark-LiveListenerBus.adoc#SparkListenerEvent[SparkListenerEvent] events from `logData` (one event per line) and posts them to all registered link:spark-LiveListenerBus.adoc#SparkListenerInterface[SparkListenerInterface listeners].
+
+`replay` uses `JsonProtocol.sparkEventFromJson` to convert JSON-encoded events to link:spark-LiveListenerBus.adoc#SparkListenerInterface[SparkListenerInterface listeners] objects.
+
+NOTE: `replay` uses *jackson* from http://json4s.org/[json4s] library to parse the AST for JSON.
+
+When there is an exception parsing a JSON event, you may see the following WARN message in the logs (for the last line) or a `JsonParseException`.
+
+```
+WARN Got JsonParseException from log file $sourceName at line [lineNumber], the file might not have finished writing cleanly.
+```
+
+Any other non-IO exceptions end up with the following ERROR messages in the logs:
+
+```
+ERROR Exception parsing Spark event log: [sourceName]
+ERROR Malformed line #[lineNumber]: [currentLine]
+```
