@@ -35,6 +35,15 @@ log4j.logger.org.apache.spark.scheduler.cluster.CoarseGrainedSchedulerBackend=DE
 ```
 ====
 
+=== [[minRegisteredRatio]] minRegisteredRatio
+
+[source, scala]
+----
+minRegisteredRatio: Double
+----
+
+`minRegisteredRatio` returns a ratio between `0` and `1` (inclusive). You can use <<spark.scheduler.minRegisteredResourcesRatio, spark.scheduler.minRegisteredResourcesRatio>> to control the value.
+
 === [[start]] Starting (start method)
 
 `start` initializes <<CoarseGrainedScheduler, CoarseGrainedScheduler RPC Endpoint>>.
@@ -88,11 +97,11 @@ NOTE: `killTask` is part of the link:spark-scheduler-backends.adoc#contract[Sche
 
 === [[isReady]] Delaying Task Launching (isReady method)
 
-`isReady` is a custom implementation of link:spark-scheduler-backends.adoc#contract[isReady from the SchedulerBackend Contract] that allows to delay task launching until sufficient resources are registered or <<settings, spark.scheduler.maxRegisteredResourcesWaitingTime>> passes.
+`isReady` is a custom implementation of link:spark-scheduler-backends.adoc#contract[isReady from the `SchedulerBackend` Contract] that allows to delay task launching until sufficient resources are registered or <<settings, spark.scheduler.maxRegisteredResourcesWaitingTime>> passes.
 
 NOTE: `isReady` is used exclusively by link:spark-taskschedulerimpl.adoc#waitBackendReady[TaskSchedulerImpl.waitBackendReady].
 
-It starts checking whether there are sufficient resources available (using <<sufficientResourcesRegistered, sufficientResourcesRegistered>> method that custom scheduler backends are supposed to override).
+It starts checking whether there are sufficient resources available (using <<sufficientResourcesRegistered, sufficientResourcesRegistered>> method).
 
 NOTE: By default `sufficientResourcesRegistered` always responds that sufficient resources are available.
 
@@ -103,7 +112,7 @@ If <<sufficientResourcesRegistered, sufficient resources are available>>, you sh
 INFO SchedulerBackend is ready for scheduling beginning after reached minRegisteredResourcesRatio: [minRegisteredRatio]
 ----
 
-The method finishes positive (i.e. returns `true`).
+The method finishes returning `true`.
 
 NOTE: `minRegisteredRatio` in the logs above is in the range 0 to 1 (uses <<settings, spark.scheduler.minRegisteredResourcesRatio>>) to denote the minimum ratio of registered resources to total expected resources before submitting tasks.
 
@@ -116,15 +125,13 @@ You should see the following INFO message in the logs:
 INFO SchedulerBackend is ready for scheduling beginning after waiting maxRegisteredResourcesWaitingTime: [maxRegisteredWaitingTimeMs](ms)
 ----
 
-The method finishes positive (i.e. returns `true`).
+The method finishes returning `true`.
 
-Otherwise it finishes negative (i.e. returns `false`).
+Otherwise, when <<sufficientResourcesRegistered, no sufficient resources are available>> and <<spark.scheduler.maxRegisteredResourcesWaitingTime, maxRegisteredWaitingTimeMs>> has not been passed, it finishes returning `false`.
 
 === [[sufficientResourcesRegistered]] sufficientResourcesRegistered
 
 `sufficientResourcesRegistered` always responds that sufficient resources are available.
-
-It is expected that custom scheduler backends are supposed to override.
 
 === [[stopExecutors]] Stop All Executors (stopExecutors method)
 
@@ -289,9 +296,18 @@ Using `ExecutorData` it gets the executor's RPC endpoint to send link:spark-exec
 
 === [[settings]] Settings
 
-[[spark.rpc.message.maxSize]]
-* `spark.rpc.message.maxSize` (default: `128` and not greater than `2047m` - `200k` for the largest frame size for RPM messages (serialized tasks or task results) in MB.
+==== [[spark.rpc.message.maxSize]] spark.rpc.message.maxSize
 
-* `spark.default.parallelism` (default: maximum of `totalCoreCount` and 2) - link:spark-scheduler-backends.adoc#defaultParallelism[default parallelism] for the scheduler backend.
-* `spark.scheduler.minRegisteredResourcesRatio` (default: `0`) - a double value between 0 and 1 (including) that controls the minimum ratio of (registered resources / total expected resources) before submitting tasks. See <<isReady, isReady>>.
-* `spark.scheduler.maxRegisteredResourcesWaitingTime` (default: `30s`) - the time to wait for sufficient resources available. See <<isReady, isReady>>.
+`spark.rpc.message.maxSize` (default: `128` and not greater than `2047m` - `200k` for the largest frame size for RPM messages (serialized tasks or task results) in MB.
+
+==== [[spark.default.parallelism]] spark.default.parallelism
+
+`spark.default.parallelism` (default: maximum of `totalCoreCount` and 2) - link:spark-scheduler-backends.adoc#defaultParallelism[default parallelism] for the scheduler backend.
+
+==== [[spark.scheduler.minRegisteredResourcesRatio]] spark.scheduler.minRegisteredResourcesRatio
+
+`spark.scheduler.minRegisteredResourcesRatio` (default: `0`) - a double value between 0 and 1 (including) that controls the minimum ratio of (registered resources / total expected resources) before submitting tasks. See <<isReady, isReady>>.
+
+==== [[spark.scheduler.maxRegisteredResourcesWaitingTime]] spark.scheduler.maxRegisteredResourcesWaitingTime
+
+`spark.scheduler.maxRegisteredResourcesWaitingTime` (default: `30s`) - the time to wait for sufficient resources available. See <<isReady, isReady>>.
