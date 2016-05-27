@@ -26,10 +26,6 @@ Refer to link:spark-logging.adoc[Logging].
 
 CAUTION: FIXME How to trigger the messages in the logs? What to execute to have them printed out to the logs?
 
-=== [[allocatePage]] allocatePage
-
-CAUTION: FIXME
-
 === [[creating-instance]] Creating Instance
 
 [source, java]
@@ -126,17 +122,82 @@ Before `cleanUpAllAllocatedMemory` returns, it calls link:spark-sparkenv.adoc#Me
 
 CAUTION: FIXME Image with the interactions to `MemoryManager`.
 
+=== [[allocatePage]] Allocating Memory Block for Tungsten Consumers (allocatePage method)
+
+[source, java]
+----
+MemoryBlock allocatePage(long size, MemoryConsumer consumer)
+----
+
+NOTE: It only handles *Tungsten Consumers*, i.e. `MemoryConsumers` in  `tungstenMemoryMode` mode.
+
+`allocatePage` allocates a block of memory (aka _page_) smaller than `MAXIMUM_PAGE_SIZE_BYTES` maximum size.
+
+It checks `size` against the internal `MAXIMUM_PAGE_SIZE_BYTES` maximum size. If it is greater than the maximum size, the following `IllegalArgumentException` is thrown:
+
+```
+Cannot allocate a page with more than [MAXIMUM_PAGE_SIZE_BYTES] bytes
+```
+
+It then <<acquireExecutionMemory, acquires execution memory>> (for the input `size` and `consumer`).
+
+It finishes by returning `null` when no execution memory could be acquired.
+
+With the execution memory acquired, it finds the smallest unallocated page index and records the page number (using <<allocatedPages, allocatedPages>> registry).
+
+If the index is `PAGE_TABLE_SIZE` or higher, <<releaseExecutionMemory, releaseExecutionMemory(acquired, consumer)>> is called and then the following `IllegalStateException` is thrown:
+
+```
+Have already allocated a maximum of [PAGE_TABLE_SIZE] pages
+```
+
+It then attempts to allocate a `MemoryBlock` from `Tungsten MemoryAllocator` (calling `memoryManager.tungstenMemoryAllocator().allocate(acquired)`).
+
+CAUTION: FIXME What is `MemoryAllocator`?
+
+When successful, `MemoryBlock` gets assigned `pageNumber` and it gets added to the internal <<pageTable, pageTable>> registry.
+
+You should see the following TRACE message in the logs:
+
+```
+TRACE Allocate page number [pageNumber] ([acquired] bytes)
+```
+
+The `page` is returned.
+
+If a `OutOfMemoryError` is thrown when allocating a `MemoryBlock` page, the following WARN message is printed out to the logs:
+
+```
+WARN Failed to allocate a page ([acquired] bytes), try again.
+```
+
+And `acquiredButNotUsed` gets `acquired` memory space with the `pageNumber` cleared in <<allocatedPages, allocatedPages>> (i.e. the index for `pageNumber` gets `false`).
+
+CAUTION: FIXME Why is the code tracking `acquiredButNotUsed`?
+
+Another <<allocatePage, allocatePage>> attempt is recursively tried.
+
+CAUTION: FIXME Why is there a hope for being able to allocate a page?
+
+=== [[releaseExecutionMemory]] releaseExecutionMemory
+
+CAUTION: FIXME
+
 === [[internal-registries]] Internal Registries
 
 ==== pageTable
 
 `pageTable` is an internal array of size `PAGE_TABLE_SIZE` with indices being `MemoryBlock` objects.
 
-==== allocatedPages
+When <<allocatePage, allocating a `MemoryBlock` page for Tungsten consumers>>, the index corresponds to `pageNumber` that points to the `MemoryBlock` page allocated.
 
-`allocatedPages` is an internal bit set of size `PAGE_TABLE_SIZE` with all bits initially disabled.
+==== [[allocatedPages]] allocatedPages
+
+`allocatedPages` is an internal collection of flags (`true` or `false` values) of size `PAGE_TABLE_SIZE` with all bits initially disabled (i.e. `false`).
 
 TIP: `allocatedPages` is https://docs.oracle.com/javase/8/docs/api/java/util/BitSet.html[java.util.BitSet].
+
+When <<allocatePage, allocatePage>> is called, it will record the page in the registry by setting the bit at the specified index (that corresponds to the allocated page) to `true`.
 
 ==== [[consumers]] consumers
 
