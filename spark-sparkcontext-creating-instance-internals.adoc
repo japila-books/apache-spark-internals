@@ -1,6 +1,6 @@
 == Inside Creating SparkContext
 
-This document describes the initialization sequence of link:spark-sparkcontext.adoc[SparkContext].
+This document describes what happens when you link:spark-sparkcontext.adoc#creating-instance[create a new SparkContext].
 
 [source, scala]
 ----
@@ -9,13 +9,13 @@ import org.apache.spark.{SparkConf, SparkContext}
 // 1. Create Spark configuration
 val conf = new SparkConf()
   .setAppName("SparkMe Application")
-  .setMaster("local[*]")
+  .setMaster("local[*]")  // local mode
 
 // 2. Create Spark context
 val sc = new SparkContext(conf)
 ----
 
-NOTE: The example uses Spark in link:spark-local.adoc[local mode], i.e. `setMaster("local[*]")`, but the initialization with link:spark-cluster.adoc[the other cluster modes] would follow similar steps.
+NOTE: The example uses Spark in link:spark-local.adoc[local mode], but the initialization with link:spark-cluster.adoc[the other cluster modes] would follow similar steps.
 
 It all starts with checking link:spark-sparkcontext.adoc#allowMultipleContexts[whether SparkContexts can be shared or not using `spark.driver.allowMultipleContexts`].
 
@@ -25,16 +25,12 @@ The very first information printed out is the version of Spark as an INFO messag
 INFO SparkContext: Running Spark version 2.0.0-SNAPSHOT
 ```
 
-link:spark-sparkcontext.adoc#listenerBus[listenerBus] is created.
+A link:spark-LiveListenerBus.adoc#creating-instance[LiveListenerBus instance is created] (as `listenerBus`).
 
-The current user name is computed, i.e. read from a value of `SPARK_USER` environment variable or the currently logged-in user. It is available as later on as `sparkUser`.
+[[sparkUser]]
+The link:spark-sparkcontext.adoc#sparkUser[current user name] is computed.
 
-```
-scala> sc.sparkUser
-res0: String = jacek
-```
-
-CAUTION: FIXME Where is `sparkUser` useful?
+CAUTION: FIXME Where is `sparkUser` used?
 
 It saves the input `SparkConf` (as `_conf`).
 
@@ -261,6 +257,21 @@ createSparkEnv(
 `createSparkEnv` simply delegates the call to link:spark-sparkenv.adoc#createDriverEnv[SparkEnv to create a `SparkEnv` for the driver].
 
 It calculates the number of cores to `1` for `local` master URL, the number of processors available for JVM for `*` or the exact number in the master URL, or `0` for the cluster master URLs.
+
+=== [[localHostName]] Utils.getCurrentUserName
+
+[source, scala]
+----
+getCurrentUserName(): String
+----
+
+`getCurrentUserName` computes the user name who has started the link:spark-sparkcontext.adoc[SparkContext] instance.
+
+NOTE: It is later available as link:spark-sparkcontext.adoc#sparkUser[SparkContext.sparkUser].
+
+Internally, it reads link:spark-sparkcontext.adoc#SPARK_USER[SPARK_USER] environment variable and, if not set, reverts to Hadoop Security API's `UserGroupInformation.getCurrentUser().getShortUserName()`.
+
+NOTE: It is another place where Spark relies on Hadoop API for its operation.
 
 === [[localHostName]] Utils.localHostName
 
