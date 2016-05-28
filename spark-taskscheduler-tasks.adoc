@@ -1,6 +1,6 @@
 == Tasks
 
-*Task*  (aka _command_) is an individual unit of work that an executor runs on a single machine. It is represented by <<Task, Task>> abstract class.
+*Task* (aka _command_) is an individual unit of work that an link:spark-executor.adoc#launchTask[executor runs on a single machine]. It is represented by <<Task, Task>> abstract class.
 
 .Tasks correspond to partitions in RDD
 image::images/rdd-partitions-job-tasks.png[align="center"]
@@ -15,10 +15,10 @@ CAUTION: FIXME What are `stageAttemptId` and `taskAttemptId`?
 
 There are two kinds of tasks:
 
-* *ShuffleMapTask* that executes a task and divides the task's output to multiple buckets (based on the task's partitioner). See <<shufflemaptask, ShuffleMapTask>>.
-* *ResultTask* that executes a task and sends the task's output back to the driver application. See <<ResultTask, ResultTask>>.
+* <<shufflemaptask, ShuffleMapTask>> that executes a task and divides the task's output to multiple buckets (based on the task's partitioner).
+* <<ResultTask, ResultTask>> that executes a task and sends the task's output back to the driver application.
 
-The very last stage in a job consists of multiple `ResultTasks`, while earlier stages consist of <<shufflemaptask, ShuffleMapTasks>>.
+The very last stage in a job consists of multiple `ResultTasks`, while earlier stages are a set of <<shufflemaptask, ShuffleMapTasks>>.
 
 === [[attributes]] Task Attributes
 
@@ -34,11 +34,27 @@ A `Task` instance is uniquely identified by the following task attributes:
 
 * `localProperties` - local private properties of the task.
 
-=== [[run]][[execution]] Task Execution (run method)
+=== [[run]][[execution]] Running Task Thread (run method)
 
-CAUTION: FIXME What does `Task.run` do?
+[source, scala]
+----
+run(
+  taskAttemptId: Long,
+  attemptNumber: Int,
+  metricsSystem: MetricsSystem): T
+----
 
-Consult link:spark-executor-taskrunner.adoc[TaskRunner].
+`run` link:spark-blockmanager.adoc#registerTask[registers task attempt id to the executor's BlockManager] and link:spark-taskscheduler-taskcontext.adoc#creating-instance[creates a `TaskContextImpl`] that in turn gets set as the thread local link:spark-taskscheduler-taskcontext.adoc[TaskContext].
+
+If the task has been killed before the task runs it is <<kill, killed>> (with `interruptThread` flag disabled).
+
+The <<runTask, task runs>>.
+
+CAUTION: FIXME Describe `catch` and `finally` blocks.
+
+NOTE: When `run` is called from link:spark-executor-taskrunner.adoc#run[TaskRunner.run], the `Task` has just been deserialized from `taskBytes` that were sent over the wire to an executor. `localProperties` and link:spark-taskscheduler-taskmemorymanager.adoc[TaskMemoryManager] are already assigned.
+
+=== [[runTask]] Running Task (runTask method)
 
 === [[states]] Task States
 
@@ -100,3 +116,9 @@ CAUTION: FIXME When could `context` and `interruptThread` not be set?
 A *ShuffleMapTask* divides the elements of an RDD into multiple buckets (based on a partitioner specified in link:spark-rdd-dependencies.adoc#ShuffleDependency[ShuffleDependency]).
 
 === [[ResultTask]] ResultTask
+
+CAUTION: FIXME
+
+=== [[taskMemoryManager]] taskMemoryManager attribute
+
+`taskMemoryManager` is the link:spark-taskscheduler-taskmemorymanager.adoc[TaskMemoryManager] that manages the memory allocated by the task.
