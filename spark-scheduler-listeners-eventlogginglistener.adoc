@@ -2,9 +2,15 @@
 
 `EventLoggingListener` is a link:spark-scheduler-listeners.adoc#SparkListener[SparkListener] that <<logEvent, logs JSON-encoded events>> to a file.
 
-Once enabled (see <<spark.eventLog.enabled, spark.eventLog.enabled>>) it writes events to a log file under <<spark.eventLog.dir, spark.eventLog.dir>> directory. All link:spark-scheduler-listeners.adoc#events[Spark events] but `SparkListenerBlockUpdated` and `SparkListenerExecutorMetricsUpdate` are logged. Events can optionally be <<compressing-events, compressed>>.
+When <<spark.eventLog.enabled, enabled>> it writes events to a log file under <<spark.eventLog.dir, spark.eventLog.dir>> directory. All link:spark-scheduler-listeners.adoc#events[Spark events] are logged.
+
+NOTE: `SparkListenerBlockUpdated` and `SparkListenerExecutorMetricsUpdate` are not logged.
+
+Events can optionally be <<compressing-events, compressed>>.
 
 In-flight log files are with `.inprogress` extension.
+
+TIP: You can use link:spark-HistoryServer.adoc[History Server] to view the logs using a web interface.
 
 NOTE: It is a `private[spark]` class in `org.apache.spark.scheduler` package.
 
@@ -29,7 +35,7 @@ NOTE: When initialized with no Hadoop's `Configuration` it calls link:spark-hado
 
 === [[start]] Starting EventLoggingListener (start method)
 
-`start` checks whether `logBaseDir` is really a directory, and if it is not, it throws `IllegalArgumentException` with the following message:
+`start` checks whether `logBaseDir` is really a directory, and if it is not, it throws a `IllegalArgumentException` with the following message:
 
 ```
 Log directory [logBaseDir] does not exist.
@@ -37,7 +43,7 @@ Log directory [logBaseDir] does not exist.
 
 The log file's working name is created based on `appId` with or without the compression codec used and `appAttemptId`, i.e. `local-1461696754069`. It also uses `.inprogress` extension.
 
-If overwrite is enabled, i.e. <<settings, spark.eventLog.overwrite>> is `true`, you should see the WARN message:
+If <<spark.eventLog.overwrite, overwrite is enabled>>, you should see the WARN message:
 
 ```
 WARN EventLoggingListener: Event log [path] already exists. Overwriting...
@@ -88,27 +94,31 @@ Target log file already exists ([logPath])
 
 === [[compressing-events]] Compressing Logged Events
 
-<<spark.eventLog.compress, spark.eventLog.compress>> flag controls whether to compress events.
-
-If enabled (`true`), `CompressionCodec.createCodec(sparkConf)` is executed to set up a compression codec.
+If <<spark.eventLog.compress, event compression is enabled>>, `CompressionCodec.createCodec(sparkConf)` is executed to set up a compression codec.
 
 CAUTION: FIXME What compression codecs are supported?
 
 === [[settings]] Settings
 
-`EventLoggingListener` uses the following settings:
+==== [[spark.eventLog.enabled]] spark.eventLog.enabled
 
-[[spark.eventLog.enabled]]
-* `spark.eventLog.enabled` (default: `false`) - whether to log Spark events that encode the information displayed in the UI to persisted storage. It is useful for reconstructing the Web UI after a Spark application has finished.
+`spark.eventLog.enabled` (default: `false`) - whether to log Spark events that encode the information displayed in the UI to persisted storage. It is useful for reconstructing the Web UI after a Spark application has finished.
 
-[[spark.eventLog.compress]]
-* `spark.eventLog.compress` (default: `false`) - whether to compress events. See <<compressing-events, Compressing Events>>.
+==== [[spark.eventLog.dir]] spark.eventLog.dir
 
-[[spark.eventLog.overwrite]]
-* `spark.eventLog.overwrite` (default: `false`) - whether to delete or at least overwrite an existing `.inprogress` log file.
-
-[[spark.eventLog.dir]]
-* `spark.eventLog.dir` (default: `/tmp/spark-events`) - path to the directory in which events are logged, e.g. `hdfs://namenode:8021/directory`. The directory must exist before Spark starts up. See link:spark-sparkcontext.adoc#creating-instance[Creating a SparkContext].
+`spark.eventLog.dir` (default: `/tmp/spark-events`) - path to the directory in which events are logged, e.g. `hdfs://namenode:8021/directory`. The directory must exist before Spark starts up. See link:spark-sparkcontext.adoc#creating-instance[Creating a SparkContext].
 * `spark.eventLog.buffer.kb` (default: `100`) - buffer size to use when writing to output streams.
 
-* `spark.eventLog.testing` (default: `false`) - internal flag for testing purposes to add JSON events to the internal `loggedEvents` array.
+==== [[spark.eventLog.overwrite]] spark.eventLog.overwrite
+
+`spark.eventLog.overwrite` (default: `false`) - whether to delete or at least overwrite an existing `.inprogress` log file.
+
+==== [[spark.eventLog.compress]] spark.eventLog.compress
+
+`spark.eventLog.compress` (default: `false`) controls whether to compress events (`true`) or not (`false`).
+
+See <<compressing-events, Compressing Events>>.
+
+==== [[spark.eventLog.testing]] spark.eventLog.testing
+
+`spark.eventLog.testing` (default: `false`) - internal flag for testing purposes to add JSON events to the internal `loggedEvents` array.

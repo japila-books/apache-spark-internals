@@ -13,11 +13,14 @@ image::diagrams/sparkcontext-services.png[align="center"]
 
 * Getting current configuration
 ** <<getConf, SparkConf>>
-** <<master, deployment environment>>
+** <<master, deployment environment (as master URL)>>
 ** <<appName, application name>>
 ** <<deployMode, deploy mode>>
 ** <<defaultParallelism, default level of parallelism>>
-** <<sparkUser, current Spark user>>
+** <<sparkUser, Spark user>>
+** <<startTime, the time (in milliseconds) when `SparkContext` was created>>
+** <<version, Spark version>>
+
 * Setting configuration
 ** <<master-url, mandatory master URL>>
 ** <<setting-local-properties, local properties>>
@@ -177,6 +180,15 @@ It is used for the methods like `SparkContext.parallelize`, `SparkContext.range`
 
 SparkContext queries link:spark-taskscheduler.adoc[TaskScheduler] for the default level of parallelism (refer to link:spark-taskscheduler.adoc#contract[TaskScheduler Contract]).
 
+=== [[version]] Getting Spark Version
+
+[source, scala]
+----
+version: String
+----
+
+`version` returns the Spark version this `SparkContext` uses.
+
 === [[setting-local-properties]][[setLocalProperty]] Setting Local Properties
 
 [source, scala]
@@ -240,16 +252,6 @@ It is used in:
 === [[spark-configuration]] Spark Configuration
 
 CAUTION: FIXME
-
-=== [[allowMultipleContexts]] spark.driver.allowMultipleContexts
-
-Quoting the scaladoc of  http://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.SparkContext[org.apache.spark.SparkContext]:
-
-> Only one SparkContext may be active per JVM. You must `stop()` the active SparkContext before creating a new one.
-
-The above quote is not necessarily correct when `spark.driver.allowMultipleContexts` is `true` (default: `false`). If `true`, Spark logs warnings instead of throwing exceptions when multiple SparkContexts are active, i.e. multiple SparkContext are running in this JVM. When creating an instance of `SparkContext`, Spark marks the current thread as having it being created (very early in the instantiation process).
-
-CAUTION: It's not guaranteed that Spark will work properly with two or more SparkContexts. Consider the feature a work in progress.
 
 === [[sparkcontext-and-rdd]] SparkContext and RDDs
 
@@ -626,7 +628,22 @@ NOTE: It is created while <<creating-instance-internals, SparkContext is being c
 
 NOTE: `listenerBus` is a `private[spark]` value in `SparkContext`.
 
-=== [[sparkUser]] Current Spark User (sparkUser value)
+=== [[startTime]] Time when SparkContext was Created (startTime value)
+
+[source, scala]
+----
+startTime: Long
+----
+
+`startTime` is the time in milliseconds when <<creating-instance, SparkContext was created>>.
+
+[source, scala]
+----
+scala> sc.startTime
+res0: Long = 1464425605653
+----
+
+=== [[sparkUser]] Spark User (sparkUser value)
 
 [source, scala]
 ----
@@ -636,6 +653,35 @@ sparkUser: String
 `sparkUser` is the user who started the `SparkContext` instance.
 
 NOTE: It is computed when link:spark-sparkcontext-creating-instance-internals.adoc#sparkUser[SparkContext is created] using link:spark-sparkcontext-creating-instance-internals.adoc#[Utils.getCurrentUserName].
+
+=== [[settings]] Settings
+
+==== [[spark.driver.allowMultipleContexts]] spark.driver.allowMultipleContexts
+
+Quoting the scaladoc of  http://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.SparkContext[org.apache.spark.SparkContext]:
+
+> Only one SparkContext may be active per JVM. You must `stop()` the active SparkContext before creating a new one.
+
+You can however control the behaviour using `spark.driver.allowMultipleContexts` flag.
+
+It is disabled, i.e. `false`, by default.
+
+If enabled (i.e. `true`), Spark prints the following WARN message to the logs:
+
+```
+WARN Multiple running SparkContexts detected in the same JVM!
+```
+
+If disabled (default), it will throw an `SparkException` exception:
+
+```
+Only one SparkContext may be running in this JVM (see SPARK-2243). To ignore this error, set spark.driver.allowMultipleContexts = true. The currently running SparkContext was created at:
+[ctx.creationSite.longForm]
+```
+
+When creating an instance of `SparkContext`, Spark marks the current thread as having it being created (very early in the instantiation process).
+
+CAUTION: It's not guaranteed that Spark will work properly with two or more SparkContexts. Consider the feature a work in progress.
 
 === [[environment-variables]] Environment Variables
 

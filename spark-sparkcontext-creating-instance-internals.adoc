@@ -17,13 +17,33 @@ val sc = new SparkContext(conf)
 
 NOTE: The example uses Spark in link:spark-local.adoc[local mode], but the initialization with link:spark-cluster.adoc[the other cluster modes] would follow similar steps.
 
-It all starts with checking link:spark-sparkcontext.adoc#allowMultipleContexts[whether SparkContexts can be shared or not using `spark.driver.allowMultipleContexts`].
+Creating `SparkContext` instance starts by setting the internal `allowMultipleContexts` field with the value of link:spark-sparkcontext.adoc#spark.driver.allowMultipleContexts[spark.driver.allowMultipleContexts] and marking this `SparkContext` instance as partially constructed. It makes sure that no other thread is creating a `SparkContext` instance in this JVM. It does so by synchronizing on `SPARK_CONTEXT_CONSTRUCTOR_LOCK` and using the internal atomic reference `activeContext` (that eventually has a fully-created `SparkContext` instance).
+
+[NOTE]
+====
+The entire code of `SparkContext` that creates a fully-working `SparkContext` instance is between two statements:
+
+[source, scala]
+----
+SparkContext.markPartiallyConstructed(this, allowMultipleContexts)
+
+// the SparkContext code goes here
+
+SparkContext.setActiveContext(this, allowMultipleContexts)
+----
+====
+
+link:spark-sparkcontext.adoc#startTime[startTime] is set to the current time in milliseconds.
+
+<<stopped, stopped>> internal flag is set to `false`.
 
 The very first information printed out is the version of Spark as an INFO message:
 
 ```
 INFO SparkContext: Running Spark version 2.0.0-SNAPSHOT
 ```
+
+TIP: You can use link:spark-sparkcontext.adoc#version[version] method to learn about the current Spark version or `org.apache.spark.SPARK_VERSION` value.
 
 A link:spark-LiveListenerBus.adoc#creating-instance[LiveListenerBus instance is created] (as `listenerBus`).
 
@@ -282,3 +302,7 @@ It starts by checking `SPARK_LOCAL_HOSTNAME` environment variable for the value.
 NOTE: `Utils.localHostName` is executed while link:spark-sparkcontext.adoc#creating-instance[SparkContext is being created].
 
 CAUTION: FIXME Review the rest.
+
+=== [[stopped]] stopped flag
+
+CAUTION: FIXME Where is this used?
