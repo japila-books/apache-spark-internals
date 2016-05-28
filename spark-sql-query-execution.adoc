@@ -10,7 +10,7 @@ NOTE: `QueryExecution` is a transient feature of a link:spark-sql-dataset.adoc[D
 
 [source, scala]
 ----
-val ds = sqlContext.range(5)
+val ds = spark.range(5)
 scala> ds.queryExecution
 res17: org.apache.spark.sql.execution.QueryExecution =
 == Parsed Logical Plan ==
@@ -69,28 +69,16 @@ Import the package and do the full analysis using `debug` method.
 [source, scala]
 ----
 import org.apache.spark.sql.execution.debug._
-scala> sqlContext.range(10).where('id === 4).debug
-16/04/18 23:44:04 DEBUG CodeGenerator:
-/* 001 */ public Object generate(Object[] references) {
-/* 002 */   return new GeneratedIterator(references);
-/* 003 */ }
-/* 004 */
-/* 005 */ /** Codegened pipeline for:
-...
-/* 133 */       if (shouldStop()) return;
-/* 134 */     }
-/* 135 */   }
-/* 136 */ }
 
-16/04/18 23:44:04 INFO CodeGenerator: Code generated in 63.1855 ms
+scala> spark.range(10).where('id === 4).debug
 Results returned: 1
 == WholeStageCodegen ==
 Tuples output: 1
  id LongType: {java.lang.Long}
-== Filter (id#20L = 4) ==
+== Filter (id#12L = 4) ==
 Tuples output: 0
  id LongType: {}
-== Range 0, 1, 8, 10, [id#20L] ==
+== Range (0, 10, splits=8) ==
 Tuples output: 0
  id LongType: {}
 ----
@@ -100,26 +88,44 @@ You can also perform `debugCodegen`.
 [source, scala]
 ----
 import org.apache.spark.sql.execution.debug._
-scala> sqlContext.range(10).where('id === 4).debugCodegen
-16/04/18 23:45:33 DEBUG CodeGenerator:
-/* 001 */ public Object generate(Object[] references) {
-/* 002 */   return new GeneratedIterator(references);
-...
-16/04/18 23:45:33 INFO CodeGenerator: Code generated in 24.757977 ms
+
+scala> spark.range(10).where('id === 4).debugCodegen
 Found 1 WholeStageCodegen subtrees.
 == Subtree 1 / 1 ==
-WholeStageCodegen
-:  +- Filter (id#24L = 4)
-:     +- Range 0, 1, 8, 10, [id#24L]
+*Filter (id#8L = 4)
++- *Range (0, 10, splits=8)
 
 Generated code:
 /* 001 */ public Object generate(Object[] references) {
 /* 002 */   return new GeneratedIterator(references);
 /* 003 */ }
 /* 004 */
-/* 005 */ /** Codegened pipeline for:
-/* 006 */ * Filter (id#24L = 4)
-/* 007 */ +- Range 0, 1, 8, 10, [id#24L]
-/* 008 */ */
+/* 005 */ /**
+ * Codegend pipeline for
+ * Filter (id#8L = 4)
+ * +- Range (0, 10, splits=8)
+ */
 ...
+----
+
+[source, scala]
+----
+scala> spark.range(1, 1000).select('id+1+2+3, 'id+4+5+6).queryExecution.debug.codegen()
+Found 1 WholeStageCodegen subtrees.
+== Subtree 1 / 1 ==
+*Project [(((id#0L + 1) + 2) + 3) AS (((id + 1) + 2) + 3)#3L,(((id#0L + 4) + 5) + 6) AS (((id + 4) + 5) + 6)#4L]
++- *Range (1, 1000, splits=8)
+
+Generated code:
+/* 001 */ public Object generate(Object[] references) {
+/* 002 */   return new GeneratedIterator(references);
+/* 003 */ }
+/* 004 */
+/* 005 */ /**
+ * Codegend pipeline for
+...
+/* 111 */       if (shouldStop()) return;
+/* 112 */     }
+/* 113 */   }
+/* 114 */ }
 ----
