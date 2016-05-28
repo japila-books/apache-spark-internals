@@ -1,0 +1,49 @@
+== BlockInfo -- Metadata of Memory Block
+
+`BlockInfo` is a metadata of <<BlockId, memory block>> (aka _memory page_) -- the memory block's <<size, size>>, the <<readerCount, number of readers>> and the <<writerTask, writer task's id>>.
+
+It has a link:spark-rdd-caching.adoc#StorageLevel[StorageLevel], `ClassTag` and `tellMaster` flag.
+
+=== [[size]] Size (size attribute)
+
+`size` attribute is the size of the memory block. It starts with `0`.
+
+It represents the number of bytes that link:spark-blockmanager.adoc#putBytes[`BlockManager` saved] or link:spark-blockmanager.adoc#doPutIterator[BlockManager.doPutIterator].
+
+=== [[readerCount]] Reader Count (readerCount attribute)
+
+`readerCount` attribute is the number of readers of the memory block. It starts with `0`.
+
+It is incremented when a link:spark-BlockInfoManager.adoc#lockForReading[read lock is acquired] and decreases when the following happens:
+
+* The link:spark-blockmanager.adoc#unlock[memory block is unlocked]
+
+* link:spark-BlockInfoManager.adoc#releaseAllLocksForTask[All locks for the memory block obtained by a task are released].
+
+* The link:spark-BlockInfoManager.adoc#removeBlock[memory block is removed]
+
+* link:spark-BlockInfoManager.adoc#clear[Clearing the current state of `BlockInfoManager`].
+
+=== [[writerTask]] Writer Task (writerTask attribute)
+
+`writerTask` attribute is the task that owns the write lock for the memory block.
+
+A writer task can be one of the three possible identifiers:
+
+* `NO_WRITER` (i.e. `-1`) to denote no writers and hence no write lock in use.
+
+* `NON_TASK_WRITER` (i.e. `-1024`) for non-task threads, e.g. by a driver thread or by unit test code.
+
+* the task attempt id of the task which currently holds the write lock for this block.
+
+The writer task is assigned in the following scenarios:
+
+* A link:spark-BlockInfoManager.adoc#lockForWriting[write lock is requested for a memory block (with no writer and readers)]
+
+* A link:spark-BlockInfoManager.adoc#unlock[memory block is unlocked]
+
+* link:spark-BlockInfoManager.adoc#releaseAllLocksForTask[All locks obtained by a task are released]
+
+* A link:spark-BlockInfoManager.adoc#removeBlock[memory block is removed]
+
+* link:spark-BlockInfoManager.adoc#clear[Clearing the current state of `BlockInfoManager`].

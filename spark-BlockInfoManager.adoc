@@ -1,10 +1,10 @@
 == BlockInfoManager
 
-`BlockInfoManager` tracks <<infos, metadata for blocks>> and manages <<lockForReading, read locks>>.
+`BlockInfoManager` manages <<infos, memory blocks>> (aka _memory pages_). It controls concurrent access to memory blocks by <<lockForReading, read>> and <<lockForWriting, write>> locks (for existing and <<lockNewBlockForWriting, new ones>>).
+
+NOTE: *Locks* are the mechanism to control concurrent access to data and prevent destructive interaction between operations that use the same resource.
 
 NOTE: `BlockInfoManager` is a `private[storage]` class that belongs to `org.apache.spark.storage` package.
-
-TIP: *Locks* are the mechanism to control concurrent access to data and prevent destructive interaction between operations that use the same resource.
 
 [TIP]
 ====
@@ -18,6 +18,74 @@ log4j.logger.org.apache.spark.storage.BlockInfoManager=TRACE
 
 Refer to link:spark-logging.adoc[Logging].
 ====
+
+=== [[lockForReading]] Obtaining Read Lock (lockForReading method)
+
+[source, scala]
+----
+lockForReading(
+  blockId: BlockId,
+  blocking: Boolean = true): Option[BlockInfo]
+----
+
+`lockForReading` locks `blockId` memory block for reading when the block was registered earlier and no writer tasks use it.
+
+When executed, `lockForReading` prints out the following TRACE message to the logs:
+
+```
+TRACE BlockInfoManager: Task [currentTaskAttemptId] trying to acquire read lock for [blockId]
+```
+
+It looks up the metadata (in <<infos, infos>> registry).
+
+If no metadata could be found, it returns `None` which means that the block does not exist or was removed (and anybody could acquire a write lock).
+
+Otherwise, when the metadata was found, i.e. registered, it checks so-called _writerTask_. Only when the block has no writer tasks, a read lock can be acquired (i.e. `BlockInfo.writerTask` is `BlockInfo.NO_WRITER`). If so, the `readerCount` of the block metadata is incremented and the block is recorded in the internal <<readLocksByTask, readLocksByTask>> registry. You should see the following TRACE message in the logs:
+
+```
+TRACE BlockInfoManager: Task [taskAttemptId] acquired read lock for [blockId]
+```
+
+The `BlockInfo` for the `blockId` block is returned.
+
+NOTE: `-1024` is a special `taskAttemptId` used to mark a non-task thread, e.g. by a driver thread or by unit test code.
+
+For blocks with `writerTask` other than `NO_WRITER`, when `blocking` is enabled, `lockForReading` waits (until another thread invokes the `Object.notify` method or the `Object.notifyAll` methods for this object).
+
+With `blocking` enabled, it will repeat the waiting-for-read-lock sequence until either `None` or the lock is obtained.
+
+When `blocking` is disabled and the lock could not be obtained, `None` is returned immediately.
+
+NOTE: `lockForReading` is a `synchronized` method, i.e. no two objects can use this and other instance methods.
+
+=== [[lockForWriting]] Obtaining Write Lock (lockForWriting method)
+
+[source, scala]
+----
+lockForWriting(
+  blockId: BlockId,
+  blocking: Boolean = true): Option[BlockInfo]
+----
+
+When executed, `lockForWriting` prints out the following TRACE message to the logs:
+
+```
+TRACE Task [currentTaskAttemptId] trying to acquire write lock for [blockId]
+```
+
+It looks up `blockId` in the internal <<infos, infos>> registry. When no link:spark-BlockInfo.adoc[BlockInfo] could be found, `None` is returned. Otherwise, link:spark-BlockInfo.adoc[BlockInfo] is checked for `writerTask` to be `BlockInfo.NO_WRITER` with no readers (i.e. `readerCount` is `0`) and only then the lock is returned.
+
+When the write lock can be returned, `BlockInfo.writerTask` is set to `currentTaskAttemptId` and a new binding is added to the internal <<writeLocksByTask, writeLocksByTask>> registry. You should see the following TRACE message in the logs:
+
+```
+TRACE Task [currentTaskAttemptId] acquired write lock for [blockId]
+```
+
+If, for some reason, `blockId` has a writer (i.e. `info.writerTask` is not `BlockInfo.NO_WRITER`) or the number of readers is positive (i.e. `BlockInfo.readerCount` is greater than `0`), the method will wait (based on the input `blocking` flag) and attempt the write lock acquisition process until it finishes with a write lock.
+
+NOTE: (deadlock possible) The method is `synchronized` and can block, i.e. `wait` that causes the current thread to wait until another thread invokes `Object.notify` or `Object.notifyAll` methods for this object.
+
+`lockForWriting` return `None` for no `blockId` in the internal <<infos, infos>> registry or when `blocking` flag is disabled and the write lock could not be acquired.
 
 === [[lockNewBlockForWriting]] Obtaining Write Lock for New Block (lockNewBlockForWriting method)
 
@@ -42,73 +110,17 @@ If <<lockForReading, some other thread has already created the block>>, it finis
 
 NOTE: `lockNewBlockForWriting` executes itself in `synchronized` block so once the BlockInfoManager is locked the other internal registries should be available only for the currently-executing thread.
 
-=== [[lockForWriting]] Obtaining Write Lock (lockForWriting method)
+=== [[unlock]] Unlocking Memory Block (unlock method)
 
-[source, scala]
-----
-lockForWriting(
-  blockId: BlockId,
-  blocking: Boolean = true): Option[BlockInfo]
-----
+CAUTION: FIXME
 
-When executed, `lockForWriting` prints out the following TRACE message to the logs:
+=== [[releaseAllLocksForTask]] Releasing All Locks Obtained by Task (releaseAllLocksForTask method)
 
-```
-TRACE Task [currentTaskAttemptId] trying to acquire write lock for [blockId]
-```
+CAUTION: FIXME
 
-It looks up `blockId` in the internal <<infos, infos>> registry. When no `BlockInfo` could be found, `None` is returned. Otherwise, `BlockInfo` is checked for `writerTask` to be `BlockInfo.NO_WRITER` with no readers (i.e. `readerCount` is `0`) and only then the lock is returned.
+=== [[removeBlock]] Removing Memory Block (removeBlock method)
 
-When the write lock can be returned, `BlockInfo.writerTask` is set to `currentTaskAttemptId` and a new binding is added to the internal <<writeLocksByTask, writeLocksByTask>> registry. You should see the following TRACE message in the logs:
-
-```
-TRACE Task [currentTaskAttemptId] acquired write lock for [blockId]
-```
-
-If, for some reason, `blockId` has a writer (i.e. `info.writerTask` is not `BlockInfo.NO_WRITER`) or the number of readers is positive (i.e. `BlockInfo.readerCount` is greater than `0`), the method will wait (based on the input `blocking` flag) and attempt the write lock acquisition process until it finishes with a write lock.
-
-NOTE: (deadlock possible) The method is `synchronized` and can block, i.e. `wait` that causes the current thread to wait until another thread invokes `Object.notify` or `Object.notifyAll` methods for this object.
-
-`lockForWriting` return `None` for no `blockId` in the internal <<infos, infos>> registry or when `blocking` flag is disabled and the write lock could not be acquired.
-
-=== [[lockForReading]] Obtaining Read Lock (lockForReading method)
-
-[source, scala]
-----
-lockForReading(
-  blockId: BlockId,
-  blocking: Boolean = true): Option[BlockInfo]
-----
-
-When executed, `lockForReading` prints out the following TRACE message to the logs:
-
-```
-TRACE BlockInfoManager: Task [currentTaskAttemptId] trying to acquire read lock for [blockId]
-```
-
-It looks up the metadata (in <<infos, infos>> registry).
-
-If no metadata could be found, it returns `None` which means that the block does not exist or was removed and anybody could acquire a write lock.
-
-Otherwise, when the metadata was registered, it checks so-called _writerTask_. Only `NO_WRITER` are allowed to obtain a lock. The `readerCount` of the block metadata is incremented and the block is recorded in the internal <<readLocksByTask, readLocksByTask>> registry.
-
-You should see the following TRACE message in the logs:
-
-```
-TRACE BlockInfoManager: Task [taskAttemptId] acquired read lock for [blockId]
-```
-
-NOTE: `-1024` is a special `taskAttemptId` used to mark a non-task thread, e.g. by a driver thread or by unit test code.
-
-For blocks with `writerTask` other than `NO_WRITER`, when `blocking` is enabled, it waits.
-
-CAUTION: FIXME When does it wake up, i.e. the wait is over? Who is to stop the waiting?
-
-With `blocking` enabled, it will repeat the waiting-for-read-lock sequence until either `None` or the lock is obtained.
-
-When `blocking` is disabled and the lock could not be obtained, `None` is returned immediately.
-
-NOTE: `lockForReading` is a `synchronized` method, i.e. no two objects can use this and other instance methods.
+CAUTION: FIXME
 
 === [[assertBlockIsLockedForWriting]] assertBlockIsLockedForWriting
 
@@ -118,7 +130,7 @@ CAUTION: FIXME
 
 ==== [[infos]] infos
 
-`infos` is used to track <<BlockInfo, BlockInfo>> per block (identified by link:spark-blockdatamanager.adoc#BlockId[BlockId]).
+`infos` is used to track link:spark-BlockInfo.adoc[BlockInfo] per block (identified by link:spark-blockdatamanager.adoc#BlockId[BlockId]).
 
 ==== [[readLocksByTask]] readLocksByTask
 
