@@ -4,45 +4,53 @@
 
 You can find `spark-submit` script in `bin` directory of the Spark distribution.
 
-=== Actions
+```
+$ ./bin/spark-submit
+Usage: spark-submit [options] <app jar | python file> [app arguments]
+Usage: spark-submit --kill [submission ID] --master [spark://...]
+Usage: spark-submit --status [submission ID] --master [spark://...]
+Usage: spark-submit run-example [options] example-class [example args]
+...
+```
+
+When executed, <<main, `spark-submit` script executes `org.apache.spark.deploy.SparkSubmit` class>>.
+
+=== [[actions]] Actions
 
 ==== [[submit]] Submitting Applications for Execution
 
-The default action is to submit a Spark application for execution.
+The default action is to submit a Spark application to a deployment environment for execution.
 
-Internally, when `SparkSubmit.submit` is executed, it first checks whether `proxyUser` is set and...FIXME
+Internally, `spark-submit` executes `SparkSubmit.submit`. It first checks whether `proxyUser` is set and...FIXME
 
 CAUTION: FIXME Review why and when to use `proxyUser`. See `SparkSubmit.submit`.
 
 It then passes the call to the main class that understands the target deployment environment (aka _submission gateway_).
 
-TIP: Use `--verbose` to know the main class to be executed, arguments, system properties, and classpath.
+TIP: Use <<verbose-mode, --verbose>> to know the main class to be executed, arguments, system properties, and classpath.
 
 All jars included in the classpath are added to the context classloader that loads the main class. Before the main class is loaded, system properties are set using `System.setProperty`.
 
 The `main` method of the main class is invoked with arguments.
 
-==== [[kill]] Killing Applications
+==== [[kill]] Killing Applications (--kill switch)
 
 `--kill`
 
-==== [[status]] Requesting Application Status
+==== [[status]][[requestStatus]] Requesting Application Status (--status switch)
 
 `--status`
 
-=== [[deploy-mode]] Deploy Mode
-
-You use spark-submit's `--deploy-mode` command-line option to specify the link:spark-deploy-mode.adoc[deploy mode] for a Spark application.
-
 === [[command-line-options]] Command-line Options
 
-Execute `./bin/spark-submit --help` to know about the command-line options supported.
+Execute `spark-submit --help` to know about the command-line options supported.
 
 ```
 ➜  spark git:(master) ✗ ./bin/spark-submit --help
 Usage: spark-submit [options] <app jar | python file> [app arguments]
 Usage: spark-submit --kill [submission ID] --master [spark://...]
 Usage: spark-submit --status [submission ID] --master [spark://...]
+Usage: spark-submit run-example [options] example-class [example args]
 
 Options:
   --master MASTER_URL         spark://host:port, mesos://host:port, yarn, or local.
@@ -82,10 +90,11 @@ Options:
   --executor-memory MEM       Memory per executor (e.g. 1000M, 2G) (Default: 1G).
 
   --proxy-user NAME           User to impersonate when submitting the application.
+                              This argument does not work with --principal / --keytab.
 
-  --help, -h                  Show this help message and exit
-  --verbose, -v               Print additional debug output
-  --version,                  Print the version of current Spark
+  --help, -h                  Show this help message and exit.
+  --verbose, -v               Print additional debug output.
+  --version,                  Print the version of current Spark.
 
  Spark standalone with cluster deploy mode only:
   --driver-cores NUM          Cores for driver (Default: 1).
@@ -120,7 +129,7 @@ Options:
 
 * `--class`
 * `--conf` or `-c`
-* `--deploy-mode`
+* `--deploy-mode` (see <<deploy-mode, Deploy Mode>>)
 * `--driver-class-path`
 * `--driver-cores` for link:spark-standalone.adoc[Standalone cluster mode] only
 * `--driver-java-options`
@@ -146,8 +155,8 @@ List of switches, i.e. command-line options that do not take parameters:
 * `--help` or `-h`
 * `--supervise` for link:spark-standalone.adoc[Standalone cluster mode] only
 * `--usage-error`
-* `--verbose` or `-v`
-* `--version`
+* `--verbose` or `-v` (see <<verbose-mode, Verbose Mode>>)
+* `--version` (see <<version, Version>>)
 
 YARN-only options:
 
@@ -157,6 +166,40 @@ YARN-only options:
 * `--num-executors`
 * `--principal`
 * `--queue`
+
+=== [[version]] Version (--version switch)
+
+```
+$ ./bin/spark-submit --version
+Welcome to
+      ____              __
+     / __/__  ___ _____/ /__
+    _\ \/ _ \/ _ `/ __/  '_/
+   /___/ .__/\_,_/_/ /_/\_\   version 2.0.0-SNAPSHOT
+      /_/
+
+Type --help for more information.
+```
+
+=== [[verbose-mode]] Verbose Mode (--verbose switch)
+
+When `spark-submit` is executed with `--verbose` command-line switch, it enters *verbose mode*.
+
+In verbose mode, the parsed arguments are printed out to the System error output.
+
+```
+FIXME
+```
+
+It also prints out `propertiesFile` and the properties from the file.
+
+```
+FIXME
+```
+
+=== [[deploy-mode]] Deploy Mode (--deploy-mode switch)
+
+You use spark-submit's `--deploy-mode` command-line option to specify the link:spark-deploy-mode.adoc[deploy mode] for a Spark application.
 
 === [[environment-variables]] Environment Variables
 
@@ -182,7 +225,7 @@ The `spark-submit` utility supports specifying external packages using Maven coo
 
 FIXME Why should I care?
 
-=== Low-level details of spark-submit
+=== [[main]] Launching SparkSubmit (main method)
 
 [NOTE]
 ====
@@ -195,23 +238,35 @@ SPARK_PRINT_LAUNCH_COMMAND=1 ./bin/spark-shell
 Refer to link:spark-tips-and-tricks.adoc#SPARK_PRINT_LAUNCH_COMMAND[Print Launch Command of Spark Scripts].
 ====
 
-The source code of the script lives in https://github.com/apache/spark/blob/master/bin/spark-submit.
+TIP: The source code of the script lives in https://github.com/apache/spark/blob/master/bin/spark-submit.
 
-When you execute the `spark-submit` script you basically launch https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/deploy/SparkSubmit.scala[org.apache.spark.deploy.SparkSubmit] class (via another `spark-class` script) with the command line arguments.
+When executed, `spark-submit` script simply passes the call to link:spark-class.adoc[spark-class] with https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/deploy/SparkSubmit.scala[org.apache.spark.deploy.SparkSubmit] class followed by command-line arguments.
 
-At startup, the `spark-class` script loads additional environment settings (see <<sparkenv,section on spark-env.sh in this document>>).
+It creates an instance of <<SparkSubmitArguments, SparkSubmitArguments>>.
 
-And then `spark-class` searches for so-called *the Spark assembly jar* ( `spark-assembly.*hadoop.*.jar`) in `SPARK_HOME/lib` or `SPARK_HOME/assembly/target/scala-$SPARK_SCALA_VERSION` for a binary distribution or Spark built from sources, respectively.
+If in <<verbose-mode, verbose mode>>, it prints out the application arguments.
 
-NOTE: Set `SPARK_PREPEND_CLASSES` to have the Spark launcher classes (from `$SPARK_HOME/launcher/target/scala-$SPARK_SCALA_VERSION/classes`) to appear before the Spark assembly jar. It's useful for development so your changes don't require rebuilding Spark from the beginning.
+It then relays the execution to <<actions, action-specific internal methods>> (with the application arguments):
 
-As the last step in the process, https://github.com/apache/spark/blob/master/launcher/src/main/java/org/apache/spark/launcher/Main.java[org.apache.spark.launcher.Main] class is executed with `org.apache.spark.deploy.SparkSubmit` and the other command line arguments (given to `spark-submit` at the very beginning). The Main class programmatically computes the final command to be executed.
+* When no action was explicitly given, it is assumed <<submit, submit>> action.
+* <<kill, kill>> (when `--kill` switch is used)
+* <<requestStatus, requestStatus>> (when `--status` switch is used)
 
-TODO (further review)
+NOTE: The action can only have one of the three available values: `SUBMIT`, `KILL`, or `REQUEST_STATUS`.
 
-* OptionParser class
-* `spark-defaults.conf` in `SPARK_CONF_DIR` or `$SPARK_HOME/conf`
-* SparkSubmit itself
+==== [[SparkSubmitArguments]] SparkSubmitArguments
+
+`SparkSubmitArguments` is a `private[deploy]` class to handle the command-line arguments and environment of `spark-submit` script that the <<actions, actions>> use for their execution.
+
+[source, scala]
+----
+SparkSubmitArguments(
+  args: Seq[String],
+  env: Map[String, String] = sys.env)
+----
+
+NOTE: `SparkSubmitArguments` is created when <<main, launching `spark-submit` script>> with only `args` passed in.
+
 
 ==== [[sparkenv]] spark-env.sh - load additional environment settings
 
