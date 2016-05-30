@@ -4,7 +4,7 @@ TIP: See the excellent slide deck http://www.slideshare.net/databricks/dynamic-a
 
 *Dynamic Allocation* is an opt-in feature that...FIXME.
 
-It is controlled by <<settings, spark.dynamicAllocation.enabled>> property. When `--num-executors` or `spark.executor.instances` are set to non-`0` value, they disable dynamic allocation.
+It is controlled by <<spark.dynamicAllocation.enabled, spark.dynamicAllocation.enabled>> setting. It assumes that if `--num-executors` command-line option or link:spark-executor.adoc#spark.executor.instances[spark.executor.instances] setting are set their values  are `0`. Otherwise, they disable dynamic allocation.
 
 * Available since *Spark 1.2.0* with many fixes and extensions up to *1.5.0*.
 * Support was first introduced in YARN in 1.2, and then extended to Mesos coarse-grained mode. It is supported in Standalone mode, too.
@@ -17,6 +17,46 @@ It is controlled by <<settings, spark.dynamicAllocation.enabled>> property. When
 `ExecutorAllocationManager` is the class responsible for the feature. <<settings, When enabled>>, it is started when the Spark context is initialized.
 
 CAUTION: FIXME Review ExecutorAllocationManager
+
+=== [[isDynamicAllocationEnabled]] Utils.isDynamicAllocationEnabled method
+
+[source, scala]
+----
+isDynamicAllocationEnabled(conf: SparkConf): Boolean
+----
+
+`isDynamicAllocationEnabled` returns `true` if all the following conditions hold:
+
+1. link:spark-executor.adoc#spark.executor.instances[spark.executor.instances] is `0`
+2. <<spark.dynamicAllocation.enabled, spark.dynamicAllocation.enabled>> is enabled
+3. link:spark-cluster.adoc[Spark on cluster] is used (by reading link:spark-configuration.adoc#spark.master[spark.master])
+
+Otherwise, it returns `false`.
+
+NOTE: `isDynamicAllocationEnabled` returns `true`, i.e. dynamic allocation is enabled, in link:spark-local.adoc[Spark local (pseudo-cluster)] for testing only (with <<spark.dynamicAllocation.testing, spark.dynamicAllocation.testing>> enabled).
+
+Internally, `isDynamicAllocationEnabled` reads link:spark-executor.adoc#spark.executor.instances[spark.executor.instances] (assumes `0`) and <<spark.dynamicAllocation.enabled, spark.dynamicAllocation.enabled>> setting (assumes `false`).
+
+If the value of `spark.executor.instances` is not `0` and `spark.dynamicAllocation.enabled` is enabled, `isDynamicAllocationEnabled` prints the following WARN message to the logs:
+
+```
+WARN Utils: Dynamic Allocation and num executors both set, thus dynamic allocation disabled.
+```
+
+NOTE: `isDynamicAllocationEnabled` is used in link:spark-yarn.adoc#getInitialTargetExecutorNumber[Spark on YARN to calculate the initial number of executors].
+
+[TIP]
+====
+Enable `WARN` logging level for `org.apache.spark.util.Utils` logger to see what happens inside.
+
+Add the following line to `conf/log4j.properties`:
+
+```
+log4j.logger.org.apache.spark.util.Utils=WARN
+```
+
+Refer to link:spark-logging.adoc[Logging].
+====
 
 === [[metrics]] Metrics
 
@@ -34,7 +74,13 @@ It emits the following numbers:
 
 === [[settings]] Settings
 
-* `spark.dynamicAllocation.enabled` (default: `false`) - whether dynamic allocation is enabled for the given Spark context. It requires that `spark.executor.instances` (default: `0`) is `0`.
+==== [[spark.dynamicAllocation.enabled]] spark.dynamicAllocation.enabled
+
+`spark.dynamicAllocation.enabled` (default: `false`) - whether dynamic allocation is enabled for the given Spark context. It requires that link:spark-executor.adoc#spark.executor.instances[spark.executor.instances] is `0` (which is the default value).
+
+==== [[spark.dynamicAllocation.testing]] spark.dynamicAllocation.testing
+
+`spark.dynamicAllocation.testing` is...FIXME
 
 === Programmable Dynamic Allocation
 
