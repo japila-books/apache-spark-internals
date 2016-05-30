@@ -15,23 +15,88 @@ Usage: spark-submit run-example [options] example-class [example args]
 
 When executed, <<main, `spark-submit` script executes `org.apache.spark.deploy.SparkSubmit` class>>.
 
+=== [[queue]] (--queue switch)
+
+With `--queue` you can choose the queue.
+
+CAUTION: FIXME What is a `queue`?
+
+NOTE: It corresponds to link:spark-yarn.adoc#spark.yarn.queue[spark.yarn.queue] system property.
+
+NOTE: It is printed out to the standard error output in <<verbose-mode, verbose mode>>.
+
 === [[actions]] Actions
 
-==== [[submit]] Submitting Applications for Execution
+==== [[submit]] Submitting Applications for Execution (submit method)
 
-The default action is to submit a Spark application to a deployment environment for execution.
+The default action of `spark-submit` script is to submit a Spark application to a deployment environment for execution.
 
-Internally, `spark-submit` executes `SparkSubmit.submit`. It first checks whether `proxyUser` is set and...FIXME
+TIP: Use <<verbose-mode, --verbose>> command-line switch to know the main class to be executed, arguments, system properties, and classpath (to ensure that the command-line arguments and switches were processed properly).
 
-CAUTION: FIXME Review why and when to use `proxyUser`. See `SparkSubmit.submit`.
+When executed, `spark-submit` executes `submit` method.
 
-It then passes the call to the main class that understands the target deployment environment (aka _submission gateway_).
+[source, scala]
+----
+submit(args: SparkSubmitArguments): Unit
+----
 
-TIP: Use <<verbose-mode, --verbose>> to know the main class to be executed, arguments, system properties, and classpath.
+If `proxyUser` is set it will...FIXME
 
-All jars included in the classpath are added to the context classloader that loads the main class. Before the main class is loaded, system properties are set using `System.setProperty`.
+CAUTION: FIXME Review why and when to use `proxyUser`.
 
-The `main` method of the main class is invoked with arguments.
+It passes the execution on to <<runMain, runMain>>.
+
+===== [[runMain]] runMain
+
+[source, scala]
+----
+runMain(
+  childArgs: Seq[String],
+  childClasspath: Seq[String],
+  sysProps: Map[String, String],
+  childMainClass: String,
+  verbose: Boolean): Unit
+----
+
+`runMain` is an internal method to...FIXME
+
+It prints out the input parameters when executed with `verbose` flag enabled.
+
+NOTE: `verbose` flag corresponds to <<verbose-mode, --verbose switch>>.
+
+It builds the context classloader depending on `spark.driver.userClassPathFirst` flag.
+
+CAUTION: FIXME What is `spark.driver.userClassPathFirst`?
+
+It <<addJarToClasspath, adds the jars>> specified in `childClasspath` input parameter to the context classloader that loads the main class.
+
+CAUTION: FIXME Where is `childClasspath` calculated?
+
+It sets all the system properties specified in `sysProps` input parameter.
+
+NOTE: It uses Java's https://docs.oracle.com/javase/8/docs/api/java/lang/System.html#setProperty-java.lang.String-java.lang.String-[System.setProperty] to set the system properties.
+
+CAUTION: FIXME Where are `sysProps` calculated?
+
+It creates an instance of `childMainClass` main class.
+
+NOTE: `childMainClass` corresponds to the main class `spark-submit` was invoked with.
+
+TIP: You should avoid using `scala.App` trait for main classes in Scala as reported in https://issues.apache.org/jira/browse/SPARK-4170[SPARK-4170 Closure problems when running Scala app that "extends App"]
+
+If you use `scala.App` for the main class, you should see the following WARN message in the logs:
+
+```
+WARN Subclasses of scala.App may not work correctly. Use a main() method instead.
+```
+
+Finally, it executes the `main` method of the Spark application passing in the `childArgs` arguments.
+
+Any `SparkUserAppException` exceptions lead to `System.exit` while the others are simply re-thrown.
+
+===== [[addJarToClasspath]] addJarToClasspath method
+
+CAUTION: FIXME
 
 ==== [[kill]] Killing Applications (--kill switch)
 
@@ -254,9 +319,9 @@ It then relays the execution to <<actions, action-specific internal methods>> (w
 
 NOTE: The action can only have one of the three available values: `SUBMIT`, `KILL`, or `REQUEST_STATUS`.
 
-==== [[SparkSubmitArguments]] SparkSubmitArguments
+==== [[SparkSubmitArguments]] SparkSubmitArguments -- spark-submit Command-Line Argument Parser
 
-`SparkSubmitArguments` is a `private[deploy]` class to handle the command-line arguments and environment of `spark-submit` script that the <<actions, actions>> use for their execution.
+`SparkSubmitArguments` is a `private[deploy]` class to handle the command-line arguments of `spark-submit` script that the <<actions, actions>> use for their execution (possibly with the explicit `env` environment).
 
 [source, scala]
 ----
@@ -265,8 +330,7 @@ SparkSubmitArguments(
   env: Map[String, String] = sys.env)
 ----
 
-NOTE: `SparkSubmitArguments` is created when <<main, launching `spark-submit` script>> with only `args` passed in.
-
+NOTE: `SparkSubmitArguments` is created when <<main, launching `spark-submit` script>> with only `args` passed in and later used for printing the arguments in <<verbose-mode, verbose mode>>.
 
 ==== [[sparkenv]] spark-env.sh - load additional environment settings
 
