@@ -15,9 +15,29 @@ Usage: spark-submit run-example [options] example-class [example args]
 
 When executed, <<main, `spark-submit` script executes `org.apache.spark.deploy.SparkSubmit` class>>.
 
-=== [[queue]] (--queue switch)
+=== [[system-properties]] System Properties
 
-With `--queue` you can choose the queue.
+`spark-submit` collects system properties for execution in the internal `sysProps`.
+
+CAUTION: FIXME How is `sysProps` calculated?
+
+=== [[jars]] (--jars switch)
+
+```
+--jars JARS
+```
+
+`--jars` is a comma-separated list of local jars to include on the driver's and executors' classpaths.
+
+CAUTION: FIXME
+
+=== [[queue]] Specifying YARN Resource Queue (--queue switch)
+
+```
+--queue QUEUE_NAME
+```
+
+With `--queue` you can choose the YARN queue to submit a Spark application to. The default queue name is `default`.
 
 CAUTION: FIXME What is a `queue`?
 
@@ -46,7 +66,7 @@ CAUTION: FIXME Review why and when to use `proxyUser`.
 
 It passes the execution on to <<runMain, runMain>>.
 
-===== [[runMain]] runMain
+===== [[runMain]] Executing Main (runMain method)
 
 [source, scala]
 ----
@@ -58,9 +78,11 @@ runMain(
   verbose: Boolean): Unit
 ----
 
-`runMain` is an internal method to...FIXME
+`runMain` is an internal method to build execution environment and invoke the main method of the Spark application submitted for execution.
 
-It prints out the input parameters when executed with `verbose` flag enabled.
+NOTE: It is exclusively used when <<submit, submitting applications for execution>>.
+
+It optionally prints out input parameters with `verbose` input flag enabled (i.e. `true`).
 
 NOTE: `verbose` flag corresponds to <<verbose-mode, --verbose switch>>.
 
@@ -68,15 +90,15 @@ It builds the context classloader depending on `spark.driver.userClassPathFirst`
 
 CAUTION: FIXME What is `spark.driver.userClassPathFirst`?
 
-It <<addJarToClasspath, adds the jars>> specified in `childClasspath` input parameter to the context classloader that loads the main class.
+It <<addJarToClasspath, adds the local jars>> specified in `childClasspath` input parameter to the context classloader (that is later responsible for loading the `childMainClass` main class).
 
-CAUTION: FIXME Where is `childClasspath` calculated?
+NOTE: `childClasspath` input parameter corresponds to <<jars, --jars switch>> with the primary resource if specified in link:spark-deploy-mode.adoc#client[client deploy mode].
 
 It sets all the system properties specified in `sysProps` input parameter.
 
 NOTE: It uses Java's https://docs.oracle.com/javase/8/docs/api/java/lang/System.html#setProperty-java.lang.String-java.lang.String-[System.setProperty] to set the system properties.
 
-CAUTION: FIXME Where are `sysProps` calculated?
+TIP: Read <<system-properties, System Properties>> about how the process of collecting system properties works.
 
 It creates an instance of `childMainClass` main class.
 
@@ -94,9 +116,30 @@ Finally, it executes the `main` method of the Spark application passing in the `
 
 Any `SparkUserAppException` exceptions lead to `System.exit` while the others are simply re-thrown.
 
-===== [[addJarToClasspath]] addJarToClasspath method
+===== [[addJarToClasspath]] Adding Local Jars to ClassLoader (addJarToClasspath method)
 
-CAUTION: FIXME
+[source, scala]
+----
+addJarToClasspath(localJar: String, loader: MutableURLClassLoader)
+----
+
+`addJarToClasspath` is an internal method to add `file` or `local` jars (as `localJar`) to the `loader` classloader.
+
+Internally, `addJarToClasspath` resolves the URI of `localJar`. If the URI is `file` or `local` and the file denoted by `localJar` exists, `localJar` is added to `loader`. Otherwise, the following warning is printed out to the logs:
+
+```
+Warning: Local jar /path/to/fake.jar does not exist, skipping.
+```
+
+For all other URIs, the following warning is printed out to the logs:
+
+```
+Warning: Skip remote jar hdfs://fake.jar.
+```
+
+NOTE: `addJarToClasspath` assumes `file` URI when `localJar` has no URI specified, e.g. `/path/to/local.jar`.
+
+CAUTION: FIXME What is a URI fragment? How does this change re YARN distributed cache? See `Utils#resolveURI`.
 
 ==== [[kill]] Killing Applications (--kill switch)
 
@@ -230,7 +273,7 @@ YARN-only options:
 * `--keytab`
 * `--num-executors`
 * `--principal`
-* `--queue`
+* `--queue` (see <<queue, Specifying YARN Resource Queue (--queue switch)>>)
 
 === [[version]] Version (--version switch)
 
