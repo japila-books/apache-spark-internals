@@ -1,10 +1,12 @@
-== Dynamic Allocation
+== Dynamic Allocation (of Executors)
 
 TIP: See the excellent slide deck http://www.slideshare.net/databricks/dynamic-allocation-in-spark[Dynamic Allocation in Spark] from Databricks.
 
-*Dynamic Allocation* is an opt-in feature that...FIXME.
+*Dynamic Allocation* is a Spark feature that...FIXME.
 
-It is controlled by <<spark.dynamicAllocation.enabled, spark.dynamicAllocation.enabled>> setting. It assumes that if `--num-executors` command-line option or link:spark-executor.adoc#spark.executor.instances[spark.executor.instances] setting are set their values  are `0`. Otherwise, they disable dynamic allocation.
+It is enabled by <<spark.dynamicAllocation.enabled, spark.dynamicAllocation.enabled>> setting (with no `--num-executors` command-line option or link:spark-executor.adoc#spark.executor.instances[spark.executor.instances] setting set or are `0`).
+
+link:spark-service-executor-allocation-manager.adoc[ExecutorAllocationManager] is the class responsible for dynamic allocation. When <<isDynamicAllocationEnabled, enabled>>, it is link:spark-sparkcontext-creating-instance-internals.adoc#ExecutorAllocationManager[started when the Spark context is initialized].
 
 * Available since *Spark 1.2.0* with many fixes and extensions up to *1.5.0*.
 * Support was first introduced in YARN in 1.2, and then extended to Mesos coarse-grained mode. It is supported in Standalone mode, too.
@@ -13,8 +15,6 @@ It is controlled by <<spark.dynamicAllocation.enabled, spark.dynamicAllocation.e
 * Scale up / down Policies
 ** Exponential increase in number of executors due to slow start and we may need slightly more.
 ** Executor removal after N secs
-
-link:spark-service-executor-allocation-manager.adoc[ExecutorAllocationManager] is the class responsible for dynamic allocation. When <<isDynamicAllocationEnabled, enabled>>, it is link:spark-sparkcontext-creating-instance-internals.adoc#ExecutorAllocationManager[started when the Spark context is initialized].
 
 === [[isDynamicAllocationEnabled]] Utils.isDynamicAllocationEnabled method
 
@@ -70,11 +70,70 @@ It emits the following numbers:
 * executors / numberTargetExecutors
 * executors / numberMaxNeededExecutors
 
+=== [[validateSettings]] Validating Setting (validateSettings method)
+
+[source, scala]
+----
+validateSettings(): Unit
+----
+
+`validateSettings` is an internal method to ensure that the <<settings, settings for dynamic allocation>> are correct.
+
+It validates the following and throws a `SparkException` if set incorrectly.
+
+1. <<spark.dynamicAllocation.minExecutors, spark.dynamicAllocation.minExecutors>> must be positive.
+
+2. <<spark.dynamicAllocation.minExecutors, spark.dynamicAllocation.minExecutors>> must be less than or equal to <<spark.dynamicAllocation.maxExecutors, spark.dynamicAllocation.maxExecutors>>.
+
+3. <<spark.dynamicAllocation.maxExecutors, spark.dynamicAllocation.maxExecutors>>, <<spark.dynamicAllocation.schedulerBacklogTimeout, spark.dynamicAllocation.schedulerBacklogTimeout>>, <<spark.dynamicAllocation.sustainedSchedulerBacklogTimeout, spark.dynamicAllocation.sustainedSchedulerBacklogTimeout>>, and <<spark.dynamicAllocation.executorIdleTimeout, spark.dynamicAllocation.executorIdleTimeout>> must all be greater than `0`.
+
+4. link:spark-shuffle-manager.adoc#spark.shuffle.service.enabled[spark.shuffle.service.enabled] must be enabled.
+
+5. link:spark-executor.adoc#spark.executor.cores[spark.executor.cores] must not be less than link:spark-taskschedulerimpl.adoc#spark.task.cpus[spark.task.cpus].
+
 === [[settings]] Settings
 
 ==== [[spark.dynamicAllocation.enabled]] spark.dynamicAllocation.enabled
 
-`spark.dynamicAllocation.enabled` (default: `false`) - whether dynamic allocation is enabled for the given Spark context. It requires that link:spark-executor.adoc#spark.executor.instances[spark.executor.instances] is `0` (which is the default value).
+`spark.dynamicAllocation.enabled` (default: `false`) controls whether dynamic allocation is enabled. It requires that link:spark-executor.adoc#spark.executor.instances[spark.executor.instances] is `0` (which is the default value).
+
+==== [[spark.dynamicAllocation.minExecutors]] spark.dynamicAllocation.minExecutors
+
+`spark.dynamicAllocation.minExecutors` (default: `0`) sets the minimum number of executors for dynamic allocation.
+
+It <<validateSettings, must be positive and less than or equal to `spark.dynamicAllocation.maxExecutors`>>.
+
+==== [[spark.dynamicAllocation.maxExecutors]] spark.dynamicAllocation.maxExecutors
+
+`spark.dynamicAllocation.maxExecutors` (default: `Integer.MAX_VALUE`) sets the maximum number of executors for dynamic allocation.
+
+It <<validateSettings, must be greater than `0` and greater than or equal to `spark.dynamicAllocation.minExecutors`>>.
+
+==== [[spark.dynamicAllocation.initialExecutors]] spark.dynamicAllocation.initialExecutors
+
+`spark.dynamicAllocation.initialExecutors` sets the initial number of executors for dynamic allocation.
+
+==== [[spark.dynamicAllocation.schedulerBacklogTimeout]] spark.dynamicAllocation.schedulerBacklogTimeout
+
+`spark.dynamicAllocation.schedulerBacklogTimeout` (default: `1s`) sets...FIXME
+
+It <<validateSettings, must be greater than `0`>>.
+
+==== [[spark.dynamicAllocation.sustainedSchedulerBacklogTimeout]] spark.dynamicAllocation.sustainedSchedulerBacklogTimeout
+
+`spark.dynamicAllocation.sustainedSchedulerBacklogTimeout`(default: <<spark.dynamicAllocation.schedulerBacklogTimeout, spark.dynamicAllocation.schedulerBacklogTimeout>>) sets...FIXME
+
+It <<validateSettings, must be greater than `0`>>.
+
+==== [[spark.dynamicAllocation.executorIdleTimeout]] spark.dynamicAllocation.executorIdleTimeout
+
+`spark.dynamicAllocation.executorIdleTimeout` (default: `60s`) sets...FIXME
+
+It <<validateSettings, must be greater than `0`>>.
+
+==== [[spark.dynamicAllocation.cachedExecutorIdleTimeout]] spark.dynamicAllocation.cachedExecutorIdleTimeout
+
+`spark.dynamicAllocation.cachedExecutorIdleTimeout` (default: `Integer.MAX_VALUE`) sets...FIXME
 
 ==== [[spark.dynamicAllocation.testing]] spark.dynamicAllocation.testing
 
