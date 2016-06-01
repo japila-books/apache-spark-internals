@@ -1,6 +1,8 @@
-== ExecutorAllocationManager
+== ExecutorAllocationManager -- Allocation Manager
 
 `ExecutorAllocationManager` is responsible for dynamically allocating and removing link:spark-executor.adoc[executors] based on the workload.
+
+It intercepts Spark events using the internal link:spark-service-ExecutorAllocationListener.adoc[ExecutorAllocationListener] that keeps track of the workload (changing the <<internal-registries, internal registries>> that the allocation manager uses for executors management).
 
 It uses link:spark-service-ExecutorAllocationClient.adoc[ExecutorAllocationClient], link:spark-LiveListenerBus.adoc[LiveListenerBus], and link:spark-configuration.adoc[SparkConf] (that are all passed in when `ExecutorAllocationManager` is created).
 
@@ -11,7 +13,7 @@ It uses link:spark-service-ExecutorAllocationClient.adoc[ExecutorAllocationClien
 start(): Unit
 ----
 
-`start` registers link:spark-service-ExecutorAllocationListener.adoc[ExecutorAllocationListener] (with link:spark-LiveListenerBus.adoc[LiveListenerBus]) to monitor scheduler events and make decisions when to add and remove executors. It then immediately starts a separate thread that is responsible for the <<schedule, scheduling>> every `100` milliseconds.
+`start` registers link:spark-service-ExecutorAllocationListener.adoc[ExecutorAllocationListener] (with link:spark-LiveListenerBus.adoc[LiveListenerBus]) to monitor scheduler events and make decisions when to add and remove executors. It then immediately starts <<spark-dynamic-executor-allocation, spark-dynamic-executor-allocation allocation executor>> that is responsible for the <<schedule, scheduling>> every `100` milliseconds.
 
 NOTE: `100` milliseconds for the period between successive <<schedule, scheduling>> is fixed, i.e. not configurable.
 
@@ -21,4 +23,82 @@ NOTE: `start` is called while link:spark-sparkcontext-creating-instance-internal
 
 === [[schedule]] Scheduling Executors (schedule method)
 
+[source, scala]
+----
+schedule(): Unit
+----
+
+`schedule` calls <<updateAndSyncNumExecutorsTarget, updateAndSyncNumExecutorsTarget>> to...FIXME
+
+It then go over <<removeTimes, removeTimes>> to remove expired executors, i.e. executors for which expiration time has elapsed.
+
+=== [[updateAndSyncNumExecutorsTarget]] updateAndSyncNumExecutorsTarget
+
+[source, scala]
+----
+updateAndSyncNumExecutorsTarget(now: Long): Int
+----
+
+`updateAndSyncNumExecutorsTarget`...FIXME
+
+If `ExecutorAllocationManager` is <<initializing, initializing>> it returns `0`.
+
+=== [[initializing]] initializing flag
+
+`initializing` flag starts enabled (i.e. `true`).
+
+=== [[reset]] Resetting (reset method)
+
+[source, scala]
+----
+reset(): Unit
+----
+
+`reset` resets `ExecutorAllocationManager` to its initial state, i.e.
+
+1. <<initializing, initializing>> is enabled (i.e. `true`).
+2. The <<numExecutorsTarget, currently-desired number of executors>> is set to <<initialNumExecutors, the initial value>>.
+3. The <<numExecutorsToAdd, ???> is set to `1`.
+4. All <<executorsPendingToRemove, executor pending to remove>> are cleared.
+5. All <<removeTimes, ???>> are cleared.
+
+=== [[initialNumExecutors]] initialNumExecutors attribute
+
 CAUTION: FIXME
+
+=== [[numExecutorsTarget]] numExecutorsTarget attribute
+
+CAUTION: FIXME
+
+=== [[numExecutorsToAdd]] numExecutorsToAdd attribute
+
+`numExecutorsToAdd` attribute controls...FIXME
+
+=== [[stop]] Stopping (stop method)
+
+[source, scala]
+----
+stop(): Unit
+----
+
+`stop` shuts down <<spark-dynamic-executor-allocation, spark-dynamic-executor-allocation allocation executor>>.
+
+NOTE: It waits 10 seconds for the complete termination.
+
+=== [[internal-registries]] Internal Registries
+
+==== [[executorsPendingToRemove]] executorsPendingToRemove registry
+
+CAUTION: FIXME
+
+==== [[removeTimes]] removeTimes registry
+
+`removeTimes` keeps track of executors and their...FIXME
+
+=== [[spark-dynamic-executor-allocation]] spark-dynamic-executor-allocation Allocation Executor
+
+`spark-dynamic-executor-allocation` allocation executor is a...FIXME
+
+It is started...
+
+It is stopped...
