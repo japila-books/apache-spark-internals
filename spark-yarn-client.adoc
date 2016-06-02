@@ -1,10 +1,10 @@
 == Client
 
-`org.apache.spark.deploy.yarn.Client` is a standalone application used for link:spark-submit.adoc#submit[application submission] to a YARN cluster.
+`org.apache.spark.deploy.yarn.Client` is a standalone application used for link:spark-submit.adoc#submit[submitting Spark applications] to a YARN cluster.
 
 Precisely, it is <<main, Client.main>> method that is invoked.
 
-Depending on the deploy mode in use (`spark.submit.deployMode`) it calls link:spark-yarn-applicationmaster.adoc[org.apache.spark.deploy.yarn.ApplicationMaster] or ApplicationMaster's wrapper link:spark-yarn-applicationmaster.adoc#ExecutorLauncher[org.apache.spark.deploy.yarn.ExecutorLauncher] by their class names (so the instantiation is implicit and dynamic, i.e. happens at runtime).
+Depending on the link:spark-deploy-mode.adoc[deploy mode] it calls link:spark-yarn-applicationmaster.adoc[org.apache.spark.deploy.yarn.ApplicationMaster] or ApplicationMaster's wrapper link:spark-yarn-applicationmaster.adoc#ExecutorLauncher[org.apache.spark.deploy.yarn.ExecutorLauncher] by their class names (so the instantiation is implicit and dynamic, i.e. happens at runtime).
 
 [TIP]
 ====
@@ -19,6 +19,36 @@ log4j.logger.org.apache.spark.deploy.yarn.Client=DEBUG
 Refer to link:spark-logging.adoc[Logging].
 ====
 
+=== [[SPARK_YARN_MODE]] SPARK_YARN_MODE flag
+
+`SPARK_YARN_MODE` is a flag that says whether...FIXME.
+
+NOTE: Any environment variable with the `SPARK_` prefix is propagated to all (remote) processes.
+
+CAUTION: FIXME Where is `SPARK_` prefix rule enforced?
+
+NOTE: `SPARK_YARN_MODE` is a system property (i.e. available using `System.getProperty`) and a environment variable (i.e. available using `System.getenv`). See link:spark-yarn.adoc#YarnSparkHadoopUtil[YarnSparkHadoopUtil].
+
+It is enabled (i.e. `true`) when link:spark-sparkcontext-creating-instance-internals.adoc#SPARK_YARN_MODE[SparkContext is created for Spark on YARN in client deploy mode], when <<setupLaunchEnv, Client...FIXME>> and <<main, a Spark application is deployed to a YARN cluster>>.
+
+CAUTION: FIXME Why is this needed? `git blame` it.
+
+`SPARK_YARN_MODE` flag is checked when link:spark-yarn.adoc#get[YarnSparkHadoopUtil] or link:spark-hadoop.adoc#get[SparkHadoopUtil] are accessed.
+
+It is cleared later when <<stop, Client is requested to stop>>.
+
+=== [[setupLaunchEnv]] setupLaunchEnv method
+
+CAUTION: FIXME
+
+=== [[launcherBackend]] Internal LauncherBackend (launcherBackend value)
+
+CAUTION: FIXME
+
+=== [[yarnClient]] Internal Hadoop's YarnClient (yarnClient value)
+
+CAUTION: FIXME
+
 === [[main]] main
 
 `main` method is invoked while a Spark application is being deployed to a YARN cluster.
@@ -27,22 +57,25 @@ NOTE: It is executed by link:spark-submit.adoc#submit[spark-submit] with `--mast
 
 [NOTE]
 ====
-When you start the `main` method when starting the `Client` standalone application, say using `./bin/spark-class org.apache.spark.deploy.yarn.Client`, you will see the following WARNING message in the logs unless you set `SPARK_SUBMIT` system property.
+When you start the `main` method when starting the `Client` standalone application, say using `./bin/spark-class org.apache.spark.deploy.yarn.Client`, you will see the following WARN message in the logs unless you set `SPARK_SUBMIT` system property.
 
 ```
 WARN Client: WARNING: This client is deprecated and will be removed in a future version of Spark. Use ./bin/spark-submit with "--master yarn"
 ```
 ====
 
-`main` first sets `SPARK_YARN_MODE` system property to `true`.
-
-CAUTION: FIXME Why is this property needed?
+`main` turns <<SPARK_YARN_MODE, SPARK_YARN_MODE flag>> on.
 
 It then instantiates link:spark-configuration.adoc[SparkConf], parses command-line arguments (using <<ClientArguments, ClientArguments>>) and passes the call on to <<run, Client.run>> method.
 
 === [[stop]] stop
 
-`stop`...FIXME
+[source, scala]
+----
+stop(): Unit
+----
+
+`stop` closes the internal <<launcherBackend, LauncherBackend>> and stops the internal <<yarnClient, yarnClient>>. It also clears <<SPARK_YARN_MODE, SPARK_YARN_MODE flag>> (to allow switching between cluster types).
 
 === [[run]] run
 
@@ -149,8 +182,6 @@ CAUTION: What does `setState` do?
 NOTE: `submitApplication` is used in <<run, Client.run>> and link:spark-yarn-client-yarnclientschedulerbackend.adoc#YarnClientSchedulerBackend[YarnClientSchedulerBackend.start].
 
 Internally, it executes `LauncherBackend.connect` first and then executes `Client.setupCredentials` to set up credentials for future calls.
-
-CAUTION: FIXME What's `LauncherBackend`?
 
 It creates a YARN client (using Hadoop's https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/client/api/YarnClient.html#createYarnClient()[YarnClient.createYarnClient]), https://hadoop.apache.org/docs/current/api/org/apache/hadoop/service/AbstractService.html#init(org.apache.hadoop.conf.Configuration)[inits it] with a https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/conf/YarnConfiguration.html[YarnConfiguration] and https://hadoop.apache.org/docs/current/api/org/apache/hadoop/service/AbstractService.html#start()[starts it]. All this happens using Hadoop API.
 
