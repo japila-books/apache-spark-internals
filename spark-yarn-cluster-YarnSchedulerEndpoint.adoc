@@ -4,6 +4,8 @@
 
 CAUTION: FIXME Picture it.
 
+It uses the reference to the remote ApplicationMaster RPC Endpoint after it was registered when <<RegisterClusterManager, RegisterClusterManager>> message comes.
+
 [TIP]
 ====
 Enable `INFO` logging level for `org.apache.spark.scheduler.cluster.YarnSchedulerBackend$YarnSchedulerEndpoint` logger to see what happens inside.
@@ -16,6 +18,12 @@ log4j.logger.org.apache.spark.scheduler.cluster.YarnSchedulerBackend$YarnSchedul
 
 Refer to link:spark-logging.adoc[Logging].
 ====
+
+=== [[amEndpoint]] Internal Reference to ApplicationMaster RPC Endpoint (amEndpoint variable)
+
+`amEndpoint` is an optional reference to the remote ApplicationMaster RPC Endpoint.
+
+It is set to the current ApplicationMaster RPC Endpoint when <<RegisterClusterManager, RegisterClusterManager>> arrives and cleared when <<onDisconnected, the connection to the endpoint disconnect>>.
 
 === [[RegisterClusterManager]] RegisterClusterManager
 
@@ -30,7 +38,7 @@ When `RegisterClusterManager` arrives, the following INFO message is printed out
 INFO YarnSchedulerBackend$YarnSchedulerEndpoint: ApplicationMaster registered as [am]
 ```
 
-The internal reference to the remote AM RPC Endpoint (`amEndpoint`) is set (to `am`).
+The <<amEndpoint, internal reference to the remote ApplicationMaster RPC Endpoint>> is set (to `am`).
 
 If the internal link:spark-yarn-yarnschedulerbackend.adoc#shouldResetOnAmRegister[shouldResetOnAmRegister] flag is enabled (i.e. `true`), link:spark-yarn-yarnschedulerbackend.adoc#reset[YarnSchedulerBackend is reset]. It is disabled (i.e. `false`) initially, so `shouldResetOnAmRegister` is turned on.
 
@@ -45,5 +53,13 @@ If the internal link:spark-yarn-yarnschedulerbackend.adoc#shouldResetOnAmRegiste
 === [[RetrieveLastAllocatedExecutorId]] RetrieveLastAllocatedExecutorId
 
 === [[onDisconnected]] onDisconnected
+
+`onDisconnected` clears the <<amEndpoint, internal reference to the remote ApplicationMaster RPC Endpoint>> (i.e. it sets it to `None`) if the remote address matches the reference's.
+
+You should see the following WARN message in the logs if that happens:
+
+```
+WARN ApplicationMaster has disassociated: [remoteAddress]
+```
 
 === [[onStop]] onStop
