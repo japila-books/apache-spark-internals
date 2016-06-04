@@ -1,10 +1,10 @@
 == [[YarnSchedulerEndpoint]] YarnSchedulerEndpoint RPC Endpoint
 
-`YarnSchedulerEndpoint` is a link:spark-rpc.adoc#ThreadSafeRpcEndpoint[ThreadSafeRpcEndpoint] that allows for communication between link:spark-yarn-yarnschedulerbackend.adoc[YarnSchedulerBackend] (on the driver) and link:spark-yarn-applicationmaster.adoc[ApplicationMaster] (on YARN).
+`YarnSchedulerEndpoint` is a link:spark-rpc.adoc#ThreadSafeRpcEndpoint[thread-safe RPC endpoint] for communication between link:spark-yarn-yarnschedulerbackend.adoc[YarnSchedulerBackend] on the driver and link:spark-yarn-applicationmaster.adoc[ApplicationMaster] managed by YARN.
 
 CAUTION: FIXME Picture it.
 
-It uses the reference to the remote ApplicationMaster RPC Endpoint after it was registered when <<RegisterClusterManager, RegisterClusterManager>> message comes.
+It uses the <<amEndpoint, reference to the remote ApplicationMaster RPC Endpoint>> to send messages to.
 
 [TIP]
 ====
@@ -21,18 +21,18 @@ Refer to link:spark-logging.adoc[Logging].
 
 === [[amEndpoint]] Internal Reference to ApplicationMaster RPC Endpoint (amEndpoint variable)
 
-`amEndpoint` is an optional reference to the remote ApplicationMaster RPC Endpoint.
+`amEndpoint` is a reference to a remote link:spark-yarn-applicationmaster.adoc#AMEndpoint[ApplicationMaster RPC Endpoint].
 
 It is set to the current link:spark-yarn-applicationmaster.adoc#AMEndpoint-onStart[ApplicationMaster RPC Endpoint] when <<RegisterClusterManager, RegisterClusterManager>> arrives and cleared when <<onDisconnected, the connection to the endpoint disconnects>>.
 
-=== [[RegisterClusterManager]] RegisterClusterManager
+=== [[RegisterClusterManager]] RegisterClusterManager Message
 
 [source, scala]
 ----
 RegisterClusterManager(am: RpcEndpointRef)
 ----
 
-When `RegisterClusterManager` arrives, the following INFO message is printed out to the logs:
+When `RegisterClusterManager` message arrives, the following INFO message is printed out to the logs:
 
 ```
 INFO YarnSchedulerBackend$YarnSchedulerEndpoint: ApplicationMaster registered as [am]
@@ -40,7 +40,9 @@ INFO YarnSchedulerBackend$YarnSchedulerEndpoint: ApplicationMaster registered as
 
 The <<amEndpoint, internal reference to the remote ApplicationMaster RPC Endpoint>> is set (to `am`).
 
-If the internal link:spark-yarn-yarnschedulerbackend.adoc#shouldResetOnAmRegister[shouldResetOnAmRegister] flag is enabled (i.e. `true`), link:spark-yarn-yarnschedulerbackend.adoc#reset[YarnSchedulerBackend is reset]. It is disabled (i.e. `false`) initially, so `shouldResetOnAmRegister` is turned on.
+If the internal link:spark-yarn-yarnschedulerbackend.adoc#shouldResetOnAmRegister[shouldResetOnAmRegister] flag is enabled, link:spark-yarn-yarnschedulerbackend.adoc#reset[YarnSchedulerBackend is reset]. It is disabled initially, so `shouldResetOnAmRegister` is enabled.
+
+NOTE: `shouldResetOnAmRegister` controls link:spark-yarn-cluster-YarnSchedulerEndpoint.adoc#RegisterClusterManager[whether to reset `YarnSchedulerBackend` when another `RegisterClusterManager` RPC message arrives] that could be because the link:spark-yarn-applicationmaster.adoc[ApplicationManager] failed and a new one was registered.
 
 === [[RequestExecutors]] RequestExecutors
 
@@ -56,6 +58,8 @@ If the internal link:spark-yarn-yarnschedulerbackend.adoc#shouldResetOnAmRegiste
 
 `onDisconnected` clears the <<amEndpoint, internal reference to the remote ApplicationMaster RPC Endpoint>> (i.e. it sets it to `None`) if the remote address matches the reference's.
 
+NOTE: It is a callback method to be called when...FIXME
+
 You should see the following WARN message in the logs if that happens:
 
 ```
@@ -63,3 +67,11 @@ WARN ApplicationMaster has disassociated: [remoteAddress]
 ```
 
 === [[onStop]] onStop
+
+`onStop` shuts <<askAmThreadPool, askAmThreadPool>> down immediately.
+
+NOTE: `onStop` is a callback method to be called when...FIXME
+
+=== [[askAmThreadPool]] askAmThreadPool Thread Pool
+
+`askAmThreadPool` is a thread pool called *yarn-scheduler-ask-am-thread-pool* that creates new threads as needed and reuses previously constructed threads when they are available.
