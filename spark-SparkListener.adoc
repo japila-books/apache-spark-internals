@@ -1,10 +1,121 @@
 == [[SparkListener]] Spark Listeners
 
-`SparkListener` is an abstract link:spark-LiveListenerBus.adoc#SparkListenerInterface[SparkListenerInterface] with empty no-op implementation for all the _callbacks_.
+`SparkListener` is an abstract <<SparkListenerInterface, SparkListenerInterface>> with empty no-op implementations of all the _callback methods_.
 
 The one and only goal of the class is to simplify creating highly specialized *Spark listeners* that are only processing a subset of events.
 
 TIP: Developing a custom SparkListener is an excellent introduction to low-level details of link:spark-execution-model.adoc[Spark's Execution Model]. Check out the exercise link:exercises/spark-exercise-custom-scheduler-listener.adoc[Developing Custom SparkListener to monitor DAGScheduler in Scala].
+
+=== [[SparkListenerInterface]] SparkListenerInterface
+
+`SparkListenerInterface` is an internal interface for listeners of events from the Spark scheduler.
+
+=== [[SparkListenerEvent]] SparkListenerEvents
+
+CAUTION: FIXME What are SparkListenerEvents? Where and why are they posted? What do they cause?
+
+CAUTION: FIXME Only a few event types are covered.
+
+==== [[SparkListenerApplicationStart]] SparkListenerApplicationStart
+
+[source, scala]
+----
+SparkListenerApplicationStart(
+  appName: String,
+  appId: Option[String],
+  time: Long,
+  sparkUser: String,
+  appAttemptId: Option[String],
+  driverLogs: Option[Map[String, String]] = None)
+----
+
+`SparkListenerApplicationStart` is posted when `SparkContext` does `postApplicationStart`.
+
+==== [[SparkListenerJobStart]] SparkListenerJobStart
+
+[source, scala]
+----
+SparkListenerJobStart(
+  jobId: Int,
+  time: Long,
+  stageInfos: Seq[StageInfo],
+  properties: Properties = null)
+----
+
+`SparkListenerJobStart` is posted when `DAGScheduler` does `handleJobSubmitted` and `handleMapStageSubmitted`.
+
+==== [[SparkListenerStageSubmitted]] SparkListenerStageSubmitted
+
+[source, scala]
+----
+SparkListenerStageSubmitted(stageInfo: StageInfo, properties: Properties = null)
+----
+
+`SparkListenerStageSubmitted` is posted when `DAGScheduler` does `submitMissingTasks`.
+
+==== [[SparkListenerTaskStart]] SparkListenerTaskStart
+
+[source, scala]
+----
+SparkListenerTaskStart(stageId: Int, stageAttemptId: Int, taskInfo: TaskInfo)
+----
+
+`SparkListenerTaskStart` is posted when `DAGScheduler` does `handleBeginEvent`.
+
+==== [[SparkListenerTaskGettingResult]] SparkListenerTaskGettingResult
+
+[source, scala]
+----
+SparkListenerTaskGettingResult(taskInfo: TaskInfo)
+----
+
+`SparkListenerTaskGettingResult` is posted when `DAGScheduler` does `handleGetTaskResult`.
+
+==== [[SparkListenerTaskEnd]] SparkListenerTaskEnd
+
+[source, scala]
+----
+SparkListenerTaskEnd(
+  stageId: Int,
+  stageAttemptId: Int,
+  taskType: String,
+  reason: TaskEndReason,
+  taskInfo: TaskInfo,
+  // may be null if the task has failed
+  @Nullable taskMetrics: TaskMetrics)
+----
+
+`SparkListenerTaskEnd` is posted when `DAGScheduler` does `handleTaskCompletion`.
+
+==== [[SparkListenerStageCompleted]] SparkListenerStageCompleted
+
+[source, scala]
+----
+SparkListenerStageCompleted(stageInfo: StageInfo)
+----
+
+`SparkListenerStageCompleted` is posted when `DAGScheduler` does `markStageAsFinished`.
+
+==== [[SparkListenerJobEnd]] SparkListenerJobEnd
+
+[source, scala]
+----
+SparkListenerJobEnd(
+  jobId: Int,
+  time: Long,
+  jobResult: JobResult)
+----
+
+`SparkListenerJobEnd` is posted when `DAGScheduler` does `cleanUpAfterSchedulerStop`, `handleTaskCompletion`, `failJobAndIndependentStages`, and markMapStageJobAsFinished.
+
+==== [[SparkListenerApplicationEnd]] SparkListenerApplicationEnd
+
+[source, scala]
+----
+SparkListenerApplicationEnd(time: Long)
+----
+
+`SparkListenerApplicationEnd` is posted when `SparkContext` does `postApplicationEnd`.
 
 === [[known-implementations]] Known Implementations
 
@@ -12,8 +123,11 @@ The following is the complete list of all known Spark listeners:
 
 * link:spark-scheduler-listeners-eventlogginglistener.adoc[EventLoggingListener]
 * `ExecutorsListener` that prepares information to be displayed on the *Executors* tab in link:spark-webui.adoc[web UI].
-* `SparkFirehoseListener` that allows users to receive all SparkListener events by overriding the `onEvent` method only.
+
+* `SparkFirehoseListener` that allows users to receive all <<SparkListenerEvent, SparkListenerEvent>> events by overriding the single `onEvent` method only.
+
 * `ExecutorAllocationListener`
+
 * link:spark-sparkcontext-HeartbeatReceiver.adoc[HeartbeatReceiver]
 * web UI and link:spark-scheduler-listeners-eventlogginglistener.adoc[EventLoggingListener] listeners
 
