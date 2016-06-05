@@ -1,4 +1,4 @@
-== CoarseGrainedSchedulerBackend
+== [[CoarseGrainedSchedulerBackend]] CoarseGrainedSchedulerBackend
 
 `CoarseGrainedSchedulerBackend` is a link:spark-scheduler-backends.adoc[scheduler backend] that <<launching-tasks, launches tasks>> on link:spark-executor-backends-coarse-grained.adoc[coarse-grained executors].
 
@@ -26,20 +26,79 @@ CAUTION: FIXME Where are these counters used?
 
 [TIP]
 ====
-Enable `DEBUG` logging level for `org.apache.spark.scheduler.cluster.CoarseGrainedSchedulerBackend` logger to see what happens inside.
+Enable `INFO` or `DEBUG` logging level for `org.apache.spark.scheduler.cluster.CoarseGrainedSchedulerBackend` logger to see what happens inside.
 
 Add the following line to `conf/log4j.properties`:
 
 ```
 log4j.logger.org.apache.spark.scheduler.cluster.CoarseGrainedSchedulerBackend=DEBUG
 ```
+
+Refer to link:spark-logging.adoc[Logging].
 ====
+
+=== [[internal-registries]] Internal Registries
+
+==== [[numPendingExecutors]] numPendingExecutors
+
+CAUTION: FIXME
+
+==== [[numExistingExecutors]] numExistingExecutors
+
+CAUTION: FIXME
+
+==== [[executorsPendingToRemove]] executorsPendingToRemove
+
+CAUTION: FIXME
+
+=== [[requestExecutors]] Requesting Executors (requestExecutors method)
+
+[source, scala]
+----
+requestExecutors(numAdditionalExecutors: Int): Boolean
+----
+
+`requestExecutors` is a "decorator" method that ultimately calls cluster-specific <<doRequestTotalExecutors, doRequestTotalExecutors>>.
+
+When called, you should see the following INFO message followed by DEBUG message in the logs:
+
+```
+INFO Requesting [numAdditionalExecutors] additional executor(s) from the cluster manager
+DEBUG Number of pending executors is now [numPendingExecutors]
+```
+
+The internal `numPendingExecutors` is increased by the input `numAdditionalExecutors`.
+
+`requestExecutors` <<doRequestTotalExecutors, requests executors from a cluster manager>> (that reflects the current computation needs). The "new executor total" is a sum of the internal <<numExistingExecutors, numExistingExecutors>> and <<numPendingExecutors, numPendingExecutors>> decreased by the <<executorsPendingToRemove, number of executors pending to be removed>>.
+
+If `numAdditionalExecutors` is negative, a `IllegalArgumentException` is thrown:
+
+```
+Attempted to request a negative number of additional executor(s) [numAdditionalExecutors] from the cluster manager. Please specify a positive number!
+```
+
+NOTE: It is a final method that no other scheduler backends could customize further.
+
+NOTE: The method is a synchronized block that makes multiple concurrent requests be handled in a serial fashion, i.e. one by one.
+
+NOTE: `requestExecutors` is a part of link:spark-service-ExecutorAllocationClient.adoc[ExecutorAllocationClient Contract] that...FIXME
 
 === [[contract]] CoarseGrainedSchedulerBackend Contract
 
+CAUTION: FIXME
+
 * It can <<reset, reset a current internal state to the initial state>>.
 
-CAUTION: FIXME
+==== [[doRequestTotalExecutors]] doRequestTotalExecutors
+
+[source, scala]
+----
+doRequestTotalExecutors(requestedTotal: Int): Boolean = false
+----
+
+`doRequestTotalExecutors` requests `requestedTotal` executors from a cluster manager. It is a `protected` method that returns `false` by default that coarse-grained scheduler backends can customize.
+
+NOTE: It is customized by the coarse-grained scheduler backends for  link:spark-yarn-yarnschedulerbackend.adoc[YARN], the link:spark-standalone-StandaloneSchedulerBackend.adoc[Spark Standalone], and link:spark-mesos-MesosCoarseGrainedSchedulerBackend.adoc[Mesos].
 
 === [[minRegisteredRatio]] minRegisteredRatio
 
@@ -50,7 +109,7 @@ minRegisteredRatio: Double
 
 `minRegisteredRatio` returns a ratio between `0` and `1` (inclusive). You can use <<spark.scheduler.minRegisteredResourcesRatio, spark.scheduler.minRegisteredResourcesRatio>> to control the value.
 
-=== [[start]] Starting (start method)
+=== [[start]] Starting CoarseGrainedSchedulerBackend (start method)
 
 `start` initializes <<CoarseGrainedScheduler, CoarseGrainedScheduler RPC Endpoint>>.
 
