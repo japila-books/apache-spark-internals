@@ -1,8 +1,8 @@
 == [[CoarseGrainedSchedulerBackend]] CoarseGrainedSchedulerBackend
 
-`CoarseGrainedSchedulerBackend` is a link:spark-scheduler-backends.adoc[scheduler backend] that <<launching-tasks, launches tasks>> on link:spark-executor-backends-coarse-grained.adoc[coarse-grained executors].
+`CoarseGrainedSchedulerBackend` is a link:spark-scheduler-backends.adoc[scheduler backend] and link:spark-service-ExecutorAllocationClient.adoc[ExecutorAllocationClient].
 
-It talks to a cluster manager for resources for executors (register, remove).
+It talks to a cluster manager for resources for executors and can <<launching-tasks, launch tasks>> (on link:spark-executor-backends-coarse-grained.adoc[coarse-grained executors]).
 
 This backend holds executors for the duration of the Spark job rather than relinquishing executors whenever a task is done and asking the scheduler to launch a new executor for each new task.
 
@@ -22,8 +22,6 @@ It tracks:
 * lost executors with no real exit reason
 * tasks per slaves (`taskIdsOnSlave`)
 
-CAUTION: FIXME Where are these counters used?
-
 [TIP]
 ====
 Enable `INFO` or `DEBUG` logging level for `org.apache.spark.scheduler.cluster.CoarseGrainedSchedulerBackend` logger to see what happens inside.
@@ -36,6 +34,25 @@ log4j.logger.org.apache.spark.scheduler.cluster.CoarseGrainedSchedulerBackend=DE
 
 Refer to link:spark-logging.adoc[Logging].
 ====
+
+=== [[contract]] CoarseGrainedSchedulerBackend Contract
+
+CAUTION: FIXME
+
+* It can <<reset, reset a current internal state to the initial state>>.
+
+==== [[doRequestTotalExecutors]] doRequestTotalExecutors
+
+[source, scala]
+----
+doRequestTotalExecutors(requestedTotal: Int): Boolean = false
+----
+
+`doRequestTotalExecutors` requests `requestedTotal` executors from a cluster manager. It is a `protected` method that returns `false` by default that coarse-grained scheduler backends can customize.
+
+NOTE: It is called when CoarseGrainedSchedulerBackend <<requestExecutors, requests additional executors>>, <<requestTotalExecutors, requesting exact number of executors>>, and <<killExecutors, killExecutors>>.
+
+NOTE: It is customized by the coarse-grained scheduler backends for  link:spark-yarn-yarnschedulerbackend.adoc[YARN], the link:spark-standalone-StandaloneSchedulerBackend.adoc[Spark Standalone], and link:spark-mesos-MesosCoarseGrainedSchedulerBackend.adoc[Mesos].
 
 === [[internal-registries]] Internal Registries
 
@@ -51,14 +68,24 @@ CAUTION: FIXME
 
 CAUTION: FIXME
 
-=== [[requestExecutors]] Requesting Executors (requestExecutors method)
+==== [[localityAwareTasks]] localityAwareTasks
+
+CAUTION: FIXME
+
+==== [[hostToLocalTaskCount]] hostToLocalTaskCount
+
+CAUTION: FIXME
+
+=== [[requestExecutors]] Requesting Additional Executors (requestExecutors method)
 
 [source, scala]
 ----
 requestExecutors(numAdditionalExecutors: Int): Boolean
 ----
 
-`requestExecutors` is a "decorator" method that ultimately calls cluster-specific <<doRequestTotalExecutors, doRequestTotalExecutors>>.
+`requestExecutors` is a "decorator" method that ultimately calls a cluster-specific <<doRequestTotalExecutors, doRequestTotalExecutors>> method and returns whether the request was acknowledged or not (it is assumed `false` by default).
+
+NOTE: `requestExecutors` is a part of link:spark-service-ExecutorAllocationClient.adoc[ExecutorAllocationClient Contract] that link:spark-sparkcontext.adoc#requestExecutors[SparkContext uses for requesting additional executors] (as a part of a developer API for dynamic allocation of executors).
 
 When called, you should see the following INFO message followed by DEBUG message in the logs:
 
@@ -81,24 +108,31 @@ NOTE: It is a final method that no other scheduler backends could customize furt
 
 NOTE: The method is a synchronized block that makes multiple concurrent requests be handled in a serial fashion, i.e. one by one.
 
-NOTE: `requestExecutors` is a part of link:spark-service-ExecutorAllocationClient.adoc[ExecutorAllocationClient Contract] that...FIXME
-
-=== [[contract]] CoarseGrainedSchedulerBackend Contract
-
-CAUTION: FIXME
-
-* It can <<reset, reset a current internal state to the initial state>>.
-
-==== [[doRequestTotalExecutors]] doRequestTotalExecutors
+=== [[requestTotalExecutors]] Requesting Exact Number of Executors (requestTotalExecutors method)
 
 [source, scala]
 ----
-doRequestTotalExecutors(requestedTotal: Int): Boolean = false
+requestTotalExecutors(
+  numExecutors: Int,
+  localityAwareTasks: Int,
+  hostToLocalTaskCount: Map[String, Int]): Boolean
 ----
 
-`doRequestTotalExecutors` requests `requestedTotal` executors from a cluster manager. It is a `protected` method that returns `false` by default that coarse-grained scheduler backends can customize.
+`requestTotalExecutors` is a "decorator" method that ultimately calls a cluster-specific <<doRequestTotalExecutors, doRequestTotalExecutors>> method and returns whether the request was acknowledged or not (it is assumed `false` by default).
 
-NOTE: It is customized by the coarse-grained scheduler backends for  link:spark-yarn-yarnschedulerbackend.adoc[YARN], the link:spark-standalone-StandaloneSchedulerBackend.adoc[Spark Standalone], and link:spark-mesos-MesosCoarseGrainedSchedulerBackend.adoc[Mesos].
+NOTE: `requestTotalExecutors` is a part of link:spark-service-ExecutorAllocationClient.adoc[ExecutorAllocationClient Contract] that link:spark-sparkcontext.adoc#requestTotalExecutors[SparkContext uses for requesting the exact number of executors].
+
+It sets the internal <<localityAwareTasks, localityAwareTasks>> and <<hostToLocalTaskCount, hostToLocalTaskCount>> registries. It then calculates the exact number of executors which is the input `numExecutors` and <<executorsPendingToRemove, the executors pending removal>> decreased by the number of <<numExistingExecutors, already-assigned executors>>.
+
+If `numExecutors` is negative, a `IllegalArgumentException` is thrown:
+
+```
+Attempted to request a negative number of executor(s) [numExecutors] from the cluster manager. Please specify a positive number!
+```
+
+NOTE: It is a final method that no other scheduler backends could customize further.
+
+NOTE: The method is a synchronized block that makes multiple concurrent requests be handled in a serial fashion, i.e. one by one.
 
 === [[minRegisteredRatio]] minRegisteredRatio
 
