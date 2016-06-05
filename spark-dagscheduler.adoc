@@ -50,7 +50,7 @@ log4j.logger.org.apache.spark.scheduler.DAGScheduler=TRACE
 Refer to link:spark-logging.adoc[Logging].
 ====
 
-DAGScheduler needs link:spark-sparkcontext.adoc[SparkContext], link:spark-taskscheduler.adoc[Task Scheduler], link:spark-scheduler-listeners.adoc[Listener Bus], link:spark-service-mapoutputtracker.adoc[MapOutputTracker] and link:spark-blockmanager.adoc[Block Manager] to work. However, at the very minimum, DAGScheduler needs SparkContext only (and asks SparkContext for the other services).
+DAGScheduler needs link:spark-sparkcontext.adoc[SparkContext], link:spark-taskscheduler.adoc[Task Scheduler], link:spark-LiveListenerBus.adoc[LiveListenerBus], link:spark-service-mapoutputtracker.adoc[MapOutputTracker] and link:spark-blockmanager.adoc[Block Manager] to work. However, at the very minimum, DAGScheduler needs SparkContext only (and asks SparkContext for the other services).
 
 DAGScheduler reports metrics about its execution (refer to the section <<metrics, Metrics>>).
 
@@ -349,13 +349,13 @@ DEBUG Trying to cancel unregistered job [jobId]
 
 However, if the job exists, the job and all the stages that are only used by it (using the internal <<failJobAndIndependentStages, failJobAndIndependentStages>> method).
 
-For each running stage associated with the job (`jobIdToStageIds`), if there is only one job for the stage (`stageIdToStage`), link:spark-taskscheduler.adoc#contract[TaskScheduler.cancelTasks] is called, `outputCommitCoordinator.stageEnd(stage.id)`, and `SparkListenerStageCompleted` is posted. The stage is no longer a running one (removed from `runningStages`).
+For each running stage associated with the job (`jobIdToStageIds`), if there is only one job for the stage (`stageIdToStage`), link:spark-taskscheduler.adoc#contract[TaskScheduler.cancelTasks] is called, `outputCommitCoordinator.stageEnd(stage.id)`, and link:spark-SparkListener.adoc#SparkListenerStageCompleted[SparkListenerStageCompleted] is posted. The stage is no longer a running one (removed from `runningStages`).
 
 CAUTION: FIXME Image please with the call to TaskScheduler.
 
 * `spark.job.interruptOnCancel` (default: `false`) - controls whether or not to interrupt a job on cancel.
 
-In case link:spark-taskscheduler.adoc#contract[TaskScheduler.cancelTasks] completed successfully, <<JobListener, JobListener>> is informed about job failure, `cleanupStateForJobAndIndependentStages` is called, and `SparkListenerJobEnd` posted.
+In case link:spark-taskscheduler.adoc#contract[TaskScheduler.cancelTasks] completed successfully, <<JobListener, JobListener>> is informed about job failure, `cleanupStateForJobAndIndependentStages` is called, and link:spark-SparkListener.adoc#SparkListenerJobEnd[SparkListenerJobEnd] posted.
 
 CAUTION: FIXME `cleanupStateForJobAndIndependentStages` code review.
 
@@ -391,7 +391,7 @@ Parents of final stage: [finalStage.parents]
 Missing parents: [list of stages]
 ```
 
-A SparkListenerJobStart event is posted to link:spark-LiveListenerBus.adoc[LiveListenerBus] (so other event listeners know about the event - not only DAGScheduler).
+link:spark-SparkListener.adoc#SparkListenerJobStart[SparkListenerJobStart] event is posted to link:spark-LiveListenerBus.adoc[LiveListenerBus] (so other event listeners know about the event - not only DAGScheduler).
 
 The execution procedure of MapStageSubmitted events is then exactly (FIXME ?) as for <<JobSubmitted, JobSubmitted>>.
 
@@ -438,7 +438,7 @@ INFO DAGScheduler: Missing parents: [getMissingParentStages(finalStage)]
 
 Then, the `finalStage` stage is given the ActiveJob instance and some housekeeping is performed to track the job (using `jobIdToActiveJob` and `activeJobs`).
 
-`SparkListenerJobStart` event is posted to link:spark-LiveListenerBus.adoc[LiveListenerBus].
+link:spark-SparkListener.adoc#SparkListenerJobStart[SparkListenerJobStart] message is posted to link:spark-LiveListenerBus.adoc[LiveListenerBus].
 
 CAUTION: FIXME `jobIdToStageIds` and `stageIdToStage` - they're already computed. When? Where?
 
@@ -459,7 +459,7 @@ The task knows about the stage it belongs to (using `Task.stageId`), the partiti
 
 `OutputCommitCoordinator.taskCompleted` is called.
 
-If the reason for task completion is not `Success`, `SparkListenerTaskEnd` is posted on link:spark-LiveListenerBus.adoc[LiveListenerBus]. The only difference with <<handleTaskCompletion-Success, TaskEndReason: Success>> is how the stage attempt id is calculated. Here, it is `Task.stageAttemptId` (not `Stage.latestInfo.attemptId`).
+If the reason for task completion is not `Success`, link:spark-SparkListener.adoc#SparkListenerTaskEnd[SparkListenerTaskEnd] is posted to link:spark-LiveListenerBus.adoc[LiveListenerBus]. The only difference with <<handleTaskCompletion-Success, TaskEndReason: Success>> is how the stage attempt id is calculated. Here, it is `Task.stageAttemptId` (not `Stage.latestInfo.attemptId`).
 
 CAUTION: FIXME What is the difference between stage attempt ids?
 
@@ -469,7 +469,7 @@ The main processing begins now depending on `TaskEndReason` - the reason for tas
 
 ==== [[handleTaskCompletion-Success]] TaskEndReason: Success
 
-`SparkListenerTaskEnd` is posted on link:spark-LiveListenerBus.adoc[LiveListenerBus].
+link:spark-SparkListener.adoc#SparkListenerTaskEnd[SparkListenerTaskEnd] is posted to link:spark-LiveListenerBus.adoc[LiveListenerBus].
 
 The partition the task worked on is removed from `pendingPartitions` of the stage.
 
@@ -495,7 +495,7 @@ If the whole job has finished (when `job.numFinished == job.numPartitions`), the
 
 * `markStageAsFinished` is called
 * `cleanupStateForJobAndIndependentStages(job)`
-* `SparkListenerJobEnd` is posted on link:spark-LiveListenerBus.adoc[LiveListenerBus] with `JobSucceeded`
+* link:spark-SparkListener.adoc#SparkListenerJobEnd[SparkListenerJobEnd] is posted to link:spark-LiveListenerBus.adoc[LiveListenerBus] with `JobSucceeded`
 
 The `JobListener` of the job (using `job.listener`) is informed about the task completion (using `job.listener.taskSucceeded(rt.outputId, event.result)`). If the step fails, i.e. throws an exception, the JobListener is informed about it (using `job.listener.jobFailed(new SparkDriverExecutionException(e))`).
 
@@ -770,7 +770,7 @@ The mapping between task ids and task preferred locations is computed (see <<com
 
 A new stage attempt is created (using `Stage.makeNewStageAttempt`).
 
-`SparkListenerStageSubmitted` is posted.
+link:spark-SparkListener.adoc#SparkListenerStageSubmitted[SparkListenerStageSubmitted] is posted.
 
 The stage is serialized and broadcast to workers using link:spark-sparkcontext.adoc#creating-broadcast-variables[SparkContext.broadcast] method, i.e. it is `Serializer.serialize` to calculate `taskBinaryBytes` - an array of bytes of (rdd, func) for `ResultStage` and (rdd, shuffleDep) for `ShuffleMapStage`.
 
