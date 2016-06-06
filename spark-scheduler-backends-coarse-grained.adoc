@@ -2,11 +2,11 @@
 
 `CoarseGrainedSchedulerBackend` is a link:spark-scheduler-backends.adoc[scheduler backend] and link:spark-service-ExecutorAllocationClient.adoc[ExecutorAllocationClient].
 
-It talks to a cluster manager for resources for executors and can <<launching-tasks, launch tasks>> (on link:spark-executor-backends-coarse-grained.adoc[coarse-grained executors]).
+It is responsible for requesting resources from a cluster manager for executors to be able to <<launching-tasks, launch tasks>> (on link:spark-executor-backends-coarse-grained.adoc[coarse-grained executors]).
 
 This backend holds executors for the duration of the Spark job rather than relinquishing executors whenever a task is done and asking the scheduler to launch a new executor for each new task.
 
-`CoarseGrainedSchedulerBackend` requires a link:spark-taskscheduler.adoc[Task Scheduler], and a link:spark-rpc.adoc[RPC Environment] to be instantiated.
+When <<creating-instance, being created>>, `CoarseGrainedSchedulerBackend` requires a link:spark-taskschedulerimpl.adoc[Task Scheduler], and a link:spark-rpc.adoc[RPC Environment].
 
 It uses link:spark-LiveListenerBus.adoc[LiveListenerBus].
 
@@ -35,6 +35,27 @@ log4j.logger.org.apache.spark.scheduler.cluster.CoarseGrainedSchedulerBackend=DE
 Refer to link:spark-logging.adoc[Logging].
 ====
 
+=== [[creating-instance]] Creating CoarseGrainedSchedulerBackend Instance
+
+`CoarseGrainedSchedulerBackend` requires a link:spark-taskschedulerimpl.adoc[task scheduler] and a link:spark-rpc.adoc[RPC Environment] when being created.
+
+It initializes the following registries:
+
+* totalCoreCount to `0`
+* totalRegisteredExecutors to `0`
+* maxRpcMessageSize to <<spark.rpc.message.maxSize, spark.rpc.message.maxSize>>.
+* _minRegisteredRatio to <<spark.scheduler.minRegisteredResourcesRatio, spark.scheduler.minRegisteredResourcesRatio>> (between `0` and `1` inclusive).
+* maxRegisteredWaitingTimeMs to <<spark.scheduler.maxRegisteredResourcesWaitingTime, spark.scheduler.maxRegisteredResourcesWaitingTime>>.
+* createTime to the current time.
+* <<executorDataMap, executorDataMap>> to an empty collection.
+* <<numPendingExecutors, numPendingExecutors>> to `0`
+* <<executorsPendingToRemove, executorsPendingToRemove>> to an empty collection.
+* <<hostToLocalTaskCount, hostToLocalTaskCount>> to an empty collection.
+* <<localityAwareTasks, localityAwareTasks>> to `0`
+* <<currentExecutorIdCounter, currentExecutorIdCounter>> to `0`
+
+It accesses the current link:spark-LiveListenerBus.adoc[LiveListenerBus] and link:spark-configuration.adoc[SparkConf] through the constructor's reference to link:spark-taskschedulerimpl.adoc[TaskSchedulerImpl].
+
 === [[getExecutorIds]] Getting Executor Ids (getExecutorIds method)
 
 When called, `getExecutorIds` simply returns executor ids from the internal <<executorDataMap, executorDataMap>> registry.
@@ -61,6 +82,12 @@ NOTE: It is called when CoarseGrainedSchedulerBackend <<requestExecutors, reques
 NOTE: It is customized by the coarse-grained scheduler backends for  link:spark-yarn-yarnschedulerbackend.adoc[YARN], the link:spark-standalone-StandaloneSchedulerBackend.adoc[Spark Standalone], and link:spark-mesos-MesosCoarseGrainedSchedulerBackend.adoc[Mesos].
 
 === [[internal-registries]] Internal Registries
+
+==== [[currentExecutorIdCounter]] currentExecutorIdCounter Counter
+
+`currentExecutorIdCounter` is the last (highest) identifier of all <<RegisterExecutor, allocated executors>>.
+
+NOTE: It is exclusively used in link:spark-yarn-cluster-YarnSchedulerEndpoint.adoc#RetrieveLastAllocatedExecutorId[`YarnSchedulerEndpoint` to respond to `RetrieveLastAllocatedExecutorId` message].
 
 ==== [[executorDataMap]] executorDataMap Registry
 
@@ -434,7 +461,7 @@ Using `ExecutorData` it gets the executor's RPC endpoint to send link:spark-exec
 
 ==== [[spark.rpc.message.maxSize]] spark.rpc.message.maxSize
 
-`spark.rpc.message.maxSize` (default: `128` and not greater than `2047m` - `200k` for the largest frame size for RPM messages (serialized tasks or task results) in MB.
+`spark.rpc.message.maxSize` (default: `128` and not greater than `2047m` - `200k` for the largest frame size for RPC messages (serialized tasks or task results) in MB.
 
 ==== [[spark.default.parallelism]] spark.default.parallelism
 
