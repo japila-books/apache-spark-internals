@@ -35,6 +35,12 @@ log4j.logger.org.apache.spark.scheduler.cluster.CoarseGrainedSchedulerBackend=DE
 Refer to link:spark-logging.adoc[Logging].
 ====
 
+=== [[getExecutorIds]] Getting Executor Ids (getExecutorIds method)
+
+When called, `getExecutorIds` simply returns executor ids from the internal <<executorDataMap, executorDataMap>> registry.
+
+NOTE: It is called when link:spark-sparkcontext.adoc#getExecutorIds[SparkContext calculates executor ids].
+
 === [[contract]] CoarseGrainedSchedulerBackend Contract
 
 CAUTION: FIXME
@@ -55,6 +61,19 @@ NOTE: It is called when CoarseGrainedSchedulerBackend <<requestExecutors, reques
 NOTE: It is customized by the coarse-grained scheduler backends for  link:spark-yarn-yarnschedulerbackend.adoc[YARN], the link:spark-standalone-StandaloneSchedulerBackend.adoc[Spark Standalone], and link:spark-mesos-MesosCoarseGrainedSchedulerBackend.adoc[Mesos].
 
 === [[internal-registries]] Internal Registries
+
+==== [[executorDataMap]] executorDataMap Registry
+
+[source, scala]
+----
+executorDataMap = new HashMap[String, ExecutorData]
+----
+
+`executorDataMap` manages executor data by executor id.
+
+It uses `ExecutorData` that holds an executor's endpoint reference, address, host, the number of free and total CPU cores, the URL of execution logs.
+
+NOTE: A new executor (id, data) pair is added when <<RegisterExecutor, `DriverEndpoint` receives `RegisterExecutor` message>> and removed when <<RemoveExecutor, `DriverEndpoint` receives `RemoveExecutor` message>> or <<DriverEndpoint-onDisconnected, a remote host (with executors) disconnects>>.
 
 ==== [[numPendingExecutors]] numPendingExecutors
 
@@ -334,7 +353,7 @@ RegisterExecutor(executorId, executorRef, cores, logUrls)
 .Executor registration (RegisterExecutor RPC message flow)
 image::images/CoarseGrainedSchedulerBackend-RegisterExecutor-event.png[align="center"]
 
-Only one executor can register as `executorId`.
+Only one executor can register under `executorId`.
 
 ```
 INFO Registered executor [executorRef] ([executorAddress]) with ID [executorId]
@@ -357,6 +376,19 @@ Ultimately, <<makeOffers, makeOffers>> is called.
 === [[DriverEndpoint]] DriverEndpoint
 
 `DriverEndpoint` is a link:spark-rpc.adoc#ThreadSafeRpcEndpoint[ThreadSafeRpcEndpoint].
+
+==== [[DriverEndpoint-onDisconnected]] onDisconnected Callback
+
+When called, `onDisconnected` removes the worker from the internal <<addressToExecutorId, addressToExecutorId registry>> (that effectively removes the worker from a cluster).
+
+While removing, it calls <<removeExecutor, removeExecutor>> with the reason being `SlaveLost` and message:
+
+[options="wrap"]
+----
+Remote RPC client disassociated. Likely due to containers exceeding thresholds, or network issues. Check driver logs for WARN messages.
+----
+
+NOTE: `onDisconnected` is called when a remote host is lost.
 
 ==== [[makeOffers]] makeOffers
 
