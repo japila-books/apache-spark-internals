@@ -1,0 +1,162 @@
+== ExternalShuffleService
+
+`ExternalShuffleService` is an *external shuffle service* that serves shuffle blocks from outside an link:spark-executor.adoc[Executor] process. It manages shuffle output files so they are available for executors at all time. As the shuffle output files are managed externally to the executors it offers an uninterrupted access to the shuffle output files regardless of executors being killed or down.
+
+You can start `ExternalShuffleService` as a standalone application using <<start-script, `start-shuffle-service.sh` shell script>>.
+
+[TIP]
+====
+Enable `INFO` logging level for `org.apache.spark.deploy.ExternalShuffleService` logger to see what happens inside.
+
+Add the following line to `conf/log4j.properties`:
+
+```
+log4j.logger.org.apache.spark.deploy.ExternalShuffleService=INFO
+```
+
+Refer to link:spark-logging.adoc[Logging].
+====
+
+=== [[start-script]] start-shuffle-service.sh shell script
+
+```
+start-shuffle-service.sh
+```
+
+`start-shuffle-service.sh` shell script allows you to launch `ExternalShuffleService`. The script is under `sbin` directory.
+
+When executed, it executes `sbin/spark-config.sh` and `bin/load-spark-env.sh` shell scripts. It then executes `sbin/spark-daemon.sh` with `start` command and the parameters: `org.apache.spark.deploy.ExternalShuffleService` and `1`.
+
+[options="wrap"]
+----
+$ ./sbin/start-shuffle-service.sh
+starting org.apache.spark.deploy.ExternalShuffleService, logging to ...logs/spark-jacek-org.apache.spark.deploy.ExternalShuffleService-1-japila.local.out
+
+$ tail -f ...logs/spark-jacek-org.apache.spark.deploy.ExternalShuffleService-1-japila.local.out
+Spark Command: /Library/Java/JavaVirtualMachines/Current/Contents/Home/bin/java -cp /Users/jacek/dev/oss/spark/conf/:/Users/jacek/dev/oss/spark/assembly/target/scala-2.11/jars/* -Xmx1g org.apache.spark.deploy.ExternalShuffleService
+========================================
+Using Spark's default log4j profile: org/apache/spark/log4j-defaults.properties
+16/06/07 08:02:02 INFO ExternalShuffleService: Started daemon with process name: 42918@japila.local
+16/06/07 08:02:03 INFO ExternalShuffleService: Starting shuffle service on port 7337 with useSasl = false
+----
+
+[TIP]
+====
+You can also use link:spark-class.adoc[spark-class] to launch `ExternalShuffleService`.
+
+```
+spark-class org.apache.spark.deploy.ExternalShuffleService
+```
+====
+
+=== [[main]] Launching ExternalShuffleService (main method)
+
+When started, it executes `Utils.initDaemon(log)`.
+
+CAUTION: FIXME `Utils.initDaemon(log)`? See spark-submit.
+
+It loads default Spark properties and creates a `SecurityManager`.
+
+It sets link:spark-shuffle-manager.adoc#spark.shuffle.service.enabled[spark.shuffle.service.enabled] to `true` (as <<create-instance, later it is checked whether it is enabled or not>>).
+
+A `ExternalShuffleService` is <<create-instance, created>> and <<start, started>>.
+
+A shutdown hook is registered so when `ExternalShuffleService` is shut down, it prints the following INFO message to the logs and the <<stop, stop>> method is executed.
+
+```
+INFO ExternalShuffleService: Shutting down shuffle service.
+```
+
+[TIP]
+====
+Enable `DEBUG` logging level for `org.apache.spark.network.shuffle.ExternalShuffleBlockResolver` logger to see what happens inside.
+
+Add the following line to `conf/log4j.properties`:
+
+```
+log4j.logger.org.apache.spark.network.shuffle.ExternalShuffleBlockResolver=DEBUG
+```
+
+Refer to link:spark-logging.adoc[Logging].
+====
+
+You should see the following INFO message in the logs:
+
+```
+INFO ExternalShuffleBlockResolver: Registered executor [AppExecId] with [executorInfo]
+```
+
+You should also see the following messages when a `SparkContext` is closed:
+
+```
+INFO ExternalShuffleBlockResolver: Application [appId] removed, cleanupLocalDirs = [cleanupLocalDirs]
+INFO ExternalShuffleBlockResolver: Cleaning up executor [AppExecId]'s [executor.localDirs.length] local dirs
+DEBUG ExternalShuffleBlockResolver: Successfully cleaned up directory: [localDir]
+```
+
+=== [[creating-instance]] Creating ExternalShuffleService Instance
+
+`ExternalShuffleService` requires a link:spark-configuration.adoc[SparkConf] and link:spark-security.adoc[SecurityManager].
+
+When created, it reads link:spark-shuffle-manager.adoc#spark.shuffle.service.enabled[spark.shuffle.service.enabled] (disabled by default) and link:spark-shuffle-manager.adoc#spark.shuffle.service.port[spark.shuffle.service.port] (defaults to `7337`) configuration settings. It also checks whether authentication is enabled.
+
+CAUTION: FIXME Review `securityManager.isAuthenticationEnabled()`
+
+It then creates a `TransportConf` (as `transportConf`).
+
+CAUTION: FIXME TransportConf?
+
+It creates a <<ExternalShuffleBlockHandler, ExternalShuffleBlockHandler>> (as `blockHandler`) and `TransportContext` (as `transportContext`).
+
+CAUTION: FIXME TransportContext?
+
+No internal `TransportServer` (as `server`) is created.
+
+=== [[start]] Starting ExternalShuffleService (start method)
+
+[source, scala]
+----
+start(): Unit
+----
+
+`start` starts a `ExternalShuffleService`.
+
+When `start` is executed, you should see the following INFO message in the logs:
+
+```
+INFO ExternalShuffleService: Starting shuffle service on port [port] with useSasl = [useSasl]
+```
+
+If `useSasl` is enabled, a `SaslServerBootstrap` is created.
+
+CAUTION: FIXME SaslServerBootstrap?
+
+The internal `server` reference (a `TransportServer`) is created (which will attempt to bind to `port`).
+
+NOTE: `port` is <<creating-instance, set up by `spark.shuffle.service.port` or defaults to `7337` when `ExternalShuffleService` is created>>.
+
+=== [[stop]] Stopping ExternalShuffleService (stop method)
+
+[source, scala]
+----
+stop(): Unit
+----
+
+`stop` closes the internal `server` reference and clears it (i.e. sets it to `null`).
+
+=== [[ExternalShuffleBlockHandler]] ExternalShuffleBlockHandler
+
+CAUTION: FIXME
+
+[TIP]
+====
+Enable `TRACE` logging level for `org.apache.spark.network.shuffle.ExternalShuffleBlockHandler` logger to see what happens inside.
+
+Add the following line to `conf/log4j.properties`:
+
+```
+log4j.logger.org.apache.spark.network.shuffle.ExternalShuffleBlockHandler=TRACE
+```
+
+Refer to link:spark-logging.adoc[Logging].
+====
