@@ -1,14 +1,17 @@
 == Transformations
 
-*Transformations* are lazy operations on a RDD that return RDD objects or collections of RDDs, e.g. `map`,  `filter`, `reduceByKey`, `join`, `cogroup`, `randomSplit`, etc.
+*Transformations* are lazy operations on a RDD that create one or many new RDDs, e.g. `map`,  `filter`, `reduceByKey`, `join`, `cogroup`, `randomSplit`.
 
 ```
 transformation: RDD => RDD
+transformation: RDD => Seq[RDD]
 ```
 
-In other words, transformations are methods that take a RDD as the input and return another RDD as the output. They do not change the input RDD (since link:spark-rdd.adoc#introduction[RDDs are immutable] and hence cannot be modified), but always return one or more new RDDs by applying the computations they represent.
+In other words, transformations are _functions_ that take a RDD as the input and produce one or many RDDs as the output. They do not change the input RDD (since link:spark-rdd.adoc#introduction[RDDs are immutable] and hence cannot be modified), but always produce one or more new RDDs by applying the computations they represent.
 
-Transformations are lazy and thus are not executed immediately. Only after calling an action are transformations executed.
+By applying transformations you incrementally build a link:spark-rdd-lineage.adoc[RDD lineage] with all the parent RDDs of the final RDD(s).
+
+Transformations are lazy, i.e. are not executed immediately. Only after calling an action are transformations executed.
 
 After executing a transformation, the result RDD(s) will always be different from their parents and can be smaller (e.g. `filter`, `count`, `distinct`, `sample`), bigger (e.g. `flatMap`, `union`, `cartesian`) or the same size (e.g. `map`).
 
@@ -17,7 +20,7 @@ CAUTION: There are transformations that may trigger jobs, e.g. `sortBy`, <<zipWi
 .From SparkContext by transformations to the result
 image::diagrams/rdd-sparkcontext-transformations-action.png[align="center"]
 
-You can chain transformations to create *pipelines* of lazy computations.
+Certain transformations can be *pipelined* which is an optimization that Spark uses to improve performance of computations.
 
 [source,scala]
 ----
@@ -54,11 +57,13 @@ There are two kinds of transformations:
 
 An output RDD has partitions with records that originate from a single partition in the parent RDD. Only a limited subset of partitions used to calculate the result.
 
-Spark groups narrow transformations as a stage.
+Spark groups narrow transformations as a stage which is called *pipelining*.
 
 === [[wide-transformations]] Wide Transformations
 
 *Wide transformations* are the result of `groupByKey` and `reduceByKey`. The data required to compute the records in a single partition may reside in many partitions of the parent RDD.
+
+NOTE: Wide transformations are also called shuffle transformations as they may or may not depend on a shuffle.
 
 All of the tuples with the same key must end up in the same partition, processed by the same task. To satisfy these operations, Spark must execute link:spark-rdd-shuffle.adoc[RDD shuffle], which transfers data across cluster and results in a new stage with a new set of partitions.
 

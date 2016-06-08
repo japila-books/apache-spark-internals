@@ -408,15 +408,12 @@ TIP: Read link:spark-accumulators.adoc[Accumulators] to get more in-depth insigh
 
 === [[creating-broadcast-variables]] Creating Broadcast Variables
 
-TIP: Read link:spark-broadcast.adoc[Broadcast Variables] to get more in-depth insight on the concept.
+[source, scala]
+----
+broadcast[T](value: T): Broadcast[T]
+----
 
-SparkContext comes with `broadcast` method to broadcast a value among Spark executors.
-
-```
-def broadcast(value: T): Broadcast[T]
-```
-
-It returns a `Broadcast[T]` instance that is a handle to a shared memory on executors.
+`broadcast` method creates a link:spark-broadcast.adoc[broadcast variable] that is a shared memory with `value` on all Spark executors.
 
 ```
 scala> val hello = sc.broadcast("hello")
@@ -464,11 +461,38 @@ CAUTION: FIXME Why is HttpFileServer used for addJar?
 
 SparkContext keeps track of:
 
-* shuffle ids using `nextShuffleId` internal field for link:spark-dagscheduler.adoc#ShuffleMapStage[registering shuffle dependencies] to link:spark-shuffle-manager.adoc[Shuffle Service].
+* shuffle ids using `nextShuffleId` internal field for link:spark-dagscheduler-ShuffleMapStage.adoc[registering shuffle dependencies] to link:spark-shuffle-manager.adoc[Shuffle Service].
 
-=== [[running-jobs]] Running Jobs
+=== [[runJob]][[running-jobs]] Running Jobs (runJob methods)
 
-All link:spark-rdd.adoc#actions[RDD actions] in Spark launch link:spark-dagscheduler-jobs.adoc[jobs] (that are run on one or many partitions of the RDD) using `SparkContext.runJob(rdd: RDD[T], func: Iterator[T] => U): Array[U]`.
+[source, scala]
+----
+runJob[T, U](
+  rdd: RDD[T],
+  func: (TaskContext, Iterator[T]) => U,
+  partitions: Seq[Int],
+  resultHandler: (Int, U) => Unit): Unit
+runJob[T, U](
+  rdd: RDD[T],
+  func: (TaskContext, Iterator[T]) => U,
+  partitions: Seq[Int]): Array[U]
+runJob[T, U](
+  rdd: RDD[T],
+  func: Iterator[T] => U,
+  partitions: Seq[Int]): Array[U]
+runJob[T, U](rdd: RDD[T], func: (TaskContext, Iterator[T]) => U): Array[U]
+runJob[T, U](rdd: RDD[T], func: Iterator[T] => U): Array[U]
+runJob[T, U](
+  rdd: RDD[T],
+  processPartition: (TaskContext, Iterator[T]) => U,
+  resultHandler: (Int, U) => Unit)
+runJob[T, U: ClassTag](
+  rdd: RDD[T],
+  processPartition: Iterator[T] => U,
+  resultHandler: (Int, U) => Unit)
+----
+
+link:spark-rdd.adoc#actions[RDD actions] in Spark run link:spark-dagscheduler-jobs.adoc[jobs] using one of `runJob` methods. It executes a function on one or many partitions of a RDD to produce a collection of values per partition.
 
 TIP: For some actions, e.g. `first()` and `lookup()`, there is no need to compute all the partitions of the RDD in a job. And Spark knows it.
 
@@ -486,18 +510,18 @@ TIP: Read about `TaskContext` in link:spark-taskscheduler-taskcontext.adoc[TaskC
 
 Running a job is essentially executing a `func` function on all or a subset of partitions in an `rdd` RDD and returning the result as an array (with elements being the results per partition).
 
-`SparkContext.runJob` prints out the following INFO message:
+When executed, `runJob` prints out the following INFO message:
 
 ```
 INFO Starting job: ...
 ```
 
-And it follows up on link:spark-rdd.adoc#spark.logLineage[spark.logLineage] and then hands over the execution to link:spark-dagscheduler.adoc#runJob[DAGScheduler.runJob()].
+And it follows up on link:spark-rdd-lineage.adoc#spark.logLineage[spark.logLineage] and then hands over the execution to link:spark-dagscheduler.adoc#runJob[DAGScheduler.runJob].
 
 .Executing action
 image::images/spark-runjob.png[align="center"]
 
-Before the method finishes, it does link:spark-rdd-checkpointing.adoc[checkpointing] and posts `JobSubmitted` event (see <<event-loop,Event loop>>).
+Before the method finishes, it does link:spark-rdd-checkpointing.adoc[checkpointing] and posts `JobSubmitted` event (see <<event-loop, Event loop>>).
 
 [CAUTION]
 ====
@@ -506,7 +530,7 @@ Spark can only run jobs when a Spark context is available and active, i.e. start
 Since SparkContext runs inside a Spark driver, i.e. a Spark application, it must be alive to run jobs.
 ====
 
-=== [[stop]][[stopping]] Stopping SparkContext
+=== [[stop]][[stopping]] Stopping SparkContext (stop method)
 
 [source, scala]
 ----
@@ -561,7 +585,7 @@ If all went fine till now you should see the following INFO message in the logs:
 INFO SparkContext: Successfully stopped SparkContext
 ```
 
-=== [[addSparkListener]] Registering SparkListener
+=== [[addSparkListener]] Registering SparkListener (addSparkListener method)
 
 [source, scala]
 ----
@@ -586,7 +610,7 @@ When a Spark context starts, it triggers link:spark-SparkListener.adoc#SparkList
 
 Refer to the section <<creating-instance, SparkContext's initialization>>.
 
-=== [[setting-default-log-level]] Setting Default Log Level
+=== [[setLogLevel]][[setting-default-log-level]] Setting Default Log Level (setLogLevel method)
 
 [source, scala]
 ----

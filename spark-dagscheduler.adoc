@@ -69,7 +69,7 @@ CAUTION: FIXME
 * `nextStageId` for the next stage id
 * `jobIdToStageIds` for a mapping between jobs and their stages
 * `stageIdToStage` for a mapping between stage ids to stages
-* `shuffleToMapStage` for a mapping between ids to ShuffleMapStages
+* `shuffleToMapStage` for a mapping between ids to link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStages]
 * `jobIdToActiveJob` for a mapping between job ids to ActiveJobs
 * `waitingStages` for stages with parents to be computed
 * `runningStages` for stages currently being run
@@ -230,7 +230,7 @@ The name of the single "logic" thread that reads events and takes decisions is *
 The following are the current types of `DAGSchedulerEvent` events that are handled by `DAGScheduler`:
 
 * <<JobSubmitted, JobSubmitted>> - posted when an action job is submitted to DAGScheduler (via <<submitJob, submitJob>> or `runApproximateJob`).
-* <<MapStageSubmitted, MapStageSubmitted>> - posted when a ShuffleMapStage is submitted (via `submitMapStage`).
+* <<MapStageSubmitted, MapStageSubmitted>> - posted when a link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage] is submitted (via `submitMapStage`).
 * <<StageCancelled, StageCancelled>>
 * <<JobCancelled, JobCancelled>>
 * `JobGroupCancelled`
@@ -318,12 +318,12 @@ INFO Executor lost: [execId] (epoch [currentEpoch])
 
 The executor `execId` is link:spark-BlockManagerMaster.adoc#removeExecutor[removed (from `BlockManagerMaster` on the driver)].
 
-If the link:spark-ExternalShuffleService.adoc[external shuffle service] is not used or the `ExecutorLost` event was for a map output fetch operation, all ShuffleMapStages (using `shuffleToMapStage`) are called (in order):
+If the link:spark-ExternalShuffleService.adoc[external shuffle service] is not used or the `ExecutorLost` event was for a map output fetch operation, all link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage] (using `shuffleToMapStage`) are called (in order):
 
 * `ShuffleMapStage.removeOutputsOnExecutor(execId)`
 * link:spark-service-mapoutputtracker.adoc#registerMapOutputs[MapOutputTrackerMaster.registerMapOutputs(shuffleId, stage.outputLocInMapOutputTrackerFormat(), changeEpoch = true)]
 
-For no ShuffleMapStages (in `shuffleToMapStage`), link:spark-service-mapoutputtracker.adoc#incrementEpoch[MapOutputTrackerMaster.incrementEpoch] is called.
+For no link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStages] (in `shuffleToMapStage`), link:spark-service-mapoutputtracker.adoc#incrementEpoch[MapOutputTrackerMaster.incrementEpoch] is called.
 
 <<internal-registries, cacheLocs>> is cleared.
 
@@ -423,7 +423,7 @@ image::images/dagscheduler-handleJobSubmitted.png[align="center"]
 
 `handleJobSubmitted` has access to the final RDD, the partitions to compute, and the <<JobListener, JobListener>> for the job, i.e. <<JobWaiter, JobWaiter>>.
 
-It creates a new <<ResultStage, ResultStage>> (as `finalStage` on the picture) and instantiates `ActiveJob`.
+It creates a new link:spark-dagscheduler-ResultStage.adoc[ResultStage] (as `finalStage` on the picture) and instantiates `ActiveJob`.
 
 CAUTION: FIXME review `newResultStage`
 
@@ -477,7 +477,7 @@ The processing splits per task type - ResultTask or ShuffleMapTask - and <<submi
 
 ===== [[handleTaskCompletion-Success-ResultTask]] ResultTask
 
-For ResultTask, the stage is `ResultStage`. If there is no job active for the stage (using `resultStage.activeJob`), the following INFO message appears in the logs:
+For `ResultTask`, the stage is link:spark-dagscheduler-ResultStage.adoc[ResultStage]. If there is no job active for the stage (using `resultStage.activeJob`), the following INFO message appears in the logs:
 
 ```
 INFO Ignoring result from [task] because its job has finished
@@ -503,7 +503,7 @@ CAUTION: FIXME When would `job.listener.taskSucceeded` throw an exception? How?
 
 ===== [[handleTaskCompletion-Success-ShuffleMapTask]] ShuffleMapTask
 
-For ShuffleMapTask, the stage is `ShuffleMapStage`.
+For ShuffleMapTask, the stage is link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage].
 
 <<updateAccumulators, updateAccumulators(event)>> is called.
 
@@ -523,7 +523,7 @@ INFO Ignoring possibly bogus [task] completion from executor [executorId]
 
 Otherwise, `shuffleStage.addOutputLoc(smt.partitionId, status)` is called.
 
-The method does more processing only if the internal `runningStages` contains the ShuffleMapStage with no more pending partitions to compute (using `shuffleStage.pendingPartitions`).
+The method does more processing only if the internal `runningStages` contains the link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage] with no more pending partitions to compute (using `shuffleStage.pendingPartitions`).
 
 `markStageAsFinished(shuffleStage)` is called.
 
@@ -696,7 +696,7 @@ If however there are missing parent stages for the stage, all stages are process
 
 It starts with the stage's target RDD (as `stage.rdd`). If there are <<cache-tracking, uncached partitions>>, it traverses the dependencies of the RDD (as `RDD.dependencies`) that can be the instances of link:spark-rdd-dependencies.adoc#ShuffleDependency[ShuffleDependency] or link:spark-rdd-dependencies.adoc#NarrowDependency[NarrowDependency].
 
-For each ShuffleDependency, the method searches for the corresponding link:spark-dagscheduler-stages.adoc#ShuffleMapStage[ShuffleMapStage] (using `getShuffleMapStage`) and if unavailable, the method adds it to a set of missing (map) stages.
+For each ShuffleDependency, the method searches for the corresponding link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage] (using `getShuffleMapStage`) and if unavailable, the method adds it to a set of missing (map) stages.
 
 CAUTION: FIXME Review `getShuffleMapStage`
 
@@ -772,7 +772,7 @@ A new stage attempt is created (using `Stage.makeNewStageAttempt`).
 
 link:spark-SparkListener.adoc#SparkListenerStageSubmitted[SparkListenerStageSubmitted] is posted.
 
-The stage is serialized and broadcast to workers using link:spark-sparkcontext.adoc#creating-broadcast-variables[SparkContext.broadcast] method, i.e. it is `Serializer.serialize` to calculate `taskBinaryBytes` - an array of bytes of (rdd, func) for `ResultStage` and (rdd, shuffleDep) for `ShuffleMapStage`.
+The stage is serialized and broadcast to workers using link:spark-sparkcontext.adoc#creating-broadcast-variables[SparkContext.broadcast] method, i.e. it is `Serializer.serialize` to calculate `taskBinaryBytes` - an array of bytes of (rdd, func) for link:spark-dagscheduler-ResultStage.adoc[ResultStage] and (rdd, shuffleDep) for link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage].
 
 CAUTION: FIXME Review `taskBinaryBytes`.
 
@@ -782,8 +782,8 @@ CAUTION: FIXME Review `abortStage`.
 
 At this point in time, the stage is on workers.
 
-For each partition to compute for the stage, a collection of <<spark-taskscheduler.adoc#shufflemaptask, ShuffleMapTask>> for ShuffleMapStage or
-`ResultTask` for ResultStage is created.
+For each partition to compute for the stage, a collection of <<spark-taskscheduler.adoc#shufflemaptask, ShuffleMapTask>> for link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage] or
+`ResultTask` for link:spark-dagscheduler-ResultStage.adoc[ResultStage] is created.
 
 CAUTION: FIXME Image with creating tasks for partitions in the stage.
 
@@ -798,13 +798,13 @@ All tasks in the collection become a link:spark-taskscheduler-tasksets.adoc[Task
 
 In case of no tasks to be submitted for a stage, a DEBUG message shows up in the logs.
 
-For ShuffleMapStage:
+For link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage]:
 
 ```
 DEBUG DAGScheduler: Stage [stage] is actually done; (available: ${stage.isAvailable},available outputs: ${stage.numAvailableOutputs},partitions: ${stage.numPartitions})
 ```
 
-For ResultStage:
+For link:spark-dagscheduler-ResultStage.adoc[ResultStage]:
 
 ```
 DEBUG DAGScheduler: Stage ${stage} is actually done; (partitions: ${stage.numPartitions})

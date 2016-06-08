@@ -7,9 +7,9 @@
 The original paper that gave birth to the concept of RDD is https://www.cs.berkeley.edu/~matei/papers/2012/nsdi_spark.pdf[Resilient Distributed Datasets: A Fault-Tolerant Abstraction for In-Memory Cluster Computing] by Matei Zaharia, et al.
 ****
 
-*Resilient Distributed Dataset (RDD)* is the primary data abstraction in Apache Spark (often called Spark Core leaving the name Spark to the project not a particular module).
+*Resilient Distributed Dataset (RDD)* is the primary data abstraction in Apache Spark and the core of Spark (often called *Spark Core*).
 
-RDD is a resilient and distributed collection of items. One could compare RDD to a Scala collection (that sits on a single JVM) to its distributed variant (that sits on many JVM, often on separate nodes in a cluster).
+A RDD is a resilient and distributed collection of records. One could compare RDD to a Scala collection (that sits on a single JVM) to its distributed variant (that sits on many JVM, often on separate nodes in a cluster).
 
 TIP: RDD is the bread and butter of Spark, and mastering the concept is of utmost importance to become a Spark pro. _And you wanna be a Spark pro, don't you?_
 
@@ -228,11 +228,14 @@ ints.repartition(2).count
 .Number of tasks after repartition
 image::images/spark-ui-repartition-2.png[]
 
-=== Computing Partition of RDD (using compute method)
+=== Computing Partition in TaskContext (compute method)
 
-The `RDD` abstract class defines abstract `compute(split: Partition, context: TaskContext): Iterator[T]` method that computes a given `split` link:spark-rdd-partitions.adoc[partition] to produce a collection of values.
+[source, scala]
+----
+compute(split: Partition, context: TaskContext): Iterator[T]
+----
 
-TIP: Read about `TaskContext` in link:spark-taskscheduler-taskcontext.adoc[TaskContext].
+The abstract `compute` method computes the link:spark-rdd-partitions.adoc[partition] to produce a collection of values (of type `T`) in the link:spark-taskscheduler-taskcontext.adoc[TaskContext].
 
 It has to be implemented by any type of RDD in Spark and is called unless RDD is link:spark-rdd-checkpointing.adoc[checkpointed] (and the result can be read from a checkpoint).
 
@@ -246,63 +249,20 @@ A *preferred location* (aka _locality preferences_ or _placement preferences_) i
 
 `def getPreferredLocations(split: Partition): Seq[String]` specifies placement preferences for a partition in an RDD.
 
-=== [[lineage]] RDD Lineage Graph
+=== [[getNumPartitions]] Getting Partition Count (getNumPartitions method)
 
-A *RDD Lineage Graph* (aka _RDD operator graph_) is a graph of the parent RDDs of a RDD. It is built as a result of applying transformations to the RDD.
+[source, scala]
+----
+getNumPartitions: Int
+----
 
-NOTE: The following diagram uses `cartesian` or `zip` for learning purposes only. You may use other operators to build a RDD graph.
+`getNumPartitions` calculates the number of partitions of the RDD.
 
-.RDD lineage
-image::images/rdd-lineage.png[align="center"]
+[source, scala]
+----
+scala> sc.textFile("README.md").getNumPartitions
+res0: Int = 2
 
-The above RDD graph could be the result of the following series of transformations:
-
-```
-val r00 = sc.parallelize(0 to 9)
-val r01 = sc.parallelize(0 to 90 by 10)
-val r10 = r00 cartesian r01
-val r11 = r00.map(n => (n, n))
-val r12 = r00 zip r01
-val r13 = r01.keyBy(_ / 20)
-val r20 = Seq(r11, r12, r13).foldLeft(r10)(_ union _)
-```
-
-A RDD lineage graph is hence a graph of what transformations need to be executed after an action has been called.
-
-You can learn about a RDD lineage graph using <<toDebugString, RDD.toDebugString>> method.
-
-==== [[toDebugString]] toDebugString
-
-You can learn about a <<lineage, RDD lineage graph>> using `RDD.toDebugString` method.
-
-```
-scala> val wordsCount = sc.textFile("README.md").flatMap(_.split("\\s+")).map((_, 1)).reduceByKey(_ + _)
-wordsCount: org.apache.spark.rdd.RDD[(String, Int)] = ShuffledRDD[24] at reduceByKey at <console>:24
-
-scala> wordsCount.toDebugString
-res2: String =
-(2) ShuffledRDD[24] at reduceByKey at <console>:24 []
- +-(2) MapPartitionsRDD[23] at map at <console>:24 []
-    |  MapPartitionsRDD[22] at flatMap at <console>:24 []
-    |  MapPartitionsRDD[21] at textFile at <console>:24 []
-    |  README.md HadoopRDD[20] at textFile at <console>:24 []
-```
-
-==== [[spark.logLineage]] spark.logLineage
-
-Enable `spark.logLineage` (assumed: `false`) to see a RDD lineage graph using <<toDebugString, RDD.toDebugString>> method every time an action on a RDD is called.
-
-```
-$ ./bin/spark-shell -c spark.logLineage=true
-
-scala> sc.textFile("README.md", 4).count
-...
-15/10/17 14:46:42 INFO SparkContext: Starting job: count at <console>:25
-15/10/17 14:46:42 INFO SparkContext: RDD's recursive dependencies:
-(4) MapPartitionsRDD[1] at textFile at <console>:25 []
- |  README.md HadoopRDD[0] at textFile at <console>:25 []
-```
-
-=== [[execution-plan]] Execution Plan
-
-*Execution Plan* starts with the earliest RDDs (those with no dependencies on other RDDs or reference cached data) and ends with the RDD that produces the result of the action that has been called to execute.
+scala> sc.textFile("README.md", 5).getNumPartitions
+res1: Int = 5
+----

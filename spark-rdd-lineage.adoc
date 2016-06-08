@@ -1,0 +1,71 @@
+== RDD Lineage -- Logical Execution Plan
+
+A *RDD Lineage Graph* (aka _RDD operator graph_) is a graph of all the parent RDDs of a RDD. It is built as a result of applying transformations to the RDD and creates a <<logical-execution-plan, logical execution plan>>.
+
+NOTE: The following diagram uses `cartesian` or `zip` for learning purposes only. You may use other operators to build a RDD graph.
+
+.RDD lineage
+image::images/rdd-lineage.png[align="center"]
+
+The above RDD graph could be the result of the following series of transformations:
+
+```
+val r00 = sc.parallelize(0 to 9)
+val r01 = sc.parallelize(0 to 90 by 10)
+val r10 = r00 cartesian r01
+val r11 = r00.map(n => (n, n))
+val r12 = r00 zip r01
+val r13 = r01.keyBy(_ / 20)
+val r20 = Seq(r11, r12, r13).foldLeft(r10)(_ union _)
+```
+
+A RDD lineage graph is hence a graph of what transformations need to be executed after an action has been called.
+
+You can learn about a RDD lineage graph using <<toDebugString, RDD.toDebugString>> method.
+
+=== [[toDebugString]] toDebugString
+
+[source, scala]
+----
+toDebugString: String
+----
+
+You can learn about a <<lineage, RDD lineage graph>> using `toDebugString` method.
+
+```
+scala> val wordsCount = sc.textFile("README.md").flatMap(_.split("\\s+")).map((_, 1)).reduceByKey(_ + _)
+wordsCount: org.apache.spark.rdd.RDD[(String, Int)] = ShuffledRDD[24] at reduceByKey at <console>:24
+
+scala> wordsCount.toDebugString
+res2: String =
+(2) ShuffledRDD[24] at reduceByKey at <console>:24 []
+ +-(2) MapPartitionsRDD[23] at map at <console>:24 []
+    |  MapPartitionsRDD[22] at flatMap at <console>:24 []
+    |  MapPartitionsRDD[21] at textFile at <console>:24 []
+    |  README.md HadoopRDD[20] at textFile at <console>:24 []
+```
+
+`toDebugString` uses indentations to indicate a shuffle boundary.
+
+The numbers in round brackets show the level of parallelism at each stage.
+
+=== [[spark.logLineage]] spark.logLineage
+
+Enable `spark.logLineage` (assumed: `false`) to see a RDD lineage graph using <<toDebugString, RDD.toDebugString>> method every time an action on a RDD is called.
+
+```
+$ ./bin/spark-shell -c spark.logLineage=true
+
+scala> sc.textFile("README.md", 4).count
+...
+15/10/17 14:46:42 INFO SparkContext: Starting job: count at <console>:25
+15/10/17 14:46:42 INFO SparkContext: RDD's recursive dependencies:
+(4) MapPartitionsRDD[1] at textFile at <console>:25 []
+ |  README.md HadoopRDD[0] at textFile at <console>:25 []
+```
+
+=== [[logical-execution-plan]] Logical Execution Plan
+
+*Logical Execution Plan* starts with the earliest RDDs (those with no dependencies on other RDDs or reference cached data) and ends with the RDD that produces the result of the action that has been called to execute.
+
+NOTE: A logical plan -- a DAG -- is materialized using link:spark-sparkcontext.adoc#runJob[SparkContext.runJob].
