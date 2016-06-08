@@ -2,9 +2,81 @@
 
 `JobProgressListener` is the link:spark-SparkListener.adoc[SparkListener] for link:spark-webui.adoc[web UI].
 
-It intercepts link:spark-SparkListener.adoc#SparkListenerEvent[Spark events] and presents the status of a Spark application in web UI.
+As a `SparkListener` it intercepts link:spark-SparkListener.adoc#SparkListenerEvent[Spark events] and collect information about jobs, stages, and tasks that the web UI uses to present the status of a Spark application.
+
+`JobProgressListener` is interested in the following events:
+
+1. <<onJobStart, A job starts>>.
 
 CAUTION: FIXME What information does this track?
+
+=== [[onJobStart]] Handling SparkListenerJobStart Events (onJobStart method)
+
+[source, scala]
+----
+onJobStart(jobStart: SparkListenerJobStart): Unit
+----
+
+When called, `onJobStart` reads the optional Spark Job group id (using `SparkListenerJobStart.properties` and `SparkContext.SPARK_JOB_GROUP_ID` key).
+
+It then creates a <<JobUIData, JobUIData>> (as `jobData`) based on the input `jobStart`. `status` attribute is `JobExecutionStatus.RUNNING`.
+
+The internal <<jobGroupToJobIds, jobGroupToJobIds>> is updated with the job group and job ids.
+
+The internal <<pendingStages, pendingStages>> is updated with `StageInfo` for the stage id (for every `StageInfo` in `SparkListenerJobStart.stageInfos` collection).
+
+`numTasks` attribute in the `jobData` (as `JobUIData` instance created above) is set to the sum of tasks in every stage (from `jobStart.stageInfos`) for which `completionTime` attribute is not set.
+
+The internal <<jobIdToData, jobIdToData>> and <<activeJobs, activeJobs>> are updated with `jobData` for the current job.
+
+The internal <<stageIdToActiveJobIds, stageIdToActiveJobIds>> is updated with the stage id and job id (for every stage in the input `jobStart`).
+
+The internal <<stageIdToInfo, stageIdToInfo>> is updated with the stage id and `StageInfo` (for every `StageInfo` in `jobStart.stageInfos`).
+
+A <<StageUIData, StageUIData>> is added to the internal <<stageIdToData, stageIdToData>> for every `StageInfo` (in `jobStart.stageInfos`).
+
+NOTE: `onJobStart` is a part of link:spark-SparkListener.adoc[SparkListener contract] to handle...FIXME
+
+=== [[stageIdToInfo]] stageIdToInfo Registry
+
+[source, scala]
+----
+stageIdToInfo = new HashMap[StageId, StageInfo]
+----
+
+=== [[stageIdToActiveJobIds]] stageIdToActiveJobIds Registry
+
+[source, scala]
+----
+stageIdToActiveJobIds = new HashMap[StageId, HashSet[JobId]]
+----
+
+=== [[jobIdToData]] jobIdToData Registry
+
+[source, scala]
+----
+jobIdToData = new HashMap[JobId, JobUIData]
+----
+
+=== [[activeJobs]] activeJobs Registry
+
+[source, scala]
+----
+activeJobs = new HashMap[JobId, JobUIData]
+----
+
+=== [[pendingStages]] pendingStages Registry
+
+[source, scala]
+----
+pendingStages = new HashMap[StageId, StageInfo]
+----
+
+CAUTION: FIXME
+
+=== [[JobUIData]] JobUIData
+
+CAUTION: FIXME
 
 === [[blockManagerIds]] blockManagerIds method
 
