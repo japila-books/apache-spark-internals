@@ -146,7 +146,11 @@ stop(): Unit
 
 === [[ExternalShuffleBlockHandler]] ExternalShuffleBlockHandler
 
-CAUTION: FIXME
+`ExternalShuffleBlockHandler` is a `RpcHandler` (i.e. a handler for `sendRPC()` messages sent by `TransportClients`).
+
+When created, `ExternalShuffleBlockHandler` requires a `OneForOneStreamManager` and `TransportConf` with a `registeredExecutorFile` to create a `ExternalShuffleBlockResolver`.
+
+It <<ExternalShuffleBlockHandler-handleMessage, handles two `BlockTransferMessage` messages>>: <<ExternalShuffleBlockHandler-OpenBlocks, OpenBlocks>> and <<ExternalShuffleBlockHandler-RegisterExecutor, RegisterExecutor>>.
 
 [TIP]
 ====
@@ -160,3 +164,82 @@ log4j.logger.org.apache.spark.network.shuffle.ExternalShuffleBlockHandler=TRACE
 
 Refer to link:spark-logging.adoc[Logging].
 ====
+
+==== [[ExternalShuffleBlockHandler-handleMessage]] handleMessage method
+
+[source, java]
+----
+handleMessage(
+  BlockTransferMessage msgObj,
+  TransportClient client,
+  RpcResponseCallback callback)
+----
+
+`handleMessage` handles two types of `BlockTransferMessage` messages:
+
+* <<ExternalShuffleBlockHandler-OpenBlocks, OpenBlocks>>
+* <<ExternalShuffleBlockHandler-RegisterExecutor, RegisterExecutor>>
+
+For any other `BlockTransferMessage` message it throws a `UnsupportedOperationException`:
+
+```
+Unexpected message: [msgObj]
+```
+
+==== [[ExternalShuffleBlockHandler-OpenBlocks]] OpenBlocks
+
+[source, java]
+----
+OpenBlocks(String appId, String execId, String[] blockIds)
+----
+
+When `OpenBlocks` is received, <<ExternalShuffleBlockHandler-handleMessage, handleMessage>> authorizes the `client`.
+
+CAUTION: FIXME `checkAuth`?
+
+It then <<ExternalShuffleBlockResolver-getBlockData, gets block data>> for each block id in `blockIds` (using <<ExternalShuffleBlockResolver, ExternalShuffleBlockResolver>>).
+
+Finally, it <<OneForOneStreamManager-registerStream, registers a stream>> and does `callback.onSuccess` with a serialized byte buffer (for the `streamId` and the number of blocks in `msg`).
+
+CAUTION: FIXME `callback.onSuccess`?
+
+You should see the following TRACE message in the logs:
+
+```
+TRACE Registered streamId [streamId] with [length] buffers for client [clientId] from host [remoteAddress]
+```
+
+==== [[ExternalShuffleBlockHandler-RegisterExecutor]] RegisterExecutor
+
+[source, java]
+----
+RegisterExecutor(String appId, String execId, ExecutorShuffleInfo executorInfo)
+----
+
+`RegisterExecutor`
+
+=== [[ExternalShuffleBlockResolver]] ExternalShuffleBlockResolver
+
+CAUTION: FIXME
+
+==== [[ExternalShuffleBlockResolver-getBlockData]] getBlockData method
+
+CAUTION: FIXME
+
+[source, java]
+----
+ManagedBuffer getBlockData(String appId, String execId, String blockId)
+----
+
+=== [[OneForOneStreamManager]] OneForOneStreamManager
+
+CAUTION: FIXME
+
+==== [[OneForOneStreamManager-registerStream]] registerStream method
+
+[source, java]
+----
+long registerStream(String appId, Iterator<ManagedBuffer> buffers)
+----
+
+CAUTION: FIXME
