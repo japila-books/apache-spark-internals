@@ -23,12 +23,6 @@ When the driver terminates, `CoarseGrainedExecutorBackend` exits (with exit code
 ERROR Driver [remoteAddress] disassociated! Shutting down.
 ```
 
-When *Executor* RPC Endpoint is started (`onStart`), it prints out INFO message to the logs:
-
-```
-INFO CoarseGrainedExecutorBackend: Connecting to driver:  [driverUrl]
-```
-
 All task status updates are sent along to `driverRef` as `StatusUpdate` messages.
 
 [TIP]
@@ -41,6 +35,36 @@ Add the following line to `conf/log4j.properties`:
 log4j.logger.org.apache.spark.executor.CoarseGrainedExecutorBackend=INFO
 ```
 ====
+
+=== [[onStart]] Starting RpcEndpoint (onStart method)
+
+NOTE: `onStart` is a link:spark-rpc.adoc[RpcEndpoint callback method] that is executed before a RPC endpoint starts to handle messages.
+
+When `onStart` is executed, it prints out the following INFO message to the logs:
+
+```
+INFO CoarseGrainedExecutorBackend: Connecting to driver:  [driverUrl]
+```
+
+It then accesses the link:spark-rpc.adoc#RpcEndpointRef[RpcEndpointRef] for the driver (using the constructor's <<driverUrl, driverUrl>>) and eventually initializes the internal <<driver, driver>> that it will send a blocking `RegisterExecutor` message to.
+
+If there is an issue while registering the executor, you should see the following ERROR message in the logs and process exits (with the exit code `1`).
+
+```
+ERROR Cannot register with driver: [driverUrl]
+```
+
+NOTE: The `RegisterExecutor` message contains `executorId`, the `RpcEndpointRef` to itself, `cores`, and <<extractLogUrls, log URLs>>.
+
+=== [[extractLogUrls]] Extracting Log URLs (extractLogUrls method)
+
+CAUTION: FIXME
+
+=== [[driver]] driver RpcEndpointRef
+
+`driver` is an optional link:spark-rpc.adoc#RpcEndpointRef[RpcEndpointRef] for the driver.
+
+TIP: See <<onStart, Starting RpcEndpoint (onStart method)>> to learn how it is initialized.
 
 === [[driverURL]] Driver's URL
 
@@ -108,6 +132,12 @@ It is used in:
 
 === [[requestTotalExecutors]] requestTotalExecutors
 
+=== [[executor]] executor internal field
+
+`executor` is an link:spark-executor.adoc[Executor]...FIXME
+
+CAUTION: FIXME
+
 === [[messages]] RPC Messages
 
 ==== [[RegisteredExecutor]] RegisteredExecutor
@@ -117,13 +147,15 @@ It is used in:
 RegisteredExecutor(hostname)
 ----
 
-When `RegisteredExecutor` message arrives, you should see the following INFO in the logs:
+When a `RegisteredExecutor` message arrives, you should see the following INFO in the logs:
 
 ```
 INFO CoarseGrainedExecutorBackend: Successfully registered with driver
 ```
 
-The internal `executor` is created using `executorId` constructor parameter, with `hostname` that has arrived and others.
+The internal <<executor, executor>> is created using `executorId` constructor parameter, with `hostname` that has arrived and others.
+
+NOTE: The message is sent after  link:spark-scheduler-backends-coarse-grained.adoc#RegisterExecutor[`CoarseGrainedSchedulerBackend` handles a `RegisterExecutor` message].
 
 ==== [[RegisterExecutorFailed]] RegisterExecutorFailed
 

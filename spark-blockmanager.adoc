@@ -135,7 +135,7 @@ DEBUG BlockManager: Put block [blockId] locally took [time] ms
 
 For replication level greater than `1`, `doPutBytes` waits for the earlier asynchronous replication to finish.
 
-`doPutBytes`'s final result is the result of storing the block successful or not (as computed earlier).
+The final result of `doPutBytes` is the result of storing the block successful or not (as computed earlier).
 
 === [[replicate]] replicate
 
@@ -289,7 +289,7 @@ NOTE: `executorId` is `SparkContext.DRIVER_IDENTIFIER`, i.e. `driver` for the dr
 
 CAUTION: FIXME Elaborate on the executor backends and executor ids.
 
-When a `BlockManager` instance is created it first sets the internal `externalShuffleServiceEnabled` flag to the value of link:spark-shuffle-manager.adoc#spark.shuffle.service.enabled[spark.shuffle.service.enabled] setting.
+When a `BlockManager` instance is created it first sets the internal `externalShuffleServiceEnabled` flag to the value of link:spark-ExternalShuffleService.adoc#spark.shuffle.service.enabled[spark.shuffle.service.enabled] setting.
 
 It creates an instance of <<DiskBlockManager, DiskBlockManager>> (requesting `deleteFilesOnStop` when an external shuffle service is not in use).
 
@@ -317,6 +317,16 @@ It <<BlockManagerSlaveEndpoint, registers BlockManagerSlaveEndpoint>> with the i
 
 NOTE: A `BlockManager` instance is created while link:spark-sparkenv.adoc#create[SparkEnv is being created].
 
+=== [[shuffleClient]] shuffleClient
+
+CAUTION: FIXME
+
+(that is assumed to be a link:spark-shuffleclient.adoc#ExternalShuffleClient[ExternalShuffleClient])
+
+=== [[shuffleServerId]] shuffleServerId
+
+CAUTION: FIXME
+
 === [[initialize]] Initializing BlockManager (initialize method)
 
 [source, scala]
@@ -332,8 +342,8 @@ It does the following:
 
 1. It initializes link:spark-blocktransferservice.adoc[BlockTransferService].
 2. It initializes a shuffle client, be it link:spark-shuffleclient.adoc#ExternalShuffleClient[ExternalShuffleClient] or link:spark-blocktransferservice.adoc[BlockTransferService].
-3. It creates an instance of <<BlockManagerId, BlockManagerId>> given an executor id, host name and port for link:spark-blocktransferservice.adoc[BlockTransferService].
-4. It creates the address of the server that serves this executor's shuffle files (using `shuffleServerId`)
+3. It sets <<shuffleServerId, shuffleServerId>> to an instance of <<BlockManagerId, BlockManagerId>> given an executor id, host name and port for link:spark-blocktransferservice.adoc[BlockTransferService].
+4. It creates the address of the server that serves this executor's shuffle files (using <<shuffleServerId, shuffleServerId>>)
 
 If an external shuffle service is used, the following INFO appears in the logs:
 
@@ -343,16 +353,20 @@ INFO external shuffle service port = [externalShuffleServicePort]
 
 It link:spark-BlockManagerMaster.adoc#registerBlockManager[registers itself to the driver's BlockManagerMaster] passing the <<BlockManagerId, BlockManagerId>>, the maximum memory (as `maxMemory`), and the <<BlockManagerSlaveEndpoint, BlockManagerSlaveEndpoint>>.
 
-Ultimately, if the initialization happens on an executor and an external shuffle service is used, it <<registerWithExternalShuffleServer, registers to the external shuffle service>>.
+Ultimately, if the initialization happens on an executor and an link:spark-ExternalShuffleService.adoc#spark.shuffle.service.enabled[external shuffle service is used], it <<registerWithExternalShuffleServer, registers itself to the external shuffle service>>.
 
-==== [[registerWithExternalShuffleServer]] Registering Executor's BlockManager to External Shuffle Server (registerWithExternalShuffleServer method)
+NOTE: The method is called when the link:spark-sparkcontext-creating-instance-internals.adoc#BlockManager-initialization[driver is launched (and `SparkContext` is created)] and when an link:spark-executor.adoc#creating-instance[Executor is launched].
+
+==== [[registerWithExternalShuffleServer]] Registering Executor's BlockManager with External Shuffle Server (registerWithExternalShuffleServer method)
 
 [source, scala]
 ----
 registerWithExternalShuffleServer(): Unit
 ----
 
-`registerWithExternalShuffleServer` is an internal helper method to register the `BlockManager` (that serves an executor's shuffle files) with an external shuffle server.
+`registerWithExternalShuffleServer` is an internal helper method to register the `BlockManager` for an executor with an link:spark-ExternalShuffleService.adoc[external shuffle server].
+
+NOTE: It is executed when a <<initialize, `BlockManager` is initialized on an executor and an external shuffle service is used>>.
 
 When executed, you should see the following INFO message in the logs:
 
@@ -360,11 +374,13 @@ When executed, you should see the following INFO message in the logs:
 INFO Registering executor with local external shuffle service.
 ```
 
-It uses `shuffleClient` (that is assumed link:spark-shuffleclient.adoc#ExternalShuffleClient[ExternalShuffleClient]) to call `registerWithShuffleServer` synchronously using `shuffleServerId` and a `ExecutorShuffleInfo` (based on <<DiskBlockManager, DiskBlockManager>> for the executor and the short name of link:spark-shuffle-manager.adoc[ShuffleManager]).
+It uses <<shuffleClient, shuffleClient>> to link:spark-shuffleclient.adoc#ExternalShuffleClient-registerWithShuffleServer[register the block manager] using <<shuffleServerId, shuffleServerId>> (i.e. the host, the port and the executorId) and a `ExecutorShuffleInfo`.
+
+NOTE: The `ExecutorShuffleInfo` uses `localDirs` and `subDirsPerLocalDir` from <<DiskBlockManager, DiskBlockManager>> and the class name of the constructor link:spark-shuffle-manager.adoc[ShuffleManager].
 
 It tries to register at most 3 times with 5-second sleeps in-between.
 
-NOTE: The maximum number of attempts and the sleep time in-between are hard-coded, i.e. they are not parameterized.
+NOTE: The maximum number of attempts and the sleep time in-between are hard-coded, i.e. they are not configured.
 
 Any issues while connecting to the external shuffle service are reported as ERROR messages in the logs:
 
