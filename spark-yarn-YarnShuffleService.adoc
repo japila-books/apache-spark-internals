@@ -1,0 +1,72 @@
+== YarnShuffleService -- ExternalShuffleService on YARN
+
+NOTE: It was introduced in https://issues.apache.org/jira/browse/SPARK-3797[SPARK-3797].
+
+=== [[advantages]] Advantages
+
+The advantages of using the YARN Shuffle Service:
+
+* With dynamic allocation enabled executors can be discarded and a Spark application could still get at the shuffle data the executors wrote out.
+
+* It allows individual executors to go into GC pause (or even crash) and still allow other Executors to read shuffle data and make progress.
+
+=== [[setup]] Setup
+
+Start the YARN shuffle service as an auxiliary service on each YARN NodeManager node in the YARN cluster.
+
+Add the YARN Shuffle Service plugin from the `network/yarn` module to YARN NodeManager's CLASSPATH.
+
+```
+cp network/yarn/target/scala-2.11/spark-2.0.0-SNAPSHOT-yarn-shuffle.jar \
+  /usr/local/Cellar/hadoop/2.7.2/libexec/share/hadoop/yarn/lib/
+```
+
+If link:spark-ExternalShuffleService.adoc#spark.shuffle.service.enabled[external shuffle service is enabled], you need to add `spark_shuffle` to `yarn.nodemanager.aux-services` in the `yarn-site.xml` file on all nodes.
+
+.yarn-site.xml -- NodeManager Configuration properties
+[source, xml]
+----
+<?xml version="1.0"?>
+<configuration>
+  <property>
+    <name>yarn.nodemanager.aux-services</name>
+    <value>spark_shuffle</value>
+  </property>
+  <property>
+    <name>yarn.nodemanager.aux-services.spark_shuffle.class</name>
+    <value>org.apache.spark.network.yarn.YarnShuffleService</value>
+  </property>
+</configuration>
+----
+
+`yarn.nodemanager.aux-services` property is for the auxiliary service name being `spark_shuffle` with `yarn.nodemanager.aux-services.spark_shuffle.class` property being `org.apache.spark.network.yarn.YarnShuffleService`.
+
+Run `spark-shell` with the external shuffle service enabled.
+
+```
+YARN_CONF_DIR=hadoop-conf ./bin/spark-shell --master yarn -c spark.shuffle.service.enabled=true --verbose
+```
+
+=== Exception
+
+```
+Exception in thread "ContainerLauncher-0" java.lang.Error: org.apache.spark.SparkException: Exception while starting container container_1465448245611_0002_01_000002 on host 192.168.99.1
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1148)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:617)
+	at java.lang.Thread.run(Thread.java:745)
+Caused by: org.apache.spark.SparkException: Exception while starting container container_1465448245611_0002_01_000002 on host 192.168.99.1
+	at org.apache.spark.deploy.yarn.ExecutorRunnable.startContainer(ExecutorRunnable.scala:126)
+	at org.apache.spark.deploy.yarn.ExecutorRunnable.run(ExecutorRunnable.scala:71)
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1142)
+	... 2 more
+Caused by: org.apache.hadoop.yarn.exceptions.InvalidAuxServiceException: The auxService:spark_shuffle does not exist
+	at sun.reflect.NativeConstructorAccessorImpl.newInstance0(Native Method)
+	at sun.reflect.NativeConstructorAccessorImpl.newInstance(NativeConstructorAccessorImpl.java:62)
+	at sun.reflect.DelegatingConstructorAccessorImpl.newInstance(DelegatingConstructorAccessorImpl.java:45)
+	at java.lang.reflect.Constructor.newInstance(Constructor.java:423)
+	at org.apache.hadoop.yarn.api.records.impl.pb.SerializedExceptionPBImpl.instantiateException(SerializedExceptionPBImpl.java:168)
+	at org.apache.hadoop.yarn.api.records.impl.pb.SerializedExceptionPBImpl.deSerialize(SerializedExceptionPBImpl.java:106)
+	at org.apache.hadoop.yarn.client.api.impl.NMClientImpl.startContainer(NMClientImpl.java:207)
+	at org.apache.spark.deploy.yarn.ExecutorRunnable.startContainer(ExecutorRunnable.scala:123)
+	... 4 more
+```
