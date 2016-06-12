@@ -1,6 +1,25 @@
 == YarnShuffleService -- ExternalShuffleService on YARN
 
-NOTE: It was introduced in https://issues.apache.org/jira/browse/SPARK-3797[SPARK-3797].
+`YarnShuffleService` is an external shuffle service for link:spark-yarn.adoc[Spark on YARN]. It is YARN NodeManager's auxiliary service that implements `org.apache.hadoop.yarn.server.api.AuxiliaryService`.
+
+NOTE: There is the link:spark-ExternalShuffleService.adoc[ExternalShuffleService] for Spark and despite their names they don't share code.
+
+`YarnShuffleService` is <<configuration-file, configured in `yarn-site.xml` configuration file>> and <<serviceInit, is initialized on each YARN NodeManager node>> when the node(s) starts.
+
+After the external shuffle service is configured in YARN you enable it in a Spark application using link:spark-ExternalShuffleService.adoc#spark.shuffle.service.enabled[spark.shuffle.service.enabled] flag.
+
+NOTE: `YarnShuffleService` was introduced in https://issues.apache.org/jira/browse/SPARK-3797[SPARK-3797].
+
+[TIP]
+====
+Enable `INFO` logging level for `org.apache.spark.network.yarn.YarnShuffleService` logger in YARN logging system to see what happens inside.
+
+```
+log4j.logger.org.apache.spark.network.yarn.YarnShuffleService=INFO
+```
+
+YARN saves logs in `/usr/local/Cellar/hadoop/2.7.2/libexec/logs` directory on Mac OS X with brew, e.g. `/usr/local/Cellar/hadoop/2.7.2/libexec/logs/yarn-jacek-nodemanager-japila.local.log`.
+====
 
 === [[advantages]] Advantages
 
@@ -10,16 +29,57 @@ The advantages of using the YARN Shuffle Service:
 
 * It allows individual executors to go into GC pause (or even crash) and still allow other Executors to read shuffle data and make progress.
 
-=== [[setup]] Setup
+=== [[creating-instance]] Creating YarnShuffleService Instance
 
-Start the YARN shuffle service as an auxiliary service on each YARN NodeManager node in the YARN cluster.
+When `YarnShuffleService` is created, it calls YARN's `AuxiliaryService` with `spark_shuffle` service name.
+
+You should see the following INFO message in the logs:
+
+```
+INFO org.apache.spark.network.yarn.YarnShuffleService: Initializing YARN shuffle service for Spark
+INFO org.apache.hadoop.yarn.server.nodemanager.containermanager.AuxServices: Adding auxiliary service spark_shuffle, "spark_shuffle"
+```
+
+=== [[serviceInit]] serviceInit
+
+[source, scala]
+----
+@Override
+protected void serviceInit(Configuration conf)
+----
+
+`serviceInit` is a part of YARN's `AuxiliaryService` contract and it called when...FIXME
+
+CAUTION: FIXME
+
+CAUTION: FIXME `TransportConf`?
+
+When called, `serviceInit`, `TransportConf` is created for the `shuffle` module that is used to create `ExternalShuffleBlockHandler` (as `blockHandler`).
+
+It checks `spark.authenticate` key in the configuration (defaults to `false`) and if only authentication is enabled, it sets up a `SaslServerBootstrap` with a `ShuffleSecretManager` and adds it to a collection of `TransportServerBootstraps`.
+
+It creates a `TransportServer` as `shuffleServer` to listen to `spark.shuffle.service.port` (default: `7337`). It reads `spark.shuffle.service.port` key in the configuration.
+
+You should see the following INFO message in the logs:
+
+```
+INFO org.apache.spark.network.yarn.YarnShuffleService: Started YARN shuffle service for Spark on port [port]. Authentication is [authEnabled].  Registered executor file is [registeredExecutorFile]
+```
+
+=== [[installation]] Installation
+
+==== [[copy-plugin]] YARN Shuffle Service Plugin
 
 Add the YARN Shuffle Service plugin from the `network/yarn` module to YARN NodeManager's CLASSPATH.
+
+TIP: Use `yarn classpath` command to know YARN's CLASSPATH.
 
 ```
 cp network/yarn/target/scala-2.11/spark-2.0.0-SNAPSHOT-yarn-shuffle.jar \
   /usr/local/Cellar/hadoop/2.7.2/libexec/share/hadoop/yarn/lib/
 ```
+
+==== [[configuration-file]] yarn-site.xml -- NodeManager Configuration File
 
 If link:spark-ExternalShuffleService.adoc#spark.shuffle.service.enabled[external shuffle service is enabled], you need to add `spark_shuffle` to `yarn.nodemanager.aux-services` in the `yarn-site.xml` file on all nodes.
 
@@ -36,18 +96,23 @@ If link:spark-ExternalShuffleService.adoc#spark.shuffle.service.enabled[external
     <name>yarn.nodemanager.aux-services.spark_shuffle.class</name>
     <value>org.apache.spark.network.yarn.YarnShuffleService</value>
   </property>
+  <!-- optional -->
+  <property>
+      <name>spark.shuffle.service.port</name>
+      <value>10000</value>
+  </property>
+  <property>
+      <name>spark.authenticate</name>
+      <value>true</value>
+  </property>
 </configuration>
 ----
 
 `yarn.nodemanager.aux-services` property is for the auxiliary service name being `spark_shuffle` with `yarn.nodemanager.aux-services.spark_shuffle.class` property being `org.apache.spark.network.yarn.YarnShuffleService`.
 
-Run `spark-shell` with the external shuffle service enabled.
+=== Exception -- Attempting to Use External Shuffle Service in Spark Application in Spark on YARN
 
-```
-YARN_CONF_DIR=hadoop-conf ./bin/spark-shell --master yarn -c spark.shuffle.service.enabled=true --verbose
-```
-
-=== Exception
+When you link:spark-ExternalShuffleService.adoc#spark.shuffle.service.enabled[enable an external shuffle service in a Spark application] when using link:spark-yarn.adoc[Spark on YARN] but do not <<installation, install YARN Shuffle Service>> you will see the following exception in the logs:
 
 ```
 Exception in thread "ContainerLauncher-0" java.lang.Error: org.apache.spark.SparkException: Exception while starting container container_1465448245611_0002_01_000002 on host 192.168.99.1
