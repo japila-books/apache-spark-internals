@@ -17,7 +17,7 @@ log4j.logger.org.apache.spark.deploy.yarn.Client=DEBUG
 Refer to link:spark-logging.adoc[Logging].
 ====
 
-=== [[populateClasspath]] populateClasspath method
+=== [[populateClasspath]] Populating CLASSPATH for ApplicationMaster and Executors (populateClasspath method)
 
 [source, scala]
 ----
@@ -29,11 +29,56 @@ populateClasspath(
   extraClassPath: Option[String] = None): Unit
 ----
 
-`populateClasspath` is a `private[yarn]` helper method that...
+`populateClasspath` is a `private[yarn]` helper method that populates the CLASSPATH (for <<setupLaunchEnv, ApplicationMaster>> and link:spark-yarn-ExecutorRunnable.adoc#prepareEnvironment[executors]).
 
+It merely <<addClasspathEntry, adds the following entries to the CLASSPATH key in the input `env`>>:
+
+1. the optional `extraClassPath` which is first <<getClusterPath, resolved to be YARN NodeManager-aware>>.
+2. `YarnSparkHadoopUtil.expandEnvironment(Environment.PWD)`
+3. `YarnSparkHadoopUtil.expandEnvironment(Environment.PWD) + Path.SEPARATOR + LOCALIZED_CONF_DIR`
++
+CAUTION: FIXME Above
+
+1. If the _deprecated_ link:spark-yarn.adoc#spark.yarn.user.classpath.first[spark.yarn.user.classpath.first] is defined, ...FIXME
++
 CAUTION: FIXME
 
-NOTE: It is used when link:spark-yarn-ExecutorRunnable.adoc#prepareEnvironment[`ExecutorRunnable` prepares environment] and <<setupLaunchEnv, Client sets up the environment to launch a `ApplicationMaster` container>>.
+1. <<buildPath, A path built>> from `YarnSparkHadoopUtil.expandEnvironment(Environment.PWD), LOCALIZED_LIB_DIR, "*"`
+
+1. (unless the optional link:spark-yarn.adoc#spark.yarn.archive[spark.yarn.archive] is defined) All the `local` jars in link:spark-yarn.adoc#spark.yarn.jars[spark.yarn.jars] (which are first <<getClusterPath, resolved to be YARN NodeManager-aware>>).
+
+1. `populateHadoopClasspath(conf, env)`
++
+CAUTION: FIXME
+
+1. link:spark-yarn.adoc#SPARK_DIST_CLASSPATH[SPARK_DIST_CLASSPATH] (which is first <<getClusterPath, resolved to be YARN NodeManager-aware>>).
+
+==== [[buildPath]] Joining Path Components using Path.SEPARATOR (buildPath method)
+
+[source, scala]
+----
+buildPath(components: String*): String
+----
+
+`buildPath` is a helper method to join all the path `components` using the directory separator, i.e. https://hadoop.apache.org/docs/current/api/org/apache/hadoop/fs/Path.html#SEPARATOR[org.apache.hadoop.fs.Path.SEPARATOR].
+
+==== [[getClusterPath]] Resolving Path to be YARN NodeManager-aware (getClusterPath method)
+
+[source, scala]
+----
+getClusterPath(conf: SparkConf, path: String): String
+----
+
+`getClusterPath` replaces any occurences of link:spark-yarn.adoc#spark.yarn.config.gatewayPath[spark.yarn.config.gatewayPath] in `path` to the value of link:spark-yarn.adoc#spark.yarn.config.replacementPath[spark.yarn.config.replacementPath].
+
+==== [[addClasspathEntry]] Adding CLASSPATH Entry to Environment (addClasspathEntry method)
+
+[source, scala]
+----
+addClasspathEntry(path: String, env: HashMap[String, String]): Unit
+----
+
+`addClasspathEntry` is a private helper method to link:spark-yarn.adoc#YarnSparkHadoopUtil-addPathToEnvironment[add the input `path` to `CLASSPATH` key in the input `env`].
 
 === [[prepareLocalResources]] prepareLocalResources method
 
