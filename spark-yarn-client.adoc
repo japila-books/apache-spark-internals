@@ -17,6 +17,116 @@ log4j.logger.org.apache.spark.deploy.yarn.Client=DEBUG
 Refer to link:spark-logging.adoc[Logging].
 ====
 
+=== [[createContainerLaunchContext]] Creating Hadoop YARN's ContainerLaunchContext for ApplicationMaster (createContainerLaunchContext method)
+
+[source, scala]
+----
+createContainerLaunchContext(newAppResponse: GetNewApplicationResponse): ContainerLaunchContext
+----
+
+`createContainerLaunchContext` is a `private` helper method that creates a https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/api/records/ContainerLaunchContext.html[ContainerLaunchContext]...FIXME
+
+NOTE: The input `newAppResponse` is Hadoop YARN's https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/api/protocolrecords/GetNewApplicationResponse.html[GetNewApplicationResponse].
+
+When called, you should see the following INFO message in the logs:
+
+```
+INFO Setting up container launch context for our AM
+```
+
+It gets at the application id (from the input `newAppResponse`).
+
+It calculates the path of the application's staging directory.
+
+CAUTION: FIXME What's `appStagingBaseDir`?
+
+It does a _custom_ step for a Python application.
+
+It <<setupLaunchEnv, sets up an environment to launch `ApplicationMaster` container>> and <<prepareLocalResources, prepareLocalResources>>. A `ContainerLaunchContext` record is created with the environment and the local resources.
+
+The JVM options are calculated as follows:
+
+* `-Xmx` (that <<amMemory, was calculated when the Client was created>>)
+* `-Djava.io.tmpdir=` - FIXME: `tmpDir`
++
+CAUTION: FIXME `tmpDir`?
+
+* Using `UseConcMarkSweepGC` when `SPARK_USE_CONC_INCR_GC` is enabled.
++
+CAUTION: FIXME `SPARK_USE_CONC_INCR_GC`?
+
+* In cluster deploy mode, ...FIXME
+
+* In client deploy mode, ...FIXME
++
+CAUTION: FIXME
+
+* `-Dspark.yarn.app.container.log.dir=`...FIXME
+
+* Perm gen size option...FIXME
+
+`--class` is set if in cluster mode based on `--class` command-line argument.
+
+CAUTION: FIXME
+
+If `--jar` command-line argument was specified, it is set as `--jar`.
+
+In cluster deploy mode, link:spark-yarn-applicationmaster.adoc[org.apache.spark.deploy.yarn.ApplicationMaster] is created while in client deploy mode it is link:spark-yarn-applicationmaster.adoc#ExecutorLauncher[org.apache.spark.deploy.yarn.ExecutorLauncher].
+
+If `--arg` command-line argument was specified, it is set as `--arg`.
+
+The path for `--properties-file` is <<buildPath, built based on `YarnSparkHadoopUtil.expandEnvironment(Environment.PWD), LOCALIZED_CONF_DIR, SPARK_CONF_FILE`>>.
+
+The entire `ApplicationMaster` argument line (as `amArgs`) is of the form:
+
+```
+[amClassName] --class [userClass] --jar [userJar] --arg [userArgs] --properties-file [propFile]
+```
+
+The entire command line is of the form:
+
+CAUTION: FIXME `prefixEnv`? How is `path` calculated? `ApplicationConstants.LOG_DIR_EXPANSION_VAR`?
+
+```
+[JAVA_HOME]/bin/java -server [javaOpts] [amArgs] 1> [LOG_DIR]/stdout 2> [LOG_DIR]/stderr
+```
+
+The command line to launch a `ApplicationMaster` is set to the `ContainerLaunchContext` record (using `setCommands`).
+
+You should see the following DEBUG messages in the logs:
+
+```
+DEBUG Client: ===============================================================================
+DEBUG Client: YARN AM launch context:
+DEBUG Client:     user class: N/A
+DEBUG Client:     env:
+DEBUG Client:         [launchEnv]
+DEBUG Client:     resources:
+DEBUG Client:         [localResources]
+DEBUG Client:     command:
+DEBUG Client:         [commands]
+DEBUG Client: ===============================================================================
+```
+
+A link:spark-security.adoc#SecurityManager[SecurityManager] is created and set as the application's ACLs.
+
+CAUTION: FIXME `setApplicationACLs`? Set up security tokens?
+
+==== [[prepareLocalResources]] prepareLocalResources method
+
+[source, scala]
+----
+prepareLocalResources(
+  destDir: Path,
+  pySparkArchives: Seq[String]): HashMap[String, LocalResource]
+----
+
+`prepareLocalResources` is...FIXME
+
+CAUTION: FIXME
+
+NOTE: It is exclusively used when <<createContainerLaunchContext, Client creates a `ContainerLaunchContext` to launch a `ApplicationMaster` container>>.
+
 === [[populateClasspath]] Populating CLASSPATH for ApplicationMaster and Executors (populateClasspath method)
 
 [source, scala]
@@ -53,15 +163,6 @@ CAUTION: FIXME
 
 1. link:spark-yarn.adoc#SPARK_DIST_CLASSPATH[SPARK_DIST_CLASSPATH] (which is first <<getClusterPath, resolved to be YARN NodeManager-aware>>).
 
-==== [[buildPath]] Joining Path Components using Path.SEPARATOR (buildPath method)
-
-[source, scala]
-----
-buildPath(components: String*): String
-----
-
-`buildPath` is a helper method to join all the path `components` using the directory separator, i.e. https://hadoop.apache.org/docs/current/api/org/apache/hadoop/fs/Path.html#SEPARATOR[org.apache.hadoop.fs.Path.SEPARATOR].
-
 ==== [[getClusterPath]] Resolving Path to be YARN NodeManager-aware (getClusterPath method)
 
 [source, scala]
@@ -80,21 +181,6 @@ addClasspathEntry(path: String, env: HashMap[String, String]): Unit
 
 `addClasspathEntry` is a private helper method to link:spark-yarn.adoc#YarnSparkHadoopUtil-addPathToEnvironment[add the input `path` to `CLASSPATH` key in the input `env`].
 
-=== [[prepareLocalResources]] prepareLocalResources method
-
-[source, scala]
-----
-prepareLocalResources(
-  destDir: Path,
-  pySparkArchives: Seq[String]): HashMap[String, LocalResource]
-----
-
-`prepareLocalResources` is...FIXME
-
-CAUTION: FIXME
-
-NOTE: It is exclusively used when <<createContainerLaunchContext, Client creates a `ContainerLaunchContext` to launch a `ApplicationMaster` container>>.
-
 ==== [[distribute]] distribute method
 
 [source, scala]
@@ -111,6 +197,15 @@ distribute(
 
 CAUTION: FIXME
 
+=== [[buildPath]] Joining Path Components using Path.SEPARATOR (buildPath method)
+
+[source, scala]
+----
+buildPath(components: String*): String
+----
+
+`buildPath` is a helper method to join all the path `components` using the directory separator, i.e. https://hadoop.apache.org/docs/current/api/org/apache/hadoop/fs/Path.html#SEPARATOR[org.apache.hadoop.fs.Path.SEPARATOR].
+
 === [[creating-instance]] Creating Client Instance
 
 Creating an instance of `Client` does the following:
@@ -121,6 +216,7 @@ Creating an instance of `Client` does the following:
 
 * Sets the internal `isClusterMode` that says whether link:spark-deploy-mode.adoc#spark.submit.deployMode[spark.submit.deployMode] is link:spark-deploy-mode.adoc#cluster[cluster deploy mode].
 
+[[amMemory]]
 * Sets the internal `amMemory` to link:spark-driver.adoc#spark.driver.memory[spark.driver.memory] when `isClusterMode` is enabled or link:spark-yarn-settings.adoc#spark.yarn.am.memory[spark.yarn.am.memory] otherwise.
 
 * Sets the internal `amMemoryOverhead` to link:spark-yarn-settings.adoc#spark.yarn.driver.memoryOverhead[spark.yarn.driver.memoryOverhead] when `isClusterMode` is enabled or link:spark-yarn-settings.adoc#spark.yarn.am.memoryOverhead[spark.yarn.am.memoryOverhead] otherwise. If neither is available, the maximum of 10% of `amMemory` and `384` is chosen.
@@ -345,10 +441,6 @@ And finally submits a new application to YARN (using Hadoop's https://hadoop.apa
 INFO Client: Verifying our application has not requested more than the maximum memory capability of the cluster (8192 MB per container)
 INFO Client: Will allocate AM container, with 896 MB memory including 384 MB overhead
 ```
-
-=== [[createContainerLaunchContext]] createContainerLaunchContext
-
-CAUTION: FIXME
 
 === [[createApplicationSubmissionContext]] createApplicationSubmissionContext
 
