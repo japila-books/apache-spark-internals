@@ -2,7 +2,7 @@
 
 `TaskSchedulerImpl` is the default implementation of link:spark-taskscheduler.adoc#contract[TaskScheduler Contract] and extends it <<getRackForHost, to track racks per host and port>>. It can schedule tasks for multiple types of cluster managers by means of link:spark-scheduler-backends.adoc[Scheduler Backends].
 
-It uses link:spark-taskscheduler-schedulablebuilders.adoc[SchedulableBuilders] that exclusively manage (a pool of) `TaskSetManagers`.
+Using <<spark.scheduler.mode, spark.scheduler.mode>> setting you can select the link:spark-taskscheduler-schedulingmode.adoc[scheduling policy].
 
 It <<submitTasks, submits tasks>> using link:spark-taskscheduler-schedulablebuilders.adoc[SchedulableBuilders].
 
@@ -23,6 +23,18 @@ Add the following line to `conf/log4j.properties`:
 log4j.logger.org.apache.spark.scheduler.TaskSchedulerImpl=DEBUG
 ```
 ====
+
+=== [[schedulableBuilder]] schedulableBuilder Attribute
+
+`schedulableBuilder` is a link:spark-taskscheduler-schedulablebuilders.adoc[SchedulableBuilder] for the `TaskSchedulerImpl`.
+
+It is set up when a <<initialize, `TaskSchedulerImpl` is initialized>> and can be one of two available builders:
+
+* link:spark-taskscheduler-FIFOSchedulableBuilder.adoc[FIFOSchedulableBuilder] when scheduling policy is FIFO (which is the default scheduling policy).
+
+* link:spark-taskscheduler-FairSchedulableBuilder.adoc[FairSchedulableBuilder] for FAIR scheduling policy.
+
+NOTE: Use <<spark.scheduler.mode, spark.scheduler.mode>> setting to select the scheduling policy.
 
 === [[getRackForHost]] Tracking Racks per Hosts and Ports (getRackForHost method)
 
@@ -88,23 +100,23 @@ NOTE: The internal `removeExecutor` is called as part of <<statusUpdate, statusU
 
 CAUTION: FIXME
 
-=== [[initialization]][[initialize]] TaskSchedulerImpl Initialization (initialize method)
+=== [[initialization]][[initialize]] Initializing TaskSchedulerImpl (initialize method)
 
 [source, scala]
 ----
 initialize(backend: SchedulerBackend): Unit
 ----
 
-`initialize` initializes the `TaskSchedulerImpl` object.
+`initialize` initializes a `TaskSchedulerImpl` object.
 
 .TaskSchedulerImpl initialization
 image::images/TaskSchedulerImpl-initialize.png[align="center"]
 
 NOTE: `initialize` is called while link:spark-sparkcontext-creating-instance-internals.adoc#createTaskScheduler[SparkContext is being created and creates `SchedulerBackend` and `TaskScheduler`].
 
-`initialize` saves the reference to link:spark-scheduler-backends.adoc[SchedulerBackend] (as `backend`) and sets `rootPool` to be an empty-named link:spark-taskscheduler-pool.adoc[Pool] with already-initialized `schedulingMode` (while <<creating-instance, creating a TaskSchedulerImpl object>>), `initMinShare` and `initWeight` as `0`.
+`initialize` saves the reference to the current link:spark-scheduler-backends.adoc[SchedulerBackend] (as `backend`) and sets `rootPool` to be an empty-named link:spark-taskscheduler-pool.adoc[Pool] with already-initialized `schedulingMode` (while <<creating-instance, creating a TaskSchedulerImpl object>>), `initMinShare` and `initWeight` as `0`.
 
-NOTE: `schedulingMode` and `rootPool` are part of link:spark-taskscheduler.adoc#contract[TaskScheduler Contract].
+NOTE: `schedulingMode` and `rootPool` are a part of link:spark-taskscheduler.adoc#contract[TaskScheduler Contract].
 
 It then creates the internal link:spark-taskscheduler-schedulablebuilders.adoc[SchedulableBuilder] object (as `schedulableBuilder`) based on `schedulingMode`:
 
@@ -442,6 +454,8 @@ It is used in `TaskSchedulerImpl` to initialize a link:spark-tasksetmanager.adoc
 ==== [[spark.scheduler.mode]] spark.scheduler.mode
 
 `spark.scheduler.mode` (default: `FIFO`) is a case-insensitive name of the link:spark-taskscheduler-schedulingmode.adoc[scheduling mode] and can be one of `FAIR`, `FIFO`, or `NONE`.
+
+NOTE: Only `FAIR` and `FIFO` are supported by `TaskSchedulerImpl`. See <<schedulableBuilder, schedulableBuilder>>.
 
 ==== [[spark.speculation.interval]] spark.speculation.interval
 
