@@ -261,17 +261,19 @@ CAUTION: FIXME
 
 A mapping between stages and a collection of attempt ids and TaskSetManagers.
 
-=== [[resourceOffers]] Processing Resource Offers (using resourceOffers)
+=== [[resourceOffers]] Processing Executor Resource Offers (using resourceOffers)
 
 [source, scala]
 ----
 resourceOffers(offers: Seq[WorkerOffer]): Seq[Seq[TaskDescription]]
 ----
 
-`resourceOffers` method is called by a cluster manager or link:spark-local.adoc#LocalBackend[LocalBackend] (for local mode) to offer free resources available on the executors to run tasks on.
+`resourceOffers` method is called by link:spark-scheduler-backends.adoc[SchedulerBackend] (for clustered environments) or link:spark-local.adoc#LocalBackend[LocalBackend] (for local mode) with `WorkerOffer` resource offers that represent cores (CPUs) available on all the active executors with one `WorkerOffer` per active executor.
 
-.TaskSchedulerImpl.resourceOffers under the hood
+.Processing Executor Resource Offers
 image::images/taskscheduler-resourceOffers.png[align="center"]
+
+NOTE: `resourceOffers` is a mechanism to propagate information about active executors to `TaskSchedulerImpl` with the hosts and racks (if supported by the cluster manager).
 
 A `WorkerOffer` is a 3-tuple with executor id, host, and the number of free cores available.
 
@@ -280,25 +282,26 @@ A `WorkerOffer` is a 3-tuple with executor id, host, and the number of free core
 WorkerOffer(executorId: String, host: String, cores: Int)
 ----
 
-For each `WorkerOffer` the `resourceOffers` method tracks hosts per executor id (using the internal `executorIdToHost`) and sets `0` as the number of tasks running on the executor if there is no tasks running already (using `executorIdToTaskCount`). It also tracks executor id per host.
+For each `WorkerOffer` (that represents free cores on an executor) `resourceOffers` method records the host per executor id (using the internal `executorIdToHost`) and sets `0` as the number of tasks running on the executor if there are no tasks on the executor (using `executorIdToTaskCount`). It also records hosts (with executors in the internal `executorsByHost` registry).
 
 WARNING: FIXME BUG? Why is the executor id *not* added to `executorsByHost`?
 
-For the offers with a host that has not been tracked yet (in the internal `executorsByHost` registry) the following occurs:
+For the offers with a host that has not been recorded yet (in the internal `executorsByHost` registry) the following occurs:
 
-1. A new entry for the host in the offer is added to the internal `executorsByHost` registry.
-2. <<executorAdded, executorAdded>> is called (with the executor id and the host from the offer).
-3. `newExecAvail` is enabled (it is later used to inform `TaskSetManagers` about the new executor).
-
-WARNING: FIXME BUG? Why is `executorAdded` called for a new host added? Can't we have more executors on a host? The name of the method is misleading then.
+1. The host is recorded in the internal `executorsByHost` registry.
+2. <<executorAdded, executorAdded>> callback is called (with the executor id and the host from the offer).
+3. `newExecAvail` flag is enabled (it is later used to inform `TaskSetManagers` about the new executor).
 
 CAUTION: FIXME a picture with `executorAdded` call from TaskSchedulerImpl to DAGScheduler.
 
-It builds a list of tasks (using `TaskDescription`) to assign to each worker.
+It shuffles the input `offers` that is supposed to help evenly distributing tasks across executors (that the input `offers` represent) and builds internal structures like `tasks` and `availableCpus`.
 
-link:spark-taskscheduler-schedulable.adoc[rootPool.getSortedTaskSetQueue] is called to build a sorted `TaskSetManager` queue.
+.Internal Structures of resourceOffers with 5 WorkerOffers
+image::images/TaskSchedulerImpl-resourceOffers-internal-structures.png[align="center"]
 
-NOTE: `rootPool` belongs to the link:spark-taskscheduler.adoc#contract[TaskScheduler Contract] and is exclusively managed by link:spark-taskscheduler-schedulablebuilders.adoc[SchedulableBuilders] (that  link:spark-taskscheduler-schedulablebuilders.adoc#addTaskSetManager[add Schedulables to the rootPool] which are link:spark-tasksetmanager.adoc[TaskSetManagers] or link:spark-taskscheduler-pool.adoc[pools of TaskSetManagers]).
+The root pool is requested for link:spark-taskscheduler-pool.adoc#getSortedTaskSetQueue[TaskSetManagers sorted appropriately] (according to the link:spark-taskscheduler-schedulingmode.adoc[scheduling order]).
+
+NOTE: `rootPool` is a part of the link:spark-taskscheduler.adoc#contract[TaskScheduler Contract] and is exclusively managed by link:spark-taskscheduler-schedulablebuilders.adoc[SchedulableBuilders] (that  link:spark-taskscheduler-schedulablebuilders.adoc#addTaskSetManager[add `TaskSetManagers` to the root pool].
 
 For every `TaskSetManager` in the `TaskSetManager` sorted queue, the following DEBUG message is printed out to the logs:
 
@@ -308,15 +311,35 @@ DEBUG TaskSchedulerImpl: parentName: [taskSet.parent.name], name: [taskSet.name]
 
 NOTE: The internal `rootPool` is configured while <<initialize, TaskSchedulerImpl is being initialized>>.
 
-While iterating over the sorted `TaskSetManager` queue, if a new host was added to the pool, all `TaskSetManagers` are link:spark-tasksetmanager.adoc#executorAdded[informed about the new executor].
+While traversing over the sorted collection of `TaskSetManagers`, if a new host (with an executor) was registered, i.e. the `newExecAvail` flag is enabled, `TaskSetManagers` are link:spark-tasksetmanager.adoc#executorAdded[informed about the new executor added].
 
-WARNING: FIXME BUG? Why is the name `newExecAvail` since it's called for a new host added? Can't we have more executors on a host? The name of the method could be misleading.
+NOTE: A `TaskSetManager` will be informed about one or more new executors once per host regardless of the number of executors registered on the host.
 
-For each taskset in `sortedTaskSets`, different locality preferences are checked...FIXME
+For each `TaskSetManager` (in `sortedTaskSets`) and for each preferred locality level (ascending), <<resourceOfferSingleTaskSet, resourceOfferSingleTaskSet>> is called until `launchedTask` flag is `false`.
 
-Check whether the number of cores in an offer is more than the number of cores needed for a task (using <<spark.task.cpus, spark.task.cpus>>).
+CAUTION: FIXME `resourceOfferSingleTaskSet` + the sentence above less code-centric.
 
-When `resourceOffers` managed to launch a task, the internal field `hasLaunchedTask` becomes `true` (that effectively means what the name says _"There were executors and I managed to launch a task"_).
+Check whether the number of cores in an offer is greater than the <<spark.task.cpus, number of cores needed for a task>>.
+
+When `resourceOffers` managed to launch a task (i.e. `tasks` collection is not empty), the internal `hasLaunchedTask` flag becomes `true` (that effectively means what the name says _"There were executors and I managed to launch a task"_).
+
+`resourceOffers` returns the `tasks` collection.
+
+NOTE: `resourceOffers` is called when link:spark-scheduler-backends-coarse-grained.adoc#makeOffers[`CoarseGrainedSchedulerBackend` makes resource offers].
+
+==== [[resourceOfferSingleTaskSet]] resourceOfferSingleTaskSet method
+
+[source, scala]
+----
+resourceOfferSingleTaskSet(
+  taskSet: TaskSetManager,
+  maxLocality: TaskLocality,
+  shuffledOffers: Seq[WorkerOffer],
+  availableCpus: Array[Int],
+  tasks: Seq[ArrayBuffer[TaskDescription]]): Boolean
+----
+
+`resourceOfferSingleTaskSet` is a private helper method that is executed when...
 
 === [[TaskResultGetter]] TaskResultGetter
 
