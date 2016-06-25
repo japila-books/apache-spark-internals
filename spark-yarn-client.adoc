@@ -131,7 +131,13 @@ When `prepareLocalResources` is called, you should see the following INFO messag
 INFO Client: Preparing resources for our AM container
 ```
 
-If Spark works in a secure Hadoop environment, it obtains delegation tokens for link:spark-yarn.adoc#obtainTokensForNamenodes[extra NameNodes], link:spark-yarn.adoc#obtainTokenForHiveMetastore[Hive metastore], and link:spark-yarn.adoc#obtainTokenForHBase[HBase]. After all the security tokens are obtained, you should see the following DEBUG message in the logs:
+It uses Hadoop's Path.getFileSystem to know the current file system (for the constructor's `hadoopConf` -- Hadoop's Configuration).
+
+It `YarnSparkHadoopUtil.getNameNodesToAccess(sparkConf)` with the input `destDir` (as `nns`).
+
+CAUTION: FIXME Why the above `nns`?
+
+If Spark works in a secure Hadoop environment, it obtains delegation tokens for link:spark-yarn.adoc#obtainTokensForNamenodes[extra NameNodes], link:spark-yarn.adoc#obtainTokenForHiveMetastore[Hive metastore], and link:spark-yarn.adoc#obtainTokenForHBase[HBase] (using the constructor's `sparkConf` and `hadoopConf` with the internal `credentials` attribute). After all the security tokens are obtained, you should see the following DEBUG message in the logs:
 
 ```
 DEBUG Client: [token1]
@@ -140,31 +146,65 @@ DEBUG Client: [token2]
 DEBUG Client: [tokenN]
 ```
 
+CAUTION: FIXME Where is `credentials` assigned?
+
 It gets the replication factor using link:spark-yarn.adoc#spark.yarn.submit.file.replication[spark.yarn.submit.file.replication] setting or falls back to the default for the input `destDir`.
 
 It creates the input `destDir` with `0700` permission (`rwx------`), i.e. inaccessible to all but its owner (and the superuser) (the owner can read, write and execute).
 
 If it uses a keytab to log in, ...FIXME
 
+CAUTION: FIXME `if (loginFromKeytab)`
+
 If the link:spark-yarn.adoc#spark.yarn.archive[location of the single archive containing Spark jars (spark.yarn.archive)] is defined, it is distributed...FIXME
 
-Else if the link:spark-yarn.adoc#spark.yarn.jars[location of the Spark jars (spark.yarn.jars)] is defined,
+CAUTION: FIXME Describe `if (sparkArchive.isDefined)` and `distribute`
 
-If no link:spark-yarn.adoc#spark.yarn.archive[spark.yarn.archive] or link:spark-yarn.adoc#spark.yarn.jars[spark.yarn.jars] are defined, you should see the following WARN message in the logs:
+Else if the link:spark-yarn.adoc#spark.yarn.jars[location of the Spark jars (spark.yarn.jars)] is defined, ...FIXME
+
+CAUTION: FIXME Describe `case Some(jars)`
+
+If neither link:spark-yarn.adoc#spark.yarn.archive[spark.yarn.archive] nor link:spark-yarn.adoc#spark.yarn.jars[spark.yarn.jars] is set, you should see the following WARN message in the logs:
 
 ```
 WARN Client: Neither spark.yarn.jars nor spark.yarn.archive is set, falling back to uploading libraries under SPARK_HOME.
 ```
 
-It then...FIXME
+It then finds the directory with jar files under `SPARK_HOME` (using `YarnCommandBuilderUtils.findJarsDir`).
 
-If a user jar (`--jar`) was specified on command line, FIXME
+CAUTION: FIXME `YarnCommandBuilderUtils.findJarsDir`
 
-It then distributes additional resources, i.e. jars (under link:spark-yarn.adoc#spark.yarn.dist.jars[spark.yarn.dist.jars]), files (under link:spark-yarn.adoc#spark.yarn.dist.files[spark.yarn.dist.files]), and archives (under link:spark-yarn.adoc#spark.yarn.dist.archives[spark.yarn.dist.archives]).
+And all the jars are zipped to a temporary archive, e.g. `__spark_libs__2944590295025097383.zip` that is `distribute` as `ARCHIVE` to `__spark_libs__` (only when they differ).
+
+If a user jar (`--jar`) was specified on command line, the jar is `distribute` as `FILE` to `__app__.jar`.
+
+It then <<distribute, distributes>> additional resources specified in SparkConf for the application, i.e. jars (under link:spark-yarn.adoc#spark.yarn.dist.jars[spark.yarn.dist.jars]), files (under link:spark-yarn.adoc#spark.yarn.dist.files[spark.yarn.dist.files]), and archives (under link:spark-yarn.adoc#spark.yarn.dist.archives[spark.yarn.dist.archives]).
 
 NOTE: The additional files to distribute can be defined using link:spark-submit.adoc[spark-submit] using command-line options link:spark-submit.adoc#jars[--jars], link:spark-submit.adoc#files[--files], and link:spark-submit.adoc#archives[--archives].
 
-CAUTION: FIXME
+CAUTION: FIXME Describe `distribute`
+
+It sets link:spark-yarn-settings.adoc#spark.yarn.secondary.jars[spark.yarn.secondary.jars] for the jars that have localized path (non-local paths) or their path (for local paths).
+
+`distCacheMgr.updateConfiguration(sparkConf)` is executed.
+
+CAUTION: FIXME `distCacheMgr.updateConfiguration(sparkConf)`??
+
+It uploads `__spark_conf__.zip` to the input `destDir` and sets link:spark-yarn-settings.adoc#spark.yarn.cache.confArchive[spark.yarn.cache.confArchive]
+
+It creates configuration archive (using `createConfArchive`) and `copyFileToRemote(destDir, localConfArchive, replication, force = true, destName = Some(LOCALIZED_CONF_ARCHIVE))`.
+
+CAUTION: FIXME `createConfArchive` and `copyFileToRemote(destDir, localConfArchive, replication, force = true, destName = Some(LOCALIZED_CONF_ARCHIVE))`?
+
+It `distCacheMgr.addResource`.
+
+CAUTION: FIXME `distCacheMgr.addResource`???
+
+Ultimately, it clears the cache-related configuration settings -- link:spark-yarn-settings.adoc#spark.yarn.cache.filenames[spark.yarn.cache.filenames], link:spark-yarn-settings.adoc#spark.yarn.cache.sizes[spark.yarn.cache.sizes], link:spark-yarn-settings.adoc#spark.yarn.cache.timestamps[spark.yarn.cache.timestamps], link:spark-yarn-settings.adoc#spark.yarn.cache.visibilities[spark.yarn.cache.visibilities], link:spark-yarn-settings.adoc#spark.yarn.cache.types[spark.yarn.cache.types], link:spark-yarn-settings.adoc#spark.yarn.cache.confArchive[spark.yarn.cache.confArchive] -- from the `SparkConf` configuration since they are internal and should not "pollute" the web UI's environment page.
+
+The `localResources` are returned.
+
+CAUTION: FIXME How is `localResources` calculated?
 
 NOTE: It is exclusively used when <<createContainerLaunchContext, Client creates a `ContainerLaunchContext` to launch a `ApplicationMaster` container>>.
 
