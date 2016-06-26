@@ -2,13 +2,15 @@
 
 `BlockManager` is a key-value store for blocks of data in Spark. `BlockManager` acts as a local cache that runs on every node in Spark cluster, i.e. the link:spark-driver.adoc[driver] and link:spark-executor.adoc[executors]. It provides interface for uploading and fetching blocks both locally and remotely using various stores, i.e. memory, disk, and off-heap. See <<stores, Stores>> in this document.
 
-A `BlockManager` is a link:spark-blockdatamanager.adoc[BlockDataManager], i.e. manages the storage for blocks that can represent a cached RDD partition, an intermediate shuffle data, a broadcast data, etc. It is also a <<BlockEvictionHandler, BlockEvictionHandler>> that drops a block from memory and storing it on a disk if applicable.
+A `BlockManager` is a link:spark-blockdatamanager.adoc[BlockDataManager], i.e. manages the storage for blocks that can represent cached RDD partitions, intermediate shuffle outputs, broadcasts, etc. It is also a <<BlockEvictionHandler, BlockEvictionHandler>> that drops a block from memory and storing it on a disk if applicable.
 
 *Cached blocks* are blocks with non-zero sum of memory and disk sizes.
 
 `BlockManager` is created as a link:spark-sparkenv.adoc#create[Spark application starts].
 
 A `BlockManager` must be <<initialize,initialized>> before it is fully operable.
+
+When the <<externalShuffleServiceEnabled, External Shuffle Service is enabled>>, `BlockManager` uses link:spark-shuffleclient.adoc#ExternalShuffleClient[ExternalShuffleClient] to read other executors' shuffle files.
 
 [TIP]
 ====
@@ -31,6 +33,12 @@ You may want to shut off WARN messages being printed out about the current state
 log4j.logger.org.apache.spark.storage.BlockManager=OFF
 ```
 ====
+
+=== [[externalShuffleServiceEnabled]] Using External Shuffle Service (externalShuffleServiceEnabled flag)
+
+When the link:spark-ExternalShuffleService.adoc[External Shuffle Service] is enabled for a Spark application, `BlockManager` uses link:spark-shuffleclient.adoc#ExternalShuffleClient[ExternalShuffleClient] to read other executors' shuffle files.
+
+CAUTION: FIXME How is `shuffleClient` used?
 
 === [[registerTask]] registerTask
 
@@ -289,7 +297,7 @@ NOTE: `executorId` is `SparkContext.DRIVER_IDENTIFIER`, i.e. `driver` for the dr
 
 CAUTION: FIXME Elaborate on the executor backends and executor ids.
 
-When a `BlockManager` instance is created it first sets the internal `externalShuffleServiceEnabled` flag to the value of link:spark-ExternalShuffleService.adoc#spark.shuffle.service.enabled[spark.shuffle.service.enabled] setting.
+When a `BlockManager` instance is created it sets the internal `externalShuffleServiceEnabled` flag to the value of link:spark-ExternalShuffleService.adoc#spark.shuffle.service.enabled[spark.shuffle.service.enabled] setting.
 
 It creates an instance of <<DiskBlockManager, DiskBlockManager>> (requesting `deleteFilesOnStop` when an external shuffle service is not in use).
 
@@ -334,7 +342,7 @@ CAUTION: FIXME
 initialize(appId: String): Unit
 ----
 
-`initialize` method is called to initialize a `BlockManager` instance on the driver and the executors (see link:spark-sparkcontext.adoc#creating-instance[Creating SparkContext Instance] and link:spark-executor.adoc#creating-instance[Creating Executor Instance], respectively).
+`initialize` method is called to initialize the `BlockManager` instance on the driver and executors (see link:spark-sparkcontext.adoc#creating-instance[Creating SparkContext Instance] and link:spark-executor.adoc#creating-instance[Creating Executor Instance], respectively).
 
 NOTE: The method must be called before a `BlockManager` can be considered fully operable.
 
@@ -345,7 +353,9 @@ It does the following:
 3. It sets <<shuffleServerId, shuffleServerId>> to an instance of <<BlockManagerId, BlockManagerId>> given an executor id, host name and port for link:spark-blocktransferservice.adoc[BlockTransferService].
 4. It creates the address of the server that serves this executor's shuffle files (using <<shuffleServerId, shuffleServerId>>)
 
-If an external shuffle service is used, the following INFO appears in the logs:
+CAUTION: FIXME Describe `shuffleServerId`. Where is it used?
+
+If the <<externalShuffleServiceEnabled, External Shuffle Service is used>>, the following INFO appears in the logs:
 
 ```
 INFO external shuffle service port = [externalShuffleServicePort]
@@ -353,7 +363,7 @@ INFO external shuffle service port = [externalShuffleServicePort]
 
 It link:spark-BlockManagerMaster.adoc#registerBlockManager[registers itself to the driver's BlockManagerMaster] passing the <<BlockManagerId, BlockManagerId>>, the maximum memory (as `maxMemory`), and the <<BlockManagerSlaveEndpoint, BlockManagerSlaveEndpoint>>.
 
-Ultimately, if the initialization happens on an executor and an link:spark-ExternalShuffleService.adoc#spark.shuffle.service.enabled[external shuffle service is used], it <<registerWithExternalShuffleServer, registers itself to the external shuffle service>>.
+Ultimately, if the initialization happens on an executor and the <<externalShuffleServiceEnabled, External Shuffle Service is used>>, it <<registerWithExternalShuffleServer, registers to the shuffle service>>.
 
 NOTE: The method is called when the link:spark-sparkcontext-creating-instance-internals.adoc#BlockManager-initialization[driver is launched (and `SparkContext` is created)] and when an link:spark-executor.adoc#creating-instance[Executor is launched].
 
