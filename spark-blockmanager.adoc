@@ -50,42 +50,9 @@ A *Store* is the place where blocks are held.
 
 There are the following possible stores:
 
-* `MemoryStore` for memory storage level.
-* `DiskStore` for disk storage level.
+* link:spark-MemoryStore.adoc[MemoryStore] for memory storage level.
+* link:spark-DiskStore.adoc[DiskStore] for disk storage level.
 * `ExternalBlockStore` for OFF_HEAP storage level.
-
-==== [[MemoryStore]] MemoryStore
-
-`MemoryStore` manages entries in `entries`. It is Java's `LinkedHashMap` with the initial capacity of `32`, the load factor of `0.75` and _access-order_ ordering mode (i.e. iteration is in the order in which its entries were last accessed, from least-recently accessed to most-recently).
-
-TIP: `entries` is Java's https://docs.oracle.com/javase/8/docs/api/java/util/LinkedHashMap.html[java.util.LinkedHashMap].
-
-`MemoryStore` requires link:spark-configuration.adoc[SparkConf], link:spark-BlockInfoManager.adoc[BlockInfoManager], `SerializerManager`, link:spark-sparkenv.adoc#MemoryManager[MemoryManager] and `BlockEvictionHandler` to be created.
-
-CAUTION: FIXME Where are these dependencies used?
-
-NOTE: `MemoryStore` is a `private[spark]` class.
-
-===== [[MemoryStore-evictBlocksToFreeSpace]] Evicting Blocks to Free Space
-
-CAUTION: FIXME
-
-===== [[MemoryStore-remove]] Removing Block
-
-CAUTION: FIXME
-
-===== [[settings]] Settings
-
-[[spark.storage.unrollMemoryThreshold]]
-* `spark.storage.unrollMemoryThreshold` (default: `1024 * 1024`) controls...
-
-==== [[DiskStore]] DiskStore
-
-CAUTION: FIXME
-
-===== [[DiskStore-remove]] Removing Block
-
-CAUTION: FIXME
 
 === [[putBytes]] Storing Block (putBytes method)
 
@@ -121,17 +88,17 @@ If the replication storage level is greater than 1, replication starts in a sepa
 
 CAUTION: FIXME When is replication storage level greater than 1?
 
-For a memory storage level, depending on whether it is a deserialized one or not, `putIteratorAsValues` or `putBytes` of `MemoryStore` are used, respectively. If the put did not succeed and the storage level is also a disk one, you should see the following WARN message in the logs:
+For a memory storage level, depending on whether it is a deserialized one or not, `putIteratorAsValues` or `putBytes` of link:spark-MemoryStore.adoc[MemoryStore] are used, respectively. If the put did not succeed and the storage level is also a disk one, you should see the following WARN message in the logs:
 
 ```
 WARN BlockManager: Persisting block [blockId] to disk instead.
 ```
 
-`DiskStore.putBytes` is called.
+link:spark-DiskStore.adoc#putBytes[DiskStore.putBytes] is called.
 
-NOTE: `DiskStore` is only used when `MemoryStore` has failed for memory and disk storage levels.
+NOTE: link:spark-DiskStore.adoc[DiskStore] is only used when link:spark-MemoryStore.adoc[MemoryStore] has failed for memory and disk storage levels.
 
-If the storage level is a disk one only, `DiskStore.putBytes` is called.
+If the storage level is a disk one only, link:spark-DiskStore.adoc#putBytes[DiskStore.putBytes] is called.
 
 `doPutBytes` requests <<getCurrentBlockStatus, current block status>> and if the block was successfully stored, and the driver should know about it (`tellMaster`), it <<reportBlockStatus, reports current storage status of the block to the driver>>. The link:spark-taskscheduler-taskmetrics.adoc#incUpdatedBlockStatuses[current TaskContext metrics are updated with the updated block status].
 
@@ -204,7 +171,7 @@ DEBUG Putting block [blockId] [withOrWithout] replication took [usedTime] ms
 removeBlock(blockId: BlockId, tellMaster: Boolean = true): Unit
 ----
 
-`removeBlock` removes the `blockId` block from <<MemoryStore, memory>> and <<DiskStore, disk>>.
+`removeBlock` removes the `blockId` block from the link:spark-MemoryStore.adoc[MemoryStore] and link:spark-DiskStore.adoc[DiskStore].
 
 When executed, it prints out the following DEBUG message to the logs:
 
@@ -218,7 +185,7 @@ It requests link:spark-BlockInfoManager.adoc[BlockInfoManager] for lock for writ
 WARN Asked to remove block [blockId], which does not exist
 ```
 
-Otherwise, with a write lock for the block, the block is removed from MemoryStore and DiskStore (see <<MemoryStore-remove, Removing Block in MemoryStore>> and <<DiskStore-remove, Removing Block in DiskStore>>).
+Otherwise, with a write lock for the block, the block is removed from link:spark-MemoryStore.adoc[MemoryStore] and link:spark-DiskStore.adoc[DiskStore] (see link:spark-MemoryStore.adoc#remove[Removing Block in `MemoryStore`] and link:spark-DiskStore.adoc#remove[Removing Block in `DiskStore`]).
 
 If both removals fail, it prints out the following WARN message:
 
@@ -287,7 +254,7 @@ A `BlockManager` needs the following services to be created:
 * link:spark-BlockManagerMaster.adoc[BlockManagerMaster]
 * `SerializerManager`
 * link:spark-configuration.adoc[SparkConf]
-* `MemoryManager`
+* link:spark-MemoryManager.adoc[MemoryManager]
 * link:spark-service-mapoutputtracker.adoc[MapOutputTracker]
 * link:spark-shuffle-manager.adoc[ShuffleManager]
 * link:spark-blocktransferservice.adoc[BlockTransferService]
@@ -305,9 +272,9 @@ It creates an instance of link:spark-BlockInfoManager.adoc[BlockInfoManager] (as
 
 It creates *block-manager-future* daemon cached thread pool with 128 threads maximum (as `futureExecutionContext`).
 
-It creates <<MemoryStore, MemoryStore>> and <<DiskStore, DiskStore>>.
+It creates a link:spark-MemoryStore.adoc[MemoryStore] and link:spark-DiskStore.adoc[DiskStore].
 
-link:spark-sparkenv.adoc#MemoryManager[MemoryManager] gets the `MemoryStore` object assigned.
+link:spark-MemoryManager.adoc[MemoryManager] gets the link:spark-MemoryStore.adoc[MemoryStore] object assigned.
 
 It requests the current maximum memory from `MemoryManager` (using `maxOnHeapStorageMemory` as `maxMemory`).
 
@@ -442,13 +409,13 @@ NOTE: `reregister` is called by link:spark-executor.adoc#heartbeats-and-active-t
 getCurrentBlockStatus(blockId: BlockId, info: BlockInfo): BlockStatus
 ----
 
-`getCurrentBlockStatus` returns the current `BlockStatus` of the `BlockId` block (with the block's current link:spark-rdd-caching.adoc#StorageLevel[StorageLevel], memory and disk sizes). It uses <<MemoryStore, MemoryStore>> and <<DiskStore, DiskStore>> for size and other information.
+`getCurrentBlockStatus` returns the current `BlockStatus` of the `BlockId` block (with the block's current link:spark-rdd-caching.adoc#StorageLevel[StorageLevel], memory and disk sizes). It uses link:spark-MemoryStore.adoc[MemoryStore] and link:spark-DiskStore.adoc[DiskStore] for size and other information.
 
-NOTE: Most of the information to build `BlockStatus` is already in `BlockInfo` except that it may not necessarily reflect the current state per <<MemoryStore, MemoryStore>> and <<DiskStore, DiskStore>>.
+NOTE: Most of the information to build `BlockStatus` is already in `BlockInfo` except that it may not necessarily reflect the current state per link:spark-MemoryStore.adoc[MemoryStore] and link:spark-DiskStore.adoc[DiskStore].
 
 Internally, it uses the input link:spark-BlockInfo.adoc[BlockInfo] to know about the block's storage level. If the storage level is not set (i.e. `null`), the returned `BlockStatus` assumes the link:spark-rdd-caching.adoc#StorageLevel[default NONE storage level] and the memory and disk sizes being `0`.
 
-If however the storage level is set, `getCurrentBlockStatus` uses <<MemoryStore, MemoryStore>> or <<DiskStore, DiskStore>> to check whether the block is stored in the storages or not and request for their sizes in the storages respectively (using their `getSize` or assume `0`).
+If however the storage level is set, `getCurrentBlockStatus` uses link:spark-MemoryStore.adoc[MemoryStore] or link:spark-DiskStore.adoc[DiskStore] to check whether the block is stored in the storages or not and request for their sizes in the storages respectively (using their `getSize` or assume `0`).
 
 NOTE: It is acceptable that the `BlockInfo` says to use memory or disk yet the block is not in the storages (yet or anymore). The method will give current status.
 
@@ -471,7 +438,7 @@ INFO BlockManager: Dropping block [blockId] from memory
 
 It then asserts that the `blockId` block is link:spark-BlockInfoManager.adoc#assertBlockIsLockedForWriting[locked for writing].
 
-If the block's StorageLevel uses disks and the internal <<DiskStore, DiskStore>> object (`diskStore`) does not contain the block, it is saved then. You should see the following INFO message in the logs:
+If the block's StorageLevel uses disks and the internal link:spark-DiskStore.adoc[DiskStore] object (`diskStore`) does not contain the block, it is saved then. You should see the following INFO message in the logs:
 
 ```
 INFO BlockManager: Writing block [blockId] to disk
@@ -481,7 +448,7 @@ CAUTION: FIXME Describe the case with saving a block to disk.
 
 The block's memory size is fetched and recorded (using `MemoryStore.getSize`).
 
-The block is <<MemoryStore-remove, removed from memory>> if exists. If not, you should see the following WARN message in the logs:
+The block is link:spark-MemoryStore.adoc#remove[removed from memory] if exists. If not, you should see the following WARN message in the logs:
 
 ```
 WARN BlockManager: Block [blockId] could not be dropped from memory as it does not exist
@@ -554,7 +521,7 @@ dropFromMemory(
 
 NOTE: A `BlockManager` is a `BlockEvictionHandler`.
 
-NOTE: `dropFromMemory` is called when  <<MemoryStore-evictBlocksToFreeSpace, MemoryStore evicts blocks from memory to free space>>.
+NOTE: `dropFromMemory` is called when  link:spark-MemoryStore.adoc#evictBlocksToFreeSpace[`MemoryStore` evicts blocks from memory to free space].
 
 === [[BlockManagerSlaveEndpoint]] BlockManagerSlaveEndpoint
 

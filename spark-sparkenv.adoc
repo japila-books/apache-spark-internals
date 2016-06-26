@@ -1,6 +1,6 @@
 == SparkEnv - Spark Runtime Environment
 
-*Spark Runtime Environment* (`SparkEnv`) is the runtime environment with Spark services that interact with each other to build Spark computing platform.
+*Spark Runtime Environment* (`SparkEnv`) is the runtime environment with Spark services that interact with each other to build the entire Spark computing platform.
 
 Spark Runtime Environment is represented by a <<SparkEnv, SparkEnv>> object that holds all the required services for a running Spark instance, i.e. a master or an executor.
 
@@ -31,7 +31,7 @@ scala> SparkEnv.get
 res0: org.apache.spark.SparkEnv = org.apache.spark.SparkEnv@2220c5f7
 ```
 
-=== [[create]] Creating SparkEnv (create method)
+=== [[create]] Creating "Base" SparkEnv (create method)
 
 [source, scala]
 ----
@@ -47,21 +47,19 @@ create(
   mockOutputCommitCoordinator: Option[OutputCommitCoordinator] = None): SparkEnv
 ----
 
-`create` is a internal helper method to create a `SparkEnv` for either a driver or an executor.
+`create` is a internal helper method to create a "base" `SparkEnv` regardless of the target environment -- be it a driver or an executor.
 
-When executed, it creates a Serializer (based on <<settings, spark.serializer>>) and, at `DEBUG` logging level, prints out the following message to the logs:
+When executed, `create` creates a `Serializer` (based on <<settings, spark.serializer>>). You should see the following `DEBUG` message in the logs:
 
 ```
 DEBUG Using serializer: [serializer.getClass]
 ```
 
-It creates another Serializer (based on <<settings, spark.closure.serializer>>).
+It creates another `Serializer` (based on <<settings, spark.closure.serializer>>).
 
-It creates a ShuffleManager based on <<settings, spark.shuffle.manager>> setting.
+It creates a link:spark-shuffle-manager.adoc[ShuffleManager] based on <<settings, spark.shuffle.manager>> setting.
 
-It creates a MemoryManager based on <<settings, spark.memory.useLegacyMode>> setting.
-
-CAUTION: FIXME What's MemoryManager?
+It creates a link:spark-MemoryManager.adoc[MemoryManager] based on <<spark.memory.useLegacyMode, spark.memory.useLegacyMode>> setting (with link:spark-UnifiedMemoryManager.adoc[UnifiedMemoryManager] being the default).
 
 It creates a link:spark-blocktransferservice.adoc#NettyBlockTransferService[NettyBlockTransferService].
 
@@ -151,22 +149,6 @@ It creates a MetricsSystem for *executor* and starts it.
 
 An OutputCommitCoordinator is created and *OutputCommitCoordinator* RPC endpoint looked up.
 
-=== [[MemoryManager]] MemoryManager
-
-CAUTION: FIXME
-
-==== [[MemoryManager-releaseExecutionMemory]] releaseExecutionMemory
-
-==== [[MemoryManager-releaseAllExecutionMemoryForTask]] releaseAllExecutionMemoryForTask
-
-==== [[MemoryManager-tungstenMemoryMode]] tungstenMemoryMode
-
-`tungstenMemoryMode` informs others whether Spark works in `OFF_HEAP` or `ON_HEAP` memory mode.
-
-It uses `spark.memory.offHeap.enabled` (default: `false`), `spark.memory.offHeap.size` (default: `0`), and `org.apache.spark.unsafe.Platform.unaligned` before `OFF_HEAP` is assumed.
-
-CAUTION: FIXME Describe `org.apache.spark.unsafe.Platform.unaligned`.
-
 === [[serializer]] serializer
 
 CAUTION: FIXME
@@ -189,4 +171,7 @@ CAUTION: FIXME
 ** `hash` or `org.apache.spark.shuffle.hash.HashShuffleManager`
 ** `sort` or `org.apache.spark.shuffle.sort.SortShuffleManager`
 ** `tungsten-sort` or `org.apache.spark.shuffle.sort.SortShuffleManager`
-* `spark.memory.useLegacyMode` (default: `false`) - `StaticMemoryManager` (`true`) or `UnifiedMemoryManager` (`false`).
+
+==== [[spark.memory.useLegacyMode]] spark.memory.useLegacyMode
+
+`spark.memory.useLegacyMode` (default: `false`) controls the link:spark-MemoryManager.adoc[MemoryManager] in use. It is `StaticMemoryManager` when enabled (`true`) or link:spark-UnifiedMemoryManager.adoc[UnifiedMemoryManager] when disabled (`false`).
