@@ -131,13 +131,11 @@ When `prepareLocalResources` is called, you should see the following INFO messag
 INFO Client: Preparing resources for our AM container
 ```
 
-It uses Hadoop's Path.getFileSystem to know the current file system (for the constructor's `hadoopConf` -- Hadoop's Configuration).
+(only for a secure Hadoop cluster) It computes the list of Hadoop's https://hadoop.apache.org/docs/current/api/org/apache/hadoop/fs/Path.html[Paths] to access and requests delegation tokens for them. It includes the optional list of extra NameNode URLs (from link:spark-yarn-settings.adoc#spark.yarn.access.namenodes[spark.yarn.access.namenodes]) and the input `destDir`.
 
-It `YarnSparkHadoopUtil.getNameNodesToAccess(sparkConf)` with the input `destDir` (as `nns`).
+CAUTION: FIXME What's a delegation token?
 
-CAUTION: FIXME Why the above `nns`?
-
-If Spark works in a secure Hadoop environment, it obtains delegation tokens for link:spark-yarn.adoc#obtainTokensForNamenodes[extra NameNodes], link:spark-yarn.adoc#obtainTokenForHiveMetastore[Hive metastore], and link:spark-yarn.adoc#obtainTokenForHBase[HBase] (using the constructor's `sparkConf` and `hadoopConf` with the internal `credentials` attribute). After all the security tokens are obtained, you should see the following DEBUG message in the logs:
+(only for a secure Hadoop cluster) It also obtains delegation tokens for link:spark-yarn.adoc#obtainTokenForHiveMetastore[Hive metastore], and link:spark-yarn.adoc#obtainTokenForHBase[HBase] (using the constructor's `sparkConf` and `hadoopConf` with the internal `credentials` attribute). After all the security delegation tokens are obtained, you should see the following DEBUG message in the logs:
 
 ```
 DEBUG Client: [token1]
@@ -148,19 +146,21 @@ DEBUG Client: [tokenN]
 
 CAUTION: FIXME Where is `credentials` assigned?
 
-It gets the replication factor using link:spark-yarn.adoc#spark.yarn.submit.file.replication[spark.yarn.submit.file.replication] setting or falls back to the default for the input `destDir`.
+It gets the replication factor (using link:spark-yarn.adoc#spark.yarn.submit.file.replication[spark.yarn.submit.file.replication] setting) or falls back to the default value for the input `destDir`.
 
-It creates the input `destDir` with `0700` permission (`rwx------`), i.e. inaccessible to all but its owner (and the superuser) (the owner can read, write and execute).
+NOTE: The replication factor is only used for `copyFileToRemote` later. Perhaps it should not be mentioned here (?)
 
-If it uses a keytab to log in, ...FIXME
+It creates the input `destDir` (on a HDFS-compatible file system) with `0700` permission (`rwx------`), i.e. inaccessible to all but its owner and the superuser so the owner only can read, write and execute. It uses Hadoop's https://hadoop.apache.org/docs/current/api/org/apache/hadoop/fs/Path.html#getFileSystem(org.apache.hadoop.conf.Configuration)[Path.getFileSystem] to access Hadoop's https://hadoop.apache.org/docs/current/api/org/apache/hadoop/fs/FileSystem.html[FileSystem] that owns `destDir` (using the constructor's `hadoopConf` -- Hadoop's Configuration).
+
+TIP: See https://hadoop.apache.org/docs/current/api/org/apache/hadoop/fs/FileSystem.html[org.apache.hadoop.fs.FileSystem] to know a list of HDFS-compatible file systems, e.g. http://aws.amazon.com/s3/[Amazon S3] or https://azure.microsoft.com/[Windows Azure].
+
+If Spark uses a keytab to log in, ...FIXME
 
 CAUTION: FIXME `if (loginFromKeytab)`
 
-If the link:spark-yarn.adoc#spark.yarn.archive[location of the single archive containing Spark jars (spark.yarn.archive)] is defined, it is distributed...FIXME
+If the link:spark-yarn.adoc#spark.yarn.archive[location of the single archive containing Spark jars (spark.yarn.archive)] is set, it is <<distribute, distributed>> (as ARCHIVE) to `__spark_libs__`.
 
-CAUTION: FIXME Describe `if (sparkArchive.isDefined)` and `distribute`
-
-Else if the link:spark-yarn.adoc#spark.yarn.jars[location of the Spark jars (spark.yarn.jars)] is defined, ...FIXME
+Else if the link:spark-yarn.adoc#spark.yarn.jars[location of the Spark jars (spark.yarn.jars)] is set, ...FIXME
 
 CAUTION: FIXME Describe `case Some(jars)`
 
