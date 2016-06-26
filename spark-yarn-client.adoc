@@ -1,6 +1,6 @@
 == Client
 
-`org.apache.spark.deploy.yarn.Client` is a <<main, standalone application>> that is used to link:spark-submit.adoc#submit[submit Spark applications] to a YARN cluster.
+`org.apache.spark.deploy.yarn.Client` can be used as a <<main, standalone application>> to link:spark-submit.adoc#submit[submit Spark applications] to a YARN cluster.
 
 Depending on the link:spark-deploy-mode.adoc[deploy mode] it calls link:spark-yarn-applicationmaster.adoc[org.apache.spark.deploy.yarn.ApplicationMaster] or ApplicationMaster's wrapper link:spark-yarn-applicationmaster.adoc#ExecutorLauncher[org.apache.spark.deploy.yarn.ExecutorLauncher] by their class names.
 
@@ -226,18 +226,18 @@ NOTE: The input `args` is `null` when link:spark-yarn-ExecutorRunnable.adoc#prep
 
 It merely <<addClasspathEntry, adds the following entries to the CLASSPATH key in the input `env`>>:
 
-1. The optional `extraClassPath` which is first <<getClusterPath, changed to include paths on YARN cluster machines>>.
+1. The optional `extraClassPath` (which is first <<getClusterPath, changed to include paths on YARN cluster machines>>).
 +
 NOTE: `extraClassPath` corresponds to link:spark-driver.adoc#spark.driver.extraClassPath[spark.driver.extraClassPath] for the driver and link:spark-executor.adoc#spark.executor.extraClassPath[spark.executor.extraClassPath] for executors.
 
-2. YARN's `Environment.PWD`
-3. `__spark_conf__` directory in YARN's `Environment.PWD`
+2. YARN's own `Environment.PWD`
+3. `\\__spark_conf__` directory under YARN's `Environment.PWD`
 
 4. If the _deprecated_ link:spark-yarn.adoc#spark.yarn.user.classpath.first[spark.yarn.user.classpath.first] is set, ...FIXME
 +
 CAUTION: FIXME
 
-5. `__spark_libs__/*` in YARN's `Environment.PWD`
+5. `\\__spark_libs__/*` under YARN's `Environment.PWD`
 
 6. (unless the optional link:spark-yarn.adoc#spark.yarn.archive[spark.yarn.archive] is defined) All the `local` jars in link:spark-yarn.adoc#spark.yarn.jars[spark.yarn.jars] (which are first <<getClusterPath, changed to be paths on YARN cluster machines>>).
 
@@ -247,7 +247,17 @@ CAUTION: FIXME
 
 8. link:spark-yarn.adoc#SPARK_DIST_CLASSPATH[SPARK_DIST_CLASSPATH] (which is first <<getClusterPath, changed to include paths on YARN cluster machines>>).
 
-==== [[getClusterPath]] Resolving Path to be YARN NodeManager-aware (getClusterPath method)
+[TIP]
+====
+You should see the result of executing `populateClasspath` when you enable `DEBUG` logging level for the `org.apache.spark.deploy.yarn.Client` logger, i.e.
+
+```
+DEBUG Client:     env:
+DEBUG Client:         CLASSPATH -> {{PWD}}<CPS>{{PWD}}/__spark_conf__<CPS>{{PWD}}/__spark_libs__/*<CPS>$HADOOP_CONF_DIR<CPS>$HADOOP_COMMON_HOME/share/hadoop/common/*<CPS>$HADOOP_COMMON_HOME/share/hadoop/common/lib/*<CPS>$HADOOP_HDFS_HOME/share/hadoop/hdfs/*<CPS>$HADOOP_HDFS_HOME/share/hadoop/hdfs/lib/*<CPS>$HADOOP_YARN_HOME/share/hadoop/yarn/*<CPS>$HADOOP_YARN_HOME/share/hadoop/yarn/lib/*<CPS>$HADOOP_MAPRED_HOME/share/hadoop/mapreduce/*<CPS>$HADOOP_MAPRED_HOME/share/hadoop/mapreduce/lib/*
+```
+====
+
+==== [[getClusterPath]] Changing Path to be YARN NodeManager-aware (getClusterPath method)
 
 [source, scala]
 ----
