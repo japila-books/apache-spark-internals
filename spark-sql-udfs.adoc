@@ -1,27 +1,22 @@
 == UDFs -- User-Defined Functions
 
-CAUTION: FIXME
+*User-Defined Functions* (aka *UDF*) is a feature of Spark SQL to define new link:spark-sql-columns.adoc[Column]-based functions that extend the vocabulary of Spark SQL's DSL to transform link:spark-sql-dataset.adoc[Datasets].
 
-=== [[udf-function]] udf Function (in functions object)
+NOTE: UDFs play a vital role in Spark MLlib to define new link:spark-mllib-transformers.adoc[Transformers].
 
-`org.apache.spark.sql.functions` object comes with `udf` function that defines a user-defined function using a Scala function.
-
-```
-udf(f: AnyRef, dataType: DataType): UserDefinedFunction
-```
-
-NOTE: `udf` function is a feature of Spark **2.0.0**.
+You define a new UDF by defining a Scala function as an input parameter of `udf` function. You can use Scala functions of up to 10 input parameters. See the section <<udf-function, udf Functions (in functions object)>>.
 
 [source, scala]
 ----
 val df = Seq((0, "hello"), (1, "world")).toDF("id", "text")
 
-// Define a Scala function
-// It's a clone of upper UDF
-val toUpperFn: String => String = _.toUpperCase
-val toUpperUDF = udf(toUpperFn)
+// Define a "regular" Scala function
+val upper: String => String = _.toUpperCase
 
-scala> df.withColumn("upper", toUpperUDF($"text")).show
+import org.apache.spark.sql.functions.udf
+val upperUDF = udf(upper)
+
+scala> df.withColumn("upper", upperUDF('text)).show
 +---+-----+-----+
 | id| text|upper|
 +---+-----+-----+
@@ -30,4 +25,51 @@ scala> df.withColumn("upper", toUpperUDF($"text")).show
 +---+-----+-----+
 ----
 
-TIP: Define custom UDFs based on "standalone" Scala functions (e.g. `toUpperUDF`) so you can test them easily (without Spark SQL's "noise") and reuse them in link:spark-mllib-transformers.adoc#UnaryTransformer[UnaryTransformers].
+=== [[udf-function]] udf Functions (in functions object)
+
+[source, scala]
+----
+udf[RT: TypeTag](f: Function0[RT]): UserDefinedFunction
+...
+udf[RT: TypeTag, A1: TypeTag, A2: TypeTag, A3: TypeTag, A4: TypeTag, A5: TypeTag, A6: TypeTag, A7: TypeTag, A8: TypeTag, A9: TypeTag, A10: TypeTag](f: Function10[A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, RT]): UserDefinedFunction
+----
+
+`org.apache.spark.sql.functions` object comes with `udf` function to let you define a UDF for a Scala function `f`.
+
+[source, scala]
+----
+val df = Seq(
+  (0, "hello"),
+  (1, "world")).toDF("id", "text")
+
+// Define a "regular" Scala function
+// It's a clone of upper UDF
+val toUpper: String => String = _.toUpperCase
+
+import org.apache.spark.sql.functions.udf
+val upper = udf(toUpper)
+
+scala> df.withColumn("upper", upper('text)).show
++---+-----+-----+
+| id| text|upper|
++---+-----+-----+
+|  0|hello|HELLO|
+|  1|world|WORLD|
++---+-----+-----+
+
+// You could have also defined the UDF this way
+val upperUDF = udf { s: String => s.toUpperCase }
+
+// or even this way
+val upperUDF = udf[String, String](_.toUpperCase)
+
+scala> df.withColumn("upper", upperUDF('text)).show
++---+-----+-----+
+| id| text|upper|
++---+-----+-----+
+|  0|hello|HELLO|
+|  1|world|WORLD|
++---+-----+-----+
+----
+
+TIP: Define custom UDFs based on "standalone" Scala functions (e.g. `toUpperUDF`) so you can test the Scala functions using Scala way (without Spark SQL's "noise") and once they are defined reuse the UDFs in link:spark-mllib-transformers.adoc#UnaryTransformer[UnaryTransformers].
