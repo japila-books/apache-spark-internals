@@ -2,16 +2,18 @@
 
 *Structured Streaming* is a high-level streaming API built on link:spark-sql-dataset.adoc[Dataset] over Spark SQL engine for continuous incremental execution of structured queries.
 
-NOTE: It is slated for Spark 2.0 in June 2016.
+NOTE: It is _supposed_ to be included in Spark 2.0.
 
 Structured streaming is to unify streaming, interactive, and batch queries that paves the way for *continuous applications*.
 
 It introduces the *streaming datasets* that are _infinite datasets_ as well as the primitives like *event time*, *windowing*, *sessions*, *sources* and *sinks*.
 
-Among the data abstractions you can find:
+It lives in `org.apache.spark.sql.streaming` package with the following main data abstractions:
 
-* link:spark-sql-continuousquery.adoc[ContinuousQuery]
+* link:spark-sql-StreamingQueryManager.adoc[StreamingQueryManager]
+* link:spark-sql-StreamingQuery.adoc[StreamingQuery]
 * link:spark-sql-source.adoc[Source]
+* link:spark-sql-sink.adoc[Sink]
 
 Every *trigger* (time) a computation on DataFrames should be performed.
 
@@ -19,25 +21,34 @@ NOTE: The feature has also been called *Streaming Spark SQL Query* or *Streaming
 
 TIP: Watch https://issues.apache.org/jira/browse/SPARK-8360[SPARK-8360 Streaming DataFrames] to track progress of the feature.
 
+=== [[example]] Example
+
 Below is a complete example of a streaming dataset that streams data from `hello` Parquet file into a link:spark-sql-sink.adoc#MemorySink[MemorySink].
 
 [source, scala]
 ----
-val in = spark
-  .read
-  .format("text")
-  .stream("hello")
+import org.apache.spark.sql.types._
+val schema = StructType(
+  StructField("f1", IntegerType, true) ::
+  StructField("f2", LongType, false) ::
+  StructField("f3", BooleanType, false) :: Nil
+)
+
+val in = spark.readStream
+  .schema(schema)
+  .format("csv")
+  .load("hello")
 
 scala> in.isStreaming
 res0: Boolean = true
 
 import scala.concurrent.duration._
-import org.apache.spark.sql.ProcessingTime
-val out = in.write
-  .format("memory")
+import org.apache.spark.sql.streaming.ProcessingTime
+val out = in.writeStream
+  .format("console")
   .trigger(ProcessingTime(10.seconds))
-  .queryName("memStream")
-  .startStream()
+  .queryName("textStream")
+  .start()
 ----
 
 === [[i-want-more]] Further reading or watching
