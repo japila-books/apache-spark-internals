@@ -20,6 +20,102 @@ The `private` more direct API to create a `SparkSession` requires a link:spark-s
 `SparkSession` has replaced link:spark-sql-sqlcontext.adoc[SQLContext] as of Spark *2.0.0*.
 ====
 
+=== [[emptyDataset]] emptyDataset
+
+[source, scala]
+----
+emptyDataset[T: Encoder]: Dataset[T]
+----
+
+`emptyDataset` creates an empty link:spark-sql-dataset.adoc[Dataset] (assuming that future records being of type `T`).
+
+[source, scala]
+----
+scala> val strings = spark.emptyDataset[String]
+strings: org.apache.spark.sql.Dataset[String] = [value: string]
+
+scala> strings.printSchema
+root
+ |-- value: string (nullable = true)
+----
+
+The link:spark-sql-logical-plan.adoc[LogicalPlan] is `LocalRelation`.
+
+=== [[createDataset]] createDataset methods
+
+[source, scala]
+----
+createDataset[T : Encoder](data: Seq[T]): Dataset[T]
+createDataset[T : Encoder](data: RDD[T]): Dataset[T]
+----
+
+`createDataset` creates a link:spark-sql-dataset.adoc[Dataset] from the local collection or the distributed `RDD`.
+
+[source, scala]
+----
+scala> val nums = spark.createDataset(1 to 5)
+nums: org.apache.spark.sql.Dataset[Int] = [value: int]
+
+scala> nums.show
++-----+
+|value|
++-----+
+|    1|
+|    2|
+|    3|
+|    4|
+|    5|
++-----+
+----
+
+The link:spark-sql-logical-plan.adoc[LogicalPlan] is `LocalRelation` (for the input `data` collection) or `LogicalRDD` (for the input `RDD[T]`).
+
+=== [[range]] range methods
+
+[source, scala]
+----
+range(end: Long): Dataset[java.lang.Long]
+range(start: Long, end: Long): Dataset[java.lang.Long]
+range(start: Long, end: Long, step: Long): Dataset[java.lang.Long]
+range(start: Long, end: Long, step: Long, numPartitions: Int): Dataset[java.lang.Long]
+----
+
+`range` family of methods create a link:spark-sql-dataset.adoc[Dataset] of longs.
+
+[source, scala]
+----
+scala> spark.range(0, 10, 2, 5).show
++---+
+| id|
++---+
+|  0|
+|  2|
+|  4|
+|  6|
+|  8|
++---+
+----
+
+=== [[emptyDataFrame]] emptyDataFrame
+
+[source, scala]
+----
+emptyDataFrame: DataFrame
+----
+
+`emptyDataFrame` creates an empty `DataFrame` (with no rows and columns).
+
+It calls <<createDataFrame, createDataFrame>> with an empty `RDD[Row]` and an empty schema `StructType(Nil)`.
+
+=== [[createDataFrame]] createDataFrame method
+
+[source, scala]
+----
+createDataFrame(rowRDD: RDD[Row], schema: StructType): DataFrame
+----
+
+`createDataFrame` creates a `DataFrame` using `RDD[Row]` and the input `schema`. It is assumed that the rows in `rowRDD` all match the `schema`.
+
 === [[streams]] streams Attribute
 
 [source, scala]
@@ -66,7 +162,32 @@ Internally, it uses link:spark-sql-sessionstate.adoc#udf[SessionState.udf].
 
 === [[catalog]] catalog Attribute
 
-`catalog` is...
+`catalog` attribute is an interface to the current `Catalog`.
+
+[source, scala]
+----
+scala> spark.catalog.listTables.show
++------------------+--------+-----------+---------+-----------+
+|              name|database|description|tableType|isTemporary|
++------------------+--------+-----------+---------+-----------+
+|my_permanent_table| default|       null|  MANAGED|      false|
+|              strs|    null|       null|TEMPORARY|       true|
++------------------+--------+-----------+---------+-----------+
+----
+
+=== [[table]] table method
+
+[source, scala]
+----
+table(tableName: String): DataFrame
+----
+
+`table` creates a link:spark-sql-dataframe.adoc[DataFrame] from records in the `tableName` table (if exists).
+
+[source, scala]
+----
+val df = spark.table("mytable")
+----
 
 === [[SessionCatalog]] SessionCatalog
 
@@ -131,7 +252,7 @@ Internally, it uses link:spark-sql-sessionstate.adoc#udf[SessionState.udf].
 newSession(): SparkSession
 ----
 
-`newSession` creates a new `SparkSession` with the current link:spark-sparkcontext.adoc[SparkContext] and <<SharedState, SharedState>>.
+`newSession` creates (starts) a new `SparkSession` (with the current link:spark-sparkcontext.adoc[SparkContext] and <<SharedState, SharedState>>).
 
 [source, scala]
 ----
@@ -244,6 +365,8 @@ scala> sql("SHOW TABLES").show
 | testdata|      false|
 +---------+-----------+
 ```
+
+Internally, it creates a link:spark-sql-dataset.adoc[Dataset] using the current `SparkSession` and the plan (based on the input `sqlText` and parsed using link:spark-sql-sql-parsers.adoc#ParserInterface[ParserInterface.parsePlan] available using <<sessionState, sessionState.sqlParser>>).
 
 CAUTION: FIXME See link:spark-sql-sqlcontext.adoc#sql[Executing SQL Queries].
 
