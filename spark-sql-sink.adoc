@@ -1,8 +1,34 @@
-== [[Sink]] Sink
+== [[Sink]] Streaming Sinks
+
+A *Streaming Sink* is an object that can <<contract, process batches>> of data as a link:spark-sql-dataframe.adoc[DataFrame].
+
+The following sinks are currently available in Spark:
+
+* link:spark-sql-streaming-ConsoleSink.adoc[ConsoleSink] for `console` format.
+* <<FileStreamSink, FileStreamSink>> for `parquet` format.
+* <<ForeachSink, ForeachSink>> used in `foreach` operator.
+* <<MemorySink, MemorySink>> for `memory` format.
+
+You can create your own streaming format implementing link:spark-sql-streaming-StreamSinkProvider.adoc[StreamSinkProvider].
+
+=== [[contract]] Sink Contract
+
+Sink Contract is described by `Sink` trait. It defines the one and only `addBatch` method to add `data` as `batchId`.
+
+[source, scala]
+----
+package org.apache.spark.sql.execution.streaming
+
+trait Sink {
+  def addBatch(batchId: Long, data: DataFrame): Unit
+}
+----
 
 === [[ForeachSink]] ForeachSink
 
-`ForeachSink` is a typed <<Sink, Sink>> that passes records (of the same type `T`) to <<ForeachWriter, ForeachWriter>> (one record at a time per partition). It is used exclusively for link:spark-sql-streaming-DataStreamWriter.adoc#foreach[foreach] operator.
+`ForeachSink` is a typed <<Sink, Sink>> that passes records (of the same type `T`) to <<ForeachWriter, ForeachWriter>> (one record at a time per partition).
+
+It is used exclusively in link:spark-sql-streaming-DataStreamWriter.adoc#foreach[foreach] operator.
 
 [source, scala]
 ----
@@ -37,11 +63,7 @@ CAUTION: FIXME Why does Spark track whether the writer failed or not? Why couldn
 
 CAUTION: FIXME Can we have a constant for `"foreach"` for `source` in `DataStreamWriter`?
 
-=== [[ForeachWriter]] ForeachWriter
-
-CAUTION: FIXME
-
-=== [[contract]] Sink Contract
+==== [[ForeachWriter]] ForeachWriter
 
 CAUTION: FIXME
 
@@ -50,38 +72,6 @@ CAUTION: FIXME
 CAUTION: FIXME
 
 It uses link:spark-sql-SQLConf.adoc#spark.sql.streaming.fileSink.log.deletion[spark.sql.streaming.fileSink.log.deletion] (as `isDeletingExpiredLog`)
-
-=== [[ConsoleSink]] ConsoleSink
-
-CAUTION: FIXME
-
-[source, scala]
-----
-spark.readStream
-  .format("text")
-  .load("server-logs/*.out")
-  .as[String]
-  .writeStream
-  .queryName("server-logs processor")
-  .format("console")
-  .start
-
-scala> spark.streams.active.foreach(println)
-Streaming Query - server-logs processor [state = ACTIVE]
-
-// in another terminal
-$ echo hello > server-logs/hello.out
-
-// in the terminal with Spark
--------------------------------------------
-Batch: 0
--------------------------------------------
-+-----+
-|value|
-+-----+
-|hello|
-+-----+
-----
 
 === [[MemorySink]] MemorySink
 
