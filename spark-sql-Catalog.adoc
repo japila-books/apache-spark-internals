@@ -1,0 +1,70 @@
+== Catalog
+
+`Catalog` is the <<contract, interface to work with database(s), local and external tables, functions, table columns, and temporary views>> in Spark.
+
+It is available as link:spark-sql-sparksession.adoc#catalog[SparkSession.catalog] attribute.
+
+[source, scala]
+----
+scala> spark
+res1: org.apache.spark.sql.SparkSession = org.apache.spark.sql.SparkSession@4daee083
+
+scala> spark.catalog
+res2: org.apache.spark.sql.catalog.Catalog = org.apache.spark.sql.internal.CatalogImpl@1b42eb0f
+
+scala> spark.catalog.listTables.show
++------------------+--------+-----------+---------+-----------+
+|              name|database|description|tableType|isTemporary|
++------------------+--------+-----------+---------+-----------+
+|my_permanent_table| default|       null|  MANAGED|      false|
+|              strs|    null|       null|TEMPORARY|       true|
++------------------+--------+-----------+---------+-----------+
+----
+
+The one and only implementation of the <<contract, Catalog contract>> is <<CatalogImpl, CatalogImpl>>.
+
+=== [[contract]] Catalog Contract
+
+[source, scala]
+----
+package org.apache.spark.sql.catalog
+
+abstract class Catalog {
+  def currentDatabase: String
+  def setCurrentDatabase(dbName: String): Unit
+  def listDatabases(): Dataset[Database]
+  def listTables(): Dataset[Table]
+  def listTables(dbName: String): Dataset[Table]
+  def listFunctions(): Dataset[Function]
+  def listFunctions(dbName: String): Dataset[Function]
+  def listColumns(tableName: String): Dataset[Column]
+  def listColumns(dbName: String, tableName: String): Dataset[Column]
+  def createExternalTable(tableName: String, path: String): DataFrame
+  def createExternalTable(tableName: String, path: String, source: String): DataFrame
+  def createExternalTable(
+      tableName: String,
+      source: String,
+      options: Map[String, String]): DataFrame
+  def createExternalTable(
+      tableName: String,
+      source: String,
+      schema: StructType,
+      options: Map[String, String]): DataFrame
+  def dropTempView(viewName: String): Unit
+  def isCached(tableName: String): Boolean
+  def cacheTable(tableName: String): Unit
+  def uncacheTable(tableName: String): Unit
+  def clearCache(): Unit
+  def refreshTable(tableName: String): Unit
+  def refreshByPath(path: String): Unit
+}
+----
+
+=== [[CatalogImpl]] CatalogImpl
+
+`CatalogImpl` is the one and only `Catalog` that relies on a per-session link:spark-sql-sessionstate.adoc#catalog[SessionCatalog] (through link:spark-sql-sparksession.adoc[SparkSession]) to obey the <<contract, Catalog contract>>.
+
+.CatalogImpl uses SessionCatalog (through SparkSession)
+image::images/spark-sql-CatalogImpl.png[align="center"]
+
+It lives in `org.apache.spark.sql.internal` package.
