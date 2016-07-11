@@ -1,23 +1,75 @@
 == DataFrameWriter
 
-`DataFrameWriter` is used to write link:spark-sql-dataframe.adoc[DataFrame] to external storage systems in batch or <<streams, streaming>> fashions.
+`DataFrameWriter` is used to write a link:spark-sql-dataframe.adoc[DataFrame] to external storage systems in batch or <<streams, streaming>> fashions.
 
 Use link:spark-sql-dataframe.adoc#write[write] method on a `DataFrame` to access it.
 
 [source, scala]
 ----
-import org.apache.spark.sql.DataFrameWriter
-val df = ...
+import org.apache.spark.sql.{DataFrame, DataFrameWriter}
+
+val df: DataFrame = ...
 val writer: DataFrameWriter = df.write
 ----
 
-It has a direct support for many <<writing-dataframes-to-files, file formats>> and <<format, interface for new ones>>. It assumes <<parquet, parquet>> as the default data source. You can change the format using link:spark-sql-settings.adoc[spark.sql.sources.default] setting or <<format, format>> method.
+It has a direct support for many <<writing-dataframes-to-files, file formats>>, <<jdbc, JDBC databases>> and <<format, interface for new ones>>. It assumes <<parquet, parquet>> as the default data source (but you can change the format using link:spark-sql-settings.adoc[spark.sql.sources.default] setting or <<format, format>> method.
 
 As of Spark *2.0.0* `DataFrameWriter` offers methods for link:spark-sql-structured-streaming.adoc[Structured Streaming]:
 
 * <<trigger, trigger>> to set the link:spark-sql-trigger.adoc[Trigger] for a stream query.
 * <<queryName, queryName>>
 * <<startStream, startStream>> to start a continuous write.
+
+=== [[jdbc]] jdbc
+
+[source, scala]
+----
+jdbc(url: String, table: String, connectionProperties: Properties): Unit
+----
+
+`jdbc` method saves the content of the `DataFrame` to an external database table via JDBC.
+
+You can use <<mode, mode>> to control *save mode*, i.e. what happens when an external table exists when `save` is executed.
+
+It is assumed that the `jdbc` save pipeline is not <<partitionBy, partitioned>> and <<bucketBy, bucketed>>.
+
+All <<options, options>> are overriden by the input `connectionProperties`.
+
+The required options are:
+
+* `driver` which is the class name of the JDBC driver (that is passed to Spark's own `DriverRegistry.register` and later used to `connect(url, properties)`).
+
+When `table` exists and the <<mode, override save mode>> is in use, `DROP TABLE table` is executed.
+
+It creates the input `table` (using `CREATE TABLE table (schema)` where `schema` is the schema of the `DataFrame`).
+
+=== [[bucketBy]] bucketBy method
+
+CAUTION: FIXME
+
+=== [[partitionBy]] partitionBy method
+
+[source, scala]
+----
+partitionBy(colNames: String*): DataFrameWriter[T]
+----
+
+CAUTION: FIXME
+
+=== [[mode]] Specifying Save Mode (mode method)
+
+[source, scala]
+----
+mode(saveMode: String): DataFrameWriter[T]
+mode(saveMode: SaveMode): DataFrameWriter[T]
+----
+
+You can control the behaviour of write using `mode` method, i.e. what happens when an external file or table exist when `save` is executed.
+
+* `SaveMode.Ignore` or
+* `SaveMode.ErrorIfExists` or
+* `SaveMode.Overwrite` or
+
 
 === [[trigger]] trigger
 

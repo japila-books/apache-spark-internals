@@ -1,0 +1,42 @@
+== ForeachSink
+
+`ForeachSink` is a typed <<Sink, Sink>> that passes records (of the type `T`) to <<ForeachWriter, ForeachWriter>> (one record at a time per partition).
+
+It is used exclusively in link:spark-sql-streaming-DataStreamWriter.adoc#foreach[foreach] operator.
+
+[source, scala]
+----
+val records = spark.readStream
+  .format("text")
+  .load("server-logs/*.out")
+  .as[String]
+
+import org.apache.spark.sql.ForeachWriter
+val writer = new ForeachWriter[String] {
+  override def open(partitionId: Long, version: Long) = true
+  override def process(value: String) = println(value)
+  override def close(errorOrNull: Throwable) = {}
+}
+
+records.writeStream
+  .queryName("server-logs processor")
+  .foreach(writer)
+  .start
+----
+
+Internally, `addBatch` (the only method from the <<contract, Sink Contract>>) takes records from the input link:spark-sql-dataframe.adoc[DataFrame] (as `data`), transforms them to expected type `T` (of this `ForeachSink`) and (now as a link:spark-sql-dataset.adoc[Dataset]) link:spark-sql-dataset.adoc#foreachPartition[processes each partition].
+
+[source, scala]
+----
+addBatch(batchId: Long, data: DataFrame): Unit
+----
+
+It then opens the constructor's <<ForeachWriter, ForeachWriter>> (for the link:spark-taskscheduler-taskcontext.adoc#getPartitionId[current partition] and the input batch) and passes the records to process (one at a time per partition).
+
+CAUTION: FIXME Why does Spark track whether the writer failed or not? Why couldn't it `finally` and do `close`?
+
+CAUTION: FIXME Can we have a constant for `"foreach"` for `source` in `DataStreamWriter`?
+
+=== [[ForeachWriter]] ForeachWriter
+
+CAUTION: FIXME
