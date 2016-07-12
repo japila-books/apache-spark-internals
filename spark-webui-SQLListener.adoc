@@ -1,15 +1,82 @@
 == SQLListener
 
-`SQLListener` is a custom link:spark-SparkListener.adoc[SparkListener] that listens to the following events:
+`SQLListener` is a custom link:spark-SparkListener.adoc[SparkListener] that collects information about SQL query executions for web UI to display (in link:spark-webui-sql.adoc[SQL tab]).
 
-* onJobStart
+It listens to the following events:
+
+* <<onJobStart, onJobStart>>
 * <<onJobEnd, onJobEnd>>
 * onExecutorMetricsUpdate
 * onStageSubmitted
 * onTaskEnd
-* onOtherEvent
+* <<onOtherEvent, onOtherEvent>>
 
-It uses <<SQLExecutionUIData, SQLExecutionUIData>> to represent all the necessary data for a single SQL query execution (and later link:spark-webui-sql.adoc[SQL tab] uses). `SQLExecutionUIData` is tracked in the internal registries, i.e. `activeExecutions`, `failedExecutions`, and `completedExecutions` as well as lookup tables, i.e. `_executionIdToData`, `_jobIdToExecutionId`, and `_stageIdToStageMetrics`.
+It uses <<SQLExecutionUIData, SQLExecutionUIData>> exclusively to represent all the necessary data for a single SQL query execution. `SQLExecutionUIData` is tracked in the internal registries, i.e. `activeExecutions`, `failedExecutions`, and `completedExecutions` as well as lookup tables, i.e. `_executionIdToData`, `_jobIdToExecutionId`, and `_stageIdToStageMetrics`.
+
+=== [[onJobStart]] Registering Job and Stages under Active Execution (onJobStart callback)
+
+[source, scala]
+----
+onJobStart(jobStart: SparkListenerJobStart): Unit
+----
+
+`onJobStart` reads the link:spark-sql-SQLExecution.adoc#spark.sql.execution.id[`spark.sql.execution.id` key], the identifiers of the job and the stages and then updates the <<SQLExecutionUIData, SQLExecutionUIData>> for the execution id in `activeExecutions` internal registry.
+
+NOTE: When `onJobStart` is executed, it is assumed that <<SQLExecutionUIData, SQLExecutionUIData>> has already been created and available in the internal `activeExecutions` registry.
+
+The job in <<SQLExecutionUIData, SQLExecutionUIData>> is marked as running with the stages added (to `stages`). For each stage, a `SQLStageMetrics` is created in the internal `_stageIdToStageMetrics` registry. At the end, the execution id is recorded for the job id in the internal `_jobIdToExecutionId`.
+
+=== [[onOtherEvent]] onOtherEvent
+
+In `onOtherEvent`, `SQLListener` listens to the following link:spark-SparkListener.adoc#SparkListenerEvent[SparkListenerEvent] events:
+
+* <<SparkListenerSQLExecutionStart, SparkListenerSQLExecutionStart>>
+* <<SparkListenerSQLExecutionEnd, SparkListenerSQLExecutionEnd>>
+* <<SparkListenerDriverAccumUpdates, SparkListenerDriverAccumUpdates>>
+
+==== [[SparkListenerSQLExecutionStart]] Registering Active Execution (SparkListenerSQLExecutionStart Event)
+
+[source, scala]
+----
+case class SparkListenerSQLExecutionStart(
+  executionId: Long,
+  description: String,
+  details: String,
+  physicalPlanDescription: String,
+  sparkPlanInfo: SparkPlanInfo,
+  time: Long)
+extends SparkListenerEvent
+----
+
+When `SparkListenerSQLExecutionStart` comes, a new <<SQLExecutionUIData, SQLExecutionUIData>> for the input `executionId` query execution is created.
+
+It is stored in `activeExecutions` and `_executionIdToData` internal registries.
+
+==== [[SparkListenerSQLExecutionEnd]] SparkListenerSQLExecutionEnd
+
+[source, scala]
+----
+case class SparkListenerSQLExecutionEnd(
+  executionId: Long,
+  time: Long)
+extends SparkListenerEvent
+----
+
+When `SparkListenerSQLExecutionEnd` comes, <<SQLExecutionUIData, SQLExecutionUIData>> for the input `executionId` is looked up (in `_executionIdToData`) and `completionTime` set to the input `time`.
+
+CAUTION: FIXME Describe running jobs clause.
+
+==== [[SparkListenerDriverAccumUpdates]] SparkListenerDriverAccumUpdates
+
+[source, scala]
+----
+case class SparkListenerDriverAccumUpdates(
+  executionId: Long,
+  accumUpdates: Seq[(Long, Long)])
+extends SparkListenerEvent
+----
+
+When `SparkListenerDriverAccumUpdates` comes, <<SQLExecutionUIData, SQLExecutionUIData>> for the input `executionId` is looked up (in `_executionIdToData`) and `SQLExecutionUIData.driverAccumUpdates` is updated with the input `accumUpdates`.
 
 === [[onJobEnd]] onJobEnd
 

@@ -1,0 +1,41 @@
+== SQLExecution Helper Object
+
+`SQLExecution` defines <<spark.sql.execution.id, spark.sql.execution.id>> key that is used to track multiple jobs that constitute a single SQL query execution. Whenever a SQL query is to be executed, <<withNewExecutionId, withNewExecutionId>> static method is used that sets the key.
+
+NOTE: Jobs without <<spark.sql.execution.id, spark.sql.execution.id>> key are not considered to belong to SQL query executions.
+
+=== [[spark.sql.execution.id]] spark.sql.execution.id EXECUTION_ID_KEY Key
+
+[source, scala]
+----
+val EXECUTION_ID_KEY = "spark.sql.execution.id"
+----
+
+=== [[withNewExecutionId]] Tracking Multi-Job SQL Query Executions (withNewExecutionId methods)
+
+[source, scala]
+----
+withExecutionId[T](
+  sc: SparkContext,
+  executionId: String)(body: => T): T  // <1>
+
+withNewExecutionId[T](
+  sparkSession: SparkSession,
+  queryExecution: QueryExecution)(body: => T): T  // <2>
+----
+<1> With explicit execution identifier
+<2> `QueryExecution` variant with an auto-generated execution identifier
+
+`SQLExecution.withNewExecutionId` allow executing the input `body` query action with the *execution id* local property set (as `executionId` or auto-generated). The execution identifier is set as `spark.sql.execution.id` local property (using link:spark-sparkcontext.adoc#setLocalProperty[SparkContext.setLocalProperty]).
+
+The use case is to track Spark jobs (e.g. when running in separate threads) that belong to a single SQL query execution.
+
+NOTE: It is used in link:spark-sql-dataset.adoc#withNewExecutionId[Dataset.withNewExecutionId].
+
+CAUTION: FIXME Where is the proxy-like method used? How important is it?
+
+If there is another execution local property set (as `spark.sql.execution.id`), it is replaced for the course of the current action.
+
+In addition, the `QueryExecution` variant posts link:spark-webui-SQLListener.adoc#SparkListenerSQLExecutionStart[SparkListenerSQLExecutionStart] and link:spark-webui-SQLListener.adoc#SparkListenerSQLExecutionEnd[SparkListenerSQLExecutionEnd] events (to link:spark-LiveListenerBus.adoc[LiveListenerBus] event bus) before and after executing the `body` action, respectively. It is used to inform link:spark-webui-SQLListener.adoc#onOtherEvent[`SQLListener` when a SQL query execution starts and ends].
+
+NOTE: Nested execution ids are not supported in the `QueryExecution` variant.
