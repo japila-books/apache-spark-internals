@@ -1,10 +1,10 @@
-== Accumulators
+== [[AccumulatorV2]] Accumulators
 
 TIP: Read the official documentation about http://spark.apache.org/docs/latest/programming-guide.html#accumulators[Accumulators]. This document is not ready for prime time yet.
 
-Accumulators are variables that are "added" to through an associative and commutative "add" operation. They can therefore be used safely and efficiently in parallel and distributed Spark computations. Accumulators are a solid foundation for distributed counters and sums.
+*Accumulators* are variables that are "added" to through an associative and commutative "add" operation. They can be used safely and efficiently in parallel and distributed Spark computations. Accumulators are hence a solid foundation for distributed counters and sums.
 
-You can create accumulators using the link:spark-sparkcontext.adoc#accumulator[SparkContext.accumulator] methods. You can create accumulators with or without a name, but only <<named, named accumulators>> are displayed in link:spark-webui-StagePage.adoc#accumulators[Spark's webUI] (under Stages tab for a given stage).
+You can create built-in accumulators for link:spark-sparkcontext.adoc#creating-accumulators[longs, doubles, or collections] or register custom accumulators using the link:spark-sparkcontext.adoc#register[SparkContext.register] methods. You can create accumulators with or without a name, but only <<named, named accumulators>> are displayed in link:spark-webui-StagePage.adoc#accumulators[web UI] (under Stages tab for a given stage).
 
 .Accumulators in the Spark UI
 image::images/spark-webui-accumulators.png[align="center"]
@@ -12,8 +12,8 @@ image::images/spark-webui-accumulators.png[align="center"]
 Accumulator are write-only variables for workers. They can be added to by workers and read by the driver only.
 
 ```
-worker1: accumulator += incByWorker1
-worker2: accumulator += incByWorker2
+worker1: accumulator.add(incByWorker1)
+worker2: accumulator.add(incByWorker2)
 
 driver:  println(accumulator.value)
 ```
@@ -24,40 +24,43 @@ Accumulators are serializable so they can safely be referenced in the code execu
 
 [source, scala]
 ----
-val accum = sc.accumulator(0)
-sc.parallelize(1 to 9).foreach(x => accum += x)
+val counter = sc.longAccumulator("counter")
+sc.parallelize(1 to 9).foreach(x => counter.add(x))
 ----
 
-Internally, link:spark-sparkcontext.adoc#accumulator[SparkContext.accumulator] methods create an instance of <<Accumulator, Accumulator>> class and register it to link:spark-service-contextcleaner.adoc[ContextCleaner] for cleanup (using link:spark-service-contextcleaner.adoc#registerAccumulatorForCleanup[registerAccumulatorForCleanup] method).
+Internally, link:spark-sparkcontext.adoc#longAccumulator[longAccumulator], link:spark-sparkcontext.adoc#doubleAccumulator[doubleAccumulator], and link:spark-sparkcontext.adoc#collectionAccumulator[collectionAccumulator] methods create the built-in typed accumulators and call link:spark-sparkcontext.adoc#register[SparkContext.register].
 
-=== [[Accumulator]] Accumulator
+<<AccumulatorV2, AccumulatorV2>> class and register it to link:spark-service-contextcleaner.adoc[ContextCleaner] for cleanup (using link:spark-service-contextcleaner.adoc#registerAccumulatorForCleanup[registerAccumulatorForCleanup] method).
 
-`Accumulator[T]` parameterized class is a simpler variant of <<Accumulable, Accumulable>> that assumes that the types of the result value and the elements added are the same, i.e. `T`.
-
-In other words, `Accumulator[T]` parameterized type is `Accumulable[T, T]`.
-
-`Accumulator[T]` belongs to `org.apache.spark` package.
-
-NOTE: `Accumulator` is a `private[spark]` class so the _right_ way to create `Accumulator` instances is through link:spark-sparkcontext.adoc#accumulator[SparkContext.accumulator] methods.
-
-NOTE: `countFailedValues` is `false` by default.
-
-=== [[named]] Named Accumulators
-
-An accumulator can have an optional name that you can specify in link:spark-sparkcontext.adoc#creating-accumulators[SparkContext.accumulator] method.
+=== [[AccumulatorV2]] AccumulatorV2
 
 [source, scala]
 ----
-val counter = sc.accumulator(0, "counter")
+abstract class AccumulatorV2[IN, OUT]
 ----
 
-=== [[Accumulable]] Accumulable
+`AccumulatorV2` parameterized class represents an accumulator that accumulates `IN` values to produce `OUT` result.
 
-`Accumulable[R, T]` makes for the result type of the "add" operation, `R`, to be different from the type of elements being added, `T`.
+==== [[register]] Registering Accumulator (register method)
 
-It is a private parameterized class that belongs to `org.apache.spark` package.
+[source, scala]
+----
+register(
+  sc: SparkContext,
+  name: Option[String] = None,
+  countFailedValues: Boolean = false): Unit
+----
 
-TIP: `Accumulable` comes with `countFailedValues` constructor parameter that allows to specify whether to accumulate values from failed tasks or not.
+CAUTION: FIXME
+
+=== [[named]] Named Accumulators
+
+An accumulator can have an optional name that you can specify when link:spark-sparkcontext.adoc#creating-accumulators[creating an accumulator].
+
+[source, scala]
+----
+val counter = sc.longAccumulator("counter")
+----
 
 === [[AccumulableInfo]] AccumulableInfo
 
@@ -70,10 +73,6 @@ TIP: `Accumulable` comes with `countFailedValues` constructor parameter that all
 * whether or not it is `internal`
 * whether or not to `countFailedValues` to the final value of the accumulator for failed tasks
 * optional `metadata`
-
-=== [[AccumulatorParam]] AccumulatorParam[T]
-
-`AccumulatorParam[T]` is ...FIXME
 
 === When are Accumulators Updated?
 

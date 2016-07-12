@@ -381,41 +381,63 @@ setCheckpointDir(directory: String)
 
 CAUTION: FIXME
 
-=== [[creating-accumulators]][[accumulator]] Creating Accumulators (accumulator method)
+=== [[register]] Registering Custom Accumulators (register methods)
 
 [source, scala]
 ----
-accumulator[T](initialValue: T)(implicit param: AccumulatorParam[T]): Accumulator[T]
-accumulator[T](initialValue: T, name: String)(implicit param: AccumulatorParam[T]): Accumulator[T]
+register(acc: AccumulatorV2[_, _]): Unit
+register(acc: AccumulatorV2[_, _], name: String): Unit
 ----
 
-`accumulator` methods create link:spark-accumulators.adoc[accumulators] of type `T` with the initial value `initialValue`.
+`register` registers the `acc` link:spark-accumulators.adoc[accumulator]. You can optionally give an accumulator a `name`.
+
+TIP: You can create built-in accumulators for longs, doubles, and collection types using <<creating-accumulators, specialized methods>>.
+
+Internally, link:spark-accumulators.adoc#register[`register` registers the `SparkContext` to the accumulator].
+
+=== [[creating-accumulators]][[longAccumulator]][[doubleAccumulator]][[collectionAccumulator]] Creating Built-In Accumulators
 
 [source, scala]
 ----
-scala> val acc = sc.accumulator(0)
-acc: org.apache.spark.Accumulator[Int] = 0
-
-scala> val counter = sc.accumulator(0, "counter")
-counter: org.apache.spark.Accumulator[Int] = 0
-
-scala> counter.value
-res2: Int = 0
-
-scala> sc.parallelize(0 to 9).foreach(n => counter += n)
-
-scala> counter.value
-res4: Int = 45
+longAccumulator: LongAccumulator
+longAccumulator(name: String): LongAccumulator
+doubleAccumulator: DoubleAccumulator
+doubleAccumulator(name: String): DoubleAccumulator
+collectionAccumulator[T]: CollectionAccumulator[T]
+collectionAccumulator[T](name: String): CollectionAccumulator[T]
 ----
 
-`name` input parameter allows you to give a name to accumulators and have them displayed in link:spark-webui-StagePage.adoc#accumulators[Spark UI] (under Stages tab for a given stage).
+You can use `longAccumulator`, `doubleAccumulator` or `collectionAccumulator` to create and register link:spark-accumulators.adoc[accumulators] for simple and collection values.
+
+`longAccumulator` returns link:spark-accumulators.adoc#LongAccumulator[LongAccumulator] with the zero value `0`.
+
+`doubleAccumulator` returns link:spark-accumulators.adoc#DoubleAccumulator[DoubleAccumulator] with the zero value `0.0`.
+
+`collectionAccumulator` returns link:spark-accumulators.adoc#CollectionAccumulator[CollectionAccumulator] with the zero value `java.util.List[T]`.
+
+[source, scala]
+----
+scala> val acc = sc.longAccumulator
+acc: org.apache.spark.util.LongAccumulator = LongAccumulator(id: 0, name: None, value: 0)
+
+scala> val counter = sc.longAccumulator("counter")
+counter: org.apache.spark.util.LongAccumulator = LongAccumulator(id: 1, name: Some(counter), value: 0)
+
+scala> counter.value
+res0: Long = 0
+
+scala> sc.parallelize(0 to 9).foreach(n => counter.add(n))
+
+scala> counter.value
+res3: Long = 45
+----
+
+The `name` input parameter allows you to give a name to an accumulator and have it displayed in link:spark-webui-StagePage.adoc#accumulators[Spark UI] (under Stages tab for a given stage).
 
 .Accumulators in the Spark UI
 image::images/spark-webui-accumulators.png[align="center"]
 
-When working with unsupported type `T` you need to create a custom link:spark-accumulators.adoc#AccumulatorParam[AccumulatorParam[T\]].
-
-TIP: Read link:spark-accumulators.adoc[Accumulators] to get more in-depth insight on the concept.
+TIP: You can register custom accumulators using <<register, register>> methods.
 
 === [[creating-broadcast-variables]] Creating Broadcast Variables
 
