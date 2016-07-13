@@ -4,14 +4,14 @@
 
 Structured streaming is an attempt to unify streaming, interactive, and batch queries that paves the way for *continuous applications* (e.g. continuous aggregations using link:spark-sql-dataset.adoc#groupBy[groupBy] operator or continuous windowed aggregations using `groupBy` operator with link:spark-sql-functions.adoc#window[window] function). Spark 2.0 aims at simplifying *streaming analytics* without having to reason about streaming at all.
 
-The new model introduces the *streaming datasets* that are _infinite datasets_ with primitives like input link:spark-sql-source.adoc[sources] and output link:spark-sql-sink.adoc[sinks], *event time*, *windowing*, and *sessions*.
+The new model introduces the *streaming datasets* that are _infinite datasets_ with primitives like input link:spark-sql-source.adoc[sources] and output link:spark-sql-sink.adoc[streaming sinks], *event time*, *windowing*, and *sessions*. You can specify link:spark-sql-streaming-DataStreamWriter.adoc#outputMode[output mode] of a streaming dataset which is what gets written to a streaming sink when there is new data available.
 
 It lives in `org.apache.spark.sql.streaming` package with the following main data abstractions:
 
 * link:spark-sql-StreamingQueryManager.adoc[StreamingQueryManager]
 * link:spark-sql-StreamingQuery.adoc[StreamingQuery]
 * link:spark-sql-source.adoc[Source]
-* link:spark-sql-sink.adoc[Sink]
+* link:spark-sql-sink.adoc[Streaming Sink]
 
 With Datasets being Spark SQL's view of structured data, structured streaming checks input sources for new data every link:spark-sql-trigger.adoc[trigger] (time) and executes the (continuous) queries.
 
@@ -25,28 +25,82 @@ Below is a complete example of a streaming query in a form of `DataFrame` of dat
 
 [source, scala]
 ----
+// Explicit schema with nullables false
 import org.apache.spark.sql.types._
-val schema = StructType(
-  StructField("f1", IntegerType, true) ::
-  StructField("f2", LongType, false) ::
-  StructField("f3", BooleanType, false) :: Nil
+val schemaExp = StructType(
+  StructField("name", StringType, false) ::
+  StructField("city", StringType, true) ::
+  StructField("country", StringType, true) ::
+  StructField("age", IntegerType, true) ::
+  StructField("alive", BooleanType, false) :: Nil
 )
 
-val in = spark.readStream
-  .schema(schema)
+// Implicit inferred schema
+val schemaImp = spark.read
   .format("csv")
-  .load("hello")
+  .option("header", true)
+  .option("inferSchema", true)
+  .load("csv-logs")
+  .schema
+
+val in = spark.readStream
+  .schema(schemaImp)
+  .format("csv")
+  .option("header", true)
+  .option("maxFilesPerTrigger", 1)
+  .load("csv-logs")
+
+scala> in.printSchema
+root
+ |-- name: string (nullable = true)
+ |-- city: string (nullable = true)
+ |-- country: string (nullable = true)
+ |-- age: integer (nullable = true)
+ |-- alive: boolean (nullable = true)
 
 scala> in.isStreaming
-res0: Boolean = true
+res1: Boolean = true
+
+scala> spark.streams.active.isEmpty
+res2: Boolean = true
 
 import scala.concurrent.duration._
-import org.apache.spark.sql.streaming.ProcessingTime
+import org.apache.spark.sql.streaming.{OutputMode, ProcessingTime}
 val out = in.writeStream
   .format("console")
   .trigger(ProcessingTime(5.seconds))
-  .queryName("textStream")
+  .queryName("consoleStream")
+  .outputMode(OutputMode.Append)
   .start()
+
+16/07/13 12:32:11 TRACE FileStreamSource: Listed 3 file(s) in 4.274022 ms
+16/07/13 12:32:11 TRACE FileStreamSource: Files are:
+	file:///Users/jacek/dev/oss/spark/csv-logs/people-1.csv
+	file:///Users/jacek/dev/oss/spark/csv-logs/people-2.csv
+	file:///Users/jacek/dev/oss/spark/csv-logs/people-3.csv
+16/07/13 12:32:11 DEBUG FileStreamSource: New file: file:///Users/jacek/dev/oss/spark/csv-logs/people-1.csv
+16/07/13 12:32:11 TRACE FileStreamSource: Number of new files = 3
+16/07/13 12:32:11 TRACE FileStreamSource: Number of files selected for batch = 1
+16/07/13 12:32:11 TRACE FileStreamSource: Number of seen files = 1
+16/07/13 12:32:11 INFO FileStreamSource: Max batch id increased to 0 with 1 new files
+16/07/13 12:32:11 INFO FileStreamSource: Processing 1 files from 0:0
+16/07/13 12:32:11 TRACE FileStreamSource: Files are:
+	file:///Users/jacek/dev/oss/spark/csv-logs/people-1.csv
+-------------------------------------------
+Batch: 0
+-------------------------------------------
++-----+--------+-------+---+-----+
+| name|    city|country|age|alive|
++-----+--------+-------+---+-----+
+|Jacek|Warszawa| Polska| 42| true|
++-----+--------+-------+---+-----+
+
+scala> spark.streams.active.foreach(println)
+Streaming Query - consoleStream [state = ACTIVE]
+
+scala> spark.streams.active(0).explain
+== Physical Plan ==
+*Scan csv [name#130,city#131,country#132,age#133,alive#134] Format: CSV, InputPaths: file:/Users/jacek/dev/oss/spark/csv-logs/people-3.csv, PushedFilters: [], ReadSchema: struct<name:string,city:string,country:string,age:int,alive:boolean>
 ----
 
 === [[i-want-more]] Further reading or watching
