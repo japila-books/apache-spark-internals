@@ -59,12 +59,72 @@ CAUTION: FIXME Where is `RowDataSourceScanExec` used?
 * `SortExec`
 * `WholeStageCodegenExec` and `InputAdapter`
 * `TungstenAggregate`
-* `BroadcastHashJoinExec`
+* <<BroadcastHashJoinExec, BroadcastHashJoinExec>>
 * `SortMergeJoinExec`
 
 ==== [[BroadcastHashJoinExec]] BroadcastHashJoinExec
 
 `BroadcastHashJoinExec` variables are prefixed with `bhj` (see `CodegenSupport.variablePrefix`).
+
+[source, scala]
+----
+val ds = Seq((0,"playing"), (1, "with"), (2, "broadcast")).toDS
+
+scala> spark.conf.get("spark.sql.autoBroadcastJoinThreshold")
+res18: String = 10485760
+
+scala> ds.join(ds).explain(extended=true)
+== Parsed Logical Plan ==
+'Join Inner
+:- LocalRelation [_1#21, _2#22]
++- LocalRelation [_1#21, _2#22]
+
+== Analyzed Logical Plan ==
+_1: int, _2: string, _1: int, _2: string
+Join Inner
+:- LocalRelation [_1#21, _2#22]
++- LocalRelation [_1#32, _2#33]
+
+== Optimized Logical Plan ==
+Join Inner
+:- LocalRelation [_1#21, _2#22]
++- LocalRelation [_1#32, _2#33]
+
+== Physical Plan ==
+BroadcastNestedLoopJoin BuildRight, Inner, true
+:- LocalTableScan [_1#21, _2#22]
++- BroadcastExchange IdentityBroadcastMode
+   +- LocalTableScan [_1#32, _2#33]
+
+// Use broadcast function to mark the right-side Dataset
+// eligible for broadcasting explicitly
+
+scala> ds.join(broadcast(ds)).explain(extended=true)
+== Parsed Logical Plan ==
+'Join Inner
+:- LocalRelation [_1#21, _2#22]
++- BroadcastHint
+   +- LocalRelation [_1#21, _2#22]
+
+== Analyzed Logical Plan ==
+_1: int, _2: string, _1: int, _2: string
+Join Inner
+:- LocalRelation [_1#21, _2#22]
++- BroadcastHint
+   +- LocalRelation [_1#43, _2#44]
+
+== Optimized Logical Plan ==
+Join Inner
+:- LocalRelation [_1#21, _2#22]
++- BroadcastHint
+   +- LocalRelation [_1#43, _2#44]
+
+== Physical Plan ==
+BroadcastNestedLoopJoin BuildRight, Inner, true
+:- LocalTableScan [_1#21, _2#22]
++- BroadcastExchange IdentityBroadcastMode
+   +- LocalTableScan [_1#43, _2#44]
+----
 
 ==== [[SampleExec]] SampleExec
 
