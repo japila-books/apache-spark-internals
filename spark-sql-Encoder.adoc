@@ -1,13 +1,90 @@
-== Encoder
+== Encoders -- Internal Row Format Converters
 
-CAUTION: FIXME
+An *Encoder* object (of type `T`) is used to convert a JVM object of type `T` (e.g. your domain object) and primitives to and from the internal Spark SQL row format representation using Catalyst expressions and code generation. It is represented by `trait Encoder[T]`.
 
-`Encoder` works with the type of the accompanying link:spark-sql-dataset.adoc[Dataset].
+[source, scala]
+----
+trait Encoder[T] extends Serializable {
+  def schema: StructType
+  def clsTag: ClassTag[T]
+}
+----
 
-An `Encoder` object is used to convert your domain object (a JVM object) into Spark's internal representation. It allows for significantly faster serialization and deserialization (comparing to the default Java serializer).
+Encoders allows for significantly faster serialization and deserialization (comparing to the default Java or Kryo serializers).
 
 NOTE: Encoders are part of link:spark-sql-catalyst.adoc[Catalyst Optimizer].
 
-NOTE: link:spark-sql-sqlcontext.adoc#implicits[SQLContext.implicits] object comes with Encoders for many types in Scala.
+`Encoder` works with the type of the accompanying link:spark-sql-dataset.adoc[Dataset]. You can <<creating-encoders, create custom encoders using `Encoders` object>>. Encoders for many Scala types are however available through link:spark-sql-sparksession.adoc#implicits[SparkSession.implicits] object so in most cases you don't need to worry about them whatsoever and simply import the `implicits` object.
+
+[source, scala]
+----
+val spark = SparkSession.builder.getOrCreate()
+import spark.implicits._
+----
 
 Encoders map columns (of your dataset) to fields (of your JVM object) by name. It is by Encoders that you can bridge JVM objects to data sources (CSV, JDBC, Parquet, Avro, JSON, Cassandra, Elasticsearch, memsql) and vice versa.
+
+[source, scala]
+----
+import org.apache.spark.sql.Encoders
+
+case class Person(id: Int, name: String, speaksPolish: Boolean)
+
+scala> val personEncoder = Encoders.product[Person]
+personEncoder: org.apache.spark.sql.Encoder[Person] = class[id[0]: int, name[0]: string, speaksPolish[0]: boolean]
+
+scala> personEncoder.schema
+res11: org.apache.spark.sql.types.StructType = StructType(StructField(id,IntegerType,false), StructField(name,StringType,true), StructField(speaksPolish,BooleanType,false))
+
+scala> personEncoder.clsTag
+res12: scala.reflect.ClassTag[Person] = Person
+----
+
+=== [[creating-encoders]][[encoders]] Creating Custom Encoders (Encoders object)
+
+`Encoders` factory object defines methods to create `Encoder` instances.
+
+Import `org.apache.spark.sql` package to have access to the `Encoders` factory object.
+
+[source, scala]
+----
+import org.apache.spark.sql.Encoders
+
+scala> Encoders.LONG
+res1: org.apache.spark.sql.Encoder[Long] = class[value[0]: bigint]
+----
+
+You can find methods to create encoders for Java's object types, e.g. `Boolean`, `Integer`, `Long`, `Double`, `String`, `java.sql.Timestamp` or `Byte` array, that could be composed to create more advanced encoders for Java bean classes (using `bean` method).
+
+[source, scala]
+----
+import org.apache.spark.sql.Encoders
+
+scala> Encoders.STRING
+res2: org.apache.spark.sql.Encoder[String] = class[value[0]: string]
+----
+
+You can also create encoders based on Kryo or Java serializers.
+
+[source, scala]
+----
+import org.apache.spark.sql.Encoders
+
+case class Person(id: Int, name: String, speaksPolish: Boolean)
+
+scala> Encoders.kryo[Person]
+res3: org.apache.spark.sql.Encoder[Person] = class[value[0]: binary]
+
+scala> Encoders.javaSerialization[Person]
+res5: org.apache.spark.sql.Encoder[Person] = class[value[0]: binary]
+----
+
+You can create encoders for Scala's tuples and case classes, `Int`, `Long`, `Double`, etc.
+
+[source, scala]
+----
+import org.apache.spark.sql.Encoders
+
+scala> Encoders.tuple(Encoders.scalaLong, Encoders.STRING, Encoders.scalaBoolean)
+res9: org.apache.spark.sql.Encoder[(Long, String, Boolean)] = class[_1[0]: bigint, _2[0]: string, _3[0]: boolean]
+----
