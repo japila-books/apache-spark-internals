@@ -1,18 +1,27 @@
 == Spark on YARN
 
-You can submit your Spark applications to a Hadoop YARN cluster using `yarn` <<masterURL, master URL>> in link:spark-yarn-client-yarnclientschedulerbackend.adoc[client] (default) or link:spark-yarn-cluster-yarnclusterschedulerbackend.adoc[cluster] deploy modes.
+You can link:spark-submit.adoc[submit your Spark applications] to a Hadoop YARN cluster using `yarn` <<masterURL, master URL>> in link:spark-yarn-client-yarnclientschedulerbackend.adoc[client] (default) or link:spark-yarn-cluster-yarnclusterschedulerbackend.adoc[cluster] deploy modes.
 
-NOTE: Since Spark *2.0.0*, `yarn` master URL is the only proper master URL and you can use `--deploy-mode` to choose between `client` or `cluster` modes.
+[source, scala]
+----
+spark-submit --master yarn --deploy-mode cluster mySparkApp.jar
+----
 
-In that sense, a Spark application is a YARN-compatible execution framework that can be deployed to a YARN cluster.
+NOTE: Since Spark *2.0.0*, `yarn` master URL is the only proper master URL and you can use `--deploy-mode` to choose between `client` (default) or `cluster` modes.
 
-You need to <<yarn-support, build Spark distribution with YARN support>> to deploy applications to YARN clusters.
+In that sense, a Spark application is a YARN-compatible execution framework that can be deployed to a YARN cluster. On YARN, a Spark executor maps to a single YARN container.
+
+NOTE: In order to deploy applications to YARN clusters, you need to <<yarn-support, use Spark with YARN support>>.
 
 Spark on YARN supports <<multiple-application-attempts, multiple application attempts>> and supports link:spark-data-locality.adoc[data locality with the data in HDFS]. You can also run Spark in a link:spark-yarn-kerberos.adoc[secured Hadoop environment using Kerberos authentication].
 
 There are few settings that are specific to YARN (see <<settings, Settings>>).
 
 TIP: You can start link:spark-submit.adoc[spark-submit] with `--verbose` command-line option to have some settings displayed, including YARN-specific. See <<spark-submit, spark-submit and YARN options>>.
+
+The memory in the YARN resource requests is `--executor-memory` + what's set for `spark.yarn.executor.memoryOverhead`, which defaults to 10% of `--executor-memory`.
+
+If YARN has enough resources it will deploy the executors distributed across the cluster, then each of them will try to process the data locally (`NODE_LOCAL` in Spark Web UI), with as many splits in parallel as you defined in link:spark-executor.adoc#spark.executor.cores[spark.executor.cores].
 
 === [[spark-submit]] spark-submit and YARN options
 
@@ -45,7 +54,7 @@ Since Spark *2.0.0*, the only proper master URL is `yarn`.
 ./bin/spark-submit --master yarn ...
 ```
 
-Before Spark 2.0.0, you could have used `yarn-client` or `yarn-cluster`, but it is now deprecated. When you use the master URL other than `yarn` you will see the following warning in the logs:
+Before Spark 2.0.0, you could have used `yarn-client` or `yarn-cluster`, but it is now deprecated. When you use the deprecated master URLs, you should see the following warning in the logs:
 
 ```
 Warning: Master yarn-client is deprecated since 2.0. Please use master "yarn" with specified deploy mode instead.
@@ -139,123 +148,16 @@ It is used when link:spark-yarn-client.adoc#[Client distributes additional resou
 
 It is used when link:spark-yarn-client.adoc#[Client distributes additional resources] as specified using <<spark-submit, `--archives` command-line option for spark-submit>>.
 
-==== Others
+==== [[spark.yarn.principal]] spark.yarn.principal
 
-* `spark.yarn.principal` -- See the corresponding <<spark-submit, --principal command-line option for spark-submit>>.
-* `spark.yarn.keytab` -- See the corresponding <<spark-submit, --keytab command-line option for spark-submit>>.
+`spark.yarn.principal` -- See the corresponding <<spark-submit, --principal command-line option for spark-submit>>.
 
-=== How it works
+==== [[spark.yarn.keytab]] spark.yarn.keytab
 
-The Spark driver in Spark on YARN launches a number of executors. Each executor processes a partition of HDFS-based data.
+`spark.yarn.keytab` -- See the corresponding <<spark-submit, --keytab command-line option for spark-submit>>.
 
-=== Misc
-
-* On YARN, a Spark executor maps to a single YARN container.
-* The memory in the YARN resource requests is `--executor-memory` + what's set for `spark.yarn.executor.memoryOverhead`, which defaults to 10% of `--executor-memory`.
-* if YARN has enough resources it will deploy the executors distributed across the cluster, then each of them will try to process the data locally (`NODE_LOCAL` in Spark Web UI), with as many splits in parallel as you defined in link:spark-executor.adoc#spark.executor.cores[spark.executor.cores].
-
-==== [[multiple-application-attempts]] Multiple Application Attempts
+=== [[multiple-application-attempts]] Multiple Application Attempts
 
 Spark on YARN supports *multiple application attempts* in link:spark-yarn-cluster-yarnclusterschedulerbackend.adoc[cluster mode].
-
-CAUTION: FIXME
-
-=== [[YarnSparkHadoopUtil]] YarnSparkHadoopUtil
-
-`YarnSparkHadoopUtil` is...FIXME
-
-It can only be created when link:spark-yarn-client.adoc#SPARK_YARN_MODE[SPARK_YARN_MODE flag is enabled].
-
-NOTE: It belongs to `org.apache.spark.deploy.yarn` package.
-
-==== [[expandEnvironment]] Resolving Environment Variable (expandEnvironment method)
-
-[source, scala]
-----
-expandEnvironment(environment: Environment): String
-----
-
-`expandEnvironment` resolves `environment` variable using YARN's `Environment.$` or `Environment.$$` methods (depending on the version of Hadoop used).
-
-==== [[obtainTokenForHBase]] obtainTokenForHBase
-
-[source, scala]
-----
-obtainTokenForHBase(
-  sparkConf: SparkConf,
-  conf: Configuration,
-  credentials: Credentials): Unit
-----
-
-CAUTION: FIXME
-
-==== [[obtainTokenForHiveMetastore]] obtainTokenForHiveMetastore
-
-[source, scala]
-----
-obtainTokenForHiveMetastore(
-  sparkConf: SparkConf,
-  conf: Configuration,
-  credentials: Credentials): Unit
-----
-
-CAUTION: FIXME
-
-==== [[obtainTokensForNamenodes]] obtainTokensForNamenodes
-
-[source, scala]
-----
-obtainTokensForNamenodes(
-  paths: Set[Path],
-  conf: Configuration,
-  creds: Credentials,
-  renewer: Option[String] = None): Unit
-----
-
-CAUTION: FIXME
-
-NOTE: It uses Hadoop's `UserGroupInformation.isSecurityEnabled()` to determine whether `UserGroupInformation` is working in a secure environment.
-
-==== [[get]] Creating YarnSparkHadoopUtil Instance (get method)
-
-CAUTION: FIXME
-
-==== [[getContainerId]] getContainerId
-
-CAUTION: FIXME
-
-==== [[startExecutorDelegationTokenRenewer]] startExecutorDelegationTokenRenewer
-
-CAUTION: FIXME
-
-==== [[stopExecutorDelegationTokenRenewer]] stopExecutorDelegationTokenRenewer
-
-CAUTION: FIXME
-
-==== [[getInitialTargetExecutorNumber]] getInitialTargetExecutorNumber
-
-[source, scala]
-----
-getInitialTargetExecutorNumber(
-  conf: SparkConf,
-  numExecutors: Int = DEFAULT_NUMBER_EXECUTORS): Int
-----
-
-`getInitialTargetExecutorNumber` calculates the initial number of executors for Spark on YARN. It varies by whether link:spark-dynamic-allocation.adoc#isDynamicAllocationEnabled[dynamic allocation is enabled or not].
-
-NOTE: The default number of executors (aka `DEFAULT_NUMBER_EXECUTORS`) is `2`.
-
-If dynamic allocation is enabled, the result is the value of link:spark-dynamic-allocation.adoc#spark.dynamicAllocation.initialExecutors[spark.dynamicAllocation.initialExecutors] or link:spark-dynamic-allocation.adoc#spark.dynamicAllocation.minExecutors[spark.dynamicAllocation.minExecutors] or `0`.
-
-Otherwise, if dynamic allocation is disabled, the result is the value of link:spark-executor.adoc#spark.executor.instances[spark.executor.instances] setting or `SPARK_EXECUTOR_INSTANCES` environment variable, or the default value (of the input parameter `numExecutors`) `2`.
-
-NOTE: It is used to calculate link:spark-yarn-yarnschedulerbackend.adoc#totalExpectedExecutors[totalExpectedExecutors] to link:spark-yarn-client-yarnclientschedulerbackend.adoc#totalExpectedExecutors[start Spark on YARN in client mode] or link:spark-yarn-cluster-yarnclusterschedulerbackend.adoc#totalExpectedExecutors[cluster mode].
-
-==== [[YarnSparkHadoopUtil-addPathToEnvironment]] addPathToEnvironment
-
-[source, scala]
-----
-addPathToEnvironment(env: HashMap[String, String], key: String, value: String): Unit
-----
 
 CAUTION: FIXME
