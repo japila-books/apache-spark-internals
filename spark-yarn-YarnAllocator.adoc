@@ -1,13 +1,37 @@
 == YarnAllocator -- Container Allocator
 
-`YarnAllocator` requests containers (for executors) from the YARN ResourceManager and kills them when link:spark-yarn-applicationmaster.adoc[ApplicationMaster] decides so.
+`YarnAllocator` requests containers from the YARN ResourceManager to run Spark link:spark-executor.adoc[executors] on and kills them when link:spark-yarn-applicationmaster.adoc[ApplicationMaster] no longer needs them.
 
 It uses YARN's https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/client/api/AMRMClient.html[AMRMClient] API.
 
-It is used in link:spark-yarn-applicationmaster.adoc[ApplicationMaster] (via an internal `allocator`) and is created when link:spark-yarn-yarnrmclient.adoc#register[`YarnRMClient` registers an application master with the ResourceManager].
+It is used in link:spark-yarn-applicationmaster.adoc[ApplicationMaster] (via an internal `allocator`) and is created when link:spark-yarn-yarnrmclient.adoc#register[`YarnRMClient` registers an application master with the YARN ResourceManager].
 
 .ApplicationMaster uses YarnAllocator (via allocator attribute)
 image::images/spark-yarn-YarnAllocator.png[align="center"]
+
+=== [[requestTotalExecutorsWithPreferredLocalities]] Requesting Executors with Locality Preferences (requestTotalExecutorsWithPreferredLocalities method)
+
+[source, scala]
+----
+requestTotalExecutorsWithPreferredLocalities(
+  requestedTotal: Int,
+  localityAwareTasks: Int,
+  hostToLocalTaskCount: Map[String, Int]): Boolean
+----
+
+`requestTotalExecutorsWithPreferredLocalities` returns `true` if the current requested total is different than the new value (as the input `requestedTotal`).
+
+`requestTotalExecutorsWithPreferredLocalities` sets the internal `numLocalityAwareTasks` and `hostToLocalTaskCounts` attributes to the input `localityAwareTasks` and `hostToLocalTaskCount` arguments, respectively.
+
+If the input `requestedTotal` is different than the internal `targetNumExecutors` attribute you should see the following INFO message in the logs:
+
+```
+INFO Driver requested a total number of [requestedTotal] executor(s).
+```
+
+It sets the internal `targetNumExecutors` attribute to the input `requestedTotal` and returns `true`. Otherwise, it returns `false`.
+
+NOTE: `requestTotalExecutorsWithPreferredLocalities` is executed in response to `RequestExecutors` message to link:spark-yarn-AMEndpoint.adoc[ApplicationMaster].
 
 === [[allocateResources]] allocateResources
 

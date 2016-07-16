@@ -1,6 +1,6 @@
 == [[YarnSchedulerEndpoint]] YarnSchedulerEndpoint RPC Endpoint
 
-`YarnSchedulerEndpoint` is a link:spark-rpc.adoc#ThreadSafeRpcEndpoint[thread-safe RPC endpoint] for communication between link:spark-yarn-yarnschedulerbackend.adoc[YarnSchedulerBackend] on the driver and link:spark-yarn-applicationmaster.adoc[ApplicationMaster] managed by YARN.
+`YarnSchedulerEndpoint` is a link:spark-rpc.adoc#ThreadSafeRpcEndpoint[thread-safe RPC endpoint] for communication between link:spark-yarn-yarnschedulerbackend.adoc[YarnSchedulerBackend] on the driver and link:spark-yarn-applicationmaster.adoc[ApplicationMaster] on YARN (inside a YARN container).
 
 CAUTION: FIXME Picture it.
 
@@ -22,6 +22,28 @@ Refer to link:spark-logging.adoc[Logging].
 === [[messages]] RPC Messages
 
 ==== [[RequestExecutors]] RequestExecutors
+
+[source, scala]
+----
+RequestExecutors(
+  requestedTotal: Int,
+  localityAwareTasks: Int,
+  hostToLocalTaskCount: Map[String, Int])
+extends CoarseGrainedClusterMessage
+----
+
+`RequestExecutors` is to inform link:spark-yarn-applicationmaster.adoc[ApplicationMaster] about the current requirements for the total number of executors (as `requestedTotal`), including already pending or running executors.
+
+.RequestExecutors Message Flow (client deploy mode)
+image::images/spark-YarnSchedulerEndpoint-RequestExecutors.png[align="center"]
+
+When a `RequestExecutors` arrives, `YarnSchedulerEndpoint` simply passes it on to link:spark-yarn-applicationmaster.adoc[ApplicationMaster] (via the <<amEndpoint, internal RPC endpoint reference>>). The result of the forward call is sent back in response.
+
+Any issues communicating with the remote `ApplicationMaster` RPC endpoint are reported as ERROR messages in the logs:
+
+```
+ERROR Sending RequestExecutors to AM was unsuccessful
+```
 
 ==== [[RemoveExecutor]] RemoveExecutor
 
@@ -74,9 +96,9 @@ NOTE: `onStop` is a callback method to be called when...FIXME
 
 === [[amEndpoint]] Internal Reference to ApplicationMaster RPC Endpoint (amEndpoint variable)
 
-`amEndpoint` is a reference to a remote link:spark-yarn-applicationmaster.adoc#AMEndpoint[ApplicationMaster RPC Endpoint].
+`amEndpoint` is a reference to a remote link:spark-yarn-AMEndpoint.adoc[ApplicationMaster RPC Endpoint].
 
-It is set to the current link:spark-yarn-applicationmaster.adoc#AMEndpoint-onStart[ApplicationMaster RPC Endpoint] when <<RegisterClusterManager, RegisterClusterManager>> arrives and cleared when <<onDisconnected, the connection to the endpoint disconnects>>.
+It is set to the current link:spark-yarn-AMEndpoint.adoc#onStart[ApplicationMaster RPC Endpoint] when <<RegisterClusterManager, RegisterClusterManager>> arrives and cleared when <<onDisconnected, the connection to the endpoint disconnects>>.
 
 === [[askAmThreadPool]] askAmThreadPool Thread Pool
 
