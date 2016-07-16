@@ -12,9 +12,9 @@ image::images/spark-yarn-ApplicationMaster.png[align="center"]
 .Launching ApplicationMaster
 image::images/spark-yarn-ApplicationMaster-main.png[align="center"]
 
-NOTE: https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/api/records/ContainerLaunchContext.html[ContainerLaunchContext] represents all of the information needed by the NodeManager to launch a container.
+NOTE: https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/api/records/ContainerLaunchContext.html[ContainerLaunchContext] represents all of the information needed by the YARN NodeManager to launch a container.
 
-=== [[registerAM]] registerAM
+=== [[registerAM]] Registering ApplicationMaster with YARN ResourceManager and Requesting Resources (registerAM method)
 
 [source, scala]
 ----
@@ -25,21 +25,75 @@ registerAM(
   securityMgr: SecurityManager): Unit
 ----
 
-`registerAM` is a private helper procedure to...FIXME
+`registerAM` is a private helper procedure to link:spark-yarn-yarnrmclient.adoc#register[register the `ApplicationMaster`] (with the YARN ResourceManager) and link:spark-yarn-yarnrmclient.adoc#allocateResources[requests resources] (given hints about where to allocate containers to be as close to the data as possible).
 
-It reads link:spark-yarn-settings.adoc#spark.yarn.historyServer.address[spark.yarn.historyServer.address] setting and substitute Hadoop variables to create a complete address of the History Server, i.e. `[address]/history/[appId]/[attemptId]`.
+Internally, it reads link:spark-yarn-settings.adoc#spark.yarn.historyServer.address[spark.yarn.historyServer.address] setting and substitute Hadoop variables to create a complete address of the History Server, i.e. `[address]/history/[appId]/[attemptId]`.
 
 CAUTION: FIXME substitute Hadoop variables?
 
 `registerAM` then creates a link:spark-rpc.adoc#RpcEndpointAddress[RpcEndpointAddress] for link:spark-scheduler-backends-coarse-grained.adoc#CoarseGrainedScheduler[CoarseGrainedScheduler RPC Endpoint] on the driver available on link:spark-sparkenv.adoc#spark.driver.host[spark.driver.host] and link:spark-sparkenv.adoc#spark.driver.port[spark.driver.port].
 
-It link:spark-yarn-yarnrmclient.adoc#register[registers the application master] and link:spark-yarn-yarnrmclient.adoc#allocateResources[requests resources]. Ultimately, `registerAM` <<launchReporterThread, launches reporter thread>>.
+Ultimately, `registerAM` <<launchReporterThread, launches reporter thread>>.
 
 It is used in <<runDriver, runDriver>> and <<runExecutorLauncher, runExecutorLauncher>>.
 
-=== [[runDriver]] runDriver
+=== [[runDriver]] Running Driver in Cluster Mode (runDriver method)
 
-=== [[runExecutorLauncher]] runExecutorLauncher
+[source, scala]
+----
+runDriver(securityMgr: SecurityManager): Unit
+----
+
+`runDriver` is a private procedure to...???
+
+It starts by registering Web UI security filters.
+
+CAUTION: FIXME Why is this needed? `addAmIpFilter`
+
+It then starts the user class (with the driver) in a separate thread. You should see the following INFO message in the logs:
+
+```
+INFO Starting the user application in a separate Thread
+```
+
+CAUTION: FIXME Review `startUserApplication`.
+
+You should see the following INFO message in the logs:
+
+```
+INFO Waiting for spark context initialization
+```
+
+CAUTION: FIXME Review `waitForSparkContextInitialized`
+
+CAUTION: FIXME Finish...
+
+=== [[runExecutorLauncher]] Running Executor Launcher (runExecutorLauncher method)
+
+[source, scala]
+----
+runExecutorLauncher(securityMgr: SecurityManager): Unit
+----
+
+`runExecutorLauncher` reads link:spark-yarn-settings.adoc#spark.yarn.am.port[spark.yarn.am.port] (or assume `0`) and starts the `sparkYarnAM` RPC Environment (in client mode).
+
+CAUTION: FIXME What's client mode?
+
+It then waits for the driver to be available.
+
+CAUTION: FIXME Review `waitForSparkDriver`
+
+It registers Web UI security filters.
+
+CAUTION: FIXME Why is this needed? `addAmIpFilter`
+
+Ultimately, `runExecutorLauncher` <<registerAM, registers the `ApplicationManager` and requests resources>> and waits until the <<reporterThread, reporterThread>> dies.
+
+CAUTION: FIXME Describe `registerAM`
+
+=== [[reporterThread]] reporterThread
+
+CAUTION: FIXME
 
 === [[launchReporterThread]] launchReporterThread
 
@@ -108,7 +162,7 @@ When `run` executes you should see the following INFO in the logs:
 INFO ApplicationAttemptId: [appAttemptId]
 ```
 
-
+CAUTION: FIXME
 
 === [[ExecutorLauncher]] ExecutorLauncher
 
