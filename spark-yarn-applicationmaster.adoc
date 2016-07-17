@@ -87,7 +87,7 @@ It registers Web UI security filters.
 
 CAUTION: FIXME Why is this needed? `addAmIpFilter`
 
-Ultimately, `runExecutorLauncher` <<registerAM, registers the `ApplicationManager` and requests resources>> and waits until the <<reporterThread, reporterThread>> dies.
+Ultimately, `runExecutorLauncher` <<registerAM, registers the `ApplicationMaster` and requests resources>> and waits until the <<reporterThread, reporterThread>> dies.
 
 CAUTION: FIXME Describe `registerAM`
 
@@ -123,7 +123,11 @@ CAUTION: FIXME
 
 === [[main]] main
 
-`ApplicationMaster` is a standalone application. When executed, `main` parses <<command-arguments, command-line arguments>> (using `ApplicationMasterArguments` class).
+`ApplicationMaster` is a standalone command-line application.
+
+NOTE: The command-line application is executed as a result of sending a `ContainerLaunchContext` request to launch `ApplicationMaster` to YARN ResourceManager (after link:spark-yarn-client.adoc#createContainerLaunchContext[creating the request for `ApplicationMaster`])
+
+When executed, `main` parses <<command-arguments, command-line arguments>> (using `ApplicationMasterArguments` class).
 
 CAUTION: FIXME What does `ApplicationMasterArguments` do?
 
@@ -142,7 +146,7 @@ log4j.logger.org.apache.spark.deploy.SparkHadoopUtil=DEBUG
 Refer to link:spark-logging.adoc[Logging].
 ====
 
-When running with `DEBUG` log level set for `org.apache.spark.deploy.SparkHadoopUtil` (see above TIP) you should see the following message in the logs:
+You should see the following message in the logs:
 
 ```
 DEBUG running as user: [user]
@@ -156,11 +160,51 @@ CAUTION: FIXME
 
 === [[run]] run
 
-When `run` executes you should see the following INFO in the logs:
+When `ApplicationMaster` is started as a standalone command-line application (using <<main, main>> method), ultimately it calls `run`. The result of calling `run` is the final result of the `ApplicationMaster` command-line application.
+
+[source, scala]
+----
+run(): Int
+----
+
+It sets cluster mode settings, registers a cleanup shutdown hook, schedules `AMDelegationTokenRenewer` and finally registers `ApplicationMaster` for the Spark application (either calling <<runDriver, runDriver>> for cluster mode or <<runExecutorLauncher, runExecutorLauncher>> for client mode).
+
+When `run` runs you should see the following INFO in the logs:
 
 ```
 INFO ApplicationAttemptId: [appAttemptId]
 ```
+
+CAUTION: FIXME Explain what `appAttemptId` is and how to change it.
+
+When executed in `cluster` deploy mode, it sets the following system properties:
+
+* link:spark-webui.adoc#spark.ui.port[spark.ui.port] as `0`
+* link:spark-configuration.adoc#spark.master[spark.master] as `yarn`
+* link:spark-deploy-mode.adoc#spark.submit.deployMode[spark.submit.deployMode] as `cluster`
+* link:spark-yarn-settings.adoc#spark.yarn.app.id[spark.yarn.app.id] as application id
+
+CAUTION: FIXME Link to the page about yarn deploy modes (not the general ones).
+
+The cleanup shutdown hook is registered.
+
+CAUTION: FIXME Describe the shutdown hook.
+
+`SecurityManager` is created. If the link:spark-yarn-settings.adoc#spark.yarn.credentials.file[credentials file config] is present, a `AMDelegationTokenRenewer` is started.
+
+CAUTION: FIXME Describe `AMDelegationTokenRenewer#scheduleLoginFromKeytab`
+
+It finally registers `ApplicationMaster` for the Spark application (either calling <<runDriver, runDriver>> for cluster mode or <<runExecutorLauncher, runExecutorLauncher>> for client mode).
+
+Any exceptions in `run` are caught and reported to the logs as ERROR message:
+
+```
+ERROR Uncaught exception: [exception]
+```
+
+And the application run attempt is <<finish, finished>> with `FAILED` status and `EXIT_UNCAUGHT_EXCEPTION` (10) exit code.
+
+=== [[finish]] finish
 
 CAUTION: FIXME
 
