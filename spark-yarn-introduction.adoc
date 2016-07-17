@@ -1,47 +1,44 @@
 == Introduction to Hadoop YARN
 
-http://hadoop.apache.org/[Apache Hadoop] 2.0 introduced a framework for job scheduling and cluster resource management called *Hadoop YARN* (*Yet Another Resource Negotiator*).
+http://hadoop.apache.org/[Apache Hadoop] 2.0 introduced a framework for job scheduling and cluster resource management and negotiation called *Hadoop YARN* (*Yet Another Resource Negotiator*).
 
-It is a general-purpose application scheduling framework for distributed applications that was initially aimed at improving MapReduce job management but quickly turned itself into supporting non-MapReduce applications equally.
+YARN is a general-purpose application scheduling framework for distributed applications that was initially aimed at improving MapReduce job management but quickly turned itself into supporting non-MapReduce applications equally, like Spark on YARN.
 
-YARN comes with two components -- Resource Manager and Node Manager.
+YARN comes with two components -- Resource Manager and Node Manager -- running on their own machines.
 
-* *ResourceManager* runs as a master daemon and manages ApplicationMasters and NodeManagers.
-* *NodeManager* offers resources (memory and CPU) as resource containers.
+* *ResourceManager* is the master daemon that communicates with YARN clients, tracks resources on the cluster (on NodeManagers), and orchestrates work by assigning tasks to NodeManagers. It coordinates work of ApplicationMasters and NodeManagers.
+* *NodeManager* is a worker process that offers resources (memory and CPUs) as resource containers. It launches and tracks processes spawned on them.
+* *Containers* run tasks, including ApplicationMasters. YARN offers container allocation.
+
+YARN currently defines two *resources*: vcores and memory. *vcore* is a usage share of a CPU core.
+
+YARN ResourceManager keeps track of the cluster's resources while NodeManagers tracks the local host's resources.
 
 It can optionally work with two other components:
 
 * *History Server* for job history
 * *Proxy Server* for viewing application status and logs from outside the cluster.
 
-A ResourceManager accepts application submissions, schedules them, and tracks their status. A NodeManager registers with the ResourceManager and provides its local CPU and memory for scheduling. For a real cluster, there is one ResourceManager (two for High Availability) and as many Node Managers as there are servers.
+YARN ResourceManager accepts application submissions, schedules them, and tracks their status (through ApplicationMasters). A YARN NodeManager registers with the ResourceManager and provides its local CPUs and memory for resource negotiation.
+
+In a real YARN cluster, there are one ResourceManager (two for High Availability) and multiple NodeManagers.
 
 === YARN's Model of Computation (aka YARN components)
 
-*ApplicationMaster* is a lightweight process that coordinates the execution of tasks of an application and asks the ResourceManager for resource containers for tasks. It monitors tasks, restarts failed ones, etc. It can run any type of tasks, be them MapReduce tasks or Giraph tasks, or Spark tasks.
+*ApplicationMaster* is a lightweight process that coordinates the execution of tasks of an application and asks the ResourceManager for resource containers for tasks.
 
-An ApplicationMaster is like a "queen bee" that starts creating "worker bees" (in their own containers) in the YARN cluster.
+It monitors tasks, restarts failed ones, etc. It can run any type of tasks, be them MapReduce tasks or Spark tasks.
 
-*Containers* can run tasks, including ApplicationMasters.
+An ApplicationMaster is like a _queen bee_ that starts creating _worker bees_ (in their own containers) in the YARN cluster.
 
 === Others
-
-* YARN offers (macro-level) container allocation.
-* Hadoop for storing and processing large amount of data on a cluster of commodity hardware.
 
 * A *host* is the Hadoop term for a computer (also called a *node*, in YARN terminology).
 * A *cluster* is two or more hosts connected by a high-speed local network.
 ** It can technically also be a single host used for debugging and simple testing.
 ** Master hosts are a small number of hosts reserved to control the rest of the cluster. Worker hosts are the non-master hosts in the cluster.
 ** A *master* host is the communication point for a client program. A master host sends the work to the rest of the cluster, which consists of *worker* hosts.
-* In a YARN cluster, there are two types of hosts:
-** The *ResourceManager* is the master daemon that communicates with the client, tracks resources on the cluster, and orchestrates work by assigning tasks to NodeManagers.
-*** In a Hadoop cluster with YARN running, the master process is called the ResourceManager and the worker processes are called NodeManagers.
-** A *NodeManager* is a worker daemon that launches and tracks processes spawned on worker hosts.
-** The NodeManager on each host keeps track of the local host’s resources, and the ResourceManager keeps track of the cluster’s total.
 * The YARN configuration file is an XML file that contains properties. This file is placed in a well-known location on each host in the cluster and is used to configure the ResourceManager and NodeManager. By default, this file is named `yarn-site.xml`.
-* YARN currently defines two resources, vcores and memory.
-** vcore = usage share of a CPU core.
 * Each NodeManager tracks its own local resources and communicates its resource configuration to the ResourceManager, which keeps a running total of the cluster’s available resources.
 ** By keeping track of the total, the ResourceManager knows how to allocate resources as they are requested.
 * A *container* in YARN holds resources on the YARN cluster.
@@ -62,6 +59,11 @@ An ApplicationMaster is like a "queen bee" that starts creating "worker bees" (i
 ** Once all tasks are finished, the ApplicationMaster exits. The last container is de-allocated from the cluster.
 ** The application client exits. (The ApplicationMaster launched in a container is more specifically called a managed AM).
 * The ResourceManager, NodeManager, and ApplicationMaster work together to manage the cluster’s resources and ensure that the tasks, as well as the corresponding application, finish cleanly.
+
+* Distributed Cache for application jar files.
+* Preemption (for high-priority applications)
+* Queues and nested queues
+* link:spark-yarn-kerberos.adoc[User authentication via Kerberos]
 
 === Hadoop YARN
 
