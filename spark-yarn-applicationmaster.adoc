@@ -1,11 +1,21 @@
 == [[ApplicationMaster]] ApplicationMaster
 
-`ApplicationMaster` is a <<main, standalone application>> to...FIXME...for link:spark-deploy-mode.adoc#cluster[cluster deploy mode].
+`ApplicationMaster` represents the YARN ApplicationMaster for a Spark application.
 
-.ApplicationMaster's Dependencies
-image::images/spark-yarn-ApplicationMaster.png[align="center"]
+It is a <<main, standalone application>> that YARN NodeManager is going to run inside a YARN container to manage a Spark application's execution on YARN (that accepts <<command-line-parameters, command-line parameters>>, e.g. `--jar`, `--class`, `--arg`, `--properties-file`).
 
 <<ExecutorLauncher, ExecutorLauncher>> is a custom `ApplicationMaster` for link:spark-deploy-mode.adoc#client[client deploy mode] (so you can easily distinguish between client and cluster deploy modes for Spark's `ApplicationMasters` using `ps` or `jps`).
+
+```
+$ jps -lm
+
+71253 org.apache.spark.deploy.yarn.ExecutorLauncher --arg 192.168.99.1:50188 --properties-file /tmp/hadoop-jacek/nm-local-dir/usercache/jacek/appcache/application_1468961163409_0001/container_1468961163409_0001_01_000001/__spark_conf__/__spark_conf__.properties
+
+70631 org.apache.hadoop.yarn.server.resourcemanager.ResourceManager
+70934 org.apache.spark.deploy.SparkSubmit --master yarn --class org.apache.spark.repl.Main --name Spark shell spark-shell
+71320 sun.tools.jps.Jps -lm
+70731 org.apache.hadoop.yarn.server.nodemanager.NodeManager
+```
 
 `ApplicationMaster` and `ExecutorLauncher` are both created when link:spark-yarn-client.adoc#createContainerLaunchContext[`Client` creates a `ContainerLaunchContext`] to launch Spark on YARN.
 
@@ -14,8 +24,68 @@ image::images/spark-yarn-ApplicationMaster-main.png[align="center"]
 
 NOTE: https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/api/records/ContainerLaunchContext.html[ContainerLaunchContext] represents all of the information needed by the YARN NodeManager to launch a container.
 
+=== [[main]] main
+
+`ApplicationMaster` is started as a standalone command-line application inside a YARN container on a node.
+
+NOTE: The command-line application is executed as a result of sending a `ContainerLaunchContext` request to launch `ApplicationMaster` to YARN ResourceManager (after link:spark-yarn-client.adoc#createContainerLaunchContext[creating the request for `ApplicationMaster`])
+
 .Submitting ApplicationMaster to YARN NodeManager
 image::images/spark-yarn-ApplicationMaster-client-submitApplication.png[align="center"]
+
+When executed, `main` first parses <<command-line-parameters, command-line parameters>> and then uses `SparkHadoopUtil.runAsSparkUser` to run the main code with a Hadoop `UserGroupInformation` as a thread local variable (distributed to child threads) for authenticating HDFS and YARN calls.
+
+[TIP]
+====
+Enable `DEBUG` logging level for `org.apache.spark.deploy.SparkHadoopUtil` logger to see what happens inside.
+
+Add the following line to `conf/log4j.properties`:
+
+```
+log4j.logger.org.apache.spark.deploy.SparkHadoopUtil=DEBUG
+```
+
+Refer to link:spark-logging.adoc[Logging].
+====
+
+You should see the following message in the logs:
+
+```
+DEBUG running as user: [user]
+```
+
+`SparkHadoopUtil.runAsSparkUser` function executes a block that <<creating-instance, creates a `ApplicationMaster`>> (passing the <<ApplicationMasterArguments, ApplicationMasterArguments>> instance and a brand new link:spark-yarn-yarnrmclient.adoc[YarnRMClient]) and then <<run, runs>> it.
+
+=== [[command-line-parameters]][[ApplicationMasterArguments]] ApplicationMasterArguments -- Command-Line Parameters Handler
+
+`ApplicationMaster` uses `ApplicationMasterArguments` class to handle command-line parameters.
+
+`ApplicationMasterArguments` is created right after <<main, main>> method has been executed for `args` command-line parameters.
+
+It accepts the following command-line parameters:
+
+* `--jar JAR_PATH` -- the path to the Spark application's JAR file
+* `--class CLASS_NAME` -- the name of the Spark application's main class
+* `--arg ARG` -- an argument to be passed to the Spark application's main class. There can be multiple `--arg` arguments that are passed in order.
+* `--properties-file FILE` -- the path to a custom Spark properties file.
+* `--primary-py-file FILE` -- the main Python file to run.
+* `--primary-r-file FILE` -- the main R file to run.
+
+When an unsupported parameter is found the following message is printed out to standard error output and `ApplicationMaster` exits with the exit code `1`.
+
+```
+Unknown/unsupported param [unknownParam]
+
+Usage: org.apache.spark.deploy.yarn.ApplicationMaster [options]
+Options:
+  --jar JAR_PATH       Path to your application's JAR file
+  --class CLASS_NAME   Name of your application's main class
+  --primary-py-file    A main Python file
+  --primary-r-file     A main R file
+  --arg ARG            Argument to be passed to your application's main class.
+                       Multiple invocations are possible, each will be passed in order.
+  --properties-file FILE Path to a custom Spark properties file.
+```
 
 === [[registerAM]] Registering ApplicationMaster with YARN ResourceManager and Requesting Resources (registerAM method)
 
@@ -28,7 +98,7 @@ registerAM(
   securityMgr: SecurityManager): Unit
 ----
 
-`registerAM` is a private helper procedure to link:spark-yarn-yarnrmclient.adoc#register[register the `ApplicationMaster`] (with the YARN ResourceManager) and link:spark-yarn-yarnrmclient.adoc#allocateResources[requests resources] (given hints about where to allocate containers to be as close to the data as possible).
+`registerAM` is a private helper procedure to link:spark-yarn-yarnrmclient.adoc#register[register the `ApplicationMaster`] (with the YARN ResourceManager) and link:spark-yarn-yarnrmclient.adoc#allocateResources[request resources] (given hints about where to allocate containers to be as close to the data as possible).
 
 Internally, it reads link:spark-yarn-settings.adoc#spark.yarn.historyServer.address[spark.yarn.historyServer.address] setting and substitute Hadoop variables to create a complete address of the History Server, i.e. `[address]/history/[appId]/[attemptId]`.
 
@@ -124,42 +194,8 @@ sparkContextStopped(sc: SparkContext): Boolean
 
 CAUTION: FIXME
 
-=== [[main]] main
-
-`ApplicationMaster` is a standalone command-line application.
-
-NOTE: The command-line application is executed as a result of sending a `ContainerLaunchContext` request to launch `ApplicationMaster` to YARN ResourceManager (after link:spark-yarn-client.adoc#createContainerLaunchContext[creating the request for `ApplicationMaster`])
-
-When executed, `main` parses <<command-arguments, command-line arguments>> (using `ApplicationMasterArguments` class).
-
-CAUTION: FIXME What does `ApplicationMasterArguments` do?
-
-It then uses `SparkHadoopUtil.get.runAsSparkUser` to run the main code with a Hadoop `UserGroupInformation` as a thread local variable (distributed to child threads) for authenticating HDFS and YARN calls.
-
-[TIP]
-====
-Enable `DEBUG` logging level for `org.apache.spark.deploy.SparkHadoopUtil` logger to see what happens inside.
-
-Add the following line to `conf/log4j.properties`:
-
-```
-log4j.logger.org.apache.spark.deploy.SparkHadoopUtil=DEBUG
-```
-
-Refer to link:spark-logging.adoc[Logging].
-====
-
-You should see the following message in the logs:
-
-```
-DEBUG running as user: [user]
-```
-
-`SparkHadoopUtil.get.runAsSparkUser` function executes a block that <<creating-instance, creates a `ApplicationMaster`>> and then <<run, runs>> it.
-
-=== [[command-arguments]] Command-Line Arguments
-
-CAUTION: FIXME
+.ApplicationMaster's Dependencies
+image::images/spark-yarn-ApplicationMaster.png[align="center"]
 
 === [[run]] run
 
