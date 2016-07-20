@@ -4,11 +4,26 @@
 
 NOTE: YARN ResourceManager http://hadoop.apache.org/docs/stable/hadoop-yarn/hadoop-yarn-site/index.html[manages the global assignment of compute resources to applications], e.g. memory, cpu, disk, network, etc.
 
+[TIP]
+====
+Enable `INFO` logging level for `org.apache.spark.deploy.yarn.YarnRMClient` logger to see what happens inside.
+
+Add the following line to `conf/log4j.properties`:
+
+```
+log4j.logger.org.apache.spark.deploy.yarn.YarnRMClient=INFO
+```
+
+Refer to link:spark-logging.adoc[Logging].
+====
+
 === [[allocateResources]] allocateResources
 
 CAUTION: FIXME
 
 === [[register]] Registering ApplicationMaster with YARN ResourceManager (register method)
+
+When link:spark-yarn-applicationmaster.adoc#registerAM[registering `ApplicationMaster`] (for a Spark application) with the YARN ResourceManager, Spark uses `register`.
 
 [source, scala]
 ----
@@ -23,7 +38,19 @@ register(
   localResources: Map[String, LocalResource]): YarnAllocator
 ----
 
-`register` registers the application master with the YARN ResourceManager. It creates a link:spark-yarn-YarnAllocator.adoc[YarnAllocator] that...FIXME
+`register` instantiates YARN's https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/client/api/AMRMClient.html[AMRMClient], initializes it (using `conf` input parameter) and starts immediately. It saves `uiHistoryAddress` input parameter internally for later use.
+
+You should see the following INFO message in the logs (in stderr in YARN):
+
+```
+INFO YarnRMClient: Registering the ApplicationMaster
+```
+
+It then link:++https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/client/api/AMRMClient.html#registerApplicationMaster(java.lang.String, int, java.lang.String)++[registers the application master] using the local host, port `0`, and `uiAddress` input parameter for the URL at which the master info can be seen.
+
+The internal `registered` flag is enabled.
+
+Ultimately, it link:spark-yarn-YarnAllocator.adoc#creating-instance[creates a new `YarnAllocator`] with the input parameters of `register` passed in and the just-created YARN https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/client/api/AMRMClient.html[AMRMClient].
 
 === [[unregister]] unregister method
 
