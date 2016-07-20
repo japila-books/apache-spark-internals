@@ -8,15 +8,7 @@ NOTE: YARN ResourceManager http://hadoop.apache.org/docs/stable/hadoop-yarn/hado
 
 CAUTION: FIXME
 
-=== [[registering-applicationmaster]] Registering ApplicationMaster
-
-`spark.yarn.maxAppAttempts` is the maximum number of attempts to register *ApplicationMaster* (aka _AM_).
-
-It is used unless `yarn.resourcemanager.am.max-attempts` is set and smaller than `spark.yarn.maxAppAttempts`. When no setting is available it is assumed `YarnConfiguration.DEFAULT_RM_AM_MAX_ATTEMPTS` which is `2`.
-
-NOTE: It is used by Spark's own link:spark-yarn-applicationmaster.adoc[ApplicationMaster].
-
-=== [[register]] register method
+=== [[register]] Registering ApplicationMaster with YARN ResourceManager (register method)
 
 [source, scala]
 ----
@@ -35,4 +27,26 @@ register(
 
 === [[unregister]] unregister method
 
-=== [[getAttemptId]] getAttemptId method
+=== [[getMaxRegAttempts]] Maximum Number of Attempts to Register ApplicationMaster (getMaxRegAttempts method)
+
+[source, scala]
+----
+getMaxRegAttempts(sparkConf: SparkConf, yarnConf: YarnConfiguration): Int
+----
+
+`getMaxRegAttempts` uses link:spark-configuration.adoc[SparkConf] and YARN's https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/conf/YarnConfiguration.html[YarnConfiguration] to read configuration settings and return the maximum number of application attempts before registering link:spark-yarn-applicationmaster.adoc[ApplicationMaster] with YARN is considered unsuccessful (and hence the entire Spark application afterwards).
+
+It reads YARN's `yarn.resourcemanager.am.max-attempts` (available as https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/conf/YarnConfiguration.html#RM_AM_MAX_ATTEMPTS[YarnConfiguration.RM_AM_MAX_ATTEMPTS]) or falls back to https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/conf/YarnConfiguration.html#DEFAULT_RM_AM_MAX_ATTEMPTS[YarnConfiguration.DEFAULT_RM_AM_MAX_ATTEMPTS] (which is `2`).
+
+The return value is the minimum of the configuration settings of YARN and Spark.
+
+=== [[getAttemptId]] Getting ApplicationAttemptId of Spark Application (getAttemptId method)
+
+[source, scala]
+----
+getAttemptId(): ApplicationAttemptId
+----
+
+`getAttemptId` returns YARN's `ApplicationAttemptId` (of the Spark application to which the container was assigned).
+
+Internally, it uses YARN-specific methods like link:spark-yarn-YarnSparkHadoopUtil.adoc#getContainerId[ConverterUtils.toContainerId] and https://hadoop.apache.org/docs/current/api/index.html?org/apache/hadoop/yarn/client/api/YarnClient.html[ContainerId.getApplicationAttemptId].
