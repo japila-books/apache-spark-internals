@@ -9,6 +9,19 @@ It is used in link:spark-yarn-applicationmaster.adoc[ApplicationMaster] (via an 
 .ApplicationMaster uses YarnAllocator (via allocator attribute)
 image::images/spark-yarn-YarnAllocator.png[align="center"]
 
+[TIP]
+====
+Enable `INFO` or `DEBUG` logging level for `org.apache.spark.deploy.yarn.YarnAllocator` logger to see what happens inside.
+
+Add the following line to `conf/log4j.properties`:
+
+```
+log4j.logger.org.apache.spark.deploy.yarn.YarnAllocator=DEBUG
+```
+
+Refer to link:spark-logging.adoc[Logging].
+====
+
 === [[requestTotalExecutorsWithPreferredLocalities]] Requesting Executors with Locality Preferences (requestTotalExecutorsWithPreferredLocalities method)
 
 [source, scala]
@@ -33,6 +46,33 @@ It sets the internal `targetNumExecutors` attribute to the input `requestedTotal
 
 NOTE: `requestTotalExecutorsWithPreferredLocalities` is executed in response to `RequestExecutors` message to link:spark-yarn-AMEndpoint.adoc[ApplicationMaster].
 
+=== [[updateResourceRequests]] updateResourceRequests
+
+[source, scala]
+----
+updateResourceRequests(): Unit
+----
+
+CAUTION: FIXME
+
+=== [[handleAllocatedContainers]] handleAllocatedContainers
+
+[source, scala]
+----
+handleAllocatedContainers(allocatedContainers: Seq[Container]): Unit
+----
+
+CAUTION: FIXME
+
+=== [[processCompletedContainers]] processCompletedContainers
+
+[source, scala]
+----
+processCompletedContainers(completedContainers: Seq[ContainerStatus]): Unit
+----
+
+CAUTION: FIXME
+
 === [[allocateResources]] allocateResources
 
 [source, scala]
@@ -40,9 +80,37 @@ NOTE: `requestTotalExecutorsWithPreferredLocalities` is executed in response to 
 allocateResources(): Unit
 ----
 
-CAUTION: FIXME
+`allocateResources` is...???
 
-It is used when link:spark-yarn-applicationmaster.adoc#registerAM[`ApplicationMaster` is registered to the YARN ResourceManager].
+It starts by executing <<updateResourceRequests, updateResourceRequests>>. It then link:++https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/client/api/AMRMClient.html#allocate(float)++[requests additional containers from YARN's `AMRMClient`] with progress indicator of `0.1f`.
+
+It link:++https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/api/protocolrecords/AllocateResponse.html#getAllocatedContainers()++[gets the list of newly-allocated containers by the YARN ResourceManager].
+
+If the number of allocated containers is greater than `0`, you should see the following DEBUG message in the logs (in stderr on YARN):
+
+```
+DEBUG YarnAllocator: Allocated containers: [allocatedContainersSize]. Current executor count: [numExecutorsRunning]. Cluster resources: [availableResources].
+```
+
+It <<handleAllocatedContainers, launches executors on the allocated YARN containers>>.
+
+It link:++https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/api/protocolrecords/AllocateResponse.html#getCompletedContainersStatuses()++[gets the list of completed containers' statuses from YARN].
+
+If the number of completed containers is greater than `0`, you should see the following DEBUG message in the logs (in stderr on YARN):
+
+```
+DEBUG YarnAllocator: Completed [completedContainersSize] containers
+```
+
+It <<processCompletedContainers, processes completed containers>>.
+
+You should see the following DEBUG message in the logs (in stderr on YARN):
+
+```
+DEBUG YarnAllocator: Finished processing [completedContainersSize] completed containers. Current running executor count: [numExecutorsRunning].
+```
+
+It is executed when link:spark-yarn-applicationmaster.adoc#registerAM[`ApplicationMaster` is registered to the YARN ResourceManager].
 
 === [[creating-instance]] Creating YarnAllocator Instance
 
