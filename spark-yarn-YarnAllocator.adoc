@@ -71,6 +71,100 @@ CAUTION: FIXME
 processCompletedContainers(completedContainers: Seq[ContainerStatus]): Unit
 ----
 
+`processCompletedContainers` accepts a collection of YARN's https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/api/records/ContainerStatus.html[ContainerStatus]'es.
+
+[NOTE]
+====
+`ContainerStatus` represents the current status of a YARN `Container` and provides details such as:
+
+* Id
+* State
+* Exit status of a completed container.
+* Diagnostic message for a failed container.
+====
+
+For each completed container in the collection, `processCompletedContainers` removes it from the internal <<releasedContainers, releasedContainers>> registry.
+
+It looks the host of the container up (in the internal <<allocatedContainerToHostMap, allocatedContainerToHostMap>> lookup table). The host may or may not exist in the lookup table.
+
+CAUTION: FIXME The host may or may not exist in the lookup table?
+
+The `ExecutorExited` exit reason is computed.
+
+When the host of the completed container has been found, the internal <<numExecutorsRunning, numExecutorsRunning>> counter is decremented.
+
+You should see the following INFO message in the logs:
+
+```
+INFO Completed container [containerId] [host] (state: [containerState], exit status: [containerExitStatus])
+```
+
+For `ContainerExitStatus.SUCCESS` and `ContainerExitStatus.PREEMPTED` exit statuses of the container (which are not considered application failures), you should see one of the two possible INFO messages in the logs:
+
+```
+INFO Executor for container [id] exited because of a YARN event (e.g., pre-emption) and not because of an error in the running job.
+```
+
+```
+INFO Container [id] [host] was preempted.
+```
+
+Other exit statuses of the container are considered application failures and reported as a WARN message in the logs:
+
+```
+WARN Container killed by YARN for exceeding memory limits. [diagnostics] Consider boosting spark.yarn.executor.memoryOverhead.
+```
+
+or
+
+```
+WARN Container marked as failed: [id] [host]. Exit status: [containerExitStatus]. Diagnostics: [containerDiagnostics]
+```
+
+The host is looked up in the internal <<allocatedHostToContainersMap, allocatedHostToContainersMap>> lookup table. If found, the container is removed from the containers registered for the host or the host itself is removed from the lookup table when this container was the last on the host.
+
+The container is removed from the internal <<allocatedContainerToHostMap, allocatedContainerToHostMap>> lookup table.
+
+The container is removed from the internal <<containerIdToExecutorId, containerIdToExecutorId>> translation table. If an executor is found, it is removed from the internal <<executorIdToContainer, executorIdToContainer>> translation table.
+
+If the executor was recorded in the internal <<pendingLossReasonRequests, pendingLossReasonRequests>> lookup table, the exit reason (as calculated earlier as `ExecutorExited`) is sent back for every pending RPC message recorded.
+
+If no executor was found, the executor and the exit reason are recorded in the internal <<releasedExecutorLossReasons, releasedExecutorLossReasons>> lookup table.
+
+In case the container was not in the internal <<releasedContainers, releasedContainers>> registry, the internal <<numUnexpectedContainerRelease, numUnexpectedContainerRelease>> counter is increased and a `RemoveExecutor` RPC message is sent to the driver (as specified when <<creating-instance, `YarnAllocator` was created>>) to notify about the failure of the executor.
+
+=== [[numUnexpectedContainerRelease]] numUnexpectedContainerRelease Internal Counter
+
+=== [[releasedExecutorLossReasons]] releasedExecutorLossReasons Internal Lookup Table
+
+CAUTION: FIXME
+
+=== [[pendingLossReasonRequests]] pendingLossReasonRequests Internal Lookup Table
+
+CAUTION: FIXME
+
+=== [[executorIdToContainer]] executorIdToContainer Internal Translation Table
+
+CAUTION: FIXME
+
+=== [[containerIdToExecutorId]] containerIdToExecutorId Internal Translation Table
+
+CAUTION: FIXME
+
+=== [[allocatedHostToContainersMap]] allocatedHostToContainersMap Internal Lookup Table
+
+CAUTION: FIXME
+
+=== [[numExecutorsRunning]] numExecutorsRunning Internal Counter
+
+CAUTION: FIXME
+
+=== [[allocatedContainerToHostMap]] allocatedContainerToHostMap Internal Lookup Table
+
+CAUTION: FIXME
+
+=== [[releasedContainers]] releasedContainers Internal Registry
+
 CAUTION: FIXME
 
 === [[allocateResources]] allocateResources
