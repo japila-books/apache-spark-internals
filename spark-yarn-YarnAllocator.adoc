@@ -46,14 +46,77 @@ It sets the internal `targetNumExecutors` attribute to the input `requestedTotal
 
 NOTE: `requestTotalExecutorsWithPreferredLocalities` is executed in response to `RequestExecutors` message to link:spark-yarn-AMEndpoint.adoc[ApplicationMaster].
 
-=== [[updateResourceRequests]] updateResourceRequests
+=== [[numLocalityAwareTasks]] numLocalityAwareTasks Internal Counter
+
+[source, scala]
+----
+numLocalityAwareTasks: Int = 0
+----
+
+CAUTION: FIXME
+
+=== [[updateResourceRequests]] Updating YARN Container Allocation Requests (updateResourceRequests method)
 
 [source, scala]
 ----
 updateResourceRequests(): Unit
 ----
 
-CAUTION: FIXME
+`updateResourceRequests` gets the list of pending YARN's `ContainerRequests` to allocate executors.
+
+`updateResourceRequests` consists of two main branches:
+
+1. <<updateResourceRequests-missing-executors, missing executors>>, i.e. when the number of executors allocated already or pending does not match the needs and so there are missing executors.
+
+2. <<updateResourceRequests-cancelling-executor-allocations, executors to cancel>>, i.e. when the number of pending executor allocations is positive, but the number of all the executors is more than Spark needs.
+
+==== [[updateResourceRequests-missing-executors]] Case 1. Missing Executors
+
+You should see the following INFO message in the logs:
+
+```
+INFO YarnAllocator: Will request [count] executor containers, each with [vCores] cores and [memory] MB memory including [memoryOverhead] MB overhead
+```
+
+It then splits pending container allocation requests per locality preference of pending tasks (in the internal <<hostToLocalTaskCounts, hostToLocalTaskCounts>> registry).
+
+CAUTION: FIXME Review `splitPendingAllocationsByLocality`
+
+It removes stale container allocation requests (using YARN's link:++https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/client/api/AMRMClient.html#removeContainerRequest(T)++[AMRMClient.removeContainerRequest]).
+
+CAUTION: FIXME Stale?
+
+You should see the following INFO message in the logs:
+
+```
+INFO YarnAllocator: Canceled [cancelledContainers] container requests (locality no longer needed)
+```
+
+It computes locality of requested containers (based on the internal <<numLocalityAwareTasks, numLocalityAwareTasks>>, <<hostToLocalTaskCounts, hostToLocalTaskCounts>> and <<allocatedHostToContainersMap, allocatedHostToContainersMap>> lookup table).
+
+CAUTION: FIXME Review `containerPlacementStrategy.localityOfRequestedContainers` + the code that follows.
+
+For any new container needed `updateResourceRequests` adds a container request (using YARN's link:++https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/client/api/AMRMClient.html#addContainerRequest(T)++[AMRMClient.addContainerRequest]).
+
+You should see the following INFO message in the logs:
+
+```
+INFO YarnAllocator: Submitted container request (host: [host], capability: [resource])
+```
+
+==== [[updateResourceRequests-cancelling-executor-allocations]] Case 2. Cancelling Pending Executor Allocations
+
+When there are executors to cancel (case 2.), you should see the following INFO message in the logs:
+
+```
+INFO Canceling requests for [numToCancel] executor container(s) to have a new desired total [targetNumExecutors] executors.
+```
+
+It checks whether there are pending allocation requests and removes the excess (using YARN's link:++https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/client/api/AMRMClient.html#removeContainerRequest(T)++[AMRMClient.removeContainerRequest]). If there are no pending allocation requests, you should see the WARN message in the logs:
+
+```
+WARN Expected to find pending requests, but found none.
+```
 
 === [[handleAllocatedContainers]] handleAllocatedContainers
 
@@ -259,6 +322,11 @@ CAUTION: FIXME LocalityPreferredContainerPlacementStrategy?
 === [[internal-registries]] Internal Registries
 
 ==== [[hostToLocalTaskCounts]] hostToLocalTaskCounts
+
+[source, scala]
+----
+hostToLocalTaskCounts: Map[String, Int] = Map.empty
+----
 
 CAUTION: FIXME
 
