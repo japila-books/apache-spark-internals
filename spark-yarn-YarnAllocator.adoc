@@ -4,7 +4,7 @@
 
 It uses YARN's https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/client/api/AMRMClient.html[AMRMClient] API.
 
-It is used in link:spark-yarn-applicationmaster.adoc[ApplicationMaster] (via an internal `allocator`) and is created when link:spark-yarn-yarnrmclient.adoc#register[`YarnRMClient` registers an application master with the YARN ResourceManager].
+It is used in link:spark-yarn-applicationmaster.adoc[ApplicationMaster] (via an internal `allocator`) and is created when link:spark-yarn-yarnrmclient.adoc#register[`YarnRMClient` registers the `ApplicationMaster` (for a Spark application) with the YARN ResourceManager].
 
 .ApplicationMaster uses YarnAllocator (via allocator attribute)
 image::images/spark-yarn-YarnAllocator.png[align="center"]
@@ -22,6 +22,14 @@ log4j.logger.org.apache.spark.deploy.yarn.YarnAllocator=DEBUG
 Refer to link:spark-logging.adoc[Logging].
 ====
 
+=== [[targetNumExecutors]] Desired Total Number of Executors (targetNumExecutors Internal Attribute)
+
+Initially, when <<creating-instance, `YarnAllocator` is created>>, `targetNumExecutors` corresponds to the link:spark-yarn-YarnSparkHadoopUtil.adoc#getInitialTargetExecutorNumber[initial number of executors].
+
+`targetNumExecutors` is eventually reached after <<updateResourceRequests, `YarnAllocator` updates YARN container allocation requests>>.
+
+It may later be changed when <<requestTotalExecutorsWithPreferredLocalities, `YarnAllocator` is requested for executors given locality preferences>>.
+
 === [[requestTotalExecutorsWithPreferredLocalities]] Requesting Executors with Locality Preferences (requestTotalExecutorsWithPreferredLocalities method)
 
 [source, scala]
@@ -32,19 +40,19 @@ requestTotalExecutorsWithPreferredLocalities(
   hostToLocalTaskCount: Map[String, Int]): Boolean
 ----
 
-`requestTotalExecutorsWithPreferredLocalities` returns `true` if the current requested total is different than the new value (as the input `requestedTotal`).
+`requestTotalExecutorsWithPreferredLocalities` returns `true` if the <<targetNumExecutors, current desired total number of executors>> is different than the input `requestedTotal`.
 
-`requestTotalExecutorsWithPreferredLocalities` sets the internal `numLocalityAwareTasks` and `hostToLocalTaskCounts` attributes to the input `localityAwareTasks` and `hostToLocalTaskCount` arguments, respectively.
+`requestTotalExecutorsWithPreferredLocalities` sets the internal <<numLocalityAwareTasks, numLocalityAwareTasks>> and <<hostToLocalTaskCounts, hostToLocalTaskCounts>> attributes to the input `localityAwareTasks` and `hostToLocalTaskCount` arguments, respectively.
 
 If the input `requestedTotal` is different than the internal `targetNumExecutors` attribute you should see the following INFO message in the logs:
 
 ```
-INFO Driver requested a total number of [requestedTotal] executor(s).
+INFO YarnAllocator: Driver requested a total number of [requestedTotal] executor(s).
 ```
 
 It sets the internal `targetNumExecutors` attribute to the input `requestedTotal` and returns `true`. Otherwise, it returns `false`.
 
-NOTE: `requestTotalExecutorsWithPreferredLocalities` is executed in response to `RequestExecutors` message to link:spark-yarn-AMEndpoint.adoc[ApplicationMaster].
+NOTE: `requestTotalExecutorsWithPreferredLocalities` is executed in response to link:spark-yarn-AMEndpoint.adoc#RequestExecutors[`RequestExecutors` message to `ApplicationMaster`].
 
 === [[numLocalityAwareTasks]] numLocalityAwareTasks Internal Counter
 
@@ -53,7 +61,9 @@ NOTE: `requestTotalExecutorsWithPreferredLocalities` is executed in response to 
 numLocalityAwareTasks: Int = 0
 ----
 
-CAUTION: FIXME
+It tracks the number of locality-aware tasks to be used as container placement hint when <<requestTotalExecutorsWithPreferredLocalities, `YarnAllocator` is requested for executors given locality preferences>>.
+
+It is used as an input to `containerPlacementStrategy.localityOfRequestedContainers` when <<updateResourceRequests, `YarnAllocator` updates YARN container allocation requests>>.
 
 === [[updateResourceRequests]] Updating YARN Container Allocation Requests (updateResourceRequests method)
 
