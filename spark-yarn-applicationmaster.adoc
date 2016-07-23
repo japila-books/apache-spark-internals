@@ -1,10 +1,12 @@
-== [[ApplicationMaster]] ApplicationMaster
+== [[ApplicationMaster]][[ExecutorLauncher]] ApplicationMaster and ExecutorLauncher
 
-`ApplicationMaster` represents the YARN ApplicationMaster for a Spark application.
+`ApplicationMaster` class acts as the YARN ApplicationMaster for a Spark application.
 
-It is a <<main, standalone application>> that YARN NodeManager is going to run inside a YARN container to manage a Spark application's execution on YARN (that accepts <<command-line-parameters, command-line parameters>>, e.g. `--jar`, `--class`, `--arg`, `--properties-file`).
+It is a <<main, standalone application>> that YARN NodeManager runs inside a YARN resource container to manage a Spark application's execution on YARN (that accepts <<command-line-parameters, command-line parameters>>, e.g. `--jar`, `--class`, `--arg`, `--properties-file`).
 
-<<ExecutorLauncher, ExecutorLauncher>> is a custom `ApplicationMaster` for link:spark-deploy-mode.adoc#client[client deploy mode] (so you can easily distinguish between client and cluster deploy modes for Spark's `ApplicationMasters` using `ps` or `jps`).
+[NOTE]
+====
+<<ExecutorLauncher, ExecutorLauncher>> is a custom `ApplicationMaster` for link:spark-deploy-mode.adoc#client[client deploy mode] only for the purpose of easily distinguishing client and cluster deploy modes when using `ps` or `jps`.
 
 ```
 $ jps -lm
@@ -16,24 +18,41 @@ $ jps -lm
 71320 sun.tools.jps.Jps -lm
 70731 org.apache.hadoop.yarn.server.nodemanager.NodeManager
 ```
+====
 
-`ApplicationMaster` and `ExecutorLauncher` are both created when link:spark-yarn-client.adoc#createContainerLaunchContext[`Client` creates a `ContainerLaunchContext`] to launch Spark on YARN.
+`ApplicationMaster` (and `ExecutorLauncher`) is created when link:spark-yarn-client.adoc#createContainerLaunchContext[`Client` creates a `ContainerLaunchContext`] to launch Spark on YARN.
 
 .Launching ApplicationMaster
 image::images/spark-yarn-ApplicationMaster-main.png[align="center"]
 
 NOTE: https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/api/records/ContainerLaunchContext.html[ContainerLaunchContext] represents all of the information needed by the YARN NodeManager to launch a container.
 
-=== [[unregister]] Unregistering Application from YARN ResourceManager (unregister method)
+=== [[unregister]] Unregistering ApplicationMaster from YARN ResourceManager (unregister method)
 
 [source, scala]
 ----
 unregister(status: FinalApplicationStatus, diagnostics: String = null): Unit
 ----
 
-`unregister` unregisters the Spark application from the YARN ResourceManager.
+`unregister` unregisters the Spark application's `ApplicationMaster` from the YARN ResourceManager.
 
-CAUTION: FIXME
+NOTE: It is called from a shutdown hook (that was registered in `ApplicationMaster` when it <<run, started running>>) and only when the application's final result is successful or it was the last attempt to run the application).
+
+It first checks that the `ApplicationMaster` has not already been unregistered (using the internal `unregistered` flag). If so, you should see the following INFO message in the logs:
+
+```
+INFO ApplicationMaster: Unregistering ApplicationMaster with [status]
+```
+
+There can also be an optional diagnostic message in the logs:
+
+```
+(diag message: [msg])
+```
+
+The internal `unregistered` flag is enabled (i.e. `true`).
+
+It then passes the call to `unregister` on to link:spark-yarn-yarnrmclient.adoc#unregister[YarnRMClient].
 
 === [[main]] main
 

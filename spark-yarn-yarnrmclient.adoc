@@ -1,8 +1,6 @@
 == YarnRMClient
 
-`YarnRMClient` is responsible for registering and unregistering a Spark application with the *YARN ResourceManager* (aka _RM_).
-
-NOTE: YARN ResourceManager http://hadoop.apache.org/docs/stable/hadoop-yarn/hadoop-yarn-site/index.html[manages the global assignment of compute resources to applications], e.g. memory, cpu, disk, network, etc.
+`YarnRMClient` is responsible for <<register, registering>> and <<unregister, unregistering>> a Spark application (in the form of link:spark-yarn-applicationmaster.adoc[ApplicationMaster]) with link:spark-yarn-introduction.adoc#ResourceManager[YARN ResourceManager] (and hence _RM_ in the name). It is a mere wrapper for https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/client/api/AMRMClient.html[AMRMClient[ContainerRequest\]] that is started when <<register, registering ApplicationMaster>> (and never stopped explicitly!).
 
 [TIP]
 ====
@@ -48,7 +46,18 @@ The internal `registered` flag is enabled.
 
 Ultimately, it link:spark-yarn-YarnAllocator.adoc#creating-instance[creates a new `YarnAllocator`] with the input parameters of `register` passed in and the just-created YARN https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/client/api/AMRMClient.html[AMRMClient].
 
-=== [[unregister]] unregister method
+=== [[unregister]] Unregistering ApplicationMaster from YARN ResourceManager (unregister method)
+
+[source, scala]
+----
+unregister(status: FinalApplicationStatus, diagnostics: String = ""): Unit
+----
+
+`unregister` unregisters the ApplicationMaster of a Spark application.
+
+It basically checks that <<register, `ApplicationMaster` is registered>> and only when it is requests the internal link:++https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/client/api/AMRMClient.html#unregisterApplicationMaster(org.apache.hadoop.yarn.api.records.FinalApplicationStatus, java.lang.String, java.lang.String)++[AMRMClient to unregister].
+
+`unregister` is called when link:spark-yarn-applicationmaster.adoc#unregister[`ApplicationMaster` wants to unregister].
 
 === [[getMaxRegAttempts]] Maximum Number of Attempts to Register ApplicationMaster (getMaxRegAttempts method)
 
@@ -57,7 +66,7 @@ Ultimately, it link:spark-yarn-YarnAllocator.adoc#creating-instance[creates a ne
 getMaxRegAttempts(sparkConf: SparkConf, yarnConf: YarnConfiguration): Int
 ----
 
-`getMaxRegAttempts` uses link:spark-configuration.adoc[SparkConf] and YARN's https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/conf/YarnConfiguration.html[YarnConfiguration] to read configuration settings and return the maximum number of application attempts before registering link:spark-yarn-applicationmaster.adoc[ApplicationMaster] with YARN is considered unsuccessful (and hence the entire Spark application afterwards).
+`getMaxRegAttempts` uses link:spark-configuration.adoc[SparkConf] and YARN's https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/conf/YarnConfiguration.html[YarnConfiguration] to read configuration settings and return the maximum number of application attempts before link:spark-yarn-applicationmaster.adoc[ApplicationMaster] registration with YARN is considered unsuccessful (and so the Spark application).
 
 It reads YARN's `yarn.resourcemanager.am.max-attempts` (available as https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/conf/YarnConfiguration.html#RM_AM_MAX_ATTEMPTS[YarnConfiguration.RM_AM_MAX_ATTEMPTS]) or falls back to https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/conf/YarnConfiguration.html#DEFAULT_RM_AM_MAX_ATTEMPTS[YarnConfiguration.DEFAULT_RM_AM_MAX_ATTEMPTS] (which is `2`).
 
