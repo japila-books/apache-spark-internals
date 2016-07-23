@@ -150,7 +150,7 @@ CAUTION: FIXME Where is `credentials` assigned?
 
 It gets the replication factor (using link:spark-yarn-settings.adoc#spark.yarn.submit.file.replication[spark.yarn.submit.file.replication] setting) or falls back to the default value for the input `destDir`.
 
-NOTE: The replication factor is only used for `copyFileToRemote` later. Perhaps it should not be mentioned here (?)
+NOTE: The replication factor is only used for <<copyFileToRemote, copyFileToRemote>> later. Perhaps it should not be mentioned here (?)
 
 It creates the input `destDir` (on a HDFS-compatible file system) with `0700` permission (`rwx------`), i.e. inaccessible to all but its owner and the superuser so the owner only can read, write and execute. It uses Hadoop's https://hadoop.apache.org/docs/current/api/org/apache/hadoop/fs/Path.html#getFileSystem(org.apache.hadoop.conf.Configuration)[Path.getFileSystem] to access Hadoop's https://hadoop.apache.org/docs/current/api/org/apache/hadoop/fs/FileSystem.html[FileSystem] that owns `destDir` (using the constructor's `hadoopConf` -- Hadoop's Configuration).
 
@@ -209,6 +209,40 @@ The `localResources` are returned.
 CAUTION: FIXME How is `localResources` calculated?
 
 NOTE: It is exclusively used when <<createContainerLaunchContext, Client creates a `ContainerLaunchContext` to launch a `ApplicationMaster` container>>.
+
+==== [[copyFileToRemote]] Copying File to Remote File System (copyFileToRemote helper method)
+
+[source, scala]
+----
+copyFileToRemote(
+  destDir: Path,
+  srcPath: Path,
+  replication: Short,
+  force: Boolean = false,
+  destName: Option[String] = None): Path
+----
+
+`copyFileToRemote` is a `private[yarn]` method to copy `srcPath` to the remote file system `destDir` (if needed) and return the destination path resolved following symlinks and mount points.
+
+NOTE: It is exclusively used in <<prepareLocalResources, prepareLocalResources>>.
+
+Unless `force` is enabled (it is disabled by default), `copyFileToRemote` will only copy `srcPath` when the source (of `srcPath`) and target (of `destDir`) file systems are the same.
+
+You should see the following INFO message in the logs:
+
+```
+INFO Client: Uploading resource [srcPath] -> [destPath]
+```
+
+`copyFileToRemote` copies `srcPath` to `destDir` and sets `644` permissions, i.e. world-wide readable and owner writable.
+
+If `force` is disabled or the files are the same, `copyFileToRemote` will only print out the following INFO message to the logs:
+
+```
+INFO Client: Source and destination file systems are the same. Not copying [srcPath]
+```
+
+Ultimately, `copyFileToRemote` returns the destination path resolved following symlinks and mount points.
 
 === [[populateClasspath]] Populating CLASSPATH for ApplicationMaster and Executors (populateClasspath method)
 
