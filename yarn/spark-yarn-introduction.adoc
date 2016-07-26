@@ -7,7 +7,7 @@ YARN is a general-purpose application scheduling framework for distributed appli
 YARN comes with two components -- ResourceManager and NodeManager -- running on their own machines.
 
 * <<ResourceManager, ResourceManager>> is the master daemon that communicates with YARN clients, tracks resources on the cluster (on NodeManagers), and orchestrates work by assigning tasks to NodeManagers. It coordinates work of ApplicationMasters and NodeManagers.
-* *NodeManager* is a worker process that offers resources (memory and CPUs) as resource containers. It launches and tracks processes spawned on them.
+* <<NodeManager, NodeManager>> is a worker process that offers resources (memory and CPUs) as resource containers. It launches and tracks processes spawned on them.
 * *Containers* run tasks, including ApplicationMasters. YARN offers container allocation.
 
 YARN currently defines two *resources*: vcores and memory. *vcore* is a usage share of a CPU core.
@@ -27,6 +27,31 @@ In a real YARN cluster, there are one ResourceManager (two for High Availability
 
 *YARN ResourceManager* http://hadoop.apache.org/docs/stable/hadoop-yarn/hadoop-yarn-site/index.html[manages the global assignment of compute resources to applications], e.g. memory, cpu, disk, network, etc.
 
+=== [[NodeManager]] YARN NodeManager
+
+* Each NodeManager tracks its own local resources and communicates its resource configuration to the ResourceManager, which keeps a running total of the cluster’s available resources.
+** By keeping track of the total, the ResourceManager knows how to allocate resources as they are requested.
+
+=== [[ApplicationMaster]] YARN ApplicationMaster
+
+*YARN ResourceManager* http://hadoop.apache.org/docs/stable/hadoop-yarn/hadoop-yarn-site/index.html[manages the global assignment of compute resources to applications], e.g. memory, cpu, disk, network, etc.
+
+* An application is a YARN client program that is made up of one or more tasks.
+* For each running application, a special piece of code called an ApplicationMaster helps coordinate tasks on the YARN cluster. The ApplicationMaster is the first process run after the application starts.
+* An application in YARN comprises three parts:
+** The application client, which is how a program is run on the cluster.
+** An ApplicationMaster which provides YARN with the ability to perform allocation on behalf of the application.
+** One or more tasks that do the actual work (runs in a process) in the container allocated by YARN.
+
+* An application running tasks on a YARN cluster consists of the following steps:
+** The application starts and talks to the ResourceManager (running on the master) for the cluster.
+** The ResourceManager makes a single container request on behalf of the application.
+** The ApplicationMaster starts running within that container.
+** The ApplicationMaster requests subsequent containers from the ResourceManager that are allocated to run tasks for the application. Those tasks do most of the status communication with the ApplicationMaster.
+** Once all tasks are finished, the ApplicationMaster exits. The last container is de-allocated from the cluster.
+** The application client exits. (The ApplicationMaster launched in a container is more specifically called a managed AM).
+* The ResourceManager, NodeManager, and ApplicationMaster work together to manage the cluster’s resources and ensure that the tasks, as well as the corresponding application, finish cleanly.
+
 === YARN's Model of Computation (aka YARN components)
 
 *ApplicationMaster* is a lightweight process that coordinates the execution of tasks of an application and asks the ResourceManager for resource containers for tasks.
@@ -43,26 +68,9 @@ An ApplicationMaster is like a _queen bee_ that starts creating _worker bees_ (i
 ** Master hosts are a small number of hosts reserved to control the rest of the cluster. Worker hosts are the non-master hosts in the cluster.
 ** A *master* host is the communication point for a client program. A master host sends the work to the rest of the cluster, which consists of *worker* hosts.
 * The YARN configuration file is an XML file that contains properties. This file is placed in a well-known location on each host in the cluster and is used to configure the ResourceManager and NodeManager. By default, this file is named `yarn-site.xml`.
-* Each NodeManager tracks its own local resources and communicates its resource configuration to the ResourceManager, which keeps a running total of the cluster’s available resources.
-** By keeping track of the total, the ResourceManager knows how to allocate resources as they are requested.
 * A *container* in YARN holds resources on the YARN cluster.
 ** A container hold request consists of vcore and memory.
 * Once a hold has been granted on a host, the NodeManager launches a process called a *task*.
-* An application is a YARN client program that is made up of one or more tasks.
-* For each running application, a special piece of code called an ApplicationMaster helps coordinate tasks on the YARN cluster. The ApplicationMaster is the first process run after the application starts.
-* An application in YARN comprises three parts:
-** The application client, which is how a program is run on the cluster.
-** An ApplicationMaster which provides YARN with the ability to perform allocation on behalf of the application.
-** One or more tasks that do the actual work (runs in a process) in the container allocated by YARN.
-
-* An application running tasks on a YARN cluster consists of the following steps:
-** The application starts and talks to the ResourceManager (running on the master) for the cluster.
-** The ResourceManager makes a single container request on behalf of the application.
-** The ApplicationMaster starts running within that container.
-** The ApplicationMaster requests subsequent containers from the ResourceManager that are allocated to run tasks for the application. Those tasks do most of the status communication with the ApplicationMaster.
-** Once all tasks are finished, the ApplicationMaster exits. The last container is de-allocated from the cluster.
-** The application client exits. (The ApplicationMaster launched in a container is more specifically called a managed AM).
-* The ResourceManager, NodeManager, and ApplicationMaster work together to manage the cluster’s resources and ensure that the tasks, as well as the corresponding application, finish cleanly.
 
 * Distributed Cache for application jar files.
 * Preemption (for high-priority applications)
