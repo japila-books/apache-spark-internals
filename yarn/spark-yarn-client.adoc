@@ -17,16 +17,94 @@ log4j.logger.org.apache.spark.deploy.yarn.Client=DEBUG
 Refer to link:spark-logging.adoc[Logging].
 ====
 
-=== [[createContainerLaunchContext]] Creating Hadoop YARN's ContainerLaunchContext for Launching ApplicationMaster (createContainerLaunchContext method)
+=== [[submitApplication]] Submitting Spark Application to YARN (submitApplication method)
 
-When <<submitApplication, a Spark application is submitted to YARN>>, it calls the helper method `createContainerLaunchContext` to create a `ContainerLaunchContext` request to launch link:spark-yarn-applicationmaster.adoc[ApplicationMaster].
+When link:spark-yarn-client-yarnclientschedulerbackend.adoc#start[YarnClientSchedulerBackend starts], it creates a new instance of `Client` and executes `submitApplication`.
+
+[source, scala]
+----
+submitApplication(): ApplicationId
+----
+
+`submitApplication` submits a Spark application to a YARN cluster (i.e. to the link:spark-yarn-introduction.adoc#ResourceManager[YARN ResourceManager]). It waits until the application is running and eventually returns its unique https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/api/records/ApplicationId.html[ApplicationId].
+
+NOTE: `submitApplication` is also used in the deprecated <<run, Client.run>>.
+
+Internally, it executes `LauncherBackend.connect` first and then executes `Client.setupCredentials` to set up credentials for future calls.
+
+It creates a YARN client (using Hadoop's https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/client/api/YarnClient.html#createYarnClient()[YarnClient.createYarnClient]), https://hadoop.apache.org/docs/current/api/org/apache/hadoop/service/AbstractService.html#init(org.apache.hadoop.conf.Configuration)[inits it] with a https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/conf/YarnConfiguration.html[YarnConfiguration] and https://hadoop.apache.org/docs/current/api/org/apache/hadoop/service/AbstractService.html#start()[starts it]. All this happens using Hadoop API.
+
+CAUTION: FIXME How to configure `YarnClient`? What is `getYarnClusterMetrics`?
+
+You should see the following INFO in the logs:
+
+```
+INFO Client: Requesting a new application from cluster with [yarnClient.getYarnClusterMetrics.getNumNodeManagers] NodeManagers
+```
+
+It then https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/client/api/YarnClient.html#createApplication()[YarnClient.createApplication()] to create a new application in YARN and obtains the application id.
+
+The `LauncherBackend` instance changes state to SUBMITTED with the application id.
+
+CAUTION: FIXME Why is this important?
+
+`submitApplication` verifies whether the cluster has resources for the link:spark-yarn-applicationmaster.adoc[ApplicationManager] (using <<verifyClusterResources, verifyClusterResources>>).
+
+It then <<createContainerLaunchContext, createContainerLaunchContext>> and <<createApplicationSubmissionContext, createApplicationSubmissionContext>>.
+
+It submits the application to YARN ResourceManager.
+
+```
+INFO Client: Submitting application [applicationId.getId] to ResourceManager
+```
+
+And finally submits a new application to YARN (using Hadoop's https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/client/api/YarnClient.html#submitApplication(org.apache.hadoop.yarn.api.records.ApplicationSubmissionContext)[YarnClient.submitApplication]) and waits until it is accepted by YARN ResourceManager.
+
+==== [[verifyClusterResources]] Verifying Maximum Memory Capability of YARN Cluster (verifyClusterResources private method)
+
+[source, scala]
+----
+verifyClusterResources(newAppResponse: GetNewApplicationResponse): Unit
+----
+
+`verifyClusterResources` is a private helper method that <<submitApplication, submitApplication>> uses to ensure that the Spark application (as a set of link:spark-yarn-applicationmaster.adoc[ApplicationMaster] and executors) is not going to request more than the maximum memory capability of the YARN cluster. If so, it throws an `IllegalArgumentException`.
+
+`verifyClusterResources` queries the input  https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/api/protocolrecords/GetNewApplicationResponse.html[GetNewApplicationResponse] (as `newAppResponse`) for the maximum memory.
+
+[options="wrap"]
+----
+INFO Client: Verifying our application has not requested more than the maximum memory capability of the cluster ([maximumMemory] MB per container)
+----
+
+If the maximum memory capability is above the required executor or link:spark-yarn-applicationmaster.adoc[ApplicationMaster] memory, you should see the following INFO message in the logs:
+
+[options="wrap"]
+----
+INFO Client: Will allocate AM container, with [amMem] MB memory including [amMemoryOverhead] MB overhead
+----
+
+If however the executor memory (as a sum of link:spark-executor.adoc#spark.executor.memory[spark.executor.memory] and link:spark-yarn-settings.adoc#spark.yarn.executor.memoryOverhead[spark.yarn.executor.memoryOverhead] settings) is more than the maximum memory capability, `verifyClusterResources` throws an `IllegalArgumentException` with the following message:
+
+[options="wrap"]
+----
+Required executor memory ([executorMemory]+[executorMemoryOverhead] MB) is above the max threshold ([maximumMemory] MB) of this cluster! Please check the values of 'yarn.scheduler.maximum-allocation-mb' and/or 'yarn.nodemanager.resource.memory-mb'.
+----
+
+If the link:spark-yarn-applicationmaster.adoc[required memory for `ApplicationMaster`] is more than the maximum memory capability, `verifyClusterResources` throws an `IllegalArgumentException` with the following message:
+
+[options="wrap"]
+----
+Required AM memory ([amMemory]+[amMemoryOverhead] MB) is above the max threshold ([maximumMemory] MB) of this cluster! Please increase the value of 'yarn.scheduler.maximum-allocation-mb'.
+----
+
+==== [[createContainerLaunchContext]] Creating Hadoop YARN's ContainerLaunchContext for Launching ApplicationMaster (createContainerLaunchContext private method)
+
+When <<submitApplication, a Spark application is submitted to YARN>>, it calls the private helper method `createContainerLaunchContext` that creates a YARN link:https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/api/records/ContainerLaunchContext.html[ContainerLaunchContext] request for link:spark-yarn-introduction.adoc#NodeManager[YARN NodeManager] to launch link:spark-yarn-applicationmaster.adoc[ApplicationMaster] (in a container).
 
 [source, scala]
 ----
 createContainerLaunchContext(newAppResponse: GetNewApplicationResponse): ContainerLaunchContext
 ----
-
-`createContainerLaunchContext` is a `private` helper method that creates a https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/api/records/ContainerLaunchContext.html[ContainerLaunchContext]...FIXME
 
 NOTE: The input `newAppResponse` is Hadoop YARN's https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/api/protocolrecords/GetNewApplicationResponse.html[GetNewApplicationResponse].
 
@@ -528,56 +606,6 @@ reportLauncherState(state: SparkAppHandle.State): Unit
 `reportLauncherState` merely passes the call on to `LauncherBackend.setState`.
 
 CAUTION: What does `setState` do?
-
-=== [[submitApplication]] Submitting Spark Application to YARN (submitApplication method)
-
-When link:spark-yarn-client-yarnclientschedulerbackend.adoc#start[YarnClientSchedulerBackend starts], it creates a new instance of `Client` and executes `submitApplication`.
-
-[source, scala]
-----
-submitApplication(): ApplicationId
-----
-
-`submitApplication` submits a Spark application to a YARN cluster (i.e. to the YARN ResourceManager). It waits until the application is running and eventually returns its unique https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/api/records/ApplicationId.html[ApplicationId].
-
-NOTE: `submitApplication` is also used in the deprecated <<run, Client.run>>.
-
-Internally, it executes `LauncherBackend.connect` first and then executes `Client.setupCredentials` to set up credentials for future calls.
-
-It creates a YARN client (using Hadoop's https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/client/api/YarnClient.html#createYarnClient()[YarnClient.createYarnClient]), https://hadoop.apache.org/docs/current/api/org/apache/hadoop/service/AbstractService.html#init(org.apache.hadoop.conf.Configuration)[inits it] with a https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/conf/YarnConfiguration.html[YarnConfiguration] and https://hadoop.apache.org/docs/current/api/org/apache/hadoop/service/AbstractService.html#start()[starts it]. All this happens using Hadoop API.
-
-CAUTION: FIXME How to configure `YarnClient`? What is `getYarnClusterMetrics`?
-
-You should see the following INFO in the logs:
-
-```
-INFO Client: Requesting a new application from cluster with [yarnClient.getYarnClusterMetrics.getNumNodeManagers] NodeManagers
-```
-
-It then https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/client/api/YarnClient.html#createApplication()[YarnClient.createApplication()] to create a new application in YARN and obtains the application id.
-
-The `LauncherBackend` instance changes state to SUBMITTED with the application id.
-
-CAUTION: FIXME Why is this important?
-
-`submitApplication` verifies whether the cluster has resources for the ApplicationManager (using <<verifyClusterResources, verifyClusterResources>>).
-
-It then <<createContainerLaunchContext, createContainerLaunchContext>> and <<createApplicationSubmissionContext, createApplicationSubmissionContext>>.
-
-It submits the application to YARN ResourceManager.
-
-```
-INFO Client: Submitting application [applicationId.getId] to ResourceManager
-```
-
-And finally submits a new application to YARN (using Hadoop's https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/client/api/YarnClient.html#submitApplication(org.apache.hadoop.yarn.api.records.ApplicationSubmissionContext)[YarnClient.submitApplication]) and waits until it is accepted by YARN ResourceManager.
-
-=== [[verifyClusterResources]] verifyClusterResources
-
-```
-INFO Client: Verifying our application has not requested more than the maximum memory capability of the cluster (8192 MB per container)
-INFO Client: Will allocate AM container, with 896 MB memory including 384 MB overhead
-```
 
 === [[createApplicationSubmissionContext]] createApplicationSubmissionContext
 
