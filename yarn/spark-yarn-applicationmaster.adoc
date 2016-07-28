@@ -244,12 +244,46 @@ CAUTION: FIXME Who's the client?
 
 === [[localResources]] localResources attribute
 
+When <<creating-instance, `ApplicationMaster` is instantiated>>, it computes internal `localResources` collection of YARN's https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/api/records/LocalResource.html[LocalResource] by name based on the internal `spark.yarn.cache.*` configuration settings.
+
 [source, scala]
 ----
 localResources: Map[String, LocalResource]
 ----
 
-CAUTION: FIXME
+You should see the following INFO message in the logs:
+
+```
+INFO ApplicationMaster: Preparing Local resources
+```
+
+It starts by reading the internal Spark configuration settings (that were earlier set when link:spark-yarn-client.adoc#prepareLocalResources[`Client` prepared local resources to distribute]):
+
+* link:spark-yarn-settings.adoc#spark.yarn.cache.filenames[spark.yarn.cache.filenames]
+* link:spark-yarn-settings.adoc#spark.yarn.cache.sizes[spark.yarn.cache.sizes]
+* link:spark-yarn-settings.adoc#spark.yarn.cache.timestamps[spark.yarn.cache.timestamps]
+* link:spark-yarn-settings.adoc#spark.yarn.cache.visibilities[spark.yarn.cache.visibilities]
+* link:spark-yarn-settings.adoc#spark.yarn.cache.types[spark.yarn.cache.types]
+
+For each file name in link:spark-yarn-settings.adoc#spark.yarn.cache.filenames[spark.yarn.cache.filenames] it maps link:spark-yarn-settings.adoc#spark.yarn.cache.types[spark.yarn.cache.types] to an appropriate YARN's https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/api/records/LocalResourceType.html[LocalResourceType] and creates a new YARN https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/api/records/LocalResource.html[LocalResource].
+
+NOTE: https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/api/records/LocalResource.html[LocalResource] represents a local resource required to run a container.
+
+If link:spark-yarn-settings.adoc#spark.yarn.cache.confArchive[spark.yarn.cache.confArchive] is set, it is added to `localResources` as https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/api/records/LocalResourceType.html#ARCHIVE[ARCHIVE] resource type and https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/api/records/LocalResourceVisibility.html#PRIVATE[PRIVATE] visibility.
+
+NOTE: link:spark-yarn-settings.adoc#spark.yarn.cache.confArchive[spark.yarn.cache.confArchive] is set when link:spark-yarn-client.adoc#prepareLocalResources[`Client` prepares local resources].
+
+NOTE: `ARCHIVE` is an archive file that is automatically unarchived by the NodeManager.
+
+NOTE: `PRIVATE` visibility means to share a resource among all applications of the same user on the node.
+
+Ultimately, it removes the cache-related settings from the link:spark-configuration.adoc[Spark configuration] and system properties.
+
+You should see the following INFO message in the logs:
+
+```
+INFO ApplicationMaster: Prepared Local resources [resources]
+```
 
 === [[run]] run
 
