@@ -285,45 +285,51 @@ You should see the following INFO message in the logs:
 INFO ApplicationMaster: Prepared Local resources [resources]
 ```
 
-=== [[run]] run
+=== [[run]] Running ApplicationMaster (run method)
 
-When `ApplicationMaster` is started as a standalone command-line application (using <<main, main>> method), ultimately it calls `run`. The result of calling `run` is the final result of the `ApplicationMaster` command-line application.
+When `ApplicationMaster` is started as a <<main, standalone command-line application>>, ultimately `run` is executed.
 
 [source, scala]
 ----
 run(): Int
 ----
 
-It sets cluster mode settings, registers a cleanup shutdown hook, schedules `AMDelegationTokenRenewer` and finally registers `ApplicationMaster` for the Spark application (either calling <<runDriver, runDriver>> for cluster mode or <<runExecutorLauncher, runExecutorLauncher>> for client mode).
+The result of calling `run` is the final result of the `ApplicationMaster` command-line application.
 
-When `run` runs you should see the following INFO in the logs:
+NOTE: `ApplicationMaster` is executed in a YARN container on a node in a YARN cluster.
 
-```
-INFO ApplicationAttemptId: [appAttemptId]
-```
+`run` sets cluster mode settings, registers a cleanup shutdown hook, schedules `AMDelegationTokenRenewer` and finally registers `ApplicationMaster` for the Spark application (either calling <<runDriver, runDriver>> for cluster mode or <<runExecutorLauncher, runExecutorLauncher>> for client mode).
 
-CAUTION: FIXME Explain what `appAttemptId` is and how to change it.
-
-When executed in `cluster` deploy mode, it sets the following system properties:
+When in cluster mode, it sets the following system properties:
 
 * link:spark-webui.adoc#spark.ui.port[spark.ui.port] as `0`
 * link:spark-configuration.adoc#spark.master[spark.master] as `yarn`
 * link:spark-deploy-mode.adoc#spark.submit.deployMode[spark.submit.deployMode] as `cluster`
 * link:spark-yarn-settings.adoc#spark.yarn.app.id[spark.yarn.app.id] as application id
 
-CAUTION: FIXME Link to the page about yarn deploy modes (not the general ones).
+CAUTION: FIXME Why are the system properties required? Who's expecting them?
 
-The cleanup shutdown hook is registered.
+After the settings, `run` prints the following INFO message out to the logs:
+
+```
+INFO ApplicationAttemptId: [appAttemptId]
+```
+
+The `appAttemptId` is the link:spark-yarn-yarnrmclient.adoc#getAttemptId[current application attempt id] (using the constructor's link:spark-yarn-yarnrmclient.adoc[YarnRMClient] as `client`).
+
+The cleanup shutdown hook is registered with shutdown priority lower than that of link:spark-sparkcontext.adoc[SparkContext] (so it is executed after `SparkContext`).
 
 CAUTION: FIXME Describe the shutdown hook.
 
-`SecurityManager` is created. If the link:spark-yarn-settings.adoc#spark.yarn.credentials.file[credentials file config] is present, a `AMDelegationTokenRenewer` is started.
+link:spark-security.adoc[SecurityManager] is instantiated with the internal link:spark-configuration.adoc[Spark configuration]. If the link:spark-yarn-settings.adoc#spark.yarn.credentials.file[credentials file config] (as `spark.yarn.credentials.file`) is present, a `AMDelegationTokenRenewer` is started.
 
 CAUTION: FIXME Describe `AMDelegationTokenRenewer#scheduleLoginFromKeytab`
 
-It finally registers `ApplicationMaster` for the Spark application (either calling <<runDriver, runDriver>> for cluster mode or <<runExecutorLauncher, runExecutorLauncher>> for client mode).
+It finally runs `ApplicationMaster` for the Spark application (either calling <<runDriver, runDriver>> when in cluster mode or <<runExecutorLauncher, runExecutorLauncher>> otherwise).
 
-Any exceptions in `run` are caught and reported to the logs as ERROR message:
+It exits with `0` exit code.
+
+In case of an exception, `run` prints the following ERROR message out to the logs:
 
 ```
 ERROR Uncaught exception: [exception]
