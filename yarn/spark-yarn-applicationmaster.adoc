@@ -1,8 +1,10 @@
 == [[ApplicationMaster]][[ExecutorLauncher]] ApplicationMaster (and ExecutorLauncher)
 
-`ApplicationMaster` class acts as the link:yarn/spark-yarn-introduction.adoc#ApplicationMaster[YARN ApplicationMaster] for a Spark application.
+`ApplicationMaster` class acts as the link:yarn/spark-yarn-introduction.adoc#ApplicationMaster[YARN ApplicationMaster] for a Spark application deployed to a YARN cluster.
 
-It is a <<main, standalone application>> that link:yarn/spark-yarn-introduction.adoc#NodeManager[YARN NodeManager] runs inside a YARN resource container that controls a Spark application's execution on YARN (that accepts <<command-line-parameters, command-line parameters>>, e.g. `--jar`, `--class`, `--arg`, `--properties-file`).
+It is a <<main, standalone application>> that link:yarn/spark-yarn-introduction.adoc#NodeManager[YARN NodeManager] runs inside a YARN resource container that controls the execution of a Spark application on YARN (that accepts <<command-line-parameters, command-line parameters>>, e.g. `--jar`, `--class`, `--arg`, `--properties-file`).
+
+When <<creating-instance, created>> `ApplicationMaster` class requires a link:spark-yarn-yarnrmclient.adoc[YarnRMClient] (which is responsible for registering and unregistering a Spark application).
 
 [NOTE]
 ====
@@ -27,33 +29,6 @@ $ jps -lm
 image::../images/spark-yarn-ApplicationMaster-main.png[align="center"]
 
 NOTE: https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/api/records/ContainerLaunchContext.html[ContainerLaunchContext] represents all of the information needed by the YARN NodeManager to launch a container.
-
-=== [[unregister]] Unregistering ApplicationMaster from YARN ResourceManager (unregister method)
-
-`unregister` unregisters the `ApplicationMaster` for the Spark application from the link:spark-yarn-introduction.adoc#ResourceManager[YARN ResourceManager].
-
-[source, scala]
-----
-unregister(status: FinalApplicationStatus, diagnostics: String = null): Unit
-----
-
-NOTE: It is called from the <<shutdown-hook, cleanup shutdown hook>> (that was registered in `ApplicationMaster` when it <<run, started running>>) and only when the application's final result is successful or it was the last attempt to run the application.
-
-It first checks that the `ApplicationMaster` has not already been unregistered (using the internal `unregistered` flag). If so, you should see the following INFO message in the logs:
-
-```
-INFO ApplicationMaster: Unregistering ApplicationMaster with [status]
-```
-
-There can also be an optional diagnostic message in the logs:
-
-```
-(diag message: [msg])
-```
-
-The internal `unregistered` flag is set to be enabled, i.e. `true`.
-
-It then requests link:spark-yarn-yarnrmclient.adoc#unregister[`YarnRMClient` to unregister].
 
 === [[main]] main
 
@@ -287,7 +262,7 @@ INFO ApplicationMaster: Prepared Local resources [resources]
 
 === [[run]] Running ApplicationMaster (run method)
 
-When `ApplicationMaster` is started as a <<main, standalone command-line application>>, ultimately `run` is executed.
+When `ApplicationMaster` is <<main, started as a standalone command-line application>> (in a YARN container on a node in a YARN cluster), ultimately `run` is executed.
 
 [source, scala]
 ----
@@ -296,20 +271,9 @@ run(): Int
 
 The result of calling `run` is the final result of the `ApplicationMaster` command-line application.
 
-NOTE: `ApplicationMaster` is executed in a YARN container on a node in a YARN cluster.
+`run` sets <<cluster-mode-settings, cluster mode settings>>, registers the <<shutdown-hook, cleanup shutdown hook>>, schedules `AMDelegationTokenRenewer` and finally registers `ApplicationMaster` for the Spark application (either calling <<runDriver, runDriver>> for cluster mode or <<runExecutorLauncher, runExecutorLauncher>> for client mode).
 
-`run` sets cluster mode settings, registers the <<shutdown-hook, cleanup shutdown hook>>, schedules `AMDelegationTokenRenewer` and finally registers `ApplicationMaster` for the Spark application (either calling <<runDriver, runDriver>> for cluster mode or <<runExecutorLauncher, runExecutorLauncher>> for client mode).
-
-When in cluster mode, it sets the following system properties:
-
-* link:spark-webui.adoc#spark.ui.port[spark.ui.port] as `0`
-* link:spark-configuration.adoc#spark.master[spark.master] as `yarn`
-* link:spark-deploy-mode.adoc#spark.submit.deployMode[spark.submit.deployMode] as `cluster`
-* link:spark-yarn-settings.adoc#spark.yarn.app.id[spark.yarn.app.id] as application id
-
-CAUTION: FIXME Why are the system properties required? Who's expecting them?
-
-After the settings, `run` prints the following INFO message out to the logs:
+After the <<cluster-mode-settings, cluster mode settings>> are set, `run` prints the following INFO message out to the logs:
 
 ```
 INFO ApplicationAttemptId: [appAttemptId]
@@ -334,6 +298,46 @@ ERROR Uncaught exception: [exception]
 ```
 
 And the application run attempt is <<finish, finished>> with `FAILED` status and `EXIT_UNCAUGHT_EXCEPTION` (10) exit code.
+
+=== [[cluster-mode-settings]] Cluster Mode Settings
+
+When in <<cluster-mode, cluster mode>>, `ApplicationMaster` sets the following system properties (in <<run, run>>):
+
+* link:spark-webui.adoc#spark.ui.port[spark.ui.port] as `0`
+* link:spark-configuration.adoc#spark.master[spark.master] as `yarn`
+* link:spark-deploy-mode.adoc#spark.submit.deployMode[spark.submit.deployMode] as `cluster`
+* link:spark-yarn-settings.adoc#spark.yarn.app.id[spark.yarn.app.id] as application id
+
+CAUTION: FIXME Why are the system properties required? Who's expecting them?
+
+=== [[cluster-mode]] Cluster Mode
+
+=== [[unregister]] Unregistering ApplicationMaster from YARN ResourceManager (unregister method)
+
+`unregister` unregisters the `ApplicationMaster` for the Spark application from the link:spark-yarn-introduction.adoc#ResourceManager[YARN ResourceManager].
+
+[source, scala]
+----
+unregister(status: FinalApplicationStatus, diagnostics: String = null): Unit
+----
+
+NOTE: It is called from the <<shutdown-hook, cleanup shutdown hook>> (that was registered in `ApplicationMaster` when it <<run, started running>>) and only when the application's final result is successful or it was the last attempt to run the application.
+
+It first checks that the `ApplicationMaster` has not already been unregistered (using the internal `unregistered` flag). If so, you should see the following INFO message in the logs:
+
+```
+INFO ApplicationMaster: Unregistering ApplicationMaster with [status]
+```
+
+There can also be an optional diagnostic message in the logs:
+
+```
+(diag message: [msg])
+```
+
+The internal `unregistered` flag is set to be enabled, i.e. `true`.
+
+It then requests link:spark-yarn-yarnrmclient.adoc#unregister[`YarnRMClient` to unregister].
 
 === [[shutdown-hook]] Cleanup Shutdown Hook
 
