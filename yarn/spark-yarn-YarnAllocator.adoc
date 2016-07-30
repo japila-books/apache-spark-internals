@@ -1,6 +1,6 @@
 == YarnAllocator -- Container Allocator
 
-`YarnAllocator` requests containers from the YARN ResourceManager to run Spark link:spark-executor.adoc[executors] on and kills them when link:spark-yarn-applicationmaster.adoc[ApplicationMaster] no longer needs them.
+`YarnAllocator` requests containers from the link:spark-yarn-introduction.adoc#ResourceManager[YARN ResourceManager] to run Spark link:spark-executor.adoc[executors] on and kills them when link:spark-yarn-applicationmaster.adoc[ApplicationMaster] no longer needs them.
 
 It uses YARN's https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/client/api/AMRMClient.html[AMRMClient] API.
 
@@ -8,6 +8,8 @@ It is used in link:spark-yarn-applicationmaster.adoc[ApplicationMaster] (via an 
 
 .ApplicationMaster uses YarnAllocator (via allocator attribute)
 image::../images/spark-yarn-YarnAllocator.png[align="center"]
+
+When `YarnAllocator` is <<creating-instance, created>>, it requires `driverUrl`, Hadoop's https://hadoop.apache.org/docs/current/api/org/apache/hadoop/conf/Configuration.html[Configuration], a link:spark-configuration.adoc[Spark configuration], YARN's https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/api/records/ApplicationAttemptId.html[ApplicationAttemptId], a link:spark-security.adoc#SecurityManager[SecurityManager], and a collection of Hadoop's https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/api/records/LocalResource.html[LocalResource] by name. They are later used for <<runAllocatedContainers, running `ExecutorRunnable` in allocated YARN containers>>.
 
 [TIP]
 ====
@@ -135,6 +137,75 @@ WARN Expected to find pending requests, but found none.
 handleAllocatedContainers(allocatedContainers: Seq[Container]): Unit
 ----
 
+`handleAllocatedContainers` handles allocated YARN containers.
+
+Internally, `handleAllocatedContainers` <<matchContainerToRequest, matches requests to host, rack, and any host (a container allocation)>>.
+
+If there are any allocated containers left (without having been matched), you should see the following DEBUG message in the logs:
+
+```
+DEBUG Releasing [size] unneeded containers that were allocated to us
+```
+
+It then <<internalReleaseContainer, releases the containers>>.
+
+It <<runAllocatedContainers, runs the allocated and matched containers>>.
+
+At the end of the method, you should see the following INFO message in the logs:
+
+```
+INFO Received [allocatedContainersSize] containers from YARN, launching executors on [containersToUseSize] of them.
+```
+
+==== [[runAllocatedContainers]] Running ExecutorRunnable in Allocated YARN Container (runAllocatedContainers internal method)
+
+[source, scala]
+----
+runAllocatedContainers(containersToUse: ArrayBuffer[Container]): Unit
+----
+
+For each YARN's https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/api/records/Container.html[Container] in the input `containersToUse` collection, `runAllocatedContainers` attempts to run a link:spark-yarn-ExecutorRunnable.adoc[ExecutorRunnable] (on <<launcherPool, ContainerLauncher thread pool>>).
+
+Internally, `runAllocatedContainers` increases the internal `executorIdCounter` counter and asserts that the amount of memory of (the resource allocated to) the container is greater than the requested memory for executors.
+
+You should see the following INFO message in the logs:
+
+```
+INFO YarnAllocator: Launching container [containerId] for on host [executorHostname]
+```
+
+Unless `runAllocatedContainers` runs in link:spark-yarn-settings.adoc#spark.yarn.launchContainers[spark.yarn.launchContainers] testing mode (when it merely <<updateInternalState, updates internal state>>), you should see the following INFO message in the logs:
+
+```
+INFO YarnAllocator: Launching ExecutorRunnable. driverUrl: [driverUrl],  executorHostname: [executorHostname]
+```
+
+NOTE: `driverUrl` is of the form `spark://CoarseGrainedScheduler@[host]:[port]`.
+
+It executes link:spark-yarn-ExecutorRunnable.adoc[ExecutorRunnable] on <<launcherPool, ContainerLauncher thread pool>> and <<updateInternalState, updates internal state>>.
+
+Any non-fatal exception while running `ExecutorRunnable` is caught and you should see the following ERROR message in the logs:
+
+```
+ERROR Failed to launch executor [executorId] on container [containerId]
+```
+
+It then immediately releases the failed container (using the internal link:++https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/client/api/AMRMClient.html#releaseAssignedContainer(org.apache.hadoop.yarn.api.records.ContainerId)++[AMRMClient]).
+
+==== [[updateInternalState]] updateInternalState
+
+CAUTION: FIXME
+
+==== [[internalReleaseContainer]] internalReleaseContainer
+
+CAUTION: FIXME
+
+==== [[matchContainerToRequest]] matchContainerToRequest
+
+CAUTION: FIXME
+
+=== [[launcherPool]] ContainerLauncher Thread Pool
+
 CAUTION: FIXME
 
 === [[processCompletedContainers]] processCompletedContainers
@@ -249,7 +320,7 @@ allocateResources(): Unit
 
 `allocateResources` is...???
 
-It starts by executing <<updateResourceRequests, updateResourceRequests>>. It then link:++https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/client/api/AMRMClient.html#allocate(float)++[requests additional containers using YARN's `AMRMClient`] with progress indicator of `0.1f`.
+Internally, `allocateResources` starts by executing <<updateResourceRequests, updateResourceRequests>>. It then link:++https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/client/api/AMRMClient.html#allocate(float)++[requests additional containers using YARN's `AMRMClient`] with progress indicator of `0.1f`.
 
 It link:++https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/api/protocolrecords/AllocateResponse.html#getAllocatedContainers()++[gets the list of newly-allocated containers by the YARN ResourceManager].
 
