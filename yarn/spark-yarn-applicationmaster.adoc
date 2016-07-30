@@ -30,14 +30,14 @@ NOTE: https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/api/reco
 
 === [[unregister]] Unregistering ApplicationMaster from YARN ResourceManager (unregister method)
 
+`unregister` unregisters the `ApplicationMaster` for the Spark application from the link:spark-yarn-introduction.adoc#ResourceManager[YARN ResourceManager].
+
 [source, scala]
 ----
 unregister(status: FinalApplicationStatus, diagnostics: String = null): Unit
 ----
 
-`unregister` unregisters the Spark application's `ApplicationMaster` from the YARN ResourceManager.
-
-NOTE: It is called from a shutdown hook (that was registered in `ApplicationMaster` when it <<run, started running>>) and only when the application's final result is successful or it was the last attempt to run the application).
+NOTE: It is called from the <<shutdown-hook, cleanup shutdown hook>> (that was registered in `ApplicationMaster` when it <<run, started running>>) and only when the application's final result is successful or it was the last attempt to run the application.
 
 It first checks that the `ApplicationMaster` has not already been unregistered (using the internal `unregistered` flag). If so, you should see the following INFO message in the logs:
 
@@ -51,7 +51,7 @@ There can also be an optional diagnostic message in the logs:
 (diag message: [msg])
 ```
 
-The internal `unregistered` flag is enabled (i.e. `true`).
+The internal `unregistered` flag is set to be enabled, i.e. `true`.
 
 It then requests link:spark-yarn-yarnrmclient.adoc#unregister[`YarnRMClient` to unregister].
 
@@ -298,7 +298,7 @@ The result of calling `run` is the final result of the `ApplicationMaster` comma
 
 NOTE: `ApplicationMaster` is executed in a YARN container on a node in a YARN cluster.
 
-`run` sets cluster mode settings, registers a cleanup shutdown hook, schedules `AMDelegationTokenRenewer` and finally registers `ApplicationMaster` for the Spark application (either calling <<runDriver, runDriver>> for cluster mode or <<runExecutorLauncher, runExecutorLauncher>> for client mode).
+`run` sets cluster mode settings, registers the <<shutdown-hook, cleanup shutdown hook>>, schedules `AMDelegationTokenRenewer` and finally registers `ApplicationMaster` for the Spark application (either calling <<runDriver, runDriver>> for cluster mode or <<runExecutorLauncher, runExecutorLauncher>> for client mode).
 
 When in cluster mode, it sets the following system properties:
 
@@ -317,9 +317,7 @@ INFO ApplicationAttemptId: [appAttemptId]
 
 The `appAttemptId` is the link:spark-yarn-yarnrmclient.adoc#getAttemptId[current application attempt id] (using the constructor's link:spark-yarn-yarnrmclient.adoc[YarnRMClient] as `client`).
 
-The cleanup shutdown hook is registered with shutdown priority lower than that of link:spark-sparkcontext.adoc[SparkContext] (so it is executed after `SparkContext`).
-
-CAUTION: FIXME Describe the shutdown hook.
+The <<shutdown-hook, cleanup shutdown hook>> is registered with shutdown priority lower than that of link:spark-sparkcontext.adoc[SparkContext] (so it is executed after `SparkContext`).
 
 link:spark-security.adoc[SecurityManager] is instantiated with the internal link:spark-configuration.adoc[Spark configuration]. If the link:spark-yarn-settings.adoc#spark.yarn.credentials.file[credentials file config] (as `spark.yarn.credentials.file`) is present, a `AMDelegationTokenRenewer` is started.
 
@@ -336,6 +334,18 @@ ERROR Uncaught exception: [exception]
 ```
 
 And the application run attempt is <<finish, finished>> with `FAILED` status and `EXIT_UNCAUGHT_EXCEPTION` (10) exit code.
+
+=== [[shutdown-hook]] Cleanup Shutdown Hook
+
+When <<run, `ApplicationMaster` starts running>>, it registers a shutdown hook that <<unregister, unregisters the Spark application from the YARN ResourceManager>> and <<cleanupStagingDir, cleans up the staging directory>>.
+
+Internally, it checks the internal `finished` flag, and if it is disabled, it <<finish, marks the Spark application as failed with `EXIT_EARLY`>>.
+
+If the internal `unregistered` flag is disabled, it <<unregister, unregisters the Spark application>> and <<cleanupStagingDir, cleans up the staging directory>> afterwards only when the final status of the ApplicationMaster's registration is `FinalApplicationStatus.SUCCEEDED` or the link:yarn/README.adoc#multiple-application-attempts[number of application attempts is more than allowed].
+
+The shutdown hook runs after the SparkContext is shut down, i.e. the shutdown priority is one less than SparkContext's.
+
+The shutdown hook is registered using Spark's own `ShutdownHookManager.addShutdownHook`.
 
 === [[finish]] finish
 
