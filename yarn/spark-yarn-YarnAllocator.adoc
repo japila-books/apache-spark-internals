@@ -67,14 +67,18 @@ It tracks the number of locality-aware tasks to be used as container placement h
 
 It is used as an input to `containerPlacementStrategy.localityOfRequestedContainers` when <<updateResourceRequests, `YarnAllocator` updates YARN container allocation requests>>.
 
-=== [[updateResourceRequests]] Updating YARN Container Allocation Requests (updateResourceRequests method)
+=== [[updateResourceRequests]] Adding or Removing Executor Container Requests (updateResourceRequests method)
 
 [source, scala]
 ----
 updateResourceRequests(): Unit
 ----
 
-`updateResourceRequests` gets the list of pending YARN's `ContainerRequests` to allocate executors.
+`updateResourceRequests` <<updateResourceRequests-missing-executors, requests new>> or <<updateResourceRequests-cancelling-executor-allocations, cancels outstanding>> executor containers from the link:spark-yarn-introduction.adoc#ResourceManager[YARN ResourceManager].
+
+NOTE: In YARN, you have to request containers for resources first (using link:++https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/client/api/AMRMClient.html#addContainerRequest(T)++[AMRMClient.addContainerRequest]) before calling link:++https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/client/api/AMRMClient.html#allocate(float)++[AMRMClient.allocate].
+
+It gets the list of outstanding YARN's `ContainerRequests` (using the constructor's link:++https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/client/api/AMRMClient.html#getMatchingRequests(org.apache.hadoop.yarn.api.records.Priority, java.lang.String, org.apache.hadoop.yarn.api.records.Resource)++[AMRMClient[ContainerRequest\]]) and aligns their number to current workload.
 
 `updateResourceRequests` consists of two main branches:
 
@@ -130,7 +134,9 @@ It checks whether there are pending allocation requests and removes the excess (
 WARN Expected to find pending requests, but found none.
 ```
 
-=== [[handleAllocatedContainers]] handleAllocatedContainers
+=== [[handleAllocatedContainers]] Handling Allocated Containers for Executors (handleAllocatedContainers internal method)
+
+When the link:spark-yarn-introduction.adoc#ResourceManager[YARN ResourceManager] has allocated new containers for executors in <<allocateResources, allocateResources>>, the call is then passed on to `handleAllocatedContainers` procedure.
 
 [source, scala]
 ----
@@ -200,9 +206,28 @@ CAUTION: FIXME
 
 CAUTION: FIXME
 
-==== [[matchContainerToRequest]] matchContainerToRequest
+==== [[matchContainerToRequest]] Deciding on Use of YARN Container (matchContainerToRequest internal method)
 
-CAUTION: FIXME
+When <<handleAllocatedContainers, `handleAllocatedContainers` handles allocated containers for executors>>, it uses `matchContainerToRequest` to match the containers to `ContainerRequests` (and hence to workload and location preferences).
+
+[source, scala]
+----
+matchContainerToRequest(
+  allocatedContainer: Container,
+  location: String,
+  containersToUse: ArrayBuffer[Container],
+  remaining: ArrayBuffer[Container]): Unit
+----
+
+`matchContainerToRequest` puts `allocatedContainer` in `containersToUse` or `remaining` collections per available outstanding `ContainerRequests` that match the priority of the input `allocatedContainer`, the input `location`, and the memory and vcore capabilities for Spark executors.
+
+NOTE: The input `location` can be host, rack, or `*` (star), i.e. any host.
+
+It link:++https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/client/api/AMRMClient.html#getMatchingRequests(org.apache.hadoop.yarn.api.records.Priority, java.lang.String, org.apache.hadoop.yarn.api.records.Resource)++[gets the outstanding `ContainerRequests`] (from the link:spark-yarn-introduction.adoc#ResourceManager[YARN ResourceManager]).
+
+If there are any outstanding `ContainerRequests` that meet the requirements, it simply takes the first one and puts it in the input `containersToUse` collection. It also removes the `ContainerRequest` so it is not submitted again (it uses the internal `AMRMClient[ContainerRequest]`).
+
+Otherwise, it puts the input `allocatedContainer` in the input `remaining` collection.
 
 === [[launcherPool]] ContainerLauncher Thread Pool
 
@@ -311,7 +336,7 @@ CAUTION: FIXME
 
 CAUTION: FIXME
 
-=== [[allocateResources]] allocateResources
+=== [[allocateResources]] Allocating YARN Containers for Executors (allocateResources method)
 
 [source, scala]
 ----
@@ -320,9 +345,18 @@ allocateResources(): Unit
 
 `allocateResources` is...???
 
-Internally, `allocateResources` starts by executing <<updateResourceRequests, updateResourceRequests>>. It then link:++https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/client/api/AMRMClient.html#allocate(float)++[requests additional containers using YARN's `AMRMClient`] with progress indicator of `0.1f`.
+Internally, `allocateResources` starts by <<updateResourceRequests, requesting new or cancelling outstanding executor containers>>.
 
-It link:++https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/api/protocolrecords/AllocateResponse.html#getAllocatedContainers()++[gets the list of newly-allocated containers by the YARN ResourceManager].
+NOTE: In YARN, you have to request containers for resources first (using link:++https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/client/api/AMRMClient.html#addContainerRequest(T)++[AMRMClient.addContainerRequest]) before calling link:++https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/client/api/AMRMClient.html#allocate(float)++[AMRMClient.allocate].
+
+It then link:++https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/client/api/AMRMClient.html#allocate(float)++[requests the additional containers] if any (using the internal reference to YARN's `AMRMClient`) with progress indicator of `0.1f`.
+
+You should see the moment when the progress bar at 10% in the YARN console.
+
+.YARN Console after Allocating YARN Containers (Progress at 10%)
+image::../images/spark-yarn-console-progress-10.png[align="center"]
+
+It link:++https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/api/protocolrecords/AllocateResponse.html#getAllocatedContainers()++[gets the list of allocated containers] from the link:spark-yarn-introduction.adoc#ResourceManager[YARN ResourceManager].
 
 If the number of allocated containers is greater than `0`, you should see the following DEBUG message in the logs (in stderr on YARN):
 
