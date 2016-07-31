@@ -134,6 +134,10 @@ It checks whether there are pending allocation requests and removes the excess (
 WARN Expected to find pending requests, but found none.
 ```
 
+=== [[killExecutor]] killExecutor
+
+CAUTION: FIXME
+
 === [[handleAllocatedContainers]] Handling Allocated Containers for Executors (handleAllocatedContainers internal method)
 
 When the link:spark-yarn-introduction.adoc#ResourceManager[YARN ResourceManager] has allocated new containers for executors in <<allocateResources, allocateResources>>, the call is then passed on to `handleAllocatedContainers` procedure.
@@ -202,9 +206,16 @@ It then immediately releases the failed container (using the internal link:++htt
 
 CAUTION: FIXME
 
-==== [[internalReleaseContainer]] internalReleaseContainer
+==== [[internalReleaseContainer]] Releasing YARN Container (internalReleaseContainer internal procedure)
 
-CAUTION: FIXME
+All unnecessary YARN containers (that were allocated but are either <<handleAllocatedContainers, of no use>> or <<killExecutor, no longer needed>>) are released using the internal `internalReleaseContainer` procedure.
+
+[source, scala]
+----
+internalReleaseContainer(container: Container): Unit
+----
+
+`internalReleaseContainer` records `container` in the internal <<releasedContainers, releasedContainers>> registry and releases it to the link:spark-yarn-introduction.adoc#ResourceManager[YARN ResourceManager] (calling link:++https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/client/api/AMRMClient.html#releaseAssignedContainer(org.apache.hadoop.yarn.api.records.ContainerId)++[AMRMClient[ContainerRequest\].releaseAssignedContainer] using the internal `amClient`).
 
 ==== [[matchContainerToRequest]] Deciding on Use of YARN Container (matchContainerToRequest internal method)
 
@@ -329,10 +340,6 @@ CAUTION: FIXME
 CAUTION: FIXME
 
 === [[allocatedContainerToHostMap]] allocatedContainerToHostMap Internal Lookup Table
-
-CAUTION: FIXME
-
-=== [[releasedContainers]] releasedContainers Internal Registry
 
 CAUTION: FIXME
 
@@ -465,7 +472,7 @@ CAUTION: FIXME
 
 CAUTION: FIXME
 
-==== [[releasedContainers]] releasedContainers
+==== [[releasedContainers]] releasedContainers Internal Registry
 
 `releasedContainers` contains containers of no use anymore by their globally unique identifier https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/api/records/ContainerId.html[ContainerId] (for a `Container` in the cluster).
 
