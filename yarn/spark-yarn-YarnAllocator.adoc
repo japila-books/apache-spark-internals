@@ -1,10 +1,13 @@
 == YarnAllocator -- Container Allocator
 
-`YarnAllocator` requests containers from the link:spark-yarn-introduction.adoc#ResourceManager[YARN ResourceManager] to run Spark link:spark-executor.adoc[executors] on and <<internalReleaseContainer, releases them>> when the Spark application no longer needs them.
+`YarnAllocator` <<allocateResources, allocates resource containers>> from the link:spark-yarn-introduction.adoc#ResourceManager[YARN ResourceManager] to run Spark executors on and <<internalReleaseContainer, releases them>> when the Spark application no longer needs them.
 
-It uses YARN's https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/client/api/AMRMClient.html[AMRMClient] API.
+It talks directly to YARN ResourceManager through the `amClient` reference (of YARN's https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/client/api/AMRMClient.html[AMRMClient[ContainerRequest\]] type) that it gets when <<creating-instance, created>> (from link:spark-yarn-yarnrmclient.adoc#register[`YarnRMClient` when it registers the ApplicationMaster for a Spark application]).
 
-It is used in link:spark-yarn-applicationmaster.adoc[ApplicationMaster] (via an internal `allocator`) and is created when link:spark-yarn-yarnrmclient.adoc#register[`YarnRMClient` registers the `ApplicationMaster` (for a Spark application) with the YARN ResourceManager].
+.YarnAllocator uses amClient Reference to YARN ResourceManager
+image::../images/spark-yarn-YarnAllocator-amClient-ResourceManager.png[align="center"]
+
+`YarnAllocator` is a part of the internal state of link:spark-yarn-applicationmaster.adoc#allocator[ApplicationMaster] (via the internal `allocator` reference).
 
 .ApplicationMaster uses YarnAllocator (via allocator attribute)
 image::../images/spark-yarn-YarnAllocator.png[align="center"]
@@ -343,22 +346,22 @@ CAUTION: FIXME
 
 CAUTION: FIXME
 
-=== [[allocateResources]] Allocating YARN Containers for Executors (allocateResources method)
+=== [[allocateResources]] Allocating YARN Containers for Executors and Cancelling Outstanding Containers (allocateResources method)
 
 [source, scala]
 ----
 allocateResources(): Unit
 ----
 
-`allocateResources` is...???
+`allocateResources` claims new resource containers from link:spark-yarn-introduction.adoc#ResourceManager[YARN ResourceManager] and cancels any outstanding resource container requests.
 
-Internally, `allocateResources` starts by <<updateResourceRequests, requesting new or cancelling outstanding executor containers>>.
+NOTE: In YARN, you have to submit requests for resource containers to link:spark-yarn-introduction.adoc#ResourceManager[YARN ResourceManager] first (using link:++https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/client/api/AMRMClient.html#addContainerRequest(T)++[AMRMClient.addContainerRequest]) before claiming them by calling link:++https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/client/api/AMRMClient.html#allocate(float)++[AMRMClient.allocate].
 
-NOTE: In YARN, you have to request containers for resources first (using link:++https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/client/api/AMRMClient.html#addContainerRequest(T)++[AMRMClient.addContainerRequest]) before calling link:++https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/client/api/AMRMClient.html#allocate(float)++[AMRMClient.allocate].
+Internally, `allocateResources` starts by <<updateResourceRequests, submitting requests for new containers and cancelling previous container requests>>.
 
-It then link:++https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/client/api/AMRMClient.html#allocate(float)++[requests the additional containers] if any (using the internal reference to YARN's `AMRMClient`) with progress indicator of `0.1f`.
+`allocateResources` then link:++https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/client/api/AMRMClient.html#allocate(float)++[claims the containers] (using the internal reference to YARN's `AMRMClient`) with progress indicator of `0.1f`.
 
-You should see the moment when the progress bar at 10% in the YARN console.
+You can see the exact moment in the YARN console for the Spark application with the progress bar at 10%.
 
 .YARN Console after Allocating YARN Containers (Progress at 10%)
 image::../images/spark-yarn-console-progress-10.png[align="center"]
@@ -392,6 +395,9 @@ DEBUG YarnAllocator: Finished processing [completedContainersSize] completed con
 It is executed when link:spark-yarn-applicationmaster.adoc#registerAM[`ApplicationMaster` is registered to the YARN ResourceManager].
 
 === [[creating-instance]] Creating YarnAllocator Instance
+
+.Creating YarnAllocator
+image::../images/spark-yarn-YarnAllocator-amClient-ResourceManager.png[align="center"]
 
 When `YarnAllocator` is created, it sets the `org.apache.hadoop.yarn.util.RackResolver` logger to `WARN` (unless set to some log level already).
 
