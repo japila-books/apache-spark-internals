@@ -1,10 +1,12 @@
 == [[ApplicationMaster]][[ExecutorLauncher]] ApplicationMaster (and ExecutorLauncher)
 
-`ApplicationMaster` class acts as the link:yarn/spark-yarn-introduction.adoc#ApplicationMaster[YARN ApplicationMaster] for a Spark application deployed to a YARN cluster. It uses <<allocator, YarnAllocator>> to request containers for executors.
+`ApplicationMaster` class acts as the link:yarn/spark-yarn-introduction.adoc#ApplicationMaster[YARN ApplicationMaster] for a Spark application deployed to a YARN cluster (which is commonly called link:README.adoc[Spark on YARN]).
 
-It is a <<main, standalone application>> that link:yarn/spark-yarn-introduction.adoc#NodeManager[YARN NodeManager] runs inside a YARN resource container that controls the execution of a Spark application on YARN (that accepts <<command-line-parameters, command-line parameters>>, e.g. `--jar`, `--class`, `--arg`, `--properties-file`).
+It uses <<allocator, YarnAllocator>> to manage YARN containers for executors.
 
-When <<creating-instance, created>> `ApplicationMaster` class requires a link:spark-yarn-yarnrmclient.adoc[YarnRMClient] (which is responsible for registering and unregistering a Spark application).
+`ApplicationMaster` is a <<main, standalone application>> that link:yarn/spark-yarn-introduction.adoc#NodeManager[YARN NodeManager] runs inside a YARN resource container and is responsible for the execution of a Spark application on YARN.
+
+When <<creating-instance, created>> `ApplicationMaster` class is given a <<client, YarnRMClient>> (which is responsible for registering and unregistering a Spark application).
 
 [NOTE]
 ====
@@ -30,15 +32,19 @@ image::../images/spark-yarn-ApplicationMaster-main.png[align="center"]
 
 NOTE: https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/api/records/ContainerLaunchContext.html[ContainerLaunchContext] represents all of the information needed by the YARN NodeManager to launch a container.
 
-=== [[allocator]] allocator Internal Reference to YarnAllocator
-
-`allocator` is the internal reference to link:spark-yarn-YarnAllocator.adoc[YarnAllocator] that `ApplicationMaster` uses to request or release containers for executors.
-
-It is link:spark-yarn-yarnrmclient.adoc#register[assigned a value] when <<registerAM, `ApplicationMaster` is registered>> (using the internal <<client, YarnRMClient reference>>).
-
 === [[client]] client Internal Reference to YarnRMClient
 
-CAUTION: FIXME
+`client` is the internal reference to link:spark-yarn-yarnrmclient.adoc[YarnRMClient] that `ApplicationMaster` is given when <<creating-instance, created>>.
+
+`client` is primarily used to <<registerAM, register the `ApplicationMaster` and request containers for executors from YARN>> and later <<unregister, unregister `ApplicationMaster` from YARN ResourceManager>>.
+
+Besides, it helps obtaining <<getAttemptId, an application attempt id>> and link:spark-yarn-yarnrmclient.adoc#getMaxRegAttempts[the allowed number of attempts to register `ApplicationMaster`]. It also <<addAmIpFilter, gets filter parameters to secure ApplicationMaster's UI>>.
+
+=== [[allocator]] allocator Internal Reference to YarnAllocator
+
+`allocator` is the internal reference to link:spark-yarn-YarnAllocator.adoc[YarnAllocator] that `ApplicationMaster` uses to request new or release outstanding containers for executors.
+
+It is link:spark-yarn-yarnrmclient.adoc#register[created] when <<registerAM, `ApplicationMaster` is registered>> (using the internal <<client, YarnRMClient reference>>).
 
 === [[main]] main
 
@@ -72,7 +78,7 @@ DEBUG running as user: [user]
 
 `SparkHadoopUtil.runAsSparkUser` function executes a block that <<creating-instance, creates a `ApplicationMaster`>> (passing the <<ApplicationMasterArguments, ApplicationMasterArguments>> instance and a brand new link:spark-yarn-yarnrmclient.adoc[YarnRMClient]) and then <<run, runs>> it.
 
-=== [[command-line-parameters]][[ApplicationMasterArguments]] ApplicationMasterArguments -- Command-Line Parameters Handler
+=== [[command-line-parameters]][[ApplicationMasterArguments]] Command-Line Parameters (ApplicationMasterArguments class)
 
 `ApplicationMaster` uses `ApplicationMasterArguments` class to handle command-line parameters.
 
@@ -376,7 +382,7 @@ With the two different class names (pointing at the same class `ApplicationMaste
 
 NOTE: Consider `ExecutorLauncher` a `ApplicationMaster` for client deploy mode.
 
-=== [[getAttemptId]] Obtain Attempt Id (getAttemptId method)
+=== [[getAttemptId]] Obtain Application Attempt Id (getAttemptId method)
 
 [source, scala]
 ----
