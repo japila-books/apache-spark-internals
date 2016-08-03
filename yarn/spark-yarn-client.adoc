@@ -6,7 +6,7 @@ Depending on the link:spark-deploy-mode.adoc[deploy mode] it calls link:spark-ya
 
 [TIP]
 ====
-Enable `DEBUG` logging level for `org.apache.spark.deploy.yarn.Client` logger to see what happens inside.
+Enable `INFO` or `DEBUG` logging level for `org.apache.spark.deploy.yarn.Client` logger to see what happens inside.
 
 Add the following line to `conf/log4j.properties`:
 
@@ -26,20 +26,20 @@ When link:spark-yarn-client-yarnclientschedulerbackend.adoc#start[YarnClientSche
 submitApplication(): ApplicationId
 ----
 
-`submitApplication` submits a Spark application to a YARN cluster (i.e. to the link:spark-yarn-introduction.adoc#ResourceManager[YARN ResourceManager]). It waits until the application is running and eventually returns its unique https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/api/records/ApplicationId.html[ApplicationId].
+`submitApplication` submits a Spark application (represented by link:spark-yarn-applicationmaster.adoc[ApplicationMaster]) to a YARN cluster (i.e. to the link:spark-yarn-introduction.adoc#ResourceManager[YARN ResourceManager]) and returns the application's https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/api/records/ApplicationId.html[ApplicationId].
 
-NOTE: `submitApplication` is also used in the deprecated <<run, Client.run>>.
+NOTE: `submitApplication` is also used in the currently-deprecated <<run, Client.run>>.
 
 Internally, it executes `LauncherBackend.connect` first and then executes `Client.setupCredentials` to set up credentials for future calls.
 
-It creates a YARN client (using Hadoop's https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/client/api/YarnClient.html#createYarnClient()[YarnClient.createYarnClient]), https://hadoop.apache.org/docs/current/api/org/apache/hadoop/service/AbstractService.html#init(org.apache.hadoop.conf.Configuration)[inits it] with a https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/conf/YarnConfiguration.html[YarnConfiguration] and https://hadoop.apache.org/docs/current/api/org/apache/hadoop/service/AbstractService.html#start()[starts it]. All this happens using Hadoop API.
+It then https://hadoop.apache.org/docs/current/api/org/apache/hadoop/service/AbstractService.html#init(org.apache.hadoop.conf.Configuration)[inits] the internal <<yarnClient, yarnClient>> (with the internal `yarnConf`) and https://hadoop.apache.org/docs/current/api/org/apache/hadoop/service/AbstractService.html#start()[starts] it. All this happens using Hadoop API.
 
-CAUTION: FIXME How to configure `YarnClient`? What is `getYarnClusterMetrics`?
+CAUTION: FIXME How to configure `YarnClient`? What is YARN's `YarnClient.getYarnClusterMetrics`?
 
 You should see the following INFO in the logs:
 
 ```
-INFO Client: Requesting a new application from cluster with [yarnClient.getYarnClusterMetrics.getNumNodeManagers] NodeManagers
+INFO Client: Requesting a new application from cluster with [count] NodeManagers
 ```
 
 It then https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/client/api/YarnClient.html#createApplication()[YarnClient.createApplication()] to create a new application in YARN and obtains the application id.
@@ -50,15 +50,85 @@ CAUTION: FIXME Why is this important?
 
 `submitApplication` verifies whether the cluster has resources for the link:spark-yarn-applicationmaster.adoc[ApplicationManager] (using <<verifyClusterResources, verifyClusterResources>>).
 
-It then <<createContainerLaunchContext, createContainerLaunchContext>> and <<createApplicationSubmissionContext, createApplicationSubmissionContext>>.
+It then <<createContainerLaunchContext, creates YARN `ContainerLaunchContext`>> followed by <<createApplicationSubmissionContext, creating YARN `ApplicationSubmissionContext`>>.
 
-It submits the application to YARN ResourceManager.
+You should see the following INFO message in the logs:
 
 ```
-INFO Client: Submitting application [applicationId.getId] to ResourceManager
+INFO Client: Submitting application [appId] to ResourceManager
 ```
 
-And finally submits a new application to YARN (using Hadoop's https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/client/api/YarnClient.html#submitApplication(org.apache.hadoop.yarn.api.records.ApplicationSubmissionContext)[YarnClient.submitApplication]) and waits until it is accepted by YARN ResourceManager.
+`submitApplication` submits the new YARN `ApplicationSubmissionContext` for link:spark-yarn-applicationmaster.adoc[ApplicationMaster] to YARN (using Hadoop's https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/client/api/YarnClient.html#submitApplication(org.apache.hadoop.yarn.api.records.ApplicationSubmissionContext)[YarnClient.submitApplication]).
+
+It returns the YARN https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/api/records/ApplicationId.html[ApplicationId] for the Spark application (represented by link:spark-yarn-applicationmaster.adoc[ApplicationMaster]).
+
+=== [[createApplicationSubmissionContext]] Creating YARN ApplicationSubmissionContext (createApplicationSubmissionContext method)
+
+[source, scala]
+----
+createApplicationSubmissionContext(
+  newApp: YarnClientApplication,
+  containerContext: ContainerLaunchContext): ApplicationSubmissionContext
+----
+
+`createApplicationSubmissionContext` creates YARN's https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/api/records/ApplicationSubmissionContext.html[ApplicationSubmissionContext].
+
+NOTE: YARN's `ApplicationSubmissionContext` represents all of the information needed by the link:spark-yarn-introduction.adoc#ResourceManager[YARN ResourceManager] to launch the link:spark-yarn-applicationmaster.adoc[ApplicationMaster] for a Spark application.
+
+`createApplicationSubmissionContext` uses YARN's https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/client/api/YarnClientApplication.html[YarnClientApplication] (as the input `newApp`) to create a `ApplicationSubmissionContext`.
+
+`createApplicationSubmissionContext` sets the following information in the `ApplicationSubmissionContext`:
+
+[align="center"]
+|=======
+| The name of the Spark application | link:../spark-configuration.adoc#spark.app.name[spark.app.name] configuration setting or `Spark` if not set
+| Queue (to which the Spark application is submitted) | link:spark-yarn-settings.adoc#spark.yarn.queue[spark.yarn.queue] configuration setting
+| `ContainerLaunchContext` (that describes the `Container` with which the `ApplicationMaster` for the Spark application is launched) | the input `containerContext`
+| Type of the Spark application | `SPARK`
+| Tags for the Spark application | link:spark-yarn-settings.adoc#spark.yarn.tags[spark.yarn.tags] configuration setting
+| Number of max attempts of the Spark application to be submitted. | link:spark-yarn-settings.adoc#spark.yarn.maxAppAttempts[spark.yarn.maxAppAttempts] configuration setting
+| The `attemptFailuresValidityInterval` in milliseconds for the Spark application | link:spark-yarn-settings.adoc#spark.yarn.am.attemptFailuresValidityInterval[spark.yarn.am.attemptFailuresValidityInterval] configuration setting
+| Resource Capabilities for link:spark-yarn-applicationmaster.adoc[ApplicationMaster] for the Spark application | See <<resource, Resource Capabilities for ApplicationMaster -- Memory and Virtual CPU Cores>> section below
+| Rolled Log Aggregation for the Spark application | See <<LogAggregationContext, Rolled Log Aggregation Configuration for Spark Application>> section below
+|=======
+
+You will see the DEBUG message in the logs when the setting is not set:
+
+```
+DEBUG spark.yarn.maxAppAttempts is not set. Cluster's default value will be used.
+```
+
+==== [[resource]] Resource Capabilities for ApplicationMaster -- Memory and Virtual CPU Cores
+
+NOTE: YARN's https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/api/records/Resource.html[Resource] models a set of computer resources in the cluster. Currently, YARN supports resources with memory and virtual CPU cores capabilities only.
+
+The requested YARN's `Resource` for the link:spark-yarn-applicationmaster.adoc[ApplicationMaster] for a Spark application is the sum of `amMemory` and `amMemoryOverhead` for the memory and `amCores` for the virtual CPU cores.
+
+Besides, if link:spark-yarn-settings.adoc#spark.yarn.am.nodeLabelExpression[spark.yarn.am.nodeLabelExpression] is set, a new YARN https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/api/records/ResourceRequest.html[ResourceRequest] is created (for the `ApplicationMaster` container) that includes:
+
+[align="center"]
+|=======
+|Resource Name| `*` (star) that represents no locality.
+|Priority| `0`
+|Capability| The resource capabilities as defined above.
+|Number of containers| `1`
+|Node label expression| link:spark-yarn-settings.adoc#spark.yarn.am.nodeLabelExpression[spark.yarn.am.nodeLabelExpression] configuration setting
+|ResourceRequest of AM container| link:spark-yarn-settings.adoc#spark.yarn.am.nodeLabelExpression[spark.yarn.am.nodeLabelExpression] configuration setting
+|=======
+
+It sets the resource request to this new YARN `ResourceRequest` detailed in the table above.
+
+==== [[LogAggregationContext]] Rolled Log Aggregation for Spark Application
+
+NOTE: YARN's https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/api/records/LogAggregationContext.html[LogAggregationContext] represents all of the information needed by the link:spark-yarn-introduction.adoc#NodeManager[YARN NodeManager] to handle the logs for an application.
+
+If link:spark-yarn-settings.adoc#spark.yarn.rolledLog.includePattern[spark.yarn.rolledLog.includePattern] is defined, it creates a YARN https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/api/records/LogAggregationContext.html[LogAggregationContext] with the following patterns:
+
+[align="center"]
+|=======
+|Include Pattern|link:spark-yarn-settings.adoc#spark.yarn.rolledLog.includePattern[spark.yarn.rolledLog.includePattern] configuration setting
+|Exclude Pattern|link:spark-yarn-settings.adoc#spark.yarn.rolledLog.excludePattern[spark.yarn.rolledLog.excludePattern] configuration setting
+|=======
 
 ==== [[verifyClusterResources]] Verifying Maximum Memory Capability of YARN Cluster (verifyClusterResources private method)
 
@@ -644,7 +714,5 @@ reportLauncherState(state: SparkAppHandle.State): Unit
 `reportLauncherState` merely passes the call on to `LauncherBackend.setState`.
 
 CAUTION: What does `setState` do?
-
-=== [[createApplicationSubmissionContext]] createApplicationSubmissionContext
 
 === [[ClientArguments]] ClientArguments
