@@ -1,27 +1,68 @@
 == Structured Streaming (aka Streaming Datasets)
 
-*Structured Streaming* is a new computation model introduced in Spark 2.0.0. It has a high-level declarative streaming API built on top of link:spark-sql-dataset.adoc[Datasets] (inside Spark SQL engine) for continuous incremental execution of link:spark-sql-StreamingQuery.adoc[structured queries].
+*Structured Streaming* is a new computation model introduced in Spark 2.0.0 for building end-to-end streaming applications termed as *continuous applications*. Structured streaming offers a high-level declarative streaming API built on top of link:spark-sql-dataset.adoc[Datasets] (inside Spark SQL engine) for continuous incremental execution of link:spark-sql-StreamingQuery.adoc[structured queries].
 
-Structured streaming is an attempt to unify streaming, interactive, and batch queries that paves the way for *continuous applications* (e.g. continuous aggregations using link:spark-sql-dataset.adoc#groupBy[groupBy] operator or continuous windowed aggregations using `groupBy` operator with link:spark-sql-functions.adoc#window[window] function). Spark 2.0 aims at simplifying *streaming analytics* without having to reason about streaming at all.
+The semantics of the Structured Streaming model is as follows (see the article https://databricks.com/blog/2016/07/28/structured-streaming-in-apache-spark.html[Structured Streaming In Apache Spark]):
 
-The new model introduces the *streaming datasets* that are _infinite datasets_ with primitives like input link:spark-sql-source.adoc[sources] and output link:spark-sql-sink.adoc[streaming sinks], *event time*, *windowing*, and *sessions*. You can specify link:spark-sql-streaming-DataStreamWriter.adoc#outputMode[output mode] of a streaming dataset which is what gets written to a streaming sink when there is new data available.
+> At any time, the output of a continuous application is equivalent to executing a batch job on a prefix of the data.
+
+Structured streaming is an attempt to unify streaming, interactive, and batch queries that paves the way for continuous applications like continuous aggregations using link:spark-sql-dataset.adoc#groupBy[groupBy] operator or continuous windowed aggregations using `groupBy` operator with link:spark-sql-functions.adoc#window[window] function.
+
+Spark 2.0 aims at simplifying *streaming analytics* without having to reason about streaming at all.
+
+The new model introduces the *streaming datasets* that are _infinite datasets_ with primitives like input link:spark-sql-source.adoc[streaming sources] and output link:spark-sql-sink.adoc[streaming sinks], *event time*, *windowing*, and *sessions*. You can specify link:spark-sql-streaming-DataStreamWriter.adoc#outputMode[output mode] of a streaming dataset which is what gets written to a streaming sink when there is new data available.
 
 It lives in `org.apache.spark.sql.streaming` package with the following main data abstractions:
 
 * link:spark-sql-StreamingQueryManager.adoc[StreamingQueryManager]
 * link:spark-sql-StreamingQuery.adoc[StreamingQuery]
-* link:spark-sql-source.adoc[Source]
-* link:spark-sql-sink.adoc[Streaming Sink]
+* link:spark-sql-source.adoc[Input Source]
+* link:spark-sql-sink.adoc[Output Sink]
 
 With Datasets being Spark SQL's view of structured data, structured streaming checks input sources for new data every link:spark-sql-trigger.adoc[trigger] (time) and executes the (continuous) queries.
 
-NOTE: The feature has also been called *Streaming Spark SQL Query*, *Streaming DataFrames*, *Continuous DataFrames* or *Continuous Queries*. There have been lots of names before Structured Streaming was chosen.
-
 TIP: Watch https://issues.apache.org/jira/browse/SPARK-8360[SPARK-8360 Streaming DataFrames] to track progress of the feature.
 
-=== [[example]] Example
+TIP: Read the official programming guide of Spark about http://spark.apache.org/docs/latest/structured-streaming-programming-guide.html[Structured Streaming].
 
-Below is a complete example of a streaming query in a form of `DataFrame` of data from `hello` cvs files of a given schema into a link:spark-sql-streaming-ConsoleSink.adoc[ConsoleSink] every 5 seconds.
+NOTE: The feature has also been called *Streaming Spark SQL Query*, *Streaming DataFrames*, *Continuous DataFrame* or *Continuous Query*. There have been lots of names before the Spark project settled on Structured Streaming.
+
+=== [[example-socket-in-console-out]] Example -- Streaming Query for Running Counts (over Words from Socket with Output to Console)
+
+NOTE: The example is "borrowed" from http://spark.apache.org/docs/latest/structured-streaming-programming-guide.html[the official documentation of Spark]. Changes and errors are only mine.
+
+TIP: You need to run `nc -lk 9999` first before running the example.
+
+[source, scala]
+----
+val lines = spark.readStream
+  .format("socket")
+  .option("host", "localhost")
+  .option("port", 9999)
+  .load()
+
+import org.apache.spark.sql.Dataset
+val wordsDS: Dataset[String] = lines.as[String]
+
+val words = wordsDS.flatMap(_.split("\\W+"))
+
+scala> words.printSchema
+root
+ |-- value: string (nullable = true)
+
+val wordCounts = words.groupBy("value").count
+
+val query = wordCounts.writeStream
+  .outputMode("complete")
+  .format("console")
+  .start  // nc -lk 9999 is supposed to be up at this point
+----
+
+=== [[example-csv-in-console-out]] Example -- Streaming Query over CSV Files with Output to Console Every 5 Seconds
+
+Below you can find a complete example of a streaming query in a form of `DataFrame` of data from `csv-logs` files in `csv` format of a given schema into a link:spark-sql-streaming-ConsoleSink.adoc[ConsoleSink] every 5 seconds.
+
+TIP: Copy and paste it to Spark Shell in `:paste` mode to run it.
 
 [source, scala]
 ----
@@ -58,19 +99,18 @@ root
  |-- age: integer (nullable = true)
  |-- alive: boolean (nullable = true)
 
-scala> in.isStreaming
-res1: Boolean = true
+println("Is the query streaming" + in.isStreaming)
 
-scala> spark.streams.active.isEmpty
-res2: Boolean = true
+println("Are there any streaming queries?" + spark.streams.active.isEmpty)
 
 import scala.concurrent.duration._
-import org.apache.spark.sql.streaming.{OutputMode, ProcessingTime}
+import org.apache.spark.sql.streaming.ProcessingTime
+import org.apache.spark.sql.streaming.OutputMode.Append
 val out = in.writeStream
   .format("console")
   .trigger(ProcessingTime(5.seconds))
   .queryName("consoleStream")
-  .outputMode(OutputMode.Append)
+  .outputMode(Append)
   .start()
 
 16/07/13 12:32:11 TRACE FileStreamSource: Listed 3 file(s) in 4.274022 ms
@@ -95,8 +135,10 @@ Batch: 0
 |Jacek|Warszawa| Polska| 42| true|
 +-----+--------+-------+---+-----+
 
-scala> spark.streams.active.foreach(println)
-Streaming Query - consoleStream [state = ACTIVE]
+spark.streams
+  .active
+  .foreach(println)
+// Streaming Query - consoleStream [state = ACTIVE]
 
 scala> spark.streams.active(0).explain
 == Physical Plan ==
@@ -104,6 +146,8 @@ scala> spark.streams.active(0).explain
 ----
 
 === [[i-want-more]] Further reading or watching
+
+* https://databricks.com/blog/2016/07/28/structured-streaming-in-apache-spark.html[Structured Streaming In Apache Spark]
 
 * (video) https://youtu.be/oXkxXDG0gNk[The Future of Real Time in Spark] from Spark Summit East 2016 in which Reynold Xin presents the concept of *Streaming DataFrames* to the public.
 * (video) https://youtu.be/i7l3JQRx7Qw?t=19m15s[Structuring Spark: DataFrames, Datasets, and Streaming]
