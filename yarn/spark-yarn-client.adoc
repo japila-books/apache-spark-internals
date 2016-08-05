@@ -1,11 +1,13 @@
 == Client
 
-`org.apache.spark.deploy.yarn.Client` can be used as a <<main, standalone application>> to link:spark-submit.adoc#submit[submit Spark applications] to a YARN cluster.
+`Client` (package: `org.apache.spark.deploy.yarn`) is a handle to a YARN cluster to deploy link:spark-yarn-applicationmaster.adoc[ApplicationMaster] (for a Spark application being deployed to a YARN cluster).
 
 .Client and Hadoop's YarnClient Interactions
 image::../images/spark-yarn-Client-YarnClient.png[align="center"]
 
-Depending on the link:spark-deploy-mode.adoc[deploy mode] it calls link:spark-yarn-applicationmaster.adoc[org.apache.spark.deploy.yarn.ApplicationMaster] or ApplicationMaster's wrapper link:spark-yarn-applicationmaster.adoc#ExecutorLauncher[org.apache.spark.deploy.yarn.ExecutorLauncher] by their class names.
+Depending on the <<isClusterMode, deploy mode>> it uses link:spark-yarn-applicationmaster.adoc[ApplicationMaster] or ApplicationMaster's wrapper link:spark-yarn-applicationmaster.adoc#ExecutorLauncher[ExecutorLauncher] by their class names in a <<createContainerLaunchContext, ContainerLaunchContext>> (that represents all of the information needed by the YARN NodeManager to launch a container).
+
+It was initially used as a <<main, standalone application>> to link:spark-submit.adoc#submit[submit Spark applications] to a YARN cluster, but is currently considered obsolete.
 
 [TIP]
 ====
@@ -19,6 +21,39 @@ log4j.logger.org.apache.spark.deploy.yarn.Client=DEBUG
 
 Refer to link:spark-logging.adoc[Logging].
 ====
+
+=== [[creating-instance]] Creating Client Instance
+
+Creating an instance of `Client` does the following:
+
+* Creates an internal instance of `YarnClient` (using `YarnClient.createYarnClient`) that becomes `yarnClient`.
+
+* Creates an internal instance of `YarnConfiguration` (using `YarnConfiguration` and the input `hadoopConf`) that becomes `yarnConf`.
+
+* Sets the internal `isClusterMode` that says whether link:spark-deploy-mode.adoc#spark.submit.deployMode[spark.submit.deployMode] is link:spark-deploy-mode.adoc#cluster[cluster deploy mode].
+
+[[amMemory]]
+* Sets the internal `amMemory` to link:spark-driver.adoc#spark.driver.memory[spark.driver.memory] when `isClusterMode` is enabled or link:spark-yarn-settings.adoc#spark.yarn.am.memory[spark.yarn.am.memory] otherwise.
+
+* Sets the internal `amMemoryOverhead` to link:spark-yarn-settings.adoc#spark.yarn.driver.memoryOverhead[spark.yarn.driver.memoryOverhead] when `isClusterMode` is enabled or link:spark-yarn-settings.adoc#spark.yarn.am.memoryOverhead[spark.yarn.am.memoryOverhead] otherwise. If neither is available, the maximum of 10% of `amMemory` and `384` is chosen.
+
+* Sets the internal `amCores` to link:spark-driver.adoc#spark.driver.cores[spark.driver.cores] when `isClusterMode` is enabled or link:spark-yarn-settings.adoc#spark.yarn.am.cores[spark.yarn.am.cores] otherwise.
+
+* Sets the internal `executorMemory` to link:spark-executor.adoc#spark.executor.memory[spark.executor.memory].
+
+* Sets the internal `executorMemoryOverhead` to link:spark-yarn-settings.adoc#spark.yarn.executor.memoryOverhead[spark.yarn.executor.memoryOverhead]. If unavailable, it is set to the maximum of 10% of `executorMemory` and `384`.
+
+* Creates an internal instance of link:yarn/spark-yarn-ClientDistributedCacheManager.adoc[ClientDistributedCacheManager] (as `distCacheMgr`).
+
+* Sets the variables: `loginFromKeytab` to `false` with `principal`, `keytab`, and `credentials` to `null`.
+
+* Creates an internal instance of `LauncherBackend` (as <<launcherBackend, launcherBackend>>).
+
+* Sets the internal `fireAndForget` flag to the result of `isClusterMode` and not link:spark-yarn-settings.adoc#spark.yarn.submit.waitAppCompletion[spark.yarn.submit.waitAppCompletion].
+
+* Sets the internal variable `appId` to `null`.
+
+* Sets the internal `appStagingBaseDir` to link:spark-yarn-settings.adoc#spark.yarn.stagingDir[spark.yarn.stagingDir] or the home directory of Hadoop.
 
 === [[submitApplication]] Submitting Spark Application to YARN (submitApplication method)
 
@@ -506,69 +541,28 @@ buildPath(components: String*): String
 
 === [[isClusterMode]] isClusterMode Internal Flag
 
-`isClusterMode` is an internal flag that says whether the Spark application runs in link:spark-deploy-mode.adoc#cluster[cluster] or link:spark-deploy-mode.adoc#client[client] deploy mode. The flag is enabled for cluster deploy mode, i.e. `true`.
+`isClusterMode` is an internal flag that says whether the Spark application runs in link:spark-deploy-mode.adoc#cluster[cluster] or link:spark-deploy-mode.adoc#client[client] deploy mode. The flag is enabled for `cluster` deploy mode, i.e. `true`.
 
-Since a Spark application requires different settings per deploy mode, `isClusterMode` flag "splits" `Client` per deploy mode.
+NOTE: Since a Spark application requires different settings per deploy mode, `isClusterMode` flag effectively "splits" `Client` on two parts per deploy mode -- one responsible for `client` and the other for `cluster` deploy mode.
 
 CAUTION: FIXME Replace the internal fields used below with their true meanings.
 
-CAUTION: FIXME Use a table to present the differences.
-
-When the `isClusterMode` flag is enabled, i.e. the Spark application runs in cluster deploy mode:
-
-1. `amMemory` is configured using link:../spark-driver.adoc#spark.driver.memory[spark.driver.memory].
-2. `amMemoryOverhead` is configured using link:spark-yarn-settings.adoc#spark.yarn.driver.memoryOverhead[spark.yarn.driver.memoryOverhead].
-3. `amCores` is configured using link:../spark-driver.adoc#spark.driver.cores[spark.driver.cores].
-4. `javaOpts` is link:../spark-driver.adoc#spark.driver.extraJavaOptions[spark.driver.extraJavaOptions].
-5. `libraryPaths` is link:../spark-driver.adoc#spark.driver.extraLibraryPath[spark.driver.extraLibraryPath] and link:../spark-driver.adoc##spark.driver.libraryPath[spark.driver.libraryPath].
-6. link:spark-yarn-applicationmaster.adoc#command-line-parameters[`--class` command-line argument for `ApplicationMaster`] is set to `args.userClass`.
-7. The application master class is link:spark-yarn-applicationmaster.adoc[org.apache.spark.deploy.yarn.ApplicationMaster].
-
-When the `isClusterMode` flag is disabled, i.e. the Spark application runs in client deploy mode:
-
-1. `amMemory` is configured using link:spark-yarn-settings.adoc#spark.yarn.am.memory[spark.yarn.am.memory].
-2. `amMemoryOverhead` is configured using link:spark-yarn-settings.adoc#spark.yarn.am.memoryOverhead[spark.yarn.am.memoryOverhead].
-3. `amCores` is configured using link:spark-yarn-settings.adoc#spark.yarn.am.cores[spark.yarn.am.cores].
-4. `javaOpts` is link:spark-yarn-settings.adoc#spark.yarn.am.extraJavaOptions[spark.yarn.am.extraJavaOptions].
-5. `libraryPaths` is link:spark-yarn-settings.adoc#spark.yarn.am.extraLibraryPath[spark.yarn.am.extraLibraryPath].
-6. The application master class is link:spark-yarn-applicationmaster.adoc[org.apache.spark.deploy.yarn.ExecutorLauncher].
+.`isClusterMode` flag and internal attributes of `Client`
+[align="center",cols="1,2,2"options="header"]
+|=======
+| Internal attribute | cluster deploy mode | client deploy mode
+| `amMemory` | link:../spark-driver.adoc#spark.driver.memory[spark.driver.memory] | link:spark-yarn-settings.adoc#spark.yarn.am.memory[spark.yarn.am.memory]
+| `amMemoryOverhead` | link:spark-yarn-settings.adoc#spark.yarn.driver.memoryOverhead[spark.yarn.driver.memoryOverhead] | link:spark-yarn-settings.adoc#spark.yarn.am.memoryOverhead[spark.yarn.am.memoryOverhead]
+| `amCores` | link:../spark-driver.adoc#spark.driver.cores[spark.driver.cores] | link:spark-yarn-settings.adoc#spark.yarn.am.cores[spark.yarn.am.cores]
+| `javaOpts` | link:../spark-driver.adoc#spark.driver.extraJavaOptions[spark.driver.extraJavaOptions] | link:spark-yarn-settings.adoc#spark.yarn.am.extraJavaOptions[spark.yarn.am.extraJavaOptions]
+| `libraryPaths` | link:../spark-driver.adoc#spark.driver.extraLibraryPath[spark.driver.extraLibraryPath] and link:../spark-driver.adoc##spark.driver.libraryPath[spark.driver.libraryPath] | link:spark-yarn-settings.adoc#spark.yarn.am.extraLibraryPath[spark.yarn.am.extraLibraryPath]
+| link:spark-yarn-applicationmaster.adoc#command-line-parameters[`--class` command-line argument for `ApplicationMaster`] | `args.userClass` |
+| Application master class | link:spark-yarn-applicationmaster.adoc[org.apache.spark.deploy.yarn.ApplicationMaster] | link:spark-yarn-applicationmaster.adoc[org.apache.spark.deploy.yarn.ExecutorLauncher]
+|=======
 
 When the `isClusterMode` flag is enabled, the <<yarnClient, internal reference to YARN's `YarnClient`>> is used to stop application.
 
 When the `isClusterMode` flag is enabled (and link:spark-yarn-settings.adoc#spark.yarn.submit.waitAppCompletion[spark.yarn.submit.waitAppCompletion] is disabled), so is `fireAndForget` internal flag.
-
-=== [[creating-instance]] Creating Client Instance
-
-Creating an instance of `Client` does the following:
-
-* Creates an internal instance of `YarnClient` (using `YarnClient.createYarnClient`) that becomes `yarnClient`.
-
-* Creates an internal instance of `YarnConfiguration` (using `YarnConfiguration` and the input `hadoopConf`) that becomes `yarnConf`.
-
-* Sets the internal `isClusterMode` that says whether link:spark-deploy-mode.adoc#spark.submit.deployMode[spark.submit.deployMode] is link:spark-deploy-mode.adoc#cluster[cluster deploy mode].
-
-[[amMemory]]
-* Sets the internal `amMemory` to link:spark-driver.adoc#spark.driver.memory[spark.driver.memory] when `isClusterMode` is enabled or link:spark-yarn-settings.adoc#spark.yarn.am.memory[spark.yarn.am.memory] otherwise.
-
-* Sets the internal `amMemoryOverhead` to link:spark-yarn-settings.adoc#spark.yarn.driver.memoryOverhead[spark.yarn.driver.memoryOverhead] when `isClusterMode` is enabled or link:spark-yarn-settings.adoc#spark.yarn.am.memoryOverhead[spark.yarn.am.memoryOverhead] otherwise. If neither is available, the maximum of 10% of `amMemory` and `384` is chosen.
-
-* Sets the internal `amCores` to link:spark-driver.adoc#spark.driver.cores[spark.driver.cores] when `isClusterMode` is enabled or link:spark-yarn-settings.adoc#spark.yarn.am.cores[spark.yarn.am.cores] otherwise.
-
-* Sets the internal `executorMemory` to link:spark-executor.adoc#spark.executor.memory[spark.executor.memory].
-
-* Sets the internal `executorMemoryOverhead` to link:spark-yarn-settings.adoc#spark.yarn.executor.memoryOverhead[spark.yarn.executor.memoryOverhead]. If unavailable, it is set to the maximum of 10% of `executorMemory` and `384`.
-
-* Creates an internal instance of link:yarn/spark-yarn-ClientDistributedCacheManager.adoc[ClientDistributedCacheManager] (as `distCacheMgr`).
-
-* Sets the variables: `loginFromKeytab` to `false` with `principal`, `keytab`, and `credentials` to `null`.
-
-* Creates an internal instance of `LauncherBackend` (as <<launcherBackend, launcherBackend>>).
-
-* Sets the internal `fireAndForget` flag to the result of `isClusterMode` and not link:spark-yarn-settings.adoc#spark.yarn.submit.waitAppCompletion[spark.yarn.submit.waitAppCompletion].
-
-* Sets the internal variable `appId` to `null`.
-
-* Sets the internal `appStagingBaseDir` to link:spark-yarn-settings.adoc#spark.yarn.stagingDir[spark.yarn.stagingDir] or the home directory of Hadoop.
 
 === [[launcherBackend]] launcherBackend value
 
@@ -584,7 +578,7 @@ CAUTION: FIXME Where is `SPARK_` prefix rule enforced?
 
 NOTE: `SPARK_YARN_MODE` is a system property (i.e. available using `System.getProperty`) and a environment variable (i.e. available using `System.getenv` or `sys.env`). See link:spark-yarn-YarnSparkHadoopUtil.adoc[YarnSparkHadoopUtil].
 
-It is enabled (i.e. `true`) when link:spark-sparkcontext-creating-instance-internals.adoc#SPARK_YARN_MODE[SparkContext is created for Spark on YARN in client deploy mode], when <<setupLaunchEnv, Client...FIXME>> and <<main, a Spark application is deployed to a YARN cluster>>.
+It is enabled (i.e. `true`) when link:spark-sparkcontext-creating-instance-internals.adoc#SPARK_YARN_MODE[SparkContext is created for Spark on YARN in client deploy mode], when <<setupLaunchEnv, `Client` sets up an environment to launch `ApplicationMaster` container>> (and, what is currently considered deprecated, <<main, a Spark application was deployed to a YARN cluster>>).
 
 CAUTION: FIXME Why is this needed? `git blame` it.
 
@@ -639,7 +633,9 @@ It then instantiates link:spark-configuration.adoc[SparkConf], parses command-li
 stop(): Unit
 ----
 
-`stop` closes the internal <<launcherBackend, LauncherBackend>> and stops the internal <<yarnClient, yarnClient>>. It also clears <<SPARK_YARN_MODE, SPARK_YARN_MODE flag>> (to allow switching between cluster types).
+`stop` closes the internal <<launcherBackend, LauncherBackend>> and stops the internal <<yarnClient, yarnClient>>.
+
+It also clears <<SPARK_YARN_MODE, SPARK_YARN_MODE flag>> (to allow switching between cluster types).
 
 === [[run]] run
 
