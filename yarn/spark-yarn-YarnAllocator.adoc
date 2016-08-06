@@ -30,30 +30,52 @@ Refer to link:spark-logging.adoc[Logging].
 
 === [[creating-instance]] Creating YarnAllocator Instance
 
+When link:spark-yarn-yarnrmclient.adoc#register[`YarnRMClient` registers `ApplicationMaster` for a Spark application (with YARN ResourceManager)] it creates a new `YarnAllocator` instance.
+
 .Creating YarnAllocator
 image::../images/spark-yarn-YarnAllocator-amClient-ResourceManager.png[align="center"]
 
+All the input parameters for `YarnAllocator` (but `appAttemptId` and `amClient`) are passed directly from the input parameters of `YarnRMClient`.
+
+[source, scala]
+----
+YarnAllocator(
+  driverUrl: String,
+  driverRef: RpcEndpointRef,
+  conf: Configuration,
+  sparkConf: SparkConf,
+  amClient: AMRMClient[ContainerRequest],
+  appAttemptId: ApplicationAttemptId,
+  securityMgr: SecurityManager,
+  localResources: Map[String, LocalResource])
+----
+
+The input `amClient` parameter is created in and owned by `YarnRMClient`.
+
 When `YarnAllocator` is created, it sets the `org.apache.hadoop.yarn.util.RackResolver` logger to `WARN` (unless set to some log level already).
 
-It creates an empty <<releasedContainers, releasedContainers>> and sets the internal `numExecutorsRunning` variable to `0`.
+It creates the following empty registries:
 
-It sets the internal `executorIdCounter` counter to the link:spark-yarn-cluster-YarnSchedulerEndpoint.adoc#RetrieveLastAllocatedExecutorId[last allocated executor id].
+* <<releasedContainers, releasedContainers>>
+* <<allocatedHostToContainersMap, allocatedHostToContainersMap>>
+* <<allocatedContainerToHostMap, allocatedContainerToHostMap>>
+* <<pendingLossReasonRequests, pendingLossReasonRequests>>
+* <<releasedExecutorLossReasons, releasedExecutorLossReasons>>
+* <<executorIdToContainer, executorIdToContainer>>
+* <<containerIdToExecutorId, containerIdToExecutorId>>
+* <<hostToLocalTaskCounts, hostToLocalTaskCounts>>
 
-It creates an empty <<failedExecutorsTimeStamps, failedExecutorsTimeStamps>> queue.
+It sets the following internal counters:
+
+* `numExecutorsRunning` to `0`
+* `executorIdCounter` to the  link:spark-yarn-cluster-YarnSchedulerEndpoint.adoc#RetrieveLastAllocatedExecutorId[last allocated executor id] (it seems quite an extensive operation that uses a RPC system)
+* `numUnexpectedContainerRelease` to `0L`
+* `numLocalityAwareTasks` to `0`
+* `targetNumExecutors` to link:spark-yarn-YarnSparkHadoopUtil.adoc#getInitialTargetExecutorNumber[the initial number of executors]
+
+It creates an empty <<failedExecutorsTimeStamps, queue of failed executors>>.
 
 It sets the internal `executorFailuresValidityInterval` to link:spark-yarn-settings.adoc#spark.yarn.executor.failuresValidityInterval[spark.yarn.executor.failuresValidityInterval].
-
-It sets the internal `targetNumExecutors` counter to link:spark-yarn-YarnSparkHadoopUtil.adoc#getInitialTargetExecutorNumber[the initial number of executors].
-
-It creates an empty <<pendingLossReasonRequests, pendingLossReasonRequests>> collection of...FIXME
-
-It creates an empty <<releasedExecutorLossReasons, releasedExecutorLossReasons>> collection of...FIXME
-
-It creates an empty <<executorIdToContainer, executorIdToContainer>> collection of...FIXME
-
-It sets the internal `numUnexpectedContainerRelease` counter to `0L`.
-
-It creates an empty <<containerIdToExecutorId, containerIdToExecutorId>> collection of...FIXME
 
 It sets the internal `executorMemory` to link:spark-executor.adoc#spark.executor.memory[spark.executor.memory].
 
@@ -72,10 +94,6 @@ It sets the internal `labelExpression` to link:spark-yarn-settings.adoc#spark.ya
 It sets the internal `nodeLabelConstructor` to...FIXME
 
 CAUTION: FIXME nodeLabelConstructor?
-
-It creates an empty <<hostToLocalTaskCounts, hostToLocalTaskCounts>> collection of...FIXME
-
-It sets the internal `numLocalityAwareTasks` counter to `0`.
 
 It sets the internal `containerPlacementStrategy` to...FIXME
 
