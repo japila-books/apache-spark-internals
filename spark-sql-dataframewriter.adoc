@@ -1,24 +1,31 @@
 == DataFrameWriter
 
-`DataFrameWriter` is used to write a link:spark-sql-dataframe.adoc[DataFrame] to external storage systems in batch or <<streams, streaming>> fashions.
+`DataFrameWriter` is used to persist a link:spark-sql-dataframe.adoc[DataFrame] to an external storage system in a batch fashion.
 
-Use link:spark-sql-dataframe.adoc#write[write] method on a `DataFrame` to access it.
+NOTE: Read link:spark-sql-streaming-DataStreamWriter.adoc[DataStreamWriter] for streaming write API.
+
+Use link:spark-sql-dataframe.adoc#write[write] method on a `DataFrame` to access `DataFrameWriter`.
 
 [source, scala]
 ----
-import org.apache.spark.sql.{DataFrame, DataFrameWriter}
+import org.apache.spark.sql.{DataFrame, DataFrameWriter, Row}
 
-val df: DataFrame = ...
-val writer: DataFrameWriter = df.write
+val ints: DataFrame = (0 to 5).toDF
+val writer: DataFrameWriter[Row] = ints.write
 ----
 
-It has a direct support for many <<writing-dataframes-to-files, file formats>>, <<jdbc, JDBC databases>> and <<format, interface for new ones>>. It assumes <<parquet, parquet>> as the default data source (but you can change the format using link:spark-sql-settings.adoc[spark.sql.sources.default] setting or <<format, format>> method.
+It has a direct support for many <<writing-dataframes-to-files, file formats>>, <<jdbc, JDBC databases>> and <<format, an interface to plug in new formats>>. It assumes <<parquet, parquet>> as the default data source that you can change using link:spark-sql-settings.adoc[spark.sql.sources.default] setting or <<format, format>> method.
 
-As of Spark *2.0.0* `DataFrameWriter` offers methods for link:spark-sql-structured-streaming.adoc[Structured Streaming]:
+[source, scala]
+----
+// see above for writer definition
 
-* <<trigger, trigger>> to set the link:spark-sql-trigger.adoc[Trigger] for a stream query.
-* <<queryName, queryName>>
-* <<startStream, startStream>> to start a continuous write.
+// Save dataset in Parquet format
+writer.save(path = "ints")
+
+// Save dataset in JSON format
+writer.format("json").save(path = "ints-json")
+----
 
 === [[jdbc]] jdbc
 
@@ -69,44 +76,6 @@ You can control the behaviour of write using `mode` method, i.e. what happens wh
 * `SaveMode.Ignore` or
 * `SaveMode.ErrorIfExists` or
 * `SaveMode.Overwrite` or
-
-
-=== [[trigger]] trigger
-
-[source, scala]
-----
-trigger(trigger: Trigger): DataFrameWriter
-----
-
-`trigger` method sets the time interval known as a *trigger* (as `Trigger` object) for stream query.
-
-NOTE: The default trigger is link:spark-sql-trigger.adoc#ProcessingTime[ProcessingTime(0)] that runs the query as often as possible.
-
-TIP: Consult link:spark-sql-trigger.adoc[Trigger] to learn about `Trigger` and `ProcessingTime` types.
-
-=== [[streams]][[startStream]] Data Streams (startStream methods)
-
-`DataFrameWriter` comes with two `startStream` methods to return a link:spark-sql-StreamingQuery.adoc[StreamingQuery] object to continually write data.
-
-[source, scala]
-----
-startStream(): StreamingQuery
-startStream(path: String): StreamingQuery  // <1>
-----
-<1> Sets `path` option to `path` and calls `startStream()`
-
-NOTE: `startStream` uses link:spark-sql-StreamingQueryManager.adoc#startQuery[StreamingQueryManager.startQuery] to create link:spark-sql-StreamingQuery.adoc[StreamingQuery].
-
-NOTE: Whether or not you have to specify `path` option depends on the link:spark-sql-datasource.adoc[DataSource] in use.
-
-Recognized options:
-
-* `queryName` is the name of active streaming query.
-* `checkpointLocation` is the directory for checkpointing.
-
-NOTE: Define options using <<option, option>> or <<options, options>> methods.
-
-NOTE: It is a new feature of Spark *2.0.0*.
 
 === [[option]][[options]] Writer Configuration (option and options methods)
 
