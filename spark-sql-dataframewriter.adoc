@@ -14,7 +14,7 @@ val ints: DataFrame = (0 to 5).toDF
 val writer: DataFrameWriter[Row] = ints.write
 ----
 
-It has a direct support for many <<writing-dataframes-to-files, file formats>>, <<jdbc, JDBC databases>> and <<format, an interface to plug in new formats>>. It assumes <<parquet, parquet>> as the default data source that you can change using link:spark-sql-settings.adoc[spark.sql.sources.default] setting or <<format, format>> method.
+`DataFrameWriter` has a direct support for many <<writing-dataframes-to-files, file formats>>, <<jdbc, JDBC databases>> and <<format, an interface to plug in new formats>>. It assumes <<parquet, parquet>> as the default data source that you can change using link:spark-sql-settings.adoc[spark.sql.sources.default] setting or <<format, format>> method.
 
 [source, scala]
 ----
@@ -26,6 +26,40 @@ writer.save(path = "ints")
 // Save dataset in JSON format
 writer.format("json").save(path = "ints-json")
 ----
+
+Interestingly, a `DataFrameWriter` is really a type constructor in Scala that keeps a reference to a source `DataFrame` during its lifecycle (starting right from the moment it was created).
+
+=== [[internal-state]] Internal State
+
+`DataFrameWriter` uses the following mutable attributes to build a properly-defined write specification for <<insertInto, insertInto>>, <<saveAsTable, saveAsTable>>, and <<save, save>>:
+
+.Attributes and Corresponding Setters
+[frame="topbot",cols="1,2",options="header"]
+|======================
+|Attribute |Setters
+|`source`        |<<format, format>>
+|`mode` | <<mode, mode>>
+|`extraOptions` | <<option, option>>, <<options, options>>, <<save, save>>
+|`partitioningColumns` | <<partitionBy, partitionBy>>
+|`bucketColumnNames` | <<bucketBy, bucketBy>>
+|`numBuckets` | <<bucketBy, bucketBy>>
+|`sortColumnNames` | <<sortBy, sortBy>>
+|======================
+
+=== [[save]] Persisting DataFrame (save method)
+
+[source, scala]
+----
+save(): Unit
+----
+
+When you `save` a `DataFrame`, the method will first check whether the `DataFrame` is not bucketed.
+
+CAUTION: FIXME What does `bucketing` mean?
+
+It then creates a link:spark-sql-datasource.adoc[DataSource] and calls link:spark-sql-datasource.adoc#write[write] on it.
+
+NOTE: It uses `source`, `partitioningColumns`, `extraOptions`, and `mode` internal attributes directly. They are specified through the API.
 
 === [[jdbc]] jdbc
 
