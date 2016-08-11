@@ -177,25 +177,58 @@ scala> df.withColumn("struct", struct($"name", $"val")).show
 
 [source, scala]
 ----
-broadcast(df: DataFrame): DataFrame
+broadcast[T](df: Dataset[T]): Dataset[T]
 ----
 
-`broadcast` function creates a new `DataFrame` (out of the input `DataFrame`) and marks the logical plan to be broadcast when used in a `join` operator.
+`broadcast` function marks the input link:spark-sql-dataset.adoc[Dataset] small enough to be used in broadcast `join`.
 
 TIP: Consult link:spark-sql-joins.adoc#broadcast-join[Broadcast Join] document.
 
 [source, scala]
 ----
-val left = Seq((0, "aa"), (0, "bb")).toDF("id", "token")
-val right = Seq(("aa", 0.99), ("bb", 0.57)).toDF("token", "prob")
+val left = Seq((0, "aa"), (0, "bb")).toDF("id", "token").as[(Int, String)]
+val right = Seq(("aa", 0.99), ("bb", 0.57)).toDF("token", "prob").as[(String, Double)]
 
-scala> left.join(broadcast(right), "token").show
-+-----+---+----+
-|token| id|prob|
-+-----+---+----+
-|   aa|  0|0.99|
-|   bb|  0|0.57|
-+-----+---+----+
+scala> left.join(broadcast(right), "token").explain(extended = true)
+== Parsed Logical Plan ==
+'Join UsingJoin(Inner,List('token))
+:- Project [_1#42 AS id#45, _2#43 AS token#46]
+:  +- LocalRelation [_1#42, _2#43]
++- BroadcastHint
+   +- Project [_1#55 AS token#58, _2#56 AS prob#59]
+      +- LocalRelation [_1#55, _2#56]
+
+== Analyzed Logical Plan ==
+token: string, id: int, prob: double
+Project [token#46, id#45, prob#59]
++- Join Inner, (token#46 = token#58)
+   :- Project [_1#42 AS id#45, _2#43 AS token#46]
+   :  +- LocalRelation [_1#42, _2#43]
+   +- BroadcastHint
+      +- Project [_1#55 AS token#58, _2#56 AS prob#59]
+         +- LocalRelation [_1#55, _2#56]
+
+== Optimized Logical Plan ==
+Project [token#46, id#45, prob#59]
++- Join Inner, (token#46 = token#58)
+   :- Project [_1#42 AS id#45, _2#43 AS token#46]
+   :  +- Filter isnotnull(_2#43)
+   :     +- LocalRelation [_1#42, _2#43]
+   +- BroadcastHint
+      +- Project [_1#55 AS token#58, _2#56 AS prob#59]
+         +- Filter isnotnull(_1#55)
+            +- LocalRelation [_1#55, _2#56]
+
+== Physical Plan ==
+*Project [token#46, id#45, prob#59]
++- *BroadcastHashJoin [token#46], [token#58], Inner, BuildRight
+   :- *Project [_1#42 AS id#45, _2#43 AS token#46]
+   :  +- *Filter isnotnull(_2#43)
+   :     +- LocalTableScan [_1#42, _2#43]
+   +- BroadcastExchange HashedRelationBroadcastMode(List(input[0, string, true]))
+      +- *Project [_1#55 AS token#58, _2#56 AS prob#59]
+         +- *Filter isnotnull(_1#55)
+            +- LocalTableScan [_1#55, _2#56]
 ----
 
 ==== [[expr]] expr function

@@ -1,6 +1,12 @@
 == QueryExecution
 
-`QueryExecution` requires link:spark-sql-sqlcontext.adoc[SQLContext] and link:spark-sql-logical-plan.adoc[LogicalPlan].
+link:spark-sql-dataset.adoc[Datasets] are "lazy" and computations are only triggered when an action is invoked. Internally, a `Dataset` represents a logical plan that describes the computation required to produce the data. `QueryExecution` is a "container" that holds a link:spark-sql-sparksession.adoc[SparkSession] and the link:spark-sql-logical-plan.adoc[LogicalPlan].
+
+A streaming variant of `QueryExecution` is <<IncrementalExecution, IncrementalExecution>>.
+
+`QueryExecution` uses the input `SparkSession` to access the current link:spark-sql-queryplanner.adoc#SparkPlanner[SparkPlanner] (through link:spark-sql-sessionstate.adoc[SessionState] that could also return a link:spark-sql-queryplanner.adoc#HiveSessionState[HiveSessionState]) when <<creating-instance, it is created>>. It then computes a link:spark-sql-spark-plan.adoc[SparkPlan] (a `PhysicalPlan` exactly) using the planner. It is available as the `sparkPlan` (lazy) attribute.
+
+<<debug, `debug` package object>> contains methods for *debugging query execution* that you can use to do the full analysis of your queries (as `Dataset` objects).
 
 CAUTION: FIXME What's `planner`? `analyzed`? Why do we need `assertAnalyzed` and `assertSupported`?
 
@@ -28,6 +34,33 @@ WholeStageCodegen
 :  +- Range 0, 1, 8, 5, [id#39L]
 ----
 
+=== [[creating-instance]] Creating QueryExecution Instance
+
+[source, scala]
+----
+class QueryExecution(
+  val sparkSession: SparkSession,
+  val logical: LogicalPlan)
+----
+
+`QueryExecution` requires a link:spark-sql-sparksession.adoc[SparkSession] and a link:spark-sql-logical-plan.adoc[LogicalPlan].
+
+=== [[lazy-attributes]] Lazy Attributes
+
+`QueryExecution` holds the following lazy attributes (that are initializes when first read):
+
+* `analyzed` being a `LogicalPlan` that is the input `logical` with unresolved attributes and relations resolved.
+
+* `withCachedData` being a `LogicalPlan` that is the `analyzed` plan after being analyzed, checked (for unsupported operations) and replaced with cached segments.
+
+* `optimizedPlan` being a `LogicalPlan` that is an optimized `withCachedData` (using the current `Optimizer`).
+
+* `sparkPlan` being a `SparkPlan` that was computed using `planner` on `optimizedPlan`.
+
+* `executedPlan` being a `SparkPlan` that is `sparkPlan` prepared for execution by inserting shuffle operations and internal row format conversions where needed.
+
+* `toRdd` being a `RDD[InternalRow]`.
+
 === [[IncrementalExecution]] IncrementalExecution
 
 `IncrementalExecution` is a custom `QueryExecution` with `OutputMode`, `checkpointLocation`, and `currentBatchId`.
@@ -54,7 +87,7 @@ It contains a sequence of rules called `preparations` (of type `Seq[Rule[SparkPl
 
 === [[debug]] Debugging Query Execution
 
-`debug` package object contains methods for debugging query execution that you can apply to your queries as `Dataset` objects.
+`debug` package object contains methods for *debugging query execution* that you can use to do the full analysis of your queries (as `Dataset` objects).
 
 [source, scala]
 ----
