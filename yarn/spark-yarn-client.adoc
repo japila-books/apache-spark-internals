@@ -100,6 +100,10 @@ INFO Client: Submitting application [appId] to ResourceManager
 
 It returns the YARN https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/api/records/ApplicationId.html[ApplicationId] for the Spark application (represented by link:spark-yarn-applicationmaster.adoc[ApplicationMaster]).
 
+=== [[loginFromKeytab]] loginFromKeytab
+
+CAUTION: FIXME
+
 === [[createApplicationSubmissionContext]] Creating YARN ApplicationSubmissionContext (createApplicationSubmissionContext method)
 
 [source, scala]
@@ -302,6 +306,8 @@ CAUTION: FIXME `setApplicationACLs`? Set up security tokens?
 
 ==== [[prepareLocalResources]] prepareLocalResources method
 
+CAUTION: FIXME
+
 [source, scala]
 ----
 prepareLocalResources(
@@ -311,19 +317,19 @@ prepareLocalResources(
 
 `prepareLocalResources` is...FIXME
 
-CAUTION: FIXME
+CAUTION: FIXME Describe `credentialManager`
 
-When `prepareLocalResources` is called, you should see the following INFO message in the logs:
+When called, `prepareLocalResources` prints out the following INFO message to the logs:
 
 ```
 INFO Client: Preparing resources for our AM container
 ```
 
-(only for a secure Hadoop cluster) It computes the list of Hadoop's https://hadoop.apache.org/docs/current/api/org/apache/hadoop/fs/Path.html[Paths] to access and requests delegation tokens for them. It includes the optional list of extra NameNode URLs (from link:spark-yarn-settings.adoc#spark.yarn.access.namenodes[spark.yarn.access.namenodes]) and the input `destDir`.
-
 CAUTION: FIXME What's a delegation token?
 
-(only for a secure Hadoop cluster) It also obtains delegation tokens for link:spark-yarn-YarnSparkHadoopUtil.adoc#obtainTokenForHiveMetastore[Hive metastore], and link:spark-yarn-YarnSparkHadoopUtil.adoc#obtainTokenForHBase[HBase] (using the constructor's `sparkConf` and `hadoopConf` with the internal `credentials` attribute). After all the security delegation tokens are obtained, you should see the following DEBUG message in the logs:
+`prepareLocalResources` then link:spark-yarn-ConfigurableCredentialManager.adoc#obtainCredentials[obtains security tokens from credential providers and gets the nearest time of the next renewal] (for renewable credentials).
+
+After all the security delegation tokens are obtained and only when there are any, you should see the following DEBUG message in the logs:
 
 ```
 DEBUG Client: [token1]
@@ -334,6 +340,8 @@ DEBUG Client: [tokenN]
 
 CAUTION: FIXME Where is `credentials` assigned?
 
+If <<loginFromKeytab, a keytab is used to log in>> and the nearest time of the next renewal is in the future, `prepareLocalResources` sets the internal link:spark-yarn-settings.adoc#spark.yarn.credentials.renewalTime[spark.yarn.credentials.renewalTime] and link:spark-yarn-settings.adoc#spark.yarn.credentials.updateTime[spark.yarn.credentials.updateTime] times for renewal and update security tokens.
+
 It gets the replication factor (using link:spark-yarn-settings.adoc#spark.yarn.submit.file.replication[spark.yarn.submit.file.replication] setting) or falls back to the default value for the input `destDir`.
 
 NOTE: The replication factor is only used for <<copyFileToRemote, copyFileToRemote>> later. Perhaps it should not be mentioned here (?)
@@ -342,7 +350,7 @@ It creates the input `destDir` (on a HDFS-compatible file system) with `0700` pe
 
 TIP: See https://hadoop.apache.org/docs/current/api/org/apache/hadoop/fs/FileSystem.html[org.apache.hadoop.fs.FileSystem] to know a list of HDFS-compatible file systems, e.g. http://aws.amazon.com/s3/[Amazon S3] or https://azure.microsoft.com/[Windows Azure].
 
-If Spark uses a keytab to log in, ...FIXME
+If <<loginFromKeytab, a keytab is used to log in>>, ...FIXME
 
 CAUTION: FIXME `if (loginFromKeytab)`
 
