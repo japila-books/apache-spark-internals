@@ -1,6 +1,8 @@
 == Encoders -- Internal Row Format Converters
 
-An *Encoder* object (of type `T`) is used to convert a JVM object of type `T` (e.g. your domain object) and primitives to and from the internal Spark SQL row format representation using Catalyst expressions and code generation.
+An *Encoder* object (for type `T`) is used to convert (_encode_ and _decode_) a JVM object of type `T` (e.g. your domain object) and primitives to and from the Spark SQL internal binary row format representation using Catalyst expressions and code generation.
+
+NOTE: `Encoder` is also called _"a container of serde expressions in Dataset"_.
 
 The Encoder concept is represented by `trait Encoder[T]`.
 
@@ -12,11 +14,31 @@ trait Encoder[T] extends Serializable {
 }
 ----
 
+The one and only implementation of the `Encoder` trait in Spark 2.0 is <<ExpressionEncoder, ExpressionEncoder>>.
+
+[source, scala]
+----
+case class Person(id: Long, name: String)
+
+import org.apache.spark.sql.Encoders
+
+scala> val personEncoder = Encoders.product[Person]
+personEncoder: org.apache.spark.sql.Encoder[Person] = class[id[0]: bigint, name[0]: string]
+
+import org.apache.spark.sql.catalyst.encoders.ExpressionEncoder
+
+scala> personEncoder.asInstanceOf[ExpressionEncoder[Person]]
+res4: org.apache.spark.sql.catalyst.encoders.ExpressionEncoder[Person] = class[id[0]: bigint, name[0]: string]
+
+----
+
 Encoders allows for significantly faster serialization and deserialization (comparing to the default Java or Kryo serializers).
 
 NOTE: Encoders are part of link:spark-sql-catalyst.adoc[Catalyst Optimizer].
 
-`Encoder` works with the type of the accompanying link:spark-sql-dataset.adoc[Dataset]. You can <<creating-encoders, create custom encoders using `Encoders` object>>. Encoders for many Scala types are however available through link:spark-sql-sparksession.adoc#implicits[SparkSession.implicits] object so in most cases you don't need to worry about them whatsoever and simply import the `implicits` object.
+link:spark-sql-dataset.adoc[Dataset] owns a `Encoder` that serializes and deserializes the type of the `Dataset`.
+
+You can <<creating-encoders, create custom encoders using `Encoders` object>>. Encoders for many Scala types are however available through link:spark-sql-sparksession.adoc#implicits[SparkSession.implicits] object so in most cases you don't need to worry about them whatsoever and simply import the `implicits` object.
 
 [source, scala]
 ----
@@ -42,7 +64,28 @@ scala> personEncoder.clsTag
 res12: scala.reflect.ClassTag[Person] = Person
 ----
 
-Encoders can be *flat* is which case there is only one Catalyst expression.
+=== [[ExpressionEncoder]] ExpressionEncoder
+
+[source, scala]
+----
+case class ExpressionEncoder[T](
+    schema: StructType,
+    flat: Boolean,
+    serializer: Seq[Expression],
+    deserializer: Expression,
+    clsTag: ClassTag[T])
+  extends Encoder[T]
+----
+
+`ExpressionEncoder` is an `Encoder` with additional properties, i.e. `flat`, one or many serializers and a deserializer expressions.
+
+A `ExpressionEncoder` can be *flat* is which case there is only one Catalyst expression for the serializer.
+
+*Serializer expressions* are used to encode an object to a row. It is assumed that all serializer expressions contain at least one and the same `BoundReference`.
+
+CAUTION: FIXME What's `BoundReference`?
+
+Internally, a `ExpressionEncoder` creates a `UnsafeProjection` (for the input serializer), a `InternalRow` (of size `1`), and a safe `Projection` (for the input deserializer). They are all internal lazy attributes of the encoder.
 
 === [[creating-encoders]][[encoders]] Creating Custom Encoders (Encoders object)
 
