@@ -2,12 +2,14 @@
 
 *Dataset* is the Spark SQL API for working with structured data, i.e. records with a known schema.
 
-Datasets are "lazy" and computations are only triggered when an action is invoked. Internally, a `Dataset` represents a link:spark-sql-logical-plan.adoc[logical plan] that describes the computation required to produce the data (for a given link:spark-sql-sparksession.adoc[Spark SQL session]).
+Datasets are "lazy" and structured query expressions are only triggered when an action is invoked. Internally, a `Dataset` represents a link:spark-sql-logical-plan.adoc[logical plan] that describes the computation query required to produce the data (for a given link:spark-sql-sparksession.adoc[Spark SQL session]).
 
 .Dataset's Internals
 image::images/spark-sql-Dataset.png[align="center"]
 
-It is fair to say that a Dataset is a result of executing an expression against data storage like files or databases. The expression can be described by a SQL query or a Scala/Java lambda function.
+A Dataset is a result of executing a query expression against data storage like files or databases. The structured query expression can be described by a SQL query or a Scala/Java lambda function.
+
+If link:spark-sql-logical-plan.adoc[LogicalPlan] is used to <<creating-instance, create a `Dataset`>>, it is link:spark-sql-sessionstate.adoc#executePlan[executed] (using the current link:spark-sql-sessionstate.adoc#executePlan[SessionState]) to create a corresponding link:spark-sql-query-execution.adoc[QueryExecution].
 
 Dataset API comes with declarative and type-safe operators (that improves on the earlier experience of data processing using link:spark-sql-dataframe.adoc[DataFrames] that were a set of link:spark-sql-dataframe-row.adoc[Rows]).
 
@@ -26,6 +28,45 @@ See https://github.com/apache/spark/blob/master/sql/core/src/main/scala/org/apac
 ====
 
 `Dataset` offers convenience of RDDs with the performance optimizations of DataFrames and the strong static type-safety of Scala. The last feature of bringing the strong type-safety to link:spark-sql-dataframe.adoc[DataFrame] makes Dataset so appealing. All the features together give you a more functional programming interface to work with structured data.
+
+[source, scala]
+----
+scala> spark.range(1).filter('id === 0).explain(true)
+== Parsed Logical Plan ==
+'Filter ('id = 0)
++- Range (0, 1, splits=8)
+
+== Analyzed Logical Plan ==
+id: bigint
+Filter (id#51L = cast(0 as bigint))
++- Range (0, 1, splits=8)
+
+== Optimized Logical Plan ==
+Filter (id#51L = 0)
++- Range (0, 1, splits=8)
+
+== Physical Plan ==
+*Filter (id#51L = 0)
++- *Range (0, 1, splits=8)
+
+scala> spark.range(1).filter(_ == 0).explain(true)
+== Parsed Logical Plan ==
+'TypedFilter <function1>, class java.lang.Long, [StructField(value,LongType,true)], unresolveddeserializer(newInstance(class java.lang.Long))
++- Range (0, 1, splits=8)
+
+== Analyzed Logical Plan ==
+id: bigint
+TypedFilter <function1>, class java.lang.Long, [StructField(value,LongType,true)], newInstance(class java.lang.Long)
++- Range (0, 1, splits=8)
+
+== Optimized Logical Plan ==
+TypedFilter <function1>, class java.lang.Long, [StructField(value,LongType,true)], newInstance(class java.lang.Long)
++- Range (0, 1, splits=8)
+
+== Physical Plan ==
+*Filter <function1>.apply
++- *Range (0, 1, splits=8)
+----
 
 It is only with Datasets to have syntax and analysis checks at compile time (that was not possible using link:spark-sql-dataframe.adoc[DataFrame], regular SQL queries or even RDDs).
 
@@ -46,6 +87,29 @@ You can convert a type-safe Dataset to a "untyped" DataFrame (see <<implicits, T
 The default storage level for `Datasets` is link:spark-rdd-caching.adoc[MEMORY_AND_DISK] because recomputing the in-memory columnar representation of the underlying table is expensive. See <<persist, Persisting Dataset (persist method)>> in this document.
 
 Spark 2.0 has introduced a new query model called link:spark-sql-structured-streaming.adoc[Structured Streaming] for continuous incremental execution of structured queries. That made possible to consider Datasets a static and bounded data as well as streaming and unbounded with one single API.
+
+=== [[creating-instance]] Creating Datasets
+
+If link:spark-sql-logical-plan.adoc[LogicalPlan] is used to <<creating-instance, create a `Dataset`>>, it is link:spark-sql-sessionstate.adoc#executePlan[executed] (using the current link:spark-sql-sessionstate.adoc#executePlan[SessionState]) to create a corresponding link:spark-sql-query-execution.adoc[QueryExecution].
+
+=== [[show]] Display Records (show methods)
+
+CAUTION: FIXME
+
+Internally, `show` relays to a private `showString` to do the formatting. It turns the `Dataset` into a `DataFrame` (by calling `toDF()`) and <<take, takes first `n` records>>.
+
+=== [[take]] Taking First n Records (take method)
+
+[source, scala]
+----
+take(n: Int): Array[T]
+----
+
+`take` is an action on a `Dataset` that returns a collection of `n` records.
+
+WARNING: `take` loads all the data into the memory of the Spark application's driver process and for a large `n` could result in `OutOfMemoryError`.
+
+Internally, `take` creates a new `Dataset` with `Limit` logical plan for `Literal` expression and the current `LogicalPlan`. It then runs the link:spark-sql-spark-plan.adoc[SparkPlan] that produces a `Array[InternalRow]` that is in turn decoded to `Array[T]` using a bounded link:spark-sql-Encoder.adoc[encoder].
 
 === [[join]] join
 
@@ -341,26 +405,23 @@ explain(extended: Boolean): Unit
 
 TIP: If you are serious about query debugging you could also use the link:spark-sql-query-execution.adoc#debug[Debugging Query Execution facility].
 
-Internally, `explain` uses `SQLContext.executePlan(logicalPlan)`.
+Internally, `explain` executes a `ExplainCommand` logical plan on link:spark-sql-query-execution.adoc[the logical plan of the QueryExecution of the Dataset].
 
 [source, scala]
 ----
-val ds = spark.range(10)
-
-scala> ds.explain(extended = true)
+scala> spark.range(10).explain(extended = true)
 == Parsed Logical Plan ==
-Range 0, 10, 1, 8, [id#9L]
+Range (0, 10, splits=8)
 
 == Analyzed Logical Plan ==
 id: bigint
-Range 0, 10, 1, 8, [id#9L]
+Range (0, 10, splits=8)
 
 == Optimized Logical Plan ==
-Range 0, 10, 1, 8, [id#9L]
+Range (0, 10, splits=8)
 
 == Physical Plan ==
-WholeStageCodegen
-:  +- Range 0, 1, 8, 10, [id#9L]
+*Range (0, 10, splits=8)
 ----
 
 === [[select]] select
