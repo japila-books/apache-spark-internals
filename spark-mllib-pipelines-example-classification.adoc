@@ -4,7 +4,7 @@ NOTE: The example was inspired by the video https://youtu.be/OednhGRp938[Buildin
 
 Problem: Given a text document, classify it as a scientific or non-scientific one.
 
-When loading the input data it usually becomes a link:spark-sql-dataframe.adoc[DataFrame].
+When loading the input data it is a .
 
 NOTE: The example uses a case class `LabeledText` to have the schema described nicely.
 
@@ -39,49 +39,55 @@ NOTE: Paste the code below into Spark Shell using `:paste` mode.
 import spark.implicits._
 
 case class Article(id: Long, topic: String, text: String)
-val articles = Seq(Article(0, "sci.math", "Hello, Math!"),
+val articles = Seq(
+  Article(0, "sci.math", "Hello, Math!"),
   Article(1, "alt.religion", "Hello, Religion!"),
-  Article(2, "sci.physics", "Hello, Physics!")).toDF
-
-val papers = articles.as[Article]
+  Article(2, "sci.physics", "Hello, Physics!"),
+  Article(3, "sci.math", "Hello, Math Revised!"),
+  Article(4, "sci.math", "Better Math"),
+  Article(5, "alt.religion", "TGIF")).toDS
 ----
 
 Now, the tokenization part comes that maps the input text of each text document into tokens (a `Seq[String]`) and then into a `Vector` of numerical values that can only then be understood by a machine learning algorithm (that operates on `Vector` instances).
 
 ```
-scala> papers.show
-+---+------------+----------------+
-| id|       topic|            text|
-+---+------------+----------------+
-|  0|    sci.math|    Hello, Math!|
-|  1|alt.religion|Hello, Religion!|
-|  2| sci.physics| Hello, Physics!|
-+---+------------+----------------+
-
-// FIXME Use Dataset API (not DataFrame API)
-val labelled = papers.toDF.withColumn("label", $"topic".like("sci%")).cache
+scala> articles.show
++---+------------+--------------------+
+| id|       topic|                text|
++---+------------+--------------------+
+|  0|    sci.math|        Hello, Math!|
+|  1|alt.religion|    Hello, Religion!|
+|  2| sci.physics|     Hello, Physics!|
+|  3|    sci.math|Hello, Math Revised!|
+|  4|    sci.math|         Better Math|
+|  5|alt.religion|                TGIF|
++---+------------+--------------------+
 
 val topic2Label: Boolean => Double = isSci => if (isSci) 1 else 0
 val toLabel = udf(topic2Label)
 
-val training = papers.toDF.withColumn("label", toLabel($"topic".like("sci%"))).cache
+val labelled = articles.withColumn("label", toLabel($"topic".like("sci%"))).cache
 
-scala> training.show
-+---+------------+----------------+-----+
-| id|       topic|            text|label|
-+---+------------+----------------+-----+
-|  0|    sci.math|    Hello, Math!|  1.0|
-|  1|alt.religion|Hello, Religion!|  0.0|
-|  2| sci.physics| Hello, Physics!|  1.0|
-+---+------------+----------------+-----+
+val Array(trainDF, testDF) = labelled.randomSplit(Array(0.75, 0.25))
 
-scala> training.groupBy("label").count.show
-+-----+-----+
-|label|count|
-+-----+-----+
-|  0.0|    1|
-|  1.0|    2|
-+-----+-----+
+scala> trainDF.show
++---+------------+--------------------+-----+
+| id|       topic|                text|label|
++---+------------+--------------------+-----+
+|  1|alt.religion|    Hello, Religion!|  0.0|
+|  3|    sci.math|Hello, Math Revised!|  1.0|
++---+------------+--------------------+-----+
+
+
+scala> testDF.show
++---+------------+---------------+-----+
+| id|       topic|           text|label|
++---+------------+---------------+-----+
+|  0|    sci.math|   Hello, Math!|  1.0|
+|  2| sci.physics|Hello, Physics!|  1.0|
+|  4|    sci.math|    Better Math|  1.0|
+|  5|alt.religion|           TGIF|  0.0|
++---+------------+---------------+-----+
 ```
 
 The _train a model_ phase uses the logistic regression machine learning algorithm to build a model and predict `label` for future input text documents (and hence classify them as scientific or non-scientific).
@@ -89,10 +95,15 @@ The _train a model_ phase uses the logistic regression machine learning algorith
 [source, scala]
 ----
 import org.apache.spark.ml.feature.RegexTokenizer
-val tokenizer = new RegexTokenizer().setInputCol("text").setOutputCol("words")
+val tokenizer = new RegexTokenizer()
+  .setInputCol("text")
+  .setOutputCol("words")
 
 import org.apache.spark.ml.feature.HashingTF
-val hashingTF = new HashingTF().setInputCol(tokenizer.getOutputCol).setOutputCol("features").setNumFeatures(5000)
+val hashingTF = new HashingTF()
+  .setInputCol(tokenizer.getOutputCol)  // it does not wire transformers -- it's just a column name
+  .setOutputCol("features")
+  .setNumFeatures(5000)
 
 import org.apache.spark.ml.classification.LogisticRegression
 val lr = new LogisticRegression().setMaxIter(20).setRegParam(0.01)
@@ -105,20 +116,21 @@ It uses two columns, namely `label` and `features` vector to build a logistic re
 
 [source, scala]
 ----
-val model = pipeline.fit(training)
-val predictions = model.transform(training)
+val model = pipeline.fit(trainDF)
 
-scala> predictions.show
-+---+------------+----------------+-----+-------------------+--------------------+--------------------+--------------------+----------+
-| id|       topic|            text|label|              words|            features|       rawPrediction|         probability|prediction|
-+---+------------+----------------+-----+-------------------+--------------------+--------------------+--------------------+----------+
-|  0|    sci.math|    Hello, Math!|  1.0|     [hello, math!]|  (5000,[563],[1.0])|[-3.5586272181164...|[0.02768935730464...|       1.0|
-|  1|alt.religion|Hello, Religion!|  0.0| [hello, religion!]| (5000,[4298],[1.0])|[3.18473454618966...|[0.96025575257636...|       0.0|
-|  2| sci.physics| Hello, Physics!|  1.0|[hello, phy, ic, !]|(5000,[33,2499,33...|[-4.4061570147914...|[0.01205488687952...|       1.0|
-+---+------------+----------------+-----+-------------------+--------------------+--------------------+--------------------+----------+
+val trainPredictions = model.transform(trainDF)
+val testPredictions = model.transform(testDF)
+
+scala> trainPredictions.select('id, 'topic, 'text, 'label, 'prediction).show
++---+------------+--------------------+-----+----------+
+| id|       topic|                text|label|prediction|
++---+------------+--------------------+-----+----------+
+|  1|alt.religion|    Hello, Religion!|  0.0|       0.0|
+|  3|    sci.math|Hello, Math Revised!|  1.0|       1.0|
++---+------------+--------------------+-----+----------+
 
 // Notice that the computations add new columns
-scala> predictions.printSchema
+scala> trainPredictions.printSchema
 root
  |-- id: long (nullable = false)
  |-- topic: string (nullable = true)
@@ -134,11 +146,17 @@ root
 import org.apache.spark.ml.evaluation.BinaryClassificationEvaluator
 val evaluator = new BinaryClassificationEvaluator().setMetricName("areaUnderROC")
 
-scala> evaluator.evaluate(predictions)
-res42: Double = 1.0
+import org.apache.spark.ml.param.ParamMap
+val evaluatorParams = ParamMap(evaluator.metricName -> "areaUnderROC")
+
+scala> val areaTrain = evaluator.evaluate(trainPredictions, evaluatorParams)
+areaTrain: Double = 1.0
+
+scala> val areaTest = evaluator.evaluate(testPredictions, evaluatorParams)
+areaTest: Double = 0.6666666666666666
 ----
 
-Let's tune the model (using "tools" from https://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.ml.tuning.package[org.apache.spark.ml.tuning] package).
+Let's tune the model's hyperparameters (using "tools" from https://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.ml.tuning.package[org.apache.spark.ml.tuning] package).
 
 CAUTION: FIXME Review the available classes in the org.apache.spark.ml.tuning package.
 
@@ -146,28 +164,80 @@ CAUTION: FIXME Review the available classes in the org.apache.spark.ml.tuning pa
 ----
 import org.apache.spark.ml.tuning.ParamGridBuilder
 val paramGrid = new ParamGridBuilder()
-  .addGrid(hashingTF.numFeatures, Array(1000, 10000))
+  .addGrid(hashingTF.numFeatures, Array(100, 1000))
   .addGrid(lr.regParam, Array(0.05, 0.2))
+  .addGrid(lr.maxIter, Array(5, 10, 15))
   .build
+
+// That gives all the combinations of the parameters
+
+paramGrid: Array[org.apache.spark.ml.param.ParamMap] =
+Array({
+	logreg_cdb8970c1f11-maxIter: 5,
+	hashingTF_8d7033d05904-numFeatures: 100,
+	logreg_cdb8970c1f11-regParam: 0.05
+}, {
+	logreg_cdb8970c1f11-maxIter: 5,
+	hashingTF_8d7033d05904-numFeatures: 1000,
+	logreg_cdb8970c1f11-regParam: 0.05
+}, {
+	logreg_cdb8970c1f11-maxIter: 10,
+	hashingTF_8d7033d05904-numFeatures: 100,
+	logreg_cdb8970c1f11-regParam: 0.05
+}, {
+	logreg_cdb8970c1f11-maxIter: 10,
+	hashingTF_8d7033d05904-numFeatures: 1000,
+	logreg_cdb8970c1f11-regParam: 0.05
+}, {
+	logreg_cdb8970c1f11-maxIter: 15,
+	hashingTF_8d7033d05904-numFeatures: 100,
+	logreg_cdb8970c1f11-regParam: 0.05
+}, {
+	logreg_cdb8970c1f11-maxIter: 15,
+	hashingTF_8d7033d05904-numFeatures: 1000,
+	logreg_cdb8970c1f11-...
 
 import org.apache.spark.ml.tuning.CrossValidator
 import org.apache.spark.ml.param._
 val cv = new CrossValidator()
   .setEstimator(pipeline)
-  .setEvaluator(evaluator)
   .setEstimatorParamMaps(paramGrid)
-  .setNumFolds(2)
+  .setEvaluator(evaluator)
+  .setNumFolds(10)
 
-val cvModel = cv.fit(training)
+val cvModel = cv.fit(trainDF)
+----
+
+Let's use the cross-validated model to calculate predictions and evaluate their precision.
+
+[source, scala]
+----
+val cvPredictions = cvModel.transform(testDF)
+
+scala> cvPredictions.select('topic, 'text, 'prediction).show
++------------+---------------+----------+
+|       topic|           text|prediction|
++------------+---------------+----------+
+|    sci.math|   Hello, Math!|       0.0|
+| sci.physics|Hello, Physics!|       0.0|
+|    sci.math|    Better Math|       1.0|
+|alt.religion|           TGIF|       0.0|
++------------+---------------+----------+
+
+scala> evaluator.evaluate(cvPredictions, evaluatorParams)
+res26: Double = 0.6666666666666666
+
+scala> val bestModel = cvModel.bestModel
+bestModel: org.apache.spark.ml.Model[_] = pipeline_8873b744aac7
 ----
 
 CAUTION: FIXME Review https://github.com/apache/spark/blob/master/mllib/src/test/scala/org/apache/spark/ml/tuning/CrossValidatorSuite.scala
 
-You can eventually save the model for later use (using `DataFrame.write`).
+You can eventually save the model for later use.
 
 [source, scala]
 ----
-cvModel.transform(test).select("id", "prediction")
-  .write
-  .json("/demo/predictions")
+cvModel.write.overwrite.save("model")
 ----
+
+Congratulations! You're done.
