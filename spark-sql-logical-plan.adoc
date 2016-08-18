@@ -4,7 +4,7 @@ CAUTION: FIXME
 
 *Logical Plan* is an abstract representation of a structured query expression (that makes for a link:spark-sql-dataset.adoc[Dataset]).
 
-It is modelled as `LogicalPlan` abstract class which is a custom link:spark-sql-query-plan.adoc[QueryPlan].
+It is modelled as the `LogicalPlan` abstract class which is a link:spark-sql-query-plan.adoc[QueryPlan].
 
 It can be *analyzed* which is to say that the plan (including children) has gone through analysis and verification. It may also be *resolved* to a specific schema.
 
@@ -30,3 +30,87 @@ The following is a list of join types:
 * `FULL OUTER`
 * `LEFT SEMI`
 * `NATURAL`
+
+=== [[ExplainCommand]] ExplainCommand Logical Plan
+
+`ExplainCommand` logical plan allows users to see how a structured query will be executed.
+
+`ExplainCommand` is used to implement link:spark-sql-dataset.adoc#explain[explain operator] and `EXPLAIN` SQL query (with `EXTENDED` and `CODEGEN` options).
+
+[source, scala]
+----
+scala> spark.catalog.listTables.explain
+== Physical Plan ==
+LocalTableScan [name#42, database#43, description#44, tableType#45, isTemporary#46]
+
+scala> spark.catalog.listTables.explain(true)
+== Parsed Logical Plan ==
+LocalRelation [name#54, database#55, description#56, tableType#57, isTemporary#58]
+
+== Analyzed Logical Plan ==
+name: string, database: string, description: string, tableType: string, isTemporary: boolean
+LocalRelation [name#54, database#55, description#56, tableType#57, isTemporary#58]
+
+== Optimized Logical Plan ==
+LocalRelation [name#54, database#55, description#56, tableType#57, isTemporary#58]
+
+== Physical Plan ==
+LocalTableScan [name#54, database#55, description#56, tableType#57, isTemporary#58]
+
+// Explain in SQL
+
+scala> sql("EXPLAIN EXTENDED show tables").show(false)
++-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+|plan                                                                                                                                                                                                                                           |
++-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+|== Parsed Logical Plan ==
+ShowTablesCommand
+
+== Analyzed Logical Plan ==
+tableName: string, isTemporary: boolean
+ShowTablesCommand
+
+== Optimized Logical Plan ==
+ShowTablesCommand
+
+== Physical Plan ==
+ExecutedCommand
+   +- ShowTablesCommand|
++-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+----
+
+The following EXPLAIN variants in SQL queries are not supported:
+
+* `EXPLAIN FORMATTED`
+* `EXPLAIN LOGICAL`
+
+[source, scala]
+----
+scala> sql("EXPLAIN LOGICAL show tables")
+org.apache.spark.sql.catalyst.parser.ParseException:
+Operation not allowed: EXPLAIN LOGICAL(line 1, pos 0)
+
+== SQL ==
+EXPLAIN LOGICAL show tables
+^^^
+
+  at org.apache.spark.sql.catalyst.parser.ParserUtils$.operationNotAllowed(ParserUtils.scala:39)
+  at org.apache.spark.sql.execution.SparkSqlAstBuilder$$anonfun$visitExplain$1.apply(SparkSqlParser.scala:258)
+  at org.apache.spark.sql.execution.SparkSqlAstBuilder$$anonfun$visitExplain$1.apply(SparkSqlParser.scala:253)
+  at org.apache.spark.sql.catalyst.parser.ParserUtils$.withOrigin(ParserUtils.scala:93)
+  at org.apache.spark.sql.execution.SparkSqlAstBuilder.visitExplain(SparkSqlParser.scala:253)
+  at org.apache.spark.sql.execution.SparkSqlAstBuilder.visitExplain(SparkSqlParser.scala:52)
+  at org.apache.spark.sql.catalyst.parser.SqlBaseParser$ExplainContext.accept(SqlBaseParser.java:448)
+  at org.antlr.v4.runtime.tree.AbstractParseTreeVisitor.visit(AbstractParseTreeVisitor.java:42)
+  at org.apache.spark.sql.catalyst.parser.AstBuilder$$anonfun$visitSingleStatement$1.apply(AstBuilder.scala:64)
+  at org.apache.spark.sql.catalyst.parser.AstBuilder$$anonfun$visitSingleStatement$1.apply(AstBuilder.scala:64)
+  at org.apache.spark.sql.catalyst.parser.ParserUtils$.withOrigin(ParserUtils.scala:93)
+  at org.apache.spark.sql.catalyst.parser.AstBuilder.visitSingleStatement(AstBuilder.scala:63)
+  at org.apache.spark.sql.catalyst.parser.AbstractSqlParser$$anonfun$parsePlan$1.apply(ParseDriver.scala:54)
+  at org.apache.spark.sql.catalyst.parser.AbstractSqlParser$$anonfun$parsePlan$1.apply(ParseDriver.scala:53)
+  at org.apache.spark.sql.catalyst.parser.AbstractSqlParser.parse(ParseDriver.scala:82)
+  at org.apache.spark.sql.execution.SparkSqlParser.parse(SparkSqlParser.scala:45)
+  at org.apache.spark.sql.catalyst.parser.AbstractSqlParser.parsePlan(ParseDriver.scala:53)
+  at org.apache.spark.sql.SparkSession.sql(SparkSession.scala:572)
+  ... 48 elided
+----

@@ -1,23 +1,36 @@
 == [[SparkPlan]] Spark Plan
 
-`SparkPlan` is an abstract link:spark-sql-query-plan.adoc[QueryPlan] for physical operators, e.g. `InMemoryTableScanExec`.
+`SparkPlan` is a base link:spark-sql-query-plan.adoc[QueryPlan] for physical operators. It can be executed to produce a `RDD[InternalRow]`.
 
-NOTE: Physical operators have their names end with the _Exec_ prefix.
+NOTE: The naming convention for physical operators is to have their names end with the _Exec_ prefix, e.g. `DebugExec`.
 
-It has the following attributes:
+TIP: Read link:spark-sql-InternalRow.adoc[InternalRow] about the internal binary row format.
+
+`SparkPlan` has the following attributes:
 
 * `metadata`
 * <<metrics, metrics>>
 * `outputPartitioning`
 * `outputOrdering`
 
-`SparkPlan` can be executed (using the final `execute` method) to compute `RDD[InternalRow]`.
-
 `SparkPlan` has the following `final` methods that prepare environment and pass calls on to corresponding methods that constitute <<contract, SparkPlan Contract>>:
 
 * `execute` calls `doExecute`
 * `prepare` calls `doPrepare`
 * `executeBroadcast` calls `doExecuteBroadcast`
+
+=== [[contract]] SparkPlan Contract
+
+The contract of `SparkPlan` requires that concrete implementations define the following method:
+
+* `doExecute(): RDD[InternalRow]`
+
+They may also define their own custom overrides:
+
+* `doPrepare`
+* `doExecuteBroadcast`
+
+CAUTION: FIXME Why are there two executes?
 
 === [[SQLMetric]] SQLMetric
 
@@ -37,16 +50,3 @@ metrics: Map[String, SQLMetric] = Map.empty
 ----
 
 `metrics` is a `private[sql]` lookup table of supported <<SQLMetric, SQLMetrics>> by their names.
-
-=== [[contract]] SparkPlan Contract
-
-The contract of `SparkPlan` requires that concrete implementations define the following method:
-
-* `doExecute(): RDD[InternalRow]`
-
-They may also define their own custom overrides:
-
-* `doPrepare`
-* `doExecuteBroadcast`
-
-CAUTION: FIXME Why are there two executes?

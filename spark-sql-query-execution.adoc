@@ -69,7 +69,33 @@ class QueryExecution(
 
 ==== [[executedPlan]] executedPlan Attribute
 
-`executedPlan` being a `SparkPlan` that is `sparkPlan` prepared for execution by inserting shuffle operations and internal row format conversions where needed.
+`executedPlan` lazy value is a link:spark-sql-spark-plan.adoc[SparkPlan] ready for execution. It is the <<sparkPlan, sparkPlan>> lazy value with all the <<preparations, preparation rules>> applied.
+
+In Spark SQL's internal code, a common idiom to access the executed `SparkPlan` for a given `LogicalPlan` is as follows:
+
+[source, scala]
+----
+sparkSession.sessionState.executePlan(explain).executedPlan
+----
+
+=== [[preparations]] preparations -- SparkPlan Optimization Rules (to apply before Query Execution)
+
+`preparations` is a sequence of link:spark-sql-spark-plan.adoc[SparkPlan] optimization rules.
+
+TIP: A `SparkPlan` optimization rule transforms a `SparkPlan` to another `SparkPlan`.
+
+This collection is an intermediate phase of query execution that developers can used to introduce further optimizations.
+
+The current list of `SparkPlan` transformations in `preparations` is as follows:
+
+1. `ExtractPythonUDFs`
+2. `PlanSubqueries`
+3. `EnsureRequirements`
+4. `CollapseCodegenStages`
+5. `ReuseExchange`
+6. `ReuseSubquery`
+
+NOTE: The transformation rules applied in order to the physical plan before execution, i.e. they generate a `SparkPlan` when <<executedPlan, executedPlan>> lazy value is accessed.
 
 ==== [[toRdd]] toRdd Attribute
 
@@ -90,16 +116,6 @@ Stateful operators in the query plan are numbered using `operatorId` that starts
 `IncrementalExecution` adds one `Rule[SparkPlan]` called `state` to <<preparations, preparations>> sequence of rules as the first element.
 
 CAUTION: FIXME What does `IncrementalExecution` do? Where is it used?
-
-=== [[preparations]] preparations - Rules to apply before Query Execution
-
-It contains a sequence of rules called `preparations` (of type `Seq[Rule[SparkPlan]]`) that will be applied in order to the physical plan before execution, i.e. generates `SparkPlan` by executing <<executedPlan, executedPlan>> lazy value.
-
-`preparations` rules are meant to allow access to the intermediate phases of query execution for developers.
-
-=== [[executedPlan]] executedPlan SparkPlan
-
-`executedPlan` lazy value is a `SparkPlan` ready for execution after applying <<preparations, the rules in preparations>>.
 
 === [[debug]] Debugging Query Execution
 
