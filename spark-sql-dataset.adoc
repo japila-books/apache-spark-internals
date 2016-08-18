@@ -7,11 +7,24 @@ Datasets are "lazy" and structured query expressions are only triggered when an 
 .Dataset's Internals
 image::images/spark-sql-Dataset.png[align="center"]
 
-A Dataset is a result of executing a query expression against data storage like files or databases. The structured query expression can be described by a SQL query or a Scala/Java lambda function.
+A Dataset is a result of executing a query expression against data storage like files or databases. The structured query expression can be described by a SQL query, a Column-based SQL expression or a Scala/Java lambda function. And that is why Dataset operations are available in three variants.
 
-If link:spark-sql-logical-plan.adoc[LogicalPlan] is used to <<creating-instance, create a `Dataset`>>, it is link:spark-sql-sessionstate.adoc#executePlan[executed] (using the current link:spark-sql-sessionstate.adoc#executePlan[SessionState]) to create a corresponding link:spark-sql-query-execution.adoc[QueryExecution].
+[source, scala]
+----
+scala> val dataset = (0 to 4).toDS
+dataset: org.apache.spark.sql.Dataset[Int] = [value: int]
 
-Dataset API comes with declarative and type-safe operators (that improves on the earlier experience of data processing using link:spark-sql-dataframe.adoc[DataFrames] that were a set of link:spark-sql-dataframe-row.adoc[Rows]).
+// Variant 1: filter operator accepts a Scala function
+dataset.filter(n => n % 2 == 0).count
+
+// Variant 2: filter operator accepts a Column-based SQL expression
+dataset.filter('value % 2 === 0).count
+
+// Variant 3: filter operator accepts a SQL query
+dataset.filter("value % 2 = 0").count
+----
+
+The Dataset API offers declarative and type-safe operators that makes for an improved experience for data processing (comparing to link:spark-sql-dataframe.adoc[DataFrames] that were a set of index- or column name-based link:spark-sql-dataframe-row.adoc[Rows]).
 
 [NOTE]
 ====
@@ -74,19 +87,19 @@ Using `Dataset` objects turns `DataFrames` of link:spark-sql-dataframe-row.adoc[
 
 Datasets use link:spark-sql-catalyst.adoc[Catalyst Query Optimizer] and link:spark-sql-tungsten.adoc[Tungsten] to optimize query performance.
 
-A `Dataset` object requires a link:spark-sql-sqlcontext.adoc[SQLContext], a link:spark-sql-query-execution.adoc[QueryExecution], and an link:spark-sql-Encoder.adoc[Encoder]. link:spark-sql-sqlcontext.adoc#creating-datasets[In same cases], a `Dataset` can also be seen as a pair of link:spark-sql-logical-plan.adoc[LogicalPlan] in a given link:spark-sql-sqlcontext.adoc[SQLContext].
-
-NOTE: `SQLContext` and link:spark-sql-query-execution.adoc[QueryExecution] are transient and hence do not participate in Dataset serialization. The only _firmly-tied_ feature of a Dataset is the link:spark-sql-Encoder.adoc[Encoder].
+A `Dataset` object requires a link:spark-sql-sparksession.adoc[SparkSession], a link:spark-sql-query-execution.adoc[QueryExecution] plan, and an link:spark-sql-Encoder.adoc[Encoder]. If however a link:spark-sql-logical-plan.adoc[LogicalPlan] is used to <<creating-instance, create a `Dataset`>>, the logical plan is first link:spark-sql-sessionstate.adoc#executePlan[executed] (using the current link:spark-sql-sessionstate.adoc#executePlan[SessionState] in the `SparkSession`) that yields the link:spark-sql-query-execution.adoc[QueryExecution] plan.
 
 A `Dataset` is <<Queryable, Queryable>> and `Serializable`, i.e. can be saved to a persistent storage.
 
+NOTE: link:spark-sql-sparksession.adoc[SparkSession] and link:spark-sql-query-execution.adoc[QueryExecution] are transient attributes of a `Dataset` and therefore do not participate in Dataset serialization. The only _firmly-tied_ feature of a `Dataset` is the link:spark-sql-Encoder.adoc[Encoder].
+
 It also has a <<schema, schema>>.
 
-You can convert a type-safe Dataset to a "untyped" DataFrame (see <<implicits, Type Conversions to Dataset[T]>>) or access the RDD that sits underneath (see <<rdd, Converting Datasets into RDDs (using rdd method)>>). It is supposed to give you a more pleasant experience while transitioning from legacy RDD-based or DataFrame-based APIs.
+You can convert a type-safe Dataset to a "untyped" DataFrame (see <<implicits, Type Conversions to Dataset[T]>>) or access the RDD that sits underneath (see <<rdd, Converting Datasets into RDDs (using rdd method)>>). It is supposed to give you a more pleasant experience while transitioning from the legacy RDD-based or DataFrame-based APIs you may have used in the earlier versions of Spark SQL or encourage migrating from Spark Core's RDD API to Spark SQL's Dataset API.
 
 The default storage level for `Datasets` is link:spark-rdd-caching.adoc[MEMORY_AND_DISK] because recomputing the in-memory columnar representation of the underlying table is expensive. See <<persist, Persisting Dataset (persist method)>> in this document.
 
-Spark 2.0 has introduced a new query model called link:spark-sql-structured-streaming.adoc[Structured Streaming] for continuous incremental execution of structured queries. That made possible to consider Datasets a static and bounded data as well as streaming and unbounded with one single API.
+Spark 2.0 has introduced a new query model called link:spark-sql-structured-streaming.adoc[Structured Streaming] for continuous incremental execution of structured queries. That made possible to consider Datasets a static and bounded as well as streaming and unbounded data sets with a single unified API for different execution models.
 
 === [[creating-instance]] Creating Datasets
 
