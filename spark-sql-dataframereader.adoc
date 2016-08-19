@@ -12,6 +12,8 @@ val reader: DataFrameReader = spark.read
 
 It has a direct support for many <<creating-dataframes-from-files, file formats>> and <<format, interface for new ones>>. It assumes <<parquet, parquet>> as the default data source format that you can change using link:spark-sql-settings.adoc[spark.sql.sources.default] setting.
 
+As of Spark 2.0, `DataFrameReader` can read text files using <<textFile, textFile>> methods that return `Dataset[String]` (not `DataFrames` which are `Dataset[Row]` and therefore untyped).
+
 === [[format]] Specifying Data Format (format method)
 
 [source, scala]
@@ -29,20 +31,20 @@ Supported data formats:
 * `orc`
 * `text`
 * `jdbc`
-* `libsvm` (using `spark.read.format("libsvm")`)
+* `libsvm` -- only when used in `format("libsvm")`
 
 NOTE: You can improve your understanding of `format("jdbc")` with the exercise link:exercises/spark-exercise-dataframe-jdbc-postgresql.adoc[Creating DataFrames from Tables using JDBC and PostgreSQL].
 
-=== [[schema]] Schema Support (schema method)
+=== [[schema]] Specifying Input Schema (schema method)
 
 [source, scala]
 ----
 schema(schema: StructType): DataFrameReader
 ----
 
-You can apply `schema` to the data source.
+You can specify a `schema` of the input data source.
 
-TIP: Refer to link:spark-sql-dataframe-schema.adoc[Schema].
+TIP: Refer to link:spark-sql-schema.adoc[Schema].
 
 === [[option]] Option Support (option and options methods)
 
@@ -206,7 +208,8 @@ TIP: Read https://cwiki.apache.org/confluence/display/Hive/LanguageManual+ORC[OR
 
 [source, scala]
 ----
-text(paths: String*): Dataset[String]
+text(path: String): DataFrame
+text(paths: String*): DataFrame
 ----
 
 ===== [[text-example]] Example
@@ -296,3 +299,21 @@ jdbc(url: String, table: String,
 ----
 
 `jdbc` allows you to create `DataFrame` that represents `table` in the database available as `url`.
+
+=== [[textFile]] Reading Text Files (textFile methods)
+
+[source, scala]
+----
+textFile(path: String): Dataset[String]
+textFile(paths: String*): Dataset[String]
+----
+
+`textFile` methods query text files as a `Dataset[String]`.
+
+[source, scala]
+----
+scala> spark.read.textFile("README.md").filter(_.contains("Spark")).count
+res0: Long = 19
+----
+
+NOTE: `textFile` are similar to <<text, text>> family of methods in that they both read text files but `text` methods return untyped `DataFrame` while `textFile` return typed `Dataset[String]`.
