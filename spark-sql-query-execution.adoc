@@ -8,7 +8,7 @@
 
 A streaming variant of `QueryExecution` is <<IncrementalExecution, IncrementalExecution>>.
 
-<<debug, `debug` package object>> contains methods for *debugging query execution* that you can use to do the full analysis of your queries (as `Dataset` objects).
+link:spark-sql-debugging-execution.adoc[`debug` package object] contains methods for *debugging query execution* that you can use to do the full analysis of your queries (as `Dataset` objects).
 
 CAUTION: FIXME What's `planner`? `analyzed`? Why do we need `assertAnalyzed` and `assertSupported`?
 
@@ -116,81 +116,3 @@ Stateful operators in the query plan are numbered using `operatorId` that starts
 `IncrementalExecution` adds one `Rule[SparkPlan]` called `state` to <<preparations, preparations>> sequence of rules as the first element.
 
 CAUTION: FIXME What does `IncrementalExecution` do? Where is it used?
-
-=== [[debug]] Debugging Query Execution
-
-`debug` package object contains methods for *debugging query execution* that you can use to do the full analysis of your queries (as `Dataset` objects).
-
-[source, scala]
-----
-debug()
-debugCodegen()
-----
-
-The `debug` package object belongs to `org.apache.spark.sql.execution.debug` package
-
-Import the package and do the full analysis using `debug` method.
-
-[source, scala]
-----
-import org.apache.spark.sql.execution.debug._
-
-scala> spark.range(10).where('id === 4).debug
-Results returned: 1
-== WholeStageCodegen ==
-Tuples output: 1
- id LongType: {java.lang.Long}
-== Filter (id#12L = 4) ==
-Tuples output: 0
- id LongType: {}
-== Range (0, 10, splits=8) ==
-Tuples output: 0
- id LongType: {}
-----
-
-You can also perform `debugCodegen`.
-
-[source, scala]
-----
-import org.apache.spark.sql.execution.debug._
-
-scala> spark.range(10).where('id === 4).debugCodegen
-Found 1 WholeStageCodegen subtrees.
-== Subtree 1 / 1 ==
-*Filter (id#8L = 4)
-+- *Range (0, 10, splits=8)
-
-Generated code:
-/* 001 */ public Object generate(Object[] references) {
-/* 002 */   return new GeneratedIterator(references);
-/* 003 */ }
-/* 004 */
-/* 005 */ /**
- * Codegend pipeline for
- * Filter (id#8L = 4)
- * +- Range (0, 10, splits=8)
- */
-...
-----
-
-[source, scala]
-----
-scala> spark.range(1, 1000).select('id+1+2+3, 'id+4+5+6).queryExecution.debug.codegen()
-Found 1 WholeStageCodegen subtrees.
-== Subtree 1 / 1 ==
-*Project [(((id#0L + 1) + 2) + 3) AS (((id + 1) + 2) + 3)#3L,(((id#0L + 4) + 5) + 6) AS (((id + 4) + 5) + 6)#4L]
-+- *Range (1, 1000, splits=8)
-
-Generated code:
-/* 001 */ public Object generate(Object[] references) {
-/* 002 */   return new GeneratedIterator(references);
-/* 003 */ }
-/* 004 */
-/* 005 */ /**
- * Codegend pipeline for
-...
-/* 111 */       if (shouldStop()) return;
-/* 112 */     }
-/* 113 */   }
-/* 114 */ }
-----
