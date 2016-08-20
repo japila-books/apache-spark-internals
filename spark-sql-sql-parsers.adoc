@@ -1,8 +1,12 @@
-== SQL Parsers
+== SQL Parser Framework
+
+*SQL Parser Framework* uses ANTLR to parse SQL text into a `DataType`, `Expression`, `TableIdentifier`, or link:spark-sql-logical-plan.adoc[LogicalPlan].
+
+CAUTION: FIXME Make the intro more introductory without much technical details.
 
 === [[ParserInterface]] ParserInterface -- SQL Parser Contract
 
-`ParserInterface` is the parser contract for extracting link:spark-sql-logical-plan.adoc[LogicalPlan], `Expressions`, and `TableIdentifiers` from a given SQL string.
+`ParserInterface` is the parser contract for extracting link:spark-sql-logical-plan.adoc[LogicalPlan], Catalyst `Expressions`, and `TableIdentifiers` from a given SQL string.
 
 [source, scala]
 ----
@@ -21,17 +25,57 @@ It has the only single abstract subclass <<AbstractSqlParser, AbstractSqlParser>
 
 === [[AbstractSqlParser]] AbstractSqlParser
 
-`AbstractSqlParser` abstract class is a <<ParserInterface, ParserInterface>> that provides the foundation for the SQL parsing infrastructure in Spark SQL with two concrete implementations: <<SparkSqlParser, SparkSqlParser>> and <<CatalystSqlParser, CatalystSqlParser>>.
+`AbstractSqlParser` abstract class is a <<ParserInterface, ParserInterface>> that provides the foundation for the SQL parsing infrastructure in Spark SQL with two concrete implementations available at the moment:
 
-`AbstractSqlParser` expects that subclasses provide custom `AstBuilder` (as `astBuilder`) that converts a `ParseTree` (from ANTLR) into an AST.
+1. <<SparkSqlParser, SparkSqlParser>>
+2. <<CatalystSqlParser, CatalystSqlParser>>
+
+`AbstractSqlParser` creates an layer of indirection and expects that subclasses provide custom <<AstBuilder, AstBuilder>> that in turn converts a ANTLR `ParseTree` into a `DataType`, `Expression`, `TableIdentifier`, or link:spark-sql-logical-plan.adoc[LogicalPlan].
+
+[source, scala]
+----
+protected def astBuilder: AstBuilder
+----
+
+`AbstractSqlParser` simply routes all the final parsing calls to translate sql string into a respective Spark SQL object to that `AstBuilder`.
+
+=== [[AstBuilder]] AstBuilder
+
+`AstBuilder` is a ANTLR custom `SqlBaseBaseVisitor` to convert a ANTLR `ParseTree` (that represents a SQL string) into Spark SQL's corresponding entity using the following methods:
+
+1. `visitSingleDataType` to produce a `DataType`
+2. `visitSingleExpression` to produce a `Expression`
+3. `visitSingleTableIdentifier` to produce a `TableIdentifier`
+4. `visitSingleStatement` for a link:spark-sql-logical-plan.adoc[LogicalPlan]
+
+When parsing a SQL string, it first uses its own <<AstBuilder-parse, parse>> protected method that sets up a proper ANTLR parsing infrastructure.
+
+`AstBuilder` belongs to `org.apache.spark.sql.catalyst.parser` package.
+
+==== [[AstBuilder-parse]] AstBuilder.parse method
+
+[source, scala]
+----
+parse[T](command: String)(toResult: SqlBaseParser => T): T
+----
+
+`parse` is a protected method that sets up a proper ANTLR parsing infrastructure and uses the ANTLR-specific classes for Spark SQL that are auto-generated at build time.
+
+When called, you should see the following INFO message in the logs:
+
+```
+INFO SparkSqlParser: Parsing command: [command]
+```
+
+TIP: Enable `INFO` logging level for <<SparkSqlParser, SparkSqlParser>> or <<CatalystSqlParser, CatalystSqlParser>> to see the INFO message.
 
 === [[SparkSqlParser]] SparkSqlParser
 
 `SparkSqlParser` is the default parser of the SQL statements supported in Spark SQL. It is available as a <<ParserInterface, ParserInterface>> object in link:spark-sql-sessionstate.adoc[SessionState] (as `sqlParser`).
 
-It uses its own specialized `astBuilder`, i.e. `SparkSqlAstBuilder`, that extends <<CatalystSqlParser, CatalystSqlParser>>'s `AstBuilder`.
+`SparkSqlParser` is <<AbstractSqlParser, AbstractSqlParser>> with the `astBuilder` being `SparkSqlAstBuilder`. It also supports <<SparkSqlParser-VariableSubstitution, variable substitution>>.
 
-It is used for the link:spark-sql-functions.adoc#expr[expr function].
+`SparkSqlParser` is used for the link:spark-sql-functions.adoc#expr[expr function].
 
 [source, scala]
 ----
@@ -55,9 +99,13 @@ Refer to link:spark-logging.adoc[Logging].
 
 CAUTION: FIXME Review `parse` method.
 
+==== [[SparkSqlParser-VariableSubstitution]] Variable Substitution
+
+CAUTION: FIXME See `SparkSqlParser` and `substitutor`.
+
 === [[CatalystSqlParser]] CatalystSqlParser
 
-`CatalystSqlParser` is a <<AbstractSqlParser, AbstractSqlParser>> that comes with its own specialized `astBuilder` (i.e. `AstBuilder`).
+`CatalystSqlParser` is an <<AbstractSqlParser, AbstractSqlParser>> object that defines its own specialized `astBuilder` as `AstBuilder`.
 
 `CatalystSqlParser` is used to parse data types (using their canonical string representation), e.g. when creating link:spark-sql-dataframe-structtype.adoc[StructType] or executing link:spark-sql-columns.adoc#cast[cast function] (on a link:spark-sql-columns.adoc[Column]).
 
