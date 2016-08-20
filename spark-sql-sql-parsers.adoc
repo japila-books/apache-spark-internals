@@ -1,12 +1,12 @@
 == SQL Parser Framework
 
-*SQL Parser Framework* in Spark SQL uses ANTLR to parse SQL text to a `DataType`, `Expression`, `TableIdentifier`, or link:spark-sql-logical-plan.adoc[LogicalPlan].
+*SQL Parser Framework* in Spark SQL uses ANTLR to parse a SQL text and create a `DataType`, `Expression`, `TableIdentifier`, or link:spark-sql-logical-plan.adoc[LogicalPlan] out of it.
 
 CAUTION: FIXME Make the intro more introductory without much technical details.
 
 === [[ParserInterface]] ParserInterface -- SQL Parser Contract
 
-`ParserInterface` is the parser contract for extracting link:spark-sql-logical-plan.adoc[LogicalPlan], Catalyst `Expressions`, and `TableIdentifiers` from a given SQL string.
+`ParserInterface` is the parser contract for extracting link:spark-sql-logical-plan.adoc[LogicalPlan], Catalyst `Expressions` (to create link:spark-sql-columns.adoc[Columns] from), and `TableIdentifiers` from a given SQL string.
 
 [source, scala]
 ----
@@ -71,11 +71,23 @@ TIP: Enable `INFO` logging level for <<SparkSqlParser, SparkSqlParser>> or <<Cat
 
 === [[SparkSqlParser]] SparkSqlParser
 
-`SparkSqlParser` is the default parser of the SQL statements supported in Spark SQL. It is available as a <<ParserInterface, ParserInterface>> object in link:spark-sql-sessionstate.adoc[SessionState] (as `sqlParser`).
+`SparkSqlParser` is the default parser of the SQL statements supported in Spark SQL. It is available as link:spark-sql-sessionstate.adoc#sqlParser[sqlParser] (as the current <<ParserInterface, ParserInterface>> object) through `SessionState`.
 
-`SparkSqlParser` is <<AbstractSqlParser, AbstractSqlParser>> with the `astBuilder` being `SparkSqlAstBuilder`. It also supports <<SparkSqlParser-VariableSubstitution, variable substitution>>.
+The common idiom in Spark SQL is as follows:
 
-`SparkSqlParser` is used for the link:spark-sql-functions.adoc#expr[expr function].
+[source, scala]
+----
+sparkSession.sessionState.sqlParser
+----
+
+`SparkSqlParser` is <<AbstractSqlParser, AbstractSqlParser>> with the `astBuilder` being `SparkSqlAstBuilder`. It supports <<SparkSqlParser-VariableSubstitution, variable substitution>>.
+
+`SparkSqlParser` is used to parse expression strings into their corresponding link:spark-sql-columns.adoc[Columns] objects in the following:
+
+1. link:spark-sql-functions.adoc#expr[expr] function
+2. link:spark-sql-dataset.adoc#selectExpr[selectExpr] method (of `Dataset`)
+3. link:spark-sql-dataset.adoc#filter[filter] method (of `Dataset`)
+4. link:spark-sql-dataset.adoc#where[where] method (of `Dataset`)
 
 [source, scala]
 ----
@@ -83,6 +95,16 @@ scala> expr("token = 'hello'")
 16/07/07 18:32:53 INFO SparkSqlParser: Parsing command: token = 'hello'
 res0: org.apache.spark.sql.Column = (token = hello)
 ----
+
+`SparkSqlParser` is used to parse table strings into their corresponding table identifiers in the following:
+
+1. `table` methods in link:spark-sql-dataframereader.adoc#table[DataFrameReader] and link:spark-sql-sparksession.adoc#table[SparkSession]
+2. link:spark-sql-dataframewriter.adoc#insertInto[insertInto] and link:spark-sql-dataframewriter.adoc#saveAsTable[saveAsTable] methods of `DataFrameWriter`
+4. `createExternalTable` and `refreshTable` methods of link:spark-sql-Catalog.adoc[Catalog] (and link:spark-sql-sessionstate.adoc#refreshTable[SessionState])
+
+`SparkSqlParser` is used to parse sql strings into their corresponding link:spark-sql-logical-plan.adoc[logical query plans] in the following:
+
+1. link:spark-sql-sparksession.adoc#sql[sql] method in `SparkSession`
 
 [TIP]
 ====
@@ -96,8 +118,6 @@ log4j.logger.org.apache.spark.sql.execution.SparkSqlParser=INFO
 
 Refer to link:spark-logging.adoc[Logging].
 ====
-
-CAUTION: FIXME Review `parse` method.
 
 ==== [[SparkSqlParser-VariableSubstitution]] Variable Substitution
 
