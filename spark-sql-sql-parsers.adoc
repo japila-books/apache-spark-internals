@@ -1,6 +1,6 @@
 == SQL Parser Framework
 
-*SQL Parser Framework* uses ANTLR to parse SQL text into a `DataType`, `Expression`, `TableIdentifier`, or link:spark-sql-logical-plan.adoc[LogicalPlan].
+*SQL Parser Framework* in Spark SQL uses ANTLR to parse SQL text to a `DataType`, `Expression`, `TableIdentifier`, or link:spark-sql-logical-plan.adoc[LogicalPlan].
 
 CAUTION: FIXME Make the intro more introductory without much technical details.
 
@@ -105,24 +105,27 @@ CAUTION: FIXME See `SparkSqlParser` and `substitutor`.
 
 === [[CatalystSqlParser]] CatalystSqlParser
 
-`CatalystSqlParser` is an <<AbstractSqlParser, AbstractSqlParser>> object that defines its own specialized `astBuilder` as `AstBuilder`.
+`CatalystSqlParser` is an <<AbstractSqlParser, AbstractSqlParser>> object with the `astBuilder` being <<AstBuilder, AstBuilder>>.
 
-`CatalystSqlParser` is used to parse data types (using their canonical string representation), e.g. when creating link:spark-sql-dataframe-structtype.adoc[StructType] or executing link:spark-sql-columns.adoc#cast[cast function] (on a link:spark-sql-columns.adoc[Column]).
+`CatalystSqlParser` is used to parse data types (using their canonical string representation), e.g. when link:spark-sql-schema-structtype.adoc#add[adding fields to a schema] or link:spark-sql-columns.adoc#cast[casting column to different data types].
 
 [source, scala]
 ----
-import org.apache.spark.sql.types._
-scala> val struct = (new StructType).add("a", "int")
-16/07/07 18:50:52 INFO CatalystSqlParser: Parsing command: int
+import org.apache.spark.sql.types.StructType
+scala> val struct = new StructType().add("a", "int")
 struct: org.apache.spark.sql.types.StructType = StructType(StructField(a,IntegerType,true))
 
-scala> expr("token = 'hello'").cast("int")
-16/07/07 19:00:26 INFO SparkSqlParser: Parsing command: token = 'hello'
-16/07/07 19:00:26 INFO CatalystSqlParser: Parsing command: int
-res0: org.apache.spark.sql.Column = CAST((token = hello) AS INT)
+scala> val asInt = expr("token = 'hello'").cast("int")
+asInt: org.apache.spark.sql.Column = CAST((token = hello) AS INT)
 ----
 
-It is also used in `SimpleCatalogRelation`, `MetastoreRelation`, and `OrcFileOperator`.
+When parsing, you should see INFO messages in the logs:
+
+```
+INFO CatalystSqlParser: Parsing command: int
+```
+
+It is also used in `HiveClientImpl` (when converting columns from Hive to Spark) and in `OrcFileOperator` (when inferring the schema for ORC files).
 
 [TIP]
 ====
