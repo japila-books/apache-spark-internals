@@ -1,6 +1,6 @@
 == SQL Parser Framework
 
-*SQL Parser Framework* in Spark SQL uses ANTLR to parse a SQL text and create a `DataType`, `Expression`, `TableIdentifier`, or link:spark-sql-logical-plan.adoc[LogicalPlan] out of it.
+*SQL Parser Framework* in Spark SQL uses ANTLR to parse a SQL text and create link:spark-sql-DataType.adoc[data types], `Expression`, `TableIdentifier`, or link:spark-sql-logical-plan.adoc[LogicalPlan] out of it.
 
 CAUTION: FIXME Make the intro more introductory without much technical details.
 
@@ -30,7 +30,7 @@ It has the only single abstract subclass <<AbstractSqlParser, AbstractSqlParser>
 1. <<SparkSqlParser, SparkSqlParser>>
 2. <<CatalystSqlParser, CatalystSqlParser>>
 
-`AbstractSqlParser` creates an layer of indirection and expects that subclasses provide custom <<AstBuilder, AstBuilder>> that in turn converts a ANTLR `ParseTree` into a `DataType`, `Expression`, `TableIdentifier`, or link:spark-sql-logical-plan.adoc[LogicalPlan].
+`AbstractSqlParser` creates an layer of indirection and expects that subclasses provide custom <<AstBuilder, AstBuilder>> that in turn converts a ANTLR `ParseTree` into a link:spark-sql-DataType.adoc[data type], `Expression`, `TableIdentifier`, or link:spark-sql-logical-plan.adoc[LogicalPlan].
 
 [source, scala]
 ----
@@ -39,35 +39,39 @@ protected def astBuilder: AstBuilder
 
 `AbstractSqlParser` simply routes all the final parsing calls to translate sql string into a respective Spark SQL object to that `AstBuilder`.
 
-=== [[AstBuilder]] AstBuilder
+When parsing a SQL string, it first uses its own <<AbstractSqlParser-parse, parse>> protected method that sets up a proper ANTLR parsing infrastructure.
 
-`AstBuilder` is a ANTLR custom `SqlBaseBaseVisitor` to convert a ANTLR `ParseTree` (that represents a SQL string) into Spark SQL's corresponding entity using the following methods:
-
-1. `visitSingleDataType` to produce a `DataType`
-2. `visitSingleExpression` to produce a `Expression`
-3. `visitSingleTableIdentifier` to produce a `TableIdentifier`
-4. `visitSingleStatement` for a link:spark-sql-logical-plan.adoc[LogicalPlan]
-
-When parsing a SQL string, it first uses its own <<AstBuilder-parse, parse>> protected method that sets up a proper ANTLR parsing infrastructure.
-
-`AstBuilder` belongs to `org.apache.spark.sql.catalyst.parser` package.
-
-==== [[AstBuilder-parse]] AstBuilder.parse method
+==== [[AbstractSqlParser-parse]] parse method
 
 [source, scala]
 ----
 parse[T](command: String)(toResult: SqlBaseParser => T): T
 ----
 
-`parse` is a protected method that sets up a proper ANTLR parsing infrastructure and uses the ANTLR-specific classes for Spark SQL that are auto-generated at build time.
+`parse` is a protected method that sets up a proper ANTLR parsing infrastructure with `SqlBaseLexer` and `SqlBaseParser` with are the ANTLR-specific classes of Spark SQL that are auto-generated at build time.
 
-When called, you should see the following INFO message in the logs:
+TIP: Review the definition of ANTLR grammar for Spark SQL in https://github.com/apache/spark/blob/master/sql/catalyst/src/main/antlr4/org/apache/spark/sql/catalyst/parser/SqlBase.g4[sql/catalyst/src/main/antlr4/org/apache/spark/sql/catalyst/parser/SqlBase.g4].
+
+When called, `parse` prints out the following INFO message to the logs:
 
 ```
 INFO SparkSqlParser: Parsing command: [command]
 ```
 
 TIP: Enable `INFO` logging level for <<SparkSqlParser, SparkSqlParser>> or <<CatalystSqlParser, CatalystSqlParser>> to see the INFO message.
+
+=== [[AstBuilder]] AstBuilder
+
+`AstBuilder` is a ANTLR `SqlBaseBaseVisitor` to convert a ANTLR `ParseTree` (that represents a SQL string) into Spark SQL's corresponding entity using the following methods:
+
+1. `visitSingleDataType` to produce a link:spark-sql-DataType.adoc[DataType]
+2. `visitSingleExpression` to produce a `Expression`
+3. `visitSingleTableIdentifier` to produce a `TableIdentifier`
+4. `visitSingleStatement` for a link:spark-sql-logical-plan.adoc[LogicalPlan]
+
+`AstBuilder` belongs to `org.apache.spark.sql.catalyst.parser` package.
+
+NOTE: `SqlBaseBaseVisitor` is a ANTLR-specific base class for parser visitors that is auto-generated at build time.
 
 === [[SparkSqlParser]] SparkSqlParser
 
