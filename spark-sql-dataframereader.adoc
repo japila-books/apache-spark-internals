@@ -1,16 +1,20 @@
 == DataFrameReader
 
-`DataFrameReader` is an interface to return `DataFrame` from <<format, many storage formats>> in external storage systems (e.g. <<creating-dataframes-from-tables, databases>> or <<creating-dataframes-from-files, files>>) and <<stream, streams>>.
+`DataFrameReader` is an interface to create link:spark-sql-dataframe.adoc[DataFrames] from <<creating-dataframes-from-files, files>>, <<creating-dataframes-from-tables, Hive tables>> or <<jdbc, JDBC>>.
 
-Use link:spark-sql-sparksession.adoc#read[SparkSession.read] to create an instance of `DataFrameReader`.
+NOTE: You can link:spark-sql-datasource-custom-formats.adoc[define your own custom file formats].
+
+You use link:spark-sql-sparksession.adoc#read[SparkSession.read] to access an instance of `DataFrameReader`.
 
 [source, scala]
 ----
+val spark: SparkSession = SparkSession.builder.getOrCreate
+
 import org.apache.spark.sql.DataFrameReader
 val reader: DataFrameReader = spark.read
 ----
 
-It has a direct support for many <<creating-dataframes-from-files, file formats>> and <<format, interface for new ones>>. It assumes <<parquet, parquet>> as the default data source format that you can change using link:spark-sql-settings.adoc[spark.sql.sources.default] setting.
+`DataFrameReader` supports many <<creating-dataframes-from-files, file formats>> and <<format, interface for new ones>>. It assumes <<parquet, parquet>> as the default data source format that you can change using link:spark-sql-settings.adoc[spark.sql.sources.default] setting.
 
 As of Spark 2.0, `DataFrameReader` can read text files using <<textFile, textFile>> methods that return `Dataset[String]` (not `DataFrames` which are `Dataset[Row]` and therefore untyped).
 
@@ -82,28 +86,9 @@ val csv = spark.read
   .load("*.csv")
 ----
 
-=== [[stream]] stream methods
-
-[source, scala]
-----
-stream(): DataFrame
-stream(path: String): DataFrame
-----
-
-CAUTION: FIXME Review 915a75398ecbccdbf9a1e07333104c857ae1ce5e
-
-`stream` loads input data stream in as a `DataFrame`.
-
-[source, scala]
-----
-Seq("hello", "world").zipWithIndex.toDF("text", "id").write.format("csv").save("text-id.csv")
-
-val csvStream = spark.read.format("csv").stream("text-id.csv")
-----
-
 === [[creating-dataframes-from-files]] Creating DataFrames from Files
 
-`DataFrameReader` comes with a direct support for multiple file formats:
+`DataFrameReader` supports the following file formats:
 
 * <<json, JSON>>
 * <<csv, CSV>>
@@ -126,6 +111,7 @@ New in **2.0.0**: `prefersDecimal`
 
 [source, scala]
 ----
+csv(path: String): DataFrame
 csv(paths: String*): DataFrame
 ----
 
@@ -133,6 +119,7 @@ csv(paths: String*): DataFrame
 
 [source, scala]
 ----
+parquet(path: String): DataFrame
 parquet(paths: String*): DataFrame
 ----
 
@@ -196,6 +183,7 @@ java.lang.IllegalArgumentException: Codec [unsupported] is not available. Availa
 [source, scala]
 ----
 orc(path: String): DataFrame
+orc(paths: String*): DataFrame
 ----
 
 *Optimized Row Columnar (ORC)* file format is a highly efficient columnar format to store Hive data with more than 1,000 columns and improve performance. ORC format was introduced in Hive version 0.11 to use and retain the type information from the table definition.
@@ -312,8 +300,7 @@ textFile(paths: String*): Dataset[String]
 
 [source, scala]
 ----
-scala> spark.read.textFile("README.md").filter(_.contains("Spark")).count
-res0: Long = 19
+spark.read.textFile("README.md")
 ----
 
 NOTE: `textFile` are similar to <<text, text>> family of methods in that they both read text files but `text` methods return untyped `DataFrame` while `textFile` return typed `Dataset[String]`.
