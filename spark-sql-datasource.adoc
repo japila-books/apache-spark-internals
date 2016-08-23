@@ -2,21 +2,102 @@
 
 `DataSource` case class belongs to the Data Source API (along with link:spark-sql-dataframereader.adoc[DataFrameReader] for loading datasets and link:spark-sql-dataframewriter.adoc[DataFrameWriter] for saving datasets).
 
-`DataSource` acts as the canonical set of parameters that describe a data source. It uses a link:spark-sql-sparksession.adoc[SparkSession], a class name, a collection of `paths`, optional user-specified link:spark-sql-schema.adoc[schema], a collection of partition columns, a bucket specification, and options.
+`DataSource` acts as the canonical set of parameters that describe a data source to load from or write data to. It uses a link:spark-sql-sparksession.adoc[SparkSession], a class name, a collection of `paths`, optional user-specified link:spark-sql-schema.adoc[schema], a collection of partition columns, a bucket specification, and configuration options.
 
 === [[creating-instance]] Creating DataSource Instance
 
-When being created, `DataSource` first <<lookupDataSource, looks up the providing class>> for the input `className` and computes the <<sourceSchema, name and schema>> of the data source.
+When being created, `DataSource` first <<lookupDataSource, looks up the providing class>> given the input `className` (considering it an alias or a fully-qualified class name) and computes the <<sourceSchema, name and schema>> of the data source.
 
 ==== [[lookupDataSource]] lookupDataSource Internal Method
 
-CAUTION: FIXME Describe me.
+[source, scala]
+----
+lookupDataSource(provider0: String): Class[_]
+----
 
-It searches the classpath for available link:spark-sql-DataSourceRegister.adoc[DataSourceRegister] classes (using Java's link:++https://docs.oracle.com/javase/8/docs/api/java/util/ServiceLoader.html#load-java.lang.Class-java.lang.ClassLoader-++[ServiceLoader.load] method).
+It first searches the classpath for available link:spark-sql-DataSourceRegister.adoc[DataSourceRegister] classes (using Java's link:++https://docs.oracle.com/javase/8/docs/api/java/util/ServiceLoader.html#load-java.lang.Class-java.lang.ClassLoader-++[ServiceLoader.load] method) and finds the requested data source by short name.
+
+If the `DataSource` could not be found by its alias, it tries to load the class by the input `provider0` fully-qualified class name or its variant `provider0.DefaultSource` (with `.DefaultSource` suffix).
+
+There has to be one data source registered only or you will see the following `RuntimeException`:
+
+[options="wrap"]
+----
+Multiple sources found for [provider] ([comma-separated class names]), please specify the fully qualified class name.
+----
 
 ==== [[sourceSchema]] sourceSchema Internal Method
 
-CAUTION: FIXME Describe me.
+[source, scala]
+----
+sourceSchema(): SourceInfo
+----
+
+`sourceSchema` returns the name and link:spark-sql-schema.adoc[schema] of the data source for streamed reading.
+
+CAUTION: FIXME Why is the method called? Why does this bother with streamed reading and data sources?!
+
+It supports two class hierarchies, i.e. `StreamSourceProvider` and `FileFormat` data sources.
+
+Internally, `sourceSchema` first creates an instance of the data source and...
+
+CAUTION: FIXME Finish...
+
+For `StreamSourceProvider` data sources, `sourceSchema` relays calls to `StreamSourceProvider.sourceSchema`.
+
+For `FileFormat` data sources, `sourceSchema` makes sure that `path` option was specified.
+
+TIP: `path` is looked up in a case-insensitive way so `paTh` and `PATH` and `pAtH` are all acceptable. Use the lower-case version of `path`, though.
+
+NOTE: `path` can use https://en.wikipedia.org/wiki/Glob_%28programming%29[glob pattern] (not regex syntax), i.e. contain any of `{}[]*?\` characters.
+
+It checks whether the path exists if a glob pattern is not used. In case it did not exist you will see the following `AnalysisException` exception in the logs:
+
+```
+scala> spark.read.load("the.file.does.not.exist.parquet")
+org.apache.spark.sql.AnalysisException: Path does not exist: file:/Users/jacek/dev/oss/spark/the.file.does.not.exist.parquet;
+  at org.apache.spark.sql.execution.datasources.DataSource$$anonfun$12.apply(DataSource.scala:375)
+  at org.apache.spark.sql.execution.datasources.DataSource$$anonfun$12.apply(DataSource.scala:364)
+  at scala.collection.TraversableLike$$anonfun$flatMap$1.apply(TraversableLike.scala:241)
+  at scala.collection.TraversableLike$$anonfun$flatMap$1.apply(TraversableLike.scala:241)
+  at scala.collection.immutable.List.foreach(List.scala:381)
+  at scala.collection.TraversableLike$class.flatMap(TraversableLike.scala:241)
+  at scala.collection.immutable.List.flatMap(List.scala:344)
+  at org.apache.spark.sql.execution.datasources.DataSource.resolveRelation(DataSource.scala:364)
+  at org.apache.spark.sql.DataFrameReader.load(DataFrameReader.scala:149)
+  at org.apache.spark.sql.DataFrameReader.load(DataFrameReader.scala:132)
+  ... 48 elided
+```
+
+If link:spark-sql-SQLConf.adoc#spark.sql.streaming.schemaInference[spark.sql.streaming.schemaInference] is disabled and the data source is different than `TextFileFormat`, and the input `userSpecifiedSchema` is not specified, the following `IllegalArgumentException` exception is thrown:
+
+[options="wrap"]
+----
+Schema must be specified when creating a streaming source DataFrame. If some files already exist in the directory, then depending on the file format you may be able to create a static DataFrame on that directory with 'spark.read.load(directory)' and infer schema from it.
+----
+
+CAUTION: FIXME I don't think the exception will ever happen for non-streaming sources since the schema is going to be defined earlier. When?
+
+Eventually, it returns a `SourceInfo` with `FileSource[path]` and the schema (as calculated using the <<inferFileFormatSchema, inferFileFormatSchema>> internal method).
+
+For any other data source, it throws `UnsupportedOperationException` exception:
+
+```
+Data source [className] does not support streamed reading
+```
+
+==== [[inferFileFormatSchema]] inferFileFormatSchema Internal Method
+
+[source, scala]
+----
+inferFileFormatSchema(format: FileFormat): StructType
+----
+
+`inferFileFormatSchema` private method computes (aka _infers_) schema (as link:spark-sql-schema.adoc#StructType[StructType]). It returns `userSpecifiedSchema` if specified or uses `FileFormat.inferSchema`. It throws a `AnalysisException` when is unable to infer schema.
+
+It uses `path` option for the list of directory paths.
+
+NOTE: It is used by <<sourceSchema, DataSource.sourceSchema>> and <<createSource, DataSource.createSource>> when `FileFormat` is processed.
 
 === [[write]] write
 
@@ -30,23 +111,6 @@ createSource(metadataPath: String): Source
 ----
 
 CAUTION: FIXME
-
-=== [[sourceSchema]] sourceSchema
-
-CAUTION: FIXME
-
-=== [[inferFileFormatSchema]] inferFileFormatSchema
-
-[source, scala]
-----
-inferFileFormatSchema(format: FileFormat): StructType
-----
-
-`inferFileFormatSchema` private method computes (aka _infers_) schema (as link:spark-sql-schema.adoc#StructType[StructType]). It returns `userSpecifiedSchema` if specified or uses `FileFormat.inferSchema`. It throws a `AnalysisException` when is unable to infer schema.
-
-It uses `path` option for the list of directory paths.
-
-NOTE: It is used by <<sourceSchema, DataSource.sourceSchema>> and <<createSource, DataSource.createSource>> when `FileFormat` is processed.
 
 === [[resolveRelation]] resolveRelation
 
