@@ -9,9 +9,9 @@ CAUTION: FIXME Work in progress
 sparkSession.sessionState.analyzer
 ----
 
-NOTE: link:spark-sql-sparksession.adoc#sessionState[`sessionState` attribute in `SparkSession`] is `private[sql] lazy val` so the code should be inside `org.apache.spark.sql` package.
+NOTE: link:spark-sql-sparksession.adoc#sessionState[`sessionState` attribute in `SparkSession`] is `private[sql] lazy val` so the code that uses it has to be in `org.apache.spark.sql` package.
 
-`Analyzer` is a `RuleExecutor` with `CheckAnalysis` and defines `Substitution`, `Resolution`, `Nondeterministic`, `UDF`, `FixNullability`, and `Cleanup` batches.
+`Analyzer` is a <<RuleExecutor, RuleExecutor>> with `CheckAnalysis` and defines `Substitution`, `Resolution`, `Nondeterministic`, `UDF`, `FixNullability`, and `Cleanup` <<batch, batches>>.
 
 `Analyzer` uses a link:spark-sql-sessionstate.adoc#SessionCatalog[SessionCatalog], a `CatalystConf`, and a configurable number of iterations (as `maxIterations`).
 
@@ -45,4 +45,76 @@ scala> dataset.queryExecution.analyzed
 res34: org.apache.spark.sql.catalyst.plans.logical.LogicalPlan =
 Project [id#293L, (id#293L + cast(5 as bigint)) AS new_column#297L]
 +- Range (0, 5, splits=8)
+----
+
+=== [[RuleExecutor]] RuleExecutor -- Abstract Rule Executor
+
+`RuleExecutor` can <<execute, apply>> collection of rules (as <<batch, batches>>) to a tree.
+
+Scala-wise, `RuleExecutor` is an abstract type generator parameterized by the `TreeType` type parameter.
+
+[source, scala]
+----
+abstract class RuleExecutor[TreeType <: TreeNode[_]]
+----
+
+`RuleExecutor` defines the protected `batches` method that implementations are supposed to define with the collection of <<batch, Batch>> instances to <<execute, execute>>.
+
+[source, scala]
+----
+protected def batches: Seq[Batch]
+----
+
+==== [[execute]] Applying Rules to Tree (execute method)
+
+[source, scala]
+----
+execute(plan: TreeType): TreeType
+----
+
+`execute` iterates over <<batch, batches>> and applies rules sequentially to the input `plan`.
+
+It tracks the number of iterations and the time of executing each rule (with a plan).
+
+When a rule changes a plan, you should see the following TRACE message in the logs:
+
+```
+FIXME
+```
+
+After the number of iterations has reached the number of iterations for the batch's `Strategy` it stops execution and prints out the following WARN message to the logs:
+
+```
+WARN Max iterations ([iteration]) reached for batch [batchName]
+```
+
+When the plan has not changed (after applying rules), you should see the following TRACE message in the logs and `execute` moves on to applying the rules in the next batch. The moment is called *fixed point* (i.e. when the execution *converges*).
+
+```
+TRACE Fixed point reached for batch [batchName] after [iteration] iterations.
+```
+
+After the batch finishes, if the plan has been changed by the rules, you should see the following DEBUG message in the logs:
+
+```
+FIXME
+```
+
+Otherwise, when the rules had no changes to a plan, you should see the following TRACE message in the logs:
+
+```
+TRACE Batch [batchName] has no effect.
+```
+
+==== [[batch]] Batch
+
+A *batch* is a named collection of rules with a strategy, e.g.
+
+[source, scala]
+----
+Batch("Substitution", fixedPoint,
+  CTESubstitution,
+  WindowsSubstitution,
+  EliminateUnions,
+  new SubstituteUnresolvedOrdinals(conf)),
 ----
