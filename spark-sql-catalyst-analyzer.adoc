@@ -1,7 +1,5 @@
 == [[Analyzer]] Logical Query Plan Analyzer
 
-CAUTION: FIXME Work in progress
-
 `Analyzer` is a link:spark-sql-logical-plan.adoc[logical query plan] analyzer. It is available through link:spark-sql-sessionstate.adoc#analyzer[analyzer attribute] of the current `SparkSession`.
 
 [source, scala]
@@ -15,7 +13,7 @@ NOTE: link:spark-sql-sparksession.adoc#sessionState[`sessionState` attribute in 
 
 `Analyzer` uses a link:spark-sql-sessionstate.adoc#SessionCatalog[SessionCatalog], a `CatalystConf`, and a configurable number of iterations (as `maxIterations`).
 
-`Analyzer` defines `extendedResolutionRules` attribute being a collection of `Rule[LogicalPlan]` as an extension point which a custom `Analyzer` can use to extend the `Resolution` batch. The collection is then added at the end of the `Resolution` batch.
+`Analyzer` defines `extendedResolutionRules` attribute being a collection of rules (that process a `LogicalPlan`) as an extension point that a custom `Analyzer` can use to extend the `Resolution` batch. The collection of rules is added at the end of the `Resolution` batch.
 
 You can access the result of executing `Analyzer` against the link:spark-sql-logical-plan.adoc[logical plan] of a link:spark-sql-dataset.adoc[Dataset] using link:spark-sql-dataset.adoc#explain[explain] method or link:spark-sql-query-execution.adoc[QueryExecution]:
 
@@ -23,29 +21,50 @@ You can access the result of executing `Analyzer` against the link:spark-sql-log
 ----
 val dataset = spark.range(5).withColumn("new_column", 'id + 5 as "plus5")
 
-scala> dataset.explain(true)
+scala> dataset.explain(extended = true)
 == Parsed Logical Plan ==
-'Project [*, ('id + 5) AS plus5#296 AS new_column#297]
-+- Range (0, 5, splits=8)
+'Project [*, ('id + 5) AS plus5#148 AS new_column#149]
++- Range (0, 5, step=1, splits=Some(8))
 
 == Analyzed Logical Plan ==
 id: bigint, new_column: bigint
-Project [id#293L, (id#293L + cast(5 as bigint)) AS new_column#297L]
-+- Range (0, 5, splits=8)
+Project [id#145L, (id#145L + cast(5 as bigint)) AS new_column#149L]
++- Range (0, 5, step=1, splits=Some(8))
 
 == Optimized Logical Plan ==
-Project [id#293L, (id#293L + 5) AS new_column#297L]
-+- Range (0, 5, splits=8)
+Project [id#145L, (id#145L + 5) AS new_column#149L]
++- Range (0, 5, step=1, splits=Some(8))
 
 == Physical Plan ==
-*Project [id#293L, (id#293L + 5) AS new_column#297L]
-+- *Range (0, 5, splits=8)
+*Project [id#145L, (id#145L + 5) AS new_column#149L]
++- *Range (0, 5, step=1, splits=Some(8))
 
 scala> dataset.queryExecution.analyzed
-res34: org.apache.spark.sql.catalyst.plans.logical.LogicalPlan =
-Project [id#293L, (id#293L + cast(5 as bigint)) AS new_column#297L]
-+- Range (0, 5, splits=8)
+res14: org.apache.spark.sql.catalyst.plans.logical.LogicalPlan =
+Project [id#145L, (id#145L + cast(5 as bigint)) AS new_column#149L]
++- Range (0, 5, step=1, splits=Some(8))
 ----
+
+[TIP]
+====
+Enable `TRACE` or `DEBUG` logging level for `pass:[org.apache.spark.sql.hive.HiveSessionState$$anon$1]` (when link:spark-sql-sparksession.adoc#enableHiveSupport[Hive support is enabled]) or `pass:[org.apache.spark.sql.internal.SessionState$$anon$1]` logger to see what happens inside `Analyzer`.
+
+Add the following line to `conf/log4j.properties`:
+
+```
+# when Hive support is enabled
+log4j.logger.org.apache.spark.sql.hive.HiveSessionState$$anon$1=TRACE
+
+# with no Hive support
+log4j.logger.org.apache.spark.sql.internal.SessionState$$anon$1=TRACE
+```
+
+Refer to link:spark-logging.adoc[Logging].
+
+---
+
+The reason for such a weird-looking logger name is that `analyzer` attribute is created as an anonymous subclass of `Analyzer` class.
+====
 
 === [[RuleExecutor]] RuleExecutor -- Abstract Rule Executor
 
