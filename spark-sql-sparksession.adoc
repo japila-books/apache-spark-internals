@@ -2,6 +2,8 @@
 
 `SparkSession` is the entry point to developing Spark SQL applications using the fully-typed link:spark-sql-dataset.adoc[Dataset] (and untyped link:spark-sql-dataframe.adoc[DataFrame]) data abstractions.
 
+NOTE: `SparkSession` has replaced link:spark-sql-sqlcontext.adoc[SQLContext] as of Spark *2.0.0*.
+
 You should use the <<builder, builder>> method to create an instance of `SparkSession`.
 
 [source, scala]
@@ -13,27 +15,30 @@ val spark: SparkSession = SparkSession.builder
   .getOrCreate
 ----
 
-The `private` more direct API to create a `SparkSession` requires a link:spark-sparkcontext.adoc[SparkContext] and an optional <<SharedState, SharedState>> (that represents the shared state across `SparkSession` instances).
+You can have multiple ``SparkSession``s in a single Spark application.
 
-[NOTE]
-====
-`SparkSession` has replaced link:spark-sql-sqlcontext.adoc[SQLContext] as of Spark *2.0.0*.
-====
+Internally, `SparkSession` requires a link:spark-sparkcontext.adoc[SparkContext] and an optional <<SharedState, SharedState>> (that represents the shared state across `SparkSession` instances).
 
-=== [[enableHiveSupport]] Enabling Hive Support (enableHiveSupport method)
-
-When <<creating-instance, creating a `SparkSession`>>, you can enable Hive support using `enableHiveSupport` method.
+=== [[builder]] Accessing Builder for SparkSession (builder method)
 
 [source, scala]
 ----
-enableHiveSupport(): Builder
+builder(): Builder
 ----
 
-CAUTION: FIXME What exactly do you get from it?
+`builder` method creates a new link:spark-sql-sparksession-builder.adoc[Builder] that you can use to build a fully-configured `SparkSession` using a _fluent API_.
+
+[source, scala]
+----
+import org.apache.spark.sql.SparkSession
+val builder = SparkSession.builder
+----
+
+TIP: Read about https://en.wikipedia.org/wiki/Fluent_interface[Fluent interface] design pattern in Wikipedia, the free encyclopedia.
 
 === [[implicits]] Implicits -- SparkSession.implicits
 
-The `implicits` object is a helper class with methods to convert objects to link:spark-sql-dataset.adoc[Datasets] and link:spark-sql-dataframe.adoc[DataFrames], and also comes with many link:spark-sql-Encoder.adoc[Encoders] for "primitive" types as well as the collections thereof.
+The `implicits` object is a helper class with the methods to convert Scala objects to link:spark-sql-dataset.adoc[Datasets] and link:spark-sql-dataframe.adoc[DataFrames]. It defines link:spark-sql-Encoder.adoc[Encoders] for Scala's "primitive" types and their products and collections.
 
 [NOTE]
 ====
@@ -46,7 +51,7 @@ import spark.implicits._
 ----
 ====
 
-It holds link:spark-sql-Encoder.adoc[Encoders] for Scala "primitive" types like `Int`, `Double`, `String`, and their products and collections.
+It holds link:spark-sql-Encoder.adoc[Encoders] for Scala's "primitive" types like `Int`, `Double`, `String`, and their products and collections.
 
 It offers support for creating `Dataset` from `RDD` of any type (for which an link:spark-sql-Encoder.adoc[encoder] exists in scope), or case classes or tuples, and `Seq`.
 
@@ -65,7 +70,7 @@ readStream: DataStreamReader
 
 `readStream` returns a new link:spark-sql-streaming-DataStreamReader.adoc[DataStreamReader].
 
-=== [[emptyDataset]] emptyDataset
+=== [[emptyDataset]] Creating Empty Dataset (emptyDataset method)
 
 [source, scala]
 ----
@@ -86,7 +91,7 @@ root
 
 The link:spark-sql-logical-plan.adoc[LogicalPlan] is `LocalRelation`.
 
-=== [[createDataset]] createDataset methods
+=== [[createDataset]] Creating Dataset from Collections and RDDs (createDataset methods)
 
 [source, scala]
 ----
@@ -94,11 +99,14 @@ createDataset[T : Encoder](data: Seq[T]): Dataset[T]
 createDataset[T : Encoder](data: RDD[T]): Dataset[T]
 ----
 
-`createDataset` creates a link:spark-sql-dataset.adoc[Dataset] from the local collection or the distributed `RDD`.
+`createDataset` creates a link:spark-sql-dataset.adoc[Dataset] from a local collection or distributed `RDD`.
 
 [source, scala]
 ----
-scala> val nums = spark.createDataset(1 to 5)
+scala> val ns = 1 to 5
+ns: scala.collection.immutable.Range.Inclusive = Range(1, 2, 3, 4, 5)
+
+scala> val nums = spark.createDataset(ns)
 nums: org.apache.spark.sql.Dataset[Int] = [value: int]
 
 scala> nums.show
@@ -346,10 +354,10 @@ CAUTION: FIXME
 
 NOTE: `sessionState` is a `private[sql]` value so you can only access it in a code inside `org.apache.spark.sql` package.
 
-`sessionState` is a lazily-created value based on the internal <<spark.sql.catalogImplementation, spark.sql.catalogImplementation>> setting that can be:
+`sessionState` is a lazily-created value based on the internal link:spark-sql-settings.adoc#spark.sql.catalogImplementation[spark.sql.catalogImplementation] setting that can be:
 
-* `org.apache.spark.sql.hive.HiveSessionState` when the setting is `hive`
-* `org.apache.spark.sql.internal.SessionState` for `in-memory`.
+* `org.apache.spark.sql.hive.HiveSessionState` for `hive`
+* `org.apache.spark.sql.internal.SessionState` for `in-memory`
 
 === [[sql]] Executing SQL (sql method)
 
@@ -378,27 +386,6 @@ scala> sql("SHOW TABLES").show
 +---------+-----------+
 ```
 
-Internally, it creates a link:spark-sql-dataset.adoc[Dataset] using the current `SparkSession` and the plan (based on the input `sqlText` and parsed using link:spark-sql-sql-parsers.adoc#ParserInterface[ParserInterface.parsePlan] available using <<sessionState, sessionState.sqlParser>>).
+Internally, it creates a link:spark-sql-dataset.adoc[Dataset] using the current `SparkSession` and a link:spark-sql-logical-plan.adoc[logical plan]. The plan is created by parsing the input `sqlText` using <<sessionState, sessionState.sqlParser>>.
 
 CAUTION: FIXME See link:spark-sql-sqlcontext.adoc#sql[Executing SQL Queries].
-
-=== [[builder]] Creating SessionBuilder (builder method)
-
-[source, scala]
-----
-builder(): Builder
-----
-
-`SessionBuilder.builder` method creates a new `SparkSession.Builder` to build a `SparkSession` off it using a fluent API.
-
-[source, scala]
-----
-import org.apache.spark.sql.SparkSession
-val builder = SparkSession.builder
-----
-
-=== [[settings]] Settings
-
-==== [[spark.sql.catalogImplementation]] spark.sql.catalogImplementation
-
-`spark.sql.catalogImplementation` (default: `in-memory`) is an internal setting with two possible values: `hive` and `in-memory`.
