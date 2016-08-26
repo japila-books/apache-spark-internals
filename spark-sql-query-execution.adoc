@@ -1,6 +1,17 @@
 == [[QueryExecution]] Query Execution
 
-`QueryExecution` is a part of link:spark-sql-dataset.adoc[Dataset] and represents the query execution that will eventually produce the data in a `Dataset`.
+`QueryExecution` is a part of the public link:spark-sql-dataset.adoc[Dataset] API and represents the query execution that will eventually produce the data in a `Dataset`.
+
+[NOTE]
+====
+You can access the `QueryExecution` of a `Dataset` using link:spark-sql-dataset.adoc#queryExecution[queryExecution] attribute.
+
+[source, scala]
+----
+val spark: SparkSession = ...
+spark.emptyDataset[Long].queryExecution
+----
+====
 
 `QueryExecution` is the result of link:spark-sql-sessionstate.adoc#executePlan[executing a `LogicalPlan` in a `SparkSession`] (and so you could create a `Dataset` from a `LogicalPlan` or use the `QueryExecution` after executing the `LogicalPlan`).
 
@@ -47,6 +58,17 @@ class QueryExecution(
 
 `QueryExecution` requires a link:spark-sql-sparksession.adoc[SparkSession] and a link:spark-sql-logical-plan.adoc[LogicalPlan].
 
+=== [[planner]] Accessing SparkPlanner (planner method)
+
+[source, scala]
+----
+planner: SparkPlanner
+----
+
+`planner` returns link:spark-sql-queryplanner.adoc#SparkPlanner[SparkPlanner].
+
+`planner` is merely to expose internal link:spark-sql-sessionstate.adoc#planner[planner] (in the current link:spark-sql-sessionstate.adoc[SessionState]).
+
 === [[lazy-attributes]] Lazy Attributes
 
 `QueryExecution` holds lazy attributes that are initializes at the first read.
@@ -67,18 +89,30 @@ NOTE: `Analyzer` resolves unresolved attributes and relations to typed objects u
 
 ==== [[sparkPlan]] sparkPlan Attribute
 
-`sparkPlan` being a `SparkPlan` that was computed using `planner` on `optimizedPlan`.
+`sparkPlan` is the link:spark-sql-spark-plan.adoc[SparkPlan] that is the result of requesting <<planner, SparkPlanner>> to plan a <<optimizedPlan, optimized logical query plan>>.
+
+NOTE: In fact, the result `SparkPlan` is the first Spark query plan from the collection of possible query plans from <<planner, SparkPlanner>>.
 
 ==== [[executedPlan]] executedPlan Attribute
 
-`executedPlan` lazy value is a link:spark-sql-spark-plan.adoc[SparkPlan] ready for execution. It is the <<sparkPlan, sparkPlan>> lazy value with all the <<preparations, preparation rules>> applied.
-
-In Spark SQL's internal code, a common idiom to access the executed `SparkPlan` for a given `LogicalPlan` is as follows:
+`executedPlan` attribute is computed lazily and represents a link:spark-sql-spark-plan.adoc[SparkPlan] ready for execution. It is the <<sparkPlan, sparkPlan>> plan with all the <<preparations, preparation rules>> applied.
 
 [source, scala]
 ----
-sparkSession.sessionState.executePlan(explain).executedPlan
+val dataset: Dataset[Long] = ...
+dataset.queryExecution.executedPlan
 ----
+
+==== [[toRdd]] toRdd Attribute
+
+`toRdd` is the `RDD[InternalRow]` that is the result of executing <<executedPlan, executedPlan>> plan, i.e.
+
+[source, scala]
+----
+executedPlan.execute()
+----
+
+TIP: link:spark-sql-InternalRow.adoc[InternalRow] is the internal optimized binary row format.
 
 === [[preparations]] preparations -- SparkPlan Optimization Rules (to apply before Query Execution)
 
@@ -98,12 +132,6 @@ The current list of `SparkPlan` transformations in `preparations` is as follows:
 6. `ReuseSubquery`
 
 NOTE: The transformation rules applied in order to the physical plan before execution, i.e. they generate a `SparkPlan` when <<executedPlan, executedPlan>> lazy value is accessed.
-
-==== [[toRdd]] toRdd Attribute
-
-`toRdd` being a `RDD[InternalRow]`.
-
-TIP: Read link:spark-sql-InternalRow.adoc[InternalRow] to learn about the internal binary row format.
 
 === [[IncrementalExecution]] IncrementalExecution
 

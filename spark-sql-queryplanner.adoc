@@ -1,35 +1,58 @@
 == QueryPlanner
 
-`QueryPlanner` transforms a link:spark-sql-logical-plan.adoc[LogicalPlan] through a chain of `GenericStrategy` objects to produce a `PhysicalPlan`, e.g. link:spark-sql-spark-plan.adoc[SparkPlan] for <<SparkPlanner, SparkPlanner>> or the <<HiveSessionState, custom SparkPlanner for HiveSessionState>>.
+`QueryPlanner` transforms a link:spark-sql-logical-plan.adoc[LogicalPlan] through a chain of `GenericStrategy` objects to produce a physical execution plan, e.g. link:spark-sql-spark-plan.adoc[SparkPlan] for <<SparkPlanner, SparkPlanner>> or the <<HiveSessionState, Hive-Specific SparkPlanner for HiveSessionState>>.
 
-`QueryPlanner` contract defines three operations:
+=== [[contract]] QueryPlanner Contract
 
-* `strategies` that returns a collection of `GenericStrategy` objects.
+`QueryPlanner` contract defines the following operations:
 
-* `planLater(plan: LogicalPlan): PhysicalPlan` that skips the current plan.
+* <<strategies, strategies>>
+* <<plan, plan>>
+* <<collectPlaceholders, collectPlaceholders>>
+* <<prunePlans, prunePlans>>
 
-* `plan(plan: LogicalPlan)` that returns an `Iterator[PhysicalPlan]` with elements being the result of applying each `GenericStrategy` object from `strategies` collection to `plan` input parameter.
+==== [[strategies]] strategies
+
+The abstract `strategies` method that returns a collection of `GenericStrategy` objects (that are used in the other `plan` method).
+
+==== [[plan]] plan
+
+`plan(plan: LogicalPlan)` that returns an `Iterator[PhysicalPlan]` with elements being the result of applying each `GenericStrategy` object from `strategies` collection to `plan` input parameter.
+
+==== [[collectPlaceholders]] collectPlaceholders
+
+`collectPlaceholders` that returns a collection of pairs of a physical plan and a corresponding link:spark-sql-logical-plan.adoc[LogicalPlan].
+
+==== [[prunePlans]] prunePlans
+
+`prunePlans` that prunes bad physical plans.
 
 === [[SparkStrategies]] SparkStrategies
 
-`SparkStrategies` is an abstract `QueryPlanner` for link:spark-sql-spark-plan.adoc[SparkPlan].
+`SparkStrategies` is an abstract base `QueryPlanner` that produces a link:spark-sql-spark-plan.adoc[SparkPlan].
 
-It serves as a source of concrete `Strategy` objects.
+It merely serves as a "container" with concrete `SparkStrategy` objects, e.g. `SpecialLimits`, `JoinSelection`, `StatefulAggregationStrategy`, `Aggregation`, `InMemoryScans`, `StreamingRelationStrategy`, etc.
 
-Among available `SparkStrategies` is <<SparkPlanner, SparkPlanner>>.
+NOTE: `Strategy` is a type alias of `SparkStrategy` that is defined in https://github.com/apache/spark/blob/master/sql/core/src/main/scala/org/apache/spark/sql/package.scala#L43[org.apache.spark.sql package object].
+
+<<SparkPlanner, SparkPlanner>> is the one and only concrete implementation of `SparkStrategies` available.
+
+CAUTION: FIXME What is `singleRowRdd` for?
 
 === [[SparkPlanner]] SparkPlanner
 
-`SparkPlanner` is a concrete `QueryPlanner` (extending <<SparkStrategies, SparkStrategies>>) that uses a link:spark-sparkcontext.adoc[SparkContext], a link:spark-sql-SQLConf.adoc[SQLConf], and a collection of `Strategy` objects (as `extraStrategies`).
+`SparkPlanner` is a concrete `QueryPlanner` (indirectly through extending <<SparkStrategies, SparkStrategies>>) that allows for `extraStrategies`, i.e. a collection of additional <<SparkStrategy, SparkStrategy>> transformations (beside the ones defined in `SparkPlanner` itself).
 
-It defines `numPartitions` method that is the value of link:spark-sql-settings.adoc#spark.sql.shuffle.partitions[spark.sql.shuffle.partitions] for the number of partitions to use for joins and aggregations.
+It requires a link:spark-sparkcontext.adoc[SparkContext], a link:spark-sql-SQLConf.adoc[SQLConf], and a collection of `SparkStrategy` objects (as `extraStrategies`) when created.
+
+It defines `numPartitions` method that returns the value of link:spark-sql-settings.adoc#spark.sql.shuffle.partitions[spark.sql.shuffle.partitions] for the number of partitions to use for joins and aggregations.
 
 `strategies` collection uses predefined `Strategy` objects as well as the constructor's `extraStrategies`.
 
-Among the `Strategy` objects is `JoinSelection`.
+Among the `SparkStrategy` objects are `FileSourceStrategy` and `JoinSelection`.
 
-=== [[HiveSessionState]] Custom SparkPlanner for HiveSessionState
+=== [[HiveSessionState]] Hive-Specific SparkPlanner for HiveSessionState
 
-`HiveSessionState` class uses an custom anonymous  <<SparkPlanner, SparkPlanner>> for `planner` method (part of `SessionState` contract).
+`HiveSessionState` class uses an custom anonymous  <<SparkPlanner, SparkPlanner>> for `planner` method (part of the link:spark-sql-sessionstate.adoc[SessionState] contract).
 
 The custom anonymous `SparkPlanner` uses `Strategy` objects defined in `HiveStrategies`.
