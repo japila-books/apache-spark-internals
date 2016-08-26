@@ -7,7 +7,7 @@
 sparkSession.sessionState.analyzer
 ----
 
-NOTE: link:spark-sql-sparksession.adoc#sessionState[`sessionState` attribute in `SparkSession`] is `private[sql] lazy val` so the code that uses it has to be in `org.apache.spark.sql` package.
+NOTE: link:spark-sql-sparksession.adoc#sessionState[`sessionState` attribute in `SparkSession`] is a `private[sql]` value so to access it your code has to be in `org.apache.spark.sql` package.
 
 `Analyzer` is a <<RuleExecutor, RuleExecutor>> with `CheckAnalysis` and defines `Substitution`, `Resolution`, `Nondeterministic`, `UDF`, `FixNullability`, and `Cleanup` <<batch, batches>>.
 
@@ -97,32 +97,37 @@ It tracks the number of iterations and the time of executing each rule (with a p
 
 When a rule changes a plan, you should see the following TRACE message in the logs:
 
-```
-FIXME
-```
+[options="wrap"]
+----
+TRACE HiveSessionState$$anon$1:
+=== Applying Rule [ruleName] ===
+[currentAndModifiedPlansSideBySide]
+----
 
 After the number of iterations has reached the number of iterations for the batch's `Strategy` it stops execution and prints out the following WARN message to the logs:
 
 ```
-WARN Max iterations ([iteration]) reached for batch [batchName]
+WARN HiveSessionState$$anon$1: Max iterations ([iteration]) reached for batch [batchName]
 ```
 
 When the plan has not changed (after applying rules), you should see the following TRACE message in the logs and `execute` moves on to applying the rules in the next batch. The moment is called *fixed point* (i.e. when the execution *converges*).
 
 ```
-TRACE Fixed point reached for batch [batchName] after [iteration] iterations.
+TRACE HiveSessionState$$anon$1: Fixed point reached for batch [batchName] after [iteration] iterations.
 ```
 
 After the batch finishes, if the plan has been changed by the rules, you should see the following DEBUG message in the logs:
 
 ```
-FIXME
+DEBUG HiveSessionState$$anon$1:
+=== Result of Batch [batchName] ===
+[currentAndModifiedPlansSideBySide]
 ```
 
 Otherwise, when the rules had no changes to a plan, you should see the following TRACE message in the logs:
 
 ```
-TRACE Batch [batchName] has no effect.
+TRACE HiveSessionState$$anon$1: Batch [batchName] has no effect.
 ```
 
 ==== [[batch]] Batch
@@ -137,3 +142,7 @@ Batch("Substitution", fixedPoint,
   EliminateUnions,
   new SubstituteUnresolvedOrdinals(conf)),
 ----
+
+A `Strategy` can be `Once` or `FixedPoint` (with a number of iterations).
+
+NOTE: `Once` strategy is a `FixedPoint` strategy with one iteration.
