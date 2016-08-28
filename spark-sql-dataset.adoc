@@ -1,13 +1,13 @@
 == Dataset
 
-*Dataset* is the Spark SQL API for working with structured data, i.e. records with a known schema.
+*Dataset* is Spark SQL's strongly-typed API for working with structured data, i.e. records with a known link:spark-sql-schema.adoc[schema].
 
-Datasets are "lazy" and structured query expressions are only triggered when an action is invoked. Internally, a `Dataset` represents a link:spark-sql-logical-plan.adoc[logical plan] that describes the computation query required to produce the data (for a given link:spark-sql-sparksession.adoc[Spark SQL session]).
+Datasets are _lazy_ and structured query expressions are only triggered when an action is invoked. Internally, a `Dataset` represents a link:spark-sql-logical-plan.adoc[logical plan] that describes the computation query required to produce the data (for a given link:spark-sql-sparksession.adoc[Spark SQL session]).
 
 .Dataset's Internals
 image::images/spark-sql-Dataset.png[align="center"]
 
-A Dataset is a result of executing a query expression against data storage like files or databases. The structured query expression can be described by a SQL query, a Column-based SQL expression or a Scala/Java lambda function. And that is why Dataset operations are available in three variants.
+A Dataset is a result of executing a query expression against data storage like files, Hive tables or JDBC databases. The structured query expression can be described by a SQL query, a Column-based SQL expression or a Scala/Java lambda function. And that is why Dataset operations are available in three variants.
 
 [source, scala]
 ----
@@ -402,13 +402,21 @@ scala> ds.map(_.name).show
 
 === [[rdd]] Converting Datasets into RDDs (using rdd method)
 
-Whenever you are in need to convert a `Dataset` into a `RDD`, executing `rdd` method gives you a RDD of the proper input object type (not link:spark-sql-dataframe.adoc#features[Row as in DataFrames]).
+Whenever you are in need to convert a `Dataset` into a `RDD`, executing `rdd` method gives you the RDD of the proper input object type (not link:spark-sql-dataframe.adoc#features[Row as in DataFrames]) that sits behind the `Dataset`.
 
 [source, scala]
 ----
 scala> val rdd = tokens.rdd
 rdd: org.apache.spark.rdd.RDD[Token] = MapPartitionsRDD[11] at rdd at <console>:30
 ----
+
+Internally, it looks link:spark-sql-Encoder.adoc#ExpressionEncoder[ExpressionEncoder] (for the `Dataset`) up and accesses the `deserializer` expression. That gives the link:spark-sql-DataType.adoc[DataType] of the result of evaluating the expression.
+
+NOTE: A deserializer expression is used to decode an link:spark-sql-InternalRow.adoc[InternalRow] to an object of type `T`. See link:spark-sql-Encoder.adoc#ExpressionEncoder[ExpressionEncoder].
+
+It then executes a `DeserializeToObject` logical plan that will produce a `RDD[InternalRow]` that is converted into the proper `RDD[T]` using the `DataType` and `T`.
+
+NOTE: It is a lazy operation that "produces" a `RDD[T]`.
 
 === [[schema]] Schema
 
