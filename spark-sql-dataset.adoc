@@ -290,7 +290,7 @@ The features of the Dataset API in Spark SQL:
 
 === [[implicits]][[toDS]][[toDF]] Type Conversions to Dataset[T] (and DataFrame) (toDS and toDF methods)
 
-`DatasetHolder` case class offers three methods that do the conversions from `Seq[T]` or `RDD[T]` type to `Dataset[T]`:
+`DatasetHolder` case class offers three methods that do the conversions from `Seq[T]` or `RDD[T]` types to a `Dataset[T]`:
 
 * `toDS(): Dataset[T]`
 * `toDF(): DataFrame`
@@ -298,10 +298,13 @@ The features of the Dataset API in Spark SQL:
 
 NOTE: `DataFrame` is a _mere_ type alias for `Dataset[Row]` since Spark *2.0.0*.
 
-`DatasetHolder` is used by `SQLImplicits` that is available to use after link:spark-sql-sqlcontext.adoc#implicits[importing implicits object of SQLContext].
+`DatasetHolder` is used by `SQLImplicits` that is available to use after link:spark-sql-sparksession.adoc#implicits[importing `implicits` object of `SparkSession`].
 
 [source, scala]
 ----
+val spark: SparkSession = ...
+import spark.implicits._
+
 scala> val ds = Seq("I am a shiny Dataset!").toDS
 ds: org.apache.spark.sql.Dataset[String] = [value: string]
 
@@ -317,11 +320,11 @@ ds: org.apache.spark.sql.Dataset[String] = [value: string]
 
 [NOTE]
 ====
-This import is automatically executed in link:spark-shell.adoc[Spark Shell].
+This import of `implicits` object's values is automatically executed in link:spark-shell.adoc[Spark Shell] and so you don't need to do anything but use the conversions.
 
 ```
-scala> sc.version
-res11: String = 2.0.0-SNAPSHOT
+scala> spark.version
+res11: String = 2.0.0
 
 scala> :imports
  1) import spark.implicits._  (59 terms, 38 are implicit)
@@ -331,6 +334,7 @@ scala> :imports
 
 [source, scala]
 ----
+val spark: SparkSession = ...
 import spark.implicits._
 
 case class Token(name: String, productId: Int, score: Double)
@@ -341,9 +345,11 @@ val data = Seq(
   Token("bbb", 300, 0.42))
 
 // Transform data to a Dataset[Token]
-// It doesn't work with type annotation yet
+// It doesn't work with type annotation
 // https://issues.apache.org/jira/browse/SPARK-13456
-val ds: Dataset[Token] = data.toDS
+val ds = data.toDS
+
+// ds: org.apache.spark.sql.Dataset[Token] = [name: string, productId: int ... 1 more field]
 
 // Transform data into a DataFrame with no explicit schema
 val df = data.toDF
@@ -388,17 +394,15 @@ scala> ds.map(_.getClass.getName).show(false)
 |$line40.$read$$iw$$iw$Token|
 |$line40.$read$$iw$$iw$Token|
 +---------------------------+
-
-scala> ds.map(_.name).show
-+-----+
-|value|
-+-----+
-|  aaa|
-|  aaa|
-|  bbb|
-|  bbb|
-+-----+
 ----
+
+==== [[toDS-internals]] Internals of toDS
+
+Internally, the Scala compiler makes `toDS` implicitly available to any `Seq[T]` (using `SQLImplicits.localSeqToDatasetHolder` implicit method).
+
+NOTE: This and other implicit methods are in scope whenever you do `import spark.implicits._`.
+
+The input `Seq[T]` is converted into `Dataset[T]` by means of link:spark-sql-sqlcontext.adoc#createDataset[SQLContext.createDataset] that in turn passes all calls on to link:spark-sql-sparksession.adoc#createDataset[SparkSession.createDataset]. Once created, the `Dataset[T]` is wrapped in `DatasetHolder[T]` with `toDS` that just returns the input `ds`.
 
 === [[rdd]] Converting Datasets into RDDs (using rdd method)
 
