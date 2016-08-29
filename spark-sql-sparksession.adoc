@@ -89,9 +89,9 @@ root
  |-- value: string (nullable = true)
 ----
 
-The link:spark-sql-logical-plan.adoc[LogicalPlan] is `LocalRelation`.
+`emptyDataset` creates a  link:spark-sql-logical-plan.adoc#LocalRelation[LocalRelation] logical plan.
 
-=== [[createDataset]] Creating Dataset from Collections and RDDs (createDataset methods)
+=== [[createDataset]] Creating Dataset from Local Collections and RDDs (createDataset methods)
 
 [source, scala]
 ----
@@ -99,7 +99,7 @@ createDataset[T : Encoder](data: Seq[T]): Dataset[T]
 createDataset[T : Encoder](data: RDD[T]): Dataset[T]
 ----
 
-`createDataset` is an experimental API to create a link:spark-sql-dataset.adoc[Dataset] from a local Scala collection, i.e. `Seq[T]` or Java's `List[T]`, or a distributed `RDD[T]`.
+`createDataset` is an experimental API to create a link:spark-sql-dataset.adoc[Dataset] from a local Scala collection, i.e. `Seq[T]`, Java's `List[T]`, or a distributed `RDD[T]`.
 
 [source, scala]
 ----
@@ -114,7 +114,7 @@ scala> one.show
 +-----+
 ----
 
-The link:spark-sql-logical-plan.adoc[LogicalPlan] is `LocalRelation` (for the input `data` collection) or `LogicalRDD` (for the input `RDD[T]`).
+`createDataset` creates a link:spark-sql-logical-plan.adoc#LocalRelation[LocalRelation] logical plan (for the input `data` collection) or `LogicalRDD` (for the input `RDD[T]`).
 
 [TIP]
 ====
@@ -129,6 +129,12 @@ scala> val one = Seq(1).toDS
 one: org.apache.spark.sql.Dataset[Int] = [value: int]
 ----
 ====
+
+Internally, `createDataset` first looks up the implicit link:spark-sql-Encoder.adoc#ExpressionEncoder[expression encoder] in scope to access the ``AttributeReference``s (of the link:spark-sql-schema.adoc[schema]).
+
+NOTE: Only unresolved link:spark-sql-Encoder.adoc#ExpressionEncoder[expression encoders] are currently supported.
+
+The expression encoder is then used to map elements (of the input `Seq[T]`) into a collection of link:spark-sql-InternalRow.adoc[InternalRows]. With the references and rows, `createDataset` returns a link:spark-sql-dataset.adoc[Dataset] with a link:spark-sql-logical-plan.adoc#LocalRelation[LocalRelation] logical plan.
 
 === [[range]] Creating Dataset With Single Long Column (range methods)
 
