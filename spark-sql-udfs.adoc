@@ -2,23 +2,30 @@
 
 *User-Defined Functions* (aka *UDF*) is a feature of Spark SQL to define new link:spark-sql-columns.adoc[Column]-based functions that extend the vocabulary of Spark SQL's DSL to transform link:spark-sql-dataset.adoc[Datasets].
 
-NOTE: UDFs play a vital role in Spark MLlib to define new link:spark-mllib-transformers.adoc[Transformers].
+[TIP]
+====
+Use the link:spark-sql-functions.adoc[higher-level standard Column-based functions] with link:spark-sql-dataset.adoc[Dataset operators] whenever possible before reverting to using your own custom UDF functions since <<udfs-are-blackbox, UDFs are a blackbox>> for Spark and so it does not even try to optimize them.
 
-TIP: Use link:spark-sql-functions.adoc[higher-level standard column functions] and link:spark-sql-dataset.adoc[Dataset operators] available in Spark already before reverting to using your own custom functions since Spark may or may not be able to optimize the query (e.g. for efficient link:spark-sql-dataset.adoc#join[joins] when comparing two columns).
+As Reynold once said on Spark's dev mailing list:
+
+> There are simple cases in which we can analyze the UDFs byte code and infer what it is doing, but it is pretty difficult to do in general.
+====
 
 You define a new UDF by defining a Scala function as an input parameter of `udf` function. You can use Scala functions of up to 10 input parameters. See the section <<udf-function, udf Functions (in functions object)>>.
 
 [source, scala]
 ----
-val df = Seq((0, "hello"), (1, "world")).toDF("id", "text")
+val dataset = Seq((0, "hello"), (1, "world")).toDF("id", "text")
 
 // Define a "regular" Scala function
 val upper: String => String = _.toUpperCase
 
+// Define a UDF that wraps the upper Scala function
 import org.apache.spark.sql.functions.udf
 val upperUDF = udf(upper)
 
-scala> df.withColumn("upper", upperUDF('text)).show
+// Apply the UDF to change the source dataset
+scala> dataset.withColumn("upper", upperUDF('text)).show
 +---+-----+-----+
 | id| text|upper|
 +---+-----+-----+
@@ -26,6 +33,8 @@ scala> df.withColumn("upper", upperUDF('text)).show
 |  1|world|WORLD|
 +---+-----+-----+
 ----
+
+NOTE: UDFs play a vital role in Spark MLlib to define new link:spark-mllib-transformers.adoc[Transformers] that are function objects that transform `DataFrames` into `DataFrames` by introducing new columns.
 
 === [[udf-function]] udf Functions (in functions object)
 
@@ -75,3 +84,55 @@ scala> df.withColumn("upper", upperUDF('text)).show
 ----
 
 TIP: Define custom UDFs based on "standalone" Scala functions (e.g. `toUpperUDF`) so you can test the Scala functions using Scala way (without Spark SQL's "noise") and once they are defined reuse the UDFs in link:spark-mllib-transformers.adoc#UnaryTransformer[UnaryTransformers].
+
+=== [[udfs-are-blackbox]] UDFs are Blackbox
+
+Let's review an example with an UDF. This example is converting strings of size 7 characters only and uses the `Dataset` standard operators first and then custom UDF to do the same transformation.
+
+[source, scala]
+----
+scala> spark.conf.get("spark.sql.parquet.filterPushdown")
+res0: String = true
+----
+
+You are going to use the following `cities` dataset that is based on Parquet file (as used in link:spark-sql-predicate-pushdown.adoc#parquet[Predicate Pushdown / Filter Pushdown for Parquet Data Source] section). The reason for parquet is that it is an external data source that does support optimization Spark uses to optimize itself like predicate pushdown.
+
+[source, scala]
+----
+// no optimization as it is a more involved Scala function in filter
+// 08/30 Asked on dev@spark mailing list for explanation
+val cities6chars = cities.filter(_.name.length == 6).map(_.name.toUpperCase)
+
+cities6chars.explain(true)
+
+// or simpler when only concerned with PushedFilters attribute in Parquet
+scala> cities6chars.queryExecution.optimizedPlan
+res33: org.apache.spark.sql.catalyst.plans.logical.LogicalPlan =
+SerializeFromObject [staticinvoke(class org.apache.spark.unsafe.types.UTF8String, StringType, fromString, input[0, java.lang.String, true], true) AS value#248]
++- MapElements <function1>, class City, [StructField(id,LongType,false), StructField(name,StringType,true)], obj#247: java.lang.String
+   +- Filter <function1>.apply
+      +- DeserializeToObject newInstance(class City), obj#246: City
+         +- Relation[id#236L,name#237] parquet
+
+// no optimization for Dataset[City]?!
+// 08/30 Asked on dev@spark mailing list for explanation
+val cities6chars = cities.filter(_.name == "Warsaw").map(_.name.toUpperCase)
+
+cities6chars.explain(true)
+
+// The filter predicate is pushed down fine for Dataset's Column-based query in where operator
+scala> cities.where('name === "Warsaw").queryExecution.executedPlan
+res29: org.apache.spark.sql.execution.SparkPlan =
+*Project [id#128L, name#129]
++- *Filter (isnotnull(name#129) && (name#129 = Warsaw))
+   +- *FileScan parquet [id#128L,name#129] Batched: true, Format: ParquetFormat, InputPaths: file:/Users/jacek/dev/oss/spark/cities.parquet, PartitionFilters: [], PushedFilters: [IsNotNull(name), EqualTo(name,Warsaw)], ReadSchema: struct<id:bigint,name:string>
+
+// Let's define a UDF to do the filtering
+val isWarsaw = udf { (s: String) => s == "Warsaw" }
+
+// Use the UDF in where (replacing the Column-based query)
+scala> cities.where(isWarsaw('name)).queryExecution.executedPlan
+res33: org.apache.spark.sql.execution.SparkPlan =
+*Filter UDF(name#129)
++- *FileScan parquet [id#128L,name#129] Batched: true, Format: ParquetFormat, InputPaths: file:/Users/jacek/dev/oss/spark/cities.parquet, PartitionFilters: [], PushedFilters: [], ReadSchema: struct<id:bigint,name:string>
+----
