@@ -1,6 +1,6 @@
 == UDFs -- User-Defined Functions
 
-*User-Defined Functions* (aka *UDF*) is a feature of Spark SQL to define new link:spark-sql-columns.adoc[Column]-based functions that extend the vocabulary of Spark SQL's DSL to transform link:spark-sql-dataset.adoc[Datasets].
+*User-Defined Functions* (aka *UDF*) is a feature of Spark SQL to define new link:spark-sql-columns.adoc[Column]-based functions that extend the vocabulary of Spark SQL's DSL for transforming link:spark-sql-dataset.adoc[Datasets].
 
 [TIP]
 ====
@@ -11,16 +11,18 @@ As Reynold once said on Spark's dev mailing list:
 > There are simple cases in which we can analyze the UDFs byte code and infer what it is doing, but it is pretty difficult to do in general.
 ====
 
-You define a new UDF by defining a Scala function as an input parameter of `udf` function. You can use Scala functions of up to 10 input parameters. See the section <<udf-function, udf Functions (in functions object)>>.
+You define a new UDF by defining a Scala function as an input parameter of <<udf-function, `udf` function>>. It accepts Scala functions of up to 10 input parameters.
 
 [source, scala]
 ----
 val dataset = Seq((0, "hello"), (1, "world")).toDF("id", "text")
 
-// Define a "regular" Scala function
+// Define a regular Scala function
 val upper: String => String = _.toUpperCase
 
-// Define a UDF that wraps the upper Scala function
+// Define a UDF that wraps the upper Scala function defined above
+// You could also define the function in place, i.e. inside udf
+// but separating Scala functions from Spark SQL's UDFs allows for easier testing
 import org.apache.spark.sql.functions.udf
 val upperUDF = udf(upper)
 
@@ -32,6 +34,28 @@ scala> dataset.withColumn("upper", upperUDF('text)).show
 |  0|hello|HELLO|
 |  1|world|WORLD|
 +---+-----+-----+
+----
+
+You can register UDFs to use in link:spark-sql-sparksession.adoc#sql[SQL-based query expressions] via `UDFRegistration` (that is available through link:spark-sql-sparksession.adoc#udf[`SparkSession.udf` attribute]).
+
+[source, scala]
+----
+val spark: SparkSession = ...
+scala> spark.udf.register("myUpper", (input: String) => input.toUpperCase)
+----
+
+You can query for available link:spark-sql-functions.adoc[standard] and user-defined functions using the link:spark-sql-Catalog.adoc[Catalog] interface (that is available through link:spark-sql-sparksession.adoc#catalog[`SparkSession.catalog` attribute]).
+
+[source, scala]
+----
+val spark: SparkSession = ...
+scala> spark.catalog.listFunctions.filter('name like "%upper%").show(false)
++-------+--------+-----------+-----------------------------------------------+-----------+
+|name   |database|description|className                                      |isTemporary|
++-------+--------+-----------+-----------------------------------------------+-----------+
+|myupper|null    |null       |null                                           |true       |
+|upper  |null    |null       |org.apache.spark.sql.catalyst.expressions.Upper|true       |
++-------+--------+-----------+-----------------------------------------------+-----------+
 ----
 
 NOTE: UDFs play a vital role in Spark MLlib to define new link:spark-mllib-transformers.adoc[Transformers] that are function objects that transform `DataFrames` into `DataFrames` by introducing new columns.
