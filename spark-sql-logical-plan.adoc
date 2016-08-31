@@ -1,7 +1,5 @@
 == [[LogicalPlan]] Logical Query Plan
 
-CAUTION: FIXME
-
 *Logical Query Plan* is the base representation of a structured query expression (that makes for a link:spark-sql-dataset.adoc[Dataset]).
 
 It is modelled as the `LogicalPlan` abstract class which is a custom link:spark-sql-query-plan.adoc[QueryPlan].
@@ -68,35 +66,23 @@ The following is a list of join types:
 * `LEFT SEMI`
 * `NATURAL`
 
-=== [[ExplainCommand]] ExplainCommand Logical Plan
+=== [[ExplainCommand]] ExplainCommand Logical Command
 
-`ExplainCommand` logical plan allows users to see how a structured query will be executed.
+`ExplainCommand` <<RunnableCommand, logical command>> allows users to see how a structured query will be executed. It takes in a `LogicalPlan` and creates a link:spark-sql-query-execution.adoc[QueryExecution] that is used to output a single-column `DataFrame` with the following:
 
-`ExplainCommand` is used to implement link:spark-sql-dataset.adoc#explain[explain operator] and `EXPLAIN` SQL query (with `EXTENDED` and `CODEGEN` options).
+1. _codegen explain_, i.e. link:spark-sql-whole-stage-codegen.adoc[WholeStageCodegen] subtrees if `codegen` flag is enabled.
+
+2. _extended explain_, i.e. the parsed, analyzed, optimized logical plans with the physical plan if `extended` flag is enabled.
+
+3. _simple explain_, i.e. the physical plan only when no `codegen` and `extended` flags are enabled.
+
+`ExplainCommand` is used for link:spark-sql-dataset.adoc#explain[explain operator] and `EXPLAIN` SQL statement (accepting `EXTENDED` and `CODEGEN` options).
 
 [source, scala]
 ----
-scala> spark.catalog.listTables.explain
-== Physical Plan ==
-LocalTableScan [name#42, database#43, description#44, tableType#45, isTemporary#46]
-
-scala> spark.catalog.listTables.explain(true)
-== Parsed Logical Plan ==
-LocalRelation [name#54, database#55, description#56, tableType#57, isTemporary#58]
-
-== Analyzed Logical Plan ==
-name: string, database: string, description: string, tableType: string, isTemporary: boolean
-LocalRelation [name#54, database#55, description#56, tableType#57, isTemporary#58]
-
-== Optimized Logical Plan ==
-LocalRelation [name#54, database#55, description#56, tableType#57, isTemporary#58]
-
-== Physical Plan ==
-LocalTableScan [name#54, database#55, description#56, tableType#57, isTemporary#58]
-
 // Explain in SQL
 
-scala> sql("EXPLAIN EXTENDED show tables").show(false)
+scala> sql("EXPLAIN EXTENDED show tables").show(truncate = false)
 +-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 |plan                                                                                                                                                                                                                                           |
 +-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
@@ -130,24 +116,18 @@ Operation not allowed: EXPLAIN LOGICAL(line 1, pos 0)
 == SQL ==
 EXPLAIN LOGICAL show tables
 ^^^
-
-  at org.apache.spark.sql.catalyst.parser.ParserUtils$.operationNotAllowed(ParserUtils.scala:39)
-  at org.apache.spark.sql.execution.SparkSqlAstBuilder$$anonfun$visitExplain$1.apply(SparkSqlParser.scala:258)
-  at org.apache.spark.sql.execution.SparkSqlAstBuilder$$anonfun$visitExplain$1.apply(SparkSqlParser.scala:253)
-  at org.apache.spark.sql.catalyst.parser.ParserUtils$.withOrigin(ParserUtils.scala:93)
-  at org.apache.spark.sql.execution.SparkSqlAstBuilder.visitExplain(SparkSqlParser.scala:253)
-  at org.apache.spark.sql.execution.SparkSqlAstBuilder.visitExplain(SparkSqlParser.scala:52)
-  at org.apache.spark.sql.catalyst.parser.SqlBaseParser$ExplainContext.accept(SqlBaseParser.java:448)
-  at org.antlr.v4.runtime.tree.AbstractParseTreeVisitor.visit(AbstractParseTreeVisitor.java:42)
-  at org.apache.spark.sql.catalyst.parser.AstBuilder$$anonfun$visitSingleStatement$1.apply(AstBuilder.scala:64)
-  at org.apache.spark.sql.catalyst.parser.AstBuilder$$anonfun$visitSingleStatement$1.apply(AstBuilder.scala:64)
-  at org.apache.spark.sql.catalyst.parser.ParserUtils$.withOrigin(ParserUtils.scala:93)
-  at org.apache.spark.sql.catalyst.parser.AstBuilder.visitSingleStatement(AstBuilder.scala:63)
-  at org.apache.spark.sql.catalyst.parser.AbstractSqlParser$$anonfun$parsePlan$1.apply(ParseDriver.scala:54)
-  at org.apache.spark.sql.catalyst.parser.AbstractSqlParser$$anonfun$parsePlan$1.apply(ParseDriver.scala:53)
-  at org.apache.spark.sql.catalyst.parser.AbstractSqlParser.parse(ParseDriver.scala:82)
-  at org.apache.spark.sql.execution.SparkSqlParser.parse(SparkSqlParser.scala:45)
-  at org.apache.spark.sql.catalyst.parser.AbstractSqlParser.parsePlan(ParseDriver.scala:53)
-  at org.apache.spark.sql.SparkSession.sql(SparkSession.scala:572)
-  ... 48 elided
+...
 ----
+
+=== [[RunnableCommand]] RunnableCommand -- Base Trait for Logical Commands
+
+`RunnableCommand` is the base `trait` for side-effecting ``LogicalPlan``s, i.e. that can be executed for side-effects.
+
+`RunnableCommand` defines one abstract method `run` that returns a collection of link:spark-sql-dataframe-row.adoc[Row]s.
+
+[source, scala]
+----
+run(sparkSession: SparkSession): Seq[Row]
+----
+
+`RunnableCommand` has by default no `output` attributes and `children` logical plans.
