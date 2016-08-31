@@ -1,8 +1,10 @@
 == [[SparkPlan]] SparkPlan -- Spark Query Planner
 
-`SparkPlan` is a base link:spark-sql-query-plan.adoc[QueryPlan] for physical operators. It can be executed to produce a `RDD[InternalRow]`.
+`SparkPlan` is the base link:spark-sql-query-plan.adoc[QueryPlan] for physical operators that, when executed, produce link:spark-rdd.adoc[RDDs] of link:spark-sql-InternalRow.adoc[InternalRow], i.e. ``RDD[InternalRow]``s.
 
-NOTE: The naming convention for physical operators in Spark's source code is to have their names end with the _Exec_ prefix, e.g. `DebugExec`.
+CAUTION: FIXME `SparkPlan` is `Serializable`. Why?
+
+NOTE: The naming convention for physical operators in Spark's source code is to have their names end with the _Exec_ prefix, e.g. `DebugExec` or <<LocalTableScanExec, LocalTableScanExec>>.
 
 TIP: Read link:spark-sql-InternalRow.adoc[InternalRow] about the internal binary row format.
 
@@ -18,6 +20,41 @@ TIP: Read link:spark-sql-InternalRow.adoc[InternalRow] about the internal binary
 * `execute` calls `doExecute`
 * `prepare` calls `doPrepare`
 * `executeBroadcast` calls `doExecuteBroadcast`
+
+=== [[LocalTableScanExec]] LocalTableScanExec
+
+`LocalTableScanExec` is a leaf `SparkPlan` node with no `children` and `producedAttributes` being `outputSet`.
+
+`LocalTableScanExec` is a result of applying `BasicOperators` strategy to link:spark-sql-logical-plan.adoc#LocalRelation[LocalRelation] and `MemoryPlan` link:spark-sql-logical-plan.adoc[logical plans].
+
+[source, scala]
+----
+scala> Seq(1).toDS.explain(extended = true)
+== Parsed Logical Plan ==
+LocalRelation [value#1]
+
+== Analyzed Logical Plan ==
+value: int
+LocalRelation [value#1]
+
+== Optimized Logical Plan ==
+LocalRelation [value#1]
+
+== Physical Plan ==
+LocalTableScan [value#1]
+----
+
+.LocalTableScanExec's Metrics
+[width="100%",frame="topbot",options="header,footer"]
+|======================
+|name |description
+|*numOutputRows* | the number of output rows
+|======================
+
+When executed (as `doExecute`), `LocalTableScanExec` link:spark-sparkcontext.adoc#parallelize[creates an `RDD` of ``InternalRow``s].
+
+.LocalTableScanExec in SQL tab in web UI
+image::images/spark-webui-sql-details-for-query-localtablescan.png[align="center"]
 
 === [[contract]] SparkPlan Contract
 
