@@ -44,7 +44,7 @@ val pipeline = new Pipeline().setStages(Array.empty[PipelineStage])
 pipeline.write.overwrite.save("sample-pipeline")
 ----
 
-The result of `save` is a JSON file (as shown below).
+The result of `save` for "unfitted" pipeline is a JSON file for metadata (as shown below).
 
 ```
 $ cat sample-pipeline/metadata/part-00000 | jq
@@ -59,6 +59,51 @@ $ cat sample-pipeline/metadata/part-00000 | jq
 }
 ```
 
+The result of `save` for pipeline model is a JSON file for metadata while Parquet for model data, e.g. coefficients.
+
+[source, scala]
+----
+val model = pipeline.fit(training)
+model.write.save("sample-model")
+----
+
+```
+$ cat sample-model/metadata/part-00000 | jq
+{
+  "class": "org.apache.spark.ml.PipelineModel",
+  "timestamp": 1472748168005,
+  "sparkVersion": "2.1.0-SNAPSHOT",
+  "uid": "pipeline_3ed598da1c4b",
+  "paramMap": {
+    "stageUids": [
+      "regexTok_bf73e7c36e22",
+      "hashingTF_ebece38da130",
+      "logreg_819864aa7120"
+    ]
+  }
+}
+
+$ tree sample-model/stages/
+sample-model/stages/
+|-- 0_regexTok_bf73e7c36e22
+|   `-- metadata
+|       |-- _SUCCESS
+|       `-- part-00000
+|-- 1_hashingTF_ebece38da130
+|   `-- metadata
+|       |-- _SUCCESS
+|       `-- part-00000
+`-- 2_logreg_819864aa7120
+    |-- data
+    |   |-- _SUCCESS
+    |   `-- part-r-00000-56423674-0208-4768-9d83-2e356ac6a8d2.snappy.parquet
+    `-- metadata
+        |-- _SUCCESS
+        `-- part-00000
+
+7 directories, 8 files
+```
+
 === [[MLReader]] MLReader
 
 `MLReader` abstract class comes with `load(path: String)` method to `load` a ML component from a given `path`.
@@ -70,4 +115,9 @@ val pipeline = Pipeline.read.load("sample-pipeline")
 
 scala> val stageCount = pipeline.getStages.size
 stageCount: Int = 0
+
+val pipelineModel = PipelineModel.read.load("sample-model")
+
+scala> pipelineModel.stages
+res1: Array[org.apache.spark.ml.Transformer] = Array(regexTok_bf73e7c36e22, hashingTF_ebece38da130, logreg_819864aa7120)
 ----
