@@ -18,6 +18,133 @@ The Broadcast feature in Spark uses SparkContext to create broadcast values and 
 .SparkContext to broadcast using BroadcastManager and ContextCleaner
 image::images/sparkcontext-broadcastmanager-contextcleaner.png[align="center"]
 
+=== [[contract]] Broadcast Variable Contract
+
+The contract of broadcast variables in Spark is described by the abstract `Broadcast` class.
+
+.Broadcast API
+[width="100%",frame="topbot",options="header,footer"]
+|======================
+|Method Name | Description
+| `id` | The unique identifier
+| <<value, value>> | The value
+| <<unpersist, unpersist>> | Asynchronously deletes cached copies of this broadcast on the executors.
+| <<destroy, destroy>> | Destroys all data and metadata related to this broadcast variable.
+| `toString` | The string representation
+|======================
+
+=== [[lifecycle]] Lifecycle of Broadcast Variable
+
+You can create a broadcast variable of type `T` using link:spark-sparkcontext.adoc#broadcast[SparkContext.broadcast] method.
+
+```
+scala> val b = sc.broadcast(1)
+b: org.apache.spark.broadcast.Broadcast[Int] = Broadcast(0)
+```
+
+[TIP]
+====
+Enable `DEBUG` logging level for `org.apache.spark.storage.BlockManager` logger to debug `broadcast` method.
+
+Read link:spark-blockmanager.adoc[BlockManager] to find out how to enable the logging level.
+====
+
+With DEBUG logging level enabled, you should see the following messages in the logs:
+
+```
+DEBUG BlockManager: Put block broadcast_0 locally took  430 ms
+DEBUG BlockManager: Putting block broadcast_0 without replication took  431 ms
+DEBUG BlockManager: Told master about block broadcast_0_piece0
+DEBUG BlockManager: Put block broadcast_0_piece0 locally took  4 ms
+DEBUG BlockManager: Putting block broadcast_0_piece0 without replication took  4 ms
+```
+
+After creating an instance of a broadcast variable, you can then reference the value using <<value, value>> method.
+
+[source, scala]
+----
+scala> b.value
+res0: Int = 1
+----
+
+NOTE: `value` method is the only way to access the value of a broadcast variable.
+
+With DEBUG logging level enabled, you should see the following messages in the logs:
+
+```
+DEBUG BlockManager: Getting local block broadcast_0
+DEBUG BlockManager: Level for block broadcast_0 is StorageLevel(disk, memory, deserialized, 1 replicas)
+```
+
+When you are done with a broadcast variable, you should <<destroy, destroy>> it to release memory.
+
+[source, scala]
+----
+scala> b.destroy
+----
+
+With DEBUG logging level enabled, you should see the following messages in the logs:
+
+```
+DEBUG BlockManager: Removing broadcast 0
+DEBUG BlockManager: Removing block broadcast_0_piece0
+DEBUG BlockManager: Told master about block broadcast_0_piece0
+DEBUG BlockManager: Removing block broadcast_0
+```
+
+Before <<destroy, destroying>> a broadcast variable, you may want to <<unpersist, unpersist>> it.
+
+[source, scala]
+----
+scala> b.unpersist
+----
+
+=== [[value]] Getting the Value of Broadcast Variable (value method)
+
+[source, scala]
+----
+value: T
+----
+
+`value` returns the value of the broadcast variable. You can only access the value until it is <<destroy, destroyed>> after which you will see the following `SparkException` exception in the logs:
+
+```
+org.apache.spark.SparkException: Attempted to use Broadcast(0) after it was destroyed (destroy at <console>:27)
+  at org.apache.spark.broadcast.Broadcast.assertValid(Broadcast.scala:144)
+  at org.apache.spark.broadcast.Broadcast.value(Broadcast.scala:69)
+  ... 48 elided
+```
+
+=== [[unpersist]] Unpersist Broadcast Variable
+
+[source, scala]
+----
+unpersist(): Unit
+unpersist(blocking: Boolean): Unit
+----
+
+=== [[destroy]] Removing Broadcast Variable From Memory (destroy method)
+
+[source, scala]
+----
+destroy(): Unit
+----
+
+`destroy` destroys all data and metadata of a broadcast variable.
+
+NOTE: Once a broadcast variable has been destroyed, it cannot be used again.
+
+You can only destroy a broadcast variable once or you will see the following `SparkException` exception in the logs:
+
+```
+scala> b.destroy
+org.apache.spark.SparkException: Attempted to use Broadcast(0) after it was destroyed (destroy at <console>:27)
+  at org.apache.spark.broadcast.Broadcast.assertValid(Broadcast.scala:144)
+  at org.apache.spark.broadcast.Broadcast.destroy(Broadcast.scala:107)
+  at org.apache.spark.broadcast.Broadcast.destroy(Broadcast.scala:98)
+  ... 48 elided
+```
+
 === [[introductory-example]] Introductory Example
 
 Let's start with an introductory example to check out how to use broadcast variables and build your initial understanding.
@@ -74,6 +201,20 @@ It is not enabled by default.
 === [[sparkcontext-broadcast]] SparkContext.broadcast
 
 Read about `SparkContext.broadcast` method in link:spark-sparkcontext.adoc#creating-broadcast-variables[Creating broadcast variables].
+
+=== [[TorrentBroadcast]] TorrentBroadcast
+
+The default implementation of <<contract, Broadcast Contract>> is `org.apache.spark.broadcast.TorrentBroadcast` (see <<settings, spark.broadcast.factory>>). It uses a BitTorrent-like protocol to do the distribution.
+
+.TorrentBroadcast - broadcasting using BitTorrent
+image::images/sparkcontext-broadcast-bittorrent.png[align="center"]
+
+`TorrentBroadcastFactory` is the factory of `TorrentBroadcast`-based broadcast values.
+
+When a new broadcast value is created using `SparkContext.broadcast()` method, a new instance of `TorrentBroadcast` is created. It is divided into blocks that are put in link:spark-blockmanager.adoc[Block Manager].
+
+.TorrentBroadcast puts broadcast chunks to driver's BlockManager
+image::images/sparkcontext-broadcast-bittorrent-newBroadcast.png[align="center"]
 
 === Further Reading
 
