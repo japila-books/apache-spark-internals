@@ -1,6 +1,6 @@
 == TextSocketSource
 
-`TextSocketSource` is a streaming link:spark-sql-streaming-source.adoc[Source] that opens a socket at the `host` and `port` (defined by parameters) and reads a character stream line by line.
+`TextSocketSource` is a streaming link:spark-sql-streaming-source.adoc[Source] that connects to a socket at the `host` and `port` (defined by parameters) and reads a character stream line by line.
 
 [CAUTION]
 ====
@@ -13,7 +13,42 @@ It uses <<lines, lines>> internal in-memory buffer to keep all of the lines that
 
 [source, scala]
 ----
-FIXME: Example here
+import org.apache.spark.sql.SparkSession
+val spark: SparkSession = SparkSession.builder.getOrCreate()
+
+// Connect to localhost:9999
+// You can use "nc -lk 9999" for demos
+val textSocket = spark.readStream
+  .format("socket")
+  .option("host", "localhost")
+  .option("port", 9999)
+  .load
+
+import org.apache.spark.sql.Dataset
+val lines: Dataset[String] = textSocket.as[String].map(_.toUpperCase)
+
+val query = lines.writeStream.format("console").start
+
+// Start typing the lines in nc session
+// They will appear UPPERCASE in the terminal
+
+-------------------------------------------
+Batch: 0
+-------------------------------------------
++---------+
+|    value|
++---------+
+|UPPERCASE|
++---------+
+
+scala> query.explain
+== Physical Plan ==
+*SerializeFromObject [staticinvoke(class org.apache.spark.unsafe.types.UTF8String, StringType, fromString, input[0, java.lang.String, true], true) AS value#21]
++- *MapElements <function1>, obj#20: java.lang.String
+   +- *DeserializeToObject value#43.toString, obj#19: java.lang.String
+      +- LocalTableScan [value#43]
+
+scala> query.stop
 ----
 
 === [[lines]] lines Internal Buffer
