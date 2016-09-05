@@ -1,0 +1,71 @@
+== TextSocketSource
+
+`TextSocketSource` is a streaming link:spark-sql-streaming-source.adoc[Source] that opens a socket at the `host` and `port` (defined by parameters) and reads a character stream line by line.
+
+[CAUTION]
+====
+This source is *not* for production use due to design contraints, e.g. infinite in-memory collection of lines read and no fault recovery.
+
+It is designed only for tutorials and debugging.
+====
+
+It uses <<lines, lines>> internal in-memory buffer to keep all of the lines that were read from a socket forever.
+
+[source, scala]
+----
+FIXME: Example here
+----
+
+=== [[lines]] lines Internal Buffer
+
+[source, scala]
+----
+lines: ArrayBuffer[(String, Timestamp)]
+----
+
+`lines` is the internal buffer of all the lines `TextSocketSource` read from the socket.
+
+=== [[getOffset]] Maximum Available Offset (getOffset method)
+
+NOTE: `getOffset` is a part of the link:spark-sql-streaming-source.adoc#contract[Streaming Source Contract].
+
+``TextSocketSource``'s offset can either be none or `LongOffset` of the number of lines in the internal <<lines, lines>> buffer.
+
+=== [[schema]] Schema (schema method)
+
+`TextSocketSource` supports two link:spark-sql-schema.adoc[schemas]:
+
+1. A single `value` field of String type.
+2. `value` field of `StringType` type and `timestamp` field of `TimestampType` type of format `yyyy-MM-dd HH:mm:ss`.
+
+TIP: Refer to link:spark-sql-streaming-TextSocketSourceProvider.adoc#sourceSchema[sourceSchema] for `TextSocketSourceProvider`.
+
+=== [[creating-instance]] Creating TextSocketSource Instance
+
+[source, scala]
+----
+TextSocketSource(
+  host: String,
+  port: Int,
+  includeTimestamp: Boolean,
+  sqlContext: SQLContext)
+----
+
+When `TextSocketSource` is created (see link:spark-sql-streaming-TextSocketSourceProvider.adoc#createSource[TextSocketSourceProvider]), it gets 4 parameters passed in:
+
+1. `host`
+2. `port`
+3. link:spark-sql-streaming-TextSocketSourceProvider.adoc#includeTimestamp[includeTimestamp] flag
+4. link:spark-sql-sqlcontext.adoc[SQLContext]
+
+CAUTION: It appears that the source did not get "renewed" to use link:spark-sql-sparksession.adoc[SparkSession] instead.
+
+It opens a socket at given `host` and `port` parameters and reads a buffering character-input stream using the default charset and the default-sized input buffer (of `8192` bytes) line by line.
+
+CAUTION: FIXME Review Java's `Charset.defaultCharset()`
+
+It starts a `readThread` daemon thread (called `TextSocketSource(host, port)`) to read lines from the socket. The lines are added to the internal <<lines, lines>> buffer.
+
+=== [[stop]] Stopping TextSocketSource (stop method)
+
+When stopped, `TextSocketSource` closes the socket connection.
