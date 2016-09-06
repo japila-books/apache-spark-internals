@@ -87,7 +87,9 @@ Using `Dataset` objects turns `DataFrames` of link:spark-sql-dataframe-row.adoc[
 
 Datasets use link:spark-sql-catalyst.adoc[Catalyst Query Optimizer] and link:spark-sql-tungsten.adoc[Tungsten] to optimize query performance.
 
-A `Dataset` object requires a link:spark-sql-sparksession.adoc[SparkSession], a link:spark-sql-query-execution.adoc[QueryExecution] plan, and an link:spark-sql-Encoder.adoc[Encoder]. If however a link:spark-sql-logical-plan.adoc[LogicalPlan] is used to <<creating-instance, create a `Dataset`>>, the logical plan is first link:spark-sql-sessionstate.adoc#executePlan[executed] (using the current link:spark-sql-sessionstate.adoc#executePlan[SessionState] in the `SparkSession`) that yields the link:spark-sql-query-execution.adoc[QueryExecution] plan.
+A `Dataset` object requires a link:spark-sql-sparksession.adoc[SparkSession], a link:spark-sql-query-execution.adoc[QueryExecution] plan, and an link:spark-sql-Encoder.adoc[Encoder] (for fast serialization to and deserialization from link:spark-sql-InternalRow.adoc[InternalRow]).
+
+If however a link:spark-sql-logical-plan.adoc[LogicalPlan] is used to <<creating-instance, create a `Dataset`>>, the logical plan is first link:spark-sql-sessionstate.adoc#executePlan[executed] (using the current link:spark-sql-sessionstate.adoc#executePlan[SessionState] in the `SparkSession`) that yields the link:spark-sql-query-execution.adoc[QueryExecution] plan.
 
 A `Dataset` is <<Queryable, Queryable>> and `Serializable`, i.e. can be saved to a persistent storage.
 
@@ -100,10 +102,6 @@ You can convert a type-safe Dataset to a "untyped" DataFrame (see <<implicits, T
 The default storage level for `Datasets` is link:spark-rdd-caching.adoc[MEMORY_AND_DISK] because recomputing the in-memory columnar representation of the underlying table is expensive. See <<persist, Persisting Dataset (persist method)>> in this document.
 
 Spark 2.0 has introduced a new query model called link:spark-sql-structured-streaming.adoc[Structured Streaming] for continuous incremental execution of structured queries. That made possible to consider Datasets a static and bounded as well as streaming and unbounded data sets with a single unified API for different execution models.
-
-=== [[ofRows]] Creating DataFrame (ofRows method)
-
-CAUTION: FIXME
 
 === [[queryExecution]] queryExecution Attribute
 
@@ -650,6 +648,19 @@ withNewExecutionId[U](body: => U): U
 `withNewExecutionId` is a `private[sql]` method that executes the input `body` action using link:spark-sql-SQLExecution.adoc#withNewExecutionId[SQLExecution.withNewExecutionId] that sets the *execution id* local property set.
 
 NOTE: It is used in `foreach`, <<foreachPartition, foreachPartition>>, and (private) `collect`.
+
+=== [[ofRows]] Creating DataFrame (ofRows method)
+
+[source, scala]
+----
+ofRows(sparkSession: SparkSession, logicalPlan: LogicalPlan): DataFrame
+----
+
+NOTE: `ofRows` is a `private[sql]` method that can only be accessed from code in `org.apache.spark.sql` package. It is not a part of ``Dataset``'s public API.
+
+`ofRows` returns link:spark-sql-dataframe.adoc[DataFrame] (which is the type alias for `Dataset[Row]`). `ofRows` uses link:spark-sql-RowEncoder.adoc[RowEncoder] to convert the schema (based on the input `logicalPlan` logical plan).
+
+Internally, `ofRows` link:spark-sql-sessionstate.adoc#executePlan[prepares the input `logicalPlan` for execution] and creates a `Dataset[Row]` with the current link:spark-sql-sparksession.adoc[SparkSession], the link:spark-sql-query-execution.adoc[QueryExecution] and link:spark-sql-RowEncoder.adoc[RowEncoder].
 
 === [[i-want-more]] Further reading or watching
 
