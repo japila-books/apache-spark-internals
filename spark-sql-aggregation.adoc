@@ -11,7 +11,7 @@ The following aggregate operators are available for `Datasets`:
 
 The untyped aggregations, e.g. `groupBy`, `rollup`, and `cube`, return <<RelationalGroupedDataset, RelationalGroupedDatasets>> while `groupByKey` returns a <<KeyValueGroupedDataset, KeyValueGroupedDataset>>.
 
-=== [[groupBy]] groupBy Untyped Operators
+=== [[groupBy]] Grouping by Columns -- groupBy Untyped Operators
 
 [source, scala]
 ----
@@ -19,11 +19,23 @@ groupBy(cols: Column*): RelationalGroupedDataset
 groupBy(col1: String, cols: String*): RelationalGroupedDataset
 ----
 
-`groupBy` family of methods groups the `Dataset` using the specified columns. It returns a <<RelationalGroupedDataset, RelationalGroupedDataset>> to apply aggregation to.
+`groupBy` methods group the `Dataset` using the specified columns as link:spark-sql-columns.adoc[Columns] or their text representation. It returns a <<RelationalGroupedDataset, RelationalGroupedDataset>> to apply aggregation to.
+
+[source, scala]
+----
+// 10^6 records
+val intsMM = 1 to math.pow(10, 6).toInt
+val df = intsMM.toDF("n").withColumn("m", 'n % 2)
+
+df.groupBy('m).agg(sum('n))
+----
+
+Internally, it first link:spark-sql-logical-plan.adoc#resolveQuoted[resolves columns] and then builds a <<RelationalGroupedDataset, RelationalGroupedDataset>>.
 
 NOTE: The following session uses the data setup as described in <<test-setup, Test Setup>> section below.
 
-```
+[source, scala]
+----
 scala> dataset.show
 +----+---------+-----+
 |name|productId|score|
@@ -84,7 +96,7 @@ scala> dataset.groupBy('productId).sum("score").show
 |      100|              0.12|
 |      200|0.8200000000000001|
 +---------+------------------+
-```
+----
 
 === [[groupByKey]] groupByKey Typed Operator
 
