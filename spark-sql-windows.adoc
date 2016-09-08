@@ -1,12 +1,52 @@
 == Window Aggregates (Windows)
 
-*Window Aggregates* (aka *Windows*) operate on a group of rows (a row set) called a *window* to apply aggregation on. They calculate a value for every input row for its window.
+*Window Aggregates* (aka *Windows*) are link:spark-sql-dataset.adoc[Dataset] operators that perform a calculation on a group of records (called a *window*) that are in relation to the current record. They calculate values for every records in a window.
 
 NOTE: Window-based framework is available as an experimental feature since Spark *1.4.0*.
 
-Spark SQL supports three kinds of <<functions, window aggregate function>>: *ranking* functions, *analytic* functions, and *aggregate* functions.
+Unlike the link:spark-sql-aggregation.adoc[regular aggregation operators], window aggregates does not group records as a single record.
 
-A <<WindowSpec, window specification>> defines the *partitioning*, *ordering*, and *frame boundaries*.
+[source, scala]
+----
+// Borrowed from 3.5. Window Functions in PostgreSQL documentation
+case class Salary(deptName: String, empNo: Long, salary: Long)
+val empsalary = Seq(
+  Salary("sales", 1, 5000),
+  Salary("personnel", 2, 3900),
+  Salary("sales", 3, 4800),
+  Salary("sales", 4, 4800),
+  Salary("personnel", 5, 3500),
+  Salary("develop", 7, 4200),
+  Salary("develop", 8, 6000),
+  Salary("develop", 9, 4500),
+  Salary("develop", 10, 5200),
+  Salary("develop", 11, 5200)).toDS
+
+import org.apache.spark.sql.expressions.Window
+val byDeptName = Window.partitionBy('deptName)
+
+val salaryAvg = avg('salary).over(byDeptName)
+
+scala> empsalary.select('*, salaryAvg as 'avg).show
++---------+-----+------+-----------------+
+| deptName|empNo|salary|              avg|
++---------+-----+------+-----------------+
+|  develop|    7|  4200|           5020.0|
+|  develop|    8|  6000|           5020.0|
+|  develop|    9|  4500|           5020.0|
+|  develop|   10|  5200|           5020.0|
+|  develop|   11|  5200|           5020.0|
+|    sales|    1|  5000|4866.666666666667|
+|    sales|    3|  4800|4866.666666666667|
+|    sales|    4|  4800|4866.666666666667|
+|personnel|    2|  3900|           3700.0|
+|personnel|    5|  3500|           3700.0|
++---------+-----+------+-----------------+
+----
+
+As shown in the example, you start by describing a window using the convenience factory methods in <<Window-object, `Window` object>> that create a <<WindowSpec, window specification>> that you can further refine with *partitioning*, *ordering*, and *frame boundaries*.
+
+Only when you have a window specification you can apply <<functions, window aggregate functions>> like *ranking* functions, *analytic* functions, and *aggregate* functions. For aggregate functions you can use the regular link:spark-sql-aggregation.adoc[aggregate functions], e.g. `sum`, `avg`, `max`.
 
 === [[functions]] Window Aggregate Functions
 
@@ -56,7 +96,7 @@ TIP: Consult https://spark.apache.org/docs/latest/api/scala/index.html#org.apach
 
 A *window specification* defines which rows are included in a *window* (aka a _frame_), i.e. set of rows, that is associated with a given input row. It does so by *partitioning* an entire data set and specifying *frame boundary* with *ordering*.
 
-NOTE: Use static methods in <<window-object, Window object>> to create a `WindowSpec`.
+NOTE: Use static methods in <<Window-object, Window object>> to create a `WindowSpec`.
 
 [source, scala]
 ----
@@ -72,17 +112,17 @@ A window specification includes three parts:
 2. *Ordering Specification* defines how rows in a partition are ordered, determining the position of the given row in its partition.
 3. *Frame Specification* (unsupported in Hive; see http://stackoverflow.com/a/32379437/1305344[Why do Window functions fail with "Window function X does not take a frame specification"?]) defines the rows to be included in the frame for the current input row, based on their relative position to the current row. For example, _“the three rows preceding the current row to the current row”_ describes a frame including the current input row and three rows appearing before the current row.
 
-Once `WindowSpec` instance has been created using <<window-object, Window object>>, you can further expand on window specification using the following methods to define <<frame, frames>>:
+Once `WindowSpec` instance has been created using <<Window-object, Window object>>, you can further expand on window specification using the following methods to define <<frame, frames>>:
 
 * `rowsBetween(start: Long, end: Long): WindowSpec`
 * `rangeBetween(start: Long, end: Long): WindowSpec`
 
-Besides the two above, you can also use the following methods (that correspond to the methods in <<window-object, Window object>>):
+Besides the two above, you can also use the following methods (that correspond to the methods in <<Window-object, Window object>>):
 
 * `partitionBy`
 * `orderBy`
 
-=== [[window-object]] Window object
+=== [[Window-object]] Window object
 
 `Window` object provides functions to define windows (as <<WindowSpec, WindowSpec>> instances).
 
@@ -252,7 +292,6 @@ The question boils down to ranking products in a category based on their revenue
 ```
 import org.apache.spark.sql.expressions.Window
 val overCategory = Window.partitionBy('category).orderBy('revenue.desc)
-val rank = dense_rank.over(overCategory)
 
 val ranked = data.withColumn("rank", dense_rank.over(overCategory))
 
