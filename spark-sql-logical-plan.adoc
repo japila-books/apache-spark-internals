@@ -1,6 +1,6 @@
 == [[LogicalPlan]] Logical Query Plan
 
-*Logical Query Plan* is the base representation of a structured query expression (that makes for a link:spark-sql-dataset.adoc[Dataset]).
+*Logical Query Plan* is the logical representation of a structured query expression (that yields a link:spark-sql-dataset.adoc[Dataset]).
 
 It is modelled as the `LogicalPlan` abstract class which is a custom link:spark-sql-query-plan.adoc[QueryPlan].
 
@@ -46,11 +46,13 @@ scala> val maxRows = plan.maxRows
 maxRows: Option[Long] = None
 ----
 
+A logical plan can be <<isStreaming, streaming>> if it contains one or more link:spark-sql-streaming-source.adoc[structured streaming sources].
+
 === [[resolveQuoted]] resolveQuoted method
 
 CAUTION: FIXME
 
-=== [[specialized-logical-plans]] Specialized LogicalPlans
+=== [[LeafNode]][[specialized-logical-plans]] Specialized LogicalPlans
 
 * `LeafNode`
 * `UnaryNode`
@@ -144,3 +146,33 @@ run(sparkSession: SparkSession): Seq[Row]
 ----
 
 `RunnableCommand` has by default no `output` attributes and `children` logical plans.
+
+=== [[isStreaming]] Is Logical Plan Structured Streaming (isStreaming method)
+
+[source, scala]
+----
+isStreaming: Boolean
+----
+
+`isStreaming` is a part of the public API of `LogicalPlan` and is enabled (i.e. `true`) when a logical plan is a link:spark-sql-streaming-source.adoc[streaming source].
+
+By default, it walks over subtrees and calls itself, i.e. `isStreaming`, on every child node to find a streaming source.
+
+[source, scala]
+----
+val spark: SparkSession = ...
+
+// Regular dataset
+scala> val ints = spark.createDataset(0 to 9)
+ints: org.apache.spark.sql.Dataset[Int] = [value: int]
+
+scala> ints.queryExecution.logical.isStreaming
+res1: Boolean = false
+
+// Streaming dataset
+scala> val logs = spark.readStream.format("text").load("logs/*.out")
+logs: org.apache.spark.sql.DataFrame = [value: string]
+
+scala> logs.queryExecution.logical.isStreaming
+res2: Boolean = true
+----
