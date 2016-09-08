@@ -1,15 +1,15 @@
-== Window Aggregates (Windows)
+== Window Aggregate Operators -- Windows
 
-*Window Aggregates* (aka *Windows*) are link:spark-sql-dataset.adoc[Dataset] operators that perform a calculation on a group of records (called a *window*) that are in relation to the current record. They calculate values for every records in a window.
+*Window Aggregate Operators* (aka *Windows*) are `Dataset` operators that perform a calculation on a group of records (called a *window*) that are in _some_ relation to the current record. They calculate values for every records in a window.
 
 NOTE: Window-based framework is available as an experimental feature since Spark *1.4.0*.
 
-Unlike the link:spark-sql-aggregation.adoc[regular aggregation operators], window aggregates does not group records as a single record.
+Unlike the link:spark-sql-aggregation.adoc[regular aggregation operators], window aggregates does not group records as a single record but rather work across the rows that fall into the same partition as the current row.
 
 [source, scala]
 ----
 // Borrowed from 3.5. Window Functions in PostgreSQL documentation
-case class Salary(deptName: String, empNo: Long, salary: Long)
+case class Salary(depName: String, empNo: Long, salary: Long)
 val empsalary = Seq(
   Salary("sales", 1, 5000),
   Salary("personnel", 2, 3900),
@@ -23,13 +23,16 @@ val empsalary = Seq(
   Salary("develop", 11, 5200)).toDS
 
 import org.apache.spark.sql.expressions.Window
-val byDeptName = Window.partitionBy('deptName)
+// Windows are partitions of deptName
+scala> val byDepName = Window.partitionBy('depName)
+byDepName: org.apache.spark.sql.expressions.WindowSpec = org.apache.spark.sql.expressions.WindowSpec@1a711314
 
-val salaryAvg = avg('salary).over(byDeptName)
+scala> val salaryAvg = avg('salary).over(byDepName)
+salaryAvg: org.apache.spark.sql.Column = avg(salary) OVER (PARTITION BY depName UnspecifiedFrame)
 
 scala> empsalary.select('*, salaryAvg as 'avg).show
 +---------+-----+------+-----------------+
-| deptName|empNo|salary|              avg|
+|  depName|empNo|salary|              avg|
 +---------+-----+------+-----------------+
 |  develop|    7|  4200|           5020.0|
 |  develop|    8|  6000|           5020.0|
@@ -44,9 +47,9 @@ scala> empsalary.select('*, salaryAvg as 'avg).show
 +---------+-----+------+-----------------+
 ----
 
-As shown in the example, you start by describing a window using the convenience factory methods in <<Window-object, `Window` object>> that create a <<WindowSpec, window specification>> that you can further refine with *partitioning*, *ordering*, and *frame boundaries*.
+As shown in the example above, you first describe a window using the convenience factory methods in <<Window-object, `Window` object>> that create a <<WindowSpec, window specification>> that you can further refine with *partitioning*, *ordering*, and *frame boundaries*.
 
-Only when you have a window specification you can apply <<functions, window aggregate functions>> like *ranking* functions, *analytic* functions, and *aggregate* functions. For aggregate functions you can use the regular link:spark-sql-aggregation.adoc[aggregate functions], e.g. `sum`, `avg`, `max`.
+Only with a window specification you can use <<functions, window aggregate functions>> like *ranking* functions, *analytic* functions, and *aggregate* functions. For aggregate functions you can use the regular link:spark-sql-aggregation.adoc[aggregate functions], e.g. `sum`, `avg`, `max`.
 
 === [[functions]] Window Aggregate Functions
 
@@ -169,12 +172,40 @@ scala> .show
 +---+-----+-----------------+
 ----
 
-==== [[orderBy]] orderBy
+==== [[orderBy]] Ordering in Windows (orderBy method)
 
 [source, scala]
 ----
 orderBy(colName: String, colNames: String*): WindowSpec
 orderBy(cols: Column*): WindowSpec
+----
+
+`orderBy` allows you to control the order of records in a window.
+
+[source, scala]
+----
+import org.apache.spark.sql.expressions.Window
+val byDepnameSalaryDesc = Window.partitionBy('depname).orderBy('salary desc)
+
+// a numerical rank within the current row's partition for each distinct ORDER BY value
+scala> val rankByDepname = rank().over(byDepnameSalaryDesc)
+rankByDepname: org.apache.spark.sql.Column = RANK() OVER (PARTITION BY depname ORDER BY salary DESC UnspecifiedFrame)
+
+scala> empsalary.select('*, rankByDepname as 'rank).show
++---------+-----+------+----+
+|  depName|empNo|salary|rank|
++---------+-----+------+----+
+|  develop|    8|  6000|   1|
+|  develop|   10|  5200|   2|
+|  develop|   11|  5200|   2|
+|  develop|    9|  4500|   4|
+|  develop|    7|  4200|   5|
+|    sales|    1|  5000|   1|
+|    sales|    3|  4800|   2|
+|    sales|    4|  4800|   2|
+|personnel|    2|  3900|   1|
+|personnel|    5|  3500|   2|
++---------+-----+------+----+
 ----
 
 ==== [[WindowSpec-examples]] Window Examples
@@ -486,6 +517,33 @@ Eg. cumulative sum
 See https://issues.apache.org/jira/browse/SPARK-3947[[SPARK-3947\] Support Scala/Java UDAF].
 
 With the window function support, you could use user-defined aggregate functions as window functions.
+
+=== [[explain-windows]] "Explaining" Query Plans of Windows
+
+```
+scala> empsalary.select('*, rankByDepname as 'rank).explain(true)
+== Parsed Logical Plan ==
+'Project [*, rank() windowspecdefinition('depname, 'salary DESC, UnspecifiedFrame) AS rank#2935]
++- LocalRelation [depName#2083, empNo#2084L, salary#2085L]
+
+== Analyzed Logical Plan ==
+depName: string, empNo: bigint, salary: bigint, rank: int
+Project [depName#2083, empNo#2084L, salary#2085L, rank#2935]
++- Project [depName#2083, empNo#2084L, salary#2085L, rank#2935, rank#2935]
+   +- Window [rank(salary#2085L) windowspecdefinition(depname#2083, salary#2085L DESC, ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS rank#2935], [depname#2083], [salary#2085L DESC]
+      +- Project [depName#2083, empNo#2084L, salary#2085L]
+         +- LocalRelation [depName#2083, empNo#2084L, salary#2085L]
+
+== Optimized Logical Plan ==
+Window [rank(salary#2085L) windowspecdefinition(depname#2083, salary#2085L DESC, ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS rank#2935], [depname#2083], [salary#2085L DESC]
++- LocalRelation [depName#2083, empNo#2084L, salary#2085L]
+
+== Physical Plan ==
+Window [rank(salary#2085L) windowspecdefinition(depname#2083, salary#2085L DESC, ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS rank#2935], [depname#2083], [salary#2085L DESC]
++- *Sort [depname#2083 ASC, salary#2085L DESC], false, 0
+   +- Exchange hashpartitioning(depname#2083, 200)
+      +- LocalTableScan [depName#2083, empNo#2084L, salary#2085L]
+```
 
 === [[i-want-more]] Further reading or watching
 
