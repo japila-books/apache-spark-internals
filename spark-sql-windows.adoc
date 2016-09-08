@@ -1,14 +1,19 @@
 == Window Aggregate Operators -- Windows
 
-*Window Aggregate Operators* (aka *Windows*) are `Dataset` operators that perform a calculation on a group of records (called a *window*) that are in _some_ relation to the current record. They calculate values for every records in a window.
+*Window Aggregate Operators* (aka *Windows*) are operators that perform a calculation on a group of records (called a *window*) that are in _some_ relation to the current record. They calculate values for every records in a window.
 
 NOTE: Window-based framework is available as an experimental feature since Spark *1.4.0*.
 
 Unlike the link:spark-sql-aggregation.adoc[regular aggregation operators], window aggregates does not group records as a single record but rather work across the rows that fall into the same partition as the current row.
 
+Window aggregates are supported in <<sql, SQL queries>>, link:spark-sql-columns.adoc[Column]-based expressions and Scala API.
+
 [source, scala]
 ----
+//
 // Borrowed from 3.5. Window Functions in PostgreSQL documentation
+// Example of window operators using Scala API
+//
 case class Salary(depName: String, empNo: Long, salary: Long)
 val empsalary = Seq(
   Salary("sales", 1, 5000),
@@ -47,9 +52,9 @@ scala> empsalary.select('*, salaryAvg as 'avg).show
 +---------+-----+------+-----------------+
 ----
 
-As shown in the example above, you first describe a window using the convenience factory methods in <<Window-object, `Window` object>> that create a <<WindowSpec, window specification>> that you can further refine with *partitioning*, *ordering*, and *frame boundaries*.
+As is shown in the example above, you describe a window using the convenient factory methods in <<Window-object, `Window` object>> that create a <<WindowSpec, window specification>> that you can further refine with *partitioning*, *ordering*, and *frame boundaries*.
 
-Only with a window specification you can use <<functions, window aggregate functions>> like *ranking* functions, *analytic* functions, and *aggregate* functions. For aggregate functions you can use the regular link:spark-sql-aggregation.adoc[aggregate functions], e.g. `sum`, `avg`, `max`.
+After you describe a window you can apply <<functions, window aggregate functions>> like *ranking* functions (e.g. `RANK`), *analytic* functions (e.g. `LAG`), and the regular link:spark-sql-aggregation.adoc[aggregate functions], e.g. `SUM`, `AVG`, `MAX`.
 
 === [[functions]] Window Aggregate Functions
 
@@ -111,9 +116,11 @@ byHTokens: org.apache.spark.sql.expressions.WindowSpec = org.apache.spark.sql.ex
 
 A window specification includes three parts:
 
-1. *Partitioning Specification* defines which rows will be in the same partition for a given row.
-2. *Ordering Specification* defines how rows in a partition are ordered, determining the position of the given row in its partition.
-3. *Frame Specification* (unsupported in Hive; see http://stackoverflow.com/a/32379437/1305344[Why do Window functions fail with "Window function X does not take a frame specification"?]) defines the rows to be included in the frame for the current input row, based on their relative position to the current row. For example, _“the three rows preceding the current row to the current row”_ describes a frame including the current input row and three rows appearing before the current row.
+1. *Partitioning Specification* defines which records are in the same partition. With no partition defined, all records belong to a single partition.
+
+2. *Ordering Specification* defines how records in a partition are ordered that in turn defines the position of a record in a partition. The ordering could be ascending (`ASC` in SQL or `asc` in Scala) or descending (`DESC` or `desc`).
+
+3. *Frame Specification* (unsupported in Hive; see http://stackoverflow.com/a/32379437/1305344[Why do Window functions fail with "Window function X does not take a frame specification"?]) defines the records to be included in the frame for the current input row, based on their relative position to the current row. For example, _“the three rows preceding the current row to the current row”_ describes a frame including the current input row and three rows appearing before the current row.
 
 Once `WindowSpec` instance has been created using <<Window-object, Window object>>, you can further expand on window specification using the following methods to define <<frame, frames>>:
 
@@ -249,6 +256,18 @@ In the current implementation of <<WindowSpec, WindowSpec>> you can use two meth
 * `rangeBetween`
 
 See <<WindowSpec, WindowSpec>> for their coverage.
+
+=== [[sql]] Window Operators in SQL Queries
+
+The grammar of windows operators in SQL accepts the following:
+
+1. `CLUSTER BY` or `PARTITION BY` or `DISTRIBUTE BY` for partitions,
+
+2. `ORDER BY` or `SORT BY` for sorting order,
+
+3. `RANGE`, `ROWS`, `RANGE BETWEEN`, and `ROWS BETWEEN` for window frame types,
+
+4. `UNBOUNDED PRECEDING`, `UNBOUNDED FOLLOWING`, `CURRENT ROW` for frame bounds.
 
 === [[examples]] Examples
 
@@ -494,6 +513,10 @@ scala> salesTotalQtyPerOrder.show
 +---+-------+------+--------+-----------------------+
 ----
 
+==== [[example-rank]] Calculate rank of row
+
+See <<explain-windows, "Explaining" Query Plans of Windows>> for an elaborate example.
+
 === Interval data type for Date and Timestamp types
 
 See https://issues.apache.org/jira/browse/SPARK-8943[[SPARK-8943\] CalendarIntervalType for time intervals].
@@ -503,8 +526,6 @@ With the Interval data type, you could use intervals as values specified in `<va
 ==== Accessing values of earlier rows
 
 FIXME What's the value of rows before current one?
-
-==== Calculate rank of row
 
 ==== [[example-moving-average]] Moving Average
 
@@ -521,29 +542,44 @@ With the window function support, you could use user-defined aggregate functions
 === [[explain-windows]] "Explaining" Query Plans of Windows
 
 ```
-scala> empsalary.select('*, rankByDepname as 'rank).explain(true)
+import org.apache.spark.sql.expressions.Window
+val byDepnameSalaryDesc = Window.partitionBy('depname).orderBy('salary desc)
+
+scala> val rankByDepname = rank().over(byDepnameSalaryDesc)
+rankByDepname: org.apache.spark.sql.Column = RANK() OVER (PARTITION BY depname ORDER BY salary DESC UnspecifiedFrame)
+
+// empsalary defined at the top of the page
+scala> empsalary.select('*, rankByDepname as 'rank).explain(extended = true)
 == Parsed Logical Plan ==
-'Project [*, rank() windowspecdefinition('depname, 'salary DESC, UnspecifiedFrame) AS rank#2935]
-+- LocalRelation [depName#2083, empNo#2084L, salary#2085L]
+'Project [*, rank() windowspecdefinition('depname, 'salary DESC, UnspecifiedFrame) AS rank#9]
++- LocalRelation [depName#5, empNo#6L, salary#7L]
 
 == Analyzed Logical Plan ==
 depName: string, empNo: bigint, salary: bigint, rank: int
-Project [depName#2083, empNo#2084L, salary#2085L, rank#2935]
-+- Project [depName#2083, empNo#2084L, salary#2085L, rank#2935, rank#2935]
-   +- Window [rank(salary#2085L) windowspecdefinition(depname#2083, salary#2085L DESC, ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS rank#2935], [depname#2083], [salary#2085L DESC]
-      +- Project [depName#2083, empNo#2084L, salary#2085L]
-         +- LocalRelation [depName#2083, empNo#2084L, salary#2085L]
+Project [depName#5, empNo#6L, salary#7L, rank#9]
++- Project [depName#5, empNo#6L, salary#7L, rank#9, rank#9]
+   +- Window [rank(salary#7L) windowspecdefinition(depname#5, salary#7L DESC, ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS rank#9], [depname#5], [salary#7L DESC]
+      +- Project [depName#5, empNo#6L, salary#7L]
+         +- LocalRelation [depName#5, empNo#6L, salary#7L]
 
 == Optimized Logical Plan ==
-Window [rank(salary#2085L) windowspecdefinition(depname#2083, salary#2085L DESC, ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS rank#2935], [depname#2083], [salary#2085L DESC]
-+- LocalRelation [depName#2083, empNo#2084L, salary#2085L]
+Window [rank(salary#7L) windowspecdefinition(depname#5, salary#7L DESC, ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS rank#9], [depname#5], [salary#7L DESC]
++- LocalRelation [depName#5, empNo#6L, salary#7L]
 
 == Physical Plan ==
-Window [rank(salary#2085L) windowspecdefinition(depname#2083, salary#2085L DESC, ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS rank#2935], [depname#2083], [salary#2085L DESC]
-+- *Sort [depname#2083 ASC, salary#2085L DESC], false, 0
-   +- Exchange hashpartitioning(depname#2083, 200)
-      +- LocalTableScan [depName#2083, empNo#2084L, salary#2085L]
+Window [rank(salary#7L) windowspecdefinition(depname#5, salary#7L DESC, ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS rank#9], [depname#5], [salary#7L DESC]
++- *Sort [depname#5 ASC, salary#7L DESC], false, 0
+   +- Exchange hashpartitioning(depname#5, 200)
+      +- LocalTableScan [depName#5, empNo#6L, salary#7L]
 ```
+
+==== [[Window]] Window Logical Plan
+
+`Window` is a link:spark-sql-logical-plan.adoc#UnaryNode[unary logical plan] that is created for a collection of `NamedExpressions` (for windows), a collection of `Expressions` (for partitions), a collection of `SortOrder` (for sorting) and a child logical plan.
+
+The `output` collection of `Attributes` is the child's `Attributes` and the window's.
+
+`Window` logical plan is a subject of pruning unnecessary window expressions in `ColumnPruning` rule and pushing filter operators in `PushDownPredicate` rule.
 
 === [[i-want-more]] Further reading or watching
 
