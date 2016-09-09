@@ -1,0 +1,35 @@
+== ColumnPruning Optimizer
+
+`ColumnPruning` is a link:spark-sql-logical-plan.adoc[LogicalPlan] rule in `Operator Optimizations` link:spark-sql-catalyst-analyzer.adoc#batch[batch] in the base link:spark-sql-catalyst.adoc[Optimizer].
+
+[source, scala]
+----
+val dataset = spark.range(10).withColumn("bucket", 'id % 3)
+
+import org.apache.spark.sql.expressions.Window
+val rankCol = rank over Window.partitionBy('bucket).orderBy('id) as "rank"
+
+val ranked = dataset.withColumn("rank", rankCol)
+
+scala> ranked.explain(true)
+...
+TRACE SparkOptimizer:
+=== Applying Rule org.apache.spark.sql.catalyst.optimizer.ColumnPruning ===
+ Project [id#73L, bucket#76L, rank#192]                                                                                                                              Project [id#73L, bucket#76L, rank#192]
+!+- Project [id#73L, bucket#76L, rank#82, rank#82 AS rank#192]                                                                                                       +- Project [id#73L, bucket#76L, rank#82 AS rank#192]
+    +- Window [rank(id#73L) windowspecdefinition(bucket#76L, id#73L ASC, ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS rank#82], [bucket#76L], [id#73L ASC]      +- Window [rank(id#73L) windowspecdefinition(bucket#76L, id#73L ASC, ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS rank#82], [bucket#76L], [id#73L ASC]
+!      +- Project [id#73L, bucket#76L]                                                                                                                                     +- Project [id#73L, (id#73L % cast(3 as bigint)) AS bucket#76L]
+!         +- Project [id#73L, (id#73L % cast(3 as bigint)) AS bucket#76L]                                                                                                     +- Range (0, 10, step=1, splits=Some(8))
+!            +- Range (0, 10, step=1, splits=Some(8))
+...
+TRACE SparkOptimizer: Fixed point reached for batch Operator Optimizations after 2 iterations.
+DEBUG SparkOptimizer:
+=== Result of Batch Operator Optimizations ===
+!Project [id#73L, bucket#76L, rank#192]                                                                                                                              Window [rank(id#73L) windowspecdefinition(bucket#76L, id#73L ASC, ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS rank#82], [bucket#76L], [id#73L ASC]
+!+- Project [id#73L, bucket#76L, rank#82, rank#82 AS rank#192]                                                                                                       +- Project [id#73L, (id#73L % 3) AS bucket#76L]
+!   +- Window [rank(id#73L) windowspecdefinition(bucket#76L, id#73L ASC, ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS rank#82], [bucket#76L], [id#73L ASC]      +- Range (0, 10, step=1, splits=Some(8))
+!      +- Project [id#73L, bucket#76L]
+!         +- Project [id#73L, (id#73L % cast(3 as bigint)) AS bucket#76L]
+!            +- Range (0, 10, step=1, splits=Some(8))
+...
+----

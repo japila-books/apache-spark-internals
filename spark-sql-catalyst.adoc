@@ -25,15 +25,23 @@ Project [3 AS ((1 + 1) + 1)#4]
 +- Scan OneRowRelation[]
 ----
 
-Catalyst is an extensible *query plan optimizer* with link:spark-sql-catalyst-constant-folding.adoc[constant folding], link:spark-sql-predicate-pushdown.adoc[predicate pushdown], link:spark-sql-catalyst-nullability-propagation.adoc[nullability (NULL value) propagation], link:spark-sql-catalyst-vectorized-parquet-decoder.adoc[vectorized Parquet decoder] and link:spark-sql-whole-stage-codegen.adoc[whole-stage code generation] optimization techniques.
+Catalyst comes with an extensible *query plan optimizer* with link:spark-sql-catalyst-constant-folding.adoc[constant folding], link:spark-sql-predicate-pushdown.adoc[predicate pushdown], link:spark-sql-catalyst-nullability-propagation.adoc[nullability (NULL value) propagation], link:spark-sql-catalyst-vectorized-parquet-decoder.adoc[vectorized Parquet decoder] and link:spark-sql-whole-stage-codegen.adoc[whole-stage code generation] optimization techniques.
 
 Catalyst supports both rule-based and cost-based optimization.
 
 Among the rule-based optimizations is link:spark-sql-catalyst-nullability-propagation.adoc[nullability (NULL value) propagation].
 
-=== [[SparkOptimizer]] SparkOptimizer
+=== [[SparkOptimizer]] SparkOptimizer -- The Default Logical Query Plan Optimizer
 
-CAUTION: FIXME
+`SparkOptimizer` is a custom <<Optimizer, logical query plan optimizer>> for a link:spark-sql-sessionstate.adoc#SessionCatalog[SessionCatalog] and link:spark-sql-SQLConf.adoc[SQLConf] with its own additional optimization batches:
+
+1. *Optimize Metadata Only Query*
+2. *Extract Python UDF from Aggregate*
+3. *User Provided Optimizers* with the input `ExperimentalMethods`.
+
+CAUTION: FIXME Review the batches. What is `ExperimentalMethods`?
+
+`SparkOptimizer` is available as link:spark-sql-sessionstate.adoc#optimizer[`optimizer` attribute of `SessionState`] with the session's
 
 [TIP]
 ====
@@ -47,189 +55,6 @@ log4j.logger.org.apache.spark.sql.execution.SparkOptimizer=TRACE
 
 Refer to link:spark-logging.adoc[Logging].
 ====
-
-=== [[PropagateEmptyRelation]] PropagateEmptyRelation Logical Rule
-
-`PropagateEmptyRelation` collapses plans with empty link:spark-sql-logical-plan.adoc#LocalRelation[local relations].
-
-`PropagateEmptyRelation` is a part of `LocalRelation` link:spark-sql-catalyst-analyzer.adoc#batch[batch] in <<SparkOptimizer, SparkOptimizer>> optimizer.
-
-[source, scala]
-----
-scala> spark.emptyDataset[Int].join(spark.range(1)).explain(extended = true)
-...
-TRACE SparkOptimizer:
-=== Applying Rule org.apache.spark.sql.catalyst.optimizer.PropagateEmptyRelation ===
-!Join Inner                                LocalRelation <empty>, [value#40, id#42L]
-!:- LocalRelation <empty>, [value#40]
-!+- Range (0, 1, step=1, splits=Some(8))
-
-TRACE SparkOptimizer: Fixed point reached for batch LocalRelation after 2 iterations.
-DEBUG SparkOptimizer:
-=== Result of Batch LocalRelation ===
-!Join Inner                                LocalRelation <empty>, [value#40, id#42L]
-!:- LocalRelation <empty>, [value#40]
-!+- Range (0, 1, step=1, splits=Some(8))
-...
-== Parsed Logical Plan ==
-Join Inner
-:- LocalRelation <empty>, [value#40]
-+- Range (0, 1, step=1, splits=Some(8))
-
-== Analyzed Logical Plan ==
-value: int, id: bigint
-Join Inner
-:- LocalRelation <empty>, [value#40]
-+- Range (0, 1, step=1, splits=Some(8))
-
-== Optimized Logical Plan ==
-LocalRelation <empty>, [value#40, id#42L]
-
-== Physical Plan ==
-LocalTableScan <empty>, [value#40, id#42L]
-----
-
-=== [[SimplifyCasts]] SimplifyCasts Logical Plan Rule
-
-`SimplifyCasts` eliminates redundant casts in the following cases:
-
-1. The input is already the type to cast to.
-2. The input is of `ArrayType` or `MapType` type and contains no `null` elements.
-
-`SimplifyCasts` is a part of `Operator Optimizations` link:spark-sql-catalyst-analyzer.adoc#batch[batch] in <<SparkOptimizer, SparkOptimizer>> optimizer.
-
-[source, scala]
-----
-// Case 1. The input is already the type to cast to
-scala> val ds = spark.range(1)
-ds: org.apache.spark.sql.Dataset[Long] = [id: bigint]
-
-scala> ds.printSchema
-root
- |-- id: long (nullable = false)
-
-scala> ds.selectExpr("CAST (id AS long)").explain(true)
-...
-TRACE SparkOptimizer:
-=== Applying Rule org.apache.spark.sql.catalyst.optimizer.SimplifyCasts ===
-!Project [cast(id#0L as bigint) AS id#7L]   Project [id#0L AS id#7L]
- +- Range (0, 1, step=1, splits=Some(8))    +- Range (0, 1, step=1, splits=Some(8))
-
-TRACE SparkOptimizer:
-=== Applying Rule org.apache.spark.sql.catalyst.optimizer.RemoveAliasOnlyProject ===
-!Project [id#0L AS id#7L]                  Range (0, 1, step=1, splits=Some(8))
-!+- Range (0, 1, step=1, splits=Some(8))
-
-TRACE SparkOptimizer: Fixed point reached for batch Operator Optimizations after 2 iterations.
-DEBUG SparkOptimizer:
-=== Result of Batch Operator Optimizations ===
-!Project [cast(id#0L as bigint) AS id#7L]   Range (0, 1, step=1, splits=Some(8))
-!+- Range (0, 1, step=1, splits=Some(8))
-...
-== Parsed Logical Plan ==
-'Project [unresolvedalias(cast('id as bigint), None)]
-+- Range (0, 1, step=1, splits=Some(8))
-
-== Analyzed Logical Plan ==
-id: bigint
-Project [cast(id#0L as bigint) AS id#7L]
-+- Range (0, 1, step=1, splits=Some(8))
-
-== Optimized Logical Plan ==
-Range (0, 1, step=1, splits=Some(8))
-
-== Physical Plan ==
-*Range (0, 1, step=1, splits=Some(8))
-
-// Case 2A. The input is of `ArrayType` type and contains no `null` elements.
-scala> val intArray = Seq(Array(1)).toDS
-intArray: org.apache.spark.sql.Dataset[Array[Int]] = [value: array<int>]
-
-scala> intArray.printSchema
-root
- |-- value: array (nullable = true)
- |    |-- element: integer (containsNull = false)
-
-scala> intArray.map(arr => arr.sum).explain(true)
-...
-TRACE SparkOptimizer:
-=== Applying Rule org.apache.spark.sql.catalyst.optimizer.SimplifyCasts ===
- SerializeFromObject [input[0, int, true] AS value#36]                                                       SerializeFromObject [input[0, int, true] AS value#36]
- +- MapElements <function1>, class [I, [StructField(value,ArrayType(IntegerType,false),true)], obj#35: int   +- MapElements <function1>, class [I, [StructField(value,ArrayType(IntegerType,false),true)], obj#35: int
-!   +- DeserializeToObject cast(value#15 as array<int>).toIntArray, obj#34: [I                                  +- DeserializeToObject value#15.toIntArray, obj#34: [I
-       +- LocalRelation [value#15]                                                                                 +- LocalRelation [value#15]
-
-TRACE SparkOptimizer: Fixed point reached for batch Operator Optimizations after 2 iterations.
-DEBUG SparkOptimizer:
-=== Result of Batch Operator Optimizations ===
- SerializeFromObject [input[0, int, true] AS value#36]                                                       SerializeFromObject [input[0, int, true] AS value#36]
- +- MapElements <function1>, class [I, [StructField(value,ArrayType(IntegerType,false),true)], obj#35: int   +- MapElements <function1>, class [I, [StructField(value,ArrayType(IntegerType,false),true)], obj#35: int
-!   +- DeserializeToObject cast(value#15 as array<int>).toIntArray, obj#34: [I                                  +- DeserializeToObject value#15.toIntArray, obj#34: [I
-       +- LocalRelation [value#15]                                                                                 +- LocalRelation [value#15]
-...
-== Parsed Logical Plan ==
-'SerializeFromObject [input[0, int, true] AS value#36]
-+- 'MapElements <function1>, class [I, [StructField(value,ArrayType(IntegerType,false),true)], obj#35: int
-   +- 'DeserializeToObject unresolveddeserializer(upcast(getcolumnbyordinal(0, ArrayType(IntegerType,false)), ArrayType(IntegerType,false), - root class: "scala.Array").toIntArray), obj#34: [I
-      +- LocalRelation [value#15]
-
-== Analyzed Logical Plan ==
-value: int
-SerializeFromObject [input[0, int, true] AS value#36]
-+- MapElements <function1>, class [I, [StructField(value,ArrayType(IntegerType,false),true)], obj#35: int
-   +- DeserializeToObject cast(value#15 as array<int>).toIntArray, obj#34: [I
-      +- LocalRelation [value#15]
-
-== Optimized Logical Plan ==
-SerializeFromObject [input[0, int, true] AS value#36]
-+- MapElements <function1>, class [I, [StructField(value,ArrayType(IntegerType,false),true)], obj#35: int
-   +- DeserializeToObject value#15.toIntArray, obj#34: [I
-      +- LocalRelation [value#15]
-
-== Physical Plan ==
-*SerializeFromObject [input[0, int, true] AS value#36]
-+- *MapElements <function1>, obj#35: int
-   +- *DeserializeToObject value#15.toIntArray, obj#34: [I
-      +- LocalTableScan [value#15]
-
-// Case 2B. The input is of `MapType` type and contains no `null` elements.
-scala> val mapDF = Seq(("one", 1), ("two", 2)).toDF("k", "v").withColumn("m", map(col("k"), col("v")))
-mapDF: org.apache.spark.sql.DataFrame = [k: string, v: int ... 1 more field]
-
-scala> mapDF.printSchema
-root
- |-- k: string (nullable = true)
- |-- v: integer (nullable = false)
- |-- m: map (nullable = false)
- |    |-- key: string
- |    |-- value: integer (valueContainsNull = false)
-
-scala> mapDF.selectExpr("""CAST (m AS map<string, int>)""").explain(true)
-...
-TRACE SparkOptimizer:
-=== Applying Rule org.apache.spark.sql.catalyst.optimizer.SimplifyCasts ===
-!Project [cast(map(_1#250, _2#251) as map<string,int>) AS m#272]   Project [map(_1#250, _2#251) AS m#272]
- +- LocalRelation [_1#250, _2#251]                                 +- LocalRelation [_1#250, _2#251]
-...
-== Parsed Logical Plan ==
-'Project [unresolvedalias(cast('m as map<string,int>), None)]
-+- Project [k#253, v#254, map(k#253, v#254) AS m#258]
-   +- Project [_1#250 AS k#253, _2#251 AS v#254]
-      +- LocalRelation [_1#250, _2#251]
-
-== Analyzed Logical Plan ==
-m: map<string,int>
-Project [cast(m#258 as map<string,int>) AS m#272]
-+- Project [k#253, v#254, map(k#253, v#254) AS m#258]
-   +- Project [_1#250 AS k#253, _2#251 AS v#254]
-      +- LocalRelation [_1#250, _2#251]
-
-== Optimized Logical Plan ==
-LocalRelation [m#272]
-
-== Physical Plan ==
-LocalTableScan [m#272]
-----
 
 === [[i-want-more]] Further reading or watching
 
