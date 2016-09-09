@@ -4,7 +4,7 @@
 
 CAUTION: FIXME `SparkPlan` is `Serializable`. Why?
 
-NOTE: The naming convention for physical operators in Spark's source code is to have their names end with the _Exec_ prefix, e.g. `DebugExec` or <<LocalTableScanExec, LocalTableScanExec>>.
+NOTE: The naming convention for physical operators in Spark's source code is to have their names end with the _Exec_ prefix, e.g. `DebugExec` or link:spark-sql-spark-plan-LocalTableScanExec.adoc[LocalTableScanExec].
 
 TIP: Read link:spark-sql-InternalRow.adoc[InternalRow] about the internal binary row format.
 
@@ -21,78 +21,6 @@ TIP: Read link:spark-sql-InternalRow.adoc[InternalRow] about the internal binary
 * `prepare` calls `doPrepare`
 * `executeBroadcast` calls `doExecuteBroadcast`
 
-=== [[CoalesceExec]] CoalesceExec
-
-`CoalesceExec` is a `UnaryExecNode` with `numPartitions` number of partitions and a `child` spark plan. `CoalesceExec` represents `Repartition` logical plan at execution. When executed, it executes the input `child` and calls link:spark-rdd-partitions.adoc#coalesce[coalesce] on the result RDD (with `shuffle` disabled).
-
-Please note that since physical operators present themselves without the suffix _Exec_, `CoalesceExec` is the `Coalesce` in the Physical Plan section in the following example:
-
-[source, scala]
-----
-scala> df.rdd.getNumPartitions
-res6: Int = 8
-
-scala> df.coalesce(1).rdd.getNumPartitions
-res7: Int = 1
-
-scala> df.coalesce(1).explain(extended = true)
-== Parsed Logical Plan ==
-Repartition 1, false
-+- LocalRelation [value#1]
-
-== Analyzed Logical Plan ==
-value: int
-Repartition 1, false
-+- LocalRelation [value#1]
-
-== Optimized Logical Plan ==
-Repartition 1, false
-+- LocalRelation [value#1]
-
-== Physical Plan ==
-Coalesce 1
-+- LocalTableScan [value#1]
-----
-
-`output` collection of `Attribute` matches the ``child``'s (since `CoalesceExec` is about changing the number of partitions not the internal representation).
-
-`outputPartitioning` returns a `SinglePartition` when the input `numPartitions` is `1` while a `UnknownPartitioning` for the other cases.
-
-=== [[LocalTableScanExec]] LocalTableScanExec
-
-`LocalTableScanExec` is a leaf `SparkPlan` node with no `children` and `producedAttributes` being `outputSet`.
-
-`LocalTableScanExec` is a result of applying `BasicOperators` strategy to link:spark-sql-logical-plan.adoc#LocalRelation[LocalRelation] and `MemoryPlan` link:spark-sql-logical-plan.adoc[logical plans].
-
-[source, scala]
-----
-scala> Seq(1).toDS.explain(extended = true)
-== Parsed Logical Plan ==
-LocalRelation [value#1]
-
-== Analyzed Logical Plan ==
-value: int
-LocalRelation [value#1]
-
-== Optimized Logical Plan ==
-LocalRelation [value#1]
-
-== Physical Plan ==
-LocalTableScan [value#1]
-----
-
-.LocalTableScanExec's Metrics
-[width="100%",frame="topbot",options="header,footer"]
-|======================
-|name |description
-|*numOutputRows* | the number of output rows
-|======================
-
-When executed (as `doExecute`), `LocalTableScanExec` link:spark-sparkcontext.adoc#parallelize[creates an `RDD` of ``InternalRow``s].
-
-.LocalTableScanExec in SQL tab in web UI
-image::images/spark-webui-sql-details-for-query-localtablescan.png[align="center"]
-
 === [[contract]] SparkPlan Contract
 
 The contract of `SparkPlan` requires that concrete implementations define the following method:
@@ -105,6 +33,12 @@ They may also define their own custom overrides:
 * `doExecuteBroadcast`
 
 CAUTION: FIXME Why are there two executes?
+
+=== [[UnaryExecNode]][[specialized-spark-plans]] Specialized SparkPlans
+
+* `UnaryExecNode`
+
+CAUTION: FIXME
 
 === [[executeCollect]] executeCollect
 
