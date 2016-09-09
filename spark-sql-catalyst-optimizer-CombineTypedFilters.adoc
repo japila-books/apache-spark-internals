@@ -1,0 +1,28 @@
+== CombineTypedFilters Optimizer
+
+`CombineTypedFilters` combines two back to back typed filters into one that ultimately ends up as a single method call.
+
+`CombineTypedFilters` is the only logical plan optimization rule in *Typed Filter Optimization* link:spark-sql-catalyst-analyzer.adoc#batch[batch] in the base link:spark-sql-catalyst.adoc[Optimizer].
+
+[source, scala]
+----
+val spark: SparkSession = ...
+
+// Notice two consecutive filters
+val dataset = spark.range(10).filter(_ % 2 == 0).filter(_ == 0)
+scala> dataset.queryExecution.optimizedPlan
+...
+TRACE SparkOptimizer:
+=== Applying Rule org.apache.spark.sql.catalyst.optimizer.CombineTypedFilters ===
+ TypedFilter <function1>, class java.lang.Long, [StructField(value,LongType,true)], newInstance(class java.lang.Long)      TypedFilter <function1>, class java.lang.Long, [StructField(value,LongType,true)], newInstance(class java.lang.Long)
+!+- TypedFilter <function1>, class java.lang.Long, [StructField(value,LongType,true)], newInstance(class java.lang.Long)   +- Range (0, 10, step=1, splits=Some(8))
+!   +- Range (0, 10, step=1, splits=Some(8))
+
+TRACE SparkOptimizer: Fixed point reached for batch Typed Filter Optimization after 2 iterations.
+DEBUG SparkOptimizer:
+=== Result of Batch Typed Filter Optimization ===
+ TypedFilter <function1>, class java.lang.Long, [StructField(value,LongType,true)], newInstance(class java.lang.Long)      TypedFilter <function1>, class java.lang.Long, [StructField(value,LongType,true)], newInstance(class java.lang.Long)
+!+- TypedFilter <function1>, class java.lang.Long, [StructField(value,LongType,true)], newInstance(class java.lang.Long)   +- Range (0, 10, step=1, splits=Some(8))
+!   +- Range (0, 10, step=1, splits=Some(8))
+...
+----

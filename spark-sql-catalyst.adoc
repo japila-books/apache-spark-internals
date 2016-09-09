@@ -41,7 +41,25 @@ Among the rule-based optimizations is link:spark-sql-catalyst-nullability-propag
 
 CAUTION: FIXME Review the batches. What is `ExperimentalMethods`?
 
-`SparkOptimizer` is available as link:spark-sql-sessionstate.adoc#optimizer[`optimizer` attribute of `SessionState`] with the session's
+`SparkOptimizer` is the default query optimizer that is available as link:spark-sql-sessionstate.adoc#optimizer[`optimizer` attribute of `SessionState`].
+
+You can see the result of executing `SparkOptimizer` on a query plan using link:spark-sql-query-execution.adoc#optimizedPlan[`optimizedPlan` attribute of `QueryExecution`].
+
+[source, scala]
+----
+// Applying two filter in sequence on purpose
+// We want to kick CombineTypedFilters optimizer in
+val dataset = spark.range(10).filter(_ % 2 == 0).filter(_ == 0)
+
+// optimizedPlan is a lazy value
+// Only at the first time you call it you will trigger optimizations
+// Next calls end up with the cached already-optimized result
+// Use explain to trigger optimizations again
+scala> dataset.queryExecution.optimizedPlan
+res0: org.apache.spark.sql.catalyst.plans.logical.LogicalPlan =
+TypedFilter <function1>, class java.lang.Long, [StructField(value,LongType,true)], newInstance(class java.lang.Long)
++- Range (0, 10, step=1, splits=Some(8))
+----
 
 [TIP]
 ====
