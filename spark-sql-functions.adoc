@@ -15,6 +15,10 @@ There are nearly 50 or more functions in the `functions` object. Some functions 
 
 The functions are grouped by functional areas:
 
+* Window functions
+** <<rank, rank, dense_rank, and percent_rank>>
+** <<cume_dist, cume_dist>>
+** <<lag, lag>>
 * <<udf, Defining UDFs>>
 * <<creating-columns, Creating Columns using `col` and `column` methods>>
 * <<string-functions, String functions>>
@@ -30,6 +34,192 @@ The functions are grouped by functional areas:
 * ..._and others_
 
 TIP: You should read the http://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.sql.functions$[official documentation of the functions object].
+
+=== [[rank]][[dense_rank]][[percent_rank]] Ranking Records in Window Partition -- rank methods
+
+[source, scala]
+----
+rank(): Column
+dense_rank(): Column
+percent_rank(): Column
+----
+
+`rank` methods compute the rank of records in window partitions. They are equivalent to `RANK`, `DENSE_RANK` and `PERCENT_RANK` functions in the good ol' SQL.
+
+[source, scala]
+----
+val dataset = spark.range(9).withColumn("bucket", 'id % 3)
+
+import org.apache.spark.sql.expressions.Window
+scala> dataset.withColumn("rank", rank over Window.partitionBy('bucket).orderBy('id)).show
++---+------+----+
+| id|bucket|rank|
++---+------+----+
+|  0|     0|   1|
+|  3|     0|   2|
+|  6|     0|   3|
+|  1|     1|   1|
+|  4|     1|   2|
+|  7|     1|   3|
+|  2|     2|   1|
+|  5|     2|   2|
+|  8|     2|   3|
++---+------+----+
+
+scala> dataset.withColumn("rank", percent_rank over Window.partitionBy('bucket).orderBy('id)).show
++---+------+----+
+| id|bucket|rank|
++---+------+----+
+|  0|     0| 0.0|
+|  3|     0| 0.5|
+|  6|     0| 1.0|
+|  1|     1| 0.0|
+|  4|     1| 0.5|
+|  7|     1| 1.0|
+|  2|     2| 0.0|
+|  5|     2| 0.5|
+|  8|     2| 1.0|
++---+------+----+
+
+val buckets = spark.range(9).withColumn("bucket", 'id % 3)
+// rank function
+// Note the missing/sparse ranks, i.e. 2 and 4
+scala> buckets.union(buckets).withColumn("rank", rank over Window.partitionBy('bucket).orderBy('id)).show
++---+------+----+
+| id|bucket|rank|
++---+------+----+
+|  0|     0|   1|
+|  0|     0|   1|
+|  3|     0|   3|
+|  3|     0|   3|
+|  6|     0|   5|
+|  6|     0|   5|
+|  1|     1|   1|
+|  1|     1|   1|
+|  4|     1|   3|
+|  4|     1|   3|
+|  7|     1|   5|
+|  7|     1|   5|
+|  2|     2|   1|
+|  2|     2|   1|
+|  5|     2|   3|
+|  5|     2|   3|
+|  8|     2|   5|
+|  8|     2|   5|
++---+------+----+
+
+// dense_rank function
+// Note that the missing ranks are now filled in
+scala> buckets.union(buckets).withColumn("rank", dense_rank over Window.partitionBy('bucket).orderBy('id)).show
++---+------+----+
+| id|bucket|rank|
++---+------+----+
+|  0|     0|   1|
+|  0|     0|   1|
+|  3|     0|   2|
+|  3|     0|   2|
+|  6|     0|   3|
+|  6|     0|   3|
+|  1|     1|   1|
+|  1|     1|   1|
+|  4|     1|   2|
+|  4|     1|   2|
+|  7|     1|   3|
+|  7|     1|   3|
+|  2|     2|   1|
+|  2|     2|   1|
+|  5|     2|   2|
+|  5|     2|   2|
+|  8|     2|   3|
+|  8|     2|   3|
++---+------+----+
+----
+
+=== [[cume_dist]] Cumulative Distribution of Records in Window Partition -- `cume_dist` method
+
+[source, scala]
+----
+cume_dist(): Column
+----
+
+`cume_dist` computes the cumulative distribution of the records in window partitions. This is equivalent to SQL's `CUME_DIST` function.
+
+[source, scala]
+----
+val buckets = spark.range(9).withColumn("bucket", 'id % 3)
+// Make duplicates
+val dataset = buckets.union(buckets)
+
+import org.apache.spark.sql.expressions.Window
+val windowSpec = Window.partitionBy('bucket).orderBy('id)
+scala> dataset.withColumn("cume_dist", cume_dist over windowSpec).show
++---+------+------------------+
+| id|bucket|         cume_dist|
++---+------+------------------+
+|  0|     0|0.3333333333333333|
+|  3|     0|0.6666666666666666|
+|  6|     0|               1.0|
+|  1|     1|0.3333333333333333|
+|  4|     1|0.6666666666666666|
+|  7|     1|               1.0|
+|  2|     2|0.3333333333333333|
+|  5|     2|0.6666666666666666|
+|  8|     2|               1.0|
++---+------+------------------+
+----
+
+=== [[lag]] `lag` methods
+
+[source, scala]
+----
+lag(e: Column, offset: Int): Column
+lag(columnName: String, offset: Int): Column
+lag(columnName: String, offset: Int, defaultValue: Any): Column
+lag(e: Column, offset: Int, defaultValue: Any): Column
+----
+
+`lag` returns the value in `e` / `columnName` column that is `offset` records before the current record. `lag` returns `null` value if the number of records in a window partition is less than `offset` or `defaultValue`.
+
+[source, scala]
+----
+val buckets = spark.range(9).withColumn("bucket", 'id % 3)
+// Make duplicates
+val dataset = buckets.union(buckets)
+
+import org.apache.spark.sql.expressions.Window
+val windowSpec = Window.partitionBy('bucket).orderBy('id)
+scala> dataset.withColumn("lag", lag('id, 1) over windowSpec).show
++---+------+----+
+| id|bucket| lag|
++---+------+----+
+|  0|     0|null|
+|  3|     0|   0|
+|  6|     0|   3|
+|  1|     1|null|
+|  4|     1|   1|
+|  7|     1|   4|
+|  2|     2|null|
+|  5|     2|   2|
+|  8|     2|   5|
++---+------+----+
+
+scala> dataset.withColumn("lag", lag('id, 2, "<empty>") over windowSpec).show
++---+------+----+
+| id|bucket| lag|
++---+------+----+
+|  0|     0|null|
+|  3|     0|null|
+|  6|     0|   0|
+|  1|     1|null|
+|  4|     1|null|
+|  7|     1|   1|
+|  2|     2|null|
+|  5|     2|null|
+|  8|     2|   2|
++---+------+----+
+----
+
+CAUTION: FIXME It looks like `lag` with a default value has a bug -- it's not used at all.
 
 === [[creating-columns]][[col]][[column]] Creating Columns -- `col` and `column` methods
 
