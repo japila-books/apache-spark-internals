@@ -1,5 +1,23 @@
 == [[ConstantFolding]] Constant Folding
 
-`ConstantFolding` object is a operator optimization in link:spark-sql-catalyst.adoc[Catalyst] that replaces expressions that can be statically evaluated with equivalent literal values.
+`ConstantFolding` is a operator optimization rule in link:spark-sql-catalyst.adoc[Catalyst] that replaces expressions that can be statically evaluated with their equivalent literal values.
 
-`ConstantFolding` object is a `Rule[LogicalPlan]`.
+`ConstantFolding` object is a logical plan optimization rule in *Operator Optimizations* link:spark-sql-catalyst-analyzer.adoc#batch[batch] in the base link:spark-sql-catalyst.adoc[Optimizer].
+
+```
+scala> spark.range(1).select(lit(3) > 2).explain(true)
+...
+TRACE SparkOptimizer:
+=== Applying Rule org.apache.spark.sql.catalyst.optimizer.ConstantFolding ===
+!Project [(3 > 2) AS (3 > 2)#3]            Project [true AS (3 > 2)#3]
+ +- Range (0, 1, step=1, splits=Some(8))   +- Range (0, 1, step=1, splits=Some(8))
+```
+
+```
+scala> spark.range(1).select('id + 'id > 0).explain(true)
+...
+TRACE SparkOptimizer:
+=== Applying Rule org.apache.spark.sql.catalyst.optimizer.ConstantFolding ===
+!Project [((id#7L + id#7L) > cast(0 as bigint)) AS ((id + id) > 0)#10]   Project [((id#7L + id#7L) > 0) AS ((id + id) > 0)#10]
+ +- Range (0, 1, step=1, splits=Some(8))                                 +- Range (0, 1, step=1, splits=Some(8))
+```

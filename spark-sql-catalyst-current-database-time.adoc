@@ -1,0 +1,58 @@
+== GetCurrentDatabase and ComputeCurrentTime Optimizers
+
+<<GetCurrentDatabase, GetCurrentDatabase>> and <<ComputeCurrentTime, ComputeCurrentTime>> optimization rules are part of *Finish Analysis* link:spark-sql-catalyst-analyzer.adoc#batch[batch] in the base link:spark-sql-catalyst.adoc[Optimizer].
+
+=== [[GetCurrentDatabase]] GetCurrentDatabase Optimization Rule
+
+`GetCurrentDatabase` optimization rule returns the current database for `current_database` SQL function.
+
+```
+scala> sql("SELECT current_database() AS database").show
+...
+TRACE SparkOptimizer:
+=== Applying Rule org.apache.spark.sql.catalyst.optimizer.GetCurrentDatabase ===
+ GlobalLimit 21                                     GlobalLimit 21
+ +- LocalLimit 21                                   +- LocalLimit 21
+!   +- Project [currentdatabase() AS database#20]      +- Project [default AS database#20]
+       +- OneRowRelation$                                 +- OneRowRelation$
+...
++--------+
+|database|
++--------+
+| default|
++--------+
+```
+
+[NOTE]
+====
+`GetCurrentDatabase` corresponds to SQL's `current_database()` function.
+
+You can access the current database in Scala using
+
+```
+scala> val database = spark.catalog.currentDatabase
+database: String = default
+```
+====
+
+=== [[ComputeCurrentTime]] ComputeCurrentTime Optimization Rule
+
+`ComputeCurrentTime` logical plan optimization rule computes the current date and timestamp.
+
+```
+scala> spark.range(1).select(current_date()).explain
+...
+TRACE SparkOptimizer:
+=== Applying Rule org.apache.spark.sql.catalyst.optimizer.ComputeCurrentTime ===
+!Project [current_date() AS current_date()#29]   Project [17055 AS current_date()#29]
+ +- Range (0, 1, step=1, splits=Some(8))         +- Range (0, 1, step=1, splits=Some(8))
+```
+
+```
+scala> spark.range(1).select(current_timestamp()).explain
+...
+TRACE SparkOptimizer:
+=== Applying Rule org.apache.spark.sql.catalyst.optimizer.ComputeCurrentTime ===
+!Project [current_timestamp() AS current_timestamp()#36]   Project [1473599927969000 AS current_timestamp()#36]
+ +- Range (0, 1, step=1, splits=Some(8))                   +- Range (0, 1, step=1, splits=Some(8))
+```
