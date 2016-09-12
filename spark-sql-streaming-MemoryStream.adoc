@@ -13,7 +13,7 @@ It is designed primarily for unit tests, tutorials and debugging.
 
 [source, scala]
 ----
-import org.apache.spark.sql.execution.streaming._
+import org.apache.spark.sql.execution.streaming.MemoryStream
 
 import org.apache.spark.sql.SparkSession
 val spark: SparkSession = SparkSession.builder.getOrCreate()
@@ -21,8 +21,26 @@ val spark: SparkSession = SparkSession.builder.getOrCreate()
 implicit val ctx = spark.sqlContext
 
 // It uses two implicits: Encoder[Int] and SQLContext
-val ints = MemoryStream[Int]
-val zeroOffset = ints.addData(0)
+val intsInput = MemoryStream[Int]
+
+scala> val memoryQuery = ints.toDF.writeStream.format("memory").queryName("memStream").start
+memoryQuery: org.apache.spark.sql.streaming.StreamingQuery = Streaming Query - memStream [state = ACTIVE]
+
+scala> val zeroOffset = intsInput.addData(0, 1, 2)
+zeroOffset: org.apache.spark.sql.execution.streaming.Offset = #0
+
+memoryQuery.processAllAvailable()
+val intsOut = spark.table("memStream").as[Int]
+scala> intsOut.show
++-----+
+|value|
++-----+
+|    0|
+|    1|
+|    2|
++-----+
+
+memoryQuery.stop()
 ----
 
 CAUTION: FIXME Finish the example
