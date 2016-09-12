@@ -19,6 +19,8 @@ The functions are grouped by functional areas:
 ** <<rank, rank, dense_rank, and percent_rank>>
 ** <<cume_dist, cume_dist>>
 ** <<lag, lag>>
+** <<lead, lead>>
+** <<row_number, row_number>>
 * <<udf, Defining UDFs>>
 * <<creating-columns, Creating Columns using `col` and `column` methods>>
 * <<string-functions, String functions>>
@@ -220,7 +222,7 @@ scala> dataset.withColumn("lag", lag('id, 1) over windowSpec).show
 |  8|     2|   5|
 +---+------+----+
 
-scala> dataset.withColumn("lag", lag('id, 2, "<empty>") over windowSpec).show
+scala> dataset.withColumn("lag", lag('id, 2, "<default_value>") over windowSpec).show
 +---+------+----+
 | id|bucket| lag|
 +---+------+----+
@@ -236,7 +238,120 @@ scala> dataset.withColumn("lag", lag('id, 2, "<empty>") over windowSpec).show
 +---+------+----+
 ----
 
-CAUTION: FIXME It looks like `lag` with a default value has a bug -- it's not used at all.
+CAUTION: FIXME It looks like `lag` with a default value has a bug -- the default value's not used at all.
+
+=== [[lead]] `lead` methods
+
+[source, scala]
+----
+lead(columnName: String, offset: Int): Column
+lead(e: Column, offset: Int): Column
+lead(columnName: String, offset: Int, defaultValue: Any): Column
+lead(e: Column, offset: Int, defaultValue: Any): Column
+----
+
+`lead` returns the value that is `offset` records after the current records, and `defaultValue` if there is less than `offset` records after the current record. `lag` returns `null` value if the number of records in a window partition is less than `offset` or `defaultValue`.
+
+[source, scala]
+----
+val buckets = spark.range(9).withColumn("bucket", 'id % 3)
+// Make duplicates
+val dataset = buckets.union(buckets)
+
+import org.apache.spark.sql.expressions.Window
+val windowSpec = Window.partitionBy('bucket).orderBy('id)
+scala> dataset.withColumn("lead", lead('id, 1) over windowSpec).show
++---+------+----+
+| id|bucket|lead|
++---+------+----+
+|  0|     0|   0|
+|  0|     0|   3|
+|  3|     0|   3|
+|  3|     0|   6|
+|  6|     0|   6|
+|  6|     0|null|
+|  1|     1|   1|
+|  1|     1|   4|
+|  4|     1|   4|
+|  4|     1|   7|
+|  7|     1|   7|
+|  7|     1|null|
+|  2|     2|   2|
+|  2|     2|   5|
+|  5|     2|   5|
+|  5|     2|   8|
+|  8|     2|   8|
+|  8|     2|null|
++---+------+----+
+
+scala> dataset.withColumn("lead", lead('id, 2, "<default_value>") over windowSpec).show
++---+------+----+
+| id|bucket|lead|
++---+------+----+
+|  0|     0|   3|
+|  0|     0|   3|
+|  3|     0|   6|
+|  3|     0|   6|
+|  6|     0|null|
+|  6|     0|null|
+|  1|     1|   4|
+|  1|     1|   4|
+|  4|     1|   7|
+|  4|     1|   7|
+|  7|     1|null|
+|  7|     1|null|
+|  2|     2|   5|
+|  2|     2|   5|
+|  5|     2|   8|
+|  5|     2|   8|
+|  8|     2|null|
+|  8|     2|null|
++---+------+----+
+----
+
+CAUTION: FIXME It looks like `lead` with a default value has a bug -- the default value's not used at all.
+
+=== [[row_number]] `row_number` methods
+
+[source, scala]
+----
+row_number(): Column
+----
+
+`row_number` returns a sequential number starting at 1 within a window partition.
+
+[source, scala]
+----
+val buckets = spark.range(9).withColumn("bucket", 'id % 3)
+// Make duplicates
+val dataset = buckets.union(buckets)
+
+import org.apache.spark.sql.expressions.Window
+val windowSpec = Window.partitionBy('bucket).orderBy('id)
+scala> dataset.withColumn("row_number", row_number() over windowSpec).show
++---+------+----------+
+| id|bucket|row_number|
++---+------+----------+
+|  0|     0|         1|
+|  0|     0|         2|
+|  3|     0|         3|
+|  3|     0|         4|
+|  6|     0|         5|
+|  6|     0|         6|
+|  1|     1|         1|
+|  1|     1|         2|
+|  4|     1|         3|
+|  4|     1|         4|
+|  7|     1|         5|
+|  7|     1|         6|
+|  2|     2|         1|
+|  2|     2|         2|
+|  5|     2|         3|
+|  5|     2|         4|
+|  8|     2|         5|
+|  8|     2|         6|
++---+------+----------+
+```
 
 === [[creating-columns]][[col]][[column]] Creating Columns -- `col` and `column` methods
 
