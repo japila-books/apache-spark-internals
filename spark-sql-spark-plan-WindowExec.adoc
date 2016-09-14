@@ -1,3 +1,49 @@
 == WindowExec Physical Operator
 
 `WindowExec` is a link:spark-sql-spark-plan.adoc#UnaryExecNode[unary physical plan] with a collection of `NamedExpressions` (for windows), a collection of `Expressions` (for partitions), a collection of `SortOrder` (for sorting) and a `child` link:spark-sql-spark-plan.adoc[physical plan].
+
+The `output` of `WindowExec` are the `output` of `child` physical plan and windows.
+
+[source, scala]
+----
+import org.apache.spark.sql.expressions.Window
+val orderId = Window.orderBy('id)
+
+val dataset = spark.range(5).withColumn("group", 'id % 3)
+
+scala> dataset.select('*, rank over orderId as "rank").show
++---+-----+----+
+| id|group|rank|
++---+-----+----+
+|  0|    0|   1|
+|  1|    1|   2|
+|  2|    2|   3|
+|  3|    0|   4|
+|  4|    1|   5|
++---+-----+----+
+----
+
+When executed (i.e. `show`) with no partitions, `WindowExec` prints out the following WARN message to the logs:
+
+```
+WARN WindowExec: No Partition Defined for Window operation! Moving all data to a single partition, this can cause serious performance degradation.
+```
+
+[TIP]
+====
+Enable `WARN` logging level for `org.apache.spark.sql.execution.WindowExec` logger to see what happens inside.
+
+Add the following line to `conf/log4j.properties`:
+
+```
+log4j.logger.org.apache.spark.sql.execution.WindowExec=WARN
+```
+
+Refer to link:spark-logging.adoc[Logging].
+====
+
+CAUTION: FIXME Describe `ClusteredDistribution`
+
+When the number of rows exceeds `4096`, `WindowExec` creates `UnsafeExternalSorter`.
+
+CAUTION: FIXME What's `UnsafeExternalSorter`?
