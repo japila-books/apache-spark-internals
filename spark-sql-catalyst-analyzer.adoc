@@ -9,7 +9,7 @@ sparkSession.sessionState.analyzer
 
 NOTE: link:spark-sql-sparksession.adoc#sessionState[`sessionState` attribute in `SparkSession`] is a `private[sql]` value so to access it your code has to be in `org.apache.spark.sql` package.
 
-`Analyzer` is a <<RuleExecutor, RuleExecutor>> with `CheckAnalysis` and defines `Substitution`, `Resolution`, `Nondeterministic`, `UDF`, `FixNullability`, and `Cleanup` <<batch, batches>>.
+`Analyzer` is a <<RuleExecutor, RuleExecutor>> with `CheckAnalysis` and defines `Substitution`, `Resolution`, `Nondeterministic`, `UDF`, `FixNullability`, and `Cleanup` <<batch, batches>> of <<Rule, rules>> to apply to link:spark-sql-logical-plan.adoc[logical plan].
 
 `Analyzer` uses a link:spark-sql-sessionstate.adoc#SessionCatalog[SessionCatalog], a `CatalystConf`, and a configurable number of iterations (as `maxIterations`).
 
@@ -68,7 +68,9 @@ The reason for such a weird-looking logger name is that `analyzer` attribute is 
 
 === [[RuleExecutor]] RuleExecutor -- Abstract Rule Executor
 
-`RuleExecutor` can <<execute, apply>> collection of rules (as <<batch, batches>>) to a tree (of link:spark-sql-logical-plan.adoc[LogicalPlans]).
+`RuleExecutor` can <<execute, apply>> collection of <<rule, optimization rules>> (as <<batch, batches>>) to a plan tree.
+
+NOTE: The plan tree can be link:spark-sql-logical-plan.adoc[logical plan] or link:spark-sql-spark-plan.adoc[physical plan].
 
 Scala-wise, `RuleExecutor` is an abstract type constructor parameterized by the `TreeType` type parameter.
 
@@ -91,7 +93,7 @@ protected def batches: Seq[Batch]
 execute(plan: TreeType): TreeType
 ----
 
-`execute` iterates over <<batch, batches>> and applies rules sequentially to the input `plan`.
+`execute` iterates over <<batch, batches>> and applies <<rule, rules>> sequentially to the input `plan`.
 
 It tracks the number of iterations and the time of executing each rule (with a plan).
 
@@ -129,9 +131,9 @@ Otherwise, when the rules had no changes to a plan, you should see the following
 TRACE HiveSessionState$$anon$1: Batch [batchName] has no effect.
 ```
 
-==== [[batch]] Batch
+=== [[batch]] Batch -- Collection of Optimization Rules
 
-A *batch* is a named collection of rules with a strategy, e.g.
+A *batch* in Catalyst is a named collection of <<rule, optimization rules>> with a strategy, e.g.
 
 [source, scala]
 ----
@@ -145,3 +147,16 @@ Batch("Substitution", fixedPoint,
 A `Strategy` can be `Once` or `FixedPoint` (with a number of iterations).
 
 NOTE: `Once` strategy is a `FixedPoint` strategy with one iteration.
+
+=== [[rule]][[Rule]] Optimization Rule
+
+An *optimization rule* in Catalyst is a named optimization that can be applied to a plan tree.
+
+`Rule` abstract class defines `ruleName` attribute and a single method `apply`:
+
+[source, scala]
+----
+apply(plan: TreeType): TreeType
+----
+
+NOTE: `TreeType` is the type of the plan tree that a rule works with, e.g. link:spark-sql-logical-plan.adoc[LogicalPlan], link:spark-sql-spark-plan.adoc[SparkPlan] or `Expression`.
