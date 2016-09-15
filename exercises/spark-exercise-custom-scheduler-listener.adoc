@@ -1,40 +1,44 @@
 == Exercise: Developing Custom SparkListener to monitor DAGScheduler in Scala
 
-=== Introduction
-
-The example shows how to develop a custom Spark Listener. You should read link:../spark-SparkListener.adoc[Spark Listeners] first to understand the reasons for the example.
+The example shows how to develop a custom Spark Listener. You should read link:../spark-SparkListener.adoc[Spark Listeners -- Intercepting Events from Spark Scheduler] first to understand the motivation for the example.
 
 === Requirements
 
-1. https://www.typesafe.com/community/core-tools/activator-and-sbt[Typesafe Activator]
-2. Access to Internet to download the Spark dependency - `spark-core`
+1. https://www.jetbrains.com/idea/[IntelliJ IDEA] (or eventually http://www.scala-sbt.org/[sbt] alone if you're adventurous).
+2. Access to Internet to download Apache Spark's dependencies.
 
-=== Setting up Scala project using Typesafe Activator
+=== Setting up Scala project using IntelliJ IDEA
 
-```
-$ activator new custom-spark-listener minimal-scala
-$ cd custom-spark-listener
-```
+Create a new project `custom-spark-listener`.
 
-Add the following line to `build.sbt` (the main configuration file for the sbt project) that adds the dependency on Spark 1.5.1. Note the double `%` that are to select the proper version of the dependency for Scala 2.11.7.
+Add the following line to `build.sbt` (the main configuration file for the sbt project) that adds the dependency on Apache Spark.
 
 ```
-libraryDependencies += "org.apache.spark" %% "spark-core" % "1.5.1"
+libraryDependencies += "org.apache.spark" %% "spark-core" % "2.0.0"
 ```
 
-=== Custom Listener - pl.japila.spark.CustomSparkListener
+`build.sbt` should look as follows:
 
-Create the directory of your choice where the custom Spark listener is going to live, i.e. `pl/japila/spark`.
+[source, scala]
+----
+name := "custom-spark-listener"
+organization := "pl.jaceklaskowski.spark"
+version := "1.0"
 
-```
-$ mkdir -p src/main/scala/pl/japila/spark
-```
+scalaVersion := "2.11.8"
 
-Create the following file `CustomSparkListener.scala` in `src/main/scala/pl/japila/spark` directory. The aim of the class is to listen to events about jobs being started and tasks completed.
+libraryDependencies += "org.apache.spark" %% "spark-core" % "2.0.0"
+----
+
+=== Custom Listener - pl.jaceklaskowski.spark.CustomSparkListener
+
+Create a Scala class -- `CustomSparkListener` -- for your custom `SparkListener`. It should be under `src/main/scala` directory (create one if it does not exist).
+
+The aim of the class is to intercept scheduler events about jobs being started and tasks completed.
 
 [source,scala]
 ----
-package pl.japila.spark
+package pl.jaceklaskowski.spark
 
 import org.apache.spark.scheduler.{SparkListenerStageCompleted, SparkListener, SparkListenerJobStart}
 
@@ -51,42 +55,43 @@ class CustomSparkListener extends SparkListener {
 
 === Creating deployable package
 
-`package` it, i.e. execute the command in activator shell.
+Package the custom Spark listener. Execute `sbt package` command in the `custom-spark-listener` project's main directory.
 
 ```
-[custom-spark-listener]> package
-[info] Compiling 1 Scala source to /Users/jacek/dev/sandbox/custom-spark-listener/target/scala-2.11/classes...
-[info] Packaging /Users/jacek/dev/sandbox/custom-spark-listener/target/scala-2.11/custom-spark-listener_2.11-1.0.jar ...
+[info] Loading global plugins from /Users/jacek/.sbt/0.13/plugins
+[info] Loading project definition from /Users/jacek/dev/workshops/spark-workshop/solutions/custom-spark-listener/project
+[info] Set current project to custom-spark-listener (in build file:/Users/jacek/dev/workshops/spark-workshop/solutions/custom-spark-listener/)
+[info] Compiling 1 Scala source to /Users/jacek/dev/workshops/spark-workshop/solutions/custom-spark-listener/target/scala-2.11/classes...
+[info] Packaging /Users/jacek/dev/workshops/spark-workshop/solutions/custom-spark-listener/target/scala-2.11/custom-spark-listener_2.11-1.0.jar ...
 [info] Done packaging.
-[success] Total time: 0 s, completed Nov 4, 2015 8:59:30 AM
+[success] Total time: 3 s, completed Sep 15, 2016 3:15:21 PM
 ```
 
-You should have the result jar file with the custom scheduler listener ready (mine is `/Users/jacek/dev/sandbox/custom-spark-listener/target/scala-2.11/custom-spark-listener_2.11-1.0.jar`)
+You should find the result jar file with the custom scheduler listener ready under `target/scala-2.11` directory, e.g. `target/scala-2.11/custom-spark-listener_2.11-1.0.jar`.
 
 === Activating Custom Listener in Spark shell
 
-Start Spark shell with appropriate configurations for the extra custom listener and the jar that includes the class.
+Start link:spark-shell.adoc[spark-shell] with additional configurations for the extra custom listener and the jar that includes the class.
 
 ```
-$ ./bin/spark-shell --conf spark.logConf=true --conf spark.extraListeners=pl.japila.spark.CustomSparkListener --driver-class-path /Users/jacek/dev/sandbox/custom-spark-listener/target/scala-2.11/custom-spark-listener_2.11-1.0.jar
+$ ./bin/spark-shell --conf spark.logConf=true --conf spark.extraListeners=pl.jaceklaskowski.spark.CustomSparkListener --driver-class-path /Users/jacek/dev/sandbox/custom-spark-listener/target/scala-2.11/custom-spark-listener_2.11-1.0.jar
 ```
 
-Create an RDD and execute an action to start a job as follows:
+Create a link:spark-sql-dataset.adoc#implicits[Dataset] and execute an action like `show` to start a job as follows:
 
 ```
-scala> sc.parallelize(0 to 10).count
-15/11/04 12:27:29 INFO SparkContext: Starting job: count at <console>:25
-...
-Job started with 1 stages: SparkListenerJobStart(0,1446636449441,WrappedArray(org.apache.spark.scheduler.StageInfo@4b08f37b),{})
-...
-Stage 0 completed with 8 tasks.
+scala> spark.read.text("build.sbt").count
+[CustomSparkListener] Job started with 2 stages: SparkListenerJobStart(1,1473946006715,WrappedArray(org.apache.spark.scheduler.StageInfo@71515592, org.apache.spark.scheduler.StageInfo@6852819d),{spark.rdd.scope.noOverride=true, spark.rdd.scope={"id":"14","name":"collect"}, spark.sql.execution.id=2})
+[CustomSparkListener] Stage 1 completed with 1 tasks.
+[CustomSparkListener] Stage 2 completed with 1 tasks.
+res0: Long = 7
 ```
 
-The last line that starts with `Job started:` is from the custom Spark listener you've just created. Congratulations! The exercise's over.
+The lines with `[CustomSparkListener]` came from your custom Spark listener. Congratulations! The exercise's over.
 
 === BONUS Activating Custom Listener in Spark Application
 
-TIP: Use `sc.addSparkListener(myListener)`
+TIP: Read link:spark-sparkcontext.adoc#addSparkListener[Registering SparkListener -- `addSparkListener` method].
 
 === Questions
 
