@@ -22,6 +22,10 @@ log4j.logger.org.apache.spark.scheduler.TaskSetManager=DEBUG
 ```
 ====
 
+=== [[creating-instance]] Creating TaskSetManager Instance
+
+CAUTION: FIXME
+
 === [[schedulable]] TaskSetManager is Schedulable
 
 `TaskSetManager` is a link:spark-taskscheduler-schedulable.adoc[Schedulable] with the following implementation:
@@ -432,9 +436,14 @@ While in zombie state, TaskSetManager can launch no new tasks and <<resourceOffe
 
 TaskSetManager remains in the zombie state until all tasks have finished running, i.e. to continue to track and account for the running tasks.
 
-=== [[aborting-taskset]] Aborting TaskSet using abort Method
+=== [[abort]][[aborting-taskset]] Aborting TaskSet -- `abort` method
 
-`abort(message: String, exception: Option[Throwable] = None)` method informs link:spark-dagscheduler.adoc[DAGScheduler] that a TaskSet was aborted (using `DAGScheduler.taskSetFailed` method).
+[source, scala]
+----
+abort(message: String, exception: Option[Throwable] = None): Unit
+----
+
+`abort` informs link:spark-dagscheduler.adoc[DAGScheduler] that the link:spark-taskscheduler-tasksets.adoc[TaskSet] has been aborted (using `DAGScheduler.taskSetFailed` method).
 
 CAUTION: FIXME image with DAGScheduler call
 
@@ -444,7 +453,44 @@ Finally, `maybeFinishTaskSet` method is called.
 
 CAUTION: FIXME Why is `maybeFinishTaskSet` method called? When is `runningTasks` `0`?
 
+=== [[canFetchMoreResults]] Checking Available Memory For Task Result -- `canFetchMoreResults` method
+
+[source, scala]
+----
+canFetchMoreResults(size: Long): Boolean
+----
+
+`canFetchMoreResults` checks whether there is enough memory to fetch the result of a task.
+
+Internally, `canFetchMoreResults` increments the internal <<totalResultSize, totalResultSize>> with the input `size` which is the result of a task. It also increments the internal <<calculatedTasks, calculatedTasks>>.
+
+If the current internal <<totalResultSize, totalResultSize>> is bigger than  <<spark_driver_maxResultSize, spark.driver.maxResultSize>> the following ERROR message is printed out to the logs:
+
+```
+ERROR TaskSetManager: Total size of serialized results of [calculatedTasks] tasks ([totalResultSize]) is bigger than spark.driver.maxResultSize ([maxResultSize])
+```
+
+The current link:spark-taskscheduler-tasksets.adoc[TaskSet] is <<abort, aborted>> and `canFetchMoreResults` returns `false`.
+
+Otherwise, `canFetchMoreResults` returns `true`.
+
+NOTE: `canFetchMoreResults` is used in link:spark-taskschedulerimpl.adoc#enqueueSuccessfulTask[TaskResultGetter.enqueueSuccessfulTask] only.
+
 === [[internal-registries]] Internal Registries
+
+==== [[totalResultSize]] totalResultSize
+
+`totalResultSize` is the current total size of the result of all the tasks that have finished.
+
+It is increased with the size of a task result when a `TaskSetManager` <<canFetchMoreResults, checks that there is enough memory to fetch the task result>>.
+
+==== [[calculatedTasks]] calculatedTasks
+
+`calculatedTasks` is the number of the tasks that have already completed execution.
+
+`calculatedTasks` is initially set to `0` when a <<creating-instance, `TaskSetManager` is created>> and is only incremented when the <<canFetchMoreResults, `TaskSetManager` checks that there is enough memory to fetch a task result>>.
+
+==== Others
 
 * `copiesRunning`
 * `successful`
@@ -453,8 +499,6 @@ CAUTION: FIXME Why is `maybeFinishTaskSet` method called? When is `runningTasks`
 * `taskAttempts`
 * `tasksSuccessful`
 * `stageId` (default: `taskSet.stageId`)
-* `totalResultSize`
-* `calculatedTasks`
 * `runningTasksSet`
 * `isZombie` (default: `false`)
 * `pendingTasksForExecutor`
@@ -472,9 +516,16 @@ CAUTION: FIXME Why is `maybeFinishTaskSet` method called? When is `runningTasks`
 * `spark.speculation` (default: `false`)
 * `spark.speculation.quantile` (default: `0.75`) - the percentage of tasks that has not finished yet at which to start speculation.
 * `spark.speculation.multiplier` (default: `1.5`)
-* `spark.driver.maxResultSize` (default: `1g`) is the limit of bytes for total size of results. If the value is smaller than `1m` or `1048576` (1024 * 1024), it becomes 0.
 * `spark.logging.exceptionPrintInterval` (default: `10000`) - how frequently to reprint duplicate exceptions in full, in milliseconds
 * `spark.locality.wait` (default: `3s`) - for locality-aware delay scheduling for `PROCESS_LOCAL`, `NODE_LOCAL`, and `RACK_LOCAL` when locality-specific setting is not set.
 * `spark.locality.wait.process` (default: the value of `spark.locality.wait`) - delay for `PROCESS_LOCAL`
 * `spark.locality.wait.node` (default: the value of `spark.locality.wait`) - delay for `NODE_LOCAL`
 * `spark.locality.wait.rack` (default: the value of `spark.locality.wait`) - delay for `RACK_LOCAL`
+
+==== [[spark_driver_maxResultSize]] spark.driver.maxResultSize
+
+`spark.driver.maxResultSize` (default: `1g`) sets the quota to fetch the results, i.e. limit of bytes for total size of results.
+
+If the value is smaller than `1m` or `1048576` (1024 * 1024), it becomes 0.
+
+NOTE: It is used in `TaskSetManager.canFetchMoreResults` and `Utils.getMaxResultSize`.
