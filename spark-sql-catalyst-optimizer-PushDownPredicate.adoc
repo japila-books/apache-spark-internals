@@ -4,7 +4,45 @@ When you execute link:spark-sql-dataset.adoc#where[where] or link:spark-sql-data
 
 This optimization is called *filter pushdown* or *predicate pushdown* and aims at pushing down the filtering to the "bare metal", i.e. a data source engine. That is to increase the performance of queries since the filtering is performed at the very low level rather than dealing with the entire dataset after it has been loaded to Spark's memory and perhaps causing memory issues.
 
+`PushDownPredicate` is also applied to structured queries with <<select, filters after projections>> or <<windows, filtering on window partitions>>.
+
 `PushDownPredicate` is a link:spark-sql-logical-plan.adoc[logical plan] link:spark-sql-catalyst-analyzer.adoc#rule[optimization rule] in *Operator Optimizations* link:spark-sql-catalyst-analyzer.adoc#batch[batch] in the base link:spark-sql-catalyst.adoc[Optimizer].
+
+=== [[select]] Pushing Filter Operator Down Using Projection
+
+[source, scala]
+----
+val dataset = spark.range(2)
+
+scala> dataset.select('id as "_id").filter('_id === 0).explain(extended = true)
+...
+TRACE SparkOptimizer:
+=== Applying Rule org.apache.spark.sql.catalyst.optimizer.PushDownPredicate ===
+!Filter (_id#14L = cast(0 as bigint))         Project [id#11L AS _id#14L]
+!+- Project [id#11L AS _id#14L]               +- Filter (id#11L = cast(0 as bigint))
+    +- Range (0, 2, step=1, splits=Some(8))      +- Range (0, 2, step=1, splits=Some(8))
+...
+== Parsed Logical Plan ==
+'Filter ('_id = 0)
++- Project [id#11L AS _id#14L]
+   +- Range (0, 2, step=1, splits=Some(8))
+
+== Analyzed Logical Plan ==
+_id: bigint
+Filter (_id#14L = cast(0 as bigint))
++- Project [id#11L AS _id#14L]
+   +- Range (0, 2, step=1, splits=Some(8))
+
+== Optimized Logical Plan ==
+Project [id#11L AS _id#14L]
++- Filter (id#11L = 0)
+   +- Range (0, 2, step=1, splits=Some(8))
+
+== Physical Plan ==
+*Project [id#11L AS _id#14L]
++- *Filter (id#11L = 0)
+   +- *Range (0, 2, step=1, splits=Some(8))
+----
 
 === [[windows]] Optimizing Window Aggregate Operators
 
@@ -51,26 +89,51 @@ Window [rank(id#32L) windowspecdefinition(group#35L, id#32L ASC, ROWS BETWEEN UN
 
 === [[jdbc]] JDBC Data Source
 
+TIP: Follow the instructions on how to set up PostgreSQL in link:exercises/spark-exercise-dataframe-jdbc-postgresql.adoc[Creating DataFrames from Tables using JDBC and PostgreSQL].
+
 Given the following code:
 
 [source, scala]
 ----
+// Start with the PostgreSQL driver on CLASSPATH
+
+case class Project(id: Long, name: String, website: String)
+
+// No optimizations for typed queries
+// LOG:  execute <unnamed>: SELECT "id","name","website" FROM projects
 val df = spark.read
   .format("jdbc")
-  .option("url", "jdbc:...")
-  .option("dbtable", "people")
+  .option("url", "jdbc:postgresql:sparkdb")
+  .option("dbtable", "projects")
   .load()
-  .as[Person]
-  .where(_.name === "Jacek")
+  .as[Project]
+  .filter(_.name.contains("Spark"))
+
+// Only the following would end up with the pushdown
+val df = spark.read
+  .format("jdbc")
+  .option("url", "jdbc:postgresql:sparkdb")
+  .option("dbtable", "projects")
+  .load()
+  .where("""name like "%Spark%"""")
 ----
 
-Spark translates it to the following SQL query:
+`PushDownPredicate` translates the above query to the following SQL query:
 
 ```
-SELECT * FROM people WHERE name = 'Jacek'
+LOG:  execute <unnamed>: SELECT "id","name","website" FROM projects WHERE (name LIKE '%Spark%')
 ```
 
-CAUTION: FIXME Show the database logs with the query.
+[TIP]
+====
+Enable `all` logs in PostgreSQL to see the above SELECT and other query statements.
+
+```
+log_statement = 'all'
+```
+
+Add `log_statement = 'all'` to `/usr/local/var/postgres/postgresql.conf` on Mac OS X with PostgreSQL installed using `brew`.
+====
 
 === [[parquet]] Parquet Data Source
 
