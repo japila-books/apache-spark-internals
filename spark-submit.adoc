@@ -1,6 +1,6 @@
 == spark-submit script
 
-`spark-submit` script allows you to manage your Spark applications. You can <<submit, submit your Spark application to a Spark deployment environment>>, <<kill, kill>> or <<status, request status>> of Spark applications.
+`spark-submit` script allows you to manage your Spark applications. You can <<submit, submit your Spark application>> to a Spark deployment environment for execution, <<kill, kill>> or <<status, request status>> of Spark applications.
 
 You can find `spark-submit` script in `bin` directory of the Spark distribution.
 
@@ -15,7 +15,14 @@ Usage: spark-submit run-example [options] example-class [example args]
 
 When executed, <<main, `spark-submit` script executes `org.apache.spark.deploy.SparkSubmit` class>>.
 
-=== [[driver-cores]] Driver Cores in Cluster Deploy Mode (--driver-cores option)
+[TIP]
+====
+Avoid using `scala.App` trait for a Spark application's main class in Scala as reported in https://issues.apache.org/jira/browse/SPARK-4170[SPARK-4170 Closure problems when running Scala app that "extends App"].
+
+Refer to <<runMain, Executing Main -- `runMain` internal method>> in this document.
+====
+
+=== [[driver-cores]] Driver Cores in Cluster Deploy Mode -- `--driver-cores` command-line option
 
 ```
 --driver-cores NUM
@@ -25,7 +32,7 @@ When executed, <<main, `spark-submit` script executes `org.apache.spark.deploy.S
 
 NOTE: `--driver-cores` switch is only available for cluster mode (for Standalone, Mesos, and YARN).
 
-NOTE: It corresponds to link:spark-driver.adoc#spark.driver.cores[spark.driver.cores] setting.
+NOTE: It corresponds to link:spark-driver.adoc#spark_driver_cores[spark.driver.cores] setting.
 
 NOTE: It is printed out to the standard error output in <<verbose-mode, verbose mode>>.
 
@@ -35,7 +42,7 @@ NOTE: It is printed out to the standard error output in <<verbose-mode, verbose 
 
 CAUTION: FIXME How is `sysProps` calculated?
 
-=== [[jars]] Additional JAR Files to Distribute (--jars option)
+=== [[jars]] Additional JAR Files to Distribute -- `--jars` command-line option
 
 ```
 --jars JARS
@@ -45,7 +52,7 @@ CAUTION: FIXME How is `sysProps` calculated?
 
 CAUTION: FIXME
 
-=== [[files]] Additional Files to Distribute (--files option)
+=== [[files]] Additional Files to Distribute `--files` command-line option
 
 ```
 --files FILES
@@ -53,7 +60,7 @@ CAUTION: FIXME
 
 CAUTION: FIXME
 
-=== [[archives]] Additional Archives to Distribute (--archives option)
+=== [[archives]] Additional Archives to Distribute -- `--archives` command-line option
 
 ```
 --archives ARCHIVES
@@ -61,7 +68,7 @@ CAUTION: FIXME
 
 CAUTION: FIXME
 
-=== [[queue]] Specifying YARN Resource Queue (--queue option)
+=== [[queue]] Specifying YARN Resource Queue -- `--queue`  command-line option
 
 ```
 --queue QUEUE_NAME
@@ -77,7 +84,7 @@ TIP: It is printed out to the standard error output in <<verbose-mode, verbose m
 
 === [[actions]] Actions
 
-==== [[submit]] Submitting Applications for Execution (submit method)
+==== [[submit]] Submitting Applications for Execution -- `submit` method
 
 The default action of `spark-submit` script is to submit a Spark application to a deployment environment for execution.
 
@@ -96,7 +103,7 @@ CAUTION: FIXME Review why and when to use `proxyUser`.
 
 It passes the execution on to <<runMain, runMain>>.
 
-===== [[runMain]] Executing Main (runMain method)
+===== [[runMain]] Executing Main -- `runMain` internal method
 
 [source, scala]
 ----
@@ -112,41 +119,50 @@ runMain(
 
 NOTE: It is exclusively used when <<submit, submitting applications for execution>>.
 
-It optionally prints out input parameters with `verbose` input flag enabled (i.e. `true`).
+When `verbose` input flag is enabled (i.e. `true`) `runMain` prints out all the input parameters, i.e. `childMainClass`, `childArgs`, `sysProps`, and `childClasspath` (in that order).
 
-NOTE: `verbose` flag corresponds to <<verbose-mode, --verbose switch>>.
+```
+Main class:
+[childMainClass]
+Arguments:
+[childArgs one per line]
+System properties:
+[sysProps one per line]
+Classpath elements:
+[childClasspath one per line]
+```
 
-It builds the context classloader depending on `spark.driver.userClassPathFirst` flag.
+NOTE: Use ``spark-submit``'s <<verbose-mode, --verbose command-line option>> to enable `verbose` flag.
 
-CAUTION: FIXME What is `spark.driver.userClassPathFirst`?
+`runMain` builds the context classloader (as `loader`) depending on `spark.driver.userClassPathFirst` flag.
 
-It <<addJarToClasspath, adds the local jars>> specified in `childClasspath` input parameter to the context classloader (that is later responsible for loading the `childMainClass` main class).
+CAUTION: FIXME Describe `spark.driver.userClassPathFirst`
 
-NOTE: `childClasspath` input parameter corresponds to <<jars, --jars switch>> with the primary resource if specified in link:spark-deploy-mode.adoc#client[client deploy mode].
+It <<addJarToClasspath, adds the jars>> specified in `childClasspath` input parameter to the context classloader (that is later responsible for loading the `childMainClass` main class).
 
-It sets all the system properties specified in `sysProps` input parameter.
+NOTE: `childClasspath` input parameter corresponds to <<jars, --jars command-line option>> with the primary resource if specified in link:spark-deploy-mode.adoc#client[client deploy mode].
 
-NOTE: It uses Java's https://docs.oracle.com/javase/8/docs/api/java/lang/System.html#setProperty-java.lang.String-java.lang.String-[System.setProperty] to set the system properties.
+It sets all the system properties specified in `sysProps` input parameter (using Java's https://docs.oracle.com/javase/8/docs/api/java/lang/System.html#setProperty-java.lang.String-java.lang.String-[System.setProperty] method).
 
 TIP: Read <<system-properties, System Properties>> about how the process of collecting system properties works.
 
-It creates an instance of `childMainClass` main class.
+It creates an instance of `childMainClass` main class (as `mainClass`).
 
-NOTE: `childMainClass` corresponds to the main class `spark-submit` was invoked with.
+NOTE: `childMainClass` is the main class `spark-submit` has been invoked with.
 
-TIP: You should avoid using `scala.App` trait for main classes in Scala as reported in https://issues.apache.org/jira/browse/SPARK-4170[SPARK-4170 Closure problems when running Scala app that "extends App"]
+TIP: Avoid using `scala.App` trait for a Spark application's main class in Scala as reported in https://issues.apache.org/jira/browse/SPARK-4170[SPARK-4170 Closure problems when running Scala app that "extends App"].
 
-If you use `scala.App` for the main class, you should see the following WARN message in the logs:
+If you use `scala.App` for the main class, you should see the following warning message in the logs:
 
 ```
-WARN Subclasses of scala.App may not work correctly. Use a main() method instead.
+Warning: Subclasses of scala.App may not work correctly. Use a main() method instead.
 ```
 
-Finally, it executes the `main` method of the Spark application passing in the `childArgs` arguments.
+Finally, `runMain` executes the `main` method of the Spark application passing in the `childArgs` arguments.
 
 Any `SparkUserAppException` exceptions lead to `System.exit` while the others are simply re-thrown.
 
-===== [[addJarToClasspath]] Adding Local Jars to ClassLoader (addJarToClasspath method)
+===== [[addJarToClasspath]] Adding Local Jars to ClassLoader -- `addJarToClasspath` internal method
 
 [source, scala]
 ----
@@ -171,11 +187,11 @@ NOTE: `addJarToClasspath` assumes `file` URI when `localJar` has no URI specifie
 
 CAUTION: FIXME What is a URI fragment? How does this change re YARN distributed cache? See `Utils#resolveURI`.
 
-==== [[kill]] Killing Applications (--kill switch)
+==== [[kill]] Killing Applications -- `--kill` command-line option
 
 `--kill`
 
-==== [[status]][[requestStatus]] Requesting Application Status (--status switch)
+==== [[status]][[requestStatus]] Requesting Application Status -- `--status` command-line option
 
 `--status`
 
@@ -268,7 +284,7 @@ Options:
 * `--class`
 * `--conf` or `-c`
 * `--deploy-mode` (see <<deploy-mode, Deploy Mode>>)
-* `--driver-class-path`
+* `--driver-class-path` (see <<driver-class-path, driver-class-path>>)
 * `--driver-cores`  (see <<driver-cores, Driver Cores in Cluster Deploy Mode>>)
 * `--driver-java-options`
 * `--driver-library-path`
@@ -305,7 +321,32 @@ YARN-only options:
 * `--principal`
 * `--queue` (see <<queue, Specifying YARN Resource Queue (--queue switch)>>)
 
-=== [[version]] Version (--version switch)
+=== [[driver-class-path]] `--driver-class-path` command-line option
+
+`--driver-class-path` command-line option sets the extra `CLASSPATH` entries (i.e. jars and directories) for a driver.
+
+TIP: You should use `--driver-class-path` in `client` deploy mode (not link:spark-configuration.adoc[SparkConf]) to ensure that the CLASSPATH is set up with the entries. `client` deploy mode uses the same JVM for the driver as ``spark-submit``'s.
+
+`--driver-class-path` sets the internal `driverExtraClassPath` attribute when `SparkSubmitArguments.handle` called.
+
+It works for all cluster managers and deploy modes.
+
+If `driverExtraClassPath` not set on command-line, the link:spark-driver.adoc#spark_driver_extraClassPath[spark.driver.extraClassPath] setting is used.
+
+NOTE: Command-line options (e.g. `--driver-class-path`) have higher precedence than their corresponding Spark settings in a Spark properties file (e.g. `spark.driver.extraClassPath`). You can override Spark settings on command line using the command-line options.
+
+CAUTION: FIXME What about `--conf`?
+
+.Spark Settings in Spark Properties File and on Command Line
+[frame="topbot",options="header",width="100%"]
+|======================
+| Setting / System Property | Command-Line Option | Description
+| link:spark-driver.adoc#spark_driver_extraClassPath[spark.driver.extraClassPath] | `--driver-class-path` |
+|======================
+
+CAUTION: FIXME `SparkSubmitArguments.sparkProperties` -- where's this used and how's this set?
+
+=== [[version]] Version -- `--version` command-line option
 
 ```
 $ ./bin/spark-submit --version
@@ -319,9 +360,9 @@ Welcome to
 Type --help for more information.
 ```
 
-=== [[verbose-mode]] Verbose Mode (--verbose switch)
+=== [[verbose-mode]] Verbose Mode -- `--verbose` command-line option
 
-When `spark-submit` is executed with `--verbose` command-line switch, it enters *verbose mode*.
+When `spark-submit` is executed with `--verbose` command-line option, it enters *verbose mode*.
 
 In verbose mode, the parsed arguments are printed out to the System error output.
 
@@ -335,7 +376,7 @@ It also prints out `propertiesFile` and the properties from the file.
 FIXME
 ```
 
-=== [[deploy-mode]] Deploy Mode (--deploy-mode switch)
+=== [[deploy-mode]] Deploy Mode -- `--deploy-mode` command-line option
 
 You use spark-submit's `--deploy-mode` command-line option to specify the link:spark-deploy-mode.adoc[deploy mode] for a Spark application.
 
@@ -363,7 +404,7 @@ The `spark-submit` utility supports specifying external packages using Maven coo
 
 FIXME Why should I care?
 
-=== [[main]] Launching SparkSubmit (main method)
+=== [[main]] Launching SparkSubmit -- `main` method
 
 [NOTE]
 ====
