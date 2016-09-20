@@ -1,6 +1,10 @@
 == Thrift JDBC/ODBC Server -- Spark Thrift Server (STS)
 
-*Thrift JDBC/ODBC Server* (aka _Spark Thrift Server_ or _STS_) is Spark SQL's port of https://cwiki.apache.org/confluence/display/Hive/HiveServer2+Overview[Apache Hive's HiveServer2] that allows JDBC/ODBC clients to execute SQL queries over JDBC and ODBC protocols on Apache Spark (that go through all the link:spark-sql-catalyst.adoc[Catalyst's query optimizations] you surely like very much).
+*Thrift JDBC/ODBC Server* (aka _Spark Thrift Server_ or _STS_) is Spark SQL's port of https://cwiki.apache.org/confluence/display/Hive/HiveServer2+Overview[Apache Hive's HiveServer2] that allows JDBC/ODBC clients to execute SQL queries over JDBC and ODBC protocols on Apache Spark.
+
+With Spark Thrift Server, business users can work with their shiny Business Intelligence (BI) tools, e.g. http://www.tableau.com[Tableau] or Microsoft Excel, and connect to Apache Spark using the ODBC interface. That brings the in-memory distributed capabilities of Spark SQL's query engine (with all the link:spark-sql-catalyst.adoc[Catalyst's query optimizations] you surely like very much) to environments that were initially "disconnected".
+
+Beside, SQL queries in Spark Thrift Server share the same link:spark-sparkcontext.adoc[SparkContext] that helps further improve performance of SQL queries using the same data sources.
 
 Spark Thrift Server is a Spark standalone application that you start using <<start-thriftserver, `start-thriftserver.sh`>> and stop using <<stop-thriftserver, `stop-thriftserver.sh`>> shell scripts.
 
@@ -9,9 +13,9 @@ Spark Thrift Server has its own tab in web UI -- <<webui, JDBC/ODBC Server>> ava
 .Spark Thrift Server's web UI
 image::images/spark-thriftserver-webui.png[align="center"]
 
-Spark Thrift Server can work in <<transport-mode, HTTP or binary transport modes>>. Use <<beeline, beeline command-line tool>> or <<SQuirreL-SQL-Client, SQuirreL SQL Client>> to connect through the JDBC interface.
+Spark Thrift Server can work in <<transport-mode, HTTP or binary transport modes>>.
 
-IMPORTANT: SQL queries in Spark Thrift Server share the same link:spark-sparkcontext.adoc[SparkContext].
+Use <<beeline, beeline command-line tool>> or <<SQuirreL-SQL-Client, SQuirreL SQL Client>> or Spark SQL's <<dataframereader, DataSource API>> to connect to Spark Thrift Server through the JDBC interface.
 
 Spark Thrift Server extends link:spark-submit.adoc[spark-submit]'s command-line options with `--hiveconf [prop=value]`.
 
@@ -61,7 +65,7 @@ $ ./bin/spark-submit --class org.apache.spark.sql.hive.thriftserver.HiveThriftSe
 
 TIP: Using the more explicit approach with `spark-submit` to start Spark Thrift Server could be easier to trace execution by seeing the logs printed out to the standard output and hence terminal directly.
 
-=== [[beeline]] Beeline JDBC Client
+=== [[beeline]] Using Beeline JDBC Client to Connect to Spark Thrift Server
 
 `beeline` is a command-line tool that allows you to access Spark Thrift Server using the JDBC interface on command line. It is included in the Spark distribution in `bin` directory.
 
@@ -146,6 +150,37 @@ Below is `show tables` SQL query in SQuirrel SQL Client executed in Spark SQL th
 
 .`show tables` SQL Query in SQuirrel SQL Client using Spark Thrift Server
 image::images/spark-thriftserver-squirrel-show-tables.png[align="center"]
+
+=== [[dataframereader]] Using Spark SQL's DataSource API to Connect to Spark Thrift Server
+
+What might seem a quite artificial setup at first is accessing Spark Thrift Server using Spark SQL's link:spark-sql-datasource-api.adoc[DataSource API], i.e. ``DataFrameReader``'s link:spark-sql-dataframereader.adoc#jdbc[jdbc method].
+
+[TIP]
+====
+When executed in `local` mode, Spark Thrift Server and `spark-shell` will try to access the same Hive Warehouse's directory that will inevitably lead to an error.
+
+Use link:spark-sql-settings.adoc#spark_sql_warehouse_dir[spark.sql.warehouse.dir] to point to another directory for `spark-shell`.
+
+```
+./bin/spark-shell --conf spark.sql.warehouse.dir=/tmp/spark-warehouse
+```
+
+You should also not share the same home directory between them since `metastore_db` becomes an issue.
+====
+
+[source, scala]
+----
+// Inside spark-shell
+// Paste in :paste mode
+val df = spark
+  .read
+  .option("url", "jdbc:hive2://localhost:10000") // <1>
+  .option("dbtable", "people") // <2>
+  .format("jdbc")
+  .load
+----
+<1> Connect to Spark Thrift Server at localhost on port 10000
+<2> Use `people` table. It assumes that `people` table is available.
 
 === [[webui]][[ThriftServerTab]] `ThriftServerTab` -- web UI's Tab for Spark Thrift Server
 
