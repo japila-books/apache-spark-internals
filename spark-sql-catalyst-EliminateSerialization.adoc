@@ -1,0 +1,52 @@
+== [[EliminateSerialization]] Eliminate Serialization Optimization Rule
+
+[source, scala]
+----
+// Notice unnecessary mapping between String and Int types
+val query = spark.range(3).map(_.toString).map(_.toInt)
+
+scala> query.explain(extended = true)
+...
+TRACE SparkOptimizer:
+=== Applying Rule org.apache.spark.sql.catalyst.optimizer.EliminateSerialization ===
+ SerializeFromObject [input[0, int, true] AS value#91]                                                                                                                     SerializeFromObject [input[0, int, true] AS value#91]
+ +- MapElements <function1>, class java.lang.String, [StructField(value,StringType,true)], obj#90: int                                                                     +- MapElements <function1>, class java.lang.String, [StructField(value,StringType,true)], obj#90: int
+!   +- DeserializeToObject value#86.toString, obj#89: java.lang.String                                                                                                        +- Project [obj#85 AS obj#89]
+!      +- SerializeFromObject [staticinvoke(class org.apache.spark.unsafe.types.UTF8String, StringType, fromString, input[0, java.lang.String, true], true) AS value#86]         +- MapElements <function1>, class java.lang.Long, [StructField(value,LongType,true)], obj#85: java.lang.String
+!         +- MapElements <function1>, class java.lang.Long, [StructField(value,LongType,true)], obj#85: java.lang.String                                                            +- DeserializeToObject newInstance(class java.lang.Long), obj#84: java.lang.Long
+!            +- DeserializeToObject newInstance(class java.lang.Long), obj#84: java.lang.Long                                                                                          +- Range (0, 3, step=1, splits=Some(8))
+!               +- Range (0, 3, step=1, splits=Some(8))
+...
+== Parsed Logical Plan ==
+'SerializeFromObject [input[0, int, true] AS value#91]
++- 'MapElements <function1>, class java.lang.String, [StructField(value,StringType,true)], obj#90: int
+   +- 'DeserializeToObject unresolveddeserializer(upcast(getcolumnbyordinal(0, StringType), StringType, - root class: "java.lang.String").toString), obj#89: java.lang.String
+      +- SerializeFromObject [staticinvoke(class org.apache.spark.unsafe.types.UTF8String, StringType, fromString, input[0, java.lang.String, true], true) AS value#86]
+         +- MapElements <function1>, class java.lang.Long, [StructField(value,LongType,true)], obj#85: java.lang.String
+            +- DeserializeToObject newInstance(class java.lang.Long), obj#84: java.lang.Long
+               +- Range (0, 3, step=1, splits=Some(8))
+
+== Analyzed Logical Plan ==
+value: int
+SerializeFromObject [input[0, int, true] AS value#91]
++- MapElements <function1>, class java.lang.String, [StructField(value,StringType,true)], obj#90: int
+   +- DeserializeToObject cast(value#86 as string).toString, obj#89: java.lang.String
+      +- SerializeFromObject [staticinvoke(class org.apache.spark.unsafe.types.UTF8String, StringType, fromString, input[0, java.lang.String, true], true) AS value#86]
+         +- MapElements <function1>, class java.lang.Long, [StructField(value,LongType,true)], obj#85: java.lang.String
+            +- DeserializeToObject newInstance(class java.lang.Long), obj#84: java.lang.Long
+               +- Range (0, 3, step=1, splits=Some(8))
+
+== Optimized Logical Plan ==
+SerializeFromObject [input[0, int, true] AS value#91]
++- MapElements <function1>, class java.lang.String, [StructField(value,StringType,true)], obj#90: int
+   +- MapElements <function1>, class java.lang.Long, [StructField(value,LongType,true)], obj#85: java.lang.String
+      +- DeserializeToObject newInstance(class java.lang.Long), obj#84: java.lang.Long
+         +- Range (0, 3, step=1, splits=Some(8))
+
+== Physical Plan ==
+*SerializeFromObject [input[0, int, true] AS value#91]
++- *MapElements <function1>, obj#90: int
+   +- *MapElements <function1>, obj#85: java.lang.String
+      +- *DeserializeToObject newInstance(class java.lang.Long), obj#84: java.lang.Long
+         +- *Range (0, 3, step=1, splits=Some(8))
+----
