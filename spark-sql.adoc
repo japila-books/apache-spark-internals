@@ -1,14 +1,40 @@
 == Spark SQL -- Structured Queries on Large Scale
 
-:toc: right
+Like Apache Spark in general, *Spark SQL* is all about distributed in-memory computations. The benefits of Spark SQL (comparing to the "bare" Spark Core's RDD computation model) is in offering a framework for loading, querying and persisting structured and semi-structured data using queries that could be expressed using the standard ANSI SQL (with subqueries), Hive QL and the custom high-level SQL-like, declarative, type-safe link:spark-sql-dataset.adoc[Dataset] API (for a structured query DSL). With the recent changes in Spark 2.0, Spark SQL is now _de facto_ the primary and feature-rich interface to Spark's underlaying distributed platform (hiding Spark Core's RDDs behind higher-level abstractions).
 
-*Spark SQL* is a distributed SQL framework for loading, querying and persisting structured and semi-structured data in Apache Spark. It is currently de facto the primary and feature-rich interface to Spark to start with (hiding Spark Core's RDDs behind higher-level abstractions).
+[source, scala]
+----
+// Found at http://stackoverflow.com/a/32514683/1305344
+val dataset = Seq(
+   Tuple1("08/11/2015"),
+   Tuple1("09/11/2015"),
+   Tuple1("09/12/2015"))).toDF("date_string")
 
-Spark SQL offers a standard ANSI SQL support with subqueries and the higher-level link:spark-sql-dataset.adoc[Dataset] API on top of Spark Core's distributed computation model (based on RDD).
+df.registerTempTable("df")
 
-It offers performance optimizations using link:spark-sql-catalyst.adoc[Catalyst query optimizer] and link:spark-sql-tungsten.adoc[Tungsten execution engine].
+scala > spark.sql(
+  """SELECT date_string,
+        from_unixtime(unix_timestamp(date_string,'MM/dd/yyyy'), 'EEEEE') AS dow
+      FROM df""").show
++-----------+--------+
+|date_string|     dow|
++-----------+--------+
+| 08/11/2015| Tuesday|
+| 09/11/2015|  Friday|
+| 09/12/2015|Saturday|
++-----------+--------+
+----
 
-TIP: Visit http://spark.apache.org/sql/[Spark SQL] home page to learn more.
+Like many SQL and NoSQL databases, Spark SQL offers performance query optimizations using Catalyst's link:spark-sql-catalyst-Optimizer.adoc[Logical Query Plan Optimizer], link:spark-sql-whole-stage-codegen.adoc[code generation] (that is often better than your own custom code!) and link:spark-sql-tungsten.adoc[Tungsten execution engine] with its own link:spark-sql-InternalRow.adoc[Internal Binary Row Format].
+
+Spark SQL introduces a tabular data abstraction called link:spark-sql-dataframe.adoc[DataFrame]. It is designed to ease processing large amount of structured tabular data on Spark infrastructure.
+
+[NOTE]
+====
+Quoting https://drill.apache.org/[Apache Drill], but applies to Spark SQL perfectly:
+
+> A SQL query engine for relational and NoSQL databases with direct queries on self-describing and semi-structured data in files, e.g. JSON or Parquet, and HBase tables without needing to specify metadata definitions in a centralized store.
+====
 
 The following snippet shows a batch ETL pipeline to process JSON files and saving their subset as CSVs.
 
@@ -56,14 +82,14 @@ spark.readStream
 
 As of Spark 2.0, the main data abstraction of Spark SQL is link:spark-sql-dataset.adoc[Dataset]. It represents a *structured data* which is records with a known schema. This structured data representation `Dataset` enables link:spark-sql-tungsten.adoc[compact binary representation] using compressed columnar format that is stored in managed objects outside JVM's heap. It is supposed to speed computations up by reducing memory usage and GCs.
 
-Spark SQL supports link:spark-sql-catalyst-optimizer-PushDownPredicate.adoc[predicate pushdown] to optimize performance of Dataset queries and can also link:spark-sql-catalyst.adoc[generate optimized code at runtime].
+Spark SQL supports link:spark-sql-catalyst-optimizer-PushDownPredicate.adoc[predicate pushdown] to optimize performance of Dataset queries and can also link:spark-sql-catalyst-Optimizer.adoc[generate optimized code at runtime].
 
 Spark SQL comes with the different APIs to work with:
 
 1. link:spark-sql-dataset.adoc[Dataset API] (formerly link:spark-sql-dataframe.adoc[DataFrame API]) with a strongly-typed LINQ-like Query DSL that Scala programmers will likely find very appealing to use.
 2. link:spark-sql-structured-streaming.adoc[Structured Streaming API (aka Streaming Datasets)] for continuous incremental execution of structured queries.
 3. Non-programmers will likely use SQL as their query language through direct integration with Hive
-4. JDBC/ODBC fans can use JDBC interface (through Thrift JDBC/ODBC server) and connect their tools to Spark's distributed query engine.
+4. JDBC/ODBC fans can use JDBC interface (through link:spark-sql-thrift-server.adoc[Thrift JDBC/ODBC Server]) and connect their tools to Spark's distributed query engine.
 
 Spark SQL comes with a uniform interface for data access in distributed storage systems like Cassandra or HDFS (Hive, Parquet, JSON) using specialized link:spark-sql-dataframereader.adoc[DataFrameReader] and link:spark-sql-dataframewriter.adoc[DataFrameWriter] objects.
 
@@ -77,17 +103,6 @@ Spark SQL defines three types of functions:
 
 There are two supported *catalog* implementations -- `in-memory` (default) and `hive` -- that you can set using link:spark-sql-settings.adoc#spark.sql.catalogImplementation[spark.sql.catalogImplementation] setting.
 
-=== [[dataframe]] DataFrame
-
-Spark SQL introduces a tabular data abstraction called link:spark-sql-dataframe.adoc[DataFrame]. It is designed to ease processing large amount of structured tabular data on Spark infrastructure.
-
-[NOTE]
-====
-Found the following note about Apache Drill, but appears to apply to Spark SQL perfectly:
-
-> A SQL query engine for relational and NoSQL databases with direct queries on self-describing and semi-structured data in files, e.g. JSON or Parquet, and HBase tables without needing to specify metadata definitions in a centralized store.
-====
-
 From user@spark:
 
 > If you already loaded csv data into a dataframe, why not register it as a table, and use Spark SQL
@@ -95,129 +110,23 @@ to find max/min or any other aggregates? SELECT MAX(column_name) FROM dftable_na
 
 > you're more comfortable with SQL, it might worth registering this DataFrame as a table and generating SQL query to it (generate a string with a series of min-max calls)
 
-CAUTION: FIXME Transform the quotes into working examples.
-
 You can parse data from external data sources and let the _schema inferencer_ to deduct the schema.
 
-=== Creating DataFrames
-
-From http://stackoverflow.com/a/32514683/1305344:
-
-```
-val df = sc.parallelize(Seq(
-   Tuple1("08/11/2015"), Tuple1("09/11/2015"), Tuple1("09/12/2015")
-)).toDF("date_string")
-
-df.registerTempTable("df")
-
-spark.sql(
-  """SELECT date_string,
-        from_unixtime(unix_timestamp(date_string,'MM/dd/yyyy'), 'EEEEE') AS dow
-      FROM df"""
-).show
-```
-
-The result:
-
-```
-+-----------+--------+
-|date_string|     dow|
-+-----------+--------+
-| 08/11/2015| Tuesday|
-| 09/11/2015|  Friday|
-| 09/12/2015|Saturday|
-+-----------+--------+
-```
-
-* Where do `from_unixtime` and `unix_timestamp` come from? `HiveContext` perhaps? How are they registered
-* What other UDFs are available?
-
-=== Handling data in Avro format
-
-Use custom serializer using http://spark-packages.org/package/databricks/spark-avro[spark-avro].
-
-Run Spark shell with `--packages com.databricks:spark-avro_2.11:2.0.0` (see https://github.com/databricks/spark-avro/issues/85[2.0.0 artifact is not in any public maven repo] why `--repositories` is required).
-
-```
-./bin/spark-shell --packages com.databricks:spark-avro_2.11:2.0.0 --repositories "http://dl.bintray.com/databricks/maven"
-```
-
-And then...
-
-```
-val fileRdd = sc.textFile("README.md")
-val df = fileRdd.toDF
-
-import org.apache.spark.sql.SaveMode
-
-val outputF = "test.avro"
-df.write.mode(SaveMode.Append).format("com.databricks.spark.avro").save(outputF)
-```
-
-See https://spark.apache.org/docs/latest/api/java/index.html#org.apache.spark.sql.SaveMode[org.apache.spark.sql.SaveMode] (and perhaps https://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.sql.SaveMode[org.apache.spark.sql.SaveMode] from Scala's perspective).
-
-```
-val df = spark.read.format("com.databricks.spark.avro").load("test.avro")
-```
-
-Show the result:
-
-```
-df.show
-```
-
-=== Group and aggregate
-
-```
-val df = sc.parallelize(Seq(
-  (1441637160, 10.0),
-  (1441637170, 20.0),
-  (1441637180, 30.0),
-  (1441637210, 40.0),
-  (1441637220, 10.0),
-  (1441637230, 0.0))).toDF("timestamp", "value")
-
-import org.apache.spark.sql.types._
-
-val tsGroup = (floor($"timestamp" / lit(60)) * lit(60)).cast(IntegerType).alias("timestamp")
-
-df.groupBy(tsGroup).agg(mean($"value").alias("value")).show
-```
-
-The above example yields the following result:
-
-```
-+----------+-----+
-| timestamp|value|
-+----------+-----+
-|1441637160| 25.0|
-|1441637220|  5.0|
-+----------+-----+
-```
-
-See http://stackoverflow.com/a/32443728/1305344[the answer on StackOverflow].
-
-=== More examples
-
-Another example:
-
-```
+[source, scala]
+----
 val df = Seq(1 -> 2).toDF("i", "j")
 val query = df.groupBy('i)
   .agg(max('j).as("aggOrdering"))
   .orderBy(sum('j))
 query == Row(1, 2) // should return true
-```
 
-What does it do?
-
-```
 val df = Seq((1, 1), (-1, 1)).toDF("key", "value")
 df.registerTempTable("src")
 sql("SELECT IF(a > 0, a, 0) FROM (SELECT key a FROM src) temp")
-```
+----
 
 === [[i-want-more]] Further reading or watching
 
+1. http://spark.apache.org/sql/[Spark SQL] home page
 1. (video) https://youtu.be/e-Ys-2uVxM0?t=6m44s[Spark's Role in the Big Data Ecosystem - Matei Zaharia]
 2. https://databricks.com/blog/2016/07/26/introducing-apache-spark-2-0.html[Introducing Apache Spark 2.0]

@@ -1,12 +1,10 @@
 == Encoders -- Internal Row Converters
 
-*Encoders* are the fundamental concept in the serialization and deserialization (SerDe) framework in link:spark-sql-catalyst.adoc[Catalyst Query Optimizer]. An encoder of type `T` is used to convert (_encode_ and _decode_) a JVM object of type `T` (that could be your domain object) and primitives to and from `InternalRow` -- Spark SQL's link:spark-sql-InternalRow.adoc[internal binary row format] representation -- using Catalyst expressions and code generation.
+*Encoder* is the fundamental concept in the *serialization and deserialization (SerDe) framework* in Spark SQL 2.0. Spark SQL uses the SerDe framework for IO to make it efficient time- and space-wise.
 
-NOTE: `Encoder` is also called _"a container of serde expressions in Dataset"_.
+TIP: Spark has borrowed the idea from the https://cwiki.apache.org/confluence/display/Hive/SerDe[Hive SerDe library] so it might be worthwhile to get familiar with Hive a little bit, too.
 
-Encoders know the link:spark-sql-schema.adoc[schema] of the records. They allow for significantly faster serialization and deserialization (comparing to the default Java or Kryo serializers).
-
-The Encoder concept is represented by the trait `Encoder[T]`.
+Encoders are modelled in Spark SQL 2.0 as `Encoder[T]` trait.
 
 [source, scala]
 ----
@@ -16,10 +14,21 @@ trait Encoder[T] extends Serializable {
 }
 ----
 
-The one and only implementation of the `Encoder` trait in Spark 2.0 is <<ExpressionEncoder, ExpressionEncoder>>.
+The type `T` stands for the type of records a `Encoder[T]` can deal with. An encoder of type `T`, i.e. `Encoder[T]`, is used to convert (_encode_ and _decode_) any JVM object or primitive of type `T` (that could be your domain object) to and from Spark SQL's link:spark-sql-InternalRow.adoc[InternalRow] which is the internal binary row format representation (using Catalyst expressions and code generation).
+
+NOTE: `Encoder` is also called _"a container of serde expressions in Dataset"_.
+
+NOTE: The one and only implementation of the `Encoder` trait in Spark SQL 2.0 is <<ExpressionEncoder, ExpressionEncoder>>.
+
+Encoders are integral (and internal) part of any link:spark-sql-dataset.adoc[Dataset[T\]] (of records of type `T`) with a `Encoder[T]` that is used to serialize and deserialize the records of this dataset.
+
+NOTE: `Dataset[T]` type is a Scala type constructor with the type parameter `T`. So is `Encoder[T]` that handles serialization and deserialization of `T` to the internal representation.
+
+Encoders know the link:spark-sql-schema.adoc[schema] of the records. This is how they offer significantly faster serialization and deserialization (comparing to the default Java or Kryo serializers).
 
 [source, scala]
 ----
+// The domain object for your records in a large dataset
 case class Person(id: Long, name: String)
 
 import org.apache.spark.sql.Encoders
@@ -38,21 +47,48 @@ import org.apache.spark.sql.catalyst.encoders.ExpressionEncoder
 scala> val personExprEncoder = personEncoder.asInstanceOf[ExpressionEncoder[Person]]
 personExprEncoder: org.apache.spark.sql.catalyst.encoders.ExpressionEncoder[Person] = class[id[0]: bigint, name[0]: string]
 
-scala> personExprEncoder.namedExpressions
-res2: Seq[org.apache.spark.sql.catalyst.expressions.NamedExpression] = List(assertnotnull(input[0, Person, true], top level non-flat input object).id AS id#2L, staticinvoke(class org.apache.spark.unsafe.types.UTF8String, StringType, fromString, assertnotnull(input[0, Person, true], top level non-flat input object).name, true) AS name#3)
+// ExpressionEncoders may or may not be flat
+scala> personExprEncoder.flat
+res2: Boolean = false
 
-scala> val row = personExprEncoder.toRow(Person(0, "Jacek"))
+// The Serializer part of the encoder
+scala> personExprEncoder.serializer
+res3: Seq[org.apache.spark.sql.catalyst.expressions.Expression] = List(assertnotnull(input[0, Person, true], top level non-flat input object).id AS id#0L, staticinvoke(class org.apache.spark.unsafe.types.UTF8String, StringType, fromString, assertnotnull(input[0, Person, true], top level non-flat input object).name, true) AS name#1)
+
+// The Deserializer part of the encoder
+scala> personExprEncoder.deserializer
+res4: org.apache.spark.sql.catalyst.expressions.Expression = newInstance(class Person)
+
+scala> personExprEncoder.namedExpressions
+res5: Seq[org.apache.spark.sql.catalyst.expressions.NamedExpression] = List(assertnotnull(input[0, Person, true], top level non-flat input object).id AS id#2L, staticinvoke(class org.apache.spark.unsafe.types.UTF8String, StringType, fromString, assertnotnull(input[0, Person, true], top level non-flat input object).name, true) AS name#3)
+
+// A record in a Dataset[Person]
+// A mere instance of Person case class
+// There could be a thousand of Person in a large dataset
+val jacek = Person(0, "Jacek")
+
+// Serialize a record to the internal representation, i.e. InternalRow
+scala> val row = personExprEncoder.toRow(jacek)
 row: org.apache.spark.sql.catalyst.InternalRow = [0,0,1800000005,6b6563614a]
 
-// WARNING: ERROR A bug?
-scala> val jacek = personExprEncoder.fromRow(row)
-java.lang.RuntimeException: Error while decoding: java.lang.UnsupportedOperationException: Cannot evaluate expression: upcast('id, LongType, - field (class: "scala.Long", name: "id"), - root class: "Person")
-...
+// Spark uses InternalRows internally for IO
+// Let's deserialize it to a JVM object, i.e. a Scala object
+import org.apache.spark.sql.catalyst.dsl.expressions._
+
+// in spark-shell there are competing implicits
+// That's why DslSymbol is used explicitly in the following line
+scala> val attrs = Seq(DslSymbol('id).long, DslSymbol('name).string)
+attrs: Seq[org.apache.spark.sql.catalyst.expressions.AttributeReference] = List(id#8L, name#9)
+
+scala> val jacekReborn = personExprEncoder.resolveAndBind(attrs).fromRow(row)
+jacekReborn: Person = Person(0,Jacek)
+
+// Are the jacek instances same?
+scala> jacek == jacekReborn
+res6: Boolean = true
 ----
 
-link:spark-sql-dataset.adoc[Dataset] owns a `Encoder` that serializes and deserializes the type of the `Dataset`.
-
-You can <<creating-encoders, create custom encoders using static methods of `Encoders` object>>. Encoders for many Scala types are however available through link:spark-sql-sparksession.adoc#implicits[SparkSession.implicits] object so you generally don't need to worry about them whatsoever and simply import the implicits from link:spark-sql-sparksession.adocimplicits[`implicits` object].
+You can <<creating-encoders, create custom encoders using static methods of `Encoders` object>>. Note however that encoders for common Scala types and their product types are already available in link:spark-sql-sparksession.adoc#implicits[`implicits` object].
 
 [source, scala]
 ----
@@ -60,23 +96,11 @@ val spark = SparkSession.builder.getOrCreate()
 import spark.implicits._
 ----
 
+TIP: The default encoders are already imported in link:spark-shell.adoc[spark-shell].
+
 Encoders map columns (of your dataset) to fields (of your JVM object) by name. It is by Encoders that you can bridge JVM objects to data sources (CSV, JDBC, Parquet, Avro, JSON, Cassandra, Elasticsearch, memsql) and vice versa.
 
-[source, scala]
-----
-import org.apache.spark.sql.Encoders
-
-case class Person(id: Int, name: String, speaksPolish: Boolean)
-
-scala> val personEncoder = Encoders.product[Person]
-personEncoder: org.apache.spark.sql.Encoder[Person] = class[id[0]: int, name[0]: string, speaksPolish[0]: boolean]
-
-scala> personEncoder.schema
-res11: org.apache.spark.sql.types.StructType = StructType(StructField(id,IntegerType,false), StructField(name,StringType,true), StructField(speaksPolish,BooleanType,false))
-
-scala> personEncoder.clsTag
-res12: scala.reflect.ClassTag[Person] = Person
-----
+NOTE: In Spark SQL 2.0 `DataFrame` type is a mere type alias for `Dataset[Row]` with link:spark-sql-RowEncoder.adoc[RowEncoder] being the encoder.
 
 === [[ExpressionEncoder]] ExpressionEncoder
 
@@ -151,3 +175,7 @@ import org.apache.spark.sql.Encoders
 scala> Encoders.tuple(Encoders.scalaLong, Encoders.STRING, Encoders.scalaBoolean)
 res9: org.apache.spark.sql.Encoder[(Long, String, Boolean)] = class[_1[0]: bigint, _2[0]: string, _3[0]: boolean]
 ----
+
+=== [[i-want-more]] Further reading or watching
+
+* (video) https://youtu.be/_1byVWTEK1s[Modern Spark DataFrame and Dataset (Intermediate Tutorial)] by https://twitter.com/adbreind[Adam Breindel] from Databricks.

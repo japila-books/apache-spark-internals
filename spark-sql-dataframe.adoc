@@ -1,6 +1,8 @@
 == DataFrame -- Dataset of Rows
 
-A *DataFrame* is a data abstraction or a domain-specific language (DSL) for working with *structured* and *semi-structured data*, i.e. datasets with a schema. A DataFrame is thus a collection of link:spark-sql-dataframe-row.adoc[rows] with a link:spark-sql-schema.adoc[schema].
+Spark SQL introduces a tabular data abstraction called `DataFrame`. It is designed to ease processing large amount of structured tabular data on Spark infrastructure.
+
+A *DataFrame* is a data abstraction or a domain-specific language (DSL) for working with *structured* and *semi-structured data*, i.e. datasets with a schema. A DataFrame is thus a collection of link:spark-sql-dataframe-row.adoc[rows] with a link:spark-sql-schema.adoc[schema] that is a result of a structured query it describes.
 
 It uses the immutable, in-memory, resilient, distributed and parallel capabilities of link:spark-rdd.adoc[RDD], and applies a structure called schema to the data.
 
@@ -67,7 +69,7 @@ You can execute queries over DataFrames using two approaches:
 
 * <<filter, Filtering>>
 
-DataFrames use the link:spark-sql-catalyst.adoc[Catalyst query optimizer] to produce efficient queries (and so they are supposed to be faster than corresponding RDD-based queries).
+DataFrames use the link:spark-sql-catalyst-Optimizer.adoc[Catalyst query optimizer] to produce efficient queries (and so they are supposed to be faster than corresponding RDD-based queries).
 
 NOTE: Your DataFrames can also be type-safe and moreover further improve their performance through link:spark-sql-Encoder.adoc[specialized encoders] that can significantly cut serialization and deserialization times.
 
@@ -77,7 +79,7 @@ You can enforce types on link:spark-sql-dataframe-row.adoc[generic rows] and hen
 
 A `DataFrame` is a collection of "generic" link:spark-sql-dataframe-row.adoc[Row] instances (as `RDD[Row]`) and a link:spark-sql-schema.adoc[schema].
 
-NOTE: Regardless of how you create a `DataFrame`, it will always be a pair of `RDD[Row]` and link:spark-sql-schema.adoc#StructType[StructType].
+NOTE: Regardless of how you create a `DataFrame`, it will always be a pair of `RDD[Row]` and link:spark-sql-StructType.adoc[StructType].
 
 === [[as]] Enforcing Types (as method)
 
@@ -546,11 +548,33 @@ scala> df.filter($"name".like("a%")).show
 +----+---------+-----+
 ----
 
-=== DataFrame.explain
+=== Handling data in Avro format
 
-When performance is the issue you should use `DataFrame.explain(true)`.
+Use custom serializer using http://spark-packages.org/package/databricks/spark-avro[spark-avro].
 
-CAUTION: What does it do exactly?
+Run Spark shell with `--packages com.databricks:spark-avro_2.11:2.0.0` (see https://github.com/databricks/spark-avro/issues/85[2.0.0 artifact is not in any public maven repo] why `--repositories` is required).
+
+```
+./bin/spark-shell --packages com.databricks:spark-avro_2.11:2.0.0 --repositories "http://dl.bintray.com/databricks/maven"
+```
+
+And then...
+
+```
+val fileRdd = sc.textFile("README.md")
+val df = fileRdd.toDF
+
+import org.apache.spark.sql.SaveMode
+
+val outputF = "test.avro"
+df.write.mode(SaveMode.Append).format("com.databricks.spark.avro").save(outputF)
+```
+
+See https://spark.apache.org/docs/latest/api/java/index.html#org.apache.spark.sql.SaveMode[org.apache.spark.sql.SaveMode] (and perhaps https://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.sql.SaveMode[org.apache.spark.sql.SaveMode] from Scala's perspective).
+
+```
+val df = spark.read.format("com.databricks.spark.avro").load("test.avro")
+```
 
 === Example Datasets
 

@@ -1,6 +1,8 @@
-== ColumnPruning Optimizer
+== [[ColumnPruning]] Column Pruning Optimization Rule
 
-`ColumnPruning` is a link:spark-sql-logical-plan.adoc[LogicalPlan] rule in `Operator Optimizations` link:spark-sql-catalyst-analyzer.adoc#batch[batch] in the base link:spark-sql-catalyst.adoc[Optimizer].
+`ColumnPruning` is a link:spark-sql-catalyst-LogicalPlan.adoc[LogicalPlan] rule in `Operator Optimizations` link:spark-sql-catalyst-analyzer.adoc#batch[batch] in the base link:spark-sql-catalyst-Optimizer.adoc[Optimizer].
+
+=== [[example1]] Example 1
 
 [source, scala]
 ----
@@ -32,4 +34,46 @@ DEBUG SparkOptimizer:
 !         +- Project [id#73L, (id#73L % cast(3 as bigint)) AS bucket#76L]
 !            +- Range (0, 10, step=1, splits=Some(8))
 ...
+----
+
+=== [[example2]] Example 2
+
+[source, scala]
+----
+// the business object
+case class Person(id: Long, name: String, city: String)
+
+// the dataset to query over
+val dataset = Seq(Person(0, "Jacek", "Warsaw")).toDS
+
+// the query
+// Note that we work with names only (out of 3 attributes in Person)
+val query = dataset.groupBy(upper('name) as 'name).count
+
+scala> query.explain(extended = true)
+...
+TRACE SparkOptimizer:
+=== Applying Rule org.apache.spark.sql.catalyst.optimizer.ColumnPruning ===
+ Aggregate [upper(name#126)], [upper(name#126) AS name#160, count(1) AS count#166L]   Aggregate [upper(name#126)], [upper(name#126) AS name#160, count(1) AS count#166L]
+!+- LocalRelation [id#125L, name#126, city#127]                                       +- Project [name#126]
+!                                                                                        +- LocalRelation [id#125L, name#126, city#127]
+...
+== Parsed Logical Plan ==
+'Aggregate [upper('name) AS name#160], [upper('name) AS name#160, count(1) AS count#166L]
++- LocalRelation [id#125L, name#126, city#127]
+
+== Analyzed Logical Plan ==
+name: string, count: bigint
+Aggregate [upper(name#126)], [upper(name#126) AS name#160, count(1) AS count#166L]
++- LocalRelation [id#125L, name#126, city#127]
+
+== Optimized Logical Plan ==
+Aggregate [upper(name#126)], [upper(name#126) AS name#160, count(1) AS count#166L]
++- LocalRelation [name#126]
+
+== Physical Plan ==
+*HashAggregate(keys=[upper(name#126)#171], functions=[count(1)], output=[name#160, count#166L])
++- Exchange hashpartitioning(upper(name#126)#171, 200)
+   +- *HashAggregate(keys=[upper(name#126) AS upper(name#126)#171], functions=[partial_count(1)], output=[upper(name#126)#171, count#173L])
+      +- LocalTableScan [name#126]
 ----

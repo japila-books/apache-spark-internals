@@ -1,0 +1,121 @@
+== Expression
+
+An *Expression* in Spark SQL 2.0's Catalyst represents a query expression that can be SQL or <<NonSQLExpression, non-SQL>>. It is described by the <<contract, Expression contract>>.
+
+.Catalyst's Top-Level Expressions
+[frame="topbot",cols="1,1,2,1",options="header",width="100%"]
+|======================
+| Name | Scala Kind | Behaviour | Example
+| <<Unevaluable, Unevaluable>> | trait | Cannot be evaluated, i.e. `eval` and `doGenCode` throw an `UnsupportedOperationException` | `CurrentDatabase`
+| <<Nondeterministic, Nondeterministic>> | trait | |
+| <<NonSQLExpression, NonSQLExpression>> | trait | |
+| <<ExpectsInputTypes, ExpectsInputTypes>> | trait | |
+| <<CodegenFallback, CodegenFallback>> | trait | |
+| <<NamedExpression, NamedExpression>> | trait | |
+| <<UnaryExpression, UnaryExpression>> | abstract class | |
+| <<BinaryExpression, BinaryExpression>> | abstract class | |
+| <<TernaryExpression, TernaryExpression>> | abstract class | |
+| <<LeafExpression, LeafExpression>> | abstract class | |
+|======================
+
+
+=== [[contract]] Expression Contract
+
+The contract of an expression in Spark SQL is described by the `Expression` abstract class.
+
+[source, scala]
+----
+abstract class Expression extends TreeNode[Expression]
+----
+
+A `Expression` is a `TreeNode` that obeys the following contract:
+
+1. It may or may not be `foldable`.
+2. It may or may not be `deterministic`.
+3. It may or may not be `nullable`.
+4. It uses `references`.
+5. It can be ``eval``uated to a JVM object given a link:spark-sql-InternalRow.adoc[InternalRow].
+6. It can `genCode` to produce a `ExprCode`.
+7. It can `doGenCode` to produce a `ExprCode`.
+8. It may or may not be `resolved`.
+9. It is of `dataType` link:spark-sql-DataType.adoc[data type].
+10. It may or may not have `childrenResolved`.
+11. It has a `canonicalized` representation.
+12. It may or may not be `semanticEquals` given another `Expression`.
+13. It has a `semanticHash`.
+14. It can be `checkInputDataTypes`.
+15. It has a `prettyName`.
+16. It has a `sql` representation.
+
+=== [[Unevaluable]] `Unevaluable` Expression
+
+`Unevaluable` expressions cannot be evaluated, i.e. `eval` and `doGenCode` methods throw an `UnsupportedOperationException`.
+
+NOTE: `Unevaluable` is a Scala trait.
+
+=== [[Nondeterministic]] `Nondeterministic` Expression
+
+`Nondeterministic` expressions are non-deterministic and non-foldable, i.e. `deterministic` and `foldable` properties are disabled (i.e. `false`). They require explicit initialization before evaluation.
+
+`Nondeterministic` expressions have two additional methods:
+
+1. `initInternal` for internal initialization (called before `eval`)
+2. `evalInternal` to ``eval``uate a link:spark-sql-InternalRow.adoc[InternalRow] into a JVM object.
+
+NOTE: `Nondeterministic` is a Scala trait.
+
+`Nondeterministic` expressions have the additional `initialized` flag that is enabled (i.e. `true`) after the other additional `initInternal` method has been called.
+
+Examples of `Nondeterministic` expressions are `InputFileName`, `MonotonicallyIncreasingID`, `SparkPartitionID` functions and the abstract `RDG` (that is the base for `Rand` and `Randn` functions).
+
+NOTE: `Nondeterministic` expressions are the target of `PullOutNondeterministic` logical plan rule.
+
+=== [[NonSQLExpression]] `NonSQLExpression` Expression
+
+`NonSQLExpression` expressions are expressions that have no SQL representation.
+
+Internally, `NonSQLExpression` makes for all ``Attribute``s in a tree to be ``PrettyAttribute``s.
+
+NOTE: `NonSQLExpression` is a Scala trait with the `sql` method being `final` (i.e. non-overridable).
+
+=== [[ExpectsInputTypes]] `ExpectsInputTypes` Expression
+
+`ExpectsInputTypes` expressions are...TK
+
+NOTE: `ExpectsInputTypes` is a Scala trait.
+
+=== [[CodegenFallback]] `CodegenFallback` Expression
+
+`CodegenFallback` expressions are...TK
+
+NOTE: `CodegenFallback` is a Scala trait.
+
+=== [[UnaryExpression]] `UnaryExpression` Expression
+
+`UnaryExpression` expressions are...TK
+
+NOTE: `UnaryExpression` is an abstract class.
+
+=== [[BinaryExpression]] `BinaryExpression` Expression
+
+`BinaryExpression` expressions are...TK
+
+NOTE: `BinaryExpression` is an abstract class.
+
+=== [[TernaryExpression]] `TernaryExpression` Expression
+
+`TernaryExpression` expressions are...TK
+
+NOTE: `TernaryExpression` is an abstract class.
+
+=== [[LeafExpression]] `LeafExpression` Expression
+
+`LeafExpression` expressions are...TK
+
+NOTE: `LeafExpression` is an abstract class.
+
+=== [[NamedExpression]] `NamedExpression` Expression
+
+`NamedExpression` expressions are...TK
+
+NOTE: `NamedExpression` is a Scala trait.

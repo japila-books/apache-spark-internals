@@ -1,6 +1,6 @@
 == Structured Streaming -- Streaming Datasets
 
-*Structured Streaming* is a new computation model introduced in Spark 2.0.0 for building end-to-end streaming applications termed as *continuous applications*. Structured streaming offers a high-level declarative streaming API built on top of link:spark-sql-dataset.adoc[Datasets] (inside Spark SQL engine) for continuous incremental execution of link:spark-sql-StreamingQuery.adoc[structured queries].
+*Structured Streaming* is a new computation model introduced in Spark 2.0.0 for building end-to-end streaming applications termed as *continuous applications*. Structured streaming offers a high-level declarative streaming API built on top of link:spark-sql-dataset.adoc[Datasets] (inside Spark SQL's engine) for link:spark-sql-streaming-StreamingQuery.adoc[continuous incremental execution of structured queries].
 
 The semantics of the Structured Streaming model is as follows (see the article https://databricks.com/blog/2016/07/28/structured-streaming-in-apache-spark.html[Structured Streaming In Apache Spark]):
 
@@ -8,20 +8,100 @@ The semantics of the Structured Streaming model is as follows (see the article h
 
 Structured streaming is an attempt to unify streaming, interactive, and batch queries that paves the way for continuous applications like continuous aggregations using link:spark-sql-dataset.adoc#groupBy[groupBy] operator or continuous windowed aggregations using `groupBy` operator with link:spark-sql-functions.adoc#window[window] function.
 
-Spark 2.0 aims at simplifying *streaming analytics* without having to reason about streaming at all.
+[source, scala]
+----
+// business object
+case class Person(id: Long, name: String, city: String)
 
-The new model introduces the *streaming datasets* that are _infinite datasets_ with primitives like input link:spark-sql-streaming-source.adoc[streaming sources] and output link:spark-sql-streaming-sink.adoc[streaming sinks], *event time*, *windowing*, and *sessions*. You can specify link:spark-sql-streaming-DataStreamWriter.adoc#outputMode[output mode] of a streaming dataset which is what gets written to a streaming sink when there is new data available.
+// you could build your schema manually
+import org.apache.spark.sql.types._
+val schema = StructType(
+  StructField("id", LongType, false) ::
+  StructField("name", StringType, false) ::
+  StructField("city", StringType, false) :: Nil)
 
-TIP: A Dataset is streaming when its link:spark-sql-logical-plan.adoc#isStreaming[logical plan is streaming].
+// ...but is error-prone and time-consuming, isn't it?
+import org.apache.spark.sql.Encoders
+val schema = Encoders.product[Person].schema
 
-It lives in `org.apache.spark.sql.streaming` package with the following main data abstractions:
+val people = spark.readStream
+  .schema(schema)
+  .csv("in/*.csv")
+  .as[Person]
 
-* link:spark-sql-StreamingQueryManager.adoc[StreamingQueryManager]
-* link:spark-sql-StreamingQuery.adoc[StreamingQuery]
-* link:spark-sql-streaming-source.adoc[Streaming Source]
-* link:spark-sql-streaming-sink.adoc[Streaming Sink]
+// people has this additional capability of being streaming
+scala> people.isStreaming
+res0: Boolean = true
 
-With Datasets being Spark SQL's view of structured data, structured streaming checks input sources for new data every link:spark-sql-trigger.adoc[trigger] (time) and executes the (continuous) queries.
+// ...but it is still a Dataset.
+// (Almost) any Dataset operation is available
+val population = people.groupBy('city).agg(count('city) as "population")
+
+// Start the streaming query
+// print the result out to the console
+// Only Complete output mode supported for groupBy
+import org.apache.spark.sql.streaming.OutputMode.Complete
+val populationStream = population.writeStream
+  .format("console")
+  .outputMode(Complete)
+  .queryName("Population")
+  .start
+
+scala> populationStream.explain(extended = true)
+== Parsed Logical Plan ==
+Aggregate [city#112], [city#112, count(city#112) AS population#19L]
++- Relation[id#110L,name#111,city#112] csv
+
+== Analyzed Logical Plan ==
+city: string, population: bigint
+Aggregate [city#112], [city#112, count(city#112) AS population#19L]
++- Relation[id#110L,name#111,city#112] csv
+
+== Optimized Logical Plan ==
+Aggregate [city#112], [city#112, count(city#112) AS population#19L]
++- Project [city#112]
+   +- Relation[id#110L,name#111,city#112] csv
+
+== Physical Plan ==
+*HashAggregate(keys=[city#112], functions=[count(city#112)], output=[city#112, population#19L])
++- Exchange hashpartitioning(city#112, 200)
+   +- *HashAggregate(keys=[city#112], functions=[partial_count(city#112)], output=[city#112, count#118L])
+      +- *FileScan csv [city#112] Batched: false, Format: CSV, InputPaths: file:/Users/jacek/dev/oss/spark/in/1.csv, file:/Users/jacek/dev/oss/spark/in/2.csv, file:/Users/j..., PartitionFilters: [], PushedFilters: [], ReadSchema: struct<city:string>
+
+// Let's query for all active streams
+scala> spark.streams.active.foreach(println)
+Streaming Query - Population [state = ACTIVE]
+
+// You may eventually want to stop the streaming query
+// spark.streams.active.head.stop
+
+// ...or be more explicit about the right query to stop
+scala> populationStream.isActive
+res1: Boolean = true
+
+scala> populationStream.stop
+
+scala> populationStream.isActive
+res2: Boolean = false
+----
+
+With structured streaming, Spark 2.0 aims at simplifying *streaming analytics* with little to no need to reason about effective data streaming. It is that Spark 2.0 tries to hide the unnecessary complexity in your streaming analytics architectures with Spark.
+
+Structured streaming introduces the *streaming datasets* that are _infinite datasets_ with primitives like input link:spark-sql-streaming-source.adoc[streaming sources] and output link:spark-sql-streaming-sink.adoc[streaming sinks], *event time*, *windowing*, and *sessions*. You can specify link:spark-sql-streaming-DataStreamWriter.adoc#outputMode[output mode] of a streaming dataset which is what gets written to a streaming sink when there is new data available.
+
+[TIP]
+====
+A link:spark-sql-dataset.adoc[Dataset] is *streaming* when its link:spark-sql-catalyst-LogicalPlan.adoc#isStreaming[logical plan is streaming].
+====
+
+Structured streaming is defined by the following data abstractions in `org.apache.spark.sql.streaming` package:
+
+1. link:spark-sql-streaming-StreamingQuery.adoc[StreamingQuery]
+2. link:spark-sql-streaming-source.adoc[Streaming Source]
+3. link:spark-sql-streaming-sink.adoc[Streaming Sink]
+4. link:spark-sql-streaming-StreamingQueryManager.adoc[StreamingQueryManager]
+
+With link:spark-sql-dataset.adoc[Datasets] being Spark SQL's view of structured data, structured streaming checks input sources for new data every link:spark-sql-streaming-trigger.adoc[trigger] (time) and executes the (continuous) queries.
 
 TIP: Watch https://issues.apache.org/jira/browse/SPARK-8360[SPARK-8360 Streaming DataFrames] to track progress of the feature.
 
@@ -41,23 +121,26 @@ val lines = spark.readStream
   .format("socket")
   .option("host", "localhost")
   .option("port", 9999)
-  .load()
+  .load
+  .as[String]
 
-import org.apache.spark.sql.Dataset
-val wordsDS: Dataset[String] = lines.as[String]
-
-val words = wordsDS.flatMap(_.split("\\W+"))
+val words = lines.flatMap(_.split("\\W+"))
 
 scala> words.printSchema
 root
  |-- value: string (nullable = true)
 
-val wordCounts = words.groupBy("value").count
+val counter = words.groupBy("value").count
 
-val query = wordCounts.writeStream
-  .outputMode("complete")
+// nc -lk 9999 is supposed to be up at this point
+
+import org.apache.spark.sql.streaming.OutputMode.Complete
+val query = counter.writeStream
+  .outputMode(Complete)
   .format("console")
-  .start  // nc -lk 9999 is supposed to be up at this point
+  .start
+
+query.stop
 ----
 
 === [[example-csv-in-console-out]] Example -- Streaming Query over CSV Files with Output to Console Every 5 Seconds

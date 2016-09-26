@@ -1,10 +1,75 @@
-== [[SparkListener]] Spark Listeners
+== [[SparkListener]] Spark Listeners -- Intercepting Events from Spark Scheduler
 
-`SparkListener` is a developer API for custom Spark listeners. It is an abstract class that is a <<SparkListenerInterface, SparkListenerInterface>> with empty no-op implementations of all the _callback methods_.
+*Spark Listeners* intercept events from the Spark scheduler that are emitted over the course of execution of Spark applications.
 
-With all the callbacks being no-ops, you can focus on events of your liking and process a subset of events.
+A Spark listener is an implementation of the `SparkListener` developer API that is an extension of <<SparkListenerInterface, SparkListenerInterface>> where all the _callback methods_ are no-op/do-nothing.
+
+Spark uses Spark listeners for link:spark-webui.adoc[web UI], link:spark-scheduler-listeners-eventlogginglistener.adoc[event persistence] (for History Server), link:spark-service-executor-allocation-manager.adoc[dynamic allocation of executors] and <<builtin-implementations, other services>>.
+
+You can develop your own custom Spark listeners using the `SparkListener` developer API and register them using link:spark-sparkcontext.adoc#addSparkListener[SparkContext.addSparkListener] method or link:spark-LiveListenerBus.adoc#spark_extraListeners[spark.extraListeners] setting. With `SparkListener` you can focus on Spark events of your liking and process a subset of scheduling events.
 
 TIP: Developing a custom SparkListener is an excellent introduction to low-level details of link:spark-execution-model.adoc[Spark's Execution Model]. Check out the exercise link:exercises/spark-exercise-custom-scheduler-listener.adoc[Developing Custom SparkListener to monitor DAGScheduler in Scala].
+
+[TIP]
+====
+Enable `INFO` logging level for `org.apache.spark.SparkContext` logger to see when custom Spark listeners are registered.
+
+```
+INFO SparkContext: Registered listener org.apache.spark.scheduler.StatsReportListener
+```
+
+See link:spark-sparkcontext.adoc[SparkContext -- Entry Point to Spark].
+====
+
+=== [[SparkListenerInterface]] SparkListenerInterface
+
+`SparkListenerInterface` is an internal interface for listeners of events from the Spark scheduler.
+
+.SparkListenerInterface Methods
+[frame="topbot",cols="1,2",options="header",width="100%"]
+|======================
+| Method | Description
+| `onStageSubmitted` |
+| `onStageCompleted` |
+| `onTaskStart` |
+| `onTaskGettingResult` |
+| `onTaskEnd` |
+| `onJobStart` |
+| `onJobEnd` |
+| `onEnvironmentUpdate` |
+| `onBlockManagerAdded` |
+| `onBlockManagerRemoved` |
+| `onUnpersistRDD` |
+| `onApplicationStart` |
+| `onApplicationEnd` |
+| `onExecutorMetricsUpdate` |
+| `onExecutorAdded` |
+| `onExecutorRemoved` |
+| `onBlockUpdated` |
+| `onOtherEvent` |
+|======================
+
+=== [[builtin-implementations]] Built-In Spark Listeners
+
+.Built-In Spark Listeners
+[frame="topbot",cols="1,2",options="header",width="100%"]
+|======================
+| Spark Listener | Description
+| link:spark-scheduler-listeners-eventlogginglistener.adoc[EventLoggingListener] | Logs JSON-encoded events to a file that can later be read by link:spark-HistoryServer.adoc[History Server]
+| link:spark-scheduler-listeners-statsreportlistener.adoc[StatsReportListener] |
+| `SparkFirehoseListener` | Allows users to receive all <<SparkListenerEvent, SparkListenerEvent>> events by overriding the single `onEvent` method only.
+| link:spark-service-ExecutorAllocationListener.adoc[ExecutorAllocationListener] |
+| link:spark-sparkcontext-HeartbeatReceiver.adoc[HeartbeatReceiver] |
+| link:spark-streaming/spark-streaming-streaminglisteners.adoc#StreamingJobProgressListener[StreamingJobProgressListener] |
+| `ExecutorsListener` | For *Executors* tab in link:spark-webui.adoc[web UI]
+| `StorageStatusListener`, `RDDOperationGraphListener`, `EnvironmentListener`, `BlockStatusListener` and `StorageListener` | For link:spark-webui.adoc[web UI]
+| `SpillListener` |
+| `ApplicationEventListener` |
+| link:spark-sql-streaming-StreamingQueryListenerBus.adoc[StreamingQueryListenerBus] |
+| link:spark-webui-SQLListener.adoc[SQLListener] / link:spark-HistoryServer-SQLHistoryListener.adoc[SQLHistoryListener] | Support for link:spark-HistoryServer.adoc[History Server]
+| link:spark-streaming/spark-streaming-jobscheduler.adoc#StreamingListenerBus[StreamingListenerBus] |
+| link:spark-webui-JobProgressListener.adoc[JobProgressListener] |
+|======================
 
 === [[SparkListenerEvent]] SparkListenerEvents
 
@@ -184,23 +249,3 @@ SparkListenerExecutorRemoved(
 ----
 
 `SparkListenerExecutorRemoved` is posted when link:spark-scheduler-backends-coarse-grained.adoc#removeExecutor[`DriverEndpoint` RPC endpoint (of `CoarseGrainedSchedulerBackend`) does `removeExecutor`] and `MesosFineGrainedSchedulerBackend` does `removeExecutor`.
-
-=== [[known-implementations]] Known Implementations
-
-The following is the complete list of all known Spark listeners:
-
-* link:spark-scheduler-listeners-eventlogginglistener.adoc[EventLoggingListener]
-* `ExecutorsListener` that prepares information to be displayed on the *Executors* tab in link:spark-webui.adoc[web UI].
-
-* `SparkFirehoseListener` that allows users to receive all <<SparkListenerEvent, SparkListenerEvent>> events by overriding the single `onEvent` method only.
-
-* `ExecutorAllocationListener`
-
-* link:spark-sparkcontext-HeartbeatReceiver.adoc[HeartbeatReceiver]
-* web UI and link:spark-scheduler-listeners-eventlogginglistener.adoc[EventLoggingListener] listeners
-
-CAUTION: FIXME Make it complete.
-
-=== [[SparkListenerInterface]] SparkListenerInterface
-
-`SparkListenerInterface` is an internal interface for listeners of events from the Spark scheduler.
