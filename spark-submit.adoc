@@ -347,8 +347,6 @@ If `driverExtraClassPath` not set on command-line, the link:spark-driver.adoc#sp
 
 NOTE: Command-line options (e.g. `--driver-class-path`) have higher precedence than their corresponding Spark settings in a Spark properties file (e.g. `spark.driver.extraClassPath`). You can therefore control the final settings by overriding Spark settings on command line using the command-line options.
 
-CAUTION: FIXME What about `--conf`?
-
 .Spark Settings in Spark Properties File and on Command Line
 [frame="topbot",options="header",width="100%"]
 |======================
@@ -366,9 +364,13 @@ Welcome to
       ____              __
      / __/__  ___ _____/ /__
     _\ \/ _ \/ _ `/ __/  '_/
-   /___/ .__/\_,_/_/ /_/\_\   version 2.0.0-SNAPSHOT
+   /___/ .__/\_,_/_/ /_/\_\   version 2.1.0-SNAPSHOT
       /_/
 
+Branch master
+Compiled by user jacek on 2016-09-27T06:11:51Z
+Revision 6ee28423ad1b2e6089b82af64a31d77d3552bb38
+Url https://github.com/jaceklaskowski/spark.git
 Type --help for more information.
 ```
 
@@ -441,7 +443,7 @@ It then relays the execution to <<actions, action-specific internal methods>> (w
 
 NOTE: The action can only have one of the three available values: `SUBMIT`, `KILL`, or `REQUEST_STATUS`.
 
-==== [[SparkSubmitArguments]] SparkSubmitArguments -- spark-submit Command-Line Argument Parser
+==== [[SparkSubmitArguments]] `SparkSubmitArguments` -- spark-submit Command-Line Argument Parser
 
 `SparkSubmitArguments` is a `private[deploy]` class to handle the command-line arguments of `spark-submit` script that the <<actions, actions>> use for their execution (possibly with the explicit `env` environment).
 
@@ -453,6 +455,45 @@ SparkSubmitArguments(
 ----
 
 NOTE: `SparkSubmitArguments` is created when <<main, launching `spark-submit` script>> with only `args` passed in and later used for printing the arguments in <<verbose-mode, verbose mode>>.
+
+==== [[loadEnvironmentArguments]] Calculating Current Spark Properties -- `loadEnvironmentArguments` internal method
+
+[source, scala]
+----
+loadEnvironmentArguments(): Unit
+----
+
+`loadEnvironmentArguments` internal method calculates the settings for the current execution of spark-submit.
+
+`loadEnvironmentArguments` reads command-line options first followed by Spark properties and System's environment variables.
+
+NOTE: Spark config properties start with `spark.` prefix and can be set using `--conf [key=value]` command-line option.
+
+.Command-Line Options, Spark Properties and Environment Variables Mapping
+[frame="topbot",cols="1,1,1,1",options="header",width="100%"]
+|======================
+| Command-Line Option | Spark Config Property | Environment Variable | Description
+| `action` | | | Defaults to `SUBMIT`
+| `deployMode` | `spark.submit.deployMode` | `DEPLOY_MODE` |
+| `driverExtraClassPath` | `spark.driver.extraClassPath` |  |
+| `driverExtraJavaOptions` | `spark.driver.extraJavaOptions` |  |
+| `driverExtraLibraryPath` | `spark.driver.extraLibraryPath` |  |
+| `driverMemory` | `spark.driver.memory` | `SPARK_DRIVER_MEMORY` |
+| `driverCores` | `spark.driver.cores` | |
+| `executorMemory` | `spark.executor.memory` | `SPARK_EXECUTOR_MEMORY` |
+| `executorCores` | `spark.executor.cores` | `SPARK_EXECUTOR_CORES` |
+| `files` | `spark.files` | |
+| `ivyRepoPath` | `spark.jars.ivy` | |
+| `jars` | `spark.jars` | |
+| `keytab` | `spark.yarn.keytab` | |
+| `master` | `spark.master` | `MASTER` | Defaults to `local[*]`. Master URL
+| `name` | `spark.app.name` | `SPARK_YARN_APP_NAME` (YARN only) | Uses `mainClass` or the directory off `primaryResource` when no other ways set it
+| `numExecutors` | `spark.executor.instances` | |
+| `packages` | `spark.jars.packages` | |
+| `packagesExclusions` | `spark.jars.excludes` | |
+| `totalExecutorCores` | `spark.cores.max` | |
+| `principal` | `spark.yarn.principal` | |
+|======================
 
 ==== [[sparkenv]] spark-env.sh - load additional environment settings
 
