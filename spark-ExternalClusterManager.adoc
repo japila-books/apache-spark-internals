@@ -1,25 +1,16 @@
-== ExternalClusterManager
+== ExternalClusterManager -- Pluggable Cluster Managers
 
-`ExternalClusterManager` is a <<contract, contract for pluggable cluster managers>>.
+`ExternalClusterManager` is a <<contract, contract for pluggable cluster managers>>. It returns a link:spark-taskscheduler.adoc[task scheduler] and a link:spark-scheduler-backends.adoc[backend scheduler] that will be used by link:spark-sparkcontext.adoc[SparkContext] to schedule tasks.
 
-NOTE: It was introduced in https://issues.apache.org/jira/browse/SPARK-13904[SPARK-13904 Add support for pluggable cluster manager].
+NOTE: The support for pluggable cluster managers was introduced in https://issues.apache.org/jira/browse/SPARK-13904[SPARK-13904 Add support for pluggable cluster manager].
 
-It is link:spark-sparkcontext-creating-instance-internals.adoc#getClusterManager[assumed that `ExternalClusterManager` implementations are available as Java services] (with service markers under `META-INF/services` directory).
+External cluster managers are link:spark-sparkcontext-creating-instance-internals.adoc#getClusterManager[registered using the `java.util.ServiceLoader` mechanism] (with service markers under `META-INF/services` directory). This allows auto-loading implementations of `ExternalClusterManager` interface.
 
 NOTE: `ExternalClusterManager` is a `private[spark]` trait in `org.apache.spark.scheduler` package.
 
-NOTE: The only known implementation of the <<contract, ExternalClusterManager contract>> in Spark is link:yarn/spark-yarn-YarnClusterManager.adoc[YarnClusterManager].
-
-NOTE: SparkContext finds a `ExternalClusterManager` for a master URL using an internal link:spark-sparkcontext-creating-instance-internals.adoc#getClusterManager[getClusterManager].
+NOTE: The two implementations of the <<contract, ExternalClusterManager contract>> in Spark 2.0 are link:yarn/spark-yarn-YarnClusterManager.adoc[YarnClusterManager] and `MesosClusterManager`.
 
 === [[contract]] ExternalClusterManager Contract
-
-==== [[initialize]] initialize
-
-[source, scala]
-----
-initialize(scheduler: TaskScheduler, backend: SchedulerBackend): Unit
-----
 
 ==== [[canCreate]] canCreate
 
@@ -28,7 +19,9 @@ initialize(scheduler: TaskScheduler, backend: SchedulerBackend): Unit
 canCreate(masterURL: String): Boolean
 ----
 
-NOTE: It is used when link:spark-sparkcontext-creating-instance-internals.adoc#getClusterManager[finding the external cluster manager for a master URL (in `SparkContext`)].
+`canCreate` is a mechanism to match a `ExternalClusterManager` implementation to a given master URL.
+
+NOTE: `canCreate` is used when link:spark-sparkcontext-creating-instance-internals.adoc#getClusterManager[`SparkContext` loads the external cluster manager for a master URL].
 
 ==== [[createTaskScheduler]] createTaskScheduler
 
@@ -36,6 +29,8 @@ NOTE: It is used when link:spark-sparkcontext-creating-instance-internals.adoc#g
 ----
 createTaskScheduler(sc: SparkContext, masterURL: String): TaskScheduler
 ----
+
+`createTaskScheduler` creates a link:spark-taskscheduler.adoc[TaskScheduler] given a link:spark-sparkcontext.adoc[SparkContext] and the input `masterURL`.
 
 ==== [[createSchedulerBackend]] createSchedulerBackend
 
@@ -45,3 +40,16 @@ createSchedulerBackend(sc: SparkContext,
   masterURL: String,
   scheduler: TaskScheduler): SchedulerBackend
 ----
+
+`createSchedulerBackend` creates a link:spark-scheduler-backends.adoc[SchedulerBackend] given a link:spark-sparkcontext.adoc[SparkContext], the input `masterURL`, and link:spark-taskscheduler.adoc[TaskScheduler].
+
+==== [[initialize]] Initializing Scheduling Components -- `initialize` method
+
+[source, scala]
+----
+initialize(scheduler: TaskScheduler, backend: SchedulerBackend): Unit
+----
+
+`initialize` is called after the link:spark-taskscheduler.adoc[task scheduler] and the link:spark-scheduler-backends.adoc[backend scheduler] were created and initialized separately.
+
+NOTE: There is a cyclic dependency between a task scheduler and a backend scheduler that begs for this additional initialization step.
