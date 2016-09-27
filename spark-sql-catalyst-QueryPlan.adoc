@@ -1,26 +1,80 @@
 == [[QueryPlan]] Structured Query Plan
 
-`QueryPlan` is a part of *Catalyst* to model a link:spark-sql-catalyst-TreeNode.adoc[tree of relational operators].
+`QueryPlan` is a part of link:spark-sql-catalyst.adoc[Catalyst] to model a link:spark-sql-catalyst-TreeNode.adoc[tree of relational operators], i.e. a query.
 
 Scala-specific, `QueryPlan` is an abstract class that is the base class of link:spark-sql-catalyst-SparkPlan.adoc[SparkPlan] and link:spark-sql-catalyst-LogicalPlan.adoc[LogicalPlan] abstract classes.
 
-A `QueryPlan` has an <<output, output>> (that is a sequence of <<Attribute, Attributes>>), a collection of link:spark-sql-catalyst-Expression.adoc[expressions] and a <<schema, schema>>.
+A `QueryPlan` has an <<output, output>> attributes (that serves as the base for the schema), a collection of link:spark-sql-catalyst-Expression.adoc[expressions] and a <<schema, schema>>.
 
-`QueryPlan` introduces <<statePrefix, statePrefix>> that is used when displaying a plan with `!` to indicate an invalid plan, and `'` to indicate an unresolved plan.
+`QueryPlan` has <<statePrefix, statePrefix>> that is used when displaying a plan with `!` to indicate an invalid plan, and `'` to indicate an unresolved plan.
 
-A `QueryPlan` is *invalid* if `missingInput` attributes and `children` subnodes are non-empty.
+A `QueryPlan` is *invalid* if there are <<missingInput, missing input attributes>> and `children` subnodes are non-empty.
 
 A `QueryPlan` is *unresolved* if ...
 
-=== [[schema]] schema
+=== [[missingInput]] Missing Input Attributes -- `missingInput` Property
+
+[source, scala]
+----
+def missingInput: AttributeSet
+----
+
+`missingInput` are link:spark-sql-catalyst-Attribute.adoc[attributes] that are referenced in expressions but not provided by this node's children (as `inputSet`) and are not produced by this node (as `producedAttributes`).
+
+=== [[schema]] Query Output Schema -- `schema` Property
 
 You can request the schema of a `QueryPlan` using `schema` that builds link:spark-sql-StructType.adoc[StructType] from the <<output, output attributes>>.
 
-=== [[output]] Output Attributes
+[source, scala]
+----
+// the query
+val dataset = spark.range(3)
 
-=== [[Attribute]] Attribute
+scala> dataset.queryExecution.analyzed.schema
+res6: org.apache.spark.sql.types.StructType = StructType(StructField(id,LongType,false))
+----
 
-A `QueryPlan` uses `Attributes` to build a link:spark-sql-StructType.adoc[schema] of the query.
+=== [[output]] Output Schema -- `output` Property
+
+[source, scala]
+----
+def output: Seq[Attribute]
+----
+
+`output` property are link:spark-sql-catalyst-Attribute.adoc[attributes] that represent the result of a projection in a query that is later used to build a link:spark-sql-schema.adoc[schema].
+
+NOTE: `output` property is also called *output schema* or *result schema*.
+
+You can access the `output` schema through a link:spark-sql-catalyst-LogicalPlan.adoc[LogicalPlan].
+
+[source, scala]
+----
+// the query
+val dataset = spark.range(3)
+
+scala> dataset.queryExecution.analyzed.output
+res0: Seq[org.apache.spark.sql.catalyst.expressions.Attribute] = List(id#0L)
+
+scala> dataset.queryExecution.withCachedData.output
+res1: Seq[org.apache.spark.sql.catalyst.expressions.Attribute] = List(id#0L)
+
+scala> dataset.queryExecution.optimizedPlan.output
+res2: Seq[org.apache.spark.sql.catalyst.expressions.Attribute] = List(id#0L)
+
+scala> dataset.queryExecution.sparkPlan.output
+res3: Seq[org.apache.spark.sql.catalyst.expressions.Attribute] = List(id#0L)
+
+scala> dataset.queryExecution.executedPlan.output
+res4: Seq[org.apache.spark.sql.catalyst.expressions.Attribute] = List(id#0L)
+----
+
+You can build a link:spark-sql-StructType.adoc[StructType] from `output` collection of attributes using `toStructType` method (that is available through the implicit class `AttributeSeq`).
+
+[source, scala]
+----
+scala> dataset.queryExecution.analyzed.output.toStructType
+res5: org.apache.spark.sql.types.StructType = StructType(StructField(id,LongType,false))
+----
 
 === [[statePrefix]] `statePrefix` method
 
