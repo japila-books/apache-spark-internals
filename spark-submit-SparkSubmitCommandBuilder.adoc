@@ -1,0 +1,238 @@
+== [[SparkSubmitCommandBuilder]] `SparkSubmitCommandBuilder` Command Builder
+
+`SparkSubmitCommandBuilder` is used to build the Spark command that link:spark-submit.adoc#main[spark-submit] executes.
+
+`SparkSubmitCommandBuilder` uses the first argument to distinguish between shells:
+
+1. `pyspark-shell-main`
+2. `sparkr-shell-main`
+3. `run-example`
+
+CAUTION: FIXME Describe `run-example`
+
+`SparkSubmitCommandBuilder` parses command-line arguments using `OptionParser` (which is a link:spark-submit-SparkSubmitOptionParser.adoc[SparkSubmitOptionParser]). `OptionParser` comes with the following methods:
+
+1. `handle` to handle the known options (see the table below). It sets up `master`, `deployMode`, `propertiesFile`, `conf`, `mainClass`, `sparkArgs` internal properties.
+
+2. `handleUnknown` to handle unrecognized options that _usually_ lead to `Unrecognized option` error message.
+
+3. `handleExtraArgs` to handle extra arguments that are considered a Spark application's arguments.
+
+NOTE: For `spark-shell` it assumes that the application arguments are after ``spark-submit``'s arguments.
+
+.`spark-submit` Command-Line Options
+[frame="topbot",cols="1,2",options="header",width="100%"]
+|======================
+| Command-Line Option | Description
+| `--archives` |
+| `--class` | The main class to run (as `mainClass` internal attribute).
+| `--conf [prop=value]` or `-c [prop=value]` | All ``=``-separated values end up in `conf` potentially overriding existing settings. Order on command-line matters.
+| `--deploy-mode`| `deployMode` internal property
+| `--driver-class-path`| `spark.driver.extraClassPath` in `conf` -- the driver class path
+| `--driver-cores`|
+| `--driver-java-options`| `spark.driver.extraJavaOptions` in `conf` -- the driver VM options
+| `--driver-library-path`| `spark.driver.extraLibraryPath` in `conf` -- the driver native library path
+| `--driver-memory` | `spark.driver.memory` in `conf`
+| `--exclude-packages` |
+| `--executor-cores` |
+| `--executor-memory` |
+| `--files` |
+| `--help` or `-h` | The option is added to `sparkArgs`
+| `--jars` |
+| `--keytab` |
+| `--kill` | The option and a value are added to `sparkArgs`
+| `--master` | `master` internal property
+| `--name` |
+| `--num-executors` |
+| `--packages` |
+| `--principal` |
+| `--properties-file` | `propertiesFile` internal property
+| `--proxy-user` |
+| `--py-files` |
+| `--queue` |
+| `--repositories` |
+| `--status` | The option and a value are added to `sparkArgs`
+| `--supervise` |
+| `--total-executor-cores` |
+| `--usage-error` | The option is added to `sparkArgs`
+| `--verbose` or `-v` |
+| `--version` | The option is added to `sparkArgs`
+|======================
+
+=== [[buildCommand]] `SparkSubmitCommandBuilder.buildCommand` / `buildSparkSubmitCommand`
+
+[source, java]
+----
+public List<String> buildCommand(Map<String, String> env)
+----
+
+NOTE: `buildCommand` is a part of the `AbstractCommandBuilder` public API.
+
+`SparkSubmitCommandBuilder.buildCommand` simply passes calls on to <<buildSparkSubmitCommand, buildSparkSubmitCommand>> private method (unless it was executed for `pyspark` or `sparkr` scripts which we are not interested in in this document).
+
+==== [[buildSparkSubmitCommand]] `buildSparkSubmitCommand` Internal Method
+
+[source, java]
+----
+private List<String> buildSparkSubmitCommand(Map<String, String> env)
+----
+
+`buildSparkSubmitCommand` starts by <<getEffectiveConfig, building so-called effective config>>. When in <<isClientMode, client mode>>, `buildSparkSubmitCommand` adds link:spark-driver.adoc#spark_driver_extraClassPath[spark.driver.extraClassPath] to the result Spark command.
+
+NOTE: Use `spark-submit` to have link:spark-driver.adoc#spark_driver_extraClassPath[spark.driver.extraClassPath] in effect.
+
+`buildSparkSubmitCommand` <<buildJavaCommand, builds the first part of the Java command>> passing in the extra classpath (only for `client` deploy mode).
+
+CAUTION: FIXME Add `isThriftServer` case.
+
+`buildSparkSubmitCommand` appends `SPARK_SUBMIT_OPTS` and `SPARK_JAVA_OPTS` environment variables.
+
+(only for `client` deploy mode) ...
+
+CAUTION: FIXME Elaborate on the client deply mode case.
+
+`addPermGenSizeOpt` case...elaborate
+
+CAUTION: FIXME Elaborate on `addPermGenSizeOpt`
+
+`buildSparkSubmitCommand` appends `org.apache.spark.deploy.SparkSubmit` and the command-line arguments (using <<buildSparkSubmitArgs, buildSparkSubmitArgs>>).
+
+==== [[buildSparkSubmitArgs]] `buildSparkSubmitArgs` method
+
+[source, java]
+----
+List<String> buildSparkSubmitArgs()
+----
+
+`buildSparkSubmitArgs` builds a list of command-line arguments for link:spark-submit.adoc[spark-submit].
+
+`buildSparkSubmitArgs` uses a link:spark-submit-SparkSubmitOptionParser.adoc[SparkSubmitOptionParser] to add the command-line arguments that `spark-submit` recognizes (when it is executed later on and uses the very same `SparkSubmitOptionParser` parser to parse command-line arguments).
+
+.`SparkSubmitCommandBuilder` Properties and Corresponding `SparkSubmitOptionParser` Attributes
+[frame="topbot",options="header",width="100%"]
+|======================
+| `SparkSubmitCommandBuilder` Property | `SparkSubmitOptionParser` Attribute
+| `verbose` | `VERBOSE`
+| `master` | `MASTER [master]`
+| `deployMode` | `DEPLOY_MODE [deployMode]`
+| `appName` | `NAME [appName]`
+| `conf` | `CONF [key=value]*`
+| `propertiesFile` | `PROPERTIES_FILE [propertiesFile]`
+| `jars` | `JARS [comma-separated jars]`
+| `files` | `FILES [comma-separated files]`
+| `pyFiles` | `PY_FILES [comma-separated pyFiles]`
+| `mainClass` | `CLASS [mainClass]`
+| `sparkArgs` | `sparkArgs` (passed straight through)
+| `appResource` | `appResource` (passed straight through)
+| `appArgs` | `appArgs` (passed straight through)
+|======================
+
+==== [[buildJavaCommand]] `buildJavaCommand` Internal Method
+
+[source, java]
+----
+List<String> buildJavaCommand(String extraClassPath)
+----
+
+`buildJavaCommand` builds the Java command for a Spark application (which is a collection of elements with the path to `java` executable, JVM options from `java-opts` file, and a class path).
+
+If `javaHome` is set, `buildJavaCommand` adds `[javaHome]/bin/java` to the result Java command. Otherwise, it uses `JAVA_HOME` or, when no earlier checks succeeded, falls through to `java.home` Java's system property.
+
+CAUTION: FIXME Who sets `javaHome` internal property and when?
+
+`buildJavaCommand` loads extra Java options from the `java-opts` file in <<configuration-directory, configuration directory>> if the file exists and adds them to the result Java command.
+
+Eventually, `buildJavaCommand` <<buildClassPath, builds the class path>> (with the extra class path if non-empty) and adds it as `-cp` to the result Java command.
+
+==== [[buildClassPath]] `buildClassPath` method
+
+[source, java]
+----
+List<String> buildClassPath(String appClassPath)
+----
+
+`buildClassPath` builds the classpath for a Spark application.
+
+NOTE: Directories always end up with the OS-specific file separator at the end of their paths.
+
+`buildClassPath` adds the following in that order:
+
+1. `SPARK_CLASSPATH` environment variable
+2. The input `appClassPath`
+3. The <<AbstractCommandBuilder-getConfDir, configuration directory>>
+4. (only with `SPARK_PREPEND_CLASSES` set or `SPARK_TESTING` being `1`) Locally compiled Spark classes in `classes`, `test-classes` and Core's jars.
++
+CAUTION: FIXME Elaborate on "locally compiled Spark classes".
+
+5. (only with `SPARK_SQL_TESTING` being `1`) ...
++
+CAUTION: FIXME Elaborate on the SQL testing case
+
+6. `HADOOP_CONF_DIR` environment variable
+
+7. `YARN_CONF_DIR` environment variable
+
+8. `SPARK_DIST_CLASSPATH` environment variable
+
+NOTE: `childEnv` is queried first before System properties. It is always empty for `AbstractCommandBuilder` (and `SparkSubmitCommandBuilder`, too).
+
+==== [[getEffectiveConfig]] `getEffectiveConfig` Internal Method
+
+[source, java]
+----
+Map<String, String> getEffectiveConfig()
+----
+
+`getEffectiveConfig` internal method builds `effectiveConfig` that is `conf` with the Spark properties file loaded (using <<loadPropertiesFile, loadPropertiesFile>> internal method) skipping keys that have already been loaded (it happened when the command-line options were parsed in <<SparkSubmitCommandBuilder, handle>> method).
+
+NOTE: Command-line options (e.g. `--driver-class-path`) have higher precedence than their corresponding Spark settings in a Spark properties file (e.g. `spark.driver.extraClassPath`). You can therefore control the final settings by overriding Spark settings on command line using the command-line options.
+
+==== [[loadPropertiesFile]] `loadPropertiesFile` Internal Method
+
+[source, java]
+----
+private Properties loadPropertiesFile()
+----
+
+`loadPropertiesFile` is a part of `AbstractCommandBuilder` _private_ API that loads Spark settings from a properties file (when specified on the command line) or link:spark-properties.adoc#spark-defaults-conf[spark-defaults.conf] in the <<configuration-directory, configuration directory>>.
+
+It loads the settings from the following files starting from the first and checking every location until the first properties file is found:
+
+1. `propertiesFile` (if specified on the command line)
+2. `[SPARK_CONF_DIR]/spark-defaults.conf`
+3. `[SPARK_HOME]/conf/spark-defaults.conf`
+
+CAUTION: FIXME Review `propertiesFile`
+
+NOTE: `loadPropertiesFile` reads a properties file using `UTF-8` charset and trims white spaces around values.
+
+==== [[AbstractCommandBuilder-getConfDir]][[configuration-directory]] Spark's Configuration Directory -- `getConfDir` Internal Method
+
+`AbstractCommandBuilder` uses `getConfDir` to compute the current configuration directory of a Spark application.
+
+It uses `SPARK_CONF_DIR` (from `childEnv` which is always empty anyway or as a environment variable) and falls through to `[SPARK_HOME]/conf` (with `SPARK_HOME` from <<AbstractCommandBuilder-getSparkHome, `getSparkHome` internal method>>).
+
+==== [[AbstractCommandBuilder-getSparkHome]][[home-directory]] Spark's Home Directory -- `getSparkHome` Internal Method
+
+`AbstractCommandBuilder` uses `getSparkHome` to compute Spark's home directory for a Spark application.
+
+It uses `SPARK_HOME` (from `childEnv` which is always empty anyway or as a environment variable).
+
+If `SPARK_HOME` is not set, Spark throws a `IllegalStateException`:
+
+```
+Spark home not found; set it explicitly or use the SPARK_HOME environment variable.
+```
+
+==== [[isClientMode]] `isClientMode` Internal Method
+
+[source, java]
+----
+private boolean isClientMode(Map<String, String> userProps)
+----
+
+`isClientMode` checks `master` first (from the command-line options) and then `spark.master` Spark property. Same with `deployMode` and `spark.submit.deployMode`.
+
+CAUTION: FIXME Review `master` and `deployMode`. How are they set?
+
+`isClientMode` responds positive when no explicit master and `client` deploy mode set explicitly.
