@@ -159,11 +159,9 @@ private Properties loadPropertiesFile()
 
 It loads the settings from the following files starting from the first and checking every location until the first properties file is found:
 
-1. `propertiesFile` (if specified on the command line)
+1. `propertiesFile` (if specified using `--properties-file` command-line option or set by `AbstractCommandBuilder.setPropertiesFile`).
 2. `[SPARK_CONF_DIR]/spark-defaults.conf`
 3. `[SPARK_HOME]/conf/spark-defaults.conf`
-
-CAUTION: FIXME Review `propertiesFile`
 
 NOTE: `loadPropertiesFile` reads a properties file using `UTF-8` charset and trims white spaces around values.
 
@@ -197,3 +195,63 @@ private boolean isClientMode(Map<String, String> userProps)
 CAUTION: FIXME Review `master` and `deployMode`. How are they set?
 
 `isClientMode` responds positive when no explicit master and `client` deploy mode set explicitly.
+
+=== [[OptionParser]] OptionParser
+
+`OptionParser` is a custom link:spark-submit-SparkSubmitOptionParser.adoc[SparkSubmitOptionParser] that `SparkSubmitCommandBuilder` uses to parse command-line arguments. It defines all the link:spark-submit-SparkSubmitOptionParser.adoc#callbacks[SparkSubmitOptionParser callbacks], i.e. <<OptionParser-handle, handle>>, <<OptionParser-handleUnknown, handleUnknown>>, and <<OptionParser-handleExtraArgs, handleExtraArgs>>, for command-line argument handling.
+
+==== [[OptionParser-handle]] OptionParser's `handle` Callback
+
+[source, scala]
+----
+boolean handle(String opt, String value)
+----
+
+`OptionParser` comes with a custom `handle` callback (from the link:spark-submit-SparkSubmitOptionParser.adoc#callbacks[SparkSubmitOptionParser callbacks]).
+
+.`handle` Method
+[frame="topbot",options="header",width="100%"]
+|======================
+| Command-Line Option | Property / Behaviour
+| `--master` | `master`
+| `--deploy-mode` | `deployMode`
+| `--properties-file` | `propertiesFile`
+| `--driver-memory` | Sets `spark.driver.memory` (in `conf`)
+| `--driver-java-options` | Sets `spark.driver.extraJavaOptions` (in `conf`)
+| `--driver-library-path` | Sets `spark.driver.extraLibraryPath` (in `conf`)
+| `--driver-class-path` | Sets `spark.driver.extraClassPath` (in `conf`)
+| `--conf` | Expects a `key=value` pair that it puts in `conf`
+| `--class` | Sets `mainClass` (in `conf`).
+
+It may also set `allowsMixedArguments` and `appResource` if the execution is for one of the special classes, i.e. link:spark-shell.adoc[spark-shell], `SparkSQLCLIDriver`, or link:spark-sql-thrift-server.adoc[HiveThriftServer2].
+| `--kill` \| `--status` | Disables `isAppResourceReq` and adds itself with the value to `sparkArgs`.
+| `--help` \| `--usage-error` | Disables `isAppResourceReq` and adds itself to `sparkArgs`.
+| `--version` | Disables `isAppResourceReq` and adds itself to `sparkArgs`.
+| _anything else_ | Adds an element to `sparkArgs`
+|======================
+
+==== [[OptionParser-handleUnknown]] OptionParser's `handleUnknown` Method
+
+[source, scala]
+----
+boolean handleUnknown(String opt)
+----
+
+If `allowsMixedArguments` is enabled, `handleUnknown` simply adds the input `opt` to `appArgs` and allows for further link:spark-submit-SparkSubmitOptionParser.adoc#parse[parsing of the argument list].
+
+CAUTION: FIXME Where's `allowsMixedArguments` enabled?
+
+If `isExample` is enabled, `handleUnknown` sets `mainClass` to be `org.apache.spark.examples.[opt]` (unless the input `opt` has already the package prefix) and stops further link:spark-submit-SparkSubmitOptionParser.adoc#parse[parsing of the argument list].
+
+CAUTION: FIXME Where's `isExample` enabled?
+
+Otherwise, `handleUnknown` sets `appResource` and stops further link:spark-submit-SparkSubmitOptionParser.adoc#parse[parsing of the argument list].
+
+==== [[OptionParser-handleExtraArgs]] OptionParser's `handleExtraArgs` Method
+
+[source, scala]
+----
+void handleExtraArgs(List<String> extra)
+----
+
+`handleExtraArgs` adds all the `extra` arguments to `appArgs`.
