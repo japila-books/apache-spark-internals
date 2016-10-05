@@ -1,0 +1,77 @@
+== KafkaUtils
+
+`KafkaUtils` is the object for constructing <<createDirectStream, Kafka streams>> and RDDs.
+
+[source, scala]
+----
+import org.apache.spark.streaming.kafka010.KafkaUtils
+----
+
+[TIP]
+====
+`spark-streaming-kafka-0-10` module is not included in `spark-shell` so you have to start it with link:spark-submit.adoc#packages[`--packages` command-line option].
+
+```
+./bin/spark-shell --packages org.apache.spark:spark-streaming-kafka-0-10_2.11:2.1.0-SNAPSHOT
+```
+
+p.s. Change the version (from `2.1.0-SNAPSHOT`) to whatever version you want to use.
+====
+
+=== [[createDirectStream]] `createDirectStream` method
+
+[source, scala]
+----
+createDirectStream[K, V](
+  ssc: StreamingContext,
+  locationStrategy: LocationStrategy,
+  consumerStrategy: ConsumerStrategy[K, V]): InputDStream[ConsumerRecord[K, V]]
+----
+
+`createDirectStream` creates a link:spark-streaming-kafka.adoc#DirectKafkaInputDStream[DirectKafkaInputDStream].
+
+[source, scala]
+----
+import org.apache.spark.streaming._
+import org.apache.spark.SparkContext
+val sc = SparkContext.getOrCreate
+val ssc = new StreamingContext(sc, Seconds(5))
+
+import org.apache.spark.streaming.kafka010._
+
+val preferredHosts = LocationStrategies.PreferConsistent
+val topics = List("basic1", "basic2", "basic3")
+import org.apache.kafka.common.serialization.StringDeserializer
+val kafkaParams = Map(
+  "bootstrap.servers" -> "localhost:9092",
+  "key.deserializer" -> classOf[StringDeserializer],
+  "value.deserializer" -> classOf[StringDeserializer],
+  "group.id" -> "example",
+  "auto.offset.reset" -> "earliest"
+)
+import org.apache.kafka.common.TopicPartition
+val offsets = Map(new TopicPartition("basic3", 0) -> 2L)
+
+val dstream = KafkaUtils.createDirectStream[String, String](
+  ssc,
+  preferredHosts,
+  ConsumerStrategies.Subscribe[String, String](topics, kafkaParams, offsets))
+
+val tf = dstream.transform { rdd =>
+  rdd.map(r => (r.key, r.value))
+}
+
+tf.foreachRDD { rdd =>
+  // Get the offset ranges in the RDD
+  val offsetRanges = rdd.asInstanceOf[HasOffsetRanges].offsetRanges
+  for (o <- offsetRanges) {
+    println(s"${o.topic} ${o.partition} ${o.fromOffset} ${o.untilOffset}")
+  }
+}
+
+ssc.start
+
+// ...
+
+ssc.stop(stopSparkContext = false)
+----

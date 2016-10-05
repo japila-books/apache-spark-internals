@@ -1,6 +1,13 @@
-== StreamingContext
+== StreamingContext -- The Entry Point to Spark Streaming
 
-`StreamingContext` is the main entry point for all Spark Streaming functionality. Whatever you do in Spark Streaming has to start from <<creating-instance, creating an instance of StreamingContext>>.
+`StreamingContext` is the entry point for all Spark Streaming functionality. Whatever you do in Spark Streaming has to start from <<creating-instance, creating an instance of StreamingContext>>.
+
+[source, scala]
+----
+import org.apache.spark.streaming._
+val sc = SparkContext.getOrCreate
+val ssc = new StreamingContext(sc, Seconds(5))
+----
 
 NOTE: `StreamingContext` belongs to `org.apache.spark.streaming` package.
 
@@ -10,7 +17,7 @@ Once streaming pipelines are developed, you <<start, start StreamingContext>> to
 
 === [[creating-instance]] Creating Instance
 
-You can create a new instance of `StreamingContext` using the following constructors. You can group them by whether a StreamingContext constructor creates it from scratch or it is recreated from checkpoint directory (follow the links for their extensive coverage).
+You can create a new instance of `StreamingContext` using the following constructors. You can group them by whether a StreamingContext constructor creates it from scratch or it is recreated from a checkpoint directory (follow the links for their extensive coverage).
 
 * <<creating-instance-from-scratch, Creating StreamingContext from scratch>>:
 ** `StreamingContext(conf: SparkConf, batchDuration: Duration)`
@@ -40,7 +47,7 @@ WARN StreamingContext: spark.master should be set as local[n], n > 1 in local mo
 ====
 
 .StreamingContext and Dependencies
-image::images/streaming-streamingcontext.png[align="center"]
+image::../images/streaming-streamingcontext.png[align="center"]
 
 A link:spark-streaming-dstreamgraph.adoc[DStreamGraph] is created.
 
@@ -74,7 +81,7 @@ You can also use two additional methods in `StreamingContext` to build (or bette
 * `union[T](streams: Seq[DStream[T]]): DStream[T]`
 * <<transform, transform(dstreams, transformFunc): DStream[T]>>
 
-==== [[receiverStream]] receiverStream method
+==== [[receiverStream]] `receiverStream` method
 
 [source, scala]
 ----
@@ -85,14 +92,14 @@ You can register a custom input dstream using `receiverStream` method. It accept
 
 NOTE: You can find an example of a custom `Receiver` in link:spark-streaming-receivers.adoc#custom-receiver[Custom Receiver].
 
-=== [[transform]] transform method
+=== [[transform]] `transform` method
 
 [source, scala]
 ----
 transform[T](dstreams: Seq[DStream[_]], transformFunc: (Seq[RDD[_]], Time) => RDD[T]): DStream[T]
 ----
 
-==== [[transform-example]] transform Example
+==== [[transform-example]] `transform` Example
 
 [source, scala]
 ----
@@ -103,7 +110,7 @@ def union(rdds: Seq[RDD[_]], time: Time) = {
 ssc.transform(Seq(cis), union)
 ----
 
-=== [[remember]] remember method
+=== [[remember]] `remember` method
 
 [source, scala]
 ----
@@ -147,13 +154,13 @@ The initial checkpoint is specified when a <<creating-instance, StreamingContext
 val ssc = new StreamingContext("_checkpoint")
 ----
 
-=== [[isCheckpointPresent]] Marking StreamingContext As Recreated from Checkpoint (isCheckpointPresent method)
+=== [[isCheckpointPresent]] Marking StreamingContext As Recreated from Checkpoint -- `isCheckpointPresent` method
 
 `isCheckpointPresent` internal method behaves like a flag that remembers whether the `StreamingContext` instance was created from a <<initialCheckpoint, checkpoint>> or not so the other internal parts of a streaming application can make decisions how to initialize themselves (or just be initialized).
 
 `isCheckpointPresent` checks the existence of the <<initialCheckpoint, initial checkpoint>> that gave birth to the StreamingContext.
 
-=== [[checkpoint]] Setting Checkpoint Directory (checkpoint method)
+=== [[checkpoint]] Setting Checkpoint Directory -- `checkpoint` method
 
 [source, scala]
 ----
@@ -170,7 +177,7 @@ NOTE: Calling `checkpoint` with `null` as `directory` clears the checkpoint dire
 
 NOTE: When <<creating-instance, StreamingContext is created>> and link:spark-streaming-settings.adoc#checkpointing[spark.streaming.checkpoint.directory] setting is set, the value gets passed on to `checkpoint` method.
 
-=== [[start]] Starting StreamingContext (using start method)
+=== [[start]] Starting StreamingContext -- `start` method
 
 [source, scala]
 ----
@@ -193,7 +200,7 @@ java.lang.IllegalStateException: Only one StreamingContext may be started in thi
 If no other StreamingContext exists, it performs <<validate, setup validation>> and link:spark-streaming-jobscheduler.adoc#start[starts JobScheduler] (in a separate dedicated daemon thread called *streaming-start*).
 
 .When started, StreamingContext starts JobScheduler
-image::images/spark-streaming-StreamingContext-start.png[align="center"]
+image::../images/spark-streaming-StreamingContext-start.png[align="center"]
 
 It enters <<states, ACTIVE>> state.
 
@@ -221,7 +228,7 @@ Attempting to start `StreamingContext` in <<states, STOPPED>> state, i.e. <<stop
 java.lang.IllegalStateException: StreamingContext has already been stopped
 ```
 
-=== [[stop]][[stopping]] Stopping StreamingContext (using stop methods)
+=== [[stop]][[stopping]] Stopping StreamingContext -- `stop` methods
 
 You stop `StreamingContext` using one of the three variants of `stop` method:
 
@@ -241,7 +248,7 @@ If a user requested to stop the underlying SparkContext (when `stopSparkContext`
 It is only in <<states, ACTIVE>> state when `stop` does more than printing out WARN messages to the logs.
 
 .StreamingContext Stop Procedure
-image::images/spark-streaming-StreamingContext-stop.png[align="center"]
+image::../images/spark-streaming-StreamingContext-stop.png[align="center"]
 
 It does the following (in order):
 
@@ -283,7 +290,7 @@ WARN StreamingContext: StreamingContext has already been stopped
 
 `StreamingContext` enters <<states, STOPPED>> state.
 
-=== [[stopOnShutdown]] stopOnShutdown Shutdown Hook
+=== [[stopOnShutdown]] `stopOnShutdown` Shutdown Hook
 
 `stopOnShutdown` is a https://docs.oracle.com/javase/8/docs/api/java/lang/Runtime.html#addShutdownHook-java.lang.Thread-[JVM shutdown hook] to clean up after `StreamingContext` when the JVM shuts down, e.g. all non-daemon thread exited, `System.exit` was called or `^C` was typed.
 
@@ -299,7 +306,7 @@ INFO Invoking stop(stopGracefully=[stopGracefully]) from shutdown hook
 
 With the setting it <<stop, stops StreamingContext>> without stopping the accompanying `SparkContext` (i.e. `stopSparkContext` parameter is disabled).
 
-=== [[validate]] Setup Validation
+=== [[validate]] Setup Validation -- `validate` method
 
 [source, scala]
 ----
@@ -323,7 +330,7 @@ If link:spark-dynamic-allocation.adoc#isDynamicAllocationEnabled[dynamic allocat
 WARN StreamingContext: Dynamic Allocation is enabled for this application. Enabling Dynamic allocation for Spark Streaming applications can cause data loss if Write Ahead Log is not enabled for non-replayable sources like Flume. See the programming guide for details on how to enable the Write Ahead Log
 ----
 
-=== [[addStreamingListener]] Registering Streaming Listeners
+=== [[addStreamingListener]] Registering Streaming Listeners -- `addStreamingListener` method
 
 CAUTION: FIXME
 
