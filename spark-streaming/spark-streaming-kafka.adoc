@@ -18,7 +18,7 @@ In this approach, *with no receivers*, you find two modes of ingesting data from
 
 ==== [[streaming-mode]] Streaming mode
 
-You create <<DirectKafkaInputDStream, DirectKafkaInputDStream>> using link:spark-streaming-kafka-KafkaUtils.adoc#createDirectStream[KafkaUtils.createDirectStream].
+You create link:spark-streaming-kafka-DirectKafkaInputDStream.adoc[DirectKafkaInputDStream] using link:spark-streaming-kafka-KafkaUtils.adoc#createDirectStream[KafkaUtils.createDirectStream].
 
 NOTE: Define the types of keys and values in `KafkaUtils.createDirectStream`, e.g. `KafkaUtils.createDirectStream[String, String, StringDecoder, StringDecoder]`, so proper decoders are used to decode messages from Kafka.
 
@@ -86,46 +86,6 @@ libraryDependencies += "org.apache.spark" %% "spark-streaming-kafka-0-10" % "2.0
 ```
 
 NOTE: Replace `"2.0.0"` with available version as found at http://search.maven.org/#search%7Cga%7C1%7Ca%3A%22spark-streaming-kafka-0-10_2.11%22[The Central Repository's search].
-
-=== [[DirectKafkaInputDStream]] DirectKafkaInputDStream
-
-`DirectKafkaInputDStream` is an link:spark-streaming-inputdstreams.adoc[input stream] of link:spark-streaming-kafka-kafkardd.adoc[KafkaRDD] batches.
-
-As an input stream, it implements the _five_ mandatory abstract methods - three from `DStream` and two from `InputDStream`:
-
-* `dependencies: List[DStream[_]]` returns an empty collection, i.e. it has no dependencies on other streams (other than Kafka brokers to read data from).
-* `slideDuration: Duration` passes all calls on to link:spark-streaming-dstreamgraph.adoc[DStreamGraph.batchDuration].
-* `compute(validTime: Time): Option[RDD[T]]` - consult <<compute, Computing RDDs (using compute Method)>> section.
-* `start()` does nothing.
-* `stop()` does nothing.
-
-The `name` of the input stream is *Kafka direct stream [id]*. You can find the name in the link:spark-streaming-webui.adoc[Streaming tab] in web UI (in the details of a batch in *Input Metadata* section).
-
-It uses link:spark-streaming-settings.adoc[spark.streaming.kafka.maxRetries] setting while computing `latestLeaderOffsets` (i.e. a mapping of `kafka.common.TopicAndPartition` and <<LeaderOffset, LeaderOffset>>).
-
-==== [[compute]] Computing RDDs -- `compute` Method
-
-`DirectKafkaInputDStream.compute` _always_ computes a link:spark-streaming-kafka-kafkardd.adoc[KafkaRDD] instance (despite the link:spark-streaming-dstreams.adoc#contract[DStream contract] that says it may or may not generate one).
-
-NOTE: It is link:spark-streaming-dstreamgraph.adoc#generateJobs[DStreamGraph to request generating streaming jobs for batches].
-
-Every time the method is called, `latestLeaderOffsets` calculates the latest offsets (as `Map[TopicAndPartition, LeaderOffset]`).
-
-NOTE: Every call to `compute` does call Kafka brokers for the offsets.
-
-The _moving_ parts of generated `KafkaRDD` instances are offsets. Others are taken directly from `DirectKafkaInputDStream` (given at the time of instantiation).
-
-It then filters out empty offset ranges to build `StreamInputInfo` for link:spark-streaming-jobscheduler.adoc#InputInfoTracker[InputInfoTracker.reportInfo].
-
-It sets the just-calculated offsets as current (using `currentOffsets`) and returns a new link:spark-streaming-kafka-kafkardd.adoc[KafkaRDD] instance.
-
-==== [[back-pressure]] Back Pressure
-
-CAUTION: FIXME
-
-link:spark-streaming-backpressure.adoc[Back pressure] for Direct Kafka input dstream can be configured using link:spark-streaming-settings.adoc#back-pressure[spark.streaming.backpressure.enabled] setting.
-
-NOTE: Back pressure is disabled by default.
 
 === Kafka Concepts
 
