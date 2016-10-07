@@ -1,6 +1,6 @@
-== [[KafkaUtils]] KafkaUtils -- Creating Kafka Streams and RDDs
+== [[KafkaUtils]] KafkaUtils -- Creating Kafka DStreams and RDDs
 
-`KafkaUtils` is the object with the factory methods to create <<createDirectStream, dstreams>> and <<createRDD, RDDs>> from Apache Kafka.
+`KafkaUtils` is the object with the factory methods to create <<createDirectStream, dstreams>> and <<createRDD, RDDs>> from messages in http://kafka.apache.org[Apache Kafka].
 
 [source, scala]
 ----
@@ -9,7 +9,7 @@ import org.apache.spark.streaming.kafka010.KafkaUtils
 
 TIP: Use link:spark-streaming-kafka.adoc#spark-streaming-kafka-0-10[`spark-streaming-kafka-0-10` Library Dependency].
 
-=== [[createDirectStream]] Creating Kafka Stream -- `createDirectStream` Method
+=== [[createDirectStream]] Creating Kafka DStream -- `createDirectStream` Method
 
 [source, scala]
 ----
@@ -19,11 +19,13 @@ createDirectStream[K, V](
   consumerStrategy: ConsumerStrategy[K, V]): InputDStream[ConsumerRecord[K, V]]
 ----
 
-`createDirectStream` creates a link:spark-streaming-kafka-DirectKafkaInputDStream.adoc[DirectKafkaInputDStream].
+`createDirectStream` is a factory method to create a link:spark-streaming-kafka-DirectKafkaInputDStream.adoc[DirectKafkaInputDStream] from a link:spark-streaming-streamingcontext.adoc[StreamingContext], a link:spark-streaming-kafka-LocationStrategy.adoc[LocationStrategy], and a link:spark-streaming-kafka-ConsumerStrategy.adoc[ConsumerStrategy].
 
 [TIP]
 ====
 Enable `DEBUG` logging level for `org.apache.kafka.clients.consumer.KafkaConsumer` logger to see what happens inside the Kafka consumer that is used under the covers to talk to a Kafka topic(s).
+
+The following DEBUGs are from when a link:spark-streaming-kafka-DirectKafkaInputDStream.adoc[DirectKafkaInputDStream] is started.
 
 ```
 DEBUG KafkaConsumer: Starting the Kafka consumer
@@ -40,6 +42,7 @@ log4j.logger.org.apache.kafka.clients.consumer.KafkaConsumer=DEBUG
 Refer to link:../spark-logging.adoc[Logging].
 ====
 
+.Using KafkaUtils.createDirectStream to Connect to Kafka Brokers
 [source, scala]
 ----
 // Include org.apache.spark:spark-streaming-kafka-0-10_2.11:2.1.0-SNAPSHOT dependency in the CLASSPATH, e.g.
@@ -53,17 +56,17 @@ val ssc = new StreamingContext(sc, Seconds(5))
 import org.apache.spark.streaming.kafka010._
 
 val preferredHosts = LocationStrategies.PreferConsistent
-val topics = List("basic1", "basic2", "basic3")
+val topics = List("topic1", "topic2", "topic3")
 import org.apache.kafka.common.serialization.StringDeserializer
 val kafkaParams = Map(
   "bootstrap.servers" -> "localhost:9092",
   "key.deserializer" -> classOf[StringDeserializer],
   "value.deserializer" -> classOf[StringDeserializer],
-  "group.id" -> "example",
+  "group.id" -> "spark-streaming-notes",
   "auto.offset.reset" -> "earliest"
 )
 import org.apache.kafka.common.TopicPartition
-val offsets = Map(new TopicPartition("basic3", 0) -> 2L)
+val offsets = Map(new TopicPartition("topic3", 0) -> 2L)
 
 val dstream = KafkaUtils.createDirectStream[String, String](
   ssc,
@@ -84,7 +87,8 @@ tf.foreachRDD { rdd =>
 
 ssc.start
 
-// ...
+// the above code is printing out topic details every 5 seconds
+// until you stop it.
 
 ssc.stop(stopSparkContext = false)
 ----
