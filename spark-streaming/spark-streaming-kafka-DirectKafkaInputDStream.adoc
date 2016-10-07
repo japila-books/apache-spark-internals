@@ -1,18 +1,33 @@
 == [[DirectKafkaInputDStream]] DirectKafkaInputDStream
 
-`DirectKafkaInputDStream` is an link:spark-streaming-inputdstreams.adoc[input stream] of link:spark-streaming-kafka-kafkardd.adoc[KafkaRDD] batches.
+`DirectKafkaInputDStream` is an link:spark-streaming-inputdstreams.adoc[input dstream] of link:spark-streaming-kafka-kafkardd.adoc[KafkaRDD] batches.
 
-As an input stream, it implements the _five_ mandatory abstract methods - three from `DStream` and two from `InputDStream`:
+As an input dstream, `DirectKafkaInputDStream` implements the mandatory abstract methods (from link:spark-streaming-dstreams.adoc#contract[DStream Contract] and link:spark-streaming-inputdstreams.adoc#contract[InputDStream Contract]):
 
-* `dependencies: List[DStream[_]]` returns an empty collection, i.e. it has no dependencies on other streams (other than Kafka brokers to read data from).
-* `slideDuration: Duration` passes all calls on to link:spark-streaming-dstreamgraph.adoc[DStreamGraph.batchDuration].
-* `compute(validTime: Time): Option[RDD[T]]` - consult <<compute, Computing RDDs (using compute Method)>> section.
-* <<start, start>>
-* `stop()` does nothing.
+1. `dependencies: List[DStream[_]]` returns an empty collection, i.e. it has no dependencies on other streams (other than Kafka brokers to read data from).
+2. `slideDuration: Duration` passes all calls on to link:spark-streaming-dstreamgraph.adoc[DStreamGraph.batchDuration].
+3. `compute(validTime: Time): Option[RDD[T]]` - consult <<compute, Computing RDDs (using compute Method)>> section.
+4. <<start, start>> to start polling for messages from Kafka.
+5. <<stop, stop>> to close the Kafka consumer (and therefore polling for messages from Kafka).
 
-The `name` of the input stream is *Kafka direct stream [id]*. You can find the name in the link:spark-streaming-webui.adoc[Streaming tab] in web UI (in the details of a batch in *Input Metadata* section).
+The `name` of a `DirectKafkaInputDStream` is *Kafka 0.10 direct stream [id]* (that you can use to differentiate between the different implementations for Kafka 0.10+ and older releases).
+
+TIP: You can find the name of a input dstream in the link:spark-streaming-webui.adoc[Streaming tab] in web UI (in the details of a batch in *Input Metadata* section).
 
 It uses link:spark-streaming-settings.adoc[spark.streaming.kafka.maxRetries] setting while computing `latestLeaderOffsets` (i.e. a mapping of `kafka.common.TopicAndPartition` and <<LeaderOffset, LeaderOffset>>).
+
+[TIP]
+====
+Enable `INFO` logging level for `org.apache.spark.streaming.kafka010.DirectKafkaInputDStream` logger to see what happens inside.
+
+Add the following line to `conf/log4j.properties`:
+
+```
+log4j.logger.org.apache.spark.streaming.kafka010.DirectKafkaInputDStream=INFO
+```
+
+Refer to link:spark-logging.adoc[Logging].
+====
 
 === [[creating-instance]] Creating DirectKafkaInputDStream Instance
 
@@ -65,6 +80,17 @@ The _moving_ parts of generated `KafkaRDD` instances are offsets. Others are tak
 It then filters out empty offset ranges to build `StreamInputInfo` for link:spark-streaming-jobscheduler.adoc#InputInfoTracker[InputInfoTracker.reportInfo].
 
 It sets the just-calculated offsets as current (using `currentOffsets`) and returns a new link:spark-streaming-kafka-kafkardd.adoc[KafkaRDD] instance.
+
+=== [[stop]] Stopping DirectKafkaInputDStream -- `stop` Method
+
+[source, scala]
+----
+stop(): Unit
+----
+
+`stop` closes the current <<consumer, Kafka consumer>>.
+
+NOTE: `stop` is a part of the link:spark-streaming-inputdstreams.adoc[InputDStream Contract].
 
 === [[back-pressure]] Back Pressure
 
