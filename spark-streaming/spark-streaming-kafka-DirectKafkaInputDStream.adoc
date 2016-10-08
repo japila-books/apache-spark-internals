@@ -1,6 +1,6 @@
 == [[DirectKafkaInputDStream]] DirectKafkaInputDStream
 
-`DirectKafkaInputDStream` is an link:spark-streaming-inputdstreams.adoc[input dstream] of link:spark-streaming-kafka-kafkardd.adoc[KafkaRDD] batches.
+`DirectKafkaInputDStream` is an link:spark-streaming-inputdstreams.adoc[input dstream] of link:spark-streaming-kafka-KafkaRDD.adoc[KafkaRDD] batches.
 
 As an input dstream, `DirectKafkaInputDStream` implements the mandatory abstract methods (from link:spark-streaming-dstreams.adoc#contract[DStream Contract] and link:spark-streaming-inputdstreams.adoc#contract[InputDStream Contract]):
 
@@ -52,6 +52,29 @@ After the polling, `start` checks if the internal `currentOffsets` is empty, and
 
 Ultimately, `start` pauses all partitions (using Kafka's `Consumer.pause` and the internal collection of topics and their current offsets).
 
+=== [[compute]] Computing KafkaRDD for Batch Interval -- `compute` Method
+
+[source, scala]
+----
+compute(validTime: Time): Option[KafkaRDD[K, V]]
+----
+
+NOTE: `compute` is a part of the link:spark-streaming-dstreams.adoc[DStream Contract].
+
+Despite the return type of `compute` (that allows for no RDDs), `DirectKafkaInputDStream` _always_ computes a link:spark-streaming-kafka-KafkaRDD.adoc[KafkaRDD].
+
+NOTE: It is link:spark-streaming-dstreamgraph.adoc#generateJobs[DStreamGraph to request generating streaming jobs for batches].
+
+When a batch interval passes and `compute` is called, `latestLeaderOffsets` calculates the latest offsets (as `Map[TopicAndPartition, LeaderOffset]`).
+
+NOTE: Every call to `compute` does call Kafka brokers for the offsets.
+
+The _moving_ parts of generated `KafkaRDD` instances are offsets. Others are taken directly from `DirectKafkaInputDStream` (given at the time of instantiation).
+
+It then filters out empty offset ranges to build `StreamInputInfo` for link:spark-streaming-jobscheduler.adoc#InputInfoTracker[InputInfoTracker.reportInfo].
+
+It sets the just-calculated offsets as current (using `currentOffsets`) and returns a new link:spark-streaming-kafka-KafkaRDD.adoc[KafkaRDD] instance.
+
 === [[consumer]] Creating Kafka Consumer -- `consumer` Method
 
 [source, scala]
@@ -65,29 +88,6 @@ consumer(): Consumer[K, V]
 
 CAUTION: FIXME A note with What `ConsumerStrategy` is for?
 
-=== [[compute]] Computing KafkaRDD for Batch Interval -- `compute` Method
-
-[source, scala]
-----
-compute(validTime: Time): Option[KafkaRDD[K, V]]
-----
-
-NOTE: `compute` is a part of the link:spark-streaming-dstreams.adoc[DStream Contract].
-
-Despite the return type of `compute` (that allows for no RDDs), `DirectKafkaInputDStream` _always_ computes a link:spark-streaming-kafka-kafkardd.adoc[KafkaRDD].
-
-NOTE: It is link:spark-streaming-dstreamgraph.adoc#generateJobs[DStreamGraph to request generating streaming jobs for batches].
-
-When a batch interval passes and `compute` is called, `latestLeaderOffsets` calculates the latest offsets (as `Map[TopicAndPartition, LeaderOffset]`).
-
-NOTE: Every call to `compute` does call Kafka brokers for the offsets.
-
-The _moving_ parts of generated `KafkaRDD` instances are offsets. Others are taken directly from `DirectKafkaInputDStream` (given at the time of instantiation).
-
-It then filters out empty offset ranges to build `StreamInputInfo` for link:spark-streaming-jobscheduler.adoc#InputInfoTracker[InputInfoTracker.reportInfo].
-
-It sets the just-calculated offsets as current (using `currentOffsets`) and returns a new link:spark-streaming-kafka-kafkardd.adoc[KafkaRDD] instance.
-
 === [[getPreferredHosts]] Calculating Preferred Hosts Using `LocationStrategy` -- `getPreferredHosts` Method
 
 [source, scala]
@@ -95,7 +95,7 @@ It sets the just-calculated offsets as current (using `currentOffsets`) and retu
 getPreferredHosts: java.util.Map[TopicPartition, String]
 ----
 
-`getPreferredHosts` calculates preferred hosts per topic partition (that are later used to map link:spark-streaming-kafka-kafkardd.adoc[KafkaRDD] partitions to host leaders of topic partitions that Spark executors read from).
+`getPreferredHosts` calculates preferred hosts per topic partition (that are later used to map link:spark-streaming-kafka-KafkaRDD.adoc[KafkaRDD] partitions to host leaders of topic partitions that Spark executors read records from).
 
 `getPreferredHosts` relies exclusively on the link:spark-streaming-kafka-LocationStrategy.adoc[LocationStrategy] that was passed in when <<creating-instance, creating a `DirectKafkaInputDStream` instance>>.
 
