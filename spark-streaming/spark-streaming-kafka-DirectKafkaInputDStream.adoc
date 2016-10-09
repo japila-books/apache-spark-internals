@@ -1,6 +1,10 @@
 == [[DirectKafkaInputDStream]] DirectKafkaInputDStream -- Direct Kafka DStream
 
-`DirectKafkaInputDStream` is an link:spark-streaming-inputdstreams.adoc[input dstream] of link:spark-streaming-kafka-KafkaRDD.adoc[KafkaRDD] batches.
+`DirectKafkaInputDStream` is an link:spark-streaming-inputdstreams.adoc[input dstream] of Kafka's https://kafka.apache.org/0100/javadoc/org/apache/kafka/clients/consumer/ConsumerRecord.html[ConsumerRecord] that produces link:spark-streaming-kafka-KafkaRDD.adoc[KafkaRDD] batches.
+
+NOTE: Kafka's https://kafka.apache.org/0100/javadoc/org/apache/kafka/clients/consumer/ConsumerRecord.html[ConsumerRecord] holds a topic name, a partition number, the offset of the record in the Kafka partition and the record itself (as a key-value pair).
+
+`DirectKafkaInputDStream` is also a `CanCommitOffsets` object.
 
 As an input dstream, `DirectKafkaInputDStream` implements the mandatory abstract methods (from link:spark-streaming-dstreams.adoc#contract[DStream Contract] and link:spark-streaming-inputdstreams.adoc#contract[InputDStream Contract]):
 
@@ -31,7 +35,46 @@ Refer to link:../spark-logging.adoc[Logging].
 
 === [[creating-instance]] Creating DirectKafkaInputDStream Instance
 
-CAUTION: FIXME
+You can create a `DirectKafkaInputDStream` instance using link:spark-streaming-kafka-KafkaUtils.adoc#createDirectStream[KafkaUtils.createDirectStream] factory method.
+
+[source, scala]
+----
+import org.apache.spark.streaming.kafka010.KafkaUtils
+
+val ssc: StreamingContext = ???
+// WARN: Incomplete
+val dstream = KafkaUtils.createDirectStream[String, String](
+  ssc,
+  locationStrategy = hosts,
+  consumerStrategy = ConsumerStrategies.Subscribe[String, String](topics, kafkaParams, offsets))
+----
+
+Internally, when a `DirectKafkaInputDStream` instance is created, it initializes the internal <<executorKafkaParams, executorKafkaParams>> using the input ``consumerStrategy``'s link:spark-streaming-kafka-ConsumerStrategy.adoc#executorKafkaParams[executorKafkaParams].
+
+TIP: Use link:spark-streaming-kafka-ConsumerStrategy.adoc[ConsumerStrategy] for a Kafka Consumer configuration.
+
+With link:spark-streaming-kafka-KafkaUtils.adoc#logging[WARN logging level enabled for the KafkaUtils logger], you may see the following WARN messages in the logs (the number of messages depends on how correct the Kafka Consumer configuration is):
+
+```
+WARN KafkaUtils: overriding enable.auto.commit to false for executor
+WARN KafkaUtils: overriding auto.offset.reset to none for executor
+WARN KafkaUtils: overriding executor group.id to spark-executor-spark-streaming-notes
+WARN KafkaUtils: overriding receive.buffer.bytes to 65536 see KAFKA-3135
+```
+
+CAUTION: FIXME Add logError.
+
+It initializes the internal `currentOffsets` registry.
+
+It creates an instance of `DirectKafkaInputDStreamCheckpointData` as `checkpointData`.
+
+It sets up `rateController` as `DirectKafkaRateController` when backpressure is enabled.
+
+It sets up `maxRateLimitPerPartition` as link:spark-streaming-settings.adoc#spark_streaming_kafka_maxRatePerPartition[spark.streaming.kafka.maxRatePerPartition].
+
+It creates `commitQueue` and `commitCallback`.
+
+CAUTION: FIXME What are `commitQueue` and `commitCallback`?
 
 === [[executorKafkaParams]] `executorKafkaParams` Method
 
