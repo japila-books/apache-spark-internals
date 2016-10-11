@@ -254,7 +254,7 @@ generateJobs(time: Time)
 
 It first calls link:spark-streaming-receivertracker.adoc#allocateBlocksToBatch[ReceiverTracker.allocateBlocksToBatch] (it does nothing when there are no link:spark-streaming-receiverinputdstreams.adoc[receiver input streams] in use), and then requests link:spark-streaming-dstreamgraph.adoc#generateJobs[DStreamGraph for streaming jobs for a given batch time].
 
-If the above two calls have finished successfully, link:spark-streaming-jobscheduler.adoc#InputInfoTracker[InputInfoTracker] is requested for data statistics of every registered input stream for the given batch time that together with the collection of streaming jobs (from link:spark-streaming-dstreamgraph.adoc#generateJobs[DStreamGraph]) is passed on to link:spark-streaming-jobscheduler.adoc#submitJobSet[JobScheduler.submitJobSet] (as a link:spark-streaming-jobscheduler.adoc[JobSet]).
+If the above two calls have finished successfully, link:spark-streaming-InputInfoTracker.adoc[InputInfoTracker] is requested for data statistics of every registered input stream for the given batch time that together with the collection of streaming jobs (from link:spark-streaming-dstreamgraph.adoc#generateJobs[DStreamGraph]) is passed on to link:spark-streaming-jobscheduler.adoc#submitJobSet[JobScheduler.submitJobSet] (as a link:spark-streaming-jobscheduler.adoc[JobSet]).
 
 In case of failure, `JobScheduler.reportError` is called.
 
@@ -297,9 +297,9 @@ When `ClearMetadata(time)` arrives, it first asks link:spark-streaming-dstreamgr
 
 If <<checkpointing, checkpointing is enabled>>, it posts a <<DoCheckpoint, DoCheckpoint>> event (with `clearCheckpointDataLater` being enabled, i.e. `true`) and exits.
 
-Otherwise, when checkpointing is disabled, it asks link:spark-streaming-dstreamgraph.adoc[DStreamGraph for the maximum remember duration across all the input streams] and requests ReceiverTracker and InputInfoTracker to do their cleanups.
+Otherwise, when checkpointing is disabled, it asks link:spark-streaming-dstreamgraph.adoc[DStreamGraph for the maximum remember duration across all the input streams] and requests ReceiverTracker and the link:spark-streaming-InputInfoTracker.adoc[InputInfoTracker] to do their cleanups.
 
-CAUTION: FIXME Describe cleanups of ReceiverTracker and InputInfoTracker.
+CAUTION: FIXME Describe cleanups of ReceiverTracker.
 
 Eventually, it marks the batch as fully processed, i.e. that the batch completed as well as checkpointing or metadata cleanups, using the <<lastProcessedBatch, internal lastProcessedBatch marker>>.
 
@@ -314,14 +314,14 @@ NOTE: `ClearCheckpointData` event is posted after  link:spark-streaming-checkpoi
 clearCheckpointData(time: Time)
 ----
 
-In short, `clearCheckpointData` requests link:spark-streaming-dstreamgraph.adoc#clearCheckpointData[DStreamGraph], link:spark-streaming-receivertracker.adoc#cleanupOldBlocksAndBatches[ReceiverTracker], and link:spark-streaming-jobscheduler.adoc#InputInfoTracker-cleanup[InputInfoTracker] to do the cleaning and marks the current batch `time` as <<lastProcessedBatch, fully processed>>.
+In short, `clearCheckpointData` requests the link:spark-streaming-dstreamgraph.adoc#clearCheckpointData[DStreamGraph], link:spark-streaming-receivertracker.adoc#cleanupOldBlocksAndBatches[ReceiverTracker], and link:spark-streaming-InputInfoTracker.adoc#cleanup[InputInfoTracker] to do their cleaning and marks the current batch `time` as <<lastProcessedBatch, fully processed>>.
 
 .JobGenerator and ClearCheckpointData event
 image::../images/spark-streaming-JobGenerator-ClearCheckpointData-event.png[align="center"]
 
 When executed, `clearCheckpointData` first requests link:spark-streaming-dstreamgraph.adoc#clearCheckpointData[DStreamGraph to clear checkpoint data for the given batch time].
 
-It then asks link:spark-streaming-dstreamgraph.adoc#maximum-remember-interval[DStreamGraph for the maximum remember interval]. Given the maximum remember interval `JobGenerator` requests link:spark-streaming-receivertracker.adoc#cleanupOldBlocksAndBatches[ReceiverTracker to cleanup old blocks and batches] and link:spark-streaming-jobscheduler.adoc#InputInfoTracker-cleanup[InputInfoTracker to do cleanup] for data accumulated before the maximum remember interval (from `time`).
+It then asks link:spark-streaming-dstreamgraph.adoc#maximum-remember-interval[`DStreamGraph` for the maximum remember interval]. Given the maximum remember interval `JobGenerator` requests link:spark-streaming-receivertracker.adoc#cleanupOldBlocksAndBatches[`ReceiverTracker` to cleanup old blocks and batches] and link:spark-streaming-InputInfoTracker.adoc#cleanup[`InputInfoTracker` to do cleanup] for data accumulated before the maximum remember interval (from `time`).
 
 Having done that, the current batch `time` is marked as <<lastProcessedBatch, fully processed>>.
 

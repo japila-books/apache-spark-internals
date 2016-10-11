@@ -46,7 +46,7 @@ It first starts <<eventLoop, JobSchedulerEvent Handler>>.
 
 It asks link:spark-streaming-dstreamgraph.adoc#input-dstream-registry[DStreamGraph for input dstreams] and registers link:spark-streaming-backpressure.adoc#RateController[their RateControllers] (if defined) as link:spark-streaming-streamingcontext.adoc#addStreamingListener[streaming listeners]. It starts <<StreamingListenerBus, StreamingListenerBus>> afterwards.
 
-It instantiates link:spark-streaming-receivertracker.adoc[ReceiverTracker] and <<InputInfoTracker, InputInfoTracker>>. It then starts the `ReceiverTracker`.
+It creates link:spark-streaming-receivertracker.adoc[ReceiverTracker] and link:spark-streaming-InputInfoTracker.adoc[InputInfoTracker]. It then starts the `ReceiverTracker`.
 
 It starts link:spark-streaming-jobgenerator.adoc[JobGenerator].
 
@@ -277,39 +277,3 @@ NOTE: `BatchInfo` is used to create and post link:spark-streaming-streamingliste
 * link:spark-streaming-jobgenerator.adoc#restarting[JobGenerator.restart]
 * <<JobStarted, JobScheduler.handleJobStart(job: Job, startTime: Long)>>
 * <<JobCompleted, JobScheduler.handleJobCompletion(job: Job, completedTime: Long)>>
-
-=== [[InputInfoTracker]] InputInfoTracker
-
-`InputInfoTracker` tracks batch times and batch statistics for link:spark-streaming-inputdstreams.adoc[input streams] (per input stream id with `StreamInputInfo`). It is later used when link:spark-streaming-jobgenerator.adoc#GenerateJobs[JobGenerator submits streaming jobs for a batch interval] (and propagated to interested listeners as link:spark-streaming-streaminglisteners.adoc#StreamingListenerEvent[StreamingListenerBatchSubmitted] event).
-
-NOTE: `InputInfoTracker` is managed by `JobScheduler`, i.e. it is created when <<starting, JobScheduler starts>> and <<stopping, is stopped alongside>>.
-
-`InputInfoTracker` uses internal registry `batchTimeToInputInfos` to maintain the mapping of batch times and link:spark-streaming-inputdstreams.adoc[input streams] (i.e. another mapping between input stream ids and `StreamInputInfo`).
-
-It accumulates batch statistics at every batch time when link:spark-streaming-dstreams.adoc#contract[input streams are computing RDDs] or `InputInfoTracker.reportInfo` is called.
-
-[NOTE]
-====
-It is up to input streams to have these batch statistics collected (and requires calling `InputInfoTracker.reportInfo` method explicitly).
-
-The following input streams report information:
-
-* link:spark-streaming-kafka-DirectKafkaInputDStream.adoc[DirectKafkaInputDStream]
-* link:spark-streaming-receiverinputdstreams.adoc[ReceiverInputDStreams - Input Streams with Receivers]
-* FileInputDStream
-====
-
-==== [[InputInfoTracker-cleanup]] Cleaning up
-
-[source, scala]
-----
-cleanup(batchThreshTime: Time): Unit
-----
-
-You should see the following INFO message when cleanup of old batch times is requested (akin to _garbage collection_):
-
-```
-INFO InputInfoTracker: remove old batch metadata: [timesToCleanup]
-```
-
-CAUTION: FIXME When is this called?
