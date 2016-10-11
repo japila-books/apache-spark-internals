@@ -144,19 +144,33 @@ compute(validTime: Time): Option[KafkaRDD[K, V]]
 
 NOTE: `compute` is a part of the link:spark-streaming-dstreams.adoc[DStream Contract].
 
-Despite the return type of `compute` (that allows for no RDDs), `DirectKafkaInputDStream` _always_ computes a link:spark-streaming-kafka-KafkaRDD.adoc[KafkaRDD].
+`compute` _always_ computes a link:spark-streaming-kafka-KafkaRDD.adoc[KafkaRDD] (despite the return type that allows for no RDDs).
 
 NOTE: It is link:spark-streaming-dstreamgraph.adoc#generateJobs[DStreamGraph to request generating streaming jobs for batches].
 
-When a batch interval passes and `compute` is called, `latestLeaderOffsets` calculates the latest offsets (as `Map[TopicAndPartition, LeaderOffset]`).
+When `compute` is called, it calls <<latestOffsets, latestOffsets>> and <<clamp, clamp>>. The result topic partition offsets are then mapped to link:spark-streaming-kafka-HasOffsetRanges.adoc#OffsetRange[OffsetRange]s with a topic, a partition, and <<currentOffsets, current offset for the given partition>> and the result offset. That in turn is used to create link:spark-streaming-kafka-KafkaRDD.adoc[KafkaRDD] (with the current link:../spark-sparkcontext.adoc[SparkContext], <<executorKafkaParams, executorKafkaParams>>, the ``OffsetRange``s, <<getPreferredHosts, preferred hosts>>, and `useConsumerCache` enabled).
 
-NOTE: Every call to `compute` does call Kafka brokers for the offsets.
+CAUTION: FIXME We all would appreciate if Jacek made the above less technical.
 
-The _moving_ parts of generated `KafkaRDD` instances are offsets. Others are taken directly from `DirectKafkaInputDStream` (given at the time of instantiation).
+CAUTION: FIXME What's `useConsumerCache`?
 
-It then filters out empty offset ranges to build `StreamInputInfo` for link:spark-streaming-jobscheduler.adoc#InputInfoTracker[InputInfoTracker.reportInfo].
+With that, `compute` builds a `StreamInputInfo` that it then passes on to link:spark-streaming-jobscheduler.adoc#InputInfoTracker[InputInfoTracker.reportInfo] (removing empty offset ranges). The metadata for the `StreamInputInfo` holds information about the offsets, the number thereof and a human-friendly description.
 
-It sets the just-calculated offsets as current (using `currentOffsets`) and returns a new link:spark-streaming-kafka-KafkaRDD.adoc[KafkaRDD] instance.
+At the end, `compute` sets the just-calculated offsets as <<currentOffsets, current offsets>>, <<commitAll, asynchronously commits all offsets>> (from <<commitQueue, commitQueue>>) and returns the new `KafkaRDD` instance.
+
+=== [[commitAll]] `commitAll` Method
+
+CAUTION: FIXME
+
+=== [[latestOffsets]] `latestOffsets` Method
+
+CAUTION: FIXME
+
+NOTE: Every call to `latestOffsets` calls Kafka brokers for the offsets.
+
+=== [[clamp]] `clamp` Method
+
+CAUTION: FIXME
 
 === [[consumer]] Creating Kafka Consumer -- `consumer` Method
 
