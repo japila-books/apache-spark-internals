@@ -1,12 +1,12 @@
 == [[InputInfoTracker]] InputInfoTracker
 
-`InputInfoTracker` tracks batch times and batch statistics for link:spark-streaming-inputdstreams.adoc[input streams] (per input stream id with `StreamInputInfo`). It is later used when link:spark-streaming-jobgenerator.adoc#GenerateJobs[JobGenerator submits streaming jobs for a batch interval] (and propagated to interested listeners as link:spark-streaming-streaminglisteners.adoc#StreamingListenerEvent[StreamingListenerBatchSubmitted] event).
+`InputInfoTracker` tracks batch times and input record statistics for link:spark-streaming-inputdstreams.adoc[input dstreams] (per input stream id with `StreamInputInfo`). It is later used when link:spark-streaming-jobgenerator.adoc#generateJobs[`JobGenerator` submits streaming jobs for a batch interval] (and propagated to interested streaming listeners as link:spark-streaming-streaminglisteners.adoc#StreamingListenerEvent[StreamingListenerBatchSubmitted] event).
 
-NOTE: `InputInfoTracker` is managed by `JobScheduler`, i.e. it is created when link:spark-streaming-jobscheduler.adoc#starting[JobScheduler starts] and link:spark-streaming-jobscheduler.adoc#stopping[is stopped alongside].
+NOTE: `InputInfoTracker` is managed by link:spark-streaming-jobscheduler.adoc[JobScheduler], i.e. it is created when link:spark-streaming-jobscheduler.adoc#starting[JobScheduler starts] and link:spark-streaming-jobscheduler.adoc#stopping[is stopped alongside].
 
-`InputInfoTracker` uses internal registry `batchTimeToInputInfos` to maintain the mapping of batch times and link:spark-streaming-inputdstreams.adoc[input streams] (i.e. another mapping between input stream ids and `StreamInputInfo`).
+`InputInfoTracker` uses internal registry <<batchTimeToInputInfos, batchTimeToInputInfos>> to maintain the mapping of batch times and link:spark-streaming-inputdstreams.adoc[input dstreams] (i.e. another mapping between input stream ids and `StreamInputInfo`).
 
-It accumulates batch statistics at every batch time when link:spark-streaming-dstreams.adoc#contract[input streams are computing RDDs] (and call <<reportInfo, reportInfo>>).
+`InputInfoTracker` accumulates batch statistics for every batch when link:spark-streaming-dstreams.adoc#contract[input streams are computing RDDs] (and call <<reportInfo, reportInfo>>).
 
 [NOTE]
 ====
@@ -19,11 +19,46 @@ The following input streams report information:
 * FileInputDStream
 ====
 
-=== [[reportInfo]] `reportInfo` Method
+=== [[batchTimeToInputInfos]] Batch Intervals and Input DStream Statistics -- `batchTimeToInputInfos` Registry
 
-CAUTION: FIXME
+[source, scala]
+----
+batchTimeToInputInfos: HashMap[Time, HashMap[Int, StreamInputInfo]]
+----
 
-=== [[cleanup]] Cleaning up -- `cleanup` Method
+`batchTimeToInputInfos` keeps track of batches (`Time`) with input dstreams (`Int`) that reported their statistics (`StreamInputInfo`).
+
+=== [[reportInfo]] Reporting Input DStream Statistics for Batch -- `reportInfo` Method
+
+[source, scala]
+----
+reportInfo(batchTime: Time, inputInfo: StreamInputInfo): Unit
+----
+
+`reportInfo` adds the input `inputInfo` for the `batchTime` to <<batchTimeToInputInfos, batchTimeToInputInfos>>.
+
+Internally, `reportInfo` accesses the input dstream reports for `batchTime` using the internal `batchTimeToInputInfos` registry (creating a new empty one if `batchTime` has not been registered yet).
+
+`reportInfo` then makes sure that the `inputInfo` input dstream has not been registered already for the input `batchTime` and throws a `IllegalStateException` otherwise.
+
+```
+Input stream [inputStreamId] for batch [batchTime] is already added into InputInfoTracker, this is an illegal state
+```
+
+Ultimatelly, `reportInfo` adds the input report to `batchTimeToInputInfos`.
+
+=== [[getInfo]] Requesting Statistics For Input DStreams For Batch -- `getInfo` Method
+
+[source, scala]
+----
+getInfo(batchTime: Time): Map[Int, StreamInputInfo]
+----
+
+`getInfo` returns all the <<reportInfo, reported input dstream statistics>> for `batchTime`. It returns an empty collection if there are no reports for a batch.
+
+NOTE: `getInfo` is used when link:spark-streaming-jobgenerator.adoc#generateJobs[`JobGenerator` has successfully generated streaming jobs (and submits the jobs to `JobScheduler`)].
+
+=== [[cleanup]] Removing Statistics -- `cleanup` Method
 
 [source, scala]
 ----
