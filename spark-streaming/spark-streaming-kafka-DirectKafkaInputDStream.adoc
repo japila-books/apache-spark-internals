@@ -86,9 +86,7 @@ It initializes <<commitQueue, commitQueue>> and <<commitCallback, commitCallback
 currentOffsets: Map[TopicPartition, Long]
 ----
 
-`currentOffsets` holds the latest (highest) available offsets (as set by `latestOffsets` and <<compute, compute>>).
-
-CAUTION: FIXME When are `latestOffsets` and `compute` called?
+`currentOffsets` holds the latest (highest) available offsets for all the topic partitions the dstream is subscribed to (as set by <<latestOffsets, latestOffsets>> and <<compute, compute>>).
 
 `currentOffsets` is initialized when <<creating-instance, `DirectKafkaInputDStream` is created afresh>> (it could also be re-created from a checkpoint).
 
@@ -162,12 +160,6 @@ At the end, `compute` sets the just-calculated offsets as <<currentOffsets, curr
 
 CAUTION: FIXME
 
-=== [[latestOffsets]] `latestOffsets` Method
-
-CAUTION: FIXME
-
-NOTE: Every call to `latestOffsets` calls Kafka brokers for the offsets.
-
 === [[clamp]] `clamp` Method
 
 CAUTION: FIXME
@@ -237,6 +229,25 @@ stop(): Unit
 `stop` closes the current <<consumer, Kafka consumer>>.
 
 NOTE: `stop` is a part of the link:spark-streaming-inputdstreams.adoc[InputDStream Contract].
+
+=== [[latestOffsets]] Requesting Latest Topic Partition Offsets from Kafka -- `latestOffsets` Method
+
+[source, scala]
+----
+latestOffsets(): Map[TopicPartition, Long]
+----
+
+`latestOffsets` <<consumer, connects to a Kafka cluster>> and polls for the latest topic partition offsets, including partitions that have been added recently.
+
+`latestOffsets` calculates the new topic partitions (comparing to <<currentOffsets, current offsets>>) and adds them to `currentOffsets` (with the current offsets).
+
+NOTE: `latestOffsets` uses `poll(0)`, `assignment`, `position` (twice for every `TopicPartition`), `pause`, `seekToEnd` method calls. They seem quite performance-heavy.
+
+The new partitions are ``pause``d and the current offsets ``seekToEnd``ed.
+
+CAUTION: FIXME Why are new partitions paused? Make the description more user-friendly.
+
+NOTE: `latestOffsets` is used when <<compute, computing a KafkaRDD for batch intervals>>.
 
 === [[back-pressure]] Back Pressure
 
