@@ -1,6 +1,6 @@
 == [[InputInfoTracker]] InputInfoTracker
 
-`InputInfoTracker` tracks batch times and input record statistics for link:spark-streaming-inputdstreams.adoc[input dstreams] (per input stream id with `StreamInputInfo`). It is later used when link:spark-streaming-jobgenerator.adoc#generateJobs[`JobGenerator` submits streaming jobs for a batch interval] (and propagated to interested streaming listeners as link:spark-streaming-streaminglisteners.adoc#StreamingListenerEvent[StreamingListenerBatchSubmitted] event).
+`InputInfoTracker` tracks batch times and input record statistics for link:spark-streaming-inputdstreams.adoc[input dstreams] (per input stream id with `StreamInputInfo`). It is used when link:spark-streaming-jobgenerator.adoc#generateJobs[`JobGenerator` submits streaming jobs for a batch interval] and in turn propagated to link:spark-streaming-streaminglisteners.adoc[streaming listeners] (as link:spark-streaming-streaminglisteners.adoc#StreamingListenerEvent[StreamingListenerBatchSubmitted] events).
 
 NOTE: `InputInfoTracker` is managed by link:spark-streaming-jobscheduler.adoc[JobScheduler], i.e. it is created when link:spark-streaming-jobscheduler.adoc#starting[JobScheduler starts] and link:spark-streaming-jobscheduler.adoc#stopping[is stopped alongside].
 
@@ -19,6 +19,19 @@ The following input streams report information:
 * FileInputDStream
 ====
 
+[TIP]
+====
+Enable `INFO` logging level for `org.apache.spark.streaming.scheduler.InputInfoTracker` logger to see what happens inside.
+
+Add the following line to `conf/log4j.properties`:
+
+```
+log4j.logger.org.apache.spark.streaming.scheduler.InputInfoTracker=INFO
+```
+
+Refer to link:../spark-logging.adoc[Logging].
+====
+
 === [[batchTimeToInputInfos]] Batch Intervals and Input DStream Statistics -- `batchTimeToInputInfos` Registry
 
 [source, scala]
@@ -26,7 +39,7 @@ The following input streams report information:
 batchTimeToInputInfos: HashMap[Time, HashMap[Int, StreamInputInfo]]
 ----
 
-`batchTimeToInputInfos` keeps track of batches (`Time`) with input dstreams (`Int`) that reported their statistics (`StreamInputInfo`).
+`batchTimeToInputInfos` keeps track of batches (`Time`) with input dstreams (`Int`) that reported their statistics (`StreamInputInfo`) per batch.
 
 === [[reportInfo]] Reporting Input DStream Statistics for Batch -- `reportInfo` Method
 
@@ -58,17 +71,17 @@ getInfo(batchTime: Time): Map[Int, StreamInputInfo]
 
 NOTE: `getInfo` is used when link:spark-streaming-jobgenerator.adoc#generateJobs[`JobGenerator` has successfully generated streaming jobs (and submits the jobs to `JobScheduler`)].
 
-=== [[cleanup]] Removing Statistics -- `cleanup` Method
+=== [[cleanup]] Removing Batch Statistics -- `cleanup` Method
 
 [source, scala]
 ----
 cleanup(batchThreshTime: Time): Unit
 ----
 
-You should see the following INFO message when `cleanup` of old batch times is requested (akin to _garbage collection_):
+`cleanup` removes statistics for batches older than `batchThreshTime`. It removes the batches from <<batchTimeToInputInfos, batchTimeToInputInfos>> registry.
+
+When executed, you should see the following INFO message (akin to _garbage collection_):
 
 ```
 INFO InputInfoTracker: remove old batch metadata: [timesToCleanup]
 ```
-
-CAUTION: FIXME When is this called?
