@@ -1,8 +1,6 @@
 == [[DirectKafkaInputDStream]] DirectKafkaInputDStream -- Direct Kafka DStream
 
-`DirectKafkaInputDStream` is an link:spark-streaming-inputdstreams.adoc[input dstream] of Kafka's https://kafka.apache.org/0100/javadoc/org/apache/kafka/clients/consumer/ConsumerRecord.html[ConsumerRecord]s that produces link:spark-streaming-kafka-KafkaRDD.adoc[KafkaRDD] batches.
-
-NOTE: Kafka's https://kafka.apache.org/0100/javadoc/org/apache/kafka/clients/consumer/ConsumerRecord.html[ConsumerRecord] holds a topic name, a partition number, the offset of the record in the Kafka partition and the record itself (as a key-value pair).
+`DirectKafkaInputDStream` is an link:spark-streaming-inputdstreams.adoc[input dstream] of link:spark-streaming-kafka-KafkaRDD.adoc[KafkaRDD] batches.
 
 `DirectKafkaInputDStream` is also a `CanCommitOffsets` object.
 
@@ -10,7 +8,7 @@ As an input dstream, `DirectKafkaInputDStream` implements the mandatory abstract
 
 1. `dependencies: List[DStream[_]]` returns an empty collection, i.e. it has no dependencies on other streams (other than Kafka brokers to read data from).
 2. `slideDuration: Duration` passes all calls on to link:spark-streaming-dstreamgraph.adoc[DStreamGraph.batchDuration].
-3. `compute(validTime: Time): Option[RDD[T]]` - consult <<compute, Computing RDDs (using compute Method)>> section.
+3. `compute(validTime: Time): Option[RDD[T]]` - consult <<compute, Computing RDDs (using compute method)>> section.
 4. <<start, start>> to start polling for messages from Kafka.
 5. <<stop, stop>> to close the Kafka consumer (and therefore polling for messages from Kafka).
 
@@ -110,15 +108,15 @@ commitCallback: AtomicReference[OffsetCommitCallback]
 commitQueue: ConcurrentLinkedQueue[OffsetRange]
 ----
 
-`commitQueue` is initialized when <<creating-instance, `DirectKafkaInputDStream` is created>>. It is used in `commitAsync` (that is part of the `CanCommitOffsets` contract that `DirectKafkaInputDStream` implements) to queue up offsets for commit to Kafka at a future time (i.e. when the internal `commitAll` is called).
+`commitQueue` is initialized when <<creating-instance, `DirectKafkaInputDStream` is created>>. It is used in `commitAsync` (that is part of the `CanCommitOffsets` contract that `DirectKafkaInputDStream` implements) to queue up offsets for commit to Kafka at a future time (i.e. when the internal <<commitAll, commitAll>> is called).
 
 TIP: Read https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/ConcurrentLinkedQueue.html[java.util.concurrent.ConcurrentLinkedQueue] javadoc.
 
-=== [[executorKafkaParams]] `executorKafkaParams` Method
+=== [[executorKafkaParams]] `executorKafkaParams` method
 
 CAUTION: FIXME
 
-=== [[start]] Starting DirectKafkaInputDStream -- `start` Method
+=== [[start]] Starting DirectKafkaInputDStream -- `start` method
 
 [source, scala]
 ----
@@ -133,7 +131,7 @@ After the polling, `start` checks if the internal `currentOffsets` is empty, and
 
 Ultimately, `start` pauses all partitions (using Kafka's `Consumer.pause` and the internal collection of topics and their current offsets).
 
-=== [[compute]] Computing KafkaRDD for Batch Interval -- `compute` Method
+=== [[compute]] Computing KafkaRDD for Batch Interval -- `compute` method
 
 [source, scala]
 ----
@@ -142,9 +140,9 @@ compute(validTime: Time): Option[KafkaRDD[K, V]]
 
 NOTE: `compute` is a part of the link:spark-streaming-dstreams.adoc[DStream Contract].
 
-`compute` _always_ computes a link:spark-streaming-kafka-KafkaRDD.adoc[KafkaRDD] (despite the return type that allows for no RDDs).
+`compute` _always_ computes a link:spark-streaming-kafka-KafkaRDD.adoc[KafkaRDD] (despite the return type that allows for no RDDs). It is that it is left to `KafkaRDD` itself to decide what to do when no Kafka records exist in topic partitions to process.
 
-NOTE: It is link:spark-streaming-dstreamgraph.adoc#generateJobs[DStreamGraph to request generating streaming jobs for batches].
+NOTE: It is link:spark-streaming-dstreamgraph.adoc#generateJobs[`DStreamGraph` to request generating streaming jobs for batches].
 
 When `compute` is called, it calls <<latestOffsets, latestOffsets>> and <<clamp, clamp>>. The result topic partition offsets are then mapped to link:spark-streaming-kafka-HasOffsetRanges.adoc#OffsetRange[OffsetRange]s with a topic, a partition, and <<currentOffsets, current offset for the given partition>> and the result offset. That in turn is used to create link:spark-streaming-kafka-KafkaRDD.adoc[KafkaRDD] (with the current link:../spark-sparkcontext.adoc[SparkContext], <<executorKafkaParams, executorKafkaParams>>, the ``OffsetRange``s, <<getPreferredHosts, preferred hosts>>, and `useConsumerCache` enabled).
 
@@ -154,17 +152,37 @@ CAUTION: FIXME What's `useConsumerCache`?
 
 With that, `compute` builds a `StreamInputInfo` that it then passes on to link:spark-streaming-InputInfoTracker.adoc#reportInfo[InputInfoTracker.reportInfo] (removing empty offset ranges). The metadata for the `StreamInputInfo` holds information about the offsets, the number thereof and a human-friendly description.
 
-At the end, `compute` sets the just-calculated offsets as <<currentOffsets, current offsets>>, <<commitAll, asynchronously commits all offsets>> (from <<commitQueue, commitQueue>>) and returns the new `KafkaRDD` instance.
+At the end, `compute` sets the just-calculated offsets as <<currentOffsets, current offsets>>, <<commitAll, asynchronously commits all queued offsets>> (from <<commitQueue, commitQueue>>) and returns the newly-created `KafkaRDD`.
 
-=== [[commitAll]] `commitAll` Method
+=== [[commitAll]] Committing Queued Offsets to Kafka -- `commitAll` method
+
+[source, scala]
+----
+commitAll(): Unit
+----
+
+`commitAll` commits all queued link:spark-streaming-kafka-HasOffsetRanges.adoc#OffsetRange[OffsetRange]s in <<commitQueue, commitQueue>> (using Kafka's link:++https://kafka.apache.org/0100/javadoc/org/apache/kafka/clients/consumer/Consumer.html#commitAsync(java.util.Map,%20org.apache.kafka.clients.consumer.OffsetCommitCallback)++[Consumer.commitAsync]).
+
+NOTE: `commitAll` is used for every batch interval (when <<compute, compute>> is called to generate a `KafkaRDD`).
+
+Internally, `commitAll` walks through ``OffsetRange``s in <<commitQueue, commitQueue>> and calculates the offsets for every topic partition. It uses them to create a collection of Kafka's https://kafka.apache.org/0100/javadoc/org/apache/kafka/common/TopicPartition.html[TopicPartition] and https://kafka.apache.org/0100/javadoc/org/apache/kafka/clients/consumer/OffsetAndMetadata.html[OffsetAndMetadata] pairs for Kafka's link:++https://kafka.apache.org/0100/javadoc/org/apache/kafka/clients/consumer/Consumer.html#commitAsync(java.util.Map,%20org.apache.kafka.clients.consumer.OffsetCommitCallback)++[Consumer.commitAsync] using the internal <<consumer, Kafka consumer>> reference.
+
+=== [[clamp]] `clamp` method
+
+[source, scala]
+----
+clamp(offsets: Map[TopicPartition, Long]): Map[TopicPartition, Long]
+----
+
+`clamp` calls <<maxMessagesPerPartition, maxMessagesPerPartition>> on the input `offsets` collection (of topic partitions with their offsets)...
 
 CAUTION: FIXME
 
-=== [[clamp]] `clamp` Method
+=== [[maxMessagesPerPartition]] `maxMessagesPerPartition` method
 
 CAUTION: FIXME
 
-=== [[consumer]] Creating Kafka Consumer -- `consumer` Method
+=== [[consumer]] Creating Kafka Consumer -- `consumer` method
 
 [source, scala]
 ----
@@ -177,7 +195,7 @@ consumer(): Consumer[K, V]
 
 CAUTION: FIXME A note with What `ConsumerStrategy` is for?
 
-=== [[getPreferredHosts]] Calculating Preferred Hosts Using `LocationStrategy` -- `getPreferredHosts` Method
+=== [[getPreferredHosts]] Calculating Preferred Hosts Using `LocationStrategy` -- `getPreferredHosts` method
 
 [source, scala]
 ----
@@ -208,7 +226,7 @@ It does not call Kafka broker(s) for topic assignments.
 
 NOTE: `getPreferredHosts` is used when <<compute, creating a KafkaRDD for a batch interval>>.
 
-==== [[getBrokers]] Requesting Partition Assignments from Kafka -- `getBrokers` Method
+==== [[getBrokers]] Requesting Partition Assignments from Kafka -- `getBrokers` method
 
 [source, scala]
 ----
@@ -219,7 +237,7 @@ getBrokers: ju.Map[TopicPartition, String]
 
 NOTE: `getBrokers` uses Kafka's  link:++https://kafka.apache.org/0100/javadoc/org/apache/kafka/clients/consumer/KafkaConsumer.html#assignment()++[Consumer.assignment()].
 
-=== [[stop]] Stopping DirectKafkaInputDStream -- `stop` Method
+=== [[stop]] Stopping DirectKafkaInputDStream -- `stop` method
 
 [source, scala]
 ----
@@ -230,7 +248,7 @@ stop(): Unit
 
 NOTE: `stop` is a part of the link:spark-streaming-inputdstreams.adoc[InputDStream Contract].
 
-=== [[latestOffsets]] Requesting Latest Topic Partition Offsets from Kafka -- `latestOffsets` Method
+=== [[latestOffsets]] Requesting Latest Topic Partition Offsets from Kafka -- `latestOffsets` method
 
 [source, scala]
 ----
