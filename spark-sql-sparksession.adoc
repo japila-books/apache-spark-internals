@@ -1,4 +1,4 @@
-== [[SparkSession]] SparkSession -- The Entry Point
+== [[SparkSession]] SparkSession -- The Entry Point to Spark SQL
 
 `SparkSession` is the entry point to developing Spark SQL applications using the fully-typed link:spark-sql-dataset.adoc[Dataset] (and untyped link:spark-sql-dataframe.adoc[DataFrame]) data abstractions.
 
@@ -19,7 +19,7 @@ You can have multiple ``SparkSession``s in a single Spark application.
 
 Internally, `SparkSession` requires a link:spark-sparkcontext.adoc[SparkContext] and an optional <<SharedState, SharedState>> (that represents the shared state across `SparkSession` instances).
 
-=== [[builder]] Accessing Builder for SparkSession (builder method)
+=== [[builder]] Accessing Builder for SparkSession -- `builder` method
 
 [source, scala]
 ----
@@ -36,9 +36,9 @@ val builder = SparkSession.builder
 
 TIP: Read about https://en.wikipedia.org/wiki/Fluent_interface[Fluent interface] design pattern in Wikipedia, the free encyclopedia.
 
-=== [[implicits]] Implicits -- SparkSession.implicits
+=== [[implicits]] Implicit Conversions -- `implicits` object
 
-The `implicits` object is a helper class with the Scala implicit methods to convert Scala objects to link:spark-sql-dataset.adoc[Datasets], link:spark-sql-dataframe.adoc[DataFrames] and link:spark-sql-columns.adoc[Columns]. It also defines link:spark-sql-Encoder.adoc[Encoders] for Scala's "primitive" types (e.g. `Int`, `Double`, `String`) and their products and collections.
+The `implicits` object is a helper class with the Scala implicit methods (aka _conversions_) to convert Scala objects to link:spark-sql-dataset.adoc[Datasets], link:spark-sql-dataframe.adoc[DataFrames] and link:spark-sql-columns.adoc[Columns]. It also defines link:spark-sql-Encoder.adoc[Encoders] for Scala's "primitive" types, e.g. `Int`, `Double`, `String`, and their products and collections.
 
 [NOTE]
 ====
@@ -51,24 +51,15 @@ import spark.implicits._
 ----
 ====
 
-It offers support for creating `Dataset` from `RDD` of any type (for which an link:spark-sql-Encoder.adoc[encoder] exists in scope), or case classes or tuples, and `Seq`.
+`implicits` object offers support for creating `Dataset` from `RDD` of any type (for which an link:spark-sql-Encoder.adoc[encoder] exists in scope), or case classes or tuples, and `Seq`.
 
-It also offers conversions from Scala's `Symbol` or `$` to `Column`.
+`implicits` object also offers conversions from Scala's `Symbol` or `$` to `Column`.
 
 It also offers conversions from `RDD` or `Seq` of `Product` types (e.g. case classes or tuples) to `DataFrame`. It has direct conversions from `RDD` of `Int`, `Long` and `String` to `DataFrame` with a single column name `_1`.
 
 NOTE: It is only possible to call `toDF` methods on `RDD` objects of `Int`, `Long`, and `String` "primitive" types.
 
-=== [[readStream]] readStream
-
-[source, scala]
-----
-readStream: DataStreamReader
-----
-
-`readStream` returns a new link:spark-sql-streaming-DataStreamReader.adoc[DataStreamReader].
-
-=== [[emptyDataset]] Creating Empty Dataset (emptyDataset method)
+=== [[emptyDataset]] Creating Empty Dataset -- `emptyDataset` method
 
 [source, scala]
 ----
@@ -89,7 +80,7 @@ root
 
 `emptyDataset` creates a  link:spark-sql-logical-plan-LocalRelation.adoc[`LocalRelation` logical query plan].
 
-=== [[createDataset]] Creating Dataset from Local Collections and RDDs (createDataset methods)
+=== [[createDataset]] Creating Dataset from Local Collections and RDDs -- `createDataset` methods
 
 [source, scala]
 ----
@@ -134,7 +125,7 @@ NOTE: Only unresolved link:spark-sql-Encoder.adoc#ExpressionEncoder[expression e
 
 The expression encoder is then used to map elements (of the input `Seq[T]`) into a collection of link:spark-sql-InternalRow.adoc[InternalRows]. With the references and rows, `createDataset` returns a link:spark-sql-dataset.adoc[Dataset] with a link:spark-sql-logical-plan-LocalRelation.adoc[`LocalRelation` logical query plan].
 
-=== [[range]] Creating Dataset With Single Long Column (range methods)
+=== [[range]] Creating Dataset With Single Long Column -- `range` methods
 
 [source, scala]
 ----
@@ -161,7 +152,7 @@ NOTE: The three first variants (that do not specify `numPartitions` explicitly) 
 
 Internally, `range` creates a new `Dataset[Long]` with `Range` link:spark-sql-catalyst-LogicalPlan.adoc[logical plan] and `Encoders.LONG` link:spark-sql-Encoder.adoc[encoder].
 
-=== [[emptyDataFrame]] emptyDataFrame
+=== [[emptyDataFrame]]  Creating Empty DataFrame --  `emptyDataFrame` method
 
 [source, scala]
 ----
@@ -172,7 +163,7 @@ emptyDataFrame: DataFrame
 
 It calls <<createDataFrame, createDataFrame>> with an empty `RDD[Row]` and an empty schema link:spark-sql-StructType.adoc[StructType(Nil)].
 
-=== [[createDataFrame]] createDataFrame method
+=== [[createDataFrame]] Creating DataFrames from RDDs with Explicit Schema -- `createDataFrame` method
 
 [source, scala]
 ----
@@ -181,20 +172,36 @@ createDataFrame(rowRDD: RDD[Row], schema: StructType): DataFrame
 
 `createDataFrame` creates a `DataFrame` using `RDD[Row]` and the input `schema`. It is assumed that the rows in `rowRDD` all match the `schema`.
 
-=== [[streams]] `streams` Attribute
+=== [[sql]] Executing SQL Queries -- `sql` method
 
 [source, scala]
 ----
-streams: StreamingQueryManager
+sql(sqlText: String): DataFrame
 ----
 
-`streams` attribute gives access to link:spark-sql-streaming-StreamingQueryManager.adoc[StreamingQueryManager] (through link:spark-sql-sessionstate.adoc#streamingQueryManager[SessionState]).
+`sql` executes the `sqlText` SQL statement.
 
-[source, scala]
-----
-val spark: SparkSession = ...
-spark.streams.active.foreach(println)
-----
+```
+scala> sql("SHOW TABLES")
+res0: org.apache.spark.sql.DataFrame = [tableName: string, isTemporary: boolean]
+
+scala> sql("DROP TABLE IF EXISTS testData")
+res1: org.apache.spark.sql.DataFrame = []
+
+// Let's create a table to SHOW it
+spark.range(10).write.option("path", "/tmp/test").saveAsTable("testData")
+
+scala> sql("SHOW TABLES").show
++---------+-----------+
+|tableName|isTemporary|
++---------+-----------+
+| testdata|      false|
++---------+-----------+
+```
+
+Internally, it creates a link:spark-sql-dataset.adoc[Dataset] using the current `SparkSession` and a link:spark-sql-catalyst-LogicalPlan.adoc[logical plan]. The plan is created by parsing the input `sqlText` using <<sessionState, sessionState.sqlParser>>.
+
+CAUTION: FIXME See link:spark-sql-sqlcontext.adoc#sql[Executing SQL Queries].
 
 === [[udf]] Accessing UDF Registration Interface -- `udf` Attribute
 
@@ -225,6 +232,20 @@ scala> sql("SELECT *, myUpper(value) UPPER FROM strs").show
 
 Internally, it is an alias for link:spark-sql-sessionstate.adoc#udf[SessionState.udf].
 
+=== [[table]] Creating DataFrames from Tables -- `table` method
+
+[source, scala]
+----
+table(tableName: String): DataFrame
+----
+
+`table` creates a link:spark-sql-dataframe.adoc[DataFrame] from records in the `tableName` table (if exists).
+
+[source, scala]
+----
+val df = spark.table("mytable")
+----
+
 === [[catalog]] `catalog` Attribute
 
 `catalog` attribute is an interface to the current link:spark-sql-Catalog.adoc[catalog] (of databases, tables, functions, table columns, and temporary views).
@@ -240,18 +261,65 @@ scala> spark.catalog.listTables.show
 +------------------+--------+-----------+---------+-----------+
 ----
 
-=== [[table]] table method
+=== [[read]] Accessing DataFrameReader -- `read` method
 
 [source, scala]
 ----
-table(tableName: String): DataFrame
+read: DataFrameReader
 ----
 
-`table` creates a link:spark-sql-dataframe.adoc[DataFrame] from records in the `tableName` table (if exists).
+`read` method returns a link:spark-sql-dataframereader.adoc[DataFrameReader] that is used to read data from external storage systems and load it into a `DataFrame`.
 
 [source, scala]
 ----
-val df = spark.table("mytable")
+val spark: SparkSession = // create instance
+val dfReader: DataFrameReader = spark.read
+----
+
+=== [[conf]] Runtime Configuration -- `conf` attribute
+
+[source, scala]
+----
+conf: RuntimeConfig
+----
+
+`conf` returns the current runtime configuration (as `RuntimeConfig`) that wraps link:spark-sql-SQLConf.adoc[SQLConf].
+
+CAUTION: FIXME
+
+=== [[sessionState]] `sessionState` Property
+
+`sessionState` is a transient lazy value that represents the current link:spark-sql-sessionstate.adoc[SessionState].
+
+NOTE: `sessionState` is a `private[sql]` value so you can only access it in a code inside `org.apache.spark.sql` package.
+
+`sessionState` is a lazily-created value based on the internal link:spark-sql-settings.adoc#spark.sql.catalogImplementation[spark.sql.catalogImplementation] setting that can be:
+
+* `org.apache.spark.sql.hive.HiveSessionState` for `hive`
+* `org.apache.spark.sql.internal.SessionState` for `in-memory`
+
+=== [[readStream]] `readStream` method
+
+[source, scala]
+----
+readStream: DataStreamReader
+----
+
+`readStream` returns a new link:spark-sql-streaming-DataStreamReader.adoc[DataStreamReader].
+
+=== [[streams]] `streams` Attribute
+
+[source, scala]
+----
+streams: StreamingQueryManager
+----
+
+`streams` attribute gives access to link:spark-sql-streaming-StreamingQueryManager.adoc[StreamingQueryManager] (through link:spark-sql-sessionstate.adoc#streamingQueryManager[SessionState]).
+
+[source, scala]
+----
+val spark: SparkSession = ...
+spark.streams.active.foreach(println)
 ----
 
 === [[streamingQueryManager]] `streamingQueryManager` Attribute
@@ -281,7 +349,7 @@ experimental: ExperimentalMethods
 
 NOTE: `experimental` is used in link:spark-sql-queryplanner.adoc#SparkPlanner[SparkPlanner] and link:spark-sql-catalyst-Optimizer.adoc#SparkOptimizer[SparkOptimizer]. Hive and link:spark-sql-structured-streaming.adoc[Structured Streaming] use it for their own extra strategies and optimization rules.
 
-=== [[newSession]] newSession method
+=== [[newSession]] `newSession` method
 
 [source, scala]
 ----
@@ -341,71 +409,3 @@ INFO SharedState: Warehouse path is '[warehousePath]'.
 === [[creating-instance]] Creating SparkSession Instance
 
 CAUTION: FIXME
-
-=== [[read]] Accessing DataFrameReader -- `read` method
-
-[source, scala]
-----
-read: DataFrameReader
-----
-
-`read` method returns a link:spark-sql-dataframereader.adoc[DataFrameReader] that is used to read data from external storage systems and load it into a `DataFrame`.
-
-[source, scala]
-----
-val spark: SparkSession = // create instance
-val dfReader: DataFrameReader = spark.read
-----
-
-=== [[conf]] Runtime Configuration -- `conf` attribute
-
-[source, scala]
-----
-conf: RuntimeConfig
-----
-
-`conf` returns the current runtime configuration (as `RuntimeConfig`) that wraps link:spark-sql-SQLConf.adoc[SQLConf].
-
-CAUTION: FIXME
-
-=== [[sessionState]] sessionState
-
-`sessionState` is a transient lazy value that represents the current link:spark-sql-sessionstate.adoc[SessionState].
-
-NOTE: `sessionState` is a `private[sql]` value so you can only access it in a code inside `org.apache.spark.sql` package.
-
-`sessionState` is a lazily-created value based on the internal link:spark-sql-settings.adoc#spark.sql.catalogImplementation[spark.sql.catalogImplementation] setting that can be:
-
-* `org.apache.spark.sql.hive.HiveSessionState` for `hive`
-* `org.apache.spark.sql.internal.SessionState` for `in-memory`
-
-=== [[sql]] Executing SQL Queries (sql method)
-
-[source, scala]
-----
-sql(sqlText: String): DataFrame
-----
-
-`sql` executes the `sqlText` SQL statement.
-
-```
-scala> sql("SHOW TABLES")
-res0: org.apache.spark.sql.DataFrame = [tableName: string, isTemporary: boolean]
-
-scala> sql("DROP TABLE IF EXISTS testData")
-res1: org.apache.spark.sql.DataFrame = []
-
-// Let's create a table to SHOW it
-spark.range(10).write.option("path", "/tmp/test").saveAsTable("testData")
-
-scala> sql("SHOW TABLES").show
-+---------+-----------+
-|tableName|isTemporary|
-+---------+-----------+
-| testdata|      false|
-+---------+-----------+
-```
-
-Internally, it creates a link:spark-sql-dataset.adoc[Dataset] using the current `SparkSession` and a link:spark-sql-catalyst-LogicalPlan.adoc[logical plan]. The plan is created by parsing the input `sqlText` using <<sessionState, sessionState.sqlParser>>.
-
-CAUTION: FIXME See link:spark-sql-sqlcontext.adoc#sql[Executing SQL Queries].
