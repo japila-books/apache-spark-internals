@@ -123,13 +123,13 @@ CAUTION: FIXME
 start(): Unit
 ----
 
-`start` grabs the current <<consumer, Kafka consumer>> and polls (using Kafka's `Consumer.poll` and `0` as input).
+`start` creates a <<consumer, Kafka consumer>> and fetches available records in the subscribed list of topics and partitions (using Kafka's link:++https://kafka.apache.org/0100/javadoc/org/apache/kafka/clients/consumer/Consumer.html#poll(long)++[Consumer.poll] with `0` timeout that says to return immediately with any records that are available currently).
 
 NOTE: `start` is part of the link:spark-streaming-inputdstreams.adoc[InputDStream Contract].
 
-After the polling, `start` checks if the internal `currentOffsets` is empty, and if it is, it requests Kafka for topic (using Kafka's `Consumer.assignment`) and builds a map with topics and their offsets (using Kafka's `Consumer.position`).
+After the polling, `start` checks if the internal <<currentOffsets, currentOffsets>> is empty, and if it is, it requests Kafka for topic (using Kafka's link:++https://kafka.apache.org/0100/javadoc/org/apache/kafka/clients/consumer/Consumer.html#assignment()++[Consumer.assignment]) and builds a map with topics and their offsets (using Kafka's link:++https://kafka.apache.org/0100/javadoc/org/apache/kafka/clients/consumer/Consumer.html#position(org.apache.kafka.common.TopicPartition)++[Consumer.position]).
 
-Ultimately, `start` pauses all partitions (using Kafka's `Consumer.pause` and the internal collection of topics and their current offsets).
+Ultimately, `start` pauses all partitions (using Kafka's link:++https://kafka.apache.org/0100/javadoc/org/apache/kafka/clients/consumer/Consumer.html#pause(java.util.Collection)++[Consumer.pause] with the internal collection of topics and their current offsets).
 
 === [[compute]] Computing KafkaRDD for Batch Interval -- `compute` method
 
@@ -244,22 +244,22 @@ NOTE: `getBrokers` uses Kafka's  link:++https://kafka.apache.org/0100/javadoc/or
 stop(): Unit
 ----
 
-`stop` closes the current <<consumer, Kafka consumer>>.
+`stop` closes the internal <<consumer, Kafka consumer>>.
 
 NOTE: `stop` is a part of the link:spark-streaming-inputdstreams.adoc[InputDStream Contract].
 
-=== [[latestOffsets]] Requesting Latest Topic Partition Offsets from Kafka -- `latestOffsets` method
+=== [[latestOffsets]] Requesting Latest Offsets from Kafka Brokers -- `latestOffsets` method
 
 [source, scala]
 ----
 latestOffsets(): Map[TopicPartition, Long]
 ----
 
-`latestOffsets` <<consumer, connects to a Kafka cluster>> and polls for the latest topic partition offsets, including partitions that have been added recently.
+`latestOffsets` uses the internal <<consumer, Kafka consumer>> to poll for the latest topic partition offsets, including partitions that have been added recently.
 
-`latestOffsets` calculates the new topic partitions (comparing to <<currentOffsets, current offsets>>) and adds them to `currentOffsets` (with the current offsets).
+`latestOffsets` calculates the topic partitions that are new (comparing to <<currentOffsets, current offsets>>) and adds them to `currentOffsets`.
 
-NOTE: `latestOffsets` uses `poll(0)`, `assignment`, `position` (twice for every `TopicPartition`), `pause`, `seekToEnd` method calls. They seem quite performance-heavy.
+NOTE: `latestOffsets` uses `poll(0)`, `assignment`, `position` (twice for every `TopicPartition`), `pause`, `seekToEnd` method calls. They _seem_ quite performance-heavy. Are they?
 
 The new partitions are ``pause``d and the current offsets ``seekToEnd``ed.
 
