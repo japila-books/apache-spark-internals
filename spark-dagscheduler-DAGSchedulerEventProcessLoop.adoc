@@ -9,7 +9,9 @@
 | <<JobSubmitted, JobSubmitted>> | An action job was submitted to DAGScheduler (using link:spark-dagscheduler.adoc#submitJob[submitJob] or `runApproximateJob`)
 | <<MapStageSubmitted, MapStageSubmitted>> | A link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage] was submitted (using `submitMapStage`)
 | <<StageCancelled, StageCancelled>> |
-| <<JobCancelled, JobCancelled>> |
+
+| <<JobCancelled, JobCancelled>> | link:spark-dagscheduler.adoc#cancelJob[`DAGScheduler` is requested to cancel a job].
+
 | `JobGroupCancelled` |
 | `AllJobsCancelled` |
 | `BeginEvent` | link:spark-tasksetmanager.adoc[TaskSetManager] reports that a task is starting.
@@ -29,6 +31,38 @@ When created, `DAGSchedulerEventProcessLoop` gets the reference to the owning li
 NOTE: `DAGSchedulerEventProcessLoop` uses https://docs.oracle.com/javase/7/docs/api/java/util/concurrent/LinkedBlockingDeque.html[java.util.concurrent.LinkedBlockingDeque] blocking deque that grows indefinitely, i.e. up to https://docs.oracle.com/javase/7/docs/api/java/lang/Integer.html#MAX_VALUE[Integer.MAX_VALUE] events.
 
 NOTE: The name of the reference in `DAGScheduler` is `eventProcessLoop`.
+
+=== [[JobCancelled]] `JobCancelled` Event and `handleJobCancellation` Handler
+
+[source, scala]
+----
+JobCancelled(jobId: Int) extends DAGSchedulerEvent
+----
+
+`JobCancelled` is a `DAGSchedulerEvent` that triggers <<handleJobCancellation, handleJobCancellation>> method (on a separate thread).
+
+NOTE: It seems that although `SparkContext.cancelJob(jobId: Int)` calls `DAGScheduler.cancelJob`, no feature/code in Spark calls `SparkContext.cancelJob(jobId: Int)`. A dead code?
+
+==== [[handleJobCancellation]] `handleJobCancellation` Handler
+
+[source, scala]
+----
+handleJobCancellation(jobId: Int, reason: String = "")
+----
+
+`handleJobCancellation` ensures that the input `jobId` has been registered earlier (using `jobIdToStageIds` internal registry).
+
+If not registered, you should see the following DEBUG message in the logs:
+
+```
+DEBUG Trying to cancel unregistered job [jobId]
+```
+
+Otherwise, `handleJobCancellation` executes link:spark-dagscheduler.adoc#failJobAndIndependentStages[failJobAndIndependentStages] for the active job (using `jobIdToActiveJob`) and failure reason:
+
+```
+Job [jobId] cancelled [reason]
+```
 
 === [[CompletionEvent]][[handleTaskCompletion]] `CompletionEvent` Event and `handleTaskCompletion` Handler
 
@@ -351,23 +385,7 @@ For no link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStages] (in `shuff
 
 At the end, link:spark-dagscheduler.adoc#submitWaitingStages[DAGScheduler.submitWaitingStages] is called.
 
-=== [[JobCancelled]] JobCancelled and handleJobCancellation
-
-`JobCancelled(jobId: Int)` event is posted to cancel a job if it is scheduled or still running. It triggers execution of `DAGScheduler.handleStageCancellation(stageId)`.
-
-NOTE: It seems that although `SparkContext.cancelJob(jobId: Int)` calls `DAGScheduler.cancelJob`, no feature/code in Spark calls `SparkContext.cancelJob(jobId: Int)`. A dead code?
-
-When <<JobWaiter, JobWaiter.cancel>> is called, it calls `DAGScheduler.cancelJob`. You should see the following INFO message in the logs:
-
-```
-INFO Asked to cancel job [jobId]
-```
-
-It is a signal to the DAGScheduler to cancel the job.
-
-CAUTION: FIXME
-
-=== [[JobSubmitted]][[handleJobSubmitted]] `JobSubmitted` Event and `handleJobSubmitted` Handler
+=== [[JobSubmitted]] `JobSubmitted` Event and `handleJobSubmitted` Handler
 
 [source, scala]
 ----
@@ -382,12 +400,9 @@ JobSubmitted(
 extends DAGSchedulerEvent
 ----
 
-`JobSubmitted` is a `DAGSchedulerEvent`.
+`JobSubmitted` is a `DAGSchedulerEvent` that triggers <<handleJobSubmitted, handleJobSubmitted>> method (on a separate thread).
 
-When `DAGSchedulerEventProcessLoop` receives a `JobSubmitted` event, it executes `handleJobSubmitted` method.
-
-.DAGScheduler.handleJobSubmitted Method
-image::images/dagscheduler-handleJobSubmitted.png[align="center"]
+==== [[handleJobSubmitted]] `handleJobSubmitted` Handler
 
 [source, scala]
 ----
@@ -402,6 +417,9 @@ handleJobSubmitted(
 ----
 
 `handleJobSubmitted` link:spark-dagscheduler.adoc#createResultStage[creates a new `ResultStage`] (as `finalStage` in the picture above) and a `ActiveJob`.
+
+.DAGScheduler.handleJobSubmitted Method
+image::images/dagscheduler-handleJobSubmitted.png[align="center"]
 
 You should see the following INFO messages in the logs:
 

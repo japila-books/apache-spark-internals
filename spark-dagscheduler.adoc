@@ -39,7 +39,7 @@ DAGScheduler runs stages in topological order.
 
 [TIP]
 ====
-Enable `DEBUG` or `TRACE` logging level for `org.apache.spark.scheduler.DAGSchedule` logger to see what happens inside.
+Enable `INFO`, `DEBUG` or `TRACE` logging levels for `org.apache.spark.scheduler.DAGSchedule` logger to see what happens inside.
 
 Add the following line to `conf/log4j.properties`:
 
@@ -55,6 +55,40 @@ DAGScheduler needs link:spark-sparkcontext.adoc[SparkContext], link:spark-tasksc
 DAGScheduler reports metrics about its execution (refer to the section <<metrics, Metrics>>).
 
 When DAGScheduler schedules a job as a result of link:spark-rdd.adoc#actions[executing an action on a RDD] or link:spark-sparkcontext.adoc#running-jobs[calling SparkContext.runJob() method directly], it spawns parallel tasks to compute (partial) results per partition.
+
+=== [[failJobAndIndependentStages]] Failing Active Job and Stages -- `failJobAndIndependentStages` Internal Method
+
+[source, scala]
+----
+failJobAndIndependentStages(
+  job: ActiveJob,
+  failureReason: String,
+  exception: Option[Throwable] = None): Unit
+----
+
+The internal `failJobAndIndependentStages` method fails the input `job` and all the stages that are only used by the job.
+
+Internally, `failJobAndIndependentStages` uses `jobIdToStageIds` to find the stages registered for the job.
+
+If no stages could be found, you should see the following ERROR message in the logs:
+
+```
+ERROR No stages registered for job [id]
+```
+
+Otherwise, for every stage, `failJobAndIndependentStages` finds the job ids the stage belongs to.
+
+If no stages could be found or the job is not referenced by the stages, you should see the following ERROR message in the logs:
+
+```
+ERROR Job [id] not registered for stage [id] even though that stage was registered for the job
+```
+
+Only when there is exactly one job registered for the stage and the stage is in RUNNING state (in `runningStages` internal registry), link:spark-taskscheduler.adoc#cancelTasks[`TaskScheduler` is requested to cancel the stage's tasks] and <<markStageAsFinished, marks the stage finished>>.
+
+NOTE: `failJobAndIndependentStages` is called from link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleJobCancellation[handleJobCancellation] and `abortStage`.
+
+NOTE: `failJobAndIndependentStages` uses `jobIdToStageIds`, `stageIdToStage`, and `runningStages` <<internal-registries, internal registries>>.
 
 === [[submitJob]] Posting JobSubmitted Event to dag-scheduler-event-loop Event Loop -- `submitJob` method
 
@@ -225,11 +259,23 @@ NOTE: `DAGScheduler.taskEnded` method is called by a link:spark-tasksetmanager.a
 
 TIP: Read about `TaskMetrics` in link:spark-taskscheduler-taskmetrics.adoc[TaskMetrics].
 
-=== [[failJobAndIndependentStages]] `failJobAndIndependentStages` Internal Method
+=== [[markStageAsFinished]] Marking Stage Finished -- `markStageAsFinished` Internal Method
 
-The internal `failJobAndIndependentStages` method...FIXME
+[source, scala]
+----
+markStageAsFinished(stage: Stage, errorMessage: Option[String] = None): Unit
+----
 
-NOTE: It is called by...FIXME
+CAUTION: FIXME
+
+=== [[cancelJob]] `cancelJob` Method
+
+[source, scala]
+----
+cancelJob(jobId: Int): Unit
+----
+
+CAUTION: FIXME
 
 === [[event-loop]][[eventProcessLoop]] dag-scheduler-event-loop - Internal Event Loop
 
