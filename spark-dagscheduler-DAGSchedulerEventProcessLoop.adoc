@@ -1,0 +1,54 @@
+== [[DAGSchedulerEventProcessLoop]] DAGSchedulerEventProcessLoop -- dag-scheduler-event-loop DAGScheduler Event Loop
+
+`DAGSchedulerEventProcessLoop` is a `EventLoop` for processing `DAGSchedulerEvent` events. It is called *dag-scheduler-event-loop*.
+
+When created, `DAGSchedulerEventProcessLoop` gets the reference to the owning link:spark-dagscheduler.adoc[DAGScheduler] that it uses to call event handler methods on.
+
+=== [[JobSubmitted]][[handleJobSubmitted]] `JobSubmitted` Event and `handleJobSubmitted` Handler
+
+[source, scala]
+----
+JobSubmitted(
+  jobId: Int,
+  finalRDD: RDD[_],
+  func: (TaskContext, Iterator[_]) => _,
+  partitions: Array[Int],
+  callSite: CallSite,
+  listener: JobListener,
+  properties: Properties = null)
+extends DAGSchedulerEvent
+----
+
+`JobSubmitted` is a `DAGSchedulerEvent`.
+
+When `DAGSchedulerEventProcessLoop` receives a `JobSubmitted` event, it executes `handleJobSubmitted` method.
+
+.DAGScheduler.handleJobSubmitted Method
+image::images/dagscheduler-handleJobSubmitted.png[align="center"]
+
+[source, scala]
+----
+handleJobSubmitted(
+  jobId: Int,
+  finalRDD: RDD[_],
+  func: (TaskContext, Iterator[_]) => _,
+  partitions: Array[Int],
+  callSite: CallSite,
+  listener: JobListener,
+  properties: Properties)
+----
+
+`handleJobSubmitted` link:spark-dagscheduler.adoc#createResultStage[creates a new `ResultStage`] (as `finalStage` in the picture above) and a `ActiveJob`.
+
+You should see the following INFO messages in the logs:
+
+```
+INFO DAGScheduler: Got job [jobId] ([callSite.shortForm]) with [partitions.length] output partitions
+INFO DAGScheduler: Final stage: [finalStage] ([name])
+INFO DAGScheduler: Parents of final stage: [parents]
+INFO DAGScheduler: Missing parents: [getMissingParentStages(finalStage)]
+```
+
+`handleJobSubmitted` then saves the job (in `jobIdToActiveJob` and `activeJobs`) for future reference and sets the job for the stage (using `setActiveJob`).
+
+Ultimately, `handleJobSubmitted` posts  link:spark-SparkListener.adoc#SparkListenerJobStart[SparkListenerJobStart] message to link:spark-LiveListenerBus.adoc[LiveListenerBus] and <<submitStage, submits the stage>>.

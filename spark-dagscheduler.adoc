@@ -69,7 +69,7 @@ submitJob[T, U](
   properties: Properties): JobWaiter[U]
 ----
 
-`submitJob` creates a <<JobWaiter, JobWaiter>> and <<JobSubmitted, posts a `JobSubmitted` event>>.
+`submitJob` creates a <<JobWaiter, JobWaiter>> and posts a link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#JobSubmitted[`JobSubmitted` event].
 
 .DAGScheduler.submitJob
 image::images/dagscheduler-submitjob.png[align="center"]
@@ -79,7 +79,7 @@ Internally, `submitJob` does the following:
 1. Checks whether `partitions` reference available partitions of the input `rdd`.
 2. Increments the internal `nextJobId` job counter.
 3. Returns a 0-task <<JobWaiter, JobWaiter>> when the number of `partitions` is zero.
-4. Posts <<JobSubmitted, JobSubmitted>> event and returns a <<JobWaiter, JobWaiter>>.
+4. Posts a `JobSubmitted` event and returns a `JobWaiter`.
 
 You may see a `IllegalArgumentException` thrown when the input `partitions` references any partitions not in the input `rdd`:
 
@@ -87,7 +87,7 @@ You may see a `IllegalArgumentException` thrown when the input `partitions` refe
 Attempting to access a non-existent partition: [p]. Total number of partitions: [maxPartitions]
 ```
 
-NOTE: `submitJob` is called by `SparkContext.submitJob` and <<runJob, DAGScheduler.runJob>>.
+NOTE: `submitJob` is called by link:spark-sparkcontext.adoc#submitJob[`SparkContext` to submit a job] and <<runJob, DAGScheduler>>.
 
 NOTE: `submitJob` assumes that the partitions of a RDD are indexed from 0 onwards in sequential order.
 
@@ -191,7 +191,7 @@ The following are the job listeners used:
 
 A `JobWaiter` is an extension of <<JobListener, JobListener>>. It is used as the return value of <<submitJob, submitJob>> and `DAGScheduler.submitMapStage`. You can use a JobWaiter to block until the job finishes executing or to cancel it.
 
-While the methods execute, `JobSubmitted` and `MapStageSubmitted` events are posted that reference the JobWaiter.
+While the methods execute, link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#JobSubmitted[`JobSubmitted`] and `MapStageSubmitted` events are posted that reference the JobWaiter.
 
 Since a `JobWaiter` object is a `JobListener` it gets notifications about `taskSucceeded` and `jobFailed`. When the total number of tasks (that equals the number of partitions to compute) equals the number of `taskSucceeded`, the `JobWaiter` instance is marked succeeded. A `jobFailed` event marks the `JobWaiter` instance failed.
 
@@ -228,7 +228,7 @@ NOTE: It is called by...FIXME
 
 === [[event-loop]][[eventProcessLoop]] dag-scheduler-event-loop - Internal Event Loop
 
-`DAGScheduler.eventProcessLoop` (of type `DAGSchedulerEventProcessLoop`) - is the event process loop to which Spark (by <<submitJob, submitJob>>) posts jobs to schedule their execution. Later on, link:spark-tasksetmanager.adoc[TaskSetManager] talks back to DAGScheduler to inform about the status of the tasks using the same "communication channel".
+`DAGScheduler.eventProcessLoop` is the link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc[DAGScheduler event process loop] to which Spark (by <<submitJob, submitJob>>) posts jobs to schedule their execution. Later on, link:spark-tasksetmanager.adoc[TaskSetManager] talks back to DAGScheduler to inform about the status of the tasks using the same "communication channel".
 
 It allows Spark to release the current thread when posting happens and let the event loop handle events on a separate thread - asynchronously.
 
@@ -244,7 +244,7 @@ The name of the single "logic" thread that reads events and takes decisions is *
 
 The following are the current types of `DAGSchedulerEvent` events that are handled by `DAGScheduler`:
 
-* <<JobSubmitted, JobSubmitted>> - posted when an action job is submitted to DAGScheduler (via <<submitJob, submitJob>> or `runApproximateJob`).
+* link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#JobSubmitted[JobSubmitted] - posted when an action job is submitted to DAGScheduler (via <<submitJob, submitJob>> or `runApproximateJob`).
 * <<MapStageSubmitted, MapStageSubmitted>> - posted when a link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage] is submitted (via `submitMapStage`).
 * <<StageCancelled, StageCancelled>>
 * <<JobCancelled, JobCancelled>>
@@ -408,11 +408,11 @@ Missing parents: [list of stages]
 
 link:spark-SparkListener.adoc#SparkListenerJobStart[SparkListenerJobStart] event is posted to link:spark-LiveListenerBus.adoc[LiveListenerBus] (so other event listeners know about the event - not only DAGScheduler).
 
-The execution procedure of MapStageSubmitted events is then exactly (FIXME ?) as for <<JobSubmitted, JobSubmitted>>.
+The execution procedure of MapStageSubmitted events is then exactly (FIXME ?) as for link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#JobSubmitted[JobSubmitted].
 
 [TIP]
 ====
-The difference between `handleMapStageSubmitted` and <<JobSubmitted, handleJobSubmitted>>:
+The difference between `handleMapStageSubmitted` and link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleJobSubmitted[handleJobSubmitted]:
 
 * `handleMapStageSubmitted` has `ShuffleDependency` among the input parameters while `handleJobSubmitted` has `finalRDD`, `func`, and `partitions`.
 * `handleMapStageSubmitted` initializes `finalStage` as `getShuffleMapStage(dependency, jobId)` while `handleJobSubmitted` as `finalStage = newResultStage(finalRDD, func, partitions, jobId, callSite)`
@@ -429,37 +429,9 @@ if (finalStage.isAvailable) {
 ----
 ====
 
-==== [[JobSubmitted]] JobSubmitted and handleJobSubmitted
+==== [[createResultStage]] `createResultStage` method
 
-When DAGScheduler receives *JobSubmitted* event it calls `DAGScheduler.handleJobSubmitted` method.
-
-.DAGScheduler.handleJobSubmitted
-image::images/dagscheduler-handleJobSubmitted.png[align="center"]
-
-`handleJobSubmitted` has access to the final RDD, the partitions to compute, and the <<JobListener, JobListener>> for the job, i.e. <<JobWaiter, JobWaiter>>.
-
-It creates a new link:spark-dagscheduler-ResultStage.adoc[ResultStage] (as `finalStage` on the picture) and instantiates `ActiveJob`.
-
-CAUTION: FIXME review `newResultStage`
-
-You should see the following INFO messages in the logs:
-
-```
-INFO DAGScheduler: Got job [jobId] ([callSite.shortForm]) with [partitions.length] output partitions
-INFO DAGScheduler: Final stage: [finalStage] ([finalStage.name])
-INFO DAGScheduler: Parents of final stage: [finalStage.parents]
-INFO DAGScheduler: Missing parents: [getMissingParentStages(finalStage)]
-```
-
-Then, the `finalStage` stage is given the ActiveJob instance and some housekeeping is performed to track the job (using `jobIdToActiveJob` and `activeJobs`).
-
-link:spark-SparkListener.adoc#SparkListenerJobStart[SparkListenerJobStart] message is posted to link:spark-LiveListenerBus.adoc[LiveListenerBus].
-
-CAUTION: FIXME `jobIdToStageIds` and `stageIdToStage` - they're already computed. When? Where?
-
-When DAGScheduler executes a job it first submits the final stage (using <<submitStage, submitStage>>).
-
-Right before `handleJobSubmitted` finishes, <<submitWaitingStages, DAGScheduler.submitWaitingStages()>> is called.
+CAUTION: FIXME
 
 ==== [[CompletionEvent]][[handleTaskCompletion]] `CompletionEvent` and `handleTaskCompletion` Internal Method
 
