@@ -14,9 +14,9 @@ _"Reading the sources"_, I say?! Yes, I _am_ kidding!
 .Executing action leads to new ResultStage and ActiveJob in DAGScheduler
 image::images/dagscheduler-rdd-partitions-job-resultstage.png[align="center"]
 
-The fundamental concepts of DAGScheduler are *jobs* and *stages* (refer to link:spark-dagscheduler-jobs.adoc[Jobs] and link:spark-dagscheduler-stages.adoc[Stages] respectively).
+The fundamental concepts of `DAGScheduler` are *jobs* and *stages* (refer to link:spark-dagscheduler-jobs.adoc[Jobs] and link:spark-dagscheduler-stages.adoc[Stages] respectively) that it tracks through <<internal-registries, internal registries and counters>>.
 
-DAGScheduler works on a driver. It is created as part of link:spark-sparkcontext.adoc#creating-instance[SparkContext's initialization], right after link:spark-taskscheduler.adoc[TaskScheduler] and link:spark-scheduler-backends.adoc[SchedulerBackend] are ready.
+DAGScheduler works solely on the driver and is created as part of link:spark-sparkcontext.adoc#creating-instance[SparkContext's initialization] (right after link:spark-taskscheduler.adoc[TaskScheduler] and link:spark-scheduler-backends.adoc[SchedulerBackend] are ready).
 
 .DAGScheduler as created by SparkContext with other services
 image::images/dagscheduler-new-instance.png[align="center"]
@@ -55,6 +55,68 @@ DAGScheduler needs link:spark-sparkcontext.adoc[SparkContext], link:spark-tasksc
 DAGScheduler reports metrics about its execution (refer to the section <<metrics, Metrics>>).
 
 When DAGScheduler schedules a job as a result of link:spark-rdd.adoc#actions[executing an action on a RDD] or link:spark-sparkcontext.adoc#running-jobs[calling SparkContext.runJob() method directly], it spawns parallel tasks to compute (partial) results per partition.
+
+=== [[creating-instance]][[initialization]] Creating DAGScheduler Instance
+
+[source, scala]
+----
+DAGScheduler(
+  sc: SparkContext,
+  taskScheduler: TaskScheduler,
+  listenerBus: LiveListenerBus,
+  mapOutputTracker: MapOutputTrackerMaster,
+  blockManagerMaster: BlockManagerMaster,
+  env: SparkEnv,
+  clock: Clock = new SystemClock())
+----
+
+`DAGScheduler` requires a link:spark-sparkcontext.adoc[SparkContext], link:spark-taskscheduler.adoc[TaskScheduler], link:spark-LiveListenerBus.adoc[LiveListenerBus], link:spark-service-mapoutputtracker.adoc#MapOutputTrackerMaster[MapOutputTrackerMaster], link:spark-BlockManagerMaster.adoc[BlockManagerMaster], link:spark-sparkenv.adoc[SparkEnv], and a `Clock`.
+
+NOTE: `DAGScheduler` can reference all the services through a single link:spark-sparkcontext.adoc[SparkContext].
+
+When created, `DAGScheduler` does the following (in order):
+
+1. Creates a `DAGSchedulerSource`
+2. Creates <<messageScheduler, messageScheduler>>
+3. Creates <<eventProcessLoop, eventProcessLoop>> and immediatelly link:spark-taskscheduler.adoc#setDAGScheduler[sets itself in the current `TaskScheduler`]
+5. Initializes the <<internal-registries, internal registries and counters>>.
+
+At the very end of the initialization, `DAGScheduler` starts <<eventProcessLoop, eventProcessLoop>>.
+
+=== [[internal-registries]] Internal Registries and Counters
+
+`DAGScheduler` use internal registries for housekeeping.
+
+.`DAGScheduler` Internal Registries and Counters
+[frame="topbot",cols="1,2",options="header",width="100%"]
+|======================
+| Name | Description
+| `nextJobId` | The next job id
+| `nextStageId` | The next stage id
+| `jobIdToStageIds` | The lookup table of all stages per `ActiveJob` id
+| `stageIdToStage` | The lookup table of stages per id
+| `shuffleIdToMapStage` | The lookup table of link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage] per shuffle id
+| `jobIdToActiveJob` | The lookup table of ``ActiveJob``s per job id.
+| `waitingStages` | The stages with parents to be computed
+| `runningStages` | The stages currently running.
+| `failedStages` | The stages that failed due to fetch failures (as reported by <<handleTaskCompletion-FetchFailed, CompletionEvents for FetchFailed end reasons>>) and are going to be <<resubmitFailedStages, resubmitted>>.
+| `activeJobs` | A collection of `ActiveJob` instances
+| `cacheLocs` | A lookup table of cache locations per RDD id.
+
+See <<cache-tracking, Cache Tracking>>.
+| `failedEpoch` | The lookup table of failed executors per the epoch number when the failure was caught per executor.
+|======================
+
+=== [[clearCacheLocs]] Clearing Partition Cache Locations of RDDs -- `clearCacheLocs` Internal Method
+
+[source, scala]
+----
+clearCacheLocs(): Unit
+----
+
+`clearCacheLocs` clears partition cache locations of RDDs.
+
+NOTE: `clearCacheLocs` is used in <<resubmitFailedStages, resubmitFailedStages>>, link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleJobSubmitted[handleJobSubmitted], `handleMapStageSubmitted`, link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleTaskCompletion[handleTaskCompletion], `handleExecutorLost`.
 
 === [[failJobAndIndependentStages]] Failing Active Job and Stages -- `failJobAndIndependentStages` Internal Method
 
@@ -125,34 +187,9 @@ NOTE: `submitJob` is called by link:spark-sparkcontext.adoc#submitJob[`SparkCont
 
 NOTE: `submitJob` assumes that the partitions of a RDD are indexed from 0 onwards in sequential order.
 
-=== [[creating-instance]][[initialization]] Creating DAGScheduler Instance
+=== [[messageScheduler]] `messageScheduler` Single-Thread Executor
 
 CAUTION: FIXME
-
-=== [[internal-registries]] Internal Registries
-
-`DAGScheduler` maintains the following information in internal registries:
-
-* `nextJobId` for the next job id
-* `numTotalJobs` (alias of `nextJobId`) for the total number of submitted
-* `nextStageId` for the next stage id
-* `jobIdToStageIds` for a mapping between jobs and their stages
-* `stageIdToStage` for a mapping between stage ids to stages
-* `shuffleToMapStage` for a mapping between ids to link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStages]
-* `jobIdToActiveJob` for a mapping between job ids to ActiveJobs
-* `waitingStages` for stages with parents to be computed
-* `runningStages` for stages currently being run
-* `failedStages` for stages that failed due to fetch failures (as reported by <<handleTaskCompletion-FetchFailed, CompletionEvents for FetchFailed end reasons>>) and are going to be <<resubmitFailedStages, resubmitted>>.
-* `activeJobs` for a collection of ActiveJob instances
-* `cacheLocs` is a mapping between RDD ids and their cache preferences per partition (as arrays indexed by partition numbers). Each array value is the set of locations where that RDD partition is cached on. See <<cache-tracking, Cache Tracking>>.
-* `failedEpoch` is a mapping between failed executors and the epoch number when the failure was caught per executor.
-
-[CAUTION]
-====
-FIXME Review
-
-* `cleanupStateForJobAndIndependentStages`
-====
 
 === [[resubmitFailedStages]] `resubmitFailedStages` Method
 
