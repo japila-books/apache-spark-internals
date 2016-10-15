@@ -62,39 +62,51 @@ handleExecutorLost(
   maybeEpoch: Option[Long] = None): Unit
 ----
 
-CAUTION: FIXME
+The current epoch could be provided (as the input `maybeEpoch`) or is requested from  link:spark-service-MapOutputTrackerMaster.adoc#getEpoch[MapOutputTrackerMaster].
 
-The current epoch number could be provided (as `maybeEpoch`) or it is calculated by requesting it from  link:spark-service-MapOutputTrackerMaster.adoc#getEpoch[MapOutputTrackerMaster].
+CAUTION: FIXME When is `maybeEpoch` passed in?
 
 .DAGScheduler.handleExecutorLost
 image::images/dagscheduler-handleExecutorLost.png[align="center"]
 
-Recurring ExecutorLost events merely lead to the following DEBUG message in the logs:
+Recurring `ExecutorLost` events lead to the following repeating DEBUG message in the logs:
 
 ```
 DEBUG Additional executor lost message for [execId] (epoch [currentEpoch])
 ```
 
-If however the executor is not in the list of executor lost or the failed epoch number is smaller than the current one, the executor is added to <<internal-registries, failedEpoch>>.
+NOTE: `handleExecutorLost` handler uses ``DAGScheduler``'s `failedEpoch` and FIXME internal registries.
 
-The following INFO message appears in the logs:
+Otherwise, when the executor `execId` is not in the link:spark-dagscheduler.adoc#failedEpoch[list of executor lost] or the executor failure's epoch is smaller than the input `maybeEpoch`, the executor's lost event is recorded in link:spark-dagscheduler.adoc#failedEpoch[`failedEpoch` internal registry].
+
+CAUTION: FIXME Describe the case above in simpler non-technical words. Perhaps change the order, too.
+
+You should see the following INFO message in the logs:
 
 ```
-INFO Executor lost: [execId] (epoch [currentEpoch])
+INFO Executor lost: [execId] (epoch [epoch])
 ```
 
-The executor `execId` is link:spark-BlockManagerMaster.adoc#removeExecutor[removed (from `BlockManagerMaster` on the driver)].
+link:spark-BlockManagerMaster.adoc#removeExecutor[`BlockManagerMaster` is requested to remove the lost executor `execId`].
 
-If the link:spark-ExternalShuffleService.adoc[external shuffle service] is not used or the `ExecutorLost` event was for a map output fetch operation, all link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage] (using `shuffleToMapStage`) are called (in order):
+CAUTION: FIXME Review what's `filesLost`.
 
-* `ShuffleMapStage.removeOutputsOnExecutor(execId)`
-* link:spark-service-MapOutputTrackerMaster.adoc#registerMapOutputs[MapOutputTrackerMaster.registerMapOutputs(shuffleId, stage.outputLocInMapOutputTrackerFormat(), changeEpoch = true)]
+`handleExecutorLost` exits unless the `ExecutorLost` event was for a map output fetch operation (and the input `filesLost` is `true`) or link:spark-ExternalShuffleService.adoc[external shuffle service] is _not_ used.
 
-For no link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStages] (in `shuffleToMapStage`), link:spark-service-MapOutputTrackerMaster.adoc#incrementEpoch[`MapOutputTrackerMaster` is requested to increment epoch].
+In such a case, you should see the following INFO message in the logs:
 
-<<internal-registries, cacheLocs>> is cleared.
+```
+INFO Shuffle files lost for executor: [execId] (epoch [epoch])
+```
 
-At the end, link:spark-dagscheduler.adoc#submitWaitingStages[DAGScheduler.submitWaitingStages] is called.
+`handleExecutorLost` walks over all link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage]s in link:spark-dagscheduler.adoc#shuffleToMapStage[DAGScheduler's `shuffleToMapStage` internal registry] and do the following (in order):
+
+1. `ShuffleMapStage.removeOutputsOnExecutor(execId)` is called
+2. link:spark-service-MapOutputTrackerMaster.adoc#registerMapOutputs[MapOutputTrackerMaster.registerMapOutputs(shuffleId, stage.outputLocInMapOutputTrackerFormat(), changeEpoch = true)] is called.
+
+In case link:spark-dagscheduler.adoc#shuffleToMapStage[DAGScheduler's `shuffleToMapStage` internal registry] has no shuffles registered,  link:spark-service-MapOutputTrackerMaster.adoc#incrementEpoch[`MapOutputTrackerMaster` is requested to increment epoch].
+
+Ultimatelly, `DAGScheduler` link:spark-dagscheduler.adoc#clearCacheLocs[clears the internal cache of RDD partition locations].
 
 === [[JobCancelled]] `JobCancelled` Event and `handleJobCancellation` Handler
 
