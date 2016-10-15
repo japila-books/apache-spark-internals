@@ -104,7 +104,7 @@ At the very end of the initialization, `DAGScheduler` starts <<eventProcessLoop,
 | `cacheLocs` | The internal cache of partition locations per RDD.
 
 See <<cache-tracking, Cache Tracking>>.
-| [[failedEpoch]] `failedEpoch` | The lookup table of failed executors and the epoch when the executor failure was caught.
+| [[failedEpoch]] `failedEpoch` | The lookup table of lost executors and the epoch of the event.
 |======================
 
 === [[clearCacheLocs]] Clearing Cache of RDD Partition Locations -- `clearCacheLocs` Internal Method
@@ -193,6 +193,11 @@ CAUTION: FIXME
 
 === [[resubmitFailedStages]] `resubmitFailedStages` Method
 
+[source, scala]
+----
+resubmitFailedStages(): Unit
+----
+
 `resubmitFailedStages()` is called to go over <<internal-registries, failedStages>> collection (of failed stages) and submit them (using <<submitStage, submitStage>>).
 
 If the failed stages collection contains any stage, the following INFO message appears in the logs:
@@ -206,6 +211,17 @@ INFO Resubmitting failed stages
 Ultimately, all waiting stages are submitted (using <<submitWaitingStages, submitWaitingStages>>).
 
 === [[runJob]] `runJob` method
+
+[source, scala]
+----
+runJob[T, U](
+  rdd: RDD[T],
+  func: (TaskContext, Iterator[T]) => U,
+  partitions: Seq[Int],
+  callSite: CallSite,
+  resultHandler: (Int, U) => Unit,
+  properties: Properties): Unit
+----
 
 When executed, `DAGScheduler.runJob` is given the following arguments:
 
@@ -330,11 +346,26 @@ FIXME
 * statistics? `MapOutputStatistics`?
 ====
 
-=== [[createResultStage]] `createResultStage` method
+=== [[createResultStage]] `createResultStage` Internal Method
+
+[source, scala]
+----
+createResultStage(
+  rdd: RDD[_],
+  func: (TaskContext, Iterator[_]) => _,
+  partitions: Array[Int],
+  jobId: Int,
+  callSite: CallSite): ResultStage
+----
 
 CAUTION: FIXME
 
-=== [[submitWaitingStages]] Submit Waiting Stages -- `submitWaitingStages` Method
+=== [[submitWaitingStages]] Submitting Waiting Stages -- `submitWaitingStages` Method
+
+[source, scala]
+----
+submitWaitingChildStages(parent: Stage): Unit
+----
 
 `DAGScheduler.submitWaitingStages` method checks for waiting or failed stages that could now be eligible for submission.
 
@@ -395,6 +426,14 @@ No active job for stage [id]
 ```
 
 === [[abortStage]] `abortStage` Internal Method
+
+[source, scala]
+----
+abortStage(
+  failedStage: Stage,
+  reason: String,
+  exception: Option[Throwable]): Unit
+----
 
 CAUTION: FIXME
 
@@ -459,7 +498,7 @@ DAGScheduler uses the following ScheduledThreadPoolExecutors (with the policy of
 
 They are created using `ThreadUtils.newDaemonSingleThreadScheduledExecutor` method that uses Guava DSL to instantiate a ThreadFactory.
 
-=== [[submitMissingTasks]] Submit Missing Tasks for Stage and Job -- `submitMissingTasks` Internal Method
+=== [[submitMissingTasks]] Submitting Missing Tasks for Stage and Job -- `submitMissingTasks` Internal Method
 
 [source, scala]
 ----
@@ -530,7 +569,12 @@ DEBUG DAGScheduler: Stage [stage] is actually done; (partitions: [numPartitions]
 
 NOTE: `submitMissingTasks` is called when...
 
-=== [[computing-preferred-locations]] Computing Preferred Locations for Tasks and Partitions -- `getPreferredLocs` Method
+=== [[getPreferredLocs]][[computing-preferred-locations]] Computing Preferred Locations for Tasks and Partitions -- `getPreferredLocs` Method
+
+[source, scala]
+----
+getPreferredLocs(rdd: RDD[_], partition: Int): Seq[TaskLocation]
+----
 
 CAUTION: FIXME Review + why does the method return a sequence of TaskLocations?
 
@@ -583,4 +627,9 @@ CAUTION: FIXME Where are `Stage.latestInfo.accumulables` and `CompletionEvent.ta
 
 === [[settings]] Settings
 
-* `spark.test.noStageRetry` (default: `false`) - if enabled, FetchFailed will not cause stage retries, in order to surface the problem. Used for testing.
+.DAGScheduler's Spark Properties
+[frame="topbot",options="header",width="100%"]
+|======================
+| Spark Property | Default Value | Description
+| [[sspark_test_noStageRetry]] `spark.test.noStageRetry` | `false` | When enabled (i.e. `true`), FetchFailed will not cause stage retries, in order to surface the problem. Used for testing.
+|======================
