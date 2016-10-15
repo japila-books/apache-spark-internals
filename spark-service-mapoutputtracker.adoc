@@ -4,7 +4,7 @@ A *MapOutputTracker* is a Spark service to track the locations of the (shuffle) 
 
 There are two versions of `MapOutputTracker`:
 
-* <<MapOutputTrackerMaster, MapOutputTrackerMaster>> for a driver
+* link:spark-service-MapOutputTrackerMaster.adoc[MapOutputTrackerMaster] for a driver
 * <<MapOutputTrackerWorker, MapOutputTrackerWorker>> for executors
 
 MapOutputTracker is available under `SparkEnv.get.mapOutputTracker`. It is also available as `MapOutputTracker` in the driver's RPC Environment.
@@ -22,13 +22,13 @@ log4j.logger.org.apache.spark.MapOutputTracker=DEBUG
 
 It works with link:spark-rdd-shuffledrdd.adoc[ShuffledRDD] when it asks for *preferred locations for a shuffle* using `tracker.getPreferredLocationsForShuffle`.
 
-It is also used for `mapOutputTracker.containsShuffle` and <<registerShuffle, MapOutputTrackerMaster.registerShuffle>> when a new link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage] is created.
+It is also used for `mapOutputTracker.containsShuffle` and link:spark-service-MapOutputTrackerMaster.adoc#registerShuffle[MapOutputTrackerMaster.registerShuffle] when a new link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage] is created.
 
 CAUTION: FIXME `DAGScheduler.mapOutputTracker`
 
-<<getStatistics, MapOutputTrackerMaster.getStatistics(dependency)>> returns MapOutputStatistics that becomes the result of `JobWaiter.taskSucceeded` for link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage] if it's the final stage in a job.
+link:spark-service-MapOutputTrackerMaster.adoc#getStatistics[MapOutputTrackerMaster.getStatistics(dependency)] returns `MapOutputStatistics` that becomes the result of `JobWaiter.taskSucceeded` for link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage] if it's the final stage in a job.
 
-<<registerMapOutputs, MapOutputTrackerMaster.registerMapOutputs>> for a shuffle id and a list of `MapStatus` when a link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage] is finished.
+link:spark-service-MapOutputTrackerMaster.adoc#registerMapOutputs[MapOutputTrackerMaster.registerMapOutputs] for a shuffle id and a list of `MapStatus` when a link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage] is finished.
 
 === [[unregisterShuffle]] unregisterShuffle
 
@@ -56,80 +56,8 @@ CAUTION: FIXME Review ShuffleManager
 
 CAUTION: FIXME
 
-=== [[MapOutputTrackerMaster]] MapOutputTrackerMaster
-
-A *MapOutputTrackerMaster* is the `MapOutputTracker` for a driver.
-
-A MapOutputTrackerMaster is the source of truth for the collection of `MapStatus` objects (map output locations) per shuffle id (as recorded from ShuffleMapTasks).
-
-`MapOutputTrackerMaster` uses Spark's `org.apache.spark.util.TimeStampedHashMap` for `mapStatuses`.
-
-NOTE: There is currently a hardcoded limit of map and reduce tasks above which Spark does not assign preferred locations aka locality preferences based on map output sizes -- `1000` for map and reduce each.
-
-It uses `MetadataCleaner` with `MetadataCleanerType.MAP_OUTPUT_TRACKER` as `cleanerType` and <<cleanup, cleanup>> function to drop entries in `mapStatuses`.
-
-You should see the following INFO message when the MapOutputTrackerMaster is created (FIXME it uses `MapOutputTrackerMasterEndpoint`):
-
-```
-INFO SparkEnv: Registering MapOutputTracker
-```
-
-==== [[registerShuffle]] MapOutputTrackerMaster.registerShuffle
-
-CAUTION: FIXME
-
-==== [[getStatistics]] MapOutputTrackerMaster.getStatistics
-
-CAUTION: FIXME
-
-==== [[unregisterMapOutput]] MapOutputTrackerMaster.unregisterMapOutput
-
-CAUTION: FIXME
-
-==== [[registerMapOutputs]] MapOutputTrackerMaster.registerMapOutputs
-
-CAUTION: FIXME
-
-==== [[incrementEpoch]] MapOutputTrackerMaster.incrementEpoch
-
-CAUTION: FIXME
-
-==== [[cleanup]] cleanup Function for MetadataCleaner
-
-`cleanup(cleanupTime: Long)` method removes old entries in `mapStatuses` and `cachedSerializedStatuses` that have timestamp earlier than `cleanupTime`.
-
-It uses `org.apache.spark.util.TimeStampedHashMap.clearOldValues` method.
-
-
-[TIP]
-====
-Enable `DEBUG` logging level for `org.apache.spark.util.TimeStampedHashMap` logger to see what happens in TimeStampedHashMap.
-
-Add the following line to `conf/log4j.properties`:
-
-```
-log4j.logger.org.apache.spark.util.TimeStampedHashMap=DEBUG
-```
-====
-
-You should see the following DEBUG message in the logs for entries being removed:
-
-```
-DEBUG Removing key [entry.getKey]
-```
-
-==== [[getEpoch]] MapOutputTrackerMaster.getEpoch
-
-CAUTION: FIXME
-
-==== [[MapOutputTrackerMaster-settings]] Settings
-
-* `spark.shuffle.reduceLocality.enabled` (default: true) - whether to compute locality preferences for reduce tasks.
-+
-If `true`, `MapOutputTrackerMaster` computes the preferred hosts on which to run a given map output partition in a given shuffle, i.e. the nodes that the most outputs for that partition are on.
-
 === [[MapOutputTrackerWorker]] MapOutputTrackerWorker
 
-A *MapOutputTrackerWorker* is the `MapOutputTracker` for executors. The internal `mapStatuses` map serves as a cache and any miss triggers a fetch from the driver's <<MapOutputTrackerMaster, MapOutputTrackerMaster>>.
+A *MapOutputTrackerWorker* is the `MapOutputTracker` for executors. The internal `mapStatuses` map serves as a cache and any miss triggers a fetch from the driver's link:spark-service-MapOutputTrackerMaster.adoc[MapOutputTrackerMaster].
 
 NOTE: The only difference between `MapOutputTrackerWorker` and the base abstract class `MapOutputTracker` is that the internal `mapStatuses` mapping between ints and an array of `MapStatus` objects is an instance of the thread-safe https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/ConcurrentHashMap.html[java.util.concurrent.ConcurrentHashMap].

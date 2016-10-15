@@ -32,6 +32,70 @@ NOTE: `DAGSchedulerEventProcessLoop` uses https://docs.oracle.com/javase/7/docs/
 
 NOTE: The name of the reference in `DAGScheduler` is `eventProcessLoop`.
 
+=== [[ExecutorLost]] `ExecutorLost` Event and `handleExecutorLost` Handler -- `fetchFailed` Disabled Case
+
+[source, scala]
+----
+ExecutorLost(
+  execId: String,
+  reason: ExecutorLossReason)
+extends DAGSchedulerEvent
+----
+
+`ExecutorLost` is a `DAGSchedulerEvent` that triggers <<handleExecutorLost, handleExecutorLost>> method with `fetchFailed` disabled, i.e. `false`.
+
+[NOTE]
+====
+`handleExecutorLost` recognizes two cases (by means of `fetchFailed`):
+
+* fetch failures (`fetchFailed` is `true`) from executors that are indirectly assumed lost. See <<handleTaskCompletion-FetchFailed, FetchFailed case in handleTaskCompletion>>.
+* lost executors (`fetchFailed` is `false`) for executors that did not report being alive in a given timeframe
+====
+
+==== [[handleExecutorLost]] `handleExecutorLost` Handler
+
+[source, scala]
+----
+handleExecutorLost(
+  execId: String,
+  filesLost: Boolean,
+  maybeEpoch: Option[Long] = None): Unit
+----
+
+CAUTION: FIXME
+
+The current epoch number could be provided (as `maybeEpoch`) or it is calculated by requesting it from  link:spark-service-MapOutputTrackerMaster.adoc#getEpoch[MapOutputTrackerMaster].
+
+.DAGScheduler.handleExecutorLost
+image::images/dagscheduler-handleExecutorLost.png[align="center"]
+
+Recurring ExecutorLost events merely lead to the following DEBUG message in the logs:
+
+```
+DEBUG Additional executor lost message for [execId] (epoch [currentEpoch])
+```
+
+If however the executor is not in the list of executor lost or the failed epoch number is smaller than the current one, the executor is added to <<internal-registries, failedEpoch>>.
+
+The following INFO message appears in the logs:
+
+```
+INFO Executor lost: [execId] (epoch [currentEpoch])
+```
+
+The executor `execId` is link:spark-BlockManagerMaster.adoc#removeExecutor[removed (from `BlockManagerMaster` on the driver)].
+
+If the link:spark-ExternalShuffleService.adoc[external shuffle service] is not used or the `ExecutorLost` event was for a map output fetch operation, all link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage] (using `shuffleToMapStage`) are called (in order):
+
+* `ShuffleMapStage.removeOutputsOnExecutor(execId)`
+* link:spark-service-MapOutputTrackerMaster.adoc#registerMapOutputs[MapOutputTrackerMaster.registerMapOutputs(shuffleId, stage.outputLocInMapOutputTrackerFormat(), changeEpoch = true)]
+
+For no link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStages] (in `shuffleToMapStage`), link:spark-service-MapOutputTrackerMaster.adoc#incrementEpoch[`MapOutputTrackerMaster` is requested to increment epoch].
+
+<<internal-registries, cacheLocs>> is cleared.
+
+At the end, link:spark-dagscheduler.adoc#submitWaitingStages[DAGScheduler.submitWaitingStages] is called.
+
 === [[JobCancelled]] `JobCancelled` Event and `handleJobCancellation` Handler
 
 [source, scala]
@@ -163,7 +227,7 @@ link:spark-service-mapoutputtracker.adoc#registerMapOutputs[mapOutputTracker.reg
 
 link:spark-dagscheduler.adoc#internal-registries[DAGScheduler.cacheLocs] is cleared.
 
-If the map stage is ready, i.e. all partitions have shuffle outputs, map-stage jobs waiting on this stage (using `shuffleStage.mapStageJobs`) are marked as finished. link:spark-service-mapoutputtracker.adoc#getStatistics[MapOutputTrackerMaster.getStatistics(shuffleStage.shuffleDep)] is called and every map-stage job is `markMapStageJobAsFinished(job, stats)`.
+If the map stage is ready, i.e. all partitions have shuffle outputs, map-stage jobs waiting on this stage (using `shuffleStage.mapStageJobs`) are marked as finished. link:spark-service-MapOutputTrackerMaster.adoc#getStatistics[`MapOutputTrackerMaster` is requested for statistics (for `shuffleStage.shuffleDep`)] and every map-stage job is `markMapStageJobAsFinished(job, stats)`.
 
 Otherwise, if the map stage is _not_ ready, the following INFO message appears in the logs:
 
@@ -252,11 +316,9 @@ If `mapId` (in the `FetchFailed` object for the case) is provided, the map stage
 
 CAUTION: FIXME What does `mapStage.removeOutputLoc` do?
 
-If `bmAddress` (in the `FetchFailed` object for the case) is provided, `handleExecutorLost(bmAddress.executorId, fetchFailed = true, Some(task.epoch))` is called. See <<ExecutorLost, ExecutorLost and handleExecutorLost (with fetchFailed being false)>>.
+If `bmAddress` (in the `FetchFailed` object for the case) is provided, <<handleExecutorLost, handleExecutorLost (with `fetchFailed` enabled)>> is called.
 
-CAUTION: FIXME What does `handleExecutorLost` do?
-
-=== [[MapStageSubmitted]] MapStageSubmitted and handleMapStageSubmitted
+=== [[MapStageSubmitted]] `MapStageSubmitted` Event and `handleMapStageSubmitted` Handler
 
 When a *MapStageSubmitted* event is posted, it triggers execution of `DAGScheduler.handleMapStageSubmitted` method.
 
@@ -338,50 +400,6 @@ If no stage exists for `stageId`, the following INFO message shows in the logs:
 ```
 INFO No active jobs to kill for Stage [stageId]
 ```
-
-At the end, link:spark-dagscheduler.adoc#submitWaitingStages[DAGScheduler.submitWaitingStages] is called.
-
-=== [[ExecutorLost]] `ExecutorLost` Event and `handleExecutorLost` Handler (`fetchFailed` being false)
-
-`ExecutorLost(execId)` event triggers execution of `DAGScheduler.handleExecutorLost(execId: String, fetchFailed: Boolean, maybeEpoch: Option[Long] = None)` with `fetchFailed` being `false`.
-
-[NOTE]
-====
-`handleExecutorLost` recognizes two cases (by means of `fetchFailed`):
-
-* fetch failures (`fetchFailed` is `true`) from executors that are indirectly assumed lost. See <<handleTaskCompletion-FetchFailed, FetchFailed case in handleTaskCompletion>.
-* lost executors (`fetchFailed` is `false`) for executors that did not report being alive in a given timeframe
-====
-
-The current epoch number could be provided (as `maybeEpoch`) or it is calculated by requesting it from  link:spark-service-mapoutputtracker.adoc#MapOutputTrackerMaster[MapOutputTrackerMaster] (using link:spark-service-mapoutputtracker.adoc#getEpoch[MapOutputTrackerMaster.getEpoch]).
-
-.DAGScheduler.handleExecutorLost
-image::images/dagscheduler-handleExecutorLost.png[align="center"]
-
-Recurring ExecutorLost events merely lead to the following DEBUG message in the logs:
-
-```
-DEBUG Additional executor lost message for [execId] (epoch [currentEpoch])
-```
-
-If however the executor is not in the list of executor lost or the failed epoch number is smaller than the current one, the executor is added to <<internal-registries, failedEpoch>>.
-
-The following INFO message appears in the logs:
-
-```
-INFO Executor lost: [execId] (epoch [currentEpoch])
-```
-
-The executor `execId` is link:spark-BlockManagerMaster.adoc#removeExecutor[removed (from `BlockManagerMaster` on the driver)].
-
-If the link:spark-ExternalShuffleService.adoc[external shuffle service] is not used or the `ExecutorLost` event was for a map output fetch operation, all link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage] (using `shuffleToMapStage`) are called (in order):
-
-* `ShuffleMapStage.removeOutputsOnExecutor(execId)`
-* link:spark-service-mapoutputtracker.adoc#registerMapOutputs[MapOutputTrackerMaster.registerMapOutputs(shuffleId, stage.outputLocInMapOutputTrackerFormat(), changeEpoch = true)]
-
-For no link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStages] (in `shuffleToMapStage`), link:spark-service-mapoutputtracker.adoc#incrementEpoch[MapOutputTrackerMaster.incrementEpoch] is called.
-
-<<internal-registries, cacheLocs>> is cleared.
 
 At the end, link:spark-dagscheduler.adoc#submitWaitingStages[DAGScheduler.submitWaitingStages] is called.
 
