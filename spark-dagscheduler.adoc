@@ -85,25 +85,23 @@ At the very end of the initialization, `DAGScheduler` starts <<eventProcessLoop,
 
 === [[internal-registries]] Internal Registries and Counters
 
-`DAGScheduler` uses internal registries and couters for housekeeping.
+`DAGScheduler` uses internal registries and counters for managing active jobs and stages.
 
 .`DAGScheduler` Internal Registries and Counters
 [frame="topbot",cols="1,2",options="header",width="100%"]
 |======================
 | Name | Description
-| `nextJobId` | The next job id
-| `nextStageId` | The next stage id
-| `jobIdToStageIds` | The lookup table of all stages per `ActiveJob` id
-| `stageIdToStage` | The lookup table of stages per id
-| `shuffleIdToMapStage` | The lookup table of link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage] per shuffle id
-| `jobIdToActiveJob` | The lookup table of ``ActiveJob``s per job id.
-| `waitingStages` | The stages with parents to be computed
-| `runningStages` | The stages currently running.
+| [[nextJobId]] `nextJobId` | The next job id
+| [[nextStageId]] `nextStageId` | The next stage id
+| [[jobIdToStageIds]] `jobIdToStageIds` | The lookup table of all stages per `ActiveJob` id
+| [[stageIdToStage]] `stageIdToStage` | The lookup table of stages per id
+| [[shuffleIdToMapStage]] `shuffleIdToMapStage` | The lookup table of link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage] per shuffle id
+| [[jobIdToActiveJob]] `jobIdToActiveJob` | The lookup table of ``ActiveJob``s per job id.
+| [[waitingStages]] `waitingStages` | The stages with parents to be computed
+| [[runningStages]] `runningStages` | The stages currently running.
 | [[failedStages]] `failedStages` | The collection of the stages that failed due to fetch failures (as reported by <<handleTaskCompletion-FetchFailed, CompletionEvents for FetchFailed end reasons>>).
-| `activeJobs` | A collection of `ActiveJob` instances
-| [[cacheLocs]] `cacheLocs` | The internal cache of partition locations per RDD.
-
-See <<cache-tracking, Cache Tracking>>.
+| [[activeJobs]] `activeJobs` | A collection of `ActiveJob` instances
+| [[cacheLocs]] `cacheLocs` | The internal cache of partition locations per RDD. Refer to <<cache-tracking, Cache Tracking>>.
 | [[failedEpoch]] `failedEpoch` | The lookup table of lost executors and the epoch of the event.
 |======================
 
@@ -114,9 +112,9 @@ See <<cache-tracking, Cache Tracking>>.
 clearCacheLocs(): Unit
 ----
 
-`clearCacheLocs` clears the <<cacheLocs, internal cache>> of the partition locations of all RDDs.
+`clearCacheLocs` clears the <<cacheLocs, internal cache of the partition locations of all RDDs>>.
 
-NOTE: `clearCacheLocs` is used when `DAGScheduler` link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#resubmitFailedStages[resubmits failed stages], and for link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleJobSubmitted[handleJobSubmitted], `handleMapStageSubmitted`, link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleTaskCompletion[handleTaskCompletion], link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleExecutorLost[handleExecutorLost].
+NOTE: `DAGScheduler` clears the cache while link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#resubmitFailedStages[resubmitting failed stages], and as a result of link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#JobSubmitted[JobSubmitted], link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#MapStageSubmitted[MapStageSubmitted], link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#CompletionEvent[CompletionEvent], link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#ExecutorLost[ExecutorLost] events.
 
 === [[failJobAndIndependentStages]] Failing Active Job and Stages -- `failJobAndIndependentStages` Internal Method
 
@@ -130,7 +128,7 @@ failJobAndIndependentStages(
 
 The internal `failJobAndIndependentStages` method fails the input `job` and all the stages that are only used by the job.
 
-Internally, `failJobAndIndependentStages` uses `jobIdToStageIds` to find the stages registered for the job.
+Internally, `failJobAndIndependentStages` uses <<jobIdToStageIds, `jobIdToStageIds` internal registry>> to look up the stages registered for the job.
 
 If no stages could be found, you should see the following ERROR message in the logs:
 
@@ -150,7 +148,7 @@ Only when there is exactly one job registered for the stage and the stage is in 
 
 NOTE: `failJobAndIndependentStages` is called from link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleJobCancellation[handleJobCancellation] and `abortStage`.
 
-NOTE: `failJobAndIndependentStages` uses `jobIdToStageIds`, `stageIdToStage`, and `runningStages` <<internal-registries, internal registries>>.
+NOTE: `failJobAndIndependentStages` uses <<jobIdToStageIds, jobIdToStageIds>>, <<stageIdToStage, stageIdToStage>>, and <<runningStages, runningStages>> internal registries.
 
 === [[submitJob]] Posting JobSubmitted Event to dag-scheduler-event-loop Event Loop -- `submitJob` method
 
@@ -302,14 +300,20 @@ markStageAsFinished(stage: Stage, errorMessage: Option[String] = None): Unit
 
 CAUTION: FIXME
 
-=== [[cancelJob]] `cancelJob` Method
+=== [[cancelJob]] Posting `JobCancelled` Event to `DAGScheduler` -- `cancelJob` Method
 
 [source, scala]
 ----
 cancelJob(jobId: Int): Unit
 ----
 
-CAUTION: FIXME
+`cancelJob` prints the following INFO message and posts a link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#JobCancelled[JobCancelled] to <<eventProcessLoop, eventProcessLoop>>.
+
+```
+INFO DAGScheduler: Asked to cancel job [id]
+```
+
+NOTE: `cancelJob` is called when link:spark-sparkcontext.adoc#cancelJob[SparkContext] and <<JobWaiter, JobWaiter>> are requested to cancel a Spark job.
 
 === [[event-loop]][[eventProcessLoop]] dag-scheduler-event-loop - Internal Event Loop
 

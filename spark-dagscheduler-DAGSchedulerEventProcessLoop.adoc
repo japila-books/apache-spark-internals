@@ -151,7 +151,7 @@ JobCancelled(jobId: Int) extends DAGSchedulerEvent
 
 `JobCancelled` is a `DAGSchedulerEvent` that triggers <<handleJobCancellation, handleJobCancellation>> method (on a separate thread).
 
-NOTE: It seems that although `SparkContext.cancelJob(jobId: Int)` calls `DAGScheduler.cancelJob`, no feature/code in Spark calls `SparkContext.cancelJob(jobId: Int)`. A dead code?
+NOTE: `JobCancelled` is posted when link:spark-dagscheduler.adoc#cancelJob[`DAGScheduler` is requested to cancel a job].
 
 ==== [[handleJobCancellation]] `handleJobCancellation` Handler
 
@@ -160,15 +160,15 @@ NOTE: It seems that although `SparkContext.cancelJob(jobId: Int)` calls `DAGSche
 handleJobCancellation(jobId: Int, reason: String = "")
 ----
 
-`handleJobCancellation` ensures that the input `jobId` has been registered earlier (using `jobIdToStageIds` internal registry).
+`handleJobCancellation` first makes sure that the input `jobId` has been registered earlier (using link:spark-dagscheduler.adoc#jobIdToStageIds[jobIdToStageIds] internal registry).
 
-If not registered, you should see the following DEBUG message in the logs:
+If the input `jobId` is not known to `DAGScheduler`, you should see the following DEBUG message in the logs:
 
 ```
-DEBUG Trying to cancel unregistered job [jobId]
+DEBUG DAGScheduler: Trying to cancel unregistered job [jobId]
 ```
 
-Otherwise, `handleJobCancellation` executes link:spark-dagscheduler.adoc#failJobAndIndependentStages[failJobAndIndependentStages] for the active job (using `jobIdToActiveJob`) and failure reason:
+Otherwise, `handleJobCancellation` link:spark-dagscheduler.adoc#failJobAndIndependentStages[fails the active job and all independent stages] (by looking up the active job using link:spark-dagscheduler.adoc#jobIdToActiveJob[jobIdToActiveJob]) with failure reason:
 
 ```
 Job [jobId] cancelled [reason]
@@ -417,7 +417,7 @@ CAUTION: FIXME Image of the tab with kill
 
 NOTE: A stage knows what jobs it is part of using the internal set `jobIds`.
 
-`def handleJobCancellation(jobId: Int, reason: String = "")` checks whether the job exists in `jobIdToStageIds` and if not, prints the following DEBUG to the logs:
+`def handleJobCancellation(jobId: Int, reason: String = "")` checks whether the job exists in link:spark-dagscheduler.adoc#jobIdToStageIds[jobIdToStageIds] and if not, prints the following DEBUG to the logs:
 
 ```
 DEBUG Trying to cancel unregistered job [jobId]
@@ -425,7 +425,7 @@ DEBUG Trying to cancel unregistered job [jobId]
 
 However, if the job exists, the job and all the stages that are only used by it (using the internal link:spark-dagscheduler.adoc#failJobAndIndependentStages[failJobAndIndependentStages] method).
 
-For each running stage associated with the job (`jobIdToStageIds`), if there is only one job for the stage (`stageIdToStage`), link:spark-taskscheduler.adoc#contract[TaskScheduler.cancelTasks] is called, `outputCommitCoordinator.stageEnd(stage.id)`, and link:spark-SparkListener.adoc#SparkListenerStageCompleted[SparkListenerStageCompleted] is posted. The stage is no longer a running one (removed from `runningStages`).
+For each running stage associated with the job (using link:spark-dagscheduler.adoc#jobIdToStageIds[jobIdToStageIds]), if there is only one job for the stage (`stageIdToStage`), link:spark-taskscheduler.adoc#contract[TaskScheduler.cancelTasks] is called, `outputCommitCoordinator.stageEnd(stage.id)`, and link:spark-SparkListener.adoc#SparkListenerStageCompleted[SparkListenerStageCompleted] is posted. The stage is no longer a running one (removed from `runningStages`).
 
 CAUTION: FIXME Image please with the call to TaskScheduler.
 
