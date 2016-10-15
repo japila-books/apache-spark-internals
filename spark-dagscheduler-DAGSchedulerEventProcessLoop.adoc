@@ -23,7 +23,7 @@
 
 | <<ExecutorLost, ExecutorLost>> |
 | `TaskSetFailed` |
-| `ResubmitFailedStages` |
+| <<ResubmitFailedStages, ResubmitFailedStages>> |
 |======================
 
 When created, `DAGSchedulerEventProcessLoop` gets the reference to the owning link:spark-dagscheduler.adoc[DAGScheduler] that it uses to call event handler methods on.
@@ -31,6 +31,40 @@ When created, `DAGSchedulerEventProcessLoop` gets the reference to the owning li
 NOTE: `DAGSchedulerEventProcessLoop` uses https://docs.oracle.com/javase/7/docs/api/java/util/concurrent/LinkedBlockingDeque.html[java.util.concurrent.LinkedBlockingDeque] blocking deque that grows indefinitely, i.e. up to https://docs.oracle.com/javase/7/docs/api/java/lang/Integer.html#MAX_VALUE[Integer.MAX_VALUE] events.
 
 NOTE: The name of the reference in `DAGScheduler` is `eventProcessLoop`.
+
+=== [[ResubmitFailedStages]] `ResubmitFailedStages` Event and `resubmitFailedStages` Handler
+
+[source, scala]
+----
+ResubmitFailedStages extends DAGSchedulerEvent
+----
+
+`ResubmitFailedStages` is a `DAGSchedulerEvent` that triggers <<resubmitFailedStages, resubmitFailedStages>> method.
+
+NOTE: `ResubmitFailedStages` is posted for <<handleTaskCompletion-FetchFailed, `FetchFailed` case in `handleTaskCompletion`>>.
+
+==== [[resubmitFailedStages]] `resubmitFailedStages` Handler
+
+[source, scala]
+----
+resubmitFailedStages(): Unit
+----
+
+`resubmitFailedStages` iterates over the internal link:spark-dagscheduler.adoc#failedStages[collection of failed stages] and link:spark-dagscheduler.adoc#submitStage[submits] them.
+
+NOTE: `resubmitFailedStages` does nothing when there are no link:spark-dagscheduler.adoc#failedStages[failed stages reported].
+
+You should see the following INFO message in the logs:
+
+```
+INFO Resubmitting failed stages
+```
+
+`resubmitFailedStages` link:spark-dagscheduler.adoc#clearCacheLocs[clears the internal cache of RDD partition locations] first. It then makes a copy of the link:spark-dagscheduler.adoc#failedStages[collection of failed stages] so `DAGScheduler` can track failed stages afresh.
+
+NOTE: At this point `DAGScheduler` has no failed stages reported.
+
+The previously-reported failed stages are sorted by the corresponding job ids in incremental order and link:spark-dagscheduler.adoc#submitStage[resubmitted].
 
 === [[ExecutorLost]] `ExecutorLost` Event and `handleExecutorLost` Handler -- `fetchFailed` Disabled Case
 
@@ -237,7 +271,7 @@ INFO failed: [failedStages]
 
 link:spark-service-mapoutputtracker.adoc#registerMapOutputs[mapOutputTracker.registerMapOutputs] with `changeEpoch` is called.
 
-link:spark-dagscheduler.adoc#internal-registries[DAGScheduler.cacheLocs] is cleared.
+The internal link:spark-dagscheduler.adoc#clearCacheLocs[cache of RDD partition locations is cleared].
 
 If the map stage is ready, i.e. all partitions have shuffle outputs, map-stage jobs waiting on this stage (using `shuffleStage.mapStageJobs`) are marked as finished. link:spark-service-MapOutputTrackerMaster.adoc#getStatistics[`MapOutputTrackerMaster` is requested for statistics (for `shuffleStage.shuffleDep`)] and every map-stage job is `markMapStageJobAsFinished(job, stats)`.
 

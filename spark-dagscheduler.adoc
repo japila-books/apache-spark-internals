@@ -85,7 +85,7 @@ At the very end of the initialization, `DAGScheduler` starts <<eventProcessLoop,
 
 === [[internal-registries]] Internal Registries and Counters
 
-`DAGScheduler` use internal registries for housekeeping.
+`DAGScheduler` uses internal registries and couters for housekeeping.
 
 .`DAGScheduler` Internal Registries and Counters
 [frame="topbot",cols="1,2",options="header",width="100%"]
@@ -99,9 +99,9 @@ At the very end of the initialization, `DAGScheduler` starts <<eventProcessLoop,
 | `jobIdToActiveJob` | The lookup table of ``ActiveJob``s per job id.
 | `waitingStages` | The stages with parents to be computed
 | `runningStages` | The stages currently running.
-| `failedStages` | The stages that failed due to fetch failures (as reported by <<handleTaskCompletion-FetchFailed, CompletionEvents for FetchFailed end reasons>>) and are going to be <<resubmitFailedStages, resubmitted>>.
+| [[failedStages]] `failedStages` | The collection of the stages that failed due to fetch failures (as reported by <<handleTaskCompletion-FetchFailed, CompletionEvents for FetchFailed end reasons>>).
 | `activeJobs` | A collection of `ActiveJob` instances
-| `cacheLocs` | The internal cache of partition locations per RDD.
+| [[cacheLocs]] `cacheLocs` | The internal cache of partition locations per RDD.
 
 See <<cache-tracking, Cache Tracking>>.
 | [[failedEpoch]] `failedEpoch` | The lookup table of lost executors and the epoch of the event.
@@ -116,7 +116,7 @@ clearCacheLocs(): Unit
 
 `clearCacheLocs` clears the <<cacheLocs, internal cache>> of the partition locations of all RDDs.
 
-NOTE: `clearCacheLocs` is used in <<resubmitFailedStages, resubmitFailedStages>>, link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleJobSubmitted[handleJobSubmitted], `handleMapStageSubmitted`, link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleTaskCompletion[handleTaskCompletion], link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleExecutorLost[handleExecutorLost].
+NOTE: `clearCacheLocs` is used when `DAGScheduler` link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#resubmitFailedStages[resubmits failed stages], and for link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleJobSubmitted[handleJobSubmitted], `handleMapStageSubmitted`, link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleTaskCompletion[handleTaskCompletion], link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleExecutorLost[handleExecutorLost].
 
 === [[failJobAndIndependentStages]] Failing Active Job and Stages -- `failJobAndIndependentStages` Internal Method
 
@@ -190,25 +190,6 @@ NOTE: `submitJob` assumes that the partitions of a RDD are indexed from 0 onward
 === [[messageScheduler]] `messageScheduler` Single-Thread Executor
 
 CAUTION: FIXME
-
-=== [[resubmitFailedStages]] `resubmitFailedStages` Method
-
-[source, scala]
-----
-resubmitFailedStages(): Unit
-----
-
-`resubmitFailedStages()` is called to go over <<internal-registries, failedStages>> collection (of failed stages) and submit them (using <<submitStage, submitStage>>).
-
-If the failed stages collection contains any stage, the following INFO message appears in the logs:
-
-```
-INFO Resubmitting failed stages
-```
-
-`cacheLocs` and <<internal-registries, failedStages>> are cleared, and failed stages are <<submitStage, submitStage>> one by one, ordered by job ids (in an increasing order).
-
-Ultimately, all waiting stages are submitted (using <<submitWaitingStages, submitWaitingStages>>).
 
 === [[runJob]] `runJob` method
 
@@ -391,7 +372,9 @@ submitStage(stage: Stage)
 
 `submitStage` is an internal method that `DAGScheduler` uses to submit the input `stage` or its missing parents (if there any).
 
-It recursively submits any missing parents of the stage.
+NOTE: `submitStage` is also used to link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#resubmitFailedStages[resubmit failed stages].
+
+`submitStage` recursively submits any missing parents of the stage.
 
 Internally, `submitStage` first finds the earliest-created `ActiveJob` that needs the `stage`.
 
@@ -494,7 +477,7 @@ https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark
 
 DAGScheduler uses the following ScheduledThreadPoolExecutors (with the policy of removing cancelled tasks from a work queue at time of cancellation):
 
-* `dag-scheduler-message` - a daemon thread pool using `j.u.c.ScheduledThreadPoolExecutor` with core pool size `1`. It is used to post `ResubmitFailedStages` when `FetchFailed` is reported.
+* `dag-scheduler-message` - a daemon thread pool using `j.u.c.ScheduledThreadPoolExecutor` with core pool size `1`. It is used to post a link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#ResubmitFailedStages[ResubmitFailedStages] event when `FetchFailed` is reported.
 
 They are created using `ThreadUtils.newDaemonSingleThreadScheduledExecutor` method that uses Guava DSL to instantiate a ThreadFactory.
 
