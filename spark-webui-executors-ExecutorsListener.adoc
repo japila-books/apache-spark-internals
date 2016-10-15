@@ -1,5 +1,98 @@
 == [[ExecutorsListener]] ExecutorsListener Spark Listener
 
+`ExecutorsListener` is a  link:spark-SparkListener.adoc[SparkListener] to track executors in a Spark application through the following listener methods:
+
+1. <<onApplicationStart, onApplicationStart>>
+2. <<onExecutorAdded, onExecutorAdded>>
+3. <<onExecutorRemoved, onExecutorRemoved>>
+4. <<onTaskStart, onTaskStart>>
+5. <<onTaskEnd, onTaskEnd>>
+
+`ExecutorsListener` uses <<executorToTaskSummary, `executorToTaskSummary` lookup table>> and <<executorEvents, `executorEvents` collection of ``SparkListenerEvent``s>>.
+
+=== [[executorToTaskSummary]] `executorToTaskSummary` Lookup Table
+
+[source, scala]
+----
+executorToTaskSummary: LinkedHashMap[String, ExecutorTaskSummary]
+----
+
+`executorToTaskSummary` is a lookup table for `ExecutorTaskSummary` per executor id.
+
+=== [[executorEvents]] `executorEvents` -- Collection of ``SparkListenerEvent``s
+
+[source, scala]
+----
+executorEvents: ListBuffer[SparkListenerEvent]
+----
+
+`executorEvents` is a collection of link:spark-SparkListener.adoc#SparkListenerEvent[SparkListenerEvent]s.
+
+=== [[onApplicationStart]] `onApplicationStart` Method
+
+[source, scala]
+----
+onApplicationStart(applicationStart: SparkListenerApplicationStart): Unit
+----
+
+`onApplicationStart` takes `driverLogs` property from the input `applicationStart` (if defined) and finds the driver's active `StorageStatus` (using the current `StorageStatusListener`). `onApplicationStart` then uses the driver's `StorageStatus` (if defined) to set `executorLogs`.
+
+.ExecutorTaskSummary and ExecutorInfo Attributes
+[frame="topbot",options="header",width="100%"]
+|======================
+| ExecutorTaskSummary Attribute | SparkListenerApplicationStart Attribute
+| `executorLogs` | `driverLogs` (if defined)
+|======================
+
+=== [[onExecutorAdded]] `onExecutorAdded` Method
+
+[source, scala]
+----
+onExecutorAdded(executorAdded: SparkListenerExecutorAdded): Unit
+----
+
+`onExecutorAdded` finds the executor (using the input `executorAdded`) in the internal <<executorToTaskSummary, `executorToTaskSummary` registry>> and sets the attributes. If not found, `onExecutorAdded` creates a new entry.
+
+.ExecutorTaskSummary and ExecutorInfo Attributes
+[frame="topbot",options="header",width="100%"]
+|======================
+| ExecutorTaskSummary Attribute | ExecutorInfo Attribute
+| `executorLogs` | `logUrlMap`
+| `totalCores` | `totalCores`
+| `tasksMax` | `totalCores` / link:spark-taskschedulerimpl.adoc#spark_task_cpus[spark.task.cpus]
+|======================
+
+`onExecutorAdded` adds the input `executorAdded` to <<executorEvents, `executorEvents` collection>>. If the number of elements in `executorEvents` collection is greater than <<spark_ui_timeline_executors_maximum, spark.ui.timeline.executors.maximum>>, the first/oldest event is removed.
+
+`onExecutorAdded` removes the oldest dead executor from <<executorToTaskSummary, `executorToTaskSummary` lookup table>> if their number is greater than <<spark_ui_retainedDeadExecutors, spark.ui.retainedDeadExecutors>>.
+
+=== [[onExecutorRemoved]] `onExecutorRemoved` Method
+
+[source, scala]
+----
+onExecutorRemoved(executorRemoved: SparkListenerExecutorRemoved): Unit
+----
+
+`onExecutorRemoved` adds the input `executorRemoved` to <<executorEvents, `executorEvents` collection>>. It then removes the oldest event if the number of elements in `executorEvents` collection is greater than <<spark_ui_timeline_executors_maximum, spark.ui.timeline.executors.maximum>>.
+
+The executor is marked as removed/inactive in <<executorToTaskSummary, `executorToTaskSummary` lookup table>>.
+
+=== [[onTaskStart]] `onTaskStart` Method
+
+[source, scala]
+----
+onTaskStart(taskStart: SparkListenerTaskStart): Unit
+----
+
+`onTaskStart` increments `tasksActive` for the executor (using the input `SparkListenerTaskStart`).
+
+.ExecutorTaskSummary and SparkListenerTaskStart Attributes
+[frame="topbot",options="header",width="100%"]
+|======================
+| ExecutorTaskSummary Attribute | Description
+| `tasksActive` | Uses `taskStart.taskInfo.executorId`.
+|======================
+
 === [[onTaskEnd]] `onTaskEnd` Method
 
 [source, scala]
@@ -7,11 +100,28 @@
 onTaskEnd(taskEnd: SparkListenerTaskEnd): Unit
 ----
 
-`onTaskEnd` works with the `TaskInfo` from the input `taskEnd` if available.
+`onTaskEnd` uses the `TaskInfo` from the input `taskEnd` (if available).
 
-NOTE: `onTaskEnd` is a part of link:spark-SparkListener.adoc[SparkListener] API.
+Depending on the reason for `SparkListenerTaskEnd` `onTaskEnd` does the following:
 
-`onTaskEnd` manages executor summaries in the internal `executorToTaskSummary` collection of executor ids and their executor summaries.
+.`onTaskEnd` Behaviour per `SparkListenerTaskEnd` Reason
+[frame="topbot",cols="1,2",options="header",width="100%"]
+|======================
+| `SparkListenerTaskEnd` Reason | `onTaskEnd` Behaviour
+| `Resubmitted` | Do nothing
+| `ExceptionFailure` | Increment `tasksFailed`
+| _anything_ | Increment `tasksComplete`
+|======================
+
+`tasksActive` is decremented but only when the number of active tasks for the executor is greater than `0`.
+
+.ExecutorTaskSummary and `onTaskEnd` Behaviour
+[frame="topbot",options="header",width="100%"]
+|======================
+| ExecutorTaskSummary Attribute | Description
+| `tasksActive` | Decremented if greater than 0.
+| `duration` | Uses `taskEnd.taskInfo.duration`
+|======================
 
 If the `TaskMetrics` (in the input `taskEnd`) is available, the metrics are added to the `taskSummary` for the task's executor.
 
@@ -26,4 +136,14 @@ If the `TaskMetrics` (in the input `taskEnd`) is available, the metrics are adde
 | `shuffleRead` | `shuffleReadMetrics.remoteBytesRead`
 | `shuffleWrite` | `shuffleWriteMetrics.bytesWritten`
 | `jvmGCTime` | `metrics.jvmGCTime`
+|======================
+
+=== [[settings]] Settings
+
+.ExecutorsListener Settings
+[frame="topbot",options="header",width="100%"]
+|======================
+| Setting | Default Value | Description
+| [[spark_ui_timeline_executors_maximum]] `spark.ui.timeline.executors.maximum` | `1000` |
+| [[spark_ui_retainedDeadExecutors]] `spark.ui.retainedDeadExecutors` | `100` |
 |======================
