@@ -22,15 +22,40 @@
 | <<ExecutorAdded, ExecutorAdded>> | <<handleExecutorAdded, handleExecutorAdded>> | An executor has been spun up on a host. Remove it from the failed executors list if it was included, and call link:spark-dagscheduler.adoc#submitWaitingStages[DAGScheduler.submitWaitingStages].
 
 | <<ExecutorLost, ExecutorLost>> | <<handleExecutorLost, handleExecutorLost>> |
-| `TaskSetFailed` | |
+| <<TaskSetFailed, TaskSetFailed>> | <<handleTaskSetFailed, handleTaskSetFailed>> | link:spark-dagscheduler.adoc#taskSetFailed[`DAGScheduler` is requested to cancel a `TaskSet`]
 | <<ResubmitFailedStages, ResubmitFailedStages>> | <<resubmitFailedStages, resubmitFailedStages>> |
 |======================
 
 When created, `DAGSchedulerEventProcessLoop` gets the reference to the owning link:spark-dagscheduler.adoc[DAGScheduler] that it uses to call event handler methods on.
 
-NOTE: `DAGSchedulerEventProcessLoop` uses https://docs.oracle.com/javase/7/docs/api/java/util/concurrent/LinkedBlockingDeque.html[java.util.concurrent.LinkedBlockingDeque] blocking deque that grows indefinitely, i.e. up to https://docs.oracle.com/javase/7/docs/api/java/lang/Integer.html#MAX_VALUE[Integer.MAX_VALUE] events.
+NOTE: `DAGSchedulerEventProcessLoop` uses https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/LinkedBlockingDeque.html[java.util.concurrent.LinkedBlockingDeque] blocking deque that grows indefinitely, i.e. up to https://docs.oracle.com/javase/8/docs/api/java/lang/Integer.html#MAX_VALUE[Integer.MAX_VALUE] events.
 
-NOTE: The name of the reference in `DAGScheduler` is `eventProcessLoop`.
+=== [[TaskSetFailed]] `TaskSetFailed` Event and `handleTaskSetFailed` Handler
+
+[source, scala]
+----
+TaskSetFailed(
+  taskSet: TaskSet,
+  reason: String,
+  exception: Option[Throwable])
+extends DAGSchedulerEvent
+----
+
+`TaskSetFailed` is a `DAGSchedulerEvent` that triggers <<handleTaskSetFailed, handleTaskSetFailed>> method.
+
+NOTE: `TaskSetFailed` is posted when link:spark-dagscheduler.adoc#taskSetFailed[`DAGScheduler` is requested to cancel a `TaskSet`].
+
+==== [[handleTaskSetFailed]] `handleTaskSetFailed` Handler
+
+[source, scala]
+----
+handleTaskSetFailed(
+  taskSet: TaskSet,
+  reason: String,
+  exception: Option[Throwable]): Unit
+----
+
+`handleTaskSetFailed` looks the stage (of the input `taskSet`) up in the internal <<stageIdToStage, stageIdToStage>> registry and link:spark-dagscheduler.adoc#abortStage[aborts] it.
 
 === [[ResubmitFailedStages]] `ResubmitFailedStages` Event and `resubmitFailedStages` Handler
 
