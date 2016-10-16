@@ -3,27 +3,27 @@
 `DAGSchedulerEventProcessLoop` (*dag-scheduler-event-loop*) is a `EventLoop` single "business logic" thread for processing `DAGSchedulerEvent` events.
 
 .DAGSchedulerEvent Events
-[width="100%",cols="1,2",frame="topbot",options="header"]
+[width="100%",cols="1,1,2",frame="topbot",options="header"]
 |======================
-| DAGSchedulerEvent | Reason
-| <<JobSubmitted, JobSubmitted>> | An action job was submitted to DAGScheduler (using link:spark-dagscheduler.adoc#submitJob[submitJob] or `runApproximateJob`)
-| <<MapStageSubmitted, MapStageSubmitted>> | A link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage] was submitted (using `submitMapStage`)
-| <<StageCancelled, StageCancelled>> |
+| DAGSchedulerEvent | Handler | Reason
+| <<JobSubmitted, JobSubmitted>> | <<handleJobSubmitted, handleJobSubmitted>> | An action job was submitted to DAGScheduler (using link:spark-dagscheduler.adoc#submitJob[submitJob] or `runApproximateJob`)
+| <<MapStageSubmitted, MapStageSubmitted>> | | A link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage] was submitted (using `submitMapStage`)
+| <<StageCancelled, StageCancelled>> | <<handleStageCancellation, handleStageCancellation>> |
 
-| <<JobCancelled, JobCancelled>> | link:spark-dagscheduler.adoc#cancelJob[`DAGScheduler` is requested to cancel a job].
+| <<JobCancelled, JobCancelled>> | <<handleJobCancellation, handleJobCancellation>> | link:spark-dagscheduler.adoc#cancelJob[`DAGScheduler` is requested to cancel a job].
 
-| `JobGroupCancelled` |
-| `AllJobsCancelled` |
-| `BeginEvent` | link:spark-tasksetmanager.adoc[TaskSetManager] reports that a task is starting.
-| `GettingResultEvent` |  link:spark-tasksetmanager.adoc[TaskSetManager] reports that a task has completed and results are being fetched remotely.
+| `JobGroupCancelled` | |
+| `AllJobsCancelled` | |
+| `BeginEvent` | | link:spark-tasksetmanager.adoc[TaskSetManager] reports that a task is starting.
+| `GettingResultEvent` | |  link:spark-tasksetmanager.adoc[TaskSetManager] reports that a task has completed and results are being fetched remotely.
 
-| <<CompletionEvent, CompletionEvent>> | link:spark-tasksetmanager.adoc[TaskSetManager] reports that a task has completed successfully or failed.
+| <<CompletionEvent, CompletionEvent>> | | link:spark-tasksetmanager.adoc[TaskSetManager] reports that a task has completed successfully or failed.
 
-| <<ExecutorAdded, ExecutorAdded>> | An executor has been spun up on a host. Remove it from the failed executors list if it was included, and call link:spark-dagscheduler.adoc#submitWaitingStages[DAGScheduler.submitWaitingStages].
+| <<ExecutorAdded, ExecutorAdded>> | <<handleExecutorAdded, handleExecutorAdded>> | An executor has been spun up on a host. Remove it from the failed executors list if it was included, and call link:spark-dagscheduler.adoc#submitWaitingStages[DAGScheduler.submitWaitingStages].
 
-| <<ExecutorLost, ExecutorLost>> |
-| `TaskSetFailed` |
-| <<ResubmitFailedStages, ResubmitFailedStages>> |
+| <<ExecutorLost, ExecutorLost>> | <<handleExecutorLost, handleExecutorLost>> |
+| `TaskSetFailed` | |
+| <<ResubmitFailedStages, ResubmitFailedStages>> | <<resubmitFailedStages, resubmitFailedStages>> |
 |======================
 
 When created, `DAGSchedulerEventProcessLoop` gets the reference to the owning link:spark-dagscheduler.adoc[DAGScheduler] that it uses to call event handler methods on.
@@ -405,49 +405,33 @@ if (finalStage.isAvailable) {
 ----
 ====
 
-=== [[StageCancelled]][[handleStageCancellation]] `StageCancelled` Event and `handleStageCancellation` Handler
+=== [[StageCancelled]] `StageCancelled` Event and `handleStageCancellation` Handler
 
-`StageCancelled(stageId: Int)` event is posted to cancel a stage and all jobs associated with it. It triggers execution of `DAGScheduler.handleStageCancellation(stageId)`.
+[source, scala]
+----
+StageCancelled(stageId: Int) extends DAGSchedulerEvent
+----
 
-It is the result of executing `SparkContext.cancelStage(stageId: Int)` that is called from the web UI (controlled by link:spark-webui.adoc#spark_ui_killEnabled[spark.ui.killEnabled]).
+`StageCancelled` is a `DAGSchedulerEvent` that triggers <<handleStageCancellation, handleStageCancellation>> (on a separate thread).
 
-CAUTION: FIXME Image of the tab with kill
+==== [[handleStageCancellation]] `handleStageCancellation` Handler
 
-`DAGScheduler.handleStageCancellation(stageId)` checks whether the `stageId` stage exists and for each job associated with the stage, it calls `handleJobCancellation(jobId, s"because Stage [stageId] was cancelled")`.
+[source, scala]
+----
+handleStageCancellation(stageId: Int): Unit
+----
 
-NOTE: A stage knows what jobs it is part of using the internal set `jobIds`.
+`handleStageCancellation` checks if the input `stageId` was registered earlier (in the internal link:spark-dagscheduler.adoc#stageIdToStage[stageIdToStage] registry) and if it was attempts to <<handleJobCancellation, cancel the associated jobs>> (with "because Stage [stageId] was cancelled" cancellation reason).
 
-`def handleJobCancellation(jobId: Int, reason: String = "")` checks whether the job exists in link:spark-dagscheduler.adoc#jobIdToStageIds[jobIdToStageIds] and if not, prints the following DEBUG to the logs:
+NOTE: A stage tracks the jobs it belongs to using `jobIds` property.
 
-```
-DEBUG Trying to cancel unregistered job [jobId]
-```
-
-However, if the job exists, the job and all the stages that are only used by it (using the internal link:spark-dagscheduler.adoc#failJobAndIndependentStages[failJobAndIndependentStages] method).
-
-For each running stage associated with the job (using link:spark-dagscheduler.adoc#jobIdToStageIds[jobIdToStageIds]), if there is only one job for the stage (`stageIdToStage`), link:spark-taskscheduler.adoc#contract[TaskScheduler.cancelTasks] is called, `outputCommitCoordinator.stageEnd(stage.id)`, and link:spark-SparkListener.adoc#SparkListenerStageCompleted[SparkListenerStageCompleted] is posted. The stage is no longer a running one (removed from `runningStages`).
-
-CAUTION: FIXME Image please with the call to TaskScheduler.
-
-* `spark.job.interruptOnCancel` (default: `false`) - controls whether or not to interrupt a job on cancel.
-
-In case link:spark-taskscheduler.adoc#contract[TaskScheduler.cancelTasks] completed successfully, <<JobListener, JobListener>> is informed about job failure, `cleanupStateForJobAndIndependentStages` is called, and link:spark-SparkListener.adoc#SparkListenerJobEnd[SparkListenerJobEnd] posted.
-
-CAUTION: FIXME `cleanupStateForJobAndIndependentStages` code review.
-
-CAUTION: FIXME Where are `job.properties` assigned to a job?
-
-```
-"Job %d cancelled %s".format(jobId, reason)
-```
-
-If no stage exists for `stageId`, the following INFO message shows in the logs:
+If the stage `stageId` was not registered earlier, you should see the following INFO message in the logs:
 
 ```
 INFO No active jobs to kill for Stage [stageId]
 ```
 
-At the end, link:spark-dagscheduler.adoc#submitWaitingStages[DAGScheduler.submitWaitingStages] is called.
+NOTE: `handleStageCancellation` is the result of executing `SparkContext.cancelStage(stageId: Int)` that is called from the web UI (controlled by link:spark-webui.adoc#spark_ui_killEnabled[spark.ui.killEnabled]).
 
 === [[JobSubmitted]] `JobSubmitted` Event and `handleJobSubmitted` Handler
 
@@ -494,20 +478,30 @@ INFO DAGScheduler: Parents of final stage: [parents]
 INFO DAGScheduler: Missing parents: [getMissingParentStages(finalStage)]
 ```
 
-`handleJobSubmitted` then saves the job (in `jobIdToActiveJob` and `activeJobs`) for future reference and sets the job for the stage (using `setActiveJob`).
+`handleJobSubmitted` then registers the job in the internal registries, i.e. link:spark-dagscheduler.adoc#jobIdToActiveJob[jobIdToActiveJob] and link:spark-dagscheduler.adoc#activeJobs[activeJobs], and sets the job for the stage (using `setActiveJob`).
 
-Ultimately, `handleJobSubmitted` posts  link:spark-SparkListener.adoc#SparkListenerJobStart[SparkListenerJobStart] message to link:spark-LiveListenerBus.adoc[LiveListenerBus] and <<submitStage, submits the stage>>.
+Ultimately, `handleJobSubmitted` posts  link:spark-SparkListener.adoc#SparkListenerJobStart[SparkListenerJobStart] message to link:spark-LiveListenerBus.adoc[LiveListenerBus] and link:spark-dagscheduler.adoc#submitStage[submits the stage].
 
-=== [[ExecutorAdded]][[handleExecutorAdded]] `ExecutorAdded` Event and `handleExecutorAdded` Handler
+=== [[ExecutorAdded]] `ExecutorAdded` Event and `handleExecutorAdded` Handler
 
-`ExecutorAdded(execId, host)` event triggers execution of `DAGScheduler.handleExecutorAdded(execId: String, host: String)`.
+[source, scala]
+----
+ExecutorAdded(execId: String, host: String) extends DAGSchedulerEvent
+----
 
-It checks <<internal-registries, failedEpoch>> for the executor id (using `execId`) and if it is found the following INFO message appears in the logs:
+`ExecutorAdded` is a `DAGSchedulerEvent` that triggers <<handleExecutorAdded, handleExecutorAdded>> method (on a separate thread).
+
+==== [[handleExecutorAdded]] Removing Executor From `failedEpoch` Registry -- `handleExecutorAdded` Handler
+
+[source, scala]
+----
+handleExecutorAdded(execId: String, host: String)
+----
+
+`handleExecutorAdded` checks if the input `execId` executor was registered in link:spark-dagscheduler.adoc#failedEpoch[failedEpoch] and, if it was, removes it from the `failedEpoch` registry.
+
+You should see the following INFO message in the logs:
 
 ```
 INFO Host added was in lost list earlier: [host]
 ```
-
-The executor is removed from the list of failed nodes.
-
-At the end, link:spark-dagscheduler.adoc#submitWaitingStages[DAGScheduler.submitWaitingStages] is called.
