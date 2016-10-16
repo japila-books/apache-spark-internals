@@ -13,18 +13,58 @@ The responsibilities of a `TaskSetManager` include (follow along the links to le
 
 [TIP]
 ====
-Enable `DEBUG` logging level for `org.apache.spark.scheduler.TaskSetManager` logger to see what happens under the covers in TaskSetManager.
+Enable `DEBUG` logging level for `org.apache.spark.scheduler.TaskSetManager` logger to see what happens inside.
 
 Add the following line to `conf/log4j.properties`:
 
 ```
 log4j.logger.org.apache.spark.scheduler.TaskSetManager=DEBUG
 ```
+
+Refer to link:spark-logging.adoc[Logging].
 ====
 
 === [[creating-instance]] Creating TaskSetManager Instance
 
 CAUTION: FIXME
+
+=== [[internal-registries]] Internal Registries and Counters
+
+`DAGScheduler` uses internal registries and counters for managing active jobs and stages.
+
+.`DAGScheduler` Internal Registries and Counters
+[frame="topbot",cols="1,2",options="header",width="100%"]
+|======================
+| Name | Description
+| [[totalResultSize]] `totalResultSize` | The current total size of the result of all the tasks that have finished.
+
+It is increased with the size of a task result when a `TaskSetManager` <<canFetchMoreResults, checks that there is enough memory to fetch the task result>>.
+
+| [[calculatedTasks]] `calculatedTasks` | The number of the tasks that have already completed execution.
+
+`calculatedTasks` is initially set to `0` when a <<creating-instance, `TaskSetManager` is created>> and is only incremented when the <<canFetchMoreResults, `TaskSetManager` checks that there is enough memory to fetch a task result>>.
+
+| `copiesRunning` |
+| `successful` |
+| `numFailures` |
+| `failedExecutors` | The lookup table of TaskInfo's indices that failed to executor ids and the time of the failure.
+
+Used in <<handleFailedTask, handleFailedTask>>.
+
+| `taskAttempts` |
+| `tasksSuccessful` |
+| `stageId` | The stage's id the `TaskSetManager` runs for. Set to `taskSet.stageId`.
+| `runningTasksSet` |
+| `isZombie` | Disabled, i.e. `false`, by default.
+| `pendingTasksForExecutor` |
+| `pendingTasksForHost` |
+| `pendingTasksForRack` |
+| `pendingTasksWithNoPrefs` |
+| `allPendingTasks` |
+| `speculatableTasks` |
+| `taskInfos` | The lookup table of ``TaskInfo``s per task id
+| `recentExceptions` |
+|======================
 
 === [[schedulable]] TaskSetManager is Schedulable
 
@@ -51,7 +91,7 @@ It means that it can only be a leaf in the tree of Schedulables (with link:spark
 * <<executorLost, executorLost>>
 * <<checkSpeculatableTasks, checkSpeculatableTasks>>
 
-=== [[executorLost]] Handling Executor Lost Events (executorLost method)
+=== [[executorLost]] Handling Executor Lost Events -- `executorLost` Method
 
 NOTE: `executorLost` is part of the link:spark-taskscheduler-schedulable.adoc#contract[Schedulable Contract] which is called by link:spark-taskschedulerimpl.adoc#removeExecutor[TaskSchedulerImpl] to inform `TaskSetManagers` about executors being lost.
 
@@ -67,7 +107,7 @@ Regardless of the above check, all currently-running tasks for the failed execut
 
 <<recomputeLocality, recomputeLocality>> is called.
 
-=== [[checkSpeculatableTasks]] Checking Speculatable Tasks (checkSpeculatableTasks method)
+=== [[checkSpeculatableTasks]] Checking Speculatable Tasks -- `checkSpeculatableTasks` Method
 
 NOTE: `checkSpeculatableTasks` is part of the link:spark-taskscheduler-schedulable.adoc#contract[Schedulable Contract].
 
@@ -107,23 +147,23 @@ INFO Marking task [index] in stage [taskSet.id] (on [info.host]) as speculatable
 
 The task gets added to the internal `speculatableTasks` collection. The method responds positively.
 
-=== [[addPendingTask]] addPendingTask
+=== [[addPendingTask]] `addPendingTask` Method
 
 CAUTION: FIXME
 
-=== [[dequeueSpeculativeTask]] dequeueSpeculativeTask
+=== [[dequeueSpeculativeTask]] `dequeueSpeculativeTask` Method
 
 CAUTION: FIXME
 
-=== [[dequeueTask]] dequeueTask
+=== [[dequeueTask]] `dequeueTask` Method
 
 CAUTION: FIXME
 
-=== [[executorAdded]] TaskSetManager.executorAdded
+=== [[executorAdded]] `executorAdded` Method
 
 `executorAdded` simply calls <<recomputeLocality, recomputeLocality>> method.
 
-=== [[recomputeLocality]] TaskSetManager.recomputeLocality
+=== [[recomputeLocality]] `recomputeLocality` Method
 
 `recomputeLocality` (re)computes locality levels as a indexed collection of task localities, i.e. `Array[TaskLocality.TaskLocality]`.
 
@@ -149,7 +189,7 @@ DEBUG Valid locality levels for [taskSet]: [levels]
 
 `myLocalityLevels`, `localityWaits`, and `currentLocalityIndex` are recomputed.
 
-=== [[resourceOffer]] TaskSetManager.resourceOffer
+=== [[resourceOffer]] `resourceOffer` Method
 
 CAUTION: FIXME Review `TaskSetManager.resourceOffer` + Does this have anything related to the following section about scheduling tasks?
 
@@ -233,7 +273,7 @@ When a task has finished, the `TaskSetManager` calls link:spark-dagscheduler.ado
 
 CAUTION: FIXME
 
-=== [[handleSuccessfulTask]] TaskSetManager.handleSuccessfulTask
+=== [[handleSuccessfulTask]] `handleSuccessfulTask` Method
 
 `handleSuccessfulTask(tid: Long, result: DirectTaskResult[_])` method marks the task (by `tid`) as successful and notifies the DAGScheduler that the task has ended.
 
@@ -269,7 +309,7 @@ CAUTION: FIXME What does `failedExecutors.remove(index)` mean?
 
 At the end, the method checks whether the TaskSetManager is a zombie and no task is running (using `runningTasksSet`), and if so, it calls link:spark-taskschedulerimpl.adoc#taskSetFinished[TaskSchedulerImpl.taskSetFinished].
 
-=== [[handleFailedTask]] TaskSetManager.handleFailedTask
+=== [[handleFailedTask]] `handleFailedTask` Method
 
 `handleFailedTask(tid: Long, state: TaskState, reason: TaskEndReason)` method is called by link:spark-taskschedulerimpl.adoc#handleFailedTask[TaskSchedulerImpl] or <<executorLost, executorLost>>.
 
@@ -436,7 +476,7 @@ While in zombie state, TaskSetManager can launch no new tasks and <<resourceOffe
 
 TaskSetManager remains in the zombie state until all tasks have finished running, i.e. to continue to track and account for the running tasks.
 
-=== [[abort]][[aborting-taskset]] Aborting TaskSet -- `abort` method
+=== [[abort]][[aborting-taskset]] Aborting TaskSet -- `abort` Method
 
 [source, scala]
 ----
@@ -453,7 +493,7 @@ Finally, `maybeFinishTaskSet` method is called.
 
 CAUTION: FIXME Why is `maybeFinishTaskSet` method called? When is `runningTasks` `0`?
 
-=== [[canFetchMoreResults]] Checking Available Memory For Task Result -- `canFetchMoreResults` method
+=== [[canFetchMoreResults]] Checking Available Memory For Task Result -- `canFetchMoreResults` Method
 
 [source, scala]
 ----
@@ -476,56 +516,25 @@ Otherwise, `canFetchMoreResults` returns `true`.
 
 NOTE: `canFetchMoreResults` is used in link:spark-taskschedulerimpl.adoc#enqueueSuccessfulTask[TaskResultGetter.enqueueSuccessfulTask] only.
 
-=== [[internal-registries]] Internal Registries
-
-==== [[totalResultSize]] totalResultSize
-
-`totalResultSize` is the current total size of the result of all the tasks that have finished.
-
-It is increased with the size of a task result when a `TaskSetManager` <<canFetchMoreResults, checks that there is enough memory to fetch the task result>>.
-
-==== [[calculatedTasks]] calculatedTasks
-
-`calculatedTasks` is the number of the tasks that have already completed execution.
-
-`calculatedTasks` is initially set to `0` when a <<creating-instance, `TaskSetManager` is created>> and is only incremented when the <<canFetchMoreResults, `TaskSetManager` checks that there is enough memory to fetch a task result>>.
-
-==== Others
-
-* `copiesRunning`
-* `successful`
-* `numFailures`
-* `failedExecutors` contains a mapping of TaskInfo's indices that failed to executor ids and the time of the failure. It is used in <<handleFailedTask, handleFailedTask>>.
-* `taskAttempts`
-* `tasksSuccessful`
-* `stageId` (default: `taskSet.stageId`)
-* `runningTasksSet`
-* `isZombie` (default: `false`)
-* `pendingTasksForExecutor`
-* `pendingTasksForHost`
-* `pendingTasksForRack`
-* `pendingTasksWithNoPrefs`
-* `allPendingTasks`
-* `speculatableTasks`
-* `taskInfos` is the mapping between task ids and their `TaskInfo`
-* `recentExceptions`
-
 === [[settings]] Settings
 
-* `spark.scheduler.executorTaskBlacklistTime` (default: `0L`) - time interval to pass after which a task can be re-launched on the executor where it has once failed. It is to prevent repeated task failures due to executor failures.
-* `spark.speculation` (default: `false`)
-* `spark.speculation.quantile` (default: `0.75`) - the percentage of tasks that has not finished yet at which to start speculation.
-* `spark.speculation.multiplier` (default: `1.5`)
-* `spark.logging.exceptionPrintInterval` (default: `10000`) - how frequently to reprint duplicate exceptions in full, in milliseconds
-* `spark.locality.wait` (default: `3s`) - for locality-aware delay scheduling for `PROCESS_LOCAL`, `NODE_LOCAL`, and `RACK_LOCAL` when locality-specific setting is not set.
-* `spark.locality.wait.process` (default: the value of `spark.locality.wait`) - delay for `PROCESS_LOCAL`
-* `spark.locality.wait.node` (default: the value of `spark.locality.wait`) - delay for `NODE_LOCAL`
-* `spark.locality.wait.rack` (default: the value of `spark.locality.wait`) - delay for `RACK_LOCAL`
+.TaskSetManager's Spark Properties
+[frame="topbot",options="header",width="100%"]
+|======================
+| Spark Property | Default Value | Description
+| [[spark_driver_maxResultSize]] `spark.driver.maxResultSize` | `1g` | The quota to fetch the results, i.e. limit of bytes for total size of results. If the value is smaller than `1m` or `1048576` (1024 * 1024), it is considered `0`.
 
-==== [[spark_driver_maxResultSize]] spark.driver.maxResultSize
+Used when <<canFetchMoreResults, TaskSetManager checks available memory for task result>> and `Utils.getMaxResultSize`.
 
-`spark.driver.maxResultSize` (default: `1g`) sets the quota to fetch the results, i.e. limit of bytes for total size of results.
+| `spark.scheduler.executorTaskBlacklistTime` | `0L` | Time interval to pass after which a task can be re-launched on the executor where it has once failed. It is to prevent repeated task failures due to executor failures.
 
-If the value is smaller than `1m` or `1048576` (1024 * 1024), it becomes 0.
+| [[spark_speculation]] `spark.speculation` | `false` |
+| `spark.speculation.quantile` | `0.75` | The percentage of tasks that has not finished yet at which to start speculation.
+| `spark.speculation.multiplier` | `1.5` |
+| `spark.logging.exceptionPrintInterval` | `10000` millis | How frequently to reprint duplicate exceptions in full
+| [[spark_locality_wait]] `spark.locality.wait` | `3s` | For locality-aware delay scheduling for `PROCESS_LOCAL`, `NODE_LOCAL`, and `RACK_LOCAL` when locality-specific setting is not set.
+| `spark.locality.wait.process` | <<spark_locality_wait, spark.locality.wait>> | Scheduling delay for `PROCESS_LOCAL`
+| `spark.locality.wait.node` | <<spark_locality_wait, spark.locality.wait>> | Scheduling delay for `NODE_LOCAL`
+| `spark.locality.wait.rack` | <<spark_locality_wait, spark.locality.wait>> | Scheduling delay for `RACK_LOCAL`
 
-NOTE: It is used in `TaskSetManager.canFetchMoreResults` and `Utils.getMaxResultSize`.
+|======================
