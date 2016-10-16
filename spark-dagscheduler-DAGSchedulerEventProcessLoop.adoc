@@ -13,7 +13,7 @@
 
 | <<JobCancelled, JobCancelled>> | <<handleJobCancellation, handleJobCancellation>> | `DAGScheduler` was requested to link:spark-dagscheduler.adoc#cancelJob[cancel a job].
 
-| `JobGroupCancelled` | | `DAGScheduler` was requested to link:spark-dagscheduler.adoc#cancelJobGroup[cancel a job group].
+| <<JobGroupCancelled, JobGroupCancelled>> | <<handleJobGroupCancelled, handleJobGroupCancelled>> | `DAGScheduler` was requested to link:spark-dagscheduler.adoc#cancelJobGroup[cancel a job group].
 
 | `AllJobsCancelled` | | `DAGScheduler` was requested to link:spark-dagscheduler.adoc#cancelAllJobs[cancel all running or waiting jobs].
 
@@ -35,6 +35,30 @@
 When created, `DAGSchedulerEventProcessLoop` gets the reference to the owning link:spark-dagscheduler.adoc[DAGScheduler] that it uses to call event handler methods on.
 
 NOTE: `DAGSchedulerEventProcessLoop` uses https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/LinkedBlockingDeque.html[java.util.concurrent.LinkedBlockingDeque] blocking deque that grows indefinitely, i.e. up to https://docs.oracle.com/javase/8/docs/api/java/lang/Integer.html#MAX_VALUE[Integer.MAX_VALUE] events.
+
+=== [[JobGroupCancelled]] `JobGroupCancelled` Event and `handleJobGroupCancelled` Handler
+
+[source, scala]
+----
+JobGroupCancelled(groupId: String) extends DAGSchedulerEvent
+----
+
+`JobGroupCancelled` is a `DAGSchedulerEvent` that triggers <<handleJobGroupCancelled, handleJobGroupCancelled>> (on a separate thread).
+
+NOTE: `JobGroupCancelled` is posted when `DAGScheduler` is informed (through link:spark-dagscheduler.adoc#cancelJobGroup[cancelJobGroup]) that link:spark-sparkcontext.adoc#cancelJobGroup[`SparkContext` was requested to cancel a job group].
+
+==== [[handleJobGroupCancelled]] `handleJobGroupCancelled` Handler
+
+[source, scala]
+----
+handleJobGroupCancelled(groupId: String): Unit
+----
+
+`handleJobGroupCancelled` finds active jobs in a group and cancels them.
+
+Internally, `handleJobGroupCancelled` computes all the active jobs (registered in the internal link:spark-dagscheduler.adoc#activeJobs[collection of active jobs]) that have `spark.jobGroup.id` scheduling property set to `groupId`.
+
+`handleJobGroupCancelled` then <<handleJobCancellation, cancels every active job>> in the group one by one and the cancellation reason: "part of cancelled job group [groupId]".
 
 === [[MapStageSubmitted]] `MapStageSubmitted` Event and `handleMapStageSubmitted` Handler
 
