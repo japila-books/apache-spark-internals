@@ -24,6 +24,17 @@ log4j.logger.org.apache.spark.scheduler.TaskSetManager=DEBUG
 Refer to link:spark-logging.adoc[Logging].
 ====
 
+=== [[handleTaskGettingResult]] Marking Task As Fetching Indirect Result -- `handleTaskGettingResult` Method
+
+[source, scala]
+----
+handleTaskGettingResult(tid: Long): Unit
+----
+
+`handleTaskGettingResult` looks the `TaskInfo` for the task id `tid` up in <<taskInfos, `taskInfos` internal registry>> and marks it as fetching indirect task result. It then link:spark-dagscheduler.adoc#taskGettingResult[notifies `DAGScheduler`].
+
+NOTE: `handleTaskGettingResult` is executed when link:spark-taskschedulerimpl.adoc#handleTaskGettingResult[`TaskSchedulerImpl` is notified about fetching indirect task result].
+
 === [[creating-instance]] Creating TaskSetManager Instance
 
 CAUTION: FIXME
@@ -62,7 +73,7 @@ Used in <<handleFailedTask, handleFailedTask>>.
 | `pendingTasksWithNoPrefs` |
 | `allPendingTasks` |
 | `speculatableTasks` |
-| `taskInfos` | The lookup table of ``TaskInfo``s per task id
+| [[taskInfos]] `taskInfos` | The lookup table of ``TaskInfo``s per task id.
 | `recentExceptions` |
 |======================
 
@@ -99,7 +110,7 @@ Since `TaskSetManager` manages execution of the tasks in a single link:spark-tas
 
 `executorLost` first checks whether the `TaskSet` is for a link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage] (in which case all `TaskSet.tasks` are instances of link:spark-taskscheduler-tasks.adoc#shufflemaptask[ShuffleMapTask]) as well as whether an link:spark-ExternalShuffleService.adoc[external shuffle server] is used (that could serve the shuffle outputs in case of failure).
 
-If it is indeed for a failed link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage] and no external shuffle server is enabled, all successfully-completed tasks for the failed executor (using `taskInfos` <<internal-registries, internal registry>>) <<addPendingTask, get added to the collection of pending tasks>> and the link:spark-dagscheduler.adoc#taskEnded[DAGScheduler is informed about resubmission] (as link:spark-dagscheduler.adoc#TaskEndReason-Resubmitted[`Resubmitted` end reason]).
+If it is indeed for a failed link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage] and no external shuffle server is enabled, all successfully-completed tasks for the failed executor (using <<taskInfos, `taskInfos` internal registry>>) <<addPendingTask, get added to the collection of pending tasks>> and the link:spark-dagscheduler.adoc#taskEnded[DAGScheduler is informed about resubmission] (as link:spark-dagscheduler.adoc#TaskEndReason-Resubmitted[`Resubmitted` end reason]).
 
 The <<internal-registries, internal registries>> - `successful`, `copiesRunning`, and `tasksSuccessful` - are updated.
 
@@ -129,7 +140,7 @@ DEBUG Checking for speculative tasks: minFinished = [minFinishedForSpeculation]
 
 It then checks whether the number is equal or greater than the number of tasks completed successfully (using `tasksSuccessful`).
 
-Having done that, it computes the median duration of all the successfully completed tasks (using `taskInfos`) and task length threshold using the median duration multiplied by <<settings, spark.speculation.multiplier>> that has to be equal or less than `100`.
+Having done that, it computes the median duration of all the successfully completed tasks (using <<taskInfos, `taskInfos` internal registry>>) and task length threshold using the median duration multiplied by <<settings, spark.speculation.multiplier>> that has to be equal or less than `100`.
 
 You should see the DEBUG message in the logs:
 
@@ -137,7 +148,7 @@ You should see the DEBUG message in the logs:
 DEBUG Task length threshold for speculation: [threshold]
 ```
 
-For each task (using `taskInfos`) that is not marked as successful yet (using `successful`) for which there is only one copy running (using `copiesRunning`) and the task takes more time than the calculated threshold, but it was not in `speculatableTasks` it is assumed *speculatable*.
+For each task (using <<taskInfos, `taskInfos` internal registry>>) that is not marked as successful yet (using `successful`) for which there is only one copy running (using `copiesRunning`) and the task takes more time than the calculated threshold, but it was not in `speculatableTasks` it is assumed *speculatable*.
 
 You should see the following INFO message in the logs:
 
@@ -281,7 +292,7 @@ It is called by... when...FIXME
 
 CAUTION: FIXME Describe `TaskInfo`
 
-It marks `TaskInfo` (using `taskInfos`) as successful (using `TaskInfo.markSuccessful()`).
+It marks `TaskInfo` (using <<taskInfos, `taskInfos` internal registry>>) as successful (using `TaskInfo.markSuccessful()`).
 
 It removes the task from `runningTasksSet`. It also decreases the number of running tasks in the parent pool if it is defined (using `parent` and `Pool.decreaseRunningTasks`).
 
@@ -315,7 +326,7 @@ At the end, the method checks whether the TaskSetManager is a zombie and no task
 
 CAUTION: FIXME image with `handleFailedTask` (and perhaps the other parties involved)
 
-The method first checks whether the task has already been marked as failed (using <<internal-registries, taskInfos>>) and if it has, it quits.
+The method first checks whether the task has already been marked as failed (using <<taskInfos, `taskInfos` internal registry>>) and if it has, it quits.
 
 It removes the task from <<internal-registries, runningTasksSet>> and informs <<internal-registries, the parent pool>> to decrease its running tasks.
 

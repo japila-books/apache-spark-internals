@@ -56,104 +56,6 @@ DAGScheduler reports metrics about its execution (refer to the section <<metrics
 
 When DAGScheduler schedules a job as a result of link:spark-rdd.adoc#actions[executing an action on a RDD] or link:spark-sparkcontext.adoc#running-jobs[calling SparkContext.runJob() method directly], it spawns parallel tasks to compute (partial) results per partition.
 
-=== [[cancelStage]] `cancelStage` Method
-
-CAUTION: FIXME
-
-=== [[cancelJobGroup]] `cancelJobGroup` Method
-
-CAUTION: FIXME
-
-=== [[cancelAllJobs]] `cancelAllJobs` Method
-
-CAUTION: FIXME
-
-=== [[taskStarted]] `taskStarted` Method
-
-CAUTION: FIXME
-
-=== [[taskGettingResult]] `taskGettingResult` Method
-
-CAUTION: FIXME
-
-=== [[taskEnded]] Posting `CompletionEvent` Event -- `taskEnded` Method
-
-[source, scala]
-----
-taskEnded(
-  task: Task[_],
-  reason: TaskEndReason,
-  result: Any,
-  accumUpdates: Map[Long, Any],
-  taskInfo: TaskInfo,
-  taskMetrics: TaskMetrics): Unit
-----
-
-`taskEnded` merely posts a link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#CompletionEvent[CompletionEvent] event to the <<eventProcessLoop, DAGScheduler's Internal Event Bus>>.
-
-NOTE: `taskEnded` method is called by a link:spark-tasksetmanager.adoc[TaskSetManager] to report task completions, failures including.
-
-TIP: Read about `TaskMetrics` in link:spark-taskscheduler-taskmetrics.adoc[TaskMetrics].
-
-=== [[submitMapStage]] Posting `TaskSetFailed` Event -- `submitMapStage` Method
-
-[source, scala]
-----
-submitMapStage[K, V, C](
-  dependency: ShuffleDependency[K, V, C],
-  callback: MapOutputStatistics => Unit,
-  callSite: CallSite,
-  properties: Properties): JobWaiter[MapOutputStatistics]
-----
-
-`submitMapStage` posts a link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#MapStageSubmitted[MapStageSubmitted] event to the <<eventProcessLoop, DAGScheduler's Internal Event Bus>> and returns the <<JobWaiter, JobWaiter>> with one task only and a result handler that will call the `callback` function.
-
-`submitMapStage` increments <<nextJobId, nextJobId>> for the job id.
-
-NOTE: `submitMapStage` is used when link:spark-sparkcontext.adoc#submitMapStage[`SparkContext` submits a map stage for execution].
-
-=== [[taskSetFailed]] Posting `TaskSetFailed` Event -- `taskSetFailed` Method
-
-[source, scala]
-----
-taskSetFailed(
-  taskSet: TaskSet,
-  reason: String,
-  exception: Option[Throwable]): Unit
-----
-
-`taskSetFailed` simply posts a link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#TaskSetFailed[TaskSetFailed] to <<eventProcessLoop, DAGScheduler's Internal Event Bus>>.
-
-NOTE: The input arguments of `taskSetFailed` are exactly the arguments of link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#TaskSetFailed[TaskSetFailed].
-
-NOTE: `taskSetFailed` is executed when a link:spark-tasksetmanager.adoc#abort[`TaskSetManager` is aborted].
-
-=== [[abortStage]] `abortStage` Internal Method
-
-[source, scala]
-----
-abortStage(
-  failedStage: Stage,
-  reason: String,
-  exception: Option[Throwable]): Unit
-----
-
-`abortStage` is an internal method that finds the active job depending on the failed stage and fails them.
-
-Internally, `abortStage` looks the `failedStage` stage up in the internal <<stageIdToStage, stageIdToStage>> registry and exits if there the stage was not registered earlier.
-
-`abortStage` then finds all the active jobs (in the internal <<activeJobs, activeJobs>> registry) with the <<stageDependsOn, final stage depending on the `failedStage` stage>>.
-
-At this time, the `completionTime` property (of the failed stage's `StageInfo`) is assigned to the current time (millis).
-
-All the active jobs that depend on the failed stage (as calculated above) and the stages that do not belong to other jobs (aka _independent stages_) are <<failJobAndIndependentStages, failed>> (with the failure reason being "Job aborted due to stage failure: [reason]" and the input `exception`).
-
-If there are no jobs depending on the failed stage, you should see the following INFO message in the logs:
-
-```
-INFO Ignoring failure of [failedStage] because all jobs depending on it are done
-```
-
 === [[stageDependsOn]] `stageDependsOn` Method
 
 CAUTION: FIXME
@@ -287,6 +189,141 @@ NOTE: `submitJob` is called by link:spark-sparkcontext.adoc#submitJob[`SparkCont
 
 NOTE: `submitJob` assumes that the partitions of a RDD are indexed from 0 onwards in sequential order.
 
+=== [[cancelStage]] Posting `StageCancelled` Event -- `cancelStage` Method
+
+[source, scala]
+----
+cancelStage(stageId: Int)
+----
+
+`cancelJobGroup` merely posts a link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#StageCancelled[StageCancelled] event to the <<eventProcessLoop, DAGScheduler's Internal Event Bus>>.
+
+NOTE: `cancelStage` is executed when a link:spark-sparkcontext.adoc#cancelStage[`SparkContext` is requested to cancel a stage].
+
+=== [[cancelJobGroup]] Posting `JobGroupCancelled` Event -- `cancelJobGroup` Method
+
+[source, scala]
+----
+cancelJobGroup(groupId: String): Unit
+----
+
+`cancelJobGroup` prints the following INFO message to the logs followed by posting a link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#JobGroupCancelled[JobGroupCancelled] event to the <<eventProcessLoop, DAGScheduler's Internal Event Bus>>.
+
+```
+INFO Asked to cancel job group [groupId]
+```
+
+NOTE: `cancelJobGroup` is executed when a link:spark-sparkcontext.adoc#cancelJobGroup[`SparkContext` is requested to cancel a specified group of jobs].
+
+=== [[cancelAllJobs]] Posting `AllJobsCancelled` Event -- `cancelAllJobs` Method
+
+[source, scala]
+----
+cancelAllJobs(): Unit
+----
+
+`cancelAllJobs` merely posts a link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#AllJobsCancelled[AllJobsCancelled] event to the <<eventProcessLoop, DAGScheduler's Internal Event Bus>>.
+
+NOTE: `cancelAllJobs` is executed when a link:spark-sparkcontext.adoc#cancelAllJobs[`SparkContext` is requested to cancel all running and scheduled Spark jobs].
+
+=== [[taskStarted]] Posting `BeginEvent` Event -- `taskStarted` Method
+
+[source, scala]
+----
+taskStarted(task: Task[_], taskInfo: TaskInfo)
+----
+
+`taskStarted` merely posts a link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#BeginEvent[BeginEvent] event to the <<eventProcessLoop, DAGScheduler's Internal Event Bus>>.
+
+NOTE: `taskStarted` is executed when a link:spark-tasksetmanager.adoc#resourceOffer[`TaskSetManager` starts a task].
+
+=== [[taskGettingResult]] Posting `GettingResultEvent` Event -- `taskGettingResult` Method
+
+[source, scala]
+----
+taskGettingResult(taskInfo: TaskInfo)
+----
+
+`taskGettingResult` merely posts a link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#GettingResultEvent[GettingResultEvent] event to the <<eventProcessLoop, DAGScheduler's Internal Event Bus>>.
+
+NOTE: `taskGettingResult` is executed when a link:spark-tasksetmanager.adoc#handleTaskGettingResult[`TaskSetManager` gets notified about a task fetching result].
+
+=== [[taskEnded]] Posting `CompletionEvent` Event -- `taskEnded` Method
+
+[source, scala]
+----
+taskEnded(
+  task: Task[_],
+  reason: TaskEndReason,
+  result: Any,
+  accumUpdates: Map[Long, Any],
+  taskInfo: TaskInfo,
+  taskMetrics: TaskMetrics): Unit
+----
+
+`taskEnded` merely posts a link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#CompletionEvent[CompletionEvent] event to the <<eventProcessLoop, DAGScheduler's Internal Event Bus>>.
+
+NOTE: `taskEnded` is called when a link:spark-tasksetmanager.adoc[`TaskSetManager` reports task completions], failures including.
+
+TIP: Read about `TaskMetrics` in link:spark-taskscheduler-taskmetrics.adoc[TaskMetrics].
+
+=== [[submitMapStage]] Posting `MapStageSubmitted` Event -- `submitMapStage` Method
+
+[source, scala]
+----
+submitMapStage[K, V, C](
+  dependency: ShuffleDependency[K, V, C],
+  callback: MapOutputStatistics => Unit,
+  callSite: CallSite,
+  properties: Properties): JobWaiter[MapOutputStatistics]
+----
+
+`submitMapStage` posts a link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#MapStageSubmitted[MapStageSubmitted] event to the <<eventProcessLoop, DAGScheduler's Internal Event Bus>> and returns the <<JobWaiter, JobWaiter>> with one task only and a result handler that will call the `callback` function.
+
+`submitMapStage` increments <<nextJobId, nextJobId>> for the job id.
+
+NOTE: `submitMapStage` is used when link:spark-sparkcontext.adoc#submitMapStage[`SparkContext` submits a map stage for execution].
+
+=== [[taskSetFailed]] Posting `TaskSetFailed` Event -- `taskSetFailed` Method
+
+[source, scala]
+----
+taskSetFailed(
+  taskSet: TaskSet,
+  reason: String,
+  exception: Option[Throwable]): Unit
+----
+
+`taskSetFailed` simply posts a link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#TaskSetFailed[TaskSetFailed] to <<eventProcessLoop, DAGScheduler's Internal Event Bus>>.
+
+NOTE: The input arguments of `taskSetFailed` are exactly the arguments of link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#TaskSetFailed[TaskSetFailed].
+
+NOTE: `taskSetFailed` is executed when a link:spark-tasksetmanager.adoc#abort[`TaskSetManager` is aborted].
+
+=== [[executorAdded]] Announcing New Executor -- `executorAdded` Method
+
+[source, scala]
+----
+executorAdded(execId: String, host: String): Unit
+----
+
+`executorAdded` simply posts a <<ExecutorAdded, ExecutorAdded>> event to <<eventProcessLoop, DAGScheduler's Internal Event Bus>>.
+
+=== [[cancelJob]] Posting `JobCancelled` Event -- `cancelJob` Method
+
+[source, scala]
+----
+cancelJob(jobId: Int): Unit
+----
+
+`cancelJob` prints the following INFO message and posts a link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#JobCancelled[JobCancelled] to <<eventProcessLoop, DAGScheduler's Internal Event Bus>>.
+
+```
+INFO DAGScheduler: Asked to cancel job [id]
+```
+
+NOTE: `cancelJob` is called when link:spark-sparkcontext.adoc#cancelJob[SparkContext] and <<JobWaiter, JobWaiter>> are requested to cancel a Spark job.
+
 === [[messageScheduler]] `messageScheduler` Single-Thread Executor
 
 CAUTION: FIXME
@@ -365,14 +402,31 @@ Since a `JobWaiter` object is a `JobListener` it gets notifications about `taskS
 
 * FIXME Who's using `submitMapStage`?
 
-=== [[executorAdded]] Announcing New Executor -- `executorAdded` Method
+=== [[abortStage]] `abortStage` Internal Method
 
 [source, scala]
 ----
-executorAdded(execId: String, host: String): Unit
+abortStage(
+  failedStage: Stage,
+  reason: String,
+  exception: Option[Throwable]): Unit
 ----
 
-`executorAdded` simply posts a <<ExecutorAdded, ExecutorAdded>> event to the internal link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc[DAGSchedulerEvent event bus].
+`abortStage` is an internal method that finds the active job depending on the failed stage and fails them.
+
+Internally, `abortStage` looks the `failedStage` stage up in the internal <<stageIdToStage, stageIdToStage>> registry and exits if there the stage was not registered earlier.
+
+`abortStage` then finds all the active jobs (in the internal <<activeJobs, activeJobs>> registry) with the <<stageDependsOn, final stage depending on the `failedStage` stage>>.
+
+At this time, the `completionTime` property (of the failed stage's `StageInfo`) is assigned to the current time (millis).
+
+All the active jobs that depend on the failed stage (as calculated above) and the stages that do not belong to other jobs (aka _independent stages_) are <<failJobAndIndependentStages, failed>> (with the failure reason being "Job aborted due to stage failure: [reason]" and the input `exception`).
+
+If there are no jobs depending on the failed stage, you should see the following INFO message in the logs:
+
+```
+INFO Ignoring failure of [failedStage] because all jobs depending on it are done
+```
 
 === [[markStageAsFinished]] Marking Stage Finished -- `markStageAsFinished` Internal Method
 
@@ -383,24 +437,9 @@ markStageAsFinished(stage: Stage, errorMessage: Option[String] = None): Unit
 
 CAUTION: FIXME
 
-=== [[cancelJob]] Posting `JobCancelled` Event -- `cancelJob` Method
-
-[source, scala]
-----
-cancelJob(jobId: Int): Unit
-----
-
-`cancelJob` prints the following INFO message and posts a link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#JobCancelled[JobCancelled] to <<eventProcessLoop, eventProcessLoop>>.
-
-```
-INFO DAGScheduler: Asked to cancel job [id]
-```
-
-NOTE: `cancelJob` is called when link:spark-sparkcontext.adoc#cancelJob[SparkContext] and <<JobWaiter, JobWaiter>> are requested to cancel a Spark job.
-
 === [[event-loop]][[eventProcessLoop]] dag-scheduler-event-loop -- DAGScheduler's Internal Event Bus
 
-`eventProcessLoop` is the link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc[DAGScheduler event process loop] to which Spark (by <<submitJob, submitJob>>) posts jobs to schedule their execution. Later on, link:spark-tasksetmanager.adoc[TaskSetManager] talks back to `DAGScheduler` to inform about the status of the tasks using the same "communication channel".
+`eventProcessLoop` is link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc[DAGScheduler's event bus] to which Spark (by <<submitJob, submitJob>>) posts jobs to schedule their execution. Later on, link:spark-tasksetmanager.adoc[TaskSetManager] talks back to `DAGScheduler` to inform about the status of the tasks using the same "communication channel".
 
 It allows Spark to release the current thread when posting happens and let the event loop handle events on a separate thread - asynchronously.
 
@@ -422,16 +461,16 @@ createResultStage(
 
 CAUTION: FIXME
 
-=== [[submitWaitingStages]] Submitting Waiting Stages -- `submitWaitingStages` Method
+=== [[submitWaitingStages]] Submitting Waiting Stages for Execution -- `submitWaitingStages` Method
 
 [source, scala]
 ----
 submitWaitingChildStages(parent: Stage): Unit
 ----
 
-`DAGScheduler.submitWaitingStages` method checks for waiting or failed stages that could now be eligible for submission.
+`submitWaitingStages` method checks for waiting or failed stages that could now be eligible for submission.
 
-The following `TRACE` messages show in the logs when the method is called:
+When executed, you should see the following `TRACE` messages in the logs:
 
 ```
 TRACE DAGScheduler: Checking for newly runnable parent stages
