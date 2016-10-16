@@ -56,10 +56,6 @@ DAGScheduler reports metrics about its execution (refer to the section <<metrics
 
 When DAGScheduler schedules a job as a result of link:spark-rdd.adoc#actions[executing an action on a RDD] or link:spark-sparkcontext.adoc#running-jobs[calling SparkContext.runJob() method directly], it spawns parallel tasks to compute (partial) results per partition.
 
-=== [[submitMapStage]] `submitMapStage` Method
-
-CAUTION: FIXME
-
 === [[cancelStage]] `cancelStage` Method
 
 CAUTION: FIXME
@@ -80,7 +76,7 @@ CAUTION: FIXME
 
 CAUTION: FIXME
 
-=== [[taskEnded]] `taskEnded` Method
+=== [[taskEnded]] Posting `CompletionEvent` Event -- `taskEnded` Method
 
 [source, scala]
 ----
@@ -93,11 +89,28 @@ taskEnded(
   taskMetrics: TaskMetrics): Unit
 ----
 
-`taskEnded` simply posts a <<CompletionEvent, CompletionEvent>> event to the <<eventProcessLoop, DAGScheduler's internal event loop>>.
+`taskEnded` merely posts a link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#CompletionEvent[CompletionEvent] event to the <<eventProcessLoop, DAGScheduler's Internal Event Bus>>.
 
-NOTE: `DAGScheduler.taskEnded` method is called by a link:spark-tasksetmanager.adoc[TaskSetManager] to report task completions, failures including.
+NOTE: `taskEnded` method is called by a link:spark-tasksetmanager.adoc[TaskSetManager] to report task completions, failures including.
 
 TIP: Read about `TaskMetrics` in link:spark-taskscheduler-taskmetrics.adoc[TaskMetrics].
+
+=== [[submitMapStage]] Posting `TaskSetFailed` Event -- `submitMapStage` Method
+
+[source, scala]
+----
+submitMapStage[K, V, C](
+  dependency: ShuffleDependency[K, V, C],
+  callback: MapOutputStatistics => Unit,
+  callSite: CallSite,
+  properties: Properties): JobWaiter[MapOutputStatistics]
+----
+
+`submitMapStage` posts a link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#MapStageSubmitted[MapStageSubmitted] event to the <<eventProcessLoop, DAGScheduler's Internal Event Bus>> and returns the <<JobWaiter, JobWaiter>> with one task only and a result handler that will call the `callback` function.
+
+`submitMapStage` increments <<nextJobId, nextJobId>> for the job id.
+
+NOTE: `submitMapStage` is used when link:spark-sparkcontext.adoc#submitMapStage[`SparkContext` submits a map stage for execution].
 
 === [[taskSetFailed]] Posting `TaskSetFailed` Event -- `taskSetFailed` Method
 
