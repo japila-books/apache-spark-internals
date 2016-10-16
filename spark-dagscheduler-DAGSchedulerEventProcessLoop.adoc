@@ -6,29 +6,100 @@
 [width="100%",cols="1,1,2",frame="topbot",options="header"]
 |======================
 | DAGSchedulerEvent | Handler | Reason
-| <<JobSubmitted, JobSubmitted>> | <<handleJobSubmitted, handleJobSubmitted>> | An action job was submitted to DAGScheduler (using link:spark-dagscheduler.adoc#submitJob[submitJob] or `runApproximateJob`)
-| <<MapStageSubmitted, MapStageSubmitted>> | | A link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage] was submitted (using `submitMapStage`)
-| <<StageCancelled, StageCancelled>> | <<handleStageCancellation, handleStageCancellation>> |
+| <<JobSubmitted, JobSubmitted>> | <<handleJobSubmitted, handleJobSubmitted>> | A Spark job was submitted to DAGScheduler using link:spark-dagscheduler.adoc#submitJob[submitJob] or `runApproximateJob`.
+| <<MapStageSubmitted, MapStageSubmitted>> | <<handleMapStageSubmitted, handleMapStageSubmitted>> | A link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage] was submitted using `submitMapStage`.
 
-| <<JobCancelled, JobCancelled>> | <<handleJobCancellation, handleJobCancellation>> | link:spark-dagscheduler.adoc#cancelJob[`DAGScheduler` is requested to cancel a job].
+| <<StageCancelled, StageCancelled>> | <<handleStageCancellation, handleStageCancellation>> | `DAGScheduler` was requested to link:spark-dagscheduler.adoc#cancelStage[cancel a stage].
 
-| `JobGroupCancelled` | |
-| `AllJobsCancelled` | |
-| `BeginEvent` | | link:spark-tasksetmanager.adoc[TaskSetManager] reports that a task is starting.
-| `GettingResultEvent` | |  link:spark-tasksetmanager.adoc[TaskSetManager] reports that a task has completed and results are being fetched remotely.
+| <<JobCancelled, JobCancelled>> | <<handleJobCancellation, handleJobCancellation>> | `DAGScheduler` was requested to link:spark-dagscheduler.adoc#cancelJob[cancel a job].
 
-| <<CompletionEvent, CompletionEvent>> | | link:spark-tasksetmanager.adoc[TaskSetManager] reports that a task has completed successfully or failed.
+| `JobGroupCancelled` | | `DAGScheduler` was requested to link:spark-dagscheduler.adoc#cancelJobGroup[cancel a job group].
 
-| <<ExecutorAdded, ExecutorAdded>> | <<handleExecutorAdded, handleExecutorAdded>> | An executor has been spun up on a host. Remove it from the failed executors list if it was included, and call link:spark-dagscheduler.adoc#submitWaitingStages[DAGScheduler.submitWaitingStages].
+| `AllJobsCancelled` | | `DAGScheduler` was requested to link:spark-dagscheduler.adoc#cancelAllJobs[cancel all running or waiting jobs].
 
-| <<ExecutorLost, ExecutorLost>> | <<handleExecutorLost, handleExecutorLost>> |
-| <<TaskSetFailed, TaskSetFailed>> | <<handleTaskSetFailed, handleTaskSetFailed>> | link:spark-dagscheduler.adoc#taskSetFailed[`DAGScheduler` is requested to cancel a `TaskSet`]
-| <<ResubmitFailedStages, ResubmitFailedStages>> | <<resubmitFailedStages, resubmitFailedStages>> |
+| `BeginEvent` | | link:spark-tasksetmanager.adoc[TaskSetManager] informs `DAGScheduler` that a task is starting (through link:spark-dagscheduler.adoc#taskStarted[taskStarted]).
+
+| `GettingResultEvent` | |  link:spark-tasksetmanager.adoc[TaskSetManager] informs `DAGScheduler` (through link:spark-dagscheduler.adoc#taskGettingResult[taskGettingResult]) that a task has completed and results are being fetched remotely.
+
+| <<CompletionEvent, CompletionEvent>> | | link:spark-tasksetmanager.adoc[TaskSetManager] informs `DAGScheduler` (through link:spark-dagscheduler.adoc#taskEnded[taskEnded]) that a task has completed successfully or failed.
+
+| <<ExecutorAdded, ExecutorAdded>> | <<handleExecutorAdded, handleExecutorAdded>> | `DAGScheduler` was informed (through link:spark-dagscheduler.adoc#executorAdded[executorAdded]) that an executor was spun up on a host.
+
+| <<ExecutorLost, ExecutorLost>> | <<handleExecutorLost, handleExecutorLost>> | `DAGScheduler` was informed (through link:spark-dagscheduler.adoc#executorLost[executorLost]) that an executor was lost.
+
+| <<TaskSetFailed, TaskSetFailed>> | <<handleTaskSetFailed, handleTaskSetFailed>> | `DAGScheduler` was requested to link:spark-dagscheduler.adoc#taskSetFailed[cancel a `TaskSet`]
+
+| <<ResubmitFailedStages, ResubmitFailedStages>> | <<resubmitFailedStages, resubmitFailedStages>> | `DAGScheduler` was informed (through link:spark-dagscheduler.adoc#handleTaskCompletion[handleTaskCompletion]) that a task has finished with a `FetchFailed`.
 |======================
 
 When created, `DAGSchedulerEventProcessLoop` gets the reference to the owning link:spark-dagscheduler.adoc[DAGScheduler] that it uses to call event handler methods on.
 
 NOTE: `DAGSchedulerEventProcessLoop` uses https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/LinkedBlockingDeque.html[java.util.concurrent.LinkedBlockingDeque] blocking deque that grows indefinitely, i.e. up to https://docs.oracle.com/javase/8/docs/api/java/lang/Integer.html#MAX_VALUE[Integer.MAX_VALUE] events.
+
+=== [[MapStageSubmitted]] `MapStageSubmitted` Event and `handleMapStageSubmitted` Handler
+
+[source, scala]
+----
+MapStageSubmitted(
+  jobId: Int,
+  dependency: ShuffleDependency[_, _, _],
+  callSite: CallSite,
+  listener: JobListener,
+  properties: Properties = null)
+extends DAGSchedulerEvent
+----
+
+`MapStageSubmitted` is a `DAGSchedulerEvent` that triggers <<handleMapStageSubmitted, handleMapStageSubmitted>> (on a separate thread).
+
+.`MapStageSubmitted` Event Handling
+image::diagrams/scheduler-handlemapstagesubmitted.png[align="center"]
+
+NOTE: `MapStageSubmitted` is posted when `DAGScheduler` is informed (through link:spark-dagscheduler.adoc#submitMapStage[submitMapStage]) that link:spark-sparkcontext.adoc#submitMapStage[SparkContext.submitMapStage].
+
+==== [[handleMapStageSubmitted]] `handleMapStageSubmitted` Handler
+
+[source, scala]
+----
+handleMapStageSubmitted(jobId: Int,
+  dependency: ShuffleDependency[_, _, _],
+  callSite: CallSite,
+  listener: JobListener,
+  properties: Properties): Unit
+----
+
+It is called with a job id (for a new job to be created), a link:spark-rdd-dependencies.adoc#ShuffleDependency[ShuffleDependency], and a <<JobListener, JobListener>>.
+
+You should see the following INFOs in the logs:
+
+```
+Got map stage job %s (%s) with %d output partitions
+Final stage: [finalStage] ([finalStage.name])
+Parents of final stage: [finalStage.parents]
+Missing parents: [list of stages]
+```
+
+link:spark-SparkListener.adoc#SparkListenerJobStart[SparkListenerJobStart] event is posted to link:spark-LiveListenerBus.adoc[LiveListenerBus] (so other event listeners know about the event - not only DAGScheduler).
+
+The execution procedure of MapStageSubmitted events is then exactly (FIXME ?) as for link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#JobSubmitted[JobSubmitted].
+
+[TIP]
+====
+The difference between `handleMapStageSubmitted` and link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleJobSubmitted[handleJobSubmitted]:
+
+* `handleMapStageSubmitted` has `ShuffleDependency` among the input parameters while `handleJobSubmitted` has `finalRDD`, `func`, and `partitions`.
+* `handleMapStageSubmitted` initializes `finalStage` as `getShuffleMapStage(dependency, jobId)` while `handleJobSubmitted` as `finalStage = newResultStage(finalRDD, func, partitions, jobId, callSite)`
+* `handleMapStageSubmitted` INFO logs `Got map stage job %s (%s) with %d output partitions` with `dependency.rdd.partitions.length` while `handleJobSubmitted` does `Got job %s (%s) with %d output partitions` with `partitions.length`.
+* FIXME: Could the above be cut to `ActiveJob.numPartitions`?
+* `handleMapStageSubmitted` adds a new job with `finalStage.addActiveJob(job)` while `handleJobSubmitted` sets with `finalStage.setActiveJob(job)`.
+* `handleMapStageSubmitted` checks if the final stage has already finished, tells the listener and removes it using the code:
++
+[source, scala]
+----
+if (finalStage.isAvailable) {
+  markMapStageJobAsFinished(job, mapOutputTracker.getStatistics(dependency))
+}
+----
+====
 
 === [[TaskSetFailed]] `TaskSetFailed` Event and `handleTaskSetFailed` Handler
 
@@ -388,47 +459,6 @@ If `mapId` (in the `FetchFailed` object for the case) is provided, the map stage
 CAUTION: FIXME What does `mapStage.removeOutputLoc` do?
 
 If `bmAddress` (in the `FetchFailed` object for the case) is provided, <<handleExecutorLost, handleExecutorLost (with `fetchFailed` enabled)>> is called.
-
-=== [[MapStageSubmitted]] `MapStageSubmitted` Event and `handleMapStageSubmitted` Handler
-
-When a *MapStageSubmitted* event is posted, it triggers execution of `DAGScheduler.handleMapStageSubmitted` method.
-
-.DAGScheduler.handleMapStageSubmitted handles MapStageSubmitted events
-image::diagrams/scheduler-handlemapstagesubmitted.png[align="center"]
-
-It is called with a job id (for a new job to be created), a link:spark-rdd-dependencies.adoc#ShuffleDependency[ShuffleDependency], and a <<JobListener, JobListener>>.
-
-You should see the following INFOs in the logs:
-
-```
-Got map stage job %s (%s) with %d output partitions
-Final stage: [finalStage] ([finalStage.name])
-Parents of final stage: [finalStage.parents]
-Missing parents: [list of stages]
-```
-
-link:spark-SparkListener.adoc#SparkListenerJobStart[SparkListenerJobStart] event is posted to link:spark-LiveListenerBus.adoc[LiveListenerBus] (so other event listeners know about the event - not only DAGScheduler).
-
-The execution procedure of MapStageSubmitted events is then exactly (FIXME ?) as for link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#JobSubmitted[JobSubmitted].
-
-[TIP]
-====
-The difference between `handleMapStageSubmitted` and link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleJobSubmitted[handleJobSubmitted]:
-
-* `handleMapStageSubmitted` has `ShuffleDependency` among the input parameters while `handleJobSubmitted` has `finalRDD`, `func`, and `partitions`.
-* `handleMapStageSubmitted` initializes `finalStage` as `getShuffleMapStage(dependency, jobId)` while `handleJobSubmitted` as `finalStage = newResultStage(finalRDD, func, partitions, jobId, callSite)`
-* `handleMapStageSubmitted` INFO logs `Got map stage job %s (%s) with %d output partitions` with `dependency.rdd.partitions.length` while `handleJobSubmitted` does `Got job %s (%s) with %d output partitions` with `partitions.length`.
-* FIXME: Could the above be cut to `ActiveJob.numPartitions`?
-* `handleMapStageSubmitted` adds a new job with `finalStage.addActiveJob(job)` while `handleJobSubmitted` sets with `finalStage.setActiveJob(job)`.
-* `handleMapStageSubmitted` checks if the final stage has already finished, tells the listener and removes it using the code:
-+
-[source, scala]
-----
-if (finalStage.isAvailable) {
-  markMapStageJobAsFinished(job, mapOutputTracker.getStatistics(dependency))
-}
-----
-====
 
 === [[StageCancelled]] `StageCancelled` Event and `handleStageCancellation` Handler
 
