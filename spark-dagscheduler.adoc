@@ -56,7 +56,7 @@ DAGScheduler reports metrics about its execution (refer to the section <<metrics
 
 When DAGScheduler schedules a job as a result of link:spark-rdd.adoc#actions[executing an action on a RDD] or link:spark-sparkcontext.adoc#running-jobs[calling SparkContext.runJob() method directly], it spawns parallel tasks to compute (partial) results per partition.
 
-=== [[stageDependsOn]] `stageDependsOn` Method
+=== [[getOrCreateShuffleMapStage]] `getOrCreateShuffleMapStage` Method
 
 CAUTION: FIXME
 
@@ -412,11 +412,11 @@ abortStage(
   exception: Option[Throwable]): Unit
 ----
 
-`abortStage` is an internal method that finds the active job depending on the failed stage and fails them.
+`abortStage` is an internal method that finds all the active jobs that depend on the `failedStage` stage and fails them.
 
 Internally, `abortStage` looks the `failedStage` stage up in the internal <<stageIdToStage, stageIdToStage>> registry and exits if there the stage was not registered earlier.
 
-`abortStage` then finds all the active jobs (in the internal <<activeJobs, activeJobs>> registry) with the <<stageDependsOn, final stage depending on the `failedStage` stage>>.
+If it was, `abortStage` finds all the active jobs (in the internal <<activeJobs, activeJobs>> registry) with the <<stageDependsOn, final stage depending on the `failedStage` stage>>.
 
 At this time, the `completionTime` property (of the failed stage's `StageInfo`) is assigned to the current time (millis).
 
@@ -427,6 +427,23 @@ If there are no jobs depending on the failed stage, you should see the following
 ```
 INFO Ignoring failure of [failedStage] because all jobs depending on it are done
 ```
+
+NOTE: `abortStage` is used to link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleTaskSetFailed[handle `TaskSetFailed` event], when <<submitStage, submitting a stage with no active job>>
+
+=== [[stageDependsOn]] Checking If Stage Depends on Another Stage -- `stageDependsOn` Method
+
+[source, scala]
+----
+stageDependsOn(stage: Stage, target: Stage): Boolean
+----
+
+`stageDependsOn` compares two stages and returns whether the `stage` depends on `target` stage (i.e. `true`) or not (i.e. `false`).
+
+NOTE: A stage `A` depends on stage `B` if `B` is among the ancestors of `A`.
+
+Internally, `stageDependsOn` walks through the graph of RDDs of the input `stage`. For every RDD in the RDD's dependencies (using `RDD.dependencies`) `stageDependsOn` adds the RDD of a `NarrowDependency` to a stack of RDDs to visit while for a `ShuffleDependency` it <<getOrCreateShuffleMapStage, getOrCreateShuffleMapStage>> for the dependency and the ``stage``'s first job id that it later adds to a stack of RDDs to visit if the map stage is ready, i.e. all the partitions have shuffle outputs.
+
+After all the RDDs of the input `stage` are visited, `stageDependsOn` checks if the ``target``'s RDD is among the RDDs of the `stage`, i.e. whether the `stage` depends on `target` stage.
 
 === [[markStageAsFinished]] Marking Stage Finished -- `markStageAsFinished` Internal Method
 
@@ -522,7 +539,7 @@ The stage is <<submitMissingTasks, submitted>>. That finishes the stage submissi
 
 If however there are missing parent stages for the `stage`, all parent stages are <<submitStage, submitted>> (by id in increasing order), and the `stage` is added to `waitingStages` stages.
 
-In case when `submitStage` could find no active job for the `stage`, it calls <<abortStage, abortStage>> with the reason:
+In case when `submitStage` could find no active job for the `stage`, it <<abortStage, aborts the stage>> with the reason:
 
 ```
 No active job for stage [id]
@@ -604,11 +621,11 @@ When executed, it prints the following DEBUG message out to the logs:
 DEBUG DAGScheduler: submitMissingTasks([stage])
 ```
 
-`pendingPartitions` internal field of the stage is cleared (it is later filled out with the partitions to run tasks for).
+The stage's `pendingPartitions` internal field is cleared (it is later filled out with the partitions to run tasks for).
 
 The stage is asked for partitions to compute (see link:spark-dagscheduler-stages.adoc#findMissingPartitions[findMissingPartitions] in Stages).
 
-The method adds the stage to `runningStages`.
+The method adds the stage to <<runningStages, runningStages>> internal registry.
 
 The stage is told to be started to link:spark-service-outputcommitcoordinator.adoc[OutputCommitCoordinator] (using `outputCommitCoordinator.stageStart`)
 
@@ -624,9 +641,7 @@ The stage is serialized and broadcast to workers using link:spark-sparkcontext.a
 
 CAUTION: FIXME Review `taskBinaryBytes`.
 
-When serializing the stage fails, the stage is removed from the internal `runningStages` set, `abortStage` is called and the method stops.
-
-CAUTION: FIXME Review `abortStage`.
+When serializing the stage fails, the stage is removed from <<runningStages, runningStages>> internal registry, the <<abortStage, stage is aborted>> and the method stops.
 
 At this point in time, the stage is on workers.
 
@@ -634,6 +649,8 @@ For each partition to compute for the stage, a collection of <<spark-taskschedul
 `ResultTask` for link:spark-dagscheduler-ResultStage.adoc[ResultStage] is created.
 
 CAUTION: FIXME Image with creating tasks for partitions in the stage.
+
+Any issue with creating a task leads to <<abortStage, aborting the stage>> and removing the `stage` from <<runningStages, runningStages>> internal registry.
 
 If there are tasks to launch (there are missing partitions in the stage), the following INFO and DEBUG messages are in the logs:
 
@@ -649,7 +666,7 @@ In case of no tasks to be submitted for a stage, a DEBUG message shows up in the
 For link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage]:
 
 ```
-DEBUG DAGScheduler: Stage [stage] is actually done; (available: ${stage.isAvailable},available outputs: ${stage.numAvailableOutputs},partitions: ${stage.numPartitions})
+DEBUG DAGScheduler: Stage [stage] is actually done; (available: [stage.isAvailable],available outputs: [stage.numAvailableOutputs],partitions: [stage.numPartitions])
 ```
 
 For link:spark-dagscheduler-ResultStage.adoc[ResultStage]:
