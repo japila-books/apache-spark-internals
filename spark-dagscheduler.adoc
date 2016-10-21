@@ -87,6 +87,15 @@ When created, `DAGScheduler` does the following (in order):
 
 At the very end of the initialization, `DAGScheduler` starts <<eventProcessLoop, eventProcessLoop>>.
 
+=== [[listenerBus]] `LiveListenerBus` Event Bus for ``SparkListenerEvent``s -- `listenerBus` Property
+
+[source, scala]
+----
+listenerBus: LiveListenerBus
+----
+
+`listenerBus` is a link:spark-LiveListenerBus.adoc[LiveListenerBus] to post scheduling events and is passed in when <<creating-instance, `DAGScheduler` is created>>.
+
 === [[internal-registries]] Internal Registries and Counters
 
 `DAGScheduler` uses internal registries and counters for managing active jobs and stages.
@@ -111,6 +120,20 @@ At the very end of the initialization, `DAGScheduler` starts <<eventProcessLoop,
 | [[cacheLocs]] `cacheLocs` | The internal cache of partition locations per RDD. Refer to <<cache-tracking, Cache Tracking>>.
 | [[failedEpoch]] `failedEpoch` | The lookup table of lost executors and the epoch of the event.
 |======================
+
+=== [[executorHeartbeatReceived]] `executorHeartbeatReceived` Method
+
+[source, scala]
+----
+executorHeartbeatReceived(
+  execId: String,
+  accumUpdates: Array[(Long, Int, Int, Seq[AccumulableInfo])],
+  blockManagerId: BlockManagerId): Boolean
+----
+
+`executorHeartbeatReceived` posts a link:spark-SparkListener.adoc#SparkListenerExecutorMetricsUpdate[SparkListenerExecutorMetricsUpdate] (to <<listenerBus, listenerBus>>) and informs link:spark-BlockManagerMaster.adoc[BlockManagerMaster] that `blockManagerId` block manager is alive (by posting link:spark-BlockManagerMaster.adoc#BlockManagerHeartbeat[BlockManagerHeartbeat]).
+
+NOTE: `executorHeartbeatReceived` is called when link:spark-taskschedulerimpl.adoc#executorHeartbeatReceived[`TaskSchedulerImpl` handles `executorHeartbeatReceived`].
 
 === [[cleanupStateForJobAndIndependentStages]] Cleaning Up Job State and Independent Stages -- `cleanupStateForJobAndIndependentStages` Method
 
@@ -190,10 +213,6 @@ Ultimately, link:spark-SparkListener.adoc#SparkListenerJobEnd[SparkListenerJobEn
 
 NOTE: `markMapStageJobAsFinished` is used in link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleMapStageSubmitted[handleMapStageSubmitted] and link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc##handleTaskCompletion[handleTaskCompletion].
 
-=== [[listenerBus]] `LiveListenerBus` Event Bus for ``SparkListenerEvent``s -- `listenerBus` Property
-
-CAUTION: FIXME
-
 === [[clearCacheLocs]] Clearing Cache of RDD Partition Locations -- `clearCacheLocs` Internal Method
 
 [source, scala]
@@ -260,11 +279,11 @@ image::images/dagscheduler-submitjob.png[align="center"]
 Internally, `submitJob` does the following:
 
 1. Checks whether `partitions` reference available partitions of the input `rdd`.
-2. Increments the internal `nextJobId` job counter.
+2. Increments <<nextJobId, nextJobId>> internal job counter.
 3. Returns a 0-task link:spark-dagscheduler-JobListener.adoc#JobWaiter[JobWaiter] when the number of `partitions` is zero.
 4. Posts a `JobSubmitted` event and returns a `JobWaiter`.
 
-You may see a `IllegalArgumentException` thrown when the input `partitions` references any partitions not in the input `rdd`:
+You may see a `IllegalArgumentException` thrown when the input `partitions` references partitions not in the input `rdd`:
 
 ```
 Attempting to access a non-existent partition: [p]. Total number of partitions: [maxPartitions]

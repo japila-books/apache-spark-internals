@@ -2,7 +2,7 @@
 
 `HeartbeatReceiver` RPC endpoint is a link:spark-rpc.adoc#ThreadSafeRpcEndpoint[ThreadSafeRpcEndpoint] and a link:spark-SparkListener.adoc[SparkListener].
 
-It keeps track of executors (through <<messages, messages>>) and informs `TaskScheduler` and `SparkContext` about lost executors.
+It keeps track of executors (through <<messages, messages>>) and informs link:spark-taskscheduler.adoc[TaskScheduler] and link:spark-sparkcontext.adoc[SparkContext] about lost executors.
 
 When created, it requires a `SparkContext` and a `Clock`. Later, it uses the link:spark-sparkcontext.adoc#addSparkListener[`SparkContext` to register itself as a `SparkListener`] and `TaskScheduler` (as `scheduler`).
 
@@ -21,19 +21,42 @@ log4j.logger.org.apache.spark.HeartbeatReceiver=TRACE
 Refer to link:spark-logging.adoc[Logging].
 ====
 
-=== [[onStart]] Starting (onStart method)
+=== [[creating-instance]] Creating HeartbeatReceiver Instance
+
+[source, scala]
+----
+HeartbeatReceiver(
+  sc: SparkContext,
+  clock: Clock)
+extends SparkListener with ThreadSafeRpcEndpoint
+----
+
+`HeartbeatReceiver` requires a link:spark-sparkcontext.adoc[SparkContext] and a `Clock`.
+
+When created, `HeartbeatReceiver` link:spark-sparkcontext.adoc#addSparkListener[registers itself as a `SparkListener`].
+
+=== [[internal-registries]] Internal Registries and Counters
+
+.Internal Registries and Counters
+[frame="topbot",cols="1,2",options="header",width="100%"]
+|======================
+| Name | Description
+| [[executorLastSeen]] `executorLastSeen` | A registry of executor ids and the timestamps of when the last heartbeat was received.
+|======================
+
+=== [[onStart]] Starting -- `onStart` Method
 
 NOTE: `onStart` is part of the link:spark-rpc.adoc#RpcEndpoint[RpcEndpoint Contract]
 
 When called, `HeartbeatReceiver` sends a blocking <<ExpireDeadHosts, ExpireDeadHosts>> every <<spark.network.timeoutInterval, spark.network.timeoutInterval>> on <<eventLoopThread, eventLoopThread - Heartbeat Receiver Event Loop Thread>>.
 
-=== [[onStop]] Stopping (onStop method)
+=== [[onStop]] Stopping -- `onStop` Method
 
 NOTE: `onStop` is part of the link:spark-rpc.adoc#RpcEndpoint[RpcEndpoint Contract]
 
 When called, `HeartbeatReceiver` cancels the checking task (that sends a blocking <<ExpireDeadHosts, ExpireDeadHosts>> every <<spark.network.timeoutInterval, spark.network.timeoutInterval>> on <<eventLoopThread, eventLoopThread - Heartbeat Receiver Event Loop Thread>> - see <<onStart, Starting (onStart method)>>) and shuts down <<eventLoopThread, eventLoopThread>> and <<killExecutorThread, killExecutorThread>> executors.
 
-=== [[killExecutorThread]] killExecutorThread - Kill Executor Thread
+=== [[killExecutorThread]][[kill-executor-thread]] `killExecutorThread` -- Kill Executor Thread
 
 `killExecutorThread` is a daemon https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/ScheduledThreadPoolExecutor.html[ScheduledThreadPoolExecutor] with a single thread.
 
@@ -41,7 +64,7 @@ The name of the thread pool is *kill-executor-thread*.
 
 NOTE: It is used to request SparkContext to kill the executor.
 
-=== [[eventLoopThread]] eventLoopThread - Heartbeat Receiver Event Loop Thread
+=== [[eventLoopThread]][[heartbeat-receiver-event-loop-thread]] `eventLoopThread` -- Heartbeat Receiver Event Loop Thread
 
 `eventLoopThread` is a daemon https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/ScheduledThreadPoolExecutor.html[ScheduledThreadPoolExecutor] with a single thread.
 
@@ -147,26 +170,14 @@ NOTE: `TaskSchedulerIsSet` is sent by link:spark-sparkcontext.adoc#TaskScheduler
 
 NOTE: It is an internal message.
 
-=== Internal Registries
+=== [[settings]] Settings
 
-[[executorLastSeen]]
-* `executorLastSeen` - a registry of executor ids and the timestamps of when the last heartbeat was received.
-
-=== Settings
-
-==== [[spark.storage.blockManagerSlaveTimeoutMs]] spark.storage.blockManagerSlaveTimeoutMs
-
-`spark.storage.blockManagerSlaveTimeoutMs` (default: `120s`)
-
-==== [[spark.network.timeout]] spark.network.timeout
-
-`spark.network.timeout` (default: `spark.storage.blockManagerSlaveTimeoutMs`)
-
-See link:spark-rpc.adoc#spark.network.timeout[spark.network.timeout] in link:spark-rpc.adoc[RPC Environment (RpcEnv)].
-
-==== Other
-
-* `spark.storage.blockManagerTimeoutIntervalMs` (default: `60s`)
-
-[[spark.network.timeoutInterval]]
-* `spark.network.timeoutInterval` (default: `spark.storage.blockManagerTimeoutIntervalMs`)
+.Spark Properties
+[frame="topbot",options="header",width="100%"]
+|======================
+| Spark Property | Default Value | Description
+| [[spark.storage.blockManagerTimeoutIntervalMs]] `spark.storage.blockManagerTimeoutIntervalMs` | `60s` |
+| [[spark_storage_blockManagerSlaveTimeoutMs]] `spark.storage.blockManagerSlaveTimeoutMs` | `120s` |
+| [[spark.network.timeout]] `spark.network.timeout` | <<spark_storage_blockManagerSlaveTimeoutMs, spark.storage.blockManagerSlaveTimeoutMs>> | See link:spark-rpc.adoc#spark.network.timeout[spark.network.timeout] in link:spark-rpc.adoc[RPC Environment (RpcEnv)].
+| [[spark.network.timeoutInterval]] `spark.network.timeoutInterval` | `spark.storage.blockManagerTimeoutIntervalMs` |
+|======================
