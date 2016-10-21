@@ -56,9 +56,64 @@ DAGScheduler reports metrics about its execution (refer to the section <<metrics
 
 When DAGScheduler schedules a job as a result of link:spark-rdd.adoc#actions[executing an action on a RDD] or link:spark-sparkcontext.adoc#runJob[calling SparkContext.runJob() method directly], it spawns parallel tasks to compute (partial) results per partition.
 
+=== [[createResultStage]] `createResultStage` Internal Method
+
+[source, scala]
+----
+createResultStage(
+  rdd: RDD[_],
+  func: (TaskContext, Iterator[_]) => _,
+  partitions: Array[Int],
+  jobId: Int,
+  callSite: CallSite): ResultStage
+----
+
+CAUTION: FIXME
+
+=== [[createShuffleMapStage]] `createShuffleMapStage` Method
+
+CAUTION: FIXME
+
+=== [[getOrCreateParentStages]] `getOrCreateParentStages` Internal Method
+
+[source, scala]
+----
+getOrCreateParentStages(rdd: RDD[_], firstJobId: Int): List[Stage]
+----
+
+`getOrCreateParentStages` <<getShuffleDependencies, computes `ShuffleDependency` immediate parents>> and <<getOrCreateShuffleMapStage, gets or creates a shuffle map stage>> for each link:spark-rdd-dependencies.adoc#ShuffleDependency[ShuffleDependency].
+
+NOTE: `getOrCreateParentStages` is used when `DAGScheduler` <<createShuffleMapStage, createShuffleMapStage>> and <<createResultStage, createResultStage>>.
+
+=== [[getShuffleDependencies]] `getShuffleDependencies` Method
+
+[source, scala]
+----
+getShuffleDependencies(
+  rdd: RDD[_]): HashSet[ShuffleDependency[_, _, _]]
+----
+
+`getShuffleDependencies`...TK
+
+CAUTION: FIXME
+
+NOTE: `getShuffleDependencies` is used when `DAGScheduler` <<getOrCreateParentStages, getOrCreateParentStages>> and <<getMissingAncestorShuffleDependencies, getMissingAncestorShuffleDependencies>>.
+
 === [[getOrCreateShuffleMapStage]] `getOrCreateShuffleMapStage` Method
 
 CAUTION: FIXME
+
+=== [[getMissingAncestorShuffleDependencies]] `getMissingAncestorShuffleDependencies` Internal Method
+
+CAUTION: FIXME
+
+[source, scala]
+----
+getMissingAncestorShuffleDependencies(
+  rdd: RDD[_]): Stack[ShuffleDependency[_, _, _]]
+----
+
+NOTE: `getMissingAncestorShuffleDependencies` is used when `DAGScheduler` <<getOrCreateShuffleMapStage, getOrCreateShuffleMapStage>>.
 
 === [[creating-instance]][[initialization]] Creating DAGScheduler Instance
 
@@ -105,9 +160,15 @@ listenerBus: LiveListenerBus
 |======================
 | Name | Description
 | [[nextJobId]] `nextJobId` | The next job id
+
 | [[nextStageId]] `nextStageId` | The next stage id
-| [[jobIdToStageIds]] `jobIdToStageIds` | The lookup table of all stages per `ActiveJob` id
+
+Used when `DAGScheduler` creates a <<createShuffleMapStage, shuffle map stage>> and a <<createResultStage, result stage>>. It is the key in <<stageIdToStage, stageIdToStage>>.
+
 | [[stageIdToStage]] `stageIdToStage` | The lookup table of stages per id
+
+| [[jobIdToStageIds]] `jobIdToStageIds` | The lookup table of all stages per `ActiveJob` id
+
 | [[shuffleIdToMapStage]] `shuffleIdToMapStage` | The lookup table of link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage] per shuffle id
 | [[jobIdToActiveJob]] `jobIdToActiveJob` | The lookup table of ``ActiveJob``s per job id.
 | [[waitingStages]] `waitingStages` | The stages with parents to be computed
@@ -524,20 +585,6 @@ It allows Spark to release the current thread when posting happens and let the e
 ...IMAGE...FIXME
 
 CAUTION: FIXME statistics? `MapOutputStatistics`?
-
-=== [[createResultStage]] `createResultStage` Internal Method
-
-[source, scala]
-----
-createResultStage(
-  rdd: RDD[_],
-  func: (TaskContext, Iterator[_]) => _,
-  partitions: Array[Int],
-  jobId: Int,
-  callSite: CallSite): ResultStage
-----
-
-CAUTION: FIXME
 
 === [[submitWaitingStages]] Submitting Waiting Stages for Execution -- `submitWaitingStages` Method
 
