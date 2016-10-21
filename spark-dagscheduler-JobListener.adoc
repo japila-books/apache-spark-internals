@@ -1,0 +1,50 @@
+== [[JobListener]] JobListener and JobWaiter
+
+Spark subscribes for job completion or failure events (after submitting a job to link:spark-dagscheduler.adoc[DAGScheduler]) using `JobListener` trait.
+
+The following are the job listeners used:
+
+1. <<JobWaiter, JobWaiter>> waits until link:spark-dagscheduler.adoc[DAGScheduler] completes a job and passes the results of tasks to a `resultHandler` function.
+2. `ApproximateActionListener`...FIXME
+
+An instance of `JobListener` is used in the following places:
+
+* In `ActiveJob` as a listener to notify if tasks in this job finish or the job fails.
+* In `DAGScheduler.handleJobSubmitted`
+* In `DAGScheduler.handleMapStageSubmitted`
+* In `JobSubmitted`
+* In `MapStageSubmitted`
+
+=== [[contract]][[taskSucceeded]][[jobFailed]] `JobListener` Contract
+
+`JobListener` is a `private[spark]` contract with the following two methods:
+
+[source, scala]
+----
+private[spark] trait JobListener {
+  def taskSucceeded(index: Int, result: Any)
+  def jobFailed(exception: Exception)
+}
+----
+
+A `JobListener` object is notified each time a task succeeds (by `taskSucceeded`) and when the whole job fails (by `jobFailed`).
+
+=== [[JobWaiter]] JobWaiter
+
+[source, scala]
+----
+JobWaiter[T](
+  dagScheduler: DAGScheduler,
+  val jobId: Int,
+  totalTasks: Int,
+  resultHandler: (Int, T) => Unit)
+extends JobListener
+----
+
+`JobWaiter` is a custom <<JobListener, JobListener>>.
+
+It is used when `DAGScheduler` link:spark-dagscheduler.adoc#submitJob[submits a job] or link:spark-dagscheduler.adoc#submitMapStage[submits a map stage]. You can use a `JobWaiter` to block until the job finishes executing or to cancel it.
+
+While the methods execute, link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#JobSubmitted[`JobSubmitted`] and link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#MapStageSubmitted[MapStageSubmitted] events are posted that reference the `JobWaiter`.
+
+As a `JobListener`, `JobWaiter` gets notified about task completions or failures, using `taskSucceeded` and `jobFailed`, respectively. When the total number of tasks (that equals the number of partitions to compute) equals the number of `taskSucceeded`, the `JobWaiter` instance is marked successful. A `jobFailed` event marks the `JobWaiter` instance failed.
