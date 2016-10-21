@@ -103,11 +103,82 @@ At the very end of the initialization, `DAGScheduler` starts <<eventProcessLoop,
 | [[jobIdToActiveJob]] `jobIdToActiveJob` | The lookup table of ``ActiveJob``s per job id.
 | [[waitingStages]] `waitingStages` | The stages with parents to be computed
 | [[runningStages]] `runningStages` | The stages currently running.
+
 | [[failedStages]] `failedStages` | The collection of the stages that failed due to fetch failures (as reported by <<handleTaskCompletion-FetchFailed, CompletionEvents for FetchFailed end reasons>>).
+
+
 | [[activeJobs]] `activeJobs` | A collection of `ActiveJob` instances
 | [[cacheLocs]] `cacheLocs` | The internal cache of partition locations per RDD. Refer to <<cache-tracking, Cache Tracking>>.
 | [[failedEpoch]] `failedEpoch` | The lookup table of lost executors and the epoch of the event.
 |======================
+
+=== [[cleanupStateForJobAndIndependentStages]] Cleaning Up Job State and Independent Stages -- `cleanupStateForJobAndIndependentStages` Method
+
+[source, scala]
+----
+cleanupStateForJobAndIndependentStages(job: ActiveJob): Unit
+----
+
+`cleanupStateForJobAndIndependentStages` cleans up the state for `job` and any stages that are _not_ part of any other job.
+
+`cleanupStateForJobAndIndependentStages` looks the `job` up in the internal <<jobIdToStageIds, jobIdToStageIds>> registry.
+
+If no stages are found, the following ERROR is printed out to the logs:
+
+```
+ERROR No stages registered for job [jobId]
+```
+
+Oterwise, `cleanupStateForJobAndIndependentStages` uses <<stageIdToStage, stageIdToStage>> registry to find the stages (the real objects not ids!).
+
+For each stage, `cleanupStateForJobAndIndependentStages` reads the jobs the stage belongs to.
+
+If the `job` does not belong to the jobs of the stage, the following ERROR is printed out to the logs:
+
+```
+ERROR Job [jobId] not registered for stage [stageId] even though that stage was registered for the job
+```
+
+If the `job` was the only job for the stage, the stage (and the stage id) gets cleaned up from the registries, i.e. <<runningStages, runningStages>>, <<shuffleIdToMapStage, shuffleIdToMapStage>>, <<waitingStages, waitingStages>>, <<failedStages, failedStages>> and <<stageIdToStage, stageIdToStage>>.
+
+While removing from <<runningStages, runningStages>>, you should see the following DEBUG message in the logs:
+
+```
+DEBUG Removing running stage [stageId]
+```
+
+While removing from <<waitingStages, waitingStages>>, you should see the following DEBUG message in the logs:
+
+```
+DEBUG Removing stage [stageId] from waiting set.
+```
+
+While removing from <<failedStages, failedStages>>, you should see the following DEBUG message in the logs:
+
+```
+DEBUG Removing stage [stageId] from failed set.
+```
+
+After all cleaning (using <<stageIdToStage, stageIdToStage>> as the source registry), if the stage belonged to the one and only `job`, you should see the following DEBUG message in the logs:
+
+```
+DEBUG After removal of stage [stageId], remaining stages = [stageIdToStage.size]
+```
+
+The `job` is removed from <<jobIdToStageIds, jobIdToStageIds>>, <<jobIdToActiveJob, jobIdToActiveJob>>, <<activeJobs, activeJobs>> registries.
+
+The final stage of the `job` is removed, i.e. link:spark-dagscheduler-ResultStage.adoc#removeActiveJob[ResultStage] or link:spark-dagscheduler-ShuffleMapStage.adoc#removeActiveJob[ShuffleMapStage].
+
+NOTE: `cleanupStateForJobAndIndependentStages` is used in link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleTaskCompletion-Success-ResultTask[`handleTaskCompletion` when a `ResultTask` has completed successfully], <<failJobAndIndependentStages, failJobAndIndependentStages>> and <<markMapStageJobAsFinished, markMapStageJobAsFinished>>.
+
+=== [[markMapStageJobAsFinished]] `markMapStageJobAsFinished` Method
+
+[source, scala]
+----
+markMapStageJobAsFinished(job: ActiveJob, stats: MapOutputStatistics): Unit
+----
+
+CAUTION: FIXME
 
 === [[clearCacheLocs]] Clearing Cache of RDD Partition Locations -- `clearCacheLocs` Internal Method
 
@@ -402,7 +473,7 @@ Since a `JobWaiter` object is a `JobListener` it gets notifications about `taskS
 
 * FIXME Who's using `submitMapStage`?
 
-=== [[abortStage]] `abortStage` Internal Method
+=== [[abortStage]] Aborting Stage -- `abortStage` Internal Method
 
 [source, scala]
 ----
