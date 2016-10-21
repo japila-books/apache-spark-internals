@@ -54,7 +54,7 @@ DAGScheduler needs link:spark-sparkcontext.adoc[SparkContext], link:spark-tasksc
 
 DAGScheduler reports metrics about its execution (refer to the section <<metrics, Metrics>>).
 
-When DAGScheduler schedules a job as a result of link:spark-rdd.adoc#actions[executing an action on a RDD] or link:spark-sparkcontext.adoc#running-jobs[calling SparkContext.runJob() method directly], it spawns parallel tasks to compute (partial) results per partition.
+When DAGScheduler schedules a job as a result of link:spark-rdd.adoc#actions[executing an action on a RDD] or link:spark-sparkcontext.adoc#runJob[calling SparkContext.runJob() method directly], it spawns parallel tasks to compute (partial) results per partition.
 
 === [[getOrCreateShuffleMapStage]] `getOrCreateShuffleMapStage` Method
 
@@ -270,7 +270,7 @@ You may see a `IllegalArgumentException` thrown when the input `partitions` refe
 Attempting to access a non-existent partition: [p]. Total number of partitions: [maxPartitions]
 ```
 
-NOTE: `submitJob` is called by link:spark-sparkcontext.adoc#submitJob[`SparkContext` to submit a job] and <<runJob, DAGScheduler>>.
+NOTE: `submitJob` is called when link:spark-sparkcontext.adoc#submitJob[`SparkContext` submits a job] and <<runJob, `DAGScheduler` runs a job>>.
 
 NOTE: `submitJob` assumes that the partitions of a RDD are indexed from 0 onwards in sequential order.
 
@@ -426,29 +426,23 @@ runJob[T, U](
   properties: Properties): Unit
 ----
 
-When executed, `DAGScheduler.runJob` is given the following arguments:
+`runJob` submits an action job to the `DAGScheduler` and waits for a result.
 
-* A *RDD* to run job on.
-* A *function* to run on each partition of the RDD.
-* A set of *partitions* to run on (not all partitions are always required to compute a job for actions like `first()` or `take()`).
-* A callback *function* `resultHandler` to pass results of executing the function to.
-* *Properties* to attach to a job.
+Internally, `runJob` executes <<submitJob, submitJob>> and then waits until a result comes using link:spark-dagscheduler-JobListener.adoc#JobWaiter[JobWaiter].
 
-It calls <<submitJob, submitJob>> and then waits until a result comes using a link:spark-dagscheduler-JobListener.adoc#JobWaiter[JobWaiter] object. A job can succeed or fail.
-
-When a job succeeds, the following INFO shows up in the logs:
+When the job succeeds, you should see the following INFO message in the logs:
 
 ```
 INFO Job [jobId] finished: [callSite], took [time] s
 ```
 
-When a job fails, the following INFO shows up in the logs:
+When the job fails, you should see the following INFO message in the logs and the exception (that led to the failure) is thrown.
 
 ```
 INFO Job [jobId] failed: [callSite], took [time] s
 ```
 
-The method finishes by throwing an exception.
+NOTE: `runJob` is used when link:spark-sparkcontext.adoc#runJob[`SparkContext` runs a job].
 
 === [[abortStage]] Aborting Stage -- `abortStage` Internal Method
 
