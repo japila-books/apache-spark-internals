@@ -17,7 +17,7 @@
 
 | <<AllJobsCancelled, AllJobsCancelled>> | | `DAGScheduler` was requested to link:spark-dagscheduler.adoc#cancelAllJobs[cancel all running or waiting jobs].
 
-| <<BeginEvent, BeginEvent>> | | link:spark-tasksetmanager.adoc[TaskSetManager] informs `DAGScheduler` that a task is starting (through link:spark-dagscheduler.adoc#taskStarted[taskStarted]).
+| <<BeginEvent, BeginEvent>> | <<handleBeginEvent, handleBeginEvent>> | link:spark-tasksetmanager.adoc[TaskSetManager] informs `DAGScheduler` that a task is starting (through link:spark-dagscheduler.adoc#taskStarted[taskStarted]).
 
 | <<GettingResultEvent, GettingResultEvent>> | |  link:spark-tasksetmanager.adoc[TaskSetManager] informs `DAGScheduler` (through link:spark-dagscheduler.adoc#taskGettingResult[taskGettingResult]) that a task has completed and results are being fetched remotely.
 
@@ -44,9 +44,25 @@ CAUTION: FIXME
 
 CAUTION: FIXME
 
-=== [[BeginEvent]] `BeginEvent` Event and...
+=== [[BeginEvent]] `BeginEvent` Event and `handleBeginEvent` Handler
 
-CAUTION: FIXME
+[source, scala]
+----
+BeginEvent(task: Task[_], taskInfo: TaskInfo) extends DAGSchedulerEvent
+----
+
+`BeginEvent` is a `DAGSchedulerEvent` that triggers <<handleBeginEvent, handleBeginEvent>> (on a separate thread).
+
+NOTE: `BeginEvent` is posted to inform `DAGScheduler` (through link:spark-dagscheduler.adoc#taskStarted[taskStarted]) that a link:spark-tasksetmanager.adoc#resourceOffer[`TaskSetManager` starts a task].
+
+==== [[handleBeginEvent]] `handleBeginEvent` Handler
+
+[source, scala]
+----
+handleBeginEvent(task: Task[_], taskInfo: TaskInfo)
+----
+
+`handleBeginEvent` looks the stage of `task` up in link:spark-dagscheduler.adoc#stageIdToStage[stageIdToStage] internal registry to compute the last attempt id (or `-1` if not available) and posts link:spark-SparkListener.adoc#SparkListenerTaskStart[SparkListenerTaskStart] (to link:spark-dagscheduler.adoc#listenerBus[listenerBus] event bus).
 
 === [[JobGroupCancelled]] `JobGroupCancelled` Event and `handleJobGroupCancelled` Handler
 
