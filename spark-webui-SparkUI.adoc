@@ -4,6 +4,19 @@
 
 NOTE: The only difference between `SparkUI` for a <<createLiveUI, Spark application>> and <<createHistoryUI, Spark History Server>> is that...**FIXME**
 
+[TIP]
+====
+Enable `INFO` logging level for `org.apache.spark.ui.SparkUI` logger to see what happens inside.
+
+Add the following line to `conf/log4j.properties`:
+
+```
+log4j.logger.org.apache.spark.ui.SparkUI=INFO
+```
+
+Refer to link:spark-logging.adoc[Logging].
+====
+
 === [[creating-instance]] Creating SparkUI Instance
 
 [source, scala]
@@ -26,13 +39,46 @@ extends WebUI(securityManager,
   conf, basePath, "SparkUI")
 ----
 
-When executed, `SparkUI` creates a link:spark-webui-stages.adoc[StagesTab] and does <<initialize, initialization>>.
+When executed, `SparkUI` creates a link:spark-webui-stages.adoc[StagesTab] and <<initialize, initialize the other tabs and handlers in web UI>>.
 
 NOTE: `SparkUI` is created when link:spark-sparkcontext-creating-instance-internals.adoc#ui[`SparkContext` is created] (with link:spark-webui.adoc#spark_ui_enabled[spark.ui.enabled] enabled). `SparkUI` gets the reference to the owning `SparkContext` and the other properties, i.e. link:spark-configuration.adoc[SparkConf], link:spark-sparkcontext.adoc#listenerBus[`LiveListenerBus` Event Bus], link:spark-webui-JobProgressListener.adoc[JobProgressListener], `SecurityManager`, `appName`, and `startTime`.
 
+=== [[initialize]] Attaching Tabs and Context Handlers -- `initialize` Method
+
+[source, scala]
+----
+initialize(): Unit
+----
+
+`initialize` attaches the tabs of the following pages:
+
+1. link:spark-webui-jobs.adoc[JobsTab]
+2. link:spark-webui-stages.adoc[StagesTab]
+3. link:spark-webui-storage.adoc[StorageTab]
+4. link:spark-webui-environment.adoc[EnvironmentTab]
+5. link:spark-webui-executors.adoc[ExecutorsTab]
+
+`initialize` also attaches `ServletContextHandler` handlers:
+
+1. `/static` to serve static files from `org/apache/spark/ui/static` directory (on CLASSPATH).
+2. Redirecting `/` to `/jobs/`.
+3. Serving `/api` context path (with `org.apache.spark.status.api.v1` provider package) using ApiRootResource.
+4. Redirecting `/stages/stage/kill` to `/stages/`
+
+NOTE: `initialize` is a part of the WebUI Contract and is executed when <<creating-instance, `SparkUI` is created>>.
+
 === [[stop]] `stop` Method
 
-=== [[initialize]] `initialize` Method
+[source, scala]
+----
+stop(): Unit
+----
+
+`stop` stops the HTTP server and prints the following INFO message to the logs:
+
+```
+INFO SparkUI: Stopped Spark web UI at [appUIAddress]
+```
 
 === [[getSparkUser]] `getSparkUser` Method
 
@@ -47,8 +93,6 @@ CAUTION: FIXME
 === [[appUIAddress]] `appUIAddress`
 
 CAUTION: FIXME
-
-=== [[createHistoryUI]] `createHistoryUI` Method
 
 === [[create]] `create` Factory Method
 
