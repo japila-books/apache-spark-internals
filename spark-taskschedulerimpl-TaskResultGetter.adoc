@@ -1,0 +1,58 @@
+== [[TaskResultGetter]] TaskResultGetter
+
+`TaskResultGetter` is a helper class for link:spark-taskschedulerimpl.adoc#statusUpdate[TaskSchedulerImpl]. It _asynchronously_ fetches the task results of tasks that have finished successfully (using <<enqueueSuccessfulTask, enqueueSuccessfulTask>>) or fetches the reasons of failures for failed tasks (using <<enqueueFailedTask, enqueueFailedTask>>). It then sends the "results" back to `TaskSchedulerImpl`.
+
+CAUTION: FIXME Image with the dependencies
+
+TIP: Consult link:spark-taskscheduler-tasks.adoc#states[Task States] in Tasks to learn about the different task states.
+
+NOTE: The only instance of `TaskResultGetter` is created while link:spark-taskschedulerimpl.adoc#creating-instance[`TaskSchedulerImpl` is created]. It requires a `SparkEnv` and `TaskSchedulerImpl`. It is stopped when `TaskSchedulerImpl` stops.
+
+`TaskResultGetter` uses an internal (daemon thread) thread pool called *task-result-getter* (as `getTaskResultExecutor`) with <<spark_resultGetter_threads, spark.resultGetter.threads>> so they can be executed asynchronously.
+
+=== [[enqueueSuccessfulTask]] `enqueueSuccessfulTask` Method
+
+`enqueueSuccessfulTask(taskSetManager: TaskSetManager, tid: Long, serializedData: ByteBuffer)` starts by deserializing `TaskResult` (from `serializedData` using the global link:spark-sparkenv.adoc#closureSerializer[closure Serializer]).
+
+If the result is `DirectTaskResult`, the method checks `taskSetManager.canFetchMoreResults(serializedData.limit())` and possibly quits. If not, it deserializes the result (using `SparkEnv.serializer`).
+
+CAUTION: FIXME Review `taskSetManager.canFetchMoreResults(serializedData.limit())`.
+
+If the result is `IndirectTaskResult`, the method checks `taskSetManager.canFetchMoreResults(size)` and possibly removes the block id (using `SparkEnv.blockManager.master.removeBlock(blockId)`) and quits. If not, you should see the following DEBUG message in the logs:
+
+```
+DEBUG Fetching indirect task result for TID [tid]
+```
+
+`scheduler.handleTaskGettingResult(taskSetManager, tid)` gets called. And `sparkEnv.blockManager.getRemoteBytes(blockId)`.
+
+Failure in getting task result from BlockManager results in calling link:spark-taskschedulerimpl.adoc#handleFailedTask[TaskSchedulerImpl.handleFailedTask] and quitting.
+
+The task result is deserialized to `DirectTaskResult` (using the global link:spark-sparkenv.adoc#closureSerializer[closure Serializer]) and `sparkEnv.blockManager.master.removeBlock(blockId)` is called afterwards.
+
+`TaskSchedulerImpl.handleSuccessfulTask(taskSetManager, tid, result)` is called.
+
+CAUTION: FIXME What is `TaskSchedulerImpl.handleSuccessfulTask` doing?
+
+Any `ClassNotFoundException` or non fatal exceptions lead to link:spark-tasksetmanager.adoc#aborting-taskset[TaskSetManager.abort].
+
+=== [[enqueueFailedTask]] `enqueueFailedTask` Method
+
+`enqueueFailedTask(taskSetManager: TaskSetManager, tid: Long, taskState: TaskState, serializedData: ByteBuffer)` checks whether `serializedData` contains any data and if it does it deserializes it to a `TaskEndReason` (using the global link:spark-sparkenv.adoc#closureSerializer[closure Serializer]).
+
+Either `UnknownReason` or the deserialized instance is passed on to link:spark-taskschedulerimpl.adoc#handleFailedTask[TaskSchedulerImpl.handleFailedTask] as the reason of the failure.
+
+Any `ClassNotFoundException` leads to printing out the ERROR message to the logs:
+
+```
+ERROR Could not deserialize TaskEndReason: ClassNotFound with classloader [loader]
+```
+
+=== [[settings]] Settings
+
+.Spark Properties
+[frame="topbot",cols="1,1,2",options="header",width="100%"]
+|======================
+| Spark Property | Default Value | Description
+| [[spark_resultGetter_threads]] `spark.resultGetter.threads` | `4` | The number of threads for `TaskResultGetter`.
+|======================

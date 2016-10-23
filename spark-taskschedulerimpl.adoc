@@ -42,7 +42,14 @@ NOTE: `executorHeartbeatReceived` is a part of the link:spark-taskscheduler.adoc
 
 === [[handleTaskGettingResult]] `handleTaskGettingResult` Method
 
-CAUTION: FIXME
+[source, scala]
+----
+handleTaskGettingResult(taskSetManager: TaskSetManager, tid: Long): Unit
+----
+
+`handleTaskGettingResult` simply link:spark-tasksetmanager.adoc#handleTaskGettingResult[forwards the call to the `taskSetManager`].
+
+NOTE: `handleTaskGettingResult` is called when link:spark-taskschedulerimpl-TaskResultGetter.adoc#enqueueSuccessfulTask[`TaskResultGetter` enqueues a successful task].
 
 === [[applicationAttemptId]] applicationAttemptId method
 
@@ -102,7 +109,7 @@ Failure to set `schedulingMode` results in a `SparkException`:
 Unrecognized spark.scheduler.mode: [schedulingModeConf]
 ```
 
-It sets `taskResultGetter` as a <<TaskResultGetter, TaskResultGetter>>.
+It sets `taskResultGetter` as a link:spark-taskschedulerimpl-TaskResultGetter.adoc[TaskResultGetter].
 
 CAUTION: FIXME Where is `taskResultGetter` used?
 
@@ -198,7 +205,7 @@ When `TaskSchedulerImpl` is stopped (using `stop()` method), it does the followi
 
 * Shuts down the internal `task-scheduler-speculation` thread pool executor (used for <<speculative-execution, Speculative execution of tasks>>).
 * Stops link:spark-scheduler-backends.adoc[SchedulerBackend].
-* Stops link:spark-taskscheduler.adoc#TaskResultGetter[TaskResultGetter].
+* Stops link:spark-taskschedulerimpl-TaskResultGetter.adoc[TaskResultGetter].
 * Cancels `starvationTimer` timer.
 
 === [[speculative-execution]] Speculative Execution of Tasks
@@ -375,62 +382,7 @@ resourceOfferSingleTaskSet(
 
 `resourceOfferSingleTaskSet` is a private helper method that is executed when...
 
-=== [[TaskResultGetter]] TaskResultGetter
-
-`TaskResultGetter` is a helper class for <<statusUpdate, TaskSchedulerImpl.statusUpdate>>. It _asynchronously_ fetches the task results of tasks that have finished successfully (using <<enqueueSuccessfulTask, enqueueSuccessfulTask>>) or fetches the reasons of failures for failed tasks (using <<enqueueFailedTask, enqueueFailedTask>>). It then sends the "results" back to `TaskSchedulerImpl`.
-
-CAUTION: FIXME Image with the dependencies
-
-TIP: Consult link:spark-taskscheduler-tasks.adoc#states[Task States] in Tasks to learn about the different task states.
-
-NOTE: The only instance of `TaskResultGetter` is created while <<creating-instance, TaskSchedulerImpl is being created>> (as `taskResultGetter`). It requires a `SparkEnv` and `TaskSchedulerImpl`. It is stopped when `TaskSchedulerImpl` stops.
-
-`TaskResultGetter` offers the following methods:
-
-* <<enqueueSuccessfulTask, enqueueSuccessfulTask>>
-* <<enqueueFailedTask, enqueueFailedTask>>
-
-The methods use the internal (daemon thread) thread pool *task-result-getter* (as `getTaskResultExecutor`) with <<settings, spark.resultGetter.threads>> so they can be executed asynchronously.
-
-==== [[enqueueSuccessfulTask]] TaskResultGetter.enqueueSuccessfulTask
-
-`enqueueSuccessfulTask(taskSetManager: TaskSetManager, tid: Long, serializedData: ByteBuffer)` starts by deserializing `TaskResult` (from `serializedData` using the global link:spark-sparkenv.adoc#closureSerializer[closure Serializer]).
-
-If the result is `DirectTaskResult`, the method checks `taskSetManager.canFetchMoreResults(serializedData.limit())` and possibly quits. If not, it deserializes the result (using `SparkEnv.serializer`).
-
-CAUTION: FIXME Review `taskSetManager.canFetchMoreResults(serializedData.limit())`.
-
-If the result is `IndirectTaskResult`, the method checks `taskSetManager.canFetchMoreResults(size)` and possibly removes the block id (using `SparkEnv.blockManager.master.removeBlock(blockId)`) and quits. If not, you should see the following DEBUG message in the logs:
-
-```
-DEBUG Fetching indirect task result for TID [tid]
-```
-
-`scheduler.handleTaskGettingResult(taskSetManager, tid)` gets called. And `sparkEnv.blockManager.getRemoteBytes(blockId)`.
-
-Failure in getting task result from BlockManager results in calling <<handleFailedTask, TaskSchedulerImpl.handleFailedTask(taskSetManager, tid, TaskState.FINISHED, TaskResultLost)>> and quit.
-
-The task result is deserialized to `DirectTaskResult` (using the global link:spark-sparkenv.adoc#closureSerializer[closure Serializer]) and `sparkEnv.blockManager.master.removeBlock(blockId)` is called afterwards.
-
-`TaskSchedulerImpl.handleSuccessfulTask(taskSetManager, tid, result)` is called.
-
-CAUTION: FIXME What is `TaskSchedulerImpl.handleSuccessfulTask` doing?
-
-Any `ClassNotFoundException` or non fatal exceptions lead to link:spark-tasksetmanager.adoc#aborting-taskset[TaskSetManager.abort].
-
-==== [[enqueueFailedTask]] TaskResultGetter.enqueueFailedTask
-
-`enqueueFailedTask(taskSetManager: TaskSetManager, tid: Long, taskState: TaskState, serializedData: ByteBuffer)` checks whether `serializedData` contains any data and if it does it deserializes it to a `TaskEndReason` (using the global link:spark-sparkenv.adoc#closureSerializer[closure Serializer]).
-
-Either `UnknownReason` or the deserialized instance is passed on to <<handleFailedTask, TaskSchedulerImpl.handleFailedTask>> as the reason of the failure.
-
-Any `ClassNotFoundException` leads to printing out the ERROR message to the logs:
-
-```
-ERROR Could not deserialize TaskEndReason: ClassNotFound with classloader [loader]
-```
-
-=== [[statusUpdate]] TaskSchedulerImpl.statusUpdate
+=== [[statusUpdate]] `statusUpdate` Method
 
 `statusUpdate(tid: Long, state: TaskState, serializedData: ByteBuffer)` is called by link:spark-scheduler-backends.adoc[scheduler backends] to inform about task state changes (see link:spark-taskscheduler-tasks.adoc#states[Task States] in Tasks).
 
@@ -452,9 +404,9 @@ The method looks up the link:spark-tasksetmanager.adoc[TaskSetManager] for the t
 
 When the TaskSetManager is found and the task is in finished state, the task is removed from the internal data structures, i.e. `taskIdToTaskSetManager` and `taskIdToExecutorId`, and the number of currently running tasks for the executor(s) is decremented (using `executorIdToTaskCount`).
 
-For a `FINISHED` task, link:spark-taskscheduler-tasksets.adoc[TaskSet.removeRunningTask] is called and then <<TaskResultGetter, TaskResultGetter.enqueueSuccessfulTask>>.
+For a `FINISHED` task, link:spark-taskscheduler-tasksets.adoc[TaskSet.removeRunningTask] is called and then link:spark-taskschedulerimpl-TaskResultGetter.adoc#enqueueSuccessfulTask[TaskResultGetter.enqueueSuccessfulTask].
 
-For a task in `FAILED`, `KILLED`, or `LOST` state, link:spark-taskscheduler-tasksets.adoc[TaskSet.removeRunningTask] is called (as for the `FINISHED` state) and then <<TaskResultGetter,TaskResultGetter.enqueueFailedTask>>.
+For a task in `FAILED`, `KILLED`, or `LOST` state, link:spark-taskscheduler-tasksets.adoc[TaskSet.removeRunningTask] is called (as for the `FINISHED` state) and then link:spark-taskschedulerimpl-TaskResultGetter.adoc#enqueueFailedTask[TaskResultGetter.enqueueFailedTask].
 
 If the TaskSetManager could not be found, the following ERROR shows in the logs:
 
@@ -462,9 +414,9 @@ If the TaskSetManager could not be found, the following ERROR shows in the logs:
 ERROR Ignoring update with state [state] for TID [tid] because its task set is gone (this is likely the result of receiving duplicate task finished status updates)
 ```
 
-=== [[handleFailedTask]] TaskSchedulerImpl.handleFailedTask
+=== [[handleFailedTask]] `handleFailedTask` Method
 
-`TaskSchedulerImpl.handleFailedTask(taskSetManager: TaskSetManager, tid: Long, taskState: TaskState, reason: TaskEndReason)` is called when <<enqueueSuccessfulTask, TaskResultGetter.enqueueSuccessfulTask>> failed to fetch bytes from BlockManager or as part of <<enqueueFailedTask, TaskResultGetter.enqueueFailedTask>>.
+`TaskSchedulerImpl.handleFailedTask(taskSetManager: TaskSetManager, tid: Long, taskState: TaskState, reason: TaskEndReason)` is called when link:spark-taskschedulerimpl-TaskResultGetter.adoc#enqueueSuccessfulTask[TaskResultGetter.enqueueSuccessfulTask] failed to fetch bytes from BlockManager or as part of link:spark-taskschedulerimpl-TaskResultGetter.adoc#enqueueFailedTask[TaskResultGetter.enqueueFailedTask].
 
 Either way there is an error related to task execution.
 
@@ -544,7 +496,3 @@ NOTE: Only `FAIR` and `FIFO` are supported by `TaskSchedulerImpl`. See <<schedul
 ==== [[spark.starvation.timeout]] spark.starvation.timeout
 
 `spark.starvation.timeout` (default: `15s`) - Threshold above which Spark warns a user that an initial TaskSet may be starved.
-
-==== [[spark.resultGetter.threads]] spark.resultGetter.threads
-
-`spark.resultGetter.threads` (default: `4`) - the number of threads for <<TaskResultGetter, TaskResultGetter>>.
