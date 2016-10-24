@@ -15,7 +15,7 @@ NOTE: `TaskSchedulerImpl` is a `private[spark]` class with the source code in ht
 
 [TIP]
 ====
-Enable `INFO` or `DEBUG` logging level for `org.apache.spark.scheduler.TaskSchedulerImpl` logger to see what happens inside.
+Enable `INFO` or `DEBUG` logging levels for `org.apache.spark.scheduler.TaskSchedulerImpl` logger to see what happens inside.
 
 Add the following line to `conf/log4j.properties`:
 
@@ -63,7 +63,7 @@ handleTaskGettingResult(taskSetManager: TaskSetManager, tid: Long): Unit
 
 `handleTaskGettingResult` simply link:spark-tasksetmanager.adoc#handleTaskGettingResult[forwards the call to the `taskSetManager`].
 
-NOTE: `handleTaskGettingResult` is called when link:spark-taskschedulerimpl-TaskResultGetter.adoc#enqueueSuccessfulTask[`TaskResultGetter` enqueues a successful task].
+NOTE: `handleTaskGettingResult` is used to inform that link:spark-taskschedulerimpl-TaskResultGetter.adoc#enqueueSuccessfulTask[`TaskResultGetter` enqueues a successful task with `IndirectTaskResult` task result (and so is about to fetch a remote block from a `BlockManager`)].
 
 === [[applicationAttemptId]] `applicationAttemptId` Method
 
@@ -479,24 +479,22 @@ If link:spark-tasksetmanager.adoc#zombie-state[the TaskSetManager is not a zombi
 taskSetFinished(manager: TaskSetManager): Unit
 ----
 
-`taskSetFinished` method is called to inform TaskSchedulerImpl that all tasks in a TaskSetManager have finished execution.
+`taskSetFinished` looks all link:spark-taskscheduler-tasksets.adoc[TaskSet]s up by the stage id (in <<taskSetsByStageIdAndAttempt, taskSetsByStageIdAndAttempt>> registry) and removes the stage attempt from them, possibly with removing the entire stage record from `taskSetsByStageIdAndAttempt` registry completely (if there are no other attempts registered).
 
 .TaskSchedulerImpl.taskSetFinished is called when all tasks are finished
 image::images/taskschedulerimpl-tasksetmanager-tasksetfinished.png[align="center"]
 
-NOTE: `taskSetFinished` is called by TaskSetManager at the very end of link:spark-tasksetmanager.adoc#handleFailedTask[TaskSetManager.handleSuccessfulTask].
+NOTE: A `TaskSetManager` manages a `TaskSet` for a stage.
 
-`taskSetsByStageIdAndAttempt` internal mapping is queried by stage id (using `manager.taskSet.stageId`) for the corresponding TaskSets (TaskSetManagers in fact) to remove the currently-finished stage attempt (using `manager.taskSet.stageAttemptId`) and if it was the only attempt, the stage id is completely removed from `taskSetsByStageIdAndAttempt`.
-
-NOTE: A TaskSetManager owns a TaskSet that corresponds to a stage.
-
-`Pool.removeSchedulable(manager)` is called for the `parent` of the TaskSetManager.
+`taskSetFinished` then link:spark-taskscheduler-pool.adoc#removeSchedulable[removes `manager` from the parent's schedulable pool].
 
 You should see the following INFO message in the logs:
 
 ```
-INFO Removed TaskSet [manager.taskSet.id], whose tasks have all completed, from pool [manager.parent.name]
+INFO Removed TaskSet [id], whose tasks have all completed, from pool [name]
 ```
+
+NOTE: `taskSetFinished` method is called when link:spark-tasksetmanager.adoc#maybeFinishTaskSet[`TaskSetManager` has received the results of all the tasks in a `TaskSet`].
 
 === [[executorAdded]] `executorAdded` Method
 
