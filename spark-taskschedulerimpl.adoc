@@ -42,6 +42,18 @@ CAUTION: FIXME
 
 NOTE: `executorHeartbeatReceived` is a part of the link:spark-taskscheduler.adoc#contract[TaskScheduler Contract].
 
+=== [[handleSuccessfulTask]] `handleSuccessfulTask` Method
+
+[source, scala]
+----
+handleSuccessfulTask(
+  taskSetManager: TaskSetManager,
+  tid: Long,
+  taskResult: DirectTaskResult[_]): Unit
+----
+
+`handleSuccessfulTask` simply link:spark-tasksetmanager.adoc#handleSuccessfulTask[forwards the call to the input `taskSetManager`] (passing `tid` and `taskResult`).
+
 === [[handleTaskGettingResult]] `handleTaskGettingResult` Method
 
 [source, scala]
@@ -120,13 +132,22 @@ Used when `TaskSchedulerImpl`...
 
 === [[creating-instance]] Creating TaskSchedulerImpl Instance
 
-Creating a `TaskSchedulerImpl` object requires a link:spark-sparkcontext.adoc[SparkContext] object, the <<maxTaskFailures, acceptable number of task failures>> (`maxTaskFailures`) and optional <<isLocal, isLocal>> flag (disabled by default, i.e. `false`).
+[source, scala]
+----
+class TaskSchedulerImpl(
+  val sc: SparkContext,
+  val maxTaskFailures: Int,
+  isLocal: Boolean = false)
+extends TaskScheduler
+----
 
-NOTE: There is another `TaskSchedulerImpl` constructor that requires a link:spark-sparkcontext.adoc[SparkContext] object only and sets <<maxTaskFailures, maxTaskFailures>> to <<spark.task.maxFailures, spark.task.maxFailures>> or, if `spark.task.maxFailures` is not set, defaults to `4`.
+Creating a `TaskSchedulerImpl` object requires a link:spark-sparkcontext.adoc[SparkContext] object with <<maxTaskFailures, acceptable number of task failures>> and optional <<isLocal, isLocal>> flag (disabled by default, i.e. `false`).
 
-While being created, it initializes <<internal-registries, internal registries>> to their default values.
+NOTE: There is another `TaskSchedulerImpl` constructor that requires a link:spark-sparkcontext.adoc[SparkContext] object only and sets <<maxTaskFailures, maxTaskFailures>> to <<spark_task_maxFailures, spark.task.maxFailures>> or, if `spark.task.maxFailures` is not set, defaults to `4`.
 
-It then sets link:spark-taskscheduler.adoc#contract[schedulingMode] to the value of <<spark_scheduler_mode, spark.scheduler.mode>> setting or `FIFO`.
+While being created, `TaskSchedulerImpl` initializes <<internal-registries, internal registries and counters>> to their default values.
+
+`TaskSchedulerImpl` then sets link:spark-taskscheduler.adoc#contract[schedulingMode] to the value of <<spark_scheduler_mode, spark.scheduler.mode>> setting (defaults to `FIFO`).
 
 NOTE: `schedulingMode` is part of link:spark-taskscheduler.adoc#contract[TaskScheduler Contract].
 
@@ -136,9 +157,7 @@ Failure to set `schedulingMode` results in a `SparkException`:
 Unrecognized spark.scheduler.mode: [schedulingModeConf]
 ```
 
-It sets `taskResultGetter` as a link:spark-taskschedulerimpl-TaskResultGetter.adoc[TaskResultGetter].
-
-CAUTION: FIXME Where is `taskResultGetter` used?
+Ultimately, `TaskSchedulerImpl` creates a link:spark-taskschedulerimpl-TaskResultGetter.adoc[TaskResultGetter].
 
 === [[initialization]][[initialize]] Initializing TaskSchedulerImpl -- `initialize` Method
 
@@ -187,7 +206,7 @@ It also starts the *task-scheduler-speculation* executor pool. See <<speculative
 
 === [[maxTaskFailures]] Acceptable Number of Task Failures -- `maxTaskFailures` Attribute
 
-The acceptable number of task failures (`maxTaskFailures`) can be explicitly defined when <<creating-instance, creating TaskSchedulerImpl instance>> or based on <<spark.task.maxFailures, spark.task.maxFailures>> setting that defaults to 4 failures.
+The acceptable number of task failures (`maxTaskFailures`) can be explicitly defined when <<creating-instance, creating TaskSchedulerImpl instance>> or based on <<spark_task_maxFailures, spark.task.maxFailures>> setting that defaults to 4 failures.
 
 NOTE: It is exclusively used when <<submitTasks, submitting tasks>> through link:spark-tasksetmanager.adoc[TaskSetManager].
 
@@ -249,7 +268,7 @@ CAUTION: FIXME
 
 *Speculative execution of tasks* is a health-check procedure that checks for tasks to be *speculated*, i.e. running slower in a stage than the median of all successfully completed tasks in a taskset (FIXME the setting). Such slow tasks will be re-launched in another worker. It will not stop the slow tasks, but run a new copy in parallel.
 
-The thread starts as `TaskSchedulerImpl` starts in link:spark-cluster.adoc[clustered deployment modes] with link:spark-tasksetmanager.adoc#spark_speculation[spark.speculation] enabled. It executes periodically every <<settings, spark.speculation.interval>> after <<settings, spark.speculation.interval>> passes.
+The thread starts as `TaskSchedulerImpl` starts in link:spark-cluster.adoc[clustered deployment modes] with link:spark-tasksetmanager.adoc#spark_speculation[spark.speculation] enabled. It executes periodically every <<spark_speculation_interval, spark.speculation.interval>> after `spark.speculation.interval` passes.
 
 When enabled, you should see the following INFO message in the logs:
 
@@ -315,9 +334,9 @@ NOTE: `TaskSetManager` is considered *active* when it is not a *zombie*.
 
 The `TaskSetManager` is link:spark-taskscheduler-schedulablebuilders.adoc#addTaskSetManager[added to the `Schedulable` pool (via `SchedulableBuilder`)].
 
-When the method is called the very first time (`hasReceivedTask` is `false`) in cluster mode only (i.e. `isLocal` of the `TaskSchedulerImpl` is `false`), `starvationTimer` is scheduled to execute after <<settings, spark.starvation.timeout>>  to ensure that the requested resources, i.e. CPUs and memory, were assigned by a cluster manager.
+When the method is called the very first time (`hasReceivedTask` is `false`) in cluster mode only (i.e. `isLocal` of the `TaskSchedulerImpl` is `false`), `starvationTimer` is scheduled to execute after <<spark_starvation_timeout, spark.starvation.timeout>>  to ensure that the requested resources, i.e. CPUs and memory, were assigned by a cluster manager.
 
-NOTE: After the first <<settings, spark.starvation.timeout>> passes, the internal `hasReceivedTask` flag becomes `true`.
+NOTE: After the first `spark.starvation.timeout` passes, the internal `hasReceivedTask` flag becomes `true`.
 
 Every time the starvation timer thread is executed and `hasLaunchedTask` flag is `false`, the following WARN message is printed out to the logs:
 
@@ -455,7 +474,12 @@ If link:spark-tasksetmanager.adoc#zombie-state[the TaskSetManager is not a zombi
 
 === [[taskSetFinished]] `taskSetFinished` Method
 
-`taskSetFinished(manager: TaskSetManager)` method is called to inform TaskSchedulerImpl that all tasks in a TaskSetManager have finished execution.
+[source, scala]
+----
+taskSetFinished(manager: TaskSetManager): Unit
+----
+
+`taskSetFinished` method is called to inform TaskSchedulerImpl that all tasks in a TaskSetManager have finished execution.
 
 .TaskSchedulerImpl.taskSetFinished is called when all tasks are finished
 image::images/taskschedulerimpl-tasksetmanager-tasksetfinished.png[align="center"]
@@ -491,15 +515,15 @@ CAUTION: FIXME Image with a call from TaskSchedulerImpl to DAGScheduler, please.
 [frame="topbot",cols="1,1,2",options="header",width="100%"]
 |======================
 | Spark Property | Default Value | Description
-| [[spark.task.maxFailures]] `spark.task.maxFailures` | `4` in link:spark-cluster.adoc[cluster mode]
+| [[spark_task_maxFailures]] `spark.task.maxFailures` | `4` in link:spark-cluster.adoc[cluster mode]
 
 `1` in link:spark-local.adoc[local] except link:spark-local.adoc[local-with-retries] | The number of individual task failures before giving up on the entire link:spark-taskscheduler-tasksets.adoc[TaskSet] and the job afterwards.
 
 | [[spark_task_cpus]] `spark.task.cpus` | `1` | The number of CPUs to request per task.
 
-| [[spark.speculation.interval]] `spark.speculation.interval` | `100ms` | The time interval to use before checking for speculative tasks.
+| [[spark_speculation_interval]] `spark.speculation.interval` | `100ms` | The time interval to use before checking for speculative tasks.
 
-| [[spark.starvation.timeout]] `spark.starvation.timeout` | `15s` | Threshold above which Spark warns a user that an initial TaskSet may be starved.
+| [[spark_starvation_timeout]] `spark.starvation.timeout` | `15s` | Threshold above which Spark warns a user that an initial TaskSet may be starved.
 
 | [[spark_scheduler_mode]] `spark.scheduler.mode` | `FIFO` | A case-insensitive name of the link:spark-taskscheduler-schedulingmode.adoc[scheduling mode] -- `FAIR`, `FIFO`, or `NONE`.
 

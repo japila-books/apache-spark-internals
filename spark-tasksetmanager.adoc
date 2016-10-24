@@ -41,9 +41,7 @@ CAUTION: FIXME
 
 === [[internal-registries]] Internal Registries and Counters
 
-`DAGScheduler` uses internal registries and counters for managing active jobs and stages.
-
-.`DAGScheduler` Internal Registries and Counters
+.Internal Registries and Counters
 [frame="topbot",cols="1,2",options="header",width="100%"]
 |======================
 | Name | Description
@@ -65,7 +63,9 @@ Used in <<handleFailedTask, handleFailedTask>>.
 | `taskAttempts` |
 | `tasksSuccessful` |
 | `stageId` | The stage's id the `TaskSetManager` runs for. Set to `taskSet.stageId`.
-| `runningTasksSet` |
+
+| [[runningTasksSet]] `runningTasksSet` | Running tasks that the `TaskSetManager` manages.
+
 | `isZombie` | Disabled, i.e. `false`, by default.
 | `pendingTasksForExecutor` |
 | `pendingTasksForHost` |
@@ -130,7 +130,7 @@ If the TaskSetManager is <<zombie-state, zombie>> or has a single task in TaskSe
 
 The method goes on with the assumption of no speculatable tasks by default.
 
-It computes the minimum number of finished tasks for speculation (as <<settings, spark.speculation.quantile>> of all the finished tasks).
+It computes the minimum number of finished tasks for speculation (as <<spark_speculation_quantile, spark.speculation.quantile>> of all the finished tasks).
 
 You should see the DEBUG message in the logs:
 
@@ -140,7 +140,7 @@ DEBUG Checking for speculative tasks: minFinished = [minFinishedForSpeculation]
 
 It then checks whether the number is equal or greater than the number of tasks completed successfully (using `tasksSuccessful`).
 
-Having done that, it computes the median duration of all the successfully completed tasks (using <<taskInfos, `taskInfos` internal registry>>) and task length threshold using the median duration multiplied by <<settings, spark.speculation.multiplier>> that has to be equal or less than `100`.
+Having done that, it computes the median duration of all the successfully completed tasks (using <<taskInfos, `taskInfos` internal registry>>) and task length threshold using the median duration multiplied by <<spark_speculation_multiplier, spark.speculation.multiplier>> that has to be equal or less than `100`.
 
 You should see the DEBUG message in the logs:
 
@@ -286,7 +286,12 @@ CAUTION: FIXME
 
 === [[handleSuccessfulTask]] `handleSuccessfulTask` Method
 
-`handleSuccessfulTask(tid: Long, result: DirectTaskResult[_])` method marks the task (by `tid`) as successful and notifies the DAGScheduler that the task has ended.
+[source, scala]
+----
+handleSuccessfulTask(tid: Long, result: DirectTaskResult[_]): Unit
+----
+
+`handleSuccessfulTask` marks the `tid` task as finished and link:spark-dagscheduler.adoc#taskEnded[notifies the `DAGScheduler` that the task has ended]. It does some bookkeeping and <<maybeFinishTaskSet, attempts to mark the `TaskSet` finished>>.
 
 It is called by... when...FIXME
 
@@ -319,6 +324,15 @@ INFO Ignoring task-finished event for [info.id] in stage [taskSet.id] because ta
 CAUTION: FIXME What does `failedExecutors.remove(index)` mean?
 
 At the end, the method checks whether the TaskSetManager is a zombie and no task is running (using `runningTasksSet`), and if so, it calls link:spark-taskschedulerimpl.adoc#taskSetFinished[TaskSchedulerImpl.taskSetFinished].
+
+=== [[maybeFinishTaskSet]] Attempting to Mark TaskSet Finished -- `maybeFinishTaskSet` Internal Method
+
+[source, scala]
+----
+maybeFinishTaskSet(): Unit
+----
+
+`maybeFinishTaskSet` link:spark-taskschedulerimpl.adoc#taskSetFinished[notifies `TaskSchedulerImpl` that a `TaskSet` has finished] when there are no other <<runningTasksSet, running tasks>> and the <<isZombie, TaskSetManager is not in zombie state>>.
 
 === [[handleFailedTask]] `handleFailedTask` Method
 
@@ -384,7 +398,7 @@ It continues if not being a `NotSerializableException`.
 
 It grabs the description and the time of the ExceptionFailure.
 
-If the description, i.e. the ExceptionFailure, has already been reported (and is therefore a duplication), <<settings, spark.logging.exceptionPrintInterval>> is checked before reprinting the duplicate exception in full.
+If the description, i.e. the ExceptionFailure, has already been reported (and is therefore a duplication), <<spark_logging_exceptionPrintInterval, spark.logging.exceptionPrintInterval>> is checked before reprinting the duplicate exception in full.
 
 For full printout of the ExceptionFailure, the following WARNING appears in the logs:
 
@@ -434,13 +448,13 @@ No failure exception is returned.
 
 CAUTION: FIXME
 
-Up to <<settings, spark.task.maxFailures>> attempts
+Up to link:spark-taskschedulerimpl.adoc#spark_task_maxFailures[spark.task.maxFailures] attempts
 
-=== Task retries and spark.task.maxFailures
+=== Task retries and `spark.task.maxFailures`
 
-When you start Spark program you set up <<settings, spark.task.maxFailures>> for the number of failures that are acceptable until TaskSetManager gives up and marks a job failed.
+When you start Spark program you set up link:spark-taskschedulerimpl.adoc#spark_task_maxFailures[spark.task.maxFailures] for the number of failures that are acceptable until TaskSetManager gives up and marks a job failed.
 
-In Spark shell with local master, `spark.task.maxFailures` is fixed to `1` and you need to use link:spark-local.adoc[local-with-retries master] to change it to some other value.
+TIP: In Spark shell with local master, `spark.task.maxFailures` is fixed to `1` and you need to use link:spark-local.adoc[local-with-retries master] to change it to some other value.
 
 In the following example, you are going to execute a job with two partitions and keep one failing at all times (by throwing an exception). The aim is to learn the behavior of retrying task execution in a stage in TaskSet. You will only look at a single task execution, namely `0.0`.
 
@@ -479,7 +493,7 @@ java.lang.Exception: Partition 2 marked failed
 org.apache.spark.SparkException: Job aborted due to stage failure: Task 0 in stage 1.0 failed 5 times, most recent failure: Lost task 0.4 in stage 1.0 (TID 7, localhost): java.lang.Exception: Partition 2 marked failed
 ```
 
-=== [[zombie-state]] Zombie state
+=== [[zombie-state]][[isZombie]] Zombie state
 
 TaskSetManager enters *zombie* state when all tasks in a taskset have completed successfully (regardless of the number of task attempts), or if the task set has been aborted (see <<aborting-taskset, Aborting TaskSet>>).
 
@@ -500,9 +514,7 @@ CAUTION: FIXME image with DAGScheduler call
 
 The TaskSetManager enters <<zombie-state, zombie state>>.
 
-Finally, `maybeFinishTaskSet` method is called.
-
-CAUTION: FIXME Why is `maybeFinishTaskSet` method called? When is `runningTasks` `0`?
+Finally, `abort` <<maybeFinishTaskSet, attempts to mark the `TaskSet` finished>>.
 
 === [[canFetchMoreResults]] Checking Available Memory For Task Result -- `canFetchMoreResults` Method
 
@@ -535,17 +547,19 @@ NOTE: `canFetchMoreResults` is used in link:spark-taskschedulerimpl-TaskResultGe
 | Spark Property | Default Value | Description
 | [[spark_driver_maxResultSize]] `spark.driver.maxResultSize` | `1g` | The quota to fetch the results, i.e. limit of bytes for total size of results. If the value is smaller than `1m` or `1048576` (1024 * 1024), it is considered `0`.
 
-Used when <<canFetchMoreResults, TaskSetManager checks available memory for task result>> and `Utils.getMaxResultSize`.
+Used when <<canFetchMoreResults, `TaskSetManager` checks available memory for task result>> and `Utils.getMaxResultSize`.
 
 | `spark.scheduler.executorTaskBlacklistTime` | `0L` | Time interval to pass after which a task can be re-launched on the executor where it has once failed. It is to prevent repeated task failures due to executor failures.
 
 | [[spark_speculation]] `spark.speculation` | `false` |
-| `spark.speculation.quantile` | `0.75` | The percentage of tasks that has not finished yet at which to start speculation.
-| `spark.speculation.multiplier` | `1.5` |
-| `spark.logging.exceptionPrintInterval` | `10000` millis | How frequently to reprint duplicate exceptions in full
+| [[spark_speculation_quantile]] `spark.speculation.quantile` | `0.75` | The percentage of tasks that has not finished yet at which to start speculation.
+| [[spark_speculation_multiplier]] `spark.speculation.multiplier` | `1.5` |
+
+| [[spark_logging_exceptionPrintInterval]] `spark.logging.exceptionPrintInterval` | `10000` millis | How frequently to reprint duplicate exceptions in full
+
 | [[spark_locality_wait]] `spark.locality.wait` | `3s` | For locality-aware delay scheduling for `PROCESS_LOCAL`, `NODE_LOCAL`, and `RACK_LOCAL` when locality-specific setting is not set.
-| `spark.locality.wait.process` | <<spark_locality_wait, spark.locality.wait>> | Scheduling delay for `PROCESS_LOCAL`
-| `spark.locality.wait.node` | <<spark_locality_wait, spark.locality.wait>> | Scheduling delay for `NODE_LOCAL`
-| `spark.locality.wait.rack` | <<spark_locality_wait, spark.locality.wait>> | Scheduling delay for `RACK_LOCAL`
+| `spark.locality.wait.process` | The value of <<spark_locality_wait, spark.locality.wait>> | Scheduling delay for `PROCESS_LOCAL`
+| `spark.locality.wait.node` | The value of <<spark_locality_wait, spark.locality.wait>> | Scheduling delay for `NODE_LOCAL`
+| `spark.locality.wait.rack` | The value of <<spark_locality_wait, spark.locality.wait>> | Scheduling delay for `RACK_LOCAL`
 
 |======================

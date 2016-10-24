@@ -1,6 +1,6 @@
 == [[TaskResultGetter]] TaskResultGetter
 
-`TaskResultGetter` is a helper class used exclusively by link:spark-taskschedulerimpl.adoc#statusUpdate[TaskSchedulerImpl] for _asynchronously_ <<enqueueSuccessfulTask, fetching the task results of tasks that have finished successfully>> or <<enqueueFailedTask, fetching the reasons of failures for failed tasks>>. It then sends the "results" back to `TaskSchedulerImpl`.
+`TaskResultGetter` is a helper class used exclusively by link:spark-taskschedulerimpl.adoc#statusUpdate[TaskSchedulerImpl] for _asynchronous_ <<enqueueSuccessfulTask, fetching the task results of tasks that have finished successfully>> or <<enqueueFailedTask, fetching the reasons of failures for failed tasks>>. It then sends the "results" back to `TaskSchedulerImpl`.
 
 CAUTION: FIXME Image with the dependencies
 
@@ -10,11 +10,73 @@ NOTE: The only instance of `TaskResultGetter` is created while link:spark-tasksc
 
 `TaskResultGetter` requires a link:spark-sparkenv.adoc[SparkEnv] and link:spark-taskschedulerimpl.adoc[TaskSchedulerImpl] to be created and is stopped when link:spark-taskschedulerimpl.adoc#stop[`TaskSchedulerImpl` stops].
 
-`TaskResultGetter` uses an internal (daemon thread) thread pool called *task-result-getter* (as `getTaskResultExecutor`) with <<spark_resultGetter_threads, spark.resultGetter.threads>> so they can be executed asynchronously.
+`TaskResultGetter` uses <<task-result-getter, `task-result-getter` asynchronous task executor>> for operation.
+
+[TIP]
+====
+Enable `DEBUG` logging level for `org.apache.spark.scheduler.TaskResultGetter` logger to see what happens inside.
+
+Add the following line to `conf/log4j.properties`:
+
+```
+log4j.logger.org.apache.spark.scheduler.TaskResultGetter=DEBUG
+```
+
+Refer to link:spark-logging.adoc[Logging].
+====
+
+=== [[getTaskResultExecutor]][[task-result-getter]] `task-result-getter` Asynchronous Task Executor
+
+[source, scala]
+----
+getTaskResultExecutor: ExecutorService
+----
+
+`getTaskResultExecutor` creates a daemon thread pool with <<spark_resultGetter_threads, spark.resultGetter.threads>> threads and `task-result-getter` prefix.
+
+TIP: Read up on https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/ThreadPoolExecutor.html[java.util.concurrent.ThreadPoolExecutor] that `getTaskResultExecutor` uses under the covers.
+
+=== [[stop]] `stop` Method
+
+[source, scala]
+----
+stop(): Unit
+----
+
+`stop` stops the internal <<task-result-getter, `task-result-getter` asynchronous task executor>>
+
+=== [[serializer]] `serializer` Attribute
+
+[source, scala]
+----
+serializer: ThreadLocal[SerializerInstance]
+----
+
+`serializer` is a thread-local `SerializerInstance` that `TaskResultGetter` uses to deserialize byte buffers (with ``TaskResult``s or a `TaskEndReason`).
+
+When created for a new thread, `serializer` is initialized with a new instance of `Serializer` (using link:spark-sparkenv.adoc#closureSerializer[SparkEnv.closureSerializer]).
+
+NOTE: `TaskResultGetter` uses https://docs.oracle.com/javase/8/docs/api/java/lang/ThreadLocal.html[java.lang.ThreadLocal] for the thread-local `SerializerInstance` variable.
 
 === [[enqueueSuccessfulTask]] `enqueueSuccessfulTask` Method
 
-`enqueueSuccessfulTask(taskSetManager: TaskSetManager, tid: Long, serializedData: ByteBuffer)` starts by deserializing `TaskResult` (from `serializedData` using the global link:spark-sparkenv.adoc#closureSerializer[closure Serializer]).
+[source, scala]
+----
+enqueueSuccessfulTask(
+  taskSetManager: TaskSetManager,
+  tid: Long,
+  serializedData: ByteBuffer): Unit
+----
+
+`enqueueSuccessfulTask` submits a task to <<getTaskResultExecutor, `task-result-getter` asynchronous task executor>>.
+
+`enqueueSuccessfulTask` first deserializes the input `serializedData` to a `TaskResult` (using the internal thread-local <<serializer, serializer>>).
+
+Given the type of `TaskResult`, i.e. `DirectTaskResult` or `IndirectTaskResult`, `enqueueSuccessfulTask` returns a tuple of the result and the size.
+
+`enqueueSuccessfulTask` updates `resultSize` internal accumulator to the size of the result.
+
+With no exceptions thrown, `enqueueSuccessfulTask` link:spark-taskschedulerimpl.adoc#handleSuccessfulTask[informs the TaskSchedulerImpl that the `tid` task was completed and the task result was received].
 
 If the result is `DirectTaskResult`, the method checks `taskSetManager.canFetchMoreResults(serializedData.limit())` and possibly quits. If not, it deserializes the result (using `SparkEnv.serializer`).
 
