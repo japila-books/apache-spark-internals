@@ -117,11 +117,11 @@ Used when `TaskSchedulerImpl`...
 
 | [[taskSetsByStageIdAndAttempt]] `taskSetsByStageIdAndAttempt` | Lookup table of link:spark-taskscheduler-tasksets.adoc[TaskSet] by stage and attempt ids.
 
-| `taskIdToTaskSetManager` | Lookup table of link:spark-tasksetmanager.adoc[TaskSetManager] by task
+| [[taskIdToTaskSetManager]] `taskIdToTaskSetManager` | Lookup table of link:spark-tasksetmanager.adoc[TaskSetManager] by task id.
 
-| `taskIdToExecutorId` | Lookup table of link:spark-executor.adoc[executor] by task
+| [[taskIdToExecutorId]] `taskIdToExecutorId` | Lookup table of link:spark-executor.adoc[executor] by task id.
 
-| `executorIdToTaskCount` | the number of tasks running per link:spark-executor.adoc[executor]
+| [[executorIdToTaskCount]] `executorIdToTaskCount` | Lookup table of the number of running tasks by link:spark-executor.adoc[executor].
 
 | `executorsByHost` | Collection of link:spark-executor.adoc[executors] per host
 
@@ -210,14 +210,14 @@ The acceptable number of task failures (`maxTaskFailures`) can be explicitly def
 
 NOTE: It is exclusively used when <<submitTasks, submitting tasks>> through link:spark-tasksetmanager.adoc[TaskSetManager].
 
-=== [[removeExecutor]] Internal Cleanup After Removing Executor -- `removeExecutor` Method
+=== [[removeExecutor]] Cleaning up After Removing Executor -- `removeExecutor` Internal Method
 
 [source, scala]
 ----
 removeExecutor(executorId: String, reason: ExecutorLossReason): Unit
 ----
 
-`removeExecutor` removes the `executorId` executor from the <<internal-registries, internal registries>>: `executorIdToTaskCount`, `executorIdToHost`, `executorsByHost`, and `hostsByRack`. If the affected hosts and racks are the last entries in `executorsByHost` and `hostsByRack`, appropriately, they are removed from the registries.
+`removeExecutor` removes the `executorId` executor from the following <<internal-registries, internal registries>>: <<executorIdToTaskCount, executorIdToTaskCount>>, `executorIdToHost`, `executorsByHost`, and `hostsByRack`. If the affected hosts and racks are the last entries in `executorsByHost` and `hostsByRack`, appropriately, they are removed from the registries.
 
 Unless `reason` is `LossReasonPending`, the executor is removed from `executorIdToHost` registry and link:spark-taskscheduler-schedulable.adoc#executorLost[TaskSetManagers get notified].
 
@@ -371,7 +371,7 @@ A `WorkerOffer` is a 3-tuple with executor id, host, and the number of free core
 WorkerOffer(executorId: String, host: String, cores: Int)
 ----
 
-For each `WorkerOffer` (that represents free cores on an executor) `resourceOffers` method records the host per executor id (using the internal `executorIdToHost`) and sets `0` as the number of tasks running on the executor if there are no tasks on the executor (using `executorIdToTaskCount`). It also records hosts (with executors in the internal `executorsByHost` registry).
+For each `WorkerOffer` (that represents free cores on an executor) `resourceOffers` method records the host per executor id (using the internal `executorIdToHost`) and sets `0` as the number of tasks running on the executor if there are no tasks on the executor (using <<executorIdToTaskCount, executorIdToTaskCount>>). It also records hosts (with executors in the internal `executorsByHost` registry).
 
 WARNING: FIXME BUG? Why is the executor id *not* added to `executorsByHost`?
 
@@ -432,35 +432,45 @@ resourceOfferSingleTaskSet(
 
 === [[statusUpdate]] `statusUpdate` Method
 
-`statusUpdate(tid: Long, state: TaskState, serializedData: ByteBuffer)` is called by link:spark-scheduler-backends.adoc[scheduler backends] to inform about task state changes (see link:spark-taskscheduler-tasks.adoc#states[Task States] in Tasks).
+[source, scala]
+----
+statusUpdate(
+  tid: Long,
+  state: TaskState.TaskState,
+  serializedData: ByteBuffer): Unit
+----
 
-CAUTION: FIXME image with scheduler backends calling `TaskSchedulerImpl.statusUpdate`.
+`statusUpdate` checks the current state of the task and acts accordingly.
 
-It is called by:
-
-* link:spark-scheduler-backends-coarse-grained.adoc[CoarseGrainedSchedulerBackend] when `StatusUpdate(executorId, taskId, state, data)` comes.
-* link:spark-mesos/spark-mesos.adoc#MesosSchedulerBackend[MesosSchedulerBackend] when `org.apache.mesos.Scheduler.statusUpdate` is called.
-* link:spark-local.adoc#LocalEndpoint[LocalEndpoint] when `StatusUpdate(taskId, state, serializedData)` comes.
-
-When `statusUpdate` starts, it checks the current state of the task and act accordingly.
-
-If a task became `TaskState.LOST` and there is still an executor assigned for the task (it seems it may not given the check), the executor is marked as lost (or sometimes called failed). The executor is later announced as such using `DAGScheduler.executorLost` with link:spark-scheduler-backends.adoc#reviveOffers[SchedulerBackend.reviveOffers()] being called afterwards.
+For `tid` task in `LOST` state and an executor still <<taskIdToExecutorId, assigned for the task>> and tracked in <<executorIdToTaskCount, executorIdToTaskCount>> registry, the executor is <<removeExecutor, removed>> (with reason `Task [tid] was lost, so marking the executor as lost as well.`).
 
 CAUTION: FIXME Why is link:spark-scheduler-backends.adoc#reviveOffers[SchedulerBackend.reviveOffers()] called only for lost executors?
 
-The method looks up the link:spark-tasksetmanager.adoc[TaskSetManager] for the task (using `taskIdToTaskSetManager`).
+`statusUpdate` looks up the link:spark-tasksetmanager.adoc[TaskSetManager] for `tid` (in <<taskIdToTaskSetManager, taskIdToTaskSetManager>>).
 
-When the TaskSetManager is found and the task is in finished state, the task is removed from the internal data structures, i.e. `taskIdToTaskSetManager` and `taskIdToExecutorId`, and the number of currently running tasks for the executor(s) is decremented (using `executorIdToTaskCount`).
+When the `TaskSetManager` is found and the task is in a link:spark-taskscheduler-tasks.adoc#states[finished state], the task is removed from the internal registries, i.e. <<taskIdToTaskSetManager, taskIdToTaskSetManager>> and <<taskIdToExecutorId, taskIdToExecutorId>>, and the number of currently running tasks for the executor is decremented (in <<executorIdToTaskCount, executorIdToTaskCount>> registry).
 
-For a `FINISHED` task, link:spark-taskscheduler-tasksets.adoc[TaskSet.removeRunningTask] is called and then link:spark-taskschedulerimpl-TaskResultGetter.adoc#enqueueSuccessfulTask[TaskResultGetter.enqueueSuccessfulTask].
+For a task in `FINISHED` state, the task is link:spark-tasksetmanager.adoc#removeRunningTask[removed from the running tasks] and link:spark-taskschedulerimpl-TaskResultGetter.adoc#enqueueSuccessfulTask[an asynchrounous task is scheduled to deserialize the task result (and notify `TaskSchedulerImpl`)].
 
-For a task in `FAILED`, `KILLED`, or `LOST` state, link:spark-taskscheduler-tasksets.adoc[TaskSet.removeRunningTask] is called (as for the `FINISHED` state) and then link:spark-taskschedulerimpl-TaskResultGetter.adoc#enqueueFailedTask[TaskResultGetter.enqueueFailedTask].
+For a task in `FAILED`, `KILLED`, or `LOST` state, the task is link:spark-tasksetmanager.adoc#removeRunningTask[removed from the running tasks] (as for the `FINISHED` state) and then link:spark-taskschedulerimpl-TaskResultGetter.adoc#enqueueFailedTask[TaskResultGetter.enqueueFailedTask] is called.
 
-If the TaskSetManager could not be found, the following ERROR shows in the logs:
+If the `TaskSetManager` for `tid` could not be found (in <<taskIdToTaskSetManager, taskIdToTaskSetManager>> registry), you should see the following ERROR message in the logs:
 
 ```
 ERROR Ignoring update with state [state] for TID [tid] because its task set is gone (this is likely the result of receiving duplicate task finished status updates)
 ```
+
+Any exception is caught and reported as ERROR message in the logs:
+
+```
+ERROR Exception in statusUpdate
+```
+
+Ultimately, for `tid` task with an executor marked as lost, `statusUpdate` link:spark-dagscheduler.adoc#executorLost[informs `DAGScheduler` that the executor was lost] (with `SlaveLost` and the reason `Task [tid] was lost, so marking the executor as lost as well.`) and link:spark-scheduler-backends.adoc#reviveOffers[`SchedulerBackend` is requested to revive offers].
+
+CAUTION: FIXME image with scheduler backends calling `TaskSchedulerImpl.statusUpdate`.
+
+NOTE: `statusUpdate` is called when link:spark-scheduler-backends-coarse-grained.adoc#StatusUpdate[CoarseGrainedSchedulerBackend], `LocalSchedulerBackend` and `MesosFineGrainedSchedulerBackend` inform about task state changes.
 
 === [[handleFailedTask]] `handleFailedTask` Method
 
