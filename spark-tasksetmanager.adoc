@@ -57,10 +57,11 @@ It is increased with the size of a task result when a `TaskSetManager` <<canFetc
 
 `calculatedTasks` is initially set to `0` when a <<creating-instance, `TaskSetManager` is created>> and is only incremented when the <<canFetchMoreResults, `TaskSetManager` checks that there is enough memory to fetch a task result>>.
 
-| `copiesRunning` |
-| `successful` |
-| `numFailures` |
-| `failedExecutors` | The lookup table of TaskInfo's indices that failed to executor ids and the time of the failure.
+| [[copiesRunning]] `copiesRunning` | The bit array of tasks currently running per task index in its task set.
+
+| [[successful]] `successful` |
+| [[numFailures]] `numFailures` |
+| `failedExecutors` | Lookup table of TaskInfo's indices that failed to executor ids and the time of the failure.
 
 Used in <<handleFailedTask, handleFailedTask>>.
 
@@ -77,8 +78,9 @@ Used in <<handleFailedTask, handleFailedTask>>.
 | `pendingTasksWithNoPrefs` |
 | `allPendingTasks` |
 | `speculatableTasks` |
-| [[taskInfos]] `taskInfos` | The lookup table of ``TaskInfo``s per task id.
+| [[taskInfos]] `taskInfos` | Lookup table of ``TaskInfo``s per task id.
 | `recentExceptions` |
+| [[tasks]] `tasks` |
 |======================
 
 === [[schedulable]] TaskSetManager is Schedulable
@@ -114,7 +116,7 @@ Since `TaskSetManager` manages execution of the tasks in a single link:spark-tas
 
 `executorLost` first checks whether the `TaskSet` is for a link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage] (in which case all `TaskSet.tasks` are instances of link:spark-taskscheduler-tasks.adoc#shufflemaptask[ShuffleMapTask]) as well as whether an link:spark-ExternalShuffleService.adoc[external shuffle server] is used (that could serve the shuffle outputs in case of failure).
 
-If it is indeed for a failed link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage] and no external shuffle server is enabled, all successfully-completed tasks for the failed executor (using <<taskInfos, `taskInfos` internal registry>>) <<addPendingTask, get added to the collection of pending tasks>> and the link:spark-dagscheduler.adoc#taskEnded[DAGScheduler is informed about resubmission] (as link:spark-dagscheduler.adoc#TaskEndReason-Resubmitted[`Resubmitted` end reason]).
+If it is indeed for a failed link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage] and no external shuffle server is enabled, all successfully-completed tasks for the failed executor (using <<taskInfos, `taskInfos` internal registry>>) <<addPendingTask, are recorded as pending tasks>> and the link:spark-dagscheduler.adoc#taskEnded[DAGScheduler is informed about resubmission] (as link:spark-dagscheduler.adoc#TaskEndReason-Resubmitted[`Resubmitted` end reason]).
 
 The <<internal-registries, internal registries>> - `successful`, `copiesRunning`, and `tasksSuccessful` - are updated.
 
@@ -340,113 +342,111 @@ maybeFinishTaskSet(): Unit
 
 === [[handleFailedTask]] `handleFailedTask` Method
 
-`handleFailedTask(tid: Long, state: TaskState, reason: TaskEndReason)` method is called by link:spark-taskschedulerimpl.adoc#handleFailedTask[TaskSchedulerImpl] or <<executorLost, executorLost>>.
+[source, scala]
+----
+handleFailedTask(
+  tid: Long,
+  state: TaskState.TaskState,
+  reason: TaskFailedReason): Unit
+----
 
-CAUTION: FIXME image with `handleFailedTask` (and perhaps the other parties involved)
+`handleFailedTask` <<removeRunningTask, removes `tid` task from running tasks>> and marks `TaskInfo` as finished. It decreases the number of the `tid` task's copies running (in <<copiesRunning, copiesRunning>> internal registry).
 
-The method first checks whether the task has already been marked as failed (using <<taskInfos, `taskInfos` internal registry>>) and if it has, it quits.
+CAUTION: FIXME Can there be more than one copy of a task running? `copiesRunning`
 
-It removes the task from <<internal-registries, runningTasksSet>> and informs <<internal-registries, the parent pool>> to decrease its running tasks.
+If the `tid` task has already been marked as failed or killed (in <<taskInfos, taskInfos>> internal registry), `handleFailedTask` does nothing and quits.
 
-It marks the TaskInfo as failed and grabs its index so the number of copies running of the task is decremented (see <<internal-registries, copiesRunning>>).
+`handleFailedTask` calculates the failure exception given the input `reason`, i.e. <<handleFailedTask-FetchFailed, FetchFailed>>, <<handleFailedTask-ExceptionFailure, ExceptionFailure>>, <<handleFailedTask-ExecutorLostFailure, ExecutorLostFailure>> and <<handleFailedTask-TaskFailedReason, other TaskFailedReasons>>.
 
-CAUTION: FIXME Describe `TaskInfo`
+`handleFailedTask` link:spark-dagscheduler.adoc#taskEnded[informs `DAGScheduler` that a task has ended] (using <<tasks, tasks>> internal registry to access the `Task` instance and the result as `null`).
 
-The method calculates the failure exception to report per `TaskEndReason`. See below for the possible cases of TaskEndReason.
+If the `tid` task is marked as successful (in <<successful, successful>> internal registry) you should see the following INFO message in the logs:
 
-CAUTION: FIXME Describe `TaskEndReason`.
+```
+INFO Task [id] in stage [id] (TID [tid]) failed, but another instance of the task has already succeeded, so not re-queuing the task to be re-executed.
+```
 
-The executor for the failed task is added to <<internal-registries, failedExecutors>>.
+Otherwise, the `tid` task is <<addPendingTask, recorded as a pending task>>.
 
-It informs DAGScheduler that the task ended (using  link:spark-dagscheduler.adoc#CompletionEvent[DAGScheduler.taskEnded]).
+If the `TaskSetManager` is not a <<zombie-state, zombie>> and the task failure should be counted towards the maximum number of times the task is allowed to fail before the stage is aborted (i.e. `TaskFailedReason.countTowardsTaskFailures` is enabled), the optional link:#updateBlacklistForFailedTask[`TaskSetBlacklist` is updated].
 
-The task is then added to the list of pending tasks.
+`handleFailedTask` increments <<numFailures, numFailures>> for `tid` and makes sure that it is not equal or greater than the allowed number of task failures per `TaskSet` (as specified when the <<creating-instance, `TaskSetManager` was created>>).
 
-If the TaskSetManager is not a <<zombie-state, zombie>>, and the task was not `KILLED`, and the task failure should be counted towards the maximum number of times the task is allowed to fail before the stage is aborted (`TaskFailedReason.countTowardsTaskFailures` is `true`), <<internal-registries, numFailures>> is incremented and if the number of failures of the task equals or is greater than assigned to the TaskSetManager (`maxTaskFailures`), the ERROR appears in the logs:
+If so, i.e. the number of task failures of `tid` reached the maximum value, you should see the following ERROR message in the logs:
 
 ```
 ERROR Task [id] in stage [id] failed [maxTaskFailures] times; aborting job
 ```
 
-And <<abort, abort>> is called, and the method quits.
+And `handleFailedTask` <<abort, aborts the `TaskSet`>> and then quits.
 
-Otherwise, `TaskSchedulerImpl.taskSetFinished` is called when the TaskSetManager is <<zombie-state, zombie>> and there are no running tasks.
+Otherwise, when <<isZombie, `TaskSetManager` is a zombie>> or the failure reason should not be counted towards the maximum number of times a task is allowed to fail before the stage is aborted, `handleFailedTask` <<maybeFinishTaskSet, attempts to mark the `TaskSet` finished>>.
 
-==== FetchFailed
+CAUTION: FIXME image with `handleFailedTask` (and perhaps the other parties involved)
 
-For `FetchFailed`, it logs WARNING:
+NOTE: `handleFailedTask` is executed when link:spark-taskschedulerimpl.adoc#handleFailedTask[`TaskSchedulerImpl` handles a failed task] or <<executorLost, executorLost>>.
 
-```
-WARNING Lost task [id] in stage [id] (TID [id], [host]): [reason.toErrorString]
-```
+==== [[handleFailedTask-FetchFailed]] `FetchFailed` TaskFailedReason
 
-Unless it has already been marked as successful (in <<internal-registries, successful>>), the task becomes so and <<internal-registries, tasksSuccessful>> is incremented.
-
-The TaskSetManager becomes <<zombie-state, zombie>>.
-
-No exception is returned.
-
-==== ExceptionFailure
-
-For `ExceptionFailure`, it grabs link:spark-taskscheduler-taskmetrics.adoc[TaskMetrics] if available.
-
-If it is a `NotSerializableException`, it logs ERROR:
+For `FetchFailed` you should see the following WARN message in the logs:
 
 ```
-ERROR Task [id] in stage [id] (TID [tid]) had a not serializable result: [exception.description]; not retrying"
+WARN Lost task [id] in stage [id] (TID [tid], [host], executor [id]): [reason]
 ```
 
-It calls <<abort, abort>> and returns no failure exception.
+Unless `tid` has already been marked as successful (in <<successful, successful>> internal registry), it becomes so and the <<tasksSuccessful, number of successful tasks in `TaskSet`>> gets increased.
 
-It continues if not being a `NotSerializableException`.
+The `TaskSetManager` enters <<isZombie, zombie state>>.
 
-It grabs the description and the time of the ExceptionFailure.
+The failure exception is empty.
 
-If the description, i.e. the ExceptionFailure, has already been reported (and is therefore a duplication), <<spark_logging_exceptionPrintInterval, spark.logging.exceptionPrintInterval>> is checked before reprinting the duplicate exception in full.
+==== [[handleFailedTask-ExceptionFailure]] `ExceptionFailure` TaskFailedReason
 
-For full printout of the ExceptionFailure, the following WARNING appears in the logs:
+For `ExceptionFailure`, `handleFailedTask` checks if the exception is of type `NotSerializableException`. If so, you should see the following ERROR message in the logs:
 
 ```
-WARNING Lost task [id] in stage [id] (TID [id], [host]): [reason.toErrorString]
+ERROR Task [id] in stage [id] (TID [tid]) had a not serializable result: [description]; not retrying
+```
+
+And `handleFailedTask` <<abort, aborts the `TaskSet`>> and then quits.
+
+Otherwise, if the exception is not of type `NotSerializableException`, `handleFailedTask` accesses accumulators and calculates whether to print the WARN message (with the failure reason) or the INFO message.
+
+If the failure has already been reported (and is therefore a duplication), <<spark_logging_exceptionPrintInterval, spark.logging.exceptionPrintInterval>> is checked before reprinting the duplicate exception in its entirety.
+
+For full printout of the `ExceptionFailure`, the following WARN appears in the logs:
+
+```
+WARN Lost task [id] in stage [id] (TID [tid], [host], executor [id]): [reason]
 ```
 
 Otherwise, the following INFO appears in the logs:
 
 ```
-INFO Lost task [id] in stage [id] (TID [id]) on executor [host]: [ef.className] ([ef.description]) [duplicate [count]]
+INFO Lost task [id] in stage [id] (TID [tid]) on [host], executor [id]: [className] ([description]) [duplicate [dupCount]]
 ```
 
-The ExceptionFailure becomes failure exception.
+The exception in `ExceptionFailure` becomes the failure exception.
 
-==== ExecutorLostFailure
+==== [[handleFailedTask-ExecutorLostFailure]] `ExecutorLostFailure` TaskFailedReason
 
-For `ExecutorLostFailure` if not `exitCausedByApp`, the following INFO appears in the logs:
+For `ExecutorLostFailure` if not `exitCausedByApp`, you should see the following INFO in the logs:
 
 ```
 INFO Task [tid] failed because while it was being computed, its executor exited for a reason unrelated to the task. Not counting this failure towards the maximum number of failures for the task.
 ```
 
-No failure exception is returned.
+The failure exception is empty.
 
-==== Other TaskFailedReasons
+==== [[handleFailedTask-TaskFailedReason]] Other TaskFailedReasons
 
-For the other TaskFailedReasons, the WARNING appears in the logs:
-
-```
-WARNING Lost task [id] in stage [id] (TID [id], [host]): [reason.toErrorString]
-```
-
-No failure exception is returned.
-
-==== Other TaskEndReason
-
-For the other TaskEndReasons, the ERROR appears in the logs:
+For the other TaskFailedReasons, you should see the following WARN message in the logs:
 
 ```
-ERROR Unknown TaskEndReason: [e]
+WARN Lost task [id] in stage [id] (TID [tid], [host], executor [id]): [reason]
 ```
 
-No failure exception is returned.
+The failure exception is empty.
 
 === [[task-retries]] Retrying Tasks on Failure
 
