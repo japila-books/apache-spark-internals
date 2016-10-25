@@ -440,13 +440,13 @@ statusUpdate(
   serializedData: ByteBuffer): Unit
 ----
 
-`statusUpdate` checks the current state of the task and acts accordingly.
+`statusUpdate` removes a lost executor when a `tid` task has failed. For all task states, `statusUpdate` removes the `tid` task from the internal registries, i.e. <<taskIdToTaskSetManager, taskIdToTaskSetManager>> and <<taskIdToExecutorId, taskIdToExecutorId>>, and decrements the number of running tasks in <<executorIdToTaskCount, executorIdToTaskCount>> registry. For `tid` in `FINISHED`, `FAILED`, `KILLED` or `LOST` states, `statusUpdate` link:spark-tasksetmanager.adoc#removeRunningTask[informs the `TaskSetManager` that the task can be removed from the running tasks]. For `tid` in `FINISHED` state `statusUpdate` link:spark-taskschedulerimpl-TaskResultGetter.adoc#enqueueSuccessfulTask[schedules an asynchrounous task to deserialize the task result (and notify `TaskSchedulerImpl`)] while for `FAILED`, `KILLED` or `LOST` states it calls link:spark-taskschedulerimpl-TaskResultGetter.adoc#enqueueFailedTask[TaskResultGetter.enqueueFailedTask]. Ultimately, given an executor that has been lost, `statusUpdate` informs link:spark-dagscheduler.adoc#executorLost[informs `DAGScheduler` that the executor was lost] and link:spark-scheduler-backends.adoc#reviveOffers[`SchedulerBackend` is requested to revive offers].
 
 For `tid` task in `LOST` state and an executor still <<taskIdToExecutorId, assigned for the task>> and tracked in <<executorIdToTaskCount, executorIdToTaskCount>> registry, the executor is <<removeExecutor, removed>> (with reason `Task [tid] was lost, so marking the executor as lost as well.`).
 
 CAUTION: FIXME Why is link:spark-scheduler-backends.adoc#reviveOffers[SchedulerBackend.reviveOffers()] called only for lost executors?
 
-`statusUpdate` looks up the link:spark-tasksetmanager.adoc[TaskSetManager] for `tid` (in <<taskIdToTaskSetManager, taskIdToTaskSetManager>>).
+`statusUpdate` looks up the link:spark-tasksetmanager.adoc[TaskSetManager] for `tid` (in <<taskIdToTaskSetManager, taskIdToTaskSetManager>> registry).
 
 When the `TaskSetManager` is found and the task is in a link:spark-taskscheduler-tasks.adoc#states[finished state], the task is removed from the internal registries, i.e. <<taskIdToTaskSetManager, taskIdToTaskSetManager>> and <<taskIdToExecutorId, taskIdToExecutorId>>, and the number of currently running tasks for the executor is decremented (in <<executorIdToTaskCount, executorIdToTaskCount>> registry).
 
@@ -472,15 +472,20 @@ CAUTION: FIXME image with scheduler backends calling `TaskSchedulerImpl.statusUp
 
 NOTE: `statusUpdate` is called when link:spark-scheduler-backends-coarse-grained.adoc#StatusUpdate[CoarseGrainedSchedulerBackend], `LocalSchedulerBackend` and `MesosFineGrainedSchedulerBackend` inform about task state changes.
 
-=== [[handleFailedTask]] `handleFailedTask` Method
+=== [[handleFailedTask]] Notifying TaskSetManager that Task Failed -- `handleFailedTask` Method
 
-`TaskSchedulerImpl.handleFailedTask(taskSetManager: TaskSetManager, tid: Long, taskState: TaskState, reason: TaskEndReason)` is called when link:spark-taskschedulerimpl-TaskResultGetter.adoc#enqueueSuccessfulTask[TaskResultGetter.enqueueSuccessfulTask] failed to fetch bytes from BlockManager or as part of link:spark-taskschedulerimpl-TaskResultGetter.adoc#enqueueFailedTask[TaskResultGetter.enqueueFailedTask].
+[source, scala]
+----
+handleFailedTask(
+  taskSetManager: TaskSetManager,
+  tid: Long,
+  taskState: TaskState,
+  reason: TaskFailedReason): Unit
+----
 
-Either way there is an error related to task execution.
+`handleFailedTask` link:spark-tasksetmanager.adoc#handleFailedTask[notifies `taskSetManager` that `tid` task has failed] and, only when link:spark-tasksetmanager.adoc#zombie-state[`taskSetManager` is not in zombie state] and `tid` is not in `KILLED` state, link:spark-scheduler-backends.adoc#reviveOffers[requests `SchedulerBackend` to revive offers].
 
-It calls link:spark-tasksetmanager.adoc#handleFailedTask[TaskSetManager.handleFailedTask].
-
-If link:spark-tasksetmanager.adoc#zombie-state[the TaskSetManager is not a zombie] and the task's state is not `KILLED`, link:spark-scheduler-backends.adoc#reviveOffers[SchedulerBackend.reviveOffers] is called.
+NOTE: `handleFailedTask` is called when link:spark-taskschedulerimpl-TaskResultGetter.adoc#enqueueSuccessfulTask[`TaskResultGetter` deserializes a `TaskFailedReason`] for a failed task.
 
 === [[taskSetFinished]] `taskSetFinished` Method
 

@@ -121,19 +121,28 @@ A `ClassNotFoundException` leads to link:spark-tasksetmanager.adoc#abort[abortin
 ERROR Exception while getting task result
 ```
 
-NOTE: `enqueueSuccessfulTask` is called when link:spark-taskschedulerimpl.adoc#statusUpdate[`TaskSchedulerImpl` is notified about a task that has finished].
+NOTE: `enqueueSuccessfulTask` is called when link:spark-taskschedulerimpl.adoc#statusUpdate[`TaskSchedulerImpl` is notified about a task that has finished successfully (i.e. in `FINISHED` state)].
 
-=== [[enqueueFailedTask]] `enqueueFailedTask` Method
+=== [[enqueueFailedTask]] Deserializing TaskFailedReason and Notifying TaskSchedulerImpl -- `enqueueFailedTask` Method
 
-`enqueueFailedTask(taskSetManager: TaskSetManager, tid: Long, taskState: TaskState, serializedData: ByteBuffer)` checks whether `serializedData` contains any data and if it does it deserializes it to a `TaskEndReason` (using the global link:spark-sparkenv.adoc#closureSerializer[closure Serializer]).
+[source, scala]
+----
+enqueueFailedTask(
+  taskSetManager: TaskSetManager,
+  tid: Long,
+  taskState: TaskState.TaskState,
+  serializedData: ByteBuffer): Unit
+----
 
-Either `UnknownReason` or the deserialized instance is passed on to link:spark-taskschedulerimpl.adoc#handleFailedTask[TaskSchedulerImpl.handleFailedTask] as the reason of the failure.
+`enqueueFailedTask` submits an asynchronous task (to <<getTaskResultExecutor, `task-result-getter` asynchronous task executor>>) that first attempts to deserialize a `TaskFailedReason` from `serializedData` (using the internal thread-local <<serializer, serializer>>) and then link:spark-taskschedulerimpl.adoc#handleFailedTask[notifies `TaskSchedulerImpl` that the task has failed].
 
-Any `ClassNotFoundException` leads to printing out the ERROR message to the logs:
+Any `ClassNotFoundException` leads to the following ERROR message in the logs (without breaking the flow of `enqueueFailedTask`):
 
 ```
 ERROR Could not deserialize TaskEndReason: ClassNotFound with classloader [loader]
 ```
+
+NOTE: `enqueueFailedTask` is called when link:spark-taskschedulerimpl.adoc#statusUpdate[`TaskSchedulerImpl` is notified about a task that has failed (and is in `FAILED`, `KILLED` or `LOST` state)].
 
 === [[settings]] Settings
 
