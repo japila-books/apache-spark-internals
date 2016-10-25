@@ -24,21 +24,6 @@ log4j.logger.org.apache.spark.scheduler.TaskSetManager=DEBUG
 Refer to link:spark-logging.adoc[Logging].
 ====
 
-=== [[removeRunningTask]] `removeRunningTask` Method
-
-CAUTION: FIXME
-
-=== [[handleTaskGettingResult]] Marking Task As Fetching Indirect Result -- `handleTaskGettingResult` Method
-
-[source, scala]
-----
-handleTaskGettingResult(tid: Long): Unit
-----
-
-`handleTaskGettingResult` looks the `TaskInfo` for the task id `tid` up in <<taskInfos, `taskInfos` internal registry>> and marks it as fetching indirect task result. It then link:spark-dagscheduler.adoc#taskGettingResult[notifies `DAGScheduler`].
-
-NOTE: `handleTaskGettingResult` is executed when link:spark-taskschedulerimpl.adoc#handleTaskGettingResult[`TaskSchedulerImpl` is notified about fetching indirect task result].
-
 === [[creating-instance]] Creating TaskSetManager Instance
 
 CAUTION: FIXME
@@ -49,40 +34,61 @@ CAUTION: FIXME
 [frame="topbot",cols="1,2",options="header",width="100%"]
 |======================
 | Name | Description
-| [[totalResultSize]] `totalResultSize` | The current total size of the result of all the tasks that have finished.
-
-It is increased with the size of a task result when a `TaskSetManager` <<canFetchMoreResults, checks that there is enough memory to fetch the task result>>.
-
 | [[calculatedTasks]] `calculatedTasks` | The number of the tasks that have already completed execution.
 
-`calculatedTasks` is initially set to `0` when a <<creating-instance, `TaskSetManager` is created>> and is only incremented when the <<canFetchMoreResults, `TaskSetManager` checks that there is enough memory to fetch a task result>>.
+Starts from `0` when a <<creating-instance, `TaskSetManager` is created>> and is only incremented when the <<canFetchMoreResults, `TaskSetManager` checks that there is enough memory to fetch a task result>>.
 
 | [[copiesRunning]] `copiesRunning` | The number of task copies currently running per task (index in its task set).
 
 The number of task copies is increased when <<resourceOffer, dequeuing a task for execution>> or <<checkSpeculatableTasks, checking for speculatable tasks>> and decreased when <<handleFailedTask, a task fails>> or <<executorLost, an executor is lost>> (for a shuffle map stage and no external shuffle service).
 
-| [[successful]] `successful` |
-| [[numFailures]] `numFailures` |
-| `failedExecutors` | Lookup table of TaskInfo's indices that failed to executor ids and the time of the failure.
+| [[failedExecutors]] `failedExecutors` | Lookup table of TaskInfo's indices that failed to executor ids and the time of the failure.
 
 Used in <<handleFailedTask, handleFailedTask>>.
 
-| [[taskAttempts]] `taskAttempts` |
-| [[tasksSuccessful]] `tasksSuccessful` |
-| `stageId` | The stage's id the `TaskSetManager` runs for. Set to `taskSet.stageId`.
+| [[isZombie]] `isZombie` | Disabled, i.e. `false`, by default.
 
-| [[runningTasksSet]] `runningTasksSet` | Running tasks that the `TaskSetManager` manages.
+Read <<zombie-state, Zombie state>> in this document.
 
-| `isZombie` | Disabled, i.e. `false`, by default.
+| [[runningTasksSet]] `runningTasksSet` | Collection of running tasks that a `TaskSetManager` manages.
+
+Used to implement <<runningTasks, runningTasks>> (that is simply the size of `runningTasksSet` but a required part of any link:spark-taskscheduler-schedulable.adoc#contract[Schedulable]). `runningTasksSet` is expanded when <<addRunningTask, registering a running task>> and shrinked when <<removeRunningTask, unregistering a running task>>.
+
+Used in link:spark-taskschedulerimpl.adoc#cancelTasks[`TaskSchedulerImpl` to cancel tasks].
+
+| [[taskInfos]] `taskInfos` | Lookup table of ``TaskInfo``s per task id.
+
+A task's id and `TaskInfo` are added when <<resourceOffer, the task is dequeued for execution>>. It _appears_ that the entires stay forever, i.e. are never removed.
+
+| `stageId` | The stage's id a `TaskSetManager` runs for.
+
+Set when <<creating-instance, `TaskSetManager` is created>>.
+
+It is a part of link:spark-taskscheduler-schedulable.adoc#contract[Schedulable Contract].
+
+| [[totalResultSize]] `totalResultSize` | The current total size of the result of all the tasks that have finished.
+
+Starts from `0` when <<creating-instance, `TaskSetManager` is created>>.
+
+Only increased with the size of a task result whenever a `TaskSetManager` <<canFetchMoreResults, checks that there is enough memory to fetch the task result>>.
+
+| `allPendingTasks` |
+
+| [[numFailures]] `numFailures` |
 | `pendingTasksForExecutor` |
 | `pendingTasksForHost` |
 | `pendingTasksForRack` |
 | `pendingTasksWithNoPrefs` |
-| `allPendingTasks` |
-| `speculatableTasks` |
-| [[taskInfos]] `taskInfos` | Lookup table of ``TaskInfo``s per task id.
+
 | `recentExceptions` |
+
+| `speculatableTasks` |
+
+| [[successful]] `successful` |
+
+| [[taskAttempts]] `taskAttempts` |
 | [[tasks]] `tasks` |
+| [[tasksSuccessful]] `tasksSuccessful` |
 |======================
 
 === [[schedulable]] TaskSetManager is Schedulable
@@ -109,6 +115,35 @@ It means that it can only be a leaf in the tree of Schedulables (with link:spark
 
 * <<executorLost, executorLost>>
 * <<checkSpeculatableTasks, checkSpeculatableTasks>>
+
+=== [[handleTaskGettingResult]] Marking Task As Fetching Indirect Result -- `handleTaskGettingResult` Method
+
+[source, scala]
+----
+handleTaskGettingResult(tid: Long): Unit
+----
+
+`handleTaskGettingResult` looks the `TaskInfo` for the task id `tid` up in <<taskInfos, `taskInfos` internal registry>> and marks it as fetching indirect task result. It then link:spark-dagscheduler.adoc#taskGettingResult[notifies `DAGScheduler`].
+
+NOTE: `handleTaskGettingResult` is executed when link:spark-taskschedulerimpl.adoc#handleTaskGettingResult[`TaskSchedulerImpl` is notified about fetching indirect task result].
+
+=== [[addRunningTask]] Registering Running Task -- `addRunningTask` Method
+
+[source, scala]
+----
+addRunningTask(tid: Long): Unit
+----
+
+`addRunningTask` adds `tid` to <<runningTasksSet, runningTasksSet>> internal registry and link:spark-taskscheduler-pool.adoc#increaseRunningTasks[requests the `parent` pool to increase the number of running tasks] (if defined).
+
+=== [[removeRunningTask]] Unregistering Running Task -- `removeRunningTask` Method
+
+[source, scala]
+----
+removeRunningTask(tid: Long): Unit
+----
+
+`removeRunningTask` removes `tid` from <<runningTasksSet, runningTasksSet>> internal registry and link:spark-taskscheduler-pool.adoc#decreaseRunningTasks[requests the `parent` pool to decrease the number of running task] (if defined).
 
 === [[executorLost]] Handling Executor Lost Events -- `executorLost` Method
 
@@ -506,13 +541,13 @@ java.lang.Exception: Partition 2 marked failed
 org.apache.spark.SparkException: Job aborted due to stage failure: Task 0 in stage 1.0 failed 5 times, most recent failure: Lost task 0.4 in stage 1.0 (TID 7, localhost): java.lang.Exception: Partition 2 marked failed
 ```
 
-=== [[zombie-state]][[isZombie]] Zombie state
+=== [[zombie-state]] Zombie state
 
-TaskSetManager enters *zombie* state when all tasks in a taskset have completed successfully (regardless of the number of task attempts), or if the task set has been aborted (see <<abort, Aborting TaskSet>>).
+A `TaskSetManager` is in *zombie* state when all tasks in a taskset have completed successfully (regardless of the number of task attempts), or if the taskset has been <<abort, aborted>>.
 
-While in zombie state, TaskSetManager can launch no new tasks and <<resourceOffer, responds with no `TaskDescription` to resourceOffers>>.
+While in zombie state, a `TaskSetManager` can launch no new tasks and <<resourceOffer, responds with no `TaskDescription` to resourceOffers>>.
 
-TaskSetManager remains in the zombie state until all tasks have finished running, i.e. to continue to track and account for the running tasks.
+A `TaskSetManager` remains in the zombie state until all tasks have finished running, i.e. to continue to track and account for the running tasks.
 
 === [[abort]] Aborting TaskSet -- `abort` Method
 
