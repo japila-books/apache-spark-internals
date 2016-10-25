@@ -67,8 +67,8 @@ The number of task copies is increased when <<resourceOffer, dequeuing a task fo
 
 Used in <<handleFailedTask, handleFailedTask>>.
 
-| `taskAttempts` |
-| `tasksSuccessful` |
+| [[taskAttempts]] `taskAttempts` |
+| [[tasksSuccessful]] `tasksSuccessful` |
 | `stageId` | The stage's id the `TaskSetManager` runs for. Set to `taskSet.stageId`.
 
 | [[runningTasksSet]] `runningTasksSet` | Running tasks that the `TaskSetManager` manages.
@@ -297,46 +297,48 @@ When a task has finished, the `TaskSetManager` calls link:spark-dagscheduler.ado
 
 CAUTION: FIXME
 
-=== [[handleSuccessfulTask]] `handleSuccessfulTask` Method
+=== [[handleSuccessfulTask]] Recording Successful Task And Notifying DAGScheduler -- `handleSuccessfulTask` Method
 
 [source, scala]
 ----
 handleSuccessfulTask(tid: Long, result: DirectTaskResult[_]): Unit
 ----
 
-`handleSuccessfulTask` marks the `tid` task as finished and link:spark-dagscheduler.adoc#taskEnded[notifies the `DAGScheduler` that the task has ended]. It does some bookkeeping and <<maybeFinishTaskSet, attempts to mark the `TaskSet` finished>>.
+`handleSuccessfulTask` records the `tid` task as finished, link:spark-dagscheduler.adoc#taskEnded[notifies the `DAGScheduler` that the task has ended] and <<maybeFinishTaskSet, attempts to mark the `TaskSet` finished>>.
 
-It is called by... when...FIXME
+NOTE: `handleSuccessfulTask` is executed after link:spark-taskschedulerimpl.adoc#handleSuccessfulTask[`TaskSchedulerImpl` has been informed that `tid` task finished successfully (and the task result was deserialized)].
 
 CAUTION: FIXME Describe `TaskInfo`
 
-It marks `TaskInfo` (using <<taskInfos, `taskInfos` internal registry>>) as successful (using `TaskInfo.markSuccessful()`).
+Internally, `handleSuccessfulTask` looks `TaskInfo` up (in <<taskInfos, `taskInfos` internal registry>>) and records it as `FINISHED`.
 
-It removes the task from `runningTasksSet`. It also decreases the number of running tasks in the parent pool if it is defined (using `parent` and `Pool.decreaseRunningTasks`).
+It then removes `tid` task from <<runningTasksSet, runningTasksSet>> internal registry.
 
-It notifies DAGScheduler that the task ended successfully (using link:spark-dagscheduler.adoc#CompletionEvent[DAGScheduler.taskEnded] with `Success` as `TaskEndReason`).
+`handleSuccessfulTask` link:spark-dagscheduler.adoc#taskEnded[notifies `DAGScheduler` that `tid` task ended successfully] (with the `Task` object from <<tasks, tasks>> internal registry and the result as `Success`).
 
-If the task was not marked as successful already (using `successful`), `tasksSuccessful` is incremented and the following INFO message appears in the logs:
-
-```
-INFO Finished task [info.id] in stage [taskSet.id] (TID [info.taskId]) in [info.duration] ms on [info.host] ([tasksSuccessful]/[numTasks])
-```
-
-NOTE: A TaskSet knows about the stage id it is associated with.
-
-It also marks the task as successful (using `successful`). Finally, if the number of tasks finished successfully is exactly the number of tasks the TaskSetManager manages, the TaskSetManager turns zombie.
-
-Otherwise, when the task was already marked as successful, the following INFO message appears in the logs:
+At this point, `handleSuccessfulTask` looks up the other <<taskAttempts, running task attempts>> of `tid` task and link:spark-scheduler-backends.adoc#killTask[requests `SchedulerBackend` to kill them]. You should see the following INFO message in the logs:
 
 ```
-INFO Ignoring task-finished event for [info.id] in stage [taskSet.id] because task [index] has already completed successfully
+INFO Killing attempt [attemptNumber] for task [id] in stage [id] (TID [id]) on [host] as the attempt [attemptNumber] succeeded on [host]
 ```
 
-`failedExecutors.remove(index)` is called.
+CAUTION: FIXME Review `taskAttempts`
 
-CAUTION: FIXME What does `failedExecutors.remove(index)` mean?
+If `tid` has _not_ yet been recorded as <<successful, successful>>, `handleSuccessfulTask` increases <<tasksSuccessful, tasksSuccessful>> counter. You should see the following INFO message in the logs:
 
-At the end, the method checks whether the TaskSetManager is a zombie and no task is running (using `runningTasksSet`), and if so, it calls link:spark-taskschedulerimpl.adoc#taskSetFinished[TaskSchedulerImpl.taskSetFinished].
+```
+INFO Finished task [id] in stage [id] (TID [taskId]) in [duration] ms on [host] (executor [executorId]) ([tasksSuccessful]/[numTasks])
+```
+
+`tid` task is marked as <<successful, successful>>. If the number of task that have finished successfully is exactly the number of the tasks to execute (in the `TaskSet`), the `TaskSetManager` becomes a <<isZombie, zombie>>.
+
+If `tid` task was already recorded as <<successful, successful>>, you should _merely_ see the following INFO message in the logs:
+
+```
+INFO Ignoring task-finished event for [id] in stage [id] because task [index] has already completed successfully
+```
+
+Ultimately, `handleSuccessfulTask` <<maybeFinishTaskSet, attempts to mark the `TaskSet` finished>>.
 
 === [[maybeFinishTaskSet]] Attempting to Mark TaskSet Finished -- `maybeFinishTaskSet` Internal Method
 
@@ -358,6 +360,8 @@ handleFailedTask(
 ----
 
 `handleFailedTask` <<removeRunningTask, removes `tid` task from running tasks>> and marks `TaskInfo` as finished. It decreases the number of the `tid` task's copies running (in <<copiesRunning, copiesRunning>> internal registry).
+
+NOTE: `handleFailedTask` is executed after link:spark-taskschedulerimpl.adoc#handleFailedTask[`TaskSchedulerImpl` has been informed that `tid` task failed] or <<executorLost, executorLost>>.
 
 CAUTION: FIXME Can there be more than one copy of a task running? `copiesRunning`
 
@@ -390,8 +394,6 @@ And `handleFailedTask` <<abort, aborts the `TaskSet`>> and then quits.
 Otherwise, when <<isZombie, `TaskSetManager` is a zombie>> or the failure reason should not be counted towards the maximum number of times a task is allowed to fail before the stage is aborted, `handleFailedTask` <<maybeFinishTaskSet, attempts to mark the `TaskSet` finished>>.
 
 CAUTION: FIXME image with `handleFailedTask` (and perhaps the other parties involved)
-
-NOTE: `handleFailedTask` is executed when link:spark-taskschedulerimpl.adoc#handleFailedTask[`TaskSchedulerImpl` handles a failed task] or <<executorLost, executorLost>>.
 
 ==== [[handleFailedTask-FetchFailed]] `FetchFailed` TaskFailedReason
 
