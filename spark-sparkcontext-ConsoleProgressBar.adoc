@@ -1,0 +1,63 @@
+== [[ConsoleProgressBar]] ConsoleProgressBar
+
+CAUTION: FIXME
+
+`ConsoleProgressBar` shows the progress of active stages in console (to `stderr`). It polls the status of stages from <<SparkStatusTracker, SparkStatusTracker>> periodically and prints out active stages with more than one task. It keeps overwriting itself to hold in one line for at most 3 first concurrent stages at a time.
+
+```
+[Stage 0:====>          (316 + 4) / 1000][Stage 1:>                (0 + 0) / 1000][Stage 2:>                (0 + 0) / 1000]]]
+```
+
+The progress includes the stage's id, the number of completed, active, and total tasks.
+
+It is useful when you `ssh` to workers and want to see the progress of active stages.
+
+It is only instantiated if the value of the boolean property `spark.ui.showConsoleProgress` (default: `true`) is `true` and the log level of `org.apache.spark.SparkContext` logger is `WARN` or higher (refer to link:spark-logging.adoc[Logging]).
+
+[source, scala]
+----
+import org.apache.log4j._
+Logger.getLogger("org.apache.spark.SparkContext").setLevel(Level.WARN)
+----
+
+To print the progress nicely ConsoleProgressBar uses `COLUMNS` environment variable to know the width of the terminal. It assumes `80` columns.
+
+The progress bar prints out the status after a stage has ran at least `500ms`, every `200ms` (the values are not configurable).
+
+See the progress bar in Spark shell with the following:
+
+[source]
+----
+$ ./bin/spark-shell --conf spark.ui.showConsoleProgress=true  # <1>
+
+scala> sc.setLogLevel("OFF")  // <2>
+
+scala> Logger.getLogger("org.apache.spark.SparkContext").setLevel(Level.WARN)  // <3>
+
+scala> sc.parallelize(1 to 4, 4).map { n => Thread.sleep(500 + 200 * n); n }.count  // <4>
+[Stage 2:>                                                          (0 + 4) / 4]
+[Stage 2:==============>                                            (1 + 3) / 4]
+[Stage 2:=============================>                             (2 + 2) / 4]
+[Stage 2:============================================>              (3 + 1) / 4]
+----
+<1> Make sure `spark.ui.showConsoleProgress` is `true`. It is by default.
+<2> Disable (`OFF`) the root logger (that includes Spark's logger)
+<3> Make sure `org.apache.spark.SparkContext` logger is at least `WARN`.
+<4> Run a job with 4 tasks with 500ms initial sleep and 200ms sleep chunks to see the progress bar.
+
+https://youtu.be/uEmcGo8rwek[Watch the short video] that show ConsoleProgressBar in action.
+
+You may want to use the following example to see the progress bar in full glory - all 3 concurrent stages in console (borrowed from https://github.com/apache/spark/pull/3029#issuecomment-63244719[a comment to [SPARK-4017\] show progress bar in console #3029]):
+
+```
+> ./bin/spark-shell
+scala> val a = sc.makeRDD(1 to 1000, 10000).map(x => (x, x)).reduceByKey(_ + _)
+scala> val b = sc.makeRDD(1 to 1000, 10000).map(x => (x, x)).reduceByKey(_ + _)
+scala> a.union(b).count()
+```
+
+=== [[finishAll]] `finishAll` Method
+
+=== [[SparkStatusTracker]] SparkStatusTracker
+
+`SparkStatusTracker` requires a link:spark-sparkcontext.adoc[SparkContext] to work. It is created as part of <<creating-instance, SparkContext's initialization>>.

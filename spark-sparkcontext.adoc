@@ -6,7 +6,7 @@ NOTE: You could also assume that a SparkContext instance _is_ a Spark applicatio
 
 It link:spark-sparkcontext-creating-instance-internals.adoc[sets up internal services] and establishes a connection to a link:spark-deployment-environments.adoc[Spark execution environment (deployment mode)].
 
-Once a <<creating-instance, `SparkContext` instance is created>> you can use it to <<creating-rdds, create RDDs>>, <<creating-accumulators, accumulators>> and <<creating-broadcast-variables, broadcast variables>>, access Spark services and <<running-jobs, run jobs>>.
+Once a <<creating-instance, `SparkContext` instance is created>> you can use it to <<creating-rdds, create RDDs>>, <<creating-accumulators, accumulators>> and <<creating-broadcast-variables, broadcast variables>>, access Spark services and <<runJob, run jobs>> (until `SparkContext` is <<stop, stopped>>).
 
 A Spark context is essentially a client of Spark's execution environment and acts as the _master of your Spark application_ (don't get confused with the other meaning of link:spark-master.adoc[Master] in Spark, though).
 
@@ -36,7 +36,7 @@ image::diagrams/sparkcontext-services.png[align="center"]
 ** <<creating-broadcast-variables, broadcast variables>>
 
 * Accessing services, e.g. link:spark-taskscheduler.adoc[TaskScheduler], link:spark-LiveListenerBus.adoc[LiveListenerBus], link:spark-blockmanager.adoc[BlockManager], link:spark-scheduler-backends.adoc[SchedulerBackends], link:spark-shuffle-manager.adoc[ShuffleManager].
-* <<running-jobs, Running jobs>>
+* <<runJob, Running jobs>>
 * <<cancelJob, Cancelling job>>
 * <<custom-schedulers, Setting up custom Scheduler Backend, TaskScheduler and DAGScheduler>>
 * <<closure-cleaning, Closure Cleaning>>
@@ -157,7 +157,7 @@ getOrCreate(): SparkContext
 getOrCreate(conf: SparkConf): SparkContext
 ----
 
-`SparkContext.getOrCreate` methods allow you to get the existing `SparkContext` or create a new one.
+`getOrCreate` methods allow you to get the existing `SparkContext` or create a new one.
 
 [source, scala]
 ----
@@ -538,7 +538,9 @@ SparkContext keeps track of:
 
 * shuffle ids using `nextShuffleId` internal field for link:spark-dagscheduler-ShuffleMapStage.adoc[registering shuffle dependencies] to link:spark-shuffle-manager.adoc[Shuffle Service].
 
-=== [[runJob]][[running-jobs]] Running Job -- `runJob` Methods
+=== [[runJob]] Running Job -- `runJob` Methods
+
+link:spark-rdd.adoc#actions[RDD actions] run link:spark-dagscheduler-jobs.adoc[jobs] using one of `runJob` methods.
 
 [source, scala]
 ----
@@ -567,43 +569,61 @@ runJob[T, U: ClassTag](
   resultHandler: (Int, U) => Unit)
 ----
 
-link:spark-rdd.adoc#actions[RDD actions] in Spark run link:spark-dagscheduler-jobs.adoc[jobs] using one of `runJob` methods. It executes a function on one or many partitions of a RDD to produce a collection of values per partition.
+`runJob` executes a function on one or many partitions of a RDD (in a `SparkContext` space) to produce a collection of values per partition.
+
+NOTE: `runJob` can only work when a `SparkContext` is _not_ <<stop, stopped>>.
+
+Internally, `runJob` first makes sure that the `SparkContext` is not <<stop, stopped>>. If it is, you should see the following `IllegalStateException` exception in the logs:
+
+```
+java.lang.IllegalStateException: SparkContext has been shutdown
+  at org.apache.spark.SparkContext.runJob(SparkContext.scala:1893)
+  at org.apache.spark.SparkContext.runJob(SparkContext.scala:1914)
+  at org.apache.spark.SparkContext.runJob(SparkContext.scala:1934)
+  ... 48 elided
+```
+
+`runJob` then <<getCallSite, calculates the call site>> and <<clean, cleans a `func` closure>>.
+
+You should see the following INFO message in the logs:
+
+```
+INFO SparkContext: Starting job: [callSite]
+```
+
+With link:spark-rdd-lineage.adoc#spark_logLineage[spark.logLineage] enabled (which is not by default), you should see the following INFO message with link:spark-rdd-lineage.adoc#toDebugString[toDebugString] (executed on `rdd`):
+
+```
+INFO SparkContext: RDD's recursive dependencies:
+[toDebugString]
+```
+
+`runJob` requests  link:spark-dagscheduler.adoc#runJob[`DAGScheduler` to run a job].
+
+TIP: `runJob` just prepares input parameters for link:spark-dagscheduler.adoc#runJob[`DAGScheduler` to run a job].
+
+After `DAGScheduler` is done and the job has finished, `runJob` link:spark-sparkcontext-ConsoleProgressBar.adoc#finishAll[stops `ConsoleProgressBar`] and link:spark-rdd-checkpointing.adoc#doCheckpoint[performs RDD checkpointing of `rdd`].
 
 TIP: For some actions, e.g. `first()` and `lookup()`, there is no need to compute all the partitions of the RDD in a job. And Spark knows it.
 
 [source,scala]
 ----
-import org.apache.spark.TaskContext
+// RDD to work with
+val lines = sc.parallelize(Seq("hello world", "nice to see you"))
 
+import org.apache.spark.TaskContext
 scala> sc.runJob(lines, (t: TaskContext, i: Iterator[String]) => 1) // <1>
 res0: Array[Int] = Array(1, 1)  // <2>
 ----
 <1> Run a job using `runJob` on `lines` RDD with a function that returns 1 for every partition (of `lines` RDD).
 <2> What can you say about the number of partitions of the `lines` RDD? Is your result `res0` different than mine? Why?
 
-TIP: Read about `TaskContext` in link:spark-taskscheduler-taskcontext.adoc[TaskContext].
+TIP: Read link:spark-taskscheduler-taskcontext.adoc[TaskContext].
 
 Running a job is essentially executing a `func` function on all or a subset of partitions in an `rdd` RDD and returning the result as an array (with elements being the results per partition).
 
-When executed, `runJob` prints out the following INFO message:
-
-```
-INFO Starting job: ...
-```
-
-And it follows up on link:spark-rdd-lineage.adoc#spark.logLineage[spark.logLineage] and then hands over the execution to link:spark-dagscheduler.adoc#runJob[DAGScheduler.runJob].
-
 .Executing action
 image::images/spark-runjob.png[align="center"]
-
-Before the method finishes, it does link:spark-rdd-checkpointing.adoc[checkpointing] and posts `JobSubmitted` event (see <<event-loop, Event loop>>).
-
-[CAUTION]
-====
-Spark can only run jobs when a Spark context is available and active, i.e. started. See <<stopping, Stopping Spark context>>.
-
-Since SparkContext runs inside a Spark driver, i.e. a Spark application, it must be alive to run jobs.
-====
 
 === [[stop]][[stopping]] Stopping SparkContext -- `stop` Method
 
@@ -642,7 +662,7 @@ When a SparkContext is being stopped, it does the following:
 * Stops link:spark-LiveListenerBus.adoc[LiveListenerBus]
 * Stops link:spark-scheduler-listeners-eventlogginglistener.adoc[EventLoggingListener]
 * Stops link:spark-sparkcontext-HeartbeatReceiver.adoc[HeartbeatReceiver]
-* Stops optional <<ConsoleProgressBar, ConsoleProgressBar>>
+* Stops link:spark-sparkcontext-ConsoleProgressBar.adoc[ConsoleProgressBar]
 * It clears the reference to TaskScheduler (i.e. `_taskScheduler` is `null`)
 * Stops link:spark-sparkenv.adoc[SparkEnv] and calls `SparkEnv.set(null)`
 
@@ -696,69 +716,12 @@ setLogLevel(logLevel: String)
 
 Internally, `setLogLevel` calls `org.apache.log4j.Level.toLevel(logLevel)` and `org.apache.log4j.Logger.getRootLogger().setLevel(l)`.
 
-=== [[SparkStatusTracker]] SparkStatusTracker
-
-`SparkStatusTracker` requires a Spark context to work. It is created as part of <<creating-instance, SparkContext's initialization>>.
-
-SparkStatusTracker is only used by <<ConsoleProgressBar, ConsoleProgressBar>>.
-
-=== [[ConsoleProgressBar]] ConsoleProgressBar
-
-`ConsoleProgressBar` shows the progress of active stages in console (to `stderr`). It polls the status of stages from <<SparkStatusTracker, SparkStatusTracker>> periodically and prints out active stages with more than one task. It keeps overwriting itself to hold in one line for at most 3 first concurrent stages at a time.
-
-```
-[Stage 0:====>          (316 + 4) / 1000][Stage 1:>                (0 + 0) / 1000][Stage 2:>                (0 + 0) / 1000]]]
-```
-
-The progress includes the stage's id, the number of completed, active, and total tasks.
-
-It is useful when you `ssh` to workers and want to see the progress of active stages.
-
-It is only instantiated if the value of the boolean property `spark.ui.showConsoleProgress` (default: `true`) is `true` and the log level of `org.apache.spark.SparkContext` logger is `WARN` or higher (refer to link:spark-logging.adoc[Logging]).
+=== [[clean]][[closure-cleaning]] Closure Cleaning -- `clean` Method
 
 [source, scala]
 ----
-import org.apache.log4j._
-Logger.getLogger("org.apache.spark.SparkContext").setLevel(Level.WARN)
+clean(f: F, checkSerializable: Boolean = true): F
 ----
-
-To print the progress nicely ConsoleProgressBar uses `COLUMNS` environment variable to know the width of the terminal. It assumes `80` columns.
-
-The progress bar prints out the status after a stage has ran at least `500ms`, every `200ms` (the values are not configurable).
-
-See the progress bar in Spark shell with the following:
-
-[source]
-----
-$ ./bin/spark-shell --conf spark.ui.showConsoleProgress=true  # <1>
-
-scala> sc.setLogLevel("OFF")  // <2>
-
-scala> Logger.getLogger("org.apache.spark.SparkContext").setLevel(Level.WARN)  // <3>
-
-scala> sc.parallelize(1 to 4, 4).map { n => Thread.sleep(500 + 200 * n); n }.count  // <4>
-[Stage 2:>                                                          (0 + 4) / 4]
-[Stage 2:==============>                                            (1 + 3) / 4]
-[Stage 2:=============================>                             (2 + 2) / 4]
-[Stage 2:============================================>              (3 + 1) / 4]
-----
-<1> Make sure `spark.ui.showConsoleProgress` is `true`. It is by default.
-<2> Disable (`OFF`) the root logger (that includes Spark's logger)
-<3> Make sure `org.apache.spark.SparkContext` logger is at least `WARN`.
-<4> Run a job with 4 tasks with 500ms initial sleep and 200ms sleep chunks to see the progress bar.
-
-https://youtu.be/uEmcGo8rwek[Watch the short video] that show ConsoleProgressBar in action.
-
-You may want to use the following example to see the progress bar in full glory - all 3 concurrent stages in console (borrowed from https://github.com/apache/spark/pull/3029#issuecomment-63244719[a comment to [SPARK-4017\] show progress bar in console #3029]):
-
-```
-> ./bin/spark-shell
-scala> val a = sc.makeRDD(1 to 1000, 10000).map(x => (x, x)).reduceByKey(_ + _)
-scala> val b = sc.makeRDD(1 to 1000, 10000).map(x => (x, x)).reduceByKey(_ + _)
-scala> a.union(b).count()
-```
-
-=== [[closure-cleaning]] Closure Cleaning -- `clean` Method
 
 Every time an action is called, Spark cleans up the closure, i.e. the body of the action, before it is serialized and sent over the wire to executors.
 
@@ -860,7 +823,7 @@ Internally, `submitMapStage` <<getCallSite, calculates the call site>> first and
 
 NOTE: Interestingly, `submitMapStage` is used exclusively when Spark SQL's `ShuffleExchange` physical operator is executed.
 
-=== [[getCallSite]] `getCallSite` Method
+=== [[getCallSite]] Calculating Call Site -- `getCallSite` Method
 
 CAUTION: FIXME
 
