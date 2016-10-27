@@ -625,6 +625,14 @@ Running a job is essentially executing a `func` function on all or a subset of p
 .Executing action
 image::images/spark-runjob.png[align="center"]
 
+=== [[postApplicationEnd]] `postApplicationEnd` Method
+
+CAUTION: FIXME
+
+=== [[clearActiveContext]] `clearActiveContext` Method
+
+CAUTION: FIXME
+
 === [[stop]][[stopping]] Stopping SparkContext -- `stop` Method
 
 [source, scala]
@@ -632,49 +640,33 @@ image::images/spark-runjob.png[align="center"]
 stop(): Unit
 ----
 
-You can stop a `SparkContext` using `stop` method. Stopping a Spark context stops the link:spark-sparkenv.adoc[Spark Runtime Environment] and shuts down the entire Spark application (see link:spark-anatomy-spark-application.adoc[Anatomy of Spark Application]).
+`stop` stops a `SparkContext`.
 
-Calling `stop` many times leads to the following INFO message in the logs:
+Internally, `stop` enables `stopped` internal flag. If already stopped, you should see the following INFO message in the logs:
 
 ```
 INFO SparkContext: SparkContext already stopped.
 ```
 
-An attempt to use a stopped SparkContext's services will result in `java.lang.IllegalStateException: SparkContext has been shutdown`.
+`stop` then does the following:
 
-[source, scala]
-----
-scala> sc.stop
+1. Removes `_shutdownHookRef` from `ShutdownHookManager`.
+2. <<postApplicationEnd, Posts a `SparkListenerApplicationEnd`>> (to <<listenerBus, `LiveListenerBus` Event Bus>>).
+3. link:spark-webui-SparkUI.adoc#stop[Stops web UI]
+4. link:spark-metrics.adoc#report[Requests `MetricSystem` to report metrics] (from all registered sinks).
+5. link:spark-service-contextcleaner.adoc#stop[Requests `ContextCleaner` to stop].
+6. link:spark-service-executor-allocation-manager.adoc#stop[Requests `ExecutorAllocationManager` to stop].
+7. If `LiveListenerBus` was started, link:spark-LiveListenerBus.adoc#stop[requests `LiveListenerBus` to stop].
+8. link:spark-scheduler-listeners-eventlogginglistener.adoc#stop[Requests `EventLoggingListener` to stop].
+9. link:spark-dagscheduler.adoc#stop[Requests `DAGScheduler` to stop].
+10. link:spark-rpc.adoc#stop[Requests RpcEnv to stop `HeartbeatReceiver` endpoint].
+11. link:spark-sparkcontext-ConsoleProgressBar.adoc#stop[Requests `ConsoleProgressBar` to stop].
+12. Clears the reference to `TaskScheduler`, i.e. `_taskScheduler` is `null`.
+13. link:spark-sparkenv.adoc#stop[Requests `SparkEnv` to stop] and clears `SparkEnv`.
+14. Clears link:yarn/spark-yarn-client.adoc#SPARK_YARN_MODE[`SPARK_YARN_MODE` flag].
+15. <<clearActiveContext, Clears an active `SparkContext`>>.
 
-scala> sc.parallelize(0 to 5)
-java.lang.IllegalStateException: Cannot call methods on a stopped SparkContext.
-----
-
-When a SparkContext is being stopped, it does the following:
-
-* Posts a application end event link:spark-SparkListener.adoc#SparkListenerApplicationEnd[SparkListenerApplicationEnd] to link:spark-LiveListenerBus.adoc[LiveListenerBus]
-* Stops link:spark-webui.adoc[web UI]
-* Requests link:spark-metrics.adoc[MetricSystem] to report metrics from all registered sinks (using `MetricsSystem.report()`)
-* `metadataCleaner.cancel()`
-* Stops link:spark-service-contextcleaner.adoc[ContextCleaner]
-* Stops link:spark-service-executor-allocation-manager.adoc[ExecutorAllocationManager]
-* Stops link:spark-dagscheduler.adoc[DAGScheduler]
-* Stops link:spark-LiveListenerBus.adoc[LiveListenerBus]
-* Stops link:spark-scheduler-listeners-eventlogginglistener.adoc[EventLoggingListener]
-* Stops link:spark-sparkcontext-HeartbeatReceiver.adoc[HeartbeatReceiver]
-* Stops link:spark-sparkcontext-ConsoleProgressBar.adoc[ConsoleProgressBar]
-* It clears the reference to TaskScheduler (i.e. `_taskScheduler` is `null`)
-* Stops link:spark-sparkenv.adoc[SparkEnv] and calls `SparkEnv.set(null)`
-
-CAUTION: FIXME `SparkEnv.set(null)` what is this doing?
-
-* It clears link:yarn/spark-yarn-client.adoc#SPARK_YARN_MODE[SPARK_YARN_MODE flag].
-
-* It calls `SparkContext.clearActiveContext()`.
-
-CAUTION: FIXME What is `SparkContext.clearActiveContext()` doing?
-
-If all went fine till now you should see the following INFO message in the logs:
+Ultimately, you should see the following INFO message in the logs:
 
 ```
 INFO SparkContext: Successfully stopped SparkContext
