@@ -1,8 +1,8 @@
 == [[SparkSession]] SparkSession -- The Entry Point to Spark SQL
 
-`SparkSession` is the entry point to developing Spark SQL applications using the fully-typed link:spark-sql-dataset.adoc[Dataset] (and untyped link:spark-sql-dataframe.adoc[DataFrame]) data abstractions.
+`SparkSession` is the entry point to Spark SQL. It is the very first object you have to create to start developing Spark SQL applications using the fully-typed link:spark-sql-dataset.adoc[Dataset] (and untyped link:spark-sql-dataframe.adoc[DataFrame]) data abstractions.
 
-NOTE: `SparkSession` has replaced link:spark-sql-sqlcontext.adoc[SQLContext] as of Spark *2.0.0*.
+NOTE: `SparkSession` has merged link:spark-sql-sqlcontext.adoc[SQLContext] and link:spark-sql-hive-integration.adoc[HiveContext] in one object as of Spark *2.0.0*.
 
 You should use the <<builder, builder>> method to create an instance of `SparkSession`.
 
@@ -15,9 +15,38 @@ val spark: SparkSession = SparkSession.builder
   .getOrCreate
 ----
 
+And stop the current `SparkSession` using <<stop, stop>> method.
+
+[source, scala]
+----
+spark.stop
+----
+
 You can have multiple ``SparkSession``s in a single Spark application.
 
 Internally, `SparkSession` requires a link:spark-sparkcontext.adoc[SparkContext] and an optional <<SharedState, SharedState>> (that represents the shared state across `SparkSession` instances).
+
+.SparkSession (and Builder) Class and Instance Methods
+[frame="topbot",cols="1,2",options="header",width="100%"]
+|======================
+| Method | Description
+| <<builder, builder>> | Use `SparkSession.builder` to build a `SparkSession` instance.
+| <<enableHiveSupport, enableHiveSupport>> | Enables Hive support in the `SparkSession` being built (using <<builder, builder>>).
+| <<version, version>> | Returns the current version of Spark.
+| <<implicits, implicits>> | Use `import spark.implicits._` to import the implicits conversions and create `Datasets` from (almost arbitrary) Scala objects.
+| <<emptyDataset, emptyDataset[T]>> | Creates an empty `Dataset[T]`.
+| <<range, range>> | Creates a `Dataset[Long]`.
+| <<sql, sql>> | Executes a SQL query (and returns a `DataFrame`).
+| <<udf, udf>> | Access to user-defined functions (UDFs).
+| <<table, table>> | Creates a `DataFrame` from a table.
+| <<catalog, catalog>> | Access to the catalog of the entities of structured queries
+| <<read, read>> | Access to `DataFrameReader` to read a `DataFrame` from external files and storage systems.
+| <<conf, conf>> | Access to the current runtime configuration.
+| <<readStream, readStream>> | Access to `DataStreamReader` to read streaming datasets.
+| <<streams, streams>> | Access to `StreamingQueryManager` to manage structured streaming queries.
+| <<newSession, newSession>> | Creates a new `SparkSession`.
+| <<stop, stop>> | Stops the `SparkSession`.
+|======================
 
 === [[builder]] Accessing Builder for SparkSession -- `builder` method
 
@@ -35,6 +64,28 @@ val builder = SparkSession.builder
 ----
 
 TIP: Read about https://en.wikipedia.org/wiki/Fluent_interface[Fluent interface] design pattern in Wikipedia, the free encyclopedia.
+
+=== [[enableHiveSupport]] Enabling Hive Support -- `enableHiveSupport` Method
+
+[source, scala]
+----
+enableHiveSupport(): Builder
+----
+
+`enableHiveSupport` enables Hive support in the `SparkSession` being built (using the <<builder, fluent interface of `builder`>>).
+
+Internally, `enableHiveSupport` makes sure that the Hive classes are on CLASSPATH, i.e. Spark SQL's link:spark-sql-queryplanner.adoc#HiveSessionState[org.apache.spark.sql.hive.HiveSessionState] and `org.apache.hadoop.hive.conf.HiveConf`, and sets link:spark-sql-settings.adoc#spark.sql.catalogImplementation[spark.sql.catalogImplementation] property to `hive`.
+
+=== [[version]] Accessing Version of Spark -- `version` Method
+
+[source, scala]
+----
+version: String
+----
+
+`version` returns the version of Apache Spark in use.
+
+Internally, `version` uses `spark.SPARK_VERSION` value that is the `version` property in `spark-version-info.properties` properties file on CLASSPATH.
 
 === [[implicits]] Implicit Conversions -- `implicits` object
 
@@ -246,9 +297,16 @@ table(tableName: String): DataFrame
 val df = spark.table("mytable")
 ----
 
-=== [[catalog]] `catalog` Attribute
+=== [[catalog]] Accessing Metastore -- `catalog` Attribute
 
-`catalog` attribute is an interface to the current link:spark-sql-Catalog.adoc[catalog] (of databases, tables, functions, table columns, and temporary views).
+[source, scala]
+----
+catalog: Catalog
+----
+
+`catalog` attribute is a (lazy) interface to the current metastore, i.e. link:spark-sql-Catalog.adoc[data catalog] (of databases, tables, functions, table columns, and temporary views).
+
+TIP: All methods in `Catalog` return `Datasets`.
 
 [source, scala]
 ----
@@ -260,6 +318,8 @@ scala> spark.catalog.listTables.show
 |              strs|    null|       null|TEMPORARY|       true|
 +------------------+--------+-----------+---------+-----------+
 ----
+
+Internally, `catalog` creates a link:spark-sql-Catalog.adoc#CatalogImpl[CatalogImpl] (referencing the current `SparkSession`).
 
 === [[read]] Accessing DataFrameReader -- `read` method
 
@@ -405,6 +465,15 @@ You should see the following INFO message in the logs:
 ```
 INFO SharedState: Warehouse path is '[warehousePath]'.
 ```
+
+=== [[stop]] Stopping SparkSession -- `stop` Method
+
+[source, scala]
+----
+stop(): Unit
+----
+
+`stop` stops the `SparkSession`, i.e. link:spark-sparkcontext.adoc#stop[stops the underlying `SparkContext`].
 
 === [[creating-instance]] Creating SparkSession Instance
 
