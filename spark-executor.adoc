@@ -35,6 +35,10 @@ log4j.logger.org.apache.spark.executor.Executor=INFO
 Refer to link:spark-logging.adoc[Logging].
 ====
 
+=== [[stop]] Stopping Executor -- `stop` Method
+
+CAUTION: FIXME
+
 === [[creating-instance]] Creating `Executor` Instance
 
 `Executor` requires `executorId`, `executorHostname`, a link:spark-sparkenv.adoc[SparkEnv], `userClassPath` and whether it runs in local or cluster mode (with cluster as the default).
@@ -68,11 +72,7 @@ NOTE: A `Executor` is created when link:spark-executor-backends-CoarseGrainedExe
 
 CAUTION: FIXME How many cores are assigned per executor?
 
-=== [[stop]] `stop` Method
-
-CAUTION: FIXME
-
-=== [[launchTask]][[launching-tasks]] Launching Tasks -- `launchTask` method
+=== [[launchTask]][[launching-tasks]] Launching Tasks -- `launchTask` Method
 
 [source, scala]
 ----
@@ -93,7 +93,7 @@ image::images/executor-taskrunner-executorbackend.png[align="center"]
 
 NOTE: `launchTask` is called by link:spark-executor-backends-CoarseGrainedExecutorBackend.adoc[CoarseGrainedExecutorBackend] (when it handles link:spark-executor-backends-CoarseGrainedExecutorBackend.adoc#LaunchTask[LaunchTask] message), link:spark-executor-backends.adoc#MesosExecutorBackend[MesosExecutorBackend], and link:spark-local.adoc#LocalEndpoint[LocalEndpoint].
 
-=== [[startDriverHeartbeater]][[heartbeats-and-active-task-metrics]] Sending Heartbeats and Active Tasks Metrics -- `startDriverHeartbeater` method
+=== [[startDriverHeartbeater]][[heartbeats-and-active-task-metrics]] Sending Heartbeats and Active Tasks Metrics -- `startDriverHeartbeater` Method
 
 Executors keep sending <<metrics, metrics for active tasks>> to the driver every <<spark_executor_heartbeatInterval, spark.executor.heartbeatInterval>> (defaults to `10s` with some random initial delay so the heartbeats from different executors do not pile up on the driver).
 
@@ -199,83 +199,62 @@ The above figure shows the result of running link:spark-shell.adoc[Spark shell] 
 
 === [[metrics]] Metrics
 
-Executors register link:spark-executor-ExecutorSource.adoc[ExecutorSource] to report metrics.
+Every executor registers its own link:spark-executor-ExecutorSource.adoc[ExecutorSource] to link:spark-metrics.adoc#report[report metrics].
 
-NOTE: Metrics are only available for cluster modes, i.e. `local` mode turns metrics off.
+=== [[internal-registries]] Internal Registries and Counters
 
-=== [[internal-registries]] Internal Registries
-
-==== [[runningTasks]] `runningTasks` Internal Registry
-
-`runningTasks` is ...FIXME
-
-==== [[heartbeatFailures]] `heartbeatFailures` Internal Registry
-
-`heartbeatFailures` is ...FIXME
+.Internal Registries and Counters
+[frame="topbot",cols="1,2",options="header",width="100%"]
+|======================
+| Name | Description
+| [[runningTasks]] `runningTasks` |
+| [[heartbeatFailures]] `heartbeatFailures` |
+|======================
 
 === [[settings]] Settings
 
-==== [[spark_executor_cores]] spark.executor.cores
-
-`spark.executor.cores` - the number of cores for an executor
-
-==== [[spark_executor_extraClassPath]] spark.executor.extraClassPath
-
-`spark.executor.extraClassPath` is a list of URLs representing a user's CLASSPATH.
+.Spark Properties
+[frame="topbot",cols="1,1,2",options="header",width="100%"]
+|======================
+| Spark Property | Default Value | Description
+| [[spark_executor_cores]] `spark.executor.cores` | | Number of cores for an executor.
+| [[spark_executor_extraClassPath]] `spark.executor.extraClassPath` | | List of URLs representing a user's CLASSPATH.
 
 Each entry is separated by system-dependent path separator, i.e. `:` on Unix/MacOS systems and `;` on Microsoft Windows.
+| [[spark_executor_extraJavaOptions]] `spark.executor.extraJavaOptions` | | Extra Java options for executors.
 
-==== [[spark_executor_extraJavaOptions]] spark.executor.extraJavaOptions
+Used to link:yarn/spark-yarn-ExecutorRunnable.adoc#prepareCommand[prepare the command to launch `CoarseGrainedExecutorBackend` in a YARN container].
 
-`spark.executor.extraJavaOptions` - extra Java options for executors.
+| [[spark_executor_extraLibraryPath]] `spark.executor.extraLibraryPath` | | List of additional library paths separated by system-dependent path separator, i.e. `:` on Unix/MacOS systems and `;` on Microsoft Windows.
 
-It is used to link:yarn/spark-yarn-ExecutorRunnable.adoc#prepareCommand[prepare the command to launch `CoarseGrainedExecutorBackend` in a YARN container].
+Used to link:yarn/spark-yarn-ExecutorRunnable.adoc#prepareCommand[prepare the command to launch `CoarseGrainedExecutorBackend` in a YARN container].
 
-==== [[spark_executor_extraLibraryPath]] spark.executor.extraLibraryPath
+| [[spark_executor_userClassPathFirst]] `spark.executor.userClassPathFirst` | `false` | Flag to control whether to load classes in user jars before those in Spark jars.
 
-`spark.executor.extraLibraryPath` - a list of additional library paths separated by system-dependent path separator, i.e. `:` on Unix/MacOS systems and `;` on Microsoft Windows.
+| [[spark_executor_heartbeatInterval]] `spark.executor.heartbeatInterval` | `10s` | Interval after which an executor reports heartbeat and metrics for active tasks to the driver.
 
-It is used to link:yarn/spark-yarn-ExecutorRunnable.adoc#prepareCommand[prepare the command to launch `CoarseGrainedExecutorBackend` in a YARN container].
+Refer to <<heartbeats-and-active-task-metrics, Sending heartbeats and partial metrics for active tasks>> in this document.
 
-==== [[spark_executor_userClassPathFirst]] spark.executor.userClassPathFirst
+| [[spark_executor_heartbeat_maxFailures]] `spark.executor.heartbeat.maxFailures` | `60` | Number of times an executor will try to send heartbeats to the driver before it gives up and exits (with exit code `56`).
 
-`spark.executor.userClassPathFirst` (default: `false`) controls whether to load classes in user jars before those in Spark jars.
+NOTE: It was introduced in https://issues.apache.org/jira/browse/SPARK-13522[SPARK-13522 Executor should kill itself when it's unable to heartbeat to the driver more than N times].
 
-==== [[spark_executor_heartbeatInterval]] spark.executor.heartbeatInterval
+| [[spark_executor_id]] `spark.executor.id` | |
 
-`spark.executor.heartbeatInterval` (default: `10s`) - the interval after which an executor reports heartbeat and metrics for active tasks to the driver. Refer to <<heartbeats-and-active-task-metrics, Sending heartbeats and partial metrics for active tasks>>.
+| [[spark_executor_instances]] `spark.executor.instances` | `0` | Number of executors to use.
 
-==== [[spark_executor_heartbeat_maxFailures]] spark.executor.heartbeat.maxFailures
+NOTE: When greater than `0`, it disables link:spark-dynamic-allocation.adoc[dynamic allocation].
 
-`spark.executor.heartbeat.maxFailures` (default: `60`) is the number of times an executor will try to send heartbeats to the driver before it gives up and exits (with exit code `56`).
+| [[spark_executor_memory]] `spark.executor.memory` | `1g` | Amount of memory to use per executor process (equivalent to link:spark-sparkcontext.adoc#environment-variables[SPARK_EXECUTOR_MEMORY] environment variable).
 
-NOTE: It was introduced in https://issues.apache.org/jira/browse/SPARK-13522[SPARK-13522 Executor should kill itself when it's unable to heartbeat to the driver more than N times]
+Refer to <<memory, Executor Memory -- spark.executor.memory or SPARK_EXECUTOR_MEMORY settings>> in this document.
 
-==== [[spark_executor_id]] spark.executor.id
+| [[spark_executor_port]] `spark.executor.port` | |
 
-`spark.executor.id`
-
-==== [[spark_executor_instances]] spark.executor.instances
-
-`spark.executor.instances` (default: `0`) sets the number of executors to use.
-
-When greater than `0`, it disables link:spark-dynamic-allocation.adoc[dynamic allocation].
-
-==== [[spark_executor_memory]] spark.executor.memory
-
-`spark.executor.memory` (default: `1g`) - the amount of memory to use per executor process (equivalent to link:spark-sparkcontext.adoc#environment-variables[SPARK_EXECUTOR_MEMORY] environment variable).
-
-See <<memory, Executor Memory -- spark.executor.memory or SPARK_EXECUTOR_MEMORY settings>> in this document.
-
-==== [[spark_executor_port]] spark.executor.port
-
-CAUTION: FIXME
-
-==== Others
-
-* `spark.executor.logs.rolling.maxSize`
-* `spark.executor.logs.rolling.maxRetainedFiles`
-* `spark.executor.logs.rolling.strategy`
-* `spark.executor.logs.rolling.time.interval`
-* `spark.executor.port`
-* `spark.executor.uri` - equivalent to `SPARK_EXECUTOR_URI`
+| `spark.executor.logs.rolling.maxSize` | |
+| `spark.executor.logs.rolling.maxRetainedFiles` | |
+| `spark.executor.logs.rolling.strategy` | |
+| `spark.executor.logs.rolling.time.interval` | |
+| `spark.executor.port` | |
+| `spark.executor.uri` | | Equivalent to `SPARK_EXECUTOR_URI`
+|======================
