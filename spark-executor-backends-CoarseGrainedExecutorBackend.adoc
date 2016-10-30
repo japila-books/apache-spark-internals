@@ -1,15 +1,21 @@
 == [[CoarseGrainedExecutorBackend]] CoarseGrainedExecutorBackend
 
-`CoarseGrainedExecutorBackend` is an link:spark-executor-backends.adoc[ExecutorBackend] to manage a single link:spark-executor.adoc#coarse-grained-executor[coarse-grained executor] (that lives as long as the owning executor backend).
+`CoarseGrainedExecutorBackend` is an link:spark-executor-backends.adoc[ExecutorBackend] to manage a single <<executor, coarse-grained executor>> (that lives as long as the owning executor backend).
 
-`CoarseGrainedExecutorBackend` registers itself as a link:spark-rpc.adoc#ThreadSafeRpcEndpoint[ThreadSafeRpcEndpoint] under the name *Executor*.
+`CoarseGrainedExecutorBackend` <<run, registers itself as a `ThreadSafeRpcEndpoint`>> under the name *Executor* to communicate with the driver.
 
 NOTE: The internal <<executor, executor>> reference is created after a <<RegisteredExecutor, connection to the driver is established>>.
 
 .CoarseGrainedExecutorBackend and Others
 image::images/CoarseGrainedExecutorBackend.png[align="center"]
 
-When <<main, started `CoarseGrainedExecutorBackend` immediately connects to the owning `CoarseGrainedSchedulerBackend`>> to inform that it can run tasks.
+When <<main, launched>>, `CoarseGrainedExecutorBackend` immediately connects to the owning link:spark-scheduler-backends-coarse-grained.adoc[CoarseGrainedSchedulerBackend] to inform that it can run tasks. It is launched as a command-line application by:
+
+1. Spark Standalone's link:spark-standalone-StandaloneSchedulerBackend.adoc#start[StandaloneSchedulerBackend]
+
+2. Spark on YARN's link:yarn/spark-yarn-ExecutorRunnable.adoc#prepareCommand[ExecutorRunnable]
+
+3. Spark on Mesos's link:spark-mesos/spark-mesos-MesosCoarseGrainedSchedulerBackend.adoc#createCommand[MesosCoarseGrainedSchedulerBackend].
 
 When it cannot connect to `driverUrl`, it terminates (with the exit code `1`).
 
@@ -33,6 +39,104 @@ Add the following line to `conf/log4j.properties`:
 log4j.logger.org.apache.spark.executor.CoarseGrainedExecutorBackend=INFO
 ```
 ====
+
+=== [[extractLogUrls]] Extracting Log URLs -- `extractLogUrls` Method
+
+CAUTION: FIXME
+
+=== [[creating-instance]] Creating `CoarseGrainedExecutorBackend` Instance
+
+[source, scala]
+----
+CoarseGrainedExecutorBackend(
+  override val rpcEnv: RpcEnv,
+  driverUrl: String,
+  executorId: String,
+  hostname: String,
+  cores: Int,
+  userClassPath: Seq[URL],
+  env: SparkEnv)
+extends ThreadSafeRpcEndpoint with ExecutorBackend
+----
+
+While being created, `CoarseGrainedExecutorBackend` initializes the internal properties (e.g. <<executor, executor>> and <<driver, driver>>) and creates a `SerializerInstance` (using link:spark-sparkenv.adoc#closureSerializer[SparkEnv.closureSerializer]).
+
+NOTE: `CoarseGrainedExecutorBackend` is created when...FIXME
+
+=== [[onStart]] Starting RpcEndpoint -- `onStart` Method
+
+NOTE: `onStart` is a link:spark-rpc.adoc[RpcEndpoint callback method] that is executed before a RPC endpoint starts to handle messages.
+
+When executed, you should see the following INFO message in the logs:
+
+```
+INFO CoarseGrainedExecutorBackend: Connecting to driver: [driverUrl]
+```
+
+It then retrieves the link:spark-rpc.adoc#RpcEndpointRef[RpcEndpointRef] of the driver asynchronously (using the constructor's <<driverUrl, driverUrl>>) and initializes the internal <<driver, driver>> property that it will send a blocking link:spark-scheduler-backends-coarse-grained.adoc#RegisterExecutor[RegisterExecutor] message to.
+
+If there is an issue while registering the executor, you should see the following ERROR message in the logs and process exits (with the exit code `1`).
+
+```
+ERROR Cannot register with driver: [driverUrl]
+```
+
+NOTE: The `RegisterExecutor` message contains `executorId`, the `RpcEndpointRef` to itself, `cores`, and <<extractLogUrls, log URLs>> of the `CoarseGrainedExecutorBackend`.
+
+=== [[driver]] `driver` RpcEndpointRef
+
+`driver` is an optional link:spark-rpc.adoc#RpcEndpointRef[RpcEndpointRef] for the driver.
+
+TIP: See <<onStart, Starting RpcEndpoint -- `onStart` Method>> for how `driver` is initialized.
+
+=== [[driverURL]] Driver's URL
+
+The driver's URL is of the format `spark://[RpcEndpoint name]@[hostname]:[port]`, e.g. `spark://CoarseGrainedScheduler@192.168.1.6:64859`.
+
+=== [[main]] Launching `CoarseGrainedExecutorBackend` As Standalone Application -- `main` Method
+
+`CoarseGrainedExecutorBackend` is a command-line application (it comes with `main` method).
+
+It accepts the following options:
+
+* `--driver-url` (required) - the driver's URL. See <<driverURL, driver's URL>>.
+
+[[executor-id]]
+* `--executor-id` (required) - the executor's id
+* `--hostname` (required) - the name of the host
+* `--cores` (required) - the number of cores (must be more than `0`)
+* `--app-id` (required) - the id of the application
+* `--worker-url` - the worker's URL, e.g. `spark://Worker@192.168.1.6:64557`
+* `--user-class-path` - a URL/path to a resource to be added to CLASSPATH; can be specified multiple times.
+
+Unrecognized options or required options missing cause displaying usage help and exit.
+
+```
+$ ./bin/spark-class org.apache.spark.executor.CoarseGrainedExecutorBackend
+
+Usage: CoarseGrainedExecutorBackend [options]
+
+ Options are:
+   --driver-url <driverUrl>
+   --executor-id <executorId>
+   --hostname <hostname>
+   --cores <cores>
+   --app-id <appid>
+   --worker-url <workerUrl>
+   --user-class-path <url>
+```
+
+It first fetches Spark properties from link:spark-scheduler-backends-coarse-grained.adoc[CoarseGrainedSchedulerBackend] (using the `driverPropsFetcher` RPC Environment and the endpoint reference given in <<driverURL, driver's URL>>).
+
+For this, it creates `SparkConf`, reads `spark.executor.port` setting (defaults to `0`) and creates the `driverPropsFetcher` RPC Environment in link:spark-rpc.adoc#client-mode[client mode]. The RPC environment is used to resolve the driver's endpoint to post `RetrieveSparkProps` message.
+
+It sends a (blocking) `RetrieveSparkProps` message to the driver (using the value for `driverUrl` command-line option). When the response (the driver's `SparkConf`) arrives it adds `spark.app.id` (using the value for `appid` command-line option) and creates a brand new `SparkConf`.
+
+If `spark.yarn.credentials.file` is set, ...FIXME
+
+A SparkEnv is created using link:spark-sparkenv.adoc#createExecutorEnv[SparkEnv.createExecutorEnv] (with `isLocal` being `false`).
+
+CAUTION: FIXME
 
 === [[run]] Setting Up Executor RPC Endpoint (and WorkerWatcher Perhaps) -- `run` Internal Method
 
@@ -85,114 +189,6 @@ CAUTION: FIXME Think of the place for `Utils.initDaemon`, `Utils.getProcessName`
 
 NOTE: `run` is executed when <<main, `CoarseGrainedExecutorBackend` command-line application is launched>>.
 
-=== [[extractLogUrls]] Extracting Log URLs -- `extractLogUrls` Method
-
-CAUTION: FIXME
-
-=== [[creating-instance]] Creating `CoarseGrainedExecutorBackend` Instance
-
-[source, scala]
-----
-CoarseGrainedExecutorBackend(
-  override val rpcEnv: RpcEnv,
-  driverUrl: String,
-  executorId: String,
-  hostname: String,
-  cores: Int,
-  userClassPath: Seq[URL],
-  env: SparkEnv)
-extends ThreadSafeRpcEndpoint with ExecutorBackend
-----
-
-While being created, `CoarseGrainedExecutorBackend` initializes the internal properties (e.g. <<executor, executor>> and <<driver, driver>>) and creates a `SerializerInstance` (using link:spark-sparkenv.adoc#closureSerializer[SparkEnv.closureSerializer]).
-
-NOTE: `CoarseGrainedExecutorBackend` is created when...FIXME
-
-=== [[onStart]] Starting RpcEndpoint -- `onStart` Method
-
-NOTE: `onStart` is a link:spark-rpc.adoc[RpcEndpoint callback method] that is executed before a RPC endpoint starts to handle messages.
-
-When executed, you should see the following INFO message in the logs:
-
-```
-INFO CoarseGrainedExecutorBackend: Connecting to driver: [driverUrl]
-```
-
-It then retrieves the link:spark-rpc.adoc#RpcEndpointRef[RpcEndpointRef] of the driver asynchronously (using the constructor's <<driverUrl, driverUrl>>) and initializes the internal <<driver, driver>> property that it will send a blocking link:spark-scheduler-backends-coarse-grained.adoc#RegisterExecutor[RegisterExecutor] message to.
-
-If there is an issue while registering the executor, you should see the following ERROR message in the logs and process exits (with the exit code `1`).
-
-```
-ERROR Cannot register with driver: [driverUrl]
-```
-
-NOTE: The `RegisterExecutor` message contains `executorId`, the `RpcEndpointRef` to itself, `cores`, and <<extractLogUrls, log URLs>> of the `CoarseGrainedExecutorBackend`.
-
-=== [[driver]] `driver` RpcEndpointRef
-
-`driver` is an optional link:spark-rpc.adoc#RpcEndpointRef[RpcEndpointRef] for the driver.
-
-TIP: See <<onStart, Starting RpcEndpoint (onStart method)>> to learn how it is initialized.
-
-=== [[driverURL]] Driver's URL
-
-The driver's URL is of the format `spark://[RpcEndpoint name]@[hostname]:[port]`, e.g. `spark://CoarseGrainedScheduler@192.168.1.6:64859`.
-
-=== [[main]] `main` Method
-
-`CoarseGrainedExecutorBackend` is a command-line application (it comes with `main` method).
-
-It accepts the following options:
-
-* `--driver-url` (required) - the driver's URL. See <<driverURL, driver's URL>>.
-
-[[executor-id]]
-* `--executor-id` (required) - the executor's id
-* `--hostname` (required) - the name of the host
-* `--cores` (required) - the number of cores (must be more than `0`)
-* `--app-id` (required) - the id of the application
-* `--worker-url` - the worker's URL, e.g. `spark://Worker@192.168.1.6:64557`
-* `--user-class-path` - a URL/path to a resource to be added to CLASSPATH; can be specified multiple times.
-
-Unrecognized options or required options missing cause displaying usage help and exit.
-
-```
-$ ./bin/spark-class org.apache.spark.executor.CoarseGrainedExecutorBackend
-
-Usage: CoarseGrainedExecutorBackend [options]
-
- Options are:
-   --driver-url <driverUrl>
-   --executor-id <executorId>
-   --hostname <hostname>
-   --cores <cores>
-   --app-id <appid>
-   --worker-url <workerUrl>
-   --user-class-path <url>
-```
-
-It first fetches Spark properties from link:spark-scheduler-backends-coarse-grained.adoc[CoarseGrainedSchedulerBackend] (using the `driverPropsFetcher` RPC Environment and the endpoint reference given in <<driverURL, driver's URL>>).
-
-For this, it creates `SparkConf`, reads `spark.executor.port` setting (defaults to `0`) and creates the `driverPropsFetcher` RPC Environment in link:spark-rpc.adoc#client-mode[client mode]. The RPC environment is used to resolve the driver's endpoint to post `RetrieveSparkProps` message.
-
-It sends a (blocking) `RetrieveSparkProps` message to the driver (using the value for `driverUrl` command-line option). When the response (the driver's `SparkConf`) arrives it adds `spark.app.id` (using the value for `appid` command-line option) and creates a brand new `SparkConf`.
-
-If `spark.yarn.credentials.file` is set, ...FIXME
-
-A SparkEnv is created using link:spark-sparkenv.adoc#createExecutorEnv[SparkEnv.createExecutorEnv] (with `isLocal` being `false`).
-
-CAUTION: FIXME
-
-=== [[usage]] Usage
-
-CAUTION: FIXME Where is `org.apache.spark.executor.CoarseGrainedExecutorBackend` used?
-
-It is used in:
-
-* `SparkDeploySchedulerBackend`
-* `CoarseMesosSchedulerBackend`
-* `SparkClassCommandBuilder` - ???
-
 === [[start]] `start` Method
 
 === [[stop]] `stop` Method
@@ -201,7 +197,7 @@ It is used in:
 
 === [[executor]] `executor` Internal Property
 
-`executor` is an link:spark-executor.adoc[Executor]...FIXME
+`executor` is the internal reference to a link:spark-executor.adoc#coarse-grained-executor[coarse-grained executor]...FIXME
 
 CAUTION: FIXME
 
