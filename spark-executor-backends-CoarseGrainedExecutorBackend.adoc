@@ -1,17 +1,15 @@
 == [[CoarseGrainedExecutorBackend]] CoarseGrainedExecutorBackend
 
-`CoarseGrainedExecutorBackend` manages a single link:spark-executor.adoc[executor] object. The internal `executor` object is created after a connection to the driver is established (i.e. after <<RegisteredExecutor, RegisteredExecutor>> has arrived).
+`CoarseGrainedExecutorBackend` is an link:spark-executor-backends.adoc[ExecutorBackend] to manage a single link:spark-executor.adoc#coarse-grained-executor[coarse-grained executor] (that lives as long as the owning executor backend).
+
+`CoarseGrainedExecutorBackend` registers itself as a link:spark-rpc.adoc#ThreadSafeRpcEndpoint[ThreadSafeRpcEndpoint] under the name *Executor*.
+
+NOTE: The internal <<executor, executor>> reference is created after a <<RegisteredExecutor, connection to the driver is established>>.
 
 .CoarseGrainedExecutorBackend and Others
 image::images/CoarseGrainedExecutorBackend.png[align="center"]
 
-`CoarseGrainedExecutorBackend` is an link:spark-executor-backends.adoc[executor backend] for link:spark-executor.adoc#coarse-grained-executor[coarse-grained executors] that live until the executor backend terminates.
-
-`CoarseGrainedExecutorBackend` registers itself as a link:spark-rpc.adoc#rpcendpoint[RPC Endpoint] under the name *Executor*.
-
-When started it connects to `driverUrl` (given as <<main, an option on command line>>), i.e.  link:spark-scheduler-backends-coarse-grained.adoc[CoarseGrainedSchedulerBackend], for tasks to run.
-
-CAUTION: What are `RegisterExecutor` and `RegisterExecutorResponse`? Why does `CoarseGrainedExecutorBackend` send it in `onStart`?
+When <<main, started `CoarseGrainedExecutorBackend` immediately connects to the owning `CoarseGrainedSchedulerBackend`>> to inform that it can run tasks.
 
 When it cannot connect to `driverUrl`, it terminates (with the exit code `1`).
 
@@ -36,13 +34,79 @@ log4j.logger.org.apache.spark.executor.CoarseGrainedExecutorBackend=INFO
 ```
 ====
 
+=== [[run]] Setting Up Executor RPC Endpoint (and WorkerWatcher Perhaps) -- `run` Internal Method
+
+[source, scala]
+----
+run(driverUrl: String,
+  executorId: String,
+  hostname: String,
+  cores: Int,
+  appId: String,
+  workerUrl: Option[String],
+  userClassPath: scala.Seq[URL]): Unit
+----
+
+`run` requests the driver for the Spark properties and sets up the *Executor* RPC endpoint (with <<creating-instance, `CoarseGrainedExecutorBackend` as the RPC endpoint>>) and optionally the *WorkerWatcher* RPC endpoint. It keeps running (yet the main thread is blocked and only the RPC endpoints process RPC messages) until the `RpcEnv` terminates.
+
+When executed, you should see the following INFO message in the logs:
+
+```
+INFO Started daemon with process name: [processName]
+```
+
+`run` then runs in a secured environment as a Spark user.
+
+`run` first creates a brand new link:spark-configuration.adoc[SparkConf] to get link:spark-executor.adoc#spark_executor_port[spark.executor.port] from. It then link:spark-rpc.adoc#create[creates a `RpcEnv`] called *driverPropsFetcher*.
+
+NOTE: The host name and port for the `driverPropsFetcher` RpcEnv are given as the input argument `hostname` and got from `SparkConf`, respectively.
+
+CAUTION: FIXME What's `clientMode` in `RpcEnv.create`?
+
+`run` uses the `driverPropsFetcher` `RpcEnv` to link:spark-scheduler-backends-coarse-grained.adoc#RetrieveSparkProps[request `driverUrl` endpoint for the Spark properties to use] only. The Spark properties are extended with `spark.app.id` Spark property with the value of `appId`.
+
+`run` uses the Spark properties to create a link:spark-sparkenv.adoc#createExecutorEnv[`SparkEnv` for the executor] (with `isLocal` disabled).
+
+NOTE: `executorId`, `hostname`, and `cores` to link:spark-sparkenv.adoc#createExecutorEnv[create the `SparkEnv`] are the input arguments of `run`.
+
+CAUTION: FIXME Describe `spark.yarn.credentials.file`.
+
+After the `SparkEnv` has been created, `run` link:spark-rpc.adoc#setupEndpoint[sets up the endpoint] under the name *Executor* with <<creating-instance, `CoarseGrainedExecutorBackend` as the RPC endpoint>>.
+
+If the optional `workerUrl` is specified, `run` sets up another endpoint under the name *WorkerWatcher* and `WorkerWatcher` RPC endpoint.
+
+CAUTION: FIXME When is `workerUrl` specified?
+
+``run``'s thread is blocked until link:spark-rpc.adoc#awaitTermination[`RpcEnv` terminates] (and so the other threads of the RPC endpoints could run).
+
+Once `RpcEnv` has terminated, `run` link:spark-hadoop.adoc#stopCredentialUpdater[stops the thread for credential updates].
+
+CAUTION: FIXME Think of the place for `Utils.initDaemon`, `Utils.getProcessName` et al.
+
+NOTE: `run` is executed when <<main, `CoarseGrainedExecutorBackend` command-line application is launched>>.
+
 === [[extractLogUrls]] Extracting Log URLs -- `extractLogUrls` Method
 
 CAUTION: FIXME
 
-=== [[creating-instance]] Creating CoarseGrainedExecutorBackend Instance
+=== [[creating-instance]] Creating `CoarseGrainedExecutorBackend` Instance
 
-CAUTION: FIXME
+[source, scala]
+----
+CoarseGrainedExecutorBackend(
+  override val rpcEnv: RpcEnv,
+  driverUrl: String,
+  executorId: String,
+  hostname: String,
+  cores: Int,
+  userClassPath: Seq[URL],
+  env: SparkEnv)
+extends ThreadSafeRpcEndpoint with ExecutorBackend
+----
+
+While being created, `CoarseGrainedExecutorBackend` initializes the internal properties (e.g. <<executor, executor>> and <<driver, driver>>) and creates a `SerializerInstance` (using link:spark-sparkenv.adoc#closureSerializer[SparkEnv.closureSerializer]).
+
+NOTE: `CoarseGrainedExecutorBackend` is created when...FIXME
 
 === [[onStart]] Starting RpcEndpoint -- `onStart` Method
 
@@ -76,7 +140,7 @@ The driver's URL is of the format `spark://[RpcEndpoint name]@[hostname]:[port]`
 
 === [[main]] `main` Method
 
-CoarseGrainedExecutorBackend is a command-line application (it comes with `main` method).
+`CoarseGrainedExecutorBackend` is a command-line application (it comes with `main` method).
 
 It accepts the following options:
 
@@ -135,7 +199,7 @@ It is used in:
 
 === [[requestTotalExecutors]] `requestTotalExecutors`
 
-=== [[executor]] `executor` internal field
+=== [[executor]] `executor` Internal Property
 
 `executor` is an link:spark-executor.adoc[Executor]...FIXME
 
