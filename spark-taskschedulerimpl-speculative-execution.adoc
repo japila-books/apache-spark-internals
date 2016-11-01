@@ -1,0 +1,37 @@
+== Speculative Execution of Tasks
+
+*Speculative tasks* (also *speculatable tasks* or *task strugglers*) are tasks that run slower than most (FIXME the setting) of the all tasks in a job.
+
+*Speculative execution of tasks* is a health-check procedure that checks for tasks to be *speculated*, i.e. running slower in a stage than the median of all successfully completed tasks in a taskset (FIXME the setting). Such slow tasks will be re-submitted to another worker. It will not stop the slow tasks, but run a new copy in parallel.
+
+The thread starts as `TaskSchedulerImpl` starts in link:spark-cluster.adoc[clustered deployment modes] with <<spark_speculation, spark.speculation>> enabled. It executes periodically every <<spark_speculation_interval, spark.speculation.interval>> after the initial `spark.speculation.interval` passes.
+
+When enabled, you should see the following INFO message in the logs:
+
+```
+INFO TaskSchedulerImpl: Starting speculative execution thread
+```
+
+It works as link:spark-taskschedulerimpl.adoc#task-scheduler-speculation[`task-scheduler-speculation` daemon thread pool] using `j.u.c.ScheduledThreadPoolExecutor` with core pool size `1`.
+
+The job with speculatable tasks should finish while speculative tasks are running, and it will leave these tasks running - no KILL command yet.
+
+It uses `checkSpeculatableTasks` method that asks `rootPool` to check for speculatable tasks. If there are any, `SchedulerBackend` is called for link:spark-scheduler-backends.adoc#reviveOffers[reviveOffers].
+
+CAUTION: FIXME How does Spark handle repeated results of speculative tasks since there are copies launched?
+
+=== [[settings]] Settings
+
+.Spark Properties
+[frame="topbot",cols="1,1,2",options="header",width="100%"]
+|======================
+| Spark Property | Default Value | Description
+
+| [[spark_speculation]] `spark.speculation` | `false` | Enables (`true`) or disables (`false`) speculative execution of tasks (by means of link:spark-taskschedulerimpl.adoc#task-scheduler-speculation[`task-scheduler-speculation` Scheduled Executor Service]).
+
+| [[spark_speculation_interval]] `spark.speculation.interval` | `100ms` | The time interval to use before checking for speculative tasks.
+
+| [[spark_speculation_multiplier]] `spark.speculation.multiplier` | `1.5` |
+
+| [[spark_speculation_quantile]] `spark.speculation.quantile` | `0.75` | The percentage of tasks that has not finished yet at which to start speculation.
+|======================

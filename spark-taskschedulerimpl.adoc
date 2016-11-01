@@ -26,6 +26,19 @@ log4j.logger.org.apache.spark.scheduler.TaskSchedulerImpl=DEBUG
 Refer to link:spark-logging.adoc[Logging].
 ====
 
+=== [[starvationTimer]] `starvationTimer`
+
+CAUTION: FIXME
+
+=== [[checkSpeculatableTasks]] `checkSpeculatableTasks` Method
+
+[source, scala]
+----
+checkSpeculatableTasks(): Unit
+----
+
+`checkSpeculatableTasks`...
+
 === [[executorHeartbeatReceived]] `executorHeartbeatReceived` Method
 
 [source, scala]
@@ -143,7 +156,7 @@ Used when `TaskSchedulerImpl`...
 | `executorIdToHost` | Lookup table of hosts per executor
 |======================
 
-=== [[creating-instance]] Creating TaskSchedulerImpl Instance
+=== [[creating-instance]] Creating `TaskSchedulerImpl` Instance
 
 [source, scala]
 ----
@@ -172,7 +185,7 @@ Unrecognized spark.scheduler.mode: [schedulingModeConf]
 
 Ultimately, `TaskSchedulerImpl` creates a link:spark-taskschedulerimpl-TaskResultGetter.adoc[TaskResultGetter].
 
-=== [[initialization]][[initialize]] Initializing TaskSchedulerImpl -- `initialize` Method
+=== [[initialization]][[initialize]] Initializing `TaskSchedulerImpl` -- `initialize` Method
 
 [source, scala]
 ----
@@ -199,7 +212,7 @@ With the `schedulableBuilder` object created, `initialize` requests it to link:s
 
 CAUTION: FIXME Why are `rootPool` and `schedulableBuilder` created only now? What do they need that it is not available when `TaskSchedulerImpl` is created?
 
-=== [[start]] Starting TaskSchedulerImpl -- `start` Method
+=== [[start]] Starting `TaskSchedulerImpl` -- `start` Method
 
 As part of link:spark-sparkcontext-creating-instance-internals.adoc[initialization of a `SparkContext`], `TaskSchedulerImpl` is started (using `start` from the link:spark-taskscheduler.adoc#contract[TaskScheduler Contract]).
 
@@ -208,14 +221,20 @@ As part of link:spark-sparkcontext-creating-instance-internals.adoc[initializati
 start(): Unit
 ----
 
-It starts the link:spark-scheduler-backends.adoc[scheduler backend] it manages.
+`start` starts the link:spark-scheduler-backends.adoc[scheduler backend].
 
-Below is a figure of the method calls in Spark Standalone mode.
-
-.Starting TaskSchedulerImpl in Spark Standalone mode
+.Starting `TaskSchedulerImpl` in Spark Standalone
 image::images/taskschedulerimpl-start-standalone.png[align="center"]
 
-It also starts the *task-scheduler-speculation* executor pool. See <<speculative-execution, Speculative Execution of Tasks>>.
+`start` also starts <<task-scheduler-speculation, `task-scheduler-speculation` executor service>>.
+
+=== [[speculationScheduler]][[task-scheduler-speculation]] `task-scheduler-speculation` Scheduled Executor Service -- `speculationScheduler` Internal Attribute
+
+`speculationScheduler` is a http://docs.oracle.com/javase/8/docs/api/java/util/concurrent/ScheduledExecutorService.html[java.util.concurrent.ScheduledExecutorService] with the name  *task-scheduler-speculation* for link:spark-taskschedulerimpl-speculative-execution.adoc[speculative execution of tasks].
+
+When <<start, `TaskSchedulerImpl` starts>> (in non-local run mode) with link:spark-taskschedulerimpl-speculative-execution.adoc#spark_speculation[spark.speculation] enabled, `speculationScheduler` is used to schedule <<checkSpeculatableTasks, checkSpeculatableTasks>> to execute periodically every link:spark-taskschedulerimpl-speculative-execution.adoc#spark_speculation_interval[spark.speculation.interval] after the initial `spark.speculation.interval` passes.
+
+`speculationScheduler` is shut down when <<stop, `TaskSchedulerImpl` stops>>.
 
 === [[maxTaskFailures]] Acceptable Number of Task Failures -- `maxTaskFailures` Attribute
 
@@ -258,10 +277,6 @@ If the SparkContext happens to be stopped while doing the waiting, a `IllegalSta
 Spark context stopped while waiting for backend
 ```
 
-=== [[speculationScheduler]][[task-scheduler-speculation]] `speculationScheduler`
-
-CAUTION: FIXME
-
 === [[stop]] Stopping TaskSchedulerImpl -- `stop` Method
 
 [source, scala]
@@ -269,33 +284,7 @@ CAUTION: FIXME
 stop(): Unit
 ----
 
-`stop()` stops all the internal services, i.e. <<task-scheduler-speculation, `task-scheduler-speculation` thread pool executor>> (used for <<speculative-execution, Speculative execution of tasks>>), link:spark-scheduler-backends.adoc[SchedulerBackend], link:spark-taskschedulerimpl-TaskResultGetter.adoc[TaskResultGetter], and <<starvationTimer, starvationTimer>> timer.
-
-=== [[starvationTimer]] `starvationTimer`
-
-CAUTION: FIXME
-
-=== [[speculative-execution]] Speculative Execution of Tasks
-
-*Speculative tasks* (also *speculatable tasks* or *task strugglers*) are tasks that run slower than most (FIXME the setting) of the all tasks in a job.
-
-*Speculative execution of tasks* is a health-check procedure that checks for tasks to be *speculated*, i.e. running slower in a stage than the median of all successfully completed tasks in a taskset (FIXME the setting). Such slow tasks will be re-submitted to another worker. It will not stop the slow tasks, but run a new copy in parallel.
-
-The thread starts as `TaskSchedulerImpl` starts in link:spark-cluster.adoc[clustered deployment modes] with link:spark-tasksetmanager.adoc#spark_speculation[spark.speculation] enabled. It executes periodically every <<spark_speculation_interval, spark.speculation.interval>> after `spark.speculation.interval` passes.
-
-When enabled, you should see the following INFO message in the logs:
-
-```
-INFO TaskSchedulerImpl: Starting speculative execution thread
-```
-
-It works as *task-scheduler-speculation* daemon thread pool using `j.u.c.ScheduledThreadPoolExecutor` with core pool size `1`.
-
-The job with speculatable tasks should finish while speculative tasks are running, and it will leave these tasks running - no KILL command yet.
-
-It uses `checkSpeculatableTasks` method that asks `rootPool` to check for speculatable tasks. If there are any, `SchedulerBackend` is called for link:spark-scheduler-backends.adoc#reviveOffers[reviveOffers].
-
-CAUTION: FIXME How does Spark handle repeated results of speculative tasks since there are copies launched?
+`stop()` stops all the internal services, i.e. <<task-scheduler-speculation, `task-scheduler-speculation` executor service>>, link:spark-scheduler-backends.adoc[SchedulerBackend], link:spark-taskschedulerimpl-TaskResultGetter.adoc[TaskResultGetter], and <<starvationTimer, starvationTimer>> timer.
 
 === [[defaultParallelism]] Calculating Default Level of Parallelism -- `defaultParallelism` Method
 
@@ -546,8 +535,6 @@ CAUTION: FIXME Image with a call from TaskSchedulerImpl to DAGScheduler, please.
 `1` in link:spark-local.adoc[local] except link:spark-local.adoc[local-with-retries] | The number of individual task failures before giving up on the entire link:spark-taskscheduler-tasksets.adoc[TaskSet] and the job afterwards.
 
 | [[spark_task_cpus]] `spark.task.cpus` | `1` | The number of CPUs to request per task.
-
-| [[spark_speculation_interval]] `spark.speculation.interval` | `100ms` | The time interval to use before checking for speculative tasks.
 
 | [[spark_starvation_timeout]] `spark.starvation.timeout` | `15s` | Threshold above which Spark warns a user that an initial TaskSet may be starved.
 
