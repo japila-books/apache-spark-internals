@@ -1,17 +1,17 @@
 == DataFrameWriter
 
-`DataFrameWriter` is an interface to persist a link:spark-sql-dataset.adoc[Datasets] to an external storage system in a batch fashion.
+`DataFrameWriter` is an interface to persist a link:spark-sql-dataset.adoc[Dataset] to an external storage system in a batch fashion.
 
-NOTE: Read link:spark-sql-streaming-DataStreamWriter.adoc[DataStreamWriter] for streaming write API.
+TIP: Read link:spark-sql-streaming-DataStreamWriter.adoc[DataStreamWriter] for streamed writing.
 
-Use link:spark-sql-dataframe.adoc#write[write] method on a `DataFrame` to access `DataFrameWriter`.
+You use link:spark-sql-dataframe.adoc#write[write] method on a `Dataset` to access `DataFrameWriter`.
 
 [source, scala]
 ----
-import org.apache.spark.sql.{DataFrame, DataFrameWriter, Row}
+import org.apache.spark.sql.DataFrameWriter
 
-val ints: DataFrame = (0 to 5).toDF
-val writer: DataFrameWriter[Row] = ints.write
+val nums: Dataset[Long] = ...
+val writer: DataFrameWriter[Row] = nums.write
 ----
 
 `DataFrameWriter` has a direct support for many <<writing-dataframes-to-files, file formats>>, <<jdbc, JDBC databases>> and <<format, an interface to plug in new formats>>. It assumes <<parquet, parquet>> as the default data source that you can change using link:spark-sql-settings.adoc[spark.sql.sources.default] setting or <<format, format>> method.
@@ -21,13 +21,20 @@ val writer: DataFrameWriter[Row] = ints.write
 // see above for writer definition
 
 // Save dataset in Parquet format
-writer.save(path = "ints")
+writer.save(path = "nums")
 
 // Save dataset in JSON format
-writer.format("json").save(path = "ints-json")
+writer.format("json").save(path = "nums-json")
 ----
 
-Interestingly, a `DataFrameWriter` is really a type constructor in Scala that keeps a reference to a source `DataFrame` during its lifecycle (starting right from the moment it was created).
+In the end, you trigger the actual saving of the content of a `Dataset` using <<save, save>> method.
+
+[source, scala]
+----
+writer.save
+----
+
+NOTE: Interestingly, a `DataFrameWriter` is really a type constructor in Scala. It keeps a reference to a source `DataFrame` during its lifecycle (starting right from the moment it was created).
 
 === [[internal-state]] Internal State
 
@@ -46,7 +53,7 @@ Interestingly, a `DataFrameWriter` is really a type constructor in Scala that ke
 |`sortColumnNames` | <<sortBy, sortBy>>
 |======================
 
-=== [[saveAsTable]] saveAsTable method
+=== [[saveAsTable]] `saveAsTable` Method
 
 [source, scala]
 ----
@@ -76,22 +83,24 @@ ints.write.options(options).saveAsTable("ints")
 sql("show tables").show
 ----
 
-=== [[save]] Persisting DataFrame (save method)
+=== [[save]] Persisting DataFrame -- `save` Method
 
 [source, scala]
 ----
 save(): Unit
 ----
 
-When you `save` a `DataFrame`, the method will first check whether the `DataFrame` is not bucketed.
+`save` saves the content of a `Dataset` to...FIXME
+
+Internally, `save` first checks whether the `DataFrame` is not bucketed.
 
 CAUTION: FIXME What does `bucketing` mean?
 
-It then creates a link:spark-sql-datasource.adoc[DataSource] and calls link:spark-sql-datasource.adoc#write[write] on it.
+`save` then creates a link:spark-sql-datasource.adoc[DataSource] (for the `source`) and calls link:spark-sql-datasource.adoc#write[write] on it.
 
-NOTE: It uses `source`, `partitioningColumns`, `extraOptions`, and `mode` internal attributes directly. They are specified through the API.
+NOTE: `save` uses `source`, `partitioningColumns`, `extraOptions`, and `mode` internal attributes directly. They are specified through the API.
 
-=== [[jdbc]] jdbc
+=== [[jdbc]] `jdbc` Method
 
 [source, scala]
 ----
@@ -114,11 +123,11 @@ When `table` exists and the <<mode, override save mode>> is in use, `DROP TABLE 
 
 It creates the input `table` (using `CREATE TABLE table (schema)` where `schema` is the schema of the `DataFrame`).
 
-=== [[bucketBy]] bucketBy method
+=== [[bucketBy]] `bucketBy` Method
 
 CAUTION: FIXME
 
-=== [[partitionBy]] partitionBy method
+=== [[partitionBy]] `partitionBy` Method
 
 [source, scala]
 ----
@@ -127,7 +136,7 @@ partitionBy(colNames: String*): DataFrameWriter[T]
 
 CAUTION: FIXME
 
-=== [[mode]] Specifying Save Mode (mode method)
+=== [[mode]] Specifying Save Mode -- `mode` Method
 
 [source, scala]
 ----
@@ -141,7 +150,7 @@ You can control the behaviour of write using `mode` method, i.e. what happens wh
 * `SaveMode.ErrorIfExists` or
 * `SaveMode.Overwrite` or
 
-=== [[option]][[options]] Writer Configuration (option and options methods)
+=== [[option]][[options]] Writer Configuration -- `option` and `options` Methods
 
 CAUTION: FIXME
 
@@ -149,7 +158,7 @@ CAUTION: FIXME
 
 CAUTION: FIXME
 
-=== [[format]] Specifying Data Format (format method)
+=== [[format]] Specifying Alias or Fully-Qualified Class Name of DataSource -- `format` Method
 
 CAUTION: FIXME Compare to DataFrameReader.
 
@@ -159,6 +168,6 @@ CAUTION: FIXME
 
 NOTE: Parquet is the default data source format.
 
-=== [[insertInto]] insertInto method
+=== [[insertInto]] `insertInto` Method
 
 CAUTION: FIXME
