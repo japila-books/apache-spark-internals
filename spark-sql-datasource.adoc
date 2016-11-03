@@ -1,14 +1,81 @@
 == [[DataSource]] DataSource
 
-`DataSource` case class belongs to the Data Source API (along with link:spark-sql-dataframereader.adoc[DataFrameReader] for loading datasets and link:spark-sql-dataframewriter.adoc[DataFrameWriter] for saving datasets).
+`DataSource` class belongs to the Data Source API (along with link:spark-sql-dataframereader.adoc[DataFrameReader] for loading datasets, link:spark-sql-dataframewriter.adoc[DataFrameWriter] for saving datasets and link:spark-sql-streaming-StreamSourceProvider.adoc[StreamSourceProvider] for creating streaming sources).
 
-`DataSource` acts as the canonical set of parameters that describe a data source to load from or write data to. It uses a link:spark-sql-sparksession.adoc[SparkSession], a class name, a collection of `paths`, optional user-specified link:spark-sql-schema.adoc[schema], a collection of partition columns, a bucket specification, and configuration options.
+`DataSource` is an internal class that represents a **pluggable data source** in Spark SQL.
 
-=== [[creating-instance]] Creating DataSource Instance
+.``DataSource``'s Extension Points
+[frame="topbot",cols="1,3",options="header",width="100%"]
+|======================
+| Extension Point | Description
+| link:spark-sql-streaming-StreamSourceProvider.adoc[StreamSourceProvider] | Used in:
 
-When being created, `DataSource` first <<lookupDataSource, looks up the providing class>> given the input `className` (considering it an alias or a fully-qualified class name) and computes the <<sourceSchema, name and schema>> of the data source.
+1. <<sourceSchema, sourceSchema>> and <<createSource, createSource>> for streamed reading
 
-==== [[lookupDataSource]] lookupDataSource Internal Method
+2. <<createSink, createSink>> for streamed writing
+
+3. <<resolveRelation, resolveRelation>> for resolved `BaseRelation`
+| `FileFormat` | Used in:
+
+1. <<sourceSchema, sourceSchema>> for streamed reading
+
+2. <<write, write>> for writing a `DataFrame` to a `DataSource` (as part of creating a table as select)
+
+| `CreatableRelationProvider` | Used in <<write, write>> for writing a `DataFrame` to a `DataSource` (as part of creating a table as select).
+|======================
+
+As a user, you interact with `DataSource` by link:spark-sql-dataframereader.adoc[DataFrameReader] (when you execute link:spark-sql-sparksession.adoc#read[spark.read] or link:spark-sql-sparksession.adoc#readStream[spark.readStream]) or `CREATE TABLE USING DDL`.
+
+[source, scala]
+----
+// Batch reading
+val people: DataFrame = spark.read
+  .format("csv")
+  .load("people.csv")
+
+// Streamed reading
+val messages: DataFrame = spark.readStream
+  .format("kafka")
+  .option("subscribe", "topic")
+  .option("kafka.bootstrap.servers", "localhost:9092")
+  .load
+----
+
+`DataSource` uses a link:spark-sql-sparksession.adoc[SparkSession], a class name, a collection of `paths`, optional user-specified link:spark-sql-schema.adoc[schema], a collection of partition columns, a bucket specification, and configuration options.
+
+=== [[createSource]] `createSource` Method
+
+[source, scala]
+----
+createSource(metadataPath: String): Source
+----
+
+CAUTION: FIXME
+
+=== [[createSink]] `createSink` Method
+
+CAUTION: FIXME
+
+=== [[creating-instance]] Creating `DataSource` Instance
+
+[source, scala]
+----
+class DataSource(
+  sparkSession: SparkSession,
+  className: String,
+  paths: Seq[String] = Nil,
+  userSpecifiedSchema: Option[StructType] = None,
+  partitionColumns: Seq[String] = Seq.empty,
+  bucketSpec: Option[BucketSpec] = None,
+  options: Map[String, String] = Map.empty,
+  catalogTable: Option[CatalogTable] = None)
+----
+
+When being created, `DataSource` first <<lookupDataSource, looks up the providing class>> given `className` (considering it an alias or a fully-qualified class name) and computes the <<sourceSchema, name and schema>> of the data source.
+
+NOTE: `DataSource` does the initialization lazily on demand and only once.
+
+==== [[lookupDataSource]] `lookupDataSource` Internal Method
 
 [source, scala]
 ----
@@ -26,7 +93,7 @@ There has to be one data source registered only or you will see the following `R
 Multiple sources found for [provider] ([comma-separated class names]), please specify the fully qualified class name.
 ----
 
-==== [[sourceSchema]] sourceSchema Internal Method
+==== [[sourceSchema]] `sourceSchema` Internal Method
 
 [source, scala]
 ----
@@ -86,7 +153,7 @@ For any other data source, it throws `UnsupportedOperationException` exception:
 Data source [className] does not support streamed reading
 ```
 
-==== [[inferFileFormatSchema]] inferFileFormatSchema Internal Method
+==== [[inferFileFormatSchema]] `inferFileFormatSchema` Internal Method
 
 [source, scala]
 ----
@@ -99,20 +166,11 @@ It uses `path` option for the list of directory paths.
 
 NOTE: It is used by <<sourceSchema, DataSource.sourceSchema>> and <<createSource, DataSource.createSource>> when `FileFormat` is processed.
 
-=== [[write]] write
+=== [[write]] `write`
 
 CAUTION: FIXME
 
-=== [[createSource]] createSource
-
-[source, scala]
-----
-createSource(metadataPath: String): Source
-----
-
-CAUTION: FIXME
-
-=== [[resolveRelation]] resolveRelation
+=== [[resolveRelation]] `resolveRelation`
 
 [source, scala]
 ----
