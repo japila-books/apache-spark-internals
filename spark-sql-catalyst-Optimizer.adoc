@@ -25,6 +25,19 @@ Project [3 AS ((1 + 1) + 1)#4]
 
 Spark 2.0 uses Catalyst's tree manipulation library to build an extensible *query plan optimizer* with a number of query optimizations.
 
+Catalyst supports both rule-based and cost-based optimization.
+
+CAUTION: Review https://github.com/apache/spark/blob/master/sql/catalyst/src/main/scala/org/apache/spark/sql/catalyst/optimizer/Optimizer.scala[sql/catalyst/src/main/scala/org/apache/spark/sql/catalyst/optimizer/Optimizer.scala].
+
+=== [[batches]] Collection of Batches -- `batches` Method
+
+[source, scala]
+----
+batches: Seq[Batch]
+----
+
+`batches` returns optimization link:spark-sql-catalyst-analyzer.adoc#batch[batches].
+
 .(A subset of) Catalyst Plan Optimizer's Logical Plan Optimizations
 [frame="topbot",cols="1,2",options="header",width="100%"]
 |======================
@@ -41,21 +54,27 @@ Spark 2.0 uses Catalyst's tree manipulation library to build an extensible *quer
 | link:spark-sql-catalyst-current-database-time.adoc[Eliminate Serialization] |
 |======================
 
-Catalyst supports both rule-based and cost-based optimization.
-
-CAUTION: Review https://github.com/apache/spark/blob/master/sql/catalyst/src/main/scala/org/apache/spark/sql/catalyst/optimizer/Optimizer.scala[sql/catalyst/src/main/scala/org/apache/spark/sql/catalyst/optimizer/Optimizer.scala].
-
 === [[SparkOptimizer]] SparkOptimizer -- The Default Logical Query Plan Optimizer
 
-`SparkOptimizer` is a custom <<Optimizer, logical query plan optimizer>> for a link:spark-sql-sessionstate.adoc#SessionCatalog[SessionCatalog] and link:spark-sql-SQLConf.adoc[SQLConf] with its own additional optimization batches:
+`SparkOptimizer` is the default <<Optimizer, logical query plan optimizer>> that is available as link:spark-sql-sessionstate.adoc#optimizer[`optimizer` attribute of `SessionState`].
 
-1. *Optimize Metadata Only Query*
-2. *Extract Python UDF from Aggregate*
-3. *User Provided Optimizers* with the input `ExperimentalMethods`.
+[source, scala]
+----
+sparkSession.sessionState.optimizer
+----
 
-CAUTION: FIXME Review the batches. What is `ExperimentalMethods`?
+NOTE: `SparkOptimizer` is _merely_ used to link:spark-sql-query-execution.adoc#optimizedPlan[compute the optimized `LogicalPlan` for a `QueryExecution`] (available as `optimizedPlan`).
 
-`SparkOptimizer` is the default query optimizer that is available as link:spark-sql-sessionstate.adoc#optimizer[`optimizer` attribute of `SessionState`].
+`SparkOptimizer` requires a link:spark-sql-sessionstate.adoc#SessionCatalog[SessionCatalog], a link:spark-sql-SQLConf.adoc[SQLConf] and `ExperimentalMethods` with user-defined experimental methods.
+
+NOTE: ``SparkOptimizer``'s input `experimentalMethods` serves an extension point for custom `ExperimentalMethods`.
+
+`SparkOptimizer` extends the <<batches, `Optimizer` batches>> with the following batches:
+
+1. *Optimize Metadata Only Query* (as `OptimizeMetadataOnlyQuery`)
+2. *Extract Python UDF from Aggregate* (as `ExtractPythonUDFFromAggregate`)
+3. *Prune File Source Table Partitions* (as `PruneFileSourcePartitions`)
+4. *User Provided Optimizers* for the input user-defined `ExperimentalMethods`
 
 You can see the result of executing `SparkOptimizer` on a query plan using link:spark-sql-query-execution.adoc#optimizedPlan[`optimizedPlan` attribute of `QueryExecution`].
 

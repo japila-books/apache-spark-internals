@@ -1,6 +1,6 @@
-== FileSourceStrategy
+== [[FileSourceStrategy]] FileSourceStrategy
 
-`FileSourceStrategy` is a custom `Strategy` that processes a `PhysicalOperation` only.
+`FileSourceStrategy` is a custom `Strategy` that uses a <<PhysicalOperation, PhysicalOperation>> to destructure and then optimize a link:spark-sql-catalyst-LogicalPlan.adoc[LogicalPlan].
 
 [TIP]
 ====
@@ -16,3 +16,39 @@ Refer to link:spark-logging.adoc[Logging].
 ====
 
 CAUTION: FIXME
+
+=== [[PhysicalOperation]] PhysicalOperation
+
+`PhysicalOperation` is just a Scala syntactic sugar to destructure a `LogicalPlan` into a tuple of `(Seq[NamedExpression], Seq[Expression], LogicalPlan)`.
+
+The following idiom is often used in `Strategy` implementations (e.g. `HiveTableScans`, `InMemoryScans`, `DataSourceStrategy`, <<FileSourceStrategy, FileSourceStrategy>>):
+
+[source, scala]
+----
+def apply(plan: LogicalPlan): Seq[SparkPlan] = plan match {
+  case PhysicalOperation(projections, predicates, plan) =>
+    // do something
+  case _ => Nil
+}
+----
+
+Whenever used to pattern match to a `LogicalPlan`, ``PhysicalOperation``'s `unapply` is called.
+
+[source, scala]
+----
+unapply(plan: LogicalPlan): Option[ReturnType]
+----
+
+`unapply` uses <<collectProjectsAndFilters, collectProjectsAndFilters>> method that recursively destructures the input `LogicalPlan`.
+
+NOTE: `unapply` is _almost_ <<collectProjectsAndFilters, collectProjectsAndFilters>> method itself (with some manipulations of the return value).
+
+=== [[collectProjectsAndFilters]] `collectProjectsAndFilters` Method
+
+[source, scala]
+----
+collectProjectsAndFilters(plan: LogicalPlan):
+  (Option[Seq[NamedExpression]], Seq[Expression], LogicalPlan, Map[Attribute, Expression])
+----
+
+`collectProjectsAndFilters` destructures a link:spark-sql-catalyst-LogicalPlan.adoc[LogicalPlan] that can be `Project`, `Filter` or `BroadcastHint`. Any other `LogicalPlan` give an _all-empty_ response.
