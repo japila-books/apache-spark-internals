@@ -15,6 +15,16 @@
 | `USING` | `UsingJoin` | Special case for `Inner`, `LeftOuter`, `LeftSemi`, `RightOuter`, `FullOuter`, `LeftAnti`
 |======================
 
+TIP: Aliases are case-insensitive and can use the underscore (`_`) at any position, i.e. `left_anti` and `LEFT_ANTI` are acceptable.
+
+You can use the join expression as part of <<join, join>> operator or leave it out and describe using link:spark-sql-dataset-operators.adoc#where[where] operator.
+
+[source, scala]
+----
+df1.join(df2, $"df1Key" === $"df2Key")
+df1.join(df2).where($"df1Key" === $"df2Key")
+----
+
 === [[join]] `join` Methods
 
 [source, scala]
@@ -35,9 +45,66 @@ join(right: Dataset[_], joinExprs: Column, joinType: String): DataFrame // <6>
 
 `join` joins two ``Dataset``s.
 
-Internally, `join` creates a `DataFrame` for the current `SparkSession` and link:spark-sql-Join.adoc[`Join` logical operator].
+[source, scala]
+----
+val left = Seq((0, "zero"), (1, "one")).toDF("id", "left")
+val right = Seq((0, "zero"), (2, "two"), (3, "three")).toDF("id", "right")
 
-CAUTION: FIXME
+// Inner join
+scala> left.join(right, "id").show
++---+----+-----+
+| id|left|right|
++---+----+-----+
+|  0|zero| zero|
++---+----+-----+
+
+scala> left.join(right, "id").explain
+== Physical Plan ==
+*Project [id#50, left#51, right#61]
++- *BroadcastHashJoin [id#50], [id#60], Inner, BuildRight
+   :- LocalTableScan [id#50, left#51]
+   +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, false] as bigint)))
+      +- LocalTableScan [id#60, right#61]
+
+// Full outer
+scala> left.join(right, Seq("id"), "fullouter").show
++---+----+-----+
+| id|left|right|
++---+----+-----+
+|  1| one| null|
+|  3|null|three|
+|  2|null|  two|
+|  0|zero| zero|
++---+----+-----+
+
+scala> left.join(right, Seq("id"), "fullouter").explain
+== Physical Plan ==
+*Project [coalesce(id#50, id#60) AS id#85, left#51, right#61]
++- SortMergeJoin [id#50], [id#60], FullOuter
+   :- *Sort [id#50 ASC NULLS FIRST], false, 0
+   :  +- Exchange hashpartitioning(id#50, 200)
+   :     +- LocalTableScan [id#50, left#51]
+   +- *Sort [id#60 ASC NULLS FIRST], false, 0
+      +- Exchange hashpartitioning(id#60, 200)
+         +- LocalTableScan [id#60, right#61]
+
+// Left anti
+scala> left.join(right, Seq("id"), "leftanti").show
++---+----+
+| id|left|
++---+----+
+|  1| one|
++---+----+
+
+scala> left.join(right, Seq("id"), "leftanti").explain
+== Physical Plan ==
+*BroadcastHashJoin [id#50], [id#60], LeftAnti, BuildRight
+:- LocalTableScan [id#50, left#51]
++- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, false] as bigint)))
+   +- LocalTableScan [id#60]
+----
+
+Internally, `join` link:spark-sql-dataset.adoc#ofRows[creates a `DataFrame`] with link:spark-sql-Join.adoc[`Join` logical operator] (in the current link:spark-sql-sparksession.adoc[SparkSession]).
 
 === [[joinWith]] `joinWith` Method
 
