@@ -1,8 +1,10 @@
 == [[SparkPlan]] SparkPlan -- Physical Execution Plan
 
-*Spark Plan* is a part of *Catalyst* that is the base link:spark-sql-catalyst-QueryPlan.adoc[QueryPlan] for physical operators of a structured query.
+`SparkPlan` is the base link:spark-sql-catalyst-QueryPlan.adoc[QueryPlan] for physical operators in a structured query.
 
-When executed, a `SparkPlan` produces link:spark-rdd.adoc[RDDs] of link:spark-sql-InternalRow.adoc[InternalRow], i.e. ``RDD[InternalRow]``s.
+<<contract, SparkPlan contract>> assumes that concrete implementations define `doExecute` which is executed when the concrete `execute` is called.
+
+When executed, a `SparkPlan` produces link:spark-rdd.adoc[RDDs] of link:spark-sql-InternalRow.adoc[InternalRow] (i.e. ``RDD[InternalRow]``s).
 
 CAUTION: FIXME `SparkPlan` is `Serializable`. Why?
 
@@ -23,7 +25,37 @@ TIP: Read link:spark-sql-InternalRow.adoc[InternalRow] about the internal binary
 * `prepare` calls `doPrepare`
 * `executeBroadcast` calls `doExecuteBroadcast`
 
-=== [[contract]] SparkPlan Contract
+=== [[executeQuery]] Executing Query in Scope (after Preparations) -- `executeQuery` Final Method
+
+[source, scala]
+----
+executeQuery[T](query: => T): T
+----
+
+`executeQuery` executes `query` in a scope (i.e. so that all RDDs created will have the same scope).
+
+Internally, `executeQuery` calls <<prepare, prepare>> and <<waitForSubqueries, waitForSubqueries>> before executing `query`.
+
+NOTE: `executeQuery` is executed as part of <<execute, execute>>, <<executeBroadcast, executeBroadcast>> and when link:spark-sql-whole-stage-codegen.adoc#CodegenSupport[CodegenSupport] produces a Java source code.
+
+=== [[executeBroadcast]] Computing Query Result As Broadcast Variable -- `executeBroadcast` Final Method
+
+[source, scala]
+----
+executeBroadcast[T](): broadcast.Broadcast[T]
+----
+
+`executeBroadcast` returns the results of the query as a broadcast variable.
+
+Internally, `executeBroadcast` executes <<doExecuteBroadcast, doExecuteBroadcast>> inside <<executeQuery, executeQuery>>.
+
+NOTE: `executeBroadcast` is executed in `BroadcastHashJoinExec`, `BroadcastNestedLoopJoinExec` and `ReusedExchangeExec`.
+
+=== [[waitForSubqueries]] `waitForSubqueries` Method
+
+=== [[prepare]] `prepare` Method
+
+=== [[contract]][[doExecuteBroadcast]] SparkPlan Contract
 
 The contract of `SparkPlan` requires that concrete implementations define the following method:
 
