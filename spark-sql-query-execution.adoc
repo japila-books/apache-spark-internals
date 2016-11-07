@@ -1,17 +1,16 @@
 == [[QueryExecution]] Query Execution
 
-`QueryExecution` is a part of the public link:spark-sql-dataset.adoc[Dataset] API and represents the query execution that will eventually produce the data in a `Dataset`.
+`QueryExecution` is a part of a link:spark-sql-dataset.adoc[Dataset] and represents the query execution that will eventually "produce" the data in a `Dataset` (when <<toRDD, toRdd>> is called and a `RDD[InternalRow]` is computed).
 
-[NOTE]
-====
+NOTE: `QueryExecution` is a transient feature of a link:spark-sql-dataset.adoc[Dataset], i.e. it is not preserved across serializations.
+
 You can access the `QueryExecution` of a `Dataset` using link:spark-sql-dataset.adoc#queryExecution[queryExecution] attribute.
 
 [source, scala]
 ----
 val ds: Dataset[Long] = ...
-ds.queryExecution
+val queryExec = ds.queryExecution
 ----
-====
 
 `QueryExecution` is the result of link:spark-sql-sessionstate.adoc#executePlan[executing a `LogicalPlan` in a `SparkSession`] (and so you could create a `Dataset` from a `LogicalPlan` or use the `QueryExecution` after executing the `LogicalPlan`).
 
@@ -31,13 +30,11 @@ NOTE: In fact, the result `SparkPlan` is the first Spark query plan from the col
 
 | [[executedPlan]] `executedPlan` | link:spark-sql-catalyst-SparkPlan.adoc[SparkPlan] ready for execution. It is the <<sparkPlan, sparkPlan>> plan with all the <<preparations, preparation rules>> applied.
 
-| [[toRdd]] `toRdd` | `RDD[InternalRow]` that is the result of executing <<executedPlan, executedPlan>> plan, i.e. `executedPlan.execute()`.
+| [[toRdd]] `toRdd` | `RDD[InternalRow]` that is the result of "executing" a <<executedPlan, physical plan>>, i.e. `executedPlan.execute()`.
 
 TIP: link:spark-sql-InternalRow.adoc[InternalRow] is the internal optimized binary row format.
 |======================
 
-[NOTE]
-====
 You can access the lazy attributes as follows:
 
 [source, scala]
@@ -45,19 +42,12 @@ You can access the lazy attributes as follows:
 val dataset: Dataset[Long] = ...
 dataset.queryExecution.executedPlan
 ----
-====
 
 `QueryExecution` uses the input `SparkSession` to access the current link:spark-sql-SparkPlanner.adoc[SparkPlanner] (through link:spark-sql-sessionstate.adoc[SessionState] that could also return a link:spark-sql-queryplanner.adoc#HiveSessionState[HiveSessionState]) when <<creating-instance, it is created>>. It then computes a link:spark-sql-catalyst-SparkPlan.adoc[SparkPlan] (a `PhysicalPlan` exactly) using the planner. It is available as the <<sparkPlan, `sparkPlan` attribute>>.
 
 A streaming variant of `QueryExecution` is <<IncrementalExecution, IncrementalExecution>>.
 
-link:spark-sql-debugging-execution.adoc[`debug` package object] contains methods for *debugging query execution* that you can use to do the full analysis of your queries (as `Dataset` objects).
-
-CAUTION: FIXME What's `planner`? `analyzed`? Why do we need `assertSupported`?
-
-It belongs to `org.apache.spark.sql.execution` package.
-
-NOTE: `QueryExecution` is a transient feature of a link:spark-sql-dataset.adoc[Dataset], i.e. it is not preserved across serializations.
+TIP: Use link:spark-sql-dataset-operators.adoc#explain[`explain` operator] to learn about the plans of a `Dataset`.
 
 [source, scala]
 ----
@@ -78,6 +68,10 @@ Range 0, 5, 1, 8, [id#39L]
 WholeStageCodegen
 :  +- Range 0, 1, 8, 5, [id#39L]
 ----
+
+CAUTION: FIXME What's `planner`? `analyzed`? Why do we need `assertSupported`?
+
+`QueryExecution` belongs to `org.apache.spark.sql.execution` package.
 
 === [[hiveResultString]] `hiveResultString` Method
 

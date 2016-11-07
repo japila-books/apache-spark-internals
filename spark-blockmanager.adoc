@@ -34,21 +34,17 @@ log4j.logger.org.apache.spark.storage.BlockManager=OFF
 ```
 ====
 
-=== [[initialize]] `initialize` Method
-
-CAUTION: FIXME
-
 === [[getRemoteBytes]] `getRemoteBytes` Method
 
 CAUTION: FIXME
 
-=== [[externalShuffleServiceEnabled]] Using External Shuffle Service (externalShuffleServiceEnabled flag)
+=== [[externalShuffleServiceEnabled]] Using External Shuffle Service -- `externalShuffleServiceEnabled` Flag
 
 When the link:spark-ExternalShuffleService.adoc[External Shuffle Service] is enabled for a Spark application, `BlockManager` uses link:spark-shuffleclient.adoc#ExternalShuffleClient[ExternalShuffleClient] to read other executors' shuffle files.
 
 CAUTION: FIXME How is `shuffleClient` used?
 
-=== [[registerTask]] registerTask
+=== [[registerTask]] `registerTask` Method
 
 CAUTION: FIXME
 
@@ -62,7 +58,7 @@ There are the following possible stores:
 * link:spark-DiskStore.adoc[DiskStore] for disk storage level.
 * `ExternalBlockStore` for OFF_HEAP storage level.
 
-=== [[putBytes]] Storing Block (putBytes method)
+=== [[putBytes]] Storing Block -- `putBytes` Method
 
 [source, scala]
 ----
@@ -77,7 +73,7 @@ putBytes(
 
 It simply passes the call on to the internal <<doPutBytes, doPutBytes>>.
 
-==== [[doPutBytes]] doPutBytes
+==== [[doPutBytes]] `doPutBytes` Method
 
 [source, scala]
 ----
@@ -120,15 +116,15 @@ For replication level greater than `1`, `doPutBytes` waits for the earlier async
 
 The final result of `doPutBytes` is the result of storing the block successful or not (as computed earlier).
 
-=== [[replicate]] replicate
+=== [[replicate]] `replicate` Method
 
 CAUTION: FIXME
 
-=== [[doPutIterator]] doPutIterator
+=== [[doPutIterator]] `doPutIterator` Method
 
 CAUTION: FIXME
 
-=== [[doPut]] doPut
+=== [[doPut]] `doPut` Method
 
 [source, scala]
 ----
@@ -172,7 +168,7 @@ Ultimately, the following DEBUG message is printed out to the logs:
 DEBUG Putting block [blockId] [withOrWithout] replication took [usedTime] ms
 ```
 
-=== [[removeBlock]] Removing Block From Memory and Disk (removeBlock method)
+=== [[removeBlock]] Removing Block From Memory and Disk -- `removeBlock` Method
 
 [source, scala]
 ----
@@ -207,7 +203,7 @@ It then <<getCurrentBlockStatus, calculates the current block status>> that is u
 
 NOTE: It is used to <<removeRdd, remove RDDs>> and <<removeBroadcast, broadcast>> as well as in <<BlockManagerSlaveEndpoint-RemoveBlock, BlockManagerSlaveEndpoint while handling `RemoveBlock` messages>>.
 
-=== [[removeRdd]] Removing RDD Blocks (removeRdd method)
+=== [[removeRdd]] Removing RDD Blocks -- `removeRdd` Method
 
 [source, scala]
 ----
@@ -228,7 +224,7 @@ The number of blocks removed is the final result.
 
 NOTE: It is used by <<BlockManagerSlaveEndpoint-RemoveRdd, BlockManagerSlaveEndpoint while handling `RemoveRdd` messages>>.
 
-=== [[removeBroadcast]] Removing Broadcast Blocks (removeBroadcast method)
+=== [[removeBroadcast]] Removing Broadcast Blocks -- `removeBroadcast` Method
 
 [source, scala]
 ----
@@ -249,11 +245,11 @@ The number of blocks removed is the final result.
 
 NOTE: It is used by <<BlockManagerSlaveEndpoint-RemoveBroadcast, BlockManagerSlaveEndpoint while handling `RemoveBroadcast` messages>>.
 
-=== [[getStatus]] Getting Block Status (getStatus method)
+=== [[getStatus]] Getting Block Status -- `getStatus` Method
 
 CAUTION: FIXME
 
-=== [[creating-instance]] Creating BlockManager Instance
+=== [[creating-instance]] Creating `BlockManager` Instance
 
 A `BlockManager` needs the following services to be created:
 
@@ -284,7 +280,7 @@ It creates a link:spark-MemoryStore.adoc[MemoryStore] and link:spark-DiskStore.a
 
 link:spark-MemoryManager.adoc[MemoryManager] gets the link:spark-MemoryStore.adoc[MemoryStore] object assigned.
 
-It requests the current maximum memory from `MemoryManager` (using `maxOnHeapStorageMemory` as `maxMemory`).
+It calculates the maximum memory to use (as `maxMemory`) by requesting the maximum link:spark-MemoryManager.adoc#maxOnHeapStorageMemory[on-heap] and link:spark-MemoryManager.adoc#maxOffHeapStorageMemory[off-heap] storage memory from the assigned `MemoryManager`.
 
 It calculates the port used by the external shuffle service (as `externalShuffleServicePort`).
 
@@ -300,33 +296,36 @@ It <<BlockManagerSlaveEndpoint, registers BlockManagerSlaveEndpoint>> with the i
 
 NOTE: A `BlockManager` instance is created while link:spark-sparkenv.adoc#create[SparkEnv is being created].
 
-=== [[shuffleClient]] shuffleClient
+=== [[shuffleClient]] `shuffleClient`
 
 CAUTION: FIXME
 
 (that is assumed to be a link:spark-shuffleclient.adoc#ExternalShuffleClient[ExternalShuffleClient])
 
-=== [[shuffleServerId]] shuffleServerId
+=== [[shuffleServerId]] `shuffleServerId`
 
 CAUTION: FIXME
 
-=== [[initialize]] Initializing BlockManager (initialize method)
+=== [[initialize]] Initializing BlockManager -- `initialize` Method
 
 [source, scala]
 ----
 initialize(appId: String): Unit
 ----
 
-`initialize` method is called to initialize the `BlockManager` instance on the driver and executors (see link:spark-sparkcontext.adoc#creating-instance[Creating SparkContext Instance] and link:spark-executor.adoc#creating-instance[Creating Executor Instance], respectively).
+`initialize` initializes the `BlockManager` instance on the driver and executors (see link:spark-sparkcontext.adoc#creating-instance[Creating SparkContext Instance] and link:spark-executor.adoc#creating-instance[Creating Executor Instance], respectively).
 
 NOTE: The method must be called before a `BlockManager` can be considered fully operable.
 
-It does the following:
+`initialize` does the following in order:
 
-1. It initializes link:spark-blocktransferservice.adoc[BlockTransferService].
-2. It initializes a shuffle client, be it link:spark-shuffleclient.adoc#ExternalShuffleClient[ExternalShuffleClient] or link:spark-blocktransferservice.adoc[BlockTransferService].
-3. It sets <<shuffleServerId, shuffleServerId>> to an instance of <<BlockManagerId, BlockManagerId>> given an executor id, host name and port for link:spark-blocktransferservice.adoc[BlockTransferService].
-4. It creates the address of the server that serves this executor's shuffle files (using <<shuffleServerId, shuffleServerId>>)
+1. Initializes link:spark-blocktransferservice.adoc#init[BlockTransferService]
+2. Initializes the internal shuffle client, be it link:spark-shuffleclient.adoc#ExternalShuffleClient[ExternalShuffleClient] or link:spark-blocktransferservice.adoc[BlockTransferService].
+3. link:spark-BlockManagerMaster.adoc#registerBlockManager[Registers itself with the driver's `BlockManagerMaster`] (using the `id`, `maxMemory` and its `slaveEndpoint`).
+4. Sets <<shuffleServerId, shuffleServerId>> to an instance of <<BlockManagerId, BlockManagerId>> given an executor id, host name and port for link:spark-blocktransferservice.adoc[BlockTransferService].
+5. It creates the address of the server that serves this executor's shuffle files (using <<shuffleServerId, shuffleServerId>>)
+
+CAUTION: FIXME Review the initialize procedure again
 
 CAUTION: FIXME Describe `shuffleServerId`. Where is it used?
 
@@ -342,7 +341,7 @@ Ultimately, if the initialization happens on an executor and the <<externalShuff
 
 NOTE: The method is called when the link:spark-sparkcontext-creating-instance-internals.adoc#BlockManager-initialization[driver is launched (and `SparkContext` is created)] and when an link:spark-executor.adoc#creating-instance[Executor is launched].
 
-==== [[registerWithExternalShuffleServer]] Registering Executor's BlockManager with External Shuffle Server (registerWithExternalShuffleServer method)
+==== [[registerWithExternalShuffleServer]] Registering Executor's BlockManager with External Shuffle Server -- `registerWithExternalShuffleServer` Method
 
 [source, scala]
 ----
@@ -373,22 +372,20 @@ Any issues while connecting to the external shuffle service are reported as ERRO
 ERROR Failed to connect to external shuffle server, will retry [#attempts] more times after waiting 5 seconds...
 ```
 
-=== [[reregister]] Re-registering Blocks to Driver (reregister method)
+=== [[reregister]] Re-registering Blocks to Driver -- `reregister` Method
 
 [source, scala]
 ----
 reregister(): Unit
 ----
 
-When is called, you should see the following INFO in the logs:
+When called, `reregister` prints the following INFO message to the logs:
 
 ```
-INFO BlockManager: BlockManager re-registering with master
+INFO BlockManager: BlockManager [blockManagerId] re-registering with master
 ```
 
-It link:spark-BlockManagerMaster.adoc#registerBlockManager[registers itself to the driver's BlockManagerMaster] (just as it was when <<initialize, BlockManager was initializing>>). It passes the <<BlockManagerId, BlockManagerId>>, the maximum memory (as `maxMemory`), and the <<BlockManagerSlaveEndpoint, BlockManagerSlaveEndpoint>>.
-
-CAUTION: FIXME Where is `maxMemory` used once passed to the driver?
+It then link:spark-BlockManagerMaster.adoc#registerBlockManager[registers itself to the driver's `BlockManagerMaster`] (just as it was when <<initialize, BlockManager was initializing>>). It passes the <<BlockManagerId, BlockManagerId>>, the maximum memory (as `maxMemory`), and the <<BlockManagerSlaveEndpoint, BlockManagerSlaveEndpoint>>.
 
 `reregister` will then report all the local blocks to the link:spark-BlockManagerMaster.adoc[BlockManagerMaster].
 
@@ -410,7 +407,7 @@ After the ERROR message, `reregister` stops reporting.
 
 NOTE: `reregister` is called by link:spark-executor.adoc#heartbeats-and-active-task-metrics[Executor when it was told to re-register while sending heartbeats].
 
-=== [[getCurrentBlockStatus]] Calculate Current Block Status (getCurrentBlockStatus method)
+=== [[getCurrentBlockStatus]] Calculate Current Block Status -- `getCurrentBlockStatus` Method
 
 [source, scala]
 ----
@@ -429,7 +426,7 @@ NOTE: It is acceptable that the `BlockInfo` says to use memory or disk yet the b
 
 NOTE: `getCurrentBlockStatus` is used when <<reregister, executor's BlockManager is requested to report the current status of the local blocks to the master>>, <<doPutBytes, saving a block to a storage>> or <<dropFromMemory, removing a block from memory only>> or <<removeBlock, both, i.e. from memory and disk>>.
 
-=== [[dropFromMemory]] Removing Blocks From Memory Only (dropFromMemory method)
+=== [[dropFromMemory]] Removing Blocks From Memory Only -- `dropFromMemory` Method
 
 [source, scala]
 ----
@@ -472,7 +469,7 @@ Ultimately, `dropFromMemory` returns the current storage level of the block.
 
 NOTE: `dropFromMemory` is part of the single-method <<BlockEvictionHandler, BlockEvictionHandler>> interface.
 
-=== [[reportBlockStatus]] Reporting Current Storage Status of Block to Driver (reportBlockStatus method)
+=== [[reportBlockStatus]] Reporting Current Storage Status of Block to Driver -- `reportBlockStatus` Method
 
 [source, scala]
 ----
@@ -499,7 +496,7 @@ DEBUG BlockManager: Told master about block [blockId]
 
 NOTE: `reportBlockStatus` is called by <<doPutBytes, doPutBytes>>, <<doPutIterator, doPutIterator>>, <<dropFromMemory, dropFromMemory>>, and <<removeBlock, removeBlock>>.
 
-==== [[tryToReportBlockStatus]] tryToReportBlockStatus
+==== [[tryToReportBlockStatus]] `tryToReportBlockStatus`
 
 [source, scala]
 ----
