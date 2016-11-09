@@ -40,7 +40,7 @@ class UpdateBlockInfo(
 
 CAUTION: FIXME
 
-=== RemoveExecutor
+=== [[RemoveExecutor]] RemoveExecutor
 
 [source, scala]
 ----
@@ -48,6 +48,8 @@ RemoveExecutor(execId: String)
 ----
 
 When `RemoveExecutor` is received, <<removeExecutor, executor `execId` is removed>> and the response `true` sent back.
+
+NOTE: `RemoveExecutor` is posted when link:spark-BlockManagerMaster.adoc#removeExecutor[`BlockManagerMaster` removes an executor].
 
 === [[BlockManagerHeartbeat]] BlockManagerHeartbeat
 
@@ -64,7 +66,7 @@ When `GetLocations` comes in, the internal <<getLocations, getLocations>> method
 
 NOTE: `GetLocations` is used to <<getLocations, get the block locations of a single block>>.
 
-=== [[RegisterBlockManager]] RegisterBlockManager
+=== [[RegisterBlockManager]] RegisterBlockManager Event
 
 [source, scala]
 ----
@@ -89,7 +91,7 @@ register(id: BlockManagerId, maxMemSize: Long, slaveEndpoint: RpcEndpointRef): U
 
 NOTE: `register` is executed when <<RegisterBlockManager, `RegisterBlockManager` has been received>>.
 
-Registering a BlockManager can only happen once for an executor (identified by `BlockManagerId.executorId` using the internal `blockManagerIdByExecutor` registry).
+Registering a `BlockManager` can only happen once for an executor (identified by `BlockManagerId.executorId` using the internal `blockManagerIdByExecutor` registry).
 
 If another `BlockManager` has earlier been registered for the executor, you should see the following ERROR message in the logs:
 
@@ -109,7 +111,7 @@ The `BlockManager` is recorded in the internal registries: `blockManagerIdByExec
 
 CAUTION: FIXME Why does `blockManagerInfo` require a new `System.currentTimeMillis()` since `time` was already recorded?
 
-In either case, link:spark-SparkListener.adoc#SparkListenerBlockManagerAdded[SparkListenerBlockManagerAdded] is posted to link:spark-sparkcontext.adoc#listenerBus[listenerBus].
+In either case, link:spark-SparkListener.adoc#SparkListenerBlockManagerAdded[SparkListenerBlockManagerAdded] is posted (to link:spark-sparkcontext.adoc#listenerBus[listenerBus]).
 
 NOTE: The method can only be executed on the driver where `listenerBus` is available.
 
@@ -139,13 +141,15 @@ CAUTION: FIXME Describe `listenerBus` + omnigraffle it.
 removeExecutor(execId: String)
 ----
 
-When executed, `removeExecutor` prints the following INFO message to the logs:
+`removeExecutor` prints the following INFO message to the logs:
 
 ```
 INFO BlockManagerMasterEndpoint: Trying to remove executor [execId] from BlockManagerMaster.
 ```
 
 If the `execId` executor is found in the internal `blockManagerIdByExecutor` registry, <<removeBlockManager, the `BlockManager` for the executor is removed>>.
+
+NOTE: `removeExecutor` is executed when `BlockManagerMasterEndpoint` <<RemoveExecutor, receives a `RemoveExecutor`>> or <<register, registers a new `BlockManager`>> (and another `BlockManager` was already registered that is replaced by the new one).
 
 === [[removeBlockManager]] Removing BlockManager -- `removeBlockManager` Method
 
@@ -154,9 +158,9 @@ If the `execId` executor is found in the internal `blockManagerIdByExecutor` reg
 removeBlockManager(blockManagerId: BlockManagerId)
 ----
 
-When executed, `removeBlockManager` looks up `blockManagerId` and removes the executor it was working on from the internal `blockManagerIdByExecutor` as well as from `blockManagerInfo`.
+`removeBlockManager` looks up `blockManagerId` and removes the executor it was working on from the internal `blockManagerIdByExecutor` as well as from `blockManagerInfo`.
 
-NOTE: It is a private helper method that is exclusively used while <<removeExecutor, removing an executor>>.
+NOTE: `removeBlockManager` is a private helper method that is exclusively used while <<removeExecutor, removing an executor>>.
 
 It then goes over all the blocks for the `BlockManager`, and removes the executor for each block from `blockLocations` registry.
 
