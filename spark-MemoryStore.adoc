@@ -1,8 +1,19 @@
 == MemoryStore
 
-`MemoryStore` manages blocks (in the internal <<entries, entries>> registry).
+`MemoryStore` manages blocks.
 
-`MemoryStore` requires link:spark-configuration.adoc[SparkConf], link:spark-BlockInfoManager.adoc[BlockInfoManager], link:spark-SerializerManager.adoc[SerializerManager], link:spark-MemoryManager.adoc[MemoryManager] and `BlockEvictionHandler` to be created.
+`MemoryStore` requires link:spark-configuration.adoc[SparkConf], link:spark-BlockInfoManager.adoc[BlockInfoManager], link:spark-SerializerManager.adoc[SerializerManager], link:spark-MemoryManager.adoc[MemoryManager] and `BlockEvictionHandler`.
+
+.`MemoryStore` Internal Registries
+[frame="topbot",cols="1,2",options="header",width="100%"]
+|======================
+| Name | Description
+| [[entries]] `entries` | Collection of ...FIXME
+
+`entries` is Java's `LinkedHashMap` with the initial capacity of `32`, the load factor of `0.75` and _access-order_ ordering mode (i.e. iteration is in the order in which its entries were last accessed, from least-recently accessed to most-recently).
+
+NOTE: `entries` is Java's https://docs.oracle.com/javase/8/docs/api/java/util/LinkedHashMap.html[java.util.LinkedHashMap].
+|======================
 
 CAUTION: FIXME Where are these dependencies used?
 
@@ -23,32 +34,13 @@ log4j.logger.org.apache.spark.storage.memory.MemoryStore=DEBUG
 Refer to link:spark-logging.adoc[Logging].
 ====
 
-=== [[entries]] entries Registry
+=== [[putIteratorAsBytes]] `putIteratorAsBytes` Method
 
-`entries` is Java's `LinkedHashMap` with the initial capacity of `32`, the load factor of `0.75` and _access-order_ ordering mode (i.e. iteration is in the order in which its entries were last accessed, from least-recently accessed to most-recently).
+CAUTION: FIXME
 
-NOTE: `entries` is Java's https://docs.oracle.com/javase/8/docs/api/java/util/LinkedHashMap.html[java.util.LinkedHashMap].
+=== [[putIteratorAsValues]] `putIteratorAsValues` Method
 
-=== [[putBytes]] putBytes
-
-[source, scala]
-----
-putBytes[T: ClassTag](
-  blockId: BlockId,
-  size: Long,
-  memoryMode: MemoryMode,
-  _bytes: () => ChunkedByteBuffer): Boolean
-----
-
-`putBytes` requests `size` memory for the `blockId` block from the current link:spark-MemoryManager.adoc[MemoryManager]. If successful, it registers a `SerializedMemoryEntry` (with the input `_bytes` and `memoryMode`) for `blockId` in the internal <<entries, entries>> registry.
-
-You should see the following INFO message in the logs:
-
-```
-INFO Block [blockId] stored as bytes in memory (estimated size [size], free [bytes])
-```
-
-`putBytes` returns `true` after `putBytes` stored `blockId`.
+CAUTION: FIXME
 
 === [[evictBlocksToFreeSpace]] Evicting Blocks to Free Space
 
@@ -58,8 +50,38 @@ CAUTION: FIXME
 
 CAUTION: FIXME
 
+=== [[putBytes]] Acquiring Storage Memory for Blocks -- `putBytes` Method
+
+[source, scala]
+----
+putBytes[T](
+  blockId: BlockId,
+  size: Long,
+  memoryMode: MemoryMode,
+  _bytes: () => ChunkedByteBuffer): Boolean
+----
+
+`putBytes` requests link:spark-MemoryManager.adoc#acquireStorageMemory[storage memory  for `blockId` from `MemoryManager`] and registers the block in <<entries, entries>> internal registry.
+
+Internally, `putBytes` first makes sure that `blockId` block has not been registered already in <<entries, entries>> internal registry.
+
+`putBytes` then requests link:spark-MemoryManager.adoc#acquireStorageMemory[`size` memory for the `blockId` block in a given `memoryMode` from the current `MemoryManager`].
+
+If successful, `putBytes` "materializes" `_bytes` byte buffer and makes sure that the size is exactly `size`. It then registers a `SerializedMemoryEntry` (for the bytes and `memoryMode`) for `blockId` in the internal <<entries, entries>> registry.
+
+You should see the following INFO message in the logs:
+
+```
+INFO Block [blockId] stored as bytes in memory (estimated size [size], free [bytes])
+```
+
+`putBytes` returns `true` only after `blockId` was successfully registered in the internal <<entries, entries>> registry.
+
 === [[settings]] Settings
 
-==== [[spark.storage.unrollMemoryThreshold]] spark.storage.unrollMemoryThreshold
-
-`spark.storage.unrollMemoryThreshold` (default: `1024 * 1024`) controls...
+.Spark Properties
+[frame="topbot",cols="1,1,2",options="header",width="100%"]
+|======================
+| Spark Property | Default Value | Description
+| [[spark_storage_unrollMemoryThreshold]] `spark.storage.unrollMemoryThreshold` | `1k` |
+|======================
