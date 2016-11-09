@@ -38,6 +38,14 @@ log4j.logger.org.apache.spark.storage.BlockManager=OFF
 
 CAUTION: FIXME
 
+=== [[getBlockData]] `getBlockData` Method
+
+CAUTION: FIXME
+
+=== [[removeBlockInternal]] `removeBlockInternal` Method
+
+CAUTION: FIXME
+
 === [[externalShuffleServiceEnabled]] Using External Shuffle Service -- `externalShuffleServiceEnabled` Flag
 
 When the link:spark-ExternalShuffleService.adoc[External Shuffle Service] is enabled for a Spark application, `BlockManager` uses link:spark-shuffleclient.adoc#ExternalShuffleClient[ExternalShuffleClient] to read other executors' shuffle files.
@@ -387,7 +395,7 @@ When called, `reregister` prints the following INFO message to the logs:
 INFO BlockManager: BlockManager [blockManagerId] re-registering with master
 ```
 
-It then link:spark-BlockManagerMaster.adoc#registerBlockManager[registers itself to the driver's `BlockManagerMaster`] (just as it was when <<initialize, BlockManager was initializing>>). It passes the <<BlockManagerId, BlockManagerId>>, the maximum memory (as `maxMemory`), and the <<BlockManagerSlaveEndpoint, BlockManagerSlaveEndpoint>>.
+`reregister` then link:spark-BlockManagerMaster.adoc#registerBlockManager[registers itself to the driver's `BlockManagerMaster`] (just as it was when <<initialize, BlockManager was initializing>>). It passes the <<BlockManagerId, BlockManagerId>>, the maximum memory (as `maxMemory`), and the <<BlockManagerSlaveEndpoint, BlockManagerSlaveEndpoint>>.
 
 `reregister` will then report all the local blocks to the link:spark-BlockManagerMaster.adoc[BlockManagerMaster].
 
@@ -407,7 +415,7 @@ ERROR BlockManager: Failed to report [blockId] to master; giving up.
 
 After the ERROR message, `reregister` stops reporting.
 
-NOTE: `reregister` is called by link:spark-executor.adoc#heartbeats-and-active-task-metrics[Executor when it was told to re-register while sending heartbeats].
+NOTE: `reregister` is called when a link:spark-executor.adoc#heartbeats-and-active-task-metrics[`Executor` was informed to re-register while sending heartbeats].
 
 === [[getCurrentBlockStatus]] Calculate Current Block Status -- `getCurrentBlockStatus` Method
 
@@ -471,6 +479,12 @@ Ultimately, `dropFromMemory` returns the current storage level of the block.
 
 NOTE: `dropFromMemory` is part of the single-method <<BlockEvictionHandler, BlockEvictionHandler>> interface.
 
+=== [[reportAllBlocks]] `reportAllBlocks` Method
+
+CAUTION: FIXME
+
+NOTE: `reportAllBlocks` is called when `BlockManager` is requested to <<reregister, re-register all blocks to the driver>>.
+
 === [[reportBlockStatus]] Reporting Current Storage Status of Block to Driver -- `reportBlockStatus` Method
 
 [source, scala]
@@ -496,9 +510,9 @@ In either case, it prints out the following DEBUG message to the logs:
 DEBUG BlockManager: Told master about block [blockId]
 ```
 
-NOTE: `reportBlockStatus` is called by <<doPutBytes, doPutBytes>>, <<doPutIterator, doPutIterator>>, <<dropFromMemory, dropFromMemory>>, and <<removeBlock, removeBlock>>.
+NOTE: `reportBlockStatus` is called by <<getBlockData, getBlockData>>, <<doPutBytes, doPutBytes>>, <<doPutIterator, doPutIterator>>, <<dropFromMemory, dropFromMemory>> and <<removeBlockInternal, removeBlockInternal>>.
 
-==== [[tryToReportBlockStatus]] `tryToReportBlockStatus`
+=== [[tryToReportBlockStatus]] Reporting Block Status to Driver -- `tryToReportBlockStatus` Method
 
 [source, scala]
 ----
@@ -509,11 +523,9 @@ def tryToReportBlockStatus(
   droppedMemorySize: Long = 0L): Boolean
 ----
 
-`tryToReportBlockStatus` is an internal method to report block status to the driver.
+`tryToReportBlockStatus` is an internal method to link:spark-BlockManagerMaster.adoc#updateBlockInfo[report block status update to `BlockManagerMaster`] and returns its response.
 
-It executes link:spark-BlockManagerMaster.adoc#updateBlockInfo[BlockManagerMaster.updateBlockInfo] only if the state changes should be reported to the driver (i.e. `info.tellMaster` is enabled).
-
-It returns `true` or link:spark-BlockManagerMaster.adoc#updateBlockInfo[BlockManagerMaster.updateBlockInfo]'s response.
+NOTE: `tryToReportBlockStatus` is executed in <<reportAllBlocks, reportAllBlocks>> or <<reportBlockStatus, reportBlockStatus>>.
 
 === [[BlockEvictionHandler]] BlockEvictionHandler
 
