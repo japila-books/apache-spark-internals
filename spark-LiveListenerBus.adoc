@@ -5,17 +5,17 @@
 .LiveListenerBus, SparkListenerEvents, and Senders
 image::images/spark-sparklistener-event-senders.png[align="center"]
 
-`LiveListenerBus` is a single-JVM <<SparkListenerBus, SparkListenerBus>> that uses <<listenerThread, listenerThread to poll events>>. Emitters are supposed to use <<post, `post` method to post `SparkListenerEvent` events>>.
+`LiveListenerBus` is a single-JVM link:spark-SparkListenerBus.adoc[SparkListenerBus] that uses <<listenerThread, listenerThread to poll events>>. Emitters are supposed to use <<post, `post` method to post `SparkListenerEvent` events>>.
 
 NOTE: The event queue is http://docs.oracle.com/javase/8/docs/api/java/util/concurrent/LinkedBlockingQueue.html[java.util.concurrent.LinkedBlockingQueue] with capacity of 10000 `SparkListenerEvent` events.
 
 NOTE: An instance of `LiveListenerBus` is created and started when link:spark-sparkcontext.adoc#listenerBus[`SparkContext` is initialized].
 
-=== [[creating-instance]] Creating LiveListenerBus Instance
+=== [[creating-instance]] Creating `LiveListenerBus` Instance
 
 CAUTION: FIXME
 
-=== [[start]] Starting LiveListenerBus -- `start` method
+=== [[start]] Starting `LiveListenerBus` -- `start` method
 
 [source, scala]
 ----
@@ -87,97 +87,9 @@ Attempted to stop [name] that has not yet started!
 
 === [[listenerThread]] `listenerThread` for Event Polling
 
-`LiveListenerBus` uses `SparkListenerBus` single daemon thread that ensures that the polling events from the event queue is only after <<start, the listener was started>> and only one event at a time.
+`LiveListenerBus` uses link:spark-SparkListenerBus.adoc[SparkListenerBus] single-daemon thread that ensures that the polling events from the event queue is only after <<start, the listener was started>> and only one event at a time.
 
 CAUTION: FIXME There is some logic around no events in the queue.
-
-=== [[SparkListenerBus]] SparkListenerBus
-
-`SparkListenerBus` is a <<ListenerBus, ListenerBus>> that manages link:spark-SparkListener.adoc#SparkListenerInterface[SparkListenerInterface] listeners that process link:spark-SparkListener.adoc#SparkListenerEvent[SparkListenerEvent] events.
-
-It comes with a custom `doPostEvent` method.
-
-[source, scala]
-----
-doPostEvent(listener: SparkListenerInterface, event: SparkListenerEvent): Unit
-----
-
-`doPostEvent` method simply relays `SparkListenerEvent` events to appropriate `SparkListenerInterface` methods as follows:
-
-.SparkListenerEvent to SparkListenerInterface's Method "mapping"
-[width="100%",frame="topbot",options="header"]
-|======================
-|SparkListenerEvent |SparkListenerInterface's Method
-|`SparkListenerStageSubmitted` | `onStageSubmitted`
-|`SparkListenerStageCompleted` | `onStageCompleted`
-|`SparkListenerJobStart`       | `onJobStart`
-|`SparkListenerJobEnd`         | `onJobEnd`
-| `SparkListenerJobEnd` | `onJobEnd`
-| `SparkListenerTaskStart` | `onTaskStart`
-| `SparkListenerTaskGettingResult` | `onTaskGettingResult`
-| link:spark-SparkListener.adoc#SparkListenerTaskEnd[SparkListenerTaskEnd] | `onTaskEnd`
-| `SparkListenerEnvironmentUpdate` | `onEnvironmentUpdate`
-| `SparkListenerBlockManagerAdded` | `onBlockManagerAdded`
-| `SparkListenerBlockManagerRemoved` | `onBlockManagerRemoved`
-| `SparkListenerUnpersistRDD` | `onUnpersistRDD`
-| `SparkListenerApplicationStart` | `onApplicationStart`
-| `SparkListenerApplicationEnd` | `onApplicationEnd`
-| `SparkListenerExecutorMetricsUpdate` | `onExecutorMetricsUpdate`
-| `SparkListenerExecutorAdded` | `onExecutorAdded`
-| `SparkListenerExecutorRemoved` | `onExecutorRemoved`
-| `SparkListenerBlockUpdated` | `onBlockUpdated`
-| `SparkListenerLogStart` | _event ignored_
-| _other event types_ | `onOtherEvent`
-|======================
-
-NOTE: There are two custom `SparkListenerBus` listeners: <<LiveListenerBus, LiveListenerBus>> and link:spark-ReplayListenerBus.adoc[ReplayListenerBus].
-
-=== [[ListenerBus]][[ListenerBus-addListener]] ListenerBus
-
-[source, scala]
-----
-ListenerBus[L <: AnyRef, E]
-----
-
-`ListenerBus` is an event bus that post events (of type `E`) to all registered listeners (of type `L`).
-
-It manages `listeners` of type `L`, i.e. it can add to and remove listeners from an internal `listeners` collection.
-
-[source, scala]
-----
-addListener(listener: L): Unit
-removeListener(listener: L): Unit
-----
-
-It can post events of type `E` to all registered listeners (using `postToAll` method). It simply iterates over the internal `listeners` collection and executes the abstract `doPostEvent` method.
-
-[source, scala]
-----
-doPostEvent(listener: L, event: E): Unit
-----
-
-NOTE: `doPostEvent` is provided by more specialized `ListenerBus` event buses.
-
-In case of exception while posting an event to a listener you should see the following ERROR message in the logs and the exception.
-
-```
-ERROR Listener [listener] threw an exception
-```
-
-NOTE: There are three custom `ListenerBus` listeners: <<SparkListenerBus, SparkListenerBus>>, link:spark-sql-streaming-StreamingQueryListenerBus.adoc[StreamingQueryListenerBus], and link:spark-streaming/spark-streaming-jobscheduler.adoc#StreamingListenerBus[StreamingListenerBus].
-
-[TIP]
-====
-Enable `ERROR` logging level for `org.apache.spark.util.ListenerBus` logger to see what happens inside.
-
-Add the following line to `conf/log4j.properties`:
-
-```
-log4j.logger.org.apache.spark.util.ListenerBus=ERROR
-```
-
-Refer to link:spark-logging.adoc[Logging].
-====
 
 === [[settings]] Settings
 
