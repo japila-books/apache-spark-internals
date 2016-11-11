@@ -1,41 +1,70 @@
-== QueryPlanner
+== [[QueryPlanner]] QueryPlanner
 
 `QueryPlanner` transforms a link:spark-sql-LogicalPlan.adoc[LogicalPlan] through a chain of `GenericStrategy` objects to produce a  physical execution plan, i.e. link:spark-sql-catalyst-SparkPlan.adoc[SparkPlan] for link:spark-sql-SparkPlanner.adoc[SparkPlanner] or the <<HiveSessionState, Hive-Specific SparkPlanner>>.
 
-=== [[contract]] QueryPlanner Contract
+=== [[contract]] `QueryPlanner` Contract
 
 `QueryPlanner` contract defines the following operations:
 
-* <<strategies, strategies>>
-* <<plan, plan>>
-* <<collectPlaceholders, collectPlaceholders>>
-* <<prunePlans, prunePlans>>
+* Abstract <<strategies, strategies>>
+* Concrete <<plan, plan>>
+* Protected <<collectPlaceholders, collectPlaceholders>>
+* Protected <<prunePlans, prunePlans>>
 
-==== [[strategies]] strategies
+NOTE: Protected `collectPlaceholders` and `prunePlans` are supposed to be defined by subclasses and are used in the concrete `plan` method.
 
-The abstract `strategies` method that returns a collection of `GenericStrategy` objects (that are used in the other `plan` method).
+==== [[strategies]] `strategies` Method
 
-==== [[plan]] plan
+[source, scala]
+----
+strategies: Seq[GenericStrategy[PhysicalPlan]]
+----
 
-`plan(plan: LogicalPlan)` that returns an `Iterator[PhysicalPlan]` with elements being the result of applying each `GenericStrategy` object from `strategies` collection to `plan` input parameter.
+`strategies` abstract method returns a collection of `GenericStrategy` objects (that are used in <<plan, plan>> method).
 
-==== [[collectPlaceholders]] collectPlaceholders
+==== [[plan]] `plan` Method
 
-`collectPlaceholders` that returns a collection of pairs of a physical plan and a corresponding link:spark-sql-LogicalPlan.adoc[LogicalPlan].
+[source, scala]
+----
+plan(plan: LogicalPlan): Iterator[PhysicalPlan]
+----
 
-==== [[prunePlans]] prunePlans
+`plan` returns an `Iterator[PhysicalPlan]` with elements being the result of applying each `GenericStrategy` object from <<strategies, strategies>> collection to `plan` input parameter.
 
-`prunePlans` that prunes bad physical plans.
+==== [[collectPlaceholders]] `collectPlaceholders` Method
 
-=== [[SparkStrategies]] SparkStrategies
+[source, scala]
+----
+collectPlaceholders(plan: PhysicalPlan): Seq[(PhysicalPlan, LogicalPlan)]
+----
 
-`SparkStrategies` is an abstract base `QueryPlanner` that produces a link:spark-sql-catalyst-SparkPlan.adoc[SparkPlan].
+`collectPlaceholders` returns a collection of pairs of a given physical and a corresponding link:spark-sql-LogicalPlan.adoc[logical] plans.
 
-`SparkStrategies` merely serves as a "container" with concrete `SparkStrategy` objects, e.g. `FileSourceStrategy`, `SpecialLimits`, `JoinSelection`, `StatefulAggregationStrategy`, `Aggregation`, `InMemoryScans`, `StreamingRelationStrategy`, etc.
+==== [[prunePlans]] `prunePlans` Method
 
-NOTE: `Strategy` is a type alias of `SparkStrategy` that is defined in https://github.com/apache/spark/blob/master/sql/core/src/main/scala/org/apache/spark/sql/package.scala#L43[org.apache.spark.sql package object].
+[source, scala]
+----
+prunePlans(plans: Iterator[PhysicalPlan]): Iterator[PhysicalPlan]
+----
 
-NOTE: link:spark-sql-SparkPlanner.adoc[SparkPlanner] is the one and only concrete implementation of `SparkStrategies` available.
+`prunePlans` prunes bad physical plans.
+
+=== [[SparkStrategies]] `SparkStrategies` -- Container of `SparkStrategy` Strategies
+
+`SparkStrategies` is an abstract base <<contract, QueryPlanner>> (of link:spark-sql-catalyst-SparkPlan.adoc[SparkPlan]) that serves as a "container" (or a namespace) of the concrete `SparkStrategy` objects:
+
+1. `SpecialLimits`
+2. link:spark-sql-JoinSelection.adoc[JoinSelection]
+3. `StatefulAggregationStrategy`
+4. `Aggregation`
+5. `InMemoryScans`
+6. `StreamingRelationStrategy`
+7. `BasicOperators`
+8. link:spark-sql-DDLStrategy.adoc[DDLStrategy]
+
+NOTE: `Strategy` is a type alias of `SparkStrategy` that is defined in https://github.com/apache/spark/blob/master/sql/core/src/main/scala/org/apache/spark/sql/package.scala#L44[`org.apache.spark.sql` package object].
+
+NOTE: link:spark-sql-SparkPlanner.adoc[SparkPlanner] is the one and only concrete implementation of `SparkStrategies`.
 
 CAUTION: FIXME What is `singleRowRdd` for?
 
