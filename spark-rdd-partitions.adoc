@@ -4,7 +4,7 @@
 
 Depending on how you look at Spark (programmer, devop, admin), an RDD is about the content (developer's and data scientist's perspective) or how it gets spread out over a cluster (performance), i.e. how many partitions an RDD represents.
 
-A *partition* (aka _split_) is...FIXME
+A *partition* (aka _split_) is a logical chunk of a large distributed data set.
 
 [CAUTION]
 ====
@@ -113,9 +113,14 @@ Some operations, e.g. `map`, `flatMap`, `filter`, don't preserve partitioning.
 
 `map`, `flatMap`, `filter` operations apply a function to every partition.
 
-=== [[repartitioning]] Repartitioning
+=== [[repartitioning]][[repartition]] Repartitioning RDD -- `repartition` Transformation
 
-* `def repartition(numPartitions: Int)(implicit ord: Ordering[T] = null)` does repartitioning with exactly `numPartitions` partitions. It uses <<coalesce, coalesce>> and `shuffle` to redistribute data.
+[source, scala]
+----
+repartition(numPartitions: Int)(implicit ord: Ordering[T] = null): RDD[T]
+----
+
+`repartition` is <<coalesce, coalesce>> with `numPartitions` and `shuffle` enabled.
 
 With the following computation you can see that `repartition(5)` causes 5 tasks to be started using `NODE_LOCAL` link:spark-data-locality.adoc[data locality].
 
@@ -160,15 +165,18 @@ TIP: If partitioning scheme doesn't work for you, you can write your own custom 
 
 TIP: It's useful to get familiar with https://hadoop.apache.org/docs/current/api/org/apache/hadoop/mapred/TextInputFormat.html[Hadoop's TextInputFormat].
 
-=== [[coalesce]] coalesce transformation
+=== [[coalesce]] `coalesce` transformation
 
-```
+[source, scala]
+----
 coalesce(numPartitions: Int, shuffle: Boolean = false)(implicit ord: Ordering[T] = null): RDD[T]
-```
+----
 
-The `coalesce` transformation is used to change the number of partitions. It can trigger link:spark-rdd-shuffle.adoc[RDD shuffling] depending on the second `shuffle` boolean input parameter (defaults to `false`).
+The `coalesce` transformation is used to change the number of partitions. It can trigger link:spark-rdd-shuffle.adoc[RDD shuffling] depending on the `shuffle` flag (disabled by default, i.e. `false`).
 
-In the following sample, you `parallelize` a local 10-number sequence and `coalesce` it first without and then with shuffling (note the `shuffle` parameter being `false` and `true`, respectively). Use `toDebugString` to check out the link:spark-rdd-lineage.adoc[RDD lineage graph].
+In the following sample, you `parallelize` a local 10-number sequence and `coalesce` it first without and then with shuffling (note the `shuffle` parameter being `false` and `true`, respectively).
+
+TIP: Use link:spark-rdd-lineage.adoc#toDebugString[toDebugString] to check out the link:spark-rdd-lineage.adoc[RDD lineage graph].
 
 ```
 scala> val rdd = sc.parallelize(0 to 10, 8)
@@ -206,12 +214,18 @@ A *partitioner* captures data distribution at the output. A scheduler can optimi
 
 `val partitioner: Option[Partitioner]` specifies how the RDD is partitioned.
 
-==== [[HashPartitioner]] HashPartitioner
-
-CAUTION: FIXME
-
-`HashPartitioner` is the default partitioner for `coalesce` operation when shuffle is allowed, e.g. calling `repartition`.
-
 === [[settings]] Settings
 
-* `spark.default.parallelism` - when set, it sets up the number of partitions to use for HashPartitioner.
+.Spark Properties
+[frame="topbot",cols="1,1,2",options="header",width="100%"]
+|======================
+| Spark Property | Default Value | Description
+
+| [[spark_default_parallelism]] `spark.default.parallelism` | (varies per deployment environment) | Sets up the number of partitions to use for link:spark-rdd-HashPartitioner.adoc[HashPartitioner]. It corresponds to link:spark-scheduler-backends.adoc#defaultParallelism[default parallelism] of a scheduler backend.
+
+More specifically, `spark.default.parallelism` corresponds to:
+
+1. The number of threads for link:spark-local.adoc#LocalBackend[LocalBackend].
+2. the number of CPU cores in link:spark-mesos.adoc#defaultParallelism[Spark on Mesos] and defaults to `8`.
+3. Maximum of `totalCoreCount` and `2` in link:spark-scheduler-backends-CoarseGrainedSchedulerBackend.adoc#defaultParallelism[CoarseGrainedSchedulerBackend].
+|======================
