@@ -18,6 +18,7 @@ Beside the above operators, there are the following ones working with a `Dataset
 |======================
 | Operator | Description
 | <<as, as>> | Converting a `Dataset` to a `Dataset`
+| <<coalesce, coalesce>> | Repartitioning a `Dataset` with shuffle disabled.
 | <<createGlobalTempView, createGlobalTempView>> |
 | <<createOrReplaceTempView, createOrReplaceTempView>> |
 | <<createTempView, createTempView>> |
@@ -30,7 +31,7 @@ Beside the above operators, there are the following ones working with a `Dataset
 | <<mapPartition, mapPartition>> |
 | <<randomSplit, randomSplit>> | Randomly split a `Dataset` into two ``Dataset``s
 | <<rdd, rdd>> |
-| <<repartition, repartition>> |
+| <<repartition, repartition>> | Repartitioning a `Dataset` with shuffle enabled.
 | <<schema, schema>> |
 | <<select, select>> |
 | <<selectExpr, selectExpr>> |
@@ -230,7 +231,39 @@ scala> sentences.flatMap(s => s.text.split("\\s+")).show
 
 Internally, `flatMap` calls <<mapPartitions, mapPartitions>> with the partitions `flatMap(ped)`.
 
-=== [[repartition]] Repartitioning Dataset -- `repartition` Methods
+=== [[coalesce]] Repartitioning Dataset with Shuffle Disabled -- `coalesce` Operator
+
+[source, scala]
+----
+coalesce(numPartitions: Int): Dataset[T]
+----
+
+`coalesce` operator repartitions the `Dataset` to exactly `numPartitions` partitions.
+
+Internally, `coalesce` creates a `Repartition` logical operator with `shuffle` disabled.
+
+[source, scala]
+----
+scala> spark.range(5).coalesce(1).explain(extended = true)
+== Parsed Logical Plan ==
+Repartition 1, false
++- Range (0, 5, step=1, splits=Some(8))
+
+== Analyzed Logical Plan ==
+id: bigint
+Repartition 1, false
++- Range (0, 5, step=1, splits=Some(8))
+
+== Optimized Logical Plan ==
+Repartition 1, false
++- Range (0, 5, step=1, splits=Some(8))
+
+== Physical Plan ==
+Coalesce 1
++- *Range (0, 5, step=1, splits=Some(8))
+----
+
+=== [[repartition]] Repartitioning Dataset with Shuffle Enabled -- `repartition` Operators
 
 [source, scala]
 ----
@@ -239,9 +272,30 @@ repartition(numPartitions: Int, partitionExprs: Column*): Dataset[T]
 repartition(partitionExprs: Column*): Dataset[T]
 ----
 
-`repartition` repartition the `Dataset` to exactly `numPartitions` partitions or using `partitionExprs` expressions.
+`repartition` operators repartition the `Dataset` to exactly `numPartitions` partitions or using `partitionExprs` expressions.
 
-Internally, `repartition` creates a `Repartition` or `RepartitionByExpression` logical operator.
+Internally, `repartition` creates a `Repartition` or `RepartitionByExpression` logical operators with `shuffle` enabled, respectively.
+
+[source, scala]
+----
+scala> spark.range(5).repartition(1).explain(extended = true)
+== Parsed Logical Plan ==
+Repartition 1, true
++- Range (0, 5, step=1, splits=Some(8))
+
+== Analyzed Logical Plan ==
+id: bigint
+Repartition 1, true
++- Range (0, 5, step=1, splits=Some(8))
+
+== Optimized Logical Plan ==
+Repartition 1, true
++- Range (0, 5, step=1, splits=Some(8))
+
+== Physical Plan ==
+Exchange RoundRobinPartitioning(1)
++- *Range (0, 5, step=1, splits=Some(8))
+----
 
 NOTE: `repartition` methods correspond to SQL's `DISTRIBUTE BY` or `CLUSTER BY`.
 
