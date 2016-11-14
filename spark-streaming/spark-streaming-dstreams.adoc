@@ -1,10 +1,19 @@
-== Discretized Streams (DStreams)
+== [[DStream]] `DStream` -- Discretized Stream
 
-*Discretized Stream (DStream)* is the fundamental concept of Spark Streaming. It is basically a stream of link:spark-rdd.adoc[RDDs] with elements being the data received from input streams over link:spark-streaming-streamingcontext.adoc[batch duration] (possibly extended in scope by link:spark-streaming-windowedoperators.adoc[windowed] or link:spark-streaming-operators-stateful.adoc[stateful] operators).
+*Discretized Stream (DStream)* is the fundamental concept of Spark Streaming. It is basically a stream of link:spark-rdd.adoc[RDDs] with elements being the data received from input streams for link:spark-streaming-streamingcontext.adoc[batch] (possibly extended in scope by link:spark-streaming-windowedoperators.adoc[windowed] or link:spark-streaming-operators-stateful.adoc[stateful] operators).
 
 There is no notion of input and output dstreams. DStreams are all instances of `DStream` abstract class (see <<contract, DStream Contract>> in this document). You may however _correctly_ assume that all dstreams are input. And it happens to be so until you <<register, register a dstream>> that marks it as output.
 
-It is represented as https://github.com/apache/spark/blob/master/streaming/src/main/scala/org/apache/spark/streaming/dstream/DStream.scala[org.apache.spark.streaming.dstream.DStream] abstract class.
+.``DStream``'s Internal Properties
+[frame="topbot",cols="1,1,2",options="header",width="100%"]
+|======================
+| Name | Initial Value | Description
+| `storageLevel` | `NONE` | link:../spark-rdd-caching.adoc#StorageLevel[StorageLevel] of the RDDs in the `DStream`.
+| `restoredFromCheckpointData` | `false` | The flag to inform whether it was restored from checkpoint.
+| `graph` | `null` | The reference to link:spark-streaming-dstreamgraph.adoc[DStreamGraph].
+|======================
+
+A `DStream` is represented as https://github.com/apache/spark/blob/master/streaming/src/main/scala/org/apache/spark/streaming/dstream/DStream.scala[org.apache.spark.streaming.dstream.DStream] abstract class.
 
 [TIP]
 ====
@@ -45,7 +54,7 @@ def compute(validTime: Time): Option[RDD[T]]
 
 You can create dstreams through link:spark-streaming-streamingcontext.adoc#creating-receivers[the built-in input stream constructors using streaming context] or more specialized add-ons for external input data sources, e.g. link:spark-streaming-kafka.adoc[Apache Kafka].
 
-NOTE: DStreams can only be created before link:spark-streaming-streamingcontext.adoc#start[StreamingContext is started].
+NOTE: DStreams can only be created before link:spark-streaming-streamingcontext.adoc#start[`StreamingContext` is started].
 
 === [[zeroTime]] Zero Time (aka zeroTime)
 
@@ -65,7 +74,7 @@ It can be set to a custom value using <<remember, remember>> method.
 
 NOTE: You may see the current value of remember interval when a dstream is <<validateAtStart, validated at startup>> and the log level is INFO.
 
-=== [[generatedRDDs]] generatedRDDs - Internal Cache of Batch Times and Corresponding RDDs
+=== [[generatedRDDs]] `generatedRDDs` - Internal Cache of Batch Times and Corresponding RDDs
 
 `generatedRDDs` is an internal collection of pairs of batch times and the corresponding RDDs that were generated for the batch. It acts as a cache when <<getOrCompute, a dstream is requested to compute a RDD for batch>> (i.e. `generatedRDDs` may already have the RDD or gets a new RDD added).
 
@@ -81,7 +90,7 @@ As new RDDs are added, dstreams offer a way <<clearMetadata, to clear the old me
 
 If link:spark-streaming-checkpointing.adoc[checkpointing is used], `generatedRDDs` collection can be link:spark-streaming-checkpointing.adoc#DStreamCheckpointData-restore[recreated from a storage].
 
-=== [[initialize]] Initializing DStreams (initialize method)
+=== [[initialize]] Initializing DStreams -- `initialize` Method
 
 [source, scala]
 ----
@@ -112,7 +121,7 @@ It then ensures that <<rememberDuration, remember interval>> is at least twice t
 
 At the very end, it initializes the parent dstreams (available as <<contract, dependencies>>) that recursively initializes the entire graph of dstreams.
 
-=== [[remember]] remember Method
+=== [[remember]] `remember` Method
 
 [source, scala]
 ----
@@ -131,7 +140,7 @@ INFO Duration for remembering RDDs set to [rememberDuration] for [dstream]
 
 At the end, `remember` always sets the current <<rememberDuration, remember interval>> (whether it was set, extended or did not change).
 
-=== [[checkpoint]] Checkpointing DStreams (checkpoint method)
+=== [[checkpoint]] Checkpointing DStreams -- `checkpoint` Method
 
 [source, scala]
 ----
@@ -178,11 +187,11 @@ Refer to <<initialize, Initializing DStreams (initialize method)>> to learn how 
 
 * `restoredFromCheckpointData` (default: `false`) is an internal flag to describe the initial state of a dstream, i.e.. whether (`true`) or not (`false`) it was started by restoring state from checkpoint.
 
-=== [[validateAtStart]] Validating Setup at Startup (validateAtStart method)
+=== [[validateAtStart]] Validating Setup at Startup -- `validateAtStart` Method
 
 CAUTION: FIXME Describe me!
 
-=== [[register]] Registering Output Streams (register method)
+=== [[register]] Registering Output Streams -- `register` Method
 
 [source, scala]
 ----
@@ -195,16 +204,16 @@ register(): DStream[T]
 
 The internal private `foreachRDD` method uses `register` to register output streams to link:spark-streaming-dstreamgraph.adoc[DStreamGraph]. Whenever called, it creates link:spark-streaming-foreachdstreams.adoc[ForEachDStream] and calls `register` upon it. That is how streams become output streams.
 
-=== [[generateJob]] Generating Streaming Jobs (generateJob method)
+=== [[generateJob]] Generating Streaming Job For Batch For Output DStream -- `generateJob` Internal Method
 
 [source, scala]
 ----
 generateJob(time: Time): Option[Job]
 ----
 
-The internal `generateJob` method generates a streaming job for a batch `time` for a (output) dstream. It may or may not generate a streaming job for the requested batch `time`.
+`generateJob` generates a streaming job for a `time` batch for a (output) dstream. It may or may not generate a streaming job for the requested batch `time` if <<getOrCompute, there are RDDs to process>>.
 
-NOTE: It is called when link:spark-streaming-dstreamgraph.adoc#generateJobs[DStreamGraph generates jobs for a batch time].
+NOTE: `generateJob` is called when link:spark-streaming-dstreamgraph.adoc#generateJobs[`DStreamGraph` generates jobs for a batch time].
 
 It <<getOrCompute, computes an RDD for the batch>> and, if there is one, returns a link:spark-streaming.adoc#Job[streaming job] for the batch `time` and a job function that will link:../spark-sparkcontext.adoc#runJob[run a Spark job] (with the generated RDD and the job function) when executed.
 
@@ -212,11 +221,18 @@ NOTE: The Spark job uses an empty function to calculate partitions of a RDD.
 
 CAUTION: FIXME What happens when `SparkContext.runJob(rdd, emptyFunc)` is called with the empty function, i.e. `(iterator: Iterator[T]) => {}`?
 
-=== [[getOrCompute]] Computing RDD for Batch (getOrCompute method)
+=== [[getOrCompute]] Computing RDD for Batch -- `getOrCompute` Internal Method
 
-The internal (`private final`) `getOrCompute(time: Time)` method returns an optional RDD for a batch (`time`).
+[source, scala]
+----
+getOrCompute(time: Time): Option[RDD[T]]
+----
 
-It uses <<generatedRDDs, generatedRDDs>> to return the RDD if it has already been generated for the `time`. If not, it generates one by <<contract, computing the input stream>> (using `compute(validTime: Time)` method).
+`getOrCompute` returns an optional `RDD` for a `time` batch.
+
+NOTE: `getOrCompute` is `private[streaming] final` method.
+
+`getOrCompute` uses <<generatedRDDs, generatedRDDs>> to return the RDD if it has already been generated for the `time`. If not, it generates one by <<contract, computing the input stream>> (using `compute(validTime: Time)` method).
 
 If there was anything to process in the input stream, i.e. <<contract, computing the input stream returned a RDD>>, the RDD is first link:spark-rdd-caching.adoc[persisted] (only if `storageLevel` for the input stream is different from `StorageLevel.NONE`).
 
@@ -236,6 +252,8 @@ DEBUG Marking RDD [id] for time [time] for checkpointing
 
 The generated RDD is saved in the <<internal-registries, internal generatedRDDs registry>>.
 
+NOTE: `getOrCompute` is used when a `DStream` is requested to <<generateJob, generate a streaming job for a batch>>.
+
 === [[cache-persist]] Caching and Persisting
 
 CAUTION: FIXME
@@ -244,7 +262,7 @@ CAUTION: FIXME
 
 CAUTION: FIXME
 
-=== [[restoreCheckpointData]] restoreCheckpointData
+=== [[restoreCheckpointData]] `restoreCheckpointData`
 
 [source, scala]
 ----
@@ -269,7 +287,7 @@ Once completed, the internal `restoredFromCheckpointData` flag is enabled (i.e. 
 INFO Restored checkpoint data
 ```
 
-=== [[clearMetadata]] Metadata Cleanup
+=== [[clearMetadata]] Metadata Cleanup -- `clearMetadata` Method
 
 NOTE: It is called when  link:spark-streaming-dstreamgraph.adoc#clearMetadata[DStreamGraph clears metadata for every output stream].
 
@@ -307,7 +325,7 @@ DEBUG Cleared [size] RDDs that were older than [time]: [time1, time2, ...]
 
 The stream passes the call to clear metadata to its <<contract, dependencies>>.
 
-=== [[updateCheckpointData]] updateCheckpointData
+=== [[updateCheckpointData]] `updateCheckpointData` Method
 
 [source, scala]
 ----
@@ -329,11 +347,3 @@ When `updateCheckpointData` finishes, you should see the following DEBUG message
 ```
 DEBUG Updated checkpoint data for time [currentTime]: [checkpointData]
 ```
-
-=== [[internal-registries]] Internal Registries
-
-`DStream` implementations maintain the following internal properties:
-
-* `storageLevel` (default: `NONE`) is the link:spark-rdd-caching.adoc#StorageLevel[StorageLevel] of the RDDs in the `DStream`.
-* `restoredFromCheckpointData` is a flag to inform whether it was restored from checkpoint.
-* `graph` is the reference to link:spark-streaming-dstreamgraph.adoc[DStreamGraph].
