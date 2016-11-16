@@ -1,6 +1,13 @@
-== BlockManager
+== [[BlockManager]] Block Manager -- Key-Value Store for Blocks
 
-`BlockManager` is a key-value store for blocks of data (simply _blocks_) in Spark. `BlockManager` acts as a local cache that runs on every "node" in a Spark application, i.e. the link:spark-driver.adoc[driver] and link:spark-executor.adoc[executors]. It provides interface for uploading and fetching blocks both locally and remotely using various stores, i.e. memory, disk, and off-heap. See <<stores, Stores>> in this document.
+*Block Manager* (`BlockManager`) is a key-value store for blocks of data (simply _blocks_) in Spark. `BlockManager` acts as a local cache that runs on every "node" in a Spark application, i.e. the link:spark-driver.adoc[driver] and link:spark-executor.adoc[executors]. It provides interface for uploading and fetching blocks both locally and remotely using various stores, i.e. memory, disk, and off-heap. See <<stores, Stores>> in this document.
+
+The common idiom in Spark to access a `BlockManager` regardless of a location, i.e. the driver or executors, is through  link:spark-sparkenv.adoc#get[SparkEnv]:
+
+[source, scala]
+----
+SparkEnv.get.blockManager
+----
 
 A `BlockManager` is a link:spark-blockdatamanager.adoc[BlockDataManager], i.e. manages the storage for blocks that can represent cached RDD partitions, intermediate shuffle outputs, broadcasts, etc. It is also a <<BlockEvictionHandler, BlockEvictionHandler>> that drops a block from memory and storing it on a disk if applicable.
 
@@ -34,9 +41,67 @@ log4j.logger.org.apache.spark.storage.BlockManager=OFF
 ```
 ====
 
+=== [[getLocalValues]] `getLocalValues` Method
+
+[source, scala]
+----
+getLocalValues(blockId: BlockId): Option[BlockResult]
+----
+
+`getLocalValues`...FIXME
+
+=== [[getRemoteValues]] `getRemoteValues` Internal Method
+
+[source, scala]
+----
+getRemoteValues[T: ClassTag](blockId: BlockId): Option[BlockResult]
+----
+
+`getRemoteValues`...FIXME
+
+=== [[get]] Retrieving Block from Local or Remote Block Managers -- `get` Method
+
+[source, scala]
+----
+get[T](blockId: BlockId): Option[BlockResult]
+----
+
+`get` attempts to get the `blockId` block from a local block manager first before querying remote block managers.
+
+Internally, `get` tries to <<getLocalValues, get `blockId` block from the local `BlockManager`>>. If the `blockId` block was found, you should see the following INFO message in the logs and `get` returns the local <<BlockResult, BlockResult>>.
+
+```
+INFO Found block [blockId] locally
+```
+
+If however the `blockId` block was not found locally, `get` tries to <<getRemoteValues, get the block from remote ``BlockManager``s>>. If the `blockId` block was retrieved from a remote `BlockManager`, you should see the following INFO message in the logs and `get` returns the remote <<BlockResult, BlockResult>>.
+
+```
+INFO Found block [blockId] remotely
+```
+
+In the end, `get` returns "nothing" (i.e. `NONE`) when the `blockId` block was not found either in the local `BlockManager` or any remote `BlockManager`.
+
+NOTE: `get` is used when `BlockManager` is requested to <<getOrElseUpdate, `getOrElseUpdate` a block>>, <<getSingle, getSingle>> and to link:spark-rdd-blockrdd.adoc#[compute a `BlockRDD`].
+
+=== [[getSingle]] `getSingle` Method
+
+CAUTION: FIXME
+
 === [[getOrElseUpdate]] `getOrElseUpdate` Method
 
 CAUTION: FIXME
+
+[source, scala]
+----
+getOrElseUpdate[T](
+  blockId: BlockId,
+  level: StorageLevel,
+  classTag: ClassTag[T],
+  makeIterator: () => Iterator[T]): Either[BlockResult, Iterator[T]]
+----
+
+`getOrElseUpdate`...FIXME
 
 === [[getRemoteBytes]] `getRemoteBytes` Method
 
@@ -793,3 +858,7 @@ It emits the following numbers:
 The underlying abstraction for blocks in Spark is a `ByteBuffer` that limits the size of a block to 2GB (`Integer.MAX_VALUE` - see http://stackoverflow.com/q/8076472/1305344[Why does FileChannel.map take up to Integer.MAX_VALUE of data?] and https://issues.apache.org/jira/browse/SPARK-1476[SPARK-1476 2GB limit in spark for blocks]). This has implication not just for managed blocks in use, but also for shuffle blocks (memory mapped blocks are limited to 2GB, even though the API allows for `long`), ser-deser via byte array-backed output streams.
 
 When a non-local executor starts, it initializes a `BlockManager` object for the `spark.app.id` id.
+
+=== [[BlockResult]] BlockResult
+
+`BlockResult` is a description of a fetched block with the `readMethod` and `bytes`.
