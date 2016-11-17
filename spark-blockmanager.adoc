@@ -1,6 +1,8 @@
 == [[BlockManager]] Block Manager -- Key-Value Store for Blocks
 
-*Block Manager* (`BlockManager`) is a key-value store for blocks of data (simply _blocks_) in Spark. `BlockManager` acts as a local cache that runs on every "node" in a Spark application, i.e. the link:spark-driver.adoc[driver] and link:spark-executor.adoc[executors]. It provides interface for uploading and fetching blocks both locally and remotely using various stores, i.e. memory, disk, and off-heap. See <<stores, Stores>> in this document.
+*Block Manager* (`BlockManager`) is a key-value store for blocks of data (simply _blocks_) in Spark. `BlockManager` acts as a local cache that runs on every "node" in a Spark application, i.e. the link:spark-driver.adoc[driver] and link:spark-executor.adoc[executors].
+
+`BlockManager` provides interface for uploading and fetching blocks both locally and remotely using various stores, i.e. <<stores, memory, disk, and off-heap>>.
 
 The common idiom in Spark to access a `BlockManager` regardless of a location, i.e. the driver or executors, is through  link:spark-sparkenv.adoc#get[SparkEnv]:
 
@@ -14,6 +16,8 @@ A `BlockManager` is a link:spark-blockdatamanager.adoc[BlockDataManager], i.e. m
 *Cached blocks* are blocks with non-zero sum of memory and disk sizes.
 
 `BlockManager` is created as a link:spark-sparkenv.adoc#create[Spark application starts].
+
+TIP: Use link:spark-webui.adoc[Web UI], esp. link:spark-webui-storage.adoc[Storage] and link:spark-webui-executors.adoc[Executors] tabs, to monitor the memory used.
 
 A `BlockManager` must be <<initialize, initialized>> before it is fully operable.
 
@@ -49,6 +53,33 @@ getLocalValues(blockId: BlockId): Option[BlockResult]
 ----
 
 `getLocalValues`...FIXME
+
+Internally, when `getLocalValues` is executed, you should see the following DEBUG message in the logs:
+
+```
+DEBUG BlockManager: Getting local block [blockId]
+```
+
+`getLocalValues` link:spark-BlockInfoManager.adoc#lockForReading[obtains a read lock for `blockId`].
+
+When no `blockId` block was found, you should see the following DEBUG message in the logs and `getLocalValues` returns "nothing" (i.e. `NONE`).
+
+```
+DEBUG Block [blockId] was not found
+```
+
+When the `blockId` block was found, you should see the following DEBUG message in the logs:
+
+```
+DEBUG Level for block [blockId] is [level]
+```
+
+If `blockId` block has memory level and link:spark-MemoryStore.adoc#contains[is registered in `MemoryStore`], `getLocalValues` returns a <<BlockResult, BlockResult>> as `Memory` read method and with a `CompletionIterator` for an interator:
+
+1. link:spark-MemoryStore.adoc#getValues[Values iterator from `MemoryStore` for `blockId`] for "deserialized" persistence levels.
+2. Iterator from link:spark-SerializerManager.adoc#dataDeserializeStream[`SerializerManager` after the data stream has been deserialized] for the `blockId` block and link:spark-MemoryStore.adoc#getBytes[the bytes for `blockId` block] for "serialized" persistence levels.
+
+CAUTION: FIXME
 
 === [[getRemoteValues]] `getRemoteValues` Internal Method
 
@@ -194,6 +225,10 @@ For replication level greater than `1`, `doPutBytes` waits for the earlier async
 The final result of `doPutBytes` is the result of storing the block successful or not (as computed earlier).
 
 === [[replicate]] `replicate` Method
+
+CAUTION: FIXME
+
+=== [[maybeCacheDiskValuesInMemory]] `maybeCacheDiskValuesInMemory` Method
 
 CAUTION: FIXME
 

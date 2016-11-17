@@ -37,6 +37,37 @@ DAGScheduler uses an *event queue architecture* in which a thread can post `DAGS
 
 DAGScheduler runs stages in topological order.
 
+.`DAGScheduler` Internal Registries and Counters
+[frame="topbot",cols="1,2",options="header",width="100%"]
+|======================
+| Name | Description
+| [[nextJobId]] `nextJobId` | The next job id counting from `0`.
+
+Used when `DAGScheduler` <<submitJob, submits a job>> and <<submitMapStage, a map stage>>, and <<runApproximateJob, runs an approximate job>>.
+
+| [[nextStageId]] `nextStageId` | The next stage id counting from `0`.
+
+Used when `DAGScheduler` creates a <<createShuffleMapStage, shuffle map stage>> and a <<createResultStage, result stage>>. It is the key in <<stageIdToStage, stageIdToStage>>.
+
+| [[stageIdToStage]] `stageIdToStage` | The lookup table for stages per their ids.
+
+Used when `DAGScheduler` <<createShuffleMapStage, creates a shuffle map stage>>, <<createResultStage, creates a result stage>>, <<cleanupStateForJobAndIndependentStages, cleans up job state and independent stages>>, is informed that link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleBeginEvent[a task is started], link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleTaskSetFailed[a taskset has failed], link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleJobSubmitted[a job is submitted (to compute a `ResultStage`)], link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleMapStageSubmitted[a map stage was submitted], link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleTaskCompletion[a task has completed] or link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleStageCancellation[a stage was cancelled], <<updateAccumulators, updates accumulators>>, <<abortStage, aborts a stage>> and <<failJobAndIndependentStages, fails a job and independent stages>>.
+
+| [[jobIdToStageIds]] `jobIdToStageIds` | The lookup table of all stages per `ActiveJob` id
+
+| [[shuffleIdToMapStage]] `shuffleIdToMapStage` | The lookup table of link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage] per shuffle id
+| [[jobIdToActiveJob]] `jobIdToActiveJob` | The lookup table of ``ActiveJob``s per job id.
+| [[waitingStages]] `waitingStages` | The stages with parents to be computed
+| [[runningStages]] `runningStages` | The stages currently running.
+
+| [[failedStages]] `failedStages` | The collection of the stages that failed due to fetch failures (as reported by <<handleTaskCompletion-FetchFailed, CompletionEvents for FetchFailed end reasons>>).
+
+
+| [[activeJobs]] `activeJobs` | A collection of `ActiveJob` instances
+| [[cacheLocs]] `cacheLocs` | The internal cache of partition locations per RDD. Refer to <<cache-tracking, Cache Tracking>>.
+| [[failedEpoch]] `failedEpoch` | The lookup table of lost executors and the epoch of the event.
+|======================
+
 [TIP]
 ====
 Enable `INFO`, `DEBUG` or `TRACE` logging levels for `org.apache.spark.scheduler.DAGSchedule` logger to see what happens inside.
@@ -138,7 +169,7 @@ When created, `DAGScheduler` does the following (in order):
 1. Creates a `DAGSchedulerSource`
 2. Creates <<messageScheduler, messageScheduler>>
 3. Creates <<eventProcessLoop, eventProcessLoop>> and immediatelly link:spark-taskscheduler.adoc#setDAGScheduler[sets itself in the current `TaskScheduler`]
-5. Initializes the <<internal-registries, internal registries and counters>>.
+5. Initializes the internal registries and counters.
 
 At the very end of the initialization, `DAGScheduler` starts <<eventProcessLoop, eventProcessLoop>>.
 
@@ -150,41 +181,6 @@ listenerBus: LiveListenerBus
 ----
 
 `listenerBus` is a link:spark-LiveListenerBus.adoc[LiveListenerBus] to post scheduling events and is passed in when <<creating-instance, `DAGScheduler` is created>>.
-
-=== [[internal-registries]] Internal Registries and Counters
-
-`DAGScheduler` uses internal registries and counters for managing active jobs and stages.
-
-.`DAGScheduler` Internal Registries and Counters
-[frame="topbot",cols="1,2",options="header",width="100%"]
-|======================
-| Name | Description
-| [[nextJobId]] `nextJobId` | The next job id counting from `0`.
-
-Used when `DAGScheduler` <<submitJob, submits a job>> and <<submitMapStage, a map stage>>, and <<runApproximateJob, runs an approximate job>>.
-
-| [[nextStageId]] `nextStageId` | The next stage id counting from `0`.
-
-Used when `DAGScheduler` creates a <<createShuffleMapStage, shuffle map stage>> and a <<createResultStage, result stage>>. It is the key in <<stageIdToStage, stageIdToStage>>.
-
-| [[stageIdToStage]] `stageIdToStage` | The lookup table for stages per their ids.
-
-Used when `DAGScheduler` <<createShuffleMapStage, creates a shuffle map stage>>, <<createResultStage, creates a result stage>>, <<cleanupStateForJobAndIndependentStages, cleans up job state and independent stages>>, is informed that link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleBeginEvent[a task is started], link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleTaskSetFailed[a taskset has failed], link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleJobSubmitted[a job is submitted (to compute a `ResultStage`)], link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleMapStageSubmitted[a map stage was submitted], link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleTaskCompletion[a task has completed] or link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleStageCancellation[a stage was cancelled], <<updateAccumulators, updates accumulators>>, <<abortStage, aborts a stage>> and <<failJobAndIndependentStages, fails a job and independent stages>>.
-
-| [[jobIdToStageIds]] `jobIdToStageIds` | The lookup table of all stages per `ActiveJob` id
-
-| [[shuffleIdToMapStage]] `shuffleIdToMapStage` | The lookup table of link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage] per shuffle id
-| [[jobIdToActiveJob]] `jobIdToActiveJob` | The lookup table of ``ActiveJob``s per job id.
-| [[waitingStages]] `waitingStages` | The stages with parents to be computed
-| [[runningStages]] `runningStages` | The stages currently running.
-
-| [[failedStages]] `failedStages` | The collection of the stages that failed due to fetch failures (as reported by <<handleTaskCompletion-FetchFailed, CompletionEvents for FetchFailed end reasons>>).
-
-
-| [[activeJobs]] `activeJobs` | A collection of `ActiveJob` instances
-| [[cacheLocs]] `cacheLocs` | The internal cache of partition locations per RDD. Refer to <<cache-tracking, Cache Tracking>>.
-| [[failedEpoch]] `failedEpoch` | The lookup table of lost executors and the epoch of the event.
-|======================
 
 === [[runApproximateJob]] `runApproximateJob` Method
 

@@ -4,6 +4,15 @@
 
 NOTE: *Locks* are the mechanism to control concurrent access to data and prevent destructive interaction between operations that use the same resource.
 
+.`BlockInfoManager` Internal Registries and Counters
+[frame="topbot",cols="1,2",options="header",width="100%"]
+|======================
+| Name | Description
+| [[infos]] `infos` | Tracks link:spark-BlockInfo.adoc[BlockInfo] per block (as link:spark-blockdatamanager.adoc[BlockId]).
+| [[readLocksByTask]] `readLocksByTask` | Tracks tasks (by `TaskAttemptId`) and the blocks they locked for reading (as <<BlockId, BlockId>>).
+| [[writeLocksByTask]] `writeLocksByTask` | Tracks tasks (by `TaskAttemptId`) and the blocks they locked for writing (as <<BlockId, BlockId>>).
+|======================
+
 NOTE: `BlockInfoManager` is a `private[storage]` class that belongs to `org.apache.spark.storage` package.
 
 [TIP]
@@ -19,7 +28,7 @@ log4j.logger.org.apache.spark.storage.BlockInfoManager=TRACE
 Refer to link:spark-logging.adoc[Logging].
 ====
 
-=== [[lockForReading]] Obtaining Read Lock (lockForReading method)
+=== [[lockForReading]] Obtaining Read Lock -- `lockForReading` Method
 
 [source, scala]
 ----
@@ -58,7 +67,7 @@ When `blocking` is disabled and the lock could not be obtained, `None` is return
 
 NOTE: `lockForReading` is a `synchronized` method, i.e. no two objects can use this and other instance methods.
 
-=== [[lockForWriting]] Obtaining Write Lock (lockForWriting method)
+=== [[lockForWriting]] Obtaining Write Lock -- `lockForWriting` Method
 
 [source, scala]
 ----
@@ -87,7 +96,7 @@ NOTE: (deadlock possible) The method is `synchronized` and can block, i.e. `wait
 
 `lockForWriting` return `None` for no `blockId` in the internal <<infos, infos>> registry or when `blocking` flag is disabled and the write lock could not be acquired.
 
-=== [[lockNewBlockForWriting]] Obtaining Write Lock for New Block (lockNewBlockForWriting method)
+=== [[lockNewBlockForWriting]] Obtaining Write Lock for New Block -- `lockNewBlockForWriting` Method
 
 [source, scala]
 ----
@@ -110,32 +119,18 @@ If <<lockForReading, some other thread has already created the block>>, it finis
 
 NOTE: `lockNewBlockForWriting` executes itself in `synchronized` block so once the BlockInfoManager is locked the other internal registries should be available only for the currently-executing thread.
 
-=== [[unlock]] Unlocking Memory Block (unlock method)
+=== [[unlock]] Unlocking Memory Block -- `unlock` Method
 
 CAUTION: FIXME
 
-=== [[releaseAllLocksForTask]] Releasing All Locks Obtained by Task (releaseAllLocksForTask method)
+=== [[releaseAllLocksForTask]] Releasing All Locks Obtained by Task -- `releaseAllLocksForTask` Method
 
 CAUTION: FIXME
 
-=== [[removeBlock]] Removing Memory Block (removeBlock method)
+=== [[removeBlock]] Removing Memory Block -- `removeBlock` Method
 
 CAUTION: FIXME
 
-=== [[assertBlockIsLockedForWriting]] assertBlockIsLockedForWriting
+=== [[assertBlockIsLockedForWriting]] `assertBlockIsLockedForWriting` Method
 
 CAUTION: FIXME
-
-=== [[internal-registries]] Internal Registries
-
-==== [[infos]] infos
-
-`infos` is used to track link:spark-BlockInfo.adoc[BlockInfo] per block (identified by link:spark-blockdatamanager.adoc[BlockId]).
-
-==== [[readLocksByTask]] readLocksByTask
-
-`readLocksByTask` is used to track tasks (by `TaskAttemptId`) and the blocks they locked for reading (identified by <<BlockId, BlockId>>)
-
-==== [[writeLocksByTask]] writeLocksByTask
-
-`writeLocksByTask` is used to track tasks (by `TaskAttemptId`) and the blocks they locked for writing (identified by <<BlockId, BlockId>>).
