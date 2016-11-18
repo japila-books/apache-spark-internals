@@ -1,11 +1,148 @@
 == [[DiskBlockManager]] DiskBlockManager
 
-CAUTION: FIXME
-
-DiskBlockManager creates and maintains the logical mapping between logical blocks and physical on-disk locations.
+`DiskBlockManager` creates and maintains the logical mapping between logical blocks and physical on-disk locations.
 
 By default, one block is mapped to one file with a name given by its BlockId. It is however possible to have a block map to only a segment of a file.
 
-Block files are hashed among the directories listed in `spark.local.dir` (or in `SPARK_LOCAL_DIRS` if set).
+Block files are hashed among the <<getConfiguredLocalDirs, local directories>>.
 
-CAUTION: FIXME Review me.
+NOTE: `DiskBlockManager` is used exclusively by link:spark-DiskStore.adoc[DiskStore] and created when link:spark-blockmanager.adoc#creating-instance[`BlockManager` is created] (and passed to `DiskStore`).
+
+[TIP]
+====
+Enable `INFO` or `DEBUG` logging levels for `org.apache.spark.storage.DiskBlockManager` logger to see what happens inside.
+
+Add the following line to `conf/log4j.properties`:
+
+```
+log4j.logger.org.apache.spark.storage.DiskBlockManager=DEBUG
+```
+
+Refer to link:spark-logging.adoc[Logging].
+====
+
+=== [[creating-instance]] Creating `DiskBlockManager` Instance
+
+[source, scala]
+----
+DiskBlockManager(conf: SparkConf, deleteFilesOnStop: Boolean)
+----
+
+When created, `DiskBlockManager` uses <<spark_diskStore_subDirectories, spark.diskStore.subDirectories>> to set `subDirsPerLocalDir`.
+
+`DiskBlockManager` <<createLocalDirs, creates one or many local directories to store block data>> (as `localDirs`). When not successful, you should see the following ERROR message in the logs and `DiskBlockManager` exits with error code `53`.
+
+```
+ERROR DiskBlockManager: Failed to create any local dir.
+```
+
+`DiskBlockManager` initializes the internal `subDirs` collection of locks for every local directory to store block data with an array of `subDirsPerLocalDir` size for files.
+
+NOTE: `subDirs` is a matrix with the columns being the number of local directories and the rows as collection of `subDirsPerLocalDir` size.
+
+In the end, `DiskBlockManager` <<addShutdownHook, registers a shutdown hook>> to clean up the local directories for blocks.
+
+=== [[addShutdownHook]] Registering Shutdown Hook -- `addShutdownHook` Internal Method
+
+[source, scala]
+----
+addShutdownHook(): AnyRef
+----
+
+`addShutdownHook` registers a shutdown hook to execute <<doStop, doStop>> at shutdown.
+
+When executed, you should see the following DEBUG message in the logs:
+
+```
+DEBUG DiskBlockManager: Adding shutdown hook
+```
+
+`addShutdownHook` adds the shutdown hook so it prints the following INFO message and executes <<doStop, doStop>>.
+
+```
+INFO DiskBlockManager: Shutdown hook called
+```
+
+=== [[doStop]] Removing Local Directories for Blocks -- `doStop` Internal Method
+
+[source, scala]
+----
+doStop(): Unit
+----
+
+`doStop` deletes the local directories recursively (only when the constructor's `deleteFilesOnStop` is enabled and the parent directories are not registered to be removed at shutdown).
+
+=== [[createLocalDirs]] Creating Directories for Blocks -- `createLocalDirs` Internal Method
+
+[source, scala]
+----
+createLocalDirs(conf: SparkConf): Array[File]
+----
+
+`createLocalDirs` creates `blockmgr-[random UUID]` directory under local directories to store block data.
+
+Internally, `createLocalDirs` reads <<getConfiguredLocalDirs, local writable directories>> and creates a subdirectory `blockmgr-[random UUID]` under every configured parent directory.
+
+If successful, you should see the following INFO message in the logs:
+
+```
+INFO DiskBlockManager: Created local directory at [localDir]
+```
+
+When failed to create a local directory, you should see the following ERROR message in the logs:
+
+```
+ERROR DiskBlockManager: Failed to create local dir in [rootDir]. Ignoring this directory.
+```
+
+=== [[getConfiguredLocalDirs]] Getting Local Directories for Spark to Write Files -- `Utils.getConfiguredLocalDirs` Internal Method
+
+[source, scala]
+----
+getConfiguredLocalDirs(conf: SparkConf): Array[String]
+----
+
+`getConfiguredLocalDirs` returns the local directories where Spark can write files.
+
+Internally, `getConfiguredLocalDirs` uses `conf` link:spark-configuration.adoc[SparkConf] to know if link:spark-ExternalShuffleService.adoc[External Shuffle Service] is enabled (using link:spark-ExternalShuffleService.adoc#spark_shuffle_service_enabled[spark.shuffle.service.enabled]).
+
+`getConfiguredLocalDirs` checks if <<isRunningInYarnContainer, Spark runs on YARN>> and if so, returns <<getYarnLocalDirs, ``LOCAL_DIRS``-controlled local directories>>.
+
+In non-YARN mode (or for the driver in yarn-client mode), `getConfiguredLocalDirs` checks the following environment variables (in the order) and returns the value of the first met:
+
+1. `SPARK_EXECUTOR_DIRS` environment variable
+2. `SPARK_LOCAL_DIRS` environment variable
+3. `MESOS_DIRECTORY` environment variable (only when External Shuffle Service is not used)
+
+In the end, when no earlier environment variables were found, `getConfiguredLocalDirs` uses `spark.local.dir` Spark property or eventually `java.io.tmpdir` System property.
+
+=== [[getYarnLocalDirs]] Getting Writable Directories in YARN -- `getYarnLocalDirs` Internal Method
+
+[source, scala]
+----
+getYarnLocalDirs(conf: SparkConf): String
+----
+
+`getYarnLocalDirs` uses `conf` link:spark-configuration.adoc[SparkConf] to read `LOCAL_DIRS` environment variable with comma-separated local directories (that have already been created and secured so that only the user has access to them).
+
+`getYarnLocalDirs` throws an `Exception` with the message `Yarn Local dirs can't be empty` if `LOCAL_DIRS` environment variable was not set.
+
+=== [[isRunningInYarnContainer]] Checking If Spark Runs on YARN -- `isRunningInYarnContainer` Internal Method
+
+[source, scala]
+----
+isRunningInYarnContainer(conf: SparkConf): Boolean
+----
+
+`isRunningInYarnContainer` uses `conf` link:spark-configuration.adoc[SparkConf] to read Hadoop YARN's link:http://hadoop.apache.org/docs/current/hadoop-yarn/hadoop-yarn-api/apidocs/org/apache/hadoop/yarn/api/ApplicationConstants.Environment.html#CONTAINER_ID[`CONTAINER_ID` environment variable] to find out if Spark runs in a YARN container.
+
+NOTE: `CONTAINER_ID` environment variable is exported by YARN NodeManager.
+
+=== [[settings]] Settings
+
+.Spark Properties
+[frame="topbot",cols="1,1,2",options="header",width="100%"]
+|======================
+| Spark Property | Default Value | Description
+| [[spark_diskStore_subDirectories]] `spark.diskStore.subDirectories` | `64` |
+|======================
