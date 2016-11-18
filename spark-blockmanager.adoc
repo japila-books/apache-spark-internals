@@ -4,6 +4,8 @@
 
 `BlockManager` provides interface for uploading and fetching blocks both locally and remotely using various stores, i.e. <<stores, memory, disk, and off-heap>>.
 
+When <<creating-instance, `BlockManager` is created>>, it creates its own private instances of link:spark-DiskBlockManager.adoc[DiskBlockManager], link:spark-BlockInfoManager.adoc[BlockInfoManager], link:spark-MemoryStore.adoc[MemoryStore] and link:spark-DiskStore.adoc[DiskStore] (that it immediately wires together, i.e. `BlockInfoManager` with `MemoryStore` and `DiskStore` with `DiskBlockManager`).
+
 The common idiom in Spark to access a `BlockManager` regardless of a location, i.e. the driver or executors, is through  link:spark-sparkenv.adoc#get[SparkEnv]:
 
 [source, scala]
@@ -236,7 +238,7 @@ CAUTION: FIXME
 
 CAUTION: FIXME
 
-=== [[doPut]] `doPut` Method
+=== [[doPut]] `doPut` Internal Method
 
 [source, scala]
 ----
@@ -250,25 +252,25 @@ doPut[T](
 
 `doPut` is an internal helper method for <<doPutBytes, doPutBytes>> and <<doPutIterator, doPutIterator>>.
 
-`doPut` executes the input `putBody` function with a link:spark-BlockInfo.adoc[BlockInfo] being a new `BlockInfo` object that link:spark-BlockInfoManager.adoc#lockNewBlockForWriting[BlockInfoManager managed to create a lock for writing].
+`doPut` executes the input `putBody` function with a link:spark-BlockInfo.adoc[BlockInfo] being a new `BlockInfo` object (with `level` storage level) that link:spark-BlockInfoManager.adoc#lockNewBlockForWriting[`BlockInfoManager` managed to create a write lock for].
 
-If the block has already been created, the following WARN message is printed out to the logs:
+If the block has already been created (and link:spark-BlockInfoManager.adoc#lockNewBlockForWriting[`BlockInfoManager` did not manage to create a write lock for]), the following WARN message is printed out to the logs:
 
 ```
 WARN Block [blockId] already exists on this machine; not re-adding it
 ```
 
-It <<releaseLock, releases the read lock for the block>> when `keepReadLock` flag is disabled. `doPut` returns `None` immediately.
+`doPut` <<releaseLock, releases the read lock for the block>> when `keepReadLock` flag is disabled and returns `None` immediately.
 
-`putBody` is executed.
+If however the write lock has been given, `doPut` executes `putBody`.
 
 If the result of `putBody` is `None` the block is considered saved successfully.
 
-For successful save and `keepReadLock` enabled, `blockInfoManager.downgradeLock(blockId)` is called.
+For successful save and `keepReadLock` enabled, link:spark-BlockInfoManager.adoc#downgradeLock[`BlockInfoManager` is requested to downgrade an exclusive write lock for `blockId` to a shared read lock].
 
-For successful save and `keepReadLock` disabled, `blockInfoManager.unlock(blockId)` is called.
+For successful save and `keepReadLock` disabled, link:spark-BlockInfoManager.adoc#unlock[`BlockInfoManager` is requested to release lock on `blockId`].
 
-For unsuccessful save, `blockInfoManager.removeBlock(blockId)` is called and the following WARN message is printed out to the logs:
+For unsuccessful save, <<removeBlockInternal, the block is removed from memory and disk stores>> and the following WARN message is printed out to the logs:
 
 ```
 WARN Putting block [blockId] failed
@@ -382,7 +384,7 @@ CAUTION: FIXME Elaborate on the executor backends and executor ids.
 
 When a `BlockManager` instance is created it sets the internal `externalShuffleServiceEnabled` flag to the value of link:spark-ExternalShuffleService.adoc#spark_shuffle_service_enabled[spark.shuffle.service.enabled] setting.
 
-It then creates an instance of <<DiskBlockManager, DiskBlockManager>> (requesting `deleteFilesOnStop` when an external shuffle service is not in use).
+It then creates an instance of link:spark-DiskBlockManager.adoc[DiskBlockManager] (requesting `deleteFilesOnStop` when an external shuffle service is not in use).
 
 It creates an instance of link:spark-BlockInfoManager.adoc[BlockInfoManager] (as `blockInfoManager`).
 
@@ -476,7 +478,7 @@ INFO Registering executor with local external shuffle service.
 
 It uses <<shuffleClient, shuffleClient>> to link:spark-shuffleclient.adoc#ExternalShuffleClient-registerWithShuffleServer[register the block manager] using <<shuffleServerId, shuffleServerId>> (i.e. the host, the port and the executorId) and a `ExecutorShuffleInfo`.
 
-NOTE: The `ExecutorShuffleInfo` uses `localDirs` and `subDirsPerLocalDir` from <<DiskBlockManager, DiskBlockManager>> and the class name of the constructor link:spark-shuffle-manager.adoc[ShuffleManager].
+NOTE: The `ExecutorShuffleInfo` uses `localDirs` and `subDirsPerLocalDir` from link:spark-DiskBlockManager.adoc[DiskBlockManager] and the class name of the constructor link:spark-shuffle-manager.adoc[ShuffleManager].
 
 It tries to register at most 3 times with 5-second sleeps in-between.
 
@@ -860,16 +862,6 @@ DEBUG Put block [blockId] locally took [startTimeMs]
 === [[BlockManagerId]] BlockManagerId
 
 FIXME
-
-=== [[DiskBlockManager]] DiskBlockManager
-
-DiskBlockManager creates and maintains the logical mapping between logical blocks and physical on-disk locations.
-
-By default, one block is mapped to one file with a name given by its BlockId. It is however possible to have a block map to only a segment of a file.
-
-Block files are hashed among the directories listed in `spark.local.dir` (or in `SPARK_LOCAL_DIRS` if set).
-
-CAUTION: FIXME Review me.
 
 === [[execution-context]] Execution Context
 

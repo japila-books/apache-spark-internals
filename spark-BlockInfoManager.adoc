@@ -28,6 +28,15 @@ log4j.logger.org.apache.spark.storage.BlockInfoManager=TRACE
 Refer to link:spark-logging.adoc[Logging].
 ====
 
+=== [[downgradeLock]] Downgrading Exclusive Write Lock For Block to Shared Read Lock -- `downgradeLock` Method
+
+[source, scala]
+----
+downgradeLock(blockId: BlockId): Unit
+----
+
+`downgradeLock`...FIXME
+
 === [[lockForReading]] Obtaining Read Lock For Block -- `lockForReading` Method
 
 [source, scala]
@@ -119,9 +128,34 @@ If <<lockForReading, some other thread has already created the block>>, it finis
 
 NOTE: `lockNewBlockForWriting` executes itself in `synchronized` block so once the BlockInfoManager is locked the other internal registries should be available only for the currently-executing thread.
 
-=== [[unlock]] Unlocking Memory Block -- `unlock` Method
+=== [[currentTaskAttemptId]] `currentTaskAttemptId` Method
 
 CAUTION: FIXME
+
+=== [[unlock]] Releasing Lock on Block -- `unlock` Method
+
+[source, scala]
+----
+unlock(blockId: BlockId): Unit
+----
+
+`unlock` releases...FIXME
+
+When executed, `unlock` starts by printing out the following TRACE message to the logs:
+
+```
+TRACE BlockInfoManager: Task [currentTaskAttemptId] releasing lock for [blockId]
+```
+
+`unlock` gets the metadata for `blockId`. It may throw a `IllegalStateException` if the block was not found.
+
+If the link:spark-BlockInfo.adoc#writerTask[writer task] for the block is not link:spark-BlockInfo.adoc#NO_WRITER[NO_WRITER], it becomes so and the `blockId` block is removed from the internal <<writeLocksByTask, writeLocksByTask>> registry for the <<currentTaskAttemptId, current task attempt>>.
+
+Otherwise, if the writer task is indeed `NO_WRITER`, it is assumed that the link:spark-BlockInfo.adoc#readerCount[`blockId` block is locked for reading]. The `readerCount` counter is decremented for the `blockId` block and the read lock removed from the internal <<readLocksByTask, readLocksByTask>> registry for the <<currentTaskAttemptId, current task attempt>>.
+
+In the end, `unlock` wakes up all the threads waiting for the `BlockInfoManager` (using Java's link:++https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html#notifyAll--++[Object.notifyAll]).
+
+CAUTION: FIXME What threads could wait?
 
 === [[releaseAllLocksForTask]] Releasing All Locks Obtained by Task -- `releaseAllLocksForTask` Method
 
