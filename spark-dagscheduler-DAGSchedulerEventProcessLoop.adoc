@@ -2,34 +2,37 @@
 
 `DAGSchedulerEventProcessLoop` (*dag-scheduler-event-loop*) is a `EventLoop` single "business logic" thread for processing `DAGSchedulerEvent` events.
 
-.``DAGSchedulerEvent``s and Event Handlers
+.``DAGSchedulerEvent``s and Event Handlers (in alphabetical order)
 [width="100%",cols="1,1,2",frame="topbot",options="header"]
 |======================
 | DAGSchedulerEvent | Event Handler | Reason
-| <<JobSubmitted, JobSubmitted>> | <<handleJobSubmitted, handleJobSubmitted>> | A Spark job was submitted to DAGScheduler using link:spark-dagscheduler.adoc#submitJob[submitJob] or `runApproximateJob`.
-| <<MapStageSubmitted, MapStageSubmitted>> | <<handleMapStageSubmitted, handleMapStageSubmitted>> | A link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage] was submitted using `submitMapStage`.
-
-| <<StageCancelled, StageCancelled>> | <<handleStageCancellation, handleStageCancellation>> | `DAGScheduler` was requested to link:spark-dagscheduler.adoc#cancelStage[cancel a stage].
-
-| <<JobCancelled, JobCancelled>> | <<handleJobCancellation, handleJobCancellation>> | `DAGScheduler` was requested to link:spark-dagscheduler.adoc#cancelJob[cancel a job].
-
-| <<JobGroupCancelled, JobGroupCancelled>> | <<handleJobGroupCancelled, handleJobGroupCancelled>> | `DAGScheduler` was requested to link:spark-dagscheduler.adoc#cancelJobGroup[cancel a job group].
 
 | <<AllJobsCancelled, AllJobsCancelled>> | | `DAGScheduler` was requested to link:spark-dagscheduler.adoc#cancelAllJobs[cancel all running or waiting jobs].
 
 | <<BeginEvent, BeginEvent>> | <<handleBeginEvent, handleBeginEvent>> | link:spark-tasksetmanager.adoc[TaskSetManager] informs `DAGScheduler` that a task is starting (through link:spark-dagscheduler.adoc#taskStarted[taskStarted]).
 
-| <<GettingResultEvent, GettingResultEvent>> | |  link:spark-tasksetmanager.adoc[TaskSetManager] informs `DAGScheduler` (through link:spark-dagscheduler.adoc#taskGettingResult[taskGettingResult]) that a task has completed and results are being fetched remotely.
-
-| <<CompletionEvent, CompletionEvent>> | <<handleTaskCompletion, handleTaskCompletion>> | link:spark-tasksetmanager.adoc[TaskSetManager] informs `DAGScheduler` (through link:spark-dagscheduler.adoc#taskEnded[taskEnded]) that a task has completed successfully or failed.
+| <<CompletionEvent, CompletionEvent>> | <<handleTaskCompletion, handleTaskCompletion>> | link:spark-tasksetmanager.adoc[TaskSetManager] informs link:spark-dagscheduler.adoc#taskEnded[DAGScheduler] that a task has completed successfully or failed.
 
 | <<ExecutorAdded, ExecutorAdded>> | <<handleExecutorAdded, handleExecutorAdded>> | `DAGScheduler` was informed (through link:spark-dagscheduler.adoc#executorAdded[executorAdded]) that an executor was spun up on a host.
 
 | <<ExecutorLost, ExecutorLost>> | <<handleExecutorLost, handleExecutorLost>> | `DAGScheduler` was informed (through link:spark-dagscheduler.adoc#executorLost[executorLost]) that an executor was lost.
 
-| <<TaskSetFailed, TaskSetFailed>> | <<handleTaskSetFailed, handleTaskSetFailed>> | `DAGScheduler` was requested to link:spark-dagscheduler.adoc#taskSetFailed[cancel a `TaskSet`]
+| <<GettingResultEvent, GettingResultEvent>> | |  link:spark-tasksetmanager.adoc[TaskSetManager] informs `DAGScheduler` (through link:spark-dagscheduler.adoc#taskGettingResult[taskGettingResult]) that a task has completed and results are being fetched remotely.
+
+| <<JobCancelled, JobCancelled>> | <<handleJobCancellation, handleJobCancellation>> | `DAGScheduler` was requested to link:spark-dagscheduler.adoc#cancelJob[cancel a job].
+
+| <<JobGroupCancelled, JobGroupCancelled>> | <<handleJobGroupCancelled, handleJobGroupCancelled>> | `DAGScheduler` was requested to link:spark-dagscheduler.adoc#cancelJobGroup[cancel a job group].
+
+| <<JobSubmitted, JobSubmitted>> | <<handleJobSubmitted, handleJobSubmitted>> | A Spark job was submitted to DAGScheduler using link:spark-dagscheduler.adoc#submitJob[submitJob] or `runApproximateJob`.
+
+| <<MapStageSubmitted, MapStageSubmitted>> | <<handleMapStageSubmitted, handleMapStageSubmitted>> | A link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage] was submitted using `submitMapStage`.
 
 | <<ResubmitFailedStages, ResubmitFailedStages>> | <<resubmitFailedStages, resubmitFailedStages>> | `DAGScheduler` was informed (through link:spark-dagscheduler.adoc#handleTaskCompletion[handleTaskCompletion]) that a task has finished with a `FetchFailed`.
+
+| <<StageCancelled, StageCancelled>> | <<handleStageCancellation, handleStageCancellation>> | `DAGScheduler` was requested to link:spark-dagscheduler.adoc#cancelStage[cancel a stage].
+
+| <<TaskSetFailed, TaskSetFailed>> | <<handleTaskSetFailed, handleTaskSetFailed>> | `DAGScheduler` was requested to link:spark-dagscheduler.adoc#taskSetFailed[cancel a `TaskSet`]
+
 |======================
 
 When created, `DAGSchedulerEventProcessLoop` gets the reference to the owning link:spark-dagscheduler.adoc[DAGScheduler] that it uses to call event handler methods on.
@@ -338,9 +341,13 @@ Otherwise, `handleJobCancellation` link:spark-dagscheduler.adoc#failJobAndIndepe
 Job [jobId] cancelled [reason]
 ```
 
-=== [[CompletionEvent]][[handleTaskCompletion]] `CompletionEvent` Event and `handleTaskCompletion` Handler
+=== [[CompletionEvent]] `CompletionEvent` Event and `handleTaskCompletion` Handler
 
-`CompletionEvent` event informs `DAGScheduler` about task completions. It is handled by `handleTaskCompletion` method.
+`CompletionEvent` is a `DAGSchedulerEvent` that triggers <<handleTaskCompletion, `handleTaskCompletion` method>> (on a separate thread).
+
+NOTE: `CompletionEvent` is posted when link:spark-dagscheduler.adoc#taskEnded[`DAGScheduler` is informed about a task completion, i.e. success or failure].
+
+==== [[handleTaskCompletion]] `handleTaskCompletion` Handler
 
 [source, scala]
 ----

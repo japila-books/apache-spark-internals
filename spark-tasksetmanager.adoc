@@ -390,31 +390,45 @@ maybeFinishTaskSet(): Unit
 ----
 handleFailedTask(
   tid: Long,
-  state: TaskState.TaskState,
+  state: TaskState,
   reason: TaskFailedReason): Unit
 ----
 
-`handleFailedTask` <<removeRunningTask, removes `tid` task from running tasks>> and marks `TaskInfo` as finished. It decreases the number of the `tid` task's copies running (in <<copiesRunning, copiesRunning>> internal registry).
+`handleFailedTask` <<removeRunningTask, removes `tid` task from the internal registry of running tasks>> and marks `TaskInfo` as finished. It decreases the number of the `tid` task's copies running (in <<copiesRunning, copiesRunning>> internal registry).
 
-NOTE: `handleFailedTask` is executed after link:spark-taskschedulerimpl.adoc#handleFailedTask[`TaskSchedulerImpl` has been informed that `tid` task failed] or <<executorLost, executorLost>>.
+NOTE: `handleFailedTask` is executed after link:spark-taskschedulerimpl.adoc#handleFailedTask[`TaskSchedulerImpl` has been informed that `tid` task failed] or <<executorLost, executorLost>>. In either case, tasks could not finish successfully or could not report it back.
 
-CAUTION: FIXME Can there be more than one copy of a task running? `copiesRunning`
+NOTE: With link:spark-taskschedulerimpl-speculative-execution.adoc[speculative xecution of tasks] enabled, there can be many copies of a task running simultaneuosly.
 
-If the `tid` task has already been marked as failed or killed (in <<taskInfos, taskInfos>> internal registry), `handleFailedTask` does nothing and quits.
+When executed, `handleFailedTask` first checks out the status of the `tid` task. If the `tid` task has already been marked as failed or killed (in <<taskInfos, taskInfos>> internal registry), `handleFailedTask` does nothing and quits.
 
-`handleFailedTask` calculates the failure exception given the input `reason`, i.e. <<handleFailedTask-FetchFailed, FetchFailed>>, <<handleFailedTask-ExceptionFailure, ExceptionFailure>>, <<handleFailedTask-ExecutorLostFailure, ExecutorLostFailure>> and <<handleFailedTask-TaskFailedReason, other TaskFailedReasons>>.
+If however the task has not been registered as failed or killed before, `handleFailedTask` <<removeRunningTask, unregisters the task as running>> and marks it as finished with `state`. The number of the running copies of the task (as recorded in <<copiesRunning, `copiesRunning` internal registry>>) is decremented.
 
-`handleFailedTask` link:spark-dagscheduler.adoc#taskEnded[informs `DAGScheduler` that a task has ended] (using <<tasks, tasks>> internal registry to access the `Task` instance and the result as `null`).
+CAUTION: FIXME How is `copiesRunning` used?
 
-If the `tid` task is marked as successful (in <<successful, successful>> internal registry) you should see the following INFO message in the logs:
+`handleFailedTask` uses the following pattern as the reason for the failure:
+
+```
+Lost task [id] in stage [taskSetId] (TID [tid], [host], executor [executorId]): [reason]
+```
+
+`handleFailedTask` then calculates the failure exception for the input `reason`, i.e. <<handleFailedTask-FetchFailed, FetchFailed>>, <<handleFailedTask-ExceptionFailure, ExceptionFailure>>, <<handleFailedTask-ExecutorLostFailure, ExecutorLostFailure>> and <<handleFailedTask-TaskFailedReason, other TaskFailedReasons>>.
+
+NOTE: Calculation of the failure exception was moved to their own sections below to make the reading a bit more pleasant and comprehensible.
+
+`handleFailedTask` link:spark-dagscheduler.adoc#taskEnded[informs `DAGScheduler` that the `tid` task has ended] (with the `Task` instance from <<tasks, tasks>> internal registry, the reason, and no result, i.e. `null`).
+
+If the `tid` task has already been marked as successful (in <<successful, successful>> internal registry) you should see the following INFO message in the logs:
 
 ```
 INFO Task [id] in stage [id] (TID [tid]) failed, but another instance of the task has already succeeded, so not re-queuing the task to be re-executed.
 ```
 
-Otherwise, the `tid` task is <<addPendingTask, recorded as a pending task>>.
+TIP: Refer to link:spark-taskschedulerimpl-speculative-execution.adoc[Speculative Execution of Tasks] to learn why a single task could be executed multiple times at the same time.
 
-If the `TaskSetManager` is not a <<zombie-state, zombie>> and the task failure should be counted towards the maximum number of times the task is allowed to fail before the stage is aborted (i.e. `TaskFailedReason.countTowardsTaskFailures` is enabled), the optional link:#updateBlacklistForFailedTask[`TaskSetBlacklist` is updated].
+If the `tid` task was not recorded as <<successful, successful>>, the task is <<addPendingTask, recorded as a pending task>>.
+
+Unless the `TaskSetManager` is a <<zombie-state, zombie>> or the task failure should _not_ be counted towards the maximum number of times the task is allowed to fail before the stage is aborted (i.e. `TaskFailedReason.countTowardsTaskFailures` is enabled), the optional link:#updateBlacklistForFailedTask[`TaskSetBlacklist` is updated].
 
 `handleFailedTask` increments <<numFailures, numFailures>> for `tid` and makes sure that it is not equal or greater than the allowed number of task failures per `TaskSet` (as specified when the <<creating-instance, `TaskSetManager` was created>>).
 
@@ -426,7 +440,7 @@ ERROR Task [id] in stage [id] failed [maxTaskFailures] times; aborting job
 
 And `handleFailedTask` <<abort, aborts the `TaskSet`>> and then quits.
 
-Otherwise, when <<isZombie, `TaskSetManager` is a zombie>> or the failure reason should not be counted towards the maximum number of times a task is allowed to fail before the stage is aborted, `handleFailedTask` <<maybeFinishTaskSet, attempts to mark the `TaskSet` finished>>.
+In the end, `handleFailedTask` <<maybeFinishTaskSet, attempts to mark the `TaskSet` as finished>>.
 
 CAUTION: FIXME image with `handleFailedTask` (and perhaps the other parties involved)
 
