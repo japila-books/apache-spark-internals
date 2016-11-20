@@ -21,6 +21,21 @@ log4j.logger.org.apache.spark.storage.DiskBlockManager=DEBUG
 Refer to link:spark-logging.adoc[Logging].
 ====
 
+=== [[subDirs]] Collection of Locks for Local Directories -- `subDirs` Internal Property
+
+[source, scala]
+----
+subDirs: Array[Array[File]]
+----
+
+`subDirs` is a collection of locks for every <<createLocalDirs, local directory>> where `DiskBlockManager` stores block data (with the columns being the number of local directories and the rows as collection of `subDirsPerLocalDir` size).
+
+NOTE: `subDirs(n)` is to access ``n``-th local directory.
+
+=== [[getAllFiles]] `getAllFiles` Method
+
+CAUTION: FIXME
+
 === [[creating-instance]] Creating `DiskBlockManager` Instance
 
 [source, scala]
@@ -36,9 +51,7 @@ When created, `DiskBlockManager` uses <<spark_diskStore_subDirectories, spark.di
 ERROR DiskBlockManager: Failed to create any local dir.
 ```
 
-`DiskBlockManager` initializes the internal `subDirs` collection of locks for every local directory to store block data with an array of `subDirsPerLocalDir` size for files.
-
-NOTE: `subDirs` is a matrix with the columns being the number of local directories and the rows as collection of `subDirsPerLocalDir` size.
+`DiskBlockManager` initializes the internal <<subDirs, subDirs>> collection of locks for every local directory to store block data with an array of `subDirsPerLocalDir` size for files.
 
 In the end, `DiskBlockManager` <<addShutdownHook, registers a shutdown hook>> to clean up the local directories for blocks.
 
@@ -138,11 +151,24 @@ isRunningInYarnContainer(conf: SparkConf): Boolean
 
 NOTE: `CONTAINER_ID` environment variable is exported by YARN NodeManager.
 
+=== [[getAllBlocks]] `getAllBlocks` Method
+
+[source, scala]
+----
+getAllBlocks(): Seq[BlockId]
+----
+
+`getAllBlocks` lists all the blocks currently stored on disk.
+
+Internally, `getAllBlocks` takes the <<getAllFiles, block files>> and returns their names (as `BlockId`).
+
+NOTE: `getAllBlocks` is used when link:spark-blockmanager.adoc#getMatchingBlockIds[`BlockManager` computes the ids of existing blocks (for a given filter)].
+
 === [[settings]] Settings
 
 .Spark Properties
 [frame="topbot",cols="1,1,2",options="header",width="100%"]
 |======================
 | Spark Property | Default Value | Description
-| [[spark_diskStore_subDirectories]] `spark.diskStore.subDirectories` | `64` |
+| [[spark_diskStore_subDirectories]] `spark.diskStore.subDirectories` | `64` | The number of ...FIXME
 |======================

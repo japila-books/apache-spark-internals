@@ -47,6 +47,12 @@ log4j.logger.org.apache.spark.storage.BlockManager=OFF
 ```
 ====
 
+=== [[getMatchingBlockIds]] Getting Ids of Existing Blocks (For a Given Filter) -- `getMatchingBlockIds` Method
+
+CAUTION: FIXME
+
+NOTE: `getMatchingBlockIds` is used to handle <<BlockManagerSlaveEndpoint-GetMatchingBlockIds, GetMatchingBlockIds>> messages.
+
 === [[getLocalValues]] `getLocalValues` Method
 
 [source, scala]
@@ -168,7 +174,11 @@ There are the following possible stores:
 * link:spark-DiskStore.adoc[DiskStore] for disk storage level.
 * `ExternalBlockStore` for OFF_HEAP storage level.
 
-=== [[putBytes]] Storing Block -- `putBytes` Method
+=== [[putBlockData]] Storing Block Data -- `putBlockData` Method
+
+CAUTION: FIXME
+
+=== [[putBytes]] Storing Block Bytes -- `putBytes` Method
 
 [source, scala]
 ----
@@ -179,11 +189,13 @@ putBytes(
   tellMaster: Boolean = true): Boolean
 ----
 
-`putBytes` puts the `blockId` block of `bytes` bytes and `level` storage level to `BlockManager`.
+`putBytes` stores the `blockId` block (with `bytes` bytes and `level` storage level).
 
-It simply passes the call on to the internal <<doPutBytes, doPutBytes>>.
+`putBytes` simply passes the call on to the internal <<doPutBytes, doPutBytes>>.
 
-==== [[doPutBytes]] `doPutBytes` Method
+NOTE: `putBytes` is executed when link:spark-executor-taskrunner.adoc#run-result-sent-via-blockmanager[`TaskRunner` sends a task result via `BlockManager`], <<putBlockData, `BlockManager` puts a block locally>> and in link:spark-broadcast.adoc#TorrentBroadcast[TorrentBroadcast].
+
+==== [[doPutBytes]] `doPutBytes` Internal Method
 
 [source, scala]
 ----
@@ -196,11 +208,11 @@ def doPutBytes[T](
   keepReadLock: Boolean = false): Boolean
 ----
 
-`doPutBytes` is an internal method that calls the internal helper <<doPut, doPut>> with `putBody` being a function that accepts a `BlockInfo` and does the uploading.
+`doPutBytes` is an internal method that calls the internal helper <<doPut, doPut>> with a function that accepts a `BlockInfo` and does the uploading.
 
 If the replication storage level is greater than 1, replication starts in a separate thread (using the internal <<replicate, replicate>> method).
 
-CAUTION: FIXME When is replication storage level greater than 1?
+NOTE: Replication is a integral part of link:spark-rdd-caching.adoc#StorageLevel[StorageLevel].
 
 For a memory storage level, depending on whether it is a deserialized one or not, `putIteratorAsValues` or `putBytes` of link:spark-MemoryStore.adoc[MemoryStore] are used, respectively. If the put did not succeed and the storage level is also a disk one, you should see the following WARN message in the logs:
 
@@ -225,6 +237,8 @@ DEBUG BlockManager: Put block [blockId] locally took [time] ms
 For replication level greater than `1`, `doPutBytes` waits for the earlier asynchronous replication to finish.
 
 The final result of `doPutBytes` is the result of storing the block successful or not (as computed earlier).
+
+NOTE: `doPutBytes` is called exclusively from <<putBytes, `putBytes` method>>.
 
 === [[replicate]] `replicate` Method
 
@@ -822,14 +836,14 @@ GetBlockStatus(blockId: BlockId)
 
 When a `GetBlockStatus` message comes in, it responds with the result of <<getStatus, calling BlockManager about the status of `blockId`>>.
 
-==== [[BlockManagerSlaveEndpoint-GetMatchingBlockIds]] GetMatchingBlockIds Message
+==== [[BlockManagerSlaveEndpoint-GetMatchingBlockIds]] `GetMatchingBlockIds` Message
 
 [source, scala]
 ----
-GetMatchingBlockIds(filter: BlockId => Boolean)
+GetMatchingBlockIds(filter: BlockId => Boolean, askSlaves: Boolean = true)
 ----
 
-When a `GetMatchingBlockIds` message comes in, it responds with the result of <<getMatchingBlockIds, calling BlockManager for matching blocks for `filter`>>.
+`GetMatchingBlockIds` triggers a computation of <<getMatchingBlockIds, the memory and disk blocks matching `filter`>> and sends it back.
 
 ==== [[BlockManagerSlaveEndpoint-TriggerThreadDump]] TriggerThreadDump Message
 
