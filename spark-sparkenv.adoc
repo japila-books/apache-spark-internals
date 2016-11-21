@@ -1,10 +1,19 @@
-== SparkEnv -- Spark Runtime Environment
+== [[SparkEnv]] `SparkEnv` -- Spark Runtime Environment
 
-*Spark Runtime Environment* (`SparkEnv`) is the runtime environment with Spark's public services that interact with each other to build the entire Spark computing platform for a Spark application.
+*Spark Runtime Environment* (`SparkEnv`) is the runtime environment with Spark's public services that interact with each other to establish a distributed computing platform for a Spark application.
 
 Spark Runtime Environment is represented by a <<SparkEnv, SparkEnv>> object that holds all the required runtime services for a running Spark application with separate environments for the <<createDriverEnv, driver>> and <<createExecutorEnv, executors>>.
 
-.SparkEnv Services
+The idiomatic way in Spark to access the current `SparkEnv` when on the driver or executors is to use <<get, get>> method.
+
+[source, scala]
+----
+import org.apache.spark._
+scala> SparkEnv.get
+res0: org.apache.spark.SparkEnv = org.apache.spark.SparkEnv@49322d04
+----
+
+.`SparkEnv` Services
 [frame="topbot",cols="1,1,2",options="header",width="100%"]
 |======================
 | Property | Service | Description
@@ -14,7 +23,7 @@ Spark Runtime Environment is represented by a <<SparkEnv, SparkEnv>> object that
 | mapOutputTracker | MapOutputTracker |
 | shuffleManager | ShuffleManager |
 | broadcastManager | BroadcastManager |
-| blockManager | BlockManager |
+| <<BlockManager, blockManager>> | link:spark-blockmanager.adoc[BlockManager] |
 | securityManager | SecurityManager |
 | metricsSystem | MetricsSystem |
 | memoryManager | MemoryManager |
@@ -37,18 +46,6 @@ Refer to link:spark-logging.adoc[Logging].
 
 === [[SparkEnv]] `SparkEnv` Factory Object
 
-*SparkEnv* holds the public services in a running Spark instance, using <<createDriverEnv, SparkEnv.createDriverEnv()>> for a driver and <<createExecutorEnv, SparkEnv.createExecutorEnv()>> for an executor.
-
-You can access the Spark environment using `SparkEnv.get`.
-
-```
-scala> import org.apache.spark._
-import org.apache.spark._
-
-scala> SparkEnv.get
-res0: org.apache.spark.SparkEnv = org.apache.spark.SparkEnv@2220c5f7
-```
-
 === [[create]] Creating "Base" `SparkEnv` -- `create` Method
 
 [source, scala]
@@ -65,7 +62,18 @@ create(
   mockOutputCommitCoordinator: Option[OutputCommitCoordinator] = None): SparkEnv
 ----
 
-`create` is a internal helper method to create a "base" `SparkEnv` regardless of the target environment -- be it a driver or an executor.
+`create` is a internal helper method to create a "base" `SparkEnv` regardless of the target environment, i.e. a driver or an executor.
+
+.``create``'s Input Arguments and Their Usage
+[frame="topbot",cols="1,2",options="header",width="100%"]
+|======================
+| Input Argument | Usage
+| `bindAddress` | Used to create link:spark-rpc.adoc[RpcEnv] and link:spark-NettyBlockTransferService.adoc#creating-instance[NettyBlockTransferService].
+
+| `advertiseAddress` | Used to create link:spark-rpc.adoc[RpcEnv] and link:spark-NettyBlockTransferService.adoc#creating-instance[NettyBlockTransferService].
+
+| `numUsableCores` | Used to create link:spark-MemoryManager.adoc[MemoryManager], link:spark-NettyBlockTransferService.adoc#creating-instance[NettyBlockTransferService] and link:spark-blockmanager.adoc#creating-instance[BlockManager].
+|======================
 
 When executed, `create` creates a `Serializer` (based on <<spark_serializer, spark.serializer>> setting). You should see the following `DEBUG` message in the logs:
 
@@ -77,12 +85,16 @@ It creates another `Serializer` (based on <<spark_closure_serializer, spark.clos
 
 It creates a link:spark-shuffle-manager.adoc[ShuffleManager] based on link:spark-shuffle-manager.adoc#spark.shuffle.manager[spark.shuffle.manager] setting.
 
+[[MemoryManager]]
 It creates a link:spark-MemoryManager.adoc[MemoryManager] based on <<spark_memory_useLegacyMode, spark.memory.useLegacyMode>> setting (with link:spark-UnifiedMemoryManager.adoc[UnifiedMemoryManager] being the default and `numCores` the input `numUsableCores`).
 
-It creates a link:spark-blocktransferservice.adoc#NettyBlockTransferService[NettyBlockTransferService].
+[[NettyBlockTransferService]]
+`create` creates a link:spark-NettyBlockTransferService.adoc#creating-instance[NettyBlockTransferService]. It uses link:spark-driver.adoc#spark_driver_blockManager_port[`spark.driver.blockManager.port` for the port on the driver] and link:spark-blockmanager.adoc#spark_blockManager_port[`spark.blockManager.port` for the port on executors].
+
+CAUTION: FIXME A picture with `SparkEnv`, `NettyBlockTransferService` and the ports "armed".
 
 [[BlockManagerMaster]]
-It creates a link:spark-BlockManagerMaster.adoc[BlockManagerMaster] object with the `BlockManagerMaster` RPC endpoint reference (by <<registerOrLookupEndpoint, registering or looking it up by name>> and link:spark-blockmanager-BlockManagerMasterEndpoint.adoc[BlockManagerMasterEndpoint]), the input link:spark-configuration.adoc[SparkConf], and the input `isDriver` flag.
+`create` creates a link:spark-BlockManagerMaster.adoc#creating-instance[BlockManagerMaster] object with the `BlockManagerMaster` RPC endpoint reference (by <<registerOrLookupEndpoint, registering or looking it up by name>> and link:spark-blockmanager-BlockManagerMasterEndpoint.adoc[BlockManagerMasterEndpoint]), the input link:spark-configuration.adoc[SparkConf], and the input `isDriver` flag.
 
 .Creating BlockManager for the Driver
 image::images/sparkenv-driver-blockmanager.png[align="center"]
@@ -92,7 +104,8 @@ NOTE: `create` registers the *BlockManagerMaster* RPC endpoint for the driver an
 .Creating BlockManager for Executor
 image::images/sparkenv-executor-blockmanager.png[align="center"]
 
-It creates a link:spark-blockmanager.adoc#creating-instance[BlockManager] (using the above `BlockManagerMaster` object and other services).
+[[BlockManager]]
+It creates a link:spark-blockmanager.adoc#creating-instance[BlockManager] (using the above <<BlockManagerMaster, BlockManagerMaster>>, <<NettyBlockTransferService, NettyBlockTransferService>> and other services).
 
 It creates a link:spark-service-broadcastmanager.adoc[BroadcastManager].
 
@@ -186,13 +199,25 @@ CAUTION: FIXME
 
 CAUTION: FIXME
 
-=== [[get]] Getting Current `SparkEnv` -- `get` Method
-
-CAUTION: FIXME
-
 === [[stop]] `stop` Method
 
 CAUTION: FIXME
+
+=== [[get]] Getting Current `SparkEnv` -- `get` Method
+
+[source, scala]
+----
+get: SparkEnv
+----
+
+`get` returns the current `SparkEnv`.
+
+[source, scala]
+----
+import org.apache.spark._
+scala> SparkEnv.get
+res0: org.apache.spark.SparkEnv = org.apache.spark.SparkEnv@49322d04
+----
 
 === [[settings]] Settings
 
