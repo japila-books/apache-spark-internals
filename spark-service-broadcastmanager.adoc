@@ -1,12 +1,12 @@
-== Broadcast Manager
+== [[BroadcastManager]] BroadcastManager
 
-*Broadcast Manager* is a Spark service to manage broadcast values in Spark jobs. It is created for a Spark application as part of link:spark-sparkcontext.adoc#creating-instance[SparkContext's initialization] and is a simple wrapper around <<BroadcastFactory, BroadcastFactory>>.
+*Broadcast Manager* (`BroadcastManager`) is a Spark service to manage link:spark-broadcast.adoc[broadcast values] in Spark jobs. It is created for a Spark application as part of link:spark-sparkcontext.adoc#creating-instance[SparkContext's initialization] and is a simple wrapper around <<BroadcastFactory, BroadcastFactory>>.
 
 Broadcast Manager tracks the number of broadcast values (using the internal field `nextBroadcastId`).
 
 The idea is to transfer values used in transformations from a driver to executors in a most effective way so they are copied once and used many times by tasks (rather than being copied every time a task is launched).
 
-When `BroadcastManager` is initialized an instance of `BroadcastFactory` is created based on <<settings, spark.broadcast.factory>> setting.
+When `BroadcastManager` is initialized an instance of <<BroadcastFactory, BroadcastFactory>> is created based on <<spark_broadcast_factory, spark.broadcast.factory>> setting.
 
 === [[BroadcastFactory]] BroadcastFactory
 
@@ -19,9 +19,11 @@ It comes with 4 methods:
 * `def unbroadcast(id: Long, removeFromDriver: Boolean, blocking: Boolean): Unit`
 * `def stop(): Unit`
 
-=== [[compression]] Compression
+NOTE: link:spark-TorrentBroadcastFactory.adoc[TorrentBroadcastFactory] is the only one implementation of `BroadcastFactory`.
 
-With <<settings, spark.broadcast.compress>> enabled (which is the default), link:spark-broadcast.adoc#TorrentBroadcast[TorrentBroadcast] does compression.
+=== [[compression]][[CompressionCodec]] Compression
+
+With <<settings, spark.broadcast.compress>> enabled (which is the default), link:spark-TorrentBroadcast.adoc[TorrentBroadcast] does compression.
 
 CAUTION: FIXME What's compressed?
 
@@ -36,21 +38,24 @@ CAUTION: FIXME What's compressed?
 
 An implementation of `CompressionCodec` trait has to offer a constructor that accepts link:spark-configuration.adoc[SparkConf].
 
-Internally, `TorrentBroadcast` sets the internal `compressionCodec` value that is later used to create blocks for an object (in `TorrentBroadcast.blockifyObject`) and to create the object out of the blocks (in `TorrentBroadcast.unBlockifyObject`).
-
-CAUTION: FIXME Review `TorrentBroadcast.blockifyObject` and `TorrentBroadcast.unBlockifyObject`.
-
 === [[settings]] Settings
 
 .Settings
 [width="100%",cols="1,1,3",frame="topbot",options="header,footer"]
 |======================
 |Name | Default value |Description
-| `spark.broadcast.factory` | `org.apache.spark.broadcast.TorrentBroadcastFactory` | The fully-qualified class name for the implementation of `BroadcastFactory` interface.
-| `spark.broadcast.compress` | `true` | The flag to enable compression. See <<compression, Compression>> in this document.
 
-The setting is also used in link:spark-SerializerManager.adoc#settings[SerializerManager].
+| [[spark_broadcast_factory]] `spark.broadcast.factory` | link:spark-TorrentBroadcastFactory.adoc[org.apache.spark.broadcast.TorrentBroadcastFactory] | The fully-qualified class name for the implementation of `BroadcastFactory` interface.
 
-| `spark.broadcast.blockSize` | `4m` | The size of a block
+| [[spark_broadcast_compress]] `spark.broadcast.compress` | `true` | The flag to enable compression. See <<compression, Compression>> in this document.
+
+Used when link:spark-TorrentBroadcast.adoc#writeBlocks[`TorrentBroadcast` stores broadcast variables to `BlockManager`].
+
+Used in link:spark-SerializerManager.adoc#settings[SerializerManager].
+
+| [[spark_broadcast_blockSize]] `spark.broadcast.blockSize` | `4m` | The size of a block
+
+Used when spark-TorrentBroadcast.adoc#writeBlocks[`TorrentBroadcast` puts brodcast blocks to ].
+
 | [[spark.io.compression.codec]] `spark.io.compression.codec` | `lz4` | The compression codec to use. See <<compression, Compression>>.
 |======================

@@ -47,6 +47,10 @@ log4j.logger.org.apache.spark.storage.BlockManager=OFF
 ```
 ====
 
+=== [[putSingle]] `putSingle` Method
+
+CAUTION: FIXME
+
 === [[getMatchingBlockIds]] Getting Ids of Existing Blocks (For a Given Filter) -- `getMatchingBlockIds` Method
 
 CAUTION: FIXME
@@ -193,7 +197,7 @@ putBytes(
 
 `putBytes` simply passes the call on to the internal <<doPutBytes, doPutBytes>>.
 
-NOTE: `putBytes` is executed when link:spark-executor-taskrunner.adoc#run-result-sent-via-blockmanager[`TaskRunner` sends a task result via `BlockManager`], <<putBlockData, `BlockManager` puts a block locally>> and in link:spark-broadcast.adoc#TorrentBroadcast[TorrentBroadcast].
+NOTE: `putBytes` is executed when link:spark-executor-taskrunner.adoc#run-result-sent-via-blockmanager[`TaskRunner` sends a task result via `BlockManager`], <<putBlockData, `BlockManager` puts a block locally>> and in link:spark-TorrentBroadcast.adoc[TorrentBroadcast].
 
 ==== [[doPutBytes]] `doPutBytes` Internal Method
 
@@ -210,31 +214,31 @@ def doPutBytes[T](
 
 `doPutBytes` is an internal method that calls the internal helper <<doPut, doPut>> with a function that accepts a `BlockInfo` and does the uploading.
 
-If the replication storage level is greater than 1, replication starts in a separate thread (using the internal <<replicate, replicate>> method).
+Inside the function, if the link:spark-rdd-caching.adoc#StorageLevel[storage `level`]'s replication is greater than 1, it immediately starts <<replicate, replication>> of the `blockId` block on a separate thread (from `futureExecutionContext` thread pool). The replication uses the input `bytes` and `level` storage level.
 
-NOTE: Replication is a integral part of link:spark-rdd-caching.adoc#StorageLevel[StorageLevel].
+For a memory storage level, the function checks whether the storage `level` is deserialized or not. For a deserialized storage `level`, ``BlockManager``'s link:spark-SerializerManager.adoc#dataDeserializeStream[`SerializerManager` deserializes `bytes` into an iterator of values] that link:spark-MemoryStore.adoc#putIteratorAsValues[`MemoryStore` stores]. If however the storage `level` is not deserialized, the function requests link:spark-MemoryStore.adoc#putBytes[`MemoryStore` to store the bytes]
 
-For a memory storage level, depending on whether it is a deserialized one or not, `putIteratorAsValues` or `putBytes` of link:spark-MemoryStore.adoc[MemoryStore] are used, respectively. If the put did not succeed and the storage level is also a disk one, you should see the following WARN message in the logs:
+If the put did not succeed and the storage level is to use disk, you should see the following WARN message in the logs:
 
 ```
 WARN BlockManager: Persisting block [blockId] to disk instead.
 ```
 
-link:spark-DiskStore.adoc#putBytes[DiskStore.putBytes] is called.
+And link:spark-DiskStore.adoc#putBytes[`DiskStore` stores the bytes].
 
-NOTE: link:spark-DiskStore.adoc[DiskStore] is only used when link:spark-MemoryStore.adoc[MemoryStore] has failed for memory and disk storage levels.
+NOTE: link:spark-DiskStore.adoc[DiskStore] is requested to store the bytes of a block with memory and disk storage level only when link:spark-MemoryStore.adoc[MemoryStore] has failed.
 
-If the storage level is a disk one only, link:spark-DiskStore.adoc#putBytes[DiskStore.putBytes] is called.
+If the storage level is to use disk only, link:spark-DiskStore.adoc#putBytes[`DiskStore` stores the bytes].
 
-`doPutBytes` requests <<getCurrentBlockStatus, current block status>> and if the block was successfully stored, and the driver should know about it (`tellMaster`), it <<reportBlockStatus, reports current storage status of the block to the driver>>. The link:spark-taskscheduler-taskmetrics.adoc#incUpdatedBlockStatuses[current TaskContext metrics are updated with the updated block status].
+`doPutBytes` requests <<getCurrentBlockStatus, current block status>> and if the block was successfully stored, and the driver should know about it (`tellMaster`), the function <<reportBlockStatus, reports the current storage status of the block to the driver>>. The link:spark-taskscheduler-taskmetrics.adoc#incUpdatedBlockStatuses[current `TaskContext` metrics are updated with the updated block status] (only when executed inside a task where `TaskContext` is available).
 
-Regardless of the block being successfully stored or not, you should see the following DEBUG message in the logs:
+You should see the following DEBUG message in the logs:
 
 ```
 DEBUG BlockManager: Put block [blockId] locally took [time] ms
 ```
 
-For replication level greater than `1`, `doPutBytes` waits for the earlier asynchronous replication to finish.
+The function waits till the earlier asynchronous replication finishes for a block with replication level greater than `1`.
 
 The final result of `doPutBytes` is the result of storing the block successful or not (as computed earlier).
 
@@ -552,7 +556,7 @@ NOTE: Most of the information to build `BlockStatus` is already in `BlockInfo` e
 
 Internally, it uses the input link:spark-BlockInfo.adoc[BlockInfo] to know about the block's storage level. If the storage level is not set (i.e. `null`), the returned `BlockStatus` assumes the link:spark-rdd-caching.adoc#StorageLevel[default NONE storage level] and the memory and disk sizes being `0`.
 
-If however the storage level is set, `getCurrentBlockStatus` uses link:spark-MemoryStore.adoc[MemoryStore] or link:spark-DiskStore.adoc[DiskStore] to check whether the block is stored in the storages or not and request for their sizes in the storages respectively (using their `getSize` or assume `0`).
+If however the storage level is set, `getCurrentBlockStatus` uses link:spark-MemoryStore.adoc[MemoryStore] and link:spark-DiskStore.adoc[DiskStore] to check whether the block is stored in the storages or not and request for their sizes in the storages respectively (using their `getSize` or assume `0`).
 
 NOTE: It is acceptable that the `BlockInfo` says to use memory or disk yet the block is not in the storages (yet or anymore). The method will give current status.
 
@@ -859,7 +863,7 @@ NOTE: `BlockManagerSlaveEndpoint` uses Java's https://docs.oracle.com/javase/8/d
 
 === [[broadcast]] Broadcast Values
 
-When a new broadcast value is created, link:spark-broadcast.adoc#TorrentBroadcast[TorrentBroadcast] blocks are put in the block manager.
+When a new broadcast value is created, link:spark-TorrentBroadcast.adoc[TorrentBroadcast] blocks are put in the block manager.
 
 You should see the following `TRACE` message:
 

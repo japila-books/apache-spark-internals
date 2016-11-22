@@ -1,0 +1,50 @@
+== [[TorrentBroadcast]] TorrentBroadcast
+
+`org.apache.spark.broadcast.TorrentBroadcast` is the default implementation of link:spark-broadcast.adoc#contract[`Broadcast` Contract]. It uses a BitTorrent-like protocol for distribution.
+
+.TorrentBroadcast - broadcasting using BitTorrent
+image::images/sparkcontext-broadcast-bittorrent.png[align="center"]
+
+NOTE: link:spark-TorrentBroadcastFactory.adoc[TorrentBroadcastFactory] is the factory of `TorrentBroadcast`-based broadcast values.
+
+When a new broadcast value is created using link:spark-sparkcontext.adoc#broadcast[SparkContext.broadcast()] method, a new instance of `TorrentBroadcast` is created that is then divided into blocks which are stored in the local link:spark-blockmanager.adoc[BlockManager].
+
+.TorrentBroadcast puts broadcast chunks to driver's BlockManager
+image::images/sparkcontext-broadcast-bittorrent-newBroadcast.png[align="center"]
+
+=== [[creating-instance]] Creating `TorrentBroadcast` Instance
+
+CAUTION: FIXME
+
+=== [[writeBlocks]] Storing Broadcast and Broadcast's Pieces in Local BlockManager -- `writeBlocks` Internal Method
+
+[source, scala]
+----
+writeBlocks(value: T): Int
+----
+
+`writeBlocks` is an internal method to store the broadcast's value and pieces to the local link:spark-blockmanager.adoc[BlockManager]. It returns the number of the broadcast's block pieces the broadcast was divided into.
+
+Internally, `writeBlocks` link:spark-blockmanager.adoc#putSingle[stores the block for `value` broadcast to the local `BlockManager`] (using a new link:spark-blockdatamanager.adoc#BroadcastBlockId[BroadcastBlockId], `value`, `MEMORY_AND_DISK` storage level and without telling the driver).
+
+If storing the broadcast block fails, you should see the following `SparkException` in the logs:
+
+```
+Failed to store [broadcastId] in BlockManager
+```
+
+`writeBlocks` divides `value` into blocks (of link:spark-service-broadcastmanager.adoc#spark_broadcast_blockSize[spark.broadcast.blockSize] size) using the link:spark-sparkenv.adoc#serializer[Serializer] and an optional link:spark-service-broadcastmanager.adoc#CompressionCodec[CompressionCodec] (enabled by link:spark-service-broadcastmanager.adoc#spark_broadcast_compress[spark.broadcast.compress]). Every block gets its own `BroadcastBlockId` (with `piece` and an index) and wrapped inside a `ChunkedByteBuffer`. link:spark-blockmanager.adoc#putBytes[Blocks are stored in the local `BlockManager`] (using the `piece` block id, `MEMORY_AND_DISK_SER` storage level and informing the driver).
+
+NOTE: The entire broadcast value is stored in the local `BlockManager` with `MEMORY_AND_DISK` storage level, and the pieces with `MEMORY_AND_DISK_SER` storage level.
+
+If storing any of the broadcast pieces fails, you should see the following `SparkException` in the logs:
+
+```
+Failed to store [pieceId] of [broadcastId] in local BlockManager
+```
+
+NOTE: `writeBlocks` is used when a <<creating-instance, `TorrentBroadcast` is created>>.
+
+=== [[blockifyObject]] `blockifyObject` Method
+
+CAUTION: FIXME
