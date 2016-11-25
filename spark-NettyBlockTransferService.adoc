@@ -1,8 +1,8 @@
 == [[NettyBlockTransferService]] `NettyBlockTransferService` -- Netty-Based BlockTransferService
 
-`NettyBlockTransferService` is a link:spark-blocktransferservice.adoc[BlockTransferService] that uses Netty for block transport (when <<uploadBlock, uploading>> or <<fetchBlocks, fetching blocks>>).
+`NettyBlockTransferService` is a link:spark-blocktransferservice.adoc[BlockTransferService] that uses Netty for block transport (when <<uploadBlock, uploading>> or <<fetchBlocks, fetching>> blocks of data).
 
-NOTE: `NettyBlockTransferService` is created when link:spark-sparkenv.adoc#NettyBlockTransferService[`SparkEnv` is created] (and later passed on to create a link:spark-blockmanager.adoc#creating-instance[BlockManager] per driver and executors).
+NOTE: `NettyBlockTransferService` is created when link:spark-sparkenv.adoc#NettyBlockTransferService[`SparkEnv` is created] (and later passed on to create a link:spark-blockmanager.adoc#creating-instance[BlockManager] for the driver and executors).
 
 [TIP]
 ====
@@ -17,12 +17,26 @@ log4j.logger.org.apache.spark.network.netty.NettyBlockTransferService=TRACE
 Refer to link:spark-logging.adoc[Logging].
 ====
 
+=== [[creating-instance]] Creating `NettyBlockTransferService` Instance
+
+CAUTION: FIXME
+
+=== [[fetchBlocks]] `fetchBlocks` Method
+
+CAUTION: FIXME
+
+=== [[appId]] Application Id -- `appId` Property
+
+CAUTION: FIXME
+
 === [[init]] Initializing `NettyBlockTransferService` -- `init` Method
 
 [source, scala]
 ----
 init(blockDataManager: BlockDataManager): Unit
 ----
+
+NOTE: `init` is a part of the link:spark-blocktransferservice.adoc#contract[`BlockTransferService` contract].
 
 `init` starts a server for...FIXME
 
@@ -46,10 +60,6 @@ INFO NettyBlockTransferService: Server created on [hostName]:[port]
 
 NOTE: `hostname` is given when link:spark-sparkenv.adoc#NettyBlockTransferService[`NettyBlockTransferService` is created] and is controlled by link:spark-driver.adoc#spark_driver_host[`spark.driver.host` Spark property] for the driver and differs per deployment environment for executors (as controlled by link:spark-executor-backends-CoarseGrainedExecutorBackend.adoc#main[`--hostname` for `CoarseGrainedExecutorBackend`]).
 
-NOTE: `init` is a part of link:spark-blocktransferservice.adoc#contract[`BlockTransferService` contract].
-
-=== [[creating-instance]] Creating `NettyBlockTransferService` Instance
-
 === [[uploadBlock]] `uploadBlock` Method
 
 [source, scala]
@@ -64,9 +74,13 @@ uploadBlock(
   classTag: ClassTag[_]): Future[Unit]
 ----
 
-`uploadBlock` creates a `TransportClient` client to send a `UploadBlock` message. The message contains the <<appId, application id>>, `execId`, and `blockId` with `blockData`, `level` and `classTag` serialized.
+NOTE: `uploadBlock` is a part of the link:spark-blocktransferservice.adoc#contract[`BlockTransferService` contract].
 
-CAUTION: FIXME Describe `TransportClient`.
+Internally, `uploadBlock` creates a `TransportClient` client to send a <<UploadBlock, `UploadBlock` message>>. The message holds the <<appId, application id>>, the input `execId` and `blockId`. It also holds the serialized bytes for block metadata with `level` and `classTag` serialized (using the internal `JavaSerializer`) as well as the serialized bytes for the input `blockData` itself (this time however the serialization uses link:spark-blockdatamanager.adoc#ManagedBuffer[`ManagedBuffer.nioByteBuffer` method]).
+
+The entire <<UploadBlock, `UploadBlock` message>> is further serialized before sending (using `TransportClient.sendRpc`).
+
+CAUTION: FIXME Describe `TransportClient` and `clientFactory.createClient`.
 
 When `blockId` block was successfully uploaded, you should see the following TRACE message in the logs:
 
@@ -80,8 +94,21 @@ When an upload failed, you should see the following ERROR message in the logs:
 ERROR Error while uploading block [blockId]
 ```
 
-NOTE: `uploadBlock` is executed when link:spark-blocktransferservice.adoc#uploadBlockSync[`BlockTransferService` does block upload in blocking way] (which simply allows for custom block upload in a link:spark-blocktransferservice.adoc[BlockTransferService]).
+NOTE: `uploadBlock` is executed when link:spark-blocktransferservice.adoc#uploadBlockSync[`BlockTransferService` does block upload in a blocking way].
 
-=== [[fetchBlocks]] `fetchBlocks` Method
+=== [[UploadBlock]] `UploadBlock` Message
 
-=== [[appId]] Application Id -- `appId` Property
+`UploadBlock` is a `BlockTransferMessage` that describes a block being uploaded, i.e. transferred over the wire.
+
+.`UploadBlock` Attributes
+[frame="topbot",cols="1,2",options="header",width="100%"]
+|======================
+| Attribute | Description
+| `appId` | The application id (the block belongs to)
+| `execId` | The executor id
+| `blockId` | The block id
+| `metadata` |
+| `blockData` | The block data as an array of bytes
+|======================
+
+As an `Encodable`, `UploadBlock` can calculate the encoded size and do encoding and decoding itself to or from a `ByteBuf`, respectively.
