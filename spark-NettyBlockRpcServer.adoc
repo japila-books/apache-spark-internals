@@ -1,3 +1,67 @@
 == [[NettyBlockRpcServer]] NettyBlockRpcServer
 
+`NettyBlockRpcServer` is a `RpcHandler` (i.e. a handler for `sendRPC()` messages sent by ``TransportClient``s) that handles `BlockTransferMessage` messages for link:spark-NettyBlockTransferService.adoc[NettyBlockTransferService].
+
+.`NettyBlockRpcServer` Messages
+[frame="topbot",cols="1,2",options="header",width="100%"]
+|======================
+| Message | Behaviour
+| <<OpenBlocks, OpenBlocks>> |
+| <<UploadBlock, UploadBlock>> |
+|======================
+
+TIP: Enable `TRACE` logging level to see received messages in the logs.
+
+[TIP]
+====
+Enable `TRACE` logging level for `org.apache.spark.network.netty.NettyBlockRpcServer` logger to see what happens inside.
+
+Add the following line to `conf/log4j.properties`:
+
+```
+log4j.logger.org.apache.spark.network.netty.NettyBlockRpcServer=TRACE
+```
+
+Refer to link:spark-logging.adoc[Logging].
+====
+
+=== [[UploadBlock]] `UploadBlock` Message Handler
+
+CAUTION: FIXME
+
+=== [[OpenBlocks]] `OpenBlocks` Message Handler
+
+When `OpenBlocks` arrives, `NettyBlockRpcServer` link:spark-blockdatamanager.adoc#getBlockData[requests block data (from `BlockDataManager`) for every block id in the message]. The block data is a collection of `ManagedBuffer` for every block id in the incoming message.
+
+NOTE: `BlockDataManager` is given when <<creating-instance, `NettyBlockRpcServer` is created>>.
+
+`NettyBlockRpcServer` then link:spark-ExternalShuffleService.adoc#OneForOneStreamManager-registerStream[registers a stream of ``ManagedBuffer``s (for the blocks) with the internal `StreamManager`] under `streamId`.
+
+NOTE: The internal `StreamManager` is link:spark-ExternalShuffleService.adoc#OneForOneStreamManager[OneForOneStreamManager] and is created when <<creating-instance, `NettyBlockRpcServer` is created>>.
+
+You should see the following TRACE message in the logs:
+
+```
+TRACE NettyBlockRpcServer: Registered streamId [streamId]  with [size] buffers
+```
+
+In the end, `NettyBlockRpcServer` responds with a `StreamHandle` (with the `streamId` and the number of blocks). The response is serialized as a `ByteBuffer`.
+
 === [[creating-instance]] Creating `NettyBlockRpcServer` Instance
+
+[source, scala]
+----
+class NettyBlockRpcServer(
+  appId: String,
+  serializer: Serializer,
+  blockManager: BlockDataManager)
+extends RpcHandler
+----
+
+When created, `NettyBlockRpcServer` gets the application id (`appId`) and a `Serializer` and a link:spark-blockdatamanager.adoc[BlockDataManager].
+
+NOTE: `NettyBlockRpcServer` is created when link:spark-NettyBlockTransferService.adoc#init[`NettyBlockTransferService` is initialized].
+
+`NettyBlockRpcServer` creates the internal instance of link:spark-ExternalShuffleService.adoc#OneForOneStreamManager[OneForOneStreamManager].
+
+NOTE: As a `RpcHandler`, `NettyBlockRpcServer` uses the `OneForOneStreamManager` for `getStreamManager` (which is a part of the `RpcHandler` contract).
