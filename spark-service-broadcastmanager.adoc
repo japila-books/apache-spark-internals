@@ -8,35 +8,32 @@ The idea is to transfer values used in transformations from a driver to executor
 
 When `BroadcastManager` is initialized an instance of <<BroadcastFactory, BroadcastFactory>> is created based on <<spark_broadcast_factory, spark.broadcast.factory>> setting.
 
-=== [[BroadcastFactory]] BroadcastFactory
+=== [[newBroadcast]] `newBroadcast` Method
+
+[source, scala]
+----
+newBroadcast[T](value_ : T, isLocal: Boolean): Broadcast[T]
+----
+
+`newBroadcast` simply requests the <<BroadcastFactory-newBroadcast, pluggable `BroadcastFactory` to create a new broadcast variable>>.
+
+NOTE: `newBroadcast` is executed for link:spark-sparkcontext.adoc#broadcast[`SparkContext.broadcast` method] and when link:spark-service-mapoutputtracker.adoc#serializeMapStatuses[`MapOutputTracker` serializes ``MapStatus``es].
+
+=== [[BroadcastFactory]] `BroadcastFactory` -- Pluggable Interface for Broadcast Variable Factories
 
 `BroadcastFactory` is a pluggable interface for broadcast implementations in Spark. It is exclusively used and instantiated inside of `BroadcastManager` to manage broadcast variables.
 
-It comes with 4 methods:
-
-* `def initialize(isDriver: Boolean, conf: SparkConf, securityMgr: SecurityManager): Unit`
-* `def newBroadcast[T: ClassTag](value: T, isLocal: Boolean, id: Long): Broadcast[T]` - called after `SparkContext.broadcast()` has been called.
-* `def unbroadcast(id: Long, removeFromDriver: Boolean, blocking: Boolean): Unit`
-* `def stop(): Unit`
+.`BroadcastFactory` Methods
+[frame="topbot",cols="1,2",options="header",width="100%"]
+|======================
+| Method | Description
+| [[initialize]] `initialize` |
+| [[BroadcastFactory-newBroadcast]] `newBroadcast` |
+| [[unbroadcast]] `unbroadcast` |
+| [[stop]] `stop` |
+|======================
 
 NOTE: link:spark-TorrentBroadcastFactory.adoc[TorrentBroadcastFactory] is the only one implementation of `BroadcastFactory`.
-
-=== [[compression]][[CompressionCodec]] Compression
-
-With <<settings, spark.broadcast.compress>> enabled (which is the default), link:spark-TorrentBroadcast.adoc[TorrentBroadcast] does compression.
-
-CAUTION: FIXME What's compressed?
-
-.Built-in Compression Codecs
-[width="100%",cols="1,1,3",frame="topbot",options="header,footer"]
-|======================
-|Alias | Fully-Qualified Class Name | Notes
-| `lz4` | `org.apache.spark.io.LZ4CompressionCodec` | The default implementation
-| `snappy` | `org.apache.spark.io.SnappyCompressionCodec` | The fallback when the default codec is not available.
-| `lzf` | `org.apache.spark.io.LZFCompressionCodec` |
-|======================
-
-An implementation of `CompressionCodec` trait has to offer a constructor that accepts link:spark-configuration.adoc[SparkConf].
 
 === [[settings]] Settings
 
@@ -45,17 +42,15 @@ An implementation of `CompressionCodec` trait has to offer a constructor that ac
 |======================
 |Name | Default value |Description
 
-| [[spark_broadcast_factory]] `spark.broadcast.factory` | link:spark-TorrentBroadcastFactory.adoc[org.apache.spark.broadcast.TorrentBroadcastFactory] | The fully-qualified class name for the implementation of `BroadcastFactory` interface.
-
-| [[spark_broadcast_compress]] `spark.broadcast.compress` | `true` | The flag to enable compression. See <<compression, Compression>> in this document.
-
-Used when link:spark-TorrentBroadcast.adoc#writeBlocks[`TorrentBroadcast` stores broadcast variables to `BlockManager`].
-
-Used in link:spark-SerializerManager.adoc#settings[SerializerManager].
-
 | [[spark_broadcast_blockSize]] `spark.broadcast.blockSize` | `4m` | The size of a block
 
-Used when spark-TorrentBroadcast.adoc#writeBlocks[`TorrentBroadcast` puts brodcast blocks to ].
+Used when link:spark-TorrentBroadcast.adoc#writeBlocks[`TorrentBroadcast` stores brodcast blocks to `BlockManager`].
 
-| [[spark.io.compression.codec]] `spark.io.compression.codec` | `lz4` | The compression codec to use. See <<compression, Compression>>.
+| [[spark_broadcast_compress]] `spark.broadcast.compress` | `true` | The flag to enable compression.
+
+Refer to link:spark-CompressionCodec.adoc[CompressionCodec].
+
+Used when link:spark-TorrentBroadcast.adoc#creating-instance[`TorrentBroadcast` is created] and later when link:spark-TorrentBroadcast.adoc#writeBlocks[it stores broadcast blocks to `BlockManager`]. Also in link:spark-SerializerManager.adoc#settings[SerializerManager].
+
+| [[spark_broadcast_factory]] `spark.broadcast.factory` | link:spark-TorrentBroadcastFactory.adoc[org.apache.spark.broadcast.TorrentBroadcastFactory] | The fully-qualified class name for the implementation of `BroadcastFactory` interface.
 |======================

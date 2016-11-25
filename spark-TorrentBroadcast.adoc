@@ -1,18 +1,57 @@
 == [[TorrentBroadcast]] TorrentBroadcast
 
-`org.apache.spark.broadcast.TorrentBroadcast` is the default implementation of link:spark-broadcast.adoc#contract[`Broadcast` Contract]. It uses a BitTorrent-like protocol for distribution.
+`org.apache.spark.broadcast.TorrentBroadcast` is the default implementation of the link:spark-broadcast.adoc#contract[`Broadcast` Contract]. It uses a BitTorrent-like protocol for distribution.
 
 .TorrentBroadcast - broadcasting using BitTorrent
 image::images/sparkcontext-broadcast-bittorrent.png[align="center"]
 
-NOTE: link:spark-TorrentBroadcastFactory.adoc[TorrentBroadcastFactory] is the factory of `TorrentBroadcast`-based broadcast values.
+NOTE: `TorrentBroadcast`-based broadcast variables are created using link:spark-TorrentBroadcastFactory.adoc[TorrentBroadcastFactory].
 
-When a new broadcast value is created using link:spark-sparkcontext.adoc#broadcast[SparkContext.broadcast()] method, a new instance of `TorrentBroadcast` is created that is then divided into blocks which are stored in the local link:spark-blockmanager.adoc[BlockManager].
+When a link:spark-sparkcontext.adoc#broadcast[new broadcast value is created (using `SparkContext.broadcast` method)], a <<creating-instance, new instance of `TorrentBroadcast` is created>> that is then divided into blocks which are stored in the local link:spark-blockmanager.adoc[BlockManager] (on the driver).
 
 .TorrentBroadcast puts broadcast chunks to driver's BlockManager
 image::images/sparkcontext-broadcast-bittorrent-newBroadcast.png[align="center"]
 
+[TIP]
+====
+Enable `INFO` or `DEBUG` logging levels for `org.apache.spark.broadcast.TorrentBroadcast` logger to see what happens inside.
+
+Add the following line to `conf/log4j.properties`:
+
+```
+log4j.logger.org.apache.spark.broadcast.TorrentBroadcast=DEBUG
+```
+
+Refer to link:spark-logging.adoc[Logging].
+====
+
+=== [[unpersist]] `unpersist` Method
+
+CAUTION: FIXME
+
 === [[creating-instance]] Creating `TorrentBroadcast` Instance
+
+[source, scala]
+----
+TorrentBroadcast[T](obj: T, id: Long)
+extends Broadcast[T](id)
+----
+
+When created, `TorrentBroadcast` <<readBroadcastBlock, computes the internal `_value`>>.
+
+NOTE: The internal `_value` is transient so it is not serialized and sent over the wire to executors, but rather recreated on demand (and that is why it is also `lazy`).
+
+`TorrentBroadcast` then sets the internal optional link:spark-CompressionCodec.adoc#createCodec[CompressionCodec] and the size of broadcast block (as controlled by  link:spark-service-broadcastmanager.adoc#spark_broadcast_blockSize[spark.broadcast.blockSize] Spark property in link:spark-configuration.adoc[SparkConf] per driver and executors).
+
+NOTE: Compression is controlled by link:spark-service-broadcastmanager.adoc#spark_broadcast_compress[spark.broadcast.compress] Spark property and is enabled by default.
+
+The internal `broadcastId` is link:spark-blockdatamanager.adoc#BroadcastBlockId[BroadcastBlockId] for the input `id`.
+
+The internal `numBlocks` is set to <<writeBlocks, the number of the pieces the broadcast was divided into>>.
+
+NOTE: A broadcast's blocks are first stored in the local link:spark-blockmanager.adoc[BlockManager] on the driver.
+
+=== [[readBroadcastBlock]] `readBroadcastBlock` Method
 
 CAUTION: FIXME
 
@@ -33,7 +72,7 @@ If storing the broadcast block fails, you should see the following `SparkExcepti
 Failed to store [broadcastId] in BlockManager
 ```
 
-`writeBlocks` divides `value` into blocks (of link:spark-service-broadcastmanager.adoc#spark_broadcast_blockSize[spark.broadcast.blockSize] size) using the link:spark-sparkenv.adoc#serializer[Serializer] and an optional link:spark-service-broadcastmanager.adoc#CompressionCodec[CompressionCodec] (enabled by link:spark-service-broadcastmanager.adoc#spark_broadcast_compress[spark.broadcast.compress]). Every block gets its own `BroadcastBlockId` (with `piece` and an index) and wrapped inside a `ChunkedByteBuffer`. link:spark-blockmanager.adoc#putBytes[Blocks are stored in the local `BlockManager`] (using the `piece` block id, `MEMORY_AND_DISK_SER` storage level and informing the driver).
+`writeBlocks` divides `value` into blocks (of link:spark-service-broadcastmanager.adoc#spark_broadcast_blockSize[spark.broadcast.blockSize] size) using the link:spark-sparkenv.adoc#serializer[Serializer] and an optional link:spark-CompressionCodec.adoc[CompressionCodec] (enabled by link:spark-service-broadcastmanager.adoc#spark_broadcast_compress[spark.broadcast.compress]). Every block gets its own `BroadcastBlockId` (with `piece` and an index) and wrapped inside a `ChunkedByteBuffer`. link:spark-blockmanager.adoc#putBytes[Blocks are stored in the local `BlockManager`] (using the `piece` block id, `MEMORY_AND_DISK_SER` storage level and informing the driver).
 
 NOTE: The entire broadcast value is stored in the local `BlockManager` with `MEMORY_AND_DISK` storage level, and the pieces with `MEMORY_AND_DISK_SER` storage level.
 
