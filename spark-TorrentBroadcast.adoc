@@ -1,4 +1,4 @@
-== [[TorrentBroadcast]] TorrentBroadcast
+== [[TorrentBroadcast]] `TorrentBroadcast` -- Default `Broadcast` Implementation
 
 `org.apache.spark.broadcast.TorrentBroadcast` is the default implementation of the link:spark-broadcast.adoc#contract[`Broadcast` Contract]. It uses a BitTorrent-like protocol for distribution.
 
@@ -51,9 +51,66 @@ The internal `numBlocks` is set to <<writeBlocks, the number of the pieces the b
 
 NOTE: A broadcast's blocks are first stored in the local link:spark-blockmanager.adoc[BlockManager] on the driver.
 
-=== [[readBroadcastBlock]] `readBroadcastBlock` Method
+=== [[unBlockifyObject]] `unBlockifyObject` Method
 
 CAUTION: FIXME
+
+=== [[readBlocks]] `readBlocks` Method
+
+CAUTION: FIXME
+
+=== [[releaseLock]] `releaseLock` Method
+
+CAUTION: FIXME
+
+=== [[setConf]] `setConf` Method
+
+CAUTION: FIXME
+
+=== [[readBroadcastBlock]] `readBroadcastBlock` Internal Method
+
+[source, scala]
+----
+readBroadcastBlock(): T
+----
+
+Internally, `readBroadcastBlock` <<setConf, sets the `SparkConf`>>
+
+NOTE: The current link:spark-configuration.adoc[SparkConf] is available using link:spark-sparkenv.adoc#conf[SparkEnv.get.conf].
+
+`readBroadcastBlock` requests the link:spark-blockmanager.adoc#getLocalValues[local `BlockManager` for values of the broadcast].
+
+NOTE: The current link:spark-blockmanager.adoc[BlockManager] is available using link:spark-sparkenv.adoc#blockManager[SparkEnv.get.blockManager].
+
+If the broadcast was available locally, `readBroadcastBlock` <<releaseLock, releases a lock>> for the broadcast and returns it.
+
+If however the broadcast was not found locally, you should see the following INFO message in the logs:
+
+```
+INFO Started reading broadcast variable [id]
+```
+
+`readBroadcastBlock` <<readBlocks, reads blocks (as chunks)>> of the broadcast.
+
+You should see the following INFO message in the logs:
+
+```
+INFO Reading broadcast variable [id] took [usedTimeMs]
+```
+
+`readBroadcastBlock` <<unBlockifyObject, _unblockifies_ the collection of `ByteBuffer` blocks>>
+
+NOTE: `readBroadcastBlock` uses the link:spark-sparkenv.adoc#serializer[current `Serializer`] and the internal link:spark-CompressionCodec.adoc[CompressionCodec] to bring all the blocks together as one single broadcast variable.
+
+`readBroadcastBlock` link:spark-blockmanager.adoc#putSingle[stores the broadcast variable with `MEMORY_AND_DISK` storage level to the local `BlockManager`]. When storing the broadcast variable was unsuccessful, a `SparkException` is thrown.
+
+```
+Failed to store [broadcastId] in BlockManager
+```
+
+The broadcast variable is returned.
+
+NOTE: `readBroadcastBlock` is exclusively used to <<creating-instance, recreate a broadcast variable on executors>>.
 
 === [[writeBlocks]] Storing Broadcast and Broadcast's Pieces in Local BlockManager -- `writeBlocks` Internal Method
 
