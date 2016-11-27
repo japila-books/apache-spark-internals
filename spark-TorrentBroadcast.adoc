@@ -1,6 +1,6 @@
 == [[TorrentBroadcast]] `TorrentBroadcast` -- Default `Broadcast` Implementation
 
-`TorrentBroadcast` is the default implementation of the link:spark-broadcast.adoc#contract[`Broadcast` Contract] that describes link:spark-broadcast.adoc[broadcast variables]. `TorrentBroadcast` uses a BitTorrent-like protocol for distribution when requested, i.e. when tasks access the broadcast variable (on executors).
+`TorrentBroadcast` is the default (and only) implementation of the link:spark-broadcast.adoc#contract[`Broadcast` Contract] that describes link:spark-broadcast.adoc[broadcast variables]. `TorrentBroadcast` uses a BitTorrent-like protocol for block distribution and only when tasks access broadcast variables (on executors).
 
 .TorrentBroadcast - broadcasting using BitTorrent
 image::images/sparkcontext-broadcast-bittorrent.png[align="center"]
@@ -15,8 +15,7 @@ val anyScalaValue = ???
 val b = sc.broadcast(anyScalaValue)
 ----
 
-
-Under the covers, the broadcast variable is divided into broadcast blocks and stored in the driver's local link:spark-blockmanager.adoc[BlockManager].
+A broadcast variable is stored on the driver's link:spark-blockmanager.adoc[BlockManager] as a single value and broadcast blocks (after it was <<blockifyObject, divided into broadcast blocks, i.e. blockified>>). The broadcast block size is the valu of link:spark-service-broadcastmanager.adoc#spark_broadcast_blockSize[`spark.broadcast.blockSize` Spark property].
 
 .TorrentBroadcast puts broadcast chunks to driver's BlockManager
 image::images/sparkcontext-broadcast-bittorrent-newBroadcast.png[align="center"]
@@ -42,28 +41,6 @@ Refer to link:spark-logging.adoc[Logging].
 
 CAUTION: FIXME
 
-=== [[creating-instance]] Creating `TorrentBroadcast` Instance
-
-[source, scala]
-----
-TorrentBroadcast[T](obj: T, id: Long)
-extends Broadcast[T](id)
-----
-
-When created, `TorrentBroadcast` <<readBroadcastBlock, computes the internal `_value`>>.
-
-NOTE: The internal `_value` is transient so it is not serialized and sent over the wire to executors, but rather recreated on demand (and that is why it is also `lazy`).
-
-`TorrentBroadcast` then sets the internal optional link:spark-CompressionCodec.adoc#createCodec[CompressionCodec] and the size of broadcast block (as controlled by  link:spark-service-broadcastmanager.adoc#spark_broadcast_blockSize[spark.broadcast.blockSize] Spark property in link:spark-configuration.adoc[SparkConf] per driver and executors).
-
-NOTE: Compression is controlled by link:spark-service-broadcastmanager.adoc#spark_broadcast_compress[spark.broadcast.compress] Spark property and is enabled by default.
-
-The internal `broadcastId` is link:spark-blockdatamanager.adoc#BroadcastBlockId[BroadcastBlockId] for the input `id`.
-
-The internal `numBlocks` is set to <<writeBlocks, the number of the pieces the broadcast was divided into>>.
-
-NOTE: A broadcast's blocks are first stored in the local link:spark-blockmanager.adoc[BlockManager] on the driver.
-
 === [[unBlockifyObject]] `unBlockifyObject` Method
 
 CAUTION: FIXME
@@ -79,6 +56,28 @@ CAUTION: FIXME
 === [[setConf]] `setConf` Method
 
 CAUTION: FIXME
+
+=== [[creating-instance]] Creating `TorrentBroadcast` Instance
+
+[source, scala]
+----
+TorrentBroadcast[T](obj: T, id: Long)
+extends Broadcast[T](id)
+----
+
+When created, `TorrentBroadcast` <<readBroadcastBlock, reads broadcast blocks>> (to the internal `_value`).
+
+NOTE: The internal `_value` is transient so it is not serialized and sent over the wire to executors. It is later recreated lazily on executors when requested.
+
+`TorrentBroadcast` then sets the internal optional link:spark-CompressionCodec.adoc#createCodec[CompressionCodec] and the size of broadcast block (as controlled by  link:spark-service-broadcastmanager.adoc#spark_broadcast_blockSize[spark.broadcast.blockSize] Spark property in link:spark-configuration.adoc[SparkConf] per driver and executors).
+
+NOTE: Compression is controlled by link:spark-service-broadcastmanager.adoc#spark_broadcast_compress[spark.broadcast.compress] Spark property and is enabled by default.
+
+The internal `broadcastId` is link:spark-blockdatamanager.adoc#BroadcastBlockId[BroadcastBlockId] for the input `id`.
+
+The internal `numBlocks` is set to <<writeBlocks, the number of the pieces the broadcast was divided into>>.
+
+NOTE: A broadcast's blocks are first stored in the local link:spark-blockmanager.adoc[BlockManager] on the driver.
 
 === [[readBroadcastBlock]] `readBroadcastBlock` Internal Method
 
@@ -125,14 +124,16 @@ The broadcast variable is returned.
 
 NOTE: `readBroadcastBlock` is exclusively used to <<creating-instance, recreate a broadcast variable on executors>>.
 
-=== [[writeBlocks]] Storing Broadcast and Broadcast's Pieces in Local BlockManager -- `writeBlocks` Internal Method
+=== [[writeBlocks]] Storing Broadcast and Its Blocks in Local BlockManager -- `writeBlocks` Internal Method
 
 [source, scala]
 ----
 writeBlocks(value: T): Int
 ----
 
-`writeBlocks` is an internal method to store the broadcast's value and pieces to the local link:spark-blockmanager.adoc[BlockManager]. It returns the number of the broadcast's block pieces the broadcast was divided into.
+`writeBlocks` is an internal method to store the broadcast's `value` and blocks in the driver's link:spark-blockmanager.adoc[BlockManager]. It returns the number of the broadcast blocks the broadcast was divided into.
+
+NOTE: `writeBlocks` is exclusively used when a <<creating-instance, `TorrentBroadcast` is created>> that happens on the driver only.
 
 Internally, `writeBlocks` link:spark-blockmanager.adoc#putSingle[stores the block for `value` broadcast to the local `BlockManager`] (using a new link:spark-blockdatamanager.adoc#BroadcastBlockId[BroadcastBlockId], `value`, `MEMORY_AND_DISK` storage level and without telling the driver).
 
@@ -152,8 +153,17 @@ If storing any of the broadcast pieces fails, you should see the following `Spar
 Failed to store [pieceId] of [broadcastId] in local BlockManager
 ```
 
-NOTE: `writeBlocks` is used when a <<creating-instance, `TorrentBroadcast` is created>>.
+=== [[blockifyObject]] Chunking Broadcast Into Blocks -- `blockifyObject` Method
 
-=== [[blockifyObject]] `blockifyObject` Method
+[source, scala]
+----
+blockifyObject[T](
+  obj: T,
+  blockSize: Int,
+  serializer: Serializer,
+  compressionCodec: Option[CompressionCodec]): Array[ByteBuffer]
+----
 
-CAUTION: FIXME
+`blockifyObject` divides (aka _blockifies_) the input `obj` broadcast variable into blocks (of `ByteBuffer`). `blockifyObject` uses the input `serializer` `Serializer` to write `obj` in a serialized format to a `ChunkedByteBufferOutputStream` (of `blockSize` size) with the optional link:spark-CompressionCodec.adoc[CompressionCodec].
+
+NOTE: `blockifyObject` is executed when <<writeBlocks, `TorrentBroadcast` stores a broadcast and its blocks to a local `BlockManager`>>.
