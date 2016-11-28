@@ -11,29 +11,40 @@ And later in the document:
 .Broadcasting a value to executors
 image::images/sparkcontext-broadcast-executors.png[align="center"]
 
-To use a broadcast value in a transformation you have to create it first using <<sparkcontext-broadcast, SparkContext.broadcast()>> and then use `value` method to access the shared value. Learn it in <<introductory-example, Introductory Example>> section.
+To use a broadcast value in a Spark transformation you have to create it first using link:spark-sparkcontext.adoc#broadcast[SparkContext.broadcast] and then use `value` method to access the shared value. Learn it in <<introductory-example, Introductory Example>> section.
 
 The Broadcast feature in Spark uses SparkContext to create broadcast values and link:spark-service-broadcastmanager.adoc[BroadcastManager] and link:spark-service-contextcleaner.adoc[ContextCleaner] to manage their lifecycle.
 
 .SparkContext to broadcast using BroadcastManager and ContextCleaner
 image::images/sparkcontext-broadcastmanager-contextcleaner.png[align="center"]
 
-=== [[contract]] `Broadcast` Variable Contract
+TIP: Not only can Spark developers use broadcast variables for efficient data distribution, but Spark itself uses them quite often. A very notable use case is when link:spark-dagscheduler.adoc#submitMissingTasks[Spark distributes tasks to executors for their execution]. That _does_ change my perspective on the role of broadcast variables in Spark.
 
-The contract of broadcast variables in Spark is described by the abstract `Broadcast` class.
+=== [[developer-contract]] `Broadcast` Spark Developer-Facing Contract
+
+The developer-facing `Broadcast` contract allows Spark developers to use it in their applications.
 
 .Broadcast API
-[width="100%",frame="topbot",options="header,footer"]
+[width="100%",cols="1,2",frame="topbot",options="header,footer"]
 |======================
-|Method Name | Description
-| `id` | The unique identifier
-| <<value, value>> | The value
-| <<unpersist, unpersist>> | Asynchronously deletes cached copies of this broadcast on the executors.
-| <<destroy, destroy>> | Destroys all data and metadata related to this broadcast variable.
-| `toString` | The string representation
-|======================
+| Method Name
+| Description
 
-NOTE: link:spark-TorrentBroadcast.adoc[TorrentBroadcast] is the only implementation of the `Broadcast` contract.
+| `id`
+| The unique identifier
+
+| <<value, value>>
+| The value
+
+| <<unpersist, unpersist>>
+| Asynchronously deletes cached copies of this broadcast on the executors.
+
+| <<destroy, destroy>>
+| Destroys all data and metadata related to this broadcast variable.
+
+| `toString`
+| The string representation
+|======================
 
 === [[lifecycle]] Lifecycle of Broadcast Variable
 
@@ -134,18 +145,18 @@ unpersist(): Unit
 unpersist(blocking: Boolean): Unit
 ----
 
-=== [[destroy]] Removing Broadcast Variable From Memory -- `destroy` Method
+=== [[destroy]] Destroying Broadcast Variable -- `destroy` Method
 
 [source, scala]
 ----
 destroy(): Unit
 ----
 
-`destroy` destroys all data and metadata of a broadcast variable.
+`destroy` removes a broadcast variable.
 
 NOTE: Once a broadcast variable has been destroyed, it cannot be used again.
 
-You can only destroy a broadcast variable once or you will see the following `SparkException` exception in the logs:
+If you try to destroy a broadcast variable more than once, you will see the following `SparkException` exception in the logs:
 
 ```
 scala> b.destroy
@@ -155,6 +166,31 @@ org.apache.spark.SparkException: Attempted to use Broadcast(0) after it was dest
   at org.apache.spark.broadcast.Broadcast.destroy(Broadcast.scala:98)
   ... 48 elided
 ```
+
+Internally, `destroy` executes the internal <<destroy-internal, destroy>> (with `blocking` enabled).
+
+=== [[destroy-internal]] Removing Persisted Data of Broadcast Variable -- `destroy` Internal Method
+
+[source, scala]
+----
+destroy(blocking: Boolean): Unit
+----
+
+`destroy` destroys all data and metadata of a broadcast variable.
+
+NOTE: `destroy` is a `private[spark]` method.
+
+Internally, `destroy` marks a broadcast variable destroyed, i.e. the internal `_isValid` flag is disabled.
+
+You should see the following INFO message in the logs:
+
+```
+INFO TorrentBroadcast: Destroying Broadcast([id]) (from [destroySite])
+```
+
+In the end, `doDestroy` method is executed (that broadcast implementations are supposed to provide).
+
+NOTE: `doDestroy` is a part of the <<contract, Broadcast contract>> for broadcast implementations so they can provide their own custom behaviour.
 
 === [[introductory-example]] Introductory Example
 
@@ -209,9 +245,17 @@ Spark comes with a BitTorrent implementation.
 
 It is not enabled by default.
 
-=== [[sparkcontext-broadcast]] SparkContext.broadcast
+=== [[contract]] `Broadcast` Contract
 
-Read about `SparkContext.broadcast` method in link:spark-sparkcontext.adoc#creating-broadcast-variables[Creating broadcast variables].
+The `Broadcast` contract is made up of the following methods that custom `Broadcast` implementations are supposed to provide:
+
+1. `getValue`
+2. `doUnpersist`
+3. `doDestroy`
+
+NOTE: link:spark-TorrentBroadcast.adoc[TorrentBroadcast] is the only implementation of the `Broadcast` contract.
+
+NOTE: <<developer-contract, `Broadcast` Spark Developer-Facing Contract>> is the developer-facing `Broadcast` contract that allows Spark developers to use it in their applications.
 
 === Further Reading
 
