@@ -1,6 +1,6 @@
 == [[TorrentBroadcast]] `TorrentBroadcast` -- Default `Broadcast` Implementation
 
-`TorrentBroadcast` is the default (and only) implementation of the link:spark-broadcast.adoc#contract[`Broadcast` Contract] that describes link:spark-broadcast.adoc[broadcast variables]. `TorrentBroadcast` uses a BitTorrent-like protocol for block distribution and only when tasks access broadcast variables (on executors).
+`TorrentBroadcast` is the default and only implementation of the link:spark-broadcast.adoc#contract[`Broadcast` Contract] that describes link:spark-broadcast.adoc[broadcast variables]. `TorrentBroadcast` uses a BitTorrent-like protocol for block distribution (that only happens when tasks access broadcast variables on executors).
 
 .TorrentBroadcast - broadcasting using BitTorrent
 image::images/sparkcontext-broadcast-bittorrent.png[align="center"]
@@ -12,15 +12,13 @@ When a link:spark-sparkcontext.adoc#broadcast[broadcast variable is created (usi
 // On the driver
 val sc: SparkContext = ???
 val anyScalaValue = ???
-val b = sc.broadcast(anyScalaValue)
+val b = sc.broadcast(anyScalaValue) // <-- TorrentBroadcast is created
 ----
 
 A broadcast variable is stored on the driver's link:spark-blockmanager.adoc[BlockManager] as a single value and separately as broadcast blocks (after it was <<blockifyObject, divided into broadcast blocks, i.e. blockified>>). The broadcast block size is the value of link:spark-service-broadcastmanager.adoc#spark_broadcast_blockSize[spark.broadcast.blockSize] Spark property.
 
 .TorrentBroadcast puts broadcast and the chunks to driver's BlockManager
 image::images/sparkcontext-broadcast-bittorrent-newBroadcast.png[align="center"]
-
-NOTE: The Broadcast Contract
 
 NOTE: `TorrentBroadcast`-based broadcast variables are created using link:spark-TorrentBroadcastFactory.adoc[TorrentBroadcastFactory].
 
@@ -48,10 +46,6 @@ CAUTION: FIXME
 CAUTION: FIXME
 
 === [[releaseLock]] `releaseLock` Method
-
-CAUTION: FIXME
-
-=== [[setConf]] `setConf` Method
 
 CAUTION: FIXME
 
@@ -136,6 +130,21 @@ Failed to store [broadcastId] in BlockManager
 The broadcast variable is returned.
 
 NOTE: `readBroadcastBlock` is exclusively used to <<creating-instance, recreate a broadcast variable on executors>>.
+
+=== [[setConf]] `setConf` Internal Method
+
+[source, scala]
+----
+setConf(conf: SparkConf): Unit
+----
+
+`setConf` uses the input `conf` link:spark-configuration.adoc[SparkConf] to set compression codec and the block size.
+
+Internally, `setConf` reads link:spark-service-broadcastmanager.adoc#spark_broadcast_compress[spark.broadcast.compress] Spark property and if enabled (which it is by default) sets a link:spark-CompressionCodec.adoc#createCodec[CompressionCodec] (as an internal `compressionCodec` property).
+
+`setConf` also reads link:spark-service-broadcastmanager.adoc#spark_broadcast_blockSize[spark.broadcast.blockSize] Spark property and sets the block size (as the internal `blockSize` property).
+
+NOTE: `setConf` is executed when <<creating-instance, `TorrentBroadcast` is created>> or <<readBroadcastBlock, re-created when deserialized on executors>>.
 
 === [[writeBlocks]] Storing Broadcast and Its Blocks in Local BlockManager -- `writeBlocks` Internal Method
 
