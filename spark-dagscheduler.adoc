@@ -506,6 +506,19 @@ INFO DAGScheduler: Asked to cancel job [id]
 
 NOTE: `cancelJob` is called when link:spark-sparkcontext.adoc#cancelJob[SparkContext] and link:spark-dagscheduler-JobListener.adoc#JobWaiter[JobWaiter] are requested to cancel a Spark job.
 
+=== [[submitWaitingChildStages]] `submitWaitingChildStages` Internal Method
+
+CAUTION: FIXME
+
+=== [[markStageAsFinished]] Marking Stage Finished -- `markStageAsFinished` Internal Method
+
+[source, scala]
+----
+markStageAsFinished(stage: Stage, errorMessage: Option[String] = None): Unit
+----
+
+CAUTION: FIXME
+
 === [[messageScheduler]] `messageScheduler` Single-Thread Executor
 
 CAUTION: FIXME
@@ -584,15 +597,6 @@ Internally, `stageDependsOn` walks through the graph of RDDs of the input `stage
 
 After all the RDDs of the input `stage` are visited, `stageDependsOn` checks if the ``target``'s RDD is among the RDDs of the `stage`, i.e. whether the `stage` depends on `target` stage.
 
-=== [[markStageAsFinished]] Marking Stage Finished -- `markStageAsFinished` Internal Method
-
-[source, scala]
-----
-markStageAsFinished(stage: Stage, errorMessage: Option[String] = None): Unit
-----
-
-CAUTION: FIXME
-
 === [[event-loop]][[eventProcessLoop]] dag-scheduler-event-loop -- DAGScheduler's Internal Event Bus
 
 `eventProcessLoop` is link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc[DAGScheduler's event bus] to which Spark (by <<submitJob, submitJob>>) posts jobs to schedule their execution. Later on, link:spark-tasksetmanager.adoc[TaskSetManager] talks back to `DAGScheduler` to inform about the status of the tasks using the same "communication channel".
@@ -625,30 +629,40 @@ The method clears the internal `waitingStages` set with stages that wait for the
 
 It goes over the waiting stages sorted by job ids in increasing order and calls <<submitStage, submitStage>> method.
 
-=== [[submitStage]] Submitting Stage for Execution -- `submitStage` Internal Method
+=== [[submitStage]] Submitting Stage or Its Missing Parents for Execution -- `submitStage` Internal Method
 
 [source, scala]
 ----
 submitStage(stage: Stage)
 ----
 
-`submitStage` is an internal method that `DAGScheduler` uses to submit the input `stage` or its missing parents (if there any).
+`submitStage` is an internal method that `DAGScheduler` uses to submit the input `stage` or its missing parents (if there any stages not computed yet before the input `stage` could).
 
 NOTE: `submitStage` is also used to link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#resubmitFailedStages[resubmit failed stages].
 
-`submitStage` recursively submits any missing parents of the stage.
+`submitStage` recursively submits any missing parents of the `stage`.
 
-Internally, `submitStage` first finds the earliest-created `ActiveJob` that needs the `stage`.
+Internally, `submitStage` first finds the earliest-created job id that needs the `stage`.
 
-You should see the following DEBUG message in the logs:
+NOTE: A stage itself tracks the jobs (their ids) it belongs to (using the internal `jobIds` registry).
+
+The following steps depend on whether there is a job or not.
+
+If there are no jobs that require the `stage`, `submitStage` <<abortStage, aborts it>> with the reason:
+
+```
+No active job for stage [id]
+```
+
+If however there is a job for the `stage`, you should see the following DEBUG message in the logs:
 
 ```
 DEBUG DAGScheduler: submitStage([stage])
 ```
 
-Only when the `stage` is not in waiting (`waitingStages`), running (`runningStages`) or <<failedStages, failed>> states `submitStage` proceeds.
+`submitStage` checks the status of the `stage` and continues when it was not recorded in <<waitingStages, waiting>>, <<runningStages, running>> or <<failedStages, failed>> internal registries. It simply exits otherwise.
 
-The <<getMissingParentStages, list of missing parent stages of the `stage` is calculated>> (sorted by their ids) and the following DEBUG message shows up in the logs:
+With the `stage` ready for submission, `submitStage` calculates the <<getMissingParentStages, list of missing parent stages of the `stage`>> (sorted by their job ids). You should see the following DEBUG message in the logs:
 
 ```
 DEBUG DAGScheduler: missing: [missing]
@@ -660,19 +674,11 @@ When the `stage` has no parent stages missing, you should see the following INFO
 INFO DAGScheduler: Submitting [stage] ([stage.rdd]), which has no missing parents
 ```
 
-The stage is <<submitMissingTasks, submitted>>. That finishes the stage submission.
+`submitStage` <<submitMissingTasks, submits the `stage`>> (with the earliest-created job id) and finishes.
 
-If however there are missing parent stages for the `stage`, all parent stages are <<submitStage, submitted>> (by id in increasing order), and the `stage` is added to `waitingStages` stages.
+If however there are missing parent stages for the `stage`, `submitStage` <<submitStage, submits all the parent stages>>, and the `stage` is recorded in the internal <<waitingStages, waitingStages>> registry.
 
-In case when `submitStage` could find no active job for the `stage`, it <<abortStage, aborts the stage>> with the reason:
-
-```
-No active job for stage [id]
-```
-
-=== [[submitWaitingChildStages]] `submitWaitingChildStages` Method
-
-CAUTION: FIXME
+NOTE: `submitStage` is executed when `DAGScheduler` submits <<submitStage, missing parent map stages (of a stage) recursively>> or <<submitWaitingChildStages, waiting child stages>>, link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#resubmitFailedStages[resubmits failed stages], and handles  link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleJobSubmitted[JobSubmitted],  link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleMapStageSubmitted[MapStageSubmitted], or link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#CompletionEvent[CompletionEvent] events.
 
 === [[getMissingParentStages]][[calculating-missing-parent-stages]] Calculating Missing Parent Map Stages -- `getMissingParentStages` Internal Method
 
