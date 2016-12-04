@@ -1,56 +1,60 @@
-== Dependencies
+== RDD Dependencies -- Narrow and Shuffle Dependencies
 
-*Dependency* (represented by <<kinds, Dependency>> class) is a connection between RDDs after applying a transformation.
+`Dependency` class is the base (abstract) class to model a dependency relationship between two or more RDDs.
 
-You can use `RDD.dependencies` method to know the collection of dependencies of a RDD (`Seq[Dependency[_]]`).
+`Dependency` has a single method `rdd` to access the RDD that is behind a dependency.
 
-```
-scala> val r1 = sc.parallelize(0 to 9)
-r1: org.apache.spark.rdd.RDD[Int] = ParallelCollectionRDD[20] at parallelize at <console>:18
+[source, scala]
+----
+def rdd: RDD[T]
+----
 
-scala> val r2 = sc.parallelize(0 to 9)
-r2: org.apache.spark.rdd.RDD[Int] = ParallelCollectionRDD[21] at parallelize at <console>:18
+Whenever you apply a link:spark-rdd-transformations.adoc[transformation] (e.g. `map`, `flatMap`) to a RDD you build the so-called link:spark-rdd-lineage.adoc[RDD lineage graph]. ``Dependency``-ies represent the edges in a lineage graph.
 
-scala> val r3 = sc.parallelize(0 to 9)
-r3: org.apache.spark.rdd.RDD[Int] = ParallelCollectionRDD[22] at parallelize at <console>:18
+<<NarrowDependency, NarrowDependency>> and <<ShuffleDependency, ShuffleDependency>> are the two main subclasses of `Dependency` abstract class.
 
-scala> val r4 = sc.union(r1, r2, r3)
-r4: org.apache.spark.rdd.RDD[Int] = UnionRDD[23] at union at <console>:24
+.Kinds of Dependencies
+[frame="topbot",cols="1,2",options="header",width="100%"]
+|======================
+| Name | Description
+| <<NarrowDependency, NarrowDependency>> |
+| <<ShuffleDependency, ShuffleDependency>> |
+| <<OneToOneDependency, OneToOneDependency>> |
+| <<PruneDependency, PruneDependency>> |
+| <<RangeDependency, RangeDependency>> |
+|======================
 
-scala> r4.dependencies
-res0: Seq[org.apache.spark.Dependency[_]] = ArrayBuffer(org.apache.spark.RangeDependency@6f2ab3f6, org.apache.spark.RangeDependency@7aa0e351, org.apache.spark.RangeDependency@26468)
-
-scala> r4.toDebugString
-res1: String =
-(24) UnionRDD[23] at union at <console>:24 []
- |   ParallelCollectionRDD[20] at parallelize at <console>:18 []
- |   ParallelCollectionRDD[21] at parallelize at <console>:18 []
- |   ParallelCollectionRDD[22] at parallelize at <console>:18 []
-
-scala> r4.collect
-...
-res2: Array[Int] = Array(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9)
-```
-
-=== [[kinds]] Kinds of Dependencies
-
-`Dependency` is the base abstract class with a single `def rdd: RDD[T]` method.
+[NOTE]
+====
+The dependencies of a RDD are available using link:spark-rdd.adoc#dependencies[dependencies] method.
 
 ```
-scala> val r = sc.parallelize(0 to 9).groupBy(identity)
-r: org.apache.spark.rdd.RDD[(Int, Iterable[Int])] = ShuffledRDD[12] at groupBy at <console>:18
+// A demo RDD
+scala> val myRdd = sc.parallelize(0 to 9).groupBy(_ % 2)
+myRdd: org.apache.spark.rdd.RDD[(Int, Iterable[Int])] = ShuffledRDD[8] at groupBy at <console>:24
 
-scala> r.dependencies.map(_.rdd).foreach(println)
-MapPartitionsRDD[11] at groupBy at <console>:18
+scala> myRdd.foreach(println)
+(0,CompactBuffer(0, 2, 4, 6, 8))
+(1,CompactBuffer(1, 3, 5, 7, 9))
+
+scala> myRdd.dependencies
+res5: Seq[org.apache.spark.Dependency[_]] = List(org.apache.spark.ShuffleDependency@27ace619)
+
+// Access all RDDs in the demo RDD lineage
+scala> myRdd.dependencies.map(_.rdd).foreach(println)
+MapPartitionsRDD[7] at groupBy at <console>:24
 ```
 
-There are the following more specialized `Dependency` extensions:
+You use link:spark-rdd-lineage.adoc#toDebugString[toDebugString] method to print out the RDD lineage in a user-friendly way.
 
-* <<NarrowDependency, NarrowDependency>>
-** <<OneToOneDependency, OneToOneDependency>>
-** <<PruneDependency, PruneDependency>>
-** <<RangeDependency, RangeDependency>>
-* <<ShuffleDependency, ShuffleDependency>>
+```
+scala> myRdd.toDebugString
+res6: String =
+(8) ShuffledRDD[8] at groupBy at <console>:24 []
+ +-(8) MapPartitionsRDD[7] at groupBy at <console>:24 []
+    |  ParallelCollectionRDD[6] at parallelize at <console>:24 []
+```
+====
 
 === [[ShuffleDependency]] ShuffleDependency
 
