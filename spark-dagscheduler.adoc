@@ -98,6 +98,10 @@ DAGScheduler reports metrics about its execution (refer to the section <<metrics
 
 When DAGScheduler schedules a job as a result of link:spark-rdd.adoc#actions[executing an action on a RDD] or link:spark-sparkcontext.adoc#runJob[calling SparkContext.runJob() method directly], it spawns parallel tasks to compute (partial) results per partition.
 
+=== [[runApproximateJob]] Running Approximate Job -- `runApproximateJob` Method
+
+CAUTION: FIXME
+
 === [[getPreferredLocsInternal]] `getPreferredLocsInternal` Internal Method
 
 [source, scala]
@@ -204,10 +208,6 @@ listenerBus: LiveListenerBus
 ----
 
 `listenerBus` is a link:spark-LiveListenerBus.adoc[LiveListenerBus] to post scheduling events and is passed in when <<creating-instance, `DAGScheduler` is created>>.
-
-=== [[runApproximateJob]] `runApproximateJob` Method
-
-CAUTION: FIXME
 
 === [[executorHeartbeatReceived]] `executorHeartbeatReceived` Method
 
@@ -346,7 +346,7 @@ NOTE: `failJobAndIndependentStages` is called from link:spark-dagscheduler-DAGSc
 
 NOTE: `failJobAndIndependentStages` uses <<jobIdToStageIds, jobIdToStageIds>>, <<stageIdToStage, stageIdToStage>>, and <<runningStages, runningStages>> internal registries.
 
-=== [[submitJob]] Posting `JobSubmitted` Event -- `submitJob` method
+=== [[submitJob]] Submitting Job -- `submitJob` method
 
 [source, scala]
 ----
@@ -708,17 +708,23 @@ getMissingParentStages(stage: Stage): List[Stage]
 
 `getMissingParentStages` calculates missing parent link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage]s in the dependency graph of the input `stage` (using the https://en.wikipedia.org/wiki/Breadth-first_search[breadth-first search algorithm]).
 
-`getMissingParentStages` starts with the ``stage``'s RDD (as `stage.rdd`) and searches the tree of all parent RDDs to check out for their <<getCacheLocs, uncached partitions>>.
+`getMissingParentStages` starts with the ``stage``'s RDD (as `stage.rdd`) and walks up the tree of all parent RDDs to find <<getCacheLocs, uncached partitions>>.
 
 NOTE: An *uncached partition* of a RDD is a partition that has `Nil` in the <<cacheLocs, internal registry of partition locations per RDD>> (which results in no RDD blocks in any of the active link:spark-blockmanager.adoc[BlockManager]s on executors).
 
-`getMissingParentStages` traverses the parent dependencies of the RDD (as `RDD.dependencies`) and varies its processing based on their type, i.e. link:spark-rdd-dependencies.adoc#ShuffleDependency[ShuffleDependency] or link:spark-rdd-dependencies.adoc#NarrowDependency[NarrowDependency].
+`getMissingParentStages` traverses the link:spark-rdd.adoc#dependencies[parent dependencies of the RDD] and acts according to their type, i.e. link:spark-rdd-dependencies.adoc#ShuffleDependency[ShuffleDependency] or link:spark-rdd-dependencies.adoc#NarrowDependency[NarrowDependency].
+
+NOTE: link:spark-rdd-dependencies.adoc#ShuffleDependency[ShuffleDependency] and link:spark-rdd-dependencies.adoc#NarrowDependency[NarrowDependency] are the main top-level link:spark-rdd-dependencies.adoc[Dependency]-ies.
 
 For each `NarrowDependency`, `getMissingParentStages` simply marks the corresponding RDD to visit and moves on to a next dependency of a RDD or works on another unvisited parent RDD.
 
-NOTE: `NarrowDependency` is a dependency that...FIXME
+NOTE: link:spark-rdd-dependencies.adoc#NarrowDependency[NarrowDependency] is a dependency that allows for pipelined execution.
 
-``ShuffleDependency``-ies are what `getMissingParentStages` looks for and processes in a custom way. For each `ShuffleDependency`, `getMissingParentStages` <<getOrCreateShuffleMapStage, takes a `ShuffleMapStage` or creates a new one>>. If the `ShuffleMapStage` is not _available_, it is added to the set of missing (map) stages.
+`getMissingParentStages` focuses on `ShuffleDependency` dependencies.
+
+NOTE: link:spark-rdd-dependencies.adoc#ShuffleDependency[ShuffleDependency] is a dependency that...FIXME
+
+For each `ShuffleDependency`, `getMissingParentStages` <<getOrCreateShuffleMapStage, takes a `ShuffleMapStage` or creates a new one>>. If the `ShuffleMapStage` is not _available_, it is added to the set of missing (map) stages.
 
 NOTE: A `ShuffleMapStage` is *available* when all its partitions are computed, i.e. results are available (as blocks).
 

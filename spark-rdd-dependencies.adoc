@@ -58,19 +58,28 @@ res6: String =
 
 === [[ShuffleDependency]] ShuffleDependency
 
-A *ShuffleDependency* represents a dependency on the output of a link:spark-dagscheduler-ShuffleMapStage.adoc[shuffle map stage].
+`ShuffleDependency` is a specialized `Dependency` that represents a dependency on the output of a link:spark-dagscheduler-ShuffleMapStage.adoc[shuffle map stage].
 
 ```
-scala> val r = sc.parallelize(0 to 9).groupBy(identity)
-r: org.apache.spark.rdd.RDD[(Int, Iterable[Int])] = ShuffledRDD[12] at groupBy at <console>:18
+scala> val myRdd = sc.parallelize(0 to 9).groupBy(_ % 2)
+myRdd: org.apache.spark.rdd.RDD[(Int, Iterable[Int])] = ShuffledRDD[11] at groupBy at <console>:24
 
-scala> r.dependencies
-res0: Seq[org.apache.spark.Dependency[_]] = List(org.apache.spark.ShuffleDependency@493b0b09)
+scala> myRdd.dependencies
+res0: Seq[org.apache.spark.Dependency[_]] = List(org.apache.spark.ShuffleDependency@1193caff)
+
+scala> println(myRdd.toDebugString)
+(8) ShuffledRDD[11] at groupBy at <console>:24 []
+ +-(8) MapPartitionsRDD[10] at groupBy at <console>:24 []
+    |  ParallelCollectionRDD[9] at parallelize at <console>:24 []
 ```
 
-A ShuffleDependency belongs to a single pair RDD (available as `rdd` of type `RDD[Product2[K, V]]`).
+TIP: Use link:spark-rdd-lineage.adoc#toDebugString[`toDebugString` method] to learn about the RDD lineage graph.
 
-A ShuffleDependency has a *shuffleId* (FIXME from `SparkContext.newShuffleId`).
+NOTE: A `ShuffleDependency` dependency is the dependency of link:spark-rdd-shuffledrdd.adoc[ShuffledRDD] as well as link:spark-rdd-cogroupedrdd.adoc[CoGroupedRDD] and link:spark-rdd-SubtractedRDD.adoc[SubtractedRDD] (but only when partitioners of the RDDs are different).
+
+A `ShuffleDependency` belongs to a single pair RDD (available as `rdd` of type `RDD[Product2[K, V]]`).
+
+A `ShuffleDependency` has a *shuffleId* (FIXME from `SparkContext.newShuffleId`).
 
 It uses link:spark-rdd-partitions.adoc#partitioner[partitioner] to partition the shuffle output. It also uses link:spark-shuffle-manager.adoc[ShuffleManager] to register itself (using link:spark-shuffle-manager.adoc#contract[ShuffleManager.registerShuffle]) and link:spark-service-contextcleaner.adoc[ContextCleaner] to register itself for cleanup (using `ContextCleaner.registerShuffleForCleanup`).
 
@@ -106,15 +115,18 @@ NOTE: There may be other dependent methods that use the above.
 
 === [[NarrowDependency]] NarrowDependency
 
-`NarrowDependency` is an abstract extension of `Dependency` with _narrow_ (limited) number of partitions of the parent RDD that are required to compute a partition of the child RDD. Narrow dependencies allow for pipelined execution.
+`NarrowDependency` is a specialized `Dependency` with _narrow_ (limited) number of partitions of the parent RDD that are required to compute a partition of the child RDD. Narrow dependencies allow for pipelined execution.
 
-`NarrowDependency` extends the base with the additional method:
+NOTE: `NarrowDependency` is an abstract `Dependency`.
 
-```
+`NarrowDependency` contract assumes that extensions implement `getParents` method.
+
+[source, scala]
+----
 def getParents(partitionId: Int): Seq[Int]
-```
+----
 
-to get the parent partitions for a partition `partitionId` of the child RDD.
+`getParents` is expected to return the partitions of the parent RDD that `partitionId` depends on.
 
 === [[OneToOneDependency]] OneToOneDependency
 

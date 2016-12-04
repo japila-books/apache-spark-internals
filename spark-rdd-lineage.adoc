@@ -39,26 +39,31 @@ toDebugString: String
 You can learn about a <<lineage, RDD lineage graph>> using `toDebugString` method.
 
 ```
-scala> val wordsCount = sc.textFile("README.md").flatMap(_.split("\\s+")).map((_, 1)).reduceByKey(_ + _)
-wordsCount: org.apache.spark.rdd.RDD[(String, Int)] = ShuffledRDD[24] at reduceByKey at <console>:24
+scala> val wordCount = sc.textFile("README.md").flatMap(_.split("\\s+")).map((_, 1)).reduceByKey(_ + _)
+wordCount: org.apache.spark.rdd.RDD[(String, Int)] = ShuffledRDD[21] at reduceByKey at <console>:24
 
-scala> wordsCount.toDebugString
-res2: String =
-(2) ShuffledRDD[24] at reduceByKey at <console>:24 []
- +-(2) MapPartitionsRDD[23] at map at <console>:24 []
-    |  MapPartitionsRDD[22] at flatMap at <console>:24 []
-    |  MapPartitionsRDD[21] at textFile at <console>:24 []
-    |  README.md HadoopRDD[20] at textFile at <console>:24 []
+scala> wordCount.toDebugString
+res13: String =
+(2) ShuffledRDD[21] at reduceByKey at <console>:24 []
+ +-(2) MapPartitionsRDD[20] at map at <console>:24 []
+    |  MapPartitionsRDD[19] at flatMap at <console>:24 []
+    |  README.md MapPartitionsRDD[18] at textFile at <console>:24 []
+    |  README.md HadoopRDD[17] at textFile at <console>:24 []
 ```
 
 `toDebugString` uses indentations to indicate a shuffle boundary.
 
-The numbers in round brackets show the level of parallelism at each stage.
-
-With <<spark_logLineage, spark.logLineage>> enabled, `toDebugString` is called as part of action execution.
+The numbers in round brackets show the level of parallelism at each stage, e.g. `(2)` in the above output.
 
 ```
-$ ./bin/spark-shell -c spark.logLineage=true
+scala> wordCount.getNumPartitions
+res14: Int = 2
+```
+
+With <<spark_logLineage, spark.logLineage>> property enabled, `toDebugString` is included when executing an action.
+
+```
+$ ./bin/spark-shell --conf spark.logLineage=true
 
 scala> sc.textFile("README.md", 4).count
 ...
