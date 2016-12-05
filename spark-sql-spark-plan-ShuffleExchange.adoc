@@ -47,6 +47,67 @@ prepareShuffleDependency(
 
 NOTE: `prepareShuffleDependency` is used when `ShuffleExchange` <<prepareShuffleDependency, prepares a `ShuffleDependency`>> (as part of...FIXME), `CollectLimitExec` and `TakeOrderedAndProjectExec` physical operators are executed.
 
-=== [[ShuffledRowRDD]] ShuffledRowRDD
+=== [[ShuffledRowRDD]] `ShuffledRowRDD`
+
+`ShuffledRowRDD` is a specialized link:spark-rdd.adoc[RDD] of link:spark-sql-InternalRow.adoc[InternalRow]s.
+
+`ShuffledRowRDD` takes a link:spark-rdd-dependencies.adoc#ShuffleDependency[ShuffleDependency] (of integer keys and link:spark-sql-InternalRow.adoc[InternalRow] values).
+
+NOTE: The `dependency` property is mutable and is of type `ShuffleDependency[Int, InternalRow, InternalRow]`.
+
+`ShuffledRowRDD` takes an optional `specifiedPartitionStartIndices` collection of integers that is the number of post-shuffle partitions. When not specified, the number of post-shuffle partitions is managed by the link:spark-rdd-Partitioner.adoc[Partitioner] of the input `ShuffleDependency`.
+
+NOTE: *Post-shuffle partition* is...FIXME
+
+.ShuffledRowRDD and RDD Contract
+[frame="topbot",cols="1,2",options="header",width="100%"]
+|===
+| Name | Description
+| `getDependencies`
+| A single-element collection with `ShuffleDependency[Int, InternalRow, InternalRow]`.
+
+| `partitioner`
+| <<CoalescedPartitioner, CoalescedPartitioner>> (with the link:spark-rdd-Partitioner.adoc[Partitioner] of the `dependency`)
+
+| `getPreferredLocations`
+| Refer to <<getPreferredLocations, `getPreferredLocations` Method>> section in this document
+
+| `compute`
+| Refer to <<compute, `compute` Method>> section in this document
+|===
+
+=== [[compute]] Computing Partition (in `TaskContext`) -- `compute` Method
+
+[source, scala]
+----
+compute(split: Partition, context: TaskContext): Iterator[InternalRow]
+----
+
+NOTE: `compute` is a part of link:spark-rdd.adoc#contract[RDD contract] to compute a given partition in a link:spark-taskscheduler-taskcontext.adoc[TaskContext].
+
+Internally, `compute` makes sure that the input `split` is a <<ShuffledRowRDDPartition, ShuffledRowRDDPartition>>. It then link:spark-shuffle-manager.adoc#contract[requests `ShuffleManager` for a `ShuffleReader`] to read ``InternalRow``s for the `split`.
+
+NOTE: `compute` uses link:spark-sparkenv.adoc#shuffleManager[`SparkEnv` to access `ShuffleManager`].
+
+`compute` uses `ShuffleHandle` of `ShuffleDependency` dependency and the pre-shuffle start and end partition offsets.
+
+=== [[getPreferredLocations]] `getPreferredLocations` Method
+
+[source, scala]
+----
+getPreferredLocations(partition: Partition): Seq[String]
+----
+
+NOTE: `getPreferredLocations` is a part of link:spark-rdd.adoc#contract[RDD contract] to specify placement preferences (aka _preferred task locations_), i.e. where tasks should be executed to be as close to the data as possible.
+
+Internally, `getPreferredLocations` requests link:spark-service-MapOutputTrackerMaster.adoc#getPreferredLocationsForShuffle[`MapOutputTrackerMaster` for the preferred locations] of the input `partition` (for the single `ShuffleDependency`).
+
+NOTE: `getPreferredLocations` uses link:spark-sparkenv.adoc#mapOutputTracker[`SparkEnv` to access `MapOutputTrackerMaster`] (on the driver).
+
+=== [[CoalescedPartitioner]] `CoalescedPartitioner`
+
+CAUTION: FIXME
+
+=== [[ShuffledRowRDDPartition]] `ShuffledRowRDDPartition`
 
 CAUTION: FIXME
