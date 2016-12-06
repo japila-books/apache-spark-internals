@@ -1,0 +1,53 @@
+== [[ShuffleDependency]] `ShuffleDependency` -- Shuffle Dependencies
+
+`ShuffleDependency` is a specialized `Dependency` that represents a dependency on the output of a link:spark-dagscheduler-ShuffleMapStage.adoc[shuffle map stage] (i.e. `ShuffleMapStage`).
+
+```
+scala> val myRdd = sc.parallelize(0 to 9).groupBy(_ % 2)
+myRdd: org.apache.spark.rdd.RDD[(Int, Iterable[Int])] = ShuffledRDD[11] at groupBy at <console>:24
+
+scala> myRdd.dependencies
+res0: Seq[org.apache.spark.Dependency[_]] = List(org.apache.spark.ShuffleDependency@1193caff)
+
+scala> println(myRdd.toDebugString)
+(8) ShuffledRDD[11] at groupBy at <console>:24 []
+ +-(8) MapPartitionsRDD[10] at groupBy at <console>:24 []
+    |  ParallelCollectionRDD[9] at parallelize at <console>:24 []
+```
+
+TIP: Use link:spark-rdd-lineage.adoc#toDebugString[`toDebugString` method] on an RDD to learn about the link:spark-rdd-lineage.adoc[RDD lineage graph].
+
+NOTE: A `ShuffleDependency` dependency is the dependency of link:spark-rdd-shuffledrdd.adoc[ShuffledRDD]. It is also a dependency of link:spark-rdd-cogroupedrdd.adoc[CoGroupedRDD] and link:spark-rdd-SubtractedRDD.adoc[SubtractedRDD] (but only when partitioners of the RDDs are different).
+
+A `ShuffleDependency` belongs to a single pair RDD (available as `rdd` of type `RDD[Product2[K, V]]`).
+
+A `ShuffleDependency` has a *shuffleId* (FIXME from `SparkContext.newShuffleId`).
+
+`ShuffleDependency` uses a link:spark-rdd-Partitioner.adoc[Partitioner] to partition the shuffle output. It registers itself with link:spark-shuffle-manager.adoc[ShuffleManager], link:spark-service-contextcleaner.adoc#registerShuffleForCleanup[ContextCleaner] and link:spark-service-MapOutputTrackerMaster.adoc#registerShuffle[MapOutputTrackerMaster] (using the shuffle id and the number of the partitions of a RDD).
+
+The places where `ShuffleDependency` is used:
+
+* link:spark-rdd-shuffledrdd.adoc[ShuffledRDD] and link:spark-sql-spark-plan-ShuffleExchange.adoc#ShuffledRowRDD[ShuffledRowRDD] that are RDDs from a shuffle
+
+The RDD operations that may or may not use the above RDDs and hence shuffling:
+
+* link:spark-rdd-partitions.adoc#coalesce[coalesce]
+** link:spark-rdd-partitions.adoc#repartition[repartition]
+
+* `cogroup`
+** `intersection`
+* `subtractByKey`
+** `subtract`
+* `sortByKey`
+** `sortBy`
+* `repartitionAndSortWithinPartitions`
+* link:spark-rdd-pairrdd-functions.adoc#combineByKeyWithClassTag[combineByKeyWithClassTag]
+** `combineByKey`
+** `aggregateByKey`
+** `foldByKey`
+** `reduceByKey`
+** `countApproxDistinctByKey`
+** `groupByKey`
+* `partitionBy`
+
+NOTE: There may be other dependent methods that use the above.

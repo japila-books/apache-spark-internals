@@ -1,4 +1,4 @@
-== RDD Dependencies -- Narrow and Shuffle Dependencies
+== [[Dependency]] RDD Dependencies
 
 `Dependency` class is the base (abstract) class to model a dependency relationship between two or more RDDs.
 
@@ -11,17 +11,17 @@ def rdd: RDD[T]
 
 Whenever you apply a link:spark-rdd-transformations.adoc[transformation] (e.g. `map`, `flatMap`) to a RDD you build the so-called link:spark-rdd-lineage.adoc[RDD lineage graph]. ``Dependency``-ies represent the edges in a lineage graph.
 
-<<NarrowDependency, NarrowDependency>> and <<ShuffleDependency, ShuffleDependency>> are the two main subclasses of `Dependency` abstract class.
+NOTE: link:spark-rdd-NarrowDependency.adoc[NarrowDependency] and link:spark-rdd-ShuffleDependency.adoc[ShuffleDependency] are the two top-level subclasses of `Dependency` abstract class.
 
 .Kinds of Dependencies
 [frame="topbot",cols="1,2",options="header",width="100%"]
 |======================
 | Name | Description
-| <<NarrowDependency, NarrowDependency>> |
-| <<ShuffleDependency, ShuffleDependency>> |
-| <<OneToOneDependency, OneToOneDependency>> |
-| <<PruneDependency, PruneDependency>> |
-| <<RangeDependency, RangeDependency>> |
+| link:spark-rdd-NarrowDependency.adoc[NarrowDependency] |
+| link:spark-rdd-ShuffleDependency.adoc[ShuffleDependency] |
+| link:spark-rdd-NarrowDependency.adoc#OneToOneDependency[OneToOneDependency] |
+| link:spark-rdd-NarrowDependency.adoc#PruneDependency[PruneDependency] |
+| link:spark-rdd-NarrowDependency.adoc#RangeDependency[RangeDependency] |
 |======================
 
 [NOTE]
@@ -55,125 +55,3 @@ res6: String =
     |  ParallelCollectionRDD[6] at parallelize at <console>:24 []
 ```
 ====
-
-=== [[ShuffleDependency]] ShuffleDependency
-
-`ShuffleDependency` is a specialized `Dependency` that represents a dependency on the output of a link:spark-dagscheduler-ShuffleMapStage.adoc[shuffle map stage].
-
-```
-scala> val myRdd = sc.parallelize(0 to 9).groupBy(_ % 2)
-myRdd: org.apache.spark.rdd.RDD[(Int, Iterable[Int])] = ShuffledRDD[11] at groupBy at <console>:24
-
-scala> myRdd.dependencies
-res0: Seq[org.apache.spark.Dependency[_]] = List(org.apache.spark.ShuffleDependency@1193caff)
-
-scala> println(myRdd.toDebugString)
-(8) ShuffledRDD[11] at groupBy at <console>:24 []
- +-(8) MapPartitionsRDD[10] at groupBy at <console>:24 []
-    |  ParallelCollectionRDD[9] at parallelize at <console>:24 []
-```
-
-TIP: Use link:spark-rdd-lineage.adoc#toDebugString[`toDebugString` method] to learn about the RDD lineage graph.
-
-NOTE: A `ShuffleDependency` dependency is the dependency of link:spark-rdd-shuffledrdd.adoc[ShuffledRDD] as well as link:spark-rdd-cogroupedrdd.adoc[CoGroupedRDD] and link:spark-rdd-SubtractedRDD.adoc[SubtractedRDD] (but only when partitioners of the RDDs are different).
-
-A `ShuffleDependency` belongs to a single pair RDD (available as `rdd` of type `RDD[Product2[K, V]]`).
-
-A `ShuffleDependency` has a *shuffleId* (FIXME from `SparkContext.newShuffleId`).
-
-It uses a link:spark-rdd-Partitioner.adoc[Partitioner] to partition the shuffle output. It also uses link:spark-shuffle-manager.adoc[ShuffleManager] to register itself (using link:spark-shuffle-manager.adoc#contract[ShuffleManager.registerShuffle]) and link:spark-service-contextcleaner.adoc[ContextCleaner] to register itself for cleanup (using `ContextCleaner.registerShuffleForCleanup`).
-
-Every `ShuffleDependency` is link:spark-service-MapOutputTrackerMaster.adoc#registerShuffle[registered to `MapOutputTrackerMaster`] using the shuffle id and the number of the partitions of a RDD.
-
-The places where ShuffleDependency is used:
-
-* `CoGroupedRDD` and `SubtractedRDD` when partitioner differs among RDDs
-* link:spark-rdd-shuffledrdd.adoc[ShuffledRDD] and link:spark-sql-spark-plan-ShuffleExchange.adoc#ShuffledRowRDD[ShuffledRowRDD] that are RDDs from a shuffle
-
-The RDD operations that may or may not use the above RDDs and hence shuffling:
-
-* link:spark-rdd-partitions.adoc#coalesce[coalesce]
-** link:spark-rdd-partitions.adoc#repartition[repartition]
-
-* `cogroup`
-** `intersection`
-* `subtractByKey`
-** `subtract`
-* `sortByKey`
-** `sortBy`
-* `repartitionAndSortWithinPartitions`
-* link:spark-rdd-pairrdd-functions.adoc#combineByKeyWithClassTag[combineByKeyWithClassTag]
-** `combineByKey`
-** `aggregateByKey`
-** `foldByKey`
-** `reduceByKey`
-** `countApproxDistinctByKey`
-** `groupByKey`
-* `partitionBy`
-
-NOTE: There may be other dependent methods that use the above.
-
-=== [[NarrowDependency]] NarrowDependency
-
-`NarrowDependency` is a specialized `Dependency` with _narrow_ (limited) number of partitions of the parent RDD that are required to compute a partition of the child RDD. Narrow dependencies allow for pipelined execution.
-
-NOTE: `NarrowDependency` is an abstract `Dependency`.
-
-`NarrowDependency` contract assumes that extensions implement `getParents` method.
-
-[source, scala]
-----
-def getParents(partitionId: Int): Seq[Int]
-----
-
-`getParents` is expected to return the partitions of the parent RDD that `partitionId` depends on.
-
-=== [[OneToOneDependency]] OneToOneDependency
-
-`OneToOneDependency` is a narrow dependency that represents a one-to-one dependency between partitions of the parent and child RDDs.
-
-```
-scala> val r1 = sc.parallelize(0 to 9)
-r1: org.apache.spark.rdd.RDD[Int] = ParallelCollectionRDD[13] at parallelize at <console>:18
-
-scala> val r3 = r1.map((_, 1))
-r3: org.apache.spark.rdd.RDD[(Int, Int)] = MapPartitionsRDD[19] at map at <console>:20
-
-scala> r3.dependencies
-res32: Seq[org.apache.spark.Dependency[_]] = List(org.apache.spark.OneToOneDependency@7353a0fb)
-
-scala> r3.toDebugString
-res33: String =
-(8) MapPartitionsRDD[19] at map at <console>:20 []
- |  ParallelCollectionRDD[13] at parallelize at <console>:18 []
-```
-
-=== [[PruneDependency]] PruneDependency
-
-`PruneDependency` is a narrow dependency that represents a dependency between the `PartitionPruningRDD` and its parent.
-
-=== [[RangeDependency]] RangeDependency
-
-`RangeDependency` is a narrow dependency that represents a one-to-one dependency between ranges of partitions in the parent and child RDDs.
-
-It is used in `UnionRDD` for `SparkContext.union`, `RDD.union` transformation to list only a few.
-
-```
-scala> val r1 = sc.parallelize(0 to 9)
-r1: org.apache.spark.rdd.RDD[Int] = ParallelCollectionRDD[13] at parallelize at <console>:18
-
-scala> val r2 = sc.parallelize(10 to 19)
-r2: org.apache.spark.rdd.RDD[Int] = ParallelCollectionRDD[14] at parallelize at <console>:18
-
-scala> val unioned = sc.union(r1, r2)
-unioned: org.apache.spark.rdd.RDD[Int] = UnionRDD[16] at union at <console>:22
-
-scala> unioned.dependencies
-res19: Seq[org.apache.spark.Dependency[_]] = ArrayBuffer(org.apache.spark.RangeDependency@28408ad7, org.apache.spark.RangeDependency@6e1d2e9f)
-
-scala> unioned.toDebugString
-res18: String =
-(16) UnionRDD[16] at union at <console>:22 []
- |   ParallelCollectionRDD[13] at parallelize at <console>:18 []
- |   ParallelCollectionRDD[14] at parallelize at <console>:18 []
-```
