@@ -1,6 +1,6 @@
 == [[ShuffledRDD]] ShuffledRDD
 
-`ShuffledRDD` is an RDD of `(key, value)` pairs with the number of <<ShuffledRDDPartition, ShuffledRDDPartition>> partitions. It is a shuffle step (the result RDD) for transformations that trigger link:spark-rdd-shuffle.adoc[shuffle] at execution.
+`ShuffledRDD` is an link:spark-rdd.adoc[RDD] of `(key, value)` pairs across <<ShuffledRDDPartition, ShuffledRDDPartition>> partitions. It is a shuffle step (the result RDD) for transformations that trigger link:spark-rdd-shuffle.adoc[shuffle] at execution.
 
 `ShuffledRDD` requires a parent RDD and a link:spark-rdd-Partitioner.adoc[Partitioner] when created.
 
@@ -30,6 +30,21 @@ image::images/spark-webui-job-two-stages.png[align="center"]
 
 It uses link:spark-service-MapOutputTrackerMaster.adoc[MapOutputTrackerMaster] to get preferred locations for a shuffle, i.e. a `ShuffleDependency`.
 
+=== [[compute]] Computing Partition (in `TaskContext`) -- `compute` Method
+
+[source, scala]
+----
+compute(split: Partition, context: TaskContext): Iterator[(K, C)]
+----
+
+NOTE: `compute` is a part of link:spark-rdd.adoc#contract[RDD contract] to compute a given partition in a link:spark-taskscheduler-taskcontext.adoc[TaskContext].
+
+Internally, `compute` makes sure that the input `split` is a link:spark-rdd-dependencies.adoc#ShuffleDependency[ShuffleDependency]. It then link:spark-shuffle-manager.adoc#contract[requests `ShuffleManager` for a `ShuffleReader`] to read key-value pairs (as `Iterator[(K, C)]`) for the `split`.
+
+NOTE: `compute` uses link:spark-sparkenv.adoc#shuffleManager[`SparkEnv` to access `ShuffleManager`].
+
+NOTE: A Partition has the `index` property to specify `startPartition` and `endPartition` partition offsets.
+
 === [[getPreferredLocations]] `getPreferredLocations` Method
 
 [source, scala]
@@ -39,7 +54,9 @@ getPreferredLocations(partition: Partition): Seq[String]
 
 NOTE: `getPreferredLocations` is a part of link:spark-rdd.adoc#contract[RDD contract] to specify placement preferences (aka _preferred task locations_), i.e. where tasks should be executed to be as close to the data as possible.
 
-CAUTION: FIXME
+Internally, `getPreferredLocations` requests link:spark-service-MapOutputTrackerMaster.adoc#getPreferredLocationsForShuffle[`MapOutputTrackerMaster` for the preferred locations] of the input `partition` (for the only `ShuffleDependency`).
+
+NOTE: `getPreferredLocations` uses link:spark-sparkenv.adoc#mapOutputTracker[`SparkEnv` to access `MapOutputTrackerMaster`] (which runs on the driver).
 
 === [[ShuffledRDDPartition]] ShuffledRDDPartition
 
