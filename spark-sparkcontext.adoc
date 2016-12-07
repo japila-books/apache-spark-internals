@@ -35,7 +35,8 @@ image::diagrams/sparkcontext-services.png[align="center"]
 ** <<creating-accumulators, Accumulators>>
 ** <<broadcast, Broadcast variables>>
 
-* Accessing services, e.g. link:spark-taskscheduler.adoc[TaskScheduler], link:spark-LiveListenerBus.adoc[LiveListenerBus], link:spark-blockmanager.adoc[BlockManager], link:spark-scheduler-backends.adoc[SchedulerBackends], link:spark-shuffle-manager.adoc[ShuffleManager].
+* Accessing services, e.g. link:spark-taskscheduler.adoc[TaskScheduler], link:spark-LiveListenerBus.adoc[LiveListenerBus], link:spark-blockmanager.adoc[BlockManager], link:spark-scheduler-backends.adoc[SchedulerBackends], link:spark-shuffle-manager.adoc[ShuffleManager] and the <<cleaner, optional ContextCleaner>>.
+
 * <<runJob, Running jobs>>
 * <<cancelJob, Cancelling job>>
 * <<custom-schedulers, Setting up custom Scheduler Backend, TaskScheduler and DAGScheduler>>
@@ -143,7 +144,7 @@ WARN Requesting executors is only supported in coarse-grained mode
 
 CAUTION: FIXME Why does SparkContext implement the method for coarse-grained scheduler backends? Why doesn't SparkContext throw an exception when the method is called? Nobody seems to be using it (!)
 
-=== [[creating-instance]] Creating SparkContext Instance
+=== [[creating-instance]] Creating `SparkContext` Instance
 
 You can create a `SparkContext` instance with or without creating a link:spark-configuration.adoc[SparkConf] object first.
 
@@ -496,11 +497,12 @@ scala> sc.addJar("build.sbt")
 
 CAUTION: FIXME Why is HttpFileServer used for addJar?
 
-=== SparkContext as the global configuration for services
+=== `SparkContext` as Application-Wide Counter
 
 SparkContext keeps track of:
 
-* shuffle ids using `nextShuffleId` internal field for link:spark-dagscheduler-ShuffleMapStage.adoc[registering shuffle dependencies] to link:spark-shuffle-manager.adoc[Shuffle Service].
+[[nextShuffleId]]
+* shuffle ids using `nextShuffleId` internal counter for link:spark-dagscheduler-ShuffleMapStage.adoc[registering shuffle dependencies] to link:spark-shuffle-manager.adoc[Shuffle Service].
 
 === [[runJob]] Running Job Synchronously -- `runJob` Methods
 
@@ -819,6 +821,17 @@ setJobGroup(
 
 CAUTION: FIXME
 
+=== [[cleaner]] `cleaner` Method
+
+[source, scala]
+----
+cleaner: Option[ContextCleaner]
+----
+
+`cleaner` is a `private[spark]` method to get the optional application-wide link:spark-service-contextcleaner.adoc[ContextCleaner].
+
+NOTE: link:spark-service-contextcleaner.adoc#creating-instance[`ContextCleaner` is created] when link:spark-sparkcontext-creating-instance-internals.adoc#_cleaner[`SparkContext` is created with `spark.cleaner.referenceTracking` Spark property enabled] (which is by default).
+
 === [[settings]] Settings
 
 ==== [[spark.driver.allowMultipleContexts]] spark.driver.allowMultipleContexts
@@ -850,10 +863,17 @@ CAUTION: It's not guaranteed that Spark will work properly with two or more Spar
 
 === [[environment-variables]] Environment Variables
 
-==== [[SPARK_EXECUTOR_MEMORY]] SPARK_EXECUTOR_MEMORY
+.Environment Variables
+[frame="topbot",cols="1,1,2",options="header",width="100%"]
+|======================
+| Environment Variable | Default Value | Description
 
-`SPARK_EXECUTOR_MEMORY` sets the amount of memory to allocate to each executor. See link:spark-executor.adoc#memory[Executor Memory].
+| [[SPARK_EXECUTOR_MEMORY]] `SPARK_EXECUTOR_MEMORY`
+| `1024`
+| Amount of memory to allocate for a Spark executor in  MB.
 
-==== [[SPARK_USER]] SPARK_USER
+See link:spark-executor.adoc#memory[Executor Memory].
 
-`SPARK_USER` is the user who is running `SparkContext`. It is available later as <<sparkUser, sparkUser>>.
+| [[SPARK_USER]] `SPARK_USER`
+|
+| The user who is running `SparkContext`. Available later as <<sparkUser, sparkUser>>.
