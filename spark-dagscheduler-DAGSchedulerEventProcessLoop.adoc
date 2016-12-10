@@ -1,7 +1,10 @@
 == [[DAGSchedulerEventProcessLoop]] DAGSchedulerEventProcessLoop -- dag-scheduler-event-loop DAGScheduler Event Bus
 
-`DAGSchedulerEventProcessLoop` (*dag-scheduler-event-loop*) is a `EventLoop` single "business logic" thread for processing `DAGSchedulerEvent` events.
+`DAGSchedulerEventProcessLoop` (*dag-scheduler-event-loop*) is a `EventLoop` single "business logic" thread for processing <<DAGSchedulerEvent, DAGSchedulerEvent>> events.
 
+NOTE: The purpose of the processing loop is to have a separate thread so events are processed asynchronously one by one.
+
+[[DAGSchedulerEvent]]
 .``DAGSchedulerEvent``s and Event Handlers (in alphabetical order)
 [width="100%",cols="1,1,2",frame="topbot",options="header"]
 |======================
@@ -11,7 +14,21 @@
 
 | <<BeginEvent, BeginEvent>> | <<handleBeginEvent, handleBeginEvent>> | link:spark-tasksetmanager.adoc[TaskSetManager] informs `DAGScheduler` that a task is starting (through link:spark-dagscheduler.adoc#taskStarted[taskStarted]).
 
-| <<CompletionEvent, CompletionEvent>> | <<handleTaskCompletion, handleTaskCompletion>> | link:spark-tasksetmanager.adoc[TaskSetManager] informs link:spark-dagscheduler.adoc#taskEnded[DAGScheduler] that a task has completed successfully or failed.
+| [[CompletionEvent]] `CompletionEvent`
+| <<handleTaskCompletion, handleTaskCompletion>>
+| Posted when link:spark-dagscheduler.adoc#taskEnded[`DAGScheduler` is informed that a task has completed (successfully or not)].
+
+`CompletionEvent` conveys the following information:
+
+1. Completed link:spark-taskscheduler-tasks.adoc[Task] instance (as `task`)
+
+2. `TaskEndReason` (as `reason`)
+
+3. Result of the task (as `result`)
+
+4. link:spark-accumulators.adoc[Accumulators] with...FIXME (as `accumUpdates`)
+
+5. `TaskInfo` (as `taskInfo`)
 
 | <<ExecutorAdded, ExecutorAdded>> | <<handleExecutorAdded, handleExecutorAdded>> | `DAGScheduler` was informed (through link:spark-dagscheduler.adoc#executorAdded[executorAdded]) that an executor was spun up on a host.
 
@@ -343,13 +360,7 @@ Otherwise, `handleJobCancellation` link:spark-dagscheduler.adoc#failJobAndIndepe
 Job [jobId] cancelled [reason]
 ```
 
-=== [[CompletionEvent]] `CompletionEvent` Event and `handleTaskCompletion` Handler
-
-`CompletionEvent` is a `DAGSchedulerEvent` that triggers <<handleTaskCompletion, `handleTaskCompletion` method>> (on a separate thread).
-
-NOTE: `CompletionEvent` is posted when link:spark-dagscheduler.adoc#taskEnded[`DAGScheduler` is informed about a task completion, i.e. success or failure].
-
-==== [[handleTaskCompletion]] `handleTaskCompletion` Handler
+=== [[handleTaskCompletion]] `handleTaskCompletion` Handler
 
 [source, scala]
 ----
@@ -361,9 +372,28 @@ image::images/dagscheduler-tasksetmanager.png[align="center"]
 
 NOTE: `CompletionEvent` holds contextual information about the completed task.
 
-The task knows about the stage it belongs to (using `Task.stageId`), the partition it works on (using `Task.partitionId`), and the stage attempt (using `Task.stageAttemptId`).
+.`CompletionEvent` Properties
+[width="100%",cols="1,2",frame="topbot",options="header"]
+|===
+| Property | Description
 
-`OutputCommitCoordinator.taskCompleted` is called.
+| `task`
+| Completed link:spark-taskscheduler-tasks.adoc[Task] instance for a stage, partition and stage attempt.
+
+| `reason`
+| `TaskEndReason`...FIXME
+
+| `result`
+| Result of the task
+
+| `accumUpdates`
+| link:spark-accumulators.adoc[Accumulators] with...FIXME
+
+| `taskInfo`
+| `TaskInfo`
+|===
+
+`handleTaskCompletion` informs link:spark-service-outputcommitcoordinator.adoc#taskCompleted[OutputCommitCoordinator] that a task completed.
 
 If the reason for task completion is not `Success`, link:spark-SparkListener.adoc#SparkListenerTaskEnd[SparkListenerTaskEnd] is posted to link:spark-LiveListenerBus.adoc[LiveListenerBus]. The only difference with <<handleTaskCompletion-Success, TaskEndReason: Success>> is how the stage attempt id is calculated. Here, it is `Task.stageAttemptId` (not `Stage.latestInfo.attemptId`).
 
@@ -381,7 +411,7 @@ The partition the task worked on is removed from `pendingPartitions` of the stag
 
 The processing splits per task type - ResultTask or ShuffleMapTask - and link:spark-dagscheduler.adoc#submitWaitingStages[DAGScheduler.submitWaitingStages] is called.
 
-===== [[handleTaskCompletion-Success-ResultTask]] ResultTask
+===== [[handleTaskCompletion-Success-ResultTask]] TaskEndReason: Success -- `ResultTask`
 
 For `ResultTask`, the stage is link:spark-dagscheduler-ResultStage.adoc[ResultStage]. If there is no job active for the stage (using `resultStage.activeJob`), the following INFO message appears in the logs:
 
@@ -407,7 +437,7 @@ The link:spark-dagscheduler-JobListener.adoc#taskSucceeded[`JobListener` of the 
 
 CAUTION: FIXME When would `job.listener.taskSucceeded` throw an exception? How?
 
-===== [[handleTaskCompletion-Success-ShuffleMapTask]] ShuffleMapTask
+===== [[handleTaskCompletion-Success-ShuffleMapTask]] TaskEndReason: Success -- `ShuffleMapTask`
 
 For link:spark-taskscheduler-ShuffleMapTask.adoc[ShuffleMapTask], the stage is link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage].
 
