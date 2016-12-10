@@ -393,15 +393,51 @@ NOTE: `CompletionEvent` holds contextual information about the completed task.
 | `TaskInfo`
 |===
 
-`handleTaskCompletion` informs link:spark-service-outputcommitcoordinator.adoc#taskCompleted[OutputCommitCoordinator] that a task completed.
+`handleTaskCompletion` starts by link:spark-service-outputcommitcoordinator.adoc#taskCompleted[informing `OutputCommitCoordinator` that a task completed].
 
-If the reason for task completion is not `Success`, link:spark-SparkListener.adoc#SparkListenerTaskEnd[SparkListenerTaskEnd] is posted to link:spark-LiveListenerBus.adoc[LiveListenerBus]. The only difference with <<handleTaskCompletion-Success, TaskEndReason: Success>> is how the stage attempt id is calculated. Here, it is `Task.stageAttemptId` (not `Stage.latestInfo.attemptId`).
+`handleTaskCompletion` link:spark-taskscheduler-taskmetrics.adoc#fromAccumulators[builds `TaskMetrics` (using `accumUpdates` accumulators of the input `event`)].
 
-CAUTION: FIXME What is the difference between stage attempt ids?
+NOTE: `TaskMetrics` of a task can be empty when the task has failed.
 
-If the stage the task belongs to has been cancelled, `stageIdToStage` should not contain it, and the method quits.
+`handleTaskCompletion` announces task completion application-wide (by posting a link:spark-SparkListener.adoc#SparkListenerTaskEnd[SparkListenerTaskEnd] to link:spark-LiveListenerBus.adoc[LiveListenerBus]).
 
-The main processing depends on the `TaskEndReason` - the reason for task completion (using `event.reason`). The method skips processing `TaskEndReasons`: `TaskCommitDenied`, `ExceptionFailure`, `TaskResultLost`, `ExecutorLostFailure`, `TaskKilled`, and `UnknownReason`, i.e. it does nothing.
+`handleTaskCompletion` checks the stage of the task out in the link:spark-dagscheduler.adoc#stageIdToStage[`stageIdToStage` internal registry] and if not found, it simply exits.
+
+`handleTaskCompletion` branches off per `TaskEndReason` (as `event.reason`).
+
+.`handleTaskCompletion` Branches per `TaskEndReason`
+[frame="topbot",cols="1,2",options="header",width="100%"]
+|===
+| TaskEndReason
+| Description
+
+| <<handleTaskCompletion-Success, Success>>
+| Acts according to the type of the task, i.e. <<handleTaskCompletion-Success-ResultTask, ResultTask>> or <<handleTaskCompletion-Success-ShuffleMapTask, ShuffleMapTask>>.
+
+| <<handleTaskCompletion-Resubmitted, Resubmitted>>
+|
+
+| <<handleTaskCompletion-FetchFailed, FetchFailed>>
+|
+
+| `ExceptionFailure`
+| link:spark-dagscheduler.adoc#updateAccumulators[Updates accumulators] (with partial values from the task).
+
+| `ExecutorLostFailure`
+| Does nothing
+
+| `TaskCommitDenied`
+| Does nothing
+
+| `TaskKilled`
+| Does nothing
+
+| `TaskResultLost`
+| Does nothing
+
+| `UnknownReason`
+| Does nothing
+|===
 
 ==== [[handleTaskCompletion-Success]] TaskEndReason: Success
 
@@ -439,54 +475,58 @@ CAUTION: FIXME When would `job.listener.taskSucceeded` throw an exception? How?
 
 ===== [[handleTaskCompletion-Success-ShuffleMapTask]] TaskEndReason: Success -- `ShuffleMapTask`
 
-For link:spark-taskscheduler-ShuffleMapTask.adoc[ShuffleMapTask], the stage is link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage].
+For link:spark-taskscheduler-ShuffleMapTask.adoc[ShuffleMapTask], the stage is assumed a  link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage].
 
-link:spark-dagscheduler.adoc#updateAccumulators[DAGScheduler.updateAccumulators(event)] is called.
+`handleTaskCompletion` link:spark-dagscheduler.adoc#updateAccumulators[updates accumulators].
 
-`event.result` is link:spark-taskscheduler-ShuffleMapTask.adoc#MapStatus[MapStatus] that knows the executor id where the task has finished (using `status.location.executorId`).
+The task's result is assumed link:spark-taskscheduler-ShuffleMapTask.adoc#MapStatus[MapStatus] that knows the executor where the task has finished.
 
 You should see the following DEBUG message in the logs:
 
 ```
-DEBUG ShuffleMapTask finished on [execId]
+DEBUG DAGScheduler: ShuffleMapTask finished on [execId]
 ```
 
-If link:spark-dagscheduler.adoc#failedEpoch[failedEpoch] contains the executor and the epoch of the `ShuffleMapTask` is not greater than that in `failedEpoch`, you should see the following INFO message in the logs:
+If the executor is registered in link:spark-dagscheduler.adoc#failedEpoch[`failedEpoch` internal registry] and the epoch of the completed task is not greater than that of the executor (as in `failedEpoch` registry), you should see the following INFO message in the logs:
 
 ```
-INFO Ignoring possibly bogus [task] completion from executor [executorId]
+INFO DAGScheduler: Ignoring possibly bogus [task] completion from executor [executorId]
 ```
 
-Otherwise, `shuffleStage.addOutputLoc(smt.partitionId, status)` is called.
+Otherwise, `handleTaskCompletion` link:spark-dagscheduler-ShuffleMapStage.adoc#addOutputLoc[registers the `MapStatus` result for the partition with the stage] (of the completed task).
 
-The method does more processing only if the internal `runningStages` contains the link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage] with no more pending partitions to compute (using `shuffleStage.pendingPartitions`).
+`handleTaskCompletion` does more processing only if the `ShuffleMapStage` is considered running (i.e. is registered in link:spark-dagscheduler.adoc#runningStages[`runningStages` internal registry]) and the link:spark-dagscheduler-stages.adoc#pendingPartitions[stage has no pending partitions to compute].
 
-`markStageAsFinished(shuffleStage)` is called.
+The `ShuffleMapStage` is <<markStageAsFinished, marked as finished>>.
 
-The following INFO logs appear in the logs:
-
-```
-INFO looking for newly runnable stages
-INFO running: [runningStages]
-INFO waiting: [waitingStages]
-INFO failed: [failedStages]
-```
-
-link:spark-service-mapoutputtracker.adoc#registerMapOutputs[mapOutputTracker.registerMapOutputs] with `changeEpoch` is called.
-
-The internal link:spark-dagscheduler.adoc#clearCacheLocs[cache of RDD partition locations is cleared].
-
-If the map stage is ready, i.e. all partitions have shuffle outputs, map-stage jobs waiting on this stage (using `shuffleStage.mapStageJobs`) are marked as finished. link:spark-service-MapOutputTrackerMaster.adoc#getStatistics[`MapOutputTrackerMaster` is requested for statistics (for `shuffleStage.shuffleDep`)] and every map-stage job is `markMapStageJobAsFinished(job, stats)`.
-
-Otherwise, if the map stage is _not_ ready, the following INFO message appears in the logs:
+You should see the following INFO messages in the logs:
 
 ```
-INFO Resubmitting [shuffleStage] ([shuffleStage.name]) because some of its tasks had failed: [missingPartitions]
+INFO DAGScheduler: looking for newly runnable stages
+INFO DAGScheduler: running: [runningStages]
+INFO DAGScheduler: waiting: [waitingStages]
+INFO DAGScheduler: failed: [failedStages]
 ```
 
-`shuffleStage` is link:spark-dagscheduler.adoc#submitStage[submitted to `DAGScheduler` for execution].
+`handleTaskCompletion` link:spark-service-MapOutputTrackerMaster.adoc#registerMapOutputs[registers the map outputs for the `ShuffleDependency`] (with the epoch incremented) and link:spark-dagscheduler.adoc#clearCacheLocs[clears internal cache of the stage's RDD block locations].
 
-==== [[TaskEndReason-Resubmitted]] TaskEndReason: Resubmitted
+NOTE: link:spark-service-MapOutputTrackerMaster.adoc[MapOutputTrackerMaster] is given when link:spark-dagscheduler.adoc#creating-instance[`DAGScheduler` is created].
+
+If the link:spark-dagscheduler-ShuffleMapStage.adoc#isAvailable[`ShuffleMapStage` stage is ready], all link:spark-dagscheduler-ShuffleMapStage.adoc#mapStageJobs[active jobs of the stage] (aka _map-stage jobs_) are link:spark-dagscheduler.adoc#markMapStageJobAsFinished[marked as finished] (with link:spark-service-MapOutputTrackerMaster.adoc#getStatistics[`MapOutputStatistics` from `MapOutputTrackerMaster` for the `ShuffleDependency`]).
+
+NOTE: A `ShuffleMapStage` stage is ready (aka _available_) when all partitions have shuffle outputs, i.e. when their tasks have completed.
+
+Eventually, `handleTaskCompletion` link:spark-dagscheduler.adoc#submitWaitingChildStages[submits waiting child stages of the ready `ShuffleMapStage`].
+
+If however the `ShuffleMapStage` is _not_ ready, you should see the following INFO message in the logs:
+
+```
+INFO DAGScheduler: Resubmitting [shuffleStage] ([shuffleStage.name]) because some of its tasks had failed: [missingPartitions]
+```
+
+In the end, `handleTaskCompletion` link:spark-dagscheduler.adoc#submitStage[submits the `ShuffleMapStage` for execution].
+
+==== [[handleTaskCompletion-Resubmitted]] TaskEndReason: Resubmitted
 
 For `Resubmitted` case, you should see the following INFO message in the logs:
 
