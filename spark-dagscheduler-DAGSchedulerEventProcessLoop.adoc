@@ -412,7 +412,7 @@ NOTE: `TaskMetrics` of a task can be empty when the task has failed.
 | Description
 
 | <<handleTaskCompletion-Success, Success>>
-| Acts according to the type of the task, i.e. <<handleTaskCompletion-Success-ResultTask, ResultTask>> or <<handleTaskCompletion-Success-ShuffleMapTask, ShuffleMapTask>>.
+| Acts according to the type of the task, i.e. <<handleTaskCompletion-Success-ShuffleMapTask, ShuffleMapTask>> and <<handleTaskCompletion-Success-ResultTask, ResultTask>>.
 
 | <<handleTaskCompletion-Resubmitted, Resubmitted>>
 |
@@ -447,33 +447,47 @@ The partition the task worked on is removed from `pendingPartitions` of the stag
 
 The processing splits per task type - ResultTask or ShuffleMapTask - and link:spark-dagscheduler.adoc#submitWaitingStages[DAGScheduler.submitWaitingStages] is called.
 
-===== [[handleTaskCompletion-Success-ResultTask]] TaskEndReason: Success -- `ResultTask`
+===== [[handleTaskCompletion-Success-ResultTask]] TaskEndReason: Success -- `ResultTask` Case
 
-For `ResultTask`, the stage is link:spark-dagscheduler-ResultStage.adoc[ResultStage]. If there is no job active for the stage (using `resultStage.activeJob`), the following INFO message appears in the logs:
+For link:spark-taskscheduler-ResultTask.adoc[ResultTask], the stage is assumed a link:spark-dagscheduler-ResultStage.adoc[ResultStage].
+
+`handleTaskCompletion` finds the `ActiveJob` associated with the `ResultStage`.
+
+NOTE: link:spark-dagscheduler-ResultStage.adoc[ResultStage] tracks the optional `ActiveJob` as link:spark-dagscheduler-ResultStage.adoc#activeJob[`activeJob` property]. There could only be one active job for a `ResultStage`.
+
+If there is _no_ job for the `ResultStage`, you should see the following INFO message in the logs:
 
 ```
-INFO Ignoring result from [task] because its job has finished
+INFO DAGScheduler: Ignoring result from [task] because its job has finished
 ```
 
-Otherwise, check whether the task is marked as running for the job (using `job.finished`) and proceed. The method skips execution when the task has already been marked as completed in the job.
+Otherwise, when the `ResultStage` has a `ActiveJob`, `handleTaskCompletion` checks the status of the partition output for the partition the `ResultTask` ran for.
 
-CAUTION: FIXME When could a task that has just finished be ignored, i.e. the job has already marked `finished`? Could it be for stragglers?
+NOTE: `ActiveJob` tracks task completions in `finished` property with flags for every partition in a stage. When the flag for a partition is enabled (i.e. `true`), it is assumed that the partition has been computed (and no results from any `ResultTask` are expected and hence simply ignored).
 
-link:spark-dagscheduler.adoc#updateAccumulators[DAGScheduler.updateAccumulators(event)] is called.
+CAUTION: FIXME Describe why could a partition has more `ResultTask` running.
 
-The partition is marked as `finished` (using `job.finished`) and the number of partitions calculated increased (using `job.numFinished`).
+`handleTaskCompletion` ignores the `CompletionEvent` when the partition has already been marked as completed for the stage and simply exits.
 
-If the whole job has finished (when `job.numFinished == job.numPartitions`), then:
+`handleTaskCompletion` link:spark-dagscheduler.adoc#updateAccumulators[updates accumulators].
 
-* `markStageAsFinished` is called
-* `cleanupStateForJobAndIndependentStages(job)`
-* link:spark-SparkListener.adoc#SparkListenerJobEnd[SparkListenerJobEnd] is posted to link:spark-LiveListenerBus.adoc[LiveListenerBus] with `JobSucceeded`
+The partition for the `ActiveJob` (of the `ResultStage`) is marked as computed and the number of partitions calculated increased.
 
-The link:spark-dagscheduler-JobListener.adoc#taskSucceeded[`JobListener` of the job is notified about the task's successful completion]. In case the step fails, i.e. throws an exception, the link:spark-dagscheduler-JobListener.adoc#jobFailed[`JobListener` is notified about the failure].
+NOTE: `ActiveJob` tracks what partitions have already been computed and their number.
 
-CAUTION: FIXME When would `job.listener.taskSucceeded` throw an exception? How?
+If the `ActiveJob` has finished (when the number of partitions computed is exactly the number of partitions in a stage) `handleTaskCompletion` does the following (in order):
 
-===== [[handleTaskCompletion-Success-ShuffleMapTask]] TaskEndReason: Success -- `ShuffleMapTask`
+1. link:spark-dagscheduler.adoc#markStageAsFinished[Marks `ResultStage` computed].
+2. link:spark-dagscheduler.adoc#cleanupStateForJobAndIndependentStages[Cleans up after `ActiveJob` and independent stages].
+3. Announces the job completion application-wide (by posting a link:spark-SparkListener.adoc#SparkListenerJobEnd[SparkListenerJobEnd] to link:spark-LiveListenerBus.adoc[LiveListenerBus]).
+
+In the end, `handleTaskCompletion` link:spark-dagscheduler-JobListener.adoc#taskSucceeded[notifies `JobListener` of the `ActiveJob` that the task succeeded].
+
+NOTE: A task succeeded notification holds the output index and the result.
+
+When the notification throws an exception (because it runs user code), `handleTaskCompletion` link:spark-dagscheduler-JobListener.adoc#jobFailed[notifies `JobListener` about the failure] (wrapping it inside a `SparkDriverExecutionException` exception).
+
+===== [[handleTaskCompletion-Success-ShuffleMapTask]] TaskEndReason: Success -- `ShuffleMapTask` Case
 
 For link:spark-taskscheduler-ShuffleMapTask.adoc[ShuffleMapTask], the stage is assumed a  link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage].
 
