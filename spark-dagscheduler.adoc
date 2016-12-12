@@ -141,7 +141,7 @@ CAUTION: FIXME
 getOrCreateParentStages(rdd: RDD[_], firstJobId: Int): List[Stage]
 ----
 
-`getOrCreateParentStages` <<getShuffleDependencies, computes `ShuffleDependency` immediate parents>> and <<getOrCreateShuffleMapStage, gets or creates a `ShuffleMapStage`>> for each link:spark-rdd-ShuffleDependency.adoc[ShuffleDependency].
+`getOrCreateParentStages` <<getShuffleDependencies, finds all `ShuffleDependency` immediate parents>> and <<getOrCreateShuffleMapStage, finds ``ShuffleMapStage``s (and creates them if not available)>> for each link:spark-rdd-ShuffleDependency.adoc[ShuffleDependency].
 
 NOTE: `getOrCreateParentStages` is used when `DAGScheduler` <<createShuffleMapStage, createShuffleMapStage>> and <<createResultStage, createResultStage>>.
 
@@ -169,7 +169,7 @@ getMissingAncestorShuffleDependencies(
   rdd: RDD[_]): Stack[ShuffleDependency[_, _, _]]
 ----
 
-NOTE: `getMissingAncestorShuffleDependencies` is used when `DAGScheduler` <<getOrCreateShuffleMapStage, getOrCreateShuffleMapStage>>.
+NOTE: `getMissingAncestorShuffleDependencies` is used when `DAGScheduler` <<getOrCreateShuffleMapStage, finds ``ShuffleMapStage``s for a `ShuffleDependency` (and creates them if not available)>>.
 
 === [[creating-instance]][[initialization]] Creating `DAGScheduler` Instance
 
@@ -526,7 +526,7 @@ INFO Job [jobId] failed: [callSite], took [time] s
 
 NOTE: `runJob` is used when link:spark-sparkcontext.adoc#runJob[`SparkContext` runs a job].
 
-=== [[getOrCreateShuffleMapStage]] Finding `ShuffleMapStage` for `ShuffleDependency` (Possibly Creating One If Not Available) -- `getOrCreateShuffleMapStage` Internal Method
+=== [[getOrCreateShuffleMapStage]] Finding `ShuffleMapStage` for `ShuffleDependency` (And Creating Them If Not Available) -- `getOrCreateShuffleMapStage` Internal Method
 
 [source, scala]
 ----
@@ -582,7 +582,7 @@ INFO Registering RDD [id] ([creationSite])
 
 `createShuffleMapStage` returns the newly-created `ShuffleMapStage`.
 
-NOTE: `createShuffleMapStage` is executed only when `DAGScheduler` <<getOrCreateShuffleMapStage, creates a missing `ShuffleMapStage` for a `ShuffleDependency`>>.
+NOTE: `createShuffleMapStage` is executed only when `DAGScheduler` <<getOrCreateShuffleMapStage, finds  ``ShuffleMapStage``s for a `ShuffleDependency` (and creates them if not available)>>.
 
 === [[clearCacheLocs]] Clearing Cache of RDD Block Locations -- `clearCacheLocs` Internal Method
 
@@ -668,7 +668,7 @@ stageDependsOn(stage: Stage, target: Stage): Boolean
 
 NOTE: A stage `A` depends on stage `B` if `B` is among the ancestors of `A`.
 
-Internally, `stageDependsOn` walks through the graph of RDDs of the input `stage`. For every RDD in the RDD's dependencies (using `RDD.dependencies`) `stageDependsOn` adds the RDD of a link:spark-rdd-NarrowDependency.adoc[NarrowDependency] to a stack of RDDs to visit while for a link:spark-rdd-ShuffleDependency.adoc[ShuffleDependency] it <<getOrCreateShuffleMapStage, getOrCreateShuffleMapStage>> for the dependency and the ``stage``'s first job id that it later adds to a stack of RDDs to visit if the map stage is ready, i.e. all the partitions have shuffle outputs.
+Internally, `stageDependsOn` walks through the graph of RDDs of the input `stage`. For every RDD in the RDD's dependencies (using `RDD.dependencies`) `stageDependsOn` adds the RDD of a link:spark-rdd-NarrowDependency.adoc[NarrowDependency] to a stack of RDDs to visit while for a link:spark-rdd-ShuffleDependency.adoc[ShuffleDependency] it <<getOrCreateShuffleMapStage, finds ``ShuffleMapStage``s for `ShuffleDependency` (and creates them if not available)>> for the dependency and the ``stage``'s first job id that it later adds to a stack of RDDs to visit if the map stage is ready, i.e. all the partitions have shuffle outputs.
 
 After all the RDDs of the input `stage` are visited, `stageDependsOn` checks if the ``target``'s RDD is among the RDDs of the `stage`, i.e. whether the `stage` depends on `target` stage.
 
@@ -755,39 +755,6 @@ If however there are missing parent stages for the `stage`, `submitStage` <<subm
 
 NOTE: `submitStage` is executed when `DAGScheduler` submits <<submitStage, missing parent map stages (of a stage) recursively>> or <<submitWaitingChildStages, waiting child stages>>, link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#resubmitFailedStages[resubmits failed stages], and handles  link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleJobSubmitted[JobSubmitted],  link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleMapStageSubmitted[MapStageSubmitted], or link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#CompletionEvent[CompletionEvent] events.
 
-=== [[getMissingParentStages]] Calculating Missing Parent Map Stages -- `getMissingParentStages` Internal Method
-
-[source, scala]
-----
-getMissingParentStages(stage: Stage): List[Stage]
-----
-
-`getMissingParentStages` calculates missing parent link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage]s in the dependency graph of the input `stage` (using the https://en.wikipedia.org/wiki/Breadth-first_search[breadth-first search algorithm]).
-
-`getMissingParentStages` starts with the ``stage``'s RDD (as `stage.rdd`) and walks up the tree of all parent RDDs to find <<getCacheLocs, uncached partitions>>.
-
-NOTE: An *uncached partition* of a RDD is a partition that has `Nil` in the <<cacheLocs, internal registry of partition locations per RDD>> (which results in no RDD blocks in any of the active link:spark-blockmanager.adoc[BlockManager]s on executors).
-
-`getMissingParentStages` traverses the link:spark-rdd.adoc#dependencies[parent dependencies of the RDD] and acts according to their type, i.e. link:spark-rdd-ShuffleDependency.adoc[ShuffleDependency] or link:spark-rdd-NarrowDependency.adoc[NarrowDependency].
-
-NOTE: link:spark-rdd-ShuffleDependency.adoc[ShuffleDependency] and link:spark-rdd-NarrowDependency.adoc[NarrowDependency] are the main top-level link:spark-rdd-dependencies.adoc[Dependency]-ies.
-
-For each `NarrowDependency`, `getMissingParentStages` simply marks the corresponding RDD to visit and moves on to a next dependency of a RDD or works on another unvisited parent RDD.
-
-NOTE: link:spark-rdd-NarrowDependency.adoc[NarrowDependency] is a RDD dependency that allows for pipelined execution.
-
-`getMissingParentStages` focuses on `ShuffleDependency` dependencies.
-
-NOTE: link:spark-rdd-ShuffleDependency.adoc[ShuffleDependency] is a RDD dependency that...FIXME
-
-For each `ShuffleDependency`, `getMissingParentStages` <<getOrCreateShuffleMapStage, takes a `ShuffleMapStage` or creates a new one>>. If the `ShuffleMapStage` is not _available_, it is added to the set of missing (map) stages.
-
-NOTE: A `ShuffleMapStage` is *available* when all its partitions are computed, i.e. results are available (as blocks).
-
-CAUTION: FIXME...IMAGE with ShuffleDependencies queried
-
-NOTE: `getMissingParentStages` is used when `DAGScheduler` <<submitStage, submits missing parent map stages (of a stage)>> and handles link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleJobSubmitted[JobSubmitted] and link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleMapStageSubmitted[MapStageSubmitted] events.
-
 === [[stage-attempts]] Fault recovery - stage attempts
 
 A single stage can be re-executed in multiple *attempts* due to fault recovery. The number of attempts is configured (FIXME).
@@ -859,6 +826,41 @@ DAGScheduler uses the following ScheduledThreadPoolExecutors (with the policy of
 * `dag-scheduler-message` - a daemon thread pool using `j.u.c.ScheduledThreadPoolExecutor` with core pool size `1`. It is used to post a link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#ResubmitFailedStages[ResubmitFailedStages] event when `FetchFailed` is reported.
 
 They are created using `ThreadUtils.newDaemonSingleThreadScheduledExecutor` method that uses Guava DSL to instantiate a ThreadFactory.
+
+=== [[getMissingParentStages]] Finding Missing Parent ``ShuffleMapStage``s For `Stage` -- `getMissingParentStages` Internal Method
+
+[source, scala]
+----
+getMissingParentStages(stage: Stage): List[Stage]
+----
+
+`getMissingParentStages` finds missing parent link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage]s in the dependency graph of the input `stage` (using the https://en.wikipedia.org/wiki/Breadth-first_search[breadth-first search algorithm]).
+
+Internally, `getMissingParentStages` starts with the ``stage``'s RDD and walks up the tree of all parent RDDs to find <<getCacheLocs, uncached partitions>>.
+
+NOTE: A `Stage` tracks the associated RDD using link:spark-dagscheduler-stages.adoc#rdd[`rdd` property].
+
+NOTE: An *uncached partition* of a RDD is a partition that has `Nil` in the <<cacheLocs, internal registry of partition locations per RDD>> (which results in no RDD blocks in any of the active link:spark-blockmanager.adoc[BlockManager]s on executors).
+
+`getMissingParentStages` traverses the link:spark-rdd.adoc#dependencies[parent dependencies of the RDD] and acts according to their type, i.e. link:spark-rdd-ShuffleDependency.adoc[ShuffleDependency] or link:spark-rdd-NarrowDependency.adoc[NarrowDependency].
+
+NOTE: link:spark-rdd-ShuffleDependency.adoc[ShuffleDependency] and link:spark-rdd-NarrowDependency.adoc[NarrowDependency] are the main top-level link:spark-rdd-dependencies.adoc[Dependencies].
+
+For each `NarrowDependency`, `getMissingParentStages` simply marks the corresponding RDD to visit and moves on to a next dependency of a RDD or works on another unvisited parent RDD.
+
+NOTE: link:spark-rdd-NarrowDependency.adoc[NarrowDependency] is a RDD dependency that allows for pipelined execution.
+
+`getMissingParentStages` focuses on `ShuffleDependency` dependencies.
+
+NOTE: link:spark-rdd-ShuffleDependency.adoc[ShuffleDependency] is a RDD dependency that represents a dependency on the output of a link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage], i.e. *shuffle map stage*.
+
+For each `ShuffleDependency`, `getMissingParentStages` <<getOrCreateShuffleMapStage, finds ``ShuffleMapStage``s (and creates them if not available)>>. If the `ShuffleMapStage` is not _available_, it is added to the set of missing (map) stages.
+
+NOTE: A `ShuffleMapStage` is *available* when all its partitions are computed, i.e. results are available (as blocks).
+
+CAUTION: FIXME...IMAGE with ShuffleDependencies queried
+
+NOTE: `getMissingParentStages` is used when `DAGScheduler` <<submitStage, submits missing parent ``ShuffleMapStage``s (of a stage)>> and handles link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleJobSubmitted[JobSubmitted] and link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleMapStageSubmitted[MapStageSubmitted] events.
 
 === [[getPreferredLocs]][[computing-preferred-locations]] Computing Preferred Locations for Tasks and Partitions -- `getPreferredLocs` Method
 
