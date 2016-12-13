@@ -1,0 +1,187 @@
+== [[SparkUI]] SparkUI
+
+`SparkUI` represents the web UI for a <<createLiveUI, Spark application>> and <<createHistoryUI, Spark History Server>>. It is <<creating-instance, created>> and bound when link:spark-sparkcontext-creating-instance-internals.adoc#ui[`SparkContext` is created] (with link:spark-webui.adoc#spark_ui_enabled[spark.ui.enabled] enabled).
+
+NOTE: The only difference between `SparkUI` for a <<createLiveUI, Spark application>> and <<createHistoryUI, Spark History Server>> is that...**FIXME**
+
+When started, `SparkUI` binds to <<appUIAddress, appUIAddress>> address that you can control using `SPARK_PUBLIC_DNS` environment variable or link:spark-driver.adoc#spark_driver_host[spark.driver.host] Spark property.
+
+[TIP]
+====
+Enable `INFO` logging level for `org.apache.spark.ui.SparkUI` logger to see what happens inside.
+
+Add the following line to `conf/log4j.properties`:
+
+```
+log4j.logger.org.apache.spark.ui.SparkUI=INFO
+```
+
+Refer to link:spark-logging.adoc[Logging].
+====
+
+=== [[creating-instance]] Creating `SparkUI` Instance
+
+[source, scala]
+----
+class SparkUI (
+  val sc: Option[SparkContext],
+  val conf: SparkConf,
+  securityManager: SecurityManager,
+  val environmentListener: EnvironmentListener,
+  val storageStatusListener: StorageStatusListener,
+  val executorsListener: ExecutorsListener,
+  val jobProgressListener: JobProgressListener,
+  val storageListener: StorageListener,
+  val operationGraphListener: RDDOperationGraphListener,
+  var appName: String,
+  val basePath: String,
+  val startTime: Long)
+extends WebUI(securityManager,
+  securityManager.getSSLOptions("ui"), SparkUI.getUIPort(conf),
+  conf, basePath, "SparkUI")
+----
+
+When executed, `SparkUI` creates a link:spark-webui-stages.adoc[StagesTab] and <<initialize, initializes the tabs and handlers in web UI>>.
+
+NOTE: `SparkUI` is created when link:spark-sparkcontext-creating-instance-internals.adoc#ui[`SparkContext` is created] (with link:spark-webui.adoc#spark_ui_enabled[spark.ui.enabled] enabled). `SparkUI` gets the references to the owning `SparkContext` and the other properties, i.e. link:spark-configuration.adoc[SparkConf], link:spark-sparkcontext.adoc#listenerBus[`LiveListenerBus` Event Bus], link:spark-webui-JobProgressListener.adoc[JobProgressListener], `SecurityManager`, `appName`, and `startTime`.
+
+=== [[initialize]] Attaching Tabs and Context Handlers -- `initialize` Method
+
+[source, scala]
+----
+initialize(): Unit
+----
+
+`initialize` attaches the tabs of the following pages:
+
+1. link:spark-webui-jobs.adoc[JobsTab]
+2. link:spark-webui-stages.adoc[StagesTab]
+3. link:spark-webui-storage.adoc[StorageTab]
+4. link:spark-webui-environment.adoc[EnvironmentTab]
+5. link:spark-webui-executors.adoc[ExecutorsTab]
+
+`initialize` also attaches `ServletContextHandler` handlers:
+
+1. `/static` to serve static files from `org/apache/spark/ui/static` directory (on CLASSPATH).
+2. Redirecting `/` to `/jobs/` (so link:spark-webui-jobs.adoc[Jobs tab] is the first tab when you open web UI).
+3. Serving `/api` context path (with `org.apache.spark.status.api.v1` provider package) using ApiRootResource.
+4. Redirecting `/stages/stage/kill` to `/stages/`
+
+NOTE: `initialize` is a part of the WebUI Contract and is executed when <<creating-instance, `SparkUI` is created>>.
+
+=== [[stop]] Stopping `SparkUI` -- `stop` Method
+
+[source, scala]
+----
+stop(): Unit
+----
+
+`stop` stops the HTTP server and prints the following INFO message to the logs:
+
+```
+INFO SparkUI: Stopped Spark web UI at [appUIAddress]
+```
+
+NOTE: `appUIAddress` in the above INFO message is the result of <<appUIAddress, appUIAddress>> method.
+
+=== [[appUIAddress]] `appUIAddress` Method
+
+[source, scala]
+----
+appUIAddress: String
+----
+
+`appUIAddress` returns the entire URL of a Spark application's web UI, including `http://` scheme.
+
+Internally, `appUIAddress` uses <<appUIHostPort, appUIHostPort>>.
+
+=== [[getSparkUser]] `getSparkUser` Method
+
+[source, scala]
+----
+getSparkUser: String
+----
+
+`getSparkUser` returns the name of the user a Spark application runs as.
+
+Internally, `getSparkUser` requests `user.name` System property from link:spark-webui-EnvironmentListener.adoc[EnvironmentListener] Spark listener.
+
+NOTE: `getSparkUser` is only used to display the user name in link:spark-webui-jobs.adoc#AllJobsPage[Spark Jobs page]
+
+=== [[createLiveUI]] `createLiveUI` Method
+
+[source, scala]
+----
+createLiveUI(
+  sc: SparkContext,
+  conf: SparkConf,
+  listenerBus: SparkListenerBus,
+  jobProgressListener: JobProgressListener,
+  securityManager: SecurityManager,
+  appName: String,
+  startTime: Long): SparkUI
+----
+
+`createLiveUI` creates a `SparkUI` for a live running Spark application.
+
+Internally, `createLiveUI` simply forwards the call to <<create, create>>.
+
+NOTE: `createLiveUI` is called when link:spark-sparkcontext-creating-instance-internals.adoc#ui[`SparkContext` is created] (and link:spark-webui.adoc#spark_ui_enabled[spark.ui.enabled] is enabled).
+
+=== [[createHistoryUI]] `createHistoryUI` Method
+
+CAUTION: FIXME
+
+=== [[create]] `create` Factory Method
+
+[source, scala]
+----
+create(
+  sc: Option[SparkContext],
+  conf: SparkConf,
+  listenerBus: SparkListenerBus,
+  securityManager: SecurityManager,
+  appName: String,
+  basePath: String = "",
+  jobProgressListener: Option[JobProgressListener] = None,
+  startTime: Long): SparkUI
+----
+
+`create` is a factory helper method to create a `SparkUI`. It is responsible for registering the link:spark-SparkListener.adoc[SparkListeners] for `SparkUI`.
+
+NOTE: `create` creates a web UI for <<createLiveUI, a running Spark application>> and <<createHistoryUI, Spark History Server>>.
+
+Internally, `create` registers a link:spark-webui-EnvironmentListener.adoc[EnvironmentListener], link:spark-webui-StorageStatusListener.adoc[StorageStatusListener], link:spark-webui-executors-ExecutorsListener.adoc[ExecutorsListener], link:spark-webui-StorageListener.adoc[StorageListener], and link:spark-webui-RDDOperationGraphListener.adoc[RDDOperationGraphListener] with the input `listenerBus`. Once the listeners are registered, `create` <<creating-instance, creates an instance of `SparkUI`>>.
+
+=== [[appUIHostPort]] `appUIHostPort` Method
+
+[source, scala]
+----
+appUIHostPort: String
+----
+
+`appUIHostPort` returns the Spark application's web UI which is the public hostname and port, excluding the scheme.
+
+NOTE: <<appUIAddress, appUIAddress>> uses `appUIHostPort` and adds `http://` scheme.
+
+=== [[getAppName]] `getAppName` Method
+
+[source, scala]
+----
+getAppName: String
+----
+
+`getAppName` returns the name of the Spark application (of a `SparkUI` instance).
+
+NOTE: `getAppName` is used when <<SparkUITab, `SparkUITab` is requested the application's name>>.
+
+=== [[SparkUITab]][[appName]] `SparkUITab` -- Custom `WebUITab`
+
+`SparkUITab` is a `private[spark]` custom `WebUITab` that defines one method only, i.e. `appName`.
+
+[source, scala]
+----
+appName: String
+----
+
+`appName` returns the <<getAppName, application's name>>.

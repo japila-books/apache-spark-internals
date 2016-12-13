@@ -1,32 +1,82 @@
-== [[DataSource]] DataSource
+== [[DataSource]] `DataSource` -- Pluggable Data Source
 
-`DataSource` case class belongs to the Data Source API (along with link:spark-sql-dataframereader.adoc[DataFrameReader] for loading datasets and link:spark-sql-dataframewriter.adoc[DataFrameWriter] for saving datasets).
+`DataSource` belongs to the Data Source API (along with link:spark-sql-dataframereader.adoc[DataFrameReader] for loading datasets, link:spark-sql-dataframewriter.adoc[DataFrameWriter] for saving datasets and link:spark-sql-streaming-StreamSourceProvider.adoc[StreamSourceProvider] for creating streaming sources).
 
-`DataSource` acts as the canonical set of parameters that describe a data source to load from or write data to. It uses a link:spark-sql-sparksession.adoc[SparkSession], a class name, a collection of `paths`, optional user-specified link:spark-sql-schema.adoc[schema], a collection of partition columns, a bucket specification, and configuration options.
+`DataSource` is an internal class that represents a **pluggable data source** in Spark SQL with few extension points to further enrich the capabilities of Spark SQL.
 
-=== [[creating-instance]] Creating DataSource Instance
+.``DataSource``'s Extension Points
+[frame="topbot",cols="1,3",options="header",width="100%"]
+|======================
+| Extension Point | Description
+| link:spark-sql-streaming-StreamSourceProvider.adoc[StreamSourceProvider] | Used in:
 
-When being created, `DataSource` first <<lookupDataSource, looks up the providing class>> given the input `className` (considering it an alias or a fully-qualified class name) and computes the <<sourceSchema, name and schema>> of the data source.
+1. <<sourceSchema, sourceSchema>> and <<createSource, createSource>> for streamed reading
 
-==== [[lookupDataSource]] lookupDataSource Internal Method
+2. <<createSink, createSink>> for streamed writing
+
+3. <<resolveRelation, resolveRelation>> for resolved link:spark-sql-BaseRelation.adoc[BaseRelation].
+
+| `FileFormat` | Used in:
+
+1. <<sourceSchema, sourceSchema>> for streamed reading
+
+2. <<write, write>> for writing a `DataFrame` to a `DataSource` (as part of creating a table as select)
+
+| `CreatableRelationProvider` | Used in <<write, write>> for writing a `DataFrame` to a `DataSource` (as part of creating a table as select).
+|======================
+
+As a user, you interact with `DataSource` by link:spark-sql-dataframereader.adoc[DataFrameReader] (when you execute link:spark-sql-sparksession.adoc#read[spark.read] or link:spark-sql-sparksession.adoc#readStream[spark.readStream]) or `CREATE TABLE USING DDL`.
 
 [source, scala]
 ----
-lookupDataSource(provider0: String): Class[_]
+// Batch reading
+val people: DataFrame = spark.read
+  .format("csv")
+  .load("people.csv")
+
+// Streamed reading
+val messages: DataFrame = spark.readStream
+  .format("kafka")
+  .option("subscribe", "topic")
+  .option("kafka.bootstrap.servers", "localhost:9092")
+  .load
 ----
 
-It first searches the classpath for available link:spark-sql-DataSourceRegister.adoc[DataSourceRegister] classes (using Java's link:++https://docs.oracle.com/javase/8/docs/api/java/util/ServiceLoader.html#load-java.lang.Class-java.lang.ClassLoader-++[ServiceLoader.load] method) and finds the requested data source by short name.
+`DataSource` uses a link:spark-sql-sparksession.adoc[SparkSession], a class name, a collection of `paths`, optional user-specified link:spark-sql-schema.adoc[schema], a collection of partition columns, a bucket specification, and configuration options.
 
-If the `DataSource` could not be found by its alias, it tries to load the class by the input `provider0` fully-qualified class name or its variant `provider0.DefaultSource` (with `.DefaultSource` suffix).
+=== [[createSource]] `createSource` Method
 
-There has to be one data source registered only or you will see the following `RuntimeException`:
-
-[options="wrap"]
+[source, scala]
 ----
-Multiple sources found for [provider] ([comma-separated class names]), please specify the fully qualified class name.
+createSource(metadataPath: String): Source
 ----
 
-==== [[sourceSchema]] sourceSchema Internal Method
+CAUTION: FIXME
+
+=== [[createSink]] `createSink` Method
+
+CAUTION: FIXME
+
+=== [[creating-instance]] Creating `DataSource` Instance
+
+[source, scala]
+----
+class DataSource(
+  sparkSession: SparkSession,
+  className: String,
+  paths: Seq[String] = Nil,
+  userSpecifiedSchema: Option[StructType] = None,
+  partitionColumns: Seq[String] = Seq.empty,
+  bucketSpec: Option[BucketSpec] = None,
+  options: Map[String, String] = Map.empty,
+  catalogTable: Option[CatalogTable] = None)
+----
+
+When being created, `DataSource` first <<lookupDataSource, looks up the providing class>> given `className` (considering it an alias or a fully-qualified class name) and computes the <<sourceSchema, name and schema>> of the data source.
+
+NOTE: `DataSource` does the initialization lazily on demand and only once.
+
+==== [[sourceSchema]] `sourceSchema` Internal Method
 
 [source, scala]
 ----
@@ -86,7 +136,7 @@ For any other data source, it throws `UnsupportedOperationException` exception:
 Data source [className] does not support streamed reading
 ```
 
-==== [[inferFileFormatSchema]] inferFileFormatSchema Internal Method
+==== [[inferFileFormatSchema]] `inferFileFormatSchema` Internal Method
 
 [source, scala]
 ----
@@ -99,26 +149,79 @@ It uses `path` option for the list of directory paths.
 
 NOTE: It is used by <<sourceSchema, DataSource.sourceSchema>> and <<createSource, DataSource.createSource>> when `FileFormat` is processed.
 
-=== [[write]] write
-
-CAUTION: FIXME
-
-=== [[createSource]] createSource
+=== [[write]] `write` Method
 
 [source, scala]
 ----
-createSource(metadataPath: String): Source
+write(
+  mode: SaveMode,
+  data: DataFrame): BaseRelation
 ----
 
-CAUTION: FIXME
+`write` does...
 
-=== [[resolveRelation]] resolveRelation
+Internally, `write` makes sure that `CalendarIntervalType` is not used in the link:spark-sql-schema.adoc[schema of `data` `DataFrame`] and throws a `AnalysisException` when there is one.
+
+`write` then <<lookupDataSource, looks up the data source implementation>> (using the constructor's `className`).
+
+NOTE: The `DataSource` implementation can be of type `CreatableRelationProvider` or `FileFormat`.
+
+For `FileFormat` data sources, `write` takes all `paths` and `path` option and makes sure that there is only one.
+
+NOTE: `write` uses Hadoop's https://hadoop.apache.org/docs/current/api/org/apache/hadoop/fs/Path.html[Path] to access the https://hadoop.apache.org/docs/current/api/org/apache/hadoop/fs/FileSystem.html[FileSystem] and calculate the qualified output path.
+
+`write` does `PartitioningUtils.validatePartitionColumn`.
+
+CAUTION: FIXME What is `PartitioningUtils.validatePartitionColumn` for?
+
+When appending to a table, ...FIXME
+
+In the end, `write` (for a `FileFormat` data source) link:spark-sql-sessionstate.adoc#executePlan[prepares a `InsertIntoHadoopFsRelationCommand` logical plan] with link:spark-sql-query-execution.adoc#toRdd[executes] it.
+
+CAUTION: FIXME Is `toRdd` a job execution?
+
+For `CreatableRelationProvider` data sources, `CreatableRelationProvider.createRelation` is executed.
+
+NOTE: `write` is executed when...
+
+==== [[lookupDataSource]] `lookupDataSource` Internal Method
 
 [source, scala]
 ----
-resolveRelation(checkPathExist: Boolean = true): BaseRelation
+lookupDataSource(provider0: String): Class[_]
 ----
 
-`resolveRelation` creates a `BaseRelation` for a given `DataSource`.
+Internally, `lookupDataSource` first searches the classpath for available link:spark-sql-DataSourceRegister.adoc[DataSourceRegister] providers (using Java's link:++https://docs.oracle.com/javase/8/docs/api/java/util/ServiceLoader.html#load-java.lang.Class-java.lang.ClassLoader-++[ServiceLoader.load] method) to find the requested data source by short name (alias), e.g. `parquet` or `kafka`.
 
-CAUTION: FIXME What's `BaseRelation`? Why is the name?
+If a `DataSource` could not be found by short name, `lookupDataSource` tries to load the class given the input `provider0` or its variant `provider0.DefaultSource` (with `.DefaultSource` suffix).
+
+NOTE: You can reference your own custom `DataSource` in your code by link:spark-sql-dataframewriter.adoc#format[DataFrameWriter.format] method which is the alias or fully-qualified class name.
+
+There has to be one data source registered only or you will see the following `RuntimeException`:
+
+[options="wrap"]
+----
+Multiple sources found for [provider] ([comma-separated class names]), please specify the fully qualified class name.
+----
+
+=== [[resolveRelation]] Creating `BaseRelation` for Reading or Writing -- `resolveRelation` Method
+
+[source, scala]
+----
+resolveRelation(checkFilesExist: Boolean = true): BaseRelation
+----
+
+`resolveRelation` resolves (i.e. creates) a link:spark-sql-BaseRelation.adoc[BaseRelation] to read from or write to a `DataSource`.
+
+Internally, `resolveRelation` creates an instance of `providingClass` (for a `DataSource`) and acts according to its type, i.e. `SchemaRelationProvider`, `RelationProvider` or `FileFormat`.
+
+.`resolveRelation` and Resolving `BaseRelation` per (Schema) Providers
+[frame="topbot",cols="1,3",options="header",width="100%"]
+|======================
+| Provider | Behaviour
+| `SchemaRelationProvider` | Executes `SchemaRelationProvider.createRelation` with the provided schema.
+
+| `RelationProvider` | Executes `RelationProvider.createRelation`.
+
+| `FileFormat` | Creates a link:spark-sql-BaseRelation.adoc#HadoopFsRelation[HadoopFsRelation].
+|======================

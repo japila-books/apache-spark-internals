@@ -15,7 +15,16 @@ By default, you apply transformations using different link:spark-streaming-opera
 
 You can however build datasets based upon the past ones, and that is when windowed operators enter the stage. Using them allows you to cross the boundary of a single dataset (per batch) and have a series of datasets in your hands (as if the data they hold arrived in a single batch interval).
 
-=== [[slice]] slice Operators
+.Streaming Windowed Operators
+[frame="topbot",cols="1,2",options="header",width="100%"]
+|======================
+| Operator | Description
+| <<slice, slice>> |
+| <<window, window>> |
+| <<reduceByWindow, reduceByWindow>> |
+|======================
+
+=== [[slice]] `slice` Operators
 
 [source,scala]
 ----
@@ -35,7 +44,7 @@ INFO Slicing from [fromTime] to [toTime] (aligned to [alignedFromTime] and [alig
 
 For every batch in the slicing interval, link:spark-streaming-dstreams.adoc#getOrCompute[a RDD is computed].
 
-=== [[window]] window Operators
+=== [[window]] `window` Operators
 
 [source,scala]
 ----
@@ -55,22 +64,30 @@ messages.window(Seconds(10))
 
 It creates link:spark-streaming-windoweddstreams.adoc[WindowedDStream] stream and register it as an output stream.
 
-NOTE: `window` operator is used by `reduceByWindow`, `reduceByKeyAndWindow` and `groupByKeyAndWindow` operators.
+NOTE: `window` operator is used by `reduceByWindow`, link:spark-streaming-PairDStreamFunctions.adoc#reduceByKeyAndWindow[reduceByKeyAndWindow] and `groupByKeyAndWindow` operators.
 
-=== [[reduceByWindow]] reduceByWindow Operator
+=== [[reduceByWindow]] `reduceByWindow` Operator
 
-```
-reduceByWindow(reduceFunc: (T, T) => T, windowDuration: Duration, slideDuration: Duration): DStream[T]
-reduceByWindow(reduceFunc: (T, T) => T, invReduceFunc: (T, T) => T, windowDuration: Duration, slideDuration: Duration): DStream[T]
-```
+[source, scala]
+----
+reduceByWindow(
+  reduceFunc: (T, T) => T,
+  windowDuration: Duration,
+  slideDuration: Duration): DStream[T]
 
-`reduceByWindow` operator create a new stream of RDDs of one element only that was computed using `reduceFunc` function over the data received during batch duration that later was _again_ applied to a collection of the reduced elements from the past being window duration `windowDuration` sliding `slideDuration` forward.
+reduceByWindow(
+  reduceFunc: (T, T) => T,
+  invReduceFunc: (T, T) => T,
+  windowDuration: Duration,
+  slideDuration: Duration): DStream[T]
+----
 
-NOTE: `reduceByWindow` is <<window, window>> and link:spark-streaming-dstreams.adoc#reduce[reduce] operators applied to the collection of RDDs collected over window duration.
+`reduceByWindow` creates a new stream of RDDs of one element only that was computed using `reduceFunc` function over the data received during batch duration that later was _again_ applied to a collection of the reduced elements from the past being window duration `windowDuration` sliding `slideDuration` forward.
 
-==== [[reduceByWindow-example]] reduceByWindow Example
+Internally, `reduceByWindow` is exactly link:spark-streaming-dstreams.adoc#reduce[reduce] operator (with `reduceFunc`) followed by <<window, window>> (of `windowDuration` and `slideDuration`) that ultimately gets ``reduce``d (again) with `reduceFunc`.
 
-```
+[source, scala]
+----
 // batchDuration = Seconds(5)
 
 val clicks: InputDStream[(String, String)] = messages
@@ -84,4 +101,4 @@ val windowedClicks: DStream[(String, String)] =
   clicks.reduceByWindow(reduceFn, windowDuration = Seconds(10), slideDuration = Seconds(5))
 
 windowedClicks.print
-```
+----

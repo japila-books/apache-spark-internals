@@ -1,6 +1,8 @@
 == [[Analyzer]] Logical Query Plan Analyzer
 
-`Analyzer` is a link:spark-sql-catalyst-LogicalPlan.adoc[logical query plan] analyzer. It is available through link:spark-sql-sessionstate.adoc#analyzer[analyzer attribute] of the current `SparkSession`.
+`Analyzer` is a link:spark-sql-LogicalPlan.adoc[logical query plan] analyzer. It resolves unresolved attributes and relations to typed objects using information in a link:spark-sql-SessionCatalog.adoc[SessionCatalog] and `FunctionRegistry`.
+
+`Analyzer` is available at runtime through link:spark-sql-sessionstate.adoc#analyzer[analyzer attribute] of the current `SparkSession`.
 
 [source, scala]
 ----
@@ -9,13 +11,13 @@ sparkSession.sessionState.analyzer
 
 NOTE: link:spark-sql-sparksession.adoc#sessionState[`sessionState` attribute in `SparkSession`] is a `private[sql]` value so to access it your code has to be in `org.apache.spark.sql` package.
 
-`Analyzer` is a <<RuleExecutor, RuleExecutor>> with `CheckAnalysis` and defines `Substitution`, `Resolution`, `Nondeterministic`, `UDF`, `FixNullability`, and `Cleanup` <<batch, batches of rules>> to apply to a link:spark-sql-catalyst-LogicalPlan.adoc[logical plan].
+`Analyzer` is a <<RuleExecutor, RuleExecutor>> with link:spark-sql-catalyst-analyzer-CheckAnalysis.adoc[CheckAnalysis] and defines `Substitution`, `Resolution`, `Nondeterministic`, `UDF`, `FixNullability`, and `Cleanup` <<batch, batches of rules>> to apply to a link:spark-sql-LogicalPlan.adoc[logical plan].
 
-`Analyzer` uses a link:spark-sql-sessionstate.adoc#SessionCatalog[SessionCatalog], a `CatalystConf`, and a configurable number of iterations (as `maxIterations`).
+`Analyzer` uses a link:spark-sql-SessionCatalog.adoc[SessionCatalog], a `CatalystConf`, and a configurable number of iterations (as `maxIterations`).
 
 `Analyzer` defines `extendedResolutionRules` attribute being a collection of rules (that process a `LogicalPlan`) as an extension point that a custom `Analyzer` can use to extend the `Resolution` batch. The collection of rules is added at the end of the `Resolution` batch.
 
-You can access the result of executing `Analyzer` against the link:spark-sql-catalyst-LogicalPlan.adoc[logical plan] of a link:spark-sql-dataset.adoc[Dataset] using link:spark-sql-dataset.adoc#explain[explain] method or link:spark-sql-query-execution.adoc[QueryExecution]:
+You can access the result of executing `Analyzer` against the link:spark-sql-LogicalPlan.adoc[logical plan] of a link:spark-sql-dataset.adoc[Dataset] using link:spark-sql-dataset.adoc#explain[explain] method or link:spark-sql-query-execution.adoc[QueryExecution]:
 
 [source, scala]
 ----
@@ -60,7 +62,6 @@ log4j.logger.org.apache.spark.sql.internal.SessionState$$anon$1=TRACE
 ```
 
 Refer to link:spark-logging.adoc[Logging].
-
 ---
 
 The reason for such a weird-looking logger name is that `analyzer` attribute is created as an anonymous subclass of `Analyzer` class.
@@ -70,7 +71,7 @@ The reason for such a weird-looking logger name is that `analyzer` attribute is 
 
 `RuleExecutor` can <<execute, apply>> collection of <<rule, optimization rules>> (as <<batch, batches>>) to a plan tree.
 
-NOTE: The plan tree can be link:spark-sql-catalyst-LogicalPlan.adoc[logical plan] or link:spark-sql-catalyst-SparkPlan.adoc[physical plan].
+NOTE: The plan tree can be link:spark-sql-LogicalPlan.adoc[logical plan] or link:spark-sql-catalyst-SparkPlan.adoc[physical plan].
 
 Scala-wise, `RuleExecutor` is an abstract type constructor parameterized by the `TreeType` type parameter.
 
@@ -86,7 +87,7 @@ abstract class RuleExecutor[TreeType <: TreeNode[_]]
 protected def batches: Seq[Batch]
 ----
 
-==== [[execute]] Applying Rules to Tree (execute method)
+==== [[execute]] Applying Rules to Tree -- `execute` Method
 
 [source, scala]
 ----
@@ -148,9 +149,9 @@ A `Strategy` can be `Once` or `FixedPoint` (with a number of iterations).
 
 NOTE: `Once` strategy is a `FixedPoint` strategy with one iteration.
 
-=== [[rule]][[Rule]] Optimization Rule
+=== [[rule]][[Rule]] `Rule`
 
-An *optimization rule* in Catalyst is a named optimization that can be applied to a plan tree.
+A *rule* in Catalyst is a named optimization that can be applied to a plan tree.
 
 `Rule` abstract class defines `ruleName` attribute and a single method `apply`:
 
@@ -159,4 +160,4 @@ An *optimization rule* in Catalyst is a named optimization that can be applied t
 apply(plan: TreeType): TreeType
 ----
 
-NOTE: `TreeType` is the type of the plan tree that a rule works with, e.g. link:spark-sql-catalyst-LogicalPlan.adoc[LogicalPlan], link:spark-sql-catalyst-SparkPlan.adoc[SparkPlan] or link:spark-sql-catalyst-Expression.adoc[Expression].
+NOTE: `TreeType` is the type of the plan tree that a rule works with, e.g. link:spark-sql-LogicalPlan.adoc[LogicalPlan], link:spark-sql-catalyst-SparkPlan.adoc[SparkPlan] or link:spark-sql-catalyst-Expression.adoc[Expression].

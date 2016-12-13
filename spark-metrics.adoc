@@ -1,39 +1,83 @@
-== Metrics System
+== [[MetricsSystem]] Metrics System
 
 Spark uses http://metrics.dropwizard.io/[Metrics] - a Java library to measure the behaviour of the components.
 
-`org.apache.spark.metrics.source.Source` is the top-level class for the metric registries in Spark. They expose their internal status.
+link:spark-metrics-Source.adoc[org.apache.spark.metrics.source.Source] is the top-level class for the metric registries in Spark. Sources expose their internal status.
 
 Spark uses http://metrics.dropwizard.io/3.1.0/[Metrics 3.1.0].
 
-[CAUTION]
-====
-FIXME Review
+NOTE: Metrics are only available for cluster modes, i.e. `local` mode turns metrics off.
 
-* How to use the metrics to monitor Spark using jconsole?
-* ApplicationSource
-* WorkerSource
-* ExecutorSource
-* JvmSource
-* MesosClusterSchedulerSource
-* StreamingSource
-====
+Metrics System is available at http://localhost:4040/metrics/json/ (for the default setup of a Spark application).
 
-* Review `MetricsServlet`
-* Review `org.apache.spark.metrics` package, esp. `MetricsSystem` class.
-* Default properties
-** `"*.sink.servlet.class", "org.apache.spark.metrics.sink.MetricsServlet"`
-** `"*.sink.servlet.path", "/metrics/json"`
-** `"master.sink.servlet.path", "/metrics/master/json"`
-** `"applications.sink.servlet.path", "/metrics/applications/json"`
-* `spark.metrics.conf` (default: `metrics.properties` on `CLASSPATH`)
-* `spark.metrics.conf.` prefix in SparkConf
+```
+$ http http://localhost:4040/metrics/json/
+HTTP/1.1 200 OK
+Cache-Control: no-cache, no-store, must-revalidate
+Content-Length: 2359
+Content-Type: text/json;charset=utf-8
+Date: Sat, 29 Oct 2016 19:46:34 GMT
+Server: Jetty(9.2.z-SNAPSHOT)
+X-Frame-Options: SAMEORIGIN
 
-=== Executors
+{
+    "counters": {
+        "app-20161029211022-0000.driver.HiveExternalCatalog.fileCacheHits": {
+            "count": 0
+        },
+        "app-20161029211022-0000.driver.HiveExternalCatalog.filesDiscovered": {
+            "count": 0
+        },
+        "app-20161029211022-0000.driver.HiveExternalCatalog.partitionsFetched": {
+            "count": 0
+        }
+    },
+    ...
+}
+```
 
-A non-local executor registers executor source.
+NOTE: Separate ``MetricsSystem``s are created for `driver`, `executor`, external `shuffleService`, `master`, `applications`, `worker`, `mesos_cluster`. You can access the metrics using corresponding URLs for the services, e.g. `4040` for the `driver`, `8080` for Spark Standalone's `master` and `applications`.
 
-FIXME See `Executor` class.
+NOTE: You have to use the trailing slash (`/`) to have the output.
+
+Enable `org.apache.spark.metrics.sink.JmxSink` in `conf/metrics.properties` and use jconsole to access Spark metrics through JMX.
+
+```
+*.sink.jmx.class=org.apache.spark.metrics.sink.JmxSink
+```
+
+.jconsole and JmxSink in spark-shell
+image::images/spark-metrics-jconsole.png[align="center"]
+
+=== [[creating-instance]] Creating `MetricsSystem` Instance
+
+When created, `MetricsSystem` link:spark-metrics-MetricsConfig.adoc#creating-instance[creates a `MetricsConfig`] and link:spark-metrics-MetricsConfig.adoc#initialize[initializes] it immediately.
+
+=== [[createMetricsSystem]] `createMetricsSystem` Method
+
+[source, scala]
+----
+createMetricsSystem(
+  instance: String,
+  conf: SparkConf,
+  securityMgr: SecurityManager): MetricsSystem
+----
+
+`createMetricsSystem` <<creating-instance, creates a `MetricsSystem`>>.
+
+NOTE: `createMetricsSystem` is executed when a link:spark-sparkenv.adoc#create[`SparkEnv` is created] for the driver and executors.
+
+=== [[start]] `start` Method
+
+CAUTION: FIXME
+
+=== [[registerSource]] `registerSource` Method
+
+CAUTION: FIXME
+
+=== [[report]] `report` Method
+
+CAUTION: FIXME
 
 === Master
 

@@ -14,9 +14,9 @@ _"Reading the sources"_, I say?! Yes, I _am_ kidding!
 .Executing action leads to new ResultStage and ActiveJob in DAGScheduler
 image::images/dagscheduler-rdd-partitions-job-resultstage.png[align="center"]
 
-The fundamental concepts of DAGScheduler are *jobs* and *stages* (refer to link:spark-dagscheduler-jobs.adoc[Jobs] and link:spark-dagscheduler-stages.adoc[Stages] respectively).
+The fundamental concepts of `DAGScheduler` are *jobs* and *stages* (refer to link:spark-dagscheduler-jobs.adoc[Jobs] and link:spark-dagscheduler-stages.adoc[Stages] respectively) that it tracks through <<internal-registries, internal registries and counters>>.
 
-DAGScheduler works on a driver. It is created as part of link:spark-sparkcontext.adoc#creating-instance[SparkContext's initialization], right after link:spark-taskscheduler.adoc[TaskScheduler] and link:spark-scheduler-backends.adoc[SchedulerBackend] are ready.
+DAGScheduler works solely on the driver and is created as part of link:spark-sparkcontext.adoc#creating-instance[SparkContext's initialization] (right after link:spark-taskscheduler.adoc[TaskScheduler] and link:spark-scheduler-backends.adoc[SchedulerBackend] are ready).
 
 .DAGScheduler as created by SparkContext with other services
 image::images/dagscheduler-new-instance.png[align="center"]
@@ -27,7 +27,7 @@ DAGScheduler does three things in Spark (thorough explanations follow):
 * Determines the <<preferred-locations, preferred locations>> to run each task on.
 * Handles failures due to *shuffle output files* being lost.
 
-It computes https://en.wikipedia.org/wiki/Directed_acyclic_graph[a directed acyclic graph (DAG)] of stages for each job, keeps track of which RDDs and stage outputs are materialized, and finds a minimal schedule to run jobs. It then submits stages to link:spark-taskscheduler.adoc[TaskScheduler].
+`DAGScheduler` computes https://en.wikipedia.org/wiki/Directed_acyclic_graph[a directed acyclic graph (DAG)] of stages for each job, keeps track of which RDDs and stage outputs are materialized, and finds a minimal schedule to run jobs. It then submits stages to link:spark-taskscheduler.adoc[TaskScheduler].
 
 In addition to coming up with the execution DAG, DAGScheduler also determines the preferred locations to run each task on, based on the current cache status, and passes the information to link:spark-taskscheduler.adoc[TaskScheduler].
 
@@ -37,9 +37,53 @@ DAGScheduler uses an *event queue architecture* in which a thread can post `DAGS
 
 DAGScheduler runs stages in topological order.
 
+.`DAGScheduler` Internal Registries and Counters
+[frame="topbot",cols="1,2",options="header",width="100%"]
+|===
+| Name | Description
+| [[nextJobId]] `nextJobId` | The next job id counting from `0`.
+
+Used when `DAGScheduler` <<submitJob, submits a job>> and <<submitMapStage, a map stage>>, and <<runApproximateJob, runs an approximate job>>.
+
+| [[nextStageId]] `nextStageId` | The next stage id counting from `0`.
+
+Used when `DAGScheduler` creates a <<createShuffleMapStage, shuffle map stage>> and a <<createResultStage, result stage>>. It is the key in <<stageIdToStage, stageIdToStage>>.
+
+| [[stageIdToStage]] `stageIdToStage` | The lookup table for stages per their ids.
+
+Used when `DAGScheduler` <<createShuffleMapStage, creates a shuffle map stage>>, <<createResultStage, creates a result stage>>, <<cleanupStateForJobAndIndependentStages, cleans up job state and independent stages>>, is informed that link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleBeginEvent[a task is started], link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleTaskSetFailed[a taskset has failed], link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleJobSubmitted[a job is submitted (to compute a `ResultStage`)], link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleMapStageSubmitted[a map stage was submitted], link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleTaskCompletion[a task has completed] or link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleStageCancellation[a stage was cancelled], <<updateAccumulators, updates accumulators>>, <<abortStage, aborts a stage>> and <<failJobAndIndependentStages, fails a job and independent stages>>.
+
+| [[jobIdToStageIds]] `jobIdToStageIds` | The lookup table of all stages per `ActiveJob` id
+
+| [[shuffleIdToMapStage]] `shuffleIdToMapStage`
+| The lookup table of link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage]s per link:spark-rdd-ShuffleDependency.adoc[ShuffleDependency].
+
+| [[jobIdToActiveJob]] `jobIdToActiveJob` | The lookup table of ``ActiveJob``s per job id.
+| [[waitingStages]] `waitingStages` | The stages with parents to be computed
+
+| [[runningStages]] `runningStages`
+| The set of stages that are currently "running".
+
+A stage is added when <<submitMissingTasks, submitMissingTasks>> gets executed (without first checking if the stage has not already been added).
+
+| [[failedStages]] `failedStages` | The collection of the stages that failed due to fetch failures (as reported by <<handleTaskCompletion-FetchFailed, CompletionEvents for FetchFailed end reasons>>).
+
+
+| [[activeJobs]] `activeJobs` | A collection of `ActiveJob` instances
+
+| [[cacheLocs]] `cacheLocs`
+| The lookup table for the block locations per RDD and partition.
+The keys are RDD ids and the values are arrays indexed by partition numbers.
+Each array value is the set of locations where that RDD partition is cached, i.e. the link:spark-blockmanager.adoc[BlockManager]s of the blocks.
+
+`cacheLocs` is used when `DAGScheduler` is requested for the <<getCacheLocs, locations of the cache blocks of a RDD>> or <<clearCacheLocs, clear them>>.
+
+| [[failedEpoch]] `failedEpoch` | The lookup table of lost executors and the epoch of the event.
+|===
+
 [TIP]
 ====
-Enable `DEBUG` or `TRACE` logging level for `org.apache.spark.scheduler.DAGSchedule` logger to see what happens inside.
+Enable `INFO`, `DEBUG` or `TRACE` logging levels for `org.apache.spark.scheduler.DAGSchedule` logger to see what happens inside `DAGScheduler`.
 
 Add the following line to `conf/log4j.properties`:
 
@@ -54,139 +98,302 @@ DAGScheduler needs link:spark-sparkcontext.adoc[SparkContext], link:spark-tasksc
 
 DAGScheduler reports metrics about its execution (refer to the section <<metrics, Metrics>>).
 
-When DAGScheduler schedules a job as a result of link:spark-rdd.adoc#actions[executing an action on a RDD] or link:spark-sparkcontext.adoc#running-jobs[calling SparkContext.runJob() method directly], it spawns parallel tasks to compute (partial) results per partition.
+When DAGScheduler schedules a job as a result of link:spark-rdd.adoc#actions[executing an action on a RDD] or link:spark-sparkcontext.adoc#runJob[calling SparkContext.runJob() method directly], it spawns parallel tasks to compute (partial) results per partition.
 
-=== [[creating-instance]][[initialization]] Creating DAGScheduler Instance
+=== [[runApproximateJob]] Running Approximate Job -- `runApproximateJob` Method
 
 CAUTION: FIXME
 
-=== [[internal-registries]] Internal Registries
+=== [[getPreferredLocsInternal]] `getPreferredLocsInternal` Internal Method
 
-`DAGScheduler` maintains the following information in internal registries:
+[source, scala]
+----
+getPreferredLocsInternal(
+  rdd: RDD[_],
+  partition: Int,
+  visited: HashSet[(RDD[_], Int)]): Seq[TaskLocation]
+----
 
-* `nextJobId` for the next job id
-* `numTotalJobs` (alias of `nextJobId`) for the total number of submitted
-* `nextStageId` for the next stage id
-* `jobIdToStageIds` for a mapping between jobs and their stages
-* `stageIdToStage` for a mapping between stage ids to stages
-* `shuffleToMapStage` for a mapping between ids to link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStages]
-* `jobIdToActiveJob` for a mapping between job ids to ActiveJobs
-* `waitingStages` for stages with parents to be computed
-* `runningStages` for stages currently being run
-* `failedStages` for stages that failed due to fetch failures (as reported by <<handleTaskCompletion-FetchFailed, CompletionEvents for FetchFailed end reasons>>) and are going to be <<resubmitFailedStages, resubmitted>>.
-* `activeJobs` for a collection of ActiveJob instances
-* `cacheLocs` is a mapping between RDD ids and their cache preferences per partition (as arrays indexed by partition numbers). Each array value is the set of locations where that RDD partition is cached on. See <<cache-tracking, Cache Tracking>>.
-* `failedEpoch` is a mapping between failed executors and the epoch number when the failure was caught per executor.
+`getPreferredLocsInternal`...FIXME
 
-[CAUTION]
-====
-FIXME Review
+=== [[createResultStage]] `createResultStage` Internal Method
 
-* `cleanupStateForJobAndIndependentStages`
-====
+[source, scala]
+----
+createResultStage(
+  rdd: RDD[_],
+  func: (TaskContext, Iterator[_]) => _,
+  partitions: Array[Int],
+  jobId: Int,
+  callSite: CallSite): ResultStage
+----
 
-=== [[resubmitFailedStages]] DAGScheduler.resubmitFailedStages
+CAUTION: FIXME
 
-`resubmitFailedStages()` is called to go over <<internal-registries, failedStages>> collection (of failed stages) and submit them (using <<submitStage, submitStage>>).
+=== [[updateJobIdStageIdMaps]] `updateJobIdStageIdMaps` Method
 
-If the failed stages collection contains any stage, the following INFO message appears in the logs:
+CAUTION: FIXME
+
+=== [[getOrCreateParentStages]] `getOrCreateParentStages` Internal Method
+
+[source, scala]
+----
+getOrCreateParentStages(rdd: RDD[_], firstJobId: Int): List[Stage]
+----
+
+`getOrCreateParentStages` <<getShuffleDependencies, finds all `ShuffleDependency` immediate parents>> and <<getOrCreateShuffleMapStage, finds ``ShuffleMapStage``s (and creates them if not available)>> for each link:spark-rdd-ShuffleDependency.adoc[ShuffleDependency].
+
+NOTE: `getOrCreateParentStages` is used when `DAGScheduler` <<createShuffleMapStage, createShuffleMapStage>> and <<createResultStage, createResultStage>>.
+
+=== [[getShuffleDependencies]] `getShuffleDependencies` Method
+
+[source, scala]
+----
+getShuffleDependencies(
+  rdd: RDD[_]): HashSet[ShuffleDependency[_, _, _]]
+----
+
+`getShuffleDependencies`...TK
+
+CAUTION: FIXME
+
+NOTE: `getShuffleDependencies` is used when `DAGScheduler` <<getOrCreateParentStages, getOrCreateParentStages>> and <<getMissingAncestorShuffleDependencies, getMissingAncestorShuffleDependencies>>.
+
+=== [[getMissingAncestorShuffleDependencies]] `getMissingAncestorShuffleDependencies` Internal Method
+
+CAUTION: FIXME
+
+[source, scala]
+----
+getMissingAncestorShuffleDependencies(
+  rdd: RDD[_]): Stack[ShuffleDependency[_, _, _]]
+----
+
+NOTE: `getMissingAncestorShuffleDependencies` is used when `DAGScheduler` <<getOrCreateShuffleMapStage, finds ``ShuffleMapStage``s for a `ShuffleDependency` (and creates them if not available)>>.
+
+=== [[creating-instance]][[initialization]] Creating `DAGScheduler` Instance
+
+[source, scala]
+----
+DAGScheduler(
+  sc: SparkContext,
+  taskScheduler: TaskScheduler,
+  listenerBus: LiveListenerBus,
+  mapOutputTracker: MapOutputTrackerMaster,
+  blockManagerMaster: BlockManagerMaster,
+  env: SparkEnv,
+  clock: Clock = new SystemClock())
+----
+
+`DAGScheduler` requires a link:spark-sparkcontext.adoc[SparkContext], link:spark-taskscheduler.adoc[TaskScheduler], link:spark-LiveListenerBus.adoc[LiveListenerBus], link:spark-service-MapOutputTrackerMaster.adoc[MapOutputTrackerMaster], link:spark-BlockManagerMaster.adoc[BlockManagerMaster], link:spark-sparkenv.adoc[SparkEnv], and a `Clock`.
+
+NOTE: `DAGScheduler` can reference all the services through a single link:spark-sparkcontext.adoc[SparkContext].
+
+When created, `DAGScheduler` does the following (in order):
+
+1. Creates a `DAGSchedulerSource`
+2. Creates <<messageScheduler, messageScheduler>>
+3. Creates <<eventProcessLoop, eventProcessLoop>> and immediatelly link:spark-taskscheduler.adoc#setDAGScheduler[sets itself in the current `TaskScheduler`]
+5. Initializes the internal registries and counters.
+
+At the very end of the initialization, `DAGScheduler` starts <<eventProcessLoop, eventProcessLoop>>.
+
+=== [[listenerBus]] `LiveListenerBus` Event Bus for ``SparkListenerEvent``s -- `listenerBus` Property
+
+[source, scala]
+----
+listenerBus: LiveListenerBus
+----
+
+`listenerBus` is a link:spark-LiveListenerBus.adoc[LiveListenerBus] to post scheduling events and is passed in when <<creating-instance, `DAGScheduler` is created>>.
+
+=== [[executorHeartbeatReceived]] `executorHeartbeatReceived` Method
+
+[source, scala]
+----
+executorHeartbeatReceived(
+  execId: String,
+  accumUpdates: Array[(Long, Int, Int, Seq[AccumulableInfo])],
+  blockManagerId: BlockManagerId): Boolean
+----
+
+`executorHeartbeatReceived` posts a link:spark-SparkListener.adoc#SparkListenerExecutorMetricsUpdate[SparkListenerExecutorMetricsUpdate] (to <<listenerBus, listenerBus>>) and informs link:spark-BlockManagerMaster.adoc[BlockManagerMaster] that `blockManagerId` block manager is alive (by posting link:spark-BlockManagerMaster.adoc#BlockManagerHeartbeat[BlockManagerHeartbeat]).
+
+NOTE: `executorHeartbeatReceived` is called when link:spark-taskschedulerimpl.adoc#executorHeartbeatReceived[`TaskSchedulerImpl` handles `executorHeartbeatReceived`].
+
+=== [[cleanupStateForJobAndIndependentStages]] Cleaning Up After `ActiveJob` and Independent Stages -- `cleanupStateForJobAndIndependentStages` Method
+
+[source, scala]
+----
+cleanupStateForJobAndIndependentStages(job: ActiveJob): Unit
+----
+
+`cleanupStateForJobAndIndependentStages` cleans up the state for `job` and any stages that are _not_ part of any other job.
+
+`cleanupStateForJobAndIndependentStages` looks the `job` up in the internal <<jobIdToStageIds, jobIdToStageIds>> registry.
+
+If no stages are found, the following ERROR is printed out to the logs:
 
 ```
-INFO Resubmitting failed stages
+ERROR No stages registered for job [jobId]
 ```
 
-`cacheLocs` and <<internal-registries, failedStages>> are cleared, and failed stages are <<submitStage, submitStage>> one by one, ordered by job ids (in an increasing order).
+Oterwise, `cleanupStateForJobAndIndependentStages` uses <<stageIdToStage, stageIdToStage>> registry to find the stages (the real objects not ids!).
 
-Ultimately, all waiting stages are submitted (using <<submitWaitingStages, submitWaitingStages>>).
+For each stage, `cleanupStateForJobAndIndependentStages` reads the jobs the stage belongs to.
 
-=== [[runJob]] DAGScheduler.runJob
-
-When executed, `DAGScheduler.runJob` is given the following arguments:
-
-* A *RDD* to run job on.
-* A *function* to run on each partition of the RDD.
-* A set of *partitions* to run on (not all partitions are always required to compute a job for actions like `first()` or `take()`).
-* A callback *function* `resultHandler` to pass results of executing the function to.
-* *Properties* to attach to a job.
-
-It calls <<submitJob, DAGScheduler.submitJob>> and then waits until a result comes using a <<JobWaiter, JobWaiter>> object. A job can succeed or fail.
-
-When a job succeeds, the following INFO shows up in the logs:
+If the `job` does not belong to the jobs of the stage, the following ERROR is printed out to the logs:
 
 ```
-INFO Job [jobId] finished: [callSite], took [time] s
+ERROR Job [jobId] not registered for stage [stageId] even though that stage was registered for the job
 ```
 
-When a job fails, the following INFO shows up in the logs:
+If the `job` was the only job for the stage, the stage (and the stage id) gets cleaned up from the registries, i.e. <<runningStages, runningStages>>, <<shuffleIdToMapStage, shuffleIdToMapStage>>, <<waitingStages, waitingStages>>, <<failedStages, failedStages>> and <<stageIdToStage, stageIdToStage>>.
+
+While removing from <<runningStages, runningStages>>, you should see the following DEBUG message in the logs:
 
 ```
-INFO Job [jobId] failed: [callSite], took [time] s
+DEBUG Removing running stage [stageId]
 ```
 
-The method finishes by throwing an exception.
+While removing from <<waitingStages, waitingStages>>, you should see the following DEBUG message in the logs:
 
-=== [[submitJob]] DAGScheduler.submitJob
+```
+DEBUG Removing stage [stageId] from waiting set.
+```
 
-`DAGScheduler.submitJob` is called by `SparkContext.submitJob` and <<runJob, DAGScheduler.runJob>>.
+While removing from <<failedStages, failedStages>>, you should see the following DEBUG message in the logs:
 
-When called, it does the following:
+```
+DEBUG Removing stage [stageId] from failed set.
+```
 
-* Checks whether the set of partitions to run a function on are in the the range of available partitions of the RDD.
-* Increments the internal `nextJobId` job counter.
-* Returns a 0-task <<JobWaiter, JobWaiter>> when no partitions are passed in.
-* Or posts <<JobSubmitted, JobSubmitted>> event to <<event-loop, dag-scheduler-event-loop>> and returns a <<JobWaiter, JobWaiter>>.
+After all cleaning (using <<stageIdToStage, stageIdToStage>> as the source registry), if the stage belonged to the one and only `job`, you should see the following DEBUG message in the logs:
+
+```
+DEBUG After removal of stage [stageId], remaining stages = [stageIdToStage.size]
+```
+
+The `job` is removed from <<jobIdToStageIds, jobIdToStageIds>>, <<jobIdToActiveJob, jobIdToActiveJob>>, <<activeJobs, activeJobs>> registries.
+
+The final stage of the `job` is removed, i.e. link:spark-dagscheduler-ResultStage.adoc#removeActiveJob[ResultStage] or link:spark-dagscheduler-ShuffleMapStage.adoc#removeActiveJob[ShuffleMapStage].
+
+NOTE: `cleanupStateForJobAndIndependentStages` is used in link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleTaskCompletion-Success-ResultTask[`handleTaskCompletion` when a `ResultTask` has completed successfully], <<failJobAndIndependentStages, failJobAndIndependentStages>> and <<markMapStageJobAsFinished, markMapStageJobAsFinished>>.
+
+=== [[markMapStageJobAsFinished]] Marking `ShuffleMapStage` Job Finished -- `markMapStageJobAsFinished` Method
+
+[source, scala]
+----
+markMapStageJobAsFinished(job: ActiveJob, stats: MapOutputStatistics): Unit
+----
+
+`markMapStageJobAsFinished` marks the active `job` finished and notifies Spark listeners.
+
+Internally, `markMapStageJobAsFinished` marks the zeroth partition finished and increases the number of tasks finished in `job`.
+
+The link:spark-dagscheduler-JobListener.adoc#taskSucceeded[`job` listener is notified about the 0th task succeeded].
+
+The <<cleanupStateForJobAndIndependentStages, state of the `job` and independent stages are cleaned up>>.
+
+Ultimately, link:spark-SparkListener.adoc#SparkListenerJobEnd[SparkListenerJobEnd] is posted to link:spark-LiveListenerBus.adoc[LiveListenerBus] (as <<listenerBus, listenerBus>>) for the `job`, the current time (in millis) and `JobSucceeded` job result.
+
+NOTE: `markMapStageJobAsFinished` is used in link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleMapStageSubmitted[handleMapStageSubmitted] and link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc##handleTaskCompletion[handleTaskCompletion].
+
+=== [[submitJob]] Submitting Job -- `submitJob` method
+
+[source, scala]
+----
+submitJob[T, U](
+  rdd: RDD[T],
+  func: (TaskContext, Iterator[T]) => U,
+  partitions: Seq[Int],
+  callSite: CallSite,
+  resultHandler: (Int, U) => Unit,
+  properties: Properties): JobWaiter[U]
+----
+
+`submitJob` creates a link:spark-dagscheduler-JobListener.adoc#JobWaiter[JobWaiter] and posts a link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#JobSubmitted[`JobSubmitted` event].
 
 .DAGScheduler.submitJob
 image::images/dagscheduler-submitjob.png[align="center"]
 
-You may see an exception thrown when the partitions in the set are outside the range:
+Internally, `submitJob` does the following:
+
+1. Checks whether `partitions` reference available partitions of the input `rdd`.
+2. Increments <<nextJobId, nextJobId>> internal job counter.
+3. Returns a 0-task link:spark-dagscheduler-JobListener.adoc#JobWaiter[JobWaiter] when the number of `partitions` is zero.
+4. Posts a `JobSubmitted` event and returns a `JobWaiter`.
+
+You may see a `IllegalArgumentException` thrown when the input `partitions` references partitions not in the input `rdd`:
 
 ```
 Attempting to access a non-existent partition: [p]. Total number of partitions: [maxPartitions]
 ```
 
-=== [[JobListener]] JobListener and Completion Events
+NOTE: `submitJob` is called when link:spark-sparkcontext.adoc#submitJob[`SparkContext` submits a job] and <<runJob, `DAGScheduler` runs a job>>.
 
-You can listen for job completion or failure events after submitting a job to the DAGScheduler using `JobListener`. It is a `private[spark]` contract (a Scala trait) with the following two methods:
+NOTE: `submitJob` assumes that the partitions of a RDD are indexed from 0 onwards in sequential order.
+
+=== [[cancelStage]] Posting `StageCancelled` Event -- `cancelStage` Method
 
 [source, scala]
 ----
-private[spark] trait JobListener {
-  def taskSucceeded(index: Int, result: Any)
-  def jobFailed(exception: Exception)
-}
+cancelStage(stageId: Int)
 ----
 
-A job listener is notified each time a task succeeds (by `def taskSucceeded(index: Int, result: Any)`), as well as if the whole job fails (by `def jobFailed(exception: Exception)`).
+`cancelJobGroup` merely posts a link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#StageCancelled[StageCancelled] event to the <<eventProcessLoop, DAGScheduler's Internal Event Bus>>.
 
-An instance of `JobListener` is used in the following places:
+NOTE: `cancelStage` is executed when a link:spark-sparkcontext.adoc#cancelStage[`SparkContext` is requested to cancel a stage].
 
-* In `ActiveJob` as a listener to notify if tasks in this job finish or the job fails.
-* In `DAGScheduler.handleJobSubmitted`
-* In `DAGScheduler.handleMapStageSubmitted`
-* In `JobSubmitted`
-* In `MapStageSubmitted`
+=== [[cancelJobGroup]] Posting `JobGroupCancelled` Event -- `cancelJobGroup` Method
 
-The following are the job listeners used:
+[source, scala]
+----
+cancelJobGroup(groupId: String): Unit
+----
 
-* <<JobWaiter, JobWaiter>> waits until DAGScheduler completes the job and passes the results of tasks to a `resultHandler` function.
-* `ApproximateActionListener` FIXME
+`cancelJobGroup` prints the following INFO message to the logs followed by posting a link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#JobGroupCancelled[JobGroupCancelled] event to the <<eventProcessLoop, DAGScheduler's Internal Event Bus>>.
 
-==== [[JobWaiter]] JobWaiter
+```
+INFO Asked to cancel job group [groupId]
+```
 
-A `JobWaiter` is an extension of <<JobListener, JobListener>>. It is used as the return value of <<submitJob, DAGScheduler.submitJob>> and `DAGScheduler.submitMapStage`. You can use a JobWaiter to block until the job finishes executing or to cancel it.
+NOTE: `cancelJobGroup` is executed when a link:spark-sparkcontext.adoc#cancelJobGroup[`SparkContext` is requested to cancel a specified group of jobs].
 
-While the methods execute, `JobSubmitted` and `MapStageSubmitted` events are posted that reference the JobWaiter.
+=== [[cancelAllJobs]] Posting `AllJobsCancelled` Event -- `cancelAllJobs` Method
 
-Since a `JobWaiter` object is a `JobListener` it gets notifications about `taskSucceeded` and `jobFailed`. When the total number of tasks (that equals the number of partitions to compute) equals the number of `taskSucceeded`, the `JobWaiter` instance is marked succeeded. A `jobFailed` event marks the `JobWaiter` instance failed.
+[source, scala]
+----
+cancelAllJobs(): Unit
+----
 
-* FIXME Who's using `submitMapStage`?
+`cancelAllJobs` merely posts a link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#AllJobsCancelled[AllJobsCancelled] event to the <<eventProcessLoop, DAGScheduler's Internal Event Bus>>.
 
-=== [[executorAdded]] DAGScheduler.executorAdded
+NOTE: `cancelAllJobs` is executed when a link:spark-sparkcontext.adoc#cancelAllJobs[`SparkContext` is requested to cancel all running and scheduled Spark jobs].
 
-`executorAdded(execId: String, host: String)` method simply posts a <<ExecutorAdded, ExecutorAdded>> event to `eventProcessLoop`.
+=== [[taskStarted]] Posting `BeginEvent` Event -- `taskStarted` Method
 
-=== [[taskEnded]] DAGScheduler.taskEnded
+[source, scala]
+----
+taskStarted(task: Task[_], taskInfo: TaskInfo)
+----
+
+`taskStarted` merely posts a link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#BeginEvent[BeginEvent] event to the <<eventProcessLoop, DAGScheduler's Internal Event Bus>>.
+
+NOTE: `taskStarted` is executed when a link:spark-tasksetmanager.adoc#resourceOffer[`TaskSetManager` starts a task].
+
+=== [[taskGettingResult]] Posting `GettingResultEvent` Event -- `taskGettingResult` Method
+
+[source, scala]
+----
+taskGettingResult(taskInfo: TaskInfo)
+----
+
+`taskGettingResult` merely posts a link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#GettingResultEvent[GettingResultEvent] event to the <<eventProcessLoop, DAGScheduler's Internal Event Bus>>.
+
+NOTE: `taskGettingResult` is executed when a link:spark-tasksetmanager.adoc#handleTaskGettingResult[`TaskSetManager` gets notified about a task fetching result].
+
+=== [[taskEnded]] Reporting Task Ended Event (`CompletionEvent` Event) -- `taskEnded` Method
 
 [source, scala]
 ----
@@ -199,447 +406,292 @@ taskEnded(
   taskMetrics: TaskMetrics): Unit
 ----
 
-`taskEnded` method simply posts a <<CompletionEvent, CompletionEvent>> event to the <<eventProcessLoop, DAGScheduler's internal event loop>>.
+`taskEnded` simply posts a link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#CompletionEvent[CompletionEvent] event to the <<eventProcessLoop, DAGScheduler's Internal Event Bus>>.
 
-NOTE: `DAGScheduler.taskEnded` method is called by a link:spark-tasksetmanager.adoc[TaskSetManager] to report task completions, failures including.
+NOTE: `taskEnded` is called when a `TaskSetManager` reports task completions, i.e. success or link:spark-tasksetmanager.adoc#handleFailedTask[failure].
 
-TIP: Read about `TaskMetrics` in link:spark-taskscheduler-taskmetrics.adoc[TaskMetrics].
+TIP: Read link:spark-taskscheduler-taskmetrics.adoc[TaskMetrics].
 
-=== [[failJobAndIndependentStages]] failJobAndIndependentStages
+=== [[submitMapStage]] Posting `MapStageSubmitted` Event -- `submitMapStage` Method
 
-The internal `failJobAndIndependentStages` method...FIXME
+[source, scala]
+----
+submitMapStage[K, V, C](
+  dependency: ShuffleDependency[K, V, C],
+  callback: MapOutputStatistics => Unit,
+  callSite: CallSite,
+  properties: Properties): JobWaiter[MapOutputStatistics]
+----
 
-NOTE: It is called by...FIXME
+`submitMapStage` posts a link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#MapStageSubmitted[MapStageSubmitted] event to the <<eventProcessLoop, DAGScheduler's Internal Event Bus>> and returns the link:spark-dagscheduler-JobListener.adoc#JobWaiter[JobWaiter] with one task only and a result handler that will call the `callback` function.
 
-=== [[event-loop]][[eventProcessLoop]] dag-scheduler-event-loop - Internal Event Loop
+`submitMapStage` increments <<nextJobId, nextJobId>> for the job id.
 
-`DAGScheduler.eventProcessLoop` (of type `DAGSchedulerEventProcessLoop`) - is the event process loop to which Spark (by <<submitJob, DAGScheduler.submitJob>>) posts jobs to schedule their execution. Later on, link:spark-tasksetmanager.adoc[TaskSetManager] talks back to DAGScheduler to inform about the status of the tasks using the same "communication channel".
+NOTE: `submitMapStage` is used when link:spark-sparkcontext.adoc#submitMapStage[`SparkContext` submits a map stage for execution].
+
+=== [[taskSetFailed]] Posting `TaskSetFailed` Event -- `taskSetFailed` Method
+
+[source, scala]
+----
+taskSetFailed(
+  taskSet: TaskSet,
+  reason: String,
+  exception: Option[Throwable]): Unit
+----
+
+`taskSetFailed` simply posts a link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#TaskSetFailed[TaskSetFailed] to <<eventProcessLoop, DAGScheduler's Internal Event Bus>>.
+
+NOTE: The input arguments of `taskSetFailed` are exactly the arguments of link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#TaskSetFailed[TaskSetFailed].
+
+NOTE: `taskSetFailed` is executed when a link:spark-tasksetmanager.adoc#abort[`TaskSetManager` is aborted].
+
+=== [[executorLost]] Posting `ExecutorLost` Event -- `executorLost` Method
+
+[source, scala]
+----
+executorLost(execId: String, reason: ExecutorLossReason): Unit
+----
+
+`executorLost` simply posts a link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#ExecutorLost[ExecutorLost] event to <<eventProcessLoop, DAGScheduler's Internal Event Bus>>.
+
+=== [[executorAdded]] Posting `ExecutorAdded` Event -- `executorAdded` Method
+
+[source, scala]
+----
+executorAdded(execId: String, host: String): Unit
+----
+
+`executorAdded` simply posts a link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#ExecutorAdded[ExecutorAdded] event to <<eventProcessLoop, DAGScheduler's Internal Event Bus>>.
+
+=== [[cancelJob]] Posting `JobCancelled` Event -- `cancelJob` Method
+
+[source, scala]
+----
+cancelJob(jobId: Int): Unit
+----
+
+`cancelJob` prints the following INFO message and posts a link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#JobCancelled[JobCancelled] to <<eventProcessLoop, DAGScheduler's Internal Event Bus>>.
+
+```
+INFO DAGScheduler: Asked to cancel job [id]
+```
+
+NOTE: `cancelJob` is called when link:spark-sparkcontext.adoc#cancelJob[SparkContext] and link:spark-dagscheduler-JobListener.adoc#JobWaiter[JobWaiter] are requested to cancel a Spark job.
+
+=== [[submitWaitingChildStages]] `submitWaitingChildStages` Internal Method
+
+CAUTION: FIXME
+
+=== [[markStageAsFinished]] Marking Stage Finished -- `markStageAsFinished` Internal Method
+
+[source, scala]
+----
+markStageAsFinished(stage: Stage, errorMessage: Option[String] = None): Unit
+----
+
+CAUTION: FIXME
+
+=== [[messageScheduler]] `messageScheduler` Single-Thread Executor
+
+CAUTION: FIXME
+
+=== [[runJob]] Submitting Action Job -- `runJob` Method
+
+[source, scala]
+----
+runJob[T, U](
+  rdd: RDD[T],
+  func: (TaskContext, Iterator[T]) => U,
+  partitions: Seq[Int],
+  callSite: CallSite,
+  resultHandler: (Int, U) => Unit,
+  properties: Properties): Unit
+----
+
+`runJob` submits an action job to the `DAGScheduler` and waits for a result.
+
+Internally, `runJob` executes <<submitJob, submitJob>> and then waits until a result comes using link:spark-dagscheduler-JobListener.adoc#JobWaiter[JobWaiter].
+
+When the job succeeds, you should see the following INFO message in the logs:
+
+```
+INFO Job [jobId] finished: [callSite], took [time] s
+```
+
+When the job fails, you should see the following INFO message in the logs and the exception (that led to the failure) is thrown.
+
+```
+INFO Job [jobId] failed: [callSite], took [time] s
+```
+
+NOTE: `runJob` is used when link:spark-sparkcontext.adoc#runJob[`SparkContext` runs a job].
+
+=== [[getOrCreateShuffleMapStage]] Finding `ShuffleMapStage` for `ShuffleDependency` (And Creating Them If Not Available) -- `getOrCreateShuffleMapStage` Internal Method
+
+[source, scala]
+----
+getOrCreateShuffleMapStage(
+  shuffleDep: ShuffleDependency[_, _, _],
+  firstJobId: Int): ShuffleMapStage
+----
+
+`getOrCreateShuffleMapStage` returns the link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage] for the input link:spark-rdd-ShuffleDependency.adoc[ShuffleDependency] (possibly creating one if not available).
+
+Internally, `getOrCreateShuffleMapStage` looks the `ShuffleDependency` up in <<shuffleIdToMapStage, `shuffleIdToMapStage` internal registry>> and returns one if available.
+
+If no `ShuffleDependency` was available, `getOrCreateShuffleMapStage` <<getMissingAncestorShuffleDependencies, finds the ancestor shuffle dependencies (that are not registered in `shuffleToMapStage` registry yet)>> and <<createShuffleMapStage, creates them>> (including one for the input `shuffleDep`).
+
+NOTE: All the newly-created ``ShuffleMapStage``s are accociated with the input `firstJobId`.
+
+NOTE: `getOrCreateShuffleMapStage` is used when `DAGScheduler` <<getOrCreateParentStages, getOrCreateParentStages>>, <<getMissingParentStages, getMissingParentStages>> (for link:spark-rdd-ShuffleDependency.adoc[ShuffleDependencies]), link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleMapStageSubmitted[handles `MapStageSubmitted` events], and <<stageDependsOn, checks out if a stage depends on another>>.
+
+=== [[createShuffleMapStage]] Creating `ShuffleMapStage` -- `createShuffleMapStage` Method
+
+[source, scala]
+----
+createShuffleMapStage(
+  shuffleDep: ShuffleDependency[_, _, _],
+  jobId: Int): ShuffleMapStage
+----
+
+`createShuffleMapStage` creates a link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage] for the input link:spark-rdd-ShuffleDependency.adoc[ShuffleDependency].
+
+NOTE: When a link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage] is created, the `id` is generated, `rdd` is from `ShuffleDependency`, `numTasks` is the number of partitions in the RDD, all `parents` are looked up (and possibly created), the `jobId` is given, `callSite` is the `creationSite` of the RDD, and `shuffleDep` is the input `ShuffleDependency`.
+
+Internally, `createShuffleMapStage` first makes sure that <<getOrCreateParentStages, every `ShuffleDependency` in the chain of parent stages of ``shuffleDep``'s RDD has a corresponding `ShuffleMapStage`>> (possibly creating one if not available).
+
+NOTE: A link:spark-rdd-ShuffleDependency.adoc[ShuffleDependency] is associated with exactly one `RDD[Product2[K, V]]`.
+
+`createShuffleMapStage` link:spark-dagscheduler-ShuffleMapStage.adoc#creating-instance[creates a `ShuffleMapStage`] (incrementing <<nextStageId, `nextStageId` internal counter>>).
+
+NOTE: The RDD of the new `ShuffleMapStage` is from link:spark-rdd-ShuffleDependency.adoc[ShuffleDependency].
+
+`createShuffleMapStage` registers `ShuffleMapStage` in <<stageIdToStage, stageIdToStage>> and <<shuffleIdToMapStage, shuffleIdToMapStage>> internal registries.
+
+`createShuffleMapStage` calls <<updateJobIdStageIdMaps, updateJobIdStageIdMaps>>.
+
+If link:spark-service-MapOutputTrackerMaster.adoc#containsShuffle[`MapOutputTrackerMaster` tracks the input `ShuffleDependency`], `createShuffleMapStage` link:spark-service-MapOutputTrackerMaster.adoc#getSerializedMapOutputStatuses[requests the serialized `ShuffleMapStage` outputs], link:spark-service-MapOutputTracker.adoc#deserializeMapStatuses[deserializes] and link:spark-dagscheduler-ShuffleMapStage.adoc#addOutputLoc[registers them with the new `ShuffleMapStage`].
+
+NOTE: link:spark-service-MapOutputTrackerMaster.adoc[MapOutputTrackerMaster] was given when <<creating-instance, `DAGScheduler` was created>>.
+
+If however `MapOutputTrackerMaster` does not track the input `ShuffleDependency`, you should see the following INFO message in the logs and `createShuffleMapStage` link:spark-service-MapOutputTrackerMaster.adoc#registerShuffle[registers the `ShuffleDependency` with `MapOutputTrackerMaster`].
+
+```
+INFO Registering RDD [id] ([creationSite])
+```
+
+`createShuffleMapStage` returns the newly-created `ShuffleMapStage`.
+
+NOTE: `createShuffleMapStage` is executed only when `DAGScheduler` <<getOrCreateShuffleMapStage, finds  ``ShuffleMapStage``s for a `ShuffleDependency` (and creates them if not available)>>.
+
+=== [[clearCacheLocs]] Clearing Cache of RDD Block Locations -- `clearCacheLocs` Internal Method
+
+[source, scala]
+----
+clearCacheLocs(): Unit
+----
+
+`clearCacheLocs` clears the <<cacheLocs, internal registry of the partition locations per RDD>>.
+
+NOTE: `DAGScheduler` clears the cache while link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#resubmitFailedStages[resubmitting failed stages], and as a result of link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#JobSubmitted[JobSubmitted], link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#MapStageSubmitted[MapStageSubmitted], link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#CompletionEvent[CompletionEvent], link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#ExecutorLost[ExecutorLost] events.
+
+=== [[failJobAndIndependentStages]] Failing Job and Single-Job Stages -- `failJobAndIndependentStages` Internal Method
+
+[source, scala]
+----
+failJobAndIndependentStages(
+  job: ActiveJob,
+  failureReason: String,
+  exception: Option[Throwable] = None): Unit
+----
+
+The internal `failJobAndIndependentStages` method fails the input `job` and all the stages that are only used by the job.
+
+Internally, `failJobAndIndependentStages` uses <<jobIdToStageIds, `jobIdToStageIds` internal registry>> to look up the stages registered for the job.
+
+If no stages could be found, you should see the following ERROR message in the logs:
+
+```
+ERROR No stages registered for job [id]
+```
+
+Otherwise, for every stage, `failJobAndIndependentStages` finds the job ids the stage belongs to.
+
+If no stages could be found or the job is not referenced by the stages, you should see the following ERROR message in the logs:
+
+```
+ERROR Job [id] not registered for stage [id] even though that stage was registered for the job
+```
+
+Only when there is exactly one job registered for the stage and the stage is in RUNNING state (in `runningStages` internal registry), link:spark-taskscheduler.adoc#contract[`TaskScheduler` is requested to cancel the stage's tasks] and <<markStageAsFinished, marks the stage finished>>.
+
+NOTE: `failJobAndIndependentStages` is called from link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleJobCancellation[handleJobCancellation] and `abortStage`.
+
+NOTE: `failJobAndIndependentStages` uses <<jobIdToStageIds, jobIdToStageIds>>, <<stageIdToStage, stageIdToStage>>, and <<runningStages, runningStages>> internal registries.
+
+=== [[abortStage]] Aborting Stage -- `abortStage` Internal Method
+
+[source, scala]
+----
+abortStage(
+  failedStage: Stage,
+  reason: String,
+  exception: Option[Throwable]): Unit
+----
+
+`abortStage` is an internal method that finds all the active jobs that depend on the `failedStage` stage and fails them.
+
+Internally, `abortStage` looks the `failedStage` stage up in the internal <<stageIdToStage, stageIdToStage>> registry and exits if there the stage was not registered earlier.
+
+If it was, `abortStage` finds all the active jobs (in the internal <<activeJobs, activeJobs>> registry) with the <<stageDependsOn, final stage depending on the `failedStage` stage>>.
+
+At this time, the `completionTime` property (of the failed stage's `StageInfo`) is assigned to the current time (millis).
+
+All the active jobs that depend on the failed stage (as calculated above) and the stages that do not belong to other jobs (aka _independent stages_) are <<failJobAndIndependentStages, failed>> (with the failure reason being "Job aborted due to stage failure: [reason]" and the input `exception`).
+
+If there are no jobs depending on the failed stage, you should see the following INFO message in the logs:
+
+```
+INFO Ignoring failure of [failedStage] because all jobs depending on it are done
+```
+
+NOTE: `abortStage` is used to link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleTaskSetFailed[handle `TaskSetFailed` event], when <<submitStage, submitting a stage with no active job>>
+
+=== [[stageDependsOn]] Checking Out Stage Dependency on Given Stage -- `stageDependsOn` Method
+
+[source, scala]
+----
+stageDependsOn(stage: Stage, target: Stage): Boolean
+----
+
+`stageDependsOn` compares two stages and returns whether the `stage` depends on `target` stage (i.e. `true`) or not (i.e. `false`).
+
+NOTE: A stage `A` depends on stage `B` if `B` is among the ancestors of `A`.
+
+Internally, `stageDependsOn` walks through the graph of RDDs of the input `stage`. For every RDD in the RDD's dependencies (using `RDD.dependencies`) `stageDependsOn` adds the RDD of a link:spark-rdd-NarrowDependency.adoc[NarrowDependency] to a stack of RDDs to visit while for a link:spark-rdd-ShuffleDependency.adoc[ShuffleDependency] it <<getOrCreateShuffleMapStage, finds ``ShuffleMapStage``s for `ShuffleDependency` (and creates them if not available)>> for the dependency and the ``stage``'s first job id that it later adds to a stack of RDDs to visit if the map stage is ready, i.e. all the partitions have shuffle outputs.
+
+After all the RDDs of the input `stage` are visited, `stageDependsOn` checks if the ``target``'s RDD is among the RDDs of the `stage`, i.e. whether the `stage` depends on `target` stage.
+
+=== [[event-loop]][[eventProcessLoop]] dag-scheduler-event-loop -- DAGScheduler's Internal Event Bus
+
+`eventProcessLoop` is link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc[DAGScheduler's event bus] to which Spark (by <<submitJob, submitJob>>) posts jobs to schedule their execution. Later on, link:spark-tasksetmanager.adoc[TaskSetManager] talks back to `DAGScheduler` to inform about the status of the tasks using the same "communication channel".
 
 It allows Spark to release the current thread when posting happens and let the event loop handle events on a separate thread - asynchronously.
 
 ...IMAGE...FIXME
 
-Internally, DAGSchedulerEventProcessLoop uses https://docs.oracle.com/javase/7/docs/api/java/util/concurrent/LinkedBlockingDeque.html[java.util.concurrent.LinkedBlockingDeque] blocking deque that grows indefinitely (i.e. up to https://docs.oracle.com/javase/7/docs/api/java/lang/Integer.html#MAX_VALUE[Integer.MAX_VALUE] events).
+CAUTION: FIXME statistics? `MapOutputStatistics`?
 
-The name of the single "logic" thread that reads events and takes decisions is *dag-scheduler-event-loop*.
+=== [[submitWaitingStages]] Submitting Waiting Stages for Execution -- `submitWaitingStages` Method
 
-```
-"dag-scheduler-event-loop" #89 daemon prio=5 os_prio=31 tid=0x00007f809bc0a000 nid=0xc903 waiting on condition [0x0000000125826000]
-```
-
-The following are the current types of `DAGSchedulerEvent` events that are handled by `DAGScheduler`:
-
-* <<JobSubmitted, JobSubmitted>> - posted when an action job is submitted to DAGScheduler (via <<submitJob, submitJob>> or `runApproximateJob`).
-* <<MapStageSubmitted, MapStageSubmitted>> - posted when a link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage] is submitted (via `submitMapStage`).
-* <<StageCancelled, StageCancelled>>
-* <<JobCancelled, JobCancelled>>
-* `JobGroupCancelled`
-* `AllJobsCancelled`
-* `BeginEvent` - posted when link:spark-tasksetmanager.adoc[TaskSetManager] reports that a task is starting.
-+
-`dagScheduler.handleBeginEvent` is executed in turn.
-* `GettingResultEvent` - posted when link:spark-tasksetmanager.adoc[TaskSetManager] reports that a task has completed and results are being fetched remotely.
-+
-`dagScheduler.handleGetTaskResult` executes in turn.
-* <<CompletionEvent, CompletionEvent>> - posted when link:spark-tasksetmanager.adoc[TaskSetManager] reports that a task has completed successfully or failed.
-* <<ExecutorAdded, ExecutorAdded>> - executor (`execId`) has been spawned on a host (`host`). Remove it from the failed executors list if it was included, and <<submitWaitingStages, submitWaitingStages()>>.
-* <<ExecutorLost, ExecutorLost>>
-* `TaskSetFailed`
-* `ResubmitFailedStages`
-
-[CAUTION]
-====
-FIXME
-
-* What is an approximate job (as in `DAGScheduler.runApproximateJob`)?
-* statistics? `MapOutputStatistics`?
-====
-
-==== [[JobCancelled]] JobCancelled and handleJobCancellation
-
-`JobCancelled(jobId: Int)` event is posted to cancel a job if it is scheduled or still running. It triggers execution of `DAGScheduler.handleStageCancellation(stageId)`.
-
-NOTE: It seems that although `SparkContext.cancelJob(jobId: Int)` calls `DAGScheduler.cancelJob`, no feature/code in Spark calls `SparkContext.cancelJob(jobId: Int)`. A dead code?
-
-When <<JobWaiter, JobWaiter.cancel>> is called, it calls `DAGScheduler.cancelJob`. You should see the following INFO message in the logs:
-
-```
-INFO Asked to cancel job [jobId]
-```
-
-It is a signal to the DAGScheduler to cancel the job.
-
-CAUTION: FIXME
-
-==== [[ExecutorAdded]] ExecutorAdded and handleExecutorAdded
-
-`ExecutorAdded(execId, host)` event triggers execution of `DAGScheduler.handleExecutorAdded(execId: String, host: String)`.
-
-It checks <<internal-registries, failedEpoch>> for the executor id (using `execId`) and if it is found the following INFO message appears in the logs:
-
-```
-INFO Host added was in lost list earlier: [host]
-```
-
-The executor is removed from the list of failed nodes.
-
-At the end, <<submitWaitingStages, DAGScheduler.submitWaitingStages()>> is called.
-
-==== [[ExecutorLost]] ExecutorLost and handleExecutorLost (with fetchFailed being false)
-
-`ExecutorLost(execId)` event triggers execution of `DAGScheduler.handleExecutorLost(execId: String, fetchFailed: Boolean, maybeEpoch: Option[Long] = None)` with `fetchFailed` being `false`.
-
-[NOTE]
-====
-`handleExecutorLost` recognizes two cases (by means of `fetchFailed`):
-
-* fetch failures (`fetchFailed` is `true`) from executors that are indirectly assumed lost. See <<handleTaskCompletion-FetchFailed, FetchFailed case in handleTaskCompletion>.
-* lost executors (`fetchFailed` is `false`) for executors that did not report being alive in a given timeframe
-====
-
-The current epoch number could be provided (as `maybeEpoch`) or it is calculated by requesting it from  link:spark-service-mapoutputtracker.adoc#MapOutputTrackerMaster[MapOutputTrackerMaster] (using link:spark-service-mapoutputtracker.adoc#getEpoch[MapOutputTrackerMaster.getEpoch]).
-
-.DAGScheduler.handleExecutorLost
-image::images/dagscheduler-handleExecutorLost.png[align="center"]
-
-Recurring ExecutorLost events merely lead to the following DEBUG message in the logs:
-
-```
-DEBUG Additional executor lost message for [execId] (epoch [currentEpoch])
-```
-
-If however the executor is not in the list of executor lost or the failed epoch number is smaller than the current one, the executor is added to <<internal-registries, failedEpoch>>.
-
-The following INFO message appears in the logs:
-
-```
-INFO Executor lost: [execId] (epoch [currentEpoch])
-```
-
-The executor `execId` is link:spark-BlockManagerMaster.adoc#removeExecutor[removed (from `BlockManagerMaster` on the driver)].
-
-If the link:spark-ExternalShuffleService.adoc[external shuffle service] is not used or the `ExecutorLost` event was for a map output fetch operation, all link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage] (using `shuffleToMapStage`) are called (in order):
-
-* `ShuffleMapStage.removeOutputsOnExecutor(execId)`
-* link:spark-service-mapoutputtracker.adoc#registerMapOutputs[MapOutputTrackerMaster.registerMapOutputs(shuffleId, stage.outputLocInMapOutputTrackerFormat(), changeEpoch = true)]
-
-For no link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStages] (in `shuffleToMapStage`), link:spark-service-mapoutputtracker.adoc#incrementEpoch[MapOutputTrackerMaster.incrementEpoch] is called.
-
-<<internal-registries, cacheLocs>> is cleared.
-
-At the end, <<submitWaitingStages, DAGScheduler.submitWaitingStages()>> is called.
-
-==== [[StageCancelled]] StageCancelled and handleStageCancellation
-
-`StageCancelled(stageId: Int)` event is posted to cancel a stage and all jobs associated with it. It triggers execution of `DAGScheduler.handleStageCancellation(stageId)`.
-
-It is the result of executing `SparkContext.cancelStage(stageId: Int)` that is called from the web UI (controlled by link:spark-webui.adoc#settings[spark.ui.killEnabled]).
-
-CAUTION: FIXME Image of the tab with kill
-
-`DAGScheduler.handleStageCancellation(stageId)` checks whether the `stageId` stage exists and for each job associated with the stage, it calls `handleJobCancellation(jobId, s"because Stage [stageId] was cancelled")`.
-
-NOTE: A stage knows what jobs it is part of using the internal set `jobIds`.
-
-`def handleJobCancellation(jobId: Int, reason: String = "")` checks whether the job exists in `jobIdToStageIds` and if not, prints the following DEBUG to the logs:
-
-```
-DEBUG Trying to cancel unregistered job [jobId]
-```
-
-However, if the job exists, the job and all the stages that are only used by it (using the internal <<failJobAndIndependentStages, failJobAndIndependentStages>> method).
-
-For each running stage associated with the job (`jobIdToStageIds`), if there is only one job for the stage (`stageIdToStage`), link:spark-taskscheduler.adoc#contract[TaskScheduler.cancelTasks] is called, `outputCommitCoordinator.stageEnd(stage.id)`, and link:spark-SparkListener.adoc#SparkListenerStageCompleted[SparkListenerStageCompleted] is posted. The stage is no longer a running one (removed from `runningStages`).
-
-CAUTION: FIXME Image please with the call to TaskScheduler.
-
-* `spark.job.interruptOnCancel` (default: `false`) - controls whether or not to interrupt a job on cancel.
-
-In case link:spark-taskscheduler.adoc#contract[TaskScheduler.cancelTasks] completed successfully, <<JobListener, JobListener>> is informed about job failure, `cleanupStateForJobAndIndependentStages` is called, and link:spark-SparkListener.adoc#SparkListenerJobEnd[SparkListenerJobEnd] posted.
-
-CAUTION: FIXME `cleanupStateForJobAndIndependentStages` code review.
-
-CAUTION: FIXME Where are `job.properties` assigned to a job?
-
-```
-"Job %d cancelled %s".format(jobId, reason)
-```
-
-If no stage exists for `stageId`, the following INFO message shows in the logs:
-
-```
-INFO No active jobs to kill for Stage [stageId]
-```
-
-At the end, <<submitWaitingStages, DAGScheduler.submitWaitingStages()>> is called.
-
-==== [[MapStageSubmitted]] MapStageSubmitted and handleMapStageSubmitted
-
-When a *MapStageSubmitted* event is posted, it triggers execution of `DAGScheduler.handleMapStageSubmitted` method.
-
-.DAGScheduler.handleMapStageSubmitted handles MapStageSubmitted events
-image::diagrams/scheduler-handlemapstagesubmitted.png[align="center"]
-
-It is called with a job id (for a new job to be created), a link:spark-rdd-dependencies.adoc#ShuffleDependency[ShuffleDependency], and a <<JobListener, JobListener>>.
-
-You should see the following INFOs in the logs:
-
-```
-Got map stage job %s (%s) with %d output partitions
-Final stage: [finalStage] ([finalStage.name])
-Parents of final stage: [finalStage.parents]
-Missing parents: [list of stages]
-```
-
-link:spark-SparkListener.adoc#SparkListenerJobStart[SparkListenerJobStart] event is posted to link:spark-LiveListenerBus.adoc[LiveListenerBus] (so other event listeners know about the event - not only DAGScheduler).
-
-The execution procedure of MapStageSubmitted events is then exactly (FIXME ?) as for <<JobSubmitted, JobSubmitted>>.
-
-[TIP]
-====
-The difference between `handleMapStageSubmitted` and <<JobSubmitted, handleJobSubmitted>>:
-
-* `handleMapStageSubmitted` has `ShuffleDependency` among the input parameters while `handleJobSubmitted` has `finalRDD`, `func`, and `partitions`.
-* `handleMapStageSubmitted` initializes `finalStage` as `getShuffleMapStage(dependency, jobId)` while `handleJobSubmitted` as `finalStage = newResultStage(finalRDD, func, partitions, jobId, callSite)`
-* `handleMapStageSubmitted` INFO logs `Got map stage job %s (%s) with %d output partitions` with `dependency.rdd.partitions.length` while `handleJobSubmitted` does `Got job %s (%s) with %d output partitions` with `partitions.length`.
-* FIXME: Could the above be cut to `ActiveJob.numPartitions`?
-* `handleMapStageSubmitted` adds a new job with `finalStage.addActiveJob(job)` while `handleJobSubmitted` sets with `finalStage.setActiveJob(job)`.
-* `handleMapStageSubmitted` checks if the final stage has already finished, tells the listener and removes it using the code:
-+
 [source, scala]
 ----
-if (finalStage.isAvailable) {
-  markMapStageJobAsFinished(job, mapOutputTracker.getStatistics(dependency))
-}
+submitWaitingChildStages(parent: Stage): Unit
 ----
-====
 
-==== [[JobSubmitted]] JobSubmitted and handleJobSubmitted
+`submitWaitingStages` method checks for waiting or failed stages that could now be eligible for submission.
 
-When DAGScheduler receives *JobSubmitted* event it calls `DAGScheduler.handleJobSubmitted` method.
-
-.DAGScheduler.handleJobSubmitted
-image::images/dagscheduler-handleJobSubmitted.png[align="center"]
-
-`handleJobSubmitted` has access to the final RDD, the partitions to compute, and the <<JobListener, JobListener>> for the job, i.e. <<JobWaiter, JobWaiter>>.
-
-It creates a new link:spark-dagscheduler-ResultStage.adoc[ResultStage] (as `finalStage` on the picture) and instantiates `ActiveJob`.
-
-CAUTION: FIXME review `newResultStage`
-
-You should see the following INFO messages in the logs:
-
-```
-INFO DAGScheduler: Got job [jobId] ([callSite.shortForm]) with [partitions.length] output partitions
-INFO DAGScheduler: Final stage: [finalStage] ([finalStage.name])
-INFO DAGScheduler: Parents of final stage: [finalStage.parents]
-INFO DAGScheduler: Missing parents: [getMissingParentStages(finalStage)]
-```
-
-Then, the `finalStage` stage is given the ActiveJob instance and some housekeeping is performed to track the job (using `jobIdToActiveJob` and `activeJobs`).
-
-link:spark-SparkListener.adoc#SparkListenerJobStart[SparkListenerJobStart] message is posted to link:spark-LiveListenerBus.adoc[LiveListenerBus].
-
-CAUTION: FIXME `jobIdToStageIds` and `stageIdToStage` - they're already computed. When? Where?
-
-When DAGScheduler executes a job it first submits the final stage (using <<submitStage, submitStage>>).
-
-Right before `handleJobSubmitted` finishes, <<submitWaitingStages, DAGScheduler.submitWaitingStages()>> is called.
-
-==== [[CompletionEvent]][[handleTaskCompletion]] CompletionEvent and handleTaskCompletion
-
-`CompletionEvent` event informs DAGScheduler about task completions. It is handled by `handleTaskCompletion(event: CompletionEvent)`.
-
-.DAGScheduler and CompletionEvent
-image::images/dagscheduler-tasksetmanager.png[align="center"]
-
-NOTE: `CompletionEvent` holds contextual information about the completed task.
-
-The task knows about the stage it belongs to (using `Task.stageId`), the partition it works on (using `Task.partitionId`), and the stage attempt (using `Task.stageAttemptId`).
-
-`OutputCommitCoordinator.taskCompleted` is called.
-
-If the reason for task completion is not `Success`, link:spark-SparkListener.adoc#SparkListenerTaskEnd[SparkListenerTaskEnd] is posted to link:spark-LiveListenerBus.adoc[LiveListenerBus]. The only difference with <<handleTaskCompletion-Success, TaskEndReason: Success>> is how the stage attempt id is calculated. Here, it is `Task.stageAttemptId` (not `Stage.latestInfo.attemptId`).
-
-CAUTION: FIXME What is the difference between stage attempt ids?
-
-If the stage the task belongs to has been cancelled, `stageIdToStage` should not contain it, and the method quits.
-
-The main processing begins now depending on `TaskEndReason` - the reason for task completion (using `event.reason`). The method skips processing `TaskEndReasons`: `TaskCommitDenied`, `ExceptionFailure`, `TaskResultLost`, `ExecutorLostFailure`, `TaskKilled`, and `UnknownReason`, i.e. it does nothing.
-
-==== [[handleTaskCompletion-Success]] TaskEndReason: Success
-
-link:spark-SparkListener.adoc#SparkListenerTaskEnd[SparkListenerTaskEnd] is posted to link:spark-LiveListenerBus.adoc[LiveListenerBus].
-
-The partition the task worked on is removed from `pendingPartitions` of the stage.
-
-The processing splits per task type - ResultTask or ShuffleMapTask - and <<submitWaitingStages, submitWaitingStages()>> is called.
-
-===== [[handleTaskCompletion-Success-ResultTask]] ResultTask
-
-For `ResultTask`, the stage is link:spark-dagscheduler-ResultStage.adoc[ResultStage]. If there is no job active for the stage (using `resultStage.activeJob`), the following INFO message appears in the logs:
-
-```
-INFO Ignoring result from [task] because its job has finished
-```
-
-Otherwise, check whether the task is marked as running for the job (using `job.finished`) and proceed. The method skips execution when the task has already been marked as completed in the job.
-
-CAUTION: FIXME When could a task that has just finished be ignored, i.e. the job has already marked `finished`? Could it be for stragglers?
-
-<<updateAccumulators, updateAccumulators(event)>> is called.
-
-The partition is marked as `finished` (using `job.finished`) and the number of partitions calculated increased (using `job.numFinished`).
-
-If the whole job has finished (when `job.numFinished == job.numPartitions`), then:
-
-* `markStageAsFinished` is called
-* `cleanupStateForJobAndIndependentStages(job)`
-* link:spark-SparkListener.adoc#SparkListenerJobEnd[SparkListenerJobEnd] is posted to link:spark-LiveListenerBus.adoc[LiveListenerBus] with `JobSucceeded`
-
-The `JobListener` of the job (using `job.listener`) is informed about the task completion (using `job.listener.taskSucceeded(rt.outputId, event.result)`). If the step fails, i.e. throws an exception, the JobListener is informed about it (using `job.listener.jobFailed(new SparkDriverExecutionException(e))`).
-
-CAUTION: FIXME When would `job.listener.taskSucceeded` throw an exception? How?
-
-===== [[handleTaskCompletion-Success-ShuffleMapTask]] ShuffleMapTask
-
-For ShuffleMapTask, the stage is link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage].
-
-<<updateAccumulators, updateAccumulators(event)>> is called.
-
-`event.result` is `MapStatus` that knows the executor id where the task has finished (using `status.location.executorId`).
-
-You should see the following DEBUG message in the logs:
-
-```
-DEBUG ShuffleMapTask finished on [execId]
-```
-
-If <<internal-registries, failedEpoch>> contains the executor and the epoch of the ShuffleMapTask is not greater than that in <<internal-registries, failedEpoch>>, you should see the following INFO message in the logs:
-
-```
-INFO Ignoring possibly bogus [task] completion from executor [executorId]
-```
-
-Otherwise, `shuffleStage.addOutputLoc(smt.partitionId, status)` is called.
-
-The method does more processing only if the internal `runningStages` contains the link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage] with no more pending partitions to compute (using `shuffleStage.pendingPartitions`).
-
-`markStageAsFinished(shuffleStage)` is called.
-
-The following INFO logs appear in the logs:
-
-```
-INFO looking for newly runnable stages
-INFO running: [runningStages]
-INFO waiting: [waitingStages]
-INFO failed: [failedStages]
-```
-
-link:spark-service-mapoutputtracker.adoc#registerMapOutputs[mapOutputTracker.registerMapOutputs] with `changeEpoch` is called.
-
-<<internal-registries, cacheLocs>> is cleared.
-
-If the map stage is ready, i.e. all partitions have shuffle outputs, map-stage jobs waiting on this stage (using `shuffleStage.mapStageJobs`) are marked as finished. link:spark-service-mapoutputtracker.adoc#getStatistics[MapOutputTrackerMaster.getStatistics(shuffleStage.shuffleDep)] is called and every map-stage job is `markMapStageJobAsFinished(job, stats)`.
-
-Otherwise, if the map stage is _not_ ready, the following INFO message appears in the logs:
-
-```
-INFO Resubmitting [shuffleStage] ([shuffleStage.name]) because some of its tasks had failed: [missingPartitions]
-```
-
-<<submitStage, submitStage(shuffleStage)>> is called.
-
-CAUTION: FIXME All _"...is called"_ above should be rephrased to use links to appropriate sections.
-
-==== [[TaskEndReason-Resubmitted]] TaskEndReason: Resubmitted
-
-For `Resubmitted` case, you should see the following INFO message in the logs:
-
-```
-INFO Resubmitted [task], so marking it as still running
-```
-
-The task (by `task.partitionId`) is added to the collection of pending partitions of the stage (using `stage.pendingPartitions`).
-
-TIP: A stage knows how many partitions are yet to be calculated. A task knows about the partition id for which it was launched.
-
-==== [[handleTaskCompletion-FetchFailed]] TaskEndReason: FetchFailed
-
-`FetchFailed(bmAddress, shuffleId, mapId, reduceId, failureMessage)` comes with `BlockManagerId` (as `bmAddress`) and the other self-explanatory values.
-
-NOTE: A task knows about the id of the stage it belongs to.
-
-When `FetchFailed` happens, `stageIdToStage` is used to access the failed stage (using `task.stageId` and the `task` is available in `event` in `handleTaskCompletion(event: CompletionEvent)`). `shuffleToMapStage` is used to access the map stage (using `shuffleId`).
-
-If `failedStage.latestInfo.attemptId != task.stageAttemptId`, you should see the following INFO in the logs:
-
-```
-INFO Ignoring fetch failure from [task] as it's from [failedStage] attempt [task.stageAttemptId] and there is a more recent attempt for that stage (attempt ID [failedStage.latestInfo.attemptId]) running
-```
-
-CAUTION: FIXME What does `failedStage.latestInfo.attemptId != task.stageAttemptId` mean?
-
-And the case finishes. Otherwise, the case continues.
-
-If the failed stage is in `runningStages`, the following INFO message shows in the logs:
-
-```
-INFO Marking [failedStage] ([failedStage.name]) as failed due to a fetch failure from [mapStage] ([mapStage.name])
-```
-
-`markStageAsFinished(failedStage, Some(failureMessage))` is called.
-
-CAUTION: FIXME What does `markStageAsFinished` do?
-
-If the failed stage is not in `runningStages`, the following DEBUG message shows in the logs:
-
-```
-DEBUG Received fetch failure from [task], but its from [failedStage] which is no longer running
-```
-
-When `disallowStageRetryForTest` is set, `abortStage(failedStage, "Fetch failure will not retry stage due to testing config", None)` is called.
-
-CAUTION: FIXME Describe `disallowStageRetryForTest` and `abortStage`.
-
-If the number of fetch failed attempts for the stage exceeds the allowed number (using link:spark-dagscheduler-stages.adoc#failedOnFetchAndShouldAbort[Stage.failedOnFetchAndShouldAbort]), the following method is called:
-
-```
-abortStage(failedStage, s"$failedStage (${failedStage.name}) has failed the maximum allowable number of times: ${Stage.MAX_CONSECUTIVE_FETCH_FAILURES}. Most recent failure reason: ${failureMessage}", None)
-```
-
-If there are no failed stages reported (<<internal-registries, failedStages>> is empty), the following INFO shows in the logs:
-
-```
-INFO Resubmitting [mapStage] ([mapStage.name]) and [failedStage] ([failedStage.name]) due to fetch failure
-```
-
-And the following code is executed:
-
-```
-messageScheduler.schedule(
-  new Runnable {
-    override def run(): Unit = eventProcessLoop.post(ResubmitFailedStages)
-  }, DAGScheduler.RESUBMIT_TIMEOUT, TimeUnit.MILLISECONDS)
-```
-
-CAUTION: FIXME What does the above code do?
-
-For all the cases, the failed stage and map stages are both added to <<internal-registries, failedStages>> set.
-
-If `mapId` (in the `FetchFailed` object for the case) is provided, the map stage output is cleaned up (as it is broken) using `mapStage.removeOutputLoc(mapId, bmAddress)` and link:spark-service-mapoutputtracker.adoc#unregisterMapOutput[MapOutputTrackerMaster.unregisterMapOutput(shuffleId, mapId, bmAddress)] methods.
-
-CAUTION: FIXME What does `mapStage.removeOutputLoc` do?
-
-If `bmAddress` (in the `FetchFailed` object for the case) is provided, `handleExecutorLost(bmAddress.executorId, fetchFailed = true, Some(task.epoch))` is called. See <<ExecutorLost, ExecutorLost and handleExecutorLost (with fetchFailed being false)>>.
-
-CAUTION: FIXME What does `handleExecutorLost` do?
-
-=== [[submitWaitingStages]] Submit Waiting Stages (using submitWaitingStages)
-
-`DAGScheduler.submitWaitingStages` method checks for waiting or failed stages that could now be eligible for submission.
-
-The following `TRACE` messages show in the logs when the method is called:
+When executed, you should see the following `TRACE` messages in the logs:
 
 ```
 TRACE DAGScheduler: Checking for newly runnable parent stages
@@ -652,57 +704,56 @@ The method clears the internal `waitingStages` set with stages that wait for the
 
 It goes over the waiting stages sorted by job ids in increasing order and calls <<submitStage, submitStage>> method.
 
-=== [[submitStage]] submitStage - Stage Submission
+=== [[submitStage]] Submitting Stage or Its Missing Parents for Execution -- `submitStage` Internal Method
 
-CAUTION: FIXME
+[source, scala]
+----
+submitStage(stage: Stage)
+----
 
-`DAGScheduler.submitStage(stage: Stage)` is called when `stage` is ready for submission.
+`submitStage` is an internal method that `DAGScheduler` uses to submit the input `stage` or its missing parents (if there any stages not computed yet before the input `stage` could).
 
-It recursively submits any missing parents of the stage.
+NOTE: `submitStage` is also used to link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#resubmitFailedStages[resubmit failed stages].
 
-There has to be an ActiveJob instance for the stage to proceed. Otherwise the stage and all the dependent jobs are aborted (using `abortStage`) with the message:
+`submitStage` recursively submits any missing parents of the `stage`.
+
+Internally, `submitStage` first finds the earliest-created job id that needs the `stage`.
+
+NOTE: A stage itself tracks the jobs (their ids) it belongs to (using the internal `jobIds` registry).
+
+The following steps depend on whether there is a job or not.
+
+If there are no jobs that require the `stage`, `submitStage` <<abortStage, aborts it>> with the reason:
 
 ```
-Job aborted due to stage failure: No active job for stage [stage.id]
+No active job for stage [id]
 ```
 
-For a stage with ActiveJob available, the following DEBUG message show up in the logs:
+If however there is a job for the `stage`, you should see the following DEBUG message in the logs:
 
 ```
 DEBUG DAGScheduler: submitStage([stage])
 ```
 
-Only when the stage is not in waiting (`waitingStages`), running (`runningStages`) or <<failedStages, failed>> states can this stage be processed.
+`submitStage` checks the status of the `stage` and continues when it was not recorded in <<waitingStages, waiting>>, <<runningStages, running>> or <<failedStages, failed>> internal registries. It simply exits otherwise.
 
-A list of missing parent stages of the stage is calculated (see <<calculating-missing-parent-stages, Calculating Missing Parent Stages>>) and the following DEBUG message shows up in the logs:
+With the `stage` ready for submission, `submitStage` calculates the <<getMissingParentStages, list of missing parent stages of the `stage`>> (sorted by their job ids). You should see the following DEBUG message in the logs:
 
 ```
 DEBUG DAGScheduler: missing: [missing]
 ```
 
-When the stage has no parent stages missing, it is submitted and the INFO message shows up in the logs:
+When the `stage` has no parent stages missing, you should see the following INFO message in the logs:
 
 ```
 INFO DAGScheduler: Submitting [stage] ([stage.rdd]), which has no missing parents
 ```
 
-And <<submitMissingTasks, submitMissingTasks>> is called. That finishes the stage submission.
+`submitStage` <<submitMissingTasks, submits the `stage`>> (with the earliest-created job id) and finishes.
 
-If however there are missing parent stages for the stage, all stages are processed recursively (using <<submitStage, submitStage>>), and the stage is added to `waitingStages` set.
+If however there are missing parent stages for the `stage`, `submitStage` <<submitStage, submits all the parent stages>>, and the `stage` is recorded in the internal <<waitingStages, waitingStages>> registry.
 
-=== [[calculating-missing-parent-stages]] Calculating Missing Parent Map Stages
-
-`DAGScheduler.getMissingParentStages(stage: Stage)` calculates missing parent map stages for a given `stage`.
-
-It starts with the stage's target RDD (as `stage.rdd`). If there are <<cache-tracking, uncached partitions>>, it traverses the dependencies of the RDD (as `RDD.dependencies`) that can be the instances of link:spark-rdd-dependencies.adoc#ShuffleDependency[ShuffleDependency] or link:spark-rdd-dependencies.adoc#NarrowDependency[NarrowDependency].
-
-For each ShuffleDependency, the method searches for the corresponding link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage] (using `getShuffleMapStage`) and if unavailable, the method adds it to a set of missing (map) stages.
-
-CAUTION: FIXME Review `getShuffleMapStage`
-
-CAUTION: FIXME...IMAGE with ShuffleDependencies queried
-
-It continues traversing the chain for each NarrowDependency (using `Dependency.rdd`).
+NOTE: `submitStage` is executed when `DAGScheduler` submits <<submitStage, missing parent map stages (of a stage) recursively>> or <<submitWaitingChildStages, waiting child stages>>, link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#resubmitFailedStages[resubmits failed stages], and handles  link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleJobSubmitted[JobSubmitted],  link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleMapStageSubmitted[MapStageSubmitted], or link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#CompletionEvent[CompletionEvent] events.
 
 === [[stage-attempts]] Fault recovery - stage attempts
 
@@ -716,21 +767,51 @@ A stage object tracks multiple `StageInfo` objects to pass to Spark listeners or
 
 The latest `StageInfo` for the most recent attempt for a stage is accessible through `latestInfo`.
 
-=== [[cache-tracking]] Cache Tracking
+=== [[getCacheLocs]] Block Location Discovery -- `getCacheLocs` Internal Method
 
-DAGScheduler tracks which RDDs are cached to avoid recomputing them and likewise remembers which shuffle map stages have already produced output files to avoid redoing the map side of a shuffle.
+NOTE: RDD blocks matter only after a  to avoid recomputing tasks.
 
-DAGScheduler is only interested in cache location coordinates, i.e. host and executor id, per partition of an RDD.
+`DAGScheduler` tracks which link:spark-rdd-caching.adoc[RDDs are cached (or persisted)] to avoid "recomputing" them, i.e. redoing the map side of a shuffle. `DAGScheduler` remembers what link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage]s have already produced output files (that are stored in link:spark-blockmanager.adoc[BlockManager]s).
+
+DAGScheduler is only interested in cache location coordinates, i.e. host and executor id, per partition of a RDD.
 
 CAUTION: FIXME: A diagram, please
 
-If link:spark-rdd-caching.adoc[the storage level of an RDD is NONE], there is no caching and hence no partition cache locations are available. In such cases, whenever asked, DAGScheduler returns a collection with empty-location elements for each partition. The empty-location elements are to mark *uncached partitions*.
+[source, scala]
+----
+getCacheLocs(rdd: RDD[_]): IndexedSeq[Seq[TaskLocation]]
+----
 
-Otherwise, a collection of `RDDBlockId` instances for each partition is created and spark-BlockManagerMaster.adoc[BlockManagerMaster] is asked for locations (using `BlockManagerMaster.getLocations`). The result is then mapped to a collection of `TaskLocation` for host and executor id.
+`getCacheLocs` returns ``TaskLocation``s for the partitions of the `rdd` (which correspond to block locations).
+
+When called, `getCacheLocs` looks the `rdd` up in the <<cacheLocs, `cacheLocs` internal registry>> (of partition locations per RDD).
+
+NOTE: The size of the collection from `getCacheLocs` is the number of partitions in `rdd` RDD.
+
+If the input `rdd` could not be found in the `cacheLocs` registry, `getCacheLocs` checks link:spark-rdd-StorageLevel.adoc[storage level of the RDD].
+
+For `NONE` storage level, the result is a collection of empty locations.
+
+[source, scala]
+----
+val numPartitions = 2
+scala> IndexedSeq.fill(numPartitions)(Nil)  // <-- that is what `getCacheLocs` returns for a unknown 2-partition RDD
+res0: IndexedSeq[scala.collection.immutable.Nil.type] = Vector(List(), List())
+----
+
+For non-`NONE` storage levels, `getCacheLocs` requests link:spark-BlockManagerMaster.adoc#getLocations-block-array[locations from `BlockManagerMaster`] (and maps ``BlockManagerId``s to ``TaskLocation``s with the host and executor).
+
+NOTE: The `BlockManagerMaster` was given when <<creating-instance, `DAGScheduler` was created>>.
+
+NOTE: `getCacheLocs` requests locations from `BlockManagerMaster` using link:spark-blockdatamanager.adoc#RDDBlockId[RDDBlockId] with the RDD id and the partition indices (which implies that the order of the partitions matters to request proper blocks).
+
+NOTE: `DAGScheduler` uses ``TaskLocation``s (with host and executor) while link:spark-BlockManagerMaster.adoc[BlockManagerMaster] uses link:spark-blockmanager.adoc#BlockManagerId[BlockManagerId] (to track similar information, i.e. block locations).
+
+NOTE: `getCacheLocs` is used when `DAGScheduler` calculates <<getMissingParentStages, missing parent MapStages>> and <<getPreferredLocsInternal, getPreferredLocsInternal>>.
 
 === [[preferred-locations]] Preferred Locations
 
-DAGScheduler computes where to run each task in a stage based on link:spark-rdd.adoc#preferred-locations[the preferred locations of its underlying RDDs], or <<cache-tracking, the location of cached or shuffle data>>.
+DAGScheduler computes where to run each task in a stage based on link:spark-rdd.adoc#preferred-locations[the preferred locations of its underlying RDDs], or <<getCacheLocs, the location of cached or shuffle data>>.
 
 === [[adaptive-query-planning]] Adaptive Query Planning
 
@@ -742,90 +823,173 @@ https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark
 
 DAGScheduler uses the following ScheduledThreadPoolExecutors (with the policy of removing cancelled tasks from a work queue at time of cancellation):
 
-* `dag-scheduler-message` - a daemon thread pool using `j.u.c.ScheduledThreadPoolExecutor` with core pool size `1`. It is used to post `ResubmitFailedStages` when `FetchFailed` is reported.
+* `dag-scheduler-message` - a daemon thread pool using `j.u.c.ScheduledThreadPoolExecutor` with core pool size `1`. It is used to post a link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#ResubmitFailedStages[ResubmitFailedStages] event when `FetchFailed` is reported.
 
 They are created using `ThreadUtils.newDaemonSingleThreadScheduledExecutor` method that uses Guava DSL to instantiate a ThreadFactory.
 
-=== [[submitMissingTasks]] submitMissingTasks for Stage and Job (submitMissingTasks method)
+=== [[getMissingParentStages]] Finding Missing Parent ``ShuffleMapStage``s For `Stage` -- `getMissingParentStages` Internal Method
+
+[source, scala]
+----
+getMissingParentStages(stage: Stage): List[Stage]
+----
+
+`getMissingParentStages` finds missing parent link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage]s in the dependency graph of the input `stage` (using the https://en.wikipedia.org/wiki/Breadth-first_search[breadth-first search algorithm]).
+
+Internally, `getMissingParentStages` starts with the ``stage``'s RDD and walks up the tree of all parent RDDs to find <<getCacheLocs, uncached partitions>>.
+
+NOTE: A `Stage` tracks the associated RDD using link:spark-dagscheduler-stages.adoc#rdd[`rdd` property].
+
+NOTE: An *uncached partition* of a RDD is a partition that has `Nil` in the <<cacheLocs, internal registry of partition locations per RDD>> (which results in no RDD blocks in any of the active link:spark-blockmanager.adoc[BlockManager]s on executors).
+
+`getMissingParentStages` traverses the link:spark-rdd.adoc#dependencies[parent dependencies of the RDD] and acts according to their type, i.e. link:spark-rdd-ShuffleDependency.adoc[ShuffleDependency] or link:spark-rdd-NarrowDependency.adoc[NarrowDependency].
+
+NOTE: link:spark-rdd-ShuffleDependency.adoc[ShuffleDependency] and link:spark-rdd-NarrowDependency.adoc[NarrowDependency] are the main top-level link:spark-rdd-dependencies.adoc[Dependencies].
+
+For each `NarrowDependency`, `getMissingParentStages` simply marks the corresponding RDD to visit and moves on to a next dependency of a RDD or works on another unvisited parent RDD.
+
+NOTE: link:spark-rdd-NarrowDependency.adoc[NarrowDependency] is a RDD dependency that allows for pipelined execution.
+
+`getMissingParentStages` focuses on `ShuffleDependency` dependencies.
+
+NOTE: link:spark-rdd-ShuffleDependency.adoc[ShuffleDependency] is a RDD dependency that represents a dependency on the output of a link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage], i.e. *shuffle map stage*.
+
+For each `ShuffleDependency`, `getMissingParentStages` <<getOrCreateShuffleMapStage, finds ``ShuffleMapStage``s (and creates them if not available)>>. If the `ShuffleMapStage` is not _available_, it is added to the set of missing (map) stages.
+
+NOTE: A `ShuffleMapStage` is *available* when all its partitions are computed, i.e. results are available (as blocks).
+
+CAUTION: FIXME...IMAGE with ShuffleDependencies queried
+
+NOTE: `getMissingParentStages` is used when `DAGScheduler` <<submitStage, submits missing parent ``ShuffleMapStage``s (of a stage)>> and handles link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleJobSubmitted[JobSubmitted] and link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleMapStageSubmitted[MapStageSubmitted] events.
+
+=== [[getPreferredLocs]][[computing-preferred-locations]] Computing Preferred Locations for Tasks and Partitions -- `getPreferredLocs` Method
+
+[source, scala]
+----
+getPreferredLocs(rdd: RDD[_], partition: Int): Seq[TaskLocation]
+----
+
+CAUTION: FIXME Review + why does the method return a sequence of TaskLocations?
+
+NOTE: Task ids correspond to partition ids.
+
+=== [[submitMissingTasks]] Submitting Missing Tasks for Stage and Job -- `submitMissingTasks` Internal Method
 
 [source, scala]
 ----
 submitMissingTasks(stage: Stage, jobId: Int): Unit
 ----
 
-`submitMissingTasks` is a private method that...FIXME
+`submitMissingTasks` is an internal method that...FIXME
 
-When executed, it prints the following DEBUG message out to the logs:
+When executed, `submitMissingTasks` prints the following DEBUG message out to the logs:
 
 ```
 DEBUG DAGScheduler: submitMissingTasks([stage])
 ```
 
-`pendingPartitions` internal field of the stage is cleared (it is later filled out with the partitions to run tasks for).
+The input ``stage``'s link:spark-dagscheduler-stages.adoc#pendingPartitions[`pendingPartitions` internal field] is cleared (it is later filled out with the partitions to run tasks for).
 
-The stage is asked for partitions to compute (see link:spark-dagscheduler-stages.adoc#findMissingPartitions[findMissingPartitions] in Stages).
+The `stage` is asked for the link:spark-dagscheduler-stages.adoc#findMissingPartitions[indices of the partitions to compute] (aka _missing partitions_).
 
-The method adds the stage to `runningStages`.
+`submitMissingTasks` adds the `stage` to <<runningStages, runningStages>> internal registry.
 
-The stage is told to be started to link:spark-service-outputcommitcoordinator.adoc[OutputCommitCoordinator] (using `outputCommitCoordinator.stageStart`)
+`submitMissingTasks` informs link:spark-service-outputcommitcoordinator.adoc#stageStart[`OutputCommitCoordinator` that a stage is started].
 
-CAUTION: FIXME Review `outputCommitCoordinator.stageStart`
+NOTE: The input `maxPartitionId` argument handed over to link:spark-service-outputcommitcoordinator.adoc#stageStart[OutputCommitCoordinator] depends on the type of the stage, i.e. `ShuffleMapStage` or `ResultStage`. `ShuffleMapStage` tracks the number of partitions itself (as `numPartitions` property) while `ResultStage` uses the internal `RDD` to find out the number.
 
-The mapping between task ids and task preferred locations is computed (see <<computing-preferred-locations, getPreferredLocs - Computing Preferred Locations for Tasks and Partitions>>).
+For the missing partitions to compute, `submitMissingTasks` <<getPreferredLocs, calculates the locality information associated with the missing partitions of the RDD>> (for the stage it is computed and partition indicies).
 
-A new stage attempt is created (using `Stage.makeNewStageAttempt`).
+NOTE: The locality information of a RDD is called *preferred locations*.
 
-link:spark-SparkListener.adoc#SparkListenerStageSubmitted[SparkListenerStageSubmitted] is posted.
+In case of _non-fatal_ exceptions at this time (while getting the locality information), `submitMissingTasks` link:spark-dagscheduler-stages.adoc#makeNewStageAttempt[creates a new stage attempt].
 
-The stage is serialized and broadcast to workers using link:spark-sparkcontext.adoc#creating-broadcast-variables[SparkContext.broadcast] method, i.e. it is `Serializer.serialize` to calculate `taskBinaryBytes` - an array of bytes of (rdd, func) for link:spark-dagscheduler-ResultStage.adoc[ResultStage] and (rdd, shuffleDep) for link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage].
+NOTE: A stage attempt is an internal property of a stage.
 
-CAUTION: FIXME Review `taskBinaryBytes`.
+Despite the failure to submit any tasks, `submitMissingTasks` does announce that at least there was an attempt on link:spark-LiveListenerBus.adoc[LiveListenerBus] by posting a link:spark-SparkListener.adoc#SparkListenerStageSubmitted[SparkListenerStageSubmitted] message.
 
-When serializing the stage fails, the stage is removed from the internal `runningStages` set, `abortStage` is called and the method stops.
+NOTE: The Spark application's link:spark-LiveListenerBus.adoc[LiveListenerBus] is given when <<creating-instance, `DAGScheduler` is created>>.
 
-CAUTION: FIXME Review `abortStage`.
+`submitMissingTasks` then <<abortStage, aborts the stage>> (with the reason being "Task creation failed" followed by the exception).
 
-At this point in time, the stage is on workers.
+The `stage` is removed from the internal <<runningStages, `runningStages` collection of stages>> and `submitMissingTasks` exits.
 
-For each partition to compute for the stage, a collection of <<spark-taskscheduler.adoc#shufflemaptask, ShuffleMapTask>> for link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage] or
-`ResultTask` for link:spark-dagscheduler-ResultStage.adoc[ResultStage] is created.
+When no exception was thrown (while computing the locality information for tasks), `submitMissingTasks` link:spark-dagscheduler-stages.adoc#makeNewStageAttempt[creates a new stage attempt] and announces it on link:spark-LiveListenerBus.adoc[LiveListenerBus] by posting a link:spark-SparkListener.adoc#SparkListenerStageSubmitted[SparkListenerStageSubmitted] message.
+
+NOTE: Yes, that _is_ correct. Whether there was a task submission failure or not, `submitMissingTasks` creates a new stage attempt and posts a `SparkListenerStageSubmitted`. That makes sense, _doesn't it?_
+
+At that time, `submitMissingTasks` serializes the RDD (of the stage for which tasks are submitted for) and, depending on the type of the stage, the link:spark-dagscheduler-ShuffleMapStage.adoc#shuffleDep[`ShuffleDependency` (for `ShuffleMapStage`)] or the link:spark-dagscheduler-ResultStage.adoc#func[function (for `ResultStage`)].
+
+NOTE: `submitMissingTasks` uses a closure `Serializer` that <<creating-instance, `DAGScheduler` creates for the entire lifetime when it is created>>. The closure serializer is available through link:spark-sparkenv.adoc#closureSerializer[SparkEnv].
+
+The serialized so-called _task binary bytes_ are link:spark-sparkcontext.adoc#broadcast["wrapped" as a broadcast variable] (to make it available for executors to execute later on).
+
+NOTE: That exact moment should make clear how important link:spark-broadcast.adoc[broadcast variables] are for Spark itself that you, a Spark developer, can use, too, to distribute data across the nodes in a Spark application in a very efficient way.
+
+Any `NotSerializableException` exceptions lead to <<abortStage, aborting the stage>> (with the reason being "Task not serializable: [exception]") and removing the stage from the <<runningStages, internal `runningStages` collection of stages>>. `submitMissingTasks` exits.
+
+Any _non-fatal_ exceptions lead to <<abortStage, aborting the stage>> (with the reason being "Task serialization failed" followed by the exception) and removing the stage from the <<runningStages, internal `runningStages` collection of stages>>. `submitMissingTasks` exits.
+
+With no exceptions along the way, `submitMissingTasks` computes a collection of link:spark-taskscheduler-tasks.adoc[tasks] to execute for the missing partitions (of the `stage`).
+
+`submitMissingTasks` creates a link:spark-taskscheduler-ShuffleMapTask.adoc[ShuffleMapTask] or link:spark-taskscheduler-ResultTask.adoc[ResultTask] for every missing partition of the `stage` being link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage] or link:spark-dagscheduler-ResultStage.adoc[ResultStage], respectively. `submitMissingTasks` uses the preferred locations (computed earlier) per partition.
 
 CAUTION: FIXME Image with creating tasks for partitions in the stage.
 
-If there are tasks to launch (there are missing partitions in the stage), the following INFO and DEBUG messages are in the logs:
+Any _non-fatal_ exceptions lead to <<abortStage, aborting the stage>> (with the reason being "Task creation failed" followed by the exception) and removing the stage from the <<runningStages, internal `runningStages` collection of stages>>. `submitMissingTasks` exits.
+
+If there are tasks to submit for execution (i.e. there are missing partitions in the stage), you should see the following INFO message in the logs:
 
 ```
-INFO DAGScheduler: Submitting [tasks.size] missing tasks from [stage] ([stage.rdd])
-DEBUG DAGScheduler: New pending partitions: [stage.pendingPartitions]
+INFO DAGScheduler: Submitting [size] missing tasks from [stage] ([rdd])
 ```
 
-All tasks in the collection become a link:spark-taskscheduler-tasksets.adoc[TaskSet] for link:spark-taskscheduler.adoc#contract[TaskScheduler.submitTasks].
+`submitMissingTasks` records the partitions (of the tasks) in the ``stage``'s link:spark-dagscheduler-stages.adoc#pendingPartitions[`pendingPartitions` property].
 
-In case of no tasks to be submitted for a stage, a DEBUG message shows up in the logs.
+NOTE: `pendingPartitions` property of the `stage` was cleared when `submitMissingTasks` started.
 
-For link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage]:
+You should see the following DEBUG message in the logs:
 
 ```
-DEBUG DAGScheduler: Stage [stage] is actually done; (available: ${stage.isAvailable},available outputs: ${stage.numAvailableOutputs},partitions: ${stage.numPartitions})
+DEBUG DAGScheduler: New pending partitions: [pendingPartitions]
 ```
 
-For link:spark-dagscheduler-ResultStage.adoc[ResultStage]:
+`submitMissingTasks` link:spark-taskscheduler.adoc#submitTasks[submits the tasks to `TaskScheduler` for execution] (with the id of the `stage`, attempt id, the input `jobId`, and the properties of the `ActiveJob` with `jobId`).
+
+NOTE: A `TaskScheduler` was given when <<creating-instance, `DAGScheduler` was created>>.
+
+CAUTION: FIXME What are the `ActiveJob` properties for? Where are they used?
+
+`submitMissingTasks` records the link:spark-dagscheduler-stages.adoc#latestInfo[submission time in the stage's `StageInfo`] and exits.
+
+If however there are no tasks to submit for execution, `submitMissingTasks` <<markStageAsFinished, marks the stage as finished>> (with no `errorMessage`).
+
+You should see a DEBUG message that varies per the type of the input `stage` which are:
+
+```
+DEBUG DAGScheduler: Stage [stage] is actually done; (available: [isAvailable],available outputs: [numAvailableOutputs],partitions: [numPartitions])
+```
+
+or
 
 ```
 DEBUG DAGScheduler: Stage [stage] is actually done; (partitions: [numPartitions])
 ```
 
-NOTE: `submitMissingTasks` is called when...
+for `ShuffleMapStage` and `ResultStage`, respectively.
 
-=== [[computing-preferred-locations]] getPreferredLocs - Computing Preferred Locations for Tasks and Partitions
+In the end, with no tasks to submit for execution, `submitMissingTasks` <<submitWaitingChildStages, submits waiting child stages for execution>> and exits.
 
-CAUTION: FIXME Review + why does the method return a sequence of TaskLocations?
+NOTE: `submitMissingTasks` is called when <<submitStage, `DAGScheduler` submits a stage for execution>>.
 
-NOTE: Task ids correspond to partition ids.
+=== [[stop]][[stopping]] Stopping `DAGScheduler` -- `stop` Method
 
-=== [[stop]][[stopping]] Stopping
+[source, scala]
+----
+stop(): Unit
+----
 
-When a DAGScheduler stops (via `stop()`), it stops the internal `dag-scheduler-message` thread pool, <<event-loop, dag-scheduler-event-loop>>, and link:spark-taskscheduler.adoc[TaskScheduler].
+`stop` stops the internal `dag-scheduler-message` thread pool, <<event-loop, dag-scheduler-event-loop>>, and link:spark-taskscheduler.adoc[TaskScheduler].
 
 === [[metrics]] Metrics
 
@@ -843,7 +1007,7 @@ It emits the following numbers:
 * *job.allJobs* - the number of all jobs
 * *job.activeJobs* - the number of active jobs
 
-=== [[updateAccumulators]] Updating Accumulators with Partial Values from Completed Tasks (updateAccumulators method)
+=== [[updateAccumulators]] Updating Accumulators with Partial Values from Completed Tasks -- `updateAccumulators` Internal Method
 
 [source, scala]
 ----
@@ -865,4 +1029,9 @@ CAUTION: FIXME Where are `Stage.latestInfo.accumulables` and `CompletionEvent.ta
 
 === [[settings]] Settings
 
-* `spark.test.noStageRetry` (default: `false`) - if enabled, FetchFailed will not cause stage retries, in order to surface the problem. Used for testing.
+.Spark Properties
+[frame="topbot",cols="1,1,2",options="header",width="100%"]
+|======================
+| Spark Property | Default Value | Description
+| [[spark_test_noStageRetry]] `spark.test.noStageRetry` | `false` | When enabled (i.e. `true`), FetchFailed will not cause stage retries, in order to surface the problem. Used for testing.
+|======================

@@ -1,0 +1,150 @@
+== [[NettyBlockTransferService]] `NettyBlockTransferService` -- Netty-Based BlockTransferService
+
+`NettyBlockTransferService` is a link:spark-blocktransferservice.adoc[BlockTransferService] that uses Netty for block transport (when <<uploadBlock, uploading>> or <<fetchBlocks, fetching>> blocks of data).
+
+NOTE: `NettyBlockTransferService` is created when link:spark-sparkenv.adoc#NettyBlockTransferService[`SparkEnv` is created] (and later passed on to create a link:spark-blockmanager.adoc#creating-instance[BlockManager] for the driver and executors).
+
+[TIP]
+====
+Enable `INFO` or `TRACE` logging level for `org.apache.spark.network.netty.NettyBlockTransferService` logger to see what happens inside.
+
+Add the following line to `conf/log4j.properties`:
+
+```
+log4j.logger.org.apache.spark.network.netty.NettyBlockTransferService=TRACE
+```
+
+Refer to link:spark-logging.adoc[Logging].
+====
+
+=== [[creating-instance]] Creating `NettyBlockTransferService` Instance
+
+CAUTION: FIXME
+
+=== [[fetchBlocks]] `fetchBlocks` Method
+
+[source, scala]
+----
+fetchBlocks(
+  host: String,
+  port: Int,
+  execId: String,
+  blockIds: Array[String],
+  listener: BlockFetchingListener): Unit
+----
+
+`fetchBlocks`...FIXME
+
+When executed, `fetchBlocks` prints out the following TRACE message in the logs:
+
+```
+TRACE Fetch blocks from [host]:[port] (executor id [execId])
+```
+
+`fetchBlocks` then creates a `RetryingBlockFetcher.BlockFetchStarter` where `createAndStart` method...FIXME
+
+Depending on the maximum number of acceptable IO exceptions (such as connection timeouts) per request, if the number is greater than `0`, `fetchBlocks` creates `RetryingBlockFetcher` and starts it immediately.
+
+NOTE: `RetryingBlockFetcher` is created with the `RetryingBlockFetcher.BlockFetchStarter` created earlier, the input `blockIds` and `listener`.
+
+If however the number of retries is not greater than `0` (it could be `0` or less), the `RetryingBlockFetcher.BlockFetchStarter` created earlier is started (with the input `blockIds` and `listener`).
+
+In case of any `Exception`, you should see the following ERROR message in the logs and the input `BlockFetchingListener` gets notified (using `onBlockFetchFailure` for every block id).
+
+```
+ERROR Exception while beginning fetchBlocks
+```
+
+NOTE: `fetchBlocks` is called when link:spark-blocktransferservice.adoc#fetchBlockSync[`BlockTransferService` fetches one block synchronously] and `ShuffleBlockFetcherIterator` sends a request for blocks (using `sendRequest`).
+
+=== [[appId]] Application Id -- `appId` Property
+
+CAUTION: FIXME
+
+=== [[init]] Initializing `NettyBlockTransferService` -- `init` Method
+
+[source, scala]
+----
+init(blockDataManager: BlockDataManager): Unit
+----
+
+NOTE: `init` is a part of the link:spark-blocktransferservice.adoc#contract[`BlockTransferService` contract].
+
+`init` starts a server for...FIXME
+
+Internally, `init` link:spark-NettyBlockRpcServer.adoc#creating-instance[creates a `NettyBlockRpcServer`] (using the application id, a `JavaSerializer` and the input `blockDataManager`).
+
+CAUTION: FIXME Describe security when `authEnabled` is enabled.
+
+`init` creates a `TransportContext` with the `NettyBlockRpcServer` created earlier.
+
+CAUTION: FIXME Describe `transportConf` and `TransportContext`.
+
+`init` creates the internal `clientFactory` and a server.
+
+CAUTION: FIXME What's the "a server"?
+
+In the end, you should see the INFO message in the logs:
+
+```
+INFO NettyBlockTransferService: Server created on [hostName]:[port]
+```
+
+NOTE: `hostname` is given when link:spark-sparkenv.adoc#NettyBlockTransferService[`NettyBlockTransferService` is created] and is controlled by link:spark-driver.adoc#spark_driver_host[`spark.driver.host` Spark property] for the driver and differs per deployment environment for executors (as controlled by link:spark-executor-backends-CoarseGrainedExecutorBackend.adoc#main[`--hostname` for `CoarseGrainedExecutorBackend`]).
+
+=== [[uploadBlock]] Uploading Block -- `uploadBlock` Method
+
+[source, scala]
+----
+uploadBlock(
+  hostname: String,
+  port: Int,
+  execId: String,
+  blockId: BlockId,
+  blockData: ManagedBuffer,
+  level: StorageLevel,
+  classTag: ClassTag[_]): Future[Unit]
+----
+
+NOTE: `uploadBlock` is a part of the link:spark-blocktransferservice.adoc#contract[`BlockTransferService` contract].
+
+Internally, `uploadBlock` creates a `TransportClient` client to send a <<UploadBlock, `UploadBlock` message>> (to the input `hostname` and `port`).
+
+NOTE: `UploadBlock` message is processed by link:spark-NettyBlockRpcServer.adoc[NettyBlockRpcServer].
+
+The `UploadBlock` message holds the <<appId, application id>>, the input `execId` and `blockId`. It also holds the serialized bytes for block metadata with `level` and `classTag` serialized (using the internal `JavaSerializer`) as well as the serialized bytes for the input `blockData` itself (this time however the serialization uses link:spark-blockdatamanager.adoc#ManagedBuffer[`ManagedBuffer.nioByteBuffer` method]).
+
+The entire `UploadBlock` message is further serialized before sending (using `TransportClient.sendRpc`).
+
+CAUTION: FIXME Describe `TransportClient` and `clientFactory.createClient`.
+
+When `blockId` block was successfully uploaded, you should see the following TRACE message in the logs:
+
+```
+TRACE NettyBlockTransferService: Successfully uploaded block [blockId]
+```
+
+When an upload failed, you should see the following ERROR message in the logs:
+
+```
+ERROR Error while uploading block [blockId]
+```
+
+NOTE: `uploadBlock` is executed when link:spark-blocktransferservice.adoc#uploadBlockSync[`BlockTransferService` does block upload in a blocking fashion].
+
+=== [[UploadBlock]] `UploadBlock` Message
+
+`UploadBlock` is a `BlockTransferMessage` that describes a block being uploaded, i.e. send over the wire from a <<uploadBlock, NettyBlockTransferService>> to a link:spark-NettyBlockRpcServer.adoc#UploadBlock[NettyBlockRpcServer].
+
+.`UploadBlock` Attributes
+[frame="topbot",cols="1,2",options="header",width="100%"]
+|======================
+| Attribute | Description
+| `appId` | The application id (the block belongs to)
+| `execId` | The executor id
+| `blockId` | The block id
+| `metadata` |
+| `blockData` | The block data as an array of bytes
+|======================
+
+As an `Encodable`, `UploadBlock` can calculate the encoded size and do encoding and decoding itself to or from a `ByteBuf`, respectively.

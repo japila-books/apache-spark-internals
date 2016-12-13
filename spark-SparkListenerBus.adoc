@@ -1,0 +1,80 @@
+== [[SparkListenerBus]] `SparkListenerBus` -- Internal Contract for Spark Event Buses
+
+`SparkListenerBus` is a `private[spark]` <<ListenerBus, ListenerBus>> for link:spark-SparkListener.adoc#SparkListenerInterface[SparkListenerInterface] listeners that process link:spark-SparkListener.adoc#SparkListenerEvent[SparkListenerEvent] events.
+
+`SparkListenerBus` comes with a custom `doPostEvent` method that simply relays `SparkListenerEvent` events to appropriate `SparkListenerInterface` methods.
+
+NOTE: There are two custom `SparkListenerBus` listeners: link:spark-LiveListenerBus.adoc[LiveListenerBus] and link:spark-ReplayListenerBus.adoc[ReplayListenerBus].
+
+.SparkListenerEvent to SparkListenerInterface's Method "mapping"
+[width="100%",frame="topbot",options="header"]
+|======================
+|SparkListenerEvent |SparkListenerInterface's Method
+|`SparkListenerStageSubmitted` | `onStageSubmitted`
+|`SparkListenerStageCompleted` | `onStageCompleted`
+|`SparkListenerJobStart`       | `onJobStart`
+|`SparkListenerJobEnd`         | `onJobEnd`
+| `SparkListenerJobEnd` | `onJobEnd`
+| `SparkListenerTaskStart` | `onTaskStart`
+| `SparkListenerTaskGettingResult` | `onTaskGettingResult`
+| link:spark-SparkListener.adoc#SparkListenerTaskEnd[SparkListenerTaskEnd] | `onTaskEnd`
+| `SparkListenerEnvironmentUpdate` | `onEnvironmentUpdate`
+| `SparkListenerBlockManagerAdded` | `onBlockManagerAdded`
+| `SparkListenerBlockManagerRemoved` | `onBlockManagerRemoved`
+| `SparkListenerUnpersistRDD` | `onUnpersistRDD`
+| `SparkListenerApplicationStart` | `onApplicationStart`
+| `SparkListenerApplicationEnd` | `onApplicationEnd`
+| `SparkListenerExecutorMetricsUpdate` | `onExecutorMetricsUpdate`
+| `SparkListenerExecutorAdded` | `onExecutorAdded`
+| `SparkListenerExecutorRemoved` | `onExecutorRemoved`
+| `SparkListenerBlockUpdated` | `onBlockUpdated`
+| `SparkListenerLogStart` | _event ignored_
+| _other event types_ | `onOtherEvent`
+|======================
+
+=== [[ListenerBus]][[ListenerBus-addListener]][[ListenerBus-doPostEvent]] `ListenerBus` Event Bus Contract
+
+[source, scala]
+----
+ListenerBus[L <: AnyRef, E]
+----
+
+`ListenerBus` is an event bus that post events (of type `E`) to all registered listeners (of type `L`).
+
+It manages `listeners` of type `L`, i.e. it can add to and remove listeners from an internal `listeners` collection.
+
+[source, scala]
+----
+addListener(listener: L): Unit
+removeListener(listener: L): Unit
+----
+
+It can post events of type `E` to all registered listeners (using `postToAll` method). It simply iterates over the internal `listeners` collection and executes the abstract `doPostEvent` method.
+
+[source, scala]
+----
+doPostEvent(listener: L, event: E): Unit
+----
+
+NOTE: `doPostEvent` is provided by more specialized `ListenerBus` event buses.
+
+In case of exception while posting an event to a listener you should see the following ERROR message in the logs and the exception.
+
+```
+ERROR Listener [listener] threw an exception
+```
+
+NOTE: There are three custom `ListenerBus` listeners: <<SparkListenerBus, SparkListenerBus>>, link:spark-sql-streaming-StreamingQueryListenerBus.adoc[StreamingQueryListenerBus], and link:spark-streaming/spark-streaming-jobscheduler.adoc#StreamingListenerBus[StreamingListenerBus].
+
+[TIP]
+====
+Enable `ERROR` logging level for `org.apache.spark.util.ListenerBus` logger to see what happens inside.
+
+Add the following line to `conf/log4j.properties`:
+
+```
+log4j.logger.org.apache.spark.util.ListenerBus=ERROR
+```
+
+Refer to link:spark-logging.adoc[Logging].
+====

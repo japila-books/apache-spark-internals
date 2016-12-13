@@ -23,7 +23,13 @@ A RDD lineage graph is hence a graph of what transformations need to be executed
 
 You can learn about a RDD lineage graph using <<toDebugString, RDD.toDebugString>> method.
 
-=== [[toDebugString]] toDebugString
+=== [[logical-execution-plan]] Logical Execution Plan
+
+*Logical Execution Plan* starts with the earliest RDDs (those with no dependencies on other RDDs or reference cached data) and ends with the RDD that produces the result of the action that has been called to execute.
+
+NOTE: A logical plan, i.e. a DAG, is materialized and executed when  link:spark-sparkcontext.adoc#runJob[`SparkContext` is requested to run a Spark job].
+
+=== [[toDebugString]] `toDebugString` Method
 
 [source, scala]
 ----
@@ -33,28 +39,31 @@ toDebugString: String
 You can learn about a <<lineage, RDD lineage graph>> using `toDebugString` method.
 
 ```
-scala> val wordsCount = sc.textFile("README.md").flatMap(_.split("\\s+")).map((_, 1)).reduceByKey(_ + _)
-wordsCount: org.apache.spark.rdd.RDD[(String, Int)] = ShuffledRDD[24] at reduceByKey at <console>:24
+scala> val wordCount = sc.textFile("README.md").flatMap(_.split("\\s+")).map((_, 1)).reduceByKey(_ + _)
+wordCount: org.apache.spark.rdd.RDD[(String, Int)] = ShuffledRDD[21] at reduceByKey at <console>:24
 
-scala> wordsCount.toDebugString
-res2: String =
-(2) ShuffledRDD[24] at reduceByKey at <console>:24 []
- +-(2) MapPartitionsRDD[23] at map at <console>:24 []
-    |  MapPartitionsRDD[22] at flatMap at <console>:24 []
-    |  MapPartitionsRDD[21] at textFile at <console>:24 []
-    |  README.md HadoopRDD[20] at textFile at <console>:24 []
+scala> wordCount.toDebugString
+res13: String =
+(2) ShuffledRDD[21] at reduceByKey at <console>:24 []
+ +-(2) MapPartitionsRDD[20] at map at <console>:24 []
+    |  MapPartitionsRDD[19] at flatMap at <console>:24 []
+    |  README.md MapPartitionsRDD[18] at textFile at <console>:24 []
+    |  README.md HadoopRDD[17] at textFile at <console>:24 []
 ```
 
 `toDebugString` uses indentations to indicate a shuffle boundary.
 
-The numbers in round brackets show the level of parallelism at each stage.
-
-=== [[spark.logLineage]] spark.logLineage
-
-Enable `spark.logLineage` (assumed: `false`) to see a RDD lineage graph using <<toDebugString, RDD.toDebugString>> method every time an action on a RDD is called.
+The numbers in round brackets show the level of parallelism at each stage, e.g. `(2)` in the above output.
 
 ```
-$ ./bin/spark-shell -c spark.logLineage=true
+scala> wordCount.getNumPartitions
+res14: Int = 2
+```
+
+With <<spark_logLineage, spark.logLineage>> property enabled, `toDebugString` is included when executing an action.
+
+```
+$ ./bin/spark-shell --conf spark.logLineage=true
 
 scala> sc.textFile("README.md", 4).count
 ...
@@ -64,8 +73,11 @@ scala> sc.textFile("README.md", 4).count
  |  README.md HadoopRDD[0] at textFile at <console>:25 []
 ```
 
-=== [[logical-execution-plan]] Logical Execution Plan
+=== [[settings]] Settings
 
-*Logical Execution Plan* starts with the earliest RDDs (those with no dependencies on other RDDs or reference cached data) and ends with the RDD that produces the result of the action that has been called to execute.
-
-NOTE: A logical plan -- a DAG -- is materialized using link:spark-sparkcontext.adoc#runJob[SparkContext.runJob].
+.Spark Properties
+[frame="topbot",cols="1,1,2",options="header",width="100%"]
+|======================
+| Spark Property | Default Value | Description
+| [[spark_logLineage]] `spark.logLineage` | `false` | When enabled (i.e. `true`), executing an action (and hence link:spark-sparkcontext.adoc#runJob[running a job]) will also print out the RDD lineage graph using <<toDebugString, RDD.toDebugString>>.
+|======================

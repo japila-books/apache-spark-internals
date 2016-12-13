@@ -3,7 +3,7 @@
 *Streaming scheduler* (`JobScheduler`) schedules streaming jobs to be run as Spark jobs. It is created as part of link:spark-streaming-streamingcontext.adoc#creating-instance[creating a StreamingContext] and starts with it.
 
 .JobScheduler and Dependencies
-image::images/streaming-jobscheduler.png[align="center"]
+image::../images/streaming-jobscheduler.png[align="center"]
 
 It tracks jobs submitted for execution (as <<JobSet, JobSets>> via <<submitJobSet, submitJobSet>> method) in <<internal-registries, jobSets>> internal map.
 
@@ -21,7 +21,7 @@ Add the following line to `conf/log4j.properties`:
 log4j.logger.org.apache.spark.streaming.scheduler.JobScheduler=DEBUG
 ```
 
-Refer to link:spark-logging.adoc[Logging].
+Refer to link:../spark-logging.adoc[Logging].
 ====
 
 === [[start]][[starting]] Starting JobScheduler (start method)
@@ -40,13 +40,13 @@ DEBUG JobScheduler: Starting JobScheduler
 It then goes over all the dependent services and starts them one by one as depicted in the figure.
 
 .JobScheduler Start procedure
-image::images/spark-streaming-JobScheduler-start.png[align="center"]
+image::../images/spark-streaming-JobScheduler-start.png[align="center"]
 
 It first starts <<eventLoop, JobSchedulerEvent Handler>>.
 
 It asks link:spark-streaming-dstreamgraph.adoc#input-dstream-registry[DStreamGraph for input dstreams] and registers link:spark-streaming-backpressure.adoc#RateController[their RateControllers] (if defined) as link:spark-streaming-streamingcontext.adoc#addStreamingListener[streaming listeners]. It starts <<StreamingListenerBus, StreamingListenerBus>> afterwards.
 
-It instantiates link:spark-streaming-receivertracker.adoc[ReceiverTracker] and <<InputInfoTracker, InputInfoTracker>>. It then starts the `ReceiverTracker`.
+It creates link:spark-streaming-receivertracker.adoc[ReceiverTracker] and link:spark-streaming-InputInfoTracker.adoc[InputInfoTracker]. It then starts the `ReceiverTracker`.
 
 It starts link:spark-streaming-jobgenerator.adoc[JobGenerator].
 
@@ -109,11 +109,11 @@ You should see the following INFO message in the logs:
 INFO JobScheduler: Stopped JobScheduler
 ```
 
-=== [[submitJobSet]] Submitting Collection of Jobs for Execution (submitJobSet method)
+=== [[submitJobSet]] Submitting Collection of Jobs for Execution -- `submitJobSet` method
 
 When `submitJobSet(jobSet: JobSet)` is called, it reacts appropriately per `jobSet` <<JobSet, JobSet>> given.
 
-NOTE: The method is called by link:spark-streaming-jobgenerator.adoc[JobGenerator] only (as part of link:spark-streaming-jobgenerator.adoc#GenerateJobs[JobGenerator.generateJobs] and link:spark-streaming-jobgenerator.adoc#restarting[JobGenerator.restart]).
+NOTE: The method is called by link:spark-streaming-jobgenerator.adoc[JobGenerator] only (as part of link:spark-streaming-jobgenerator.adoc#generateJobs[JobGenerator.generateJobs] and link:spark-streaming-jobgenerator.adoc#restarting[JobGenerator.restart]).
 
 When no streaming jobs are inside the `jobSet`, you should see the following INFO in the logs:
 
@@ -143,7 +143,7 @@ When started, it prepares the environment (so the streaming job can be nicely di
 
 It runs the link:spark-streaming.adoc#Job[streaming job] that executes the job function as defined while link:spark-streaming-dstreams.adoc#generateJob[generating a streaming job for an output stream].
 
-NOTE: This is the moment when a link:spark-sparkcontext.adoc#running-jobs[Spark (core) job is run].
+NOTE: This is when Spark is requested to link:../spark-sparkcontext.adoc#runJob[run a Spark job].
 
 You may see similar-looking INFO messages in the logs (it depends on the link:spark-streaming-operators.adoc[operators] you use):
 
@@ -233,7 +233,7 @@ It reports an error if the job's result is a failure.
 A `JobSet` represents a collection of link:spark-streaming.adoc#Job[streaming jobs] that were created at (batch) `time` for link:spark-streaming-dstreamgraph.adoc#generateJobs[output streams] (that have ultimately produced a streaming job as they may opt out).
 
 .JobSet Created and Submitted to JobScheduler
-image::images/spark-streaming-jobset-generatejobs-event.png[align="center"]
+image::../images/spark-streaming-jobset-generatejobs-event.png[align="center"]
 
 `JobSet` tracks what streaming jobs are in incomplete state (in `incompleteJobs` internal registry).
 
@@ -256,7 +256,7 @@ A `JobSet` changes state over time. It can be in the following states:
 * *Completed* after `JobSet.handleJobCompletion` and no more jobs are incomplete (in `incompleteJobs` internal registry). `processingEndTime` is set.
 
 .JobSet States
-image::images/spark-streaming-jobset-states.png[align="center"]
+image::../images/spark-streaming-jobset-states.png[align="center"]
 
 Given the states a `JobSet` has *delays*:
 
@@ -272,44 +272,8 @@ NOTE: `BatchInfo` is used to create and post link:spark-streaming-streamingliste
 
 `JobSet` is used (created or processed) in:
 
-* link:spark-streaming-jobgenerator.adoc#GenerateJobs[JobGenerator.generateJobs]
+* link:spark-streaming-jobgenerator.adoc#generateJobs[JobGenerator.generateJobs]
 * <<submitJobSet, JobScheduler.submitJobSet(jobSet: JobSet)>>
 * link:spark-streaming-jobgenerator.adoc#restarting[JobGenerator.restart]
 * <<JobStarted, JobScheduler.handleJobStart(job: Job, startTime: Long)>>
 * <<JobCompleted, JobScheduler.handleJobCompletion(job: Job, completedTime: Long)>>
-
-=== [[InputInfoTracker]] InputInfoTracker
-
-`InputInfoTracker` tracks batch times and batch statistics for link:spark-streaming-inputdstreams.adoc[input streams] (per input stream id with `StreamInputInfo`). It is later used when link:spark-streaming-jobgenerator.adoc#GenerateJobs[JobGenerator submits streaming jobs for a batch time] (and propagated to interested listeners as link:spark-streaming-streaminglisteners.adoc#StreamingListenerEvent[StreamingListenerBatchSubmitted] event).
-
-NOTE: `InputInfoTracker` is managed by `JobScheduler`, i.e. it is created when <<starting, JobScheduler starts>> and <<stopping, is stopped alongside>>.
-
-`InputInfoTracker` uses internal registry `batchTimeToInputInfos` to maintain the mapping of batch times and link:spark-streaming-inputdstreams.adoc[input streams] (i.e.  another mapping between input stream ids and `StreamInputInfo`).
-
-It accumulates batch statistics at every batch time when link:spark-streaming-dstreams.adoc#contract[input streams are computing RDDs] (and explicitly call `InputInfoTracker.reportInfo` method).
-
-[NOTE]
-====
-It is up to input streams to have these batch statistics collected (and requires calling `InputInfoTracker.reportInfo` method explicitly).
-
-The following input streams report information:
-
-* link:spark-streaming-kafka.adoc#DirectKafkaInputDStream[DirectKafkaInputDStream]
-* link:spark-streaming-receiverinputdstreams.adoc[ReceiverInputDStreams - Input Streams with Receivers]
-* FileInputDStream
-====
-
-==== [[InputInfoTracker-cleanup]] Cleaning up
-
-[source, scala]
-----
-cleanup(batchThreshTime: Time): Unit
-----
-
-You should see the following INFO message when cleanup of old batch times is requested (akin to _garbage collection_):
-
-```
-INFO InputInfoTracker: remove old batch metadata: [timesToCleanup]
-```
-
-CAUTION: FIXME When is this called?

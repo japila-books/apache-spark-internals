@@ -1,16 +1,14 @@
 == Persisting Events using EventLoggingListener
 
-`EventLoggingListener` is a link:spark-SparkListener.adoc[SparkListener] that <<logEvent, logs JSON-encoded events>> to a file.
+`EventLoggingListener` is a link:spark-SparkListener.adoc[SparkListener] that <<logEvent, persists JSON-encoded events>> to a file.
 
-When <<spark_eventLog_enabled, enabled>>, `EventLoggingListener` writes events to a log file under <<spark_eventLog_dir, spark.eventLog.dir>> directory. All link:spark-SparkListener.adoc[Spark events] are logged.
+When <<spark_eventLog_enabled, event logging is enabled>>, `EventLoggingListener` writes events to a log file under <<spark_eventLog_dir, spark.eventLog.dir>> directory. All link:spark-SparkListener.adoc[Spark events] are logged (except  link:spark-SparkListener.adoc#SparkListenerBlockUpdated[SparkListenerBlockUpdated] and link:spark-SparkListener.adoc#SparkListenerExecutorMetricsUpdate[SparkListenerExecutorMetricsUpdate]).
 
-NOTE: link:spark-SparkListener.adoc#SparkListenerBlockUpdated[SparkListenerBlockUpdated] and link:spark-SparkListener.adoc#SparkListenerExecutorMetricsUpdate[SparkListenerExecutorMetricsUpdate] are not logged.
+TIP: Use link:spark-history-server.adoc[Spark History Server] to view the event logs in a browser.
 
 Events can optionally be <<compressing-events, compressed>>.
 
 In-flight log files are with `.inprogress` extension.
-
-TIP: You can use link:spark-HistoryServer.adoc[History Server] to view the event logs using a web interface.
 
 `EventLoggingListener` is a `private[spark]` class in `org.apache.spark.scheduler` package.
 
@@ -27,13 +25,18 @@ log4j.logger.org.apache.spark.scheduler.EventLoggingListener=INFO
 Refer to link:spark-logging.adoc[Logging].
 ====
 
-=== [[creating-instance]] Creating EventLoggingListener Instance
+=== [[creating-instance]] Creating `EventLoggingListener` Instance
 
 `EventLoggingListener` requires an application id (`appId`), the application's optional attempt id (`appAttemptId`), `logBaseDir`, a link:spark-configuration.adoc[SparkConf] (as `sparkConf`) and Hadoop's https://hadoop.apache.org/docs/current/api/org/apache/hadoop/conf/Configuration.html[Configuration] (as `hadoopConf`).
 
 NOTE: When initialized with no Hadoop's `Configuration` it calls link:varia/spark-hadoop.adoc[SparkHadoopUtil.get.newConfiguration(sparkConf)].
 
-=== [[start]] Starting EventLoggingListener -- `start` method
+=== [[start]] Starting `EventLoggingListener` -- `start` method
+
+[source, scala]
+----
+start(): Unit
+----
 
 `start` checks whether `logBaseDir` is really a directory, and if it is not, it throws a `IllegalArgumentException` with the following message:
 
@@ -67,7 +70,9 @@ At this point, `EventLoggingListener` is ready for event logging and you should 
 INFO EventLoggingListener: Logging events to [logPath]
 ```
 
-=== [[logEvent]] Logging Event -- `logEvent` method
+NOTE: `start` is executed while link:spark-sparkcontext-creating-instance-internals.adoc#_eventLogger[`SparkContext` is created].
+
+=== [[logEvent]] Logging Event as JSON -- `logEvent` method
 
 [source, scala]
 ----
@@ -76,7 +81,12 @@ logEvent(event: SparkListenerEvent, flushLogger: Boolean = false)
 
 `logEvent` logs `event` as JSON using `org.apache.spark.util.JsonProtocol` object.
 
-=== [[stop]] Stopping EventLoggingListener -- `stop` method
+=== [[stop]] Stopping `EventLoggingListener` -- `stop` method
+
+[source, scala]
+----
+stop(): Unit
+----
 
 `stop` closes `PrintWriter` for the log file and renames the file to be without `.inprogress` extension.
 
@@ -92,36 +102,30 @@ If the target log file exists and overwrite is disabled, an `java.io.IOException
 Target log file already exists ([logPath])
 ```
 
+NOTE: `stop` is executed while link:spark-sparkcontext.adoc#stop[`SparkContext` is stopped].
+
 === [[compressing-events]] Compressing Logged Events
 
-If <<spark_eventLog_compress, event compression is enabled>>, `CompressionCodec.createCodec(sparkConf)` is called to create a compression codec using a short codec name or the fully-qualified class name of a codec.
+If <<spark_eventLog_compress, event compression is enabled>>, events are compressed using link:spark-CompressionCodec.adoc#createCodec[CompressionCodec].
 
-TIP: Read link:spark-service-broadcastmanager.adoc#compression[Compression] to learn about the built-in compression codecs.
+TIP: Refer to link:spark-CompressionCodec.adoc[CompressionCodec] to learn about the available compression codecs.
 
 === [[settings]] Settings
 
-==== [[spark_eventLog_enabled]] spark.eventLog.enabled
+.Spark Properties
+[frame="topbot",cols="1,1,2",options="header",width="100%"]
+|======================
+| Spark Property | Default Value | Description
+| [[spark_eventLog_enabled]] `spark.eventLog.enabled` | `false` | Enables (`true`) or disables (`false`) persisting Spark events.
+| [[spark_eventLog_dir]] `spark.eventLog.dir` | `/tmp/spark-events` | Directory where events are logged, e.g. `hdfs://namenode:8021/directory`.
 
-`spark.eventLog.enabled` (default: `false`) - whether to log Spark events that encode the information displayed in the UI to persisted storage. It is useful for reconstructing the Web UI after a Spark application has finished.
+The directory must exist before link:spark-sparkcontext-creating-instance-internals.adoc#_eventLogger[Spark starts up].
 
-==== [[spark_eventLog_dir]] spark.eventLog.dir
+| [[spark_eventLog_buffer_kb]] `spark.eventLog.buffer.kb` | `100` | Size of the buffer to use when writing to output streams.
 
-`spark.eventLog.dir` (default: `/tmp/spark-events`) - path to the directory in which events are logged, e.g. `hdfs://namenode:8021/directory`. The directory must exist before Spark starts up. See link:spark-sparkcontext.adoc#creating-instance[Creating a SparkContext].
+| [[spark_eventLog_overwrite]] `spark.eventLog.overwrite` | `false` | Enables (`true`) or disables (`false`) deleting (or at least overwriting) an existing `.inprogress` log file.
 
-==== [[spark_eventLog_buffer_kb]] spark.eventLog.buffer.kb
+| [[spark_eventLog_compress]] `spark.eventLog.compress` | `false` | Enables (`true`) or disables (`false`) <<compressing-events, event compression>>.
 
-`spark.eventLog.buffer.kb` (default: `100`) - buffer size to use when writing to output streams.
-
-==== [[spark_eventLog_overwrite]] spark.eventLog.overwrite
-
-`spark.eventLog.overwrite` (default: `false`) - whether to delete or at least overwrite an existing `.inprogress` log file.
-
-==== [[spark_eventLog_compress]] spark.eventLog.compress
-
-`spark.eventLog.compress` (default: `false`) is the flag to enable compressing events.
-
-See <<compressing-events, Compressing Events>>.
-
-==== [[spark_eventLog_testing]] spark.eventLog.testing
-
-`spark.eventLog.testing` (default: `false`) is an internal flag for testing purposes that enables adding JSON events to the internal `loggedEvents` array.
+| [[spark_eventLog_testing]] `spark.eventLog.testing` | `false` | Internal flag for testing purposes that enables adding JSON events to the internal `loggedEvents` array.
+|======================

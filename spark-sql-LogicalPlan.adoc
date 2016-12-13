@@ -1,0 +1,112 @@
+== [[LogicalPlan]] `LogicalPlan` -- Logical Query Plan / Logical Operator
+
+`LogicalPlan` is a link:spark-sql-catalyst-QueryPlan.adoc[QueryPlan] and corresponds to a logical operator being the entire structured query to execute in Spark SQL.
+
+NOTE: `LogicalPlan` uses link:spark-sql-catalyst.adoc[Catalyst Framework] to represent itself as a tree of children ``LogicalPlan``s which are logical operators.
+
+A `LogicalPlan` is what makes a link:spark-sql-dataset.adoc[Dataset] that you can ask for through its link:spark-sql-query-execution.adoc[QueryExecution].
+
+[source, scala]
+----
+val plan = dataset.queryExecution.logical
+----
+
+A logical plan can be *analyzed* which is to say that the plan (including children) has gone through analysis and verification.
+
+[source, scala]
+----
+scala> plan.analyzed
+res1: Boolean = true
+----
+
+A logical plan can also be *resolved* to a specific schema.
+
+[source, scala]
+----
+scala> plan.resolved
+res2: Boolean = true
+----
+
+A logical plan knows the size of objects that are results of query operators, like `join`, through `Statistics` object.
+
+[source, scala]
+----
+scala> val stats = plan.statistics
+stats: org.apache.spark.sql.catalyst.plans.logical.Statistics = Statistics(8,false)
+----
+
+A logical plan knows the maximum number of records it can compute.
+
+[source, scala]
+----
+scala> val maxRows = plan.maxRows
+maxRows: Option[Long] = None
+----
+
+A logical plan can be <<isStreaming, streaming>> if it contains one or more link:spark-sql-streaming-source.adoc[structured streaming sources].
+
+.Logical Query Operators / Specialized LogicalPlans
+[frame="topbot",cols="1,2",options="header",width="100%"]
+|======================
+| [[LeafNode]] `LeafNode` | Logical operator with no child operators
+| [[UnaryNode]] `UnaryNode` | Logical operator with a single child operator
+| [[BinaryNode]] `BinaryNode` | Logical operator with two child operators
+| <<Command, Command>> |
+| <<RunnableCommand, RunnableCommand>> |
+|======================
+
+=== [[resolveQuoted]] `resolveQuoted` method
+
+CAUTION: FIXME
+
+=== [[Command]] `Command` -- Logical Commands
+
+`Command` is the base for <<LeafNode, leaf logical plans>> that represent non-query commands to be executed by the system. It defines `output` to return an empty collection of link:spark-sql-catalyst-Attribute.adoc[Attributes].
+
+Known commands are:
+
+1. `CreateTable`
+2. Any <<RunnableCommand, RunnableCommand>>
+
+=== [[RunnableCommand]] `RunnableCommand` -- Logical Commands with Side Effects
+
+`RunnableCommand` is the base `trait` for side-effecting <<Command, logical commands>> that are executed for their side-effects.
+
+`RunnableCommand` defines one abstract method `run` that computes a collection of link:spark-sql-dataframe-row.adoc[Row]s.
+
+[source, scala]
+----
+run(sparkSession: SparkSession): Seq[Row]
+----
+
+NOTE: `RunnableCommand` is translated to link:spark-sql-spark-plan-ExecutedCommandExec.adoc[ExecutedCommandExec] in link:spark-sql-BasicOperators.adoc[`BasicOperators` strategy].
+
+=== [[isStreaming]] Is Logical Plan Structured Streaming -- `isStreaming` method
+
+[source, scala]
+----
+isStreaming: Boolean
+----
+
+`isStreaming` is a part of the public API of `LogicalPlan` and is enabled (i.e. `true`) when a logical plan is a link:spark-sql-streaming-source.adoc[streaming source].
+
+By default, it walks over subtrees and calls itself, i.e. `isStreaming`, on every child node to find a streaming source.
+
+[source, scala]
+----
+val spark: SparkSession = ...
+
+// Regular dataset
+scala> val ints = spark.createDataset(0 to 9)
+ints: org.apache.spark.sql.Dataset[Int] = [value: int]
+
+scala> ints.queryExecution.logical.isStreaming
+res1: Boolean = false
+
+// Streaming dataset
+scala> val logs = spark.readStream.format("text").load("logs/*.out")
+logs: org.apache.spark.sql.DataFrame = [value: string]
+
+scala> logs.queryExecution.logical.isStreaming
+res2: Boolean = true
+----

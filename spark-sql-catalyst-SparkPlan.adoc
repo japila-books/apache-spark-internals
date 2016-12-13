@@ -1,8 +1,12 @@
-== [[SparkPlan]] SparkPlan -- Physical Execution Plan
+== [[SparkPlan]] `SparkPlan` -- Physical Execution Plan
 
-*Spark Plan* is a part of *Catalyst* that is the base link:spark-sql-catalyst-QueryPlan.adoc[QueryPlan] for physical operators of a structured query.
+`SparkPlan` is the base link:spark-sql-catalyst-QueryPlan.adoc[QueryPlan] for physical operators to build physical execution plan of a structured query (which is also modelled as...a link:spark-sql-dataset.adoc[Dataset]!).
 
-When executed, a `SparkPlan` produces link:spark-rdd.adoc[RDDs] of link:spark-sql-InternalRow.adoc[InternalRow], i.e. ``RDD[InternalRow]``s.
+The <<contract, SparkPlan contract>> assumes that concrete physical operators define <<doExecute, doExecute>> method which is executed when the final `execute` is called.
+
+NOTE: The final `execute` is triggered when the link:spark-sql-query-execution.adoc#toRdd[`QueryExecution` (of a `Dataset`) is requested for a `RDD[InternalRow]`].
+
+When executed, a `SparkPlan` produces link:spark-rdd.adoc[RDDs] of link:spark-sql-InternalRow.adoc[InternalRow] (i.e. ``RDD[InternalRow]``s).
 
 CAUTION: FIXME `SparkPlan` is `Serializable`. Why?
 
@@ -10,12 +14,24 @@ NOTE: The naming convention for physical operators in Spark's source code is to 
 
 TIP: Read link:spark-sql-InternalRow.adoc[InternalRow] about the internal binary row format.
 
-`SparkPlan` has the following attributes:
+.`SparkPlan` Properties
+[frame="topbot",cols="1,2",options="header",width="100%"]
+|===
+| Name | Description
 
-* `metadata`
-* <<metrics, metrics>>
-* `outputPartitioning`
-* `outputOrdering`
+| `metadata`
+|
+
+| <<metrics, metrics>>
+|
+
+| `outputPartitioning`
+|
+
+| `outputOrdering`
+|
+
+|===
 
 `SparkPlan` has the following `final` methods that prepare environment and pass calls on to corresponding methods that constitute <<contract, SparkPlan Contract>>:
 
@@ -23,32 +39,91 @@ TIP: Read link:spark-sql-InternalRow.adoc[InternalRow] about the internal binary
 * `prepare` calls `doPrepare`
 * `executeBroadcast` calls `doExecuteBroadcast`
 
-=== [[contract]] SparkPlan Contract
+[[specialized-spark-plans]]
+.Physical Query Operators / Specialized SparkPlans
+[frame="topbot",cols="1,2",options="header",width="100%"]
+|======================
+| Name
+| Description
 
-The contract of `SparkPlan` requires that concrete implementations define the following method:
+| [[UnaryExecNode]] `UnaryExecNode`
+|
 
-* `doExecute(): RDD[InternalRow]`
+| [[LeafExecNode]] `LeafExecNode`
+|
 
-They may also define their own custom overrides:
+| [[BinaryExecNode]] `BinaryExecNode`
+|
 
-* `doPrepare`
-* `doExecuteBroadcast`
+|======================
+
+=== [[waitForSubqueries]] `waitForSubqueries` Method
+
+CAUTION: FIXME
+
+=== [[prepare]] `prepare` Method
+
+CAUTION: FIXME
+
+=== [[executeCollect]] `executeCollect` Method
+
+CAUTION: FIXME
+
+=== [[contract]] `SparkPlan` Contract
+
+`SparkPlan` contract requires that concrete physical operators (aka physical plans) define their own custom `doExecute`.
+
+[[doExecute]]
+[source, scala]
+----
+doExecute(): RDD[InternalRow]
+----
+
+.Optional Methods
+[frame="topbot",cols="1,2",options="header",width="100%"]
+|======================
+| Name
+| Description
+
+| [[doPrepare]] `doPrepare`
+| Prepares execution
+
+| [[doExecuteBroadcast]] `doExecuteBroadcast`
+|
+
+|======================
 
 CAUTION: FIXME Why are there two executes?
 
-=== [[UnaryExecNode]][[specialized-spark-plans]] Specialized SparkPlans
+=== [[executeQuery]] Executing Query in Scope (after Preparations) -- `executeQuery` Final Method
 
-* `UnaryExecNode`
+[source, scala]
+----
+executeQuery[T](query: => T): T
+----
 
-CAUTION: FIXME
+`executeQuery` executes `query` in a scope (i.e. so that all RDDs created will have the same scope).
 
-=== [[executeCollect]] executeCollect
+Internally, `executeQuery` calls <<prepare, prepare>> and <<waitForSubqueries, waitForSubqueries>> before executing `query`.
 
-CAUTION: FIXME
+NOTE: `executeQuery` is executed as part of <<execute, execute>>, <<executeBroadcast, executeBroadcast>> and when link:spark-sql-whole-stage-codegen.adoc#CodegenSupport[CodegenSupport] produces a Java source code.
+
+=== [[executeBroadcast]] Computing Query Result As Broadcast Variable -- `executeBroadcast` Final Method
+
+[source, scala]
+----
+executeBroadcast[T](): broadcast.Broadcast[T]
+----
+
+`executeBroadcast` returns the results of the query as a broadcast variable.
+
+Internally, `executeBroadcast` executes <<doExecuteBroadcast, doExecuteBroadcast>> inside <<executeQuery, executeQuery>>.
+
+NOTE: `executeBroadcast` is executed in link:spark-sql-spark-plan-BroadcastHashJoinExec.adoc[BroadcastHashJoinExec], `BroadcastNestedLoopJoinExec` and `ReusedExchangeExec`.
 
 === [[SQLMetric]] SQLMetric
 
-`SQLMetric` is an link:spark-accumulators.adoc[accumulator] that accumulate and produce long values.
+`SQLMetric` is an link:spark-accumulators.adoc[accumulator] that accumulates and produces long metrics values.
 
 There are three known `SQLMetrics`:
 

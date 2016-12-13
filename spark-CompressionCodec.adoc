@@ -1,0 +1,59 @@
+== [[CompressionCodec]] CompressionCodec
+
+With link:spark-service-broadcastmanager.adoc#spark_broadcast_compress[spark.broadcast.compress] enabled (which is the default), link:spark-TorrentBroadcast.adoc[TorrentBroadcast] uses compression for broadcast blocks.
+
+CAUTION: FIXME What's compressed?
+
+[[shortCompressionCodecNames]]
+.Built-in Compression Codecs
+[width="100%",cols="1,1,3",frame="topbot",options="header,footer"]
+|======================
+| Codec Alias | Fully-Qualified Class Name | Notes
+| `lz4` | `org.apache.spark.io.LZ4CompressionCodec` | The default implementation
+| `lzf` | `org.apache.spark.io.LZFCompressionCodec` |
+| `snappy` | `org.apache.spark.io.SnappyCompressionCodec` | The fallback when the default codec is not available.
+|======================
+
+An implementation of `CompressionCodec` trait has to offer a constructor that accepts a single argument being link:spark-configuration.adoc[SparkConf]. Read <<createCodec, Creating `CompressionCodec` -- `createCodec` Factory Method>> in this document.
+
+You can control the default compression codec in a Spark application using <<spark_io_compression_codec, spark.io.compression.codec>> Spark property.
+
+=== [[createCodec]] Creating `CompressionCodec` -- `createCodec` Factory Method
+
+[source, scala]
+----
+createCodec(conf: SparkConf): CompressionCodec  // <1>
+createCodec(conf: SparkConf, codecName: String): CompressionCodec // <2>
+----
+
+`createCodec` uses the internal <<shortCompressionCodecNames, `shortCompressionCodecNames` lookup table>> to find the input `codecName` (regardless of the case).
+
+`createCodec` finds the constructor of the compression codec's implementation (that accepts a single argument being link:spark-configuration.adoc[SparkConf]).
+
+If a compression codec could not be found, `createCodec` throws a `IllegalArgumentException` exception:
+
+```
+Codec [<codecName>] is not available. Consider setting spark.io.compression.codec=snappy
+```
+
+=== [[getCodecName]] `getCodecName` Method
+
+[source, scala]
+----
+getCodecName(conf: SparkConf): String
+----
+
+`getCodecName` reads <<spark_io_compression_codec, spark.io.compression.codec>> Spark property from the input `conf` link:spark-configuration.adoc[SparkConf] or assumes `lz4`.
+
+NOTE: `getCodecName` is used when link:spark-sparkcontext-creating-instance-internals.adoc#_eventLogCodec[`SparkContext` sets up event logging (for History Server)] or when <<createCodec, creating a `CompressionCodec`>>.
+
+=== [[settings]] Settings
+
+.Settings
+[width="100%",cols="1,1,3",frame="topbot",options="header,footer"]
+|======================
+|Name | Default value |Description
+| [[spark_io_compression_codec]] `spark.io.compression.codec` | `lz4` | The compression codec to use.
+
+Used when <<getCodecName, getCodecName>> is called to find the current compression codec.
+|======================

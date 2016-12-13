@@ -1,8 +1,47 @@
-== CacheManager
+== [[CacheManager]] `CacheManager` -- In-Memory Cache for Cached Tables
 
-=== [[cacheQuery]] Caching Logical Plan (cacheQuery method)
+`CacheManager` is an in-memory cache for cached tables (as link:spark-sql-LogicalPlan.adoc[logical plans]). It uses the internal <<cachedData, cachedData>> collection of <<CachedData, CachedData>> to track logical plans and their cached link:spark-sql-logical-InMemoryRelation.adoc[InMemoryRelation] representation.
 
-When you link:spark-sql-dataset.adoc#cache[cache] or link:spark-sql-dataset.adoc#persist[persist] a `Dataset`, they pass the call to `cacheQuery` method.
+`CacheManager` is shared across link:spark-sql-sparksession.adoc[SparkSession]s though link:spark-sql-sparksession.adoc#SharedState[SharedState].
+
+[source, scala]
+----
+sparkSession.sharedState.cacheManager
+----
+
+NOTE: A Spark developer can use `CacheManager` to cache ``Dataset``s using link:spark-sql-caching.adoc#cache[cache] or link:spark-sql-caching.adoc#persist[persist] operators.
+
+=== [[cachedData]] `cachedData` Internal Registry
+
+`cachedData` is a collection of <<CachedData, CachedData>> with link:spark-sql-LogicalPlan.adoc[logical plans] and their cached link:spark-sql-logical-InMemoryRelation.adoc[InMemoryRelation] representation.
+
+A new <<CachedData, CachedData>> is added when <<cacheQuery, a Dataset is cached>> and removed when a <<uncacheQuery, Dataset is uncached>> or when <<invalidateCachedPath, invalidating cache data with a resource path>>.
+
+`cachedData` is <<clearCache, cleared>> when...FIXME
+
+=== [[invalidateCachedPath]] `invalidateCachedPath` Method
+
+CAUTION: FIXME
+
+=== [[invalidateCache]] `invalidateCache` Method
+
+CAUTION: FIXME
+
+=== [[lookupCachedData]] `lookupCachedData` Method
+
+CAUTION: FIXME
+
+=== [[uncacheQuery]] `uncacheQuery` Method
+
+CAUTION: FIXME
+
+=== [[isEmpty]] `isEmpty` Method
+
+CAUTION: FIXME
+
+=== [[cacheQuery]] Caching Dataset -- `cacheQuery` Method
+
+When you link:spark-sql-dataset.adoc#cache[cache] or link:spark-sql-dataset.adoc#persist[persist] a `Dataset`, both methods pass the call to `cacheQuery` method.
 
 [source, scala]
 ----
@@ -12,10 +51,25 @@ cacheQuery(
   storageLevel: StorageLevel = MEMORY_AND_DISK): Unit
 ----
 
-`cacheQuery` obtains link:spark-sql-query-execution.adoc#analyzed[analyzed] logical plan and saves it as a `InMemoryRelation` in the internal `cachedData` cached queries collection.
+`cacheQuery` obtains link:spark-sql-query-execution.adoc#analyzed[analyzed] logical plan and saves it as a link:spark-sql-logical-InMemoryRelation.adoc[InMemoryRelation] in the internal `cachedData` cached queries collection.
 
 If however the query has already been cached, you should instead see the following WARN message in the logs:
 
 ```
 WARN CacheManager: Asked to cache already cached data.
 ```
+
+=== [[clearCache]] Removing All Cached Tables From In-Memory Cache -- `clearCache` Method
+
+[source, scala]
+----
+clearCache(): Unit
+----
+
+`clearCache` acquires a write lock and unpersists ``RDD[CachedBatch]``s of the queries in <<cachedData, cachedData>> before removing them altogether.
+
+NOTE: `clearCache` is executed when the link:spark-sql-Catalog.adoc#CatalogImpl[CatalogImpl] is requested to link:spark-sql-Catalog.adoc#contract[clearCache].
+
+=== [[CachedData]] CachedData
+
+CAUTION: FIXME

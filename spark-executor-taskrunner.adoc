@@ -23,7 +23,7 @@ A `TaskRunner` object is created when link:spark-executor.adoc#launchTask[an exe
 
 It is created with an link:spark-executor-backends.adoc[ExecutorBackend] (to send the task's status updates to), task and attempt ids, task name, and serialized version of the task (as `ByteBuffer`).
 
-=== [[run]] Running Task (run method)
+=== [[run]] Running Task -- `run` Method
 
 NOTE: `run` is part of https://docs.oracle.com/javase/8/docs/api/java/lang/Runnable.html[java.lang.Runnable] contract that `TaskRunner` follows.
 
@@ -79,13 +79,13 @@ The link:spark-taskscheduler-tasks.adoc#run[task runs] (with `taskId`, `attemptN
 
 After the task's run finishes (and regardless of an exception thrown or not), `run` always calls `BlockManager.releaseAllLocksForTask` (with the current task's `taskId`).
 
-`run` then always link:spark-taskscheduler-taskmemorymanager.adoc#cleanUpAllAllocatedMemory[queries TaskMemoryManager for memory leaks]. If there is any (i.e. the memory freed after the call is greater than 0) and <<spark.unsafe.exceptionOnMemoryLeak, spark.unsafe.exceptionOnMemoryLeak>> is enabled (it is not by default) with no exception having been thrown while the task was running, a `SparkException` is thrown:
+`run` then always link:spark-taskscheduler-taskmemorymanager.adoc#cleanUpAllAllocatedMemory[queries TaskMemoryManager for memory leaks]. If there is any (i.e. the memory freed after the call is greater than 0) and <<spark_unsafe_exceptionOnMemoryLeak, spark.unsafe.exceptionOnMemoryLeak>> is enabled (it is not by default) with no exception having been thrown while the task was running, a `SparkException` is thrown:
 
 ```
 Managed memory leak detected; size = [freedMemory] bytes, TID = [taskId]
 ```
 
-Otherwise, if <<spark.unsafe.exceptionOnMemoryLeak, spark.unsafe.exceptionOnMemoryLeak>> is disabled or an exception was thrown by the task, the following ERROR message is displayed in the logs instead:
+Otherwise, if <<spark_unsafe_exceptionOnMemoryLeak, spark.unsafe.exceptionOnMemoryLeak>> is disabled or an exception was thrown by the task, the following ERROR message is displayed in the logs instead:
 
 ```
 ERROR Executor: Managed memory leak detected; size = [freedMemory] bytes, TID = [taskId]
@@ -115,7 +115,7 @@ If the link:spark-taskscheduler-tasks.adoc#kill[task was killed] a `TaskKilledEx
 
 CAUTION: FIXME Finish me!
 
-When a task finishes successfully, it returns a value. The value is serialized (using a new instance of link:spark-sparkenv.adoc#serializer[`Serializer` from SparkEnv, i.e. `serializer`]).
+When a task finishes successfully, it returns a value. The value is serialized (using a new instance of link:spark-sparkenv.adoc#serializer[`Serializer` from `SparkEnv`, i.e. `serializer`]).
 
 NOTE: There are two `Serializer` objects in link:spark-sparkenv.adoc[SparkEnv].
 
@@ -127,13 +127,13 @@ CAUTION: FIXME Describe the metrics in more details. And include a figure to sho
 
 `run` link:spark-taskscheduler-tasks.adoc#collectAccumulatorUpdates[collects the latest values of accumulators] (as `accumUpdates`).
 
-A `DirectTaskResult` object with the serialized result and the latest values of accumulators is created (as `directResult`). The `DirectTaskResult` object is serialized (using the global link:spark-sparkenv.adoc#closureSerializer[closure Serializer]).
+A link:spark-taskscheduler-TaskResult.adoc#DirectTaskResult[DirectTaskResult] object with the serialized result and the latest values of accumulators is created (as `directResult`). The object is then serialized (using the global link:spark-sparkenv.adoc#closureSerializer[closure Serializer]).
 
-The limit of the buffer for the serialized `DirectTaskResult` object is calculated (as `resultSize`).
+The limit of the buffer for the serialized link:spark-taskscheduler-TaskResult.adoc#DirectTaskResult[DirectTaskResult] object is calculated (as `resultSize`).
 
 The `serializedResult` is calculated (that soon will be sent to link:spark-executor-backends.adoc[ExecutorBackend]). It depends on the size of `resultSize`.
 
-If `maxResultSize` is set and the size of the serialized `DirectTaskResult` exceeds it, the following WARN message is displayed in the logs:
+If `maxResultSize` is set and the size of the serialized link:spark-taskscheduler-TaskResult.adoc#DirectTaskResult[DirectTaskResult] exceeds it, the following WARN message is displayed in the logs:
 
 ```
 WARN Executor: Finished [taskName] (TID [taskId]). Result is larger than maxResultSize ([resultSize] > [maxResultSize]), dropping it.
@@ -160,9 +160,10 @@ org.apache.spark.SparkException: Job aborted due to stage failure: Total size of
 ...
 ```
 
-The final `serializedResult` becomes a serialized `IndirectTaskResult` with a `TaskResultBlockId` for the task's `taskId` and `resultSize`.
+The final `serializedResult` becomes a serialized link:spark-taskscheduler-TaskResult.adoc#IndirectTaskResult[IndirectTaskResult] with a `TaskResultBlockId` for the task's `taskId` and `resultSize`.
 
-Otherwise, when `maxResultSize` is not positive or `resultSize` is smaller than `maxResultSize`, but greater than `maxDirectResultSize`, a `TaskResultBlockId` object for the task's `taskId` is created (as `blockId`) and link:spark-blockmanager.adoc#putBytes[`serializedDirectResult` is stored as a `blockId` block to BlockManager with `MEMORY_AND_DISK_SER` storage level].
+[[run-result-sent-via-blockmanager]]
+Otherwise, when `maxResultSize` is not positive or `resultSize` is smaller than `maxResultSize` but greater than `maxDirectResultSize`, a `TaskResultBlockId` object for the task's `taskId` is created (as `blockId`) and link:spark-blockmanager.adoc#putBytes[`serializedDirectResult` is stored as a `blockId` block to `BlockManager` with `MEMORY_AND_DISK_SER` storage level].
 
 CAUTION: FIXME Describe `maxDirectResultSize`.
 
@@ -172,7 +173,7 @@ The following INFO message is printed out to the logs:
 INFO Executor: Finished [taskName] (TID [taskId]). [resultSize] bytes result sent via BlockManager)
 ```
 
-The final `serializedResult` becomes a serialized `IndirectTaskResult` with a `TaskResultBlockId` for the task's `taskId` and `resultSize`.
+The final `serializedResult` becomes a serialized link:spark-taskscheduler-TaskResult.adoc#IndirectTaskResult[IndirectTaskResult] with a `TaskResultBlockId` for the task's `taskId` and `resultSize`.
 
 NOTE: The difference between the two cases is that the result is dropped or sent via BlockManager.
 
@@ -182,9 +183,9 @@ When the two cases above do not hold, the following INFO message is printed out 
 INFO Executor: Finished [taskName] (TID [taskId]). [resultSize] bytes result sent to driver
 ```
 
-The final `serializedResult` becomes the `serializedDirectResult` (that is the serialized `DirectTaskResult`).
+The final `serializedResult` becomes the `serializedDirectResult` (that is the serialized link:spark-taskscheduler-TaskResult.adoc#DirectTaskResult[DirectTaskResult]).
 
-NOTE: The final `serializedResult` is either a `IndirectTaskResult` (with or without BlockManager used) or a `DirectTaskResult`.
+NOTE: The final `serializedResult` is either a link:spark-taskscheduler-TaskResult.adoc#IndirectTaskResult[IndirectTaskResult] (with or without `BlockManager` used) or a link:spark-taskscheduler-TaskResult.adoc#DirectTaskResult[DirectTaskResult].
 
 The `serializedResult` serialized result for the task is sent to the driver using link:spark-executor-backends.adoc[ExecutorBackend] as `TaskState.FINISHED`.
 
@@ -194,7 +195,7 @@ When the `TaskRunner` finishes, `taskId` is removed from the internal `runningTa
 
 NOTE: `TaskRunner` is Java's https://docs.oracle.com/javase/8/docs/api/java/lang/Runnable.html[Runnable] and the contract requires that once a `TaskRunner` has completed execution it may not be restarted.
 
-=== [[kill]] Killing Task (kill method)
+=== [[kill]] Killing Task -- `kill` Method
 
 [source, scala]
 ----
@@ -215,5 +216,9 @@ NOTE: The internal flag `killed` is checked in <<run, run>> to stop executing th
 
 === [[settings]] Settings
 
-[[spark.unsafe.exceptionOnMemoryLeak]]
-* `spark.unsafe.exceptionOnMemoryLeak` (default: `false`)
+.Spark Properties
+[frame="topbot",cols="1,1,2",options="header",width="100%"]
+|======================
+| Spark Property | Default Value | Description
+| [[spark_unsafe_exceptionOnMemoryLeak]] `spark.unsafe.exceptionOnMemoryLeak` | `false` |
+|======================

@@ -1,0 +1,182 @@
+== [[BlockManagerMasterEndpoint]] BlockManagerMasterEndpoint -- BlockManagerMaster RPC Endpoint
+
+`BlockManagerMasterEndpoint` is the link:spark-rpc.adoc#RpcEndpoint[RPC endpoint] for link:spark-BlockManagerMaster.adoc[BlockManagerMaster] to track status of the link:spark-blockmanager.adoc[BlockManager]s on the executors for a Spark application.
+
+NOTE: It is used to register the `BlockManagerMaster` RPC endpoint when link:spark-sparkenv.adoc#BlockManagerMaster[creating SparkEnv].
+
+.`BlockManagerMasterEndpoint` Internal Registries and Counters
+[frame="topbot",cols="1,2",options="header",width="100%"]
+|======================
+| Name | Description
+| [[blockLocations]] `blockLocations` | Collection of ``BlockId``s and their locations (as `BlockManagerId`).
+
+Used in `removeRdd` to remove blocks for a RDD, `removeBlockManager` to remove blocks after a BlockManager gets removed, `removeBlockFromWorkers`, `updateBlockInfo`, and <<getLocations, getLocations>>.
+|======================
+
+[TIP]
+====
+Enable `INFO` logging level for `org.apache.spark.storage.BlockManagerMasterEndpoint` logger to see what happens inside.
+
+Add the following line to `conf/log4j.properties`:
+
+```
+log4j.logger.org.apache.spark.storage.BlockManagerMasterEndpoint=INFO
+```
+
+Refer to link:spark-logging.adoc[Logging].
+====
+
+=== [[UpdateBlockInfo]] UpdateBlockInfo
+
+[source, scala]
+----
+class UpdateBlockInfo(
+  var blockManagerId: BlockManagerId,
+  var blockId: BlockId,
+  var storageLevel: StorageLevel,
+  var memSize: Long,
+  var diskSize: Long)
+----
+
+CAUTION: FIXME
+
+=== [[RemoveExecutor]] RemoveExecutor
+
+[source, scala]
+----
+RemoveExecutor(execId: String)
+----
+
+When `RemoveExecutor` is received, <<removeExecutor, executor `execId` is removed>> and the response `true` sent back.
+
+NOTE: `RemoveExecutor` is posted when link:spark-BlockManagerMaster.adoc#removeExecutor[`BlockManagerMaster` removes an executor].
+
+=== [[BlockManagerHeartbeat]] BlockManagerHeartbeat
+
+CAUTION: FIXME
+
+=== [[GetLocations]] GetLocations
+
+[source, scala]
+----
+GetLocations(blockId: BlockId)
+----
+
+When `GetLocations` comes in, the internal <<getLocations, getLocations>> method is executed and the result becomes the response sent back.
+
+NOTE: `GetLocations` is used to <<getLocations, get the block locations of a single block>>.
+
+=== [[RegisterBlockManager]] RegisterBlockManager Event
+
+[source, scala]
+----
+RegisterBlockManager(
+  blockManagerId: BlockManagerId,
+  maxMemSize: Long,
+  sender: RpcEndpointRef)
+----
+
+When `RegisterBlockManager` is received, the internal <<register, register>> method is executed.
+
+NOTE: `RegisterBlockManager` is posted when <<registerBlockManager, `BlockManagerMaster` registers a `BlockManager`>>.
+
+==== [[register]] `register` Method
+
+[source, scala]
+----
+register(id: BlockManagerId, maxMemSize: Long, slaveEndpoint: RpcEndpointRef): Unit
+----
+
+`register` records the current time and registers `BlockManager` by `id` if it has not been already registered (using the internal `blockManagerInfo` registry).
+
+NOTE: `register` is executed when <<RegisterBlockManager, `RegisterBlockManager` has been received>>.
+
+Registering a `BlockManager` can only happen once for an executor (identified by `BlockManagerId.executorId` using the internal `blockManagerIdByExecutor` registry).
+
+If another `BlockManager` has earlier been registered for the executor, you should see the following ERROR message in the logs:
+
+```
+ERROR Got two different block manager registrations on same executor - will replace old one [oldId] with new one [id]
+```
+
+And then <<removeExecutor, executor is removed>>.
+
+You should see the following INFO message in the logs:
+
+```
+INFO Registering block manager [hostPort] with [bytes] RAM, [id]
+```
+
+The `BlockManager` is recorded in the internal registries: `blockManagerIdByExecutor` and `blockManagerInfo`.
+
+CAUTION: FIXME Why does `blockManagerInfo` require a new `System.currentTimeMillis()` since `time` was already recorded?
+
+In either case, link:spark-SparkListener.adoc#SparkListenerBlockManagerAdded[SparkListenerBlockManagerAdded] is posted (to link:spark-sparkcontext.adoc#listenerBus[listenerBus]).
+
+NOTE: The method can only be executed on the driver where `listenerBus` is available.
+
+CAUTION: FIXME Describe `listenerBus` + omnigraffle it.
+
+=== Other RPC Messages
+
+* GetLocationsMultipleBlockIds
+* GetPeers
+* GetRpcHostPortForExecutor
+* GetMemoryStatus
+* GetStorageStatus
+* GetBlockStatus
+* GetMatchingBlockIds
+* RemoveRdd
+* RemoveShuffle
+* RemoveBroadcast
+* RemoveBlock
+* StopBlockManagerMaster
+* BlockManagerHeartbeat
+* HasCachedBlocks
+
+=== [[removeExecutor]] Removing Executor -- `removeExecutor` Method
+
+[source, scala]
+----
+removeExecutor(execId: String)
+----
+
+`removeExecutor` prints the following INFO message to the logs:
+
+```
+INFO BlockManagerMasterEndpoint: Trying to remove executor [execId] from BlockManagerMaster.
+```
+
+If the `execId` executor is found in the internal `blockManagerIdByExecutor` registry, <<removeBlockManager, the `BlockManager` for the executor is removed>>.
+
+NOTE: `removeExecutor` is executed when `BlockManagerMasterEndpoint` <<RemoveExecutor, receives a `RemoveExecutor`>> or <<register, registers a new `BlockManager`>> (and another `BlockManager` was already registered that is replaced by the new one).
+
+=== [[removeBlockManager]] Removing BlockManager -- `removeBlockManager` Method
+
+[source, scala]
+----
+removeBlockManager(blockManagerId: BlockManagerId)
+----
+
+`removeBlockManager` looks up `blockManagerId` and removes the executor it was working on from the internal `blockManagerIdByExecutor` as well as from `blockManagerInfo`.
+
+NOTE: `removeBlockManager` is a private helper method that is exclusively used while <<removeExecutor, removing an executor>>.
+
+It then goes over all the blocks for the `BlockManager`, and removes the executor for each block from `blockLocations` registry.
+
+link:spark-SparkListener.adoc#SparkListenerBlockManagerRemoved[SparkListenerBlockManagerRemoved(System.currentTimeMillis(), blockManagerId)] is posted to link:spark-sparkcontext.adoc#listenerBus[listenerBus].
+
+You should then see the following INFO message in the logs:
+
+```
+INFO BlockManagerMasterEndpoint: Removing block manager [blockManagerId]
+```
+
+=== [[getLocations]] Get Block Locations -- `getLocations` Method
+
+[source, scala]
+----
+getLocations(blockId: BlockId): Seq[BlockManagerId]
+----
+
+When executed, `getLocations` looks up `blockId` in the `blockLocations` internal registry and returns the locations (as a collection of `BlockManagerId`) or an empty collection.

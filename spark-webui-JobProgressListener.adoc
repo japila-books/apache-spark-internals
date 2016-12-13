@@ -1,89 +1,208 @@
-== JobProgressListener
+== [[JobProgressListener]] `JobProgressListener` Spark Listener
 
-`JobProgressListener` is the link:spark-SparkListener.adoc[SparkListener] for link:spark-webui.adoc[web UI].
+`JobProgressListener` is a link:spark-SparkListener.adoc[SparkListener] for link:spark-webui.adoc[web UI].
 
-As a `SparkListener` it intercepts link:spark-SparkListener.adoc#SparkListenerEvent[Spark events] and collect information about jobs, stages, and tasks that the web UI uses to present the status of a Spark application.
+`JobProgressListener` intercepts the following link:spark-SparkListener.adoc#SparkListenerEvent[Spark events].
 
-`JobProgressListener` is interested in the following events:
+.`JobProgressListener` Events
+[frame="topbot",cols="1,2",options="header",width="100%"]
+|======================
+| Handler | Purpose
+| <<onJobStart, onJobStart>> | Creates a <<JobUIData, JobUIData>>. It updates <<jobGroupToJobIds, jobGroupToJobIds>>, <<pendingStages, pendingStages>>, <<jobIdToData, jobIdToData>>, <<activeJobs, activeJobs>>, <<stageIdToActiveJobIds, stageIdToActiveJobIds>>, <<stageIdToInfo, stageIdToInfo>> and <<stageIdToData, stageIdToData>>.
 
-1. <<onJobStart, A job starts>>.
+| <<onJobEnd, onJobEnd>> | Removes an entry in <<activeJobs, activeJobs>>. It also removes entries in <<pendingStages, pendingStages>> and <<stageIdToActiveJobIds, stageIdToActiveJobIds>>. It updates <<completedJobs, completedJobs>>, <<numCompletedJobs, numCompletedJobs>>, <<failedJobs, failedJobs>>, <<numFailedJobs, numFailedJobs>> and <<skippedStages, skippedStages>>.
 
-CAUTION: FIXME What information does `JobProgressListener` track?
+| <<onStageCompleted, onStageCompleted>> | Updates the `StageUIData` and `JobUIData`.
+| <<onTaskStart, onTaskStart>> | Updates the task's `StageUIData` and `JobUIData`, and registers a new `TaskUIData`.
+| <<onTaskEnd, onTaskEnd>> | Updates the task's `StageUIData` (and `TaskUIData`), `ExecutorSummary`, and `JobUIData`.
 
-=== [[poolToActiveStages]] poolToActiveStages
+| <<onExecutorMetricsUpdate, onExecutorMetricsUpdate>> |
 
-[source, scala]
-----
-poolToActiveStages = HashMap[PoolName, HashMap[StageId, StageInfo]]()
-----
+| `onEnvironmentUpdate` | Sets `schedulingMode` property using the current link:spark-taskschedulerimpl.adoc#spark_scheduler_mode[spark.scheduler.mode] (from `Spark Properties` environment details).
 
-`poolToActiveStages`...
+Used in link:spark-webui-jobs.adoc#AllJobsPage[Jobs tab] (for the Scheduling Mode), and to display pools in `JobsTab` and `StagesTab`.
 
-CAUTION: FIXME
+*FIXME*: Add the links/screenshots for pools.
+| `onBlockManagerAdded` | Records an executor and its block manager in the internal <<executorIdToBlockManagerId, executorIdToBlockManagerId>> registry.
+| `onBlockManagerRemoved` | Removes the executor from the internal <<executorIdToBlockManagerId, executorIdToBlockManagerId>> registry.
+| `onApplicationStart` | Records a Spark application's start time (in the internal `startTime`).
 
-=== [[onJobStart]] Handling SparkListenerJobStart Events (onJobStart method)
+Used in link:spark-webui-jobs.adoc[Jobs tab] (for a total uptime and the event timeline) and link:spark-webui-jobs.adoc[Job page] (for the event timeline).
+| `onApplicationEnd` | Records a Spark application's end time (in the internal `endTime`).
+
+Used in link:spark-webui-jobs.adoc[Jobs tab] (for a total uptime).
+| `onTaskGettingResult` | Does nothing.
+
+*FIXME*: Why is this event intercepted at all?!
+|======================
+
+=== [[registries]] Registries and Counters
+
+`JobProgressListener` uses registries to collect information about job executions.
+
+.`JobProgressListener` Registries and Counters
+[frame="topbot",cols="1,2",options="header",width="100%"]
+|======================
+| Name | Description
+| [[numCompletedStages]] `numCompletedStages` |
+| [[numFailedStages]] `numFailedStages` |
+
+| [[stageIdToData]] `stageIdToData` | Holds <<StageUIData, StageUIData>> per stage, i.e. the stage and stage attempt ids.
+| [[stageIdToInfo]] `stageIdToInfo` |
+| [[stageIdToActiveJobIds]] `stageIdToActiveJobIds` |
+| [[poolToActiveStages]] `poolToActiveStages` |
+
+| [[activeJobs]] `activeJobs` |
+| [[completedJobs]] `completedJobs` |
+| [[failedJobs]] `failedJobs` |
+| [[jobIdToData]] `jobIdToData` |
+| [[jobGroupToJobIds]] `jobGroupToJobIds` |
+
+| [[pendingStages]] `pendingStages` |
+| [[activeStages]] `activeStages` |
+| [[completedStages]] `completedStages` |
+| [[skippedStages]] `skippedStages` |
+| [[failedStages]] `failedStages` |
+
+| [[executorIdToBlockManagerId]] `executorIdToBlockManagerId` | The lookup table for `BlockManagerId` per executor id.
+
+Used to track block managers so the Stage page can display `Address` in  link:spark-webui-StagePage.adoc#ExecutorTable[Aggregated Metrics by Executor].
+
+FIXME: How does Executors page collect the very same information?
+|======================
+
+=== [[onJobStart]] `onJobStart` Method
 
 [source, scala]
 ----
 onJobStart(jobStart: SparkListenerJobStart): Unit
 ----
 
-When called, `onJobStart` reads the optional Spark Job group id (using `SparkListenerJobStart.properties` and `SparkContext.SPARK_JOB_GROUP_ID` key).
+`onJobStart` creates a <<JobUIData, JobUIData>>. It updates <<jobGroupToJobIds, jobGroupToJobIds>>, <<pendingStages, pendingStages>>, <<jobIdToData, jobIdToData>>, <<activeJobs, activeJobs>>, <<stageIdToActiveJobIds, stageIdToActiveJobIds>>, <<stageIdToInfo, stageIdToInfo>> and <<stageIdToData, stageIdToData>>.
 
-It then creates a <<JobUIData, JobUIData>> (as `jobData`) based on the input `jobStart`. `status` attribute is `JobExecutionStatus.RUNNING`.
+`onJobStart` reads the optional Spark Job group id as `spark.jobGroup.id` (from `properties` in the input `jobStart`).
 
-The internal <<jobGroupToJobIds, jobGroupToJobIds>> is updated with the job group and job ids.
+`onJobStart` then creates a `JobUIData` using the input `jobStart` with `status` attribute set to `JobExecutionStatus.RUNNING` and records it in <<jobIdToData, jobIdToData>> and <<activeJobs, activeJobs>> registries.
+
+`onJobStart` looks the job ids for the group id (in <<jobGroupToJobIds, jobGroupToJobIds>> registry) and adds the job id.
 
 The internal <<pendingStages, pendingStages>> is updated with `StageInfo` for the stage id (for every `StageInfo` in `SparkListenerJobStart.stageInfos` collection).
 
-`numTasks` attribute in the `jobData` (as `JobUIData` instance created above) is set to the sum of tasks in every stage (from `jobStart.stageInfos`) for which `completionTime` attribute is not set.
+`onJobStart` records the stages of the job in <<stageIdToActiveJobIds, stageIdToActiveJobIds>>.
 
-The internal <<jobIdToData, jobIdToData>> and <<activeJobs, activeJobs>> are updated with `jobData` for the current job.
+`onJobStart` records ``StageInfo``s in <<stageIdToInfo, stageIdToInfo>> and <<stageIdToData, stageIdToData>>.
 
-The internal <<stageIdToActiveJobIds, stageIdToActiveJobIds>> is updated with the stage id and job id (for every stage in the input `jobStart`).
-
-The internal <<stageIdToInfo, stageIdToInfo>> is updated with the stage id and `StageInfo` (for every `StageInfo` in `jobStart.stageInfos`).
-
-A <<StageUIData, StageUIData>> is added to the internal <<stageIdToData, stageIdToData>> for every `StageInfo` (in `jobStart.stageInfos`).
-
-NOTE: `onJobStart` is a part of link:spark-SparkListener.adoc[SparkListener contract] to handle...FIXME
-
-=== [[stageIdToInfo]] stageIdToInfo Registry
+=== [[onJobEnd]] `onJobEnd` Method
 
 [source, scala]
 ----
-stageIdToInfo = new HashMap[StageId, StageInfo]
+onJobEnd(jobEnd: SparkListenerJobEnd): Unit
 ----
 
-=== [[stageIdToActiveJobIds]] stageIdToActiveJobIds Registry
+`onJobEnd` removes an entry in <<activeJobs, activeJobs>>. It also removes entries in <<pendingStages, pendingStages>> and <<stageIdToActiveJobIds, stageIdToActiveJobIds>>. It updates <<completedJobs, completedJobs>>, <<numCompletedJobs, numCompletedJobs>>, <<failedJobs, failedJobs>>, <<numFailedJobs, numFailedJobs>> and <<skippedStages, skippedStages>>.
 
-[source, scala]
-----
-stageIdToActiveJobIds = new HashMap[StageId, HashSet[JobId]]
-----
+`onJobEnd` removes the job from <<activeJobs, activeJobs>> registry. It removes stages from <<pendingStages, pendingStages>> registry.
 
-=== [[jobIdToData]] jobIdToData Registry
+When completed successfully, the job is added to <<completedJobs, completedJobs>> registry with `status` attribute set to `JobExecutionStatus.SUCCEEDED`. <<numCompletedJobs, numCompletedJobs>> gets incremented.
 
-[source, scala]
-----
-jobIdToData = new HashMap[JobId, JobUIData]
-----
+When failed, the job is added to <<failedJobs, failedJobs>> registry with `status` attribute set to `JobExecutionStatus.FAILED`. <<numFailedJobs, numFailedJobs>> gets incremented.
 
-=== [[activeJobs]] activeJobs Registry
+For every stage in the job, the stage is removed from the active jobs (in <<stageIdToActiveJobIds, stageIdToActiveJobIds>>) that can remove the entire entry if no active jobs exist.
+
+Every pending stage in <<stageIdToInfo, stageIdToInfo>> gets added to <<skippedStages, skippedStages>>.
+
+=== [[onExecutorMetricsUpdate]] `onExecutorMetricsUpdate` Method
 
 [source, scala]
 ----
-activeJobs = new HashMap[JobId, JobUIData]
+onExecutorMetricsUpdate(executorMetricsUpdate: SparkListenerExecutorMetricsUpdate): Unit
 ----
 
-=== [[pendingStages]] pendingStages Registry
+=== [[onTaskStart]] `onTaskStart` Method
 
 [source, scala]
 ----
-pendingStages = new HashMap[StageId, StageInfo]
+onTaskStart(taskStart: SparkListenerTaskStart): Unit
 ----
 
-CAUTION: FIXME
+`onTaskStart` updates `StageUIData` and `JobUIData`, and registers a new `TaskUIData`.
+
+`onTaskStart` reads the `TaskInfo` from the input `taskStart`.
+
+`onTaskStart` looks the `StageUIData` for the stage and stage attempt ids up (in <<stageIdToData, stageIdToData>> registry).
+
+`onTaskStart` increments `numActiveTasks` and puts a `TaskUIData` for the task in `stageData.taskData`.
+
+Ultimately, `onTaskStart` looks the stage in the internal <<stageIdToActiveJobIds, stageIdToActiveJobIds>> and for each active job reads its `JobUIData` (from <<jobIdToData, jobIdToData>>). It then increments `numActiveTasks`.
+
+=== [[onTaskEnd]] `onTaskEnd` Method
+
+[source, scala]
+----
+onTaskEnd(taskEnd: SparkListenerTaskEnd): Unit
+----
+
+`onTaskEnd` updates the `StageUIData` (and `TaskUIData`), `ExecutorSummary`, and `JobUIData`.
+
+`onTaskEnd` reads the `TaskInfo` from the input `taskEnd`.
+
+NOTE: `onTaskEnd` does its processing when the `TaskInfo` is available and `stageAttemptId` is not `-1`.
+
+`onTaskEnd` looks the `StageUIData` for the stage and stage attempt ids up (in <<stageIdToData, stageIdToData>> registry).
+
+`onTaskEnd` saves `accumulables` in the `StageUIData`.
+
+`onTaskEnd` reads the `ExecutorSummary` for the executor (the task has finished on).
+
+Depending on the task end's reason `onTaskEnd` increments `succeededTasks`, `killedTasks` or `failedTasks` counters.
+
+`onTaskEnd` adds the task's duration to `taskTime`.
+
+`onTaskEnd` decrements the number of active tasks (in the `StageUIData`).
+
+_Again_, depending on the task end's reason `onTaskEnd` computes `errorMessage` and updates `StageUIData`.
+
+CAUTION: FIXME Why is the same information in two different registries -- `stageData` and `execSummary`?!
+
+If `taskMetrics` is available, `updateAggregateMetrics` is executed.
+
+CAUTION: FIXME Why is `updateAggregateMetrics` doing?
+
+The task's `TaskUIData` is looked up in `stageData.taskData` and `updateTaskInfo` and `updateTaskMetrics` are executed. `errorMessage` is updated.
+
+`onTaskEnd` makes sure that the number of tasks in `StageUIData` (`stageData.taskData`) is not above <<spark_ui_retainedTasks, spark.ui.retainedTasks>> and drops the excess.
+
+Ultimately, `onTaskEnd` looks the stage in the internal <<stageIdToActiveJobIds, stageIdToActiveJobIds>> and for each active job reads its `JobUIData` (from <<jobIdToData, jobIdToData>>). It then decrements `numActiveTasks` and increments `numCompletedTasks`, `numKilledTasks` or `numFailedTasks` depending on the task's end reason.
+
+=== [[onStageSubmitted]] `onStageSubmitted` Method
+
+[source, scala]
+----
+onStageSubmitted(stageSubmitted: SparkListenerStageSubmitted): Unit
+----
+
+=== [[onStageCompleted]] `onStageCompleted` Method
+
+[source, scala]
+----
+onStageCompleted(stageCompleted: SparkListenerStageCompleted): Unit
+----
+
+`onStageCompleted` updates the `StageUIData` and `JobUIData`.
+
+`onStageCompleted` reads `stageInfo` from the input `stageCompleted` and records it in <<stageIdToInfo, stageIdToInfo>> registry.
+
+`onStageCompleted` looks the `StageUIData` for the stage and the stage attempt ids up in <<stageIdToData, stageIdToData>> registry.
+
+`onStageCompleted` records `accumulables` in `StageUIData`.
+
+`onStageCompleted` removes the stage from <<poolToActiveStages, poolToActiveStages>> and <<activeStages, activeStages>> registries.
+
+If the stage completed successfully (i.e. has no `failureReason`), `onStageCompleted` adds the stage to <<completedStages, completedStages>> registry and increments <<numCompletedStages, numCompletedStages>> counter. It trims <<completedStages, completedStages>>.
+
+Otherwise, when the stage failed, `onStageCompleted` adds the stage to <<failedStages, failedStages>> registry and increments <<numFailedStages, numFailedStages>> counter. It trims <<failedStages, failedStages>>.
+
+Ultimately, `onStageCompleted` looks the stage in the internal <<stageIdToActiveJobIds, stageIdToActiveJobIds>> and for each active job reads its `JobUIData` (from <<jobIdToData, jobIdToData>>). It then decrements `numActiveStages`. When completed successfully, it adds the stage to `completedStageIndices`. With failure, `numFailedStages` gets incremented.
 
 === [[JobUIData]] JobUIData
 
@@ -98,27 +217,17 @@ blockManagerIds: Seq[BlockManagerId]
 
 CAUTION: FIXME
 
-=== [[registries]] Registries
-
-==== [[stageIdToData]] stageIdToData Registry
-
-[source, scala]
-----
-stageIdToData = new HashMap[(StageId, StageAttemptId), StageUIData]
-----
-
-`stageIdToData` holds `StageUIData` per stage (given the stage and attempt ids).
-
 === [[StageUIData]] StageUIData
 
 CAUTION: FIXME
 
-=== [[schedulingMode]] schedulingMode Attribute
+=== [[settings]] Settings
 
-`schedulingMode` attribute is used to show the link:spark-taskscheduler-schedulingmode.adoc[scheduling mode] for the Spark application in link:spark-webui.adoc[Spark UI].
-
-NOTE: It corresponds to link:spark-taskschedulerimpl.adoc#spark.scheduler.mode[spark.scheduler.mode] setting.
-
-When link:spark-SparkListener.adoc#SparkListenerEnvironmentUpdate[SparkListenerEnvironmentUpdate] is received, `JobProgressListener` looks up `spark.scheduler.mode` key in `Spark Properties` map to set the internal `schedulingMode` field.
-
-NOTE: It is used in Jobs and Stages tabs.
+.Spark Properties
+[frame="topbot",options="header",width="100%"]
+|======================
+| Setting | Default Value | Description
+| [[spark_ui_retainedJobs]] `spark.ui.retainedJobs` | `1000` | The number of jobs to hold information about
+| [[spark_ui_retainedStages]] `spark.ui.retainedStages` | `1000` | The number of stages to hold information about
+| [[spark_ui_retainedTasks]] `spark.ui.retainedTasks` | `100000` | The number of tasks to hold information about
+|======================

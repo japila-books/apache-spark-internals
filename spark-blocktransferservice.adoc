@@ -1,16 +1,17 @@
 == BlockTransferService
 
-`BlockTransferService` is a contract for specialized link:spark-shuffleclient.adoc[ShuffleClient] objects that can <<contract, fetch and upload blocks in synchronously and asynchronously>>.
+`BlockTransferService` is a contract for specialized link:spark-shuffleclient.adoc[ShuffleClient] objects that can <<contract, fetch and upload blocks synchronously or asynchronously>>.
 
 NOTE: `BlockTransferService` is a `private[spark] abstract class`.
 
-NOTE: <<NettyBlockTransferService, NettyBlockTransferService>> is the only available implementation of <<contract, BlockTransferService Contract>>.
+NOTE: link:spark-NettyBlockTransferService.adoc[NettyBlockTransferService] is the only available implementation of <<contract, BlockTransferService Contract>>.
 
-=== [[contract]] BlockTransferService Contract
+=== [[contract]] `BlockTransferService` Contract
 
 Every `BlockTransferService` offers the following:
 
-* `init` that accepts link:spark-blockdatamanager.adoc[BlockDataManager] for storing or fetching blocks. It is assumed that the method is called before the service is considered fully operational.
+[[init]]
+* `init` that accepts link:spark-blockdatamanager.adoc[BlockDataManager] for storing or fetching blocks. It is assumed that the method is called before a `BlockTransferService` service is considered fully operational.
 +
 [source, scala]
 ----
@@ -46,6 +47,7 @@ uploadBlock(
   classTag: ClassTag[_]): Future[Unit]
 ----
 
+[[fetchBlockSync]]
 * Synchronous (and hence blocking) `fetchBlockSync` to fetch one block `blockId` (that corresponds to the link:spark-shuffleclient.adoc[ShuffleClient] parent's asynchronous link:spark-shuffleclient.adoc#fetchBlocks[fetchBlocks]).
 +
 [source, scala]
@@ -59,8 +61,8 @@ fetchBlockSync(
 +
 `fetchBlockSync` is a mere wrapper around link:spark-shuffleclient.adoc#fetchBlocks[fetchBlocks] to fetch one `blockId` block that waits until the fetch finishes.
 
-* Synchronous (and hence blocking) `uploadBlockSync` to upload a block (of `ManagedBuffer` identified by `BlockId`) to a remote `hostname` and `port`.
-+
+=== [[uploadBlockSync]] `uploadBlockSync` Method
+
 [source, scala]
 ----
 uploadBlockSync(
@@ -72,9 +74,7 @@ uploadBlockSync(
   level: StorageLevel,
   classTag: ClassTag[_]): Unit
 ----
-+
-`uploadBlockSync` is a mere wrapper around <<uploadBlock, uploadBlock>> that waits until the upload finishes.
 
-=== [[NettyBlockTransferService]] NettyBlockTransferService - Netty-Based BlockTransferService
+`uploadBlockSync` is a mere blocking wrapper around <<uploadBlock, uploadBlock>> that waits until the upload finishes.
 
-CAUTION: FIXME
+NOTE: `uploadBlockSync` is only executed when link:spark-blockmanager.adoc#replicate[`BlockManager` replicates a block to another node(s)] (i.e. when a link:spark-rdd-StorageLevel.adoc[replication level is greater than 1]).

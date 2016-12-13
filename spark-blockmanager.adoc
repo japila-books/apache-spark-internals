@@ -1,16 +1,29 @@
-== BlockManager
+== [[BlockManager]] Block Manager -- Key-Value Store for Blocks
 
-`BlockManager` is a key-value store for blocks of data in Spark. `BlockManager` acts as a local cache that runs on every node in Spark cluster, i.e. the link:spark-driver.adoc[driver] and link:spark-executor.adoc[executors]. It provides interface for uploading and fetching blocks both locally and remotely using various stores, i.e. memory, disk, and off-heap. See <<stores, Stores>> in this document.
+*Block Manager* (`BlockManager`) is a key-value store for blocks of data (simply _blocks_) in Spark. `BlockManager` acts as a local cache that runs on every "node" in a Spark application, i.e. the link:spark-driver.adoc[driver] and link:spark-executor.adoc[executors] (and is created right when link:spark-sparkenv.adoc#NettyBlockTransferService[`SparkEnv` is]).
+
+`BlockManager` provides interface for uploading and fetching blocks both locally and remotely using various stores, i.e. <<stores, memory, disk, and off-heap>>.
+
+When <<creating-instance, `BlockManager` is created>>, it creates its own private instances of link:spark-DiskBlockManager.adoc[DiskBlockManager], link:spark-BlockInfoManager.adoc[BlockInfoManager], link:spark-MemoryStore.adoc[MemoryStore] and link:spark-DiskStore.adoc[DiskStore] (that it immediately wires together, i.e. `BlockInfoManager` with `MemoryStore` and `DiskStore` with `DiskBlockManager`).
+
+The common idiom in Spark to access a `BlockManager` regardless of a location, i.e. the driver or executors, is through  link:spark-sparkenv.adoc#get[SparkEnv]:
+
+[source, scala]
+----
+SparkEnv.get.blockManager
+----
 
 A `BlockManager` is a link:spark-blockdatamanager.adoc[BlockDataManager], i.e. manages the storage for blocks that can represent cached RDD partitions, intermediate shuffle outputs, broadcasts, etc. It is also a <<BlockEvictionHandler, BlockEvictionHandler>> that drops a block from memory and storing it on a disk if applicable.
 
 *Cached blocks* are blocks with non-zero sum of memory and disk sizes.
 
-`BlockManager` is created as a link:spark-sparkenv.adoc#create[Spark application starts].
+TIP: Use link:spark-webui.adoc[Web UI], esp. link:spark-webui-storage.adoc[Storage] and link:spark-webui-executors.adoc[Executors] tabs, to monitor the memory used.
 
-A `BlockManager` must be <<initialize, initialized>> before it is fully operable.
+TIP: Use link:spark-submit.adoc[spark-submit]'s command-line options, i.e. link:spark-submit.adoc#driver-memory[--driver-memory] for the driver and link:spark-submit.adoc#executor-memory[--executor-memory] for executors or their equivalents as Spark properties, i.e. link:spark-submit.adoc#spark_executor_memory[spark.executor.memory] and link:spark-submit.adoc#spark_driver_memory[spark.driver.memory], to control the memory for storage memory.
 
-When the <<externalShuffleServiceEnabled, External Shuffle Service is enabled>>, `BlockManager` uses link:spark-shuffleclient.adoc#ExternalShuffleClient[ExternalShuffleClient] to read other executors' shuffle files.
+A <<creating-instance, `BlockManager` is created>> when a link:spark-sparkenv.adoc#create[Spark application starts] and must be <<initialize, initialized>> before it is fully operable.
+
+When <<externalShuffleServiceEnabled, External Shuffle Service is enabled>>, `BlockManager` uses link:spark-shuffleclient.adoc#ExternalShuffleClient[ExternalShuffleClient] to read other executors' shuffle files.
 
 [TIP]
 ====
@@ -34,13 +47,128 @@ log4j.logger.org.apache.spark.storage.BlockManager=OFF
 ```
 ====
 
-=== [[externalShuffleServiceEnabled]] Using External Shuffle Service (externalShuffleServiceEnabled flag)
+=== [[putSingle]] `putSingle` Method
+
+CAUTION: FIXME
+
+NOTE: `putSingle` is used when link:spark-TorrentBroadcast.adoc#readBroadcastBlock[`TorrentBroadcast` reads the blocks of a broadcast variable and stores them in a local `BlockManager`].
+
+=== [[getMatchingBlockIds]] Getting Ids of Existing Blocks (For a Given Filter) -- `getMatchingBlockIds` Method
+
+CAUTION: FIXME
+
+NOTE: `getMatchingBlockIds` is used to handle <<BlockManagerSlaveEndpoint-GetMatchingBlockIds, GetMatchingBlockIds>> messages.
+
+=== [[getLocalValues]] `getLocalValues` Method
+
+[source, scala]
+----
+getLocalValues(blockId: BlockId): Option[BlockResult]
+----
+
+`getLocalValues`...FIXME
+
+Internally, when `getLocalValues` is executed, you should see the following DEBUG message in the logs:
+
+```
+DEBUG BlockManager: Getting local block [blockId]
+```
+
+`getLocalValues` link:spark-BlockInfoManager.adoc#lockForReading[obtains a read lock for `blockId`].
+
+When no `blockId` block was found, you should see the following DEBUG message in the logs and `getLocalValues` returns "nothing" (i.e. `NONE`).
+
+```
+DEBUG Block [blockId] was not found
+```
+
+When the `blockId` block was found, you should see the following DEBUG message in the logs:
+
+```
+DEBUG Level for block [blockId] is [level]
+```
+
+If `blockId` block has memory level and link:spark-MemoryStore.adoc#contains[is registered in `MemoryStore`], `getLocalValues` returns a <<BlockResult, BlockResult>> as `Memory` read method and with a `CompletionIterator` for an interator:
+
+1. link:spark-MemoryStore.adoc#getValues[Values iterator from `MemoryStore` for `blockId`] for "deserialized" persistence levels.
+2. Iterator from link:spark-SerializerManager.adoc#dataDeserializeStream[`SerializerManager` after the data stream has been deserialized] for the `blockId` block and link:spark-MemoryStore.adoc#getBytes[the bytes for `blockId` block] for "serialized" persistence levels.
+
+NOTE: `getLocalValues` is used when link:spark-TorrentBroadcast.adoc#readBroadcastBlock[`TorrentBroadcast` reads the blocks of a broadcast variable and stores them in a local `BlockManager`].
+
+CAUTION: FIXME
+
+=== [[getRemoteValues]] `getRemoteValues` Internal Method
+
+[source, scala]
+----
+getRemoteValues[T: ClassTag](blockId: BlockId): Option[BlockResult]
+----
+
+`getRemoteValues`...FIXME
+
+=== [[get]] Retrieving Block from Local or Remote Block Managers -- `get` Method
+
+[source, scala]
+----
+get[T](blockId: BlockId): Option[BlockResult]
+----
+
+`get` attempts to get the `blockId` block from a local block manager first before querying remote block managers.
+
+Internally, `get` tries to <<getLocalValues, get `blockId` block from the local `BlockManager`>>. If the `blockId` block was found, you should see the following INFO message in the logs and `get` returns the local <<BlockResult, BlockResult>>.
+
+```
+INFO Found block [blockId] locally
+```
+
+If however the `blockId` block was not found locally, `get` tries to <<getRemoteValues, get the block from remote ``BlockManager``s>>. If the `blockId` block was retrieved from a remote `BlockManager`, you should see the following INFO message in the logs and `get` returns the remote <<BlockResult, BlockResult>>.
+
+```
+INFO Found block [blockId] remotely
+```
+
+In the end, `get` returns "nothing" (i.e. `NONE`) when the `blockId` block was not found either in the local `BlockManager` or any remote `BlockManager`.
+
+NOTE: `get` is used when `BlockManager` is requested to <<getOrElseUpdate, `getOrElseUpdate` a block>>, <<getSingle, getSingle>> and to link:spark-rdd-blockrdd.adoc#[compute a `BlockRDD`].
+
+=== [[getSingle]] `getSingle` Method
+
+CAUTION: FIXME
+
+=== [[getOrElseUpdate]] `getOrElseUpdate` Method
+
+CAUTION: FIXME
+
+[source, scala]
+----
+getOrElseUpdate[T](
+  blockId: BlockId,
+  level: StorageLevel,
+  classTag: ClassTag[T],
+  makeIterator: () => Iterator[T]): Either[BlockResult, Iterator[T]]
+----
+
+`getOrElseUpdate`...FIXME
+
+=== [[getRemoteBytes]] `getRemoteBytes` Method
+
+CAUTION: FIXME
+
+=== [[getBlockData]] `getBlockData` Method
+
+CAUTION: FIXME
+
+=== [[removeBlockInternal]] `removeBlockInternal` Method
+
+CAUTION: FIXME
+
+=== [[externalShuffleServiceEnabled]] Using External Shuffle Service -- `externalShuffleServiceEnabled` Flag
 
 When the link:spark-ExternalShuffleService.adoc[External Shuffle Service] is enabled for a Spark application, `BlockManager` uses link:spark-shuffleclient.adoc#ExternalShuffleClient[ExternalShuffleClient] to read other executors' shuffle files.
 
 CAUTION: FIXME How is `shuffleClient` used?
 
-=== [[registerTask]] registerTask
+=== [[registerTask]] `registerTask` Method
 
 CAUTION: FIXME
 
@@ -54,7 +182,26 @@ There are the following possible stores:
 * link:spark-DiskStore.adoc[DiskStore] for disk storage level.
 * `ExternalBlockStore` for OFF_HEAP storage level.
 
-=== [[putBytes]] Storing Block (putBytes method)
+=== [[putBlockData]] Storing Block Data Locally -- `putBlockData` Method
+
+[source, scala]
+----
+putBlockData(
+  blockId: BlockId,
+  data: ManagedBuffer,
+  level: StorageLevel,
+  classTag: ClassTag[_]): Boolean
+----
+
+`putBlockData` simply <<putBytes, stores `blockId` locally>> (given the given storage `level`).
+
+NOTE: `putBlockData` is a part of link:spark-blockdatamanager.adoc[BlockDataManager contract].
+
+Internally, `putBlockData` wraps `ChunkedByteBuffer` around `data` buffer's NIO `ByteBuffer` and calls <<putBytes, putBytes>>.
+
+NOTE: `putBlockData` is used when link:spark-NettyBlockRpcServer.adoc[`NettyBlockRpcServer` handles a `UploadBlock` message].
+
+=== [[putBytes]] Storing Block Bytes Locally -- `putBytes` Method
 
 [source, scala]
 ----
@@ -65,11 +212,13 @@ putBytes(
   tellMaster: Boolean = true): Boolean
 ----
 
-`putBytes` puts the `blockId` block of `bytes` bytes and `level` storage level to `BlockManager`.
+`putBytes` stores the `blockId` block (with `bytes` bytes and `level` storage level).
 
-It simply passes the call on to the internal <<doPutBytes, doPutBytes>>.
+`putBytes` simply passes the call on to the internal <<doPutBytes, doPutBytes>>.
 
-==== [[doPutBytes]] doPutBytes
+NOTE: `putBytes` is executed when link:spark-executor-taskrunner.adoc#run-result-sent-via-blockmanager[`TaskRunner` sends a task result via `BlockManager`], <<putBlockData, `BlockManager` puts a block locally>> and in link:spark-TorrentBroadcast.adoc[TorrentBroadcast].
+
+==== [[doPutBytes]] `doPutBytes` Internal Method
 
 [source, scala]
 ----
@@ -82,45 +231,51 @@ def doPutBytes[T](
   keepReadLock: Boolean = false): Boolean
 ----
 
-`doPutBytes` is an internal method that calls the internal helper <<doPut, doPut>> with `putBody` being a function that accepts a `BlockInfo` and does the uploading.
+`doPutBytes` is an internal method that calls the internal helper <<doPut, doPut>> with a function that accepts a `BlockInfo` and does the uploading.
 
-If the replication storage level is greater than 1, replication starts in a separate thread (using the internal <<replicate, replicate>> method).
+Inside the function, if the link:spark-rdd-StorageLevel.adoc[storage `level`]'s replication is greater than 1, it immediately starts <<replicate, replication>> of the `blockId` block on a separate thread (from `futureExecutionContext` thread pool). The replication uses the input `bytes` and `level` storage level.
 
-CAUTION: FIXME When is replication storage level greater than 1?
+For a memory storage level, the function checks whether the storage `level` is deserialized or not. For a deserialized storage `level`, ``BlockManager``'s link:spark-SerializerManager.adoc#dataDeserializeStream[`SerializerManager` deserializes `bytes` into an iterator of values] that link:spark-MemoryStore.adoc#putIteratorAsValues[`MemoryStore` stores]. If however the storage `level` is not deserialized, the function requests link:spark-MemoryStore.adoc#putBytes[`MemoryStore` to store the bytes]
 
-For a memory storage level, depending on whether it is a deserialized one or not, `putIteratorAsValues` or `putBytes` of link:spark-MemoryStore.adoc[MemoryStore] are used, respectively. If the put did not succeed and the storage level is also a disk one, you should see the following WARN message in the logs:
+If the put did not succeed and the storage level is to use disk, you should see the following WARN message in the logs:
 
 ```
 WARN BlockManager: Persisting block [blockId] to disk instead.
 ```
 
-link:spark-DiskStore.adoc#putBytes[DiskStore.putBytes] is called.
+And link:spark-DiskStore.adoc#putBytes[`DiskStore` stores the bytes].
 
-NOTE: link:spark-DiskStore.adoc[DiskStore] is only used when link:spark-MemoryStore.adoc[MemoryStore] has failed for memory and disk storage levels.
+NOTE: link:spark-DiskStore.adoc[DiskStore] is requested to store the bytes of a block with memory and disk storage level only when link:spark-MemoryStore.adoc[MemoryStore] has failed.
 
-If the storage level is a disk one only, link:spark-DiskStore.adoc#putBytes[DiskStore.putBytes] is called.
+If the storage level is to use disk only, link:spark-DiskStore.adoc#putBytes[`DiskStore` stores the bytes].
 
-`doPutBytes` requests <<getCurrentBlockStatus, current block status>> and if the block was successfully stored, and the driver should know about it (`tellMaster`), it <<reportBlockStatus, reports current storage status of the block to the driver>>. The link:spark-taskscheduler-taskmetrics.adoc#incUpdatedBlockStatuses[current TaskContext metrics are updated with the updated block status].
+`doPutBytes` requests <<getCurrentBlockStatus, current block status>> and if the block was successfully stored, and the driver should know about it (`tellMaster`), the function <<reportBlockStatus, reports the current storage status of the block to the driver>>. The link:spark-taskscheduler-taskmetrics.adoc#incUpdatedBlockStatuses[current `TaskContext` metrics are updated with the updated block status] (only when executed inside a task where `TaskContext` is available).
 
-Regardless of the block being successfully stored or not, you should see the following DEBUG message in the logs:
+You should see the following DEBUG message in the logs:
 
 ```
 DEBUG BlockManager: Put block [blockId] locally took [time] ms
 ```
 
-For replication level greater than `1`, `doPutBytes` waits for the earlier asynchronous replication to finish.
+The function waits till the earlier asynchronous replication finishes for a block with replication level greater than `1`.
 
 The final result of `doPutBytes` is the result of storing the block successful or not (as computed earlier).
 
-=== [[replicate]] replicate
+NOTE: `doPutBytes` is called exclusively from <<putBytes, `putBytes` method>>.
+
+=== [[replicate]] `replicate` Internal Method
 
 CAUTION: FIXME
 
-=== [[doPutIterator]] doPutIterator
+=== [[maybeCacheDiskValuesInMemory]] `maybeCacheDiskValuesInMemory` Method
 
 CAUTION: FIXME
 
-=== [[doPut]] doPut
+=== [[doPutIterator]] `doPutIterator` Method
+
+CAUTION: FIXME
+
+=== [[doPut]] `doPut` Internal Method
 
 [source, scala]
 ----
@@ -134,25 +289,25 @@ doPut[T](
 
 `doPut` is an internal helper method for <<doPutBytes, doPutBytes>> and <<doPutIterator, doPutIterator>>.
 
-`doPut` executes the input `putBody` function with a link:spark-BlockInfo.adoc[BlockInfo] being a new `BlockInfo` object that link:spark-BlockInfoManager.adoc#lockNewBlockForWriting[BlockInfoManager managed to create a lock for writing].
+`doPut` executes the input `putBody` function with a link:spark-BlockInfo.adoc[BlockInfo] being a new `BlockInfo` object (with `level` storage level) that link:spark-BlockInfoManager.adoc#lockNewBlockForWriting[`BlockInfoManager` managed to create a write lock for].
 
-If the block has already been created, the following WARN message is printed out to the logs:
+If the block has already been created (and link:spark-BlockInfoManager.adoc#lockNewBlockForWriting[`BlockInfoManager` did not manage to create a write lock for]), the following WARN message is printed out to the logs:
 
 ```
 WARN Block [blockId] already exists on this machine; not re-adding it
 ```
 
-It <<releaseLock, releases the read lock for the block>> when `keepReadLock` flag is disabled. `doPut` returns `None` immediately.
+`doPut` <<releaseLock, releases the read lock for the block>> when `keepReadLock` flag is disabled and returns `None` immediately.
 
-`putBody` is executed.
+If however the write lock has been given, `doPut` executes `putBody`.
 
 If the result of `putBody` is `None` the block is considered saved successfully.
 
-For successful save and `keepReadLock` enabled, `blockInfoManager.downgradeLock(blockId)` is called.
+For successful save and `keepReadLock` enabled, link:spark-BlockInfoManager.adoc#downgradeLock[`BlockInfoManager` is requested to downgrade an exclusive write lock for `blockId` to a shared read lock].
 
-For successful save and `keepReadLock` disabled, `blockInfoManager.unlock(blockId)` is called.
+For successful save and `keepReadLock` disabled, link:spark-BlockInfoManager.adoc#unlock[`BlockInfoManager` is requested to release lock on `blockId`].
 
-For unsuccessful save, `blockInfoManager.removeBlock(blockId)` is called and the following WARN message is printed out to the logs:
+For unsuccessful save, <<removeBlockInternal, the block is removed from memory and disk stores>> and the following WARN message is printed out to the logs:
 
 ```
 WARN Putting block [blockId] failed
@@ -164,7 +319,7 @@ Ultimately, the following DEBUG message is printed out to the logs:
 DEBUG Putting block [blockId] [withOrWithout] replication took [usedTime] ms
 ```
 
-=== [[removeBlock]] Removing Block From Memory and Disk (removeBlock method)
+=== [[removeBlock]] Removing Block From Memory and Disk -- `removeBlock` Method
 
 [source, scala]
 ----
@@ -199,7 +354,7 @@ It then <<getCurrentBlockStatus, calculates the current block status>> that is u
 
 NOTE: It is used to <<removeRdd, remove RDDs>> and <<removeBroadcast, broadcast>> as well as in <<BlockManagerSlaveEndpoint-RemoveBlock, BlockManagerSlaveEndpoint while handling `RemoveBlock` messages>>.
 
-=== [[removeRdd]] Removing RDD Blocks (removeRdd method)
+=== [[removeRdd]] Removing RDD Blocks -- `removeRdd` Method
 
 [source, scala]
 ----
@@ -220,7 +375,7 @@ The number of blocks removed is the final result.
 
 NOTE: It is used by <<BlockManagerSlaveEndpoint-RemoveRdd, BlockManagerSlaveEndpoint while handling `RemoveRdd` messages>>.
 
-=== [[removeBroadcast]] Removing Broadcast Blocks (removeBroadcast method)
+=== [[removeBroadcast]] Removing Broadcast Blocks -- `removeBroadcast` Method
 
 [source, scala]
 ----
@@ -241,11 +396,11 @@ The number of blocks removed is the final result.
 
 NOTE: It is used by <<BlockManagerSlaveEndpoint-RemoveBroadcast, BlockManagerSlaveEndpoint while handling `RemoveBroadcast` messages>>.
 
-=== [[getStatus]] Getting Block Status (getStatus method)
+=== [[getStatus]] Getting Block Status -- `getStatus` Method
 
 CAUTION: FIXME
 
-=== [[creating-instance]] Creating BlockManager Instance
+=== [[creating-instance]] Creating `BlockManager` Instance
 
 A `BlockManager` needs the following services to be created:
 
@@ -260,13 +415,13 @@ A `BlockManager` needs the following services to be created:
 * link:spark-blocktransferservice.adoc[BlockTransferService]
 * `SecurityManager`
 
-NOTE: `executorId` is `SparkContext.DRIVER_IDENTIFIER`, i.e. `driver` for the driver and the value of link:spark-executor-backends-coarse-grained.adoc#executor-id[--executor-id] command-line argument for link:spark-executor-backends-coarse-grained.adoc[CoarseGrainedExecutorBackend] executors or link:spark-executor-backends.adoc#MesosExecutorBackend[MesosExecutorBackend].
+NOTE: `executorId` is `SparkContext.DRIVER_IDENTIFIER`, i.e. `driver` for the driver and the value of link:spark-executor-backends-CoarseGrainedExecutorBackend.adoc#executor-id[--executor-id] command-line argument for link:spark-executor-backends-CoarseGrainedExecutorBackend.adoc[CoarseGrainedExecutorBackend] executors or link:spark-executor-backends.adoc#MesosExecutorBackend[MesosExecutorBackend].
 
 CAUTION: FIXME Elaborate on the executor backends and executor ids.
 
-When a `BlockManager` instance is created it sets the internal `externalShuffleServiceEnabled` flag to the value of link:spark-ExternalShuffleService.adoc#spark.shuffle.service.enabled[spark.shuffle.service.enabled] setting.
+When a `BlockManager` instance is created it sets the internal `externalShuffleServiceEnabled` flag to the value of link:spark-ExternalShuffleService.adoc#spark_shuffle_service_enabled[spark.shuffle.service.enabled] setting.
 
-It creates an instance of <<DiskBlockManager, DiskBlockManager>> (requesting `deleteFilesOnStop` when an external shuffle service is not in use).
+It then creates an instance of link:spark-DiskBlockManager.adoc[DiskBlockManager] (requesting `deleteFilesOnStop` when an external shuffle service is not in use).
 
 It creates an instance of link:spark-BlockInfoManager.adoc[BlockInfoManager] (as `blockInfoManager`).
 
@@ -276,7 +431,9 @@ It creates a link:spark-MemoryStore.adoc[MemoryStore] and link:spark-DiskStore.a
 
 link:spark-MemoryManager.adoc[MemoryManager] gets the link:spark-MemoryStore.adoc[MemoryStore] object assigned.
 
-It requests the current maximum memory from `MemoryManager` (using `maxOnHeapStorageMemory` as `maxMemory`).
+It calculates the maximum memory to use (as `maxMemory`) by requesting the maximum link:spark-MemoryManager.adoc#maxOnHeapStorageMemory[on-heap] and link:spark-MemoryManager.adoc#maxOffHeapStorageMemory[off-heap] storage memory from the assigned `MemoryManager`.
+
+NOTE: link:spark-UnifiedMemoryManager.adoc[UnifiedMemoryManager] is the default `MemoryManager` (as of Spark 1.6).
 
 It calculates the port used by the external shuffle service (as `externalShuffleServicePort`).
 
@@ -292,33 +449,38 @@ It <<BlockManagerSlaveEndpoint, registers BlockManagerSlaveEndpoint>> with the i
 
 NOTE: A `BlockManager` instance is created while link:spark-sparkenv.adoc#create[SparkEnv is being created].
 
-=== [[shuffleClient]] shuffleClient
+=== [[shuffleClient]] `shuffleClient`
 
 CAUTION: FIXME
 
 (that is assumed to be a link:spark-shuffleclient.adoc#ExternalShuffleClient[ExternalShuffleClient])
 
-=== [[shuffleServerId]] shuffleServerId
+=== [[shuffleServerId]] `shuffleServerId`
 
 CAUTION: FIXME
 
-=== [[initialize]] Initializing BlockManager (initialize method)
+=== [[initialize]] Initializing `BlockManager` -- `initialize` Method
 
 [source, scala]
 ----
 initialize(appId: String): Unit
 ----
 
-`initialize` method is called to initialize the `BlockManager` instance on the driver and executors (see link:spark-sparkcontext.adoc#creating-instance[Creating SparkContext Instance] and link:spark-executor.adoc#creating-instance[Creating Executor Instance], respectively).
+`initialize` initializes a `BlockManager` on the driver and executors (see link:spark-sparkcontext.adoc#creating-instance[Creating SparkContext Instance] and link:spark-executor.adoc#creating-instance[Creating Executor Instance], respectively).
 
 NOTE: The method must be called before a `BlockManager` can be considered fully operable.
 
-It does the following:
+`initialize` does the following in order:
 
-1. It initializes link:spark-blocktransferservice.adoc[BlockTransferService].
-2. It initializes a shuffle client, be it link:spark-shuffleclient.adoc#ExternalShuffleClient[ExternalShuffleClient] or link:spark-blocktransferservice.adoc[BlockTransferService].
-3. It sets <<shuffleServerId, shuffleServerId>> to an instance of <<BlockManagerId, BlockManagerId>> given an executor id, host name and port for link:spark-blocktransferservice.adoc[BlockTransferService].
-4. It creates the address of the server that serves this executor's shuffle files (using <<shuffleServerId, shuffleServerId>>)
+1. Initializes link:spark-blocktransferservice.adoc#init[BlockTransferService]
+2. Initializes the internal shuffle client, be it link:spark-shuffleclient.adoc#ExternalShuffleClient[ExternalShuffleClient] or link:spark-blocktransferservice.adoc[BlockTransferService].
+3. link:spark-BlockManagerMaster.adoc#registerBlockManager[Registers itself with the driver's `BlockManagerMaster`] (using the `id`, `maxMemory` and its `slaveEndpoint`).
++
+The `BlockManagerMaster` reference is passed in when the <<creating-instance, `BlockManager` is created>> on the driver and executors.
+4. Sets <<shuffleServerId, shuffleServerId>> to an instance of <<BlockManagerId, BlockManagerId>> given an executor id, host name and port for link:spark-blocktransferservice.adoc[BlockTransferService].
+5. It creates the address of the server that serves this executor's shuffle files (using <<shuffleServerId, shuffleServerId>>)
+
+CAUTION: FIXME Review the initialize procedure again
 
 CAUTION: FIXME Describe `shuffleServerId`. Where is it used?
 
@@ -332,9 +494,9 @@ It link:spark-BlockManagerMaster.adoc#registerBlockManager[registers itself to t
 
 Ultimately, if the initialization happens on an executor and the <<externalShuffleServiceEnabled, External Shuffle Service is used>>, it <<registerWithExternalShuffleServer, registers to the shuffle service>>.
 
-NOTE: The method is called when the link:spark-sparkcontext-creating-instance-internals.adoc#BlockManager-initialization[driver is launched (and `SparkContext` is created)] and when an link:spark-executor.adoc#creating-instance[Executor is launched].
+NOTE: `initialize` is called when the link:spark-sparkcontext-creating-instance-internals.adoc#BlockManager-initialization[driver is launched (and `SparkContext` is created)] and when an link:spark-executor.adoc#creating-instance[`Executor` is created] (for link:spark-executor-backends-CoarseGrainedExecutorBackend.adoc#RegisteredExecutor[CoarseGrainedExecutorBackend] and link:spark-executor-backends.adoc#MesosExecutorBackend[MesosExecutorBackend]).
 
-==== [[registerWithExternalShuffleServer]] Registering Executor's BlockManager with External Shuffle Server (registerWithExternalShuffleServer method)
+==== [[registerWithExternalShuffleServer]] Registering Executor's BlockManager with External Shuffle Server -- `registerWithExternalShuffleServer` Method
 
 [source, scala]
 ----
@@ -353,7 +515,7 @@ INFO Registering executor with local external shuffle service.
 
 It uses <<shuffleClient, shuffleClient>> to link:spark-shuffleclient.adoc#ExternalShuffleClient-registerWithShuffleServer[register the block manager] using <<shuffleServerId, shuffleServerId>> (i.e. the host, the port and the executorId) and a `ExecutorShuffleInfo`.
 
-NOTE: The `ExecutorShuffleInfo` uses `localDirs` and `subDirsPerLocalDir` from <<DiskBlockManager, DiskBlockManager>> and the class name of the constructor link:spark-shuffle-manager.adoc[ShuffleManager].
+NOTE: The `ExecutorShuffleInfo` uses `localDirs` and `subDirsPerLocalDir` from link:spark-DiskBlockManager.adoc[DiskBlockManager] and the class name of the constructor link:spark-shuffle-manager.adoc[ShuffleManager].
 
 It tries to register at most 3 times with 5-second sleeps in-between.
 
@@ -365,22 +527,20 @@ Any issues while connecting to the external shuffle service are reported as ERRO
 ERROR Failed to connect to external shuffle server, will retry [#attempts] more times after waiting 5 seconds...
 ```
 
-=== [[reregister]] Re-registering Blocks to Driver (reregister method)
+=== [[reregister]] Re-registering Blocks to Driver -- `reregister` Method
 
 [source, scala]
 ----
 reregister(): Unit
 ----
 
-When is called, you should see the following INFO in the logs:
+When called, `reregister` prints the following INFO message to the logs:
 
 ```
-INFO BlockManager: BlockManager re-registering with master
+INFO BlockManager: BlockManager [blockManagerId] re-registering with master
 ```
 
-It link:spark-BlockManagerMaster.adoc#registerBlockManager[registers itself to the driver's BlockManagerMaster] (just as it was when <<initialize, BlockManager was initializing>>). It passes the <<BlockManagerId, BlockManagerId>>, the maximum memory (as `maxMemory`), and the <<BlockManagerSlaveEndpoint, BlockManagerSlaveEndpoint>>.
-
-CAUTION: FIXME Where is `maxMemory` used once passed to the driver?
+`reregister` then link:spark-BlockManagerMaster.adoc#registerBlockManager[registers itself to the driver's `BlockManagerMaster`] (just as it was when <<initialize, BlockManager was initializing>>). It passes the <<BlockManagerId, BlockManagerId>>, the maximum memory (as `maxMemory`), and the <<BlockManagerSlaveEndpoint, BlockManagerSlaveEndpoint>>.
 
 `reregister` will then report all the local blocks to the link:spark-BlockManagerMaster.adoc[BlockManagerMaster].
 
@@ -400,28 +560,28 @@ ERROR BlockManager: Failed to report [blockId] to master; giving up.
 
 After the ERROR message, `reregister` stops reporting.
 
-NOTE: `reregister` is called by link:spark-executor.adoc#heartbeats-and-active-task-metrics[Executor when it was told to re-register while sending heartbeats].
+NOTE: `reregister` is called when a link:spark-executor.adoc#heartbeats-and-active-task-metrics[`Executor` was informed to re-register while sending heartbeats].
 
-=== [[getCurrentBlockStatus]] Calculate Current Block Status (getCurrentBlockStatus method)
+=== [[getCurrentBlockStatus]] Calculate Current Block Status -- `getCurrentBlockStatus` Method
 
 [source, scala]
 ----
 getCurrentBlockStatus(blockId: BlockId, info: BlockInfo): BlockStatus
 ----
 
-`getCurrentBlockStatus` returns the current `BlockStatus` of the `BlockId` block (with the block's current link:spark-rdd-caching.adoc#StorageLevel[StorageLevel], memory and disk sizes). It uses link:spark-MemoryStore.adoc[MemoryStore] and link:spark-DiskStore.adoc[DiskStore] for size and other information.
+`getCurrentBlockStatus` returns the current `BlockStatus` of the `BlockId` block (with the block's current link:spark-rdd-StorageLevel.adoc[StorageLevel], memory and disk sizes). It uses link:spark-MemoryStore.adoc[MemoryStore] and link:spark-DiskStore.adoc[DiskStore] for size and other information.
 
 NOTE: Most of the information to build `BlockStatus` is already in `BlockInfo` except that it may not necessarily reflect the current state per link:spark-MemoryStore.adoc[MemoryStore] and link:spark-DiskStore.adoc[DiskStore].
 
-Internally, it uses the input link:spark-BlockInfo.adoc[BlockInfo] to know about the block's storage level. If the storage level is not set (i.e. `null`), the returned `BlockStatus` assumes the link:spark-rdd-caching.adoc#StorageLevel[default NONE storage level] and the memory and disk sizes being `0`.
+Internally, it uses the input link:spark-BlockInfo.adoc[BlockInfo] to know about the block's storage level. If the storage level is not set (i.e. `null`), the returned `BlockStatus` assumes the link:spark-rdd-StorageLevel.adoc[default `NONE` storage level] and the memory and disk sizes being `0`.
 
-If however the storage level is set, `getCurrentBlockStatus` uses link:spark-MemoryStore.adoc[MemoryStore] or link:spark-DiskStore.adoc[DiskStore] to check whether the block is stored in the storages or not and request for their sizes in the storages respectively (using their `getSize` or assume `0`).
+If however the storage level is set, `getCurrentBlockStatus` uses link:spark-MemoryStore.adoc[MemoryStore] and link:spark-DiskStore.adoc[DiskStore] to check whether the block is stored in the storages or not and request for their sizes in the storages respectively (using their `getSize` or assume `0`).
 
 NOTE: It is acceptable that the `BlockInfo` says to use memory or disk yet the block is not in the storages (yet or anymore). The method will give current status.
 
 NOTE: `getCurrentBlockStatus` is used when <<reregister, executor's BlockManager is requested to report the current status of the local blocks to the master>>, <<doPutBytes, saving a block to a storage>> or <<dropFromMemory, removing a block from memory only>> or <<removeBlock, both, i.e. from memory and disk>>.
 
-=== [[dropFromMemory]] Removing Blocks From Memory Only (dropFromMemory method)
+=== [[dropFromMemory]] Removing Blocks From Memory Only -- `dropFromMemory` Method
 
 [source, scala]
 ----
@@ -438,7 +598,7 @@ INFO BlockManager: Dropping block [blockId] from memory
 
 It then asserts that the `blockId` block is link:spark-BlockInfoManager.adoc#assertBlockIsLockedForWriting[locked for writing].
 
-If the block's StorageLevel uses disks and the internal link:spark-DiskStore.adoc[DiskStore] object (`diskStore`) does not contain the block, it is saved then. You should see the following INFO message in the logs:
+If the block's link:spark-rdd-StorageLevel.adoc[StorageLevel] uses disks and the internal link:spark-DiskStore.adoc[DiskStore] object (`diskStore`) does not contain the block, it is saved then. You should see the following INFO message in the logs:
 
 ```
 INFO BlockManager: Writing block [blockId] to disk
@@ -464,7 +624,13 @@ Ultimately, `dropFromMemory` returns the current storage level of the block.
 
 NOTE: `dropFromMemory` is part of the single-method <<BlockEvictionHandler, BlockEvictionHandler>> interface.
 
-=== [[reportBlockStatus]] Reporting Current Storage Status of Block to Driver (reportBlockStatus method)
+=== [[reportAllBlocks]] `reportAllBlocks` Method
+
+CAUTION: FIXME
+
+NOTE: `reportAllBlocks` is called when `BlockManager` is requested to <<reregister, re-register all blocks to the driver>>.
+
+=== [[reportBlockStatus]] Reporting Current Storage Status of Block to Driver -- `reportBlockStatus` Method
 
 [source, scala]
 ----
@@ -489,9 +655,9 @@ In either case, it prints out the following DEBUG message to the logs:
 DEBUG BlockManager: Told master about block [blockId]
 ```
 
-NOTE: `reportBlockStatus` is called by <<doPutBytes, doPutBytes>>, <<doPutIterator, doPutIterator>>, <<dropFromMemory, dropFromMemory>>, and <<removeBlock, removeBlock>>.
+NOTE: `reportBlockStatus` is called by <<getBlockData, getBlockData>>, <<doPutBytes, doPutBytes>>, <<doPutIterator, doPutIterator>>, <<dropFromMemory, dropFromMemory>> and <<removeBlockInternal, removeBlockInternal>>.
 
-==== [[tryToReportBlockStatus]] tryToReportBlockStatus
+=== [[tryToReportBlockStatus]] Reporting Block Status to Driver -- `tryToReportBlockStatus` Method
 
 [source, scala]
 ----
@@ -502,11 +668,9 @@ def tryToReportBlockStatus(
   droppedMemorySize: Long = 0L): Boolean
 ----
 
-`tryToReportBlockStatus` is an internal method to report block status to the driver.
+`tryToReportBlockStatus` is an internal method to link:spark-BlockManagerMaster.adoc#updateBlockInfo[report block status update to `BlockManagerMaster`] and returns its response.
 
-It executes link:spark-BlockManagerMaster.adoc#updateBlockInfo[BlockManagerMaster.updateBlockInfo] only if the state changes should be reported to the driver (i.e. `info.tellMaster` is enabled).
-
-It returns `true` or link:spark-BlockManagerMaster.adoc#updateBlockInfo[BlockManagerMaster.updateBlockInfo]'s response.
+NOTE: `tryToReportBlockStatus` is executed in <<reportAllBlocks, reportAllBlocks>> or <<reportBlockStatus, reportBlockStatus>>.
 
 === [[BlockEvictionHandler]] BlockEvictionHandler
 
@@ -695,14 +859,14 @@ GetBlockStatus(blockId: BlockId)
 
 When a `GetBlockStatus` message comes in, it responds with the result of <<getStatus, calling BlockManager about the status of `blockId`>>.
 
-==== [[BlockManagerSlaveEndpoint-GetMatchingBlockIds]] GetMatchingBlockIds Message
+==== [[BlockManagerSlaveEndpoint-GetMatchingBlockIds]] `GetMatchingBlockIds` Message
 
 [source, scala]
 ----
-GetMatchingBlockIds(filter: BlockId => Boolean)
+GetMatchingBlockIds(filter: BlockId => Boolean, askSlaves: Boolean = true)
 ----
 
-When a `GetMatchingBlockIds` message comes in, it responds with the result of <<getMatchingBlockIds, calling BlockManager for matching blocks for `filter`>>.
+`GetMatchingBlockIds` triggers a computation of <<getMatchingBlockIds, the memory and disk blocks matching `filter`>> and sends it back.
 
 ==== [[BlockManagerSlaveEndpoint-TriggerThreadDump]] TriggerThreadDump Message
 
@@ -718,7 +882,7 @@ NOTE: `BlockManagerSlaveEndpoint` uses Java's https://docs.oracle.com/javase/8/d
 
 === [[broadcast]] Broadcast Values
 
-When a new broadcast value is created, link:spark-broadcast.adoc#TorrentBroadcast[TorrentBroadcast] blocks are put in the block manager.
+When a new broadcast value is created, link:spark-TorrentBroadcast.adoc[TorrentBroadcast] blocks are put in the block manager.
 
 You should see the following `TRACE` message:
 
@@ -735,16 +899,6 @@ DEBUG Put block [blockId] locally took [startTimeMs]
 === [[BlockManagerId]] BlockManagerId
 
 FIXME
-
-=== [[DiskBlockManager]] DiskBlockManager
-
-DiskBlockManager creates and maintains the logical mapping between logical blocks and physical on-disk locations.
-
-By default, one block is mapped to one file with a name given by its BlockId. It is however possible to have a block map to only a segment of a file.
-
-Block files are hashed among the directories listed in `spark.local.dir` (or in `SPARK_LOCAL_DIRS` if set).
-
-CAUTION: FIXME Review me.
 
 === [[execution-context]] Execution Context
 
@@ -768,3 +922,16 @@ It emits the following numbers:
 The underlying abstraction for blocks in Spark is a `ByteBuffer` that limits the size of a block to 2GB (`Integer.MAX_VALUE` - see http://stackoverflow.com/q/8076472/1305344[Why does FileChannel.map take up to Integer.MAX_VALUE of data?] and https://issues.apache.org/jira/browse/SPARK-1476[SPARK-1476 2GB limit in spark for blocks]). This has implication not just for managed blocks in use, but also for shuffle blocks (memory mapped blocks are limited to 2GB, even though the API allows for `long`), ser-deser via byte array-backed output streams.
 
 When a non-local executor starts, it initializes a `BlockManager` object for the `spark.app.id` id.
+
+=== [[BlockResult]] BlockResult
+
+`BlockResult` is a description of a fetched block with the `readMethod` and `bytes`.
+
+=== [[settings]] Settings
+
+.Spark Properties
+[frame="topbot",cols="1,1,2",options="header",width="100%"]
+|======================
+| Spark Property | Default Value | Description
+| [[spark_blockManager_port]] `spark.blockManager.port` | `0` | Port to use for the block manager when a more specific setting for the driver or executors is not provided.
+|======================

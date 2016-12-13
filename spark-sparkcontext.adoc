@@ -1,4 +1,4 @@
-== [[SparkContext]] SparkContext -- Entry Point to Spark
+== [[SparkContext]] `SparkContext` -- Entry Point to Spark (Core)
 
 `SparkContext` (aka *Spark context*) is the entry point to Spark for a Spark application.
 
@@ -6,7 +6,7 @@ NOTE: You could also assume that a SparkContext instance _is_ a Spark applicatio
 
 It link:spark-sparkcontext-creating-instance-internals.adoc[sets up internal services] and establishes a connection to a link:spark-deployment-environments.adoc[Spark execution environment (deployment mode)].
 
-Once a <<creating-instance, `SparkContext` instance is created>> you can use it to <<creating-rdds, create RDDs>>, <<creating-accumulators, accumulators>> and <<creating-broadcast-variables, broadcast variables>>, access Spark services and <<running-jobs, run jobs>>.
+Once a <<creating-instance, `SparkContext` instance is created>> you can use it to <<creating-rdds, create RDDs>>, <<creating-accumulators, accumulators>> and <<broadcast, broadcast variables>>, access Spark services and <<runJob, run jobs>> (until `SparkContext` is <<stop, stopped>>).
 
 A Spark context is essentially a client of Spark's execution environment and acts as the _master of your Spark application_ (don't get confused with the other meaning of link:spark-master.adoc[Master] in Spark, though).
 
@@ -25,16 +25,20 @@ image::diagrams/sparkcontext-services.png[align="center"]
 ** <<startTime, the time (in milliseconds) when `SparkContext` was created>>
 ** <<version, Spark version>>
 
-* Setting configuration
-** <<master-url, mandatory master URL>>
-** <<setting-local-properties, local properties>>
-** <<setting-default-log-level, default log level>>
-* Creating objects
+* Setting Configuration
+** <<master-url, master URL>>
+** link:spark-sparkcontext-local-properties.adoc[Local Properties -- Creating Logical Job Groups]
+** <<setting-default-log-level, Default Logging Level>>
+
+* Creating Distributed Entities
 ** <<creating-rdds, RDDs>>
-** <<creating-accumulators, accumulators>>
-** <<creating-broadcast-variables, broadcast variables>>
-* Accessing services, e.g. link:spark-taskscheduler.adoc[TaskScheduler], link:spark-LiveListenerBus.adoc[LiveListenerBus], link:spark-blockmanager.adoc[BlockManager], link:spark-scheduler-backends.adoc[SchedulerBackends], link:spark-shuffle-manager.adoc[ShuffleManager].
-* <<running-jobs, Running jobs>>
+** <<creating-accumulators, Accumulators>>
+** <<broadcast, Broadcast variables>>
+
+* Accessing services, e.g. link:spark-taskscheduler.adoc[TaskScheduler], link:spark-LiveListenerBus.adoc[LiveListenerBus], link:spark-blockmanager.adoc[BlockManager], link:spark-scheduler-backends.adoc[SchedulerBackends], link:spark-shuffle-manager.adoc[ShuffleManager] and the <<cleaner, optional ContextCleaner>>.
+
+* <<runJob, Running jobs>>
+* <<cancelJob, Cancelling job>>
 * <<custom-schedulers, Setting up custom Scheduler Backend, TaskScheduler and DAGScheduler>>
 * <<closure-cleaning, Closure Cleaning>>
 * <<submitJob, Submitting Jobs Asynchronously>>
@@ -57,11 +61,20 @@ log4j.logger.org.apache.spark.SparkContext=INFO
 Refer to link:spark-logging.adoc[Logging].
 ====
 
+=== [[cancelJob]] Cancelling Job -- `cancelJob` Method
+
+[source, scala]
+----
+cancelJob(jobId: Int)
+----
+
+`cancelJob` requests link:spark-dagscheduler.adoc#cancelJob[`DAGScheduler` to cancel a Spark job] `jobId`.
+
 === [[persistentRdds]] Persisted RDDs
 
 CAUTION: FIXME
 
-=== [[persistRDD]] persistRDD
+=== [[persistRDD]] `persistRDD` Method
 
 [source, scala]
 ----
@@ -79,16 +92,16 @@ persistRDD(rdd: RDD[_])
 * <<requestTotalExecutors, requestTotalExecutors>>
 * (private!) <<getExecutorIds, getExecutorIds>>
 
-==== [[requestExecutors]] Requesting New Executors -- `requestExecutors` method
+==== [[requestExecutors]] Requesting New Executors -- `requestExecutors` Method
 
 [source, scala]
 ----
 requestExecutors(numAdditionalExecutors: Int): Boolean
 ----
 
-`requestExecutors` requests `numAdditionalExecutors` executors from link:spark-scheduler-backends-coarse-grained.adoc[CoarseGrainedSchedulerBackend].
+`requestExecutors` requests `numAdditionalExecutors` executors from link:spark-scheduler-backends-CoarseGrainedSchedulerBackend.adoc[CoarseGrainedSchedulerBackend].
 
-==== [[killExecutors]] Requesting to Kill Executors -- `killExecutors` method
+==== [[killExecutors]] Requesting to Kill Executors -- `killExecutors` Method
 
 [source, scala]
 ----
@@ -97,7 +110,7 @@ killExecutors(executorIds: Seq[String]): Boolean
 
 CAUTION: FIXME
 
-==== [[requestTotalExecutors]] Requesting Total Executors -- `requestTotalExecutors` method
+==== [[requestTotalExecutors]] Requesting Total Executors -- `requestTotalExecutors` Method
 
 [source, scala]
 ----
@@ -107,9 +120,9 @@ requestTotalExecutors(
   hostToLocalTaskCount: Map[String, Int]): Boolean
 ----
 
-`requestTotalExecutors` is a `private[spark]` method that link:spark-scheduler-backends-coarse-grained.adoc#requestTotalExecutors[requests the exact number of executors from a coarse-grained scheduler backend].
+`requestTotalExecutors` is a `private[spark]` method that link:spark-scheduler-backends-CoarseGrainedSchedulerBackend.adoc#requestTotalExecutors[requests the exact number of executors from a coarse-grained scheduler backend].
 
-NOTE: It works for link:spark-scheduler-backends-coarse-grained.adoc[coarse-grained scheduler backends] only.
+NOTE: It works for link:spark-scheduler-backends-CoarseGrainedSchedulerBackend.adoc[coarse-grained scheduler backends] only.
 
 When called for other scheduler backends you should see the following WARN message in the logs:
 
@@ -117,11 +130,11 @@ When called for other scheduler backends you should see the following WARN messa
 WARN Requesting executors is only supported in coarse-grained mode
 ```
 
-==== [[getExecutorIds]] Getting Executor Ids -- `getExecutorIds` method
+==== [[getExecutorIds]] Getting Executor Ids -- `getExecutorIds` Method
 
-`getExecutorIds` is a `private[spark]` method that is a part of link:spark-service-ExecutorAllocationClient.adoc[ExecutorAllocationClient contract]. It simply link:spark-scheduler-backends-coarse-grained.adoc#getExecutorIds[passes the call on to the current coarse-grained scheduler backend, i.e. calls `getExecutorIds`].
+`getExecutorIds` is a `private[spark]` method that is a part of link:spark-service-ExecutorAllocationClient.adoc[ExecutorAllocationClient contract]. It simply link:spark-scheduler-backends-CoarseGrainedSchedulerBackend.adoc#getExecutorIds[passes the call on to the current coarse-grained scheduler backend, i.e. calls `getExecutorIds`].
 
-NOTE: It works for link:spark-scheduler-backends-coarse-grained.adoc[coarse-grained scheduler backends] only.
+NOTE: It works for link:spark-scheduler-backends-CoarseGrainedSchedulerBackend.adoc[coarse-grained scheduler backends] only.
 
 When called for other scheduler backends you should see the following WARN message in the logs:
 
@@ -131,13 +144,13 @@ WARN Requesting executors is only supported in coarse-grained mode
 
 CAUTION: FIXME Why does SparkContext implement the method for coarse-grained scheduler backends? Why doesn't SparkContext throw an exception when the method is called? Nobody seems to be using it (!)
 
-=== [[creating-instance]] Creating SparkContext
+=== [[creating-instance]] Creating `SparkContext` Instance
 
 You can create a `SparkContext` instance with or without creating a link:spark-configuration.adoc[SparkConf] object first.
 
 NOTE: You may want to read link:spark-sparkcontext-creating-instance-internals.adoc[Inside Creating SparkContext] to learn what happens behind the scenes when `SparkContext` is created.
 
-==== [[getOrCreate]] Getting Existing or Creating New SparkContext (getOrCreate methods)
+==== [[getOrCreate]] Getting Existing or Creating New SparkContext -- `getOrCreate` Methods
 
 [source, scala]
 ----
@@ -145,7 +158,7 @@ getOrCreate(): SparkContext
 getOrCreate(conf: SparkConf): SparkContext
 ----
 
-`SparkContext.getOrCreate` methods allow you to get the existing `SparkContext` or create a new one.
+`getOrCreate` methods allow you to get the existing `SparkContext` or create a new one.
 
 [source, scala]
 ----
@@ -198,7 +211,7 @@ INFO SparkContext: Running Spark version 2.0.0-SNAPSHOT
 
 NOTE: Only one SparkContext may be running in a single JVM (check out https://issues.apache.org/jira/browse/SPARK-2243[SPARK-2243 Support multiple SparkContexts in the same JVM]). Sharing access to a SparkContext in the JVM is the solution to share data within Spark (without relying on other means of data sharing using external data stores).
 
-=== [[getConf]] Getting Current SparkConf (getConf method)
+=== [[getConf]] Getting Current `SparkConf` -- `getConf` Method
 
 [source, scala]
 ----
@@ -209,7 +222,7 @@ getConf: SparkConf
 
 NOTE: Changing the `SparkConf` object does not change the current configuration (as the method returns a copy).
 
-=== [[master]][[master-url]] Getting Deployment Environment (master method)
+=== [[master]][[master-url]] Getting Deployment Environment -- `master` Method
 
 [source, scala]
 ----
@@ -218,7 +231,7 @@ master: String
 
 `master` method returns the current value of link:spark-configuration.adoc#spark.master[spark.master] which is the link:spark-deployment-environments.adoc[deployment environment] in use.
 
-=== [[appName]] Getting Application Name (appName method)
+=== [[appName]] Getting Application Name -- `appName` Method
 
 [source, scala]
 ----
@@ -227,9 +240,9 @@ appName: String
 
 `appName` returns the value of the mandatory link:spark-configuration.adoc#spark.app.name[spark.app.name] setting.
 
-NOTE: It is used in link:spark-standalone.adoc#SparkDeploySchedulerBackend[SparkDeploySchedulerBackend (to create a ApplicationDescription when it starts)], for link:spark-webui.adoc#SparkUI-createLiveUI[SparkUI.createLiveUI] (when link:spark-webui.adoc#spark.ui.enabled[spark.ui.enabled] is enabled), when `postApplicationStart` is executed, and for Mesos and checkpointing in Spark Streaming.
+NOTE: `appName` is used when link:spark-standalone.adoc#SparkDeploySchedulerBackend[`SparkDeploySchedulerBackend` starts], link:spark-webui-SparkUI.adoc#createLiveUI[`SparkUI` creates a web UI], when `postApplicationStart` is executed, and for Mesos and checkpointing in Spark Streaming.
 
-=== [[deployMode]] Getting Deploy Mode (deployMode method)
+=== [[deployMode]] Getting Deploy Mode -- `deployMode` Method
 
 [source,scala]
 ----
@@ -238,7 +251,7 @@ deployMode: String
 
 `deployMode` returns the current value of link:spark-deploy-mode.adoc[spark.submit.deployMode] setting or `client` if not set.
 
-=== [[getSchedulingMode]] Getting Scheduling Mode (getSchedulingMode method)
+=== [[getSchedulingMode]] Getting Scheduling Mode -- `getSchedulingMode` Method
 
 [source, scala]
 ----
@@ -247,7 +260,7 @@ getSchedulingMode: SchedulingMode.SchedulingMode
 
 `getSchedulingMode` returns the current link:spark-taskscheduler-schedulingmode.adoc[Scheduling Mode].
 
-=== [[getPoolForName]] Getting Schedulable (Pool) by Name (getPoolForName method)
+=== [[getPoolForName]] Getting Schedulable (Pool) by Name -- `getPoolForName` Method
 
 [source, scala]
 ----
@@ -262,7 +275,7 @@ Internally, it requests the link:spark-taskscheduler.adoc#rootPool[TaskScheduler
 
 It is exclusively used to link:spark-webui-PoolPage.adoc[show pool details in web UI (for a stage)].
 
-=== [[getAllPools]] Getting All Pools (getAllPools method)
+=== [[getAllPools]] Getting All Pools -- `getAllPools` Method
 
 [source, scala]
 ----
@@ -283,11 +296,11 @@ NOTE: `getAllPools` is used to calculate pool names for link:spark-webui-AllStag
 
 *Default level of parallelism* is the number of link:spark-rdd-partitions.adoc[partitions] in RDDs when created without specifying them explicitly by a user.
 
-It is used for the methods like `SparkContext.parallelize`, `SparkContext.range` and `SparkContext.makeRDD` (as well as link:spark-streaming/spark-streaming.adoc[Spark Streaming]'s `DStream.countByValue` and `DStream.countByValueAndWindow` and few other places). It is also used to instantiate link:spark-rdd-partitions.adoc#HashPartitioner[HashPartitioner] or for the minimum number of partitions in link:spark-rdd-hadooprdd.adoc[HadoopRDDs].
+It is used for the methods like `SparkContext.parallelize`, `SparkContext.range` and `SparkContext.makeRDD` (as well as link:spark-streaming/spark-streaming.adoc[Spark Streaming]'s `DStream.countByValue` and `DStream.countByValueAndWindow` and few other places). It is also used to instantiate link:spark-rdd-HashPartitioner.adoc[HashPartitioner] or for the minimum number of partitions in link:spark-rdd-hadooprdd.adoc[HadoopRDDs].
 
 Internally, `defaultParallelism` relays requests for the default level of parallelism to link:spark-taskscheduler.adoc#defaultParallelism[TaskScheduler] (it is a part of its contract).
 
-=== [[version]] Getting Spark Version
+=== [[version]] Getting Spark Version -- `version` Property
 
 [source, scala]
 ----
@@ -296,58 +309,25 @@ version: String
 
 `version` returns the Spark version this `SparkContext` uses.
 
-=== [[setting-local-properties]][[setLocalProperty]] Setting Local Properties
-
-[source, scala]
-----
-setLocalProperty(key: String, value: String): Unit
-----
-
-`setLocalProperty` sets a local thread-scoped `key` property to `value`.
-
-[source, scala]
-----
-sc.setLocalProperty("spark.scheduler.pool", "myPool")
-----
-
-The goal of the local property concept is to differentiate between or group jobs submitted from different threads by local properties.
-
-NOTE: It is used to link:spark-taskscheduler-FairSchedulableBuilder.adoc#spark.scheduler.pool[group jobs into pools in FAIR job scheduler by spark.scheduler.pool per-thread property] and in link:spark-sql-SQLExecution.adoc#withNewExecutionId[SQLExecution.withNewExecutionId Helper Methods]
-
-If `value` is `null` the `key` property is removed the `key` from the local properties
-
-[source, scala]
-----
-sc.setLocalProperty("spark.scheduler.pool", null)
-----
-
-A common use case for the local property concept is to set a local property in a thread, say link:spark-taskscheduler-FairSchedulableBuilder.adoc[spark.scheduler.pool], after which all jobs submitted within the thread will be grouped, say into a pool by FAIR job scheduler.
-
-[source, scala]
-----
-val rdd = sc.parallelize(0 to 9)
-
-sc.setLocalProperty("spark.scheduler.pool", "myPool")
-
-// these two jobs (one per action) will run in the myPool pool
-rdd.count
-rdd.collect
-
-sc.setLocalProperty("spark.scheduler.pool", null)
-
-// this job will run in the default pool
-rdd.count
-----
-
-=== [[makeRDD]] SparkContext.makeRDD
+=== [[makeRDD]] `makeRDD` Method
 
 CAUTION: FIXME
 
-=== [[submitJob]] Submitting Jobs Asynchronously
+=== [[submitJob]] Submitting Jobs Asynchronously -- `submitJob` Method
 
-`SparkContext.submitJob` submits a job in an asynchronous, non-blocking way (using link:spark-dagscheduler.adoc#submitJob[DAGScheduler.submitJob] method).
+[source, scala]
+----
+submitJob[T, U, R](
+  rdd: RDD[T],
+  processPartition: Iterator[T] => U,
+  partitions: Seq[Int],
+  resultHandler: (Int, U) => Unit,
+  resultFunc: => R): SimpleFutureAction[R]
+----
 
-It cleans the `processPartition` input function argument and returns an instance of link:spark-rdd-actions.adoc#FutureAction[SimpleFutureAction] that holds the link:link:spark-dagscheduler.adoc#JobWaiter[JobWaiter] instance (it has received from `DAGScheduler.submitJob`).
+`submitJob` submits a job in an asynchronous, non-blocking way to link:spark-dagscheduler.adoc#submitJob[DAGScheduler].
+
+It cleans the `processPartition` input function argument and returns an instance of link:spark-rdd-actions.adoc#FutureAction[SimpleFutureAction] that holds the link:spark-dagscheduler-JobListener.adoc#JobWaiter[JobWaiter] instance.
 
 CAUTION: FIXME What are `resultFunc`?
 
@@ -369,7 +349,7 @@ When an RDD is created, it belongs to and is completely owned by the Spark conte
 .A Spark context creates a living space for RDDs.
 image::diagrams/sparkcontext-rdds.png[align="center"]
 
-=== [[creating-rdds]][[parallelize]] Creating RDD
+=== [[creating-rdds]][[parallelize]] Creating RDD -- `parallelize` Method
 
 `SparkContext` allows you to create many different RDDs from input sources like:
 
@@ -379,13 +359,13 @@ image::diagrams/sparkcontext-rdds.png[align="center"]
 
 Read link:spark-rdd.adoc#creating-rdds[Creating RDDs] in link:spark-rdd.adoc[RDD - Resilient Distributed Dataset].
 
-=== [[unpersist]] Unpersisting RDDs (Marking RDDs as non-persistent)
+=== [[unpersist]] Unpersisting RDDs (Marking RDDs as non-persistent) -- `unpersist` Method
 
 It removes an RDD from the master's link:spark-blockmanager.adoc[Block Manager] (calls `removeRdd(rddId: Int, blocking: Boolean)`) and the internal <<persistentRdds, persistentRdds>> mapping.
 
 It finally posts link:spark-SparkListener.adoc#SparkListenerUnpersistRDD[SparkListenerUnpersistRDD] message to `listenerBus`.
 
-=== [[setCheckpointDir]] Setting Checkpoint Directory (setCheckpointDir method)
+=== [[setCheckpointDir]] Setting Checkpoint Directory -- `setCheckpointDir` Method
 
 [source, scala]
 ----
@@ -396,7 +376,7 @@ setCheckpointDir(directory: String)
 
 CAUTION: FIXME
 
-=== [[register]] Registering Custom Accumulators (register methods)
+=== [[register]] Registering Custom Accumulators -- `register` Methods
 
 [source, scala]
 ----
@@ -454,30 +434,37 @@ image::images/spark-webui-accumulators.png[align="center"]
 
 TIP: You can register custom accumulators using <<register, register>> methods.
 
-=== [[broadcast]][[creating-broadcast-variables]] Creating Broadcast Variables
+=== [[broadcast]] Creating Broadcast Variable -- `broadcast` Method
 
 [source, scala]
 ----
 broadcast[T](value: T): Broadcast[T]
 ----
 
-`broadcast` method creates a link:spark-broadcast.adoc[broadcast variable] that is a shared memory with `value` on all Spark executors.
+`broadcast` method creates a link:spark-broadcast.adoc[broadcast variable]. It is a shared memory with `value` (as broadcast blocks) on the driver and later on all Spark executors.
 
 ```
+val sc: SparkContext = ???
 scala> val hello = sc.broadcast("hello")
 hello: org.apache.spark.broadcast.Broadcast[String] = Broadcast(0)
 ```
 
-Spark transfers the value to Spark executors _once_, and tasks can share it without incurring repetitive network transmissions when requested multiple times.
+Spark transfers the value to Spark executors _once_, and tasks can share it without incurring repetitive network transmissions when the broadcast variable is used multiple times.
 
 .Broadcasting a value to executors
 image::images/sparkcontext-broadcast-executors.png[align="center"]
 
-When a broadcast value is created the following INFO message appears in the logs:
+Internally, `broadcast` requests the link:spark-service-broadcastmanager.adoc#newBroadcast[current `BroadcastManager` to create a new broadcast variable].
+
+NOTE: The current `BroadcastManager` is available using link:spark-sparkenv.adoc#broadcastManager[`SparkEnv.broadcastManager`] attribute and is always link:spark-service-broadcastmanager.adoc[BroadcastManager] (with few internal configuration changes to reflect where it runs, i.e. inside the driver or executors).
+
+You should see the following INFO message in the logs:
 
 ```
-INFO SparkContext: Created broadcast [id] from broadcast at <console>:25
+INFO SparkContext: Created broadcast [id] from [callSite]
 ```
+
+If `ContextCleaner` is defined, the link:spark-service-contextcleaner.adoc#[new broadcast variable is registered for cleanup].
 
 [NOTE]
 ====
@@ -510,13 +497,16 @@ scala> sc.addJar("build.sbt")
 
 CAUTION: FIXME Why is HttpFileServer used for addJar?
 
-=== SparkContext as the global configuration for services
+=== `SparkContext` as Application-Wide Counter
 
 SparkContext keeps track of:
 
-* shuffle ids using `nextShuffleId` internal field for link:spark-dagscheduler-ShuffleMapStage.adoc[registering shuffle dependencies] to link:spark-shuffle-manager.adoc[Shuffle Service].
+[[nextShuffleId]]
+* shuffle ids using `nextShuffleId` internal counter for link:spark-dagscheduler-ShuffleMapStage.adoc[registering shuffle dependencies] to link:spark-shuffle-manager.adoc[Shuffle Service].
 
-=== [[runJob]][[running-jobs]] Running Jobs (runJob methods)
+=== [[runJob]] Running Job Synchronously -- `runJob` Methods
+
+link:spark-rdd.adoc#actions[RDD actions] run link:spark-dagscheduler-jobs.adoc[jobs] using one of `runJob` methods.
 
 [source, scala]
 ----
@@ -545,100 +535,110 @@ runJob[T, U: ClassTag](
   resultHandler: (Int, U) => Unit)
 ----
 
-link:spark-rdd.adoc#actions[RDD actions] in Spark run link:spark-dagscheduler-jobs.adoc[jobs] using one of `runJob` methods. It executes a function on one or many partitions of a RDD to produce a collection of values per partition.
+`runJob` executes a function on one or many partitions of a RDD (in a `SparkContext` space) to produce a collection of values per partition.
+
+NOTE: `runJob` can only work when a `SparkContext` is _not_ <<stop, stopped>>.
+
+Internally, `runJob` first makes sure that the `SparkContext` is not <<stop, stopped>>. If it is, you should see the following `IllegalStateException` exception in the logs:
+
+```
+java.lang.IllegalStateException: SparkContext has been shutdown
+  at org.apache.spark.SparkContext.runJob(SparkContext.scala:1893)
+  at org.apache.spark.SparkContext.runJob(SparkContext.scala:1914)
+  at org.apache.spark.SparkContext.runJob(SparkContext.scala:1934)
+  ... 48 elided
+```
+
+`runJob` then <<getCallSite, calculates the call site>> and <<clean, cleans a `func` closure>>.
+
+You should see the following INFO message in the logs:
+
+```
+INFO SparkContext: Starting job: [callSite]
+```
+
+With link:spark-rdd-lineage.adoc#spark_logLineage[spark.logLineage] enabled (which is not by default), you should see the following INFO message with link:spark-rdd-lineage.adoc#toDebugString[toDebugString] (executed on `rdd`):
+
+```
+INFO SparkContext: RDD's recursive dependencies:
+[toDebugString]
+```
+
+`runJob` requests  link:spark-dagscheduler.adoc#runJob[`DAGScheduler` to run a job].
+
+TIP: `runJob` just prepares input parameters for link:spark-dagscheduler.adoc#runJob[`DAGScheduler` to run a job].
+
+After `DAGScheduler` is done and the job has finished, `runJob` link:spark-sparkcontext-ConsoleProgressBar.adoc#finishAll[stops `ConsoleProgressBar`] and link:spark-rdd-checkpointing.adoc#doCheckpoint[performs RDD checkpointing of `rdd`].
 
 TIP: For some actions, e.g. `first()` and `lookup()`, there is no need to compute all the partitions of the RDD in a job. And Spark knows it.
 
 [source,scala]
 ----
-import org.apache.spark.TaskContext
+// RDD to work with
+val lines = sc.parallelize(Seq("hello world", "nice to see you"))
 
+import org.apache.spark.TaskContext
 scala> sc.runJob(lines, (t: TaskContext, i: Iterator[String]) => 1) // <1>
 res0: Array[Int] = Array(1, 1)  // <2>
 ----
 <1> Run a job using `runJob` on `lines` RDD with a function that returns 1 for every partition (of `lines` RDD).
 <2> What can you say about the number of partitions of the `lines` RDD? Is your result `res0` different than mine? Why?
 
-TIP: Read about `TaskContext` in link:spark-taskscheduler-taskcontext.adoc[TaskContext].
+TIP: Read link:spark-taskscheduler-taskcontext.adoc[TaskContext].
 
 Running a job is essentially executing a `func` function on all or a subset of partitions in an `rdd` RDD and returning the result as an array (with elements being the results per partition).
-
-When executed, `runJob` prints out the following INFO message:
-
-```
-INFO Starting job: ...
-```
-
-And it follows up on link:spark-rdd-lineage.adoc#spark.logLineage[spark.logLineage] and then hands over the execution to link:spark-dagscheduler.adoc#runJob[DAGScheduler.runJob].
 
 .Executing action
 image::images/spark-runjob.png[align="center"]
 
-Before the method finishes, it does link:spark-rdd-checkpointing.adoc[checkpointing] and posts `JobSubmitted` event (see <<event-loop, Event loop>>).
+=== [[postApplicationEnd]] `postApplicationEnd` Method
 
-[CAUTION]
-====
-Spark can only run jobs when a Spark context is available and active, i.e. started. See <<stopping, Stopping Spark context>>.
+CAUTION: FIXME
 
-Since SparkContext runs inside a Spark driver, i.e. a Spark application, it must be alive to run jobs.
-====
+=== [[clearActiveContext]] `clearActiveContext` Method
 
-=== [[stop]][[stopping]] Stopping SparkContext (stop method)
+CAUTION: FIXME
+
+=== [[stop]][[stopping]] Stopping `SparkContext` -- `stop` Method
 
 [source, scala]
 ----
 stop(): Unit
 ----
 
-You can stop a `SparkContext` using `stop` method. Stopping a Spark context stops the link:spark-sparkenv.adoc[Spark Runtime Environment] and shuts down the entire Spark application (see link:spark-anatomy-spark-application.adoc[Anatomy of Spark Application]).
+`stop` stops the `SparkContext`.
 
-Calling `stop` many times leads to the following INFO message in the logs:
+Internally, `stop` enables `stopped` internal flag. If already stopped, you should see the following INFO message in the logs:
 
 ```
 INFO SparkContext: SparkContext already stopped.
 ```
 
-An attempt to use a stopped SparkContext's services will result in `java.lang.IllegalStateException: SparkContext has been shutdown`.
+`stop` then does the following:
 
-[source, scala]
-----
-scala> sc.stop
+1. Removes `_shutdownHookRef` from `ShutdownHookManager`.
+2. <<postApplicationEnd, Posts a `SparkListenerApplicationEnd`>> (to <<listenerBus, `LiveListenerBus` Event Bus>>).
+3. link:spark-webui-SparkUI.adoc#stop[Stops web UI]
+4. link:spark-metrics.adoc#report[Requests `MetricSystem` to report metrics] (from all registered sinks).
+5. link:spark-service-contextcleaner.adoc#stop[Requests `ContextCleaner` to stop].
+6. link:spark-service-executor-allocation-manager.adoc#stop[Requests `ExecutorAllocationManager` to stop].
+7. If `LiveListenerBus` was started, link:spark-LiveListenerBus.adoc#stop[requests `LiveListenerBus` to stop].
+8. Requests link:spark-scheduler-listeners-eventlogginglistener.adoc#stop[`EventLoggingListener` to stop].
+9. Requests link:spark-dagscheduler.adoc#stop[`DAGScheduler` to stop].
+10. Requests link:spark-rpc.adoc#stop[RpcEnv to stop `HeartbeatReceiver` endpoint].
+11. Requests link:spark-sparkcontext-ConsoleProgressBar.adoc#stop[`ConsoleProgressBar` to stop].
+12. Clears the reference to `TaskScheduler`, i.e. `_taskScheduler` is `null`.
+13. Requests link:spark-sparkenv.adoc#stop[`SparkEnv` to stop] and clears `SparkEnv`.
+14. Clears link:yarn/spark-yarn-client.adoc#SPARK_YARN_MODE[`SPARK_YARN_MODE` flag].
+15. <<clearActiveContext, Clears an active `SparkContext`>>.
 
-scala> sc.parallelize(0 to 5)
-java.lang.IllegalStateException: Cannot call methods on a stopped SparkContext.
-----
-
-When a SparkContext is being stopped, it does the following:
-
-* Posts a application end event link:spark-SparkListener.adoc#SparkListenerApplicationEnd[SparkListenerApplicationEnd] to link:spark-LiveListenerBus.adoc[LiveListenerBus]
-* Stops link:spark-webui.adoc[web UI]
-* Requests link:spark-metrics.adoc[MetricSystem] to report metrics from all registered sinks (using `MetricsSystem.report()`)
-* `metadataCleaner.cancel()`
-* Stops link:spark-service-contextcleaner.adoc[ContextCleaner]
-* Stops link:spark-service-executor-allocation-manager.adoc[ExecutorAllocationManager]
-* Stops link:spark-dagscheduler.adoc[DAGScheduler]
-* Stops link:spark-LiveListenerBus.adoc[LiveListenerBus]
-* Stops link:spark-scheduler-listeners-eventlogginglistener.adoc[EventLoggingListener]
-* Stops link:spark-sparkcontext-HeartbeatReceiver.adoc[HeartbeatReceiver]
-* Stops optional <<ConsoleProgressBar, ConsoleProgressBar>>
-* It clears the reference to TaskScheduler (i.e. `_taskScheduler` is `null`)
-* Stops link:spark-sparkenv.adoc[SparkEnv] and calls `SparkEnv.set(null)`
-
-CAUTION: FIXME `SparkEnv.set(null)` what is this doing?
-
-* It clears link:yarn/spark-yarn-client.adoc#SPARK_YARN_MODE[SPARK_YARN_MODE flag].
-
-* It calls `SparkContext.clearActiveContext()`.
-
-CAUTION: FIXME What is `SparkContext.clearActiveContext()` doing?
-
-If all went fine till now you should see the following INFO message in the logs:
+Ultimately, you should see the following INFO message in the logs:
 
 ```
 INFO SparkContext: Successfully stopped SparkContext
 ```
 
-=== [[addSparkListener]] Registering SparkListener -- `addSparkListener` method
+=== [[addSparkListener]] Registering SparkListener -- `addSparkListener` Method
 
 [source, scala]
 ----
@@ -663,7 +663,7 @@ When a Spark context starts, it triggers link:spark-SparkListener.adoc#SparkList
 
 Refer to the section <<creating-instance, SparkContext's initialization>>.
 
-=== [[setLogLevel]][[setting-default-log-level]] Setting Default Log Level (setLogLevel method)
+=== [[setLogLevel]][[setting-default-log-level]] Setting Default Logging Level -- `setLogLevel` Method
 
 [source, scala]
 ----
@@ -672,71 +672,25 @@ setLogLevel(logLevel: String)
 
 `setLogLevel` allows you to set the root logging level in a Spark application, e.g. link:spark-shell.adoc[Spark shell].
 
-Internally, `setLogLevel` calls `org.apache.log4j.Level.toLevel(logLevel)` and `org.apache.log4j.Logger.getRootLogger().setLevel(l)`.
+Internally, `setLogLevel` calls link:++http://logging.apache.org/log4j/2.x/log4j-api/apidocs/org/apache/logging/log4j/Level.html#toLevel(java.lang.String)++[org.apache.log4j.Level.toLevel(logLevel)] that it then uses to set using link:++http://logging.apache.org/log4j/2.x/log4j-api/apidocs/org/apache/logging/log4j/LogManager.html#getRootLogger()++[org.apache.log4j.LogManager.getRootLogger().setLevel(level)].
 
-=== [[SparkStatusTracker]] SparkStatusTracker
-
-`SparkStatusTracker` requires a Spark context to work. It is created as part of <<creating-instance, SparkContext's initialization>>.
-
-SparkStatusTracker is only used by <<ConsoleProgressBar, ConsoleProgressBar>>.
-
-=== [[ConsoleProgressBar]] ConsoleProgressBar
-
-`ConsoleProgressBar` shows the progress of active stages in console (to `stderr`). It polls the status of stages from <<SparkStatusTracker, SparkStatusTracker>> periodically and prints out active stages with more than one task. It keeps overwriting itself to hold in one line for at most 3 first concurrent stages at a time.
-
-```
-[Stage 0:====>          (316 + 4) / 1000][Stage 1:>                (0 + 0) / 1000][Stage 2:>                (0 + 0) / 1000]]]
-```
-
-The progress includes the stage's id, the number of completed, active, and total tasks.
-
-It is useful when you `ssh` to workers and want to see the progress of active stages.
-
-It is only instantiated if the value of the boolean property `spark.ui.showConsoleProgress` (default: `true`) is `true` and the log level of `org.apache.spark.SparkContext` logger is `WARN` or higher (refer to link:spark-logging.adoc[Logging]).
+[TIP]
+====
+You can directly set the logging level using link:++http://logging.apache.org/log4j/2.x/log4j-api/apidocs/org/apache/logging/log4j/LogManager.html#getLogger()++[org.apache.log4j.LogManager.getLogger()].
 
 [source, scala]
 ----
-import org.apache.log4j._
-Logger.getLogger("org.apache.spark.SparkContext").setLevel(Level.WARN)
+LogManager.getLogger("org").setLevel(Level.OFF)
 ----
 
-To print the progress nicely ConsoleProgressBar uses `COLUMNS` environment variable to know the width of the terminal. It assumes `80` columns.
+====
 
-The progress bar prints out the status after a stage has ran at least `500ms`, every `200ms` (the values are not configurable).
+=== [[clean]][[closure-cleaning]] Closure Cleaning -- `clean` Method
 
-See the progress bar in Spark shell with the following:
-
-[source]
+[source, scala]
 ----
-$ ./bin/spark-shell --conf spark.ui.showConsoleProgress=true  # <1>
-
-scala> sc.setLogLevel("OFF")  // <2>
-
-scala> Logger.getLogger("org.apache.spark.SparkContext").setLevel(Level.WARN)  // <3>
-
-scala> sc.parallelize(1 to 4, 4).map { n => Thread.sleep(500 + 200 * n); n }.count  // <4>
-[Stage 2:>                                                          (0 + 4) / 4]
-[Stage 2:==============>                                            (1 + 3) / 4]
-[Stage 2:=============================>                             (2 + 2) / 4]
-[Stage 2:============================================>              (3 + 1) / 4]
+clean(f: F, checkSerializable: Boolean = true): F
 ----
-<1> Make sure `spark.ui.showConsoleProgress` is `true`. It is by default.
-<2> Disable (`OFF`) the root logger (that includes Spark's logger)
-<3> Make sure `org.apache.spark.SparkContext` logger is at least `WARN`.
-<4> Run a job with 4 tasks with 500ms initial sleep and 200ms sleep chunks to see the progress bar.
-
-https://youtu.be/uEmcGo8rwek[Watch the short video] that show ConsoleProgressBar in action.
-
-You may want to use the following example to see the progress bar in full glory - all 3 concurrent stages in console (borrowed from https://github.com/apache/spark/pull/3029#issuecomment-63244719[a comment to [SPARK-4017\] show progress bar in console #3029]):
-
-```
-> ./bin/spark-shell
-scala> val a = sc.makeRDD(1 to 1000, 10000).map(x => (x, x)).reduceByKey(_ + _)
-scala> val b = sc.makeRDD(1 to 1000, 10000).map(x => (x, x)).reduceByKey(_ + _)
-scala> a.union(b).count()
-```
-
-=== [[closure-cleaning]] Closure Cleaning (clean method)
 
 Every time an action is called, Spark cleans up the closure, i.e. the body of the action, before it is serialized and sent over the wire to executors.
 
@@ -790,7 +744,7 @@ Every `spark.hadoop.` setting becomes a setting of the configuration with the pr
 
 The value of `spark.buffer.size` (default: `65536`) is used as the value of `io.file.buffer.size`.
 
-=== [[listenerBus]] listenerBus
+=== [[listenerBus]] `listenerBus` -- `LiveListenerBus` Event Bus
 
 `listenerBus` is a link:spark-LiveListenerBus.adoc[LiveListenerBus] object that acts as a mechanism to announce events to other services on the link:spark-driver.adoc[driver].
 
@@ -798,7 +752,7 @@ NOTE: It is created and started when link:spark-sparkcontext-creating-instance-i
 
 NOTE: `listenerBus` is a `private[spark]` value in `SparkContext`.
 
-=== [[startTime]] Time when SparkContext was Created (startTime value)
+=== [[startTime]] Time when `SparkContext` was Created -- `startTime` Property
 
 [source, scala]
 ----
@@ -813,7 +767,7 @@ scala> sc.startTime
 res0: Long = 1464425605653
 ----
 
-=== [[sparkUser]] Spark User (sparkUser value)
+=== [[sparkUser]] Spark User -- `sparkUser` Property
 
 [source, scala]
 ----
@@ -823,6 +777,60 @@ sparkUser: String
 `sparkUser` is the user who started the `SparkContext` instance.
 
 NOTE: It is computed when link:spark-sparkcontext-creating-instance-internals.adoc#sparkUser[SparkContext is created] using link:spark-sparkcontext-creating-instance-internals.adoc#[Utils.getCurrentUserName].
+
+=== [[submitMapStage]] Submitting Map Stage for Execution -- `submitMapStage` Internal Method
+
+[source, scala]
+----
+submitMapStage[K, V, C](
+  dependency: ShuffleDependency[K, V, C]): SimpleFutureAction[MapOutputStatistics]
+----
+
+`submitMapStage` link:spark-dagscheduler.adoc#submitMapStage[submits the map stage to `DAGScheduler` for execution] and returns a `SimpleFutureAction`.
+
+Internally, `submitMapStage` <<getCallSite, calculates the call site>> first and submits it with `localProperties` to `DAGScheduler`.
+
+NOTE: Interestingly, `submitMapStage` is used exclusively when Spark SQL's link:spark-sql-spark-plan-ShuffleExchange.adoc[`ShuffleExchange` physical operator] is executed.
+
+=== [[getCallSite]] Calculating Call Site -- `getCallSite` Method
+
+CAUTION: FIXME
+
+=== [[cancelJobGroup]] `cancelJobGroup` Method
+
+[source, scala]
+----
+cancelJobGroup(groupId: String)
+----
+
+`cancelJobGroup` requests link:spark-dagscheduler.adoc#cancelJobGroup[`DAGScheduler` to cancel a group of active Spark jobs].
+
+=== [[cancelAllJobs]] `cancelAllJobs` Method
+
+CAUTION: FIXME
+
+=== [[setJobGroup]] `setJobGroup` Method
+
+[source, scala]
+----
+setJobGroup(
+  groupId: String,
+  description: String,
+  interruptOnCancel: Boolean = false): Unit
+----
+
+CAUTION: FIXME
+
+=== [[cleaner]] `cleaner` Method
+
+[source, scala]
+----
+cleaner: Option[ContextCleaner]
+----
+
+`cleaner` is a `private[spark]` method to get the optional application-wide link:spark-service-contextcleaner.adoc[ContextCleaner].
+
+NOTE: link:spark-service-contextcleaner.adoc#creating-instance[`ContextCleaner` is created] when link:spark-sparkcontext-creating-instance-internals.adoc#_cleaner[`SparkContext` is created with `spark.cleaner.referenceTracking` Spark property enabled] (which is by default).
 
 === [[settings]] Settings
 
@@ -855,10 +863,17 @@ CAUTION: It's not guaranteed that Spark will work properly with two or more Spar
 
 === [[environment-variables]] Environment Variables
 
-==== [[SPARK_EXECUTOR_MEMORY]] SPARK_EXECUTOR_MEMORY
+.Environment Variables
+[frame="topbot",cols="1,1,2",options="header",width="100%"]
+|======================
+| Environment Variable | Default Value | Description
 
-`SPARK_EXECUTOR_MEMORY` sets the amount of memory to allocate to each executor. See link:spark-executor.adoc#memory[Executor Memory].
+| [[SPARK_EXECUTOR_MEMORY]] `SPARK_EXECUTOR_MEMORY`
+| `1024`
+| Amount of memory to allocate for a Spark executor in  MB.
 
-==== [[SPARK_USER]] SPARK_USER
+See link:spark-executor.adoc#memory[Executor Memory].
 
-`SPARK_USER` is the user who is running `SparkContext`. It is available later as <<sparkUser, sparkUser>>.
+| [[SPARK_USER]] `SPARK_USER`
+|
+| The user who is running `SparkContext`. Available later as <<sparkUser, sparkUser>>.

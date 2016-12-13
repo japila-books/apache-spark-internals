@@ -1,8 +1,8 @@
-== [[TaskSchedulerImpl]] TaskSchedulerImpl - Default TaskScheduler
+== [[TaskSchedulerImpl]] TaskSchedulerImpl -- Default TaskScheduler
 
 `TaskSchedulerImpl` is the default implementation of link:spark-taskscheduler.adoc#contract[TaskScheduler Contract] and extends it <<getRackForHost, to track racks per host and port>>. It can schedule tasks for multiple types of cluster managers by means of link:spark-scheduler-backends.adoc[Scheduler Backends].
 
-Using <<spark.scheduler.mode, spark.scheduler.mode>> setting you can select the link:spark-taskscheduler-schedulingmode.adoc[scheduling policy].
+Using <<spark_scheduler_mode, spark.scheduler.mode>> setting you can select the link:spark-taskscheduler-schedulingmode.adoc[scheduling policy].
 
 It <<submitTasks, submits tasks>> using link:spark-taskscheduler-schedulablebuilders.adoc[SchedulableBuilders].
 
@@ -15,16 +15,74 @@ NOTE: `TaskSchedulerImpl` is a `private[spark]` class with the source code in ht
 
 [TIP]
 ====
-Enable `INFO` or `DEBUG` logging level for `org.apache.spark.scheduler.TaskSchedulerImpl` logger to see what happens inside.
+Enable `INFO` or `DEBUG` logging levels for `org.apache.spark.scheduler.TaskSchedulerImpl` logger to see what happens inside.
 
 Add the following line to `conf/log4j.properties`:
 
 ```
 log4j.logger.org.apache.spark.scheduler.TaskSchedulerImpl=DEBUG
 ```
+
+Refer to link:spark-logging.adoc[Logging].
 ====
 
-=== [[applicationAttemptId]] applicationAttemptId method
+=== [[starvationTimer]] `starvationTimer`
+
+CAUTION: FIXME
+
+=== [[executorHeartbeatReceived]] `executorHeartbeatReceived` Method
+
+[source, scala]
+----
+executorHeartbeatReceived(
+  execId: String,
+  accumUpdates: Array[(Long, Seq[AccumulatorV2[_, _]])],
+  blockManagerId: BlockManagerId): Boolean
+----
+
+`executorHeartbeatReceived` is...
+
+CAUTION: FIXME
+
+NOTE: `executorHeartbeatReceived` is a part of the link:spark-taskscheduler.adoc#contract[TaskScheduler Contract].
+
+=== [[cancelTasks]] Cancelling Tasks for Stage -- `cancelTasks` Method
+
+[source, scala]
+----
+cancelTasks(stageId: Int, interruptThread: Boolean): Unit
+----
+
+`cancelTasks` cancels all tasks submitted for execution in a stage `stageId`.
+
+NOTE: It is currently called by link:spark-dagscheduler.adoc#failJobAndIndependentStages[`DAGScheduler` when it cancels a stage].
+
+=== [[handleSuccessfulTask]] `handleSuccessfulTask` Method
+
+[source, scala]
+----
+handleSuccessfulTask(
+  taskSetManager: TaskSetManager,
+  tid: Long,
+  taskResult: DirectTaskResult[_]): Unit
+----
+
+`handleSuccessfulTask` simply link:spark-tasksetmanager.adoc#handleSuccessfulTask[forwards the call to the input `taskSetManager`] (passing `tid` and `taskResult`).
+
+NOTE: `handleSuccessfulTask` is called when link:spark-taskschedulerimpl-TaskResultGetter.adoc#enqueueSuccessfulTask[`TaskSchedulerGetter` has managed to deserialize the task result of a task that finished successfully].
+
+=== [[handleTaskGettingResult]] `handleTaskGettingResult` Method
+
+[source, scala]
+----
+handleTaskGettingResult(taskSetManager: TaskSetManager, tid: Long): Unit
+----
+
+`handleTaskGettingResult` simply link:spark-tasksetmanager.adoc#handleTaskGettingResult[forwards the call to the `taskSetManager`].
+
+NOTE: `handleTaskGettingResult` is used to inform that link:spark-taskschedulerimpl-TaskResultGetter.adoc#enqueueSuccessfulTask[`TaskResultGetter` enqueues a successful task with `IndirectTaskResult` task result (and so is about to fetch a remote block from a `BlockManager`)].
+
+=== [[applicationAttemptId]] `applicationAttemptId` Method
 
 [source, scala]
 ----
@@ -33,7 +91,7 @@ applicationAttemptId(): Option[String]
 
 CAUTION: FIXME
 
-=== [[schedulableBuilder]] schedulableBuilder Attribute
+=== [[schedulableBuilder]] `schedulableBuilder` Attribute
 
 `schedulableBuilder` is a link:spark-taskscheduler-schedulablebuilders.adoc[SchedulableBuilder] for the `TaskSchedulerImpl`.
 
@@ -43,9 +101,9 @@ It is set up when a <<initialize, `TaskSchedulerImpl` is initialized>> and can b
 
 * link:spark-taskscheduler-FairSchedulableBuilder.adoc[FairSchedulableBuilder] for FAIR scheduling policy.
 
-NOTE: Use <<spark.scheduler.mode, spark.scheduler.mode>> setting to select the scheduling policy.
+NOTE: Use <<spark_scheduler_mode, spark.scheduler.mode>> setting to select the scheduling policy.
 
-=== [[getRackForHost]] Tracking Racks per Hosts and Ports (getRackForHost method)
+=== [[getRackForHost]] Tracking Racks per Hosts and Ports -- `getRackForHost` Method
 
 [source, scala]
 ----
@@ -64,15 +122,49 @@ NOTE: It is overriden by the YARN-specific TaskScheduler link:yarn/spark-yarn-ya
 
 * link:spark-tasksetmanager.adoc#addPendingTask[TaskSetManager.addPendingTask], link:spark-tasksetmanager.adoc#[TaskSetManager.dequeueTask], and link:spark-tasksetmanager.adoc#dequeueSpeculativeTask[TaskSetManager.dequeueSpeculativeTask]
 
-=== [[creating-instance]] Creating TaskSchedulerImpl
+=== [[internal-registries]] Internal Registries and Counters
 
-Creating a `TaskSchedulerImpl` object requires a link:spark-sparkcontext.adoc[SparkContext] object, the <<maxTaskFailures, acceptable number of task failures>> (`maxTaskFailures`) and optional <<isLocal, isLocal>> flag (disabled by default, i.e. `false`).
+.Internal Registries and Counters
+[frame="topbot",cols="1,2",options="header",width="100%"]
+|======================
+| Name | Description
+| `nextTaskId` | The next link:spark-taskscheduler-tasks.adoc[task] id counting from `0`.
 
-NOTE: There is another `TaskSchedulerImpl` constructor that requires a link:spark-sparkcontext.adoc[SparkContext] object only and sets <<maxTaskFailures, maxTaskFailures>> to <<spark.task.maxFailures, spark.task.maxFailures>> or, if `spark.task.maxFailures` is not set, defaults to `4`.
+Used when `TaskSchedulerImpl`...
 
-While being created, it initializes <<internal-registries, internal registries>> to their default values.
+| [[taskSetsByStageIdAndAttempt]] `taskSetsByStageIdAndAttempt` | Lookup table of link:spark-taskscheduler-tasksets.adoc[TaskSet] by stage and attempt ids.
 
-It then sets link:spark-taskscheduler.adoc#contract[schedulingMode] to the value of <<spark.scheduler.mode, spark.scheduler.mode>> setting or `FIFO`.
+| [[taskIdToTaskSetManager]] `taskIdToTaskSetManager` | Lookup table of link:spark-tasksetmanager.adoc[TaskSetManager] by task id.
+
+| [[taskIdToExecutorId]] `taskIdToExecutorId` | Lookup table of link:spark-executor.adoc[executor] by task id.
+
+| [[executorIdToTaskCount]] `executorIdToTaskCount` | Lookup table of the number of running tasks by link:spark-executor.adoc[executor].
+
+| `executorsByHost` | Collection of link:spark-executor.adoc[executors] per host
+
+| `hostsByRack` | Collection of hosts per rack
+
+| `executorIdToHost` | Lookup table of hosts per executor
+|======================
+
+=== [[creating-instance]] Creating `TaskSchedulerImpl` Instance
+
+[source, scala]
+----
+class TaskSchedulerImpl(
+  val sc: SparkContext,
+  val maxTaskFailures: Int,
+  isLocal: Boolean = false)
+extends TaskScheduler
+----
+
+Creating a `TaskSchedulerImpl` object requires a link:spark-sparkcontext.adoc[SparkContext] object with <<maxTaskFailures, acceptable number of task failures>> and optional <<isLocal, isLocal>> flag (disabled by default, i.e. `false`).
+
+NOTE: There is another `TaskSchedulerImpl` constructor that requires a link:spark-sparkcontext.adoc[SparkContext] object only and sets <<maxTaskFailures, maxTaskFailures>> to <<spark_task_maxFailures, spark.task.maxFailures>> or, if `spark.task.maxFailures` is not set, defaults to `4`.
+
+While being created, `TaskSchedulerImpl` initializes <<internal-registries, internal registries and counters>> to their default values.
+
+`TaskSchedulerImpl` then sets link:spark-taskscheduler.adoc#contract[schedulingMode] to the value of <<spark_scheduler_mode, spark.scheduler.mode>> setting (defaults to `FIFO`).
 
 NOTE: `schedulingMode` is part of link:spark-taskscheduler.adoc#contract[TaskScheduler Contract].
 
@@ -82,34 +174,9 @@ Failure to set `schedulingMode` results in a `SparkException`:
 Unrecognized spark.scheduler.mode: [schedulingModeConf]
 ```
 
-It sets `taskResultGetter` as a <<TaskResultGetter, TaskResultGetter>>.
+Ultimately, `TaskSchedulerImpl` creates a link:spark-taskschedulerimpl-TaskResultGetter.adoc[TaskResultGetter].
 
-CAUTION: FIXME Where is `taskResultGetter` used?
-
-=== [[maxTaskFailures]] Acceptable Number of Task Failures (maxTaskFailures attribute)
-
-The acceptable number of task failures (`maxTaskFailures`) can be explicitly defined when <<creating-instance, creating TaskSchedulerImpl instance>> or based on <<spark.task.maxFailures, spark.task.maxFailures>> setting that defaults to 4 failures.
-
-NOTE: It is exclusively used when <<submitTasks, submitting tasks>> through link:spark-tasksetmanager.adoc[TaskSetManager].
-
-=== [[removeExecutor]] Internal Cleanup After Removing Executor (removeExecutor method)
-
-[source, scala]
-----
-removeExecutor(executorId: String, reason: ExecutorLossReason): Unit
-----
-
-`removeExecutor` removes the `executorId` executor from the <<internal-registries, internal registries>>: `executorIdToTaskCount`, `executorIdToHost`, `executorsByHost`, and `hostsByRack`. If the affected hosts and racks are the last entries in `executorsByHost` and `hostsByRack`, appropriately, they are removed from the registries.
-
-Unless `reason` is `LossReasonPending`, the executor is removed from `executorIdToHost` registry and link:spark-taskscheduler-schedulable.adoc#executorLost[TaskSetManagers get notified].
-
-NOTE: The internal `removeExecutor` is called as part of <<statusUpdate, statusUpdate>> and link:spark-taskscheduler.adoc#executorLost[executorLost].
-
-=== [[isLocal]] Local vs Non-Local Mode (isLocal attribute)
-
-CAUTION: FIXME
-
-=== [[initialization]][[initialize]] Initializing TaskSchedulerImpl (initialize method)
+=== [[initialization]][[initialize]] Initializing `TaskSchedulerImpl` -- `initialize` Method
 
 [source, scala]
 ----
@@ -136,7 +203,7 @@ With the `schedulableBuilder` object created, `initialize` requests it to link:s
 
 CAUTION: FIXME Why are `rootPool` and `schedulableBuilder` created only now? What do they need that it is not available when `TaskSchedulerImpl` is created?
 
-=== [[start]] Starting TaskSchedulerImpl (start method)
+=== [[start]] Starting `TaskSchedulerImpl` -- `start` Method
 
 As part of link:spark-sparkcontext-creating-instance-internals.adoc[initialization of a `SparkContext`], `TaskSchedulerImpl` is started (using `start` from the link:spark-taskscheduler.adoc#contract[TaskScheduler Contract]).
 
@@ -145,22 +212,62 @@ As part of link:spark-sparkcontext-creating-instance-internals.adoc[initializati
 start(): Unit
 ----
 
-It starts the link:spark-scheduler-backends.adoc[scheduler backend] it manages.
+`start` starts the link:spark-scheduler-backends.adoc[scheduler backend].
 
-Below is a figure of the method calls in Spark Standalone mode.
-
-.Starting TaskSchedulerImpl in Spark Standalone mode
+.Starting `TaskSchedulerImpl` in Spark Standalone
 image::images/taskschedulerimpl-start-standalone.png[align="center"]
 
-It also starts the *task-scheduler-speculation* executor pool. See <<speculative-execution, Speculative Execution of Tasks>>.
+`start` also starts <<task-scheduler-speculation, `task-scheduler-speculation` executor service>>.
 
-=== [[postStartHook]] Post-Start Initialization (using postStartHook)
+=== [[speculationScheduler]][[task-scheduler-speculation]] `task-scheduler-speculation` Scheduled Executor Service -- `speculationScheduler` Internal Attribute
+
+`speculationScheduler` is a http://docs.oracle.com/javase/8/docs/api/java/util/concurrent/ScheduledExecutorService.html[java.util.concurrent.ScheduledExecutorService] with the name  *task-scheduler-speculation* for link:spark-taskschedulerimpl-speculative-execution.adoc[speculative execution of tasks].
+
+When <<start, `TaskSchedulerImpl` starts>> (in non-local run mode) with link:spark-taskschedulerimpl-speculative-execution.adoc#spark_speculation[spark.speculation] enabled, `speculationScheduler` is used to schedule <<checkSpeculatableTasks, checkSpeculatableTasks>> to execute periodically every link:spark-taskschedulerimpl-speculative-execution.adoc#spark_speculation_interval[spark.speculation.interval] after the initial `spark.speculation.interval` passes.
+
+`speculationScheduler` is shut down when <<stop, `TaskSchedulerImpl` stops>>.
+
+=== [[checkSpeculatableTasks]] Checking for Speculatable Tasks -- `checkSpeculatableTasks` Method
+
+[source, scala]
+----
+checkSpeculatableTasks(): Unit
+----
+
+`checkSpeculatableTasks` requests `rootPool` to check for speculatable tasks (if they ran for more than `100` ms) and, if there any, requests link:spark-scheduler-backends.adoc#reviveOffers[`SchedulerBackend` to revive offers].
+
+NOTE: `checkSpeculatableTasks` is executed periodically as part of link:spark-taskschedulerimpl-speculative-execution.adoc[speculative execution of tasks].
+
+=== [[maxTaskFailures]] Acceptable Number of Task Failures -- `maxTaskFailures` Attribute
+
+The acceptable number of task failures (`maxTaskFailures`) can be explicitly defined when <<creating-instance, creating TaskSchedulerImpl instance>> or based on <<spark_task_maxFailures, spark.task.maxFailures>> setting that defaults to 4 failures.
+
+NOTE: It is exclusively used when <<submitTasks, submitting tasks>> through link:spark-tasksetmanager.adoc[TaskSetManager].
+
+=== [[removeExecutor]] Cleaning up After Removing Executor -- `removeExecutor` Internal Method
+
+[source, scala]
+----
+removeExecutor(executorId: String, reason: ExecutorLossReason): Unit
+----
+
+`removeExecutor` removes the `executorId` executor from the following <<internal-registries, internal registries>>: <<executorIdToTaskCount, executorIdToTaskCount>>, `executorIdToHost`, `executorsByHost`, and `hostsByRack`. If the affected hosts and racks are the last entries in `executorsByHost` and `hostsByRack`, appropriately, they are removed from the registries.
+
+Unless `reason` is `LossReasonPending`, the executor is removed from `executorIdToHost` registry and link:spark-taskscheduler-schedulable.adoc#executorLost[TaskSetManagers get notified].
+
+NOTE: The internal `removeExecutor` is called as part of <<statusUpdate, statusUpdate>> and link:spark-taskscheduler.adoc#executorLost[executorLost].
+
+=== [[isLocal]] Local vs Non-Local Mode -- `isLocal` Attribute
+
+CAUTION: FIXME
+
+=== [[postStartHook]] Post-Start Initialization -- `postStartHook` Method
 
 `postStartHook` is a custom implementation of link:spark-taskscheduler.adoc#contract[postStartHook from the TaskScheduler Contract] that waits until a scheduler backend is ready (using the internal blocking <<waitBackendReady, waitBackendReady>>).
 
 NOTE: `postStartHook` is used when link:spark-sparkcontext.adoc#creating-instance[SparkContext is created] (before it is fully created) and link:yarn/spark-yarn-yarnclusterscheduler.adoc#postStartHook[YarnClusterScheduler.postStartHook].
 
-=== [[waitBackendReady]] Waiting Until SchedulerBackend is Ready (waitBackendReady method)
+=== [[waitBackendReady]] Waiting Until SchedulerBackend is Ready -- `waitBackendReady` Method
 
 The private `waitBackendReady` method waits until a link:spark-scheduler-backends.adoc#contract[SchedulerBackend is ready].
 
@@ -172,44 +279,22 @@ If the SparkContext happens to be stopped while doing the waiting, a `IllegalSta
 Spark context stopped while waiting for backend
 ```
 
-=== [[stop]][[stopping]] Stopping TaskSchedulerImpl (stop method)
+=== [[stop]] Stopping TaskSchedulerImpl -- `stop` Method
 
-When `TaskSchedulerImpl` is stopped (using `stop()` method), it does the following:
+[source, scala]
+----
+stop(): Unit
+----
 
-* Shuts down the internal `task-scheduler-speculation` thread pool executor (used for <<speculative-execution, Speculative execution of tasks>>).
-* Stops link:spark-scheduler-backends.adoc[SchedulerBackend].
-* Stops link:spark-taskscheduler.adoc#TaskResultGetter[TaskResultGetter].
-* Cancels `starvationTimer` timer.
+`stop()` stops all the internal services, i.e. <<task-scheduler-speculation, `task-scheduler-speculation` executor service>>, link:spark-scheduler-backends.adoc[SchedulerBackend], link:spark-taskschedulerimpl-TaskResultGetter.adoc[TaskResultGetter], and <<starvationTimer, starvationTimer>> timer.
 
-=== [[speculative-execution]] Speculative Execution of Tasks
-
-*Speculative tasks* (also *speculatable tasks* or *task strugglers*) are tasks that run slower than most (FIXME the setting) of the all tasks in a job.
-
-*Speculative execution of tasks* is a health-check procedure that checks for tasks to be *speculated*, i.e. running slower in a stage than the median of all successfully completed tasks in a taskset (FIXME the setting). Such slow tasks will be re-launched in another worker. It will not stop the slow tasks, but run a new copy in parallel.
-
-The thread starts as `TaskSchedulerImpl` starts in link:spark-cluster.adoc[clustered deployment modes] with link:spark-tasksetmanager.adoc#settings[spark.speculation] enabled. It executes periodically every <<settings, spark.speculation.interval>> after <<settings, spark.speculation.interval>> passes.
-
-When enabled, you should see the following INFO message in the logs:
-
-```
-INFO Starting speculative execution thread
-```
-
-It works as *task-scheduler-speculation* daemon thread pool using `j.u.c.ScheduledThreadPoolExecutor` with core pool size `1`.
-
-The job with speculatable tasks should finish while speculative tasks are running, and it will leave these tasks running - no KILL command yet.
-
-It uses `checkSpeculatableTasks` method that asks `rootPool` to check for speculatable tasks. If there are any, SchedulerBackend is called for link:spark-scheduler-backends.adoc#reviveOffers[reviveOffers].
-
-CAUTION: FIXME How does Spark handle repeated results of speculative tasks since there are copies launched?
-
-=== [[defaultParallelism]] Calculating Default Level of Parallelism (defaultParallelism method)
+=== [[defaultParallelism]] Calculating Default Level of Parallelism -- `defaultParallelism` Method
 
 *Default level of parallelism* is a hint for sizing jobs. It is a part of the link:spark-taskscheduler.adoc#contract[TaskScheduler contract] and link:spark-sparkcontext.adoc#defaultParallelism[used by SparkContext] to create RDDs with the right number of partitions when not specified explicitly.
 
 `TaskSchedulerImpl` uses link:spark-scheduler-backends.adoc#defaultParallelism[SchedulerBackend.defaultParallelism()] to calculate the value, i.e. it just passes it along to a scheduler backend.
 
-=== [[submitTasks]] Submitting Tasks (using submitTasks)
+=== [[submitTasks]] Submitting Tasks -- `submitTasks` Method
 
 NOTE: `submitTasks` is a part of link:spark-taskscheduler.adoc#contract[TaskScheduler Contract].
 
@@ -253,9 +338,9 @@ NOTE: `TaskSetManager` is considered *active* when it is not a *zombie*.
 
 The `TaskSetManager` is link:spark-taskscheduler-schedulablebuilders.adoc#addTaskSetManager[added to the `Schedulable` pool (via `SchedulableBuilder`)].
 
-When the method is called the very first time (`hasReceivedTask` is `false`) in cluster mode only (i.e. `isLocal` of the `TaskSchedulerImpl` is `false`), `starvationTimer` is scheduled to execute after <<settings, spark.starvation.timeout>>  to ensure that the requested resources, i.e. CPUs and memory, were assigned by a cluster manager.
+When the method is called the very first time (`hasReceivedTask` is `false`) in cluster mode only (i.e. `isLocal` of the `TaskSchedulerImpl` is `false`), `starvationTimer` is scheduled to execute after <<spark_starvation_timeout, spark.starvation.timeout>>  to ensure that the requested resources, i.e. CPUs and memory, were assigned by a cluster manager.
 
-NOTE: After the first <<settings, spark.starvation.timeout>> passes, the internal `hasReceivedTask` flag becomes `true`.
+NOTE: After the first `spark.starvation.timeout` passes, the internal `hasReceivedTask` flag becomes `true`.
 
 Every time the starvation timer thread is executed and `hasLaunchedTask` flag is `false`, the following WARN message is printed out to the logs:
 
@@ -269,13 +354,7 @@ Ultimately, `submitTasks` requests the link:spark-scheduler-backends.adoc#revive
 
 TIP: Use `dag-scheduler-event-loop` thread to step through the code in a debugger.
 
-=== [[taskSetsByStageIdAndAttempt]] taskSetsByStageIdAndAttempt Registry
-
-CAUTION: FIXME
-
-A mapping between stages and a collection of attempt ids and TaskSetManagers.
-
-=== [[resourceOffers]] Processing Executor Resource Offers (using resourceOffers)
+=== [[resourceOffers]] Processing Executor Resource Offers -- `resourceOffers` Method
 
 [source, scala]
 ----
@@ -296,7 +375,7 @@ A `WorkerOffer` is a 3-tuple with executor id, host, and the number of free core
 WorkerOffer(executorId: String, host: String, cores: Int)
 ----
 
-For each `WorkerOffer` (that represents free cores on an executor) `resourceOffers` method records the host per executor id (using the internal `executorIdToHost`) and sets `0` as the number of tasks running on the executor if there are no tasks on the executor (using `executorIdToTaskCount`). It also records hosts (with executors in the internal `executorsByHost` registry).
+For each `WorkerOffer` (that represents free cores on an executor) `resourceOffers` method records the host per executor id (using the internal `executorIdToHost`) and sets `0` as the number of tasks running on the executor if there are no tasks on the executor (using <<executorIdToTaskCount, executorIdToTaskCount>>). It also records hosts (with executors in the internal `executorsByHost` registry).
 
 WARNING: FIXME BUG? Why is the executor id *not* added to `executorsByHost`?
 
@@ -333,15 +412,15 @@ For each `TaskSetManager` (in `sortedTaskSets`) and for each preferred locality 
 
 CAUTION: FIXME `resourceOfferSingleTaskSet` + the sentence above less code-centric.
 
-Check whether the number of cores in an offer is greater than the <<spark.task.cpus, number of cores needed for a task>>.
+Check whether the number of cores in an offer is greater than the <<spark_task_cpus, number of cores needed for a task>>.
 
 When `resourceOffers` managed to launch a task (i.e. `tasks` collection is not empty), the internal `hasLaunchedTask` flag becomes `true` (that effectively means what the name says _"There were executors and I managed to launch a task"_).
 
 `resourceOffers` returns the `tasks` collection.
 
-NOTE: `resourceOffers` is called when link:spark-scheduler-backends-coarse-grained.adoc#makeOffers[`CoarseGrainedSchedulerBackend` makes resource offers].
+NOTE: `resourceOffers` is called when link:spark-scheduler-backends-CoarseGrainedSchedulerBackend.adoc#makeOffers[`CoarseGrainedSchedulerBackend` makes resource offers].
 
-==== [[resourceOfferSingleTaskSet]] resourceOfferSingleTaskSet method
+==== [[resourceOfferSingleTaskSet]] `resourceOfferSingleTaskSet` Method
 
 [source, scala]
 ----
@@ -355,125 +434,88 @@ resourceOfferSingleTaskSet(
 
 `resourceOfferSingleTaskSet` is a private helper method that is executed when...
 
-=== [[TaskResultGetter]] TaskResultGetter
+=== [[statusUpdate]] `statusUpdate` Method
 
-`TaskResultGetter` is a helper class for <<statusUpdate, TaskSchedulerImpl.statusUpdate>>. It _asynchronously_ fetches the task results of tasks that have finished successfully (using <<enqueueSuccessfulTask, enqueueSuccessfulTask>>) or fetches the reasons of failures for failed tasks (using <<enqueueFailedTask, enqueueFailedTask>>). It then sends the "results" back to `TaskSchedulerImpl`.
+[source, scala]
+----
+statusUpdate(
+  tid: Long,
+  state: TaskState.TaskState,
+  serializedData: ByteBuffer): Unit
+----
 
-CAUTION: FIXME Image with the dependencies
+`statusUpdate` removes a lost executor when a `tid` task has failed. For all task states, `statusUpdate` removes the `tid` task from the internal registries, i.e. <<taskIdToTaskSetManager, taskIdToTaskSetManager>> and <<taskIdToExecutorId, taskIdToExecutorId>>, and decrements the number of running tasks in <<executorIdToTaskCount, executorIdToTaskCount>> registry. For `tid` in `FINISHED`, `FAILED`, `KILLED` or `LOST` states, `statusUpdate` link:spark-tasksetmanager.adoc#removeRunningTask[informs the `TaskSetManager` that the task can be removed from the running tasks]. For `tid` in `FINISHED` state `statusUpdate` link:spark-taskschedulerimpl-TaskResultGetter.adoc#enqueueSuccessfulTask[schedules an asynchrounous task to deserialize the task result (and notify `TaskSchedulerImpl`)] while for `FAILED`, `KILLED` or `LOST` states it calls link:spark-taskschedulerimpl-TaskResultGetter.adoc#enqueueFailedTask[TaskResultGetter.enqueueFailedTask]. Ultimately, given an executor that has been lost, `statusUpdate` informs link:spark-dagscheduler.adoc#executorLost[informs `DAGScheduler` that the executor was lost] and link:spark-scheduler-backends.adoc#reviveOffers[`SchedulerBackend` is requested to revive offers].
 
-TIP: Consult link:spark-taskscheduler-tasks.adoc#states[Task States] in Tasks to learn about the different task states.
-
-NOTE: The only instance of `TaskResultGetter` is created while <<creating-instance, TaskSchedulerImpl is being created>> (as `taskResultGetter`). It requires a `SparkEnv` and `TaskSchedulerImpl`. It is stopped when `TaskSchedulerImpl` stops.
-
-`TaskResultGetter` offers the following methods:
-
-* <<enqueueSuccessfulTask, enqueueSuccessfulTask>>
-* <<enqueueFailedTask, enqueueFailedTask>>
-
-The methods use the internal (daemon thread) thread pool *task-result-getter* (as `getTaskResultExecutor`) with <<settings, spark.resultGetter.threads>> so they can be executed asynchronously.
-
-==== [[enqueueSuccessfulTask]] TaskResultGetter.enqueueSuccessfulTask
-
-`enqueueSuccessfulTask(taskSetManager: TaskSetManager, tid: Long, serializedData: ByteBuffer)` starts by deserializing `TaskResult` (from `serializedData` using the global link:spark-sparkenv.adoc#closureSerializer[closure Serializer]).
-
-If the result is `DirectTaskResult`, the method checks `taskSetManager.canFetchMoreResults(serializedData.limit())` and possibly quits. If not, it deserializes the result (using `SparkEnv.serializer`).
-
-CAUTION: FIXME Review `taskSetManager.canFetchMoreResults(serializedData.limit())`.
-
-If the result is `IndirectTaskResult`, the method checks `taskSetManager.canFetchMoreResults(size)` and possibly removes the block id (using `SparkEnv.blockManager.master.removeBlock(blockId)`) and quits. If not, you should see the following DEBUG message in the logs:
-
-```
-DEBUG Fetching indirect task result for TID [tid]
-```
-
-`scheduler.handleTaskGettingResult(taskSetManager, tid)` gets called. And `sparkEnv.blockManager.getRemoteBytes(blockId)`.
-
-Failure in getting task result from BlockManager results in calling <<handleFailedTask, TaskSchedulerImpl.handleFailedTask(taskSetManager, tid, TaskState.FINISHED, TaskResultLost)>> and quit.
-
-The task result is deserialized to `DirectTaskResult` (using the global link:spark-sparkenv.adoc#closureSerializer[closure Serializer]) and `sparkEnv.blockManager.master.removeBlock(blockId)` is called afterwards.
-
-`TaskSchedulerImpl.handleSuccessfulTask(taskSetManager, tid, result)` is called.
-
-CAUTION: FIXME What is `TaskSchedulerImpl.handleSuccessfulTask` doing?
-
-Any `ClassNotFoundException` or non fatal exceptions lead to link:spark-tasksetmanager.adoc#aborting-taskset[TaskSetManager.abort].
-
-==== [[enqueueFailedTask]] TaskResultGetter.enqueueFailedTask
-
-`enqueueFailedTask(taskSetManager: TaskSetManager, tid: Long, taskState: TaskState, serializedData: ByteBuffer)` checks whether `serializedData` contains any data and if it does it deserializes it to a `TaskEndReason` (using the global link:spark-sparkenv.adoc#closureSerializer[closure Serializer]).
-
-Either `UnknownReason` or the deserialized instance is passed on to <<handleFailedTask, TaskSchedulerImpl.handleFailedTask>> as the reason of the failure.
-
-Any `ClassNotFoundException` leads to printing out the ERROR message to the logs:
-
-```
-ERROR Could not deserialize TaskEndReason: ClassNotFound with classloader [loader]
-```
-
-=== [[statusUpdate]] TaskSchedulerImpl.statusUpdate
-
-`statusUpdate(tid: Long, state: TaskState, serializedData: ByteBuffer)` is called by link:spark-scheduler-backends.adoc[scheduler backends] to inform about task state changes (see link:spark-taskscheduler-tasks.adoc#states[Task States] in Tasks).
-
-CAUTION: FIXME image with scheduler backends calling `TaskSchedulerImpl.statusUpdate`.
-
-It is called by:
-
-* link:spark-scheduler-backends-coarse-grained.adoc[CoarseGrainedSchedulerBackend] when `StatusUpdate(executorId, taskId, state, data)` comes.
-* link:spark-mesos/spark-mesos.adoc#MesosSchedulerBackend[MesosSchedulerBackend] when `org.apache.mesos.Scheduler.statusUpdate` is called.
-* link:spark-local.adoc#LocalEndpoint[LocalEndpoint] when `StatusUpdate(taskId, state, serializedData)` comes.
-
-When `statusUpdate` starts, it checks the current state of the task and act accordingly.
-
-If a task became `TaskState.LOST` and there is still an executor assigned for the task (it seems it may not given the check), the executor is marked as lost (or sometimes called failed). The executor is later announced as such using `DAGScheduler.executorLost` with link:spark-scheduler-backends.adoc#reviveOffers[SchedulerBackend.reviveOffers()] being called afterwards.
+For `tid` task in `LOST` state and an executor still <<taskIdToExecutorId, assigned for the task>> and tracked in <<executorIdToTaskCount, executorIdToTaskCount>> registry, the executor is <<removeExecutor, removed>> (with reason `Task [tid] was lost, so marking the executor as lost as well.`).
 
 CAUTION: FIXME Why is link:spark-scheduler-backends.adoc#reviveOffers[SchedulerBackend.reviveOffers()] called only for lost executors?
 
-The method looks up the link:spark-tasksetmanager.adoc[TaskSetManager] for the task (using `taskIdToTaskSetManager`).
+`statusUpdate` looks up the link:spark-tasksetmanager.adoc[TaskSetManager] for `tid` (in <<taskIdToTaskSetManager, taskIdToTaskSetManager>> registry).
 
-When the TaskSetManager is found and the task is in finished state, the task is removed from the internal data structures, i.e. `taskIdToTaskSetManager` and `taskIdToExecutorId`, and the number of currently running tasks for the executor(s) is decremented (using `executorIdToTaskCount`).
+When the `TaskSetManager` is found and the task is in a link:spark-taskscheduler-tasks.adoc#states[finished state], the task is removed from the internal registries, i.e. <<taskIdToTaskSetManager, taskIdToTaskSetManager>> and <<taskIdToExecutorId, taskIdToExecutorId>>, and the number of currently running tasks for the executor is decremented (in <<executorIdToTaskCount, executorIdToTaskCount>> registry).
 
-For a `FINISHED` task, link:spark-taskscheduler-tasksets.adoc[TaskSet.removeRunningTask] is called and then <<TaskResultGetter, TaskResultGetter.enqueueSuccessfulTask>>.
+For a task in `FINISHED` state, the task is link:spark-tasksetmanager.adoc#removeRunningTask[removed from the running tasks] and link:spark-taskschedulerimpl-TaskResultGetter.adoc#enqueueSuccessfulTask[an asynchrounous task is scheduled to deserialize the task result (and notify `TaskSchedulerImpl`)].
 
-For a task in `FAILED`, `KILLED`, or `LOST` state, link:spark-taskscheduler-tasksets.adoc[TaskSet.removeRunningTask] is called (as for the `FINISHED` state) and then <<TaskResultGetter,TaskResultGetter.enqueueFailedTask>>.
+For a task in `FAILED`, `KILLED`, or `LOST` state, the task is link:spark-tasksetmanager.adoc#removeRunningTask[removed from the running tasks] (as for the `FINISHED` state) and then link:spark-taskschedulerimpl-TaskResultGetter.adoc#enqueueFailedTask[TaskResultGetter.enqueueFailedTask] is called.
 
-If the TaskSetManager could not be found, the following ERROR shows in the logs:
+If the `TaskSetManager` for `tid` could not be found (in <<taskIdToTaskSetManager, taskIdToTaskSetManager>> registry), you should see the following ERROR message in the logs:
 
 ```
 ERROR Ignoring update with state [state] for TID [tid] because its task set is gone (this is likely the result of receiving duplicate task finished status updates)
 ```
 
-=== [[handleFailedTask]] TaskSchedulerImpl.handleFailedTask
+Any exception is caught and reported as ERROR message in the logs:
 
-`TaskSchedulerImpl.handleFailedTask(taskSetManager: TaskSetManager, tid: Long, taskState: TaskState, reason: TaskEndReason)` is called when <<enqueueSuccessfulTask, TaskResultGetter.enqueueSuccessfulTask>> failed to fetch bytes from BlockManager or as part of <<enqueueFailedTask, TaskResultGetter.enqueueFailedTask>>.
+```
+ERROR Exception in statusUpdate
+```
 
-Either way there is an error related to task execution.
+Ultimately, for `tid` task with an executor marked as lost, `statusUpdate` link:spark-dagscheduler.adoc#executorLost[informs `DAGScheduler` that the executor was lost] (with `SlaveLost` and the reason `Task [tid] was lost, so marking the executor as lost as well.`) and link:spark-scheduler-backends.adoc#reviveOffers[`SchedulerBackend` is requested to revive offers].
 
-It calls link:spark-tasksetmanager.adoc#handleFailedTask[TaskSetManager.handleFailedTask].
+CAUTION: FIXME image with scheduler backends calling `TaskSchedulerImpl.statusUpdate`.
 
-If link:spark-tasksetmanager.adoc#zombie-state[the TaskSetManager is not a zombie] and the task's state is not `KILLED`, link:spark-scheduler-backends.adoc#reviveOffers[SchedulerBackend.reviveOffers] is called.
+NOTE: `statusUpdate` is called when link:spark-scheduler-backends-CoarseGrainedSchedulerBackend.adoc#StatusUpdate[CoarseGrainedSchedulerBackend], `LocalSchedulerBackend` and `MesosFineGrainedSchedulerBackend` inform about task state changes.
 
-=== [[taskSetFinished]] TaskSchedulerImpl.taskSetFinished
+=== [[handleFailedTask]] Notifying TaskSetManager that Task Failed -- `handleFailedTask` Method
 
-`taskSetFinished(manager: TaskSetManager)` method is called to inform TaskSchedulerImpl that all tasks in a TaskSetManager have finished execution.
+[source, scala]
+----
+handleFailedTask(
+  taskSetManager: TaskSetManager,
+  tid: Long,
+  taskState: TaskState,
+  reason: TaskFailedReason): Unit
+----
+
+`handleFailedTask` link:spark-tasksetmanager.adoc#handleFailedTask[notifies `taskSetManager` that `tid` task has failed] and, only when link:spark-tasksetmanager.adoc#zombie-state[`taskSetManager` is not in zombie state] and `tid` is not in `KILLED` state, link:spark-scheduler-backends.adoc#reviveOffers[requests `SchedulerBackend` to revive offers].
+
+NOTE: `handleFailedTask` is called when link:spark-taskschedulerimpl-TaskResultGetter.adoc#enqueueSuccessfulTask[`TaskResultGetter` deserializes a `TaskFailedReason`] for a failed task.
+
+=== [[taskSetFinished]] `taskSetFinished` Method
+
+[source, scala]
+----
+taskSetFinished(manager: TaskSetManager): Unit
+----
+
+`taskSetFinished` looks all link:spark-taskscheduler-tasksets.adoc[TaskSet]s up by the stage id (in <<taskSetsByStageIdAndAttempt, taskSetsByStageIdAndAttempt>> registry) and removes the stage attempt from them, possibly with removing the entire stage record from `taskSetsByStageIdAndAttempt` registry completely (if there are no other attempts registered).
 
 .TaskSchedulerImpl.taskSetFinished is called when all tasks are finished
 image::images/taskschedulerimpl-tasksetmanager-tasksetfinished.png[align="center"]
 
-NOTE: `taskSetFinished` is called by TaskSetManager at the very end of link:spark-tasksetmanager.adoc#handleFailedTask[TaskSetManager.handleSuccessfulTask].
+NOTE: A `TaskSetManager` manages a `TaskSet` for a stage.
 
-`taskSetsByStageIdAndAttempt` internal mapping is queried by stage id (using `manager.taskSet.stageId`) for the corresponding TaskSets (TaskSetManagers in fact) to remove the currently-finished stage attempt (using `manager.taskSet.stageAttemptId`) and if it was the only attempt, the stage id is completely removed from `taskSetsByStageIdAndAttempt`.
-
-NOTE: A TaskSetManager owns a TaskSet that corresponds to a stage.
-
-`Pool.removeSchedulable(manager)` is called for the `parent` of the TaskSetManager.
+`taskSetFinished` then link:spark-taskscheduler-pool.adoc#removeSchedulable[removes `manager` from the parent's schedulable pool].
 
 You should see the following INFO message in the logs:
 
 ```
-INFO Removed TaskSet [manager.taskSet.id], whose tasks have all completed, from pool [manager.parent.name]
+INFO Removed TaskSet [id], whose tasks have all completed, from pool [name]
 ```
 
-=== [[executorAdded]] TaskSchedulerImpl.executorAdded
+NOTE: `taskSetFinished` method is called when link:spark-tasksetmanager.adoc#maybeFinishTaskSet[`TaskSetManager` has received the results of all the tasks in a `TaskSet`].
+
+=== [[executorAdded]] `executorAdded` Method
 
 [source, scala]
 ----
@@ -484,47 +526,21 @@ executorAdded(execId: String, host: String)
 
 CAUTION: FIXME Image with a call from TaskSchedulerImpl to DAGScheduler, please.
 
-=== [[internal-registries]] Internal Registries
-
-CAUTION: FIXME How/where are these mappings used?
-
-`TaskSchedulerImpl` tracks the following information in its internal data structures:
-
-* the number of link:spark-taskscheduler-tasks.adoc[tasks] already scheduled for execution (`nextTaskId`).
-* link:spark-taskscheduler-tasksets.adoc[TaskSets] by stage and attempt ids (`taskSetsByStageIdAndAttempt`)
-* link:spark-taskscheduler-tasks.adoc[tasks] to their link:spark-tasksetmanager.adoc[TaskSetManagers] (`taskIdToTaskSetManager`)
-* link:spark-taskscheduler-tasks.adoc[tasks] to link:spark-executor.adoc[executors] (`taskIdToExecutorId`)
-* the number of link:spark-taskscheduler-tasks.adoc[tasks] running per link:spark-executor.adoc[executor] (`executorIdToTaskCount`)
-* the set of link:spark-executor.adoc[executors] on each host (`executorsByHost`)
-* the set of hosts per rack (`hostsByRack`)
-* executor ids to corresponding host (`executorIdToHost`).
-
 === [[settings]] Settings
 
-==== [[spark.task.maxFailures]] spark.task.maxFailures
+.Spark Properties
+[frame="topbot",cols="1,1,2",options="header",width="100%"]
+|======================
+| Spark Property | Default Value | Description
+| [[spark_task_maxFailures]] `spark.task.maxFailures` | `4` in link:spark-cluster.adoc[cluster mode]
 
-`spark.task.maxFailures` (default: `4` for link:spark-cluster.adoc[cluster mode] and `1` for link:spark-local.adoc[local] except link:spark-local.adoc[local-with-retries]) - The number of individual task failures before giving up on the entire link:spark-taskscheduler-tasksets.adoc[TaskSet] and the job afterwards.
+`1` in link:spark-local.adoc[local] except link:spark-local.adoc[local-with-retries] | The number of individual task failures before giving up on the entire link:spark-taskscheduler-tasksets.adoc[TaskSet] and the job afterwards.
 
-It is used in `TaskSchedulerImpl` to initialize a link:spark-tasksetmanager.adoc[TaskSetManager].
+| [[spark_task_cpus]] `spark.task.cpus` | `1` | The number of CPUs to request per task.
 
-==== [[spark.task.cpus]] spark.task.cpus
+| [[spark_starvation_timeout]] `spark.starvation.timeout` | `15s` | Threshold above which Spark warns a user that an initial TaskSet may be starved.
 
-`spark.task.cpus` (default: `1`) sets how many CPUs to request per task.
-
-==== [[spark.scheduler.mode]] spark.scheduler.mode
-
-`spark.scheduler.mode` (default: `FIFO`) is a case-insensitive name of the link:spark-taskscheduler-schedulingmode.adoc[scheduling mode] and can be one of `FAIR`, `FIFO`, or `NONE`.
+| [[spark_scheduler_mode]] `spark.scheduler.mode` | `FIFO` | A case-insensitive name of the link:spark-taskscheduler-schedulingmode.adoc[scheduling mode] -- `FAIR`, `FIFO`, or `NONE`.
 
 NOTE: Only `FAIR` and `FIFO` are supported by `TaskSchedulerImpl`. See <<schedulableBuilder, schedulableBuilder>>.
-
-==== [[spark.speculation.interval]] spark.speculation.interval
-
-`spark.speculation.interval` (default: `100ms`) - how often to check for speculative tasks.
-
-==== [[spark.starvation.timeout]] spark.starvation.timeout
-
-`spark.starvation.timeout` (default: `15s`) - Threshold above which Spark warns a user that an initial TaskSet may be starved.
-
-==== [[spark.resultGetter.threads]] spark.resultGetter.threads
-
-`spark.resultGetter.threads` (default: `4`) - the number of threads for <<TaskResultGetter, TaskResultGetter>>.
+|======================

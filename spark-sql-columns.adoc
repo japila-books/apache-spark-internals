@@ -1,28 +1,18 @@
-== [[Column]] Column Operators
+== [[Column]] Dataset Columns
 
-`Column` type represents a column in a dataset.
+`Column` type represents a column in a dataset which are values of records for a given field.
 
-You can add new columns do a `Dataset` using link:spark-sql-dataset.adoc#withColumn[withColumn] method.
+NOTE: A `Column` is a value generator for records of a `Dataset`.
+
+A `Column` has a reference to the link:spark-sql-catalyst-Expression.adoc[Expression] it was created for using `expr`.
 
 [source, scala]
 ----
-val spark: SparkSession = ...
-val dataset = spark.range(5)
-
-// Add a new column called "group"
-scala> dataset.withColumn("group", 'id % 2).show
-+---+-----+
-| id|group|
-+---+-----+
-|  0|    0|
-|  1|    1|
-|  2|    0|
-|  3|    1|
-|  4|    0|
-+---+-----+
+scala> window('time, "5 seconds").expr
+res0: org.apache.spark.sql.catalyst.expressions.Expression = timewindow('time, 5000000, 5000000, 0) AS window#1
 ----
 
-With the link:spark-sql-sparksession.adoc#implicits[implicits] converstions imported, you can create columns using Scala's symbols.
+With the link:spark-sql-sparksession.adoc#implicits[implicits] converstions imported, you can create "free" column references using Scala's symbols.
 
 [source, scala]
 ----
@@ -34,7 +24,9 @@ scala> val nameCol: Column = 'name
 nameCol: org.apache.spark.sql.Column = name
 ----
 
-You can also create columns from ``$``-prefixed strings.
+NOTE: _"Free" column references_ are ``Column``s with no association to a `Dataset`.
+
+You can also create free column references from ``$``-prefixed strings.
 
 [source, scala]
 ----
@@ -62,7 +54,7 @@ scala> val cityCol = column("city")
 cityCol: org.apache.spark.sql.Column = city
 ----
 
-Finally, you can create a `Column` using the `Dataset` it belongs to using link:spark-sql-dataset.adoc#apply[Dataset.apply] factory method or link:spark-sql-dataset.adoc#col[Dataset.col] method.
+Finally, you can create a `Column` reference using the `Dataset` it belongs to using link:spark-sql-dataset.adoc#apply[Dataset.apply] factory method or link:spark-sql-dataset.adoc#col[Dataset.col] method. You can only use such `Column` references for the ``Dataset``s they were created from.
 
 [source, scala]
 ----
@@ -78,9 +70,89 @@ idCol: org.apache.spark.sql.Column = id
 
 You can reference nested columns using `.` (dot).
 
-CAUTION: FIXME
+=== [[withColumn]] Adding Column to Dataset -- `withColumn` Method
 
-=== [[like]] like
+[source, scala]
+----
+withColumn(colName: String, col: Column): DataFrame
+----
+
+`withColumn` method returns a new `DataFrame` with the new column `col` with `colName` name added.
+
+NOTE: `withColumn` can replace an existing `colName` column.
+
+[source, scala]
+----
+scala> val df = Seq((1, "jeden"), (2, "dwa")).toDF("number", "polish")
+df: org.apache.spark.sql.DataFrame = [number: int, polish: string]
+
+scala> df.show
++------+------+
+|number|polish|
++------+------+
+|     1| jeden|
+|     2|   dwa|
++------+------+
+
+scala> df.withColumn("polish", lit(1)).show
++------+------+
+|number|polish|
++------+------+
+|     1|     1|
+|     2|     1|
++------+------+
+----
+
+You can add new columns do a `Dataset` using link:spark-sql-dataset.adoc#withColumn[withColumn] method.
+
+[source, scala]
+----
+val spark: SparkSession = ...
+val dataset = spark.range(5)
+
+// Add a new column called "group"
+scala> dataset.withColumn("group", 'id % 2).show
++---+-----+
+| id|group|
++---+-----+
+|  0|    0|
+|  1|    1|
+|  2|    0|
+|  3|    1|
+|  4|    0|
++---+-----+
+----
+
+=== [[apply]] Referencing Column -- `apply` Method
+
+[source, scala]
+----
+val spark: SparkSession = ...
+case class Word(id: Long, text: String)
+val dataset = Seq(Word(0, "hello"), Word(1, "spark")).toDS
+
+scala> val idCol = dataset.apply("id")
+idCol: org.apache.spark.sql.Column = id
+
+// or using Scala's magic a little bit
+// the following is equivalent to the above explicit apply call
+scala> val idCol = dataset("id")
+idCol: org.apache.spark.sql.Column = id
+----
+
+=== [[col]] Creating Column -- `col` method
+
+[source, scala]
+----
+val spark: SparkSession = ...
+case class Word(id: Long, text: String)
+val dataset = Seq(Word(0, "hello"), Word(1, "spark")).toDS
+
+scala> val textCol = dataset.col("text")
+textCol: org.apache.spark.sql.Column = text
+----
+
+=== [[like]] `like` Operator
 
 CAUTION: FIXME
 
@@ -116,7 +188,7 @@ scala> df.select('id).show
 +---+
 ----
 
-=== [[over]] over function
+=== [[over]] `over` Operator
 
 [source, scala]
 ----
@@ -127,7 +199,7 @@ over(window: expressions.WindowSpec): Column
 
 TIP: Read about Windows in link:spark-sql-windows.adoc[Windows].
 
-=== [[cast]] cast
+=== [[cast]] `cast` Operator
 
 `cast` method casts a column to a data type. It makes for type-safe maps with link:spark-sql-dataframe-row.adoc[Row] objects of the proper type (not `Any`).
 

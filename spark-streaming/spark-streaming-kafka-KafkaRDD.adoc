@@ -1,0 +1,49 @@
+== [[KafkaRDD]] KafkaRDD
+
+`KafkaRDD` is a link:../spark-rdd.adoc[RDD] of Kafka's https://kafka.apache.org/0100/javadoc/org/apache/kafka/clients/consumer/ConsumerRecord.html[ConsumerRecord]s from topics in Apache Kafka. It has support for link:spark-streaming-kafka-HasOffsetRanges.adoc[HasOffsetRanges].
+
+NOTE: Kafka's https://kafka.apache.org/0100/javadoc/org/apache/kafka/clients/consumer/ConsumerRecord.html[ConsumerRecord] holds a topic name, a partition number, the offset of the record in the Kafka partition and the record itself (as a key-value pair).
+
+It uses <<KafkaRDDPartition, KafkaRDDPartition>> for partitions that know their preferred locations as the host of the topic (not port however!). It then nicely maps a RDD partition to a Kafka topic partition.
+
+NOTE: `KafkaRDD` is a `private[spark]` class.
+
+`KafkaRDD` overrides methods of `RDD` class to base them on `offsetRanges`, i.e. partitions.
+
+You can create a `KafkaRDD` using link:spark-streaming-kafka-KafkaUtils.adoc#createRDD[KafkaUtils.createRDD] or a dstream of `KafkaRDD` as link:spark-streaming-kafka-DirectKafkaInputDStream.adoc[DirectKafkaInputDStream] using link:spark-streaming-kafka-KafkaUtils.adoc#createDirectStream[KafkaUtils.createDirectStream].
+
+[TIP]
+====
+Enable `INFO` logging level for `org.apache.spark.streaming.kafka010.KafkaRDD` logger to see what happens inside.
+
+Add the following line to `conf/log4j.properties`:
+
+```
+log4j.logger.org.apache.spark.streaming.kafka010.KafkaRDD=INFO
+```
+
+Refer to link:../spark-logging.adoc[Logging].
+====
+
+=== [[compute]] Computing `KafkaRDDPartition` -- `compute` Method
+
+[source, scala]
+----
+compute(thePart: Partition, context: TaskContext): Iterator[ConsumerRecord[K, V]]
+----
+
+NOTE: `compute` is a part of the link:../spark-rdd.adoc#compute[RDD Contract].
+
+`compute` assumes that it works with `thePart` as <<KafkaRDDPartition, KafkaRDDPartition>> only. It asserts that the offsets are correct, i.e. `fromOffset` is at most `untilOffset`.
+
+If the beginning and ending offsets are the same, you should see the following INFO message in the logs and `compute` returns an empty collection.
+
+```
+INFO KafkaRDD: Beginning offset [fromOffset] is the same as ending offset skipping [topic] [partition]
+```
+
+Otherwise, when the beginning and ending offsets are different, a <<KafkaRDDIterator, KafkaRDDIterator>> is created (for the partition and the input link:../spark-taskscheduler-taskcontext.adoc[TaskContext]) and returned.
+
+=== [[KafkaRDDPartition]] `KafkaRDDPartition`
+
+`KafkaRDDPartition` is...FIXME

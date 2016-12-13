@@ -1,0 +1,54 @@
+== [[FileSourceStrategy]] FileSourceStrategy
+
+`FileSourceStrategy` is a `Strategy` of link:spark-sql-SparkPlanner.adoc[SparkPlanner] and link:spark-sql-queryplanner.adoc#HiveSessionState[Hive-specific `QueryPlanner`]. It <<PhysicalOperation, destructures>> and then optimizes a link:spark-sql-LogicalPlan.adoc[LogicalPlan].
+
+[TIP]
+====
+Enable `INFO` logging level for `org.apache.spark.sql.execution.datasources.FileSourceStrategy` logger to see what happens inside.
+
+Add the following line to `conf/log4j.properties`:
+
+```
+log4j.logger.org.apache.spark.sql.execution.datasources.FileSourceStrategy=INFO
+```
+
+Refer to link:spark-logging.adoc[Logging].
+====
+
+CAUTION: FIXME
+
+=== [[PhysicalOperation]] PhysicalOperation
+
+`PhysicalOperation` is used to destructure a link:spark-sql-LogicalPlan.adoc[LogicalPlan] into a tuple of `(Seq[NamedExpression], Seq[Expression], LogicalPlan)`.
+
+The following idiom is often used in `Strategy` implementations (e.g. `HiveTableScans`, `InMemoryScans`, link:spark-sql-DataSourceStrategy.adoc[DataSourceStrategy], <<FileSourceStrategy, FileSourceStrategy>>):
+
+[source, scala]
+----
+def apply(plan: LogicalPlan): Seq[SparkPlan] = plan match {
+  case PhysicalOperation(projections, predicates, plan) =>
+    // do something
+  case _ => Nil
+}
+----
+
+Whenever used to pattern match to a `LogicalPlan`, ``PhysicalOperation``'s `unapply` is called.
+
+[source, scala]
+----
+unapply(plan: LogicalPlan): Option[ReturnType]
+----
+
+`unapply` uses <<collectProjectsAndFilters, collectProjectsAndFilters>> method that recursively destructures the input `LogicalPlan`.
+
+NOTE: `unapply` is _almost_ <<collectProjectsAndFilters, collectProjectsAndFilters>> method itself (with some manipulations of the return value).
+
+=== [[collectProjectsAndFilters]] `collectProjectsAndFilters` Method
+
+[source, scala]
+----
+collectProjectsAndFilters(plan: LogicalPlan):
+  (Option[Seq[NamedExpression]], Seq[Expression], LogicalPlan, Map[Attribute, Expression])
+----
+
+`collectProjectsAndFilters` is a pattern used to destructure a link:spark-sql-LogicalPlan.adoc[LogicalPlan] that can be `Project`, `Filter` or `BroadcastHint`. Any other `LogicalPlan` give an _all-empty_ response.

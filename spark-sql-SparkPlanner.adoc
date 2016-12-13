@@ -1,0 +1,42 @@
+== [[SparkPlanner]] SparkPlanner -- Default Query Planner (with no Hive Support)
+
+`SparkPlanner` is a concrete link:spark-sql-queryplanner.adoc[QueryPlanner] (indirectly through extending link:spark-sql-queryplanner.adoc#SparkStrategies[SparkStrategies]) that allows for plugging in a collection of additional link:spark-sql-queryplanner.adoc#SparkStrategy[SparkStrategy] transformations.
+
+.`SparkStrategy` Transformations in `SparkPlanner` (in alphabetic order)
+[frame="topbot",cols="1,2",options="header",width="100%"]
+|======================
+| SparkStrategy | Description
+| `Aggregation` |
+| link:spark-sql-BasicOperators.adoc[`BasicOperators`] |
+| link:spark-sql-DataSourceStrategy.adoc[DataSourceStrategy] |
+| link:spark-sql-DDLStrategy.adoc[DDLStrategy] |
+| link:spark-sql-FileSourceStrategy.adoc[FileSourceStrategy] |
+| `InMemoryScans` |
+| link:spark-sql-JoinSelection.adoc[JoinSelection] |
+| `SpecialLimits` |
+|======================
+
+`SparkPlanner` requires a link:spark-sparkcontext.adoc[SparkContext], a link:spark-sql-SQLConf.adoc[SQLConf], and a collection of `Strategy` objects (as `extraStrategies`) when created.
+
+`SparkPlanner` defines `numPartitions` method that returns the value of link:spark-sql-settings.adoc#spark.sql.shuffle.partitions[spark.sql.shuffle.partitions] for the number of partitions to use for link:spark-sql-joins.adoc[joins] and link:spark-sql-aggregation.adoc[aggregations]. It is later used in link:spark-sql-BasicOperators.adoc[`BasicOperators` strategy] with `RepartitionByExpression` logical operator.
+
+The required `strategies` collection uses `extraStrategies` extension point (defined as the argument to the constructor) and the predefined collection of `Strategy` objects.
+
+`collectPlaceholders` required method returns a collection of `PlanLater` and the corresponding link:spark-sql-LogicalPlan.adoc[logical plans].
+
+`prunePlans` required method does nothing, i.e. it returns what it gets directly.
+
+[NOTE]
+====
+The order of the `SparkStrategy` transformations in `SparkPlanner` is as follows:
+
+1. `extraStrategies`
+2. link:spark-sql-FileSourceStrategy.adoc[FileSourceStrategy]
+3. link:spark-sql-DataSourceStrategy.adoc[DataSourceStrategy]
+4. link:spark-sql-DDLStrategy.adoc[DDLStrategy]
+5. SpecialLimits
+6. Aggregation
+7. link:spark-sql-JoinSelection.adoc[JoinSelection]
+8. InMemoryScans
+9. link:spark-sql-BasicOperators.adoc[BasicOperators]
+====

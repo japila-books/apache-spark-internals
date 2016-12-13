@@ -1,11 +1,11 @@
-== Tasks
+== [[Task]] Tasks
 
-In Spark, a *task* (aka _command_) is the smallest individual unit of execution that represents a partition in a dataset and that an link:spark-executor.adoc#launchTask[executor can execute on a single machine].
+In Spark, a *task* (aka _command_) is the smallest individual unit of execution that represents a partition in a RDD and that an link:spark-executor.adoc#launchTask[executor can execute on a single machine].
 
 .Tasks correspond to partitions in RDD
 image::images/spark-rdd-partitions-job-stage-tasks.png[align="center"]
 
-In other (more technical) words, a task is a computation on a data partition in a stage in a job.
+In other (more technical) words, a task is a computation on a data partition in a stage of a RDD in a Spark job.
 
 A task can only belong to one stage and operate on a single partition. All tasks in a stage must be completed before the stages that follow can start.
 
@@ -15,10 +15,20 @@ CAUTION: FIXME What are `stageAttemptId` and `taskAttemptId`?
 
 A task in Spark is represented by the `Task` abstract class with two concrete implementations:
 
-* <<shufflemaptask, ShuffleMapTask>> that executes a task and divides the task's output to multiple buckets (based on the task's partitioner).
-* <<ResultTask, ResultTask>> that executes a task and sends the task's output back to the driver application.
+* link:spark-taskscheduler-ShuffleMapTask.adoc[ShuffleMapTask] that executes a task and divides the task's output to multiple buckets (based on the task's partitioner).
+* link:spark-taskscheduler-ResultTask.adoc[ResultTask] that executes a task and sends the task's output back to the driver application.
 
-The very last stage in a job consists of multiple `ResultTasks`, while earlier stages are a set of <<shufflemaptask, ShuffleMapTasks>>.
+The very last stage in a Spark job consists of multiple link:spark-taskscheduler-ResultTask.adoc[ResultTask]s, while earlier stages can only be link:spark-taskscheduler-ShuffleMapTask.adoc[ShuffleMapTask]s.
+
+CAUTION: FIXME You could have a Spark job with link:spark-taskscheduler-ShuffleMapTask.adoc[ShuffleMapTask] being the last.
+
+=== [[contract]] `Task` Contract
+
+CAUTION: FIXME
+
+=== [[runTask]] Running Task -- `runTask` Method
+
+CAUTION: FIXME
 
 === [[attributes]] Task Attributes
 
@@ -34,7 +44,7 @@ A `Task` instance is uniquely identified by the following task attributes:
 
 * `localProperties` - local private properties of the task.
 
-=== [[run]][[execution]] Running Task Thread (run method)
+=== [[run]][[execution]] Running Task Thread -- `run` Method
 
 [source, scala]
 ----
@@ -53,8 +63,6 @@ The <<runTask, task runs>>.
 CAUTION: FIXME Describe `catch` and `finally` blocks.
 
 NOTE: When `run` is called from link:spark-executor-taskrunner.adoc#run[TaskRunner.run], the `Task` has just been deserialized from `taskBytes` that were sent over the wire to an executor. `localProperties` and link:spark-taskscheduler-taskmemorymanager.adoc[TaskMemoryManager] are already assigned.
-
-=== [[runTask]] Running Task (runTask method)
 
 === [[states]] Task States
 
@@ -77,7 +85,7 @@ Task is finished when it is in one of `FINISHED`, `FAILED`, `KILLED`, `LOST`
 
 TIP: Task states correspond to https://github.com/apache/mesos/blob/master/include/mesos/mesos.proto[org.apache.mesos.Protos.TaskState].
 
-=== [[collectAccumulatorUpdates]] Collect Latest Values of Accumulators (collectAccumulatorUpdates)
+=== [[collectAccumulatorUpdates]] Collect Latest Values of Accumulators -- `collectAccumulatorUpdates` Method
 
 [source, scala]
 ----
@@ -96,7 +104,7 @@ NOTE: It uses `context.taskMetrics.accumulatorUpdates()`.
 
 CAUTION: FIXME What is `context.taskMetrics.accumulatorUpdates()` doing?
 
-=== [[kill]] Killing Task (kill method)
+=== [[kill]] Killing Task -- `kill` Method
 
 [source, scala]
 ----
@@ -111,14 +119,6 @@ If `interruptThread` is enabled and the internal `taskThread` is available, `kil
 
 CAUTION: FIXME When could `context` and `interruptThread` not be set?
 
-=== [[ShuffleMapTask]][[shufflemaptask]] ShuffleMapTask
-
-A *ShuffleMapTask* divides the elements of an RDD into multiple buckets (based on a partitioner specified in link:spark-rdd-dependencies.adoc#ShuffleDependency[ShuffleDependency]).
-
-=== [[ResultTask]] ResultTask
-
-CAUTION: FIXME
-
-=== [[taskMemoryManager]] taskMemoryManager attribute
+=== [[taskMemoryManager]] `taskMemoryManager` attribute
 
 `taskMemoryManager` is the link:spark-taskscheduler-taskmemorymanager.adoc[TaskMemoryManager] that manages the memory allocated by the task.
