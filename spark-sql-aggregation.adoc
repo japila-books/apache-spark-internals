@@ -1,8 +1,8 @@
 == Aggregation -- Typed and Untyped Grouping
 
-You can group data in a link:spark-sql-dataset.adoc[Dataset] to compute aggregates over a collection of (grouped) records.
+You can group records in a link:spark-sql-dataset.adoc[Dataset] using a condition to compute aggregates (over a collection of grouped records).
 
-You can use <<agg, agg>> method for computing aggregations per column on the entire dataset (without creating groups).
+You can use <<agg, agg>> method for computing aggregations per column on the entire data set (without first creating groups and considering the entire data set as one group).
 
 [source, scala]
 ----
@@ -14,7 +14,7 @@ scala> spark.range(10).agg(sum('id) as "sum").show
 +---+
 ----
 
-The following aggregate operators are available for `Datasets`:
+The following aggregate operators are available:
 
 1. <<groupBy, groupBy>> for untyped aggregations with link:spark-sql-columns.adoc[Column]- or String-based column names.
 2. <<groupByKey, groupByKey>> for strongly-typed aggregations where the data is grouped by a given key function.
@@ -23,7 +23,7 @@ The following aggregate operators are available for `Datasets`:
 
 The untyped aggregations, e.g. `groupBy`, `rollup`, and `cube`, return <<RelationalGroupedDataset, RelationalGroupedDatasets>> while `groupByKey` returns a <<KeyValueGroupedDataset, KeyValueGroupedDataset>>.
 
-=== [[agg]] Aggregates on Entire Dataset (Without Groups) -- agg Operator
+=== [[agg]] Aggregates on Entire Dataset (Without Groups) -- `agg` Operator
 
 [source, scala]
 ----
@@ -36,7 +36,7 @@ agg(aggExpr: (String, String), aggExprs: (String, String)*): DataFrame
 
 NOTE: `agg` is simply a shortcut for <<groupBy, groupBy().agg(...)>>.
 
-=== [[groupBy]] Grouping by Columns -- groupBy Untyped Operators
+=== [[groupBy]] Grouping by Columns -- `groupBy` Untyped Operators
 
 [source, scala]
 ----
@@ -48,11 +48,22 @@ groupBy(col1: String, cols: String*): RelationalGroupedDataset
 
 [source, scala]
 ----
-// 10^6 records
-val intsMM = 1 to math.pow(10, 6).toInt
-val df = intsMM.toDF("n").withColumn("m", 'n % 2)
+// 10^3-record large data set
+val ints = 1 to math.pow(10, 3).toInt
 
-df.groupBy('m).agg(sum('n))
+scala> val dataset = ints.toDF("n").withColumn("m", 'n % 2)
+dataset: org.apache.spark.sql.DataFrame = [n: int, m: int]
+
+scala> dataset.count
+res0: Long = 1000
+
+scala> dataset.groupBy('m).agg(sum('n)).show
++---+------+
+|  m|sum(n)|
++---+------+
+|  1|250000|
+|  0|250500|
++---+------+
 ----
 
 Internally, it first link:spark-sql-LogicalPlan.adoc#resolveQuoted[resolves columns] and then builds a <<RelationalGroupedDataset, RelationalGroupedDataset>>.
@@ -123,7 +134,7 @@ scala> dataset.groupBy('productId).sum("score").show
 +---------+------------------+
 ----
 
-=== [[groupByKey]] groupByKey Typed Operator
+=== [[groupByKey]] `groupByKey` Typed Operator
 
 [source, scala]
 ----
