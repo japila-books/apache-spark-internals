@@ -478,10 +478,6 @@ INFO DAGScheduler: Asked to cancel job [id]
 
 NOTE: `cancelJob` is called when link:spark-sparkcontext.adoc#cancelJob[SparkContext] and link:spark-dagscheduler-JobListener.adoc#JobWaiter[JobWaiter] are requested to cancel a Spark job.
 
-=== [[submitWaitingChildStages]] `submitWaitingChildStages` Internal Method
-
-CAUTION: FIXME
-
 === [[markStageAsFinished]] Marking Stage Finished -- `markStageAsFinished` Internal Method
 
 [source, scala]
@@ -682,27 +678,29 @@ It allows Spark to release the current thread when posting happens and let the e
 
 CAUTION: FIXME statistics? `MapOutputStatistics`?
 
-=== [[submitWaitingStages]] Submitting Waiting Stages for Execution -- `submitWaitingStages` Method
+=== [[submitWaitingChildStages]] Submitting Waiting Child Stages for Execution -- `submitWaitingChildStages` Internal Method
 
 [source, scala]
 ----
 submitWaitingChildStages(parent: Stage): Unit
 ----
 
-`submitWaitingStages` method checks for waiting or failed stages that could now be eligible for submission.
+`submitWaitingChildStages` submits for execution all waiting stages for which the input `parent` link:spark-dagscheduler-stages.adoc[Stage] is the direct parent.
+
+NOTE: *Waiting stages* are the stages registered in <<waitingStages, `waitingStages` internal registry>>.
 
 When executed, you should see the following `TRACE` messages in the logs:
 
 ```
-TRACE DAGScheduler: Checking for newly runnable parent stages
+TRACE DAGScheduler: Checking if any dependencies of [parent] are now runnable
 TRACE DAGScheduler: running: [runningStages]
 TRACE DAGScheduler: waiting: [waitingStages]
 TRACE DAGScheduler: failed: [failedStages]
 ```
 
-The method clears the internal `waitingStages` set with stages that wait for their parent stages to finish.
+`submitWaitingChildStages` finds child stages of the input `parent` stage, removes them from `waitingStages` internal registry, and <<submitStage, submits>> one by one sorted by their job ids.
 
-It goes over the waiting stages sorted by job ids in increasing order and calls <<submitStage, submitStage>> method.
+NOTE: `submitWaitingChildStages` is executed when `DAGScheduler` <<submitMissingTasks, submits missing tasks for stage>> and link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleTaskCompletion-Success-ShuffleMapTask[handles successful `ShuffleMapTask` completion].
 
 === [[submitStage]] Submitting Stage or Its Missing Parents for Execution -- `submitStage` Internal Method
 
