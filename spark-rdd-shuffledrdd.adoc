@@ -1,39 +1,51 @@
 == [[ShuffledRDD]] ShuffledRDD
 
-`ShuffledRDD` is an link:spark-rdd.adoc[RDD] of key-value pairs in <<ShuffledRDDPartition, ShuffledRDDPartition>> partitions. It is the output of transformations that trigger link:spark-rdd-shuffle.adoc[shuffle] at execution and is hence often called a *shuffle step*.
+`ShuffledRDD` is an link:spark-rdd.adoc[RDD] of key-value pairs (in <<ShuffledRDDPartition, ShuffledRDDPartition>> partitions) that acts as the *shuffle step* in a link:spark-rdd-lineage.adoc[RDD lineage].
 
-CAUTION: FIXME What transformations?
+A `ShuffledRDD` is created for RDD transformations that trigger a link:spark-rdd-shuffle.adoc[data shuffling]:
 
-`ShuffledRDD` requires a parent RDD and a link:spark-rdd-Partitioner.adoc[Partitioner] when created.
+1. link:spark-rdd-partitions.adoc#coalesce[`coalesce` transformation] (with `shuffle` flag enabled).
 
-NOTE: `ShuffledRDD` is a result of link:spark-rdd-partitions.adoc#coalesce[`coalesce` transformation] (when `shuffle` is enabled), link:spark-rdd-PairRDDFunctions.adoc#combineByKeyWithClassTag[combineByKeyWithClassTag] (when partitioners are different), link:spark-rdd-PairRDDFunctions.adoc#partitionBy[partitionBy] (using a different `Partitioner`), link:spark-rdd-OrderedRDDFunctions.adoc#sortByKey[sortByKey] and link:spark-rdd-OrderedRDDFunctions.adoc#repartitionAndSortWithinPartitions[repartitionAndSortWithinPartitions] ordered operators.
+2. ``PairRDDFunctions``'s link:spark-rdd-PairRDDFunctions.adoc#combineByKeyWithClassTag[combineByKeyWithClassTag] and link:spark-rdd-PairRDDFunctions.adoc#partitionBy[partitionBy] (when the parent RDD's and specified link:spark-rdd-Partitioner.adoc[Partitioners] are different).
 
-The <<mapSideCombine, map-side combine internal flag>> (`mapSideCombine`) is used to set up the `Serializer` for shuffling. It is disabled (i.e. `false`) by default and can be changed using `setMapSideCombine` method.
+3. ``OrderedRDDFunctions``'s link:spark-rdd-OrderedRDDFunctions.adoc#sortByKey[sortByKey] and link:spark-rdd-OrderedRDDFunctions.adoc#repartitionAndSortWithinPartitions[repartitionAndSortWithinPartitions] ordered operators.
+
+```
+scala> val rdd = sc.parallelize(0 to 9)
+rdd: org.apache.spark.rdd.RDD[Int] = ParallelCollectionRDD[0] at parallelize at <console>:24
+
+scala> rdd.getNumPartitions
+res0: Int = 8
+
+// ShuffledRDD and coalesce Example
+
+scala> rdd.coalesce(numPartitions = 4, shuffle = true).toDebugString
+res1: String =
+(4) MapPartitionsRDD[4] at coalesce at <console>:27 []
+ |  CoalescedRDD[3] at coalesce at <console>:27 []
+ |  ShuffledRDD[2] at coalesce at <console>:27 []
+ +-(8) MapPartitionsRDD[1] at coalesce at <console>:27 []
+    |  ParallelCollectionRDD[0] at parallelize at <console>:24 []
+
+// ShuffledRDD and sortByKey Example
+
+scala> val grouped = rdd.groupBy(_ % 2)
+grouped: org.apache.spark.rdd.RDD[(Int, Iterable[Int])] = ShuffledRDD[6] at groupBy at <console>:26
+
+scala> grouped.sortByKey(numPartitions = 2).toDebugString
+res2: String =
+(2) ShuffledRDD[9] at sortByKey at <console>:29 []
+ +-(8) ShuffledRDD[6] at groupBy at <console>:26 []
+    +-(8) MapPartitionsRDD[5] at groupBy at <console>:26 []
+       |  ParallelCollectionRDD[0] at parallelize at <console>:24 []
+```
+
+`ShuffledRDD` takes a parent RDD and a link:spark-rdd-Partitioner.adoc[Partitioner] when created.
 
 [[getDependencies]]
-`getDependencies` returns a single-element collection of link:spark-rdd-ShuffleDependency.adoc[ShuffleDependency] (with the `Serializer` given <<mapSideCombine, `mapSideCombine` internal flag>>).
+`getDependencies` returns a single-element collection with a link:spark-rdd-ShuffleDependency.adoc[ShuffleDependency] (with the `Serializer` according to <<mapSideCombine, map-side combine internal flag>>).
 
-Let's have a look at the below example with `groupBy` transformation:
-
-```
-scala> val r = sc.parallelize(0 to 9, 3).groupBy(_ / 3)
-r: org.apache.spark.rdd.RDD[(Int, Iterable[Int])] = ShuffledRDD[2] at groupBy at <console>:18
-
-scala> r.toDebugString
-res0: String =
-(3) ShuffledRDD[2] at groupBy at <console>:18 []
- +-(3) MapPartitionsRDD[1] at groupBy at <console>:18 []
-    |  ParallelCollectionRDD[0] at parallelize at <console>:18 []
-```
-
-As you may have noticed, `groupBy` transformation adds `ShuffledRDD` RDD that will execute shuffling at execution time (as depicted in the following screenshot).
-
-.Two stages in a job due to shuffling
-image::images/spark-webui-job-two-stages.png[align="center"]
-
-It uses link:spark-service-MapOutputTrackerMaster.adoc[MapOutputTrackerMaster] to get preferred locations for a shuffle, i.e. a link:spark-rdd-ShuffleDependency.adoc[ShuffleDependency].
-
-=== [[mapSideCombine]] `mapSideCombine` Internal Flag
+=== [[mapSideCombine]] Map-Side Combine `mapSideCombine` Internal Flag
 
 [source, scala]
 ----
@@ -72,7 +84,7 @@ NOTE: `compute` uses link:spark-sparkenv.adoc#shuffleManager[`SparkEnv` to acces
 
 NOTE: A Partition has the `index` property to specify `startPartition` and `endPartition` partition offsets.
 
-=== [[getPreferredLocations]] `getPreferredLocations` Method
+=== [[getPreferredLocations]] Specifying Preferred Locations -- `getPreferredLocations` Method
 
 [source, scala]
 ----
@@ -81,7 +93,7 @@ getPreferredLocations(partition: Partition): Seq[String]
 
 NOTE: `getPreferredLocations` is a part of link:spark-rdd.adoc#contract[RDD contract] to specify placement preferences (aka _preferred task locations_), i.e. where tasks should be executed to be as close to the data as possible.
 
-Internally, `getPreferredLocations` requests link:spark-service-MapOutputTrackerMaster.adoc#getPreferredLocationsForShuffle[`MapOutputTrackerMaster` for the preferred locations] of the input `partition` (for the only link:spark-rdd-ShuffleDependency.adoc[ShuffleDependency]).
+Internally, `getPreferredLocations` requests link:spark-service-MapOutputTrackerMaster.adoc#getPreferredLocationsForShuffle[`MapOutputTrackerMaster` for the preferred locations] of the input `partition` (for the one and only link:spark-rdd-ShuffleDependency.adoc[ShuffleDependency]).
 
 NOTE: `getPreferredLocations` uses link:spark-sparkenv.adoc#mapOutputTracker[`SparkEnv` to access `MapOutputTrackerMaster`] (which runs on the driver).
 
