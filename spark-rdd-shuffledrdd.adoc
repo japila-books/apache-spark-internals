@@ -1,14 +1,17 @@
 == [[ShuffledRDD]] ShuffledRDD
 
-`ShuffledRDD` is an link:spark-rdd.adoc[RDD] of `(key, value)` pairs across <<ShuffledRDDPartition, ShuffledRDDPartition>> partitions. It is a shuffle step (the result RDD) for transformations that trigger link:spark-rdd-shuffle.adoc[shuffle] at execution.
+`ShuffledRDD` is an link:spark-rdd.adoc[RDD] of key-value pairs in <<ShuffledRDDPartition, ShuffledRDDPartition>> partitions. It is the output of transformations that trigger link:spark-rdd-shuffle.adoc[shuffle] at execution and is hence often called a *shuffle step*.
+
+CAUTION: FIXME What transformations?
 
 `ShuffledRDD` requires a parent RDD and a link:spark-rdd-Partitioner.adoc[Partitioner] when created.
 
 NOTE: `ShuffledRDD` is a result of link:spark-rdd-partitions.adoc#coalesce[`coalesce` transformation] (when `shuffle` is enabled), link:spark-rdd-pairrdd-functions.adoc#combineByKeyWithClassTag[combineByKeyWithClassTag] (when partitioners are different), link:spark-rdd-pairrdd-functions.adoc#partitionBy[partitionBy] (using a different `Partitioner`), link:spark-rdd-OrderedRDDFunctions.adoc#sortByKey[sortByKey] and link:spark-rdd-OrderedRDDFunctions.adoc#repartitionAndSortWithinPartitions[repartitionAndSortWithinPartitions] ordered operators.
 
-By default, the map-side combining flag (`mapSideCombine`) is disabled (i.e. `false`). It can however be changed using `ShuffledRDD.setMapSideCombine(mapSideCombine: Boolean)` method (and is used in link:spark-rdd-pairrdd-functions.adoc#combineByKeyWithClassTag[PairRDDFunctions.combineByKeyWithClassTag] that sets it `true` by default).
+The <<mapSideCombine, map-side combine internal flag>> (`mapSideCombine`) is used to set up the `Serializer` for shuffling. It is disabled (i.e. `false`) by default and can be changed using `setMapSideCombine` method.
 
-`getDependencies` returns a single-element collection of link:spark-rdd-ShuffleDependency.adoc[ShuffleDependency].
+[[getDependencies]]
+`getDependencies` returns a single-element collection of link:spark-rdd-ShuffleDependency.adoc[ShuffleDependency] (with the `Serializer` given <<mapSideCombine, `mapSideCombine` internal flag>>).
 
 Let's have a look at the below example with `groupBy` transformation:
 
@@ -29,6 +32,30 @@ As you may have noticed, `groupBy` transformation adds `ShuffledRDD` RDD that wi
 image::images/spark-webui-job-two-stages.png[align="center"]
 
 It uses link:spark-service-MapOutputTrackerMaster.adoc[MapOutputTrackerMaster] to get preferred locations for a shuffle, i.e. a link:spark-rdd-ShuffleDependency.adoc[ShuffleDependency].
+
+=== [[mapSideCombine]] `mapSideCombine` Internal Flag
+
+[source, scala]
+----
+mapSideCombine: Boolean
+----
+
+`mapSideCombine` internal flag is used to select the `Serializer` (for shuffling) when link:spark-rdd-ShuffleDependency.adoc#creating-instance[`ShuffleDependency` is created] (which is the <<getDependencies, one and only `Dependency`>> of a `ShuffledRDD`).
+
+NOTE: `mapSideCombine` is only used when `userSpecifiedSerializer` optional `Serializer` is not specified explicitly (which is the default).
+
+NOTE: `mapSideCombine` uses link:spark-sparkenv.adoc#serializerManager[`SparkEnv` to access the current `SerializerManager`].
+
+If enabled (i.e. `true`), `mapSideCombine` directs to link:spark-SerializerManager.adoc#getSerializer[find the `Serializer`] for the types `K` and `C`. Otherwise, `getDependencies` finds the `Serializer` for the types `K` and `V`.
+
+NOTE: The types `K`, `C` and `V` are specified when `ShuffledRDD` is created.
+
+[NOTE]
+====
+`mapSideCombine` is disabled (i.e. `false`) when `ShuffledRDD` is created and can be set using `setMapSideCombine` method.
+
+`setMapSideCombine` method is only used in the experimental link:spark-rdd-pairrdd-functions.adoc#combineByKeyWithClassTag[`PairRDDFunctions.combineByKeyWithClassTag` transformations].
+====
 
 === [[compute]] Computing Partition (in `TaskContext`) -- `compute` Method
 
