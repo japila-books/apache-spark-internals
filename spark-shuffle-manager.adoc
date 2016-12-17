@@ -1,18 +1,25 @@
-== [[ShuffleManager]] ShuffleManager
+== [[ShuffleManager]] ShuffleManager -- Shuffle System Manager
 
-Spark comes with a pluggable mechanism for *shuffle system*.
+`ShuffleManager` is the <<contract, pluggable mechanism>> for *shuffle systems* that track link:spark-dagscheduler-ShuffleMapStage.adoc[shuffle dependencies for `ShuffleMapStage`].
 
-*Shuffle Manager* (aka *Shuffle Service*) is a Spark service that tracks link:spark-dagscheduler-ShuffleMapStage.adoc[shuffle dependencies for `ShuffleMapStage`]. The driver and executors all have their own Shuffle Service.
+NOTE: link:spark-SortShuffleManager.adoc[SortShuffleManager] (short name: `sort` or `tungsten-sort`) is the only available `ShuffleManager`.
+
+The driver and executors register their own ``ShuffleManager``s.
 
 The setting <<spark.shuffle.manager, spark.shuffle.manager>> sets up the default shuffle manager.
+
+The driver and executor access the current `ShuffleManager` using link:spark-sparkenv.adoc#shuffleManager[SparkEnv].
+
+[source, scala]
+----
+val shuffleManager = SparkEnv.get.shuffleManager
+----
 
 The driver registers shuffles with a shuffle manager, and executors (or tasks running locally in the driver) can ask to read and write data.
 
 It is network-addressable, i.e. it is available on a host and port.
 
 There can be many shuffle services running simultaneously and a driver registers with all of them when link:spark-scheduler-backends.adoc[CoarseGrainedSchedulerBackend] is used.
-
-The service is available under `SparkEnv.get.shuffleManager`.
 
 When link:spark-rdd-shuffledrdd.adoc[ShuffledRDD] is computed it reads partitions from it.
 
@@ -23,38 +30,58 @@ Review the code in `network/shuffle` module.
 * When is data eligible for shuffling?
 * Get the gist of _"The shuffle files are not currently cleaned up when using Spark on Mesos with the external shuffle service"_
 
-=== [[contract]] `ShuffleManager` Contract
+=== [[contract]] ShuffleManager Contract
 
-NOTE: https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/shuffle/ShuffleManager.scala[org.apache.spark.shuffle.ShuffleManager] is a `private[spark]` Scala trait.
+[source, scala]
+----
+trait ShuffleManager {
+  def registerShuffle[K, V, C](
+      shuffleId: Int,
+      numMaps: Int,
+      dependency: ShuffleDependency[K, V, C]): ShuffleHandle
+  def getWriter[K, V](
+    handle: ShuffleHandle,
+    mapId: Int,
+    context: TaskContext): ShuffleWriter[K, V]
+  def getReader[K, C](
+    handle: ShuffleHandle,
+    startPartition: Int,
+    endPartition: Int,
+    context: TaskContext): ShuffleReader[K, C]
+  def unregisterShuffle(shuffleId: Int): Boolean
+  def shuffleBlockResolver: ShuffleBlockResolver
+  def stop(): Unit
+}
+----
 
-Every `ShuffleManager` offers the following services:
+NOTE: `ShuffleManager` is a `private[spark]` contract.
 
-* Is identified by a short name (as `shortName`)
+.ShuffleManager Contract
+[frame="topbot",cols="1,2",options="header",width="100%"]
+|===
+| Method
+| Description
 
-[[registerShuffle]]
-* Registers shuffles so they are addressable by a `ShuffleHandle`  (using `registerShuffle`)
-* Returns a `ShuffleWriter` for a partition (using `getWriter`)
-* Returns a `ShuffleReader` for a range of partitions (using `getReader`)
+|[[registerShuffle]] `registerShuffle`
+| Executed when ??? registers a shuffle and passes the `ShuffleHandle` to tasks.
 
-[[unregisterShuffle]]
-* Removes shuffles (using `unregisterShuffle`)
+|[[getWriter]] `getWriter`
+| Executed when ??? requests a `ShuffleWriter` to write records for a partition.
 
-* Returns a `ShuffleBlockResolver` (using `shuffleBlockResolver`)
-* Can be stopped (using `stop`)
+|[[getReader]] `getReader`
+| Executed when ??? requests a `ShuffleReader` for a range of partitions.
 
-=== Available Implementations
+|[[unregisterShuffle]] `unregisterShuffle`
+| Executed when ??? removes the metadata of a shuffle.
 
-Spark comes with the following implementations of <<contract, ShuffleManager contract>>:
+|[[shuffleBlockResolver]] `shuffleBlockResolver`
+| Executed when ??? requests a `ShuffleBlockResolver` capable of retrieving shuffle block data.
 
-* <<SortShuffleManager, org.apache.spark.shuffle.sort.SortShuffleManager>> (short name: `sort` or `tungsten-sort`)
+|[[stop]] `stop`
+| Executed when ??? stops a `ShuffleManager`.
+|===
 
-CAUTION: FIXME Exercise for a custom implementation of Shuffle Manager using `private[spark] ShuffleManager` trait.
-
-==== [[SortShuffleManager]] SortShuffleManager
-
-`SortShuffleManager` is a shuffle manager with the short name being `sort`.
-
-It uses `IndexShuffleBlockResolver` as the `shuffleBlockResolver`.
+TIP: Review https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/shuffle/ShuffleManager.scala[`ShuffleManager` sources].
 
 === [[settings]] Settings
 
@@ -83,6 +110,6 @@ You can use a short name or the fully-qualified class name of a custom implement
 
 |===
 
-=== [[i-want-more]] Further reading or watching
+=== [[i-want-more]] Further Reading or Watching
 
 1. (slides) http://www.slideshare.net/colorant/spark-shuffle-introduction[Spark shuffle introduction] by http://blog.csdn.net/colorant/[Raymond Liu] (aka _colorant_).
