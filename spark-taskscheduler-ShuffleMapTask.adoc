@@ -1,8 +1,16 @@
 == [[ShuffleMapTask]] ShuffleMapTask
 
-`ShuffleMapTask` divides the elements of an RDD into multiple buckets (based on a partitioner specified in link:spark-rdd-ShuffleDependency.adoc[ShuffleDependency]).
+`ShuffleMapTask` is a link:spark-taskscheduler-tasks.adoc[Task] that <<runTask, writes records of a RDD partition to the shuffle system>>.
 
-=== [[runTask]] `runTask` Method
+CAUTION: FIXME What RDD is `ShuffleMapTask` created for?
+
+NOTE: Spark uses link:spark-broadcast.adoc[broadcast variables] to send (serialized) tasks to executors.
+
+=== [[creating-instance]] Creating `ShuffleMapTask` Instance
+
+CAUTION: FIXME
+
+=== [[runTask]] Writing Records In RDD Partition to Shuffle System -- `runTask` Method
 
 [source, scala]
 ----
@@ -11,9 +19,35 @@ runTask(context: TaskContext): MapStatus
 
 NOTE: `runTask` is a part of link:spark-taskscheduler-tasks.adoc#contract[Task contract] to...FIXME
 
-`runTask` computes a <<MapStatus, MapStatus>>.
+`runTask` returns a <<MapStatus, MapStatus>> (with the location and estimated size of the result RDD block) after the records of the link:spark-rdd-Partition.adoc[Partition] were written to the link:spark-shuffle-manager.adoc[shuffle system].
 
-Internally, `runTask`...FIXME
+Internally, `runTask` uses the link:spark-Serializer.adoc#deserialize[current closure `Serializer` to deserialize the `taskBinary` serialized task] (into a pair of link:spark-rdd.adoc[RDD] and link:spark-rdd-ShuffleDependency.adoc[ShuffleDependency]).
+
+`runTask` measures the thread and CPU time for deserialization (using the System clock and JMX if supported) and stores it in `_executorDeserializeTime` and `_executorDeserializeCpuTime` attributes.
+
+NOTE: `runTask` uses link:spark-sparkenv.adoc#closureSerializer[`SparkEnv` to access the current closure `Serializer`].
+
+NOTE: The `taskBinary` serialized task is given when <<creating-instance, `ShuffleMapTask` is created>>.
+
+`runTask` requests link:spark-shuffle-manager.adoc#getWriter[`ShuffleManager` for a `ShuffleWriter`] (given the `ShuffleHandle` of the deserialized `ShuffleDependency`, link:spark-rdd-Partition.adoc[RDD partition] and input link:spark-taskscheduler-taskcontext.adoc[TaskContext]).
+
+NOTE: `runTask` uses link:spark-sparkenv.adoc#shuffleManager[`SparkEnv` to access the current `ShuffleManager`].
+
+NOTE: The partition is given when <<creating-instance, `ShuffleMapTask` is created>>.
+
+`runTask` link:spark-rdd.adoc#iterator[computes the records in the RDD partition] and link:spark-ShuffleWriter.adoc#write[writes them] (to the shuffle system).
+
+NOTE: This is the moment in ``Task``'s lifecycle (and its RDD) when a RDD partition is computed and hence becomes a sequence of records (i.e. real data).
+
+`runTask` link:spark-ShuffleWriter.adoc#stop[stops the `ShuffleWriter`] (with `success` flag enabled) and returns the `MapStatus`.
+
+When the record writing was not successful, `runTask` link:spark-ShuffleWriter.adoc#stop[stops the `ShuffleWriter`] (with `success` flag disabled) and the exception is re-thrown.
+
+You may also see the following DEBUG message in the logs when the link:spark-ShuffleWriter.adoc#stop[`ShuffleWriter` could not be stopped].
+
+```
+DEBUG Could not stop writer
+```
 
 === [[MapStatus]] MapStatus
 
