@@ -1,10 +1,6 @@
 == [[SortShuffleManager]] SortShuffleManager -- The Default Shuffle System
 
-CAUTION: FIXME
-
-`SortShuffleManager` is a shuffle manager with the short name being `sort` or `tungsten-sort`.
-
-<<creating-instance, `SortShuffleManager` is created>> for the driver and executors.
+`SortShuffleManager` is the one and only link:spark-shuffle-manager.adoc[shuffle manager] in Spark with the short name `sort` or `tungsten-sort`.
 
 `SortShuffleManager` uses `IndexShuffleBlockResolver` (as <<shuffleBlockResolver, `shuffleBlockResolver` internal registry>>).
 
@@ -37,7 +33,7 @@ log4j.logger.org.apache.spark.shuffle.sort.SortShuffleManager$=DEBUG
 Refer to link:spark-logging.adoc[Logging].
 ====
 
-=== [[creating-instance]] Creating SortShuffleManager Instance
+=== [[creating-instance]] Creating `SortShuffleManager` Instance
 
 `SortShuffleManager` takes a link:spark-configuration.adoc[SparkConf].
 
@@ -63,4 +59,82 @@ registerShuffle[K, V, C](
 
 NOTE: `registerShuffle` is a part of link:spark-shuffle-manager.adoc#contract[ShuffleManager contract].
 
-`registerShuffle` returns a `ShuffleHandle`
+`registerShuffle` creates a `ShuffleHandle` that is one of the following:
+
+1. `BypassMergeSortShuffleHandle` (with `ShuffleDependency[K, V, V]`) when <<shouldBypassMergeSort, `shouldBypassMergeSort` condition holds>>.
+
+2. `SerializedShuffleHandle` (with `ShuffleDependency[K, V, V]`) when <<canUseSerializedShuffle, `canUseSerializedShuffle` condition holds>>.
+
+3. `BaseShuffleHandle`
+
+=== [[shouldBypassMergeSort]] `shouldBypassMergeSort` Method
+
+[source, scala]
+----
+shouldBypassMergeSort(conf: SparkConf, dep: ShuffleDependency[_, _, _]): Boolean
+----
+
+`shouldBypassMergeSort` holds (i.e. is positive) when the input link:spark-rdd-ShuffleDependency.adoc[ShuffleDependency] has link:spark-rdd-ShuffleDependency.adoc#mapSideCombine[`mapSideCombine` flag enabled] and link:spark-rdd-ShuffleDependency.adoc#aggregator[`aggregator` defined].
+
+`shouldBypassMergeSort` holds when `mapSideCombine` flag is disabled but the link:spark-rdd-ShuffleDependency.adoc#partitioner[number of partitions (of the input `ShuffleDependency`)] is smaller than <<spark.shuffle.sort.bypassMergeThreshold, spark.shuffle.sort.bypassMergeThreshold>> Spark property.
+
+Otherwise, `shouldBypassMergeSort` is negative (i.e. `false`).
+
+NOTE: `shouldBypassMergeSort` is exclusively used when <<registerShuffle, `registerShuffle` selects a `ShuffleHandle`>>.
+
+=== [[canUseSerializedShuffle]] `canUseSerializedShuffle` Method
+
+[source, scala]
+----
+canUseSerializedShuffle(dependency: ShuffleDependency[_, _, _]): Boolean
+----
+
+`canUseSerializedShuffle` condition holds (i.e. is positive) when all of the following hold (checked in that order):
+
+1. The link:spark-Serializer.adoc#supportsRelocationOfSerializedObjects[`Serializer` of the input `ShuffleDependency` supports relocation of serialized objects].
+
+2. The link:spark-rdd-ShuffleDependency.adoc#aggregator[`Aggregator` of the input `ShuffleDependency` is _not_ defined].
+
+3. The link:spark-rdd-ShuffleDependency.adoc#partitioner[number of partitions of the input `ShuffleDependency`] is _not_ greater than the supported maximum number of partitions (which is `(1 << 24) - 1`, i.e. `16777215`).
+
+You should see the following DEBUG message in the logs when `canUseSerializedShuffle` holds:
+
+```
+DEBUG Can use serialized shuffle for shuffle [id]
+```
+
+Otherwise, `canUseSerializedShuffle` does not hold and you should see one of the following DEBUG messages:
+
+```
+DEBUG Can't use serialized shuffle for shuffle [id] because the serializer, [name], does not support object relocation
+
+DEBUG Can't use serialized shuffle for shuffle [id] because an aggregator is defined
+
+DEBUG Can't use serialized shuffle for shuffle [id] because it has more than [number] partitions
+```
+
+NOTE: `canUseSerializedShuffle` is exclusively used when <<registerShuffle, `registerShuffle` selects a `ShuffleHandle`>>.
+
+=== [[settings]] Settings
+
+.Spark Properties
+[frame="topbot",cols="1,1,2",options="header",width="100%"]
+|===
+| Spark Property
+| Default Value
+| Description
+
+| [[spark.shuffle.sort.bypassMergeThreshold]] `spark.shuffle.sort.bypassMergeThreshold`
+| `200`
+|
+
+
+| [[spark.shuffle.spill]] `spark.shuffle.spill`
+| `true`
+| No longer in use.
+
+When `false` the following WARN shows in the logs when <<creating-instance, `SortShuffleManager` is created>>:
+
+`WARN SortShuffleManager: spark.shuffle.spill was set to false, but this configuration is ignored as of Spark 1.6+. Shuffle will continue to spill to disk when necessary.`
+
+|===
