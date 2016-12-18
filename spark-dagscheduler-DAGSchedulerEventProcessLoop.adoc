@@ -2,7 +2,7 @@
 
 `DAGSchedulerEventProcessLoop` (*dag-scheduler-event-loop*) is an `EventLoop` single "business logic" thread for processing <<DAGSchedulerEvent, DAGSchedulerEvent>> events.
 
-NOTE: The purpose of the `DAGSchedulerEventProcessLoop` is to have a separate thread to process events asynchronously and serially, i.e. one by one.
+NOTE: The purpose of the `DAGSchedulerEventProcessLoop` is to have a separate thread to process events asynchronously and serially, i.e. one by one, and let link:spark-dagscheduler.adoc[DAGScheduler] do its work on the main thread.
 
 [[DAGSchedulerEvent]]
 .``DAGSchedulerEvent``s and Event Handlers (in alphabetical order)
@@ -16,7 +16,7 @@ NOTE: The purpose of the `DAGSchedulerEventProcessLoop` is to have a separate th
 
 | [[CompletionEvent]] `CompletionEvent`
 | <<handleTaskCompletion, handleTaskCompletion>>
-| Posted when link:spark-dagscheduler.adoc#taskEnded[`DAGScheduler` is informed that a task has completed (successfully or not)].
+| Posted to inform link:spark-dagscheduler.adoc#taskEnded[`DAGScheduler` that a task has completed (successfully or not)].
 
 `CompletionEvent` conveys the following information:
 
@@ -44,7 +44,21 @@ NOTE: The purpose of the `DAGSchedulerEventProcessLoop` is to have a separate th
 | <<handleJobSubmitted, handleJobSubmitted>>
 | Posted when `DAGScheduler` is requested to link:spark-dagscheduler.adoc#submitJob[submit a job] or link:spark-dagscheduler.adoc#runApproximateJob[run an approximate job].
 
-| <<MapStageSubmitted, MapStageSubmitted>> | <<handleMapStageSubmitted, handleMapStageSubmitted>> | A link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage] was submitted using `submitMapStage`.
+| [[MapStageSubmitted]] `MapStageSubmitted`
+| <<handleMapStageSubmitted, handleMapStageSubmitted>>
+| Posted to inform `DAGScheduler` that link:spark-sparkcontext.adoc#submitMapStage[`SparkContext` submitted a `MapStage` for execution] (through link:spark-dagscheduler.adoc#submitMapStage[submitMapStage]).
+
+`MapStageSubmitted` conveys the following information:
+
+1. A job identifier (as `jobId`)
+
+2. The link:spark-rdd-ShuffleDependency.adoc[ShuffleDependency]
+
+3. A `CallSite` (as `callSite`)
+
+4. The link:spark-dagscheduler-JobListener.adoc[JobListener] to inform about the status of the stage.
+
+5. `Properties` of the execution
 
 | <<ResubmitFailedStages, ResubmitFailedStages>> | <<resubmitFailedStages, resubmitFailedStages>> | `DAGScheduler` was informed (through link:spark-dagscheduler.adoc#handleTaskCompletion[handleTaskCompletion]) that a task has finished with a `FetchFailed`.
 
@@ -126,55 +140,59 @@ Internally, `handleJobGroupCancelled` computes all the active jobs (registered i
 
 `handleJobGroupCancelled` then <<handleJobCancellation, cancels every active job>> in the group one by one and the cancellation reason: "part of cancelled job group [groupId]".
 
-=== [[MapStageSubmitted]] `MapStageSubmitted` Event and `handleMapStageSubmitted` Handler
+=== [[handleMapStageSubmitted]] `handleMapStageSubmitted` Handler
 
 [source, scala]
 ----
-MapStageSubmitted(
+handleMapStageSubmitted(
   jobId: Int,
-  dependency: ShuffleDependency[_, _, _],
-  callSite: CallSite,
-  listener: JobListener,
-  properties: Properties = null)
-extends DAGSchedulerEvent
-----
-
-`MapStageSubmitted` is a `DAGSchedulerEvent` that triggers <<handleMapStageSubmitted, handleMapStageSubmitted>> (on a separate thread).
-
-.`MapStageSubmitted` Event Handling
-image::diagrams/scheduler-handlemapstagesubmitted.png[align="center"]
-
-NOTE: `MapStageSubmitted` is posted when `DAGScheduler` is informed (through link:spark-dagscheduler.adoc#submitMapStage[submitMapStage]) that link:spark-sparkcontext.adoc#submitMapStage[`SparkContext` submitted a MapStage for execution].
-
-==== [[handleMapStageSubmitted]] `handleMapStageSubmitted` Handler
-
-[source, scala]
-----
-handleMapStageSubmitted(jobId: Int,
   dependency: ShuffleDependency[_, _, _],
   callSite: CallSite,
   listener: JobListener,
   properties: Properties): Unit
 ----
 
-It is called with a job id (for a new job to be created), a link:spark-rdd-ShuffleDependency.adoc[ShuffleDependency], and a link:spark-dagscheduler-JobListener.adoc[JobListener].
+.`MapStageSubmitted` Event Handling
+image::diagrams/scheduler-handlemapstagesubmitted.png[align="center"]
 
-You should see the following INFOs in the logs:
+`handleMapStageSubmitted` link:spark-dagscheduler.adoc#getOrCreateShuffleMapStage[finds or creates a new `ShuffleMapStage`] for the input `ShuffleDependency` and `jobId`.
+
+`handleMapStageSubmitted` creates a link:spark-dagscheduler-jobs.adoc[ActiveJob] for the input `jobId`, `callSite`, `listener` and `properties`, and the `ShuffleMapStage`.
+
+`handleMapStageSubmitted` link:spark-dagscheduler.adoc#clearCacheLocs[clears the internal cache of RDD partition locations].
+
+CAUTION: FIXME Why is this clearing here so important?
+
+You should see the following INFO messages in the logs:
 
 ```
-Got map stage job %s (%s) with %d output partitions
-Final stage: [finalStage] ([finalStage.name])
-Parents of final stage: [finalStage.parents]
-Missing parents: [list of stages]
+INFO DAGScheduler: Got map stage job [id] ([callSite]) with [number] output partitions
+INFO DAGScheduler: Final stage: [stage] ([name])
+INFO DAGScheduler: Parents of final stage: [parents]
+INFO DAGScheduler: Missing parents: [missingStages]
 ```
 
-link:spark-SparkListener.adoc#SparkListenerJobStart[SparkListenerJobStart] event is posted to link:spark-LiveListenerBus.adoc[LiveListenerBus] (so other event listeners know about the event - not only DAGScheduler).
+`handleMapStageSubmitted` registers the job in link:spark-dagscheduler.adoc#jobIdToActiveJob[jobIdToActiveJob] and link:spark-dagscheduler.adoc#activeJobs[activeJobs] internal registries, and then link:spark-dagscheduler-ShuffleMapStage.adoc#addActiveJob[assigns the job to the final `ShuffleMapStage`].
 
-The execution procedure of MapStageSubmitted events is then exactly (FIXME ?) as for link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#JobSubmitted[JobSubmitted].
+`handleMapStageSubmitted` link:spark-dagscheduler.adoc#jobIdToStageIds[finds all the registered stages for the input `jobId`] and collects link:spark-dagscheduler-stages.adoc#latestInfo[their latest `StageInfo`].
+
+Ultimately, `handleMapStageSubmitted` posts link:spark-SparkListener.adoc#SparkListenerJobStart[SparkListenerJobStart] message to link:spark-LiveListenerBus.adoc[LiveListenerBus] and link:spark-dagscheduler.adoc#submitStage[submits the `ShuffleMapStage`].
+
+In case the link:spark-dagscheduler-ShuffleMapStage.adoc#isAvailable[`ShuffleMapStage` could be available] already, `handleMapStageSubmitted` link:spark-dagscheduler.adoc#markMapStageJobAsFinished[marks the job finished].
+
+When `handleMapStageSubmitted` could not find or create a `ShuffleMapStage`, you should see the following WARN message in the logs.
+
+```
+WARN Creating new stage failed due to exception - job: [id]
+```
+
+`handleMapStageSubmitted` informs link:spark-dagscheduler-JobListener.adoc#jobFailed[`listener` about the job failure] and exits.
+
+NOTE: `MapStageSubmitted` event processing is very similar to <<JobSubmitted, JobSubmitted>> events.
 
 [TIP]
 ====
-The difference between `handleMapStageSubmitted` and link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleJobSubmitted[handleJobSubmitted]:
+The difference between <<handleMapStageSubmitted, handleMapStageSubmitted>> and <<handleJobSubmitted, handleJobSubmitted>>:
 
 * `handleMapStageSubmitted` has a link:spark-rdd-ShuffleDependency.adoc[ShuffleDependency] among the input parameters while `handleJobSubmitted` has `finalRDD`, `func`, and `partitions`.
 * `handleMapStageSubmitted` initializes `finalStage` as `getShuffleMapStage(dependency, jobId)` while `handleJobSubmitted` as `finalStage = newResultStage(finalRDD, func, partitions, jobId, callSite)`
@@ -682,7 +700,7 @@ handleJobSubmitted(
   properties: Properties)
 ----
 
-`handleJobSubmitted` link:spark-dagscheduler.adoc#createResultStage[creates a new `ResultStage`] (as `finalStage` in the picture above) and a `ActiveJob`.
+`handleJobSubmitted` link:spark-dagscheduler.adoc#createResultStage[creates a new `ResultStage`] (as `finalStage` in the picture below) and an link:spark-dagscheduler-jobs.adoc[ActiveJob].
 
 .`DAGScheduler.handleJobSubmitted` Method
 image::images/dagscheduler-handleJobSubmitted.png[align="center"]
@@ -690,13 +708,13 @@ image::images/dagscheduler-handleJobSubmitted.png[align="center"]
 You should see the following INFO messages in the logs:
 
 ```
-INFO DAGScheduler: Got job [jobId] ([callSite.shortForm]) with [partitions.length] output partitions
-INFO DAGScheduler: Final stage: [finalStage] ([name])
+INFO DAGScheduler: Got job [id] ([callSite]) with [number] output partitions
+INFO DAGScheduler: Final stage: [stage] ([name])
 INFO DAGScheduler: Parents of final stage: [parents]
-INFO DAGScheduler: Missing parents: [getMissingParentStages(finalStage)]
+INFO DAGScheduler: Missing parents: [missingStages]
 ```
 
-`handleJobSubmitted` then registers the job in the internal registries, i.e. link:spark-dagscheduler.adoc#jobIdToActiveJob[jobIdToActiveJob] and link:spark-dagscheduler.adoc#activeJobs[activeJobs], and sets the job for the stage (using `setActiveJob`).
+`handleJobSubmitted` then registers the job in link:spark-dagscheduler.adoc#jobIdToActiveJob[jobIdToActiveJob] and link:spark-dagscheduler.adoc#activeJobs[activeJobs] internal registries, and then link:spark-dagscheduler-ResultStage.adoc#setActiveJob[assigns the job to the final `ResultStage`]
 
 Ultimately, `handleJobSubmitted` posts  link:spark-SparkListener.adoc#SparkListenerJobStart[SparkListenerJobStart] message to link:spark-LiveListenerBus.adoc[LiveListenerBus] and link:spark-dagscheduler.adoc#submitStage[submits the stage].
 
