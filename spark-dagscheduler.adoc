@@ -291,7 +291,7 @@ submitJob[T, U](
   properties: Properties): JobWaiter[U]
 ----
 
-`submitJob` creates a link:spark-dagscheduler-JobListener.adoc#JobWaiter[JobWaiter] and posts a link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#JobSubmitted[`JobSubmitted` event].
+`submitJob` creates a link:spark-dagscheduler-JobWaiter.adoc[JobWaiter] and posts a link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#JobSubmitted[`JobSubmitted` event].
 
 .DAGScheduler.submitJob
 image::images/dagscheduler-submitjob.png[align="center"]
@@ -300,7 +300,7 @@ Internally, `submitJob` does the following:
 
 1. Checks whether `partitions` reference available partitions of the input `rdd`.
 2. Increments <<nextJobId, nextJobId>> internal job counter.
-3. Returns a 0-task link:spark-dagscheduler-JobListener.adoc#JobWaiter[JobWaiter] when the number of `partitions` is zero.
+3. Returns a 0-task link:spark-dagscheduler-JobWaiter.adoc[JobWaiter] when the number of `partitions` is zero.
 4. Posts a `JobSubmitted` event and returns a `JobWaiter`.
 
 You may see a `IllegalArgumentException` thrown when the input `partitions` references partitions not in the input `rdd`:
@@ -391,7 +391,7 @@ NOTE: `taskEnded` is called when a `TaskSetManager` reports task completions, i.
 
 TIP: Read link:spark-taskscheduler-taskmetrics.adoc[TaskMetrics].
 
-=== [[submitMapStage]] Posting `MapStageSubmitted` Event -- `submitMapStage` Method
+=== [[submitMapStage]] Submitting `ShuffleDependency` for Execution -- `submitMapStage` Method
 
 [source, scala]
 ----
@@ -402,9 +402,23 @@ submitMapStage[K, V, C](
   properties: Properties): JobWaiter[MapOutputStatistics]
 ----
 
-`submitMapStage` posts a link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#MapStageSubmitted[MapStageSubmitted] event to the <<eventProcessLoop, DAGScheduler's Internal Event Bus>> and returns the link:spark-dagscheduler-JobListener.adoc#JobWaiter[JobWaiter] with one task only and a result handler that will call the `callback` function.
+`submitMapStage` creates a link:spark-dagscheduler-JobWaiter.adoc[JobWaiter] (that it eventually returns) and posts a link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#MapStageSubmitted[MapStageSubmitted] event to <<eventProcessLoop, DAGScheduler's Internal Event Bus>>).
 
-`submitMapStage` increments <<nextJobId, nextJobId>> for the job id.
+Internally, `submitMapStage` increments <<nextJobId, `nextJobId` internal counter>> to get the job id.
+
+`submitMapStage` then creates a link:spark-dagscheduler-JobWaiter.adoc[JobWaiter] (with the job id and with one artificial task that will however get completed only when the entire stage finishes).
+
+`submitMapStage` announces the map stage submission application-wide (by posting a link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#MapStageSubmitted[MapStageSubmitted] to link:spark-LiveListenerBus.adoc[LiveListenerBus]).
+
+NOTE: A `MapStageSubmitted` holds the newly-created job id and `JobWaiter` with the input `dependency`, `callSite` and `properties` parameters.
+
+`submitMapStage` returns the `JobWaiter`.
+
+If the number of partition to compute is `0`, `submitMapStage` throws a `SparkException`:
+
+```
+Can't run submitMapStage on RDD with 0 partitions
+```
 
 NOTE: `submitMapStage` is used when link:spark-sparkcontext.adoc#submitMapStage[`SparkContext` submits a map stage for execution].
 
@@ -455,7 +469,7 @@ cancelJob(jobId: Int): Unit
 INFO DAGScheduler: Asked to cancel job [id]
 ```
 
-NOTE: `cancelJob` is called when link:spark-sparkcontext.adoc#cancelJob[SparkContext] and link:spark-dagscheduler-JobListener.adoc#JobWaiter[JobWaiter] are requested to cancel a Spark job.
+NOTE: `cancelJob` is called when link:spark-sparkcontext.adoc#cancelJob[SparkContext] and link:spark-dagscheduler-JobWaiter.adoc[JobWaiter] are requested to cancel a Spark job.
 
 === [[markStageAsFinished]] Marking Stage Finished -- `markStageAsFinished` Internal Method
 
@@ -485,7 +499,7 @@ runJob[T, U](
 
 `runJob` submits an action job to the `DAGScheduler` and waits for a result.
 
-Internally, `runJob` executes <<submitJob, submitJob>> and then waits until a result comes using link:spark-dagscheduler-JobListener.adoc#JobWaiter[JobWaiter].
+Internally, `runJob` executes <<submitJob, submitJob>> and then waits until a result comes using link:spark-dagscheduler-JobWaiter.adoc[JobWaiter].
 
 When the job succeeds, you should see the following INFO message in the logs:
 
@@ -818,7 +832,7 @@ NOTE: `getCacheLocs` is used when `DAGScheduler` calculates <<getMissingParentSt
 
 DAGScheduler computes where to run each task in a stage based on link:spark-rdd.adoc#preferred-locations[the preferred locations of its underlying RDDs], or <<getCacheLocs, the location of cached or shuffle data>>.
 
-=== [[adaptive-query-planning]] Adaptive Query Planning
+=== [[adaptive-query-planning]] Adaptive Query Planning / Adaptive Scheduling
 
 See https://issues.apache.org/jira/browse/SPARK-9850[SPARK-9850 Adaptive execution in Spark] for the design document. The work is currently in progress.
 
