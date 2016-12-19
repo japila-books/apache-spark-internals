@@ -41,9 +41,41 @@ FIXME Where is `ShuffleMapStage` used?
 ====
 FIXME
 
-* What's `ShuffleMapStage.outputLocs`?
 * `newShuffleMapStage`
 ====
+
+[[internal-registries]]
+.`ShuffleMapStage` Internal Registries and Counters
+[frame="topbot",cols="1,2",options="header",width="100%"]
+|===
+| Name
+| Description
+
+| [[outputLocs]] `outputLocs`
+| Tracks link:spark-taskscheduler-ShuffleMapTask.adoc#MapStatus[MapStatuses] for each partition.
+
+There could be many `MapStatus` entries per partition due to link:spark-taskschedulerimpl-speculative-execution.adoc[Speculative Execution of Tasks].
+
+When <<creating-instance, `ShuffleMapStage` is created>>, `outputLocs` is empty, i.e. all elements are empty lists.
+
+The size of `outputLocs` is exactly the number of partitions of the link:spark-dagscheduler-stages.adoc#rdd[RDD the stage runs on].
+
+| [[_numAvailableOutputs]] `_numAvailableOutputs`
+| The number of available outputs for the partitions.
+
+`_numAvailableOutputs` increments when the <<addOutputLoc, first `MapStatus` is registered for a partition>> and decrements when the <<removeOutputLoc, last `MapStatus` is removed for a partition>>.
+
+`_numAvailableOutputs` should not be greater than the number of partitions (and hence the number of `MapStatus` collections in <<outputLocs, `outputLocs` internal registry>>).
+
+|===
+
+=== [[removeOutputsOnExecutor]] `removeOutputsOnExecutor` Method
+
+CAUTION: FIXME
+
+=== [[outputLocInMapOutputTrackerFormat]] `outputLocInMapOutputTrackerFormat` Method
+
+CAUTION: FIXME
 
 === [[addActiveJob]] `addActiveJob` Method
 
@@ -53,16 +85,9 @@ CAUTION: FIXME
 
 CAUTION: FIXME
 
+`ShuffleMapStage` <<internal-registries, initializes the internal registries and counters>>.
+
 === [[mapStageJobs]] `mapStageJobs` Method
-
-CAUTION: FIXME
-
-=== [[addOutputLoc]] Registering `MapStatus` Result For Partition -- `addOutputLoc` Method
-
-[source, scala]
-----
-addOutputLoc(partition: Int, status: MapStatus): Unit
-----
 
 CAUTION: FIXME
 
@@ -74,7 +99,44 @@ CAUTION: FIXME
 
 CAUTION: FIXME
 
-=== [[stage-sharing]] ShuffleMapStage Sharing
+=== [[addOutputLoc]] Registering `MapStatus` For Partition -- `addOutputLoc` Method
+
+[source, scala]
+----
+addOutputLoc(partition: Int, status: MapStatus): Unit
+----
+
+`addOutputLoc` adds the input `status` to the <<outputLocs, output locations>> for the input `partition`.
+
+`addOutputLoc` increments <<_numAvailableOutputs, `_numAvailableOutputs` internal counter>> if the input `MapStatus` is the first result for the `partition`.
+
+NOTE: `addOutputLoc` is used when link:spark-dagscheduler.adoc#createShuffleMapStage[`DAGScheduler` creates a `ShuffleMapStage` for a `ShuffleDependency` and a `ActiveJob`] (and link:spark-service-MapOutputTrackerMaster.adoc#containsShuffle[`MapOutputTrackerMaster` tracks some output locations of the `ShuffleDependency`]) and when link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleTaskCompletion-Success-ShuffleMapTask[`ShuffleMapTask` has finished].
+
+=== [[removeOutputLoc]] Removing `MapStatus` For Partition And BlockManager -- `removeOutputLoc` Method
+
+[source, scala]
+----
+removeOutputLoc(partition: Int, bmAddress: BlockManagerId): Unit
+----
+
+`removeOutputLoc` removes the `MapStatus` for the input `partition` and `bmAddress` link:spark-blockmanager.adoc[BlockManager] from the <<outputLocs, output locations>>.
+
+`removeOutputLoc` decrements <<_numAvailableOutputs, `_numAvailableOutputs` internal counter>> if the the removed `MapStatus` was the last result for the `partition`.
+
+NOTE: `removeOutputLoc` is exclusively used when a link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleTaskCompletion-FetchFailed[`Task` has finished with `FetchFailed` failure].
+
+=== [[findMissingPartitions]] Finding Missing Partitions -- `findMissingPartitions` Method
+
+[source, scala]
+----
+findMissingPartitions(): Seq[Int]
+----
+
+NOTE: `findMissingPartitions` is a part of link:spark-dagscheduler-stages.adoc#contract[`Stage` contract] that returns the partitions that are missing, i.e. are yet to be computed.
+
+Internally, `findMissingPartitions` uses <<outputLocs, `outputLocs` internal registry>> to find indices with empty lists of `MapStatus`.
+
+=== [[stage-sharing]] `ShuffleMapStage` Sharing
 
 A `ShuffleMapStage` can be shared across multiple jobs, if these jobs reuse the same RDDs.
 
