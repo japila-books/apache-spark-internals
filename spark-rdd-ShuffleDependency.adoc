@@ -12,24 +12,13 @@ scala> myRdd.dependencies
 res0: Seq[org.apache.spark.Dependency[_]] = List(org.apache.spark.ShuffleDependency@1193caff)
 ```
 
-TIP: Use link:spark-rdd-lineage.adoc#toDebugString[`toDebugString` method] on an RDD to learn about the link:spark-rdd-lineage.adoc[RDD lineage graph].
+TIP: Use link:spark-rdd-lineage.adoc#toDebugString[`toDebugString` method] with an RDD to know the link:spark-rdd-lineage.adoc[RDD lineage graph].
 
 NOTE: A `ShuffleDependency` dependency is the dependency of link:spark-rdd-shuffledrdd.adoc[ShuffledRDD]. It is also a dependency of link:spark-rdd-cogroupedrdd.adoc[CoGroupedRDD] and link:spark-rdd-SubtractedRDD.adoc[SubtractedRDD] (but only when partitioners of the RDDs are different).
 
 Every `ShuffleDependency` has a unique Spark application-wide *shuffleId* number.
 
 NOTE: Shuffle ids are link:spark-sparkcontext.adoc#nextShuffleId[tracked by `SparkContext`].
-
-=== [[shuffleHandle]] `shuffleHandle` Property
-
-[source, scala]
-----
-shuffleHandle: ShuffleHandle
-----
-
-`shuffleHandle` is the `ShuffleHandle` of a `ShuffleDependency` as assigned eagerly when <<creating-instance, `ShuffleDependency` was created>>.
-
-NOTE: `shuffleHandle` is used to compute link:spark-rdd-cogroupedrdd.adoc#compute[CoGroupedRDDs], link:spark-rdd-shuffledrdd.adoc#compute[ShuffledRDD], link:spark-rdd-SubtractedRDD.adoc#compute[SubtractedRDD], and link:spark-sql-spark-plan-ShuffleExchange.adoc#ShuffledRowRDD[ShuffledRowRDD] (to get a `ShuffleReader` for a `ShuffleDependency`) and when a link:spark-taskscheduler-ShuffleMapTask.adoc#runTask[`ShuffleMapTask` runs] (to get a `ShuffleWriter` for a `ShuffleDependency`).
 
 === [[partitioner]] `partitioner` Property
 
@@ -39,20 +28,16 @@ CAUTION: FIXME
 
 CAUTION: FIXME
 
-=== [[mapSideCombine]] `mapSideCombine` Property
-
-CAUTION: FIXME
-
 === [[creating-instance]] Creating `ShuffleDependency` Instance
 
 `ShuffleDependency` takes the following when created:
 
-1. A single key-value pair RDD (i.e. `RDD[Product2[K, V]]`)
-2. link:spark-rdd-Partitioner.adoc[Partitioner]
-3. link:spark-sparkenv.adoc#serializer[Serializer]
-4. Optional key ordering (as Scala's link:http://www.scala-lang.org/api/current/scala/math/Ordering.html[scala.math.Ordering] type)
-5. Optional `Aggregator`
-6. <<mapSideCombine, mapSideCombine>> flag which is disabled (i.e. `false`) by default
+1. A single key-value pair RDD (i.e. `RDD[Product2[K, V]]`),
+2. link:spark-rdd-Partitioner.adoc[Partitioner],
+3. link:spark-sparkenv.adoc#serializer[Serializer],
+4. Optional key ordering (as Scala's link:http://www.scala-lang.org/api/current/scala/math/Ordering.html[scala.math.Ordering] type),
+5. Optional `Aggregator`,
+6. <<mapSideCombine, mapSideCombine>> flag which is disabled (i.e. `false`) by default.
 
 When created, `ShuffleDependency` gets link:spark-sparkcontext.adoc#nextShuffleId[shuffleId].
 
@@ -65,6 +50,29 @@ NOTE: `ShuffleDependency` accesses link:spark-sparkenv.adoc#shuffleManager[`Shuf
 In the end, `ShuffleDependency` link:spark-service-contextcleaner.adoc#registerShuffleForCleanup[registers itself for cleanup with `ContextCleaner`].
 
 NOTE: `ShuffleDependency` accesses the link:spark-sparkcontext.adoc#cleaner[optional `ContextCleaner` through `SparkContext`].
+
+NOTE: `ShuffleDependency` is created when link:spark-rdd-shuffledrdd.adoc#getDependencies[ShuffledRDD], link:spark-rdd-cogroupedrdd.adoc#getDependencies[CoGroupedRDD], and link:spark-rdd-SubtractedRDD.adoc#getDependencies[SubtractedRDD] return their RDD dependencies.
+
+=== [[shuffleHandle]] `shuffleHandle` Property
+
+[source, scala]
+----
+shuffleHandle: ShuffleHandle
+----
+
+`shuffleHandle` is the `ShuffleHandle` of a `ShuffleDependency` as assigned eagerly when <<creating-instance, `ShuffleDependency` was created>>.
+
+NOTE: `shuffleHandle` is used to compute link:spark-rdd-cogroupedrdd.adoc#compute[CoGroupedRDDs], link:spark-rdd-shuffledrdd.adoc#compute[ShuffledRDD], link:spark-rdd-SubtractedRDD.adoc#compute[SubtractedRDD], and link:spark-sql-spark-plan-ShuffleExchange.adoc#ShuffledRowRDD[ShuffledRowRDD] (to get a `ShuffleReader` for a `ShuffleDependency`) and when a link:spark-taskscheduler-ShuffleMapTask.adoc#runTask[`ShuffleMapTask` runs] (to get a `ShuffleWriter` for a `ShuffleDependency`).
+
+=== [[mapSideCombine]] `mapSideCombine` Flag
+
+`mapSideCombine` is a flag to control whether to use *partial aggregation* (aka *map-side combine*).
+
+`mapSideCombine` is by default disabled (i.e. `false`) when <<creating-instance, creating a `ShuffleDependency`>>.
+
+When enabled, `SortShuffleWriter` and `BlockStoreShuffleReader` assume that a `Aggregator` is also available.
+
+NOTE: `mapSideCombine` is exclusively set (and hence can be enabled) when link:spark-rdd-shuffledrdd.adoc#getDependencies[`ShuffledRDD` returns the dependencies] (which is a single `ShuffleDependency`).
 
 === Usage
 
