@@ -33,10 +33,6 @@ log4j.logger.org.apache.spark.shuffle.sort.SortShuffleManager$=DEBUG
 Refer to link:spark-logging.adoc[Logging].
 ====
 
-=== [[getWriter]] Returning `ShuffleWriter` for `ShuffleHandle` -- `getWriter` Method
-
-CAUTION: FIXME
-
 === [[creating-instance]] Creating `SortShuffleManager` Instance
 
 `SortShuffleManager` takes a link:spark-configuration.adoc[SparkConf].
@@ -70,6 +66,30 @@ NOTE: `registerShuffle` is a part of link:spark-shuffle-manager.adoc#contract[Sh
 2. `SerializedShuffleHandle` (with `ShuffleDependency[K, V, V]`) when <<canUseSerializedShuffle, `canUseSerializedShuffle` condition holds>>.
 
 3. `BaseShuffleHandle`
+
+=== [[getWriter]] Returning `ShuffleWriter` For `ShuffleHandle` -- `getWriter` Method
+
+[source, scala]
+----
+getWriter[K, V](
+  handle: ShuffleHandle,
+  mapId: Int,
+  context: TaskContext): ShuffleWriter[K, V]
+----
+
+NOTE: `getWriter` is a part of link:spark-shuffle-manager.adoc#contract[`ShuffleManager` contract].
+
+Internally, `getWriter` makes sure that a `ShuffleHandle` is associated with its `numMaps` in <<numMapsForShuffle, `numMapsForShuffle` internal registry>>.
+
+NOTE: `getWriter` expects that the input `handle` is of type `BaseShuffleHandle` (despite the signature that says that it can work with any `ShuffleHandle`).
+
+`getWriter` then returns a new `ShuffleWriter` for the input `ShuffleHandle`:
+
+1. `UnsafeShuffleWriter` for `SerializedShuffleHandle`.
+
+2. `BypassMergeSortShuffleWriter` for `BypassMergeSortShuffleHandle`.
+
+3. `SortShuffleWriter` for `BaseShuffleHandle`.
 
 === [[shouldBypassMergeSort]] `shouldBypassMergeSort` Method
 
