@@ -5,22 +5,22 @@ A *MapOutputTracker* is a Spark service to track the locations of the (shuffle) 
 There are two versions of `MapOutputTracker`:
 
 * link:spark-service-MapOutputTrackerMaster.adoc[MapOutputTrackerMaster] for a driver
-* <<MapOutputTrackerWorker, MapOutputTrackerWorker>> for executors
+* link:spark-service-MapOutputTrackerWorker.adoc[MapOutputTrackerWorker] for executors
 
 MapOutputTracker is available under `SparkEnv.get.mapOutputTracker`. It is also available as `MapOutputTracker` in the driver's RPC Environment.
 
-[TIP]
-====
-Enable `DEBUG` logging level for `org.apache.spark.MapOutputTracker` logger to see what happens in `MapOutputTracker`.
+[[internal-registries]]
+.`MapOutputTracker` Internal Registries and Counters
+[frame="topbot",cols="1,2",options="header",width="100%"]
+|===
+| Name
+| Description
 
-Add the following line to `conf/log4j.properties`:
+| [[mapStatuses]] `mapStatuses`
+| Lookup table (aka _cache_) for collection of link:spark-MapStatus.adoc[MapStatus]es per shuffle id.
 
-```
-log4j.logger.org.apache.spark.MapOutputTracker=DEBUG
-```
-
-Refer to link:spark-logging.adoc[Logging].
-====
+Used when `MapOutputTracker` <<getStatuses, gets `MapStatuses`>>, <<updateEpoch, updateEpoch>> and <<unregisterShuffle, unregisters a shuffle>>.
+|===
 
 It works with link:spark-rdd-ShuffledRDD.adoc[ShuffledRDD] when it asks for *preferred locations for a shuffle* using `tracker.getPreferredLocationsForShuffle`.
 
@@ -31,6 +31,36 @@ CAUTION: FIXME `DAGScheduler.mapOutputTracker`
 link:spark-service-MapOutputTrackerMaster.adoc#getStatistics[MapOutputTrackerMaster.getStatistics(dependency)] returns `MapOutputStatistics` that becomes the result of link:spark-dagscheduler-JobWaiter.adoc[JobWaiter.taskSucceeded] for link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage] if it's the final stage in a job.
 
 link:spark-service-MapOutputTrackerMaster.adoc#registerMapOutputs[MapOutputTrackerMaster.registerMapOutputs] for a shuffle id and a list of `MapStatus` when a link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage] is finished.
+
+[TIP]
+====
+Enable `INFO` or `DEBUG` logging level for `org.apache.spark.MapOutputTracker` logger to see what happens in `MapOutputTracker`.
+
+Add the following line to `conf/log4j.properties`:
+
+```
+log4j.logger.org.apache.spark.MapOutputTracker=DEBUG
+```
+
+Refer to link:spark-logging.adoc[Logging].
+====
+
+=== [[getMapSizesByExecutorId]] `getMapSizesByExecutorId` Method
+
+CAUTION: FIXME
+
+=== [[getStatistics]] Finding Statistics for `ShuffleDependency` -- `getStatistics` Method
+
+[source, scala]
+----
+getStatistics(dep: ShuffleDependency[_, _, _]): MapOutputStatistics
+----
+
+Internally, `getStatistics`...FIXME
+
+=== [[updateEpoch]] `updateEpoch` Method
+
+CAUTION: FIXME
 
 === [[deserializeMapStatuses]] `deserializeMapStatuses` Method
 
@@ -48,8 +78,57 @@ CAUTION: FIXME
 
 CAUTION: FIXME
 
-=== [[MapOutputTrackerWorker]] MapOutputTrackerWorker
+=== [[getStatuses]] Finding Map Outputs For Shuffle -- `getStatuses` Internal Method
 
-A *MapOutputTrackerWorker* is the `MapOutputTracker` for executors. The internal `mapStatuses` map serves as a cache and any miss triggers a fetch from the driver's link:spark-service-MapOutputTrackerMaster.adoc[MapOutputTrackerMaster].
+[source, scala]
+----
+getStatuses(shuffleId: Int): Array[MapStatus]
+----
 
-NOTE: The only difference between `MapOutputTrackerWorker` and the base abstract class `MapOutputTracker` is that the internal `mapStatuses` mapping between ints and an array of `MapStatus` objects is an instance of the thread-safe https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/ConcurrentHashMap.html[java.util.concurrent.ConcurrentHashMap].
+`getStatuses` finds link:spark-MapStatus.adoc[MapStatuses] for the input `shuffleId`, possibly requesting them from a remote link:spark-service-MapOutputTrackerMaster.adoc[MapOutputTrackerMaster] (using RPC).
+
+Internally, `getStatuses` first queries the <<mapStatuses, `mapStatuses` internal cache>> and returns the map outputs if found.
+
+If not found (in the `mapStatuses` internal cache), you should see the following INFO message in the logs:
+
+```
+INFO Don't have map outputs for shuffle [id], fetching them
+```
+
+If some other process fetches the map outputs for the `shuffleId` (as recorded in `fetching` internal registry), `getStatuses` waits until it is done.
+
+When no other process fetches the map outputs, `getStatuses` registers the input `shuffleId` in `fetching` internal registry (of shuffle map outputs being fetched).
+
+You should see the following INFO message in the logs:
+
+```
+INFO Doing the fetch; tracker endpoint = [trackerEndpoint]
+```
+
+`getStatuses` sends a `GetMapOutputStatuses` RPC remote message for the input `shuffleId` to the `trackerEndpoint` expecting a `Array[Byte]`.
+
+NOTE: `getStatuses` requests shuffle map outputs remotely within a timeout and with retries. Refer to link:spark-rpc.adoc#RpcEndpointRef[RpcEndpointRef].
+
+`getStatuses` <<deserializeMapStatuses, deserializes the map output statuses>> and records the result in the <<mapStatuses, `mapStatuses` internal cache>>.
+
+You should see the following INFO message in the logs:
+
+```
+INFO Got the output locations
+```
+
+`getStatuses` removes the input `shuffleId` from `fetching` internal registry.
+
+You should see the following DEBUG message in the logs:
+
+```
+DEBUG Fetching map output statuses for shuffle [id] took [time] ms
+```
+
+If, for some reason, `getStatuses` could not find the map output locations for the input `shuffleId`, you should see the following ERROR message in the logs and a `MetadataFetchFailedException` is thrown.
+
+```
+ERROR Missing all output locations for shuffle [id]
+```
+
+NOTE: `getStatuses` is used when `MapOutputTracker` <<getMapSizesByExecutorId, getMapSizesByExecutorId>> and <<getStatistics, finds statistics for `ShuffleDependency`>>.
