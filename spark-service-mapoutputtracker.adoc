@@ -1,13 +1,20 @@
-== [[MapOutputTracker]] MapOutputTracker
+== [[MapOutputTracker]] MapOutputTracker -- Shuffle Map Output Registry
 
-A *MapOutputTracker* is a Spark service to track the locations of the (shuffle) map outputs of a stage. It uses an internal link:spark-MapStatus.adoc[MapStatus] map with an array of `MapStatus` for every partition for a shuffle id.
+`MapOutputTracker` is a Spark service that <<mapStatuses, tracks the locations of the shuffle map outputs>> (i.e. ``MapStatus``es per shuffle).
 
-There are two versions of `MapOutputTracker`:
+There are two custom `MapOutputTrackers`, i.e. one for the driver and another for executors:
 
-* link:spark-service-MapOutputTrackerMaster.adoc[MapOutputTrackerMaster] for a driver
+* link:spark-service-MapOutputTrackerMaster.adoc[MapOutputTrackerMaster] for the driver
 * link:spark-service-MapOutputTrackerWorker.adoc[MapOutputTrackerWorker] for executors
 
-MapOutputTracker is available under `SparkEnv.get.mapOutputTracker`. It is also available as `MapOutputTracker` in the driver's RPC Environment.
+Given different runtime environments of the driver and executors, accessing the current `MapOutputTracker` is possible using link:spark-sparkenv.adoc#get[SparkEnv].
+
+[source, scala]
+----
+SparkEnv.get.mapOutputTracker
+----
+
+`MapOutputTracker` is also registered as `MapOutputTracker` in the driver's RPC Environment.
 
 [[internal-registries]]
 .`MapOutputTracker` Internal Registries and Counters
@@ -19,7 +26,7 @@ MapOutputTracker is available under `SparkEnv.get.mapOutputTracker`. It is also 
 | [[mapStatuses]] `mapStatuses`
 | Lookup table (aka _cache_) for collection of link:spark-MapStatus.adoc[MapStatus]es per shuffle id.
 
-Used when `MapOutputTracker` <<getStatuses, gets `MapStatuses`>>, <<updateEpoch, updateEpoch>> and <<unregisterShuffle, unregisters a shuffle>>.
+Used when `MapOutputTracker` <<getStatuses, finds map outputs for a `ShuffleDependency`>>, <<updateEpoch, updateEpoch>> and <<unregisterShuffle, unregisters a shuffle>>.
 |===
 
 It works with link:spark-rdd-ShuffledRDD.adoc[ShuffledRDD] when it asks for *preferred locations for a shuffle* using `tracker.getPreferredLocationsForShuffle`.
@@ -31,6 +38,8 @@ CAUTION: FIXME `DAGScheduler.mapOutputTracker`
 link:spark-service-MapOutputTrackerMaster.adoc#getStatistics[MapOutputTrackerMaster.getStatistics(dependency)] returns `MapOutputStatistics` that becomes the result of link:spark-dagscheduler-JobWaiter.adoc[JobWaiter.taskSucceeded] for link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage] if it's the final stage in a job.
 
 link:spark-service-MapOutputTrackerMaster.adoc#registerMapOutputs[MapOutputTrackerMaster.registerMapOutputs] for a shuffle id and a list of `MapStatus` when a link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage] is finished.
+
+NOTE: `MapOutputTracker` is used in `BlockStoreShuffleReader` and when creating link:spark-blockmanager.adoc[BlockManager] and link:spark-blockmanager-BlockManagerSlaveEndpoint.adoc[BlockManagerSlaveEndpoint].
 
 [TIP]
 ====
@@ -137,4 +146,4 @@ If, for some reason, `getStatuses` could not find the map output locations for t
 ERROR Missing all output locations for shuffle [id]
 ```
 
-NOTE: `getStatuses` is used when `MapOutputTracker` <<getMapSizesByExecutorId, getMapSizesByExecutorId>> and <<getStatistics, finds statistics for `ShuffleDependency`>>.
+NOTE: `getStatuses` is used when `MapOutputTracker` <<getMapSizesByExecutorId, getMapSizesByExecutorId>> and <<getStatistics, computes statistics for `ShuffleDependency`>>.

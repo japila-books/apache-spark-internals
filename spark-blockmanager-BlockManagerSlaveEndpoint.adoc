@@ -1,0 +1,192 @@
+== [[BlockManagerSlaveEndpoint]] BlockManagerSlaveEndpoint
+
+`BlockManagerSlaveEndpoint` is a link:spark-rpc.adoc#ThreadSafeRpcEndpoint[thread-safe RPC endpoint] for remote communication between executors and the driver.
+
+CAUTION: FIXME the intro needs more love.
+
+While a <<creating-instance, BlockManager is being created>> so is the `BlockManagerSlaveEndpoint` RPC endpoint with the name *BlockManagerEndpoint[randomId]* to handle <<messages, RPC messages>>.
+
+[TIP]
+====
+Enable `DEBUG` logging level for `org.apache.spark.storage.BlockManagerSlaveEndpoint` logger to see what happens inside.
+
+Add the following line to `conf/log4j.properties`:
+
+```
+log4j.logger.org.apache.spark.storage.BlockManagerSlaveEndpoint=DEBUG
+```
+
+Refer to link:spark-logging.adoc[Logging].
+====
+
+=== [[RemoveBlock]] RemoveBlock Message
+
+[source, scala]
+----
+RemoveBlock(blockId: BlockId)
+----
+
+When a `RemoveBlock` message comes in, you should see the following DEBUG message in the logs:
+
+```
+DEBUG BlockManagerSlaveEndpoint: removing block [blockId]
+```
+
+It then calls <<removeBlock, BlockManager to remove `blockId` block>>.
+
+NOTE: Handling `RemoveBlock` messages happens on a separate thread. See <<asyncThreadPool, BlockManagerSlaveEndpoint Thread Pool>>.
+
+When the computation is successful, you should see the following DEBUG in the logs:
+
+```
+DEBUG BlockManagerSlaveEndpoint: Done removing block [blockId], response is [response]
+```
+
+And `true` response is sent back. You should see the following DEBUG in the logs:
+
+```
+DEBUG BlockManagerSlaveEndpoint: Sent response: true to [senderAddress]
+```
+
+In case of failure, you should see the following ERROR in the logs and the stack trace.
+
+```
+ERROR BlockManagerSlaveEndpoint: Error in removing block [blockId]
+```
+
+=== [[RemoveRdd]] RemoveRdd Message
+
+[source, scala]
+----
+RemoveRdd(rddId: Int)
+----
+
+When a `RemoveRdd` message comes in, you should see the following DEBUG message in the logs:
+
+```
+DEBUG BlockManagerSlaveEndpoint: removing RDD [rddId]
+```
+
+It then calls <<removeRdd, BlockManager to remove `rddId` RDD>>.
+
+NOTE: Handling `RemoveRdd` messages happens on a separate thread. See <<asyncThreadPool, BlockManagerSlaveEndpoint Thread Pool>>.
+
+When the computation is successful, you should see the following DEBUG in the logs:
+
+```
+DEBUG BlockManagerSlaveEndpoint: Done removing RDD [rddId], response is [response]
+```
+
+And the number of blocks removed is sent back. You should see the following DEBUG in the logs:
+
+```
+DEBUG BlockManagerSlaveEndpoint: Sent response: [#blocks] to [senderAddress]
+```
+
+In case of failure, you should see the following ERROR in the logs and the stack trace.
+
+```
+ERROR BlockManagerSlaveEndpoint: Error in removing RDD [rddId]
+```
+
+=== [[RemoveShuffle]] RemoveShuffle Message
+
+[source, scala]
+----
+RemoveShuffle(shuffleId: Int)
+----
+
+When a `RemoveShuffle` message comes in, you should see the following DEBUG message in the logs:
+
+```
+DEBUG BlockManagerSlaveEndpoint: removing shuffle [shuffleId]
+```
+
+If link:spark-service-mapoutputtracker.adoc[MapOutputTracker] was given (when the RPC endpoint was created), it calls link:spark-service-mapoutputtracker.adoc#unregisterShuffle[MapOutputTracker to unregister the `shuffleId` shuffle].
+
+It then calls link:spark-shuffle-manager.adoc#unregisterShuffle[ShuffleManager to unregister the `shuffleId` shuffle].
+
+NOTE: Handling `RemoveShuffle` messages happens on a separate thread. See <<asyncThreadPool, BlockManagerSlaveEndpoint Thread Pool>>.
+
+When the computation is successful, you should see the following DEBUG in the logs:
+
+```
+DEBUG BlockManagerSlaveEndpoint: Done removing shuffle [shuffleId], response is [response]
+```
+
+And the result is sent back. You should see the following DEBUG in the logs:
+
+```
+DEBUG BlockManagerSlaveEndpoint: Sent response: [response] to [senderAddress]
+```
+
+In case of failure, you should see the following ERROR in the logs and the stack trace.
+
+```
+ERROR BlockManagerSlaveEndpoint: Error in removing shuffle [shuffleId]
+```
+
+=== [[RemoveBroadcast]] RemoveBroadcast Message
+
+[source, scala]
+----
+RemoveBroadcast(broadcastId: Long)
+----
+
+When a `RemoveBroadcast` message comes in, you should see the following DEBUG message in the logs:
+
+```
+DEBUG BlockManagerSlaveEndpoint: removing broadcast [broadcastId]
+```
+
+It then calls <<removeBroadcast, BlockManager to remove the `broadcastId` broadcast>>.
+
+NOTE: Handling `RemoveBroadcast` messages happens on a separate thread. See <<asyncThreadPool, BlockManagerSlaveEndpoint Thread Pool>>.
+
+When the computation is successful, you should see the following DEBUG in the logs:
+
+```
+DEBUG BlockManagerSlaveEndpoint: Done removing broadcast [broadcastId], response is [response]
+```
+
+And the result is sent back. You should see the following DEBUG in the logs:
+
+```
+DEBUG BlockManagerSlaveEndpoint: Sent response: [response] to [senderAddress]
+```
+
+In case of failure, you should see the following ERROR in the logs and the stack trace.
+
+```
+ERROR BlockManagerSlaveEndpoint: Error in removing broadcast [broadcastId]
+```
+
+=== [[GetBlockStatus]] GetBlockStatus Message
+
+[source, scala]
+----
+GetBlockStatus(blockId: BlockId)
+----
+
+When a `GetBlockStatus` message comes in, it responds with the result of <<getStatus, calling BlockManager about the status of `blockId`>>.
+
+=== [[GetMatchingBlockIds]] `GetMatchingBlockIds` Message
+
+[source, scala]
+----
+GetMatchingBlockIds(filter: BlockId => Boolean, askSlaves: Boolean = true)
+----
+
+`GetMatchingBlockIds` triggers a computation of <<getMatchingBlockIds, the memory and disk blocks matching `filter`>> and sends it back.
+
+=== [[TriggerThreadDump]] TriggerThreadDump Message
+
+When a `TriggerThreadDump` message comes in, a thread dump is generated and sent back.
+
+=== [[asyncThreadPool]] BlockManagerSlaveEndpoint Thread Pool
+
+`BlockManagerSlaveEndpoint` uses *block-manager-slave-async-thread-pool* daemon thread pool (`asyncThreadPool`) for some messages to talk to other Spark services, i.e. `BlockManager`, link:spark-service-mapoutputtracker.adoc[MapOutputTracker], link:spark-shuffle-manager.adoc[ShuffleManager] in a non-blocking, asynchronous way.
+
+The reason for the async thread pool is that the block-related operations might take quite some time and to release the main RPC thread other threads are spawned to talk to the external services and pass responses on to the clients.
+
+NOTE: `BlockManagerSlaveEndpoint` uses Java's https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/ThreadPoolExecutor.html[java.util.concurrent.ThreadPoolExecutor].
