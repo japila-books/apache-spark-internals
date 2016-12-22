@@ -49,15 +49,6 @@ Refer to link:spark-logging.adoc[Logging].
 
 CAUTION: FIXME
 
-=== [[getStatistics]] Finding Statistics for `ShuffleDependency` -- `getStatistics` Method
-
-[source, scala]
-----
-getStatistics(dep: ShuffleDependency[_, _, _]): MapOutputStatistics
-----
-
-Internally, `getStatistics`...FIXME
-
 === [[updateEpoch]] `updateEpoch` Method
 
 CAUTION: FIXME
@@ -78,7 +69,22 @@ CAUTION: FIXME
 
 CAUTION: FIXME
 
-=== [[getStatuses]] Finding Map Outputs For Shuffle -- `getStatuses` Internal Method
+=== [[getStatistics]] Computing Statistics for `ShuffleDependency` -- `getStatistics` Method
+
+[source, scala]
+----
+getStatistics(dep: ShuffleDependency[_, _, _]): MapOutputStatistics
+----
+
+`getStatistics` returns a `MapOutputStatistics` which is simply a pair of the shuffle id (of the input link:spark-rdd-ShuffleDependency.adoc[ShuffleDependency]) and the total sums of estimated sizes of the reduce blocks from all the link:spark-blockmanager.adoc[BlockManager]s.
+
+Internally, `getStatistics` <<getStatuses, finds map outputs>> for the input link:spark-rdd-ShuffleDependency.adoc[ShuffleDependency] and calculates the total sizes for the link:spark-MapStatus.adoc#getSizeForBlock[estimated sizes of the reduce block (in bytes)] for every `MapStatus` and partition.
+
+NOTE: The internal `totalSizes` array has the number of elements as specified by the link:spark-rdd-Partitioner.adoc#numPartitions[number of partitions of the `Partitioner`] of the input `ShuffleDependency`. `totalSizes` contains elements as a sum of the estimated size of the block for partition in a link:spark-blockmanager.adoc[BlockManager] (given link:spark-MapStatus.adoc[MapStatus]).
+
+NOTE: `getStatistics` is used when link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleMapStageSubmitted[`DAGScheduler` accepts a `ShuffleDependency` for execution] (and the link:spark-dagscheduler-ShuffleMapStage.adoc#isAvailable[corresponding `ShuffleMapStage` has already been computed]) and link:#handleTaskCompletion-Success-ShuffleMapTask[gets notified that a `ShuffleMapTask` has completed] (and map-stage jobs waiting for the stage are then marked as finished).
+
+=== [[getStatuses]] Finding Map Outputs For `ShuffleDependency` -- `getStatuses` Internal Method
 
 [source, scala]
 ----
