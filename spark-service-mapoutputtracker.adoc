@@ -39,7 +39,7 @@ link:spark-service-MapOutputTrackerMaster.adoc#getStatistics[MapOutputTrackerMas
 
 link:spark-service-MapOutputTrackerMaster.adoc#registerMapOutputs[MapOutputTrackerMaster.registerMapOutputs] for a shuffle id and a list of `MapStatus` when a link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage] is finished.
 
-NOTE: `MapOutputTracker` is used in `BlockStoreShuffleReader` and when creating link:spark-blockmanager.adoc[BlockManager] and link:spark-blockmanager-BlockManagerSlaveEndpoint.adoc[BlockManagerSlaveEndpoint].
+NOTE: `MapOutputTracker` is used in link:spark-BlockStoreShuffleReader.adoc[BlockStoreShuffleReader] and when creating link:spark-blockmanager.adoc[BlockManager] and link:spark-blockmanager-BlockManagerSlaveEndpoint.adoc[BlockManagerSlaveEndpoint].
 
 [TIP]
 ====
@@ -54,7 +54,7 @@ log4j.logger.org.apache.spark.MapOutputTracker=DEBUG
 Refer to link:spark-logging.adoc[Logging].
 ====
 
-=== [[getMapSizesByExecutorId]] `getMapSizesByExecutorId` Method
+=== [[convertMapStatuses]] `convertMapStatuses` Method
 
 CAUTION: FIXME
 
@@ -147,3 +147,33 @@ ERROR Missing all output locations for shuffle [id]
 ```
 
 NOTE: `getStatuses` is used when `MapOutputTracker` <<getMapSizesByExecutorId, getMapSizesByExecutorId>> and <<getStatistics, computes statistics for `ShuffleDependency`>>.
+
+=== [[getMapSizesByExecutorId]] Computing Collection of `BlockManagerIds` with Their Blocks and Sizes -- `getMapSizesByExecutorId` Methods
+
+[source, scala]
+----
+getMapSizesByExecutorId(shuffleId: Int, startPartition: Int, endPartition: Int)
+: Seq[(BlockManagerId, Seq[(BlockId, Long)])]
+
+getMapSizesByExecutorId(shuffleId: Int, reduceId: Int)
+: Seq[(BlockManagerId, Seq[(BlockId, Long)])] // <1>
+----
+<1> Calls the other `getMapSizesByExecutorId` with `endPartition` as `reduceId + 1` and is used exclusively in tests.
+
+CAUTION: FIXME How do the start and end partitions influence the return value?
+
+`getMapSizesByExecutorId` returns a collection of link:spark-blockmanager.adoc#BlockManagerId[BlockManagerId]s with their blocks and sizes.
+
+When executed, you should see the following DEBUG message in the logs:
+
+```
+DEBUG Fetching outputs for shuffle [id], partitions [startPartition]-[endPartition]
+```
+
+`getMapSizesByExecutorId` <<getStatuses, finds map outputs>> for the input `shuffleId`.
+
+NOTE: `getMapSizesByExecutorId` gets the map outputs for all the partitions (despite the method's signature).
+
+In the end, `getMapSizesByExecutorId` <<convertMapStatuses, converts shuffle map outputs>> (as `MapStatuses`) into the collection of link:spark-blockmanager.adoc#BlockManagerId[BlockManagerId]s with their blocks and sizes.
+
+NOTE: `getMapSizesByExecutorId` is exclusively used when link:spark-BlockStoreShuffleReader.adoc#read[`BlockStoreShuffleReader` reads combined key-values for a reduce task].
