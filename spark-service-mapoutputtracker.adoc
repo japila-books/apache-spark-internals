@@ -54,10 +54,6 @@ log4j.logger.org.apache.spark.MapOutputTracker=DEBUG
 Refer to link:spark-logging.adoc[Logging].
 ====
 
-=== [[convertMapStatuses]] `convertMapStatuses` Method
-
-CAUTION: FIXME
-
 === [[updateEpoch]] `updateEpoch` Method
 
 CAUTION: FIXME
@@ -148,7 +144,7 @@ ERROR Missing all output locations for shuffle [id]
 
 NOTE: `getStatuses` is used when `MapOutputTracker` <<getMapSizesByExecutorId, getMapSizesByExecutorId>> and <<getStatistics, computes statistics for `ShuffleDependency`>>.
 
-=== [[getMapSizesByExecutorId]] Computing Collection of `BlockManagerIds` with Their Blocks and Sizes -- `getMapSizesByExecutorId` Methods
+=== [[getMapSizesByExecutorId]] Computing ``BlockManagerId``s with Their Blocks and Sizes -- `getMapSizesByExecutorId` Methods
 
 [source, scala]
 ----
@@ -177,3 +173,26 @@ NOTE: `getMapSizesByExecutorId` gets the map outputs for all the partitions (des
 In the end, `getMapSizesByExecutorId` <<convertMapStatuses, converts shuffle map outputs>> (as `MapStatuses`) into the collection of link:spark-blockmanager.adoc#BlockManagerId[BlockManagerId]s with their blocks and sizes.
 
 NOTE: `getMapSizesByExecutorId` is exclusively used when link:spark-BlockStoreShuffleReader.adoc#read[`BlockStoreShuffleReader` reads combined key-values for a reduce task].
+
+=== [[convertMapStatuses]] Converting `MapStatuses` To `BlockManagerIds` with `ShuffleBlockIds` and Their Sizes -- `convertMapStatuses` Internal Method
+
+[source, scala]
+----
+convertMapStatuses(
+  shuffleId: Int,
+  startPartition: Int,
+  endPartition: Int,
+  statuses: Array[MapStatus]): Seq[(BlockManagerId, Seq[(BlockId, Long)])]
+----
+
+`convertMapStatuses` iterates over the input `statuses` array (of link:spark-MapStatus.adoc[MapStatus] entries indexed by map id) and creates a collection of link:spark-blockmanager.adoc#BlockManagerId[BlockManagerId] (for each `MapStatus` entry) with a link:spark-blockdatamanager.adoc#ShuffleBlockId[ShuffleBlockId] (with the input `shuffleId`, a `mapId`, and `partition` ranging from the input `startPartition` and `endPartition`) and link:spark-MapStatus.adoc#getSizeForBlock[estimated size for the reduce block] for every status and partitions.
+
+For any empty `MapStatus`, you should see the following ERROR message in the logs:
+
+```
+ERROR Missing an output location for shuffle [id]
+```
+
+And `convertMapStatuses` throws a `MetadataFetchFailedException` (with `shuffleId`, `startPartition`, and the above error message).
+
+NOTE: `convertMapStatuses` is exclusively used when <<getMapSizesByExecutorId, `MapOutputTracker` computes ``BlockManagerId``s with their ``ShuffleBlockId``s and sizes>>.
