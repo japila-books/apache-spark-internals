@@ -24,14 +24,16 @@ SparkEnv.get.mapOutputTracker
 | Description
 
 | [[mapStatuses]] `mapStatuses`
-| Lookup table (aka _cache_) for collection of link:spark-MapStatus.adoc[MapStatus]es per shuffle id.
+| Internal cache with collection of link:spark-MapStatus.adoc[MapStatus]es per shuffle id.
 
 Used when `MapOutputTracker` <<getStatuses, finds map outputs for a `ShuffleDependency`>>, <<updateEpoch, updateEpoch>> and <<unregisterShuffle, unregisters a shuffle>>.
 
 | [[epoch]] `epoch`
-| Starts from `0` when <<creating-instance, `MapOutputTracker` is created>>.
+| Tracks the epoch in a Spark application.
 
-Can be <<updateEpoch, updated>> or link:spark-service-MapOutputTrackerMaster.adoc#incrementEpoch[incremented].
+Starts from `0` when <<creating-instance, `MapOutputTracker` is created>>.
+
+Can be <<updateEpoch, updated>> (on `MapOutputTrackerWorkers`) or link:spark-service-MapOutputTrackerMaster.adoc#incrementEpoch[incremented] (on the driver's `MapOutputTrackerMaster`).
 |===
 
 NOTE: `MapOutputTracker` is used when link:spark-rdd-ShuffledRDD.adoc[ShuffledRDD] asks for *preferred locations for a shuffle* using `tracker.getPreferredLocationsForShuffle`.
@@ -58,10 +60,6 @@ log4j.logger.org.apache.spark.MapOutputTracker=DEBUG
 
 Refer to link:spark-logging.adoc[Logging].
 ====
-
-=== [[updateEpoch]] `updateEpoch` Method
-
-CAUTION: FIXME
 
 === [[creating-instance]] Creating `MapOutputTracker` Instance
 
@@ -212,3 +210,20 @@ getEpoch: Long
 `getEpoch` returns the current <<epoch, epoch>>.
 
 NOTE: `getEpoch` is used when link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleExecutorLost[`DAGScheduler` is notified that an executor was lost] and when link:spark-tasksetmanager.adoc#creating-instance[`TaskSetManager` is created] (and sets the epoch for the tasks in a link:spark-taskscheduler-tasksets.adoc[TaskSet]).
+
+=== [[updateEpoch]] Updating Epoch -- `updateEpoch` Method
+
+[source, scala]
+----
+updateEpoch(newEpoch: Long): Unit
+----
+
+`updateEpoch` updates <<epoch, epoch>> when the input `newEpoch` is greater (and hence more recent) and clears the <<mapStatuses, `mapStatuses` internal cache>>.
+
+You should see the following INFO message in the logs:
+
+```
+INFO MapOutputTrackerWorker: Updating epoch to [newEpoch] and clearing cache
+```
+
+NOTE: `updateEpoch` is exclusively used when link:spark-executor-taskrunner.adoc#run[`TaskRunner` runs] (for a task).
