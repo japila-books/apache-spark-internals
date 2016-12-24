@@ -71,10 +71,9 @@ Used when `DAGScheduler` <<createShuffleMapStage, creates a shuffle map stage>>,
 
 A stage is added when <<submitMissingTasks, submitMissingTasks>> gets executed (without first checking if the stage has not already been added).
 
-| [[failedStages]] `failedStages` | The collection of the stages that failed due to fetch failures (as reported by <<handleTaskCompletion-FetchFailed, CompletionEvents for FetchFailed end reasons>>).
+| [[failedStages]] `failedStages` | Stages that failed due to fetch failures (when a link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleTaskCompletion-FetchFailed[task fails with `FetchFailed` exception]).
 
-
-| [[activeJobs]] `activeJobs` | A collection of `ActiveJob` instances
+| [[activeJobs]] `activeJobs` | `ActiveJob` instances
 
 | [[cacheLocs]] `cacheLocs`
 | Registry of block locations per RDD and partition.
@@ -778,7 +777,7 @@ NOTE: `submitStage` is executed when `DAGScheduler` submits <<submitStage, missi
 
 A single stage can be re-executed in multiple *attempts* due to fault recovery. The number of attempts is configured (FIXME).
 
-If `TaskScheduler` reports that a task failed because a map output file from a previous stage was lost, the DAGScheduler resubmits that lost stage. This is detected through a `CompletionEvent` with `FetchFailed`, or an <<ExecutorLost, ExecutorLost>> event. `DAGScheduler` will wait a small amount of time to see whether other nodes or tasks fail, then resubmit `TaskSets` for any lost stage(s) that compute the missing tasks.
+If `TaskScheduler` reports that a task failed because a map output file from a previous stage was lost, the `DAGScheduler` resubmits the lost stage. This is detected through a link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleTaskCompletion-FetchFailed[`CompletionEvent` with `FetchFailed`], or an <<ExecutorLost, ExecutorLost>> event. `DAGScheduler` will wait a small amount of time to see whether other nodes or tasks fail, then resubmit `TaskSets` for any lost stage(s) that compute the missing tasks.
 
 Please note that tasks from the old attempts of a stage could still be running.
 
@@ -842,7 +841,7 @@ https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark
 
 DAGScheduler uses the following ScheduledThreadPoolExecutors (with the policy of removing cancelled tasks from a work queue at time of cancellation):
 
-* `dag-scheduler-message` - a daemon thread pool using `j.u.c.ScheduledThreadPoolExecutor` with core pool size `1`. It is used to post a link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#ResubmitFailedStages[ResubmitFailedStages] event when `FetchFailed` is reported.
+* `dag-scheduler-message` - a daemon thread pool using `j.u.c.ScheduledThreadPoolExecutor` with core pool size `1`. It is used to post a link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#ResubmitFailedStages[ResubmitFailedStages] event when link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleTaskCompletion-FetchFailed[`FetchFailed` is reported].
 
 They are created using `ThreadUtils.newDaemonSingleThreadScheduledExecutor` method that uses Guava DSL to instantiate a ThreadFactory.
 
@@ -1052,5 +1051,5 @@ CAUTION: FIXME Where are `Stage.latestInfo.accumulables` and `CompletionEvent.ta
 [frame="topbot",cols="1,1,2",options="header",width="100%"]
 |======================
 | Spark Property | Default Value | Description
-| [[spark_test_noStageRetry]] `spark.test.noStageRetry` | `false` | When enabled (i.e. `true`), FetchFailed will not cause stage retries, in order to surface the problem. Used for testing.
+| [[spark_test_noStageRetry]] `spark.test.noStageRetry` | `false` | When enabled (i.e. `true`), link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleTaskCompletion-FetchFailed[task failures with `FetchFailed` exceptions] will not cause stage retries, in order to surface the problem. Used for testing.
 |======================
