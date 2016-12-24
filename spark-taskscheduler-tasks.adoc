@@ -1,11 +1,56 @@
 == [[Task]] Tasks
 
-In Spark, a *task* (aka _command_) is the smallest individual unit of execution that represents a partition in a RDD and that an link:spark-executor.adoc#launchTask[executor can execute on a single machine].
+In Spark, a *Task* (aka _command_) is the smallest individual unit of execution that corresponds to a link:spark-rdd-Partition.adoc[RDD partition]. Tasks are link:spark-executor.adoc#launchTask[launched on executors].
 
 .Tasks correspond to partitions in RDD
 image::images/spark-rdd-partitions-job-stage-tasks.png[align="center"]
 
 In other (more technical) words, a task is a computation on a data partition in a stage of a RDD in a Spark job.
+
+[[contract]]
+The `Task` contract expects that custom tasks define <<runTask, runTask>> method.
+
+[source, scala]
+----
+runTask(context: TaskContext): T
+----
+
+NOTE: `T` is the type defined when a <<creating-instance, `Task` is created>>.
+
+[[internal-registries]]
+.`Task` Internal Registries and Counters
+[frame="topbot",cols="1,2",options="header",width="100%"]
+|===
+| Name
+| Description
+
+| [[metrics]] `metrics`
+| Used when ???
+
+| [[taskMemoryManager]] `taskMemoryManager`
+| link:spark-taskscheduler-taskmemorymanager.adoc[TaskMemoryManager] that manages the memory allocated by the task.
+
+Used when ???
+
+| [[context]] `context`
+| Used when ???
+
+| [[_killed]] `_killed`
+| Used when ???
+
+| [[_executorDeserializeTime]] `_executorDeserializeTime`
+| Used when ???
+
+| [[_executorDeserializeCpuTime]] `_executorDeserializeCpuTime`
+| Used when ???
+
+| [[taskThread]] `taskThread`
+| Used when ???
+
+| [[epoch]] `epoch`
+| Set for a `Task` when link:spark-tasksetmanager.adoc#creating-instance[`TaskSetManager` is created] and later used when link:spark-executor-taskrunner.adoc#run[`TaskRunner` runs] and when link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleTaskCompletion-Success-ShuffleMapTask[`DAGScheduler` handles a `ShuffleMapTask` successful completion].
+
+|===
 
 A task can only belong to one stage and operate on a single partition. All tasks in a stage must be completed before the stages that follow can start.
 
@@ -13,7 +58,7 @@ Tasks are spawned one by one for each stage and partition.
 
 CAUTION: FIXME What are `stageAttemptId` and `taskAttemptId`?
 
-A task in Spark is represented by the `Task` abstract class with two concrete implementations:
+A task in Spark is represented by the <<contract, `Task` abstract class>> with two concrete implementations:
 
 * link:spark-taskscheduler-ShuffleMapTask.adoc[ShuffleMapTask] that executes a task and divides the task's output to multiple buckets (based on the task's partitioner).
 * link:spark-taskscheduler-ResultTask.adoc[ResultTask] that executes a task and sends the task's output back to the driver application.
@@ -22,17 +67,22 @@ The very last stage in a Spark job consists of multiple link:spark-taskscheduler
 
 CAUTION: FIXME You could have a Spark job with link:spark-taskscheduler-ShuffleMapTask.adoc[ShuffleMapTask] being the last.
 
-=== [[epoch]] `epoch`
+=== [[creating-instance]] Creating `Task` Instance
 
-CAUTION: FIXME
-
-=== [[contract]] `Task` Contract
-
-CAUTION: FIXME
-
-=== [[runTask]] Running Task -- `runTask` Method
-
-CAUTION: FIXME
+[source, scala]
+----
+Task[T](
+  val stageId: Int,
+  val stageAttemptId: Int,
+  val partitionId: Int,
+  var localProperties: Properties = new Properties,
+  serializedTaskMetrics: Array[Byte] =
+    SparkEnv.get.closureSerializer.newInstance().serialize(TaskMetrics.registered).array(),
+  val jobId: Option[Int] = None,
+  val appId: Option[String] = None,
+  val appAttemptId: Option[String] = None)
+extends Serializable
+----
 
 === [[attributes]] Task Attributes
 
@@ -122,7 +172,3 @@ It calls link:spark-taskscheduler-taskcontext.adoc#markInterrupted[TaskContextIm
 If `interruptThread` is enabled and the internal `taskThread` is available, `kill` interrupts it.
 
 CAUTION: FIXME When could `context` and `interruptThread` not be set?
-
-=== [[taskMemoryManager]] `taskMemoryManager` attribute
-
-`taskMemoryManager` is the link:spark-taskscheduler-taskmemorymanager.adoc[TaskMemoryManager] that manages the memory allocated by the task.
