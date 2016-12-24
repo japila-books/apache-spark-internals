@@ -1,6 +1,6 @@
 == [[MapOutputTracker]] MapOutputTracker -- Shuffle Map Output Registry
 
-`MapOutputTracker` is a Spark service that <<mapStatuses, tracks the locations of the shuffle map outputs>> (i.e. ``MapStatus``es per shuffle).
+`MapOutputTracker` is a Spark service that runs on the driver and executors that <<mapStatuses, tracks the locations of the shuffle map outputs>> (i.e. ``MapStatus``es per shuffle).
 
 There are two custom `MapOutputTrackers`, i.e. one for the driver and another for executors:
 
@@ -26,7 +26,7 @@ SparkEnv.get.mapOutputTracker
 | [[mapStatuses]] `mapStatuses`
 | Internal cache with collection of link:spark-MapStatus.adoc[MapStatus]es per shuffle id.
 
-Used when `MapOutputTracker` <<getStatuses, finds map outputs for a `ShuffleDependency`>>, <<updateEpoch, updateEpoch>> and <<unregisterShuffle, unregisters a shuffle>>.
+Used when `MapOutputTracker` <<getStatuses, finds map outputs for a `ShuffleDependency`>>, <<updateEpoch, updates epoch>> and <<unregisterShuffle, unregisters a shuffle>>.
 
 | [[epoch]] `epoch`
 | Tracks the epoch in a Spark application.
@@ -48,19 +48,6 @@ link:spark-service-MapOutputTrackerMaster.adoc#registerMapOutputs[MapOutputTrack
 
 NOTE: `MapOutputTracker` is used in link:spark-BlockStoreShuffleReader.adoc[BlockStoreShuffleReader] and when creating link:spark-blockmanager.adoc[BlockManager] and link:spark-blockmanager-BlockManagerSlaveEndpoint.adoc[BlockManagerSlaveEndpoint].
 
-[TIP]
-====
-Enable `INFO` or `DEBUG` logging level for `org.apache.spark.MapOutputTracker` logger to see what happens in `MapOutputTracker`.
-
-Add the following line to `conf/log4j.properties`:
-
-```
-log4j.logger.org.apache.spark.MapOutputTracker=DEBUG
-```
-
-Refer to link:spark-logging.adoc[Logging].
-====
-
 === [[creating-instance]] Creating `MapOutputTracker` Instance
 
 CAUTION: FIXME
@@ -70,10 +57,6 @@ CAUTION: FIXME
 CAUTION: FIXME
 
 === [[serializeMapStatuses]] `serializeMapStatuses` Method
-
-CAUTION: FIXME
-
-=== [[unregisterShuffle]] `unregisterShuffle` Method
 
 CAUTION: FIXME
 
@@ -227,3 +210,14 @@ INFO MapOutputTrackerWorker: Updating epoch to [newEpoch] and clearing cache
 ```
 
 NOTE: `updateEpoch` is exclusively used when link:spark-executor-taskrunner.adoc#run[`TaskRunner` runs] (for a task).
+
+=== [[unregisterShuffle]] Unregistering Shuffle -- `unregisterShuffle` Method
+
+[source, scala]
+----
+unregisterShuffle(shuffleId: Int): Unit
+----
+
+`unregisterShuffle` unregisters `shuffleId`, i.e. removes `shuffleId` entry from the <<mapStatuses, mapStatuses>> internal cache.
+
+NOTE: `unregisterShuffle` is used when link:spark-service-contextcleaner.adoc#doCleanupShuffle[`ContextCleaner` removes a shuffle (blocks) from `MapOutputTrackerMaster` and `BlockManagerMaster`] (aka _shuffle cleanup_) and when link:spark-blockmanager-BlockManagerSlaveEndpoint.adoc#RemoveShuffle[`BlockManagerSlaveEndpoint` handles `RemoveShuffle` message].
