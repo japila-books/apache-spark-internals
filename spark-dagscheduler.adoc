@@ -42,6 +42,7 @@ DAGScheduler uses an *event queue architecture* in which a thread can post `DAGS
 
 DAGScheduler runs stages in topological order.
 
+[[internal-registries]]
 .`DAGScheduler` Internal Registries and Counters
 [frame="topbot",cols="1,2",options="header",width="100%"]
 |===
@@ -98,7 +99,7 @@ log4j.logger.org.apache.spark.scheduler.DAGScheduler=TRACE
 Refer to link:spark-logging.adoc[Logging].
 ====
 
-DAGScheduler needs link:spark-sparkcontext.adoc[SparkContext], link:spark-taskscheduler.adoc[Task Scheduler], link:spark-LiveListenerBus.adoc[LiveListenerBus], link:spark-service-mapoutputtracker.adoc[MapOutputTracker] and link:spark-blockmanager.adoc[Block Manager] to work. However, at the very minimum, DAGScheduler needs SparkContext only (and asks SparkContext for the other services).
+DAGScheduler uses link:spark-sparkcontext.adoc[SparkContext], link:spark-taskscheduler.adoc[TaskScheduler], link:spark-LiveListenerBus.adoc[LiveListenerBus], link:spark-service-mapoutputtracker.adoc[MapOutputTracker] and link:spark-blockmanager.adoc[BlockManager] for its services. However, at the very minimum, `DAGScheduler` takes a `SparkContext` only (and requests `SparkContext` for the other services).
 
 DAGScheduler reports metrics about its execution (refer to the section <<metrics, Metrics>>).
 
@@ -163,18 +164,18 @@ DAGScheduler(
   clock: Clock = new SystemClock())
 ----
 
-`DAGScheduler` requires a link:spark-sparkcontext.adoc[SparkContext], link:spark-taskscheduler.adoc[TaskScheduler], link:spark-LiveListenerBus.adoc[LiveListenerBus], link:spark-service-MapOutputTrackerMaster.adoc[MapOutputTrackerMaster], link:spark-BlockManagerMaster.adoc[BlockManagerMaster], link:spark-sparkenv.adoc[SparkEnv], and a `Clock`.
+`DAGScheduler` takes a link:spark-sparkcontext.adoc[SparkContext], link:spark-taskscheduler.adoc[TaskScheduler], link:spark-LiveListenerBus.adoc[LiveListenerBus], link:spark-service-MapOutputTrackerMaster.adoc[MapOutputTrackerMaster], link:spark-BlockManagerMaster.adoc[BlockManagerMaster], link:spark-sparkenv.adoc[SparkEnv], and a `Clock`.
 
 NOTE: `DAGScheduler` can reference all the services through a single link:spark-sparkcontext.adoc[SparkContext].
 
 When created, `DAGScheduler` does the following (in order):
 
-1. Creates a `DAGSchedulerSource`
-2. Creates <<messageScheduler, messageScheduler>>
-3. Creates <<eventProcessLoop, eventProcessLoop>> and immediatelly link:spark-taskscheduler.adoc#setDAGScheduler[sets itself in the current `TaskScheduler`]
-5. Initializes the internal registries and counters.
-
-At the very end of the initialization, `DAGScheduler` starts <<eventProcessLoop, eventProcessLoop>>.
+1. Creates <<DAGSchedulerSource, `DAGSchedulerSource` metrics source>>,
+2. Creates <<messageScheduler, messageScheduler>>,
+3. Creates <<eventProcessLoop, eventProcessLoop>>,
+4. link:spark-taskscheduler.adoc#setDAGScheduler[Sets itself in the current `TaskScheduler`],
+5. Initializes the <<internal-registries, internal registries and counters>>,
+6. Starts <<eventProcessLoop, eventProcessLoop>>.
 
 === [[listenerBus]] `LiveListenerBus` Event Bus for ``SparkListenerEvent``s -- `listenerBus` Property
 
@@ -533,7 +534,7 @@ NOTE: All the new `ShuffleMapStage` stages are associated with the input `firstJ
 
 NOTE: `getOrCreateShuffleMapStage` is used when `DAGScheduler` <<getOrCreateParentStages, getOrCreateParentStages>>, <<getMissingParentStages, getMissingParentStages>> (for link:spark-rdd-ShuffleDependency.adoc[ShuffleDependencies]), link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleMapStageSubmitted[handles `MapStageSubmitted` events], and <<stageDependsOn, checks out if a stage depends on another>>.
 
-=== [[createShuffleMapStage]] Creating `ShuffleMapStage` (given `ShuffleDependency` and `ActiveJob`) -- `createShuffleMapStage` Method
+=== [[createShuffleMapStage]] Creating `ShuffleMapStage` (for `ShuffleDependency` and `ActiveJob`) -- `createShuffleMapStage` Method
 
 [source, scala]
 ----
@@ -542,7 +543,10 @@ createShuffleMapStage(
   jobId: Int): ShuffleMapStage
 ----
 
-`createShuffleMapStage` creates a link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage] for the input link:spark-rdd-ShuffleDependency.adoc[ShuffleDependency].
+`createShuffleMapStage` creates a link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage] for the input link:spark-rdd-ShuffleDependency.adoc[ShuffleDependency] and `jobId` (of a link:spark-dagscheduler-jobs.adoc[ActiveJob]).
+
+.`DAGScheduler` Asks `MapOutputTrackerMaster` Whether Shuffle Map Output Is Already Tracked
+image::images/DAGScheduler-MapOutputTrackerMaster-containsShuffle.png[align="center"]
 
 NOTE: When a link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage] is created, the `id` is generated (using <<nextStageId, `nextStageId` internal counter>>), `rdd` is from `ShuffleDependency`, `numTasks` is the number of partitions in the RDD, all `parents` are looked up (and possibly created), the `jobId` is given, `callSite` is the `creationSite` of the RDD, and `shuffleDep` is the input `ShuffleDependency`.
 
@@ -558,7 +562,7 @@ NOTE: The RDD of the new `ShuffleMapStage` is from the input link:spark-rdd-Shuf
 
 `createShuffleMapStage` calls <<updateJobIdStageIdMaps, updateJobIdStageIdMaps>>.
 
-If link:spark-service-MapOutputTrackerMaster.adoc#containsShuffle[`MapOutputTrackerMaster` tracks the input `ShuffleDependency`], `createShuffleMapStage` link:spark-service-MapOutputTrackerMaster.adoc#getSerializedMapOutputStatuses[requests the serialized `ShuffleMapStage` outputs], link:spark-service-MapOutputTracker.adoc#deserializeMapStatuses[deserializes] and link:spark-dagscheduler-ShuffleMapStage.adoc#addOutputLoc[registers them with the new `ShuffleMapStage`].
+If link:spark-service-MapOutputTrackerMaster.adoc#containsShuffle[`MapOutputTrackerMaster` tracks the input `ShuffleDependency`], i.e. , `createShuffleMapStage` link:spark-service-MapOutputTrackerMaster.adoc#getSerializedMapOutputStatuses[requests the serialized `ShuffleMapStage` outputs], link:spark-service-MapOutputTracker.adoc#deserializeMapStatuses[deserializes] and link:spark-dagscheduler-ShuffleMapStage.adoc#addOutputLoc[registers them with the new `ShuffleMapStage`].
 
 NOTE: link:spark-service-MapOutputTrackerMaster.adoc[MapOutputTrackerMaster] was defined when <<creating-instance, `DAGScheduler` was created>>.
 
@@ -1009,9 +1013,9 @@ stop(): Unit
 
 `stop` stops the internal `dag-scheduler-message` thread pool, <<event-loop, dag-scheduler-event-loop>>, and link:spark-taskscheduler.adoc[TaskScheduler].
 
-=== [[metrics]] Metrics
+=== [[metrics]][[DAGSchedulerSource]] `DAGSchedulerSource` Metrics Source
 
-Spark's DAGScheduler uses link:spark-metrics.adoc[Spark Metrics System] (via `DAGSchedulerSource`) to report metrics about internal status.
+`DAGScheduler` uses link:spark-metrics.adoc[Spark Metrics System] (via `DAGSchedulerSource`) to report metrics about internal status.
 
 CAUTION: FIXME What is `DAGSchedulerSource`?
 
