@@ -29,10 +29,6 @@ log4j.logger.org.apache.spark.MapOutputTrackerMaster=DEBUG
 Refer to link:spark-logging.adoc[Logging].
 ====
 
-=== [[getLocationsWithLargestOutputs]] Finding Locations with Largest Number of Shuffle Map Outputs -- `getLocationsWithLargestOutputs` Method
-
-CAUTION: FIXME
-
 === [[getSerializedMapOutputStatuses]] `getSerializedMapOutputStatuses` Method
 
 CAUTION: FIXME
@@ -85,7 +81,7 @@ You should see the following DEBUG message in the logs for entries being removed
 DEBUG Removing key [entry.getKey]
 ```
 
-=== [[getPreferredLocationsForShuffle]] Finding BlockManagers with Most Map Outputs (for `ShuffleDependency` and `Partition`) -- `getPreferredLocationsForShuffle` Method
+=== [[getPreferredLocationsForShuffle]] Finding Preferred BlockManagers with Map Outputs (for `ShuffleDependency` and `Partition`) -- `getPreferredLocationsForShuffle` Method
 
 [source, scala]
 ----
@@ -95,6 +91,8 @@ getPreferredLocationsForShuffle(dep: ShuffleDependency[_, _, _], partitionId: In
 `getPreferredLocationsForShuffle` finds the locations (i.e. link:spark-blockmanager.adoc[BlockManagers]) with the most map outputs for the input link:spark-rdd-ShuffleDependency.adoc[ShuffleDependency] and link:spark-rdd-Partition.adoc[Partition].
 
 NOTE: `getPreferredLocationsForShuffle` is simply <<getLocationsWithLargestOutputs, getLocationsWithLargestOutputs>> with a guard condition.
+
+NOTE: A *map output* are shuffle blocks across BlockManagers.
 
 Internally, `getPreferredLocationsForShuffle` checks whether <<spark_shuffle_reduceLocality_enabled, `spark.shuffle.reduceLocality.enabled` Spark property>> is enabled (it is by default) with the number of partitions of the link:spark-rdd-ShuffleDependency.adoc#rdd[RDD of the input `ShuffleDependency`] and partitions in the link:spark-rdd-ShuffleDependency.adoc#partitioner[partitioner of the input `ShuffleDependency`] both being less than `1000`.
 
@@ -122,6 +120,36 @@ DEBUG MapOutputTrackerMaster: Increasing epoch to [epoch]
 ```
 
 NOTE: `incrementEpoch` is used when `MapOutputTrackerMaster` <<registerMapOutputs, registers map outputs>> (with `changeEpoch` flag enabled -- it is disabled by default) and <<unregisterMapOutput, unregisters map outputs>> (for a shuffle, mapper and block manager), and when link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleExecutorLost[`DAGScheduler` is notified that an executor got lost] (with `filesLost` flag enabled).
+
+=== [[getLocationsWithLargestOutputs]] Finding Locations with Largest Number of Shuffle Map Outputs -- `getLocationsWithLargestOutputs` Method
+
+[source, scala]
+----
+getLocationsWithLargestOutputs(
+  shuffleId: Int,
+  reducerId: Int,
+  numReducers: Int,
+  fractionThreshold: Double): Option[Array[BlockManagerId]]
+----
+
+`getLocationsWithLargestOutputs` returns link:spark-blockmanager.adoc#BlockManagerId[BlockManagerId]s with the largest size (of all the shuffle blocks they manage) above the input `fractionThreshold` (given the total size of all the shuffle blocks for the shuffle across all link:spark-blockmanager.adoc[BlockManagers]).
+
+NOTE: `getLocationsWithLargestOutputs` may return no `BlockManagerId` if their shuffle blocks do not total up above the input `fractionThreshold`.
+
+NOTE: The input `numReducers` is not used.
+
+Internally, `getLocationsWithLargestOutputs` queries the <<mapStatuses, mapStatuses>> internal cache for the input `shuffleId`.
+
+[NOTE]
+====
+One entry in `mapStatuses` internal cache is a link:spark-MapStatus.adoc[MapStatus] array indexed by partition id.
+
+`MapStatus` includes link:spark-MapStatus.adoc#contract[information about the `BlockManager` (as `BlockManagerId`) and estimated size of the reduce blocks].
+====
+
+`getLocationsWithLargestOutputs` iterates over the `MapStatus` array and builds an interim mapping between link:spark-blockmanager.adoc#BlockManagerId[BlockManagerId] and the cumulative sum of shuffle blocks across link:spark-blockmanager.adoc[BlockManagers].
+
+NOTE: `getLocationsWithLargestOutputs` is used exclusively when <<getPreferredLocationsForShuffle, `MapOutputTrackerMaster` finds the preferred locations (BlockManagers and hence executors) for a shuffle>>.
 
 === [[settings]] Settings
 
