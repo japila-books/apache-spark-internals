@@ -27,6 +27,11 @@ INFO SparkEnv: Registering MapOutputTracker
 | Internal cache with...FIXME
 
 Used when...FIXME
+
+| [[shuffleIdLocks]] `shuffleIdLocks`
+| Internal registry with...FIXME
+
+Used when...FIXME
 |===
 
 [TIP]
@@ -43,10 +48,6 @@ Refer to link:spark-logging.adoc[Logging].
 ====
 
 === [[getSerializedMapOutputStatuses]] `getSerializedMapOutputStatuses` Method
-
-CAUTION: FIXME
-
-=== [[registerShuffle]] `registerShuffle` Method
 
 CAUTION: FIXME
 
@@ -71,7 +72,6 @@ CAUTION: FIXME
 `cleanup(cleanupTime: Long)` method removes old entries in `mapStatuses` and `cachedSerializedStatuses` that have timestamp earlier than `cleanupTime`.
 
 It uses `org.apache.spark.util.TimeStampedHashMap.clearOldValues` method.
-
 
 [TIP]
 ====
@@ -170,6 +170,27 @@ containsShuffle(shuffleId: Int): Boolean
 `containsShuffle` checks if the input `shuffleId` is registered in the <<cachedSerializedStatuses, cachedSerializedStatuses>> or link:spark-service-mapoutputtracker.adoc#mapStatuses[mapStatuses] internal caches.
 
 NOTE: `containsShuffle` is used exclusively when link:spark-dagscheduler.adoc#createShuffleMapStage[`DAGScheduler` creates a `ShuffleMapStage`] (for `ShuffleDependency` and `ActiveJob`).
+
+=== [[registerShuffle]] `registerShuffle` Method
+
+[source, scala]
+----
+registerShuffle(shuffleId: Int, numMaps: Int): Unit
+----
+
+`registerShuffle` registers the input `shuffleId` in the link:spark-service-mapoutputtracker.adoc#mapStatuses[mapStatuses] internal cache.
+
+NOTE: The number of link:spark-MapStatus.adoc[MapStatus] entries in the new array in `mapStatuses` internal cache is exactly the input `numMaps`.
+
+`registerShuffle` adds a lock in the <<shuffleIdLocks, `shuffleIdLocks` internal registry>> (without using it).
+
+If the `shuffleId` has already been registered, `registerShuffle` throws a `IllegalArgumentException` with the following message:
+
+```
+Shuffle ID [id] registered twice
+```
+
+NOTE: `registerShuffle` is used exclusively when link:spark-dagscheduler.adoc#createShuffleMapStage[`DAGScheduler` creates a `ShuffleMapStage`] (for `ShuffleDependency` and `ActiveJob`).
 
 === [[settings]] Settings
 
