@@ -168,7 +168,7 @@ Internally, `handleJobGroupCancelled` computes all the active jobs (registered i
 
 `handleJobGroupCancelled` then <<handleJobCancellation, cancels every active job>> in the group one by one and the cancellation reason: "part of cancelled job group [groupId]".
 
-=== [[handleMapStageSubmitted]] `handleMapStageSubmitted` Handler
+=== [[handleMapStageSubmitted]] Notification about `ShuffleDependency` Submission -- `handleMapStageSubmitted` Handler
 
 [source, scala]
 ----
@@ -210,13 +210,17 @@ Ultimately, `handleMapStageSubmitted` posts link:spark-SparkListener.adoc#SparkL
 
 In case the link:spark-dagscheduler-ShuffleMapStage.adoc#isAvailable[`ShuffleMapStage` could be available] already, `handleMapStageSubmitted` link:spark-dagscheduler.adoc#markMapStageJobAsFinished[marks the job finished].
 
+NOTE: `DAGScheduler` link:spark-service-mapoutputtracker.adoc#getStatistics[requests `MapOutputTrackerMaster` for statistics for `ShuffleDependency`] that it uses for `handleMapStageSubmitted`.
+
+NOTE: `MapOutputTrackerMaster` is passed in when link:spark-dagscheduler.adoc#creating-instance[`DAGScheduler` is created].
+
 When `handleMapStageSubmitted` could not find or create a `ShuffleMapStage`, you should see the following WARN message in the logs.
 
 ```
 WARN Creating new stage failed due to exception - job: [id]
 ```
 
-`handleMapStageSubmitted` informs link:spark-dagscheduler-JobListener.adoc#jobFailed[`listener` about the job failure] and exits.
+`handleMapStageSubmitted` notifies link:spark-dagscheduler-JobListener.adoc#jobFailed[`listener` about the job failure] and exits.
 
 NOTE: `MapStageSubmitted` event processing is very similar to <<JobSubmitted, JobSubmitted>> events.
 
@@ -300,7 +304,7 @@ NOTE: At this point `DAGScheduler` has no failed stages reported.
 
 The previously-reported failed stages are sorted by the corresponding job ids in incremental order and link:spark-dagscheduler.adoc#submitStage[resubmitted].
 
-=== [[handleExecutorLost]] `handleExecutorLost` Handler
+=== [[handleExecutorLost]] Handling Executor Getting Lost -- `handleExecutorLost` Handler
 
 [source, scala]
 ----
@@ -539,7 +543,7 @@ INFO DAGScheduler: Ignoring possibly bogus [task] completion from executor [exec
 
 Otherwise, `handleTaskCompletion` link:spark-dagscheduler-ShuffleMapStage.adoc#addOutputLoc[registers the `MapStatus` result for the partition with the stage] (of the completed task).
 
-`handleTaskCompletion` does more processing only if the `ShuffleMapStage` is considered running (i.e. is registered in link:spark-dagscheduler.adoc#runningStages[`runningStages` internal registry]) and the link:spark-dagscheduler-stages.adoc#pendingPartitions[stage has no pending partitions to compute].
+`handleTaskCompletion` does more processing only if the `ShuffleMapStage` is registered as still running (in link:spark-dagscheduler.adoc#runningStages[`runningStages` internal registry]) and the link:spark-dagscheduler-stages.adoc#pendingPartitions[`ShuffleMapStage` stage has no pending partitions to compute].
 
 The `ShuffleMapStage` is <<markStageAsFinished, marked as finished>>.
 
@@ -552,7 +556,7 @@ INFO DAGScheduler: waiting: [waitingStages]
 INFO DAGScheduler: failed: [failedStages]
 ```
 
-`handleTaskCompletion` link:spark-service-MapOutputTrackerMaster.adoc#registerMapOutputs[registers the map outputs for the `ShuffleDependency`] (with the epoch incremented) and link:spark-dagscheduler.adoc#clearCacheLocs[clears internal cache of the stage's RDD block locations].
+`handleTaskCompletion` link:spark-service-MapOutputTrackerMaster.adoc#registerMapOutputs[registers the shuffle map outputs of the `ShuffleDependency` with `MapOutputTrackerMaster`] (with the epoch incremented) and link:spark-dagscheduler.adoc#clearCacheLocs[clears internal cache of the stage's RDD block locations].
 
 NOTE: link:spark-service-MapOutputTrackerMaster.adoc[MapOutputTrackerMaster] is given when link:spark-dagscheduler.adoc#creating-instance[`DAGScheduler` is created].
 
