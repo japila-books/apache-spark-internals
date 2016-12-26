@@ -1,29 +1,25 @@
-== [[ShuffleDependency]] `ShuffleDependency` -- Shuffle Dependencies
+== [[ShuffleDependency]] `ShuffleDependency` -- Shuffle Dependency
 
-`ShuffleDependency` is a link:spark-rdd-dependencies.adoc[RDD Dependency] on the output of a link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage], i.e. *shuffle map stage*.
+`ShuffleDependency` is a link:spark-rdd-dependencies.adoc[RDD Dependency] on the output of a link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage].
+
+`ShuffleDependency` is a dependency of link:spark-rdd-ShuffledRDD.adoc[ShuffledRDD] as well as link:spark-rdd-cogroupedrdd.adoc[CoGroupedRDD] and link:spark-rdd-SubtractedRDD.adoc[SubtractedRDD] but only when link:spark-rdd-Partitioner.adoc[partitioners] (of the RDDs in transformations) are different.
 
 A `ShuffleDependency` is <<creating-instance, created>> for a single key-value pair RDD (i.e. `RDD[Product2[K, V]]`).
 
+TIP: Use link:spark-rdd.adoc#dependencies[`dependencies` method] on an RDD to know the dependencies.
+
 ```
-scala> val myRdd = sc.parallelize(0 to 9).groupBy(_ % 2)
-myRdd: org.apache.spark.rdd.RDD[(Int, Iterable[Int])] = ShuffledRDD[11] at groupBy at <console>:24
+scala> val rdd = sc.parallelize(0 to 8).groupBy(_ % 3)
+rdd: org.apache.spark.rdd.RDD[(Int, Iterable[Int])] = ShuffledRDD[2] at groupBy at <console>:24
 
-scala> myRdd.dependencies
-res0: Seq[org.apache.spark.Dependency[_]] = List(org.apache.spark.ShuffleDependency@1193caff)
+scala> rdd.dependencies
+res0: Seq[org.apache.spark.Dependency[_]] = List(org.apache.spark.ShuffleDependency@454f6cc5)
 ```
-
-TIP: Use link:spark-rdd-lineage.adoc#toDebugString[`toDebugString` method] with an RDD to know the link:spark-rdd-lineage.adoc[RDD lineage graph].
-
-NOTE: A `ShuffleDependency` dependency is the dependency of link:spark-rdd-ShuffledRDD.adoc[ShuffledRDD]. It is also a dependency of link:spark-rdd-cogroupedrdd.adoc[CoGroupedRDD] and link:spark-rdd-SubtractedRDD.adoc[SubtractedRDD] (but only when partitioners of the RDDs are different).
 
 [[shuffleId]]
 Every `ShuffleDependency` has a unique application-wide *shuffleId* number.
 
 NOTE: Shuffle ids are link:spark-sparkcontext.adoc#nextShuffleId[tracked by `SparkContext`].
-
-=== [[rdd]] `rdd` Property
-
-CAUTION: FIXME
 
 === [[partitioner]] `partitioner` Property
 
@@ -33,16 +29,18 @@ CAUTION: FIXME
 
 `ShuffleDependency` takes the following when created:
 
-1. A single key-value pair RDD (i.e. `RDD[Product2[K, V]]`),
+1. A single key-value pair RDD, i.e. `RDD[Product2[K, V]]`,
 2. link:spark-rdd-Partitioner.adoc[Partitioner],
 3. link:spark-sparkenv.adoc#serializer[Serializer],
-4. Optional key ordering (as Scala's link:http://www.scala-lang.org/api/current/scala/math/Ordering.html[scala.math.Ordering] type),
+4. Optional key ordering (of Scala's link:http://www.scala-lang.org/api/current/scala/math/Ordering.html[scala.math.Ordering] type),
 5. Optional <<aggregator, Aggregator>>,
 6. <<mapSideCombine, mapSideCombine>> flag which is disabled (i.e. `false`) by default.
 
-When created, `ShuffleDependency` gets link:spark-sparkcontext.adoc#nextShuffleId[shuffleId].
+NOTE: `ShuffleDependency` uses link:spark-sparkenv.adoc#serializer[`SparkEnv` to access `Serializer`].
 
-NOTE: `ShuffleDependency` uses the link:spark-rdd.adoc#context[input RDD to access `SparkContext`] and hence the `shuffleId`.
+When created, `ShuffleDependency` gets link:spark-sparkcontext.adoc#nextShuffleId[shuffle id] (as `shuffleId`).
+
+NOTE: `ShuffleDependency` uses the link:spark-rdd.adoc#context[input RDD to access `SparkContext`] and so the `shuffleId`.
 
 `ShuffleDependency` link:spark-shuffle-manager.adoc#registerShuffle[registers itself with `ShuffleManager`] and gets a `ShuffleHandle` (available as <<shuffleHandle, shuffleHandle>> property).
 
@@ -53,6 +51,30 @@ In the end, `ShuffleDependency` link:spark-service-contextcleaner.adoc#registerS
 NOTE: `ShuffleDependency` accesses the link:spark-sparkcontext.adoc#cleaner[optional `ContextCleaner` through `SparkContext`].
 
 NOTE: `ShuffleDependency` is created when link:spark-rdd-ShuffledRDD.adoc#getDependencies[ShuffledRDD], link:spark-rdd-cogroupedrdd.adoc#getDependencies[CoGroupedRDD], and link:spark-rdd-SubtractedRDD.adoc#getDependencies[SubtractedRDD] return their RDD dependencies.
+
+=== [[rdd]] `rdd` Property
+
+[source, scala]
+----
+rdd: RDD[Product2[K, V]]
+----
+
+`rdd` returns a key-value pair RDD this <<creating-instance, `ShuffleDependency` was created for>>.
+
+[NOTE]
+====
+`rdd` is used when:
+
+1. link:spark-service-MapOutputTrackerMaster.adoc#getPreferredLocationsForShuffle[`MapOutputTrackerMaster` finds preferred `BlockManagers` with most map outputs] for a `ShuffleDependency`,
+
+2. link:spark-dagscheduler.adoc#getOrCreateShuffleMapStage[`DAGScheduler` finds or creates new `ShuffleMapStage` stages] for a `ShuffleDependency`,
+
+3. link:spark-dagscheduler.adoc#createShuffleMapStage[`DAGScheduler` creates a `ShuffleMapStage`] for a `ShuffleDependency` and a `ActiveJob`,
+
+4. link:spark-dagscheduler.adoc#getMissingAncestorShuffleDependencies[`DAGScheduler` finds missing ShuffleDependencies for a RDD],
+
+5. link:spark-dagscheduler.adoc#submitMapStage[`DAGScheduler` submits a `ShuffleDependency` for execution].
+====
 
 === [[shuffleHandle]] `shuffleHandle` Property
 
