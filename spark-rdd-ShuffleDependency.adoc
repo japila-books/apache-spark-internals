@@ -1,10 +1,12 @@
 == [[ShuffleDependency]] `ShuffleDependency` -- Shuffle Dependency
 
-`ShuffleDependency` is a link:spark-rdd-dependencies.adoc[RDD Dependency] on the output of a link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage].
+`ShuffleDependency` is a link:spark-rdd-dependencies.adoc[RDD Dependency] on the output of a link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage] for a <<rdd, key-value pair RDD>>.
 
-`ShuffleDependency` is a dependency of link:spark-rdd-ShuffledRDD.adoc[ShuffledRDD] as well as link:spark-rdd-cogroupedrdd.adoc[CoGroupedRDD] and link:spark-rdd-SubtractedRDD.adoc[SubtractedRDD] but only when link:spark-rdd-Partitioner.adoc[partitioners] (of the RDDs in transformations) are different.
+`ShuffleDependency` uses the <<rdd, RDD>> to know the number of (map-side/pre-shuffle) partitions and the <<partitioner, `Partitioner`>> for the number of (reduce-size/post-shuffle) partitions.
 
-A `ShuffleDependency` is <<creating-instance, created>> for a single key-value pair RDD (i.e. `RDD[Product2[K, V]]`).
+`ShuffleDependency` is a dependency of link:spark-rdd-ShuffledRDD.adoc[ShuffledRDD] as well as link:spark-rdd-cogroupedrdd.adoc[CoGroupedRDD] and link:spark-rdd-SubtractedRDD.adoc[SubtractedRDD] but only when link:spark-rdd-Partitioner.adoc[partitioners] (of the RDD's and after transformations) are different.
+
+A `ShuffleDependency` is <<creating-instance, created>> for a key-value pair RDD, i.e. `RDD[Product2[K, V]]` with `K` and `V` being the types of keys and values, respectively.
 
 TIP: Use link:spark-rdd.adoc#dependencies[`dependencies` method] on an RDD to know the dependencies.
 
@@ -17,20 +19,16 @@ res0: Seq[org.apache.spark.Dependency[_]] = List(org.apache.spark.ShuffleDepende
 ```
 
 [[shuffleId]]
-Every `ShuffleDependency` has a unique application-wide *shuffleId* number.
+Every `ShuffleDependency` has a unique application-wide *shuffleId* number that is assigned when <<creating-instance, `ShuffleDependency` is created>> (and is used throughout Spark's code to reference a `ShuffleDependency`).
 
 NOTE: Shuffle ids are link:spark-sparkcontext.adoc#nextShuffleId[tracked by `SparkContext`].
-
-=== [[partitioner]] `partitioner` Property
-
-CAUTION: FIXME
 
 === [[creating-instance]] Creating `ShuffleDependency` Instance
 
 `ShuffleDependency` takes the following when created:
 
 1. A single key-value pair RDD, i.e. `RDD[Product2[K, V]]`,
-2. link:spark-rdd-Partitioner.adoc[Partitioner],
+2. link:spark-rdd-Partitioner.adoc[Partitioner] (available as <<partitioner, `partitioner` property>>),
 3. link:spark-sparkenv.adoc#serializer[Serializer],
 4. Optional key ordering (of Scala's link:http://www.scala-lang.org/api/current/scala/math/Ordering.html[scala.math.Ordering] type),
 5. Optional <<aggregator, Aggregator>>,
@@ -74,6 +72,27 @@ rdd: RDD[Product2[K, V]]
 4. link:spark-dagscheduler.adoc#getMissingAncestorShuffleDependencies[`DAGScheduler` finds missing ShuffleDependencies for a RDD],
 
 5. link:spark-dagscheduler.adoc#submitMapStage[`DAGScheduler` submits a `ShuffleDependency` for execution].
+====
+
+=== [[partitioner]] `partitioner` Property
+
+`partitioner` property is a link:spark-rdd-Partitioner.adoc[Partitioner] that is used to partition the shuffle output.
+
+`partitioner` is specified when <<creating-instance, `ShuffleDependency` is created>>.
+
+[NOTE]
+====
+`partitioner` is used when:
+
+1. link:spark-service-mapoutputtracker.adoc#getStatistics[`MapOutputTracker` computes the statistics for a `ShuffleDependency`] (and is the size of the array with the total sizes of shuffle blocks),
+
+2. link:spark-service-MapOutputTrackerMaster.adoc#getPreferredLocationsForShuffle[`MapOutputTrackerMaster` finds preferred `BlockManagers` with most map outputs] for a `ShuffleDependency`,
+
+3. link:spark-sql-ShuffledRowRDD.adoc#numPreShufflePartitions[ShuffledRowRDD.adoc#numPreShufflePartitions],
+
+4. link:spark-SortShuffleManager.adoc#canUseSerializedShuffle[`SortShuffleManager` checks if `SerializedShuffleHandle` can be used] (for a `ShuffleHandle`).
+
+5. FIXME
 ====
 
 === [[shuffleHandle]] `shuffleHandle` Property
