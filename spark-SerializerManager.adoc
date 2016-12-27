@@ -4,7 +4,7 @@ CAUTION: FIXME
 
 When link:spark-sparkenv.adoc#create[`SparkEnv` is created] (either for the driver or executors), it instantiates `SerializerManager` that is then used to create a link:spark-blockmanager.adoc[BlockManager].
 
-It automatically selects the best serializer which is `KryoSerializer` <<canUseKryo, whenever possible>> or falls backs to the input `defaultSerializer` serializer.
+`SerializerManager` <<getSerializer, automatically selects the "best" serializer for shuffle blocks>> that could either be `KryoSerializer` <<canUseKryo, when a RDD's types are known to be compatible with Kryo>> or the <<creating-instance, default `Serializer`>>.
 
 The common idiom in Spark's code is to access the current `SerializerManager` using link:spark-sparkenv.adoc#get[SparkEnv].
 
@@ -13,7 +13,9 @@ The common idiom in Spark's code is to access the current `SerializerManager` us
 SparkEnv.get.serializerManager
 ----
 
-=== [[getSerializer]] `getSerializer` Method
+NOTE: `SerializerManager` was introduced in https://github.com/apache/spark/commit/de1a84e56e81347cb0d1ec67cc86944ea98bb9a9[SPARK-13926].
+
+=== [[creating-instance]] Creating `SerializerManager` Instance
 
 CAUTION: FIXME
 
@@ -25,16 +27,50 @@ CAUTION: FIXME
 
 CAUTION: FIXME
 
+`SerializerManager` will automatically pick a Kryo serializer for ShuffledRDDs whose key, value, and/or combiner types are primitives, arrays of primitives, or strings.
+
+=== [[getSerializer]] Selecting "Best" `Serializer` -- `getSerializer` Method
+
+[source, scala]
+----
+getSerializer(keyClassTag: ClassTag[_], valueClassTag: ClassTag[_]): Serializer
+----
+
+`getSerializer` selects the "best" link:spark-Serializer.adoc[Serializer] given the input types for keys and values (in a RDD).
+
+`getSerializer` returns `KryoSerializer` when the <<canUseKryo, types of keys and values are compatible with Kryo>> or the default `Serializer`.
+
+NOTE: The default `Serializer` is defined when <<creating-instance, `SerializerManager` is created>>.
+
+NOTE: `getSerializer` is used when link:spark-rdd-ShuffledRDD.adoc#getDependencies[`ShuffledRDD` returns the single-element dependency list (with `ShuffleDependency`)].
+
 === [[settings]] Settings
 
-.Settings
-[width="100%",cols="1,1,3",frame="topbot",options="header,footer"]
+.Spark Properties
+[frame="topbot",cols="1,1,2",options="header",width="100%"]
 |======================
-|Name | Default value |Description
+| Name
+| Default value
+| Description
 
-| `spark.shuffle.compress` | `true` | The flag to control whether to compress shuffle output when stored
-| `spark.rdd.compress` | `false` | The flag to control whether to compress RDD partitions when stored serialized.
-| `spark.shuffle.spill.compress` | `true` | The flag to control whether to compress shuffle output temporarily spilled to disk.
-| [[spark.block.failures.beforeLocationRefresh]] `spark.block.failures.beforeLocationRefresh` | `5` |
-| [[spark.io.encryption.enabled]] `spark.io.encryption.enabled` | `false` | The flag to enable IO encryption
+| `spark.shuffle.compress`
+| `true`
+| The flag to control whether to compress shuffle output when stored
+
+| `spark.rdd.compress`
+| `false`
+| The flag to control whether to compress RDD partitions when stored serialized.
+
+| `spark.shuffle.spill.compress`
+| `true`
+| The flag to control whether to compress shuffle output temporarily spilled to disk.
+
+| [[spark.block.failures.beforeLocationRefresh]] `spark.block.failures.beforeLocationRefresh`
+| `5`
+|
+
+| [[spark.io.encryption.enabled]] `spark.io.encryption.enabled`
+| `false`
+| The flag to enable IO encryption
+
 |======================
