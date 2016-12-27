@@ -47,7 +47,7 @@ WARN SortShuffleManager: spark.shuffle.spill was set to false, but this configur
 
 NOTE: `SortShuffleManager` is created when link:spark-sparkenv.adoc#ShuffleManager[`SparkEnv` is created] (per the driver and executors).
 
-=== [[registerShuffle]] Getting `ShuffleHandle` -- `registerShuffle` Method
+=== [[registerShuffle]] Getting `ShuffleHandle` (For `ShuffleDependency`) -- `registerShuffle` Method
 
 [source, scala]
 ----
@@ -61,7 +61,7 @@ NOTE: `registerShuffle` is a part of link:spark-ShuffleManager.adoc#contract[Shu
 
 `registerShuffle` returns a new `ShuffleHandle` that can be one of the following:
 
-1. `BypassMergeSortShuffleHandle` (with `ShuffleDependency[K, V, V]`) when <<shouldBypassMergeSort, `shouldBypassMergeSort` condition holds>>.
+1. link:spark-BypassMergeSortShuffleHandle.adoc[BypassMergeSortShuffleHandle] (with `ShuffleDependency[K, V, V]`) when <<shouldBypassMergeSort, `shouldBypassMergeSort` condition holds>>.
 
 2. link:spark-SerializedShuffleHandle.adoc[SerializedShuffleHandle] (with `ShuffleDependency[K, V, V]`) when <<canUseSerializedShuffle, `canUseSerializedShuffle` condition holds>>.
 
@@ -87,7 +87,7 @@ NOTE: `getWriter` expects that the input `handle` is of type `BaseShuffleHandle`
 
 1. link:spark-UnsafeShuffleWriter.adoc[UnsafeShuffleWriter] for link:spark-SerializedShuffleHandle.adoc[SerializedShuffleHandle].
 
-2. `BypassMergeSortShuffleWriter` for `BypassMergeSortShuffleHandle`.
+2. `BypassMergeSortShuffleWriter` for link:spark-BypassMergeSortShuffleHandle.adoc[BypassMergeSortShuffleHandle].
 
 3. link:spark-SortShuffleWriter.adoc[SortShuffleWriter] for `BaseShuffleHandle`.
 
@@ -117,11 +117,11 @@ shouldBypassMergeSort(conf: SparkConf, dep: ShuffleDependency[_, _, _]): Boolean
 
 `shouldBypassMergeSort` holds (i.e. is positive) when the input link:spark-rdd-ShuffleDependency.adoc[ShuffleDependency] has link:spark-rdd-ShuffleDependency.adoc#mapSideCombine[`mapSideCombine` flag enabled] and link:spark-rdd-ShuffleDependency.adoc#aggregator[`aggregator` defined].
 
-`shouldBypassMergeSort` holds when `mapSideCombine` flag is disabled but the link:spark-rdd-ShuffleDependency.adoc#partitioner[number of partitions (of the input `ShuffleDependency`)] is smaller than <<spark.shuffle.sort.bypassMergeThreshold, spark.shuffle.sort.bypassMergeThreshold>> Spark property.
+`shouldBypassMergeSort` holds when `mapSideCombine` flag is disabled (i.e. `false`) but the link:spark-rdd-ShuffleDependency.adoc#partitioner[number of partitions (of the `Partitioner` of the input `ShuffleDependency`)] is at most <<spark.shuffle.sort.bypassMergeThreshold, spark.shuffle.sort.bypassMergeThreshold>> Spark property (which defaults to `200`).
 
-Otherwise, `shouldBypassMergeSort` is negative (i.e. `false`).
+Otherwise, `shouldBypassMergeSort` does not hold (i.e. `false`).
 
-NOTE: `shouldBypassMergeSort` is exclusively used when <<registerShuffle, `registerShuffle` selects a `ShuffleHandle`>>.
+NOTE: `shouldBypassMergeSort` is exclusively used when <<registerShuffle, `SortShuffleManager` selects a `ShuffleHandle`>> (for a `ShuffleDependency`).
 
 === [[canUseSerializedShuffle]] Checking If `SerializedShuffleHandle` Can Be Used for `ShuffleHandle` -- `canUseSerializedShuffle` Method
 
