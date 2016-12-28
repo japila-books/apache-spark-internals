@@ -1,6 +1,8 @@
-== [[UnsafeShuffleWriter]] UnsafeShuffleWriter
+== [[UnsafeShuffleWriter]] UnsafeShuffleWriter -- ShuffleWriter for SerializedShuffleHandle
 
-`UnsafeShuffleWriter` is a link:spark-ShuffleWriter.adoc[ShuffleWriter] that is used when link:spark-SortShuffleManager.adoc#getWriter[`SortShuffleManager` is requested for a `ShuffleWriter`] (for a link:spark-SerializedShuffleHandle.adoc[SerializedShuffleHandle]).
+`UnsafeShuffleWriter` is a link:spark-ShuffleWriter.adoc[ShuffleWriter] that is used to <<write, write records>> (i.e. key-value pairs).
+
+`UnsafeShuffleWriter` is chosen when link:spark-SortShuffleManager.adoc#getWriter[`SortShuffleManager` is requested for a `ShuffleWriter`] for a link:spark-SerializedShuffleHandle.adoc[SerializedShuffleHandle].
 
 `UnsafeShuffleWriter` can use a specialized NIO-based merge procedure that avoids extra serialization/deserialization.
 
@@ -17,15 +19,42 @@ log4j.logger.org.apache.spark.shuffle.sort.UnsafeShuffleWriter=DEBUG
 Refer to link:spark-logging.adoc[Logging].
 ====
 
-=== [[insertRecordIntoSorter]] `insertRecordIntoSorter` Method
+=== [[mergeSpills]] `mergeSpills` Method
 
 CAUTION: FIXME
 
-=== [[closeAndWriteOutput]] `closeAndWriteOutput` Method
+=== [[updatePeakMemoryUsed]] `updatePeakMemoryUsed` Method
 
 CAUTION: FIXME
 
-=== [[creating-instance]] Creating `UnsafeShuffleWriter` Instance
+=== [[write]] Writing Records -- `write` Method
+
+[source, java]
+----
+void write(scala.collection.Iterator<Product2<K, V>> records)
+throws IOException
+----
+
+NOTE: `write` is a part of link:spark-ShuffleWriter.adoc#contract[`ShuffleWriter` contract].
+
+Internally, `write` traverses the input sequence of records (for a RDD partition) and <<insertRecordIntoSorter, insertRecordIntoSorter>> one by one. With all the records processed, `write` <<closeAndWriteOutput, closeAndWriteOutput>>.
+
+In the end, `write` frees allocated resources.
+
+CAUTION: FIXME
+
+=== [[stop]] Stopping UnsafeShuffleWriter -- `stop` Method
+
+[source, java]
+----
+Option<MapStatus> stop(boolean success)
+----
+
+CAUTION: FIXME
+
+NOTE: `stop` is a part of link:spark-ShuffleWriter.adoc#contract[`ShuffleWriter` contract].
+
+=== [[creating-instance]] Creating UnsafeShuffleWriter Instance
 
 [source, scala]
 ----
@@ -55,32 +84,7 @@ UnsafeShuffleWriter can only be used for shuffles with at most 16777215 reduce p
 
 NOTE: `UnsafeShuffleWriter` is created exclusively when link:spark-SortShuffleManager.adoc#getWriter[`SortShuffleManager` is requested for a `ShuffleWriter`] (for a link:spark-SerializedShuffleHandle.adoc[SerializedShuffleHandle]).
 
-=== [[write]] `write` Method
-
-[source, java]
-----
-void write(scala.collection.Iterator<Product2<K, V>> records)
-throws IOException
-----
-
-NOTE: `write` is a part of link:spark-ShuffleWriter.adoc#contract[`ShuffleWriter` contract].
-
-Internally, `write` traverses the input sequence of records (for a RDD partition) and <<insertRecordIntoSorter, insertRecordIntoSorter>> one by one. With all the records processed, `write` <<closeAndWriteOutput, closeAndWriteOutput>>.
-
-In the end, `write` frees allocated resources.
-
-CAUTION: FIXME
-
-=== [[stop]] `stop` Method
-
-[source, java]
-----
-Option<MapStatus> stop(boolean success)
-----
-
-NOTE: `stop` is a part of link:spark-ShuffleWriter.adoc#contract[`ShuffleWriter` contract].
-
-=== [[open]] Creating `ShuffleExternalSorter` and `SerializationStream` -- `open` Internal Method
+=== [[open]] Opening UnsafeShuffleWriter (i.e. Creating ShuffleExternalSorter and SerializationStream) -- `open` Internal Method
 
 [source, java]
 ----
@@ -97,6 +101,63 @@ NOTE: `SerializerInstance` was defined when <<creating-instance, `UnsafeShuffleW
 
 NOTE: `open` is used exclusively when <<creating-instance, `UnsafeShuffleWriter` is created>>.
 
+=== [[insertRecordIntoSorter]] Inserting Record Into ShuffleExternalSorter -- `insertRecordIntoSorter` Method
+
+[source, java]
+----
+void insertRecordIntoSorter(Product2<K, V> record)
+throws IOException
+----
+
+`insertRecordIntoSorter` link:spark-rdd-Partitioner.adoc#getPartition[calculates the partition for the key of the input `record`].
+
+NOTE: `Partitioner` is defined when <<creating-instance, `UnsafeShuffleWriter` is created>>.
+
+`insertRecordIntoSorter` then writes the key and the value of the input `record` to `SerializationStream` and calculates the size of the serialized buffer.
+
+NOTE: `SerializationStream` is created when <<open, `UnsafeShuffleWriter` opens>>.
+
+In the end, `insertRecordIntoSorter` inserts the `record` to the internal `ShuffleExternalSorter` (as `Platform.BYTE_ARRAY_OFFSET` ).
+
+NOTE: `ShuffleExternalSorter` is created when <<open, `UnsafeShuffleWriter` opens>>.
+
+NOTE: `insertRecordIntoSorter` is used exclusively when <<write, `UnsafeShuffleWriter` writes records>>.
+
+=== [[closeAndWriteOutput]] Closing Internal Resources and Writing Spill Files Merged -- `closeAndWriteOutput` Method
+
+[source, java]
+----
+void closeAndWriteOutput() throws IOException
+----
+
+`closeAndWriteOutput` first <<updatePeakMemoryUsed, updates peak memory used>>.
+
+`closeAndWriteOutput` clears the internal `ByteArrayOutputStream` and `SerializationStream`.
+
+`closeAndWriteOutput` requests `ShuffleExternalSorter` to close itself and return `SpillInfo` metadata.
+
+`closeAndWriteOutput` clears the internal `ShuffleExternalSorter`.
+
+`closeAndWriteOutput` requests `IndexShuffleBlockResolver` for the data file for the `shuffleId` and `mapId`.
+
+`closeAndWriteOutput` creates a temporary file to <<mergeSpills, merge spill files>>, deletes them afterwards, and requests `IndexShuffleBlockResolver` to write index file and commit.
+
+`closeAndWriteOutput` creates a link:spark-MapStatus.adoc[MapStatus] with the link:spark-blockmanager.adoc#shuffleServerId[location of the executor's `BlockManager`] and partition lengths in the merged file.
+
+If there is an issue with deleting spill files, you should see the following ERROR message in the logs:
+
+```
+ERROR Error while deleting spill file [path]
+```
+
+If there is an issue with deleting the temporary file, you should see the following ERROR message in the logs:
+
+```
+ERROR Error while deleting temp file [path]
+```
+
+NOTE: `closeAndWriteOutput` is used exclusively when <<write, `UnsafeShuffleWriter` writes records>>.
+
 === [[settings]] Settings
 
 .Spark Properties
@@ -111,7 +172,7 @@ NOTE: `open` is used exclusively when <<creating-instance, `UnsafeShuffleWriter`
 | Controls whether...FIXME
 
 | [[spark_shuffle_sort_initialBufferSize]] `spark.shuffle.sort.initialBufferSize`
-| `4096`
+| `4096` (bytes)
 | Default initial sort buffer size
 
 |===
