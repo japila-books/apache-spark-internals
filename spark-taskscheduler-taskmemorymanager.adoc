@@ -65,26 +65,28 @@ NOTE: When a link:spark-executor-taskrunner.adoc#run[`TaskRunner` starts running
 .Creating TaskMemoryManager for Task
 image::images/spark-taskmemorymanager-creating-instance.png[align="center"]
 
-=== [[acquireExecutionMemory]] Acquire Execution Memory -- `acquireExecutionMemory` Method
+=== [[acquireExecutionMemory]] Acquiring Execution Memory -- `acquireExecutionMemory` Method
 
 [source, java]
 ----
 long acquireExecutionMemory(long required, MemoryConsumer consumer)
 ----
 
-`acquireExecutionMemory` allocates up to `required` size of memory for `consumer`. When no memory could be allocated, it calls `spill` on every consumer, itself including. Finally, it returns the allocated memory.
+`acquireExecutionMemory` allocates up to `required` size of memory for `consumer`. When no memory could be allocated, it calls `spill` on every consumer, itself including. Finally, `acquireExecutionMemory` returns the allocated memory.
 
-NOTE: It synchronizes on itself, and so no other calls on the object could be completed.
+NOTE: `acquireExecutionMemory` synchronizes on itself, and so no other calls on the object could be completed.
 
 NOTE: link:spark-MemoryConsumer.adoc[MemoryConsumer] knows its mode -- on- or off-heap.
 
-It first calls `memoryManager.acquireExecutionMemory(required, taskAttemptId, mode)`.
+`acquireExecutionMemory` first calls `memoryManager.acquireExecutionMemory(required, taskAttemptId, mode)`.
 
 TIP: `TaskMemoryManager` is a mere wrapper of `MemoryManager` to track <<consumers, consumers>>?
 
-When the memory obtained is less than requested (by `required`), it requests all <<consumers, consumers>> to `spill` the remaining required memory.
+CAUTION: FIXME
 
-NOTE: It requests memory from consumers that work in the same mode except the requesting one.
+When the memory obtained is less than requested (by `required`), `acquireExecutionMemory` requests all <<consumers, consumers>> to link:spark-MemoryConsumer.adoc#spill[release memory (by spilling it to disk)].
+
+NOTE: `acquireExecutionMemory` requests memory from consumers that work in the same mode except the requesting one.
 
 You may see the following DEBUG message when `spill` released some memory:
 
@@ -102,7 +104,7 @@ You may also see the following ERROR message in the logs when there is an error 
 ERROR error while calling spill() on [consumer]
 ```
 
-If the earlier `spill` on the consumers did not work out and there is still not enough memory acquired, `acquireExecutionMemory` calls `spill` on the input `consumer` (that requested more memory!)
+If the earlier `spill` on the consumers did not work out and there is still memory to be acquired, `acquireExecutionMemory` link:spark-MemoryConsumer.adoc#spill[requests the input `consumer` to spill memory to disk] (that in fact requested more memory!)
 
 If the `consumer` releases some memory, you should see the following DEBUG message in the logs:
 

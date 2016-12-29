@@ -11,7 +11,32 @@
 | Initial Value
 | Description
 
+| [[inMemSorter]] `inMemSorter`
+| (empty)
+| `ShuffleInMemorySorter`
+
 |===
+
+[TIP]
+====
+Enable `INFO` or `ERROR` logging levels for `org.apache.spark.shuffle.sort.ShuffleExternalSorter` logger to see what happens in `ShuffleExternalSorter`.
+
+Add the following line to `conf/log4j.properties`:
+
+```
+log4j.logger.org.apache.spark.shuffle.sort.ShuffleExternalSorter=INFO
+```
+
+Refer to link:spark-logging.adoc[Logging].
+====
+
+=== [[freeMemory]] `freeMemory` Method
+
+CAUTION: FIXME
+
+=== [[writeSortedFile]] `writeSortedFile` Method
+
+CAUTION: FIXME
 
 === [[closeAndGetSpills]] `closeAndGetSpills` Method
 
@@ -36,3 +61,33 @@ ShuffleExternalSorter(
 ----
 
 When created, `ShuffleExternalSorter`...FIXME
+
+=== [[spill]] Freeing Execution Memory by Spilling To Disk -- `spill` Method
+
+[source, java]
+----
+long spill(long size, MemoryConsumer trigger)
+throws IOException
+----
+
+NOTE: `spill` is a part of link:spark-MemoryConsumer.adoc#contract[MemoryConsumer contract] to sort and spill the current records due to memory pressure.
+
+`spill` <<freeMemory, frees execution memory>>, link:spark-taskscheduler-taskmetrics.adoc#incMemoryBytesSpilled[updates `TaskMetrics`], and in the end returns the spill size.
+
+NOTE: `spill` returns `0` when `ShuffleExternalSorter` has no <<inMemSorter, ShuffleInMemorySorter>> or the `ShuffleInMemorySorter` manages no records.
+
+You should see the following INFO message in the logs:
+
+```
+INFO Thread [id] spilling sort data of [memoryUsage] to disk ([size] times so far)
+```
+
+`spill` <<writeSortedFile, writes sorted file>> (with `isLastFile` disabled).
+
+`spill` <<freeMemory, frees memory>> and records the spill size.
+
+`spill` resets the internal `ShuffleInMemorySorter` (that in turn frees up the underlying in-memory pointer array).
+
+`spill` link:spark-taskscheduler-taskmetrics.adoc#incMemoryBytesSpilled[adds the spill size to `TaskMetrics`].
+
+`spill` returns the spill size.
