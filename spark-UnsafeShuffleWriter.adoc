@@ -6,6 +6,20 @@
 
 `UnsafeShuffleWriter` can use a specialized NIO-based merge procedure that avoids extra serialization/deserialization.
 
+.UnsafeShuffleWriter's Internal Properties
+[frame="topbot",cols="1,1,2",options="header",width="100%"]
+|===
+| Name
+| Initial Value
+| Description
+
+| `sorter`
+| (empty)
+| link:spark-ShuffleExternalSorter.adoc[ShuffleExternalSorter]
+
+Initialized when <<open, `UnsafeShuffleWriter` opens>>.
+|===
+
 [TIP]
 ====
 Enable `ERROR` or `DEBUG` logging levels for `org.apache.spark.shuffle.sort.UnsafeShuffleWriter` logger to see what happens in `UnsafeShuffleWriter`.
@@ -39,7 +53,7 @@ NOTE: `write` is a part of link:spark-ShuffleWriter.adoc#contract[`ShuffleWriter
 
 Internally, `write` traverses the input sequence of records (for a RDD partition) and <<insertRecordIntoSorter, insertRecordIntoSorter>> one by one. With all the records processed, `write` <<closeAndWriteOutput, closeAndWriteOutput>>.
 
-In the end, `write` frees allocated resources.
+In the end, `write` link:spark-ShuffleExternalSorter.adoc#cleanupResources[requests `ShuffleExternalSorter` to clean after itself].
 
 CAUTION: FIXME
 
@@ -91,7 +105,7 @@ NOTE: `UnsafeShuffleWriter` is created exclusively when link:spark-SortShuffleMa
 void open() throws IOException
 ----
 
-`open` makes sure that the internal reference to `ShuffleExternalSorter` (as `sorter`) is not defined and creates one itself.
+`open` makes sure that the internal reference to link:spark-ShuffleExternalSorter.adoc[ShuffleExternalSorter] (as `sorter`) is not defined and link:spark-ShuffleExternalSorter.adoc#creating-instance[creates one itself].
 
 `open` creates a new byte array output stream (as `serBuffer`) with the buffer capacity of `1M`.
 
@@ -117,7 +131,7 @@ NOTE: `Partitioner` is defined when <<creating-instance, `UnsafeShuffleWriter` i
 
 NOTE: `SerializationStream` is created when <<open, `UnsafeShuffleWriter` opens>>.
 
-In the end, `insertRecordIntoSorter` inserts the `record` to the internal `ShuffleExternalSorter` (as `Platform.BYTE_ARRAY_OFFSET` ).
+In the end, `insertRecordIntoSorter` link:spark-ShuffleExternalSorter.adoc#insertRecord[inserts the serialized buffer to `ShuffleExternalSorter`] (as `Platform.BYTE_ARRAY_OFFSET` ).
 
 NOTE: `ShuffleExternalSorter` is created when <<open, `UnsafeShuffleWriter` opens>>.
 
@@ -132,11 +146,11 @@ void closeAndWriteOutput() throws IOException
 
 `closeAndWriteOutput` first <<updatePeakMemoryUsed, updates peak memory used>>.
 
-`closeAndWriteOutput` clears the internal `ByteArrayOutputStream` and `SerializationStream`.
+`closeAndWriteOutput` removes the internal `ByteArrayOutputStream` and `SerializationStream`.
 
-`closeAndWriteOutput` requests `ShuffleExternalSorter` to close itself and return `SpillInfo` metadata.
+`closeAndWriteOutput` requests link:spark-ShuffleExternalSorter.adoc#closeAndGetSpills[`ShuffleExternalSorter` to close itself and return `SpillInfo` metadata].
 
-`closeAndWriteOutput` clears the internal `ShuffleExternalSorter`.
+`closeAndWriteOutput` removes the internal `ShuffleExternalSorter`.
 
 `closeAndWriteOutput` requests `IndexShuffleBlockResolver` for the data file for the `shuffleId` and `mapId`.
 
