@@ -15,7 +15,25 @@ NOTE: `read` is a part of ShuffleReader contract.
 
 CAUTION: FIXME
 
-Internally, `read` creates a link:spark-ShuffleBlockFetcherIterator.adoc[ShuffleBlockFetcherIterator], a `SerializerInstance` (as link:spark-rdd-ShuffleDependency.adoc#serializer[defined for `ShuffleDependency`])...FIXME
+Internally, `read` first creates a link:spark-ShuffleBlockFetcherIterator.adoc[ShuffleBlockFetcherIterator] (passing in the values of <<spark_reducer_maxSizeInFlight, spark.reducer.maxSizeInFlight>>, <<spark_reducer_maxReqsInFlight, spark.reducer.maxReqsInFlight>> and <<spark_shuffle_detectCorrupt, spark.shuffle.detectCorrupt>>).
+
+NOTE: `read` uses link:spark-blockmanager.adoc#shuffleClient[`BlockManager` to access `ShuffleClient`] to create `ShuffleBlockFetcherIterator`.
+
+NOTE: `read` uses link:spark-service-mapoutputtracker.adoc#getMapSizesByExecutorId[`MapOutputTracker` to find the BlockManagers with the shuffle blocks and sizes] to create `ShuffleBlockFetcherIterator`.
+
+`read` creates a `SerializerInstance` (as link:spark-rdd-ShuffleDependency.adoc#serializer[defined for `ShuffleDependency`]).
+
+`read` creates a key/value iterator for every shuffle block stream.
+
+`read` updates the link:spark-taskscheduler-taskcontext.adoc#taskMetrics[context task metrics] for each record read.
+
+NOTE: `read` uses `CompletionIterator` (to count the records read) and `InterruptibleIterator` (to support task cancellation).
+
+If the link:spark-rdd-ShuffleDependency.adoc#aggregator[`ShuffleDependency` has an `Aggregator` defined], `read` wraps the current iterator inside an iterator defined by link:spark-Aggregator.adoc#combineCombinersByKey[Aggregator.combineCombinersByKey] (for link:spark-rdd-ShuffleDependency.adoc#mapSideCombine[`mapSideCombine` enabled]) or link:spark-Aggregator.adoc#combineValuesByKey[Aggregator.combineValuesByKey] otherwise.
+
+NOTE: `run` reports an exception when link:spark-rdd-ShuffleDependency.adoc#aggregator[`ShuffleDependency` has no `Aggregator` defined] with link:spark-rdd-ShuffleDependency.adoc#mapSideCombine[`mapSideCombine` flag enabled].
+
+For link:spark-rdd-ShuffleDependency.adoc#keyOrdering[`keyOrdering` defined in `ShuffleDependency`], `run` creates a `ExternalSorter` to insert all the records, updates context `TaskMetrics`, and returns a `CompletionIterator` for the `ExternalSorter`.
 
 === [[creating-instance]] Creating BlockStoreShuffleReader Instance
 
