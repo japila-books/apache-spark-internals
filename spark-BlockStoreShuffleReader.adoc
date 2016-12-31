@@ -1,29 +1,40 @@
 == [[BlockStoreShuffleReader]] BlockStoreShuffleReader
 
-`BlockStoreShuffleReader` is the one and only `ShuffleReader` that fetches and <<read, reads the partitions>> (in range [`startPartition`, `endPartition`)) from a shuffle by requesting them from other nodes' block stores.
+`BlockStoreShuffleReader` is the one and only link:spark-ShuffleReader.adoc[ShuffleReader] that fetches and <<read, reads the partitions>> (in range [`startPartition`, `endPartition`)) from a shuffle by requesting them from other nodes' block stores.
 
 `BlockStoreShuffleReader` is <<creating-instance, created>> when the link:spark-SortShuffleManager.adoc#getReader[default `SortShuffleManager` is requested for a `ShuffleReader`] (for a `ShuffleHandle`).
 
-=== [[read]] Reading Combined Key-Values For Reduce Task -- `read` Method
+=== [[creating-instance]] Creating BlockStoreShuffleReader Instance
+
+`BlockStoreShuffleReader` takes:
+
+1. link:spark-BaseShuffleHandle.adoc[BaseShuffleHandle]
+2. `startPartition` and `endPartition` partition indices
+3. link:spark-taskscheduler-taskcontext.adoc[TaskContext]
+4. (optional) link:spark-SerializerManager.adoc[SerializerManager]
+5. (optional) link:spark-blockmanager.adoc[BlockManager]
+6. (optional) link:spark-service-mapoutputtracker.adoc[MapOutputTracker]
+
+NOTE: `BlockStoreShuffleReader` uses link:spark-sparkenv.adoc[`SparkEnv` to define the optional `SerializerManager`, `BlockManager` and `MapOutputTracker`].
+
+=== [[read]] Reading Combined Key-Value Records For Reduce Task -- `read` Method
 
 [source, scala]
 ----
 read(): Iterator[Product2[K, C]]
 ----
 
-NOTE: `read` is a part of ShuffleReader contract.
+NOTE: `read` is a part of link:spark-ShuffleReader.adoc[ShuffleReader contract].
 
-CAUTION: FIXME
-
-Internally, `read` first creates a link:spark-ShuffleBlockFetcherIterator.adoc[ShuffleBlockFetcherIterator] (passing in the values of <<spark_reducer_maxSizeInFlight, spark.reducer.maxSizeInFlight>>, <<spark_reducer_maxReqsInFlight, spark.reducer.maxReqsInFlight>> and <<spark_shuffle_detectCorrupt, spark.shuffle.detectCorrupt>>).
+Internally, `read` first creates a link:spark-ShuffleBlockFetcherIterator.adoc[ShuffleBlockFetcherIterator] (passing in the values of <<spark_reducer_maxSizeInFlight, spark.reducer.maxSizeInFlight>>, <<spark_reducer_maxReqsInFlight, spark.reducer.maxReqsInFlight>> and <<spark_shuffle_detectCorrupt, spark.shuffle.detectCorrupt>> Spark properties).
 
 NOTE: `read` uses link:spark-blockmanager.adoc#shuffleClient[`BlockManager` to access `ShuffleClient`] to create `ShuffleBlockFetcherIterator`.
 
 NOTE: `read` uses link:spark-service-mapoutputtracker.adoc#getMapSizesByExecutorId[`MapOutputTracker` to find the BlockManagers with the shuffle blocks and sizes] to create `ShuffleBlockFetcherIterator`.
 
-`read` creates a `SerializerInstance` (as link:spark-rdd-ShuffleDependency.adoc#serializer[defined for `ShuffleDependency`]).
+`read` creates a new `SerializerInstance` (using link:spark-rdd-ShuffleDependency.adoc#serializer[`Serializer` from ShuffleDependency]).
 
-`read` creates a key/value iterator for every shuffle block stream.
+`read` creates a key/value iterator by `deserializeStream` every shuffle block stream.
 
 `read` updates the link:spark-taskscheduler-taskcontext.adoc#taskMetrics[context task metrics] for each record read.
 
@@ -40,19 +51,6 @@ For link:spark-rdd-ShuffleDependency.adoc#keyOrdering[`keyOrdering` defined in `
 3. Updates context `TaskMetrics`
 4. Returns a `CompletionIterator` for the `ExternalSorter`
 
-=== [[creating-instance]] Creating BlockStoreShuffleReader Instance
-
-`BlockStoreShuffleReader` takes:
-
-1. link:spark-BaseShuffleHandle.adoc[BaseShuffleHandle]
-2. `startPartition` and `endPartition` partition indices
-3. link:spark-taskscheduler-taskcontext.adoc[TaskContext]
-4. (optional) link:spark-SerializerManager.adoc[SerializerManager]
-5. (optional) link:spark-blockmanager.adoc[BlockManager]
-6. (optional) link:spark-service-mapoutputtracker.adoc[MapOutputTracker]
-
-NOTE: `BlockStoreShuffleReader` uses link:spark-sparkenv.adoc[`SparkEnv` to define the optional `SerializerManager`, `BlockManager` and `MapOutputTracker`].
-
 === [[settings]] Settings
 
 .Spark Properties
@@ -63,15 +61,25 @@ NOTE: `BlockStoreShuffleReader` uses link:spark-sparkenv.adoc[`SparkEnv` to defi
 | Description
 
 | [[spark_reducer_maxSizeInFlight]] `spark.reducer.maxSizeInFlight`
-| `48m` (MB)
-|
+| `48m`
+| Maximum size (in bytes) of map outputs to fetch simultaneously from each reduce task.
+
+Since each output requires a new buffer to receive it, this represents a fixed memory overhead per reduce task, so keep it small unless you have a large amount of memory.
+
+Used when <<read, `BlockStoreShuffleReader` creates a `ShuffleBlockFetcherIterator` to read records>>.
 
 | [[spark_reducer_maxReqsInFlight]] `spark.reducer.maxReqsInFlight`
-| `Int.MaxValue`
-|
+| (unlimited)
+| The maximum number of remote requests to fetch blocks at any given point.
+
+When the number of hosts in the cluster increases, it might lead to very large number of in-bound connections to one or more nodes, causing the workers to fail under load. By allowing it to limit the number of fetch requests, this scenario can be mitigated.
+
+Used when <<read, `BlockStoreShuffleReader` creates a `ShuffleBlockFetcherIterator` to read records>>.
 
 | [[spark_shuffle_detectCorrupt]] `spark.shuffle.detectCorrupt`
 | `true`
-|
+| Controls whether to detect any corruption in fetched blocks.
+
+Used when <<read, `BlockStoreShuffleReader` creates a `ShuffleBlockFetcherIterator` to read records>>.
 
 |===
