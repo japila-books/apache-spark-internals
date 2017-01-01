@@ -47,40 +47,7 @@ log4j.logger.org.apache.spark.storage.ShuffleBlockFetcherIterator=TRACE
 Refer to link:spark-logging.adoc[Logging].
 ====
 
-=== [[sendRequest]] `sendRequest` Internal Method
-
-[source, scala]
-----
-sendRequest(req: FetchRequest): Unit
-----
-
-Internally, when `sendRequest` runs, you should see the following DEBUG message in the logs:
-
-```
-DEBUG ShuffleBlockFetcherIterator: Sending request for [blocks.size] blocks ([size] B) from [hostPort]
-```
-
-`sendRequest` increments <<bytesInFlight, bytesInFlight>> and <<reqsInFlight, reqsInFlight>> internal counters.
-
-NOTE: The input `FetchRequest` contains the remote link:spark-blockmanager.adoc#BlockManagerId[BlockManagerId] address and the shuffle blocks to fetch (as a sequence of link:spark-blockdatamanager.adoc#BlockId[BlockId] and their sizes).
-
-`sendRequest` link:spark-shuffleclient.adoc#fetchBlocks[requests `ShuffleClient` to fetch shuffle blocks] (from the host, the port, and the executor as defined in the input `FetchRequest`).
-
-NOTE: `ShuffleClient` was defined when <<creating-instance, `ShuffleBlockFetcherIterator` was created>>.
-
-`sendRequest` registers a `BlockFetchingListener` with `ShuffleClient`:
-
-1. <<sendRequest-BlockFetchingListener-onBlockFetchSuccess, onBlockFetchSuccess>> that...FIXME
-
-2. <<sendRequest-BlockFetchingListener-onBlockFetchFailure, onBlockFetchFailure>> that...FIXME
-
-NOTE: `sendRequest` is used exclusively when <<fetchUpToMaxBytes, `ShuffleBlockFetcherIterator` fetches remote shuffle blocks>>.
-
-==== [[sendRequest-BlockFetchingListener-onBlockFetchSuccess]] BlockFetchingListener.onBlockFetchSuccess
-
-CAUTION: FIXME
-
-==== [[sendRequest-BlockFetchingListener-onBlockFetchFailure]] BlockFetchingListener.onBlockFetchFailure
+=== [[isZombie]] `isZombie` Method
 
 CAUTION: FIXME
 
@@ -97,6 +64,35 @@ CAUTION: FIXME
 CAUTION: FIXME
 
 === [[fetchLocalBlocks]] `fetchLocalBlocks` Method
+
+CAUTION: FIXME
+
+=== [[creating-instance]] Creating ShuffleBlockFetcherIterator Instance
+
+When created, `ShuffleBlockFetcherIterator` takes the following:
+
+1. link:spark-taskscheduler-taskcontext.adoc[TaskContext]
+2. link:spark-shuffleclient.adoc[ShuffleClient]
+3. link:spark-blockmanager.adoc[BlockManager]
+4. `blocksByAddress` list of blocks to fetch per link:spark-blockmanager.adoc[BlockManager].
++
+```
+blocksByAddress: Seq[(BlockManagerId, Seq[(BlockId, Long)])]
+```
+
+5. `streamWrapper` function to wrap the returned input stream
++
+```
+streamWrapper: (BlockId, InputStream) => InputStream
+```
+
+6. Maximum size (in bytes) of map outputs to fetch simultaneously from each reduce task (`maxBytesInFlight` and controlled by link:spark-BlockStoreShuffleReader.adoc#spark_reducer_maxSizeInFlight[spark.reducer.maxSizeInFlight] Spark property)
+7. The maximum number of remote requests to fetch blocks at any given point (`maxReqsInFlight` and controlled by link:spark-BlockStoreShuffleReader.adoc#spark_reducer_maxReqsInFlight[spark.reducer.maxReqsInFlight] Spark property)
+8. `detectCorrupt` flag to detect any corruption in fetched blocks (controlled by link:spark-BlockStoreShuffleReader.adoc#spark_shuffle_detectCorrupt[spark.shuffle.detectCorrupt] Spark property)
+
+CAUTION: FIXME
+
+=== [[next]] `next` Method
 
 CAUTION: FIXME
 
@@ -135,34 +131,74 @@ DEBUG ShuffleBlockFetcherIterator: Got local blocks in  [time] ms
 
 NOTE: `initialize` is used when <<creating-instance, `ShuffleBlockFetcherIterator` is created>>.
 
-=== [[creating-instance]] Creating ShuffleBlockFetcherIterator Instance
+=== [[sendRequest]] Sending Remote Shuffle Block Fetch Request -- `sendRequest` Internal Method
 
-When created, `ShuffleBlockFetcherIterator` takes the following:
+[source, scala]
+----
+sendRequest(req: FetchRequest): Unit
+----
 
-1. link:spark-taskscheduler-taskcontext.adoc[TaskContext]
-2. link:spark-shuffleclient.adoc[ShuffleClient]
-3. link:spark-blockmanager.adoc[BlockManager]
-4. `blocksByAddress` list of blocks to fetch per link:spark-blockmanager.adoc[BlockManager].
-+
-```
-blocksByAddress: Seq[(BlockManagerId, Seq[(BlockId, Long)])]
-```
+Internally, when `sendRequest` runs, you should see the following DEBUG message in the logs:
 
-5. `streamWrapper` function to wrap the returned input stream
-+
 ```
-streamWrapper: (BlockId, InputStream) => InputStream
+DEBUG ShuffleBlockFetcherIterator: Sending request for [blocks.size] blocks ([size] B) from [hostPort]
 ```
 
-6. Maximum size (in bytes) of map outputs to fetch simultaneously from each reduce task (`maxBytesInFlight` and controlled by link:spark-BlockStoreShuffleReader.adoc#spark_reducer_maxSizeInFlight[spark.reducer.maxSizeInFlight] Spark property)
-7. The maximum number of remote requests to fetch blocks at any given point (`maxReqsInFlight` and controlled by link:spark-BlockStoreShuffleReader.adoc#spark_reducer_maxReqsInFlight[spark.reducer.maxReqsInFlight] Spark property)
-8. `detectCorrupt` flag to detect any corruption in fetched blocks (controlled by link:spark-BlockStoreShuffleReader.adoc#spark_shuffle_detectCorrupt[spark.shuffle.detectCorrupt] Spark property)
+`sendRequest` increments <<bytesInFlight, bytesInFlight>> and <<reqsInFlight, reqsInFlight>> internal counters.
 
-CAUTION: FIXME
+NOTE: The input `FetchRequest` contains the remote link:spark-blockmanager.adoc#BlockManagerId[BlockManagerId] address and the shuffle blocks to fetch (as a sequence of link:spark-blockdatamanager.adoc#BlockId[BlockId] and their sizes).
 
-=== [[next]] `next` Method
+`sendRequest` link:spark-shuffleclient.adoc#fetchBlocks[requests `ShuffleClient` to fetch shuffle blocks] (from the host, the port, and the executor as defined in the input `FetchRequest`).
 
-CAUTION: FIXME
+NOTE: `ShuffleClient` was defined when <<creating-instance, `ShuffleBlockFetcherIterator` was created>>.
+
+`sendRequest` registers a `BlockFetchingListener` with `ShuffleClient` that:
+
+1. <<sendRequest-BlockFetchingListener-onBlockFetchSuccess, For every successfully fetched shuffle block>> adds it as `SuccessFetchResult` to <<results, results>> internal queue.
+
+2. <<sendRequest-BlockFetchingListener-onBlockFetchFailure, For every shuffle block fetch failure>> adds it as `FailureFetchResult` to <<results, results>> internal queue.
+
+NOTE: `sendRequest` is used exclusively when <<fetchUpToMaxBytes, `ShuffleBlockFetcherIterator` fetches remote shuffle blocks>>.
+
+==== [[sendRequest-BlockFetchingListener-onBlockFetchSuccess]] onBlockFetchSuccess Callback
+
+[source, scala]
+----
+onBlockFetchSuccess(blockId: String, buf: ManagedBuffer): Unit
+----
+
+Internally, `onBlockFetchSuccess` checks if the <<isZombie, iterator is not zombie>> and does the further processing if it is not.
+
+`onBlockFetchSuccess` marks the input `blockId` as received (i.e. removes it from all the blocks to fetch as requested in <<sendRequest, sendRequest>>).
+
+`onBlockFetchSuccess` adds the managed `buf` (as `SuccessFetchResult`) to <<results, results>> internal queue.
+
+You should see the following DEBUG message in the logs:
+
+```
+DEBUG ShuffleBlockFetcherIterator: remainingBlocks: [blocks]
+```
+
+Regardless of zombie state of `ShuffleBlockFetcherIterator`, you should see the following TRACE message in the logs:
+
+```
+TRACE ShuffleBlockFetcherIterator: Got remote block [blockId] after [time] ms
+```
+
+==== [[sendRequest-BlockFetchingListener-onBlockFetchFailure]] onBlockFetchFailure Callback
+
+[source, scala]
+----
+onBlockFetchFailure(blockId: String, e: Throwable): Unit
+----
+
+When `onBlockFetchFailure` is called, you should see the following ERROR message in the logs:
+
+```
+ERROR ShuffleBlockFetcherIterator: Failed to get block(s) from [hostPort]
+```
+
+`onBlockFetchFailure` adds the block (as `FailureFetchResult`) to <<results, results>> internal queue.
 
 === [[throwFetchFailedException]] Throwing FetchFailedException (for ShuffleBlockId) -- `throwFetchFailedException` Internal Method
 
@@ -193,7 +229,7 @@ NOTE: `throwFetchFailedException` is used when <<next, `ShuffleBlockFetcherItera
 cleanup(): Unit
 ----
 
-Internally, `cleanup` marks `ShuffleBlockFetcherIterator` <<isZombie, zombie>>.
+Internally, `cleanup` marks `ShuffleBlockFetcherIterator` a <<isZombie, zombie>>.
 
 `cleanup` <<releaseCurrentResultBuffer, releases the current result buffer>>.
 
