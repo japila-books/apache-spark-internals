@@ -1,6 +1,6 @@
 == [[ShuffleBlockFetcherIterator]] ShuffleBlockFetcherIterator
 
-`ShuffleBlockFetcherIterator` is a Scala http://www.scala-lang.org/api/current/scala/collection/Iterator.html[Iterator] that fetches multiple shuffle blocks (from local and remote BlockManagers).
+`ShuffleBlockFetcherIterator` is a Scala http://www.scala-lang.org/api/current/scala/collection/Iterator.html[Iterator] that fetches multiple shuffle blocks (aka _shuffle map outputs_) from local and remote BlockManagers.
 
 `ShuffleBlockFetcherIterator` allows for <<next, iterating over a sequence of blocks>> as `(BlockId, InputStream)` pairs so a caller can handle shuffle blocks in a pipelined fashion as they are received.
 
@@ -26,12 +26,43 @@ Used in:
 
 4. <<cleanup, cleanup>> to release managed buffers for `SuccessFetchResult` results.
 
+| [[maxBytesInFlight]] `maxBytesInFlight`
+| The maximum size (in bytes) of all the remote shuffle blocks to fetch.
+
+Set when <<creating-instance, `ShuffleBlockFetcherIterator` is created>>.
+
+| [[maxReqsInFlight]] `maxReqsInFlight`
+| The maximum number of remote requests to fetch shuffle blocks.
+
+Set when <<creating-instance, `ShuffleBlockFetcherIterator` is created>>.
+
 | [[bytesInFlight]] `bytesInFlight`
-|
+| The bytes of fetched remote shuffle blocks in flight
+
+Starts at `0` when <<creating-instance, `ShuffleBlockFetcherIterator` is created>>.
+
+Incremented every <<sendRequest, sendRequest>> and decremented every <<next, next>>.
+
+`ShuffleBlockFetcherIterator` makes sure that the invariant of `bytesInFlight` below <<maxBytesInFlight, maxBytesInFlight>> holds every <<fetchUpToMaxBytes, remote shuffle block fetch>>.
 
 | [[reqsInFlight]] `reqsInFlight`
-|
+| The number of remote shuffle block fetch requests in flight.
 
+Starts at `0` when <<creating-instance, `ShuffleBlockFetcherIterator` is created>>.
+
+Incremented every <<sendRequest, sendRequest>> and decremented every <<next, next>>.
+
+`ShuffleBlockFetcherIterator` makes sure that the invariant of `reqsInFlight` below <<maxReqsInFlight, maxReqsInFlight>> holds every <<fetchUpToMaxBytes, remote shuffle block fetch>>.
+
+| [[isZombie]] `isZombie`
+| Flag whether `ShuffleBlockFetcherIterator` is still active. It is disabled, i.e. `false`, when <<creating-instance, `ShuffleBlockFetcherIterator` is created>>.
+
+<<cleanup, When enabled>> (when the task using `ShuffleBlockFetcherIterator` finishes), the <<sendRequest-BlockFetchingListener-onBlockFetchSuccess, block fetch successful callback>> (registered in `sendRequest`) will no longer add fetched remote shuffle blocks into <<results, results>> internal queue.
+
+| [[currentResult]] `currentResult`
+| The currently-processed `SuccessFetchResult`
+
+Set when `ShuffleBlockFetcherIterator` <<next, returns the next `(BlockId, InputStream)` tuple>> and <<releaseCurrentResultBuffer, released>> (on <<cleanup, cleanup>>).
 |===
 
 [TIP]
@@ -46,14 +77,6 @@ log4j.logger.org.apache.spark.storage.ShuffleBlockFetcherIterator=TRACE
 
 Refer to link:spark-logging.adoc[Logging].
 ====
-
-=== [[isZombie]] `isZombie` Method
-
-CAUTION: FIXME
-
-=== [[releaseCurrentResultBuffer]] `releaseCurrentResultBuffer` Method
-
-CAUTION: FIXME
 
 === [[splitLocalRemoteBlocks]] `splitLocalRemoteBlocks` Method
 
@@ -86,8 +109,10 @@ blocksByAddress: Seq[(BlockManagerId, Seq[(BlockId, Long)])]
 streamWrapper: (BlockId, InputStream) => InputStream
 ```
 
-6. Maximum size (in bytes) of map outputs to fetch simultaneously from each reduce task (`maxBytesInFlight` and controlled by link:spark-BlockStoreShuffleReader.adoc#spark_reducer_maxSizeInFlight[spark.reducer.maxSizeInFlight] Spark property)
-7. The maximum number of remote requests to fetch blocks at any given point (`maxReqsInFlight` and controlled by link:spark-BlockStoreShuffleReader.adoc#spark_reducer_maxReqsInFlight[spark.reducer.maxReqsInFlight] Spark property)
+6. <<maxBytesInFlight, maxBytesInFlight>> -- the maximum size (in bytes) of map outputs to fetch simultaneously from each reduce task (controlled by link:spark-BlockStoreShuffleReader.adoc#spark_reducer_maxSizeInFlight[spark.reducer.maxSizeInFlight] Spark property)
+
+7. <<maxReqsInFlight, maxReqsInFlight>> -- the maximum number of remote requests to fetch blocks at any given point (controlled by link:spark-BlockStoreShuffleReader.adoc#spark_reducer_maxReqsInFlight[spark.reducer.maxReqsInFlight] Spark property)
+
 8. `detectCorrupt` flag to detect any corruption in fetched blocks (controlled by link:spark-BlockStoreShuffleReader.adoc#spark_shuffle_detectCorrupt[spark.shuffle.detectCorrupt] Spark property)
 
 CAUTION: FIXME
@@ -111,7 +136,7 @@ Internally, `initialize` link:spark-taskscheduler-taskcontext.adoc#addTaskComple
 
 `initialize` <<fetchRequests, registers the new remote fetch requests (with `fetchRequests` internal registry)>>.
 
-As `ShuffleBlockFetcherIterator` is in initialization phase, `initialize` makes sure that `reqsInFlight` and `bytesInFlight` are both `0`. Otherwise, `initialize` throws an exception.
+As `ShuffleBlockFetcherIterator` is in initialization phase, `initialize` makes sure that <<reqsInFlight, reqsInFlight>> and <<bytesInFlight, bytesInFlight>> internal counters are both `0`. Otherwise, `initialize` throws an exception.
 
 `initialize` <<fetchUpToMaxBytes, fetches shuffle blocks>> (from remote link:spark-blockmanager.adoc[BlockManagers]).
 
@@ -236,3 +261,16 @@ Internally, `cleanup` marks `ShuffleBlockFetcherIterator` a <<isZombie, zombie>>
 `cleanup` iterates over <<results, results>> internal queue and for every `SuccessFetchResult`, increments remote bytes read and blocks fetched shuffle task metrics, and eventually releases the managed buffer.
 
 NOTE: `cleanup` is used when <<initialize, `ShuffleBlockFetcherIterator` initializes itself>>.
+
+=== [[releaseCurrentResultBuffer]] Decrementing Reference Count Of and Releasing Result Buffer (for SuccessFetchResult) -- `releaseCurrentResultBuffer` Internal Method
+
+[source, scala]
+----
+releaseCurrentResultBuffer(): Unit
+----
+
+`releaseCurrentResultBuffer` decrements the <<currentResult, currently-processed `SuccessFetchResult` reference>>'s buffer reference count if there is any.
+
+`releaseCurrentResultBuffer` releases <<currentResult, currentResult>>.
+
+NOTE: `releaseCurrentResultBuffer` is used when <<cleanup, `ShuffleBlockFetcherIterator` releases resources>> and `BufferReleasingInputStream` closes.
