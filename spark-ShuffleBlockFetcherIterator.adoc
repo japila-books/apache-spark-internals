@@ -26,6 +26,12 @@ Used in:
 
 4. <<cleanup, cleanup>> to release managed buffers for `SuccessFetchResult` results.
 
+| [[bytesInFlight]] `bytesInFlight`
+|
+
+| [[reqsInFlight]] `reqsInFlight`
+|
+
 |===
 
 [TIP]
@@ -41,7 +47,40 @@ log4j.logger.org.apache.spark.storage.ShuffleBlockFetcherIterator=TRACE
 Refer to link:spark-logging.adoc[Logging].
 ====
 
-=== [[sendRequest]] `sendRequest` Method
+=== [[sendRequest]] `sendRequest` Internal Method
+
+[source, scala]
+----
+sendRequest(req: FetchRequest): Unit
+----
+
+Internally, when `sendRequest` runs, you should see the following DEBUG message in the logs:
+
+```
+DEBUG ShuffleBlockFetcherIterator: Sending request for [blocks.size] blocks ([size] B) from [hostPort]
+```
+
+`sendRequest` increments <<bytesInFlight, bytesInFlight>> and <<reqsInFlight, reqsInFlight>> internal counters.
+
+NOTE: The input `FetchRequest` contains the remote link:spark-blockmanager.adoc#BlockManagerId[BlockManagerId] address and the shuffle blocks to fetch (as a sequence of link:spark-blockdatamanager.adoc#BlockId[BlockId] and their sizes).
+
+`sendRequest` link:spark-shuffleclient.adoc#fetchBlocks[requests `ShuffleClient` to fetch shuffle blocks] (from the host, the port, and the executor as defined in the input `FetchRequest`).
+
+NOTE: `ShuffleClient` was defined when <<creating-instance, `ShuffleBlockFetcherIterator` was created>>.
+
+`sendRequest` registers a `BlockFetchingListener` with `ShuffleClient`:
+
+1. <<sendRequest-BlockFetchingListener-onBlockFetchSuccess, onBlockFetchSuccess>> that...FIXME
+
+2. <<sendRequest-BlockFetchingListener-onBlockFetchFailure, onBlockFetchFailure>> that...FIXME
+
+NOTE: `sendRequest` is used exclusively when <<fetchUpToMaxBytes, `ShuffleBlockFetcherIterator` fetches remote shuffle blocks>>.
+
+==== [[sendRequest-BlockFetchingListener-onBlockFetchSuccess]] BlockFetchingListener.onBlockFetchSuccess
+
+CAUTION: FIXME
+
+==== [[sendRequest-BlockFetchingListener-onBlockFetchFailure]] BlockFetchingListener.onBlockFetchFailure
 
 CAUTION: FIXME
 
