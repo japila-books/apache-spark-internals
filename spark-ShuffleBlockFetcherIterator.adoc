@@ -15,7 +15,11 @@ log4j.logger.org.apache.spark.storage.ShuffleBlockFetcherIterator=TRACE
 Refer to link:spark-logging.adoc[Logging].
 ====
 
-=== [[cleanup]] `cleanup` Method
+=== [[results]] `results` Internal Queue
+
+CAUTION: FIXME
+
+=== [[releaseCurrentResultBuffer]] `releaseCurrentResultBuffer` Method
 
 CAUTION: FIXME
 
@@ -40,7 +44,7 @@ initialize(): Unit
 
 `initialize` registers a task cleanup and fetches shuffle blocks from remote and local link:spark-blockmanager.adoc[BlockManagers].
 
-Internally, `initialize` link:spark-taskscheduler-taskcontext.adoc#addTaskCompletionListener[registers a `TaskCompletionListener]` (that will <<cleanup, clean up>> right after the task finishes).
+Internally, `initialize` link:spark-taskscheduler-taskcontext.adoc#addTaskCompletionListener[registers a `TaskCompletionListener`] (that will <<cleanup, clean up>> right after the task finishes).
 
 `initialize` <<splitLocalRemoteBlocks, splitLocalRemoteBlocks>>.
 
@@ -116,3 +120,18 @@ Failed to get block [blockId], which is not a shuffle block
 ```
 
 NOTE: `throwFetchFailedException` is used when <<next `ShuffleBlockFetcherIterator` is requested for the next element>>.
+
+=== [[cleanup]] Releasing Resources -- `cleanup` Internal Method
+
+[source, scala]
+----
+cleanup(): Unit
+----
+
+Internally, `cleanup` marks `ShuffleBlockFetcherIterator` <<isZombie, zombie>>.
+
+`cleanup` <<releaseCurrentResultBuffer, releases the current result buffer>>.
+
+`cleanup` iterates over <<results, results>> internal queue and for every `SuccessFetchResult`, increments remote bytes read and blocks fetched shuffle task metrics, and eventually releases the managed buffer.
+
+NOTE: `cleanup` is used when <<initialize, `ShuffleBlockFetcherIterator` initializes itself>>.
