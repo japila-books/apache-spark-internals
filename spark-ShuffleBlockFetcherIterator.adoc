@@ -1,6 +1,32 @@
 == [[ShuffleBlockFetcherIterator]] ShuffleBlockFetcherIterator
 
-`ShuffleBlockFetcherIterator` is a Scala http://www.scala-lang.org/api/current/scala/collection/Iterator.html[Iterator] to <<next, iterate over a sequence of `(BlockId, InputStream)` pairs>>.
+`ShuffleBlockFetcherIterator` is a Scala http://www.scala-lang.org/api/current/scala/collection/Iterator.html[Iterator] that fetches multiple shuffle blocks (from local and remote BlockManagers).
+
+`ShuffleBlockFetcherIterator` allows for <<next, iterating over a sequence of blocks>> as `(BlockId, InputStream)` pairs so a caller can handle shuffle blocks in a pipelined fashion as they are received.
+
+`ShuffleBlockFetcherIterator` <<fetchUpToMaxBytes, throttles the remote fetches>> to avoid using too much memory.
+
+[[internal-registries]]
+.ShuffleBlockFetcherIterator's Internal Registries and Counters
+[frame="topbot",cols="1,2",options="header",width="100%"]
+|===
+| Name
+| Description
+
+| [[results]] `results`
+| Internal FIFO blocking queue (using Java's https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/LinkedBlockingQueue.html[java.util.concurrent.LinkedBlockingQueue]) to hold `FetchResult` remote and local fetch results.
+
+Used in:
+
+1. <<next, next>> to take one `FetchResult` off the queue,
+
+2. <<sendRequest, sendRequest>> to put `SuccessFetchResult` or `FailureFetchResult` remote fetch results (as part of `BlockFetchingListener` callback),
+
+3. <<fetchLocalBlocks, fetchLocalBlocks>> (similarly to <<sendRequest, sendRequest>>) to put local fetch results,
+
+4. <<cleanup, cleanup>> to release managed buffers for `SuccessFetchResult` results.
+
+|===
 
 [TIP]
 ====
@@ -15,7 +41,7 @@ log4j.logger.org.apache.spark.storage.ShuffleBlockFetcherIterator=TRACE
 Refer to link:spark-logging.adoc[Logging].
 ====
 
-=== [[results]] `results` Internal Queue
+=== [[sendRequest]] `sendRequest` Method
 
 CAUTION: FIXME
 
@@ -119,7 +145,7 @@ Otherwise, `throwFetchFailedException` throws a `SparkException`:
 Failed to get block [blockId], which is not a shuffle block
 ```
 
-NOTE: `throwFetchFailedException` is used when <<next `ShuffleBlockFetcherIterator` is requested for the next element>>.
+NOTE: `throwFetchFailedException` is used when <<next, `ShuffleBlockFetcherIterator` is requested for the next element>>.
 
 === [[cleanup]] Releasing Resources -- `cleanup` Internal Method
 
