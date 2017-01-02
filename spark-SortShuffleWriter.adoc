@@ -2,6 +2,20 @@
 
 `SortShuffleWriter` is a link:spark-ShuffleWriter.adoc[ShuffleWriter] that is used when link:spark-SortShuffleManager.adoc#getWriter[`SortShuffleManager` returns a `ShuffleWriter` for `ShuffleHandle`] which is the most general link:spark-BaseShuffleHandle.adoc[BaseShuffleHandle].
 
+NOTE: `SortShuffleWriter` is parameterized by types for `K` keys, `V` values, and `C` combiner values.
+
+[[internal-registries]]
+.FIXME's Internal Registries and Counters
+[frame="topbot",cols="1,2",options="header",width="100%"]
+|===
+| Name
+| Description
+
+| [[mapStatus]] `mapStatus`
+| `MapStatus` the <<write, `SortShuffleWriter` wrote>>.
+
+|===
+
 [TIP]
 ====
 Enable `ERROR` logging level for `org.apache.spark.shuffle.sort.SortShuffleWriter` logger to see what happens in `SortShuffleWriter`.
@@ -15,6 +29,48 @@ log4j.logger.org.apache.spark.shuffle.sort.SortShuffleWriter=ERROR
 Refer to link:spark-logging.adoc[Logging].
 ====
 
-=== [[write]] Writing Records -- `write` Method
+=== [[write]] Writing Records Into Shuffle Partitioned File In Disk Store -- `write` Method
 
-CAUTION: FIXME
+[source, scala]
+----
+write(records: Iterator[Product2[K, V]]): Unit
+----
+
+NOTE: `write` is a part of link:spark-ShuffleWriter.adoc#contract[ShuffleWriter contract] to write a sequence of records (for a RDD partition).
+
+Internally, `write` creates a link:spark-ExternalSorter.adoc[ExternalSorter] with the types `K, V, C` or `K, V, V` depending on link:spark-rdd-ShuffleDependency.adoc#mapSideCombine[`mapSideCombine` flag of the `ShuffleDependency`] being enabled or not, respectively.
+
+NOTE: `write` makes sure that link:spark-rdd-ShuffleDependency.adoc#aggregator[`Aggregator` is defined for `ShuffleDependency`] when `mapSideCombine` flag is enabled.
+
+`write` link:spark-ExternalSorter.adoc#insertAll[inserts all the records to `ExternalSorter`]
+
+`write` link:spark-IndexShuffleBlockResolver.adoc#getDataFile[requests `IndexShuffleBlockResolver` for the shuffle data output file] (for the link:spark-rdd-ShuffleDependency.adoc[ShuffleDependency] and `mapId`) and creates a temporary file for the shuffle data file in the same directory.
+
+`write` creates a link:spark-blockdatamanager.adoc#ShuffleBlockId[ShuffleBlockId] (for the link:spark-rdd-ShuffleDependency.adoc[ShuffleDependency] and `mapId` and the special `IndexShuffleBlockResolver.NOOP_REDUCE_ID` reduce id).
+
+`write` link:spark-ExternalSorter.adoc#writePartitionedFile[requests `ExternalSorter` to write all the records (previously inserted in) into the temporary partitioned file in the disk store].
+
+`write` link:spark-IndexShuffleBlockResolver.adoc#writeIndexFileAndCommit[requests `IndexShuffleBlockResolver` to write an index file] (for the temporary partitioned file).
+
+`write` creates a `MapStatus` (with the link:spark-blockmanager.adoc#shuffleServerId[location of the shuffle server] that serves the executor's shuffle files and the sizes of the shuffle partitioned file's partitions).
+
+NOTE: The newly-created `MapStatus` is available as <<mapStatus, mapStatus>> internal attribute.
+
+NOTE: `write` does not handle exceptions so when they occur, they will break the processing.
+
+In the end, `write` deletes the temporary partitioned file. You may see the following ERROR message in the logs if `write` did not manage to do so:
+
+```
+ERROR Error while deleting temp file [path]
+```
+
+=== [[creating-instance]] Creating SortShuffleWriter Instance
+
+`SortShuffleWriter` takes the following when created:
+
+1. `IndexShuffleBlockResolver`
+2. link:spark-BaseShuffleHandle.adoc[BaseShuffleHandle]
+3. `mapId` -- the mapper task id
+4. link:spark-taskscheduler-taskcontext.adoc[TaskContext]
+
+NOTE: `SortShuffleWriter` is created when link:spark-SortShuffleManager.adoc#getWriter[`SortShuffleManager` returns a `ShuffleWriter` for the fallback `BaseShuffleHandle`].
