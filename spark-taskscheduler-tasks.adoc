@@ -1,19 +1,13 @@
 == [[Task]] Tasks
 
-In Spark, a *Task* (aka _command_) is the smallest individual unit of execution that corresponds to a link:spark-rdd-Partition.adoc[RDD partition]. Tasks are link:spark-executor.adoc#launchTask[launched on executors].
+In Spark, a *task* (aka _command_) is the smallest individual unit of execution that can compute a link:spark-rdd-Partition.adoc[RDD partition]. Tasks are link:spark-executor.adoc#launchTask[launched on executors] and <<run, ran when `TaskRunner` starts>>.
 
 .Tasks correspond to partitions in RDD
 image::images/spark-rdd-partitions-job-stage-tasks.png[align="center"]
 
 In other (more technical) words, a task is a computation on a data partition in a stage of a RDD in a Spark job.
 
-[[contract]]
-The `Task` contract expects that custom tasks define <<runTask, runTask>> method.
-
-[source, scala]
-----
-runTask(context: TaskContext): T
-----
+The <<contract, Task contract>> expects that custom tasks define <<runTask, runTask>> method.
 
 NOTE: `T` is the type defined when a <<creating-instance, `Task` is created>>.
 
@@ -67,7 +61,27 @@ The very last stage in a Spark job consists of multiple link:spark-taskscheduler
 
 CAUTION: FIXME You could have a Spark job with link:spark-taskscheduler-ShuffleMapTask.adoc[ShuffleMapTask] being the last.
 
-=== [[creating-instance]] Creating `Task` Instance
+=== [[contract]] Task Contract
+
+[source, scala]
+----
+def runTask(context: TaskContext): T
+----
+
+NOTE: `Task` is a `private[spark]` contract.
+
+.Task Contract
+[frame="topbot",cols="1,2",options="header",width="100%"]
+|===
+| Method
+| Description
+
+| [[runTask]] `runTask`
+| Used when a <<run, task runs>>.
+
+|===
+
+=== [[creating-instance]] Creating Task Instance
 
 [source, scala]
 ----
@@ -98,7 +112,7 @@ A `Task` instance is uniquely identified by the following task attributes:
 
 * `localProperties` - local private properties of the task.
 
-=== [[run]][[execution]] Running Task Thread -- `run` Method
+=== [[run]] Running Task Thread -- `run` Method
 
 [source, scala]
 ----
@@ -108,15 +122,35 @@ run(
   metricsSystem: MetricsSystem): T
 ----
 
-`run` link:spark-blockmanager.adoc#registerTask[registers task attempt id to the executor's BlockManager] and link:spark-taskscheduler-taskcontext.adoc#creating-instance[creates a `TaskContextImpl`] that in turn gets set as the thread local link:spark-taskscheduler-taskcontext.adoc[TaskContext].
+`run` link:spark-blockmanager.adoc#registerTask[registers the task (identified as `taskAttemptId`) with the executor's `BlockManager`].
 
-If the task has been killed before the task runs it is <<kill, killed>> (with `interruptThread` flag disabled).
+NOTE: `run` uses link:spark-sparkenv.adoc#blockManager[`SparkEnv` to access `BlockManager`].
 
-The <<runTask, task runs>>.
+`run` link:spark-taskscheduler-TaskContextImpl.adoc#creating-instance[creates a `TaskContextImpl`] that in turn becomes the task's link:spark-taskscheduler-taskcontext.adoc#setTaskContext[TaskContext].
 
-CAUTION: FIXME Describe `catch` and `finally` blocks.
+NOTE: `run` is a `final` method and so must not be overriden.
 
-NOTE: When `run` is called from link:spark-executor-taskrunner.adoc#run[TaskRunner.run], the `Task` has just been deserialized from `taskBytes` that were sent over the wire to an executor. `localProperties` and link:spark-taskscheduler-taskmemorymanager.adoc[TaskMemoryManager] are already assigned.
+`run` checks <<_killed, _killed>> flag and, if enabled, <<kill, kills the task>> (with `interruptThread` flag disabled).
+
+`run` creates a Hadoop `CallerContext` and sets it.
+
+`run` <<runTask, runs the task>>.
+
+NOTE: This is the moment when the custom ``Task``'s <<runTask, runTask>> is executed.
+
+In the end, `run` link:spark-taskscheduler-TaskContextImpl.adoc#markTaskCompleted[notifies `TaskContextImpl` that the task has completed] (regardless of the final outcome -- a success or a failure).
+
+In case of any exceptions, `run` link:spark-taskscheduler-TaskContextImpl.adoc#markTaskFailed[notifies `TaskContextImpl` that the task has failed]. `run` link:spark-MemoryStore.adoc#releaseUnrollMemoryForThisTask[requests `MemoryStore` to release unroll memory for this task] (for both `ON_HEAP` and `OFF_HEAP` memory modes).
+
+NOTE: `run` uses link:spark-sparkenv.adoc#blockManager[`SparkEnv` to access `BlockManager`] that it uses to access link:spark-blockmanager.adoc#memoryStore[MemoryStore].
+
+`run` link:spark-MemoryManager.adoc[requests `MemoryManager` to notify any tasks waiting for execution memory to be freed to wake up and try to acquire memory again].
+
+`run` link:spark-taskscheduler-taskcontext.adoc#unset[unsets the task's `TaskContext`].
+
+NOTE: `run` uses link:spark-sparkenv.adoc#memoryManager[`SparkEnv` to access `MemoryManager`].
+
+NOTE: `run` is used exclusively when link:spark-executor-taskrunner.adoc#run[`TaskRunner` starts]. The `Task` instance has just been deserialized from `taskBytes` that were sent over the wire to an executor. `localProperties` and link:spark-taskscheduler-taskmemorymanager.adoc[TaskMemoryManager] are already assigned.
 
 === [[states]] Task States
 
@@ -167,7 +201,7 @@ kill(interruptThread: Boolean)
 
 `kill` marks the task to be killed, i.e. it sets the internal `_killed` flag to `true`.
 
-It calls link:spark-taskscheduler-taskcontext.adoc#markInterrupted[TaskContextImpl.markInterrupted] when `context` is set.
+`kill` calls link:spark-taskscheduler-TaskContextImpl.adoc#markInterrupted[TaskContextImpl.markInterrupted] when `context` is set.
 
 If `interruptThread` is enabled and the internal `taskThread` is available, `kill` interrupts it.
 
