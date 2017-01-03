@@ -1,19 +1,23 @@
 == [[SortShuffleWriter]] SortShuffleWriter -- Fallback ShuffleWriter
 
-`SortShuffleWriter` is a link:spark-ShuffleWriter.adoc[ShuffleWriter] that is used when link:spark-SortShuffleManager.adoc#getWriter[`SortShuffleManager` returns a `ShuffleWriter` for `ShuffleHandle`] which is the most general link:spark-BaseShuffleHandle.adoc[BaseShuffleHandle].
+`SortShuffleWriter` is a link:spark-ShuffleWriter.adoc[ShuffleWriter] that is used when link:spark-SortShuffleManager.adoc#getWriter[`SortShuffleManager` returns a `ShuffleWriter` for `ShuffleHandle`] (and the more specialized link:spark-UnsafeShuffleWriter.adoc[UnsafeShuffleWriter] and `BypassMergeSortShuffleWriter` could not be used).
 
 NOTE: `SortShuffleWriter` is parameterized by types for `K` keys, `V` values, and `C` combiner values.
 
 [[internal-registries]]
-.FIXME's Internal Registries and Counters
+.SortShuffleWriter's Internal Registries and Counters
 [frame="topbot",cols="1,2",options="header",width="100%"]
 |===
 | Name
 | Description
 
 | [[mapStatus]] `mapStatus`
-| `MapStatus` the <<write, `SortShuffleWriter` wrote>>.
+| `MapStatus` the <<write, `SortShuffleWriter` has recently persisted>> (as a shuffle partitioned file in disk store).
 
+NOTE: Since <<write, write>> does not return a value, `mapStatus` attribute is used to be returned when <<stop, `SortShuffleWriter` is closed>>.
+
+| [[stopping]] `stopping`
+| Internal flag to mark that <<stop, `SortShuffleWriter` is closed>>.
 |===
 
 [TIP]
@@ -29,6 +33,17 @@ log4j.logger.org.apache.spark.shuffle.sort.SortShuffleWriter=ERROR
 Refer to link:spark-logging.adoc[Logging].
 ====
 
+=== [[creating-instance]] Creating SortShuffleWriter Instance
+
+`SortShuffleWriter` takes the following when created:
+
+1. link:spark-IndexShuffleBlockResolver.adoc[IndexShuffleBlockResolver]
+2. link:spark-BaseShuffleHandle.adoc[BaseShuffleHandle]
+3. `mapId` -- the mapper task id
+4. link:spark-taskscheduler-taskcontext.adoc[TaskContext]
+
+NOTE: `SortShuffleWriter` is created when link:spark-SortShuffleManager.adoc#getWriter[`SortShuffleManager` returns a `ShuffleWriter` for the fallback `BaseShuffleHandle`].
+
 === [[write]] Writing Records Into Shuffle Partitioned File In Disk Store -- `write` Method
 
 [source, scala]
@@ -39,6 +54,8 @@ write(records: Iterator[Product2[K, V]]): Unit
 NOTE: `write` is a part of link:spark-ShuffleWriter.adoc#contract[ShuffleWriter contract] to write a sequence of records (for a RDD partition).
 
 Internally, `write` creates a link:spark-ExternalSorter.adoc[ExternalSorter] with the types `K, V, C` or `K, V, V` depending on link:spark-rdd-ShuffleDependency.adoc#mapSideCombine[`mapSideCombine` flag of the `ShuffleDependency`] being enabled or not, respectively.
+
+NOTE: link:spark-rdd-ShuffleDependency.adoc[ShuffleDependency] is defined when <<creating-instance, `SortShuffleWriter` is created>> (as the link:spark-BaseShuffleHandle.adoc#dependency[`dependency` of `BaseShuffleHandle`]).
 
 NOTE: `write` makes sure that link:spark-rdd-ShuffleDependency.adoc#aggregator[`Aggregator` is defined for `ShuffleDependency`] when `mapSideCombine` flag is enabled.
 
@@ -64,13 +81,17 @@ In the end, `write` deletes the temporary partitioned file. You may see the foll
 ERROR Error while deleting temp file [path]
 ```
 
-=== [[creating-instance]] Creating SortShuffleWriter Instance
+=== [[stop]] Closing SortShuffleWriter (and Calculating MapStatus) -- `stop` Method
 
-`SortShuffleWriter` takes the following when created:
+[source, scala]
+----
+stop(success: Boolean): Option[MapStatus]
+----
 
-1. `IndexShuffleBlockResolver`
-2. link:spark-BaseShuffleHandle.adoc[BaseShuffleHandle]
-3. `mapId` -- the mapper task id
-4. link:spark-taskscheduler-taskcontext.adoc[TaskContext]
+NOTE: `stop` is a part of link:spark-ShuffleWriter.adoc#contract[ShuffleWriter contract] to close itself (and return the last written link:spark-MapStatus.adoc[MapStatus]).
 
-NOTE: `SortShuffleWriter` is created when link:spark-SortShuffleManager.adoc#getWriter[`SortShuffleManager` returns a `ShuffleWriter` for the fallback `BaseShuffleHandle`].
+`stop` turns <<stopping, stopping>> flag on and returns the internal <<mapStatus, mapStatus>> if the input `success` is enabled.
+
+Otherwise, when <<stopping, stopping>> flag is already enabled or the input `success` is disabled, `stop` returns no `MapStatus` (i.e. `None`).
+
+In the end, `stop` link:spark-ExternalSorter.adoc#stop[stops the `ExternalSorter`] and increments the shuffle write time task metrics.

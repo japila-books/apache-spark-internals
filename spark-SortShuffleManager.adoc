@@ -2,12 +2,14 @@
 
 `SortShuffleManager` is the one and only link:spark-ShuffleManager.adoc[ShuffleManager] in Spark with the short name `sort` or `tungsten-sort`.
 
-NOTE: You can use link:spark-ShuffleManager.adoc#spark_shuffle_manager[spark.shuffle.manager] Spark property to activate your own `ShuffleManager`.
+NOTE: You can use link:spark-ShuffleManager.adoc#spark_shuffle_manager[spark.shuffle.manager] Spark property to activate your own implementation of link:spark-ShuffleManager.adoc#contract[ShuffleManager contract].
 
 `SortShuffleManager` uses `IndexShuffleBlockResolver` (as <<shuffleBlockResolver, `shuffleBlockResolver` internal registry>>).
 
+CAUTION: FIXME The internal registries
+
 [[internal-registries]]
-.`SortShuffleManager` Internal Registries and Counters
+.SortShuffleManager's Internal Registries and Counters
 [frame="topbot",cols="1,2",options="header",width="100%"]
 |===
 | Name
@@ -35,7 +37,7 @@ log4j.logger.org.apache.spark.shuffle.sort.SortShuffleManager$=DEBUG
 Refer to link:spark-logging.adoc[Logging].
 ====
 
-=== [[creating-instance]] Creating `SortShuffleManager` Instance
+=== [[creating-instance]] Creating SortShuffleManager Instance
 
 `SortShuffleManager` takes a link:spark-configuration.adoc[SparkConf].
 
@@ -47,9 +49,9 @@ WARN SortShuffleManager: spark.shuffle.spill was set to false, but this configur
 
 `SortShuffleManager` <<internal-registries, initializes the internal registries and counters>>.
 
-NOTE: `SortShuffleManager` is created when link:spark-sparkenv.adoc#ShuffleManager[`SparkEnv` is created] (on the driver and executors).
+NOTE: `SortShuffleManager` is created when link:spark-sparkenv.adoc#ShuffleManager[`SparkEnv` is created] (on the driver and executors) which is at the very beginning of a Spark application's lifecycle.
 
-=== [[registerShuffle]] Getting `ShuffleHandle` (For `ShuffleDependency`) -- `registerShuffle` Method
+=== [[registerShuffle]] Creating ShuffleHandle (For ShuffleDependency) -- `registerShuffle` Method
 
 [source, scala]
 ----
@@ -61,6 +63,8 @@ registerShuffle[K, V, C](
 
 NOTE: `registerShuffle` is a part of link:spark-ShuffleManager.adoc#contract[ShuffleManager contract].
 
+CAUTION: FIXME Copy the conditions
+
 `registerShuffle` returns a new `ShuffleHandle` that can be one of the following:
 
 1. link:spark-BypassMergeSortShuffleHandle.adoc[BypassMergeSortShuffleHandle] (with `ShuffleDependency[K, V, V]`) when <<shouldBypassMergeSort, `shouldBypassMergeSort` condition holds>>.
@@ -69,7 +73,7 @@ NOTE: `registerShuffle` is a part of link:spark-ShuffleManager.adoc#contract[Shu
 
 3. link:spark-BaseShuffleHandle.adoc[BaseShuffleHandle]
 
-=== [[getWriter]] Returning `ShuffleWriter` For `ShuffleHandle` -- `getWriter` Method
+=== [[getWriter]] Returning ShuffleWriter For ShuffleHandle -- `getWriter` Method
 
 [source, scala]
 ----
@@ -83,6 +87,8 @@ NOTE: `getWriter` is a part of link:spark-ShuffleManager.adoc#contract[`ShuffleM
 
 Internally, `getWriter` makes sure that a `ShuffleHandle` is associated with its `numMaps` in <<numMapsForShuffle, `numMapsForShuffle` internal registry>>.
 
+CAUTION: FIXME Associated?! What's that?
+
 NOTE: `getWriter` expects that the input `handle` is of type link:spark-BaseShuffleHandle.adoc[BaseShuffleHandle] (despite the signature that says that it can work with any `ShuffleHandle`).
 
 `getWriter` then returns a new `ShuffleWriter` for the input `ShuffleHandle`:
@@ -93,7 +99,7 @@ NOTE: `getWriter` expects that the input `handle` is of type link:spark-BaseShuf
 
 3. link:spark-SortShuffleWriter.adoc[SortShuffleWriter] for link:spark-BaseShuffleHandle.adoc[BaseShuffleHandle].
 
-=== [[getReader]] Returning `ShuffleReader` For `ShuffleHandle` -- `getReader` Method
+=== [[getReader]] Creating BlockStoreShuffleReader For ShuffleHandle -- `getReader` Method
 
 [source, scala]
 ----
@@ -110,7 +116,7 @@ NOTE: `getReader` is a part of link:spark-ShuffleManager.adoc#contract[`ShuffleM
 
 NOTE: `getReader` assumes that the input `ShuffleHandle` is of type link:spark-BaseShuffleHandle.adoc[BaseShuffleHandle].
 
-=== [[shouldBypassMergeSort]] `shouldBypassMergeSort` Method
+=== [[shouldBypassMergeSort]] Considering BypassMergeSortShuffleHandle for ShuffleHandle -- `shouldBypassMergeSort` Method
 
 [source, scala]
 ----
@@ -125,7 +131,7 @@ Otherwise, `shouldBypassMergeSort` does not hold (i.e. `false`).
 
 NOTE: `shouldBypassMergeSort` is exclusively used when <<registerShuffle, `SortShuffleManager` selects a `ShuffleHandle`>> (for a `ShuffleDependency`).
 
-=== [[canUseSerializedShuffle]] Checking If `SerializedShuffleHandle` Can Be Used for `ShuffleHandle` -- `canUseSerializedShuffle` Method
+=== [[canUseSerializedShuffle]] Considering SerializedShuffleHandle for ShuffleHandle -- `canUseSerializedShuffle` Method
 
 [source, scala]
 ----
@@ -156,7 +162,7 @@ DEBUG SortShuffleManager: Can't use serialized shuffle for shuffle [id] because 
 DEBUG Can't use serialized shuffle for shuffle [id] because it has more than [number] partitions
 ```
 
-NOTE: `canUseSerializedShuffle` is exclusively used when <<registerShuffle, `registerShuffle` selects a `ShuffleHandle`>>.
+NOTE: `canUseSerializedShuffle` is exclusively used when <<registerShuffle, `SortShuffleManager` selects a `ShuffleHandle`>> (for a `ShuffleDependency`).
 
 === [[settings]] Settings
 
