@@ -1,11 +1,70 @@
 == [[IndexShuffleBlockResolver]] IndexShuffleBlockResolver
 
-CAUTION: FIXME
+`IndexShuffleBlockResolver` is the one and only `ShuffleBlockResolver` in Spark.
 
-=== [[getDataFile]] `getDataFile` Method
+`IndexShuffleBlockResolver` is used exclusively in link:spark-SortShuffleManager.adoc#shuffleBlockResolver[`SortShuffleManager` as the `shuffleBlockResolver`] (so link:spark-ShuffleManager.adoc#shuffleBlockResolver[`BlockManager` can access shuffle block data]).
 
-CAUTION: FIXME
+`IndexShuffleBlockResolver` is later passed in when link:spark-SortShuffleManager.adoc#getWriter[`SortShuffleManager` creates a `ShuffleWriter` for `ShuffleHandle`].
+
+[[internal-properties]]
+.IndexShuffleBlockResolver's Internal Properties
+[frame="topbot",cols="1,1,2",options="header",width="100%"]
+|===
+| Name
+| Initial Value
+| Description
+
+| `transportConf`
+| FIXME
+| link:spark-TransportConf.adoc[TransportConf] for...FIXME
+
+|===
 
 === [[writeIndexFileAndCommit]] `writeIndexFileAndCommit` Method
 
 CAUTION: FIXME
+
+=== [[getBlockData]] `getBlockData` Method
+
+CAUTION: FIXME
+
+=== [[removeDataByMap]] `removeDataByMap` Method
+
+CAUTION: FIXME
+
+=== [[creating-instance]] Creating IndexShuffleBlockResolver Instance
+
+`IndexShuffleBlockResolver` takes the following when created:
+
+1. link:spark-configuration.adoc[SparkConf],
+2. link:spark-blockmanager.adoc[BlockManager] (default: unspecified)
+
+`IndexShuffleBlockResolver` initializes the <<internal-properties, internal properties>>.
+
+NOTE: `IndexShuffleBlockResolver` is created exclusively when link:spark-SortShuffleManager.adoc#creating-instance[`SortShuffleManager` is created].
+
+=== [[getDataFile]] Requesting Shuffle Block Data File -- `getDataFile` Method
+
+[source, scala]
+----
+getDataFile(shuffleId: Int, mapId: Int): File
+----
+
+`getDataFile` link:spark-blockmanager.adoc#diskBlockManager[requests `BlockManager` for the current `DiskBlockManager`].
+
+NOTE: `getDataFile` uses link:spark-sparkenv.adoc#blockManager[`SparkEnv` to access `BlockManager`] unless specified when <<creating-instance, `IndexShuffleBlockResolver` is created>>.
+
+`getDataFile` then link:spark-DiskBlockManager.adoc#getFile[requests `DiskBlockManager` for the shuffle block data file for `shuffleId`, `mapId`, and the special reduce id `0`].
+
+[NOTE]
+====
+`getDataFile` is used when:
+
+1. <<getBlockData, `IndexShuffleBlockResolver` creates a `ManagedBuffer` for `ShuffleBlockId`>>.
+
+2. <<writeIndexFileAndCommit, `IndexShuffleBlockResolver` writes an index file>>.
+
+3. link:spark-SortShuffleWriter.adoc#write[SortShuffleWriter], `BypassMergeSortShuffleWriter` and link:spark-UnsafeShuffleWriter.adoc#write[UnsafeShuffleWriter] write records.
+
+4. <<removeDataByMap, `IndexShuffleBlockResolver` removes the data and index files that contain the output data from one map>>.
+====
