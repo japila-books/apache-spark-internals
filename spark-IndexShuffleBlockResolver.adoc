@@ -1,6 +1,6 @@
 == [[IndexShuffleBlockResolver]] IndexShuffleBlockResolver
 
-`IndexShuffleBlockResolver` is the one and only `ShuffleBlockResolver` in Spark.
+`IndexShuffleBlockResolver` is the one and only link:spark-ShuffleBlockResolver.adoc[ShuffleBlockResolver] in Spark.
 
 `IndexShuffleBlockResolver` is used exclusively in link:spark-SortShuffleManager.adoc#shuffleBlockResolver[`SortShuffleManager` as the `shuffleBlockResolver`] (so link:spark-ShuffleManager.adoc#shuffleBlockResolver[`BlockManager` can access shuffle block data]).
 
@@ -16,15 +16,11 @@
 
 | `transportConf`
 | FIXME
-| link:spark-TransportConf.adoc[TransportConf] for...FIXME
+| link:spark-TransportConf.adoc[TransportConf] used when <<getBlockData, `IndexShuffleBlockResolver` creates a `ManagedBuffer` for a `ShuffleBlockId`>>.
 
 |===
 
 === [[writeIndexFileAndCommit]] `writeIndexFileAndCommit` Method
-
-CAUTION: FIXME
-
-=== [[getBlockData]] `getBlockData` Method
 
 CAUTION: FIXME
 
@@ -42,6 +38,27 @@ CAUTION: FIXME
 `IndexShuffleBlockResolver` initializes the <<internal-properties, internal properties>>.
 
 NOTE: `IndexShuffleBlockResolver` is created exclusively when link:spark-SortShuffleManager.adoc#creating-instance[`SortShuffleManager` is created].
+
+=== [[getBlockData]] Creating ManagedBuffer to Read Shuffle Block Data File -- `getBlockData` Method
+
+[source, scala]
+----
+getBlockData(blockId: ShuffleBlockId): ManagedBuffer
+----
+
+NOTE: `getBlockData` is a part of link:spark-rdd.adoc#contract[ShuffleBlockResolver contract].
+
+Internally, `getBlockData` <<getIndexFile, finds the index file>> for the input shuffle `blockId`.
+
+NOTE: link:spark-blockdatamanager.adoc#ShuffleBlockId[ShuffleBlockId] knows `shuffleId` and `mapId`.
+
+`getBlockData` discards `blockId.reduceId` bytes of data from the input stream.
+
+NOTE: `getBlockData` uses Guava's link:++https://google.github.io/guava/releases/snapshot/api/docs/com/google/common/io/ByteStreams.html#skipFully-java.io.InputStream-long-++[com.google.common.io.ByteStreams] to skip the bytes.
+
+`getBlockData` reads offsets from the index file the two creates a `FileSegmentManagedBuffer` to read the <<getDataFile, data file>> for the offsets (using <<transportConf, transportConf>> internal property).
+
+In the end, `getBlockData` closes the index file.
 
 === [[getDataFile]] Requesting Shuffle Block Data File -- `getDataFile` Method
 
