@@ -31,6 +31,24 @@ res0: org.apache.spark.SparkEnv = org.apache.spark.SparkEnv@49322d04
 | [[conf]] conf | link:spark-configuration.adoc[SparkConf]
 |======================
 
+[[internal-properties]]
+.SparkEnv's Internal Properties
+[frame="topbot",cols="1,1,2",options="header",width="100%"]
+|===
+| Name
+| Initial Value
+| Description
+
+| [[isStopped]] `isStopped`
+| Disabled, i.e. `false`
+| Used to mark `SparkEnv` stopped. FIXME
+
+| [[driverTmpDir]] `driverTmpDir`
+|
+|
+
+|===
+
 [TIP]
 ====
 Enable `INFO` or `DEBUG` logging level for `org.apache.spark.SparkEnv` logger to see what happens inside.
@@ -192,11 +210,7 @@ It creates a MetricsSystem for *executor* and starts it.
 
 An OutputCommitCoordinator is created and *OutputCommitCoordinator* RPC endpoint looked up.
 
-=== [[stop]] `stop` Method
-
-CAUTION: FIXME
-
-=== [[get]] Getting Current `SparkEnv` -- `get` Method
+=== [[get]] Getting Current SparkEnv -- `get` Method
 
 [source, scala]
 ----
@@ -212,6 +226,37 @@ scala> SparkEnv.get
 res0: org.apache.spark.SparkEnv = org.apache.spark.SparkEnv@49322d04
 ----
 
+=== [[stop]] Stopping SparkEnv -- `stop` Method
+
+[source, scala]
+----
+stop(): Unit
+----
+
+`stop` checks <<isStopped, isStopped>> internal flag and does nothing when enabled.
+
+NOTE: `stop` is a `private[spark]` method.
+
+Otherwise, `stop` turns `isStopped` flag on, stops all `pythonWorkers` and requests the following services to stop:
+
+1. link:spark-service-mapoutputtracker.adoc#stop[MapOutputTracker]
+2. link:spark-ShuffleManager.adoc#stop[ShuffleManager]
+3. link:spark-service-broadcastmanager.adoc#stop[BroadcastManager]
+4. link:spark-blockmanager.adoc#stop[BlockManager]
+5. link:spark-BlockManagerMaster.adoc#stop[BlockManagerMaster]
+6. link:spark-metrics.adoc#stop[MetricsSystem]
+7. link:spark-service-outputcommitcoordinator.adoc#stop[OutputCommitCoordinator]
+
+`stop` link:spark-rpc.adoc#shutdown[requests `RpcEnv` to shut down] and link:spark-rpc.adoc#awaitTermination[waits till it terminates].
+
+Only on the driver, `stop` deletes the <<driverTmpDir, temporary directory>>. You can see the following WARN message in the logs if the deletion fails.
+
+```
+WARN Exception while deleting Spark temp dir: [path]
+```
+
+NOTE: `stop` is used when link:spark-sparkcontext.adoc#stop[`SparkContext` stops] (on the driver) and link:spark-executor.adoc#stop[`Executor` stops].
+
 === [[settings]] Settings
 
 .Spark Properties
@@ -219,19 +264,27 @@ res0: org.apache.spark.SparkEnv = org.apache.spark.SparkEnv@49322d04
 |======================
 | Spark Property | Default Value | Description
 
-| [[spark_driver_port]] `spark.driver.port` | `0` | The port the driver listens to. It is first set to `0` in the driver when link:spark-sparkcontext.adoc#creating-instance[SparkContext is initialized]. It is later set to the port of link:spark-rpc.adoc[RpcEnv] of the driver (in <<create, SparkEnv.create>>).
-| [[spark_serializer]] `spark.serializer` | `org.apache.spark.serializer.JavaSerializer` | The `Serializer`.
+| [[spark_driver_port]] `spark.driver.port`
+| `0`
+| The port the driver listens to. It is first set to `0` in the driver when link:spark-sparkcontext.adoc#creating-instance[SparkContext is initialized].
+It is later set to the port of link:spark-rpc.adoc[RpcEnv] of the driver (in <<create, SparkEnv.create>>).
 
-[TIP]
-====
-Enable DEBUG logging level for `org.apache.spark.SparkEnv` logger to see the current value.
+| [[spark_serializer]] `spark.serializer`
+| `org.apache.spark.serializer.JavaSerializer`
+| link:spark-Serializer.adoc[Serializer]
+
+TIP: Enable DEBUG logging level for `org.apache.spark.SparkEnv` logger to see the current value.
 
 ```
 DEBUG SparkEnv: Using serializer: [serializer]
 ```
-====
 
-| [[spark_closure_serializer]] `spark.closure.serializer` | `org.apache.spark.serializer.JavaSerializer` | The `Serializer`
+| [[spark_closure_serializer]] `spark.closure.serializer`
+| `org.apache.spark.serializer.JavaSerializer`
+| link:spark-Serializer.adoc[Serializer]
 
-| [[spark_memory_useLegacyMode]] `spark.memory.useLegacyMode` | `false` | Controls what type of the link:spark-MemoryManager.adoc[MemoryManager] to use. When enabled (`true`) it is the legacy `StaticMemoryManager` while link:spark-UnifiedMemoryManager.adoc[UnifiedMemoryManager] otherwise (`false`).
+| [[spark_memory_useLegacyMode]] `spark.memory.useLegacyMode`
+| `false`
+| Controls what type of the link:spark-MemoryManager.adoc[MemoryManager] to use. When enabled (i.e. `true`) it is the legacy `StaticMemoryManager` while link:spark-UnifiedMemoryManager.adoc[UnifiedMemoryManager] otherwise (i.e. `false`).
+
 |======================
