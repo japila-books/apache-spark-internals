@@ -4,6 +4,9 @@
 
 `IndexShuffleBlockResolver` is used exclusively in link:spark-SortShuffleManager.adoc#shuffleBlockResolver[`SortShuffleManager` as the `shuffleBlockResolver`] (so link:spark-ShuffleManager.adoc#shuffleBlockResolver[`BlockManager` can access shuffle block data]).
 
+.SortShuffleManager creates IndexShuffleBlockResolver
+image::images/spark-IndexShuffleBlockResolver-SortShuffleManager.png[align="center"]
+
 `IndexShuffleBlockResolver` is later passed in when link:spark-SortShuffleManager.adoc#getWriter[`SortShuffleManager` creates a `ShuffleWriter` for `ShuffleHandle`].
 
 [[internal-properties]]
@@ -19,10 +22,6 @@
 | link:spark-TransportConf.adoc[TransportConf] used when <<getBlockData, `IndexShuffleBlockResolver` creates a `ManagedBuffer` for a `ShuffleBlockId`>>.
 
 |===
-
-=== [[checkIndexAndDataFile]] `checkIndexAndDataFile` Method
-
-CAUTION: FIXME
 
 === [[creating-instance]] Creating IndexShuffleBlockResolver Instance
 
@@ -100,28 +99,24 @@ NOTE: `getBlockData` uses Guava's link:++https://google.github.io/guava/releases
 
 In the end, `getBlockData` closes the index file.
 
-=== [[removeDataByMap]] Removing Shuffle Index and Data Files (For Single Map) -- `removeDataByMap` Method
+=== [[checkIndexAndDataFile]] Checking Consistency of Shuffle Index and Data Files and Returning Block Lengths --  `checkIndexAndDataFile` Internal Method
 
 [source, scala]
 ----
-removeDataByMap(shuffleId: Int, mapId: Int): Unit
+checkIndexAndDataFile(index: File, data: File, blocks: Int): Array[Long]
 ----
 
-`removeDataByMap` <<getDataFile, finds>> and deletes the shuffle data for the input `shuffleId` and `mapId` first followed by <<getIndexFile, finding>> and deleting the shuffle data index file.
+`checkIndexAndDataFile` first checks if the size of the input `index` file is exactly the input `blocks` multiplied by `8`.
 
-When `removeDataByMap` fails deleting the files, you should see a WARN message in the logs.
+`checkIndexAndDataFile` returns `null` when the numbers, and hence the shuffle index and data files, don't match.
 
-```
-WARN Error deleting data [path]
-```
+`checkIndexAndDataFile` reads the shuffle `index` file and converts the offsets into lengths of each block.
 
-or
+`checkIndexAndDataFile` makes sure that the size of the input shuffle `data` file is exactly the sum of the block lengths.
 
-```
-WARN Error deleting index [path]
-```
+`checkIndexAndDataFile` returns the block lengths if the numbers match, and `null` otherwise.
 
-NOTE: `removeDataByMap` is used exclusively when link:spark-SortShuffleManager.adoc#unregisterShuffle[`SortShuffleManager` unregisters a shuffle], i.e. removes a shuffle from a shuffle system.
+NOTE: `checkIndexAndDataFile` is used exclusively when `IndexShuffleBlockResolver` <<writeIndexFileAndCommit, writes shuffle index and data files>>.
 
 === [[getIndexFile]] Requesting Shuffle Block Index File (from DiskBlockManager) -- `getIndexFile` Internal Method
 
@@ -159,3 +154,26 @@ NOTE: `getDataFile` uses link:spark-sparkenv.adoc#blockManager[`SparkEnv` to acc
 
 2. link:spark-ShuffleWriter.adoc[ShuffleWriter] is requested to write records to shuffle system, i.e. link:spark-SortShuffleWriter.adoc#write[SortShuffleWriter], `BypassMergeSortShuffleWriter`, and link:spark-UnsafeShuffleWriter.adoc#closeAndWriteOutput[UnsafeShuffleWriter].
 ====
+
+=== [[removeDataByMap]] Removing Shuffle Index and Data Files (For Single Map) -- `removeDataByMap` Method
+
+[source, scala]
+----
+removeDataByMap(shuffleId: Int, mapId: Int): Unit
+----
+
+`removeDataByMap` <<getDataFile, finds>> and deletes the shuffle data for the input `shuffleId` and `mapId` first followed by <<getIndexFile, finding>> and deleting the shuffle data index file.
+
+When `removeDataByMap` fails deleting the files, you should see a WARN message in the logs.
+
+```
+WARN Error deleting data [path]
+```
+
+or
+
+```
+WARN Error deleting index [path]
+```
+
+NOTE: `removeDataByMap` is used exclusively when link:spark-SortShuffleManager.adoc#unregisterShuffle[`SortShuffleManager` unregisters a shuffle], i.e. removes a shuffle from a shuffle system.
