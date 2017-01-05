@@ -20,7 +20,11 @@
 
 |===
 
-=== [[writeIndexFileAndCommit]] `writeIndexFileAndCommit` Method
+=== [[getIndexFile]] `getIndexFile` Method
+
+CAUTION: FIXME
+
+=== [[checkIndexAndDataFile]] `checkIndexAndDataFile` Method
 
 CAUTION: FIXME
 
@@ -38,6 +42,50 @@ CAUTION: FIXME
 `IndexShuffleBlockResolver` initializes the <<internal-properties, internal properties>>.
 
 NOTE: `IndexShuffleBlockResolver` is created exclusively when link:spark-SortShuffleManager.adoc#creating-instance[`SortShuffleManager` is created].
+
+=== [[writeIndexFileAndCommit]] Writing Shuffle Index and Data Files -- `writeIndexFileAndCommit` Method
+
+[source, scala]
+----
+writeIndexFileAndCommit(
+  shuffleId: Int,
+  mapId: Int,
+  lengths: Array[Long],
+  dataTmp: File): Unit
+----
+
+Internally, `writeIndexFileAndCommit` first <<getIndexFile, finds the index file>> for the input `shuffleId` and `mapId`.
+
+`writeIndexFileAndCommit` creates a temporary file for the index file (in the same directory) and writes offsets (as the moving sum of the input `lengths`).
+
+NOTE: `writeIndexFileAndCommit` creates the index file for faster data access and the offsets are the sizes in the input `lengths` exactly.
+
+.writeIndexFileAndCommit and offsets in a shuffle index file
+image::images/spark-IndexShuffleBlockResolver-writeIndexFileAndCommit.png[align="center"]
+
+`writeIndexFileAndCommit` <<getDataFile, requests a shuffle block data file>> for the input `shuffleId` and `mapId`.
+
+NOTE: A shuffle block data file is also called *map outputs file*.
+
+`writeIndexFileAndCommit` <<checkIndexAndDataFile, checks if the given index and data files match each other>> (aka _consistency check_).
+
+If the consistency check fails, it means that another attempt for the same task has already written the map outputs successfully and so the input `dataTmp` and temporary index files are deleted (as no longer correct).
+
+If the consistency check succeeds, the existing index and data files are deleted (if they exist) and the temporary index and data files become "official", i.e. renamed to their final names.
+
+In case of any IO-related exception, `writeIndexFileAndCommit` throws a `IOException` with the messages:
+
+```
+fail to rename file [indexTmp] to [indexFile]
+```
+
+or
+
+```
+fail to rename file [dataTmp] to [dataFile]
+```
+
+NOTE: `writeIndexFileAndCommit` is used when link:spark-ShuffleWriter.adoc[ShuffleWriter] is requested to write records to shuffle system, i.e. link:spark-SortShuffleWriter.adoc#write[SortShuffleWriter], `BypassMergeSortShuffleWriter`, and link:spark-UnsafeShuffleWriter.adoc#closeAndWriteOutput[UnsafeShuffleWriter].
 
 === [[getBlockData]] Creating ManagedBuffer to Read Shuffle Block Data File -- `getBlockData` Method
 
