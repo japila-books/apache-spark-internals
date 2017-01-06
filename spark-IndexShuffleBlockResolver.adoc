@@ -2,7 +2,12 @@
 
 `IndexShuffleBlockResolver` is the one and only link:spark-ShuffleBlockResolver.adoc[ShuffleBlockResolver] in Spark.
 
-`IndexShuffleBlockResolver` is used exclusively in link:spark-SortShuffleManager.adoc#shuffleBlockResolver[`SortShuffleManager` as the `shuffleBlockResolver`] (so link:spark-ShuffleManager.adoc#shuffleBlockResolver[`BlockManager` can access shuffle block data]).
+`IndexShuffleBlockResolver` manages shuffle block data and uses *shuffle index files* for faster shuffle data access. `IndexShuffleBlockResolver` can <<writeIndexFileAndCommit, write a shuffle block index and data file>>, <<getBlockData, find>> and <<removeDataByMap, remove>> shuffle index and data files per shuffle and
+map.
+
+NOTE: Shuffle block data files are more often referred as *map outputs files*.
+
+`IndexShuffleBlockResolver` is managed exclusively by link:spark-SortShuffleManager.adoc#shuffleBlockResolver[SortShuffleManager] (so link:spark-ShuffleManager.adoc#shuffleBlockResolver[`BlockManager` can access shuffle block data]).
 
 .SortShuffleManager creates IndexShuffleBlockResolver
 image::images/spark-IndexShuffleBlockResolver-SortShuffleManager.png[align="center"]
@@ -18,8 +23,8 @@ image::images/spark-IndexShuffleBlockResolver-SortShuffleManager.png[align="cent
 | Description
 
 | `transportConf`
-| FIXME
-| link:spark-TransportConf.adoc[TransportConf] used when <<getBlockData, `IndexShuffleBlockResolver` creates a `ManagedBuffer` for a `ShuffleBlockId`>>.
+| link:spark-TransportConf.adoc[TransportConf] for `shuffle` module
+| Used when <<getBlockData, `IndexShuffleBlockResolver` creates a `ManagedBuffer` for a `ShuffleBlockId`>>.
 
 |===
 
@@ -28,7 +33,7 @@ image::images/spark-IndexShuffleBlockResolver-SortShuffleManager.png[align="cent
 `IndexShuffleBlockResolver` takes the following when created:
 
 1. link:spark-configuration.adoc[SparkConf],
-2. link:spark-blockmanager.adoc[BlockManager] (default: unspecified)
+2. link:spark-blockmanager.adoc[BlockManager] (default: unspecified and link:spark-sparkenv.adoc#blockManager[`SparkEnv` is used to access one])
 
 `IndexShuffleBlockResolver` initializes the <<internal-properties, internal properties>>.
 
@@ -47,16 +52,14 @@ writeIndexFileAndCommit(
 
 Internally, `writeIndexFileAndCommit` first <<getIndexFile, finds the index file>> for the input `shuffleId` and `mapId`.
 
-`writeIndexFileAndCommit` creates a temporary file for the index file (in the same directory) and writes offsets (as the moving sum of the input `lengths`).
+`writeIndexFileAndCommit` creates a temporary file for the index file (in the same directory) and writes offsets (as the moving sum of the input `lengths` starting from 0 to the final offset at the end for the end of the output file).
 
-NOTE: `writeIndexFileAndCommit` creates the index file for faster data access and the offsets are the sizes in the input `lengths` exactly.
+NOTE: The offsets are the sizes in the input `lengths` exactly.
 
 .writeIndexFileAndCommit and offsets in a shuffle index file
 image::images/spark-IndexShuffleBlockResolver-writeIndexFileAndCommit.png[align="center"]
 
 `writeIndexFileAndCommit` <<getDataFile, requests a shuffle block data file>> for the input `shuffleId` and `mapId`.
-
-NOTE: A shuffle block data file is also called *map outputs file*.
 
 `writeIndexFileAndCommit` <<checkIndexAndDataFile, checks if the given index and data files match each other>> (aka _consistency check_).
 
@@ -91,11 +94,13 @@ Internally, `getBlockData` <<getIndexFile, finds the index file>> for the input 
 
 NOTE: link:spark-blockdatamanager.adoc#ShuffleBlockId[ShuffleBlockId] knows `shuffleId` and `mapId`.
 
-`getBlockData` discards `blockId.reduceId` bytes of data from the input stream.
+`getBlockData` discards `blockId.reduceId` bytes of data from the index file.
 
 NOTE: `getBlockData` uses Guava's link:++https://google.github.io/guava/releases/snapshot/api/docs/com/google/common/io/ByteStreams.html#skipFully-java.io.InputStream-long-++[com.google.common.io.ByteStreams] to skip the bytes.
 
-`getBlockData` reads offsets from the index file the two creates a `FileSegmentManagedBuffer` to read the <<getDataFile, data file>> for the offsets (using <<transportConf, transportConf>> internal property).
+`getBlockData` reads the start and end offsets from the index file and then creates a `FileSegmentManagedBuffer` to read the <<getDataFile, data file>> for the offsets (using <<transportConf, transportConf>> internal property).
+
+NOTE: The start and end offsets are the offset and the length of the file segment for the block data.
 
 In the end, `getBlockData` closes the index file.
 
