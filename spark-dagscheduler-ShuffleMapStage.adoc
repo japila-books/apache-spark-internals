@@ -61,15 +61,11 @@ The size of `outputLocs` is exactly the number of partitions of the link:spark-d
 | [[_numAvailableOutputs]] `_numAvailableOutputs`
 | The number of available outputs for the partitions.
 
-`_numAvailableOutputs` increments when the <<addOutputLoc, first `MapStatus` is registered for a partition>> and decrements when the <<removeOutputLoc, last `MapStatus` is removed for a partition>>.
+`_numAvailableOutputs` is incremented when the <<addOutputLoc, first `MapStatus` is registered for a partition>> (that could be more tasks per partition) and decrements when the <<removeOutputLoc, last `MapStatus` is removed for a partition>>.
 
 `_numAvailableOutputs` should not be greater than the number of partitions (and hence the number of `MapStatus` collections in <<outputLocs, outputLocs>> internal registry).
 
 |===
-
-=== [[numAvailableOutputs]] `numAvailableOutputs` Method
-
-CAUTION: FIXME
 
 === [[removeOutputsOnExecutor]] `removeOutputsOnExecutor` Method
 
@@ -79,35 +75,21 @@ CAUTION: FIXME
 
 CAUTION: FIXME
 
-=== [[addActiveJob]] `addActiveJob` Method
-
-CAUTION: FIXME
-
-=== [[mapStageJobs]] `mapStageJobs` Method
-
-CAUTION: FIXME
-
-=== [[shuffleDep]] `shuffleDep` Property
-
-CAUTION: FIXME
-
-=== [[removeActiveJob]] `removeActiveJob` Method
-
-CAUTION: FIXME
-
 === [[creating-instance]] Creating ShuffleMapStage Instance
 
 `ShuffleMapStage` takes the following when created:
 
 1. `id` identifier
-2. `rdd` -- the link:spark-rdd.adoc[RDD]
-3. `numTasks` -- the number of tasks (that correspond to...FIXME)
+2. [[rdd]] `rdd` -- the link:spark-rdd-ShuffleDependency.adoc#rdd[`RDD` of `ShuffleDependency`]
+3. `numTasks` -- the number of tasks (that is exactly the link:spark-rdd.adoc#partitions[number of partitions in the `rdd`])
 4. `parents` -- the collection of parent link:spark-dagscheduler-stages.adoc[Stages]
 5. `firstJobId` -- the link:spark-dagscheduler-jobs.adoc[ActiveJob] that created it
-6. `callSite`
-7. `shuffleDep` -- link:spark-rdd-ShuffleDependency.adoc[ShuffleDependency] (from the link:spark-rdd-lineage.adoc[logical execution plan])
+6. `callSite` -- the creationSite of the <<rdd, RDD>>
+7. [[shuffleDep]] `shuffleDep` -- link:spark-rdd-ShuffleDependency.adoc[ShuffleDependency] (from the link:spark-rdd-lineage.adoc[logical execution plan])
 
 `ShuffleMapStage` initializes the <<internal-registries, internal registries and counters>>.
+
+NOTE: `DAGScheduler` tracks the link:spark-dagscheduler.adoc#nextStageId[number of `ShuffleMapStage` created] so far.
 
 NOTE: `ShuffleMapStage` is created only when link:spark-dagscheduler.adoc#createShuffleMapStage[`DAGScheduler` is requested for one given `ShuffleDependency`].
 
@@ -168,3 +150,49 @@ scala> rdd.count  // <3>
 
 .Skipped Stages are already-computed ShuffleMapStages
 image::images/dagscheduler-webui-skipped-stages.png[align="center"]
+
+=== [[numAvailableOutputs]] Returning Number of Available Shuffle Map Outputs -- `numAvailableOutputs` Method
+
+[source, scala]
+----
+numAvailableOutputs: Int
+----
+
+`numAvailableOutputs` returns <<_numAvailableOutputs, _numAvailableOutputs>> internal registry.
+
+NOTE: `numAvailableOutputs` is used exclusively when link:spark-dagscheduler.adoc#submitMissingTasks[`DAGScheduler` submits missing tasks for `ShuffleMapStage`] (and only to print a DEBUG message when the `ShuffleMapStage` is finished).
+
+=== [[mapStageJobs]] Returning Collection of Active Jobs -- `mapStageJobs` Method
+
+[source, scala]
+----
+mapStageJobs: Seq[ActiveJob]
+----
+
+`mapStageJobs` returns <<_mapStageJobs, _mapStageJobs>> internal registry.
+
+NOTE: `mapStageJobs` is used exclusively when link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleTaskCompletion[`DAGScheduler` is notified that a `ShuffleMapTask` has finished successfully] (and the task made `ShuffleMapStage` completed and so marks any map-stage jobs waiting on this stage as finished).
+
+=== [[addActiveJob]] Registering Job (that Computes ShuffleDependency) -- `addActiveJob` Method
+
+[source, scala]
+----
+addActiveJob(job: ActiveJob): Unit
+----
+
+`addActiveJob` registers the input link:spark-dagscheduler-jobs.adoc[ActiveJob] in <<_mapStageJobs, _mapStageJobs>> internal registry.
+
+NOTE: The `ActiveJob` is added as the first element in `_mapStageJobs`.
+
+NOTE: `addActiveJob` is used exclusively when link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleMapStageSubmitted[`DAGScheduler` is notified that a `ShuffleDependency` was submitted] (and so a new `ActiveJob` is created to compute it).
+
+=== [[removeActiveJob]] `removeActiveJob` Method
+
+[source, scala]
+----
+removeActiveJob(job: ActiveJob): Unit
+----
+
+`removeActiveJob` removes a `ActiveJob` from <<_mapStageJobs, _mapStageJobs>> internal registry.
+
+NOTE: `removeActiveJob` is used exclusively when link:spark-dagscheduler.adoc#cleanupStateForJobAndIndependentStages[`DAGScheduler` cleans up after `ActiveJob` has finished] (regardless of the outcome).
