@@ -1,43 +1,23 @@
 == [[ShuffleMapStage]] ShuffleMapStage -- Intermediate Stage in Execution DAG
 
-`ShuffleMapStage` (aka *shuffle map stage* or simply *map stage*) is an link:spark-dagscheduler-stages.adoc[intermediate stage] in the *physical execution DAG* that produces data for link:spark-rdd-shuffle.adoc[shuffle operation]. `ShuffleMapStage` is an input for the other following stages in the DAG of stages and is also called a *shuffle dependency's map side*.
-
-TIP: Read about link:spark-rdd-ShuffleDependency.adoc[ShuffleDependency].
-
-NOTE: The *logical DAG* or *logical execution plan* is the link:spark-rdd-lineage.adoc[RDD lineage].
-
-A `ShuffleMapStage` may contain multiple *pipelined operations*, e.g. `map` and `filter`, before shuffle operation.
-
-CAUTION: FIXME: Show the example and the logs + figures
-
-A single `ShuffleMapStage` <<stage-sharing, can be part of many jobs>>.
-
-A `ShuffleMapStage` is a stage with a link:spark-rdd-ShuffleDependency.adoc[ShuffleDependency] -- the shuffle that it is part of and `outputLocs` and `numAvailableOutputs` track how many map outputs are ready.
+`ShuffleMapStage` (aka *shuffle map stage* or simply *map stage*) is an link:spark-dagscheduler-stages.adoc[intermediate stage] in the *physical execution DAG* that corresponds to a link:spark-rdd-ShuffleDependency.adoc[ShuffleDependency].
 
 NOTE: `ShuffleMapStage` can also be submitted independently as a Spark job with link:spark-dagscheduler.adoc#submitMapStage[DAGScheduler.submitMapStage] for link:spark-dagscheduler.adoc#adaptive-query-planning[Adaptive Query Planning / Adaptive Scheduling].
+
+NOTE: The *logical DAG* or *logical execution plan* is the link:spark-rdd-lineage.adoc[RDD lineage].
 
 [[isAvailable]]
 When executed, a `ShuffleMapStage` saves *map output files* that can later be fetched by reduce tasks. When all map outputs are available, the `ShuffleMapStage` is considered *available* (or *ready*).
 
-CAUTION: FIXME Figure with ShuffleMapStages saving files
+Output locations can be missing, i.e. partitions have not been cached or are lost.
 
-The output locations (`outputLocs`) of a `ShuffleMapStage` are the same as used by its link:spark-rdd-ShuffleDependency.adoc[ShuffleDependency]. Output locations can be missing, i.e. partitions have not been cached or are lost.
+`ShuffleMapStage` uses <<outputLocs, outputLocs>> and <<_numAvailableOutputs, _numAvailableOutputs>> internal registries to track how many shuffle map outputs are available.
 
-A `ShuffleMapStage` is registered to DAGScheduler that tracks the mapping of shuffles (by their ids from SparkContext) to corresponding ShuffleMapStages that compute them, stored in `shuffleToMapStage`.
+`ShuffleMapStage` is an input for the other following stages in the DAG of stages and is also called a *shuffle dependency's map side*.
 
-A `ShuffleMapStage` is created from an input link:spark-rdd-ShuffleDependency.adoc[ShuffleDependency] and a job's id (in `DAGScheduler#newOrUsedShuffleStage`).
+A `ShuffleMapStage` may contain multiple *pipelined operations*, e.g. `map` and `filter`, before shuffle operation.
 
-CAUTION: FIXME Where's `shuffleToMapStage` used?
-
-* getShuffleMapStage - see <<stage-sharing, Stage sharing>>
-* getAncestorShuffleDependencies
-
-When there is no `ShuffleMapStage` for a shuffle id (of a link:spark-rdd-ShuffleDependency.adoc[ShuffleDependency]), one is created with the ancestor shuffle dependencies of the RDD (of a `ShuffleDependency`) that are registered to link:spark-service-MapOutputTrackerMaster.adoc[MapOutputTrackerMaster].
-
-FIXME Where is `ShuffleMapStage` used?
-
-* newShuffleMapStage - the proper way to create shuffle map stages (with the additional setup steps)
-* `getShuffleMapStage` - see <<stage-sharing, Stage sharing>>
+A single `ShuffleMapStage` <<stage-sharing, can be shared across different jobs>>.
 
 [[internal-registries]]
 .`ShuffleMapStage` Internal Registries and Counters
@@ -47,7 +27,11 @@ FIXME Where is `ShuffleMapStage` used?
 | Description
 
 | [[_mapStageJobs]] `_mapStageJobs`
-| FIXME
+| link:spark-dagscheduler-jobs.adoc[ActiveJobs] associated with the `ShuffleMapStage`.
+
+A new `ActiveJob` can be <<addActiveJob, registered>> and <<removeActiveJob, deregistered>>.
+
+The list of `ActiveJobs` registered are available using <<mapStageJobs, mapStageJobs>>.
 
 | [[outputLocs]] `outputLocs`
 | Tracks link:spark-MapStatus.adoc[MapStatuses] for each partition.
@@ -59,7 +43,7 @@ When <<creating-instance, `ShuffleMapStage` is created>>, `outputLocs` is empty,
 The size of `outputLocs` is exactly the number of partitions of the link:spark-dagscheduler-stages.adoc#rdd[RDD the stage runs on].
 
 | [[_numAvailableOutputs]] `_numAvailableOutputs`
-| The number of available outputs for the partitions.
+| The number of available outputs for the partitions of the `ShuffleMapStage`.
 
 `_numAvailableOutputs` is incremented when the <<addOutputLoc, first `MapStatus` is registered for a partition>> (that could be more tasks per partition) and decrements when the <<removeOutputLoc, last `MapStatus` is removed for a partition>>.
 
@@ -83,7 +67,7 @@ The size of `outputLocs` is exactly the number of partitions of the link:spark-d
 
 NOTE: `DAGScheduler` tracks the link:spark-dagscheduler.adoc#nextStageId[number of `ShuffleMapStage` created] so far.
 
-NOTE: `ShuffleMapStage` is created only when link:spark-dagscheduler.adoc#createShuffleMapStage[`DAGScheduler` is requested for one given `ShuffleDependency`].
+NOTE: `ShuffleMapStage` is created only when link:spark-dagscheduler.adoc#createShuffleMapStage[`DAGScheduler` creates one for a `ShuffleDependency`].
 
 === [[addOutputLoc]] Registering MapStatus For Partition -- `addOutputLoc` Method
 
@@ -178,7 +162,7 @@ NOTE: The `ActiveJob` is added as the first element in `_mapStageJobs`.
 
 NOTE: `addActiveJob` is used exclusively when link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleMapStageSubmitted[`DAGScheduler` is notified that a `ShuffleDependency` was submitted] (and so a new `ActiveJob` is created to compute it).
 
-=== [[removeActiveJob]] `removeActiveJob` Method
+=== [[removeActiveJob]] Deregistering Job -- `removeActiveJob` Method
 
 [source, scala]
 ----
