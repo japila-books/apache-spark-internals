@@ -67,10 +67,6 @@ The size of `outputLocs` is exactly the number of partitions of the link:spark-d
 
 |===
 
-=== [[removeOutputsOnExecutor]] `removeOutputsOnExecutor` Method
-
-CAUTION: FIXME
-
 === [[outputLocInMapOutputTrackerFormat]] `outputLocInMapOutputTrackerFormat` Method
 
 CAUTION: FIXME
@@ -196,3 +192,20 @@ removeActiveJob(job: ActiveJob): Unit
 `removeActiveJob` removes a `ActiveJob` from <<_mapStageJobs, _mapStageJobs>> internal registry.
 
 NOTE: `removeActiveJob` is used exclusively when link:spark-dagscheduler.adoc#cleanupStateForJobAndIndependentStages[`DAGScheduler` cleans up after `ActiveJob` has finished] (regardless of the outcome).
+
+=== [[removeOutputsOnExecutor]] Removing All Shuffle Outputs Registered for Lost Executor -- `removeOutputsOnExecutor` Method
+
+[source, scala]
+----
+removeOutputsOnExecutor(execId: String): Unit
+----
+
+`removeOutputsOnExecutor` removes all `MapStatuses` with the input `execId` executor from the <<outputLocs, outputLocs>> internal registry (of `MapStatuses` per partition).
+
+If the input `execId` had the last registered `MapStatus` for a partition, `removeOutputsOnExecutor` decrements <<_numAvailableOutputs, _numAvailableOutputs>> counter and you should see the following INFO message in the logs:
+
+```
+INFO [stage] is now unavailable on executor [execId] ([_numAvailableOutputs]/[numPartitions], [isAvailable])
+```
+
+NOTE: `removeOutputsOnExecutor` is used exclusively when link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleExecutorLost[`DAGScheduler` cleans up after a lost executor].
