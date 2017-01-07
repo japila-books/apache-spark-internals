@@ -1,4 +1,4 @@
-== [[SparkEnv]] `SparkEnv` -- Spark Runtime Environment
+== [[SparkEnv]] SparkEnv -- Spark Runtime Environment
 
 *Spark Runtime Environment* (`SparkEnv`) is the runtime environment with Spark's public services that interact with each other to establish a distributed computing platform for a Spark application.
 
@@ -20,7 +20,7 @@ res0: org.apache.spark.SparkEnv = org.apache.spark.SparkEnv@49322d04
 | [[serializer]] serializer | Serializer |
 | [[closureSerializer]] closureSerializer | link:spark-Serializer.adoc[Serializer] |
 | [[serializerManager]] serializerManager | SerializerManager |
-| [[mapOutputTracker]] mapOutputTracker | link:spark-service-mapoutputtracker.adoc[MapOutputTracker] |
+| [[mapOutputTracker]] <<MapOutputTracker, mapOutputTracker>> | link:spark-service-mapoutputtracker.adoc[MapOutputTracker] |
 | [[shuffleManager]] <<ShuffleManager, shuffleManager>> | link:spark-ShuffleManager.adoc[ShuffleManager] |
 | [[broadcastManager]] broadcastManager | BroadcastManager |
 | [[blockManager]] <<BlockManager, blockManager>> | link:spark-blockmanager.adoc[BlockManager] |
@@ -128,6 +128,11 @@ It creates a link:spark-blockmanager.adoc#creating-instance[BlockManager] (using
 
 It creates a link:spark-service-broadcastmanager.adoc[BroadcastManager].
 
+[[MapOutputTracker]]
+`create` creates a link:spark-service-MapOutputTrackerMaster.adoc[MapOutputTrackerMaster] or link:spark-service-MapOutputTrackerWorker.adoc[MapOutputTrackerWorker] for the driver and executors, respectively.
+
+NOTE: The choice of the real implementation of link:spark-service-mapoutputtracker.adoc[MapOutputTracker] is based on whether the input `executorId` is *driver* or not.
+
 It creates a CacheManager.
 
 It creates a MetricsSystem for a driver and a worker separately.
@@ -192,6 +197,7 @@ createExecutorEnv(
   hostname: String,
   port: Int,
   numCores: Int,
+  ioEncryptionKey: Option[Array[Byte]],
   isLocal: Boolean): SparkEnv
 ----
 
@@ -200,15 +206,13 @@ createExecutorEnv(
 .Spark Environment for executor
 image::images/sparkenv-executor.png[align="center"]
 
-`createExecutorEnv` uses link:spark-configuration.adoc[SparkConf], the executor's identifier, hostname, port, the number of cores to use, and whether or not it runs in local mode.
+NOTE: `createExecutorEnv` is a `private[spark]` method.
 
-NOTE: The number of cores to use is configured using `--cores` command-line option of `CoarseGrainedExecutorBackend` and is specific to a cluster manager.
+`createExecutorEnv` simply <<create, creates the base `SparkEnv`>> (passing in all the input parameters) and <<set, sets it as the current `SparkEnv`>>.
 
-It creates an link:spark-service-MapOutputTrackerWorker.adoc[MapOutputTrackerWorker] object and looks up `MapOutputTracker` RPC endpoint. See link:spark-service-mapoutputtracker.adoc[MapOutputTracker].
+NOTE: The number of cores `numCores` is configured using `--cores` command-line option of `CoarseGrainedExecutorBackend` and is specific to a cluster manager.
 
-It creates a MetricsSystem for *executor* and starts it.
-
-An OutputCommitCoordinator is created and *OutputCommitCoordinator* RPC endpoint looked up.
+NOTE: `createExecutorEnv` is used when link:spark-executor-backends-CoarseGrainedExecutorBackend.adoc#run[`CoarseGrainedExecutorBackend` runs] and link:spark-executor-backends-MesosExecutorBackend.adoc#registered[`MesosExecutorBackend` registers a Spark executor].
 
 === [[get]] Getting Current SparkEnv -- `get` Method
 

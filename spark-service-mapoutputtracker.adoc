@@ -44,11 +44,7 @@ link:spark-service-MapOutputTrackerMaster.adoc#registerMapOutputs[MapOutputTrack
 
 NOTE: `MapOutputTracker` is used in link:spark-BlockStoreShuffleReader.adoc[BlockStoreShuffleReader] and when creating link:spark-blockmanager.adoc[BlockManager] and link:spark-blockmanager-BlockManagerSlaveEndpoint.adoc[BlockManagerSlaveEndpoint].
 
-=== [[stop]] `stop` Method
-
-CAUTION: FIXME
-
-=== [[creating-instance]] Creating `MapOutputTracker` Instance
+=== [[creating-instance]] Creating MapOutputTracker Instance
 
 CAUTION: FIXME
 
@@ -60,7 +56,7 @@ CAUTION: FIXME
 
 CAUTION: FIXME
 
-=== [[getStatistics]] Computing Statistics for `ShuffleDependency` -- `getStatistics` Method
+=== [[getStatistics]] Computing Statistics for ShuffleDependency -- `getStatistics` Method
 
 [source, scala]
 ----
@@ -74,6 +70,88 @@ Internally, `getStatistics` <<getStatuses, finds map outputs>> for the input lin
 NOTE: The internal `totalSizes` array has the number of elements as specified by the link:spark-rdd-Partitioner.adoc#numPartitions[number of partitions of the `Partitioner`] of the input `ShuffleDependency`. `totalSizes` contains elements as a sum of the estimated size of the block for partition in a link:spark-blockmanager.adoc[BlockManager] (given link:spark-MapStatus.adoc[MapStatus]).
 
 NOTE: `getStatistics` is used when link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleMapStageSubmitted[`DAGScheduler` accepts a `ShuffleDependency` for execution] (and the link:spark-dagscheduler-ShuffleMapStage.adoc#isAvailable[corresponding `ShuffleMapStage` has already been computed]) and link:#handleTaskCompletion-Success-ShuffleMapTask[gets notified that a `ShuffleMapTask` has completed] (and map-stage jobs waiting for the stage are then marked as finished).
+
+=== [[getMapSizesByExecutorId]] Computing BlockManagerIds with Their Blocks and Sizes -- `getMapSizesByExecutorId` Methods
+
+[source, scala]
+----
+getMapSizesByExecutorId(shuffleId: Int, startPartition: Int, endPartition: Int)
+: Seq[(BlockManagerId, Seq[(BlockId, Long)])]
+
+getMapSizesByExecutorId(shuffleId: Int, reduceId: Int)
+: Seq[(BlockManagerId, Seq[(BlockId, Long)])] // <1>
+----
+<1> Calls the other `getMapSizesByExecutorId` with `endPartition` as `reduceId + 1` and is used exclusively in tests.
+
+CAUTION: FIXME How do the start and end partitions influence the return value?
+
+`getMapSizesByExecutorId` returns a collection of link:spark-blockmanager.adoc#BlockManagerId[BlockManagerId]s with their blocks and sizes.
+
+When executed, you should see the following DEBUG message in the logs:
+
+```
+DEBUG Fetching outputs for shuffle [id], partitions [startPartition]-[endPartition]
+```
+
+`getMapSizesByExecutorId` <<getStatuses, finds map outputs>> for the input `shuffleId`.
+
+NOTE: `getMapSizesByExecutorId` gets the map outputs for all the partitions (despite the method's signature).
+
+In the end, `getMapSizesByExecutorId` <<convertMapStatuses, converts shuffle map outputs>> (as `MapStatuses`) into the collection of link:spark-blockmanager.adoc#BlockManagerId[BlockManagerId]s with their blocks and sizes.
+
+NOTE: `getMapSizesByExecutorId` is exclusively used when link:spark-BlockStoreShuffleReader.adoc#read[`BlockStoreShuffleReader` reads combined key-values for a reduce task].
+
+=== [[getEpoch]] Returning Current Epoch -- `getEpoch` Method
+
+[source, scala]
+----
+getEpoch: Long
+----
+
+`getEpoch` returns the current <<epoch, epoch>>.
+
+NOTE: `getEpoch` is used when link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleExecutorLost[`DAGScheduler` is notified that an executor was lost] and when link:spark-tasksetmanager.adoc#creating-instance[`TaskSetManager` is created] (and sets the epoch for the tasks in a link:spark-taskscheduler-tasksets.adoc[TaskSet]).
+
+=== [[updateEpoch]] Updating Epoch -- `updateEpoch` Method
+
+[source, scala]
+----
+updateEpoch(newEpoch: Long): Unit
+----
+
+`updateEpoch` updates <<epoch, epoch>> when the input `newEpoch` is greater (and hence more recent) and clears the <<mapStatuses, `mapStatuses` internal cache>>.
+
+You should see the following INFO message in the logs:
+
+```
+INFO MapOutputTrackerWorker: Updating epoch to [newEpoch] and clearing cache
+```
+
+NOTE: `updateEpoch` is exclusively used when link:spark-executor-taskrunner.adoc#run[`TaskRunner` runs] (for a task).
+
+=== [[unregisterShuffle]] Unregistering Shuffle -- `unregisterShuffle` Method
+
+[source, scala]
+----
+unregisterShuffle(shuffleId: Int): Unit
+----
+
+`unregisterShuffle` unregisters `shuffleId`, i.e. removes `shuffleId` entry from the <<mapStatuses, mapStatuses>> internal cache.
+
+NOTE: `unregisterShuffle` is used when link:spark-service-contextcleaner.adoc#doCleanupShuffle[`ContextCleaner` removes a shuffle (blocks) from `MapOutputTrackerMaster` and `BlockManagerMaster`] (aka _shuffle cleanup_) and when link:spark-blockmanager-BlockManagerSlaveEndpoint.adoc#RemoveShuffle[`BlockManagerSlaveEndpoint` handles `RemoveShuffle` message].
+
+=== [[stop]] `stop` Method
+
+[source, scala]
+----
+stop(): Unit
+----
+
+`stop` does nothing at all.
+
+NOTE: `stop` is used exclusively when link:spark-sparkenv.adoc#stop[`SparkEnv` stops] (and stops all the services, `MapOutputTracker` including).
+
+NOTE: `stop` is overriden by link:spark-service-MapOutputTrackerMaster.adoc#stop[MapOutputTrackerMaster].
 
 === [[getStatuses]] Finding Map Outputs For `ShuffleDependency` in Cache or Fetching Remotely -- `getStatuses` Internal Method
 
@@ -130,37 +208,7 @@ ERROR Missing all output locations for shuffle [id]
 
 NOTE: `getStatuses` is used when `MapOutputTracker` <<getMapSizesByExecutorId, getMapSizesByExecutorId>> and <<getStatistics, computes statistics for `ShuffleDependency`>>.
 
-=== [[getMapSizesByExecutorId]] Computing BlockManagerIds with Their Blocks and Sizes -- `getMapSizesByExecutorId` Methods
-
-[source, scala]
-----
-getMapSizesByExecutorId(shuffleId: Int, startPartition: Int, endPartition: Int)
-: Seq[(BlockManagerId, Seq[(BlockId, Long)])]
-
-getMapSizesByExecutorId(shuffleId: Int, reduceId: Int)
-: Seq[(BlockManagerId, Seq[(BlockId, Long)])] // <1>
-----
-<1> Calls the other `getMapSizesByExecutorId` with `endPartition` as `reduceId + 1` and is used exclusively in tests.
-
-CAUTION: FIXME How do the start and end partitions influence the return value?
-
-`getMapSizesByExecutorId` returns a collection of link:spark-blockmanager.adoc#BlockManagerId[BlockManagerId]s with their blocks and sizes.
-
-When executed, you should see the following DEBUG message in the logs:
-
-```
-DEBUG Fetching outputs for shuffle [id], partitions [startPartition]-[endPartition]
-```
-
-`getMapSizesByExecutorId` <<getStatuses, finds map outputs>> for the input `shuffleId`.
-
-NOTE: `getMapSizesByExecutorId` gets the map outputs for all the partitions (despite the method's signature).
-
-In the end, `getMapSizesByExecutorId` <<convertMapStatuses, converts shuffle map outputs>> (as `MapStatuses`) into the collection of link:spark-blockmanager.adoc#BlockManagerId[BlockManagerId]s with their blocks and sizes.
-
-NOTE: `getMapSizesByExecutorId` is exclusively used when link:spark-BlockStoreShuffleReader.adoc#read[`BlockStoreShuffleReader` reads combined key-values for a reduce task].
-
-=== [[convertMapStatuses]] Converting `MapStatuses` To `BlockManagerIds` with `ShuffleBlockIds` and Their Sizes -- `convertMapStatuses` Internal Method
+=== [[convertMapStatuses]] Converting MapStatuses To BlockManagerIds with ShuffleBlockIds and Their Sizes -- `convertMapStatuses` Internal Method
 
 [source, scala]
 ----
@@ -182,42 +230,3 @@ ERROR Missing an output location for shuffle [id]
 And `convertMapStatuses` throws a `MetadataFetchFailedException` (with `shuffleId`, `startPartition`, and the above error message).
 
 NOTE: `convertMapStatuses` is exclusively used when <<getMapSizesByExecutorId, `MapOutputTracker` computes ``BlockManagerId``s with their ``ShuffleBlockId``s and sizes>>.
-
-=== [[getEpoch]] `getEpoch` Method
-
-[source, scala]
-----
-getEpoch: Long
-----
-
-`getEpoch` returns the current <<epoch, epoch>>.
-
-NOTE: `getEpoch` is used when link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleExecutorLost[`DAGScheduler` is notified that an executor was lost] and when link:spark-tasksetmanager.adoc#creating-instance[`TaskSetManager` is created] (and sets the epoch for the tasks in a link:spark-taskscheduler-tasksets.adoc[TaskSet]).
-
-=== [[updateEpoch]] Updating Epoch -- `updateEpoch` Method
-
-[source, scala]
-----
-updateEpoch(newEpoch: Long): Unit
-----
-
-`updateEpoch` updates <<epoch, epoch>> when the input `newEpoch` is greater (and hence more recent) and clears the <<mapStatuses, `mapStatuses` internal cache>>.
-
-You should see the following INFO message in the logs:
-
-```
-INFO MapOutputTrackerWorker: Updating epoch to [newEpoch] and clearing cache
-```
-
-NOTE: `updateEpoch` is exclusively used when link:spark-executor-taskrunner.adoc#run[`TaskRunner` runs] (for a task).
-
-=== [[unregisterShuffle]] Unregistering Shuffle -- `unregisterShuffle` Method
-
-[source, scala]
-----
-unregisterShuffle(shuffleId: Int): Unit
-----
-
-`unregisterShuffle` unregisters `shuffleId`, i.e. removes `shuffleId` entry from the <<mapStatuses, mapStatuses>> internal cache.
-
-NOTE: `unregisterShuffle` is used when link:spark-service-contextcleaner.adoc#doCleanupShuffle[`ContextCleaner` removes a shuffle (blocks) from `MapOutputTrackerMaster` and `BlockManagerMaster`] (aka _shuffle cleanup_) and when link:spark-blockmanager-BlockManagerSlaveEndpoint.adoc#RemoveShuffle[`BlockManagerSlaveEndpoint` handles `RemoveShuffle` message].

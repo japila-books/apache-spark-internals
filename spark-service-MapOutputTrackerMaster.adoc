@@ -1,14 +1,14 @@
 == [[MapOutputTrackerMaster]] MapOutputTrackerMaster -- MapOutputTracker For Driver
 
-*MapOutputTrackerMaster* is the link:spark-service-mapoutputtracker.adoc[MapOutputTracker] for the driver.
+`MapOutputTrackerMaster` is the link:spark-service-mapoutputtracker.adoc[MapOutputTracker] for the driver.
 
-A `MapOutputTrackerMaster` is the source of truth for the collection of link:spark-MapStatus.adoc[MapStatus] objects (map output locations) per shuffle id (as recorded from link:spark-taskscheduler-ShuffleMapTask.adoc[ShuffleMapTask]s).
+A `MapOutputTrackerMaster` is the source of truth for link:spark-MapStatus.adoc[MapStatus] objects (map output locations) per shuffle id (as recorded from link:spark-taskscheduler-ShuffleMapTask.adoc[ShuffleMapTasks]).
 
-`MapOutputTrackerMaster` uses Java's thread-safe https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/ConcurrentHashMap.html[java.util.concurrent.ConcurrentHashMap] for link:spark-service-mapoutputtracker.adoc#mapStatuses[`mapStatuses` internal cache].
+NOTE: `MapOutputTrackerMaster` uses Java's thread-safe https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/ConcurrentHashMap.html[java.util.concurrent.ConcurrentHashMap] for link:spark-service-mapoutputtracker.adoc#mapStatuses[`mapStatuses` internal cache].
 
 NOTE: There is currently a hardcoded limit of map and reduce tasks above which Spark does not assign preferred locations aka locality preferences based on map output sizes -- `1000` for map and reduce each.
 
-It uses `MetadataCleaner` with `MetadataCleanerType.MAP_OUTPUT_TRACKER` as `cleanerType` and <<cleanup, cleanup>> function to drop entries in `mapStatuses`.
+`MapOutputTrackerMaster` uses `MetadataCleaner` with `MetadataCleanerType.MAP_OUTPUT_TRACKER` as `cleanerType` and <<cleanup, cleanup>> function to drop entries in `mapStatuses`.
 
 You should see the following INFO message when the MapOutputTrackerMaster is created (FIXME it uses `MapOutputTrackerMasterEndpoint`):
 
@@ -47,6 +47,10 @@ log4j.logger.org.apache.spark.MapOutputTrackerMaster=DEBUG
 Refer to link:spark-logging.adoc[Logging].
 ====
 
+=== [[stop]] `stop` Method
+
+CAUTION: FIXME
+
 === [[getSerializedMapOutputStatuses]] `getSerializedMapOutputStatuses` Method
 
 CAUTION: FIXME
@@ -78,7 +82,19 @@ You should see the following DEBUG message in the logs for entries being removed
 DEBUG Removing key [entry.getKey]
 ```
 
-=== [[getPreferredLocationsForShuffle]] Finding Preferred BlockManagers with Most Map Outputs (for `ShuffleDependency` and `Partition`) -- `getPreferredLocationsForShuffle` Method
+=== [[creating-instance]] Creating MapOutputTrackerMaster Instance
+
+`MapOutputTrackerMaster` takes the following when created:
+
+1. link:spark-configuration.adoc[SparkConf]
+2. `broadcastManager` -- link:spark-service-broadcastmanager.adoc[BroadcastManager]
+3. `isLocal` -- flag to control whether `MapOutputTrackerMaster` runs in local or on a cluster.
+
+`MapOutputTrackerMaster` initializes the <<internal-registries, internal registries and counters>>.
+
+NOTE: `MapOutputTrackerMaster` is created when link:spark-sparkenv.adoc#MapOutputTracker[`SparkEnv` is created].
+
+=== [[getPreferredLocationsForShuffle]] Finding Preferred BlockManagers with Most Map Outputs (for ShuffleDependency and Partition) -- `getPreferredLocationsForShuffle` Method
 
 [source, scala]
 ----
@@ -209,6 +225,14 @@ In both cases, the input `changeEpoch` is enabled.
 | Spark Property
 | Default Value
 | Description
+
+| [[spark_shuffle_mapOutput_dispatcher_numThreads]] `spark.shuffle.mapOutput.dispatcher.numThreads`
+| `8`
+| FIXME
+
+| [[spark_shuffle_mapOutput_minSizeForBroadcast]] `spark.shuffle.mapOutput.minSizeForBroadcast`
+| `512k`
+| FIXME
 
 | [[spark_shuffle_reduceLocality_enabled]] `spark.shuffle.reduceLocality.enabled`
 | `true`
