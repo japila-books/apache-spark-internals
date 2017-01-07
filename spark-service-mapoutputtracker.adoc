@@ -46,13 +46,19 @@ NOTE: `MapOutputTracker` is used in link:spark-BlockStoreShuffleReader.adoc[Bloc
 
 === [[trackerEndpoint]] `trackerEndpoint` Property
 
-CAUTION: FIXME
+`trackerEndpoint` is a link:spark-RpcEndpointRef.adoc[RpcEndpointRef] that `MapOutputTracker` uses to <<askTracker, send RPC messages>>.
+
+`trackerEndpoint` is initialized when link:spark-sparkenv.adoc#MapOutputTrackerMasterEndpoint[`SparkEnv` is created] for the driver and executors and cleared when link:spark-service-MapOutputTrackerMaster.adoc#stop[`MapOutputTrackerMaster` is stopped].
 
 === [[creating-instance]] Creating MapOutputTracker Instance
 
 CAUTION: FIXME
 
 === [[deserializeMapStatuses]] `deserializeMapStatuses` Method
+
+CAUTION: FIXME
+
+=== [[sendTracker]] `sendTracker` Method
 
 CAUTION: FIXME
 
@@ -186,7 +192,7 @@ INFO Doing the fetch; tracker endpoint = [trackerEndpoint]
 
 `getStatuses` sends a `GetMapOutputStatuses` RPC remote message for the input `shuffleId` to the `trackerEndpoint` expecting a `Array[Byte]`.
 
-NOTE: `getStatuses` requests shuffle map outputs remotely within a timeout and with retries. Refer to link:spark-rpc.adoc#RpcEndpointRef[RpcEndpointRef].
+NOTE: `getStatuses` requests shuffle map outputs remotely within a timeout and with retries. Refer to link:spark-RpcEndpointRef.adoc[RpcEndpointRef].
 
 `getStatuses` <<deserializeMapStatuses, deserializes the map output statuses>> and records the result in the <<mapStatuses, `mapStatuses` internal cache>>.
 
@@ -234,3 +240,20 @@ ERROR Missing an output location for shuffle [id]
 And `convertMapStatuses` throws a `MetadataFetchFailedException` (with `shuffleId`, `startPartition`, and the above error message).
 
 NOTE: `convertMapStatuses` is exclusively used when <<getMapSizesByExecutorId, `MapOutputTracker` computes ``BlockManagerId``s with their ``ShuffleBlockId``s and sizes>>.
+
+=== [[askTracker]] Sending Blocking Messages To trackerEndpoint RpcEndpointRef -- `askTracker` Method
+
+[source, scala]
+----
+askTracker[T](message: Any): T
+----
+
+`askTracker` link:spark-RpcEndpointRef.adoc#askWithRetry[sends the `message`] to <<trackerEndpoint, `trackerEndpoint` RpcEndpointRef>> and waits for a result.
+
+When an exception happens, you should see the following ERROR message in the logs and `askTracker` throws a `SparkException`.
+
+```
+ERROR Error communicating with MapOutputTracker
+```
+
+NOTE: `askTracker` is used when `MapOutputTracker` <<getStatuses, fetches map outputs for `ShuffleDependency` remotely>> and <<sendTracker, sends a one-way message>>.
