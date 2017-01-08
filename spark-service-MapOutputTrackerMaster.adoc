@@ -11,19 +11,29 @@ NOTE: There is currently a hardcoded limit of map and reduce tasks above which S
 `MapOutputTrackerMaster` uses `MetadataCleaner` with `MetadataCleanerType.MAP_OUTPUT_TRACKER` as `cleanerType` and <<cleanup, cleanup>> function to drop entries in `mapStatuses`.
 
 [[internal-registries]]
-.`MapOutputTrackerMaster` Internal Registries and Counters
+.MapOutputTrackerMaster Internal Registries and Counters
 [frame="topbot",cols="1,2",options="header",width="100%"]
 |===
 | Name
 | Description
 
+| [[cachedSerializedBroadcast]] `cachedSerializedBroadcast`
+| Internal registry of...FIXME
+
+Used when...FIXME
+
 | [[cachedSerializedStatuses]] `cachedSerializedStatuses`
-| Internal cache with...FIXME
+| Internal registry of serialized link:spark-MapStatus.adoc[shuffle map output statuses] (as `Array[Byte]`) per...FIXME
+
+Used when...FIXME
+
+| [[cacheEpoch]] `cacheEpoch`
+| Internal registry with...FIXME
 
 Used when...FIXME
 
 | [[shuffleIdLocks]] `shuffleIdLocks`
-| Internal registry with...FIXME
+| Internal registry of locks for shuffle ids.
 
 Used when...FIXME
 
@@ -49,15 +59,19 @@ log4j.logger.org.apache.spark.MapOutputTrackerMaster=DEBUG
 Refer to link:spark-logging.adoc[Logging].
 ====
 
+=== [[removeBroadcast]] `removeBroadcast` Method
+
+CAUTION: FIXME
+
+=== [[clearCachedBroadcast]] `clearCachedBroadcast` Method
+
+CAUTION: FIXME
+
 === [[post]] `post` Method
 
 CAUTION: FIXME
 
 === [[stop]] `stop` Method
-
-CAUTION: FIXME
-
-=== [[getSerializedMapOutputStatuses]] `getSerializedMapOutputStatuses` Method
 
 CAUTION: FIXME
 
@@ -235,6 +249,68 @@ registerMapOutputs(
 
 In both cases, the input `changeEpoch` is enabled.
 ====
+
+=== [[getSerializedMapOutputStatuses]] Finding Serialized Map Output Statuses (And Possibly Broadcasting Them) -- `getSerializedMapOutputStatuses` Method
+
+[source, scala]
+----
+getSerializedMapOutputStatuses(shuffleId: Int): Array[Byte]
+----
+
+`getSerializedMapOutputStatuses` <<checkCachedStatuses, finds cached serialized map statuses>> for the input `shuffleId`.
+
+If found, `getSerializedMapOutputStatuses` returns the cached serialized map statuses.
+
+Otherwise, `getSerializedMapOutputStatuses` acquires the <<shuffleIdLocks, shuffle lock>> for `shuffleId` and <<checkCachedStatuses, finds cached serialized map statuses>> again since some other thread could not update the <<cachedSerializedStatuses, cachedSerializedStatuses>> internal cache.
+
+`getSerializedMapOutputStatuses` returns the serialized map statuses if found.
+
+If not, `getSerializedMapOutputStatuses` link:spark-service-mapoutputtracker.adoc#serializeMapStatuses[serializes the local array of `MapStatuses`] (from <<checkCachedStatuses, checkCachedStatuses>>).
+
+You should see the following INFO message in the logs:
+
+```
+INFO Size of output statuses for shuffle [shuffleId] is [bytes] bytes
+```
+
+`getSerializedMapOutputStatuses` saves the serialized map output statuses in <<cachedSerializedStatuses, cachedSerializedStatuses>> internal cache if the <<epoch, epoch>> has not changed in the meantime. `getSerializedMapOutputStatuses` also saves its broadcast version in <<cachedSerializedBroadcast, cachedSerializedBroadcast>> internal cache.
+
+If the <<epoch, epoch>> has changed in the meantime, the serialized map output statuses and their broadcast version are not saved, and you should see the following INFO message in the logs:
+
+```
+INFO Epoch changed, not caching!
+```
+
+`getSerializedMapOutputStatuses` <<removeBroadcast, removes the broadcast>>.
+
+`getSerializedMapOutputStatuses` returns the serialized map statuses.
+
+NOTE: `getSerializedMapOutputStatuses` is used when <<MessageLoop, `MapOutputTrackerMaster` responds to `GetMapOutputMessage` requests>> and link:spark-dagscheduler.adoc#createShuffleMapStage[`DAGScheduler` creates `ShuffleMapStage` for `ShuffleDependency`] (copying the shuffle map output locations from previous jobs to avoid unnecessarily regenerating data).
+
+==== [[checkCachedStatuses]] Finding Cached Serialized Map Statuses -- `checkCachedStatuses` Internal Method
+
+[source, scala]
+----
+checkCachedStatuses(): Boolean
+----
+
+`checkCachedStatuses` is an internal helper method that <<getSerializedMapOutputStatuses, getSerializedMapOutputStatuses>> uses to do some bookkeeping (when the <<epoch, epoch>> and <<cacheEpoch, cacheEpoch>> differ) and set local `statuses`, `retBytes` and `epochGotten` (that `getSerializedMapOutputStatuses` uses).
+
+Internally, `checkCachedStatuses` acquires the link:spark-service-mapoutputtracker.adoc#epochLock[`epochLock` lock] and checks the status of <<epoch, epoch>> to <<cacheEpoch, cached `cacheEpoch`>>.
+
+If `epoch` is younger (i.e. greater), `checkCachedStatuses` clears <<cachedSerializedStatuses, cachedSerializedStatuses>> internal cache, <<clearCachedBroadcast, cached broadcasts>> and sets `cacheEpoch` to be `epoch`.
+
+`checkCachedStatuses` gets the serialized map output statuses for the `shuffleId` (of the owning <<getSerializedMapOutputStatuses, getSerializedMapOutputStatuses>>).
+
+When the serialized map output status is found, `checkCachedStatuses` saves it in a local `retBytes` and returns `true`.
+
+When not found, you should see the following DEBUG message in the logs:
+
+```
+DEBUG cached status not found for : [shuffleId]
+```
+
+`checkCachedStatuses` uses link:spark-service-mapoutputtracker.adoc#mapStatuses[mapStatuses] internal cache to get map output statuses for the `shuffleId` (of the owning <<getSerializedMapOutputStatuses, getSerializedMapOutputStatuses>>) or falls back to an empty array and sets it to a local `statuses`. `checkCachedStatuses` sets the local `epochGotten` to the current <<epoch, epoch>> and returns `false`.
 
 === [[MessageLoop]][[run]] `MessageLoop` Dispatcher Thread
 

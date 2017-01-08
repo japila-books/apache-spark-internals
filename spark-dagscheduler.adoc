@@ -534,7 +534,7 @@ NOTE: All the new `ShuffleMapStage` stages are associated with the input `firstJ
 
 NOTE: `getOrCreateShuffleMapStage` is used when `DAGScheduler` <<getOrCreateParentStages, finds or creates missing direct parent ShuffleMapStages>> (for ShuffleDependencies of given RDD), <<getMissingParentStages, getMissingParentStages>> (for link:spark-rdd-ShuffleDependency.adoc[ShuffleDependencies]), link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleMapStageSubmitted[is notified that `ShuffleDependency` was submitted], and <<stageDependsOn, checks if a stage depends on another>>.
 
-=== [[createShuffleMapStage]] Creating ShuffleMapStage for ShuffleDependency (and Job) -- `createShuffleMapStage` Method
+=== [[createShuffleMapStage]] Creating ShuffleMapStage for ShuffleDependency (Copying Shuffle Map Output Locations From Previous Jobs) -- `createShuffleMapStage` Method
 
 [source, scala]
 ----
@@ -543,7 +543,7 @@ createShuffleMapStage(
   jobId: Int): ShuffleMapStage
 ----
 
-`createShuffleMapStage` creates a link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage] for the input link:spark-rdd-ShuffleDependency.adoc[ShuffleDependency] and `jobId` (of a link:spark-dagscheduler-jobs.adoc[ActiveJob]).
+`createShuffleMapStage` creates a link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage] for the input link:spark-rdd-ShuffleDependency.adoc[ShuffleDependency] and `jobId` (of a link:spark-dagscheduler-jobs.adoc[ActiveJob]) possibly copying shuffle map output locations from previous jobs to avoid recomputing records.
 
 NOTE: When a link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage] is created, the `id` is generated (using <<nextStageId, `nextStageId` internal counter>>), `rdd` is from `ShuffleDependency`, `numTasks` is the number of partitions in the RDD, all `parents` are looked up (and possibly created), the `jobId` is given, `callSite` is the `creationSite` of the RDD, and `shuffleDep` is the input `ShuffleDependency`.
 
@@ -559,7 +559,7 @@ NOTE: The RDD of the new `ShuffleMapStage` is from the input link:spark-rdd-Shuf
 
 `createShuffleMapStage` calls <<updateJobIdStageIdMaps, updateJobIdStageIdMaps>>.
 
-If link:spark-service-MapOutputTrackerMaster.adoc#containsShuffle[`MapOutputTrackerMaster` tracks the input `ShuffleDependency`], `createShuffleMapStage` link:spark-service-MapOutputTrackerMaster.adoc#getSerializedMapOutputStatuses[requests the serialized `ShuffleMapStage` outputs], link:spark-service-MapOutputTracker.adoc#deserializeMapStatuses[deserializes] and link:spark-dagscheduler-ShuffleMapStage.adoc#addOutputLoc[registers them with the new `ShuffleMapStage`].
+If link:spark-service-MapOutputTrackerMaster.adoc#containsShuffle[`MapOutputTrackerMaster` tracks the input `ShuffleDependency`] (because other jobs have already computed it), `createShuffleMapStage` link:spark-service-MapOutputTrackerMaster.adoc#getSerializedMapOutputStatuses[requests the serialized `ShuffleMapStage` outputs], link:spark-service-MapOutputTracker.adoc#deserializeMapStatuses[deserializes them] and link:spark-dagscheduler-ShuffleMapStage.adoc#addOutputLoc[registers with the new `ShuffleMapStage`].
 
 NOTE: link:spark-service-MapOutputTrackerMaster.adoc[MapOutputTrackerMaster] was defined when <<creating-instance, `DAGScheduler` was created>>.
 
