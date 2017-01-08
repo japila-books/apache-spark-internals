@@ -10,12 +10,6 @@ NOTE: There is currently a hardcoded limit of map and reduce tasks above which S
 
 `MapOutputTrackerMaster` uses `MetadataCleaner` with `MetadataCleanerType.MAP_OUTPUT_TRACKER` as `cleanerType` and <<cleanup, cleanup>> function to drop entries in `mapStatuses`.
 
-You should see the following INFO message when the MapOutputTrackerMaster is created (FIXME it uses `MapOutputTrackerMasterEndpoint`):
-
-```
-INFO SparkEnv: Registering MapOutputTracker
-```
-
 [[internal-registries]]
 .`MapOutputTrackerMaster` Internal Registries and Counters
 [frame="topbot",cols="1,2",options="header",width="100%"]
@@ -34,7 +28,7 @@ Used when...FIXME
 Used when...FIXME
 
 | [[mapOutputRequests]] `mapOutputRequests`
-| The queue with requests for map output statuses (as `GetMapOutputMessage`).
+| Internal queue with `GetMapOutputMessage` requests for map output statuses.
 
 Used when `MapOutputTrackerMaster` <<post, posts `GetMapOutputMessage` messages to>> and <<run, take one head element off this queue>>.
 
@@ -54,10 +48,6 @@ log4j.logger.org.apache.spark.MapOutputTrackerMaster=DEBUG
 
 Refer to link:spark-logging.adoc[Logging].
 ====
-
-=== [[MessageLoop]][[run]] MessageLoop Thread
-
-CAUTION: FIXME
 
 === [[post]] `post` Method
 
@@ -106,11 +96,26 @@ DEBUG Removing key [entry.getKey]
 2. `broadcastManager` -- link:spark-service-broadcastmanager.adoc[BroadcastManager]
 3. `isLocal` -- flag to control whether `MapOutputTrackerMaster` runs in local or on a cluster.
 
-`MapOutputTrackerMaster` initializes the <<internal-registries, internal registries and counters>>.
+`MapOutputTrackerMaster` initializes the <<internal-registries, internal registries and counters>> and <<threadpool, starts map-output-dispatcher threads>>.
 
 NOTE: `MapOutputTrackerMaster` is created when link:spark-sparkenv.adoc#MapOutputTracker[`SparkEnv` is created].
 
-=== [[getPreferredLocationsForShuffle]] Finding Preferred BlockManagers with Most Shuffle Map Outputs (for ShuffleDependency and Partition) -- `getPreferredLocationsForShuffle` Method
+=== [[threadpool]] `threadpool` Thread Pool with `map-output-dispatcher` Threads
+
+[source, scala]
+----
+threadpool: ThreadPoolExecutor
+----
+
+`threadpool` is a daemon fixed thread pool registered with *map-output-dispatcher* thread name prefix.
+
+`threadpool` uses <<spark_shuffle_mapOutput_dispatcher_numThreads, spark.shuffle.mapOutput.dispatcher.numThreads>> (default: `8`) for the number of <<MessageLoop, `MessageLoop` dispatcher threads>> to process received `GetMapOutputMessage` messages.
+
+NOTE: The dispatcher threads are started immediately when <<creating-instance, `MapOutputTrackerMaster` is created>>.
+
+NOTE: `threadpool` is shut down when <<stop, `MapOutputTrackerMaster` stops>>.
+
+=== [[getPreferredLocationsForShuffle]] Finding Preferred BlockManagers with Most Shuffle Map Outputs (For ShuffleDependency and Partition) -- `getPreferredLocationsForShuffle` Method
 
 [source, scala]
 ----
@@ -178,7 +183,7 @@ One entry in `mapStatuses` internal cache is a link:spark-MapStatus.adoc[MapStat
 
 NOTE: `getLocationsWithLargestOutputs` is used exclusively when <<getPreferredLocationsForShuffle, `MapOutputTrackerMaster` finds the preferred locations (BlockManagers and hence executors) for a shuffle>>.
 
-=== [[containsShuffle]] Checking If Shuffle Map Output Is Tracked Already -- `containsShuffle` Method
+=== [[containsShuffle]] Requesting Tracking Status of Shuffle Map Output -- `containsShuffle` Method
 
 [source, scala]
 ----
@@ -187,7 +192,7 @@ containsShuffle(shuffleId: Int): Boolean
 
 `containsShuffle` checks if the input `shuffleId` is registered in the <<cachedSerializedStatuses, cachedSerializedStatuses>> or link:spark-service-mapoutputtracker.adoc#mapStatuses[mapStatuses] internal caches.
 
-NOTE: `containsShuffle` is used exclusively when link:spark-dagscheduler.adoc#createShuffleMapStage[`DAGScheduler` creates a `ShuffleMapStage`] (for `ShuffleDependency` and `ActiveJob`).
+NOTE: `containsShuffle` is used exclusively when link:spark-dagscheduler.adoc#createShuffleMapStage[`DAGScheduler` creates a `ShuffleMapStage`] (for link:spark-rdd-ShuffleDependency.adoc[ShuffleDependency] and link:spark-dagscheduler-jobs.adoc[ActiveJob]).
 
 === [[registerShuffle]] Registering ShuffleDependency -- `registerShuffle` Method
 
@@ -208,7 +213,7 @@ If the `shuffleId` has already been registered, `registerShuffle` throws a `Ille
 Shuffle ID [id] registered twice
 ```
 
-NOTE: `registerShuffle` is used exclusively when link:spark-dagscheduler.adoc#createShuffleMapStage[`DAGScheduler` creates a `ShuffleMapStage`] (for `ShuffleDependency` and `ActiveJob`).
+NOTE: `registerShuffle` is used exclusively when link:spark-dagscheduler.adoc#createShuffleMapStage[`DAGScheduler` creates a `ShuffleMapStage`] (for link:spark-rdd-ShuffleDependency.adoc[ShuffleDependency] and link:spark-dagscheduler-jobs.adoc[ActiveJob]).
 
 === [[registerMapOutputs]] Registering Map Outputs for Shuffle (Possibly with Epoch Change) -- `registerMapOutputs` Method
 
@@ -220,7 +225,7 @@ registerMapOutputs(
   changeEpoch: Boolean = false): Unit
 ----
 
-`registerMapOutputs` registers the input `statuses` (as the shuffle map output) with the input `shuffleId` in the link:spark-service-mapoutputtracker.adoc#mapStatuses[`mapStatuses` internal cache].
+`registerMapOutputs` registers the input `statuses` (as the shuffle map output) with the input `shuffleId` in the link:spark-service-mapoutputtracker.adoc#mapStatuses[mapStatuses] internal cache.
 
 `registerMapOutputs` <<incrementEpoch, increments epoch>> if the input `changeEpoch` is enabled (it is not by default).
 
@@ -230,6 +235,28 @@ registerMapOutputs(
 
 In both cases, the input `changeEpoch` is enabled.
 ====
+
+=== [[MessageLoop]][[run]] `MessageLoop` Dispatcher Thread
+
+`MessageLoop` is a dispatcher thread that, once started, runs indefinitely until <<PoisonPill, PoisonPill>> arrives.
+
+`MessageLoop` takes `GetMapOutputMessage` messages off <<mapOutputRequests, mapOutputRequests>> internal queue (waiting if necessary until a message becomes available).
+
+Unless `PoisonPill` is processed, you should see the following DEBUG message in the logs:
+
+```
+DEBUG Handling request to send map output locations for shuffle [shuffleId] to [hostPort]
+```
+
+`MessageLoop` replies back with <<getSerializedMapOutputStatuses, serialized map output statuses for the `shuffleId`>> (from the incoming `GetMapOutputMessage` message).
+
+NOTE: `MessageLoop` is created and executed immediately when <<creating-instance, `MapOutputTrackerMaster` is created>>.
+
+=== [[PoisonPill]] PoisonPill Message
+
+`PoisonPill` is a `GetMapOutputMessage` (with `-99` as `shuffleId`) that indicates that <<MessageLoop, MessageLoop>> should exit its message loop.
+
+`PoisonPill` is posted when <<stop, `MapOutputTrackerMaster` stops>>.
 
 === [[settings]] Settings
 
