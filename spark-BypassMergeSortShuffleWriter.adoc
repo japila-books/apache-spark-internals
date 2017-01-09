@@ -1,7 +1,72 @@
 == [[BypassMergeSortShuffleWriter]] BypassMergeSortShuffleWriter
 
-CAUTION: FIXME
+`BypassMergeSortShuffleWriter` is a link:spark-ShuffleWriter.adoc[ShuffleWriter] that is used to <<write, write records>> (i.e. ``K``-key-``V``-value pairs).
 
-=== [[write]] `write` Method
+[[internal-registries]]
+.BypassMergeSortShuffleWriter's Internal Registries and Counters
+[frame="topbot",cols="1,2",options="header",width="100%"]
+|===
+| Name
+| Description
 
-CAUTION: FIXME
+| [[shuffleBlockResolver]] `shuffleBlockResolver`
+| link:spark-IndexShuffleBlockResolver.adoc[IndexShuffleBlockResolver] that is initialized when <<creating-instance, `BypassMergeSortShuffleWriter` is created>>.
+
+Used when...FIXME
+
+| [[mapStatus]] `mapStatus`
+| FIXME
+
+Used when...FIXME
+
+| [[partitionLengths]] `partitionLengths`
+| FIXME
+
+Used when...FIXME
+|===
+
+[TIP]
+====
+Enable `ERROR` logging level for `org.apache.spark.shuffle.sort.BypassMergeSortShuffleWriter` logger to see what happens in `BypassMergeSortShuffleWriter`.
+
+Add the following line to `conf/log4j.properties`:
+
+```
+log4j.logger.org.apache.spark.shuffle.sort.BypassMergeSortShuffleWriter=ERROR
+```
+
+Refer to link:spark-logging.adoc[Logging].
+====
+
+=== [[write]] Writing Records -- `write` Method
+
+[source, java]
+----
+void write(Iterator<Product2<K, V>> records) throws IOException
+----
+
+NOTE: `write` is a part of link:spark-ShuffleWriter.adoc#contract[`ShuffleWriter` contract].
+
+Internally, when the input `records` iterator has no more records, `write` initializes <<partitionLengths, partitionLengths>> internal array of `numPartitions` size.
+
+`write` then link:spark-IndexShuffleBlockResolver.adoc#writeIndexFileAndCommit[requests the internal `IndexShuffleBlockResolver` to write shuffle index and data files] (with `dataTmp` as `null`) and sets the internal `mapStatus` (with the address of link:spark-blockmanager.adoc[BlockManager] in use and <<partitionLengths, partitionLengths>>).
+
+However, when there are records to write, `write`...FIXME
+
+=== [[creating-instance]] Creating BypassMergeSortShuffleWriter Instance
+
+`BypassMergeSortShuffleWriter` takes the following when created:
+
+1. link:spark-blockmanager.adoc[BlockManager]
+2. link:spark-IndexShuffleBlockResolver.adoc[IndexShuffleBlockResolver]
+3. link:spark-BypassMergeSortShuffleHandle.adoc[BypassMergeSortShuffleHandle]
+4. `mapId`
+5. link:spark-taskscheduler-taskcontext.adoc[TaskContext]
+6. link:spark-configuration.adoc[SparkConf]
+
+[[fileBufferSize]]
+`BypassMergeSortShuffleWriter` uses link:spark-ExternalSorter.adoc#spark_shuffle_file_buffer[spark.shuffle.file.buffer] (for `fileBufferSize` with the size of `32k` by default) and `spark.file.transferTo` (for `transferToEnabled` which is enabled by default) Spark properties.
+
+`BypassMergeSortShuffleWriter` initializes the <<internal-registries, internal registries and counters>>.
+
+NOTE: `BypassMergeSortShuffleWriter` is created exclusively when link:spark-SortShuffleManager.adoc#getWriter[`SortShuffleManager` selects a `ShuffleWriter`] (for a link:spark-BypassMergeSortShuffleHandle.adoc[BypassMergeSortShuffleHandle]).
