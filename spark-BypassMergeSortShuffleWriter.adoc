@@ -1,6 +1,13 @@
 == [[BypassMergeSortShuffleWriter]] BypassMergeSortShuffleWriter
 
-`BypassMergeSortShuffleWriter` is a link:spark-ShuffleWriter.adoc[ShuffleWriter] that is used to <<write, write records>> (i.e. ``K``-key-``V``-value pairs).
+`BypassMergeSortShuffleWriter` is a link:spark-ShuffleWriter.adoc[ShuffleWriter] that link:spark-taskscheduler-ShuffleMapTask.adoc[ShuffleMapTask] uses to <<write, write records>> (i.e. ``K``-key-``V``-value pairs) to a shuffle system when the link:spark-taskscheduler-ShuffleMapTask.adoc#runTask[task runs for a `ShuffleDependency`].
+
+.BypassMergeSortShuffleWriter writing records (for ShuffleMapTask) using DiskBlockObjectWriters
+image::images/spark-BypassMergeSortShuffleWriter-write.png[align="center"]
+
+<<creating-instance, `BypassMergeSortShuffleWriter` is created>> exclusively when link:spark-SortShuffleManager.adoc#getWriter[`SortShuffleManager` selects a `ShuffleWriter`] (for a link:spark-BypassMergeSortShuffleHandle.adoc[BypassMergeSortShuffleHandle]).
+
+TIP: Review the link:spark-SortShuffleManager.adoc#shouldBypassMergeSort[conditions `SortShuffleManager` uses to select `BypassMergeSortShuffleHandle` for a `ShuffleHandle`].
 
 [[internal-registries]]
 .BypassMergeSortShuffleWriter's Internal Registries and Counters
@@ -52,6 +59,26 @@ log4j.logger.org.apache.spark.shuffle.sort.BypassMergeSortShuffleWriter=ERROR
 Refer to link:spark-logging.adoc[Logging].
 ====
 
+=== [[writePartitionedFile]] `writePartitionedFile` Method
+
+CAUTION: FIXME
+
+=== [[creating-instance]] Creating BypassMergeSortShuffleWriter Instance
+
+`BypassMergeSortShuffleWriter` takes the following when created:
+
+1. link:spark-blockmanager.adoc[BlockManager]
+2. link:spark-IndexShuffleBlockResolver.adoc[IndexShuffleBlockResolver]
+3. link:spark-BypassMergeSortShuffleHandle.adoc[BypassMergeSortShuffleHandle]
+4. `mapId`
+5. link:spark-taskscheduler-taskcontext.adoc[TaskContext]
+6. link:spark-configuration.adoc[SparkConf]
+
+[[fileBufferSize]]
+`BypassMergeSortShuffleWriter` uses link:spark-ExternalSorter.adoc#spark_shuffle_file_buffer[spark.shuffle.file.buffer] (for `fileBufferSize` with the size of `32k` by default) and `spark.file.transferTo` (for `transferToEnabled` which is enabled by default) Spark properties.
+
+`BypassMergeSortShuffleWriter` initializes the <<internal-registries, internal registries and counters>>.
+
 === [[write]] Writing Records -- `write` Method
 
 [source, java]
@@ -81,22 +108,18 @@ After `DiskBlockObjectWriter` writers were created, `write` requests `ShuffleWri
 
 `write` initializes <<partitionWriterSegments, partitionWriterSegments>> with `FileSegment` for <<numPartitions, every partition>>.
 
-CAUTION: FIXME Finish me...
+`write` takes record by record and, after link:spark-rdd-Partitioner.adoc#getPartition[computing the partition for a key], writes the record using the corresponding `DiskBlockObjectWriter` (from <<partitionWriters, partitionWriters>>).
 
-=== [[creating-instance]] Creating BypassMergeSortShuffleWriter Instance
+NOTE: `write` uses the link:spark-rdd-ShuffleDependency.adoc#partitioner[`Partitioner` from the `ShuffleDependency`] for which <<creating-instance, `BypassMergeSortShuffleWriter` was created>>.
 
-`BypassMergeSortShuffleWriter` takes the following when created:
+NOTE: `write` initializes <<partitionWriters, partitionWriters>> with <<numPartitions, numPartitions>> number of `DiskBlockObjectWriters`.
 
-1. link:spark-blockmanager.adoc[BlockManager]
-2. link:spark-IndexShuffleBlockResolver.adoc[IndexShuffleBlockResolver]
-3. link:spark-BypassMergeSortShuffleHandle.adoc[BypassMergeSortShuffleHandle]
-4. `mapId`
-5. link:spark-taskscheduler-taskcontext.adoc[TaskContext]
-6. link:spark-configuration.adoc[SparkConf]
+After all the `records` have been written, `write` requests every `DiskBlockObjectWriter` to `commitAndGet` and saves the commit results in <<partitionWriterSegments, partitionWriterSegments>>. `write` closes every `DiskBlockObjectWriter`.
 
-[[fileBufferSize]]
-`BypassMergeSortShuffleWriter` uses link:spark-ExternalSorter.adoc#spark_shuffle_file_buffer[spark.shuffle.file.buffer] (for `fileBufferSize` with the size of `32k` by default) and `spark.file.transferTo` (for `transferToEnabled` which is enabled by default) Spark properties.
+`write` link:spark-IndexShuffleBlockResolver.adoc#getDataFile[requests `IndexShuffleBlockResolver` for the shuffle block data file] for `shuffleId` and `mapId`.
 
-`BypassMergeSortShuffleWriter` initializes the <<internal-registries, internal registries and counters>>.
+NOTE: `IndexShuffleBlockResolver` was defined when <<creating-instance, `BypassMergeSortShuffleWriter` was created>>.
 
-NOTE: `BypassMergeSortShuffleWriter` is created exclusively when link:spark-SortShuffleManager.adoc#getWriter[`SortShuffleManager` selects a `ShuffleWriter`] (for a link:spark-BypassMergeSortShuffleHandle.adoc[BypassMergeSortShuffleHandle]).
+`write` creates a temporary file for the shuffle block data file and <<writePartitionedFile, writePartitionedFile>> to it.
+
+In the end, `write` link:spark-IndexShuffleBlockResolver.adoc#writeIndexFileAndCommit[requests `IndexShuffleBlockResolver` to write shuffle index and data files] for the `shuffleId` and `mapId` (with `partitionLengths` and the temporary file) and creates a new <<mapStatus, mapStatus>> (with the link:spark-blockmanager.adoc#shuffleServerId[location of the `BlockManager`] and <<partitionLengths, partitionLengths>>).
