@@ -9,20 +9,34 @@
 | Name
 | Description
 
-| [[shuffleBlockResolver]] `shuffleBlockResolver`
-| link:spark-IndexShuffleBlockResolver.adoc[IndexShuffleBlockResolver] that is initialized when <<creating-instance, `BypassMergeSortShuffleWriter` is created>>.
+| [[numPartitions]] `numPartitions`
+| FIXME
 
-Used when...FIXME
+| [[partitionWriters]] `partitionWriters`
+| FIXME
+
+| [[partitionWriterSegments]] `partitionWriterSegments`
+| FIXME
+
+| [[shuffleBlockResolver]] `shuffleBlockResolver`
+| link:spark-IndexShuffleBlockResolver.adoc[IndexShuffleBlockResolver].
+
+Initialized when <<creating-instance, `BypassMergeSortShuffleWriter` is created>>.
+
+Used when <<write, `BypassMergeSortShuffleWriter` writes records>>.
 
 | [[mapStatus]] `mapStatus`
-| FIXME
+| link:spark-MapStatus.adoc[MapStatus] that <<stop, `BypassMergeSortShuffleWriter` returns when stopped>>
 
-Used when...FIXME
+Initialized every time `BypassMergeSortShuffleWriter` <<write, writes records>>.
+
+Used when <<stop, `BypassMergeSortShuffleWriter` stops>> (with `success` enabled) as a marker if <<write, any records were written>> and <<stop, returned if they did>>.
 
 | [[partitionLengths]] `partitionLengths`
-| FIXME
+| Temporary array of partition lengths after records are <<write, written to a shuffle system>>.
 
-Used when...FIXME
+Initialized every time `BypassMergeSortShuffleWriter` <<write, writes records>> before passing it in to link:spark-IndexShuffleBlockResolver.adoc#writeIndexFileAndCommit[IndexShuffleBlockResolver]). After `IndexShuffleBlockResolver` finishes, it is used to initialize <<mapStatus, mapStatus>> internal property.
+
 |===
 
 [TIP]
@@ -45,13 +59,29 @@ Refer to link:spark-logging.adoc[Logging].
 void write(Iterator<Product2<K, V>> records) throws IOException
 ----
 
-NOTE: `write` is a part of link:spark-ShuffleWriter.adoc#contract[`ShuffleWriter` contract].
+NOTE: `write` is a part of link:spark-ShuffleWriter.adoc#contract[`ShuffleWriter` contract] to write a sequence of records to a shuffle system.
 
-Internally, when the input `records` iterator has no more records, `write` initializes <<partitionLengths, partitionLengths>> internal array of `numPartitions` size.
+Internally, when the input `records` iterator has no more records, `write` creates an empty <<partitionLengths, partitionLengths>> internal array of `numPartitions` size.
 
 `write` then link:spark-IndexShuffleBlockResolver.adoc#writeIndexFileAndCommit[requests the internal `IndexShuffleBlockResolver` to write shuffle index and data files] (with `dataTmp` as `null`) and sets the internal `mapStatus` (with the address of link:spark-blockmanager.adoc[BlockManager] in use and <<partitionLengths, partitionLengths>>).
 
-However, when there are records to write, `write`...FIXME
+However, when there are records to write, `write` creates a new link:spark-Serializer.adoc[Serializer].
+
+NOTE: link:spark-Serializer.adoc[Serializer] was specified when <<creating-instance, `BypassMergeSortShuffleWriter` was created>> and is exactly the `Serializer` of the link:spark-rdd-ShuffleDependency.adoc#serializer[ShuffleDependency].
+
+`write` initializes <<partitionWriters, partitionWriters>> with `DiskBlockObjectWriter` for <<numPartitions, every partition>>.
+
+For <<numPartitions, every partition>>, `write` link:spark-DiskBlockManager.adoc#createTempShuffleBlock[requests `DiskBlockManager` for a temporary shuffle block and its file].
+
+NOTE: `write` uses link:spark-blockmanager.adoc#diskBlockManager[`BlockManager` to access `DiskBlockManager`]. `BlockManager` was specified when <<creating-instance, `BypassMergeSortShuffleWriter` was created>>.
+
+`write` link:spark-blockmanager.adoc#getDiskWriter[requests `BlockManager` for a `DiskBlockObjectWriter`] (for the temporary `blockId` and `file`, the `SerializerInstance`, `fileBufferSize` and `writeMetrics`).
+
+After `DiskBlockObjectWriter` writers were created, `write` requests `ShuffleWriteMetrics` to `incWriteTime`.
+
+`write` initializes <<partitionWriterSegments, partitionWriterSegments>> with `FileSegment` for <<numPartitions, every partition>>.
+
+CAUTION: FIXME Finish me...
 
 === [[creating-instance]] Creating BypassMergeSortShuffleWriter Instance
 
