@@ -1,6 +1,6 @@
 == [[BypassMergeSortShuffleWriter]] BypassMergeSortShuffleWriter
 
-`BypassMergeSortShuffleWriter` is a link:spark-ShuffleWriter.adoc[ShuffleWriter] that link:spark-taskscheduler-ShuffleMapTask.adoc[ShuffleMapTask] uses to <<write, write records>> (i.e. ``K``-key-``V``-value pairs) to a shuffle system when the link:spark-taskscheduler-ShuffleMapTask.adoc#runTask[task runs for a `ShuffleDependency`].
+`BypassMergeSortShuffleWriter` is a link:spark-ShuffleWriter.adoc[ShuffleWriter] that link:spark-taskscheduler-ShuffleMapTask.adoc[ShuffleMapTask] uses to <<write, write records into one single shuffle block data file>> when the link:spark-taskscheduler-ShuffleMapTask.adoc#runTask[task runs for a `ShuffleDependency`].
 
 .BypassMergeSortShuffleWriter writing records (for ShuffleMapTask) using DiskBlockObjectWriters
 image::images/spark-BypassMergeSortShuffleWriter-write.png[align="center"]
@@ -44,6 +44,11 @@ Used when <<stop, `BypassMergeSortShuffleWriter` stops>> (with `success` enabled
 
 Initialized every time `BypassMergeSortShuffleWriter` <<write, writes records>> before passing it in to link:spark-IndexShuffleBlockResolver.adoc#writeIndexFileAndCommit[IndexShuffleBlockResolver]). After `IndexShuffleBlockResolver` finishes, it is used to initialize <<mapStatus, mapStatus>> internal property.
 
+| [[transferToEnabled]] `transferToEnabled`
+| Internal flag that controls the use of Java New I/O when <<writePartitionedFile, `BypassMergeSortShuffleWriter` concatenates per-partition shuffle files into a single shuffle block data file>>.
+
+Specified when <<creating-instance, `BypassMergeSortShuffleWriter` is created>> and controlled by link:spark-UnsafeShuffleWriter.adoc#spark_file_transferTo[spark.file.transferTo] Spark property. Enabled by default.
+
 |===
 
 [TIP]
@@ -59,35 +64,6 @@ log4j.logger.org.apache.spark.shuffle.sort.BypassMergeSortShuffleWriter=ERROR
 Refer to link:spark-logging.adoc[Logging].
 ====
 
-=== [[writePartitionedFile]] Writing FIXME (and Tracking Write Time) -- `writePartitionedFile` Internal Method
-
-[source, scala]
-----
-long[] writePartitionedFile(File outputFile) throws IOException
-----
-
-`writePartitionedFile` creates a file output stream for the input `outputFile` in append mode.
-
-NOTE: `writePartitionedFile` uses Java's https://docs.oracle.com/javase/8/docs/api/java/io/FileOutputStream.html[java.io.FileOutputStream] to create a file output stream.
-
-`writePartitionedFile` starts tracking write time (as `writeStartTime`).
-
-For every <<numPartitions, numPartitions>> partition, `writePartitionedFile` takes the file from the `FileSegment` (from <<partitionWriterSegments, partitionWriterSegments>>) and creates a file input stream to read raw bytes.
-
-NOTE: `writePartitionedFile` uses Java's https://docs.oracle.com/javase/8/docs/api/java/io/FileInputStream.html[java.io.FileInputStream] to create a file input stream.
-
-`writePartitionedFile` copies all data from the input stream to the output stream (possibly in a NIO way depending on the `transferToEnabled` flag set when <<creating-instance, `BypassMergeSortShuffleWriter` was created>>) and records the length of the shuffle data file (in `lengths` internal array).
-
-CAUTION: FIXME Describe `Utils.copyStream` and make sure that it matches the description here.
-
-NOTE: `transferToEnabled` is controlled by link:spark-UnsafeShuffleWriter.adoc#spark_file_transferTo[spark.file.transferTo] Spark property and is enabled (i.e. `true`) by default.
-
-In the end, `writePartitionedFile` requests `ShuffleWriteMetrics` to `incWriteTime`, clears <<partitionWriters, partitionWriters>> array and returns the lengths of the shuffle data files per partition.
-
-NOTE: `ShuffleWriteMetrics` was created when <<creating-instance, `BypassMergeSortShuffleWriter` was created>>.
-
-NOTE: `writePartitionedFile` is used exclusively when `BypassMergeSortShuffleWriter` <<write, writes records>>.
-
 === [[creating-instance]] Creating BypassMergeSortShuffleWriter Instance
 
 `BypassMergeSortShuffleWriter` takes the following when created:
@@ -100,11 +76,11 @@ NOTE: `writePartitionedFile` is used exclusively when `BypassMergeSortShuffleWri
 6. link:spark-configuration.adoc[SparkConf]
 
 [[fileBufferSize]]
-`BypassMergeSortShuffleWriter` uses link:spark-ExternalSorter.adoc#spark_shuffle_file_buffer[spark.shuffle.file.buffer] (for `fileBufferSize` with the size of `32k` by default) and `spark.file.transferTo` (for `transferToEnabled` which is enabled by default) Spark properties.
+`BypassMergeSortShuffleWriter` uses link:spark-ExternalSorter.adoc#spark_shuffle_file_buffer[spark.shuffle.file.buffer] (for `fileBufferSize` as `32k` by default) and link:spark-UnsafeShuffleWriter.adoc#spark_file_transferTo[spark.file.transferTo] (for <<transferToEnabled, transferToEnabled>> internal flag which is enabled by default) Spark properties.
 
 `BypassMergeSortShuffleWriter` initializes the <<internal-registries, internal registries and counters>>.
 
-=== [[write]] Writing Records -- `write` Method
+=== [[write]] Writing Records (Into One Single Shuffle Block Data File) -- `write` Method
 
 [source, java]
 ----
@@ -145,6 +121,62 @@ After all the `records` have been written, `write` requests every `DiskBlockObje
 
 NOTE: `IndexShuffleBlockResolver` was defined when <<creating-instance, `BypassMergeSortShuffleWriter` was created>>.
 
-`write` creates a temporary file for the shuffle block data file and <<writePartitionedFile, writePartitionedFile>> to it.
+`write` creates a temporary shuffle block data file and <<writePartitionedFile, writes the per-partition shuffle files to it>>.
+
+NOTE: This is the moment when `BypassMergeSortShuffleWriter` concatenates per-partition shuffle file segments into one single map shuffle data file.
 
 In the end, `write` link:spark-IndexShuffleBlockResolver.adoc#writeIndexFileAndCommit[requests `IndexShuffleBlockResolver` to write shuffle index and data files] for the `shuffleId` and `mapId` (with `partitionLengths` and the temporary file) and creates a new <<mapStatus, mapStatus>> (with the link:spark-blockmanager.adoc#shuffleServerId[location of the `BlockManager`] and <<partitionLengths, partitionLengths>>).
+
+=== [[writePartitionedFile]] Concatenating Per-Partition Files Into Single File (and Tracking Write Time) -- `writePartitionedFile` Internal Method
+
+[source, scala]
+----
+long[] writePartitionedFile(File outputFile) throws IOException
+----
+
+`writePartitionedFile` creates a file output stream for the input `outputFile` in append mode.
+
+NOTE: `writePartitionedFile` uses Java's https://docs.oracle.com/javase/8/docs/api/java/io/FileOutputStream.html[java.io.FileOutputStream] to create a file output stream.
+
+`writePartitionedFile` starts tracking write time (as `writeStartTime`).
+
+For every <<numPartitions, numPartitions>> partition, `writePartitionedFile` takes the file from the `FileSegment` (from <<partitionWriterSegments, partitionWriterSegments>>) and creates a file input stream to read raw bytes.
+
+NOTE: `writePartitionedFile` uses Java's https://docs.oracle.com/javase/8/docs/api/java/io/FileInputStream.html[java.io.FileInputStream] to create a file input stream.
+
+`writePartitionedFile` then <<copyStream, copies the raw bytes from each partition segment input stream to `outputFile`>> (possibly using Java New I/O per <<transferToEnabled, transferToEnabled>> flag set when <<creating-instance, `BypassMergeSortShuffleWriter` was created>>) and records the length of the shuffle data file (in `lengths` internal array).
+
+NOTE: `transferToEnabled` is controlled by link:spark-UnsafeShuffleWriter.adoc#spark_file_transferTo[spark.file.transferTo] Spark property and is enabled (i.e. `true`) by default.
+
+In the end, `writePartitionedFile` requests `ShuffleWriteMetrics` to `incWriteTime`, clears <<partitionWriters, partitionWriters>> array and returns the lengths of the shuffle data files per partition.
+
+NOTE: `ShuffleWriteMetrics` was created when <<creating-instance, `BypassMergeSortShuffleWriter` was created>>.
+
+NOTE: `writePartitionedFile` is used exclusively when `BypassMergeSortShuffleWriter` <<write, writes records>>.
+
+=== [[copyStream]] Copying Raw Bytes Between Input Streams (Possibly Using Java New I/O) -- `Utils.copyStream` Method
+
+[source, scala]
+----
+copyStream(
+  in: InputStream,
+  out: OutputStream,
+  closeStreams: Boolean = false,
+  transferToEnabled: Boolean = false): Long
+----
+
+`copyStream` branches off depending on the type of `in` and `out` streams, i.e. whether they are both `FileInputStream` with `transferToEnabled` input flag is enabled.
+
+If they are both `FileInputStream` with `transferToEnabled` enabled, `copyStream` gets their `FileChannels` and transfers bytes from the input file to the output file and counts the number of bytes, possibly zero, that were actually transferred.
+
+NOTE: `copyStream` uses Java's https://docs.oracle.com/javase/8/docs/api/java/nio/channels/FileChannel.html[java.nio.channels.FileChannel] to manage file channels.
+
+If either `in` and `out` input streams are not `FileInputStream` or `transferToEnabled` flag is disabled (default), `copyStream` reads data from `in` to write to `out` and counts the number of bytes written.
+
+`copyStream` can optionally close `in` and `out` streams (depending on the input `closeStreams` -- disabled by default).
+
+NOTE: `Utils.copyStream` is used when <<writePartitionedFile, `BypassMergeSortShuffleWriter` writes records into one single shuffle block data file>> (among other places).
+
+NOTE: `Utils.copyStream` is here temporarily (until I find a better place).
+
+TIP: Visit the official web site of https://jcp.org/jsr/detail/51.jsp[JSR 51: New I/O APIs for the Java Platform] and read up on link:http://docs.oracle.com/javase/8/docs/api/java/nio/package-summary.html[java.nio package].
