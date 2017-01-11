@@ -59,9 +59,34 @@ log4j.logger.org.apache.spark.shuffle.sort.BypassMergeSortShuffleWriter=ERROR
 Refer to link:spark-logging.adoc[Logging].
 ====
 
-=== [[writePartitionedFile]] `writePartitionedFile` Method
+=== [[writePartitionedFile]] Writing FIXME (and Tracking Write Time) -- `writePartitionedFile` Internal Method
 
-CAUTION: FIXME
+[source, scala]
+----
+long[] writePartitionedFile(File outputFile) throws IOException
+----
+
+`writePartitionedFile` creates a file output stream for the input `outputFile` in append mode.
+
+NOTE: `writePartitionedFile` uses Java's https://docs.oracle.com/javase/8/docs/api/java/io/FileOutputStream.html[java.io.FileOutputStream] to create a file output stream.
+
+`writePartitionedFile` starts tracking write time (as `writeStartTime`).
+
+For every <<numPartitions, numPartitions>> partition, `writePartitionedFile` takes the file from the `FileSegment` (from <<partitionWriterSegments, partitionWriterSegments>>) and creates a file input stream to read raw bytes.
+
+NOTE: `writePartitionedFile` uses Java's https://docs.oracle.com/javase/8/docs/api/java/io/FileInputStream.html[java.io.FileInputStream] to create a file input stream.
+
+`writePartitionedFile` copies all data from the input stream to the output stream (possibly in a NIO way depending on the `transferToEnabled` flag set when <<creating-instance, `BypassMergeSortShuffleWriter` was created>>) and records the length of the shuffle data file (in `lengths` internal array).
+
+CAUTION: FIXME Describe `Utils.copyStream` and make sure that it matches the description here.
+
+NOTE: `transferToEnabled` is controlled by link:spark-UnsafeShuffleWriter.adoc#spark_file_transferTo[spark.file.transferTo] Spark property and is enabled (i.e. `true`) by default.
+
+In the end, `writePartitionedFile` requests `ShuffleWriteMetrics` to `incWriteTime`, clears <<partitionWriters, partitionWriters>> array and returns the lengths of the shuffle data files per partition.
+
+NOTE: `ShuffleWriteMetrics` was created when <<creating-instance, `BypassMergeSortShuffleWriter` was created>>.
+
+NOTE: `writePartitionedFile` is used exclusively when `BypassMergeSortShuffleWriter` <<write, writes records>>.
 
 === [[creating-instance]] Creating BypassMergeSortShuffleWriter Instance
 
