@@ -97,25 +97,27 @@ However, when there are records to write, `write` creates a new link:spark-Seria
 
 NOTE: link:spark-Serializer.adoc[Serializer] was specified when <<creating-instance, `BypassMergeSortShuffleWriter` was created>> and is exactly the `Serializer` of the link:spark-rdd-ShuffleDependency.adoc#serializer[ShuffleDependency].
 
-`write` initializes <<partitionWriters, partitionWriters>> with `DiskBlockObjectWriter` for <<numPartitions, every partition>>.
+`write` initializes <<partitionWriters, partitionWriters>> internal array of link:spark-blockmanager-DiskBlockObjectWriter.adoc[DiskBlockObjectWriters] for <<numPartitions, every partition>>.
 
 For <<numPartitions, every partition>>, `write` link:spark-DiskBlockManager.adoc#createTempShuffleBlock[requests `DiskBlockManager` for a temporary shuffle block and its file].
 
 NOTE: `write` uses link:spark-blockmanager.adoc#diskBlockManager[`BlockManager` to access `DiskBlockManager`]. `BlockManager` was specified when <<creating-instance, `BypassMergeSortShuffleWriter` was created>>.
 
-`write` link:spark-blockmanager.adoc#getDiskWriter[requests `BlockManager` for a `DiskBlockObjectWriter`] (for the temporary `blockId` and `file`, the `SerializerInstance`, `fileBufferSize` and `writeMetrics`).
+`write` link:spark-blockmanager.adoc#getDiskWriter[requests `BlockManager` for a `DiskBlockObjectWriter`] (for the temporary `blockId` and `file`, link:spark-SerializerInstance.adoc[SerializerInstance], `fileBufferSize` and `writeMetrics`).
 
-After `DiskBlockObjectWriter` writers were created, `write` requests `ShuffleWriteMetrics` to `incWriteTime`.
+After link:spark-blockmanager-DiskBlockObjectWriter.adoc[DiskBlockObjectWriters] were created, `write` requests `ShuffleWriteMetrics` to `incWriteTime`.
 
 `write` initializes <<partitionWriterSegments, partitionWriterSegments>> with `FileSegment` for <<numPartitions, every partition>>.
 
-`write` takes record by record and, after link:spark-rdd-Partitioner.adoc#getPartition[computing the partition for a key], writes the record using the corresponding `DiskBlockObjectWriter` (from <<partitionWriters, partitionWriters>>).
+`write` takes records serially, i.e. record by record, and, after link:spark-rdd-Partitioner.adoc#getPartition[computing the partition for a key], link:spark-blockmanager-DiskBlockObjectWriter.adoc#write[requests the corresponding `DiskBlockObjectWriter` to write them].
+
+NOTE: `write` uses <<partitionWriters, partitionWriters>> internal array of `DiskBlockObjectWriter` indexed by partition number.
 
 NOTE: `write` uses the link:spark-rdd-ShuffleDependency.adoc#partitioner[`Partitioner` from the `ShuffleDependency`] for which <<creating-instance, `BypassMergeSortShuffleWriter` was created>>.
 
 NOTE: `write` initializes <<partitionWriters, partitionWriters>> with <<numPartitions, numPartitions>> number of `DiskBlockObjectWriters`.
 
-After all the `records` have been written, `write` requests every `DiskBlockObjectWriter` to `commitAndGet` and saves the commit results in <<partitionWriterSegments, partitionWriterSegments>>. `write` closes every `DiskBlockObjectWriter`.
+After all the `records` have been written, `write` requests every `DiskBlockObjectWriter` to `commitAndGet` and saves the commit results in <<partitionWriterSegments, partitionWriterSegments>>. `write` link:spark-blockmanager-DiskBlockObjectWriter.adoc#close[closes every `DiskBlockObjectWriter`].
 
 `write` link:spark-IndexShuffleBlockResolver.adoc#getDataFile[requests `IndexShuffleBlockResolver` for the shuffle block data file] for `shuffleId` and `mapId`.
 
