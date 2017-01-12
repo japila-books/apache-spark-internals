@@ -1,8 +1,14 @@
 == [[DiskBlockObjectWriter]] DiskBlockObjectWriter
 
-`DiskBlockObjectWriter` is a https://docs.oracle.com/javase/8/docs/api/java/io/OutputStream.html[java.io.OutputStream] that link:spark-blockmanager.adoc#getDiskWriter[`BlockManager` uses as a block writer].
+`DiskBlockObjectWriter` is a https://docs.oracle.com/javase/8/docs/api/java/io/OutputStream.html[java.io.OutputStream] that link:spark-blockmanager.adoc#getDiskWriter[`BlockManager` offers for writing blocks to disk].
 
-NOTE: `DiskBlockObjectWriter` is a `private[spark]` class.
+Whenever `DiskBlockObjectWriter` is requested to <<write, write a key-value pair>>, it makes sure that the <<streamOpen, underlying output streams are open>>.
+
+`DiskBlockObjectWriter` can be in the following states (that match the state of the underlying output streams):
+
+1. Initialized
+1. Open
+1. Closed
 
 [[internal-registries]]
 .DiskBlockObjectWriter's Internal Registries and Counters
@@ -10,6 +16,16 @@ NOTE: `DiskBlockObjectWriter` is a `private[spark]` class.
 |===
 | Name
 | Description
+
+| [[initialized]] `initialized`
+| Internal flag...FIXME
+
+Used when...FIXME
+
+| [[hasBeenClosed]] `hasBeenClosed`
+| Internal flag...FIXME
+
+Used when...FIXME
 
 | [[streamOpen]] `streamOpen`
 | Internal flag...FIXME
@@ -20,9 +36,42 @@ Used when...FIXME
 | FIXME
 
 Used when...FIXME
+
+| [[mcs]] `mcs`
+| FIXME
+
+Used when...FIXME
+
+| [[bs]] `bs`
+| FIXME
+
+Used when...FIXME
+
+| [[objOut]] `objOut`
+| FIXME
+
+Used when...FIXME
+
+| [[blockId]] `blockId`
+| FIXME
+
+Used when...FIXME
 |===
 
-=== [[open]] `open` Method
+NOTE: `DiskBlockObjectWriter` is a `private[spark]` class.
+
+=== [[initialize]] `initialize` Method
+
+CAUTION: FIXME
+
+=== [[write-bytes]] Writing Bytes (From Byte Array Starting From Offset) -- `write` Method
+
+[source, scala]
+----
+write(kvBytes: Array[Byte], offs: Int, len: Int): Unit
+----
+
+`write`...FIXME
 
 CAUTION: FIXME
 
@@ -71,3 +120,32 @@ Before writing, `write` <<open, opens the stream>> unless already <<streamOpen, 
 In the end, `write` <<recordWritten, recordWritten>>.
 
 NOTE: `write` is used when link:spark-BypassMergeSortShuffleWriter.adoc#write[`BypassMergeSortShuffleWriter` writes records] and in `ExternalAppendOnlyMap`, `ExternalSorter` and `WritablePartitionedPairCollection`.
+
+=== [[open]] Opening DiskBlockObjectWriter -- `open` Method
+
+[source, scala]
+----
+open(): DiskBlockObjectWriter
+----
+
+`open` opens `DiskBlockObjectWriter`, i.e. <<initialize, initializes>> and re-sets <<bs, bs>> and <<objOut, objOut>> internal output streams.
+
+Internally, `open` makes sure that `DiskBlockObjectWriter` is not closed (i.e. <<hasBeenClosed, hasBeenClosed>> flag is disabled). If it was, `open` throws a `IllegalStateException`:
+
+```
+Writer already closed. Cannot be reopened.
+```
+
+Unless `DiskBlockObjectWriter` has already been initialized (i.e. <<initialized, initialized>> flag is enabled), `open` <<initialize, initializes>> it (and turns <<initialized, initialized>> flag on).
+
+Regardless of whether `DiskBlockObjectWriter` was already initialized or not, `open` link:spark-SerializerManager.adoc#wrapStream[requests `SerializerManager` to wrap `mcs` output stream for encryption and compression] (for <<blockId, blockId>>) and sets it as <<bs, bs>>.
+
+NOTE: `open` uses `SerializerManager` that was specified when <<creating-instance, `DiskBlockObjectWriter` was created>>
+
+`open` link:spark-SerializerInstance.adoc#serializeStream[requests `SerializerInstance` to serialize `bs` output stream] and sets it as <<objOut, objOut>>.
+
+NOTE: `open` uses `SerializerInstance` that was specified when <<creating-instance, `DiskBlockObjectWriter` was created>>
+
+In the end, `open` turns <<streamOpen, streamOpen>> flag on.
+
+NOTE: `open` is used exclusively when `DiskBlockObjectWriter` <<write, writes a key-value pair>> or <<write-bytes, bytes from a specified byte array>> but the <<streamOpen, stream is not open yet>>.
