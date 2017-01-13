@@ -1,8 +1,14 @@
 == [[ShuffleWriteMetrics]] ShuffleWriteMetrics
 
-`ShuffleWriteMetrics` is a <<accumulators, collection of accumulators>> that represent task metrics about writing shuffle data.
+`ShuffleWriteMetrics` is a <<accumulators, collection of accumulators>> that represents task metrics about writing shuffle data.
 
-NOTE: link:spark-accumulators.adoc[Accumulators] allow tasks (running on executors) to send partial values to the driver.
+`ShuffleWriteMetrics` tracks the following task metrics:
+
+1. <<bytesWritten, Shuffle Bytes Written>>
+2. <<writeTime, Shuffle Write Time>>
+3. <<recordsWritten, Shuffle Records Written>>
+
+NOTE: link:spark-accumulators.adoc[Accumulators] allow tasks (running on executors) to communicate with the driver.
 
 [[accumulators]]
 .ShuffleWriteMetrics's Accumulators
@@ -11,25 +17,67 @@ NOTE: link:spark-accumulators.adoc[Accumulators] allow tasks (running on executo
 | Name
 | Description
 
+| [[_bytesWritten]] `_bytesWritten`
+| Accumulator to track how many shuffle bytes were written in a shuffle task.
+
+Used when `ShuffleWriteMetrics` is requested the <<bytesWritten, shuffle bytes written>> and to <<incBytesWritten, increment>> or <<decBytesWritten, decrement>> it.
+
+NOTE: `_bytesWritten` is available as `internal.metrics.shuffle.write.bytesWritten` (internally `shuffleWrite.BYTES_WRITTEN`) in link:spark-taskscheduler-taskmetrics.adoc[TaskMetrics].
+
 | [[_writeTime]] `_writeTime`
-| Internal accumulator to track shuffle write time (as 64-bit integer).
+| Accumulator to track shuffle write time (as 64-bit integer) of a shuffle task.
 
-Used when `ShuffleWriteMetrics` is asked for the <<writeTime, total shuffle write time>> and to <<incWriteTime, increment it>>.
+Used when `ShuffleWriteMetrics` is requested the <<writeTime, shuffle write time>> and to <<incWriteTime, increment it>>.
 
-NOTE: link:spark-taskscheduler-taskmetrics.adoc[TaskMetrics] uses `internal.metrics.shuffle.write.writeTime` name (internally `shuffleWrite.WRITE_TIME`) to reference `_writeTime`.
+NOTE: `_writeTime` is available as `internal.metrics.shuffle.write.writeTime` (internally `shuffleWrite.WRITE_TIME`) in link:spark-taskscheduler-taskmetrics.adoc[TaskMetrics].
+
 |===
 
-=== [[writeTime]] `writeTime` Method
+=== [[incBytesWritten]] `incBytesWritten` Method
 
 CAUTION: FIXME
 
-=== [[bytesWritten]] `bytesWritten` Method
+=== [[decBytesWritten]] `decBytesWritten` Method
+
+CAUTION: FIXME
+
+=== [[writeTime]] `writeTime` Method
 
 CAUTION: FIXME
 
 === [[recordsWritten]] `recordsWritten` Method
 
 CAUTION: FIXME
+
+=== [[bytesWritten]] Returning Number of Shuffle Bytes Written -- `bytesWritten` Method
+
+[source, scala]
+----
+bytesWritten: Long
+----
+
+`bytesWritten` represents the *shuffle bytes written* metrics of a shuffle task.
+
+Internally, `bytesWritten` returns the sum of <<_bytesWritten, _bytesWritten>> internal accumulator.
+
+[NOTE]
+====
+`bytesWritten` is used when:
+
+1. `ShuffleWriteMetricsUIData` is created
+
+2. In <<decBytesWritten, decBytesWritten>>
+
+3. link:spark-scheduler-listeners-statsreportlistener.adoc#onStageCompleted[`StatsReportListener` intercepts stage completed events] to show shuffle bytes written
+
+4. link:spark-ShuffleExternalSorter.adoc#writeSortedFile[`ShuffleExternalSorter` does `writeSortedFile`] (to `incDiskBytesSpilled`)
+
+5. `JsonProtocol` persists `shuffleWriteMetrics` to JSON (as `shuffleWriteMetrics`)
+
+6. link:spark-webui-executors-ExecutorsListener.adoc#onTaskEnd[`ExecutorsListener` intercepts task end events] to update executor metrics
+
+7. link:spark-webui-JobProgressListener.adoc#updateAggregateMetrics[`JobProgressListener` updates stage and executor metrics]
+====
 
 === [[incWriteTime]] Incrementing Shuffle Write Time -- `incWriteTime` Method
 
