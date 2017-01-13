@@ -1,8 +1,25 @@
 == [[ShuffleWriteMetrics]] ShuffleWriteMetrics
 
-CAUTION: FIXME
+`ShuffleWriteMetrics` is a <<accumulators, collection of accumulators>> that represent task metrics about writing shuffle data.
 
-=== [[incWriteTime]] Incrementing Shuffle Write Time -- `incWriteTime` Method
+NOTE: link:spark-accumulators.adoc[Accumulators] allow tasks (running on executors) to send partial values to the driver.
+
+[[accumulators]]
+.ShuffleWriteMetrics's Accumulators
+[frame="topbot",cols="1,2",options="header",width="100%"]
+|===
+| Name
+| Description
+
+| [[_writeTime]] `_writeTime`
+| Internal accumulator to track shuffle write time (as 64-bit integer).
+
+Used when `ShuffleWriteMetrics` is asked for the <<writeTime, total shuffle write time>> and to <<incWriteTime, increment it>>.
+
+NOTE: link:spark-taskscheduler-taskmetrics.adoc[TaskMetrics] uses `internal.metrics.shuffle.write.writeTime` name (internally `shuffleWrite.WRITE_TIME`) to reference `_writeTime`.
+|===
+
+=== [[writeTime]] `writeTime` Method
 
 CAUTION: FIXME
 
@@ -13,3 +30,27 @@ CAUTION: FIXME
 === [[recordsWritten]] `recordsWritten` Method
 
 CAUTION: FIXME
+
+=== [[incWriteTime]] Incrementing Shuffle Write Time -- `incWriteTime` Method
+
+[source, scala]
+----
+incWriteTime(v: Long): Unit
+----
+
+`incWriteTime` simply adds `v` to <<_writeTime, _writeTime>> internal accumulator.
+
+[NOTE]
+====
+`incWriteTime` is used when:
+
+1. link:spark-SortShuffleWriter.adoc#stop[`SortShuffleWriter` stops].
+
+2. `BypassMergeSortShuffleWriter` link:spark-BypassMergeSortShuffleWriter.adoc#write[writes records] (i.e. when it initializes `DiskBlockObjectWriter` partition writers) and later when link:spark-BypassMergeSortShuffleWriter.adoc#writePartitionedFile[concatenates per-partition files into a single file].
+
+3. link:spark-UnsafeShuffleWriter.adoc#mergeSpillsWithTransferTo[`UnsafeShuffleWriter` does `mergeSpillsWithTransferTo`].
+
+4. link:spark-blockmanager-DiskBlockObjectWriter.adoc#commitAndGet[`DiskBlockObjectWriter` does `commitAndGet`] (but only when `syncWrites` flag is enabled that forces outstanding writes to disk).
+
+5. `TimeTrackingOutputStream` does its operation (after all it is an output stream to track shuffle write time).
+====
