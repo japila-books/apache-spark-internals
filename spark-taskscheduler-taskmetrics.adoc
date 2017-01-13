@@ -2,9 +2,23 @@
 
 CAUTION: FIXME
 
-=== [[fromAccumulators]] `fromAccumulators` Method
+[[internal-registries]]
+.TaskMetrics's Internal Registries and Counters
+[frame="topbot",cols="1,2",options="header",width="100%"]
+|===
+| Name
+| Description
 
-CAUTION: FIXME
+| [[nameToAccums]] `nameToAccums`
+| Lookup table of link:spark-accumulators.adoc[AccumulatorV2] per their names.
+
+Used when...FIXME
+
+| [[externalAccums]] `externalAccums`
+| Collection of external link:spark-accumulators.adoc[AccumulatorV2] objects.
+
+Used when...FIXME
+|===
 
 === [[incUpdatedBlockStatuses]] `incUpdatedBlockStatuses` Method
 
@@ -13,3 +27,20 @@ CAUTION: FIXME
 === [[incMemoryBytesSpilled]] `incMemoryBytesSpilled` Method
 
 CAUTION: FIXME
+
+=== [[fromAccumulators]] Re-Creating TaskMetrics From AccumulatorV2s -- `fromAccumulators` Method
+
+[source, scala]
+----
+fromAccumulators(accums: Seq[AccumulatorV2[_, _]]): TaskMetrics
+----
+
+`fromAccumulators` creates a new `TaskMetrics` and registers `accums` as internal and external task metrics (using <<nameToAccums, nameToAccums>> internal registry).
+
+Internally, `fromAccumulators` creates a new `TaskMetrics`. It then splits `accums` into internal and external task metrics collections (using <<nameToAccums, nameToAccums>> internal registry).
+
+For every internal task metrics, `fromAccumulators` finds the metrics in <<nameToAccums, nameToAccums>> internal registry (of the new `TaskMetrics` instance), copies link:spark-accumulators.adoc#metadata[metadata], and link:spark-accumulators.adoc#merge[merges state].
+
+In the end, `fromAccumulators` <<externalAccums, adds the external accumulators to the new `TaskMetrics` instance>>.
+
+NOTE: `fromAccumulators` is used exclusively when link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleTaskCompletion[`DAGScheduler` gets notified that a task has finished] (and re-creates `TaskMetrics`).
