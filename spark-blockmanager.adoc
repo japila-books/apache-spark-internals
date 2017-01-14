@@ -257,7 +257,7 @@ def doPutBytes[T](
   keepReadLock: Boolean = false): Boolean
 ----
 
-`doPutBytes` is an internal method that calls the internal helper <<doPut, doPut>> with a function that accepts a `BlockInfo` and does the uploading.
+`doPutBytes` calls the internal helper <<doPut, doPut>> with a function that accepts a `BlockInfo` and does the uploading.
 
 Inside the function, if the link:spark-rdd-StorageLevel.adoc[storage `level`]'s replication is greater than 1, it immediately starts <<replicate, replication>> of the `blockId` block on a separate thread (from `futureExecutionContext` thread pool). The replication uses the input `bytes` and `level` storage level.
 
@@ -786,6 +786,17 @@ getDiskWriter(
 NOTE: `getDiskWriter` uses the same `serializerManager` that was used to <<creating-instance, create a `BlockManager`>>.
 
 NOTE: `getDiskWriter` is used when link:spark-BypassMergeSortShuffleWriter.adoc#write[`BypassMergeSortShuffleWriter` writes records into one single shuffle block data file], in link:spark-ShuffleExternalSorter.adoc#writeSortedFile[ShuffleExternalSorter], `UnsafeSorterSpillWriter`, link:spark-ExternalSorter.adoc[ExternalSorter], and `ExternalAppendOnlyMap`.
+
+=== [[addUpdatedBlockStatusToTaskMetrics]] Recording Updated BlockStatus In Current Task's TaskMetrics -- `addUpdatedBlockStatusToTaskMetrics` Internal Method
+
+[source, scala]
+----
+addUpdatedBlockStatusToTaskMetrics(blockId: BlockId, status: BlockStatus): Unit
+----
+
+`addUpdatedBlockStatusToTaskMetrics` link:spark-taskscheduler-taskcontext.adoc#get[takes an active `TaskContext`] (if available) and link:spark-taskscheduler-taskmetrics.adoc#incUpdatedBlockStatuses[records updated `BlockStatus` for `Block`] (in the link:spark-taskscheduler-taskcontext.adoc#taskMetrics[task's `TaskMetrics`]).
+
+NOTE: `addUpdatedBlockStatusToTaskMetrics` is used when `BlockManager` <<doPutBytes, doPutBytes>> (for a block that was successfully stored), <<doPut, doPut>>, <<doPutIterator, doPutIterator>>, <<dropFromMemory, removes blocks from memory>> (possibly spilling it to disk) and <<removeBlock, removes block from memory and disk>>.
 
 === [[settings]] Settings
 
