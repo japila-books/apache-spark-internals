@@ -1,6 +1,30 @@
 == [[TaskMetrics]] TaskMetrics
 
-CAUTION: FIXME
+`TaskMetrics` is a <<metrics, collection of metrics>> tracked during execution of a link:spark-taskscheduler-tasks.adoc[Task].
+
+`TaskMetrics` uses link:spark-accumulators.adoc[accumulators] to represent the task metrics and offers "increment" methods to increment them.
+
+[[metrics]]
+.Metrics
+[frame="topbot",cols="1,1,1,2",options="header",width="100%"]
+|===
+| Property
+| Name
+| Type
+| Description
+
+| [[_memoryBytesSpilled]] `_memoryBytesSpilled`
+| `internal.metrics.memoryBytesSpilled`
+| `LongAccumulator`
+| Used in <<memoryBytesSpilled, memoryBytesSpilled>>, <<incMemoryBytesSpilled, incMemoryBytesSpilled>>
+
+| [[_updatedBlockStatuses]] `_updatedBlockStatuses`
+| `internal.metrics.updatedBlockStatuses`
+| `CollectionAccumulator[(BlockId, BlockStatus)]`
+| Used in <<updatedBlockStatuses, updatedBlockStatuses>>, <<incUpdatedBlockStatuses, recording updated `BlockStatus` for a `Block`>>, <<setUpdatedBlockStatuses, setUpdatedBlockStatuses>>
+
+|===
+
 
 [[internal-registries]]
 .TaskMetrics's Internal Registries and Counters
@@ -8,9 +32,6 @@ CAUTION: FIXME
 |===
 | Name
 | Description
-
-| [[_updatedBlockStatuses]] `_updatedBlockStatuses`
-| FIXME
 
 | [[nameToAccums]] `nameToAccums`
 | Lookup table of link:spark-accumulators.adoc[AccumulatorV2s] per their names.
@@ -27,7 +48,15 @@ Used when `TaskMetrics` <<fromAccumulators, re-creates `TaskMetrics` from `Accum
 NOTE: `externalAccums` is a `@transient` and `lazy` value.
 |===
 
-=== [[incMemoryBytesSpilled]] `incMemoryBytesSpilled` Method
+=== [[memoryBytesSpilled]] `memoryBytesSpilled` Method
+
+CAUTION: FIXME
+
+=== [[updatedBlockStatuses]] `updatedBlockStatuses` Method
+
+CAUTION: FIXME
+
+=== [[setUpdatedBlockStatuses]] `setUpdatedBlockStatuses` Method
 
 CAUTION: FIXME
 
@@ -47,6 +76,36 @@ For every internal task metrics, `fromAccumulators` finds the metrics in <<nameT
 In the end, `fromAccumulators` <<externalAccums, adds the external accumulators to the new `TaskMetrics` instance>>.
 
 NOTE: `fromAccumulators` is used exclusively when link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleTaskCompletion[`DAGScheduler` gets notified that a task has finished] (and re-creates `TaskMetrics`).
+
+=== [[incMemoryBytesSpilled]] `incMemoryBytesSpilled` Method
+
+[source, scala]
+----
+incMemoryBytesSpilled(v: Long): Unit
+----
+
+`incMemoryBytesSpilled` adds `v` to <<_memoryBytesSpilled, _memoryBytesSpilled>> task metrics.
+
+[NOTE]
+====
+`incMemoryBytesSpilled` is used when:
+
+1. link:spark-Aggregator.adoc#updateMetrics[`Aggregator` updates task metrics]
+
+2. link:spark-rdd-cogroupedrdd.adoc[`CoGroupedRDD` computes a `Partition`]
+
+3. link:spark-BlockStoreShuffleReader.adoc#read[`BlockStoreShuffleReader` reads combined key-value records for a reduce task]
+
+4. link:spark-ShuffleExternalSorter.adoc#spill[`ShuffleExternalSorter` frees execution memory by spilling to disk]
+
+5. link:spark-ExternalSorter.adoc#writePartitionedFile[`ExternalSorter` writes the records into a temporary partitioned file in the disk store]
+
+6. `UnsafeExternalSorter` spills current records due to memory pressure
+
+7. `SpillableIterator` spills records to disk
+
+8. link:spark-JsonProtocol.adoc#taskMetricsFromJson[`JsonProtocol` creates `TaskMetrics` from JSON]
+====
 
 === [[incUpdatedBlockStatuses]] Recording Updated BlockStatus For Block -- `incUpdatedBlockStatuses` Method
 
