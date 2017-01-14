@@ -1,13 +1,24 @@
-== [[Task]] Tasks
+== [[Task]] Task
 
-In Spark, a *task* (aka _command_) is the smallest individual unit of execution that can compute a link:spark-rdd-Partition.adoc[RDD partition]. Tasks are link:spark-executor.adoc#launchTask[launched on executors] and <<run, ran when `TaskRunner` starts>>.
+In Spark, a *task* (aka _command_) is the smallest individual unit of execution that can compute a link:spark-rdd-Partition.adoc[RDD partition].
 
 .Tasks correspond to partitions in RDD
 image::images/spark-rdd-partitions-job-stage-tasks.png[align="center"]
 
-In other (more technical) words, a task is a computation on a data partition in a stage of a RDD in a Spark job.
+A task is described by the <<contract, Task contract>> with a single <<runTask, runTask>> method.
 
-The <<contract, Task contract>> expects that custom tasks define <<runTask, runTask>> method.
+There are two concrete implementations of `Task` contract:
+
+* link:spark-taskscheduler-ShuffleMapTask.adoc[ShuffleMapTask] that executes a task and divides the task's output to multiple buckets (based on the task's partitioner).
+* link:spark-taskscheduler-ResultTask.adoc[ResultTask] that executes a task and sends the task's output back to the driver application.
+
+The very last stage in a Spark job consists of multiple link:spark-taskscheduler-ResultTask.adoc[ResultTask]s, while earlier stages can only be link:spark-taskscheduler-ShuffleMapTask.adoc[ShuffleMapTask]s.
+
+CAUTION: FIXME You could have a Spark job with link:spark-taskscheduler-ShuffleMapTask.adoc[ShuffleMapTask] being the last.
+
+Tasks are link:spark-executor.adoc#launchTask[launched on executors] and <<run, ran when `TaskRunner` starts>>.
+
+In other (more technical) words, a task is a computation on a data partition in a stage of a RDD in a Spark job.
 
 NOTE: `T` is the type defined when a <<creating-instance, `Task` is created>>.
 
@@ -51,15 +62,6 @@ A task can only belong to one stage and operate on a single partition. All tasks
 Tasks are spawned one by one for each stage and partition.
 
 CAUTION: FIXME What are `stageAttemptId` and `taskAttemptId`?
-
-A task in Spark is represented by the <<contract, `Task` abstract class>> with two concrete implementations:
-
-* link:spark-taskscheduler-ShuffleMapTask.adoc[ShuffleMapTask] that executes a task and divides the task's output to multiple buckets (based on the task's partitioner).
-* link:spark-taskscheduler-ResultTask.adoc[ResultTask] that executes a task and sends the task's output back to the driver application.
-
-The very last stage in a Spark job consists of multiple link:spark-taskscheduler-ResultTask.adoc[ResultTask]s, while earlier stages can only be link:spark-taskscheduler-ShuffleMapTask.adoc[ShuffleMapTask]s.
-
-CAUTION: FIXME You could have a Spark job with link:spark-taskscheduler-ShuffleMapTask.adoc[ShuffleMapTask] being the last.
 
 === [[contract]] Task Contract
 
@@ -122,7 +124,7 @@ run(
   metricsSystem: MetricsSystem): T
 ----
 
-`run` link:spark-blockmanager.adoc#registerTask[registers the task (identified as `taskAttemptId`) with the executor's `BlockManager`].
+`run` link:spark-blockmanager.adoc#registerTask[registers the task (identified as `taskAttemptId`) with the local `BlockManager`].
 
 NOTE: `run` uses link:spark-sparkenv.adoc#blockManager[`SparkEnv` to access `BlockManager`].
 
