@@ -1,6 +1,61 @@
 == [[TaskRunner]] TaskRunner
 
-`TaskRunner` is a thread of execution that manages a single individual link:spark-taskscheduler-tasks.adoc[task]. It can be <<run, run>> or <<kill, killed>> that boils down to link:spark-taskscheduler-tasks.adoc#run[running] or link:spark-taskscheduler-tasks.adoc#kill[killing the task] the `TaskRunner` object manages.
+`TaskRunner` is a thread of execution that manages a single individual link:spark-taskscheduler-tasks.adoc[task].
+
+`TaskRunner` is <<creating-instance, created>> exclusively when link:spark-executor.adoc#launchTask[`Executor` is requested to launch a task].
+
+.Executor creates TaskRunner and runs (almost) immediately
+image::images/spark-TaskRunner.png[align="center"]
+
+`TaskRunner` can be <<run, run>> or <<kill, killed>> that simply means running or killing the <<task, task this `TaskRunner` object manages>>, respectively.
+
+[[internal-registries]]
+.TaskRunner's Internal Registries and Counters
+[frame="topbot",cols="1,2",options="header",width="100%"]
+|===
+| Name
+| Description
+
+| [[taskId]] `taskId`
+| FIXME
+
+Used when...FIXME
+
+| [[threadName]] `threadName`
+| FIXME
+
+Used when...FIXME
+
+| [[taskName]] `taskName`
+| FIXME
+
+Used when...FIXME
+
+| [[finished]] `finished`
+| FIXME
+
+Used when...FIXME
+
+| [[killed]] `killed`
+| FIXME
+
+Used when...FIXME
+
+| [[threadId]] `threadId`
+| FIXME
+
+Used when...FIXME
+
+| [[startGCTime]] `startGCTime`
+| FIXME
+
+Used when...FIXME
+
+| [[task]] `task`
+| FIXME
+
+Used when...FIXME
+|===
 
 [TIP]
 ====
@@ -17,9 +72,12 @@ Refer to link:spark-logging.adoc[Logging].
 
 === [[creating-instance]] Creating TaskRunner Instance
 
-`TaskRunner` takes...FIXME
+`TaskRunner` takes the following when created:
 
-CAUTION: FIXME
+1. link:spark-executor-backends.adoc[ExecutorBackend]
+2. `TaskDescription`
+
+`TaskRunner` initializes the <<internal-registries, internal registries and counters>>.
 
 === [[setTaskFinishedAndClearInterruptStatus]] `setTaskFinishedAndClearInterruptStatus` Method
 
@@ -232,7 +290,9 @@ NOTE:  `run` uses a closure `Serializer` to serialize the failure reason. The `S
 kill(interruptThread: Boolean): Unit
 ----
 
-`kill` marks the current instance of `TaskRunner` as killed and passes the call to kill a task on to the task itself (if available).
+`kill` marks the `TaskRunner` as <<killed, killed>> and link:spark-taskscheduler-tasks.adoc#kill[kills the task] (if available and not <<finished, finished>> already).
+
+NOTE: `kill` passes the input `interruptThread` on to the task itself while killing it.
 
 When executed, you should see the following INFO message in the logs:
 
@@ -240,15 +300,18 @@ When executed, you should see the following INFO message in the logs:
 INFO TaskRunner: Executor is trying to kill [taskName] (TID [taskId])
 ```
 
-Internally, `kill` enables the internal flag `killed` and executes its link:spark-taskscheduler-tasks.adoc#kill[Task.kill] method if a task is available.
-
-NOTE: The internal flag `killed` is checked in <<run, run>> to stop executing the task. Calling link:spark-taskscheduler-tasks.adoc#kill[Task.kill] method allows for task interruptions later on.
+NOTE: <<killed, killed>> flag is checked periodically in <<run, run>> to stop executing the task. Once killed, the task will eventually stop.
 
 === [[settings]] Settings
 
 .Spark Properties
-[frame="topbot",cols="1,1,2",options="header",width="100%"]
-|======================
-| Spark Property | Default Value | Description
-| [[spark_unsafe_exceptionOnMemoryLeak]] `spark.unsafe.exceptionOnMemoryLeak` | `false` |
-|======================
+[frame="topbot",cols="1,1,2",options="header",width="100%”]
+|===
+| Spark Property
+| Default Value
+| Description
+
+| [[spark_unsafe_exceptionOnMemoryLeak]] `spark.unsafe.exceptionOnMemoryLeak`
+| `false`
+| FIXME
+|===
