@@ -1,0 +1,20 @@
+== [[LocalSchedulerBackend]] LocalSchedulerBackend
+
+`LocalSchedulerBackend` is a link:spark-scheduler-backends.adoc[scheduler backend] and a link:spark-ExecutorBackend.adoc[ExecutorBackend] for link:spark-local.adoc[Spark local run mode].
+
+`LocalSchedulerBackend` acts as a "cluster manager" for local mode to offer resources on the single link:spark-workers.adoc[worker] it manages, i.e. it calls `TaskSchedulerImpl.resourceOffers(offers)` with `offers` being a single-element collection with `WorkerOffer("driver", "localhost", freeCores)`.
+
+CAUTION: FIXME Review `freeCores`. It appears you could have many jobs running simultaneously.
+
+When an executor sends task status updates (using `ExecutorBackend.statusUpdate`), they are passed along as <<messages, StatusUpdate>> to <<LocalEndpoint, LocalEndpoint>>.
+
+.Task status updates flow in local mode
+image::images/LocalSchedulerBackend-LocalEndpoint-Executor-task-status-updates.png[align="center"]
+
+When `LocalSchedulerBackend` starts up, it registers a new link:spark-rpc-RpcEndpoint.adoc[RpcEndpoint] called *LocalSchedulerBackendEndpoint* that is backed by <<LocalEndpoint, LocalEndpoint>>. This is announced on link:spark-LiveListenerBus.adoc[LiveListenerBus] as `driver` (using link:spark-SparkListener.adoc#SparkListenerExecutorAdded[SparkListenerExecutorAdded] message).
+
+The application ids are in the format of `local-[current time millis]`.
+
+It communicates with <<LocalEndpoint, LocalEndpoint>> using <<messages, RPC messages>>.
+
+The default parallelism is controlled using link:spark-rdd-partitions.adoc#spark_default_parallelism[spark.default.parallelism] property.

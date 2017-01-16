@@ -1,6 +1,6 @@
 == Spark local (pseudo-cluster)
 
-You can run Spark in *local mode*. In this non-distributed single-JVM deployment mode, Spark spawns all the execution components - link:spark-driver.adoc[driver], link:spark-executor.adoc[executor], <<LocalBackend, backend>>, and link:spark-master.adoc[master] - in the same single JVM. The default parallelism is the number of threads as specified in the <<masterURL, master URL>>. This is the only mode where a driver is used for execution.
+You can run Spark in *local mode*. In this non-distributed single-JVM deployment mode, Spark spawns all the execution components - link:spark-driver.adoc[driver], link:spark-executor.adoc[executor], link:spark-LocalSchedulerBackend.adoc[LocalSchedulerBackend], and link:spark-master.adoc[master] - in the same single JVM. The default parallelism is the number of threads as specified in the <<masterURL, master URL>>. This is the only mode where a driver is used for execution.
 
 .Architecture of Spark local
 image::diagrams/spark-local-architecture.png[align="center"]
@@ -25,7 +25,7 @@ res0: String = local[*]
 
 Tasks are not re-executed on failure in local mode (unless <<masterURL, local-with-retries master URL>> is used).
 
-The link:spark-taskscheduler.adoc[task scheduler] in local mode works with <<LocalBackend, LocalBackend>> task scheduler backend.
+The link:spark-taskscheduler.adoc[task scheduler] in local mode works with link:spark-LocalSchedulerBackend.adoc[LocalSchedulerBackend] task scheduler backend.
 
 === [[masterURL]] Master URL
 
@@ -54,30 +54,9 @@ If there is one or more tasks that match the offer, they are launched (using `ex
 
 The number of tasks to be launched is controlled by the number of threads as specified in <<masterURL, master URL>>. The executor uses threads to spawn the tasks.
 
-=== [[LocalBackend]] LocalBackend
-
-`LocalBackend` is a link:spark-scheduler-backends.adoc[scheduler backend] and a link:spark-ExecutorBackend.adoc[executor backend] for Spark local mode.
-
-It acts as a "cluster manager" for local mode to offer resources on the single link:spark-workers.adoc[worker] it manages, i.e. it calls `TaskSchedulerImpl.resourceOffers(offers)` with `offers` being a single-element collection with `WorkerOffer("driver", "localhost", freeCores)`.
-
-CAUTION: FIXME Review `freeCores`. It appears you could have many jobs running simultaneously.
-
-When an executor sends task status updates (using `ExecutorBackend.statusUpdate`), they are passed along as <<messages, StatusUpdate>> to <<LocalEndpoint, LocalEndpoint>>.
-
-.Task status updates flow in local mode
-image::images/LocalBackend-LocalEndpoint-Executor-task-status-updates.png[align="center"]
-
-When LocalBackend starts up, it registers a new link:spark-rpc-RpcEndpoint.adoc[RpcEndpoint] called *LocalBackendEndpoint* that is backed by <<LocalEndpoint, LocalEndpoint>>. This is announced on link:spark-LiveListenerBus.adoc[LiveListenerBus] as `driver` (using link:spark-SparkListener.adoc#SparkListenerExecutorAdded[SparkListenerExecutorAdded] message).
-
-The application ids are in the format of `local-[current time millis]`.
-
-It communicates with <<LocalEndpoint, LocalEndpoint>> using <<messages, RPC messages>>.
-
-The default parallelism is controlled using link:spark-rdd-partitions.adoc#spark_default_parallelism[spark.default.parallelism] property.
-
 === [[LocalEndpoint]] LocalEndpoint
 
-*LocalEndpoint* is the communication channel between link:spark-taskscheduler.adoc[Task Scheduler] and <<LocalBackend, LocalBackend>>. It is a (thread-safe) link:spark-rpc-RpcEndpoint.adoc[RpcEndpoint] that hosts an link:spark-executor.adoc[executor] (with id `driver` and hostname `localhost`) for Spark local mode.
+*LocalEndpoint* is the communication channel between link:spark-taskscheduler.adoc[Task Scheduler] and link:spark-LocalSchedulerBackend.adoc[LocalSchedulerBackend]. It is a (thread-safe) link:spark-rpc-RpcEndpoint.adoc[RpcEndpoint] that hosts an link:spark-executor.adoc[executor] (with id `driver` and hostname `localhost`) for Spark local mode.
 
 When a `LocalEndpoint` starts up (as part of Spark local's initialization) it prints out the following INFO messages to the logs:
 
