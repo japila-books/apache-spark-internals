@@ -23,6 +23,28 @@ ERROR Driver [remoteAddress] disassociated! Shutting down.
 
 All task status updates are sent along to `driverRef` as `StatusUpdate` messages.
 
+[[internal-properties]]
+.CoarseGrainedExecutorBackend's Internal Properties
+[frame="topbot",cols="1,1,2",options="header",width="100%"]
+|===
+| Name
+| Initial Value
+| Description
+
+| [[driver]] `driver`
+| (empty)
+| link:spark-RpcEndpointRef.adoc[RpcEndpointRef] of the driver
+
+| [[executor]] `executor`
+| (empty)
+|  link:spark-executor.adoc#coarse-grained-executor[Executor]...FIXME
+
+Set when `CoarseGrainedExecutorBackend` <<RegisteredExecutor, registers with `CoarseGrainedSchedulerBackend`>>.
+
+Used to <<LaunchTask, launch>> and <<KillTask, kill>> tasks as well as when `CoarseGrainedExecutorBackend` <<Shutdown, shuts down>>.
+
+|===
+
 [TIP]
 ====
 Enable `INFO` logging level for `org.apache.spark.executor.CoarseGrainedExecutorBackend` logger to see what happens inside.
@@ -33,6 +55,22 @@ Add the following line to `conf/log4j.properties`:
 log4j.logger.org.apache.spark.executor.CoarseGrainedExecutorBackend=INFO
 ```
 ====
+
+=== [[start]] `start` Method
+
+CAUTION: FIXME
+
+=== [[stop]] `stop` Method
+
+CAUTION: FIXME
+
+=== [[requestTotalExecutors]] `requestTotalExecutors`
+
+CAUTION: FIXME
+
+=== [[exitExecutor]] `exitExecutor` Method
+
+CAUTION: FIXME
 
 === [[extractLogUrls]] Extracting Log URLs -- `extractLogUrls` Method
 
@@ -77,21 +115,15 @@ ERROR Cannot register with driver: [driverUrl]
 
 NOTE: The `RegisterExecutor` message contains `executorId`, the `RpcEndpointRef` to itself, `cores`, and <<extractLogUrls, log URLs>> of the `CoarseGrainedExecutorBackend`.
 
-=== [[driver]] `driver` RpcEndpointRef
-
-`driver` is an optional link:spark-RpcEndpointRef.adoc[RpcEndpointRef] for the driver.
-
-TIP: See <<onStart, Starting RpcEndpoint -- `onStart` Method>> for how `driver` is initialized.
-
 === [[driverURL]] Driver's URL
 
 The driver's URL is of the format `spark://[RpcEndpoint name]@[hostname]:[port]`, e.g. `spark://CoarseGrainedScheduler@192.168.1.6:64859`.
 
 === [[main]] Launching CoarseGrainedExecutorBackend As Standalone Application -- `main` Method
 
-`CoarseGrainedExecutorBackend` is a command-line application (it comes with `main` method).
+`CoarseGrainedExecutorBackend` is a command-line application, i.e. it comes with `main` entry method.
 
-It accepts the following options:
+`CoarseGrainedExecutorBackend` accepts the following command-line arguments:
 
 * `--driver-url` (required) - the driver's URL. See <<driverURL, driver's URL>>.
 
@@ -134,16 +166,16 @@ CAUTION: FIXME
 
 [NOTE]
 ====
-`main` is used when:
+`main` is used for the following cluster managers:
 
 1. Spark Standalone's link:spark-standalone-StandaloneSchedulerBackend.adoc#start[`StandaloneSchedulerBackend` starts]
 
 2. Spark on YARN's link:yarn/spark-yarn-ExecutorRunnable.adoc#prepareCommand[`ExecutorRunnable` starts]
 
-3. Spark on Mesos's link:spark-mesos/spark-mesos-MesosCoarseGrainedSchedulerBackend.adoc#createCommand[MesosCoarseGrainedSchedulerBackend launches Spark executors].
+3. Spark on Mesos's link:spark-mesos/spark-mesos-MesosCoarseGrainedSchedulerBackend.adoc#createCommand[MesosCoarseGrainedSchedulerBackend launches Spark executors]
 ====
 
-=== [[run]] Setting Up Executor RPC Endpoint (and WorkerWatcher Perhaps) -- `run` Internal Method
+=== [[run]] Running CoarseGrainedExecutorBackend (with Executor RPC Endpoint and WorkerWatcher) -- `run` Internal Method
 
 [source, scala]
 ----
@@ -156,7 +188,9 @@ run(driverUrl: String,
   userClassPath: scala.Seq[URL]): Unit
 ----
 
-`run` requests the driver for the Spark properties and sets up the *Executor* RPC endpoint (with <<creating-instance, `CoarseGrainedExecutorBackend` as the RPC endpoint>>) and optionally the *WorkerWatcher* RPC endpoint. It keeps running (yet the main thread is blocked and only the RPC endpoints process RPC messages) until the `RpcEnv` terminates.
+`run` requests the driver for the Spark properties and sets up the *Executor* RPC endpoint (with <<creating-instance, `CoarseGrainedExecutorBackend` as `Executor` RPC endpoint>>) and optionally the *WorkerWatcher* RPC endpoint.
+
+`run` keeps running (yet the main thread is blocked and only the RPC endpoints process RPC messages) until the `RpcEnv` terminates.
 
 When executed, you should see the following INFO message in the logs:
 
@@ -194,18 +228,6 @@ CAUTION: FIXME Think of the place for `Utils.initDaemon`, `Utils.getProcessName`
 
 NOTE: `run` is executed when <<main, `CoarseGrainedExecutorBackend` command-line application is launched>>.
 
-=== [[start]] `start` Method
-
-=== [[stop]] `stop` Method
-
-=== [[requestTotalExecutors]] `requestTotalExecutors`
-
-=== [[executor]] `executor` Internal Property
-
-`executor` is the internal reference to a link:spark-executor.adoc#coarse-grained-executor[coarse-grained executor]...FIXME
-
-CAUTION: FIXME
-
 === [[messages]] RPC Messages
 
 ==== [[RegisteredExecutor]] RegisteredExecutor
@@ -216,15 +238,23 @@ RegisteredExecutor
 extends CoarseGrainedClusterMessage with RegisterExecutorResponse
 ----
 
-When a `RegisteredExecutor` message arrives, you should see the following INFO in the logs:
+When `RegisteredExecutor` comes in, you should see the following INFO in the logs:
 
 ```
 INFO CoarseGrainedExecutorBackend: Successfully registered with driver
 ```
 
-The internal <<executor, executor>> is created (passing in <<creating-instance, the constructor's parameters>>) with `isLocal` disabled.
+`CoarseGrainedExecutorBackend` link:spark-executor.adoc#creating-instance[creates a `Executor`] (with `isLocal` disabled) that in turn becomes <<executor, executor>> internal reference.
 
-NOTE: `RegisteredExecutor` is sent when link:spark-scheduler-backends-CoarseGrainedSchedulerBackend.adoc#RegisterExecutor[`CoarseGrainedSchedulerBackend` is notified about a new executor].
+NOTE: `CoarseGrainedExecutorBackend` uses `executorId`, `hostname`, `env`, `userClassPath` to create the `Executor` that were specified when <<creating-instance, `CoarseGrainedExecutorBackend` was created>>.
+
+If creating the `Executor` fails with a non-fatal exception, `CoarseGrainedExecutorBackend` <<exitExecutor, exits executor>> with the reason:
+
+```
+Unable to create executor due to [message]
+```
+
+NOTE: `RegisteredExecutor` is sent exclusively when link:spark-scheduler-backends-CoarseGrainedSchedulerBackend.adoc#RegisterExecutor[`CoarseGrainedSchedulerBackend` receives `RegisterExecutor`] (that is right before <<onStart, `CoarseGrainedExecutorBackend` RPC Endpoint starts accepting messages>> which happens when <<run, `CoarseGrainedExecutorBackend` is started>>).
 
 ==== [[RegisterExecutorFailed]] RegisterExecutorFailed
 
@@ -241,7 +271,7 @@ ERROR CoarseGrainedExecutorBackend: Slave registration failed: [message]
 
 `CoarseGrainedExecutorBackend` then exits with the exit code `1`.
 
-==== [[LaunchTask]] LaunchTask
+==== [[LaunchTask]] Launching Tasks -- `LaunchTask` Message Handler
 
 [source, scala]
 ----
@@ -266,7 +296,7 @@ ERROR CoarseGrainedExecutorBackend: Received LaunchTask command but executor was
 
 And it then exits.
 
-==== [[KillTask]] KillTask
+==== [[KillTask]] Killing Tasks -- `KillTask` Message Handler
 
 `KillTask(taskId, _, interruptThread)` message kills a task (calls `Executor.killTask`).
 
@@ -286,6 +316,6 @@ INFO CoarseGrainedExecutorBackend: Driver commanded a shutdown
 
 It then sends a `Shutdown` message to itself.
 
-==== Shutdown
+==== [[Shutdown]] Shutdown
 
 `Shutdown` stops the executor, itself and RPC Environment.
