@@ -1,6 +1,6 @@
 == [[ExecutorBackend]] ExecutorBackend -- Pluggable Interface for Executor Backends
 
-`ExecutorBackend` is a pluggable interface that link:spark-executor-taskrunner.adoc[TaskRunners] use to <<statusUpdate, send task status updates>> to a scheduler.
+`ExecutorBackend` is a <<contract, pluggable interface>> that link:spark-executor-taskrunner.adoc[TaskRunners] use to <<statusUpdate, send task status updates>> to a scheduler.
 
 .ExecutorBackend receives notifications from TaskRunners
 image::images/executorbackend.png[align="center"]
@@ -9,20 +9,7 @@ NOTE: `TaskRunner` manages a single individual link:spark-taskscheduler-tasks.ad
 
 CAUTION: FIXME What is "a scheduler" in this context?
 
-The interface comes with one method:
-
-[[statusUpdate]]
-```
-def statusUpdate(taskId: Long, state: TaskState, data: ByteBuffer)
-```
-
 It is effectively a bridge between the driver and an executor, i.e. there are two endpoints running.
-
-CAUTION: FIXME What is cluster scheduler? Where is ExecutorBackend used?
-
-Status updates include information about tasks, i.e. id, link:spark-taskscheduler-tasks.adoc#states[state], and data (as `ByteBuffer`).
-
-At startup, an executor backend connects to the driver and creates an executor. It then launches and kills tasks. It stops when the driver orders so.
 
 There are three concrete executor backends:
 
@@ -31,3 +18,25 @@ There are three concrete executor backends:
 2. link:spark-LocalSchedulerBackend.adoc[LocalSchedulerBackend] (for link:spark-local.adoc[local run mode])
 
 3. link:spark-executor-backends-MesosExecutorBackend.adoc[MesosExecutorBackend]
+
+=== [[contract]] ExecutorBackend Contract
+
+[source, scala]
+----
+trait ExecutorBackend {
+  def statusUpdate(taskId: Long, state: TaskState, data: ByteBuffer): Unit
+}
+----
+
+NOTE: `ExecutorBackend` is a `private[spark]` contract.
+
+.ExecutorBackend Contract
+[frame="topbot",cols="1,2",options="header",width="100%"]
+|===
+| Method
+| Description
+
+| [[statusUpdate]] `statusUpdate`
+| Used when link:spark-executor-TaskRunner.adoc#run[`TaskRunner` runs a task] (to send task status updates).
+
+|===
