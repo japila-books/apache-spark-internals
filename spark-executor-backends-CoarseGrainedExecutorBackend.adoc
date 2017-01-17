@@ -35,13 +35,23 @@ All task status updates are sent along to `driverRef` as `StatusUpdate` messages
 | (empty)
 | link:spark-RpcEndpointRef.adoc[RpcEndpointRef] of the driver
 
+FIXME
+
+| [[stopping]] `stopping`
+| `false`
+| Enabled when `CoarseGrainedExecutorBackend` gets notified to <<StopExecutor, stop itself>> or <<Shutdown, shut down the managed executor>>.
+
+Used when `CoarseGrainedExecutorBackend` RPC Endpoint gets notified that <<onDisconnected, a remote RPC endpoint disconnected>>.
+
 | [[executor]] `executor`
 | (empty)
-|  link:spark-executor.adoc#coarse-grained-executor[Executor]...FIXME
+|  link:spark-executor.adoc#coarse-grained-executor[Executor] that is managed by the `CoarseGrainedExecutorBackend`.
 
 Set when `CoarseGrainedExecutorBackend` <<RegisteredExecutor, registers with `CoarseGrainedSchedulerBackend`>>.
 
-Used to <<LaunchTask, launch>> and <<KillTask, kill>> tasks as well as when `CoarseGrainedExecutorBackend` <<Shutdown, shuts down>>.
+Used to <<LaunchTask, launch>> and <<KillTask, kill>> tasks.
+
+Stopped when `CoarseGrainedExecutorBackend` gets notified to <<Shutdown, shut down>>.
 
 |===
 
@@ -55,6 +65,10 @@ Add the following line to `conf/log4j.properties`:
 log4j.logger.org.apache.spark.executor.CoarseGrainedExecutorBackend=INFO
 ```
 ====
+
+=== [[onDisconnected]] `onDisconnected` Callback
+
+CAUTION: FIXME
 
 === [[start]] `start` Method
 
@@ -307,16 +321,32 @@ If an executor has not been initialized yet (FIXME: why?), the following ERROR m
 ERROR Received KillTask command but executor was null
 ```
 
-==== [[StopExecutor]] StopExecutor
+==== [[StopExecutor]] StopExecutor Handler
 
-`StopExecutor` message handler is receive-reply and blocking. When received, the handler prints the following INFO message to the logs:
+[source, scala]
+----
+case object StopExecutor
+extends CoarseGrainedClusterMessage
+----
+
+When `StopExecutor` is received, the handler turns <<stopping, stopping>> internal flag on. You should see the following INFO message in the logs:
 
 ```
 INFO CoarseGrainedExecutorBackend: Driver commanded a shutdown
 ```
 
-It then sends a `Shutdown` message to itself.
+In the end, the handler sends a <<Shutdown, Shutdown>> message to itself.
 
-==== [[Shutdown]] Shutdown
+NOTE: `StopExecutor` message is sent when `CoarseGrainedSchedulerBackend` RPC Endpoint (aka `DriverEndpoint`) processes link:spark-CoarseGrainedSchedulerBackend-DriverEndpoint.adoc#StopExecutors[StopExecutors] or link:spark-CoarseGrainedSchedulerBackend-DriverEndpoint.adoc#RemoveExecutor[RemoveExecutor] messages.
 
-`Shutdown` stops the executor, itself and RPC Environment.
+==== [[Shutdown]] Shutdown Handler
+
+[source, scala]
+----
+case object Shutdown
+extends CoarseGrainedClusterMessage
+----
+
+When `Shutdown` is received, the handler turns <<stopping, stopping>> internal flag on. It then starts the `CoarseGrainedExecutorBackend-stop-executor` thread that link:spark-executor.adoc#stop[stops the owned `Executor`] (using <<executor, executor>> reference).
+
+NOTE: `Shutdown` message is sent exclusively when <<StopExecutor, `CoarseGrainedExecutorBackend` receives `StopExecutor`>>.

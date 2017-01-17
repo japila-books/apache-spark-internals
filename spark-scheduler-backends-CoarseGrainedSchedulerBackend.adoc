@@ -2,7 +2,7 @@
 
 `CoarseGrainedSchedulerBackend` is a link:spark-scheduler-backends.adoc[SchedulerBackend] and link:spark-service-ExecutorAllocationClient.adoc[ExecutorAllocationClient].
 
-It is responsible for requesting resources from a cluster manager for executors to be able to <<launching-tasks, launch tasks>> (on link:spark-executor-backends-CoarseGrainedExecutorBackend.adoc[coarse-grained executors]).
+It is responsible for requesting resources from a cluster manager for executors to be able to <<launchTasks, launch tasks>> (on link:spark-executor-backends-CoarseGrainedExecutorBackend.adoc[coarse-grained executors]).
 
 This backend holds executors for the duration of the Spark job rather than relinquishing executors whenever a task is done and asking the scheduler to launch a new executor for each new task.
 
@@ -41,7 +41,53 @@ log4j.logger.org.apache.spark.scheduler.cluster.CoarseGrainedSchedulerBackend=DE
 Refer to link:spark-logging.adoc[Logging].
 ====
 
-=== [[creating-instance]] Creating `CoarseGrainedSchedulerBackend` Instance
+=== [[makeOffers]] Making Resource Offers -- `makeOffers` Method
+
+[source, scala]
+----
+makeOffers(): Unit
+----
+
+`makeOffers` is a private method that takes the active executors (out of the <<executorDataMap, executorDataMap>> internal registry) and creates `WorkerOffer` resource offers for each (one per executor with the executor's id, host and free cores).
+
+CAUTION: Only free cores are considered in making offers. Memory is not! Why?!
+
+It then requests link:spark-taskschedulerimpl.adoc#resourceOffers[`TaskSchedulerImpl` to process the resource offers] to create a collection of `TaskDescription` collections that it in turn uses to <<launchTasks, launch tasks>>.
+
+=== [[launchTasks]] Launching Tasks -- `launchTasks` Method
+
+[source, scala]
+----
+launchTasks(tasks: Seq[Seq[TaskDescription]])
+----
+
+`launchTasks` is a private helper method that iterates over `TaskDescription` objects in the `tasks` input collection and ...FIXME
+
+NOTE: `launchTasks` gets called when `CoarseGrainedSchedulerBackend` is <<makeOffers, making resource offers>>.
+
+Internally, it serializes a `TaskDescription` (using the global link:spark-sparkenv.adoc#closureSerializer[closure Serializer]) to a serialized task and checks the size of the serialized format of the task so it is less than `maxRpcMessageSize`.
+
+CAUTION: FIXME Describe `maxRpcMessageSize`.
+
+If the serialized task's size is over the maximum RPC message size, the task's link:spark-tasksetmanager.adoc#abort[`TaskSetManager` is aborted].
+
+CAUTION: FIXME At that point, tasks have their executor assigned. When and how did that happen?
+
+If the serialized task's size is correct, the task's executor is looked up in the internal <<executorDataMap, executorDataMap>> registry to record that the task is about to be launched and the number of free cores of the executor is decremented by the `CPUS_PER_TASK` constant (i.e. link:spark-taskschedulerimpl.adoc#spark_task_cpus[spark.task.cpus]).
+
+NOTE: `ExecutorData` keeps track of the number of free cores of the executor (as `freeCores`) as well as the link:spark-RpcEndpointRef.adoc[RpcEndpointRef] of the executor to send tasks to launch to (as `executorEndpoint`).
+
+You should see the following INFO in the logs:
+
+```
+INFO DriverEndpoint: Launching task [taskId] on executor id: [executorId] hostname: [executorHost].
+```
+
+Ultimately, `launchTasks` sends a link:spark-executor-backends-CoarseGrainedExecutorBackend.adoc#LaunchTask[LaunchTask] message to the executor's RPC endpoint with the serialized task (wrapped in `SerializableBuffer`).
+
+NOTE: Scheduling in Spark relies on cores only (not memory), i.e. the number of tasks Spark can run on an executor is constrained by the number of cores available only. When submitting Spark application for execution both -- memory and cores -- can be specified explicitly.
+
+=== [[creating-instance]] Creating CoarseGrainedSchedulerBackend Instance
 
 `CoarseGrainedSchedulerBackend` requires a link:spark-taskschedulerimpl.adoc[task scheduler] and a link:spark-rpc.adoc[RPC Environment] when being created.
 
@@ -111,7 +157,7 @@ executorDataMap = new HashMap[String, ExecutorData]
 
 It uses `ExecutorData` that holds an executor's endpoint reference, address, host, the number of free and total CPU cores, the URL of execution logs.
 
-NOTE: A new executor (id, data) pair is added when <<RegisterExecutor, `DriverEndpoint` receives `RegisterExecutor` message>> and removed when <<RemoveExecutor, `DriverEndpoint` receives `RemoveExecutor` message>> or <<DriverEndpoint-onDisconnected, a remote host (with one or many executors) disconnects>>.
+NOTE: A new executor (id, data) pair is added when link:spark-CoarseGrainedSchedulerBackend-DriverEndpoint.adoc#RegisterExecutor[`DriverEndpoint` receives `RegisterExecutor` message] and removed when link:spark-CoarseGrainedSchedulerBackend-DriverEndpoint.adoc#RemoveExecutor[`DriverEndpoint` receives `RemoveExecutor` message] or link:spark-CoarseGrainedSchedulerBackend-DriverEndpoint.adoc#onDisconnected[a remote host (with one or many executors) disconnects].
 
 ==== [[numPendingExecutors]] `numPendingExecutors`
 
@@ -331,7 +377,7 @@ NOTE: It is called by subclasses link:spark-standalone.adoc#SparkDeployScheduler
 
 When <<start, CoarseGrainedSchedulerBackend starts>>, it registers *CoarseGrainedScheduler* RPC endpoint to be the driver's communication endpoint.
 
-Internally, it is a <<DriverEndpoint, DriverEndpoint>> object available as the `driverEndpoint` internal field.
+`driverEndpoint` is a link:spark-CoarseGrainedSchedulerBackend-DriverEndpoint.adoc[DriverEndpoint].
 
 NOTE: `CoarseGrainedSchedulerBackend` is created while link:spark-sparkcontext-creating-instance-internals.adoc#createTaskScheduler[SparkContext is being created] that in turn lives inside a link:spark-driver.adoc[Spark driver]. That explains the name `driverEndpoint` (at least partially).
 
@@ -349,151 +395,6 @@ It uses `driver-revive-thread` daemon single-thread thread pool for ...FIXME
 CAUTION: FIXME A potential issue with `driverEndpoint.asInstanceOf[NettyRpcEndpointRef].toURI` - doubles `spark://` prefix.
 
 * `spark.scheduler.revive.interval` (default: `1s`) - time between reviving offers.
-
-=== [[messages]] RPC Messages
-
-====  KillTask(taskId, executorId, interruptThread)
-
-==== RemoveExecutor
-
-==== [[RetrieveSparkProps]] RetrieveSparkProps
-
-==== [[ReviveOffers]] ReviveOffers
-
-`ReviveOffers` simply passes the call on to <<makeOffers, makeOffers>>.
-
-CAUTION: FIXME When is an executor alive? What other states can an executor be in?
-
-==== [[StatusUpdate]] StatusUpdate
-
-[source, scala]
-----
-StatusUpdate(
-  executorId: String,
-  taskId: Long,
-  state: TaskState,
-  data: SerializableBuffer)
-extends CoarseGrainedClusterMessage
-----
-
-CAUTION: FIXME
-
-==== [[StopDriver]] StopDriver
-
-`StopDriver` message stops the RPC endpoint.
-
-==== StopExecutors
-
-`StopExecutors` message is receive-reply and blocking. When received, the following INFO message appears in the logs:
-
-```
-INFO Asking each executor to shut down
-```
-
-It then sends a link:spark-executor-backends-CoarseGrainedExecutorBackend.adoc#StopExecutor[StopExecutor] message to every registered executor (from `executorDataMap`).
-
-==== [[RegisterExecutor]] RegisterExecutor
-
-[source, scala]
-----
-RegisterExecutor(
-  executorId: String,
-  executorRef: RpcEndpointRef,
-  hostname: String,
-  cores: Int,
-  logUrls: Map[String, String])
-extends CoarseGrainedClusterMessage
-----
-
-NOTE: `RegisterExecutor` is sent when link:spark-executor-backends-CoarseGrainedExecutorBackend.adoc#onStart[`CoarseGrainedExecutorBackend` (RPC Endpoint) starts accepting messages].
-
-.Executor registration (RegisterExecutor RPC message flow)
-image::images/CoarseGrainedSchedulerBackend-RegisterExecutor-event.png[align="center"]
-
-Only one executor can register under `executorId`.
-
-```
-INFO Registered executor [executorRef] ([executorAddress]) with ID [executorId]
-```
-
-It does internal bookkeeping like updating `addressToExecutorId`, `totalCoreCount`, and `totalRegisteredExecutors`, `executorDataMap`.
-
-When `numPendingExecutors` is more than `0`, the following is printed out to the logs:
-
-```
-DEBUG Decremented number of pending executors ([numPendingExecutors] left)
-```
-
-`CoarseGrainedSchedulerBackend` sends link:spark-executor-backends-CoarseGrainedExecutorBackend.adoc#RegisteredExecutor[RegisteredExecutor] message back (that confirms the executor's registration).
-
-NOTE: The executor's `RpcEndpointRef` is specified as part of `RegisterExecutor`.
-
-It then announces the new executor by posting link:spark-SparkListener.adoc#SparkListenerExecutorAdded[SparkListenerExecutorAdded] to link:spark-LiveListenerBus.adoc[LiveListenerBus].
-
-Ultimately, <<makeOffers, makeOffers>> is called.
-
-=== [[DriverEndpoint]] DriverEndpoint
-
-`DriverEndpoint` is a link:spark-rpc.adoc#ThreadSafeRpcEndpoint[ThreadSafeRpcEndpoint].
-
-==== [[DriverEndpoint-onDisconnected]] onDisconnected Callback
-
-When called, `onDisconnected` removes the worker from the internal <<addressToExecutorId, addressToExecutorId registry>> (that effectively removes the worker from a cluster).
-
-While removing, it calls <<removeExecutor, removeExecutor>> with the reason being `SlaveLost` and message:
-
-[options="wrap"]
-----
-Remote RPC client disassociated. Likely due to containers exceeding thresholds, or network issues. Check driver logs for WARN messages.
-----
-
-NOTE: `onDisconnected` is called when a remote host is lost.
-
-==== [[makeOffers]] Making Resource Offers -- `makeOffers` Method
-
-[source, scala]
-----
-makeOffers(): Unit
-----
-
-`makeOffers` is a private method that takes the active executors (out of the <<executorDataMap, executorDataMap>> internal registry) and creates `WorkerOffer` resource offers for each (one per executor with the executor's id, host and free cores).
-
-CAUTION: Only free cores are considered in making offers. Memory is not! Why?!
-
-It then requests link:spark-taskschedulerimpl.adoc#resourceOffers[`TaskSchedulerImpl` to process the resource offers] to create a collection of `TaskDescription` collections that it in turn uses to <<launchTasks, launch tasks>>.
-
-=== [[launchTasks]][[launching-tasks]] Launching Tasks -- `launchTasks` Method
-
-[source, scala]
-----
-launchTasks(tasks: Seq[Seq[TaskDescription]])
-----
-
-`launchTasks` is a private helper method that iterates over `TaskDescription` objects in the `tasks` input collection and ...FIXME
-
-NOTE: `launchTasks` gets called when `CoarseGrainedSchedulerBackend` is <<makeOffers, making resource offers>>.
-
-Internally, it serializes a `TaskDescription` (using the global link:spark-sparkenv.adoc#closureSerializer[closure Serializer]) to a serialized task and checks the size of the serialized format of the task so it is less than `maxRpcMessageSize`.
-
-CAUTION: FIXME Describe `maxRpcMessageSize`.
-
-If the serialized task's size is over the maximum RPC message size, the task's link:spark-tasksetmanager.adoc#abort[`TaskSetManager` is aborted].
-
-CAUTION: FIXME At that point, tasks have their executor assigned. When and how did that happen?
-
-If the serialized task's size is correct, the task's executor is looked up in the internal <<executorDataMap, executorDataMap>> registry to record that the task is about to be launched and the number of free cores of the executor is decremented by the `CPUS_PER_TASK` constant (i.e. link:spark-taskschedulerimpl.adoc#spark_task_cpus[spark.task.cpus]).
-
-NOTE: `ExecutorData` keeps track of the number of free cores of the executor (as `freeCores`) as well as the link:spark-RpcEndpointRef.adoc[RpcEndpointRef] of the executor to send tasks to launch to (as `executorEndpoint`).
-
-You should see the following INFO in the logs:
-
-```
-INFO DriverEndpoint: Launching task [taskId] on executor id: [executorId] hostname: [executorHost].
-```
-
-Ultimately, `launchTasks` sends a link:spark-executor-backends-CoarseGrainedExecutorBackend.adoc#LaunchTask[LaunchTask] message to the executor's RPC endpoint with the serialized task (wrapped in `SerializableBuffer`).
-
-NOTE: Scheduling in Spark relies on cores only (not memory), i.e. the number of tasks Spark can run on an executor is constrained by the number of cores available only. When submitting Spark application for execution both -- memory and cores -- can be specified explicitly.
 
 === [[settings]] Settings
 

@@ -1,0 +1,96 @@
+== [[DriverEndpoint]] DriverEndpoint -- CoarseGrainedSchedulerBackend RPC Endpoint
+
+`DriverEndpoint` is a link:spark-rpc.adoc#ThreadSafeRpcEndpoint[ThreadSafeRpcEndpoint].
+
+=== [[onDisconnected]] onDisconnected Callback
+
+When called, `onDisconnected` removes the worker from the internal <<addressToExecutorId, addressToExecutorId registry>> (that effectively removes the worker from a cluster).
+
+While removing, it calls <<removeExecutor, removeExecutor>> with the reason being `SlaveLost` and message:
+
+[options="wrap"]
+----
+Remote RPC client disassociated. Likely due to containers exceeding thresholds, or network issues. Check driver logs for WARN messages.
+----
+
+NOTE: `onDisconnected` is called when a remote host is lost.
+
+=== [[KillTask]] KillTask
+
+=== [[RemoveExecutor]] RemoveExecutor
+
+=== [[RetrieveSparkProps]] RetrieveSparkProps
+
+=== [[ReviveOffers]] ReviveOffers
+
+`ReviveOffers` simply passes the call on to <<makeOffers, makeOffers>>.
+
+CAUTION: FIXME When is an executor alive? What other states can an executor be in?
+
+=== [[StatusUpdate]] StatusUpdate
+
+[source, scala]
+----
+StatusUpdate(
+  executorId: String,
+  taskId: Long,
+  state: TaskState,
+  data: SerializableBuffer)
+extends CoarseGrainedClusterMessage
+----
+
+CAUTION: FIXME
+
+=== [[StopDriver]] StopDriver
+
+`StopDriver` message stops the RPC endpoint.
+
+=== [[StopExecutors]] StopExecutors
+
+`StopExecutors` message is receive-reply and blocking. When received, the following INFO message appears in the logs:
+
+```
+INFO Asking each executor to shut down
+```
+
+It then sends a link:spark-executor-backends-CoarseGrainedExecutorBackend.adoc#StopExecutor[StopExecutor] message to every registered executor (from `executorDataMap`).
+
+=== [[RegisterExecutor]] RegisterExecutor
+
+[source, scala]
+----
+RegisterExecutor(
+  executorId: String,
+  executorRef: RpcEndpointRef,
+  hostname: String,
+  cores: Int,
+  logUrls: Map[String, String])
+extends CoarseGrainedClusterMessage
+----
+
+NOTE: `RegisterExecutor` is sent when link:spark-executor-backends-CoarseGrainedExecutorBackend.adoc#onStart[`CoarseGrainedExecutorBackend` (RPC Endpoint) starts accepting messages].
+
+.Executor registration (RegisterExecutor RPC message flow)
+image::images/CoarseGrainedSchedulerBackend-RegisterExecutor-event.png[align="center"]
+
+Only one executor can register under `executorId`.
+
+```
+INFO Registered executor [executorRef] ([executorAddress]) with ID [executorId]
+```
+
+It does internal bookkeeping like updating `addressToExecutorId`, `totalCoreCount`, and `totalRegisteredExecutors`, `executorDataMap`.
+
+When `numPendingExecutors` is more than `0`, the following is printed out to the logs:
+
+```
+DEBUG Decremented number of pending executors ([numPendingExecutors] left)
+```
+
+`CoarseGrainedSchedulerBackend` sends link:spark-executor-backends-CoarseGrainedExecutorBackend.adoc#RegisteredExecutor[RegisteredExecutor] message back (that confirms the executor's registration).
+
+NOTE: The executor's `RpcEndpointRef` is specified as part of `RegisterExecutor`.
+
+It then announces the new executor by posting link:spark-SparkListener.adoc#SparkListenerExecutorAdded[SparkListenerExecutorAdded] to link:spark-LiveListenerBus.adoc[LiveListenerBus].
+
+Ultimately, <<makeOffers, makeOffers>> is called.
