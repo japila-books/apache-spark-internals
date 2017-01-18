@@ -17,7 +17,7 @@ A RPC Environment is defined by the *name*, *host*, and *port*. It can also be c
 
 You can create a RPC Environment using <<create, RpcEnv.create>> factory methods.
 
-The only implementation of RPC Environment is link:spark-rpc-netty.adoc[Netty-based implementation]. Read the section <<RpcEnvFactory, RpcEnvFactory>>.
+The only implementation of RPC Environment is link:spark-rpc-netty.adoc[Netty-based implementation].
 
 A link:spark-rpc-RpcEndpoint.adoc[RpcEndpoint] defines how to handle *messages* (what *functions* to execute given a message). RpcEndpoints register (with a name or uri) to `RpcEnv` to receive messages from link:spark-RpcEndpointRef.adoc[RpcEndpointRefs].
 
@@ -27,6 +27,40 @@ image::diagrams/rpcenv-endpoints.png[align="center"]
 RpcEndpointRefs can be looked up by *name* or *uri* (because different RpcEnvs may have different naming schemes).
 
 `org.apache.spark.rpc` package contains the machinery for RPC communication in Spark.
+
+=== [[client-mode]] Client Mode = is this an executor or the driver?
+
+When an RPC Environment is initialized link:spark-sparkenv.adoc#createDriverEnv[as part of the initialization of the driver] or link:spark-sparkenv.adoc#createExecutorEnv[executors] (using `RpcEnv.create`), `clientMode` is `false` for the driver and `true` for executors.
+
+```
+RpcEnv.create(actorSystemName, hostname, port, conf, securityManager, clientMode = !isDriver)
+```
+
+Refer to <<client-mode,Client Mode>> in Netty-based RpcEnv for the implementation-specific details.
+
+=== [[create]] Creating RpcEnv -- `create` Factory Methods
+
+[source, scala]
+----
+create(
+  name: String,
+  host: String,
+  port: Int,
+  conf: SparkConf,
+  securityManager: SecurityManager,
+  clientMode: Boolean = false): RpcEnv
+
+create(
+  name: String,
+  bindAddress: String,
+  advertiseAddress: String,
+  port: Int,
+  conf: SparkConf,
+  securityManager: SecurityManager,
+  clientMode: Boolean): RpcEnv
+----
+
+CAUTION: FIXME
 
 === [[setupEndpointRefByURI]] Obtaining RpcEndpointRef by URI -- `setupEndpointRefByURI` Method
 
@@ -43,25 +77,6 @@ CAUTION: FIXME
 === [[awaitTermination]] `awaitTermination` Method
 
 CAUTION: FIXME
-
-=== [[RpcEnvFactory]] RpcEnvFactory
-
-Spark comes with (`private[spark] trait`) `RpcEnvFactory` which is the factory contract to create a RPC Environment.
-
-An RpcEnvFactory implementation has a single method `create(config: RpcEnvConfig): RpcEnv` that returns a `RpcEnv` for a given <<RpcEnvConfig, RpcEnvConfig>>.
-
-There are two `RpcEnvFactory` implementations in Spark:
-
-* `netty` using `org.apache.spark.rpc.netty.NettyRpcEnvFactory`. This is the default factory for RpcEnv as of Spark 1.6.0-SNAPSHOT.
-* `akka` using `org.apache.spark.rpc.akka.AkkaRpcEnvFactory`
-
-You can choose an RPC implementation to use by <<settings, spark.rpc>> (default: `netty`). The setting can be one of the two short names for the known RpcEnvFactories - `netty` or `akka` - or a fully-qualified class name of your custom factory (including Netty-based and Akka-based implementations).
-
-```
-$ ./bin/spark-shell --conf spark.rpc=netty
-
-$ ./bin/spark-shell --conf spark.rpc=org.apache.spark.rpc.akka.AkkaRpcEnvFactory
-```
 
 === [[ThreadSafeRpcEndpoint]] ThreadSafeRpcEndpoint
 
@@ -120,43 +135,9 @@ When RpcEnv catches uncaught exceptions, it uses `RpcCallContext.sendFailure` to
 
 If any error is thrown from one of link:spark-rpc-RpcEndpoint.adoc[RpcEndpoint] methods except `onError`, `onError` will be invoked with the cause. If `onError` throws an error, RpcEnv will ignore it.
 
-=== [[client-mode]] Client Mode = is this an executor or the driver?
-
-When an RPC Environment is initialized link:spark-sparkenv.adoc#createDriverEnv[as part of the initialization of the driver] or link:spark-sparkenv.adoc#createExecutorEnv[executors] (using `RpcEnv.create`), `clientMode` is `false` for the driver and `true` for executors.
-
-```
-RpcEnv.create(actorSystemName, hostname, port, conf, securityManager, clientMode = !isDriver)
-```
-
-Refer to <<client-mode,Client Mode>> in Netty-based RpcEnv for the implementation-specific details.
-
 === [[RpcEnvConfig]] RpcEnvConfig
 
 `RpcEnvConfig` is a placeholder for an instance of link:spark-configuration.adoc[SparkConf], the name of the RPC Environment, host and port, a security manager, and <<client-mode, clientMode>>.
-
-=== [[create]][[rpcenv-create]] Creating RpcEnv -- `create` Factory Methods
-
-[source, scala]
-----
-create(
-  name: String,
-  host: String,
-  port: Int,
-  conf: SparkConf,
-  securityManager: SecurityManager,
-  clientMode: Boolean = false): RpcEnv
-
-create(
-  name: String,
-  bindAddress: String,
-  advertiseAddress: String,
-  port: Int,
-  conf: SparkConf,
-  securityManager: SecurityManager,
-  clientMode: Boolean): RpcEnv
-----
-
-`create` assumes that you have a <<RpcEnvFactory, RpcEnvFactory>> with an empty constructor so that it can be created via Java Reflection API that is available under `spark.rpc` setting.
 
 === [[settings]] Settings
 
@@ -166,10 +147,6 @@ create(
 | Spark Property
 | Default Value
 | Description
-
-| [[spark.rpc]] `spark.rpc`
-| `netty`
-| RPC implementation to use. See <<RpcEnvFactory, RpcEnvFactory>>.
 
 | [[spark.rpc.lookupTimeout]] `spark.rpc.lookupTimeout`
 | `120s`
