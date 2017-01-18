@@ -8,6 +8,20 @@
 
 When <<creating-instance, created>> `ApplicationMaster` takes a <<client, YarnRMClient>> (which registers and unregisters a Spark application).
 
+[[internal-properties]]
+.ApplicationMaster's Internal Properties
+[cols="1,1,2",options="header",width="100%"]
+|===
+| Name
+| Initial Value
+| Description
+
+| [[sparkConf]] `sparkConf`
+| New link:../spark-configuration.adoc[SparkConf]
+| FIXME
+
+|===
+
 [NOTE]
 ====
 <<ExecutorLauncher, ExecutorLauncher>> is a custom `ApplicationMaster` for link:../spark-deploy-mode.adoc#client[client deploy mode] only for the purpose of easily distinguishing client and cluster deploy modes when using `ps` or `jps`.
@@ -31,6 +45,25 @@ $ jps -lm
 image::../images/spark-yarn-ApplicationMaster-main.png[align="center"]
 
 NOTE: https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/api/records/ContainerLaunchContext.html[ContainerLaunchContext] represents all of the information needed by the YARN NodeManager to launch a container.
+
+=== [[waitForSparkDriver]] `waitForSparkDriver` Internal Method
+
+CAUTION: FIXME
+
+=== [[addAmIpFilter]] Registering web UI Security Filters -- `addAmIpFilter` Method
+
+[source, scala]
+----
+addAmIpFilter(): Unit
+----
+
+`addAmIpFilter` is a helper method that ...???
+
+It starts by reading Hadoop's environmental variable https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/api/ApplicationConstants.html#APPLICATION_WEB_PROXY_BASE_ENV[ApplicationConstants.APPLICATION_WEB_PROXY_BASE_ENV] that it passes to link:spark-yarn-yarnrmclient.adoc#getAmIpFilterParams[`YarnRMClient` to compute the configuration for the `AmIpFilter` for web UI].
+
+In cluster deploy mode (when `ApplicationMaster` runs with web UI), it sets `spark.ui.filters` system property as `org.apache.hadoop.yarn.server.webproxy.amfilter.AmIpFilter`. It also sets system properties from the key-value configuration of `AmIpFilter` (computed earlier) as `spark.org.apache.hadoop.yarn.server.webproxy.amfilter.AmIpFilter.param.[key]` being `[value]`.
+
+In client deploy mode (when `ApplicationMaster` runs on another JVM or even host than web UI), it simply sends a `AddWebUIFilter` to `ApplicationMaster` (namely to link:spark-yarn-AMEndpoint.adoc[AMEndpoint RPC Endpoint]).
 
 === [[finish]] `finish` Method
 
@@ -169,29 +202,6 @@ INFO Waiting for spark context initialization
 CAUTION: FIXME Review `waitForSparkContextInitialized`
 
 CAUTION: FIXME Finish...
-
-=== [[runExecutorLauncher]] Running Executor Launcher -- `runExecutorLauncher` Method
-
-[source, scala]
-----
-runExecutorLauncher(securityMgr: SecurityManager): Unit
-----
-
-`runExecutorLauncher` reads link:spark-yarn-settings.adoc#spark.yarn.am.port[spark.yarn.am.port] (or assume `0`) and starts the `sparkYarnAM` RPC Environment (in client mode).
-
-CAUTION: FIXME What's client mode?
-
-It then waits for the driver to be available.
-
-CAUTION: FIXME Review `waitForSparkDriver`
-
-It registers Web UI security filters.
-
-CAUTION: FIXME Why is this needed? `addAmIpFilter`
-
-Ultimately, `runExecutorLauncher` <<registerAM, registers the `ApplicationMaster` and requests resources>> and waits until the <<reporterThread, reporterThread>> dies.
-
-CAUTION: FIXME Describe `registerAM`
 
 === [[reporterThread]] `reporterThread` Method
 
@@ -339,13 +349,13 @@ CAUTION: FIXME link:spark-yarn-client.adoc#isClusterMode[Since `org.apache.spark
 
 `isClusterMode` is an internal flag that is enabled (i.e. `true`) for link:../spark-deploy-mode.adoc#cluster[cluster mode].
 
-Specifically, it says whether the main class of the Spark application (through <<command-line-parameters, `--class` command-line argument>>) was specified or not. That is how the developers decided to inform `ApplicationMaster` about being run in link:../spark-deploy-mode.adoc#cluster[cluster mode] when link:spark-yarn-client.adoc#createContainerLaunchContext[`Client` creates YARN's `ContainerLaunchContext` (for launching `ApplicationMaster`)].
+Specifically, it says whether the main class of the Spark application (through <<command-line-parameters, `--class` command-line argument>>) was specified or not. That is how the developers decided to inform `ApplicationMaster` about being run in link:../spark-deploy-mode.adoc#cluster[cluster mode] when link:spark-yarn-client.adoc#createContainerLaunchContext[`Client` creates YARN's `ContainerLaunchContext`] (to launch the `ApplicationMaster` for a Spark application).
 
-It is used to set <<cluster-mode-settings, additional system properties>> in <<run, run>> and <<runDriver, runDriver>> (the flag is enabled) or <<runExecutorLauncher, runExecutorLauncher>> (when disabled).
+`isClusterMode` is used to set <<cluster-mode-settings, additional system properties>> in <<run, run>> and <<runDriver, runDriver>> (the flag is enabled) or <<runExecutorLauncher, runExecutorLauncher>> (when disabled).
 
-Besides, it controls the <<getDefaultFinalStatus, default final status of a Spark application>> being `FinalApplicationStatus.FAILED` (when the flag is enabled) or `FinalApplicationStatus.UNDEFINED`.
+Besides, `isClusterMode` controls the <<getDefaultFinalStatus, default final status of a Spark application>> being `FinalApplicationStatus.FAILED` (when the flag is enabled) or `FinalApplicationStatus.UNDEFINED`.
 
-The flag also controls whether to set system properties in <<addAmIpFilter, addAmIpFilter>> (when the flag is enabled) or <<addAmIpFilter, send a `AddWebUIFilter` instead>>.
+`isClusterMode` also controls whether to set system properties in <<addAmIpFilter, addAmIpFilter>> (when the flag is enabled) or <<addAmIpFilter, send a `AddWebUIFilter` instead>>.
 
 === [[unregister]] Unregistering ApplicationMaster from YARN ResourceManager -- `unregister` Method
 
@@ -405,17 +415,23 @@ getAttemptId(): ApplicationAttemptId
 
 Internally, it queries YARN by means of link:spark-yarn-yarnrmclient.adoc#getAttemptId[YarnRMClient].
 
-=== [[addAmIpFilter]] `addAmIpFilter` Method
+=== [[runExecutorLauncher]] Running Executor Launcher -- `runExecutorLauncher` Internal Method
 
 [source, scala]
 ----
-addAmIpFilter(): Unit
+runExecutorLauncher(securityMgr: SecurityManager): Unit
 ----
 
-`addAmIpFilter` is a helper method that ...???
+`runExecutorLauncher` reads link:spark-yarn-settings.adoc#spark.yarn.am.port[spark.yarn.am.port] Spark property (or defaults to `0`) and link:../spark-rpc.adoc#create[creates the `sparkYarnAM` RPC environment] (with the port, the internal <<sparkConf, SparkConf>> and `clientMode` enabled).
 
-It starts by reading Hadoop's environmental variable https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/api/ApplicationConstants.html#APPLICATION_WEB_PROXY_BASE_ENV[ApplicationConstants.APPLICATION_WEB_PROXY_BASE_ENV] that it passes to link:spark-yarn-yarnrmclient.adoc#getAmIpFilterParams[`YarnRMClient` to compute the configuration for the `AmIpFilter` for web UI].
+CAUTION: FIXME Why is `clientMode` enabled?
 
-In cluster deploy mode (when `ApplicationMaster` runs with web UI), it sets `spark.ui.filters` system property as `org.apache.hadoop.yarn.server.webproxy.amfilter.AmIpFilter`. It also sets system properties from the key-value configuration of `AmIpFilter` (computed earlier) as `spark.org.apache.hadoop.yarn.server.webproxy.amfilter.AmIpFilter.param.[key]` being `[value]`.
+`runExecutorLauncher` then <<waitForSparkDriver, waits for the driver to be available>>.
 
-In client deploy mode (when `ApplicationMaster` runs on another JVM or even host than web UI), it simply sends a `AddWebUIFilter` to `ApplicationMaster` (namely to link:spark-yarn-AMEndpoint.adoc[AMEndpoint RPC Endpoint]).
+`runExecutorLauncher` <<addAmIpFilter, registers web UI security filters>>.
+
+CAUTION: FIXME Why is this needed? `addAmIpFilter`
+
+In the end, `runExecutorLauncher` <<registerAM, registers `ApplicationMaster` and requests resources>> and pauses until <<reporterThread, reporterThread>> finishes.
+
+NOTE: `runExecutorLauncher` is used exclusively when <<run, `ApplicationMaster` runs>>.
