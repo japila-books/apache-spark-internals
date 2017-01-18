@@ -20,6 +20,10 @@ When <<creating-instance, created>> `ApplicationMaster` takes a <<client, YarnRM
 | New link:../spark-configuration.adoc[SparkConf]
 | FIXME
 
+| [[rpcEnv]] `rpcEnv`
+| (uninitialized)
+| link:spark-rpc.adoc[RpcEnv]
+
 | [[finished]] `finished`
 | `false`
 | Flag to...FIXME
@@ -49,10 +53,6 @@ $ jps -lm
 image::../images/spark-yarn-ApplicationMaster-main.png[align="center"]
 
 NOTE: https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/api/records/ContainerLaunchContext.html[ContainerLaunchContext] represents all of the information needed by the YARN NodeManager to launch a container.
-
-=== [[runAMEndpoint]] `runAMEndpoint` Internal Method
-
-CAUTION: FIXME
 
 === [[addAmIpFilter]] Registering web UI Security Filters -- `addAmIpFilter` Method
 
@@ -176,14 +176,14 @@ Ultimately, `registerAM` <<launchReporterThread, launches reporter thread>>.
 .Registering ApplicationMaster with YARN ResourceManager
 image::../images/spark-yarn-ApplicationMaster-registerAM.png[align="center"]
 
-=== [[runDriver]] Running Driver in Cluster Mode -- `runDriver` Method
+=== [[runDriver]] Running Driver in Cluster Mode -- `runDriver` Internal Method
 
 [source, scala]
 ----
 runDriver(securityMgr: SecurityManager): Unit
 ----
 
-`runDriver` is a private procedure to...???
+`runDriver`...FIXME
 
 It starts by registering Web UI security filters.
 
@@ -427,7 +427,7 @@ runExecutorLauncher(securityMgr: SecurityManager): Unit
 ----
 
 [[runExecutorLauncher-sparkYarnAM]]
-`runExecutorLauncher` reads link:spark-yarn-settings.adoc#spark.yarn.am.port[spark.yarn.am.port] Spark property (or defaults to `0`) and link:../spark-rpc.adoc#create[creates the `sparkYarnAM` RPC environment] (with the port, the internal <<sparkConf, SparkConf>> and `clientMode` enabled).
+`runExecutorLauncher` link:../spark-rpc.adoc#create[creates the sparkYarnAM RPC environment] (with link:spark-yarn-settings.adoc#spark.yarn.am.port[spark.yarn.am.port] or `0` for the port, the internal <<sparkConf, SparkConf>> and `clientMode` enabled).
 
 [TIP]
 ====
@@ -436,7 +436,7 @@ Read the note in link:../spark-rpc.adoc#create[Creating RpcEnv] to learn the mea
 `clientMode` is enabled for so-called a client-mode `ApplicationMaster` which is when a Spark application is submitted to YARN in link:../spark-deploy-mode.adoc#client[`client` deploy mode].
 ====
 
-`runExecutorLauncher` then <<waitForSparkDriver, waits until the driver is network-accessible and creates `RpcEndpointRef` to communicate>>.
+`runExecutorLauncher` then <<waitForSparkDriver, waits until the driver accepts connections and creates `RpcEndpointRef` to communicate>>.
 
 `runExecutorLauncher` <<addAmIpFilter, registers web UI security filters>>.
 
@@ -453,6 +453,8 @@ NOTE: `runExecutorLauncher` is used exclusively when <<run, `ApplicationMaster` 
 waitForSparkDriver(): RpcEndpointRef
 ----
 
+`waitForSparkDriver` waits until the driver is network-accessible, i.e. accepts connections on a given host and port, and returns a `RpcEndpointRef` to the driver.
+
 When executed, you should see the following INFO message in the logs:
 
 ```
@@ -463,7 +465,7 @@ INFO yarn.ApplicationMaster: Waiting for Spark driver to be reachable.
 
 CAUTION: FIXME `waitForSparkDriver` expects the driver's host and port as the 0-th element in `ApplicationMasterArguments.userArgs`. Why?
 
-`waitForSparkDriver` tries to connect to the driver's host and port until the driver listens to it but no longer than link:spark-yarn-settings.adoc#spark.yarn.am.waitTime[spark.yarn.am.waitTime] setting or <<finished, finished>> internal flag is enabled.
+`waitForSparkDriver` tries to connect to the driver's host and port until the driver accepts the connection but no longer than link:spark-yarn-settings.adoc#spark.yarn.am.waitTime[spark.yarn.am.waitTime] setting or <<finished, finished>> internal flag is enabled.
 
 You should see the following INFO message in the logs:
 
@@ -488,3 +490,21 @@ Failed to connect to driver!
 ```
 
 NOTE: `waitForSparkDriver` is used exclusively when client-mode `ApplicationMaster` <<runExecutorLauncher, runExecutorLauncher>>.
+
+=== [[runAMEndpoint]] Creating RpcEndpointRef to Driver's YarnScheduler Endpoint and Registering YarnAM Endpoint -- `runAMEndpoint` Internal Method
+
+[source, scala]
+----
+runAMEndpoint(
+  host: String,
+  port: String,
+  isClusterMode: Boolean): RpcEndpointRef
+----
+
+`runAMEndpoint` gives a `RpcEndpointRef` to the driver's `YarnScheduler` endpoint and registers *YarnAM* endpoint.
+
+Internally, `runAMEndpoint` link:../spark-rpc.adoc#setupEndpointRefByURI[gets a `RpcEndpointRef`] to the driver's `YarnScheduler` endpoint (available on the `host` and `port`).
+
+`runAMEndpoint` then link:../spark-rpc.adoc#setupEndpoint[registers the RPC endpoint] as *YarnAM* (and link:spark-yarn-AMEndpoint.adoc[AMEndpoint] implementation with ``ApplicationMaster``'s <<rpcEnv, RpcEnv>>, `YarnScheduler` endpoint reference, and `isClusterMode` flag).
+
+NOTE: `runAMEndpoint` is used when `ApplicationMaster` <<waitForSparkDriver, waits for the driver>> (in client deploy mode) and <<runDriver, runs the driver>> (in cluster deploy mode).
