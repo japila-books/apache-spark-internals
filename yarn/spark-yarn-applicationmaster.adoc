@@ -20,6 +20,10 @@ When <<creating-instance, created>> `ApplicationMaster` takes a <<client, YarnRM
 | New link:../spark-configuration.adoc[SparkConf]
 | FIXME
 
+| [[finished]] `finished`
+| `false`
+| Flag to...FIXME
+
 |===
 
 [NOTE]
@@ -46,7 +50,7 @@ image::../images/spark-yarn-ApplicationMaster-main.png[align="center"]
 
 NOTE: https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/api/records/ContainerLaunchContext.html[ContainerLaunchContext] represents all of the information needed by the YARN NodeManager to launch a container.
 
-=== [[waitForSparkDriver]] `waitForSparkDriver` Internal Method
+=== [[runAMEndpoint]] `runAMEndpoint` Internal Method
 
 CAUTION: FIXME
 
@@ -163,7 +167,7 @@ Internally, it first reads link:spark-yarn-settings.adoc#spark.yarn.historyServe
 
 CAUTION: FIXME substitute Hadoop variables?
 
-Then, `registerAM` creates a link:../spark-rpc.adoc#RpcEndpointAddress[RpcEndpointAddress] for link:../spark-scheduler-backends-CoarseGrainedSchedulerBackend.adoc#CoarseGrainedScheduler[CoarseGrainedScheduler RPC Endpoint] on the driver available on link:../spark-driver.adoc#spark_driver_host[spark.driver.host] and link:../spark-sparkenv.adoc#spark_driver_port[spark.driver.port] Spark properties.
+Then, `registerAM` creates a link:../spark-rpc.adoc#RpcEndpointAddress[RpcEndpointAddress] for link:../spark-scheduler-backends-CoarseGrainedSchedulerBackend.adoc#CoarseGrainedScheduler[CoarseGrainedScheduler RPC Endpoint] on the driver available on link:../spark-driver.adoc#spark_driver_host[spark.driver.host] and link:../spark-driver.adoc#spark_driver_port[spark.driver.port] Spark properties.
 
 It link:spark-yarn-yarnrmclient.adoc#register[registers the `ApplicationMaster`] with the link:spark-yarn-introduction.adoc#ResourceManager[YARN ResourceManager] and link:spark-yarn-YarnAllocator.adoc#allocateResources[request resources] (given hints about where to allocate containers to be as close to the data as possible).
 
@@ -432,7 +436,7 @@ Read the note in link:../spark-rpc.adoc#create[Creating RpcEnv] to learn the mea
 `clientMode` is enabled for so-called a client-mode `ApplicationMaster` which is when a Spark application is submitted to YARN in link:../spark-deploy-mode.adoc#client[`client` deploy mode].
 ====
 
-`runExecutorLauncher` then <<waitForSparkDriver, waits for the driver to be available>>.
+`runExecutorLauncher` then <<waitForSparkDriver, waits until the driver is network-accessible and creates `RpcEndpointRef` to communicate>>.
 
 `runExecutorLauncher` <<addAmIpFilter, registers web UI security filters>>.
 
@@ -441,3 +445,46 @@ CAUTION: FIXME Why is this needed? `addAmIpFilter`
 In the end, `runExecutorLauncher` <<registerAM, registers `ApplicationMaster` and requests resources>> and pauses until <<reporterThread, reporterThread>> finishes.
 
 NOTE: `runExecutorLauncher` is used exclusively when <<run, `ApplicationMaster` runs>>.
+
+=== [[waitForSparkDriver]] Waiting Until Driver is Network-Accessible and Creating RpcEndpointRef to Communicate -- `waitForSparkDriver` Internal Method
+
+[source, scala]
+----
+waitForSparkDriver(): RpcEndpointRef
+----
+
+When executed, you should see the following INFO message in the logs:
+
+```
+INFO yarn.ApplicationMaster: Waiting for Spark driver to be reachable.
+```
+
+`waitForSparkDriver` takes the driver's host and port (using <<ApplicationMasterArguments, ApplicationMasterArguments>> passed in when <<creating-instance, `ApplicationMaster` was created>>).
+
+CAUTION: FIXME `waitForSparkDriver` expects the driver's host and port as the 0-th element in `ApplicationMasterArguments.userArgs`. Why?
+
+`waitForSparkDriver` tries to connect to the driver's host and port until the driver listens to it but no longer than link:spark-yarn-settings.adoc#spark.yarn.am.waitTime[spark.yarn.am.waitTime] setting or <<finished, finished>> internal flag is enabled.
+
+You should see the following INFO message in the logs:
+
+```
+INFO yarn.ApplicationMaster: Driver now available: [driverHost]:[driverPort]
+```
+
+While `waitForSparkDriver` tries to connect (while the socket is down), you can see the following ERROR message and `waitForSparkDriver` pauses for 100 ms and tries to connect again (until the `waitTime` elapses).
+
+```
+ERROR Failed to connect to driver at [driverHost]:[driverPort], retrying ...
+```
+
+Once `waitForSparkDriver` could connect to the driver, `waitForSparkDriver` sets link:../spark-driver.adoc#spark.driver.host[spark.driver.host] and link:../spark-driver.adoc#spark.driver.port[spark.driver.port] properties to `driverHost` and `driverPort`, respectively (using the internal <<sparkConf, SparkConf>>).
+
+In the end, `waitForSparkDriver` <<runAMEndpoint, runAMEndpoint>>.
+
+If `waitForSparkDriver` did not manage to connect (before `waitTime` elapses or <<finished, finished>> internal flag was enabled), `waitForSparkDriver` reports a `SparkException`:
+
+```
+Failed to connect to driver!
+```
+
+NOTE: `waitForSparkDriver` is used exclusively when client-mode `ApplicationMaster` <<runExecutorLauncher, runExecutorLauncher>>.
