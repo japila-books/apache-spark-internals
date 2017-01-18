@@ -38,30 +38,6 @@ RpcEnv.create(actorSystemName, hostname, port, conf, securityManager, clientMode
 
 Refer to <<client-mode,Client Mode>> in Netty-based RpcEnv for the implementation-specific details.
 
-=== [[create]] Creating RpcEnv -- `create` Factory Methods
-
-[source, scala]
-----
-create(
-  name: String,
-  host: String,
-  port: Int,
-  conf: SparkConf,
-  securityManager: SecurityManager,
-  clientMode: Boolean = false): RpcEnv
-
-create(
-  name: String,
-  bindAddress: String,
-  advertiseAddress: String,
-  port: Int,
-  conf: SparkConf,
-  securityManager: SecurityManager,
-  clientMode: Boolean): RpcEnv
-----
-
-CAUTION: FIXME
-
 === [[setupEndpointRefByURI]] Obtaining RpcEndpointRef by URI -- `setupEndpointRefByURI` Method
 
 CAUTION: FIXME
@@ -138,6 +114,64 @@ If any error is thrown from one of link:spark-rpc-RpcEndpoint.adoc[RpcEndpoint] 
 === [[RpcEnvConfig]] RpcEnvConfig
 
 `RpcEnvConfig` is a placeholder for an instance of link:spark-configuration.adoc[SparkConf], the name of the RPC Environment, host and port, a security manager, and <<client-mode, clientMode>>.
+
+=== [[create]] Creating RpcEnv -- `create` Factory Methods
+
+[source, scala]
+----
+create(
+  name: String,
+  host: String,
+  port: Int,
+  conf: SparkConf,
+  securityManager: SecurityManager,
+  clientMode: Boolean = false): RpcEnv  // <1>
+
+create(
+  name: String,
+  bindAddress: String,
+  advertiseAddress: String,
+  port: Int,
+  conf: SparkConf,
+  securityManager: SecurityManager,
+  clientMode: Boolean): RpcEnv
+----
+<1> The 6-argument `create` (with `clientMode` disabled) simply passes the input arguments on to the second `create` making `bindAddress` and `advertiseAddress` the same.
+
+`create` creates a <<RpcEnvConfig, RpcEnvConfig>> (with the input arguments) and link:spark-rpc-netty.adoc#create[creates a `NettyRpcEnv`].
+
+[NOTE]
+====
+Copied (almost verbatim) from https://issues.apache.org/jira/browse/SPARK-10997[SPARK-10997 Netty-based RPC env should support a "client-only" mode] and the link:https://github.com/apache/spark/commit/71d1c907dec446db566b19f912159fd8f46deb7d[commit]:
+
+"Client mode" means the RPC env will not listen for incoming connections.
+
+This allows certain processes in the Spark stack (such as Executors or tha YARN client-mode AM) to act as pure clients when using the netty-based RPC backend, reducing the number of sockets Spark apps need to use and also the number of open ports.
+
+The AM connects to the driver in "client mode", and that connection is used for all driver -- AM communication, and so the AM is properly notified when the connection goes down.
+
+In "general", non-YARN case, `clientMode` flag is therefore enabled for executors and disabled for the driver.
+
+In Spark on YARN in link:spark-deploy-mode.adoc#client[`client` deploy mode], `clientMode` flag is however enabled explicitly when Spark on YARN's link:spark-yarn-applicationmaster.adoc#runExecutorLauncher-sparkYarnAM[ApplicationMaster] creates the `sparkYarnAM` RPC Environment.
+====
+
+[NOTE]
+====
+`create` is used when:
+
+. link:spark-sparkenv.adoc#create[`SparkEnv` creates a `RpcEnv`] (for the driver and executors).
+
+. Spark on YARN's link:spark-yarn-applicationmaster.adoc#runExecutorLauncher-sparkYarnAM[ApplicationMaster] creates the `sparkYarnAM` RPC Environment (with `clientMode` enabled).
+. link:spark-executor-backends-CoarseGrainedExecutorBackend.adoc#run-driverPropsFetcher[CoarseGrainedExecutorBackend] creates the temporary `driverPropsFetcher` RPC Environment (to fetch the current Spark properties from the driver).
+
+. `org.apache.spark.deploy.Client` standalone application creates the `driverClient` RPC Environment.
+
+. link:spark-standalone-master.adoc#startRpcEnvAndEndpoint[Spark Standalone's master] creates the `sparkMaster` RPC Environment.
+
+. link:spark-standalone-worker.adoc#startRpcEnvAndEndpoint[Spark Standalone's worker] creates the `sparkWorker` RPC Environment.
+
+. Spark Standalone's `DriverWrapper` creates the `Driver` RPC Environment.
+====
 
 === [[settings]] Settings
 
