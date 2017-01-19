@@ -1,12 +1,12 @@
 == [[ApplicationMaster]][[ExecutorLauncher]] ApplicationMaster (aka ExecutorLauncher)
 
-`ApplicationMaster` class acts as the link:spark-yarn-introduction.adoc#ApplicationMaster[YARN ApplicationMaster] for a Spark application running on a YARN cluster (which is commonly called link:README.adoc[Spark on YARN]).
+`ApplicationMaster` is the link:spark-yarn-introduction.adoc#ApplicationMaster[YARN ApplicationMaster] for a Spark application submitted to a YARN cluster (which is commonly called link:README.adoc[Spark on YARN]).
+
+`ApplicationMaster` is a <<main, standalone application>> that link:spark-yarn-introduction.adoc#NodeManager[YARN NodeManager] runs in a YARN container to manage a Spark application running in a YARN cluster.
+
+When <<creating-instance, created>> `ApplicationMaster` takes a <<client, YarnRMClient>> (to handle communication with link:spark-yarn-introduction.adoc#ResourceManager[YARN ResourceManager] for YARN containers for `ApplicationMaster` and executors).
 
 `ApplicationMaster` uses <<allocator, YarnAllocator>> to manage YARN containers with executors.
-
-`ApplicationMaster` is a <<main, standalone application>> that link:spark-yarn-introduction.adoc#NodeManager[YARN NodeManager] runs in a YARN container and manages a Spark application on YARN.
-
-When <<creating-instance, created>> `ApplicationMaster` takes a <<client, YarnRMClient>> (which registers and unregisters a Spark application).
 
 [[internal-properties]]
 .ApplicationMaster's Internal Properties
@@ -15,6 +15,22 @@ When <<creating-instance, created>> `ApplicationMaster` takes a <<client, YarnRM
 | Name
 | Initial Value
 | Description
+
+| [[amEndpoint]] `amEndpoint`
+| (uninitialized)
+| link:../spark-RpcEndpointRef.adoc[RpcEndpointRef] to the *YarnAM* RPC endpoint initialized when `ApplicationMaster` <<runAMEndpoint, runAMEndpoint>>.
+
+CAUTION: FIXME When, in a Spark application's lifecycle, does `runAMEndpoint` really happen?
+
+Used exclusively when `ApplicationMaster` <<addAmIpFilter, registers the web UI security filters>> (in <<isClusterMode, `client` deploy mode>> when the driver runs outside `ApplicationMaster`).
+
+| [[client]] `client`
+| link:spark-yarn-yarnrmclient.adoc[YarnRMClient]
+| Used to <<registerAM, register the `ApplicationMaster` and request containers for executors from YARN>> and later <<unregister, unregister `ApplicationMaster` from YARN ResourceManager>>.
+
+Used to get an <<getAttemptId, application attempt id>> and the link:spark-yarn-yarnrmclient.adoc#getMaxRegAttempts[allowed number of attempts to register `ApplicationMaster`].
+
+Used to <<addAmIpFilter, get filter parameters to secure ApplicationMaster's UI>>.
 
 | [[sparkConf]] `sparkConf`
 | New link:../spark-configuration.adoc[SparkConf]
@@ -72,14 +88,6 @@ In client deploy mode (when `ApplicationMaster` runs on another JVM or even host
 === [[finish]] `finish` Method
 
 CAUTION: FIXME
-
-=== [[client]] client Internal Reference to YarnRMClient
-
-`client` is the internal reference to link:spark-yarn-yarnrmclient.adoc[YarnRMClient] that `ApplicationMaster` is given when <<creating-instance, created>>.
-
-`client` is primarily used to <<registerAM, register the `ApplicationMaster` and request containers for executors from YARN>> and later <<unregister, unregister `ApplicationMaster` from YARN ResourceManager>>.
-
-Besides, `client` helps obtaining <<getAttemptId, an application attempt id>> and link:spark-yarn-yarnrmclient.adoc#getMaxRegAttempts[the allowed number of attempts to register `ApplicationMaster`]. `client` also <<addAmIpFilter, gets filter parameters to secure ApplicationMaster's UI>>.
 
 === [[allocator]] allocator Internal Reference to YarnAllocator
 
