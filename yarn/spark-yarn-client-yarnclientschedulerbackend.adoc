@@ -1,19 +1,30 @@
 == [[YarnClientSchedulerBackend]] `YarnClientSchedulerBackend` -- SchedulerBackend for YARN in Client Deploy Mode
 
-`YarnClientSchedulerBackend` is the link:../spark-scheduler-backends.adoc[SchedulerBackend] for link:README.adoc[Spark on YARN] for link:../spark-submit.adoc#deploy-mode[`client` deploy mode].
+`YarnClientSchedulerBackend` is the link:spark-yarn-yarnschedulerbackend.adoc[YarnSchedulerBackend] used when a Spark application is link:../spark-submit.adoc[submitted to a YARN cluster] in link:../spark-deploy-mode.adoc#client[`client` deploy mode].
 
-NOTE: `client` deploy mode is the default deploy mode of Spark on YARN.
+NOTE: `client` deploy mode is the default deploy mode of Spark applications submitted to a YARN cluster.
 
-`YarnClientSchedulerBackend` is a link:spark-yarn-yarnschedulerbackend.adoc[YarnSchedulerBackend] that comes with just two custom implementations of the methods from the link:../spark-scheduler-backends.adoc#contract[SchedulerBackend Contract]:
+`YarnClientSchedulerBackend` submits a Spark application when <<start, started>> and <<waitForApplication, waits for the Spark application>> until it finishes (successfully or not).
 
-* <<start, start>>
-* <<stop, stop>>
+[[internal-properties]]
+.YarnClientSchedulerBackend's Internal Properties
+[cols="1,1,2",options="header",width="100%"]
+|===
+| Name
+| Initial Value
+| Description
 
-`YarnClientSchedulerBackend` uses <<client, client>> internal attribute to submit a Spark application when it <<start, starts up>> and <<waitForApplication, waits for the Spark application>> until it has exited, either successfully or due to some failure.
+| [[client]] `client`
+| (undefined)
+| link:spark-yarn-client.adoc[Client] to submit and monitor a Spark application (when `YarnClientSchedulerBackend` <<start, is started>>).
 
-In order to initialize a `YarnClientSchedulerBackend` Spark passes a link:../spark-taskschedulerimpl.adoc[TaskSchedulerImpl] and link:../spark-sparkcontext.adoc[SparkContext] (but only `SparkContext` is used in this object with `TaskSchedulerImpl` being passed on to the supertype -- link:spark-yarn-yarnschedulerbackend.adoc[YarnSchedulerBackend]).
+Created when `YarnClientSchedulerBackend` <<start, is started>> and stopped when <<stop, `YarnClientSchedulerBackend` stops>>.
 
-`YarnClientSchedulerBackend` belongs to `org.apache.spark.scheduler.cluster` package.
+| [[monitorThread]] `monitorThread`
+| (undefined)
+| <<MonitorThread, MonitorThread>>
+
+|===
 
 [TIP]
 ====
@@ -28,58 +39,71 @@ log4j.logger.org.apache.spark.scheduler.cluster.YarnClientSchedulerBackend=DEBUG
 Refer to link:../spark-logging.adoc[Logging].
 ====
 
-=== [[client]] client Internal Attribute
+[TIP]
+====
+Enable `DEBUG` logging level for `org.apache.hadoop` logger to see what happens inside Hadoop YARN.
 
-`client` private attribute is an instance of link:spark-yarn-client.adoc[Client] that `YarnClientSchedulerBackend` creates an instance of when it <<start, starts>> and uses to link:spark-yarn-client.adoc#submitApplication[submit the Spark application].
+Add the following line to `conf/log4j.properties`:
 
-`client` is also used to link:spark-yarn-client.adoc#monitorApplication[monitor the Spark application] when <<waitForApplication, `YarnClientSchedulerBackend` waits for the application>>.
+```
+log4j.logger.org.apache.hadoop=DEBUG
+```
 
-link:spark-yarn-client.adoc#stop[`client` is stopped] when <<stop, `YarnClientSchedulerBackend` stops>>.
+Refer to link:../spark-logging.adoc[Logging].
 
-=== [[start]] Starting YarnClientSchedulerBackend (start method)
+Use with caution though as there will be a flood of messages in the logs every second.
+====
 
-`start` is part of the link:../spark-scheduler-backends.adoc#contract[SchedulerBackend Contract]. It is executed when link:../spark-taskschedulerimpl.adoc#start[`TaskSchedulerImpl` starts].
+=== [[start]] Starting YarnClientSchedulerBackend -- `start` Method
 
 [source, scala]
 ----
 start(): Unit
 ----
 
-It creates the internal <<client, client>> object and link:spark-yarn-client.adoc#submitApplication[submits the Spark application] to link:spark-yarn-introduction.adoc#ResourceManager[YARN ResourceManager]. After the application is deployed to YARN and running, it starts the internal `monitorThread` state monitor thread. In the meantime it also calls the supertype's `start`.
+NOTE: `start` is a part of link:../spark-scheduler-backends.adoc#contract[SchedulerBackend contract] executed when link:../spark-taskschedulerimpl.adoc#start[`TaskSchedulerImpl` starts].
+
+`start` creates <<client, Client>> (to communicate with YARN ResourceManager) and link:spark-yarn-client.adoc#submitApplication[submits a Spark application] to a YARN cluster.
+
+After the application is launched, `start` starts a <<monitorThread, MonitorThread>> state monitor thread. In the meantime it also calls the supertype's `start`.
 
 .Starting YarnClientSchedulerBackend
 image::../images/spark-yarn-YarnClientSchedulerBackend-start.png[align="center"]
 
-`start` sets link:../spark-driver.adoc#spark_driver_appUIAddress[spark.driver.appUIAddress] as link:../spark-webui-SparkUI.adoc#appUIAddress[`appUIAddress` (of `SparkUI`)] (and only if link:../spark-sparkcontext.adoc#creating-instance[Spark's web UI is enabled]).
+Internally, `start` takes link:../spark-driver.adoc#spark.driver.host[spark.driver.host] and link:../spark-driver.adoc#spark.driver.port[spark.driver.port] properties for the driver's host and port, respectively.
 
-With DEBUG log level enabled you should see the following DEBUG message in the logs:
+If link:spark-webui.adoc#spark.ui.enabled[web UI is enabled], `start` sets link:../spark-driver.adoc#spark.driver.appUIAddress[spark.driver.appUIAddress] as `webUrl`.
+
+You should see the following DEBUG message in the logs:
 
 ```
 DEBUG YarnClientSchedulerBackend: ClientArguments called with: --arg [hostport]
 ```
 
-NOTE: `hostport` is link:../spark-driver.adoc#spark_driver_host[spark.driver.host] and link:../spark-driver.adoc#spark_driver_port[spark.driver.port] Spark properties separated by `:`, e.g. `192.168.99.1:64905`.
+NOTE: `hostport` is link:../spark-driver.adoc#spark_driver_host[spark.driver.host] and link:../spark-driver.adoc#spark_driver_port[spark.driver.port] properties separated by `:`, e.g. `192.168.99.1:64905`.
 
-It then creates an instance of link:spark-yarn-client.adoc#ClientArguments[ClientArguments] (using `--arg [hostport]` arguments).
+`start` creates a link:spark-yarn-client.adoc#ClientArguments[ClientArguments] (passing in a two-element array with `--arg` and `hostport`).
 
 [[totalExpectedExecutors]]
-It sets the parent's link:spark-yarn-yarnschedulerbackend.adoc#totalExpectedExecutors[totalExpectedExecutors] to link:spark-yarn-YarnSparkHadoopUtil.adoc#getInitialTargetExecutorNumber[the initial number of executors].
+`start` calculates link:spark-yarn-yarnschedulerbackend.adoc#totalExpectedExecutors[totalExpectedExecutors] (using link:spark-yarn-YarnSparkHadoopUtil.adoc#getInitialTargetExecutorNumber[the initial number of executors]).
 
 CAUTION: FIXME Why is this part of subtypes since they both set it to the same value?
 
-It creates a link:spark-yarn-client.adoc[Client] object using the instance of `ClientArguments` and `SparkConf`.
+`start` creates a <<client, Client>> (with the link:spark-yarn-client.adoc#ClientArguments[ClientArguments] and `SparkConf`).
 
-The parent's link:spark-yarn-yarnschedulerbackend.adoc#bindToYarn[YarnSchedulerBackend.bindToYarn] method is called with the current application id (being the result of calling link:spark-yarn-client.adoc#submitApplication[Client.submitApplication]) and `None` for the optional `attemptId`.
+`start` link:spark-yarn-client.adoc#submitApplication[submits the Spark application to YARN] (through <<client, Client>>) and  link:spark-yarn-yarnschedulerbackend.adoc#bindToYarn[saves `ApplicationId`] (with undefined `ApplicationAttemptId`).
 
-The parent's link:spark-yarn-yarnschedulerbackend.adoc#start[YarnSchedulerBackend.start] is called.
+`start` starts link:spark-yarn-yarnschedulerbackend.adoc#start[YarnSchedulerBackend] (that in turn starts the top-level link:../spark-executor-backends-CoarseGrainedExecutorBackend.adoc#start[CoarseGrainedSchedulerBackend]).
 
-<<waitForApplication, waitForApplication>> is executed that blocks until the application is running or an `SparkException` is thrown.
+CAUTION: FIXME Would be very nice to know why `start` does so in a NOTE.
 
-If link:spark-yarn-settings.adoc#spark.yarn.credentials.file[spark.yarn.credentials.file] is defined, link:spark-yarn-YarnSparkHadoopUtil.adoc#startExecutorDelegationTokenRenewer[YarnSparkHadoopUtil.get.startExecutorDelegationTokenRenewer(conf)] is called.
+`start` <<waitForApplication, waits until the Spark application is running>>.
 
-CAUTION: FIXME Why? What does `startExecutorDelegationTokenRenewer` do?
+(only when link:spark-yarn-settings.adoc#spark.yarn.credentials.file[spark.yarn.credentials.file] is defined) `start` link:spark-yarn-YarnSparkHadoopUtil.adoc#startCredentialUpdater[starts `ConfigurableCredentialManager`].
 
-A <<MonitorThread, MonitorThread>> object is created (using `asyncMonitorApplication`) and started to asynchronously monitor the currently running application.
+CAUTION: FIXME Why? Include a NOTE to make things easier.
+
+`start` <<asyncMonitorApplication, creates>> and starts <<monitorThread, monitorThread>> (to monitor the Spark application and stop the current `SparkContext` when it stops).
 
 === [[stop]] stop
 
@@ -101,14 +125,14 @@ Eventually, when all went fine, you should see the following INFO message in the
 INFO YarnClientSchedulerBackend: Stopped
 ```
 
-=== [[waitForApplication]] Waiting For Spark Application (waitForApplication method)
+=== [[waitForApplication]] Waiting Until Spark Application Runs -- `waitForApplication` Internal Method
 
 [source, scala]
 ----
 waitForApplication(): Unit
 ----
 
-`waitForApplication` is an internal (private) method that waits until the current application is running (using link:spark-yarn-client.adoc#monitorApplication[Client.monitorApplication]).
+`waitForApplication` waits until the current application is running (using link:spark-yarn-client.adoc#monitorApplication[Client.monitorApplication]).
 
 If the application has `FINISHED`, `FAILED`, or has been `KILLED`, a `SparkException` is thrown with the following message:
 
@@ -121,6 +145,8 @@ You should see the following INFO message in the logs for `RUNNING` state:
 ```
 INFO YarnClientSchedulerBackend: Application [appId] has started running.
 ```
+
+NOTE: `waitForApplication` is used when `YarnClientSchedulerBackend` <<start, is started>>.
 
 === [[asyncMonitorApplication]] asyncMonitorApplication
 
@@ -135,11 +161,11 @@ NOTE: `asyncMonitorApplication` does not start the daemon thread.
 
 === [[MonitorThread]] MonitorThread
 
-`MonitorThread` internal class is to monitor a Spark application deployed to YARN in client mode.
+`MonitorThread` internal class is to monitor a Spark application submitted to a YARN cluster in client deploy mode.
 
-When started, it calls the blocking  link:spark-yarn-client.adoc#monitorApplication[Client.monitorApplication] (with no application reports printed out to the console, i.e. `logApplicationReport` is disabled).
+When started, `MonitorThread` requests <<client, Client>>> to link:spark-yarn-client.adoc#monitorApplication[monitor a Spark application] (with `logApplicationReport` disabled).
 
-NOTE: `Client.monitorApplication` is a blocking operation and hence it is wrapped in `MonitorThread` to be executed in a separate thread.
+NOTE: `Client.monitorApplication` is a blocking operation and hence it is wrapped in `MonitorThread` to be executed on a separate thread.
 
 When the call to `Client.monitorApplication` has finished, it is assumed that the application has exited. You should see the following ERROR message in the logs:
 

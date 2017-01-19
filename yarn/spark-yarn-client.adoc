@@ -1,6 +1,6 @@
 == Client
 
-`Client` (package: `org.apache.spark.deploy.yarn`) is a handle to a YARN cluster to deploy link:spark-yarn-applicationmaster.adoc[ApplicationMaster] (for a Spark application submitted to a YARN cluster).
+`Client` is a handle to a YARN cluster to submit link:spark-yarn-applicationmaster.adoc[ApplicationMaster] (that represents a Spark application submitted to a YARN cluster).
 
 .Client and Hadoop's YarnClient Interactions
 image::../images/spark-yarn-Client-YarnClient.png[align="center"]
@@ -73,8 +73,6 @@ Creating an instance of `Client` does the following:
 
 === [[submitApplication]] Submitting Spark Application to YARN -- `submitApplication` Method
 
-When link:spark-yarn-client-yarnclientschedulerbackend.adoc#start[YarnClientSchedulerBackend starts], it creates a new instance of `Client` and executes `submitApplication`.
-
 [source, scala]
 ----
 submitApplication(): ApplicationId
@@ -115,6 +113,8 @@ INFO Client: Submitting application [appId] to ResourceManager
 `submitApplication` submits the new YARN `ApplicationSubmissionContext` for link:spark-yarn-applicationmaster.adoc[ApplicationMaster] to YARN (using Hadoop's https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/client/api/YarnClient.html#submitApplication(org.apache.hadoop.yarn.api.records.ApplicationSubmissionContext)[YarnClient.submitApplication]).
 
 It returns the YARN https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/api/records/ApplicationId.html[ApplicationId] for the Spark application (represented by link:spark-yarn-applicationmaster.adoc[ApplicationMaster]).
+
+NOTE: `submitApplication` is used when `Client` <<run, runs>> or link:spark-yarn-client-yarnclientschedulerbackend.adoc#start[`YarnClientSchedulerBackend` is started].
 
 === [[createApplicationSubmissionContext]] Creating YARN ApplicationSubmissionContext -- `createApplicationSubmissionContext` Method
 
@@ -223,14 +223,14 @@ Required AM memory ([amMemory]+[amMemoryOverhead] MB) is above the max threshold
 
 ==== [[createContainerLaunchContext]] Creating YARN ContainerLaunchContext to Launch ApplicationMaster -- `createContainerLaunchContext` Internal Method
 
-When <<submitApplication, a Spark application is submitted to YARN>>, it calls the private helper method `createContainerLaunchContext` that creates a YARN link:https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/api/records/ContainerLaunchContext.html[ContainerLaunchContext] request for link:spark-yarn-introduction.adoc#NodeManager[YARN NodeManager] to launch link:spark-yarn-applicationmaster.adoc[ApplicationMaster] (in a container).
-
 [source, scala]
 ----
 createContainerLaunchContext(newAppResponse: GetNewApplicationResponse): ContainerLaunchContext
 ----
 
-NOTE: The input `newAppResponse` is Hadoop YARN's https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/api/protocolrecords/GetNewApplicationResponse.html[GetNewApplicationResponse].
+NOTE: The input `GetNewApplicationResponse` is Hadoop YARN's https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/api/protocolrecords/GetNewApplicationResponse.html[GetNewApplicationResponse].
+
+When <<submitApplication, a Spark application is submitted to YARN>>, it calls the private helper method `createContainerLaunchContext` that creates a YARN link:https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/api/records/ContainerLaunchContext.html[ContainerLaunchContext] request for link:spark-yarn-introduction.adoc#NodeManager[YARN NodeManager] to launch link:spark-yarn-applicationmaster.adoc[ApplicationMaster] (in a container).
 
 When called, you should see the following INFO message in the logs:
 
@@ -315,6 +315,8 @@ DEBUG Client: ==================================================================
 A link:spark-security.adoc#SecurityManager[SecurityManager] is created and set as the application's ACLs.
 
 CAUTION: FIXME `setApplicationACLs`? Set up security tokens?
+
+NOTE: `createContainerLaunchContext` is used when `Client` <<submitApplication, submits a Spark application to a YARN cluster>>.
 
 ==== [[prepareLocalResources]] `prepareLocalResources` Method
 

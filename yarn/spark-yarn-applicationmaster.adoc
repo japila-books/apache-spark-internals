@@ -1,8 +1,34 @@
-== [[ApplicationMaster]][[ExecutorLauncher]] ApplicationMaster (aka ExecutorLauncher)
+== [[ApplicationMaster]] ApplicationMaster (aka ExecutorLauncher)
 
 `ApplicationMaster` is the link:spark-yarn-introduction.adoc#ApplicationMaster[YARN ApplicationMaster] for a Spark application submitted to a YARN cluster (which is commonly called link:README.adoc[Spark on YARN]).
 
 `ApplicationMaster` is a <<main, standalone application>> that link:spark-yarn-introduction.adoc#NodeManager[YARN NodeManager] runs in a YARN container to manage a Spark application running in a YARN cluster.
+
+[NOTE]
+====
+From the official documentation of http://hadoop.apache.org/docs/current/hadoop-yarn/hadoop-yarn-site/YARN.html[Apache Hadoop YARN] (with some minor changes of mine):
+
+> The per-application ApplicationMaster is actually a framework-specific library and is tasked with negotiating cluster resources from the YARN ResourceManager and working with the YARN NodeManager(s) to execute and monitor the tasks.
+====
+
+`ApplicationMaster` (and `ExecutorLauncher`) is launched as a result of link:spark-yarn-client.adoc#createContainerLaunchContext[`Client` creating a `ContainerLaunchContext`] to launch a Spark application on YARN.
+
+.Launching ApplicationMaster
+image::../images/spark-yarn-ApplicationMaster-main.png[align="center"]
+
+NOTE: https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/api/records/ContainerLaunchContext.html[ContainerLaunchContext] represents all of the information needed by the YARN NodeManager to launch a container.
+
+[NOTE]
+====
+<<ExecutorLauncher, ExecutorLauncher>> is a custom `ApplicationMaster` for link:../spark-deploy-mode.adoc#client[client deploy mode] only for the purpose of easily distinguishing client and cluster deploy modes when using `ps` or `jps`.
+
+[options="wrap"]
+----
+$ jps -lm
+
+71253 org.apache.spark.deploy.yarn.ExecutorLauncher --arg 192.168.99.1:50188 --properties-file /tmp/hadoop-jacek/nm-local-dir/usercache/jacek/appcache/.../__spark_conf__/__spark_conf__.properties
+----
+====
 
 When <<creating-instance, created>> `ApplicationMaster` takes a <<client, YarnRMClient>> (to handle communication with link:spark-yarn-introduction.adoc#ResourceManager[YARN ResourceManager] for YARN containers for `ApplicationMaster` and executors).
 
@@ -46,29 +72,36 @@ Used to <<addAmIpFilter, get filter parameters to secure ApplicationMaster's UI>
 
 |===
 
-[NOTE]
-====
-<<ExecutorLauncher, ExecutorLauncher>> is a custom `ApplicationMaster` for link:../spark-deploy-mode.adoc#client[client deploy mode] only for the purpose of easily distinguishing client and cluster deploy modes when using `ps` or `jps`.
+=== [[runDriver]] Running Spark Application's Driver in Cluster Mode -- `runDriver` Internal Method
 
-[options="wrap"]
+[source, scala]
 ----
-$ jps -lm
-
-71253 org.apache.spark.deploy.yarn.ExecutorLauncher --arg 192.168.99.1:50188 --properties-file /tmp/hadoop-jacek/nm-local-dir/usercache/jacek/appcache/.../__spark_conf__/__spark_conf__.properties
-
-70631 org.apache.hadoop.yarn.server.resourcemanager.ResourceManager
-70934 org.apache.spark.deploy.SparkSubmit --master yarn --class org.apache.spark.repl.Main --name Spark shell spark-shell
-71320 sun.tools.jps.Jps -lm
-70731 org.apache.hadoop.yarn.server.nodemanager.NodeManager
+runDriver(securityMgr: SecurityManager): Unit
 ----
-====
 
-`ApplicationMaster` (and `ExecutorLauncher`) is launched as a result of link:spark-yarn-client.adoc#createContainerLaunchContext[`Client` creating a `ContainerLaunchContext`] to launch a Spark application on YARN.
+`runDriver`...FIXME
 
-.Launching ApplicationMaster
-image::../images/spark-yarn-ApplicationMaster-main.png[align="center"]
+It starts by registering Web UI security filters.
 
-NOTE: https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/api/records/ContainerLaunchContext.html[ContainerLaunchContext] represents all of the information needed by the YARN NodeManager to launch a container.
+CAUTION: FIXME Why is this needed? `addAmIpFilter`
+
+It then starts the user class (with the driver) in a separate thread. You should see the following INFO message in the logs:
+
+```
+INFO Starting the user application in a separate Thread
+```
+
+CAUTION: FIXME Review `startUserApplication`.
+
+You should see the following INFO message in the logs:
+
+```
+INFO Waiting for spark context initialization
+```
+
+CAUTION: FIXME Review `waitForSparkContextInitialized`
+
+NOTE: `runDriver` is used exclusively when <<run, `ApplicationMaster` is started>> in <<isClusterMode, `cluster` deploy mode>>.
 
 === [[addAmIpFilter]] Registering web UI Security Filters -- `addAmIpFilter` Method
 
@@ -97,9 +130,9 @@ CAUTION: FIXME
 
 === [[main]] Launching ApplicationMaster Standalone Application -- `main` Method
 
-`ApplicationMaster` is started as a standalone command-line application inside a YARN container on a node.
+`ApplicationMaster` is started as a standalone application inside a YARN container on a node.
 
-NOTE: The command-line application is executed as a result of sending a `ContainerLaunchContext` request to launch `ApplicationMaster` to YARN ResourceManager (after link:spark-yarn-client.adoc#createContainerLaunchContext[creating the request for `ApplicationMaster`])
+NOTE: `ApplicationMaster` standalone application is launched as a result of link:spark-yarn-client.adoc#createContainerLaunchContext[sending a `ContainerLaunchContext` request] to launch `ApplicationMaster` for a Spark application to YARN ResourceManager.
 
 .Submitting ApplicationMaster to YARN NodeManager
 image::../images/spark-yarn-ApplicationMaster-client-submitApplication.png[align="center"]
@@ -183,37 +216,6 @@ Ultimately, `registerAM` <<launchReporterThread, launches reporter thread>>.
 
 .Registering ApplicationMaster with YARN ResourceManager
 image::../images/spark-yarn-ApplicationMaster-registerAM.png[align="center"]
-
-=== [[runDriver]] Running Driver in Cluster Mode -- `runDriver` Internal Method
-
-[source, scala]
-----
-runDriver(securityMgr: SecurityManager): Unit
-----
-
-`runDriver`...FIXME
-
-It starts by registering Web UI security filters.
-
-CAUTION: FIXME Why is this needed? `addAmIpFilter`
-
-It then starts the user class (with the driver) in a separate thread. You should see the following INFO message in the logs:
-
-```
-INFO Starting the user application in a separate Thread
-```
-
-CAUTION: FIXME Review `startUserApplication`.
-
-You should see the following INFO message in the logs:
-
-```
-INFO Waiting for spark context initialization
-```
-
-CAUTION: FIXME Review `waitForSparkContextInitialized`
-
-CAUTION: FIXME Finish...
 
 === [[reporterThread]] `reporterThread` Method
 
@@ -307,8 +309,6 @@ INFO ApplicationMaster: Prepared Local resources [resources]
 
 === [[run]] Running ApplicationMaster -- `run` Method
 
-When `ApplicationMaster` is <<main, started as a standalone command-line application>> (in a YARN container on a node in a YARN cluster), ultimately `run` is executed.
-
 [source, scala]
 ----
 run(): Int
@@ -343,6 +343,8 @@ ERROR Uncaught exception: [exception]
 ```
 
 And the application run attempt is <<finish, finished>> with `FAILED` status and `EXIT_UNCAUGHT_EXCEPTION` (10) exit code.
+
+NOTE: `run` is used exclusively when `ApplicationMaster` is <<main, launched as a standalone application>> inside a YARN container on a YARN cluster.
 
 === [[cluster-mode-settings]] Cluster Mode Settings
 
@@ -452,7 +454,7 @@ CAUTION: FIXME Why is this needed? `addAmIpFilter`
 
 In the end, `runExecutorLauncher` <<registerAM, registers `ApplicationMaster` and requests resources>> and pauses until <<reporterThread, reporterThread>> finishes.
 
-NOTE: `runExecutorLauncher` is used exclusively when <<run, `ApplicationMaster` runs>>.
+NOTE: `runExecutorLauncher` is used exclusively when <<run, `ApplicationMaster` is started>> in <<isClusterMode, `client` deploy mode>>.
 
 === [[waitForSparkDriver]] Waiting Until Driver is Network-Accessible and Creating RpcEndpointRef to Communicate -- `waitForSparkDriver` Internal Method
 
