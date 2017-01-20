@@ -80,7 +80,13 @@ Used to <<addAmIpFilter, get filter parameters to secure ApplicationMaster's UI>
 
 | [[sparkContextPromise]] `sparkContextPromise`
 | `SparkContext` Scala's link:++http://www.scala-lang.org/api/current/scala/concurrent/Promise$.html++[Promise]
-| FIXME
+| Used only in `cluster` deploy mode (when the driver and `ApplicationMaster` run together in a YARN container) as a communication bus between `ApplicationMaster` and the separate `Driver` thread that <<startUserApplication, runs a Spark application>>.
+
+Used to inform `ApplicationMaster` when a Spark application's `SparkContext` has been initialized successfully or failed.
+
+Non-``null`` value <<runDriver, allows `ApplicationMaster` to access the driver's `RpcEnv`>> (available as <<rpcEnv, rpcEnv>>).
+
+NOTE: A successful initialization of a Spark application's `SparkContext` is when link:spark-yarn-yarnclusterscheduler.adoc#postStartHook[YARN-specific `TaskScheduler`, i.e. `YarnClusterScheduler`, gets informed that the Spark application has started]. _What a clever solution!_
 
 | [[rpcEnv]] `rpcEnv`
 | (uninitialized)
@@ -91,10 +97,6 @@ a| link:spark-rpc.adoc[RpcEnv] which is:
 * `sparkDriver` RPC environment from the <<runDriver-rpcEnv, Spark application submitted to YARN in `cluster` deploy mode>>.
 
 |===
-
-=== [[startUserApplication]] `startUserApplication` Method
-
-CAUTION: FIXME
 
 === [[addAmIpFilter]] Registering web UI Security Filters -- `addAmIpFilter` Method
 
@@ -239,6 +241,53 @@ ERROR SparkContext did not initialize after waiting for [spark.yarn.am.waitTime]
 ```
 
 NOTE: `runDriver` is used exclusively when <<run, `ApplicationMaster` is started>> in <<isClusterMode, `cluster` deploy mode>>.
+
+=== [[startUserApplication]] Starting Spark Application (in Separate Driver Thread) -- `startUserApplication` Method
+
+[source, scala]
+----
+startUserApplication(): Thread
+----
+
+`startUserApplication` starts a Spark application as a separate `Driver` thread.
+
+Internally, when `startUserApplication` is executed, you should see the following INFO message in the logs:
+
+```
+INFO Starting the user application in a separate Thread
+```
+
+`startUserApplication` takes the link:spark-yarn-client.adoc#getUserClasspath[user-specified jars] and maps them to use the `file:` protocol.
+
+`startUserApplication` then creates a class loader to load the main class of the Spark application given the link:spark-yarn-client.adoc#isUserClassPathFirst[precedence of the Spark system jars and the user-specified jars].
+
+`startUserApplication` works on custom configurations for Python and R applications (which I don't bother including here).
+
+`startUserApplication` loads the main class (using the custom class loader created above with the user-specified jars) and creates a reference to the `main` method.
+
+NOTE: The main class is specified as `userClass` in <<ApplicationMasterArguments, ApplicationMasterArguments>> when <<creating-instance, `ApplicationMaster` was created>>.
+
+`startUserApplication` starts a Java https://docs.oracle.com/javase/8/docs/api/java/lang/Thread.html[Thread] (with the name *Driver*) that invokes the `main` method (with the application arguments from `userArgs` from <<ApplicationMasterArguments, ApplicationMasterArguments>>). The `Driver` thread uses the internal <<sparkContextPromise, sparkContextPromise>> to <<runDriver, notify `ApplicationMaster`>> about the execution status of the `main` method (success or failure).
+
+When the main method (of the Spark application) finishes successfully, the `Driver` thread will <<finish, finish>> with `SUCCEEDED` final application status and code status `0` and you should see the following DEBUG message in the logs:
+
+```
+DEBUG Done running users class
+```
+
+Any exceptions in the `Driver` thread are reported with corresponding ERROR message in the logs, `FAILED` final application status, appropriate code status.
+
+```
+// SparkUserAppException
+ERROR User application exited with status [exitCode]
+
+// non-SparkUserAppException
+ERROR User class threw exception: [cause]
+```
+
+NOTE: A Spark application's exit codes are passed directly to <<finish, finish `ApplicationMaster`>> and recorded as <<exitCode, exitCode>> for future reference.
+
+NOTE: `startUserApplication` is used exclusively when `ApplicationMaster` <<runDriver, runs a Spark application's driver and registers itself with YARN ResourceManager>> for `cluster` deploy mode.
 
 === [[command-line-parameters]][[ApplicationMasterArguments]] Command-Line Parameters -- `ApplicationMasterArguments` class
 
