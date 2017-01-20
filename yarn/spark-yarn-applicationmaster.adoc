@@ -70,6 +70,14 @@ Used to <<addAmIpFilter, get filter parameters to secure ApplicationMaster's UI>
 | `false`
 | Flag to...FIXME
 
+| [[yarnConf]] `yarnConf`
+| `YarnConfiguration`
+| Flag to...FIXME
+
+| [[exitCode]] `exitCode`
+| `0`
+| FIXME
+
 |===
 
 === [[runDriver]] Running Spark Application's Driver in Cluster Mode -- `runDriver` Internal Method
@@ -159,6 +167,49 @@ DEBUG running as user: [user]
 ```
 
 link:../spark-SparkHadoopUtil.adoc#runAsSparkUser[SparkHadoopUtil.runAsSparkUser] function executes a block that <<creating-instance, creates a `ApplicationMaster`>> (passing the <<ApplicationMasterArguments, ApplicationMasterArguments>> instance and a new link:spark-yarn-yarnrmclient.adoc[YarnRMClient]) and then <<run, runs>> it.
+
+=== [[run]] Running ApplicationMaster -- `run` Method
+
+[source, scala]
+----
+run(): Int
+----
+
+`run` reads the <<getAttemptId, application attempt it>>
+
+(only <<isClusterMode, in `cluster` deploy mode>>) `run` sets <<cluster-mode-settings, `cluster` deploy mode-specific settings>> and sets the application attempt id (from YARN).
+
+`run` sets a `CallerContext` for `APPMASTER`.
+
+CAUTION: FIXME Why is `CallerContext` required? It's only executed when `hadoop.caller.context.enabled` is enabled and `org.apache.hadoop.ipc.CallerContext` class is on CLASSPATH.
+
+You should see the following INFO message in the logs:
+
+```
+INFO ApplicationAttemptId: [appAttemptId]
+```
+
+`run` creates a Hadoop https://hadoop.apache.org/docs/current/api/org/apache/hadoop/fs/FileSystem.html[FileSystem] (using the internal <<yarnConf, YarnConfiguration>>).
+
+`run` registers the <<shutdown-hook, cleanup shutdown hook>>.
+
+`run` creates a link:../spark-security.adoc#SecurityManager[SecurityManager].
+
+(only when link:spark-yarn-settings.adoc#spark.yarn.credentials.file[spark.yarn.credentials.file] is defined) `run` link:spark-yarn-ConfigurableCredentialManager.adoc#creating-instance[creates a `ConfigurableCredentialManager`] to link:spark-yarn-ConfigurableCredentialManager.adoc#credentialRenewer[get a `AMCredentialRenewer`] and schedules login from keytab.
+
+CAUTION: FIXME Security stuff begs for more details.
+
+In the end, `run` registers `ApplicationMaster` for the Spark application -- either calling <<runDriver, runDriver>> (in <<isClusterMode, `cluster` deploy mode>>) or <<runExecutorLauncher, runExecutorLauncher>> (for `client` deploy mode).
+
+`run` exits with <<exitCode, `0` exit code>>.
+
+In case of an exception, you should see the following ERROR message in the logs and `run` <<finish, finishes>> with `FAILED` final application status.
+
+```
+ERROR Uncaught exception: [exception]
+```
+
+NOTE: `run` is used exclusively when `ApplicationMaster` is <<main, launched as a standalone application>> (inside a YARN container on a YARN cluster).
 
 === [[command-line-parameters]][[ApplicationMasterArguments]] Command-Line Parameters -- `ApplicationMasterArguments` class
 
@@ -307,53 +358,14 @@ You should see the following INFO message in the logs:
 INFO ApplicationMaster: Prepared Local resources [resources]
 ```
 
-=== [[run]] Running ApplicationMaster -- `run` Method
-
-[source, scala]
-----
-run(): Int
-----
-
-The result of calling `run` is the final result of the `ApplicationMaster` command-line application.
-
-`run` sets <<cluster-mode-settings, cluster mode settings>>, registers the <<shutdown-hook, cleanup shutdown hook>>, schedules `AMDelegationTokenRenewer` and finally registers `ApplicationMaster` for the Spark application (either calling <<runDriver, runDriver>> for cluster mode or <<runExecutorLauncher, runExecutorLauncher>> for client mode).
-
-After the <<cluster-mode-settings, cluster mode settings>> are set, `run` prints the following INFO message out to the logs:
-
-```
-INFO ApplicationAttemptId: [appAttemptId]
-```
-
-The `appAttemptId` is the link:spark-yarn-yarnrmclient.adoc#getAttemptId[current application attempt id] (using the constructor's link:spark-yarn-yarnrmclient.adoc[YarnRMClient] as `client`).
-
-The <<shutdown-hook, cleanup shutdown hook>> is registered with shutdown priority lower than that of link:spark-sparkcontext.adoc[SparkContext] (so it is executed after `SparkContext`).
-
-link:spark-security.adoc[SecurityManager] is instantiated with the internal link:spark-configuration.adoc[Spark configuration]. If the link:spark-yarn-settings.adoc#spark.yarn.credentials.file[credentials file config] (as `spark.yarn.credentials.file`) is present, a `AMDelegationTokenRenewer` is started.
-
-CAUTION: FIXME Describe `AMDelegationTokenRenewer#scheduleLoginFromKeytab`
-
-It finally runs `ApplicationMaster` for the Spark application (either calling <<runDriver, runDriver>> when in cluster mode or <<runExecutorLauncher, runExecutorLauncher>> otherwise).
-
-It exits with `0` exit code.
-
-In case of an exception, `run` prints the following ERROR message out to the logs:
-
-```
-ERROR Uncaught exception: [exception]
-```
-
-And the application run attempt is <<finish, finished>> with `FAILED` status and `EXIT_UNCAUGHT_EXCEPTION` (10) exit code.
-
-NOTE: `run` is used exclusively when `ApplicationMaster` is <<main, launched as a standalone application>> inside a YARN container on a YARN cluster.
-
 === [[cluster-mode-settings]] Cluster Mode Settings
 
-When in <<isClusterMode, cluster mode>>, `ApplicationMaster` sets the following system properties (in <<run, run>>):
+When in <<isClusterMode, `cluster` deploy mode>>, `ApplicationMaster` sets the following system properties (in <<run, run>>):
 
-* link:spark-webui.adoc#spark_ui_port[spark.ui.port] as `0`
-* link:spark-configuration.adoc#spark.master[spark.master] as `yarn`
-* link:spark-deploy-mode.adoc#spark.submit.deployMode[spark.submit.deployMode] as `cluster`
-* link:spark-yarn-settings.adoc#spark.yarn.app.id[spark.yarn.app.id] as application id
+* link:../spark-webui.adoc#spark.ui.port[spark.ui.port] to `0`
+* link:../spark-configuration.adoc#spark.master[spark.master] as `yarn`
+* link:../spark-deploy-mode.adoc#spark.submit.deployMode[spark.submit.deployMode] as `cluster`
+* link:spark-yarn-settings.adoc#spark.yarn.app.id[spark.yarn.app.id] as YARN-specific application id
 
 CAUTION: FIXME Why are the system properties required? Who's expecting them?
 
