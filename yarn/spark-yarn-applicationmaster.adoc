@@ -186,7 +186,7 @@ INFO ApplicationAttemptId: [appAttemptId]
 
 CAUTION: FIXME Security stuff begs for more details.
 
-In the end, `run` registers `ApplicationMaster` for the Spark application -- either calling <<runDriver, runDriver>> (in <<isClusterMode, `cluster` deploy mode>>) or <<runExecutorLauncher, runExecutorLauncher>> (for `client` deploy mode).
+In the end, `run` registers `ApplicationMaster` (with YARN ResourceManager) for the Spark application -- either calling <<runDriver, runDriver>> (in <<isClusterMode, `cluster` deploy mode>>) or <<runExecutorLauncher, runExecutorLauncher>> (for `client` deploy mode).
 
 `run` exits with <<exitCode, `0` exit code>>.
 
@@ -197,6 +197,33 @@ ERROR Uncaught exception: [exception]
 ```
 
 NOTE: `run` is used exclusively when `ApplicationMaster` is <<main, launched as a standalone application>> (inside a YARN container on a YARN cluster).
+
+=== [[runExecutorLauncher]] Creating sparkYarnAM RPC Environment and Registering ApplicationMaster with YARN ResourceManager (Client Deploy Mode) -- `runExecutorLauncher` Internal Method
+
+[source, scala]
+----
+runExecutorLauncher(securityMgr: SecurityManager): Unit
+----
+
+[[runExecutorLauncher-sparkYarnAM]]
+`runExecutorLauncher` link:../spark-rpc.adoc#create[creates `sparkYarnAM` RPC environment] (on link:spark-yarn-settings.adoc#spark.yarn.am.port[spark.yarn.am.port] port, the internal <<sparkConf, SparkConf>> and `clientMode` enabled).
+
+[TIP]
+====
+Read the note in link:../spark-rpc.adoc#create[Creating RpcEnv] to learn the meaning of `clientMode` input argument.
+
+`clientMode` is enabled for so-called a client-mode `ApplicationMaster` which is when a Spark application is submitted to YARN in link:../spark-deploy-mode.adoc#client[`client` deploy mode].
+====
+
+`runExecutorLauncher` then <<waitForSparkDriver, waits until the driver accepts connections and creates `RpcEndpointRef` to communicate>>.
+
+`runExecutorLauncher` <<addAmIpFilter, registers web UI security filters>>.
+
+CAUTION: FIXME Why is this needed? `addAmIpFilter`
+
+In the end, `runExecutorLauncher` <<registerAM, registers `ApplicationMaster` with YARN ResourceManager and requests resources>> and then pauses until <<reporterThread, reporterThread>> finishes.
+
+NOTE: `runExecutorLauncher` is used exclusively when <<run, `ApplicationMaster` is started>> in <<isClusterMode, `client` deploy mode>>.
 
 === [[runDriver]] Running Spark Application's Driver and Registering ApplicationMaster with YARN ResourceManager (Cluster Deploy Mode) -- `runDriver` Internal Method
 
@@ -519,33 +546,6 @@ getAttemptId(): ApplicationAttemptId
 
 Internally, it queries YARN by means of link:spark-yarn-yarnrmclient.adoc#getAttemptId[YarnRMClient].
 
-=== [[runExecutorLauncher]] Running Executor Launcher -- `runExecutorLauncher` Internal Method
-
-[source, scala]
-----
-runExecutorLauncher(securityMgr: SecurityManager): Unit
-----
-
-[[runExecutorLauncher-sparkYarnAM]]
-`runExecutorLauncher` link:../spark-rpc.adoc#create[creates the sparkYarnAM RPC environment] (with link:spark-yarn-settings.adoc#spark.yarn.am.port[spark.yarn.am.port] or `0` for the port, the internal <<sparkConf, SparkConf>> and `clientMode` enabled).
-
-[TIP]
-====
-Read the note in link:../spark-rpc.adoc#create[Creating RpcEnv] to learn the meaning of `clientMode` input argument.
-
-`clientMode` is enabled for so-called a client-mode `ApplicationMaster` which is when a Spark application is submitted to YARN in link:../spark-deploy-mode.adoc#client[`client` deploy mode].
-====
-
-`runExecutorLauncher` then <<waitForSparkDriver, waits until the driver accepts connections and creates `RpcEndpointRef` to communicate>>.
-
-`runExecutorLauncher` <<addAmIpFilter, registers web UI security filters>>.
-
-CAUTION: FIXME Why is this needed? `addAmIpFilter`
-
-In the end, `runExecutorLauncher` <<registerAM, registers `ApplicationMaster` and requests resources>> and pauses until <<reporterThread, reporterThread>> finishes.
-
-NOTE: `runExecutorLauncher` is used exclusively when <<run, `ApplicationMaster` is started>> in <<isClusterMode, `client` deploy mode>>.
-
 === [[waitForSparkDriver]] Waiting Until Driver is Network-Accessible and Creating RpcEndpointRef to Communicate -- `waitForSparkDriver` Internal Method
 
 [source, scala]
@@ -589,7 +589,7 @@ If `waitForSparkDriver` did not manage to connect (before `waitTime` elapses or 
 Failed to connect to driver!
 ```
 
-NOTE: `waitForSparkDriver` is used exclusively when client-mode `ApplicationMaster` <<runExecutorLauncher, runExecutorLauncher>>.
+NOTE: `waitForSparkDriver` is used exclusively when client-mode `ApplicationMaster` <<runExecutorLauncher, creates the `sparkYarnAM` RPC environment and registers itself with YARN ResourceManager>>.
 
 === [[runAMEndpoint]] Creating RpcEndpointRef to Driver's YarnScheduler Endpoint and Registering YarnAM Endpoint -- `runAMEndpoint` Internal Method
 
