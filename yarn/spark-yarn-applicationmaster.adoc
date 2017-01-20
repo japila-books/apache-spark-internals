@@ -78,38 +78,19 @@ Used to <<addAmIpFilter, get filter parameters to secure ApplicationMaster's UI>
 | `0`
 | FIXME
 
+| [[userClassThread]] `userClassThread`
+| (uninitialized)
+| FIXME
+
+| [[sparkContextPromise]] `sparkContextPromise`
+| `SparkContext` Scala's link:++http://www.scala-lang.org/api/current/scala/concurrent/Promise$.html++[Promise]
+| FIXME
+
 |===
 
-=== [[runDriver]] Running Spark Application's Driver in Cluster Mode -- `runDriver` Internal Method
+=== [[startUserApplication]] `startUserApplication` Method
 
-[source, scala]
-----
-runDriver(securityMgr: SecurityManager): Unit
-----
-
-`runDriver`...FIXME
-
-It starts by registering Web UI security filters.
-
-CAUTION: FIXME Why is this needed? `addAmIpFilter`
-
-It then starts the user class (with the driver) in a separate thread. You should see the following INFO message in the logs:
-
-```
-INFO Starting the user application in a separate Thread
-```
-
-CAUTION: FIXME Review `startUserApplication`.
-
-You should see the following INFO message in the logs:
-
-```
-INFO Waiting for spark context initialization
-```
-
-CAUTION: FIXME Review `waitForSparkContextInitialized`
-
-NOTE: `runDriver` is used exclusively when <<run, `ApplicationMaster` is started>> in <<isClusterMode, `cluster` deploy mode>>.
+CAUTION: FIXME
 
 === [[addAmIpFilter]] Registering web UI Security Filters -- `addAmIpFilter` Method
 
@@ -210,6 +191,49 @@ ERROR Uncaught exception: [exception]
 ```
 
 NOTE: `run` is used exclusively when `ApplicationMaster` is <<main, launched as a standalone application>> (inside a YARN container on a YARN cluster).
+
+=== [[runDriver]] Running Spark Application's Driver and Registering ApplicationMaster with YARN ResourceManager (Cluster Deploy Mode) -- `runDriver` Internal Method
+
+[source, scala]
+----
+runDriver(securityMgr: SecurityManager): Unit
+----
+
+`runDriver` starts a Spark application on a <<userClassThread, separate thread>>, registers `YarnAM` endpoint in the application's `RpcEnv` followed by registering `ApplicationMaster` with YARN ResourceManager. In the end, `runDriver` waits for the Spark application to finish.
+
+Internally, `runDriver` <<addAmIpFilter, registers web UI security filters>> and <<startUserApplication, starts a Spark application>> (on a <<userClassThread, separate Thread>>).
+
+You should see the following INFO message in the logs:
+
+```
+INFO Waiting for spark context initialization...
+```
+
+`runDriver` waits link:spark-yarn-settings.adoc#spark.yarn.am.waitTime[spark.yarn.am.waitTime] time till the Spark application's link:../spark-sparkcontext.adoc[SparkContext] is available and accesses the link:../spark-rpc.adoc[current `RpcEnv`] (and saves it as the internal <<rpcEnv, rpcEnv>>).
+
+NOTE: `runDriver` uses link:../spark-sparkenv.adoc#rpcEnv[`SparkEnv` to access the current `RpcEnv`] that the link:../spark-sparkcontext.adoc#env[Spark application's `SparkContext` manages].
+
+`runDriver` <<runAMEndpoint, creates `RpcEndpointRef` to the driver's `YarnScheduler` endpoint and registers `YarnAM` endpoint>> (using link:../spark-driver.adoc#spark_driver_host[spark.driver.host] and link:../spark-driver.adoc#spark_driver_port[spark.driver.port] properties for the driver's host and port and `isClusterMode` enabled).
+
+`runDriver` <<registerAM, registers `ApplicationMaster` with YARN ResourceManager and requests cluster resources>> (using the Spark application's <<rpcEnv, RpcEnv>>, the driver's RPC endpoint reference, `webUrl` if web UI is enabled and the input `securityMgr`).
+
+`runDriver` pauses until the Spark application finishes.
+
+NOTE: `runDriver` uses Java's link:https://docs.oracle.com/javase/8/docs/api/java/lang/Thread.html#join--[Thread.join] on the internal <<userClassThread, Thread>> reference to the Spark application running on it.
+
+If the Spark application has not started in link:spark-yarn-settings.adoc#spark.yarn.am.waitTime[spark.yarn.am.waitTime] time, `runDriver` reports a `IllegalStateException`:
+
+```
+SparkContext is null but app is still running!
+```
+
+If `TimeoutException` is reported while waiting for the Spark application to start, you should see the following ERROR message in the logs and `runDriver` <<finish, finishes>> with `FAILED` final application status and the error code `13`.
+
+```
+ERROR SparkContext did not initialize after waiting for [spark.yarn.am.waitTime] ms. Please check earlier log output for errors. Failing the application.
+```
+
+NOTE: `runDriver` is used exclusively when <<run, `ApplicationMaster` is started>> in <<isClusterMode, `cluster` deploy mode>>.
 
 === [[command-line-parameters]][[ApplicationMasterArguments]] Command-Line Parameters -- `ApplicationMasterArguments` class
 
