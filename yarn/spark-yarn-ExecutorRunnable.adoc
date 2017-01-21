@@ -11,10 +11,17 @@ If link:../spark-ExternalShuffleService.adoc#spark_shuffle_service_enabled[exter
 | Name
 | Description
 
-| [[yarnConf]] `yarnConf`
+| [[conf]] `conf`
 | YARN's https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/conf/YarnConfiguration.html[YarnConfiguration].
 
 Created when <<creating-instance, `ExecutorRunnable` is created>>.
+
+| [[localResources]] `localResources`
+| FIXME
+
+| [[sparkConf]] `sparkConf`
+| FIXME
+
 |===
 
 NOTE: Despite the name `ExecutorRunnable` is not a http://docs.oracle.com/javase/8/docs/api/java/lang/Runnable.html[java.lang.Runnable] anymore after https://issues.apache.org/jira/browse/SPARK-12447[SPARK-12447].
@@ -31,10 +38,6 @@ log4j.logger.org.apache.spark.deploy.yarn.ExecutorRunnable=INFO
 
 Refer to link:../spark-logging.adoc[Logging].
 ====
-
-=== [[prepareEnvironment]] `prepareEnvironment` Method
-
-CAUTION: FIXME
 
 === [[creating-instance]] Creating ExecutorRunnable Instance
 
@@ -80,7 +83,7 @@ It creates a YARN https://hadoop.apache.org/docs/current/api/org/apache/hadoop/y
 
 It ultimately <<startContainer, starts `CoarseGrainedExecutorBackend` in the container>>.
 
-=== [[startContainer]] Starting CoarseGrainedExecutorBackend in Container -- `startContainer` Method
+=== [[startContainer]] Starting CoarseGrainedExecutorBackend in YARN Container -- `startContainer` Method
 
 [source, scala]
 ----
@@ -170,14 +173,39 @@ Finally, it creates the entire command to start link:../spark-executor-backends-
 
 NOTE: `prepareCommand` is used when `ExecutorRunnable` <<launchContextDebugInfo, launchContextDebugInfo>> and <<startContainer, starts `CoarseGrainedExecutorBackend` in a container>>.
 
-=== [[launchContextDebugInfo]] Creating INFO Template with Launch Context Debug -- `launchContextDebugInfo` Method
+=== [[prepareEnvironment]] Collecting Environment Variables for CoarseGrainedExecutorBackend Containers -- `prepareEnvironment` Internal Method
+
+[source, scala]
+----
+prepareEnvironment(): HashMap[String, String]
+----
+
+`prepareEnvironment` collects environment-related entries.
+
+`prepareEnvironment` link:spark-yarn-client.adoc#populateClasspath[populates class path] (passing in <<conf, YarnConfiguration>>, <<sparkConf, SparkConf>>, and link:../spark-executor.adoc#spark.executor.extraClassPath[spark.executor.extraClassPath] property)
+
+CAUTION: FIXME How does populateClasspath use the input `env`?
+
+`prepareEnvironment` collects the executor environment variables set on the current <<sparkConf, SparkConf>>, i.e. the Spark properties with the prefix `spark.executorEnv.`, and link:spark-yarn-YarnSparkHadoopUtil.adoc#addPathToEnvironment[YarnSparkHadoopUtil.addPathToEnvironment(env, key, value)].
+
+NOTE: `SPARK_YARN_USER_ENV` is deprecated.
+
+`prepareEnvironment` reads YARN's https://hadoop.apache.org/docs/current/api/constant-values.html#org.apache.hadoop.yarn.conf.YarnConfiguration.YARN_HTTP_POLICY_KEY[yarn.http.policy] property (with https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/conf/YarnConfiguration.html#YARN_HTTP_POLICY_DEFAULT[YarnConfiguration.YARN_HTTP_POLICY_DEFAULT]) to choose a secure HTTPS scheme for container logs when `HTTPS_ONLY`.
+
+With the input `container` defined and `SPARK_USER` environment variable available, `prepareEnvironment` registers `SPARK_LOG_URL_STDERR` and `SPARK_LOG_URL_STDOUT` environment entries with `stderr?start=-4096` and `stdout?start=-4096` added to `[httpScheme][address]/node/containerlogs/[containerId]/[user]`, respectively.
+
+In the end, `prepareEnvironment` collects all the System environment variables with `SPARK` prefix.
+
+NOTE: `prepareEnvironment` is used when `ExecutorRunnable` <<launchContextDebugInfo, builds launch context diagnostic information>> (that later is used to print out the INFO message to the logs) and <<startContainer, starts `CoarseGrainedExecutorBackend` in a YARN container>>.
+
+=== [[launchContextDebugInfo]] Building Launch Context Diagnostic Information (with Command, Environment and Resources) -- `launchContextDebugInfo` Method
 
 [source, scala]
 ----
 launchContextDebugInfo(): String
 ----
 
-`launchContextDebugInfo` <<prepareCommand, prepares the command to launch `CoarseGrainedExecutorBackend`>> (as `commands` value) and <<prepareEnvironment, prepareEnvironment>> (as `env` value).
+`launchContextDebugInfo` <<prepareCommand, prepares the command to launch `CoarseGrainedExecutorBackend`>> (as `commands` value) and <<prepareEnvironment, collects environment variables for `CoarseGrainedExecutorBackend` containers>> (as `env` value).
 
 `launchContextDebugInfo` returns the launch context debug info.
 
@@ -195,5 +223,7 @@ YARN executor launch context:
     [key] -> [value]
 ===============================================================================
 ```
+
+NOTE: `resources` entry is the input <<localResources, localResources>> given when <<creating-instance, `ExecutorRunnable` was created>>.
 
 NOTE: `launchContextDebugInfo` is used when link:spark-yarn-applicationmaster.adoc#registerAM[`ApplicationMaster` registers itself with YARN ResourceManager].
