@@ -2,7 +2,12 @@
 
 `YarnAllocator` <<allocateResources, allocates resource containers>> from link:spark-yarn-introduction.adoc#ResourceManager[YARN ResourceManager] to run Spark executors on and <<internalReleaseContainer, releases them>> when the Spark application no longer needs them.
 
-It talks directly to YARN ResourceManager through the `amClient` reference (of YARN's https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/client/api/AMRMClient.html[AMRMClient[ContainerRequest\]] type) that it gets when <<creating-instance, created>> (from link:spark-yarn-yarnrmclient.adoc#register[`YarnRMClient` when it registers the ApplicationMaster for a Spark application]).
+<<creating-instance, `YarnAllocator` is created>> when link:spark-yarn-yarnrmclient.adoc#register[`YarnRMClient` registers `ApplicationMaster` for a Spark application] (with YARN ResourceManager).
+
+.Creating YarnAllocator
+image::../images/spark-yarn-YarnAllocator-amClient-ResourceManager.png[align="center"]
+
+`YarnAllocator` communicates with YARN ResourceManager through the internal <<amClient, AMRMClient>> reference.
 
 CAUTION: FIXME Image for YarnAllocator uses amClient Reference to YARN ResourceManager
 
@@ -11,9 +16,99 @@ CAUTION: FIXME Image for YarnAllocator uses amClient Reference to YARN ResourceM
 .ApplicationMaster uses YarnAllocator (via allocator attribute)
 image::../images/spark-yarn-YarnAllocator.png[align="center"]
 
-When `YarnAllocator` is <<creating-instance, created>>, it requires `driverUrl`, Hadoop's https://hadoop.apache.org/docs/current/api/org/apache/hadoop/conf/Configuration.html[Configuration], a link:spark-configuration.adoc[Spark configuration], YARN's https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/api/records/ApplicationAttemptId.html[ApplicationAttemptId], a link:spark-security.adoc#SecurityManager[SecurityManager], and a collection of Hadoop's https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/api/records/LocalResource.html[LocalResources] by their name. The parameters are later used for <<runAllocatedContainers, launching Spark executors in allocated YARN containers>>.
+`YarnAllocator` later <<runAllocatedContainers, launches Spark executors in allocated YARN resource containers>>.
 
 CAUTION: FIXME An image with YarnAllocator and multiple ExecutorRunnables.
+
+[[internal-registries]]
+.YarnAllocator's Internal Registries and Counters
+[cols="1,2",options="header",width="100%"]
+|===
+| Name
+| Description
+
+| [[targetNumExecutors]] `targetNumExecutors`
+| Desired Total Number of Executors
+
+Set to the link:spark-yarn-YarnSparkHadoopUtil.adoc#getInitialTargetExecutorNumber[initial number of executors] when <<creating-instance, `YarnAllocator` is created>>.
+
+`targetNumExecutors` is eventually reached after <<updateResourceRequests, `YarnAllocator` updates YARN container allocation requests>>.
+
+May later be changed when <<requestTotalExecutorsWithPreferredLocalities, `YarnAllocator` is requested for executors given locality preferences>>.
+
+| [[numExecutorsRunning]] `numExecutorsRunning`
+| Current number of...FIXME
+
+| [[currentNodeBlacklist]] `currentNodeBlacklist`
+| List of...FIXME
+
+| [[releasedContainers]] `releasedContainers`
+| Unneeded containers that are of no use anymore by their globally unique identifier https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/api/records/ContainerId.html[ContainerId] (for a `Container` in the cluster).
+
+NOTE: Hadoop YARN's https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/api/records/Container.html[Container] represents an allocated resource in the cluster. The YARN ResourceManager is the sole authority to allocate any `Container` to applications. The allocated `Container` is always on a single node and has a unique `ContainerId`. It has a specific amount of `Resource` allocated.
+
+| [[allocatedHostToContainersMap]] `allocatedHostToContainersMap`
+| Lookup table
+
+| [[allocatedContainerToHostMap]] `allocatedContainerToHostMap`
+| Lookup Table
+
+| [[pendingLossReasonRequests]] `pendingLossReasonRequests`
+|
+
+| [[releasedExecutorLossReasons]] `releasedExecutorLossReasons`
+|
+
+| [[executorIdToContainer]] `executorIdToContainer`
+|
+
+| [[numUnexpectedContainerRelease]] `numUnexpectedContainerRelease`
+|
+
+| [[containerIdToExecutorId]] `containerIdToExecutorId`
+|
+
+| [[hostToLocalTaskCounts]] `hostToLocalTaskCounts`
+| Lookup table
+
+| [[failedExecutorsTimeStamps]] `failedExecutorsTimeStamps`
+|
+
+| [[executorMemory]] `executorMemory`
+|
+
+| [[memoryOverhead]] `memoryOverhead`
+|
+
+| [[executorCores]] `executorCores`
+|
+
+| [[resource]] `resource`
+|
+
+| [[launchContainers]] `launchContainers`
+|
+
+| [[labelExpression]] `labelExpression`
+|
+
+| [[nodeLabelConstructor]] `nodeLabelConstructor`
+|
+
+| [[containerPlacementStrategy]] `containerPlacementStrategy`
+|
+
+| [[launcherPool]] `launcherPool`
+| ContainerLauncher Thread Pool
+
+| [[numLocalityAwareTasks]] `numLocalityAwareTasks`
+| Number of locality-aware tasks to be used as container placement hint when <<requestTotalExecutorsWithPreferredLocalities, `YarnAllocator` is requested for executors given locality preferences>>.
+
+Set to `0` when <<creating-instance, `YarnAllocator` is created>>.
+
+Used as an input to `containerPlacementStrategy.localityOfRequestedContainers` when <<updateResourceRequests, `YarnAllocator` updates YARN container allocation requests>>.
+
+|===
 
 [TIP]
 ====
@@ -30,40 +125,22 @@ Refer to link:../spark-logging.adoc[Logging].
 
 === [[creating-instance]] Creating YarnAllocator Instance
 
-When link:spark-yarn-yarnrmclient.adoc#register[`YarnRMClient` registers `ApplicationMaster` for a Spark application (with YARN ResourceManager)] it creates a new `YarnAllocator` instance.
+`YarnAllocator` takes the following when created:
 
-.Creating YarnAllocator
-image::../images/spark-yarn-YarnAllocator-amClient-ResourceManager.png[align="center"]
+. `driverUrl`
+. `driverRef` -- link:../spark-RpcEndpointRef.adoc[RpcEndpointRef] to the driver's FIXME
+. [[conf]] https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/conf/YarnConfiguration.html[YarnConfiguration]
+. `sparkConf` -- link:../spark-configuration.adoc[SparkConf]
+. [[amClient]] `amClient` https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/client/api/AMRMClient.html[AMRMClient] for `ContainerRequest`
+. `ApplicationAttemptId`
+. [[securityMgr]] `SecurityManager`
+. [[localResources]] `localResources` -- `Map[String, LocalResource]`
 
 All the input parameters for `YarnAllocator` (but `appAttemptId` and `amClient`) are passed directly from the input parameters of `YarnRMClient`.
 
-[source, scala]
-----
-YarnAllocator(
-  driverUrl: String,
-  driverRef: RpcEndpointRef,
-  conf: Configuration,
-  sparkConf: SparkConf,
-  amClient: AMRMClient[ContainerRequest],
-  appAttemptId: ApplicationAttemptId,
-  securityMgr: SecurityManager,
-  localResources: Map[String, LocalResource])
-----
+`YarnAllocator` sets the `org.apache.hadoop.yarn.util.RackResolver` logger to `WARN` (unless set to some log level already).
 
-The input `amClient` parameter is created in and owned by `YarnRMClient`.
-
-When `YarnAllocator` is created, it sets the `org.apache.hadoop.yarn.util.RackResolver` logger to `WARN` (unless set to some log level already).
-
-It creates the following empty registries:
-
-* <<releasedContainers, releasedContainers>>
-* <<allocatedHostToContainersMap, allocatedHostToContainersMap>>
-* <<allocatedContainerToHostMap, allocatedContainerToHostMap>>
-* <<pendingLossReasonRequests, pendingLossReasonRequests>>
-* <<releasedExecutorLossReasons, releasedExecutorLossReasons>>
-* <<executorIdToContainer, executorIdToContainer>>
-* <<containerIdToExecutorId, containerIdToExecutorId>>
-* <<hostToLocalTaskCounts, hostToLocalTaskCounts>>
+`YarnAllocator` initializes the <<internal-registries, internal registries and counters>>.
 
 It sets the following internal counters:
 
@@ -99,7 +176,15 @@ It sets the internal `containerPlacementStrategy` to...FIXME
 
 CAUTION: FIXME LocalityPreferredContainerPlacementStrategy?
 
-=== [[requestTotalExecutorsWithPreferredLocalities]] Requesting Executors with Locality Preferences (requestTotalExecutorsWithPreferredLocalities method)
+==== [[updateInternalState]] `updateInternalState` Method
+
+CAUTION: FIXME
+
+=== [[killExecutor]] `killExecutor` Method
+
+CAUTION: FIXME
+
+=== [[requestTotalExecutorsWithPreferredLocalities]] Requesting Executors with Locality Preferences -- `requestTotalExecutorsWithPreferredLocalities` Method
 
 [source, scala]
 ----
@@ -125,18 +210,7 @@ It sets the internal `targetNumExecutors` attribute to the input `requestedTotal
 
 NOTE: `requestTotalExecutorsWithPreferredLocalities` is executed in response to link:spark-yarn-AMEndpoint.adoc#RequestExecutors[`RequestExecutors` message to `ApplicationMaster`].
 
-=== [[numLocalityAwareTasks]] numLocalityAwareTasks Internal Counter
-
-[source, scala]
-----
-numLocalityAwareTasks: Int = 0
-----
-
-It tracks the number of locality-aware tasks to be used as container placement hint when <<requestTotalExecutorsWithPreferredLocalities, `YarnAllocator` is requested for executors given locality preferences>>.
-
-It is used as an input to `containerPlacementStrategy.localityOfRequestedContainers` when <<updateResourceRequests, `YarnAllocator` updates YARN container allocation requests>>.
-
-=== [[updateResourceRequests]] Adding or Removing Executor Container Requests (updateResourceRequests method)
+=== [[updateResourceRequests]] Adding or Removing Executor Container Requests -- `updateResourceRequests` Method
 
 [source, scala]
 ----
@@ -203,11 +277,7 @@ It checks whether there are pending allocation requests and removes the excess (
 WARN Expected to find pending requests, but found none.
 ```
 
-=== [[killExecutor]] killExecutor
-
-CAUTION: FIXME
-
-=== [[handleAllocatedContainers]] Handling Allocated Containers for Executors (handleAllocatedContainers internal method)
+=== [[handleAllocatedContainers]] Handling Allocated Containers for Executors -- `handleAllocatedContainers` Internal Method
 
 When the link:spark-yarn-introduction.adoc#ResourceManager[YARN ResourceManager] has allocated new containers for executors in <<allocateResources, allocateResources>>, the call is then passed on to `handleAllocatedContainers` procedure.
 
@@ -271,11 +341,7 @@ ERROR Failed to launch executor [executorId] on container [containerId]
 
 It then immediately releases the failed container (using the internal link:++https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/client/api/AMRMClient.html#releaseAssignedContainer(org.apache.hadoop.yarn.api.records.ContainerId)++[AMRMClient]).
 
-==== [[updateInternalState]] updateInternalState
-
-CAUTION: FIXME
-
-==== [[internalReleaseContainer]] Releasing YARN Container (internalReleaseContainer internal procedure)
+==== [[internalReleaseContainer]] Releasing YARN Container -- `internalReleaseContainer` Internal Procedure
 
 All unnecessary YARN containers (that were allocated but are either <<handleAllocatedContainers, of no use>> or <<killExecutor, no longer needed>>) are released using the internal `internalReleaseContainer` procedure.
 
@@ -286,7 +352,7 @@ internalReleaseContainer(container: Container): Unit
 
 `internalReleaseContainer` records `container` in the internal <<releasedContainers, releasedContainers>> registry and releases it to the link:spark-yarn-introduction.adoc#ResourceManager[YARN ResourceManager] (calling link:++https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/client/api/AMRMClient.html#releaseAssignedContainer(org.apache.hadoop.yarn.api.records.ContainerId)++[AMRMClient[ContainerRequest\].releaseAssignedContainer] using the internal `amClient`).
 
-==== [[matchContainerToRequest]] Deciding on Use of YARN Container (matchContainerToRequest internal method)
+==== [[matchContainerToRequest]] Deciding on Use of YARN Container -- `matchContainerToRequest` Internal Method
 
 When <<handleAllocatedContainers, `handleAllocatedContainers` handles allocated containers for executors>>, it uses `matchContainerToRequest` to match the containers to `ContainerRequests` (and hence to workload and location preferences).
 
@@ -309,11 +375,7 @@ If there are any outstanding `ContainerRequests` that meet the requirements, it 
 
 Otherwise, it puts the input `allocatedContainer` in the input `remaining` collection.
 
-=== [[launcherPool]] ContainerLauncher Thread Pool
-
-CAUTION: FIXME
-
-=== [[processCompletedContainers]] processCompletedContainers
+=== [[processCompletedContainers]] `processCompletedContainers` Method
 
 [source, scala]
 ----
@@ -382,39 +444,7 @@ If no executor was found, the executor and the exit reason are recorded in the i
 
 In case the container was not in the internal <<releasedContainers, releasedContainers>> registry, the internal <<numUnexpectedContainerRelease, numUnexpectedContainerRelease>> counter is increased and a `RemoveExecutor` RPC message is sent to the driver (as specified when <<creating-instance, `YarnAllocator` was created>>) to notify about the failure of the executor.
 
-=== [[numUnexpectedContainerRelease]] numUnexpectedContainerRelease Internal Counter
-
-=== [[releasedExecutorLossReasons]] releasedExecutorLossReasons Internal Lookup Table
-
-CAUTION: FIXME
-
-=== [[pendingLossReasonRequests]] pendingLossReasonRequests Internal Lookup Table
-
-CAUTION: FIXME
-
-=== [[executorIdToContainer]] executorIdToContainer Internal Translation Table
-
-CAUTION: FIXME
-
-=== [[containerIdToExecutorId]] containerIdToExecutorId Internal Translation Table
-
-CAUTION: FIXME
-
-=== [[allocatedHostToContainersMap]] allocatedHostToContainersMap Internal Lookup Table
-
-CAUTION: FIXME
-
-=== [[numExecutorsRunning]] numExecutorsRunning Internal Counter
-
-CAUTION: FIXME
-
-=== [[allocatedContainerToHostMap]] allocatedContainerToHostMap Internal Lookup Table
-
-CAUTION: FIXME
-
-=== [[allocateResources]] Allocating YARN Containers for Executors and Cancelling Outstanding Containers (allocateResources method)
-
-After link:spark-yarn-applicationmaster.adoc#registerAM[`ApplicationMaster` is registered to the YARN ResourceManager] Spark calls `allocateResources`.
+=== [[allocateResources]] Allocating YARN Resource Containers for Spark Executors (and Cancelling Outstanding Containers) -- `allocateResources` Method
 
 [source, scala]
 ----
@@ -423,11 +453,11 @@ allocateResources(): Unit
 
 `allocateResources` claims new resource containers from link:spark-yarn-introduction.adoc#ResourceManager[YARN ResourceManager] and cancels any outstanding resource container requests.
 
-NOTE: In YARN, you have to submit requests for resource containers to link:spark-yarn-introduction.adoc#ResourceManager[YARN ResourceManager] first (using link:++https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/client/api/AMRMClient.html#addContainerRequest(T)++[AMRMClient.addContainerRequest]) before claiming them by calling link:++https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/client/api/AMRMClient.html#allocate(float)++[AMRMClient.allocate].
+NOTE: In YARN, you first have to submit requests for YARN resource containers to link:spark-yarn-introduction.adoc#ResourceManager[YARN ResourceManager] (using link:++https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/client/api/AMRMClient.html#addContainerRequest(T)++[AMRMClient.addContainerRequest]) before claiming them by calling link:++https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/client/api/AMRMClient.html#allocate(float)++[AMRMClient.allocate].
 
-Internally, `allocateResources` starts by <<updateResourceRequests, submitting requests for new containers and cancelling previous container requests>>.
+Internally, `allocateResources` <<updateResourceRequests, submits requests for new containers and cancels previous container requests>>.
 
-`allocateResources` then link:++https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/client/api/AMRMClient.html#allocate(float)++[claims the containers] (using the internal reference to YARN's `AMRMClient`) with progress indicator of `0.1f`.
+`allocateResources` then link:++https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/client/api/AMRMClient.html#allocate(float)++[claims the containers] (using the internal reference to YARN's <<amClient, AMRMClient>>) with progress indicator of `0.1f`.
 
 You can see the exact moment in the YARN console for the Spark application with the progress bar at 10%.
 
@@ -442,9 +472,9 @@ If the number of allocated containers is greater than `0`, you should see the fo
 DEBUG YarnAllocator: Allocated containers: [allocatedContainersSize]. Current executor count: [numExecutorsRunning]. Cluster resources: [availableResources].
 ```
 
-`allocateResources` <<handleAllocatedContainers, launches executors on the allocated YARN containers>>.
+`allocateResources` <<handleAllocatedContainers, launches executors on the allocated YARN resource containers>>.
 
-`allocateResources` link:++https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/api/protocolrecords/AllocateResponse.html#getCompletedContainersStatuses()++[gets the list of completed containers' statuses from YARN].
+`allocateResources` link:++https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/api/protocolrecords/AllocateResponse.html#getCompletedContainersStatuses()++[gets the list of completed containers' statuses from YARN ResourceManager].
 
 If the number of completed containers is greater than `0`, you should see the following DEBUG message in the logs (in stderr on YARN):
 
@@ -460,47 +490,4 @@ You should see the following DEBUG message in the logs (in stderr on YARN):
 DEBUG YarnAllocator: Finished processing [completedContainersSize] completed containers. Current running executor count: [numExecutorsRunning].
 ```
 
-=== [[internal-registries]] Internal Registries
-
-==== [[hostToLocalTaskCounts]] hostToLocalTaskCounts
-
-[source, scala]
-----
-hostToLocalTaskCounts: Map[String, Int] = Map.empty
-----
-
-CAUTION: FIXME
-
-==== [[containerIdToExecutorId]] containerIdToExecutorId
-
-CAUTION: FIXME
-
-==== [[executorIdToContainer]] executorIdToContainer
-
-CAUTION: FIXME
-
-==== [[releasedExecutorLossReasons]] releasedExecutorLossReasons
-
-CAUTION: FIXME
-
-==== [[pendingLossReasonRequests]] pendingLossReasonRequests
-
-CAUTION: FIXME
-
-==== [[failedExecutorsTimeStamps]] failedExecutorsTimeStamps
-
-CAUTION: FIXME
-
-==== [[releasedContainers]] releasedContainers Internal Registry
-
-`releasedContainers` contains containers of no use anymore by their globally unique identifier https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/api/records/ContainerId.html[ContainerId] (for a `Container` in the cluster).
-
-NOTE: Hadoop YARN's https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/api/records/Container.html[Container] represents an allocated resource in the cluster. The YARN ResourceManager is the sole authority to allocate any `Container` to applications. The allocated `Container` is always on a single node and has a unique `ContainerId`. It has a specific amount of `Resource` allocated.
-
-==== [[targetNumExecutors]] Desired Total Number of Executors (targetNumExecutors Internal Attribute)
-
-Initially, when <<creating-instance, `YarnAllocator` is created>>, `targetNumExecutors` corresponds to the link:spark-yarn-YarnSparkHadoopUtil.adoc#getInitialTargetExecutorNumber[initial number of executors].
-
-`targetNumExecutors` is eventually reached after <<updateResourceRequests, `YarnAllocator` updates YARN container allocation requests>>.
-
-It may later be changed when <<requestTotalExecutorsWithPreferredLocalities, `YarnAllocator` is requested for executors given locality preferences>>.
+NOTE: `allocateResources` is used when `ApplicationMaster` link:spark-yarn-applicationmaster.adoc#registerAM[is registered to the YARN ResourceManager] and link:spark-yarn-applicationmaster.adoc#launchReporterThread[launches progress `Reporter` thread].
