@@ -2,6 +2,11 @@
 
 `ExecutorRunnable` <<run, starts a YARN container>> with link:../spark-executor-backends-CoarseGrainedExecutorBackend.adoc#main[CoarseGrainedExecutorBackend] standalone application.
 
+<<creating-instance, `ExecutorRunnable` is created>> when link:spark-yarn-YarnAllocator.adoc#runAllocatedContainers[`YarnAllocator` launches Spark executors in allocated YARN containers] (and for debugging purposes when link:spark-yarn-applicationmaster.adoc#registerAM[`ApplicationMaster` requests cluster resources for executors]).
+
+.ExecutorRunnable and YarnAllocator in YARN Resource Container
+image::../images/spark-yarn-ExecutorRunnable.png[align="center"]
+
 If link:../spark-ExternalShuffleService.adoc#spark_shuffle_service_enabled[external shuffle service is used], it is <<startContainer, set in the `ContainerLaunchContext` context as a service under the name of `spark_shuffle`>>.
 
 [[internal-properties]]
@@ -11,17 +16,11 @@ If link:../spark-ExternalShuffleService.adoc#spark_shuffle_service_enabled[exter
 | Name
 | Description
 
-| [[conf]] `conf`
-| YARN's https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/conf/YarnConfiguration.html[YarnConfiguration].
+| [[rpc]] `rpc`
+| https://hadoop.apache.org/docs/current/hadoop-yarn/hadoop-yarn-common/apidocs/org/apache/hadoop/yarn/ipc/YarnRPC.html[YarnRPC] for...FIXME
 
-Created when <<creating-instance, `ExecutorRunnable` is created>>.
-
-| [[localResources]] `localResources`
-| FIXME
-
-| [[sparkConf]] `sparkConf`
-| FIXME
-
+| [[nmClient]] `nmClient`
+| https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/client/api/NMClient.html[NMClient] for...FIXME
 |===
 
 NOTE: Despite the name `ExecutorRunnable` is not a http://docs.oracle.com/javase/8/docs/api/java/lang/Runnable.html[java.lang.Runnable] anymore after https://issues.apache.org/jira/browse/SPARK-12447[SPARK-12447].
@@ -38,38 +37,6 @@ log4j.logger.org.apache.spark.deploy.yarn.ExecutorRunnable=DEBUG
 
 Refer to link:../spark-logging.adoc[Logging].
 ====
-
-=== [[creating-instance]] Creating ExecutorRunnable Instance
-
-[source, scala]
-----
-ExecutorRunnable(
-  container: Container,
-  conf: Configuration,
-  sparkConf: SparkConf,
-  masterAddress: String,
-  slaveId: String,
-  hostname: String,
-  executorMemory: Int,
-  executorCores: Int,
-  appId: String,
-  securityMgr: SecurityManager,
-  localResources: Map[String, LocalResource])
-----
-
-`YarnAllocator` creates an instance of `ExecutorRunnable` when link:spark-yarn-YarnAllocator.adoc#runAllocatedContainers[launching Spark executors in allocated YARN containers].
-
-A single `ExecutorRunnable` is created with the YARN container to run a Spark executor in.
-
-The input `conf` (Hadoop's https://hadoop.apache.org/docs/current/api/org/apache/hadoop/conf/Configuration.html[Configuration]), `sparkConf`, `masterAddress` directly correspond to the constructor arguments of link:spark-yarn-YarnAllocator.adoc[YarnAllocator].
-
-The input `slaveId` is from the internal counter in `YarnAllocator`.
-
-The input `hostname` is the host of the YARN container.
-
-The input `executorMemory` and `executorCores` are from `YarnAllocator`, but come from link:../spark-executor.adoc#spark_executor_memory[spark.executor.memory] and link:../spark-executor.adoc#spark_executor_cores[spark.executor.cores] configuration settings.
-
-The input `appId`, `securityMgr`, and `localResources` are the same as link:spark-yarn-YarnAllocator.adoc#creating-instance[`YarnAllocator` was created for].
 
 === [[startContainer]] Starting CoarseGrainedExecutorBackend in YARN Container -- `startContainer` Method
 
@@ -120,6 +87,28 @@ Exception while starting container [containerId] on host [hostname]
 ```
 
 NOTE: `startContainer` is exclusively called as a part of <<run, running `ExecutorRunnable`>>.
+
+=== [[creating-instance]] Creating ExecutorRunnable Instance
+
+`ExecutorRunnable` takes the following when created:
+
+. optional YARN https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/api/records/Container.html[Container] to run a Spark executor in
+. [[conf]] https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/conf/YarnConfiguration.html[YarnConfiguration]
+. `sparkConf` -- link:../spark-configuration.adoc[SparkConf]
+. `masterAddress`
+. `executorId`
+. `hostname` of the YARN container
+. `executorMemory`
+. `executorCores`
+. `appId`
+. [[securityMgr]] `SecurityManager`
+. [[localResources]] `localResources` -- `Map[String, LocalResource]`
+
+`ExecutorRunnable` initializes the <<internal-registries, internal registries and counters>>.
+
+`executorMemory` and `executorCores` are from `YarnAllocator` but really are link:../spark-executor.adoc#spark_executor_memory[spark.executor.memory] and link:../spark-executor.adoc#spark_executor_cores[spark.executor.cores] properties.
+
+NOTE: Most of the input parameters are exactly as link:spark-yarn-YarnAllocator.adoc#creating-instance[`YarnAllocator` was created with].
 
 === [[prepareCommand]] Preparing Command to Launch CoarseGrainedExecutorBackend -- `prepareCommand` Internal Method
 
