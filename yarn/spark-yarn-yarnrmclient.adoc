@@ -1,8 +1,28 @@
 == YarnRMClient
 
-`YarnRMClient` is responsible for <<register, registering>> and <<unregister, unregistering>> a Spark application (in the form of link:spark-yarn-applicationmaster.adoc[ApplicationMaster]) with link:spark-yarn-introduction.adoc#ResourceManager[YARN ResourceManager] (and hence _RM_ in the name). It is a mere wrapper for https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/client/api/AMRMClient.html[AMRMClient[ContainerRequest\]] that is started when <<register, registering ApplicationMaster>> (and never stopped explicitly!).
+`YarnRMClient` is responsible for <<register, registering>> and <<unregister, unregistering>> a Spark application (in the form of link:spark-yarn-applicationmaster.adoc[ApplicationMaster]) with link:spark-yarn-introduction.adoc#ResourceManager[YARN ResourceManager] (and hence _RM_ in the name).
 
-Besides being responsible for <<register, registration>> and <<unregister, unregistration>>, it also knows the <<getAttemptId, application attempt identifiers>> and <<getMaxRegAttempts, tracks the maximum number of attempts to register `ApplicationMaster`>>.
+`YarnRMClient` is just a wrapper for https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/client/api/AMRMClient.html[AMRMClient[ContainerRequest\]] that is started when <<register, registering ApplicationMaster>> (and never stopped explicitly!).
+
+`YarnRMClient` tracks the <<getAttemptId, application attempt identifiers>> and the <<getMaxRegAttempts, maximum number of attempts to register `ApplicationMaster`>>.
+
+[[internal-registries]]
+.YarnRMClient's Internal Registries and Counters
+[cols="1,2",options="header",width="100%"]
+|===
+| Name
+| Description
+
+| [[amClient]] `amClient`
+| https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/client/api/AMRMClient.html[AMRMClient] using `ContainerRequest` to YARN ResourceManager.
+
+| [[uiHistoryAddress]] `uiHistoryAddress`
+|
+
+| [[registered]] `registered`
+| Flag to control whether <<register, `YarnRMClient` is connected to YARN ResourceManager>> (i.e. `true`) or not.
+
+|===
 
 [TIP]
 ====
@@ -17,9 +37,11 @@ log4j.logger.org.apache.spark.deploy.yarn.YarnRMClient=INFO
 Refer to link:../spark-logging.adoc[Logging].
 ====
 
-=== [[register]] Registering ApplicationMaster with YARN ResourceManager -- `register` Method
+=== [[getAmIpFilterParams]] `getAmIpFilterParams` Method
 
-To link:spark-yarn-applicationmaster.adoc#registerAM[register `ApplicationMaster`] (for a Spark application) with the YARN ResourceManager, Spark uses `register`.
+CAUTION: FIXME
+
+=== [[register]] Registering ApplicationMaster with YARN ResourceManager (and Creating YarnAllocator) -- `register` Method
 
 [source, scala]
 ----
@@ -34,10 +56,26 @@ register(
   localResources: Map[String, LocalResource]): YarnAllocator
 ----
 
-`register` instantiates YARN's https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/client/api/AMRMClient.html[AMRMClient], initializes it (using `conf` input parameter) and starts immediately. It saves `uiHistoryAddress` input parameter internally for later use.
+`register` creates a <<amClient, AMRMClient>>, initializes it (using the input https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/conf/YarnConfiguration.html[YarnConfiguration]) and starts immediately.
+
+NOTE: `AMRMClient` is used in YARN to register an application's `ApplicationMaster` with the YARN ResourceManager.
 
 .Registering ApplicationMaster with YARN ResourceManager
 image::../images/spark-yarn-YarnRMClient-register.png[align="center"]
+
+[TIP]
+====
+`register` connects to YARN ResourceManager using the following design pattern:
+
+[source, scala]
+----
+val amClient: AMRMClient[ContainerRequest] = AMRMClient.createAMRMClient()
+amClient.init(conf)
+amClient.start()
+----
+====
+
+`register` saves the input `uiHistoryAddress` as <<uiHistoryAddress, uiHistoryAddress>>.
 
 You should see the following INFO message in the logs (in stderr in YARN):
 
@@ -45,13 +83,17 @@ You should see the following INFO message in the logs (in stderr in YARN):
 INFO YarnRMClient: Registering the ApplicationMaster
 ```
 
-It then link:++https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/client/api/AMRMClient.html#registerApplicationMaster(java.lang.String, int, java.lang.String)++[registers the application master] on the local host with port `0` and `uiAddress` input parameter for the URL at which the master info can be seen.
+`register` then uses <<amClient, AMRMClient>> to link:++https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/client/api/AMRMClient.html#registerApplicationMaster(java.lang.String, int, java.lang.String)++[register the Spark application's `ApplicationMaster`] (using the local hostname, the port `0` and the input `uiAddress`).
 
-The internal `registered` flag is enabled.
+NOTE: The input `uiAddress` is the web UI of the Spark application and is specified using the link:spark-yarn-applicationmaster.adoc#runDriver[SparkContext] (when the application runs in `cluster` deploy mode) or using link:../spark-driver.adoc#spark.driver.appUIAddress[spark.driver.appUIAddress] property.
 
-Ultimately, it link:spark-yarn-YarnAllocator.adoc#creating-instance[creates a new `YarnAllocator`] with the input parameters of `register` passed in and the just-created YARN https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/client/api/AMRMClient.html[AMRMClient].
+<<registered, registered>> flag is enabled.
 
-=== [[unregister]] Unregistering ApplicationMaster from YARN ResourceManager (unregister method)
+In the end, `register` link:spark-yarn-YarnAllocator.adoc#creating-instance[creates a new `YarnAllocator`] (using the input parameters of `register` and the internal <<amClient, AMRMClient>>).
+
+NOTE: `register` is used exclusively when link:spark-yarn-applicationmaster.adoc#registerAM[`ApplicationMaster` registers itself] with the YARN ResourceManager.
+
+=== [[unregister]] Unregistering ApplicationMaster from YARN ResourceManager -- `unregister` Method
 
 [source, scala]
 ----
@@ -64,7 +106,7 @@ It basically checks that <<register, `ApplicationMaster` is registered>> and onl
 
 `unregister` is called when link:spark-yarn-applicationmaster.adoc#unregister[`ApplicationMaster` wants to unregister].
 
-=== [[getMaxRegAttempts]] Maximum Number of Attempts to Register ApplicationMaster (getMaxRegAttempts method)
+=== [[getMaxRegAttempts]] Maximum Number of Attempts to Register ApplicationMaster -- `getMaxRegAttempts` Method
 
 [source, scala]
 ----
@@ -77,7 +119,7 @@ It reads YARN's `yarn.resourcemanager.am.max-attempts` (available as https://had
 
 The return value is the minimum of the configuration settings of YARN and Spark.
 
-=== [[getAttemptId]] Getting ApplicationAttemptId of Spark Application (getAttemptId method)
+=== [[getAttemptId]] Getting ApplicationAttemptId of Spark Application -- `getAttemptId` Method
 
 [source, scala]
 ----
@@ -87,7 +129,3 @@ getAttemptId(): ApplicationAttemptId
 `getAttemptId` returns YARN's `ApplicationAttemptId` (of the Spark application to which the container was assigned).
 
 Internally, it uses YARN-specific methods like link:spark-yarn-YarnSparkHadoopUtil.adoc#getContainerId[ConverterUtils.toContainerId] and https://hadoop.apache.org/docs/current/api/index.html?org/apache/hadoop/yarn/client/api/YarnClient.html[ContainerId.getApplicationAttemptId].
-
-=== [[getAmIpFilterParams]] getAmIpFilterParams
-
-CAUTION: FIXME
