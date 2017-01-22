@@ -284,21 +284,23 @@ WARN Expected to find pending requests, but found none.
 handleAllocatedContainers(allocatedContainers: Seq[Container]): Unit
 ----
 
-`handleAllocatedContainers` handles allocated YARN containers.
+`handleAllocatedContainers` handles allocated YARN containers, i.e. runs Spark executors on matched containers or releases unneeded containers.
+
+NOTE: A YARN https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/api/records/Container.html[Container] represents an allocated resource in the cluster. The allocated `Container` is always on a single node and has a unique `ContainerId`. It has a specific amount of `Resource` allocated.
 
 Internally, `handleAllocatedContainers` <<matchContainerToRequest, matches requests to host, rack, and any host (a container allocation)>>.
 
-If there are any allocated containers left (without having been matched), you should see the following DEBUG message in the logs:
+If `handleAllocatedContainers` did not manage to allocate some containers, you should see the following DEBUG message in the logs:
 
 ```
 DEBUG Releasing [size] unneeded containers that were allocated to us
 ```
 
-It then <<internalReleaseContainer, releases the containers>>.
+`handleAllocatedContainers` <<internalReleaseContainer, releases the unneeded containers>> (if there are any).
 
-It <<runAllocatedContainers, runs the allocated and matched containers>>.
+`handleAllocatedContainers` <<runAllocatedContainers, runs the allocated and matched containers>>.
 
-At the end of the method, you should see the following INFO message in the logs:
+You should see the following INFO message in the logs:
 
 ```
 INFO Received [allocatedContainersSize] containers from YARN, launching executors on [containersToUseSize] of them.
@@ -306,7 +308,7 @@ INFO Received [allocatedContainersSize] containers from YARN, launching executor
 
 NOTE: `handleAllocatedContainers` is used exclusively when `YarnAllocator` <<allocateResources, allocates YARN resource containers for Spark executors>>.
 
-=== [[runAllocatedContainers]] Launching Spark Executors in Allocated YARN Containers -- `runAllocatedContainers` Internal Method
+=== [[runAllocatedContainers]] Running Spark Executors in Allocated YARN Containers -- `runAllocatedContainers` Internal Method
 
 [source, scala]
 ----
@@ -341,7 +343,7 @@ ERROR Failed to launch executor [executorId] on container [containerId]
 
 It then immediately releases the failed container (using the internal link:++https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/client/api/AMRMClient.html#releaseAssignedContainer(org.apache.hadoop.yarn.api.records.ContainerId)++[AMRMClient]).
 
-NOTE: `runAllocatedContainers` is used exclusively when `YarnAllocator` <<handleAllocatedContainers, handles allocated YARN containers for executors>>.
+NOTE: `runAllocatedContainers` is used exclusively when `YarnAllocator` <<handleAllocatedContainers, handles allocated YARN containers>>.
 
 ==== [[internalReleaseContainer]] Releasing YARN Container -- `internalReleaseContainer` Internal Procedure
 
