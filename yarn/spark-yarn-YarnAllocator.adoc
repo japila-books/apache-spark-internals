@@ -25,6 +25,16 @@ CAUTION: FIXME An image with YarnAllocator and multiple ExecutorRunnables.
 | Name
 | Description
 
+| [[resource]] `resource`
+| The YARN https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/api/records/Resource.html[Resource] with the memory and the CPU for a single executor.
+
+NOTE: `Resource` models a set of computer resources in the cluster. Currently both memory and virtual CPU cores (vcores).
+
+| [[executorIdCounter]] `executorIdCounter`
+| FIXME
+
+Set to the link:spark-yarn-cluster-YarnSchedulerEndpoint.adoc#RetrieveLastAllocatedExecutorId[last allocated executor id] (it seems quite an extensive operation that uses a RPC system)
+
 | [[targetNumExecutors]] `targetNumExecutors`
 | Desired Total Number of Executors
 
@@ -79,9 +89,6 @@ NOTE: Hadoop YARN's https://hadoop.apache.org/docs/current/api/org/apache/hadoop
 |
 
 | [[executorCores]] `executorCores`
-|
-
-| [[resource]] `resource`
 |
 
 | [[launchContainers]] `launchContainers`
@@ -143,7 +150,6 @@ All the input parameters for `YarnAllocator` (but `appAttemptId` and `amClient`)
 It sets the following internal counters:
 
 * `numExecutorsRunning` to `0`
-* `executorIdCounter` to the  link:spark-yarn-cluster-YarnSchedulerEndpoint.adoc#RetrieveLastAllocatedExecutorId[last allocated executor id] (it seems quite an extensive operation that uses a RPC system)
 * `numUnexpectedContainerRelease` to `0L`
 * `numLocalityAwareTasks` to `0`
 * `targetNumExecutors` to link:spark-yarn-YarnSparkHadoopUtil.adoc#getInitialTargetExecutorNumber[the initial number of executors]
@@ -308,16 +314,18 @@ INFO Received [allocatedContainersSize] containers from YARN, launching executor
 
 NOTE: `handleAllocatedContainers` is used exclusively when `YarnAllocator` <<allocateResources, allocates YARN resource containers for Spark executors>>.
 
-=== [[runAllocatedContainers]] Running Spark Executors in Allocated YARN Containers -- `runAllocatedContainers` Internal Method
+=== [[runAllocatedContainers]] Running ExecutorRunnables in Allocated YARN Containers -- `runAllocatedContainers` Internal Method
 
 [source, scala]
 ----
 runAllocatedContainers(containersToUse: ArrayBuffer[Container]): Unit
 ----
 
-For each YARN's https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/api/records/Container.html[Container] in the input `containersToUse` collection, `runAllocatedContainers` attempts to run a link:spark-yarn-ExecutorRunnable.adoc[ExecutorRunnable] (on <<launcherPool, ContainerLauncher thread pool>>).
+`runAllocatedContainers` traverses over the YARN https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/api/records/Container.html[Containers] (in the input `containersToUse` collection) and attempts to run a link:spark-yarn-ExecutorRunnable.adoc[ExecutorRunnable] (on <<launcherPool, ContainerLauncher thread pool>>).
 
-Internally, `runAllocatedContainers` increases the internal `executorIdCounter` counter and asserts that the amount of memory of (the resource allocated to) the container is greater than the requested memory for executors.
+Internally, `runAllocatedContainers` increments <<executorIdCounter, executorIdCounter>> internal counter.
+
+NOTE: `runAllocatedContainers` asserts that the amount of memory of a container not less than the <<resource, requested memory for executors>>. And only memory!
 
 You should see the following INFO message in the logs:
 
@@ -325,23 +333,21 @@ You should see the following INFO message in the logs:
 INFO YarnAllocator: Launching container [containerId] for on host [executorHostname]
 ```
 
-Unless `runAllocatedContainers` runs in link:spark-yarn-settings.adoc#spark.yarn.launchContainers[spark.yarn.launchContainers] testing mode (when it merely <<updateInternalState, updates internal state>>), you should see the following INFO message in the logs:
+`runAllocatedContainers` checks if the <<numExecutorsRunning, number of executors running>> is less than the <<targetNumExecutors, number of required executors>>.
 
-```
-INFO YarnAllocator: Launching ExecutorRunnable. driverUrl: [driverUrl],  executorHostname: [executorHostname]
-```
+If there are executors still missing (and `runAllocatedContainers` is not in <<launchContainers, testing mode>>), `runAllocatedContainers` executes link:spark-yarn-ExecutorRunnable.adoc[ExecutorRunnable] on <<launcherPool, `ContainerLauncher` thread pool>> and <<updateInternalState, updates internal state>>. When executing a `ExecutorRunnable` `runAllocatedContainers` first link:spark-yarn-ExecutorRunnable.adoc#creating-instance[creates a `ExecutorRunnable`] and link:spark-yarn-ExecutorRunnable.adoc#run[starts it].
 
-NOTE: `driverUrl` is of the form `spark://CoarseGrainedScheduler@[host]:[port]`.
-
-It executes link:spark-yarn-ExecutorRunnable.adoc[ExecutorRunnable] on <<launcherPool, ContainerLauncher thread pool>> and <<updateInternalState, updates internal state>>.
-
-Any non-fatal exception while running `ExecutorRunnable` is caught and you should see the following ERROR message in the logs:
+When `runAllocatedContainers` catches a non-fatal exception and you should see the following ERROR message in the logs and immediately link:++https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/client/api/AMRMClient.html#releaseAssignedContainer(org.apache.hadoop.yarn.api.records.ContainerId)++[releases the container] (using the internal <<amClient, AMRMClient>>).
 
 ```
 ERROR Failed to launch executor [executorId] on container [containerId]
 ```
 
-It then immediately releases the failed container (using the internal link:++https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/client/api/AMRMClient.html#releaseAssignedContainer(org.apache.hadoop.yarn.api.records.ContainerId)++[AMRMClient]).
+If `YarnAllocator` has reached <<targetNumExecutors, target number of executors>>, you should see the following INFO message in the logs:
+
+```
+INFO Skip launching executorRunnable as running Executors count: [numExecutorsRunning] reached target Executors count: [targetNumExecutors].
+```
 
 NOTE: `runAllocatedContainers` is used exclusively when `YarnAllocator` <<handleAllocatedContainers, handles allocated YARN containers>>.
 
