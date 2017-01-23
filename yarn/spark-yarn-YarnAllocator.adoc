@@ -321,7 +321,12 @@ NOTE: `handleAllocatedContainers` is used exclusively when `YarnAllocator` <<all
 runAllocatedContainers(containersToUse: ArrayBuffer[Container]): Unit
 ----
 
-`runAllocatedContainers` traverses over the YARN https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/api/records/Container.html[Containers] (in the input `containersToUse` collection) and attempts to run a link:spark-yarn-ExecutorRunnable.adoc[ExecutorRunnable] (on <<launcherPool, ContainerLauncher thread pool>>).
+`runAllocatedContainers` traverses the YARN https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/api/records/Container.html[Container] collection (as the input `containersToUse`) and schedules execution of link:spark-yarn-ExecutorRunnable.adoc[ExecutorRunnables] per YARN container on <<launcherPool, `ContainerLauncher` thread pool>>.
+
+.YarnAllocator Runs ExecutorRunnables in Allocated YARN Containers
+image::../images/spark-yarn-YarnAllocator-runAllocatedContainers.png[align="center"]
+
+NOTE: A https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/api/records/Container.html[Container] in YARN represents allocated resources (memory and cores) in the cluster.
 
 Internally, `runAllocatedContainers` increments <<executorIdCounter, executorIdCounter>> internal counter.
 
@@ -335,7 +340,7 @@ INFO YarnAllocator: Launching container [containerId] for on host [executorHostn
 
 `runAllocatedContainers` checks if the <<numExecutorsRunning, number of executors running>> is less than the <<targetNumExecutors, number of required executors>>.
 
-If there are executors still missing (and `runAllocatedContainers` is not in <<launchContainers, testing mode>>), `runAllocatedContainers` executes link:spark-yarn-ExecutorRunnable.adoc[ExecutorRunnable] on <<launcherPool, `ContainerLauncher` thread pool>> and <<updateInternalState, updates internal state>>. When executing a `ExecutorRunnable` `runAllocatedContainers` first link:spark-yarn-ExecutorRunnable.adoc#creating-instance[creates a `ExecutorRunnable`] and link:spark-yarn-ExecutorRunnable.adoc#run[starts it].
+If there are executors still missing (and `runAllocatedContainers` is not in <<launchContainers, testing mode>>), `runAllocatedContainers` schedules execution of a link:spark-yarn-ExecutorRunnable.adoc[ExecutorRunnable] on <<launcherPool, `ContainerLauncher` thread pool>> and <<updateInternalState, updates internal state>>. When executing a `ExecutorRunnable` `runAllocatedContainers` first link:spark-yarn-ExecutorRunnable.adoc#creating-instance[creates a `ExecutorRunnable`] and link:spark-yarn-ExecutorRunnable.adoc#run[starts it].
 
 When `runAllocatedContainers` catches a non-fatal exception and you should see the following ERROR message in the logs and immediately link:++https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/client/api/AMRMClient.html#releaseAssignedContainer(org.apache.hadoop.yarn.api.records.ContainerId)++[releases the container] (using the internal <<amClient, AMRMClient>>).
 
