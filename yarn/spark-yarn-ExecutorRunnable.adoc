@@ -44,23 +44,23 @@ Refer to link:../spark-logging.adoc[Logging].
 
 . YARN https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/api/records/Container.html[Container] to <<run, run a Spark executor in>>
 . [[conf]] https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/conf/YarnConfiguration.html[YarnConfiguration]
-. `sparkConf` -- link:../spark-configuration.adoc[SparkConf]
+. [[sparkConf]] `sparkConf` -- link:../spark-configuration.adoc[SparkConf]
 . `masterAddress`
 . `executorId`
 . `hostname` of the YARN container
-. `executorMemory`
-. `executorCores`
+. [[executorMemory]] `executorMemory`
+. [[executorCores]] `executorCores`
 . `appId`
 . [[securityMgr]] `SecurityManager`
 . [[localResources]] `localResources` -- `Map[String, LocalResource]`
 
 `ExecutorRunnable` initializes the <<internal-registries, internal registries and counters>>.
 
-`executorMemory` and `executorCores` are from link:spark-yarn-YarnAllocator.adoc#runAllocatedContainers[YarnAllocator] but really are link:../spark-executor.adoc#spark.executor.memory[spark.executor.memory] and link:../spark-executor.adoc#spark.executor.cores[spark.executor.cores] properties.
+NOTE: <<executorMemory, executorMemory>> and <<executorCores, executorCores>> input arguments are from link:spark-yarn-YarnAllocator.adoc#runAllocatedContainers[YarnAllocator] but really are link:../spark-executor.adoc#spark.executor.memory[spark.executor.memory] and link:../spark-executor.adoc#spark.executor.cores[spark.executor.cores] properties.
 
 NOTE: Most of the input parameters are exactly as link:spark-yarn-YarnAllocator.adoc#creating-instance[`YarnAllocator` was created with].
 
-=== [[prepareCommand]] Preparing Command to Launch CoarseGrainedExecutorBackend -- `prepareCommand` Internal Method
+=== [[prepareCommand]] Preparing Command to Launch CoarseGrainedExecutorBackend in YARN Container -- `prepareCommand` Internal Method
 
 [source, scala]
 ----
@@ -73,32 +73,57 @@ prepareCommand(
   appId: String): List[String]
 ----
 
-`prepareCommand` is a private method to prepare the command that is used to <<startContainer, start `org.apache.spark.executor.CoarseGrainedExecutorBackend` application in a YARN container>>. All the input parameters of `prepareCommand` become the link:../spark-executor-backends-CoarseGrainedExecutorBackend.adoc#main[command-line arguments of `CoarseGrainedExecutorBackend` application].
+`prepareCommand` prepares the command that is used to <<startContainer, start `org.apache.spark.executor.CoarseGrainedExecutorBackend` application in a YARN container>>. All the input parameters of `prepareCommand` become the link:../spark-executor-backends-CoarseGrainedExecutorBackend.adoc#main[command-line arguments of `CoarseGrainedExecutorBackend` application].
 
-The input `executorMemory` is in `m` and becomes `-Xmx` in the JVM options.
+`prepareCommand` builds up the JVM options and library path using Spark properties and environment variables.
 
-It uses the optional link:spark-executor.adoc#spark_executor_extraJavaOptions[spark.executor.extraJavaOptions] for the JVM options.
+NOTE: JVM options are defined using `-Dkey=value` format.
 
-If the optional `SPARK_JAVA_OPTS` environment variable is defined, it is added to the JVM options.
+`prepareCommand` builds `-Xmx` JVM option using <<executorMemory, executorMemory>> (in MB).
 
-It uses the optional link:spark-executor.adoc#spark_executor_extraLibraryPath[spark.executor.extraLibraryPath] to set `prefixEnv`. It uses `Client.getClusterPath`.
+NOTE: `prepareCommand` uses <<executorMemory, executorMemory>> that is given when <<creating-instance, `ExecutorRunnable` is created>>.
 
-CAUTION: FIXME `Client.getClusterPath`?
+`prepareCommand` adds the optional link:../spark-executor.adoc#spark.executor.extraJavaOptions[spark.executor.extraJavaOptions] property to the JVM options (if defined).
 
-It sets `-Dspark.yarn.app.container.log.dir=<LOG_DIR>`
-It sets the user classpath (using `Client.getUserClasspath`).
+`prepareCommand` adds the optional `SPARK_JAVA_OPTS` environment variable to the JVM options (if defined).
 
-CAUTION: FIXME `Client.getUserClasspath`?
+`prepareCommand` adds the optional link:../spark-executor.adoc#spark.executor.extraLibraryPath[spark.executor.extraLibraryPath] to the library path (link:spark-yarn-client.adoc#getClusterPath[changing the path to be YARN NodeManager-aware]).
 
-Finally, it creates the entire command to start link:../spark-executor-backends-CoarseGrainedExecutorBackend.adoc[org.apache.spark.executor.CoarseGrainedExecutorBackend] with the following arguments:
+`prepareCommand` adds `-Djava.io.tmpdir=<LOG_DIR>./tmp` to the JVM options.
 
-* `--driver-url` being the input `masterAddress`
-* `--executor-id` being the input `slaveId`
-* `--hostname` being the input `hostname`
-* `--cores` being the input `executorCores`
-* `--app-id` being the input `appId`
+`prepareCommand` adds link:../spark-configuration.adoc#isExecutorStartupConf[all the Spark properties for executors] to the JVM options.
 
-NOTE: `prepareCommand` is used when `ExecutorRunnable` <<startContainer, starts `CoarseGrainedExecutorBackend` in a container>> and (for debugging purposes) <<launchContextDebugInfo, builds launch context diagnostic information>> (to print it out as an INFO message to the logs).
+NOTE: `prepareCommand` uses <<sparkConf, SparkConf>> that is given when <<creating-instance, `ExecutorRunnable` is created>>.
+
+`prepareCommand` adds `-Dspark.yarn.app.container.log.dir=<LOG_DIR>` to the JVM options.
+
+`prepareCommand` adds `-XX:MaxPermSize=256m` unless already defined or IBM JVM or Java 8 are used.
+
+`prepareCommand` reads the link:spark-yarn-client.adoc#getUserClasspath[list of URIs representing the user classpath] and adds `--user-class-path` and `file:[path]` for every entry.
+
+`prepareCommand` adds `-XX:OnOutOfMemoryError` to the JVM options unless already defined.
+
+In the end, `prepareCommand` combines the parts together to build the entire command with the following (in order):
+
+. Extra library path
+. `JAVA_HOME/bin/java`
+. `-server`
+. JVM options
+. `org.apache.spark.executor.CoarseGrainedExecutorBackend`
+. `--driver-url` followed by `masterAddress`
+. `--executor-id` followed by `executorId`
+. `--hostname` followed by `hostname`
+. `--cores` followed by `executorCores`
+. `--app-id` followed by `appId`
+. `--user-class-path` with the arguments
+. `1><LOG_DIR>/stdout`
+. `2><LOG_DIR>/stderr`
+
+NOTE: `prepareCommand` uses the arguments for `--driver-url`, `--executor-id`, `--hostname`, `--cores` and `--app-id` as given when <<creating-instance, `ExecutorRunnable` is created>>.
+
+NOTE: You can see the result of `prepareCommand` as `command` in the INFO message in the logs when link:spark-yarn-applicationmaster.adoc#registerAM[`ApplicationMaster` registers itself with YARN ResourceManager] (to print it out once and avoid flooding the logs when starting Spark executors).
+
+NOTE: `prepareCommand` is used when `ExecutorRunnable` <<startContainer, starts `CoarseGrainedExecutorBackend` in a YARN resource container>> and (only for debugging purposes) when `ExecutorRunnable` <<launchContextDebugInfo, builds launch context diagnostic information>> (to print it out as an INFO message to the logs).
 
 === [[prepareEnvironment]] Collecting Environment Variables for CoarseGrainedExecutorBackend Containers -- `prepareEnvironment` Internal Method
 
