@@ -1,13 +1,11 @@
 == [[YarnAllocator]] YarnAllocator -- YARN Resource Container Allocator
 
-`YarnAllocator` <<updateResourceRequests, requests resource containers from a YARN cluster>> (i.e. from YARN ResourceManager exactly) and manages the container allocations by <<allocateResources, allocating them to Spark executors>> and <<internalReleaseContainer, releasing them>> depending on the needs of a Spark application.
+`YarnAllocator` <<updateResourceRequests, requests resources from a YARN cluster>> (in a form of containers from YARN ResourceManager) and manages the container allocations by <<allocateResources, allocating them to Spark executors>> and <<internalReleaseContainer, releasing them>> when no longer needed by a Spark application.
 
-`YarnAllocator` requests new or releases resource containers through <<amClient, AMRMClient (of ContainerRequests)>> that link:spark-yarn-yarnrmclient.adoc#register[`YarnRMClient` passes in] to <<creating-instance, create a `YarnAllocator`>> (after `YarnRMClient` has registered `ApplicationMaster` for a Spark application).
+`YarnAllocator` manages resources using <<amClient, AMRMClient>> (that link:spark-yarn-yarnrmclient.adoc#register[`YarnRMClient` passes in] when <<creating-instance, creating a `YarnAllocator`>>).
 
 .Creating YarnAllocator
 image::../images/spark-yarn-YarnAllocator-amClient-ResourceManager.png[align="center"]
-
-CAUTION: FIXME Image for YarnAllocator uses amClient Reference to YARN ResourceManager
 
 `YarnAllocator` is a part of the internal state of link:spark-yarn-applicationmaster.adoc#allocator[ApplicationMaster] (via the internal `allocator` reference).
 
@@ -16,7 +14,8 @@ image::../images/spark-yarn-YarnAllocator.png[align="center"]
 
 `YarnAllocator` later <<runAllocatedContainers, launches Spark executors in allocated YARN resource containers>>.
 
-CAUTION: FIXME An image with YarnAllocator and multiple ExecutorRunnables.
+.YarnAllocator Runs ExecutorRunnables in Allocated YARN Containers
+image::../images/spark-yarn-YarnAllocator-runAllocatedContainers.png[align="center"]
 
 [[internal-registries]]
 .YarnAllocator's Internal Registries and Counters
@@ -26,26 +25,34 @@ CAUTION: FIXME An image with YarnAllocator and multiple ExecutorRunnables.
 | Description
 
 | [[resource]] `resource`
-| The YARN https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/api/records/Resource.html[Resource] with the memory and the CPU for a single executor.
+| The YARN https://hadoop.apache.org/docs/current/api/org/apache/hadoop/yarn/api/records/Resource.html[Resource] that sets capacity requirement (i.e. memory and virtual cores) of a single executor.
 
 NOTE: `Resource` models a set of computer resources in the cluster. Currently both memory and virtual CPU cores (vcores).
 
-| [[executorIdCounter]] `executorIdCounter`
-| FIXME
+Created when <<creating-instance, `YarnAllocator` is created>> and is the sum of <<executorMemory, executorMemory>> and <<memoryOverhead, memoryOverhead>> for the amount of memory and <<executorCores, executorCores>> for the number of virtual cores.
 
-Set to the link:spark-yarn-cluster-YarnSchedulerEndpoint.adoc#RetrieveLastAllocatedExecutorId[last allocated executor id] (it seems quite an extensive operation that uses a RPC system)
+| [[executorIdCounter]] `executorIdCounter`
+| Used to set executor id when <<runAllocatedContainers, launching Spark executors in allocated YARN resource containers>>.
+
+Set to the link:spark-yarn-cluster-YarnSchedulerEndpoint.adoc#RetrieveLastAllocatedExecutorId[last allocated executor id] (received through a RPC system when <<creating-instance, `YarnAllocator` is created>>).
 
 | [[targetNumExecutors]] `targetNumExecutors`
-| Desired Total Number of Executors
+| Current desired total number of executors (as YARN resource containers).
 
 Set to the link:spark-yarn-YarnSparkHadoopUtil.adoc#getInitialTargetExecutorNumber[initial number of executors] when <<creating-instance, `YarnAllocator` is created>>.
 
 `targetNumExecutors` is eventually reached after <<updateResourceRequests, `YarnAllocator` updates YARN container allocation requests>>.
 
-May later be changed when <<requestTotalExecutorsWithPreferredLocalities, `YarnAllocator` is requested for executors given locality preferences>>.
+May later be changed when <<requestTotalExecutorsWithPreferredLocalities, `YarnAllocator` is requested for total number of executors given locality preferences>>.
+
+Used when <<updateResourceRequests, requesting missing resource containers>> and <<runAllocatedContainers, launching Spark executors in the allocated resource containers>>.
 
 | [[numExecutorsRunning]] `numExecutorsRunning`
 | Current number of...FIXME
+
+Used to <<updateResourceRequests, update YARN container allocation requests>> and <<getNumExecutorsRunning, get the current number of executors running>>.
+
+Incremented when <<runAllocatedContainers, launching Spark executors in allocated YARN resource containers>> and decremented when <<killExecutor, releasing a resource container for a Spark executor>>.
 
 | [[currentNodeBlacklist]] `currentNodeBlacklist`
 | List of...FIXME
@@ -180,6 +187,10 @@ It sets the internal `containerPlacementStrategy` to...FIXME
 
 CAUTION: FIXME LocalityPreferredContainerPlacementStrategy?
 
+==== [[getNumExecutorsRunning]] `getNumExecutorsRunning` Method
+
+CAUTION: FIXME
+
 ==== [[updateInternalState]] `updateInternalState` Method
 
 CAUTION: FIXME
@@ -188,29 +199,34 @@ CAUTION: FIXME
 
 CAUTION: FIXME
 
-=== [[requestTotalExecutorsWithPreferredLocalities]] Requesting Executors with Locality Preferences -- `requestTotalExecutorsWithPreferredLocalities` Method
+=== [[requestTotalExecutorsWithPreferredLocalities]] Specifying Current Total Number of Executors with Locality Preferences -- `requestTotalExecutorsWithPreferredLocalities` Method
 
 [source, scala]
 ----
 requestTotalExecutorsWithPreferredLocalities(
   requestedTotal: Int,
   localityAwareTasks: Int,
-  hostToLocalTaskCount: Map[String, Int]): Boolean
+  hostToLocalTaskCount: Map[String, Int],
+  nodeBlacklist: Set[String]): Boolean
 ----
 
-`requestTotalExecutorsWithPreferredLocalities` returns `true` if the <<targetNumExecutors, current desired total number of executors>> is different than the input `requestedTotal`.
+`requestTotalExecutorsWithPreferredLocalities` returns whether the <<targetNumExecutors, current desired total number of executors>> is different than the input `requestedTotal`.
 
-NOTE: `requestTotalExecutorsWithPreferredLocalities` should instead have been called `shouldRequestTotalExecutorsWithPreferredLocalities` since it answers the question whether to request total executors or not.
+NOTE: `requestTotalExecutorsWithPreferredLocalities` should instead have been called `shouldRequestTotalExecutorsWithPreferredLocalities` since it answers the question whether to request new total executors or not.
 
 `requestTotalExecutorsWithPreferredLocalities` sets the internal <<numLocalityAwareTasks, numLocalityAwareTasks>> and <<hostToLocalTaskCounts, hostToLocalTaskCounts>> attributes to the input `localityAwareTasks` and `hostToLocalTaskCount` arguments, respectively.
 
-If the input `requestedTotal` is different than the internal `targetNumExecutors` attribute you should see the following INFO message in the logs:
+If the input `requestedTotal` is different than the internal <<targetNumExecutors, targetNumExecutors>> you should see the following INFO message in the logs:
 
 ```
 INFO YarnAllocator: Driver requested a total number of [requestedTotal] executor(s).
 ```
 
-It sets the internal `targetNumExecutors` attribute to the input `requestedTotal` and returns `true`. Otherwise, it returns `false`.
+`requestTotalExecutorsWithPreferredLocalities` saves the input `requestedTotal` to be the <<targetNumExecutors, current desired total number of executors>>.
+
+`requestTotalExecutorsWithPreferredLocalities` updates blacklist information to YARN ResouceManager for this application in order to avoid allocating new Containers on the problematic nodes.
+
+CAUTION: FIXME Describe the blacklisting
 
 NOTE: `requestTotalExecutorsWithPreferredLocalities` is executed in response to link:spark-yarn-AMEndpoint.adoc#RequestExecutors[`RequestExecutors` message to `ApplicationMaster`].
 
@@ -314,7 +330,7 @@ INFO Received [allocatedContainersSize] containers from YARN, launching executor
 
 NOTE: `handleAllocatedContainers` is used exclusively when `YarnAllocator` <<allocateResources, allocates YARN resource containers for Spark executors>>.
 
-=== [[runAllocatedContainers]] Running ExecutorRunnables in Allocated YARN Resource Containers -- `runAllocatedContainers` Internal Method
+=== [[runAllocatedContainers]] Running ExecutorRunnables (with CoarseGrainedExecutorBackends) in Allocated YARN Resource Containers -- `runAllocatedContainers` Internal Method
 
 [source, scala]
 ----
