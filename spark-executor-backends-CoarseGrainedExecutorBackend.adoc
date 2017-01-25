@@ -1,8 +1,6 @@
 == [[CoarseGrainedExecutorBackend]] CoarseGrainedExecutorBackend
 
-`CoarseGrainedExecutorBackend` is an link:spark-ExecutorBackend.adoc[ExecutorBackend] that controls the lifecycle of a single <<executor, executor>> (that is created after a <<RegisteredExecutor, connection to the driver is established>>).
-
-`CoarseGrainedExecutorBackend` is the <<main, standalone application>> that is started in a resource container when:
+`CoarseGrainedExecutorBackend` is a <<main, standalone application>> that is started in a resource container when:
 
 . Spark Standalone's link:spark-standalone-StandaloneSchedulerBackend.adoc#start[`StandaloneSchedulerBackend` starts]
 
@@ -10,12 +8,45 @@
 
 . Spark on Mesos's link:spark-mesos/spark-mesos-MesosCoarseGrainedSchedulerBackend.adoc#createCommand[`MesosCoarseGrainedSchedulerBackend` launches Spark executors]
 
-When <<run, started>>, `CoarseGrainedExecutorBackend` registers itself as the `Executor` RPC endpoint to communicate with the driver.
+When <<run, started>>, `CoarseGrainedExecutorBackend` <<creating-instance, registers the Executor RPC endpoint>> to communicate with the driver (i.e. with link:spark-CoarseGrainedSchedulerBackend-DriverEndpoint.adoc[CoarseGrainedScheduler RPC endpoint]).
 
-.CoarseGrainedExecutorBackend and Others
+.CoarseGrainedExecutorBackend Communicates with Driver's CoarseGrainedSchedulerBackend Endpoint
 image::images/CoarseGrainedExecutorBackend.png[align="center"]
 
 When <<main, launched>>, `CoarseGrainedExecutorBackend` immediately connects to the owning link:spark-scheduler-backends-CoarseGrainedSchedulerBackend.adoc[CoarseGrainedSchedulerBackend] to inform that it is ready to launch tasks.
+
+`CoarseGrainedExecutorBackend` is an link:spark-ExecutorBackend.adoc[ExecutorBackend] that controls the lifecycle of a single <<executor, executor>> and sends <<statusUpdate, the executor's status updates>> to the driver.
+
+CAUTION: FIXME Image please...
+
+`CoarseGrainedExecutorBackend` is a link:spark-rpc.adoc#ThreadSafeRpcEndpoint[ThreadSafeRpcEndpoint] that <<onStart, connects to the driver>> (before accepting <<messages, messages>>) and <<onDisconnected, shuts down when the driver disconnects>>.
+
+[[messages]]
+.CoarseGrainedExecutorBackend's Executor RPC Endpoint Messages (in alphabetical order)
+[width="100%",cols="1,2",options="header"]
+|===
+| Message
+| Description
+
+| <<KillTask, KillTask>>
+|
+
+| <<LaunchTask, LaunchTask>>
+|
+
+| <<RegisteredExecutor, RegisteredExecutor>>
+|
+
+| <<RegisterExecutorFailed, RegisterExecutorFailed>>
+|
+
+| <<StopExecutor, StopExecutor>>
+|
+
+| <<Shutdown, Shutdown>>
+|
+
+|===
 
 [[internal-properties]]
 .CoarseGrainedExecutorBackend's Internal Properties
@@ -94,17 +125,19 @@ CAUTION: FIXME
 
 `CoarseGrainedExecutorBackend` takes the following when created:
 
-1. [[rpcEnv]] link:spark-rpc.adoc[RpcEnv]
-2. `driverUrl`
-3. `executorId`
-4. `hostname`
-5. `cores`
-6. `userClassPath` -- collection of URLs
-7. link:spark-sparkenv.adoc[SparkEnv]
+. [[rpcEnv]] link:spark-rpc.adoc[RpcEnv]
+. `driverUrl`
+. `executorId`
+. `hostname`
+. `cores`
+. `userClassPath`
+. link:spark-sparkenv.adoc[SparkEnv]
+
+NOTE: `driverUrl`, `executorId`, `hostname`, `cores` and `userClassPath` correspond to `CoarseGrainedExecutorBackend` standalone application's <<command-line-arguments, command-line arguments>>.
 
 `CoarseGrainedExecutorBackend` initializes the <<internal-properties, internal properties>>.
 
-NOTE: `CoarseGrainedExecutorBackend` is created (to act as a RPC Endpoint) when <<run, `Executor` RPC endpoint is registered>>.
+NOTE: `CoarseGrainedExecutorBackend` is created (to act as an RPC endpoint) when <<run, `Executor` RPC endpoint is registered>>.
 
 === [[onStart]] Connecting to Driver -- `onStart` Method
 
