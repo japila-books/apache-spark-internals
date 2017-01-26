@@ -33,7 +33,7 @@ image::images/CoarseGrainedExecutorBackend-statusUpdate.png[align="center"]
 |
 
 | <<LaunchTask, LaunchTask>>
-| Forwards launch task request from the driver to the managed single <<executor, executor>>.
+| Forwards launch task requests from the driver to the single managed coarse-grained <<executor, executor>>.
 
 | <<RegisteredExecutor, RegisteredExecutor>>
 |
@@ -93,10 +93,6 @@ log4j.logger.org.apache.spark.executor.CoarseGrainedExecutorBackend=INFO
 ```
 ====
 
-=== [[exitExecutor]] `exitExecutor` Method
-
-CAUTION: FIXME
-
 === [[onDisconnected]] `onDisconnected` Callback
 
 CAUTION: FIXME
@@ -134,7 +130,7 @@ INFO CoarseGrainedExecutorBackend: Got assigned task [taskId]
 
 `LaunchTask` then link:spark-executor.adoc#launchTask[launches the task on the executor] (passing itself as the owning link:spark-ExecutorBackend.adoc[ExecutorBackend] and decoded `TaskDescription`).
 
-If <<executor, executor>> is not available, `LaunchTask` <<exitExecutor, exits `CoarseGrainedExecutorBackend`>> with the error code `1` and `ExecutorLossReason` with the following message:
+If <<executor, executor>> is not available, `LaunchTask` <<exitExecutor, terminates `CoarseGrainedExecutorBackend`>> with the error code `1` and `ExecutorLossReason` with the following message:
 
 ```
 Received LaunchTask command but executor was null
@@ -363,7 +359,7 @@ INFO CoarseGrainedExecutorBackend: Successfully registered with driver
 
 NOTE: `CoarseGrainedExecutorBackend` uses `executorId`, `hostname`, `env`, `userClassPath` to create the `Executor` that were specified when <<creating-instance, `CoarseGrainedExecutorBackend` was created>>.
 
-If creating the `Executor` fails with a non-fatal exception, `CoarseGrainedExecutorBackend` <<exitExecutor, exits executor>> with the reason:
+If creating the `Executor` fails with a non-fatal exception, `RegisteredExecutor` <<exitExecutor, terminates `CoarseGrainedExecutorBackend`>> with the reason:
 
 ```
 Unable to create executor due to [message]
@@ -425,3 +421,43 @@ extends CoarseGrainedClusterMessage
 When `Shutdown` is received, the handler turns <<stopping, stopping>> internal flag on. It then starts the `CoarseGrainedExecutorBackend-stop-executor` thread that link:spark-executor.adoc#stop[stops the owned `Executor`] (using <<executor, executor>> reference).
 
 NOTE: `Shutdown` message is sent exclusively when <<StopExecutor, `CoarseGrainedExecutorBackend` receives `StopExecutor`>>.
+
+=== [[exitExecutor]] Terminating CoarseGrainedExecutorBackend (and Notifying Driver with RemoveExecutor) -- `exitExecutor` Method
+
+[source, scala]
+----
+exitExecutor(
+  code: Int,
+  reason: String,
+  throwable: Throwable = null,
+  notifyDriver: Boolean = true): Unit
+----
+
+When `exitExecutor` is executed, you should see the following ERROR message in the logs (followed by `throwable` if available):
+
+```
+ERROR Executor self-exiting due to : [reason]
+```
+
+If `notifyDriver` is enabled (it is by default) `exitExecutor` informs the <<driver, driver>> that the executor should be removed (by sending a link:spark-CoarseGrainedSchedulerBackend-DriverEndpoint.adoc#RemoveExecutor[blocking `RemoveExecutor` message] with <<executorId, executor id>> and a `ExecutorLossReason` with the input `reason`).
+
+You may see the following WARN message in the logs when the notification fails.
+
+```
+Unable to notify the driver due to [message]
+```
+
+In the end, `exitExecutor` terminates the `CoarseGrainedExecutorBackend` JVM process with the status `code`.
+
+NOTE: `exitExecutor` uses Java's https://docs.oracle.com/javase/8/docs/api/java/lang/System.html#exit-int-[System.exit] and initiates JVM's shutdown sequence (and executing all registered shutdown hooks).
+
+[NOTE]
+====
+`exitExecutor` is used when:
+
+* `CoarseGrainedExecutorBackend` fails to <<onStart, associate with the driver>>, <<RegisteredExecutor, create a managed executor>> or <<RegisterExecutorFailed, register with the driver>>
+
+* no <<executor, executor>> has been created before <<LaunchTask, launch>> or <<KillTask, kill>> task requests
+
+* <<onDisconnected, driver has disconnected>>.
+====
