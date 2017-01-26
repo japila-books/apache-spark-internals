@@ -1,32 +1,113 @@
 == [[CoarseGrainedSchedulerBackend]] CoarseGrainedSchedulerBackend
 
-`CoarseGrainedSchedulerBackend` is a link:spark-scheduler-backends.adoc[SchedulerBackend] and link:spark-service-ExecutorAllocationClient.adoc[ExecutorAllocationClient].
+`CoarseGrainedSchedulerBackend` is a link:spark-scheduler-backends.adoc[SchedulerBackend].
+
+`CoarseGrainedSchedulerBackend` is an link:spark-service-ExecutorAllocationClient.adoc[ExecutorAllocationClient].
 
 `CoarseGrainedSchedulerBackend` is responsible for requesting resources from a cluster manager for executors that it in turn uses to <<launchTasks, launch tasks>> (on link:spark-executor-backends-CoarseGrainedExecutorBackend.adoc[coarse-grained executors]).
 
 `CoarseGrainedSchedulerBackend` holds executors for the duration of the Spark job rather than relinquishing executors whenever a task is done and asking the scheduler to launch a new executor for each new task.
 
-When <<creating-instance, being created>>, `CoarseGrainedSchedulerBackend` requires a link:spark-taskschedulerimpl.adoc[Task Scheduler], and a link:spark-rpc.adoc[RPC Environment].
-
-It uses link:spark-LiveListenerBus.adoc[LiveListenerBus].
+CAUTION: FIXME Picture with dependencies
 
 It registers <<CoarseGrainedScheduler, CoarseGrainedScheduler RPC Endpoint>> that executors use for RPC communication.
 
-It tracks:
+[[builtin-implementations]]
+.Built-In CoarseGrainedSchedulerBackends per Cluster Environment
+[cols="1,2",options="header",width="100%"]
+|===
+| Cluster Environment
+| CoarseGrainedSchedulerBackend
 
-* the total number of cores in the cluster (using `totalCoreCount`)
-* the total number of executors that are currently registered
-* executors (`ExecutorData`)
-* executors to be removed (`executorsPendingToRemove`)
-* hosts and the number of possible tasks possibly running on them
-* lost executors with no real exit reason
-* tasks per slaves (`taskIdsOnSlave`)
+| Spark Standalone
+| link:spark-standalone-StandaloneSchedulerBackend.adoc[StandaloneSchedulerBackend]
 
-Known Implementations:
+| Spark on YARN
+| link:yarn/spark-yarn-yarnschedulerbackend.adoc[YarnSchedulerBackend]
 
-1. Spark Standalone's link:spark-standalone-StandaloneSchedulerBackend.adoc[StandaloneSchedulerBackend]
-2. Spark on YARN's link:yarn/spark-yarn-yarnschedulerbackend.adoc[YarnSchedulerBackend]
-3. Spark on Mesos's link:spark-mesos/spark-mesos-MesosCoarseGrainedSchedulerBackend.adoc[MesosCoarseGrainedSchedulerBackend]
+| Spark on Mesos
+| link:spark-mesos/spark-mesos-MesosCoarseGrainedSchedulerBackend.adoc[MesosCoarseGrainedSchedulerBackend]
+|===
+
+NOTE: `CoarseGrainedSchedulerBackend` is only created indirectly through <<builtin-implementations, built-in implementations per cluster environment>>.
+
+[[internal-properties]]
+.CoarseGrainedSchedulerBackend's Internal Properties
+[cols="1,1,2",options="header",width="100%"]
+|===
+| Name
+| Initial Value
+| Description
+
+| [[maxRpcMessageSize]] `maxRpcMessageSize`
+| <<spark.rpc.message.maxSize, spark.rpc.message.maxSize>> but not greater than `2047`
+a| Maximum RPC message size in MB.
+
+When above `2047` MB you should see the following `IllegalArgumentException`:
+
+```
+spark.rpc.message.maxSize should not be greater than 2047 MB
+```
+
+| [[executorDataMap]] `executorDataMap`
+| empty
+| Registry of `ExecutorData` by executor id.
+
+NOTE: `ExecutorData` holds an executor's endpoint reference, address, host, the number of free and total CPU cores, the URL of execution logs.
+
+Element added when link:spark-CoarseGrainedSchedulerBackend-DriverEndpoint.adoc#RegisterExecutor[`DriverEndpoint` receives `RegisterExecutor` message] and removed when link:spark-CoarseGrainedSchedulerBackend-DriverEndpoint.adoc#RemoveExecutor[`DriverEndpoint` receives `RemoveExecutor` message] or link:spark-CoarseGrainedSchedulerBackend-DriverEndpoint.adoc#onDisconnected[a remote host (with one or many executors) disconnects].
+
+| [[totalCoreCount]] `totalCoreCount`
+| `0`
+| Total number of CPU cores, i.e. the sum of all the cores on all executors.
+
+| [[totalRegisteredExecutors]] `totalRegisteredExecutors`
+| `0`
+| Total number of registered executors
+
+| [[driverEndpoint]] `driverEndpoint`
+| (uninitialized)
+|
+
+| [[_minRegisteredRatio]] `_minRegisteredRatio`
+| <<spark.scheduler.minRegisteredResourcesRatio, spark.scheduler.minRegisteredResourcesRatio>>
+|
+
+| [[maxRegisteredWaitingTimeMs]] `maxRegisteredWaitingTimeMs`
+| <<spark.scheduler.maxRegisteredResourcesWaitingTime, spark.scheduler.maxRegisteredResourcesWaitingTime>>
+|
+
+| [[currentExecutorIdCounter]] `currentExecutorIdCounter`
+|
+| The last (highest) identifier of all <<RegisterExecutor, allocated executors>>.
+
+Used exclusively in link:yarn/spark-yarn-cluster-YarnSchedulerEndpoint.adoc#RetrieveLastAllocatedExecutorId[`YarnSchedulerEndpoint` to respond to `RetrieveLastAllocatedExecutorId` message].
+
+| [[numPendingExecutors]] `numPendingExecutors`
+| `0`
+|
+
+| [[executorsPendingToRemove]] `executorsPendingToRemove`
+| empty
+| Executors marked as removed but the confirmation from a cluster manager has not arrived yet.
+
+| [[hostToLocalTaskCount]] `hostToLocalTaskCount`
+| empty
+| Registry of hostnames and possible number of task running on them.
+
+| [[createTime]] `createTime`
+| Current time
+| The time <<creating-instance, `CoarseGrainedSchedulerBackend` was created>>.
+
+| [[localityAwareTasks]] `localityAwareTasks`
+| `0`
+| Number of pending tasks...FIXME
+
+| [[defaultAskTimeout]] `defaultAskTimeout`
+| link:spark-rpc.adoc#spark.rpc.askTimeout[spark.rpc.askTimeout] or link:spark-rpc.adoc#spark.network.timeout[spark.network.timeout] or `120s`
+| Default timeout for blocking RPC messages (_aka_ ask messages).
+
+|===
 
 [TIP]
 ====
@@ -40,10 +121,6 @@ log4j.logger.org.apache.spark.scheduler.cluster.CoarseGrainedSchedulerBackend=DE
 
 Refer to link:spark-logging.adoc[Logging].
 ====
-
-=== [[maxRpcMessageSize]] maxRpcMessageSize
-
-CAUTION: FIXME
 
 === [[makeOffers]] Making Fake Resource Offers on Executors -- `makeOffers` Internal Methods
 
@@ -61,24 +138,12 @@ It then requests link:spark-taskschedulerimpl.adoc#resourceOffers[`TaskScheduler
 
 === [[creating-instance]] Creating CoarseGrainedSchedulerBackend Instance
 
-`CoarseGrainedSchedulerBackend` requires a link:spark-taskschedulerimpl.adoc[task scheduler] and a link:spark-rpc.adoc[RPC Environment] when being created.
+`CoarseGrainedSchedulerBackend` takes the following when created:
 
-It initializes the following registries:
+. [[scheduler]] link:spark-taskschedulerimpl.adoc[TaskSchedulerImpl]
+. [[rpcEnv]] link:spark-rpc.adoc[RpcEnv]
 
-* totalCoreCount to `0`
-* totalRegisteredExecutors to `0`
-* maxRpcMessageSize to <<spark_rpc_message_maxSize, spark.rpc.message.maxSize>>.
-* _minRegisteredRatio to <<spark.scheduler.minRegisteredResourcesRatio, spark.scheduler.minRegisteredResourcesRatio>> (between `0` and `1` inclusive).
-* maxRegisteredWaitingTimeMs to <<spark.scheduler.maxRegisteredResourcesWaitingTime, spark.scheduler.maxRegisteredResourcesWaitingTime>>.
-* createTime to the current time.
-* <<executorDataMap, executorDataMap>> to an empty collection.
-* <<numPendingExecutors, numPendingExecutors>> to `0`
-* <<executorsPendingToRemove, executorsPendingToRemove>> to an empty collection.
-* <<hostToLocalTaskCount, hostToLocalTaskCount>> to an empty collection.
-* <<localityAwareTasks, localityAwareTasks>> to `0`
-* <<currentExecutorIdCounter, currentExecutorIdCounter>> to `0`
-
-It accesses the current link:spark-LiveListenerBus.adoc[LiveListenerBus] and link:spark-configuration.adoc[SparkConf] through the constructor's reference to link:spark-taskschedulerimpl.adoc[TaskSchedulerImpl].
+`CoarseGrainedSchedulerBackend` initializes the <<internal-registries, internal registries and counters>>.
 
 === [[getExecutorIds]] Getting Executor Ids -- `getExecutorIds` Method
 
@@ -88,66 +153,67 @@ NOTE: It is called when link:spark-sparkcontext.adoc#getExecutorIds[SparkContext
 
 === [[contract]] CoarseGrainedSchedulerBackend Contract
 
-CAUTION: FIXME
+[source, scala]
+----
+class CoarseGrainedSchedulerBackend {
+  def minRegisteredRatio: Double
+  def createDriverEndpoint(properties: Seq[(String, String)]): DriverEndpoint
+  def reset(): Unit
+  def sufficientResourcesRegistered(): Boolean
+  def doRequestTotalExecutors(requestedTotal: Int): Future[Boolean]
+  def doKillExecutors(executorIds: Seq[String]): Future[Boolean]
+}
+----
+
+NOTE: `CoarseGrainedSchedulerBackend` is a `private[spark]` contract.
+
+.FIXME Contract
+[cols="1,2",options="header",width="100%"]
+|===
+| Method
+| Description
+
+| [[minRegisteredRatio]] `minRegisteredRatio`
+| Ratio between `0` and `1` (inclusive).
+
+Controlled by <<spark.scheduler.minRegisteredResourcesRatio, spark.scheduler.minRegisteredResourcesRatio>>.
+
+| [[createDriverEndpoint]] `createDriverEndpoint`
+| FIXME
+
+| <<reset, reset>>
+| FIXME
+
+| [[doRequestTotalExecutors]] `doRequestTotalExecutors`
+| FIXME
+
+| [[doKillExecutors]] `doKillExecutors`
+| FIXME
+
+| [[sufficientResourcesRegistered]] `sufficientResourcesRegistered`
+| Always positive, i.e. responds that sufficient resources are available.
+
+|===
 
 * It can <<reset, reset a current internal state to the initial state>>.
 
-==== [[doRequestTotalExecutors]] `doRequestTotalExecutors` Method
-
-[source, scala]
-----
-doRequestTotalExecutors(requestedTotal: Int): Boolean = false
-----
-
-`doRequestTotalExecutors` requests `requestedTotal` executors from a cluster manager. It is a `protected` method that returns `false` by default (that coarse-grained scheduler backends are supposed to further customize).
-
-[NOTE]
-====
-It is called when `CoarseGrainedSchedulerBackend` requests <<requestExecutors, additional>> or <<requestTotalExecutors, total number of executors>>, or when <<killExecutors, killing unneeded executors>>.
-
-In fact, all the aforementioned methods are due to the link:spark-service-ExecutorAllocationClient.adoc[ExecutorAllocationClient contract] that `CoarseGrainedSchedulerBackend` follows.
-====
-
-NOTE: It is customized by the coarse-grained scheduler backends for  link:yarn/spark-yarn-yarnschedulerbackend.adoc#doRequestTotalExecutors[YARN], link:spark-standalone-StandaloneSchedulerBackend.adoc[Spark Standalone], and link:spark-mesos/spark-mesos-MesosCoarseGrainedSchedulerBackend.adoc[Mesos].
-
-=== [[internal-registries]] Internal Registries
-
-==== [[currentExecutorIdCounter]] `currentExecutorIdCounter` Counter
-
-`currentExecutorIdCounter` is the last (highest) identifier of all <<RegisterExecutor, allocated executors>>.
-
-NOTE: It is exclusively used in link:yarn/spark-yarn-cluster-YarnSchedulerEndpoint.adoc#RetrieveLastAllocatedExecutorId[`YarnSchedulerEndpoint` to respond to `RetrieveLastAllocatedExecutorId` message].
-
-==== [[executorDataMap]] `executorDataMap` Registry
-
-[source, scala]
-----
-executorDataMap = new HashMap[String, ExecutorData]
-----
-
-`executorDataMap` tracks executor data by executor id.
-
-It uses `ExecutorData` that holds an executor's endpoint reference, address, host, the number of free and total CPU cores, the URL of execution logs.
-
-NOTE: A new executor (id, data) pair is added when link:spark-CoarseGrainedSchedulerBackend-DriverEndpoint.adoc#RegisterExecutor[`DriverEndpoint` receives `RegisterExecutor` message] and removed when link:spark-CoarseGrainedSchedulerBackend-DriverEndpoint.adoc#RemoveExecutor[`DriverEndpoint` receives `RemoveExecutor` message] or link:spark-CoarseGrainedSchedulerBackend-DriverEndpoint.adoc#onDisconnected[a remote host (with one or many executors) disconnects].
-
-==== [[numPendingExecutors]] `numPendingExecutors`
+=== [[numExistingExecutors]] `numExistingExecutors` Method
 
 CAUTION: FIXME
 
-==== [[numExistingExecutors]] `numExistingExecutors`
+=== [[killExecutors]] `killExecutors` Methods
 
 CAUTION: FIXME
 
-==== [[executorsPendingToRemove]] `executorsPendingToRemove`
+=== [[applicationId]] `applicationId` Method
 
 CAUTION: FIXME
 
-==== [[localityAwareTasks]] `localityAwareTasks`
+=== [[getDriverLogUrls]] `getDriverLogUrls` Method
 
 CAUTION: FIXME
 
-==== [[hostToLocalTaskCount]] `hostToLocalTaskCount`
+=== [[applicationAttemptId]] `applicationAttemptId` Method
 
 CAUTION: FIXME
 
@@ -169,7 +235,7 @@ INFO Requesting [numAdditionalExecutors] additional executor(s) from the cluster
 DEBUG Number of pending executors is now [numPendingExecutors]
 ```
 
-The internal `numPendingExecutors` is increased by the input `numAdditionalExecutors`.
+<<numPendingExecutors, numPendingExecutors>> is increased by the input `numAdditionalExecutors`.
 
 `requestExecutors` <<doRequestTotalExecutors, requests executors from a cluster manager>> (that reflects the current computation needs). The "new executor total" is a sum of the internal <<numExistingExecutors, numExistingExecutors>> and <<numPendingExecutors, numPendingExecutors>> decreased by the <<executorsPendingToRemove, number of executors pending to be removed>>.
 
@@ -197,7 +263,7 @@ requestTotalExecutors(
 
 NOTE: `requestTotalExecutors` is a part of link:spark-service-ExecutorAllocationClient.adoc[ExecutorAllocationClient Contract] that link:spark-sparkcontext.adoc#requestTotalExecutors[SparkContext uses for requesting the exact number of executors].
 
-It sets the internal <<localityAwareTasks, localityAwareTasks>> and <<hostToLocalTaskCount, hostToLocalTaskCount>> registries. It then calculates the exact number of executors which is the input `numExecutors` and <<executorsPendingToRemove, the executors pending removal>> decreased by the number of <<numExistingExecutors, already-assigned executors>>.
+It sets the internal <<localityAwareTasks, localityAwareTasks>> and <<hostToLocalTaskCount, hostToLocalTaskCount>> registries. It then calculates the exact number of executors which is the input `numExecutors` and the <<executorsPendingToRemove, executors pending removal>> decreased by the number of <<numExistingExecutors, already-assigned executors>>.
 
 If `numExecutors` is negative, a `IllegalArgumentException` is thrown:
 
@@ -209,31 +275,27 @@ NOTE: It is a final method that no other scheduler backends could customize furt
 
 NOTE: The method is a synchronized block that makes multiple concurrent requests be handled in a serial fashion, i.e. one by one.
 
-=== [[minRegisteredRatio]] `minRegisteredRatio` Property
+=== [[start]] Starting CoarseGrainedSchedulerBackend -- `start` Method
 
 [source, scala]
 ----
-minRegisteredRatio: Double
+start(): Unit
 ----
 
-`minRegisteredRatio` returns a ratio between `0` and `1` (inclusive). You can use <<spark.scheduler.minRegisteredResourcesRatio, spark.scheduler.minRegisteredResourcesRatio>> to control the value.
-
-=== [[start]] Starting `CoarseGrainedSchedulerBackend` -- `start` Method
+NOTE: `start` is a part of the link:spark-scheduler-backends.adoc#contract[SchedulerBackend Contract].
 
 `start` initializes <<CoarseGrainedScheduler, CoarseGrainedScheduler RPC Endpoint>>.
 
 .CoarseGrainedScheduler Endpoint
 image::images/CoarseGrainedScheduler-rpc-endpoint.png[align="center"]
 
-NOTE: `start` is part of the link:spark-scheduler-backends.adoc#contract[SchedulerBackend Contract].
-
 NOTE: The RPC Environment is passed on as an constructor parameter.
 
-=== [[stop]] Stopping `CoarseGrainedSchedulerBackend` -- `stop` Method
+=== [[stop]] Stopping CoarseGrainedSchedulerBackend -- `stop` Method
 
 `stop` method <<stopExecutors, stops executors>> and <<CoarseGrainedScheduler, CoarseGrainedScheduler RPC endpoint>>.
 
-NOTE: `stop` is part of the link:spark-scheduler-backends.adoc#contract[SchedulerBackend Contract].
+NOTE: `stop` is a part of the link:spark-scheduler-backends.adoc#contract[SchedulerBackend Contract].
 
 NOTE: When called with no `driverEndpoint` both `stop()` and `stopExecutors()` do nothing. `driverEndpoint` is initialized in `start` and the initialization order matters.
 
@@ -247,15 +309,15 @@ It then sends <<StopExecutors, StopExecutors>> message to `driverEndpoint`. It d
 
 It sends <<StopDriver, StopDriver>> message to `driverEndpoint`. It disregards the response.
 
-=== [[defaultParallelism]] Compute Default Level of Parallelism -- `defaultParallelism` Method
+=== [[defaultParallelism]] Computing Default Level of Parallelism -- `defaultParallelism` Method
 
-The default parallelism is controlled by link:spark-rdd-partitions.adoc#spark_default_parallelism[spark.default.parallelism] or is at least `2` or `totalCoreCount`.
+The default parallelism is controlled by link:spark-rdd-partitions.adoc#spark_default_parallelism[spark.default.parallelism] or is at least `2` or <<totalCoreCount, totalCoreCount>>.
 
 NOTE: `defaultParallelism` is part of the link:spark-scheduler-backends.adoc#contract[SchedulerBackend Contract].
 
 === [[reviveOffers]] Reviving Offers -- `reviveOffers` Method
 
-NOTE: `reviveOffers` is part of the link:spark-scheduler-backends.adoc#contract[SchedulerBackend Contract].
+NOTE: `reviveOffers` is a part of the link:spark-scheduler-backends.adoc#contract[SchedulerBackend Contract].
 
 `reviveOffers` simply sends a <<ReviveOffers, ReviveOffers>> message to <<driverEndpoint, driverEndpoint>> (so it is processed asynchronously, i.e. on a separate thread, later on).
 
@@ -304,10 +366,6 @@ The method finishes returning `true`.
 
 Otherwise, when <<sufficientResourcesRegistered, no sufficient resources are available>> and <<spark.scheduler.maxRegisteredResourcesWaitingTime, maxRegisteredWaitingTimeMs>> has not been passed, it finishes returning `false`.
 
-=== [[sufficientResourcesRegistered]] `sufficientResourcesRegistered` Method
-
-`sufficientResourcesRegistered` always responds that sufficient resources are available.
-
 === [[stopExecutors]] Stop All Executors -- `stopExecutors` Method
 
 `stopExecutors` sends a blocking <<StopExecutors, StopExecutors>> message to <<driverEndpoint, driverEndpoint>> (if already initialized).
@@ -324,7 +382,7 @@ INFO CoarseGrainedSchedulerBackend: Shutting down all executors
 
 `reset` resets the internal state:
 
-1. Sets `numPendingExecutors` to 0
+1. Sets <<numPendingExecutors, numPendingExecutors>> to 0
 2. Clears `executorsPendingToRemove`
 3. Sends a blocking <<RemoveExecutor, RemoveExecutor>> message to <<driverEndpoint, driverEndpoint>> for every executor (in the internal `executorDataMap`) to inform it about `SlaveLost` with the message:
 +
@@ -345,7 +403,7 @@ removeExecutor(executorId: String, reason: ExecutorLossReason)
 
 NOTE: It is called by subclasses link:spark-standalone.adoc#SparkDeploySchedulerBackend[SparkDeploySchedulerBackend], link:spark-mesos/spark-mesos.adoc#CoarseMesosSchedulerBackend[CoarseMesosSchedulerBackend], and link:yarn/spark-yarn-yarnschedulerbackend.adoc[YarnSchedulerBackend].
 
-=== [[driverEndpoint]][[CoarseGrainedScheduler]] CoarseGrainedScheduler RPC Endpoint -- `driverEndpoint`
+=== [[CoarseGrainedScheduler]] CoarseGrainedScheduler RPC Endpoint -- `driverEndpoint`
 
 When <<start, CoarseGrainedSchedulerBackend starts>>, it registers *CoarseGrainedScheduler* RPC endpoint to be the driver's communication endpoint.
 
@@ -356,11 +414,6 @@ NOTE: `CoarseGrainedSchedulerBackend` is created while link:spark-sparkcontext-c
 It is called *standalone scheduler's driver endpoint* internally.
 
 It tracks:
-
-* Executor addresses (host and port) for executors (`addressToExecutorId`) - it is set when an executor connects to register itself. See <<RegisterExecutor, RegisterExecutor>> RPC message.
-* Total number of core count (`totalCoreCount`) - the sum of all cores on all executors. See <<RegisterExecutor, RegisterExecutor>> RPC message.
-* The number of executors available (`totalRegisteredExecutors`). See <<RegisterExecutor, RegisterExecutor>> RPC message.
-* `ExecutorData` for each registered executor (`executorDataMap`). See <<RegisterExecutor, RegisterExecutor>> RPC message.
 
 It uses `driver-revive-thread` daemon single-thread thread pool for ...FIXME
 
@@ -397,9 +450,10 @@ NOTE: `ExecutorData` holds the link:spark-RpcEndpointRef.adoc[RpcEndpointRef] of
 
 In case the size of a serialized `TaskDescription` equals or exceeds the <<maxRpcMessageSize, maximum RPC message size>>, `launchTasks` finds all the link:spark-tasksetmanager.adoc[TaskSetManagers] associated with the `TaskDescription` and link:spark-tasksetmanager.adoc#abort[aborts them] with the following message:
 
-```
+[options="wrap"]
+----
 Serialized task [taskId]:[index] was [limit] bytes, which exceeds max allowed: spark.rpc.message.maxSize ([maxRpcMessageSize] bytes). Consider increasing spark.rpc.message.maxSize or using broadcast variables for large values.
-```
+----
 
 NOTE: `launchTasks` uses the link:spark-taskschedulerimpl.adoc#taskIdToTaskSetManager[registry of active `TaskSetManagers` per task id] from <<scheduler, TaskSchedulerImpl>> that was given when <<creating-instance, `CoarseGrainedSchedulerBackend` was created>>.
 
@@ -412,8 +466,13 @@ NOTE: `launchTasks` is used when `CoarseGrainedSchedulerBackend` <<makeOffers, m
 .Spark Properties
 [cols="1,1,2",options="header",width="100%"]
 |===
-| Spark Property | Default Value | Description
-| [[spark_rpc_message_maxSize]] `spark.rpc.message.maxSize` | `128` | Maximum message size (in MB) to allow in "control plane" communication; generally only applies to map output size (serialized) information sent between executors and the driver.
+| Spark Property
+| Default Value
+| Description
+
+| [[spark.rpc.message.maxSize]][[spark_rpc_message_maxSize]] `spark.rpc.message.maxSize`
+| `128`
+| Maximum message size (in MB) to allow in "control plane" communication; generally only applies to map output size (serialized) information sent between executors and the driver.
 
 Increase this if you are running jobs with many thousands of map and reduce tasks and see messages about the RPC message size.
 
