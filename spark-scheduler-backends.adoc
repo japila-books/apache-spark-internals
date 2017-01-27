@@ -1,6 +1,6 @@
 == [[SchedulerBackend]] Scheduler Backends
 
-Spark comes with a pluggable backend mechanism called *scheduler backend* (aka _backend scheduler_) to support various cluster managers, e.g. link:spark-mesos/spark-mesos.adoc[Apache Mesos], link:yarn/README.adoc[Hadoop YARN] or Spark's own link:spark-standalone.adoc[Spark Standalone] and link:spark-LocalSchedulerBackend.adoc[Spark local].
+`SchedulerBackend` is a pluggable <<contract, interface>> to support various cluster managers, e.g. link:spark-mesos/spark-mesos.adoc[Apache Mesos], link:yarn/README.adoc[Hadoop YARN] or Spark's own link:spark-standalone.adoc[Spark Standalone] and link:spark-LocalSchedulerBackend.adoc[Spark local].
 
 These cluster managers differ by their custom task scheduling modes and resource offers mechanisms, and Spark's approach is to abstract the differences in <<contract, SchedulerBackend Contract>>.
 
@@ -14,27 +14,81 @@ Being a scheduler backend in Spark assumes a http://mesos.apache.org/[Apache Mes
 
 TIP: Understanding how http://mesos.apache.org/[Apache Mesos] works can greatly improve understanding Spark.
 
+[[builtin-implementations]]
+.Built-In (Direct and Indirect) SchedulerBackends per Cluster Environment
+[cols="1,2",options="header",width="100%"]
+|===
+| Cluster Environment
+| SchedulerBackends
+
+| Local mode
+| link:spark-LocalSchedulerBackend.adoc[LocalSchedulerBackend]
+
+| (base for custom SchedulerBackends)
+| link:spark-scheduler-backends-CoarseGrainedSchedulerBackend.adoc[CoarseGrainedSchedulerBackend]
+
+| Spark Standalone
+| link:spark-standalone-StandaloneSchedulerBackend.adoc[StandaloneSchedulerBackend]
+
+| Spark on YARN
+a| link:yarn/spark-yarn-yarnschedulerbackend.adoc[YarnSchedulerBackend]:
+
+* link:yarn/spark-yarn-client-yarnclientschedulerbackend.adoc[YarnClientSchedulerBackend] (for client deploy mode)
+* link:yarn/spark-yarn-cluster-yarnclusterschedulerbackend.adoc[YarnClusterSchedulerBackend] (for cluster deploy mode)
+
+| Spark on Mesos
+a|
+
+* link:spark-mesos/spark-mesos-MesosCoarseGrainedSchedulerBackend.adoc[MesosCoarseGrainedSchedulerBackend]
+* `MesosFineGrainedSchedulerBackend`
+
+|===
+
 === [[contract]] SchedulerBackend Contract
+
+[source, scala]
+----
+trait SchedulerBackend {
+  def applicationId(): String
+  def applicationAttemptId(): Option[String]
+  def defaultParallelism(): Int
+  def getDriverLogUrls: Option[Map[String, String]]
+  def isReady(): Boolean
+  def killTask(taskId: Long, executorId: String, interruptThread: Boolean): Unit
+  def reviveOffers(): Unit
+  def start(): Unit
+  def stop(): Unit
+}
+----
 
 NOTE: `org.apache.spark.scheduler.SchedulerBackend` is a `private[spark]` Scala trait in Spark.
 
-Every `SchedulerBackend` has to follow the following contract:
+.SchedulerBackend Contract
+[cols="1,2",options="header",width="100%"]
+|===
+| Method
+| Description
 
-* Can be started (using `start()`) and stopped (using `stop()`)
-* <<reviveOffers, reviveOffers>>
-* Calculate <<defaultParallelism, default level of parallelism>>
-* <<killTask, killTask>>
-* Answers `isReady()` to inform whether it is currently started or stopped. It returns `true` by default.
-* Knows the application id for a job (using `applicationId()`).
+| <<reviveOffers, reviveOffers>>
+| Used when...
 
-CAUTION: FIXME `applicationId()` doesn't accept an input parameter. How is Scheduler Backend related to a job and an application?
+| <<defaultParallelism, defaultParallelism>>
+| Used when...
 
-* Knows an application attempt id (see <<applicationAttemptId, applicationAttemptId>>)
-* Knows the URLs for the driver's logs (see <<getDriverLogUrls, getDriverLogUrls>>).
+| [[killTask]] `killTask`
+| Used when...
 
-CAUTION: FIXME Screenshot the tab and the links
+Throws a `UnsupportedOperationException` by default.
 
-==== [[reviveOffers]] `reviveOffers` Method
+| <<applicationAttemptId, applicationAttemptId>>
+| Used when...
+
+| [[getDriverLogUrls]] `getDriverLogUrls`
+| Returns no URLs by default and only supported by link:yarn/spark-yarn-cluster-yarnclusterschedulerbackend.adoc#YarnClusterSchedulerBackend[YarnClusterSchedulerBackend]
+
+|===
+
+=== [[reviveOffers]] `reviveOffers` Method
 
 NOTE: It is used in `TaskSchedulerImpl` using `backend` internal reference when link:spark-taskschedulerimpl.adoc#submitTasks[submitting tasks].
 
@@ -46,7 +100,7 @@ There are currently three custom implementations of `reviveOffers` available in 
 
 * link:spark-mesos/spark-mesos.adoc#reviveOffers[MesosFineGrainedSchedulerBackend]
 
-==== [[defaultParallelism]] Default Level of Parallelism (defaultParallelism method)
+=== [[defaultParallelism]] Default Level of Parallelism (defaultParallelism method)
 
 [source, scala]
 ----
@@ -65,16 +119,7 @@ Refer to link:spark-mesos/spark-mesos.adoc#defaultParallelism[Default Level of P
 
 No other custom implementations of `defaultParallelism()` exists.
 
-==== [[killTask]] Killing Task -- `killTask` Method
-
-[source, scala]
-----
-killTask(taskId: Long, executorId: String, interruptThread: Boolean)
-----
-
-`killTask` throws a `UnsupportedOperationException` by default.
-
-==== [[applicationAttemptId]] applicationAttemptId
+=== [[applicationAttemptId]] applicationAttemptId
 
 [source, scala]
 ----
@@ -86,22 +131,3 @@ applicationAttemptId(): Option[String] = None
 It is currently only supported by link:spark-yarn-yarnschedulerbackend.adoc#applicationAttemptId[YARN cluster scheduler backend] as the YARN cluster manager supports multiple application attempts.
 
 NOTE: `applicationAttemptId` is also a part of link:spark-taskscheduler.adoc#contract[TaskScheduler contract] and link:spark-taskschedulerimpl.adoc#applicationAttemptId[`TaskSchedulerImpl` directly calls the SchedulerBackend's `applicationAttemptId`].
-
-==== [[getDriverLogUrls]] getDriverLogUrls
-
-`getDriverLogUrls: Option[Map[String, String]]` returns no URLs by default.
-
-It is currently only supported by link:yarn/spark-yarn-cluster-yarnclusterschedulerbackend.adoc#YarnClusterSchedulerBackend[YarnClusterSchedulerBackend]
-
-=== Available Implementations
-
-Spark comes with the following scheduler backends:
-
-* link:spark-LocalSchedulerBackend.adoc[LocalSchedulerBackend] (for local run mode)
-* link:spark-scheduler-backends-CoarseGrainedSchedulerBackend.adoc[CoarseGrainedSchedulerBackend]
-** *SparkDeploySchedulerBackend* used in link:spark-standalone.adoc#SparkDeploySchedulerBackend[Spark Standalone] (and local-cluster - FIXME)
-** link:yarn/spark-yarn-yarnschedulerbackend.adoc[YarnSchedulerBackend]
-*** link:yarn/spark-yarn-client-yarnclientschedulerbackend.adoc#YarnClientSchedulerBackend[YarnClientSchedulerBackend] (for *client* deploy mode)
-*** link:yarn/spark-yarn-cluster-yarnclusterschedulerbackend.adoc#YarnClusterSchedulerBackend[YarnClusterSchedulerBackend] (for *cluster* deploy mode).
-** link:spark-mesos/spark-mesos.adoc#CoarseMesosSchedulerBackend[CoarseMesosSchedulerBackend]
-* link:spark-mesos/spark-mesos.adoc#MesosSchedulerBackend[MesosSchedulerBackend]
