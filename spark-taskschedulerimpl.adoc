@@ -1,12 +1,12 @@
 == [[TaskSchedulerImpl]] TaskSchedulerImpl -- Default TaskScheduler
 
-`TaskSchedulerImpl` is the default implementation of link:spark-taskscheduler.adoc#contract[TaskScheduler Contract] and extends it <<getRackForHost, to track racks per host and port>>. It can schedule tasks for multiple types of cluster managers by means of link:spark-scheduler-backends.adoc[Scheduler Backends].
+`TaskSchedulerImpl` is the default implementation of link:spark-taskscheduler.adoc#contract[TaskScheduler Contract] and extends it <<getRackForHost, to track racks per host and port>>. It can schedule tasks for multiple types of cluster managers by means of link:spark-SchedulerBackend.adoc[Scheduler Backends].
 
 Using <<spark_scheduler_mode, spark.scheduler.mode>> setting you can select the link:spark-taskscheduler-schedulingmode.adoc[scheduling policy].
 
 It <<submitTasks, submits tasks>> using link:spark-taskscheduler-schedulablebuilders.adoc[SchedulableBuilders].
 
-When a Spark application starts (and an instance of link:spark-sparkcontext.adoc#creating-instance[SparkContext is created]) `TaskSchedulerImpl` with a link:spark-scheduler-backends.adoc[SchedulerBackend] and link:spark-dagscheduler.adoc[DAGScheduler] are created and soon started.
+When a Spark application starts (and an instance of link:spark-sparkcontext.adoc#creating-instance[SparkContext is created]) `TaskSchedulerImpl` with a link:spark-SchedulerBackend.adoc[SchedulerBackend] and link:spark-dagscheduler.adoc[DAGScheduler] are created and soon started.
 
 .TaskSchedulerImpl and Other Services
 image::images/taskschedulerimpl-sparkcontext-schedulerbackend-dagscheduler.png[align="center"]
@@ -195,7 +195,7 @@ image::images/TaskSchedulerImpl-initialize.png[align="center"]
 
 NOTE: `initialize` is called while link:spark-sparkcontext-creating-instance-internals.adoc#createTaskScheduler[SparkContext is being created and creates `SchedulerBackend` and `TaskScheduler`].
 
-`initialize` saves the reference to the current link:spark-scheduler-backends.adoc[SchedulerBackend] (as `backend`) and sets `rootPool` to be an empty-named link:spark-taskscheduler-pool.adoc[Pool] with already-initialized `schedulingMode` (while <<creating-instance, creating a TaskSchedulerImpl object>>), `initMinShare` and `initWeight` as `0`.
+`initialize` saves the reference to the current link:spark-SchedulerBackend.adoc[SchedulerBackend] (as `backend`) and sets `rootPool` to be an empty-named link:spark-taskscheduler-pool.adoc[Pool] with already-initialized `schedulingMode` (while <<creating-instance, creating a TaskSchedulerImpl object>>), `initMinShare` and `initWeight` as `0`.
 
 NOTE: `schedulingMode` and `rootPool` are a part of link:spark-taskscheduler.adoc#contract[TaskScheduler Contract].
 
@@ -217,7 +217,7 @@ As part of link:spark-sparkcontext-creating-instance-internals.adoc[initializati
 start(): Unit
 ----
 
-`start` starts the link:spark-scheduler-backends.adoc[scheduler backend].
+`start` starts the link:spark-SchedulerBackend.adoc[scheduler backend].
 
 .Starting `TaskSchedulerImpl` in Spark Standalone
 image::images/taskschedulerimpl-start-standalone.png[align="center"]
@@ -239,7 +239,7 @@ When <<start, `TaskSchedulerImpl` starts>> (in non-local run mode) with link:spa
 checkSpeculatableTasks(): Unit
 ----
 
-`checkSpeculatableTasks` requests `rootPool` to check for speculatable tasks (if they ran for more than `100` ms) and, if there any, requests link:spark-scheduler-backends.adoc#reviveOffers[`SchedulerBackend` to revive offers].
+`checkSpeculatableTasks` requests `rootPool` to check for speculatable tasks (if they ran for more than `100` ms) and, if there any, requests link:spark-SchedulerBackend.adoc#reviveOffers[`SchedulerBackend` to revive offers].
 
 NOTE: `checkSpeculatableTasks` is executed periodically as part of link:spark-taskschedulerimpl-speculative-execution.adoc[speculative execution of tasks].
 
@@ -274,7 +274,7 @@ NOTE: `postStartHook` is used when link:spark-sparkcontext.adoc#creating-instanc
 
 === [[waitBackendReady]] Waiting Until SchedulerBackend is Ready -- `waitBackendReady` Method
 
-The private `waitBackendReady` method waits until a link:spark-scheduler-backends.adoc#contract[SchedulerBackend is ready].
+The private `waitBackendReady` method waits until a link:spark-SchedulerBackend.adoc#contract[SchedulerBackend is ready].
 
 It keeps on checking the status every 100 milliseconds until the SchedulerBackend is ready or the link:spark-sparkcontext.adoc#stop[SparkContext is stopped].
 
@@ -291,13 +291,13 @@ Spark context stopped while waiting for backend
 stop(): Unit
 ----
 
-`stop()` stops all the internal services, i.e. <<task-scheduler-speculation, `task-scheduler-speculation` executor service>>, link:spark-scheduler-backends.adoc[SchedulerBackend], link:spark-taskschedulerimpl-TaskResultGetter.adoc[TaskResultGetter], and <<starvationTimer, starvationTimer>> timer.
+`stop()` stops all the internal services, i.e. <<task-scheduler-speculation, `task-scheduler-speculation` executor service>>, link:spark-SchedulerBackend.adoc[SchedulerBackend], link:spark-taskschedulerimpl-TaskResultGetter.adoc[TaskResultGetter], and <<starvationTimer, starvationTimer>> timer.
 
 === [[defaultParallelism]] Calculating Default Level of Parallelism -- `defaultParallelism` Method
 
 *Default level of parallelism* is a hint for sizing jobs. It is a part of the link:spark-taskscheduler.adoc#contract[TaskScheduler contract] and link:spark-sparkcontext.adoc#defaultParallelism[used by SparkContext] to create RDDs with the right number of partitions when not specified explicitly.
 
-`TaskSchedulerImpl` uses link:spark-scheduler-backends.adoc#defaultParallelism[SchedulerBackend.defaultParallelism()] to calculate the value, i.e. it just passes it along to a scheduler backend.
+`TaskSchedulerImpl` uses link:spark-SchedulerBackend.adoc#defaultParallelism[SchedulerBackend.defaultParallelism()] to calculate the value, i.e. it just passes it along to a scheduler backend.
 
 === [[submitTasks]] Submitting Tasks -- `submitTasks` Method
 
@@ -312,7 +312,7 @@ submitTasks(taskSet: TaskSet): Unit
 
 NOTE: The link:spark-taskscheduler.adoc#rootPool[root pool] can be a single flat linked queue (in link:spark-taskscheduler-FIFOSchedulableBuilder.adoc[FIFO scheduling mode]) or a hierarchy of pools of `Schedulables` (in link:spark-taskscheduler-FairSchedulableBuilder.adoc[FAIR scheduling mode]).
 
-It makes sure that the requested resources, i.e. CPU and memory, are assigned to the Spark application for a non-local environment before requesting the current link:spark-scheduler-backends.adoc#reviveOffers[`SchedulerBackend` to revive offers].
+It makes sure that the requested resources, i.e. CPU and memory, are assigned to the Spark application for a non-local environment before requesting the current link:spark-SchedulerBackend.adoc#reviveOffers[`SchedulerBackend` to revive offers].
 
 .TaskSchedulerImpl.submitTasks
 image::images/taskschedulerImpl-submitTasks.png[align="center"]
@@ -355,7 +355,7 @@ WARN Initial job has not accepted any resources; check your cluster UI to ensure
 
 Otherwise, when the `hasLaunchedTask` flag is `true` the timer thread cancels itself.
 
-Ultimately, `submitTasks` requests the link:spark-scheduler-backends.adoc#reviveOffers[`SchedulerBackend` to revive offers].
+Ultimately, `submitTasks` requests the link:spark-SchedulerBackend.adoc#reviveOffers[`SchedulerBackend` to revive offers].
 
 TIP: Use `dag-scheduler-event-loop` thread to step through the code in a debugger.
 
@@ -366,7 +366,7 @@ TIP: Use `dag-scheduler-event-loop` thread to step through the code in a debugge
 resourceOffers(offers: Seq[WorkerOffer]): Seq[Seq[TaskDescription]]
 ----
 
-`resourceOffers` method is called by link:spark-scheduler-backends.adoc[SchedulerBackend] (for clustered environments) or link:spark-LocalSchedulerBackend.adoc[LocalSchedulerBackend] (for local run mode) with `WorkerOffer` resource offers that represent cores (CPUs) available on all the active executors with one `WorkerOffer` per active executor.
+`resourceOffers` method is called by link:spark-SchedulerBackend.adoc[SchedulerBackend] (for clustered environments) or link:spark-LocalSchedulerBackend.adoc[LocalSchedulerBackend] (for local run mode) with `WorkerOffer` resource offers that represent cores (CPUs) available on all the active executors with one `WorkerOffer` per active executor.
 
 .Processing Executor Resource Offers
 image::images/taskscheduler-resourceOffers.png[align="center"]
@@ -449,11 +449,11 @@ statusUpdate(
   serializedData: ByteBuffer): Unit
 ----
 
-`statusUpdate` removes a lost executor when a `tid` task has failed. For all task states, `statusUpdate` removes the `tid` task from the internal registries, i.e. <<taskIdToTaskSetManager, taskIdToTaskSetManager>> and <<taskIdToExecutorId, taskIdToExecutorId>>, and decrements the number of running tasks in <<executorIdToTaskCount, executorIdToTaskCount>> registry. For `tid` in `FINISHED`, `FAILED`, `KILLED` or `LOST` states, `statusUpdate` link:spark-tasksetmanager.adoc#removeRunningTask[informs the `TaskSetManager` that the task can be removed from the running tasks]. For `tid` in `FINISHED` state `statusUpdate` link:spark-taskschedulerimpl-TaskResultGetter.adoc#enqueueSuccessfulTask[schedules an asynchrounous task to deserialize the task result (and notify `TaskSchedulerImpl`)] while for `FAILED`, `KILLED` or `LOST` states it calls link:spark-taskschedulerimpl-TaskResultGetter.adoc#enqueueFailedTask[TaskResultGetter.enqueueFailedTask]. Ultimately, given an executor that has been lost, `statusUpdate` informs link:spark-dagscheduler.adoc#executorLost[informs `DAGScheduler` that the executor was lost] and link:spark-scheduler-backends.adoc#reviveOffers[`SchedulerBackend` is requested to revive offers].
+`statusUpdate` removes a lost executor when a `tid` task has failed. For all task states, `statusUpdate` removes the `tid` task from the internal registries, i.e. <<taskIdToTaskSetManager, taskIdToTaskSetManager>> and <<taskIdToExecutorId, taskIdToExecutorId>>, and decrements the number of running tasks in <<executorIdToTaskCount, executorIdToTaskCount>> registry. For `tid` in `FINISHED`, `FAILED`, `KILLED` or `LOST` states, `statusUpdate` link:spark-tasksetmanager.adoc#removeRunningTask[informs the `TaskSetManager` that the task can be removed from the running tasks]. For `tid` in `FINISHED` state `statusUpdate` link:spark-taskschedulerimpl-TaskResultGetter.adoc#enqueueSuccessfulTask[schedules an asynchrounous task to deserialize the task result (and notify `TaskSchedulerImpl`)] while for `FAILED`, `KILLED` or `LOST` states it calls link:spark-taskschedulerimpl-TaskResultGetter.adoc#enqueueFailedTask[TaskResultGetter.enqueueFailedTask]. Ultimately, given an executor that has been lost, `statusUpdate` informs link:spark-dagscheduler.adoc#executorLost[informs `DAGScheduler` that the executor was lost] and link:spark-SchedulerBackend.adoc#reviveOffers[`SchedulerBackend` is requested to revive offers].
 
 For `tid` task in `LOST` state and an executor still <<taskIdToExecutorId, assigned for the task>> and tracked in <<executorIdToTaskCount, executorIdToTaskCount>> registry, the executor is <<removeExecutor, removed>> (with reason `Task [tid] was lost, so marking the executor as lost as well.`).
 
-CAUTION: FIXME Why is link:spark-scheduler-backends.adoc#reviveOffers[SchedulerBackend.reviveOffers()] called only for lost executors?
+CAUTION: FIXME Why is link:spark-SchedulerBackend.adoc#reviveOffers[SchedulerBackend.reviveOffers()] called only for lost executors?
 
 `statusUpdate` looks up the link:spark-tasksetmanager.adoc[TaskSetManager] for `tid` (in <<taskIdToTaskSetManager, taskIdToTaskSetManager>> registry).
 
@@ -475,7 +475,7 @@ Any exception is caught and reported as ERROR message in the logs:
 ERROR Exception in statusUpdate
 ```
 
-Ultimately, for `tid` task with an executor marked as lost, `statusUpdate` link:spark-dagscheduler.adoc#executorLost[informs `DAGScheduler` that the executor was lost] (with `SlaveLost` and the reason `Task [tid] was lost, so marking the executor as lost as well.`) and link:spark-scheduler-backends.adoc#reviveOffers[`SchedulerBackend` is requested to revive offers].
+Ultimately, for `tid` task with an executor marked as lost, `statusUpdate` link:spark-dagscheduler.adoc#executorLost[informs `DAGScheduler` that the executor was lost] (with `SlaveLost` and the reason `Task [tid] was lost, so marking the executor as lost as well.`) and link:spark-SchedulerBackend.adoc#reviveOffers[`SchedulerBackend` is requested to revive offers].
 
 CAUTION: FIXME image with scheduler backends calling `TaskSchedulerImpl.statusUpdate`.
 
@@ -492,7 +492,7 @@ handleFailedTask(
   reason: TaskFailedReason): Unit
 ----
 
-`handleFailedTask` link:spark-tasksetmanager.adoc#handleFailedTask[notifies `taskSetManager` that `tid` task has failed] and, only when link:spark-tasksetmanager.adoc#zombie-state[`taskSetManager` is not in zombie state] and `tid` is not in `KILLED` state, link:spark-scheduler-backends.adoc#reviveOffers[requests `SchedulerBackend` to revive offers].
+`handleFailedTask` link:spark-tasksetmanager.adoc#handleFailedTask[notifies `taskSetManager` that `tid` task has failed] and, only when link:spark-tasksetmanager.adoc#zombie-state[`taskSetManager` is not in zombie state] and `tid` is not in `KILLED` state, link:spark-SchedulerBackend.adoc#reviveOffers[requests `SchedulerBackend` to revive offers].
 
 NOTE: `handleFailedTask` is called when link:spark-taskschedulerimpl-TaskResultGetter.adoc#enqueueSuccessfulTask[`TaskResultGetter` deserializes a `TaskFailedReason`] for a failed task.
 
