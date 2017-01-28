@@ -1,10 +1,14 @@
 == [[TaskSchedulerImpl]] TaskSchedulerImpl -- Default TaskScheduler
 
-`TaskSchedulerImpl` is the default implementation of link:spark-taskscheduler.adoc#contract[TaskScheduler Contract] and extends it <<getRackForHost, to track racks per host and port>>. It can schedule tasks for multiple types of cluster managers by means of link:spark-SchedulerBackend.adoc[Scheduler Backends].
+`TaskSchedulerImpl` is the default link:spark-taskscheduler.adoc[TaskScheduler].
+
+`TaskSchedulerImpl` can schedule tasks for multiple types of cluster managers by means of link:spark-SchedulerBackend.adoc[SchedulerBackends].
+
+`TaskSchedulerImpl` can <<getRackForHost, track racks per host and port>> (that however is link:yarn/spark-yarn-yarnscheduler.adoc[only used with Hadoop YARN cluster manager]).
 
 Using <<spark_scheduler_mode, spark.scheduler.mode>> setting you can select the link:spark-taskscheduler-schedulingmode.adoc[scheduling policy].
 
-It <<submitTasks, submits tasks>> using link:spark-taskscheduler-schedulablebuilders.adoc[SchedulableBuilders].
+`TaskSchedulerImpl` <<submitTasks, submits tasks>> using link:spark-taskscheduler-schedulablebuilders.adoc[SchedulableBuilders].
 
 When a Spark application starts (and an instance of link:spark-sparkcontext.adoc#creating-instance[SparkContext is created]) `TaskSchedulerImpl` with a link:spark-SchedulerBackend.adoc[SchedulerBackend] and link:spark-dagscheduler.adoc[DAGScheduler] are created and soon started.
 
@@ -12,6 +16,59 @@ When a Spark application starts (and an instance of link:spark-sparkcontext.adoc
 image::images/taskschedulerimpl-sparkcontext-schedulerbackend-dagscheduler.png[align="center"]
 
 NOTE: `TaskSchedulerImpl` is a `private[spark]` class with the source code in https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/scheduler/TaskSchedulerImpl.scala[org.apache.spark.scheduler.TaskSchedulerImpl].
+
+[[internal-registries]]
+.TaskSchedulerImpl's Internal Registries and Counters
+[cols="1,2",options="header",width="100%"]
+|===
+| Name
+| Description
+
+| [[dagScheduler]] `dagScheduler`
+| link:spark-dagscheduler.adoc[DAGScheduler]
+
+Used when...FIXME
+
+| [[executorIdToHost]] `executorIdToHost`
+| Lookup table of hosts per executor.
+
+Used when...FIXME
+
+| [[executorIdToRunningTaskIds]] `executorIdToRunningTaskIds`
+| Lookup table of running tasks per executor.
+
+Used when...FIXME
+
+| [[executorIdToTaskCount]] `executorIdToTaskCount`
+| Lookup table of the number of running tasks by link:spark-executor.adoc[executor].
+
+| [[executorsByHost]] `executorsByHost`
+| Collection of link:spark-executor.adoc[executors] per host
+
+| [[hostToExecutors]] `hostToExecutors`
+| Lookup table of executors per hosts in a cluster.
+
+Used when...FIXME
+
+| [[hostsByRack]] `hostsByRack`
+| Lookup table of hosts per rack.
+
+Used when...FIXME
+
+| [[nextTaskId]] `nextTaskId`
+| The next link:spark-taskscheduler-tasks.adoc[task] id counting from `0`.
+
+Used when `TaskSchedulerImpl`...
+
+| [[taskSetsByStageIdAndAttempt]] `taskSetsByStageIdAndAttempt`
+| Lookup table of link:spark-taskscheduler-tasksets.adoc[TaskSet] by stage and attempt ids.
+
+| [[taskIdToExecutorId]] `taskIdToExecutorId`
+| Lookup table of link:spark-executor.adoc[executor] by task id.
+
+| [[taskIdToTaskSetManager]] `taskIdToTaskSetManager`
+| Registry of active link:spark-tasksetmanager.adoc[TaskSetManager] per task id.
+|===
 
 [TIP]
 ====
@@ -25,6 +82,85 @@ log4j.logger.org.apache.spark.scheduler.TaskSchedulerImpl=DEBUG
 
 Refer to link:spark-logging.adoc[Logging].
 ====
+
+=== [[resourceOffers]] Generating Tasks For Executor Resource Offers (as TaskDescriptions) -- `resourceOffers` Method
+
+[source, scala]
+----
+resourceOffers(offers: Seq[WorkerOffer]): Seq[Seq[TaskDescription]]
+----
+
+`resourceOffers` takes the resources `offers` (as <<WorkerOffer, WorkerOffers>>) and generates a collection of tasks (as link:spark-TaskDescription.adoc[TaskDescription]) to launch (given the resources available).
+
+NOTE: <<WorkerOffer, WorkerOffer>> represents a resource offer with CPU cores available on an executor.
+
+.Processing Executor Resource Offers
+image::images/taskscheduler-resourceOffers.png[align="center"]
+
+Internally, `resourceOffers` first records new hosts and executors (from the `offers`) in <<hostToExecutors, hostToExecutors>> and <<executorIdToHost, executorIdToHost>> lookup tables.
+
+For new executors (not in <<executorIdToRunningTaskIds, executorIdToRunningTaskIds>>) `resourceOffers` <<executorAdded, notifies `DAGScheduler` that an executor was added>>.
+
+NOTE: `TaskSchedulerImpl` uses `resourceOffers` to track active executors.
+
+CAUTION: FIXME a picture with `executorAdded` call from TaskSchedulerImpl to DAGScheduler.
+
+`resourceOffers` requests `BlacklistTracker` to `applyBlacklistTimeout` and filters out offers on blacklisted nodes and executors.
+
+NOTE: `resourceOffers` uses the optional <<blacklistTrackerOpt, BlacklistTracker>> that was given when <<creating-instance, `TaskSchedulerImpl` was created>>.
+
+CAUTION: FIXME Expand on blacklisting
+
+`resourceOffers` then randomly shuffles offers that aims at evenly distributing tasks across executors (to avoid overutilizing some executors).
+
+.Internal Structures of resourceOffers with 5 WorkerOffers (with 4, 2, 0, 3, 2 free cores)
+image::images/TaskSchedulerImpl-resourceOffers-internal-structures.png[align="center"]
+
+The link:spark-taskscheduler.adoc#rootPool[root pool] is link:spark-taskscheduler-pool.adoc#getSortedTaskSetQueue[requested for `TaskSetManagers` sorted] according to the link:spark-taskscheduler-schedulingmode.adoc[scheduling order].
+
+NOTE: `rootPool` is a part of the link:spark-taskscheduler.adoc#rootPool[TaskScheduler Contract] and is exclusively managed by link:spark-taskscheduler-schedulablebuilders.adoc[SchedulableBuilders], i.e. link:spark-taskscheduler-FIFOSchedulableBuilder.adoc[FIFOSchedulableBuilder] and link:spark-taskscheduler-FairSchedulableBuilder.adoc[FairSchedulableBuilder] (that  link:spark-taskscheduler-schedulablebuilders.adoc#addTaskSetManager[add `TaskSetManagers` to the root pool]).
+
+For every `TaskSetManager` in the sorted queue, you should see the following DEBUG message in the logs:
+
+```
+DEBUG TaskSchedulerImpl: parentName: [name], name: [name], runningTasks: [count]
+```
+
+NOTE: The internal `rootPool` is configured when <<initialize, `TaskSchedulerImpl` is initialized>>.
+
+If a new executor was added, `resourceOffers` link:spark-tasksetmanager.adoc#executorAdded[notifies every `TaskSetManager` in the sorted queue about the new executor].
+
+NOTE: A `TaskSetManager` will be informed about one or more new executors once per host regardless of the number of executors registered on the host.
+
+For each `TaskSetManager` (in `sortedTaskSets`) and for each preferred locality level (ascending), <<resourceOfferSingleTaskSet, resourceOfferSingleTaskSet>> is called until `launchedTask` flag is `false`.
+
+CAUTION: FIXME `resourceOfferSingleTaskSet` + the sentence above less code-centric.
+
+Check whether the number of cores in an offer is greater than the <<spark_task_cpus, number of cores needed for a task>>.
+
+When `resourceOffers` managed to launch a task (i.e. `tasks` collection is not empty), the internal `hasLaunchedTask` flag becomes `true` (that effectively means what the name says _"There were executors and I managed to launch a task"_).
+
+`resourceOffers` returns the `tasks` collection.
+
+[NOTE]
+====
+`resourceOffers` is used when:
+
+* link:spark-CoarseGrainedSchedulerBackend-DriverEndpoint.adoc#makeOffers[`CoarseGrainedSchedulerBackend` (via RPC endpoint) makes executor resource offers]
+
+* link:spark-LocalEndpoint.adoc#reviveOffers[`LocalEndpoint` revives resource offers]
+
+* Spark on Mesos' `MesosFineGrainedSchedulerBackend` does `resourceOffers`
+====
+
+=== [[WorkerOffer]] WorkerOffer -- Free CPU Cores on Executor
+
+[source, scala]
+----
+WorkerOffer(executorId: String, host: String, cores: Int)
+----
+
+`WorkerOffer` represents a resource offer with free CPU `cores` available on an executor (by `executorId`) on a `host`.
 
 === [[executorLost]] `executorLost` Method
 
@@ -130,50 +266,20 @@ NOTE: It is overriden by the YARN-specific TaskScheduler link:yarn/spark-yarn-ya
 
 * link:spark-tasksetmanager.adoc#addPendingTask[TaskSetManager.addPendingTask], link:spark-tasksetmanager.adoc#[TaskSetManager.dequeueTask], and link:spark-tasksetmanager.adoc#dequeueSpeculativeTask[TaskSetManager.dequeueSpeculativeTask]
 
-=== [[internal-registries]] Internal Registries and Counters
+=== [[creating-instance]] Creating TaskSchedulerImpl Instance
 
-.Internal Registries and Counters
-[cols="1,2",options="header",width="100%"]
-|===
-| Name | Description
-| `nextTaskId` | The next link:spark-taskscheduler-tasks.adoc[task] id counting from `0`.
+`TaskSchedulerImpl` takes the following when created:
 
-Used when `TaskSchedulerImpl`...
+* [[sc]] link:spark-sparkcontext.adoc[SparkContext]
+* <<maxTaskFailures, acceptable number of task failures>>
+* [[blacklistTrackerOpt]] optional `BlacklistTracker`
+* [[isLocal]] optional `isLocal` -- flag to differentiate between local and cluster run modes (defaults to `false`)
 
-| [[taskSetsByStageIdAndAttempt]] `taskSetsByStageIdAndAttempt` | Lookup table of link:spark-taskscheduler-tasksets.adoc[TaskSet] by stage and attempt ids.
-
-| [[taskIdToTaskSetManager]] `taskIdToTaskSetManager`
-| Registry of active link:spark-tasksetmanager.adoc[TaskSetManager] per task id.
-
-| [[taskIdToExecutorId]] `taskIdToExecutorId` | Lookup table of link:spark-executor.adoc[executor] by task id.
-
-| [[executorIdToTaskCount]] `executorIdToTaskCount` | Lookup table of the number of running tasks by link:spark-executor.adoc[executor].
-
-| `executorsByHost` | Collection of link:spark-executor.adoc[executors] per host
-
-| `hostsByRack` | Collection of hosts per rack
-
-| `executorIdToHost` | Lookup table of hosts per executor
-|===
-
-=== [[creating-instance]] Creating `TaskSchedulerImpl` Instance
-
-[source, scala]
-----
-class TaskSchedulerImpl(
-  val sc: SparkContext,
-  val maxTaskFailures: Int,
-  isLocal: Boolean = false)
-extends TaskScheduler
-----
-
-Creating a `TaskSchedulerImpl` object requires a link:spark-sparkcontext.adoc[SparkContext] object with <<maxTaskFailures, acceptable number of task failures>> and optional <<isLocal, isLocal>> flag (disabled by default, i.e. `false`).
+`TaskSchedulerImpl` initializes the <<internal-registries, internal registries and counters>>.
 
 NOTE: There is another `TaskSchedulerImpl` constructor that requires a link:spark-sparkcontext.adoc[SparkContext] object only and sets <<maxTaskFailures, maxTaskFailures>> to <<spark_task_maxFailures, spark.task.maxFailures>> or, if `spark.task.maxFailures` is not set, defaults to `4`.
 
-While being created, `TaskSchedulerImpl` initializes <<internal-registries, internal registries and counters>> to their default values.
-
-`TaskSchedulerImpl` then sets link:spark-taskscheduler.adoc#contract[schedulingMode] to the value of <<spark_scheduler_mode, spark.scheduler.mode>> setting (defaults to `FIFO`).
+`TaskSchedulerImpl` sets link:spark-taskscheduler.adoc#contract[schedulingMode] to the value of <<spark_scheduler_mode, spark.scheduler.mode>> setting (defaults to `FIFO`).
 
 NOTE: `schedulingMode` is part of link:spark-taskscheduler.adoc#contract[TaskScheduler Contract].
 
@@ -266,10 +372,6 @@ Unless `reason` is `LossReasonPending`, the executor is removed from `executorId
 
 NOTE: The internal `removeExecutor` is called as part of <<statusUpdate, statusUpdate>> and link:spark-taskscheduler.adoc#executorLost[executorLost].
 
-=== [[isLocal]] Local vs Non-Local Mode -- `isLocal` Attribute
-
-CAUTION: FIXME
-
 === [[postStartHook]] Intercepting Nearly-Completed SparkContext Initialization -- `postStartHook` Callback
 
 `postStartHook` is a custom implementation of link:spark-taskscheduler.adoc#contract[postStartHook from the TaskScheduler Contract] that waits until a scheduler backend is ready (using the internal blocking <<waitBackendReady, waitBackendReady>>).
@@ -350,72 +452,6 @@ Otherwise, when the `hasLaunchedTask` flag is `true` the timer thread cancels it
 Ultimately, `submitTasks` requests the link:spark-SchedulerBackend.adoc#reviveOffers[`SchedulerBackend` to revive offers].
 
 TIP: Use `dag-scheduler-event-loop` thread to step through the code in a debugger.
-
-=== [[resourceOffers]] Processing Executor Resource Offers (and Generating Tasks as TaskDescriptions) -- `resourceOffers` Method
-
-[source, scala]
-----
-resourceOffers(offers: Seq[WorkerOffer]): Seq[Seq[TaskDescription]]
-----
-
-`resourceOffers` method is called by link:spark-SchedulerBackend.adoc[SchedulerBackend] (for clustered environments) or link:spark-LocalSchedulerBackend.adoc[LocalSchedulerBackend] (for local run mode) with `WorkerOffer` resource offers that represent cores (CPUs) available on all the active executors with one `WorkerOffer` per active executor.
-
-.Processing Executor Resource Offers
-image::images/taskscheduler-resourceOffers.png[align="center"]
-
-NOTE: `resourceOffers` is a mechanism to propagate information about active executors to `TaskSchedulerImpl` with the hosts and racks (if supported by the cluster manager).
-
-A `WorkerOffer` is a 3-tuple with executor id, host, and the number of free cores available.
-
-[source, scala]
-----
-WorkerOffer(executorId: String, host: String, cores: Int)
-----
-
-For each `WorkerOffer` (that represents free cores on an executor) `resourceOffers` method records the host per executor id (using the internal `executorIdToHost`) and sets `0` as the number of tasks running on the executor if there are no tasks on the executor (using <<executorIdToTaskCount, executorIdToTaskCount>>). It also records hosts (with executors in the internal `executorsByHost` registry).
-
-WARNING: FIXME BUG? Why is the executor id *not* added to `executorsByHost`?
-
-For the offers with a host that has not been recorded yet (in the internal `executorsByHost` registry) the following occurs:
-
-1. The host is recorded in the internal `executorsByHost` registry.
-2. <<executorAdded, executorAdded>> callback is called (with the executor id and the host from the offer).
-3. `newExecAvail` flag is enabled (it is later used to inform `TaskSetManagers` about the new executor).
-
-CAUTION: FIXME a picture with `executorAdded` call from TaskSchedulerImpl to DAGScheduler.
-
-It shuffles the input `offers` that is supposed to help evenly distributing tasks across executors (that the input `offers` represent) and builds internal structures like `tasks` and `availableCpus`.
-
-.Internal Structures of resourceOffers with 5 WorkerOffers
-image::images/TaskSchedulerImpl-resourceOffers-internal-structures.png[align="center"]
-
-The root pool is requested for link:spark-taskscheduler-pool.adoc#getSortedTaskSetQueue[TaskSetManagers sorted appropriately] (according to the link:spark-taskscheduler-schedulingmode.adoc[scheduling order]).
-
-NOTE: `rootPool` is a part of the link:spark-taskscheduler.adoc#contract[TaskScheduler Contract] and is exclusively managed by link:spark-taskscheduler-schedulablebuilders.adoc[SchedulableBuilders] (that  link:spark-taskscheduler-schedulablebuilders.adoc#addTaskSetManager[add `TaskSetManagers` to the root pool].
-
-For every `TaskSetManager` in the `TaskSetManager` sorted queue, the following DEBUG message is printed out to the logs:
-
-```
-DEBUG TaskSchedulerImpl: parentName: [taskSet.parent.name], name: [taskSet.name], runningTasks: [taskSet.runningTasks]
-```
-
-NOTE: The internal `rootPool` is configured while <<initialize, TaskSchedulerImpl is being initialized>>.
-
-While traversing over the sorted collection of `TaskSetManagers`, if a new host (with an executor) was registered, i.e. the `newExecAvail` flag is enabled, `TaskSetManagers` are link:spark-tasksetmanager.adoc#executorAdded[informed about the new executor added].
-
-NOTE: A `TaskSetManager` will be informed about one or more new executors once per host regardless of the number of executors registered on the host.
-
-For each `TaskSetManager` (in `sortedTaskSets`) and for each preferred locality level (ascending), <<resourceOfferSingleTaskSet, resourceOfferSingleTaskSet>> is called until `launchedTask` flag is `false`.
-
-CAUTION: FIXME `resourceOfferSingleTaskSet` + the sentence above less code-centric.
-
-Check whether the number of cores in an offer is greater than the <<spark_task_cpus, number of cores needed for a task>>.
-
-When `resourceOffers` managed to launch a task (i.e. `tasks` collection is not empty), the internal `hasLaunchedTask` flag becomes `true` (that effectively means what the name says _"There were executors and I managed to launch a task"_).
-
-`resourceOffers` returns the `tasks` collection.
-
-NOTE: `resourceOffers` is called when link:spark-CoarseGrainedSchedulerBackend.adoc#makeOffers[`CoarseGrainedSchedulerBackend` makes resource offers].
 
 ==== [[resourceOfferSingleTaskSet]] `resourceOfferSingleTaskSet` Method
 
@@ -512,16 +548,18 @@ INFO Removed TaskSet [id], whose tasks have all completed, from pool [name]
 
 NOTE: `taskSetFinished` method is called when link:spark-tasksetmanager.adoc#maybeFinishTaskSet[`TaskSetManager` has received the results of all the tasks in a `TaskSet`].
 
-=== [[executorAdded]] `executorAdded` Method
+=== [[executorAdded]] Notifying DAGScheduler About New Executor -- `executorAdded` Method
 
 [source, scala]
 ----
 executorAdded(execId: String, host: String)
 ----
 
-`executorAdded` method simply passes the notification on to the `DAGScheduler` (using link:spark-dagscheduler.adoc#executorAdded[DAGScheduler.executorAdded])
+`executorAdded` just link:spark-dagscheduler.adoc#executorAdded[notifies `DAGScheduler` that an executor was added].
 
 CAUTION: FIXME Image with a call from TaskSchedulerImpl to DAGScheduler, please.
+
+NOTE: `executorAdded` uses <<dagScheduler, DAGScheduler>> that was given when <<setDAGScheduler, setDAGScheduler>>.
 
 === [[waitBackendReady]] Waiting Until SchedulerBackend is Ready -- `waitBackendReady` Internal Method
 
