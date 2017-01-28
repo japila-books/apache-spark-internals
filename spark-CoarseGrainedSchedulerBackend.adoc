@@ -275,24 +275,6 @@ NOTE: It is a final method that no other scheduler backends could customize furt
 
 NOTE: The method is a synchronized block that makes multiple concurrent requests be handled in a serial fashion, i.e. one by one.
 
-=== [[stop]] Stopping CoarseGrainedSchedulerBackend -- `stop` Method
-
-`stop` method <<stopExecutors, stops executors>> and <<CoarseGrainedScheduler, CoarseGrainedScheduler RPC endpoint>>.
-
-NOTE: `stop` is a part of the link:spark-SchedulerBackend.adoc#contract[SchedulerBackend Contract].
-
-NOTE: When called with no `driverEndpoint` both `stop()` and `stopExecutors()` do nothing. `driverEndpoint` is initialized in `start` and the initialization order matters.
-
-It prints INFO to the logs:
-
-```
-INFO Shutting down all executors
-```
-
-It then sends <<StopExecutors, StopExecutors>> message to `driverEndpoint`. It disregards the response.
-
-It sends <<StopDriver, StopDriver>> message to `driverEndpoint`. It disregards the response.
-
 === [[defaultParallelism]] Computing Default Level of Parallelism -- `defaultParallelism` Method
 
 The default parallelism is controlled by link:spark-rdd-partitions.adoc#spark_default_parallelism[spark.default.parallelism] or is at least `2` or <<totalCoreCount, totalCoreCount>>.
@@ -350,7 +332,7 @@ The method finishes returning `true`.
 
 Otherwise, when <<sufficientResourcesRegistered, no sufficient resources are available>> and <<spark.scheduler.maxRegisteredResourcesWaitingTime, maxRegisteredWaitingTimeMs>> has not been passed, it finishes returning `false`.
 
-=== [[stopExecutors]] Stop All Executors -- `stopExecutors` Method
+=== [[stopExecutors]] Stopping All Executors -- `stopExecutors` Method
 
 `stopExecutors` sends a blocking <<StopExecutors, StopExecutors>> message to <<driverEndpoint, driverEndpoint>> (if already initialized).
 
@@ -462,6 +444,23 @@ image::images/CoarseGrainedScheduler-rpc-endpoint.png[align="center"]
 NOTE: `start` uses <<scheduler, TaskSchedulerImpl>> to access the current link:spark-sparkcontext.adoc[SparkContext] and in turn link:spark-configuration.adoc[SparkConf].
 
 NOTE: `start` uses <<rpcEnv, RpcEnv>> that was given when <<creating-instance, `CoarseGrainedSchedulerBackend` was created>>.
+
+=== [[stop]] Stopping CoarseGrainedSchedulerBackend (and Stopping Executors) -- `stop` Method
+
+[source, scala]
+----
+stop(): Unit
+----
+
+NOTE: `stop` is a part of the link:spark-SchedulerBackend.adoc#contract[SchedulerBackend contract].
+
+`stop` <<stopExecutors, stops all executors>> and <<driverEndpoint, `CoarseGrainedScheduler` RPC endpoint>> (by sending a blocking link:spark-CoarseGrainedSchedulerBackend-DriverEndpoint.adoc#StopDriver[StopDriver] message).
+
+In case of any `Exception`, `stop` reports a `SparkException` with the message:
+
+```
+Error stopping standalone scheduler's driver endpoint
+```
 
 === [[settings]] Settings
 
