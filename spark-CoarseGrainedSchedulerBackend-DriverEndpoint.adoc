@@ -22,11 +22,49 @@ Set when an executor connects to register itself. See <<RegisterExecutor, Regist
 
 |===
 
-=== [[ReviveOffers]] ReviveOffers
+=== [[launchTasks]] Launching Tasks on Executors -- `launchTasks` Method
 
-`ReviveOffers` simply passes the call on to <<makeOffers, makeOffers>>.
+[source, scala]
+----
+launchTasks(tasks: Seq[Seq[TaskDescription]]): Unit
+----
 
-CAUTION: FIXME When is an executor alive? What other states can an executor be in?
+`launchTasks` takes one task (as link:spark-TaskDescription.adoc[TaskDescription]) at a time (from the input `tasks` collection).
+
+`launchTasks` serializes `TaskDescription` and checks its size.
+
+CAUTION: FIXME At that point, tasks have their executor assigned. When and how did that happen?
+
+If the size of the serialized task is below the <<maxRpcMessageSize, maximum RPC message size>>, `launchTasks` decrements link:spark-taskschedulerimpl.adoc#spark.task.cpus[spark.task.cpus] number of cores for the executor that has been assigned to execute the task (and tracked in <<executorDataMap, executorDataMap>> internal registry).
+
+NOTE: `ExecutorData` tracks the number of free cores of an executor (as `freeCores`).
+
+You should see the following DEBUG message in the logs:
+
+```
+DEBUG DriverEndpoint: Launching task [taskId] on executor id: [executorId] hostname: [executorHost].
+```
+
+In the end, `launchTasks` notifies the associated executor to launch the task (by sending a link:spark-executor-backends-CoarseGrainedExecutorBackend.adoc#LaunchTask[LaunchTask] message to the executor's RPC endpoint with the serialized task insize `SerializableBuffer`).
+
+NOTE: `ExecutorData` holds the link:spark-RpcEndpointRef.adoc[RpcEndpointRef] of an executor to send task launch requests to (as `executorEndpoint`).
+
+In case the size of a serialized link:spark-TaskDescription.adoc[TaskDescription] equals or exceeds the <<maxRpcMessageSize, maximum RPC message size>>, `launchTasks` finds all the link:spark-tasksetmanager.adoc[TaskSetManagers] associated with the `TaskDescription` and link:spark-tasksetmanager.adoc#abort[aborts them] with the following message:
+
+[options="wrap"]
+----
+Serialized task [taskId]:[index] was [limit] bytes, which exceeds max allowed: spark.rpc.message.maxSize ([maxRpcMessageSize] bytes). Consider increasing spark.rpc.message.maxSize or using broadcast variables for large values.
+----
+
+NOTE: `launchTasks` uses the link:spark-taskschedulerimpl.adoc#taskIdToTaskSetManager[registry of active `TaskSetManagers` per task id] from <<scheduler, TaskSchedulerImpl>> that was given when <<creating-instance, `CoarseGrainedSchedulerBackend` was created>>.
+
+NOTE: Scheduling in Spark relies on cores only (not memory), i.e. the number of tasks Spark can run on an executor is limited by the number of cores available only. When submitting a Spark application for execution both resources -- memory and cores -- can be specified explicitly.
+
+NOTE: `launchTasks` is used when `CoarseGrainedSchedulerBackend` <<makeOffers, makes fake resource offers on executors>>.
+
+=== [[executorIsAlive]] `executorIsAlive` Internal Method
+
+CAUTION: FIXME
 
 === [[onStop]] `onStop` Callback
 
@@ -131,3 +169,35 @@ NOTE: `onStart` is a part of link:spark-rpc-RpcEndpoint.adoc#onStart[RpcEndpoint
 `onStart` schedules a periodic action to send <<ReviveOffers, ReviveOffers>> immediately every link:spark-CoarseGrainedSchedulerBackend.adoc#spark.scheduler.revive.interval[spark.scheduler.revive.interval].
 
 NOTE: link:spark-CoarseGrainedSchedulerBackend.adoc#spark.scheduler.revive.interval[spark.scheduler.revive.interval] defaults to `1s`.
+
+=== [[ReviveOffers]] Making Resource Offers -- `ReviveOffers` Message
+
+[source, scala]
+----
+case object ReviveOffers extends CoarseGrainedClusterMessage
+----
+
+When received, `ReviveOffers` simply <<makeOffers, makes executor resource offers>> (in a form of free cores and host name of <<executorIsAlive, active executors>>).
+
+NOTE: *Active executors* are executors not registered in link:spark-CoarseGrainedSchedulerBackend.adoc#executorsPendingToRemove[executorsPendingToRemove] and <<executorsPendingLossReason, executorsPendingLossReason>> internal registries.
+
+NOTE: `ReviveOffers` is sent <<onStart, periodically soon after `CoarseGrainedSchedulerBackend` RPC endpoint starts accepting messages>> and when link:spark-CoarseGrainedSchedulerBackend.adoc#reviveOffers[`CoarseGrainedExecutorBackend` revives resource offers].
+
+=== [[makeOffers]] Making Executor Resource Offers (for Launching Tasks) -- `makeOffers` Internal Method
+
+[source, scala]
+----
+makeOffers(): Unit
+----
+
+`makeOffers` first creates `WorkerOffers` for all <<executorIsAlive, active executors>> (registered in the internal link:spark-CoarseGrainedSchedulerBackend.adoc#executorDataMap[executorDataMap] cache).
+
+NOTE: `WorkerOffer` holds an executor's id, host name and the number of free cores.
+
+`makeOffers` then link:spark-taskschedulerimpl.adoc#resourceOffers[requests `TaskSchedulerImpl` to generate tasks for the available `WorkerOffers`] followed by <<launchTasks, launching the tasks on respective executors>>.
+
+NOTE: `makeOffers` uses link:spark-CoarseGrainedSchedulerBackend.adoc#scheduler[TaskSchedulerImpl] that was given when link:spark-CoarseGrainedSchedulerBackend.adoc#creating-instance[`CoarseGrainedSchedulerBackend` was created].
+
+NOTE: Tasks are described using link:spark-TaskDescription.adoc[TaskDescription] that holds...FIXME
+
+NOTE: `makeOffers` is used when `CoarseGrainedSchedulerBackend` RPC endpoint handles <<ReviveOffers, ReviveOffers>> or <<RegisterExecutor, RegisterExecutor>> messages.
