@@ -191,8 +191,9 @@ Controlled by <<spark.scheduler.minRegisteredResourcesRatio, spark.scheduler.min
 | FIXME
 
 | [[sufficientResourcesRegistered]] `sufficientResourcesRegistered`
-| Always positive, i.e. responds that sufficient resources are available.
+| Always positive, i.e. `true`, that means that sufficient resources are available.
 
+Used when `CoarseGrainedSchedulerBackend` <<isReady, checks if sufficient compute resources are available>>.
 |===
 
 * It can <<reset, reset a current internal state to the initial state>>.
@@ -297,40 +298,6 @@ image::images/CoarseGrainedExecutorBackend-reviveOffers.png[align="center"]
 CAUTION: FIXME Image
 
 NOTE: `killTask` is part of the link:spark-SchedulerBackend.adoc#contract[SchedulerBackend Contract].
-
-=== [[isReady]] Delaying Task Launching -- `isReady` Method
-
-`isReady` is a custom implementation of link:spark-SchedulerBackend.adoc#contract[isReady from the `SchedulerBackend` Contract] that allows to delay task launching until sufficient resources are registered or <<settings, spark.scheduler.maxRegisteredResourcesWaitingTime>> passes.
-
-NOTE: `isReady` is used exclusively by link:spark-taskschedulerimpl.adoc#waitBackendReady[TaskSchedulerImpl.waitBackendReady].
-
-It starts checking whether there are sufficient resources available (using <<sufficientResourcesRegistered, sufficientResourcesRegistered>> method).
-
-NOTE: By default `sufficientResourcesRegistered` always responds that sufficient resources are available.
-
-If <<sufficientResourcesRegistered, sufficient resources are available>>, you should see the following INFO message in the logs:
-
-[options="wrap"]
-----
-INFO SchedulerBackend is ready for scheduling beginning after reached minRegisteredResourcesRatio: [minRegisteredRatio]
-----
-
-The method finishes returning `true`.
-
-NOTE: `minRegisteredRatio` in the logs above is in the range 0 to 1 (uses <<settings, spark.scheduler.minRegisteredResourcesRatio>>) to denote the minimum ratio of registered resources to total expected resources before submitting tasks.
-
-In case there are no sufficient resources available yet (the above requirement does not hold), it checks whether the time from the startup (as `createTime`) passed <<settings, spark.scheduler.maxRegisteredResourcesWaitingTime>> to give a way to submit tasks (despite `minRegisteredRatio` not being reached yet).
-
-You should see the following INFO message in the logs:
-
-[options="wrap"]
-----
-INFO SchedulerBackend is ready for scheduling beginning after waiting maxRegisteredResourcesWaitingTime: [maxRegisteredWaitingTimeMs](ms)
-----
-
-The method finishes returning `true`.
-
-Otherwise, when <<sufficientResourcesRegistered, no sufficient resources are available>> and <<spark.scheduler.maxRegisteredResourcesWaitingTime, maxRegisteredWaitingTimeMs>> has not been passed, it finishes returning `false`.
 
 === [[stopExecutors]] Stopping All Executors -- `stopExecutors` Method
 
@@ -444,6 +411,41 @@ image::images/CoarseGrainedScheduler-rpc-endpoint.png[align="center"]
 NOTE: `start` uses <<scheduler, TaskSchedulerImpl>> to access the current link:spark-sparkcontext.adoc[SparkContext] and in turn link:spark-configuration.adoc[SparkConf].
 
 NOTE: `start` uses <<rpcEnv, RpcEnv>> that was given when <<creating-instance, `CoarseGrainedSchedulerBackend` was created>>.
+
+=== [[isReady]] Checking If Sufficient Compute Resources Available Or Waiting Time Passed -- `isReady` Method
+
+[source, scala]
+----
+isReady(): Boolean
+----
+
+NOTE: `isReady` is a part of the link:spark-SchedulerBackend.adoc#contract[SchedulerBackend contract].
+
+`isReady` allows to delay task launching until <<sufficientResourcesRegistered, sufficient resources are available>> or <<spark.scheduler.maxRegisteredResourcesWaitingTime, spark.scheduler.maxRegisteredResourcesWaitingTime>> passes.
+
+Internally, `isReady` <<sufficientResourcesRegistered, checks whether there are sufficient resources available>>.
+
+NOTE: <<sufficientResourcesRegistered, sufficientResourcesRegistered>> by default responds that sufficient resources are available.
+
+If the <<sufficientResourcesRegistered, resources are available>>, you should see the following INFO message in the logs and `isReady` is positive.
+
+[options="wrap"]
+----
+INFO SchedulerBackend is ready for scheduling beginning after reached minRegisteredResourcesRatio: [minRegisteredRatio]
+----
+
+NOTE: <<minRegisteredRatio, minRegisteredRatio>> is in the range 0 to 1 (uses <<settings, spark.scheduler.minRegisteredResourcesRatio>>) to denote the minimum ratio of registered resources to total expected resources before submitting tasks.
+
+If there are no sufficient resources available yet (the above requirement does not hold), `isReady` checks whether the time since <<createTime, startup>> passed <<spark.scheduler.maxRegisteredResourcesWaitingTime, spark.scheduler.maxRegisteredResourcesWaitingTime>> to give a way to launch tasks (even when <<minRegisteredRatio, minRegisteredRatio>> not being reached yet).
+
+You should see the following INFO message in the logs and `isReady` is positive.
+
+[options="wrap"]
+----
+INFO SchedulerBackend is ready for scheduling beginning after waiting maxRegisteredResourcesWaitingTime: [maxRegisteredWaitingTimeMs](ms)
+----
+
+Otherwise, when <<sufficientResourcesRegistered, no sufficient resources are available>> and <<spark.scheduler.maxRegisteredResourcesWaitingTime, spark.scheduler.maxRegisteredResourcesWaitingTime>> has not elapsed, `isReady` is negative.
 
 === [[stop]] Stopping CoarseGrainedSchedulerBackend (and Stopping Executors) -- `stop` Method
 

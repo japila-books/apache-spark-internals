@@ -7,6 +7,10 @@
 .YarnSchedulerBackend in YARN Container
 image::../images/yarn-YarnSchedulerBackend.png[align="center"]
 
+`YarnSchedulerBackend` is ready to accept task launch requests right after the <<sufficientResourcesRegistered, sufficient executors are registered>> (that varies on dynamic allocation being enabled or not).
+
+NOTE: With no extra configuration, `YarnSchedulerBackend` is ready for task launch requests when 80% of all the requested executors are available.
+
 NOTE: `YarnSchedulerBackend` is an `private[spark]` abstract class and is never created directly (but only indirectly through the concrete implementations link:spark-yarn-client-yarnclientschedulerbackend.adoc[YarnClientSchedulerBackend] and link:spark-yarn-cluster-yarnclusterschedulerbackend.adoc[YarnClusterSchedulerBackend]).
 
 [[internal-properties]]
@@ -18,11 +22,13 @@ NOTE: `YarnSchedulerBackend` is an `private[spark]` abstract class and is never 
 | Description
 
 | [[minRegisteredRatio]] `minRegisteredRatio`
-a| * `0.8` (when link:../spark-CoarseGrainedSchedulerBackend.adoc#spark.scheduler.minRegisteredResourcesRatio[spark.scheduler.minRegisteredResourcesRatio] property is undefined)
+a| Ratio for minimum number of registered executors to claim `YarnSchedulerBackend` is ready for task launch requests.
+
+* `0.8` (when link:../spark-CoarseGrainedSchedulerBackend.adoc#spark.scheduler.minRegisteredResourcesRatio[spark.scheduler.minRegisteredResourcesRatio] property is undefined)
 
 * link:../spark-CoarseGrainedSchedulerBackend.adoc#minRegisteredRatio#minRegisteredRatio[minRegisteredRatio] from the parent `CoarseGrainedSchedulerBackend`
 
-| Used in <<sufficientResourcesRegistered, sufficientResourcesRegistered>>.
+| Minimum expected number of executors that is used to ensure that <<sufficientResourcesRegistered, sufficient resources are available>> (and start accepting task launch requests).
 
 | [[yarnSchedulerEndpoint]] `yarnSchedulerEndpoint`
 | link:spark-yarn-cluster-YarnSchedulerEndpoint.adoc[YarnSchedulerEndpoint] object
@@ -34,13 +40,9 @@ a| * `0.8` (when link:../spark-CoarseGrainedSchedulerBackend.adoc#spark.schedule
 
 | [[totalExpectedExecutors]] `totalExpectedExecutors`
 | `0`
-|
+| Total expected number of executors that is used to ensure that <<sufficientResourcesRegistered, sufficient resources are available>> (and start accepting task launch requests).
 
-Updated when Spark on YARN starts (in  link:spark-yarn-client-yarnclientschedulerbackend.adoc#totalExpectedExecutors[client mode] or link:spark-yarn-cluster-yarnclusterschedulerbackend.adoc#totalExpectedExecutors[cluster mode]).
-
-Initialized to the final value after Spark on YARN is started.
-
-Used in <<sufficientResourcesRegistered, sufficientResourcesRegistered>>.
+Updated to the final value when Spark on YARN starts (in  link:spark-yarn-client-yarnclientschedulerbackend.adoc#totalExpectedExecutors[client mode] or link:spark-yarn-cluster-yarnclusterschedulerbackend.adoc#totalExpectedExecutors[cluster mode]).
 
 | [[askTimeout]] `askTimeout`
 | FIXME
@@ -89,14 +91,6 @@ image::../images/spark-YarnSchedulerBackend-doRequestTotalExecutors.png[align="c
 `doRequestTotalExecutors` simply sends a blocking link:spark-yarn-cluster-YarnSchedulerEndpoint.adoc#RequestExecutors[RequestExecutors] message to <<yarnSchedulerEndpointRef, YarnScheduler RPC Endpoint>> with the input `requestedTotal` and the internal `localityAwareTasks` and `hostToLocalTaskCount` attributes.
 
 CAUTION: FIXME The internal attributes are already set. When and how?
-
-=== [[sufficientResourcesRegistered]] `sufficientResourcesRegistered` Method
-
-`sufficientResourcesRegistered` checks whether `totalRegisteredExecutors` is greater than or equals to `totalExpectedExecutors` multiplied by <<minRegisteredRatio, minRegisteredRatio>>.
-
-NOTE: It overrides the parent's link:../spark-CoarseGrainedSchedulerBackend.adoc#sufficientResourcesRegistered[CoarseGrainedSchedulerBackend.sufficientResourcesRegistered].
-
-CAUTION: FIXME Where's this used?
 
 === [[start]] Starting the Backend -- `start` Method
 
@@ -159,3 +153,14 @@ NOTE: This section is only to take notes about the required components to instan
 . link:../spark-sparkcontext.adoc[SparkContext]
 
 `YarnSchedulerBackend` initializes the <<internal-properties, internal properties>>.
+
+=== [[sufficientResourcesRegistered]] Checking if Enough Executors Are Available -- `sufficientResourcesRegistered` Method
+
+[source, scala]
+----
+sufficientResourcesRegistered(): Boolean
+----
+
+NOTE: `sufficientResourcesRegistered` is a part of the link:../spark-CoarseGrainedSchedulerBackend.adoc#contract[CoarseGrainedSchedulerBackend contract] that makes sure that sufficient resources are available.
+
+`sufficientResourcesRegistered` is positive, i.e. `true`, when link:../spark-CoarseGrainedSchedulerBackend.adoc#totalRegisteredExecutors[totalRegisteredExecutors] is exactly or above <<minRegisteredRatio, minRegisteredRatio>> of <<totalExpectedExecutors, totalExpectedExecutors>>.
