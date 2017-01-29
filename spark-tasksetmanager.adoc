@@ -11,6 +11,50 @@ The responsibilities of a `TaskSetManager` include (follow along the links to le
 * <<task-retries, Retrying tasks on failure>>
 * <<locality-aware-scheduling, Locality-aware scheduling via delay scheduling>>
 
+[TIP]
+====
+Enable DEBUG logging levels for `org.apache.spark.scheduler.TaskSchedulerImpl` and `org.apache.spark.scheduler.TaskSetManager` and execute the following two-stage job to see their low-level innerworkings.
+
+```
+$ ./bin/spark-shell --conf spark.ui.showConsoleProgress=false
+
+// Keep # partitions low to keep # messages low
+scala> sc.parallelize(0 to 9, 3).groupBy(_ % 3).count
+INFO TaskSchedulerImpl: Adding task set 0.0 with 3 tasks
+DEBUG TaskSetManager: Epoch for TaskSet 0.0: 0
+DEBUG TaskSetManager: Valid locality levels for TaskSet 0.0: NO_PREF, ANY
+DEBUG TaskSchedulerImpl: parentName: , name: TaskSet_0.0, runningTasks: 0
+DEBUG TaskSetManager: Valid locality levels for TaskSet 0.0: NO_PREF, ANY
+INFO TaskSetManager: Starting task 0.0 in stage 0.0 (TID 0, localhost, executor driver, partition 0, PROCESS_LOCAL, 7530 bytes)
+INFO TaskSetManager: Starting task 1.0 in stage 0.0 (TID 1, localhost, executor driver, partition 1, PROCESS_LOCAL, 7530 bytes)
+INFO TaskSetManager: Starting task 2.0 in stage 0.0 (TID 2, localhost, executor driver, partition 2, PROCESS_LOCAL, 7587 bytes)
+DEBUG TaskSetManager: No tasks for locality level NO_PREF, so moving to locality level ANY
+DEBUG TaskSchedulerImpl: parentName: , name: TaskSet_0.0, runningTasks: 2
+DEBUG TaskSchedulerImpl: parentName: , name: TaskSet_0.0, runningTasks: 1
+DEBUG TaskSchedulerImpl: parentName: , name: TaskSet_0.0, runningTasks: 0
+INFO TaskSetManager: Finished task 2.0 in stage 0.0 (TID 2) in 212 ms on localhost (executor driver) (1/3)
+INFO TaskSetManager: Finished task 0.0 in stage 0.0 (TID 0) in 234 ms on localhost (executor driver) (2/3)
+INFO TaskSetManager: Finished task 1.0 in stage 0.0 (TID 1) in 215 ms on localhost (executor driver) (3/3)
+INFO TaskSchedulerImpl: Removed TaskSet 0.0, whose tasks have all completed, from pool
+INFO TaskSchedulerImpl: Adding task set 1.0 with 3 tasks
+DEBUG TaskSetManager: Epoch for TaskSet 1.0: 1
+DEBUG TaskSetManager: Valid locality levels for TaskSet 1.0: ANY
+DEBUG TaskSchedulerImpl: parentName: , name: TaskSet_1.0, runningTasks: 0
+INFO TaskSetManager: Starting task 0.0 in stage 1.0 (TID 3, localhost, executor driver, partition 0, ANY, 7337 bytes)
+INFO TaskSetManager: Starting task 1.0 in stage 1.0 (TID 4, localhost, executor driver, partition 1, ANY, 7337 bytes)
+INFO TaskSetManager: Starting task 2.0 in stage 1.0 (TID 5, localhost, executor driver, partition 2, ANY, 7337 bytes)
+DEBUG TaskSchedulerImpl: parentName: , name: TaskSet_1.0, runningTasks: 2
+DEBUG TaskSchedulerImpl: parentName: , name: TaskSet_1.0, runningTasks: 1
+DEBUG TaskSchedulerImpl: parentName: , name: TaskSet_1.0, runningTasks: 0
+INFO TaskSetManager: Finished task 1.0 in stage 1.0 (TID 4) in 48 ms on localhost (executor driver) (1/3)
+INFO TaskSetManager: Finished task 2.0 in stage 1.0 (TID 5) in 47 ms on localhost (executor driver) (2/3)
+INFO TaskSetManager: Finished task 0.0 in stage 1.0 (TID 3) in 49 ms on localhost (executor driver) (3/3)
+INFO TaskSchedulerImpl: Removed TaskSet 1.0, whose tasks have all completed, from pool
+res0: Long = 3
+```
+
+====
+
 .TaskSetManager's Internal Registries and Counters
 [cols="1,2",options="header",width="100%"]
 |===
@@ -53,10 +97,18 @@ Starts from `0` when <<creating-instance, `TaskSetManager` is created>>.
 
 Only increased with the size of a task result whenever a `TaskSetManager` <<canFetchMoreResults, checks that there is enough memory to fetch the task result>>.
 
-| `allPendingTasks` |
+| `allPendingTasks`
+|
 
-| [[numFailures]] `numFailures` |
-| `pendingTasksForExecutor` |
+| [[localityWaits]] `localityWaits`
+|
+
+| [[numFailures]] `numFailures`
+|
+
+| [[pendingTasksForExecutor]] `pendingTasksForExecutor`
+|
+
 | `pendingTasksForHost` |
 | `pendingTasksForRack` |
 | `pendingTasksWithNoPrefs` |
@@ -605,6 +657,81 @@ Otherwise, `canFetchMoreResults` returns `true`.
 
 NOTE: `canFetchMoreResults` is used in link:spark-taskschedulerimpl-TaskResultGetter.adoc#enqueueSuccessfulTask[TaskResultGetter.enqueueSuccessfulTask] only.
 
+=== [[computeValidLocalityLevels]] Computing Locality Levels (for Scheduled Tasks) -- `computeValidLocalityLevels` Internal Method
+
+[source, scala]
+----
+computeValidLocalityLevels(): Array[TaskLocality]
+----
+
+`computeValidLocalityLevels` computes valid locality levels for tasks that were registered in corresponding registries per locality level.
+
+NOTE: link:spark-taskschedulerimpl.adoc[TaskLocality] is a task locality preference and can be the most localized `NODE_LOCAL` through `NO_PREF` and `RACK_LOCAL` to `ANY`.
+
+.TaskLocalities and Corresponding Internal Registries
+[cols="1,2",options="header",width="100%"]
+|===
+| TaskLocality
+| Internal Registry
+
+| `PROCESS_LOCAL`
+| <<pendingTasksForExecutor, pendingTasksForExecutor>>
+| `NODE_LOCAL`
+| <<pendingTasksForHost, pendingTasksForHost>>
+| `NO_PREF`
+| <<pendingTasksWithNoPrefs, pendingTasksWithNoPrefs>>
+| `RACK_LOCAL`
+| <<pendingTasksForRack, pendingTasksForRack>>
+
+|===
+
+`computeValidLocalityLevels` walks over every internal registry and if it is not empty <<getLocalityWait, computes locality wait>> for the corresponding `TaskLocality` and proceeds with it only when the locality wait is not `0`.
+
+For `TaskLocality` with pending tasks, `computeValidLocalityLevels` asks `TaskSchedulerImpl` whether there is at least one executor alive (for link:spark-taskschedulerimpl.adoc#isExecutorAlive[PROCESS_LOCAL], link:spark-taskschedulerimpl.adoc#hasExecutorsAliveOnHost[NODE_LOCAL] and link:spark-taskschedulerimpl.adoc#hasHostAliveOnRack[RACK_LOCAL]) and if so registers the `TaskLocality`.
+
+NOTE: `computeValidLocalityLevels` uses <<sched, TaskSchedulerImpl>> that was given when <<TaskSetManager, `TaskSetManager` was created>>.
+
+`computeValidLocalityLevels` always registers `ANY` task locality level.
+
+In the end, you should see the following DEBUG message in the logs:
+
+```
+DEBUG TaskSetManager: Valid locality levels for [taskSet]: [comma-separated levels]
+```
+
+NOTE: `computeValidLocalityLevels` is used when `TaskSetManager` <<creating-instance, is created>> and later to <<recomputeLocality, recompute locality>>.
+
+=== [[getLocalityWait]] Finding Locality Wait -- `getLocalityWait` Internal Method
+
+[source, scala]
+----
+getLocalityWait(level: TaskLocality): Long
+----
+
+`getLocalityWait` finds *locality wait* (in milliseconds) for a given link:spark-taskschedulerimpl.adoc#TaskLocality[TaskLocality].
+
+`getLocalityWait` uses <<spark.locality.wait, spark.locality.wait>> (default: `3s`) when the ``TaskLocality``-specific property is not defined or `0` for `NO_PREF` and `ANY`.
+
+NOTE: `NO_PREF` and `ANY` task localities have no locality wait.
+
+.TaskLocalities and Corresponding Spark Properties
+[cols="1,2",options="header",width="100%"]
+|===
+| TaskLocality
+| Spark Property
+
+| PROCESS_LOCAL
+| <<spark.locality.wait.process, spark.locality.wait.process>>
+
+| NODE_LOCAL
+| <<spark.locality.wait.node, spark.locality.wait.node>>
+
+| RACK_LOCAL
+| <<spark.locality.wait.rack, spark.locality.wait.rack>>
+|===
+
+NOTE: `getLocalityWait` is used when `TaskSetManager` calculates <<localityWaits, localityWaits>>, <<computeValidLocalityLevels, computes valid locality levels>> and <<recomputeLocality, recomputes locality preferences>>.
+
 === [[settings]] Settings
 
 .Spark Properties
@@ -617,11 +744,23 @@ Used when <<canFetchMoreResults, `TaskSetManager` checks available memory for a 
 
 | `spark.scheduler.executorTaskBlacklistTime` | `0L` | Time interval to pass after which a task can be re-launched on the executor where it has once failed. It is to prevent repeated task failures due to executor failures.
 
-| [[spark_logging_exceptionPrintInterval]] `spark.logging.exceptionPrintInterval` | `10000` millis | How frequently to reprint duplicate exceptions in full
+| [[spark_logging_exceptionPrintInterval]] `spark.logging.exceptionPrintInterval`
+| `10000`
+| How frequently to reprint duplicate exceptions in full (in millis).
 
-| [[spark_locality_wait]] `spark.locality.wait` | `3s` | For locality-aware delay scheduling for `PROCESS_LOCAL`, `NODE_LOCAL`, and `RACK_LOCAL` when locality-specific setting is not set.
-| `spark.locality.wait.process` | The value of <<spark_locality_wait, spark.locality.wait>> | Scheduling delay for `PROCESS_LOCAL`
-| `spark.locality.wait.node` | The value of <<spark_locality_wait, spark.locality.wait>> | Scheduling delay for `NODE_LOCAL`
-| `spark.locality.wait.rack` | The value of <<spark_locality_wait, spark.locality.wait>> | Scheduling delay for `RACK_LOCAL`
+| [[spark.locality.wait]] `spark.locality.wait`
+| `3s`
+| For locality-aware delay scheduling for `PROCESS_LOCAL`, `NODE_LOCAL`, and `RACK_LOCAL` link:spark-taskschedulerimpl.adoc#TaskLocality[TaskLocalities] when locality-specific setting is not set.
 
+| [[spark.locality.wait.process]] `spark.locality.wait.process`
+| The value of <<spark.locality.wait, spark.locality.wait>>
+| Scheduling delay for `PROCESS_LOCAL` link:spark-taskschedulerimpl.adoc#TaskLocality[TaskLocality]
+
+| [[spark.locality.wait.node]] `spark.locality.wait.node`
+| The value of <<spark.locality.wait, spark.locality.wait>>
+| Scheduling delay for `NODE_LOCAL` link:spark-taskschedulerimpl.adoc#TaskLocality[TaskLocality]
+
+| [[spark.locality.wait.rack]] `spark.locality.wait.rack`
+| The value of <<spark.locality.wait, spark.locality.wait>>
+| Scheduling delay for `RACK_LOCAL` link:spark-taskschedulerimpl.adoc#TaskLocality[TaskLocality]
 |===
