@@ -4,18 +4,18 @@
 
 `TaskSchedulerImpl` can schedule tasks for multiple types of cluster managers by means of link:spark-SchedulerBackend.adoc[SchedulerBackends].
 
+When a Spark application starts (and so an instance of link:spark-sparkcontext.adoc#creating-instance[SparkContext is created]) `TaskSchedulerImpl` with a link:spark-SchedulerBackend.adoc[SchedulerBackend] and link:spark-dagscheduler.adoc[DAGScheduler] are created and soon started.
+
+.TaskSchedulerImpl and Other Services
+image::images/taskschedulerimpl-sparkcontext-schedulerbackend-dagscheduler.png[align="center"]
+
+`TaskSchedulerImpl` <<resourceOffers, generates tasks for executor resource offers>>.
+
 `TaskSchedulerImpl` can <<getRackForHost, track racks per host and port>> (that however is link:yarn/spark-yarn-yarnscheduler.adoc[only used with Hadoop YARN cluster manager]).
 
 Using <<spark_scheduler_mode, spark.scheduler.mode>> setting you can select the link:spark-taskscheduler-schedulingmode.adoc[scheduling policy].
 
 `TaskSchedulerImpl` <<submitTasks, submits tasks>> using link:spark-taskscheduler-schedulablebuilders.adoc[SchedulableBuilders].
-
-When a Spark application starts (and an instance of link:spark-sparkcontext.adoc#creating-instance[SparkContext is created]) `TaskSchedulerImpl` with a link:spark-SchedulerBackend.adoc[SchedulerBackend] and link:spark-dagscheduler.adoc[DAGScheduler] are created and soon started.
-
-.TaskSchedulerImpl and Other Services
-image::images/taskschedulerimpl-sparkcontext-schedulerbackend-dagscheduler.png[align="center"]
-
-NOTE: `TaskSchedulerImpl` is a `private[spark]` class with the source code in https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/scheduler/TaskSchedulerImpl.scala[org.apache.spark.scheduler.TaskSchedulerImpl].
 
 [[internal-registries]]
 .TaskSchedulerImpl's Internal Registries and Counters
@@ -23,6 +23,11 @@ NOTE: `TaskSchedulerImpl` is a `private[spark]` class with the source code in ht
 |===
 | Name
 | Description
+
+| [[hasLaunchedTask]] `hasLaunchedTask`
+| Flag...FIXME
+
+Used when...FIXME
 
 | [[dagScheduler]] `dagScheduler`
 | link:spark-dagscheduler.adoc[DAGScheduler]
@@ -83,7 +88,7 @@ log4j.logger.org.apache.spark.scheduler.TaskSchedulerImpl=DEBUG
 Refer to link:spark-logging.adoc[Logging].
 ====
 
-=== [[resourceOffers]] Generating Tasks For Executor Resource Offers (as TaskDescriptions) -- `resourceOffers` Method
+=== [[resourceOffers]] Creating TaskDescriptions For Available Executor Resource Offers (with CPU Cores) -- `resourceOffers` Method
 
 [source, scala]
 ----
@@ -116,11 +121,13 @@ CAUTION: FIXME Expand on blacklisting
 .Internal Structures of resourceOffers with 5 WorkerOffers (with 4, 2, 0, 3, 2 free cores)
 image::images/TaskSchedulerImpl-resourceOffers-internal-structures.png[align="center"]
 
-The link:spark-taskscheduler.adoc#rootPool[root pool] is link:spark-taskscheduler-pool.adoc#getSortedTaskSetQueue[requested for `TaskSetManagers` sorted] according to the link:spark-taskscheduler-schedulingmode.adoc[scheduling order].
+The link:spark-taskscheduler.adoc#rootPool[root pool] is link:spark-taskscheduler-pool.adoc#getSortedTaskSetQueue[requested to sort `TaskSetManagers`] according to the link:spark-taskscheduler-schedulingmode.adoc[scheduling order].
 
-NOTE: `rootPool` is a part of the link:spark-taskscheduler.adoc#rootPool[TaskScheduler Contract] and is exclusively managed by link:spark-taskscheduler-schedulablebuilders.adoc[SchedulableBuilders], i.e. link:spark-taskscheduler-FIFOSchedulableBuilder.adoc[FIFOSchedulableBuilder] and link:spark-taskscheduler-FairSchedulableBuilder.adoc[FairSchedulableBuilder] (that  link:spark-taskscheduler-schedulablebuilders.adoc#addTaskSetManager[add `TaskSetManagers` to the root pool]).
+NOTE: `rootPool` is a part of the link:spark-taskscheduler.adoc#rootPool[TaskScheduler Contract] and is exclusively managed by link:spark-taskscheduler-schedulablebuilders.adoc[SchedulableBuilders], i.e. link:spark-taskscheduler-FIFOSchedulableBuilder.adoc[FIFOSchedulableBuilder] and link:spark-taskscheduler-FairSchedulableBuilder.adoc[FairSchedulableBuilder] (that  link:spark-taskscheduler-schedulablebuilders.adoc#addTaskSetManager[manage adding `TaskSetManager`s to the root pool]).
 
-For every `TaskSetManager` in the sorted queue, you should see the following DEBUG message in the logs:
+NOTE: link:spark-tasksetmanager.adoc[TaskSetManager] manages execution of the tasks in a single `TaskSet`.
+
+For every `TaskSetManager` (in scheduling order), you should see the following DEBUG message in the logs:
 
 ```
 DEBUG TaskSchedulerImpl: parentName: [name], name: [name], runningTasks: [count]
@@ -128,19 +135,17 @@ DEBUG TaskSchedulerImpl: parentName: [name], name: [name], runningTasks: [count]
 
 NOTE: The internal `rootPool` is configured when <<initialize, `TaskSchedulerImpl` is initialized>>.
 
-If a new executor was added, `resourceOffers` link:spark-tasksetmanager.adoc#executorAdded[notifies every `TaskSetManager` in the sorted queue about the new executor].
+If a new executor was added, `resourceOffers` link:spark-tasksetmanager.adoc#executorAdded[notifies every `TaskSetManager` about the change] (to recompute locality preferences).
 
-NOTE: A `TaskSetManager` will be informed about one or more new executors once per host regardless of the number of executors registered on the host.
+`resourceOffers` then takes every `TaskSetManager` (in scheduling order) and offers them each node in increasing order of locality levels (per link:spark-tasksetmanager.adoc#computeValidLocalityLevels[TaskSetManager's valid locality levels]).
 
-For each `TaskSetManager` (in `sortedTaskSets`) and for each preferred locality level (ascending), <<resourceOfferSingleTaskSet, resourceOfferSingleTaskSet>> is called until `launchedTask` flag is `false`.
+NOTE: A `TaskSetManager` link:spark-tasksetmanager.adoc##computeValidLocalityLevels[computes locality levels of the tasks] it manages.
 
-CAUTION: FIXME `resourceOfferSingleTaskSet` + the sentence above less code-centric.
+For every `TaskSetManager` and the ``TaskSetManager``'s valid locality level, `resourceOffers`  <<resourceOfferSingleTaskSet, resourceOfferSingleTaskSet>> as long as the `TaskSetManager` manages to launch a task (given the locality level).
 
-Check whether the number of cores in an offer is greater than the <<spark_task_cpus, number of cores needed for a task>>.
+If `resourceOffers` did not manage to offer resources to a `TaskSetManager` so it could launch any task, `resourceOffers` link:spark-tasksetmanager.adoc#abortIfCompletelyBlacklisted[requests the `TaskSetManager` to abort the `TaskSet` if completely blacklisted].
 
-When `resourceOffers` managed to launch a task (i.e. `tasks` collection is not empty), the internal `hasLaunchedTask` flag becomes `true` (that effectively means what the name says _"There were executors and I managed to launch a task"_).
-
-`resourceOffers` returns the `tasks` collection.
+When `resourceOffers` managed to launch a task, the internal <<hasLaunchedTask, hasLaunchedTask>> flag gets enabled (that effectively means what the name says _"there were executors and I managed to launch a task"_).
 
 [NOTE]
 ====
@@ -271,13 +276,13 @@ NOTE: It is overriden by the YARN-specific TaskScheduler link:yarn/spark-yarn-ya
 `TaskSchedulerImpl` takes the following when created:
 
 * [[sc]] link:spark-sparkcontext.adoc[SparkContext]
-* <<maxTaskFailures, acceptable number of task failures>>
+* <<maxTaskFailures, Acceptable number of task failures>>
 * [[blacklistTrackerOpt]] optional `BlacklistTracker`
-* [[isLocal]] optional `isLocal` -- flag to differentiate between local and cluster run modes (defaults to `false`)
+* [[isLocal]] optional `isLocal` flag to differentiate between local and cluster run modes (defaults to `false`)
 
 `TaskSchedulerImpl` initializes the <<internal-registries, internal registries and counters>>.
 
-NOTE: There is another `TaskSchedulerImpl` constructor that requires a link:spark-sparkcontext.adoc[SparkContext] object only and sets <<maxTaskFailures, maxTaskFailures>> to <<spark_task_maxFailures, spark.task.maxFailures>> or, if `spark.task.maxFailures` is not set, defaults to `4`.
+NOTE: There is another `TaskSchedulerImpl` constructor that requires a link:spark-sparkcontext.adoc[SparkContext] object only and sets <<maxTaskFailures, maxTaskFailures>> to <<spark_task_maxFailures, spark.task.maxFailures>> or, if not set, defaults to `4`.
 
 `TaskSchedulerImpl` sets link:spark-taskscheduler.adoc#contract[schedulingMode] to the value of <<spark_scheduler_mode, spark.scheduler.mode>> setting (defaults to `FIFO`).
 
