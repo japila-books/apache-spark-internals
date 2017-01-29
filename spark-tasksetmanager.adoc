@@ -13,43 +13,46 @@ The responsibilities of a `TaskSetManager` include (follow along the links to le
 
 [TIP]
 ====
-Enable DEBUG logging levels for `org.apache.spark.scheduler.TaskSchedulerImpl` and `org.apache.spark.scheduler.TaskSetManager` and execute the following two-stage job to see their low-level innerworkings.
+Enable DEBUG logging levels for `org.apache.spark.scheduler.TaskSchedulerImpl` (or `org.apache.spark.scheduler.cluster.YarnScheduler` for YARN) and `org.apache.spark.scheduler.TaskSetManager` and execute the following two-stage job to see their low-level innerworkings.
+
+A cluster manager is recommended since it gives more task localization choices (with YARN supporting rack localization).
 
 ```
-$ ./bin/spark-shell --conf spark.ui.showConsoleProgress=false
+$ ./bin/spark-shell --master yarn --conf spark.ui.showConsoleProgress=false
 
 // Keep # partitions low to keep # messages low
 scala> sc.parallelize(0 to 9, 3).groupBy(_ % 3).count
-INFO TaskSchedulerImpl: Adding task set 0.0 with 3 tasks
+INFO YarnScheduler: Adding task set 0.0 with 3 tasks
 DEBUG TaskSetManager: Epoch for TaskSet 0.0: 0
 DEBUG TaskSetManager: Valid locality levels for TaskSet 0.0: NO_PREF, ANY
-DEBUG TaskSchedulerImpl: parentName: , name: TaskSet_0.0, runningTasks: 0
-DEBUG TaskSetManager: Valid locality levels for TaskSet 0.0: NO_PREF, ANY
-INFO TaskSetManager: Starting task 0.0 in stage 0.0 (TID 0, localhost, executor driver, partition 0, PROCESS_LOCAL, 7530 bytes)
-INFO TaskSetManager: Starting task 1.0 in stage 0.0 (TID 1, localhost, executor driver, partition 1, PROCESS_LOCAL, 7530 bytes)
-INFO TaskSetManager: Starting task 2.0 in stage 0.0 (TID 2, localhost, executor driver, partition 2, PROCESS_LOCAL, 7587 bytes)
+DEBUG YarnScheduler: parentName: , name: TaskSet_0.0, runningTasks: 0
+INFO TaskSetManager: Starting task 0.0 in stage 0.0 (TID 0, 10.0.2.87, executor 1, partition 0, PROCESS_LOCAL, 7541 bytes)
+INFO TaskSetManager: Starting task 1.0 in stage 0.0 (TID 1, 10.0.2.87, executor 2, partition 1, PROCESS_LOCAL, 7541 bytes)
+DEBUG YarnScheduler: parentName: , name: TaskSet_0.0, runningTasks: 1
+INFO TaskSetManager: Starting task 2.0 in stage 0.0 (TID 2, 10.0.2.87, executor 1, partition 2, PROCESS_LOCAL, 7598 bytes)
+DEBUG YarnScheduler: parentName: , name: TaskSet_0.0, runningTasks: 1
 DEBUG TaskSetManager: No tasks for locality level NO_PREF, so moving to locality level ANY
-DEBUG TaskSchedulerImpl: parentName: , name: TaskSet_0.0, runningTasks: 2
-DEBUG TaskSchedulerImpl: parentName: , name: TaskSet_0.0, runningTasks: 1
-DEBUG TaskSchedulerImpl: parentName: , name: TaskSet_0.0, runningTasks: 0
-INFO TaskSetManager: Finished task 2.0 in stage 0.0 (TID 2) in 212 ms on localhost (executor driver) (1/3)
-INFO TaskSetManager: Finished task 0.0 in stage 0.0 (TID 0) in 234 ms on localhost (executor driver) (2/3)
-INFO TaskSetManager: Finished task 1.0 in stage 0.0 (TID 1) in 215 ms on localhost (executor driver) (3/3)
-INFO TaskSchedulerImpl: Removed TaskSet 0.0, whose tasks have all completed, from pool
-INFO TaskSchedulerImpl: Adding task set 1.0 with 3 tasks
+INFO TaskSetManager: Finished task 0.0 in stage 0.0 (TID 0) in 518 ms on 10.0.2.87 (executor 1) (1/3)
+INFO TaskSetManager: Finished task 1.0 in stage 0.0 (TID 1) in 512 ms on 10.0.2.87 (executor 2) (2/3)
+DEBUG YarnScheduler: parentName: , name: TaskSet_0.0, runningTasks: 0
+INFO TaskSetManager: Finished task 2.0 in stage 0.0 (TID 2) in 51 ms on 10.0.2.87 (executor 1) (3/3)
+INFO YarnScheduler: Removed TaskSet 0.0, whose tasks have all completed, from pool
+INFO YarnScheduler: Adding task set 1.0 with 3 tasks
 DEBUG TaskSetManager: Epoch for TaskSet 1.0: 1
-DEBUG TaskSetManager: Valid locality levels for TaskSet 1.0: ANY
-DEBUG TaskSchedulerImpl: parentName: , name: TaskSet_1.0, runningTasks: 0
-INFO TaskSetManager: Starting task 0.0 in stage 1.0 (TID 3, localhost, executor driver, partition 0, ANY, 7337 bytes)
-INFO TaskSetManager: Starting task 1.0 in stage 1.0 (TID 4, localhost, executor driver, partition 1, ANY, 7337 bytes)
-INFO TaskSetManager: Starting task 2.0 in stage 1.0 (TID 5, localhost, executor driver, partition 2, ANY, 7337 bytes)
-DEBUG TaskSchedulerImpl: parentName: , name: TaskSet_1.0, runningTasks: 2
-DEBUG TaskSchedulerImpl: parentName: , name: TaskSet_1.0, runningTasks: 1
-DEBUG TaskSchedulerImpl: parentName: , name: TaskSet_1.0, runningTasks: 0
-INFO TaskSetManager: Finished task 1.0 in stage 1.0 (TID 4) in 48 ms on localhost (executor driver) (1/3)
-INFO TaskSetManager: Finished task 2.0 in stage 1.0 (TID 5) in 47 ms on localhost (executor driver) (2/3)
-INFO TaskSetManager: Finished task 0.0 in stage 1.0 (TID 3) in 49 ms on localhost (executor driver) (3/3)
-INFO TaskSchedulerImpl: Removed TaskSet 1.0, whose tasks have all completed, from pool
+DEBUG TaskSetManager: Valid locality levels for TaskSet 1.0: NODE_LOCAL, RACK_LOCAL, ANY
+DEBUG YarnScheduler: parentName: , name: TaskSet_1.0, runningTasks: 0
+INFO TaskSetManager: Starting task 0.0 in stage 1.0 (TID 3, 10.0.2.87, executor 2, partition 0, NODE_LOCAL, 7348 bytes)
+INFO TaskSetManager: Starting task 1.0 in stage 1.0 (TID 4, 10.0.2.87, executor 1, partition 1, NODE_LOCAL, 7348 bytes)
+DEBUG YarnScheduler: parentName: , name: TaskSet_1.0, runningTasks: 1
+INFO TaskSetManager: Starting task 2.0 in stage 1.0 (TID 5, 10.0.2.87, executor 1, partition 2, NODE_LOCAL, 7348 bytes)
+INFO TaskSetManager: Finished task 1.0 in stage 1.0 (TID 4) in 130 ms on 10.0.2.87 (executor 1) (1/3)
+DEBUG YarnScheduler: parentName: , name: TaskSet_1.0, runningTasks: 1
+DEBUG TaskSetManager: No tasks for locality level NODE_LOCAL, so moving to locality level RACK_LOCAL
+DEBUG TaskSetManager: No tasks for locality level RACK_LOCAL, so moving to locality level ANY
+INFO TaskSetManager: Finished task 0.0 in stage 1.0 (TID 3) in 133 ms on 10.0.2.87 (executor 2) (2/3)
+DEBUG YarnScheduler: parentName: , name: TaskSet_1.0, runningTasks: 0
+INFO TaskSetManager: Finished task 2.0 in stage 1.0 (TID 5) in 21 ms on 10.0.2.87 (executor 1) (3/3)
+INFO YarnScheduler: Removed TaskSet 1.0, whose tasks have all completed, from pool
 res0: Long = 3
 ```
 
