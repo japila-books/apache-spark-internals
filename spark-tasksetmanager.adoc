@@ -11,6 +11,8 @@ NOTE: A task can end <<handleSuccessfulTask, sucessfully>> or due to a <<handleF
 .TaskSetManager and its Dependencies
 image::images/TaskSetManager-TaskSchedulerImpl-TaskSet.png[align="center"]
 
+When <<creating-instance, `TaskSetManager` is created>> for a <<taskSet, TaskSet>>, `TaskSetManager` <<addPendingTask, registers all the tasks as pending execution>>.
+
 The responsibilities of a `TaskSetManager` include:
 
 * <<scheduling-tasks, Scheduling the tasks in a taskset>>
@@ -106,9 +108,6 @@ Starts from `0` when <<creating-instance, `TaskSetManager` is created>>.
 
 Only increased with the size of a task result whenever a `TaskSetManager` <<canFetchMoreResults, checks that there is enough memory to fetch the task result>>.
 
-| `allPendingTasks`
-|
-
 | [[localityWaits]] `localityWaits`
 |
 
@@ -116,11 +115,21 @@ Only increased with the size of a task result whenever a `TaskSetManager` <<canF
 |
 
 | [[pendingTasksForExecutor]] `pendingTasksForExecutor`
+| Lookup table of task indices per executor.
+
+Updated with an task index per executor when `TaskSetManager` <<addPendingTask, registers a task as pending execution (per preferred locations)>>.
+
+| [[pendingTasksForHost]] `pendingTasksForHost`
 |
 
-| `pendingTasksForHost` |
-| `pendingTasksForRack` |
-| `pendingTasksWithNoPrefs` |
+| [[pendingTasksForRack]] `pendingTasksForRack`
+|
+
+| [[pendingTasksWithNoPrefs]] `pendingTasksWithNoPrefs`
+|
+
+| [[allPendingTasks]] `allPendingTasks`
+|
 
 | `recentExceptions` |
 
@@ -166,10 +175,6 @@ CAUTION: FIXME
 CAUTION: FIXME
 
 === [[name]] `name` Property
-
-CAUTION: FIXME
-
-=== [[addPendingTask]] Adding Tasks As Pending Execution -- `addPendingTask` Method
 
 CAUTION: FIXME
 
@@ -702,6 +707,41 @@ NOTE: `TaskSetManager` requests link:spark-taskschedulerimpl.adoc#mapOutputTrack
 `TaskSetManager` <<addPendingTask, adds the tasks as pending execution>> (in reverse order from the highest partition to the lowest).
 
 CAUTION: FIXME Why is reverse order important? The code says it's to execute tasks with low indices first.
+
+=== [[addPendingTask]] Registering Task As Pending Execution (Per Preferred Locations) -- `addPendingTask` Internal Method
+
+[source, scala]
+----
+addPendingTask(index: Int): Unit
+----
+
+`addPendingTask` registers a `index` task in the pending-task lists that the task should be eventually scheduled to (per its preferred locations).
+
+Internally, `addPendingTask` takes the link:spark-taskscheduler-tasks.adoc#preferredLocations[preferred locations of the task] (given `index`) and registers the task in the internal pending-task registries for every preferred location:
+
+* <<pendingTasksForExecutor, pendingTasksForExecutor>> when the `TaskLocation` is `ExecutorCacheTaskLocation`.
+* <<pendingTasksForHost, pendingTasksForHost>> for the hosts of a `TaskLocation`.
+* <<pendingTasksForRack, pendingTasksForRack>> for the link:spark-taskschedulerimpl.adoc#getRackForHost[racks from  `TaskSchedulerImpl` per the host] (of a `TaskLocation`).
+
+For a `TaskLocation` being `HDFSCacheTaskLocation`, `addPendingTask` link:spark-taskschedulerimpl.adoc#getExecutorsAliveOnHost[requests `TaskSchedulerImpl` for the executors on the host] (of a preferred location) and registers the task in <<pendingTasksForExecutor, pendingTasksForExecutor>> for every executor (if available).
+
+You should see the following INFO message in the logs:
+
+```
+INFO Pending task [index] has a cached location at [host] , where there are executors [executors]
+```
+
+When `addPendingTask` could not find executors for a `HDFSCacheTaskLocation` preferred location, you should see the following DEBUG message in the logs:
+
+```
+DEBUG Pending task [index] has a cached location at [host] , but there are no executors alive there.
+```
+
+If the task has no location preferences, `addPendingTask` registers it in <<pendingTasksWithNoPrefs, pendingTasksWithNoPrefs>>.
+
+`addPendingTask` always registers the task in <<allPendingTasks, allPendingTasks>>.
+
+NOTE: `addPendingTask` is used immediatelly when `TaskSetManager` <<creating-instance, is created>> and later when handling a <<handleFailedTask, task failure>> or <<executorLost, lost executor>>.
 
 === [[computeValidLocalityLevels]] Computing Locality Levels (for Scheduled Tasks) -- `computeValidLocalityLevels` Internal Method
 
