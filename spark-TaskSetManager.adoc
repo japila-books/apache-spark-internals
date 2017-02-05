@@ -13,6 +13,12 @@ image::images/TaskSetManager-TaskSchedulerImpl-TaskSet.png[align="center"]
 
 When <<creating-instance, `TaskSetManager` is created>> for a <<taskSet, TaskSet>>, `TaskSetManager` <<addPendingTask, registers all the tasks as pending execution>>.
 
+`TaskSetManager` uses <<maxTaskFailures, maxTaskFailures>> to control how many times a <<handleFailedTask, single task can fail>> before an <<abort, entire `TaskSet` gets aborted>> that can take the following values:
+
+* `1` for link:spark-local.adoc[`local` run mode]
+* `maxFailures` for link:spark-local.adoc[Spark local-with-retries]
+* link:spark-taskschedulerimpl.adoc#spark.task.maxFailures[spark.task.maxFailures] property for link:spark-local.adoc[Spark local-cluster] and link:spark-cluster.adoc[Spark clustered] (using Spark Standalone, Mesos and YARN)
+
 The responsibilities of a `TaskSetManager` include:
 
 * <<scheduling-tasks, Scheduling the tasks in a taskset>>
@@ -685,11 +691,13 @@ NOTE: `canFetchMoreResults` is used in link:spark-taskschedulerimpl-TaskResultGe
 
 * [[sched]] link:spark-taskschedulerimpl.adoc[TaskSchedulerImpl]
 * [[taskSet]] link:spark-taskscheduler-tasksets.adoc[TaskSet] that the `TaskSetManager` manages scheduling for
-* [[maxTaskFailures]] `maxTaskFailures`
+* [[maxTaskFailures]] `maxTaskFailures` -- how many times a <<handleFailedTask, single task can fail>> before an <<abort, entire `TaskSet` gets aborted>>.
 * [[blacklistTracker]] (optional) BlacklistTracker
 * [[clock]] `Clock` (defaults to `SystemClock`)
 
 `TaskSetManager` initializes the <<internal-registries, internal registries and counters>>.
+
+NOTE: `maxTaskFailures` is `1` for `local` run mode, `maxFailures` for Spark local-with-retries, and link:spark-taskschedulerimpl.adoc#spark.task.maxFailures[spark.task.maxFailures] property for Spark local-cluster and Spark with cluster managers (Spark Standalone, Mesos and YARN).
 
 `TaskSetManager` link:spark-service-mapoutputtracker.adoc#getEpoch[requests the current epoch from `MapOutputTracker`] and sets it on all tasks in the taskset.
 
@@ -878,14 +886,21 @@ NOTE: `getLocalityWait` is used when `TaskSetManager` calculates <<localityWaits
 === [[settings]] Settings
 
 .Spark Properties
-[options="header",width="100%"]
+[cols="1,1,2",options="header",width="100%"]
 |===
-| Spark Property | Default Value | Description
-| [[spark_driver_maxResultSize]] `spark.driver.maxResultSize` | `1g` | The maximum size of all the task results in a `TaskSet`. If the value is smaller than `1m` or `1048576` (1024 * 1024), it is considered `0`.
+| Spark Property
+| Default Value
+| Description
+
+| [[spark_driver_maxResultSize]] `spark.driver.maxResultSize`
+| `1g`
+| The maximum size of all the task results in a `TaskSet`. If the value is smaller than `1m` or `1048576` (1024 * 1024), it is considered `0`.
 
 Used when <<canFetchMoreResults, `TaskSetManager` checks available memory for a task result>> and `Utils.getMaxResultSize`.
 
-| `spark.scheduler.executorTaskBlacklistTime` | `0L` | Time interval to pass after which a task can be re-launched on the executor where it has once failed. It is to prevent repeated task failures due to executor failures.
+| `spark.scheduler.executorTaskBlacklistTime`
+| `0L`
+| Time interval to pass after which a task can be re-launched on the executor where it has once failed. It is to prevent repeated task failures due to executor failures.
 
 | [[spark_logging_exceptionPrintInterval]] `spark.logging.exceptionPrintInterval`
 | `10000`
