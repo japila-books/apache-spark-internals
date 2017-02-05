@@ -69,14 +69,26 @@ res0: Long = 3
 .TaskSetManager's Internal Registries and Counters
 [cols="1,2",options="header",width="100%"]
 |===
-| Name | Description
-| [[calculatedTasks]] `calculatedTasks` | The number of the tasks that have already completed execution.
+| Name
+| Description
+
+| [[allPendingTasks]] `allPendingTasks`
+|
+
+| [[calculatedTasks]] `calculatedTasks`
+| The number of the tasks that have already completed execution.
 
 Starts from `0` when a <<creating-instance, `TaskSetManager` is created>> and is only incremented when the <<canFetchMoreResults, `TaskSetManager` checks that there is enough memory to fetch a task result>>.
 
 | [[copiesRunning]] `copiesRunning` | The number of task copies currently running per task (index in its task set).
 
 The number of task copies of a task is increased when <<resourceOffer, dequeuing a task for execution>> or <<checkSpeculatableTasks, checking for speculatable tasks>> and decreased when <<handleFailedTask, a task fails>> or <<executorLost, an executor is lost>> (for a shuffle map stage and no external shuffle service).
+
+| [[currentLocalityIndex]] `currentLocalityIndex`
+|
+
+| [[epoch]] `epoch`
+| Current link:spark-service-mapoutputtracker.adoc#getEpoch[map output tracker epoch].
 
 | [[failedExecutors]] `failedExecutors` | Lookup table of TaskInfo's indices that failed to executor ids and the time of the failure.
 
@@ -86,36 +98,23 @@ Used in <<handleFailedTask, handleFailedTask>>.
 
 Read <<zombie-state, Zombie state>> in this document.
 
-| [[runningTasksSet]] `runningTasksSet` | Collection of running tasks that a `TaskSetManager` manages.
-
-Used to implement <<runningTasks, runningTasks>> (that is simply the size of `runningTasksSet` but a required part of any link:spark-taskscheduler-schedulable.adoc#contract[Schedulable]). `runningTasksSet` is expanded when <<addRunningTask, registering a running task>> and shrinked when <<removeRunningTask, unregistering a running task>>.
-
-Used in link:spark-taskschedulerimpl.adoc#cancelTasks[`TaskSchedulerImpl` to cancel tasks].
-
-| [[taskInfos]] `taskInfos`
-| Lookup table of `TaskInfos` per task ids.
-
-A task's id and `TaskInfo` are added when <<resourceOffer, the task is dequeued for execution>>.
-
-NOTE: It _appears_ that the entires stay forever, i.e. are never removed (perhaps because the maintenance overhead is not needed given a `TaskSetManager` is a short-lived entity).
-
-| `stageId` | The stage's id a `TaskSetManager` runs for.
-
-Set when <<creating-instance, `TaskSetManager` is created>>.
-
-It is a part of link:spark-taskscheduler-schedulable.adoc#contract[Schedulable Contract].
-
-| [[totalResultSize]] `totalResultSize` | The current total size of the result of all the tasks that have finished.
-
-Starts from `0` when <<creating-instance, `TaskSetManager` is created>>.
-
-Only increased with the size of a task result whenever a `TaskSetManager` <<canFetchMoreResults, checks that there is enough memory to fetch the task result>>.
-
 | [[localityWaits]] `localityWaits`
 |
 
+| [[myLocalityLevels]] `myLocalityLevels`
+| link:spark-taskschedulerimpl.adoc#TaskLocality[`TaskLocality` locality preferences] of the pending tasks in the <<taskSet, TaskSet>> ranging from `PROCESS_LOCAL` through `NODE_LOCAL`, `NO_PREF`, and `RACK_LOCAL` to `ANY`.
+
+NOTE: `myLocalityLevels` may contain only a few of all the available `TaskLocality` preferences with `ANY` as a mandatory task locality preference.
+
+<<computeValidLocalityLevels, Set>> immediately when <<creating-instance, `TaskSetManager` is created>>.
+
+<<recomputeLocality, Recomputed>> every change in the status of executors.
+
 | [[numFailures]] `numFailures`
 |
+
+| [[numTasks]] `numTasks`
+| Number of <<tasks, tasks>> to compute.
 
 | [[pendingTasksForExecutor]] `pendingTasksForExecutor`
 | Lookup table of task indices per executor.
@@ -131,22 +130,33 @@ Updated with an task index per executor when `TaskSetManager` <<addPendingTask, 
 | [[pendingTasksWithNoPrefs]] `pendingTasksWithNoPrefs`
 |
 
-| [[allPendingTasks]] `allPendingTasks`
-|
+| [[recentExceptions]] `recentExceptions` |
 
-| `recentExceptions` |
+| [[runningTasksSet]] `runningTasksSet` | Collection of running tasks that a `TaskSetManager` manages.
 
-| `speculatableTasks` |
+Used to implement <<runningTasks, runningTasks>> (that is simply the size of `runningTasksSet` but a required part of any link:spark-taskscheduler-schedulable.adoc#contract[Schedulable]). `runningTasksSet` is expanded when <<addRunningTask, registering a running task>> and shrinked when <<removeRunningTask, unregistering a running task>>.
+
+Used in link:spark-taskschedulerimpl.adoc#cancelTasks[`TaskSchedulerImpl` to cancel tasks].
+
+| [[speculatableTasks]] `speculatableTasks` |
+
+| [[stageId]] `stageId`
+| The stage's id a `TaskSetManager` runs for.
+
+Set when <<creating-instance, `TaskSetManager` is created>>.
+
+It is a part of link:spark-taskscheduler-schedulable.adoc#contract[Schedulable Contract].
 
 | [[successful]] `successful` |
 
 | [[taskAttempts]] `taskAttempts` |
 
-| [[epoch]] `epoch`
-| Current link:spark-service-mapoutputtracker.adoc#getEpoch[map output tracker epoch].
+| [[taskInfos]] `taskInfos`
+| Lookup table of `TaskInfos` per task ids.
 
-| [[numTasks]] `numTasks`
-| Number of <<tasks, tasks>> to compute.
+A task's id and `TaskInfo` are added when <<resourceOffer, the task is dequeued for execution>>.
+
+NOTE: It _appears_ that the entires stay forever, i.e. are never removed (perhaps because the maintenance overhead is not needed given a `TaskSetManager` is a short-lived entity).
 
 | [[tasks]] `tasks`
 | Lookup table of link:spark-taskscheduler-tasks.adoc[Tasks] (per partition id) to schedule execution of.
@@ -154,6 +164,12 @@ Updated with an task index per executor when `TaskSetManager` <<addPendingTask, 
 NOTE: The tasks all belong to a single <<taskSet, TaskSet>> that was given when <<creating-instance, `TaskSetManager` was created>> (which actually represent a single link:spark-dagscheduler-stages.adoc[Stage]).
 
 | [[tasksSuccessful]] `tasksSuccessful` |
+
+| [[totalResultSize]] `totalResultSize` | The current total size of the result of all the tasks that have finished.
+
+Starts from `0` when <<creating-instance, `TaskSetManager` is created>>.
+
+Only increased with the size of a task result whenever a `TaskSetManager` <<canFetchMoreResults, checks that there is enough memory to fetch the task result>>.
 |===
 
 [TIP]
@@ -169,11 +185,11 @@ log4j.logger.org.apache.spark.scheduler.TaskSetManager=DEBUG
 Refer to link:spark-logging.adoc[Logging].
 ====
 
-=== [[priority]] `priority` Property
+=== [[getLocalityIndex]] `getLocalityIndex` Method
 
 CAUTION: FIXME
 
-=== [[stageId]] `stageId` Property
+=== [[priority]] `priority` Property
 
 CAUTION: FIXME
 
@@ -295,32 +311,6 @@ INFO Marking task [index] in stage [taskSet.id] (on [info.host]) as speculatable
 ```
 
 The task gets added to the internal `speculatableTasks` collection. The method responds positively.
-
-=== [[recomputeLocality]] Recomputing Locality Preferences -- `recomputeLocality` Method
-
-`recomputeLocality` (re)computes locality levels as a indexed collection of task localities, i.e. `Array[TaskLocality.TaskLocality]`.
-
-NOTE: `TaskLocality` is an enumeration with `PROCESS_LOCAL`, `NODE_LOCAL`, `NO_PREF`, `RACK_LOCAL`, `ANY` values.
-
-The method starts with `currentLocalityIndex` being `0`.
-
-It checks whether `pendingTasksForExecutor` has at least one element, and if so, it looks up <<settings, spark.locality.wait.*>> for `PROCESS_LOCAL` and checks whether there is an executor for which `TaskSchedulerImpl.isExecutorAlive` is `true`. If the checks pass, `PROCESS_LOCAL` becomes an element of the result collection of task localities.
-
-The same checks are performed for `pendingTasksForHost`, `NODE_LOCAL`, and `TaskSchedulerImpl.hasExecutorsAliveOnHost` to add `NODE_LOCAL` to the result collection of task localities.
-
-Then, the method checks `pendingTasksWithNoPrefs` and if it's not empty, `NO_PREF` becomes an element of the levels collection.
-
-If `pendingTasksForRack` is not empty, and the wait time for `RACK_LOCAL` is defined, and there is an executor for which `TaskSchedulerImpl.hasHostAliveOnRack` is `true`, `RACK_LOCAL` is added to the levels collection.
-
-`ANY` is the last and always-added element in the levels collection.
-
-Right before the method finishes, it prints out the following DEBUG to the logs:
-
-```
-DEBUG Valid locality levels for [taskSet]: [levels]
-```
-
-`myLocalityLevels`, `localityWaits`, and `currentLocalityIndex` are recomputed.
 
 === [[resourceOffer]] `resourceOffer` Method
 
@@ -763,6 +753,29 @@ NOTE: `executorLost` finds out if the reason for the executor lost is due to app
 
 `executorLost` <<recomputeLocality, recomputes locality preferences>>.
 
+=== [[recomputeLocality]] Recomputing Task Locality Preferences -- `recomputeLocality` Method
+
+[source, scala]
+----
+recomputeLocality(): Unit
+----
+
+`recomputeLocality` recomputes the internal caches: <<myLocalityLevels, myLocalityLevels>>, <<localityWaits, localityWaits>> and <<currentLocalityIndex, currentLocalityIndex>>.
+
+CAUTION: FIXME But *why* are the caches important (and have to be recomputed)?
+
+`recomputeLocality` records the current link:spark-taskschedulerimpl.adoc#TaskLocality[TaskLocality] level of this `TaskSetManager` (that is <<currentLocalityIndex, currentLocalityIndex>> in <<myLocalityLevels, myLocalityLevels>>).
+
+NOTE: `TaskLocality` is one of `PROCESS_LOCAL`, `NODE_LOCAL`, `NO_PREF`, `RACK_LOCAL` and `ANY` values.
+
+`recomputeLocality` <<computeValidLocalityLevels, computes locality levels (for scheduled tasks)>> and saves the result in <<myLocalityLevels, myLocalityLevels>> internal cache.
+
+`recomputeLocality` computes <<localityWaits, localityWaits>> (by <<getLocalityWait, finding locality wait>> for every locality level in <<myLocalityLevels, myLocalityLevels>> internal cache).
+
+In the end, `recomputeLocality` <<getLocalityIndex, getLocalityIndex>> of the previous locality level and records it in <<currentLocalityIndex, currentLocalityIndex>>.
+
+NOTE: `recomputeLocality` is used when `TaskSetManager` gets notified about status change in executors, i.e. when an executor is <<executorLost, lost>> or <<executorAdded, added>>.
+
 === [[computeValidLocalityLevels]] Computing Locality Levels (for Scheduled Tasks) -- `computeValidLocalityLevels` Internal Method
 
 [source, scala]
@@ -836,7 +849,7 @@ NOTE: `NO_PREF` and `ANY` task localities have no locality wait.
 | <<spark.locality.wait.rack, spark.locality.wait.rack>>
 |===
 
-NOTE: `getLocalityWait` is used when `TaskSetManager` calculates <<localityWaits, localityWaits>>, <<computeValidLocalityLevels, computes valid locality levels>> and <<recomputeLocality, recomputes locality preferences>>.
+NOTE: `getLocalityWait` is used when `TaskSetManager` calculates <<localityWaits, localityWaits>>, <<computeValidLocalityLevels, computes locality levels (for scheduled tasks)>> and <<recomputeLocality, recomputes locality preferences>>.
 
 === [[settings]] Settings
 
