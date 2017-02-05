@@ -92,9 +92,12 @@ Used to implement <<runningTasks, runningTasks>> (that is simply the size of `ru
 
 Used in link:spark-taskschedulerimpl.adoc#cancelTasks[`TaskSchedulerImpl` to cancel tasks].
 
-| [[taskInfos]] `taskInfos` | Lookup table of ``TaskInfo``s per task id.
+| [[taskInfos]] `taskInfos`
+| Lookup table of `TaskInfos` per task ids.
 
-A task's id and `TaskInfo` are added when <<resourceOffer, the task is dequeued for execution>>. It _appears_ that the entires stay forever, i.e. are never removed.
+A task's id and `TaskInfo` are added when <<resourceOffer, the task is dequeued for execution>>.
+
+NOTE: It _appears_ that the entires stay forever, i.e. are never removed (perhaps because the maintenance overhead is not needed given a `TaskSetManager` is a short-lived entity).
 
 | `stageId` | The stage's id a `TaskSetManager` runs for.
 
@@ -248,22 +251,6 @@ removeRunningTask(tid: Long): Unit
 
 `removeRunningTask` removes `tid` from <<runningTasksSet, runningTasksSet>> internal registry and link:spark-taskscheduler-pool.adoc#decreaseRunningTasks[requests the `parent` pool to decrease the number of running task] (if defined).
 
-=== [[executorLost]] Handling Executor Lost Events -- `executorLost` Method
-
-NOTE: `executorLost` is part of the link:spark-taskscheduler-schedulable.adoc#contract[Schedulable Contract] which is called by link:spark-taskschedulerimpl.adoc#removeExecutor[TaskSchedulerImpl] to inform `TaskSetManagers` about executors being lost.
-
-Since `TaskSetManager` manages execution of the tasks in a single link:spark-taskscheduler-tasksets.adoc[TaskSet], when an executor gets lost, the affected tasks that have been running on the failed executor need to be re-enqueued. `executorLost` is the mechanism to "announce" the event to all `TaskSetManagers`.
-
-`executorLost` first checks whether the `TaskSet` is for a link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage] (in which case all `TaskSet.tasks` are instances of link:spark-taskscheduler-ShuffleMapTask.adoc[ShuffleMapTask]) as well as whether an link:spark-ExternalShuffleService.adoc[external shuffle server] is used (that could serve the shuffle outputs in case of failure).
-
-If it is indeed for a failed link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage] and no external shuffle server is enabled, all successfully-completed tasks for the failed executor (using <<taskInfos, `taskInfos` internal registry>>) <<addPendingTask, are recorded as pending tasks>> and the link:spark-dagscheduler.adoc#taskEnded[DAGScheduler is informed about resubmission] (as link:spark-dagscheduler.adoc#handleTaskCompletion-Resubmitted[`Resubmitted` end reason]).
-
-The <<internal-registries, internal registries>> - `successful`, `copiesRunning`, and `tasksSuccessful` - are updated.
-
-Regardless of the above check, all currently-running tasks for the failed executor are <<handleFailedTask, reported as failed>> (with the task state being `FAILED`).
-
-<<recomputeLocality, recomputeLocality>> is called.
-
 === [[checkSpeculatableTasks]] Checking Speculatable Tasks -- `checkSpeculatableTasks` Method
 
 NOTE: `checkSpeculatableTasks` is part of the link:spark-taskscheduler-schedulable.adoc#contract[Schedulable Contract].
@@ -309,7 +296,7 @@ INFO Marking task [index] in stage [taskSet.id] (on [info.host]) as speculatable
 
 The task gets added to the internal `speculatableTasks` collection. The method responds positively.
 
-=== [[recomputeLocality]] `recomputeLocality` Method
+=== [[recomputeLocality]] Recomputing Locality Preferences -- `recomputeLocality` Method
 
 `recomputeLocality` (re)computes locality levels as a indexed collection of task localities, i.e. `Array[TaskLocality.TaskLocality]`.
 
@@ -742,6 +729,39 @@ If the task has no location preferences, `addPendingTask` registers it in <<pend
 `addPendingTask` always registers the task in <<allPendingTasks, allPendingTasks>>.
 
 NOTE: `addPendingTask` is used immediatelly when `TaskSetManager` <<creating-instance, is created>> and later when handling a <<handleFailedTask, task failure>> or <<executorLost, lost executor>>.
+
+=== [[executorLost]] Re-enqueuing ShuffleMapTasks (with no ExternalShuffleService) and Reporting All Running Tasks on Lost Executor as Failed -- `executorLost` Method
+
+[source, scala]
+----
+executorLost(execId: String, host: String, reason: ExecutorLossReason): Unit
+----
+
+`executorLost` re-enqueues all the link:spark-taskscheduler-ShuffleMapTask.adoc[ShuffleMapTasks] that have completed already on the lost executor (when link:spark-ExternalShuffleService.adoc[external shuffle service] is not in use) and <<handleFailedTask, reports all currently-running tasks on the lost executor as failed>>.
+
+NOTE: `executorLost` is a part of the link:spark-taskscheduler-schedulable.adoc#contract[Schedulable contract] that link:spark-taskschedulerimpl.adoc#removeExecutor[`TaskSchedulerImpl` uses to inform `TaskSetManagers` about lost executors].
+
+NOTE: Since `TaskSetManager` manages execution of the tasks in a single link:spark-taskscheduler-tasksets.adoc[TaskSet], when an executor gets lost, the affected tasks that have been running on the failed executor need to be re-enqueued. `executorLost` is the mechanism to "announce" the event to all `TaskSetManagers`.
+
+Internally, `executorLost` first checks whether the <<tasks, tasks>> are link:spark-taskscheduler-ShuffleMapTask.adoc[ShuffleMapTasks] and whether an link:spark-ExternalShuffleService.adoc[external shuffle service] is enabled (that could serve the map shuffle outputs in case of failure).
+
+NOTE: `executorLost` checks out the first task in <<tasks, tasks>> as it is assumed the other belong to the same stage. If the task is a link:spark-taskscheduler-ShuffleMapTask.adoc[ShuffleMapTask], the entire <<taskSet, TaskSet>> is for a link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage].
+
+NOTE: `executorLost` uses link:spark-sparkenv.adoc#blockManager[`SparkEnv` to access the current `BlockManager`] and finds out whether an link:spark-blockmanager.adoc#externalShuffleServiceEnabled[external shuffle service is enabled] or not (that is controlled using link:spark-ExternalShuffleService.adoc#spark.shuffle.service.enabled[spark.shuffle.service.enabled] property).
+
+If `executorLost` is indeed due to an executor lost that executed tasks for a link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage] (that this `TaskSetManager` manages) and no external shuffle server is enabled, `executorLost` finds <<taskInfos, all the tasks>> that were scheduled on this lost executor and marks the <<successful, ones that were already successfully completed>> as not executed yet.
+
+NOTE: `executorLost` uses records every tasks on the lost executor in <<successful, successful>> (as `false`) and decrements <<copiesRunning copiesRunning>>, and <<tasksSuccessful, tasksSuccessful>> for every task.
+
+`executorLost` <<addPendingTask, registers every task as pending execution (per preferred locations)>> and link:spark-dagscheduler.adoc#taskEnded[informs `DAGScheduler` that the tasks (on the lost executor) have ended] (with link:spark-dagscheduler.adoc#handleTaskCompletion-Resubmitted[Resubmitted] reason).
+
+NOTE: `executorLost` uses link:spark-taskschedulerimpl.adoc#dagScheduler[`TaskSchedulerImpl` to access the `DAGScheduler`]. `TaskSchedulerImpl` is given when the <<creating-instance, `TaskSetManager` was created>>.
+
+Regardless of whether this `TaskSetManager` manages `ShuffleMapTasks` or not (it could also manage link:spark-taskscheduler-ResultTask.adoc[ResultTasks]) and whether the external shuffle service is used or not, `executorLost` finds all <<taskInfos, currently-running tasks>> on this lost executor and <<handleFailedTask, reports them as failed>> (with the task state `FAILED`).
+
+NOTE: `executorLost` finds out if the reason for the executor lost is due to application fault, i.e. assumes ``ExecutorExited``'s exit status as the indicator, `ExecutorKilled` for non-application's fault and any other reason is an application fault.
+
+`executorLost` <<recomputeLocality, recomputes locality preferences>>.
 
 === [[computeValidLocalityLevels]] Computing Locality Levels (for Scheduled Tasks) -- `computeValidLocalityLevels` Internal Method
 
