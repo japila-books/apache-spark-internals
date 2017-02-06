@@ -36,6 +36,12 @@ DAGScheduler does three things in Spark (thorough explanations follow):
 
 In addition to coming up with the execution DAG, DAGScheduler also determines the preferred locations to run each task on, based on the current cache status, and passes the information to link:spark-taskscheduler.adoc[TaskScheduler].
 
+`DAGScheduler` tracks which link:spark-rdd-caching.adoc[RDDs are cached (or persisted)] to avoid "recomputing" them, i.e. redoing the map side of a shuffle. `DAGScheduler` remembers what link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage]s have already produced output files (that are stored in link:spark-blockmanager.adoc[BlockManager]s).
+
+DAGScheduler is only interested in cache location coordinates, i.e. host and executor id, per partition of a RDD.
+
+CAUTION: FIXME: A diagram, please
+
 Furthermore, it handles failures due to shuffle output files being lost, in which case old stages may need to be resubmitted. Failures within a stage that are not caused by shuffle file loss are handled by the TaskScheduler itself, which will retry each task a small number of times before cancelling the whole stage.
 
 DAGScheduler uses an *event queue architecture* in which a thread can post `DAGSchedulerEvent` events, e.g. a new job or stage being submitted, that DAGScheduler reads and executes sequentially. See the section <<event-loop, Internal Event Loop - dag-scheduler-event-loop>>.
@@ -46,44 +52,62 @@ DAGScheduler runs stages in topological order.
 .`DAGScheduler` Internal Registries and Counters
 [cols="1,2",options="header",width="100%"]
 |===
-| Name | Description
-| [[nextJobId]] `nextJobId` | The next job id counting from `0`.
+| Name
+| Description
+
+| [[activeJobs]] `activeJobs`
+| `ActiveJob` instances
+
+| [[cacheLocs]] `cacheLocs`
+| Block locations per RDD and partition.
+
+Uses `TaskLocation` that includes a host name and an executor id on that host (as `ExecutorCacheTaskLocation`).
+
+The keys are RDDs (their ids) and the values are arrays indexed by partition numbers.
+
+Each entry is a set of block locations where a RDD partition is cached, i.e. the link:spark-blockmanager.adoc[BlockManager]s of the blocks.
+
+Initialized empty when <<creating-instance, `DAGScheduler` is created>>.
+
+Used when `DAGScheduler` is requested for the <<getCacheLocs, locations of the cache blocks of a RDD>> or <<clearCacheLocs, clear them>>.
+
+| [[failedEpoch]] `failedEpoch`
+| The lookup table of lost executors and the epoch of the event.
+
+| [[failedStages]] `failedStages`
+| Stages that failed due to fetch failures (when a link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleTaskCompletion-FetchFailed[task fails with `FetchFailed` exception]).
+
+| [[jobIdToActiveJob]] `jobIdToActiveJob`
+| The lookup table of ``ActiveJob``s per job id.
+
+| [[jobIdToStageIds]] `jobIdToStageIds`
+| The lookup table of all stages per `ActiveJob` id
+
+| [[nextJobId]] `nextJobId`
+| The next job id counting from `0`.
 
 Used when `DAGScheduler` <<submitJob, submits a job>> and <<submitMapStage, a map stage>>, and <<runApproximateJob, runs an approximate job>>.
 
-| [[nextStageId]] `nextStageId` | The next stage id counting from `0`.
+| [[nextStageId]] `nextStageId`
+| The next stage id counting from `0`.
 
 Used when `DAGScheduler` creates a <<createShuffleMapStage, shuffle map stage>> and a <<createResultStage, result stage>>. It is the key in <<stageIdToStage, stageIdToStage>>.
-
-| [[stageIdToStage]] `stageIdToStage` | The lookup table for stages per their ids.
-
-Used when `DAGScheduler` <<createShuffleMapStage, creates a shuffle map stage>>, <<createResultStage, creates a result stage>>, <<cleanupStateForJobAndIndependentStages, cleans up job state and independent stages>>, is informed that link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleBeginEvent[a task is started], link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleTaskSetFailed[a taskset has failed], link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleJobSubmitted[a job is submitted (to compute a `ResultStage`)], link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleMapStageSubmitted[a map stage was submitted], link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleTaskCompletion[a task has completed] or link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleStageCancellation[a stage was cancelled], <<updateAccumulators, updates accumulators>>, <<abortStage, aborts a stage>> and <<failJobAndIndependentStages, fails a job and independent stages>>.
-
-| [[jobIdToStageIds]] `jobIdToStageIds` | The lookup table of all stages per `ActiveJob` id
-
-| [[shuffleIdToMapStage]] `shuffleIdToMapStage`
-| The lookup table of link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage]s per link:spark-rdd-ShuffleDependency.adoc[ShuffleDependency].
-
-| [[jobIdToActiveJob]] `jobIdToActiveJob` | The lookup table of ``ActiveJob``s per job id.
-| [[waitingStages]] `waitingStages` | The stages with parents to be computed
 
 | [[runningStages]] `runningStages`
 | The set of stages that are currently "running".
 
 A stage is added when <<submitMissingTasks, submitMissingTasks>> gets executed (without first checking if the stage has not already been added).
 
-| [[failedStages]] `failedStages` | Stages that failed due to fetch failures (when a link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleTaskCompletion-FetchFailed[task fails with `FetchFailed` exception]).
+| [[shuffleIdToMapStage]] `shuffleIdToMapStage`
+| The lookup table of link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage]s per link:spark-rdd-ShuffleDependency.adoc[ShuffleDependency].
 
-| [[activeJobs]] `activeJobs` | `ActiveJob` instances
+| [[stageIdToStage]] `stageIdToStage`
+| The lookup table for stages per their ids.
 
-| [[cacheLocs]] `cacheLocs`
-| Registry of block locations per RDD and partition.
-The keys are RDD ids and the values are arrays indexed by partition numbers.
-Each array value is the set of locations where that RDD partition is cached, i.e. the link:spark-blockmanager.adoc[BlockManager]s of the blocks.
+Used when `DAGScheduler` <<createShuffleMapStage, creates a shuffle map stage>>, <<createResultStage, creates a result stage>>, <<cleanupStateForJobAndIndependentStages, cleans up job state and independent stages>>, is informed that link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleBeginEvent[a task is started], link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleTaskSetFailed[a taskset has failed], link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleJobSubmitted[a job is submitted (to compute a `ResultStage`)], link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleMapStageSubmitted[a map stage was submitted], link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleTaskCompletion[a task has completed] or link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleStageCancellation[a stage was cancelled], <<updateAccumulators, updates accumulators>>, <<abortStage, aborts a stage>> and <<failJobAndIndependentStages, fails a job and independent stages>>.
 
-`cacheLocs` is used when `DAGScheduler` is requested for the <<getCacheLocs, locations of the cache blocks of a RDD>> or <<clearCacheLocs, clear them>>.
-
-| [[failedEpoch]] `failedEpoch` | The lookup table of lost executors and the epoch of the event.
+| [[waitingStages]] `waitingStages`
+| The stages with parents to be computed
 |===
 
 [TIP]
@@ -109,18 +133,6 @@ When DAGScheduler schedules a job as a result of link:spark-rdd.adoc#actions[exe
 
 CAUTION: FIXME
 
-=== [[getPreferredLocsInternal]] `getPreferredLocsInternal` Internal Method
-
-[source, scala]
-----
-getPreferredLocsInternal(
-  rdd: RDD[_],
-  partition: Int,
-  visited: HashSet[(RDD[_], Int)]): Seq[TaskLocation]
-----
-
-`getPreferredLocsInternal`...FIXME
-
 === [[createResultStage]] `createResultStage` Internal Method
 
 [source, scala]
@@ -141,30 +153,21 @@ CAUTION: FIXME
 
 === [[creating-instance]][[initialization]] Creating DAGScheduler Instance
 
-[source, scala]
-----
-DAGScheduler(
-  sc: SparkContext,
-  taskScheduler: TaskScheduler,
-  listenerBus: LiveListenerBus,
-  mapOutputTracker: MapOutputTrackerMaster,
-  blockManagerMaster: BlockManagerMaster,
-  env: SparkEnv,
-  clock: Clock = new SystemClock())
-----
+`DAGScheduler` takes the following when created:
 
-`DAGScheduler` takes a link:spark-sparkcontext.adoc[SparkContext], link:spark-taskscheduler.adoc[TaskScheduler], link:spark-LiveListenerBus.adoc[LiveListenerBus], link:spark-service-MapOutputTrackerMaster.adoc[MapOutputTrackerMaster], link:spark-BlockManagerMaster.adoc[BlockManagerMaster], link:spark-sparkenv.adoc[SparkEnv], and a `Clock`.
+* [[sc]] link:spark-sparkcontext.adoc[SparkContext]
+* [[taskScheduler]] link:spark-taskscheduler.adoc[TaskScheduler]
+* [[listenerBus]] link:spark-LiveListenerBus.adoc[LiveListenerBus]
+* [[mapOutputTracker]] link:spark-service-MapOutputTrackerMaster.adoc[MapOutputTrackerMaster]
+* [[blockManagerMaster]] link:spark-BlockManagerMaster.adoc[BlockManagerMaster]
+* [[env]] link:spark-sparkenv.adoc[SparkEnv]
+* [[clock]] `Clock` (defaults to `SystemClock`)
 
-NOTE: `DAGScheduler` can reference all the services through a single link:spark-sparkcontext.adoc[SparkContext].
+`DAGScheduler` initializes the <<internal-registries, internal registries and counters>>.
 
-When created, `DAGScheduler` does the following (in order):
+`DAGScheduler` link:spark-taskscheduler.adoc#setDAGScheduler[sets itself in the given `TaskScheduler`] and in the end starts <<eventProcessLoop, eventProcessLoop>>.
 
-1. Creates <<DAGSchedulerSource, `DAGSchedulerSource` metrics source>>,
-2. Creates <<messageScheduler, messageScheduler>>,
-3. Creates <<eventProcessLoop, eventProcessLoop>>,
-4. link:spark-taskscheduler.adoc#setDAGScheduler[Sets itself in the current `TaskScheduler`],
-5. Initializes the <<internal-registries, internal registries and counters>>,
-6. Starts <<eventProcessLoop, eventProcessLoop>>.
+NOTE: `DAGScheduler` can reference all the services through a single link:spark-sparkcontext.adoc[SparkContext] with or without specifying explicit link:spark-taskscheduler.adoc[TaskScheduler].
 
 === [[listenerBus]] LiveListenerBus Event Bus for SparkListenerEvents -- `listenerBus` Property
 
@@ -480,10 +483,6 @@ markStageAsFinished(stage: Stage, errorMessage: Option[String] = None): Unit
 
 CAUTION: FIXME
 
-=== [[messageScheduler]] `messageScheduler` Single-Thread Executor
-
-CAUTION: FIXME
-
 === [[runJob]] Running Job -- `runJob` Method
 
 [source, scala]
@@ -792,48 +791,6 @@ A stage object tracks multiple `StageInfo` objects to pass to Spark listeners or
 
 The latest `StageInfo` for the most recent attempt for a stage is accessible through `latestInfo`.
 
-=== [[getCacheLocs]] Block Location Discovery -- `getCacheLocs` Internal Method
-
-NOTE: RDD blocks matter only after a  to avoid recomputing tasks.
-
-`DAGScheduler` tracks which link:spark-rdd-caching.adoc[RDDs are cached (or persisted)] to avoid "recomputing" them, i.e. redoing the map side of a shuffle. `DAGScheduler` remembers what link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage]s have already produced output files (that are stored in link:spark-blockmanager.adoc[BlockManager]s).
-
-DAGScheduler is only interested in cache location coordinates, i.e. host and executor id, per partition of a RDD.
-
-CAUTION: FIXME: A diagram, please
-
-[source, scala]
-----
-getCacheLocs(rdd: RDD[_]): IndexedSeq[Seq[TaskLocation]]
-----
-
-`getCacheLocs` returns ``TaskLocation``s for the partitions of the `rdd` (which correspond to block locations).
-
-When called, `getCacheLocs` looks the `rdd` up in the <<cacheLocs, `cacheLocs` internal registry>> (of partition locations per RDD).
-
-NOTE: The size of the collection from `getCacheLocs` is the number of partitions in `rdd` RDD.
-
-If the input `rdd` could not be found in the `cacheLocs` registry, `getCacheLocs` checks link:spark-rdd-StorageLevel.adoc[storage level of the RDD].
-
-For `NONE` storage level, the result is a collection of empty locations.
-
-[source, scala]
-----
-val numPartitions = 2
-scala> IndexedSeq.fill(numPartitions)(Nil)  // <-- that is what `getCacheLocs` returns for a unknown 2-partition RDD
-res0: IndexedSeq[scala.collection.immutable.Nil.type] = Vector(List(), List())
-----
-
-For non-`NONE` storage levels, `getCacheLocs` requests link:spark-BlockManagerMaster.adoc#getLocations-block-array[locations from `BlockManagerMaster`] (and maps ``BlockManagerId``s to ``TaskLocation``s with the host and executor).
-
-NOTE: The `BlockManagerMaster` was given when <<creating-instance, `DAGScheduler` was created>>.
-
-NOTE: `getCacheLocs` requests locations from `BlockManagerMaster` using link:spark-blockdatamanager.adoc#RDDBlockId[RDDBlockId] with the RDD id and the partition indices (which implies that the order of the partitions matters to request proper blocks).
-
-NOTE: `DAGScheduler` uses ``TaskLocation``s (with host and executor) while link:spark-BlockManagerMaster.adoc[BlockManagerMaster] uses link:spark-blockmanager.adoc#BlockManagerId[BlockManagerId] (to track similar information, i.e. block locations).
-
-NOTE: `getCacheLocs` is used when `DAGScheduler` calculates <<getMissingParentStages, missing parent MapStages>> and <<getPreferredLocsInternal, getPreferredLocsInternal>>.
-
 === [[preferred-locations]] Preferred Locations
 
 DAGScheduler computes where to run each task in a stage based on link:spark-rdd.adoc#preferred-locations[the preferred locations of its underlying RDDs], or <<getCacheLocs, the location of cached or shuffle data>>.
@@ -887,17 +844,6 @@ CAUTION: FIXME...IMAGE with ShuffleDependencies queried
 
 NOTE: `getMissingParentStages` is used when `DAGScheduler` <<submitStage, submits missing parent ``ShuffleMapStage``s (of a stage)>> and handles link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleJobSubmitted[JobSubmitted] and link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleMapStageSubmitted[MapStageSubmitted] events.
 
-=== [[getPreferredLocs]][[computing-preferred-locations]] Computing Preferred Locations for Tasks and Partitions -- `getPreferredLocs` Method
-
-[source, scala]
-----
-getPreferredLocs(rdd: RDD[_], partition: Int): Seq[TaskLocation]
-----
-
-CAUTION: FIXME Review + why does the method return a sequence of TaskLocations?
-
-NOTE: Task ids correspond to partition ids.
-
 === [[submitMissingTasks]] Submitting Missing Tasks for Stage and Job -- `submitMissingTasks` Internal Method
 
 [source, scala]
@@ -907,7 +853,7 @@ submitMissingTasks(stage: Stage, jobId: Int): Unit
 
 `submitMissingTasks` is an internal method that...FIXME
 
-When executed, `submitMissingTasks` prints the following DEBUG message out to the logs:
+When `submitMissingTasks` is executed, you should see the following DEBUG message in the logs:
 
 ```
 DEBUG DAGScheduler: submitMissingTasks([stage])
@@ -915,16 +861,17 @@ DEBUG DAGScheduler: submitMissingTasks([stage])
 
 The input ``stage``'s link:spark-dagscheduler-stages.adoc#pendingPartitions[`pendingPartitions` internal field] is cleared (it is later filled out with the partitions to run tasks for).
 
-The `stage` is asked for the link:spark-dagscheduler-stages.adoc#findMissingPartitions[indices of the partitions to compute] (aka _missing partitions_).
+`submitMissingTasks` requests the `stage` for link:spark-dagscheduler-stages.adoc#findMissingPartitions[missing partitions], i.e. the indices of the partitions to compute.
 
-`submitMissingTasks` adds the `stage` to <<runningStages, runningStages>> internal registry.
+`submitMissingTasks` marks the `stage` as running (i.e. adds it to <<runningStages, runningStages>> internal registry).
 
-`submitMissingTasks` informs link:spark-service-outputcommitcoordinator.adoc#stageStart[`OutputCommitCoordinator` that a stage is started].
+`submitMissingTasks` link:spark-service-outputcommitcoordinator.adoc#stageStart[notifies `OutputCommitCoordinator` that the stage is started].
 
 NOTE: The input `maxPartitionId` argument handed over to link:spark-service-outputcommitcoordinator.adoc#stageStart[OutputCommitCoordinator] depends on the type of the stage, i.e. `ShuffleMapStage` or `ResultStage`. `ShuffleMapStage` tracks the number of partitions itself (as `numPartitions` property) while `ResultStage` uses the internal `RDD` to find out the number.
 
-For the missing partitions to compute, `submitMissingTasks` <<getPreferredLocs, calculates the locality information associated with the missing partitions of the RDD>> (for the stage it is computed and partition indicies).
-
+[[submitMissingTasks-taskIdToLocations]]
+For the missing partitions, `submitMissingTasks` computes their *task locality preferences*, i.e. pairs of missing partition ids and <<getPreferredLocs, their task locality information>>.
+HERE
 NOTE: The locality information of a RDD is called *preferred locations*.
 
 In case of _non-fatal_ exceptions at this time (while getting the locality information), `submitMissingTasks` link:spark-dagscheduler-stages.adoc#makeNewStageAttempt[creates a new stage attempt].
@@ -1006,6 +953,70 @@ for `ShuffleMapStage` and `ResultStage`, respectively.
 In the end, with no tasks to submit for execution, `submitMissingTasks` <<submitWaitingChildStages, submits waiting child stages for execution>> and exits.
 
 NOTE: `submitMissingTasks` is called when <<submitStage, `DAGScheduler` submits a stage for execution>>.
+
+=== [[getPreferredLocs]] Computing Preferred Locations for Missing Partitions -- `getPreferredLocs` Method
+
+[source, scala]
+----
+getPreferredLocs(rdd: RDD[_], partition: Int): Seq[TaskLocation]
+----
+
+`getPreferredLocs` is simply an alias for the internal (recursive) <<getPreferredLocsInternal, getPreferredLocsInternal>>.
+
+NOTE: `getPreferredLocs` is used when link:spark-sparkcontext.adoc#getPreferredLocs[`SparkContext` gets the locality information for a RDD partition] and `DAGScheduler` <<submitMissingTasks, submits missing tasks for a stage>>.
+
+=== [[getCacheLocs]] Finding BlockManagers (Executors) for Cached RDD Partitions (aka Block Location Discovery) -- `getCacheLocs` Internal Method
+
+[source, scala]
+----
+getCacheLocs(rdd: RDD[_]): IndexedSeq[Seq[TaskLocation]]
+----
+
+`getCacheLocs` gives `TaskLocations` (block locations) for the partitions of the input `rdd`. `getCacheLocs` caches lookup results in <<cacheLocs, cacheLocs>> internal registry.
+
+NOTE: The size of the collection from `getCacheLocs` is exactly the number of partitions in `rdd` RDD.
+
+NOTE: The size of every `TaskLocation` collection (i.e. every entry in the result of `getCacheLocs`) is exactly the number of blocks managed using link:spark-blockmanager.adoc[BlockManagers] on executors.
+
+Internally, `getCacheLocs` finds `rdd` in the <<cacheLocs, cacheLocs>> internal registry (of partition locations per RDD).
+
+If `rdd` is not in <<cacheLocs, cacheLocs>> internal registry, `getCacheLocs` branches per its link:spark-rdd-StorageLevel.adoc[storage level].
+
+For `NONE` storage level (i.e. no caching), the result is an empty locations (i.e. no location preference).
+
+For other non-``NONE`` storage levels, `getCacheLocs` link:spark-BlockManagerMaster.adoc#getLocations-block-array[requests `BlockManagerMaster` for block locations] that are then mapped to `TaskLocations` with the hostname of the owning `BlockManager` for a block (of a partition) and the executor id.
+
+NOTE: `getCacheLocs` uses <<blockManagerMaster, BlockManagerMaster>> that was defined when <<creating-instance, `DAGScheduler` was created>>.
+
+`getCacheLocs` records the computed block locations per partition (as `TaskLocation`) in <<cacheLocs, cacheLocs>> internal registry.
+
+NOTE: `getCacheLocs` requests locations from `BlockManagerMaster` using link:spark-blockdatamanager.adoc#RDDBlockId[RDDBlockId] with the RDD id and the partition indices (which implies that the order of the partitions matters to request proper blocks).
+
+NOTE: `DAGScheduler` uses ``TaskLocation``s (with host and executor) while link:spark-BlockManagerMaster.adoc[BlockManagerMaster] uses link:spark-blockmanager.adoc#BlockManagerId[BlockManagerId] (to track similar information, i.e. block locations).
+
+NOTE: `getCacheLocs` is used when `DAGScheduler` finds <<getMissingParentStages, missing parent MapStages>> and <<getPreferredLocsInternal, getPreferredLocsInternal>>.
+
+=== [[getPreferredLocsInternal]] Finding Placement Preferences for RDD Partition (recursively) -- `getPreferredLocsInternal` Internal Method
+
+[source, scala]
+----
+getPreferredLocsInternal(
+  rdd: RDD[_],
+  partition: Int,
+  visited: HashSet[(RDD[_], Int)]): Seq[TaskLocation]
+----
+
+`getPreferredLocsInternal` first <<getCacheLocs, finds the `TaskLocations` for the `partition` of the `rdd`>> (using <<cacheLocs, cacheLocs>> internal cache) and returns them.
+
+Otherwise, if not found, `getPreferredLocsInternal` link:spark-rdd.adoc#preferredLocations[requests `rdd` for the preferred locations of `partition`] and returns them.
+
+NOTE: Preferred locations of the partitions of a RDD are also called *placement preferences*.
+
+Otherwise, if not found, `getPreferredLocsInternal` finds the first parent link:spark-rdd-NarrowDependency.adoc[NarrowDependency] and (recursively) <<getPreferredLocsInternal, finds `TaskLocations`>>.
+
+If all the attempts fail to yield any non-empty result, `getPreferredLocsInternal` returns an empty collection of `TaskLocations`.
+
+NOTE: `getPreferredLocsInternal` is used exclusively when `DAGScheduler` <<getPreferredLocs, computes preferred locations for missing partitions>>.
 
 === [[stop]][[stopping]] Stopping DAGScheduler -- `stop` Method
 
