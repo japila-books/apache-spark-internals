@@ -39,6 +39,9 @@ Beside the above traits (that are directly embedded in the name of the data abst
 * *Parallel*, i.e. process data in parallel.
 * *Typed* -- RDD records have types, e.g. `Long` in `RDD[Long]` or `(Int, String)` in `RDD[(Int, String)]`.
 * *Partitioned* -- records are partitioned (split into logical partitions) and distributed across nodes in a cluster.
+* *Location-Stickiness* -- `RDD` can define <<preferredLocations, placement preferences>> to compute partitions (as close to the records as possible).
+
+NOTE: *Preferred location* (aka _locality preferences_ or _placement preferences_ or _locality info_) is information about the locations of RDD records (that Spark's link:spark-dagscheduler.adoc#preferred-locations[DAGScheduler] uses to place computing partitions on to have the tasks as close to the data as possible).
 
 Computing partitions in a RDD is a distributed process by design and to achieve even *data distribution* as well as leverage link:spark-data-locality.adoc[data locality] (in distributed systems like HDFS or Cassandra in which data is partitioned by default), they are *partitioned* to a fixed number of link:spark-rdd-partitions.adoc[partitions] - logical chunks (parts) of data. The logical division is for processing only and internally it is not divided whatsoever. Each partition comprises of *records*.
 
@@ -70,7 +73,7 @@ Technically, RDDs follow the <<contract, contract>> defined by the five main int
 
 * An optional link:spark-rdd-Partitioner.adoc[Partitioner] that defines how keys are hashed, and the pairs partitioned (for key-value RDDs)
 
-* Optional <<preferred-locations, preferred locations>> (aka *locality info*), i.e. hosts for a partition where the data will have been loaded.
+* Optional <<getPreferredLocations, preferred locations>> (aka *locality info*), i.e. hosts for a partition where the records live or are the closest to read from.
 
 This RDD abstraction supports an expressive set of operations without having to modify scheduler for each one.
 
@@ -105,13 +108,13 @@ res3: String = (8) Friendly name ParallelCollectionRDD[2] at parallelize at <con
 
 RDDs are a container of instructions on how to materialize big (arrays of) distributed data, and how to split it into partitions so Spark (using link:spark-executor.adoc[executors]) can hold some of them.
 
-In general, data distribution can help executing processing in parallel so a task processes a chunk of data that it could eventually keep in memory.
+In general data distribution can help executing processing in parallel so a task processes a chunk of data that it could eventually keep in memory.
 
 Spark does jobs in parallel, and RDDs are split into partitions to be processed and written in parallel. Inside a partition, data is processed sequentially.
 
 Saving partitions results in part-files instead of one single file (unless there is a single partition).
 
-=== [[preferredLocations]] Specifying Placement Preferences of RDD Partition -- `preferredLocations` Final Method
+=== [[checkpointRDD]] `checkpointRDD` Internal Method
 
 CAUTION: FIXME
 
@@ -321,16 +324,34 @@ When an RDD is link:spark-rdd-caching.adoc[cached], for specified link:spark-rdd
 
 NOTE: `compute` method runs on the link:spark-driver.adoc[driver].
 
-=== [[preferred-locations]][[getPreferredLocations]] Preferred Locations (aka Locality Info) -- `getPreferredLocations` Method
+=== [[preferredLocations]] Defining Placement Preferences of RDD Partition -- `preferredLocations` Final Method
 
 [source, scala]
 ----
-getPreferredLocations(split: Partition): Seq[String]
+preferredLocations(split: Partition): Seq[String]
 ----
 
-A *preferred location* (aka _locality preferences_ or _placement preferences_ or _locality info_) is information about the locations of the `split` block for an HDFS file (to place computing the partition on).
+`preferredLocations` <<checkpointRDD, requests `CheckpointRDD` for placement preferences>> (if the RDD is checkpointed) or <<getPreferredLocations, calculates them itself>>.
 
-`getPreferredLocations` returns the preferred locations for the input `split` partition (of an RDD).
+[NOTE]
+====
+`preferredLocations` is a template method that uses  <<getPreferredLocations, getPreferredLocations>> that custom RDDs can override to specify placement preferences for a partition.
+
+<<getPreferredLocations, getPreferredLocations>> defines no placement preferences by default.
+====
+
+[NOTE]
+====
+`preferredLocations` is mainly used when link:spark-dagscheduler.adoc#getPreferredLocs[`DAGScheduler` computes preferred locations for missing partitions].
+
+The other usages are to define the locations by custom RDDs, e.g.
+
+* (Spark Core) link:spark-rdd-blockrdd.adoc[BlockRDD], `CoalescedRDD`, link:spark-rdd-hadooprdd.adoc[HadoopRDD], `NewHadoopRDD`, link:spark-rdd-parallelcollectionrdd.adoc[ParallelCollectionRDD], `ReliableCheckpointRDD`, link:spark-rdd-ShuffledRDD.adoc[ShuffledRDD]
+
+* (Spark SQL) `KafkaSourceRDD`, `ShuffledRowRDD`, `FileScanRDD`, `StateStoreRDD`
+
+* (Spark Streaming) `KafkaRDD`, `WriteAheadLogBackedBlockRDD`
+====
 
 === [[getNumPartitions]] Getting Number of Partitions -- `getNumPartitions` Method
 
