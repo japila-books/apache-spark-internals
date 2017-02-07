@@ -1,16 +1,20 @@
 == [[KafkaRDD]] KafkaRDD
 
-`KafkaRDD` is a link:../spark-rdd.adoc[RDD] of Kafka's https://kafka.apache.org/0100/javadoc/org/apache/kafka/clients/consumer/ConsumerRecord.html[ConsumerRecord]s from topics in Apache Kafka. It has support for link:spark-streaming-kafka-HasOffsetRanges.adoc[HasOffsetRanges].
+`KafkaRDD` is a link:../spark-rdd.adoc[RDD] of Kafka's `ConsumerRecords` from topics in Apache Kafka with support for link:spark-streaming-kafka-HasOffsetRanges.adoc[HasOffsetRanges].
 
 NOTE: Kafka's https://kafka.apache.org/0100/javadoc/org/apache/kafka/clients/consumer/ConsumerRecord.html[ConsumerRecord] holds a topic name, a partition number, the offset of the record in the Kafka partition and the record itself (as a key-value pair).
 
-It uses <<KafkaRDDPartition, KafkaRDDPartition>> for partitions that know their preferred locations as the host of the topic (not port however!). It then nicely maps a RDD partition to a Kafka topic partition.
+`KafkaRDD` uses <<KafkaRDDPartition, KafkaRDDPartition>> for partitions that know their preferred locations as the host of the topic (not port however!) It then nicely maps a RDD partition to a Kafka topic partition.
+
+`KafkaRDD` is created:
+
+* On demand using link:spark-streaming-kafka-KafkaUtils.adoc#createRDD[KafkaUtils.createRDD]
+
+* In batches using link:spark-streaming-kafka-KafkaUtils.adoc#createDirectStream[KafkaUtils.createDirectStream]
+
+`KafkaRDD` is also created when a `DirectKafkaInputDStream` restores `KafkaRDDs` from checkpoint.
 
 NOTE: `KafkaRDD` is a `private[spark]` class.
-
-`KafkaRDD` overrides methods of `RDD` class to base them on `offsetRanges`, i.e. partitions.
-
-You can create a `KafkaRDD` using link:spark-streaming-kafka-KafkaUtils.adoc#createRDD[KafkaUtils.createRDD] or a dstream of `KafkaRDD` as link:spark-streaming-kafka-DirectKafkaInputDStream.adoc[DirectKafkaInputDStream] using link:spark-streaming-kafka-KafkaUtils.adoc#createDirectStream[KafkaUtils.createDirectStream].
 
 [TIP]
 ====
@@ -25,7 +29,29 @@ log4j.logger.org.apache.spark.streaming.kafka010.KafkaRDD=INFO
 Refer to link:../spark-logging.adoc[Logging].
 ====
 
-=== [[compute]] Computing `KafkaRDDPartition` (in `TaskContext`) -- `compute` Method
+=== [[executors]] `executors` Method
+
+CAUTION: FIXME
+
+=== [[getPartitions]] `getPartitions` Method
+
+CAUTION: FIXME
+
+=== [[creating-instance]] Creating KafkaRDD Instance
+
+`KafkaRDD` takes the following when created:
+
+* [[sc]] link:../spark-sparkcontext.adoc[SparkContext]
+* [[kafkaParams]] Collection of Kafka parameters with their values
+* [[offsetRanges]] Collection of link:spark-streaming-kafka-HasOffsetRanges.adoc#OffsetRange[OffsetRanges]
+* [[preferredHosts]] Kafka's `TopicPartitions` and their hosts
+* [[useConsumerCache]] Flag to control whether to use consumer cache
+
+CAUTION: FIXME Are the hosts in `preferredHosts` Kafka brokers?
+
+`KafkaRDD` initializes the <<internal-registries, internal registries and counters>>.
+
+=== [[compute]] Computing KafkaRDDPartition (in TaskContext) -- `compute` Method
 
 [source, scala]
 ----
@@ -44,6 +70,35 @@ INFO KafkaRDD: Beginning offset [fromOffset] is the same as ending offset skippi
 
 Otherwise, when the beginning and ending offsets are different, a <<KafkaRDDIterator, KafkaRDDIterator>> is created (for the partition and the input link:../spark-taskscheduler-taskcontext.adoc[TaskContext]) and returned.
 
+=== [[getPreferredLocations]] `getPreferredLocations` Method
+
+[source, scala]
+----
+getPreferredLocations(thePart: Partition): Seq[String]
+----
+
+NOTE: `getPreferredLocations` is a part of link:../spark-rdd.adoc#getPreferredLocations[RDD contract] to define the placement preferences of a partition.
+
+`getPreferredLocations` casts `thePart` to <<KafkaRDDPartition, KafkaRDDPartition>>.
+
+`getPreferredLocations` <<executors, finds all executors>>.
+
+CAUTION: FIXME Use proper name for executors.
+
+`getPreferredLocations` <<topicPartition, requests `KafkaRDDPartition` for the Kafka `TopicPartition`>> and finds the <<preferredHosts, preferred hosts>> for the partition.
+
+NOTE: `getPreferredLocations` uses <<preferredHosts, preferredHosts>> that was given when <<creating-instance, `KafkaRDD` was created>>.
+
+If `getPreferredLocations` did not find the preferred host for the partition, all executors are used. Otherwise, `getPreferredLocations` includes only executors on the preferred host.
+
+If `getPreferredLocations` found no executors, all the executors are considered.
+
+`getPreferredLocations` returns one matching executor (for the `TopicPartition`) or an empty collection.
+
 === [[KafkaRDDPartition]] `KafkaRDDPartition`
 
 `KafkaRDDPartition` is...FIXME
+
+==== [[topicPartition]] `topicPartition`
+
+CAUTION: FIXME
