@@ -1,11 +1,12 @@
 == [[BlockManagerMasterEndpoint]] BlockManagerMasterEndpoint -- BlockManagerMaster RPC Endpoint
 
-`BlockManagerMasterEndpoint` is the link:spark-rpc-RpcEndpoint.adoc[RpcEndpoint] for link:spark-BlockManagerMaster.adoc[BlockManagerMaster] under *BlockManagerMaster* name.
+`BlockManagerMasterEndpoint` is the link:spark-rpc.adoc#ThreadSafeRpcEndpoint[ThreadSafeRpcEndpoint] for link:spark-BlockManagerMaster.adoc[BlockManagerMaster] under *BlockManagerMaster* name.
 
 `BlockManagerMasterEndpoint` tracks status of the link:spark-blockmanager.adoc[BlockManagers] (on the executors) in a Spark application.
 
 <<creating-instance, `BlockManagerMasterEndpoint` is created>> when link:spark-sparkenv.adoc#create[`SparkEnv` is created] (for the driver and executors).
 
+[[internal-registries]]
 .BlockManagerMasterEndpoint's Internal Registries and Counters
 [cols="1,2",options="header",width="100%"]
 |===
@@ -36,13 +37,9 @@ log4j.logger.org.apache.spark.storage.BlockManagerMasterEndpoint=INFO
 Refer to link:spark-logging.adoc[Logging].
 ====
 
-=== [[creating-instance]] Creating BlockManagerMasterEndpoint Instance
+=== [[getLocationsMultipleBlockIds]] `getLocationsMultipleBlockIds` Method
 
-`BlockManagerMasterEndpoint` takes the following when created:
-
-* FIXME
-
-`BlockManagerMasterEndpoint` initializes the <<internal-registries, internal registries and counters>>.
+CAUTION: FIXME
 
 === [[removeShuffle]] Removing Shuffle Blocks -- `removeShuffle` Internal Method
 
@@ -108,16 +105,29 @@ NOTE: `GetPeers` is posted when link:spark-BlockManagerMaster.adoc#getPeers[`Blo
 
 CAUTION: FIXME
 
-=== [[GetLocations]] GetLocations
+=== [[GetLocations]] `GetLocations` Message
 
 [source, scala]
 ----
 GetLocations(blockId: BlockId)
+extends ToBlockManagerMaster
 ----
 
-When `GetLocations` comes in, the internal <<getLocations, getLocations>> method is executed and the result becomes the response sent back.
+`GetLocations` replies with the <<getLocations, locations>> of `blockId`.
 
-NOTE: `GetLocations` is used to <<getLocations, get the block locations of a single block>>.
+NOTE: `GetLocations` is posted when link:spark-BlockManagerMaster.adoc#getLocations-block[`BlockManagerMaster` requests the block locations of a single block].
+
+=== [[GetLocationsMultipleBlockIds]] `GetLocationsMultipleBlockIds` Message
+
+[source, scala]
+----
+GetLocationsMultipleBlockIds(blockIds: Array[BlockId])
+extends ToBlockManagerMaster
+----
+
+`GetLocationsMultipleBlockIds` replies with the <<getLocationsMultipleBlockIds, getLocationsMultipleBlockIds>> for the input `blockIds`.
+
+NOTE: `GetLocationsMultipleBlockIds` is posted when link:spark-BlockManagerMaster.adoc#getLocations[`BlockManagerMaster` requests the block locations for multiple blocks].
 
 === [[RegisterBlockManager]] RegisterBlockManager Event
 
@@ -232,3 +242,14 @@ getLocations(blockId: BlockId): Seq[BlockManagerId]
 ----
 
 When executed, `getLocations` looks up `blockId` in the `blockLocations` internal registry and returns the locations (as a collection of `BlockManagerId`) or an empty collection.
+
+=== [[creating-instance]] Creating BlockManagerMasterEndpoint Instance
+
+`BlockManagerMasterEndpoint` takes the following when created:
+
+* [[rpcEnv]] link:spark-rpc.adoc[RpcEnv]
+* [[isLocal]] Flag whether `BlockManagerMasterEndpoint` works in local or cluster mode
+* [[conf]] link:spark-configuration.adoc[SparkConf]
+* [[listenerBus]] link:spark-LiveListenerBus.adoc[LiveListenerBus]
+
+`BlockManagerMasterEndpoint` initializes the <<internal-registries, internal registries and counters>>.
