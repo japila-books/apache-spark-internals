@@ -4,7 +4,9 @@
 
 NOTE: Kafka's https://kafka.apache.org/0100/javadoc/org/apache/kafka/clients/consumer/ConsumerRecord.html[ConsumerRecord] holds a topic name, a partition number, the offset of the record in the Kafka partition and the record itself (as a key-value pair).
 
-`KafkaRDD` uses <<KafkaRDDPartition, KafkaRDDPartition>> for partitions that know their preferred locations as the host of the topic (not port however!) It then nicely maps a RDD partition to a Kafka topic partition.
+`KafkaRDD` uses <<KafkaRDDPartition, KafkaRDDPartition>> as the partitions that <<getPreferredLocations, define their preferred locations>> (as the host of the topic).
+
+NOTE: The feature of defining placement preference (aka _location preference_) very well maps a `KafkaRDD` partition to a Kafka topic partition on a Kafka-closest host.
 
 `KafkaRDD` is created:
 
@@ -28,10 +30,6 @@ log4j.logger.org.apache.spark.streaming.kafka010.KafkaRDD=INFO
 
 Refer to link:../spark-logging.adoc[Logging].
 ====
-
-=== [[executors]] `executors` Method
-
-CAUTION: FIXME
 
 === [[getPartitions]] `getPartitions` Method
 
@@ -70,14 +68,14 @@ INFO KafkaRDD: Beginning offset [fromOffset] is the same as ending offset skippi
 
 Otherwise, when the beginning and ending offsets are different, a <<KafkaRDDIterator, KafkaRDDIterator>> is created (for the partition and the input link:../spark-taskscheduler-taskcontext.adoc[TaskContext]) and returned.
 
-=== [[getPreferredLocations]] `getPreferredLocations` Method
+=== [[getPreferredLocations]] Getting Placement Preferences of Partition -- `getPreferredLocations` Method
 
 [source, scala]
 ----
 getPreferredLocations(thePart: Partition): Seq[String]
 ----
 
-NOTE: `getPreferredLocations` is a part of link:../spark-rdd.adoc#getPreferredLocations[RDD contract] to define the placement preferences of a partition.
+NOTE: `getPreferredLocations` is a part of link:../spark-rdd.adoc#getPreferredLocations[RDD contract] to define the placement preferences (aka _preferred locations_) of a partition.
 
 `getPreferredLocations` casts `thePart` to <<KafkaRDDPartition, KafkaRDDPartition>>.
 
@@ -94,6 +92,25 @@ If `getPreferredLocations` did not find the preferred host for the partition, al
 If `getPreferredLocations` found no executors, all the executors are considered.
 
 `getPreferredLocations` returns one matching executor (for the `TopicPartition`) or an empty collection.
+
+=== [[executors]] Creating ExecutorCacheTaskLocations for All Executors in Cluster -- `executors` Internal Method
+
+[source, scala]
+----
+executors(): Array[ExecutorCacheTaskLocation]
+----
+
+`executors` link:spark-BlockManagerMaster.adoc#getPeers[requests `BlockManagerMaster` for all `BlockManager` nodes (peers) in a cluster] (that represent all the executors available).
+
+NOTE: `executors` uses ``KafkaRDD``'s link:spark-sparkcontext.adoc[SparkContext] to link:spark-blockmanager.adoc#blockManager[access the current `BlockManager`] and in turn link:spark-blockmanager.adoc#master[BlockManagerMaster].
+
+`executors` creates `ExecutorCacheTaskLocations` using the peers' hosts and executor ids.
+
+NOTE: `executors` are sorted by their host names and executor ids.
+
+CAUTION: FIXME Image for sorted ExecutorCacheTaskLocations.
+
+NOTE: `executors` is used exclusively when <<getPreferredLocations, `KafkaRDD` is requested for its placement preferences>> (aka _preferred locations_).
 
 === [[KafkaRDDPartition]] `KafkaRDDPartition`
 
