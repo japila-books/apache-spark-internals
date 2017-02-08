@@ -1,10 +1,10 @@
 == [[BlockManagerMaster]] BlockManagerMaster -- BlockManager for Driver
 
-`BlockManagerMaster` link:spark-sparkenv.adoc#BlockManagerMaster[runs on the driver and executors].
+`BlockManagerMaster` link:spark-sparkenv.adoc#BlockManagerMaster[runs on the driver].
 
-`BlockManagerMaster` uses link:spark-blockmanager-BlockManagerMasterEndpoint.adoc[BlockManagerMasterEndpoint] registered under `BlockManagerMaster` RPC endpoint name on the driver (with the endpoint references on executors) to allow executors for sending block status updates to it and hence keep track of block statuses.
+`BlockManagerMaster` uses link:spark-blockmanager-BlockManagerMasterEndpoint.adoc[BlockManagerMasterEndpoint] registered under *BlockManagerMaster* RPC endpoint name on the driver (with the endpoint references on executors) to allow executors for sending block status updates to it and hence keep track of block statuses.
 
-NOTE: An instance of `BlockManagerMaster` is created in link:spark-sparkenv.adoc#BlockManagerMaster[SparkEnv (for the driver and executors)], and immediately used to create their link:spark-blockmanager.adoc[BlockManagers].
+NOTE: `BlockManagerMaster` is created in link:spark-sparkenv.adoc#BlockManagerMaster[`SparkEnv` (for the driver and executors)], and immediately used to create their link:spark-blockmanager.adoc[BlockManagers].
 
 [TIP]
 ====
@@ -30,11 +30,15 @@ getLocations(blockIds: Array[BlockId]): IndexedSeq[Seq[BlockManagerId]]
 
 NOTE: `getLocations` is used when...FIXME
 
-=== [[creating-instance]] Creating `BlockManagerMaster` Instance
+=== [[creating-instance]] Creating BlockManagerMaster Instance
 
-An instance of `BlockManagerMaster` requires a link:spark-blockmanager-BlockManagerMasterEndpoint.adoc[BlockManagerMaster RPC endpoint] reference, link:spark-configuration.adoc[SparkConf], and the `isDriver` flag to control whether it is created for the driver or executors.
+`BlockManagerMaster` takes the following when created:
 
-NOTE: An instance of `BlockManagerMaster` is created as part of link:spark-sparkenv.adoc#BlockManagerMaster[creating an instance of SparkEnv for the driver and executors].
+* [[driverEndpoint]] link:spark-RpcEndpointRef.adoc[RpcEndpointRef]
+* [[conf]] link:spark-configuration.adoc[SparkConf]
+* [[isDriver]] Flag whether `BlockManagerMaster` is created for the driver or executors.
+
+`BlockManagerMaster` initializes the <<internal-registries, internal registries and counters>>.
 
 === [[removeExecutor]] Removing Executor -- `removeExecutor` Method
 
@@ -212,14 +216,18 @@ getLocations(blockId: BlockId): Seq[BlockManagerId]
 
 `getLocations` posts `GetLocations(blockId)` message to link:spark-blockmanager-BlockManagerMasterEndpoint.adoc[BlockManagerMaster RPC endpoint] and waits for a response which becomes the return value.
 
-=== [[getPeers]] Getting All BlockManagers in Cluster -- `getPeers` Method
+=== [[getPeers]] Finding Peers of BlockManager -- `getPeers` Internal Method
 
 [source, scala]
 ----
 getPeers(blockManagerId: BlockManagerId): Seq[BlockManagerId]
 ----
 
-`getPeers` posts `GetPeers(blockManagerId)` message to link:spark-blockmanager-BlockManagerMasterEndpoint.adoc[BlockManagerMaster RPC endpoint] and waits for a response which becomes the return value.
+`getPeers` link:spark-blockmanager-BlockManagerMasterEndpoint.adoc#GetPeers[posts a blocking `GetPeers` message to BlockManagerMaster RPC endpoint] and returns the response.
+
+NOTE: *Peers* of a link:spark-blockmanager.adoc[BlockManager] are the other BlockManagers in a cluster (except the driver's BlockManager). Peers are used to know the available executors in a Spark application.
+
+NOTE: `getPeers` is used when link:spark-blockmanager.adoc#getPeers[`BlockManager` finds the peers of a `BlockManager`], Structured Streaming's `KafkaSource` and Spark Streaming's `KafkaRDD`.
 
 === [[getExecutorEndpointRef]] `getExecutorEndpointRef` Method
 

@@ -1,14 +1,24 @@
 == [[BlockManagerMasterEndpoint]] BlockManagerMasterEndpoint -- BlockManagerMaster RPC Endpoint
 
-`BlockManagerMasterEndpoint` is the link:spark-rpc-RpcEndpoint.adoc[RpcEndpoint] for link:spark-BlockManagerMaster.adoc[BlockManagerMaster] to track status of the link:spark-blockmanager.adoc[BlockManager]s on the executors for a Spark application.
+`BlockManagerMasterEndpoint` is the link:spark-rpc-RpcEndpoint.adoc[RpcEndpoint] for link:spark-BlockManagerMaster.adoc[BlockManagerMaster] under *BlockManagerMaster* name.
 
-NOTE: It is used to register the `BlockManagerMaster` RPC endpoint when link:spark-sparkenv.adoc#BlockManagerMaster[creating SparkEnv].
+`BlockManagerMasterEndpoint` tracks status of the link:spark-blockmanager.adoc[BlockManagers] (on the executors) in a Spark application.
 
-.`BlockManagerMasterEndpoint` Internal Registries and Counters
+<<creating-instance, `BlockManagerMasterEndpoint` is created>> when link:spark-sparkenv.adoc#create[`SparkEnv` is created] (for the driver and executors).
+
+.BlockManagerMasterEndpoint's Internal Registries and Counters
 [cols="1,2",options="header",width="100%"]
 |===
-| Name | Description
-| [[blockLocations]] `blockLocations` | Collection of ``BlockId``s and their locations (as `BlockManagerId`).
+| Name
+| Description
+
+| [[blockManagerInfo]] `blockManagerInfo`
+| Lookup table of `BlockManagerInfo` per `BlockManagerId`.
+
+Updated when `BlockManagerMasterEndpoint` <<register, registers a new `BlockManager`>> or <<removeBlockManager, removes a `BlockManager`>>
+
+| [[blockLocations]] `blockLocations`
+| Collection of ``BlockId``s and their locations (as `BlockManagerId`).
 
 Used in `removeRdd` to remove blocks for a RDD, `removeBlockManager` to remove blocks after a BlockManager gets removed, `removeBlockFromWorkers`, `updateBlockInfo`, and <<getLocations, getLocations>>.
 |===
@@ -25,6 +35,14 @@ log4j.logger.org.apache.spark.storage.BlockManagerMasterEndpoint=INFO
 
 Refer to link:spark-logging.adoc[Logging].
 ====
+
+=== [[creating-instance]] Creating BlockManagerMasterEndpoint Instance
+
+`BlockManagerMasterEndpoint` takes the following when created:
+
+* FIXME
+
+`BlockManagerMasterEndpoint` initializes the <<internal-registries, internal registries and counters>>.
 
 === [[removeShuffle]] Removing Shuffle Blocks -- `removeShuffle` Internal Method
 
@@ -55,6 +73,37 @@ When `RemoveExecutor` is received, <<removeExecutor, executor `execId` is remove
 
 NOTE: `RemoveExecutor` is posted when link:spark-BlockManagerMaster.adoc#removeExecutor[`BlockManagerMaster` removes an executor].
 
+=== [[getPeers]] Finding Peers of BlockManager -- `getPeers` Internal Method
+
+[source, scala]
+----
+getPeers(blockManagerId: BlockManagerId): Seq[BlockManagerId]
+----
+
+`getPeers` finds all the registered `BlockManagers` (using <<blockManagerInfo, blockManagerInfo>> internal registry) and checks if the input `blockManagerId` is amongst them.
+
+If the input `blockManagerId` is registered, `getPeers` returns all the registered `BlockManagers` but the one on the driver and `blockManagerId`.
+
+Otherwise, `getPeers` returns no `BlockManagers`.
+
+NOTE: *Peers* of a link:spark-blockmanager.adoc[BlockManager] are the other BlockManagers in a cluster (except the driver's BlockManager). Peers are used to know the available executors in a Spark application.
+
+NOTE: `getPeers` is used exclusively when link:spark-blockmanager-BlockManagerMasterEndpoint.adoc#GetPeers[`BlockManagerMasterEndpoint` handles `GetPeers` message].
+
+=== [[GetPeers]] Finding Peers of BlockManager -- `GetPeers` Message
+
+[source, scala]
+----
+GetPeers(blockManagerId: BlockManagerId)
+extends ToBlockManagerMaster
+----
+
+`GetPeers` replies with the <<getPeers, peers>> of `blockManagerId`.
+
+NOTE: *Peers* of a link:spark-blockmanager.adoc[BlockManager] are the other BlockManagers in a cluster (except the driver's BlockManager). Peers are used to know the available executors in a Spark application.
+
+NOTE: `GetPeers` is posted when link:spark-BlockManagerMaster.adoc#getPeers[`BlockManagerMaster` requests the peers of a `BlockManager`].
+
 === [[BlockManagerHeartbeat]] BlockManagerHeartbeat
 
 CAUTION: FIXME
@@ -84,18 +133,18 @@ When `RegisterBlockManager` is received, the internal <<register, register>> met
 
 NOTE: `RegisterBlockManager` is posted when <<registerBlockManager, `BlockManagerMaster` registers a `BlockManager`>>.
 
-==== [[register]] `register` Method
+==== [[register]] Registering BlockManager (on Executor) -- `register` Method
 
 [source, scala]
 ----
 register(id: BlockManagerId, maxMemSize: Long, slaveEndpoint: RpcEndpointRef): Unit
 ----
 
-`register` records the current time and registers `BlockManager` by `id` if it has not been already registered (using the internal `blockManagerInfo` registry).
+`register` records the current time and registers `BlockManager` by `id` unless it has been registered already (in <<blockManagerInfo, blockManagerInfo>> internal registry).
 
 NOTE: `register` is executed when <<RegisterBlockManager, `RegisterBlockManager` has been received>>.
 
-Registering a `BlockManager` can only happen once for an executor (identified by `BlockManagerId.executorId` using the internal `blockManagerIdByExecutor` registry).
+NOTE: Registering a `BlockManager` can only happen once for an executor (identified by `BlockManagerId.executorId` using the internal `blockManagerIdByExecutor` registry).
 
 If another `BlockManager` has earlier been registered for the executor, you should see the following ERROR message in the logs:
 
@@ -111,7 +160,7 @@ You should see the following INFO message in the logs:
 INFO Registering block manager [hostPort] with [bytes] RAM, [id]
 ```
 
-The `BlockManager` is recorded in the internal registries: `blockManagerIdByExecutor` and `blockManagerInfo`.
+The `BlockManager` is recorded in the internal registries: `blockManagerIdByExecutor` and <<blockManagerInfo, blockManagerInfo>>.
 
 CAUTION: FIXME Why does `blockManagerInfo` require a new `System.currentTimeMillis()` since `time` was already recorded?
 
@@ -124,7 +173,6 @@ CAUTION: FIXME Describe `listenerBus` + omnigraffle it.
 === Other RPC Messages
 
 * GetLocationsMultipleBlockIds
-* GetPeers
 * GetRpcHostPortForExecutor
 * GetMemoryStatus
 * GetStorageStatus
@@ -162,7 +210,7 @@ NOTE: `removeExecutor` is executed when `BlockManagerMasterEndpoint` <<RemoveExe
 removeBlockManager(blockManagerId: BlockManagerId)
 ----
 
-`removeBlockManager` looks up `blockManagerId` and removes the executor it was working on from the internal `blockManagerIdByExecutor` as well as from `blockManagerInfo`.
+`removeBlockManager` looks up `blockManagerId` and removes the executor it was working on from the internal `blockManagerIdByExecutor` as well as from <<blockManagerInfo, blockManagerInfo>>.
 
 NOTE: `removeBlockManager` is a private helper method that is exclusively used while <<removeExecutor, removing an executor>>.
 
