@@ -21,7 +21,7 @@ TIP: Read about link:spark-ExternalShuffleService.adoc[Dynamic Allocation on Had
 
 TIP: Review the excellent slide deck http://www.slideshare.net/databricks/dynamic-allocation-in-spark[Dynamic Allocation in Spark] from Databricks.
 
-=== [[isDynamicAllocationEnabled]] Is Dynamic Allocation Enabled? -- `Utils.isDynamicAllocationEnabled` method
+=== [[isDynamicAllocationEnabled]] Is Dynamic Allocation Enabled? -- `Utils.isDynamicAllocationEnabled` Method
 
 [source, scala]
 ----
@@ -30,7 +30,7 @@ isDynamicAllocationEnabled(conf: SparkConf): Boolean
 
 `isDynamicAllocationEnabled` returns `true` if all the following conditions hold:
 
-1. link:spark-executor.adoc#spark_executor_instances[spark.executor.instances] is `0`
+1. link:spark-executor.adoc#spark.executor.instances[spark.executor.instances] is `0`
 2. <<spark_dynamicAllocation_enabled, spark.dynamicAllocation.enabled>> is enabled
 3. link:spark-cluster.adoc[Spark on cluster] is used (link:spark-configuration.adoc#spark.master[spark.master] is non-`local`)
 
@@ -38,7 +38,7 @@ Otherwise, it returns `false`.
 
 NOTE: `isDynamicAllocationEnabled` returns `true`, i.e. dynamic allocation is enabled, in link:spark-local.adoc[Spark local (pseudo-cluster)] for testing only (with <<spark_dynamicAllocation_testing, spark.dynamicAllocation.testing>> enabled).
 
-Internally, `isDynamicAllocationEnabled` reads link:spark-executor.adoc#spark_executor_instances[spark.executor.instances] (assumes `0`) and <<spark_dynamicAllocation_enabled, spark.dynamicAllocation.enabled>> setting (assumes `false`).
+Internally, `isDynamicAllocationEnabled` reads link:spark-executor.adoc#spark.executor.instances[spark.executor.instances] (assumes `0`) and <<spark_dynamicAllocation_enabled, spark.dynamicAllocation.enabled>> setting (assumes `false`).
 
 If the value of `spark.executor.instances` is not `0` and `spark.dynamicAllocation.enabled` is enabled, `isDynamicAllocationEnabled` prints the following WARN message to the logs:
 
@@ -61,7 +61,7 @@ log4j.logger.org.apache.spark.util.Utils=WARN
 Refer to link:spark-logging.adoc[Logging].
 ====
 
-=== [[validateSettings]] Validating Configuration -- `validateSettings` method
+=== [[validateSettings]] Validating Configuration -- `validateSettings` Method
 
 [source, scala]
 ----
@@ -72,9 +72,9 @@ validateSettings(): Unit
 
 It validates the following and throws a `SparkException` if set incorrectly.
 
-1. <<spark_dynamicAllocation_minExecutors, spark.dynamicAllocation.minExecutors>> must be positive.
+1. <<spark.dynamicAllocation.minExecutors, spark.dynamicAllocation.minExecutors>> must be positive.
 
-2. <<spark_dynamicAllocation_minExecutors, spark.dynamicAllocation.minExecutors>> must be less than or equal to <<spark_dynamicAllocation_maxExecutors, spark.dynamicAllocation.maxExecutors>>.
+2. <<spark.dynamicAllocation.minExecutors, spark.dynamicAllocation.minExecutors>> must be less than or equal to <<spark_dynamicAllocation_maxExecutors, spark.dynamicAllocation.maxExecutors>>.
 
 3. <<spark_dynamicAllocation_maxExecutors, spark.dynamicAllocation.maxExecutors>>, <<spark_dynamicAllocation_schedulerBacklogTimeout, spark.dynamicAllocation.schedulerBacklogTimeout>>, <<spark_dynamicAllocation_sustainedSchedulerBacklogTimeout, spark.dynamicAllocation.sustainedSchedulerBacklogTimeout>>, and <<spark_dynamicAllocation_executorIdleTimeout, spark.dynamicAllocation.executorIdleTimeout>> must all be greater than `0`.
 
@@ -86,29 +86,85 @@ It validates the following and throws a `SparkException` if set incorrectly.
 
 `SparkContext` offers a link:spark-sparkcontext.adoc#dynamic-allocation[developer API to scale executors up or down].
 
+=== [[getDynamicAllocationInitialExecutors]] Getting Initial Number of Executors for Dynamic Allocation -- `Utils.getDynamicAllocationInitialExecutors` Method
+
+[source, scala]
+----
+getDynamicAllocationInitialExecutors(conf: SparkConf): Int
+----
+
+`getDynamicAllocationInitialExecutors` first makes sure that <<spark.dynamicAllocation.initialExecutors, spark.dynamicAllocation.initialExecutors>> is equal or greater than <<spark.dynamicAllocation.minExecutors, spark.dynamicAllocation.minExecutors>>.
+
+NOTE: <<spark.dynamicAllocation.initialExecutors, spark.dynamicAllocation.initialExecutors>> falls back to <<spark.dynamicAllocation.minExecutors, spark.dynamicAllocation.minExecutors>> if not set. Why to print the WARN message to the logs?
+
+If not, you should see the following WARN message in the logs:
+
+[options="wrap"]
+----
+spark.dynamicAllocation.initialExecutors less than spark.dynamicAllocation.minExecutors is invalid, ignoring its setting, please update your configs.
+----
+
+`getDynamicAllocationInitialExecutors` makes sure that link:spark-executor.adoc#spark.executor.instances[spark.executor.instances] is greater than <<spark.dynamicAllocation.minExecutors, spark.dynamicAllocation.minExecutors>>.
+
+NOTE: Both link:spark-executor.adoc#spark.executor.instances[spark.executor.instances] and <<spark.dynamicAllocation.minExecutors, spark.dynamicAllocation.minExecutors>> fall back to `0` when no defined explicitly.
+
+If not, you should see the following WARN message in the logs:
+
+[options="wrap"]
+----
+spark.executor.instances less than spark.dynamicAllocation.minExecutors is invalid, ignoring its setting, please update your configs.
+----
+
+`getDynamicAllocationInitialExecutors` sets the initial number of executors to be the maximum of:
+
+* <<spark.dynamicAllocation.minExecutors, spark.dynamicAllocation.minExecutors>>
+* <<spark.dynamicAllocation.initialExecutors, spark.dynamicAllocation.initialExecutors>>
+* link:spark-executor.adoc#spark.executor.instances[spark.executor.instances]
+* `0`
+
+You should see the following INFO message in the logs:
+
+[options="wrap"]
+----
+Using initial executors = [initialExecutors], max of spark.dynamicAllocation.initialExecutors, spark.dynamicAllocation.minExecutors and spark.executor.instances
+----
+
+NOTE: `getDynamicAllocationInitialExecutors` is used when link:spark-service-executor-allocation-manager.adoc#initialNumExecutors[`ExecutorAllocationManager` sets the initial number of executors] and link:yarn/spark-yarn-YarnSparkHadoopUtil.adoc#getInitialTargetExecutorNumber[in YARN to set initial target number of executors].
+
 === [[settings]] Settings
+
+.Spark Properties
+[cols="1,1,2",options="header",width="100%"]
+|===
+| Spark Property
+| Default Value
+| Description
+
+| [[spark.dynamicAllocation.initialExecutors]] `spark.dynamicAllocation.initialExecutors`
+| <<spark.dynamicAllocation.minExecutors, spark.dynamicAllocation.minExecutors>>
+| Initial number of executors for dynamic allocation.
+
+NOTE: <<getDynamicAllocationInitialExecutors, getDynamicAllocationInitialExecutors>> warns when  `spark.dynamicAllocation.initialExecutors` is less than <<spark.dynamicAllocation.minExecutors, spark.dynamicAllocation.minExecutors>>.
+
+| [[spark.dynamicAllocation.minExecutors]] `spark.dynamicAllocation.minExecutors`
+| `0`
+| Minimum number of executors for dynamic allocation.
+
+It <<validateSettings, must be positive and less than or equal to `spark.dynamicAllocation.maxExecutors`>>.
+
+|===
 
 ==== [[spark_dynamicAllocation_enabled]] spark.dynamicAllocation.enabled
 
-`spark.dynamicAllocation.enabled` (default: `false`) controls whether dynamic allocation is enabled or not. It is assumed that link:spark-executor.adoc#spark_executor_instances[spark.executor.instances] is not set or is `0` (which is the default value).
+`spark.dynamicAllocation.enabled` (default: `false`) controls whether dynamic allocation is enabled or not. It is assumed that link:spark-executor.adoc#spark.executor.instances[spark.executor.instances] is not set or is `0` (which is the default value).
 
-NOTE: link:spark-executor.adoc#spark_executor_instances[spark.executor.instances] setting can be set using link:spark-submit.adoc#command-line-options[`--num-executors` command-line option] of link:spark-submit.adoc[spark-submit].
-
-==== [[spark_dynamicAllocation_minExecutors]] spark.dynamicAllocation.minExecutors
-
-`spark.dynamicAllocation.minExecutors` (default: `0`) sets the minimum number of executors for dynamic allocation.
-
-It <<validateSettings, must be positive and less than or equal to `spark.dynamicAllocation.maxExecutors`>>.
+NOTE: link:spark-executor.adoc#spark.executor.instances[spark.executor.instances] setting can be set using link:spark-submit.adoc#command-line-options[`--num-executors` command-line option] of link:spark-submit.adoc[spark-submit].
 
 ==== [[spark_dynamicAllocation_maxExecutors]] spark.dynamicAllocation.maxExecutors
 
 `spark.dynamicAllocation.maxExecutors` (default: `Integer.MAX_VALUE`) sets the maximum number of executors for dynamic allocation.
 
 It <<validateSettings, must be greater than `0` and greater than or equal to `spark.dynamicAllocation.minExecutors`>>.
-
-==== [[spark_dynamicAllocation_initialExecutors]] spark.dynamicAllocation.initialExecutors
-
-`spark.dynamicAllocation.initialExecutors` sets the initial number of executors for dynamic allocation.
 
 ==== [[spark_dynamicAllocation_schedulerBacklogTimeout]] spark.dynamicAllocation.schedulerBacklogTimeout
 
