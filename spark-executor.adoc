@@ -16,7 +16,9 @@ When executors are started they register themselves with the driver and communic
 
 Executors can run multiple tasks over its lifetime, both in parallel and sequentially. They track link:spark-executor-TaskRunner.adoc[running tasks] (by their task ids in <<runningTasks, runningTasks>> internal registry). Consult <<launchTask, Launching Tasks>> section.
 
-Executors use a <<threadPool, thread pool>> for <<launchTask, launching tasks>> and <<metrics, sending metrics>>.
+Executors use a <<threadPool, Executor task launch worker thread pool>> for <<launchTask, launching tasks>>.
+
+Executors send <<metrics, metrics>> (and heartbeats) using the <<heartbeater, internal heartbeater - Heartbeat Sender Thread>>.
 
 It is recommended to have as many executors as data nodes and as many cores as you can get from the cluster.
 
@@ -57,10 +59,6 @@ log4j.logger.org.apache.spark.executor.Executor=INFO
 Refer to link:spark-logging.adoc[Logging].
 ====
 
-=== [[stop]] Stopping Executor -- `stop` Method
-
-CAUTION: FIXME
-
 === [[createClassLoader]] `createClassLoader` Method
 
 CAUTION: FIXME
@@ -73,11 +71,13 @@ CAUTION: FIXME
 
 `Executor` takes the following when created:
 
-1. `executorId`
-2. `executorHostname`
-3. link:spark-sparkenv.adoc[SparkEnv]
-4. `userClassPath` -- a collection of URLs (empty by default)
-5. `isLocal` -- whether it runs in local or cluster mode (disabled by default, i.e. cluster is preferred)
+* [[executorId]] Executor ID
+* [[executorHostname]] Executor's host name
+* [[env]] link:spark-sparkenv.adoc[SparkEnv]
+* [[userClassPath]] Collection of user-defined JARs (<<createClassLoader, to add to tasks' class path>>). Empty by default
+* [[isLocal]] Flag whether it runs in local or cluster mode (disabled by default, i.e. cluster is preferred)
+
+NOTE: User-defined JARs are defined using link:spark-executor-backends-CoarseGrainedExecutorBackend.adoc#main[`--user-class-path` command-line option of `CoarseGrainedExecutorBackend`] that can be set using <<spark.executor.extraClassPath, spark.executor.extraClassPath>> property.
 
 NOTE: `isLocal` is enabled exclusively for link:spark-LocalEndpoint.adoc[LocalEndpoint] (for link:spark-local.adoc[Spark in local mode]).
 
@@ -224,27 +224,51 @@ The above figure shows the result of running link:spark-shell.adoc[Spark shell] 
 
 Every executor registers its own link:spark-executor-ExecutorSource.adoc[ExecutorSource] to link:spark-metrics.adoc#report[report metrics].
 
+=== [[stop]] Stopping Executor -- `stop` Method
+
+[source, scala]
+----
+stop(): Unit
+----
+
+`stop` link:spark-metrics.adoc#report[requests `MetricsSystem` for a report].
+
+NOTE: `stop` uses link:spark-sparkenv.adoc#metricsSystem[`SparkEnv` to access `MetricsSystem`].
+
+`stop` shuts <<heartbeater, driver-heartbeater thread>> down (and waits at most 10 seconds).
+
+`stop` shuts <<threadPool, Executor task launch worker thread pool>> down.
+
+(only when <<isLocal, not local>>) `stop` link:spark-sparkenv.adoc#stop[requests `SparkEnv` to stop].
+
+NOTE: `stop` is used when link:spark-executor-backends-CoarseGrainedExecutorBackend.adoc#Shutdown[CoarseGrainedExecutorBackend] and link:spark-LocalEndpoint.adoc#StopExecutor[LocalEndpoint] are requested to stop their managed executors.
+
 === [[settings]] Settings
 
 .Spark Properties
 [cols="1,1,2",options="header",width="100%"]
 |===
-| Spark Property | Default Value | Description
-| [[spark.executor.cores]][[spark_executor_cores]] `spark.executor.cores` | | Number of cores for an executor.
+| Spark Property
+| Default Value
+| Description
 
-| [[spark.executor.extraClassPath]][[spark_executor_extraClassPath]] `spark.executor.extraClassPath`
+| [[spark.executor.cores]] `spark.executor.cores`
 |
-| List of URLs representing a user-defined CLASSPATH.
+| Number of cores for an executor.
+
+| [[spark.executor.extraClassPath]] `spark.executor.extraClassPath`
+| (empty)
+| List of URLs representing user-defined class path entries that are added to an executor's class path.
 
 Each entry is separated by system-dependent path separator, i.e. `:` on Unix/MacOS systems and `;` on Microsoft Windows.
 
-| [[spark.executor.extraJavaOptions]][[spark_executor_extraJavaOptions]] `spark.executor.extraJavaOptions`
+| [[spark.executor.extraJavaOptions]] `spark.executor.extraJavaOptions`
 |
 | Extra Java options for executors.
 
 Used to link:yarn/spark-yarn-ExecutorRunnable.adoc#prepareCommand[prepare the command to launch `CoarseGrainedExecutorBackend` in a YARN container].
 
-| [[spark.executor.extraLibraryPath]][[spark_executor_extraLibraryPath]] `spark.executor.extraLibraryPath`
+| [[spark.executor.extraLibraryPath]] `spark.executor.extraLibraryPath`
 |
 | Extra library paths separated by system-dependent path separator, i.e. `:` on Unix/MacOS systems and `;` on Microsoft Windows.
 
