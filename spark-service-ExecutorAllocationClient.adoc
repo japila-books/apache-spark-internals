@@ -1,83 +1,67 @@
-== ExecutorAllocationClient
+== [[ExecutorAllocationClient]] ExecutorAllocationClient
 
-`ExecutorAllocationClient` is a contract for clients to communicate with a cluster manager to request or kill executors.
+`ExecutorAllocationClient` is a <<contract, contract>> for clients to communicate with a cluster manager to request or kill executors.
 
-=== [[getExecutorIds]] Getting Executor Ids (getExecutorIds method)
-
-[source, scala]
-----
-getExecutorIds(): Seq[String]
-----
-
-`getExecutorIds` is a `private[spark]` method to calculate the identifiers of the executors in use.
-
-NOTE: It is used when link:spark-sparkcontext.adoc#getExecutorIds[`SparkContext` calculates the executors in use] and also when link:spark-streaming/spark-streaming-dynamic-allocation.adoc[Spark Streaming manages executors].
-
-=== [[requestTotalExecutors]] Requesting Exact Number of Executors (requestTotalExecutors method)
+=== [[contract]] ExecutorAllocationClient Contract
 
 [source, scala]
 ----
-requestTotalExecutors(
-  numExecutors: Int,
-  localityAwareTasks: Int,
-  hostToLocalTaskCount: Map[String, Int]): Boolean
+trait ExecutorAllocationClient {
+  def getExecutorIds(): Seq[String]
+  def requestTotalExecutors(numExecutors: Int, localityAwareTasks: Int, hostToLocalTaskCount: Map[String, Int]): Boolean
+  def requestExecutors(numAdditionalExecutors: Int): Boolean
+  def killExecutors(executorIds: Seq[String]): Seq[String]
+  def killExecutor(executorId: String): Boolean
+}
 ----
 
-`requestTotalExecutors` is a `private[spark]` method to update the cluster manager with the exact number of executors desired. It returns whether the request has been acknowledged by the cluster manager (`true`) or not (`false`).
+NOTE: `ExecutorAllocationClient` is a `private[spark]` contract.
 
-[NOTE]
-====
-It is used when:
+.ExecutorAllocationClient Contract
+[cols="1,2",options="header",width="100%"]
+|===
+| Method
+| Description
 
-1. link:spark-sparkcontext.adoc#requestTotalExecutors[`SparkContext` requests executors] (for coarse-grained scheduler backends only).
+| [[getExecutorIds]] `getExecutorIds`
+| Finds identifiers of the executors in use.
 
-2. `ExecutorAllocationManager` link:spark-ExecutorAllocationManager.adoc#start[starts], does link:spark-ExecutorAllocationManager.adoc#updateAndSyncNumExecutorsTarget[updateAndSyncNumExecutorsTarget], and link:spark-ExecutorAllocationManager.adoc#addExecutors[addExecutors].
+Used when link:spark-sparkcontext.adoc#getExecutorIds[`SparkContext` calculates the executors in use] and also when link:spark-streaming/spark-streaming-dynamic-allocation.adoc[Spark Streaming manages executors].
 
-3. Streaming `ExecutorAllocationManager` link:spark-streaming/spark-streaming-ExecutorAllocationManager.adoc#requestExecutors[requests executors].
+| [[requestTotalExecutors]] `requestTotalExecutors`
+a| Updates the cluster manager with the exact number of executors desired. It returns whether the request has been acknowledged by the cluster manager (`true`) or not (`false`).
 
-4. link:yarn/spark-yarn-yarnschedulerbackend.adoc#stop[`YarnSchedulerBackend` stops].
-====
+Used when:
 
-=== [[requestExecutors]] Requesting Additional Executors (requestExecutors method)
+* link:spark-sparkcontext.adoc#requestTotalExecutors[`SparkContext` requests executors] (for coarse-grained scheduler backends only).
 
-[source, scala]
-----
-requestExecutors(numAdditionalExecutors: Int): Boolean
-----
+* `ExecutorAllocationManager` link:spark-ExecutorAllocationManager.adoc#start[starts], does link:spark-ExecutorAllocationManager.adoc#updateAndSyncNumExecutorsTarget[updateAndSyncNumExecutorsTarget], and link:spark-ExecutorAllocationManager.adoc#addExecutors[addExecutors].
 
-`requestExecutors` requests additional executors from a cluster manager and returns whether the request has been acknowledged by the cluster manager (`true`) or not (`false`).
+* Streaming `ExecutorAllocationManager` link:spark-streaming/spark-streaming-ExecutorAllocationManager.adoc#requestExecutors[requests executors].
 
-NOTE: It is used when link:spark-sparkcontext.adoc#requestExecutors[`SparkContext` requests additional executors] (for coarse-grained scheduler backends only).
+* link:yarn/spark-yarn-yarnschedulerbackend.adoc#stop[`YarnSchedulerBackend` stops].
 
-=== [[killExecutors]] Requesting to Kill Single Executor (killExecutor method)
+| [[requestExecutors]] `requestExecutors`
+| Requests additional executors from a cluster manager and returns whether the request has been acknowledged by the cluster manager (`true`) or not (`false`).
 
-[source, scala]
-----
-killExecutor(executorId: String): Boolean
-----
+Used when link:spark-sparkcontext.adoc#requestExecutors[`SparkContext` requests additional executors] (for coarse-grained scheduler backends only).
 
-`killExecutor` requests that a cluster manager to kill a single executor that is no longer in use and returns whether the request has been acknowledged by the cluster manager (`true`) or not (`false`).
+| [[killExecutors]] `killExecutor`
+a| Requests a cluster manager to kill a single executor that is no longer in use and returns whether the request has been acknowledged by the cluster manager (`true`) or not (`false`).
 
-NOTE: The default implementation simply calls <<killExecutors, killExecutors>> (with a single-element collection of executors to kill).
+The default implementation simply calls <<killExecutors, killExecutors>> (with a single-element collection of executors to kill).
 
-[NOTE]
-====
-It is used in:
+Used when:
 
-1. `ExecutorAllocationManager` to link:spark-ExecutorAllocationManager.adoc#removeExecutor[remove executor].
+* `ExecutorAllocationManager` link:spark-ExecutorAllocationManager.adoc#removeExecutor[removes an executor].
 
-2. `SparkContext` to link:spark-sparkcontext.adoc#killExecutors[request to kill executors].
+* `SparkContext` link:spark-sparkcontext.adoc#killExecutors[is requested to kill executors].
 
-3. Streaming `ExecutorAllocationManager` to link:spark-streaming/spark-streaming-ExecutorAllocationManager.adoc#killExecutor[request to kill executors].
-====
+* Streaming `ExecutorAllocationManager` link:spark-streaming/spark-streaming-ExecutorAllocationManager.adoc#killExecutor[is requested to kill executors].
 
-=== [[killExecutors]] Requesting to Kill Executors (killExecutors method)
+| [[killExecutors]] `killExecutors`
+| Requests that a cluster manager to kill one or many executors that are no longer in use and returns whether the request has been acknowledged by the cluster manager (`true`) or not (`false`).
 
-[source, scala]
-----
-killExecutors(executorIds: Seq[String]): Boolean
-----
+_Interestingly_, it is only used for <<killExecutor, killExecutor>>.
 
-`killExecutors` requests that a cluster manager to kill one or many executors that are no longer in use and returns whether the request has been acknowledged by the cluster manager (`true`) or not (`false`).
-
-NOTE: _Interestingly_, it is only used for <<killExecutor, killExecutor>>.
+|===

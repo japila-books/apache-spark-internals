@@ -30,21 +30,13 @@ isDynamicAllocationEnabled(conf: SparkConf): Boolean
 
 `isDynamicAllocationEnabled` returns `true` if all the following conditions hold:
 
-1. link:spark-executor.adoc#spark.executor.instances[spark.executor.instances] is `0`
-2. <<spark.dynamicAllocation.enabled, spark.dynamicAllocation.enabled>> is enabled
-3. link:spark-cluster.adoc[Spark on cluster] is used (link:spark-configuration.adoc#spark.master[spark.master] is non-`local`)
+. <<spark.dynamicAllocation.enabled, spark.dynamicAllocation.enabled>> is enabled (i.e. `true`)
+. link:spark-cluster.adoc[Spark on cluster] is used (i.e. link:spark-configuration.adoc#spark.master[spark.master] is non-`local`)
+. <<spark.dynamicAllocation.testing, spark.dynamicAllocation.testing>> is enabled (i.e. `true`)
 
-Otherwise, it returns `false`.
+Otherwise, `isDynamicAllocationEnabled` returns `false`.
 
 NOTE: `isDynamicAllocationEnabled` returns `true`, i.e. dynamic allocation is enabled, in link:spark-local.adoc[Spark local (pseudo-cluster)] for testing only (with <<spark.dynamicAllocation.testing, spark.dynamicAllocation.testing>> enabled).
-
-Internally, `isDynamicAllocationEnabled` reads link:spark-executor.adoc#spark.executor.instances[spark.executor.instances] (defaults to `0`) and <<spark.dynamicAllocation.enabled, spark.dynamicAllocation.enabled>> setting (assumes `false`).
-
-If the value of `spark.executor.instances` is not `0` and `spark.dynamicAllocation.enabled` is enabled, `isDynamicAllocationEnabled` prints the following WARN message to the logs:
-
-```
-WARN Utils: Dynamic Allocation and num executors both set, thus dynamic allocation disabled.
-```
 
 NOTE: `isDynamicAllocationEnabled` is used when Spark calculates the initial number of executors for link:spark-CoarseGrainedSchedulerBackend.adoc[coarse-grained scheduler backends] for  link:yarn/README.adoc#getInitialTargetExecutorNumber[YARN], link:spark-standalone-StandaloneSchedulerBackend.adoc#start[Spark Standalone], and link:spark-mesos/spark-mesos-MesosCoarseGrainedSchedulerBackend.adoc#executorLimitOption[Mesos]. It is also used for link:spark-streaming/spark-streaming-streamingcontext.adoc#validate[Spark Streaming].
 
@@ -60,27 +52,6 @@ log4j.logger.org.apache.spark.util.Utils=WARN
 
 Refer to link:spark-logging.adoc[Logging].
 ====
-
-=== [[validateSettings]] Validating Configuration -- `validateSettings` Method
-
-[source, scala]
-----
-validateSettings(): Unit
-----
-
-`validateSettings` is an internal method to ensure that the <<settings, settings for dynamic allocation>> are correct.
-
-It validates the following and throws a `SparkException` if set incorrectly.
-
-1. <<spark.dynamicAllocation.minExecutors, spark.dynamicAllocation.minExecutors>> must be positive.
-
-2. <<spark.dynamicAllocation.minExecutors, spark.dynamicAllocation.minExecutors>> must be less than or equal to <<spark.dynamicAllocation.maxExecutors, spark.dynamicAllocation.maxExecutors>>.
-
-3. <<spark.dynamicAllocation.maxExecutors, spark.dynamicAllocation.maxExecutors>>, <<spark.dynamicAllocation.schedulerBacklogTimeout, spark.dynamicAllocation.schedulerBacklogTimeout>>, <<spark.dynamicAllocation.sustainedSchedulerBacklogTimeout, spark.dynamicAllocation.sustainedSchedulerBacklogTimeout>>, and <<spark.dynamicAllocation.executorIdleTimeout, spark.dynamicAllocation.executorIdleTimeout>> must all be greater than `0`.
-
-4. link:spark-ExternalShuffleService.adoc#spark.shuffle.service.enabled[spark.shuffle.service.enabled] must be enabled.
-
-5. link:spark-executor.adoc#spark.executor.cores[spark.executor.cores] must not be less than link:spark-taskschedulerimpl.adoc#spark_task_cpus[spark.task.cpus].
 
 === [[programmable-dynamic-allocation]] Programmable Dynamic Allocation
 
@@ -156,31 +127,31 @@ NOTE: <<getDynamicAllocationInitialExecutors, getDynamicAllocationInitialExecuto
 | `0`
 | Minimum number of executors for dynamic allocation.
 
-It <<validateSettings, must be positive and less than or equal to `spark.dynamicAllocation.maxExecutors`>>.
+link:spark-ExecutorAllocationManager.adoc#validateSettings[Must be positive and less than or equal to `spark.dynamicAllocation.maxExecutors`].
 
 | [[spark.dynamicAllocation.maxExecutors]] spark.dynamicAllocation.maxExecutors
 | `Integer.MAX_VALUE`
 | Maximum number of executors for dynamic allocation.
 
-It <<validateSettings, must be greater than `0` and greater than or equal to `spark.dynamicAllocation.minExecutors`>>.
+link:spark-ExecutorAllocationManager.adoc#validateSettings[Must be greater than `0` and greater than or equal to `spark.dynamicAllocation.minExecutors`].
 
 | [[spark.dynamicAllocation.schedulerBacklogTimeout]] `spark.dynamicAllocation.schedulerBacklogTimeout`
 | `1s`
 |
 
-It <<validateSettings, must be greater than `0`>>.
+link:spark-ExecutorAllocationManager.adoc#validateSettings[Must be greater than `0`].
 
 | [[spark.dynamicAllocation.sustainedSchedulerBacklogTimeout]] `spark.dynamicAllocation.sustainedSchedulerBacklogTimeout`
 | <<spark.dynamicAllocation.schedulerBacklogTimeout, spark.dynamicAllocation.schedulerBacklogTimeout>>)
 |
 
-It <<validateSettings, must be greater than `0`>>.
+link:spark-ExecutorAllocationManager.adoc#validateSettings[Must be greater than `0`].
 
 | [[spark.dynamicAllocation.executorIdleTimeout]] `spark.dynamicAllocation.executorIdleTimeout`
 | `60s`
 | Time for how long an executor can be idle before it gets removed.
 
-It <<validateSettings, must be greater than `0`>>.
+link:spark-ExecutorAllocationManager.adoc#validateSettings[Must be greater than `0`].
 
 | [[spark.dynamicAllocation.cachedExecutorIdleTimeout]] `spark.dynamicAllocation.cachedExecutorIdleTimeout`
 | `Integer.MAX_VALUE`
