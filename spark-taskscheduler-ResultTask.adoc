@@ -1,8 +1,10 @@
 == [[ResultTask]] ResultTask
 
-`ResultTask` is a link:spark-taskscheduler-tasks.adoc[Task] that <<runTask, computes FIXME>>.
+`ResultTask` is a link:spark-taskscheduler-tasks.adoc[Task] that <<runTask, executes a function on the records in a RDD partition>>.
 
 <<creating-instance, `ResultTask` is created>> exclusively when link:spark-dagscheduler.adoc#submitMissingTasks[`DAGScheduler` submits missing tasks for a `ResultStage`].
+
+`ResultTask` is created with a <<taskBinary, broadcast variable>> with the RDD and the function to execute it on and the <<partition, partition>>.
 
 [[internal-registries]]
 .ResultTask's Internal Registries and Counters
@@ -12,23 +14,19 @@
 | Description
 
 | [[preferredLocs]] `preferredLocs`
-| Corresponds directly to unique entries in <<locs, locs>> with the only rule that when `locs` is not defined, it is empty, i.e. no task location preferences are defined.
+| Corresponds directly to unique entries in <<locs, locs>> with the only rule that when `locs` is not defined, it is empty, and no task location preferences are defined.
 
 Initialized when <<creating-instance, `ResultTask` is created>>.
 
 Used exclusively when `ResultTask` is requested for <<preferredLocations, preferred task locations>>.
+
+| [[_executorDeserializeTime]] `_executorDeserializeTime`
+| FIXME
+
+| [[_executorDeserializeCpuTime]] `_executorDeserializeCpuTime`
+| FIXME
+
 |===
-
-=== [[runTask]] `runTask` Method
-
-[source, scala]
-----
-runTask(context: TaskContext): U
-----
-
-NOTE: `U` is the type of a result as defined when <<creating-instance, `ResultTask` is created>>.
-
-CAUTION: FIXME
 
 === [[creating-instance]] Creating ResultTask Instance
 
@@ -38,7 +36,7 @@ CAUTION: FIXME
 * `stageAttemptId` -- the stage attempt id
 * [[taskBinary]] link:spark-broadcast.adoc[Broadcast variable] with the serialized task (as `Array[Byte]`). The broadcast contains of a serialized pair of `RDD` and the function to execute.
 * [[partition]] link:spark-rdd-Partition.adoc[Partition] to compute
-* [[locs]] Collection of link:spark-TaskLocation.adoc[TaskLocations]
+* [[locs]] Collection of link:spark-TaskLocation.adoc[TaskLocations], i.e. preferred locations (executors) to execute the task on
 * [[outputId]] `outputId`
 * [[localProperties]] local `Properties`
 * [[serializedTaskMetrics]] The stage's serialized link:spark-taskscheduler-taskmetrics.adoc[TaskMetrics] (as `Array[Byte]`)
@@ -55,6 +53,35 @@ CAUTION: FIXME
 preferredLocations: Seq[TaskLocation]
 ----
 
-NOTE: `preferredLocations` is a part of link:spark-taskscheduler-tasks.adoc#contract[Task contract] to...FIXME
+NOTE: `preferredLocations` is a part of link:spark-taskscheduler-tasks.adoc#contract[Task contract].
 
 `preferredLocations` simply returns <<preferredLocs, preferredLocs>> internal property.
+
+=== [[runTask]] Deserialize RDD and Function (From Broadcast) and Execute Function (on RDD Partition) -- `runTask` Method
+
+[source, scala]
+----
+runTask(context: TaskContext): U
+----
+
+NOTE: `U` is the type of a result as defined when <<creating-instance, `ResultTask` is created>>.
+
+`runTask` deserializes a RDD and a function from the <<taskBinary, broadcast>> and then executes the function (on the records from the RDD <<partition, partition>>).
+
+NOTE: `runTask` is a part of link:spark-taskscheduler-tasks.adoc#contract[Task contract] to run a task.
+
+Internally, `runTask` starts by tracking the time required to deserialize a RDD and a function to execute.
+
+`runTask` link:spark-Serializer.adoc#newInstance[creates a new closure `Serializer`].
+
+NOTE: `runTask` uses link:spark-sparkenv.adoc#closureSerializer[`SparkEnv` to access the closure `Serializer`].
+
+`runTask` link:spark-Serializer.adoc#deserialize[requests the closure `Serializer` to deserialize an `RDD` and the function to execute] (from <<taskBinary, taskBinary>> broadcast).
+
+NOTE: <<taskBinary, taskBinary>> broadcast is defined when <<creating-instance, `ResultTask` is created>>.
+
+`runTask` records <<_executorDeserializeTime, _executorDeserializeTime>> and <<_executorDeserializeCpuTime, _executorDeserializeCpuTime>> properties.
+
+In the end, `runTask` executes the function (passing in the input `context` and the link:spark-rdd.adoc#iterator[records from `partition` of the RDD]).
+
+NOTE: `partition` to use to access the records in a deserialized RDD is defined when <<creating-instance, `ResultTask` was created>>.
