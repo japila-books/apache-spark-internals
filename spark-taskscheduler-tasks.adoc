@@ -5,20 +5,20 @@
 .Tasks correspond to partitions in RDD
 image::images/spark-rdd-partitions-job-stage-tasks.png[align="center"]
 
-A task is described by the <<contract, Task contract>> with a single <<runTask, runTask>> method.
+A task is described by the <<contract, Task contract>> with a single <<runTask, runTask>> to run it and optional <<preferredLocations, placement preferences>> to place the computation on right executors.
 
 There are two concrete implementations of `Task` contract:
 
 * link:spark-taskscheduler-ShuffleMapTask.adoc[ShuffleMapTask] that executes a task and divides the task's output to multiple buckets (based on the task's partitioner).
 * link:spark-taskscheduler-ResultTask.adoc[ResultTask] that executes a task and sends the task's output back to the driver application.
 
-The very last stage in a Spark job consists of multiple link:spark-taskscheduler-ResultTask.adoc[ResultTask]s, while earlier stages can only be link:spark-taskscheduler-ShuffleMapTask.adoc[ShuffleMapTask]s.
+The very last stage in a Spark job consists of multiple link:spark-taskscheduler-ResultTask.adoc[ResultTasks], while earlier stages can only be link:spark-taskscheduler-ShuffleMapTask.adoc[ShuffleMapTasks].
 
 CAUTION: FIXME You could have a Spark job with link:spark-taskscheduler-ShuffleMapTask.adoc[ShuffleMapTask] being the last.
 
 Tasks are link:spark-executor.adoc#launchTask[launched on executors] and <<run, ran when `TaskRunner` starts>>.
 
-In other (more technical) words, a task is a computation on a data partition in a stage of a RDD in a Spark job.
+In other (more technical) words, a task is a computation on the records in a RDD partition in a stage of a RDD in a Spark job.
 
 NOTE: `T` is the type defined when a <<creating-instance, `Task` is created>>.
 
@@ -29,19 +29,11 @@ NOTE: `T` is the type defined when a <<creating-instance, `Task` is created>>.
 | Name
 | Description
 
-| [[metrics]] `metrics`
-| Used when ???
-
-| [[taskMemoryManager]] `taskMemoryManager`
-| link:spark-taskscheduler-taskmemorymanager.adoc[TaskMemoryManager] that manages the memory allocated by the task.
-
-Used when ???
-
 | [[context]] `context`
 | Used when ???
 
-| [[_killed]] `_killed`
-| Used when ???
+| [[epoch]] `epoch`
+| Set for a `Task` when link:spark-TaskSetManager.adoc#creating-instance[`TaskSetManager` is created] and later used when link:spark-executor-TaskRunner.adoc#run[`TaskRunner` runs] and when link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleTaskCompletion-Success-ShuffleMapTask[`DAGScheduler` handles a `ShuffleMapTask` successful completion].
 
 | [[_executorDeserializeTime]] `_executorDeserializeTime`
 | Used when ???
@@ -49,11 +41,23 @@ Used when ???
 | [[_executorDeserializeCpuTime]] `_executorDeserializeCpuTime`
 | Used when ???
 
-| [[taskThread]] `taskThread`
+| [[_killed]] `_killed`
 | Used when ???
 
-| [[epoch]] `epoch`
-| Set for a `Task` when link:spark-TaskSetManager.adoc#creating-instance[`TaskSetManager` is created] and later used when link:spark-executor-TaskRunner.adoc#run[`TaskRunner` runs] and when link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleTaskCompletion-Success-ShuffleMapTask[`DAGScheduler` handles a `ShuffleMapTask` successful completion].
+| [[metrics]] `metrics`
+| link:spark-taskscheduler-taskmetrics.adoc[TaskMetrics]
+
+Created lazily when <<creating-instance, `Task` is created>> from <<serializedTaskMetrics, serializedTaskMetrics>>.
+
+Used when ???
+
+| [[taskMemoryManager]] `taskMemoryManager`
+| link:spark-taskscheduler-taskmemorymanager.adoc[TaskMemoryManager] that manages the memory allocated by the task.
+
+Used when ???
+
+| [[taskThread]] `taskThread`
+| Used when ???
 
 |===
 
@@ -94,34 +98,18 @@ Defined by the custom tasks, i.e. link:spark-taskscheduler-ShuffleMapTask.adoc#p
 
 === [[creating-instance]] Creating Task Instance
 
-[source, scala]
-----
-Task[T](
-  val stageId: Int,
-  val stageAttemptId: Int,
-  val partitionId: Int,
-  var localProperties: Properties = new Properties,
-  serializedTaskMetrics: Array[Byte] =
-    SparkEnv.get.closureSerializer.newInstance().serialize(TaskMetrics.registered).array(),
-  val jobId: Option[Int] = None,
-  val appId: Option[String] = None,
-  val appAttemptId: Option[String] = None)
-extends Serializable
-----
+`Task` takes the following when created:
 
-=== [[attributes]] Task Attributes
+* [[stageId]] link:spark-dagscheduler-stages.adoc[Stage] ID
+* [[stageAttemptId]] Stage attempt ID (different per stage execution re-attempt)
+* [[partitionId]] link:spark-rdd-Partition.adoc[Partition] ID
+* [[localProperties]] Local `Properties` (defaults to empty properties)
+* [[serializedTaskMetrics]] Serialized link:spark-taskscheduler-taskmetrics.adoc[TaskMetrics] (that link:spark-dagscheduler-stages.adoc#latestInfo[were part of the owning Stage])
+* (optional) [[jobId]] link:spark-dagscheduler-jobs.adoc[Job] ID
+* (optional) [[appId]] Application ID
+* (optional) [[appAttemptId]] Application attempt ID
 
-A `Task` instance is uniquely identified by the following task attributes:
-
-* `stageId` - there can be many stages in a job. Every stage has its own unique `stageId` that the task belongs to.
-
-* `stageAttemptId` - a stage can be re-attempted for execution in case of failure. `stageAttemptId` represents the attempt id of a stage that the task belongs to.
-
-* `partitionId` - a task is a unit of work on a partitioned distributed dataset. Every partition has its own unique `partitionId` that a task processes.
-
-* `metrics` - an instance of link:spark-taskscheduler-taskmetrics.adoc[TaskMetrics] for the task.
-
-* `localProperties` - local private properties of the task.
+`Task` initializes the <<internal-registries, internal registries and counters>>.
 
 === [[run]] Running Task Thread -- `run` Method
 
