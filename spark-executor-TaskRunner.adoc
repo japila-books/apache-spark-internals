@@ -120,7 +120,7 @@ NOTE: `run` uses link:spark-sparkenv.adoc#memoryManager[`SparkEnv` to access the
 
 `run` sets the current thread's context classloader (with <<replClassLoader, replClassLoader>>).
 
-`run` creates a closure link:spark-Serializer.adoc[Serializer].
+`run` link:spark-Serializer.adoc#newInstance[creates a closure `Serializer`].
 
 NOTE: `run` uses link:spark-sparkenv.adoc#closureSerializer[`SparkEnv` to access the current closure `Serializer`].
 
@@ -208,9 +208,16 @@ NOTE: `run` uses link:spark-sparkenv.adoc#serializer[`SparkEnv` to access the cu
 
 IMPORTANT: This is the moment in the task lifecycle when `TaskExecutor` serializes the computed value of a task.
 
-`run` records the link:spark-taskscheduler-tasks.adoc#metrics[task metrics], i.e. link:spark-taskscheduler-taskmetrics.adoc#setExecutorDeserializeTime[executorDeserializeTime], link:spark-taskscheduler-taskmetrics.adoc#setExecutorDeserializeCpuTime[executorDeserializeCpuTime], link:spark-taskscheduler-taskmetrics.adoc#setExecutorRunTime[executorRunTime], link:spark-taskscheduler-taskmetrics.adoc#setExecutorCpuTime[executorCpuTime], link:spark-taskscheduler-taskmetrics.adoc#setJvmGCTime[jvmGCTime], and link:spark-taskscheduler-taskmetrics.adoc#setResultSerializationTime[resultSerializationTime].
+`run` records the link:spark-taskscheduler-tasks.adoc#metrics[task metrics]:
 
-`run` link:spark-taskscheduler-tasks.adoc#collectAccumulatorUpdates[collects the latest values of accumulators used in the task].
+* link:spark-taskscheduler-taskmetrics.adoc#setExecutorDeserializeTime[executorDeserializeTime]
+* link:spark-taskscheduler-taskmetrics.adoc#setExecutorDeserializeCpuTime[executorDeserializeCpuTime]
+* link:spark-taskscheduler-taskmetrics.adoc#setExecutorRunTime[executorRunTime]
+* link:spark-taskscheduler-taskmetrics.adoc#setExecutorCpuTime[executorCpuTime]
+* link:spark-taskscheduler-taskmetrics.adoc#setJvmGCTime[jvmGCTime]
+* link:spark-taskscheduler-taskmetrics.adoc#setResultSerializationTime[resultSerializationTime]
+
+`run` link:spark-taskscheduler-tasks.adoc#collectAccumulatorUpdates[collects the latest values of internal and external accumulators used in the task].
 
 `run` creates a link:spark-taskscheduler-TaskResult.adoc#DirectTaskResult[DirectTaskResult] (with the serialized result and the latest values of accumulators).
 
@@ -228,7 +235,7 @@ When link:spark-executor.adoc#maxResultSize[maxResultSize] is greater than `0` a
 WARN Executor: Finished [taskName] (TID [taskId]). Result is larger than maxResultSize ([resultSize] > [maxResultSize]), dropping it.
 ```
 
-TIP: Read about link:spark-TaskSetManager.adoc#spark_driver_maxResultSize[spark.driver.maxResultSize].
+TIP: Read about link:spark-TaskSetManager.adoc#spark.driver.maxResultSize[spark.driver.maxResultSize].
 
 ```
 $ ./bin/spark-shell -c spark.driver.maxResultSize=1m
@@ -357,7 +364,14 @@ When `run` catches a `Throwable`, you should see the following ERROR message in 
 ERROR Exception in [taskName] (TID [taskId])
 ```
 
-`run` then records link:spark-taskscheduler-taskmetrics.adoc#setExecutorRunTime[executorRunTime] and link:spark-taskscheduler-taskmetrics.adoc#setJvmGCTime[jvmGCTime] task metrics followed by link:spark-taskscheduler-tasks.adoc#collectAccumulatorUpdates[collecting the latest values of task accumulators] (with `taskFailed` enabled). It only happens when <<task, task>> is available. Otherwise, the accumulator collection is empty.
+`run` then records the following task metrics (only when <<task, Task>> is available):
+
+* link:spark-taskscheduler-taskmetrics.adoc#setExecutorRunTime[executorRunTime]
+* link:spark-taskscheduler-taskmetrics.adoc#setJvmGCTime[jvmGCTime]
+
+`run` then link:spark-taskscheduler-tasks.adoc#collectAccumulatorUpdates[collects the latest values of internal and external accumulators] (with `taskFailed` flag enabled to inform that the collection is for a failed task).
+
+Otherwise, when <<task, Task>> is not available, the accumulator collection is empty.
 
 `run` converts the task accumulators to collection of `AccumulableInfo`, creates a `ExceptionFailure` (with the accumulators), and link:spark-Serializer.adoc#serialize[serializes them].
 
