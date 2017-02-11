@@ -179,17 +179,21 @@ TIP: Task states correspond to https://github.com/apache/mesos/blob/master/inclu
 collectAccumulatorUpdates(taskFailed: Boolean = false): Seq[AccumulableInfo]
 ----
 
-`collectAccumulatorUpdates` collects the latest values of accumulators used in a task (and returns the values as a collection of link:spark-accumulators.adoc#AccumulableInfo[AccumulableInfo]).
+`collectAccumulatorUpdates` collects the latest values of internal and external accumulators from a task (and returns the values as a collection of link:spark-accumulators.adoc#AccumulableInfo[AccumulableInfo]).
 
-NOTE: `collectAccumulatorUpdates` is used when link:spark-executor-TaskRunner.adoc#run[`TaskRunner` runs a task] (and sends a task's final results).
+Internally, `collectAccumulatorUpdates` link:spark-taskscheduler-TaskContextImpl.adoc#taskMetrics[takes `TaskMetrics`].
 
-When `taskFailed` is `true` it filters out link:spark-accumulators.adoc[accumulators] with `countFailedValues` disabled.
+NOTE: `collectAccumulatorUpdates` uses <<context, TaskContextImpl>> to access the task's `TaskMetrics`.
 
-CAUTION: FIXME Why is the check `context != null`?
+`collectAccumulatorUpdates` collects the latest values of:
 
-NOTE: It uses `context.taskMetrics.accumulatorUpdates()`.
+* link:spark-taskscheduler-taskmetrics.adoc#internalAccums[internal accumulators] whose current value is not the zero value and the `RESULT_SIZE` accumulator (regardless whether the value is its zero or not).
 
-CAUTION: FIXME What is `context.taskMetrics.accumulatorUpdates()` doing?
+* link:spark-taskscheduler-taskmetrics.adoc#externalAccums[external accumulators] when `taskFailed` is disabled (`false`) or which link:spark-accumulators.adoc#countFailedValues[should be included on failures].
+
+`collectAccumulatorUpdates` returns an empty collection when <<context, TaskContextImpl>> is not initialized.
+
+NOTE: `collectAccumulatorUpdates` is used when link:spark-executor-TaskRunner.adoc#run[`TaskRunner` runs a task] (and sends a task's final results back to the driver).
 
 === [[kill]] Killing Task -- `kill` Method
 
