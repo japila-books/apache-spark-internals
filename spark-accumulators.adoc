@@ -1,6 +1,6 @@
 == [[AccumulatorV2]] Accumulators
 
-*Accumulators* are variables that are "added" to through an associative and commutative "add" operation. They act as a container for accumulating partial values across multiple tasks running on executors. They are designed to be used safely and efficiently in parallel and distributed Spark computations and are meant for distributed counters and sums.
+*Accumulators* are variables that are "added" to through an associative and commutative "add" operation. They act as a container for accumulating partial values across multiple tasks (running on executors). They are designed to be used safely and efficiently in parallel and distributed Spark computations and are meant for distributed counters and sums (e.g. link:spark-taskscheduler-taskmetrics.adoc[task metrics]).
 
 You can create built-in accumulators for link:spark-sparkcontext.adoc#creating-accumulators[longs, doubles, or collections] or register custom accumulators using the link:spark-sparkcontext.adoc#register[SparkContext.register] methods. You can create accumulators with or without a name, but only <<named, named accumulators>> are displayed in link:spark-webui-StagePage.adoc#accumulators[web UI] (under Stages tab for a given stage).
 
@@ -57,21 +57,24 @@ register(
   countFailedValues: Boolean = false): Unit
 ----
 
-`register` is a `private[spark]` method of the `AccumulatorV2` abstract class.
+`register` creates a <<metadata, AccumulatorMetadata>> metadata object for the accumulator (with a link:spark-AccumulatorContext.adoc#newId[new unique identifier]) that is then used to link:spark-AccumulatorContext.adoc#register[register the accumulator with].
 
-It creates a `AccumulatorMetadata` metadata object for the accumulator (with a new unique identifier) and registers the accumulator with <<AccumulatorContext, AccumulatorContext>>. The accumulator is then link:spark-service-contextcleaner.adoc#registerAccumulatorForCleanup[registered with `ContextCleaner` for cleanup].
+In the end, `register` link:spark-service-contextcleaner.adoc#registerAccumulatorForCleanup[registers the accumulator for cleanup] (only when link:spark-sparkcontext.adoc#cleaner[`ContextCleaner` is defined in the `SparkContext`]).
 
-=== [[AccumulatorContext]] AccumulatorContext
+NOTE: `register` is a `private[spark]` method.
 
-`AccumulatorContext` is a `private[spark]` internal object used to track accumulators by Spark itself using an internal `originals` lookup table. Spark uses the `AccumulatorContext` object to register and unregister accumulators.
+[NOTE]
+====
+`register` is used when:
 
-The `originals` lookup table maps accumulator identifier to the accumulator itself.
+* `SparkContext` link:spark-sparkcontext.adoc#register[registers accumulators]
+* `TaskMetrics` link:spark-taskscheduler-taskmetrics.adoc#register[registers the internal accumulators]
+* `SQLMetrics` creates metrics.
+====
 
-Every accumulator has its own unique accumulator id that is assigned using the internal `nextId` counter.
+=== [[AccumulatorMetadata]] AccumulatorMetadata
 
-==== [[AccumulatorContext-SQL_ACCUM_IDENTIFIER]] AccumulatorContext.SQL_ACCUM_IDENTIFIER
-
-`AccumulatorContext.SQL_ACCUM_IDENTIFIER` is an internal identifier for Spark SQL's internal accumulators. The value is `sql` and Spark uses it to distinguish link:spark-sql-SparkPlan.adoc#SQLMetric[Spark SQL metrics] from others.
+CAUTION: FIXME
 
 === [[named]] Named Accumulators
 
