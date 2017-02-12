@@ -2,9 +2,7 @@
 
 `TaskSetManager` is a <<schedulable, Schedulable>> that manages scheduling of tasks in a <<taskSet, TaskSet>>.
 
-NOTE: A link:spark-taskscheduler-tasksets.adoc[TaskSet] represents a set of link:spark-taskscheduler-tasks.adoc[tasks] that correspond to missing link:spark-rdd-partitions.adoc[partitions] of a single link:spark-dagscheduler-stages.adoc[Stage].
-
-NOTE: A task can end <<handleSuccessfulTask, sucessfully>> or due to a <<handleFailedTask, failure>> (in task execution or <<executorLost, an executor being lost>>).
+NOTE: A link:spark-taskscheduler-tasksets.adoc[TaskSet] represents a set of link:spark-taskscheduler-tasks.adoc[tasks] that correspond to missing link:spark-rdd-partitions.adoc[partitions] of a link:spark-dagscheduler-stages.adoc[stage].
 
 <<creating-instance, `TaskSetManager` is created>> when link:spark-taskschedulerimpl.adoc#createTaskSetManager[`TaskSchedulerImpl` submits tasks (for a given `TaskSet`)].
 
@@ -13,10 +11,12 @@ image::images/TaskSetManager-TaskSchedulerImpl-TaskSet.png[align="center"]
 
 When <<creating-instance, `TaskSetManager` is created>> for a <<taskSet, TaskSet>>, `TaskSetManager` <<addPendingTask, registers all the tasks as pending execution>>.
 
+`TaskSetManager` is notified when a task (from the `TaskSet` it manages) finishes -- <<handleSuccessfulTask, sucessfully>> or due to a <<handleFailedTask, failure>> (in task execution or <<executorLost, an executor being lost>>).
+
 `TaskSetManager` uses <<maxTaskFailures, maxTaskFailures>> to control how many times a <<handleFailedTask, single task can fail>> before an <<abort, entire `TaskSet` gets aborted>> that can take the following values:
 
 * `1` for link:spark-local.adoc[`local` run mode]
-* `maxFailures` for link:spark-local.adoc[Spark local-with-retries]
+* `maxFailures` in link:spark-local.adoc#local-with-retries[Spark local-with-retries] (i.e. `local[N, maxFailures]`)
 * link:spark-taskschedulerimpl.adoc#spark.task.maxFailures[spark.task.maxFailures] property for link:spark-local.adoc[Spark local-cluster] and link:spark-cluster.adoc[Spark clustered] (using Spark Standalone, Mesos and YARN)
 
 The responsibilities of a `TaskSetManager` include:
@@ -122,7 +122,9 @@ NOTE: `myLocalityLevels` may contain only a few of all the available `TaskLocali
 <<recomputeLocality, Recomputed>> every change in the status of executors.
 
 | [[numFailures]] `numFailures`
-|
+| Array of the number of task failures per <<tasks, task>>.
+
+Incremented when `TaskSetManager` <<handleFailedTask, handles a task failure>> and immediatelly checked if above <<maxTaskFailures, acceptable number of task failures>>.
 
 | [[numTasks]] `numTasks`
 | Number of <<tasks, tasks>> to compute.
@@ -468,7 +470,7 @@ maybeFinishTaskSet(): Unit
 
 `maybeFinishTaskSet` link:spark-taskschedulerimpl.adoc#taskSetFinished[notifies `TaskSchedulerImpl` that a `TaskSet` has finished] when there are no other <<runningTasksSet, running tasks>> and the <<isZombie, TaskSetManager is not in zombie state>>.
 
-=== [[handleFailedTask]] `handleFailedTask` Method
+=== [[handleFailedTask]] Handling Task Failure -- `handleFailedTask` Method
 
 [source, scala]
 ----
@@ -691,7 +693,7 @@ NOTE: `canFetchMoreResults` is used in link:spark-taskschedulerimpl-TaskResultGe
 
 * [[sched]] link:spark-taskschedulerimpl.adoc[TaskSchedulerImpl]
 * [[taskSet]] link:spark-taskscheduler-tasksets.adoc[TaskSet] that the `TaskSetManager` manages scheduling for
-* [[maxTaskFailures]] `maxTaskFailures` -- how many times a <<handleFailedTask, single task can fail>> before an <<abort, entire `TaskSet` gets aborted>>.
+* [[maxTaskFailures]] Acceptable number of task failure, i.e. how many times a <<handleFailedTask, single task can fail>> before an <<abort, entire `TaskSet` gets aborted>>.
 * [[blacklistTracker]] (optional) BlacklistTracker
 * [[clock]] `Clock` (defaults to `SystemClock`)
 
