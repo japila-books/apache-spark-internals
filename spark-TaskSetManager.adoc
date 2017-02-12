@@ -79,7 +79,7 @@ res0: Long = 3
 | Description
 
 | [[allPendingTasks]] `allPendingTasks`
-| Lookup table of the indices of tasks pending execution per executor.
+| Indices of all the pending tasks to execute (regardless of their localization preferences).
 
 Updated with an task index when `TaskSetManager` <<addPendingTask, registers a task as pending execution (per preferred locations)>>.
 
@@ -91,7 +91,7 @@ Starts from `0` when a <<creating-instance, `TaskSetManager` is created>> and is
 | [[copiesRunning]] `copiesRunning`
 | The number of task copies currently running per task (index in its task set).
 
-The number of task copies of a task is increased when <<resourceOffer, dequeuing a task for execution>> or <<checkSpeculatableTasks, checking for speculatable tasks>> and decreased when <<handleFailedTask, a task fails>> or <<executorLost, an executor is lost>> (for a shuffle map stage and no external shuffle service).
+The number of task copies of a task is increased when <<resourceOffer, finds a task for execution (given resource offer)>> or <<checkSpeculatableTasks, checking for speculatable tasks>> and decreased when <<handleFailedTask, a task fails>> or <<executorLost, an executor is lost>> (for a shuffle map stage and no external shuffle service).
 
 | [[currentLocalityIndex]] `currentLocalityIndex`
 |
@@ -121,6 +121,9 @@ NOTE: `myLocalityLevels` may contain only a few of all the available `TaskLocali
 
 <<recomputeLocality, Recomputed>> every change in the status of executors.
 
+| [[name]] `name`
+|
+
 | [[numFailures]] `numFailures`
 | Array of the number of task failures per <<tasks, task>>.
 
@@ -148,6 +151,9 @@ Updated with an task index and rack when `TaskSetManager` <<addPendingTask, regi
 | Lookup table of the indices of tasks pending execution with no location preferences.
 
 Updated with an task index when `TaskSetManager` <<addPendingTask, registers a task as pending execution (per preferred locations)>>.
+
+| [[priority]] `priority`
+|
 
 | [[recentExceptions]] `recentExceptions`
 |
@@ -184,7 +190,7 @@ A flag is explicitly turned off only for <<executorLost, `ShuffleMapTask` tasks 
 | [[taskInfos]] `taskInfos`
 | Registry of link:spark-TaskInfo.adoc[TaskInfos] per task id.
 
-Updated with the task (id) and the corresponding `TaskInfo` when `TaskSetManager` <<resourceOffer, dequeues a task for execution (given resource offer)>>.
+Updated with the task (id) and the corresponding `TaskInfo` when `TaskSetManager` <<resourceOffer, finds a task for execution (given resource offer)>>.
 
 NOTE: It _appears_ that the entires stay forever, i.e. are never removed (perhaps because the maintenance overhead is not needed given a `TaskSetManager` is a short-lived entity).
 
@@ -217,23 +223,15 @@ log4j.logger.org.apache.spark.scheduler.TaskSetManager=DEBUG
 Refer to link:spark-logging.adoc[Logging].
 ====
 
+=== [[isTaskBlacklistedOnExecOrNode]] `isTaskBlacklistedOnExecOrNode` Method
+
+CAUTION: FIXME
+
 === [[getLocalityIndex]] `getLocalityIndex` Method
 
 CAUTION: FIXME
 
-=== [[priority]] `priority` Property
-
-CAUTION: FIXME
-
-=== [[name]] `name` Property
-
-CAUTION: FIXME
-
 === [[dequeueSpeculativeTask]] `dequeueSpeculativeTask` Method
-
-CAUTION: FIXME
-
-=== [[dequeueTask]] `dequeueTask` Method
 
 CAUTION: FIXME
 
@@ -344,7 +342,7 @@ INFO Marking task [index] in stage [taskSet.id] (on [info.host]) as speculatable
 
 The task gets added to the internal `speculatableTasks` collection. The method responds positively.
 
-=== [[resourceOffer]] Dequeuing Task For Execution (Given Resource Offer) -- `resourceOffer` Method
+=== [[resourceOffer]] Finding Task For Execution (Given Resource Offer) -- `resourceOffer` Method
 
 CAUTION: FIXME Review `TaskSetManager.resourceOffer` + Does this have anything related to the following section about scheduling tasks?
 
@@ -389,6 +387,96 @@ For example:
 ```
 INFO TaskSetManager: Starting task 1.0 in stage 0.0 (TID 1, localhost, partition 1,PROCESS_LOCAL, 2054 bytes)
 ```
+
+=== [[dequeueTask]] Dequeueing Task For Execution (Given Locality Information) -- `dequeueTask` Internal Method
+
+[source, scala]
+----
+dequeueTask(execId: String, host: String, maxLocality: TaskLocality): Option[(Int, TaskLocality, Boolean)]
+----
+
+`dequeueTask` tries to <<dequeueTaskFromList, find the higest task index>> (meeting localization requirements) using <<getPendingTasksForExecutor, tasks (indices) registered for execution on `execId` executor>>. If a task is found, `dequeueTask` returns its index, `PROCESS_LOCAL` task locality and the speculative marker disabled.
+
+`dequeueTask` then goes over all the possible link:spark-taskschedulerimpl.adoc#TaskLocality[task localities] and checks what locality is allowed given the input `maxLocality`.
+
+`dequeueTask` checks out `NODE_LOCAL`, `NO_PREF`, `RACK_LOCAL` and `ANY` in that order.
+
+For `NODE_LOCAL` `dequeueTask` tries to <<dequeueTaskFromList, find the higest task index>> (meeting localization requirements) using <<getPendingTasksForHost, tasks (indices) registered for execution on `host` host>> and if found returns its index, `NODE_LOCAL` task locality and the speculative marker disabled.
+
+For `NO_PREF` `dequeueTask` tries to <<dequeueTaskFromList, find the higest task index>> (meeting localization requirements) using <<pendingTasksWithNoPrefs, pendingTasksWithNoPrefs>> internal registry and if found returns its index, `PROCESS_LOCAL` task locality and the speculative marker disabled.
+
+NOTE: For `NO_PREF` the task locality is `PROCESS_LOCAL`.
+
+For `RACK_LOCAL` `dequeueTask` link:spark-taskschedulerimpl.adoc#getRackForHost[finds the rack for the input `host`] and if available tries to <<dequeueTaskFromList, find the higest task index>> (meeting localization requirements) using <<getPendingTasksForRack, tasks (indices) registered for execution on the rack>>. If a task is found, `dequeueTask` returns its index, `RACK_LOCAL` task locality and the speculative marker disabled.
+
+For `ANY` `dequeueTask` tries to <<dequeueTaskFromList, find the higest task index>> (meeting localization requirements) using <<allPendingTasks, allPendingTasks>> internal registry and if found returns its index, `ANY` task locality and the speculative marker disabled.
+
+In the end, when no task could be found, `dequeueTask` <<dequeueSpeculativeTask, dequeueSpeculativeTask>> and if found returns its index, locality and the speculative marker enabled.
+
+NOTE: The speculative marker is enabled for a task only when `dequeueTask` did not manage to find a task for the available task localities and did find a speculative task.
+
+NOTE: `dequeueTask` is used exclusively when `TaskSetManager` <<resourceOffer, finds a task for execution (given resource offer)>>.
+
+=== [[dequeueTaskFromList]] Finding Higest Task Index (Not Blacklisted, With No Copies Running and Not Completed Already) -- `dequeueTaskFromList` Internal Method
+
+[source, scala]
+----
+dequeueTaskFromList(
+  execId: String,
+  host: String,
+  list: ArrayBuffer[Int]): Option[Int]
+----
+
+`dequeueTaskFromList` takes task indices from the input `list` backwards (from the last to the first entry). For every index `dequeueTaskFromList` checks if it is not <<isTaskBlacklistedOnExecOrNode, blacklisted on the input `execId` executor and `host`>> and if not, checks that:
+
+* <<copiesRunning, number of the copies of the task currently running>> is `0`
+
+* the task has not been marked as <<successful, completed>>
+
+If so, `dequeueTaskFromList` returns the task index.
+
+If `dequeueTaskFromList` has checked all the indices and no index has passed the checks, `dequeueTaskFromList` returns `None` (to indicate that no index has met the requirements).
+
+NOTE: `dequeueTaskFromList` is used exclusively when `TaskSetManager` <<dequeueTask, dequeues a task tor execution (given locality information)>>.
+
+=== [[getPendingTasksForExecutor]] Finding Tasks (Indices) Registered For Execution on Executor -- `getPendingTasksForExecutor` Internal Method
+
+[source, scala]
+----
+getPendingTasksForExecutor(executorId: String): ArrayBuffer[Int]
+----
+
+`getPendingTasksForExecutor` finds pending tasks (indices) registered for execution on the input `executorId` executor (in <<pendingTasksForExecutor, pendingTasksForExecutor>> internal registry).
+
+NOTE: `getPendingTasksForExecutor` may find no matching tasks and return an empty collection.
+
+NOTE: `getPendingTasksForExecutor` is used exclusively when `TaskSetManager` <<dequeueTask, dequeues a task tor execution (given locality information)>>.
+
+=== [[getPendingTasksForHost]] Finding Tasks (Indices) Registered For Execution on Host -- `getPendingTasksForHost` Internal Method
+
+[source, scala]
+----
+getPendingTasksForHost(host: String): ArrayBuffer[Int]
+----
+
+`getPendingTasksForHost` finds pending tasks (indices) registered for execution on the input `host` host (in <<pendingTasksForHost, pendingTasksForHost>> internal registry).
+
+NOTE: `getPendingTasksForHost` may find no matching tasks and return an empty collection.
+
+NOTE: `getPendingTasksForHost` is used exclusively when `TaskSetManager` <<dequeueTask, dequeues a task tor execution (given locality information)>>.
+
+=== [[getPendingTasksForRack]] Finding Tasks (Indices) Registered For Execution on Rack -- `getPendingTasksForRack` Internal Method
+
+[source, scala]
+----
+getPendingTasksForRack(rack: String): ArrayBuffer[Int]
+----
+
+`getPendingTasksForRack` finds pending tasks (indices) registered for execution on the input `rack` rack (in <<pendingTasksForRack, pendingTasksForRack>> internal registry).
+
+NOTE: `getPendingTasksForRack` may find no matching tasks and return an empty collection.
+
+NOTE: `getPendingTasksForRack` is used exclusively when `TaskSetManager` <<dequeueTask, dequeues a task tor execution (given locality information)>>.
 
 === [[scheduling-tasks]] Scheduling Tasks in TaskSet
 
