@@ -109,6 +109,9 @@ Used in <<handleFailedTask, handleFailedTask>>.
 
 Read <<zombie-state, Zombie state>> in this document.
 
+| [[lastLaunchTime]] `lastLaunchTime`
+|
+
 | [[localityWaits]] `localityWaits`
 |
 
@@ -342,9 +345,11 @@ INFO Marking task [index] in stage [taskSet.id] (on [info.host]) as speculatable
 
 The task gets added to the internal `speculatableTasks` collection. The method responds positively.
 
-=== [[resourceOffer]] Finding Task For Execution (Given Resource Offer) -- `resourceOffer` Method
+=== [[getAllowedLocalityLevel]] `getAllowedLocalityLevel` Method
 
-CAUTION: FIXME Review `TaskSetManager.resourceOffer` + Does this have anything related to the following section about scheduling tasks?
+CAUTION: FIXME
+
+=== [[resourceOffer]] Finding Task For Execution (Given Resource Offer) -- `resourceOffer` Method
 
 [source, scala]
 ----
@@ -354,39 +359,75 @@ resourceOffer(
   maxLocality: TaskLocality): Option[TaskDescription]
 ----
 
-When a `TaskSetManager` is a <<zombie-state, zombie>>, `resourceOffer` returns no link:spark-TaskDescription.adoc[TaskDescription] (i.e. `None`).
+(only if <<taskSetBlacklistHelperOpt, TaskSetBlacklist>> is defined) `resourceOffer` requests `TaskSetBlacklist` to check if the input link:spark-taskscheduler-TaskSetBlacklist.adoc#isExecutorBlacklistedForTaskSet[`execId` executor] or link:spark-taskscheduler-TaskSetBlacklist.adoc#isNodeBlacklistedForTaskSet[`host` node] are blacklisted.
 
-For a non-zombie `TaskSetManager`, `resourceOffer`...FIXME
+When `TaskSetManager` is a <<zombie-state, zombie>> or the resource offer (as executor and host) is blacklisted, `resourceOffer` finds no tasks to execute (and returns no link:spark-TaskDescription.adoc[TaskDescription]).
 
-CAUTION: FIXME
+NOTE: `resourceOffer` finds a task to schedule for a resource offer when neither `TaskSetManager` is a <<zombie-state, zombie>> nor the resource offer is blacklisted.
 
-It dequeues a pending task from the taskset by checking pending tasks per executor (using `pendingTasksForExecutor`), host (using `pendingTasksForHost`), with no localization preferences (using `pendingTasksWithNoPrefs`), rack (uses `TaskSchedulerImpl.getRackForHost` that seems to return "non-zero" value for link:yarn/spark-yarn-yarnscheduler.adoc[YarnScheduler] only)
+`resourceOffer` calculates the allowed task locality for task selection. When the input `maxLocality` is not `NO_PREF` task locality, `resourceOffer` <<getAllowedLocalityLevel, getAllowedLocalityLevel>> (for the current time) and sets it as the current task locality if more localized (specific).
 
-From `TaskSetManager.resourceOffer`:
+NOTE: link:spark-taskschedulerimpl.adoc[TaskLocality] can be the most localized `PROCESS_LOCAL`, `NODE_LOCAL` through `NO_PREF` and `RACK_LOCAL` to `ANY`.
+
+`resourceOffer` <<dequeueTask, dequeues a task tor execution (given locality information)>>.
+
+If a task (index) is found, `resourceOffer` takes the link:spark-taskscheduler-tasks.adoc[Task] (from <<tasks, tasks>> registry).
+
+`resourceOffer` link:spark-taskschedulerimpl.adoc#newTaskId[requests `TaskSchedulerImpl` for the id for the new task].
+
+`resourceOffer` increments the <<copiesRunning, number of the copies of the task that are currently running>> and finds the task attempt number (as the size of <<taskAttempts, taskAttempts>> entries for the task index).
+
+`resourceOffer` link:spark-TaskInfo.adoc#creating-instance[creates a `TaskInfo`] that is then registered in <<taskInfos, taskInfos>> and <<taskAttempts, taskAttempts>>.
+
+If the maximum acceptable task locality is not `NO_PREF`, `resourceOffer` <<getLocalityIndex, getLocalityIndex>> (using the task's locality) and records it as <<currentLocalityIndex, currentLocalityIndex>> with the current time as <<lastLaunchTime, lastLaunchTime>>.
+
+`resourceOffer` serializes the task.
+
+NOTE: `resourceOffer` uses link:spark-sparkenv.adoc#closureSerializer[`SparkEnv` to access the closure `Serializer`] and link:spark-Serializer.adoc#newInstance[create an instance thereof].
+
+If the task serialization fails, you should see the following ERROR message in the logs:
 
 ```
-INFO TaskSetManager: Starting task 0.0 in stage 0.0 (TID 0, 192.168.1.4, partition 0,PROCESS_LOCAL, 1997 bytes)
+Failed to serialize task [taskId], not attempting to retry it.
 ```
 
-If a serialized task is bigger than `100` kB (it is not a configurable value), a WARN message is printed out to the logs (only once per taskset):
+`resourceOffer` <<abort, aborts the `TaskSet`>> with the following message and reports a `TaskNotSerializableException`.
 
-```
-WARN TaskSetManager: Stage [task.stageId] contains a task of very large size ([serializedTask.limit / 1024] KB). The maximum recommended task size is 100 KB.
-```
+[options="wrap"]
+----
+Failed to serialize task [taskId], not attempting to retry it. Exception during serialization: [exception]
+----
 
-A task id is added to `runningTasksSet` set and <<parent-pool, parent pool>> notified (using `increaseRunningTasks(1)` up the chain of pools).
+`resourceOffer` checks the size of the serialized task. If it is greater than `100` kB, you should see the following WARN message in the logs:
 
-The following INFO message appears in the logs:
+[options="wrap"]
+----
+WARN Stage [id] contains a task of very large size ([size] KB). The maximum recommended task size is 100 KB.
+----
 
-```
-INFO TaskSetManager: Starting task [id] in stage [taskSet.id] (TID [taskId], [host], partition [task.partitionId],[taskLocality], [serializedTask.limit] bytes)
-```
+NOTE: The size of the serializable task, i.e. `100` kB, is not configurable.
+
+If however the serialization went well and the size is fine too, `resourceOffer` <<addRunningTask, registers the task as running>>.
+
+You should see the following INFO message in the logs:
+
+[options="wrap"]
+----
+INFO TaskSetManager: Starting [name] (TID [id], [host], executor [id], partition [id], [taskLocality], [size] bytes)
+----
 
 For example:
 
-```
-INFO TaskSetManager: Starting task 1.0 in stage 0.0 (TID 1, localhost, partition 1,PROCESS_LOCAL, 2054 bytes)
-```
+[options="wrap"]
+----
+INFO TaskSetManager: Starting task 1.0 in stage 0.0 (TID 1, localhost, partition 1, PROCESS_LOCAL, 2054 bytes)
+----
+
+`resourceOffer` link:spark-dagscheduler.adoc#taskStarted[notifies `DAGScheduler` that the task has been started].
+
+IMPORTANT: This is the moment when `TaskSetManager` informs `DAGScheduler` that a task has started.
+
+NOTE: `resourceOffer` is used when `TaskSchedulerImpl` link:spark-taskschedulerimpl.adoc#resourceOfferSingleTaskSet[resourceOfferSingleTaskSet].
 
 === [[dequeueTask]] Dequeueing Task For Execution (Given Locality Information) -- `dequeueTask` Internal Method
 
@@ -525,25 +566,28 @@ It then removes `tid` task from <<runningTasksSet, runningTasksSet>> internal re
 
 At this point, `handleSuccessfulTask` looks up the other <<taskAttempts, running task attempts>> of `tid` task and link:spark-SchedulerBackend.adoc#killTask[requests `SchedulerBackend` to kill them]. You should see the following INFO message in the logs:
 
-```
+[options="wrap"]
+----
 INFO Killing attempt [attemptNumber] for task [id] in stage [id] (TID [id]) on [host] as the attempt [attemptNumber] succeeded on [host]
-```
+----
 
 CAUTION: FIXME Review `taskAttempts`
 
 If `tid` has _not_ yet been recorded as <<successful, successful>>, `handleSuccessfulTask` increases <<tasksSuccessful, tasksSuccessful>> counter. You should see the following INFO message in the logs:
 
-```
+[options="wrap"]
+----
 INFO Finished task [id] in stage [id] (TID [taskId]) in [duration] ms on [host] (executor [executorId]) ([tasksSuccessful]/[numTasks])
-```
+----
 
 `tid` task is marked as <<successful, successful>>. If the number of task that have finished successfully is exactly the number of the tasks to execute (in the `TaskSet`), the `TaskSetManager` becomes a <<isZombie, zombie>>.
 
 If `tid` task was already recorded as <<successful, successful>>, you should _merely_ see the following INFO message in the logs:
 
-```
+[options="wrap"]
+----
 INFO Ignoring task-finished event for [id] in stage [id] because task [index] has already completed successfully
-```
+----
 
 Ultimately, `handleSuccessfulTask` <<maybeFinishTaskSet, attempts to mark the `TaskSet` finished>>.
 
@@ -916,7 +960,7 @@ computeValidLocalityLevels(): Array[TaskLocality]
 
 `computeValidLocalityLevels` computes valid locality levels for tasks that were registered in corresponding registries per locality level.
 
-NOTE: link:spark-taskschedulerimpl.adoc[TaskLocality] is a task locality preference and can be the most localized `NODE_LOCAL` through `NO_PREF` and `RACK_LOCAL` to `ANY`.
+NOTE: link:spark-taskschedulerimpl.adoc[TaskLocality] is a task locality preference and can be the most localized `PROCESS_LOCAL`, `NODE_LOCAL` through `NO_PREF` and `RACK_LOCAL` to `ANY`.
 
 .TaskLocalities and Corresponding Internal Registries
 [cols="1,2",options="header",width="100%"]
