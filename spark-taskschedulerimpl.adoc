@@ -27,7 +27,7 @@ Using <<spark_scheduler_mode, spark.scheduler.mode>> setting you can select the 
 | [[backend]] `backend`
 | link:spark-SchedulerBackend.adoc[SchedulerBackend]
 
-Used when...FIXME
+Set when `TaskSchedulerImpl` <<initialize, is initialized>>.
 
 | [[dagScheduler]] `dagScheduler`
 | link:spark-dagscheduler.adoc[DAGScheduler]
@@ -92,20 +92,6 @@ log4j.logger.org.apache.spark.scheduler.TaskSchedulerImpl=DEBUG
 
 Refer to link:spark-logging.adoc[Logging].
 ====
-
-=== [[resourceOfferSingleTaskSet]] `resourceOfferSingleTaskSet` Method
-
-[source, scala]
-----
-resourceOfferSingleTaskSet(
-  taskSet: TaskSetManager,
-  maxLocality: TaskLocality,
-  shuffledOffers: Seq[WorkerOffer],
-  availableCpus: Array[Int],
-  tasks: Seq[ArrayBuffer[TaskDescription]]): Boolean
-----
-
-`resourceOfferSingleTaskSet` is a private helper method that is executed when...
 
 === [[newTaskId]] `newTaskId` Method
 
@@ -186,7 +172,7 @@ Only if a new executor was added, `resourceOffers` link:spark-TaskSetManager.ado
 
 NOTE: A `TaskSetManager` link:spark-TaskSetManager.adoc##computeValidLocalityLevels[computes locality levels of the tasks] it manages.
 
-For every `TaskSetManager` and the ``TaskSetManager``'s valid locality level, `resourceOffers`  <<resourceOfferSingleTaskSet, resourceOfferSingleTaskSet>> as long as the `TaskSetManager` manages to launch a task (given the locality level).
+For every `TaskSetManager` and the ``TaskSetManager``'s valid locality level, `resourceOffers` tries to <<resourceOfferSingleTaskSet, find tasks to schedule (on executors)>> as long as the `TaskSetManager` manages to launch a task (given the locality level).
 
 If `resourceOffers` did not manage to offer resources to a `TaskSetManager` so it could launch any task, `resourceOffers` link:spark-TaskSetManager.adoc#abortIfCompletelyBlacklisted[requests the `TaskSetManager` to abort the `TaskSet` if completely blacklisted].
 
@@ -202,6 +188,42 @@ When `resourceOffers` managed to launch a task, the internal <<hasLaunchedTask, 
 
 * Spark on Mesos' `MesosFineGrainedSchedulerBackend` does `resourceOffers`
 ====
+
+=== [[resourceOfferSingleTaskSet]] Finding Tasks from TaskSetManager to Schedule on Executors -- `resourceOfferSingleTaskSet` Internal Method
+
+[source, scala]
+----
+resourceOfferSingleTaskSet(
+  taskSet: TaskSetManager,
+  maxLocality: TaskLocality,
+  shuffledOffers: Seq[WorkerOffer],
+  availableCpus: Array[Int],
+  tasks: Seq[ArrayBuffer[TaskDescription]]): Boolean
+----
+
+`resourceOfferSingleTaskSet` takes every `WorkerOffer` (from the input `shuffledOffers`) and (only if the number of available CPU cores (using the input `availableCpus`) is at least <<spark.task.cpus, spark.task.cpus>>) link:spark-TaskSetManager.adoc#resourceOffer[requests `TaskSetManager` (as the input `taskSet`) to find a `Task` to execute (given the resource offer)] (as an executor, a host, and the input `maxLocality`).
+
+`resourceOfferSingleTaskSet` adds the task to the input `tasks` collection.
+
+`resourceOfferSingleTaskSet` records the task id and `TaskSetManager` in the following registries:
+
+* <<taskIdToTaskSetManager, taskIdToTaskSetManager>>
+* <<taskIdToExecutorId, taskIdToExecutorId>>
+* <<executorIdToRunningTaskIds, executorIdToRunningTaskIds>>
+
+`resourceOfferSingleTaskSet` decreases <<spark.task.cpus, spark.task.cpus>> from the input `availableCpus` (for the `WorkerOffer`).
+
+NOTE: `resourceOfferSingleTaskSet` makes sure that the number of available CPU cores (in the input `availableCpus` per `WorkerOffer`) is at least `0`.
+
+If there is a `TaskNotSerializableException`, you should see the following ERROR in the logs:
+
+```
+ERROR Resource offer failed, task set [name] was not serializable
+```
+
+`resourceOfferSingleTaskSet` returns whether a task was launched or not.
+
+NOTE: `resourceOfferSingleTaskSet` is used when `TaskSchedulerImpl` <<resourceOffers, creates `TaskDescriptions` for available executor resource offers (with CPU cores)>>.
 
 === [[TaskLocality]] TaskLocality -- Task Locality Preference
 
@@ -363,8 +385,6 @@ initialize(backend: SchedulerBackend): Unit
 .TaskSchedulerImpl initialization
 image::images/TaskSchedulerImpl-initialize.png[align="center"]
 
-NOTE: `initialize` is called while link:spark-sparkcontext-creating-instance-internals.adoc#createTaskScheduler[SparkContext is being created and creates `SchedulerBackend` and `TaskScheduler`].
-
 `initialize` saves the reference to the current link:spark-SchedulerBackend.adoc[SchedulerBackend] (as `backend`) and sets `rootPool` to be an empty-named link:spark-taskscheduler-pool.adoc[Pool] with already-initialized `schedulingMode` (while <<creating-instance, creating a TaskSchedulerImpl object>>), `initMinShare` and `initWeight` as `0`.
 
 NOTE: `schedulingMode` and `rootPool` are a part of link:spark-taskscheduler.adoc#contract[TaskScheduler Contract].
@@ -377,6 +397,8 @@ It then creates the internal link:spark-taskscheduler-schedulablebuilders.adoc[S
 With the `schedulableBuilder` object created, `initialize` requests it to link:spark-taskscheduler-schedulablebuilders.adoc#buildPools[build pools].
 
 CAUTION: FIXME Why are `rootPool` and `schedulableBuilder` created only now? What do they need that it is not available when `TaskSchedulerImpl` is created?
+
+NOTE: `initialize` is called while link:spark-sparkcontext-creating-instance-internals.adoc#createTaskScheduler[SparkContext is being created and creates `SchedulerBackend` and `TaskScheduler`].
 
 === [[start]] Starting TaskSchedulerImpl -- `start` Method
 
@@ -656,7 +678,7 @@ a|
 
 | The number of individual task failures before giving up on the entire link:spark-taskscheduler-tasksets.adoc[TaskSet] and the job afterwards.
 
-| [[spark.task.cpus]][[spark_task_cpus]] `spark.task.cpus`
+| [[spark.task.cpus]] `spark.task.cpus`
 | `1`
 | The number of CPU cores per task.
 
