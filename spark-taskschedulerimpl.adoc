@@ -24,8 +24,8 @@ Using <<spark_scheduler_mode, spark.scheduler.mode>> setting you can select the 
 | Name
 | Description
 
-| [[hasLaunchedTask]] `hasLaunchedTask`
-| Flag...FIXME
+| [[backend]] `backend`
+| link:spark-SchedulerBackend.adoc[SchedulerBackend]
 
 Used when...FIXME
 
@@ -49,6 +49,11 @@ Used when...FIXME
 
 | [[executorsByHost]] `executorsByHost`
 | Collection of link:spark-executor.adoc[executors] per host
+
+| [[hasLaunchedTask]] `hasLaunchedTask`
+| Flag...FIXME
+
+Used when...FIXME
 
 | [[hostToExecutors]] `hostToExecutors`
 | Lookup table of executors per hosts in a cluster.
@@ -87,6 +92,20 @@ log4j.logger.org.apache.spark.scheduler.TaskSchedulerImpl=DEBUG
 
 Refer to link:spark-logging.adoc[Logging].
 ====
+
+=== [[resourceOfferSingleTaskSet]] `resourceOfferSingleTaskSet` Method
+
+[source, scala]
+----
+resourceOfferSingleTaskSet(
+  taskSet: TaskSetManager,
+  maxLocality: TaskLocality,
+  shuffledOffers: Seq[WorkerOffer],
+  availableCpus: Array[Int],
+  tasks: Seq[ArrayBuffer[TaskDescription]]): Boolean
+----
+
+`resourceOfferSingleTaskSet` is a private helper method that is executed when...
 
 === [[newTaskId]] `newTaskId` Method
 
@@ -434,51 +453,48 @@ stop(): Unit
 
 `TaskSchedulerImpl` uses link:spark-SchedulerBackend.adoc#defaultParallelism[SchedulerBackend.defaultParallelism()] to calculate the value, i.e. it just passes it along to a scheduler backend.
 
-=== [[submitTasks]] Submitting Tasks (from TaskSet) -- `submitTasks` Method
-
-NOTE: `submitTasks` is a part of link:spark-taskscheduler.adoc#contract[TaskScheduler Contract].
+=== [[submitTasks]] Submitting Tasks for Execution (from TaskSet for Stage) -- `submitTasks` Method
 
 [source, scala]
 ----
 submitTasks(taskSet: TaskSet): Unit
 ----
 
-`submitTasks` creates a link:spark-TaskSetManager.adoc[TaskSetManager] for the input link:spark-taskscheduler-tasksets.adoc[TaskSet] and link:spark-taskscheduler-schedulablebuilders.adoc#addTaskSetManager[adds it to the `Schedulable` root pool].
-
-NOTE: The link:spark-taskscheduler.adoc#rootPool[root pool] can be a single flat linked queue (in link:spark-taskscheduler-FIFOSchedulableBuilder.adoc[FIFO scheduling mode]) or a hierarchy of pools of `Schedulables` (in link:spark-taskscheduler-FairSchedulableBuilder.adoc[FAIR scheduling mode]).
-
-It makes sure that the requested resources, i.e. CPU and memory, are assigned to the Spark application for a non-local environment before requesting the current link:spark-SchedulerBackend.adoc#reviveOffers[`SchedulerBackend` to revive offers].
+NOTE: `submitTasks` is a part of link:spark-taskscheduler.adoc#contract[TaskScheduler Contract].
 
 .TaskSchedulerImpl.submitTasks
 image::images/taskschedulerImpl-submitTasks.png[align="center"]
 
-NOTE: If there are tasks to launch for missing partitions in a stage, DAGScheduler executes `submitTasks` (see link:spark-dagscheduler.adoc#submitMissingTasks[submitMissingTasks for Stage and Job]).
-
-When `submitTasks` is called, you should see the following INFO message in the logs:
+When executed, you should see the following INFO message in the logs:
 
 ```
-INFO TaskSchedulerImpl: Adding task set [id] with [length] tasks
+INFO TaskSchedulerImpl: Adding task set [id] with [count] tasks
 ```
 
-It creates a new link:spark-TaskSetManager.adoc[TaskSetManager] for the input `taskSet` and the <<maxTaskFailures, acceptable number of task failures>>.
+`submitTasks` <<createTaskSetManager, creates a `TaskSetManager`>> (for the input `taskSet` and <<maxTaskFailures, acceptable number of task failures>>).
 
-NOTE: The acceptable number of task failures is specified when a <<creating-instance, TaskSchedulerImpl is created>>.
+NOTE: `submitTasks` uses <<maxTaskFailures, acceptable number of task failures>> that is defined when <<creating-instance, `TaskSchedulerImpl` is created>>.
 
-NOTE: A `TaskSet` knows the tasks to execute (as `tasks`) and stage id (as `stageId`) the tasks belong to. Read link:spark-taskscheduler-tasksets.adoc[TaskSets].
+`submitTasks` registers the `TaskSetManager` per stage and stage attempt id (in <<taskSetsByStageIdAndAttempt, taskSetsByStageIdAndAttempt>>).
 
-The `TaskSet` is registered in the internal <<taskSetsByStageIdAndAttempt, taskSetsByStageIdAndAttempt>> registry with the `TaskSetManager`.
+NOTE: The stage and the stage attempt id are attributes of a link:spark-taskscheduler-tasksets.adoc[TaskSet].
 
-If there is more than one active link:spark-TaskSetManager.adoc[TaskSetManager] for the stage, a `IllegalStateException` is thrown with the message:
+NOTE: `submitTasks` assumes that only one `TaskSet` can be active for a `Stage`.
+
+If there is more than one active link:spark-TaskSetManager.adoc[TaskSetManager] for the stage, `submitTasks` reports a `IllegalStateException` with the message:
 
 ```
 more than one active taskSet for stage [stage]: [TaskSet ids]
 ```
 
 NOTE: `TaskSetManager` is considered *active* when it is not a *zombie*.
+`submitTasks` link:spark-taskscheduler-schedulablebuilders.adoc#addTaskSetManager[adds the `TaskSetManager` to the `Schedulable` root pool] (available as <<schedulableBuilder, schedulableBuilder>>).
 
-The `TaskSetManager` is link:spark-taskscheduler-schedulablebuilders.adoc#addTaskSetManager[added to the `Schedulable` pool (via `SchedulableBuilder`)].
+NOTE: The link:spark-taskscheduler.adoc#rootPool[root pool] can be a single flat linked queue (in link:spark-taskscheduler-FIFOSchedulableBuilder.adoc[FIFO scheduling mode]) or a hierarchy of pools of `Schedulables` (in link:spark-taskscheduler-FairSchedulableBuilder.adoc[FAIR scheduling mode]).
 
-When the method is called the very first time (`hasReceivedTask` is `false`) in cluster mode only (i.e. `isLocal` of the `TaskSchedulerImpl` is `false`), `starvationTimer` is scheduled to execute after <<spark_starvation_timeout, spark.starvation.timeout>>  to ensure that the requested resources, i.e. CPUs and memory, were assigned by a cluster manager.
+`submitTasks` makes sure that the requested resources, i.e. CPU and memory, are assigned to the Spark application for a <<isLocal, non-local environment>>.
+
+When `submitTasks` is called the very first time (`hasReceivedTask` is `false`) in cluster mode only (i.e. `isLocal` of the `TaskSchedulerImpl` is `false`), `starvationTimer` is scheduled to execute after <<spark_starvation_timeout, spark.starvation.timeout>>  to ensure that the requested resources, i.e. CPUs and memory, were assigned by a cluster manager.
 
 NOTE: After the first `spark.starvation.timeout` passes, the internal `hasReceivedTask` flag becomes `true`.
 
@@ -490,7 +506,7 @@ WARN Initial job has not accepted any resources; check your cluster UI to ensure
 
 Otherwise, when the `hasLaunchedTask` flag is `true` the timer thread cancels itself.
 
-Ultimately, `submitTasks` requests the link:spark-SchedulerBackend.adoc#reviveOffers[`SchedulerBackend` to revive offers].
+In the end, `submitTasks` link:spark-SchedulerBackend.adoc#reviveOffers[requests the current `SchedulerBackend` to revive offers] (available as <<backend, backend>>).
 
 TIP: Use `dag-scheduler-event-loop` thread to step through the code in a debugger.
 
@@ -506,20 +522,6 @@ createTaskSetManager(taskSet: TaskSet, maxTaskFailures: Int): TaskSetManager
 NOTE: `createTaskSetManager` uses the optional <<blacklistTrackerOpt, BlacklistTracker>> that is specified when <<creating-instance, `TaskSchedulerImpl` is created>>.
 
 NOTE: `createTaskSetManager` is used exclusively when <<submitTasks, `TaskSchedulerImpl` submits tasks (for a given `TaskSet`)>>.
-
-=== [[resourceOfferSingleTaskSet]] `resourceOfferSingleTaskSet` Method
-
-[source, scala]
-----
-resourceOfferSingleTaskSet(
-  taskSet: TaskSetManager,
-  maxLocality: TaskLocality,
-  shuffledOffers: Seq[WorkerOffer],
-  availableCpus: Array[Int],
-  tasks: Seq[ArrayBuffer[TaskDescription]]): Boolean
-----
-
-`resourceOfferSingleTaskSet` is a private helper method that is executed when...
 
 === [[statusUpdate]] `statusUpdate` Method
 
