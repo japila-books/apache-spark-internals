@@ -70,6 +70,16 @@ Used when...FIXME
 
 Used when `TaskSchedulerImpl`...
 
+| [[rootPool]] `rootPool`
+| Schedulable link:spark-taskscheduler-pool.adoc[Pool]
+
+Used when `TaskSchedulerImpl`...
+
+| [[schedulingMode]] `schedulingMode`
+| link:spark-taskscheduler-schedulingmode.adoc[SchedulingMode]
+
+Used when `TaskSchedulerImpl`...
+
 | [[taskSetsByStageIdAndAttempt]] `taskSetsByStageIdAndAttempt`
 | Lookup table of link:spark-taskscheduler-tasksets.adoc[TaskSet] by stage and attempt ids.
 
@@ -373,32 +383,36 @@ Unrecognized spark.scheduler.mode: [schedulingModeConf]
 
 Ultimately, `TaskSchedulerImpl` creates a link:spark-taskschedulerimpl-TaskResultGetter.adoc[TaskResultGetter].
 
-=== [[initialization]][[initialize]] Initializing TaskSchedulerImpl -- `initialize` Method
+=== [[initialize]] Saving SchedulerBackend and Building Schedulable Pools (aka Initializing TaskSchedulerImpl) -- `initialize` Method
 
 [source, scala]
 ----
 initialize(backend: SchedulerBackend): Unit
 ----
 
-`initialize` initializes a `TaskSchedulerImpl` object.
+`initialize` initializes `TaskSchedulerImpl`.
 
 .TaskSchedulerImpl initialization
 image::images/TaskSchedulerImpl-initialize.png[align="center"]
 
-`initialize` saves the reference to the current link:spark-SchedulerBackend.adoc[SchedulerBackend] (as `backend`) and sets `rootPool` to be an empty-named link:spark-taskscheduler-pool.adoc[Pool] with already-initialized `schedulingMode` (while <<creating-instance, creating a TaskSchedulerImpl object>>), `initMinShare` and `initWeight` as `0`.
+`initialize` saves the input <<backend, SchedulerBackend>>.
 
-NOTE: `schedulingMode` and `rootPool` are a part of link:spark-taskscheduler.adoc#contract[TaskScheduler Contract].
+`initialize` then sets <<rootPool, schedulable `Pool`>> as an empty-named link:spark-taskscheduler-pool.adoc[Pool] (passing in <<schedulingMode, SchedulingMode>>, `initMinShare` and `initWeight` as `0`).
 
-It then creates the internal link:spark-taskscheduler-schedulablebuilders.adoc[SchedulableBuilder] object (as `schedulableBuilder`) based on `schedulingMode`:
+NOTE: <<schedulingMode, SchedulingMode>> is defined when <<creating-instance, `TaskSchedulerImpl` is created>>.
+
+NOTE: <<schedulingMode, schedulingMode>> and <<rootPool, rootPool>> are a part of link:spark-taskscheduler.adoc#contract[TaskScheduler Contract].
+
+`initialize` sets <<schedulableBuilder, SchedulableBuilder>> (based on <<schedulingMode, SchedulingMode>>):
 
 * link:spark-taskscheduler-FIFOSchedulableBuilder.adoc[FIFOSchedulableBuilder] for `FIFO` scheduling mode
 * link:spark-taskscheduler-FairSchedulableBuilder.adoc[FairSchedulableBuilder] for `FAIR` scheduling mode
 
-With the `schedulableBuilder` object created, `initialize` requests it to link:spark-taskscheduler-schedulablebuilders.adoc#buildPools[build pools].
+`initialize` link:spark-taskscheduler-schedulablebuilders.adoc#buildPools[requests `SchedulableBuilder` to build pools].
 
 CAUTION: FIXME Why are `rootPool` and `schedulableBuilder` created only now? What do they need that it is not available when `TaskSchedulerImpl` is created?
 
-NOTE: `initialize` is called while link:spark-sparkcontext-creating-instance-internals.adoc#createTaskScheduler[SparkContext is being created and creates `SchedulerBackend` and `TaskScheduler`].
+NOTE: `initialize` is called while link:spark-sparkcontext-creating-instance-internals.adoc#createTaskScheduler[SparkContext is created and creates `SchedulerBackend` and `TaskScheduler`].
 
 === [[start]] Starting TaskSchedulerImpl -- `start` Method
 
