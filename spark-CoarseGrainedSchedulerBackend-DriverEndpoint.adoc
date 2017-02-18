@@ -1,6 +1,8 @@
 == [[DriverEndpoint]] DriverEndpoint -- CoarseGrainedSchedulerBackend RPC Endpoint
 
-`DriverEndpoint` is a link:spark-rpc.adoc#ThreadSafeRpcEndpoint[ThreadSafeRpcEndpoint] for link:spark-CoarseGrainedSchedulerBackend.adoc[CoarseGrainedSchedulerBackend].
+`DriverEndpoint` is a link:spark-rpc.adoc#ThreadSafeRpcEndpoint[ThreadSafeRpcEndpoint] for link:spark-CoarseGrainedSchedulerBackend.adoc[CoarseGrainedSchedulerBackend] and is <<creating-instance, created>> when `CoarseGrainedSchedulerBackend` link:spark-CoarseGrainedSchedulerBackend.adoc#starts[starts].
+
+`DriverEndpoint` uses a <<reviveThread, single thread executor>> called *driver-revive-thread* to <<makeOffers, make executor resource offers (for launching tasks)>> (by emitting <<ReviveOffers, ReviveOffers>> message every link:spark-CoarseGrainedSchedulerBackend.adoc#spark.scheduler.revive.interval[spark.scheduler.revive.interval]).
 
 CAUTION: FIXME Image with incoming messages and their emitters.
 
@@ -40,15 +42,19 @@ a|
 | Initial Value
 | Description
 
-| [[executorsPendingLossReason]] `executorsPendingLossReason`
-|
-|
-
 | [[addressToExecutorId]] `addressToExecutorId`
 |
 | Executor addresses (host and port) for executors.
 
 Set when an executor connects to register itself. See <<RegisterExecutor, RegisterExecutor>> RPC message.
+
+| [[executorsPendingLossReason]] `executorsPendingLossReason`
+|
+|
+
+| [[reviveThread]] `reviveThread`
+|
+|
 |===
 
 === [[KillExecutorsOnHost-handler]] KillExecutorsOnHost Handler
@@ -246,3 +252,12 @@ When `DriverEndpoint` found no executor (in link:spark-CoarseGrainedSchedulerBac
 ```
 WARN Ignored task status update ([taskId] state [state]) from unknown executor with ID [executorId]
 ```
+
+=== [[creating-instance]] Creating DriverEndpoint Instance
+
+`DriverEndpoint` takes the following when created:
+
+* [[rpcEnv]] link:spark-rpc.adoc[RpcEnv]
+* [[sparkProperties]] Collection of Spark properties and their values
+
+`DriverEndpoint` initializes the <<internal-registries, internal registries and counters>>.
