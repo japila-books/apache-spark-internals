@@ -2,18 +2,34 @@
 
 `DriverEndpoint` is a link:spark-rpc.adoc#ThreadSafeRpcEndpoint[ThreadSafeRpcEndpoint] for link:spark-CoarseGrainedSchedulerBackend.adoc[CoarseGrainedSchedulerBackend].
 
+CAUTION: FIXME Image with incoming messages and their emitters.
+
 [[CoarseGrainedClusterMessage]]
 .CoarseGrainedClusterMessages and Event Handlers (in alphabetical order)
 [width="100%",cols="1,1,2",options="header"]
 |===
 | CoarseGrainedClusterMessage
 | Event Handler
-| Trigger
+| When emitted?
+
+| [[KillExecutorsOnHost]] KillExecutorsOnHost
+| <<KillExecutorsOnHost-handler, KillExecutorsOnHost handler>>
+| `CoarseGrainedSchedulerBackend` is requested to link:spark-CoarseGrainedSchedulerBackend.adoc#killExecutorsOnHost[kill all executors on a node].
+
+| [[KillTask]] KillTask
+| <<KillTask-handler, KillTask handler>>
+| `CoarseGrainedSchedulerBackend` is requested to link:spark-CoarseGrainedSchedulerBackend.adoc#killTask[kill a task].
+
+| [[ReviveOffers]] ReviveOffers
+| <<makeOffers, makeOffers>>
+a|
+
+* Periodically (every link:spark-CoarseGrainedSchedulerBackend.adoc#spark.scheduler.revive.interval[spark.scheduler.revive.interval]) soon after `DriverEndpoint` <<onStart, starts accepting messages>>.
+* `CoarseGrainedSchedulerBackend` is requested to link:spark-CoarseGrainedSchedulerBackend.adoc#reviveOffers[revive resource offers].
 
 | [[StatusUpdate]] StatusUpdate
 | <<StatusUpdate-handler, StatusUpdate handler>>
 | `CoarseGrainedExecutorBackend` link:spark-executor-backends-CoarseGrainedExecutorBackend.adoc#statusUpdate[sends task status updates to the driver].
-
 |===
 
 [[internal-properties]]
@@ -34,6 +50,14 @@
 
 Set when an executor connects to register itself. See <<RegisterExecutor, RegisterExecutor>> RPC message.
 |===
+
+=== [[KillExecutorsOnHost-handler]] KillExecutorsOnHost Handler
+
+CAUTION: FIXME
+
+=== [[KillTask-handler]] KillTask Handler
+
+CAUTION: FIXME
 
 === [[launchTasks]] Launching Tasks on Executors -- `launchTasks` Method
 
@@ -95,8 +119,6 @@ Remote RPC client disassociated. Likely due to containers exceeding thresholds, 
 ----
 
 NOTE: `onDisconnected` is called when a remote host is lost.
-
-=== [[KillTask]] KillTask
 
 === [[RemoveExecutor]] RemoveExecutor
 
@@ -168,19 +190,6 @@ NOTE: `onStart` is a part of link:spark-rpc-RpcEndpoint.adoc#onStart[RpcEndpoint
 `onStart` schedules a periodic action to send <<ReviveOffers, ReviveOffers>> immediately every link:spark-CoarseGrainedSchedulerBackend.adoc#spark.scheduler.revive.interval[spark.scheduler.revive.interval].
 
 NOTE: link:spark-CoarseGrainedSchedulerBackend.adoc#spark.scheduler.revive.interval[spark.scheduler.revive.interval] defaults to `1s`.
-
-=== [[ReviveOffers]] Making Resource Offers -- `ReviveOffers` Message
-
-[source, scala]
-----
-case object ReviveOffers extends CoarseGrainedClusterMessage
-----
-
-When received, `ReviveOffers` simply <<makeOffers, makes executor resource offers>> (in a form of free cores and host name of <<executorIsAlive, active executors>>).
-
-NOTE: *Active executors* are executors not registered in link:spark-CoarseGrainedSchedulerBackend.adoc#executorsPendingToRemove[executorsPendingToRemove] and <<executorsPendingLossReason, executorsPendingLossReason>> internal registries.
-
-NOTE: `ReviveOffers` is sent <<onStart, periodically soon after `CoarseGrainedSchedulerBackend` RPC endpoint starts accepting messages>> and when link:spark-CoarseGrainedSchedulerBackend.adoc#reviveOffers[`CoarseGrainedExecutorBackend` revives resource offers].
 
 === [[makeOffers]] Making Executor Resource Offers (for Launching Tasks) -- `makeOffers` Internal Method
 
