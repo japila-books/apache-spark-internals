@@ -1,6 +1,20 @@
 == [[DriverEndpoint]] DriverEndpoint -- CoarseGrainedSchedulerBackend RPC Endpoint
 
-`DriverEndpoint` is a link:spark-rpc.adoc#ThreadSafeRpcEndpoint[ThreadSafeRpcEndpoint].
+`DriverEndpoint` is a link:spark-rpc.adoc#ThreadSafeRpcEndpoint[ThreadSafeRpcEndpoint] for link:spark-CoarseGrainedSchedulerBackend.adoc[CoarseGrainedSchedulerBackend].
+
+[[CoarseGrainedClusterMessage]]
+.CoarseGrainedClusterMessages and Event Handlers (in alphabetical order)
+[width="100%",cols="1,1,2",options="header"]
+|===
+| CoarseGrainedClusterMessage
+| Event Handler
+| Trigger
+
+| [[StatusUpdate]] StatusUpdate
+| <<StatusUpdate-handler, StatusUpdate handler>>
+| `CoarseGrainedExecutorBackend` link:spark-executor-backends-CoarseGrainedExecutorBackend.adoc#statusUpdate[sends task status updates to the driver].
+
+|===
 
 [[internal-properties]]
 .DriverEndpoint's Internal Properties
@@ -19,22 +33,7 @@
 | Executor addresses (host and port) for executors.
 
 Set when an executor connects to register itself. See <<RegisterExecutor, RegisterExecutor>> RPC message.
-
 |===
-
-=== [[StatusUpdate]] StatusUpdate Message
-
-[source, scala]
-----
-StatusUpdate(
-  executorId: String,
-  taskId: Long,
-  state: TaskState,
-  data: SerializableBuffer)
-extends CoarseGrainedClusterMessage
-----
-
-CAUTION: FIXME
 
 === [[launchTasks]] Launching Tasks on Executors -- `launchTasks` Method
 
@@ -200,4 +199,41 @@ NOTE: `makeOffers` uses link:spark-CoarseGrainedSchedulerBackend.adoc#scheduler[
 
 NOTE: Tasks are described using link:spark-TaskDescription.adoc[TaskDescription] that holds...FIXME
 
-NOTE: `makeOffers` is used when `CoarseGrainedSchedulerBackend` RPC endpoint handles <<ReviveOffers, ReviveOffers>> or <<RegisterExecutor, RegisterExecutor>> messages.
+NOTE: `makeOffers` is used when `CoarseGrainedSchedulerBackend` RPC endpoint (`DriverEndpoint`) handles <<ReviveOffers, ReviveOffers>> or <<RegisterExecutor, RegisterExecutor>> messages.
+
+=== [[makeOffers-executorId]] Making Executor Resource Offer on Single Executor (for Launching Tasks) -- `makeOffers` Internal Method
+
+[source, scala]
+----
+makeOffers(executorId: String): Unit
+----
+
+`makeOffers` makes sure that the <<executorIsAlive, input `executorId` is alive>>.
+
+NOTE: `makeOffers` does nothing when the input `executorId` is registered as pending to be removed or got lost.
+
+`makeOffers` finds the executor data (in link:spark-CoarseGrainedSchedulerBackend.adoc#executorDataMap[executorDataMap] registry) and creates a link:spark-taskschedulerimpl.adoc#WorkerOffer[WorkerOffer].
+
+NOTE: `WorkerOffer` represents a resource offer with CPU cores available on an executor.
+
+`makeOffers` then link:spark-taskschedulerimpl.adoc#resourceOffers[requests `TaskSchedulerImpl` to generate tasks for the `WorkerOffer`] followed by <<launchTasks, launching the tasks>> (on the executor).
+
+NOTE: `makeOffers` is used when `CoarseGrainedSchedulerBackend` RPC endpoint (`DriverEndpoint`) handles <<StatusUpdate, StatusUpdate>> messages.
+
+=== [[StatusUpdate-handler]] StatusUpdate Handler
+
+When `StatusUpdate` is received, `DriverEndpoint` link:spark-taskschedulerimpl.adoc#statusUpdate[passes the task's status update to `TaskSchedulerImpl`].
+
+NOTE: <<scheduler, TaskSchedulerImpl>> is specified when link:spark-CoarseGrainedSchedulerBackend.adoc#creating-instance[`CoarseGrainedSchedulerBackend` is created].
+
+If the link:spark-taskscheduler-tasks.adoc#TaskState[task has finished], `DriverEndpoint` updates the number of cores available for work on the corresponding executor (registered in link:spark-CoarseGrainedSchedulerBackend.adoc#executorDataMap[executorDataMap]).
+
+NOTE: `DriverEndpoint` uses ``TaskSchedulerImpl``'s link:spark-taskschedulerimpl.adoc#spark.task.cpus[spark.task.cpus] as the number of cores that became available after the task has finished.
+
+`DriverEndpoint` <<makeOffers, makes an executor resource offer on the single executor>>.
+
+When `DriverEndpoint` found no executor (in link:spark-CoarseGrainedSchedulerBackend.adoc#executorDataMap[executorDataMap]), you should see the following WARN message in the logs:
+
+```
+WARN Ignored task status update ([taskId] state [state]) from unknown executor with ID [executorId]
+```
