@@ -41,6 +41,48 @@ NOTE: `CoarseGrainedSchedulerBackend` is only created indirectly through <<built
 | Initial Value
 | Description
 
+| [[currentExecutorIdCounter]] `currentExecutorIdCounter`
+|
+| The last (highest) identifier of all <<RegisterExecutor, allocated executors>>.
+
+Used exclusively in link:yarn/spark-yarn-cluster-YarnSchedulerEndpoint.adoc#RetrieveLastAllocatedExecutorId[`YarnSchedulerEndpoint` to respond to `RetrieveLastAllocatedExecutorId` message].
+
+| [[createTime]] `createTime`
+| Current time
+| The time <<creating-instance, `CoarseGrainedSchedulerBackend` was created>>.
+
+| [[defaultAskTimeout]] `defaultAskTimeout`
+| link:spark-rpc.adoc#spark.rpc.askTimeout[spark.rpc.askTimeout] or link:spark-rpc.adoc#spark.network.timeout[spark.network.timeout] or `120s`
+| Default timeout for blocking RPC messages (_aka_ ask messages).
+
+| [[driverEndpoint]] `driverEndpoint`
+| (uninitialized)
+| `CoarseGrainedSchedulerBackend` RPC Endpoint
+
+| [[executorDataMap]] `executorDataMap`
+| empty
+| Registry of `ExecutorData` by executor id.
+
+NOTE: `ExecutorData` holds an executor's endpoint reference, address, host, the number of free and total CPU cores, the URL of execution logs.
+
+Element added when link:spark-CoarseGrainedSchedulerBackend-DriverEndpoint.adoc#RegisterExecutor[`DriverEndpoint` receives `RegisterExecutor` message] and removed when link:spark-CoarseGrainedSchedulerBackend-DriverEndpoint.adoc#RemoveExecutor[`DriverEndpoint` receives `RemoveExecutor` message] or link:spark-CoarseGrainedSchedulerBackend-DriverEndpoint.adoc#onDisconnected[a remote host (with one or many executors) disconnects].
+
+| [[executorsPendingToRemove]] `executorsPendingToRemove`
+| empty
+| Executors marked as removed but the confirmation from a cluster manager has not arrived yet.
+
+| [[hostToLocalTaskCount]] `hostToLocalTaskCount`
+| empty
+| Registry of hostnames and possible number of task running on them.
+
+| [[localityAwareTasks]] `localityAwareTasks`
+| `0`
+| Number of pending tasks...FIXME
+
+| [[maxRegisteredWaitingTimeMs]] `maxRegisteredWaitingTimeMs`
+| <<spark.scheduler.maxRegisteredResourcesWaitingTime, spark.scheduler.maxRegisteredResourcesWaitingTime>>
+|
+
 | [[maxRpcMessageSize]] `maxRpcMessageSize`
 | <<spark.rpc.message.maxSize, spark.rpc.message.maxSize>> but not greater than `2047`
 a| Maximum RPC message size in MB.
@@ -51,13 +93,13 @@ When above `2047` MB you should see the following `IllegalArgumentException`:
 spark.rpc.message.maxSize should not be greater than 2047 MB
 ```
 
-| [[executorDataMap]] `executorDataMap`
-| empty
-| Registry of `ExecutorData` by executor id.
+| [[_minRegisteredRatio]] `_minRegisteredRatio`
+| <<spark.scheduler.minRegisteredResourcesRatio, spark.scheduler.minRegisteredResourcesRatio>>
+|
 
-NOTE: `ExecutorData` holds an executor's endpoint reference, address, host, the number of free and total CPU cores, the URL of execution logs.
-
-Element added when link:spark-CoarseGrainedSchedulerBackend-DriverEndpoint.adoc#RegisterExecutor[`DriverEndpoint` receives `RegisterExecutor` message] and removed when link:spark-CoarseGrainedSchedulerBackend-DriverEndpoint.adoc#RemoveExecutor[`DriverEndpoint` receives `RemoveExecutor` message] or link:spark-CoarseGrainedSchedulerBackend-DriverEndpoint.adoc#onDisconnected[a remote host (with one or many executors) disconnects].
+| [[numPendingExecutors]] `numPendingExecutors`
+| `0`
+|
 
 | [[totalCoreCount]] `totalCoreCount`
 | `0`
@@ -66,49 +108,6 @@ Element added when link:spark-CoarseGrainedSchedulerBackend-DriverEndpoint.adoc#
 | [[totalRegisteredExecutors]] `totalRegisteredExecutors`
 | `0`
 | Total number of registered executors
-
-| [[driverEndpoint]] `driverEndpoint`
-| (uninitialized)
-| `CoarseGrainedSchedulerBackend` RPC Endpoint
-
-| [[_minRegisteredRatio]] `_minRegisteredRatio`
-| <<spark.scheduler.minRegisteredResourcesRatio, spark.scheduler.minRegisteredResourcesRatio>>
-|
-
-| [[maxRegisteredWaitingTimeMs]] `maxRegisteredWaitingTimeMs`
-| <<spark.scheduler.maxRegisteredResourcesWaitingTime, spark.scheduler.maxRegisteredResourcesWaitingTime>>
-|
-
-| [[currentExecutorIdCounter]] `currentExecutorIdCounter`
-|
-| The last (highest) identifier of all <<RegisterExecutor, allocated executors>>.
-
-Used exclusively in link:yarn/spark-yarn-cluster-YarnSchedulerEndpoint.adoc#RetrieveLastAllocatedExecutorId[`YarnSchedulerEndpoint` to respond to `RetrieveLastAllocatedExecutorId` message].
-
-| [[numPendingExecutors]] `numPendingExecutors`
-| `0`
-|
-
-| [[executorsPendingToRemove]] `executorsPendingToRemove`
-| empty
-| Executors marked as removed but the confirmation from a cluster manager has not arrived yet.
-
-| [[hostToLocalTaskCount]] `hostToLocalTaskCount`
-| empty
-| Registry of hostnames and possible number of task running on them.
-
-| [[createTime]] `createTime`
-| Current time
-| The time <<creating-instance, `CoarseGrainedSchedulerBackend` was created>>.
-
-| [[localityAwareTasks]] `localityAwareTasks`
-| `0`
-| Number of pending tasks...FIXME
-
-| [[defaultAskTimeout]] `defaultAskTimeout`
-| link:spark-rpc.adoc#spark.rpc.askTimeout[spark.rpc.askTimeout] or link:spark-rpc.adoc#spark.network.timeout[spark.network.timeout] or `120s`
-| Default timeout for blocking RPC messages (_aka_ ask messages).
-
 |===
 
 [TIP]
@@ -461,7 +460,7 @@ NOTE: `createDriverEndpoint` is used when `CoarseGrainedSchedulerBackend` <<crea
 .Spark Properties
 [cols="1,1,2",options="header",width="100%"]
 |===
-| Spark Property
+| Property
 | Default Value
 | Description
 
@@ -469,9 +468,11 @@ NOTE: `createDriverEndpoint` is used when `CoarseGrainedSchedulerBackend` <<crea
 | `1s`
 | Time (in milliseconds) between resource offers revives.
 
-| [[spark.rpc.message.maxSize]][[spark_rpc_message_maxSize]] `spark.rpc.message.maxSize`
+| [[spark.rpc.message.maxSize]] `spark.rpc.message.maxSize`
 | `128`
-| Maximum message size (in MB) to allow in "control plane" communication; generally only applies to map output size (serialized) information sent between executors and the driver.
+| Maximum message size to allow in RPC communication. In `MB` when the unit is not given.
+
+Generally only applies to map output size (serialized) information sent between executors and the driver.
 
 Increase this if you are running jobs with many thousands of map and reduce tasks and see messages about the RPC message size.
 

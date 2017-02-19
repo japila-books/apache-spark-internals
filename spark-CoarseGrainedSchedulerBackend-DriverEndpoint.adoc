@@ -1,13 +1,15 @@
 == [[DriverEndpoint]] DriverEndpoint -- CoarseGrainedSchedulerBackend RPC Endpoint
 
-`DriverEndpoint` is a link:spark-rpc.adoc#ThreadSafeRpcEndpoint[ThreadSafeRpcEndpoint] for link:spark-CoarseGrainedSchedulerBackend.adoc[CoarseGrainedSchedulerBackend] and is <<creating-instance, created>> when `CoarseGrainedSchedulerBackend` link:spark-CoarseGrainedSchedulerBackend.adoc#starts[starts].
+`DriverEndpoint` is a link:spark-rpc.adoc#ThreadSafeRpcEndpoint[ThreadSafeRpcEndpoint] that acts as a <<messages, message handler>> for link:spark-CoarseGrainedSchedulerBackend.adoc[CoarseGrainedSchedulerBackend].
+
+`DriverEndpoint` is <<creating-instance, created>> when `CoarseGrainedSchedulerBackend` link:spark-CoarseGrainedSchedulerBackend.adoc#starts[starts].
 
 `DriverEndpoint` uses a <<reviveThread, single thread executor>> called *driver-revive-thread* to <<makeOffers, make executor resource offers (for launching tasks)>> (by emitting <<ReviveOffers, ReviveOffers>> message every link:spark-CoarseGrainedSchedulerBackend.adoc#spark.scheduler.revive.interval[spark.scheduler.revive.interval]).
 
 CAUTION: FIXME Image with incoming messages and their emitters.
 
-[[CoarseGrainedClusterMessage]]
-.CoarseGrainedClusterMessages and Event Handlers (in alphabetical order)
+[[messages]]
+.CoarseGrainedClusterMessages and Their Handlers (in alphabetical order)
 [width="100%",cols="1,1,2",options="header"]
 |===
 | CoarseGrainedClusterMessage
@@ -64,46 +66,6 @@ CAUTION: FIXME
 === [[KillTask-handler]] KillTask Handler
 
 CAUTION: FIXME
-
-=== [[launchTasks]] Launching Tasks on Executors -- `launchTasks` Method
-
-[source, scala]
-----
-launchTasks(tasks: Seq[Seq[TaskDescription]]): Unit
-----
-
-`launchTasks` takes one task (as link:spark-TaskDescription.adoc[TaskDescription]) at a time (from the input `tasks` collection).
-
-`launchTasks` serializes `TaskDescription` and checks its size.
-
-CAUTION: FIXME At that point, tasks have their executor assigned. When and how did that happen?
-
-If the size of the serialized task is below the <<maxRpcMessageSize, maximum RPC message size>>, `launchTasks` decrements link:spark-taskschedulerimpl.adoc#spark.task.cpus[spark.task.cpus] number of cores for the executor that has been assigned to execute the task (and tracked in <<executorDataMap, executorDataMap>> internal registry).
-
-NOTE: `ExecutorData` tracks the number of free cores of an executor (as `freeCores`).
-
-You should see the following DEBUG message in the logs:
-
-```
-DEBUG DriverEndpoint: Launching task [taskId] on executor id: [executorId] hostname: [executorHost].
-```
-
-In the end, `launchTasks` notifies the associated executor to launch the task (by sending a link:spark-executor-backends-CoarseGrainedExecutorBackend.adoc#LaunchTask[LaunchTask] message to the executor's RPC endpoint with the serialized task insize `SerializableBuffer`).
-
-NOTE: `ExecutorData` holds the link:spark-RpcEndpointRef.adoc[RpcEndpointRef] of an executor to send task launch requests to (as `executorEndpoint`).
-
-In case the size of a serialized link:spark-TaskDescription.adoc[TaskDescription] equals or exceeds the <<maxRpcMessageSize, maximum RPC message size>>, `launchTasks` finds all the link:spark-TaskSetManager.adoc[TaskSetManagers] associated with the `TaskDescription` and link:spark-TaskSetManager.adoc#abort[aborts them] with the following message:
-
-[options="wrap"]
-----
-Serialized task [taskId]:[index] was [limit] bytes, which exceeds max allowed: spark.rpc.message.maxSize ([maxRpcMessageSize] bytes). Consider increasing spark.rpc.message.maxSize or using broadcast variables for large values.
-----
-
-NOTE: `launchTasks` uses the link:spark-taskschedulerimpl.adoc#taskIdToTaskSetManager[registry of active `TaskSetManagers` per task id] from <<scheduler, TaskSchedulerImpl>> that was given when <<creating-instance, `CoarseGrainedSchedulerBackend` was created>>.
-
-NOTE: Scheduling in Spark relies on cores only (not memory), i.e. the number of tasks Spark can run on an executor is limited by the number of cores available only. When submitting a Spark application for execution both resources -- memory and cores -- can be specified explicitly.
-
-NOTE: `launchTasks` is used when `CoarseGrainedSchedulerBackend` <<makeOffers, makes fake resource offers on executors>>.
 
 === [[executorIsAlive]] `executorIsAlive` Internal Method
 
@@ -234,6 +196,52 @@ NOTE: `WorkerOffer` represents a resource offer with CPU cores available on an e
 `makeOffers` then link:spark-taskschedulerimpl.adoc#resourceOffers[requests `TaskSchedulerImpl` to generate tasks for the `WorkerOffer`] followed by <<launchTasks, launching the tasks>> (on the executor).
 
 NOTE: `makeOffers` is used when `CoarseGrainedSchedulerBackend` RPC endpoint (`DriverEndpoint`) handles <<StatusUpdate, StatusUpdate>> messages.
+
+=== [[launchTasks]] Launching Tasks on Executors -- `launchTasks` Method
+
+[source, scala]
+----
+launchTasks(tasks: Seq[Seq[TaskDescription]]): Unit
+----
+
+`launchTasks` flattens (and hence "destroys" the structure of) the input `tasks` collection and takes one task at a time. Tasks are described using link:spark-TaskDescription.adoc[TaskDescription].
+
+NOTE: The input `tasks` collection contains one or more link:spark-TaskDescription.adoc[TaskDescriptions] per executor (and the "task partitioning" per executor is of no use in `launchTasks` so it simply flattens the input data structure).
+
+`launchTasks` link:spark-TaskDescription.adoc#encode[encodes the `TaskDescription`] and makes sure that the encoded task's size is below the link:spark-CoarseGrainedSchedulerBackend.adoc#maxRpcMessageSize[maximum RPC message size].
+
+NOTE: The link:spark-CoarseGrainedSchedulerBackend.adoc#maxRpcMessageSize[maximum RPC message size] is calculated when `CoarseGrainedSchedulerBackend` link:spark-CoarseGrainedSchedulerBackend.adoc#creating-instance[is created] and corresponds to link:spark-CoarseGrainedSchedulerBackend.adoc#spark.rpc.message.maxSize[spark.rpc.message.maxSize] Spark property (with maximum of `2047` MB).
+
+If the size of the encoded task is acceptable, `launchTasks` finds the `ExecutorData` of the executor that has been assigned to execute the task (in link:spark-CoarseGrainedSchedulerBackend.adoc#executorDataMap[executorDataMap] internal registry) and decreases the executor's link:spark-taskschedulerimpl.adoc#spark.task.cpus[available number of cores].
+
+NOTE: `ExecutorData` tracks the number of free cores of an executor (as `freeCores`).
+
+NOTE: The default task scheduler in Spark -- link:spark-taskschedulerimpl.adoc[TaskSchedulerImpl] -- uses link:spark-taskschedulerimpl.adoc#spark.task.cpus[spark.task.cpus] Spark property to control the number of tasks that can be scheduled per executor.
+
+You should see the following DEBUG message in the logs:
+
+```
+DEBUG DriverEndpoint: Launching task [taskId] on executor id: [executorId] hostname: [executorHost].
+```
+
+In the end, `launchTasks` sends the (serialized) task to associated executor to launch the task (by sending a link:spark-executor-backends-CoarseGrainedExecutorBackend.adoc#LaunchTask[LaunchTask] message to the executor's RPC endpoint with the serialized task insize `SerializableBuffer`).
+
+NOTE: `ExecutorData` tracks the link:spark-RpcEndpointRef.adoc[RpcEndpointRef] of executors to send serialized tasks to (as `executorEndpoint`).
+
+IMPORTANT: This is the moment in a task's lifecycle when the driver sends the serialized task to an assigned executor.
+
+In case the size of a serialized `TaskDescription` equals or exceeds the link:spark-CoarseGrainedSchedulerBackend.adoc#maxRpcMessageSize[maximum RPC message size], `launchTasks` finds the link:spark-TaskSetManager.adoc[TaskSetManager] (associated with the `TaskDescription`) and link:spark-TaskSetManager.adoc#abort[aborts it] with the following message:
+
+[options="wrap"]
+----
+Serialized task [id]:[index] was [limit] bytes, which exceeds max allowed: spark.rpc.message.maxSize ([maxRpcMessageSize] bytes). Consider increasing spark.rpc.message.maxSize or using broadcast variables for large values.
+----
+
+NOTE: `launchTasks` uses the link:spark-taskschedulerimpl.adoc#taskIdToTaskSetManager[registry of active `TaskSetManagers` per task id] from <<scheduler, TaskSchedulerImpl>> that was given when <<creating-instance, `CoarseGrainedSchedulerBackend` was created>>.
+
+NOTE: Scheduling in Spark relies on cores only (not memory), i.e. the number of tasks Spark can run on an executor is limited by the number of cores available only. When submitting a Spark application for execution both executor resources -- memory and cores -- can however be specified explicitly. It is the job of a cluster manager to monitor the memory and take action when its use exceeds what was assigned.
+
+NOTE: `launchTasks` is used when `CoarseGrainedSchedulerBackend` makes resource offers on <<makeOffers-executorId, single>> or <<makeOffers, all>> executors in a cluster.
 
 === [[StatusUpdate-handler]] StatusUpdate Handler
 
