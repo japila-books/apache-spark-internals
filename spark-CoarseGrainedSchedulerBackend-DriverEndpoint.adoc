@@ -1,6 +1,9 @@
 == [[DriverEndpoint]] DriverEndpoint -- CoarseGrainedSchedulerBackend RPC Endpoint
 
-`DriverEndpoint` is a link:spark-rpc.adoc#ThreadSafeRpcEndpoint[ThreadSafeRpcEndpoint] that acts as a <<messages, message handler>> for link:spark-CoarseGrainedSchedulerBackend.adoc[CoarseGrainedSchedulerBackend].
+`DriverEndpoint` is a link:spark-rpc.adoc#ThreadSafeRpcEndpoint[ThreadSafeRpcEndpoint] that acts as a <<messages, message handler>> for link:spark-CoarseGrainedSchedulerBackend.adoc[CoarseGrainedSchedulerBackend] to communicate with link:spark-executor-backends-CoarseGrainedExecutorBackend.adoc[CoarseGrainedExecutorBackend].
+
+.CoarseGrainedSchedulerBackend uses DriverEndpoint for communication with CoarseGrainedExecutorBackend
+image::images/CoarseGrainedSchedulerBackend-DriverEndpoint-CoarseGrainedExecutorBackend.png[align="center"]
 
 `DriverEndpoint` is <<creating-instance, created>> when `CoarseGrainedSchedulerBackend` link:spark-CoarseGrainedSchedulerBackend.adoc#starts[starts].
 
@@ -30,6 +33,10 @@ a|
 
 * Periodically (every link:spark-CoarseGrainedSchedulerBackend.adoc#spark.scheduler.revive.interval[spark.scheduler.revive.interval]) soon after `DriverEndpoint` <<onStart, starts accepting messages>>.
 * `CoarseGrainedSchedulerBackend` is requested to link:spark-CoarseGrainedSchedulerBackend.adoc#reviveOffers[revive resource offers].
+
+| [[RegisterExecutor]] RegisterExecutor
+| <<RegisterExecutor-handler, RegisterExecutor handler>>
+| `CoarseGrainedExecutorBackend` link:spark-executor-backends-CoarseGrainedExecutorBackend.adoc#statusUpdate[sends task status updates to the driver].
 
 | [[StatusUpdate]] StatusUpdate
 | <<StatusUpdate-handler, StatusUpdate handler>>
@@ -105,46 +112,6 @@ INFO Asking each executor to shut down
 ```
 
 It then sends a link:spark-executor-backends-CoarseGrainedExecutorBackend.adoc#StopExecutor[StopExecutor] message to every registered executor (from `executorDataMap`).
-
-=== [[RegisterExecutor]] RegisterExecutor
-
-[source, scala]
-----
-RegisterExecutor(
-  executorId: String,
-  executorRef: RpcEndpointRef,
-  hostname: String,
-  cores: Int,
-  logUrls: Map[String, String])
-extends CoarseGrainedClusterMessage
-----
-
-NOTE: `RegisterExecutor` is sent when link:spark-executor-backends-CoarseGrainedExecutorBackend.adoc#onStart[`CoarseGrainedExecutorBackend` (RPC Endpoint) starts accepting messages].
-
-.Executor registration (RegisterExecutor RPC message flow)
-image::images/CoarseGrainedSchedulerBackend-RegisterExecutor-event.png[align="center"]
-
-Only one executor can register under `executorId`.
-
-```
-INFO Registered executor [executorRef] ([executorAddress]) with ID [executorId]
-```
-
-It does internal bookkeeping like updating `addressToExecutorId`, `totalCoreCount`, and `totalRegisteredExecutors`, `executorDataMap`.
-
-When `numPendingExecutors` is more than `0`, the following is printed out to the logs:
-
-```
-DEBUG Decremented number of pending executors ([numPendingExecutors] left)
-```
-
-`CoarseGrainedSchedulerBackend` sends link:spark-executor-backends-CoarseGrainedExecutorBackend.adoc#RegisteredExecutor[RegisteredExecutor] message back (that confirms the executor's registration).
-
-NOTE: The executor's `RpcEndpointRef` is specified as part of `RegisterExecutor`.
-
-It then announces the new executor by posting link:spark-SparkListener.adoc#SparkListenerExecutorAdded[SparkListenerExecutorAdded] to link:spark-LiveListenerBus.adoc[LiveListenerBus].
-
-Ultimately, <<makeOffers, makeOffers>> is called.
 
 === [[onStart]] Scheduling Sending ReviveOffers Periodically -- `onStart` Callback
 
@@ -243,7 +210,98 @@ NOTE: Scheduling in Spark relies on cores only (not memory), i.e. the number of 
 
 NOTE: `launchTasks` is used when `CoarseGrainedSchedulerBackend` makes resource offers on <<makeOffers-executorId, single>> or <<makeOffers, all>> executors in a cluster.
 
+=== [[creating-instance]] Creating DriverEndpoint Instance
+
+`DriverEndpoint` takes the following when created:
+
+* [[rpcEnv]] link:spark-rpc.adoc[RpcEnv]
+* [[sparkProperties]] Collection of Spark properties and their values
+
+`DriverEndpoint` initializes the <<internal-registries, internal registries and counters>>.
+
+=== [[RegisterExecutor-handler]] RegisterExecutor Handler
+
+[source, scala]
+----
+RegisterExecutor(
+  executorId: String,
+  executorRef: RpcEndpointRef,
+  hostname: String,
+  cores: Int,
+  logUrls: Map[String, String])
+extends CoarseGrainedClusterMessage
+----
+
+NOTE: `RegisterExecutor` is sent when link:spark-executor-backends-CoarseGrainedExecutorBackend.adoc#onStart[`CoarseGrainedExecutorBackend` (RPC Endpoint) is started].
+
+.Executor registration (RegisterExecutor RPC message flow)
+image::images/CoarseGrainedSchedulerBackend-RegisterExecutor-event.png[align="center"]
+
+When received, `DriverEndpoint` makes sure that no other link:spark-CoarseGrainedSchedulerBackend.adoc#executorDataMap[executors were registered] under the input `executorId` and that the input `hostname` is not link:spark-taskschedulerimpl.adoc#nodeBlacklist[blacklisted].
+
+NOTE: `DriverEndpoint` uses <<scheduler, TaskSchedulerImpl>> (for the list of blacklisted nodes) that was specified when `CoarseGrainedSchedulerBackend` link:spark-CoarseGrainedSchedulerBackend.adoc#creating-instance[was created].
+
+If the requirements hold, you should see the following INFO message in the logs:
+
+```
+INFO Registered executor [executorRef] ([address]) with ID [executorId]
+```
+
+`DriverEndpoint` does the bookkeeping:
+
+* Registers `executorId` (in <<addressToExecutorId, addressToExecutorId>>)
+* Adds `cores` (in link:spark-CoarseGrainedSchedulerBackend.adoc#totalCoreCount[totalCoreCount])
+* Increments link:spark-CoarseGrainedSchedulerBackend.adoc#totalRegisteredExecutors[totalRegisteredExecutors]
+* Creates and registers `ExecutorData` for `executorId` (in link:spark-CoarseGrainedSchedulerBackend.adoc#executorDataMap[executorDataMap])
+* Updates link:spark-CoarseGrainedSchedulerBackend.adoc#currentExecutorIdCounter[currentExecutorIdCounter] if the input `executorId` is greater than the current value.
+
+If link:spark-CoarseGrainedSchedulerBackend.adoc#numPendingExecutors[numPendingExecutors] is greater than `0`, you should see the following DEBUG message in the logs and `DriverEndpoint` decrements `numPendingExecutors`.
+
+```
+DEBUG Decremented number of pending executors ([numPendingExecutors] left)
+```
+
+`DriverEndpoint` sends link:spark-executor-backends-CoarseGrainedExecutorBackend.adoc#RegisteredExecutor[RegisteredExecutor] message back (that is to confirm that the executor was registered successfully).
+
+NOTE: `DriverEndpoint` uses the input `executorRef` as the executor's link:spark-RpcEndpointRef.adoc[RpcEndpointRef].
+
+`DriverEndpoint` replies `true` (to acknowledge the message).
+
+`DriverEndpoint` then announces the new executor by posting link:spark-SparkListener.adoc#SparkListenerExecutorAdded[SparkListenerExecutorAdded] to link:spark-LiveListenerBus.adoc[LiveListenerBus] (with the current time, executor id, and `ExecutorData`).
+
+In the end, `DriverEndpoint` <<makeOffers, makes executor resource offers (for launching tasks)>>.
+
+If however there was already another executor registered under the input `executorId`, `DriverEndpoint` sends link:spark-executor-backends-CoarseGrainedExecutorBackend.adoc#RegisterExecutorFailed[RegisterExecutorFailed] message back with the reason:
+
+```
+Duplicate executor ID: [executorId]
+```
+
+If however the input `hostname` is link:spark-taskschedulerimpl.adoc#nodeBlacklist[blacklisted], you should see the following INFO message in the logs:
+
+```
+INFO Rejecting [executorId] as it has been blacklisted.
+```
+
+`DriverEndpoint` sends link:spark-executor-backends-CoarseGrainedExecutorBackend.adoc#RegisterExecutorFailed[RegisterExecutorFailed] message back with the reason:
+
+```
+Executor is blacklisted: [executorId]
+```
+
 === [[StatusUpdate-handler]] StatusUpdate Handler
+
+[source, scala]
+----
+StatusUpdate(
+  executorId: String,
+  taskId: Long,
+  state: TaskState,
+  data: SerializableBuffer)
+extends CoarseGrainedClusterMessage
+----
+
+NOTE: `StatusUpdate` is sent when `CoarseGrainedExecutorBackend` link:spark-executor-backends-CoarseGrainedExecutorBackend.adoc#statusUpdate[sends task status updates to the driver].
 
 When `StatusUpdate` is received, `DriverEndpoint` link:spark-taskschedulerimpl.adoc#statusUpdate[passes the task's status update to `TaskSchedulerImpl`].
 
@@ -260,12 +318,3 @@ When `DriverEndpoint` found no executor (in link:spark-CoarseGrainedSchedulerBac
 ```
 WARN Ignored task status update ([taskId] state [state]) from unknown executor with ID [executorId]
 ```
-
-=== [[creating-instance]] Creating DriverEndpoint Instance
-
-`DriverEndpoint` takes the following when created:
-
-* [[rpcEnv]] link:spark-rpc.adoc[RpcEnv]
-* [[sparkProperties]] Collection of Spark properties and their values
-
-`DriverEndpoint` initializes the <<internal-registries, internal registries and counters>>.
