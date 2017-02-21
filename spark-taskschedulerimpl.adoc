@@ -131,137 +131,6 @@ CAUTION: FIXME
 
 CAUTION: FIXME
 
-=== [[resourceOffers]] Creating TaskDescriptions For Available Executor Resource Offers (with CPU Cores) -- `resourceOffers` Method
-
-[source, scala]
-----
-resourceOffers(offers: Seq[WorkerOffer]): Seq[Seq[TaskDescription]]
-----
-
-`resourceOffers` takes the resources `offers` (as <<WorkerOffer, WorkerOffers>>) and generates a collection of tasks (as link:spark-TaskDescription.adoc[TaskDescription]) to launch (given the resources available).
-
-NOTE: <<WorkerOffer, WorkerOffer>> represents a resource offer with CPU cores free to use on an executor.
-
-.Processing Executor Resource Offers
-image::images/taskscheduler-resourceOffers.png[align="center"]
-
-Internally, `resourceOffers` first updates <<hostToExecutors, hostToExecutors>> and <<executorIdToHost, executorIdToHost>> lookup tables to record new hosts and executors (given the input `offers`).
-
-For new executors (not in <<executorIdToRunningTaskIds, executorIdToRunningTaskIds>>) `resourceOffers` <<executorAdded, notifies `DAGScheduler` that an executor was added>>.
-
-NOTE: `TaskSchedulerImpl` uses `resourceOffers` to track active executors.
-
-CAUTION: FIXME a picture with `executorAdded` call from TaskSchedulerImpl to DAGScheduler.
-
-`resourceOffers` requests `BlacklistTracker` to `applyBlacklistTimeout` and filters out offers on blacklisted nodes and executors.
-
-NOTE: `resourceOffers` uses the optional <<blacklistTrackerOpt, BlacklistTracker>> that was given when <<creating-instance, `TaskSchedulerImpl` was created>>.
-
-CAUTION: FIXME Expand on blacklisting
-
-`resourceOffers` then randomly shuffles offers (to evenly distribute tasks across executors and avoid over-utilizing some executors) and initializes the local data structures `tasks` and `availableCpus` (as shown in the figure below).
-
-.Internal Structures of resourceOffers with 5 WorkerOffers (with 4, 2, 0, 3, 2 free cores)
-image::images/TaskSchedulerImpl-resourceOffers-internal-structures.png[align="center"]
-
-`resourceOffers` link:spark-taskscheduler-pool.adoc#getSortedTaskSetQueue[takes `TaskSets` in scheduling order] from link:spark-taskscheduler.adoc#rootPool[top-level Schedulable Pool].
-
-.TaskSchedulerImpl Requesting TaskSets (as TaskSetManagers) from Root Pool
-image::images/TaskSchedulerImpl-resourceOffers-rootPool-getSortedTaskSetQueue.png[align="center"]
-
-[NOTE]
-====
-`rootPool` is configured when <<initialize, `TaskSchedulerImpl` is initialized>>.
-
-`rootPool` is a part of the link:spark-taskscheduler.adoc#rootPool[TaskScheduler Contract] and exclusively managed by link:spark-taskscheduler-schedulablebuilders.adoc[SchedulableBuilders], i.e. link:spark-taskscheduler-FIFOSchedulableBuilder.adoc[FIFOSchedulableBuilder] and link:spark-taskscheduler-FairSchedulableBuilder.adoc[FairSchedulableBuilder] (that  link:spark-taskscheduler-schedulablebuilders.adoc#addTaskSetManager[manage registering TaskSetManagers with the root pool]).
-
-link:spark-TaskSetManager.adoc[TaskSetManager] manages execution of the tasks in a single link:spark-taskscheduler-tasksets.adoc[TaskSet] that represents a single link:spark-dagscheduler-stages.adoc[Stage].
-====
-
-For every `TaskSetManager` (in scheduling order), you should see the following DEBUG message in the logs:
-
-```
-DEBUG TaskSchedulerImpl: parentName: [name], name: [name], runningTasks: [count]
-```
-
-Only if a new executor was added, `resourceOffers` link:spark-TaskSetManager.adoc#executorAdded[notifies every `TaskSetManager` about the change] (to recompute locality preferences).
-
-`resourceOffers` then takes every `TaskSetManager` (in scheduling order) and offers them each node in increasing order of locality levels (per link:spark-TaskSetManager.adoc#computeValidLocalityLevels[TaskSetManager's valid locality levels]).
-
-NOTE: A `TaskSetManager` link:spark-TaskSetManager.adoc##computeValidLocalityLevels[computes locality levels of the tasks] it manages.
-
-For every `TaskSetManager` and the ``TaskSetManager``'s valid locality level, `resourceOffers` tries to <<resourceOfferSingleTaskSet, find tasks to schedule (on executors)>> as long as the `TaskSetManager` manages to launch a task (given the locality level).
-
-If `resourceOffers` did not manage to offer resources to a `TaskSetManager` so it could launch any task, `resourceOffers` link:spark-TaskSetManager.adoc#abortIfCompletelyBlacklisted[requests the `TaskSetManager` to abort the `TaskSet` if completely blacklisted].
-
-When `resourceOffers` managed to launch a task, the internal <<hasLaunchedTask, hasLaunchedTask>> flag gets enabled (that effectively means what the name says _"there were executors and I managed to launch a task"_).
-
-[NOTE]
-====
-`resourceOffers` is used when:
-
-* link:spark-CoarseGrainedSchedulerBackend-DriverEndpoint.adoc#makeOffers[`CoarseGrainedSchedulerBackend` (via RPC endpoint) makes executor resource offers]
-
-* link:spark-LocalEndpoint.adoc#reviveOffers[`LocalEndpoint` revives resource offers]
-
-* Spark on Mesos' `MesosFineGrainedSchedulerBackend` does `resourceOffers`
-====
-
-=== [[resourceOfferSingleTaskSet]] Finding Tasks from TaskSetManager to Schedule on Executors -- `resourceOfferSingleTaskSet` Internal Method
-
-[source, scala]
-----
-resourceOfferSingleTaskSet(
-  taskSet: TaskSetManager,
-  maxLocality: TaskLocality,
-  shuffledOffers: Seq[WorkerOffer],
-  availableCpus: Array[Int],
-  tasks: Seq[ArrayBuffer[TaskDescription]]): Boolean
-----
-
-`resourceOfferSingleTaskSet` takes every `WorkerOffer` (from the input `shuffledOffers`) and (only if the number of available CPU cores (using the input `availableCpus`) is at least <<spark.task.cpus, spark.task.cpus>>) link:spark-TaskSetManager.adoc#resourceOffer[requests `TaskSetManager` (as the input `taskSet`) to find a `Task` to execute (given the resource offer)] (as an executor, a host, and the input `maxLocality`).
-
-`resourceOfferSingleTaskSet` adds the task to the input `tasks` collection.
-
-`resourceOfferSingleTaskSet` records the task id and `TaskSetManager` in the following registries:
-
-* <<taskIdToTaskSetManager, taskIdToTaskSetManager>>
-* <<taskIdToExecutorId, taskIdToExecutorId>>
-* <<executorIdToRunningTaskIds, executorIdToRunningTaskIds>>
-
-`resourceOfferSingleTaskSet` decreases <<spark.task.cpus, spark.task.cpus>> from the input `availableCpus` (for the `WorkerOffer`).
-
-NOTE: `resourceOfferSingleTaskSet` makes sure that the number of available CPU cores (in the input `availableCpus` per `WorkerOffer`) is at least `0`.
-
-If there is a `TaskNotSerializableException`, you should see the following ERROR in the logs:
-
-```
-ERROR Resource offer failed, task set [name] was not serializable
-```
-
-`resourceOfferSingleTaskSet` returns whether a task was launched or not.
-
-NOTE: `resourceOfferSingleTaskSet` is used when `TaskSchedulerImpl` <<resourceOffers, creates `TaskDescriptions` for available executor resource offers (with CPU cores)>>.
-
-=== [[TaskLocality]] TaskLocality -- Task Locality Preference
-
-`TaskLocality` represents a task locality preference and can be one of the following (from most localized to the widest):
-
-. `PROCESS_LOCAL`
-. `NODE_LOCAL`
-. `NO_PREF`
-. `RACK_LOCAL`
-. `ANY`
-
-=== [[WorkerOffer]] WorkerOffer -- Free CPU Cores on Executor
-
-[source, scala]
-----
-WorkerOffer(executorId: String, host: String, cores: Int)
-----
-
-`WorkerOffer` represents a resource offer with free CPU `cores` available on an executor (by `executorId`) on a `host`.
-
 === [[executorLost]] `executorLost` Method
 
 CAUTION: FIXME
@@ -297,9 +166,11 @@ NOTE: `executorHeartbeatReceived` is a part of the link:spark-taskscheduler.adoc
 cancelTasks(stageId: Int, interruptThread: Boolean): Unit
 ----
 
+NOTE: `cancelTasks` is a part of link:spark-taskscheduler.adoc#contract[TaskScheduler contract].
+
 `cancelTasks` cancels all tasks submitted for execution in a stage `stageId`.
 
-NOTE: It is currently called by link:spark-dagscheduler.adoc#failJobAndIndependentStages[`DAGScheduler` when it cancels a stage].
+NOTE: `cancelTasks` is used exclusively when `DAGScheduler` link:spark-dagscheduler.adoc#failJobAndIndependentStages[cancels a stage].
 
 === [[handleSuccessfulTask]] `handleSuccessfulTask` Method
 
@@ -683,6 +554,137 @@ Spark context stopped while waiting for backend
 ```
 
 NOTE: `waitBackendReady` is used when `TaskSchedulerImpl` <<postStartHook, is notified that `SparkContext` is near to get fully initialized>>.
+
+=== [[resourceOffers]] Creating TaskDescriptions For Available Executor Resource Offers (with CPU Cores) -- `resourceOffers` Method
+
+[source, scala]
+----
+resourceOffers(offers: Seq[WorkerOffer]): Seq[Seq[TaskDescription]]
+----
+
+`resourceOffers` takes the resources `offers` (as <<WorkerOffer, WorkerOffers>>) and generates a collection of tasks (as link:spark-TaskDescription.adoc[TaskDescription]) to launch (given the resources available).
+
+NOTE: <<WorkerOffer, WorkerOffer>> represents a resource offer with CPU cores free to use on an executor.
+
+.Processing Executor Resource Offers
+image::images/taskscheduler-resourceOffers.png[align="center"]
+
+Internally, `resourceOffers` first updates <<hostToExecutors, hostToExecutors>> and <<executorIdToHost, executorIdToHost>> lookup tables to record new hosts and executors (given the input `offers`).
+
+For new executors (not in <<executorIdToRunningTaskIds, executorIdToRunningTaskIds>>) `resourceOffers` <<executorAdded, notifies `DAGScheduler` that an executor was added>>.
+
+NOTE: `TaskSchedulerImpl` uses `resourceOffers` to track active executors.
+
+CAUTION: FIXME a picture with `executorAdded` call from TaskSchedulerImpl to DAGScheduler.
+
+`resourceOffers` requests `BlacklistTracker` to `applyBlacklistTimeout` and filters out offers on blacklisted nodes and executors.
+
+NOTE: `resourceOffers` uses the optional <<blacklistTrackerOpt, BlacklistTracker>> that was given when <<creating-instance, `TaskSchedulerImpl` was created>>.
+
+CAUTION: FIXME Expand on blacklisting
+
+`resourceOffers` then randomly shuffles offers (to evenly distribute tasks across executors and avoid over-utilizing some executors) and initializes the local data structures `tasks` and `availableCpus` (as shown in the figure below).
+
+.Internal Structures of resourceOffers with 5 WorkerOffers (with 4, 2, 0, 3, 2 free cores)
+image::images/TaskSchedulerImpl-resourceOffers-internal-structures.png[align="center"]
+
+`resourceOffers` link:spark-taskscheduler-pool.adoc#getSortedTaskSetQueue[takes `TaskSets` in scheduling order] from link:spark-taskscheduler.adoc#rootPool[top-level Schedulable Pool].
+
+.TaskSchedulerImpl Requesting TaskSets (as TaskSetManagers) from Root Pool
+image::images/TaskSchedulerImpl-resourceOffers-rootPool-getSortedTaskSetQueue.png[align="center"]
+
+[NOTE]
+====
+`rootPool` is configured when <<initialize, `TaskSchedulerImpl` is initialized>>.
+
+`rootPool` is a part of the link:spark-taskscheduler.adoc#rootPool[TaskScheduler Contract] and exclusively managed by link:spark-taskscheduler-schedulablebuilders.adoc[SchedulableBuilders], i.e. link:spark-taskscheduler-FIFOSchedulableBuilder.adoc[FIFOSchedulableBuilder] and link:spark-taskscheduler-FairSchedulableBuilder.adoc[FairSchedulableBuilder] (that  link:spark-taskscheduler-schedulablebuilders.adoc#addTaskSetManager[manage registering TaskSetManagers with the root pool]).
+
+link:spark-TaskSetManager.adoc[TaskSetManager] manages execution of the tasks in a single link:spark-taskscheduler-tasksets.adoc[TaskSet] that represents a single link:spark-dagscheduler-stages.adoc[Stage].
+====
+
+For every `TaskSetManager` (in scheduling order), you should see the following DEBUG message in the logs:
+
+```
+DEBUG TaskSchedulerImpl: parentName: [name], name: [name], runningTasks: [count]
+```
+
+Only if a new executor was added, `resourceOffers` link:spark-TaskSetManager.adoc#executorAdded[notifies every `TaskSetManager` about the change] (to recompute locality preferences).
+
+`resourceOffers` then takes every `TaskSetManager` (in scheduling order) and offers them each node in increasing order of locality levels (per link:spark-TaskSetManager.adoc#computeValidLocalityLevels[TaskSetManager's valid locality levels]).
+
+NOTE: A `TaskSetManager` link:spark-TaskSetManager.adoc##computeValidLocalityLevels[computes locality levels of the tasks] it manages.
+
+For every `TaskSetManager` and the ``TaskSetManager``'s valid locality level, `resourceOffers` tries to <<resourceOfferSingleTaskSet, find tasks to schedule (on executors)>> as long as the `TaskSetManager` manages to launch a task (given the locality level).
+
+If `resourceOffers` did not manage to offer resources to a `TaskSetManager` so it could launch any task, `resourceOffers` link:spark-TaskSetManager.adoc#abortIfCompletelyBlacklisted[requests the `TaskSetManager` to abort the `TaskSet` if completely blacklisted].
+
+When `resourceOffers` managed to launch a task, the internal <<hasLaunchedTask, hasLaunchedTask>> flag gets enabled (that effectively means what the name says _"there were executors and I managed to launch a task"_).
+
+[NOTE]
+====
+`resourceOffers` is used when:
+
+* link:spark-CoarseGrainedSchedulerBackend-DriverEndpoint.adoc#makeOffers[`CoarseGrainedSchedulerBackend` (via RPC endpoint) makes executor resource offers]
+
+* link:spark-LocalEndpoint.adoc#reviveOffers[`LocalEndpoint` revives resource offers]
+
+* Spark on Mesos' `MesosFineGrainedSchedulerBackend` does `resourceOffers`
+====
+
+=== [[resourceOfferSingleTaskSet]] Finding Tasks from TaskSetManager to Schedule on Executors -- `resourceOfferSingleTaskSet` Internal Method
+
+[source, scala]
+----
+resourceOfferSingleTaskSet(
+  taskSet: TaskSetManager,
+  maxLocality: TaskLocality,
+  shuffledOffers: Seq[WorkerOffer],
+  availableCpus: Array[Int],
+  tasks: Seq[ArrayBuffer[TaskDescription]]): Boolean
+----
+
+`resourceOfferSingleTaskSet` takes every `WorkerOffer` (from the input `shuffledOffers`) and (only if the number of available CPU cores (using the input `availableCpus`) is at least <<spark.task.cpus, spark.task.cpus>>) link:spark-TaskSetManager.adoc#resourceOffer[requests `TaskSetManager` (as the input `taskSet`) to find a `Task` to execute (given the resource offer)] (as an executor, a host, and the input `maxLocality`).
+
+`resourceOfferSingleTaskSet` adds the task to the input `tasks` collection.
+
+`resourceOfferSingleTaskSet` records the task id and `TaskSetManager` in the following registries:
+
+* <<taskIdToTaskSetManager, taskIdToTaskSetManager>>
+* <<taskIdToExecutorId, taskIdToExecutorId>>
+* <<executorIdToRunningTaskIds, executorIdToRunningTaskIds>>
+
+`resourceOfferSingleTaskSet` decreases <<spark.task.cpus, spark.task.cpus>> from the input `availableCpus` (for the `WorkerOffer`).
+
+NOTE: `resourceOfferSingleTaskSet` makes sure that the number of available CPU cores (in the input `availableCpus` per `WorkerOffer`) is at least `0`.
+
+If there is a `TaskNotSerializableException`, you should see the following ERROR in the logs:
+
+```
+ERROR Resource offer failed, task set [name] was not serializable
+```
+
+`resourceOfferSingleTaskSet` returns whether a task was launched or not.
+
+NOTE: `resourceOfferSingleTaskSet` is used when `TaskSchedulerImpl` <<resourceOffers, creates `TaskDescriptions` for available executor resource offers (with CPU cores)>>.
+
+=== [[TaskLocality]] TaskLocality -- Task Locality Preference
+
+`TaskLocality` represents a task locality preference and can be one of the following (from most localized to the widest):
+
+. `PROCESS_LOCAL`
+. `NODE_LOCAL`
+. `NO_PREF`
+. `RACK_LOCAL`
+. `ANY`
+
+=== [[WorkerOffer]] WorkerOffer -- Free CPU Cores on Executor
+
+[source, scala]
+----
+WorkerOffer(executorId: String, host: String, cores: Int)
+----
+
+`WorkerOffer` represents a resource offer with free CPU `cores` available on an `executorId` executor on a `host`.
 
 === [[settings]] Settings
 
