@@ -1,38 +1,105 @@
-== [[TaskScheduler]] TaskScheduler
+== [[TaskScheduler]] TaskScheduler -- Spark Scheduler
 
-A `TaskScheduler` schedules link:spark-taskscheduler-tasks.adoc[tasks] for a link:spark-anatomy-spark-application.adoc[single Spark application] according to link:spark-taskscheduler-schedulingmode.adoc[scheduling mode].
+`TaskScheduler` schedules link:spark-taskscheduler-tasks.adoc[tasks] for a single link:spark-anatomy-spark-application.adoc[Spark application] according to link:spark-taskscheduler-schedulingmode.adoc[scheduling mode].
 
 .TaskScheduler works for a single SparkContext
 image::images/sparkstandalone-sparkcontext-taskscheduler-schedulerbackend.png[align="center"]
 
-A `TaskScheduler` gets sets of tasks (as link:spark-taskscheduler-tasksets.adoc[TaskSets]) submitted to it from the link:spark-dagscheduler.adoc[DAGScheduler] for each stage, and is responsible for sending the tasks to the cluster, running them, retrying if there are failures, and mitigating stragglers.
+`TaskScheduler` is given sets of tasks (as link:spark-taskscheduler-tasksets.adoc[TaskSets]) submitted to it from the link:spark-dagscheduler.adoc[DAGScheduler] for each stage, and is responsible for scheduling the tasks to the cluster, running them, retrying if there are failures, and mitigating stragglers.
+
+Spark comes with the following custom `TaskSchedulers`:
+
+* link:spark-taskschedulerimpl.adoc[TaskSchedulerImpl]
+
+* link:yarn/spark-yarn-yarnscheduler.adoc[YarnScheduler] for link:yarn/README.adoc[Spark on YARN] in link:spark-submit.adoc#deploy-mode[client deploy mode].
+
+* link:yarn/spark-yarn-yarnclusterscheduler.adoc[YarnClusterScheduler] for link:yarn/README.adoc[Spark on YARN] in link:spark-submit.adoc#deploy-mode[cluster deploy mode].
 
 NOTE: `TaskScheduler` is a `private[spark]` Scala trait. You can find the sources in https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/scheduler/TaskScheduler.scala[org.apache.spark.scheduler.TaskScheduler].
 
 === [[contract]] TaskScheduler Contract
 
-CAUTION: FIXME Review the links since they really refer to `TaskSchedulerImpl`. Add the signatures.
+[source, scala]
+----
+trait TaskScheduler {
+  def applicationAttemptId(): Option[String]
+  def applicationId(): String
+  def cancelTasks(stageId: Int, interruptThread: Boolean): Unit
+  def defaultParallelism(): Int
+  def executorHeartbeatReceived(
+    execId: String,
+    accumUpdates: Array[(Long, Seq[AccumulatorV2[_, _]])],
+    blockManagerId: BlockManagerId): Boolean
+  def executorLost(executorId: String, reason: ExecutorLossReason): Unit
+  def postStartHook(): Unit
+  def rootPool: Pool
+  def schedulingMode: SchedulingMode
+  def setDAGScheduler(dagScheduler: DAGScheduler): Unit
+  def start(): Unit
+  def stop(): Unit
+  def submitTasks(taskSet: TaskSet): Unit
+}
+----
 
-Every `TaskScheduler` follows the following contract:
+NOTE: `TaskScheduler` is a `private[spark]` contract.
 
-* It can be <<start, started>>.
-* It can be <<stop, stopped>>.
-* It can <<postStartHook, do post-start initialization>> if needed for additional post-start initialization.
-* It <<submitTasks, submits TaskSets for execution>>.
-* It can cancel tasks for a stage.
-* It can <<setDAGScheduler, set a custom DAGScheduler>>.
-* It can calculate <<defaultParallelism, the default level of parallelism>>.
-* It <<applicationId, returns a custom application id>>.
-* It <<applicationAttemptId, returns an application attempt id>>.
-* It can handle <<executorHeartbeatReceived, executor's heartbeats>> and <<executorLost, executor lost events>>.
+.TaskScheduler Contract
+[cols="1,2",options="header",width="100%"]
+|===
+| Method
+| Description
 
-[[rootPool]]
-* It has a `rootPool` link:spark-taskscheduler-pool.adoc[Pool] (of link:spark-taskscheduler-schedulable.adoc[Schedulables]).
+| <<applicationAttemptId, applicationAttemptId>>
+|
 
-[[schedulingMode]]
-* It can put tasks in order according to a link:spark-taskscheduler-schedulingmode.adoc[scheduling policy] (as `schedulingMode`). It is used in link:spark-sparkcontext.adoc#getSchedulingMode[SparkContext.getSchedulingMode].
+| <<applicationId, applicationId>>
+|
 
-CAUTION: FIXME Have an exercise to create a SchedulerBackend.
+| <<cancelTasks, cancelTasks>>
+|
+
+| <<defaultParallelism, defaultParallelism>>
+|
+
+| <<executorHeartbeatReceived, executorHeartbeatReceived>>
+|
+
+| <<executorLost, executorLost>>
+|
+
+| <<postStartHook, postStartHook>>
+| Post-start initialization
+
+Does nothing by default, but allows custom implementations for some additional post-start initialization.
+
+Used exclusively when `SparkContext` link:spark-sparkcontext-creating-instance-internals.adoc#postStartHook[is created] (right before `SparkContext` is considered fully initialized).
+
+| [[rootPool]] rootPool
+| link:spark-taskscheduler-pool.adoc[Pool] (of link:spark-taskscheduler-schedulable.adoc[Schedulables]).
+
+| [[schedulingMode]] schedulingMode
+| Puts tasks in order according to a link:spark-taskscheduler-schedulingmode.adoc[scheduling policy] (as `schedulingMode`). It is used in link:spark-sparkcontext.adoc#getSchedulingMode[SparkContext.getSchedulingMode].
+
+| <<setDAGScheduler, setDAGScheduler>>
+| Assigns link:spark-dagscheduler.adoc[DAGScheduler]
+
+Used exclusively when `DAGScheduler` link:spark-dagscheduler.adoc#creating-instance[is created] (and passes on a reference to itself).
+
+| [[start]] start
+| Starts `TaskScheduler`.
+
+Used exclusively when `SparkContext` link:spark-sparkcontext-creating-instance-internals.adoc#taskScheduler-start[is created].
+
+| [[stop]] stop
+| Stops `TaskScheduler`
+
+Used exclusively when `DAGScheduler` link:spark-dagscheduler.adoc#stop[is stopped].
+
+| [[submitTasks]] submitTasks
+| Submits tasks for execution (from link:spark-taskscheduler-tasksets.adoc[TaskSet] for link:spark-dagscheduler-stages.adoc[Stage])
+
+Used exclusively when `DAGScheduler` link:spark-dagscheduler.adoc#submitMissingTasks[submits tasks (of a stage) for execution].
+|===
 
 === [[lifecycle]] TaskScheduler's Lifecycle
 
@@ -56,59 +123,6 @@ The internal `_taskScheduler` is cleared (i.e. set to `null`) while link:spark-s
 <<stop, TaskScheduler is stopped>> while link:spark-dagscheduler.adoc#stop[DAGScheduler is being stopped].
 
 WARNING: FIXME If it is SparkContext to start a TaskScheduler, shouldn't SparkContext stop it too? Why is this the way it is now?
-
-=== [[start]] Starting TaskScheduler -- `start` Method
-
-[source, scala]
-----
-start(): Unit
-----
-
-`start` is currently called while link:spark-sparkcontext.adoc#creating-instance[SparkContext is being created].
-
-=== [[stop]] Stopping TaskScheduler -- `stop` Method
-
-[source, scala]
-----
-stop(): Unit
-----
-
-`stop` is currently called while link:spark-dagscheduler.adoc#stop[DAGScheduler is being stopped].
-
-=== [[postStartHook]] Post-Start Initialization -- `postStartHook` Method
-
-[source, scala]
-----
-postStartHook() {}
-----
-
-`postStartHook` does nothing by default, but allows custom implementations to do some post-start initialization.
-
-NOTE: It is currently called right before link:spark-sparkcontext.adoc#creating-instance[SparkContext's initialization finishes].
-
-=== [[submitTasks]] Submitting Tasks for Execution (from TaskSet for Stage) -- `submitTasks` Method
-
-[source, scala]
-----
-submitTasks(taskSet: TaskSet): Unit
-----
-
-`submitTasks` accepts a link:spark-taskscheduler-tasksets.adoc[TaskSet] for execution.
-
-CAUTION: FIXME
-
-NOTE: `submitTasks` is called when link:spark-dagscheduler.adoc#submitMissingTasks[`DAGScheduler` submits tasks for a stage].
-
-=== [[setDAGScheduler]] Setting DAGScheduler -- `setDAGScheduler` Method
-
-[source, scala]
-----
-setDAGScheduler(dagScheduler: DAGScheduler): Unit
-----
-
-`setDAGScheduler` sets the current `DAGScheduler`.
-
-NOTE: It is currently called by link:spark-dagscheduler.adoc#creating-instance[DAGScheduler when it is created].
 
 === [[defaultParallelism]] Calculating Default Level of Parallelism -- `defaultParallelism` Method
 
@@ -173,11 +187,3 @@ executorLost(executorId: String, reason: ExecutorLossReason): Unit
 `executorLost` handles events about an executor `executorId` being lost for a given `reason`.
 
 NOTE: It is currently used in link:spark-sparkcontext-HeartbeatReceiver.adoc[HeartbeatReceiver RPC endpoint in SparkContext to process host expiration events] and to remove executors in scheduler backends.
-
-=== [[implementations]] Available Implementations
-
-Spark comes with the following task schedulers:
-
-* link:spark-taskschedulerimpl.adoc[TaskSchedulerImpl]
-* link:yarn/spark-yarn-yarnscheduler.adoc[YarnScheduler] - the TaskScheduler for link:yarn/README.adoc[Spark on YARN] in link:spark-submit.adoc#deploy-mode[client deploy mode].
-* link:yarn/spark-yarn-yarnclusterscheduler.adoc[YarnClusterScheduler] - the TaskScheduler for link:yarn/README.adoc[Spark on YARN] in link:spark-submit.adoc#deploy-mode[cluster deploy mode].
