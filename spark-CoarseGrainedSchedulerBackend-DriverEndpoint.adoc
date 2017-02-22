@@ -66,10 +66,6 @@ Set when an executor connects to register itself. See <<RegisterExecutor, Regist
 |
 |===
 
-=== [[removeExecutor]] `removeExecutor` Internal Method
-
-CAUTION: FIXME
-
 === [[KillExecutorsOnHost-handler]] KillExecutorsOnHost Handler
 
 CAUTION: FIXME
@@ -82,7 +78,7 @@ CAUTION: FIXME
 
 CAUTION: FIXME
 
-=== [[onDisconnected]] onDisconnected Callback
+=== [[onDisconnected]] `onDisconnected` Callback
 
 When called, `onDisconnected` removes the worker from the internal <<addressToExecutorId, addressToExecutorId registry>> (that effectively removes the worker from a cluster).
 
@@ -341,3 +337,48 @@ Otherwise, you should see the following WARN in the logs:
 ```
 WARN Attempted to kill task [taskId] for unknown executor [executor].
 ```
+
+=== [[removeExecutor]] Removing Executor from Internal Registries (and Notifying TaskSchedulerImpl and Posting SparkListenerExecutorRemoved) -- `removeExecutor` Internal Method
+
+[source, scala]
+----
+removeExecutor(executorId: String, reason: ExecutorLossReason): Unit
+----
+
+When `removeExecutor` is executed, you should see the following DEBUG message in the logs:
+
+```
+DEBUG Asked to remove executor [executorId] with reason [reason]
+```
+
+`removeExecutor` then tries to find the `executorId` executor (in link:spark-CoarseGrainedSchedulerBackend.adoc#executorDataMap[executorDataMap] internal registry).
+
+If the `executorId` executor was found, `removeExecutor` removes the executor from the following registries:
+
+* <<addressToExecutorId, addressToExecutorId>>
+* link:spark-CoarseGrainedSchedulerBackend.adoc#executorDataMap[executorDataMap]
+* <<executorsPendingLossReason, executorsPendingLossReason>>
+* link:spark-CoarseGrainedSchedulerBackend.adoc#executorsPendingToRemove[executorsPendingToRemove]
+
+`removeExecutor` decrements:
+
+* link:spark-CoarseGrainedSchedulerBackend.adoc#totalCoreCount[totalCoreCount] by the executor's `totalCores`
+* link:spark-CoarseGrainedSchedulerBackend.adoc#totalRegisteredExecutors[totalRegisteredExecutors]
+
+In the end, `removeExecutor` notifies `TaskSchedulerImpl` that an link:spark-taskschedulerimpl.adoc#executorLost[executor was lost].
+
+NOTE: `removeExecutor` uses link:spark-CoarseGrainedSchedulerBackend.adoc#scheduler[TaskSchedulerImpl] that is specified when `CoarseGrainedSchedulerBackend` link:spark-CoarseGrainedSchedulerBackend.adoc#creating-instance[is created].
+
+`removeExecutor` posts link:spark-SparkListener.adoc#SparkListenerExecutorRemoved[SparkListenerExecutorRemoved] to link:spark-LiveListenerBus.adoc[LiveListenerBus] (with the `executorId` executor).
+
+If however the `executorId` executor could not be found, `removeExecutor` link:spark-BlockManagerMaster.adoc#removeExecutorAsync[requests `BlockManagerMaster` to remove the executor asynchronously].
+
+NOTE: `removeExecutor` uses `SparkEnv` link:spark-sparkenv.adoc#blockManager[to access the current `BlockManager`] and then link:spark-blockmanager.adoc#master[BlockManagerMaster].
+
+You should see the following INFO message in the logs:
+
+```
+INFO Asked to remove non-existent executor [executorId]
+```
+
+NOTE: `removeExecutor` is used when `DriverEndpoint` <<RemoveExecutor, handles `RemoveExecutor` message>> and <<onDisconnected, gets disassociated with a remote RPC endpoint of an executor>>.
