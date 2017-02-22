@@ -36,19 +36,38 @@ image::diagrams/sparkcontext-services.png[align="center"]
 ** <<creating-accumulators, Accumulators>>
 ** <<broadcast, Broadcast variables>>
 
-* Accessing services, e.g. link:spark-TaskScheduler.adoc[TaskScheduler], link:spark-LiveListenerBus.adoc[LiveListenerBus], link:spark-blockmanager.adoc[BlockManager], link:spark-SchedulerBackend.adoc[SchedulerBackends], link:spark-ShuffleManager.adoc[ShuffleManager] and the <<cleaner, optional ContextCleaner>>.
+* Accessing services, e.g. <<taskScheduler, TaskScheduler>>, link:spark-LiveListenerBus.adoc[LiveListenerBus], link:spark-blockmanager.adoc[BlockManager], link:spark-SchedulerBackend.adoc[SchedulerBackends], link:spark-ShuffleManager.adoc[ShuffleManager] and the <<cleaner, optional ContextCleaner>>.
 
-* <<runJob, Running jobs>>
-* <<cancelJob, Cancelling job>>
-* <<custom-schedulers, Setting up custom Scheduler Backend, TaskScheduler and DAGScheduler>>
-* <<closure-cleaning, Closure Cleaning>>
-* <<submitJob, Submitting Jobs Asynchronously>>
+* <<runJob, Running jobs synchronously>>
+* <<submitJob, Submitting jobs asynchronously>>
+* <<cancelJob, Cancelling a job>>
+* <<custom-schedulers, Assigning custom Scheduler Backend, TaskScheduler and DAGScheduler>>
+* <<closure-cleaning, Closure cleaning>>
+* <<getPersistentRDDs, Accessing persistent RDDs>>
 * <<unpersist, Unpersisting RDDs, i.e. marking RDDs as non-persistent>>
 * <<addSparkListener, Registering SparkListener>>
 * <<dynamic-allocation, Programmable Dynamic Allocation>>
 
+[[internal-registries]]
+.SparkContext's Internal Registries and Counters
+[cols="1,2",options="header",width="100%"]
+|===
+| Name
+| Description
+
+| [[persistentRdds]] `persistentRdds`
+a| Lookup table of persistent/cached RDDs per their ids.
+
+Used when `SparkContext` is requested to:
+
+* <<persistRDD, persistRDD>>
+* <<getRDDStorageInfo, getRDDStorageInfo>>
+* <<getPersistentRDDs, getPersistentRDDs>>
+* <<unpersistRDD, unpersistRDD>>
+|===
+
 [[internal-properties]]
-.FIXME's Internal Properties
+.SparkContext's Internal Properties
 [cols="1,1,2",options="header",width="100%"]
 |===
 | Name
@@ -75,6 +94,30 @@ log4j.logger.org.apache.spark.SparkContext=INFO
 Refer to link:spark-logging.adoc[Logging].
 ====
 
+=== [[getRDDStorageInfo]] `getRDDStorageInfo` Method
+
+CAUTION: FIXME
+
+=== [[unpersistRDD]] `unpersistRDD` Internal Method
+
+[source, scala]
+----
+unpersistRDD(rddId: Int, blocking: Boolean = true): Unit
+----
+
+CAUTION: FIXME
+
+=== [[getPersistentRDDs]] Accessing persistent RDDs -- `getPersistentRDDs` Method
+
+[source, scala]
+----
+getPersistentRDDs: Map[Int, RDD[_]]
+----
+
+`getPersistentRDDs` returns the collection of RDDs that have marked themselves as persistent via link:spark-rdd-caching.adoc#cache[cache].
+
+Internally, `getPersistentRDDs` returns <<persistentRdds, persistentRdds>> internal registry.
+
 === [[cancelJob]] Cancelling Job -- `cancelJob` Method
 
 [source, scala]
@@ -83,19 +126,6 @@ cancelJob(jobId: Int)
 ----
 
 `cancelJob` requests link:spark-dagscheduler.adoc#cancelJob[`DAGScheduler` to cancel a Spark job] `jobId`.
-
-=== [[persistentRdds]] Persisted RDDs
-
-CAUTION: FIXME
-
-=== [[persistRDD]] `persistRDD` Method
-
-[source, scala]
-----
-persistRDD(rdd: RDD[_])
-----
-
-`persistRDD` is a `private[spark]` method to register `rdd` in <<persistentRdds, persistentRdds>> registry.
 
 === [[dynamic-allocation]] Programmable Dynamic Allocation
 
@@ -884,6 +914,17 @@ getPreferredLocs(rdd: RDD[_], partition: Int): Seq[TaskLocation]
 NOTE: Preferred locations of a partition of a RDD are also called *placement preferences* or *locality preferences*.
 
 NOTE: `getPreferredLocs` is used in `CoalescedRDDPartition`, `DefaultPartitionCoalescer` and `PartitionerAwareUnionRDD`.
+
+=== [[persistRDD]] Registering RDD in persistentRdds Internal Registry -- `persistRDD` Internal Method
+
+[source, scala]
+----
+persistRDD(rdd: RDD[_]): Unit
+----
+
+`persistRDD` registers `rdd` in <<persistentRdds, persistentRdds>> internal registry.
+
+NOTE: `persistRDD` is used exclusively when `RDD` is link:spark-rdd.adoc#persist-internal[persisted or locally checkpointed].
 
 === [[settings]] Settings
 
