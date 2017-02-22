@@ -1,11 +1,13 @@
 == [[TaskScheduler]] TaskScheduler -- Spark Scheduler
 
-`TaskScheduler` schedules link:spark-taskscheduler-tasks.adoc[tasks] for a single link:spark-anatomy-spark-application.adoc[Spark application] according to link:spark-taskscheduler-schedulingmode.adoc[scheduling mode].
+`TaskScheduler` is responsible for <<submitTasks, submitting tasks for execution>> in a Spark application] (according to <<schedulingMode, scheduling policy>>).
 
 .TaskScheduler works for a single SparkContext
 image::images/sparkstandalone-sparkcontext-taskscheduler-schedulerbackend.png[align="center"]
 
-`TaskScheduler` is given sets of tasks (as link:spark-taskscheduler-tasksets.adoc[TaskSets]) submitted to it from the link:spark-dagscheduler.adoc[DAGScheduler] for each stage, and is responsible for scheduling the tasks to the cluster, running them, retrying if there are failures, and mitigating stragglers.
+`TaskScheduler` tracks available executors
+
+`TaskScheduler` is given sets of tasks for execution (as link:spark-taskscheduler-tasksets.adoc[TaskSets]) from link:spark-dagscheduler.adoc[DAGScheduler] for each stage, and is responsible for scheduling the tasks to the cluster, running them, retrying if there are failures, and mitigating stragglers.
 
 Spark comes with the following custom `TaskSchedulers`:
 
@@ -63,8 +65,12 @@ NOTE: `TaskScheduler` is a `private[spark]` contract.
 
 Used when `SparkContext` link:spark-sparkcontext.adoc#defaultParallelism[is requested for the default level of parallelism].
 
-| <<executorHeartbeatReceived, executorHeartbeatReceived>>
-|
+| [[executorHeartbeatReceived]] executorHeartbeatReceived
+| Handler of heartbeats from executors. Receives metrics (as link:spark-accumulators.adoc[accumulators]) for in-progress tasks.
+
+Expected to return `true` when the executor `execId` is managed by the `TaskScheduler`. `false` is to indicate that the link:spark-executor.adoc#reportHeartBeat[block manager (on the executor) should re-register].
+
+Used exclusively when `HeartbeatReceiver` RPC endpoint link:spark-sparkcontext-HeartbeatReceiver.adoc#Heartbeat[receives a heartbeat from an executor].
 
 | <<executorLost, executorLost>>
 |
@@ -149,22 +155,6 @@ applicationAttemptId(): Option[String]
 `applicationAttemptId` gives the current application's attempt id.
 
 NOTE: It is currently used in link:spark-sparkcontext.adoc#creating-instance[SparkContext while it is being initialized].
-
-=== [[executorHeartbeatReceived]] Handling Executor's Heartbeats -- `executorHeartbeatReceived` Method
-
-[source, scala]
-----
-executorHeartbeatReceived(
-  execId: String,
-  accumUpdates: Array[(Long, Seq[AccumulatorV2[_, _]])],
-  blockManagerId: BlockManagerId): Boolean
-----
-
-`executorHeartbeatReceived` handles heartbeats from an executor `execId` with the partial values of accumulators and `BlockManagerId`.
-
-It is expected to be positive (i.e. return `true`) when the executor `execId` is managed by the `TaskScheduler`.
-
-NOTE: It is currently used in link:spark-sparkcontext-HeartbeatReceiver.adoc[HeartbeatReceiver RPC endpoint in SparkContext to handle heartbeats from executors].
 
 === [[executorLost]] Handling Executor Lost Events -- `executorLost` Method
 

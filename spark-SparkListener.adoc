@@ -1,12 +1,14 @@
 == [[SparkListener]] Spark Listeners -- Intercepting Events from Spark Scheduler
 
-A `SparkListener` intercepts events from the Spark scheduler that it emits over the course of execution of a Spark application.
+`SparkListener` is a mechanism in Spark to intercept events from the Spark scheduler that are emitted over the course of execution of a Spark application.
 
-A Spark listener is an implementation of the `SparkListener` developer API that is an extension of <<SparkListenerInterface, SparkListenerInterface>> where all the _callback methods_ are no-op/do-nothing.
+`SparkListener` extends <<SparkListenerInterface, SparkListenerInterface>> with all the _callback methods_ being no-op/do-nothing.
 
-Spark uses Spark listeners for link:spark-webui.adoc[web UI], link:spark-scheduler-listeners-eventlogginglistener.adoc[event persistence] (for History Server), link:spark-ExecutorAllocationManager.adoc[dynamic allocation of executors] and <<builtin-implementations, other services>>.
+Spark <<builtin-implementations, relies on `SparkListeners` internally>> to manage communication between internal components in the distributed environment for a Spark application, e.g. link:spark-webui.adoc[web UI], link:spark-scheduler-listeners-eventlogginglistener.adoc[event persistence] (for History Server), link:spark-ExecutorAllocationManager.adoc[dynamic allocation of executors], link:spark-sparkcontext-HeartbeatReceiver.adoc[keeping track of executors (using `HeartbeatReceiver`)] and others.
 
-You can develop your own custom Spark listener using the `SparkListener` developer API and register it using link:spark-sparkcontext.adoc#addSparkListener[SparkContext.addSparkListener] method or link:spark-LiveListenerBus.adoc#spark_extraListeners[spark.extraListeners] setting. With `SparkListener` you can focus on Spark events of your liking and process a subset of scheduling events.
+You can develop your own custom `SparkListener` and register it using link:spark-sparkcontext.adoc#addSparkListener[SparkContext.addSparkListener] method or link:spark-LiveListenerBus.adoc#spark_extraListeners[spark.extraListeners] Spark property.
+
+With `SparkListener` you can focus on Spark events of your liking and process a subset of all scheduling events.
 
 TIP: Developing a custom SparkListener is an excellent introduction to low-level details of link:spark-execution-model.adoc[Spark's Execution Model]. Check out the exercise link:exercises/spark-exercise-custom-scheduler-listener.adoc[Developing Custom SparkListener to monitor DAGScheduler in Scala].
 
@@ -27,62 +29,84 @@ See link:spark-sparkcontext.adoc[`SparkContext` -- Entry Point to Spark (Core)].
 
 NOTE: <<SparkListener, SparkListener>> and <<SparkFirehoseListener, SparkFirehoseListener>> Spark listeners are direct implementations of `SparkListenerInterface` contract to help developing more sophisticated Spark listeners.
 
-.`SparkListenerInterface` Methods (listed in alphabetical order)
+.SparkListenerInterface Methods (listed in alphabetical order)
 [cols="1,1,2",options="header",width="100%"]
 |===
-| Method | Event | Reason
-| `onApplicationEnd` | [[SparkListenerApplicationEnd]] `SparkListenerApplicationEnd` |
-`SparkContext` does `postApplicationEnd`.
+| Method
+| Event
+| Reason
 
-| `onApplicationStart` | [[SparkListenerApplicationStart]] `SparkListenerApplicationStart` |
-`SparkContext` does `postApplicationStart`.
+| `onApplicationEnd`
+| [[SparkListenerApplicationEnd]] `SparkListenerApplicationEnd` | `SparkContext` does `postApplicationEnd`
 
-| `onBlockManagerAdded` | [[SparkListenerBlockManagerAdded]] `SparkListenerBlockManagerAdded` |
-link:spark-blockmanager-BlockManagerMasterEndpoint.adoc#register[`BlockManagerMasterEndpoint` has registered a `BlockManager`].
+| `onApplicationStart`
+| [[SparkListenerApplicationStart]] `SparkListenerApplicationStart`
+| `SparkContext` does `postApplicationStart`
 
-| `onBlockManagerRemoved` | [[SparkListenerBlockManagerRemoved]] `SparkListenerBlockManagerRemoved` |
-link:spark-blockmanager-BlockManagerMasterEndpoint.adoc#removeBlockManager[`BlockManagerMasterEndpoint` has removed a `BlockManager`].
+| `onBlockManagerAdded`
+| [[SparkListenerBlockManagerAdded]] `SparkListenerBlockManagerAdded`
+| `BlockManagerMasterEndpoint` link:spark-blockmanager-BlockManagerMasterEndpoint.adoc#register[has registered a `BlockManager`].
 
-| `onBlockUpdated` | [[SparkListenerBlockUpdated]] `SparkListenerBlockUpdated` |
-link:spark-blockmanager-BlockManagerMasterEndpoint.adoc[`BlockManagerMasterEndpoint` has received a `UpdateBlockInfo` message].
+| `onBlockManagerRemoved`
+| [[SparkListenerBlockManagerRemoved]] `SparkListenerBlockManagerRemoved`
+| `BlockManagerMasterEndpoint` link:spark-blockmanager-BlockManagerMasterEndpoint.adoc#removeBlockManager[has removed a `BlockManager`].
 
-| `onEnvironmentUpdate` | [[SparkListenerEnvironmentUpdate]] `SparkListenerEnvironmentUpdate` |
-`SparkContext` does `postEnvironmentUpdate`.
+| `onBlockUpdated`
+| [[SparkListenerBlockUpdated]] `SparkListenerBlockUpdated`
+| `BlockManagerMasterEndpoint` link:spark-blockmanager-BlockManagerMasterEndpoint.adoc[has received a `UpdateBlockInfo` message].
 
-| `onExecutorMetricsUpdate` | [[SparkListenerExecutorMetricsUpdate]] `SparkListenerExecutorMetricsUpdate` |
+| `onEnvironmentUpdate`
+| [[SparkListenerEnvironmentUpdate]] `SparkListenerEnvironmentUpdate`
+| `SparkContext` does `postEnvironmentUpdate`.
 
-| `onExecutorAdded` | [[SparkListenerExecutorAdded]] `SparkListenerExecutorAdded` |
-link:spark-CoarseGrainedSchedulerBackend-DriverEndpoint.adoc#RegisterExecutor[`DriverEndpoint` RPC endpoint (of `CoarseGrainedSchedulerBackend`) handles `RegisterExecutor` message], `MesosFineGrainedSchedulerBackend` does `resourceOffers`, and `LocalSchedulerBackendEndpoint` starts.
+| `onExecutorMetricsUpdate`
+| [[SparkListenerExecutorMetricsUpdate]] `SparkListenerExecutorMetricsUpdate`
+|
 
-| `onExecutorRemoved` | [[SparkListenerExecutorRemoved]] `SparkListenerExecutorRemoved` |
-link:spark-CoarseGrainedSchedulerBackend-DriverEndpoint.adoc#removeExecutor[`DriverEndpoint` RPC endpoint (of `CoarseGrainedSchedulerBackend`) does `removeExecutor`] and `MesosFineGrainedSchedulerBackend` does `removeExecutor`.
+| [[onExecutorAdded]] `onExecutorAdded`
+| [[SparkListenerExecutorAdded]] `SparkListenerExecutorAdded`
+| `DriverEndpoint` RPC endpoint (of `CoarseGrainedSchedulerBackend`) link:spark-CoarseGrainedSchedulerBackend-DriverEndpoint.adoc#RegisterExecutor[receives `RegisterExecutor` message], `MesosFineGrainedSchedulerBackend` does `resourceOffers`, and `LocalSchedulerBackendEndpoint` starts.
 
-| `onJobEnd` | [[SparkListenerJobEnd]] `SparkListenerJobEnd` |
-`DAGScheduler` does `cleanUpAfterSchedulerStop`, `handleTaskCompletion`, `failJobAndIndependentStages`, and markMapStageJobAsFinished.
+| `onExecutorRemoved`
+| [[SparkListenerExecutorRemoved]] `SparkListenerExecutorRemoved`
+| `DriverEndpoint` RPC endpoint (of `CoarseGrainedSchedulerBackend`) does
+link:spark-CoarseGrainedSchedulerBackend-DriverEndpoint.adoc#removeExecutor[removeExecutor] and `MesosFineGrainedSchedulerBackend` does `removeExecutor`.
+
+| `onJobEnd`
+| [[SparkListenerJobEnd]] `SparkListenerJobEnd`
+| `DAGScheduler` does `cleanUpAfterSchedulerStop`, `handleTaskCompletion`, `failJobAndIndependentStages`, and markMapStageJobAsFinished.
 
 | `onJobStart`
 | [[SparkListenerJobStart]] `SparkListenerJobStart`
-| `DAGScheduler` handles link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleJobSubmitted[JobSubmitted] and link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleMapStageSubmitted[MapStageSubmitted] messages.
+| `DAGScheduler` handles link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleJobSubmitted[JobSubmitted] and link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleMapStageSubmitted[MapStageSubmitted] messages
 
-| `onStageCompleted` | [[SparkListenerStageCompleted]] `SparkListenerStageCompleted` |
-`DAGScheduler` does `markStageAsFinished`.
+| `onStageCompleted`
+| [[SparkListenerStageCompleted]] `SparkListenerStageCompleted`
+| `DAGScheduler` does `markStageAsFinished`
 
-| `onStageSubmitted` | [[SparkListenerStageSubmitted]] `SparkListenerStageSubmitted` |
-`DAGScheduler` does `submitMissingTasks`.
+| `onStageSubmitted`
+| [[SparkListenerStageSubmitted]] `SparkListenerStageSubmitted`
+| `DAGScheduler` does `submitMissingTasks`
 
-| `onTaskEnd` | [[SparkListenerTaskEnd]] `SparkListenerTaskEnd` |
-link:spark-dagscheduler.adoc#handleTaskCompletion[`DAGScheduler` handles a task completion].
+| `onTaskEnd`
+| [[SparkListenerTaskEnd]] `SparkListenerTaskEnd`
+| `DAGScheduler` link:spark-dagscheduler.adoc#handleTaskCompletion[handles a task completion]
 
-| `onTaskGettingResult` | [[SparkListenerTaskGettingResult]] `SparkListenerTaskGettingResult` |
-link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleGetTaskResult[`DAGScheduler` handles `GettingResultEvent` event].
+| `onTaskGettingResult`
+| [[SparkListenerTaskGettingResult]] `SparkListenerTaskGettingResult`
+| `DAGScheduler` link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleGetTaskResult[handles `GettingResultEvent` event]
 
-| `onTaskStart` | [[SparkListenerTaskStart]] `SparkListenerTaskStart` |
-`DAGScheduler` is informed that a link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleBeginEvent[task is being started].
+| `onTaskStart`
+| [[SparkListenerTaskStart]] `SparkListenerTaskStart`
+| `DAGScheduler` is informed that a link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleBeginEvent[task is about to start].
 
-| `onUnpersistRDD` | [[SparkListenerUnpersistRDD]] `SparkListenerUnpersistRDD` |
-`SparkContext` does `unpersistRDD`.
+| `onUnpersistRDD`
+| [[SparkListenerUnpersistRDD]] `SparkListenerUnpersistRDD`
+| `SparkContext` does `unpersistRDD`
 
-| `onOtherEvent` | [[SparkListenerEvent]] `SparkListenerEvent` |
+| `onOtherEvent`
+| [[SparkListenerEvent]] `SparkListenerEvent`
+|
 |===
 
 === [[builtin-implementations]] Built-In Spark Listeners
