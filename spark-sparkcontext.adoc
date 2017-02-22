@@ -1,6 +1,6 @@
-== [[SparkContext]] SparkContext -- Entry Point to Spark (Core)
+== [[SparkContext]] SparkContext -- Entry Point to Spark Core
 
-`SparkContext` (aka *Spark context*) is the entry point to the Spark services for a Spark application.
+`SparkContext` (aka *Spark context*) is the entry point to Spark's core services for a Spark application.
 
 NOTE: You could also assume that a SparkContext instance _is_ a Spark application.
 
@@ -21,7 +21,7 @@ image::diagrams/sparkcontext-services.png[align="center"]
 ** <<master, deployment environment (as master URL)>>
 ** <<appName, application name>>
 ** <<deployMode, deploy mode>>
-** <<defaultParallelism, default level of parallelism>>
+** <<defaultParallelism, default level of parallelism>> that specifies the number of link:spark-rdd-partitions.adoc[partitions] in RDDs when they are created without specifying the number explicitly by a user.
 ** <<sparkUser, Spark user>>
 ** <<startTime, the time (in milliseconds) when `SparkContext` was created>>
 ** <<version, Spark version>>
@@ -46,6 +46,19 @@ image::diagrams/sparkcontext-services.png[align="center"]
 * <<unpersist, Unpersisting RDDs, i.e. marking RDDs as non-persistent>>
 * <<addSparkListener, Registering SparkListener>>
 * <<dynamic-allocation, Programmable Dynamic Allocation>>
+
+[[internal-properties]]
+.FIXME's Internal Properties
+[cols="1,1,2",options="header",width="100%"]
+|===
+| Name
+| Initial Value
+| Description
+
+| [[_taskScheduler]] _taskScheduler
+| (uninitialized)
+| link:spark-TaskScheduler.adoc[TaskScheduler]
+|===
 
 TIP: Read the scaladoc of  http://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.SparkContext[org.apache.spark.SparkContext].
 
@@ -297,13 +310,33 @@ CAUTION: FIXME Where is the method used?
 
 NOTE: `getAllPools` is used to calculate pool names for link:spark-webui-AllStagesPage.adoc#pool-names[Stages tab in web UI] with FAIR scheduling mode used.
 
-=== [[defaultParallelism]] Computing Default Level of Parallelism
+=== [[defaultParallelism]] Getting Default Level of Parallelism
 
-*Default level of parallelism* is the number of link:spark-rdd-partitions.adoc[partitions] in RDDs when created without specifying them explicitly by a user.
+[source, scala]
+----
+defaultParallelism: Int
+----
 
-It is used for the methods like `SparkContext.parallelize`, `SparkContext.range` and `SparkContext.makeRDD` (as well as link:spark-streaming/spark-streaming.adoc[Spark Streaming]'s `DStream.countByValue` and `DStream.countByValueAndWindow` and few other places). It is also used to instantiate link:spark-rdd-HashPartitioner.adoc[HashPartitioner] or for the minimum number of partitions in link:spark-rdd-hadooprdd.adoc[HadoopRDDs].
+`defaultParallelism` requests <<taskScheduler, TaskScheduler>> for the link:spark-TaskScheduler.adoc#defaultParallelism[default level of parallelism].
 
-Internally, `defaultParallelism` relays requests for the default level of parallelism to link:spark-TaskScheduler.adoc#defaultParallelism[TaskScheduler] (it is a part of its contract).
+NOTE: *Default level of parallelism* specifies the number of link:spark-rdd-partitions.adoc[partitions] in RDDs when created without specifying them explicitly by a user.
+
+[NOTE]
+====
+`defaultParallelism` is used in <<parallelize, SparkContext.parallelize>>, `SparkContext.range` and <<makeRDD, SparkContext.makeRDD>> (as well as Spark Streaming's `DStream.countByValue` and `DStream.countByValueAndWindow` et al.).
+
+`defaultParallelism` is also used to instantiate link:spark-rdd-HashPartitioner.adoc[HashPartitioner] and for the minimum number of partitions in link:spark-rdd-hadooprdd.adoc[HadoopRDDs].
+====
+
+=== [[taskScheduler]] `taskScheduler` Property
+
+[source, scala]
+----
+taskScheduler: TaskScheduler
+taskScheduler_=(ts: TaskScheduler): Unit
+----
+
+`taskScheduler` manages (i.e. reads or writes) <<_taskScheduler, _taskScheduler>> internal property.
 
 === [[version]] Getting Spark Version -- `version` Property
 
