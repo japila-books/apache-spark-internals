@@ -2,6 +2,14 @@
 
 `Executor` is a distributed agent that is responsible for executing link:spark-taskscheduler-tasks.adoc[tasks].
 
+`Executor` is created when:
+
+* `CoarseGrainedExecutorBackend` link:spark-executor-backends-CoarseGrainedExecutorBackend.adoc#RegisteredExecutor[receives `RegisteredExecutor` message] (for Spark Standalone and YARN)
+
+* Spark on Mesos's `MesosExecutorBackend` link:spark-mesos/spark-executor-backends-MesosExecutorBackend.adoc#registered[does `registered`]
+
+* `LocalEndpoint` link:spark-LocalEndpoint.adoc#creating-instance[is created] (for local mode)
+
 `Executor` _typically_ runs for the entire lifetime of a Spark application which is called *static allocation of executors* (but you could also opt in for link:spark-dynamic-allocation.adoc[dynamic allocation]).
 
 NOTE: Executors are managed exclusively by link:spark-ExecutorBackend.adoc[executor backends].
@@ -99,30 +107,19 @@ When created, you should see the following INFO messages in the logs:
 INFO Executor: Starting executor ID [executorId] on host [executorHostname]
 ```
 
-(only for non-local mode) `Executor` sets `SparkUncaughtExceptionHandler` as the default handler invoked when a thread abruptly terminates due to an uncaught exception.
+(only for <<isLocal, non-local mode>>) `Executor` sets `SparkUncaughtExceptionHandler` as the default handler invoked when a thread abruptly terminates due to an uncaught exception.
 
-(only for non-local mode) `Executor` link:spark-metrics.adoc#registerSource[registers `ExecutorSource`] and link:spark-blockmanager.adoc#initialize[initializes the local `BlockManager`].
+(only for <<isLocal, non-local mode>>) `Executor` link:spark-metrics.adoc#registerSource[registers `ExecutorSource`] and link:spark-blockmanager.adoc#initialize[initializes the local `BlockManager`].
 
 NOTE: `Executor` uses `SparkEnv` to access the local link:spark-sparkenv.adoc#metricsSystem[MetricsSystem] and link:spark-sparkenv.adoc#blockManager[BlockManager].
 
-`Executor` <<createClassLoader, creates a task class loader>> (possibly with <<addReplClassLoaderIfNeeded, REPL support>>) and link:spark-Serializer.adoc#setDefaultClassLoader[requests the current `Serializer` to use it].
+`Executor` <<createClassLoader, creates a task class loader>> (optionally with <<addReplClassLoaderIfNeeded, REPL support>>) that the link:spark-Serializer.adoc#setDefaultClassLoader[current `Serializer` is requested to use] (when deserializing task later).
 
 NOTE: `Executor` uses `SparkEnv` link:spark-sparkenv.adoc#serializer[to access the local `Serializer`].
 
 `Executor` <<startDriverHeartbeater, starts sending heartbeats and active tasks metrics>>.
 
 `Executor` initializes the <<internal-registries, internal registries and counters>> in the meantime (not necessarily at the very end).
-
-[NOTE]
-====
-`Executor` is created when:
-
-1. link:spark-executor-backends-CoarseGrainedExecutorBackend.adoc#RegisteredExecutor[`CoarseGrainedExecutorBackend` receives `RegisteredExecutor` message]
-
-2. link:spark-mesos/spark-executor-backends-MesosExecutorBackend.adoc#registered[`MesosExecutorBackend` does `registered`]
-
-3. link:spark-LocalEndpoint.adoc#creating-instance[`LocalEndpoint` is created]
-====
 
 === [[launchTask]] Launching Task -- `launchTask` Method
 

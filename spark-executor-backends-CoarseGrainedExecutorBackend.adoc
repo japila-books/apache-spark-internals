@@ -36,7 +36,9 @@ image::images/CoarseGrainedExecutorBackend-statusUpdate.png[align="center"]
 | Forwards launch task requests from the driver to the single managed coarse-grained <<executor, executor>>.
 
 | <<RegisteredExecutor, RegisteredExecutor>>
-|
+| Creates the single managed <<executor, Executor>>.
+
+Sent exclusively when `CoarseGrainedSchedulerBackend` link:spark-CoarseGrainedSchedulerBackend.adoc#RegisterExecutor[receives `RegisterExecutor`].
 
 | <<RegisterExecutorFailed, RegisterExecutorFailed>>
 |
@@ -301,7 +303,7 @@ NOTE: `driverUrl`, `executorId`, `hostname`, `cores` and `userClassPath` corresp
 
 NOTE: `CoarseGrainedExecutorBackend` is created (to act as an RPC endpoint) when <<run, `Executor` RPC endpoint is registered>>.
 
-=== [[onStart]] Connecting to Driver -- `onStart` Method
+=== [[onStart]] Registering with Driver -- `onStart` Method
 
 [source, scala]
 ----
@@ -326,7 +328,7 @@ In case of failures, `onStart` <<exitExecutor, terminates `CoarseGrainedExecutor
 Cannot register with driver: [driverUrl]
 ```
 
-=== [[RegisteredExecutor]] Creating Executor -- `RegisteredExecutor` Message Handler
+=== [[RegisteredExecutor]] Creating Single Managed Executor -- `RegisteredExecutor` Message Handler
 
 [source, scala]
 ----
@@ -334,15 +336,15 @@ RegisteredExecutor
 extends CoarseGrainedClusterMessage with RegisterExecutorResponse
 ----
 
-When `RegisteredExecutor` comes in, you should see the following INFO in the logs:
+When `RegisteredExecutor` is received, you should see the following INFO in the logs:
 
 ```
 INFO CoarseGrainedExecutorBackend: Successfully registered with driver
 ```
 
-`CoarseGrainedExecutorBackend` link:spark-Executor.adoc#creating-instance[creates a `Executor`] (with `isLocal` disabled) that in turn becomes <<executor, executor>> internal reference.
+`CoarseGrainedExecutorBackend` link:spark-Executor.adoc#creating-instance[creates a `Executor`] (with `isLocal` disabled) that becomes the single managed <<executor, Executor>>.
 
-NOTE: `CoarseGrainedExecutorBackend` uses `executorId`, `hostname`, `env`, `userClassPath` to create the `Executor` that were specified when <<creating-instance, `CoarseGrainedExecutorBackend` was created>>.
+NOTE: `CoarseGrainedExecutorBackend` uses `executorId`, `hostname`, `env`, `userClassPath` to create the `Executor` that are specified when `CoarseGrainedExecutorBackend` <<creating-instance, is created>>.
 
 If creating the `Executor` fails with a non-fatal exception, `RegisteredExecutor` <<exitExecutor, terminates `CoarseGrainedExecutorBackend`>> with the reason:
 
@@ -350,7 +352,7 @@ If creating the `Executor` fails with a non-fatal exception, `RegisteredExecutor
 Unable to create executor due to [message]
 ```
 
-NOTE: `RegisteredExecutor` is sent exclusively when link:spark-CoarseGrainedSchedulerBackend.adoc#RegisterExecutor[`CoarseGrainedSchedulerBackend` receives `RegisterExecutor`] (that is right before <<onStart, `CoarseGrainedExecutorBackend` RPC Endpoint starts accepting messages>> which happens when <<run, `CoarseGrainedExecutorBackend` is started>>).
+NOTE: `RegisteredExecutor` is sent exclusively when `CoarseGrainedSchedulerBackend` RPC Endpoint link:spark-CoarseGrainedSchedulerBackend-DriverEndpoint.adoc#RegisterExecutor[receives a `RegisterExecutor`] (that is sent right before `CoarseGrainedExecutorBackend` RPC Endpoint <<onStart, starts accepting messages>> which happens when `CoarseGrainedExecutorBackend` <<run, is started>>).
 
 === [[RegisterExecutorFailed]] RegisterExecutorFailed
 
