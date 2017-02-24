@@ -1,23 +1,23 @@
 == [[TaskScheduler]] TaskScheduler -- Spark Scheduler
 
-`TaskScheduler` is responsible for <<submitTasks, submitting tasks for execution>> in a Spark application] (according to <<schedulingMode, scheduling policy>>).
+`TaskScheduler` is responsible for <<submitTasks, submitting tasks for execution>> in a Spark application (per <<schedulingMode, scheduling policy>>).
 
 .TaskScheduler works for a single SparkContext
 image::images/sparkstandalone-sparkcontext-taskscheduler-schedulerbackend.png[align="center"]
 
-`TaskScheduler` tracks available executors
+NOTE: `TaskScheduler` works closely with link:spark-dagscheduler.adoc[DAGScheduler] that <<submitTasks, submits sets of tasks for execution>> (for every stage in a Spark job).
 
-`TaskScheduler` is given sets of tasks for execution (as link:spark-taskscheduler-tasksets.adoc[TaskSets]) from link:spark-dagscheduler.adoc[DAGScheduler] for each stage, and is responsible for scheduling the tasks to the cluster, running them, retrying if there are failures, and mitigating stragglers.
+`TaskScheduler` tracks the executors in a Spark application using <<executorHeartbeatReceived, executorHeartbeatReceived>> and <<executorLost, executorLost>> methods that are to inform about <<executorHeartbeatReceived, active>> and <<executorLost, lost>> executors, respectively.
 
 Spark comes with the following custom `TaskSchedulers`:
 
-* link:spark-taskschedulerimpl.adoc[TaskSchedulerImpl]
+* link:spark-taskschedulerimpl.adoc[TaskSchedulerImpl] -- the default `TaskScheduler` (that the following two YARN-specific `TaskSchedulers` extend).
 
-* link:yarn/spark-yarn-yarnscheduler.adoc[YarnScheduler] for link:yarn/README.adoc[Spark on YARN] in link:spark-submit.adoc#deploy-mode[client deploy mode].
+* link:yarn/spark-yarn-yarnscheduler.adoc[YarnScheduler] for Spark on YARN in link:spark-submit.adoc#deploy-mode[client deploy mode].
 
-* link:yarn/spark-yarn-yarnclusterscheduler.adoc[YarnClusterScheduler] for link:yarn/README.adoc[Spark on YARN] in link:spark-submit.adoc#deploy-mode[cluster deploy mode].
+* link:yarn/spark-yarn-yarnclusterscheduler.adoc[YarnClusterScheduler] for Spark on YARN in link:spark-submit.adoc#deploy-mode[cluster deploy mode].
 
-NOTE: The source of `TaskScheduler` is available as https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/scheduler/TaskScheduler.scala[org.apache.spark.scheduler.TaskScheduler].
+NOTE: The source of `TaskScheduler` is available in https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/scheduler/TaskScheduler.scala[org.apache.spark.scheduler.TaskScheduler].
 
 === [[contract]] TaskScheduler Contract
 
@@ -51,32 +51,42 @@ NOTE: `TaskScheduler` is a `private[spark]` contract.
 | Method
 | Description
 
-| <<applicationAttemptId, applicationAttemptId>>
-|
+| [[applicationAttemptId]] applicationAttemptId
+| Unique identifier of an (execution) attempt of a Spark application.
 
-| <<applicationId, applicationId>>
-|
+Used exclusively when `SparkContext` link:spark-sparkcontext-creating-instance-internals.adoc#_applicationAttemptId[is initialized].
 
-| <<cancelTasks, cancelTasks>>
-|
+| [[applicationId]] applicationId
+| Unique identifier of a Spark application.
+
+By default, it is in the format `spark-application-[System.currentTimeMillis]`.
+
+Used exclusively when `SparkContext` link:spark-sparkcontext-creating-instance-internals.adoc#_applicationId[is initialized] (to set link:spark-configuration.adoc#spark.app.id[spark.app.id]).
+
+| [[cancelTasks]] cancelTasks
+| Cancels all tasks of a given link:spark-dagscheduler-stages.adoc[stage].
+
+Used exclusively when `DAGScheduler` link:spark-dagscheduler.adoc#failJobAndIndependentStages[fails a Spark job and independent single-job stages].
 
 | [[defaultParallelism]] defaultParallelism
-| Calculating the default level of parallelism
+| Calculates the default level of parallelism.
 
 Used when `SparkContext` link:spark-sparkcontext.adoc#defaultParallelism[is requested for the default level of parallelism].
 
 | [[executorHeartbeatReceived]] executorHeartbeatReceived
-| Handler of heartbeats from executors. Receives task metrics (as a set of link:spark-accumulators.adoc[accumulators]) for in-progress tasks.
+| Intercepts heartbeats (with task metrics) from executors.
 
 Expected to return `true` when the executor `execId` is managed by the `TaskScheduler`. `false` is to indicate that the link:spark-Executor.adoc#reportHeartBeat[block manager (on the executor) should re-register].
 
-Used exclusively when `HeartbeatReceiver` RPC endpoint link:spark-sparkcontext-HeartbeatReceiver.adoc#Heartbeat[receives a heartbeat from an executor].
+Used exclusively when `HeartbeatReceiver` RPC endpoint link:spark-sparkcontext-HeartbeatReceiver.adoc#Heartbeat[receives a heartbeat and task metrics from an executor].
 
-| <<executorLost, executorLost>>
-|
+| [[executorLost]] executorLost
+| Intercepts events about executors getting lost.
+
+Used when `HeartbeatReceiver` RPC endpoint link:spark-sparkcontext-HeartbeatReceiver.adoc#expireDeadHosts[gets informed about disconnected executors] (i.e. that are no longer available) and when `DriverEndpoint` link:spark-CoarseGrainedSchedulerBackend-DriverEndpoint.adoc#removeExecutor[forgets] or link:spark-CoarseGrainedSchedulerBackend-DriverEndpoint.adoc#[disables] malfunctioning executors (i.e. either lost or blacklisted for some reason).
 
 | <<postStartHook, postStartHook>>
-| Post-start initialization
+| Post-start initialization.
 
 Does nothing by default, but allows custom implementations for some additional post-start initialization.
 
@@ -86,10 +96,12 @@ Used exclusively when `SparkContext` link:spark-sparkcontext-creating-instance-i
 | link:spark-taskscheduler-pool.adoc[Pool] (of link:spark-taskscheduler-schedulable.adoc[Schedulables]).
 
 | [[schedulingMode]] schedulingMode
-| Puts tasks in order according to a link:spark-taskscheduler-schedulingmode.adoc[scheduling policy] (as `schedulingMode`). It is used in link:spark-sparkcontext.adoc#getSchedulingMode[SparkContext.getSchedulingMode].
+| Scheduling mode.
 
-| <<setDAGScheduler, setDAGScheduler>>
-| Assigns link:spark-dagscheduler.adoc[DAGScheduler]
+Puts tasks in order according to a link:spark-taskscheduler-schedulingmode.adoc[scheduling policy] (as `schedulingMode`). It is used in link:spark-sparkcontext.adoc#getSchedulingMode[SparkContext.getSchedulingMode].
+
+| [[setDAGScheduler]] setDAGScheduler
+| Assigns link:spark-dagscheduler.adoc[DAGScheduler].
 
 Used exclusively when `DAGScheduler` link:spark-dagscheduler.adoc#creating-instance[is created] (and passes on a reference to itself).
 
@@ -99,12 +111,12 @@ Used exclusively when `DAGScheduler` link:spark-dagscheduler.adoc#creating-insta
 Used exclusively when `SparkContext` link:spark-sparkcontext-creating-instance-internals.adoc#taskScheduler-start[is created].
 
 | [[stop]] stop
-| Stops `TaskScheduler`
+| Stops `TaskScheduler`.
 
 Used exclusively when `DAGScheduler` link:spark-dagscheduler.adoc#stop[is stopped].
 
 | [[submitTasks]] submitTasks
-| Submits tasks for execution (from link:spark-taskscheduler-tasksets.adoc[TaskSet] for link:spark-dagscheduler-stages.adoc[Stage])
+| Submits tasks for execution (as link:spark-taskscheduler-tasksets.adoc[TaskSet]) of a given link:spark-dagscheduler-stages.adoc[stage].
 
 Used exclusively when `DAGScheduler` link:spark-dagscheduler.adoc#submitMissingTasks[submits tasks (of a stage) for execution].
 |===
@@ -131,38 +143,3 @@ The internal `_taskScheduler` is cleared (i.e. set to `null`) while link:spark-s
 <<stop, TaskScheduler is stopped>> while link:spark-dagscheduler.adoc#stop[DAGScheduler is being stopped].
 
 WARNING: FIXME If it is SparkContext to start a TaskScheduler, shouldn't SparkContext stop it too? Why is this the way it is now?
-
-=== [[applicationId]] Finding Unique Identifier of Spark Application -- `applicationId` Method
-
-[source, scala]
-----
-applicationId(): String
-----
-
-`applicationId` finds the unique identifier of a Spark application.
-
-`applicationId` is in the format `spark-application-[System.currentTimeMillis]` by default and is expected to be overriden by custom `TaskSchedulers` (e.g. link:spark-taskschedulerimpl.adoc#applicationId[TaskSchedulerImpl]).
-
-NOTE: `applicationId` is used exclusively when `SparkContext` link:spark-sparkcontext-creating-instance-internals.adoc#_applicationId[is initialized] (to set link:spark-configuration.adoc#spark.app.id[spark.app.id]).
-
-=== [[applicationAttemptId]] Calculating Application Attempt ID -- `applicationAttemptId` Method
-
-[source, scala]
-----
-applicationAttemptId(): Option[String]
-----
-
-`applicationAttemptId` gives the current application's attempt id.
-
-NOTE: It is currently used in link:spark-sparkcontext.adoc#creating-instance[SparkContext while it is being initialized].
-
-=== [[executorLost]] Handling Executor Lost Events -- `executorLost` Method
-
-[source, scala]
-----
-executorLost(executorId: String, reason: ExecutorLossReason): Unit
-----
-
-`executorLost` handles events about an executor `executorId` being lost for a given `reason`.
-
-NOTE: It is currently used in link:spark-sparkcontext-HeartbeatReceiver.adoc[HeartbeatReceiver RPC endpoint in SparkContext to process host expiration events] and to remove executors in scheduler backends.

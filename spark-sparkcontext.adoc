@@ -1,6 +1,6 @@
 == [[SparkContext]] SparkContext -- Entry Point to Spark Core
 
-`SparkContext` (aka *Spark context*) is the entry point to Spark's core services for a Spark application.
+`SparkContext` (aka *Spark context*) is the heart of a Spark application.
 
 NOTE: You could also assume that a SparkContext instance _is_ a Spark application.
 
@@ -15,11 +15,12 @@ image::diagrams/sparkcontext-services.png[align="center"]
 
 `SparkContext` offers the following functions:
 
-* Getting current configuration
+* Getting current configuration of a Spark application
 ** <<env, SparkEnv>>
 ** <<getConf, SparkConf>>
 ** <<master, deployment environment (as master URL)>>
 ** <<appName, application name>>
+** <<applicationAttemptId, unique identifier of execution attempt>>
 ** <<deployMode, deploy mode>>
 ** <<defaultParallelism, default level of parallelism>> that specifies the number of link:spark-rdd-partitions.adoc[partitions] in RDDs when they are created without specifying the number explicitly by a user.
 ** <<sparkUser, Spark user>>
@@ -94,6 +95,22 @@ log4j.logger.org.apache.spark.SparkContext=INFO
 Refer to link:spark-logging.adoc[Logging].
 ====
 
+=== [[applicationId]] Unique Identifier of Spark Application -- `applicationId` Method
+
+CAUTION: FIXME
+
+=== [[postApplicationStart]] `postApplicationStart` Internal Method
+
+CAUTION: FIXME
+
+=== [[postApplicationEnd]] `postApplicationEnd` Method
+
+CAUTION: FIXME
+
+=== [[clearActiveContext]] `clearActiveContext` Method
+
+CAUTION: FIXME
+
 === [[getRDDStorageInfo]] `getRDDStorageInfo` Method
 
 CAUTION: FIXME
@@ -125,7 +142,7 @@ Internally, `getPersistentRDDs` returns <<persistentRdds, persistentRdds>> inter
 cancelJob(jobId: Int)
 ----
 
-`cancelJob` requests link:spark-dagscheduler.adoc#cancelJob[`DAGScheduler` to cancel a Spark job] `jobId`.
+`cancelJob` requests `DAGScheduler` link:spark-dagscheduler.adoc#cancelJob[to cancel a Spark job].
 
 === [[dynamic-allocation]] Programmable Dynamic Allocation
 
@@ -270,7 +287,7 @@ getConf: SparkConf
 
 NOTE: Changing the `SparkConf` object does not change the current configuration (as the method returns a copy).
 
-=== [[master]][[master-url]] Getting Deployment Environment -- `master` Method
+=== [[master]][[master-url]] Deployment Environment -- `master` Method
 
 [source, scala]
 ----
@@ -279,18 +296,36 @@ master: String
 
 `master` method returns the current value of link:spark-configuration.adoc#spark.master[spark.master] which is the link:spark-deployment-environments.adoc[deployment environment] in use.
 
-=== [[appName]] Getting Application Name -- `appName` Method
+=== [[appName]] Application Name -- `appName` Method
 
 [source, scala]
 ----
 appName: String
 ----
 
-`appName` returns the value of the mandatory link:spark-configuration.adoc#spark.app.name[spark.app.name] setting.
+`appName` gives the value of the mandatory link:spark-configuration.adoc#spark.app.name[spark.app.name] setting.
 
 NOTE: `appName` is used when link:spark-standalone.adoc#SparkDeploySchedulerBackend[`SparkDeploySchedulerBackend` starts], link:spark-webui-SparkUI.adoc#createLiveUI[`SparkUI` creates a web UI], when `postApplicationStart` is executed, and for Mesos and checkpointing in Spark Streaming.
 
-=== [[deployMode]] Getting Deploy Mode -- `deployMode` Method
+=== [[applicationAttemptId]] Unique Identifier of Execution Attempt -- `applicationAttemptId` Method
+
+[source, scala]
+----
+applicationAttemptId: Option[String]
+----
+
+`applicationAttemptId` gives the  unique identifier of the execution attempt of a Spark application.
+
+[NOTE]
+====
+`applicationAttemptId` is used when:
+
+* link:spark-taskscheduler-ShuffleMapTask.adoc#creating-instance[ShuffleMapTask] and link:spark-taskscheduler-ResultTask.adoc#creating-instance[ResultTask] are created
+
+* `SparkContext` <<postApplicationStart, announces that a Spark application has started>>
+====
+
+=== [[deployMode]] Deploy Mode -- `deployMode` Method
 
 [source,scala]
 ----
@@ -299,7 +334,7 @@ deployMode: String
 
 `deployMode` returns the current value of link:spark-deploy-mode.adoc[spark.submit.deployMode] setting or `client` if not set.
 
-=== [[getSchedulingMode]] Getting Scheduling Mode -- `getSchedulingMode` Method
+=== [[getSchedulingMode]] Scheduling Mode -- `getSchedulingMode` Method
 
 [source, scala]
 ----
@@ -308,7 +343,7 @@ getSchedulingMode: SchedulingMode.SchedulingMode
 
 `getSchedulingMode` returns the current link:spark-taskscheduler-schedulingmode.adoc[Scheduling Mode].
 
-=== [[getPoolForName]] Getting Schedulable (Pool) by Name -- `getPoolForName` Method
+=== [[getPoolForName]] Schedulable (Pool) by Name -- `getPoolForName` Method
 
 [source, scala]
 ----
@@ -323,7 +358,7 @@ Internally, it requests the link:spark-TaskScheduler.adoc#rootPool[TaskScheduler
 
 It is exclusively used to link:spark-webui-PoolPage.adoc[show pool details in web UI (for a stage)].
 
-=== [[getAllPools]] Getting All Pools -- `getAllPools` Method
+=== [[getAllPools]] All Pools -- `getAllPools` Method
 
 [source, scala]
 ----
@@ -340,7 +375,7 @@ CAUTION: FIXME Where is the method used?
 
 NOTE: `getAllPools` is used to calculate pool names for link:spark-webui-AllStagesPage.adoc#pool-names[Stages tab in web UI] with FAIR scheduling mode used.
 
-=== [[defaultParallelism]] Getting Default Level of Parallelism
+=== [[defaultParallelism]] Default Level of Parallelism
 
 [source, scala]
 ----
@@ -358,7 +393,7 @@ NOTE: *Default level of parallelism* specifies the number of link:spark-rdd-part
 `defaultParallelism` is also used to instantiate link:spark-rdd-HashPartitioner.adoc[HashPartitioner] and for the minimum number of partitions in link:spark-rdd-hadooprdd.adoc[HadoopRDDs].
 ====
 
-=== [[taskScheduler]] `taskScheduler` Property
+=== [[taskScheduler]] Current Spark Scheduler (aka TaskScheduler) -- `taskScheduler` Property
 
 [source, scala]
 ----
@@ -658,14 +693,6 @@ Running a job is essentially executing a `func` function on all or a subset of p
 
 .Executing action
 image::images/spark-runjob.png[align="center"]
-
-=== [[postApplicationEnd]] `postApplicationEnd` Method
-
-CAUTION: FIXME
-
-=== [[clearActiveContext]] `clearActiveContext` Method
-
-CAUTION: FIXME
 
 === [[stop]][[stopping]] Stopping `SparkContext` -- `stop` Method
 
