@@ -14,25 +14,54 @@ Metrics System is available at http://localhost:4040/metrics/json/ (for the defa
 $ http http://localhost:4040/metrics/json/
 HTTP/1.1 200 OK
 Cache-Control: no-cache, no-store, must-revalidate
-Content-Length: 2359
+Content-Length: 2200
 Content-Type: text/json;charset=utf-8
-Date: Sat, 29 Oct 2016 19:46:34 GMT
+Date: Sat, 25 Feb 2017 14:14:16 GMT
 Server: Jetty(9.2.z-SNAPSHOT)
 X-Frame-Options: SAMEORIGIN
 
 {
     "counters": {
-        "app-20161029211022-0000.driver.HiveExternalCatalog.fileCacheHits": {
+        "app-20170225151406-0000.driver.HiveExternalCatalog.fileCacheHits": {
             "count": 0
         },
-        "app-20161029211022-0000.driver.HiveExternalCatalog.filesDiscovered": {
+        "app-20170225151406-0000.driver.HiveExternalCatalog.filesDiscovered": {
             "count": 0
         },
-        "app-20161029211022-0000.driver.HiveExternalCatalog.partitionsFetched": {
+        "app-20170225151406-0000.driver.HiveExternalCatalog.hiveClientCalls": {
+            "count": 2
+        },
+        "app-20170225151406-0000.driver.HiveExternalCatalog.parallelListingJobCount": {
+            "count": 0
+        },
+        "app-20170225151406-0000.driver.HiveExternalCatalog.partitionsFetched": {
             "count": 0
         }
     },
+    "gauges": {
     ...
+    "timers": {
+        "app-20170225151406-0000.driver.DAGScheduler.messageProcessingTime": {
+            "count": 0,
+            "duration_units": "milliseconds",
+            "m15_rate": 0.0,
+            "m1_rate": 0.0,
+            "m5_rate": 0.0,
+            "max": 0.0,
+            "mean": 0.0,
+            "mean_rate": 0.0,
+            "min": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p95": 0.0,
+            "p98": 0.0,
+            "p99": 0.0,
+            "p999": 0.0,
+            "rate_units": "calls/second",
+            "stddev": 0.0
+        }
+    },
+    "version": "3.0.0"
 }
 ```
 
@@ -49,9 +78,18 @@ Enable `org.apache.spark.metrics.sink.JmxSink` in `conf/metrics.properties` and 
 .jconsole and JmxSink in spark-shell
 image::images/spark-metrics-jconsole.png[align="center"]
 
-=== [[buildRegistryName]] `buildRegistryName` Method
+[TIP]
+====
+Enable `WARN` logging level for `org.apache.spark.metrics.MetricsSystem` logger to see what happens in `MetricsSystem`.
 
-CAUTION: FIXME
+Add the following line to `conf/log4j.properties`:
+
+```
+log4j.logger.org.apache.spark.metrics.MetricsSystem=WARN
+```
+
+Refer to link:spark-logging.adoc[Logging].
+====
 
 === [[creating-instance]] Creating MetricsSystem Instance
 
@@ -69,7 +107,7 @@ createMetricsSystem(
 
 `createMetricsSystem` <<creating-instance, creates a `MetricsSystem`>>.
 
-NOTE: `createMetricsSystem` is executed when a link:spark-sparkenv.adoc#create[`SparkEnv` is created] for the driver and executors.
+NOTE: `createMetricsSystem` is executed when `SparkEnv` link:spark-sparkenv.adoc#create[is created] for the driver and executors.
 
 === [[stop]] `stop` Method
 
@@ -80,6 +118,10 @@ CAUTION: FIXME
 CAUTION: FIXME
 
 === [[registerSource]] `registerSource` Method
+
+CAUTION: FIXME
+
+=== [[removeSource]] `removeSource` Method
 
 CAUTION: FIXME
 
@@ -120,3 +162,36 @@ X-Frame-Options: SAMEORIGIN
     "version": "3.0.0"
 }
 ```
+
+=== [[buildRegistryName]] Building Metrics Source Identifier -- `buildRegistryName` Method
+
+[source, scala]
+----
+buildRegistryName(source: Source): String
+----
+
+NOTE: `buildRegistryName` is used to build the metrics source identifiers for a Spark application's driver and executors, but also for other Spark framework's components (e.g. Spark Standalone's master and workers).
+
+NOTE: `buildRegistryName` uses <<spark.metrics.namespace, spark.metrics.namespace>> and link:spark-Executor.adoc#spark.executor.id[spark.executor.id] Spark properties to differentiate between a Spark application's driver and executors, and the other Spark framework's components.
+
+(only when <<instance, instance>> is `driver` or `executor`) `buildRegistryName` builds metrics source name that is made up of <<spark.metrics.namespace, spark.metrics.namespace>>, link:spark-Executor.adoc#spark.executor.id[spark.executor.id] and the name of the `source`.
+
+NOTE: `buildRegistryName` uses Metrics' http://metrics.dropwizard.io/3.2.0/apidocs/com/codahale/metrics/MetricRegistry.html[MetricRegistry] to build metrics source identifiers.
+
+CAUTION: FIXME Finish for the other components.
+
+NOTE: `buildRegistryName` is used when `MetricsSystem` <<registerSource, registers>> or <<removeSource, removes>> a metrics source.
+
+=== [[settings]] Settings
+
+.Spark Properties
+[cols="1,1,2",options="header",width="100%"]
+|===
+| Spark Property
+| Default Value
+| Description
+
+| [[spark.metrics.namespace]] `spark.metrics.namespace`
+| link:spark-SparkConf.adoc#spark.app.id[spark.app.id]
+| Root namespace for metrics reporting
+|===
