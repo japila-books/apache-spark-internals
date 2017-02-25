@@ -1,13 +1,15 @@
 == [[HeartbeatReceiver]] HeartbeatReceiver RPC Endpoint
 
-`HeartbeatReceiver` is a link:spark-rpc.adoc#ThreadSafeRpcEndpoint[ThreadSafeRpcEndpoint] and a link:spark-SparkListener.adoc[SparkListener].
+`HeartbeatReceiver` is a link:spark-rpc.adoc#ThreadSafeRpcEndpoint[ThreadSafeRpcEndpoint] registered on the driver under the name *HeartbeatReceiver*.
 
-`HeartbeatReceiver` acts as <<messages, message endpoint>> for *HeartbeatReceiver* RPC endpoint and is registered when `SparkContext` link:spark-sparkcontext-creating-instance-internals.adoc#_heartbeatReceiver[is created].
-
-`HeartbeatReceiver` tracks executors and informs link:spark-TaskScheduler.adoc[TaskScheduler] and link:spark-sparkcontext.adoc[SparkContext] about lost executors.
+`HeartbeatReceiver` receives <<Heartbeat, Heartbeat>> messages from executors that Spark uses as the mechanism to receive accumulator updates (with task metrics and a Spark application's accumulators) and link:spark-TaskScheduler.adoc#executorHeartbeatReceived[pass them along to `TaskScheduler`].
 
 .HeartbeatReceiver RPC Endpoint and Heartbeats from Executors
 image::images/spark-HeartbeatReceiver-Heartbeat.png[align="center"]
+
+NOTE: `HeartbeatReceiver` is registered immediately after a Spark application is started, i.e. when `SparkContext` link:spark-sparkcontext-creating-instance-internals.adoc#_heartbeatReceiver[is created].
+
+`HeartbeatReceiver` is a link:spark-SparkListener.adoc[SparkListener] to get notified when <<onExecutorAdded, a new executor is added>> to or <<onExecutorRemoved, no longer available>> in a Spark application. `HeartbeatReceiver` tracks executors (in <<executorLastSeen, executorLastSeen>> registry) to handle <<Heartbeat, Heartbeat>> and <<ExpireDeadHosts, ExpireDeadHosts>> messages from executors that are assigned to the Spark application.
 
 [[messages]]
 .HeartbeatReceiver RPC Endpoint's Messages (in alphabetical order)
@@ -17,7 +19,7 @@ image::images/spark-HeartbeatReceiver-Heartbeat.png[align="center"]
 | Description
 
 | <<ExecutorRemoved, ExecutorRemoved>>
-| FIXME
+| Posted when `HeartbeatReceiver` <<removeExecutor, is notified that an executor is no longer available>> (to a Spark application).
 
 | <<ExecutorRegistered, ExecutorRegistered>>
 | Posted when `HeartbeatReceiver` <<addExecutor, is notified that a new executor has been registered>> (with a Spark application).
@@ -59,10 +61,6 @@ log4j.logger.org.apache.spark.HeartbeatReceiver=TRACE
 Refer to link:spark-logging.adoc[Logging].
 ====
 
-=== [[expireDeadHosts]] `expireDeadHosts` Internal Method
-
-CAUTION: FIXME
-
 === [[creating-instance]] Creating HeartbeatReceiver Instance
 
 `HeartbeatReceiver` takes the following when created:
@@ -76,29 +74,9 @@ CAUTION: FIXME
 
 === [[onStart]] Starting HeartbeatReceiver RPC Endpoint -- `onStart` Method
 
-NOTE: `onStart` is part of the link:spark-rpc-RpcEndpoint.adoc[RpcEndpoint contract]
+NOTE: `onStart` is part of the link:spark-rpc-RpcEndpoint.adoc[RpcEndpoint Contract]
 
 When called, `HeartbeatReceiver` sends a blocking <<ExpireDeadHosts, ExpireDeadHosts>> every <<spark.network.timeoutInterval, spark.network.timeoutInterval>> on <<eventLoopThread, eventLoopThread - Heartbeat Receiver Event Loop Thread>>.
-
-=== [[onStop]] Stopping HeartbeatReceiver RPC Endpoint -- `onStop` Method
-
-NOTE: `onStop` is part of the link:spark-rpc.adoc#RpcEndpoint[RpcEndpoint Contract]
-
-When called, `HeartbeatReceiver` cancels the checking task (that sends a blocking <<ExpireDeadHosts, ExpireDeadHosts>> every <<spark.network.timeoutInterval, spark.network.timeoutInterval>> on <<eventLoopThread, eventLoopThread - Heartbeat Receiver Event Loop Thread>> - see <<onStart, Starting (onStart method)>>) and shuts down <<eventLoopThread, eventLoopThread>> and <<killExecutorThread, killExecutorThread>> executors.
-
-=== [[killExecutorThread]][[kill-executor-thread]] `killExecutorThread` -- Kill Executor Thread
-
-`killExecutorThread` is a daemon https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/ScheduledThreadPoolExecutor.html[ScheduledThreadPoolExecutor] with a single thread.
-
-The name of the thread pool is *kill-executor-thread*.
-
-NOTE: It is used to request SparkContext to kill the executor.
-
-=== [[eventLoopThread]][[heartbeat-receiver-event-loop-thread]] `eventLoopThread` -- Heartbeat Receiver Event Loop Thread
-
-`eventLoopThread` is a daemon https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/ScheduledThreadPoolExecutor.html[ScheduledThreadPoolExecutor] with a single thread.
-
-The name of the thread pool is *heartbeat-receiver-event-loop-thread*.
 
 === [[ExecutorRegistered]] ExecutorRegistered
 
@@ -118,11 +96,7 @@ NOTE: `HeartbeatReceiver` uses the internal <<clock, Clock>> to know the current
 ExecutorRemoved(executorId: String)
 ----
 
-When `ExecutorRemoved` arrives, `executorId` is simply removed from <<executorLastSeen, executorLastSeen>> internal registry.
-
-NOTE: `HeartbeatReceiver` itself sends a `ExecutorRegistered` message (from `removeExecutor` internal method). It is as a follow-up to `SparkListener.onExecutorRemoved` when a driver removes an executor.
-
-NOTE: It is an internal message.
+When `ExecutorRemoved` arrives, `HeartbeatReceiver` removes `executorId` from <<executorLastSeen, executorLastSeen>> internal registry.
 
 === [[ExpireDeadHosts]] ExpireDeadHosts
 
@@ -151,8 +125,6 @@ link:spark-TaskScheduler.adoc#executorLost[TaskScheduler.executorLost] is called
 
 The executor is removed from <<executorLastSeen, executorLastSeen>>.
 
-NOTE: It is an internal message.
-
 === [[Heartbeat]] Heartbeat
 
 [source, scala]
@@ -168,7 +140,7 @@ When the executor is found, `HeartbeatReceiver` updates the time the heartbeat w
 
 NOTE: `HeartbeatReceiver` uses the internal <<clock, Clock>> to know the current time.
 
-`HeartbeatReceiver` then submits an asynchronous task to notify <<scheduler, TaskScheduler>> that the link:spark-TaskScheduler.adoc#executorHeartbeatReceived[heartbeat was received from the executor]. `HeartbeatReceiver` posts a `HeartbeatResponse` back to the executor (with the response from `TaskScheduler` whether the executor has been registered already or not so it may eventually need to re-register).
+`HeartbeatReceiver` then submits an asynchronous task to notify `TaskScheduler` that the link:spark-TaskScheduler.adoc#executorHeartbeatReceived[heartbeat was received from the executor] (using <<scheduler, TaskScheduler>> internal reference). `HeartbeatReceiver` posts a `HeartbeatResponse` back to the executor (with the response from `TaskScheduler` whether the executor has been registered already or not so it may eventually need to re-register).
 
 If however the executor was not found (in <<executorLastSeen, executorLastSeen>> registry), i.e. the executor was not registered before, you should see the following DEBUG message in the logs and the response is to notify the executor to re-register.
 
@@ -215,9 +187,62 @@ NOTE: `onExecutorAdded` is a part of link:spark-SparkListener.adoc#onExecutorAdd
 addExecutor(executorId: String): Option[Future[Boolean]]
 ----
 
-`addExecutor` sends <<ExecutorRegistered, ExecutorRegistered>> message (to register `executorId` executor).
+`addExecutor` sends a <<ExecutorRegistered, ExecutorRegistered>> message (to register `executorId` executor).
 
 NOTE: `addExecutor` is used when `HeartbeatReceiver` <<onExecutorAdded, is notified that a new executor was added>>.
+
+=== [[onExecutorRemoved]] `onExecutorRemoved` Method
+
+[source, scala]
+----
+onExecutorRemoved(executorRemoved: SparkListenerExecutorRemoved): Unit
+----
+
+`onExecutorRemoved` simply passes the call to <<removeExecutor, removeExecutor>> (that in turn unregisters an executor).
+
+NOTE: `onExecutorRemoved` is a part of link:spark-SparkListener.adoc#onExecutorRemoved[SparkListener contract] to announce that an executor is no longer available for a Spark application.
+
+=== [[removeExecutor]] Sending ExecutorRemoved Message to Itself -- `removeExecutor` Method
+
+[source, scala]
+----
+removeExecutor(executorId: String): Option[Future[Boolean]]
+----
+
+`removeExecutor` sends a <<ExecutorRemoved, ExecutorRemoved>> message to itself (passing in `executorId`).
+
+NOTE: `removeExecutor` is used when `HeartbeatReceiver` <<onExecutorRemoved, is notified that an executor is no longer available>>.
+
+=== [[onStop]] Stopping HeartbeatReceiver RPC Endpoint -- `onStop` Method
+
+NOTE: `onStop` is part of the link:spark-rpc.adoc#RpcEndpoint[RpcEndpoint Contract]
+
+When called, `HeartbeatReceiver` cancels the checking task (that sends a blocking <<ExpireDeadHosts, ExpireDeadHosts>> every <<spark.network.timeoutInterval, spark.network.timeoutInterval>> on <<eventLoopThread, eventLoopThread - Heartbeat Receiver Event Loop Thread>> - see <<onStart, Starting (onStart method)>>) and shuts down <<eventLoopThread, eventLoopThread>> and <<killExecutorThread, killExecutorThread>> executors.
+
+=== [[killExecutorThread]][[kill-executor-thread]] `killExecutorThread` -- Kill Executor Thread
+
+`killExecutorThread` is a daemon https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/ScheduledThreadPoolExecutor.html[ScheduledThreadPoolExecutor] with a single thread.
+
+The name of the thread pool is *kill-executor-thread*.
+
+NOTE: It is used to request SparkContext to kill the executor.
+
+=== [[eventLoopThread]][[heartbeat-receiver-event-loop-thread]] `eventLoopThread` -- Heartbeat Receiver Event Loop Thread
+
+`eventLoopThread` is a daemon https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/ScheduledThreadPoolExecutor.html[ScheduledThreadPoolExecutor] with a single thread.
+
+The name of the thread pool is *heartbeat-receiver-event-loop-thread*.
+
+=== [[expireDeadHosts]] `expireDeadHosts` Internal Method
+
+[source, scala]
+----
+expireDeadHosts(): Unit
+----
+
+CAUTION: FIXME
+
+NOTE: `expireDeadHosts` is used when `HeartbeatReceiver` <<ExpireDeadHosts, receives a `ExpireDeadHosts` message>>.
 
 === [[settings]] Settings
 
