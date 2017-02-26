@@ -78,6 +78,32 @@ Enable `org.apache.spark.metrics.sink.JmxSink` in `conf/metrics.properties` and 
 .jconsole and JmxSink in spark-shell
 image::images/spark-metrics-jconsole.png[align="center"]
 
+[[internal-properties]]
+.MetricsSystem's Internal Properties
+[cols="1,1,2",options="header",width="100%"]
+|===
+| Name
+| Initial Value
+| Description
+
+| [[registry]] registry
+| http://metrics.dropwizard.io/3.1.0/apidocs/com/codahale/metrics/MetricRegistry.html[com.codahale.metrics.MetricRegistry]
+| FIXME
+|===
+
+[[internal-registries]]
+.MetricsSystem's Internal Registries and Counters
+[cols="1,2",options="header",width="100%"]
+|===
+| Name
+| Description
+
+| [[sources]] `sources`
+| link:spark-metrics-Source.adoc[Metrics sources] in a Spark application.
+
+Used when `MetricsSystem` <<registerSource, registers a new metrics source>>.
+|===
+
 [TIP]
 ====
 Enable `WARN` logging level for `org.apache.spark.metrics.MetricsSystem` logger to see what happens in `MetricsSystem`.
@@ -90,6 +116,14 @@ log4j.logger.org.apache.spark.metrics.MetricsSystem=WARN
 
 Refer to link:spark-logging.adoc[Logging].
 ====
+
+=== [[start]] `start` Method
+
+CAUTION: FIXME
+
+=== [[registerSources]] `registerSources` Internal Method
+
+CAUTION: FIXME
 
 === [[creating-instance]] Creating MetricsSystem Instance
 
@@ -110,14 +144,6 @@ createMetricsSystem(
 NOTE: `createMetricsSystem` is executed when `SparkEnv` link:spark-sparkenv.adoc#create[is created] for the driver and executors.
 
 === [[stop]] `stop` Method
-
-CAUTION: FIXME
-
-=== [[start]] `start` Method
-
-CAUTION: FIXME
-
-=== [[registerSource]] `registerSource` Method
 
 CAUTION: FIXME
 
@@ -162,6 +188,48 @@ X-Frame-Options: SAMEORIGIN
     "version": "3.0.0"
 }
 ```
+
+=== [[registerSource]] Registering Metrics Source -- `registerSource` Method
+
+[source, scala]
+----
+registerSource(source: Source): Unit
+----
+
+`registerSource` adds `source` to <<sources, sources>> internal registry.
+
+`registerSource` <<buildRegistryName, creates an identifier>> for the metrics source and registers it with <<registry, MetricRegistry>>.
+
+NOTE: `registerSource` uses Metrics' link:++http://metrics.dropwizard.io/3.1.0/apidocs/com/codahale/metrics/MetricRegistry.html#register-java.lang.String-T-++[MetricRegistry.register] to register a metrics source under a given name.
+
+When `registerSource` tries to register a name more than once, you should see the following INFO message in the logs:
+
+```
+INFO Metrics already registered
+```
+
+[NOTE]
+====
+`registerSource` is used when:
+
+* `SparkContext` link:spark-sparkcontext-creating-instance-internals.adoc#registerSource[registers metrics sources] for:
+** link:spark-dagscheduler.adoc#metricsSource[DAGScheduler]
+** link:spark-blockmanager-BlockManagerSource.adoc[BlockManager]
+** link:spark-ExecutorAllocationManager.adoc#executorAllocationManagerSource[ExecutorAllocationManager] (when link:spark-dynamic-allocation.adoc#isDynamicAllocationEnabled[dynamic allocation is enabled])
+
+* `MetricsSystem` <<start, is started>> (and registers the "static" metrics sources -- `CodegenMetrics` and `HiveCatalogMetrics`) and does <<registerSources, registerSources>>.
+
+* `Executor` link:spark-Executor.adoc#creating-instance[is created] (and registers a link:spark-executor-ExecutorSource.adoc[ExecutorSource])
+
+* `ExternalShuffleService` link:spark-ExternalShuffleService.adoc#start[is started] (and registers `ExternalShuffleServiceSource`)
+
+* Spark Structured Streaming's `StreamExecution` runs batches as data arrives (when metrics are enabled).
+* Spark Streaming's `StreamingContext` is started (and registers `StreamingSource`)
+
+* Spark Standalone's `Master` and `Worker` start (and register their `MasterSource` and `WorkerSource`, respectively)
+* Spark Standalone's `Master` registers a Spark application (and registers a `ApplicationSource`)
+* Spark on Mesos' `MesosClusterScheduler` is started (and registers a `MesosClusterSchedulerSource`)
+====
 
 === [[buildRegistryName]] Building Metrics Source Identifier -- `buildRegistryName` Method
 
