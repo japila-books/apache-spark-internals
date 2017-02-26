@@ -89,6 +89,10 @@ image::images/spark-metrics-jconsole.png[align="center"]
 | [[registry]] registry
 | http://metrics.dropwizard.io/3.1.0/apidocs/com/codahale/metrics/MetricRegistry.html[com.codahale.metrics.MetricRegistry]
 | FIXME
+
+| [[running]] running
+| Flag whether `MetricsSystem` has already been <<start, started>> or not
+| FIXME
 |===
 
 [[internal-registries]]
@@ -97,6 +101,11 @@ image::images/spark-metrics-jconsole.png[align="center"]
 |===
 | Name
 | Description
+
+| [[sinks]] `sinks`
+| link:spark-metrics-Sink.adoc[Metrics sinks] in a Spark application.
+
+Used when `MetricsSystem` <<registerSinks, registers a new metrics sink>> and <<start, starts them eventually>>.
 
 | [[sources]] `sources`
 | link:spark-metrics-Source.adoc[Metrics sources] in a Spark application.
@@ -117,11 +126,15 @@ log4j.logger.org.apache.spark.metrics.MetricsSystem=WARN
 Refer to link:spark-logging.adoc[Logging].
 ====
 
-=== [[start]] `start` Method
+=== [[StaticSources]] "Static" Metrics Sources for Spark SQL -- StaticSources
 
 CAUTION: FIXME
 
 === [[registerSources]] `registerSources` Internal Method
+
+CAUTION: FIXME
+
+=== [[registerSinks]] `registerSinks` Internal Method
 
 CAUTION: FIXME
 
@@ -249,6 +262,37 @@ NOTE: `buildRegistryName` uses Metrics' http://metrics.dropwizard.io/3.2.0/apido
 CAUTION: FIXME Finish for the other components.
 
 NOTE: `buildRegistryName` is used when `MetricsSystem` <<registerSource, registers>> or <<removeSource, removes>> a metrics source.
+
+=== [[start]] Starting MetricsSystem -- `start` Method
+
+[source, scala]
+----
+start(): Unit
+----
+
+`start` turns <<running, running>> flag on.
+
+NOTE: `start` can only be called once and reports an `IllegalArgumentException` otherwise.
+
+`start` registers the <<StaticSources, "static" metrics sources>> for Spark SQL, i.e. `CodegenMetrics` and `HiveCatalogMetrics`.
+
+`start` then <<registerSources, registerSources>> followed by <<registerSinks, registerSinks>>.
+
+In the end, `start` link:spark-metrics-Sink.adoc#start[starts registered metrics sinks] (from <<sinks, sinks>> registry).
+
+[NOTE]
+====
+`start` is used when:
+
+* `SparkContext` link:spark-sparkcontext-creating-instance-internals.adoc#MetricsSystem-start[is created] (on the driver)
+
+* `SparkEnv` link:spark-sparkenv.adoc#create[is created] (on executors)
+
+* `ExternalShuffleService` link:spark-ExternalShuffleService.adoc#start[is started]
+
+* Spark Standalone's `Master` and `Worker` start
+* Spark on Mesos' `MesosClusterScheduler` is started
+====
 
 === [[settings]] Settings
 
