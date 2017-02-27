@@ -1,10 +1,41 @@
 == [[MetricsConfig]] MetricsConfig -- Metrics System Configuration
 
-`MetricsConfig` is...FIXME
+`MetricsConfig` is the configuration of the link:spark-MetricsSystem.adoc[MetricsSystem] (i.e. metrics link:spark-metrics-Source.adoc[sources] and link:spark-metrics-Sink.adoc[sinks]).
 
-The default configuration file is *metrics.properties* (that is first loaded from CLASSPATH before using the path) that can be changed using <<spark.metrics.conf, spark.metrics.conf>> property.
+`MetricsConfig` uses *metrics.properties* as the default metrics configuration file that can however be changed using <<spark.metrics.conf, spark.metrics.conf>> property. The file is first loaded from the path directly before using Spark's CLASSPATH.
 
-You can also configure the metrics system using ``spark.metrics.conf.``-prefixed Spark properties.
+`MetricsConfig` lets you also configure the metrics configuration using ``spark.metrics.conf.``-prefixed Spark properties.
+
+`MetricsConfig` <<setDefaultProperties, makes sure>> that the <<default-properties, default metrics properties>> are always defined.
+
+[[default-properties]]
+.MetricsConfig's Default Metrics Properties
+[cols="1,2",options="header",width="100%"]
+|===
+| Name
+| Description
+
+| `*.sink.servlet.class`
+| `org.apache.spark.metrics.sink.MetricsServlet`
+
+| `*.sink.servlet.path`
+| `/metrics/json`
+
+| `master.sink.servlet.path`
+| `/metrics/master/json`
+
+| `applications.sink.servlet.path`
+| `/metrics/applications/json`
+|===
+
+[NOTE]
+====
+The order of precedence of metrics configuration settings is as follows:
+
+. <<default-properties, Default metrics properties>>
+. <<spark.metrics.conf, spark.metrics.conf>> or `metrics.properties` configuration file
+. ``spark.metrics.conf.``-prefixed Spark properties
+====
 
 `MetricsConfig` is created when `MetricsSystem` link:spark-MetricsSystem.adoc#creating-instance[is created].
 
@@ -25,10 +56,6 @@ Used when...FIXME
 
 Used when...FIXME
 |===
-
-=== [[setDefaultProperties]] `setDefaultProperties` Internal Method
-
-CAUTION: FIXME
 
 === [[subProperties]] `subProperties` Method
 
@@ -51,13 +78,43 @@ initialize(): Unit
 
 `initialize` <<setDefaultProperties, sets the default properties>> and <<loadPropertiesFromFile, loads the properties from the configuration file>> (that is defined using <<spark.metrics.conf, spark.metrics.conf>> Spark property).
 
-`initialize` takes all the properties that start with *spark.metrics.conf.* prefix from <<conf, SparkConf>> and registers them in <<properties, properties>> (without the prefix).
+`initialize` takes all Spark properties that start with *spark.metrics.conf.* prefix from <<conf, SparkConf>> and adds them to <<properties, properties>> (without the prefix).
 
-In the end, `initialize` splits <<perInstanceSubProperties, configuration for different Spark subsystems>> with the default configuration (denoted as `*`) assigned to the configured subsystems afterwards.
+In the end, `initialize` splits <<perInstanceSubProperties, configuration per Spark subsystem>> with the default configuration (denoted as `*`) assigned to the configured subsystems afterwards.
 
 NOTE: `initialize` accepts `*` (star) for the default configuration or any combination of lower- and upper-case letters for Spark subsystem names.
 
 NOTE: `initialize` is used exclusively when `MetricsSystem` link:spark-MetricsSystem.adoc#creating-instance[is created].
+
+=== [[setDefaultProperties]] `setDefaultProperties` Internal Method
+
+[source, scala]
+----
+setDefaultProperties(prop: Properties): Unit
+----
+
+`setDefaultProperties` sets the <<default-properties, default properties>> (in the input `prop`).
+
+NOTE: `setDefaultProperties` is used exclusively when `MetricsConfig` <<initialize, is initialized>>.
+
+=== [[loadPropertiesFromFile]] Loading Custom Metrics Configuration File or metrics.properties -- `loadPropertiesFromFile` Method
+
+[source, scala]
+----
+loadPropertiesFromFile(path: Option[String]): Unit
+----
+
+`loadPropertiesFromFile` tries to open the input `path` file (if defined) or the default metrics configuration file *metrics.properties* (on CLASSPATH).
+
+If either file is available, `loadPropertiesFromFile` loads the properties (to <<properties, properties>> registry).
+
+In case of exceptions, you should see the following ERROR message in the logs followed by the exception.
+
+```
+ERROR Error loading configuration file [file]
+```
+
+NOTE: `loadPropertiesFromFile` is used when `MetricsConfig` <<initialize, is initialized>>.
 
 === [[settings]] Settings
 
