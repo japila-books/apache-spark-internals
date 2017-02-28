@@ -1,8 +1,46 @@
 == [[MetricsSystem]] MetricsSystem
 
-Spark uses http://metrics.dropwizard.io/3.1.0/[Metrics 3.1.0] Java library to give you insight into the Spark subsystems, e.g. link:spark-dagscheduler.adoc[DAGScheduler], link:spark-blockmanager.adoc[BlockManager], link:spark-Executor.adoc[Executor], link:spark-ExecutorAllocationManager.adoc[ExecutorAllocationManager], link:spark-ExternalShuffleService.adoc[ExternalShuffleService], etc.
+Spark uses http://metrics.dropwizard.io/3.1.0/[Metrics 3.1.0] Java library to give you insight into the <<subsystems, Spark subsystems>> (aka _instances_), e.g. link:spark-dagscheduler.adoc[DAGScheduler], link:spark-blockmanager.adoc[BlockManager], link:spark-Executor.adoc[Executor], link:spark-ExecutorAllocationManager.adoc[ExecutorAllocationManager], link:spark-ExternalShuffleService.adoc[ExternalShuffleService], etc.
 
 NOTE: Metrics are only available for cluster modes, i.e. `local` mode turns metrics off.
+
+[[subsystems]]
+.Subsystems and Their MetricsSystems (in alphabetical order)
+[cols="1,2",options="header",width="100%"]
+|===
+| Subsystem Name
+| When created
+
+| `driver`
+| `SparkEnv` link:spark-sparkenv.adoc#create[is created] for the driver.
+
+| `executor`
+| `SparkEnv` link:spark-sparkenv.adoc#create[is created] for an executor.
+
+| `shuffleService`
+| `ExternalShuffleService` link:spark-ExternalShuffleService.adoc#creating-instance[is created].
+
+| `applications`
+| Spark Standalone's `Master` link:spark-standalone-master.adoc#creating-instance[is created].
+
+| `master`
+| Spark Standalone's `Master` link:spark-standalone-master.adoc#creating-instance[is created].
+
+| `worker`
+| Spark Standalone's `Worker` link:spark-standalone-worker.adoc#creating-instance[is created].
+
+| `mesos_cluster`
+| Spark on Mesos' `MesosClusterScheduler` is created.
+|===
+
+<<subsystems, Subsystems>> access their `MetricsSystem` using link:spark-sparkenv.adoc#metricsSystem[SparkEnv].
+
+[source, scala]
+----
+val metricsSystem = SparkEnv.get.metricsSystem
+----
+
+CAUTION: FIXME Mention TaskContextImpl and Task.run
 
 link:spark-metrics-Source.adoc[org.apache.spark.metrics.source.Source] is the top-level class for the metric registries in Spark. Sources expose their internal status.
 
@@ -63,7 +101,7 @@ X-Frame-Options: SAMEORIGIN
 }
 ```
 
-NOTE: Separate ``MetricsSystem``s are created for `driver`, `executor`, external `shuffleService`, `master`, `applications`, `worker`, `mesos_cluster`. You can access the metrics using corresponding URLs for the services, e.g. `4040` for the `driver`, `8080` for Spark Standalone's `master` and `applications`.
+NOTE: You can access a Spark subsystem's `MetricsSystem` using its corresponding "leading" port, e.g. `4040` for the `driver`, `8080` for Spark Standalone's `master` and `applications`.
 
 NOTE: You have to use the trailing slash (`/`) to have the output.
 
@@ -90,12 +128,12 @@ image::images/spark-metrics-jconsole.png[align="center"]
 
 Used when `MetricsSystem` registers <<registerSinks, sinks>> and <<registerSources, sources>>.
 
-| [[registry]] `registry`
-| http://metrics.dropwizard.io/3.1.0/apidocs/com/codahale/metrics/MetricRegistry.html[com.codahale.metrics.MetricRegistry]
-| FIXME
-
 | [[running]] `running`
 | Flag whether `MetricsSystem` has already been <<start, started>> or not
+| FIXME
+
+| [[metricsServlet]] `metricsServlet`
+| (uninitialized)
 | FIXME
 |===
 
@@ -105,6 +143,10 @@ Used when `MetricsSystem` registers <<registerSinks, sinks>> and <<registerSourc
 |===
 | Name
 | Description
+
+| [[registry]] `registry`
+| http://metrics.dropwizard.io/3.1.0/apidocs/com/codahale/metrics/MetricRegistry.html[com.codahale.metrics.MetricRegistry]
+| FIXME
 
 | [[sinks]] `sinks`
 | link:spark-metrics-Sink.adoc[Metrics sinks] in a Spark application.
@@ -137,24 +179,6 @@ CAUTION: FIXME
 === [[registerSinks]] `registerSinks` Internal Method
 
 CAUTION: FIXME
-
-=== [[creating-instance]] Creating MetricsSystem Instance
-
-When created, `MetricsSystem` link:spark-metrics-MetricsConfig.adoc#creating-instance[creates a `MetricsConfig`] and link:spark-metrics-MetricsConfig.adoc#initialize[initializes] it immediately.
-
-=== [[createMetricsSystem]] `createMetricsSystem` Method
-
-[source, scala]
-----
-createMetricsSystem(
-  instance: String,
-  conf: SparkConf,
-  securityMgr: SecurityManager): MetricsSystem
-----
-
-`createMetricsSystem` <<creating-instance, creates a `MetricsSystem`>>.
-
-NOTE: `createMetricsSystem` is executed when `SparkEnv` link:spark-sparkenv.adoc#create[is created] for the driver and executors.
 
 === [[stop]] `stop` Method
 
@@ -201,6 +225,34 @@ X-Frame-Options: SAMEORIGIN
     "version": "3.0.0"
 }
 ```
+
+=== [[createMetricsSystem]] Creating MetricsSystem Instance For Subsystem -- `createMetricsSystem` Factory Method
+
+[source, scala]
+----
+createMetricsSystem(
+  instance: String,
+  conf: SparkConf,
+  securityMgr: SecurityManager): MetricsSystem
+----
+
+`createMetricsSystem` <<creating-instance, creates a `MetricsSystem`>>.
+
+NOTE: `createMetricsSystem` is used when <<subsystems, subsystems>> create their `MetricsSystems`.
+
+=== [[creating-instance]] Creating MetricsSystem Instance
+
+`MetricsSystem` takes the following when created:
+
+* [[instance]] Subsystem name
+* [[conf]] link:spark-SparkConf.adoc[SparkConf]
+* [[securityMgr]] link:spark-security.adoc[SecurityManager]
+
+`MetricsSystem` initializes the <<internal-registries, internal registries and counters>>.
+
+When created, `MetricsSystem` requests <<metricsConfig, MetricsConfig>> to link:spark-metrics-MetricsConfig.adoc#initialize[initialize].
+
+NOTE: <<createMetricsSystem, createMetricsSystem>> is used to create `MetricsSystems` instead.
 
 === [[registerSource]] Registering Metrics Source -- `registerSource` Method
 
