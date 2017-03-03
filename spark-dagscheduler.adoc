@@ -178,7 +178,7 @@ CAUTION: FIXME
 
 `DAGScheduler` initializes the <<internal-registries, internal registries and counters>>.
 
-`DAGScheduler` link:spark-TaskScheduler.adoc#setDAGScheduler[sets itself in the given `TaskScheduler`] and in the end starts <<eventProcessLoop, eventProcessLoop>>.
+`DAGScheduler` link:spark-TaskScheduler.adoc#setDAGScheduler[sets itself in the given `TaskScheduler`] and in the end starts <<eventProcessLoop, DAGScheduler Event Bus>>.
 
 NOTE: `DAGScheduler` can reference all the services through a single link:spark-sparkcontext.adoc[SparkContext] with or without specifying explicit link:spark-TaskScheduler.adoc[TaskScheduler].
 
@@ -329,7 +329,7 @@ submitMapStage[K, V, C](
   properties: Properties): JobWaiter[MapOutputStatistics]
 ----
 
-`submitMapStage` creates a link:spark-dagscheduler-JobWaiter.adoc[JobWaiter] (that it eventually returns) and posts a link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#MapStageSubmitted[MapStageSubmitted] event to <<eventProcessLoop, DAGScheduler's Internal Event Bus>>).
+`submitMapStage` creates a link:spark-dagscheduler-JobWaiter.adoc[JobWaiter] (that it eventually returns) and posts a link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#MapStageSubmitted[MapStageSubmitted] event to <<eventProcessLoop, DAGScheduler Event Bus>>).
 
 Internally, `submitMapStage` increments <<nextJobId, `nextJobId` internal counter>> to get the job id.
 
@@ -349,66 +349,66 @@ Can't run submitMapStage on RDD with 0 partitions
 
 NOTE: `submitMapStage` is used when link:spark-sparkcontext.adoc#submitMapStage[`SparkContext` submits a map stage for execution].
 
-=== [[cancelStage]] Posting StageCancelled Event -- `cancelStage` Method
+=== [[cancelStage]] Relaying Stage Cancellation From SparkContext (by Posting StageCancelled to DAGScheduler Event Bus) -- `cancelStage` Method
 
 [source, scala]
 ----
 cancelStage(stageId: Int)
 ----
 
-`cancelJobGroup` merely posts a link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#StageCancelled[StageCancelled] event to the <<eventProcessLoop, DAGScheduler's Internal Event Bus>>.
+`cancelJobGroup` merely posts a link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#StageCancelled[StageCancelled] event to the <<eventProcessLoop, DAGScheduler Event Bus>>.
 
-NOTE: `cancelStage` is executed when a link:spark-sparkcontext.adoc#cancelStage[`SparkContext` is requested to cancel a stage].
+NOTE: `cancelStage` is used exclusively when `SparkContext` link:spark-sparkcontext.adoc#cancelStage[cancels a stage].
 
-=== [[cancelJobGroup]] Posting JobGroupCancelled Event -- `cancelJobGroup` Method
+=== [[cancelJobGroup]] Relaying Job Group Cancellation From SparkContext (by Posting JobGroupCancelled to DAGScheduler Event Bus) -- `cancelJobGroup` Method
 
 [source, scala]
 ----
 cancelJobGroup(groupId: String): Unit
 ----
 
-`cancelJobGroup` prints the following INFO message to the logs followed by posting a link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#JobGroupCancelled[JobGroupCancelled] event to the <<eventProcessLoop, DAGScheduler's Internal Event Bus>>.
+`cancelJobGroup` prints the following INFO message to the logs followed by posting a link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#JobGroupCancelled[JobGroupCancelled] event to the <<eventProcessLoop, DAGScheduler Event Bus>>.
 
 ```
 INFO Asked to cancel job group [groupId]
 ```
 
-NOTE: `cancelJobGroup` is executed when a link:spark-sparkcontext.adoc#cancelJobGroup[`SparkContext` is requested to cancel a specified group of jobs].
+NOTE: `cancelJobGroup` is used exclusively when `SparkContext` link:spark-sparkcontext.adoc#cancelJobGroup[cancels a job group].
 
-=== [[cancelAllJobs]] Posting AllJobsCancelled Event -- `cancelAllJobs` Method
+=== [[cancelAllJobs]] Relaying All Jobs Cancellation From SparkContext (by Posting AllJobsCancelled to DAGScheduler Event Bus) -- `cancelAllJobs` Method
 
 [source, scala]
 ----
 cancelAllJobs(): Unit
 ----
 
-`cancelAllJobs` merely posts a link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#AllJobsCancelled[AllJobsCancelled] event to the <<eventProcessLoop, DAGScheduler's Internal Event Bus>>.
+`cancelAllJobs` merely posts a link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#AllJobsCancelled[AllJobsCancelled] event to the <<eventProcessLoop, DAGScheduler Event Bus>>.
 
-NOTE: `cancelAllJobs` is executed when a link:spark-sparkcontext.adoc#cancelAllJobs[`SparkContext` is requested to cancel all running and scheduled Spark jobs].
+NOTE: `cancelAllJobs` is used exclusively when `SparkContext` link:spark-sparkcontext.adoc#cancelAllJobs[cancels all running or scheduled Spark jobs].
 
-=== [[taskStarted]] Posting BeginEvent Event -- `taskStarted` Method
+=== [[taskStarted]] Relaying Task Started From TaskSetManager (by Posting BeginEvent to DAGScheduler Event Bus) -- `taskStarted` Method
 
 [source, scala]
 ----
 taskStarted(task: Task[_], taskInfo: TaskInfo)
 ----
 
-`taskStarted` merely posts a link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#BeginEvent[BeginEvent] event to the <<eventProcessLoop, DAGScheduler's Internal Event Bus>>.
+`taskStarted` merely posts a link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#BeginEvent[BeginEvent] event to the <<eventProcessLoop, DAGScheduler Event Bus>>.
 
-NOTE: `taskStarted` is executed when a link:spark-TaskSetManager.adoc#resourceOffer[`TaskSetManager` starts a task].
+NOTE: `taskStarted` is used exclusively when a `TaskSetManager` link:spark-TaskSetManager.adoc#resourceOffer[starts a task].
 
-=== [[taskGettingResult]] Posting GettingResultEvent Event -- `taskGettingResult` Method
+=== [[taskGettingResult]] Relaying Task Fetching/Getting Result From TaskSetManager (by Posting GettingResultEvent to DAGScheduler Event Bus) -- `taskGettingResult` Method
 
 [source, scala]
 ----
 taskGettingResult(taskInfo: TaskInfo)
 ----
 
-`taskGettingResult` merely posts a link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#GettingResultEvent[GettingResultEvent] event to the <<eventProcessLoop, DAGScheduler's Internal Event Bus>>.
+`taskGettingResult` merely posts a link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#GettingResultEvent[GettingResultEvent] event to the <<eventProcessLoop, DAGScheduler Event Bus>>.
 
-NOTE: `taskGettingResult` is executed when a link:spark-TaskSetManager.adoc#handleTaskGettingResult[`TaskSetManager` gets notified about a task fetching result].
+NOTE: `taskGettingResult` is used exclusively when a `TaskSetManager` link:spark-TaskSetManager.adoc#handleTaskGettingResult[gets notified about a task fetching result].
 
-=== [[taskEnded]] Announcing Task End (Posting CompletionEvent to DAGScheduler Event Bus) -- `taskEnded` Method
+=== [[taskEnded]] Relaying Task End From TaskSetManager (by Posting CompletionEvent to DAGScheduler Event Bus) -- `taskEnded` Method
 
 [source, scala]
 ----
@@ -421,13 +421,13 @@ taskEnded(
   taskMetrics: TaskMetrics): Unit
 ----
 
-`taskEnded` simply posts a link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#CompletionEvent[CompletionEvent] event to the <<eventProcessLoop, DAGScheduler's Internal Event Bus>>.
+`taskEnded` simply posts a link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#CompletionEvent[CompletionEvent] event to the <<eventProcessLoop, DAGScheduler Event Bus>>.
 
-NOTE: `taskEnded` is called when a `TaskSetManager` reports task completions, i.e. success or link:spark-TaskSetManager.adoc#handleFailedTask[failure].
+NOTE: `taskEnded` is used exclusively when a `TaskSetManager` reports task completions, i.e. success or link:spark-TaskSetManager.adoc#handleFailedTask[failure].
 
 TIP: Read link:spark-taskscheduler-taskmetrics.adoc[TaskMetrics].
 
-=== [[taskSetFailed]] Posting TaskSetFailed Event -- `taskSetFailed` Method
+=== [[taskSetFailed]] Relaying TaskSet Failed From TaskSetManager (by Posting TaskSetFailed to DAGScheduler Event Bus) -- `taskSetFailed` Method
 
 [source, scala]
 ----
@@ -437,44 +437,48 @@ taskSetFailed(
   exception: Option[Throwable]): Unit
 ----
 
-`taskSetFailed` simply posts a link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#TaskSetFailed[TaskSetFailed] to <<eventProcessLoop, DAGScheduler's Internal Event Bus>>.
+`taskSetFailed` simply posts a link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#TaskSetFailed[TaskSetFailed] to <<eventProcessLoop, DAGScheduler Event Bus>>.
 
 NOTE: The input arguments of `taskSetFailed` are exactly the arguments of link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#TaskSetFailed[TaskSetFailed].
 
-NOTE: `taskSetFailed` is executed when a link:spark-TaskSetManager.adoc#abort[`TaskSetManager` is aborted].
+NOTE: `taskSetFailed` is used exclusively when a `TaskSetManager` link:spark-TaskSetManager.adoc#abort[is aborted].
 
-=== [[executorLost]] Posting ExecutorLost Event -- `executorLost` Method
+=== [[executorLost]] Relaying Executor Lost From TaskSchedulerImpl (by Posting ExecutorLost to DAGScheduler Event Bus) -- `executorLost` Method
 
 [source, scala]
 ----
 executorLost(execId: String, reason: ExecutorLossReason): Unit
 ----
 
-`executorLost` simply posts a link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#ExecutorLost[ExecutorLost] event to <<eventProcessLoop, DAGScheduler's Internal Event Bus>>.
+`executorLost` simply posts a link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#ExecutorLost[ExecutorLost] event to <<eventProcessLoop, DAGScheduler Event Bus>>.
 
-=== [[executorAdded]] Posting ExecutorAdded Event -- `executorAdded` Method
+NOTE: `executorLost` is used when `TaskSchedulerImpl` link:spark-taskschedulerimpl.adoc#statusUpdate[gets task status update] (and a task gets lost which is used to indicate that the executor got broken and hence should be considered lost) or link:spark-taskschedulerimpl.adoc#executorLost[executorLost].
+
+=== [[executorAdded]] Relaying Executor Added From TaskSchedulerImpl (by Posting ExecutorAdded to DAGScheduler Event Bus) -- `executorAdded` Method
 
 [source, scala]
 ----
 executorAdded(execId: String, host: String): Unit
 ----
 
-`executorAdded` simply posts a link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#ExecutorAdded[ExecutorAdded] event to <<eventProcessLoop, DAGScheduler's Internal Event Bus>>.
+`executorAdded` simply posts a link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#ExecutorAdded[ExecutorAdded] event to <<eventProcessLoop, DAGScheduler Event Bus>>.
 
-=== [[cancelJob]] Posting JobCancelled Event -- `cancelJob` Method
+NOTE: `executorAdded` is used exclusively when `TaskSchedulerImpl` link:spark-taskschedulerimpl.adoc#resourceOffers[is offered resources on executors] (and a new executor is found in the resource offers).
+
+=== [[cancelJob]] Relaying Job Cancellation From SparkContext or JobWaiter (by Posting JobCancelled to DAGScheduler Event Bus) -- `cancelJob` Method
 
 [source, scala]
 ----
 cancelJob(jobId: Int): Unit
 ----
 
-`cancelJob` prints the following INFO message and posts a link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#JobCancelled[JobCancelled] to <<eventProcessLoop, DAGScheduler's Internal Event Bus>>.
+`cancelJob` prints the following INFO message and posts a link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#JobCancelled[JobCancelled] to <<eventProcessLoop, DAGScheduler Event Bus>>.
 
 ```
 INFO DAGScheduler: Asked to cancel job [id]
 ```
 
-NOTE: `cancelJob` is called when link:spark-sparkcontext.adoc#cancelJob[SparkContext] and link:spark-dagscheduler-JobWaiter.adoc[JobWaiter] are requested to cancel a Spark job.
+NOTE: `cancelJob` is used when link:spark-sparkcontext.adoc#cancelJob[SparkContext] or link:spark-dagscheduler-JobWaiter.adoc[JobWaiter] cancel a Spark job.
 
 === [[getOrCreateParentStages]] Finding Or Creating Missing Direct Parent ShuffleMapStages (For ShuffleDependencies of Input RDD) -- `getOrCreateParentStages` Internal Method
 
@@ -707,7 +711,7 @@ Internally, `stageDependsOn` walks through the graph of RDDs of the input `stage
 
 After all the RDDs of the input `stage` are visited, `stageDependsOn` checks if the ``target``'s RDD is among the RDDs of the `stage`, i.e. whether the `stage` depends on `target` stage.
 
-=== [[event-loop]][[eventProcessLoop]] dag-scheduler-event-loop -- DAGScheduler's Internal Event Bus
+=== [[event-loop]][[eventProcessLoop]] dag-scheduler-event-loop -- DAGScheduler Event Bus
 
 `eventProcessLoop` is link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc[DAGScheduler's event bus] to which Spark (by <<submitJob, submitJob>>) posts jobs to schedule their execution. Later on, link:spark-TaskSetManager.adoc[TaskSetManager] talks back to `DAGScheduler` to inform about the status of the tasks using the same "communication channel".
 
