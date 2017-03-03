@@ -97,6 +97,29 @@ log4j.logger.org.apache.spark.SparkContext=INFO
 Refer to link:spark-logging.adoc[Logging].
 ====
 
+=== [[unpersistRDD]] Removing RDD Blocks from BlockManagerMaster -- `unpersistRDD` Internal Method
+
+[source, scala]
+----
+unpersistRDD(rddId: Int, blocking: Boolean = true): Unit
+----
+
+`unpersistRDD` requests `BlockManagerMaster` to link:spark-BlockManagerMaster.adoc#removeRdd[remove the blocks for the RDD] (given `rddId`).
+
+NOTE: `unpersistRDD` uses `SparkEnv` link:spark-sparkenv.adoc#blockManager[to access the current `BlockManager`] that is in turn used to link:spark-blockmanager.adoc#master[access the current `BlockManagerMaster`].
+
+`unpersistRDD` removes `rddId` from <<persistentRdds, persistentRdds>> registry.
+
+In the end, `unpersistRDD` posts a link:spark-SparkListener.adoc#SparkListenerUnpersistRDD[SparkListenerUnpersistRDD] (with `rddId`) to <<listenerBus, LiveListenerBus Event Bus>>.
+
+[NOTE]
+====
+`unpersistRDD` is used when:
+
+* `ContextCleaner` does link:spark-service-contextcleaner.adoc#doCleanupRDD[doCleanupRDD]
+* `SparkContext` <<unpersist, unpersists an RDD>> (i.e. marks an RDD as non-persistent)
+====
+
 === [[applicationId]] Unique Identifier of Spark Application -- `applicationId` Method
 
 CAUTION: FIXME
@@ -114,15 +137,6 @@ CAUTION: FIXME
 CAUTION: FIXME
 
 === [[getRDDStorageInfo]] `getRDDStorageInfo` Method
-
-CAUTION: FIXME
-
-=== [[unpersistRDD]] `unpersistRDD` Internal Method
-
-[source, scala]
-----
-unpersistRDD(rddId: Int, blocking: Boolean = true): Unit
-----
 
 CAUTION: FIXME
 
@@ -496,9 +510,11 @@ image::diagrams/sparkcontext-rdds.png[align="center"]
 
 Read link:spark-rdd.adoc#creating-rdds[Creating RDDs] in link:spark-rdd.adoc[RDD - Resilient Distributed Dataset].
 
-=== [[unpersist]] Unpersisting RDDs (Marking RDDs as non-persistent) -- `unpersist` Method
+=== [[unpersist]] Unpersisting RDD (Marking RDD as Non-Persistent) -- `unpersist` Method
 
-It removes an RDD from the master's link:spark-blockmanager.adoc[Block Manager] (calls `removeRdd(rddId: Int, blocking: Boolean)`) and the internal <<persistentRdds, persistentRdds>> mapping.
+CAUTION: FIXME
+
+`unpersist` removes an RDD from the master's link:spark-blockmanager.adoc[Block Manager] (calls `removeRdd(rddId: Int, blocking: Boolean)`) and the internal <<persistentRdds, persistentRdds>> mapping.
 
 It finally posts link:spark-SparkListener.adoc#SparkListenerUnpersistRDD[SparkListenerUnpersistRDD] message to `listenerBus`.
 
@@ -746,7 +762,7 @@ INFO SparkContext: SparkContext already stopped.
 `stop` then does the following:
 
 1. Removes `_shutdownHookRef` from `ShutdownHookManager`.
-2. <<postApplicationEnd, Posts a `SparkListenerApplicationEnd`>> (to <<listenerBus, `LiveListenerBus` Event Bus>>).
+2. <<postApplicationEnd, Posts a `SparkListenerApplicationEnd`>> (to <<listenerBus, LiveListenerBus Event Bus>>).
 3. link:spark-webui-SparkUI.adoc#stop[Stops web UI]
 4. link:spark-MetricsSystem.adoc#report[Requests `MetricSystem` to report metrics] (from all registered sinks).
 5. link:spark-service-contextcleaner.adoc#stop[Stops `ContextCleaner`].
