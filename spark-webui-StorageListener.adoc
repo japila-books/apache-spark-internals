@@ -1,6 +1,26 @@
 == [[StorageListener]] StorageListener -- Spark Listener To...FIXME
 
-`StorageListener` is a link:spark-webui-BlockStatusListener.adoc[BlockStatusListener] that...FIXME
+`StorageListener` is a link:spark-webui-BlockStatusListener.adoc[BlockStatusListener] that uses <<SparkListener-callbacks, SparkListener callbacks>> to...FIXME
+
+[[SparkListener-callbacks]]
+.StorageListener's SparkListener Callbacks (in alphabetical order)
+[width="100%",cols="1,2",options="header"]
+|===
+| Message
+| Description
+
+| <<onBlockUpdated, onBlockUpdated>>
+| FIXME
+
+| <<onStageCompleted, onStageCompleted>>
+| FIXME
+
+| <<onStageSubmitted, onStageSubmitted>>
+| FIXME
+
+| <<onUnpersistRDD, onUnpersistRDD>>
+| FIXME
+|===
 
 [[internal-registries]]
 .StorageListener's Internal Registries and Counters
@@ -15,27 +35,55 @@
 Used when...FIXME
 |===
 
-=== [[onBlockUpdated]] Intercepting Notifications about Changes in Block Status (on BlockManager on Executor) -- `onBlockUpdated` Method
+=== [[onStageCompleted]] Intercepting Stage Completed Events -- `onStageCompleted` Callback
 
 [source, scala]
 ----
-onBlockUpdated(blockUpdated: SparkListenerBlockUpdated): Unit
+onStageCompleted(stageCompleted: SparkListenerStageCompleted): Unit
 ----
 
-`onBlockUpdated`...FIXME
+`onStageCompleted`...FIXME
 
-NOTE: `onBlockUpdated` is a part of link:spark-SparkListener.adoc#onBlockUpdated[SparkListener contract] to announce that there was a change in a block status (on a `BlockManager` on an executor).
+NOTE: `onStageCompleted` is a part of link:spark-SparkListener.adoc#onStageCompleted[SparkListener contract] to announce that a stage has finished.
 
-=== [[updateRDDInfo]] `updateRDDInfo` Internal Method
+=== [[onStageSubmitted]] Intercepting Stage Submitted Events -- `onStageSubmitted` Callback
 
 [source, scala]
 ----
-updateRDDInfo(updatedBlocks: Seq[(BlockId, BlockStatus)]): Unit
+onStageSubmitted(stageSubmitted: SparkListenerStageSubmitted): Unit
+----
+
+`onStageSubmitted`...FIXME
+
+NOTE: `onStageSubmitted` is a part of link:spark-SparkListener.adoc#onStageSubmitted[SparkListener contract] to announce that the missing tasks of a stage were submitted for execution.
+
+=== [[onUnpersistRDD]] Intercepting Unpersist RDD Events -- `onUnpersistRDD` Callback
+
+[source, scala]
+----
+onUnpersistRDD(unpersistRDD: SparkListenerUnpersistRDD): Unit
+----
+
+`onUnpersistRDD`...FIXME
+
+NOTE: `onUnpersistRDD` is a part of link:spark-SparkListener.adoc#onUnpersistRDD[SparkListener contract] to announce that...FIXME
+
+=== [[StorageUtils.updateRddInfo]] Updating RDDInfos (using StorageStatus) -- `StorageUtils.updateRddInfo` Method
+
+[source, scala]
+----
+updateRddInfo(rddInfos: Seq[RDDInfo], statuses: Seq[StorageStatus]): Unit
 ----
 
 CAUTION: FIXME
 
-NOTE: `updateRDDInfo` is used when `StorageListener` <<onBlockUpdated, gets notified about a change in a block status (on a `BlockManager` on an executor)>>.
+[NOTE]
+====
+`updateRddInfo` is used when:
+
+* `SparkContext` link:spark-sparkcontext.adoc#getRDDStorageInfo[getRDDStorageInfo]
+* `StorageListener` <<updateRDDInfo, updates registered RDDInfos (with block updates from BlockManagers)>>
+====
 
 === [[creating-instance]] Creating StorageListener Instance
 
@@ -63,3 +111,29 @@ activeStorageStatusList: Seq[StorageStatus]
 * `AllRDDResource` does `rddList` and `getRDDStorageInfo`
 * `StorageListener` <<updateRDDInfo, updateRDDInfo>>
 ====
+
+=== [[onBlockUpdated]] Intercepting Block Status Update Events -- `onBlockUpdated` Callback
+
+[source, scala]
+----
+onBlockUpdated(blockUpdated: SparkListenerBlockUpdated): Unit
+----
+
+`onBlockUpdated` creates a `BlockStatus` (from the input `SparkListenerBlockUpdated`) and <<updateRDDInfo, updateRDDInfo>> (passing in the link:spark-blockdatamanager.adoc#BlockId[BlockId] and `BlockStatus`).
+
+NOTE: `onBlockUpdated` is a part of link:spark-SparkListener.adoc#onBlockUpdated[SparkListener contract] to announce that there was a change in a block status (on a `BlockManager` on an executor).
+
+=== [[updateRDDInfo]] Updating Registered RDDInfos (with Block Updates from BlockManagers) -- `updateRDDInfo` Internal Method
+
+[source, scala]
+----
+updateRDDInfo(updatedBlocks: Seq[(BlockId, BlockStatus)]): Unit
+----
+
+`updateRDDInfo` finds the RDDs for the input `updatedBlocks` (for link:spark-blockdatamanager.adoc#BlockId[BlockIds]).
+
+NOTE: `updateRDDInfo` finds `BlockIds` that are link:spark-blockdatamanager.adoc#RDDBlockId[RDDBlockIds].
+
+`updateRDDInfo` takes `RDDInfo` entries (in <<_rddInfoMap, _rddInfoMap>> registry) for which there are blocks in the input `updatedBlocks` and <<StorageUtils.updateRddInfo, updates RDDInfos (using StorageStatus)>> (from <<activeStorageStatusList, activeStorageStatusList>>).
+
+NOTE: `updateRDDInfo` is used exclusively when `StorageListener` <<onBlockUpdated, gets notified about a change in a block status (on a `BlockManager` on an executor)>>.
