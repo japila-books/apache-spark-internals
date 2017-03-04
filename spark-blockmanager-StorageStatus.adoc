@@ -24,17 +24,22 @@ There are two ways to access `StorageStatus` about all the known `BlockManagers`
 | Name
 | Description
 
-| [[FIXME]] `FIXME`
-| FIXME
+| [[_nonRddBlocks]] `_nonRddBlocks`
+| Lookup table of `BlockIds` per `BlockId`.
+
+Used when...FIXME
+
+| [[_rddBlocks]] `_rddBlocks`
+| Lookup table of `BlockIds` with `BlockStatus` per RDD id.
 
 Used when...FIXME
 |===
 
-=== [[rddBlocksById]] `rddBlocksById` Method
+=== [[updateStorageInfo]] `updateStorageInfo` Method
 
 CAUTION: FIXME
 
-=== [[removeBlock]] `removeBlock` Method
+=== [[rddBlocksById]] `rddBlocksById` Method
 
 CAUTION: FIXME
 
@@ -46,3 +51,22 @@ CAUTION: FIXME
 * [[maxMem]] Maximum memory -- link:spark-blockmanager.adoc#maxMemory[total available on-heap and off-heap memory for storage on the `BlockManager`]
 
 `StorageStatus` initializes the <<internal-registries, internal registries and counters>>.
+
+=== [[removeBlock]] Removing Block (From Internal Registries) -- `removeBlock` Internal Method
+
+[source, scala]
+----
+removeBlock(blockId: BlockId): Option[BlockStatus]
+----
+
+`removeBlock` removes `blockId` from <<_rddBlocks, _rddBlocks>> registry and returns it.
+
+Internally, `removeBlock` <<updateStorageInfo, updates block status>> of `blockId` (to be empty, i.e. removed).
+
+`removeBlock` branches off per the link:spark-blockdatamanager.adoc#BlockId[type of `BlockId`], i.e. `RDDBlockId` or not.
+
+For a `RDDBlockId`, `removeBlock` finds the RDD in <<_rddBlocks, _rddBlocks>> and removes the `blockId`. `removeBlock` removes the RDD (from <<_rddBlocks, _rddBlocks>>) completely, if there are no more blocks registered.
+
+For a non-``RDDBlockId``, `removeBlock` removes `blockId` from <<_nonRddBlocks, _nonRddBlocks>> registry.
+
+NOTE: `removeBlock` is used when `StorageStatusListener` link:spark-webui-StorageStatusListener.adoc#updateStorageStatus-unpersistedRDD[removes RDD blocks for an unpersisted RDD] or link:spark-webui-StorageStatusListener.adoc#updateStorageStatus-executor[updates storage status for an executor].
