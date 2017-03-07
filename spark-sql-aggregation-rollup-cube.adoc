@@ -155,6 +155,40 @@ scala> quarterlyScores.rollup("period", "student").sum("score").show
 +----------+-------+----------+
 ----
 
+From PostgreSQL's https://www.postgresql.org/docs/current/static/queries-table-expressions.html#QUERIES-GROUPING-SETS[7.2.4. GROUPING SETS, CUBE, and ROLLUP]:
+
+> The individual elements of a CUBE or ROLLUP clause may be either individual expressions, or sublists of elements in parentheses. In the latter case, the sublists are treated as single units for the purposes of generating the individual grouping sets.
+
+[[rollup-example-sublists]]
+[source, scala]
+----
+// given the above inventory dataset
+
+// using struct function
+scala> inventory.rollup(struct("item", "color") as "(item,color)").sum().show
++------------+-------------+
+|(item,color)|sum(quantity)|
++------------+-------------+
+| [table,red]|          223|
+|[chair,blue]|          101|
+|        null|          658|
+| [chair,red]|          210|
+|[table,blue]|          124|
++------------+-------------+
+
+// using expr function
+scala> inventory.rollup(expr("(item, color)") as "(item, color)").sum().show
++-------------+-------------+
+|(item, color)|sum(quantity)|
++-------------+-------------+
+|  [table,red]|          223|
+| [chair,blue]|          101|
+|         null|          658|
+|  [chair,red]|          210|
+| [table,blue]|          124|
++-------------+-------------+
+----
+
 Internally, `rollup` link:spark-sql-dataset-operators.adoc#toDF[converts the `Dataset` into a `DataFrame`] (i.e. uses link:spark-sql-RowEncoder.adoc[RowEncoder] as the encoder) and then creates a <<RelationalGroupedDataset, RelationalGroupedDataset>> (with `RollupType` group type).
 
 NOTE: <<Rollup, Rollup>> expression represents `GROUP BY \... WITH ROLLUP` in SQL in Spark's Catalyst Expression tree (after `AstBuilder` link:spark-sql-AstBuilder.adoc#withAggregation[parses a structured query with aggregation]).
