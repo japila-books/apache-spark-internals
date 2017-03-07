@@ -1,0 +1,174 @@
+== Advanced Aggregation Using ROLLUP and CUBE
+
+[[aggregate-operators]]
+.Aggregate Operators (in alphabetical order)
+[width="100%",cols="1,1,2",options="header"]
+|===
+| Operator
+| Return Type
+| Description
+
+| <<cube, cube>>
+| link:spark-sql-aggregation.adoc#RelationalGroupedDatasets[RelationalGroupedDatasets]
+| Referred as *grouping sets* FIXME
+
+| <<rollup, rollup>>
+| link:spark-sql-aggregation.adoc#RelationalGroupedDatasets[RelationalGroupedDatasets]
+| Referred as *grouping sets* FIXME
+|===
+
+=== [[cube]] `cube` Aggregation Operator
+
+CAUTION: FIXME
+
+=== [[rollup]] `rollup` Aggregation Operator
+
+[source, scala]
+----
+rollup(cols: Column*): RelationalGroupedDataset
+rollup(col1: String, cols: String*): RelationalGroupedDataset
+----
+
+`rollup` operator is an extension of link:spark-sql-aggregation.adoc#groupBy[groupBy] operator that calculates subtotals and totals across specified group of `n + 1` dimensions (with `n` being the number of columns as `cols` and `col1` and `1` for where values become `null`, i.e. undefined).
+
+[NOTE]
+====
+`rollup` operator is commonly used for analysis over hierarchical data; e.g. total salary by department, division, and company-wide total.
+
+See PostgreSQL's https://www.postgresql.org/docs/current/static/queries-table-expressions.html#QUERIES-GROUPING-SETS[7.2.4. GROUPING SETS, CUBE, and ROLLUP]
+====
+
+NOTE: `rollup` operator is equivalent to `GROUP BY \... WITH ROLLUP` in SQL (which in turn is equivalent to `GROUP BY \... GROUPING SETS \((a,b,c),(a,b),(a),())` when used with 3 columns: `a`, `b`, and `c`).
+
+NOTE: `rollup` is considered an advanced variant of `groupBy` with higher efficiency.
+
+From https://technet.microsoft.com/en-us/library/bb522495(v=sql.105).aspx[Using GROUP BY with ROLLUP, CUBE, and GROUPING SETS] in Microsoft's TechNet:
+
+> The ROLLUP, CUBE, and GROUPING SETS operators are extensions of the GROUP BY clause. The ROLLUP, CUBE, or GROUPING SETS operators can generate the same result set as when you use UNION ALL to combine single grouping queries; however, using one of the GROUP BY operators is usually more efficient.
+
+From PostgreSQL's https://www.postgresql.org/docs/current/static/queries-table-expressions.html#QUERIES-GROUPING-SETS[7.2.4. GROUPING SETS, CUBE, and ROLLUP]:
+
+> References to the grouping columns or expressions are replaced by null values in result rows for grouping sets in which those columns do not appear.
+
+From https://technet.microsoft.com/en-us/library/ms189305(v=sql.90).aspx[Summarizing Data Using ROLLUP] in Microsoft's TechNet:
+
+> The ROLLUP operator is useful in generating reports that contain subtotals and totals. (...)
+> ROLLUP generates a result set that shows aggregates for a hierarchy of values in the selected columns.
+
+[[rollup-example-inventory]]
+[source, scala]
+----
+// Borrowed from Microsoft's "Summarizing Data Using ROLLUP" article
+val inventory = Seq(
+  ("table", "blue", 124),
+  ("table", "red", 223),
+  ("chair", "blue", 101),
+  ("chair", "red", 210)).toDF("item", "color", "quantity")
+
+scala> inventory.show
++-----+-----+--------+
+| item|color|quantity|
++-----+-----+--------+
+|chair| blue|     101|
+|chair|  red|     210|
+|table| blue|     124|
+|table|  red|     223|
++-----+-----+--------+
+
+// ordering and empty rows done manually for demo purposes
+scala> inventory.rollup("item", "color").sum().show
++-----+-----+-------------+
+| item|color|sum(quantity)|
++-----+-----+-------------+
+|chair| blue|          101|
+|chair|  red|          210|
+|chair| null|          311|
+|     |     |             |
+|table| blue|          124|
+|table|  red|          223|
+|table| null|          347|
+|     |     |             |
+| null| null|          658|
++-----+-----+-------------+
+----
+
+From Hive's https://cwiki.apache.org/confluence/display/Hive/Enhanced+Aggregation,+Cube,+Grouping+and+Rollup#EnhancedAggregation,Cube,GroupingandRollup-CubesandRollups[Cubes and Rollups]:
+
+> WITH ROLLUP is used with the GROUP BY only. ROLLUP clause is used with GROUP BY to compute the aggregate at the hierarchy levels of a dimension.
+
+> GROUP BY a, b, c with ROLLUP assumes that the hierarchy is "a" drilling down to "b" drilling down to "c".
+
+> GROUP BY a, b, c, WITH ROLLUP is equivalent to GROUP BY a, b, c GROUPING SETS ( (a, b, c), (a, b), (a), ( )).
+
+NOTE: Read up on ROLLUP in Hive's LanguageManual in link:++https://cwiki.apache.org/confluence/display/Hive/LanguageManual+GroupBy#LanguageManualGroupBy-GroupingSets,Cubes,Rollups,andtheGROUPING__IDFunction++[Grouping Sets, Cubes, Rollups, and the GROUPING__ID Function].
+
+[[rollup-example-quarterly-scores]]
+[source, scala]
+----
+// Borrowed from http://stackoverflow.com/a/27222655/1305344
+val quarterlyScores = Seq(
+  ("winter2014", "Agata", 99),
+  ("winter2014", "Jacek", 97),
+  ("summer2015", "Agata", 100),
+  ("summer2015", "Jacek", 63),
+  ("winter2015", "Agata", 97),
+  ("winter2015", "Jacek", 55),
+  ("summer2016", "Agata", 98),
+  ("summer2016", "Jacek", 97)).toDF("period", "student", "score")
+
+scala> quarterlyScores.show
++----------+-------+-----+
+|    period|student|score|
++----------+-------+-----+
+|winter2014|  Agata|   99|
+|winter2014|  Jacek|   97|
+|summer2015|  Agata|  100|
+|summer2015|  Jacek|   63|
+|winter2015|  Agata|   97|
+|winter2015|  Jacek|   55|
+|summer2016|  Agata|   98|
+|summer2016|  Jacek|   97|
++----------+-------+-----+
+
+// ordering and empty rows done manually for demo purposes
+scala> quarterlyScores.rollup("period", "student").sum("score").show
++----------+-------+----------+
+|    period|student|sum(score)|
++----------+-------+----------+
+|winter2014|  Agata|        99|
+|winter2014|  Jacek|        97|
+|winter2014|   null|       196|
+|          |       |          |
+|summer2015|  Agata|       100|
+|summer2015|  Jacek|        63|
+|summer2015|   null|       163|
+|          |       |          |
+|winter2015|  Agata|        97|
+|winter2015|  Jacek|        55|
+|winter2015|   null|       152|
+|          |       |          |
+|summer2016|  Agata|        98|
+|summer2016|  Jacek|        97|
+|summer2016|   null|       195|
+|          |       |          |
+|      null|   null|       706|
++----------+-------+----------+
+----
+
+Internally, `rollup` link:spark-sql-dataset-operators.adoc#toDF[converts the `Dataset` into a `DataFrame`] (i.e. uses link:spark-sql-RowEncoder.adoc[RowEncoder] as the encoder) and then creates a <<RelationalGroupedDataset, RelationalGroupedDataset>> (with `RollupType` group type).
+
+NOTE: <<Rollup, Rollup>> expression represents `GROUP BY \... WITH ROLLUP` in SQL in Spark's Catalyst Expression tree (after `AstBuilder` link:spark-sql-AstBuilder.adoc#withAggregation[parses a structured query with aggregation]).
+
+TIP: Read up on `rollup` in https://www.compose.com/articles/deeper-into-postgres-9-5-new-group-by-options-for-aggregation/[Deeper into Postgres 9.5 - New Group By Options for Aggregation].
+
+=== [[Rollup]] `Rollup` GroupingSet with CodegenFallback Expression (for `rollup` Operator)
+
+[source, scala]
+----
+Rollup(groupByExprs: Seq[Expression])
+extends GroupingSet
+----
+
+`Rollup` expression represents <<rollup, rollup>> operator in Spark's Catalyst Expression tree (after link:spark-sql-Analyzer.adoc[Analyzer] parses a structure query as registered in link:spark-sql-FunctionRegistry.adoc[FunctionRegistry]).
+
+NOTE: `GroupingSet` is a link:spark-sql-catalyst-Expression.adoc[Expression] with link:spark-sql-catalyst-Expression.adoc#CodegenFallback[CodegenFallback] support.
