@@ -1,21 +1,19 @@
 == [[Analyzer]] Logical Query Plan Analyzer
 
-`Analyzer` is a link:spark-sql-LogicalPlan.adoc[logical query plan] analyzer. It resolves unresolved attributes and relations to typed objects using information in a link:spark-sql-SessionCatalog.adoc[SessionCatalog] and link:spark-sql-FunctionRegistry.adoc[FunctionRegistry].
+`Analyzer` is a link:spark-sql-catalyst-RuleExecutor.adoc[RuleExecutor] (with link:spark-sql-catalyst-analyzer-CheckAnalysis.adoc[CheckAnalysis]) that defines `Substitution`, `Resolution`, `Nondeterministic`, `UDF`, `FixNullability`, and `Cleanup` batches of rules to transform a link:spark-sql-LogicalPlan.adoc[LogicalPlan].
 
-`Analyzer` is available at runtime through link:spark-sql-sessionstate.adoc#analyzer[analyzer attribute] of the current `SparkSession`.
+`Analyzer` resolves unresolved attributes and relations to typed objects using information from a link:spark-sql-SessionCatalog.adoc[SessionCatalog] and link:spark-sql-FunctionRegistry.adoc[FunctionRegistry].
+
+`Analyzer` is available at runtime through link:spark-sql-sessionstate.adoc#analyzer[`analyzer` attribute of a `SessionState`] (which is available through link:spark-sql-sparksession.adoc[SparkSession]).
 
 [source, scala]
 ----
 sparkSession.sessionState.analyzer
 ----
 
-NOTE: link:spark-sql-sparksession.adoc#sessionState[`sessionState` attribute in `SparkSession`] is a `private[sql]` value so to access it your code has to be in `org.apache.spark.sql` package.
+NOTE: link:spark-sql-sessionstate.adoc[SessionState] and the Hive-specific link:spark-sql-HiveSessionState.adoc[HiveSessionState] use their own `Analyzer` with custom <<extendedResolutionRules, extendedResolutionRules>>, <<postHocResolutionRules, postHocResolutionRules>>, and <<extendedCheckRules, extendedCheckRules>> extension methods.
 
-`Analyzer` is a <<RuleExecutor, RuleExecutor>> with link:spark-sql-catalyst-analyzer-CheckAnalysis.adoc[CheckAnalysis] and defines `Substitution`, `Resolution`, `Nondeterministic`, `UDF`, `FixNullability`, and `Cleanup` <<batch, batches of rules>> to apply to a link:spark-sql-LogicalPlan.adoc[logical plan].
-
-`Analyzer` uses a link:spark-sql-SessionCatalog.adoc[SessionCatalog], a `CatalystConf`, and a configurable number of iterations (as `maxIterations`).
-
-`Analyzer` defines `extendedResolutionRules` attribute being a collection of rules (that process a `LogicalPlan`) as an extension point that a custom `Analyzer` can use to extend the `Resolution` batch. The collection of rules is added at the end of the `Resolution` batch.
+`Analyzer` defines <<extendedResolutionRules, extendedResolutionRules>> extension that is a collection of rules (that process a `LogicalPlan`) as an extension point that a custom `Analyzer` can use to extend the `Resolution` batch. The collection of rules is added at the end of the `Resolution` batch.
 
 You can access the result of executing `Analyzer` against the link:spark-sql-LogicalPlan.adoc[logical plan] of a link:spark-sql-dataset.adoc[Dataset] using link:spark-sql-dataset.adoc#explain[explain] method or link:spark-sql-query-execution.adoc[QueryExecution]:
 
@@ -47,6 +45,29 @@ Project [id#145L, (id#145L + cast(5 as bigint)) AS new_column#149L]
 +- Range (0, 5, step=1, splits=Some(8))
 ----
 
+[[internal-registries]]
+.Analyzer's Internal Registries and Counters
+[cols="1,2",options="header",width="100%"]
+|===
+| Name
+| Description
+
+| [[extendedResolutionRules]] `extendedResolutionRules`
+| FIXME
+
+Used when...FIXME
+
+| [[fixedPoint]] `fixedPoint`
+| FIXME
+
+Used when...FIXME
+
+| [[postHocResolutionRules]] `postHocResolutionRules`
+| FIXME
+
+Used when...FIXME
+|===
+
 [TIP]
 ====
 Enable `TRACE` or `DEBUG` logging level for `pass:[org.apache.spark.sql.hive.HiveSessionState$$anon$1]` (when link:spark-sql-sparksession.adoc#enableHiveSupport[Hive support is enabled]) or `pass:[org.apache.spark.sql.internal.SessionState$$anon$1]` logger to see what happens inside `Analyzer`.
@@ -67,97 +88,22 @@ Refer to link:spark-logging.adoc[Logging].
 The reason for such a weird-looking logger name is that `analyzer` attribute is created as an anonymous subclass of `Analyzer` class.
 ====
 
-=== [[RuleExecutor]] RuleExecutor -- Abstract Rule Executor
+=== [[creating-instance]] Creating Analyzer Instance
 
-`RuleExecutor` can <<execute, apply>> collection of <<rule, optimization rules>> (as <<batch, batches>>) to a plan tree.
+`Analyzer` takes the following when created:
 
-NOTE: The plan tree can be link:spark-sql-LogicalPlan.adoc[logical plan] or link:spark-sql-SparkPlan.adoc[physical plan].
+* [[catalog]] link:spark-sql-SessionCatalog.adoc[SessionCatalog]
+* [[conf]] CatalystConf
+* [[maxIterations]] Number of iterations that...FIXME
 
-Scala-wise, `RuleExecutor` is an abstract type constructor parameterized by the `TreeType` type parameter.
+`Analyzer` initializes the <<internal-registries, internal registries and counters>>.
 
-[source, scala]
-----
-abstract class RuleExecutor[TreeType <: TreeNode[_]]
-----
+NOTE: `Analyzer` can also be created without specifying the <<maxIterations, maxIterations>> which is then configured using `optimizerMaxIterations`.
 
-`RuleExecutor` defines the protected `batches` method that implementations are supposed to define with the collection of <<batch, Batch>> instances to <<execute, execute>>.
+=== [[batches]] `batches` Extension Point
 
-[source, scala]
-----
-protected def batches: Seq[Batch]
-----
+CAUTION: FIXME
 
-==== [[execute]] Applying Rules to Tree -- `execute` Method
+=== [[resolver]] `resolver` Method
 
-[source, scala]
-----
-execute(plan: TreeType): TreeType
-----
-
-`execute` iterates over <<batch, batches>> and applies <<rule, rules>> sequentially to the input `plan`.
-
-It tracks the number of iterations and the time of executing each rule (with a plan).
-
-When a rule changes a plan, you should see the following TRACE message in the logs:
-
-```
-TRACE HiveSessionState$$anon$1:
-=== Applying Rule [ruleName] ===
-[currentAndModifiedPlansSideBySide]
-```
-
-After the number of iterations has reached the number of iterations for the batch's `Strategy` it stops execution and prints out the following WARN message to the logs:
-
-```
-WARN HiveSessionState$$anon$1: Max iterations ([iteration]) reached for batch [batchName]
-```
-
-When the plan has not changed (after applying rules), you should see the following TRACE message in the logs and `execute` moves on to applying the rules in the next batch. The moment is called *fixed point* (i.e. when the execution *converges*).
-
-```
-TRACE HiveSessionState$$anon$1: Fixed point reached for batch [batchName] after [iteration] iterations.
-```
-
-After the batch finishes, if the plan has been changed by the rules, you should see the following DEBUG message in the logs:
-
-```
-DEBUG HiveSessionState$$anon$1:
-=== Result of Batch [batchName] ===
-[currentAndModifiedPlansSideBySide]
-```
-
-Otherwise, when the rules had no changes to a plan, you should see the following TRACE message in the logs:
-
-```
-TRACE HiveSessionState$$anon$1: Batch [batchName] has no effect.
-```
-
-=== [[batch]] Batch -- Collection of Optimization Rules
-
-A *batch* in Catalyst is a named collection of <<rule, optimization rules>> with a strategy, e.g.
-
-[source, scala]
-----
-Batch("Substitution", fixedPoint,
-  CTESubstitution,
-  WindowsSubstitution,
-  EliminateUnions,
-  new SubstituteUnresolvedOrdinals(conf)),
-----
-
-A `Strategy` can be `Once` or `FixedPoint` (with a number of iterations).
-
-NOTE: `Once` strategy is a `FixedPoint` strategy with one iteration.
-
-=== [[rule]][[Rule]] `Rule`
-
-A *rule* in Catalyst is a named optimization that can be applied to a plan tree.
-
-`Rule` abstract class defines `ruleName` attribute and a single method `apply`:
-
-[source, scala]
-----
-apply(plan: TreeType): TreeType
-----
-
-NOTE: `TreeType` is the type of the plan tree that a rule works with, e.g. link:spark-sql-LogicalPlan.adoc[LogicalPlan], link:spark-sql-SparkPlan.adoc[SparkPlan] or link:spark-sql-catalyst-Expression.adoc[Expression].
+CAUTION: FIXME
