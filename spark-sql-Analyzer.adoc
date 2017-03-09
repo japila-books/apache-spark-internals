@@ -19,30 +19,32 @@ NOTE: The result of applying the <<batches, batches>> of `Analyzer` to a link:sp
 | Resolves `BROADCAST`, `BROADCASTJOIN` and `MAPJOIN` broadcast hints (by adding link:spark-sql-LogicalPlan-BroadcastHint.adoc[BroadcastHint] operator to a logical plan)
 
 | RemoveAllHints
-| Removes all the hints.
+| Removes all the hints (valid or not).
 
 ^.^| Simple Sanity Check
 ^.^| `Once`
 | LookupFunctions
-|
+| Checks whether a function identifier (referenced by an link:spark-sql-LogicalPlan-UnresolvedFunction.adoc[UnresolvedFunction]) link:spark-sql-SessionCatalog.adoc#functionExists[exists in the function registry]. Throws a `NoSuchFunctionException` if not.
 
 .4+^.^| [[Substitution]] Substitution
 .4+^.^| <<fixedPoint, FixedPoint>>
 | CTESubstitution
-|
+| Resolves `With` operators (and substitutes named common table expressions -- CTEs)
 | WindowsSubstitution
-|
+| Substitutes `UnresolvedWindowExpression` with `WindowExpression` for `WithWindowDefinition` operators
 | EliminateUnions
-|
+| Eliminates `Union` of one child into that child
 | SubstituteUnresolvedOrdinals
-|
+| Replaces ordinals in `Sort` and `Aggregate` operators with `UnresolvedOrdinal`
 
 .26+^.^| [[Resolution]] Resolution
 .26+^.^| <<fixedPoint, FixedPoint>>
 | ResolveTableValuedFunctions
-|
+| Replaces `UnresolvedTableValuedFunction` with table-valued function.
+
 | ResolveRelations
-|
+| Resolves `InsertIntoTable` and `UnresolvedRelation` operators
+
 | ResolveReferences
 |
 | ResolveCreateNamedStruct
@@ -66,7 +68,8 @@ NOTE: The result of applying the <<batches, batches>> of `Analyzer` to a link:sp
 | ResolveGenerate
 |
 | ResolveFunctions
-|
+| Transforms `UnresolvedGenerator` to `Generator` and `UnresolvedFunction` using link:spark-sql-SessionCatalog.adoc#lookupFunction[SessionCatalog]
+
 | ResolveAliases
 |
 | ResolveSubquery
@@ -74,7 +77,8 @@ NOTE: The result of applying the <<batches, batches>> of `Analyzer` to a link:sp
 | ResolveWindowOrder
 |
 | ResolveWindowFrame
-|
+| Resolves `WindowExpression`
+
 | ResolveNaturalAndUsingJoin
 |
 | ExtractWindowExpressions
@@ -82,11 +86,14 @@ NOTE: The result of applying the <<batches, batches>> of `Analyzer` to a link:sp
 | GlobalAggregates
 |
 | ResolveAggregateFunctions
-|
+| Resolves aggregate functions in `Filter` and `Sort` operators
+
 | TimeWindowing
-|
+| Resolves single `TimeWindow` expressions
+
 | ResolveInlineTables
-|
+| Resolves `UnresolvedInlineTable` with `LocalRelation`
+
 | TypeCoercion.typeCoercionRules
 |
 | <<extendedResolutionRules, extendedResolutionRules>>
@@ -120,7 +127,7 @@ NOTE: The result of applying the <<batches, batches>> of `Analyzer` to a link:sp
 ^.^| ResolveTimeZone
 ^.^| `Once`
 | ResolveTimeZone
-|
+| Replaces `TimeZoneAwareExpression` with no timezone with one with link:spark-sql-catalyst-CatalystConf.adoc#sessionLocalTimeZone[session-local time zone].
 
 ^.^| [[Cleanup]] Cleanup
 ^.^| <<fixedPoint, FixedPoint>>
