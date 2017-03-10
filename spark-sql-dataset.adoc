@@ -1,11 +1,11 @@
-== Datasets -- Strongly-Typed DataFrames with Encoders
+== [[Dataset]] Dataset -- Strongly-Typed DataFrame with Encoder
 
 *Dataset* is Spark SQL's strongly-typed structured query for working with semi- and structured data, i.e. records with a known link:spark-sql-schema.adoc[schema], by means of link:spark-sql-Encoder.adoc[encoders].
 
 .Dataset's Internals
 image::images/spark-sql-Dataset.png[align="center"]
 
-NOTE: Given the picture above, one could say that a `Dataset` is a tuple of a link:spark-sql-Encoder.adoc[Encoder] and link:spark-sql-query-execution.adoc[QueryExecution] (that in turn is a link:spark-sql-LogicalPlan.adoc[LogicalPlan] in a link:spark-sql-sparksession.adoc[SparkSession])
+NOTE: Given the picture above, one could say that a `Dataset` is a tuple of a link:spark-sql-Encoder.adoc[Encoder] and link:spark-sql-QueryExecution.adoc[QueryExecution] (that in turn is a link:spark-sql-LogicalPlan.adoc[LogicalPlan] in a link:spark-sql-sparksession.adoc[SparkSession])
 
 Datasets are _lazy_ and structured query expressions are only triggered when an action is invoked. Internally, a `Dataset` represents a link:spark-sql-LogicalPlan.adoc[logical plan] that describes the computation query required to produce the data (for a given link:spark-sql-sparksession.adoc[Spark SQL session]).
 
@@ -89,13 +89,13 @@ Using `Dataset` objects turns `DataFrames` of link:spark-sql-dataframe-row.adoc[
 
 Datasets use link:spark-sql-catalyst-Optimizer.adoc[Catalyst Query Optimizer] and link:spark-sql-tungsten.adoc[Tungsten] to optimize query performance.
 
-A `Dataset` object requires a link:spark-sql-sparksession.adoc[SparkSession], a link:spark-sql-query-execution.adoc[QueryExecution] plan, and an link:spark-sql-Encoder.adoc[Encoder] (for fast serialization to and deserialization from link:spark-sql-InternalRow.adoc[InternalRow]).
+A `Dataset` object requires a link:spark-sql-sparksession.adoc[SparkSession], a link:spark-sql-QueryExecution.adoc[QueryExecution] plan, and an link:spark-sql-Encoder.adoc[Encoder] (for fast serialization to and deserialization from link:spark-sql-InternalRow.adoc[InternalRow]).
 
-If however a link:spark-sql-LogicalPlan.adoc[LogicalPlan] is used to <<creating-instance, create a `Dataset`>>, the logical plan is first link:spark-sql-SessionState.adoc#executePlan[executed] (using the current link:spark-sql-SessionState.adoc#executePlan[SessionState] in the `SparkSession`) that yields the link:spark-sql-query-execution.adoc[QueryExecution] plan.
+If however a link:spark-sql-LogicalPlan.adoc[LogicalPlan] is used to <<creating-instance, create a `Dataset`>>, the logical plan is first link:spark-sql-SessionState.adoc#executePlan[executed] (using the current link:spark-sql-SessionState.adoc#executePlan[SessionState] in the `SparkSession`) that yields the link:spark-sql-QueryExecution.adoc[QueryExecution] plan.
 
 A `Dataset` is <<Queryable, Queryable>> and `Serializable`, i.e. can be saved to a persistent storage.
 
-NOTE: link:spark-sql-sparksession.adoc[SparkSession] and link:spark-sql-query-execution.adoc[QueryExecution] are transient attributes of a `Dataset` and therefore do not participate in Dataset serialization. The only _firmly-tied_ feature of a `Dataset` is the link:spark-sql-Encoder.adoc[Encoder].
+NOTE: link:spark-sql-sparksession.adoc[SparkSession] and link:spark-sql-QueryExecution.adoc[QueryExecution] are transient attributes of a `Dataset` and therefore do not participate in Dataset serialization. The only _firmly-tied_ feature of a `Dataset` is the link:spark-sql-Encoder.adoc[Encoder].
 
 You can <<implicits, convert a type-safe Dataset to a "untyped" DataFrame>> or access the link:spark-sql-dataset-operators.adoc#rdd[RDD] that is generated after executing the query. It is supposed to give you a more pleasant experience while transitioning from the legacy RDD-based or DataFrame-based APIs you may have used in the earlier versions of Spark SQL or encourage migrating from Spark Core's RDD API to Spark SQL's Dataset API.
 
@@ -105,7 +105,11 @@ NOTE: Spark 2.0 has introduced a new query model called link:spark-structured-st
 
 A `Dataset` is link:spark-sql-dataset-operators.adoc#isLocal[local] if it was created from local collections using link:spark-sql-sparksession.adoc#emptyDataset[SparkSession.emptyDataset] or link:spark-sql-sparksession.adoc#createDataset[SparkSession.createDataset] methods and their derivatives like <<toDF,toDF>>. If so, the queries on the Dataset can be optimized and run locally, i.e. without using Spark executors.
 
-NOTE: `Dataset` has the link:spark-sql-query-execution.adoc#analyzed[`QueryExecution` analyzed] and link:spark-sql-catalyst-analyzer-CheckAnalysis.adoc#checkAnalysis[checked].
+NOTE: `Dataset` has the link:spark-sql-QueryExecution.adoc#analyzed[`QueryExecution` analyzed] and link:spark-sql-Analyzer-CheckAnalysis.adoc#checkAnalysis[checked].
+
+=== [[creating-instance]] Creating Dataset
+
+If link:spark-sql-LogicalPlan.adoc[LogicalPlan] is used to <<creating-instance, create a `Dataset`>>, it is link:spark-sql-SessionState.adoc#executePlan[executed] (using the current link:spark-sql-SessionState.adoc#executePlan[SessionState]) to create a corresponding link:spark-sql-QueryExecution.adoc[QueryExecution].
 
 === [[queryExecution]] `queryExecution` Attribute
 
@@ -118,10 +122,6 @@ dataset.queryExecution
 ----
 
 It is a part of the Developer API of the `Dataset` class.
-
-=== [[creating-instance]] Creating Datasets
-
-If link:spark-sql-LogicalPlan.adoc[LogicalPlan] is used to <<creating-instance, create a `Dataset`>>, it is link:spark-sql-SessionState.adoc#executePlan[executed] (using the current link:spark-sql-SessionState.adoc#executePlan[SessionState]) to create a corresponding link:spark-sql-query-execution.adoc[QueryExecution].
 
 === [[implicits]][[toDS]][[toDF]] Implicit Type Conversions to Datasets -- `toDS` and `toDF` methods
 
@@ -265,7 +265,7 @@ NOTE: `ofRows` is a `private[sql]` operator that can only be accessed from code 
 
 `ofRows` returns link:spark-sql-dataframe.adoc[DataFrame] (which is the type alias for `Dataset[Row]`). `ofRows` uses link:spark-sql-RowEncoder.adoc[RowEncoder] to convert the schema (based on the input `logicalPlan` logical plan).
 
-Internally, `ofRows` link:spark-sql-SessionState.adoc#executePlan[prepares the input `logicalPlan` for execution] and creates a `Dataset[Row]` with the current link:spark-sql-sparksession.adoc[SparkSession], the link:spark-sql-query-execution.adoc[QueryExecution] and link:spark-sql-RowEncoder.adoc[RowEncoder].
+Internally, `ofRows` link:spark-sql-SessionState.adoc#executePlan[prepares the input `logicalPlan` for execution] and creates a `Dataset[Row]` with the current link:spark-sql-sparksession.adoc[SparkSession], the link:spark-sql-QueryExecution.adoc[QueryExecution] and link:spark-sql-RowEncoder.adoc[RowEncoder].
 
 === [[i-want-more]] Further reading or watching
 
