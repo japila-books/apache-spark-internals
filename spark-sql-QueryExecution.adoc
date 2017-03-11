@@ -22,7 +22,9 @@ val queryExec = ds.queryExecution
 | Description
 
 | [[analyzed]] `analyzed`
-| Stage after `Analyzer` link:spark-sql-Analyzer.adoc#execute[was executed] on the <<logical, LogicalPlan>>.
+a| Analyzed logical plan, i.e. <<logical, LogicalPlan>> after link:spark-sql-Analyzer.adoc#execute[going through] `Analyzer`.
+
+TIP: Use Dataset's link:spark-sql-dataset-operators.adoc#explain[explain(extended = true)] or SQL's `EXPLAIN EXTENDED` to see the analyzed logical plan of a structured query.
 
 | [[withCachedData]] `withCachedData` | `LogicalPlan` that is the `analyzed` plan after being analyzed, checked (for unsupported operations) and replaced with cached segments.
 
@@ -77,7 +79,7 @@ CAUTION: FIXME What's `planner`? `analyzed`? Why do we need `assertSupported`?
 
 `QueryExecution` belongs to `org.apache.spark.sql.execution` package.
 
-=== [[assertAnalyzed]] `assertAnalyzed` Method
+=== [[completeString]] `completeString` Internal Method
 
 CAUTION: FIXME
 
@@ -159,3 +161,39 @@ Stateful operators in the query plan are numbered using `operatorId` that starts
 `IncrementalExecution` adds one `Rule[SparkPlan]` called `state` to <<preparations, preparations>> sequence of rules as the first element.
 
 CAUTION: FIXME What does `IncrementalExecution` do? Where is it used?
+
+=== [[assertAnalyzed]] Creating Analyzed Logical Plan and Checking Correctness -- `assertAnalyzed` Method
+
+[source, scala]
+----
+assertAnalyzed(): Unit
+----
+
+`assertAnalyzed` triggers initialization of <<analyzed, analyzed>> (which is almost like executing it).
+
+NOTE: `assertAnalyzed` executes <<analyzed, analyzed>> by accessing it and throwing the result away. Since `analyzed` is a lazy value in Scala, it will then get initialized for the first time and stays so forever.
+
+`assertAnalyzed` then requests `Analyzer` to link:spark-sql-Analyzer-CheckAnalysis.adoc#checkAnalysis[check the correctness of the analysis of the LogicalPlan] (i.e. `analyzed`).
+
+[NOTE]
+====
+`assertAnalyzed` uses <<sparkSession, SparkSession>> to link:spark-sql-sparksession.adoc#sessionState[access the current `SessionState`] that it then uses to link:spark-sql-SessionState.adoc#analyzer[access the `Analyzer`].
+
+In Scala the access path looks as follows.
+
+[source, scala]
+----
+sparkSession.sessionState.analyzer
+----
+====
+
+In case of any `AnalysisException`, `assertAnalyzed` creates a new `AnalysisException` to make sure that it holds <<analyzed, analyzed>> and reports it.
+
+[NOTE]
+====
+`assertAnalyzed` is used when:
+
+* `Dataset` link:spark-sql-Dataset.adoc#creating-instance[is created]
+* `QueryExecution` <<withCachedData, is requested for `LogicalPlan` with cached data>>
+* link:spark-sql-CreateViewCommand.adoc#run[CreateViewCommand] and link:spark-sql-AlterViewAsCommand.adoc#run[AlterViewAsCommand] are executed
+====

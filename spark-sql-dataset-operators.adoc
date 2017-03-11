@@ -425,7 +425,7 @@ scala> ds.randomSplit(Array[Double](2, 3)).foreach(_.show)
 
 NOTE: A new feature in Spark **2.0.0**.
 
-=== [[explain]] Explaining Logical and Physical Plans -- `explain` Operator
+=== [[explain]] Displaying Logical and Physical Plans, Their Cost and Codegen -- `explain` Operators
 
 [source, scala]
 ----
@@ -433,11 +433,26 @@ explain(): Unit
 explain(extended: Boolean): Unit
 ----
 
-`explain` prints the link:spark-sql-LogicalPlan.adoc[logical] and (with `extended` enabled) link:spark-sql-SparkPlan.adoc[physical] plans to the console. Use it to review the structured queries and optimizations applied.
+`explain` prints the link:spark-sql-LogicalPlan.adoc[logical] and (with `extended` flag enabled) link:spark-sql-SparkPlan.adoc[physical] plans, their cost and codegen to the console.
+
+TIP: Use `explain` to review the structured queries and optimizations applied.
+
+Internally, `explain` creates a link:spark-sql-ExplainCommand.adoc[ExplainCommand] logical command and requests `SessionState` to link:spark-sql-SessionState.adoc#executePlan[execute it] (to get a link:spark-sql-QueryExecution.adoc[QueryExecution] back).
+
+NOTE: `explain` uses link:spark-sql-ExplainCommand.adoc[ExplainCommand] logical command that, when link:spark-sql-ExplainCommand.adoc#run[executed], gives different text representations of link:spark-sql-QueryExecution.adoc[QueryExecution] (for the Dataset's link:spark-sql-LogicalPlan.adoc[LogicalPlan]) depending on the flags (e.g. extended, codegen, and cost which are disabled by default).
+
+`explain` then requests `QueryExecution` for link:spark-sql-QueryExecution.adoc#executedPlan[SparkPlan] and link:spark-sql-SparkPlan.adoc#executeCollect[collects the records] (as link:spark-sql-InternalRow.adoc[InternalRow] objects).
+
+[NOTE]
+====
+`explain` uses Dataset's link:spark-sql-Dataset.adoc#sparkSession[SparkSession] to link:spark-sql-sparksession.adoc#sessionState[access the current `SessionState`].
+====
+
+In the end, `explain` goes over the `InternalRow` records and converts them to lines to display to console.
+
+NOTE: `explain` "converts" an `InternalRow` record to a line using link:spark-sql-InternalRow.adoc#getString[getString] at position `0`.
 
 TIP: If you are serious about query debugging you could also use the link:spark-sql-debugging-execution.adoc[Debugging Query Execution facility].
-
-Internally, `explain` link:spark-sql-SparkPlan.adoc#executeCollect[executes] a link:spark-sql-ExplainCommand.adoc[ExplainCommand] logical command.
 
 [source, scala]
 ----
