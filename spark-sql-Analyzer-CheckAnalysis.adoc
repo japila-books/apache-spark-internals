@@ -1,16 +1,105 @@
 == CheckAnalysis
 
-`CheckAnalysis` defines <<checkAnalysis, checkAnalysis>> method that link:spark-sql-Analyzer.adoc[Analyzer] uses to check the link:spark-sql-QueryExecution.adoc#analyzed[result of applying the analyzer rules to a `LogicalPlan`].
+`CheckAnalysis` defines <<checkAnalysis, checkAnalysis>> method that link:spark-sql-Analyzer.adoc[Analyzer] uses to ensure correctness of the link:spark-sql-QueryExecution.adoc#analyzed[result of applying the analyzer rules to a `LogicalPlan`] and ultimately marking it as analyzed.
 
-=== [[extendedCheckRules]] `extendedCheckRules` Extension Point
+`CheckAnalysis` defines <<extendedCheckRules, extendedCheckRules extension point>> that allows for extra analysis check rules.
 
-CAUTION: FIXME
-
-=== [[checkAnalysis]] Checking Analysis of Logical Plan -- `checkAnalysis` Method
+=== [[checkAnalysis]] Checking Results of Analysis of Logical Plan and Marking Plan As Analyzed -- `checkAnalysis` Method
 
 [source, scala]
 ----
 checkAnalysis(plan: LogicalPlan): Unit
 ----
 
-CAUTION: FIXME
+`checkAnalysis` recursively checks the correctness of the analysis of the input link:spark-sql-LogicalPlan.adoc[LogicalPlan] and link:spark-sql-LogicalPlan.adoc#setAnalyzed[marks it as analyzed].
+
+NOTE: `checkAnalysis` fails analysis when finds link:spark-sql-LogicalPlan-UnresolvedRelation.adoc[UnresolvedRelation] in the input `LogicalPlan`...FIXME What else?
+
+Internally, `checkAnalysis` processes nodes in the input `plan` (starting from the leafs, i.e. nodes down the operator tree).
+
+`checkAnalysis` skips link:spark-sql-LogicalPlan.adoc#analyzed[logical plans that have already undergo analysis].
+
+[[checkAnalysis-validations]]
+.checkAnalysis's Validations (in the order of execution)
+[width="100%",cols="1,2",options="header"]
+|===
+| LogicalPlan/Operator
+| Behaviour
+
+| link:spark-sql-LogicalPlan-UnresolvedRelation.adoc[UnresolvedRelation]
+a| Fails analysis with the error message:
+
+```
+Table or view not found: [tableIdentifier]
+```
+
+| Unresolved link:spark-sql-catalyst-Attribute.adoc[Attribute]
+a| Fails analysis with the error message:
+
+```
+cannot resolve '[sql]' given input columns: [from]
+```
+
+| link:spark-sql-catalyst-Expression.adoc[Expression] with link:spark-sql-catalyst-Expression.adoc#checkInputDataTypes[incorrect input data types]
+a| Fails analysis with the error message:
+
+```
+cannot resolve '[sql]' due to data type mismatch: [message]
+```
+
+| Unresolved `Cast`
+a| Fails analysis with the error message:
+
+```
+invalid cast from [dataType] to [dataType]
+```
+
+| `Grouping`
+a| Fails analysis with the error message:
+
+```
+grouping() can only be used with GroupingSets/Cube/Rollup
+```
+
+| `GroupingID`
+a| Fails analysis with the error message:
+
+```
+grouping_id() can only be used with GroupingSets/Cube/Rollup
+```
+
+| FIXME
+| FIXME
+|===
+
+After <<checkAnalysis-validations, the validations>>, `checkAnalysis` executes <<extendedCheckRules, additional check rules for correct analysis>>.
+
+`checkAnalysis` then checks if `plan` is analyzed correctly (i.e. no logical plans are left unresolved). If there is one, `checkAnalysis` fails the analysis with `AnalysisException` and the following error message:
+
+```
+unresolved operator [o.simpleString]
+```
+
+In the end, `checkAnalysis` link:spark-sql-LogicalPlan.adoc#setAnalyzed[marks the entire logical plan as analyzed].
+
+[NOTE]
+====
+`checkAnalysis` is used when:
+
+* `QueryExecution` link:spark-sql-QueryExecution.adoc#assertAnalyzed[creates analyzed logical plan and checks its correctness] (which happens mostly when a `Dataset` link:spark-sql-Dataset.adoc#creating-instance[is created])
+
+* `ExpressionEncoder` does link:spark-sql-ExpressionEncoder.adoc#resolveAndBind[resolveAndBind]
+
+* `ResolveAggregateFunctions` is executed (for `Sort` logical plan)
+====
+
+=== [[extendedCheckRules]] Extra Analysis Check Rules -- `extendedCheckRules` Extension Point
+
+[source, scala]
+----
+extendedCheckRules: Seq[LogicalPlan => Unit]
+----
+
+`extendedCheckRules` is a collection of rules (functions) that <<checkAnalysis, checkAnalysis>> uses for custom analysis checks (after the <<checkAnalysis-validations, main validations>> have been executed).
+
+NOTE: When a condition of a rule does not hold the function throws an `AnalysisException` directly or using `failAnalysis` method.
