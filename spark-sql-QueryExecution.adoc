@@ -26,19 +26,22 @@ a| Analyzed logical plan, i.e. <<logical, LogicalPlan>> after link:spark-sql-Ana
 
 TIP: Use Dataset's link:spark-sql-dataset-operators.adoc#explain[explain(extended = true)] or SQL's `EXPLAIN EXTENDED` to see the analyzed logical plan of a structured query.
 
-| [[withCachedData]] `withCachedData` | `LogicalPlan` that is the `analyzed` plan after being analyzed, checked (for unsupported operations) and replaced with cached segments.
+| [[withCachedData]] `withCachedData`
+| `LogicalPlan` that is the `analyzed` plan after being analyzed, checked (for unsupported operations) and replaced with cached segments.
 
-| [[optimizedPlan]] `optimizedPlan` | `LogicalPlan` (of a structured query) being the result of executing the session-owned link:spark-sql-SessionState.adoc#optimizer[Catalyst Query Optimizer] to <<withCachedData, withCachedData>>.
+| [[optimizedPlan]] `optimizedPlan`
+| `LogicalPlan` (of a structured query) being the result of executing the session-owned link:spark-sql-SessionState.adoc#optimizer[Catalyst Query Optimizer] to <<withCachedData, withCachedData>>.
 
-| [[sparkPlan]] `sparkPlan` | link:spark-sql-SparkPlan.adoc[SparkPlan] that is the result of requesting link:spark-sql-SparkPlanner.adoc[SparkPlanner] to plan a <<optimizedPlan, optimized logical query plan>>.
+| [[sparkPlan]] `sparkPlan`
+a| link:spark-sql-SparkPlan.adoc[SparkPlan] that is the result of requesting link:spark-sql-SparkPlanner.adoc[SparkPlanner] to plan a <<optimizedPlan, optimized logical query plan>>.
 
 NOTE: In fact, the result `SparkPlan` is the first Spark query plan from the collection of possible query plans from link:spark-sql-SparkPlanner.adoc[SparkPlanner].
 
-| [[executedPlan]] `executedPlan` | link:spark-sql-SparkPlan.adoc[SparkPlan] ready for execution. It is the <<sparkPlan, sparkPlan>> plan with all the <<preparations, preparation rules>> applied.
+| [[executedPlan]] `executedPlan`
+| link:spark-sql-SparkPlan.adoc[SparkPlan] ready for execution, i.e. <<sparkPlan, sparkPlan>> after <<prepareForExecution, all the preparation rules applied>>.
 
-| [[toRdd]] `toRdd` | `RDD[InternalRow]` that is the result of "executing" a <<executedPlan, physical plan>>, i.e. `executedPlan.execute()`.
-
-TIP: link:spark-sql-InternalRow.adoc[InternalRow] is the internal optimized binary row format.
+| [[toRdd]] `toRdd`
+| `RDD` of link:spark-sql-InternalRow.adoc[InternalRow] records after link:spark-sql-SparkPlan.adoc#execute[executing] the <<executedPlan, SparkPlan>>.
 |===
 
 You can access the lazy attributes as follows:
@@ -129,7 +132,7 @@ planner: SparkPlanner
 
 `planner` is merely to expose internal link:spark-sql-SessionState.adoc#planner[planner] (in the current link:spark-sql-SessionState.adoc[SessionState]).
 
-=== [[preparations]] `preparations` -- `SparkPlan` Preparation Rules (to apply before Query Execution)
+=== [[preparations]] preparations -- `SparkPlan` Preparation Rules (to apply before Query Execution)
 
 `preparations` is a sequence of link:spark-sql-SparkPlan.adoc[SparkPlan] optimization rules.
 
@@ -147,6 +150,17 @@ The current list of `SparkPlan` transformations in `preparations` is as follows:
 6. `ReuseSubquery`
 
 NOTE: The transformation rules are applied sequentially in order to the physical plan before execution, i.e. they generate a `SparkPlan` when <<executedPlan, executedPlan>> lazy value is accessed.
+
+=== [[prepareForExecution]] Applying preparations Transformation Rules to SparkPlan -- `prepareForExecution` Method
+
+[source, scala]
+----
+prepareForExecution(plan: SparkPlan): SparkPlan
+----
+
+`prepareForExecution` takes <<preparations, preparations>> rules and applies them one by one to the input `plan`.
+
+NOTE: `prepareForExecution` is used exclusively when `QueryExecution` <<executedPlan, calculates `SparkPlan` for execution>>.
 
 === [[IncrementalExecution]] IncrementalExecution
 
