@@ -90,30 +90,6 @@ CAUTION: FIXME
 
 CAUTION: FIXME
 
-=== [[hiveResultString]] `hiveResultString` Method
-
-[source, scala]
-----
-hiveResultString(): Seq[String]
-----
-
-`hiveResultString` returns the result as a Hive-compatible sequence of strings.
-
-[source, scala]
-----
-scala> spark.range(5).queryExecution.hiveResultString
-res0: Seq[String] = ArrayBuffer(0, 1, 2, 3, 4)
-
-scala> spark.read.csv("people.csv").queryExecution.hiveResultString
-res4: Seq[String] = ArrayBuffer(id	name	age, 0	Jacek	42)
-----
-
-CAUTION: FIXME
-
-Internally, `hiveResultString` does..
-
-NOTE: `hiveResultString` is executed when...
-
 === [[creating-instance]] Creating QueryExecution Instance
 
 `QueryExecution` takes the following when created:
@@ -132,11 +108,11 @@ planner: SparkPlanner
 
 `planner` is merely to expose internal link:spark-sql-SessionState.adoc#planner[planner] (in the current link:spark-sql-SessionState.adoc[SessionState]).
 
-=== [[preparations]] preparations -- `SparkPlan` Preparation Rules (to apply before Query Execution)
+=== [[preparations]] preparations -- SparkPlan Preparation Rules (to apply before Query Execution)
 
 `preparations` is a sequence of link:spark-sql-SparkPlan.adoc[SparkPlan] optimization rules.
 
-TIP: A `SparkPlan` optimization rule transforms a link:spark-sql-SparkPlan.adoc[physical operator] (aka `SparkPlan`) to another (possibly more efficient)  `SparkPlan`.
+TIP: A `SparkPlan` optimization rule transforms a link:spark-sql-SparkPlan.adoc[SparkPlan physical operator] to another (possibly more efficient) `SparkPlan`.
 
 `preparations` collection is an intermediate phase of query execution that developers can used to introduce further optimizations.
 
@@ -237,3 +213,42 @@ toStringWithStats: String
 NOTE: `toStringWithStats` is a custom <<toString, toString>> with cost statistics.
 
 NOTE: `toStringWithStats` is used when `ExplainCommand` link:spark-sql-ExplainCommand.adoc#run[is executed] (when `cost` attribute is enabled, and it is not by default).
+
+=== [[hiveResultString]] Transforming SparkPlan Execution Result to Hive-Compatible Output Format -- `hiveResultString` Method
+
+[source, scala]
+----
+hiveResultString(): Seq[String]
+----
+
+`hiveResultString` returns the result as a Hive-compatible output format.
+
+[source, scala]
+----
+scala> spark.range(5).queryExecution.hiveResultString
+res0: Seq[String] = ArrayBuffer(0, 1, 2, 3, 4)
+
+scala> spark.read.csv("people.csv").queryExecution.hiveResultString
+res4: Seq[String] = ArrayBuffer(id	name	age, 0	Jacek	42)
+----
+
+Internally, `hiveResultString` <<hiveResultString-transformations, transformation>> the <<executedPlan, SparkPlan>>.
+
+[[hiveResultString-transformations]]
+.hiveResultString's SparkPlan Transformations (in execution order)
+[width="100%",cols="1,2",options="header"]
+|===
+| SparkPlan
+| Description
+
+| link:spark-sql-SparkPlan-ExecutedCommandExec.adoc[ExecutedCommandExec] for `DescribeTableCommand`
+| Executes `DescribeTableCommand` and transforms every link:spark-sql-Row.adoc[Row] to a Hive-compatible output format.
+
+| link:spark-sql-SparkPlan-ExecutedCommandExec.adoc[ExecutedCommandExec] for `ShowTablesCommand`
+| Executes `ExecutedCommandExec` and transforms the result to a collection of table names.
+
+| Any other link:spark-sql-SparkPlan.adoc[SparkPlan]
+| Executes `SparkPlan` and transforms the result to a Hive-compatible output format.
+|===
+
+NOTE: `hiveResultString` is used exclusively when `SparkSQLDriver` (of ThriftServer) runs a command.
