@@ -1,6 +1,222 @@
-== [[Optimizer]] Logical Query Plan Optimizer
+== [[Optimizer]] Optimizer -- Logical Query Plan Optimizer
 
-`Optimizer` is a link:spark-sql-catalyst-RuleExecutor.adoc[RuleExecutor] of link:spark-sql-LogicalPlan.adoc[LogicalPlans] with a <<batches, collection of logical plan optimizations>>.
+[[execute]]
+`Optimizer` is a link:spark-sql-catalyst-RuleExecutor.adoc[RuleExecutor] that defines <<batches, collection of logical plan optimizations>>.
+
+NOTE: The result of applying the <<batches, batches>> of `Optimizer` to a link:spark-sql-LogicalPlan.adoc[LogicalPlan] is called *optimized logical plan*.
+
+[[batches]]
+.Optimizer's Optimization Rules (in the order of execution)
+[cols="2,1,3,3",options="header",width="100%"]
+|===
+^.^| Batch Name
+^.^| Strategy
+| Rules
+| Description
+
+.7+^.^| Finish Analysis
+.7+^.^| `Once`
+| EliminateSubqueryAliases
+|
+
+| EliminateView
+|
+
+| ReplaceExpressions
+|
+
+| link:spark-sql-Optimizer-GetCurrentDatabase.adoc#ComputeCurrentTime[ComputeCurrentTime]
+|
+
+| link:spark-sql-Optimizer-GetCurrentDatabase.adoc#GetCurrentDatabase[GetCurrentDatabase]
+|
+
+| RewriteDistinctAggregates
+|
+
+| ReplaceDeduplicateWithAggregate
+|
+
+^.^| Union
+^.^| `Once`
+| CombineUnions
+|
+
+^.^| Subquery
+^.^| `Once`
+| OptimizeSubqueries
+|
+
+.3+^.^| Replace Operators
+.3+^.^| <<fixedPoint, FixedPoint>>
+| ReplaceIntersectWithSemiJoin
+|
+
+| ReplaceExceptWithAntiJoin
+|
+
+| ReplaceDistinctWithAggregate
+|
+
+.2+^.^| Aggregate
+.2+^.^| <<fixedPoint, FixedPoint>>
+| RemoveLiteralFromGroupExpressions
+|
+
+| RemoveRepetitionFromGroupExpressions
+|
+
+.35+^.^| Operator Optimizations
+.35+^.^| <<fixedPoint, FixedPoint>>
+|PushProjectionThroughUnion
+|
+
+|ReorderJoin
+|
+
+|EliminateOuterJoin
+|
+
+|PushPredicateThroughJoin
+|
+
+|link:spark-sql-Optimizer-PushDownPredicate.adoc[PushDownPredicate]
+|
+
+|LimitPushDown
+|
+
+|link:spark-sql-Optimizer-ColumnPruning.adoc[ColumnPruning]
+|
+
+|InferFiltersFromConstraints
+|
+
+|CollapseRepartition
+|
+
+|CollapseProject
+|
+
+|CollapseWindow
+|
+
+|CombineFilters
+|
+
+|CombineLimits
+|
+
+|CombineUnions
+|
+
+|link:spark-sql-Optimizer-NullPropagation.adoc[NullPropagation]
+|
+
+|FoldablePropagation
+|
+
+|OptimizeIn
+|
+
+|link:spark-sql-Optimizer-ConstantFolding.adoc[ConstantFolding]
+|
+
+|ReorderAssociativeOperator
+|
+
+|LikeSimplification
+|
+
+|BooleanSimplification
+|
+
+|SimplifyConditionals
+|
+
+|RemoveDispensableExpressions
+|
+
+|SimplifyBinaryComparison
+|
+
+|PruneFilters
+|
+
+|EliminateSorts
+|
+
+|link:spark-sql-Optimizer-SimplifyCasts.adoc[SimplifyCasts]
+|
+
+|SimplifyCaseConversionExpressions
+|
+
+|RewriteCorrelatedScalarSubquery
+|
+
+|link:spark-sql-Optimizer-EliminateSerialization.adoc[EliminateSerialization]
+|
+
+|RemoveRedundantAliases
+|
+
+|RemoveRedundantProject
+|
+
+|SimplifyCreateStructOps
+|
+
+|SimplifyCreateArrayOps
+|
+
+|SimplifyCreateMapOps
+|
+
+^.^| Check Cartesian Products
+^.^| `Once`
+| CheckCartesianProducts
+|
+
+^.^| Join Reorder
+^.^| `Once`
+| CostBasedJoinReorder
+|
+
+^.^| Decimal Optimizations
+^.^| <<fixedPoint, FixedPoint>>
+| DecimalAggregates
+|
+
+^.^| Typed Filter Optimization
+^.^| <<fixedPoint, FixedPoint>>
+| link:spark-sql-Optimizer-CombineTypedFilters.adoc[CombineTypedFilters]
+|
+
+.2+^.^| LocalRelation
+.2+^.^| <<fixedPoint, FixedPoint>>
+| ConvertToLocalRelation
+|
+
+| link:spark-sql-Optimizer-PropagateEmptyRelation.adoc[PropagateEmptyRelation]
+|
+
+^.^| OptimizeCodegen
+^.^| `Once`
+| OptimizeCodegen
+|
+
+.2+^.^| RewriteSubquery
+.2+^.^| `Once`
+| RewritePredicateSubquery
+|
+
+| CollapseProject
+|
+
+|===
+
+TIP: Consult the https://github.com/apache/spark/blob/master/sql/catalyst/src/main/scala/org/apache/spark/sql/catalyst/optimizer/Optimizer.scala#L48-L137[sources of `Optimizer`] for the up-to-date list of the optimization rules.
 
 NOTE: *Catalyst* is a Spark SQL framework for manipulating trees. It can work with trees of relational operators and expressions in link:spark-sql-LogicalPlan.adoc[logical plans] before they end up as link:spark-sql-SparkPlan.adoc[physical execution plans].
 
@@ -29,8 +245,6 @@ Spark 2.0 uses Catalyst's tree manipulation library to build an extensible *quer
 
 Catalyst supports both rule-based and cost-based optimization.
 
-CAUTION: Review https://github.com/apache/spark/blob/master/sql/catalyst/src/main/scala/org/apache/spark/sql/catalyst/optimizer/Optimizer.scala[sql/catalyst/src/main/scala/org/apache/spark/sql/catalyst/optimizer/Optimizer.scala].
-
 [[internal-registries]]
 .Optimizer's Internal Registries and Counters
 [cols="1,2",options="header",width="100%"]
@@ -42,31 +256,6 @@ CAUTION: Review https://github.com/apache/spark/blob/master/sql/catalyst/src/mai
 | FIXME
 
 Used when...FIXME
-|===
-
-=== [[batches]] Collection of Logical Plan Optimizations -- `batches` Method
-
-[source, scala]
-----
-batches: Seq[Batch]
-----
-
-`batches` returns a collection of link:spark-sql-LogicalPlan.adoc[logical plan] optimization link:spark-sql-Analyzer.adoc#batch[batches].
-
-.(A subset of) Catalyst Plan Optimizer's Logical Plan Optimizations
-[cols="1,2",options="header",width="100%"]
-|===
-| Name | Description
-| link:spark-sql-catalyst-constant-folding.adoc[Constant Folding] |
-| link:spark-sql-catalyst-optimizer-PushDownPredicate.adoc[Predicate Pushdown] |
-| link:spark-sql-catalyst-nullability-propagation.adoc[Nullability (NULL Value) Propagation] |
-| link:spark-sql-catalyst-vectorized-parquet-decoder.adoc[Vectorized Parquet Decoder] |
-| link:spark-sql-catalyst-optimizer-CombineTypedFilters.adoc[Combine Typed Filters] |
-| link:spark-sql-catalyst-optimizer-PropagateEmptyRelation.adoc[Propagate Empty Relation] |
-| link:spark-sql-catalyst-optimizer-SimplifyCasts.adoc[Simplify Casts] |
-| link:spark-sql-catalyst-optimizer-ColumnPruning.adoc[Column Pruning] |
-| link:spark-sql-catalyst-current-database-time.adoc[GetCurrentDatabase / ComputeCurrentTime] |
-| link:spark-sql-catalyst-EliminateSerialization.adoc[Eliminate Serialization] |
 |===
 
 === [[SparkOptimizer]] `SparkOptimizer` -- The Default Logical Query Plan Optimizer
