@@ -1,7 +1,66 @@
-== [[LimitPushDown]] LimitPushDown
+== [[LimitPushDown]] LimitPushDown Logical Optimization
 
-CAUTION: FIXME
+`LimitPushDown` is a link:spark-sql-LogicalPlan.adoc[LogicalPlan] optimization rule that <<apply, transforms>> the following logical plans:
+
+* `LocalLimit` with `Union`
+* `LocalLimit` with link:spark-sql-Join.adoc[Join]
+
+`LimitPushDown` is a part of link:spark-sql-Optimizer.adoc#Operator-Optimizations[Operator Optimizations] batch in the base link:spark-sql-Optimizer.adoc[Optimizer].
+
+[source, scala]
+----
+// test datasets
+scala> val ds1 = spark.range(4)
+ds1: org.apache.spark.sql.Dataset[Long] = [value: bigint]
+
+scala> val ds2 = spark.range(2)
+ds2: org.apache.spark.sql.Dataset[Long] = [value: bigint]
+
+// Case 1. Rather than `LocalLimit` of `Union` do `Union` of `LocalLimit`
+scala> ds1.union(ds2).limit(2).explain(true)
+== Parsed Logical Plan ==
+GlobalLimit 2
++- LocalLimit 2
+   +- Union
+      :- Range (0, 4, step=1, splits=Some(8))
+      +- Range (0, 2, step=1, splits=Some(8))
+
+== Analyzed Logical Plan ==
+id: bigint
+GlobalLimit 2
++- LocalLimit 2
+   +- Union
+      :- Range (0, 4, step=1, splits=Some(8))
+      +- Range (0, 2, step=1, splits=Some(8))
+
+== Optimized Logical Plan ==
+GlobalLimit 2
++- LocalLimit 2
+   +- Union
+      :- LocalLimit 2
+      :  +- Range (0, 4, step=1, splits=Some(8))
+      +- LocalLimit 2
+         +- Range (0, 2, step=1, splits=Some(8))
+
+== Physical Plan ==
+CollectLimit 2
++- Union
+   :- *LocalLimit 2
+   :  +- *Range (0, 4, step=1, splits=Some(8))
+   +- *LocalLimit 2
+      +- *Range (0, 2, step=1, splits=Some(8))
+----
 
 === [[apply]] `apply` Method
 
 CAUTION: FIXME
+
+=== [[creating-instance]] Creating LimitPushDown Instance
+
+`LimitPushDown` takes the following when created:
+
+* [[conf]] link:spark-sql-catalyst-CatalystConf.adoc[CatalystConf]
+
+`LimitPushDown` initializes the <<internal-registries, internal registries and counters>>.
+
+NOTE: `LimitPushDown` is created when
