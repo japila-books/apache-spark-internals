@@ -1,8 +1,41 @@
 == [[PropagateEmptyRelation]] PropagateEmptyRelation Logical Optimization
 
-`PropagateEmptyRelation` collapses plans with empty link:spark-sql-logical-plan-LocalRelation.adoc[`LocalRelation` logical query plans].
+`PropagateEmptyRelation` is a link:spark-sql-LogicalPlan.adoc[LogicalPlan] optimization rule that collapses plans with empty link:spark-sql-logical-plan-LocalRelation.adoc[`LocalRelation` logical query plans], e.g. <<explode, explode>> or <<join, join>>.
 
-`PropagateEmptyRelation` is a part of *LocalRelation* link:spark-sql-Analyzer.adoc#batch[batch] in the base link:spark-sql-Optimizer.adoc[Optimizer].
+`PropagateEmptyRelation` is a part of link:spark-sql-Optimizer.adoc#LocalRelation[LocalRelation] batch in the base link:spark-sql-Optimizer.adoc[Optimizer].
+
+=== [[explode]] Explode
+
+[source, scala]
+----
+scala> val emp = spark.emptyDataset[Seq[String]]
+emp: org.apache.spark.sql.Dataset[Seq[String]] = [value: array<string>]
+
+scala> emp.select(explode($"value")).show
++---+
+|col|
++---+
++---+
+
+scala> emp.select(explode($"value")).explain(true)
+== Parsed Logical Plan ==
+'Project [explode('value) AS List()]
++- LocalRelation <empty>, [value#77]
+
+== Analyzed Logical Plan ==
+col: string
+Project [col#89]
++- Generate explode(value#77), false, false, [col#89]
+   +- LocalRelation <empty>, [value#77]
+
+== Optimized Logical Plan ==
+LocalRelation <empty>, [col#89]
+
+== Physical Plan ==
+LocalTableScan <empty>, [col#89]
+----
+
+=== [[join]] Join
 
 [source, scala]
 ----
