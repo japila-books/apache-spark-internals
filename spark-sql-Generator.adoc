@@ -2,6 +2,56 @@
 
 `Generator` is a contract for link:spark-sql-catalyst-Expression.adoc[structured query expressions] that produce zero or more records given a single input record.
 
+[NOTE]
+====
+You can only have one generator per select clause that is enforced by link:spark-sql-Analyzer.adoc#ExtractGenerator[ExtractGenerator] in `Analyzer`, e.g.
+
+```
+scala> xys.select(explode($"xs"), explode($"ys")).show
+org.apache.spark.sql.AnalysisException: Only one generator allowed per select clause but found 2: explode(xs), explode(ys);
+  at org.apache.spark.sql.catalyst.analysis.Analyzer$ExtractGenerator$$anonfun$apply$20.applyOrElse(Analyzer.scala:1670)
+  at org.apache.spark.sql.catalyst.analysis.Analyzer$ExtractGenerator$$anonfun$apply$20.applyOrElse(Analyzer.scala:1662)
+  at org.apache.spark.sql.catalyst.plans.logical.LogicalPlan$$anonfun$resolveOperators$1.apply(LogicalPlan.scala:62)
+```
+
+If you want to have more than one generator in a structured query you may want to consider `LATERAL VIEW` that is however supported only in SQL, e.g.
+
+[source, scala]
+----
+val ncs = Seq((Array(1,2,3), Array("a","b","c"))).toDF("ns", "cs")
+
+scala> ncs.show
++---------+---------+
+|       ns|       cs|
++---------+---------+
+|[1, 2, 3]|[a, b, c]|
++---------+---------+
+
+scala> ncs.createOrReplaceTempView("ncs")
+
+val q = """
+  SELECT n, c FROM ncs
+  LATERAL VIEW explode(ns) nsExpl AS n
+  LATERAL VIEW explode(cs) csExpl AS c
+"""
+
+scala> sql(q).show
++---+---+
+|  n|  c|
++---+---+
+|  1|  a|
+|  1|  b|
+|  1|  c|
+|  2|  a|
+|  2|  b|
+|  2|  c|
+|  3|  a|
+|  3|  b|
+|  3|  c|
++---+---+
+----
+====
+
 [[generator-implementations]]
 .Generators (in alphabetical order)
 [width="100%",cols="1,2",options="header"]
@@ -25,7 +75,7 @@
 |
 
 | `Inline`
-|
+| Corresponds to `inline` and `inline_outer` functions.
 
 | `JsonTuple`
 |
@@ -37,7 +87,18 @@
 |
 
 | [[UnresolvedGenerator]] `UnresolvedGenerator`
-|
+a| Represents an unresolved <<Generator, generator>>.
+
+Created when `AstBuilder` link:spark-sql-AstBuilder.adoc#withGenerate[creates `Generate`] for `LATERAL VIEW` that corresponds to the following:
+
+```
+LATERAL VIEW (OUTER)?
+generatorFunctionName (arg1, arg2, ...)
+tblName
+AS? col1, col2, ...
+```
+
+NOTE: `UnresolvedGenerator` is link:spark-sql-Analyzer.adoc#ResolveFunctions[resolved to `Generator` by `ResolveFunctions`] (in `Analyzer`).
 
 | `UserDefinedGenerator`
 |
