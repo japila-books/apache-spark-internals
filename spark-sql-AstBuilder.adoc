@@ -1,11 +1,48 @@
 == [[AstBuilder]] AstBuilder
 
-`AstBuilder` is a ANTLR `AbstractParseTreeVisitor` (as `SqlBaseBaseVisitor`) that converts a SQL string into Spark SQL's corresponding entity (i.e. converts a ANTLR `ParseTree` to link:spark-sql-DataType.adoc[DataType], link:spark-sql-catalyst-Expression.adoc[Expression], link:spark-sql-LogicalPlan.adoc[LogicalPlan] or `TableIdentifier`) by means of <<visit-callbacks, visit callback methods>>.
+`AstBuilder` converts a SQL string into Spark SQL's corresponding entity (i.e. link:spark-sql-DataType.adoc[DataType], link:spark-sql-catalyst-Expression.adoc[Expression], link:spark-sql-LogicalPlan.adoc[LogicalPlan] or `TableIdentifier`) using <<visit-callbacks, visit callback methods>>.
 
-`AstBuilder` uses https://github.com/apache/spark/blob/master/sql/catalyst/src/main/antlr4/org/apache/spark/sql/catalyst/parser/SqlBase.g4[SqlBase.g4] to describe the ANTLR grammar for Spark SQL.
+[TIP]
+====
+Spark SQL supports SQL queries as described in https://github.com/apache/spark/blob/master/sql/catalyst/src/main/antlr4/org/apache/spark/sql/catalyst/parser/SqlBase.g4[SqlBase.g4]. Using the file can tell you (almost) exactly what Spark SQL supports at any given time.
+
+"Almost" being that although the grammar accepts a SQL statement it can be reported as not allowed by `AstBuilder`, e.g.
+
+```
+scala> sql("EXPLAIN FORMATTED SELECT * FROM myTable").show
+org.apache.spark.sql.catalyst.parser.ParseException:
+Operation not allowed: EXPLAIN FORMATTED(line 1, pos 0)
+
+== SQL ==
+EXPLAIN FORMATTED SELECT * FROM myTable
+^^^
+
+  at org.apache.spark.sql.catalyst.parser.ParserUtils$.operationNotAllowed(ParserUtils.scala:39)
+  at org.apache.spark.sql.execution.SparkSqlAstBuilder$$anonfun$visitExplain$1.apply(SparkSqlParser.scala:275)
+  at org.apache.spark.sql.execution.SparkSqlAstBuilder$$anonfun$visitExplain$1.apply(SparkSqlParser.scala:273)
+  at org.apache.spark.sql.catalyst.parser.ParserUtils$.withOrigin(ParserUtils.scala:93)
+  at org.apache.spark.sql.execution.SparkSqlAstBuilder.visitExplain(SparkSqlParser.scala:273)
+  at org.apache.spark.sql.execution.SparkSqlAstBuilder.visitExplain(SparkSqlParser.scala:53)
+  at org.apache.spark.sql.catalyst.parser.SqlBaseParser$ExplainContext.accept(SqlBaseParser.java:480)
+  at org.antlr.v4.runtime.tree.AbstractParseTreeVisitor.visit(AbstractParseTreeVisitor.java:42)
+  at org.apache.spark.sql.catalyst.parser.AstBuilder$$anonfun$visitSingleStatement$1.apply(AstBuilder.scala:66)
+  at org.apache.spark.sql.catalyst.parser.AstBuilder$$anonfun$visitSingleStatement$1.apply(AstBuilder.scala:66)
+  at org.apache.spark.sql.catalyst.parser.ParserUtils$.withOrigin(ParserUtils.scala:93)
+  at org.apache.spark.sql.catalyst.parser.AstBuilder.visitSingleStatement(AstBuilder.scala:65)
+  at org.apache.spark.sql.catalyst.parser.AbstractSqlParser$$anonfun$parsePlan$1.apply(ParseDriver.scala:62)
+  at org.apache.spark.sql.catalyst.parser.AbstractSqlParser$$anonfun$parsePlan$1.apply(ParseDriver.scala:61)
+  at org.apache.spark.sql.catalyst.parser.AbstractSqlParser.parse(ParseDriver.scala:90)
+  at org.apache.spark.sql.execution.SparkSqlParser.parse(SparkSqlParser.scala:46)
+  at org.apache.spark.sql.catalyst.parser.AbstractSqlParser.parsePlan(ParseDriver.scala:61)
+  at org.apache.spark.sql.SparkSession.sql(SparkSession.scala:617)
+  ... 48 elided
+```
+====
 
 [NOTE]
 ====
+Technically, `AstBuilder` is a ANTLR `AbstractParseTreeVisitor` (as `SqlBaseBaseVisitor`) that is generated from https://github.com/apache/spark/blob/master/sql/catalyst/src/main/antlr4/org/apache/spark/sql/catalyst/parser/SqlBase.g4[SqlBase.g4] ANTLR grammar for Spark SQL.
+
 `SqlBaseBaseVisitor` is a ANTLR-specific base class that is auto-generated at build time from a ANTLR grammar in `SqlBase.g4`.
 
 `SqlBaseBaseVisitor` is an ANTLR http://www.antlr.org/api/Java/org/antlr/v4/runtime/tree/AbstractParseTreeVisitor.html[AbstractParseTreeVisitor].
@@ -16,8 +53,12 @@
 [cols="1,1,3",options="header",width="100%"]
 |===
 | Callback Method
-| ANTLR rule
+| ANTLR rule / annotation
 | Spark SQL Entity
+
+| [[visitExplain]] `visitExplain`
+| `explain`
+| link:spark-sql-LogicalPlan-ExplainCommand.adoc[ExplainCommand]
 
 | [[visitFromClause]] `visitFromClause`
 | `fromClause`
