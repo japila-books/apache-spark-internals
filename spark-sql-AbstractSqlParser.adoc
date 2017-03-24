@@ -1,24 +1,75 @@
 == [[AbstractSqlParser]] AbstractSqlParser -- Base SQL Parsing Infrastructure
 
-`AbstractSqlParser` is a base <<ParserInterface, ParserInterface>> for the SQL parsing infrastructure in Spark SQL with two concrete implementations available:
+`AbstractSqlParser` is a base <<ParserInterface, ParserInterface>> for the SQL parsing infrastructure in Spark SQL with <<implementations, two concrete implementations available>>.
 
-* link:spark-sql-SparkSqlParser.adoc[SparkSqlParser]
-* link:spark-sql-CatalystSqlParser.adoc[CatalystSqlParser]
+[[implementations]]
+.AbstractSqlParser's Implementations (in alphabetical order)
+[width="100%",cols="1,2",options="header"]
+|===
+| Name
+| Description
 
-`AbstractSqlParser` creates an layer of indirection and expects that subclasses provide custom link:spark-sql-AstBuilder.adoc[AstBuilder] (that in turn converts a SQL string into Spark SQL's corresponding entity, i.e. link:spark-sql-DataType.adoc[DataType], link:spark-sql-catalyst-Expression.adoc[Expression], link:spark-sql-LogicalPlan.adoc[LogicalPlan] or `TableIdentifier`).
+| link:spark-sql-SparkSqlParser.adoc[SparkSqlParser]
+|
 
-`AbstractSqlParser` simply routes all the final parsing calls to translate a SQL string into a respective Spark SQL object to that `AstBuilder`.
+| link:spark-sql-CatalystSqlParser.adoc[CatalystSqlParser]
+|
+|===
 
-When parsing a SQL string, it first uses its own <<AbstractSqlParser-parse, parse>> protected method that sets up a proper ANTLR parsing infrastructure.
+`AbstractSqlParser` creates an layer of indirection and expects that subclasses provide custom link:spark-sql-AstBuilder.adoc[AstBuilder] (that is responsible for the final transformation of SQL strings into their Spark SQL equivalent entities, i.e. link:spark-sql-DataType.adoc[DataType], link:spark-sql-catalyst-Expression.adoc[Expression], link:spark-sql-LogicalPlan.adoc[LogicalPlan] or `TableIdentifier`).
 
-=== [[astBuilder]] Accessing AST Builder -- `astBuilder` Method
+`AbstractSqlParser` simply routes all the final parsing calls to translate a SQL string into a respective Spark SQL object to that custom `AstBuilder`.
+
+When parsing a SQL string, `AbstractSqlParser` uses its own <<parse, parse>> method that sets up a proper ANTLR parsing infrastructure.
+
+=== [[contract]] AbstractSqlParser Contract
 
 [source, scala]
 ----
-protected def astBuilder: AstBuilder
+abstract class AbstractSqlParser extends ParserInterface {
+  def astBuilder: AstBuilder
+  def parse[T](command: String)(toResult: SqlBaseParser => T): T
+  def parseDataType(sqlText: String): DataType
+  def parsePlan(sqlText: String): LogicalPlan
+  def parseExpression(sqlText: String): Expression
+  def parseTableIdentifier(sqlText: String): TableIdentifier
+  def parseTableSchema(sqlText: String): StructType
+}
 ----
 
-CAUTION: FIXME
+.AbstractSqlParser Contract (in alphabetical order)
+[cols="1,2",options="header",width="100%"]
+|===
+| Method
+| Description
+
+| [[astBuilder]] `astBuilder`
+| Gives link:spark-sql-AstBuilder.adoc[AstBuilder] for the final SQL parsing.
+
+Used in all the `parse` methods, i.e. <<parseDataType, parseDataType>>, <<parseExpression, parseExpression>>, <<parsePlan, parsePlan>>, <<parseTableIdentifier, parseTableIdentifier>>, and <<parseTableSchema, parseTableSchema>>.
+
+NOTE: Both <<implementations, implementations>>, i.e. link:spark-sql-SparkSqlParser.adoc[SparkSqlParser] and link:spark-sql-CatalystSqlParser.adoc[CatalystSqlParser], come with their own `astBuilder` method.
+
+| <<parse, parse>>
+| Used when...
+
+| [[parseDataType]] `parseDataType`
+| Used when...
+
+| [[parseExpression]] `parseExpression`
+| Used when...
+
+| [[parsePlan]] `parsePlan`
+| Creates a link:spark-sql-LogicalPlan.adoc[LogicalPlan] for a given SQL string.
+
+`parsePlan` <<parse, builds a `SqlBaseParser`>> and requests <<astBuilder, AstBuilder>> to link:spark-sql-AstBuilder.adoc#visitSingleStatement[parse a single SQL statement].
+
+| [[parseTableIdentifier]] `parseTableIdentifier`
+| Used when...
+
+| [[parseTableSchema]] `parseTableSchema`
+| Used when...
+|===
 
 === [[parse]] `parse` Method
 
