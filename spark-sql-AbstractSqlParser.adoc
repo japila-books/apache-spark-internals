@@ -2,6 +2,8 @@
 
 `AbstractSqlParser` is the one and only link:spark-sql-ParserInterface.adoc[ParserInterface] in Spark SQL that acts as the foundation of the SQL parsing infrastructure with <<implementations, two concrete implementations available>> (that are _merely_ required to define their custom <<astBuilder, AstBuilder>> for the final transformation of SQL textual representation to their Spark SQL equivalent entities, i.e. link:spark-sql-DataType.adoc[DataType], link:spark-sql-catalyst-Expression.adoc[Expression], link:spark-sql-LogicalPlan.adoc[LogicalPlan] and `TableIdentifier`).
 
+`AbstractSqlParser` first <<parse, sets up `SqlBaseLexer` and `SqlBaseParser` for parsing>> (and pass the latter on to a parsing function) and use <<astBuilder, `AstBuilder` for the actual parsing>>.
+
 [[implementations]]
 .AbstractSqlParser's Implementations (in alphabetical order)
 [width="100%",cols="1,2",options="header"]
@@ -40,14 +42,16 @@ abstract class AbstractSqlParser extends ParserInterface {
 | Description
 
 | [[astBuilder]] `astBuilder`
-a| Gives link:spark-sql-AstBuilder.adoc[AstBuilder] for the final SQL parsing.
+a| Gives link:spark-sql-AstBuilder.adoc[AstBuilder] for the actual SQL parsing.
 
 Used in all the `parse` methods, i.e. <<parseDataType, parseDataType>>, <<parseExpression, parseExpression>>, <<parsePlan, parsePlan>>, <<parseTableIdentifier, parseTableIdentifier>>, and <<parseTableSchema, parseTableSchema>>.
 
 NOTE: Both <<implementations, implementations>>, i.e. link:spark-sql-SparkSqlParser.adoc[SparkSqlParser] and link:spark-sql-CatalystSqlParser.adoc[CatalystSqlParser], come with their own `astBuilder` method.
 
 | <<parse, parse>>
-| Used when...
+| Sets up `SqlBaseLexer` and `SqlBaseParser` for parsing and passes the latter on to the input `toResult` function where the parsing finally happens.
+
+Used in all the `parse` methods, i.e. <<parseDataType, parseDataType>>, <<parseExpression, parseExpression>>, <<parsePlan, parsePlan>>, <<parseTableIdentifier, parseTableIdentifier>>, and <<parseTableSchema, parseTableSchema>>.
 
 | [[parseDataType]] `parseDataType`
 | Used when...
@@ -73,21 +77,27 @@ Unsupported SQL statement
 | Used when...
 |===
 
-=== [[parse]] `parse` Method
+=== [[parse]] Setting Up SqlBaseLexer and SqlBaseParser for Parsing -- `parse` Method
 
 [source, scala]
 ----
 parse[T](command: String)(toResult: SqlBaseParser => T): T
 ----
 
-`parse` is a protected method that sets up a proper ANTLR parsing infrastructure with `SqlBaseLexer` and `SqlBaseParser` which are the ANTLR-specific classes of Spark SQL that are auto-generated at build time.
+`parse` sets up a proper ANTLR parsing infrastructure with `SqlBaseLexer` and `SqlBaseParser` (which are the ANTLR-specific classes of Spark SQL that are auto-generated at build time from the `SqlBase.g4` grammar).
 
 TIP: Review the definition of ANTLR grammar for Spark SQL in https://github.com/apache/spark/blob/master/sql/catalyst/src/main/antlr4/org/apache/spark/sql/catalyst/parser/SqlBase.g4[sql/catalyst/src/main/antlr4/org/apache/spark/sql/catalyst/parser/SqlBase.g4].
 
-When called, `parse` prints out the following INFO message to the logs:
+Internally, `parse` first prints out the following INFO message to the logs:
 
 ```
 INFO SparkSqlParser: Parsing command: [command]
 ```
 
 TIP: Enable `INFO` logging level for the custom `AbstractSqlParser`, i.e. link:spark-sql-SparkSqlParser.adoc#logging[SparkSqlParser] or link:spark-sql-CatalystSqlParser.adoc#logging[CatalystSqlParser], to see the above INFO message.
+
+`parse` then creates and sets up a `SqlBaseLexer` and `SqlBaseParser` that in turn passes the latter on to the input `toResult` function where the parsing finally happens.
+
+NOTE: `parse` uses `SLL` prediction mode for parsing first before falling back to `LL` mode.
+
+In case of parsing errors, `parse` reports a `ParseException`.
