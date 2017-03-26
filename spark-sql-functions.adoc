@@ -1,8 +1,6 @@
 == [[functions]] Standard Functions -- functions Object
 
-`org.apache.spark.sql.functions` object offers many built-in functions to process values in link:spark-sql-Column.adoc[Columns] in ``Dataset``s.
-
-NOTE: The `functions` object is an experimental feature of Spark since version 1.3.0.
+`org.apache.spark.sql.functions` object offers many built-in functions to work with link:spark-sql-Column.adoc[Columns] in link:spark-sql-Dataset.adoc[Datasets].
 
 You can access the functions using the following `import` statement:
 
@@ -11,20 +9,39 @@ You can access the functions using the following `import` statement:
 import org.apache.spark.sql.functions._
 ----
 
-There are over 300 functions in the `functions` object. Some functions are transformations of link:spark-sql-Column.adoc[Column] objects (or column names) into other `Column` objects or transform `DataFrame` into `DataFrame`.
+There are over 300 functions in the `functions` object.
 
-The functions are grouped by functional areas:
+The functions are grouped by functional areas.
 
 .Functions in Spark SQL
-[align="center",width="100%",options="header"]
+[align="center",cols="1,1,2",width="100%",options="header"]
 |===
-||Functions          |Description
-.6+^.^|*Window functions* |<<rank, rank, dense_rank, and percent_rank>> | Ranking records per window partition
-|<<ntile, ntile>> |link:spark-sql-functions.adoc#ntile[ntile]
-|<<row_number, row_number>> | Sequential numbering per window partition
-|<<cume_dist, cume_dist>> | Cumulative distribution of records across window partitions
-|<<lag, lag>> |
-|<<lead, lead>> |link:spark-sql-functions.adoc#lead[lead]
+|
+|Functions
+|Description
+
+.6+^.^|*Window functions*
+|<<rank, rank, dense_rank, percent_rank>>
+| Ranking records per window partition
+
+|<<ntile, ntile>>
+|
+
+|<<row_number, row_number>>
+| Sequential numbering per window partition
+
+|<<cume_dist, cume_dist>>
+| Cumulative distribution of records across window partitions
+
+|<<lag, lag>>
+|
+
+|<<lead, lead>>
+|
+
+1+^.^| *Collection functions*
+| <<from_json, from_json>>
+| Parses a column with a JSON string into a link:spark-sql-StructType.adoc[StructType] or link:spark-sql-DataType.adoc#ArrayType[ArrayType] of `StructType` elements with the specified schema.
 |===
 
 * <<udf, Defining UDFs>>
@@ -43,7 +60,43 @@ The functions are grouped by functional areas:
 * <<window, window>>
 * ..._and others_
 
-TIP: You should read the http://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.sql.functions$[official documentation of the functions object].
+TIP: The page gives only a brief ovierview of the many functions available in `functions` object and so you should read the http://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.sql.functions$[official documentation of the `functions` object].
+
+=== [[from_json]] Parsing Column With JSON-Encoded Records -- `from_json` Functions
+
+[source, scala]
+----
+from_json(e: Column, schema: DataType): Column  // <1>
+from_json(
+  e: Column,
+  schema: DataType,
+  options: Map[String, String]): Column
+----
+<1> Relays to the other `from_json` with empty `options`
+
+Parses a column with a JSON string into a link:spark-sql-StructType.adoc[StructType] or link:spark-sql-DataType.adoc#ArrayType[ArrayType] of `StructType` elements with the specified schema.
+
+NOTE: `options` controls how a JSON is parsed and contains the same options as the link:spark-sql-JsonDataSource.adoc[json data source].
+
+Internally, `from_json` creates a link:spark-sql-Column.adoc[Column] with link:spark-sql-JsonToStructs.adoc[JsonToStructs] unary expression.
+
+[source, scala]
+----
+val jsons = Seq("""{ "id": 0 }""").toDF("json")
+
+import org.apache.spark.sql.types._
+val schema = StructType(
+  StructField("id", IntegerType, nullable = false) :: Nil)
+
+scala> jsons.select(from_json($"json", schema) as "ids").show
++---+
+|ids|
++---+
+|[0]|
++---+
+----
+
+NOTE: `from_json` corresponds to SQL's `from_json`.
 
 === [[explode]] explode
 
