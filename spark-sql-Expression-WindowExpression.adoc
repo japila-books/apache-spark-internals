@@ -8,7 +8,7 @@ import org.apache.spark.sql.catalyst.expressions.WindowExpression
 scala> val windowExpr = spark.emptyDataset[Int]
   .selectExpr("count() OVER (PARTITION BY value) AS count")
   .queryExecution
-  .logical
+  .logical      // <1>
   .expressions
   .toList(0)
   .children(0)
@@ -18,6 +18,7 @@ windowExpr: org.apache.spark.sql.catalyst.expressions.WindowExpression = 'count(
 scala> windowExpr.sql
 res2: String = count() OVER (PARTITION BY `value` UnspecifiedFrame)
 ----
+<1> Use `sqlParser` directly as in the <<WithWindowDefinition-example, WithWindowDefinition Example>> below.
 
 [[windowFunction]][[windowSpec]]
 `WindowExpression` is created for `windowFunction` and `WindowSpecDefinition` link:spark-sql-catalyst-Expression.adoc[expressions].
@@ -53,3 +54,47 @@ NOTE: `WindowExpression` is used in link:spark-sql-Optimizer-NullPropagation.ado
 | `toString`
 | `"[windowFunction] [windowSpec]"`
 |===
+
+=== [[WithWindowDefinition]] WithWindowDefinition Unary Logical Plan
+
+`WithWindowDefinition` is a link:spark-sql-LogicalPlan.adoc#UnaryNode[unary logical plan] with a single `child` logical plan and a `windowDefinitions` lookup table of `WindowSpecDefinition` per name.
+
+`WithWindowDefinition` is created exclusively when `AstBuilder` link:spark-sql-AstBuilder.adoc#withWindows[parses windows].
+
+[[WithWindowDefinition-properties]]
+.WithWindowDefinition's Properties (in alphabetical order)
+[width="100%",cols="1,2",options="header"]
+|===
+| Name
+| Description
+
+| `output`
+| Output of the `child` logical plan.
+|===
+
+[[WithWindowDefinition-example]]
+.WithWindowDefinition Example
+[source, scala]
+----
+(0 to 5).toDF("id").createOrReplaceTempView("ids")
+
+val sqlText = """
+  SELECT count(*) OVER anotherWindowSpec
+  FROM ids
+  WINDOW
+    anotherWindowSpec AS myWindowSpec,
+    myWindowSpec AS (
+      PARTITION BY id
+      RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+    )
+"""
+
+scala> spark.sessionState.sqlParser.parsePlan(query)
+res1: org.apache.spark.sql.catalyst.plans.logical.LogicalPlan =
+'WithWindowDefinition Map(myWindowSpec -> windowspecdefinition('id, RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW))
++- 'Project [unresolvedalias(unresolvedwindowexpression('count(1), WindowSpecReference(myWindowSpec)), None)]
+   +- OneRowRelation$
+
+scala> sql(sqlText)
+res2: org.apache.spark.sql.DataFrame = [count(1) OVER (PARTITION BY id RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW): bigint]
+----
