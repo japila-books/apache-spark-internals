@@ -55,7 +55,7 @@ Technically, `AstBuilder` is a ANTLR `AbstractParseTreeVisitor` (as `SqlBaseBase
 [cols="1,1,3",options="header",width="100%"]
 |===
 | Callback Method
-| ANTLR rule / annotation
+| ANTLR rule / labeled alternative
 | Spark SQL Entity
 
 | [[visitExplain]] `visitExplain`
@@ -67,6 +67,16 @@ Technically, `AstBuilder` is a ANTLR `AbstractParseTreeVisitor` (as `SqlBaseBase
 | link:spark-sql-LogicalPlan.adoc[LogicalPlan]
 
 Supports multiple comma-separated relations (that build an INNER JOIN) with optional link:spark-sql-Generator.adoc#lateral-view[LATERAL VIEW]
+
+| [[visitFunctionCall]] `visitFunctionCall`
+| `functionCall` labeled alternative
+a|
+
+* `UnresolvedFunction` for a bare function (with no window specification)
+* [[visitFunctionCall-UnresolvedWindowExpression]] link:spark-sql-Expression-WindowExpression.adoc#UnresolvedWindowExpression[UnresolvedWindowExpression] for a function evaluated in a windowed context with a `WindowSpecReference`
+* link:spark-sql-Expression-WindowExpression.adoc[WindowExpression] for a function over a window
+
+TIP: See the <<function-examples, function examples>> below.
 
 | [[visitNamedExpression]] `visitNamedExpression`
 | `namedExpression`
@@ -152,3 +162,21 @@ TIP: Consult `windows`, `namedWindow`, `windowSpec`, `windowFrame`, and `frameBo
 |===
 
 NOTE: `AstBuilder` belongs to `org.apache.spark.sql.catalyst.parser` package.
+
+=== [[function-examples]] Function Examples
+
+The examples are handled by <<visitFunctionCall, visitFunctionCall>>.
+
+[source, scala]
+----
+import spark.sessionState.sqlParser
+
+scala> sqlParser.parseExpression("foo()")
+res0: org.apache.spark.sql.catalyst.expressions.Expression = 'foo()
+
+scala> sqlParser.parseExpression("foo() OVER windowSpecRef")
+res1: org.apache.spark.sql.catalyst.expressions.Expression = unresolvedwindowexpression('foo(), WindowSpecReference(windowSpecRef))
+
+scala> sqlParser.parseExpression("foo() OVER (CLUSTER BY field)")
+res2: org.apache.spark.sql.catalyst.expressions.Expression = 'foo() windowspecdefinition('field, UnspecifiedFrame)
+----
