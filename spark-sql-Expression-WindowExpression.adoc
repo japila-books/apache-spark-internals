@@ -72,11 +72,14 @@ NOTE: `WindowExpression` is used in link:spark-sql-Optimizer-NullPropagation.ado
 | Output of the `child` logical plan.
 |===
 
-[[WithWindowDefinition-example]]
-.WithWindowDefinition Example
+==== [[WithWindowDefinition-example]] WithWindowDefinition Example
+
 [source, scala]
 ----
+// Table for FROM clauses below
 (0 to 5).toDF("id").createOrReplaceTempView("ids")
+
+// Example with window specification alias and definition
 
 val sqlText = """
   SELECT count(*) OVER anotherWindowSpec
@@ -89,12 +92,24 @@ val sqlText = """
     )
 """
 
-scala> spark.sessionState.sqlParser.parsePlan(query)
+import spark.sessionState.{analyzer,sqlParser}
+
+scala> sqlParser.parsePlan(sqlText)
 res1: org.apache.spark.sql.catalyst.plans.logical.LogicalPlan =
-'WithWindowDefinition Map(myWindowSpec -> windowspecdefinition('id, RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW))
-+- 'Project [unresolvedalias(unresolvedwindowexpression('count(1), WindowSpecReference(myWindowSpec)), None)]
-   +- OneRowRelation$
+'WithWindowDefinition Map(anotherWindowSpec -> windowspecdefinition('id, RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW), myWindowSpec -> windowspecdefinition('id, RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW))
++- 'Project [unresolvedalias(unresolvedwindowexpression('count(1), WindowSpecReference(anotherWindowSpec)), None)]
+   +- 'UnresolvedRelation `ids`
 
 scala> sql(sqlText)
 res2: org.apache.spark.sql.DataFrame = [count(1) OVER (PARTITION BY id RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW): bigint]
+
+scala> analyzer.execute(sqlParser.parsePlan(sqlText))
+res3: org.apache.spark.sql.catalyst.plans.logical.LogicalPlan =
+Project [count(1) OVER (PARTITION BY id RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)#12L]
++- Project [id#3, count(1) OVER (PARTITION BY id RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)#12L, count(1) OVER (PARTITION BY id RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)#12L]
+   +- Window [count(1) windowspecdefinition(id#3, RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS count(1) OVER (PARTITION BY id RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)#12L], [id#3]
+      +- Project [id#3]
+         +- SubqueryAlias ids
+            +- Project [value#1 AS id#3]
+               +- LocalRelation [value#1]
 ----

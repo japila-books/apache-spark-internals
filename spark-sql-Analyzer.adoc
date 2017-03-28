@@ -26,7 +26,7 @@ myDataset.sparkSession.sessionState.analyzer
 ----
 
 [[batches]]
-.Analyzer's Evaluation Rules (in the order of execution)
+.Analyzer's Batches and Logical Evaluation Rules (in the order of execution)
 [cols="2,1,3,3",options="header",width="100%"]
 |===
 ^.^| Batch Name
@@ -53,7 +53,17 @@ myDataset.sparkSession.sessionState.analyzer
 | Resolves `With` operators (and substitutes named common table expressions -- CTEs)
 
 | [[WindowsSubstitution]] WindowsSubstitution
-| Substitutes `UnresolvedWindowExpression` with link:spark-sql-Expression-WindowExpression.adoc[WindowExpression] for `WithWindowDefinition` operators
+a| Substitutes (aka _resolves_) `UnresolvedWindowExpression` with link:spark-sql-Expression-WindowExpression.adoc[WindowExpression] for link:spark-sql-Expression-WindowExpression.adoc#WithWindowDefinition[WithWindowDefinition] query operators.
+
+For every `WithWindowDefinition`, `WindowsSubstitution` takes the `child` logical plan and transforms its `UnresolvedWindowExpression` expressions to be a link:spark-sql-Expression-WindowExpression.adoc[WindowExpression] with a window specification from the `WINDOW` clause (see link:spark-sql-Expression-WindowExpression.adoc#WithWindowDefinition-example[WithWindowDefinition Example]).
+
+If a window specification is not found, `WindowsSubstitution` fails analysis with the following error:
+
+```
+Window specification [windowName] is not defined in the WINDOW clause.
+```
+
+NOTE: The analysis failure is unlikely to happen given `AstBuilder` link:spark-sql-AstBuilder.adoc#withWindows[builds a lookup table of all the named window specifications] defined in a SQL text and reports a `ParseException` when a `WindowSpecReference` is not available.
 
 | EliminateUnions
 | Eliminates `Union` of one child into that child
