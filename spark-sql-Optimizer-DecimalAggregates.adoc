@@ -11,20 +11,81 @@ Import `DecimalAggregates` and apply the rule directly on your structured querie
 [source, scala]
 ----
 import org.apache.spark.sql.catalyst.optimizer.DecimalAggregates
-
-val spark: org.apache.spark.sql.SparkSession = ...
 val da = DecimalAggregates(spark.sessionState.conf)
 
 // Build analyzed logical plan
-scala> val plan = sql("select * from range(1)").queryExecution.analyzed
+// with sum aggregate function and Decimal field
+import org.apache.spark.sql.types.DecimalType
+val query = spark.range(5).select(sum($"id" cast DecimalType(1,0)) as "sum")
+scala> val plan = query.queryExecution.analyzed
 plan: org.apache.spark.sql.catalyst.plans.logical.LogicalPlan =
-Project [id#3L]
-+- Range (0, 1, step=1, splits=None)
+Aggregate [sum(cast(id#91L as decimal(1,0))) AS sum#95]
++- Range (0, 5, step=1, splits=Some(8))
 
 // Apply DecimalAggregates rule
+// Note MakeDecimal and UnscaledValue operators
 scala> da.apply(plan)
-res3: org.apache.spark.sql.catalyst.plans.logical.LogicalPlan =
-Project [id#3L]
-+- Range (0, 1, step=1, splits=None)
+res27: org.apache.spark.sql.catalyst.plans.logical.LogicalPlan =
+Aggregate [MakeDecimal(sum(UnscaledValue(cast(id#91L as decimal(1,0)))),11,0) AS sum#95]
++- Range (0, 5, step=1, splits=Some(8))
 ----
 ====
+
+=== [[example-sum-decimal]] Example: sum Aggregate Function on Decimal with Precision Smaller Than 9
+
+[source, scala]
+----
+// sum aggregate with Decimal field with precision <= 8
+val q = "SELECT sum(cast(id AS DECIMAL(5,0))) FROM range(1)"
+
+scala> sql(q).explain(true)
+== Parsed Logical Plan ==
+'Project [unresolvedalias('sum(cast('id as decimal(5,0))), None)]
++- 'UnresolvedTableValuedFunction range, [1]
+
+== Analyzed Logical Plan ==
+sum(CAST(id AS DECIMAL(5,0))): decimal(15,0)
+Aggregate [sum(cast(id#104L as decimal(5,0))) AS sum(CAST(id AS DECIMAL(5,0)))#106]
++- Range (0, 1, step=1, splits=None)
+
+== Optimized Logical Plan ==
+Aggregate [MakeDecimal(sum(UnscaledValue(cast(id#104L as decimal(5,0)))),15,0) AS sum(CAST(id AS DECIMAL(5,0)))#106]
++- Range (0, 1, step=1, splits=None)
+
+== Physical Plan ==
+*HashAggregate(keys=[], functions=[sum(UnscaledValue(cast(id#104L as decimal(5,0))))], output=[sum(CAST(id AS DECIMAL(5,0)))#106])
++- Exchange SinglePartition
+   +- *HashAggregate(keys=[], functions=[partial_sum(UnscaledValue(cast(id#104L as decimal(5,0))))], output=[sum#108L])
+      +- *Range (0, 1, step=1, splits=None)
+----
+
+=== [[example-avg-decimal]] Example: avg Aggregate Function on Decimal with Precision Smaller Than 12
+
+[source, scala]
+----
+// avg aggregate with Decimal field with precision <= 11
+val q = "SELECT avg(cast(id AS DECIMAL(10,0))) FROM range(1)"
+
+scala> val q = "SELECT avg(cast(id AS DECIMAL(10,0))) FROM range(1)"
+q: String = SELECT avg(cast(id AS DECIMAL(10,0))) FROM range(1)
+
+scala> sql(q).explain(true)
+== Parsed Logical Plan ==
+'Project [unresolvedalias('avg(cast('id as decimal(10,0))), None)]
++- 'UnresolvedTableValuedFunction range, [1]
+
+== Analyzed Logical Plan ==
+avg(CAST(id AS DECIMAL(10,0))): decimal(14,4)
+Aggregate [avg(cast(id#115L as decimal(10,0))) AS avg(CAST(id AS DECIMAL(10,0)))#117]
++- Range (0, 1, step=1, splits=None)
+
+== Optimized Logical Plan ==
+Aggregate [cast((avg(UnscaledValue(cast(id#115L as decimal(10,0)))) / 1.0) as decimal(14,4)) AS avg(CAST(id AS DECIMAL(10,0)))#117]
++- Range (0, 1, step=1, splits=None)
+
+== Physical Plan ==
+*HashAggregate(keys=[], functions=[avg(UnscaledValue(cast(id#115L as decimal(10,0))))], output=[avg(CAST(id AS DECIMAL(10,0)))#117])
++- Exchange SinglePartition
+   +- *HashAggregate(keys=[], functions=[partial_avg(UnscaledValue(cast(id#115L as decimal(10,0))))], output=[sum#120, count#121L])
+      +- *Range (0, 1, step=1, splits=None)
+----
