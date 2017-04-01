@@ -2,10 +2,62 @@
 
 `Expression` in Catalyst is described by the <<contract, Expression contract>> and represents a part of a structured query.
 
-.Catalyst's Top-Level Expressions
-[cols="1,1,2,1",options="header",width="100%"]
+.Top-Level Expressions
+[cols="1,2,2,1",options="header",width="100%"]
 |===
-| Name | Scala Kind | Behaviour | Examples
+| Name
+| Scala Kind
+| Behaviour
+| Examples
+
+| [[BinaryExpression]] `BinaryExpression`
+| abstract class
+|
+|
+
+| [[CodegenFallback]] `CodegenFallback`
+| trait
+|
+|
+
+| [[ExpectsInputTypes]] `ExpectsInputTypes`
+| trait
+|
+|
+
+| [[LeafExpression]] `LeafExpression`
+| abstract class
+|  Has no children, i.e. `children` method returns always an empty collection.
+|
+
+| [[NamedExpression]] `NamedExpression`
+|
+| Can later be referenced in a dataflow graph.
+|
+
+| <<Nondeterministic, Nondeterministic>>
+| trait
+|
+|
+
+| [[NonSQLExpression]] `NonSQLExpression`
+| trait
+| Expression with no SQL representation
+
+Gives the only custom <<sql, sql>> method that is non-overridable (i.e. `final`).
+
+When requested <<sql, SQL representation>>, `NonSQLExpression` transforms link:spark-sql-catalyst-Attribute.adoc[Attributes] to be ``PrettyAttribute``s to build text representation.
+| link:spark-sql-ImperativeAggregate-ScalaUDAF.adoc[ScalaUDAF]
+
+| [[TernaryExpression]] `TernaryExpression`
+| abstract class
+|
+|
+
+| [[UnaryExpression]] `UnaryExpression`
+| abstract class
+|
+|
 
 | [[Unevaluable]] `Unevaluable`
 | trait
@@ -13,17 +65,10 @@
 
 FIXME: What's the purpose?
 
-| `CurrentDatabase`, link:spark-sql-Expression-WindowExpression.adoc[WindowExpression]
+a|
 
-| <<Nondeterministic, Nondeterministic>> | trait | |
-| <<NonSQLExpression, NonSQLExpression>> | trait | |
-| <<ExpectsInputTypes, ExpectsInputTypes>> | trait | |
-| <<CodegenFallback, CodegenFallback>> | trait | |
-| <<NamedExpression, NamedExpression>> | trait | |
-| <<UnaryExpression, UnaryExpression>> | abstract class | |
-| <<BinaryExpression, BinaryExpression>> | abstract class | |
-| <<TernaryExpression, TernaryExpression>> | abstract class | |
-| <<LeafExpression, LeafExpression>> | abstract class | |
+* `CurrentDatabase`
+* link:spark-sql-Expression-WindowExpression.adoc[WindowExpression]
 |===
 
 === [[contract]] Expression Contract
@@ -37,22 +82,22 @@ abstract class Expression extends TreeNode[Expression]
 
 A `Expression` is a `TreeNode` that obeys the following contract:
 
-1. [[foldable]] It may or may not be `foldable`.
-2. It may or may not be `deterministic`.
-3. It may or may not be `nullable`.
-4. It uses `references`.
-5. It can be ``eval``uated to a JVM object given a link:spark-sql-InternalRow.adoc[InternalRow].
-6. It can `genCode` to produce a `ExprCode`.
-7. It can `doGenCode` to produce a `ExprCode`.
-8. It may or may not be `resolved`.
-9. It is of `dataType` link:spark-sql-DataType.adoc[data type].
-10. It may or may not have `childrenResolved`.
-11. It has a `canonicalized` representation.
-12. It may or may not be `semanticEquals` given another `Expression`.
-13. It has a `semanticHash`.
-14. It can be <<checkInputDataTypes, checkInputDataTypes>>
-15. It has a `prettyName`.
-16. It has a `sql` representation.
+. [[foldable]] May or may not be `foldable`.
+. It may or may not be `deterministic`.
+. It may or may not be `nullable`.
+. It uses `references`.
+. It can be ``eval``uated to a JVM object given a link:spark-sql-InternalRow.adoc[InternalRow].
+. It can `genCode` to produce a `ExprCode`.
+. It can `doGenCode` to produce a `ExprCode`.
+. It may or may not be `resolved`.
+. It is of `dataType` link:spark-sql-DataType.adoc[data type].
+. It may or may not have `childrenResolved`.
+. It has a `canonicalized` representation.
+. It may or may not be `semanticEquals` given another `Expression`.
+. It has a `semanticHash`.
+. It can be <<checkInputDataTypes, checkInputDataTypes>>
+. It has a `prettyName`.
+. [[sql]] Can be represented in a `sql` text.
 
 === [[checkInputDataTypes]] `checkInputDataTypes` Method
 
@@ -74,53 +119,3 @@ NOTE: `Nondeterministic` is a Scala trait.
 Examples of `Nondeterministic` expressions are `InputFileName`, `MonotonicallyIncreasingID`, `SparkPartitionID` functions and the abstract `RDG` (that is the base for `Rand` and `Randn` functions).
 
 NOTE: `Nondeterministic` expressions are the target of `PullOutNondeterministic` logical plan rule.
-
-=== [[NonSQLExpression]] `NonSQLExpression` Expression
-
-`NonSQLExpression` expressions are expressions that have no SQL representation.
-
-Internally, `NonSQLExpression` makes for all link:spark-sql-catalyst-Attribute.adoc[Attributes] in a tree to be ``PrettyAttribute``s.
-
-NOTE: `NonSQLExpression` is a Scala trait with the `sql` method being `final` (i.e. non-overridable).
-
-=== [[ExpectsInputTypes]] `ExpectsInputTypes` Expression
-
-`ExpectsInputTypes` expressions are...TK
-
-NOTE: `ExpectsInputTypes` is a Scala trait.
-
-=== [[CodegenFallback]] `CodegenFallback` Expression
-
-`CodegenFallback` expressions are...TK
-
-NOTE: `CodegenFallback` is a Scala trait.
-
-=== [[UnaryExpression]] `UnaryExpression` Expression
-
-`UnaryExpression` expressions are...TK
-
-NOTE: `UnaryExpression` is an abstract class.
-
-=== [[BinaryExpression]] `BinaryExpression` Expression
-
-`BinaryExpression` expressions are...TK
-
-NOTE: `BinaryExpression` is an abstract class.
-
-=== [[TernaryExpression]] `TernaryExpression` Expression
-
-`TernaryExpression` expressions are...TK
-
-NOTE: `TernaryExpression` is an abstract class.
-
-=== [[LeafExpression]] `LeafExpression` Expression
-
-`LeafExpression` expressions are Catalyst expressions with no children, i.e. `children` method returns always an empty collection.
-
-NOTE: `LeafExpression` is an abstract class.
-
-=== [[NamedExpression]] `NamedExpression` Expression
-
-`NamedExpression` expressions are Catalyst expressions that can later be referenced in the dataflow graph.
-
-NOTE: `NamedExpression` is a Scala trait.
