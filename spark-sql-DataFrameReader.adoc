@@ -14,7 +14,7 @@ import org.apache.spark.sql.DataFrameReader
 val reader: DataFrameReader = spark.read
 ----
 
-`DataFrameReader` supports many <<creating-dataframes-from-files, file formats>> and <<format, interface for new ones>>.
+`DataFrameReader` supports many <<creating-dataframes-from-files, file formats>> natively and offers the <<format, interface to plug in new ones>>.
 
 NOTE: `DataFrameReader` assumes <<parquet, parquet>> file format by default that you can change using link:spark-sql-settings.adoc#spark.sql.sources.default[spark.sql.sources.default] setting.
 
@@ -47,10 +47,8 @@ Supported data formats:
 * `parquet` (see link:spark-parquet.adoc[Parquet])
 * `orc`
 * `text`
-* `jdbc`
+* <<jdbc, jdbc>>
 * `libsvm` -- only when used in `format("libsvm")`
-
-NOTE: You can improve your understanding of `format("jdbc")` with the exercise link:exercises/spark-exercise-dataframe-jdbc-postgresql.adoc[Creating DataFrames from Tables using JDBC and PostgreSQL].
 
 === [[schema]] Specifying Input Schema -- `schema` method
 
@@ -273,20 +271,17 @@ scala> spark.read.table("dafa").show(false)
 
 CAUTION: FIXME The method uses `spark.sessionState.sqlParser.parseTableIdentifier(tableName)` and `spark.sessionState.catalog.lookupRelation`. Would be nice to learn a bit more on their internals, huh?
 
-==== [[jdbc]] Accessing JDBC Data Sources -- `jdbc` method
-
-NOTE: `jdbc` method uses `java.util.Properties` (and appears so Java-centric). Use <<format, format("jdbc")>> instead.
+=== [[jdbc]] Accessing JDBC Data Sources -- `jdbc` Methods
 
 [source, scala]
 ----
 jdbc(url: String, table: String, properties: Properties): DataFrame
-jdbc(url: String, table: String,
-  parts: Array[Partition],
-  connectionProperties: Properties): DataFrame
-jdbc(url: String, table: String,
+jdbc(url: String,
+  table: String,
   predicates: Array[String],
   connectionProperties: Properties): DataFrame
-jdbc(url: String, table: String,
+jdbc(url: String,
+  table: String,
   columnName: String,
   lowerBound: Long,
   upperBound: Long,
@@ -294,7 +289,93 @@ jdbc(url: String, table: String,
   connectionProperties: Properties): DataFrame
 ----
 
-`jdbc` allows you to create `DataFrame` that represents `table` in the database available as `url`.
+`jdbc` allows you to create a `DataFrame` that represents `table` in the database accessible using `url`.
+
+[[jdbc-options]]
+.Options for JDBC Data Source (in alphabetical order)
+[cols="1,2",options="header",width="100%"]
+|===
+| Option
+| Description
+
+| `batchsize`
+| The minimum value is `1`
+
+Defaults to `1000`
+
+| `createTableColumnTypes`
+|
+
+| `createTableOptions`
+|
+
+| `dbtable`
+| (*required*)
+
+| `driver`
+| JDBC driver's class name.
+
+When defined, the class will get registered with Java's https://docs.oracle.com/javase/8/docs/api/java/sql/DriverManager.html[java.sql.DriverManager]
+
+| `fetchsize`
+|
+
+Defaults to `0`
+
+| `isolationLevel`
+a|
+
+One of the following:
+
+* NONE
+* READ_UNCOMMITTED (default)
+* READ_COMMITTED
+* REPEATABLE_READ
+* SERIALIZABLE
+
+| [[jdbc-lowerBound]] `lowerBound`
+| Lower bound of partition column
+
+| [[jdbc-numPartitions]] `numPartitions`
+| Number of partitions
+
+| [[jdbc-partitionColumn]] `partitionColumn`
+| Name of the column used to partition dataset (using a `JDBCPartitioningInfo`).
+
+Used in `JdbcRelationProvider` to link:spark-sql-JdbcRelationProvider.adoc#createRelation-RelationProvider[create a `JDBCRelation`] (with proper `JDBCPartitions` with `WHERE` clause).
+
+When defined, <<jdbc-lowerBound, lowerBound>>, <<jdbc-upperBound, upperBound>> and <<jdbc-numPartitions, numPartitions>> options are required.
+
+When undefined, <<jdbc-lowerBound, lowerBound>> and <<jdbc-upperBound, upperBound>> have to be undefined.
+
+| `truncate`
+| (used only for writing) Enables table truncation.
+
+Defaults to `false`
+
+| [[jdbc-upperBound]] `upperBound`
+| Upper bound of the partition column
+
+| `url`
+| (*required*)
+|===
+
+Internally, `jdbc` creates a `JDBCOptions` using `url`, `table` and `extraOptions` with `connectionProperties`.
+
+`jdbc` then creates one `JDBCPartition` per `predicates`.
+
+In the end, `jdbc` requests the <<sparkSession, SparkSession>> to link:spark-sql-sparksession.adoc#baseRelationToDataFrame[create a `DataFrame`] for a link:spark-sql-JDBCRelation.adoc[JDBCRelation] (given `JDBCPartitions` and `JDBCOptions` created earlier).
+
+[NOTE]
+====
+`jdbc` does not support a custom <<schema, schema>> and reports an `AnalysisException` if defined:
+
+```
+User specified schema not supported with `[jdbc]`
+```
+====
+
+NOTE: `jdbc` method uses `java.util.Properties` (and appears overly Java-centric). Use <<format, format("jdbc")>> instead.
 
 TIP: Review the exercise link:exercises/spark-exercise-dataframe-jdbc-postgresql.adoc[Creating DataFrames from Tables using JDBC and PostgreSQL].
 
@@ -316,3 +397,9 @@ spark.read.textFile("README.md")
 NOTE: `textFile` are similar to <<text, text>> family of methods in that they both read text files but `text` methods return untyped `DataFrame` while `textFile` return typed `Dataset[String]`.
 
 Internally, `textFile` passes calls on to <<text, text>> method and link:spark-sql-Dataset.adoc#select[selects] the only `value` column before it applies `Encoders.STRING` link:spark-sql-Encoder.adoc[encoder].
+
+=== [[creating-instance]] Creating DataFrameReader Instance
+
+`DataFrameReader` takes the following when created:
+
+* [[sparkSession]] link:spark-sql-sparksession.adoc[SparkSession]
