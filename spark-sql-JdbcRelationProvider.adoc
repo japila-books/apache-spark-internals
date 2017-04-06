@@ -1,12 +1,12 @@
 == [[JdbcRelationProvider]] JdbcRelationProvider
 
-`JdbcRelationProvider` is a link:spark-sql-datasource.adoc#CreatableRelationProvider[CreatableRelationProvider] and link:spark-sql-datasource.adoc#RelationProvider[RelationProvider] that link:spark-sql-DataSourceRegister.adoc[registers `DataSources`] for link:spark-sql-DataFrameReader.adoc#jdbc[jdbc] format.
+`JdbcRelationProvider` is a link:spark-sql-datasource.adoc#CreatableRelationProvider[CreatableRelationProvider] and link:spark-sql-datasource.adoc#RelationProvider[RelationProvider] that link:spark-sql-DataSourceRegister.adoc[handles data sources] using link:spark-sql-DataFrameReader.adoc#jdbc[jdbc] format.
 
 [source, scala]
 ----
 val table = spark.read.jdbc(...)
 
-// or the same as above in a more verbose way
+// or in a more verbose way
 val table = spark.read.format("jdbc").load(...)
 ----
 
@@ -17,15 +17,15 @@ val table = spark.read.format("jdbc").load(...)
 createRelation(sqlContext: SQLContext, parameters: Map[String, String]): BaseRelation
 ----
 
-`createRelation` creates a `JDBCPartitioningInfo` (using `JDBCOptions` and the input `parameters` that correspond to link:spark-sql-DataFrameReader.adoc#jdbc-options[Options for JDBC Data Source]).
+`createRelation` creates a `JDBCPartitioningInfo` (using link:spark-sql-DataFrameReader.adoc#JDBCOptions[JDBCOptions] and the input `parameters` that correspond to link:spark-sql-DataFrameReader.adoc#jdbc-options[Options for JDBC Data Source]).
 
 NOTE: `createRelation` uses link:spark-sql-DataFrameReader.adoc#jdbc-[partitionColumn], link:spark-sql-DataFrameReader.adoc#jdbc-lowerBound[lowerBound], link:spark-sql-DataFrameReader.adoc#jdbc-upperBound[upperBound] and link:spark-sql-DataFrameReader.adoc#jdbc-numPartitions[numPartitions].
 
-In the end, `createRelation` creates a link:spark-sql-JDBCRelation.adoc[JDBCRelation] using link:spark-sql-JDBCRelation.adoc#columnPartition[column partitions] and `JDBCOptions`.
+In the end, `createRelation` creates a link:spark-sql-JDBCRelation.adoc[JDBCRelation] using link:spark-sql-JDBCRelation.adoc#columnPartition[column partitions] (and link:spark-sql-DataFrameReader.adoc#JDBCOptions[JDBCOptions]).
 
 NOTE: `createRelation` is a part of link:spark-sql-datasource.adoc#RelationProvider[RelationProvider Contract].
 
-=== [[createRelation-CreatableRelationProvider]] `createRelation` Method (from CreatableRelationProvider)
+=== [[createRelation-CreatableRelationProvider]] Creating JDBCRelation After Preparing Table in Database -- `createRelation` Method (from CreatableRelationProvider)
 
 [source, scala]
 ----
@@ -36,4 +36,46 @@ createRelation(
   df: DataFrame): BaseRelation
 ----
 
-NOTE: `createRelation` is a part of CreatableRelationProvider Contract.
+Internally, `createRelation` creates a link:spark-sql-DataFrameReader.adoc#JDBCOptions[JDBCOptions] (from the input `parameters`).
+
+`createRelation` reads link:spark-sql-CatalystConf.adoc#caseSensitiveAnalysis[caseSensitiveAnalysis] (using the input `sqlContext`).
+
+`createRelation` checks whether the table (given `dbtable` and `url` link:spark-sql-DataFrameReader.adoc#jdbc-options[options] in the input `parameters`) exists.
+
+NOTE: `createRelation` uses a database-specific `JdbcDialect` to link:spark-sql-spark-JdbcDialect.adoc#getTableExistsQuery[check whether a table exists].
+
+`createRelation` branches off per whether the table already exists in the database or not.
+
+If the table *does not* exist, `createRelation` creates the table (by executing `CREATE TABLE` with `createTableColumnTypes` and `createTableOptions` link:spark-sql-DataFrameReader.adoc#jdbc-options[options] from the input `parameters`) and saves the records to the database in a single transaction.
+
+If however the table *does* exist, `createRelation` branches off per link:spark-sql-dataframewriter.adoc#SaveMode[SaveMode] (see the following <<createRelation-CreatableRelationProvider-SaveMode, createRelation and SaveMode>>).
+
+[[createRelation-CreatableRelationProvider-SaveMode]]
+.createRelation and SaveMode (in alphabetical order)
+[cols="1,2",options="header",width="100%"]
+|===
+| Name
+| Description
+
+| `Append`
+| Saves the records to the table.
+
+| `ErrorIfExists`
+a| Throws a `AnalysisException` with the message:
+
+```
+Table or view '[table]' already exists. SaveMode: ErrorIfExists.
+```
+
+| `Ignore`
+| Does nothing.
+
+| `Overwrite`
+a| Truncates or drops the table
+
+NOTE: `createRelation` truncates the table only when `truncate` link:spark-sql-DataFrameReader.adoc#jdbc-options[option] is enabled and link:spark-sql-spark-JdbcDialect.adoc#isCascadingTruncateTable[isCascadingTruncateTable] is disabled.
+|===
+
+In the end, `createRelation` closes the JDBC connection to the database and <<createRelation-RelationProvider, creates a JDBCRelation>>.
+
+NOTE: `createRelation` is a part of link:spark-sql-datasource.adoc#CreatableRelationProvider[CreatableRelationProvider Contract].
