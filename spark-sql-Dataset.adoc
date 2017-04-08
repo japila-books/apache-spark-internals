@@ -5,9 +5,9 @@
 .Dataset's Internals
 image::images/spark-sql-Dataset.png[align="center"]
 
-NOTE: Given the picture above, one could say that a `Dataset` is a tuple of a link:spark-sql-Encoder.adoc[Encoder] and link:spark-sql-QueryExecution.adoc[QueryExecution] (that in turn is a link:spark-sql-LogicalPlan.adoc[LogicalPlan] in a link:spark-sql-sparksession.adoc[SparkSession])
+NOTE: Given the picture above, one could say that a `Dataset` is a tuple of a link:spark-sql-Encoder.adoc[Encoder] and link:spark-sql-QueryExecution.adoc[QueryExecution] (that in turn is a link:spark-sql-LogicalPlan.adoc[LogicalPlan] in a link:spark-sql-SparkSession.adoc[SparkSession])
 
-Datasets are _lazy_ and structured query expressions are only triggered when an action is invoked. Internally, a `Dataset` represents a link:spark-sql-LogicalPlan.adoc[logical plan] that describes the computation query required to produce the data (for a given link:spark-sql-sparksession.adoc[Spark SQL session]).
+Datasets are _lazy_ and structured query expressions are only triggered when an action is invoked. Internally, a `Dataset` represents a link:spark-sql-LogicalPlan.adoc[logical plan] that describes the computation query required to produce the data (for a given link:spark-sql-SparkSession.adoc[Spark SQL session]).
 
 A Dataset is a result of executing a query expression against data storage like files, Hive tables or JDBC databases. The structured query expression can be described by a SQL query, a Column-based SQL expression or a Scala/Java lambda function. And that is why Dataset operations are available in three variants.
 
@@ -89,13 +89,13 @@ Using `Dataset` objects turns `DataFrames` of link:spark-sql-Row.adoc[Row] insta
 
 Datasets use link:spark-sql-Optimizer.adoc[Catalyst Query Optimizer] and link:spark-sql-tungsten.adoc[Tungsten] to optimize query performance.
 
-A `Dataset` object requires a link:spark-sql-sparksession.adoc[SparkSession], a link:spark-sql-QueryExecution.adoc[QueryExecution] plan, and an link:spark-sql-Encoder.adoc[Encoder] (for fast serialization to and deserialization from link:spark-sql-InternalRow.adoc[InternalRow]).
+A `Dataset` object requires a link:spark-sql-SparkSession.adoc[SparkSession], a link:spark-sql-QueryExecution.adoc[QueryExecution] plan, and an link:spark-sql-Encoder.adoc[Encoder] (for fast serialization to and deserialization from link:spark-sql-InternalRow.adoc[InternalRow]).
 
 If however a link:spark-sql-LogicalPlan.adoc[LogicalPlan] is used to <<creating-instance, create a `Dataset`>>, the logical plan is first link:spark-sql-SessionState.adoc#executePlan[executed] (using the current link:spark-sql-SessionState.adoc#executePlan[SessionState] in the `SparkSession`) that yields the link:spark-sql-QueryExecution.adoc[QueryExecution] plan.
 
 A `Dataset` is <<Queryable, Queryable>> and `Serializable`, i.e. can be saved to a persistent storage.
 
-NOTE: link:spark-sql-sparksession.adoc[SparkSession] and link:spark-sql-QueryExecution.adoc[QueryExecution] are transient attributes of a `Dataset` and therefore do not participate in Dataset serialization. The only _firmly-tied_ feature of a `Dataset` is the link:spark-sql-Encoder.adoc[Encoder].
+NOTE: link:spark-sql-SparkSession.adoc[SparkSession] and link:spark-sql-QueryExecution.adoc[QueryExecution] are transient attributes of a `Dataset` and therefore do not participate in Dataset serialization. The only _firmly-tied_ feature of a `Dataset` is the link:spark-sql-Encoder.adoc[Encoder].
 
 You can <<implicits, convert a type-safe Dataset to a "untyped" DataFrame>> or access the link:spark-sql-dataset-operators.adoc#rdd[RDD] that is generated after executing the query. It is supposed to give you a more pleasant experience while transitioning from the legacy RDD-based or DataFrame-based APIs you may have used in the earlier versions of Spark SQL or encourage migrating from Spark Core's RDD API to Spark SQL's Dataset API.
 
@@ -103,7 +103,7 @@ The default storage level for `Datasets` is link:spark-rdd-caching.adoc[MEMORY_A
 
 NOTE: Spark 2.0 has introduced a new query model called link:spark-structured-streaming.adoc[Structured Streaming] for continuous incremental execution of structured queries. That made possible to consider Datasets a static and bounded as well as streaming and unbounded data sets with a single unified API for different execution models.
 
-A `Dataset` is link:spark-sql-dataset-operators.adoc#isLocal[local] if it was created from local collections using link:spark-sql-sparksession.adoc#emptyDataset[SparkSession.emptyDataset] or link:spark-sql-sparksession.adoc#createDataset[SparkSession.createDataset] methods and their derivatives like <<toDF,toDF>>. If so, the queries on the Dataset can be optimized and run locally, i.e. without using Spark executors.
+A `Dataset` is link:spark-sql-dataset-operators.adoc#isLocal[local] if it was created from local collections using link:spark-sql-SparkSession.adoc#emptyDataset[SparkSession.emptyDataset] or link:spark-sql-SparkSession.adoc#createDataset[SparkSession.createDataset] methods and their derivatives like <<toDF,toDF>>. If so, the queries on the Dataset can be optimized and run locally, i.e. without using Spark executors.
 
 NOTE: `Dataset` makes sure that the underlying `QueryExecution` is link:spark-sql-QueryExecution.adoc#analyzed[analyzed] and link:spark-sql-Analyzer-CheckAnalysis.adoc#checkAnalysis[checked].
 
@@ -139,7 +139,7 @@ Used when...FIXME
 
 `Dataset` takes the following when created:
 
-* [[sparkSession]] link:spark-sql-sparksession.adoc[SparkSession]
+* [[sparkSession]] link:spark-sql-SparkSession.adoc[SparkSession]
 * [[queryExecution]] link:spark-sql-QueryExecution.adoc[QueryExecution]
 * [[encoder]] link:spark-sql-Encoder.adoc[Encoder] for the type `T` of the records
 
@@ -171,7 +171,7 @@ It is a part of the Developer API of the `Dataset` class.
 
 NOTE: `DataFrame` is a _mere_ type alias for `Dataset[Row]` since Spark *2.0.0*.
 
-`DatasetHolder` is used by `SQLImplicits` that is available to use after link:spark-sql-sparksession.adoc#implicits[importing `implicits` object of `SparkSession`].
+`DatasetHolder` is used by `SQLImplicits` that is available to use after link:spark-sql-SparkSession.adoc#implicits[importing `implicits` object of `SparkSession`].
 
 [source, scala]
 ----
@@ -275,7 +275,7 @@ Internally, the Scala compiler makes `toDS` implicitly available to any `Seq[T]`
 
 NOTE: This and other implicit methods are in scope whenever you do `import spark.implicits._`.
 
-The input `Seq[T]` is converted into `Dataset[T]` by means of link:spark-sql-sqlcontext.adoc#createDataset[SQLContext.createDataset] that in turn passes all calls on to link:spark-sql-sparksession.adoc#createDataset[SparkSession.createDataset]. Once created, the `Dataset[T]` is wrapped in `DatasetHolder[T]` with `toDS` that just returns the input `ds`.
+The input `Seq[T]` is converted into `Dataset[T]` by means of link:spark-sql-sqlcontext.adoc#createDataset[SQLContext.createDataset] that in turn passes all calls on to link:spark-sql-SparkSession.adoc#createDataset[SparkSession.createDataset]. Once created, the `Dataset[T]` is wrapped in `DatasetHolder[T]` with `toDS` that just returns the input `ds`.
 
 === [[Queryable]] Queryable
 
@@ -303,7 +303,7 @@ NOTE: `ofRows` is a `private[sql]` operator that can only be accessed from code 
 
 `ofRows` returns link:spark-sql-dataframe.adoc[DataFrame] (which is the type alias for `Dataset[Row]`). `ofRows` uses link:spark-sql-RowEncoder.adoc[RowEncoder] to convert the schema (based on the input `logicalPlan` logical plan).
 
-Internally, `ofRows` link:spark-sql-SessionState.adoc#executePlan[prepares the input `logicalPlan` for execution] and creates a `Dataset[Row]` with the current link:spark-sql-sparksession.adoc[SparkSession], the link:spark-sql-QueryExecution.adoc[QueryExecution] and link:spark-sql-RowEncoder.adoc[RowEncoder].
+Internally, `ofRows` link:spark-sql-SessionState.adoc#executePlan[prepares the input `logicalPlan` for execution] and creates a `Dataset[Row]` with the current link:spark-sql-SparkSession.adoc[SparkSession], the link:spark-sql-QueryExecution.adoc[QueryExecution] and link:spark-sql-RowEncoder.adoc[RowEncoder].
 
 === [[i-want-more]] Further reading or watching
 
