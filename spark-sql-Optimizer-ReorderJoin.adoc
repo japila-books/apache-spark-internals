@@ -14,42 +14,52 @@ import org.apache.spark.sql.catalyst.optimizer.ReorderJoin
 val rj = ReorderJoin(spark.sessionState.conf)
 
 // Build analyzed logical plan with at least 3 joins and zero or more filters
-scala> val one = spark.range(4)
-one: org.apache.spark.sql.Dataset[Long] = [id: bigint]
+val t1 = spark.range(4)
+val t2 = spark.range(4)
+val t3 = spark.range(4)
 
-scala> val two = spark.range(4)
-two: org.apache.spark.sql.Dataset[Long] = [id: bigint]
-
-scala> val three = spark.range(4)
-three: org.apache.spark.sql.Dataset[Long] = [id: bigint]
-
-val query = one.join(two)
-  .where(one("id") === two("id"))
-  .join(three)
-  .where(three("id") === one("id"))
-  .filter(one("id") % 2 === 0)
+val query = t1.join(t2)
+  .where(t1("id") === t2("id"))
+  .join(t3)
+  .where(t3("id") === t1("id"))
+  .filter(t1("id") % 2 === 0)
 
 scala> val plan = query.queryExecution.analyzed
 plan: org.apache.spark.sql.catalyst.plans.logical.LogicalPlan =
-Filter ((id#63L % cast(2 as bigint)) = cast(0 as bigint))
-+- Filter (id#69L = id#63L)
+Filter ((id#6L % cast(2 as bigint)) = cast(0 as bigint))
++- Filter (id#12L = id#6L)
    +- Join Inner
-      :- Filter (id#63L = id#66L)
+      :- Filter (id#6L = id#9L)
       :  +- Join Inner
       :     :- Range (0, 4, step=1, splits=Some(8))
       :     +- Range (0, 4, step=1, splits=Some(8))
       +- Range (0, 4, step=1, splits=Some(8))
 
 // Apply ReorderJoin rule
-// Note...FIXME
-scala> rj.apply(plan)
-res9: org.apache.spark.sql.catalyst.plans.logical.LogicalPlan =
-Filter ((id#63L % cast(2 as bigint)) = cast(0 as bigint))
-+- Join Inner, (id#69L = id#63L)
-   :- Join Inner, (id#63L = id#66L)
+scala> val optimized = rj.apply(plan)
+optimized: org.apache.spark.sql.catalyst.plans.logical.LogicalPlan =
+Filter ((id#6L % cast(2 as bigint)) = cast(0 as bigint))
++- Join Inner, (id#12L = id#6L)
+   :- Join Inner, (id#6L = id#9L)
    :  :- Range (0, 4, step=1, splits=Some(8))
    :  +- Range (0, 4, step=1, splits=Some(8))
    +- Range (0, 4, step=1, splits=Some(8))
+
+scala> plan.stats(spark.sessionState.conf)
+res5: org.apache.spark.sql.catalyst.plans.logical.Statistics = Statistics(sizeInBytes=32.0 KB, isBroadcastable=false)
+
+// CBO disabled
+scala> optimized.stats(spark.sessionState.conf)
+res6: org.apache.spark.sql.catalyst.plans.logical.Statistics = Statistics(sizeInBytes=32.0 KB, isBroadcastable=false)
+
+// ReorderJoin works differently when the following holds:
+// * starSchemaDetection is enabled
+// * cboEnabled is disabled
+import org.apache.spark.sql.internal.SQLConf.STARSCHEMA_DETECTION
+spark.sessionState.conf.setConf(STARSCHEMA_DETECTION, true)
+
+spark.sessionState.conf.starSchemaDetection
+spark.sessionState.conf.cboEnabled
 ----
 ====
 
