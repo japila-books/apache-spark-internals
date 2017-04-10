@@ -1,21 +1,50 @@
 == Join Operators
 
-.Joins
-[options="header",width="100%"]
+.Joins (in alphabetical order)
+[cols="1,1,1",options="header",width="100%"]
 |===
-| SQL | JoinType | Alias / joinType
-| `CROSS` | `Cross` | `cross`
-| `INNER` | `Inner` | `inner`
-| [[FullOuter]] `FULL OUTER` | `FullOuter` | `outer`, `full`, `fullouter`
-| `LEFT ANTI` | `LeftAnti` | `leftanti`
-| `LEFT OUTER` | `LeftOuter` | `leftouter`, `left`
-| `LEFT SEMI` | `LeftSemi` | `leftsemi`
-| `RIGHT OUTER` | `RightOuter` | `rightouter`, `right`
-| `NATURAL` | `NaturalJoin` | Special case for `Inner`, `LeftOuter`, `RightOuter`, `FullOuter`
-| `USING` | `UsingJoin` | Special case for `Inner`, `LeftOuter`, `LeftSemi`, `RightOuter`, `FullOuter`, `LeftAnti`
+| SQL
+| Name (joinType)
+| JoinType
+
+| `CROSS`
+| `cross`
+| [[Cross]] `Cross`
+
+| `INNER`
+| `inner`
+| `Inner`
+
+| [[FullOuter]] `FULL OUTER`
+| `outer`, `full`, `fullouter`
+| `FullOuter`
+
+| `LEFT ANTI`
+| `leftanti`
+| `LeftAnti`
+
+| `LEFT OUTER`
+| `leftouter`, `left`
+| `LeftOuter`
+
+| `LEFT SEMI`
+| `leftsemi`
+| `LeftSemi`
+
+| `RIGHT OUTER`
+| `rightouter`, `right`
+| `RightOuter`
+
+| `NATURAL`
+| Special case for `Inner`, `LeftOuter`, `RightOuter`, `FullOuter`
+| `NaturalJoin`
+
+| `USING`
+| Special case for `Inner`, `LeftOuter`, `LeftSemi`, `RightOuter`, `FullOuter`, `LeftAnti`
+| [[UsingJoin]] `UsingJoin`
 |===
 
-TIP: Aliases are case-insensitive and can use the underscore (`_`) at any position, i.e. `left_anti` and `LEFT_ANTI` are acceptable.
+TIP: Name are case-insensitive and can use the underscore (`_`) at any position, i.e. `left_anti` and `LEFT_ANTI` are equivalent.
 
 You can use the join expression as part of <<join, join>> operator or leave it out and describe using link:spark-sql-dataset-operators.adoc#where[where] operator.
 
@@ -25,7 +54,7 @@ df1.join(df2, $"df1Key" === $"df2Key")
 df1.join(df2).where($"df1Key" === $"df2Key")
 ----
 
-=== [[join]] `join` Methods
+=== [[join]] `join` Operators
 
 [source, scala]
 ----
@@ -36,12 +65,12 @@ join(right: Dataset[_], usingColumns: Seq[String], joinType: String): DataFrame 
 join(right: Dataset[_], joinExprs: Column): DataFrame // <5>
 join(right: Dataset[_], joinExprs: Column, joinType: String): DataFrame // <6>
 ----
-<1> Inner join
-<2> Inner join
-<3> Inner join
+<1> Condition-less inner join
+<2> Inner join with a single column that exists on both sides
+<3> Inner join with columns that exist on both sides
 <4> Equi-join with explicit join type
 <5> Inner join
-<6> Join with explicit join type
+<6> Join with explicit join type. Self-joins are acceptable.
 
 `join` joins two ``Dataset``s.
 
@@ -104,18 +133,26 @@ scala> left.join(right, Seq("id"), "leftanti").explain
    +- LocalTableScan [id#60]
 ----
 
-Internally, `join` link:spark-sql-Dataset.adoc#ofRows[creates a `DataFrame`] with link:spark-sql-LogicalPlan-Join.adoc[`Join` logical operator] (in the current link:spark-sql-SparkSession.adoc[SparkSession]).
+Internally, `join(right: Dataset[_])` link:spark-sql-Dataset.adoc#ofRows[creates a DataFrame] with a condition-less link:spark-sql-LogicalPlan-Join.adoc[Join logical operator] (in the current link:spark-sql-SparkSession.adoc[SparkSession]).
 
-=== [[joinWith]] `joinWith` Method
+NOTE: `join(right: Dataset[_])` creates a link:spark-sql-LogicalPlan.adoc[logical plan] with a condition-less link:spark-sql-LogicalPlan-Join.adoc[Join] operator with two child logical plans of the both sides of the join.
 
-[source, scala]
-----
-joinWith[U](other: Dataset[U], condition: Column): Dataset[(T, U)]  // <1>
-joinWith[U](other: Dataset[U], condition: Column, joinType: String): Dataset[(T, U)]
-----
-<1> Inner join
+NOTE: `join(right: Dataset[_], usingColumns: Seq[String], joinType: String)` creates a link:spark-sql-LogicalPlan.adoc[logical plan] with a condition-less link:spark-sql-LogicalPlan-Join.adoc[Join] operator with <<UsingJoin, UsingJoin>> join type.
 
-CAUTION: FIXME
+[NOTE]
+====
+`join(right: Dataset[_], joinExprs: Column, joinType: String)` accepts self-joins where `joinExprs` is of the form:
+
+```
+df("key") === df("key")
+```
+
+That is usually considered a trivially true condition and refused as acceptable.
+
+With link:spark-sql-SQLConf.adoc#spark.sql.selfJoinAutoResolveAmbiguity[spark.sql.selfJoinAutoResolveAmbiguity] option enabled (which it is by default), `join` will automatically resolve ambiguous join conditions into ones that might make sense.
+
+See https://issues.apache.org/jira/browse/SPARK-6231[[SPARK-6231\] Join on two tables (generated from same one) is broken].
+====
 
 === [[crossJoin]] `crossJoin` Method
 
@@ -123,6 +160,19 @@ CAUTION: FIXME
 ----
 crossJoin(right: Dataset[_]): DataFrame
 ----
+
+`crossJoin` joins two link:spark-sql-Dataset.adoc[Datasets] using <<Cross, Cross>> join type with no condition.
+
+NOTE: `crossJoin` creates an explicit cartesian join that can be very expensive without an extra filter (that can be pushed down).
+
+=== [[joinWith]] `joinWith` Operators
+
+[source, scala]
+----
+joinWith[U](other: Dataset[U], condition: Column): Dataset[(T, U)]  // <1>
+joinWith[U](other: Dataset[U], condition: Column, joinType: String): Dataset[(T, U)]
+----
+<1> Inner join
 
 CAUTION: FIXME
 
