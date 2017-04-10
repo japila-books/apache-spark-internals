@@ -1,15 +1,34 @@
 == Join Operators
 
-.Joins (in alphabetical order)
+You can join two link:spark-sql-Dataset.adoc[Datasets] using `join` operators:
+
+* Untyped, ``Row``-based <<join, join>>
+* Type-preserving <<joinWith, joinWith>>
+
+TIP: Follow the links to see the examples of <<join, join>> and <<joinWith, joinWith>> operators.
+
+[NOTE]
+====
+You can also use link:spark-sql-SparkSession.adoc#sql[SparkSession] to execute _good ol'_ SQL with joins.
+
+[source, scala]
+----
+val spark: SparkSession = ???
+spark.sql("select * from t1, t2 where t1.id = t2.id")
+----
+====
+
+[[join-types]]
+.Join Types (in alphabetical order)
 [cols="1,1,1",options="header",width="100%"]
 |===
 | SQL
 | Name (joinType)
 | JoinType
 
-| `CROSS`
+| [[cross]] `CROSS`
 | `cross`
-| [[Cross]] `Cross`
+| `Cross`
 
 | `INNER`
 | `inner`
@@ -39,7 +58,7 @@
 | Special case for `Inner`, `LeftOuter`, `RightOuter`, `FullOuter`
 | `NaturalJoin`
 
-| `USING`
+| [[using]] `USING`
 | Special case for `Inner`, `LeftOuter`, `LeftSemi`, `RightOuter`, `FullOuter`, `LeftAnti`
 | [[UsingJoin]] `UsingJoin`
 |===
@@ -133,7 +152,7 @@ scala> left.join(right, Seq("id"), "leftanti").explain
    +- LocalTableScan [id#60]
 ----
 
-Internally, `join(right: Dataset[_])` link:spark-sql-Dataset.adoc#ofRows[creates a DataFrame] with a condition-less link:spark-sql-LogicalPlan-Join.adoc[Join logical operator] (in the current link:spark-sql-SparkSession.adoc[SparkSession]).
+Internally, `join(right: Dataset[_])` link:spark-sql-Dataset.adoc#ofRows[creates a DataFrame] with a condition-less link:spark-sql-LogicalPlan-Join.adoc[Join] logical operator (in the current link:spark-sql-SparkSession.adoc[SparkSession]).
 
 NOTE: `join(right: Dataset[_])` creates a link:spark-sql-LogicalPlan.adoc[logical plan] with a condition-less link:spark-sql-LogicalPlan-Join.adoc[Join] operator with two child logical plans of the both sides of the join.
 
@@ -161,20 +180,53 @@ See https://issues.apache.org/jira/browse/SPARK-6231[[SPARK-6231\] Join on two t
 crossJoin(right: Dataset[_]): DataFrame
 ----
 
-`crossJoin` joins two link:spark-sql-Dataset.adoc[Datasets] using <<Cross, Cross>> join type with no condition.
+`crossJoin` joins two link:spark-sql-Dataset.adoc[Datasets] using <<cross, Cross>> join type with no condition.
 
 NOTE: `crossJoin` creates an explicit cartesian join that can be very expensive without an extra filter (that can be pushed down).
 
-=== [[joinWith]] `joinWith` Operators
+=== [[joinWith]] Type-Preserving Joins -- `joinWith` Operators
 
 [source, scala]
 ----
 joinWith[U](other: Dataset[U], condition: Column): Dataset[(T, U)]  // <1>
 joinWith[U](other: Dataset[U], condition: Column, joinType: String): Dataset[(T, U)]
 ----
-<1> Inner join
+<1> Type-safe inner join
 
-CAUTION: FIXME
+`joinWith` creates a link:spark-sql-Dataset.adoc[Dataset] with two columns `_1` and `_2` that each contains records for which `condition` holds.
+
+[source, scala]
+----
+case class Person(id: Long, name: String, cityId: Long)
+case class City(id: Long, name: String)
+
+val people = Seq(Person(0, "Agata", 0), Person(1, "Iweta", 0)).toDS
+val cities = Seq(City(0, "Warsaw"), City(1, "Washington")).toDS
+
+val joined = people.joinWith(cities, people("cityId") === cities("id"))
+
+scala> joined.printSchema
+root
+ |-- _1: struct (nullable = false)
+ |    |-- id: long (nullable = false)
+ |    |-- name: string (nullable = true)
+ |    |-- cityId: long (nullable = false)
+ |-- _2: struct (nullable = false)
+ |    |-- id: long (nullable = false)
+ |    |-- name: string (nullable = true)
+
+scala> joined.show
++-----------+----------+
+|         _1|        _2|
++-----------+----------+
+|[0,Agata,0]|[0,Warsaw]|
+|[1,Iweta,0]|[0,Warsaw]|
++-----------+----------+
+----
+
+NOTE: `joinWith` preserves type-safety with the original object types.
+
+NOTE: `joinWith` creates a `Dataset` with link:spark-sql-LogicalPlan-Join.adoc[Join] logical plan.
 
 === [[broadcast-join]] Broadcast Join (aka Map-Side Join)
 
