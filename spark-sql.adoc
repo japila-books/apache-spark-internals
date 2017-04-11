@@ -1,34 +1,76 @@
-== Spark SQL -- Structured Queries on Large Scale
+== Spark SQL -- Queries Over Structured Data on Massive Scale
 
-Like Apache Spark in general, *Spark SQL* in particular is all about distributed in-memory computations. The primary difference between them -- Spark SQL and the "bare" Spark Core's RDD computation model -- is in offering a framework for loading, querying and persisting structured and semi-structured data using structured queries that can equally be expressed using SQL (with subqueries), Hive QL and the custom high-level SQL-like, declarative, type-safe link:spark-sql-Dataset.adoc[Dataset] API (for a structured query DSL). Regardless of the structured query language you choose they all end up as a link:spark-sql-catalyst.adoc[tree of Catalyst expressions] with link:spark-sql-Optimizer.adoc[further optimizations] along the way to your large distributed data sets.
+Like Apache Spark in general, *Spark SQL* in particular is all about distributed in-memory computations. The primary difference between Spark SQL and the "bare" Spark Core's RDD computation models is the framework for loading, querying and persisting structured and semi-structured data using queries that can be expressed using _good ol'_ SQL, HiveQL and the custom high-level SQL-like, declarative, type-safe link:spark-sql-Dataset.adoc[Dataset] API called *Structured Query DSL*.
 
-With the recent changes in Spark 2.0, Spark SQL is now _de facto_ the primary and feature-rich interface to Spark's underlying in-memory distributed platform (hiding Spark Core's RDDs behind higher-level abstractions).
+NOTE: Under the covers, structured queries are automatically compiled into corresponding RDD operations.
+
+Regardless of the query language you choose queries all end up as a link:spark-sql-catalyst.adoc[tree of Catalyst expressions] with link:spark-sql-Optimizer.adoc[further optimizations] along the way to your large distributed data sets.
+
+As of Spark 2.0, Spark SQL is now _de facto_ the primary and feature-rich interface to Spark's underlying in-memory distributed platform (hiding Spark Core's RDDs behind higher-level abstractions).
 
 [source, scala]
 ----
-// Found at http://stackoverflow.com/a/32514683/1305344
-val dataset = Seq(
-   "08/11/2015",
-   "09/11/2015",
-   "09/12/2015").toDF("date_string")
+// Define the schema using a case class
+case class Person(name: String, age: Int)
 
-dataset.registerTempTable("dates")
+// you could read people from a CSV file
+// It's been a while since you saw RDDs, hasn't it?
+// Excuse me for bringing you the old past.
+import org.apache.spark.rdd.RDD
+val peopleRDD: RDD[Person] = sc.parallelize(Seq(Person("Jacek", 10)))
 
-// Inside spark-shell
-scala > sql(
-  """SELECT date_string,
-        from_unixtime(unix_timestamp(date_string,'MM/dd/yyyy'), 'EEEEE') AS dow
-      FROM dates""").show
-+-----------+--------+
-|date_string|     dow|
-+-----------+--------+
-| 08/11/2015| Tuesday|
-| 09/11/2015|  Friday|
-| 09/12/2015|Saturday|
-+-----------+--------+
+// Convert RDD[Person] to Dataset[Person] and run a query
+
+// Automatic schema inferrence from existing RDDs
+scala> val people = peopleRDD.toDS
+people: org.apache.spark.sql.Dataset[Person] = [name: string, age: int]
+
+// Query for teenagers using Scala Query DSL
+scala> val teenagers = people.where('age >= 10).where('age <= 19).select('name).as[String]
+teenagers: org.apache.spark.sql.Dataset[String] = [name: string]
+
+scala> teenagers.show
++-----+
+| name|
++-----+
+|Jacek|
++-----+
+
+// You could however want to use good ol' SQL, couldn't you?
+
+// 1. Register people Dataset as a temporary view in Catalog
+people.createOrReplaceTempView("people")
+
+// 2. Run SQL query
+val teenagers = sql("SELECT * FROM people WHERE age >= 10 AND age <= 19")
+scala> teenagers.show
++-----+---+
+| name|age|
++-----+---+
+|Jacek| 10|
++-----+---+
 ----
 
-Like SQL and NoSQL databases, Spark SQL offers performance query optimizations using Catalyst's link:spark-sql-Optimizer.adoc[Logical Query Plan Optimizer], link:spark-sql-whole-stage-codegen.adoc[code generation] (that could often be better than your own custom handmade code!) and link:spark-sql-tungsten.adoc[Tungsten execution engine] with its own link:spark-sql-InternalRow.adoc[Internal Binary Row Format].
+When the Hive support is enabled, Spark developers can read and write data located in existing Apache Hive deployments using HiveQL.
+
+[source, scala]
+----
+sql("CREATE OR REPLACE TEMPORARY VIEW v1 (key INT, value STRING) USING csv OPTIONS ('path'='people.csv', 'header'='true')")
+
+// Queries are expressed in HiveQL
+sql("FROM v1").show
+
+scala> sql("desc EXTENDED v1").show(false)
++----------+---------+-------+
+|col_name  |data_type|comment|
++----------+---------+-------+
+|# col_name|data_type|comment|
+|key       |int      |null   |
+|value     |string   |null   |
++----------+---------+-------+
+----
+
+Like SQL and NoSQL databases, Spark SQL offers performance query optimizations using link:spark-sql-Optimizer.adoc[Logical Query Plan Optimizer], link:spark-sql-whole-stage-codegen.adoc[code generation] (that could often be better than your own custom hand-written code!) and link:spark-sql-tungsten.adoc[Tungsten execution engine] with its own link:spark-sql-InternalRow.adoc[Internal Binary Row Format].
 
 Spark SQL introduces a tabular data abstraction called link:spark-sql-Dataset.adoc[Dataset] (that was previously link:spark-sql-dataframe.adoc[DataFrame]). ``Dataset`` data abstraction is designed to make processing large amount of structured tabular data on Spark infrastructure simpler and faster.
 
