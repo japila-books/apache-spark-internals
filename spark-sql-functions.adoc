@@ -13,12 +13,22 @@ There are over 300 functions in the `functions` object.
 
 The functions are grouped by functional areas.
 
-.Functions in Spark SQL
+.Standard Functions in Spark SQL
 [align="center",cols="1,1,2",width="100%",options="header"]
 |===
 |
-|Functions
+|Name
 |Description
+
+.3+^.^| [[aggregate-functions]] *Aggregate functions*
+| <<count, count>>
+|
+
+| <<grouping, grouping>>
+| Referred as *grouping sets* FIXME
+
+| <<grouping_id, grouping_id>>
+| Referred as *grouping sets* FIXME
 
 .6+^.^|*Window functions*
 |<<rank, rank, dense_rank, percent_rank>>
@@ -49,8 +59,6 @@ The functions are grouped by functional areas.
 * <<string-functions, String functions>>
 ** <<split, split>>
 ** <<upper, upper>> (chained with `reverse`)
-* Aggregate functions
-** <<count, count>>
 * <<non-aggregate-functions, Non-aggregate functions>> (aka _normal functions_)
 ** <<struct, struct>>
 ** <<broadcast, broadcast>> (for `DataFrame`)
@@ -61,6 +69,62 @@ The functions are grouped by functional areas.
 * ..._and others_
 
 TIP: The page gives only a brief ovierview of the many functions available in `functions` object and so you should read the http://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.sql.functions$[official documentation of the `functions` object].
+
+=== [[grouping_id]] `grouping_id` Function
+
+CAUTION: FIXME
+
+=== [[grouping]] `grouping` Functions
+
+[source, scala]
+----
+grouping(e: Column): Column
+grouping(columnName: String): Column  // <1>
+----
+<1> Calls the former with `columnName` as a `Column`
+
+`grouping` is an aggregate function that indicates whether a specified column in a GROUP BY list is aggregated or not, i.e. returns `1` for aggregated or `0` for not aggregated.
+
+From https://cwiki.apache.org/confluence/display/Hive/Enhanced&#43;Aggregation%2C&#43;Cube%2C&#43;Grouping&#43;and&#43;Rollup#EnhancedAggregation,Cube,GroupingandRollup-Grouping\_\_IDfunction[Hive's documentation about Grouping__ID function] (that can somehow help to understand `grouping`):
+
+> When aggregates are displayed for a column its value is null. This may conflict in case the column itself has some null values. There needs to be some way to identify NULL in column, which means aggregate and NULL in column, which means value. GROUPING__ID function is the solution to that.
+
+[source, scala]
+----
+val tmpWorkshopCities = Seq(
+  ("Warsaw", 2016, 2),
+  ("Toronto", 2016, 4),
+  ("Toronto", 2017, 1)).toDF("city", "year", "count")
+
+// there seems to be a bug with nulls
+// and so the need for the following union
+val cityNull = Seq(
+  (null.asInstanceOf[String], 2016, 2)).toDF("city", "year", "count")
+
+val workshopCities = tmpWorkshopCities union cityNull
+
+scala> workshopCities
+  .cube("city", "year")
+  .agg(grouping("city"), grouping("year")) // <-- grouping here
+  .sort($"city".desc_nulls_last, $"year".desc_nulls_last)
+  .show
++-------+----+--------------+--------------+
+|   city|year|grouping(city)|grouping(year)|
++-------+----+--------------+--------------+
+| Warsaw|2016|             0|             0|
+| Warsaw|null|             0|             1|
+|Toronto|2017|             0|             0|
+|Toronto|2016|             0|             0|
+|Toronto|null|             0|             1|
+|   null|2017|             1|             0|
+|   null|2016|             1|             0|
+|   null|2016|             0|             0|
+|   null|null|             0|             1|
+|   null|null|             1|             1|
++-------+----+--------------+--------------+
+----
+
+Internally, `grouping` creates a link:spark-sql-Column.adoc[Column] with `Grouping` expression.
 
 === [[from_json]] Parsing Column With JSON-Encoded Records -- `from_json` Functions
 
