@@ -9,10 +9,14 @@ You can access the functions using the following `import` statement:
 import org.apache.spark.sql.functions._
 ----
 
-There are over 300 functions in the `functions` object.
+There are over 200 functions in the `functions` object.
 
-The functions are grouped by functional areas.
+```
+scala> spark.catalog.listFunctions.count
+res1: Long = 251
+```
 
+[[standard-functions]]
 .Standard Functions in Spark SQL
 [align="center",cols="1,1,2",width="100%",options="header"]
 |===
@@ -25,17 +29,17 @@ The functions are grouped by functional areas.
 |
 
 | <<grouping, grouping>>
-| Referred as *grouping sets* FIXME
+| Indicates whether a specified column is aggregated or not
 
 | <<grouping_id, grouping_id>>
-| Referred as *grouping sets* FIXME
+| Computes the level of grouping
 
 .6+^.^|*Window functions*
 |<<rank, rank, dense_rank, percent_rank>>
 | Ranking records per window partition
 
-|<<ntile, ntile>>
-|
+| <<ntile, ntile>>
+| Gives the ntile group if (from `1` to `n` inclusive) in an ordered window partition
 
 |<<row_number, row_number>>
 | Sequential numbering per window partition
@@ -70,99 +74,11 @@ The functions are grouped by functional areas.
 
 TIP: The page gives only a brief ovierview of the many functions available in `functions` object and so you should read the http://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.sql.functions$[official documentation of the `functions` object].
 
-=== [[grouping_id]] `grouping_id` Function
+=== [[count]] count Function
 
 CAUTION: FIXME
 
-=== [[grouping]] `grouping` Functions
-
-[source, scala]
-----
-grouping(e: Column): Column
-grouping(columnName: String): Column  // <1>
-----
-<1> Calls the former with `columnName` as a `Column`
-
-`grouping` is an aggregate function that indicates whether a specified column in a GROUP BY list is aggregated or not, i.e. returns `1` for aggregated or `0` for not aggregated.
-
-From https://cwiki.apache.org/confluence/display/Hive/Enhanced&#43;Aggregation%2C&#43;Cube%2C&#43;Grouping&#43;and&#43;Rollup#EnhancedAggregation,Cube,GroupingandRollup-Grouping\_\_IDfunction[Hive's documentation about Grouping__ID function] (that can somehow help to understand `grouping`):
-
-> When aggregates are displayed for a column its value is null. This may conflict in case the column itself has some null values. There needs to be some way to identify NULL in column, which means aggregate and NULL in column, which means value. GROUPING__ID function is the solution to that.
-
-[source, scala]
-----
-val tmpWorkshopCities = Seq(
-  ("Warsaw", 2016, 2),
-  ("Toronto", 2016, 4),
-  ("Toronto", 2017, 1)).toDF("city", "year", "count")
-
-// there seems to be a bug with nulls
-// and so the need for the following union
-val cityNull = Seq(
-  (null.asInstanceOf[String], 2016, 2)).toDF("city", "year", "count")
-
-val workshopCities = tmpWorkshopCities union cityNull
-
-scala> workshopCities
-  .cube("city", "year")
-  .agg(grouping("city"), grouping("year")) // <-- grouping here
-  .sort($"city".desc_nulls_last, $"year".desc_nulls_last)
-  .show
-+-------+----+--------------+--------------+
-|   city|year|grouping(city)|grouping(year)|
-+-------+----+--------------+--------------+
-| Warsaw|2016|             0|             0|
-| Warsaw|null|             0|             1|
-|Toronto|2017|             0|             0|
-|Toronto|2016|             0|             0|
-|Toronto|null|             0|             1|
-|   null|2017|             1|             0|
-|   null|2016|             1|             0|
-|   null|2016|             0|             0|
-|   null|null|             0|             1|
-|   null|null|             1|             1|
-+-------+----+--------------+--------------+
-----
-
-Internally, `grouping` creates a link:spark-sql-Column.adoc[Column] with `Grouping` expression.
-
-=== [[from_json]] Parsing Column With JSON-Encoded Records -- `from_json` Functions
-
-[source, scala]
-----
-from_json(e: Column, schema: DataType): Column  // <1>
-from_json(
-  e: Column,
-  schema: DataType,
-  options: Map[String, String]): Column
-----
-<1> Relays to the other `from_json` with empty `options`
-
-Parses a column with a JSON string into a link:spark-sql-StructType.adoc[StructType] or link:spark-sql-DataType.adoc#ArrayType[ArrayType] of `StructType` elements with the specified schema.
-
-NOTE: `options` controls how a JSON is parsed and contains the same options as the link:spark-sql-JsonDataSource.adoc[json data source].
-
-Internally, `from_json` creates a link:spark-sql-Column.adoc[Column] with link:spark-sql-JsonToStructs.adoc[JsonToStructs] unary expression.
-
-[source, scala]
-----
-val jsons = Seq("""{ "id": 0 }""").toDF("json")
-
-import org.apache.spark.sql.types._
-val schema = StructType(
-  StructField("id", IntegerType, nullable = false) :: Nil)
-
-scala> jsons.select(from_json($"json", schema) as "ids").show
-+---+
-|ids|
-+---+
-|[0]|
-+---+
-----
-
-NOTE: `from_json` corresponds to SQL's `from_json`.
-
-=== [[explode]] explode
+=== [[explode]] `explode` Function
 
 CAUTION: FIXME
 
@@ -178,7 +94,9 @@ scala> Seq(Array(0,1,2)).toDF("array").withColumn("num", explode('array)).show
 +---------+---+
 ----
 
-=== [[rank]][[dense_rank]][[percent_rank]] Ranking Records per Window Partition -- `rank` functions
+NOTE: `explode` function is an equivalent of link:spark-sql-dataset-operators.adoc#flatMap[`flatMap` operator] for `Dataset`.
+
+=== [[rank]][[dense_rank]][[percent_rank]] Ranking Records per Window Partition -- `rank` Function
 
 [source, scala]
 ----
@@ -309,7 +227,7 @@ scala> dataset.union(dataset).withColumn("percent_rank", percent_rank over byBuc
 +---+------+------------+
 ----
 
-=== [[cume_dist]] Cumulative Distribution of Records Across Window Partitions -- `cume_dist` function
+=== [[cume_dist]] Cumulative Distribution of Records Across Window Partitions -- `cume_dist` Function
 
 [source, scala]
 ----
@@ -342,7 +260,7 @@ scala> dataset.withColumn("cume_dist", cume_dist over windowSpec).show
 +---+------+------------------+
 ----
 
-=== [[lag]] `lag` functions
+=== [[lag]] `lag` Function
 
 [source, scala]
 ----
@@ -395,7 +313,7 @@ scala> dataset.withColumn("lag", lag('id, 2, "<default_value>") over windowSpec)
 
 CAUTION: FIXME It looks like `lag` with a default value has a bug -- the default value's not used at all.
 
-=== [[lead]] `lead` functions
+=== [[lead]] `lead` Function
 
 [source, scala]
 ----
@@ -466,7 +384,7 @@ scala> dataset.withColumn("lead", lead('id, 2, "<default_value>") over windowSpe
 
 CAUTION: FIXME It looks like `lead` with a default value has a bug -- the default value's not used at all.
 
-=== [[row_number]] Sequential numbering per window partition -- `row_number` functions
+=== [[row_number]] Sequential numbering per window partition -- `row_number` Function
 
 [source, scala]
 ----
@@ -508,7 +426,7 @@ scala> dataset.withColumn("row_number", row_number() over windowSpec).show
 +---+------+----------+
 ----
 
-=== [[ntile]] `ntile` function
+=== [[ntile]] `ntile` Function
 
 [source, scala]
 ----
@@ -539,7 +457,7 @@ scala> dataset.select('*, ntile(3) over byBuckets as "ntile").show
 
 CAUTION: FIXME How is `ntile` different from `rank`? What about performance?
 
-=== [[creating-columns]][[col]][[column]] Creating Columns -- `col` and `column` methods
+=== [[creating-columns]][[col]][[column]] Creating Columns -- `col` and `column` Functions
 
 [source, scala]
 ----
@@ -560,7 +478,7 @@ scala> val cityCol = column("city")
 cityCol: org.apache.spark.sql.Column = city
 ----
 
-=== [[udf]] Defining UDFs (udf factories)
+=== [[udf]] Defining UDFs -- `udf` Function
 
 [source, scala]
 ----
@@ -617,9 +535,9 @@ scala> df.withColumn("len", byTwo($"num")).show
 +---+---+
 ----
 
-=== [[string-functions]] String functions
+=== [[string-functions]] String Functions
 
-==== [[split]] split function
+==== [[split]] `split` Function
 
 [source, scala]
 ----
@@ -646,7 +564,7 @@ scala> withSplit.show
 
 NOTE: `.$|()[{^?*+\` are RegEx's meta characters and are considered special.
 
-==== [[upper]] upper function
+==== [[upper]] `upper` Function
 
 [source, scala]
 ----
@@ -672,11 +590,11 @@ scala> withUpperReversed.show
 +---+---+-----+-----+
 ----
 
-=== [[non-aggregate-functions]] Non-aggregate functions
+=== [[non-aggregate-functions]] Non-aggregate Functions
 
 They are also called *normal functions*.
 
-==== [[struct]] struct functions
+==== [[struct]] `struct` Functions
 
 [source, scala]
 ----
@@ -700,7 +618,7 @@ scala> df.withColumn("struct", struct($"name", $"val")).show
 +---+---+-----+---------+
 ----
 
-==== [[broadcast]] broadcast function
+==== [[broadcast]] `broadcast` Function
 
 [source, scala]
 ----
@@ -758,7 +676,7 @@ Project [token#127, id#126, prob#140]
             +- LocalTableScan [_1#136, _2#137]
 ----
 
-==== [[expr]] expr function
+==== [[expr]] `expr` Function
 
 [source, scala]
 ----
@@ -793,11 +711,7 @@ scala> ds.filter(filterExpr).show
 
 Internally, `expr` uses the active session's link:spark-sql-SessionState.adoc[sqlParser] or creates a new  link:spark-sql-SparkSqlParser.adoc[SparkSqlParser] to call link:spark-sql-ParserInterface.adoc#parseExpression[parseExpression] method.
 
-=== [[count]] count
-
-CAUTION: FIXME
-
-=== [[window]] Generating Tumbling Time Windows -- `window` functions
+=== [[window]] Generating Tumbling Time Windows -- `window` Function
 
 [source, scala]
 ----
@@ -836,3 +750,210 @@ TIP: Use `CalendarInterval` for valid window identifiers.
 NOTE: `window` is available as of Spark *2.0.0*.
 
 Internally, `window` creates a link:spark-sql-Column.adoc[Column] with `TimeWindow` expression.
+
+=== [[grouping]] `grouping` Function
+
+[source, scala]
+----
+grouping(e: Column): Column
+grouping(columnName: String): Column  // <1>
+----
+<1> Calls the first `grouping` with `columnName` as a `Column`
+
+`grouping` is an aggregate function that indicates whether a specified column is aggregated or not and returns `1` for aggregated or `0` otherwise.
+
+NOTE: `grouping` can only be used with link:spark-sql-aggregation-rollup-cube.adoc#cube[cube], link:spark-sql-aggregation-rollup-cube.adoc#rollup[rollup] or `GROUPING SETS` aggregate operators.
+
+From https://cwiki.apache.org/confluence/display/Hive/Enhanced&#43;Aggregation%2C&#43;Cube%2C&#43;Grouping&#43;and&#43;Rollup#EnhancedAggregation,Cube,GroupingandRollup-Grouping\_\_IDfunction[Hive's documentation about Grouping__ID function] (that can somehow help to understand `grouping`):
+
+> When aggregates are displayed for a column its value is `null`. This may conflict in case the column itself has some `null` values. There needs to be some way to identify `NULL` in column, which means aggregate and `NULL` in column, which means value. `GROUPING__ID` function is the solution to that.
+
+[source, scala]
+----
+val tmpWorkshops = Seq(
+  ("Warsaw", 2016, 2),
+  ("Toronto", 2016, 4),
+  ("Toronto", 2017, 1)).toDF("city", "year", "count")
+
+// there seems to be a bug with nulls
+// and so the need for the following union
+val cityNull = Seq(
+  (null.asInstanceOf[String], 2016, 2)).toDF("city", "year", "count")
+
+val workshops = tmpWorkshops union cityNull
+
+scala> workshops
+  .cube("city", "year")
+  .agg(grouping("city"), grouping("year")) // <-- grouping here
+  .sort($"city".desc_nulls_last, $"year".desc_nulls_last)
+  .show
++-------+----+--------------+--------------+
+|   city|year|grouping(city)|grouping(year)|
++-------+----+--------------+--------------+
+| Warsaw|2016|             0|             0|
+| Warsaw|null|             0|             1|
+|Toronto|2017|             0|             0|
+|Toronto|2016|             0|             0|
+|Toronto|null|             0|             1|
+|   null|2017|             1|             0|
+|   null|2016|             1|             0|
+|   null|2016|             0|             0|
+|   null|null|             0|             1|
+|   null|null|             1|             1|
++-------+----+--------------+--------------+
+----
+
+Internally, `grouping` creates a link:spark-sql-Column.adoc[Column] with `Grouping` expression.
+
+=== [[grouping_id]] `grouping_id` Function
+
+[source, scala]
+----
+grouping_id(cols: Column*): Column
+grouping_id(colName: String, colNames: String*): Column // <1>
+----
+<1> Calls the first `grouping_id` with `colName` and `colNames` as objects of type `Column`
+
+`grouping_id` is an aggregate function that computes the level of grouping.
+
+The list of columns of `grouping_id` should match grouping columns (in `cube` or `rollup`) exactly, or empty which means all the grouping columns (which is exactly what the function expects).
+
+NOTE: `grouping_id` can only be used with link:spark-sql-aggregation-rollup-cube.adoc#cube[cube], link:spark-sql-aggregation-rollup-cube.adoc#rollup[rollup] or `GROUPING SETS` aggregate operators.
+
+From https://cwiki.apache.org/confluence/display/Hive/Enhanced&#43;Aggregation%2C&#43;Cube%2C&#43;Grouping&#43;and&#43;Rollup#EnhancedAggregation,Cube,GroupingandRollup-Grouping\_\_IDfunction[Hive's documentation about Grouping__ID function]:
+
+> When aggregates are displayed for a column its value is `null`. This may conflict in case the column itself has some `null` values. There needs to be some way to identify `NULL` in column, which means aggregate and `NULL` in column, which means value. `GROUPING__ID` function is the solution to that.
+
+[source, scala]
+----
+val tmpWorkshops = Seq(
+  ("Warsaw", 2016, 2),
+  ("Toronto", 2016, 4),
+  ("Toronto", 2017, 1)).toDF("city", "year", "count")
+
+// there seems to be a bug with nulls
+// and so the need for the following union
+val cityNull = Seq(
+  (null.asInstanceOf[String], 2016, 2)).toDF("city", "year", "count")
+
+val workshops = tmpWorkshops union cityNull
+
+scala> workshops
+  .cube("city", "year")
+  .agg(grouping_id()) // all grouping columns used
+  .sort($"city".desc_nulls_last, $"year".desc_nulls_last)
+  .show
+scala> workshops.cube("city", "year").agg(grouping_id()).sort($"city".desc_nulls_last, $"year".desc_nulls_last).show
++-------+----+-------------+
+|   city|year|grouping_id()|
++-------+----+-------------+
+| Warsaw|2016|            0|
+| Warsaw|null|            1|
+|Toronto|2017|            0|
+|Toronto|2016|            0|
+|Toronto|null|            1|
+|   null|2017|            2|
+|   null|2016|            2|
+|   null|2016|            0|
+|   null|null|            1|
+|   null|null|            3|
++-------+----+-------------+
+
+scala> spark.catalog.listFunctions.filter(_.name.contains("grouping_id")).show(false)
++-----------+--------+-----------+----------------------------------------------------+-----------+
+|name       |database|description|className                                           |isTemporary|
++-----------+--------+-----------+----------------------------------------------------+-----------+
+|grouping_id|null    |null       |org.apache.spark.sql.catalyst.expressions.GroupingID|true       |
++-----------+--------+-----------+----------------------------------------------------+-----------+
+----
+
+Internally, `grouping_id()` creates a link:spark-sql-Column.adoc[Column] with `GroupingID` unevaluable expression.
+
+NOTE: link:spark-sql-catalyst-Expression.adoc#Unevaluable[Unevaluable expressions] are expressions replaced by some other expressions during analysis or optimization.
+
+```
+// workshops dataset was defined earlier
+val q = workshops
+  .cube("city", "year")
+  .agg(grouping_id())
+  .sort($"city".desc_nulls_last, $"year".desc_nulls_last)
+
+scala> q.explain(true)
+== Parsed Logical Plan ==
+'Sort ['city DESC NULLS LAST, 'year DESC NULLS LAST], true
++- Aggregate [city#40, year#41, spark_grouping_id#37], [city#40, year#41, spark_grouping_id#37 AS grouping_id()#36]
+   +- Expand [List(city#7, year#8, count#9, city#38, year#39, 0), List(city#7, year#8, count#9, city#38, null, 1), List(city#7, year#8, count#9, null, year#39, 2), List(city#7, year#8, count#9, null, null, 3)], [city#7, year#8, count#9, city#40, year#41, spark_grouping_id#37]
+      +- Project [city#7, year#8, count#9, city#7 AS city#38, year#8 AS year#39]
+         +- Union
+            :- Project [_1#3 AS city#7, _2#4 AS year#8, _3#5 AS count#9]
+            :  +- LocalRelation [_1#3, _2#4, _3#5]
+            +- Project [_1#17 AS city#21, _2#18 AS year#22, _3#19 AS count#23]
+               +- LocalRelation [_1#17, _2#18, _3#19]
+
+== Analyzed Logical Plan ==
+city: string, year: int, grouping_id(): int
+Sort [city#40 DESC NULLS LAST, year#41 DESC NULLS LAST], true
++- Aggregate [city#40, year#41, spark_grouping_id#37], [city#40, year#41, spark_grouping_id#37 AS grouping_id()#36]
+   +- Expand [List(city#7, year#8, count#9, city#38, year#39, 0), List(city#7, year#8, count#9, city#38, null, 1), List(city#7, year#8, count#9, null, year#39, 2), List(city#7, year#8, count#9, null, null, 3)], [city#7, year#8, count#9, city#40, year#41, spark_grouping_id#37]
+      +- Project [city#7, year#8, count#9, city#7 AS city#38, year#8 AS year#39]
+         +- Union
+            :- Project [_1#3 AS city#7, _2#4 AS year#8, _3#5 AS count#9]
+            :  +- LocalRelation [_1#3, _2#4, _3#5]
+            +- Project [_1#17 AS city#21, _2#18 AS year#22, _3#19 AS count#23]
+               +- LocalRelation [_1#17, _2#18, _3#19]
+
+== Optimized Logical Plan ==
+Sort [city#40 DESC NULLS LAST, year#41 DESC NULLS LAST], true
++- Aggregate [city#40, year#41, spark_grouping_id#37], [city#40, year#41, spark_grouping_id#37 AS grouping_id()#36]
+   +- Expand [List(city#38, year#39, 0), List(city#38, null, 1), List(null, year#39, 2), List(null, null, 3)], [city#40, year#41, spark_grouping_id#37]
+      +- Union
+         :- LocalRelation [city#38, year#39]
+         +- LocalRelation [city#38, year#39]
+
+== Physical Plan ==
+*Sort [city#40 DESC NULLS LAST, year#41 DESC NULLS LAST], true, 0
++- Exchange rangepartitioning(city#40 DESC NULLS LAST, year#41 DESC NULLS LAST, 200)
+   +- *HashAggregate(keys=[city#40, year#41, spark_grouping_id#37], functions=[], output=[city#40, year#41, grouping_id()#36])
+      +- Exchange hashpartitioning(city#40, year#41, spark_grouping_id#37, 200)
+         +- *HashAggregate(keys=[city#40, year#41, spark_grouping_id#37], functions=[], output=[city#40, year#41, spark_grouping_id#37])
+            +- *Expand [List(city#38, year#39, 0), List(city#38, null, 1), List(null, year#39, 2), List(null, null, 3)], [city#40, year#41, spark_grouping_id#37]
+               +- Union
+                  :- LocalTableScan [city#38, year#39]
+                  +- LocalTableScan [city#38, year#39]
+```
+
+=== [[from_json]] Parsing Column With JSON-Encoded Records -- `from_json` Functions
+
+[source, scala]
+----
+from_json(e: Column, schema: DataType): Column  // <1>
+from_json(
+  e: Column,
+  schema: DataType,
+  options: Map[String, String]): Column
+----
+<1> Relays to the other `from_json` with empty `options`
+
+Parses a column with a JSON string into a link:spark-sql-StructType.adoc[StructType] or link:spark-sql-DataType.adoc#ArrayType[ArrayType] of `StructType` elements with the specified schema.
+
+NOTE: `options` controls how a JSON is parsed and contains the same options as the link:spark-sql-JsonDataSource.adoc[json data source].
+
+Internally, `from_json` creates a link:spark-sql-Column.adoc[Column] with link:spark-sql-JsonToStructs.adoc[JsonToStructs] unary expression.
+
+[source, scala]
+----
+val jsons = Seq("""{ "id": 0 }""").toDF("json")
+
+import org.apache.spark.sql.types._
+val schema = StructType(
+  StructField("id", IntegerType, nullable = false) :: Nil)
+
+scala> jsons.select(from_json($"json", schema) as "ids").show
++---+
+|ids|
++---+
+|[0]|
++---+
+----
+
+NOTE: `from_json` corresponds to SQL's `from_json`.
