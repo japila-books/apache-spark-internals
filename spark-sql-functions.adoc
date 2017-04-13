@@ -751,7 +751,7 @@ NOTE: `window` is available as of Spark *2.0.0*.
 
 Internally, `window` creates a link:spark-sql-Column.adoc[Column] with `TimeWindow` expression.
 
-=== [[grouping]] `grouping` Function
+=== [[grouping]] `grouping` Aggregate Function
 
 [source, scala]
 ----
@@ -805,9 +805,30 @@ scala> workshops
 
 Internally, `grouping` creates a link:spark-sql-Column.adoc[Column] with `Grouping` expression.
 
+```
+val q = workshops.cube("city", "year").agg(grouping("city"))
+scala> println(q.queryExecution.logical)
+'Aggregate [cube(city#182, year#183)], [city#182, year#183, grouping('city) AS grouping(city)#705]
++- Union
+   :- Project [_1#178 AS city#182, _2#179 AS year#183, _3#180 AS count#184]
+   :  +- LocalRelation [_1#178, _2#179, _3#180]
+   +- Project [_1#192 AS city#196, _2#193 AS year#197, _3#194 AS count#198]
+      +- LocalRelation [_1#192, _2#193, _3#194]
+
+scala> println(q.queryExecution.analyzed)
+Aggregate [city#724, year#725, spark_grouping_id#721], [city#724, year#725, cast((shiftright(spark_grouping_id#721, 1) & 1) as tinyint) AS grouping(city)#720]
++- Expand [List(city#182, year#183, count#184, city#722, year#723, 0), List(city#182, year#183, count#184, city#722, null, 1), List(city#182, year#183, count#184, null, year#723, 2), List(city#182, year#183, count#184, null, null, 3)], [city#182, year#183, count#184, city#724, year#725, spark_grouping_id#721]
+   +- Project [city#182, year#183, count#184, city#182 AS city#722, year#183 AS year#723]
+      +- Union
+         :- Project [_1#178 AS city#182, _2#179 AS year#183, _3#180 AS count#184]
+         :  +- LocalRelation [_1#178, _2#179, _3#180]
+         +- Project [_1#192 AS city#196, _2#193 AS year#197, _3#194 AS count#198]
+            +- LocalRelation [_1#192, _2#193, _3#194]
+```
+
 NOTE: `grouping` was added to Spark SQL in https://issues.apache.org/jira/browse/SPARK-12706[[SPARK-12706\] support grouping/grouping_id function together group set].
 
-=== [[grouping_id]] `grouping_id` Function
+=== [[grouping_id]] `grouping_id` Aggregate Function
 
 [source, scala]
 ----
@@ -896,51 +917,44 @@ NOTE: link:spark-sql-catalyst-Expression.adoc#Unevaluable[Unevaluable expression
 val q = workshops
   .cube("city", "year")
   .agg(grouping_id())
-  .sort($"city".desc_nulls_last, $"year".desc_nulls_last)
 
 // grouping_id function is spark_grouping_id virtual column internally
+// that is resolved during analysis - see Analyzed Logical Plan
 scala> q.explain(true)
 == Parsed Logical Plan ==
-'Sort ['city DESC NULLS LAST, 'year DESC NULLS LAST], true
-+- Aggregate [city#40, year#41, spark_grouping_id#37], [city#40, year#41, spark_grouping_id#37 AS grouping_id()#36]
-   +- Expand [List(city#7, year#8, count#9, city#38, year#39, 0), List(city#7, year#8, count#9, city#38, null, 1), List(city#7, year#8, count#9, null, year#39, 2), List(city#7, year#8, count#9, null, null, 3)], [city#7, year#8, count#9, city#40, year#41, spark_grouping_id#37]
-      +- Project [city#7, year#8, count#9, city#7 AS city#38, year#8 AS year#39]
-         +- Union
-            :- Project [_1#3 AS city#7, _2#4 AS year#8, _3#5 AS count#9]
-            :  +- LocalRelation [_1#3, _2#4, _3#5]
-            +- Project [_1#17 AS city#21, _2#18 AS year#22, _3#19 AS count#23]
-               +- LocalRelation [_1#17, _2#18, _3#19]
+'Aggregate [cube(city#182, year#183)], [city#182, year#183, grouping_id() AS grouping_id()#742]
++- Union
+   :- Project [_1#178 AS city#182, _2#179 AS year#183, _3#180 AS count#184]
+   :  +- LocalRelation [_1#178, _2#179, _3#180]
+   +- Project [_1#192 AS city#196, _2#193 AS year#197, _3#194 AS count#198]
+      +- LocalRelation [_1#192, _2#193, _3#194]
 
 == Analyzed Logical Plan ==
 city: string, year: int, grouping_id(): int
-Sort [city#40 DESC NULLS LAST, year#41 DESC NULLS LAST], true
-+- Aggregate [city#40, year#41, spark_grouping_id#37], [city#40, year#41, spark_grouping_id#37 AS grouping_id()#36]
-   +- Expand [List(city#7, year#8, count#9, city#38, year#39, 0), List(city#7, year#8, count#9, city#38, null, 1), List(city#7, year#8, count#9, null, year#39, 2), List(city#7, year#8, count#9, null, null, 3)], [city#7, year#8, count#9, city#40, year#41, spark_grouping_id#37]
-      +- Project [city#7, year#8, count#9, city#7 AS city#38, year#8 AS year#39]
-         +- Union
-            :- Project [_1#3 AS city#7, _2#4 AS year#8, _3#5 AS count#9]
-            :  +- LocalRelation [_1#3, _2#4, _3#5]
-            +- Project [_1#17 AS city#21, _2#18 AS year#22, _3#19 AS count#23]
-               +- LocalRelation [_1#17, _2#18, _3#19]
+Aggregate [city#757, year#758, spark_grouping_id#754], [city#757, year#758, spark_grouping_id#754 AS grouping_id()#742]
++- Expand [List(city#182, year#183, count#184, city#755, year#756, 0), List(city#182, year#183, count#184, city#755, null, 1), List(city#182, year#183, count#184, null, year#756, 2), List(city#182, year#183, count#184, null, null, 3)], [city#182, year#183, count#184, city#757, year#758, spark_grouping_id#754]
+   +- Project [city#182, year#183, count#184, city#182 AS city#755, year#183 AS year#756]
+      +- Union
+         :- Project [_1#178 AS city#182, _2#179 AS year#183, _3#180 AS count#184]
+         :  +- LocalRelation [_1#178, _2#179, _3#180]
+         +- Project [_1#192 AS city#196, _2#193 AS year#197, _3#194 AS count#198]
+            +- LocalRelation [_1#192, _2#193, _3#194]
 
 == Optimized Logical Plan ==
-Sort [city#40 DESC NULLS LAST, year#41 DESC NULLS LAST], true
-+- Aggregate [city#40, year#41, spark_grouping_id#37], [city#40, year#41, spark_grouping_id#37 AS grouping_id()#36]
-   +- Expand [List(city#38, year#39, 0), List(city#38, null, 1), List(null, year#39, 2), List(null, null, 3)], [city#40, year#41, spark_grouping_id#37]
-      +- Union
-         :- LocalRelation [city#38, year#39]
-         +- LocalRelation [city#38, year#39]
+Aggregate [city#757, year#758, spark_grouping_id#754], [city#757, year#758, spark_grouping_id#754 AS grouping_id()#742]
++- Expand [List(city#755, year#756, 0), List(city#755, null, 1), List(null, year#756, 2), List(null, null, 3)], [city#757, year#758, spark_grouping_id#754]
+   +- Union
+      :- LocalRelation [city#755, year#756]
+      +- LocalRelation [city#755, year#756]
 
 == Physical Plan ==
-*Sort [city#40 DESC NULLS LAST, year#41 DESC NULLS LAST], true, 0
-+- Exchange rangepartitioning(city#40 DESC NULLS LAST, year#41 DESC NULLS LAST, 200)
-   +- *HashAggregate(keys=[city#40, year#41, spark_grouping_id#37], functions=[], output=[city#40, year#41, grouping_id()#36])
-      +- Exchange hashpartitioning(city#40, year#41, spark_grouping_id#37, 200)
-         +- *HashAggregate(keys=[city#40, year#41, spark_grouping_id#37], functions=[], output=[city#40, year#41, spark_grouping_id#37])
-            +- *Expand [List(city#38, year#39, 0), List(city#38, null, 1), List(null, year#39, 2), List(null, null, 3)], [city#40, year#41, spark_grouping_id#37]
-               +- Union
-                  :- LocalTableScan [city#38, year#39]
-                  +- LocalTableScan [city#38, year#39]
+*HashAggregate(keys=[city#757, year#758, spark_grouping_id#754], functions=[], output=[city#757, year#758, grouping_id()#742])
++- Exchange hashpartitioning(city#757, year#758, spark_grouping_id#754, 200)
+   +- *HashAggregate(keys=[city#757, year#758, spark_grouping_id#754], functions=[], output=[city#757, year#758, spark_grouping_id#754])
+      +- *Expand [List(city#755, year#756, 0), List(city#755, null, 1), List(null, year#756, 2), List(null, null, 3)], [city#757, year#758, spark_grouping_id#754]
+         +- Union
+            :- LocalTableScan [city#755, year#756]
+            +- LocalTableScan [city#755, year#756]
 ```
 
 NOTE: `grouping_id` was added to Spark SQL in https://issues.apache.org/jira/browse/SPARK-12706[[SPARK-12706\] support grouping/grouping_id function together group set].

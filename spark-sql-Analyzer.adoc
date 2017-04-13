@@ -89,8 +89,31 @@ NOTE: The analysis failure is unlikely to happen given `AstBuilder` link:spark-s
 |
 | ResolveUpCast
 |
-| ResolveGroupingAnalytics
-|
+
+| [[ResolveGroupingAnalytics]] ResolveGroupingAnalytics
+a|
+
+Resolves grouping expressions up in a logical plan tree:
+
+* `Cube`, `Rollup` and `GroupingSets` expressions
+* `Filter` with `Grouping` or `GroupingID` expressions
+* `Sort` with `Grouping` or `GroupingID` expressions
+
+Expects that all children of a logical operator are already resolved (and given it belongs to a fixed-point batch it will likely happen at some iteration).
+
+Fails analysis when `grouping__id` Hive function is used.
+
+```
+scala> sql("select grouping__id").queryExecution.analyzed
+org.apache.spark.sql.AnalysisException: grouping__id is deprecated; use grouping_id() instead;
+  at org.apache.spark.sql.catalyst.analysis.CheckAnalysis$class.failAnalysis(CheckAnalysis.scala:40)
+  at org.apache.spark.sql.catalyst.analysis.Analyzer.failAnalysis(Analyzer.scala:91)
+  at org.apache.spark.sql.catalyst.analysis.Analyzer$ResolveGroupingAnalytics$$anonfun$apply$6.applyOrElse(Analyzer.scala:451)
+  at org.apache.spark.sql.catalyst.analysis.Analyzer$ResolveGroupingAnalytics$$anonfun$apply$6.applyOrElse(Analyzer.scala:448)
+```
+
+NOTE: `ResolveGroupingAnalytics` is only for grouping functions resolution while <<ResolveAggregateFunctions, ResolveAggregateFunctions>> is responsible for resolving the other aggregates.
+
 | ResolvePivot
 |
 | ResolveOrdinalInOrderByAndGroupBy
@@ -129,8 +152,10 @@ If `Generator` is not found, `ResolveFunctions` reports the error:
 | [[GlobalAggregates]] GlobalAggregates
 | Replaces (aka _resolves_) `Project` operators with link:spark-sql-Expression-AggregateExpression.adoc[AggregateExpression] that are not link:spark-sql-Expression-WindowExpression.adoc[WindowExpression] with `Aggregate` unary logical operators.
 
-| ResolveAggregateFunctions
-| Resolves aggregate functions in `Filter` and `Sort` operators
+| [[ResolveAggregateFunctions]] ResolveAggregateFunctions
+a| Resolves aggregate functions in `Filter` and `Sort` operators
+
+NOTE: `ResolveAggregateFunctions` skips (i.e. does not resolve) grouping functions that are resolved by <<ResolveGroupingAnalytics, ResolveGroupingAnalytics>> rule.
 
 | TimeWindowing
 | Resolves single `TimeWindow` expressions
