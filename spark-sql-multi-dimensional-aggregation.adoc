@@ -1,7 +1,9 @@
-== Advanced Aggregation Using ROLLUP and CUBE
+== Multi-Dimensional Aggregation
+
+**Multi-dimensional aggregation operators** are enhanced variants of link:spark-sql-basic-aggregation.adoc#groupBy[groupBy] operator with higher efficiency (and work similarly to `groupBy` connected by `union`).
 
 [[aggregate-operators]]
-.Aggregate Operators (in alphabetical order)
+.Multi-dimensional Aggregate Operators (in alphabetical order)
 [width="100%",cols="1,1,2",options="header"]
 |===
 | Operator
@@ -10,18 +12,78 @@
 
 | <<cube, cube>>
 | link:spark-sql-basic-aggregation.adoc#RelationalGroupedDatasets[RelationalGroupedDatasets]
-| Referred as *grouping sets* FIXME
+| Calculates subtotals and totals over all combinations of groups
 
 | <<rollup, rollup>>
 | link:spark-sql-basic-aggregation.adoc#RelationalGroupedDatasets[RelationalGroupedDatasets]
-| Referred as *grouping sets* FIXME
+| Calculates subtotals and totals over (ordered) combination of groups
 |===
 
-=== [[cube]] `cube` Aggregation Operator
+[NOTE]
+====
+Beside <<cube, cube>> and <<rollup, rollup>> multi-dimensional operators, Spark SQL supports <<grouping-sets, GROUPING SETS>> operator as a SQL clause in SQL mode only, i.e.
+
+```
+scala> sql("""
+  SELECT grouping_id()
+  FROM range(4)
+  GROUP BY (id % 2)
+  GROUPING SETS (id % 2)
+  """).queryExecution.logical
+res0: org.apache.spark.sql.catalyst.plans.logical.LogicalPlan =
+'GroupingSets [ArrayBuffer(('id % 2))], [('id % 2)], [unresolvedalias('grouping_id(), None)]
++- 'UnresolvedTableValuedFunction range, [4]
+```
+====
+
+=== [[cube]] `cube` Operator
 
 CAUTION: FIXME
 
-=== [[rollup]] `rollup` Aggregation Operator
+=== [[grouping-sets]] GROUPING SETS SQL Clause
+
+```
+GROUP BY &hellip; GROUPING SETS (&hellip;)
+```
+
+NOTE: `GROUPING SETS` SQL clause is parsed in link:spark-sql-AstBuilder.adoc#withAggregation[`withAggregation` parsing handler] in `AstBuilder`.
+
+`GROUPING SETS` SQL clause generates a result set equivalent to a `UNION ALL` of multiple simple `GROUP BY` clauses.
+
+```
+scala> sql("""
+     |   SELECT grouping_id()
+     |   FROM range(4)
+     |   GROUP BY (id % 2)
+     |   GROUPING SETS (id % 2)
+     |   """).explain(true)
+== Parsed Logical Plan ==
+'GroupingSets [ArrayBuffer(('id % 2))], [('id % 2)], [unresolvedalias('grouping_id(), None)]
++- 'UnresolvedTableValuedFunction range, [4]
+
+== Analyzed Logical Plan ==
+grouping_id(): int
+Aggregate [(id#217L % cast(2 as bigint))#221L, spark_grouping_id#219], [spark_grouping_id#219 AS grouping_id()#218]
++- Expand [List(id#217L, (id#217L % cast(2 as bigint))#220L, 0)], [id#217L, (id#217L % cast(2 as bigint))#221L, spark_grouping_id#219]
+   +- Project [id#217L, (id#217L % cast(2 as bigint)) AS (id#217L % cast(2 as bigint))#220L]
+      +- Range (0, 4, step=1, splits=None)
+
+== Optimized Logical Plan ==
+Aggregate [(id#217L % cast(2 as bigint))#221L, spark_grouping_id#219], [spark_grouping_id#219 AS grouping_id()#218]
++- Expand [List((id#217L % cast(2 as bigint))#220L, 0)], [(id#217L % cast(2 as bigint))#221L, spark_grouping_id#219]
+   +- Project [(id#217L % 2) AS (id#217L % cast(2 as bigint))#220L]
+      +- Range (0, 4, step=1, splits=None)
+
+== Physical Plan ==
+*HashAggregate(keys=[(id#217L % cast(2 as bigint))#221L, spark_grouping_id#219], functions=[], output=[grouping_id()#218])
++- Exchange hashpartitioning((id#217L % cast(2 as bigint))#221L, spark_grouping_id#219, 200)
+   +- *HashAggregate(keys=[(id#217L % cast(2 as bigint))#221L, spark_grouping_id#219], functions=[], output=[(id#217L % cast(2 as bigint))#221L, spark_grouping_id#219])
+      +- *Expand [List((id#217L % cast(2 as bigint))#220L, 0)], [(id#217L % cast(2 as bigint))#221L, spark_grouping_id#219]
+         +- *Project [(id#217L % 2) AS (id#217L % cast(2 as bigint))#220L]
+            +- *Range (0, 4, step=1, splits=None)
+```
+
+=== [[rollup]] `rollup` Operator
 
 [source, scala]
 ----
@@ -29,7 +91,7 @@ rollup(cols: Column*): RelationalGroupedDataset
 rollup(col1: String, cols: String*): RelationalGroupedDataset
 ----
 
-`rollup` operator is an extension of link:spark-sql-basic-aggregation.adoc#groupBy[groupBy] operator that calculates subtotals and totals across specified group of `n + 1` dimensions (with `n` being the number of columns as `cols` and `col1` and `1` for where values become `null`, i.e. undefined).
+`rollup` multi-dimensional aggregate operator is an extension of link:spark-sql-basic-aggregation.adoc#groupBy[groupBy] operator that calculates subtotals and totals across specified group of `n + 1` dimensions (with `n` being the number of columns as `cols` and `col1` and `1` for where values become `null`, i.e. undefined).
 
 [NOTE]
 ====
@@ -39,8 +101,6 @@ See PostgreSQL's https://www.postgresql.org/docs/current/static/queries-table-ex
 ====
 
 NOTE: `rollup` operator is equivalent to `GROUP BY \... WITH ROLLUP` in SQL (which in turn is equivalent to `GROUP BY \... GROUPING SETS \((a,b,c),(a,b),(a),())` when used with 3 columns: `a`, `b`, and `c`).
-
-NOTE: `rollup` is considered an advanced variant of `groupBy` with higher efficiency.
 
 From https://technet.microsoft.com/en-us/library/bb522495(v=sql.105).aspx[Using GROUP BY with ROLLUP, CUBE, and GROUPING SETS] in Microsoft's TechNet:
 
@@ -205,4 +265,4 @@ extends GroupingSet
 
 `Rollup` expression represents <<rollup, rollup>> operator in Spark's Catalyst Expression tree (after `AstBuilder` link:spark-sql-AstBuilder.adoc#withAggregation[parses a structured query with aggregation]).
 
-NOTE: `GroupingSet` is a link:spark-sql-catalyst-Expression.adoc[Expression] with link:spark-sql-catalyst-Expression.adoc#CodegenFallback[CodegenFallback] support.
+NOTE: `GroupingSet` is an link:spark-sql-catalyst-Expression.adoc[Expression] with link:spark-sql-catalyst-Expression.adoc#CodegenFallback[CodegenFallback] support.
