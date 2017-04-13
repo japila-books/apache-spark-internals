@@ -762,7 +762,7 @@ grouping(columnName: String): Column  // <1>
 
 `grouping` is an aggregate function that indicates whether a specified column is aggregated or not and returns `1` for aggregated or `0` otherwise.
 
-NOTE: `grouping` can only be used with link:spark-sql-aggregation-rollup-cube.adoc#cube[cube], link:spark-sql-aggregation-rollup-cube.adoc#rollup[rollup] or `GROUPING SETS` aggregate operators.
+NOTE: `grouping` can only be used with link:spark-sql-aggregation-rollup-cube.adoc#cube[cube], link:spark-sql-aggregation-rollup-cube.adoc#rollup[rollup] or `GROUPING SETS` aggregate operators (and is verified when link:spark-sql-Analyzer-CheckAnalysis.adoc#Grouping[`Analyzer` does check analysis]).
 
 From https://cwiki.apache.org/confluence/display/Hive/Enhanced&#43;Aggregation%2C&#43;Cube%2C&#43;Grouping&#43;and&#43;Rollup#EnhancedAggregation,Cube,GroupingandRollup-Grouping\_\_IDfunction[Hive's documentation about Grouping__ID function] (that can somehow help to understand `grouping`):
 
@@ -805,6 +805,8 @@ scala> workshops
 
 Internally, `grouping` creates a link:spark-sql-Column.adoc[Column] with `Grouping` expression.
 
+NOTE: `grouping` was added to Spark SQL in https://issues.apache.org/jira/browse/SPARK-12706[[SPARK-12706\] support grouping/grouping_id function together group set].
+
 === [[grouping_id]] `grouping_id` Function
 
 [source, scala]
@@ -816,9 +818,11 @@ grouping_id(colName: String, colNames: String*): Column // <1>
 
 `grouping_id` is an aggregate function that computes the level of grouping.
 
+NOTE: Spark SQL's `grouping_id` function is known as `grouping__id` in Hive.
+
 The list of columns of `grouping_id` should match grouping columns (in `cube` or `rollup`) exactly, or empty which means all the grouping columns (which is exactly what the function expects).
 
-NOTE: `grouping_id` can only be used with link:spark-sql-aggregation-rollup-cube.adoc#cube[cube], link:spark-sql-aggregation-rollup-cube.adoc#rollup[rollup] or `GROUPING SETS` aggregate operators.
+NOTE: `grouping_id` can only be used with link:spark-sql-aggregation-rollup-cube.adoc#cube[cube], link:spark-sql-aggregation-rollup-cube.adoc#rollup[rollup] or `GROUPING SETS` aggregate operators (and is verified when link:spark-sql-Analyzer-CheckAnalysis.adoc#GroupingID[`Analyzer` does check analysis]).
 
 From https://cwiki.apache.org/confluence/display/Hive/Enhanced&#43;Aggregation%2C&#43;Cube%2C&#43;Grouping&#43;and&#43;Rollup#EnhancedAggregation,Cube,GroupingandRollup-Grouping\_\_IDfunction[Hive's documentation about Grouping__ID function]:
 
@@ -838,12 +842,11 @@ val cityNull = Seq(
 
 val workshops = tmpWorkshops union cityNull
 
-scala> workshops
+val query = workshops
   .cube("city", "year")
   .agg(grouping_id()) // all grouping columns used
   .sort($"city".desc_nulls_last, $"year".desc_nulls_last)
-  .show
-scala> workshops.cube("city", "year").agg(grouping_id()).sort($"city".desc_nulls_last, $"year".desc_nulls_last).show
+scala> query.show
 +-------+----+-------------+
 |   city|year|grouping_id()|
 +-------+----+-------------+
@@ -865,6 +868,23 @@ scala> spark.catalog.listFunctions.filter(_.name.contains("grouping_id")).show(f
 +-----------+--------+-----------+----------------------------------------------------+-----------+
 |grouping_id|null    |null       |org.apache.spark.sql.catalyst.expressions.GroupingID|true       |
 +-----------+--------+-----------+----------------------------------------------------+-----------+
+
+// bin function gives the string representation of the binary value of the given long column
+scala> query.withColumn("bitmask", bin($"grouping_id()")).show
++-------+----+-------------+-------+
+|   city|year|grouping_id()|bitmask|
++-------+----+-------------+-------+
+| Warsaw|2016|            0|      0|
+| Warsaw|null|            1|      1|
+|Toronto|2017|            0|      0|
+|Toronto|2016|            0|      0|
+|Toronto|null|            1|      1|
+|   null|2017|            2|     10|
+|   null|2016|            2|     10|
+|   null|2016|            0|      0|
+|   null|null|            3|     11|
+|   null|null|            1|      1|
++-------+----+-------------+-------+
 ----
 
 Internally, `grouping_id()` creates a link:spark-sql-Column.adoc[Column] with `GroupingID` unevaluable expression.
@@ -878,6 +898,7 @@ val q = workshops
   .agg(grouping_id())
   .sort($"city".desc_nulls_last, $"year".desc_nulls_last)
 
+// grouping_id function is spark_grouping_id virtual column internally
 scala> q.explain(true)
 == Parsed Logical Plan ==
 'Sort ['city DESC NULLS LAST, 'year DESC NULLS LAST], true
@@ -921,6 +942,8 @@ Sort [city#40 DESC NULLS LAST, year#41 DESC NULLS LAST], true
                   :- LocalTableScan [city#38, year#39]
                   +- LocalTableScan [city#38, year#39]
 ```
+
+NOTE: `grouping_id` was added to Spark SQL in https://issues.apache.org/jira/browse/SPARK-12706[[SPARK-12706\] support grouping/grouping_id function together group set].
 
 === [[from_json]] Parsing Column With JSON-Encoded Records -- `from_json` Functions
 
