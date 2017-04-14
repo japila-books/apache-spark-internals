@@ -17,7 +17,7 @@ res1: Long = 251
 ```
 
 [[standard-functions]]
-.Standard Functions in Spark SQL
+.(Subset of) Standard Functions in Spark SQL
 [align="center",cols="1,1,2",width="100%",options="header"]
 |===
 |
@@ -25,6 +25,7 @@ res1: Long = 251
 |Description
 
 .3+^.^| [[aggregate-functions]] *Aggregate functions*
+
 | <<count, count>>
 |
 
@@ -33,6 +34,47 @@ res1: Long = 251
 
 | <<grouping_id, grouping_id>>
 | Computes the level of grouping
+
+.2+^.^| *Collection functions*
+
+| <<explode, explode>>
+|
+
+| <<from_json, from_json>>
+| Parses a column with a JSON string into a link:spark-sql-StructType.adoc[StructType] or link:spark-sql-DataType.adoc#ArrayType[ArrayType] of `StructType` elements with the specified schema.
+
+1+^.^| *Date and time functions*
+| <<window, window>>
+|
+
+1+^.^| *Math functions*
+| <<bin, bin>>
+| Converts the value of a long column to binary format
+
+.4+^.^| *Regular functions*
+
+| <<broadcast, broadcast>>
+|
+
+| <<creating-columns, col>> and <<creating-columns, column>>
+| Creating link:spark-sql-Column.adoc[Columns]
+
+| <<expr, expr>>
+|
+
+| <<struct, struct>>
+|
+
+.2+^.^| *String functions*
+| <<split, split>>
+|
+
+| <<upper, upper>>
+|
+
+1+^.^| *UDF functions*
+| <<udf, udf>>
+| Creating UDFs
 
 .6+^.^|*Window functions*
 |<<rank, rank, dense_rank, percent_rank>>
@@ -52,29 +94,11 @@ res1: Long = 251
 
 |<<lead, lead>>
 |
-
-1+^.^| *Collection functions*
-| <<from_json, from_json>>
-| Parses a column with a JSON string into a link:spark-sql-StructType.adoc[StructType] or link:spark-sql-DataType.adoc#ArrayType[ArrayType] of `StructType` elements with the specified schema.
 |===
-
-* <<udf, Defining UDFs>>
-* <<creating-columns, Creating Columns using `col` and `column` methods>>
-* <<string-functions, String functions>>
-** <<split, split>>
-** <<upper, upper>> (chained with `reverse`)
-* <<non-aggregate-functions, Non-aggregate functions>> (aka _normal functions_)
-** <<struct, struct>>
-** <<broadcast, broadcast>> (for `DataFrame`)
-** <<expr, expr>>
-* Date and time functions
-* <<explode, explode>>
-* <<window, window>>
-* ..._and others_
 
 TIP: The page gives only a brief ovierview of the many functions available in `functions` object and so you should read the http://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.sql.functions$[official documentation of the `functions` object].
 
-=== [[count]] count Function
+=== [[count]] `count` Function
 
 CAUTION: FIXME
 
@@ -535,9 +559,7 @@ scala> df.withColumn("len", byTwo($"num")).show
 +---+---+
 ----
 
-=== [[string-functions]] String Functions
-
-==== [[split]] `split` Function
+=== [[split]] `split` Function
 
 [source, scala]
 ----
@@ -564,7 +586,7 @@ scala> withSplit.show
 
 NOTE: `.$|()[{^?*+\` are RegEx's meta characters and are considered special.
 
-==== [[upper]] `upper` Function
+=== [[upper]] `upper` Function
 
 [source, scala]
 ----
@@ -590,11 +612,7 @@ scala> withUpperReversed.show
 +---+---+-----+-----+
 ----
 
-=== [[non-aggregate-functions]] Non-aggregate Functions
-
-They are also called *normal functions*.
-
-==== [[struct]] `struct` Functions
+=== [[struct]] `struct` Functions
 
 [source, scala]
 ----
@@ -618,7 +636,7 @@ scala> df.withColumn("struct", struct($"name", $"val")).show
 +---+---+-----+---------+
 ----
 
-==== [[broadcast]] `broadcast` Function
+=== [[broadcast]] `broadcast` Function
 
 [source, scala]
 ----
@@ -676,7 +694,7 @@ Project [token#127, id#126, prob#140]
             +- LocalTableScan [_1#136, _2#137]
 ----
 
-==== [[expr]] `expr` Function
+=== [[expr]] `expr` Function
 
 [source, scala]
 ----
@@ -994,3 +1012,64 @@ scala> jsons.select(from_json($"json", schema) as "ids").show
 ----
 
 NOTE: `from_json` corresponds to SQL's `from_json`.
+
+=== [[bin]] Converting Long to Binary Format (in String Representation) -- `bin` Function
+
+[source, scala]
+----
+bin(e: Column): Column
+bin(columnName: String): Column // <1>
+----
+<1> Calls the first `bin` with `columnName` as a `Column`
+
+`bin` converts the long value in a column to its binary format (i.e. as an unsigned integer in base 2) with no extra leading 0s.
+
+[source, scala]
+----
+scala> spark.range(5).withColumn("binary", bin('id)).show
++---+------+
+| id|binary|
++---+------+
+|  0|     0|
+|  1|     1|
+|  2|    10|
+|  3|    11|
+|  4|   100|
++---+------+
+
+val withBin = spark.range(5).withColumn("binary", bin('id))
+scala> withBin.printSchema
+root
+ |-- id: long (nullable = false)
+ |-- binary: string (nullable = false)
+----
+
+Internally, `bin` creates a link:spark-sql-Column.adoc[Column] with `Bin` unary expression.
+
+[source, scala]
+----
+scala> withBin.queryExecution.logical
+res2: org.apache.spark.sql.catalyst.plans.logical.LogicalPlan =
+'Project [*, bin('id) AS binary#14]
++- Range (0, 5, step=1, splits=Some(8))
+----
+
+NOTE: `Bin` unary expression uses link:++https://docs.oracle.com/javase/8/docs/api/java/lang/Long.html#toBinaryString-long-++[java.lang.Long.toBinaryString] for the conversion.
+
+[NOTE]
+====
+`Bin` expression supports link:spark-sql-catalyst-Expression.adoc#doGenCode[code generation] (aka _CodeGen_).
+
+```
+val withBin = spark.range(5).withColumn("binary", bin('id))
+scala> withBin.queryExecution.debug.codegen
+Found 1 WholeStageCodegen subtrees.
+== Subtree 1 / 1 ==
+*Project [id#19L, bin(id#19L) AS binary#22]
++- *Range (0, 5, step=1, splits=Some(8))
+...
+/* 103 */           UTF8String project_value1 = null;
+/* 104 */           project_value1 = UTF8String.fromString(java.lang.Long.toBinaryString(range_value));
+
+```
+====
