@@ -1,13 +1,72 @@
 == [[HashAggregateExec]] HashAggregateExec Aggregate Physical Operator
 
-`HashAggregateExec` is a link:spark-sql-SparkPlan.adoc#UnaryExecNode[unary physical operator] that link:spark-sql-whole-stage-codegen.adoc#CodegenSupport[supports code generation] (aka _codegen_).
+`HashAggregateExec` is a link:spark-sql-SparkPlan.adoc#UnaryExecNode[unary physical operator] (with one <<child, child>> physical operator) that link:spark-sql-whole-stage-codegen.adoc#CodegenSupport[supports code generation] (aka _codegen_).
 
-`HashAggregateExec` is created when:
+`HashAggregateExec` is <<creating-instance, created>> (indirectly through `AggUtils.createAggregate`) when:
 
-* link:spark-sql-SparkStrategy-Aggregation.adoc[Aggregation] strategy creates link:spark-sql-SparkPlan.adoc[execution plans] for an aggregate logical operator (with or no distinct)
-* `StatefulAggregationStrategy` strategy creates plan for streaming `EventTimeWatermark` or `Aggregate` logical operators.
+* link:spark-sql-SparkStrategy-Aggregation.adoc[Aggregation] strategy creates link:spark-sql-SparkPlan.adoc[execution plans] for an link:spark-sql-LogicalPlan-Aggregate.adoc[Aggregate] unary logical operator (with or no distinct)
+* `StatefulAggregationStrategy` strategy creates plan for streaming `EventTimeWatermark` or link:spark-sql-LogicalPlan-Aggregate.adoc[Aggregate] unary logical operators
 
-NOTE: `HashAggregateExec` is created exclusively in `AggUtils.createAggregate`.
+[source, scala]
+----
+// groupBy aggregate logical operator mapped to HashAggregateExec
+val q = spark.range(10).groupBy('id % 2 as "group").sum("id")
+scala> q.explain
+== Physical Plan ==
+*HashAggregate(keys=[(id#109L % 2)#121L], functions=[sum(id#109L)])
++- Exchange hashpartitioning((id#109L % 2)#121L, 200)
+   +- *HashAggregate(keys=[(id#109L % 2) AS (id#109L % 2)#121L], functions=[partial_sum(id#109L)])
+      +- *Range (0, 10, step=1, splits=Some(8))
+
+scala> q.queryExecution.sparkPlan
+res11: org.apache.spark.sql.execution.SparkPlan =
+HashAggregate(keys=[(id#109L % 2)#124L], functions=[sum(id#109L)], output=[group#112L, sum(id)#116L])
++- HashAggregate(keys=[(id#109L % 2) AS (id#109L % 2)#124L], functions=[partial_sum(id#109L)], output=[(id#109L % 2)#124L, sum#123L])
+   +- Range (0, 10, step=1, splits=Some(8))
+
+import org.apache.spark.sql.execution.aggregate.HashAggregateExec
+scala> val agg = q.queryExecution.sparkPlan.children(0).asInstanceOf[HashAggregateExec]
+agg: org.apache.spark.sql.execution.aggregate.HashAggregateExec =
+HashAggregate(keys=[(id#109L % 2) AS (id#109L % 2)#124L], functions=[partial_sum(id#109L)], output=[(id#109L % 2)#124L, sum#123L])
++- Range (0, 10, step=1, splits=Some(8))
+----
+
+[[properties]]
+.HashAggregateExec's Properties (in alphabetical order)
+[width="100%",cols="1,2",options="header"]
+|===
+| Name
+| Description
+
+| [[aggregateBufferAttributes]] `aggregateBufferAttributes`
+| Collection of `AttributeReference` references of the aggregate functions of the input <<aggregateExpressions, AggregateExpressions>>
+
+| [[metrics]] `metrics`
+a| `SQLMetrics` for the following:
+
+* `numOutputRows` for the number of output rows
+* `peakMemory` for peak memory
+* `spillSize` for spill size
+* `aggTime` for aggregate time
+
+| [[output]] `output`
+| Collection of `Attributes` for the input <<resultExpressions, NamedExpressions>>
+|===
+
+NOTE: The prefix for variable names for `HashAggregateExec` operators in the code generated is *agg*.
+
+=== [[doExecute]] `doExecute` Method
+
+[source, scala]
+----
+doExecute(): RDD[InternalRow]
+----
+
+`doExecute` executes the input <<child, child SparkPlan>> (to produce link:spark-sql-InternalRow.adoc[InternalRow] objects) and applies calculation over partitions (using `RDD.mapPartitions`).
+
+CAUTION: FIXME
+
+NOTE: `doExecute` is a part of link:spark-sql-SparkPlan.adoc#doExecute[SparkPlan Contract].
 
 === [[creating-instance]] Creating HashAggregateExec Instance
 
@@ -31,11 +90,3 @@ doProduce(ctx: CodegenContext): String
 `doProduce` executes <<doProduceWithoutKeys, doProduceWithoutKeys>> when no <<groupingExpressions, groupingExpressions>> were specified for the `HashAggregateExec` or <<doProduceWithKeys, doProduceWithKeys>> otherwise.
 
 NOTE: `doProduce` is a part of link:spark-sql-whole-stage-codegen.adoc#CodegenSupport[CodegenSupport Contract].
-
-=== [[doExecute]] `doExecute` Method
-
-=== [[allAttributes]] `allAttributes` Property
-
-=== [[metrics]] `metrics` Property
-
-=== [[output]] `output` Property
