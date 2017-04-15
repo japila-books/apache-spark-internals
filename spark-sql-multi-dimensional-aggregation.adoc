@@ -1,6 +1,6 @@
 == Multi-Dimensional Aggregation
 
-**Multi-dimensional aggregation operators** are enhanced variants of link:spark-sql-basic-aggregation.adoc#groupBy[groupBy] operator with higher efficiency (and work similarly to `groupBy` connected by `union`).
+**Multi-dimensional aggregation operators** are enhanced variants of link:spark-sql-basic-aggregation.adoc#groupBy[groupBy] operator with higher efficiency (that work similarly to `groupBy` connected by `union`).
 
 [[aggregate-operators]]
 .Multi-dimensional Aggregate Operators (in alphabetical order)
@@ -38,12 +38,55 @@ res0: org.apache.spark.sql.catalyst.plans.logical.LogicalPlan =
 
 === [[cube]] `cube` Operator
 
-CAUTION: FIXME
+[source, scala]
+----
+cube(cols: Column*): RelationalGroupedDataset
+cube(col1: String, cols: String*): RelationalGroupedDataset
+----
+
+`cube` multi-dimensional aggregate operator is an extension of link:spark-sql-basic-aggregation.adoc#groupBy[groupBy] operator that allows calculating subtotals and totals across all combinations of specified group of `n + 1` dimensions (with `n` being the number of columns as `cols` and `col1` and `1` for where values become `null`, i.e. undefined).
+
+`cube` returns link:spark-sql-basic-aggregation.adoc#RelationalGroupedDataset[RelationalGroupedDataset] that you can use to execute aggregate function on.
+
+NOTE: `cube` is more than <<rollup, rollup>> operator, i.e. `cube` does `rollup` with aggregation over all the missing combinations given the columns.
+
+[source, scala]
+----
+val sales = Seq(
+  ("Warsaw", 2016, 100),
+  ("Warsaw", 2017, 200),
+  ("Boston", 2015, 50),
+  ("Boston", 2016, 150),
+  ("Toronto", 2017, 50)
+).toDF("city", "year", "amount")
+
+val q = sales.cube("city", "year")
+  .agg(sum("amount") as "amount/year")
+  .sort($"city".desc_nulls_last, $"year".asc_nulls_last)
+
+scala> q.show
++-------+----+-----------+
+|   city|year|amount/year|
++-------+----+-----------+
+| Warsaw|2016|        100|  <-- total in Warsaw in 2016
+| Warsaw|2017|        200|  <-- total in Warsaw in 2017
+| Warsaw|null|        300|  <-- total in Warsaw (across all years)
+|Toronto|2017|         50|
+|Toronto|null|         50|
+| Boston|2015|         50|
+| Boston|2016|        150|
+| Boston|null|        200|
+|   null|2015|         50|  <-- total in 2015 (across all cities)
+|   null|2016|        250|
+|   null|2017|        250|
+|   null|null|        550|  <-- total sales (all cities and years)
++-------+----+-----------+
+----
 
 === [[grouping-sets]] GROUPING SETS SQL Clause
 
 ```
-GROUP BY &hellip; GROUPING SETS (&hellip;)
+GROUP BY ... GROUPING SETS (...)
 ```
 
 NOTE: `GROUPING SETS` SQL clause is parsed in link:spark-sql-AstBuilder.adoc#withAggregation[`withAggregation` parsing handler] in `AstBuilder`.
