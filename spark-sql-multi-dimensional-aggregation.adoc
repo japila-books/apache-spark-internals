@@ -12,11 +12,11 @@
 
 | <<cube, cube>>
 | link:spark-sql-basic-aggregation.adoc#RelationalGroupedDatasets[RelationalGroupedDatasets]
-| Calculates subtotals and totals over all combinations of groups
+| Calculates subtotals and a grand total over all combinations of groups
 
 | <<rollup, rollup>>
 | link:spark-sql-basic-aggregation.adoc#RelationalGroupedDatasets[RelationalGroupedDatasets]
-| Calculates subtotals and totals over (ordered) combination of groups
+| Calculates subtotals and a grand total over (ordered) combination of groups
 |===
 
 [NOTE]
@@ -44,7 +44,7 @@ cube(cols: Column*): RelationalGroupedDataset
 cube(col1: String, cols: String*): RelationalGroupedDataset
 ----
 
-`cube` multi-dimensional aggregate operator is an extension of link:spark-sql-basic-aggregation.adoc#groupBy[groupBy] operator that allows calculating subtotals and totals across all combinations of specified group of `n + 1` dimensions (with `n` being the number of columns as `cols` and `col1` and `1` for where values become `null`, i.e. undefined).
+`cube` multi-dimensional aggregate operator is an extension of link:spark-sql-basic-aggregation.adoc#groupBy[groupBy] operator that allows calculating subtotals and a grand total across all combinations of specified group of `n + 1` dimensions (with `n` being the number of columns as `cols` and `col1` and `1` for where values become `null`, i.e. undefined).
 
 `cube` returns link:spark-sql-basic-aggregation.adoc#RelationalGroupedDataset[RelationalGroupedDataset] that you can use to execute aggregate function on.
 
@@ -134,7 +134,7 @@ rollup(cols: Column*): RelationalGroupedDataset
 rollup(col1: String, cols: String*): RelationalGroupedDataset
 ----
 
-`rollup` multi-dimensional aggregate operator is an extension of link:spark-sql-basic-aggregation.adoc#groupBy[groupBy] operator that calculates subtotals and totals across specified group of `n + 1` dimensions (with `n` being the number of columns as `cols` and `col1` and `1` for where values become `null`, i.e. undefined).
+`rollup` multi-dimensional aggregate operator is an extension of link:spark-sql-basic-aggregation.adoc#groupBy[groupBy] operator that calculates subtotals and a grand total across specified group of `n + 1` dimensions (with `n` being the number of columns as `cols` and `col1` and `1` for where values become `null`, i.e. undefined).
 
 [NOTE]
 ====
@@ -144,6 +144,45 @@ See PostgreSQL's https://www.postgresql.org/docs/current/static/queries-table-ex
 ====
 
 NOTE: `rollup` operator is equivalent to `GROUP BY \... WITH ROLLUP` in SQL (which in turn is equivalent to `GROUP BY \... GROUPING SETS \((a,b,c),(a,b),(a),())` when used with 3 columns: `a`, `b`, and `c`).
+
+[source, scala]
+----
+val sales = Seq(
+  ("Warsaw", 2016, 100),
+  ("Warsaw", 2017, 80),
+  ("Boston", 2015, 180),
+  ("Toronto", 2016, 200)
+).toDF("city", "year", "amount")
+
+val q = sales
+  .rollup("city", "year")
+  .agg(sum("amount") as "amount")
+  .sort($"city".desc_nulls_last, $"year".asc_nulls_last)
+scala> q.show
++-------+----+------+
+|   city|year|amount|
++-------+----+------+
+| Warsaw|2016|   100| <-- subtotal for Warsaw in 2016
+| Warsaw|2017|    80|
+| Warsaw|null|   180| <-- subtotal for Warsaw (across years)
+|Toronto|2016|   200|
+|Toronto|null|   200|
+| Boston|2015|   180|
+| Boston|null|   180|
+|   null|null|   560| <-- grand total
++-------+----+------+
+
+// The above query is semantically equivalent to the following
+val q1 = sales
+  .groupBy("city", "year")  // <-- subtotals (city, year)
+  .agg(sum("amount") as "amount")
+val q2 = sales
+  .groupBy("city")          // <-- subtotals (city)
+  .agg(sum("amount") as "amount")
+val q3 = sales
+  .groupBy()                // <-- grand total
+  .agg(sum("amount") as "amount")
+----
 
 From https://technet.microsoft.com/en-us/library/bb522495(v=sql.105).aspx[Using GROUP BY with ROLLUP, CUBE, and GROUPING SETS] in Microsoft's TechNet:
 
