@@ -1,15 +1,45 @@
-== [[ShuffleExchange]] `ShuffleExchange` Physical Operator
+== [[ShuffleExchange]] ShuffleExchange Physical Operator
 
-`ShuffleExchange` is a link:spark-sql-SparkPlan.adoc#UnaryExecNode[unary physical operator]. It corresponds to `Repartition` (with shuffle enabled) and `RepartitionByExpression` logical operators (as translated in link:spark-sql-BasicOperators.adoc[`BasicOperators` strategy]).
+`ShuffleExchange` is a link:spark-sql-SparkPlan.adoc#UnaryExecNode[unary physical operator] (i.e. with one child physical operator) to perform a shuffle.
+
+`ShuffleExchange` corresponds to `Repartition` (with shuffle enabled) and `RepartitionByExpression` logical operators (as translated in link:spark-sql-BasicOperators.adoc[BasicOperators strategy]).
+
+NOTE: `ShuffleExchange` is *Exchange* in execution plans.
+
+[source, scala]
+----
+// Uses Repartition logical operator
+// ShuffleExchange with RoundRobinPartitioning
+val q1 = spark.range(6).repartition(2)
+scala> q1.explain
+== Physical Plan ==
+Exchange RoundRobinPartitioning(2)
++- *Range (0, 6, step=1, splits=Some(8))
+
+// Uses RepartitionByExpression logical operator
+// ShuffleExchange with HashPartitioning
+val q2 = spark.range(6).repartition(2, 'id % 2)
+scala> q2.explain
+== Physical Plan ==
+Exchange hashpartitioning((id#38L % 2), 2)
++- *Range (0, 6, step=1, splits=Some(8))
+----
 
 When created, `ShuffleExchange` takes a `Partitioning`, a single `child` link:spark-sql-SparkPlan.adoc[physical operator] and an optional link:spark-sql-ExchangeCoordinator.adoc[ExchangeCoordinator].
 
-.`ShuffleExchange` Metrics
+[[metrics]]
+.ShuffleExchange SQLMetrics
 [cols="1,2",options="header",width="100%"]
 |===
-| Name | Description
-| [[dataSize]] `dataSize` | data size total (min, med, max)
+| Name
+| Description
+
+| [[dataSize]] `dataSize`
+| data size
 |===
+
+.ShuffleExchange in Details for Query in web UI
+image::images/spark-sql-ShuffleExchange-webui.png[align="center"]
 
 `nodeName` is computed based on the optional link:spark-sql-ExchangeCoordinator.adoc[ExchangeCoordinator] with *Exchange* prefix and possibly *(coordinator id: [coordinator-hash-code])*.
 
@@ -23,14 +53,37 @@ CAUTION: FIXME When could `ExchangeCoordinator` not be available?
 
 When <<doExecute, doExecute>>, `ShuffleExchange` computes a link:spark-sql-ShuffledRowRDD.adoc[ShuffledRowRDD] and caches it (to reuse avoiding possibly expensive executions).
 
-=== [[doExecute]] `doExecute` Method
+[[internal-registries]]
+.ShuffleExchange's Internal Registries and Counters (in alphabetical order)
+[cols="1,2",options="header",width="100%"]
+|===
+| Name
+| Description
+
+| [[cachedShuffleRDD]] `cachedShuffleRDD`
+| link:spark-sql-ShuffledRowRDD.adoc[ShuffledRowRDD] that is cached after `ShuffleExchange` has been <<doExecute, executed>>.
+|===
+
+=== [[doExecute]] Creating ShuffledRowRDD (with InternalRow) Using Optional ExchangeCoordinator -- `doExecute` Method
 
 [source, scala]
 ----
 doExecute(): RDD[InternalRow]
 ----
 
-NOTE: `doExecute` is a part of the link:spark-sql-SparkPlan.adoc#contract[SparkPlan contract].
+`doExecute` creates a new link:spark-sql-ShuffledRowRDD.adoc[ShuffledRowRDD] or takes <<cachedShuffleRDD, cached one>>.
+
+`doExecute` branches off per optional <<coordinator, ExchangeCoordinator>>.
+
+If `ExchangeCoordinator` was specified, `doExecute` link:spark-sql-ExchangeCoordinator.adoc#postShuffleRDD[requests `ExchangeCoordinator` for a `ShuffledRowRDD`].
+
+Otherwise (with no `ExchangeCoordinator` specified), `doExecute` <<prepareShuffleDependency, prepareShuffleDependency>> and <<preparePostShuffleRDD, preparePostShuffleRDD>>.
+
+In the end, `doExecute` <<cachedShuffleRDD, saves the result `ShuffledRowRDD` for later use>>.
+
+NOTE: `doExecute` is a part of link:spark-sql-SparkPlan.adoc#doExecute[SparkPlan Contract].
+
+=== [[preparePostShuffleRDD]] `preparePostShuffleRDD` Method
 
 CAUTION: FIXME
 
