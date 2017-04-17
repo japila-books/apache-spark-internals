@@ -1,24 +1,96 @@
-== Repartition and RepartitionByExpression Logical Operators
+== Repartition Logical Operators -- Repartition and RepartitionByExpression
 
-<<Repartition, Repartition>> and <<RepartitionByExpression, RepartitionByExpression>> are link:spark-sql-LogicalPlan.adoc#UnaryNode[unary logical operators] (with a single child logical plan) that create a new `RDD` that has exactly <<numPartitions, numPartitions>> partitions.
+<<Repartition, Repartition>> and <<RepartitionByExpression, RepartitionByExpression>> (*repartition operations* in short) are link:spark-sql-LogicalPlan.adoc#UnaryNode[unary logical operators] (with a single child logical plan) that create a new `RDD` that has exactly <<numPartitions, numPartitions>> partitions.
 
-The difference between <<Repartition, Repartition>> and <<RepartitionByExpression, RepartitionByExpression>> is that `Repartition` is the result of link:spark-sql-dataset-operators.adoc#coalesce[coalesce] or link:spark-sql-dataset-operators.adoc#repartition[repartition] operators (that a Spark developer has used explicitly in the code) while `RepartitionByExpression` is when a consumer of the output requires some specific ordering or distribution of the data.
+NOTE: `RepartitionByExpression` is also called *distribute* operator.
 
-`Repartition` and `RepartitionByExpression` are described by:
+[[Repartition]]
+<<Repartition, Repartition>> is the result of link:spark-sql-dataset-operators.adoc#coalesce[coalesce] or link:spark-sql-dataset-operators.adoc#repartition[repartition] (with no partition expressions defined) operators.
+
+[source, scala]
+----
+val rangeAlone = spark.range(5)
+
+scala> rangeAlone.rdd.getNumPartitions
+res0: Int = 8
+
+// Repartition the records
+
+val withRepartition = rangeAlone.repartition(numPartitions = 5)
+
+scala> withRepartition.rdd.getNumPartitions
+res1: Int = 5
+
+scala> withRepartition.explain(true)
+== Parsed Logical Plan ==
+Repartition 5, true
++- Range (0, 5, step=1, splits=Some(8))
+
+// ...
+
+== Physical Plan ==
+Exchange RoundRobinPartitioning(5)
++- *Range (0, 5, step=1, splits=Some(8))
+
+// Coalesce the records
+
+val withCoalesce = rangeAlone.coalesce(numPartitions = 5)
+scala> withCoalesce.explain(true)
+== Parsed Logical Plan ==
+Repartition 5, false
++- Range (0, 5, step=1, splits=Some(8))
+
+// ...
+
+== Physical Plan ==
+Coalesce 5
++- *Range (0, 5, step=1, splits=Some(8))
+----
+
+[[RepartitionByExpression]]
+<<RepartitionByExpression, RepartitionByExpression>> is the result of link:spark-sql-dataset-operators.adoc#repartition[repartition] operator with explicit partition expressions defined and SQL's link:spark-sql-SparkSqlAstBuilder.adoc#withRepartitionByExpression[DISTRIBUTE BY clause].
+
+[source, scala]
+----
+// RepartitionByExpression
+// 1) Column-based partition expression only
+scala> rangeAlone.repartition(partitionExprs = 'id % 2).explain(true)
+== Parsed Logical Plan ==
+'RepartitionByExpression [('id % 2)], 200
++- Range (0, 5, step=1, splits=Some(8))
+
+// ...
+
+== Physical Plan ==
+Exchange hashpartitioning((id#10L % 2), 200)
++- *Range (0, 5, step=1, splits=Some(8))
+
+// 2) Explicit number of partitions and partition expression
+scala> rangeAlone.repartition(numPartitions = 2, partitionExprs = 'id % 2).explain(true)
+== Parsed Logical Plan ==
+'RepartitionByExpression [('id % 2)], 2
++- Range (0, 5, step=1, splits=Some(8))
+
+// ...
+
+== Physical Plan ==
+Exchange hashpartitioning((id#10L % 2), 2)
++- *Range (0, 5, step=1, splits=Some(8))
+----
+
+`Repartition` and `RepartitionByExpression` logical operators are described by:
 
 * [[shuffle]] `shuffle` flag
 * [[numPartitions]] target number of partitions
 
-NOTE: link:spark-sql-Optimizer.adoc#CollapseRepartition[CollapseRepartition] logical optimization collapses adjacent repartition operations.
+NOTE: link:spark-sql-BasicOperators.adoc[BasicOperators] strategy maps `Repartition` to link:spark-sql-SparkPlan-ShuffleExchange.adoc[ShuffleExchange] (with `RoundRobinPartitioning` expression) or link:spark-sql-SparkPlan-CoalesceExec.adoc[CoalesceExec] physical operators per shuffle -- enabled or not, respectively.
 
-NOTE: `Repartition` allows link:spark-sql-Optimizer.adoc#FoldablePropagation[FoldablePropagation] and link:spark-sql-Optimizer-PushDownPredicate.adoc[PushDownPredicate] logical optimizations to "push through".
+NOTE: link:spark-sql-BasicOperators.adoc[BasicOperators] strategy maps `RepartitionByExpression` to link:spark-sql-SparkPlan-ShuffleExchange.adoc[ShuffleExchange] physical operator with `HashPartitioning` expression.
 
-NOTE: link:spark-sql-Optimizer-PropagateEmptyRelation.adoc[PropagateEmptyRelation] logical optimization may result in an empty link:spark-sql-LogicalPlan-LocalRelation.adoc[LocalRelation] for `Repartition`.
+=== [[optimizations]] Repartition Operation Optimizations
 
-=== [[Repartition]] Repartition Logical Operator
+1.  link:spark-sql-Optimizer.adoc#CollapseRepartition[CollapseRepartition] logical optimization collapses adjacent repartition operations.
 
-NOTE: link:spark-sql-BasicOperators.adoc[BasicOperators] strategy maps `Repartition` to link:spark-sql-SparkPlan-ShuffleExchange.adoc[ShuffleExchange] (with `RoundRobinPartitioning` expression) or link:spark-sql-SparkPlan-CoalesceExec.adoc[CoalesceExec] physical operators for when shuffle is enabled or not, respectively.
+1. Repartition operations allow link:spark-sql-Optimizer.adoc#FoldablePropagation[FoldablePropagation] and link:spark-sql-Optimizer-PushDownPredicate.adoc[PushDownPredicate] logical optimizations to "push through".
 
-=== [[RepartitionByExpression]] RepartitionByExpression Logical Operator
-
-NOTE: link:spark-sql-BasicOperators.adoc[BasicOperators] strategy maps `RepartitionByExpression` to link:spark-sql-SparkPlan-ShuffleExchange.adoc[ShuffleExchange] physical operators with `HashPartitioning` expression.
+1.  link:spark-sql-Optimizer-PropagateEmptyRelation.adoc[PropagateEmptyRelation] logical optimization may result in an empty link:spark-sql-LogicalPlan-LocalRelation.adoc[LocalRelation] for repartition operations.
