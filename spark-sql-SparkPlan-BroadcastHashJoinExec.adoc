@@ -1,75 +1,80 @@
-== [[BroadcastHashJoinExec]] BroadcastHashJoinExec Physical Operator
+== [[BroadcastHashJoinExec]] BroadcastHashJoinExec Binary Physical Operator
 
-`BroadcastHashJoinExec` is a link:spark-sql-SparkPlan.adoc#BinaryExecNode[binary physical operator] with link:spark-sql-whole-stage-codegen.adoc#CodegenSupport[CodegenSupport].
+`BroadcastHashJoinExec` is a link:spark-sql-SparkPlan.adoc#BinaryExecNode[binary physical operator] that supports link:spark-sql-whole-stage-codegen.adoc#CodegenSupport[code generation] (aka _codegen_).
 
-[source, scala]
-----
-class BroadcastHashJoinExec(
-  leftKeys: Seq[Expression],
-  rightKeys: Seq[Expression],
-  joinType: JoinType,
-  buildSide: BuildSide,
-  condition: Option[Expression],
-  left: SparkPlan,
-  right: SparkPlan)
-extends BinaryExecNode with HashJoin with CodegenSupport
-----
-
-`BroadcastHashJoinExec` is a result of applying link:spark-sql-JoinSelection.adoc[`JoinSelection` physical plan strategy] to link:spark-sql-JoinSelection.adoc#ExtractEquiJoinKeys[ExtractEquiJoinKeys]-destructurable logical query plans, i.e. link:spark-sql-JoinSelection.adoc#canBuildRight["INNER", "CROSS", "LEFT OUTER", "LEFT SEMI", "LEFT ANTI"], of which the `right` physical operator link:spark-sql-JoinSelection.adoc#canBroadcast[can be broadcast].
+`BroadcastHashJoinExec` is <<creating-instance, created>> after applying link:spark-sql-JoinSelection.adoc[JoinSelection] physical plan strategy to link:spark-sql-JoinSelection.adoc#ExtractEquiJoinKeys[ExtractEquiJoinKeys]-destructurable logical query plans (i.e. link:spark-sql-JoinSelection.adoc#canBuildRight[INNER, CROSS, LEFT OUTER, LEFT SEMI, LEFT ANTI]) of which the `right` physical operator link:spark-sql-JoinSelection.adoc#canBroadcast[can be broadcast].
 
 [source, scala]
 ----
-scala> val df = Seq((0,"playing"), (1, "with"), (2, "broadcast")).toDF("id", "token")
-df: org.apache.spark.sql.DataFrame = [id: int, token: string]
+val tokens = Seq(
+  (0,"playing"),
+  (1, "with"),
+  (2, "BroadcastHashJoinExec")
+).toDF("id", "token")
 
 scala> spark.conf.get("spark.sql.autoBroadcastJoinThreshold")
-res5: String = 10485760
+res0: String = 10485760
 
-scala> df.join(df, Seq("id"), "inner").explain(extended=true)
+val q = tokens.join(tokens, Seq("id"), "inner")
+scala> q.explain(extended = true)
 == Parsed Logical Plan ==
-'Join UsingJoin(Inner,List('id))
-:- Project [_1#30 AS id#33, _2#31 AS token#34]
-:  +- LocalRelation [_1#30, _2#31]
-+- Project [_1#30 AS id#38, _2#31 AS token#39]
-   +- LocalRelation [_1#30, _2#31]
+'Join UsingJoin(Inner,List(id))
+:- Project [_1#12 AS id#15, _2#13 AS token#16]
+:  +- LocalRelation [_1#12, _2#13]
++- Project [_1#12 AS id#20, _2#13 AS token#21]
+   +- LocalRelation [_1#12, _2#13]
 
 == Analyzed Logical Plan ==
 id: int, token: string, token: string
-Project [id#33, token#34, token#39]
-+- Join Inner, (id#33 = id#38)
-   :- Project [_1#30 AS id#33, _2#31 AS token#34]
-   :  +- LocalRelation [_1#30, _2#31]
-   +- Project [_1#30 AS id#38, _2#31 AS token#39]
-      +- LocalRelation [_1#30, _2#31]
+Project [id#15, token#16, token#21]
++- Join Inner, (id#15 = id#20)
+   :- Project [_1#12 AS id#15, _2#13 AS token#16]
+   :  +- LocalRelation [_1#12, _2#13]
+   +- Project [_1#12 AS id#20, _2#13 AS token#21]
+      +- LocalRelation [_1#12, _2#13]
 
 == Optimized Logical Plan ==
-Project [id#33, token#34, token#39]
-+- Join Inner, (id#33 = id#38)
-   :- LocalRelation [id#33, token#34]
-   +- LocalRelation [id#38, token#39]
+Project [id#15, token#16, token#21]
++- Join Inner, (id#15 = id#20)
+   :- LocalRelation [id#15, token#16]
+   +- LocalRelation [id#20, token#21]
 
 == Physical Plan ==
-*Project [id#33, token#34, token#39]
-+- *BroadcastHashJoin [id#33], [id#38], Inner, BuildRight
-   :- LocalTableScan [id#33, token#34]
+*Project [id#15, token#16, token#21]
++- *BroadcastHashJoin [id#15], [id#20], Inner, BuildRight
+   :- LocalTableScan [id#15, token#16]
    +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, false] as bigint)))
-      +- LocalTableScan [id#38, token#39]
+      +- LocalTableScan [id#20, token#21]
 ----
 
-`BroadcastHashJoinExec` variables in link:spark-sql-whole-stage-codegen.adoc#CodegenSupport[CodegenSupport]-generated code are prefixed with `bhj`.
+[[metrics]]
+.BroadcastHashJoinExec SQLMetrics
+[cols="1,2",options="header",width="100%"]
+|===
+| Name
+| Description
 
-TIP: Use link:spark-sql-debugging-execution.adoc#debugCodegen[debugCodegen] method to review the ``CodegenSupport``-generated code.
+| [[numOutputRows]] `numOutputRows`
+| Number of output rows
+|===
+
+.BroadcastHashJoinExec in Details for Query in web UI
+image::images/spark-sql-BroadcastHashJoinExec-webui-query-details.png[align="center"]
+
+NOTE: The prefix for variable names for `BroadcastHashJoinExec` operators in link:spark-sql-whole-stage-codegen.adoc#CodegenSupport[CodegenSupport]-generated code is *bhj*.
+
+TIP: Use link:spark-sql-debugging-execution.adoc#debugCodegen[debugCodegen] or link:spark-sql-QueryExecution.adoc#debug[QueryExecution.debug.codegen] methods to review the ``CodegenSupport``-generated code.
 
 [source, scala]
 ----
-scala> df.join(df, Seq("id"), "inner").debugCodegen
+scala> q.queryExecution.debug.codegen
 Found 1 WholeStageCodegen subtrees.
 == Subtree 1 / 1 ==
-*Project [id#33, token#34, token#52]
-+- *BroadcastHashJoin [id#33], [id#51], Inner, BuildRight
-   :- LocalTableScan [id#33, token#34]
+*Project [id#15, token#16, token#21]
++- *BroadcastHashJoin [id#15], [id#20], Inner, BuildRight
+   :- LocalTableScan [id#15, token#16]
    +- BroadcastExchange HashedRelationBroadcastMode(List(cast(input[0, int, false] as bigint)))
-      +- LocalTableScan [id#51, token#52]
+      +- LocalTableScan [id#20, token#21]
 
 Generated code:
 /* 001 */ public Object generate(Object[] references) {
@@ -92,3 +97,15 @@ Generated code:
 /* 018 */
 ...
 ----
+
+=== [[creating-instance]] Creating BroadcastHashJoinExec Instance
+
+`BroadcastHashJoinExec` takes the following when created:
+
+* [[leftKeys]] Left key link:spark-sql-catalyst-Expression.adoc[expressions]
+* [[rightKeys]] Right key link:spark-sql-catalyst-Expression.adoc[expressions]
+* [[joinType]] link:spark-sql-joins.adoc#join-types[Join type]
+* [[buildSide]] `BuildSide`
+* [[condition]] Optional join condition link:spark-sql-catalyst-Expression.adoc[expressions]
+* [[left]] Left link:spark-sql-SparkPlan.adoc[physical operator]
+* [[right]] Right link:spark-sql-SparkPlan.adoc[physical operator]
