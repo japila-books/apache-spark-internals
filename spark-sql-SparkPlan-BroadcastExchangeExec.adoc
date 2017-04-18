@@ -1,13 +1,24 @@
-== [[BroadcastExchangeExec]] BroadcastExchangeExec Unary Operator for Broadcast Joins
+== [[BroadcastExchangeExec]] BroadcastExchangeExec Unary Operator for Broadcasting Joins
 
-`BroadcastExchangeExec` is a link:spark-sql-SparkPlan.adoc#UnaryExecNode[unary physical operator] to broadcast records (as a table) to executors.
+`BroadcastExchangeExec` is a link:spark-sql-SparkPlan.adoc#UnaryExecNode[unary physical operator] to broadcast rows (of a relation) to worker nodes.
 
 NOTE: link:spark-sql-SparkPlan.adoc#UnaryExecNode[Unary physical operator] has one <<child, child>> physical operator.
 
-[[outputPartitioning]]
-`BroadcastExchangeExec` uses `BroadcastPartitioning` partitioning scheme (with the input <<mode, BroadcastMode>>).
-
 `BroadcastExchangeExec` is <<creating-instance, created>> exclusively when `EnsureRequirements` physical query plan optimization link:spark-sql-EnsureRequirements.adoc#ensureDistributionAndOrdering[ensures BroadcastDistribution of the input data of a physical operator] (that _seemingly_ can be either link:spark-sql-SparkPlan-BroadcastHashJoinExec.adoc[BroadcastHashJoinExec] or link:spark-sql-SparkPlan-BroadcastNestedLoopJoinExec.adoc[BroadcastNestedLoopJoinExec] operators).
+
+[source, scala]
+----
+val t1 = spark.range(5)
+val t2 = spark.range(5)
+val q = t1.join(t2).where(t1("id") === t2("id"))
+
+scala> q.explain
+== Physical Plan ==
+*BroadcastHashJoin [id#19L], [id#22L], Inner, BuildRight
+:- *Range (0, 5, step=1, splits=Some(8))
++- BroadcastExchange HashedRelationBroadcastMode(List(input[0, bigint, false]))
+   +- *Range (0, 5, step=1, splits=Some(8))
+----
 
 [[metrics]]
 .BroadcastExchangeExec SQLMetrics (in alphabetical order)
@@ -29,6 +40,12 @@ NOTE: link:spark-sql-SparkPlan.adoc#UnaryExecNode[Unary physical operator] has o
 | data size (bytes)
 |===
 
+.BroadcastExchangeExec in Details for Query in web UI
+image::images/spark-sql-BroadcastExchangeExec-webui-details-for-query.png[align="center"]
+
+[[outputPartitioning]]
+`BroadcastExchangeExec` uses `BroadcastPartitioning` partitioning scheme (with the input <<mode, BroadcastMode>>).
+
 === [[creating-instance]] Creating BroadcastExchangeExec Instance
 
 `BroadcastExchangeExec` takes the following when created:
@@ -46,6 +63,19 @@ doPrepare(): Unit
 `doPrepare` "materializes" the internal lazily-once-initialized <<relationFuture, asynchronous broadcast>>.
 
 NOTE: `doPrepare` is a part of link:spark-sql-SparkPlan.adoc#doPrepare[SparkPlan Contract] to prepare a physical operator for execution.
+
+=== [[doExecuteBroadcast]] Broadcasting Rows -- `doExecuteBroadcast` Method
+
+[source, scala]
+----
+def doExecuteBroadcast[T](): broadcast.Broadcast[T]
+----
+
+`doExecuteBroadcast` waits until the <<relationFuture, rows are broadcast>>.
+
+NOTE: `doExecuteBroadcast` waits link:spark-sql-SQLConf.adoc#broadcastTimeout[spark.sql.broadcastTimeout] (i.e. 5 minutes).
+
+NOTE: `doExecuteBroadcast` is a part of link:spark-sql-SparkPlan.adoc#doExecuteBroadcast[SparkPlan Contract] to return the result of a structured query as a broadcast variable.
 
 === [[relationFuture]] Lazily-Once-Initialized Asynchronously-Broadcast `relationFuture` Internal Attribute
 
