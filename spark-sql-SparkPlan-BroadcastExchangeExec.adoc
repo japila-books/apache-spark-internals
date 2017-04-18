@@ -1,21 +1,20 @@
-== [[BroadcastExchangeExec]] BroadcastExchangeExec Unary Physical Operator
+== [[BroadcastExchangeExec]] BroadcastExchangeExec Unary Operator for Broadcast Joins
 
-`BroadcastExchangeExec` is a link:spark-sql-SparkPlan.adoc#UnaryExecNode[unary physical operator] (i.e. with one <<child, child>> physical operator) to broadcast a table to executors.
+`BroadcastExchangeExec` is a link:spark-sql-SparkPlan.adoc#UnaryExecNode[unary physical operator] to broadcast records (as a table) to executors.
+
+NOTE: link:spark-sql-SparkPlan.adoc#UnaryExecNode[Unary physical operator] has one <<child, child>> physical operator.
 
 [[outputPartitioning]]
 `BroadcastExchangeExec` uses `BroadcastPartitioning` partitioning scheme (with the input <<mode, BroadcastMode>>).
 
-`BroadcastExchangeExec` is <<creating-instance, created>> exclusively when `EnsureRequirements` physical query plan optimization link:spark-sql-EnsureRequirements.adoc#ensureDistributionAndOrdering[ensures BroadcastDistribution of the input data of a physical operator] (that _seemingly_ can be either link:spark-sql-SparkPlan-BroadcastHashJoinExec.adoc[BroadcastHashJoinExec] or link:spark-sql-SparkPlan-BroadcastNestedLoopJoinExec.adoc[BroadcastNestedLoopJoinExec]).
+`BroadcastExchangeExec` is <<creating-instance, created>> exclusively when `EnsureRequirements` physical query plan optimization link:spark-sql-EnsureRequirements.adoc#ensureDistributionAndOrdering[ensures BroadcastDistribution of the input data of a physical operator] (that _seemingly_ can be either link:spark-sql-SparkPlan-BroadcastHashJoinExec.adoc[BroadcastHashJoinExec] or link:spark-sql-SparkPlan-BroadcastNestedLoopJoinExec.adoc[BroadcastNestedLoopJoinExec] operators).
 
 [[metrics]]
-.BroadcastExchangeExec SQLMetrics
+.BroadcastExchangeExec SQLMetrics (in alphabetical order)
 [cols="1,2",options="header",width="100%"]
 |===
 | Name
 | Description
-
-| [[dataSize]] `dataSize`
-| data size (bytes)
 
 | [[broadcastTime]] `broadcastTime`
 | time to broadcast (ms)
@@ -25,6 +24,9 @@
 
 | [[collectTime]] `collectTime`
 | time to collect (ms)
+
+| [[dataSize]] `dataSize`
+| data size (bytes)
 |===
 
 === [[creating-instance]] Creating BroadcastExchangeExec Instance
@@ -32,4 +34,45 @@
 `BroadcastExchangeExec` takes the following when created:
 
 * [[mode]] `BroadcastMode`
-* [[child]] link:spark-sql-SparkPlan.adoc[SparkPlan]
+* [[child]] Child link:spark-sql-SparkPlan.adoc[physical operator]
+
+=== [[doPrepare]] Preparing Asynchronous Broadcast (with Rows) -- `doPrepare` Method
+
+[source, scala]
+----
+doPrepare(): Unit
+----
+
+`doPrepare` "materializes" the internal lazily-once-initialized <<relationFuture, asynchronous broadcast>>.
+
+NOTE: `doPrepare` is a part of link:spark-sql-SparkPlan.adoc#doPrepare[SparkPlan Contract] to prepare a physical operator for execution.
+
+=== [[relationFuture]] Lazily-Once-Initialized Asynchronously-Broadcast `relationFuture` Internal Attribute
+
+[source, scala]
+----
+relationFuture: Future[broadcast.Broadcast[Any]]
+----
+
+When "materialized" (aka _executed_), `relationFuture` finds the current link:spark-sql-SQLExecution.adoc#spark.sql.execution.id[execution id] and sets it to the `Future` thread.
+
+`relationFuture` requests <<child, child physical operator>> to link:spark-sql-SparkPlan.adoc#executeCollect[executeCollect].
+
+`relationFuture` records the time for `executeCollect` in <<collectTime, collectTime>> metrics and the size of the data in <<dataSize, dataSize>> metrics.
+
+NOTE: `relationFuture` accepts a relation with up to 512 millions rows and 8GB in size, and reports a `SparkException` if the conditions are violated.
+
+`relationFuture` requests the input <<mode, BroadcastMode>> to `transform` the internal rows and records the time in <<buildTime, buildTime>> metrics.
+
+`relationFuture` requests the current `SparkContext` to `broadcast` the transformed internal rows and records the time in <<broadcastTime, broadcastTime>> metrics.
+
+In the end, `relationFuture` link:spark-sql-SQLMetrics.adoc#postDriverMetricUpdates[posts `SparkListenerDriverAccumUpdates`] (with the execution id and the metrics) and returns the broadcast internal rows.
+
+In case of `OutOfMemoryError`, `relationFuture` reports another `OutOfMemoryError` with the following message:
+
+[options="wrap"]
+----
+Not enough memory to build and broadcast the table to all worker nodes. As a workaround, you can either disable broadcast by setting spark.sql.autoBroadcastJoinThreshold to -1 or increase the spark driver memory by setting spark.driver.memory to a higher value
+----
+
+NOTE: `relationFuture` is executed on a separate thread from a custom https://www.scala-lang.org/api/2.11.8/index.html#scala.concurrent.ExecutionContext[scala.concurrent.ExecutionContext] (built from a cached https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/ThreadPoolExecutor.html[java.util.concurrent.ThreadPoolExecutor] with the prefix *broadcast-exchange* and 128 threads).

@@ -1,16 +1,18 @@
-== [[SparkPlan]] SparkPlan -- Physical Query Execution Plan
+== [[SparkPlan]] SparkPlan -- Query Execution Plan / Physical Operator
 
-`SparkPlan` is the base link:spark-sql-catalyst-QueryPlan.adoc[QueryPlan] for *physical operators* to build an *execution query plan*.
+`SparkPlan` is the base link:spark-sql-catalyst-QueryPlan.adoc[query plan] for *physical operators* to build an *query execution plan* (aka *physical query plan*) that, when <<execute, executed>>, produces an RDD of link:spark-sql-InternalRow.adoc[InternalRows] (i.e. `RDD[InternalRow]`).
 
-The <<contract, SparkPlan contract>> assumes that concrete physical operators define <<doExecute, doExecute>> method which is executed when the final `execute` is called.
+TIP: Use link:spark-sql-dataset-operators.adoc#explain[explain] operator to see the execution plan of a structured query.
 
-NOTE: The final `execute` is triggered when the link:spark-sql-QueryExecution.adoc#toRdd[`QueryExecution` (of a `Dataset`) is requested for a `RDD[InternalRow]`].
+The <<contract, SparkPlan contract>> assumes that concrete physical operators define <<doExecute, doExecute>> method (possibly with <<hooks, hooks>> like <<doPrepare, doPrepare>>) which are executed when the physical operator is <<execute, executed>>.
 
-When executed, a `SparkPlan` produces link:spark-rdd.adoc[RDDs] of link:spark-sql-InternalRow.adoc[InternalRow] (i.e. ``RDD[InternalRow]``s).
+CAUTION: FIXME A picture with methods/hooks called.
+
+NOTE: <<execute, execute>> is called when the link:spark-sql-QueryExecution.adoc#toRdd[QueryExecution is requested for an RDD[InternalRow\]] which is exactly when a structured query is executed.
 
 CAUTION: FIXME `SparkPlan` is `Serializable`. Why?
 
-NOTE: The naming convention for physical operators in Spark's source code is to have their names end with the _Exec_ prefix, e.g. `DebugExec` or link:spark-sql-SparkPlan-LocalTableScanExec.adoc[LocalTableScanExec].
+NOTE: The naming convention for physical operators in Spark's source code is to have their names end with the *Exec* prefix, e.g. `DebugExec` or link:spark-sql-SparkPlan-LocalTableScanExec.adoc[LocalTableScanExec] (that is removed when a execution plan is displayed, e.g. in web UI).
 
 TIP: Read link:spark-sql-InternalRow.adoc[InternalRow] about the internal binary row format.
 
@@ -31,7 +33,7 @@ TIP: Read link:spark-sql-InternalRow.adoc[InternalRow] about the internal binary
 
 |===
 
-`SparkPlan` has the following `final` methods that prepare environment and pass calls on to corresponding methods that constitute <<contract, SparkPlan Contract>>:
+`SparkPlan` has the following `final` methods that prepare execution environment and pass calls on to corresponding methods (that constitute <<contract, SparkPlan Contract>>):
 
 * [[execute]] `execute` calls <<doExecute, doExecute>>
 * [[prepare]] `prepare` calls <<doPrepare, doPrepare>>
@@ -45,7 +47,7 @@ TIP: Read link:spark-sql-InternalRow.adoc[InternalRow] about the internal binary
 | Description
 
 | [[UnaryExecNode]] `UnaryExecNode`
-| Unary physical operator
+| Unary physical operator with one `child` physical operator.
 
 | [[LeafExecNode]] `LeafExecNode`
 |
@@ -63,6 +65,8 @@ CAUTION: FIXME
 
 CAUTION: FIXME
 
+NOTE: `executeCollect` does not convert data to Scala types.
+
 === [[contract]] SparkPlan Contract
 
 `SparkPlan` contract requires that concrete physical operators (aka physical plans) define their own custom `doExecute`.
@@ -75,25 +79,26 @@ doExecute(): RDD[InternalRow]
 
 `doExecute` produces the result of a structured query as an `RDD` of link:spark-sql-InternalRow.adoc[InternalRow] objects.
 
-.SparkPlan's Optional Methods (in alphabetical order)
+[[hooks]]
+.SparkPlan's Extension Hooks (in alphabetical order)
 [cols="1,2",options="header",width="100%"]
 |===
 | Name
 | Description
 
-| [[doPrepare]] `doPrepare`
-| Prepares execution
-
 | [[doExecuteBroadcast]] `doExecuteBroadcast`
 |
+
+| [[doPrepare]] `doPrepare`
+| Prepares a physical operator for execution. Executed only once as part of <<prepare, prepare>> and is meant for setting up some state before executing a query (e.g. link:spark-sql-SparkPlan-BroadcastExchangeExec.adoc#doPrepare[BroadcastExchangeExec] to broadcast asynchronously).
+
+| [[outputPartitioning]] `outputPartitioning`
+| Specifies how data is partitioned across different nodes in the cluster
 
 | [[requiredChildDistribution]] `requiredChildDistribution`
 | Specifies any partition requirements on the input data
 
 Used exclusively when `EnsureRequirements` link:spark-sql-EnsureRequirements.adoc#ensureDistributionAndOrdering[enforces partition requirements of a physical operator].
-
-| [[outputPartitioning]] `outputPartitioning`
-| Specifies how data is partitioned across different nodes in the cluster
 |===
 
 === [[executeQuery]] Executing Query in Scope (after Preparations) -- `executeQuery` Final Method
@@ -122,21 +127,11 @@ Internally, `executeBroadcast` executes <<doExecuteBroadcast, doExecuteBroadcast
 
 NOTE: `executeBroadcast` is executed in link:spark-sql-SparkPlan-BroadcastHashJoinExec.adoc[BroadcastHashJoinExec], `BroadcastNestedLoopJoinExec` and `ReusedExchangeExec`.
 
-=== [[SQLMetric]] SQLMetric
-
-`SQLMetric` is an link:spark-accumulators.adoc[accumulator] that accumulates and produces long metrics values.
-
-There are three known `SQLMetrics`:
-
-* `sum`
-* `size`
-* `timing`
-
-=== [[metrics]] metrics Lookup Table
+=== [[metrics]] metrics Internal Registry
 
 [source, scala]
 ----
 metrics: Map[String, SQLMetric] = Map.empty
 ----
 
-`metrics` is a `private[sql]` lookup table of supported <<SQLMetric, SQLMetrics>> by their names.
+`metrics` is a registry of supported link:spark-sql-SQLMetrics.adoc[SQLMetrics] by their names.
