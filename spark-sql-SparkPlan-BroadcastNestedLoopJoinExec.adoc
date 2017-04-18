@@ -1,11 +1,38 @@
-== [[BroadcastNestedLoopJoinExec]] BroadcastNestedLoopJoinExec Physical Operator
+== [[BroadcastNestedLoopJoinExec]] BroadcastNestedLoopJoinExec Binary Physical Operator
 
-`BroadcastNestedLoopJoinExec` is a link:spark-sql-SparkPlan.adoc#BinaryExecNode[binary physical operator].
+`BroadcastNestedLoopJoinExec` is a link:spark-sql-SparkPlan.adoc#BinaryExecNode[physical operator] (with two child <<left, left>> and <<right, right>> physical operators) that is <<creating-instance, created>> (and converted to) when link:spark-sql-JoinSelection.adoc[JoinSelection] physical plan strategy finds a link:spark-sql-LogicalPlan-Join.adoc[Join] logical operator that meets either case:
 
-`BroadcastNestedLoopJoinExec` <<requiredChildDistribution, requires that partition requirements>> for the two children physical operators match `BroadcastDistribution` (with `IdentityBroadcastMode`) and `UnspecifiedDistribution` (for <<left, left>> and <<right, right>> sides of a join or vice versa).
+1. link:spark-sql-JoinSelection.adoc#canBuildRight[canBuildRight] join type and `right` physical operator link:spark-sql-JoinSelection.adoc#canBroadcast[broadcastable]
+1. link:spark-sql-JoinSelection.adoc#canBuildLeft[canBuildLeft] join type and `left` link:spark-sql-JoinSelection.adoc#canBroadcast[broadcastable]
+1. non-``InnerLike`` join type
+
+[NOTE]
+====
+link:spark-sql-JoinSelection.adoc#canBuildRight[canBuildRight] join types are:
+
+* CROSS, INNER, LEFT ANTI, LEFT OUTER, LEFT SEMI or Existence
+
+link:spark-sql-JoinSelection.adoc#canBuildLeft[canBuildLeft] join types are:
+
+* CROSS, INNER, RIGHT OUTER
+====
+
+[source, scala]
+----
+val nums = spark.range(2)
+val letters = ('a' to 'c').map(_.toString).toDF("letter")
+val q = nums.crossJoin(letters)
+
+scala> q.explain
+== Physical Plan ==
+BroadcastNestedLoopJoin BuildRight, Cross
+:- *Range (0, 2, step=1, splits=Some(8))
++- BroadcastExchange IdentityBroadcastMode
+   +- LocalTableScan [letter#69]
+----
 
 [[metrics]]
-.BroadcastNestedLoopJoinExec SQLMetrics (in alphabetical order)
+.BroadcastNestedLoopJoinExec SQLMetrics
 [cols="1,2",options="header",width="100%"]
 |===
 | Name
@@ -14,6 +41,21 @@
 | [[numOutputRows]] `numOutputRows`
 | Number of output rows
 |===
+
+.BroadcastNestedLoopJoinExec in Details for Query in web UI
+image::images/spark-sql-BroadcastNestedLoopJoinExec-webui-details-for-query.png[align="center"]
+
+`BroadcastNestedLoopJoinExec` <<requiredChildDistribution, requires that partition requirements>> for the two children physical operators match `BroadcastDistribution` (with `IdentityBroadcastMode`) and `UnspecifiedDistribution` (for <<left, left>> and <<right, right>> sides of a join or vice versa).
+
+=== [[creating-instance]] Creating BroadcastNestedLoopJoinExec Instance
+
+`BroadcastNestedLoopJoinExec` takes the following when created:
+
+* [[left]] Left link:spark-sql-SparkPlan.adoc[physical operator]
+* [[right]] Right link:spark-sql-SparkPlan.adoc[physical operator]
+* [[buildSide]] `BuildSide`
+* [[joinType]] link:spark-sql-joins.adoc#join-types[Join type]
+* [[condition]] Optional join condition link:spark-sql-catalyst-Expression.adoc[expressions]
 
 === [[requiredChildDistribution]] `requiredChildDistribution` Method
 
