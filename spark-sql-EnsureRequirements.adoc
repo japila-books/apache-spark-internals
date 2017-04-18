@@ -1,13 +1,13 @@
 == [[EnsureRequirements]] EnsureRequirements Physical Plan Optimization
 
-`EnsureRequirements` is a link:spark-sql-Analyzer.adoc#Rule[optimization rule] for a link:spark-sql-SparkPlan.adoc[query execution plan] in link:spark-sql-QueryExecution.adoc#preparations[QueryExecution].
+`EnsureRequirements` is a link:spark-sql-catalyst-RuleExecutor.adoc#Rule[optimization rule] for a link:spark-sql-SparkPlan.adoc[execution query plan] in link:spark-sql-QueryExecution.adoc#preparations[QueryExecution].
 
 `EnsureRequirements` makes sure that for a link:spark-sql-SparkPlan-ShuffleExchange.adoc[ShuffleExchange] physical operator any sub-``ShuffleExchange`` operators guarantee partitioning, <<ensureDistributionAndOrdering, distribution and ordering>>.
 
 [[conf]]
 `EnsureRequirements` takes link:spark-sql-SQLConf.adoc[SQLConf] when created.
 
-=== [[ensureDistributionAndOrdering]] Enforcing Partition Requirements of SparkPlan Physical Operator -- `ensureDistributionAndOrdering` Internal Method
+=== [[ensureDistributionAndOrdering]] Enforcing Partition Requirements of Physical Operator -- `ensureDistributionAndOrdering` Internal Method
 
 [source, scala]
 ----
@@ -15,3 +15,35 @@ ensureDistributionAndOrdering(operator: SparkPlan): SparkPlan
 ----
 
 CAUTION: FIXME
+
+=== [[createPartitioning]] `createPartitioning` Internal Method
+
+CAUTION: FIXME
+
+=== [[withExchangeCoordinator]] Adding ExchangeCoordinator (When Adaptive Query Execution Enabled) -- `withExchangeCoordinator` Internal Method
+
+[source, scala]
+----
+withExchangeCoordinator(
+  children: Seq[SparkPlan],
+  requiredChildDistributions: Seq[Distribution]): Seq[SparkPlan]
+----
+
+`withExchangeCoordinator` adds link:spark-sql-ExchangeCoordinator.adoc[ExchangeCoordinator] to link:spark-sql-SparkPlan-ShuffleExchange.adoc[ShuffleExchange] operators if link:spark-sql-SQLConf.adoc#adaptiveExecutionEnabled[adaptive query execution is enabled] and partitioning scheme of the `ShuffleExchanges` support `ExchangeCoordinator`.
+
+[[supportsCoordinator]]
+Internally, `withExchangeCoordinator` checks if the input `children` operators support `ExchangeCoordinator` which is that either holds:
+
+* If there is at least one link:spark-sql-SparkPlan-ShuffleExchange.adoc[ShuffleExchange] operator, all children are either `ShuffleExchange` with `HashPartitioning` or their link:spark-sql-SparkPlan.adoc#outputPartitioning[output partitioning] is `HashPartitioning` (even inside `PartitioningCollection`)
+
+* There are at least two `children` operators and the input `requiredChildDistributions` are all `ClusteredDistribution`
+
+With link:spark-sql-SQLConf.adoc#adaptiveExecutionEnabled[adaptive query execution enabled] (i.e. when link:spark-sql-SQLConf.adoc#spark.sql.adaptive.enabled[spark.sql.adaptive.enabled] flag is `true`) and the <<supportsCoordinator, operator supports ExchangeCoordinator>>, `withExchangeCoordinator` creates a `ExchangeCoordinator` and:
+
+* For every `ShuffleExchange`, link:spark-sql-SparkPlan-ShuffleExchange.adoc#coordinator[registers the `ExchangeCoordinator`]
+
+* <<createPartitioning, Creates `HashPartitioning` partitioning scheme>> with the link:spark-sql-SQLConf.adoc#numShufflePartitions[default number of partitions to use when shuffling data for joins or aggregations] (as `spark.sql.shuffle.partitions` which is `200` by default) and adds `ShuffleExchange` to the final result (for the current physical operator)
+
+Otherwise (when adaptive query execution is disabled or `children` do not support `ExchangeCoordinator`), `withExchangeCoordinator` returns the input `children` unchanged.
+
+NOTE: `withExchangeCoordinator` is used exclusively for <<ensureDistributionAndOrdering, enforcing partition requirements of a physical operator>>.
