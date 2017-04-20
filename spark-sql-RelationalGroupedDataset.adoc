@@ -2,7 +2,7 @@
 
 `RelationalGroupedDataset` is an interface to compute aggregates over a grouped collection of records in a link:spark-sql-dataframe.adoc[DataFrame].
 
-`RelationalGroupedDataset` is a result of executing the following operators:
+`RelationalGroupedDataset` is a result of executing the following aggregate operators:
 
 * link:spark-sql-basic-aggregation.adoc#groupBy[groupBy]
 * link:spark-sql-multi-dimensional-aggregation.adoc#rollup[rollup]
@@ -10,7 +10,7 @@
 * <<pivot, pivot>> (after link:spark-sql-basic-aggregation.adoc#groupBy[groupBy] operator)
 
 [[operators]]
-.RelationalGroupedDataset's Operators (in alphabetical order)
+.RelationalGroupedDataset's Aggregate Operators (in alphabetical order)
 [cols="1,3",options="header",width="100%"]
 |===
 | Operator
@@ -40,6 +40,23 @@
 | `sum`
 |
 |===
+
+NOTE: link:spark-sql-SQLConf.adoc#spark.sql.retainGroupColumns[spark.sql.retainGroupColumns] property controls whether to retain columns used for aggregation or not (in `RelationalGroupedDataset` operators). Enabled by default.
+
+=== [[toDF]] Creating DataFrame from Aggregate Expressions -- `toDF` Internal Method
+
+[source, scala]
+----
+toDF(aggExprs: Seq[Expression]): DataFrame
+----
+
+CAUTION: FIXME
+
+Internally, `toDF` branches off per group type.
+
+CAUTION: FIXME
+
+[[toDF-PivotType]] For `PivotType`, `toDF` link:spark-sql-Dataset.adoc#ofRows[creates a DataFrame] with link:spark-sql-LogicalPlan-Pivot.adoc[Pivot] unary logical operator.
 
 === [[creating-instance]] Creating RelationalGroupedDataset Instance
 
@@ -127,4 +144,17 @@ image::images/spark-sql-pivot-webui-scanning-jobs.png[align="center"]
 
 NOTE: link:spark-sql-SQLConf.adoc#spark.sql.pivotMaxValues[spark.sql.pivotMaxValues] (default: `10000`) controls the maximum number of (distinct) values that will be collected without error (when doing `pivot` without specifying the values for the pivot column).
 
-Internally, `pivot` creates a `RelationalGroupedDataset` with `PivotType` and `pivotColumn` resolved using the DataFrame's columns with `values` as `Literal` expressions.
+Internally, `pivot` creates a `RelationalGroupedDataset` with `PivotType` group type and `pivotColumn` resolved using the DataFrame's columns with `values` as `Literal` expressions.
+
+[NOTE]
+====
+<<toDF, toDF>> internal method maps `PivotType` group type to a `DataFrame` with `Pivot` unary logical operator.
+
+```
+scala> q.queryExecution.logical
+res0: org.apache.spark.sql.catalyst.plans.logical.LogicalPlan =
+Pivot [city#8], year#9: int, [2015, 2016, 2017], [count(1) AS count#24L]
++- Project [_1#3 AS id#7, _2#4 AS city#8, _3#5 AS year#9]
+   +- LocalRelation [_1#3, _2#4, _3#5]
+```
+====
