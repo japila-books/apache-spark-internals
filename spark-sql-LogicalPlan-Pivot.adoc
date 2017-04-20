@@ -12,13 +12,90 @@ val visits = Seq(
 
 val q = visits
   .groupBy("city")
-  .pivot("year")
+  .pivot("year", Seq("2015", "2016", "2017"))
   .count()
-scala> q.queryExecution.logical
-res0: org.apache.spark.sql.catalyst.plans.logical.LogicalPlan =
-Pivot [city#8], year#9: int, [2015, 2016, 2017], [count(1) AS count#24L]
-+- Project [_1#3 AS id#7, _2#4 AS city#8, _3#5 AS year#9]
-   +- LocalRelation [_1#3, _2#4, _3#5]
+scala> println(q.queryExecution.logical.numberedTreeString)
+00 Pivot [city#8], year#9: int, [2015, 2016, 2017], [count(1) AS count#157L]
+01 +- Project [_1#3 AS id#7, _2#4 AS city#8, _3#5 AS year#9]
+02    +- LocalRelation [_1#3, _2#4, _3#5]
 ----
 
-`Pivot` is created when `RelationalGroupedDataset` link:spark-sql-RelationalGroupedDataset.adoc#toDF[creates a DataFrame for an aggregate operator].
+`Pivot` is <<creating-instance, created>> when `RelationalGroupedDataset` link:spark-sql-RelationalGroupedDataset.adoc#toDF[creates a DataFrame for an aggregate operator].
+
+=== [[creating-instance]] Creating Pivot Instance
+
+`Pivot` takes the following when created:
+
+* [[groupByExprs]] Grouping link:spark-sql-catalyst-Expression.adoc#NamedExpression[named expressions]
+* [[pivotColumn]] Pivot column link:spark-sql-catalyst-Expression.adoc[expression]
+* [[pivotValues]] Pivot values link:spark-sql-Literal.adoc[literals]
+* [[aggregates]] Aggregation link:spark-sql-catalyst-Expression.adoc[expressions]
+* [[child]] Child link:spark-sql-LogicalPlan.adoc[logical operator]
+
+=== [[analyzer]] Analysis Phase
+
+`Pivot` operator is resolved at link:spark-sql-Analyzer.adoc[analysis phase] in link:spark-sql-Analyzer.adoc#ResolveAliases[ResolveAliases] and link:spark-sql-Analyzer.adoc#ResolvePivot[ResolvePivot] logical evaluation rules.
+
+[source, scala]
+----
+val spark: SparkSession = ...
+
+import spark.sessionState.analyzer.ResolveAliases
+// see q in the example above
+val plan = q.queryExecution.logical
+
+scala> println(plan.numberedTreeString)
+00 Pivot [city#8], year#9: int, [2015, 2016, 2017], [count(1) AS count#24L]
+01 +- Project [_1#3 AS id#7, _2#4 AS city#8, _3#5 AS year#9]
+02    +- LocalRelation [_1#3, _2#4, _3#5]
+
+// FIXME Find a plan to show the effect of ResolveAliases
+val planResolved = ResolveAliases(plan)
+----
+
+`Pivot` logical operator "disappears" behind (i.e. gets translated to) a link:spark-sql-LogicalPlan-Aggregate.adoc[Aggregate] logical operator (possibly under `Project` operator).
+
+[source, scala]
+----
+import spark.sessionState.analyzer.ResolvePivot
+val planAfterResolvePivot = ResolvePivot(plan)
+scala> println(planAfterResolvePivot.numberedTreeString)
+00 Project [city#8, __pivot_count(1) AS `count` AS `count(1) AS ``count```#62[0] AS 2015#63L, __pivot_count(1) AS `count` AS `count(1) AS ``count```#62[1] AS 2016#64L, __pivot_count(1) AS `count` AS `count(1) AS ``count```#62[2] AS 2017#65L]
+01 +- Aggregate [city#8], [city#8, pivotfirst(year#9, count(1) AS `count`#54L, 2015, 2016, 2017, 0, 0) AS __pivot_count(1) AS `count` AS `count(1) AS ``count```#62]
+02    +- Aggregate [city#8, year#9], [city#8, year#9, count(1) AS count#24L AS count(1) AS `count`#54L]
+03       +- Project [_1#3 AS id#7, _2#4 AS city#8, _3#5 AS year#9]
+04          +- LocalRelation [_1#3, _2#4, _3#5]
+----
+
+=== [[optimizer]] Rule-Based Logical Optimization Phase
+
+link:spark-sql-Optimizer-PushDownPredicate.adoc[PushDownPredicate] logical plan optimization applies so-called *filter pushdown* to a `Pivot` operator when under `Filter` operator and with all expressions deterministic.
+
+[source, scala]
+----
+import org.apache.spark.sql.catalyst.optimizer.PushDownPredicate
+
+val q = visits
+  .groupBy("city")
+  .pivot("year")
+  .count()
+  .where($"city" === "Boston")
+
+val pivotPlanAnalyzed = q.queryExecution.analyzed
+scala> println(pivotPlanAnalyzed.numberedTreeString)
+00 Filter (city#8 = Boston)
+01 +- Project [city#8, __pivot_count(1) AS `count` AS `count(1) AS ``count```#142[0] AS 2015#143L, __pivot_count(1) AS `count` AS `count(1) AS ``count```#142[1] AS 2016#144L, __pivot_count(1) AS `count` AS `count(1) AS ``count```#142[2] AS 2017#145L]
+02    +- Aggregate [city#8], [city#8, pivotfirst(year#9, count(1) AS `count`#134L, 2015, 2016, 2017, 0, 0) AS __pivot_count(1) AS `count` AS `count(1) AS ``count```#142]
+03       +- Aggregate [city#8, year#9], [city#8, year#9, count(1) AS count(1) AS `count`#134L]
+04          +- Project [_1#3 AS id#7, _2#4 AS city#8, _3#5 AS year#9]
+05             +- LocalRelation [_1#3, _2#4, _3#5]
+
+val afterPushDown = PushDownPredicate(pivotPlanAnalyzed)
+scala> println(afterPushDown.numberedTreeString)
+00 Project [city#8, __pivot_count(1) AS `count` AS `count(1) AS ``count```#142[0] AS 2015#143L, __pivot_count(1) AS `count` AS `count(1) AS ``count```#142[1] AS 2016#144L, __pivot_count(1) AS `count` AS `count(1) AS ``count```#142[2] AS 2017#145L]
+01 +- Aggregate [city#8], [city#8, pivotfirst(year#9, count(1) AS `count`#134L, 2015, 2016, 2017, 0, 0) AS __pivot_count(1) AS `count` AS `count(1) AS ``count```#142]
+02    +- Aggregate [city#8, year#9], [city#8, year#9, count(1) AS count(1) AS `count`#134L]
+03       +- Project [_1#3 AS id#7, _2#4 AS city#8, _3#5 AS year#9]
+04          +- Filter (_2#4 = Boston)
+05             +- LocalRelation [_1#3, _2#4, _3#5]
+----
