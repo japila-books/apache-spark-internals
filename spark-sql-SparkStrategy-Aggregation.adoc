@@ -49,3 +49,51 @@ NOTE: `PhysicalAggregation` is a Scala http://docs.scala-lang.org/tutorials/tour
 === [[AggUtils]][[AggUtils-planAggregateWithoutDistinct]] `AggUtils.planAggregateWithoutDistinct` Method
 
 === [[AggUtils-planAggregateWithOneDistinct]] `AggUtils.planAggregateWithOneDistinct` Method
+
+=== [[AggUtils-createAggregate]] Creating Physical Operator Given Aggregate Expressions -- `AggUtils.createAggregate` Internal Method
+
+[source, scala]
+----
+createAggregate(
+  requiredChildDistributionExpressions: Option[Seq[Expression]] = None,
+  groupingExpressions: Seq[NamedExpression] = Nil,
+  aggregateExpressions: Seq[AggregateExpression] = Nil,
+  aggregateAttributes: Seq[Attribute] = Nil,
+  initialInputBufferOffset: Int = 0,
+  resultExpressions: Seq[NamedExpression] = Nil,
+  child: SparkPlan): SparkPlan
+----
+
+`createAggregate` creates a link:spark-sql-SparkPlan.adoc[physical operator] given the input `aggregateExpressions`.
+
+.createAggregate and Selecting Physical Operator (in execution order)
+[cols="1,2",options="header",width="100%"]
+|===
+| Operator
+| Conditions (for selection)
+
+| link:spark-sql-SparkPlan-HashAggregateExec.adoc[HashAggregateExec]
+a| Builds a schema from link:spark-sql-Expression-AggregateFunction.adoc#aggBufferAttributes[aggBufferAttributes] (of every `AggregateFunction`) of every link:spark-sql-Expression-AggregateExpression.adoc[AggregateExpression] (in the input `aggregateExpressions`) and checks for any non-mutable fields (that _cannot_ be updated in place in `UnsafeRows`). When not found, `HashAggregateExec` is selected.
+
+Mutable field types include:
+
+* `NullType`
+* `BooleanType`
+* `ByteType`
+* `ShortType`
+* `IntegerType`
+* `LongType`
+* `FloatType`
+* `DoubleType`
+* `DateType`
+* `TimestampType`
+* `DecimalType`
+
+| `ObjectHashAggregateExec`
+| When link:spark-sql-SQLConf.adoc#spark.sql.execution.useObjectHashAggregateExec[spark.sql.execution.useObjectHashAggregateExec] intenal flag enabled (it is by default) and `aggregateExpressions` contains at least one `TypedImperativeAggregate`.
+
+| `SortAggregateExec`
+| When all the above conditions fail.
+|===
+
+NOTE: `createAggregate` is used in <<AggUtils-planAggregateWithoutDistinct, AggUtils.planAggregateWithoutDistinct>>, <<AggUtils-planAggregateWithOneDistinct, AggUtils.planAggregateWithOneDistinct>> and `planStreamingAggregation` (for Structured Streaming's `StatefulAggregationStrategy`).
