@@ -1,6 +1,12 @@
-== [[QueryPlanner]] QueryPlanner -- Transforming Trees
+== [[QueryPlanner]] QueryPlanner -- Converting Logical Plan to Physical Trees
 
-`QueryPlanner` converts a link:spark-sql-LogicalPlan.adoc[logical plan] to a link:spark-sql-SparkPlan.adoc[physical plan] using link:spark-sql-catalyst-GenericStrategy.adoc[GenericStrategy] transformations.
+`QueryPlanner` <<plan, plans a logical plan for execution>>, i.e. converts a link:spark-sql-LogicalPlan.adoc[logical plan] to one or more link:spark-sql-SparkPlan.adoc[physical plans] using <<strategies, strategies>>.
+
+NOTE: `QueryPlanner` <<plan, generates>> at least one physical plan.
+
+``QueryPlanner``'s main method is <<plan, plan>> that defines the extension points, i.e. <<strategies, strategies>>, <<collectPlaceholders, collectPlaceholders>> and <<prunePlans, prunePlans>>.
+
+`QueryPlanner` is a part of link:spark-sql-catalyst.adoc[Catalyst Framework].
 
 === [[contract]] QueryPlanner Contract
 
@@ -9,6 +15,7 @@
 abstract class QueryPlanner[PhysicalPlan <: TreeNode[PhysicalPlan]] {
   def collectPlaceholders(plan: PhysicalPlan): Seq[(PhysicalPlan, LogicalPlan)]
   def prunePlans(plans: Iterator[PhysicalPlan]): Iterator[PhysicalPlan]
+  def strategies: Seq[GenericStrategy[PhysicalPlan]]
 }
 ----
 
@@ -18,55 +25,39 @@ abstract class QueryPlanner[PhysicalPlan <: TreeNode[PhysicalPlan]] {
 | Method
 | Description
 
-| <<strategies, strategies>>
-|
+| [[strategies]] `strategies`
+| Collection of link:spark-sql-catalyst-GenericStrategy.adoc[GenericStrategy] planning strategies.
 
-| <<plan, plan>>
-|
+Used exclusively as an extension point in <<plan, plan>>.
 
 | [[collectPlaceholders]] `collectPlaceholders`
 | Collection of "placeholder" physical plans and the corresponding link:spark-sql-LogicalPlan.adoc[logical plans].
 
-Used exclusively in <<plan, plan>>.
+Used exclusively as an extension point in <<plan, plan>>.
 
 Overriden in link:spark-sql-SparkPlanner.adoc#collectPlaceholders[SparkPlanner]
 
 | [[prunePlans]] `prunePlans`
 | Prunes physical plans (e.g. bad or somehow incorrect plans).
 
-Used exclusively in <<plan, plan>>.
+Used exclusively as an extension point in <<plan, plan>>.
 |===
 
-==== [[strategies]] `strategies` Method
-
-[source, scala]
-----
-strategies: Seq[GenericStrategy[PhysicalPlan]]
-----
-
-`strategies` abstract method returns a collection of link:spark-sql-catalyst-GenericStrategy.adoc[GenericStrategy] transformations (that are used in <<plan, plan>> method).
-
-==== [[plan]] `plan` Method
+=== [[plan]] Planning Logical Plan -- `plan` Method
 
 [source, scala]
 ----
 plan(plan: LogicalPlan): Iterator[PhysicalPlan]
 ----
 
-`plan` returns an `Iterator[PhysicalPlan]` with elements being the result of applying each link:spark-sql-catalyst-GenericStrategy.adoc[GenericStrategy] transformation from <<strategies, strategies>> collection to `plan` input parameter.
+`plan` converts the input `plan` link:spark-sql-LogicalPlan.adoc[logical plan] to zero or more `PhysicalPlan` plans.
 
-=== [[SparkStrategies]] SparkStrategies -- Container of SparkStrategy Strategies
+Internally, `plan` applies <<strategies, planning strategies>> to the input `plan` (one by one collecting all as the plan candidates).
 
-`SparkStrategies` is an abstract base <<contract, QueryPlanner>> (of link:spark-sql-SparkPlan.adoc[SparkPlan]) that serves as a "container" (or a namespace) of the concrete link:spark-sql-SparkStrategy.adoc[SparkStrategies]:
+`plan` then walks over the plan candidates to <<collectPlaceholders, collect placeholders>>.
 
-. `SpecialLimits`
-. link:spark-sql-SparkStrategy-JoinSelection.adoc[JoinSelection]
-. `StatefulAggregationStrategy`
-. link:spark-sql-SparkStrategy-Aggregation.adoc[Aggregation]
-. `InMemoryScans`
-. `StreamingRelationStrategy`
-. link:spark-sql-SparkStrategy-BasicOperators.adoc[BasicOperators]
+If a plan does not contain a placeholder, the plan is returned as is. Otherwise, `plan` walks over placeholders (as pairs of `PhysicalPlan` and unplanned link:spark-sql-LogicalPlan.adoc[logical plan]) and (recursively) <<plan, plans>> the child logical plan. `plan` then replaces the placeholders with the planned child logical plan.
 
-NOTE: link:spark-sql-SparkPlanner.adoc[SparkPlanner] is the one and only concrete implementation of `SparkStrategies`.
+In the end, `plan` <<prunePlans, prunes "bad" physical plans>>.
 
-CAUTION: FIXME What is `singleRowRdd` for?
+NOTE: `plan` is used exclusively (through the concrete link:spark-sql-SparkPlanner.adoc[SparkPlanner]) when a `QueryExecution` link:spark-sql-QueryExecution.adoc#sparkPlan[is requested for a physical plan].
