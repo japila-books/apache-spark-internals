@@ -1,17 +1,41 @@
 == [[QueryPlanner]] QueryPlanner -- Transforming Trees
 
-`QueryPlanner` transforms a link:spark-sql-LogicalPlan.adoc[logical query] through a chain of link:spark-sql-catalyst-GenericStrategy.adoc[GenericStrategy] transformations to produce a link:spark-sql-SparkPlan.adoc[physical plan] for link:spark-sql-SparkPlanner.adoc[SparkPlanner].
+`QueryPlanner` converts a link:spark-sql-LogicalPlan.adoc[logical plan] to a link:spark-sql-SparkPlan.adoc[physical plan] using link:spark-sql-catalyst-GenericStrategy.adoc[GenericStrategy] transformations.
 
 === [[contract]] QueryPlanner Contract
 
-`QueryPlanner` contract defines the following operations:
+[source, scala]
+----
+abstract class QueryPlanner[PhysicalPlan <: TreeNode[PhysicalPlan]] {
+  def collectPlaceholders(plan: PhysicalPlan): Seq[(PhysicalPlan, LogicalPlan)]
+  def prunePlans(plans: Iterator[PhysicalPlan]): Iterator[PhysicalPlan]
+}
+----
 
-* Abstract <<strategies, strategies>>
-* Concrete <<plan, plan>>
-* Protected <<collectPlaceholders, collectPlaceholders>>
-* Protected <<prunePlans, prunePlans>>
+.QueryPlanner Contract (in alphabetical order)
+[cols="1,2",options="header",width="100%"]
+|===
+| Method
+| Description
 
-NOTE: Protected `collectPlaceholders` and `prunePlans` are supposed to be defined by subclasses and are used in the concrete `plan` method.
+| <<strategies, strategies>>
+|
+
+| <<plan, plan>>
+|
+
+| [[collectPlaceholders]] `collectPlaceholders`
+| Collection of "placeholder" physical plans and the corresponding link:spark-sql-LogicalPlan.adoc[logical plans].
+
+Used exclusively in <<plan, plan>>.
+
+Overriden in link:spark-sql-SparkPlanner.adoc#collectPlaceholders[SparkPlanner]
+
+| [[prunePlans]] `prunePlans`
+| Prunes physical plans (e.g. bad or somehow incorrect plans).
+
+Used exclusively in <<plan, plan>>.
+|===
 
 ==== [[strategies]] `strategies` Method
 
@@ -30,24 +54,6 @@ plan(plan: LogicalPlan): Iterator[PhysicalPlan]
 ----
 
 `plan` returns an `Iterator[PhysicalPlan]` with elements being the result of applying each link:spark-sql-catalyst-GenericStrategy.adoc[GenericStrategy] transformation from <<strategies, strategies>> collection to `plan` input parameter.
-
-==== [[collectPlaceholders]] `collectPlaceholders` Method
-
-[source, scala]
-----
-collectPlaceholders(plan: PhysicalPlan): Seq[(PhysicalPlan, LogicalPlan)]
-----
-
-`collectPlaceholders` returns a collection of pairs of a given physical and a corresponding link:spark-sql-LogicalPlan.adoc[logical] plans.
-
-==== [[prunePlans]] `prunePlans` Method
-
-[source, scala]
-----
-prunePlans(plans: Iterator[PhysicalPlan]): Iterator[PhysicalPlan]
-----
-
-`prunePlans` prunes bad physical plans.
 
 === [[SparkStrategies]] SparkStrategies -- Container of SparkStrategy Strategies
 
