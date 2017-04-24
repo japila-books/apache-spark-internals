@@ -2,18 +2,38 @@
 
 `Aggregation` is an link:spark-sql-SparkStrategy.adoc[execution planning strategy] (of link:spark-sql-SparkPlanner.adoc[SparkPlanner]) that...FIXME
 
-=== [[apply]] Executing Strategy -- `apply` Method
+[source, scala]
+----
+val spark: SparkSession = ...
+// structured query with count aggregate function
+val q = spark.range(5)
+  .groupBy($"id" % 2 as "group")
+  .agg(count("id") as "count")
+
+import q.queryExecution.optimizedPlan
+scala> println(optimizedPlan.numberedTreeString)
+00 Aggregate [(id#38L % 2)], [(id#38L % 2) AS group#41L, count(1) AS count#46L]
+01 +- Range (0, 5, step=1, splits=Some(8))
+
+import spark.sessionState.planner.Aggregation
+scala> println(Aggregation.apply(optimizedPlan).head.numberedTreeString)
+00 HashAggregate(keys=[(id#38L % 2)#66L], functions=[count(1)], output=[group#41L, count#46L])
+01 +- HashAggregate(keys=[(id#38L % 2) AS (id#38L % 2)#66L], functions=[partial_count(1)], output=[(id#38L % 2)#66L, count#59L])
+02    +- PlanLater Range (0, 5, step=1, splits=Some(8))
+----
+
+=== [[apply]] Executing Planning Strategy -- `apply` Method
 
 [source, scala]
 ----
 apply(plan: LogicalPlan): Seq[SparkPlan]
 ----
 
-`apply`
+`apply`...FIXME
 
-NOTE: `apply` is a part of link:spark-sql-catalyst-GenericStrategy.adoc#apply[GenericStrategy Contract].
+NOTE: `apply` is a part of link:spark-sql-catalyst-GenericStrategy.adoc#apply[GenericStrategy Contract] to execute a planning strategy.
 
-=== [[PhysicalAggregation]][[PhysicalAggregation-unapply]] `PhysicalAggregation.unapply` Method
+=== [[PhysicalAggregation]][[PhysicalAggregation-unapply]] Destructuring Logical Plan -- `PhysicalAggregation.unapply` Method
 
 [source, scala]
 ----
@@ -22,9 +42,10 @@ unapply(a: Any): Option[ReturnType]
 
 `unapply` destructures a link:spark-sql-LogicalPlan.adoc[logical plan], i.e. breaks a `LogicalPlan` into pieces.
 
+CAUTION: FIXME What pieces?
+
 [NOTE]
 ====
-
 `ReturnType` is a type alias (aka _type synonym_) for a 4-element tuple with grouping, aggregate and result link:spark-sql-catalyst-Expression.adoc[expressions], and child link:spark-sql-LogicalPlan.adoc[logical operator].
 
 [source, scala]
@@ -36,11 +57,9 @@ type ReturnType =
 
 NOTE: `PhysicalAggregation` is a Scala http://docs.scala-lang.org/tutorials/tour/extractor-objects.html[extractor object] with a single <<PhysicalAggregation-unapply, unapply>> method.
 
-=== [[AggUtils]][[AggUtils-planAggregateWithoutDistinct]] `AggUtils.planAggregateWithoutDistinct` Method
-
 === [[AggUtils-planAggregateWithOneDistinct]] `AggUtils.planAggregateWithOneDistinct` Method
 
-=== [[AggUtils-createAggregate]] Creating Physical Operator Given Aggregate Expressions -- `AggUtils.createAggregate` Internal Method
+=== [[AggUtils-createAggregate]] Creating Aggregate Physical Operator Per Aggregate Expressions -- `AggUtils.createAggregate` Internal Method
 
 [source, scala]
 ----
@@ -87,3 +106,22 @@ Mutable field types include:
 |===
 
 NOTE: `createAggregate` is used in <<AggUtils-planAggregateWithoutDistinct, AggUtils.planAggregateWithoutDistinct>>, <<AggUtils-planAggregateWithOneDistinct, AggUtils.planAggregateWithOneDistinct>> and `planStreamingAggregation` (for Structured Streaming's `StatefulAggregationStrategy`).
+
+=== [[AggUtils]][[AggUtils-planAggregateWithoutDistinct]] `AggUtils.planAggregateWithoutDistinct` Method
+
+[source, scala]
+----
+planAggregateWithoutDistinct(
+  groupingExpressions: Seq[NamedExpression],
+  aggregateExpressions: Seq[AggregateExpression],
+  resultExpressions: Seq[NamedExpression],
+  child: SparkPlan): Seq[SparkPlan]
+----
+
+`planAggregateWithoutDistinct` is a two-step physical operator generator.
+
+`planAggregateWithoutDistinct` first <<AggUtils-createAggregate, creates an aggregate physical operator>> with `aggregateExpressions` in `Partial` mode.
+
+In the end, `planAggregateWithoutDistinct` <<AggUtils-createAggregate, creates another aggregate physical operator>> with `aggregateExpressions` in `Final` mode and the first aggregate operator as the child.
+
+NOTE: `planAggregateWithoutDistinct` is used exclusively when `Aggregation` execution planning strategy <<apply, is executed>> (with no `AggregateExpressions` being link:spark-sql-Expression-AggregateExpression.adoc#isDistinct[distinct]).
