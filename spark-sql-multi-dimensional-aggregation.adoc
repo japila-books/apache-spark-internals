@@ -1,6 +1,13 @@
 == Multi-Dimensional Aggregation
 
-**Multi-dimensional aggregation operators** are enhanced variants of link:spark-sql-basic-aggregation.adoc#groupBy[groupBy] operator with higher efficiency (that work similarly to `groupBy` connected by `union`).
+**Multi-dimensional aggregate operators** are enhanced variants of link:spark-sql-basic-aggregation.adoc#groupBy[groupBy] operator.
+
+Multi-dimensional aggregate operators are semantically equivalent to `union` operator (or SQL's `UNION ALL`) to combine single grouping queries.
+
+[NOTE]
+====
+It is _assumed_ that using one of the operators is usually more efficient (than `union` and `groupBy`) as it gives more freedom for query optimization.
+====
 
 [[aggregate-operators]]
 .Multi-dimensional Aggregate Operators (in alphabetical order)
@@ -19,112 +26,50 @@
 | Calculates subtotals and a grand total over (ordered) combination of groups
 |===
 
-[NOTE]
-====
-Beside <<cube, cube>> and <<rollup, rollup>> multi-dimensional operators, Spark SQL supports <<grouping-sets, GROUPING SETS>> operator as a SQL clause in SQL mode only, i.e.
+Beside <<cube, cube>> and <<rollup, rollup>> multi-dimensional aggregate operators, Spark SQL supports <<grouping-sets, GROUPING SETS>> clause in SQL mode only.
+
+NOTE: SQL's `GROUPING SETS` is the most general aggregate "operator" and can generate the same dataset as using a simple link:spark-sql-basic-aggregation.adoc#groupBy[groupBy], <<cube, cube>> and <<rollup, rollup>> operators.
 
 ```
-scala> sql("""
-  SELECT grouping_id()
-  FROM range(4)
-  GROUP BY (id % 2)
-  GROUPING SETS (id % 2)
-  """).queryExecution.logical
-res0: org.apache.spark.sql.catalyst.plans.logical.LogicalPlan =
-'GroupingSets [ArrayBuffer(('id % 2))], [('id % 2)], [unresolvedalias('grouping_id(), None)]
-+- 'UnresolvedTableValuedFunction range, [4]
-```
-====
+import java.time.LocalDate
+import java.sql.Date
+val expenses = Seq(
+  ((2012, Month.DECEMBER, 12), 5),
+  ((2016, Month.AUGUST, 13), 10),
+  ((2017, Month.MAY, 27), 15))
+  .map { case ((yy, mm, dd), a) => (LocalDate.of(yy, mm, dd), a) }
+  .map { case (d, a) => (d.toString, a) }
+  .map { case (d, a) => (Date.valueOf(d), a) }
+  .toDF("date", "amount")
+scala> expenses.show
++----------+------+
+|      date|amount|
++----------+------+
+|2012-12-12|     5|
+|2016-08-13|    10|
+|2017-05-27|    15|
++----------+------+
 
-=== [[cube]] `cube` Operator
-
-[source, scala]
-----
-cube(cols: Column*): RelationalGroupedDataset
-cube(col1: String, cols: String*): RelationalGroupedDataset
-----
-
-`cube` multi-dimensional aggregate operator is an extension of link:spark-sql-basic-aggregation.adoc#groupBy[groupBy] operator that allows calculating subtotals and a grand total across all combinations of specified group of `n + 1` dimensions (with `n` being the number of columns as `cols` and `col1` and `1` for where values become `null`, i.e. undefined).
-
-`cube` returns link:spark-sql-RelationalGroupedDataset.adoc[RelationalGroupedDataset] that you can use to execute aggregate function or operator.
-
-NOTE: `cube` is more than <<rollup, rollup>> operator, i.e. `cube` does `rollup` with aggregation over all the missing combinations given the columns.
-
-[source, scala]
-----
-val sales = Seq(
-  ("Warsaw", 2016, 100),
-  ("Warsaw", 2017, 200),
-  ("Boston", 2015, 50),
-  ("Boston", 2016, 150),
-  ("Toronto", 2017, 50)
-).toDF("city", "year", "amount")
-
-val q = sales.cube("city", "year")
-  .agg(sum("amount") as "amount/year")
-  .sort($"city".desc_nulls_last, $"year".asc_nulls_last)
-
+// rollup time!
+val q = expenses
+  .rollup(year($"date") as "year", month($"date") as "month")
+  .agg(sum("amount") as "amount")
+  .sort($"year".asc_nulls_last, $"month".asc_nulls_last)
 scala> q.show
-+-------+----+-----------+
-|   city|year|amount/year|
-+-------+----+-----------+
-| Warsaw|2016|        100|  <-- total in Warsaw in 2016
-| Warsaw|2017|        200|  <-- total in Warsaw in 2017
-| Warsaw|null|        300|  <-- total in Warsaw (across all years)
-|Toronto|2017|         50|
-|Toronto|null|         50|
-| Boston|2015|         50|
-| Boston|2016|        150|
-| Boston|null|        200|
-|   null|2015|         50|  <-- total in 2015 (across all cities)
-|   null|2016|        250|
-|   null|2017|        250|
-|   null|null|        550|  <-- total sales (all cities and years)
-+-------+----+-----------+
-----
-
-=== [[grouping-sets]] GROUPING SETS SQL Clause
-
-```
-GROUP BY ... GROUPING SETS (...)
++----+-----+------+
+|year|month|amount|
++----+-----+------+
+|2012|   12|     5|
+|2012| null|     5|
+|2016|    8|    10|
+|2016| null|    10|
+|2017|    5|    15|
+|2017| null|    15|
+|null| null|    30|
++----+-----+------+
 ```
 
-NOTE: `GROUPING SETS` SQL clause is parsed in link:spark-sql-AstBuilder.adoc#withAggregation[withAggregation] parsing handler in `AstBuilder`.
-
-`GROUPING SETS` SQL clause generates a result set equivalent to a `UNION ALL` of multiple simple `GROUP BY` clauses.
-
-```
-scala> sql("""
-     |   SELECT grouping_id()
-     |   FROM range(4)
-     |   GROUP BY (id % 2)
-     |   GROUPING SETS (id % 2)
-     |   """).explain(true)
-== Parsed Logical Plan ==
-'GroupingSets [ArrayBuffer(('id % 2))], [('id % 2)], [unresolvedalias('grouping_id(), None)]
-+- 'UnresolvedTableValuedFunction range, [4]
-
-== Analyzed Logical Plan ==
-grouping_id(): int
-Aggregate [(id#217L % cast(2 as bigint))#221L, spark_grouping_id#219], [spark_grouping_id#219 AS grouping_id()#218]
-+- Expand [List(id#217L, (id#217L % cast(2 as bigint))#220L, 0)], [id#217L, (id#217L % cast(2 as bigint))#221L, spark_grouping_id#219]
-   +- Project [id#217L, (id#217L % cast(2 as bigint)) AS (id#217L % cast(2 as bigint))#220L]
-      +- Range (0, 4, step=1, splits=None)
-
-== Optimized Logical Plan ==
-Aggregate [(id#217L % cast(2 as bigint))#221L, spark_grouping_id#219], [spark_grouping_id#219 AS grouping_id()#218]
-+- Expand [List((id#217L % cast(2 as bigint))#220L, 0)], [(id#217L % cast(2 as bigint))#221L, spark_grouping_id#219]
-   +- Project [(id#217L % 2) AS (id#217L % cast(2 as bigint))#220L]
-      +- Range (0, 4, step=1, splits=None)
-
-== Physical Plan ==
-*HashAggregate(keys=[(id#217L % cast(2 as bigint))#221L, spark_grouping_id#219], functions=[], output=[grouping_id()#218])
-+- Exchange hashpartitioning((id#217L % cast(2 as bigint))#221L, spark_grouping_id#219, 200)
-   +- *HashAggregate(keys=[(id#217L % cast(2 as bigint))#221L, spark_grouping_id#219], functions=[], output=[(id#217L % cast(2 as bigint))#221L, spark_grouping_id#219])
-      +- *Expand [List((id#217L % cast(2 as bigint))#220L, 0)], [(id#217L % cast(2 as bigint))#221L, spark_grouping_id#219]
-         +- *Project [(id#217L % 2) AS (id#217L % cast(2 as bigint))#220L]
-            +- *Range (0, 4, step=1, splits=None)
-```
+TIP: Review the examples per operator in the following sections.
 
 === [[rollup]] `rollup` Operator
 
@@ -149,9 +94,10 @@ NOTE: `rollup` operator is equivalent to `GROUP BY \... WITH ROLLUP` in SQL (whi
 ----
 val sales = Seq(
   ("Warsaw", 2016, 100),
-  ("Warsaw", 2017, 80),
-  ("Boston", 2015, 180),
-  ("Toronto", 2016, 200)
+  ("Warsaw", 2017, 200),
+  ("Boston", 2015, 50),
+  ("Boston", 2016, 150),
+  ("Toronto", 2017, 50)
 ).toDF("city", "year", "amount")
 
 val q = sales
@@ -163,13 +109,14 @@ scala> q.show
 |   city|year|amount|
 +-------+----+------+
 | Warsaw|2016|   100| <-- subtotal for Warsaw in 2016
-| Warsaw|2017|    80|
-| Warsaw|null|   180| <-- subtotal for Warsaw (across years)
-|Toronto|2016|   200|
-|Toronto|null|   200|
-| Boston|2015|   180|
-| Boston|null|   180|
-|   null|null|   560| <-- grand total
+| Warsaw|2017|   200|
+| Warsaw|null|   300| <-- subtotal for Warsaw (across years)
+|Toronto|2017|    50|
+|Toronto|null|    50|
+| Boston|2015|    50|
+| Boston|2016|   150|
+| Boston|null|   200|
+|   null|null|   550| <-- grand total
 +-------+----+------+
 
 // The above query is semantically equivalent to the following
@@ -179,9 +126,29 @@ val q1 = sales
 val q2 = sales
   .groupBy("city")          // <-- subtotals (city)
   .agg(sum("amount") as "amount")
+  .select($"city", lit(null) as "year", $"amount")  // <-- year is null
 val q3 = sales
   .groupBy()                // <-- grand total
   .agg(sum("amount") as "amount")
+  .select(lit(null) as "city", lit(null) as "year", $"amount")  // <-- city and year are null
+val qq = q1
+  .union(q2)
+  .union(q3)
+  .sort($"city".desc_nulls_last, $"year".asc_nulls_last)
+scala> qq.show
++-------+----+------+
+|   city|year|amount|
++-------+----+------+
+| Warsaw|2016|   100|
+| Warsaw|2017|   200|
+| Warsaw|null|   300|
+|Toronto|2017|    50|
+|Toronto|null|    50|
+| Boston|2015|    50|
+| Boston|2016|   150|
+| Boston|null|   200|
+|   null|null|   550|
++-------+----+------+
 ----
 
 From https://technet.microsoft.com/en-us/library/bb522495(v=sql.105).aspx[Using GROUP BY with ROLLUP, CUBE, and GROUPING SETS] in Microsoft's TechNet:
@@ -336,6 +303,123 @@ Internally, `rollup` link:spark-sql-dataset-operators.adoc#toDF[converts the `Da
 NOTE: <<Rollup, Rollup>> expression represents `GROUP BY \... WITH ROLLUP` in SQL in Spark's Catalyst Expression tree (after `AstBuilder` link:spark-sql-AstBuilder.adoc#withAggregation[parses a structured query with aggregation]).
 
 TIP: Read up on `rollup` in https://www.compose.com/articles/deeper-into-postgres-9-5-new-group-by-options-for-aggregation/[Deeper into Postgres 9.5 - New Group By Options for Aggregation].
+
+=== [[cube]] `cube` Operator
+
+[source, scala]
+----
+cube(cols: Column*): RelationalGroupedDataset
+cube(col1: String, cols: String*): RelationalGroupedDataset
+----
+
+`cube` multi-dimensional aggregate operator is an extension of link:spark-sql-basic-aggregation.adoc#groupBy[groupBy] operator that allows calculating subtotals and a grand total across all combinations of specified group of `n + 1` dimensions (with `n` being the number of columns as `cols` and `col1` and `1` for where values become `null`, i.e. undefined).
+
+`cube` returns link:spark-sql-RelationalGroupedDataset.adoc[RelationalGroupedDataset] that you can use to execute aggregate function or operator.
+
+NOTE: `cube` is more than <<rollup, rollup>> operator, i.e. `cube` does `rollup` with aggregation over all the missing combinations given the columns.
+
+[source, scala]
+----
+val sales = Seq(
+  ("Warsaw", 2016, 100),
+  ("Warsaw", 2017, 200),
+  ("Boston", 2015, 50),
+  ("Boston", 2016, 150),
+  ("Toronto", 2017, 50)
+).toDF("city", "year", "amount")
+
+val q = sales.cube("city", "year")
+  .agg(sum("amount") as "amount")
+  .sort($"city".desc_nulls_last, $"year".asc_nulls_last)
+scala> q.show
++-------+----+------+
+|   city|year|amount|
++-------+----+------+
+| Warsaw|2016|   100|  <-- total in Warsaw in 2016
+| Warsaw|2017|   200|  <-- total in Warsaw in 2017
+| Warsaw|null|   300|  <-- total in Warsaw (across all years)
+|Toronto|2017|    50|
+|Toronto|null|    50|
+| Boston|2015|    50|
+| Boston|2016|   150|
+| Boston|null|   200|
+|   null|2015|    50|  <-- total in 2015 (across all cities)
+|   null|2016|   250|
+|   null|2017|   250|
+|   null|null|   550|  <-- grand total (across cities and years)
++-------+----+------+
+----
+
+=== [[grouping-sets]] GROUPING SETS SQL Clause
+
+```
+GROUP BY ... GROUPING SETS (...)
+```
+
+`GROUPING SETS` clause generates a dataset that is equivalent to `union` operator of multiple link:spark-sql-basic-aggregation.adoc#groupBy[groupBy] operators.
+
+```
+val sales = Seq(
+  ("Warsaw", 2016, 100),
+  ("Warsaw", 2017, 200),
+  ("Boston", 2015, 50),
+  ("Boston", 2016, 150),
+  ("Toronto", 2017, 50)
+).toDF("city", "year", "amount")
+sales.createOrReplaceTempView("sales")
+
+// equivalent to rollup("city", "year")
+val q = sql("""
+  SELECT city, year, sum(amount) as amount
+  FROM sales
+  GROUP BY city, year
+  GROUPING SETS ((city, year), (city), ())
+  ORDER BY city DESC NULLS LAST, year ASC NULLS LAST
+  """)
+scala> q.show
++-------+----+------+
+|   city|year|amount|
++-------+----+------+
+| Warsaw|2016|   100|
+| Warsaw|2017|   200|
+| Warsaw|null|   300|
+|Toronto|2017|    50|
+|Toronto|null|    50|
+| Boston|2015|    50|
+| Boston|2016|   150|
+| Boston|null|   200|
+|   null|null|   550|  <-- grand total across all cities and years
++-------+----+------+
+
+// equivalent to cube("city", "year")
+// note the additional (year) grouping set
+val q = sql("""
+  SELECT city, year, sum(amount) as amount
+  FROM sales
+  GROUP BY city, year
+  GROUPING SETS ((city, year), (city), (year), ())
+  ORDER BY city DESC NULLS LAST, year ASC NULLS LAST
+  """)
+scala> q.show
++-------+----+------+
+|   city|year|amount|
++-------+----+------+
+| Warsaw|2016|   100|
+| Warsaw|2017|   200|
+| Warsaw|null|   300|
+|Toronto|2017|    50|
+|Toronto|null|    50|
+| Boston|2015|    50|
+| Boston|2016|   150|
+| Boston|null|   200|
+|   null|2015|    50|  <-- total across all cities in 2015
+|   null|2016|   250|  <-- total across all cities in 2016
+|   null|2017|   250|  <-- total across all cities in 2017
+|   null|null|   550|
++-------+----+------+
+```
+
+Internally, `GROUPING SETS` clause is parsed in link:spark-sql-AstBuilder.adoc#withAggregation[withAggregation] parsing handler (in `AstBuilder`) and becomes a link:spark-sql-LogicalPlan-GroupingSets.adoc[GroupingSets] logical operator internally.
 
 === [[Rollup]] `Rollup` GroupingSet with CodegenFallback Expression (for `rollup` Operator)
 
