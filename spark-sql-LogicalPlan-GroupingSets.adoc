@@ -1,0 +1,73 @@
+== [[GroupingSets]] GroupingSets Unary Logical Operator
+
+`GroupingSets` is a link:spark-sql-LogicalPlan.adoc#UnaryNode[unary logical operator] that represents SQL's link:spark-sql-AstBuilder.adoc#withAggregation[GROUPING SETS] variant of `GROUP BY` clause.
+
+```
+val q = sql("""
+  SELECT customer, year, SUM(sales)
+  FROM VALUES ("abc", 2017, 30) AS t1 (customer, year, sales)
+  GROUP BY customer, year
+  GROUPING SETS ((customer), (year))
+  """)
+scala> println(q.queryExecution.logical.numberedTreeString)
+00 'GroupingSets [ArrayBuffer('customer), ArrayBuffer('year)], ['customer, 'year], ['customer, 'year, unresolvedalias('SUM('sales), None)]
+01 +- 'SubqueryAlias t1
+02    +- 'UnresolvedInlineTable [customer, year, sales], [List(abc, 2017, 30)]
+```
+
+`GroupingSets` operator is resolved to an `Aggregate` (with `Expand`) logical operator at <<analyzer, analysis phase>>.
+
+```
+scala> println(q.queryExecution.analyzed.numberedTreeString)
+00 Aggregate [customer#8, year#9, spark_grouping_id#5], [customer#8, year#9, sum(cast(sales#2 as bigint)) AS sum(sales)#4L]
+01 +- Expand [List(customer#0, year#1, sales#2, customer#6, null, 1), List(customer#0, year#1, sales#2, null, year#7, 2)], [customer#0, year#1, sales#2, customer#8, year#9, spark_grouping_id#5]
+02    +- Project [customer#0, year#1, sales#2, customer#0 AS customer#6, year#1 AS year#7]
+03       +- SubqueryAlias t1
+04          +- LocalRelation [customer#0, year#1, sales#2]
+```
+
+NOTE: `GroupingSets` can only be created using SQL.
+
+NOTE: `GroupingSets` is not supported on Structured Streaming's link:spark-sql-LogicalPlan.adoc#isStreaming[streaming Datasets].
+
+[[resolved]]
+`GroupingSets` is never resolved (as it can only be converted to an `Aggregate` logical operator).
+
+[[output]]
+``GroupingSets``'s output link:spark-sql-catalyst-Attribute.adoc[attributes] are the attributes of <<aggregations, aggregate named expressions>>.
+
+=== [[analyzer]] Analysis Phase
+
+`GroupingSets` operator is resolved at link:spark-sql-Analyzer.adoc[analysis phase] in the following logical evaluation rules:
+
+* link:spark-sql-Analyzer.adoc#ResolveAliases[ResolveAliases] for unresolved aliases in <<aggregations, aggregate named expressions>>
+
+* link:spark-sql-Analyzer.adoc#ResolveGroupingAnalytics[ResolveGroupingAnalytics]
+
+`GroupingSets` operator "disappears" behind (i.e. is converted to) an link:spark-sql-LogicalPlan-Aggregate.adoc[Aggregate] with `Expand` logical operators.
+
+[source, scala]
+----
+val spark: SparkSession = ...
+// using q from the example above
+val plan = q.queryExecution.logical
+
+scala> println(plan.numberedTreeString)
+00 'GroupingSets [ArrayBuffer('customer), ArrayBuffer('year)], ['customer, 'year], ['customer, 'year, unresolvedalias('SUM('sales), None)]
+01 +- 'SubqueryAlias t1
+02    +- 'UnresolvedInlineTable [customer, year, sales], [List(abc, 2017, 30)]
+
+// Note unresolvedalias for SUM expression
+// Note UnresolvedInlineTable and SubqueryAlias
+
+// FIXME Show the evaluation rules to get rid of the unresolvable parts
+----
+
+=== [[creating-instance]] Creating GroupingSets Instance
+
+`GroupingSets` takes the following when created:
+
+* [[selectedGroupByExprs]] link:spark-sql-catalyst-Expression.adoc[Expressions] from `GROUPING SETS` clause
+* [[groupByExprs]] Grouping link:spark-sql-catalyst-Expression.adoc[expressions] from `GROUP BY` clause
+* [[child]] Child link:spark-sql-LogicalPlan.adoc[logical operator]
+* [[aggregations]] Aggregate link:spark-sql-catalyst-Expression.adoc#NamedExpression[named expressions]
