@@ -1,21 +1,115 @@
 == [[Analyzer]] Analyzer -- Logical Query Plan Analyzer
 
-`Analyzer` is a logical query plan analyzer in Spark SQL that `QueryExecution` uses to link:spark-sql-QueryExecution.adoc#analyzed[resolve the managed `LogicalPlan`] (and, as a sort of follow-up, link:spark-sql-QueryExecution.adoc#assertAnalyzed[assert that a structured query has already been properly analyzed], i.e. no failed or unresolved or somehow broken logical plan operators and expressions exist).
+`Analyzer` is a *logical query plan analyzer* in Spark SQL that semantically validates and transforms an link:spark-sql-LogicalPlan.adoc[unresolved logical plan] to an *analyzed logical plan* (with fully-typed relational entities) using <<batches, logical evaluation rules>>.
 
-[[execute]]
-`Analyzer` is a link:spark-sql-catalyst-RuleExecutor.adoc[RuleExecutor] that defines the <<batches, collection of logical plan evaluation rules>> (i.e. resolving, removing, and in general modifying it).
+```
+Analyzer: Unresolved Logical Plan ==> Analyzed Logical Plan
+```
 
-NOTE: The result of applying the <<batches, batches>> of `Analyzer` to a link:spark-sql-LogicalPlan.adoc[LogicalPlan] is called *analyzed logical plan*.
-
-`Analyzer` <<creating-instance, is created>> when link:spark-sql-SessionState.adoc#apply[SessionState] is.
-
-`Analyzer` is available as link:spark-sql-SessionState.adoc#analyzer[analyzer] of a `SessionState`.
+You can access a session-specific `Analyzer` through link:spark-sql-SessionState.adoc#analyzer[SessionState].
 
 [source, scala]
 ----
 val spark: SparkSession = ...
 spark.sessionState.analyzer
 ----
+
+You can access the analyzed logical plan of a `Dataset` using link:spark-sql-dataset-operators.adoc#explain[explain] (with `extended` flag enabled) or SQL's `EXPLAIN EXTENDED` operators.
+
+[source, scala]
+----
+// sample Dataset
+val inventory = spark.range(5)
+  .withColumn("new_column", 'id + 5 as "plus5")
+
+// Using explain operator (with extended flag enabled)
+scala> inventory.explain(extended = true)
+== Parsed Logical Plan ==
+'Project [*, ('id + 5) AS plus5#81 AS new_column#82]
++- Range (0, 5, step=1, splits=Some(8))
+
+== Analyzed Logical Plan ==
+id: bigint, new_column: bigint
+Project [id#78L, (id#78L + cast(5 as bigint)) AS new_column#82L]
++- Range (0, 5, step=1, splits=Some(8))
+
+== Optimized Logical Plan ==
+Project [id#78L, (id#78L + 5) AS new_column#82L]
++- Range (0, 5, step=1, splits=Some(8))
+
+== Physical Plan ==
+*Project [id#78L, (id#78L + 5) AS new_column#82L]
++- *Range (0, 5, step=1, splits=8)
+----
+
+Alternatively, you can also access the analyzed logical plan through ``QueryExecution``'s link:spark-sql-QueryExecution.adoc#analyzed[analyzed] attribute (that together with `numberedTreeString` method is a very good "debugging" tool).
+
+[source, scala]
+----
+// With numberedTreeString to...please your eyes :)
+scala> println(inventory.queryExecution.analyzed.numberedTreeString)
+00 Project [id#78L, (id#78L + cast(5 as bigint)) AS new_column#82L]
+01 +- Range (0, 5, step=1, splits=Some(8))
+----
+
+`Analyzer` defines <<extendedResolutionRules, extendedResolutionRules>> extension point for additional logical evaluation rules that a custom `Analyzer` can use to extend the <<Resolution, Resolution>> batch. The rules are added at the end of the `Resolution` batch.
+
+NOTE: link:spark-sql-SessionState.adoc[SessionState] uses its own `Analyzer` with custom <<extendedResolutionRules, extendedResolutionRules>>, <<postHocResolutionRules, postHocResolutionRules>>, and <<extendedCheckRules, extendedCheckRules>> extension methods.
+
+`Analyzer` is <<creating-instance, created>> while its owning link:spark-sql-SessionState.adoc#apply[SessionState] is.
+
+[[internal-registries]]
+.Analyzer's Internal Registries and Counters (in alphabetical order)
+[cols="1,2",options="header",width="100%"]
+|===
+| Name
+| Description
+
+| [[extendedResolutionRules]] `extendedResolutionRules`
+| Additional link:spark-sql-catalyst-RuleExecutor.adoc#Rule[rules] for <<Resolution, Resolution>> batch. Empty by default
+
+| [[fixedPoint]] `fixedPoint`
+| `FixedPoint` with <<maxIterations, maxIterations>> for <<Hints, Hints>>, <<Substitution, Substitution>>, <<Resolution, Resolution>> and <<Cleanup, Cleanup>> batches.
+
+Set when `Analyzer` <<creating-instance, is created>> (and can be defined explicitly or through link:spark-sql-CatalystConf.adoc#optimizerMaxIterations[optimizerMaxIterations] configuration setting.
+
+| [[postHocResolutionRules]] `postHocResolutionRules`
+| The only link:spark-sql-catalyst-RuleExecutor.adoc#Rule[rules] in <<Post-Hoc-Resolution, Post-Hoc Resolution>> batch if defined (that are executed in one pass, i.e. `Once` strategy). Empty by default
+|===
+
+`Analyzer` is used by `QueryExecution` to link:spark-sql-QueryExecution.adoc#analyzed[resolve the managed `LogicalPlan`] (and, as a sort of follow-up, link:spark-sql-QueryExecution.adoc#assertAnalyzed[assert that a structured query has already been properly analyzed], i.e. no failed or unresolved or somehow broken logical plan operators and expressions exist).
+
+[TIP]
+====
+Enable `TRACE` or `DEBUG` logging levels for the respective session-specific loggers to see what happens inside `Analyzer`.
+
+* `pass:[org.apache.spark.sql.internal.SessionState$$anon$1]`
+
+* `pass:[org.apache.spark.sql.hive.HiveSessionStateBuilder$$anon$1]` when link:spark-sql-SparkSession.adoc#enableHiveSupport[Hive support is enabled]
+
+Add the following line to `conf/log4j.properties`:
+
+```
+# with no Hive support
+log4j.logger.org.apache.spark.sql.internal.SessionState$$anon$1=TRACE
+
+# with Hive support enabled
+log4j.logger.org.apache.spark.sql.hive.HiveSessionStateBuilder$$anon$1=DEBUG
+```
+
+Refer to link:spark-logging.adoc[Logging].
+
+---
+
+The reason for such weird-looking logger names is that `analyzer` attribute is created as an anonymous subclass of `Analyzer` class in the respective `SessionStates`.
+====
+
+=== [[execute]] Executing Logical Evaluation Rules -- `execute` Method
+
+`Analyzer` is a link:spark-sql-catalyst-RuleExecutor.adoc[RuleExecutor] that defines the <<batches, logical evaluation rules>> (i.e. resolving, removing, and in general modifying it), e.g.
+
+* Resolves unresolved <<ResolveRelations, relations>> and <<ResolveFunctions, functions>> (including `UnresolvedGenerators`) using provided <<catalog, SessionCatalog>>
+* ...
 
 [[batches]]
 .Analyzer's Batches and Logical Evaluation Rules (in the order of execution)
@@ -36,7 +130,7 @@ spark.sessionState.analyzer
 
 ^.^| Simple Sanity Check
 ^.^| `Once`
-| LookupFunctions
+| [[LookupFunctions]] LookupFunctions
 | Checks whether a function identifier (referenced by an link:spark-sql-LogicalPlan-UnresolvedFunction.adoc[UnresolvedFunction]) link:spark-sql-SessionCatalog.adoc#functionExists[exists in the function registry]. Throws a `NoSuchFunctionException` if not.
 
 .4+^.^| [[Substitution]] Substitution
@@ -68,7 +162,7 @@ NOTE: The analysis failure is unlikely to happen given `AstBuilder` link:spark-s
 | ResolveTableValuedFunctions
 | Replaces `UnresolvedTableValuedFunction` with table-valued function.
 
-| ResolveRelations
+| [[ResolveRelations]] ResolveRelations
 | Resolves `InsertIntoTable` and link:spark-sql-LogicalPlan-UnresolvedRelation.adoc[UnresolvedRelation] operators
 
 | ResolveReferences
@@ -205,93 +299,6 @@ NOTE: Multiple distinct time window expressions are not currently supported (and
 |===
 
 TIP: Consult the https://github.com/apache/spark/blob/master/sql/catalyst/src/main/scala/org/apache/spark/sql/catalyst/analysis/Analyzer.scala#L116-L167[sources of `Analyzer`] for the up-to-date list of the evaluation rules.
-
-`Analyzer` resolves unresolved attributes and relations to typed objects using information from a link:spark-sql-SessionCatalog.adoc[SessionCatalog] and link:spark-sql-FunctionRegistry.adoc[FunctionRegistry].
-
-NOTE: link:spark-sql-SessionState.adoc[SessionState] uses its own `Analyzer` with custom <<extendedResolutionRules, extendedResolutionRules>>, <<postHocResolutionRules, postHocResolutionRules>>, and <<extendedCheckRules, extendedCheckRules>> extension methods.
-
-`Analyzer` defines <<extendedResolutionRules, extendedResolutionRules>> extension that is a collection of rules (that process a `LogicalPlan`) as an extension point that a custom `Analyzer` can use to extend the `Resolution` batch. The collection of rules is added at the end of the `Resolution` batch.
-
-You can access the result of applying the <<batches, batches>> of `Analyzer` to the link:spark-sql-LogicalPlan.adoc[logical plan] of a link:spark-sql-Dataset.adoc[Dataset], i.e. *analyzed logical plan*, using link:spark-sql-dataset-operators.adoc#explain[explain] (with `extended` flag enabled) or SQL's `EXPLAIN EXTENDED` operators.
-
-[source, scala]
-----
-// sample Dataset
-val dataset = spark.range(5).withColumn("new_column", 'id + 5 as "plus5")
-
-// Using explain operator (with extended flag enabled)
-scala> dataset.explain(extended = true)
-== Parsed Logical Plan ==
-'Project [*, ('id + 5) AS plus5#148 AS new_column#149]
-+- Range (0, 5, step=1, splits=Some(8))
-
-== Analyzed Logical Plan ==
-id: bigint, new_column: bigint
-Project [id#145L, (id#145L + cast(5 as bigint)) AS new_column#149L]
-+- Range (0, 5, step=1, splits=Some(8))
-
-== Optimized Logical Plan ==
-Project [id#145L, (id#145L + 5) AS new_column#149L]
-+- Range (0, 5, step=1, splits=Some(8))
-
-== Physical Plan ==
-*Project [id#145L, (id#145L + 5) AS new_column#149L]
-+- *Range (0, 5, step=1, splits=Some(8))
-----
-
-Alternatively, you can also access the analyzed logical plan through ``QueryExecution``'s link:spark-sql-QueryExecution.adoc#analyzed[analyzed] attribute.
-
-[source, scala]
-----
-scala> dataset.queryExecution.analyzed
-res14: org.apache.spark.sql.catalyst.plans.logical.LogicalPlan =
-Project [id#145L, (id#145L + cast(5 as bigint)) AS new_column#149L]
-+- Range (0, 5, step=1, splits=Some(8))
-----
-
-[[internal-registries]]
-.Analyzer's Internal Registries and Counters (in alphabetical order)
-[cols="1,2",options="header",width="100%"]
-|===
-| Name
-| Description
-
-| [[extendedResolutionRules]] `extendedResolutionRules`
-| Additional link:spark-sql-catalyst-RuleExecutor.adoc#Rule[rules] for <<Resolution, Resolution>> batch. Empty by default
-
-| [[fixedPoint]] `fixedPoint`
-| `FixedPoint` with <<maxIterations, maxIterations>> for <<Hints, Hints>>, <<Substitution, Substitution>>, <<Resolution, Resolution>> and <<Cleanup, Cleanup>> batches.
-
-Set when `Analyzer` <<creating-instance, is created>> (and can be defined explicitly or through link:spark-sql-CatalystConf.adoc#optimizerMaxIterations[optimizerMaxIterations] configuration setting.
-
-| [[postHocResolutionRules]] `postHocResolutionRules`
-| The only link:spark-sql-catalyst-RuleExecutor.adoc#Rule[rules] in <<Post-Hoc-Resolution, Post-Hoc Resolution>> batch if defined (that are executed in one pass, i.e. `Once` strategy). Empty by default
-|===
-
-[TIP]
-====
-Enable `TRACE` or `DEBUG` logging levels for the respective loggers to see what happens inside `Analyzer`.
-
-* `pass:[org.apache.spark.sql.hive.HiveSessionStateBuilder$$anon$1]` when link:spark-sql-SparkSession.adoc#enableHiveSupport[Hive support is enabled]
-
-* `pass:[org.apache.spark.sql.internal.SessionState$$anon$1]`
-
-Add the following line to `conf/log4j.properties`:
-
-```
-# with no Hive support
-log4j.logger.org.apache.spark.sql.internal.SessionState$$anon$1=TRACE
-
-# with Hive support enabled
-log4j.logger.org.apache.spark.sql.hive.HiveSessionStateBuilder$$anon$1=DEBUG
-```
-
-Refer to link:spark-logging.adoc[Logging].
-
----
-
-The reason for such weird-looking logger names is that `analyzer` attribute is created as an anonymous subclass of `Analyzer` class in the respective `SessionStates`.
-====
 
 === [[creating-instance]] Creating Analyzer Instance
 
