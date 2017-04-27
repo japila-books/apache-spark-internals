@@ -1,8 +1,9 @@
-== [[Expression]] Expression
+== [[Expression]] Expression -- Executable Node in Catalyst Tree
 
-`Expression` in Catalyst is described by the <<contract, Expression contract>> and represents a part of a structured query.
+`Expression` is a link:spark-sql-catalyst-TreeNode.adoc[node] (in a Catalyst tree) that represents a computation that can be <<eval, evaluated>> to a value given input values, i.e. can produce JVM objects for every `InternalRow` (in a link:spark-sql-Dataset.adoc[Dataset]).
 
-.Top-Level Expressions
+[[specialized-expressions]]
+.Specialized Expressions
 [cols="1,2,2,1",options="header",width="100%"]
 |===
 | Name
@@ -73,35 +74,85 @@ a|
 
 === [[contract]] Expression Contract
 
-The contract of an expression in Spark SQL is described by the `Expression` abstract class.
-
 [source, scala]
 ----
-abstract class Expression extends TreeNode[Expression]
+abstract class Expression extends TreeNode[Expression] {
+  // only required methods with no implementation
+  def nullable: Boolean
+  def eval(input: InternalRow = null): Any
+  def doGenCode(ctx: CodegenContext, ev: ExprCode): ExprCode
+  def dataType: DataType
+}
 ----
 
-A `Expression` is a `TreeNode` that obeys the following contract:
+.(Subset of) Expression Contract (in alphabetical order)
+[cols="1,2",options="header",width="100%"]
+|===
+| Method
+| Description
 
-. [[foldable]] May or may not be `foldable`.
-. It may or may not be `deterministic`.
-. It may or may not be `nullable`.
-. It uses `references`.
-. It can be ``eval``uated to a JVM object given a link:spark-sql-InternalRow.adoc[InternalRow].
-. It can `genCode` to produce a `ExprCode`.
-. [[doGenCode]] It can `doGenCode` to produce a `ExprCode`.
-. It may or may not be `resolved`.
-. It is of `dataType` link:spark-sql-DataType.adoc[data type].
-. It may or may not have `childrenResolved`.
-. It has a `canonicalized` representation.
-. It may or may not be `semanticEquals` given another `Expression`.
-. It has a `semanticHash`.
-. It can be <<checkInputDataTypes, checkInputDataTypes>>
-. It has a `prettyName`.
-. [[sql]] Can be represented in a `sql` text.
+| [[foldable]] `foldable`
+|
 
-=== [[checkInputDataTypes]] `checkInputDataTypes` Method
+| [[deterministic]] `deterministic`
+|
 
-CAUTION: FIXME
+| [[nullable]] `nullable`
+|
+
+| [[references]] `references`
+|
+
+| [[eval]] `eval`
+| Evaluates an expression to a JVM object for a link:spark-sql-InternalRow.adoc[InternalRow]
+
+| [[genCode]] `genCode`
+|
+
+| [[doGenCode]] `doGenCode`
+|
+
+| [[resolved]] `resolved`
+|
+
+| [[dataType]] `dataType`
+|
+
+| [[childrenResolved]] `childrenResolved`
+|
+
+| [[canonicalized]] `canonicalized`
+|
+
+| [[semanticEquals]] `semanticEquals`
+|
+
+| [[semanticHash]] `semanticHash`
+|
+
+| [[checkInputDataTypes]] `checkInputDataTypes`
+|
+
+| [[prettyName]] `prettyName`
+|
+
+| [[sql]] `sql`
+a| SQL representation
+
+<<prettyName, prettyName>> followed by `sql` of <<children, children>> in the round brackets and concatenated using the comma (`,`), e.g.
+
+```
+import org.apache.spark.sql.catalyst.dsl.expressions._
+import org.apache.spark.sql.catalyst.expressions.Sentences
+val sentences = Sentences("Hi there! Good morning.", "en", "US")
+
+import org.apache.spark.sql.catalyst.expressions.Expression
+val expr: Expression = count("*") === 5 && count(sentences) === 5
+scala> expr.sql
+res0: String = ((count('*') = 5) AND (count(sentences('Hi there! Good morning.', 'en', 'US')) = 5))
+```
+
+|===
 
 === [[Nondeterministic]] `Nondeterministic` Expression
 
