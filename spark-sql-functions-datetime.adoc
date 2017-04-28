@@ -66,14 +66,55 @@ CAUTION: FIXME
 
 [source, scala]
 ----
-unix_timestamp(): Column
-unix_timestamp(s: Column): Column
-unix_timestamp(s: Column, p: String): Column
+unix_timestamp(): Column  // <1>
+unix_timestamp(time: Column): Column // <2>
+unix_timestamp(time: Column, format: String): Column
 ----
+<1> Gives current timestamp in `yyyy-MM-dd HH:mm:ss` format
+<2> Converts `time` string in format `yyyy-MM-dd HH:mm:ss` to Unix timestamp (in seconds)
 
-CAUTION: FIXME
+`unix_timestamp` converts current or specified `time` in `format` to Unix timestamp (in seconds).
 
-Internally, `unix_timestamp` is link:spark-sql-Expression-UnixTimestamp.adoc[UnixTimestamp] binary expression.
+```
+// no time and format => current time
+scala> spark.range(1).select(unix_timestamp as "current_timestamp").show
++-----------------+
+|current_timestamp|
++-----------------+
+|       1493362850|
++-----------------+
+
+// no format so yyyy-MM-dd HH:mm:ss assumed
+scala> Seq("2017-01-01 00:00:00").toDF("time").withColumn("unix_timestamp", unix_timestamp($"time")).show
++-------------------+--------------+
+|               time|unix_timestamp|
++-------------------+--------------+
+|2017-01-01 00:00:00|    1483225200|
++-------------------+--------------+
+
+scala> Seq("2017/01/01 00:00:00").toDF("time").withColumn("unix_timestamp", unix_timestamp($"time", "yyyy/MM/dd")).show
++-------------------+--------------+
+|               time|unix_timestamp|
++-------------------+--------------+
+|2017/01/01 00:00:00|    1483225200|
++-------------------+--------------+
+```
+
+`unix_timestamp` returns `null` if conversion fails.
+
+```
+// note slashes as date separators
+scala> Seq("2017/01/01 00:00:00").toDF("time").withColumn("unix_timestamp", unix_timestamp($"time")).show
++-------------------+--------------+
+|               time|unix_timestamp|
++-------------------+--------------+
+|2017/01/01 00:00:00|          null|
++-------------------+--------------+
+```
+
+NOTE: `unix_timestamp` is also supported in link:spark-sql-SparkSession.adoc#sql[SQL mode].
+
+Internally, `unix_timestamp` creates a link:spark-sql-Column.adoc[Column] with link:spark-sql-Expression-UnixTimestamp.adoc[UnixTimestamp] binary expression (possibly with `CurrentTimestamp`).
 
 === [[window]] Generating Tumbling Time Windows -- `window` Function
 
