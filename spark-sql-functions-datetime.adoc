@@ -1,0 +1,128 @@
+== Standard Functions for Date and Time
+
+[[standard-functions]]
+.(Subset of) Standard Functions for Date and Time
+[align="center",cols="1,2",width="100%",options="header"]
+|===
+| Name
+| Description
+
+| <<current_timestamp, current_timestamp>>
+|
+
+| <<to_date, to_date>>
+|
+
+| <<to_timestamp, to_timestamp>>
+|
+
+| <<unix_timestamp, unix_timestamp>>
+| Gives current or converts specified time in format to Unix timestamp (in seconds).
+
+| <<window, window>>
+| Generating tumbling time windows
+|===
+
+=== [[current_date]] `current_date` Function
+
+[source, scala]
+----
+to_date(e: Column, fmt: String): Column
+----
+
+CAUTION: FIXME
+
+=== [[current_timestamp]] `current_timestamp` Function
+
+[source, scala]
+----
+current_timestamp(): Column
+----
+
+CAUTION: FIXME
+
+NOTE: `current_timestamp` is also `now` function in SQL.
+
+=== [[to_date]] `to_date` Function
+
+[source, scala]
+----
+to_date(e: Column, fmt: String): Column
+----
+
+CAUTION: FIXME
+
+=== [[to_timestamp]] `to_timestamp` Function
+
+[source, scala]
+----
+to_timestamp(s: Column): Column
+to_timestamp(s: Column, fmt: String): Column
+----
+
+CAUTION: FIXME
+
+=== [[unix_timestamp]] Converting Current or Specified Time to Unix Timestamp -- `unix_timestamp` Function
+
+[source, scala]
+----
+unix_timestamp(): Column
+unix_timestamp(s: Column): Column
+unix_timestamp(s: Column, p: String): Column
+----
+
+CAUTION: FIXME
+
+Internally, `unix_timestamp` is link:spark-sql-Expression-UnixTimestamp.adoc[UnixTimestamp] binary expression.
+
+=== [[window]] Generating Tumbling Time Windows -- `window` Function
+
+[source, scala]
+----
+window(
+  timeColumn: Column,
+  windowDuration: String): Column  // <1>
+window(
+  timeColumn: Column,
+  windowDuration: String,
+  slideDuration: String): Column   // <2>
+window(
+  timeColumn: Column,
+  windowDuration: String,
+  slideDuration: String,
+  startTime: String): Column
+----
+<1> With `slideDuration` as `windowDuration` and `0 second` for `startTime`
+<2> With `0 second` for `startTime`
+
+`window` generates tumbling time windows of `windowDuration` duration given a `timeColumn` timestamp specifying column.
+
+[source, scala]
+----
+scala> val timeColumn = window('time, "5 seconds")
+timeColumn: org.apache.spark.sql.Column = timewindow(time, 5000000, 5000000, 0) AS `window`
+----
+
+`timeColumn` has to be of link:spark-sql-DataType.adoc#TimestampType[TimestampType], i.e. with https://docs.oracle.com/javase/8/docs/api/java/sql/Timestamp.html[java.sql.Timestamp] values.
+
+TIP: Use link:++https://docs.oracle.com/javase/8/docs/api/java/sql/Timestamp.html#from-java.time.Instant-++[java.sql.Timestamp.from] or link:++https://docs.oracle.com/javase/8/docs/api/java/sql/Timestamp.html#valueOf-java.time.LocalDateTime-++[java.sql.Timestamp.valueOf] factory methods to create `Timestamp` instances.
+
+`windowDuration` and `slideDuration` are strings specifying the width of the window for duration and sliding identifiers, respectively.
+
+TIP: Use `CalendarInterval` for valid window identifiers.
+
+NOTE: `window` is available as of Spark *2.0.0*.
+
+Internally, `window` creates a link:spark-sql-Column.adoc[Column] (with link:spark-sql-Expression-TimeWindow.adoc[TimeWindow] expression) as `window`.
+
+```
+scala> timeColumn.expr.numberedTreeString
+res9: String =
+00 timewindow('time, 5000000, 5000000, 0) AS window#1
+01 +- timewindow('time, 5000000, 5000000, 0)
+02    +- 'time
+
+import org.apache.spark.sql.catalyst.expressions.TimeWindow
+scala> val timeWindow = timeColumn.expr.children(0).asInstanceOf[TimeWindow]
+timeWindow: org.apache.spark.sql.catalyst.expressions.TimeWindow = timewindow('time, 5000000, 5000000, 0)
+```

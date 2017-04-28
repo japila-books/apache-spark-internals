@@ -44,8 +44,8 @@ res1: Long = 251
 | Parses a column with a JSON string into a link:spark-sql-StructType.adoc[StructType] or link:spark-sql-DataType.adoc#ArrayType[ArrayType] of `StructType` elements with the specified schema.
 
 1+^.^| *Date and time functions*
-| <<window, window>>
-|
+| link:spark-sql-functions-datetime.adoc#window[window]
+| Generating tumbling time windows
 
 1+^.^| *Math functions*
 | <<bin, bin>>
@@ -728,58 +728,6 @@ scala> ds.filter(filterExpr).show
 ----
 
 Internally, `expr` uses the active session's link:spark-sql-SessionState.adoc[sqlParser] or creates a new  link:spark-sql-SparkSqlParser.adoc[SparkSqlParser] to call link:spark-sql-ParserInterface.adoc#parseExpression[parseExpression] method.
-
-=== [[window]] Generating Tumbling Time Windows -- `window` Function
-
-[source, scala]
-----
-window(
-  timeColumn: Column,
-  windowDuration: String): Column  // <1>
-window(
-  timeColumn: Column,
-  windowDuration: String,
-  slideDuration: String): Column   // <2>
-window(
-  timeColumn: Column,
-  windowDuration: String,
-  slideDuration: String,
-  startTime: String): Column
-----
-<1> With `slideDuration` as `windowDuration` and `0 second` for `startTime`
-<2> With `0 second` for `startTime`
-
-`window` generates tumbling time windows of `windowDuration` duration given a `timeColumn` timestamp specifying column.
-
-[source, scala]
-----
-scala> val timeColumn = window('time, "5 seconds")
-timeColumn: org.apache.spark.sql.Column = timewindow(time, 5000000, 5000000, 0) AS `window`
-----
-
-`timeColumn` has to be of link:spark-sql-DataType.adoc#TimestampType[TimestampType], i.e. with https://docs.oracle.com/javase/8/docs/api/java/sql/Timestamp.html[java.sql.Timestamp] values.
-
-TIP: Use link:++https://docs.oracle.com/javase/8/docs/api/java/sql/Timestamp.html#from-java.time.Instant-++[java.sql.Timestamp.from] or link:++https://docs.oracle.com/javase/8/docs/api/java/sql/Timestamp.html#valueOf-java.time.LocalDateTime-++[java.sql.Timestamp.valueOf] factory methods to create `Timestamp` instances.
-
-`windowDuration` and `slideDuration` are strings specifying the width of the window for duration and sliding identifiers, respectively.
-
-TIP: Use `CalendarInterval` for valid window identifiers.
-
-NOTE: `window` is available as of Spark *2.0.0*.
-
-Internally, `window` creates a link:spark-sql-Column.adoc[Column] (with link:spark-sql-Expression-TimeWindow.adoc[TimeWindow] expression) as `window`.
-
-```
-scala> timeColumn.expr.numberedTreeString
-res9: String =
-00 timewindow('time, 5000000, 5000000, 0) AS window#1
-01 +- timewindow('time, 5000000, 5000000, 0)
-02    +- 'time
-
-import org.apache.spark.sql.catalyst.expressions.TimeWindow
-scala> val timeWindow = timeColumn.expr.children(0).asInstanceOf[TimeWindow]
-timeWindow: org.apache.spark.sql.catalyst.expressions.TimeWindow = timewindow('time, 5000000, 5000000, 0)
-```
 
 === [[grouping]] `grouping` Aggregate Function
 
