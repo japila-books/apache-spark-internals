@@ -1,0 +1,31 @@
+== [[StaticInvoke]] StaticInvoke Expression
+
+[source, scala]
+----
+case class StaticInvoke(
+  staticObject: Class[_],
+  dataType: DataType,
+  functionName: String,
+  arguments: Seq[Expression] = Nil,
+  propagateNull: Boolean = true) extends NonSQLExpression
+----
+
+`StaticInvoke` is an `Expression` with no SQL representation that represents a static method call in Scala or Java. It supports link:spark-sql-whole-stage-codegen.adoc[generating Java code] to evaluate itself.
+
+`StaticInvoke` invokes `functionName` static method on `staticObject` object with `arguments` input parameters to produce a value of `dataType` type. If `propagateNull` is enabled and any of `arguments` is `null`, `null` is the result (without calling `functionName` function).
+
+`StaticInvoke` is used in link:spark-sql-RowEncoder.adoc[RowEncoder] and Java's encoders.
+
+[source, scala]
+----
+import org.apache.spark.sql.types._
+val schema = StructType(
+  StructField("id", LongType, nullable = false) ::
+  StructField("name", StringType, nullable = false) :: Nil)
+
+import org.apache.spark.sql.catalyst.encoders.RowEncoder
+val encoder = RowEncoder(schema)
+
+scala> encoder.serializer
+res0: Seq[org.apache.spark.sql.catalyst.expressions.Expression] = List(validateexternaltype(getexternalrowfield(assertnotnull(input[0, org.apache.spark.sql.Row, true], top level row object), 0, id), LongType) AS id#69L, staticinvoke(class org.apache.spark.unsafe.types.UTF8String, StringType, fromString, validateexternaltype(getexternalrowfield(assertnotnull(input[0, org.apache.spark.sql.Row, true], top level row object), 1, name), StringType), true) AS name#70)
+----

@@ -1,6 +1,6 @@
 == [[Expression]] Expression -- Executable Node in Catalyst Tree
 
-`Expression` is a link:spark-sql-catalyst-TreeNode.adoc[node] (in a Catalyst tree) that represents a computation that can be <<eval, evaluated>> to a value given input values, i.e. can produce JVM objects for every `InternalRow` (in a link:spark-sql-Dataset.adoc[Dataset]).
+`Expression` is a executable link:spark-sql-catalyst-TreeNode.adoc[node] (in a Catalyst tree) that can be <<eval, evaluated>> to a value given input values, i.e. can produce a JVM object per `InternalRow` (in a link:spark-sql-Dataset.adoc[Dataset]).
 
 [[specialized-expressions]]
 .Specialized Expressions
@@ -14,7 +14,9 @@
 | [[BinaryExpression]] `BinaryExpression`
 | abstract class
 |
-|
+a|
+
+* link:spark-sql-Expression-UnixTimestamp.adoc[UnixTimestamp]
 
 | [[CodegenFallback]] `CodegenFallback`
 | trait
@@ -29,7 +31,10 @@
 | [[LeafExpression]] `LeafExpression`
 | abstract class
 |  Has no children, i.e. `children` method returns always an empty collection.
-|
+a|
+
+* link:spark-sql-Expression-Attribute.adoc[Attribute]
+* link:spark-sql-Expression-Literal.adoc[Literal]
 
 | [[NamedExpression]] `NamedExpression`
 |
@@ -48,7 +53,11 @@
 Gives the only custom <<sql, sql>> method that is non-overridable (i.e. `final`).
 
 When requested <<sql, SQL representation>>, `NonSQLExpression` transforms link:spark-sql-Expression-Attribute.adoc[Attributes] to be ``PrettyAttribute``s to build text representation.
-| link:spark-sql-Expression-ImperativeAggregate-ScalaUDAF.adoc[ScalaUDAF]
+a|
+
+* link:spark-sql-Expression-ImperativeAggregate-ScalaUDAF.adoc[ScalaUDAF]
+* link:spark-sql-Expression-StaticInvoke.adoc[StaticInvoke]
+* link:spark-sql-Expression-TimeWindow.adoc[TimeWindow]
 
 | [[TernaryExpression]] `TernaryExpression`
 | abstract class
@@ -58,7 +67,10 @@ When requested <<sql, SQL representation>>, `NonSQLExpression` transforms link:s
 | [[TimeZoneAwareExpression]] `TimeZoneAwareExpression`
 | trait
 | Timezone-aware expressions
-| link:spark-sql-Expression-UnixTimestamp.adoc[UnixTimestamp]
+a|
+
+* link:spark-sql-Expression-UnixTimestamp.adoc[UnixTimestamp]
+* link:spark-sql-Expression-JsonToStructs.adoc[JsonToStructs]
 
 | [[UnaryExpression]] `UnaryExpression`
 | abstract class
@@ -67,7 +79,7 @@ When requested <<sql, SQL representation>>, `NonSQLExpression` transforms link:s
 
 | [[Unevaluable]] `Unevaluable`
 | trait
-| Cannot be evaluated, i.e. `eval` and `doGenCode` are not supported and immediately report an `UnsupportedOperationException`.
+| Cannot be evaluated, i.e. `eval` and `doGenCode` are not supported and report an `UnsupportedOperationException`.
 
 Expressions that are replaced by some other expressions during analysis or optimization.
 
@@ -96,49 +108,51 @@ abstract class Expression extends TreeNode[Expression] {
 | Method
 | Description
 
-| [[foldable]] `foldable`
+| [[canonicalized]] `canonicalized`
 |
 
-| [[deterministic]] `deterministic`
-|
-
-| [[nullable]] `nullable`
-|
-
-| [[references]] `references`
-|
-
-| [[eval]] `eval`
-| Evaluates an expression to a JVM object for a link:spark-sql-InternalRow.adoc[InternalRow]
-
-| [[genCode]] `genCode`
-|
-
-| [[doGenCode]] `doGenCode`
-|
-
-| [[resolved]] `resolved`
-|
-
-| [[dataType]] `dataType`
+| [[checkInputDataTypes]] `checkInputDataTypes`
 |
 
 | [[childrenResolved]] `childrenResolved`
 |
 
-| [[canonicalized]] `canonicalized`
+| [[dataType]] `dataType`
+|
+
+| [[deterministic]] `deterministic`
+|
+
+| [[doGenCode]] `doGenCode`
+|
+
+| [[eval]] `eval`
+a| Evaluates the expression to a JVM object for a given link:spark-sql-InternalRow.adoc[InternalRow].
+
+NOTE: By default accepts `EmptyRow`, i.e. `null`.
+
+| [[foldable]] `foldable`
+|
+
+| [[genCode]] `genCode`
+|
+
+| [[nullable]] `nullable`
+|
+
+| [[prettyName]] `prettyName`
+|
+
+| [[references]] `references`
+|
+
+| [[resolved]] `resolved`
 |
 
 | [[semanticEquals]] `semanticEquals`
 |
 
 | [[semanticHash]] `semanticHash`
-|
-
-| [[checkInputDataTypes]] `checkInputDataTypes`
-|
-
-| [[prettyName]] `prettyName`
 |
 
 | [[sql]] `sql`
@@ -156,7 +170,6 @@ val expr: Expression = count("*") === 5 && count(sentences) === 5
 scala> expr.sql
 res0: String = ((count('*') = 5) AND (count(sentences('Hi there! Good morning.', 'en', 'US')) = 5))
 ```
-
 |===
 
 === [[Nondeterministic]] `Nondeterministic` Expression
