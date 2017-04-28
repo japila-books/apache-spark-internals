@@ -2,6 +2,8 @@
 
 `Expression` is a executable link:spark-sql-catalyst-TreeNode.adoc[node] (in a Catalyst tree) that can be <<eval, evaluated>> to a value given input values, i.e. can produce a JVM object per `InternalRow` (in a link:spark-sql-Dataset.adoc[Dataset]).
 
+`Expression` can <<genCode, generate a Java source code>> that is then used in evaluation.
+
 [[specialized-expressions]]
 .Specialized Expressions
 [cols="1,2,2,1",options="header",width="100%"]
@@ -30,7 +32,7 @@ a|
 
 | [[LeafExpression]] `LeafExpression`
 | abstract class
-|  Has no children, i.e. `children` method returns always an empty collection.
+| Has no link:spark-sql-catalyst-TreeNode.adoc#children[child expressions] (and hence "terminates" the expression tree).
 a|
 
 * link:spark-sql-Expression-Attribute.adoc[Attribute]
@@ -75,18 +77,24 @@ a|
 | [[UnaryExpression]] `UnaryExpression`
 | abstract class
 |
-|
+a|
+
+* link:spark-sql-Expression-Generator.adoc#ExplodeBase[ExplodeBase]
+* link:spark-sql-Expression-JsonToStructs.adoc[JsonToStructs]
 
 | [[Unevaluable]] `Unevaluable`
 | trait
-| Cannot be evaluated, i.e. `eval` and `doGenCode` are not supported and report an `UnsupportedOperationException`.
+| Cannot be evaluated, i.e. <<eval, eval>> and <<doGenCode, doGenCode>> are not supported and report an `UnsupportedOperationException`.
 
-Expressions that are replaced by some other expressions during analysis or optimization.
+Replaced by some other expressions during link:spark-sql-Analyzer.adoc[analysis] or link:spark-sql-Optimizer.adoc[optimization].
 
 a|
 
+* link:spark-sql-Expression-AggregateExpression.adoc[AggregateExpression]
 * `CurrentDatabase`
+* link:spark-sql-Expression-TimeWindow.adoc[TimeWindow]
 * link:spark-sql-Expression-WindowExpression.adoc[WindowExpression]
+* link:spark-sql-Expression-WindowSpecDefinition.adoc[WindowSpecDefinition]
 |===
 
 === [[contract]] Expression Contract
@@ -124,7 +132,9 @@ abstract class Expression extends TreeNode[Expression] {
 |
 
 | [[doGenCode]] `doGenCode`
-|
+| Generates a Java source code (that is used to <<eval, evaluate the expression>>).
+
+Used as part of <<genCode, genCode>>.
 
 | [[eval]] `eval`
 a| Evaluates the expression to a JVM object for a given link:spark-sql-InternalRow.adoc[InternalRow].
@@ -135,7 +145,9 @@ NOTE: By default accepts `EmptyRow`, i.e. `null`.
 |
 
 | [[genCode]] `genCode`
-|
+| Generates a Java source code (that is used to <<eval, evaluate the expression>>).
+
+Similar to <<doGenCode, doGenCode>> but supports expression reuse (aka _subexpression elimination_).
 
 | [[nullable]] `nullable`
 |
@@ -158,7 +170,7 @@ NOTE: By default accepts `EmptyRow`, i.e. `null`.
 | [[sql]] `sql`
 a| SQL representation
 
-<<prettyName, prettyName>> followed by `sql` of <<children, children>> in the round brackets and concatenated using the comma (`,`), e.g.
+<<prettyName, prettyName>> followed by `sql` of link:spark-sql-catalyst-TreeNode.adoc#children[children] in the round brackets and concatenated using the comma (`,`), e.g.
 
 ```
 import org.apache.spark.sql.catalyst.dsl.expressions._
