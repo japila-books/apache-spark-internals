@@ -1,8 +1,8 @@
 == [[QueryExecution]] QueryExecution -- Query Execution of Dataset
 
-`QueryExecution` represents the structured query execution of a link:spark-sql-Dataset.adoc[Dataset] (that, once an action is executed, will "produce" the records as `RDD[InternalRow]`).
+`QueryExecution` represents the <<execution-pipeline, structured query execution pipeline>> of a link:spark-sql-Dataset.adoc[Dataset].
 
-NOTE: `QueryExecution` is a transient feature of a link:spark-sql-Dataset.adoc[Dataset], i.e. it is not preserved across serializations.
+NOTE: When an action of a `Dataset` is executed, that triggers an execution of `QueryExecution` (in the form of calling <<toRdd, toRdd>>) which will morph itself into a `RDD` of link:spark-sql-InternalRow.adoc[binary rows], i.e. `RDD[InternalRow]`.
 
 You can access the `QueryExecution` of a `Dataset` using link:spark-sql-Dataset.adoc#queryExecution[queryExecution] attribute.
 
@@ -14,8 +14,9 @@ val queryExec = ds.queryExecution
 
 `QueryExecution` is the result of link:spark-sql-SessionState.adoc#executePlan[executing a `LogicalPlan` in a `SparkSession`] (and so you could create a `Dataset` from a link:spark-sql-LogicalPlan.adoc[logical operator] or use the `QueryExecution` after executing a logical operator).
 
+[[execution-pipeline]]
 [[attributes]]
-.QueryExecution's (Lazily-Initialized) Attributes (aka Plan Processing Pipeline)
+.QueryExecution's (Lazily-Initialized) Attributes (aka Structured Query Execution Pipeline)
 [cols="1,3",options="header",width="100%"]
 |===
 | Attribute
@@ -40,10 +41,17 @@ NOTE: `sparkPlan` is the first physical plan from the collection of all possible
 NOTE: It is guaranteed that Catalyst's `QueryPlanner` (which `SparkPlanner` extends) link:spark-sql-catalyst-QueryPlanner.adoc#plan[will always generate at least one physical plan].
 
 | [[executedPlan]] `executedPlan`
-| link:spark-sql-SparkPlan.adoc[Physical plan] ready for execution, i.e. <<sparkPlan, sparkPlan>> after <<prepareForExecution, all the preparation rules applied>>.
+| link:spark-sql-SparkPlan.adoc[Physical plan] ready for execution (<<sparkPlan, sparkPlan>> after <<prepareForExecution, all the preparation rules applied>>).
 
 | [[toRdd]] `toRdd`
-| `RDD` of link:spark-sql-InternalRow.adoc[InternalRow] records after link:spark-sql-SparkPlan.adoc#execute[executing] the <<executedPlan, SparkPlan>>.
+a| `RDD` of link:spark-sql-InternalRow.adoc[binary rows] (after link:spark-sql-SparkPlan.adoc#execute[executing] the <<executedPlan, executedPlan>>).
+
+[NOTE]
+====
+`toRdd` is a "boundary" between two Spark modules: Spark SQL and Spark Core.
+
+After you have executed `toRdd` (directly or not), you basically "leave" Spark SQL's Datasets and "enter" Spark Core's RDD space.
+====
 |===
 
 You can access the lazy attributes as follows:
@@ -91,9 +99,9 @@ WholeStageCodegen
 :  +- Range 0, 1, 8, 5, [id#39L]
 ----
 
-CAUTION: FIXME What's `planner`? Why do we need `assertSupported`?
-
 NOTE: `QueryExecution` belongs to `org.apache.spark.sql.execution` package.
+
+NOTE: `QueryExecution` is a transient feature of a link:spark-sql-Dataset.adoc[Dataset], i.e. it is not preserved across serializations.
 
 === [[simpleString]] `simpleString` Method
 

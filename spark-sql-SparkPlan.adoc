@@ -1,20 +1,20 @@
 == [[SparkPlan]] SparkPlan -- Physical Query Plan / Physical Operator
 
-`SparkPlan` is the base Catalyst link:spark-sql-catalyst-QueryPlan.adoc[query plan] for *physical operators* to build an *physical query plan* (aka *query execution plan*) that, when <<execute, executed>>, can produce an RDD of link:spark-sql-InternalRow.adoc[InternalRows] (i.e. `RDD[InternalRow]`).
+`SparkPlan` is the Catalyst link:spark-sql-catalyst-QueryPlan.adoc[query plan] for *physical operators* that used (_composed_) together build a *physical query plan* (aka _query execution plan_).
+
+NOTE: A physical operator is a link:spark-sql-catalyst-TreeNode.adoc[Catalyst node] that may have zero or more link:spark-sql-catalyst-TreeNode.adoc#children[children]. Spark SQL uses link:spark-sql-catalyst.adoc[Catalyst] (tree manipulation framework) to compose nodes to build a tree that, in this context, translates to composing physical plans to build a physical plan.
+
+When <<execute, executed>>, a physical operator produces a RDD of records (in the link:spark-sql-InternalRow.adoc[internal binary row format]).
+
+NOTE: <<execute, execute>> is called when `QueryExecution` is requested for a link:spark-sql-QueryExecution.adoc#toRdd[RDD] which is exactly when your query is executed.
 
 TIP: Use link:spark-sql-dataset-operators.adoc#explain[explain] operator to see the execution plan of a structured query.
 
-The <<contract, SparkPlan contract>> assumes that concrete physical operators define <<doExecute, doExecute>> method (possibly with <<hooks, hooks>> like <<doPrepare, doPrepare>>) which are executed when the physical operator is <<execute, executed>>.
+The <<contract, SparkPlan contract>> assumes that concrete physical operators define <<doExecute, doExecute>> method (with optional <<hooks, hooks>> like <<doPrepare, doPrepare>>) which are executed when the physical operator is <<execute, executed>>.
 
 CAUTION: FIXME A picture with methods/hooks called.
 
-NOTE: <<execute, execute>> is called when the link:spark-sql-QueryExecution.adoc#toRdd[QueryExecution is requested for an RDD[InternalRow\]] which is exactly when a structured query is executed.
-
 CAUTION: FIXME `SparkPlan` is `Serializable`. Why?
-
-NOTE: The naming convention for physical operators in Spark's source code is to have their names end with the *Exec* prefix, e.g. `DebugExec` or link:spark-sql-SparkPlan-LocalTableScanExec.adoc[LocalTableScanExec] (that is removed when a execution plan is displayed, e.g. in web UI).
-
-TIP: Read link:spark-sql-InternalRow.adoc[InternalRow] about the internal binary row format.
 
 [[attributes]]
 .SparkPlan's Atributes
@@ -33,11 +33,35 @@ TIP: Read link:spark-sql-InternalRow.adoc[InternalRow] about the internal binary
 
 |===
 
-`SparkPlan` has the following `final` methods that prepare execution environment and pass calls on to corresponding methods (that constitute <<contract, SparkPlan Contract>>):
+`SparkPlan` has the following `final` methods that prepare execution environment and pass calls on to corresponding methods (that constitute <<contract, SparkPlan Contract>>).
 
-* [[execute]] `execute` calls <<doExecute, doExecute>>
-* [[prepare]] `prepare` calls <<doPrepare, doPrepare>>
-* <<executeBroadcast, executeBroadcast>> calls <<doExecuteBroadcast, doExecuteBroadcast>>
+[[final-methods]]
+.SparkPlan's Final Methods
+[cols="1,3",options="header",width="100%"]
+|===
+| Name
+| Description
+
+| [[execute]] `execute`
+a| Executes a query and generates a `RDD` of link:spark-sql-InternalRow.adoc[InternalRows].
+
+[source, scala]
+----
+final def execute(): RDD[InternalRow]
+----
+
+Used _most importantly_ when `QueryExecution` is requested for a <<toRdd, RDD>> (that in turn triggers execution of any children the physical operator may have).
+
+Internally, `execute` first <<prepare, prepares the query for execution>>, <<waitForSubqueries, waits for any subqueries>> (the query may have) and eventually calls <<doExecute, doExecute>>.
+
+| [[prepare]] `prepare`
+| Prepares a query for execution.
+
+Calls <<doPrepare, doPrepare>>
+
+| <<executeBroadcast, executeBroadcast>>
+| Calls <<doExecuteBroadcast, doExecuteBroadcast>>
+|===
 
 [[specialized-spark-plans]]
 .Physical Query Operators / Specialized SparkPlans
@@ -55,6 +79,17 @@ TIP: Read link:spark-sql-InternalRow.adoc[InternalRow] about the internal binary
 | [[BinaryExecNode]] `BinaryExecNode`
 | Physical operator with two child `left` and `right` physical operators.
 |===
+
+NOTE: The naming convention for physical operators in Spark's source code is to have their names end with the *Exec* prefix, e.g. `DebugExec` or link:spark-sql-SparkPlan-LocalTableScanExec.adoc[LocalTableScanExec] that is however removed when the operator is displayed, e.g. in link:spark-webui-sql.adoc[web UI].
+
+=== [[getByteArrayRdd]] `getByteArrayRdd` Internal Method
+
+[source, scala]
+----
+getByteArrayRdd(n: Int = -1): RDD[Array[Byte]]
+----
+
+CAUTION: FIXME
 
 === [[waitForSubqueries]] `waitForSubqueries` Method
 
