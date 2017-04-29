@@ -124,10 +124,26 @@ Used when...FIXME
 
 Used when...FIXME
 
-| [[rdd]] `rdd`
-| Lazily-created link:spark-rdd.adoc[RDD] of type `T` of the records
+| [[logicalPlan]] `logicalPlan`
+| link:spark-sql-LogicalPlan.adoc[Logical plan]
 
-Used when...FIXME
+| [[rdd]] `rdd`
+a| Content of the `Dataset` as a (lazily-created) link:spark-rdd.adoc[RDD] with rows of the JVM type `T`.
+
+[source, scala]
+----
+rdd: RDD[T]
+----
+
+Internally, `rdd` first link:spark-sql-catalyst-serde.adoc#deserialize[creates a new logical plan to deserialize] the Dataset's <<logicalPlan, logical plan>>.
+
+`rdd` then requests `SessionState` to link:spark-sql-SessionState.adoc#executePlan[execute the logical plan] and gets link:spark-sql-QueryExecution.adoc#toRdd[the RDD of binary rows].
+
+NOTE: `rdd` uses <<sparkSession, SparkSession>> to link:spark-sql-SparkSession.adoc#sessionState[access `SessionState`].
+
+`rdd` then requests the Dataset's <<exprEnc, ExpressionEncoder>> for the link:spark-sql-Expression.adoc#dataType[data type] of the rows (using link:spark-sql-ExpressionEncoder.adoc#deserializer[deserializer] expression) and link:spark-rdd-transformations.adoc#mapPartitions[maps over them (per partition)] to create records of the expected type `T`.
+
+NOTE: `rdd` is at the "boundary" between the internal binary row format and the JVM type of the dataset.
 
 | [[sqlContext]] `sqlContext`
 | Lazily-created link:spark-sql-sqlcontext.adoc[SQLContext]
