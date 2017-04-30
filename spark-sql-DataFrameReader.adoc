@@ -1,37 +1,106 @@
-== [[DataFrameReader]] DataFrameReader -- Reading from External Data Sources
+== [[DataFrameReader]] DataFrameReader -- Reading Datasets from External Data Sources
 
-`DataFrameReader` is an interface to read data from external data sources, e.g. <<creating-dataframes-from-files, files>>, <<creating-dataframes-from-tables, Hive tables>> or <<jdbc, JDBC>> (including link:spark-sql-thrift-server.adoc[Spark Thrift Server]), into a link:spark-sql-dataframe.adoc[DataFrame].
+`DataFrameReader` is an interface to read datasets from external data sources, e.g. <<creating-dataframes-from-files, files>>, <<creating-dataframes-from-tables, Hive tables>>, <<jdbc, JDBC>> or <<loading-dataset-of-string, Dataset[String]>>, into untyped `DataFrames` (mostly) or typed `Datasets`.
 
-NOTE: You can link:spark-sql-datasource-custom-formats.adoc[define your own custom file formats].
-
-You use link:spark-sql-SparkSession.adoc#read[SparkSession.read] to access an instance of `DataFrameReader`.
+`DataFrameReader` is available using link:spark-sql-SparkSession.adoc#read[SparkSession.read].
 
 [source, scala]
 ----
-val spark: SparkSession = SparkSession.builder.getOrCreate
+import org.apache.spark.sql.SparkSession
+val spark: SparkSession = ...
 
 import org.apache.spark.sql.DataFrameReader
-val reader: DataFrameReader = spark.read
+val r: DataFrameReader = spark.read
 ----
 
-`DataFrameReader` supports many <<creating-dataframes-from-files, file formats>> natively and offers the <<format, interface to plug in new ones>>.
+`DataFrameReader` supports many <<creating-dataframes-from-files, file formats>> natively and offers the <<format, interface to define custom file formats>>.
 
-NOTE: `DataFrameReader` assumes <<parquet, parquet>> file format by default that you can change using link:spark-sql-settings.adoc#spark.sql.sources.default[spark.sql.sources.default] setting.
+NOTE: `DataFrameReader` assumes <<parquet, parquet>> file format by default that you can change using link:spark-sql-settings.adoc#spark.sql.sources.default[spark.sql.sources.default] property.
 
-As of Spark 2.0, `DataFrameReader` can read text files using <<textFile, textFile>> methods that return `Dataset[String]` (not `DataFrames` which are `Dataset[Row]` and therefore untyped).
-
-After you describe the external data source using ``DataFrameReader``'s methods you can trigger the loading using one of <<load, load>> methods.
+After you have described the *reading pipeline* to read datasets from an external data source, you eventually trigger the loading using format-agnostic <<load, load>> or format-specific (e.g. <<json, json>>, <<csv, csv>>) operators that create untyped `DataFrames`.
 
 [source, scala]
 ----
-spark.read
+import org.apache.spark.sql.SparkSession
+val spark: SparkSession = ...
+
+import org.apache.spark.sql.DataFrame
+
+// Using format-agnostic load operator
+val csvs: DataFrame = spark
+  .read
   .format("csv")
   .option("header", true)
   .option("inferSchema", true)
   .load("*.csv")
+
+// Using format-specific load operator
+val jsons: DataFrame = spark
+  .read
+  .json("metrics/*.json")
 ----
 
-=== [[format]] Specifying Data Format -- `format` method
+---
+
+(*New in Spark 2.0*) `DataFrameReader` can read text files using <<textFile, textFile>> methods that return typed `Datasets`.
+
+[source, scala]
+----
+import org.apache.spark.sql.SparkSession
+val spark: SparkSession = ...
+
+import org.apache.spark.sql.Dataset
+val lines: Dataset[String] = spark
+  .read
+  .textFile("README.md")
+----
+
+---
+
+[[loading-dataset-of-string]]
+(*New in Spark 2.2*) `DataFrameReader` can load datasets from `Dataset[String]` (with lines being complete "files") using format-specific <<csv, csv>> and <<json, json>> operators.
+
+[source, scala]
+----
+val csvLine = "0,Warsaw,Poland"
+
+import org.apache.spark.sql.Dataset
+val cities: Dataset[String] = Seq(csvLine).toDS
+scala> cities.show
++---------------+
+|          value|
++---------------+
+|0,Warsaw,Poland|
++---------------+
+
+// Define schema explicitly (as below)
+// or
+// option("header", true) + option("inferSchema", true)
+import org.apache.spark.sql.types.StructType
+val schema = new StructType()
+  .add($"id".long.copy(nullable = false))
+  .add($"city".string)
+  .add($"country".string)
+scala> schema.printTreeString
+root
+ |-- id: long (nullable = false)
+ |-- city: string (nullable = true)
+ |-- country: string (nullable = true)
+
+import org.apache.spark.sql.DataFrame
+val citiesDF: DataFrame = spark
+  .read
+  .schema(schema)
+  .csv(cities)
+scala> citiesDF.show
++---+------+-------+
+| id|  city|country|
++---+------+-------+
+|  0|Warsaw| Poland|
++---+------+-------+
+----
+
+=== [[format]] Defining Data Format -- `format` method
 
 [source, scala]
 ----
@@ -50,7 +119,9 @@ Supported data formats:
 * <<jdbc, jdbc>>
 * `libsvm` -- only when used in `format("libsvm")`
 
-=== [[schema]] Specifying Input Schema -- `schema` method
+NOTE: You can link:spark-sql-datasource-custom-formats.adoc[define your own custom file formats].
+
+=== [[schema]] Defining Schema -- `schema` method
 
 [source, scala]
 ----
@@ -59,9 +130,29 @@ schema(schema: StructType): DataFrameReader
 
 You can specify a `schema` of the input data source.
 
-TIP: Refer to link:spark-sql-schema.adoc[Schema].
+[source, scala]
+----
+import org.apache.spark.sql.types.StructType
+val schema = new StructType()
+  .add($"id".long.copy(nullable = false))
+  .add($"city".string)
+  .add($"country".string)
 
-=== [[option]][[options]] Adding Extra Configuration Options -- `option` and `options` methods
+scala> schema.printTreeString
+root
+ |-- id: long (nullable = false)
+ |-- city: string (nullable = true)
+ |-- country: string (nullable = true)
+
+import org.apache.spark.sql.DataFrameReader
+val r: DataFrameReader = spark.read.schema(schema)
+----
+
+NOTE: Some formats can infer schema from datasets, e.g. <<csv, csv>>, using <<options, options>>.
+
+TIP: Read up on link:spark-sql-schema.adoc[Schema].
+
+=== [[option]][[options]] Defining Loading Options -- `option` and `options` Methods
 
 [source, scala]
 ----
@@ -70,7 +161,7 @@ option(key: String, value: Boolean): DataFrameReader  // <1>
 option(key: String, value: Long): DataFrameReader     // <1>
 option(key: String, value: Double): DataFrameReader   // <1>
 ----
-<1> Available since Spark **2.0.0**
+<1> Available as of Spark 2.0
 
 You can also use `options` method to describe different options in a single `Map`.
 
@@ -79,7 +170,7 @@ You can also use `options` method to describe different options in a single `Map
 options(options: scala.collection.Map[String, String]): DataFrameReader
 ----
 
-=== [[load]] Loading Datasets (into `DataFrame`) -- `load` methods
+=== [[load]] Loading Datasets (into DataFrames) -- `load` Method
 
 [source, scala]
 ----
@@ -88,11 +179,11 @@ load(path: String): DataFrame
 load(paths: String*): DataFrame
 ----
 
-`load` loads input data as a `DataFrame`.
+`load` loads a dataset into an untyped link:spark-sql-dataframe.adoc[DataFrame].
 
 Internally, `load` link:spark-sql-datasource.adoc#creating-instance[creates a `DataSource`] (for the current link:spark-sql-SparkSession.adoc[SparkSession], a user-specified <<schema, schema>>, a source <<format, format>> and <<options, options>>). It then immediately link:spark-sql-datasource.adoc#resolveRelation[resolves it] and link:spark-sql-SparkSession.adoc#baseRelationToDataFrame[converts `BaseRelation` into a `DataFrame`].
 
-=== [[creating-dataframes-from-files]] Creating DataFrames from Files
+=== [[creating-dataframes-from-files]] Loading Datasets from Files (into DataFrames) Using Format-Specific Load Operators
 
 `DataFrameReader` supports the following file formats:
 
@@ -240,16 +331,14 @@ scala> lines.show
 only showing top 20 rows
 ----
 
-=== [[creating-dataframes-from-tables]] Creating DataFrames from Tables
-
-==== [[table]] `table` method
+=== [[table]][[creating-dataframes-from-tables]] Loading Datasets from Tables (into DataFrames) -- `table` Method
 
 [source, scala]
 ----
 table(tableName: String): DataFrame
 ----
 
-`table` method returns the `tableName` table as a `DataFrame`.
+`table` loads `tableName` table into an untyped link:spark-sql-dataframe.adoc[DataFrame].
 
 [source, scala]
 ----
@@ -271,7 +360,7 @@ scala> spark.read.table("dafa").show(false)
 
 CAUTION: FIXME The method uses `spark.sessionState.sqlParser.parseTableIdentifier(tableName)` and `spark.sessionState.catalog.lookupRelation`. Would be nice to learn a bit more on their internals, huh?
 
-=== [[jdbc]] Accessing JDBC Data Sources -- `jdbc` Methods
+=== [[jdbc]] Loading Datasets From JDBC Data Sources (into  DataFrames) -- `jdbc` Method
 
 [source, scala]
 ----
@@ -289,7 +378,7 @@ jdbc(url: String,
   connectionProperties: Properties): DataFrame
 ----
 
-`jdbc` allows you to create a `DataFrame` that represents `table` in the database accessible using `url`.
+`jdbc` loads a dataset from an external table using JDBC into an untyped link:spark-sql-dataframe.adoc[DataFrame].
 
 [[JDBCOptions]]
 [[jdbc-options]]
@@ -380,7 +469,7 @@ NOTE: `jdbc` method uses `java.util.Properties` (and appears overly Java-centric
 
 TIP: Review the exercise link:exercises/spark-exercise-dataframe-jdbc-postgresql.adoc[Creating DataFrames from Tables using JDBC and PostgreSQL].
 
-=== [[textFile]] Reading Text Files -- `textFile` methods
+=== [[textFile]] Loading Datasets From Text Files -- `textFile` Method
 
 [source, scala]
 ----
@@ -388,11 +477,17 @@ textFile(path: String): Dataset[String]
 textFile(paths: String*): Dataset[String]
 ----
 
-`textFile` methods query text files as a `Dataset[String]`.
+`textFile` loads one or many text files into a typed link:spark-sql-Dataset.adoc[Dataset[String\]].
 
 [source, scala]
 ----
-spark.read.textFile("README.md")
+import org.apache.spark.sql.SparkSession
+val spark: SparkSession = ...
+
+import org.apache.spark.sql.Dataset
+val lines: Dataset[String] = spark
+  .read
+  .textFile("README.md")
 ----
 
 NOTE: `textFile` are similar to <<text, text>> family of methods in that they both read text files but `text` methods return untyped `DataFrame` while `textFile` return typed `Dataset[String]`.
