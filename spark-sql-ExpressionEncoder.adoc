@@ -1,29 +1,31 @@
 == [[ExpressionEncoder]] ExpressionEncoder
 
-[[deserializer]]
-[source, scala]
-----
-case class ExpressionEncoder[T](
-  schema: StructType,
-  flat: Boolean,
-  serializer: Seq[Expression],
-  deserializer: Expression,
-  clsTag: ClassTag[T])
-extends Encoder[T]
-----
+`ExpressionEncoder` is a generic link:spark-sql-Encoder.adoc[Encoder] for the JVM type `T`.
 
-`ExpressionEncoder` is the one and only implementation of the `Encoder` trait in Spark 2.0 with additional properties, i.e. `flat`, one or many `serializers` and a `deserializer` expressions.
+NOTE: `ExpressionEncoder` is the only supported implementation of `Encoder` which is explicitly enforced when `Dataset` link:spark-sql-Dataset.adoc#exprEnc[is created] (even though `Dataset` can be created with a bare `Encoder[T]`).
 
-A `ExpressionEncoder` can be *flat* is which case there is only one Catalyst expression for the serializer.
+`ExpressionEncoder` is <<flat, flat>> when there is only one expression for the <<serializer, serializer>>.
 
-*Serializer expressions* are used to encode an object of type `T` to a link:spark-sql-InternalRow.adoc[InternalRow]. It is assumed that all serializer expressions contain at least one and the same `BoundReference`.
+`ExpressionEncoder` uses <<serializer, serializer expressions>> to encode (aka _serialize_) a JVM object of type `T` to an link:spark-sql-InternalRow.adoc[internal binary row format]. It is assumed that all serializer expressions contain at least one and the same `BoundReference`.
 
 CAUTION: FIXME What's `BoundReference`?
 
-*Deserializer expression* is used to decode an link:spark-sql-InternalRow.adoc[InternalRow] to an object of type `T`.
+`ExpressionEncoder` uses a <<deserializer, deserializer expression>> to decode a JVM object of type `T` from link:spark-sql-InternalRow.adoc[internal binary row format].
 
 Internally, a `ExpressionEncoder` creates a `UnsafeProjection` (for the input serializer), a link:spark-sql-InternalRow.adoc[InternalRow] (of size `1`), and a safe `Projection` (for the input deserializer). They are all internal lazy attributes of the encoder.
+
+NOTE: `Encoders` object contains the default `ExpressionEncoders` for Scala and Java primitive types, e.g. `boolean`, `long`, `String`, `java.sql.Date`, `java.sql.Timestamp`, `Array[Byte]`.
 
 === [[resolveAndBind]] `resolveAndBind` Method
 
 CAUTION: FIXME
+
+=== [[creating-instance]] Creating ExpressionEncoder Instance
+
+`ExpressionEncoder` takes the following when created:
+
+* [[schema]] link:spark-sql-StructType.adoc[Schema]
+* [[flat]] Flag whether `ExpressionEncoder` is flat or not
+* [[serializer]] Serializer link:spark-sql-Expression.adoc[expressions]
+* [[deserializer]] Deserializer link:spark-sql-Expression.adoc[expression]
+* [[clsTag]] Scala's http://www.scala-lang.org/api/current/scala/reflect/ClassTag.html[ClassTag] for the JVM type `T`
