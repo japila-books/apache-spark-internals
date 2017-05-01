@@ -1,6 +1,6 @@
 == [[DataSource]] DataSource -- Pluggable Data Sources
 
-`DataSource` belongs to the Data Source API (along with link:spark-sql-DataFrameReader.adoc[DataFrameReader] for loading datasets, link:spark-sql-dataframewriter.adoc[DataFrameWriter] for saving datasets and link:spark-sql-streaming-StreamSourceProvider.adoc[StreamSourceProvider] for creating streaming sources).
+`DataSource` belongs to the Data Source API (along with link:spark-sql-DataFrameReader.adoc[DataFrameReader] for loading datasets, link:spark-sql-dataframewriter.adoc[DataFrameWriter] for saving datasets and `StreamSourceProvider` for creating streaming sources).
 
 `DataSource` is an internal class that represents a **pluggable data source** in Spark SQL with few extension points to further enrich the capabilities of Spark SQL.
 
@@ -11,7 +11,11 @@
 | Description
 
 | [[CreatableRelationProvider]] `CreatableRelationProvider`
-| Used in <<write, write>> for writing a `DataFrame` to a `DataSource` (as part of creating a table as select).
+a| Used in:
+
+* <<write, write>> for writing a `DataFrame` to a `DataSource` (as part of creating a table as select)
+
+* <<writeAndRead, writeAndRead>>
 
 | `FileFormat`
 a| Used in:
@@ -23,7 +27,7 @@ a| Used in:
 | [[RelationProvider]] `RelationProvider`
 |
 
-| link:spark-sql-streaming-StreamSourceProvider.adoc[StreamSourceProvider]
+| `StreamSourceProvider`
 a| Used in:
 
 * <<sourceSchema, sourceSchema>> and <<createSource, createSource>> for streamed reading
@@ -51,6 +55,71 @@ val messages: DataFrame = spark.readStream
 ----
 
 `DataSource` uses a link:spark-sql-SparkSession.adoc[SparkSession], a class name, a collection of `paths`, optional user-specified link:spark-sql-schema.adoc[schema], a collection of partition columns, a bucket specification, and configuration options.
+
+=== [[writeAndRead]] `writeAndRead` Method
+
+[source, scala]
+----
+writeAndRead(mode: SaveMode, data: DataFrame): BaseRelation
+----
+
+CAUTION: FIXME
+
+NOTE: `writeAndRead` is used exclusively when link:spark-sql-LogicalPlan-RunnableCommand.adoc#CreateDataSourceTableAsSelectCommand[CreateDataSourceTableAsSelectCommand] is executed.
+
+=== [[providingClass]] `providingClass` Property
+
+CAUTION: FIXME
+
+=== [[write]] Writing DataFrame to Data Source Per Save Mode -- `write` Method
+
+[source, scala]
+----
+write(mode: SaveMode, data: DataFrame): BaseRelation
+----
+
+`write` writes the result of executing a structured query (as link:spark-sql-dataframe.adoc[DataFrame]) to a data source per save `mode`.
+
+Internally, `write` <<lookupDataSource, looks up the data source>> and branches off per <<providingClass, providingClass>>.
+
+[[write-providingClass-branches]]
+.write's Branches per Supported providingClass (in execution order)
+[width="100%",cols="1,2",options="header"]
+|===
+| providingClass
+| Description
+
+| <<CreatableRelationProvider, CreatableRelationProvider>>
+| Executes `CreatableRelationProvider.createRelation`
+
+| `FileFormat`
+| <<writeInFileFormat, writeInFileFormat>>
+
+| _others_
+| Reports a `RuntimeException`
+|===
+
+NOTE: `write` does not support the internal `CalendarIntervalType` in the link:spark-sql-schema.adoc[schema of `data` `DataFrame`] and throws a `AnalysisException` when there is one.
+
+NOTE: `write` is used exclusively when link:spark-sql-LogicalPlan-RunnableCommand.adoc#SaveIntoDataSourceCommand[SaveIntoDataSourceCommand] is executed.
+
+=== [[writeInFileFormat]] `writeInFileFormat` Internal Method
+
+CAUTION: FIXME
+
+For `FileFormat` data sources, `write` takes all `paths` and `path` option and makes sure that there is only one.
+
+NOTE: `write` uses Hadoop's https://hadoop.apache.org/docs/current/api/org/apache/hadoop/fs/Path.html[Path] to access the https://hadoop.apache.org/docs/current/api/org/apache/hadoop/fs/FileSystem.html[FileSystem] and calculate the qualified output path.
+
+`write` does `PartitioningUtils.validatePartitionColumn`.
+
+CAUTION: FIXME What is `PartitioningUtils.validatePartitionColumn` for?
+
+When appending to a table, ...FIXME
+
+In the end, `write` (for a `FileFormat` data source) link:spark-sql-SessionState.adoc#executePlan[prepares a `InsertIntoHadoopFsRelationCommand` logical plan] with link:spark-sql-QueryExecution.adoc#toRdd[executes] it.
+
+CAUTION: FIXME Is `toRdd` a job execution?
 
 === [[createSource]] `createSource` Method
 
@@ -95,13 +164,13 @@ sourceSchema(): SourceInfo
 
 CAUTION: FIXME Why is the method called? Why does this bother with streamed reading and data sources?!
 
-It supports two class hierarchies, i.e. link:spark-sql-streaming-StreamSourceProvider.adoc[StreamSourceProvider] and `FileFormat` data sources.
+It supports two class hierarchies, i.e. `FileFormat` and Structured Streaming's `StreamSourceProvider` data sources.
 
 Internally, `sourceSchema` first creates an instance of the data source and...
 
 CAUTION: FIXME Finish...
 
-For `StreamSourceProvider` data sources, `sourceSchema` relays calls to `StreamSourceProvider.sourceSchema`.
+For Structured Streaming's `StreamSourceProvider` data sources, `sourceSchema` relays calls to `StreamSourceProvider.sourceSchema`.
 
 For `FileFormat` data sources, `sourceSchema` makes sure that `path` option was specified.
 
@@ -156,41 +225,6 @@ inferFileFormatSchema(format: FileFormat): StructType
 It uses `path` option for the list of directory paths.
 
 NOTE: It is used by <<sourceSchema, DataSource.sourceSchema>> and <<createSource, DataSource.createSource>> when `FileFormat` is processed.
-
-=== [[write]] `write` Method
-
-[source, scala]
-----
-write(
-  mode: SaveMode,
-  data: DataFrame): BaseRelation
-----
-
-`write` does...
-
-Internally, `write` makes sure that `CalendarIntervalType` is not used in the link:spark-sql-schema.adoc[schema of `data` `DataFrame`] and throws a `AnalysisException` when there is one.
-
-`write` then <<lookupDataSource, looks up the data source implementation>> (using the constructor's `className`).
-
-NOTE: The `DataSource` implementation can be of type <<CreatableRelationProvider, CreatableRelationProvider>> or `FileFormat`.
-
-For `FileFormat` data sources, `write` takes all `paths` and `path` option and makes sure that there is only one.
-
-NOTE: `write` uses Hadoop's https://hadoop.apache.org/docs/current/api/org/apache/hadoop/fs/Path.html[Path] to access the https://hadoop.apache.org/docs/current/api/org/apache/hadoop/fs/FileSystem.html[FileSystem] and calculate the qualified output path.
-
-`write` does `PartitioningUtils.validatePartitionColumn`.
-
-CAUTION: FIXME What is `PartitioningUtils.validatePartitionColumn` for?
-
-When appending to a table, ...FIXME
-
-In the end, `write` (for a `FileFormat` data source) link:spark-sql-SessionState.adoc#executePlan[prepares a `InsertIntoHadoopFsRelationCommand` logical plan] with link:spark-sql-QueryExecution.adoc#toRdd[executes] it.
-
-CAUTION: FIXME Is `toRdd` a job execution?
-
-For <<CreatableRelationProvider, CreatableRelationProvider>> data sources, `CreatableRelationProvider.createRelation` is executed.
-
-NOTE: `write` is executed when...
 
 ==== [[lookupDataSource]] `lookupDataSource` Internal Method
 
