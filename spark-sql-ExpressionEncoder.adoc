@@ -2,13 +2,13 @@
 
 `ExpressionEncoder` is a generic link:spark-sql-Encoder.adoc[Encoder] for the JVM type `T` that uses link:spark-sql-Expression.adoc[expressions] to <<serializer, serialize>> to and <<deserializer, deserialize>> from the link:spark-sql-InternalRow.adoc[internal binary row format].
 
-NOTE: `ExpressionEncoder` is the only supported implementation of `Encoder` which is explicitly enforced when `Dataset` link:spark-sql-Dataset.adoc#exprEnc[is created] (even though `Dataset` can be created with a bare `Encoder[T]`).
+NOTE: `ExpressionEncoder` is the only supported implementation of `Encoder` which is explicitly enforced when `Dataset` link:spark-sql-Dataset.adoc#exprEnc[is created] (even though `Dataset` accepts a _bare_ `Encoder[T]`).
 
 `ExpressionEncoder` uses <<serializer, serializer expressions>> to encode (aka _serialize_) a JVM object of type `T` to an link:spark-sql-InternalRow.adoc[internal binary row format]. It is assumed that all serializer expressions contain at least one and the same `BoundReference`.
 
 CAUTION: FIXME What's `BoundReference`?
 
-`ExpressionEncoder` uses a <<deserializer, deserializer expression>> to decode a JVM object of type `T` from link:spark-sql-InternalRow.adoc[internal binary row format].
+`ExpressionEncoder` uses a <<deserializer, deserializer expression>> to decode (aka _deserialize_) a JVM object of type `T` from link:spark-sql-InternalRow.adoc[internal binary row format].
 
 `ExpressionEncoder` is <<flat, flat>> when there is only one expression for the <<serializer, serializer>>.
 
@@ -37,7 +37,7 @@ CAUTION: FIXME
 deserializerFor[T: TypeTag]: Expression
 ----
 
-`deserializerFor` creates an link:spark-sql-Expression.adoc[expression] to deserialize from link:spark-sql-InternalRow.adoc[internal binary row format] to a Scala type `T`.
+`deserializerFor` creates an link:spark-sql-Expression.adoc[expression] to deserialize from link:spark-sql-InternalRow.adoc[internal binary row format] to a Scala object of type `T`.
 
 [source, scala]
 ----
@@ -58,7 +58,7 @@ scala> println(tuple2DeExpr.numberedTreeString)
 05    +- getcolumnbyordinal(1, DoubleType)
 ----
 
-Internally, `deserializerFor` uses a single-element walked type path with `- root class: "[clsName]"` and the recursive internal variant of <<deserializerFor-recursive, deserializerFor>>.
+Internally, `deserializerFor` calls the recursive internal variant of <<deserializerFor-recursive, deserializerFor>> with a single-element walked type path with `- root class: "[clsName]"`
 
 TIP: Read up on Scala's `TypeTags` in http://docs.scala-lang.org/overviews/reflection/typetags-manifests.html[TypeTags and Manifests].
 
@@ -143,3 +143,50 @@ deserializerFor(
 | `Product` (including `Tuple`) or `DefinedByConstructorParams`
 |
 |===
+
+=== [[serializerFor]][[ScalaReflection-serializerFor]] Creating Serialize Expression -- `ScalaReflection.serializerFor` Method
+
+[source, scala]
+----
+serializerFor[T: TypeTag](inputObject: Expression): CreateNamedStruct
+----
+
+`serializerFor` creates a `CreateNamedStruct` link:spark-sql-Expression.adoc[expression] to serialize a Scala object of type `T` to link:spark-sql-InternalRow.adoc[internal binary row format].
+
+[source, scala]
+----
+import org.apache.spark.sql.catalyst.ScalaReflection.serializerFor
+
+import org.apache.spark.sql.catalyst.expressions.BoundReference
+import org.apache.spark.sql.types.TimestampType
+val boundRef = BoundReference(ordinal = 0, dataType = TimestampType, nullable = true)
+
+val timestampSerExpr = serializerFor[java.sql.Timestamp](boundRef)
+scala> println(timestampSerExpr.numberedTreeString)
+00 named_struct(value, input[0, timestamp, true])
+01 :- value
+02 +- input[0, timestamp, true]
+----
+
+Internally, `serializerFor` calls the recursive internal variant of <<serializerFor-recursive, serializerFor>> with a single-element walked type path with `- root class: "[clsName]"` and _pattern match_ on the result link:spark-sql-Expression.adoc[expression].
+
+CAUTION: FIXME the pattern match part
+
+TIP: Read up on Scala's `TypeTags` in http://docs.scala-lang.org/overviews/reflection/typetags-manifests.html[TypeTags and Manifests].
+
+NOTE: `serializerFor` is used exclusively when `ExpressionEncoder` <<creating-instance, is created>> for a Scala type `T`.
+
+==== [[serializerFor-recursive]] Recursive Internal `serializerFor` Method
+
+[source, scala]
+----
+serializerFor(
+  inputObject: Expression,
+  tpe: `Type`,
+  walkedTypePath: Seq[String],
+  seenTypeSet: Set[`Type`] = Set.empty): Expression
+----
+
+`serializerFor` creates an link:spark-sql-Expression.adoc[expression] for serializing an object of type `T` to an internal row.
+
+CAUTION: FIXME
