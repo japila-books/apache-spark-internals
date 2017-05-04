@@ -1,6 +1,17 @@
 == [[KafkaWriter]] KafkaWriter -- Writing Dataset to Kafka
 
-`KafkaWriter` is used to <<write, write>> the result of a batch or structured streaming query to Apache Kafka.
+`KafkaWriter` is used to <<write, write>> the result of a batch or structured streaming query to Apache Kafka (with a new execution id attached so you can see the execution in web UI's SQL tab).
+
+.KafkaWriter (write) in web UI
+image::images/spark-sql-KafkaWriter-write-webui.png[align="center"]
+
+`KafkaWriter` <<validateQuery, makes sure>> that the schema of the `Dataset` to write records of contains:
+
+1. Required *topic* as a field of type `StringType` or specified explicitly
+
+1. Required *value* as a field of type `StringType` or `BinaryType`
+
+1. Optional *key* as a field of type `StringType` or `BinaryType`
 
 [source, scala]
 ----
@@ -48,18 +59,18 @@ write(
   topic: Option[String] = None): Unit
 ----
 
-CAUTION: FIXME
+`write` executes a `KafkaWriteTask` for each partition of the ``QueryExecution``'s link:spark-sql-QueryExecution.adoc#toRdd[RDD] (link:spark-sql-SQLExecution.adoc#withNewExecutionId[with a new execution id] attached so you can see the execution in web UI's link:spark-webui-sql.adoc[SQL tab]).
 
 [NOTE]
 ====
 `write` is used when:
 
-* `KafkaSourceProvider` link:spark-sql-DataSourceRegister-KafkaSourceProvider.adoc#createRelation-CreatableRelationProvider[creates a BaseRelation]
+* `KafkaSourceProvider` link:spark-sql-DataSourceRegister-KafkaSourceProvider.adoc#createRelation-CreatableRelationProvider[creates a BaseRelation] (to write the records to)
 
 * Structured Streaming's `KafkaSink` commits a batch
 ====
 
-=== [[validateQuery]] `validateQuery` Method
+=== [[validateQuery]] Validating QueryExecution -- `validateQuery` Method
 
 [source, scala]
 ----
@@ -69,6 +80,12 @@ validateQuery(
   topic: Option[String] = None): Unit
 ----
 
-CAUTION: FIXME
+`validateQuery` validates the schema of the input link:spark-sql-QueryExecution.adoc#analyzed[analyzed] `QueryExecution`, i.e.
+
+1. Whether the required *topic* is available as a field of type `StringType` in the schema or as the input `topic`
+
+1. Whether the optional *key* is available as a field of type `StringType` or `BinaryType` in the schema
+
+1. Whether the required *value* is available as a field of type `StringType` or `BinaryType` in the schema
 
 NOTE: `validateQuery` is used exclusively when `KafkaWriter` <<write, writes the result of a query to Kafka>>.
