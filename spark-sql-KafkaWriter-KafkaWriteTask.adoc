@@ -1,0 +1,48 @@
+== [[KafkaWriteTask]] KafkaWriteTask
+
+`KafkaWriteTask` is used to <<execute, write rows>> (from a structured query) to Apache Kafka.
+
+`KafkaWriteTask` is used exclusively when `KafkaWriter` is requested to link:spark-sql-KafkaWriter.adoc#write[write query results to Kafka] (and creates one per partition).
+
+`KafkaWriteTask` <<execute, writes>> keys and values in their binary format (as JVM's bytes) and so converts the rows from Spark SQL's custom link:spark-sql-InternalRow.adoc[internal binary format] to the unsafe intermediate format only (as `UnsafeRow`). That is supposed to save time for reconstructing the rows to very tiny JVM objects (i.e. byte arrays).
+
+[[internal-properties]]
+.KafkaWriteTask's Internal Properties (in alphabetical order)
+[cols="1,2",options="header",width="100%"]
+|===
+| Name
+| Description
+
+| [[projection]] `projection`
+| `UnsafeProjection`
+
+<<createProjection, Created>> once when `KafkaWriteTask` is created.
+|===
+
+=== [[createProjection]] `createProjection` Internal Method
+
+CAUTION: FIXME
+
+=== [[execute]] Sending Rows to Kafka Asynchronously -- `execute` Method
+
+[source, scala]
+----
+execute(iterator: Iterator[InternalRow]): Unit
+----
+
+`execute` uses Apache Kafka's Producer API to create a https://kafka.apache.org/0101/javadoc/index.html?org/apache/kafka/clients/producer/KafkaProducer.html[KafkaProducer] and https://kafka.apache.org/0101/javadoc/index.html?org/apache/kafka/clients/producer/KafkaProducer.html[ProducerRecord] for every row in `iterator`, and sends the rows to Kafka in batches asynchronously.
+
+Internally, `execute` creates a `KafkaProducer` using `Array[Byte]` for the keys and values, and `producerConfiguration` for the producer's configuration.
+
+NOTE: `execute` creates a single `KafkaProducer` for all rows.
+
+For every row in the `iterator`, `execute` uses the internal <<projection, projection>> to _project_ (aka _convert_) 0th, 1st and 2nd fields from the link:spark-sql-InternalRow.adoc[binary internal row format] to the JVM "unsafe" objects for a topic, key and value, respectively.
+
+`execute` then creates a `ProducerRecord` and sends it to Kafka (using the `KafkaProducer`). `execute` registers a asynchronous `Callback` to monitor the writing.
+
+[NOTE]
+====
+From https://kafka.apache.org/0101/javadoc/index.html?org/apache/kafka/clients/producer/KafkaProducer.html[KafkaProducer's documentation]:
+
+> The `send()` method is asynchronous. When called it adds the record to a buffer of pending record sends and immediately returns. This allows the producer to batch together individual records for efficiency.
+====
