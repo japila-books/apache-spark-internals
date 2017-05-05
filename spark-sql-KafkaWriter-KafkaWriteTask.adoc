@@ -19,10 +19,6 @@
 <<createProjection, Created>> once when `KafkaWriteTask` is created.
 |===
 
-=== [[createProjection]] `createProjection` Internal Method
-
-CAUTION: FIXME
-
 === [[execute]] Sending Rows to Kafka Asynchronously -- `execute` Method
 
 [source, scala]
@@ -36,7 +32,7 @@ Internally, `execute` creates a `KafkaProducer` using `Array[Byte]` for the keys
 
 NOTE: `execute` creates a single `KafkaProducer` for all rows.
 
-For every row in the `iterator`, `execute` uses the internal <<projection, projection>> to _project_ (aka _convert_) 0th, 1st and 2nd fields from the link:spark-sql-InternalRow.adoc[binary internal row format] to the JVM "unsafe" objects for a topic, key and value, respectively.
+For every row in the `iterator`, `execute` uses the internal <<projection, UnsafeProjection>> to _project_ (aka _convert_) link:spark-sql-InternalRow.adoc[binary internal row format] to a link:spark-sql-UnsafeRow.adoc[UnsafeRow] object and take 0th, 1st and 2nd fields for a topic, key and value, respectively.
 
 `execute` then creates a `ProducerRecord` and sends it to Kafka (using the `KafkaProducer`). `execute` registers a asynchronous `Callback` to monitor the writing.
 
@@ -46,3 +42,22 @@ From https://kafka.apache.org/0101/javadoc/index.html?org/apache/kafka/clients/p
 
 > The `send()` method is asynchronous. When called it adds the record to a buffer of pending record sends and immediately returns. This allows the producer to batch together individual records for efficiency.
 ====
+
+=== [[createProjection]] Creating UnsafeProjection -- `createProjection` Internal Method
+
+[source, scala]
+----
+createProjection: UnsafeProjection
+----
+
+`createProjection` creates a `UnsafeProjection` with `topic`, `key` and `value` link:spark-sql-Expression.adoc[expressions] and the `inputSchema`.
+
+`createProjection` makes sure that the following holds (and reports an `IllegalStateException` otherwise):
+
+* `topic` was defined (either as the input `topic` or in `inputSchema`) and is of type `StringType`
+* Optional `key` is of type `StringType` or `BinaryType` if defined
+* `value` was defined (in `inputSchema`) and is of type `StringType` or `BinaryType`
+
+`createProjection` casts `key` and `value` expressions to `BinaryType` in `UnsafeProjection`.
+
+NOTE: `createProjection` is used exclusively when `KafkaWriteTask` is created (as <<projection, projection>>).
