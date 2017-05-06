@@ -35,6 +35,11 @@ Internally, a `ExpressionEncoder` creates a link:spark-sql-UnsafeProjection.adoc
 | Property
 | Description
 
+| [[constructProjection]] `constructProjection`
+a| `Projection` generated for the <<deserializer, deserializer>> expression
+
+Used exclusively when `ExpressionEncoder` is requested for a <<fromRow, JVM object from a Spark SQL row>> (i.e. `InternalRow`).
+
 | [[extractProjection]] `extractProjection`
 a| `UnsafeProjection` link:spark-sql-GenerateUnsafeProjection.adoc#generated[generated] for the <<serializer, serializer>> expressions
 
@@ -248,4 +253,31 @@ Error while encoding: [initial exception]
 * link:spark-sql-SparkSession.adoc#createDataset[Dataset from a local dataset]
 
 * link:spark-sql-SparkSession.adoc#createDataFrame[DataFrame from RDD[Row\]]
+====
+
+=== [[fromRow]] Decoding JVM Object From Internal Binary Row Format -- `fromRow` Method
+
+[source, scala]
+----
+fromRow(row: InternalRow): T
+----
+
+`fromRow` decodes (aka _deserializes_) a JVM object from a `row` link:spark-sql-InternalRow.adoc[InternalRow] (with the required values only).
+
+Internally, `fromRow` uses <<constructProjection, constructProjection>> with `row` and gets the 0th element of type `ObjectType` that is then cast to the output type `T`.
+
+In case of any exception while deserializing, `fromRow` reports a `RuntimeException`:
+
+```
+Error while decoding: [initial exception]
+[deserializer]
+```
+
+[NOTE]
+====
+`fromRow` is used for:
+
+* `Dataset` operators, i.e. `head`, `collect`, `collectAsList`, `toLocalIterator`
+
+* Structured Streaming's `ForeachSink`
 ====

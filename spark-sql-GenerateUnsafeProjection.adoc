@@ -1,20 +1,13 @@
 == [[GenerateUnsafeProjection]] GenerateUnsafeProjection
 
-`GenerateUnsafeProjection` is a link:spark-sql-CodeGenerator.adoc[CodeGenerator] function object that converts a link:spark-sql-Expression.adoc[Expression] collection to link:spark-sql-UnsafeProjection.adoc[UnsafeProjection].
+`GenerateUnsafeProjection` is a link:spark-sql-CodeGenerator.adoc[CodeGenerator] for converting link:spark-sql-Expression.adoc[Catalyst expressions] to link:spark-sql-UnsafeProjection.adoc[UnsafeProjection].
 
 [source, scala]
 ----
 GenerateUnsafeProjection: Seq[Expression] => UnsafeProjection
 ----
 
-=== [[create]] `create` Internal Method
-
-[source, scala]
-----
-create(
-  expressions: Seq[Expression],
-  subexpressionEliminationEnabled: Boolean): UnsafeProjection
-----
+=== [[createCode]] Creating ExprCode for Catalyst Expressions -- `createCode` Method
 
 CAUTION: FIXME
 
@@ -41,3 +34,49 @@ canonicalize(in: Seq[Expression]): Seq[Expression]
 `canonicalize` removes unnecessary `Alias` expressions.
 
 Internally, `canonicalize` uses `ExpressionCanonicalizer` rule executor (that in turn uses just one `CleanExpressions` expression rule).
+
+=== [[create]] `create` Method
+
+[source, scala]
+----
+create(
+  expressions: Seq[Expression],
+  subexpressionEliminationEnabled: Boolean): UnsafeProjection
+create(references: Seq[Expression]): UnsafeProjection // <1>
+----
+<1> Calls the former `create` with `subexpressionEliminationEnabled` disabled
+
+`create` first link:spark-sql-CodeGenerator.adoc#newCodeGenContext[creates a CodegenContext] and <<createCode, creates a ExprCode>> for the input `expressions` that is converted to a Java source code (as `CodeAndComment`).
+
+You should see the following DEBUG message in the logs:
+
+```
+DEBUG GenerateUnsafeProjection: code for [expressions]:
+[code]
+```
+
+[NOTE]
+====
+Enable `DEBUG` logging level for `org.apache.spark.sql.catalyst.expressions.codegen.CodeGenerator` logger to see the message above.
+
+See link:spark-sql-CodeGenerator.adoc#logging[CodeGenerator].
+====
+
+`create` requests `CodeGenerator` to link:spark-sql-CodeGenerator.adoc#compile[compile the Java source code into a GeneratedClass].
+
+You should see the following INFO message in the logs:
+
+```
+INFO CodeGenerator: Code generated in [time] ms
+```
+
+[NOTE]
+====
+Enable `INFO` logging level for `org.apache.spark.sql.catalyst.expressions.codegen.CodeGenerator` logger to see the message above.
+
+See link:spark-sql-CodeGenerator.adoc#logging[CodeGenerator].
+====
+
+`create` passes references into the `GeneratedClass` that eventually becomes the final link:spark-sql-UnsafeProjection.adoc[UnsafeProjection].
+
+NOTE: (Single-argument) `create` is a part of link:spark-sql-CodeGenerator.adoc#create[CodeGenerator Contract].
