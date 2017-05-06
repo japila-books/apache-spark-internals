@@ -1,10 +1,24 @@
-== [[ExpressionEncoder]] ExpressionEncoder
+== [[ExpressionEncoder]] ExpressionEncoder -- Expression-Based Encoder
 
-`ExpressionEncoder` is a generic link:spark-sql-Encoder.adoc[Encoder] for the JVM type `T` that uses link:spark-sql-Expression.adoc[expressions] to <<serializer, serialize>> to and <<deserializer, deserialize>> from the link:spark-sql-InternalRow.adoc[internal binary row format].
+`ExpressionEncoder[T]` is a generic link:spark-sql-Encoder.adoc[Encoder] for JVM objects of the type `T` that uses link:spark-sql-Expression.adoc[Catalyst expressions] to <<serializer, serialize>> to and <<deserializer, deserialize>> from the link:spark-sql-InternalRow.adoc[internal binary row format] (i.e. `InternalRow`).
 
 NOTE: `ExpressionEncoder` is the only supported implementation of `Encoder` which is explicitly enforced when `Dataset` link:spark-sql-Dataset.adoc#exprEnc[is created] (even though `Dataset` accepts a _bare_ `Encoder[T]`).
 
-`ExpressionEncoder` uses <<serializer, serializer expressions>> to encode (aka _serialize_) a JVM object of type `T` to an link:spark-sql-InternalRow.adoc[internal binary row format]. It is assumed that all serializer expressions contain at least one and the same `BoundReference`.
+[source, scala]
+----
+import org.apache.spark.sql.catalyst.encoders.ExpressionEncoder
+val stringEncoder = ExpressionEncoder[String]
+scala> val row = stringEncoder.toRow("hello world")
+row: org.apache.spark.sql.catalyst.InternalRow = [0,100000000b,6f77206f6c6c6568,646c72]
+
+import org.apache.spark.sql.catalyst.expressions.UnsafeRow
+scala> val unsafeRow = row match { case ur: UnsafeRow => ur }
+unsafeRow: org.apache.spark.sql.catalyst.expressions.UnsafeRow = [0,100000000b,6f77206f6c6c6568,646c72]
+----
+
+`ExpressionEncoder` uses <<serializer, serializer expressions>> to encode (aka _serialize_) a JVM object of type `T` to an link:spark-sql-InternalRow.adoc[internal binary row format] (i.e. `InternalRow`).
+
+NOTE: It is assumed that all serializer expressions contain at least one and the same `BoundReference`.
 
 CAUTION: FIXME What's `BoundReference`?
 
@@ -13,6 +27,24 @@ CAUTION: FIXME What's `BoundReference`?
 `ExpressionEncoder` is <<flat, flat>> when there is only one expression for the <<serializer, serializer>>.
 
 Internally, a `ExpressionEncoder` creates a `UnsafeProjection` (for the input serializer), a link:spark-sql-InternalRow.adoc[InternalRow] (of size `1`), and a safe `Projection` (for the input deserializer). They are all internal lazy attributes of the encoder.
+
+[[properties]]
+.ExpressionEncoder's (Lazily-Initialized) Internal Properties
+[cols="1,3",options="header",width="100%"]
+|===
+| Property
+| Description
+
+| [[extractProjection]] `extractProjection`
+a| `UnsafeProjection` link:spark-sql-GenerateUnsafeProjection.adoc#generated[generated] for the <<serializer, serializer>> expressions
+
+Used exclusively when `ExpressionEncoder` is requested for an <<toRow, encoded version of a JVM object as a Spark SQL row>> (i.e. `InternalRow`).
+
+| [[inputRow]] `inputRow`
+a| `GenericInternalRow` (with the underlying storage array) of size 1 (i.e. it can only store a single JVM object of any type).
+
+Used...FIXME
+|===
 
 NOTE: `Encoders` object contains the default `ExpressionEncoders` for Scala and Java primitive types, e.g. `boolean`, `long`, `String`, `java.sql.Date`, `java.sql.Timestamp`, `Array[Byte]`.
 
@@ -190,3 +222,30 @@ serializerFor(
 `serializerFor` creates an link:spark-sql-Expression.adoc[expression] for serializing an object of type `T` to an internal row.
 
 CAUTION: FIXME
+
+=== [[toRow]] Encoding JVM Object to Internal Binary Row Format -- `toRow` Method
+
+[source, scala]
+----
+toRow(t: T): InternalRow
+----
+
+`toRow` encodes (aka _serializes_) a JVM object `t` as a link:spark-sql-InternalRow.adoc[Spark SQL row].
+
+Internally, `toRow` sets the only JVM object to be `t` in  <<inputRow, inputRow>> and converts the `inputRow` to a link:spark-sql-UnsafeRow.adoc[unsafe binary row] (using <<extractProjection, extractProjection>>).
+
+In case of any exception while serializing, `toRow` reports a `RuntimeException`:
+
+```
+Error while encoding: [initial exception]
+[multi-line serializer]
+```
+
+[NOTE]
+====
+`toRow` is _mostly_ used when `SparkSession` is requested for:
+
+* link:spark-sql-SparkSession.adoc#createDataset[Dataset from a local dataset]
+
+* link:spark-sql-SparkSession.adoc#createDataFrame[DataFrame from RDD[Row\]]
+====
