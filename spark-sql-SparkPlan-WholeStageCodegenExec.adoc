@@ -1,10 +1,37 @@
 == [[WholeStageCodegenExec]] WholeStageCodegenExec Unary Operator with Java Code Generation
 
-`WholeStageCodegenExec` is a link:spark-sql-SparkPlan.adoc#UnaryExecNode[unary physical operator] that link:spark-sql-CodegenSupport.adoc[supports code generation] to produce a *codegened pipeline* for a child physical operator.
+`WholeStageCodegenExec` is a link:spark-sql-SparkPlan.adoc#UnaryExecNode[unary physical operator] that link:spark-sql-CodegenSupport.adoc[supports code generation] for a *codegened pipeline* of a single physical operator.
 
-`WholeStageCodegenExec` is created when link:spark-sql-whole-stage-codegen.adoc#CollapseCodegenStages[CollapseCodegenStages] physical optimization rule transforms when link:spark-sql-settings.adoc#spark.sql.codegen.wholeStage[spark.sql.codegen.wholeStage] is enabled.
+`WholeStageCodegenExec` is created when link:spark-sql-whole-stage-codegen.adoc#CollapseCodegenStages[CollapseCodegenStages] physical optimization rule transforms a link:spark-sql-SparkPlan.adoc[physical plan] and link:spark-sql-SQLConf.adoc#spark.sql.codegen.wholeStage[spark.sql.codegen.wholeStage] is enabled.
 
-NOTE: link:spark-sql-settings.adoc#spark.sql.codegen.wholeStage[spark.sql.codegen.wholeStage] property is enabled by default.
+NOTE: link:spark-sql-SQLConf.adoc#spark.sql.codegen.wholeStage[spark.sql.codegen.wholeStage] property is enabled by default.
+
+[[generateTreeString]]
+`WholeStageCodegenExec` is marked with `*` prefix in the tree output of a physical plan.
+
+NOTE: Use link:spark-sql-QueryExecution.adoc#executedPlan[executedPlan] phase of a query execution to see `WholeStageCodegenExec` in the plan.
+
+[source, scala]
+----
+val q = spark.range(9)
+val plan = q.queryExecution.executedPlan
+scala> println(plan.numberedTreeString)
+00 *Range (0, 9, step=1, splits=8)
+----
+
+[[metrics]]
+.WholeStageCodegenExec SQLMetrics (in alphabetical order)
+[cols="1,2",options="header",width="100%"]
+|===
+| Name
+| Description
+
+| [[pipelineTime]] `pipelineTime`
+| duration
+|===
+
+.WholeStageCodegenExec in web UI (Details for Query)
+image::images/spark-sql-WholeStageCodegenExec-webui.png[align="center"]
 
 TIP: Use link:spark-sql-Dataset.adoc#explain[Dataset.explain] method to know the physical plan of a query and find out whether or not `WholeStageCodegen` is in use.
 
@@ -31,11 +58,48 @@ Found 1 WholeStageCodegen subtrees.
 
 NOTE: link:spark-sql-SparkPlan.adoc[Physical plans] that support code generation extend link:spark-sql-CodegenSupport.adoc[CodegenSupport].
 
-=== [[doExecute]] `doExecute` Method
+[TIP]
+====
+Enable `DEBUG` logging level for `org.apache.spark.sql.execution.WholeStageCodegenExec` logger to see what happens inside.
+
+Add the following line to `conf/log4j.properties`:
+
+```
+log4j.logger.org.apache.spark.sql.execution.WholeStageCodegenExec=DEBUG
+```
+
+Refer to link:spark-logging.adoc[Logging].
+====
+
+=== [[doConsume]] `doConsume` Method
 
 CAUTION: FIXME
 
-=== [[doCodeGen]] `doCodeGen` Method
+=== [[doExecute]] `doExecute` Method
+
+[source, scala]
+----
+doExecute(): RDD[InternalRow]
+----
+
+`doExecute` <<doCodeGen, generates the Java code>> that is link:spark-sql-CodeGenerator.adoc#compile[compiled] right afterwards.
+
+If compilation fails and link:spark-sql-settings.adoc#spark.sql.codegen.fallback[spark.sql.codegen.fallback] is enabled, you should see the following WARN message in the logs and `doExecute` returns the link:spark-sql-SparkPlan.adoc#execute[result of executing the child physical operator].
+
+```
+WARN WholeStageCodegenExec: Whole-stage codegen disabled for this plan:
+[tree]
+```
+
+If however code generation and compilation went well, `doExecute` branches off per the number of link:spark-sql-CodegenSupport.adoc#inputRDDs[input RDDs].
+
+NOTE: `doExecute` only supports up to two link:spark-sql-CodegenSupport.adoc#inputRDDs[input RDDs].
+
+CAUTION: FIXME
+
+NOTE: `doExecute` is a part of link:spark-sql-SparkPlan.adoc#doExecute[SparkPlan Contract].
+
+=== [[doCodeGen]] Generating Java Code for Child Subtree -- `doCodeGen` Method
 
 [source, scala]
 ----
@@ -43,5 +107,12 @@ doCodeGen(): (CodegenContext, CodeAndComment)
 ----
 
 CAUTION: FIXME
+
+You should see the following DEBUG message in the logs:
+
+```
+DEBUG WholeStageCodegenExec:
+[cleanedSource]
+```
 
 NOTE: `doCodeGen` is used when `WholeStageCodegenExec` <<doExecute, doExecute>> (and for link:spark-sql-debugging-execution.adoc#debugCodegen[debugCodegen]).
