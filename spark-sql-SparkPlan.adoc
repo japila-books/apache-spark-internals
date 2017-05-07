@@ -1,14 +1,36 @@
 == [[SparkPlan]] SparkPlan -- Physical Query Plan / Physical Operator
 
-`SparkPlan` is the Catalyst link:spark-sql-catalyst-QueryPlan.adoc[query plan] for *physical operators* that used (_composed_) together build a *physical query plan* (aka _query execution plan_).
+`SparkPlan` is the base link:spark-sql-catalyst-QueryPlan.adoc[Catalyst query plan] for *physical operators* that used (_composed_) together build a *physical query plan* (aka _query execution plan_).
 
-NOTE: A physical operator is a link:spark-sql-catalyst-TreeNode.adoc[Catalyst node] that may have zero or more link:spark-sql-catalyst-TreeNode.adoc#children[children]. Spark SQL uses link:spark-sql-catalyst.adoc[Catalyst] (tree manipulation framework) to compose nodes to build a tree that, in this context, translates to composing physical plans to build a physical plan.
+[NOTE]
+====
+A physical operator is a link:spark-sql-catalyst-TreeNode.adoc[Catalyst node] that may have zero or more link:spark-sql-catalyst-TreeNode.adoc#children[children].
 
-When <<execute, executed>>, a physical operator produces a RDD of records (in the link:spark-sql-InternalRow.adoc[internal binary row format]).
+Spark SQL uses link:spark-sql-catalyst.adoc[Catalyst] (tree manipulation framework) to compose nodes to build a tree that, in this context, translates to composing physical plan nodes to build a physical plan tree.
+====
 
-NOTE: <<execute, execute>> is called when `QueryExecution` is requested for a link:spark-sql-QueryExecution.adoc#toRdd[RDD] which is exactly when your query is executed.
+When <<execute, executed>>, a physical operator produces an RDD of rows (in the link:spark-sql-InternalRow.adoc[internal binary row format]).
 
-TIP: Use link:spark-sql-dataset-operators.adoc#explain[explain] operator to see the execution plan of a structured query.
+NOTE: <<execute, execute>> is called when `QueryExecution` is requested for an link:spark-sql-QueryExecution.adoc#toRdd[RDD] which happens exactly when your query is executed.
+
+[TIP]
+====
+Use link:spark-sql-dataset-operators.adoc#explain[explain] operator to see the execution plan of a structured query.
+
+[source, scala]
+----
+val q = // your query here
+q.explain
+----
+
+You may also access the execution plan of a `Dataset` using its link:spark-sql-Dataset.adoc#queryExecution[queryExecution] property.
+
+[source, scala]
+----
+val q = // your query here
+q.queryExecution.sparkPlan
+----
+====
 
 The <<contract, SparkPlan contract>> assumes that concrete physical operators define <<doExecute, doExecute>> method (with optional <<hooks, hooks>> like <<doPrepare, doPrepare>>) which are executed when the physical operator is <<execute, executed>>.
 
@@ -57,7 +79,7 @@ Internally, `execute` first <<prepare, prepares the query for execution>>, <<wai
 | [[prepare]] `prepare`
 | Prepares a query for execution.
 
-Calls <<doPrepare, doPrepare>>
+Internally, `prepare` calls <<doPrepare, doPrepare>> of its link:spark-sql-catalyst-TreeNode.adoc#children[children] first followed by <<prepareSubqueries, prepareSubqueries>> and <<doPrepare, doPrepare>>.
 
 | <<executeBroadcast, executeBroadcast>>
 | Calls <<doExecuteBroadcast, doExecuteBroadcast>>
@@ -82,6 +104,10 @@ Calls <<doPrepare, doPrepare>>
 
 NOTE: The naming convention for physical operators in Spark's source code is to have their names end with the *Exec* prefix, e.g. `DebugExec` or link:spark-sql-SparkPlan-LocalTableScanExec.adoc[LocalTableScanExec] that is however removed when the operator is displayed, e.g. in link:spark-webui-sql.adoc[web UI].
 
+=== [[prepareSubqueries]] `prepareSubqueries` Method
+
+CAUTION: FIXME
+
 === [[getByteArrayRdd]] `getByteArrayRdd` Internal Method
 
 [source, scala]
@@ -99,11 +125,15 @@ CAUTION: FIXME
 
 CAUTION: FIXME
 
-NOTE: `executeCollect` does not convert data to Scala types.
+NOTE: `executeCollect` does not convert data to JVM types.
+
+=== [[executeToIterator]] `executeToIterator` Method
+
+CAUTION: FIXME
 
 === [[contract]] SparkPlan Contract
 
-`SparkPlan` contract requires that concrete physical operators (aka physical plans) define their own custom `doExecute`.
+`SparkPlan` contract requires that concrete physical operators define their own custom `doExecute`.
 
 [[doExecute]]
 [source, scala]
@@ -121,10 +151,20 @@ doExecute(): RDD[InternalRow]
 | Description
 
 | [[doExecuteBroadcast]] `doExecuteBroadcast`
-| Reports a `UnsupportedOperationException`. Executed exclusively as part of <<executeBroadcast, executeBroadcast>> to return the result of a structured query as a broadcast variable.
+a|
+
+By default reports a `UnsupportedOperationException`.
+
+```
+[nodeName] does not implement doExecuteBroadcast
+```
+
+Executed exclusively as part of <<executeBroadcast, executeBroadcast>> to return the result of a structured query as a broadcast variable.
 
 | [[doPrepare]] `doPrepare`
-| Prepares a physical operator for execution. Executed exclusively as part of <<prepare, prepare>> and is meant for setting up some state before executing a query (e.g. link:spark-sql-SparkPlan-BroadcastExchangeExec.adoc#doPrepare[BroadcastExchangeExec] to broadcast asynchronously).
+| Prepares a physical operator for execution.
+
+Executed exclusively as part of <<prepare, prepare>> and is supposed to set some state up before executing a query (e.g. link:spark-sql-SparkPlan-BroadcastExchangeExec.adoc#doPrepare[BroadcastExchangeExec] to broadcast asynchronously).
 
 | [[outputPartitioning]] `outputPartitioning`
 | Specifies how data is partitioned across different nodes in the cluster
@@ -146,7 +186,7 @@ executeQuery[T](query: => T): T
 
 Internally, `executeQuery` calls <<prepare, prepare>> and <<waitForSubqueries, waitForSubqueries>> before executing `query`.
 
-NOTE: `executeQuery` is executed as part of <<execute, execute>>, <<executeBroadcast, executeBroadcast>> and when link:spark-sql-whole-stage-codegen.adoc#CodegenSupport[CodegenSupport] produces a Java source code.
+NOTE: `executeQuery` is executed as part of <<execute, execute>>, <<executeBroadcast, executeBroadcast>> and when link:spark-sql-CodegenSupport.adoc[CodegenSupport] produces a Java source code.
 
 === [[executeBroadcast]] Broadcasting Result of Structured Query -- `executeBroadcast` Final Method
 

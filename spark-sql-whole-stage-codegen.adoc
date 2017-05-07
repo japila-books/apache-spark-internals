@@ -1,89 +1,16 @@
-== [[WholeStageCodegen]][[WholeStageCodegenExec]] Whole-Stage Code Generation (aka Whole-Stage CodeGen)
+== Whole-Stage Code Generation (aka Whole-Stage CodeGen)
 
 NOTE: Review https://issues.apache.org/jira/browse/SPARK-12795[SPARK-12795 Whole stage codegen] to learn about the work to support it.
 
-*Whole-Stage Code Generation* (aka _WholeStageCodegen_ or _WholeStageCodegenExec_) fuses multiple operators (as a subtree of <<CodegenSupport, plans that support codegen>>) together into a single Java function that is aimed at improving execution performance. It collapses a query into a single optimized function that eliminates virtual function calls and leverages CPU registers for intermediate data.
+*Whole-Stage Code Generation* (aka _Whole-Stage CodeGen_) fuses multiple operators (as a subtree of plans that link:spark-sql-CodegenSupport.adoc[support code generation]) together into a single Java function that is aimed at improving execution performance. It collapses a query into a single optimized function that eliminates virtual function calls and leverages CPU registers for intermediate data.
 
-`WholeStageCodegenExec` case class works with a link:spark-sql-SparkPlan.adoc[SparkPlan] to produce a *codegened pipeline*. It is a unary node in `SparkPlan` with <<CodegenSupport, support for codegen>>.
-
-TIP: Use link:spark-sql-Dataset.adoc#explain[Dataset.explain] method to know the physical plan of a query and find out whether or not `WholeStageCodegen` is in use.
-
-TIP: Consider using link:spark-sql-debugging-execution.adoc[Debugging Query Execution facility] to deep dive into whole stage codegen.
-
-[source, scala]
-----
-scala> spark.range(10).select('id as 'asId).where('id === 4).explain
-== Physical Plan ==
-WholeStageCodegen
-:  +- Project [id#0L AS asId#3L]
-:     +- Filter (id#0L = 4)
-:        +- Range 0, 1, 8, 10, [id#0L]
-----
-
-`SparkPlan` plans with support for codegen extend <<CodegenSupport, CodegenSupport>>.
+NOTE: Whole-Stage Code Generation is enabled by default (using link:spark-sql-settings.adoc#spark.sql.codegen.wholeStage[spark.sql.codegen.wholeStage] property).
 
 NOTE: Whole stage codegen is used by some modern massively parallel processing (MPP) databases to archive great performance. See http://www.vldb.org/pvldb/vol4/p539-neumann.pdf[Efficiently Compiling Efficient Query Plans for Modern Hardware (PDF)].
-
-Whole stage codegen uses link:spark-sql-settings.adoc#spark.sql.codegen.wholeStage[spark.sql.codegen.wholeStage] setting to control...FIXME
 
 NOTE: Janino is used to compile a Java source code into a Java class.
 
 Before a query is executed, <<CollapseCodegenStages, CollapseCodegenStages>> case class is used to find the plans that support codegen and collapse them together as `WholeStageCodegen`. It is part of the sequence of rules link:spark-sql-QueryExecution.adoc#preparations[QueryExecution.preparations] that will be applied in order to the physical plan before execution.
-
-=== [[CodegenSupport]] `CodegenSupport` Contract
-
-`CodegenSupport` is a link:spark-sql-SparkPlan.adoc[SparkPlan] for <<operators, operators that support code generation>>.
-
-`CodegenSupport` allows custom implementations to optionally disable codegen using `supportCodegen` predicate (that is enabled by default, i.e. `true`).
-
-`CodegenSupport` assumes that custom implementations define:
-
-* `doProduce(ctx: CodegenContext): String`
-
-TIP: Use link:spark-sql-debugging-execution.adoc#debugCodegen[debugCodegen] method to review the ``CodegenSupport``-generated code.
-
-=== [[operators]] Codegen Operators
-
-`SparkPlan` plans that support codegen extend <<CodegenSupport, CodegenSupport>>.
-
-* `ProjectExec` for `as`
-* `FilterExec` for `where` or `filter`
-* `Range`
-* <<SampleExec, SampleExec>> for `sample`
-* <<RangeExec, RangeExec>> for link:spark-sql-sqlcontext.adoc#range[SQLContext.range]
-* `RowDataSourceScanExec`
-
-CAUTION: FIXME Where is `RowDataSourceScanExec` used?
-
-* `BatchedDataSourceScanExec`
-* `ExpandExec`
-* `BaseLimitExec`
-* `SortExec`
-* `WholeStageCodegenExec` and `InputAdapter`
-* `TungstenAggregate`
-* link:spark-sql-SparkPlan-BroadcastHashJoinExec.adoc[BroadcastHashJoinExec]
-* `SortMergeJoinExec`
-
-==== [[SampleExec]] SampleExec
-
-[source, scala]
-----
-scala> spark.range(10).sample(false, 0.4).explain
-== Physical Plan ==
-WholeStageCodegen
-:  +- Sample 0.0, 0.4, false, -7634498724724501829
-:     +- Range 0, 1, 8, 10, [id#15L]
-----
-
-==== [[RangeExec]] RangeExec
-
-[source, scala]
-----
-scala> spark.range(10).explain
-== Physical Plan ==
-WholeStageCodegen
-:  +- Range 0, 1, 8, 10, [id#20L]
-----
 
 === [[CollapseCodegenStages]] CollapseCodegenStages
 
@@ -93,7 +20,7 @@ NOTE: `CollapseCodegenStages` is used in link:spark-sql-QueryExecution.adoc#prep
 
 It searches for sub-plans (aka _stages_) that support codegen and collapse them together as a `WholeStageCodegen`.
 
-NOTE: Only <<CodegenSupport, CodegenSupport>> SparkPlans support codegen for which `supportCodegen` is enabled (`true`).
+NOTE: Only link:spark-sql-CodegenSupport.adoc[CodegenSupport] SparkPlans support codegen for which `supportCodegen` is enabled (`true`).
 
 It is assumed that all `Expression` instances (but link:spark-sql-Expression.adoc#CodegenFallback[CodegenFallback]) support codegen.
 
