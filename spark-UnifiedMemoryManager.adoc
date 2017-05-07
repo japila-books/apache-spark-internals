@@ -11,6 +11,31 @@ getMaxMemory(conf: SparkConf): Long
 
 `getMaxMemory` calculates the maximum memory to use for execution and storage.
 
+[source, scala]
+----
+// local mode with --conf spark.driver.memory=2g
+scala> sc.getConf.getSizeAsBytes("spark.driver.memory")
+res0: Long = 2147483648
+
+scala> val systemMemory = Runtime.getRuntime.maxMemory
+
+// fixed amount of memory for non-storage, non-execution purposes
+val reservedMemory = 300 * 1024 * 1024
+
+// minimum system memory required
+val minSystemMemory = (reservedMemory * 1.5).ceil.toLong
+
+val usableMemory = systemMemory - reservedMemory
+
+val memoryFraction = sc.getConf.getDouble("spark.memory.fraction", 0.6)
+scala> val maxMemory = (usableMemory * memoryFraction).toLong
+maxMemory: Long = 956615884
+
+import org.apache.spark.network.util.JavaUtils
+scala> JavaUtils.byteStringAsMb(maxMemory + "b")
+res1: Long = 912
+----
+
 `getMaxMemory` reads <<spark_testing_memory, the maximum amount of memory that the Java virtual machine will attempt to use>> and decrements it by <<spark_testing_reservedMemory, reserved system memory>> (for non-storage and non-execution purposes).
 
 `getMaxMemory` makes sure that the following requirements are met:
@@ -155,7 +180,10 @@ NOTE: `maxOnHeapStorageMemory` is a part of the link:spark-MemoryManager.adoc#co
 .Spark Properties
 [cols="1,1,2",options="header",width="100%"]
 |===
-| Spark Property | Default Value | Description
+| Spark Property
+| Default Value
+| Description
+
 | [[spark_memory_fraction]] `spark.memory.fraction`
 | `0.6`
 | Fraction of JVM heap space used for execution and storage.
@@ -166,7 +194,7 @@ NOTE: `maxOnHeapStorageMemory` is a part of the link:spark-MemoryManager.adoc#co
 
 | [[spark_testing_memory]] `spark.testing.memory`
 | Java's link:++https://docs.oracle.com/javase/8/docs/api/java/lang/Runtime.html#maxMemory--++[Runtime.getRuntime.maxMemory]
-|
+| System memory
 
 | [[spark_testing_reservedMemory]] `spark.testing.reservedMemory`
 | `300M` or `0` (with `spark.testing` enabled)
