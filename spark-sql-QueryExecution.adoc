@@ -48,7 +48,7 @@ NOTE: It is guaranteed that Catalyst's `QueryPlanner` (which `SparkPlanner` exte
 | [[executedPlan]] `executedPlan`
 a| link:spark-sql-SparkPlan.adoc[Physical plan] ready for execution (i.e. <<sparkPlan, sparkPlan>> after <<prepareForExecution, physical optimization rules applied>>).
 
-NOTE: `executedPlan` is the phase when link:spark-sql-whole-stage-codegen.adoc#CollapseCodegenStages[CollapseCodegenStages] physical optimization rule is executed to collapse physical operators that support code generation together as a link:spark-sql-SparkPlan-WholeStageCodegenExec.adoc[WholeStageCodegenExec] operator.
+NOTE: `executedPlan` is the phase when link:spark-sql-CollapseCodegenStages.adoc[CollapseCodegenStages] physical preparation rule is executed to collapse physical operators that support code generation together as a link:spark-sql-SparkPlan-WholeStageCodegenExec.adoc[WholeStageCodegenExec] operator.
 
 | [[toRdd]] `toRdd`
 a| `RDD` of link:spark-sql-InternalRow.adoc[binary rows] (after link:spark-sql-SparkPlan.adoc#execute[executing] the <<executedPlan, executedPlan>>).
@@ -129,24 +129,24 @@ CAUTION: FIXME
 * [[sparkSession]] link:spark-sql-SparkSession.adoc[SparkSession]
 * [[logical]] link:spark-sql-LogicalPlan.adoc[LogicalPlan]
 
-=== [[preparations]] preparations -- SparkPlan Preparation Rules (to apply before Query Execution)
+=== [[preparations]] Physical Plan Preparation Rules -- `preparations` Method
 
-`preparations` is a sequence of link:spark-sql-SparkPlan.adoc[SparkPlan] optimization rules.
+`preparations` is a sequence of link:spark-sql-SparkPlan.adoc[physical plan] preparation rules (i.e. `Rule[SparkPlan]`).
 
-TIP: A `SparkPlan` optimization rule transforms a link:spark-sql-SparkPlan.adoc[SparkPlan physical operator] to another (possibly more efficient) `SparkPlan`.
+TIP: A `SparkPlan` preparation rule transforms a link:spark-sql-SparkPlan.adoc[physical plan] to another (possibly more efficient).
 
-`preparations` collection is an intermediate phase of query execution that developers can used to introduce further optimizations.
+`preparations` is one of the final phases of query execution that Spark developers could use for further query optimizations.
 
 The current list of `SparkPlan` transformations in `preparations` is as follows:
 
 1. `ExtractPythonUDFs`
-2. `PlanSubqueries`
-3. link:spark-sql-EnsureRequirements.adoc[EnsureRequirements]
-4. `CollapseCodegenStages`
-5. `ReuseExchange`
-6. `ReuseSubquery`
+1. `PlanSubqueries`
+1. link:spark-sql-EnsureRequirements.adoc[EnsureRequirements]
+1. link:spark-sql-CollapseCodegenStages.adoc[CollapseCodegenStages]
+1. `ReuseExchange`
+1. `ReuseSubquery`
 
-NOTE: The transformation rules are applied sequentially in order to the physical plan before execution, i.e. they generate a `SparkPlan` when <<executedPlan, executedPlan>> lazy value is accessed.
+NOTE: The preparation rules are applied sequentially in order to the physical plan before execution, i.e. they generate a `SparkPlan` when <<executedPlan, executedPlan>> lazy value is first accessed (and is cached afterwards).
 
 === [[prepareForExecution]] Optimizing Physical Plan (by Executing preparations Physical Optimization Rules) -- `prepareForExecution` Method
 
