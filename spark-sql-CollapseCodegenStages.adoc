@@ -10,7 +10,8 @@
 
 [source, scala]
 ----
-scala> spark.conf.get("spark.sql.codegen.wholeStage")
+import org.apache.spark.sql.internal.SQLConf.WHOLESTAGE_CODEGEN_ENABLED
+scala> spark.conf.get(WHOLESTAGE_CODEGEN_ENABLED)
 res0: String = true
 ----
 
@@ -36,16 +37,86 @@ NOTE: All link:spark-sql-Expression.adoc[Catalyst expressions] (but link:spark-s
 
 `CollapseCodegenStages` inserts `InputAdapter` leaf nodes in a physical plan recursively that is then used to generate code that consumes an RDD iterator of link:spark-sql-InternalRow.adoc[InternalRow].
 
-[TIP]
-====
-Import `CollapseCodegenStages` and apply the rule directly to a physical plan to learn how the rule works.
+TIP: Import `CollapseCodegenStages` and apply the rule directly to a physical plan to learn how the rule works.
 
 [source, scala]
 ----
-// FIXME
-// See spark-sql-Optimizer-ReorderJoin.adoc
+import org.apache.spark.sql.SparkSession
+val spark: SparkSession = ...
+val query = spark.range(2).join(spark.range(2), "id")
+
+// the final result (after CollapseCodegenStages among other rules)
+scala> query.explain
+== Physical Plan ==
+*Project [id#9L]
++- *BroadcastHashJoin [id#9L], [id#12L], Inner, BuildRight
+   :- *Range (0, 2, step=1, splits=8)
+   +- BroadcastExchange HashedRelationBroadcastMode(List(input[0, bigint, false]))
+      +- *Range (0, 2, step=1, splits=8)
+
+val plan = query.queryExecution.sparkPlan
+
+// wholeStageEnabled is enabled
+scala> println(spark.sessionState.conf.wholeStageEnabled)
+true
+
+import org.apache.spark.sql.execution.CollapseCodegenStages
+val ccs = CollapseCodegenStages(conf = spark.sessionState.conf)
+
+scala> ccs.ruleName
+res0: String = org.apache.spark.sql.execution.CollapseCodegenStages
+
+// Before CollapseCodegenStages
+scala> println(plan.numberedTreeString)
+00 Project [id#9L]
+01 +- BroadcastHashJoin [id#9L], [id#12L], Inner, BuildRight
+02    :- Range (0, 2, step=1, splits=8)
+03    +- Range (0, 2, step=1, splits=8)
+
+// After CollapseCodegenStages
+// Note the star
+val executedPlan = ccs.apply(plan)
+scala> println(executedPlan.numberedTreeString)
+00 *Project [id#9L]
+01 +- *BroadcastHashJoin [id#9L], [id#12L], Inner, BuildRight
+02    :- *Range (0, 2, step=1, splits=8)
+03    +- *Range (0, 2, step=1, splits=8)
+
+import org.apache.spark.sql.execution.WholeStageCodegenExec
+val wsc = executedPlan(0).asInstanceOf[WholeStageCodegenExec]
+scala> println(wsc.numberedTreeString)
+00 *Project [id#9L]
+01 +- *BroadcastHashJoin [id#9L], [id#12L], Inner, BuildRight
+02    :- *Range (0, 2, step=1, splits=8)
+03    +- *Range (0, 2, step=1, splits=8)
+
+scala> println(wsc.child.numberedTreeString)
+00 Project [id#9L]
+01 +- BroadcastHashJoin [id#9L], [id#12L], Inner, BuildRight
+02    :- Range (0, 2, step=1, splits=8)
+03    +- Range (0, 2, step=1, splits=8)
+
+// Let's disable wholeStage codegen
+// CollapseCodegenStages becomes a noop
+
+val newSpark = spark.newSession()
+import org.apache.spark.sql.internal.SQLConf.WHOLESTAGE_CODEGEN_ENABLED
+newSpark.sessionState.conf.setConf(WHOLESTAGE_CODEGEN_ENABLED, false)
+
+scala> println(newSpark.sessionState.conf.wholeStageEnabled)
+false
+
+val ccsWholeStageDisabled = CollapseCodegenStages(conf = newSpark.sessionState.conf)
+scala> println(ccsWholeStageDisabled.apply(plan).numberedTreeString)
+00 Project [id#9L]
+01 +- BroadcastHashJoin [id#9L], [id#12L], Inner, BuildRight
+02    :- Range (0, 2, step=1, splits=8)
+03    +- Range (0, 2, step=1, splits=8)
 ----
-====
+
+=== [[insertInputAdapter]] `insertInputAdapter` Internal Method
+
+CAUTION: FIXME
 
 === [[supportCodegen]] `supportCodegen` Internal Method
 
@@ -60,7 +131,22 @@ apply(plan: SparkPlan): SparkPlan
 
 `apply` finds link:spark-sql-CodegenSupport.adoc[physical operators with optional Java code generation] that <<supportCodegen, do support codegen>> and inserts a link:spark-sql-SparkPlan-WholeStageCodegenExec.adoc[WholeStageCodegenExec] operator into the link:spark-sql-SparkPlan.adoc[physical plan] (wrapping the operators).
 
-Internally, `apply`...FIXME
+Internally, `apply` walks the input physical `plan` to find operators with link:spark-sql-CodegenSupport.adoc[CodegenSupport] and <<supportCodegen, supportCodegen>> enabled. If found, `apply` inserts a link:spark-sql-SparkPlan-WholeStageCodegenExec.adoc[WholeStageCodegenExec] with an <<insertInputAdapter, input adapter>> for child operators that do not support codegen.
+
+[NOTE]
+====
+Input Adapters show themselves with no star in link:spark-sql-dataset-operators.adoc[explain].
+
+[source, scala]
+----
+scala> spark.range(1).groupBy("id").count.explain
+== Physical Plan ==
+*HashAggregate(keys=[id#31L], functions=[count(1)])
++- Exchange hashpartitioning(id#31L, 200) // <-- no star here
+   +- *HashAggregate(keys=[id#31L], functions=[partial_count(1)])
+      +- *Range (0, 1, step=1, splits=8)
+----
+====
 
 `apply` does nothing (i.e. passes a physical plan through unchanged) when link:spark-sql-SQLConf.adoc#spark.sql.codegen.wholeStage[spark.sql.codegen.wholeStage] internal property is disabled.
 
@@ -70,7 +156,8 @@ link:spark-sql-SQLConf.adoc#spark.sql.codegen.wholeStage[spark.sql.codegen.whole
 
 [source, scala]
 ----
-scala> spark.conf.get("spark.sql.codegen.wholeStage")
+import org.apache.spark.sql.internal.SQLConf.WHOLESTAGE_CODEGEN_ENABLED
+scala> spark.conf.get(WHOLESTAGE_CODEGEN_ENABLED)
 res0: String = true
 ----
 
