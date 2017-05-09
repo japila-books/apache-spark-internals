@@ -1,14 +1,33 @@
-== [[CollapseCodegenStages]] CollapseCodegenStages Physical Plan Preparation
+== [[CollapseCodegenStages]] CollapseCodegenStages Physical Preparation Rule -- Collapsing Physical Operators with Whole-Stage CodeGen Support
 
-`CollapseCodegenStages` is a physical plan preparation rule (i.e. link:spark-sql-catalyst-RuleExecutor.adoc#Rule[Rule[SparkPlan\]]) in link:spark-sql-QueryExecution.adoc#preparations[QueryExecution].
+`CollapseCodegenStages` is a link:spark-sql-QueryExecution-SparkPlan-Preparations.adoc[physical preparation rule] that <<apply, collapses physical operators with whole-stage codegen support into a WholeStageCodegenExec physical operator>>.
 
-NOTE: link:spark-sql-QueryExecution.adoc#preparations[preparations batch of rules] is...FIXME
+[NOTE]
+====
+`CollapseCodegenStages` does nothing (i.e. passes a physical plan through unchanged) when link:spark-sql-SQLConf.adoc#spark.sql.codegen.wholeStage[spark.sql.codegen.wholeStage] internal property is disabled.
 
-`CollapseCodegenStages` <<apply, finds physical operators that support codegen and collapse them together>> (as a single link:spark-sql-SparkPlan-WholeStageCodegenExec.adoc[WholeStageCodegenExec] physical operator).
+`spark.sql.codegen.wholeStage` property is enabled by default.
+
+[source, scala]
+----
+scala> spark.conf.get("spark.sql.codegen.wholeStage")
+res0: String = true
+----
+
+Use link:spark-sql-SQLConf.adoc#wholeStageEnabled[SQLConf.wholeStageEnabled] method to access the current value.
+
+[source, scala]
+----
+scala> spark.sessionState.conf.wholeStageEnabled
+res1: Boolean = true
+----
+====
 
 NOTE: Only link:spark-sql-CodegenSupport.adoc[CodegenSupport] physical plans that have `supportCodegen` enabled support codegen.
 
 NOTE: All link:spark-sql-Expression.adoc[Catalyst expressions] (but link:spark-sql-Expression.adoc#CodegenFallback[CodegenFallback]) support codegen.
+
+`CollapseCodegenStages` is a part of link:spark-sql-QueryExecution.adoc#preparations[preparations] batch of physical plan rules and is executed in link:spark-sql-QueryExecution.adoc#executedPlan[executedPlan] phase of a link:spark-sql-QueryExecution.adoc[query execution].
 
 [[conf]]
 `CollapseCodegenStages` takes a link:spark-sql-SQLConf.adoc[SQLConf] when created.
@@ -28,10 +47,38 @@ Import `CollapseCodegenStages` and apply the rule directly to a physical plan to
 ----
 ====
 
-=== [[apply]] Transforming Physical Plan -- `apply` Method
-
-CAUTION: FIXME
-
 === [[supportCodegen]] `supportCodegen` Internal Method
 
 CAUTION: FIXME
+
+=== [[apply]] Inserting WholeStageCodegenExec to Physical Plan for Operators that Support CodeGen -- `apply` Method
+
+[source, scala]
+----
+apply(plan: SparkPlan): SparkPlan
+----
+
+`apply` finds link:spark-sql-CodegenSupport.adoc[physical operators with optional Java code generation] that <<supportCodegen, do support codegen>> and inserts a link:spark-sql-SparkPlan-WholeStageCodegenExec.adoc[WholeStageCodegenExec] operator into the link:spark-sql-SparkPlan.adoc[physical plan] (wrapping the operators).
+
+Internally, `apply`...FIXME
+
+`apply` does nothing (i.e. passes a physical plan through unchanged) when link:spark-sql-SQLConf.adoc#spark.sql.codegen.wholeStage[spark.sql.codegen.wholeStage] internal property is disabled.
+
+[NOTE]
+====
+link:spark-sql-SQLConf.adoc#spark.sql.codegen.wholeStage[spark.sql.codegen.wholeStage] property is enabled by default.
+
+[source, scala]
+----
+scala> spark.conf.get("spark.sql.codegen.wholeStage")
+res0: String = true
+----
+
+Use link:spark-sql-SQLConf.adoc#wholeStageEnabled[SQLConf.wholeStageEnabled] method to access the current value.
+
+[source, scala]
+----
+scala> spark.sessionState.conf.wholeStageEnabled
+res1: Boolean = true
+----
+====
