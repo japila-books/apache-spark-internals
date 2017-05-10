@@ -1,10 +1,11 @@
 == [[InputAdapter]] InputAdapter Unary Physical Operator
 
-`InputAdapter` is a link:spark-sql-SparkPlan.adoc#UnaryExecNode[unary physical operator] (with link:spark-sql-CodegenSupport.adoc[CodegenSupport]) that is an adapter to generate code for the single child operator that consumes an RDD iterator of link:spark-sql-InternalRow.adoc[InternalRow].
+`InputAdapter` is a link:spark-sql-SparkPlan.adoc#UnaryExecNode[unary physical operator] (with link:spark-sql-CodegenSupport.adoc[CodegenSupport]) that is an adapter to generate code for the single child operator that does not support link:spark-sql-whole-stage-codegen.adoc[whole-stage code generation] but participates in such code generation for a structured query.
 
-`InputAdapter` is created when...FIXME
+`InputAdapter` is created exclusively when `CollapseCodegenStages` link:spark-sql-CollapseCodegenStages.adoc#insertInputAdapter[inserts a WholeStageCodegenExec operator] into a physical plan.
 
-`InputAdapter` removes the star when generating a stringified tree representation (that link:spark-sql-SparkPlan-WholeStageCodegenExec.adoc[WholeStageCodegenExec] adds), e.g. for link:spark-sql-dataset-operators.adoc#explain[explain] operator.
+[[generateTreeString]]
+`InputAdapter` removes the star from a stringified tree representation of a physical plan (that link:spark-sql-SparkPlan-WholeStageCodegenExec.adoc[WholeStageCodegenExec] adds), e.g. for link:spark-sql-dataset-operators.adoc#explain[explain] operator.
 
 [source, scala]
 ----
@@ -23,4 +24,15 @@ scala> query.explain
 
 === [[doProduce]] `doProduce` Method
 
-CAUTION: FIXME
+[source, scala]
+----
+doProduce(ctx: CodegenContext): String
+----
+
+`doProduce` generates a Java source code that consumes link:spark-sql-InternalRow.adoc[internal row] of a single input `RDD` one at a time (in a `while` loop).
+
+NOTE: `doProduce` supports one input RDD only (that the single child generates when link:spark-sql-SparkPlan.adoc#execute[executed]).
+
+Internally, `doProduce` generates two terms `input` and `row` and uses the code from link:spark-sql-CodegenSupport.adoc#consume[consume] code generator.
+
+NOTE: `doProduce` is a part of link:spark-sql-CodegenSupport.adoc#doProduce[CodegenSupport Contract] to generate a Java source code.
