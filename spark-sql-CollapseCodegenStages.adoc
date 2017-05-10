@@ -35,7 +35,7 @@ NOTE: All link:spark-sql-Expression.adoc[Catalyst expressions] (but link:spark-s
 
 `CollapseCodegenStages` uses the internal setting `spark.sql.codegen.maxFields` (default: `200`) to control the number of fields in input and output schemas before deactivating whole-stage codegen. It counts the fields included in complex types, i.e. link:spark-sql-StructType.adoc[StructType], `MapType`, `ArrayType`, `UserDefinedType`, and their combinations, recursively. See https://issues.apache.org/jira/browse/SPARK-14554[SPARK-14554].
 
-`CollapseCodegenStages` inserts `InputAdapter` leaf nodes in a physical plan recursively that is then used to generate code that consumes an RDD iterator of link:spark-sql-InternalRow.adoc[InternalRow].
+`CollapseCodegenStages` inserts link:spark-sql-SparkPlan-InputAdapter.adoc[InputAdapter] unary operator in a physical plan recursively that is then used to generate code that consumes an RDD iterator of link:spark-sql-InternalRow.adoc[InternalRow].
 
 TIP: Import `CollapseCodegenStages` and apply the rule directly to a physical plan to learn how the rule works.
 
@@ -114,7 +114,7 @@ scala> println(ccsWholeStageDisabled.apply(plan).numberedTreeString)
 03    +- Range (0, 2, step=1, splits=8)
 ----
 
-=== [[insertInputAdapter]] `insertInputAdapter` Internal Method
+=== [[insertWholeStageCodegen]] `insertWholeStageCodegen` Internal Method
 
 CAUTION: FIXME
 
@@ -232,3 +232,24 @@ supportCodegen(e: Expression): Boolean
 Otherwise, `supportCodegen` is negative.
 
 NOTE: `supportCodegen` (for expressions) is used when <<supportCodegen, supportCodegen>> (for physical plans) finds operators that support codegen.
+
+=== [[insertInputAdapter]] Inserting InputAdapter -- `insertInputAdapter` Internal Method
+
+[source, scala]
+----
+insertInputAdapter(plan: SparkPlan): SparkPlan
+----
+
+`insertInputAdapter` inserts an link:spark-sql-SparkPlan-InputAdapter.adoc[InputAdapter] unary operator in a physical plan.
+
+* For `SortMergeJoinExec` (that supports codegen for inner and outer joins only) creates and inserts an link:spark-sql-SparkPlan-InputAdapter.adoc[InputAdapter] unary operator (with <<insertWholeStageCodegen, insertWholeStageCodegen>>) for both children physical operators
+
+* For operators that do not <<supportCodegen, support codegen>> creates and inserts an link:spark-sql-SparkPlan-InputAdapter.adoc[InputAdapter] unary operator (with <<insertWholeStageCodegen, insertWholeStageCodegen>>)
+
+* For other operators (except `SortMergeJoinExec` above or with no <<supportCodegen, support for codegen>>) `insertInputAdapter` inserts an link:spark-sql-SparkPlan-InputAdapter.adoc[InputAdapter] unary operator for every child operator
+
+CAUTION: FIXME Examples for every case
+
+CAUTION: FIXME Omnigraffle it
+
+NOTE: `insertInputAdapter` is used in <<insertWholeStageCodegen, insertWholeStageCodegen>> and recursively.
