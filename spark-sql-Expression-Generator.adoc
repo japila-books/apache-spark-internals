@@ -1,6 +1,63 @@
 == [[Generator]] Generator
 
-`Generator` is a contract for link:spark-sql-Expression.adoc[structured query expressions] that produce zero or more records given a single input record.
+`Generator` is a <<contract, contract>> for link:spark-sql-Expression.adoc[Catalyst expressions] that can <<eval, produce>> zero or more rows given a single input row.
+
+`Generator` is not link:spark-sql-Expression.adoc#foldable[foldable] and not link:spark-sql-Expression.adoc#nullable[nullable] by default.
+
+[[supportCodegen]]
+`Generator` supports link:spark-sql-whole-stage-codegen.adoc[whole-stage codegen] when not link:spark-sql-Expression.adoc#CodegenFallback[CodegenFallback] by default.
+
+[[generator-implementations]]
+.Generators (in alphabetical order)
+[width="100%",cols="1,2",options="header"]
+|===
+| Name
+| Description
+
+| `CollectionGenerator`
+|
+
+| <<ExplodeBase, ExplodeBase>>
+|
+
+| <<Explode, Explode>>
+|
+
+| [[GeneratorOuter]] `GeneratorOuter`
+|
+
+| `HiveGenericUDTF`
+|
+
+| `Inline`
+| Corresponds to `inline` and `inline_outer` functions.
+
+| `JsonTuple`
+|
+
+| <<PosExplode, PosExplode>>
+|
+
+| `Stack`
+|
+
+| [[UnresolvedGenerator]] `UnresolvedGenerator`
+a| Represents an unresolved <<Generator, generator>>.
+
+Created when `AstBuilder` link:spark-sql-AstBuilder.adoc#withGenerate[creates `Generate`] for `LATERAL VIEW` that corresponds to the following:
+
+```
+LATERAL VIEW (OUTER)?
+generatorFunctionName (arg1, arg2, ...)
+tblName
+AS? col1, col2, ...
+```
+
+NOTE: `UnresolvedGenerator` is link:spark-sql-Analyzer.adoc#ResolveFunctions[resolved to `Generator` by `ResolveFunctions`] (in `Analyzer`).
+
+| `UserDefinedGenerator`
+| Used exclusively in the now-deprecated `explode` operator
+|===
 
 [[lateral-view]]
 [NOTE]
@@ -54,56 +111,30 @@ scala> sql(q).show
 ----
 ====
 
-[[generator-implementations]]
-.Generators (in alphabetical order)
-[width="100%",cols="1,2",options="header"]
+=== [[contract]] Generator Contract
+
+[source, scala]
+----
+package org.apache.spark.sql.catalyst.expressions
+
+trait Generator extends Expression {
+  // only required methods that have no implementation
+  def elementSchema: StructType
+  def eval(input: InternalRow): TraversableOnce[InternalRow]
+}
+----
+
+.(Subset of) Generator Contract (in alphabetical order)
+[cols="1,2",options="header",width="100%"]
 |===
-| Name
+| Method
 | Description
 
-| `CollectionGenerator`
-|
+| [[elementSchema]] `elementSchema`
+| link:spark-sql-StructType.adoc[StructType] of the elements generated
 
-| <<ExplodeBase, ExplodeBase>>
-|
-
-| <<Explode, Explode>>
-|
-
-| `GeneratorOuter`
-|
-
-| `HiveGenericUDTF`
-|
-
-| `Inline`
-| Corresponds to `inline` and `inline_outer` functions.
-
-| `JsonTuple`
-|
-
-| <<PosExplode, PosExplode>>
-|
-
-| `Stack`
-|
-
-| [[UnresolvedGenerator]] `UnresolvedGenerator`
-a| Represents an unresolved <<Generator, generator>>.
-
-Created when `AstBuilder` link:spark-sql-AstBuilder.adoc#withGenerate[creates `Generate`] for `LATERAL VIEW` that corresponds to the following:
-
-```
-LATERAL VIEW (OUTER)?
-generatorFunctionName (arg1, arg2, ...)
-tblName
-AS? col1, col2, ...
-```
-
-NOTE: `UnresolvedGenerator` is link:spark-sql-Analyzer.adoc#ResolveFunctions[resolved to `Generator` by `ResolveFunctions`] (in `Analyzer`).
-
-| `UserDefinedGenerator`
-|
+| [[eval]] `eval`
+| Used when...
 |===
 
 === [[Explode]] Explode Generator Unary Expression
