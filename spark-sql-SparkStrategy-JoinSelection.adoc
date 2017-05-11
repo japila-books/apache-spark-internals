@@ -59,17 +59,42 @@ NOTE: `JoinSelection` uses <<ExtractEquiJoinKeys, ExtractEquiJoinKeys>> to destr
 (JoinType, Seq[Expression], Seq[Expression], Option[Expression], LogicalPlan, LogicalPlan)
 ----
 
-=== [[muchSmaller]] `muchSmaller` Internal Condition
+=== [[muchSmaller]] Is Left-Side Plan At Least 3 Times Smaller Than Right-Side Plan? -- `muchSmaller` Internal Condition
 
-CAUTION: FIXME
+[source, scala]
+----
+muchSmaller(a: LogicalPlan, b: LogicalPlan): Boolean
+----
+
+`muchSmaller` condition holds when plan `a` is at least 3 times smaller than plan `b`.
+
+Internally, `muchSmaller` link:spark-sql-LogicalPlan.adoc#stats[calculates the estimated statistics for the input logical plans] and compares their physical size in bytes (`sizeInBytes`).
+
+NOTE: `muchSmaller` is used exclusively when `JoinSelection` checks <<join-selection-requirements, join selection requirements>> for `ShuffledHashJoinExec` physical operator.
 
 === [[canBuildLocalHashMap]] `canBuildLocalHashMap` Internal Condition
 
-CAUTION: FIXME
+[source, scala]
+----
+canBuildLocalHashMap(plan: LogicalPlan): Boolean
+----
+
+`canBuildLocalHashMap` condition holds for the logical `plan` whose single partition is small enough to build a hash table (i.e. link:spark-sql-SQLConf.adoc#spark.sql.autoBroadcastJoinThreshold[spark.sql.autoBroadcastJoinThreshold] multiplied by link:spark-sql-SQLConf.adoc#spark.sql.shuffle.partitions[spark.sql.shuffle.partitions]).
+
+Internally, `canBuildLocalHashMap` link:spark-sql-LogicalPlan.adoc#stats[calculates the estimated statistics for the input logical plans] and takes the size in bytes (`sizeInBytes`).
+
+NOTE: `canBuildLocalHashMap` is used when `JoinSelection` checks <<join-selection-requirements, join selection requirements>> for `ShuffledHashJoinExec` physical operator.
 
 === [[canBuildLeft]] `canBuildLeft` Internal Condition
 
-CAUTION: FIXME
+[source, scala]
+----
+canBuildLeft(joinType: JoinType): Boolean
+----
+
+`canBuildLeft` condition holds for CROSS, INNER and RIGHT OUTER join types. Otherwise, `canBuildLeft` is `false`.
+
+NOTE: `canBuildLeft` is used when `JoinSelection` checks <<join-selection-requirements, join selection requirements>> for `BroadcastHashJoinExec`, `ShuffledHashJoinExec` or `BroadcastNestedLoopJoinExec` physical operators.
 
 === [[canBuildRight]] `canBuildRight` Internal Condition
 
@@ -78,17 +103,19 @@ CAUTION: FIXME
 canBuildRight(joinType: JoinType): Boolean
 ----
 
-`canBuildRight` is a predicate that is positive (i.e. `true`) for link:spark-sql-joins.adoc[joins] that are:
+`canBuildRight` condition holds for link:spark-sql-joins.adoc[joins] that are:
 
 * CROSS, INNER, LEFT ANTI, LEFT OUTER, LEFT SEMI or Existence
 
-Otherwise, `canBuildRight` is negative (i.e. `false`).
+Otherwise, `canBuildRight` is `false`.
 
-=== [[canBroadcast]] Checking If Logical Plan Can Be Broadcast -- `canBroadcast` Internal Condition
+NOTE: `canBuildRight` is used when `JoinSelection` checks <<join-selection-requirements, join selection requirements>> for `BroadcastHashJoinExec`, `ShuffledHashJoinExec` or `BroadcastNestedLoopJoinExec` physical operators.
+
+=== [[canBroadcast]] Can Logical Plan Be Broadcast? -- `canBroadcast` Internal Condition
 
 [source, scala]
 ----
 canBroadcast(plan: LogicalPlan): Boolean
 ----
 
-`canBroadcast` is a predicate that is positive (i.e. `true`) for link:spark-sql-LogicalPlan.adoc[logical operators] with statistics that can be broadcast and of non-negative size up to link:spark-sql-settings.adoc#spark.sql.autoBroadcastJoinThreshold[spark.sql.autoBroadcastJoinThreshold].
+`canBroadcast` condition holds for link:spark-sql-LogicalPlan.adoc[logical operators] with statistics that can be broadcast and of non-negative size up to link:spark-sql-SQLConf.adoc#spark.sql.autoBroadcastJoinThreshold[spark.sql.autoBroadcastJoinThreshold].

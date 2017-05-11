@@ -10,37 +10,47 @@
 A join key is *orderable* when is of one of the following link:spark-sql-DataType.adoc[data types]:
 
 * `NullType`
-* link:spark-sql-DataType.adoc#AtomicType[AtomicType]
+* link:spark-sql-DataType.adoc#AtomicType[AtomicType] (that represents all the available types except `NullType`, `StructType`, `ArrayType`, `UserDefinedType`, `MapType`, and `ObjectType`)
 * `StructType` with orderable fields
 * `ArrayType` of orderable type
 * `UserDefinedType` of orderable type
+
+Therefore, a join key is *not* orderable when is of the following data type:
+
+* `MapType`
+* `ObjectType`
 ====
 
 [source, scala]
 ----
-// Start spark-shell with
-// * broadcast hash join disabled, i.e. spark.sql.autoBroadcastJoinThreshold=-1
+// Start spark-shell with broadcast hash join disabled, i.e. spark.sql.autoBroadcastJoinThreshold=-1
 // ./bin/spark-shell -c spark.sql.autoBroadcastJoinThreshold=-1
-
-val tokens = Seq(
+// Mind the data types so ShuffledHashJoinExec is not selected
+val dataset = Seq(
   (0,"playing"),
   (1, "with"),
   (2, "SortMergeJoinExec")
 ).toDF("id", "token")
 
+// all data types are orderable
+scala> dataset.printSchema
+root
+ |-- id: integer (nullable = false)
+ |-- token: string (nullable = true)
+
 scala> spark.conf.get("spark.sql.autoBroadcastJoinThreshold")
 res0: String = -1
 
-val q = tokens.join(tokens, Seq("id"), "inner")
+val q = dataset.join(tokens, Seq("id"), "inner")
 scala> q.explain
 == Physical Plan ==
-*Project [id#5, token#6, token#11]
-+- *SortMergeJoin [id#5], [id#10], Inner
-   :- *Sort [id#5 ASC NULLS FIRST], false, 0
-   :  +- Exchange hashpartitioning(id#5, 200)
-   :     +- LocalTableScan [id#5, token#6]
-   +- *Sort [id#10 ASC NULLS FIRST], false, 0
-      +- ReusedExchange [id#10, token#11], Exchange hashpartitioning(id#5, 200)
+*Project [id#27, token#28, token#6]
++- *SortMergeJoin [id#27], [id#5], Inner
+   :- *Sort [id#27 ASC NULLS FIRST], false, 0
+   :  +- Exchange hashpartitioning(id#27, 200)
+   :     +- LocalTableScan [id#27, token#28]
+   +- *Sort [id#5 ASC NULLS FIRST], false, 0
+      +- ReusedExchange [id#5, token#6], Exchange hashpartitioning(id#27, 200)
 ----
 
 [[metrics]]
