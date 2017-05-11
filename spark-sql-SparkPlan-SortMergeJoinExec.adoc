@@ -1,0 +1,116 @@
+== [[SortMergeJoinExec]] SortMergeJoinExec Binary Physical Operator
+
+`SortMergeJoinExec` is a link:spark-sql-SparkPlan.adoc#BinaryExecNode[binary physical operator] that link:spark-sql-CodegenSupport.adoc[supports code generation] (aka _whole-stage codegen_).
+
+`SortMergeJoinExec` is <<creating-instance, created>> exclusively for joins with <<leftKeys, left join keys>> orderable, i.e. that can be ordered (sorted).
+
+[NOTE]
+====
+A join key is *orderable* when is of one of the following link:spark-sql-DataType.adoc[data types]:
+
+* `NullType`
+* link:spark-sql-DataType.adoc#AtomicType[AtomicType]
+* `StructType` with orderable fields
+* `ArrayType` of orderable type
+* `UserDefinedType` of orderable type
+====
+
+[source, scala]
+----
+// Start spark-shell with
+// * broadcast hash join disabled, i.e. spark.sql.autoBroadcastJoinThreshold=-1
+// * no preference for sort merge join, i.e. spark.sql.join.preferSortMergeJoin=false
+// ./bin/spark-shell -c spark.sql.autoBroadcastJoinThreshold=-1 -c spark.sql.join.preferSortMergeJoin=false
+
+val tokens = Seq(
+  (0,"playing"),
+  (1, "with"),
+  (2, "SortMergeJoinExec")
+).toDF("id", "token")
+
+scala> spark.conf.get("spark.sql.autoBroadcastJoinThreshold")
+res0: String = -1
+
+scala> spark.conf.get("spark.sql.join.preferSortMergeJoin")
+res1: String = false
+
+val q = tokens.join(tokens, Seq("id"), "inner")
+scala> q.explain
+== Physical Plan ==
+*Project [id#5, token#6, token#11]
++- *SortMergeJoin [id#5], [id#10], Inner
+   :- *Sort [id#5 ASC NULLS FIRST], false, 0
+   :  +- Exchange hashpartitioning(id#5, 200)
+   :     +- LocalTableScan [id#5, token#6]
+   +- *Sort [id#10 ASC NULLS FIRST], false, 0
+      +- ReusedExchange [id#10, token#11], Exchange hashpartitioning(id#5, 200)
+----
+
+[[metrics]]
+.SortMergeJoinExec's SQLMetrics
+[cols="1,2",options="header",width="100%"]
+|===
+| Name
+| Description
+
+| [[numOutputRows]] `numOutputRows`
+| number of output rows
+|===
+
+.SortMergeJoinExec in web UI (Details for Query)
+image::images/spark-sql-SortMergeJoinExec-webui-query-details.png[align="center"]
+
+NOTE: The prefix for variable names for `SortMergeJoinExec` operators in link:spark-sql-CodegenSupport.adoc[CodegenSupport]-generated code is *smj*.
+
+TIP: Use link:spark-sql-debugging-execution.adoc#debugCodegen[debugCodegen] or link:spark-sql-QueryExecution.adoc#debug[QueryExecution.debug.codegen] methods to review the link:spark-sql-CodegenSupport.adoc[CodegenSupport]-generated code.
+
+[source, scala]
+----
+scala> q.queryExecution.debug.codegen
+Found 3 WholeStageCodegen subtrees.
+== Subtree 1 / 3 ==
+*Project [id#5, token#6, token#11]
++- *SortMergeJoin [id#5], [id#10], Inner
+   :- *Sort [id#5 ASC NULLS FIRST], false, 0
+   :  +- Exchange hashpartitioning(id#5, 200)
+   :     +- LocalTableScan [id#5, token#6]
+   +- *Sort [id#10 ASC NULLS FIRST], false, 0
+      +- ReusedExchange [id#10, token#11], Exchange hashpartitioning(id#5, 200)
+
+Generated code:
+/* 001 */ public Object generate(Object[] references) {
+/* 002 */   return new GeneratedIterator(references);
+/* 003 */ }
+/* 004 */
+/* 005 */ final class GeneratedIterator extends org.apache.spark.sql.execution.BufferedRowIterator {
+/* 006 */   private Object[] references;
+/* 007 */   private scala.collection.Iterator[] inputs;
+/* 008 */   private scala.collection.Iterator smj_leftInput;
+/* 009 */   private scala.collection.Iterator smj_rightInput;
+/* 010 */   private InternalRow smj_leftRow;
+/* 011 */   private InternalRow smj_rightRow;
+/* 012 */   private int smj_value2;
+/* 013 */   private org.apache.spark.sql.execution.ExternalAppendOnlyUnsafeRowArray smj_matches;
+/* 014 */   private int smj_value3;
+/* 015 */   private int smj_value4;
+/* 016 */   private UTF8String smj_value5;
+/* 017 */   private boolean smj_isNull2;
+/* 018 */   private org.apache.spark.sql.execution.metric.SQLMetric smj_numOutputRows;
+/* 019 */   private UnsafeRow smj_result;
+/* 020 */   private org.apache.spark.sql.catalyst.expressions.codegen.BufferHolder smj_holder;
+/* 021 */   private org.apache.spark.sql.catalyst.expressions.codegen.UnsafeRowWriter smj_rowWriter;
+...
+----
+
+NOTE: `SortMergeJoinExec` operator is chosen in link:spark-sql-SparkStrategy-JoinSelection.adoc[JoinSelection] execution planning strategy (after link:spark-sql-SparkPlan-BroadcastHashJoinExec.adoc[BroadcastHashJoinExec] and `ShuffledHashJoinExec` operators have not met the requirements).
+
+=== [[creating-instance]] Creating SortMergeJoinExec Instance
+
+`SortMergeJoinExec` takes the following when created:
+
+* [[leftKeys]] Left join key link:spark-sql-Expression.adoc[expressions]
+* [[rightKeys]] Right join key link:spark-sql-Expression.adoc[expressions]
+* [[joinType]] link:spark-sql-joins.adoc#join-types[Join type]
+* [[condition]] Optional join condition link:spark-sql-Expression.adoc[expression]
+* [[left]] Left link:spark-sql-SparkPlan.adoc[physical operator]
+* [[right]] Right link:spark-sql-SparkPlan.adoc[physical operator]
