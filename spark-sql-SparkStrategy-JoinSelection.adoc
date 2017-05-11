@@ -1,28 +1,77 @@
 == [[JoinSelection]] JoinSelection Execution Planning Strategy
 
-`JoinSelection` is an link:spark-sql-SparkStrategy.adoc[execution planning strategy] (of link:spark-sql-SparkPlanner.adoc[SparkPlanner]) that converts link:spark-sql-LogicalPlan.adoc[logical plans] given a join type.
+`JoinSelection` is an link:spark-sql-SparkStrategy.adoc[execution planning strategy] (of link:spark-sql-SparkPlanner.adoc[SparkPlanner]) that translates link:spark-sql-LogicalPlan-Join.adoc[Join] logical operator to one of the available join physical operators per <<join-physical-operator-selection-strategies, join physical operator selection requirements>>.
 
-.JoinSelection's Cases
+[[join-selection-requirements]]
+.Join Physical Operator Selection Requirements (in execution order)
 [cols="1,3",options="header",width="100%"]
 |===
-| Name | Behaviour
-| <<ExtractEquiJoinKeys, ExtractEquiJoinKeys>> | Used to destructure a `Join`
-| link:spark-sql-LogicalPlan-Join.adoc[Join] |
+| Physical Plan
+| Selection Requirements
+
+| link:spark-sql-SparkPlan-BroadcastHashJoinExec.adoc[BroadcastHashJoinExec]
+a|
+
+There are joining keys and one of the following holds:
+
+* <<canBuildRight, canBuildRight>> and right join side <<canBroadcast, can be broadcast>>
+* <<canBuildLeft, canBuildLeft>> and left join side <<canBroadcast, can be broadcast>>
+
+| `ShuffledHashJoinExec`
+a|
+
+There are joining keys and one of the following holds:
+
+* link:spark-sql-SQLConf.adoc#spark.sql.join.preferSortMergeJoin[spark.sql.join.preferSortMergeJoin] is disabled, <<canBuildRight, canBuildRight>>, <<canBuildLocalHashMap, canBuildLocalHashMap>> for right join side and finally right join side is <<muchSmaller, much smaller>> than left side
+
+* link:spark-sql-SQLConf.adoc#spark.sql.join.preferSortMergeJoin[spark.sql.join.preferSortMergeJoin] is disabled, <<canBuildLeft, canBuildLeft>>, <<canBuildLocalHashMap, canBuildLocalHashMap>> for left join side and finally left join side is <<muchSmaller, much smaller>> than right
+
+* Left join keys are *not* link:spark-sql-SparkPlan-SortMergeJoinExec.adoc#orderable[orderable]
+
+| link:spark-sql-SparkPlan-SortMergeJoinExec.adoc[SortMergeJoinExec]
+| Left join keys link:spark-sql-SparkPlan-SortMergeJoinExec.adoc#orderable[orderable]
+
+| link:spark-sql-SparkPlan-BroadcastNestedLoopJoinExec.adoc[BroadcastNestedLoopJoinExec]
+a|
+
+There are no joining keys and one of the following holds:
+
+* <<canBuildRight, canBuildRight>> and right join side <<canBroadcast, can be broadcast>>
+* <<canBuildLeft, canBuildLeft>> and left join side <<canBroadcast, can be broadcast>>
+
+| `CartesianProductExec`
+|
+
+There are no joining keys and link:spark-sql-joins.adoc#join-types[join type] is `INNER` or `CROSS`
+
+| link:spark-sql-SparkPlan-BroadcastNestedLoopJoinExec.adoc[BroadcastNestedLoopJoinExec]
+| Default when no other have matched
 |===
+
+NOTE: `JoinSelection` uses <<ExtractEquiJoinKeys, ExtractEquiJoinKeys>> to destructure a `Join` logical plan.
 
 === [[ExtractEquiJoinKeys]] ExtractEquiJoinKeys
 
-`ExtractEquiJoinKeys` is a pattern used to destructure a link:spark-sql-LogicalPlan-Join.adoc[Join] into a tuple of `(JoinType, Seq[Expression], Seq[Expression], Option[Expression], LogicalPlan, LogicalPlan)`.
+`ExtractEquiJoinKeys` is a pattern used to destructure a link:spark-sql-LogicalPlan-Join.adoc[Join] logical operator into a tuple for join physical operator selection.
 
-=== [[canBuildLocalHashMap]] `canBuildLocalHashMap` Internal Method
+[source, scala]
+----
+(JoinType, Seq[Expression], Seq[Expression], Option[Expression], LogicalPlan, LogicalPlan)
+----
+
+=== [[muchSmaller]] `muchSmaller` Internal Condition
 
 CAUTION: FIXME
 
-=== [[canBuildLeft]] `canBuildLeft` Internal Method
+=== [[canBuildLocalHashMap]] `canBuildLocalHashMap` Internal Condition
 
 CAUTION: FIXME
 
-=== [[canBuildRight]] `canBuildRight` Internal Method
+=== [[canBuildLeft]] `canBuildLeft` Internal Condition
+
+CAUTION: FIXME
+
+=== [[canBuildRight]] `canBuildRight` Internal Condition
 
 [source, scala]
 ----
@@ -35,11 +84,11 @@ canBuildRight(joinType: JoinType): Boolean
 
 Otherwise, `canBuildRight` is negative (i.e. `false`).
 
-=== [[canBroadcast]] Checking If Logical Plan Can Be Broadcast -- `canBroadcast` Internal Method
+=== [[canBroadcast]] Checking If Logical Plan Can Be Broadcast -- `canBroadcast` Internal Condition
 
 [source, scala]
 ----
 canBroadcast(plan: LogicalPlan): Boolean
 ----
 
-`canBroadcast` is a predicate that is positive (i.e. `true`) for link:spark-sql-LogicalPlan.adoc[logical operators] with statistics that can be broadcast and of non-negative size that is however less than link:spark-sql-settings.adoc#spark.sql.autoBroadcastJoinThreshold[spark.sql.autoBroadcastJoinThreshold].
+`canBroadcast` is a predicate that is positive (i.e. `true`) for link:spark-sql-LogicalPlan.adoc[logical operators] with statistics that can be broadcast and of non-negative size up to link:spark-sql-settings.adoc#spark.sql.autoBroadcastJoinThreshold[spark.sql.autoBroadcastJoinThreshold].
