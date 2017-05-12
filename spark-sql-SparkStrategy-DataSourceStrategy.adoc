@@ -1,9 +1,47 @@
 == [[DataSourceStrategy]] DataSourceStrategy Execution Planning Strategy
 
-`DataSourceStrategy` is an link:spark-sql-SparkStrategy.adoc[execution planning strategy] (of link:spark-sql-SparkPlanner.adoc[SparkPlanner]) that...FIXME
+`DataSourceStrategy` is an link:spark-sql-SparkStrategy.adoc[execution planning strategy] (of link:spark-sql-SparkPlanner.adoc[SparkPlanner]) that maps `LogicalRelation` logical operator to link:spark-sql-SparkPlan-DataSourceScanExec-RowDataSourceScanExec.adoc[RowDataSourceScanExec] physical operator.
 
-`DataSourceStrategy` supports the following link:spark-sql-LogicalPlan.adoc[LogicalPlan]s:
+[[apply]]
+[[selection-requirements]]
+.DataSourceStrategy's Selection Requirements (in execution order)
+[cols="1,2",options="header",width="100%"]
+|===
+| Logical Operator
+| Selection Requirements
 
-1. link:spark-sql-SparkStrategy-FileSourceStrategy.adoc#PhysicalOperation[PhysicalOperation] (that is used to destructure a `LogicalPlan`)
-2. `LogicalRelation`
-3. `InsertIntoTable`
+| `LogicalRelation` with `CatalystScan` relation
+| Uses <<pruneFilterProjectRaw, pruneFilterProjectRaw>>
+
+`CatalystScan` does not seem to be used in Spark SQL.
+
+| `LogicalRelation` with `PrunedFilteredScan` relation
+| Uses <<pruneFilterProjectRaw, pruneFilterProjectRaw>>
+
+Matches `JDBCRelation` exclusively (as it is `PrunedFilteredScan`)
+
+| `LogicalRelation` with `PrunedScan` relation
+| Uses <<pruneFilterProjectRaw, pruneFilterProjectRaw>>
+
+`PrunedScan` does not seem to be used in Spark SQL.
+
+| `LogicalRelation` with `TableScan` relation
+| Matches `KafkaRelation` exclusively (as it is `TableScan`)
+|===
+
+NOTE: `DataSourceStrategy` uses link:spark-sql-SparkStrategy-FileSourceStrategy.adoc#PhysicalOperation[PhysicalOperation] to destructure a link:spark-sql-LogicalPlan.adoc[logical plan].
+
+=== [[pruneFilterProjectRaw]] Creating RowDataSourceScanExec (under FilterExec and ProjectExec) -- `pruneFilterProjectRaw` Internal Method
+
+[source, scala]
+----
+pruneFilterProjectRaw(
+  relation: LogicalRelation,
+  projects: Seq[NamedExpression],
+  filterPredicates: Seq[Expression],
+  scanBuilder: (Seq[Attribute], Seq[Expression], Seq[Filter]) => RDD[InternalRow]): SparkPlan
+----
+
+`pruneFilterProjectRaw` creates a link:spark-sql-SparkPlan-DataSourceScanExec-RowDataSourceScanExec.adoc[RowDataSourceScanExec] (possibly as a child of `FilterExec` that in turn could be a child of `ProjectExec`).
+
+NOTE: `pruneFilterProjectRaw` is used when `DataSourceStrategy` <<apply, executes>> (and selects `RowDataSourceScanExec` per `LogicalRelation`).
