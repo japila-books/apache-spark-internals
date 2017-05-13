@@ -1,47 +1,57 @@
-== [[BaseRelation]] BaseRelation
+== [[BaseRelation]] BaseRelation -- Collection of Tuples with Schema
 
-`BaseRelation` works in a link:spark-sql-SQLContext.adoc[SQLContext] with a data of a given link:spark-sql-StructType.adoc[schema]. `BaseRelation` knows its size (as `sizeInBytes`), whether it needs a conversion, and computes the list of `Filter` that this data source may not be able to handle.
+`BaseRelation` is a <<contract, contract>> to represent a collection of tuples with a known <<schema, schema>> (in a <<sqlContext, SQLContext>>).
 
-.BaseRelation Methods
-[cols="1,3",options="header",width="100%"]
+[[sizeInBytes]]
+`BaseRelation` knows its estimated size in bytes (as `sizeInBytes`) that defaults to link:spark-sql-SQLConf.adoc#spark.sql.defaultSizeInBytes[spark.sql.defaultSizeInBytes] internal property (i.e. infinite).
+
+[[needConversion]]
+`BaseRelation` whether it needs a conversion.
+
+[[unhandledFilters]]
+`BaseRelation` computes the list of `Filter` that this data source may not be able to handle.
+
+[[available-implementations]]
+.BaseRelation's Available Implementations (in alphabetical order)
+[width="100%",cols="1,2",options="header"]
 |===
-| Name | Behaviour
-| `sqlContext`
-| Returns the current link:spark-sql-SQLContext.adoc[SQLContext].
+| BaseRelation
+| Description
 
-| `schema`
-| Returns the current link:spark-sql-StructType.adoc[StructType].
+| link:spark-sql-BaseRelation-HadoopFsRelation.adoc[HadoopFsRelation]
+|
 
-| `sizeInBytes`
-| Computes an estimated size of this relation in bytes.
+| link:spark-sql-BaseRelation-JDBCRelation.adoc[JDBCRelation]
+|
 
-| `needConversion`
-| Whether the relation needs a conversion of the objects in `Row` to internal representation.
-
-| `unhandledFilters`
-| Computes the list of ``Filter``s that this data source may not be able to handle.
+| `KafkaRelation`
+| Structured Streaming's `BaseRelation` for datasets from Apache Kafka
 |===
 
 NOTE: A "data source" and "relation" appear as synonyms.
 
-NOTE: `BaseRelation` is an abstract class in `org.apache.spark.sql.sources` package.
-
-=== [[HadoopFsRelation]] HadoopFsRelation
+=== [[contract]] BaseRelation Contract
 
 [source, scala]
 ----
-case class HadoopFsRelation(
-  location: FileIndex,
-  partitionSchema: StructType,
-  dataSchema: StructType,
-  bucketSpec: Option[BucketSpec],
-  fileFormat: FileFormat,
-  options: Map[String, String])(val sparkSession: SparkSession)
-extends BaseRelation with FileRelation
+package org.apache.spark.sql.sources
+
+abstract class BaseRelation {
+  // only required methods that have no implementation
+  def schema: StructType
+  def sqlContext: SQLContext
+}
 ----
 
-`HadoopFsRelation` is a <<BaseRelation, BaseRelation>> in a link:spark-sql-SparkSession.adoc[SparkSession] (through which it gets to the current link:spark-sql-SQLContext.adoc[SQLContext]).
+.(Subset of) BaseRelation Contract (in alphabetical order)
+[cols="1,2",options="header",width="100%"]
+|===
+| Method
+| Description
 
-`HadoopFsRelation` requires a schema (as link:spark-sql-StructType.adoc[StructType]) that it expands with the input `partitionSchema` schema.
+| [[schema]] `schema`
+| link:spark-sql-StructType.adoc[StructType]
 
-`sizeInBytes` and `inputFiles` (from the base `BaseRelation`) use the input `FileIndex` to compute the size and input files, respectively.
+| [[sqlContext]] `sqlContext`
+| link:spark-sql-SQLContext.adoc[SQLContext]
+|===
