@@ -1,6 +1,6 @@
 == [[SparkSession]] SparkSession -- The Entry Point to Spark SQL
 
-`SparkSession` is the entry point to Spark SQL. It is the very first object you have to create while developing Spark SQL applications using the fully-typed link:spark-sql-Dataset.adoc[Dataset] (or untyped ``Row``-based link:spark-sql-dataframe.adoc[DataFrame]) data abstractions.
+`SparkSession` is the entry point to Spark SQL. It is the very first object you have to create while developing Spark SQL applications using the fully-typed link:spark-sql-Dataset.adoc[Dataset] (or untyped ``Row``-based link:spark-sql-DataFrame.adoc[DataFrame]) data abstractions.
 
 NOTE: `SparkSession` has merged link:spark-sql-SQLContext.adoc[SQLContext] and link:spark-sql-hive-integration.adoc[HiveContext] in one object in Spark *2.0*.
 
@@ -89,6 +89,8 @@ Internally, `sessionState` link:spark-sql-SessionState.adoc#clone[clones] the op
 | <<SharedState, SharedState>>
 |===
 
+NOTE: <<baseRelationToDataFrame, baseRelationToDataFrame>> acts as a mechanism to plug `BaseRelation` object hierarchy in into link:spark-sql-LogicalPlan.adoc[LogicalPlan] object hierarchy that `SparkSession` uses to bridge them.
+
 === [[creating-instance]] Creating SparkSession Instance
 
 CAUTION: FIXME
@@ -123,7 +125,7 @@ Internally, `version` uses `spark.SPARK_VERSION` value that is the `version` pro
 
 === [[implicits]] Implicit Conversions -- `implicits` object
 
-The `implicits` object is a helper class with the Scala implicit methods (aka _conversions_) to convert Scala objects to link:spark-sql-Dataset.adoc[Datasets], link:spark-sql-dataframe.adoc[DataFrames] and link:spark-sql-Column.adoc[Columns]. It also defines link:spark-sql-Encoder.adoc[Encoders] for Scala's "primitive" types, e.g. `Int`, `Double`, `String`, and their products and collections.
+The `implicits` object is a helper class with the Scala implicit methods (aka _conversions_) to convert Scala objects to link:spark-sql-Dataset.adoc[Datasets], link:spark-sql-DataFrame.adoc[DataFrames] and link:spark-sql-Column.adoc[Columns]. It also defines link:spark-sql-Encoder.adoc[Encoders] for Scala's "primitive" types, e.g. `Int`, `Double`, `String`, and their products and collections.
 
 [NOTE]
 ====
@@ -264,7 +266,7 @@ createDataFrame(rowRDD: RDD[Row], schema: StructType): DataFrame
 sql(sqlText: String): DataFrame
 ----
 
-`sql` executes the `sqlText` SQL statement and creates a link:spark-sql-dataframe.adoc[DataFrame].
+`sql` executes the `sqlText` SQL statement and creates a link:spark-sql-DataFrame.adoc[DataFrame].
 
 [NOTE]
 ====
@@ -302,7 +304,7 @@ Internally, `sql` requests the link:spark-sql-SessionState.adoc#sqlParser[curren
 
 NOTE: `sql` uses `SessionState` link:spark-sql-SessionState.adoc#sqlParser[to access the current `ParserInterface`].
 
-`sql` then creates a link:spark-sql-dataframe.adoc[DataFrame] using the current `SparkSession` (itself) and the link:spark-sql-LogicalPlan.adoc[LogicalPlan].
+`sql` then creates a link:spark-sql-DataFrame.adoc[DataFrame] using the current `SparkSession` (itself) and the link:spark-sql-LogicalPlan.adoc[LogicalPlan].
 
 [TIP]
 ====
@@ -351,7 +353,7 @@ Internally, it is an alias for link:spark-sql-SessionState.adoc#udf[SessionState
 table(tableName: String): DataFrame
 ----
 
-`table` creates a link:spark-sql-dataframe.adoc[DataFrame] from records in the `tableName` table (if exists).
+`table` creates a link:spark-sql-DataFrame.adoc[DataFrame] from records in the `tableName` table (if exists).
 
 [source, scala]
 ----
@@ -523,9 +525,26 @@ stop(): Unit
 
 `stop` stops the `SparkSession`, i.e. link:spark-sparkcontext.adoc#stop[stops the underlying `SparkContext`].
 
-=== [[baseRelationToDataFrame]] `baseRelationToDataFrame` Method
+=== [[baseRelationToDataFrame]] Create DataFrame from BaseRelation -- `baseRelationToDataFrame` Method
 
-CAUTION: FIXME
+[source, scala]
+----
+baseRelationToDataFrame(baseRelation: BaseRelation): DataFrame
+----
+
+Internally, `baseRelationToDataFrame` creates a link:spark-sql-DataFrame.adoc[DataFrame] from the input link:spark-sql-BaseRelation.adoc[BaseRelation] wrapped inside link:spark-sql-LogicalPlan-LogicalRelation.adoc[LogicalRelation].
+
+NOTE: link:spark-sql-LogicalPlan-LogicalRelation.adoc[LogicalRelation] is an logical plan adapter for `BaseRelation` (so `BaseRelation` can be part of a link:spark-sql-LogicalPlan.adoc[logical plan]).
+
+[NOTE]
+====
+`baseRelationToDataFrame` is used when:
+
+* `DataFrameReader` link:spark-sql-DataFrameReader.adoc#load[loads data from data sources that support multiple paths]
+* `DataFrameReader` link:spark-sql-DataFrameReader.adoc#jdbc[loads data from external table using JDBC]
+* `TextInputCSVDataSource` creates a base `Dataset` (of Strings)
+* `TextInputJsonDataSource` creates a base `Dataset` (of Strings)
+====
 
 === [[instantiateSessionState]] Building SessionState -- `instantiateSessionState` Internal Method
 
