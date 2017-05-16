@@ -4,7 +4,7 @@ From PostgreSQL's https://www.postgresql.org/docs/current/static/tutorial-join.h
 
 > Queries can access multiple tables at once, or access the same table in such a way that multiple rows of the table are being processed at the same time. A query that accesses multiple rows of the same or different tables at one time is called a *join query*.
 
-You can join multiple link:spark-sql-Dataset.adoc[Datasets] by using <<join-operators, join operators>>.
+You can join datasets using <<join-operators, join operators>>: `crossJoin`, `join`, and `joinWith`.
 
 [[join-operators]]
 .Join Operators (in alphabetical order)
@@ -13,6 +13,10 @@ You can join multiple link:spark-sql-Dataset.adoc[Datasets] by using <<join-oper
 | Operator
 | Return Type
 | Description
+
+| <<crossJoin, crossJoin>>
+| link:spark-sql-DataFrame.adoc[DataFrame]
+| Untyped, ``Row``-based cross join
 
 | <<join, join>>
 | link:spark-sql-DataFrame.adoc[DataFrame]
@@ -25,14 +29,29 @@ You can join multiple link:spark-sql-Dataset.adoc[Datasets] by using <<join-oper
 
 [NOTE]
 ====
-You can also use link:spark-sql-SparkSession.adoc#sql[SparkSession] to execute _good ol'_ SQL with joins.
+You can also use link:spark-sql-SparkSession.adoc#sql[SQL mode] to join datasets using _good ol'_ SQL.
 
 [source, scala]
 ----
-val spark: SparkSession = ???
+val spark: SparkSession = ...
 spark.sql("select * from t1, t2 where t1.id = t2.id")
 ----
 ====
+
+You can specify a *join condition* (aka _join expression_) as part of join operators or using link:spark-sql-dataset-operators.adoc#where[where] operator.
+
+[source, scala]
+----
+df1.join(df2, $"df1Key" === $"df2Key")
+df1.join(df2).where($"df1Key" === $"df2Key")
+----
+
+You can specify the <<join-types, join type>> as part of join operators (using `joinType` optional parameter).
+
+[source, scala]
+----
+df1.join(df2, $"df1Key" === $"df2Key", "inner")
+----
 
 [[join-types]]
 .Join Types (in alphabetical order)
@@ -81,13 +100,7 @@ spark.sql("select * from t1, t2 where t1.id = t2.id")
 
 TIP: Name are case-insensitive and can use the underscore (`_`) at any position, i.e. `left_anti` and `LEFT_ANTI` are equivalent.
 
-You can use the join expression as part of <<join, join>> operator or leave it out and describe using link:spark-sql-dataset-operators.adoc#where[where] operator.
-
-[source, scala]
-----
-df1.join(df2, $"df1Key" === $"df2Key")
-df1.join(df2).where($"df1Key" === $"df2Key")
-----
+NOTE: Spark SQL offers different link:spark-sql-SparkStrategy-JoinSelection.adoc#join-selection-requirements[join strategies] with link:spark-sql-joins-broadcast.adoc[Broadcast Joins (aka Map-Side Joins)] among them that are supposed to optimize your join queries over large distributed datasets.
 
 === [[join]] `join` Operators
 
@@ -243,21 +256,3 @@ scala> joined.show
 NOTE: `joinWith` preserves type-safety with the original object types.
 
 NOTE: `joinWith` creates a `Dataset` with link:spark-sql-LogicalPlan-Join.adoc[Join] logical plan.
-
-=== [[broadcast-join]] Broadcast Join (aka Map-Side Join)
-
-CAUTION: FIXME: Review `BroadcastNestedLoop`.
-
-You can use link:spark-sql-functions.adoc#broadcast[broadcast] function to mark a link:spark-sql-Dataset.adoc[Dataset] to be broadcast when used in a `join` operator.
-
-NOTE: According to the article http://dmtolpeko.com/2015/02/20/map-side-join-in-spark/[Map-Side Join in Spark], *broadcast join* is also called a *replicated join* (in the distributed system community) or a *map-side join* (in the Hadoop community).
-
-NOTE: At long last! I have always been wondering what a map-side join is and it appears I am close to uncover the truth!
-
-And later in the article http://dmtolpeko.com/2015/02/20/map-side-join-in-spark/[Map-Side Join in Spark], you can find that with the broadcast join, you can very effectively join a large table (fact) with relatively small tables (dimensions), i.e. to perform a *star-schema join* you can avoid sending all data of the large table over the network.
-
-`CanBroadcast` object matches a link:spark-sql-LogicalPlan.adoc[LogicalPlan] with output small enough for broadcast join.
-
-NOTE: Currently statistics are only supported for Hive Metastore tables where the command `ANALYZE TABLE [tableName] COMPUTE STATISTICS noscan` has been run.
-
-It uses link:spark-sql-SQLConf.adoc#spark.sql.autoBroadcastJoinThreshold[spark.sql.autoBroadcastJoinThreshold] setting to control the size of a table that will be broadcast to all worker nodes when performing a join.
