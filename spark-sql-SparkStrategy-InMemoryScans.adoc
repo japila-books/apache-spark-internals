@@ -1,0 +1,22 @@
+== [[InMemoryScans]] InMemoryScans Execution Planning Strategy
+
+`InMemoryScans` is an link:spark-sql-SparkStrategy.adoc[execution planning strategy] (of link:spark-sql-SparkPlanner.adoc[SparkPlanner]) that translates link:spark-sql-LogicalPlan-InMemoryRelation.adoc[InMemoryRelation] logical operator for cached query plans to a link:spark-sql-SparkPlanner.adoc#pruneFilterProject[pruned physical plan] with link:spark-sql-SparkPlan-InMemoryTableScanExec.adoc[InMemoryTableScanExec] physical operator.
+
+[source, scala]
+----
+val spark: SparkSession = ...
+// query uses InMemoryRelation logical operator
+val q = spark.range(5).cache
+val plan = q.queryExecution.optimizedPlan
+scala> println(plan.numberedTreeString)
+00 InMemoryRelation [id#208L], true, 10000, StorageLevel(disk, memory, deserialized, 1 replicas)
+01    +- *Range (0, 5, step=1, splits=8)
+
+// InMemoryScans is an internal class of SparkStrategies
+import spark.sessionState.planner.InMemoryScans
+val physicalPlan = InMemoryScans.apply(plan).head
+scala> println(physicalPlan.numberedTreeString)
+00 InMemoryTableScan [id#208L]
+01    +- InMemoryRelation [id#208L], true, 10000, StorageLevel(disk, memory, deserialized, 1 replicas)
+02          +- *Range (0, 5, step=1, splits=8)
+----
