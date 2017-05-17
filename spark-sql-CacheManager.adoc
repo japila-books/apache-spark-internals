@@ -11,7 +11,7 @@ sparkSession.sharedState.cacheManager
 
 NOTE: A Spark developer can use `CacheManager` to cache ``Dataset``s using link:spark-sql-caching.adoc#cache[cache] or link:spark-sql-caching.adoc#persist[persist] operators.
 
-=== [[cachedData]] `cachedData` Internal Registry
+=== [[cachedData]] Cached Queries -- `cachedData` Internal Registry
 
 `cachedData` is a collection of <<CachedData, CachedData>> with link:spark-sql-LogicalPlan.adoc[logical plans] and their cached link:spark-sql-LogicalPlan-InMemoryRelation.adoc[InMemoryRelation] representation.
 
@@ -39,9 +39,7 @@ CAUTION: FIXME
 
 CAUTION: FIXME
 
-=== [[cacheQuery]] Caching Dataset -- `cacheQuery` Method
-
-When you link:spark-sql-Dataset.adoc#cache[cache] or link:spark-sql-Dataset.adoc#persist[persist] a `Dataset`, both methods pass the call to `cacheQuery` method.
+=== [[cacheQuery]] Caching Dataset (by Registering Logical Plan as InMemoryRelation)-- `cacheQuery` Method
 
 [source, scala]
 ----
@@ -51,13 +49,29 @@ cacheQuery(
   storageLevel: StorageLevel = MEMORY_AND_DISK): Unit
 ----
 
-`cacheQuery` obtains link:spark-sql-QueryExecution.adoc#analyzed[analyzed] logical plan and saves it as a link:spark-sql-LogicalPlan-InMemoryRelation.adoc[InMemoryRelation] in the internal `cachedData` cached queries collection.
+Internally, `cacheQuery` registers link:spark-sql-Dataset.adoc#logicalPlan[logical plan] of the input `query` in <<cachedData, cachedData>> internal registry of cached queries.
 
-If however the query has already been cached, you should instead see the following WARN message in the logs:
+While registering, `cacheQuery` creates a link:spark-sql-LogicalPlan-InMemoryRelation.adoc[InMemoryRelation] with the following properties:
+
+* spark.sql.inMemoryColumnarStorage.compressed (enabled by default)
+* spark.sql.inMemoryColumnarStorage.batchSize (default: `10000`)
+* `MEMORY_AND_DISK` link:spark-rdd-StorageLevel.adoc[storage level]
+* Logical query plan ready for execution (aka link:spark-sql-QueryExecution.adoc#executedPlan[executedPlan])
+* Input `tableName`
+
+If however the input `query` has already been cached, `cacheQuery` simply prints the following WARN message to the logs:
 
 ```
 WARN CacheManager: Asked to cache already cached data.
 ```
+
+[NOTE]
+====
+`cacheQuery` is used when:
+
+* ``Dataset``'s link:spark-sql-caching.adoc#persist[persist] operator executes
+* `CatalogImpl` is requested to `cacheTable` or `refreshTable`
+====
 
 === [[clearCache]] Removing All Cached Tables From In-Memory Cache -- `clearCache` Method
 
