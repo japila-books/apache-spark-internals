@@ -76,8 +76,36 @@ NOTE: `RunnableCommand` logical operator is translated to link:spark-sql-SparkPl
 | AnalyzeTableCommand
 |
 
-| CacheTableCommand
-|
+| [[CacheTableCommand]] CacheTableCommand
+a| When <<run, executed>>, `CacheTableCommand` link:spark-sql-Dataset.adoc#ofRows[creates a DataFrame] followed by link:spark-sql-dataset-operators.adoc#createTempView[registering a temporary view] for the optional `query`.
+
+[source, scala]
+----
+CACHE LAZY? TABLE [table] (AS? [query])?
+----
+
+`CacheTableCommand` requests the session-specific `Catalog` to link:spark-sql-Catalog.adoc#cacheTable[cache the table].
+
+NOTE: `CacheTableCommand` uses `SparkSession` link:spark-sql-SparkSession.adoc#catalog[to access the `Catalog`].
+
+If the caching is not `LAZY` (which is not by default), `CacheTableCommand` link:spark-sql-SparkSession.adoc#table[creates a DataFrame for the table] and link:spark-sql-dataset-operators.adoc#count[counts the rows] (that will trigger the caching).
+
+NOTE: `CacheTableCommand` uses a Spark SQL pattern to trigger DataFrame caching by executing `count` operation.
+
+[source, scala]
+----
+val q = "CACHE TABLE ids AS SELECT * from range(5)"
+scala> println(sql(q).queryExecution.logical.numberedTreeString)
+00 CacheTableCommand `ids`, false
+01    +- 'Project [*]
+02       +- 'UnresolvedTableValuedFunction range, [5]
+
+// ids table is already cached but let's use it anyway (and see what happens)
+val q2 = "CACHE LAZY TABLE ids"
+scala> println(sql(q2).queryExecution.logical.numberedTreeString)
+17/05/17 06:16:39 WARN CacheManager: Asked to cache already cached data.
+00 CacheTableCommand `ids`, true
+----
 
 | ClearCacheCommand
 |

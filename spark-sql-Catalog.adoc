@@ -73,18 +73,36 @@ abstract class Catalog {
 | Method
 | Description
 
+| [[cacheTable]] `cacheTable`
+| Caches the specified table in memory
+
+Used for SQL's link:spark-sql-caching.adoc#cache-table[CACHE TABLE] and `AlterTableRenameCommand` command.
+
 | [[functionExists]] `functionExists`
 |
 |===
 
 === [[CatalogImpl]] CatalogImpl
 
-`CatalogImpl` is the one and only <<contract, Catalog>> that relies on a per-session link:spark-sql-SessionCatalog.adoc[SessionCatalog] (through link:spark-sql-SparkSession.adoc[SparkSession]) to obey the <<contract, Catalog contract>>.
+`CatalogImpl` is the one and only <<contract, Catalog>> that uses a per-session link:spark-sql-SessionCatalog.adoc[SessionCatalog] (through link:spark-sql-SparkSession.adoc[SparkSession]).
 
 .CatalogImpl uses SessionCatalog (through SparkSession)
 image::images/spark-sql-CatalogImpl.png[align="center"]
 
-It lives in `org.apache.spark.sql.internal` package.
+`CatalogImpl` lives in `org.apache.spark.sql.internal` package.
+
+==== [[cacheTable]] Caching Table or View In-Memory -- `cacheTable` Method
+
+[source, scala]
+----
+cacheTable(tableName: String): Unit
+----
+
+Internally, `cacheTable` first link:spark-sql-SparkSession.adoc#table[creates a DataFrame for the table] followed by requesting `CacheManager` to link:spark-sql-CacheManager.adoc#cacheQuery[cache it].
+
+NOTE: `cacheTable` uses the link:spark-sql-SparkSession.adoc#sharedState[session-scoped] `SharedState` to access the `CacheManager`.
+
+NOTE: `cacheTable` is a part of <<contract, Catalog Contract>>.
 
 ==== [[clearCache]] Removing All Cached Tables From In-Memory Cache -- `clearCache` Method
 
@@ -93,7 +111,7 @@ It lives in `org.apache.spark.sql.internal` package.
 clearCache(): Unit
 ----
 
-`clearCache` requests link:spark-sql-CacheManager.adoc#clearCache[`CacheManager` to remove all cached tables from in-memory cache].
+`clearCache` requests `CacheManager` to link:spark-sql-CacheManager.adoc#clearCache[remove all cached tables from in-memory cache].
 
 NOTE: `clearCache` is a part of <<contract, `Catalog` Contract>>.
 
