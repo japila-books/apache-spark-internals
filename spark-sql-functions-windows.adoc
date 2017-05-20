@@ -1,14 +1,54 @@
 == Window Aggregate Functions
 
-*Window aggregate functions* (aka *window functions* or *windowed aggregates*) are functions that perform a calculation on a group of records (called a *window*) that are in _some_ relation to the current record.
+*Window aggregate functions* (aka *window functions* or *windowed aggregates*) are functions that perform a calculation over a group of records called *window* that are in _some_ relation to the current record (i.e. can be in the same partition or frame as the current row).
 
-Window functions calculate values for every record in a window.
+In other words, when executed, a window function computes a value for each and every row in a window (per <<WindowSpec, window specification>>).
 
-NOTE: Window-based framework is available as an experimental feature since Spark *1.4.0*.
+NOTE: Window functions are also called *over functions* due to how they are applied using link:spark-sql-Column.adoc#over[over] operator.
 
-Unlike the link:spark-sql-basic-aggregation.adoc[regular aggregate operators], windowed aggregates work across the rows that fall into the same partition as the current row.
+Spark SQL supports three kinds of window functions:
 
-NOTE: Window functions are supported in structured queries using <<sql, SQL>> and link:spark-sql-Column.adoc[Column]-based expressions.
+* *ranking* functions
+* *analytic* functions
+* *aggregate* functions
+
+.Window Aggregate Functions in Spark SQL
+[align="center",cols="1,1,2",width="80%",options="header"]
+|===
+|
+| Function
+| Purpose
+
+.5+^.^|*Ranking functions*
+
+|link:spark-sql-functions.adoc#rank[rank]
+|
+
+|link:spark-sql-functions.adoc#dense_rank[dense_rank]
+|
+
+|link:spark-sql-functions.adoc#percent_rank[percent_rank]
+|
+
+|link:spark-sql-functions.adoc#ntile[ntile]
+|
+
+|link:spark-sql-functions.adoc#row_number[row_number]
+|
+
+.3+^.^|*Analytic functions*
+
+|link:spark-sql-functions.adoc#cume_dist[cume_dist]
+|
+
+|link:spark-sql-functions.adoc#lag[lag]
+|
+
+|link:spark-sql-functions.adoc#lead[lead]
+|
+|===
+
+For aggregate functions, you can use the existing link:spark-sql-basic-aggregation.adoc[aggregate functions] as window functions, e.g. `sum`, `avg`, `min`, `max` and `count`.
 
 [source, scala]
 ----
@@ -50,47 +90,23 @@ scala> empsalary.withColumn("avg", avg('salary) over byDepName).show
 +---------+-----+------+-----------------+
 ----
 
-As is shown in the example above, you describe a window using the convenient factory methods in <<Window-object, `Window` object>> that create a <<WindowSpec, window specification>> that you can further refine with *partitioning*, *ordering*, and *frame boundaries*.
+You describe a window using the convenient factory methods in <<Window-object, Window object>> that create a <<WindowSpec, window specification>> that you can further refine with *partitioning*, *ordering*, and *frame boundaries*.
 
-After you describe a window you can apply <<functions, window aggregate functions>> like *ranking* functions (e.g. `RANK`), *analytic* functions (e.g. `LAG`), and the regular link:spark-sql-basic-aggregation.adoc[aggregate functions], e.g. `SUM`, `AVG`, `MAX`.
+After you describe a window you can apply <<functions, window aggregate functions>> like *ranking* functions (e.g. `RANK`), *analytic* functions (e.g. `LAG`), and the regular link:spark-sql-basic-aggregation.adoc[aggregate functions], e.g. `sum`, `avg`, `max`.
 
-=== [[functions]] Window Aggregate Functions
-
-A *window aggregate function* calculates a return value over a set of rows called *window* that are _somehow_ related to the current row.
-
-NOTE: Window functions are also called *over functions* due to how they are applied using link:spark-sql-Column.adoc#over[Column's over function.]
+NOTE: Window functions are supported in structured queries using <<sql, SQL>> and link:spark-sql-Column.adoc[Column]-based expressions.
 
 Although similar to link:spark-sql-basic-aggregation.adoc[aggregate functions], a window function does not group rows into a single output row and retains their separate identities. A window function can access rows that are linked to the current row.
 
+NOTE: The main difference between window aggregate functions and link:spark-sql-functions.adoc#aggregate-functions[aggregate functions] with link:spark-sql-basic-aggregation.adoc[grouping operators] is that the former calculate values for every row in a window while the latter gives you at most the number of input rows, one value per group.
+
 TIP: See <<examples, Examples>> section in this document.
-
-Spark SQL supports three kinds of window functions:
-
-* *ranking* functions
-* *analytic* functions
-* *aggregate* functions
-
-.Window functions in Spark SQL (see https://databricks.com/blog/2015/07/15/introducing-window-functions-in-spark-sql.html[Introducing Window Functions in Spark SQL])
-[align="center",width="80%",options="header"]
-|===
-|                           |SQL          |Function
-.5+^.^|*Ranking functions*  |RANK         |link:spark-sql-functions.adoc#rank[rank]
-                            |DENSE_RANK   |link:spark-sql-functions.adoc#dense_rank[dense_rank]
-                            |PERCENT_RANK |link:spark-sql-functions.adoc#percent_rank[percent_rank]
-                            |NTILE        |link:spark-sql-functions.adoc#ntile[ntile]
-                            |ROW_NUMBER   |link:spark-sql-functions.adoc#row_number[row_number]
-.5+^.^|*Analytic functions* |CUME_DIST    |link:spark-sql-functions.adoc#cume_dist[cume_dist]
-                            |LAG          |link:spark-sql-functions.adoc#lag[lag]
-                            |LEAD         |link:spark-sql-functions.adoc#lead[lead]
-|===
-
-For aggregate functions, you can use the existing link:spark-sql-basic-aggregation.adoc[aggregate functions] as window functions, e.g. `sum`, `avg`, `min`, `max` and `count`.
 
 You can mark a function _window_ by `OVER` clause after a function in SQL, e.g. `avg(revenue) OVER (...)` or link:spark-sql-Column.adoc#over[over method] on a function in the Dataset API, e.g. `rank().over(...)`.
 
-When executed, a window function computes a value for each row in a window.
-
 NOTE: Window functions belong to http://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.sql.functions$[Window functions group] in Spark's Scala API.
+
+NOTE: Window-based framework is available as an experimental feature since Spark *1.4.0*.
 
 === [[WindowSpec]] WindowSpec -- Window Specification
 
@@ -575,6 +591,7 @@ Window [rank(salary#7L) windowspecdefinition(depname#5, salary#7L DESC, ROWS BET
 
 === [[i-want-more]] Further reading or watching
 
+* https://databricks.com/blog/2015/07/15/introducing-window-functions-in-spark-sql.html[Introducing Window Functions in Spark SQL]
 * http://www.postgresql.org/docs/current/static/tutorial-window.html[3.5. Window Functions] in the official documentation of PostgreSQL
 * https://www.simple-talk.com/sql/t-sql-programming/window-functions-in-sql/[Window Functions in SQL]
 * https://www.simple-talk.com/sql/learn-sql-server/working-with-window-functions-in-sql-server/[Working with Window Functions in SQL Server]
