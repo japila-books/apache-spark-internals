@@ -1,9 +1,7 @@
 == [[WindowExpression]] WindowExpression Unevaluable Expression
 
 [[windowFunction]][[windowSpec]]
-`WindowExpression` is an link:spark-sql-Expression.adoc#Unevaluable[unevaluable expression] (i.e. with no support for `eval` and `doGenCode` methods).
-
-`WindowExpression` is created to represent `windowFunction` and link:spark-sql-Expression-WindowSpecDefinition.adoc[WindowSpecDefinition] expressions in a SQL query after `Analyzer` link:spark-sql-Analyzer.adoc#WindowsSubstitution[resolves `UnresolvedWindowExpressions`].
+`WindowExpression` is an link:spark-sql-Expression.adoc#Unevaluable[unevaluable expression] that holds the Catalyst expressions of a window function and link:spark-sql-Expression-WindowSpecDefinition.adoc[WindowSpecDefinition] in a query plan after `Analyzer` link:spark-sql-Analyzer.adoc#WindowsSubstitution[resolves `UnresolvedWindowExpressions`].
 
 [source, scala]
 ----
@@ -24,7 +22,7 @@ windowExpr: org.apache.spark.sql.catalyst.expressions.WindowExpression = 'count(
 scala> windowExpr.sql
 res2: String = count() OVER (PARTITION BY `value` UnspecifiedFrame)
 ----
-<1> Use `sqlParser` directly as in the <<WithWindowDefinition-example, WithWindowDefinition Example>> below.
+<1> Use `sqlParser` directly as in link:spark-sql-LogicalPlan-WithWindowDefinition.adoc#example[WithWindowDefinition Example]
 
 NOTE: `WindowExpression` is used in link:spark-sql-Analyzer.adoc#ExtractWindowExpressions[ExtractWindowExpressions], link:spark-sql-Analyzer.adoc#ResolveWindowOrder[ResolveWindowOrder] and link:spark-sql-Analyzer-ResolveWindowFrame.adoc[ResolveWindowFrame] logical evaluation rules.
 
@@ -57,65 +55,6 @@ NOTE: `WindowExpression` is used in link:spark-sql-Optimizer-NullPropagation.ado
 | `toString`
 | `"[windowFunction] [windowSpec]"`
 |===
-
-=== [[WithWindowDefinition]] WithWindowDefinition Unary Logical Plan
-
-`WithWindowDefinition` is a link:spark-sql-LogicalPlan.adoc#UnaryNode[unary logical plan] with a single `child` logical plan and a `windowDefinitions` lookup table of link:spark-sql-Expression-WindowSpecDefinition.adoc[WindowSpecDefinition] per name.
-
-`WithWindowDefinition` is created exclusively when `AstBuilder` link:spark-sql-AstBuilder.adoc#withWindows[parses window definitions].
-
-[[WithWindowDefinition-properties]]
-.WithWindowDefinition's Properties (in alphabetical order)
-[width="100%",cols="1,2",options="header"]
-|===
-| Name
-| Description
-
-| `output`
-| Output of the `child` logical plan.
-|===
-
-==== [[WithWindowDefinition-example]] WithWindowDefinition Example
-
-[source, scala]
-----
-// Table for FROM clauses below
-(0 to 5).toDF("id").createOrReplaceTempView("ids")
-
-// Example with window specification alias and definition
-
-val sqlText = """
-  SELECT count(*) OVER anotherWindowSpec
-  FROM ids
-  WINDOW
-    anotherWindowSpec AS myWindowSpec,
-    myWindowSpec AS (
-      PARTITION BY id
-      RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
-    )
-"""
-
-import spark.sessionState.{analyzer,sqlParser}
-
-scala> sqlParser.parsePlan(sqlText)
-res1: org.apache.spark.sql.catalyst.plans.logical.LogicalPlan =
-'WithWindowDefinition Map(anotherWindowSpec -> windowspecdefinition('id, RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW), myWindowSpec -> windowspecdefinition('id, RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW))
-+- 'Project [unresolvedalias(unresolvedwindowexpression('count(1), WindowSpecReference(anotherWindowSpec)), None)]
-   +- 'UnresolvedRelation `ids`
-
-scala> sql(sqlText)
-res2: org.apache.spark.sql.DataFrame = [count(1) OVER (PARTITION BY id RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW): bigint]
-
-scala> analyzer.execute(sqlParser.parsePlan(sqlText))
-res3: org.apache.spark.sql.catalyst.plans.logical.LogicalPlan =
-Project [count(1) OVER (PARTITION BY id RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)#12L]
-+- Project [id#3, count(1) OVER (PARTITION BY id RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)#12L, count(1) OVER (PARTITION BY id RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)#12L]
-   +- Window [count(1) windowspecdefinition(id#3, RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS count(1) OVER (PARTITION BY id RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)#12L], [id#3]
-      +- Project [id#3]
-         +- SubqueryAlias ids
-            +- Project [value#1 AS id#3]
-               +- LocalRelation [value#1]
-----
 
 === [[UnresolvedWindowExpression]] UnresolvedWindowExpression Unevaluable Expression -- WindowExpression With Unresolved Window Specification Reference
 
