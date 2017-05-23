@@ -4,20 +4,21 @@
 
 [source, scala]
 ----
+val dataset = spark.range(start = 0, end = 13, step = 1, numPartitions = 4)
+
 import org.apache.spark.sql.expressions.Window
 val groupsOrderedById = Window.partitionBy('group).rangeBetween(-2, Window.currentRow).orderBy('id)
-val dataset = spark.range(9)
 val query = dataset.
-  withColumn("group", 'id % 2).
+  withColumn("group", 'id % 4).
   select('*, sum('id) over groupsOrderedById as "sum")
 
 scala> query.explain
 == Physical Plan ==
-Window [sum(id#247L) windowspecdefinition(group#250L, id#247L ASC NULLS FIRST, RANGE BETWEEN 2 PRECEDING AND CURRENT ROW) AS sum#255L], [group#250L], [id#247L ASC NULLS FIRST]
-+- *Sort [group#250L ASC NULLS FIRST, id#247L ASC NULLS FIRST], false, 0
-   +- Exchange hashpartitioning(group#250L, 200)
-      +- *Project [id#247L, (id#247L % 2) AS group#250L]
-         +- *Range (0, 9, step=1, splits=8)
+Window [sum(id#25L) windowspecdefinition(group#244L, id#25L ASC NULLS FIRST, RANGE BETWEEN 2 PRECEDING AND CURRENT ROW) AS sum#249L], [group#244L], [id#25L ASC NULLS FIRST]
++- *Sort [group#244L ASC NULLS FIRST, id#25L ASC NULLS FIRST], false, 0
+   +- Exchange hashpartitioning(group#244L, 200)
+      +- *Project [id#25L, (id#25L % 4) AS group#244L]
+         +- *Range (0, 13, step=1, splits=4)
 
 val plan = query.queryExecution.executedPlan
 import org.apache.spark.sql.execution.window.WindowExec
@@ -81,6 +82,42 @@ CAUTION: FIXME Describe `ClusteredDistribution`
 When the number of rows exceeds `4096`, `WindowExec` creates `UnsafeExternalSorter`.
 
 CAUTION: FIXME What's `UnsafeExternalSorter`?
+
+=== [[doExecute]] Generating Internal Binary Rows -- `doExecute` Method
+
+[source, scala]
+----
+doExecute(): RDD[InternalRow]
+----
+
+Internally, `doExecute` link:spark-sql-SparkPlan.adoc#execute[executes the child physical operator] and maps over partitions (using `RDD.mapPartitions` operator).
+
+```
+scala> :type we
+org.apache.spark.sql.execution.window.WindowExec
+
+scala> val rdd = we.execute
+rdd: org.apache.spark.rdd.RDD[org.apache.spark.sql.catalyst.InternalRow] = MapPartitionsRDD[44] at execute at <console>:38
+
+scala> println(rdd.toDebugString)
+(200) MapPartitionsRDD[42] at execute at <console>:39 []
+  |   MapPartitionsRDD[41] at execute at <console>:39 []
+  |   ShuffledRowRDD[34] at execute at <console>:39 []
+  +-(4) MapPartitionsRDD[33] at execute at <console>:39 []
+     |  MapPartitionsRDD[32] at execute at <console>:39 []
+     |  MapPartitionsRDD[31] at execute at <console>:39 []
+     |  ParallelCollectionRDD[30] at execute at <console>:39 []
+```
+
+`doExecute` creates a `Iterator[InternalRow]` that...FIXME
+
+CAUTION: FIXME
+
+NOTE: `doExecute` uses link:spark-sql-SQLConf.adoc#spark.sql.windowExec.buffer.spill.threshold[spark.sql.windowExec.buffer.spill.threshold] property (default: `4096`) as the threshold for the number of rows buffered in `ExternalAppendOnlyUnsafeRowArray` buffer.
+
+NOTE: `ExternalAppendOnlyUnsafeRowArray` is used to collect `UnsafeRow` objects from the child's partitions (one partition per buffer and up to `spark.sql.windowExec.buffer.spill.threshold`).
+
+NOTE: `doExecute` is a part of link:spark-sql-SparkPlan.adoc#doExecute[SparkPlan Contract] to produce the result of a structured query as an `RDD` of link:spark-sql-InternalRow.adoc[internal binary rows].
 
 === [[creating-instance]] Creating WindowExec Instance
 
