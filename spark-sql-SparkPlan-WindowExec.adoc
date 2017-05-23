@@ -1,29 +1,63 @@
-== [[WindowExec]] `WindowExec` Physical Operator
+== [[WindowExec]] WindowExec Unary Physical Operator
 
-`WindowExec` is a link:spark-sql-SparkPlan.adoc#UnaryExecNode[unary physical operator] with a collection of link:spark-sql-Expression.adoc#NamedExpression[named expressions] (for windows), a collection of link:spark-sql-Expression.adoc[expressions] (for partitions), a collection of `SortOrder` (for sorting) and a `child` link:spark-sql-SparkPlan.adoc[physical operator].
-
-The `output` of `WindowExec` are the `output` of `child` physical plan and windows.
+`WindowExec` is a link:spark-sql-SparkPlan.adoc#UnaryExecNode[unary physical operator] that represents link:spark-sql-LogicalPlan-Window.adoc[Window] unary logical operator at execution.
 
 [source, scala]
 ----
 import org.apache.spark.sql.expressions.Window
-val orderId = Window.orderBy('id)
+val groupsOrderedById = Window.partitionBy('group).rangeBetween(-2, Window.currentRow).orderBy('id)
+val dataset = spark.range(9)
+val query = dataset.
+  withColumn("group", 'id % 2).
+  select('*, sum('id) over groupsOrderedById as "sum")
 
-val dataset = spark.range(5).withColumn("group", 'id % 3)
+scala> query.explain
+== Physical Plan ==
+Window [sum(id#247L) windowspecdefinition(group#250L, id#247L ASC NULLS FIRST, RANGE BETWEEN 2 PRECEDING AND CURRENT ROW) AS sum#255L], [group#250L], [id#247L ASC NULLS FIRST]
++- *Sort [group#250L ASC NULLS FIRST, id#247L ASC NULLS FIRST], false, 0
+   +- Exchange hashpartitioning(group#250L, 200)
+      +- *Project [id#247L, (id#247L % 2) AS group#250L]
+         +- *Range (0, 9, step=1, splits=8)
 
-scala> dataset.select('*, rank over orderId as "rank").show
-+---+-----+----+
-| id|group|rank|
-+---+-----+----+
-|  0|    0|   1|
-|  1|    1|   2|
-|  2|    2|   3|
-|  3|    0|   4|
-|  4|    1|   5|
-+---+-----+----+
+val plan = query.queryExecution.executedPlan
+import org.apache.spark.sql.execution.window.WindowExec
+val we = plan.asInstanceOf[WindowExec]
 ----
 
-When executed (i.e. `show`) with no partitions, `WindowExec` prints out the following WARN message to the logs:
+.WindowExec in web UI (Details for Query)
+image::images/spark-sql-WindowExec-webui-query-details.png[align="center"]
+
+`WindowExec` is <<creating-instance, created>> exclusively when link:spark-sql-SparkStrategy-BasicOperators.adoc#Window[BasicOperators] execution planning strategy converts link:spark-sql-LogicalPlan-Window.adoc[Window] unary logical operator.
+
+[[output]]
+The link:spark-sql-catalyst-QueryPlan.adoc#output[output schema] of `WindowExec` are the link:spark-sql-Expression-Attribute.adoc[attributes] of <<child, child>> physical operator and <<windowExpression, window expressions>>.
+
+[source, scala]
+----
+val schema = query.queryExecution.executedPlan.output.toStructType
+scala> println(schema.treeString)
+root
+ |-- id: long (nullable = false)
+ |-- group: long (nullable = true)
+ |-- sum: long (nullable = true)
+
+// we is WindowExec created earlier
+// child's output
+scala> println(we.child.output.toStructType.treeString)
+root
+ |-- id: long (nullable = false)
+ |-- group: long (nullable = true)
+
+// window expressions' output
+scala> println(we.windowExpression.map(_.toAttribute).toStructType.treeString)
+root
+ |-- sum: long (nullable = true)
+----
+
+[[requiredChildDistribution]]
+`WindowExec` requires that the <<child, child>>'s distribution is `ClusteredDistribution` (per <<partitionSpec, window partition specifications>>).
+
+If no window partition specification is specified, `WindowExec` prints out the following WARN message to the logs (and the child's distribution requirement is `AllTuples`):
 
 ```
 WARN WindowExec: No Partition Defined for Window operation! Moving all data to a single partition, this can cause serious performance degradation.
@@ -47,3 +81,12 @@ CAUTION: FIXME Describe `ClusteredDistribution`
 When the number of rows exceeds `4096`, `WindowExec` creates `UnsafeExternalSorter`.
 
 CAUTION: FIXME What's `UnsafeExternalSorter`?
+
+=== [[creating-instance]] Creating WindowExec Instance
+
+`WindowExec` takes the following when created:
+
+* [[windowExpression]] Window link:spark-sql-Expression.adoc#NamedExpression[named expressions]
+* [[partitionSpec]] link:spark-sql-Expression.adoc[Expressions] for window partition specifications
+* [[orderSpec]] Collection of `SortOrder` objects for window order specifications
+* [[child]] Child link:spark-sql-SparkPlan.adoc[physical operator]
