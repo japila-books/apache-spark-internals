@@ -1,0 +1,118 @@
+== [[Partitioning]] Partitioning -- Specification of Physical Operator's Output Partitions
+
+`Partitioning` is <<contract, specification>> that describes how a link:spark-sql-SparkPlan.adoc[physical operator]'s output is split across partitions.
+
+[[contract]]
+[source, scala]
+----
+package org.apache.spark.sql.catalyst.plans.physical
+
+sealed trait Partitioning {
+  val numPartitions: Int
+  def satisfies(required: Distribution): Boolean
+  def compatibleWith(other: Partitioning): Boolean
+  def guarantees(other: Partitioning): Boolean
+}
+----
+
+.Partitioning Contract (in alphabetical order)
+[cols="1,2",options="header",width="100%"]
+|===
+| Method
+| Description
+
+| [[compatibleWith]] `compatibleWith`
+| Used mainly in `Partitioning.allCompatible`
+
+| [[guarantees]] `guarantees`
+| Used mainly when `EnsureRequirements` physical preparation rule link:spark-sql-EnsureRequirements.adoc#ensureDistributionAndOrdering[enforces partition requirements of a physical operator]
+
+| [[numPartitions]] `numPartitions`
+a| Number of partitions that the data is split across
+
+Used in:
+
+* `EnsureRequirements` physical preparation rule to link:spark-sql-EnsureRequirements.adoc#ensureDistributionAndOrdering[enforce partition requirements of a physical operator]
+* link:spark-sql-SparkPlan-SortMergeJoinExec.adoc[SortMergeJoinExec] for `outputPartitioning` for `FullOuter` join type
+* `Partitioning.allCompatible`
+
+| [[satisfies]] `satisfies`
+| Used mainly when `EnsureRequirements` physical preparation rule link:spark-sql-EnsureRequirements.adoc#ensureDistributionAndOrdering[enforces partition requirements of a physical operator]
+|===
+
+[[known-implementations]]
+.Partitioning Schemes (Partitioning's Available Implementations) and Their Properties
+[width="100%",cols="1,1,1,1,1",options="header"]
+|===
+| Partitioning
+| compatibleWith
+| guarantees
+| numPartitions
+| satisfies
+
+| [[BroadcastPartitioning]] `BroadcastPartitioning`
+| `BroadcastPartitioning` with the same `BroadcastMode`
+| Exactly the same `BroadcastPartitioning`
+^| 1
+| `BroadcastDistribution` with the same `BroadcastMode`
+
+a| [[HashPartitioning]] `HashPartitioning`
+
+* `clustering` expressions
+* `numPartitions`
+
+| `HashPartitioning` (when their underlying expressions are semantically equal, i.e. deterministic and canonically equal)
+| `HashPartitioning` (when their underlying expressions are semantically equal, i.e. deterministic and canonically equal)
+| Input `numPartitions`
+a|
+
+* `UnspecifiedDistribution`
+
+* `ClusteredDistribution` with all the hashing link:spark-sql-Expression.adoc[expressions] included in `clustering` expressions
+
+a| [[PartitioningCollection]] `PartitioningCollection`
+
+* `partitionings`
+
+| Any `Partitioning` that is compatible with one of the input `partitionings`
+| Any `Partitioning` that is guaranteed by any of the input `partitionings`
+| Number of partitions of the first `Partitioning` in the input `partitionings`
+| Any `Distribution` that is satisfied by any of the input `partitionings`
+
+a| [[RangePartitioning]] `RangePartitioning`
+
+* `ordering` collection of `SortOrder`
+* `numPartitions`
+
+| `RangePartitioning` (when semantically equal, i.e. underlying expressions are deterministic and canonically equal)
+| `RangePartitioning` (when semantically equal, i.e. underlying expressions are deterministic and canonically equal)
+| Input `numPartitions`
+a|
+
+* `UnspecifiedDistribution`
+* `OrderedDistribution` with `requiredOrdering` that matches the input `ordering`
+* `ClusteredDistribution` with all the children of the input `ordering` semantically equal to one of the `clustering` expressions
+
+a| [[RoundRobinPartitioning]] `RoundRobinPartitioning`
+
+* `numPartitions`
+
+| Always negative
+| Always negative
+| Input `numPartitions`
+| `UnspecifiedDistribution`
+
+| [[SinglePartition]] `SinglePartition`
+| Any `Partitioning` with exactly one partition
+| Any `Partitioning` with exactly one partition
+^| 1
+| Any `Distribution` except `BroadcastDistribution`
+
+a| [[UnknownPartitioning]] `UnknownPartitioning`
+
+* `numPartitions`
+| Always negative
+| Always negative
+| Input `numPartitions`
+| `UnspecifiedDistribution`
+|===
