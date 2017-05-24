@@ -1,10 +1,8 @@
 == [[BroadcastHashJoinExec]] BroadcastHashJoinExec Binary Physical Operator
 
-`BroadcastHashJoinExec` is a link:spark-sql-SparkPlan.adoc#BinaryExecNode[binary physical operator] (with two child <<left, left>> and <<right, right>> physical operators) that link:spark-sql-CodegenSupport.adoc[supports code generation] (aka _codegen_).
+`BroadcastHashJoinExec` is a link:spark-sql-SparkPlan.adoc#BinaryExecNode[binary physical operator] that link:spark-sql-CodegenSupport.adoc[supports code generation] (aka _codegen_).
 
 `BroadcastHashJoinExec` is <<creating-instance, created>> after applying link:spark-sql-SparkStrategy-JoinSelection.adoc[JoinSelection] execution planning strategy to link:spark-sql-SparkStrategy-JoinSelection.adoc#ExtractEquiJoinKeys[ExtractEquiJoinKeys]-destructurable logical query plans (i.e. link:spark-sql-SparkStrategy-JoinSelection.adoc#canBuildRight[INNER, CROSS, LEFT OUTER, LEFT SEMI, LEFT ANTI]) of which the `right` physical operator link:spark-sql-SparkStrategy-JoinSelection.adoc#canBroadcast[can be broadcast].
-
-`BroadcastHashJoinExec` <<requiredChildDistribution, requires that partition requirements>> for the two children physical operators match `BroadcastDistribution` (with `HashedRelationBroadcastMode`) and `UnspecifiedDistribution` (for <<left, left>> and <<right, right>> sides of a join or vice versa).
 
 [source, scala]
 ----
@@ -27,8 +25,10 @@ scala> q.explain
       +- LocalTableScan [id#20, token#21]
 ----
 
+`BroadcastHashJoinExec` <<requiredChildDistribution, requires that partition requirements>> for the two children physical operators match `BroadcastDistribution` (with `HashedRelationBroadcastMode`) and `UnspecifiedDistribution` (for <<left, left>> and <<right, right>> sides of a join or vice versa).
+
 [[metrics]]
-.BroadcastHashJoinExec SQLMetrics (in alphabetical order)
+.BroadcastHashJoinExec's SQLMetrics
 [cols="1,2",options="header",width="100%"]
 |===
 | Name
@@ -72,6 +72,24 @@ Generated code:
 ...
 ----
 
+[[requiredChildDistribution]]
+.BroadcastHashJoinExec's Required Child Output Distributions
+[cols="1,2,2",options="header",width="100%"]
+|===
+| BuildSide
+| Left Child
+| Right Child
+
+| `BuildLeft`
+| `BroadcastDistribution` <1>
+| `UnspecifiedDistribution`
+
+| `BuildRight`
+| `UnspecifiedDistribution`
+| `BroadcastDistribution` <1>
+|===
+<1> `BroadcastDistribution` uses `HashedRelationBroadcastMode` broadcast mode per `buildKeys`
+
 === [[creating-instance]] Creating BroadcastHashJoinExec Instance
 
 `BroadcastHashJoinExec` takes the following when created:
@@ -83,20 +101,3 @@ Generated code:
 * [[condition]] Optional join condition link:spark-sql-Expression.adoc[expression]
 * [[left]] Left link:spark-sql-SparkPlan.adoc[physical operator]
 * [[right]] Right link:spark-sql-SparkPlan.adoc[physical operator]
-
-=== [[requiredChildDistribution]] `requiredChildDistribution` Method
-
-[source, scala]
-----
-requiredChildDistribution: Seq[Distribution]
-----
-
-`requiredChildDistribution` gives a two-element collection for two-child partition requirements with the following:
-
-* `BroadcastDistribution` and `UnspecifiedDistribution` for <<buildSide, BuildLeft build side>>
-
-* `UnspecifiedDistribution` and `BroadcastDistribution` for <<buildSide, BuildRight build side>>
-
-NOTE: `BroadcastDistribution` uses `HashedRelationBroadcastMode` broadcast mode.
-
-NOTE: `requiredChildDistribution` is a part of link:spark-sql-SparkPlan.adoc#requiredChildDistribution[SparkPlan Contract] to specify partition requirements on the input data.
