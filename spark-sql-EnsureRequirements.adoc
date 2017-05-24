@@ -5,23 +5,12 @@
 
 1. Removes two adjacent link:spark-sql-SparkPlan-ShuffleExchange.adoc[ShuffleExchange] physical operators if the child partitioning scheme guarantees the parent's partitioning
 
-1. For other non-``ShuffleExchange`` physical operators, <<ensureDistributionAndOrdering, ensures partition distribution and ordering>>
+1. For other non-``ShuffleExchange`` physical operators, <<ensureDistributionAndOrdering, ensures partition distribution and ordering>> (possibly adding new physical operators, e.g. link:spark-sql-SparkPlan-BroadcastExchangeExec.adoc[BroadcastExchangeExec] and link:spark-sql-SparkPlan-ShuffleExchange.adoc[ShuffleExchange] for distribution or `SortExec` for sorting)
 
 `EnsureRequirements` is a part of link:spark-sql-QueryExecution.adoc#preparations[preparations] batch of physical plan rules and is executed in link:spark-sql-QueryExecution.adoc#executedPlan[executedPlan] phase of a link:spark-sql-QueryExecution.adoc[query execution].
 
 [[conf]]
 `EnsureRequirements` takes a link:spark-sql-SQLConf.adoc[SQLConf] when created.
-
-=== [[ensureDistributionAndOrdering]] Ensuring Partition Requirements of Physical Operator -- `ensureDistributionAndOrdering` Internal Method
-
-[source, scala]
-----
-ensureDistributionAndOrdering(operator: SparkPlan): SparkPlan
-----
-
-CAUTION: FIXME
-
-NOTE: `ensureDistributionAndOrdering` is used exclusively when `EnsureRequirements` is <<apply, executed>> (i.e. applied to a physical plan).
 
 === [[createPartitioning]] `createPartitioning` Internal Method
 
@@ -30,6 +19,47 @@ CAUTION: FIXME
 === [[defaultNumPreShufflePartitions]] `defaultNumPreShufflePartitions` Internal Method
 
 CAUTION: FIXME
+
+=== [[ensureDistributionAndOrdering]] Ensuring Partition Requirements (Distribution and Ordering) of Physical Operator -- `ensureDistributionAndOrdering` Internal Method
+
+[source, scala]
+----
+ensureDistributionAndOrdering(operator: SparkPlan): SparkPlan
+----
+
+Internally, `ensureDistributionAndOrdering` takes the following from the input physical `operator`:
+
+* link:spark-sql-SparkPlan.adoc#requiredChildDistribution[required partition requirements] for the children
+
+* link:spark-sql-SparkPlan.adoc#requiredChildOrdering[required sort ordering] per the required partition requirements per child
+
+* child physical plans
+
+NOTE: The number of requirements for partitions and their sort ordering has to match the number and the order of the child physical plans.
+
+`ensureDistributionAndOrdering` matches the operator's required partition requirements of children (`requiredChildDistributions`) to the children's link:spark-sql-SparkPlan.adoc#outputPartitioning[output partitioning] and (in that order):
+
+1. If the child satisfies the requested distribution, the child is left unchanged
+
+1. For `BroadcastDistribution`, the child becomes the child of link:spark-sql-SparkPlan-BroadcastExchangeExec.adoc[BroadcastExchangeExec] unary operator for broadcasting joins
+
+1. Any other pair of child and distribution leads to link:spark-sql-SparkPlan-ShuffleExchange.adoc[ShuffleExchange] unary physical operator (with proper <<createPartitioning, partitioning>> for distribution and with link:spark-sql-SQLConf.adoc#spark.sql.shuffle.partitions[spark.sql.shuffle.partitions] number of partitions, i.e. `200` by default)
+
+NOTE: link:spark-sql-SparkPlan-ShuffleExchange.adoc[ShuffleExchange] can appear in the physical plan when the children's output partitioning cannot satisfy the physical operator's required child distribution.
+
+If the input `operator` has multiple children and specifies child output distributions, then the children's link:spark-sql-SparkPlan.adoc#outputPartitioning[output partitionings] have to be compatible.
+
+If the children's output partitionings are not all compatible, then...FIXME
+
+`ensureDistributionAndOrdering` <<withExchangeCoordinator, adds ExchangeCoordinator>> (only when link:spark-sql-SQLConf.adoc#spark.sql.adaptive.enabled[adaptive query execution] is enabled which is not by default).
+
+NOTE: At this point in `ensureDistributionAndOrdering` the required child distributions are already handled.
+
+`ensureDistributionAndOrdering` matches the operator's required sort ordering of children (`requiredChildOrderings`) to the children's link:spark-sql-SparkPlan.adoc#outputPartitioning[output partitioning] and if the orderings do not match, `SortExec` unary physical operator is created as a new child.
+
+`ensureDistributionAndOrdering` link:spark-sql-catalyst-TreeNode.adoc#withNewChildren[sets the new children] for the input `operator`.
+
+NOTE: `ensureDistributionAndOrdering` is used exclusively when `EnsureRequirements` is <<apply, executed>> (i.e. applied to a physical plan).
 
 === [[withExchangeCoordinator]] Adding ExchangeCoordinator (When Adaptive Query Execution Enabled) -- `withExchangeCoordinator` Internal Method
 
@@ -40,7 +70,9 @@ withExchangeCoordinator(
   requiredChildDistributions: Seq[Distribution]): Seq[SparkPlan]
 ----
 
-`withExchangeCoordinator` adds link:spark-sql-ExchangeCoordinator.adoc[ExchangeCoordinator] to link:spark-sql-SparkPlan-ShuffleExchange.adoc[ShuffleExchange] operators if link:spark-sql-SQLConf.adoc#adaptiveExecutionEnabled[adaptive query execution is enabled] and partitioning scheme of the `ShuffleExchanges` support `ExchangeCoordinator`.
+`withExchangeCoordinator` adds link:spark-sql-ExchangeCoordinator.adoc[ExchangeCoordinator] to link:spark-sql-SparkPlan-ShuffleExchange.adoc[ShuffleExchange] operators if adaptive query execution is enabled (per link:spark-sql-SQLConf.adoc#spark.sql.adaptive.enabled[spark.sql.adaptive.enabled] property) and partitioning scheme of the `ShuffleExchanges` support `ExchangeCoordinator`.
+
+NOTE: link:spark-sql-SQLConf.adoc#spark.sql.adaptive.enabled[spark.sql.adaptive.enabled] property is disabled by default.
 
 [[supportsCoordinator]]
 Internally, `withExchangeCoordinator` checks if the input `children` operators support `ExchangeCoordinator` which is that either holds:
