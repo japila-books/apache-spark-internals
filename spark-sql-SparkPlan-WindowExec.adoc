@@ -124,6 +124,107 @@ NOTE: `doExecute` is a part of link:spark-sql-SparkPlan.adoc#doExecute[SparkPlan
 `WindowExec` takes the following when created:
 
 * [[windowExpression]] Window link:spark-sql-Expression.adoc#NamedExpression[named expressions]
-* [[partitionSpec]] link:spark-sql-Expression.adoc[Expressions] for window partition specifications
+* [[partitionSpec]] Window partition specifications link:spark-sql-Expression.adoc[expressions]
 * [[orderSpec]] Collection of `SortOrder` objects for window order specifications
 * [[child]] Child link:spark-sql-SparkPlan.adoc[physical operator]
+
+=== [[windowFrameExpressionFactoryPairs]] Lookup Table for WindowExpressions and Factory Functions for WindowFunctionFrame -- `windowFrameExpressionFactoryPairs` Lazy Value
+
+[source, scala]
+----
+windowFrameExpressionFactoryPairs:
+  Seq[(mutable.Buffer[WindowExpression], InternalRow => WindowFunctionFrame)]
+----
+
+`windowFrameExpressionFactoryPairs` is a lookup table with <<windowFrameExpressionFactoryPairs-two-element-expression-list-value, window expressions>> and <<windowFrameExpressionFactoryPairs-factory-functions, factory functions>> for `WindowFunctionFrame` (per key-value pair in `framedFunctions` lookup table).
+
+A factory function is a function that takes an link:spark-sql-InternalRow.adoc[InternalRow] and produces a `WindowFunctionFrame` (described in the table below)
+
+Internally, `windowFrameExpressionFactoryPairs` first builds `framedFunctions` lookup table with <<windowFrameExpressionFactoryPairs-four-element-tuple-key, 4-element tuple keys>> and <<windowFrameExpressionFactoryPairs-two-element-expression-list-value, 2-element expression list values>> (described in the table below).
+
+`windowFrameExpressionFactoryPairs` finds link:spark-sql-Expression-WindowExpression.adoc[WindowExpression] expressions in the input <<windowExpression, windowExpression>> and for every `WindowExpression` takes the link:spark-sql-Expression-WindowSpecDefinition.adoc#frameSpecification[window frame specification] (of type `SpecifiedWindowFrame` that is used to find frame type and start and end frame positions).
+
+[[windowFrameExpressionFactoryPairs-four-element-tuple-key]]
+.framedFunctions's FrameKey -- 4-element Tuple for Frame Keys (in positional order)
+[cols="1,2",options="header",width="100%"]
+|===
+| Element
+| Description
+
+| Name of the kind of function
+a|
+
+* *AGGREGATE* for link:spark-sql-Expression-AggregateFunction.adoc[AggregateFunction] (in link:spark-sql-Expression-AggregateExpression.adoc[AggregateExpression]s) or `AggregateWindowFunction`
+
+* *OFFSET* for `OffsetWindowFunction`
+
+| `FrameType`
+| `RangeFrame` or `RowFrame`
+
+| Window frame's start position
+a|
+
+* Positive number for `CurrentRow` (0) and `ValueFollowing`
+* Negative number for `ValuePreceding`
+* Empty when unspecified
+
+| Window frame's end position
+a|
+
+* Positive number for `CurrentRow` (0) and `ValueFollowing`
+* Negative number for `ValuePreceding`
+* Empty when unspecified
+|===
+
+[[windowFrameExpressionFactoryPairs-two-element-expression-list-value]]
+.framedFunctions's 2-element Tuple Values (in positional order)
+[cols="1,2",options="header",width="100%"]
+|===
+| Element
+| Description
+
+| Collection of window expressions
+| link:spark-sql-Expression-WindowExpression.adoc[WindowExpression]
+
+| Collection of window functions
+a|
+
+* link:spark-sql-Expression-AggregateFunction.adoc[AggregateFunction] (in link:spark-sql-Expression-AggregateExpression.adoc[AggregateExpression]s) or `AggregateWindowFunction`
+
+* `OffsetWindowFunction`
+|===
+
+`windowFrameExpressionFactoryPairs` creates a `AggregateProcessor` for `AGGREGATE` frame keys in `framedFunctions` lookup table.
+
+[[windowFrameExpressionFactoryPairs-factory-functions]]
+.windowFrameExpressionFactoryPairs' Factory Functions (in creation order)
+[cols="1,2,2",options="header",width="100%"]
+|===
+| Frame Name
+| FrameKey
+| WindowFunctionFrame
+
+| Offset Frame
+| `("OFFSET", RowFrame, Some(offset), Some(h))`
+| `OffsetWindowFunctionFrame`
+
+| Growing Frame
+| `("AGGREGATE", frameType, None, Some(high))`
+| `UnboundedPrecedingWindowFunctionFrame`
+
+| Shrinking Frame
+| `("AGGREGATE", frameType, Some(low), None)`
+| `UnboundedFollowingWindowFunctionFrame`
+
+| Moving Frame
+| `("AGGREGATE", frameType, Some(low), Some(high))`
+| `SlidingWindowFunctionFrame`
+
+| Entire Partition Frame
+| `("AGGREGATE", frameType, None, None)`
+| `UnboundedWindowFunctionFrame`
+|===
+
+NOTE: `lazy val` in Scala is computed when first accessed and once only (for the entire lifetime of the owning object instance).
+
+NOTE: `windowFrameExpressionFactoryPairs` is used exclusively when `WindowExec` is <<doExecute, executed>>.
