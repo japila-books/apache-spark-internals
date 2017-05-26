@@ -1,16 +1,49 @@
 == [[WindowExec]] WindowExec Unary Physical Operator
 
-`WindowExec` is a link:spark-sql-SparkPlan.adoc#UnaryExecNode[unary physical operator] that represents link:spark-sql-LogicalPlan-Window.adoc[Window] unary logical operator at execution.
+`WindowExec` is a link:spark-sql-SparkPlan.adoc#UnaryExecNode[unary physical operator] for *window function execution* that represents link:spark-sql-LogicalPlan-Window.adoc[Window] unary logical operator at execution.
 
 [source, scala]
 ----
+// arguably the most trivial example
+// just a dataset of 1 row
+val oneRow = spark.range(1)
+
+// create windows of rows to use window aggregate function over every window
+import org.apache.spark.sql.expressions.Window
+val groupsOrderById = Window.partitionBy('id).orderBy('id).rangeBetween(start = -1, end = Window.currentRow)
+val query = oneRow.select('*, sum('id) over groupsOrderById as "sum")
+
+// Logical plan with Window unary logical operator
+val optimizedLogicalPlan = query.queryExecution.optimizedPlan
+scala> println(optimizedLogicalPlan)
+Window [sum(id#0L) windowspecdefinition(id#0L, id#0L ASC NULLS FIRST, RANGE BETWEEN 1 PRECEDING AND CURRENT ROW) AS sum#4L], [id#0L], [id#0L ASC NULLS FIRST]
++- Range (0, 1, step=1, splits=Some(8))
+
+// Physical plan with WindowExec unary physical operator (shown as Window)
+scala> query.explain
+== Physical Plan ==
+Window [sum(id#0L) windowspecdefinition(id#0L, id#0L ASC NULLS FIRST, RANGE BETWEEN 1 PRECEDING AND CURRENT ROW) AS sum#4L], [id#0L], [id#0L ASC NULLS FIRST]
++- *Sort [id#0L ASC NULLS FIRST, id#0L ASC NULLS FIRST], false, 0
+   +- Exchange hashpartitioning(id#0L, 200)
+      +- *Range (0, 1, step=1, splits=8)
+
+val plan = query.queryExecution.executedPlan
+import org.apache.spark.sql.execution.window.WindowExec
+val we = plan.asInstanceOf[WindowExec]
+----
+
+`WindowExec` is <<creating-instance, created>> exclusively when link:spark-sql-SparkStrategy-BasicOperators.adoc#Window[BasicOperators] execution planning strategy converts link:spark-sql-LogicalPlan-Window.adoc[Window] unary logical operator.
+
+[source, scala]
+----
+// a more involved example
 val dataset = spark.range(start = 0, end = 13, step = 1, numPartitions = 4)
 
 import org.apache.spark.sql.expressions.Window
-val groupsOrderedById = Window.partitionBy('group).rangeBetween(-2, Window.currentRow).orderBy('id)
+val groupsOrderById = Window.partitionBy('group).rangeBetween(-2, Window.currentRow).orderBy('id)
 val query = dataset.
   withColumn("group", 'id % 4).
-  select('*, sum('id) over groupsOrderedById as "sum")
+  select('*, sum('id) over groupsOrderById as "sum")
 
 scala> query.explain
 == Physical Plan ==
@@ -27,8 +60,6 @@ val we = plan.asInstanceOf[WindowExec]
 
 .WindowExec in web UI (Details for Query)
 image::images/spark-sql-WindowExec-webui-query-details.png[align="center"]
-
-`WindowExec` is <<creating-instance, created>> exclusively when link:spark-sql-SparkStrategy-BasicOperators.adoc#Window[BasicOperators] execution planning strategy converts link:spark-sql-LogicalPlan-Window.adoc[Window] unary logical operator.
 
 [[output]]
 The link:spark-sql-catalyst-QueryPlan.adoc#output[output schema] of `WindowExec` are the link:spark-sql-Expression-Attribute.adoc[attributes] of <<child, child>> physical operator and <<windowExpression, window expressions>>.
@@ -83,7 +114,7 @@ log4j.logger.org.apache.spark.sql.execution.WindowExec=WARN
 Refer to link:spark-logging.adoc[Logging].
 ====
 
-=== [[doExecute]] Generating Internal Binary Rows -- `doExecute` Method
+=== [[doExecute]] Executing WindowExec -- `doExecute` Method
 
 [source, scala]
 ----
@@ -118,6 +149,24 @@ NOTE: `doExecute` uses link:spark-sql-SQLConf.adoc#spark.sql.windowExec.buffer.s
 NOTE: `ExternalAppendOnlyUnsafeRowArray` is used to collect `UnsafeRow` objects from the child's partitions (one partition per buffer and up to `spark.sql.windowExec.buffer.spill.threshold`).
 
 NOTE: `doExecute` is a part of link:spark-sql-SparkPlan.adoc#doExecute[SparkPlan Contract] to produce the result of a structured query as an `RDD` of link:spark-sql-InternalRow.adoc[internal binary rows].
+
+=== [[createResultProjection]] `createResultProjection` Internal Method
+
+[source, scala]
+----
+createResultProjection(expressions: Seq[Expression]): UnsafeProjection
+----
+
+Internally, `createResultProjection` creates a translation table with a `BoundReference` per expression (in the input `expressions`).
+
+`createResultProjection` then transforms every <<windowExpression, window expression>> so any of its unbound expressions becomes a `BoundReference` (using the translation table above).
+
+In the end, `createResultProjection` link:spark-sql-UnsafeProjection.adoc#create[creates a UnsafeProjection] with:
+
+* `exprs` expressions from <<child, child>>'s output and the collection of `BoundReferences`
+* `inputSchema` input schema per <<child, child>>'s output
+
+NOTE: `createResultProjection` is used exclusively when `WindowExec` is <<doExecute, executed>>.
 
 === [[creating-instance]] Creating WindowExec Instance
 
