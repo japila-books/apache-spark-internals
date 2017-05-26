@@ -5,31 +5,74 @@
 [source, scala]
 ----
 // arguably the most trivial example
-// just a dataset of 1 row
-val oneRow = spark.range(1)
+// just a dataset of 2-3 rows per group
+// for different partitions and range frames
+val metrics = Seq(
+  (0, 0, 0), (1, 0, 1), (2, 5, 2), (3, 5, 3), (4, 5, 0)
+).toDF("id", "device", "level")
+scala> metrics.show
++---+------+-----+
+| id|device|level|
++---+------+-----+
+|  0|     0|    0|
+|  1|     0|    1|
+|  2|     5|    2|
+|  3|     5|    3|
+|  4|     5|    0|
++---+------+-----+
 
 // create windows of rows to use window aggregate function over every window
 import org.apache.spark.sql.expressions.Window
-val groupsOrderById = Window.partitionBy('id).orderBy('id).rangeBetween(start = -1, end = Window.currentRow)
-val query = oneRow.select('*, sum('id) over groupsOrderById as "sum")
+val devices = Window.partitionBy('device).orderBy('id).rangeBetween(start = -1, end = Window.currentRow)
+val query = metrics.withColumn("sum", sum('level) over devices)
 
 // Logical plan with Window unary logical operator
 val optimizedLogicalPlan = query.queryExecution.optimizedPlan
 scala> println(optimizedLogicalPlan)
-Window [sum(id#0L) windowspecdefinition(id#0L, id#0L ASC NULLS FIRST, RANGE BETWEEN 1 PRECEDING AND CURRENT ROW) AS sum#4L], [id#0L], [id#0L ASC NULLS FIRST]
-+- Range (0, 1, step=1, splits=Some(8))
+Window [sum(cast(level#9 as bigint)) windowspecdefinition(device#8, id#7 ASC NULLS FIRST, RANGE BETWEEN 1 PRECEDING AND CURRENT ROW) AS sum#15L], [device#8], [id#7 ASC NULLS FIRST]
++- LocalRelation [id#7, device#8, level#9]
 
 // Physical plan with WindowExec unary physical operator (shown as Window)
 scala> query.explain
 == Physical Plan ==
-Window [sum(id#0L) windowspecdefinition(id#0L, id#0L ASC NULLS FIRST, RANGE BETWEEN 1 PRECEDING AND CURRENT ROW) AS sum#4L], [id#0L], [id#0L ASC NULLS FIRST]
-+- *Sort [id#0L ASC NULLS FIRST, id#0L ASC NULLS FIRST], false, 0
-   +- Exchange hashpartitioning(id#0L, 200)
-      +- *Range (0, 1, step=1, splits=8)
+Window [sum(cast(level#9 as bigint)) windowspecdefinition(device#8, id#7 ASC NULLS FIRST, RANGE BETWEEN 1 PRECEDING AND CURRENT ROW) AS sum#15L], [device#8], [id#7 ASC NULLS FIRST]
++- *Sort [device#8 ASC NULLS FIRST, id#7 ASC NULLS FIRST], false, 0
+   +- Exchange hashpartitioning(device#8, 200)
+      +- LocalTableScan [id#7, device#8, level#9]
+
+// Going fairly low-level...you've been warned
 
 val plan = query.queryExecution.executedPlan
 import org.apache.spark.sql.execution.window.WindowExec
 val we = plan.asInstanceOf[WindowExec]
+
+val windowRDD = we.execute()
+scala> :type windowRDD
+org.apache.spark.rdd.RDD[org.apache.spark.sql.catalyst.InternalRow]
+
+// no computation on the source dataset has really occurred
+// i.e. as a RDD action
+// Let's trigger one
+scala> windowRDD.take(1)
+res0: Array[org.apache.spark.sql.catalyst.InternalRow] = Array([0,3,5,3,3])
+
+scala> windowRDD.foreach(println)
+[0,0,0,0,0]
+[0,2,5,2,2]
+[0,3,5,3,5]
+[0,4,5,0,3]
+[0,1,0,1,1]
+
+scala> query.show
++---+------+-----+---+
+| id|device|level|sum|
++---+------+-----+---+
+|  2|     5|    2|  2|
+|  3|     5|    3|  5|
+|  4|     5|    0|  3|
+|  0|     0|    0|  0|
+|  1|     0|    1|  1|
++---+------+-----+---+
 ----
 
 `WindowExec` is <<creating-instance, created>> exclusively when link:spark-sql-SparkStrategy-BasicOperators.adoc#Window[BasicOperators] execution planning strategy converts link:spark-sql-LogicalPlan-Window.adoc[Window] unary logical operator.
@@ -140,7 +183,7 @@ scala> println(rdd.toDebugString)
      |  ParallelCollectionRDD[30] at execute at <console>:39 []
 ```
 
-`doExecute` creates a `Iterator[InternalRow]` that...FIXME
+`doExecute` creates an `Iterator[InternalRow]` that...FIXME
 
 CAUTION: FIXME
 
@@ -150,6 +193,50 @@ NOTE: `ExternalAppendOnlyUnsafeRowArray` is used to collect `UnsafeRow` objects 
 
 NOTE: `doExecute` is a part of link:spark-sql-SparkPlan.adoc#doExecute[SparkPlan Contract] to produce the result of a structured query as an `RDD` of link:spark-sql-InternalRow.adoc[internal binary rows].
 
+==== [[next]] `next` Method
+
+[source, scala]
+----
+override final def next(): InternalRow
+----
+
+NOTE: `next` is a part of Scala's http://www.scala-lang.org/api/2.11.11/#scala.collection.Iterator[scala.collection.Iterator] interface that returns the next element and discards it from the iterator.
+
+`next` method of the final `Iterator` is...FIXME
+
+`next` first <<fetchNextPartition, fetches a new partition>>, but only when...FIXME
+
+NOTE: `next` loads all the rows in `nextGroup`.
+
+CAUTION: FIXME What's `nextGroup`?
+
+`next` takes one link:spark-sql-UnsafeRow.adoc[UnsafeRow] from `bufferIterator`.
+
+CAUTION: FIXME `bufferIterator` seems important for the iteration.
+
+`next` then requests every `WindowFunctionFrame` to write the current `rowIndex` and `UnsafeRow`.
+
+CAUTION: FIXME `rowIndex`?
+
+`next` joins the current `UnsafeRow` and `windowFunctionResult` (i.e. takes two `InternalRows` and makes them appear as a single concatenated `InternalRow`).
+
+`next` increments `rowIndex`.
+
+In the end, `next` uses the `UnsafeProjection` function (that was created using <<createResultProjection, createResultProjection>>) and project the joined `InternalRow` to the result `UnsafeRow`.
+
+==== [[fetchNextPartition]] `fetchNextPartition` Internal Method
+
+[source, scala]
+----
+fetchNextPartition(): Unit
+----
+
+`fetchNextPartition`...FIXME
+
+`fetchNextPartition` prepares all `WindowFunctionFrames` (passing in all the rows in the current `buffer`)
+
+CAUTION: FIXME `buffer`?
+
 === [[createResultProjection]] `createResultProjection` Internal Method
 
 [source, scala]
@@ -157,7 +244,11 @@ NOTE: `doExecute` is a part of link:spark-sql-SparkPlan.adoc#doExecute[SparkPlan
 createResultProjection(expressions: Seq[Expression]): UnsafeProjection
 ----
 
-Internally, `createResultProjection` creates a translation table with a `BoundReference` per expression (in the input `expressions`).
+`createResultProjection` creates a link:spark-sql-UnsafeProjection.adoc[UnsafeProjection] for the input link:spark-sql-Expression.adoc[Catalyst expressions].
+
+NOTE: link:spark-sql-UnsafeProjection.adoc[UnsafeProjection] is a Scala function that produces link:spark-sql-UnsafeRow.adoc[UnsafeRow] for an link:spark-sql-InternalRow.adoc[InternalRow].
+
+Internally, `createResultProjection` first creates a translation table with a `BoundReference` per expression (in the input `expressions`).
 
 `createResultProjection` then transforms every <<windowExpression, window expression>> so any of its unbound expressions becomes a `BoundReference` (using the translation table above).
 
