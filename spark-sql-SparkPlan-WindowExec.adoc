@@ -5,10 +5,11 @@
 [source, scala]
 ----
 // arguably the most trivial example
-// just a dataset of 2-3 rows per group
-// for different partitions and range frames
+// just a dataset of 3 rows per group
+// to demo how partitions and frames work
+// note the rows per groups are not consecutive (in the middle)
 val metrics = Seq(
-  (0, 0, 0), (1, 0, 1), (2, 5, 2), (3, 5, 3), (4, 5, 0)
+  (0, 0, 0), (1, 0, 1), (2, 5, 2), (3, 0, 3), (4, 0, 1), (5, 5, 3), (6, 5, 0)
 ).toDF("id", "device", "level")
 scala> metrics.show
 +---+------+-----+
@@ -16,34 +17,36 @@ scala> metrics.show
 +---+------+-----+
 |  0|     0|    0|
 |  1|     0|    1|
-|  2|     5|    2|
-|  3|     5|    3|
-|  4|     5|    0|
+|  2|     5|    2|  // <-- this row for device 5 is among the rows of device 0
+|  3|     0|    3|  // <-- as above but for device 0
+|  4|     0|    1|  // <-- almost as above but there is a group of two rows for device 0
+|  5|     5|    3|
+|  6|     5|    0|
 +---+------+-----+
 
 // create windows of rows to use window aggregate function over every window
 import org.apache.spark.sql.expressions.Window
-// use rangeBetween so WindowExec's doExecute gets used fully
-val devices = Window.partitionBy('device).orderBy('id).rangeBetween(start = -1, end = Window.currentRow)
-val query = metrics.withColumn("sum", sum('level) over devices)
+// use rangeBetween first
+val rangeWithTwoDevicesById = Window.partitionBy('device).orderBy('id).rangeBetween(start = -1, end = Window.currentRow)
+val sumOverRange = metrics.withColumn("sum", sum('level) over rangeWithTwoDevicesById)
 
 // Logical plan with Window unary logical operator
-val optimizedLogicalPlan = query.queryExecution.optimizedPlan
-scala> println(optimizedLogicalPlan)
-Window [sum(cast(level#9 as bigint)) windowspecdefinition(device#8, id#7 ASC NULLS FIRST, RANGE BETWEEN 1 PRECEDING AND CURRENT ROW) AS sum#15L], [device#8], [id#7 ASC NULLS FIRST]
-+- LocalRelation [id#7, device#8, level#9]
+val optimizedPlan = sumOverRange.queryExecution.optimizedPlan
+scala> println(optimizedPlan)
+Window [sum(cast(level#901 as bigint)) windowspecdefinition(device#900, id#899 ASC NULLS FIRST, RANGE BETWEEN 1 PRECEDING AND CURRENT ROW) AS sum#919L], [device#900], [id#899 ASC NULLS FIRST]
++- LocalRelation [id#899, device#900, level#901]
 
 // Physical plan with WindowExec unary physical operator (shown as Window)
-scala> query.explain
+scala> sumOverRange.explain
 == Physical Plan ==
-Window [sum(cast(level#9 as bigint)) windowspecdefinition(device#8, id#7 ASC NULLS FIRST, RANGE BETWEEN 1 PRECEDING AND CURRENT ROW) AS sum#15L], [device#8], [id#7 ASC NULLS FIRST]
-+- *Sort [device#8 ASC NULLS FIRST, id#7 ASC NULLS FIRST], false, 0
-   +- Exchange hashpartitioning(device#8, 200)
-      +- LocalTableScan [id#7, device#8, level#9]
+Window [sum(cast(level#901 as bigint)) windowspecdefinition(device#900, id#899 ASC NULLS FIRST, RANGE BETWEEN 1 PRECEDING AND CURRENT ROW) AS sum#919L], [device#900], [id#899 ASC NULLS FIRST]
++- *Sort [device#900 ASC NULLS FIRST, id#899 ASC NULLS FIRST], false, 0
+   +- Exchange hashpartitioning(device#900, 200)
+      +- LocalTableScan [id#899, device#900, level#901]
 
 // Going fairly low-level...you've been warned
 
-val plan = query.queryExecution.executedPlan
+val plan = sumOverRange.queryExecution.executedPlan
 import org.apache.spark.sql.execution.window.WindowExec
 val we = plan.asInstanceOf[WindowExec]
 
@@ -54,26 +57,61 @@ org.apache.spark.rdd.RDD[org.apache.spark.sql.catalyst.InternalRow]
 // no computation on the source dataset has really occurred
 // i.e. as a RDD action
 // Let's trigger one
-scala> windowRDD.take(1)
-res0: Array[org.apache.spark.sql.catalyst.InternalRow] = Array([0,3,5,3,3])
+scala> windowRDD.first
+res0: org.apache.spark.sql.catalyst.InternalRow = [0,2,5,2,2]
 
 scala> windowRDD.foreach(println)
-[0,0,0,0,0]
 [0,2,5,2,2]
-[0,3,5,3,5]
-[0,4,5,0,3]
+[0,0,0,0,0]
+[0,5,5,3,3]
+[0,6,5,0,3]
 [0,1,0,1,1]
+[0,3,0,3,3]
+[0,4,0,1,4]
 
-scala> query.show
+scala> sumOverRange.show
 +---+------+-----+---+
 | id|device|level|sum|
 +---+------+-----+---+
 |  2|     5|    2|  2|
-|  3|     5|    3|  5|
-|  4|     5|    0|  3|
+|  5|     5|    3|  3|
+|  6|     5|    0|  3|
 |  0|     0|    0|  0|
 |  1|     0|    1|  1|
+|  3|     0|    3|  3|
+|  4|     0|    1|  4|
 +---+------+-----+---+
+
+// use rowsBetween
+val rowsWithTwoDevicesById = Window.partitionBy('device).orderBy('id).rowsBetween(start = -1, end = Window.currentRow)
+val sumOverRows = metrics.withColumn("sum", sum('level) over rowsWithTwoDevicesById)
+
+// let's see the result first to have them close
+// and compare row- vs range-based windows
+scala> sumOverRows.show
++---+------+-----+---+
+| id|device|level|sum|
++---+------+-----+---+
+|  2|     5|    2|  2|
+|  5|     5|    3|  5| <-- a difference
+|  6|     5|    0|  3|
+|  0|     0|    0|  0|
+|  1|     0|    1|  1|
+|  3|     0|    3|  4| <-- another difference
+|  4|     0|    1|  4|
++---+------+-----+---+
+
+val rowsOptimizedPlan = sumOverRows.queryExecution.optimizedPlan
+scala> println(rowsOptimizedPlan)
+Window [sum(cast(level#901 as bigint)) windowspecdefinition(device#900, id#899 ASC NULLS FIRST, ROWS BETWEEN 1 PRECEDING AND CURRENT ROW) AS sum#1458L], [device#900], [id#899 ASC NULLS FIRST]
++- LocalRelation [id#899, device#900, level#901]
+
+scala> sumOverRows.explain
+== Physical Plan ==
+Window [sum(cast(level#901 as bigint)) windowspecdefinition(device#900, id#899 ASC NULLS FIRST, ROWS BETWEEN 1 PRECEDING AND CURRENT ROW) AS sum#1458L], [device#900], [id#899 ASC NULLS FIRST]
++- *Sort [device#900 ASC NULLS FIRST, id#899 ASC NULLS FIRST], false, 0
+   +- Exchange hashpartitioning(device#900, 200)
+      +- LocalTableScan [id#899, device#900, level#901]
 ----
 
 `WindowExec` is <<creating-instance, created>> exclusively when link:spark-sql-SparkStrategy-BasicOperators.adoc#Window[BasicOperators] execution planning strategy converts link:spark-sql-LogicalPlan-Window.adoc[Window] unary logical operator.
@@ -234,9 +272,13 @@ fetchNextPartition(): Unit
 
 `fetchNextPartition` first does some cleaning, i.e. copies the current `group` link:spark-sql-UnsafeRow.adoc[UnsafeRow] (that was created using <<grouping, grouping>> projection function) and clears the internal `buffer`.
 
-`fetchNextPartition` prepares all `WindowFunctionFrames` (passing in all the rows in the current `buffer`)
+`fetchNextPartition` then collects `UnsafeRows` (in `buffer`) for the current `nextGroup`.
 
-CAUTION: FIXME `buffer`?
+With the current `buffer` filled in, `fetchNextPartition` prepares all `WindowFunctionFrames`.
+
+In the end, `fetchNextPartition` resets `rowIndex` to `0` and requests `buffer` to generate an iterator (available as `bufferIterator`).
+
+NOTE: `fetchNextPartition` is used internally when <<doExecute, doExecute>>'s `Iterator` is requested for the <<next, next UnsafeRow>> (when `bufferIterator` is uninitialized or was drained, i.e. holds no elements, but there are still rows in the upstream operator's partition).
 
 ==== [[fetchNextRow]] `fetchNextRow` Internal Method
 
