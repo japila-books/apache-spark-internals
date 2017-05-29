@@ -23,6 +23,7 @@ scala> metrics.show
 
 // create windows of rows to use window aggregate function over every window
 import org.apache.spark.sql.expressions.Window
+// use rangeBetween so WindowExec's doExecute gets used fully
 val devices = Window.partitionBy('device).orderBy('id).rangeBetween(start = -1, end = Window.currentRow)
 val query = metrics.withColumn("sum", sum('level) over devices)
 
@@ -164,7 +165,7 @@ Refer to link:spark-logging.adoc[Logging].
 doExecute(): RDD[InternalRow]
 ----
 
-Internally, `doExecute` link:spark-sql-SparkPlan.adoc#execute[executes the child physical operator] and maps over partitions (using `RDD.mapPartitions` operator).
+Internally, `doExecute` link:spark-sql-SparkPlan.adoc#execute[executes] the single `child` physical operator and maps over partitions (using `RDD.mapPartitions` operator).
 
 ```
 scala> :type we
@@ -183,7 +184,7 @@ scala> println(rdd.toDebugString)
      |  ParallelCollectionRDD[30] at execute at <console>:39 []
 ```
 
-`doExecute` creates an `Iterator[InternalRow]` that...FIXME
+`doExecute` creates an `Iterator[InternalRow]` that first <<fetchNextRow, fetches the first row>> from the upstream RDD.
 
 CAUTION: FIXME
 
@@ -231,11 +232,36 @@ In the end, `next` uses the `UnsafeProjection` function (that was created using 
 fetchNextPartition(): Unit
 ----
 
-`fetchNextPartition`...FIXME
+`fetchNextPartition` first does some cleaning, i.e. copies the current `group` link:spark-sql-UnsafeRow.adoc[UnsafeRow] (that was created using <<grouping, grouping>> projection function) and clears the internal `buffer`.
 
 `fetchNextPartition` prepares all `WindowFunctionFrames` (passing in all the rows in the current `buffer`)
 
 CAUTION: FIXME `buffer`?
+
+==== [[fetchNextRow]] `fetchNextRow` Internal Method
+
+[source, scala]
+----
+fetchNextRow(): Unit
+----
+
+`fetchNextRow` checks whether there is the next row available (using the upstream `Iterator.hasNext`) and sets `nextRowAvailable` mutable internal flag.
+
+If there is a row available, `fetchNextRow` sets `nextRow` internal variable to the next link:spark-sql-UnsafeRow.adoc[UnsafeRow] from the upstream's RDD.
+
+`fetchNextRow` also sets `nextGroup` internal variable as an link:spark-sql-UnsafeRow.adoc[UnsafeRow] for `nextRow` using `grouping` function.
+
+[[grouping]]
+[NOTE]
+====
+`grouping` is a link:spark-sql-UnsafeProjection.adoc[UnsafeProjection] function that is link:spark-sql-UnsafeProjection.adoc#create[created] for <<partitionSpec, window partition specifications expressions>> to be bound to the single <<child, child>>'s output schema.
+
+`grouping` uses link:spark-sql-GenerateUnsafeProjection.adoc[GenerateUnsafeProjection] to link:spark-sql-GenerateUnsafeProjection.adoc#canonicalize[canonicalize] the bound expressions and link:spark-sql-GenerateUnsafeProjection.adoc#create[create] the `UnsafeProjection` function.
+====
+
+If no row is available, `fetchNextRow` nullifies `nextRow` and `nextGroup` internal variables.
+
+NOTE: `fetchNextRow` is used internally when <<doExecute, doExecute>>'s `Iterator` is created and <<fetchNextPartition, fetchNextPartition>> is called.
 
 === [[createResultProjection]] `createResultProjection` Internal Method
 
