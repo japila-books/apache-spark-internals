@@ -26,23 +26,25 @@ scala> metrics.show
 
 // create windows of rows to use window aggregate function over every window
 import org.apache.spark.sql.expressions.Window
-// use rangeBetween first
-val rangeWithTwoDevicesById = Window.partitionBy('device).orderBy('id).rangeBetween(start = -1, end = Window.currentRow)
+val rangeWithTwoDevicesById = Window.
+  partitionBy('device).
+  orderBy('id).
+  rangeBetween(start = -1, end = Window.currentRow) // <-- use rangeBetween first
 val sumOverRange = metrics.withColumn("sum", sum('level) over rangeWithTwoDevicesById)
 
 // Logical plan with Window unary logical operator
 val optimizedPlan = sumOverRange.queryExecution.optimizedPlan
 scala> println(optimizedPlan)
-Window [sum(cast(level#901 as bigint)) windowspecdefinition(device#900, id#899 ASC NULLS FIRST, RANGE BETWEEN 1 PRECEDING AND CURRENT ROW) AS sum#919L], [device#900], [id#899 ASC NULLS FIRST]
-+- LocalRelation [id#899, device#900, level#901]
+Window [sum(cast(level#9 as bigint)) windowspecdefinition(device#8, id#7 ASC NULLS FIRST, RANGE BETWEEN 1 PRECEDING AND CURRENT ROW) AS sum#15L], [device#8], [id#7 ASC NULLS FIRST]
++- LocalRelation [id#7, device#8, level#9]
 
 // Physical plan with WindowExec unary physical operator (shown as Window)
 scala> sumOverRange.explain
 == Physical Plan ==
-Window [sum(cast(level#901 as bigint)) windowspecdefinition(device#900, id#899 ASC NULLS FIRST, RANGE BETWEEN 1 PRECEDING AND CURRENT ROW) AS sum#919L], [device#900], [id#899 ASC NULLS FIRST]
-+- *Sort [device#900 ASC NULLS FIRST, id#899 ASC NULLS FIRST], false, 0
-   +- Exchange hashpartitioning(device#900, 200)
-      +- LocalTableScan [id#899, device#900, level#901]
+Window [sum(cast(level#9 as bigint)) windowspecdefinition(device#8, id#7 ASC NULLS FIRST, RANGE BETWEEN 1 PRECEDING AND CURRENT ROW) AS sum#15L], [device#8], [id#7 ASC NULLS FIRST]
++- *Sort [device#8 ASC NULLS FIRST, id#7 ASC NULLS FIRST], false, 0
+   +- Exchange hashpartitioning(device#8, 200)
+      +- LocalTableScan [id#7, device#8, level#9]
 
 // Going fairly low-level...you've been warned
 
@@ -83,7 +85,10 @@ scala> sumOverRange.show
 +---+------+-----+---+
 
 // use rowsBetween
-val rowsWithTwoDevicesById = Window.partitionBy('device).orderBy('id).rowsBetween(start = -1, end = Window.currentRow)
+val rowsWithTwoDevicesById = Window.
+  partitionBy('device).
+  orderBy('id).
+  rowsBetween(start = -1, end = Window.currentRow)
 val sumOverRows = metrics.withColumn("sum", sum('level) over rowsWithTwoDevicesById)
 
 // let's see the result first to have them close
@@ -203,7 +208,11 @@ Refer to link:spark-logging.adoc[Logging].
 doExecute(): RDD[InternalRow]
 ----
 
-Internally, `doExecute` link:spark-sql-SparkPlan.adoc#execute[executes] the single `child` physical operator and maps over partitions (using `RDD.mapPartitions` operator).
+Internally, `doExecute` takes link:spark-sql-Expression-WindowExpression.adoc[WindowExpressions] and their `WindowFunctionFrame` factory functions (from <<windowFrameExpressionFactoryPairs, windowFrameExpressionFactoryPairs>>) followed by link:spark-sql-SparkPlan.adoc#execute[executing] the single `child` physical operator and mapping over partitions (using `RDD.mapPartitions` operator).
+
+NOTE: `doExecute` is a part of link:spark-sql-SparkPlan.adoc#doExecute[SparkPlan Contract] to produce the result of a physical operator as an `RDD` of link:spark-sql-InternalRow.adoc[internal binary rows].
+
+NOTE: When executed, `doExecute` creates a `MapPartitionsRDD` with the `child` physical operator's `RDD[InternalRow]`.
 
 ```
 scala> :type we
@@ -222,15 +231,26 @@ scala> println(rdd.toDebugString)
      |  ParallelCollectionRDD[30] at execute at <console>:39 []
 ```
 
-`doExecute` creates an `Iterator[InternalRow]` that first <<fetchNextRow, fetches the first row>> from the upstream RDD.
+`doExecute` creates an `Iterator[InternalRow]` (of link:spark-sql-UnsafeRow.adoc[UnsafeRow] to be precise) that first creates a `UnsafeProjection` for the <<createResultProjection, result>> and `grouping`.
+
+`doExecute` then <<fetchNextRow, fetches the first row>> from the upstream RDD (if available).
+
+[[buffer]]
+`doExecute` creates a `ExternalAppendOnlyUnsafeRowArray` (as `buffer`) using link:spark-sql-SQLConf.adoc#spark.sql.windowExec.buffer.spill.threshold[spark.sql.windowExec.buffer.spill.threshold] property (which is `4096` rows by default).
+
+[[windowFunctionResult]]
+`doExecute` creates a `SpecificInternalRow` for the window function result (as `windowFunctionResult`).
+
+NOTE: `SpecificInternalRow` is also used in the generated code for the `UnsafeProjection` for the result.
+
+[[frames]]
+`doExecute` takes the <<windowFrameExpressionFactoryPairs, window frame factories>> and generates `WindowFunctionFrame` per factory (using the <<windowFunctionResult, SpecificInternalRow>> created earlier).
 
 CAUTION: FIXME
 
 NOTE: `doExecute` uses link:spark-sql-SQLConf.adoc#spark.sql.windowExec.buffer.spill.threshold[spark.sql.windowExec.buffer.spill.threshold] property (default: `4096`) as the threshold for the number of rows buffered in `ExternalAppendOnlyUnsafeRowArray` buffer.
 
 NOTE: `ExternalAppendOnlyUnsafeRowArray` is used to collect `UnsafeRow` objects from the child's partitions (one partition per buffer and up to `spark.sql.windowExec.buffer.spill.threshold`).
-
-NOTE: `doExecute` is a part of link:spark-sql-SparkPlan.adoc#doExecute[SparkPlan Contract] to produce the result of a structured query as an `RDD` of link:spark-sql-InternalRow.adoc[internal binary rows].
 
 ==== [[next]] `next` Method
 
@@ -261,7 +281,7 @@ CAUTION: FIXME `rowIndex`?
 
 `next` increments `rowIndex`.
 
-In the end, `next` uses the `UnsafeProjection` function (that was created using <<createResultProjection, createResultProjection>>) and project the joined `InternalRow` to the result `UnsafeRow`.
+In the end, `next` uses the `UnsafeProjection` function (that was created using <<createResultProjection, createResultProjection>>) and projects the joined `InternalRow` to the result `UnsafeRow`.
 
 ==== [[fetchNextPartition]] `fetchNextPartition` Internal Method
 
@@ -312,17 +332,19 @@ NOTE: `fetchNextRow` is used internally when <<doExecute, doExecute>>'s `Iterato
 createResultProjection(expressions: Seq[Expression]): UnsafeProjection
 ----
 
-`createResultProjection` creates a link:spark-sql-UnsafeProjection.adoc[UnsafeProjection] for the input link:spark-sql-Expression.adoc[Catalyst expressions].
+`createResultProjection` creates a link:spark-sql-UnsafeProjection.adoc[UnsafeProjection] function for `expressions` window function link:spark-sql-Expression.adoc[Catalyst expressions] so that the window expressions are on the right side of child's output.
 
 NOTE: link:spark-sql-UnsafeProjection.adoc[UnsafeProjection] is a Scala function that produces link:spark-sql-UnsafeRow.adoc[UnsafeRow] for an link:spark-sql-InternalRow.adoc[InternalRow].
 
 Internally, `createResultProjection` first creates a translation table with a link:spark-sql-Expression-BoundReference.adoc[BoundReference] per expression (in the input `expressions`).
 
-`createResultProjection` then transforms every <<windowExpression, window expression>> so any of its unbound expressions becomes a link:spark-sql-Expression-BoundReference.adoc[BoundReference] (using the translation table above).
+NOTE: `BoundReference` is a Catalyst expression that is a reference to a value in link:spark-sql-InternalRow.adoc[internal binary row] at a specified position and of specified data type.
+
+`createResultProjection` then creates a window function bound references for <<windowExpression, window expressions>> so unbound expressions are transformed to the `BoundReferences`.
 
 In the end, `createResultProjection` link:spark-sql-UnsafeProjection.adoc#create[creates a UnsafeProjection] with:
 
-* `exprs` expressions from <<child, child>>'s output and the collection of link:spark-sql-Expression-BoundReference.adoc[BoundReferences]
+* `exprs` expressions from <<child, child>>'s output and the collection of window function bound references
 * `inputSchema` input schema per <<child, child>>'s output
 
 NOTE: `createResultProjection` is used exclusively when `WindowExec` is <<doExecute, executed>>.
