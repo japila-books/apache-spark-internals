@@ -53,6 +53,7 @@ Execute the following to access `projects` table in `sparkdb`.
 
 [source, scala]
 ----
+// that gives an one-partition Dataset
 val opts = Map(
   "url" -> "jdbc:postgresql:sparkdb",
   "dbtable" -> "projects")
@@ -61,7 +62,34 @@ val df = spark.
   format("jdbc").
   options(opts).
   load
+
+scala> df.explain
+== Physical Plan ==
+*Scan JDBCRelation(projects) [numPartitions=1] [id#0,name#1,website#2] ReadSchema: struct<id:int,name:string,website:string>
+
 scala> df.show(truncate = false)
++---+------------+-----------------------+
+|id |name        |website                |
++---+------------+-----------------------+
+|1  |Apache Spark|http://spark.apache.org|
+|2  |Apache Hive |http://hive.apache.org |
+|3  |Apache Kafka|http://kafka.apache.org|
+|4  |Apache Flink|http://flink.apache.org|
++---+------------+-----------------------+
+
+// use jdbc method with predicates to define partitions
+import java.util.Properties
+val df4parts = spark.
+  read.
+  jdbc(
+    url = "jdbc:postgresql:sparkdb",
+    table = "projects",
+    predicates = Array("id=1", "id=2", "id=3", "id=4"),
+    connectionProperties = new Properties())
+scala> df4parts.explain
+== Physical Plan ==
+*Scan JDBCRelation(projects) [numPartitions=4] [id#16,name#17,website#18] ReadSchema: struct<id:int,name:string,website:string>
+scala> df4parts.show(truncate = false)
 +---+------------+-----------------------+
 |id |name        |website                |
 +---+------------+-----------------------+
