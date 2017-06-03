@@ -56,6 +56,15 @@ val windowRDD = we.execute()
 scala> :type windowRDD
 org.apache.spark.rdd.RDD[org.apache.spark.sql.catalyst.InternalRow]
 
+scala> windowRDD.toDebugString
+res0: String =
+(200) MapPartitionsRDD[5] at execute at <console>:35 []
+  |   MapPartitionsRDD[4] at execute at <console>:35 []
+  |   ShuffledRowRDD[3] at execute at <console>:35 []
+  +-(7) MapPartitionsRDD[2] at execute at <console>:35 []
+     |  MapPartitionsRDD[1] at execute at <console>:35 []
+     |  ParallelCollectionRDD[0] at execute at <console>:35 []
+
 // no computation on the source dataset has really occurred
 // i.e. as a RDD action
 // Let's trigger one
@@ -208,7 +217,7 @@ Refer to link:spark-logging.adoc[Logging].
 doExecute(): RDD[InternalRow]
 ----
 
-Internally, `doExecute` takes link:spark-sql-Expression-WindowExpression.adoc[WindowExpressions] and their link:spark-sql-WindowFunctionFrame.adoc[WindowFunctionFrame] factory functions (from <<windowFrameExpressionFactoryPairs, windowFrameExpressionFactoryPairs>>) followed by link:spark-sql-SparkPlan.adoc#execute[executing] the single `child` physical operator and mapping over partitions (using `RDD.mapPartitions` operator).
+`doExecute` link:spark-sql-SparkPlan.adoc#execute[executes] the single <<child, child>> physical operator and link:spark-rdd-transformations.adoc#mapPartitions[maps over partitions] using a custom `Iterator[InternalRow]`.
 
 NOTE: `doExecute` is a part of link:spark-sql-SparkPlan.adoc#doExecute[SparkPlan Contract] to produce the result of a physical operator as an `RDD` of link:spark-sql-InternalRow.adoc[internal binary rows].
 
@@ -218,25 +227,51 @@ NOTE: When executed, `doExecute` creates a `MapPartitionsRDD` with the `child` p
 scala> :type we
 org.apache.spark.sql.execution.window.WindowExec
 
-scala> val rdd = we.execute
-rdd: org.apache.spark.rdd.RDD[org.apache.spark.sql.catalyst.InternalRow] = MapPartitionsRDD[44] at execute at <console>:38
+val windowRDD = we.execute
+scala> :type windowRDD
+org.apache.spark.rdd.RDD[org.apache.spark.sql.catalyst.InternalRow]
 
-scala> println(rdd.toDebugString)
-(200) MapPartitionsRDD[42] at execute at <console>:39 []
-  |   MapPartitionsRDD[41] at execute at <console>:39 []
-  |   ShuffledRowRDD[34] at execute at <console>:39 []
-  +-(4) MapPartitionsRDD[33] at execute at <console>:39 []
-     |  MapPartitionsRDD[32] at execute at <console>:39 []
-     |  MapPartitionsRDD[31] at execute at <console>:39 []
-     |  ParallelCollectionRDD[30] at execute at <console>:39 []
+scala> println(windowRDD.toDebugString)
+(200) MapPartitionsRDD[5] at execute at <console>:35 []
+  |   MapPartitionsRDD[4] at execute at <console>:35 []
+  |   ShuffledRowRDD[3] at execute at <console>:35 []
+  +-(7) MapPartitionsRDD[2] at execute at <console>:35 []
+     |  MapPartitionsRDD[1] at execute at <console>:35 []
+     |  ParallelCollectionRDD[0] at execute at <console>:35 []
 ```
 
-`doExecute` creates an `Iterator[InternalRow]` (of link:spark-sql-UnsafeRow.adoc[UnsafeRow] to be precise) that first creates a `UnsafeProjection` for the <<createResultProjection, result>> and `grouping`.
+Internally, `doExecute` first takes link:spark-sql-Expression-WindowExpression.adoc[WindowExpressions] and their link:spark-sql-WindowFunctionFrame.adoc[WindowFunctionFrame] factory functions (from <<windowFrameExpressionFactoryPairs, windowFrameExpressionFactoryPairs>>) followed by link:spark-sql-SparkPlan.adoc#execute[executing] the single `child` physical operator and mapping over partitions (using `RDD.mapPartitions` operator).
 
-`doExecute` then <<fetchNextRow, fetches the first row>> from the upstream RDD (if available).
+`doExecute` creates an `Iterator[InternalRow]` (of link:spark-sql-UnsafeRow.adoc[UnsafeRow] exactly).
+
+==== [[iterator]] Mapping Over UnsafeRows per Partition -- `Iterator[InternalRow]`
+
+[[result]]
+When created, `Iterator[InternalRow]` first creates two link:spark-sql-UnsafeProjection.adoc[UnsafeProjection] conversion functions (to convert `InternalRows` to `UnsafeRows`) as <<createResultProjection, result>> and `grouping`.
+
+[[grouping]]
+NOTE: `grouping` conversion function is link:spark-sql-GenerateUnsafeProjection.adoc#create[created] for <<partitionSpec, window partition specifications expressions>> and used exclusively to create <<nextGroup, nextGroup>> when `Iterator[InternalRow]` is requested <<fetchNextRow, next row>>.
+
+[TIP]
+====
+Enable `DEBUG` logging level for `org.apache.spark.sql.catalyst.expressions.codegen.CodeGenerator` logger to see the code generated for `grouping` conversion function.
+
+Add the following line to `conf/log4j.properties`:
+
+```
+log4j.logger.org.apache.spark.sql.catalyst.expressions.codegen.CodeGenerator=DEBUG
+```
+
+Refer to link:spark-logging.adoc[Logging].
+====
+
+`Iterator[InternalRow]` then <<fetchNextRow, fetches the first row>> from the upstream RDD and initializes `nextRow` and `nextGroup` link:spark-sql-UnsafeRow.adoc[UnsafeRows].
+
+[[nextGroup]]
+NOTE: `nextGroup` is the result of converting `nextRow` using <<grouping, grouping>> conversion function.
 
 [[buffer]]
-`doExecute` creates a `ExternalAppendOnlyUnsafeRowArray` (as `buffer`) using link:spark-sql-SQLConf.adoc#spark.sql.windowExec.buffer.spill.threshold[spark.sql.windowExec.buffer.spill.threshold] property (which is `4096` rows by default).
+`doExecute` creates a link:spark-sql-ExternalAppendOnlyUnsafeRowArray.adoc[ExternalAppendOnlyUnsafeRowArray] buffer using link:spark-sql-SQLConf.adoc#spark.sql.windowExec.buffer.spill.threshold[spark.sql.windowExec.buffer.spill.threshold] property (default: `4096`) as the threshold for the number of rows buffered.
 
 [[windowFunctionResult]]
 `doExecute` creates a `SpecificInternalRow` for the window function result (as `windowFunctionResult`).
@@ -248,9 +283,7 @@ NOTE: `SpecificInternalRow` is also used in the generated code for the `UnsafePr
 
 CAUTION: FIXME
 
-NOTE: `doExecute` uses link:spark-sql-SQLConf.adoc#spark.sql.windowExec.buffer.spill.threshold[spark.sql.windowExec.buffer.spill.threshold] property (default: `4096`) as the threshold for the number of rows buffered in `ExternalAppendOnlyUnsafeRowArray` buffer.
-
-NOTE: `ExternalAppendOnlyUnsafeRowArray` is used to collect `UnsafeRow` objects from the child's partitions (one partition per buffer and up to `spark.sql.windowExec.buffer.spill.threshold`).
+NOTE: link:spark-sql-ExternalAppendOnlyUnsafeRowArray.adoc[ExternalAppendOnlyUnsafeRowArray] is used to collect `UnsafeRow` objects from the child's partitions (one partition per buffer and up to `spark.sql.windowExec.buffer.spill.threshold`).
 
 ==== [[next]] `next` Method
 
