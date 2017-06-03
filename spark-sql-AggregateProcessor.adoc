@@ -4,6 +4,17 @@
 
 `AggregateProcessor` supports link:spark-sql-Expression-AggregateFunction-DeclarativeAggregate.adoc[DeclarativeAggregate] and link:spark-sql-Expression-AggregateFunction-ImperativeAggregate.adoc[ImperativeAggregate] aggregate <<functions, functions>> only (which link:spark-sql-SparkPlan-WindowExec.adoc#windowFrameExpressionFactoryPairs[happen to] be link:spark-sql-Expression-AggregateFunction.adoc[AggregateFunction] in link:spark-sql-Expression-AggregateExpression.adoc[AggregateExpression] or link:spark-sql-Expression-AggregateWindowFunction.adoc[AggregateWindowFunction]).
 
+[[properties]]
+.AggregateProcessor's Properties (in alphabetical order)
+[cols="1,2",options="header",width="100%"]
+|===
+| Name
+| Description
+
+| [[buffer]] `buffer`
+| `SpecificInternalRow` with data types given <<bufferSchema, bufferSchema>>
+|===
+
 NOTE: `AggregateProcessor` is <<creating-instance, created>> using `AggregateProcessor` factory object (using <<apply, apply>> method).
 
 === [[initialize]] `initialize` Method
@@ -16,17 +27,6 @@ initialize(size: Int): Unit
 CAUTION: FIXME
 
 NOTE: `initialize` is used when...FIXME
-
-=== [[update]] `update` Method
-
-[source, scala]
-----
-update(input: InternalRow): Unit
-----
-
-CAUTION: FIXME
-
-NOTE: `update` is used when...FIXME
 
 === [[evaluate]] `evaluate` Method
 
@@ -51,6 +51,21 @@ apply(
 ----
 
 NOTE: `apply` is used exclusively when `WindowExec` is link:spark-sql-SparkPlan-WindowExec.adoc#doExecute[executed] (and creates link:spark-sql-WindowFunctionFrame.adoc[WindowFunctionFrame] per `AGGREGATE` window aggregate functions, i.e. link:spark-sql-Expression-AggregateExpression.adoc[AggregateExpression] or link:spark-sql-Expression-AggregateWindowFunction.adoc[AggregateWindowFunction])
+
+=== [[update]] Executing update on ImperativeAggregates -- `update` Method
+
+[source, scala]
+----
+update(input: InternalRow): Unit
+----
+
+`update` executes the link:spark-sql-Expression-AggregateFunction-ImperativeAggregate.adoc#update[update] method on every input <<imperatives, ImperativeAggregate>> sequentially (one by one).
+
+Internally, `update` converts <<buffer, buffer>> joined with `input` link:spark-sql-InternalRow.adoc[internal binary row] using the <<updateProjection, MutableProjection>> function followed by executing link:spark-sql-Expression-AggregateFunction-ImperativeAggregate.adoc#update[update] method on every <<imperatives, ImperativeAggregate>>.
+
+NOTE: `MutableProjection` mutates the same underlying binary row object each time it is executed.
+
+NOTE: `update` is used when `WindowFunctionFrame` link:spark-sql-WindowFunctionFrame.adoc#prepare[prepares] or link:spark-sql-WindowFunctionFrame.adoc#write[writes].
 
 === [[creating-instance]] Creating AggregateProcessor Instance
 
