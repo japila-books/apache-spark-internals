@@ -1,8 +1,13 @@
-== [[UserDefinedAggregateFunction]] UserDefinedAggregateFunction -- User-Defined Aggregate Functions (UDAFs)
+== [[UserDefinedAggregateFunction]] UserDefinedAggregateFunction -- Contract for User-Defined Aggregate Functions (UDAFs)
 
 `UserDefinedAggregateFunction` is a <<contract, contract>> to define *user-defined aggregate functions* (UDAFs).
 
-`UserDefinedAggregateFunction` is created using <<apply, apply>> or <<distinct, distinct>> factory methods (and wrapped in a link:spark-sql-Expression-ImperativeAggregate-ScalaUDAF.adoc[ScalaUDAF] expression container).
+`UserDefinedAggregateFunction` is created using <<apply, apply>> or <<distinct, distinct>> factory methods.
+
+The <<contract, lifecycle>> of `UserDefinedAggregateFunction` is entirely managed using link:spark-sql-Expression-ImperativeAggregate-ScalaUDAF.adoc[ScalaUDAF] expression container.
+
+.UserDefinedAggregateFunction and ScalaUDAF Expression Container
+image::images/spark-sql-UserDefinedAggregateFunction.png[align="center"]
 
 [NOTE]
 ====
@@ -43,35 +48,96 @@ abstract class UserDefinedAggregateFunction {
 | Method
 | Description
 
-| [[bufferSchema]] bufferSchema
+| [[bufferSchema]] `bufferSchema`
 |
 
-| [[dataType]] dataType
+| [[dataType]] `dataType`
 |
 
-| [[deterministic]] deterministic
+| [[deterministic]] `deterministic`
 |
 
-| [[evaluate]] evaluate
+| [[evaluate]] `evaluate`
 |
 
-| [[initialize]] initialize
+| [[initialize]] `initialize`
 |
 
-| [[inputSchema]] inputSchema
+| [[inputSchema]] `inputSchema`
 |
 
-| [[merge]] merge
+| [[merge]] `merge`
 |
 
-| [[update]] update
+| [[update]] `update`
 |
 |===
 
 === [[apply]] Creating Column for UDAF -- `apply` Method
 
-CAUTION: FIXME
+[source, scala]
+----
+apply(exprs: Column*): Column
+----
+
+`apply` creates a link:spark-sql-Column.adoc[Column] with link:spark-sql-Expression-ImperativeAggregate-ScalaUDAF.adoc[ScalaUDAF] (inside link:spark-sql-Expression-AggregateExpression.adoc[AggregateExpression]).
+
+NOTE: `AggregateExpression` uses `Complete` mode and `isDistinct` flag is disabled.
+
+[source, scala]
+----
+import org.apache.spark.sql.expressions.UserDefinedAggregateFunction
+val myUDAF: UserDefinedAggregateFunction = ...
+val myUdafCol = myUDAF.apply($"id", $"name")
+scala> myUdafCol.explain(extended = true)
+mycountudaf('id, 'name, $line17.$read$$iw$$iw$MyCountUDAF@4704b66a, 0, 0)
+
+scala> println(myUdafCol.expr.numberedTreeString)
+00 mycountudaf('id, 'name, $line17.$read$$iw$$iw$MyCountUDAF@4704b66a, 0, 0)
+01 +- MyCountUDAF('id,'name)
+02    :- 'id
+03    +- 'name
+
+import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
+myUdafCol.expr.asInstanceOf[AggregateExpression]
+
+import org.apache.spark.sql.execution.aggregate.ScalaUDAF
+val scalaUdaf = myUdafCol.expr.children.head.asInstanceOf[ScalaUDAF]
+scala> println(scalaUdaf.toString)
+MyCountUDAF('id,'name)
+----
 
 === [[distinct]] Creating Column for UDAF with Distinct Values -- `distinct` Method
 
-CAUTION: FIXME
+[source, scala]
+----
+distinct(exprs: Column*): Column
+----
+
+`distinct` creates a link:spark-sql-Column.adoc[Column] with link:spark-sql-Expression-ImperativeAggregate-ScalaUDAF.adoc[ScalaUDAF] (inside link:spark-sql-Expression-AggregateExpression.adoc[AggregateExpression]).
+
+NOTE: `AggregateExpression` uses `Complete` mode and `isDistinct` flag is enabled.
+
+NOTE: `distinct` is like <<apply, apply>> but has `isDistinct` flag enabled.
+
+[source, scala]
+----
+import org.apache.spark.sql.expressions.UserDefinedAggregateFunction
+val myUDAF: UserDefinedAggregateFunction = ...
+scala> val myUdafCol = myUDAF.distinct($"id", $"name")
+myUdafCol: org.apache.spark.sql.Column = mycountudaf(DISTINCT id, name)
+
+scala> myUdafCol.explain(extended = true)
+mycountudaf(distinct 'id, 'name, $line17.$read$$iw$$iw$MyCountUDAF@4704b66a, 0, 0)
+
+import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
+val aggExpr = myUdafCol.expr
+scala> println(aggExpr.numberedTreeString)
+00 mycountudaf(distinct 'id, 'name, $line17.$read$$iw$$iw$MyCountUDAF@4704b66a, 0, 0)
+01 +- MyCountUDAF('id,'name)
+02    :- 'id
+03    +- 'name
+
+scala> aggExpr.asInstanceOf[AggregateExpression].isDistinct
+res0: Boolean = true
+----
