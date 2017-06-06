@@ -4,26 +4,28 @@
 
 [source, scala]
 ----
+import org.apache.spark.sql.SparkSession
 val spark: SparkSession = ...
 // structured query with count aggregate function
 val q = spark.range(5).
   groupBy($"id" % 2 as "group").
   agg(count("id") as "count")
-
+import q.queryExecution.optimizedPlan
 scala> println(optimizedPlan.numberedTreeString)
-00 Aggregate [(id#15L % 2)], [(id#15L % 2) AS group#18L, count(1) AS count#23L]
+00 Aggregate [(id#0L % 2)], [(id#0L % 2) AS group#3L, count(1) AS count#8L]
 01 +- Range (0, 5, step=1, splits=Some(8))
 
 import spark.sessionState.planner.Aggregation
 val physicalPlan = Aggregation.apply(optimizedPlan)
 
-// HashAggregateExec chosen
+// HashAggregateExec selected
 scala> println(physicalPlan.head.numberedTreeString)
-00 HashAggregate(keys=[(id#15L % 2)#27L], functions=[count(1)], output=[group#18L, count#23L])
-01 +- HashAggregate(keys=[(id#15L % 2) AS (id#15L % 2)#27L], functions=[partial_count(1)], output=[(id#15L % 2)#27L, count#29L])
+00 HashAggregate(keys=[(id#0L % 2)#12L], functions=[count(1)], output=[group#3L, count#8L])
+01 +- HashAggregate(keys=[(id#0L % 2) AS (id#0L % 2)#12L], functions=[partial_count(1)], output=[(id#0L % 2)#12L, count#14L])
 02    +- PlanLater Range (0, 5, step=1, splits=Some(8))
 ----
 
+[[aggregate-physical-operator-preference]]
 `Aggregation` <<aggregate-physical-operator-selection-criteria, can select>> the following aggregate physical operators (in order of preference):
 
 1. link:spark-sql-SparkPlan-HashAggregateExec.adoc[HashAggregateExec]

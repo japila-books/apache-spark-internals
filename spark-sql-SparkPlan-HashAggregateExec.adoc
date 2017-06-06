@@ -2,33 +2,53 @@
 
 `HashAggregateExec` is a link:spark-sql-SparkPlan.adoc#UnaryExecNode[unary physical operator] that is <<creating-instance, created>> (indirectly through link:spark-sql-SparkStrategy-Aggregation.adoc#AggUtils-createAggregate[AggUtils.createAggregate]) when:
 
-* link:spark-sql-SparkStrategy-Aggregation.adoc[Aggregation] execution planning strategy select the aggregate physical operator for an link:spark-sql-LogicalPlan-Aggregate.adoc[Aggregate] logical operator
+* link:spark-sql-SparkStrategy-Aggregation.adoc[Aggregation] execution planning strategy selects the aggregate physical operator for an link:spark-sql-LogicalPlan-Aggregate.adoc[Aggregate] logical operator
 * Structured Streaming's `StatefulAggregationStrategy` strategy creates plan for streaming `EventTimeWatermark` or link:spark-sql-LogicalPlan-Aggregate.adoc[Aggregate] logical operators
+
+NOTE: `HashAggregateExec` is the link:spark-sql-SparkStrategy-Aggregation.adoc#aggregate-physical-operator-preference[preferred aggregate physical operator] for link:spark-sql-SparkStrategy-Aggregation.adoc[Aggregation] execution planning strategy (over `ObjectHashAggregateExec` and `SortAggregateExec`).
 
 `HashAggregateExec` link:spark-sql-CodegenSupport.adoc[supports code generation] (aka _codegen_).
 
 [source, scala]
 ----
-// groupBy aggregate logical operator mapped to HashAggregateExec
-val q = spark.range(10).groupBy('id % 2 as "group").sum("id")
+// HashAggregateExec selected due to:
+// sum uses mutable types for aggregate expression
+// just a single id column reference of LongType data type
+val q = spark.range(10).
+  groupBy('id % 2 as "group").
+  agg(sum("id") as "sum")
 scala> q.explain
 == Physical Plan ==
-*HashAggregate(keys=[(id#109L % 2)#121L], functions=[sum(id#109L)])
-+- Exchange hashpartitioning((id#109L % 2)#121L, 200)
-   +- *HashAggregate(keys=[(id#109L % 2) AS (id#109L % 2)#121L], functions=[partial_sum(id#109L)])
-      +- *Range (0, 10, step=1, splits=Some(8))
+*HashAggregate(keys=[(id#57L % 2)#69L], functions=[sum(id#57L)])
++- Exchange hashpartitioning((id#57L % 2)#69L, 200)
+   +- *HashAggregate(keys=[(id#57L % 2) AS (id#57L % 2)#69L], functions=[partial_sum(id#57L)])
+      +- *Range (0, 10, step=1, splits=8)
 
-scala> q.queryExecution.sparkPlan
-res11: org.apache.spark.sql.execution.SparkPlan =
-HashAggregate(keys=[(id#109L % 2)#124L], functions=[sum(id#109L)], output=[group#112L, sum(id)#116L])
-+- HashAggregate(keys=[(id#109L % 2) AS (id#109L % 2)#124L], functions=[partial_sum(id#109L)], output=[(id#109L % 2)#124L, sum#123L])
-   +- Range (0, 10, step=1, splits=Some(8))
+scala> println(q.queryExecution.sparkPlan.numberedTreeString)
+00 HashAggregate(keys=[(id#57L % 2)#72L], functions=[sum(id#57L)], output=[group#60L, sum#64L])
+01 +- HashAggregate(keys=[(id#57L % 2) AS (id#57L % 2)#72L], functions=[partial_sum(id#57L)], output=[(id#57L % 2)#72L, sum#74L])
+02    +- Range (0, 10, step=1, splits=8)
 
+// Going low level...watch your steps :)
+
+import q.queryExecution.optimizedPlan
+import org.apache.spark.sql.catalyst.plans.logical.Aggregate
+val aggLog = optimizedPlan.asInstanceOf[Aggregate]
+import org.apache.spark.sql.catalyst.planning.PhysicalAggregation
+import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
+val aggregateExpressions: Seq[AggregateExpression] = PhysicalAggregation.unapply(aggLog).get._2
+val aggregateBufferAttributes = aggregateExpressions.
+ flatMap(_.aggregateFunction.aggBufferAttributes)
 import org.apache.spark.sql.execution.aggregate.HashAggregateExec
-scala> val agg = q.queryExecution.sparkPlan.children(0).asInstanceOf[HashAggregateExec]
-agg: org.apache.spark.sql.execution.aggregate.HashAggregateExec =
-HashAggregate(keys=[(id#109L % 2) AS (id#109L % 2)#124L], functions=[partial_sum(id#109L)], output=[(id#109L % 2)#124L, sum#123L])
-+- Range (0, 10, step=1, splits=Some(8))
+// that's the exact reason why HashAggregateExec was selected
+// Aggregation execution planning strategy prefers HashAggregateExec
+scala> val useHash = HashAggregateExec.supportsAggregate(aggregateBufferAttributes)
+useHash: Boolean = true
+
+val aggExec = q.queryExecution.sparkPlan.children.head.asInstanceOf[HashAggregateExec]
+scala> println(aggExec.numberedTreeString)
+00 HashAggregate(keys=[(id#57L % 2) AS (id#57L % 2)#72L], functions=[partial_sum(id#57L)], output=[(id#57L % 2)#72L, sum#74L])
+01 +- Range (0, 10, step=1, splits=8)
 ----
 
 [[metrics]]
@@ -52,7 +72,7 @@ HashAggregate(keys=[(id#109L % 2) AS (id#109L % 2)#124L], functions=[partial_sum
 |===
 
 .HashAggregateExec in web UI (Details for Query)
-image::images/spark-sql-hashaggregate-webui.png[align="center"]
+image::images/spark-sql-HashAggregateExec-webui-details-for-query.png[align="center"]
 
 [[properties]]
 .HashAggregateExec's Properties (in alphabetical order)
