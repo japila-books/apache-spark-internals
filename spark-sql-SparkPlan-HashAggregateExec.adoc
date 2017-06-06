@@ -1,11 +1,11 @@
 == [[HashAggregateExec]] HashAggregateExec Aggregate Physical Operator
 
-`HashAggregateExec` is a link:spark-sql-SparkPlan.adoc#UnaryExecNode[unary physical operator] that link:spark-sql-CodegenSupport.adoc[supports code generation] (aka _codegen_).
+`HashAggregateExec` is a link:spark-sql-SparkPlan.adoc#UnaryExecNode[unary physical operator] that is <<creating-instance, created>> (indirectly through link:spark-sql-SparkStrategy-Aggregation.adoc#AggUtils-createAggregate[AggUtils.createAggregate]) when:
 
-`HashAggregateExec` is <<creating-instance, created>> (indirectly through link:spark-sql-SparkStrategy-Aggregation.adoc#AggUtils-createAggregate[AggUtils.createAggregate]) when:
+* link:spark-sql-SparkStrategy-Aggregation.adoc[Aggregation] execution planning strategy select the aggregate physical operator for an link:spark-sql-LogicalPlan-Aggregate.adoc[Aggregate] logical operator
+* Structured Streaming's `StatefulAggregationStrategy` strategy creates plan for streaming `EventTimeWatermark` or link:spark-sql-LogicalPlan-Aggregate.adoc[Aggregate] logical operators
 
-* link:spark-sql-SparkStrategy-Aggregation.adoc[Aggregation] execution planning strategy creates link:spark-sql-SparkPlan.adoc[physical plans] for an link:spark-sql-LogicalPlan-Aggregate.adoc[Aggregate] unary logical operator (with or no distinct)
-* Structured Streaming's `StatefulAggregationStrategy` strategy creates plan for streaming `EventTimeWatermark` or link:spark-sql-LogicalPlan-Aggregate.adoc[Aggregate] unary logical operators
+`HashAggregateExec` link:spark-sql-CodegenSupport.adoc[supports code generation] (aka _codegen_).
 
 [source, scala]
 ----
@@ -32,7 +32,7 @@ HashAggregate(keys=[(id#109L % 2) AS (id#109L % 2)#124L], functions=[partial_sum
 ----
 
 [[metrics]]
-.HashAggregateExec SQLMetrics (in alphabetical order)
+.HashAggregateExec's SQLMetrics (in alphabetical order)
 [cols="1,2",options="header",width="100%"]
 |===
 | Name
@@ -70,17 +70,28 @@ image::images/spark-sql-hashaggregate-webui.png[align="center"]
 
 NOTE: The prefix for variable names for `HashAggregateExec` operators in link:spark-sql-CodegenSupport.adoc[CodegenSupport]-generated code is *agg*.
 
+=== [[supportsAggregate]] `supportsAggregate` Method
+
+[source, scala]
+----
+supportsAggregate(aggregateBufferAttributes: Seq[Attribute]): Boolean
+----
+
+`supportsAggregate` first link:spark-sql-StructType.adoc#fromAttributes[builds the schema] of the aggregation buffer (from the input `aggregateBufferAttributes` attributes) and checks if `UnsafeFixedWidthAggregationMap` supports it (i.e. the schema uses link:spark-sql-UnsafeRow.adoc#mutableFieldTypes[mutable field data types] only that can be updated in place in link:spark-sql-UnsafeRow.adoc[UnsafeRows]).
+
+NOTE: `supportsAggregate` is used exclusively when `AggUtils.createAggregate` link:spark-sql-SparkStrategy-Aggregation.adoc#AggUtils-createAggregate[selects an aggregate physical operator given aggregate expressions].
+
 === [[creating-instance]] Creating HashAggregateExec Instance
 
 `HashAggregateExec` takes the following when created:
 
-* [[requiredChildDistributionExpressions]] Optional `requiredChildDistribution` link:spark-sql-Expression.adoc[expressions]
+* [[requiredChildDistributionExpressions]] Required child distribution link:spark-sql-Expression.adoc[expressions]
 * [[groupingExpressions]] Grouping link:spark-sql-Expression.adoc#NamedExpression[named expressions]
-* [[aggregateExpressions]] Collection of link:spark-sql-Expression-AggregateExpression.adoc[AggregateExpressions]
+* [[aggregateExpressions]] link:spark-sql-Expression-AggregateExpression.adoc[Aggregate expressions]
 * [[aggregateAttributes]] Aggregate link:spark-sql-Expression-Attribute.adoc[attributes]
-* [[initialInputBufferOffset]] Initial offset
+* [[initialInputBufferOffset]] Initial input buffer offset
 * [[resultExpressions]] Output link:spark-sql-Expression.adoc#NamedExpression[named expressions]
-* [[child]] Child link:spark-sql-SparkPlan.adoc[physical plan]
+* [[child]] Child link:spark-sql-SparkPlan.adoc[physical operator]
 
 === [[doExecute]] Executing HashAggregateExec -- `doExecute` Method
 

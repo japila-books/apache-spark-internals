@@ -1,6 +1,6 @@
-== [[Aggregation]] Aggregation Execution Planning Strategy
+== [[Aggregation]] Aggregation Execution Planning Strategy for Aggregate Physical Operators
 
-`Aggregation` is an link:spark-sql-SparkStrategy.adoc[execution planning strategy] (of link:spark-sql-SparkPlanner.adoc[SparkPlanner]) that...FIXME
+`Aggregation` is an link:spark-sql-SparkStrategy.adoc[execution planning strategy] that link:spark-sql-SparkPlanner.adoc[SparkPlanner] uses to <<apply, select aggregate physical operator for Aggregate logical operator>> (in a query's logical plan).
 
 [source, scala]
 ----
@@ -10,17 +10,29 @@ val q = spark.range(5).
   groupBy($"id" % 2 as "group").
   agg(count("id") as "count")
 
-import q.queryExecution.optimizedPlan
 scala> println(optimizedPlan.numberedTreeString)
-00 Aggregate [(id#38L % 2)], [(id#38L % 2) AS group#41L, count(1) AS count#46L]
+00 Aggregate [(id#15L % 2)], [(id#15L % 2) AS group#18L, count(1) AS count#23L]
 01 +- Range (0, 5, step=1, splits=Some(8))
 
 import spark.sessionState.planner.Aggregation
-scala> println(Aggregation.apply(optimizedPlan).head.numberedTreeString)
-00 HashAggregate(keys=[(id#38L % 2)#66L], functions=[count(1)], output=[group#41L, count#46L])
-01 +- HashAggregate(keys=[(id#38L % 2) AS (id#38L % 2)#66L], functions=[partial_count(1)], output=[(id#38L % 2)#66L, count#59L])
+val physicalPlan = Aggregation.apply(optimizedPlan)
+
+// HashAggregateExec chosen
+scala> println(physicalPlan.head.numberedTreeString)
+00 HashAggregate(keys=[(id#15L % 2)#27L], functions=[count(1)], output=[group#18L, count#23L])
+01 +- HashAggregate(keys=[(id#15L % 2) AS (id#15L % 2)#27L], functions=[partial_count(1)], output=[(id#15L % 2)#27L, count#29L])
 02    +- PlanLater Range (0, 5, step=1, splits=Some(8))
 ----
+
+`Aggregation` <<aggregate-physical-operator-selection-criteria, can select>> the following aggregate physical operators (in order of preference):
+
+1. link:spark-sql-SparkPlan-HashAggregateExec.adoc[HashAggregateExec]
+
+1. link:spark-sql-SparkPlan-ObjectHashAggregateExec.adoc[ObjectHashAggregateExec]
+
+1. link:spark-sql-SparkPlan-SortAggregateExec.adoc[SortAggregateExec]
+
+CAUTION: FIXME Show the other physical operators chosen.
 
 === [[apply]] Executing Planning Strategy -- `apply` Method
 
@@ -61,7 +73,7 @@ NOTE: `PhysicalAggregation` is a Scala http://docs.scala-lang.org/tutorials/tour
 
 CAUTION: FIXME
 
-=== [[AggUtils-createAggregate]] Creating Aggregate Physical Operator Per Aggregate Expressions -- `AggUtils.createAggregate` Internal Method
+=== [[AggUtils-createAggregate]] Selecting Aggregate Physical Operator Given Aggregate Expressions -- `AggUtils.createAggregate` Internal Method
 
 [source, scala]
 ----
@@ -75,39 +87,39 @@ createAggregate(
   child: SparkPlan): SparkPlan
 ----
 
-`createAggregate` creates a link:spark-sql-SparkPlan.adoc[physical operator] given the input `aggregateExpressions`.
+Internally, `createAggregate` selects and creates a link:spark-sql-SparkPlan.adoc[physical operator] given the input `aggregateExpressions` link:spark-sql-Expression-AggregateExpression.adoc[aggregate expressions].
 
-.createAggregate and Selecting Physical Operator (in execution order)
+[[aggregate-physical-operator-selection-criteria]]
+.createAggregate's Aggregate Physical Operator Selection Criteria (in execution order)
 [cols="1,2",options="header",width="100%"]
 |===
-| Operator
-| Conditions (for selection)
+| Aggregate Physical Operator
+| Selection Criteria
 
 | link:spark-sql-SparkPlan-HashAggregateExec.adoc[HashAggregateExec]
-a| Builds a schema from link:spark-sql-Expression-AggregateFunction.adoc#aggBufferAttributes[aggBufferAttributes] (of every `AggregateFunction`) of every link:spark-sql-Expression-AggregateExpression.adoc[AggregateExpression] (in the input `aggregateExpressions`) and checks for any non-mutable fields (that _cannot_ be updated in place in link:spark-sql-UnsafeRow.adoc[UnsafeRows]). When not found, `HashAggregateExec` is selected.
-
-Mutable field types include:
-
-* `NullType`
-* `BooleanType`
-* `ByteType`
-* `ShortType`
-* `IntegerType`
-* `LongType`
-* `FloatType`
-* `DoubleType`
-* `DateType`
-* `TimestampType`
-* `DecimalType`
+a| `HashAggregateExec` link:spark-sql-SparkPlan-HashAggregateExec.adoc#supportsAggregate[supports] all `aggBufferAttributes` of the input `aggregateExpressions` link:spark-sql-Expression-AggregateExpression.adoc[aggregate expressions].
 
 | link:spark-sql-SparkPlan-ObjectHashAggregateExec.adoc[ObjectHashAggregateExec]
-| When link:spark-sql-SQLConf.adoc#spark.sql.execution.useObjectHashAggregateExec[spark.sql.execution.useObjectHashAggregateExec] intenal flag enabled (it is by default) and `aggregateExpressions` contains at least one `TypedImperativeAggregate`.
+a|
+
+1. link:spark-sql-SQLConf.adoc#spark.sql.execution.useObjectHashAggregateExec[spark.sql.execution.useObjectHashAggregateExec] internal flag enabled (it is by default)
+
+1. `ObjectHashAggregateExec` link:spark-sql-SparkPlan-ObjectHashAggregateExec.adoc#supportsAggregate[supports] the input `aggregateExpressions` link:spark-sql-Expression-AggregateExpression.adoc[aggregate expressions].
 
 | link:spark-sql-SparkPlan-SortAggregateExec.adoc[SortAggregateExec]
-| When all the above conditions fail.
+| When all the above requirements could not be met.
 |===
 
-NOTE: `createAggregate` is used in <<AggUtils-planAggregateWithoutDistinct, AggUtils.planAggregateWithoutDistinct>>, <<AggUtils-planAggregateWithOneDistinct, AggUtils.planAggregateWithOneDistinct>> and `planStreamingAggregation` (for Structured Streaming's `StatefulAggregationStrategy`).
+[NOTE]
+====
+`createAggregate` is used in:
+
+* <<AggUtils-planAggregateWithoutDistinct, AggUtils.planAggregateWithoutDistinct>>
+
+* <<AggUtils-planAggregateWithOneDistinct, AggUtils.planAggregateWithOneDistinct>>
+
+* Structured Streaming's `StatefulAggregationStrategy` (`planStreamingAggregation`)
+====
 
 === [[AggUtils]][[AggUtils-planAggregateWithoutDistinct]] `AggUtils.planAggregateWithoutDistinct` Method
 
