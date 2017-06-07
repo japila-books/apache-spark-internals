@@ -1,4 +1,4 @@
-== [[HashAggregateExec]] HashAggregateExec Aggregate Physical Operator -- Hash-Based Aggregation
+== [[HashAggregateExec]] HashAggregateExec Aggregate Physical Operator for Hash-Based Aggregation
 
 `HashAggregateExec` is a link:spark-sql-SparkPlan.adoc#UnaryExecNode[unary physical operator] for **hash-based aggregation** that is <<creating-instance, created>> (indirectly through link:spark-sql-SparkStrategy-Aggregation.adoc#AggUtils-createAggregate[AggUtils.createAggregate]) when:
 
@@ -45,10 +45,19 @@ import org.apache.spark.sql.execution.aggregate.HashAggregateExec
 scala> val useHash = HashAggregateExec.supportsAggregate(aggregateBufferAttributes)
 useHash: Boolean = true
 
-val aggExec = q.queryExecution.sparkPlan.children.head.asInstanceOf[HashAggregateExec]
-scala> println(aggExec.numberedTreeString)
-00 HashAggregate(keys=[(id#57L % 2) AS (id#57L % 2)#72L], functions=[partial_sum(id#57L)], output=[(id#57L % 2)#72L, sum#74L])
-01 +- Range (0, 10, step=1, splits=8)
+val execPlan = q.queryExecution.sparkPlan
+val hashAggExec = execPlan.asInstanceOf[HashAggregateExec]
+scala> println(execPlan.numberedTreeString)
+00 HashAggregate(keys=[(id#39L % 2)#50L], functions=[sum(id#39L)], output=[group#42L, sum#46L])
+01 +- HashAggregate(keys=[(id#39L % 2) AS (id#39L % 2)#50L], functions=[partial_sum(id#39L)], output=[(id#39L % 2)#50L, sum#52L])
+02    +- Range (0, 10, step=1, splits=8)
+
+val hashAggExecRDD = hashAggExec.execute // <-- calls doExecute
+scala> println(hashAggExecRDD.toDebugString)
+(8) MapPartitionsRDD[14] at execute at <console>:35 []
+ |  MapPartitionsRDD[13] at execute at <console>:35 []
+ |  MapPartitionsRDD[12] at execute at <console>:35 []
+ |  ParallelCollectionRDD[11] at execute at <console>:35 []
 ----
 
 [[metrics]]
@@ -90,6 +99,10 @@ image::images/spark-sql-HashAggregateExec-webui-details-for-query.png[align="cen
 
 NOTE: The prefix for variable names for `HashAggregateExec` operators in link:spark-sql-CodegenSupport.adoc[CodegenSupport]-generated code is *agg*.
 
+=== [[testFallbackStartsAt]] `testFallbackStartsAt` Internal Value
+
+CAUTION: FIXME
+
 === [[supportsAggregate]] `supportsAggregate` Method
 
 [source, scala]
@@ -122,11 +135,13 @@ doExecute(): RDD[InternalRow]
 
 `doExecute` executes the input <<child, child SparkPlan>> (to produce link:spark-sql-InternalRow.adoc[InternalRow] objects) and applies calculation over partitions (using `RDD.mapPartitions`).
 
+IMPORTANT: `RDD.mapPartitions` does *not* preserve partitioning and neither does `HashAggregateExec` when executed.
+
 In the `mapPartitions` block, `doExecute` creates one of the following:
 
 * an empty iterator for no-record partitions with at least one grouping expression
 
-* `TungstenAggregationIterator`
+* link:spark-sql-TungstenAggregationIterator.adoc[TungstenAggregationIterator]
 
 NOTE: `doExecute` is a part of link:spark-sql-SparkPlan.adoc#doExecute[SparkPlan Contract] to produce the result of a structured query as an `RDD` of link:spark-sql-InternalRow.adoc[InternalRow] objects.
 

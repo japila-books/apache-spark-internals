@@ -1,0 +1,65 @@
+== [[TungstenAggregationIterator]] TungstenAggregationIterator -- Iterator of UnsafeRows for HashAggregateExec Physical Operator
+
+`TungstenAggregationIterator` is a custom link:spark-sql-AggregationIterator.adoc[AggregationIterator] that is <<creating-instance, created>> when link:spark-sql-SparkPlan-HashAggregateExec.adoc[HashAggregateExec] aggregate physical operator is link:spark-sql-SparkPlan-HashAggregateExec.adoc#doExecute[executed] (to process rows per partition).
+
+[source, scala]
+----
+val q = spark.range(10).
+  groupBy('id % 2 as "group").
+  agg(sum("id") as "sum")
+val execPlan = q.queryExecution.sparkPlan
+scala> println(execPlan.numberedTreeString)
+00 HashAggregate(keys=[(id#0L % 2)#11L], functions=[sum(id#0L)], output=[group#3L, sum#7L])
+01 +- HashAggregate(keys=[(id#0L % 2) AS (id#0L % 2)#11L], functions=[partial_sum(id#0L)], output=[(id#0L % 2)#11L, sum#13L])
+02    +- Range (0, 10, step=1, splits=8)
+
+import org.apache.spark.sql.execution.aggregate.HashAggregateExec
+val hashAggExec = execPlan.asInstanceOf[HashAggregateExec]
+val hashAggExecRDD = hashAggExec.execute
+
+// MapPartitionsRDD is in private[spark] scope
+// Use :paste -raw for the following helper object
+package org.apache.spark
+object AccessPrivateSpark {
+  import org.apache.spark.rdd.RDD
+  def mapPartitionsRDD[T](hashAggExecRDD: RDD[T]) = {
+    import org.apache.spark.rdd.MapPartitionsRDD
+    hashAggExecRDD.asInstanceOf[MapPartitionsRDD[_, _]]
+  }
+}
+// END :paste -raw
+
+import org.apache.spark.AccessPrivateSpark
+val mpRDD = AccessPrivateSpark.mapPartitionsRDD(hashAggExecRDD)
+val f = mpRDD.iterator(_, _)
+
+import org.apache.spark.sql.execution.aggregate.TungstenAggregationIterator
+// FIXME How to show that TungstenAggregationIterator is used?
+----
+
+=== [[next]] `next` Method
+
+CAUTION: FIXME
+
+=== [[hasNext]] `hasNext` Method
+
+CAUTION: FIXME
+
+=== [[creating-instance]] Creating TungstenAggregationIterator Instance
+
+`TungstenAggregationIterator` takes the following when created:
+
+* [[groupingExpressions]] Grouping link:spark-sql-Expression.adoc#NamedExpression[named expressions]
+* [[aggregateExpressions]] link:spark-sql-Expression-AggregateExpression.adoc[Aggregate expressions]
+* [[aggregateAttributes]] Aggregate link:spark-sql-Expression-Attribute.adoc[attributes]
+* [[initialInputBufferOffset]] Initial input buffer offset
+* [[resultExpressions]] Output link:spark-sql-Expression.adoc#NamedExpression[named expressions]
+* [[newMutableProjection]] Function to create a new `MutableProjection` given Catalyst expressions and attributes
+* [[originalInputAttributes]] Output attributes of the link:spark-sql-SparkPlan-HashAggregateExec.adoc#child[child] operator of `HashAggregateExec`
+* [[inputIter]] Iterator of `InternalRows` from a single partition of the child's result `RDD[InternalRow]`
+* [[testFallbackStartsAt]] Optional ``HashAggregateExec``'s link:spark-sql-SparkPlan-HashAggregateExec.adoc#testFallbackStartsAt[testFallbackStartsAt]
+* [[numOutputRows]] `numOutputRows` link:spark-sql-SQLMetric.adoc[SQLMetric]
+* [[peakMemory]] `peakMemory` link:spark-sql-SQLMetric.adoc[SQLMetric]
+* [[spillSize]] `spillSize` link:spark-sql-SQLMetric.adoc[SQLMetric]
+
+`TungstenAggregationIterator` initializes the <<internal-registries, internal registries and counters>>.
