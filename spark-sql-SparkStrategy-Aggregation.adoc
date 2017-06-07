@@ -34,7 +34,9 @@ scala> println(physicalPlan.head.numberedTreeString)
 
 1. link:spark-sql-SparkPlan-SortAggregateExec.adoc[SortAggregateExec]
 
-CAUTION: FIXME Show the other physical operators chosen.
+=== [[planAggregateWithOneDistinct]][[AggUtils-planAggregateWithOneDistinct]] `AggUtils.planAggregateWithOneDistinct` Method
+
+CAUTION: FIXME
 
 === [[apply]] Executing Planning Strategy -- `apply` Method
 
@@ -43,37 +45,17 @@ CAUTION: FIXME Show the other physical operators chosen.
 apply(plan: LogicalPlan): Seq[SparkPlan]
 ----
 
-`apply`...FIXME
+`apply` <<PhysicalAggregation-unapply, finds Aggregate logical operators>> and creates a single aggregate physical operator for every link:spark-sql-LogicalPlan-Aggregate.adoc[Aggregate] logical operator.
+
+Internally, `apply` <<PhysicalAggregation-unapply, destructures a Aggregate logical operator>> (into a four-element tuple) and splits link:spark-sql-Expression-AggregateExpression.adoc[aggregate expressions] per whether they are distinct or not (using their link:spark-sql-Expression-AggregateExpression.adoc#isDistinct[isDistinct] flag).
+
+`apply` then creates a physical operator using the following helper methods:
+
+* <<AggUtils-planAggregateWithoutDistinct, AggUtils.planAggregateWithoutDistinct>> when no distinct aggregate expression is used
+
+* <<AggUtils-planAggregateWithOneDistinct, AggUtils.planAggregateWithOneDistinct>> when at least one distinct aggregate expression is used.
 
 NOTE: `apply` is a part of link:spark-sql-catalyst-GenericStrategy.adoc#apply[GenericStrategy Contract] to execute a planning strategy.
-
-=== [[PhysicalAggregation]][[PhysicalAggregation-unapply]] Destructuring Logical Plan -- `PhysicalAggregation.unapply` Method
-
-[source, scala]
-----
-unapply(a: Any): Option[ReturnType]
-----
-
-`unapply` destructures a link:spark-sql-LogicalPlan.adoc[logical plan], i.e. breaks a `LogicalPlan` into pieces.
-
-CAUTION: FIXME What pieces?
-
-[NOTE]
-====
-`ReturnType` is a type alias (aka _type synonym_) for a 4-element tuple with grouping, aggregate and result link:spark-sql-Expression.adoc[expressions], and child link:spark-sql-LogicalPlan.adoc[logical operator].
-
-[source, scala]
-----
-type ReturnType =
-  (Seq[NamedExpression], Seq[AggregateExpression], Seq[NamedExpression], LogicalPlan)
-----
-====
-
-NOTE: `PhysicalAggregation` is a Scala http://docs.scala-lang.org/tutorials/tour/extractor-objects.html[extractor object] with a single <<PhysicalAggregation-unapply, unapply>> method.
-
-=== [[planAggregateWithOneDistinct]][[AggUtils-planAggregateWithOneDistinct]] `AggUtils.planAggregateWithOneDistinct` Method
-
-CAUTION: FIXME
 
 === [[AggUtils-createAggregate]] Selecting Aggregate Physical Operator Given Aggregate Expressions -- `AggUtils.createAggregate` Internal Method
 
@@ -141,3 +123,26 @@ planAggregateWithoutDistinct(
 In the end, `planAggregateWithoutDistinct` <<AggUtils-createAggregate, creates another aggregate physical operator>> with `aggregateExpressions` in `Final` mode and the first aggregate operator as the child.
 
 NOTE: `planAggregateWithoutDistinct` is used exclusively when `Aggregation` execution planning strategy <<apply, is executed>> (with no `AggregateExpressions` being link:spark-sql-Expression-AggregateExpression.adoc#isDistinct[distinct]).
+
+=== [[PhysicalAggregation]][[PhysicalAggregation-unapply]] Destructuring Aggregate Logical Operator -- `PhysicalAggregation.unapply` Method
+
+[source, scala]
+----
+unapply(a: Any): Option[ReturnType]
+----
+
+`unapply` destructures the input `a` link:spark-sql-LogicalPlan-Aggregate.adoc[Aggregate] logical operator into a four-element <<ReturnType, ReturnType>>.
+
+[[ReturnType]]
+[NOTE]
+====
+`ReturnType` is a type alias (aka _type synonym_) for a four-element tuple with grouping, aggregate and result link:spark-sql-Expression.adoc[Catalyst expressions], and child link:spark-sql-LogicalPlan.adoc[logical operator].
+
+[source, scala]
+----
+type ReturnType =
+  (Seq[NamedExpression], Seq[AggregateExpression], Seq[NamedExpression], LogicalPlan)
+----
+====
+
+NOTE: `PhysicalAggregation` is a Scala http://docs.scala-lang.org/tutorials/tour/extractor-objects.html[extractor object] with a single <<PhysicalAggregation-unapply, unapply>> method.
