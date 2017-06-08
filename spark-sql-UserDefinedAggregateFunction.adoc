@@ -1,8 +1,71 @@
 == [[UserDefinedAggregateFunction]] UserDefinedAggregateFunction -- Contract for User-Defined Aggregate Functions (UDAFs)
 
-`UserDefinedAggregateFunction` is a <<contract, contract>> to define *user-defined aggregate functions* (UDAFs).
+`UserDefinedAggregateFunction` is the <<contract, contract>> to define *user-defined aggregate functions (UDAFs)*.
+
+[source, scala]
+----
+// Custom UDAF to count rows
+
+import org.apache.spark.sql.Row
+import org.apache.spark.sql.expressions.{MutableAggregationBuffer, UserDefinedAggregateFunction}
+import org.apache.spark.sql.types.{DataType, LongType, StructType}
+
+class MyCountUDAF extends UserDefinedAggregateFunction {
+  override def inputSchema: StructType = {
+    new StructType().add("id", LongType, nullable = true)
+  }
+
+  override def bufferSchema: StructType = {
+    new StructType().add("count", LongType, nullable = true)
+  }
+
+  override def dataType: DataType = LongType
+
+  override def deterministic: Boolean = true
+
+  override def initialize(buffer: MutableAggregationBuffer): Unit = {
+    println(s">>> initialize (buffer: $buffer)")
+    // NOTE: Scala's update used under the covers
+    buffer(0) = 0L
+  }
+
+  override def update(buffer: MutableAggregationBuffer, input: Row): Unit = {
+    println(s">>> update (buffer: $buffer -> input: $input)")
+    buffer(0) = buffer.getLong(0) + 1
+  }
+
+  override def merge(buffer: MutableAggregationBuffer, row: Row): Unit = {
+    println(s">>> merge (buffer: $buffer -> row: $row)")
+    buffer(0) = buffer.getLong(0) + row.getLong(0)
+  }
+
+  override def evaluate(buffer: Row): Any = {
+    println(s">>> evaluate (buffer: $buffer)")
+    buffer.getLong(0)
+  }
+}
+----
 
 `UserDefinedAggregateFunction` is created using <<apply, apply>> or <<distinct, distinct>> factory methods.
+
+[source, scala]
+----
+val dataset = spark.range(start = 0, end = 4, step = 1, numPartitions = 2)
+
+// Use the UDAF
+val mycount = new MyCountUDAF
+val q = dataset.
+  withColumn("group", 'id % 2).
+  groupBy('group).
+  agg(mycount.distinct('id) as "count")
+scala> q.show
++-----+-----+
+|group|count|
++-----+-----+
+|    0|    2|
+|    1|    2|
++-----+-----+
+----
 
 The <<contract, lifecycle>> of `UserDefinedAggregateFunction` is entirely managed using link:spark-sql-Expression-ScalaUDAF.adoc[ScalaUDAF] expression container.
 
@@ -16,10 +79,10 @@ Use link:spark-sql-UDFRegistration.adoc[UDFRegistration] to register a (temporar
 [source, scala]
 ----
 import org.apache.spark.sql.expressions.UserDefinedAggregateFunction
-val mySum: UserDefinedAggregateFunction = ...
-spark.udf.register("mySum", mySum)
+val mycount: UserDefinedAggregateFunction = ...
+spark.udf.register("mycount", mycount)
 
-spark.sql("SELECT mySum(*) FROM range(5)")
+spark.sql("SELECT mycount(*) FROM range(5)")
 ----
 ====
 
