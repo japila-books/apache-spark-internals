@@ -4,7 +4,7 @@
 
 [NOTE]
 ====
-`SQLConf` is publicly available through the user-facing interface `RuntimeConfig` that you can access using link:spark-sql-SparkSession.adoc#conf[SparkSession].
+`SQLConf` is not meant to be used directly and _is_ available through the user-facing interface `RuntimeConfig` that you can access using link:spark-sql-SparkSession.adoc#conf[SparkSession].
 
 [source, scala]
 ----
@@ -25,9 +25,22 @@ You can access a session-specific `SQLConf` using link:spark-sql-SparkSession.ad
 import org.apache.spark.sql.SparkSession
 val spark: SparkSession = ...
 
-import org.apache.spark.sql.internal.SQLConf
-scala> val conf: SQLConf = spark.sessionState.conf
-conf: org.apache.spark.sql.internal.SQLConf = org.apache.spark.sql.internal.SQLConf@5e388a77
+import spark.sessionState.conf
+
+// accessing properties through accessor methods
+scala> conf.numShufflePartitions
+res0: Int = 200
+
+// setting properties using aliases
+import org.apache.spark.sql.internal.SQLConf.SHUFFLE_PARTITIONS
+conf.setConf(SHUFFLE_PARTITIONS, 2)
+scala> conf.numShufflePartitions
+res2: Int = 2
+
+// unset aka reset properties to the default value
+conf.unsetConf(SHUFFLE_PARTITIONS)
+scala> conf.numShufflePartitions
+res4: Int = 200
 ----
 
 [[accessor-methods]]
@@ -81,6 +94,10 @@ Used in:
 | [[joinReorderEnabled]] `joinReorderEnabled`
 | <<spark.sql.cbo.joinReorder.enabled, spark.sql.cbo.joinReorder.enabled>>
 | Used exclusively in link:spark-sql-Optimizer-CostBasedJoinReorder.adoc[CostBasedJoinReorder] logical plan optimization
+
+| [[limitScaleUpFactor]] `limitScaleUpFactor`
+| <<spark.sql.limit.scaleUpFactor, spark.sql.limit.scaleUpFactor>>
+| Used exclusively when a physical operator is requested link:spark-sql-SparkPlan.adoc#executeTake[the first n rows as an array].
 
 | [[preferSortMergeJoin]] `preferSortMergeJoin`
 | <<spark.sql.join.preferSortMergeJoin, spark.sql.join.preferSortMergeJoin>>
@@ -228,6 +245,12 @@ Use <<useCompression, useCompression>> method to access the current value.
 | *(internal)* Controls link:spark-sql-SparkStrategy-JoinSelection.adoc[JoinSelection] execution planning strategy to prefer sort merge join over shuffle hash join.
 
 Use <<preferSortMergeJoin, preferSortMergeJoin>> method to access the current value.
+
+| [[spark.sql.limit.scaleUpFactor]] `spark.sql.limit.scaleUpFactor`
+| `4`
+| *(internal)* Minimal increase rate in the number of partitions between attempts when executing `take` operator on a structured query. Higher values lead to more partitions read. Lower values might lead to longer execution times as more jobs will be run.
+
+Use <<limitScaleUpFactor, limitScaleUpFactor>> method to access the current value.
 
 | [[spark.sql.optimizer.maxIterations]] `spark.sql.optimizer.maxIterations`
 | `100`
