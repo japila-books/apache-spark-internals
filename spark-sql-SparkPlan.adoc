@@ -108,7 +108,7 @@ By default, the link:spark-sql-catalyst-QueryPlan.adoc#producedAttributes[set of
 
 NOTE: The naming convention for physical operators in Spark's source code is to have their names end with the *Exec* prefix, e.g. `DebugExec` or link:spark-sql-SparkPlan-LocalTableScanExec.adoc[LocalTableScanExec] that is however removed when the operator is displayed, e.g. in link:spark-webui-sql.adoc[web UI].
 
-=== [[executeTake]] `executeTake` Method
+=== [[decodeUnsafeRows]] `decodeUnsafeRows` Method
 
 CAUTION: FIXME
 
@@ -236,3 +236,87 @@ metrics: Map[String, SQLMetric] = Map.empty
 ----
 
 `metrics` is a registry of supported link:spark-sql-SQLMetric.adoc[SQLMetrics] by their names.
+
+=== [[executeTake]] Taking First N UnsafeRows -- `executeTake` Method
+
+[source, scala]
+----
+executeTake(n: Int): Array[InternalRow]
+----
+
+`executeTake` gives an array of up to `n` first link:spark-sql-InternalRow.adoc[internal rows].
+
+.SparkPlan's executeTake takes 5 elements
+image::images/spark-sql-SparkPlan-executeTake.png[align="center"]
+
+Internally, `executeTake` <<getByteArrayRdd, gets an RDD of byte array of `n` unsafe rows>> and scans the RDD partitions one by one until `n` is reached or all partitions were processed.
+
+`executeTake` runs Spark jobs that take all the elements from requested number of partitions, starting from the 0th partition and increasing their number by link:spark-sql-SQLConf.adoc#spark.sql.limit.scaleUpFactor[spark.sql.limit.scaleUpFactor] property (but minimum twice as many).
+
+NOTE: `executeTake` uses `SparkContext.runJob` to run a Spark job.
+
+In the end, `executeTake` <<decodeUnsafeRows, decodes the unsafe rows>>.
+
+NOTE: `executeTake` gives an empty collection when `n` is 0 (and no Spark job is executed).
+
+NOTE: `executeTake` may take and decode more unsafe rows than really needed since all unsafe rows from a partition are read (if the partition is included in the scan).
+
+[source, scala]
+----
+import org.apache.spark.sql.internal.SQLConf.SHUFFLE_PARTITIONS
+spark.sessionState.conf.setConf(SHUFFLE_PARTITIONS, 10)
+
+// 8 groups over 10 partitions
+// only 7 partitions are with numbers
+val nums = spark.
+  range(start = 0, end = 20, step = 1, numPartitions = 4).
+  repartition($"id" % 8)
+
+import scala.collection.Iterator
+val showElements = (it: Iterator[java.lang.Long]) => {
+  val ns = it.toSeq
+  import org.apache.spark.TaskContext
+  val pid = TaskContext.get.partitionId
+  println(s"[partition: $pid][size: ${ns.size}] ${ns.mkString(" ")}")
+}
+// ordered by partition id manually for demo purposes
+scala> nums.foreachPartition(showElements)
+[partition: 0][size: 2] 4 12
+[partition: 1][size: 2] 7 15
+[partition: 2][size: 0]
+[partition: 3][size: 0]
+[partition: 4][size: 0]
+[partition: 5][size: 5] 0 6 8 14 16
+[partition: 6][size: 0]
+[partition: 7][size: 3] 3 11 19
+[partition: 8][size: 5] 2 5 10 13 18
+[partition: 9][size: 3] 1 9 17
+
+scala> println(spark.sessionState.conf.limitScaleUpFactor)
+4
+
+// Think how many Spark jobs will the following queries run?
+// Answers follow
+scala> nums.take(13)
+res0: Array[Long] = Array(4, 12, 7, 15, 0, 6, 8, 14, 16, 3, 11, 19, 2)
+
+// The number of Spark jobs = 3
+
+scala> nums.take(5)
+res34: Array[Long] = Array(4, 12, 7, 15, 0)
+
+// The number of Spark jobs = 4
+
+scala> nums.take(3)
+res38: Array[Long] = Array(4, 12, 7)
+
+// The number of Spark jobs = 2
+----
+
+[NOTE]
+====
+`executeTake` is used when:
+
+* `CollectLimitExec` is requested to <<executeCollect, executeCollect>>
+* `AnalyzeColumnCommand` is executed
+====
