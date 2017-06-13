@@ -150,7 +150,23 @@ window(
 <1> With `slideDuration` as `windowDuration` and `0 second` for `startTime`
 <2> With `0 second` for `startTime`
 
-`window` generates tumbling time windows of `windowDuration` duration given a `timeColumn` timestamp specifying column.
+`window` generates *tumbling time windows* of `windowDuration` duration given a `timeColumn` timestamp specifying column.
+
+[NOTE]
+====
+From https://msdn.microsoft.com/en-us/library/azure/dn835055.aspx[Tumbling Window (Azure Stream Analytics)]:
+
+> *Tumbling windows* are a series of fixed-sized, non-overlapping and contiguous time intervals.
+====
+
+[NOTE]
+====
+From https://flink.apache.org/news/2015/12/04/Introducing-windows.html[Introducing Stream Windows in Apache Flink]:
+
+> *Tumbling windows* group elements of a stream into finite sets where each set corresponds to an interval.
+
+> *Tumbling windows* discretize a stream into non-overlapping windows.
+====
 
 [source, scala]
 ----
@@ -158,9 +174,71 @@ scala> val timeColumn = window('time, "5 seconds")
 timeColumn: org.apache.spark.sql.Column = timewindow(time, 5000000, 5000000, 0) AS `window`
 ----
 
-`timeColumn` has to be of link:spark-sql-DataType.adoc#TimestampType[TimestampType], i.e. with https://docs.oracle.com/javase/8/docs/api/java/sql/Timestamp.html[java.sql.Timestamp] values.
+`timeColumn` should be of link:spark-sql-DataType.adoc#TimestampType[TimestampType], i.e. with https://docs.oracle.com/javase/8/docs/api/java/sql/Timestamp.html[java.sql.Timestamp] values.
 
 TIP: Use link:++https://docs.oracle.com/javase/8/docs/api/java/sql/Timestamp.html#from-java.time.Instant-++[java.sql.Timestamp.from] or link:++https://docs.oracle.com/javase/8/docs/api/java/sql/Timestamp.html#valueOf-java.time.LocalDateTime-++[java.sql.Timestamp.valueOf] factory methods to create `Timestamp` instances.
+
+[source, scala]
+----
+// https://docs.oracle.com/javase/8/docs/api/java/time/LocalDateTime.html
+import java.time.LocalDateTime
+// https://docs.oracle.com/javase/8/docs/api/java/sql/Timestamp.html
+import java.sql.Timestamp
+val levels = Seq(
+  // (year, month, dayOfMonth, hour, minute, second)
+  ((2012, 12, 12, 12, 12, 12), 5),
+  ((2012, 12, 12, 12, 12, 14), 9),
+  ((2012, 12, 12, 13, 13, 14), 4),
+  ((2016, 8,  13, 0, 0, 0), 10),
+  ((2017, 5,  27, 0, 0, 0), 15)).
+  map { case ((yy, mm, dd, h, m, s), a) => (LocalDateTime.of(yy, mm, dd, h, m, s), a) }.
+  map { case (ts, a) => (Timestamp.valueOf(ts), a) }.
+  toDF("time", "level")
+scala> levels.show
++-------------------+-----+
+|               time|level|
++-------------------+-----+
+|2012-12-12 12:12:12|    5|
+|2012-12-12 12:12:14|    9|
+|2012-12-12 13:13:14|    4|
+|2016-08-13 00:00:00|   10|
+|2017-05-27 00:00:00|   15|
++-------------------+-----+
+
+val q = levels.select(window($"time", "5 seconds"), $"level")
+scala> q.show(truncate = false)
++---------------------------------------------+-----+
+|window                                       |level|
++---------------------------------------------+-----+
+|[2012-12-12 12:12:10.0,2012-12-12 12:12:15.0]|5    |
+|[2012-12-12 12:12:10.0,2012-12-12 12:12:15.0]|9    |
+|[2012-12-12 13:13:10.0,2012-12-12 13:13:15.0]|4    |
+|[2016-08-13 00:00:00.0,2016-08-13 00:00:05.0]|10   |
+|[2017-05-27 00:00:00.0,2017-05-27 00:00:05.0]|15   |
++---------------------------------------------+-----+
+
+scala> q.printSchema
+root
+ |-- window: struct (nullable = true)
+ |    |-- start: timestamp (nullable = true)
+ |    |-- end: timestamp (nullable = true)
+ |-- level: integer (nullable = false)
+
+// calculating the sum of levels every 5 seconds
+val sums = levels.
+  groupBy(window($"time", "5 seconds")).
+  agg(sum("level") as "level_sum").
+  select("window.start", "window.end", "level_sum")
+scala> sums.show
++-------------------+-------------------+---------+
+|              start|                end|level_sum|
++-------------------+-------------------+---------+
+|2012-12-12 13:13:10|2012-12-12 13:13:15|        4|
+|2012-12-12 12:12:10|2012-12-12 12:12:15|       14|
+|2016-08-13 00:00:00|2016-08-13 00:00:05|       10|
+|2017-05-27 00:00:00|2017-05-27 00:00:05|       15|
++-------------------+-------------------+---------+
+----
 
 `windowDuration` and `slideDuration` are strings specifying the width of the window for duration and sliding identifiers, respectively.
 
@@ -171,13 +249,14 @@ NOTE: `window` is available as of Spark *2.0.0*.
 Internally, `window` creates a link:spark-sql-Column.adoc[Column] (with link:spark-sql-Expression-TimeWindow.adoc[TimeWindow] expression) as `window`.
 
 ```
-scala> timeColumn.expr.numberedTreeString
-res9: String =
-00 timewindow('time, 5000000, 5000000, 0) AS window#1
+scala> println(timeColumn.expr.numberedTreeString)
+00 timewindow('time, 5000000, 5000000, 0) AS window#22
 01 +- timewindow('time, 5000000, 5000000, 0)
 02    +- 'time
-
-import org.apache.spark.sql.catalyst.expressions.TimeWindow
-scala> val timeWindow = timeColumn.expr.children(0).asInstanceOf[TimeWindow]
-timeWindow: org.apache.spark.sql.catalyst.expressions.TimeWindow = timewindow('time, 5000000, 5000000, 0)
 ```
+
+==== [[window-example]] Example -- Traffic Sensor
+
+NOTE: The example is borrowed from https://flink.apache.org/news/2015/12/04/Introducing-windows.html[Introducing Stream Windows in Apache Flink].
+
+The example shows how to use `window` function to model a traffic sensor that counts every 15 seconds the number of vehicles passing a certain location.
