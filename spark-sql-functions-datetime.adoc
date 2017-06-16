@@ -10,6 +10,9 @@
 | <<current_timestamp, current_timestamp>>
 |
 
+| <<date_format, date_format>>
+|
+
 | <<to_date, to_date>>
 |
 
@@ -22,6 +25,31 @@
 | <<window, window>>
 | Generates tumbling time windows
 |===
+
+=== [[date_format]] `date_format` Function
+
+[source, scala]
+----
+date_format(dateExpr: Column, format: String): Column
+----
+
+Internally, `date_format` creates a link:spark-sql-Column.adoc[Column] with `DateFormatClass` binary expression. `DateFormatClass` takes the expression from `dateExpr` column and `format`.
+
+[source, scala]
+----
+scala> val df = date_format($"date", "dd/MM/yyyy")
+df: org.apache.spark.sql.Column = date_format(date, dd/MM/yyyy)
+
+import org.apache.spark.sql.catalyst.expressions.DateFormatClass
+val dfc = df.expr.asInstanceOf[DateFormatClass]
+scala> println(dfc.prettyName)
+date_format
+
+scala> println(df.expr.numberedTreeString)
+00 date_format('date, dd/MM/yyyy, None)
+01 :- 'date
+02 +- dd/MM/yyyy
+----
 
 === [[current_date]] `current_date` Function
 
@@ -246,9 +274,21 @@ TIP: Use `CalendarInterval` for valid window identifiers.
 
 NOTE: `window` is available as of Spark *2.0.0*.
 
-Internally, `window` creates a link:spark-sql-Column.adoc[Column] (with link:spark-sql-Expression-TimeWindow.adoc[TimeWindow] expression) as `window`.
+Internally, `window` creates a link:spark-sql-Column.adoc[Column] (with link:spark-sql-Expression-TimeWindow.adoc[TimeWindow] expression) available as `window` alias.
 
 ```
+// q is the query defined earlier
+scala> q.show(truncate = false)
++---------------------------------------------+-----+
+|window                                       |level|
++---------------------------------------------+-----+
+|[2012-12-12 12:12:10.0,2012-12-12 12:12:15.0]|5    |
+|[2012-12-12 12:12:10.0,2012-12-12 12:12:15.0]|9    |
+|[2012-12-12 13:13:10.0,2012-12-12 13:13:15.0]|4    |
+|[2016-08-13 00:00:00.0,2016-08-13 00:00:05.0]|10   |
+|[2017-05-27 00:00:00.0,2017-05-27 00:00:05.0]|15   |
++---------------------------------------------+-----+
+
 scala> println(timeColumn.expr.numberedTreeString)
 00 timewindow('time, 5000000, 5000000, 0) AS window#22
 01 +- timewindow('time, 5000000, 5000000, 0)
