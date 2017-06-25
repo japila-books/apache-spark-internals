@@ -132,22 +132,44 @@ Used when...FIXME
 | link:spark-sql-LogicalPlan.adoc[Logical plan]
 
 | [[rdd]] `rdd`
-a| Content of the `Dataset` as a (lazily-created) link:spark-rdd.adoc[RDD] with rows of the JVM type `T`.
+a| (lazily-created) link:spark-rdd.adoc[RDD] of JVM objects of type `T` (as converted from rows in `Dataset` in the link:spark-sql-InternalRow.adoc[internal binary row format]).
 
 [source, scala]
 ----
 rdd: RDD[T]
 ----
 
-Internally, `rdd` first link:spark-sql-CatalystSerde.adoc#deserialize[creates a new logical plan to deserialize] the Dataset's <<logicalPlan, logical plan>>.
+NOTE: `rdd` gives `RDD` with the extra execution step to convert rows from their internal binary row format to JVM objects that will impact the JVM memory as the objects are inside JVM (while were outside before). You should not use `rdd` directly.
 
-`rdd` then requests `SessionState` to link:spark-sql-SessionState.adoc#executePlan[execute the logical plan] and gets link:spark-sql-QueryExecution.adoc#toRdd[the RDD of binary rows].
+Internally, `rdd` first link:spark-sql-CatalystSerde.adoc#deserialize[creates a new logical plan that deserializes] the Dataset's <<logicalPlan, logical plan>>.
+
+[source, scala]
+----
+val dataset = spark.range(5).withColumn("group", 'id % 2)
+scala> dataset.rdd.toDebugString
+res1: String =
+(8) MapPartitionsRDD[8] at rdd at <console>:26 [] // <-- extra deserialization step
+ |  MapPartitionsRDD[7] at rdd at <console>:26 []
+ |  MapPartitionsRDD[6] at rdd at <console>:26 []
+ |  MapPartitionsRDD[5] at rdd at <console>:26 []
+ |  ParallelCollectionRDD[4] at rdd at <console>:26 []
+
+// Compare with a more memory-optimized alternative
+// Avoids copies and has no schema
+scala> dataset.queryExecution.toRdd.toDebugString
+res2: String =
+(8) MapPartitionsRDD[11] at toRdd at <console>:26 []
+|  MapPartitionsRDD[10] at toRdd at <console>:26 []
+|  ParallelCollectionRDD[9] at toRdd at <console>:26 []
+----
+
+`rdd` then requests `SessionState` to link:spark-sql-SessionState.adoc#executePlan[execute the logical plan] to get the corresponding link:spark-sql-QueryExecution.adoc#toRdd[RDD of binary rows].
 
 NOTE: `rdd` uses <<sparkSession, SparkSession>> to link:spark-sql-SparkSession.adoc#sessionState[access `SessionState`].
 
 `rdd` then requests the Dataset's <<exprEnc, ExpressionEncoder>> for the link:spark-sql-Expression.adoc#dataType[data type] of the rows (using link:spark-sql-ExpressionEncoder.adoc#deserializer[deserializer] expression) and link:spark-rdd-transformations.adoc#mapPartitions[maps over them (per partition)] to create records of the expected type `T`.
 
-NOTE: `rdd` is at the "boundary" between the internal binary row format and the JVM type of the dataset.
+NOTE: `rdd` is at the "boundary" between the internal binary row format and the JVM type of the dataset. Avoid the extra deserialization step to lower JVM memory requirements of your Spark application.
 
 | [[sqlContext]] `sqlContext`
 | Lazily-created link:spark-sql-SQLContext.adoc[SQLContext]
