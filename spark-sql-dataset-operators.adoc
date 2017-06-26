@@ -56,6 +56,11 @@ Internally, `reduce` executes `reduce` action on the Dataset's link:spark-sql-Da
 | <<toJSON, toJSON>> |
 | <<transform, transform>> | Transforms a `Dataset`
 | <<where, where>> |
+
+| <<withWatermark, withWatermark>>
+| Creates a streaming `Dataset` with `EventTimeWatermark` logical operator
+
+Used exclusively in Structured Streaming.
 | <<write, write>> |
 | <<writeStream, writeStream>> |
 |===
@@ -558,3 +563,76 @@ NOTE: A deserializer expression is used to decode an link:spark-sql-InternalRow.
 It then executes a link:spark-sql-LogicalPlan-DeserializeToObject.adoc[`DeserializeToObject` logical operator] that will produce a `RDD[InternalRow]` that is converted into the proper `RDD[T]` using the `DataType` and `T`.
 
 NOTE: It is a lazy operation that "produces" a `RDD[T]`.
+
+=== [[withWatermark]] Creating Streaming Dataset with EventTimeWatermark Logical Operator -- `withWatermark` Operator
+
+[source, scala]
+----
+withWatermark(eventTime: String, delayThreshold: String): Dataset[T]
+----
+
+Internally, `withWatermark` creates a `Dataset` with `EventTimeWatermark` logical plan for link:spark-sql-Dataset.adoc#isStreaming[streaming Datasets].
+
+NOTE: `withWatermark` uses `EliminateEventTimeWatermark` logical rule to eliminate `EventTimeWatermark` logical plan for non-streaming batch `Datasets`.
+
+[source, scala]
+----
+// Create a batch dataset
+val events = spark.range(0, 50, 10).
+  withColumn("timestamp", from_unixtime(unix_timestamp - 'id)).
+  select('timestamp, 'id as "count")
+scala> events.show
++-------------------+-----+
+|          timestamp|count|
++-------------------+-----+
+|2017-06-25 21:21:14|    0|
+|2017-06-25 21:21:04|   10|
+|2017-06-25 21:20:54|   20|
+|2017-06-25 21:20:44|   30|
+|2017-06-25 21:20:34|   40|
++-------------------+-----+
+
+// the dataset is a non-streaming batch one...
+scala> events.isStreaming
+res1: Boolean = false
+
+// ...so EventTimeWatermark is not included in the logical plan
+val watermarked = events.
+  withWatermark(eventTime = "timestamp", delayThreshold = "20 seconds")
+scala> println(watermarked.queryExecution.logical.numberedTreeString)
+00 Project [timestamp#284, id#281L AS count#288L]
+01 +- Project [id#281L, from_unixtime((unix_timestamp(current_timestamp(), yyyy-MM-dd HH:mm:ss, Some(America/Chicago)) - id#281L), yyyy-MM-dd HH:mm:ss, Some(America/Chicago)) AS timestamp#284]
+02    +- Range (0, 50, step=10, splits=Some(8))
+
+// Let's create a streaming Dataset
+import org.apache.spark.sql.types.StructType
+val schema = new StructType().
+  add($"timestamp".timestamp).
+  add($"count".long)
+scala> schema.printTreeString
+root
+ |-- timestamp: timestamp (nullable = true)
+ |-- count: long (nullable = true)
+
+val events = spark.
+  readStream.
+  schema(schema).
+  csv("events").
+  withWatermark(eventTime = "timestamp", delayThreshold = "20 seconds")
+scala> println(events.queryExecution.logical.numberedTreeString)
+00 'EventTimeWatermark 'timestamp, interval 20 seconds
+01 +- StreamingRelation DataSource(org.apache.spark.sql.SparkSession@75abcdd4,csv,List(),Some(StructType(StructField(timestamp,TimestampType,true), StructField(count,LongType,true))),List(),None,Map(path -> events),None), FileSource[events], [timestamp#329, count#330L]
+----
+
+[NOTE]
+====
+`delayThreshold` is parsed using `CalendarInterval.fromString` with *interval* formatted as described in link:spark-sql-Expression-TimeWindow.adoc[TimeWindow] unary expression.
+
+```
+0 years 0 months 1 week 0 days 0 hours 1 minute 20 seconds 0 milliseconds 0 microseconds
+```
+====
+
+NOTE: `delayThreshold` must not be negative (and `milliseconds` and `months` should both be equal or greater than `0`).
+
+NOTE: `withWatermark` is used when...FIXME
