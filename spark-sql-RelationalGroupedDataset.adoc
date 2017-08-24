@@ -43,7 +43,88 @@ NOTE: link:spark-sql-KeyValueGroupedDataset.adoc[KeyValueGroupedDataset] is used
 |
 |===
 
-NOTE: link:spark-sql-SQLConf.adoc#spark.sql.retainGroupColumns[spark.sql.retainGroupColumns] property controls whether to retain columns used for aggregation or not (in `RelationalGroupedDataset` operators). Enabled by default.
+[NOTE]
+====
+link:spark-sql-SQLConf.adoc#spark.sql.retainGroupColumns[spark.sql.retainGroupColumns] Spark property controls whether to retain columns used for aggregation or not (in `RelationalGroupedDataset` operators). Enabled by default.
+
+[source, scala]
+----
+scala> spark.version
+res0: String = 2.3.0-SNAPSHOT
+
+scala> spark.conf.get("spark.sql.retainGroupColumns")
+res1: String = true
+
+// Use dataFrameRetainGroupColumns method for type-safe access to the current value
+import spark.sessionState.conf
+scala> conf.dataFrameRetainGroupColumns
+res2: Boolean = true
+----
+====
+
+=== [[agg]] Computing Aggregates Using Aggregate Column Expressions -- `agg` Operator
+
+[source, scala]
+----
+agg(expr: Column, exprs: Column*): DataFrame
+agg(exprs: Map[String, String]): DataFrame
+agg(aggExpr: (String, String), aggExprs: (String, String)*): DataFrame
+----
+
+`agg` creates a link:spark-sql-DataFrame.adoc[DataFrame] with the rows being the result of executing grouping expressions (specified using link:spark-sql-Column.adoc[columns] or names) over row groups.
+
+NOTE: You can use link:spark-sql-Column.adoc[untyped] or link:spark-sql-TypedColumn.adoc[typed] column expressions.
+
+[source, scala]
+----
+val countsAndSums = spark.
+  range(10).  // <-- 10-element Dataset
+  withColumn("group", 'id % 2).  // <-- define grouping column
+  groupBy("group"). // <-- group by groups
+  agg(count("id") as "count", sum("id") as "sum")
+scala> countsAndSums.show
++-----+-----+---+
+|group|count|sum|
++-----+-----+---+
+|    0|    5| 20|
+|    1|    5| 25|
++-----+-----+---+
+----
+
+Internally, `agg` <<toDF, creates a DataFrame>> with `Aggregate` or `Pivot` logical operators.
+
+[source, scala]
+----
+// groupBy above
+scala> println(countsAndSums.queryExecution.logical.numberedTreeString)
+00 'Aggregate [group#179L], [group#179L, count('id) AS count#188, sum('id) AS sum#190]
+01 +- Project [id#176L, (id#176L % cast(2 as bigint)) AS group#179L]
+02    +- Range (0, 10, step=1, splits=Some(8))
+
+// rollup operator
+val rollupQ = spark.range(2).rollup('id).agg(count('id))
+scala> println(rollupQ.queryExecution.logical.numberedTreeString)
+00 'Aggregate [rollup('id)], [unresolvedalias('id, None), count('id) AS count(id)#267]
+01 +- Range (0, 2, step=1, splits=Some(8))
+
+// cube operator
+val cubeQ = spark.range(2).cube('id).agg(count('id))
+scala> println(cubeQ.queryExecution.logical.numberedTreeString)
+00 'Aggregate [cube('id)], [unresolvedalias('id, None), count('id) AS count(id)#280]
+01 +- Range (0, 2, step=1, splits=Some(8))
+
+// pivot operator
+val pivotQ = spark.
+  range(10).
+  withColumn("group", 'id % 2).
+  groupBy("group").
+  pivot("group").
+  agg(count("id"))
+scala> println(pivotQ.queryExecution.logical.numberedTreeString)
+00 'Pivot [group#296L], group#296: bigint, [0, 1], [count('id)]
+01 +- Project [id#293L, (id#293L % cast(2 as bigint)) AS group#296L]
+02    +- Range (0, 10, step=1, splits=Some(8))
+----
 
 === [[toDF]] Creating DataFrame from Aggregate Expressions -- `toDF` Internal Method
 
@@ -66,16 +147,15 @@ CAUTION: FIXME
 
 * [[df]] link:spark-sql-DataFrame.adoc[DataFrame]
 * [[groupingExprs]] Grouping link:spark-sql-Expression.adoc[expressions]
-* [[groupType]] Group type (to indicate what operation has created it), i.e. `GroupByType`, `CubeType`, `RollupType`, `PivotType`
+* [[groupType]] Group type (to indicate the "source" operator)
 
-=== [[agg]] `agg` Operator
+** `GroupByType` for link:spark-sql-basic-aggregation.adoc#groupBy[groupBy]
 
-[source, scala]
-----
-agg(aggExpr: (String, String), aggExprs: (String, String)*): DataFrame
-agg(exprs: Map[String, String]): DataFrame
-agg(expr: Column, exprs: Column*): DataFrame
-----
+** `CubeType`
+
+** `RollupType`
+
+** `PivotType`
 
 === [[pivot]] `pivot` Operator
 
