@@ -82,7 +82,28 @@ NOTE: `numProbes` and `numKeyLookups` are used in link:spark-sql-BytesToBytesMap
 
 | `numOutputRows`
 | number of output rows
-|
+a| Number of groups (per partition) that (depending on the number of partitions and the side of link:spark-sql-SparkPlan-ShuffleExchange.adoc[ShuffleExchange] operator) is the number of groups
+
+* `0` for no input with a grouping expression, e.g. `spark.range(0).groupBy($"id").count.show`
+
+* `1` for no grouping expression and no input, e.g. `spark.range(0).groupBy().count.show`
+
+TIP: Use different number of elements and partitions in `range` operator to observe the difference in `numOutputRows` metric, e.g.
+
+[source, scala]
+----
+spark.
+  range(0, 10, 1, numPartitions = 1).
+  groupBy($"id" % 5 as "gid").
+  count.
+  show
+
+spark.
+  range(0, 10, 1, numPartitions = 5).
+  groupBy($"id" % 5 as "gid").
+  count.
+  show
+----
 
 | `peakMemory`
 | peak memory
@@ -150,9 +171,29 @@ image::images/spark-sql-HashAggregateExec-webui-details-for-query.png[align="cen
 
 NOTE: The prefix for variable names for `HashAggregateExec` operators in link:spark-sql-CodegenSupport.adoc[CodegenSupport]-generated code is *agg*.
 
-=== [[testFallbackStartsAt]] `testFallbackStartsAt` Internal Value
+[[internal-registries]]
+.HashAggregateExec's Internal Registries and Counters (in alphabetical order)
+[cols="1,2",options="header",width="100%"]
+|===
+| Name
+| Description
 
-CAUTION: FIXME
+| [[testFallbackStartsAt]] `testFallbackStartsAt`
+| Optional pair of numbers for controlled fall-back to a sort-based aggregation when the hash-based approach is unable to acquire enough memory.
+|===
+
+[NOTE]
+====
+`HashAggregateExec` uses `TungstenAggregationIterator` that can (theoretically) link:spark-sql-TungstenAggregationIterator.adoc#switchToSortBasedAggregation[switch to a sort-based aggregation when the hash-based approach is unable to acquire enough memory].
+
+See <<testFallbackStartsAt, testFallbackStartsAt>> internal property and link:spark-sql-settings.adoc#spark.sql.TungstenAggregate.testFallbackStartsAt[spark.sql.TungstenAggregate.testFallbackStartsAt] Spark property.
+
+Search logs for the following INFO message to know whether the switch has happened.
+
+```
+INFO TungstenAggregationIterator: falling back to sort based aggregation.
+```
+====
 
 === [[supportsAggregate]] `supportsAggregate` Method
 
@@ -164,18 +205,6 @@ supportsAggregate(aggregateBufferAttributes: Seq[Attribute]): Boolean
 `supportsAggregate` first link:spark-sql-StructType.adoc#fromAttributes[builds the schema] of the aggregation buffer (from the input `aggregateBufferAttributes` attributes) and checks if `UnsafeFixedWidthAggregationMap` supports it (i.e. the schema uses link:spark-sql-UnsafeRow.adoc#mutableFieldTypes[mutable field data types] only that have fixed length and can be mutated in place in an link:spark-sql-UnsafeRow.adoc[UnsafeRow]).
 
 NOTE: `supportsAggregate` is used exclusively when `AggUtils.createAggregate` link:spark-sql-SparkStrategy-Aggregation.adoc#AggUtils-createAggregate[selects an aggregate physical operator given aggregate expressions].
-
-=== [[creating-instance]] Creating HashAggregateExec Instance
-
-`HashAggregateExec` takes the following when created:
-
-* [[requiredChildDistributionExpressions]] Required child distribution link:spark-sql-Expression.adoc[expressions]
-* [[groupingExpressions]] Grouping link:spark-sql-Expression.adoc#NamedExpression[named expressions]
-* [[aggregateExpressions]] link:spark-sql-Expression-AggregateExpression.adoc[Aggregate expressions]
-* [[aggregateAttributes]] Aggregate link:spark-sql-Expression-Attribute.adoc[attributes]
-* [[initialInputBufferOffset]] Initial input buffer offset
-* [[resultExpressions]] Output link:spark-sql-Expression.adoc#NamedExpression[named expressions]
-* [[child]] Child link:spark-sql-SparkPlan.adoc[physical operator]
 
 === [[doExecute]] Executing HashAggregateExec -- `doExecute` Method
 
@@ -206,3 +235,17 @@ doProduce(ctx: CodegenContext): String
 `doProduce` executes <<doProduceWithoutKeys, doProduceWithoutKeys>> when no <<groupingExpressions, groupingExpressions>> were specified for the `HashAggregateExec` or <<doProduceWithKeys, doProduceWithKeys>> otherwise.
 
 NOTE: `doProduce` is a part of link:spark-sql-CodegenSupport.adoc#doProduce[CodegenSupport Contract].
+
+=== [[creating-instance]] Creating HashAggregateExec Instance
+
+`HashAggregateExec` takes the following when created:
+
+* [[requiredChildDistributionExpressions]] Required child distribution link:spark-sql-Expression.adoc[expressions]
+* [[groupingExpressions]] Grouping link:spark-sql-Expression.adoc#NamedExpression[named expressions]
+* [[aggregateExpressions]] link:spark-sql-Expression-AggregateExpression.adoc[Aggregate expressions]
+* [[aggregateAttributes]] Aggregate link:spark-sql-Expression-Attribute.adoc[attributes]
+* [[initialInputBufferOffset]] Initial input buffer offset
+* [[resultExpressions]] Output link:spark-sql-Expression.adoc#NamedExpression[named expressions]
+* [[child]] Child link:spark-sql-SparkPlan.adoc[physical operator]
+
+`HashAggregateExec` initializes the <<internal-registries, internal registries and counters>>.
