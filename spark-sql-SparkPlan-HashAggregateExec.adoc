@@ -3,6 +3,7 @@
 `HashAggregateExec` is a link:spark-sql-SparkPlan.adoc#UnaryExecNode[unary physical operator] for **hash-based aggregation** that is <<creating-instance, created>> (indirectly through link:spark-sql-SparkStrategy-Aggregation.adoc#AggUtils-createAggregate[AggUtils.createAggregate]) when:
 
 * link:spark-sql-SparkStrategy-Aggregation.adoc[Aggregation] execution planning strategy selects the aggregate physical operator for an link:spark-sql-LogicalPlan-Aggregate.adoc[Aggregate] logical operator
+
 * Structured Streaming's `StatefulAggregationStrategy` strategy creates plan for streaming `EventTimeWatermark` or link:spark-sql-LogicalPlan-Aggregate.adoc[Aggregate] logical operators
 
 NOTE: `HashAggregateExec` is the link:spark-sql-SparkStrategy-Aggregation.adoc#aggregate-physical-operator-preference[preferred aggregate physical operator] for link:spark-sql-SparkStrategy-Aggregation.adoc[Aggregation] execution planning strategy (over `ObjectHashAggregateExec` and `SortAggregateExec`).
@@ -11,22 +12,24 @@ NOTE: `HashAggregateExec` is the link:spark-sql-SparkStrategy-Aggregation.adoc#a
 
 [source, scala]
 ----
-// HashAggregateExec selected due to:
-// sum uses mutable types for aggregate expression
-// just a single id column reference of LongType data type
 val q = spark.range(10).
   groupBy('id % 2 as "group").
   agg(sum("id") as "sum")
+
+// HashAggregateExec selected due to:
+// 1. sum uses mutable types for aggregate expression
+// 2. just a single id column reference of LongType data type
 scala> q.explain
 == Physical Plan ==
-*HashAggregate(keys=[(id#57L % 2)#69L], functions=[sum(id#57L)])
-+- Exchange hashpartitioning((id#57L % 2)#69L, 200)
-   +- *HashAggregate(keys=[(id#57L % 2) AS (id#57L % 2)#69L], functions=[partial_sum(id#57L)])
+*HashAggregate(keys=[(id#0L % 2)#12L], functions=[sum(id#0L)])
++- Exchange hashpartitioning((id#0L % 2)#12L, 200)
+   +- *HashAggregate(keys=[(id#0L % 2) AS (id#0L % 2)#12L], functions=[partial_sum(id#0L)])
       +- *Range (0, 10, step=1, splits=8)
 
-scala> println(q.queryExecution.sparkPlan.numberedTreeString)
-00 HashAggregate(keys=[(id#57L % 2)#72L], functions=[sum(id#57L)], output=[group#60L, sum#64L])
-01 +- HashAggregate(keys=[(id#57L % 2) AS (id#57L % 2)#72L], functions=[partial_sum(id#57L)], output=[(id#57L % 2)#72L, sum#74L])
+val execPlan = q.queryExecution.sparkPlan
+scala> println(execPlan.numberedTreeString)
+00 HashAggregate(keys=[(id#0L % 2)#15L], functions=[sum(id#0L)], output=[group#3L, sum#7L])
+01 +- HashAggregate(keys=[(id#0L % 2) AS (id#0L % 2)#15L], functions=[partial_sum(id#0L)], output=[(id#0L % 2)#15L, sum#17L])
 02    +- Range (0, 10, step=1, splits=8)
 
 // Going low level...watch your steps :)
@@ -45,39 +48,49 @@ import org.apache.spark.sql.execution.aggregate.HashAggregateExec
 scala> val useHash = HashAggregateExec.supportsAggregate(aggregateBufferAttributes)
 useHash: Boolean = true
 
-val execPlan = q.queryExecution.sparkPlan
 val hashAggExec = execPlan.asInstanceOf[HashAggregateExec]
 scala> println(execPlan.numberedTreeString)
-00 HashAggregate(keys=[(id#39L % 2)#50L], functions=[sum(id#39L)], output=[group#42L, sum#46L])
-01 +- HashAggregate(keys=[(id#39L % 2) AS (id#39L % 2)#50L], functions=[partial_sum(id#39L)], output=[(id#39L % 2)#50L, sum#52L])
+00 HashAggregate(keys=[(id#0L % 2)#15L], functions=[sum(id#0L)], output=[group#3L, sum#7L])
+01 +- HashAggregate(keys=[(id#0L % 2) AS (id#0L % 2)#15L], functions=[partial_sum(id#0L)], output=[(id#0L % 2)#15L, sum#17L])
 02    +- Range (0, 10, step=1, splits=8)
 
 val hashAggExecRDD = hashAggExec.execute // <-- calls doExecute
 scala> println(hashAggExecRDD.toDebugString)
-(8) MapPartitionsRDD[14] at execute at <console>:35 []
- |  MapPartitionsRDD[13] at execute at <console>:35 []
- |  MapPartitionsRDD[12] at execute at <console>:35 []
- |  ParallelCollectionRDD[11] at execute at <console>:35 []
+(8) MapPartitionsRDD[3] at execute at <console>:30 []
+ |  MapPartitionsRDD[2] at execute at <console>:30 []
+ |  MapPartitionsRDD[1] at execute at <console>:30 []
+ |  ParallelCollectionRDD[0] at execute at <console>:30 []
 ----
 
 [[metrics]]
-.HashAggregateExec's SQLMetrics (in alphabetical order)
-[cols="1,2",options="header",width="100%"]
+.HashAggregateExec's Performance Metrics (in alphabetical order)
+[cols="1,2,2",options="header",width="100%"]
 |===
-| Name
+| Key
+| Name (in web UI)
 | Description
 
 | `aggTime`
 | aggregate time
+|
+
+| `avgHashProbe`
+| avg hash probe
+a| Average hash map probe per lookup (i.e. `numProbes` / `numKeyLookups`)
+
+NOTE: `numProbes` and `numKeyLookups` are used in link:spark-sql-BytesToBytesMap.adoc[BytesToBytesMap] append-only hash map for the number of iteration to look up a single key and the number of all the lookups in total, respectively.
 
 | `numOutputRows`
 | number of output rows
+|
 
 | `peakMemory`
 | peak memory
+|
 
 | `spillSize`
 | spill size
+|
 |===
 
 .HashAggregateExec in web UI (Details for Query)
