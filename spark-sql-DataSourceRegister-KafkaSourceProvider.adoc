@@ -38,8 +38,7 @@ org.apache.spark.sql.AnalysisException: kafka does not allow user-specified sche
   ... 48 elided
 ----
 
-
-=== [[createRelation-RelationProvider]] `createRelation` Method (from RelationProvider)
+=== [[createRelation-RelationProvider]] Creating KafkaRelation -- `createRelation` Method (from RelationProvider)
 
 [source, scala]
 ----
@@ -48,9 +47,34 @@ createRelation(
   parameters: Map[String, String]): BaseRelation
 ----
 
-CAUTION: FIXME
+NOTE: `createRelation` is a part of link:spark-sql-RelationProvider.adoc#createRelation[RelationProvider Contract] used exclusively when `DataSource` is requested to create a `BaseRelation` (`resolveRelation` method) for reading or writing.
 
-NOTE: `createRelation` is a part of link:spark-sql-RelationProvider.adoc[RelationProvider Contract].
+`createRelation` creates a link:spark-sql-streaming-KafkaRelation.adoc[KafkaRelation].
+
+Internally, `createRelation` first <<validateBatchOptions, validates batch options>> and collects all the *kafka.*-prefixed parameters.
+
+`createRelation` then creates a `KafkaOffsetRangeLimit` per `startingoffsets` option with `EarliestOffsetRangeLimit` being the default.
+
+NOTE: `startingoffsets` can be `latest`, `earliest`, a JSON or undefined.
+
+NOTE: `createRelation` asserts that `startingoffsets` is not `latest`.
+
+`createRelation` creates a `KafkaOffsetRangeLimit` per `endingoffsets` option with `LatestOffsetRangeLimit` being the default.
+
+NOTE: `createRelation` asserts that `endingoffsets` is not `earliest`.
+
+In the end, `createRelation` creates a link:spark-sql-streaming-KafkaRelation.adoc#creating-instance[KafkaRelation] with the subscription strategy (per `assign`, `subscribe`, `subscribepattern` options), with `failondataloss` option, and the parameters and offsets (as calculated above).
+
+=== [[validateBatchOptions]] `validateBatchOptions` Internal Method
+
+[source, scala]
+----
+validateBatchOptions(caseInsensitiveParams: Map[String, String]): Unit
+----
+
+`validateBatchOptions`...FIXME
+
+NOTE: `validateBatchOptions` is used exclusively when `KafkaSourceProvider` is requested to <<createRelation, create a KafkaRelation>>.
 
 === [[createRelation-CreatableRelationProvider]] `createRelation` Method (from CreatableRelationProvider)
 
