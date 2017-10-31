@@ -1,4 +1,4 @@
-== [[ALS]] ALS
+== [[ALS]] ALS -- Estimator for ALSModel
 
 `ALS` is an link:spark-mllib-estimators.adoc[Estimator] that <<fit, generates a ALSModel>>.
 
@@ -153,6 +153,37 @@ In the end, `fit` copies parameter values to the `ALSModel` model.
 
 CAUTION: FIXME Why is the copying necessary?
 
+=== [[partitionRatings]] `partitionRatings` Internal Method
+
+[source, scala]
+----
+partitionRatings[ID](
+  ratings: RDD[Rating[ID]],
+  srcPart: Partitioner,
+  dstPart: Partitioner): RDD[((Int, Int), RatingBlock[ID])]
+----
+
+`partitionRatings`...FIXME
+
+NOTE: `partitionRatings` is used when...FIXME
+
+=== [[makeBlocks]] `makeBlocks` Internal Method
+
+[source, scala]
+----
+makeBlocks[ID](
+  prefix: String,
+  ratingBlocks: RDD[((Int, Int), RatingBlock[ID])],
+  srcPart: Partitioner,
+  dstPart: Partitioner,
+  storageLevel: StorageLevel)(
+  implicit srcOrd: Ordering[ID]): (RDD[(Int, InBlock[ID])], RDD[(Int, OutBlock)])
+----
+
+`makeBlocks`...FIXME
+
+NOTE: `makeBlocks` is used when...FIXME
+
 === [[train]] `train` Method
 
 [source, scala]
@@ -174,7 +205,36 @@ train[ID](
   implicit ord: Ordering[ID]): (RDD[(ID, Array[Float])], RDD[(ID, Array[Float])])
 ----
 
-`train`...FIXME
+`train` first creates
+
+`train` <<partitionRatings, partition the ratings RDD>> (using two link:../spark-rdd-HashPartitioner.adoc[HashPartitioners] with <<numUserBlocks, numUserBlocks>> and <<numItemBlocks, numItemBlocks>> partitions) and immediately link:../spark-rdd-caching.adoc#persist[persists] the RDD per `intermediateRDDStorageLevel` storage level.
+
+`train` <<makeBlocks, creates a pair of user in and out block RDDs>> for `blockRatings`.
+
+`train` triggers caching.
+
+NOTE: `train` uses a Spark idiom to trigger caching by counting the elements of an RDD.
+
+`train` swaps users and items to create a `swappedBlockRatings` RDD.
+
+`train` <<makeBlocks, creates a pair of user in and out block RDDs>> for the `swappedBlockRatings` RDD.
+
+`train` triggers caching.
+
+`train` creates `LocalIndexEncoders` for user and item `HashPartitioner` partitioners.
+
+CAUTION: FIXME `train` gets too "heavy", i.e. advanced. Gave up for now. Sorry.
+
+`train` throws a `IllegalArgumentException` when `ratings` is empty.
+
+```
+requirement failed: No ratings available from [ratings]
+```
+`train` throws a `IllegalArgumentException` when `intermediateRDDStorageLevel` is `NONE`.
+
+```
+requirement failed: ALS is not designed to run without persisting intermediate RDDs.
+```
 
 NOTE: `train` is used when...FIXME
 
