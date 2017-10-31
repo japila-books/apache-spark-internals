@@ -2,7 +2,9 @@
 
 `ALSModel` is a link:spark-mllib-models.adoc[model] fitted by link:spark-mllib-ALS.adoc#fit[ALS] algorithm.
 
-`ALSModel` is a link:spark-mllib-MLWritable.adoc[MLWritable].
+NOTE: A `Model` in Spark MLlib is a link:spark-mllib-transformers.adoc[Transformer] that comes with a custom `transform` method.
+
+When <<transform, making prediction>> (i.e. executed), `ALSModel`...FIXME
 
 `ALSModel` is <<creating-instance, created>> when:
 
@@ -10,16 +12,122 @@
 * `ALSModel` link:spark-mllib-ALSModel.adoc#copy[copies] a `ALSModel`
 * `ALSModelReader` link:spark-mllib-ALSModelReader.adoc#load[loads] a `ALSModel` from a persistent storage
 
-=== [[transform]] `transform` Method
+`ALSModel` is a link:spark-mllib-MLWritable.adoc[MLWritable].
+
+[source]
+----
+// The following spark-shell session is used to show
+// how ALSModel works under the covers
+// Mostly to learn how to work with the private ALSModel class
+
+// Use paste raw mode to copy the code
+// :paste -raw (or its shorter version :pa -raw)
+// BEGIN :pa -raw
+package org.apache.spark.ml
+
+import org.apache.spark.sql._
+class MyALS(spark: SparkSession) {
+  import spark.implicits._
+  val userFactors = Seq((0, Seq(0.3, 0.2))).toDF("id", "features")
+  val itemFactors = Seq((0, Seq(0.3, 0.2))).toDF("id", "features")
+  import org.apache.spark.ml.recommendation._
+  val alsModel = new ALSModel(uid = "uid", rank = 10, userFactors, itemFactors)
+}
+// END :pa -raw
+
+// Copy the following to spark-shell directly
+import org.apache.spark.ml._
+val model = new MyALS(spark).
+  alsModel.
+  setUserCol("user").
+  setItemCol("item")
+
+import org.apache.spark.sql.types._
+val mySchema = new StructType().
+  add($"user".float).
+  add($"item".float)
+
+val transformedSchema = model.transformSchema(mySchema)
+scala> transformedSchema.printTreeString
+root
+ |-- user: float (nullable = true)
+ |-- item: float (nullable = true)
+ |-- prediction: float (nullable = false)
+----
+
+=== [[transform]] Making Predictions -- `transform` Method
 
 [source, scala]
 ----
 transform(dataset: Dataset[_]): DataFrame
 ----
 
-NOTE: `transform` is a part of link:spark-mllib-transformers.adoc#transform[Transformer Contract].
+NOTE: `transform` is a part of link:spark-mllib-Transformer.adoc#transform[Transformer Contract].
 
-`transform`...FIXME
+Internally, `transform` <<transformSchema, validates the schema>> of the `dataset`.
+
+`transform` left-joins the `dataset` with <<userFactors, userFactors>> dataset (using link:spark-mllib-ALS.adoc#userCol[userCol] column of `dataset` and `id` column of <<userFactors, userFactors>>).
+
+[NOTE]
+====
+*Left join* takes two datasets and gives all the rows from the left side (of the join) combined with the corresponding row from the right side if available or `null`.
+
+```
+val rows0 = spark.range(0)
+val rows5 = spark.range(5)
+scala> rows0.join(rows5, Seq("id"), "left").show
++---+
+| id|
++---+
++---+
+
+scala> rows5.join(rows0, Seq("id"), "left").count
+res3: Long = 5
+
+scala> spark.range(0, 55).join(spark.range(56, 200), Seq("id"), "left").count
+res4: Long = 55
+
+val rows02 = spark.range(0, 2)
+val rows39 = spark.range(3, 9)
+scala> rows02.join(rows39, Seq("id"), "left").show
++---+
+| id|
++---+
+|  0|
+|  1|
++---+
+
+val names = Seq((3, "three"), (4, "four")).toDF("id", "name")
+scala> rows02.join(names, Seq("id"), "left").show
++---+----+
+| id|name|
++---+----+
+|  0|null|
+|  1|null|
++---+----+
+```
+====
+
+`transform` left-joins the `dataset` with <<itemFactors, itemFactors>> dataset (using link:spark-mllib-ALS.adoc#itemCol[itemCol] column of `dataset` and `id` column of <<itemFactors, itemFactors>>).
+
+`transform` <<predict, makes predictions>> using the `features` columns of <<userFactors, userFactors>> and <<itemFactors, itemFactors>> datasets (per every row in the left-joined dataset).
+
+`transform` takes (_selects_) all the columns from the `dataset` and link:spark-mllib-ALS.adoc#predictionCol[predictionCol] with predictions.
+
+Ultimately, `transform` drops rows containing `null` or `NaN` values for predictions if link:spark-mllib-ALS.adoc#coldStartStrategy[coldStartStrategy] is `drop`.
+
+NOTE: The default value of link:spark-mllib-ALS.adoc#coldStartStrategy[coldStartStrategy] is `nan` that does not drop missing values from predictions column.
+
+=== [[transformSchema]] `transformSchema` Method
+
+[source, scala]
+----
+transformSchema(schema: StructType): StructType
+----
+
+NOTE: `transformSchema` is a part of link:spark-mllib-transformers.adoc#transformSchema[Transformer Contract].
+
+Internally, `transform` <<transformSchema, validates the schema>> of the `dataset`.
 
 === [[copy]] `copy` Method
 
