@@ -1,6 +1,17 @@
-== Alternating Least Squares (ALS) Matrix Factorization
+== Alternating Least Squares (ALS) Matrix Factorization for Recommender Systems
 
 *Alternating Least Squares (ALS) Matrix Factorization* is a recommendation algorithm...FIXME
+
+TIP: Read the original paper https://dl.acm.org/citation.cfm?id=1442050[Scalable Collaborative Filtering with Jointly Derived Neighborhood Interpolation Weights] by Robert M. Bell and Yehuda Koren.
+
+[quote, Robert M. Bell and Yehuda Koren, 'https://dl.acm.org/citation.cfm?id=1442050[Scalable Collaborative Filtering with Jointly Derived Neighborhood Interpolation Weights]']
+____
+Recommender systems based on collaborative filtering predict user preferences for products or services by learning past user-item relationships. A predominant approach to collaborative filtering is neighborhood based ("k-nearest neighbors"), where a user-item preference rating is interpolated from ratings of similar items and/or users.
+
+Our method is very fast in practice, generating a prediction in about 0.2 milliseconds. Importantly, it does not require training many parameters or a lengthy preprocessing, making it very practical for large scale applications. Finally, we show how to apply these methods to the perceivably much slower user-oriented approach. To this end, we suggest a novel scheme for low dimensional embedding of the users. We evaluate these methods on the Netflix dataset, where they deliver significantly better results than the commercial Netflix Cinematch recommender system.
+____
+
+TIP: Read the follow-up paper https://dl.acm.org/citation.cfm?id=1511352[Collaborative Filtering for Implicit Feedback Datasets] by Yifan Hu, Yehuda Koren and Chris Volinsky.
 
 [[example]]
 .ALS Example
@@ -12,11 +23,6 @@
 // 1. Save the code to als.scala
 // 2. Run `spark-shell -i als.scala`
 
-import org.apache.spark.sql.SparkSession
-val spark = SparkSession.
-  builder.
-  appName("ALSExample in Scala").
-  getOrCreate
 import spark.implicits._
 
 import org.apache.spark.ml.recommendation.ALS
@@ -27,14 +33,14 @@ val als = new ALS().
   setItemCol("movieId").
   setRatingCol("rating")
 
-case class Rating(userId: Long, movieId: Long, rating: Int)
+import org.apache.spark.ml.recommendation.ALS.Rating
 // FIXME Use a much richer dataset, i.e. Spark's data/mllib/als/sample_movielens_ratings.txt
 // FIXME Load it using spark.read
 val ratings = Seq(
   Rating(0, 2, 3),
   Rating(0, 3, 1),
   Rating(0, 5, 2),
-  Rating(1, 2, 2)).toDF
+  Rating(1, 2, 2)).toDF("userId", "movieId", "rating")
 val Array(training, testing) = ratings.randomSplit(Array(0.8, 0.2))
 
 // Make sure that the RDDs have at least one record
@@ -69,7 +75,7 @@ movieRecs.show(truncate = false)
 // Generate top 10 movie recommendations for a specified set of users
 // Use a trick to make sure we work with the known users from the input
 val users = ratings.select(als.getUserCol).distinct.limit(3)
-val userSubsetRecs = model.recommendForUserSubset(users, 10
+val userSubsetRecs = model.recommendForUserSubset(users, 10)
 userSubsetRecs.show(truncate = false)
 
 // Generate top 10 user recommendations for a specified set of movies
