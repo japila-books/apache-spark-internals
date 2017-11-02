@@ -2,7 +2,29 @@
 
 `Estimator` is the <<contract, contract>> in Spark MLlib for estimators that <<fit, fit models to a dataset>>.
 
-`Estimator` is a link:spark-mllib-PipelineStage.adoc[PipelineStage] and so can be part of a link:spark-mllib-Pipeline.adoc[Pipeline].
+`Estimator` accepts parameters that you can set through dedicated setter methods upon creating an `Estimator`. You could also <<fit-paramMap, fit a model with extra parameters>>.
+
+[source, scala]
+----
+import org.apache.spark.ml.classification.LogisticRegression
+
+// Define parameters upon creating an Estimator
+val lr = new LogisticRegression().
+  setMaxIter(5).
+  setRegParam(0.01)
+val training: DataFrame = ...
+val model1 = lr.fit(training)
+
+// Define parameters through fit
+import org.apache.spark.ml.param.ParamMap
+val customParams = ParamMap(
+  lr.maxIter -> 10,
+  lr.featuresCol -> "custom_features"
+)
+val model2 = lr.fit(training, customParams)
+----
+
+`Estimator` is a link:spark-mllib-PipelineStage.adoc[PipelineStage] and so can be a part of a link:spark-mllib-Pipeline.adoc[Pipeline].
 
 === [[contract]] Estimator Contract
 
@@ -29,3 +51,14 @@ abstract class Estimator[M <: Model[M]] {
 | [[fit]] `fit`
 | Used when...
 |===
+
+=== [[fit-paramMap]] Fitting Model with Extra Parameters -- `fit` Method
+
+[source, scala]
+----
+fit(dataset: Dataset[_], paramMap: ParamMap): M
+----
+
+`fit` <<copy, copies>> the extra `paramMap` and <<fit, fits a model>> (of type `M`).
+
+NOTE: `fit` is used mainly for model tuning to find the best model (using link:spark-mllib-CrossValidator.adoc[CrossValidator] and link:spark-mllib-TrainValidationSplit.adoc[TrainValidationSplit]).
