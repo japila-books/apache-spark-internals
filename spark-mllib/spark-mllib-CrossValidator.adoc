@@ -1,165 +1,115 @@
 == [[CrossValidator]] CrossValidator
 
-`CrossValidator` is an link:spark-mllib-estimators.adoc[Estimator] that produces link:spark-mllib-CrossValidatorModel.adoc[CrossValidatorModel], i.e. it can fit a `CrossValidatorModel` for a given input dataset.
+`CrossValidator` is an link:spark-mllib-estimators.adoc[Estimator] that <<fit, fits a CrossValidatorModel to a dataset>>.
 
-It belongs to `org.apache.spark.ml.tuning` package.
+`CrossValidator` takes <<parameters, parameters>>.
 
-[source, scala]
-----
-import org.apache.spark.ml.tuning.CrossValidator
-----
+[[parameters]]
+.CrossValidator' Parameters
+[cols="1,1,2",options="header",width="100%"]
+|===
+| Parameter
+| Default Value
+| Description
 
-`CrossValidator` accepts `numFolds` parameter (amongst the others).
+| [[estimator]] `estimator`
+| (undefined)
+| link:spark-mllib-Estimator.adoc[Estimator] for best model selection
 
-[source, scala]
-----
+| [[estimatorParamMaps]] `estimatorParamMaps`
+| (undefined)
+| Param maps for the <<estimator, estimator>>
+
+| [[evaluator]] `evaluator`
+| (undefined)
+| link:spark-mllib-Evaluator.adoc[Evaluator] to select hyper-parameters that maximize the validated metric
+
+| [[numFolds]] `numFolds`
+| `3`
+| The number of folds for cross validation
+
+Must be at least `2`.
+
+| [[parallelism]] `parallelism`
+| `1`
+| The number of threads to use while <<fit, fitting a model>>
+
+Must be at least `1`.
+
+| [[seed]] `seed`
+|
+| Random seed
+|===
+
+TIP: What makes `CrossValidator` a very useful tool for _model selection_ is its ability to work with any link:spark-mllib-estimators.adoc[Estimator] instance, link:spark-mllib-Pipeline.adoc[Pipelines] including, that can transform datasets from their raw format to another before use.
+
+```
 import org.apache.spark.ml.tuning.CrossValidator
 val cv = new CrossValidator
+```
 
-scala> println(cv.explainParams)
-estimator: estimator for selection (undefined)
-estimatorParamMaps: param maps for the estimator (undefined)
-evaluator: evaluator used to select hyper-parameters that maximize the validated metric (undefined)
-numFolds: number of folds for cross validation (>= 2) (default: 3)
-seed: random seed (default: -1191137437)
-----
+[TIP]
+====
+Enable `DEBUG` logging level for `org.apache.spark.ml.tuning.CrossValidator` logger to see what happens inside.
 
-TIP: What makes `CrossValidator` a very useful tool for _model selection_ is its ability to work with any link:spark-mllib-estimators.adoc[Estimator] instance, link:spark-mllib-Pipeline.adoc[Pipelines] including, that can preprocess datasets before passing them on. This gives you a way to work with any dataset and preprocess it before a new (possibly better) model could be fit to it.
+Add the following line to `conf/log4j.properties`:
 
-=== [[fit]] `fit` Method
+```
+log4j.logger.org.apache.spark.ml.tuning.CrossValidator=DEBUG
+```
+
+Refer to link:../spark-logging.adoc[Logging].
+====
+
+=== [[fit]] Fitting CrossValidatorModel -- `fit` Method
 
 [source, scala]
 ----
 fit(dataset: Dataset[_]): CrossValidatorModel
 ----
 
-NOTE: `fit` is a part of link:spark-mllib-Estimator.adoc#fit[Estimator Contract] to produce a model.
+NOTE: `fit` is a part of link:spark-mllib-Estimator.adoc#fit[Estimator Contract] to fit a model (i.e. produce a model).
 
-`fit`...FIXME
+`fit` link:spark-mllib-PipelineStage.adoc#transformSchema[validates the schema] (with logging turned on).
 
-=== [[example]] Example -- CrossValidator in Pipeline
+With `DEBUG` logging level turned on, you should see the following DEBUG message in the logs:
 
-CAUTION: FIXME The example below does *NOT* work. Being investigated.
+```
+DEBUG CrossValidator: Input schema: [json]
+```
 
-CAUTION: FIXME Can k-means be crossvalidated? Does it make any sense? Does it only applies to supervised learning?
+`fit` makes sure that <<estimator, estimator>>, <<evaluator, evaluator>> and <<estimatorParamMaps, estimatorParamMaps>> parameters are defined.
 
-[source, scala]
-----
-// Let's create a pipeline with transformers and estimator
-import org.apache.spark.ml.feature._
+`fit` makes sure that <<parallelism, parallelism>> parameter is defined and link:spark-mllib-HasParallelism.adoc#getExecutionContext[creates] a `ExecutionContext`.
 
-val tok = new Tokenizer().setInputCol("text")
+`fit` link:spark-mllib-Instrumentation.adoc#create[creates] a `Instrumentation` and requests it to link:spark-mllib-Instrumentation.adoc#logParams[print] out the parameters <<numFolds, numFolds>>, <<seed, seed>>, <<parallelism, parallelism>> to the logs.
 
-val hashTF = new HashingTF()
-  .setInputCol(tok.getOutputCol)
-  .setOutputCol("features")
-  .setNumFeatures(10)
+```
+INFO ...FIXME
+```
 
-import org.apache.spark.ml.classification.RandomForestClassifier
-val rfc = new RandomForestClassifier
+CAUTION: FIXME Finish me...from `splits`
 
-import org.apache.spark.ml.Pipeline
-val pipeline = new Pipeline()
-  .setStages(Array(tok, hashTF, rfc))
+`fit` requests `Instrumentation` to link:spark-mllib-ValidatorParams.adoc#logTuningParams[print out the tuning parameters to the logs].
 
-// CAUTION: label must be double
-// 0 = scientific text
-// 1 = non-scientific text
-val trainDS = Seq(
-  (0L, "[science] hello world", 0d),
-  (1L, "long text", 1d),
-  (2L, "[science] hello all people", 0d),
-  (3L, "[science] hello hello", 0d)).toDF("id", "text", "label").cache
+```
+INFO ...FIXME
+```
 
-// Check out the train dataset
-// Values in label and prediction columns should be alike
-val sampleModel = pipeline.fit(trainDS)
-sampleModel
-  .transform(trainDS)
-  .select('text, 'label, 'features, 'prediction)
-  .show(truncate = false)
 
-+--------------------------+-----+--------------------------+----------+
-|text                      |label|features                  |prediction|
-+--------------------------+-----+--------------------------+----------+
-|[science] hello world     |0.0  |(10,[0,8],[2.0,1.0])      |0.0       |
-|long text                 |1.0  |(10,[4,9],[1.0,1.0])      |1.0       |
-|[science] hello all people|0.0  |(10,[0,6,8],[1.0,1.0,2.0])|0.0       |
-|[science] hello hello     |0.0  |(10,[0,8],[1.0,2.0])      |0.0       |
-+--------------------------+-----+--------------------------+----------+
+`fit` reports a `NoSuchElementException` when the required parameters are not defined.
 
-val input = Seq("Hello ScienCE").toDF("text")
-sampleModel
-  .transform(input)
-  .select('text, 'rawPrediction, 'prediction)
-  .show(truncate = false)
+```
+java.util.NoSuchElementException: Failed to find a default value for [name]
+```
 
-+-------------+--------------------------------------+----------+
-|text         |rawPrediction                         |prediction|
-+-------------+--------------------------------------+----------+
-|Hello ScienCE|[12.666666666666668,7.333333333333333]|0.0       |
-+-------------+--------------------------------------+----------+
-
-import org.apache.spark.ml.tuning.ParamGridBuilder
-val paramGrid = new ParamGridBuilder().build
-
-import org.apache.spark.ml.evaluation.BinaryClassificationEvaluator
-val binEval = new BinaryClassificationEvaluator
-
-import org.apache.spark.ml.tuning.CrossValidator
-val cv = new CrossValidator()
-  .setEstimator(pipeline) // <-- pipeline is the estimator
-  .setEvaluator(binEval)  // has to match the estimator
-  .setEstimatorParamMaps(paramGrid)
-
-// WARNING: It does not work!!!
-val cvModel = cv.fit(trainDS)
-----
-
-=== [[example-without-pipeline]] Example (no Pipeline)
+=== [[transformSchema]] Validating and Transforming Schema -- `transformSchema` Method
 
 [source, scala]
 ----
-import org.apache.spark.mllib.linalg.Vectors
-val features = Vectors.sparse(3, Array(1), Array(1d))
-val df = Seq(
-  (0, "hello world", 0.0, features),
-  (1, "just hello",  1.0, features)).toDF("id", "text", "label", "features")
-
-import org.apache.spark.ml.classification.LogisticRegression
-val lr = new LogisticRegression
-
-import org.apache.spark.ml.evaluation.RegressionEvaluator
-val regEval = new RegressionEvaluator
-
-import org.apache.spark.ml.tuning.ParamGridBuilder
-// Parameterize the only estimator used, i.e. LogisticRegression
-// Use println(lr.explainParams) to learn about the supported parameters
-val paramGrid = new ParamGridBuilder()
-  .addGrid(lr.regParam, Array(0.1, 0.01))
-  .build()
-
-import org.apache.spark.ml.tuning.CrossValidator
-val cv = new CrossValidator()
-  .setEstimator(lr) // just LogisticRegression not Pipeline
-  .setEvaluator(regEval)
-  .setEstimatorParamMaps(paramGrid)
-
-// FIXME
-
-scala> val cvModel = cv.fit(df)
-java.lang.IllegalArgumentException: requirement failed: Nothing has been added to this summarizer.
-  at scala.Predef$.require(Predef.scala:219)
-  at org.apache.spark.mllib.stat.MultivariateOnlineSummarizer.normL2(MultivariateOnlineSummarizer.scala:270)
-  at org.apache.spark.mllib.evaluation.RegressionMetrics.SSerr$lzycompute(RegressionMetrics.scala:65)
-  at org.apache.spark.mllib.evaluation.RegressionMetrics.SSerr(RegressionMetrics.scala:65)
-  at org.apache.spark.mllib.evaluation.RegressionMetrics.meanSquaredError(RegressionMetrics.scala:99)
-  at org.apache.spark.mllib.evaluation.RegressionMetrics.rootMeanSquaredError(RegressionMetrics.scala:108)
-  at org.apache.spark.ml.evaluation.RegressionEvaluator.evaluate(RegressionEvaluator.scala:94)
-  at org.apache.spark.ml.tuning.CrossValidator$$anonfun$fit$1.apply(CrossValidator.scala:115)
-  at org.apache.spark.ml.tuning.CrossValidator$$anonfun$fit$1.apply(CrossValidator.scala:105)
-  at scala.collection.IndexedSeqOptimized$class.foreach(IndexedSeqOptimized.scala:33)
-  at scala.collection.mutable.ArrayOps$ofRef.foreach(ArrayOps.scala:186)
-  at org.apache.spark.ml.tuning.CrossValidator.fit(CrossValidator.scala:105)
-  ... 61 elided
+transformSchema(schema: StructType): StructType
 ----
+
+NOTE: `transformSchema` is a part of link:spark-mllib-PipelineStage.adoc#transformSchema[PipelineStage Contract].
+
+`transformSchema` simply passes the call to link:spark-mllib-ValidatorParams.adoc#transformSchemaImpl[transformSchemaImpl] (that is shared between `CrossValidator` and link:spark-mllib-TrainValidationSplit.adoc[TrainValidationSplit]).
