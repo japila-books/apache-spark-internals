@@ -1,8 +1,39 @@
-== [[CrossValidator]] CrossValidator
+== [[CrossValidator]] CrossValidator -- Model Tuning / Finding The Best Model
 
-`CrossValidator` is an link:spark-mllib-estimators.adoc[Estimator] that <<fit, fits a CrossValidatorModel to a dataset>>.
+`CrossValidator` is an link:spark-mllib-estimators.adoc[Estimator] for *model tuning*, i.e. <<fit, finding the best model>> for given <<parameters, parameters>> and a dataset.
 
-`CrossValidator` takes <<parameters, parameters>>.
+`CrossValidator` <<fit-computing-metrics, splits the dataset>> into a set of non-overlapping randomly-partitioned <<numFolds, folds>> which are used as separate training and validation datasets.
+
+`CrossValidator` <<fit, generates a CrossValidatorModel>> to hold the best model and average cross-validation metrics.
+
+NOTE: `CrossValidator` takes any <<estimator, Estimator>> for model selection, including the link:spark-mllib-Pipeline.adoc[Pipeline] that is used to transform raw datasets and generate a link:spark-mllib-Model.adoc[Model].
+
+NOTE: Use link:spark-mllib-ParamGridBuilder.adoc[ParamGridBuilder] for the parameter grid, i.e. collection of `ParamMaps` for model tuning.
+
+[source, scala]
+----
+import org.apache.spark.ml.Pipeline
+val pipeline: Pipeline = ...
+
+import org.apache.spark.ml.param.ParamMap
+val paramGrid: Array[ParamMap] = new ParamGridBuilder().
+  addGrid(...).
+  addGrid(...).
+  build
+
+import org.apache.spark.ml.tuning.CrossValidator
+val cv = new CrossValidator().
+  setEstimator(pipeline).
+  setEvaluator(...).
+  setEstimatorParamMaps(paramGrid).
+  setNumFolds(...).
+  setParallelism(...)
+
+import org.apache.spark.ml.tuning.CrossValidatorModel
+val bestModel: CrossValidatorModel = cv.fit(training)
+----
+
+`CrossValidator` is a link:spark-mllib-MLWritable.adoc[MLWritable].
 
 [[parameters]]
 .CrossValidator' Parameters
@@ -14,7 +45,7 @@
 
 | [[estimator]] `estimator`
 | (undefined)
-| link:spark-mllib-Estimator.adoc[Estimator] for best model selection
+| link:spark-mllib-Estimator.adoc[Estimator] for best model selection.
 
 | [[estimatorParamMaps]] `estimatorParamMaps`
 | (undefined)
@@ -41,16 +72,9 @@ Must be at least `1`.
 | Random seed
 |===
 
-TIP: What makes `CrossValidator` a very useful tool for _model selection_ is its ability to work with any link:spark-mllib-estimators.adoc[Estimator] instance, link:spark-mllib-Pipeline.adoc[Pipelines] including, that can transform datasets from their raw format to another before use.
-
-```
-import org.apache.spark.ml.tuning.CrossValidator
-val cv = new CrossValidator
-```
-
 [TIP]
 ====
-Enable `DEBUG` logging level for `org.apache.spark.ml.tuning.CrossValidator` logger to see what happens inside.
+Enable `INFO` or `DEBUG` logging levels for `org.apache.spark.ml.tuning.CrossValidator` logger to see what happens inside.
 
 Add the following line to `conf/log4j.properties`:
 
@@ -61,7 +85,7 @@ log4j.logger.org.apache.spark.ml.tuning.CrossValidator=DEBUG
 Refer to link:../spark-logging.adoc[Logging].
 ====
 
-=== [[fit]] Fitting CrossValidatorModel -- `fit` Method
+=== [[fit]] Finding The Best Model -- `fit` Method
 
 [source, scala]
 ----
@@ -88,20 +112,89 @@ DEBUG CrossValidator: Input schema: [json]
 INFO ...FIXME
 ```
 
-CAUTION: FIXME Finish me...from `splits`
-
 `fit` requests `Instrumentation` to link:spark-mllib-ValidatorParams.adoc#logTuningParams[print out the tuning parameters to the logs].
 
 ```
 INFO ...FIXME
 ```
 
+`fit` link:spark-mllib-MLUtils.adoc#kFold[kFolds] the `RDD` of the `dataset` per <<numFolds, numFolds>> and <<seed, seed>> parameters.
+
+NOTE: `fit` passes the underlying RDD of the `dataset` to link:spark-mllib-MLUtils.adoc#kFold[kFolds].
+
+`fit` <<fit-computing-metrics, computes metrics>> for every pair of training and validation RDDs.
+
+`fit` calculates the average metrics over all kFolds.
+
+You should see the following INFO message in the logs:
+
+```
+INFO Average cross-validation metrics: [metrics]
+```
+
+`fit` requests the <<evaluator, Evaluator>> for the link:spark-mllib-Evaluator.adoc#isLargerBetter[best cross-validation metric].
+
+You should see the following INFO message in the logs:
+
+```
+INFO Best set of parameters:
+[estimatorParamMap]
+INFO Best cross-validation metric: [bestMetric].
+```
+
+`fit` requests the <<estimator, Estimator>> to link:spark-mllib-Estimator.adoc#fit[fit the best model] (for the `dataset` and the best set of <<estimatorParamMaps, estimatorParamMap>>).
+
+You should see the following INFO message in the logs:
+
+```
+INFO training finished
+```
+
+In the end, `fit` link:spark-mllib-CrossValidatorModel.adoc#creating-instance[creates] a `CrossValidatorModel` (for the <<uid, ID>>, the best model and the average metrics for every kFold) and link:spark-mllib-Params.adoc#copyValues[copies parameters] to it.
 
 `fit` reports a `NoSuchElementException` when the required parameters are not defined.
 
 ```
 java.util.NoSuchElementException: Failed to find a default value for [name]
 ```
+
+==== [[fit-computing-metrics]] fit and Computing Metric for Training and Validation RDDs
+
+`fit` computes metrics for every pair of training and validation RDDs (from link:spark-mllib-MLUtils.adoc#kFold[kFold]).
+
+`fit` creates and persists training and validation datasets.
+
+TIP: You can monitor the storage for persisting the datasets in web UI's link:../spark-webui-storage.adoc[Storage] tab.
+
+`fit` Prints out the following DEBUG message to the logs
+
+```
+DEBUG Train split [index] with multiple sets of parameters.
+```
+
+For every map in <<estimatorParamMaps, estimatorParamMaps>> parameter `fit` link:spark-mllib-Estimator.adoc#fit-paramMap[fits a model] using the <<estimator, Estimator>>.
+
+`fit` does the fitting in parallel per <<parallelism, parallelism>> parameter.
+
+NOTE: <<parallelism, parallelism>> parameter defaults to `1`, i.e. no parallelism for fitting models.
+
+NOTE: `fit` unpersists the training data (per pair of training and validation RDDs) when all models have been trained.
+
+`fit` requests the models to link:spark-mllib-Transformer.adoc#transform-paramMap[transform] their respective validation datasets (with the corresponding parameters from <<estimatorParamMaps, estimatorParamMaps>>) and then requests the <<evaluator, Evaluator>> to link:spark-mllib-Evaluator.adoc#evaluate[evaluate] the transformed datasets.
+
+`fit` prints out the following DEBUG message to the logs:
+
+```
+DEBUG Got metric [metric] for model trained with $paramMap.
+```
+
+`fit` waits until all metrics are available and link:spark-sql-caching.adoc#unpersist[unpersists] the validation dataset.
+
+=== [[creating-instance]] Creating CrossValidator Instance
+
+`CrossValidator` takes the following when created:
+
+* [[uid]] Unique ID
 
 === [[transformSchema]] Validating and Transforming Schema -- `transformSchema` Method
 
