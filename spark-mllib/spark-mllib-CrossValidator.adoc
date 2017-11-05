@@ -2,9 +2,9 @@
 
 `CrossValidator` is an link:spark-mllib-estimators.adoc[Estimator] for *model tuning*, i.e. <<fit, finding the best model>> for given <<parameters, parameters>> and a dataset.
 
-`CrossValidator` <<fit-computing-metrics, splits the dataset>> into a set of non-overlapping randomly-partitioned <<numFolds, folds>> which are used as separate training and validation datasets.
+`CrossValidator` <<fit-computing-metrics, splits the dataset>> into a set of non-overlapping randomly-partitioned <<numFolds, numFolds>> pairs of training and validation datasets.
 
-`CrossValidator` <<fit, generates a CrossValidatorModel>> to hold the best model and average cross-validation metrics.
+`CrossValidator` <<fit, generates>> a `CrossValidatorModel` to hold the best model and average cross-validation metrics.
 
 NOTE: `CrossValidator` takes any <<estimator, Estimator>> for model selection, including the link:spark-mllib-Pipeline.adoc[Pipeline] that is used to transform raw datasets and generate a link:spark-mllib-Model.adoc[Model].
 
@@ -96,15 +96,19 @@ NOTE: `fit` is a part of link:spark-mllib-Estimator.adoc#fit[Estimator Contract]
 
 `fit` link:spark-mllib-PipelineStage.adoc#transformSchema[validates the schema] (with logging turned on).
 
-With `DEBUG` logging level turned on, you should see the following DEBUG message in the logs:
+You should see the following DEBUG message in the logs:
 
 ```
 DEBUG CrossValidator: Input schema: [json]
 ```
 
-`fit` makes sure that <<estimator, estimator>>, <<evaluator, evaluator>> and <<estimatorParamMaps, estimatorParamMaps>> parameters are defined.
+`fit` makes sure that <<estimator, estimator>>, <<evaluator, evaluator>>, <<estimatorParamMaps, estimatorParamMaps>> and <<parallelism, parallelism>> parameters are defined or reports a `NoSuchElementException`.
 
-`fit` makes sure that <<parallelism, parallelism>> parameter is defined and link:spark-mllib-HasParallelism.adoc#getExecutionContext[creates] a `ExecutionContext`.
+```
+java.util.NoSuchElementException: Failed to find a default value for [name]
+```
+
+`fit` link:spark-mllib-HasParallelism.adoc#getExecutionContext[creates] a `ExecutionContext` (per <<parallelism, parallelism>> parameter).
 
 `fit` link:spark-mllib-Instrumentation.adoc#create[creates] a `Instrumentation` and requests it to link:spark-mllib-Instrumentation.adoc#logParams[print] out the parameters <<numFolds, numFolds>>, <<seed, seed>>, <<parallelism, parallelism>> to the logs.
 
@@ -151,12 +155,6 @@ INFO training finished
 ```
 
 In the end, `fit` link:spark-mllib-CrossValidatorModel.adoc#creating-instance[creates] a `CrossValidatorModel` (for the <<uid, ID>>, the best model and the average metrics for every kFold) and link:spark-mllib-Params.adoc#copyValues[copies parameters] to it.
-
-`fit` reports a `NoSuchElementException` when the required parameters are not defined.
-
-```
-java.util.NoSuchElementException: Failed to find a default value for [name]
-```
 
 ==== [[fit-computing-metrics]] fit and Computing Metric for Training and Validation RDDs
 
