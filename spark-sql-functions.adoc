@@ -1021,21 +1021,32 @@ Aggregate [city#757, year#758, spark_grouping_id#754], [city#757, year#758, spar
 
 NOTE: `grouping_id` was added to Spark SQL in https://issues.apache.org/jira/browse/SPARK-12706[[SPARK-12706\] support grouping/grouping_id function together group set].
 
-=== [[from_json]] Parsing Column With JSON-Encoded Records -- `from_json` Functions
+=== [[from_json]] Parsing Column With JSON-Encoded Values -- `from_json` Functions
 
 [source, scala]
 ----
-from_json(e: Column, schema: DataType): Column  // <1>
-from_json(
-  e: Column,
-  schema: DataType,
-  options: Map[String, String]): Column
+from_json(e: Column, schema: StructType, options: Map[String, String]): Column // <1>
+from_json(e: Column, schema: DataType, options: Map[String, String]): Column // <2>
+from_json(e: Column, schema: StructType): Column // <3>
+from_json(e: Column, schema: DataType): Column  // <4>
+from_json(e: Column, schema: String, options: Map[String, String]): Column // <5>
 ----
-<1> Relays to the other `from_json` with empty `options`
+<1> Calls <2> with `StructType` converted to `DataType`
+<3> Calls <1> with empty `options`
+<4> Relays to the other `from_json` with empty `options`
+<5> Uses schema as `DataType` in the JSON format or falls back to `StructType` in the DDL format
 
-Parses a column with a JSON string into a link:spark-sql-StructType.adoc[StructType] or link:spark-sql-DataType.adoc#ArrayType[ArrayType] of `StructType` elements with the specified schema.
+`from_json` parses a column with a JSON-encoded value into a link:spark-sql-StructType.adoc[StructType] or link:spark-sql-DataType.adoc#ArrayType[ArrayType] of `StructType` elements with the specified schema.
 
-NOTE: `options` controls how a JSON is parsed and contains the same options as the link:spark-sql-JsonDataSource.adoc[json data source].
+[NOTE]
+====
+A schema can be one of the following:
+
+1. link:spark-sql-DataType.adoc[DataType] as a Scala object or in the JSON format
+1. link:spark-sql-StructType.adoc[StructType] in the DDL format
+====
+
+NOTE: `options` controls how a JSON is parsed and contains the same options as the link:spark-sql-JsonDataSource.adoc[json] format.
 
 Internally, `from_json` creates a link:spark-sql-Column.adoc[Column] with link:spark-sql-Expression-JsonToStructs.adoc[JsonToStructs] unary expression.
 
@@ -1044,15 +1055,33 @@ Internally, `from_json` creates a link:spark-sql-Column.adoc[Column] with link:s
 val jsons = Seq("""{ "id": 0 }""").toDF("json")
 
 import org.apache.spark.sql.types._
-val schema = StructType(
-  StructField("id", IntegerType, nullable = false) :: Nil)
-
+val schema = new StructType()
+  .add($"id".int.copy(nullable = false))
 scala> jsons.select(from_json($"json", schema) as "ids").show
 +---+
 |ids|
 +---+
 |[0]|
 +---+
+----
+
+NOTE: `from_json` (creates a link:spark-sql-Expression-JsonToStructs.adoc[JsonToStructs] that) uses a JSON parser in link:spark-sql-Expression-JsonToStructs.adoc#FAILFAST[FAILFAST] parsing mode that simply fails early when a corrupted/malformed record is found (and hence does not support `columnNameOfCorruptRecord` JSON option).
+
+[source, scala]
+----
+val jsons = Seq("""{ id: 0 }""").toDF("json")
+
+import org.apache.spark.sql.types._
+val schema = new StructType()
+  .add($"id".int.copy(nullable = false))
+  .add($"corrupted_records".string)
+val opts = Map("columnNameOfCorruptRecord" -> "corrupted_records")
+scala> jsons.select(from_json($"json", schema, opts) as "ids").show
++----+
+| ids|
++----+
+|null|
++----+
 ----
 
 NOTE: `from_json` corresponds to SQL's `from_json`.
