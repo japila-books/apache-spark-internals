@@ -1,0 +1,141 @@
+== Collection Functions
+
+[[functions]]
+.(Subset of) Standard Functions for Handling Collections
+[align="center",cols="1,2",width="100%",options="header"]
+|===
+| Name
+| Description
+
+| <<explode, explode>>
+|
+
+| <<explode_outer, explode_outer>>
+| *(new in 2.2.0)* Creates a new row for each element in the given array or map column.
+
+If the array/map is `null` or empty then `null` is produced.
+
+| <<from_json, from_json>>
+| Parses a column with JSON-encoded values into a link:spark-sql-StructType.adoc[StructType] or link:spark-sql-DataType.adoc#ArrayType[ArrayType] of `StructType` elements with the specified schema
+|===
+
+=== [[explode]] `explode` Function
+
+CAUTION: FIXME
+
+[source, scala]
+----
+scala> Seq(Array(0,1,2)).toDF("array").withColumn("num", explode('array)).show
++---------+---+
+|    array|num|
++---------+---+
+|[0, 1, 2]|  0|
+|[0, 1, 2]|  1|
+|[0, 1, 2]|  2|
++---------+---+
+----
+
+NOTE: `explode` function is an equivalent of link:spark-sql-dataset-operators.adoc#flatMap[`flatMap` operator] for `Dataset`.
+
+=== [[explode_outer]] `explode_outer` Function
+
+[source, scala]
+----
+explode_outer(e: Column): Column
+----
+
+`explode_outer` generates a new row for each element in `e` array or map column.
+
+NOTE: Unlike <<explode, explode>>, `explode_outer` generates `null` when the array or map is `null` or empty.
+
+[source, scala]
+----
+val arrays = Seq((1,Seq.empty[String])).toDF("id", "array")
+scala> arrays.printSchema
+root
+ |-- id: integer (nullable = false)
+ |-- array: array (nullable = true)
+ |    |-- element: string (containsNull = true)
+scala> arrays.select(explode_outer($"array")).show
++----+
+| col|
++----+
+|null|
++----+
+----
+
+Internally, `explode_outer` creates a link:spark-sql-Column.adoc[Column] with link:spark-sql-Expression-Generator.adoc#GeneratorOuter[GeneratorOuter] and link:spark-sql-Expression-Generator.adoc#Explode[Explode] Catalyst expressions.
+
+[source, scala]
+----
+val explodeOuter = explode_outer($"array").expr
+scala> println(explodeOuter.numberedTreeString)
+00 generatorouter(explode('array))
+01 +- explode('array)
+02    +- 'array
+----
+
+=== [[from_json]] Parsing Column With JSON-Encoded Values -- `from_json` Functions
+
+[source, scala]
+----
+from_json(e: Column, schema: StructType, options: Map[String, String]): Column // <1>
+from_json(e: Column, schema: DataType, options: Map[String, String]): Column // <2>
+from_json(e: Column, schema: StructType): Column // <3>
+from_json(e: Column, schema: DataType): Column  // <4>
+from_json(e: Column, schema: String, options: Map[String, String]): Column // <5>
+----
+<1> Calls <2> with `StructType` converted to `DataType`
+<3> Calls <1> with empty `options`
+<4> Relays to the other `from_json` with empty `options`
+<5> Uses schema as `DataType` in the JSON format or falls back to `StructType` in the DDL format
+
+`from_json` parses a column with a JSON-encoded value into a link:spark-sql-StructType.adoc[StructType] or link:spark-sql-DataType.adoc#ArrayType[ArrayType] of `StructType` elements with the specified schema.
+
+[NOTE]
+====
+A schema can be one of the following:
+
+1. link:spark-sql-DataType.adoc[DataType] as a Scala object or in the JSON format
+1. link:spark-sql-StructType.adoc[StructType] in the DDL format
+====
+
+NOTE: `options` controls how a JSON is parsed and contains the same options as the link:spark-sql-JsonDataSource.adoc[json] format.
+
+Internally, `from_json` creates a link:spark-sql-Column.adoc[Column] with link:spark-sql-Expression-JsonToStructs.adoc[JsonToStructs] unary expression.
+
+[source, scala]
+----
+val jsons = Seq("""{ "id": 0 }""").toDF("json")
+
+import org.apache.spark.sql.types._
+val schema = new StructType()
+  .add($"id".int.copy(nullable = false))
+scala> jsons.select(from_json($"json", schema) as "ids").show
++---+
+|ids|
++---+
+|[0]|
++---+
+----
+
+NOTE: `from_json` (creates a link:spark-sql-Expression-JsonToStructs.adoc[JsonToStructs] that) uses a JSON parser in link:spark-sql-Expression-JsonToStructs.adoc#FAILFAST[FAILFAST] parsing mode that simply fails early when a corrupted/malformed record is found (and hence does not support `columnNameOfCorruptRecord` JSON option).
+
+[source, scala]
+----
+val jsons = Seq("""{ id: 0 }""").toDF("json")
+
+import org.apache.spark.sql.types._
+val schema = new StructType()
+  .add($"id".int.copy(nullable = false))
+  .add($"corrupted_records".string)
+val opts = Map("columnNameOfCorruptRecord" -> "corrupted_records")
+scala> jsons.select(from_json($"json", schema, opts) as "ids").show
++----+
+| ids|
++----+
+|null|
++----+
+----
+
+NOTE: `from_json` corresponds to SQL's `from_json`.
