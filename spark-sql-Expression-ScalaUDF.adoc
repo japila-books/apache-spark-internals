@@ -1,13 +1,138 @@
-== [[ScalaUDF]] ScalaUDF
+== [[ScalaUDF]] ScalaUDF -- Catalyst Expression to Manage Lifecycle of User-Defined Function
 
-`ScalaUDF` is...FIXME
+`ScalaUDF` is a link:spark-sql-Expression.adoc[Catalyst expression] to manage the lifecycle of a <<function, user-defined function>> (and hook it in to Spark SQL's Catalyst execution path).
 
-`ScalaUDF` is <<creating-instance, created>> when...FIXME
+`ScalaUDF` is a `ImplicitCastInputTypes` and `UserDefinedExpression`.
+
+`ScalaUDF` has link:spark-sql-Expression.adoc#NonSQLExpression[no representation in SQL].
+
+`ScalaUDF` is <<creating-instance, created>> when:
+
+1. `UserDefinedFunction` is link:spark-sql-UserDefinedFunction.adoc#apply[executed]
+1. `UDFRegistration` is requested to link:spark-sql-UDFRegistration.adoc#register[register a Scala function as a user-defined function] (in `FunctionRegistry`)
+
+[source, scala]
+----
+val lengthUDF = udf { s: String => s.length }.withName("lengthUDF")
+val c = lengthUDF($"name")
+scala> println(c.expr.treeString)
+UDF:lengthUDF('name)
++- 'name
+
+import org.apache.spark.sql.catalyst.expressions.ScalaUDF
+val scalaUDF = c.expr.asInstanceOf[ScalaUDF]
+----
+
+NOTE: link:spark-sql-Analyzer.adoc[Spark SQL Analyzer] uses link:spark-sql-Analyzer-HandleNullInputsForUDF.adoc[HandleNullInputsForUDF] logical evaluation rule to...FIXME
+
+[source, scala]
+----
+// NOTE Evaluating a UDF with at least one input parameter throws
+// org.apache.spark.sql.catalyst.analysis.UnresolvedException
+// FIXME Analyze the UDF expression to resolve references
+
+// Define a zero-argument UDF
+val myUDF = udf { () => "Hello World" }
+
+// "Execute" the UDF
+// Attach it to an "execution environment", i.e. a Dataset
+// by specifying zero columns to execute on (since the UDF is no-arg)
+import org.apache.spark.sql.catalyst.expressions.ScalaUDF
+val scalaUDF = myUDF().expr.asInstanceOf[ScalaUDF]
+
+scala> scalaUDF.resolved
+res0: Boolean = true
+
+// Execute the UDF (on every row in a Dataset)
+// We simulate it relying on the EmptyRow that is the default InternalRow of eval
+scala> scalaUDF.eval()
+res1: Any = Hello World
+
+val hello = udf { s: String => s"Hello $s" }
+// Binding the hello UDF to a column name
+import org.apache.spark.sql.catalyst.expressions.ScalaUDF
+val helloScalaUDF = hello($"name").expr.asInstanceOf[ScalaUDF]
+
+scala> helloScalaUDF.resolved
+res2: Boolean = false
+
+// Resolve helloScalaUDF, i.e. the only name column
+
+scala> helloScalaUDF.children
+res3: Seq[org.apache.spark.sql.catalyst.expressions.Expression] = ArrayBuffer('name)
+
+// The column is free (i.e. not bound to a Dataset)
+// Define a Dataset that becomes the rows for the UDF
+val names = Seq("Jacek", "Agata").toDF("name")
+scala> println(names.queryExecution.analyzed.numberedTreeString)
+00 Project [value#1 AS name#3]
+01 +- LocalRelation [value#1]
+
+val plan = names.queryExecution.analyzed
+val resolver = spark.sessionState.analyzer.resolver
+import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute
+val resolvedUDF = helloScalaUDF.transformUp { case a @ UnresolvedAttribute(names) =>
+  // we're in controlled environment
+  // so get is safe
+  plan.resolve(names, resolver).get
+}
+
+scala> resolvedUDF.resolved
+res4: Boolean = true
+
+scala> println(resolvedUDF.numberedTreeString)
+00 UDF(name#3)
+01 +- name#3: string
+
+import org.apache.spark.sql.catalyst.InternalRow
+val name = InternalRow("Jacek")
+
+// FIXME How to create a row so the resolved attribute (e.g. name#3) can find the value?
+scala> resolvedUDF.eval(name)
+org.apache.spark.SparkException: Failed to execute user defined function($anonfun$1: (string) => string)
+  at org.apache.spark.sql.catalyst.expressions.ScalaUDF.eval(ScalaUDF.scala:1079)
+  ... 49 elided
+Caused by: java.lang.UnsupportedOperationException: Cannot evaluate expression: name#3
+  at org.apache.spark.sql.catalyst.expressions.Unevaluable$class.eval(Expression.scala:224)
+  at org.apache.spark.sql.catalyst.expressions.AttributeReference.eval(namedExpressions.scala:211)
+  at org.apache.spark.sql.catalyst.expressions.ScalaUDF$$anonfun$2.apply(ScalaUDF.scala:97)
+  at org.apache.spark.sql.catalyst.expressions.ScalaUDF$$anonfun$2.apply(ScalaUDF.scala:95)
+  at org.apache.spark.sql.catalyst.expressions.ScalaUDF.eval(ScalaUDF.scala:1076)
+  ... 49 more
+----
+
+=== [[doGenCode]] Generating Java Source Code -- `doGenCode` Method
+
+[source, scala]
+----
+doGenCode(ctx: CodegenContext, ev: ExprCode): ExprCode
+----
+
+NOTE: `doGenCode` is a part of link:spark-sql-Expression.adoc#doGenCode[Expression Contract].
+
+`doGenCode`...FIXME
+
+=== [[eval]] Evaluating ScalaUDF -- `eval` Method
+
+[source, scala]
+----
+eval(input: InternalRow): Any
+----
+
+NOTE: `eval` is a part of link:spark-sql-Expression.adoc#eval[Expression Contract] that evaluates the expression to a JVM object for a given link:spark-sql-InternalRow.adoc[internal binary row].
+
+`eval` executes the <<function, Scala function>> on the input link:spark-sql-InternalRow.adoc[InternalRow].
 
 === [[creating-instance]] Creating ScalaUDF Instance
 
 `ScalaUDF` takes the following when created:
 
-* ScalaUDF
+* [[function]] A Scala function (as Scala's `AnyRef`)
+* [[dataType]] Output link:spark-sql-DataType.adoc[data type]
+* [[children]] Child link:spark-sql-Expression.adoc[Catalyst expressions]
+* [[inputTypes]] Input link:spark-sql-DataType.adoc[data types] (if available)
+* [[udfName]] Name (if defined)
+* [[nullable]] `nullable` flag (turned on by default)
+* [[udfDeterministic]] `udfDeterministic` flag (turned on by default)
 
 `ScalaUDF` initializes the <<internal-registries, internal registries and counters>>.
