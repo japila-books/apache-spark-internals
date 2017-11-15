@@ -27,11 +27,10 @@ NOTE: link:spark-sql-Analyzer.adoc[Spark SQL Analyzer] uses link:spark-sql-Analy
 
 [source, scala]
 ----
-// NOTE Evaluating a UDF with at least one input parameter throws
-// org.apache.spark.sql.catalyst.analysis.UnresolvedException
-// FIXME Analyze the UDF expression to resolve references
+scala> spark.version
+res0: String = 2.3.0-SNAPSHOT
 
-// Define a zero-argument UDF
+// Defining a zero-argument UDF
 val myUDF = udf { () => "Hello World" }
 
 // "Execute" the UDF
@@ -41,25 +40,27 @@ import org.apache.spark.sql.catalyst.expressions.ScalaUDF
 val scalaUDF = myUDF().expr.asInstanceOf[ScalaUDF]
 
 scala> scalaUDF.resolved
-res0: Boolean = true
+res1: Boolean = true
 
 // Execute the UDF (on every row in a Dataset)
 // We simulate it relying on the EmptyRow that is the default InternalRow of eval
 scala> scalaUDF.eval()
-res1: Any = Hello World
+res2: Any = Hello World
 
+// Defining a UDF of one input parameter
 val hello = udf { s: String => s"Hello $s" }
+
 // Binding the hello UDF to a column name
 import org.apache.spark.sql.catalyst.expressions.ScalaUDF
 val helloScalaUDF = hello($"name").expr.asInstanceOf[ScalaUDF]
 
 scala> helloScalaUDF.resolved
-res2: Boolean = false
+res3: Boolean = false
 
-// Resolve helloScalaUDF, i.e. the only name column
+// Resolve helloScalaUDF, i.e. the only `name` column reference
 
 scala> helloScalaUDF.children
-res3: Seq[org.apache.spark.sql.catalyst.expressions.Expression] = ArrayBuffer('name)
+res4: Seq[org.apache.spark.sql.catalyst.expressions.Expression] = ArrayBuffer('name)
 
 // The column is free (i.e. not bound to a Dataset)
 // Define a Dataset that becomes the rows for the UDF
@@ -68,6 +69,7 @@ scala> println(names.queryExecution.analyzed.numberedTreeString)
 00 Project [value#1 AS name#3]
 01 +- LocalRelation [value#1]
 
+// Resolve the references using the Dataset
 val plan = names.queryExecution.analyzed
 val resolver = spark.sessionState.analyzer.resolver
 import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute
@@ -78,27 +80,35 @@ val resolvedUDF = helloScalaUDF.transformUp { case a @ UnresolvedAttribute(names
 }
 
 scala> resolvedUDF.resolved
-res4: Boolean = true
+res6: Boolean = true
 
 scala> println(resolvedUDF.numberedTreeString)
 00 UDF(name#3)
 01 +- name#3: string
 
-import org.apache.spark.sql.catalyst.InternalRow
-val name = InternalRow("Jacek")
+import org.apache.spark.sql.catalyst.expressions.BindReferences
+val attrs = names.queryExecution.sparkPlan.output
+val boundUDF = BindReferences.bindReference(resolvedUDF, attrs)
 
-// FIXME How to create a row so the resolved attribute (e.g. name#3) can find the value?
-scala> resolvedUDF.eval(name)
-org.apache.spark.SparkException: Failed to execute user defined function($anonfun$1: (string) => string)
-  at org.apache.spark.sql.catalyst.expressions.ScalaUDF.eval(ScalaUDF.scala:1079)
-  ... 49 elided
-Caused by: java.lang.UnsupportedOperationException: Cannot evaluate expression: name#3
-  at org.apache.spark.sql.catalyst.expressions.Unevaluable$class.eval(Expression.scala:224)
-  at org.apache.spark.sql.catalyst.expressions.AttributeReference.eval(namedExpressions.scala:211)
-  at org.apache.spark.sql.catalyst.expressions.ScalaUDF$$anonfun$2.apply(ScalaUDF.scala:97)
-  at org.apache.spark.sql.catalyst.expressions.ScalaUDF$$anonfun$2.apply(ScalaUDF.scala:95)
-  at org.apache.spark.sql.catalyst.expressions.ScalaUDF.eval(ScalaUDF.scala:1076)
-  ... 49 more
+// Create an internal binary row, i.e. InternalRow
+import org.apache.spark.sql.catalyst.encoders.ExpressionEncoder
+val stringEncoder = ExpressionEncoder[String]
+val row = stringEncoder.toRow("world")
+
+// YAY! It works!
+scala> boundUDF.eval(row)
+res8: Any = Hello world
+
+// Just to show the regular execution path
+// i.e. how to execute a UDF in a context of a Dataset
+val q = names.select(hello($"name"))
+scala> q.show
++-----------+
+|  UDF(name)|
++-----------+
+|Hello Jacek|
+|Hello Agata|
++-----------+
 ----
 
 === [[doGenCode]] Generating Java Source Code -- `doGenCode` Method
@@ -119,7 +129,7 @@ NOTE: `doGenCode` is a part of link:spark-sql-Expression.adoc#doGenCode[Expressi
 eval(input: InternalRow): Any
 ----
 
-NOTE: `eval` is a part of link:spark-sql-Expression.adoc#eval[Expression Contract] that evaluates the expression to a JVM object for a given link:spark-sql-InternalRow.adoc[internal binary row].
+NOTE: `eval` is a part of link:spark-sql-Expression.adoc#eval[Expression Contract] to evaluate a Catalyst expression to a JVM object for a given link:spark-sql-InternalRow.adoc[internal binary row].
 
 `eval` executes the <<function, Scala function>> on the input link:spark-sql-InternalRow.adoc[InternalRow].
 
