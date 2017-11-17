@@ -1,8 +1,8 @@
 == [[QueryExecution]] QueryExecution -- Query Execution of Dataset
 
-`QueryExecution` represents the <<execution-pipeline, structured query execution pipeline>> of a link:spark-sql-Dataset.adoc[Dataset].
+`QueryExecution` is the <<execution-pipeline, structured query execution pipeline>> of a link:spark-sql-Dataset.adoc[Dataset].
 
-NOTE: When an action of a `Dataset` is executed, that triggers an execution of `QueryExecution` (in the form of calling <<toRdd, toRdd>>) which will morph itself into a `RDD` of link:spark-sql-InternalRow.adoc[binary rows], i.e. `RDD[InternalRow]`.
+NOTE: When you execute an operator on a `Dataset` it triggers <<toRdd, query execution>> that gives the good ol' `RDD` of link:spark-sql-InternalRow.adoc[internal binary rows] (i.e. `RDD[InternalRow]`) that is Spark's execution plan followed by executing a RDD action and hence the result of the structured query.
 
 You can access the `QueryExecution` of a `Dataset` using link:spark-sql-Dataset.adoc#queryExecution[queryExecution] attribute.
 
@@ -51,14 +51,20 @@ a| link:spark-sql-SparkPlan.adoc[Physical plan] ready for execution (i.e. <<spar
 NOTE: `executedPlan` is the phase when link:spark-sql-CollapseCodegenStages.adoc[CollapseCodegenStages] physical preparation rule is executed to collapse physical operators that support code generation together as a link:spark-sql-SparkPlan-WholeStageCodegenExec.adoc[WholeStageCodegenExec] operator.
 
 | [[toRdd]] `toRdd`
-a| `RDD` of link:spark-sql-InternalRow.adoc[binary rows] (after link:spark-sql-SparkPlan.adoc#execute[executing] the <<executedPlan, executedPlan>>).
+a| `RDD` of link:spark-sql-InternalRow.adoc[internal binary rows] (i.e. `RDD[InternalRow]`) after link:spark-sql-SparkPlan.adoc#execute[executing] the <<executedPlan, executedPlan>>).
 
 [NOTE]
 ====
 `toRdd` is a "boundary" between two Spark modules: Spark SQL and Spark Core.
 
-After you have executed `toRdd` (directly or not), you basically "leave" Spark SQL's Datasets and "enter" Spark Core's RDD space.
+After you have executed `toRdd` (directly or not), you basically "leave" Spark SQL's Dataset world and "enter" Spark Core's RDD space.
 ====
+
+`toRdd` triggers a structured query execution (i.e. physical planning, but not execution of the plan) using link:spark-sql-SparkPlan.adoc#execute[SparkPlan.execute] that recursively triggers execution of every child physical operator in the physical plan tree.
+
+NOTE: You can use link:spark-sql-SparkSession.adoc#internalCreateDataFrame[SparkSession.internalCreateDataFrame] to apply a link:spark-sql-StructType.adoc[schema] to an `RDD[InternalRow]`.
+
+NOTE: Use link:spark-sql-dataset-operators.adoc#rdd[Dataset.rdd] to access the `RDD[InternalRow]` with internal binary rows deserialized to a Scala type. 
 |===
 
 You can access the lazy attributes as follows:
