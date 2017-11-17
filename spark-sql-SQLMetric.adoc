@@ -1,14 +1,34 @@
-== [[SQLMetric]] SQLMetric -- Physical Operator Metric
+== [[SQLMetric]] SQLMetric -- SQL Execution Metric of Physical Operator
 
-`SQLMetric` is a link:spark-accumulators.adoc[accumulator] metric used to monitor performance of link:spark-sql-SparkPlan.adoc[physical operators].
+`SQLMetric` is a SQL metric for monitoring execution of a link:spark-sql-SparkPlan.adoc[physical operator].
 
-NOTE: Use *Details for Query* page in link:spark-webui-sql.adoc#ExecutionPage[SQL tab] in web UI to see the metrics of a structured query.
+`SQLMetric` is an link:spark-accumulators.adoc[accumulator] (and that is the mechanism to propagate SQL metric updates on the executors to the driver, e.g. web UI).
+
+NOTE: Use *Details for Query* page in link:spark-webui-sql.adoc#ExecutionPage[SQL tab] in web UI to see the SQL execution metrics of a structured query.
+
+[NOTE]
+====
+SQL metrics are collected using `SparkListener`. If there are no tasks, Spark SQL cannot collect any metrics. Updates to metrics on the driver-side require explicit call of <<postDriverMetricUpdates, SQLMetrics.postDriverMetricUpdates>>.
+
+This is why executing some physical operators (e.g. LocalTableScanExec) may not have SQL metrics in web UI's link:spark-webui-sql.adoc#ExecutionPage[Details for Query] in SQL tab.
+
+Compare the following SQL queries and their execution pages.
+
+[source, scala]
+----
+// The query does not have SQL metrics in web UI
+Seq("Jacek").toDF("name").show
+
+// The query gives numOutputRows metric in web UI's Details for Query (SQL tab)
+Seq("Jacek").toDF("name").count
+----
+====
 
 [[metricType]][[initValue]]
 `SQLMetric` takes a metric type and an initial value when created.
 
 [[metrics-types]]
-.Metric Types and Corresponding Create Methods (in alphabetical order)
+.Metric Types and Corresponding Create Methods
 [cols="1,1,1,2",options="header",width="100%"]
 |===
 | Metric Type
@@ -32,7 +52,7 @@ NOTE: Use *Details for Query* page in link:spark-webui-sql.adoc#ExecutionPage[SQ
 | Used when...
 |===
 
-=== [[postDriverMetricUpdates]] Posting Driver-Side Updates to SQLMetrics -- `postDriverMetricUpdates` Method
+=== [[postDriverMetricUpdates]] Posting Driver-Side Metric Updates -- `SQLMetrics.postDriverMetricUpdates` Method
 
 [source, scala]
 ----
@@ -42,6 +62,17 @@ postDriverMetricUpdates(
   metrics: Seq[SQLMetric]): Unit
 ----
 
-`postDriverMetricUpdates` posts a link:spark-webui-SQLListener.adoc#SparkListenerDriverAccumUpdates[SparkListenerDriverAccumUpdates] to a link:spark-SparkListenerBus.adoc[SparkListenerBus] when `executionId` is specified.
+`postDriverMetricUpdates` posts a link:spark-webui-SQLListener.adoc#SparkListenerDriverAccumUpdates[SparkListenerDriverAccumUpdates] event to link:spark-LiveListenerBus.adoc[LiveListenerBus] when `executionId` is specified.
 
-NOTE: `postDriverMetricUpdates` used in link:spark-sql-SparkPlan-BroadcastExchangeExec.adoc#relationFuture[BroadcastExchangeExec], `FileSourceScanExec` and  `SubqueryExec` physical operators.
+NOTE: `postDriverMetricUpdates` method belongs to `SQLMetrics` object.
+
+[NOTE]
+====
+`postDriverMetricUpdates` is used when:
+
+1. link:spark-sql-SparkPlan-BroadcastExchangeExec.adoc#relationFuture[BroadcastExchangeExec] physical operator...FIXME
+
+1. `FileSourceScanExec` physical operator is requested for link:spark-sql-SparkPlan-FileSourceScanExec.adoc#selectedPartitions[selectedPartitions](and posts updates to `numFiles` and `metadataTime` metrics)
+
+1. `SubqueryExec` physical operator does link:spark-sql-SparkPlan-SubqueryExec.adoc#doPrepare[doPrepare] (and posts updates to `collectTime` and `dataSize` metrics)
+====
