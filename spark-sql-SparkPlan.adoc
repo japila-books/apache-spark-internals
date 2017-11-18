@@ -1,19 +1,23 @@
-== [[SparkPlan]] SparkPlan -- Physical Execution Query Plan / Physical Operator
+== [[SparkPlan]] SparkPlan -- Contract of Physical Operators in Physical Query Plan of Structured Query
 
-`SparkPlan` is the base link:spark-sql-catalyst-QueryPlan.adoc[Catalyst query plan] for *physical operators* that used (_composed_) together build the *physical execution query plan* (aka _query execution plan_) of a structured query.
+`SparkPlan` is the <<contract, contract>> in Spark SQL for link:spark-sql-catalyst-QueryPlan.adoc[physical operators] to build a physical query plan.
 
-NOTE: A structured query is created using Spark SQL's high-level strongly-typed link:spark-sql-Dataset.adoc[Dataset] API.
+`SparkPlan` is a recursive data structure in Spark SQL's link:spark-sql-catalyst.adoc[Catalyst tree manipulation framework] and as such represents a single *physical operator* in a physical execution query plan as well as a *physical execution query plan* itself (i.e. a tree of physical operators in a query plan of a structured query).
 
-[NOTE]
-====
-A physical operator is a link:spark-sql-catalyst-TreeNode.adoc[Catalyst tree node] that may have zero or more link:spark-sql-catalyst-TreeNode.adoc#children[child physical operators].
+.Physical Plan of Structured Query (i.e. Tree of SparkPlans)
+image::images/spark-sql-SparkPlan-webui-physical-plan.png[align="center"]
 
-In other words, a structured query is basically a single `SparkPlan` with link:spark-sql-catalyst-TreeNode.adoc#children[child physical operators].
+NOTE: A structured query can be expressed using Spark SQL's high-level strongly-typed link:spark-sql-Dataset.adoc[Dataset] API or good ol' SQL.
 
-Spark SQL uses link:spark-sql-catalyst.adoc[Catalyst] tree manipulation framework to compose nodes to build a tree of (logical or physical) operators that, in this particular case, is composing `SparkPlan` physical operator nodes to build the physical execution plan tree of a structured query.
-====
+A `SparkPlan` physical operator is a link:spark-sql-catalyst-TreeNode.adoc[Catalyst tree node] that may have zero or more link:spark-sql-catalyst-TreeNode.adoc#children[child physical operators].
 
-When <<execute, executed>>, a physical operator produces an RDD of link:spark-sql-InternalRow.adoc[internal binary rows] (i.e. `RDD[InternalRow]`).
+NOTE: A structured query is basically a single `SparkPlan` physical operator with link:spark-sql-catalyst-TreeNode.adoc#children[child physical operators].
+
+NOTE: Spark SQL uses link:spark-sql-catalyst.adoc[Catalyst] tree manipulation framework to compose nodes to build a tree of (logical or physical) operators that, in this particular case, is composing `SparkPlan` physical operator nodes to build the physical execution plan tree of a structured query.
+
+When <<execute, executed>>, `SparkPlan` creates an `RDD` of link:spark-sql-InternalRow.adoc[internal binary rows] (i.e. `RDD[InternalRow]`).
+
+CAUTION: FIXME Picture between Spark SQL's Dataset ==> Spark Core's RDD
 
 [NOTE]
 ====
@@ -57,16 +61,16 @@ CAUTION: FIXME `SparkPlan` is `Serializable`. Why?
 | Description
 
 | [[execute]] `execute`
-a| Executes a physical operator that generates an `RDD` of link:spark-sql-InternalRow.adoc[internal binary rows] (i.e. `RDD[InternalRow]`).
+a| Executes a physical operator (and its link:spark-sql-catalyst-TreeNode.adoc#children[children]) that triggers physical query planning and in the end creates an `RDD` of link:spark-sql-InternalRow.adoc[internal binary rows] (i.e. `RDD[InternalRow]`).
 
 [source, scala]
 ----
 final def execute(): RDD[InternalRow]
 ----
 
-Used _most importantly_ when `QueryExecution` is requested for a <<toRdd, RDD>> (that in turn triggers execution of any children the physical operator may have).
+Used _mostly_ when `QueryExecution` is requested for a <<toRdd, RDD>> that represents the final execution plan.
 
-Internally, `execute` executes <<doExecute, doExecute>> in a <<executeQuery, named scope>>.
+Internally, `execute` calls the physical operator's <<doExecute, doExecute>> after <<executeQuery, preparing the query for execution>>.
 
 NOTE: Executing `doExecute` in a named scope happens only after the operator is <<prepare, prepared for execution>> followed by <<waitForSubqueries, waiting for any subqueries to finish>>.
 
@@ -249,7 +253,7 @@ Used exclusively when `EnsureRequirements` physical preparation rule link:spark-
 executeQuery[T](query: => T): T
 ----
 
-`executeQuery` executes the input `query` in a scope (i.e. so that all RDDs created will have the same scope for visualization like web UI).
+`executeQuery` executes the input `query` in a named scope (i.e. so that all RDDs created will have the same scope for visualization like web UI).
 
 Internally, `executeQuery` calls <<prepare, prepare>> and <<waitForSubqueries, waitForSubqueries>> followed by executing `query`.
 
