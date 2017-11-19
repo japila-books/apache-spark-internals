@@ -1,11 +1,13 @@
-== [[DataSourceScanExec]] DataSourceScanExec -- Contract for Leaf Physical Operators with Code Generation
+== [[DataSourceScanExec]] DataSourceScanExec -- Contract for Leaf Physical Operators with Java Code Generation
 
-`DataSourceScanExec` is a <<contract, contract>> for link:spark-sql-SparkPlan.adoc#LeafExecNode[leaf physical operators] with link:spark-sql-CodegenSupport.adoc[support for code generation] that...FIXME
+`DataSourceScanExec` is a <<contract, contract>> for link:spark-sql-SparkPlan.adoc#LeafExecNode[leaf physical operators] that...FIXME
 
-NOTE: The prefix for variable names for `DataSourceScanExec` operators in link:spark-sql-CodegenSupport.adoc[CodegenSupport]-generated code is *scan*.
+`DataSourceScanExec` link:spark-sql-CodegenSupport.adoc[supports Java source code generation].
+
+NOTE: The prefix for variable names for `DataSourceScanExec` operators in a link:spark-sql-CodegenSupport.adoc#variablePrefix[generated Java source code] is *scan*.
 
 [[nodeNamePrefix]]
-The default *node name prefix* is an empty string that is used as part of <<simpleString, simple description>> for...FIXME
+The default *node name prefix* is an empty string (that is used at the very beginning of <<simpleString, simple description>>).
 
 [[known-implementations]]
 .DataSourceScanExec's Known Implementations
@@ -53,13 +55,52 @@ Used for <<simpleString, simpleString>>
 | link:spark-sql-BaseRelation.adoc[BaseRelation] that...FIXME
 |===
 
-=== [[simpleString]] Simple One-Line Description -- `simpleString` Method
+=== [[simpleString]] Simple Text Node Description -- `simpleString` Method
 
 [source, scala]
 ----
 simpleString: String
 ----
 
-NOTE: `simpleString` is a part of link:spark-sql-catalyst-QueryPlan.adoc#simpleString[QueryPlan Contract] to..FIXME.
+NOTE: `simpleString` is a part of link:spark-sql-catalyst-QueryPlan.adoc#simpleString[QueryPlan Contract] to give the simple text description of a `TreeNode` in a query plan tree.
 
-`simpleString`...FIXME
+Internally, `simpleString` redacts values in <<metadata, metadata>> entries and builds the text description of the metadata (with keys and their values separated using `:`).
+
+`simpleString` concatenates <<nodeNamePrefix, nodeNamePrefix>> with <<nodeName, nodeName>>, link:spark-sql-catalyst-QueryPlan.adoc#output[output schema] and the metadata description.
+
+[source, scala]
+----
+val scanExec = basicDataSourceScanExec
+scala> println(scanExec.simpleString)
+Scan $line143.$read$$iw$$iw$$iw$$iw$$iw$$iw$$iw$$iw$$anon$1@57d94b26 [] PushedFilters: [], ReadSchema: struct<>
+
+def basicDataSourceScanExec = {
+  import org.apache.spark.sql.catalyst.expressions.AttributeReference
+  val output = Seq.empty[AttributeReference]
+  val requiredColumnsIndex = output.indices
+  import org.apache.spark.sql.sources.Filter
+  val filters, handledFilters = Set.empty[Filter]
+  import org.apache.spark.sql.catalyst.InternalRow
+  import org.apache.spark.sql.catalyst.expressions.UnsafeRow
+  val row: InternalRow = new UnsafeRow(0)
+  val rdd: RDD[InternalRow] = sc.parallelize(row :: Nil)
+
+  import org.apache.spark.sql.sources.{BaseRelation, TableScan}
+  val baseRelation: BaseRelation = new BaseRelation with TableScan {
+    import org.apache.spark.sql.SQLContext
+    val sqlContext: SQLContext = spark.sqlContext
+
+    import org.apache.spark.sql.types.StructType
+    val schema: StructType = new StructType()
+
+    import org.apache.spark.rdd.RDD
+    import org.apache.spark.sql.Row
+    def buildScan(): RDD[Row] = ???
+  }
+
+  val tableIdentifier = None
+  import org.apache.spark.sql.execution.RowDataSourceScanExec
+  RowDataSourceScanExec(
+    output, requiredColumnsIndex, filters, handledFilters, rdd, baseRelation, tableIdentifier)
+}
+----
