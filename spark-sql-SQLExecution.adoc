@@ -11,7 +11,7 @@ NOTE: Jobs without <<spark.sql.execution.id, spark.sql.execution.id>> key are no
 val EXECUTION_ID_KEY = "spark.sql.execution.id"
 ----
 
-=== [[withNewExecutionId]] Tracking Multi-Job SQL Query Executions -- `withNewExecutionId` Method
+=== [[withNewExecutionId]] Executing Dataset Action (with Zero or More Spark Jobs) with Single Execution Id -- `withNewExecutionId` Method
 
 [source, scala]
 ----
@@ -26,13 +26,11 @@ withNewExecutionId[T](
 <1> With explicit `executionId` execution identifier
 <2> ``QueryExecution``-variant with an auto-generated execution identifier
 
-`withNewExecutionId` executes `body` query action with the *execution id* local property set (as `executionId` or auto-generated).
+`withNewExecutionId` executes `body` query action with a new *execution id* (as the input `executionId` or auto-generated) so that all Spark jobs belong to the `Dataset` action execution.
 
 The execution id is set as `spark.sql.execution.id` link:spark-sparkcontext-local-properties.adoc#setLocalProperty[local property].
 
-The use case is to track Spark jobs (e.g. when running in separate threads) that belong to a single SQL query execution, e.g. to link:spark-sql-webui.adoc[report them as one single Spark SQL query in web UI].
-
-NOTE: `withNewExecutionId` is used in link:spark-sql-Dataset.adoc#withNewExecutionId[Dataset.withNewExecutionId].
+`withNewExecutionId` allows for collecting all the Spark jobs (e.g. when running in separate threads) together under a single SQL query execution for reporting purposes, e.g. to link:spark-sql-webui.adoc[reporting them as one single structured query in web UI].
 
 CAUTION: FIXME Where is the proxy-like method used? How important is it?
 
@@ -41,3 +39,17 @@ If there is another execution local property set (as `spark.sql.execution.id`), 
 In addition, the `QueryExecution` variant posts link:spark-sql-SQLListener.adoc#SparkListenerSQLExecutionStart[SparkListenerSQLExecutionStart] and link:spark-sql-SQLListener.adoc#SparkListenerSQLExecutionEnd[SparkListenerSQLExecutionEnd] events (to link:spark-LiveListenerBus.adoc[LiveListenerBus] event bus) before and after executing the `body` action, respectively. It is used to inform link:spark-sql-SQLListener.adoc#onOtherEvent[`SQLListener` when a SQL query execution starts and ends].
 
 NOTE: Nested execution ids are not supported in the `QueryExecution` variant.
+
+[NOTE]
+====
+`withNewExecutionId` is used when:
+
+* `Dataset` is requested to link:spark-sql-Dataset.adoc#withNewExecutionId[Dataset.withNewExecutionId]
+* `Dataset` is requested to link:spark-sql-Dataset.adoc#withAction[withAction]
+
+* `DataFrameWriter` is requested to link:spark-sql-DataFrameWriter.adoc#runCommand[run a command]
+
+* Spark Structured Streaming's `StreamExecution` commits a batch to a streaming sink
+
+* Spark Thrift Server's `SparkSQLDriver` runs a command
+====
