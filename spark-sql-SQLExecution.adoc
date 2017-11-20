@@ -1,15 +1,66 @@
 == [[SQLExecution]] SQLExecution Helper Object
 
-`SQLExecution` defines <<spark.sql.execution.id, spark.sql.execution.id>> key that is used to track multiple jobs that constitute a single SQL query execution. Whenever a SQL query is to be executed, <<withNewExecutionId, withNewExecutionId>> static method is used that sets the key.
-
-NOTE: Jobs without <<spark.sql.execution.id, spark.sql.execution.id>> key are not considered to belong to SQL query executions.
-
-=== [[spark.sql.execution.id]] spark.sql.execution.id EXECUTION_ID_KEY Key
+[[EXECUTION_ID_KEY]]
+[[spark.sql.execution.id]]
+`SQLExecution` defines *spark.sql.execution.id* Spark property that is used to track multiple Spark jobs that should all together constitute a single structured query execution.
 
 [source, scala]
 ----
-val EXECUTION_ID_KEY = "spark.sql.execution.id"
+import org.apache.spark.sql.execution.SQLExecution
+scala> println(SQLExecution.EXECUTION_ID_KEY)
+spark.sql.execution.id
 ----
+
+Structured query actions are executed using <<withNewExecutionId, SQLExecution.withNewExecutionId>> static method that sets <<spark.sql.execution.id, spark.sql.execution.id>> as Spark Core's link:spark-sparkcontext-local-properties.adoc#setLocalProperty[local property] and "stitches" different Spark jobs as parts of one structured query action.
+
+[TIP]
+====
+Use link:spark-SparkListener.adoc#onOtherEvent[SparkListener] to listen to link:spark-sql-SQLListener.adoc#SparkListenerSQLExecutionStart[SparkListenerSQLExecutionStart] events and know the execution ids of structured queries that have been executed in a Spark SQL application.
+
+[source, scala]
+----
+// "SQLAppStatusListener" idea is borrowed from
+// Spark SQL's org.apache.spark.sql.execution.ui.SQLAppStatusListener
+import org.apache.spark.scheduler.{SparkListener, SparkListenerEvent}
+import org.apache.spark.sql.execution.ui.{SparkListenerDriverAccumUpdates, SparkListenerSQLExecutionEnd, SparkListenerSQLExecutionStart}
+public class SQLAppStatusListener extends SparkListener {
+  override def onOtherEvent(event: SparkListenerEvent): Unit = event match {
+    case e: SparkListenerSQLExecutionStart => onExecutionStart(e)
+    case e: SparkListenerSQLExecutionEnd => onExecutionEnd(e)
+    case e: SparkListenerDriverAccumUpdates => onDriverAccumUpdates(e)
+    case _ => // Ignore
+  }
+  def onExecutionStart(event: SparkListenerSQLExecutionStart): Unit = {
+    // Find the QueryExecution for the Dataset action that triggered the event
+    // This is the SQL-specific way
+    import org.apache.spark.sql.execution.SQLExecution
+    queryExecution = SQLExecution.getQueryExecution(event.executionId)
+  }
+  def onJobStart(jobStart: SparkListenerJobStart): Unit = {
+    // Find the QueryExecution for the Dataset action that triggered the event
+    // This is a general Spark Core way using local properties
+    import org.apache.spark.sql.execution.SQLExecution
+    val executionIdStr = jobStart.properties.getProperty(SQLExecution.EXECUTION_ID_KEY)
+    // Note that the Spark job may or may not be a part of a structured query
+    if (executionIdStr != null) {
+      queryExecution = SQLExecution.getQueryExecution(executionIdStr.toLong)
+    }
+  }
+  def onExecutionEnd(event: SparkListenerSQLExecutionEnd): Unit = {}
+  def onDriverAccumUpdates(event: SparkListenerDriverAccumUpdates): Unit = {}
+}
+
+val sqlListener = new SQLAppStatusListener()
+spark.sparkContext.addSparkListener(sqlListener)
+----
+====
+
+NOTE: Jobs without <<spark.sql.execution.id, spark.sql.execution.id>> key are not considered to belong to SQL query executions.
+
+[[executionIdToQueryExecution]]
+`SQLExecution` keeps track of all execution ids and their link:spark-sql-QueryExecution.adoc[QueryExecutions] in `executionIdToQueryExecution` internal registry.
+
+TIP: Use <<getQueryExecution, SQLExecution.getQueryExecution>> to find the link:spark-sql-QueryExecution.adoc[QueryExecution] for an execution id.
 
 === [[withNewExecutionId]] Executing Dataset Action (with Zero or More Spark Jobs) with Single Execution Id -- `withNewExecutionId` Method
 
@@ -26,15 +77,11 @@ withNewExecutionId[T](
 <1> With explicit `executionId` execution identifier
 <2> ``QueryExecution``-variant with an auto-generated execution identifier
 
-`withNewExecutionId` executes `body` query action with a new *execution id* (as the input `executionId` or auto-generated) so that all Spark jobs belong to the `Dataset` action execution.
+`withNewExecutionId` executes `body` query action with a new <<spark.sql.execution.id, execution id>> (given as the input `executionId` or auto-generated) so that all Spark jobs that have been scheduled by the query action could be marked as parts of the same `Dataset` action execution.
 
-The execution id is set as `spark.sql.execution.id` link:spark-sparkcontext-local-properties.adoc#setLocalProperty[local property].
+`withNewExecutionId` allows for collecting all the Spark jobs (even executed on separate threads) together under a single SQL query execution for reporting purposes, e.g. to link:spark-sql-webui.adoc[reporting them as one single structured query in web UI].
 
-`withNewExecutionId` allows for collecting all the Spark jobs (e.g. when running in separate threads) together under a single SQL query execution for reporting purposes, e.g. to link:spark-sql-webui.adoc[reporting them as one single structured query in web UI].
-
-CAUTION: FIXME Where is the proxy-like method used? How important is it?
-
-If there is another execution local property set (as `spark.sql.execution.id`), it is replaced for the course of the current action.
+NOTE: If there is another execution id already set, it is replaced for the course of the current action.
 
 In addition, the `QueryExecution` variant posts link:spark-sql-SQLListener.adoc#SparkListenerSQLExecutionStart[SparkListenerSQLExecutionStart] and link:spark-sql-SQLListener.adoc#SparkListenerSQLExecutionEnd[SparkListenerSQLExecutionEnd] events (to link:spark-LiveListenerBus.adoc[LiveListenerBus] event bus) before and after executing the `body` action, respectively. It is used to inform link:spark-sql-SQLListener.adoc#onOtherEvent[`SQLListener` when a SQL query execution starts and ends].
 
@@ -53,3 +100,12 @@ NOTE: Nested execution ids are not supported in the `QueryExecution` variant.
 
 * Spark Thrift Server's `SparkSQLDriver` runs a command
 ====
+
+=== [[getQueryExecution]] Getting QueryExecution for Execution ID -- `getQueryExecution` Method
+
+[source, scala]
+----
+getQueryExecution(executionId: Long): QueryExecution
+----
+
+`getQueryExecution` gives the link:spark-sql-QueryExecution.adoc[QueryExecution] for the `executionId` or `null` if not found.
