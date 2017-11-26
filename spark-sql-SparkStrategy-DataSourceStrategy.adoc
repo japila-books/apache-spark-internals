@@ -16,20 +16,46 @@
 `CatalystScan` does not seem to be used in Spark SQL.
 
 | [[PrunedFilteredScan]] `LogicalRelation` with link:spark-sql-PrunedFilteredScan.adoc[PrunedFilteredScan]
-| Uses <<pruneFilterProjectRaw, pruneFilterProjectRaw>>
+a| Uses <<pruneFilterProject, pruneFilterProject>>
 
-Matches `JDBCRelation` exclusively (as a link:spark-sql-PrunedFilteredScan.adoc[PrunedFilteredScan])
+NOTE: Matches link:spark-sql-BaseRelation-JDBCRelation.adoc[JDBCRelation] exclusively (as a link:spark-sql-PrunedFilteredScan.adoc[PrunedFilteredScan])
 
-| `LogicalRelation` with `PrunedScan` relation
-| Uses <<pruneFilterProjectRaw, pruneFilterProjectRaw>>
+| [[PrunedScan]] `LogicalRelation` with `PrunedScan`
+a| Uses <<pruneFilterProject, pruneFilterProject>>
 
-`PrunedScan` does not seem to be used in Spark SQL.
+NOTE: `PrunedScan` does not seem to be used in Spark SQL.
 
 | `LogicalRelation` with `TableScan` relation
 | Matches `KafkaRelation` exclusively (as it is `TableScan`)
 |===
 
-NOTE: `DataSourceStrategy` uses link:spark-sql-SparkStrategy-FileSourceStrategy.adoc#PhysicalOperation[PhysicalOperation] to destructure a link:spark-sql-LogicalPlan.adoc[logical plan].
+[source, scala]
+----
+import org.apache.spark.sql.execution.datasources.DataSourceStrategy
+val strategy = DataSourceStrategy(spark.sessionState.conf)
+
+import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
+val plan: LogicalPlan = ???
+
+val sparkPlan = strategy(plan).head
+----
+
+NOTE: `DataSourceStrategy` uses link:spark-sql-SparkStrategy-FileSourceStrategy.adoc#PhysicalOperation[PhysicalOperation] Scala class to destructure a link:spark-sql-LogicalPlan.adoc[logical plan].
+
+=== [[pruneFilterProject]] `pruneFilterProject` Internal Method
+
+[source, scala]
+----
+pruneFilterProject(
+  relation: LogicalRelation,
+  projects: Seq[NamedExpression],
+  filterPredicates: Seq[Expression],
+  scanBuilder: (Seq[Attribute], Array[Filter]) => RDD[InternalRow])
+----
+
+`pruneFilterProject` simply calls <<pruneFilterProjectRaw, pruneFilterProjectRaw>> with `scanBuilder` ignoring the `Seq[Expression]` input parameter.
+
+NOTE: `pruneFilterProject` is used when `DataSourceStrategy` plans a `LogicalRelation` with <<PrunedFilteredScan, PrunedFilteredScan>> or <<PrunedScan, PrunedScan>> scans.
 
 === [[pruneFilterProjectRaw]] Creating RowDataSourceScanExec (under FilterExec and ProjectExec) -- `pruneFilterProjectRaw` Internal Method
 
