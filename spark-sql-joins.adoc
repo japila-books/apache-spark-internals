@@ -220,20 +220,25 @@ NOTE: `crossJoin` creates an explicit cartesian join that can be very expensive 
 joinWith[U](other: Dataset[U], condition: Column): Dataset[(T, U)]  // <1>
 joinWith[U](other: Dataset[U], condition: Column, joinType: String): Dataset[(T, U)]
 ----
-<1> Type-safe inner join
+<1> inner equi-join
 
-`joinWith` creates a link:spark-sql-Dataset.adoc[Dataset] with two columns `_1` and `_2` that each contains records for which `condition` holds.
+`joinWith` creates a link:spark-sql-Dataset.adoc[Dataset] with two columns `_1` and `_2` that each contain records for which `condition` holds.
 
 [source, scala]
 ----
 case class Person(id: Long, name: String, cityId: Long)
 case class City(id: Long, name: String)
+val family = Seq(
+  Person(0, "Agata", 0),
+  Person(1, "Iweta", 0),
+  Person(2, "Patryk", 2),
+  Person(3, "Maksym", 0)).toDS
+val cities = Seq(
+  City(0, "Warsaw"),
+  City(1, "Washington"),
+  City(2, "Sopot")).toDS
 
-val people = Seq(Person(0, "Agata", 0), Person(1, "Iweta", 0)).toDS
-val cities = Seq(City(0, "Warsaw"), City(1, "Washington")).toDS
-
-val joined = people.joinWith(cities, people("cityId") === cities("id"))
-
+val joined = family.joinWith(cities, family("cityId") === cities("id"))
 scala> joined.printSchema
 root
  |-- _1: struct (nullable = false)
@@ -243,14 +248,15 @@ root
  |-- _2: struct (nullable = false)
  |    |-- id: long (nullable = false)
  |    |-- name: string (nullable = true)
-
 scala> joined.show
-+-----------+----------+
-|         _1|        _2|
-+-----------+----------+
-|[0,Agata,0]|[0,Warsaw]|
-|[1,Iweta,0]|[0,Warsaw]|
-+-----------+----------+
++------------+----------+
+|          _1|        _2|
++------------+----------+
+| [0,Agata,0]|[0,Warsaw]|
+| [1,Iweta,0]|[0,Warsaw]|
+|[2,Patryk,2]| [2,Sopot]|
+|[3,Maksym,0]|[0,Warsaw]|
++------------+----------+
 ----
 
 NOTE: `joinWith` preserves type-safety with the original object types.
