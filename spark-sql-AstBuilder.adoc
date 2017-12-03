@@ -82,7 +82,7 @@ scala> println(q.queryExecution.logical.numberedTreeString)
 | `fromClause`
 a| link:spark-sql-LogicalPlan.adoc[LogicalPlan]
 
-Supports multiple comma-separated relations (that all together build an condition-less INNER JOIN) with optional link:spark-sql-Expression-Generator.adoc#lateral-view[LATERAL VIEW].
+Supports multiple comma-separated relations (that all together build a condition-less INNER JOIN) with optional link:spark-sql-Expression-Generator.adoc#lateral-view[LATERAL VIEW].
 
 A relation can be one of the following or a combination thereof:
 
@@ -107,6 +107,22 @@ a|
 * `Alias` (for a single alias)
 * `MultiAlias` (for a parenthesis enclosed alias list
 * a bare link:spark-sql-Expression.adoc[Expression]
+
+| [[visitQuerySpecification]] `visitQuerySpecification`
+| `querySpecification`
+a| `OneRowRelation` or link:spark-sql-LogicalPlan.adoc[LogicalPlan]
+
+[NOTE]
+====
+`visitQuerySpecification` creates a `OneRowRelation` for a `SELECT` without a `FROM` clause.
+
+```
+val q = sql("select 1")
+scala> println(q.queryExecution.logical.numberedTreeString)
+00 'Project [unresolvedalias(1, None)]
+01 +- OneRowRelation$
+```
+====
 
 | [[visitRelation]] `visitRelation`
 | `relation`
@@ -145,22 +161,6 @@ a| link:spark-sql-Expression-WindowSpecDefinition.adoc[WindowSpecDefinition]
   ((ORDER \| SORT) BY sortItem (',' sortItem)*)?)
   windowFrame? ')'
 ```
-
-| [[visitQuerySpecification]] `visitQuerySpecification`
-| `querySpecification`
-a| link:spark-sql-LogicalPlan.adoc[LogicalPlan]
-
-[NOTE]
-====
-Can be a `OneRowRelation` for a `SELECT` without a `FROM` clause.
-
-```
-val q = sql("select 1")
-scala> println(q.queryExecution.logical.numberedTreeString)
-00 'Project [unresolvedalias(1, None)]
-01 +- OneRowRelation$
-```
-====
 |===
 
 [[with-methods]]
@@ -215,7 +215,25 @@ Joins can be `NATURAL` (with no join criteria).
 |
 
 | [[withQuerySpecification]] `withQuerySpecification`
-|
+| Adds a query specification to a logical plan.
+
+For transform `SELECT` (with `TRANSFORM`, `MAP` or `REDUCE` qualifiers), `withQuerySpecification` does...FIXME
+
+---
+
+For regular `SELECT` (no `TRANSFORM`, `MAP` or `REDUCE` qualifiers), `withQuerySpecification` adds (in that order):
+
+1. <<withGenerate, Generate>> unary logical operators if used
+
+1. `Filter` unary logical plan if used
+
+1. <<withAggregation, GroupingSets or Aggregate>> unary logical operators if used
+
+1. `Project` and/or `Filter` unary logical operators
+
+1. <<withWindows, WithWindowDefinition>> unary logical operator if used
+
+1. <<withHints, UnresolvedHint>> unary logical operator if used
 
 | [[withWindows]] `withWindows`
 a| link:spark-sql-LogicalPlan-WithWindowDefinition.adoc[WithWindowDefinition] for link:spark-sql-functions-windows.adoc[window aggregates] (given `WINDOW` definitions).
