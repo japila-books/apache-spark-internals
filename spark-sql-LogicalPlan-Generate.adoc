@@ -1,0 +1,68 @@
+== [[Generate]] Generate Unary Logical Operator for Lateral Views
+
+`Generate` is a link:spark-sql-LogicalPlan.adoc#UnaryNode[unary logical operator] that is <<creating-instance, created>> to represent the following (after a logical plan is link:spark-sql-LogicalPlan.adoc#analyzed[analyzed]):
+
+* link:spark-sql-Expression-Generator.adoc[Generator] or `GeneratorOuter` expressions (by link:spark-sql-Analyzer.adoc#ExtractGenerator[ExtractGenerator] logical evaluation rule)
+
+* SQL's link:spark-sql-AstBuilder.adoc#withGenerate[LATERAL VIEW] clause (in `SELECT` or `FROM` clauses)
+
+[[resolved]]
+`resolved` flag is...FIXME
+
+NOTE: `resolved` is a part of link:spark-sql-LogicalPlan.adoc#resolved[LogicalPlan Contract] to...FIXME.
+
+[[producedAttributes]]
+`producedAttributes`...FIXME
+
+[[output]]
+`output` is...FIXME
+
+NOTE: `Generate` logical operator is resolved to `GenerateExec` physical operator in link:spark-sql-SparkStrategy-BasicOperators.adoc#Generate[BasicOperators] execution planning strategy.
+
+[TIP]
+====
+Use `generate` method from Spark SQL's *Catalyst DSL* (in `org.apache.spark.sql.catalyst.dsl` package object) to create a `Generate` logical operator for testing or Spark SQL exploration.
+
+[source, scala]
+----
+scala> spark.version
+res0: String = 2.3.0-SNAPSHOT
+
+import org.apache.spark.sql.catalyst.plans.logical._
+import org.apache.spark.sql.types._
+val lr = LocalRelation('key.int, 'values.array(StringType))
+
+import org.apache.spark.sql.types.StructType
+val elementSchema = StructType('value.string :: Nil)
+
+import org.apache.spark.sql.Row
+import org.apache.spark.sql.catalyst.InternalRow
+val function = (r: Row) => Seq.empty[InternalRow]
+
+import org.apache.spark.sql.catalyst.dsl.expressions._
+import org.apache.spark.sql.catalyst.expressions.Expression
+val children: Seq[Expression] = Seq("e")
+
+import org.apache.spark.sql.catalyst.expressions.UserDefinedGenerator
+val udg = UserDefinedGenerator(elementSchema, function, children)
+
+import org.apache.spark.sql.catalyst.dsl.plans._  // <-- gives generate
+val plan = lr.generate(generator = udg, join = true, outer = true, alias = Some("alias"), outputNames = Seq.empty)
+scala> println(plan.numberedTreeString)
+00 'Generate UserDefinedGenerator(e), true, true, alias
+01 +- LocalRelation <empty>, [key#4, values#5]
+----
+====
+
+=== [[creating-instance]] Creating Generate Instance
+
+`Generate` takes the following when created:
+
+* [[generator]] link:spark-sql-Expression-Generator.adoc[Generator] expression
+* [[join]] `join` flag...FIXME
+* [[outer]] `outer` flag...FIXME
+* [[qualifier]] Optional qualifier
+* [[generatorOutput]] Output link:spark-sql-Expression-Attribute.adoc[attributes]
+* [[child]] Child link:spark-sql-LogicalPlan.adoc[logical plan]
+
+`Generate` initializes the <<internal-registries, internal registries and counters>>.
