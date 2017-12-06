@@ -32,25 +32,23 @@ import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.types._
 val lr = LocalRelation('key.int, 'values.array(StringType))
 
-import org.apache.spark.sql.types.StructType
-val elementSchema = StructType('value.string :: Nil)
-
-import org.apache.spark.sql.Row
-import org.apache.spark.sql.catalyst.InternalRow
-val function = (r: Row) => Seq.empty[InternalRow]
-
+// JsonTuple generator
+import org.apache.spark.sql.catalyst.expressions.JsonTuple
 import org.apache.spark.sql.catalyst.dsl.expressions._
 import org.apache.spark.sql.catalyst.expressions.Expression
 val children: Seq[Expression] = Seq("e")
-
-import org.apache.spark.sql.catalyst.expressions.UserDefinedGenerator
-val udg = UserDefinedGenerator(elementSchema, function, children)
+val json_tuple = JsonTuple(children)
 
 import org.apache.spark.sql.catalyst.dsl.plans._  // <-- gives generate
-val plan = lr.generate(generator = udg, join = true, outer = true, alias = Some("alias"), outputNames = Seq.empty)
+val plan = lr.generate(
+  generator = json_tuple,
+  join = true,
+  outer = true,
+  alias = Some("alias"),
+  outputNames = Seq.empty)
 scala> println(plan.numberedTreeString)
-00 'Generate UserDefinedGenerator(e), true, true, alias
-01 +- LocalRelation <empty>, [key#4, values#5]
+00 'Generate json_tuple(e), true, true, alias
+01 +- LocalRelation <empty>, [key#0, values#1]
 ----
 ====
 

@@ -2,47 +2,58 @@
 
 `Generator` is a <<contract, contract>> for link:spark-sql-Expression.adoc[Catalyst expressions] that can <<eval, produce>> zero or more rows given a single input row.
 
-NOTE: `Generator` corresponds to SQL's `LATERAL VIEW (OUTER)`.
+NOTE: `Generator` corresponds to SQL's link:spark-sql-AstBuilder.adoc#withGenerate[LATERAL VIEW].
+
+[[dataType]]
+`dataType` in `Generator` is simply an link:spark-sql-DataType.adoc#ArrayType[ArrayType] of <<elementSchema, elementSchema>>.
 
 [[foldable]]
 [[nullable]]
 `Generator` is not link:spark-sql-Expression.adoc#foldable[foldable] and not link:spark-sql-Expression.adoc#nullable[nullable] by default.
 
 [[supportCodegen]]
-`Generator` supports link:spark-sql-whole-stage-codegen.adoc[whole-stage codegen] when not link:spark-sql-Expression.adoc#CodegenFallback[CodegenFallback] by default.
+`Generator` supports link:spark-sql-whole-stage-codegen.adoc[Java code generation] (aka _whole-stage codegen_) when not being link:spark-sql-Expression.adoc#CodegenFallback[CodegenFallback].
+
+[[terminate]]
+`Generator` uses `terminate` to inform that there are no more rows to process, clean up code, and additional rows can be made here.
+
+[source, scala]
+----
+terminate(): TraversableOnce[InternalRow] = Nil
+----
 
 [[generator-implementations]]
-.Generators (in alphabetical order)
+.Generators
 [width="100%",cols="1,2",options="header"]
 |===
 | Name
 | Description
 
-| `CollectionGenerator`
+| [[CollectionGenerator]] link:spark-sql-Expression-CollectionGenerator.adoc[CollectionGenerator]
 |
 
-| <<ExplodeBase, ExplodeBase>>
+| [[ExplodeBase]] link:spark-sql-Expression-ExplodeBase.adoc[ExplodeBase]
 |
 
-| <<Explode, Explode>>
+| [[Explode]] link:spark-sql-Expression-ExplodeBase.adoc#Explode[Explode]
 |
 
 | [[GeneratorOuter]] `GeneratorOuter`
 |
 
-| `HiveGenericUDTF`
+| [[HiveGenericUDTF]] `HiveGenericUDTF`
 |
 
-| `Inline`
+| [[Inline]] link:spark-sql-Expression-Inline.adoc[Inline]
 | Corresponds to `inline` and `inline_outer` functions.
 
-| `JsonTuple`
+| [[JsonTuple]] link:spark-sql-Expression-JsonTuple.adoc[JsonTuple]
 |
 
-| <<PosExplode, PosExplode>>
+| [[PosExplode]] link:spark-sql-Expression-ExplodeBase.adoc#PosExplode[PosExplode]
 |
 
-| `Stack`
+| [[Stack]] link:spark-sql-Expression-Stack.adoc[Stack]
 |
 
 | [[UnresolvedGenerator]] `UnresolvedGenerator`
@@ -59,8 +70,8 @@ AS? col1, col2, ...
 
 NOTE: `UnresolvedGenerator` is link:spark-sql-Analyzer.adoc#ResolveFunctions[resolved] to `Generator` by link:spark-sql-Analyzer.adoc#ResolveFunctions[ResolveFunctions] logical evaluation rule.
 
-| `UserDefinedGenerator`
-| Used exclusively in the now-deprecated `explode` operator
+| [[UserDefinedGenerator]] `UserDefinedGenerator`
+| Used exclusively in the deprecated `explode` operator
 |===
 
 [[lateral-view]]
@@ -135,41 +146,8 @@ trait Generator extends Expression {
 | Description
 
 | [[elementSchema]] `elementSchema`
-| link:spark-sql-StructType.adoc[StructType] of the elements generated
+| link:spark-sql-StructType.adoc[Schema] of the elements to be generated
 
 | [[eval]] `eval`
-| Used when...
+|
 |===
-
-=== [[Explode]] Explode Generator Unary Expression
-
-`Explode` is a unary expression that produces a sequence of records for each value in the array or map.
-
-`Explode` is a result of executing `explode` function (in SQL and link:spark-sql-functions.adoc#explode[functions])
-
-[source, scala]
-----
-scala> sql("SELECT explode(array(10,20))").explain
-== Physical Plan ==
-Generate explode([10,20]), false, false, [col#68]
-+- Scan OneRowRelation[]
-
-scala> sql("SELECT explode(array(10,20))").queryExecution.optimizedPlan.expressions(0)
-res18: org.apache.spark.sql.catalyst.expressions.Expression = explode([10,20])
-
-val arrayDF = Seq(Array(0,1)).toDF("array")
-scala> arrayDF.withColumn("num", explode('array)).explain
-== Physical Plan ==
-Generate explode(array#93), true, false, [array#93, num#102]
-+- LocalTableScan [array#93]
-----
-
-=== [[PosExplode]] PosExplode
-
-CAUTION: FIXME
-
-=== [[ExplodeBase]] ExplodeBase Unary Expression
-
-`ExplodeBase` is the base class for <<Explode, Explode>> and <<PosExplode, PosExplode>>.
-
-`ExplodeBase` is link:spark-sql-Expression.adoc#UnaryExpression[UnaryExpression] and <<Generator, Generator>> with link:spark-sql-Expression.adoc#CodegenFallback[CodegenFallback].
