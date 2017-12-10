@@ -1,6 +1,23 @@
 == [[GenerateExec]] GenerateExec Unary Physical Operator
 
-`GenerateExec` is a link:spark-sql-SparkPlan.adoc#UnaryExecNode[unary physical operator] (i.e. with one <<child, child>> physical operator) to...FIXME
+`GenerateExec` is a link:spark-sql-SparkPlan.adoc#UnaryExecNode[unary physical operator] (i.e. with one <<child, child>> physical operator) that is <<creating-instance, created>> exclusively when `BasicOperators` execution planning strategy resolves link:spark-sql-SparkStrategy-BasicOperators.adoc#Generate[Generate] logical operator.
+
+[source, scala]
+----
+val nums = Seq((0 to 4).toArray).toDF("nums")
+val q = nums.withColumn("explode", explode($"nums"))
+scala> q.explain
+== Physical Plan ==
+Generate explode(nums#15), true, false, [explode#24]
++- LocalTableScan [nums#15]
+
+val sparkPlan = q.queryExecution.executedPlan
+import org.apache.spark.sql.execution.GenerateExec
+val ge = sparkPlan.asInstanceOf[GenerateExec]
+
+scala> ge.supportCodegen
+res2: Boolean = false
+----
 
 NOTE: <<child, child>> physical operator has to support link:spark-sql-CodegenSupport.adoc[CodegenSupport].
 
@@ -281,3 +298,13 @@ codeGenAccessor(
 `codeGenAccessor`...FIXME
 
 NOTE: `codeGenAccessor` is used...FIXME
+
+=== [[creating-instance]] Creating GenerateExec Instance
+
+`GenerateExec` takes the following when created:
+
+* [[generator]] link:spark-sql-Expression-Generator.adoc[Generator]
+* [[join]] `join` flag
+* [[outer]] `outer` flag
+* [[generatorOutput]] Generator's output schema
+* [[child]] Child link:spark-sql-SparkPlan.adoc[physical plan]
