@@ -1,6 +1,6 @@
 == [[SparkPlan]] SparkPlan -- Contract of Physical Operators in Physical Query Plan of Structured Query
 
-`SparkPlan` is the <<contract, contract>> in Spark SQL for link:spark-sql-catalyst-QueryPlan.adoc[physical operators] to build a physical query plan.
+`SparkPlan` is the <<contract, contract>> in Spark SQL for link:spark-sql-catalyst-QueryPlan.adoc[physical operators] to build a physical query plan (i.e. a tree of physical operators).
 
 `SparkPlan` is a recursive data structure in Spark SQL's link:spark-sql-catalyst.adoc[Catalyst tree manipulation framework] and as such represents a single *physical operator* in a physical execution query plan as well as a *physical execution query plan* itself (i.e. a tree of physical operators in a query plan of a structured query).
 
@@ -15,10 +15,12 @@ NOTE: A structured query is basically a single `SparkPlan` physical operator wit
 
 NOTE: Spark SQL uses link:spark-sql-catalyst.adoc[Catalyst] tree manipulation framework to compose nodes to build a tree of (logical or physical) operators that, in this particular case, is composing `SparkPlan` physical operator nodes to build the physical execution plan tree of a structured query.
 
-When <<execute, executed>>, `SparkPlan` creates an `RDD` of link:spark-sql-InternalRow.adoc[internal binary rows] (i.e. `RDD[InternalRow]`).
+When <<execute, executed>>, `SparkPlan` <<executeQuery, executes the internal query implementation>> in a named scope (for visualization like web UI) that triggers <<prepare, prepare>> of the children physical operators first followed by <<prepareSubqueries, prepareSubqueries>> and finally <<doPrepare, doPrepare>> methods. After <<waitForSubqueries, subqueries have finished>>, <<doExecute, doExecute>> method is triggered.
 
 .SparkPlan's Execution (execute Method)
 image::images/spark-sql-SparkPlan-execute.png[align="center"]
+
+The result of <<execute, executing>> a `SparkPlan` is an `RDD` of link:spark-sql-InternalRow.adoc[internal binary rows], i.e. `RDD[InternalRow]`.
 
 CAUTION: FIXME Picture between Spark SQL's Dataset => Spark Core's RDD
 
@@ -172,7 +174,7 @@ getByteArrayRdd(n: Int = -1): RDD[Array[Byte]]
 
 CAUTION: FIXME
 
-=== [[waitForSubqueries]] `waitForSubqueries` Method
+=== [[waitForSubqueries]] Waiting for Subqueries to Finish -- `waitForSubqueries` Method
 
 CAUTION: FIXME
 
@@ -188,7 +190,7 @@ CAUTION: FIXME
 
 === [[contract]] SparkPlan Contract
 
-`SparkPlan` contract requires that concrete physical operators define their own custom `doExecute`.
+`SparkPlan` contract requires that concrete physical operators implement <<doExecute, doExecute>>.
 
 [[doExecute]]
 [source, scala]
@@ -196,7 +198,7 @@ CAUTION: FIXME
 doExecute(): RDD[InternalRow]
 ----
 
-`doExecute` produces the result of a structured query as an `RDD` of link:spark-sql-InternalRow.adoc[internal binary rows].
+`doExecute` produces the result of a structured query as an `RDD` of link:spark-sql-InternalRow.adoc[internal binary rows], i.e. `RDD[InternalRow]`
 
 [[hooks]]
 .SparkPlan's Extension Hooks (in alphabetical order)

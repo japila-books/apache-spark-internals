@@ -6,18 +6,32 @@
 ----
 val nums = Seq((0 to 4).toArray).toDF("nums")
 val q = nums.withColumn("explode", explode($"nums"))
+
 scala> q.explain
 == Physical Plan ==
-Generate explode(nums#15), true, false, [explode#24]
-+- LocalTableScan [nums#15]
+Generate explode(nums#3), true, false, [explode#12]
++- LocalTableScan [nums#3]
 
 val sparkPlan = q.queryExecution.executedPlan
 import org.apache.spark.sql.execution.GenerateExec
 val ge = sparkPlan.asInstanceOf[GenerateExec]
 
-scala> ge.supportCodegen
-res2: Boolean = false
+scala> :type ge
+org.apache.spark.sql.execution.GenerateExec
+
+val rdd = ge.execute
+
+scala> rdd.toDebugString
+res1: String =
+(1) MapPartitionsRDD[2] at execute at <console>:26 []
+ |  MapPartitionsRDD[1] at execute at <console>:26 []
+ |  ParallelCollectionRDD[0] at execute at <console>:26 []
 ----
+
+When <<doExecute, executed>>, `GenerateExec` link:spark-sql-Expression-Generator.adoc#eval[executes] (aka _evaluates_) the <<boundGenerator, Generator>> expression on every row in a RDD partition.
+
+.GenerateExec's Execution -- `doExecute` Method
+image::images/spark-sql-GenerateExec-doExecute.png[align="center"]
 
 NOTE: <<child, child>> physical operator has to support link:spark-sql-CodegenSupport.adoc[CodegenSupport].
 
@@ -26,7 +40,14 @@ NOTE: <<child, child>> physical operator has to support link:spark-sql-CodegenSu
 [[supportCodegen]]
 `GenerateExec` does not support link:spark-sql-whole-stage-codegen.adoc[Java code generation] (aka _whole-stage codegen_), i.e. link:spark-sql-CodegenSupport.adoc#supportCodegen[supportCodegen] flag is turned off.
 
-CAUTION: FIXME Why would a physical operator be `CodegenSupport` and have `supportCodegen` turned off?
+[source, scala]
+----
+scala> :type ge
+org.apache.spark.sql.execution.GenerateExec
+
+scala> ge.supportCodegen
+res2: Boolean = false
+----
 
 [source, scala]
 ----
@@ -229,17 +250,6 @@ NOTE: `doProduce` is a part of link:spark-sql-CodegenSupport.adoc#doProduce[Code
 
 `doProduce`...FIXME
 
-=== [[doExecute]] Executing GenerateExec -- `doExecute` Method
-
-[source, scala]
-----
-doExecute(): RDD[InternalRow]
-----
-
-NOTE: `doExecute` is a part of link:spark-sql-SparkPlan.adoc#doExecute[SparkPlan Contract] to produce the result of a structured query as an `RDD` of link:spark-sql-InternalRow.adoc[internal binary rows].
-
-`doExecute`...FIXME
-
 === [[doConsume]] `doConsume` Method
 
 [source, scala]
@@ -308,3 +318,14 @@ NOTE: `codeGenAccessor` is used...FIXME
 * [[outer]] `outer` flag
 * [[generatorOutput]] Generator's output schema
 * [[child]] Child link:spark-sql-SparkPlan.adoc[physical plan]
+
+=== [[doExecute]] Executing GenerateExec -- `doExecute` Method
+
+[source, scala]
+----
+doExecute(): RDD[InternalRow]
+----
+
+NOTE: `doExecute` is a part of link:spark-sql-SparkPlan.adoc#doExecute[SparkPlan Contract] to produce the result of a structured query as an `RDD` of link:spark-sql-InternalRow.adoc[internal binary rows].
+
+`doExecute`...FIXME
