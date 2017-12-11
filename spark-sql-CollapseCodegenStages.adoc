@@ -1,10 +1,10 @@
-== [[CollapseCodegenStages]] CollapseCodegenStages Physical Preparation Rule -- Collapsing Physical Operators for Whole-Stage CodeGen
+== [[CollapseCodegenStages]] CollapseCodegenStages Physical Preparation Rule -- Collapsing Physical Operators for Whole-Stage Java Code Generation (aka Whole-Stage CodeGen)
 
-`CollapseCodegenStages` is a link:spark-sql-QueryExecution-SparkPlan-Preparations.adoc[physical preparation rule] that <<apply, collapses physical operators for Java code generation>> (as part of link:spark-sql-whole-stage-codegen.adoc[Java code generation]).
+`CollapseCodegenStages` is a link:spark-sql-QueryExecution-SparkPlan-Preparations.adoc[physical preparation rule] that `QueryExecution` link:spark-sql-QueryExecution.adoc#preparations[uses] to <<apply, collapse physical operators together for Java code generation>>.
 
 [NOTE]
 ====
-You can disable `CollapseCodegenStages` (and so whole-stage codegen) by turning link:spark-sql-SQLConf.adoc#spark.sql.codegen.wholeStage[spark.sql.codegen.wholeStage] internal property off.
+You can disable `CollapseCodegenStages` (and so whole-stage Java code generation) by turning link:spark-sql-SQLConf.adoc#spark.sql.codegen.wholeStage[spark.sql.codegen.wholeStage] Spark internal property off.
 
 `spark.sql.codegen.wholeStage` property is enabled by default.
 
@@ -24,7 +24,7 @@ res1: Boolean = true
 ----
 ====
 
-`CollapseCodegenStages` acts only on <<insertWholeStageCodegen, physical operators with CodegenSupport>> for which <<supportCodegen, Java code can really be generated>>.
+`CollapseCodegenStages` considers <<insertWholeStageCodegen, physical operators with CodegenSupport>> for which <<supportCodegen, whole-stage codegen requirements hold>>.
 
 [[conf]]
 `CollapseCodegenStages` takes a link:spark-sql-SQLConf.adoc[SQLConf] when created.
@@ -33,20 +33,39 @@ TIP: Import `CollapseCodegenStages` and apply the rule directly to a physical pl
 
 [source, scala]
 ----
+scala> spark.version
+res0: String = 2.3.0-SNAPSHOT
+
 import org.apache.spark.sql.SparkSession
 val spark: SparkSession = ...
-val query = spark.range(2).join(spark.range(2), "id")
+// Just a structured query with explode Generator expression that supports codegen "partially"
+// i.e. explode extends CodegenSupport but codegenSupport flag is off
+val q = spark.range(2)
+  .filter($"id" === 0)
+  .select(explode(lit(Array(0,1,2))) as "exploded")
+  .join(spark.range(2))
+  .where($"exploded" === $"id")
+scala> q.show
++--------+---+
+|exploded| id|
++--------+---+
+|       0|  0|
+|       1|  1|
++--------+---+
 
-// the final result (after CollapseCodegenStages among other rules)
-scala> query.explain
+// the final physical plan (after CollapseCodegenStages among other rules)
+scala> q.explain
 == Physical Plan ==
-*Project [id#9L]
-+- *BroadcastHashJoin [id#9L], [id#12L], Inner, BuildRight
-   :- *Range (0, 2, step=1, splits=8)
-   +- BroadcastExchange HashedRelationBroadcastMode(List(input[0, bigint, false]))
-      +- *Range (0, 2, step=1, splits=8)
+*BroadcastHashJoin [cast(exploded#19 as bigint)], [id#22L], Inner, BuildRight
+:- *Filter isnotnull(exploded#19)
+:  +- Generate explode([0,1,2]), false, false, [exploded#19]
+:     +- *Project
+:        +- *Filter (id#14L = 0)
+:           +- *Range (0, 2, step=1, splits=8)
++- BroadcastExchange HashedRelationBroadcastMode(List(input[0, bigint, false]))
+   +- *Range (0, 2, step=1, splits=8)
 
-val plan = query.queryExecution.sparkPlan
+val plan = q.queryExecution.sparkPlan
 
 // wholeStageEnabled is enabled
 scala> println(spark.sessionState.conf.wholeStageEnabled)
@@ -60,33 +79,45 @@ res0: String = org.apache.spark.sql.execution.CollapseCodegenStages
 
 // Before CollapseCodegenStages
 scala> println(plan.numberedTreeString)
-00 Project [id#9L]
-01 +- BroadcastHashJoin [id#9L], [id#12L], Inner, BuildRight
-02    :- Range (0, 2, step=1, splits=8)
-03    +- Range (0, 2, step=1, splits=8)
+00 BroadcastHashJoin [cast(exploded#19 as bigint)], [id#22L], Inner, BuildRight
+01 :- Filter isnotnull(exploded#19)
+02 :  +- Generate explode([0,1,2]), false, false, [exploded#19]
+03 :     +- Project
+04 :        +- Filter (id#14L = 0)
+05 :           +- Range (0, 2, step=1, splits=8)
+06 +- Range (0, 2, step=1, splits=8)
 
 // After CollapseCodegenStages
-// Note the star
-val executedPlan = ccs.apply(plan)
-scala> println(executedPlan.numberedTreeString)
-00 *Project [id#9L]
-01 +- *BroadcastHashJoin [id#9L], [id#12L], Inner, BuildRight
-02    :- *Range (0, 2, step=1, splits=8)
-03    +- *Range (0, 2, step=1, splits=8)
+// Note the stars (that WholeStageCodegenExec.generateTreeString gives)
+val execPlan = ccs.apply(plan)
+scala> println(execPlan.numberedTreeString)
+00 *BroadcastHashJoin [cast(exploded#19 as bigint)], [id#22L], Inner, BuildRight
+01 :- *Filter isnotnull(exploded#19)
+02 :  +- Generate explode([0,1,2]), false, false, [exploded#19]
+03 :     +- *Project
+04 :        +- *Filter (id#14L = 0)
+05 :           +- *Range (0, 2, step=1, splits=8)
+06 +- *Range (0, 2, step=1, splits=8)
 
 import org.apache.spark.sql.execution.WholeStageCodegenExec
-val wsc = executedPlan(0).asInstanceOf[WholeStageCodegenExec]
+val wsc = execPlan(0).asInstanceOf[WholeStageCodegenExec]
 scala> println(wsc.numberedTreeString)
-00 *Project [id#9L]
-01 +- *BroadcastHashJoin [id#9L], [id#12L], Inner, BuildRight
-02    :- *Range (0, 2, step=1, splits=8)
-03    +- *Range (0, 2, step=1, splits=8)
+00 *BroadcastHashJoin [cast(exploded#19 as bigint)], [id#22L], Inner, BuildRight
+01 :- *Filter isnotnull(exploded#19)
+02 :  +- Generate explode([0,1,2]), false, false, [exploded#19]
+03 :     +- *Project
+04 :        +- *Filter (id#14L = 0)
+05 :           +- *Range (0, 2, step=1, splits=8)
+06 +- *Range (0, 2, step=1, splits=8)
 
 scala> println(wsc.child.numberedTreeString)
-00 Project [id#9L]
-01 +- BroadcastHashJoin [id#9L], [id#12L], Inner, BuildRight
-02    :- Range (0, 2, step=1, splits=8)
-03    +- Range (0, 2, step=1, splits=8)
+00 BroadcastHashJoin [cast(exploded#19 as bigint)], [id#22L], Inner, BuildRight
+01 :- Filter isnotnull(exploded#19)
+02 :  +- Generate explode([0,1,2]), false, false, [exploded#19]
+03 :     +- *Project
+04 :        +- *Filter (id#14L = 0)
+05 :           +- *Range (0, 2, step=1, splits=8)
+06 +- Range (0, 2, step=1, splits=8)
 
 // Let's disable wholeStage codegen
 // CollapseCodegenStages becomes a noop
@@ -99,14 +130,19 @@ scala> println(newSpark.sessionState.conf.wholeStageEnabled)
 false
 
 val ccsWholeStageDisabled = CollapseCodegenStages(conf = newSpark.sessionState.conf)
-scala> println(ccsWholeStageDisabled.apply(plan).numberedTreeString)
-00 Project [id#9L]
-01 +- BroadcastHashJoin [id#9L], [id#12L], Inner, BuildRight
-02    :- Range (0, 2, step=1, splits=8)
-03    +- Range (0, 2, step=1, splits=8)
+val execPlan = ccsWholeStageDisabled.apply(plan)
+// Note no stars in the output (that InputAdapter.generateTreeString removes)
+scala> println(execPlan.numberedTreeString)
+00 BroadcastHashJoin [cast(exploded#19 as bigint)], [id#22L], Inner, BuildRight
+01 :- Filter isnotnull(exploded#19)
+02 :  +- Generate explode([0,1,2]), false, false, [exploded#19]
+03 :     +- Project
+04 :        +- Filter (id#14L = 0)
+05 :           +- Range (0, 2, step=1, splits=8)
+06 +- Range (0, 2, step=1, splits=8)
 ----
 
-=== [[apply]] Inserting WholeStageCodegenExec to Physical Plan for Operators with CodeGen Support -- `apply` Method
+=== [[apply]] Inserting WholeStageCodegenExec or InputAdapter to Physical Query Plan for Whole-Stage Java Code Generation -- `apply` Method
 
 [source, scala]
 ----
@@ -150,27 +186,37 @@ res1: Boolean = true
 ----
 ====
 
-=== [[insertWholeStageCodegen]] Inserting WholeStageCodegenExec (with InputAdapter) for Physical Operators with Codegen Support -- `insertWholeStageCodegen` Internal Method
+=== [[insertWholeStageCodegen]] Inserting WholeStageCodegenExec (with optional InputAdapter) for Physical Operators with Whole-Stage Java Code Generation Support -- `insertWholeStageCodegen` Internal Method
 
 [source, scala]
 ----
 insertWholeStageCodegen(plan: SparkPlan): SparkPlan
 ----
 
-`insertWholeStageCodegen` is the main recursive method of `CollapseCodegenStages` that (walks down the `plan` tree and) finds link:spark-sql-CodegenSupport.adoc[physical operators with optional Java code generation] for which <<supportCodegen, Java code can really be generated>> and inserts link:spark-sql-SparkPlan-WholeStageCodegenExec.adoc[WholeStageCodegenExec] operator (with <<insertInputAdapter, InputAdapter>>) for them.
+`insertWholeStageCodegen` is the <<apply, main>> method that `CollapseCodegenStages` applies to the input physical `plan` recursively while walking down the `plan` tree and inserting link:spark-sql-SparkPlan-WholeStageCodegenExec.adoc[WholeStageCodegenExec] physical operator.
 
-NOTE: `insertWholeStageCodegen` skips physical operators with link:spark-sql-catalyst-QueryPlan.adoc#output[output] with just a single `ObjectType` value (regardless of their support for codegen).
+`insertWholeStageCodegen` adds link:spark-sql-SparkPlan-WholeStageCodegenExec.adoc[WholeStageCodegenExec] physical operator into the input `plan` if the root physical operator supports link:spark-sql-CodegenSupport.adoc[Java code generation] and meets all of the <<supportCodegen, whole-stage codegen requirements>>.
 
-NOTE: `insertWholeStageCodegen` is used recursively by itself and <<insertInputAdapter, insertInputAdapter>>, but more importantly when `CollapseCodegenStages` <<apply, runs>>.
+[[insertWholeStageCodegen-ObjectType]]
+NOTE: `insertWholeStageCodegen` skips physical operators with link:spark-sql-catalyst-QueryPlan.adoc#output[output schema] with a single expression of `ObjectType` type and tries to insert `WholeStageCodegenExec` physical operator to its link:spark-sql-catalyst-TreeNode.adoc#children[children].
 
-=== [[insertInputAdapter]] Inserting InputAdapter Unary Operator -- `insertInputAdapter` Internal Method
+[NOTE]
+====
+`insertWholeStageCodegen` is used recursively when `CollapseCodegenStages`:
+
+1. <<apply, Executes>> (and walks down a physical plan)
+
+1. <<insertInputAdapter, Inserts InputAdapter physical operator>>
+====
+
+=== [[insertInputAdapter]] Inserting InputAdapter Unary Physical Operator -- `insertInputAdapter` Internal Method
 
 [source, scala]
 ----
 insertInputAdapter(plan: SparkPlan): SparkPlan
 ----
 
-`insertInputAdapter` inserts an link:spark-sql-SparkPlan-InputAdapter.adoc[InputAdapter] unary operator in a physical plan.
+`insertInputAdapter` inserts an link:spark-sql-SparkPlan-InputAdapter.adoc[InputAdapter] physical operator in a physical plan.
 
 * For link:spark-sql-SparkPlan-SortMergeJoinExec.adoc[SortMergeJoinExec] (with inner and outer joins) <<insertWholeStageCodegen, inserts an InputAdapter operator>> for both children physical operators individually
 
@@ -180,36 +226,63 @@ insertInputAdapter(plan: SparkPlan): SparkPlan
 
 CAUTION: FIXME Examples for every case + screenshots from web UI
 
-NOTE: `insertInputAdapter` is used in <<insertWholeStageCodegen, insertWholeStageCodegen>> and recursively.
+NOTE: `insertInputAdapter` is used exclusively when `CollapseCodegenStages` <<insertWholeStageCodegen, inserts WholeStageCodegenExec physical operator>> and recursively down the physical plan.
 
-=== [[supportCodegen]][[supportCodegen-SparkPlan]] Physical Operators with Codegen Support -- `supportCodegen` Internal Predicate
+=== [[supportCodegen]][[supportCodegen-SparkPlan]] Checking Whether Physical Operator Supports Whole-Stage Java Code Generation (aka Whole-Stage CodeGen Requirements) -- `supportCodegen` Internal Predicate
 
 [source, scala]
 ----
 supportCodegen(plan: SparkPlan): Boolean
 ----
 
-`supportCodegen` finds link:spark-sql-SparkPlan.adoc[physical operators] with link:spark-sql-CodegenSupport.adoc[CodegenSupport] and link:spark-sql-CodegenSupport.adoc#supportCodegen[supportCodegen] flag enabled.
+`supportCodegen` is positive when all of the following conditions hold:
+
+1. The input link:spark-sql-SparkPlan.adoc[physical plan] supports link:spark-sql-CodegenSupport.adoc[Java code generation] and has link:spark-sql-CodegenSupport.adoc#supportCodegen[supportCodegen] flag turned on.
++
+NOTE: link:spark-sql-CodegenSupport.adoc#supportCodegen[supportCodegen] flag is turned on by default.
+
+1. All link:spark-sql-catalyst-QueryPlan.adoc#expressions[expressions] of the input physical `plan` are link:spark-sql-Expression.adoc#LeafExpression[leaf] or are not link:spark-sql-Expression.adoc#CodegenFallback[CodegenFallback].
+
+1. The number of fields in the schema of the input physical `plan` is less than link:spark-sql-SQLConf.adoc#spark.sql.codegen.maxFields[spark.sql.codegen.maxFields] Spark internal property.
++
+NOTE: link:spark-sql-SQLConf.adoc#spark.sql.codegen.maxFields[spark.sql.codegen.maxFields] Spark internal property defaults to `100`.
+
+1. The number of fields in the schema of every link:spark-sql-catalyst-TreeNode.adoc#children[child physical operator] of the input physical `plan` is less than link:spark-sql-SQLConf.adoc#spark.sql.codegen.maxFields[spark.sql.codegen.maxFields] Spark internal property.
++
+NOTE: link:spark-sql-SQLConf.adoc#spark.sql.codegen.maxFields[spark.sql.codegen.maxFields] Spark internal property defaults to `100`.
+
+Otherwise, `supportCodegen` is negative/disabled.
 
 [source, scala]
 ----
 import org.apache.spark.sql.SparkSession
 val spark: SparkSession = ...
-// both where and select support codegen
-val query = spark.range(2).where('id === 0).select('id)
-scala> query.explain
+// both where and select operators support codegen
+// the plan tree (with the operators and expressions) meets the requirements
+// That's why the plan has WholeStageCodegenExec inserted
+// That you can see as stars (*) in the output of explain
+val q = Seq((1,2,3)).toDF("id", "c0", "c1").where('id === 0).select('c0)
+scala> q.explain
 == Physical Plan ==
-*Filter (id#88L = 0)
-+- *Range (0, 2, step=1, splits=8)
+*Project [_2#89 AS c0#93]
++- *Filter (_1#88 = 0)
+   +- LocalTableScan [_1#88, _2#89, _3#90]
+
+// CollapseCodegenStages is only used in QueryExecution.executedPlan
+// Use sparkPlan then so we avoid CollapseCodegenStages
+val plan = q.queryExecution.sparkPlan
+import org.apache.spark.sql.execution.ProjectExec
+val pe = plan.asInstanceOf[ProjectExec]
+
+scala> pe.supportCodegen
+res1: Boolean = true
+
+scala> pe.schema.fields.size
+res2: Int = 1
+
+scala> pe.children.map(_.schema).map(_.size).sum
+res3: Int = 3
 ----
-
-`supportCodegen` is positive when all of the following hold:
-
-* link:spark-sql-Expression.adoc[Catalyst expressions] of the physical operator all <<supportCodegen-Expression, support codegen>>
-* Number of nested fields of the link:spark-sql-catalyst-QueryPlan.adoc#schema[schema of the physical operator] is up to link:spark-sql-SQLConf.adoc#spark.sql.codegen.maxFields[spark.sql.codegen.maxFields] internal property (100 by default)
-* Number of the nested fields in the schema of the children is up to `spark.sql.codegen.maxFields` (same as above)
-
-Otherwise, `supportCodegen` is negative/disabled.
 
 [source, scala]
 ----
@@ -225,13 +298,26 @@ scala> println(newSpark.sessionState.conf.wholeStageMaxNumFields)
 2
 
 import newSpark.implicits._
-val query = Seq((1,2,3)).toDF("id", "c0", "c1").where('id === 0)
-scala> query.explain
+// the same query as above but created in SparkSession with WHOLESTAGE_MAX_NUM_FIELDS as 2
+val q = Seq((1,2,3)).toDF("id", "c0", "c1").where('id === 0).select('c0)
+
+// Note that there are no stars in the output of explain
+// No WholeStageCodegenExec operator in the plan => whole-stage codegen disabled
+scala> q.explain
 == Physical Plan ==
-Project [_1#452 AS id#456, _2#453 AS c0#457, _3#454 AS c1#458]
-+- Filter (_1#452 = 0)
-   +- LocalTableScan [_1#452, _2#453, _3#454]
+Project [_2#122 AS c0#126]
++- Filter (_1#121 = 0)
+   +- LocalTableScan [_1#121, _2#122, _3#123]
 ----
+
+[NOTE]
+====
+`supportCodegen` is used when `CollapseCodegenStages` does the following:
+
+1. <<insertInputAdapter, Inserts InputAdapter physical operator>> for physical plans that do not support whole-stage Java code generation (i.e. `supportCodegen` is turned off).
+
+1. <<insertWholeStageCodegen, Inserts WholeStageCodegenExec physical operator>> for physical operators that do support whole-stage Java code generation (i.e. `supportCodegen` is turned on).
+====
 
 === [[supportCodegen-Expression]] Expressions with Codegen Support -- `supportCodegen` Internal Predicate
 
