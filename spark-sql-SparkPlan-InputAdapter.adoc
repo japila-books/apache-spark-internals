@@ -1,15 +1,15 @@
 == [[InputAdapter]] InputAdapter Unary Physical Operator
 
-`InputAdapter` is a link:spark-sql-SparkPlan.adoc#UnaryExecNode[unary physical operator] (i.e. with one <<child, child>> physical operator) that is an adapter for the single child operator that does not support link:spark-sql-CodegenSupport.adoc[whole-stage Java code generation directly] (and has link:spark-sql-CodegenSupport.adoc#supportCodegen[supportCodegen] flag turned off) but participates in such code generation for a structured query.
+`InputAdapter` is a link:spark-sql-SparkPlan.adoc#UnaryExecNode[unary physical operator] that is an adapter for the <<child, child>> physical operator that does not meet the requirements for link:spark-sql-CodegenSupport.adoc[whole-stage Java code generation] (possibly due to link:spark-sql-CodegenSupport.adoc#supportCodegen[supportCodegen] flag turned off) but is in-between operators that participate in whole-stage Java code generation for a structured query.
 
-`InputAdapter` is created exclusively when `CollapseCodegenStages` link:spark-sql-CollapseCodegenStages.adoc#insertInputAdapter[inserts a WholeStageCodegenExec operator] into a physical plan.
+`InputAdapter` is created exclusively when `CollapseCodegenStages` link:spark-sql-CollapseCodegenStages.adoc#insertInputAdapter[inserts] one into a physical plan with whole-stage Java code generation.
 
 [[generateTreeString]]
 `InputAdapter` removes the star from a stringified tree representation of a physical plan (that link:spark-sql-SparkPlan-WholeStageCodegenExec.adoc[WholeStageCodegenExec] adds), e.g. for link:spark-sql-dataset-operators.adoc#explain[explain] operator.
 
 [source, scala]
 ----
-// explode (that uses Generate operator) does not support codegen
+// explode expression (that uses Generate operator) does not support codegen
 val ids = Seq(Seq(0,1,2,3)).toDF("ids").select(explode($"ids") as "id")
 val query = spark.range(1).join(ids, "id")
 scala> query.explain
@@ -29,10 +29,46 @@ scala> query.explain
 doProduce(ctx: CodegenContext): String
 ----
 
-NOTE: `doProduce` is a part of link:spark-sql-CodegenSupport.adoc#doProduce[CodegenSupport Contract] to generate a Java source code for...FIXME
+NOTE: `doProduce` is a part of link:spark-sql-CodegenSupport.adoc#doProduce[CodegenSupport Contract] to generate the Java source code for...FIXME
 
 `doProduce` generates a Java source code that consumes link:spark-sql-InternalRow.adoc[internal row] of a single input `RDD` one at a time (in a `while` loop).
 
 NOTE: `doProduce` supports one input RDD only (that the single child generates when link:spark-sql-SparkPlan.adoc#execute[executed]).
 
-Internally, `doProduce` generates two terms `input` and `row` and uses the code from link:spark-sql-CodegenSupport.adoc#consume[consume] code generator.
+Internally, `doProduce` generates two `input` and `row` terms and uses the code from link:spark-sql-CodegenSupport.adoc#consume[consume] code generator.
+
+[source, scala]
+----
+val q = spark.range(1)
+  .select(explode(lit((0 to 1).toArray)) as "n")  // <-- explode expression does not support codegen
+  .join(spark.range(2))
+  .where($"n" === $"id")
+scala> q.explain
+== Physical Plan ==
+*BroadcastHashJoin [cast(n#4 as bigint)], [id#7L], Inner, BuildRight
+:- *Filter isnotnull(n#4)
+:  +- Generate explode([0,1]), false, false, [n#4]
+:     +- *Project
+:        +- *Range (0, 1, step=1, splits=8)
++- BroadcastExchange HashedRelationBroadcastMode(List(input[0, bigint, false]))
+   +- *Range (0, 2, step=1, splits=8)
+
+val plan = q.queryExecution.executedPlan
+import org.apache.spark.sql.execution.InputAdapter
+// there are two InputAdapters so get is safe
+val adapter = plan.collectFirst { case a: InputAdapter => a }.get
+
+import org.apache.spark.sql.execution.CodegenSupport
+val code = adapter.produce(ctx, plan.asInstanceOf[CodegenSupport])
+scala> println(code)
+
+/*inputadapter_c5*/
+
+ while (inputadapter_input2.hasNext() && !stopEarly()) {
+   InternalRow inputadapter_row2 = (InternalRow) inputadapter_input2.next();
+   /*wholestagecodegen_c1*/
+
+append(inputadapter_row2);
+   if (shouldStop()) return;
+ }
+----
