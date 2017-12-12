@@ -1,6 +1,27 @@
 == [[CollapseCodegenStages]] CollapseCodegenStages Physical Preparation Rule -- Collapsing Physical Operators for Whole-Stage Java Code Generation (aka Whole-Stage CodeGen)
 
-`CollapseCodegenStages` is a link:spark-sql-QueryExecution-SparkPlan-Preparations.adoc[physical preparation rule] that `QueryExecution` link:spark-sql-QueryExecution.adoc#preparations[uses] to <<apply, collapse physical operators together for Java code generation>>.
+`CollapseCodegenStages` is a link:spark-sql-QueryExecution-SparkPlan-Preparations.adoc[physical preparation rule] that `QueryExecution` link:spark-sql-QueryExecution.adoc#preparations[uses] to optimize the physical plan of a structured query by <<apply, collapsing chained physical operators together and generate Java code for execution>>.
+
+With link:spark-sql-SQLConf.adoc#spark.sql.codegen.wholeStage[spark.sql.codegen.wholeStage] Spark internal property enabled (which is on by default), `CollapseCodegenStages` <<insertWholeStageCodegen, finds physical operators with CodegenSupport>> for which <<supportCodegen, whole-stage codegen requirements hold>> and collapses them together as `WholeStageCodegenExec` physical operator (possibly with link:spark-sql-SparkPlan-InputAdapter.adoc[InputAdapter] in-between for physical operators with no support for Java code generation).
+
+[NOTE]
+====
+`InputAdapter` link:spark-sql-SparkPlan-InputAdapter.adoc#generateTreeString[shows itself with no star in the output] of link:spark-sql-dataset-operators.adoc#explain[explain] (or link:spark-sql-catalyst-TreeNode.adoc#numberedTreeString[TreeNode.numberedTreeString]).
+
+[source, scala]
+----
+val q = spark.range(1).groupBy("id").count
+scala> q.explain
+== Physical Plan ==
+*HashAggregate(keys=[id#16L], functions=[count(1)])
++- Exchange hashpartitioning(id#16L, 200)
+   +- *HashAggregate(keys=[id#16L], functions=[partial_count(1)])
+      +- *Range (0, 1, step=1, splits=8)
+----
+====
+
+[[conf]]
+`CollapseCodegenStages` takes a link:spark-sql-SQLConf.adoc[SQLConf] when created.
 
 [NOTE]
 ====
@@ -23,11 +44,6 @@ scala> spark.sessionState.conf.wholeStageEnabled
 res1: Boolean = true
 ----
 ====
-
-`CollapseCodegenStages` considers <<insertWholeStageCodegen, physical operators with CodegenSupport>> for which <<supportCodegen, whole-stage codegen requirements hold>>.
-
-[[conf]]
-`CollapseCodegenStages` takes a link:spark-sql-SQLConf.adoc[SQLConf] when created.
 
 TIP: Import `CollapseCodegenStages` and apply the rule directly to a physical plan to learn how the rule works.
 
@@ -53,21 +69,24 @@ scala> q.show
 |       1|  1|
 +--------+---+
 
-// the final physical plan (after CollapseCodegenStages among other rules)
+// the final physical plan (after CollapseCodegenStages applied and the other optimization rules)
 scala> q.explain
 == Physical Plan ==
-*BroadcastHashJoin [cast(exploded#19 as bigint)], [id#22L], Inner, BuildRight
-:- *Filter isnotnull(exploded#19)
-:  +- Generate explode([0,1,2]), false, false, [exploded#19]
+*BroadcastHashJoin [cast(exploded#34 as bigint)], [id#37L], Inner, BuildRight
+:- *Filter isnotnull(exploded#34)
+:  +- Generate explode([0,1,2]), false, false, [exploded#34]
 :     +- *Project
-:        +- *Filter (id#14L = 0)
+:        +- *Filter (id#29L = 0)
 :           +- *Range (0, 2, step=1, splits=8)
 +- BroadcastExchange HashedRelationBroadcastMode(List(input[0, bigint, false]))
    +- *Range (0, 2, step=1, splits=8)
 
+// Control when CollapseCodegenStages is applied to a query plan
+// Take sparkPlan that is a physical plan before optimizations, incl. CollapseCodegenStages
 val plan = q.queryExecution.sparkPlan
 
-// wholeStageEnabled is enabled
+// Is wholeStageEnabled enabled?
+// It is by default
 scala> println(spark.sessionState.conf.wholeStageEnabled)
 true
 
@@ -79,11 +98,11 @@ res0: String = org.apache.spark.sql.execution.CollapseCodegenStages
 
 // Before CollapseCodegenStages
 scala> println(plan.numberedTreeString)
-00 BroadcastHashJoin [cast(exploded#19 as bigint)], [id#22L], Inner, BuildRight
-01 :- Filter isnotnull(exploded#19)
-02 :  +- Generate explode([0,1,2]), false, false, [exploded#19]
+00 BroadcastHashJoin [cast(exploded#34 as bigint)], [id#37L], Inner, BuildRight
+01 :- Filter isnotnull(exploded#34)
+02 :  +- Generate explode([0,1,2]), false, false, [exploded#34]
 03 :     +- Project
-04 :        +- Filter (id#14L = 0)
+04 :        +- Filter (id#29L = 0)
 05 :           +- Range (0, 2, step=1, splits=8)
 06 +- Range (0, 2, step=1, splits=8)
 
@@ -91,100 +110,62 @@ scala> println(plan.numberedTreeString)
 // Note the stars (that WholeStageCodegenExec.generateTreeString gives)
 val execPlan = ccs.apply(plan)
 scala> println(execPlan.numberedTreeString)
-00 *BroadcastHashJoin [cast(exploded#19 as bigint)], [id#22L], Inner, BuildRight
-01 :- *Filter isnotnull(exploded#19)
-02 :  +- Generate explode([0,1,2]), false, false, [exploded#19]
+00 *BroadcastHashJoin [cast(exploded#34 as bigint)], [id#37L], Inner, BuildRight
+01 :- *Filter isnotnull(exploded#34)
+02 :  +- Generate explode([0,1,2]), false, false, [exploded#34]
 03 :     +- *Project
-04 :        +- *Filter (id#14L = 0)
+04 :        +- *Filter (id#29L = 0)
 05 :           +- *Range (0, 2, step=1, splits=8)
 06 +- *Range (0, 2, step=1, splits=8)
 
+// The first star is from WholeStageCodegenExec physical operator
 import org.apache.spark.sql.execution.WholeStageCodegenExec
 val wsc = execPlan(0).asInstanceOf[WholeStageCodegenExec]
 scala> println(wsc.numberedTreeString)
-00 *BroadcastHashJoin [cast(exploded#19 as bigint)], [id#22L], Inner, BuildRight
-01 :- *Filter isnotnull(exploded#19)
-02 :  +- Generate explode([0,1,2]), false, false, [exploded#19]
+00 *BroadcastHashJoin [cast(exploded#34 as bigint)], [id#37L], Inner, BuildRight
+01 :- *Filter isnotnull(exploded#34)
+02 :  +- Generate explode([0,1,2]), false, false, [exploded#34]
 03 :     +- *Project
-04 :        +- *Filter (id#14L = 0)
+04 :        +- *Filter (id#29L = 0)
 05 :           +- *Range (0, 2, step=1, splits=8)
 06 +- *Range (0, 2, step=1, splits=8)
 
-scala> println(wsc.child.numberedTreeString)
-00 BroadcastHashJoin [cast(exploded#19 as bigint)], [id#22L], Inner, BuildRight
-01 :- Filter isnotnull(exploded#19)
-02 :  +- Generate explode([0,1,2]), false, false, [exploded#19]
-03 :     +- *Project
-04 :        +- *Filter (id#14L = 0)
-05 :           +- *Range (0, 2, step=1, splits=8)
-06 +- Range (0, 2, step=1, splits=8)
-
 // Let's disable wholeStage codegen
 // CollapseCodegenStages becomes a noop
-
+// It is as if we were not applied Spark optimizations to a physical plan
+// We're selective as we only disable whole-stage codegen
 val newSpark = spark.newSession()
 import org.apache.spark.sql.internal.SQLConf.WHOLESTAGE_CODEGEN_ENABLED
 newSpark.sessionState.conf.setConf(WHOLESTAGE_CODEGEN_ENABLED, false)
-
 scala> println(newSpark.sessionState.conf.wholeStageEnabled)
 false
 
+// Whole-stage codegen is disabled
+// So regardless whether you do apply Spark optimizations or not
+// Java code generation won't take place
 val ccsWholeStageDisabled = CollapseCodegenStages(conf = newSpark.sessionState.conf)
 val execPlan = ccsWholeStageDisabled.apply(plan)
-// Note no stars in the output (that InputAdapter.generateTreeString removes)
+// Note no stars in the output
 scala> println(execPlan.numberedTreeString)
-00 BroadcastHashJoin [cast(exploded#19 as bigint)], [id#22L], Inner, BuildRight
-01 :- Filter isnotnull(exploded#19)
-02 :  +- Generate explode([0,1,2]), false, false, [exploded#19]
+00 BroadcastHashJoin [cast(exploded#34 as bigint)], [id#37L], Inner, BuildRight
+01 :- Filter isnotnull(exploded#34)
+02 :  +- Generate explode([0,1,2]), false, false, [exploded#34]
 03 :     +- Project
-04 :        +- Filter (id#14L = 0)
+04 :        +- Filter (id#29L = 0)
 05 :           +- Range (0, 2, step=1, splits=8)
 06 +- Range (0, 2, step=1, splits=8)
 ----
 
-=== [[apply]] Inserting WholeStageCodegenExec or InputAdapter to Physical Query Plan for Whole-Stage Java Code Generation -- `apply` Method
+=== [[apply]] Inserting WholeStageCodegenExec or InputAdapter into Physical Query Plan for Whole-Stage Java Code Generation -- `apply` Method
 
 [source, scala]
 ----
 apply(plan: SparkPlan): SparkPlan
 ----
 
-`apply` starts <<insertWholeStageCodegen, inserting WholeStageCodegenExec (with InputAdapter)>> in the input `plan` physical plan only when link:spark-sql-SQLConf.adoc#spark.sql.codegen.wholeStage[spark.sql.codegen.wholeStage] internal property is enabled. Otherwise, it does nothing at all (i.e. passes the input physical plan through unchanged).
+`apply` starts <<insertWholeStageCodegen, inserting WholeStageCodegenExec (with InputAdapter)>> in the input `plan` physical plan only when link:spark-sql-SQLConf.adoc#spark.sql.codegen.wholeStage[spark.sql.codegen.wholeStage] Spark internal property is turned on.
 
-[NOTE]
-====
-Input Adapters show themselves with no star in link:spark-sql-dataset-operators.adoc[explain].
-
-[source, scala]
-----
-scala> spark.range(1).groupBy("id").count.explain
-== Physical Plan ==
-*HashAggregate(keys=[id#31L], functions=[count(1)])
-+- Exchange hashpartitioning(id#31L, 200) // <-- no star here
-   +- *HashAggregate(keys=[id#31L], functions=[partial_count(1)])
-      +- *Range (0, 1, step=1, splits=8)
-----
-====
-
-[NOTE]
-====
-link:spark-sql-SQLConf.adoc#spark.sql.codegen.wholeStage[spark.sql.codegen.wholeStage] property is enabled by default.
-
-[source, scala]
-----
-import org.apache.spark.sql.internal.SQLConf.WHOLESTAGE_CODEGEN_ENABLED
-scala> spark.conf.get(WHOLESTAGE_CODEGEN_ENABLED)
-res0: String = true
-----
-
-Use link:spark-sql-SQLConf.adoc#wholeStageEnabled[SQLConf.wholeStageEnabled] method to access the current value.
-
-[source, scala]
-----
-scala> spark.sessionState.conf.wholeStageEnabled
-res1: Boolean = true
-----
-====
+Otherwise, `apply` does nothing at all (i.e. passes the input physical plan through unchanged).
 
 === [[insertWholeStageCodegen]] Inserting WholeStageCodegenExec (with optional InputAdapter) for Physical Operators with Whole-Stage Java Code Generation Support -- `insertWholeStageCodegen` Internal Method
 

@@ -1,16 +1,49 @@
 == Whole-Stage Java Code Generation (aka Whole-Stage CodeGen)
 
-NOTE: Review https://issues.apache.org/jira/browse/SPARK-12795[SPARK-12795 Whole stage codegen] to learn about the work to support it.
+*Whole-Stage Java Code Generation* (aka _Whole-Stage CodeGen_) fuses multiple operators (as a subtree of plans that link:spark-sql-CodegenSupport.adoc[support code generation]) together into a single Java function that is aimed at improving execution performance. It collapses a query into a single optimized function that eliminates virtual function calls and leverages CPU registers for intermediate data.
 
-*Whole-Stage Code Generation* (aka _Whole-Stage CodeGen_) fuses multiple operators (as a subtree of plans that link:spark-sql-CodegenSupport.adoc[support code generation]) together into a single Java function that is aimed at improving execution performance. It collapses a query into a single optimized function that eliminates virtual function calls and leverages CPU registers for intermediate data.
+[NOTE]
+====
+Whole-Stage Code Generation is controlled by link:spark-sql-SQLConf.adoc#spark.sql.codegen.wholeStage[spark.sql.codegen.wholeStage] Spark internal property.
 
-NOTE: Whole-Stage Code Generation is enabled by default (using link:spark-sql-SQLConf.adoc#spark.sql.codegen.wholeStage[spark.sql.codegen.wholeStage] property).
+Whole-Stage Code Generation is enabled by default.
 
-NOTE: Whole stage codegen is used by some modern massively parallel processing (MPP) databases to archive great performance. See http://www.vldb.org/pvldb/vol4/p539-neumann.pdf[Efficiently Compiling Efficient Query Plans for Modern Hardware (PDF)].
+[source, scala]
+----
+import org.apache.spark.sql.internal.SQLConf.WHOLESTAGE_CODEGEN_ENABLED
+scala> spark.conf.get(WHOLESTAGE_CODEGEN_ENABLED)
+res0: String = true
+----
 
-NOTE: Janino is used to compile a Java source code into a Java class.
+Use link:spark-sql-SQLConf.adoc#wholeStageEnabled[SQLConf.wholeStageEnabled] method to access the current value.
 
-Before a query is executed, link:spark-sql-CollapseCodegenStages.adoc[CollapseCodegenStages] physical preparation rule is used to find the plans that support codegen and collapse them together as `WholeStageCodegen`. It is part of the sequence of rules link:spark-sql-QueryExecution.adoc#preparations[QueryExecution.preparations] that will be applied in order to the physical plan before execution.
+[source, scala]
+----
+scala> spark.sessionState.conf.wholeStageEnabled
+res1: Boolean = true
+----
+====
+
+NOTE: Whole-Stage Code Generation is used by some modern massively parallel processing (MPP) databases to archive great performance. See http://www.vldb.org/pvldb/vol4/p539-neumann.pdf[Efficiently Compiling Efficient Query Plans for Modern Hardware (PDF)].
+
+NOTE: Janino is used to compile a Java source code into a Java class at runtime.
+
+[[CollapseCodegenStages]]
+Before a query is executed, link:spark-sql-CollapseCodegenStages.adoc[CollapseCodegenStages] physical preparation rule finds the physical query plans that support codegen and collapses them together as `WholeStageCodegen` (possibly with link:spark-sql-SparkPlan-InputAdapter.adoc[InputAdapter] in-between for physical operators with no support for Java code generation).
+
+NOTE: `CollapseCodegenStages` is part of the sequence of physical preparation rules link:spark-sql-QueryExecution.adoc#preparations[QueryExecution.preparations] that will be applied in order to the physical plan before execution.
+
+There are the following code generation paths (as coined in [this commit](https://github.com/apache/spark/commit/70221903f54eaa0514d5d189dfb6f175a62228a8)):
+
+1. Non-whole-stage-codegen path
+
+[[produce-path]]
+1. Whole-stage-codegen "produce" path
+
+[[consume-path]]
+1. Whole-stage-codegen "consume" path
+
+TIP: Review https://issues.apache.org/jira/browse/SPARK-12795[SPARK-12795 Whole stage codegen] to learn about the work to support it.
 
 === [[BenchmarkWholeStageCodegen]] BenchmarkWholeStageCodegen -- Performance Benchmark
 
