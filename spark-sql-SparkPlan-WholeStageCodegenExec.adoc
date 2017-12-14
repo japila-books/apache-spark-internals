@@ -19,6 +19,24 @@ val q = spark.range(9)
 val plan = q.queryExecution.executedPlan
 scala> println(plan.numberedTreeString)
 00 *Range (0, 9, step=1, splits=8)
+
+import org.apache.spark.sql.execution.WholeStageCodegenExec
+// the top-level operator is exactly WholeStageCodegenExec
+val wsce = plan.asInstanceOf[WholeStageCodegenExec]
+val (ctx, code) = wsce.doCodeGen
+
+import org.apache.spark.sql.catalyst.expressions.codegen.CodeFormatter
+scala> println(CodeFormatter.format(code))
+/* 001 */ public Object generate(Object[] references) {
+/* 002 */   return new GeneratedIterator(references);
+/* 003 */ }
+/* 004 */
+/* 005 */ /**
+ * Codegend pipeline for
+ * Range (0, 9, step=1, splits=8)
+ */
+/* 006 */ final class GeneratedIterator extends org.apache.spark.sql.execution.BufferedRowIterator {
+...
 ----
 
 [[metrics]]
@@ -75,17 +93,6 @@ log4j.logger.org.apache.spark.sql.execution.WholeStageCodegenExec=DEBUG
 Refer to link:spark-logging.adoc[Logging].
 ====
 
-=== [[doConsume]] `doConsume` Method
-
-[source, scala]
-----
-doConsume(ctx: CodegenContext, input: Seq[ExprCode], row: ExprCode): String
-----
-
-NOTE: `doConsume` is a part of link:spark-sql-CodegenSupport.adoc#doConsume[CodegenSupport Contract] to generate Java source code for...FIXME.
-
-`doConsume`...FIXME
-
 === [[doExecute]] Executing WholeStageCodegenExec -- `doExecute` Method
 
 [source, scala]
@@ -127,3 +134,34 @@ DEBUG WholeStageCodegenExec:
 ```
 
 NOTE: `doCodeGen` is used when `WholeStageCodegenExec` <<doExecute, doExecute>> (and for link:spark-sql-debugging-execution.adoc#debugCodegen[debugCodegen]).
+
+=== [[doConsume]] Generating Java Source Code for Whole-Stage Consume Path Code Generation -- `doConsume` Method
+
+[source, scala]
+----
+doConsume(ctx: CodegenContext, input: Seq[ExprCode], row: ExprCode): String
+----
+
+NOTE: `doConsume` is a part of link:spark-sql-CodegenSupport.adoc#doConsume[CodegenSupport Contract] to generate plain Java source code for link:spark-sql-whole-stage-codegen.adoc#consume-path[whole-stage "consume" path code generation].
+
+`doConsume` generates a Java source code that:
+
+1. Takes (from the input `row`) the code to evaluate a Catalyst expression on an input `InternalRow`
+1. Takes (from the input `row`) the term for a value of the result of the evaluation
+  * Adds `.copy()` to the term if <<needCopyResult, needCopyResult>> is turned on
+1. Wraps the term inside `append()` code block
+
+[source, scala]
+----
+import org.apache.spark.sql.catalyst.expressions.codegen.CodegenContext
+val ctx = new CodegenContext()
+
+import org.apache.spark.sql.catalyst.expressions.codegen.ExprCode
+val exprCode = ExprCode(code = "my_code", isNull = "false", value = "my_value")
+
+// wsce defined above, i.e at the top of the page
+val consumeCode = wsce.doConsume(ctx, input = Seq(), row = exprCode)
+scala> println(consumeCode)
+my_code
+append(my_value);
+----
