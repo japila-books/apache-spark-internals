@@ -1,30 +1,37 @@
-== [[WholeStageCodegenExec]] WholeStageCodegenExec Unary Operator with Java Code Generation
+== [[WholeStageCodegenExec]] WholeStageCodegenExec Unary Physical Operator for Java Code Generation
 
-`WholeStageCodegenExec` is a link:spark-sql-SparkPlan.adoc#UnaryExecNode[unary physical operator] (i.e. with one <<child, child>> physical operator) for a *codegened pipeline* of a physical query plan, i.e. a physical operator and its children.
+`WholeStageCodegenExec` is a link:spark-sql-SparkPlan.adoc#UnaryExecNode[unary physical operator] (i.e. with one <<child, child>> physical operator) that, together with link:spark-sql-SparkPlan-InputAdapter.adoc[InputAdapter], lays the foundation for link:spark-sql-whole-stage-codegen.adoc[Whole-Stage Java Code Generation] for a *codegened pipeline* of a physical query plan.
 
-`WholeStageCodegenExec` is created when link:spark-sql-CollapseCodegenStages.adoc[CollapseCodegenStages] physical preparation rule transforms a link:spark-sql-SparkPlan.adoc[physical plan] and link:spark-sql-SQLConf.adoc#spark.sql.codegen.wholeStage[spark.sql.codegen.wholeStage] is enabled.
+`WholeStageCodegenExec` is created when link:spark-sql-CollapseCodegenStages.adoc[CollapseCodegenStages] physical optimization rule transforms a link:spark-sql-SparkPlan.adoc[physical plan] and link:spark-sql-SQLConf.adoc#spark.sql.codegen.wholeStage[spark.sql.codegen.wholeStage] Spark SQL property is enabled.
 
 NOTE: link:spark-sql-SQLConf.adoc#spark.sql.codegen.wholeStage[spark.sql.codegen.wholeStage] property is enabled by default.
 
-`WholeStageCodegenExec` supports link:spark-sql-CodegenSupport.adoc[Java code generation] (aka _codegen_).
+`WholeStageCodegenExec` supports link:spark-sql-CodegenSupport.adoc[Java code generation] and marks a node in a query plan that, once <<doExecute, executed>>, triggers code generation.
 
 [[generateTreeString]]
 `WholeStageCodegenExec` is marked with `*` prefix in the tree output of a physical plan.
 
-NOTE: Use link:spark-sql-QueryExecution.adoc#executedPlan[executedPlan] phase of a query execution to see `WholeStageCodegenExec` in the plan.
+NOTE: As `WholeStageCodegenExec` is created as a result of `CollapseCodegenStages` optimization rule, you should use link:spark-sql-QueryExecution.adoc#executedPlan[executedPlan] phase of a query execution to have `WholeStageCodegenExec` in a plan (that you can only notice by the star prefix in plan output).
 
 [source, scala]
 ----
 val q = spark.range(9)
 val plan = q.queryExecution.executedPlan
+// Note the star prefix of Range that marks WholeStageCodegenExec
+// As a matter of fact, there are two physical operators in play here
+// i.e. WholeStageCodegenExec with Range as the child
 scala> println(plan.numberedTreeString)
 00 *Range (0, 9, step=1, splits=8)
 
+// Let's unwrap Range physical operator
+// and access the parent WholeStageCodegenExec
 import org.apache.spark.sql.execution.WholeStageCodegenExec
-// the top-level operator is exactly WholeStageCodegenExec
 val wsce = plan.asInstanceOf[WholeStageCodegenExec]
+
+// Trigger code generation of the entire query plan tree
 val (ctx, code) = wsce.doCodeGen
 
+// CodeFormatter can pretty-print the code
 import org.apache.spark.sql.catalyst.expressions.codegen.CodeFormatter
 scala> println(CodeFormatter.format(code))
 /* 001 */ public Object generate(Object[] references) {
@@ -39,6 +46,8 @@ scala> println(CodeFormatter.format(code))
 ...
 ----
 
+When <<doExecute, executed>>, `WholeStageCodegenExec` gives <<pipelineTime, pipelineTime>> performance metric.
+
 [[metrics]]
 .WholeStageCodegenExec's Performance Metrics
 [cols="1,2,2",options="header",width="100%"]
@@ -48,8 +57,8 @@ scala> println(CodeFormatter.format(code))
 | Description
 
 | [[pipelineTime]] `pipelineTime`
-| duration
-|
+| (empty)
+| Time of how long the whole-stage codegend pipeline has been running (i.e. the elapsed time since the underlying `BufferedRowIterator` had been created and the internal rows were all consumed).
 |===
 
 .WholeStageCodegenExec in web UI (Details for Query)
@@ -148,7 +157,7 @@ NOTE: `doConsume` is a part of link:spark-sql-CodegenSupport.adoc#doConsume[Code
 
 1. Takes (from the input `row`) the code to evaluate a Catalyst expression on an input `InternalRow`
 1. Takes (from the input `row`) the term for a value of the result of the evaluation
-  * Adds `.copy()` to the term if <<needCopyResult, needCopyResult>> is turned on
+  i. Adds `.copy()` to the term if <<needCopyResult, needCopyResult>> is turned on
 1. Wraps the term inside `append()` code block
 
 [source, scala]
