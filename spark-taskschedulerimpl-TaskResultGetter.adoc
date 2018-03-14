@@ -1,14 +1,14 @@
 == [[TaskResultGetter]] TaskResultGetter
 
-`TaskResultGetter` is a helper class of link:spark-taskschedulerimpl.adoc#statusUpdate[TaskSchedulerImpl] for _asynchronous_ deserialization of <<enqueueSuccessfulTask, task results of tasks that have finished successfully>> (possibly fetching remote blocks) or <<enqueueFailedTask, the failures for failed tasks>>.
+`TaskResultGetter` is a helper class of link:spark-TaskSchedulerImpl.adoc#statusUpdate[TaskSchedulerImpl] for _asynchronous_ deserialization of <<enqueueSuccessfulTask, task results of tasks that have finished successfully>> (possibly fetching remote blocks) or <<enqueueFailedTask, the failures for failed tasks>>.
 
 CAUTION: FIXME Image with the dependencies
 
 TIP: Consult link:spark-taskscheduler-tasks.adoc#states[Task States] in Tasks to learn about the different task states.
 
-NOTE: The only instance of `TaskResultGetter` is created while link:spark-taskschedulerimpl.adoc#creating-instance[`TaskSchedulerImpl` is created].
+NOTE: The only instance of `TaskResultGetter` is created while link:spark-TaskSchedulerImpl.adoc#creating-instance[`TaskSchedulerImpl` is created].
 
-`TaskResultGetter` requires a link:spark-sparkenv.adoc[SparkEnv] and link:spark-taskschedulerimpl.adoc[TaskSchedulerImpl] to be created and is stopped when link:spark-taskschedulerimpl.adoc#stop[`TaskSchedulerImpl` stops].
+`TaskResultGetter` requires a link:spark-sparkenv.adoc[SparkEnv] and link:spark-TaskSchedulerImpl.adoc[TaskSchedulerImpl] to be created and is stopped when link:spark-TaskSchedulerImpl.adoc#stop[`TaskSchedulerImpl` stops].
 
 `TaskResultGetter` uses <<task-result-getter, `task-result-getter` asynchronous task executor>> for operation.
 
@@ -81,7 +81,7 @@ enqueueSuccessfulTask(
   serializedData: ByteBuffer): Unit
 ----
 
-`enqueueSuccessfulTask` submits an asynchronous task (to <<getTaskResultExecutor, task-result-getter>> asynchronous task executor) that first deserializes `serializedData` to a `DirectTaskResult`, then updates the internal accumulator (with the size of the `DirectTaskResult`) and ultimately notifies the `TaskSchedulerImpl` that the `tid` task was completed and link:spark-taskschedulerimpl.adoc#handleSuccessfulTask[the task result was received successfully] or link:spark-taskschedulerimpl.adoc#handleFailedTask[not].
+`enqueueSuccessfulTask` submits an asynchronous task (to <<getTaskResultExecutor, task-result-getter>> asynchronous task executor) that first deserializes `serializedData` to a `DirectTaskResult`, then updates the internal accumulator (with the size of the `DirectTaskResult`) and ultimately notifies the `TaskSchedulerImpl` that the `tid` task was completed and link:spark-TaskSchedulerImpl.adoc#handleSuccessfulTask[the task result was received successfully] or link:spark-TaskSchedulerImpl.adoc#handleFailedTask[not].
 
 NOTE: `enqueueSuccessfulTask` is just the asynchronous task enqueued for execution by <<getTaskResultExecutor, task-result-getter>> asynchronous task executor at some point in the future.
 
@@ -103,17 +103,17 @@ Otherwise, when there _is_ enough memory to hold the task result, you should see
 DEBUG Fetching indirect task result for TID [tid]
 ```
 
-The task link:spark-taskschedulerimpl.adoc#handleTaskGettingResult[notifies `TaskSchedulerImpl` that it is about to fetch a remote block for a task result]. It then link:spark-blockmanager.adoc#getRemoteBytes[gets the block from remote block managers (as serialized bytes)].
+The task link:spark-TaskSchedulerImpl.adoc#handleTaskGettingResult[notifies `TaskSchedulerImpl` that it is about to fetch a remote block for a task result]. It then link:spark-blockmanager.adoc#getRemoteBytes[gets the block from remote block managers (as serialized bytes)].
 
-When the block could not be fetched, link:spark-taskschedulerimpl.adoc#handleFailedTask[`TaskSchedulerImpl` is informed] (with `TaskResultLost` task failure reason) and the task simply returns.
+When the block could not be fetched, link:spark-TaskSchedulerImpl.adoc#handleFailedTask[`TaskSchedulerImpl` is informed] (with `TaskResultLost` task failure reason) and the task simply returns.
 
-NOTE: `enqueueSuccessfulTask` is a mere thread so returning from a thread is to do nothing else and so the real handling is when link:spark-taskschedulerimpl.adoc#handleFailedTask[`TaskSchedulerImpl` is informed].
+NOTE: `enqueueSuccessfulTask` is a mere thread so returning from a thread is to do nothing else and so the real handling is when link:spark-TaskSchedulerImpl.adoc#handleFailedTask[`TaskSchedulerImpl` is informed].
 
 The task result (as a serialized byte buffer) is then deserialized to a link:spark-taskscheduler-TaskResult.adoc#DirectTaskResult[DirectTaskResult] (using the internal thread-local <<serializer, serializer>>) and deserialized again using the internal thread-local <<taskResultSerializer, taskResultSerializer>> (just like for the `DirectTaskResult` case). The  link:spark-BlockManagerMaster.adoc#removeBlock[block is removed from `BlockManagerMaster`] and simply returns.
 
 NOTE: A link:spark-taskscheduler-TaskResult.adoc#IndirectTaskResult[IndirectTaskResult] is deserialized twice to become the final deserialized task result (using <<serializer, serializer>> for a `DirectTaskResult`). Compare it to a `DirectTaskResult` task result that is deserialized once only.
 
-With no exceptions thrown, `enqueueSuccessfulTask` link:spark-taskschedulerimpl.adoc#handleSuccessfulTask[informs the `TaskSchedulerImpl` that the `tid` task was completed and the task result was received].
+With no exceptions thrown, `enqueueSuccessfulTask` link:spark-TaskSchedulerImpl.adoc#handleSuccessfulTask[informs the `TaskSchedulerImpl` that the `tid` task was completed and the task result was received].
 
 A `ClassNotFoundException` leads to link:spark-TaskSetManager.adoc#abort[aborting the `TaskSet`] (with `ClassNotFound with classloader: [loader]` error message) while any non-fatal exception shows the following ERROR message in the logs followed by link:spark-TaskSetManager.adoc#abort[aborting the `TaskSet`].
 
@@ -121,7 +121,7 @@ A `ClassNotFoundException` leads to link:spark-TaskSetManager.adoc#abort[abortin
 ERROR Exception while getting task result
 ```
 
-NOTE: `enqueueSuccessfulTask` is used exclusively when `TaskSchedulerImpl` is requested to  link:spark-taskschedulerimpl.adoc#statusUpdate[handle a task status update] (and the task has finished successfully).
+NOTE: `enqueueSuccessfulTask` is used exclusively when `TaskSchedulerImpl` is requested to  link:spark-TaskSchedulerImpl.adoc#statusUpdate[handle a task status update] (and the task has finished successfully).
 
 === [[enqueueFailedTask]] Deserializing TaskFailedReason and Notifying TaskSchedulerImpl -- `enqueueFailedTask` Method
 
@@ -134,7 +134,7 @@ enqueueFailedTask(
   serializedData: ByteBuffer): Unit
 ----
 
-`enqueueFailedTask` submits an asynchronous task (to <<getTaskResultExecutor, `task-result-getter` asynchronous task executor>>) that first attempts to deserialize a `TaskFailedReason` from `serializedData` (using the internal thread-local <<serializer, serializer>>) and then link:spark-taskschedulerimpl.adoc#handleFailedTask[notifies `TaskSchedulerImpl` that the task has failed].
+`enqueueFailedTask` submits an asynchronous task (to <<getTaskResultExecutor, `task-result-getter` asynchronous task executor>>) that first attempts to deserialize a `TaskFailedReason` from `serializedData` (using the internal thread-local <<serializer, serializer>>) and then link:spark-TaskSchedulerImpl.adoc#handleFailedTask[notifies `TaskSchedulerImpl` that the task has failed].
 
 Any `ClassNotFoundException` leads to the following ERROR message in the logs (without breaking the flow of `enqueueFailedTask`):
 
@@ -142,7 +142,7 @@ Any `ClassNotFoundException` leads to the following ERROR message in the logs (w
 ERROR Could not deserialize TaskEndReason: ClassNotFound with classloader [loader]
 ```
 
-NOTE: `enqueueFailedTask` is called when link:spark-taskschedulerimpl.adoc#statusUpdate[`TaskSchedulerImpl` is notified about a task that has failed (and is in `FAILED`, `KILLED` or `LOST` state)].
+NOTE: `enqueueFailedTask` is called when link:spark-TaskSchedulerImpl.adoc#statusUpdate[`TaskSchedulerImpl` is notified about a task that has failed (and is in `FAILED`, `KILLED` or `LOST` state)].
 
 === [[settings]] Settings
 
