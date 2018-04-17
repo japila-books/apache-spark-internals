@@ -1,13 +1,135 @@
 == [[Worker]] Standalone Worker
 
-*Standalone Worker* (aka _standalone slave_) is the worker in Spark Standalone cluster.
+*Standalone Worker* (aka _standalone slave_) is a logical node in a Spark Standalone cluster.
 
-You can have one or many standalone workers in a standalone cluster. They can be started and stopped using link:spark-standalone-worker-scripts.adoc[custom management scripts for standalone workers].
+[[ENDPOINT_NAME]]
+`Worker` is a link:spark-rpc.adoc#ThreadSafeRpcEndpoint[ThreadSafeRpcEndpoint] that uses *Worker* for the RPC endpoint name when <<startRpcEnvAndEndpoint, registered>>.
+
+You can have one or many standalone workers in a standalone cluster. They can be started and stopped using link:spark-standalone-worker-scripts.adoc[management scripts].
+
+`Worker` is <<creating-instance, created>> when...FIXME
+
+When <<main, started>>, `Worker`...FIXME
+
+[[internal-registries]]
+.Worker's Internal Properties (e.g. Registries, Counters and Flags)
+[cols="1,2",options="header",width="100%"]
+|===
+| Name
+| Description
+
+| [[workDir]] `workDir`
+| Working directory of the executors that the `Worker` manages
+
+Initialized when `Worker` is requested to <<createWorkDir, createWorkDir>> (when `Worker` RPC Endpoint is requested to <<onStart, start>> on a RPC environment).
+
+Used when `Worker` is requested to <<handleRegisterResponse, handleRegisterResponse>> and <<receive, receives>> a `WorkDirCleanup` message.
+
+Used when `Worker` is requested to <<onStart, onStart>> (to create a `WorkerWebUI`), <<receive, receives>> `LaunchExecutor` or `LaunchDriver` messages.
+|===
+
+=== [[receive]] `receive` Method
+
+[source, scala]
+----
+receive: PartialFunction[Any, Unit]
+----
+
+NOTE: `receive` is part of link:spark-rpc-RpcEndpoint.adoc#receive[RpcEndpoint Contract] to process messages.
+
+`receive`...FIXME
+
+=== [[handleRegisterResponse]] `handleRegisterResponse` Internal Method
+
+[source, scala]
+----
+handleRegisterResponse(msg: RegisterWorkerResponse): Unit
+----
+
+`handleRegisterResponse`...FIXME
+
+NOTE: `handleRegisterResponse` is used when...FIXME
+
+=== [[main]] Launching Worker Command-Line Application -- `main` Method
+
+[source, scala]
+----
+main(argStrings: Array[String]): Unit
+----
+
+`main`...FIXME
+
+=== [[startRpcEnvAndEndpoint]] Starting RPC Environment And Registering Worker RPC Endpoint -- `startRpcEnvAndEndpoint` Method
+
+[source, scala]
+----
+startRpcEnvAndEndpoint(
+  host: String,
+  port: Int,
+  webUiPort: Int,
+  cores: Int,
+  memory: Int,
+  masterUrls: Array[String],
+  workDir: String,
+  workerNumber: Option[Int] = None,
+  conf: SparkConf = new SparkConf): RpcEnv
+----
+
+`startRpcEnvAndEndpoint`...FIXME
+
+`startRpcEnvAndEndpoint` creates a link:spark-rpc.adoc#create[RpcEnv] for the input `host` and `port`.
+
+`startRpcEnvAndEndpoint` <<creating-instance, creates a Worker RPC endpoint>> (for the RPC environment and the input `webUiPort`, `cores`, `memory`, `masterUrls`, `workDir` and `conf`).
+
+`startRpcEnvAndEndpoint` requests the `RpcEnv` to link:spark-rpc.adoc#setupEndpoint[register the Worker RPC endpoint] under the name <<ENDPOINT_NAME, Worker>>.
+
+[NOTE]
+====
+`startRpcEnvAndEndpoint` is used when:
+
+* `Worker` is <<main, launched>> from a command line
+
+* `LocalSparkCluster` is requested to start
+====
 
 === [[creating-instance]] Creating Worker Instance
 
-CAUTION: FIXME
+`Worker` takes the following when created:
 
-=== [[startRpcEnvAndEndpoint]] `startRpcEnvAndEndpoint` Method
+* [[rpcEnv]] link:spark-rpc.adoc[RpcEnv]
+* [[webUiPort]] Port of the administrative web UI
+* [[cores]] Number of cores
+* [[memory]] Amount of memory
+* [[masterRpcAddresses]] standalone Master's `RpcAddresses`
+* [[endpointName]] RPC endpoint name
+* [[workDirPath]] Path to the working directory
+* [[conf]] link:spark-SparkConf.adoc[SparkConf]
+* [[securityMgr]] `SecurityManager`
 
-CAUTION: FIXME
+`Worker` initializes the <<internal-registries, internal registries and counters>>.
+
+=== [[createWorkDir]] `createWorkDir` Internal Method
+
+[source, scala]
+----
+createWorkDir(): Unit
+----
+
+`createWorkDir` sets <<workDir, workDir>> to be either <<workDirPath, workDirPath>> if defined or <<sparkHome, sparkHome>> with `work` subdirectory.
+
+In the end, `createWorkDir` creates <<workDir, workDir>> directory (including any necessary but nonexistent parent directories).
+
+`createWorkDir` reports...FIXME
+
+NOTE: `createWorkDir` is used exclusively when `Worker` RPC Endpoint is requested to <<onStart, start>> on a RPC environment.
+
+=== [[onStart]] `onStart` Method
+
+[source, scala]
+----
+onStart(): Unit
+----
+
+NOTE: `onStart` is part of link:spark-rpc-RpcEndpoint.adoc#onStart[RpcEndpoint Contract] to activate an endpoint and start accepting messages.
+
+`onStart`...FIXME
