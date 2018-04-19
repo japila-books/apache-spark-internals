@@ -16,9 +16,32 @@ NOTE: `DiskBlockManager` is used exclusively by link:spark-DiskStore.adoc[DiskSt
 | Description
 
 | [[localDirs]] `localDirs`
-|
+a| Local directories for storing block data
 
-Used when...FIXME
+`localDirs` is initialized using <<createLocalDirs, createLocalDirs>>.
+
+NOTE: There has to be at least one local directory or `DiskBlockManager` cannot be <<creating-instance, created>>.
+
+---
+
+Used when:
+
+* `DiskBlockManager` is requested to <<getFile, getFile>>, initialize <<subDirs, subDirs>> and <<doStop, stop>>
+
+* `BlockManager` is requested to link:spark-blockmanager.adoc#registerWithExternalShuffleServer[register the executor's BlockManager with an external shuffle server]
+
+* PySpark's `BasePythonRunner` is requested to `compute`
+
+| [[subDirsPerLocalDir]] `subDirsPerLocalDir`
+a| The value of <<spark.diskStore.subDirectories, spark.diskStore.subDirectories>> Spark configuration property or `64`.
+
+---
+
+Used when:
+
+* `DiskBlockManager` is <<subDirs, created>> and is requested to <<getFile, getFile>>
+
+* `BlockManager` is requested to link:spark-blockmanager.adoc#registerWithExternalShuffleServer[register the executor's BlockManager with an external shuffle server]
 |===
 
 [TIP]
@@ -49,20 +72,16 @@ createTempShuffleBlock(): (TempShuffleBlockId, File)
 
 CAUTION: FIXME
 
-=== [[subDirs]] Collection of Locks for Local Directories -- `subDirs` Internal Property
+=== [[getAllFiles]] `getAllFiles` Method
 
 [source, scala]
 ----
-subDirs: Array[Array[File]]
+getAllFiles(): Seq[File]
 ----
 
-`subDirs` is a collection of locks for every <<createLocalDirs, local directory>> where `DiskBlockManager` stores block data (with the columns being the number of local directories and the rows as collection of `subDirsPerLocalDir` size).
+`getAllFiles`...FIXME
 
-NOTE: `subDirs(n)` is to access ``n``-th local directory.
-
-=== [[getAllFiles]] `getAllFiles` Method
-
-CAUTION: FIXME
+NOTE: `getAllFiles` is used exclusively when `DiskBlockManager` is requested to <<getAllBlocks, getAllBlocks>>.
 
 === [[creating-instance]] Creating `DiskBlockManager` Instance
 
@@ -104,7 +123,7 @@ DEBUG DiskBlockManager: Adding shutdown hook
 INFO DiskBlockManager: Shutdown hook called
 ```
 
-=== [[doStop]] Removing Local Directories for Blocks -- `doStop` Internal Method
+=== [[doStop]] Stopping DiskBlockManager (Removing Local Directories for Blocks) -- `doStop` Internal Method
 
 [source, scala]
 ----
@@ -113,28 +132,7 @@ doStop(): Unit
 
 `doStop` deletes the local directories recursively (only when the constructor's `deleteFilesOnStop` is enabled and the parent directories are not registered to be removed at shutdown).
 
-=== [[createLocalDirs]] Creating Directories for Blocks -- `createLocalDirs` Internal Method
-
-[source, scala]
-----
-createLocalDirs(conf: SparkConf): Array[File]
-----
-
-`createLocalDirs` creates `blockmgr-[random UUID]` directory under local directories to store block data.
-
-Internally, `createLocalDirs` reads <<getConfiguredLocalDirs, local writable directories>> and creates a subdirectory `blockmgr-[random UUID]` under every configured parent directory.
-
-If successful, you should see the following INFO message in the logs:
-
-```
-INFO DiskBlockManager: Created local directory at [localDir]
-```
-
-When failed to create a local directory, you should see the following ERROR message in the logs:
-
-```
-ERROR DiskBlockManager: Failed to create local dir in [rootDir]. Ignoring this directory.
-```
+NOTE: `doStop` is used when `DiskBlockManager` is requested to <<addShutdownHook, shut down>> or <<stop, stop>>.
 
 === [[getConfiguredLocalDirs]] Getting Local Directories for Spark to Write Files -- `Utils.getConfiguredLocalDirs` Internal Method
 
@@ -188,24 +186,78 @@ isRunningInYarnContainer(conf: SparkConf): Boolean
 
 NOTE: `CONTAINER_ID` environment variable is exported by YARN NodeManager.
 
-=== [[getAllBlocks]] `getAllBlocks` Method
+=== [[getAllBlocks]] Getting All Blocks Stored On Disk -- `getAllBlocks` Method
 
 [source, scala]
 ----
 getAllBlocks(): Seq[BlockId]
 ----
 
-`getAllBlocks` lists all the blocks currently stored on disk.
+`getAllBlocks` gets all the blocks stored on disk.
 
 Internally, `getAllBlocks` takes the <<getAllFiles, block files>> and returns their names (as `BlockId`).
 
-NOTE: `getAllBlocks` is used when link:spark-blockmanager.adoc#getMatchingBlockIds[`BlockManager` computes the ids of existing blocks (for a given filter)].
+NOTE: `getAllBlocks` is used exclusively when `BlockManager` is requested to link:spark-blockmanager.adoc#getMatchingBlockIds[find IDs of existing blocks for a given filter].
+
+=== [[createLocalDirs]] Creating Local Directories for Storing Block Data -- `createLocalDirs` Internal Method
+
+[source, scala]
+----
+createLocalDirs(conf: SparkConf): Array[File]
+----
+
+`createLocalDirs` creates `blockmgr-[random UUID]` directory under local directories to store block data.
+
+Internally, `createLocalDirs` reads <<getConfiguredLocalDirs, local writable directories>> and creates a subdirectory `blockmgr-[random UUID]` under every configured parent directory.
+
+If successful, you should see the following INFO message in the logs:
+
+```
+INFO DiskBlockManager: Created local directory at [localDir]
+```
+
+When failed to create a local directory, you should see the following ERROR message in the logs:
+
+```
+ERROR DiskBlockManager: Failed to create local dir in [rootDir]. Ignoring this directory.
+```
+
+NOTE: `createLocalDirs` is used exclusively when <<localDirs, localDirs>> is initialized.
+
+=== [[stop]] `stop` Internal Method
+
+[source, scala]
+----
+stop(): Unit
+----
+
+`stop`...FIXME
+
+NOTE: `stop` is used exclusively when `BlockManager` is requested to link:spark-blockmanager.adoc#stop[stop].
+
+=== [[subDirs]] File Locks for Local Block Store Directories -- `subDirs` Internal Property
+
+[source, scala]
+----
+subDirs: Array[Array[File]]
+----
+
+`subDirs` is a collection of <<subDirsPerLocalDir, subDirsPerLocalDir>> file locks for every <<createLocalDirs, local block store directory>> where `DiskBlockManager` stores block data (with the columns being the number of local directories and the rows as collection of `subDirsPerLocalDir` size).
+
+NOTE: `subDirs(n)` is to access ``n``-th local directory.
+
+NOTE: `subDirs` is used when `DiskBlockManager` is requested to <<getFile, getFile>> or <<getAllFiles, getAllFiles>>.
 
 === [[settings]] Settings
 
 .Spark Properties
 [cols="1,1,2",options="header",width="100%"]
 |===
-| Spark Property | Default Value | Description
-| [[spark_diskStore_subDirectories]] `spark.diskStore.subDirectories` | `64` | The number of ...FIXME
+| Spark Property
+| Default Value
+| Description
+
+| [[spark_diskStore_subDirectories]][[spark.diskStore.subDirectories]] `spark.diskStore.subDirectories`
+| `64`
+| The number of ...FIXME
 |===
