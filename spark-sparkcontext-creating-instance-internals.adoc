@@ -82,11 +82,11 @@ NOTE: `SparkConf.toDebugString` is called very early in the initialization proce
 
 The driver's host and port are set if missing. link:spark-driver.adoc#spark_driver_host[spark.driver.host] becomes the value of <<localHostName, Utils.localHostName>> (or an exception is thrown) while link:spark-driver.adoc#spark_driver_port[spark.driver.port] is set to `0`.
 
-NOTE: link:spark-driver.adoc#spark_driver_host[spark.driver.host] and link:spark-driver.adoc#spark_driver_port[spark.driver.port] are expected to be set on the driver. It is later asserted by link:spark-sparkenv.adoc#createDriverEnv[SparkEnv].
+NOTE: link:spark-driver.adoc#spark_driver_host[spark.driver.host] and link:spark-driver.adoc#spark_driver_port[spark.driver.port] are expected to be set on the driver. It is later asserted by link:spark-SparkEnv.adoc#createDriverEnv[SparkEnv].
 
 link:spark-Executor.adoc#spark.executor.id[spark.executor.id] setting is set to `driver`.
 
-TIP: Use `sc.getConf.get("spark.executor.id")` to know where the code is executed -- link:spark-sparkenv.adoc[driver or executors].
+TIP: Use `sc.getConf.get("spark.executor.id")` to know where the code is executed -- link:spark-SparkEnv.adoc[driver or executors].
 
 It sets the jars and files based on `spark.jars` and `spark.files`, respectively. These are files that are required for proper task execution on executors.
 
@@ -97,36 +97,35 @@ Also, if link:spark-scheduler-listeners-eventlogginglistener.adoc#spark_eventLog
 
 TIP: Read about compression codecs in link:spark-service-broadcastmanager.adoc#compression[Compression].
 
-It sets `spark.externalBlockStore.folderName` to the value of `externalBlockStoreFolderName`.
+[[_listenerBus]]
+`SparkContext` creates a link:spark-LiveListenerBus.adoc#creating-instance[LiveListenerBus]
 
-CAUTION: FIXME: What's `externalBlockStoreFolderName`?
+[[_statusStore]]
+`SparkContext` link:spark-core-AppStatusStore.adoc#createLiveStore[creates a live store] (i.e. the `AppStatusStore` for an active Spark application) and requests <<listenerBus, LiveListenerBus>> to add the link:spark-core-AppStatusStore.adoc#listener[AppStatusListener] to the link:spark-LiveListenerBus.adoc#addToStatusQueue[status queue].
 
-[[SPARK_YARN_MODE]]
-For link:yarn/spark-yarn-client-yarnclientschedulerbackend.adoc[Spark on YARN in client deploy mode], link:yarn/spark-yarn-client.adoc#SPARK_YARN_MODE[SPARK_YARN_MODE flag is enabled].
+NOTE: The current `AppStatusStore` is available as `statusStore` property of the `SparkContext`.
 
-A link:spark-webui-JobProgressListener.adoc[JobProgressListener] is created and registered to link:spark-LiveListenerBus.adoc[LiveListenerBus].
+[[_env]]
+`SparkContext` <<createSparkEnv, creates a SparkEnv>> and requests `SparkEnv` to link:spark-SparkEnv.adoc#set[use the instance as the default SparkEnv].
 
-A <<createSparkEnv, `SparkEnv` is created>>.
+CAUTION: FIXME Describe the following steps.
 
 `MetadataCleaner` is created.
 
 CAUTION: FIXME What's MetadataCleaner?
 
-=== [[_statusStore]] Creating AppStatusStore
+[[_statusTracker]]
+`SparkContext` creates a link:spark-sparkcontext-SparkStatusTracker.adoc#creating-instance[SparkStatusTracker] (with itself and the <<_statusStore, AppStatusStore>>).
 
-CAUTION: FIXME
-
-=== [[_statusTracker]] Creating SparkStatusTracker
-
-`SparkContext` creates a link:spark-sparkcontext-SparkStatusTracker.adoc#creating-instance[SparkStatusTracker].
-
-=== [[_progressBar]] Creating Optional ConsoleProgressBar
+=== [[_progressBar]] Creating ConsoleProgressBar
 
 `SparkContext` creates the optional link:spark-sparkcontext-ConsoleProgressBar.adoc#creating-instance[ConsoleProgressBar] when link:spark-sparkcontext-ConsoleProgressBar.adoc#spark.ui.showConsoleProgress[spark.ui.showConsoleProgress] property is enabled and the `INFO` logging level for `SparkContext` is disabled.
 
-[[_ui]]
-[[ui]]
-`SparkUI` is requested to link:spark-webui-SparkUI.adoc#createLiveUI[create a web UI] only when link:spark-webui.adoc#spark.ui.enabled[spark.ui.enabled] Spark property is turned on (i.e. `true`).
+=== [[_ui]][[ui]] Creating SparkUI
+
+`SparkContext` link:spark-webui-SparkUI.adoc#create[creates a SparkUI] when link:spark-webui.adoc#spark.ui.enabled[spark.ui.enabled] Spark property is enabled (i.e. `true`).
+
+NOTE: link:spark-webui.adoc#spark.ui.enabled[spark.ui.enabled] Spark property is assumed enabled when undefined.
 
 CAUTION: FIXME Where's `_ui` used?
 
@@ -354,7 +353,7 @@ INFO SparkContext: Registered listener pl.japila.spark.CustomSparkListener
 ```
 ====
 
-=== [[createSparkEnv]] Creating SparkEnv for Driver (createSparkEnv method)
+=== [[createSparkEnv]] Creating SparkEnv for Driver -- `createSparkEnv` Method
 
 [source, scala]
 ----
@@ -364,11 +363,11 @@ createSparkEnv(
   listenerBus: LiveListenerBus): SparkEnv
 ----
 
-`createSparkEnv` simply delegates the call to link:spark-sparkenv.adoc#createDriverEnv[SparkEnv to create a `SparkEnv` for the driver].
+`createSparkEnv` simply delegates the call to link:spark-SparkEnv.adoc#createDriverEnv[SparkEnv to create a `SparkEnv` for the driver].
 
 It calculates the number of cores to `1` for `local` master URL, the number of processors available for JVM for `*` or the exact number in the master URL, or `0` for the cluster master URLs.
 
-=== [[getCurrentUserName]] Utils.getCurrentUserName
+=== [[getCurrentUserName]] `Utils.getCurrentUserName` Method
 
 [source, scala]
 ----
@@ -383,7 +382,7 @@ Internally, it reads link:spark-SparkContext.adoc#SPARK_USER[SPARK_USER] environ
 
 NOTE: It is another place where Spark relies on Hadoop API for its operation.
 
-=== [[localHostName]] Utils.localHostName
+=== [[localHostName]] `Utils.localHostName` Method
 
 `localHostName` computes the local host name.
 
@@ -393,6 +392,6 @@ NOTE: `Utils.localHostName` is executed while link:spark-SparkContext.adoc#creat
 
 CAUTION: FIXME Review the rest.
 
-=== [[stopped]] stopped flag
+=== [[stopped]] `stopped` Flag
 
 CAUTION: FIXME Where is this used?
