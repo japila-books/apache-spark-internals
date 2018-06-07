@@ -1,12 +1,16 @@
 == [[JettyUtils]] JettyUtils
 
-`JettyUtils` is a set of utility methods for:
+`JettyUtils` is a set of utility methods for creating Jetty HTTP Server-specific components:
 
-* Launching a web server using Jetty's HTTP Server
+* <<createServlet, Creating an HttpServlet>>
 
-* FIXME
+* <<createStaticHandler, createStaticHandler>>
 
-=== [[createServletHandler]] Creating HTTP Request Handler for Path -- `createServletHandler` Method
+* <<createServletHandler, Creating a ServletContextHandler for a path>>
+
+* <<createRedirectHandler, createRedirectHandler>>
+
+=== [[createServletHandler]] Creating ServletContextHandler for Path -- `createServletHandler` Method
 
 [source, scala]
 ----
@@ -78,17 +82,6 @@ In case the view permissions didn't allow to view the page, the `HttpServlet` se
 
 NOTE: `createServlet` is used exclusively when `JettyUtils` is requested to <<createServletHandler, createServletHandler>>.
 
-=== [[createStaticHandler]] `createStaticHandler` Method
-
-[source, scala]
-----
-createStaticHandler(resourceBase: String, path: String): ServletContextHandler
-----
-
-`createStaticHandler`...FIXME
-
-NOTE: `createStaticHandler` is used when...FIXME
-
 === [[createRedirectHandler]] `createRedirectHandler` Method
 
 [source, scala]
@@ -104,3 +97,42 @@ createRedirectHandler(
 `createRedirectHandler`...FIXME
 
 NOTE: `createRedirectHandler` is used when...FIXME
+
+=== [[createStaticHandler]] Creating Handler For Static Content -- `createStaticHandler` Method
+
+[source, scala]
+----
+createStaticHandler(resourceBase: String, path: String): ServletContextHandler
+----
+
+`createStaticHandler` creates a handler for serving files from a static directory
+
+Internally, `createStaticHandler` creates a Jetty `ServletContextHandler` and sets `org.eclipse.jetty.servlet.Default.gzip` init parameter to `false`.
+
+`createRedirectHandler` creates a Jetty https://www.eclipse.org/jetty/javadoc/current/org/eclipse/jetty/servlet/DefaultServlet.html[DefaultServlet].
+
+[NOTE]
+====
+Quoting the official documentation of Jetty's https://www.eclipse.org/jetty/javadoc/current/org/eclipse/jetty/servlet/DefaultServlet.html[DefaultServlet]:
+
+> *DefaultServlet* The default servlet. This servlet, normally mapped to `/`, provides the handling for static content, OPTION and TRACE methods for the context. The following initParameters are supported, these can be set either on the servlet itself or as ServletContext initParameters with a prefix of `org.eclipse.jetty.servlet.Default.`
+
+With that, `org.eclipse.jetty.servlet.Default.gzip` is to configure https://www.eclipse.org/jetty/documentation/current/advanced-extras.html#default-servlet-init[gzip] init parameter for Jetty's `DefaultServlet`.
+
+> *gzip* If set to true, then static content will be served as gzip content encoded if a matching resource is found ending with ".gz" (default `false`) (deprecated: use precompressed)
+
+====
+
+`createRedirectHandler` resolves the `resourceBase` in the Spark classloader and, if successful, sets `resourceBase` init parameter of the Jetty `DefaultServlet` to the URL.
+
+NOTE: https://www.eclipse.org/jetty/documentation/current/advanced-extras.html#default-servlet-init[resourceBase] init parameter is used to replace the context resource base.
+
+`createRedirectHandler` requests the `ServletContextHandler` to use the `path` as the context path and register the `DefaultServlet` to serve it.
+
+`createRedirectHandler` throws an `Exception` if the input `resourceBase` could not be resolved.
+
+```
+Could not find resource path for Web UI: [resourceBase]
+```
+
+NOTE: `createStaticHandler` is used when link:spark-webui-SparkUI.adoc#initialize[SparkUI], link:spark-history-server-HistoryServer.adoc#initialize[HistoryServer], Spark Standalone's `MasterWebUI` and `WorkerWebUI`, Spark on Mesos' `MesosClusterUI` are requested to initialize.
