@@ -10,7 +10,9 @@
 
 When started, `SparkUI` binds to <<appUIAddress, appUIAddress>> address that you can control using `SPARK_PUBLIC_DNS` environment variable or link:spark-driver.adoc#spark_driver_host[spark.driver.host] Spark property.
 
-`SparkUI` gets an <<store, AppStatusStore>> that is used when:
+NOTE: With link:spark-webui-properties.adoc#spark.ui.killEnabled[spark.ui.killEnabled] configuration property turned on, `SparkUI` <<initialize, allows to kill jobs and stages>> (subject to `SecurityManager.checkModifyPermissions` permissions).
+
+`SparkUI` gets an <<store, AppStatusStore>> that is then used for the following:
 
 * <<initialize, Initializing tabs>>, i.e. link:spark-webui-JobsTab.adoc#creating-instance[JobsTab], link:spark-webui-StagesTab.adoc#creating-instance[StagesTab], link:spark-webui-StorageTab.adoc#creating-instance[StorageTab], link:spark-webui-EnvironmentTab.adoc#creating-instance[EnvironmentTab]
 
@@ -187,16 +189,16 @@ Internally, `create` simply creates a new <<creating-instance, SparkUI>>.
 
 `SparkUI` initializes the <<internal-registries, internal registries and counters>> and <<initialize, the tabs and handlers>>.
 
-=== [[initialize]] Attaching Tabs, Pages and Context Handlers -- `initialize` Method
+=== [[initialize]] Attaching Tabs and Context Handlers -- `initialize` Method
 
 [source, scala]
 ----
 initialize(): Unit
 ----
 
-NOTE: `initialize` is part of link:spark-webui-WebUI.adoc#WebUI[WebUI Contract] to initialize web components.
+NOTE: `initialize` is part of link:spark-webui-WebUI.adoc#initialize[WebUI Contract] to initialize web components.
 
-`initialize` creates and <<attachTab, attaches>> the following tabs (with the reference to itself and the <<store, AppStatusStore>>):
+`initialize` creates and <<attachTab, attaches>> the following tabs (with the reference to the `SparkUI` and its <<store, AppStatusStore>>):
 
 . link:spark-webui-JobsTab.adoc[JobsTab]
 . link:spark-webui-StagesTab.adoc[StagesTab]
@@ -204,10 +206,14 @@ NOTE: `initialize` is part of link:spark-webui-WebUI.adoc#WebUI[WebUI Contract] 
 . link:spark-webui-EnvironmentTab.adoc[EnvironmentTab]
 . link:spark-webui-ExecutorsTab.adoc[ExecutorsTab]
 
-In the end, `initialize` link:spark-webui-WebUI.adoc#attachHandler[attaches the handlers]:
+In the end, `initialize` creates and link:spark-webui-WebUI.adoc#attachHandler[attaches] the following `ServletContextHandlers`:
 
-. `/static` to serve static files from `org/apache/spark/ui/static` directory (on CLASSPATH).
-. Redirecting `/` to `/jobs/` (so link:spark-webui-jobs.adoc[Jobs tab] is the first tab when you open web UI).
-. Serving `/api` context path (with `org.apache.spark.status.api.v1` provider package) using link:spark-api-ApiRootResource.adoc[ApiRootResource]
-. Redirecting `/jobs/job/kill` to `/jobs/`
-. Redirecting `/stages/stage/kill` to `/stages/`
+. link:spark-webui-JettyUtils.adoc#createStaticHandler[Creates a static handler] for serving files from a static directory, i.e. `/static` to serve static files from `org/apache/spark/ui/static` directory (on CLASSPATH)
+
+. link:spark-webui-JettyUtils.adoc#createRedirectHandler[Creates a redirect handler] to redirect `/` to `/jobs/` (and so the link:spark-webui-jobs.adoc[Jobs tab] is the welcome tab when you open the web UI)
+
+. link:spark-api-ApiRootResource.adoc#getServletHandler[Creates the /api/* context handler] for the link:spark-api.adoc[Status REST API]
+
+. link:spark-webui-JettyUtils.adoc#createRedirectHandler[Creates a redirect handler] to redirect `/jobs/job/kill` to `/jobs/` and request the `JobsTab` to execute link:spark-webui-JobsTab.adoc#handleKillRequest[handleKillRequest] before redirection
+
+. link:spark-webui-JettyUtils.adoc#createRedirectHandler[Creates a redirect handler] to redirect `/stages/stage/kill` to `/stages/` and request the `StagesTab` to execute link:spark-webui-StagesTab.adoc#handleKillRequest[handleKillRequest] before redirection
