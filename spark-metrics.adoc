@@ -1,0 +1,120 @@
+== Spark Metrics
+
+Spark uses http://metrics.dropwizard.io/3.1.0/[Dropwizard Metrics 3.1.0] Java library to give you *metrics* of link:spark-MetricsSystem.adoc#subsystems[Spark subsystems] (aka _instances_), e.g. link:spark-dagscheduler.adoc[DAGScheduler], link:spark-blockmanager.adoc[BlockManager], link:spark-Executor.adoc[Executor], link:spark-ExecutorAllocationManager.adoc[ExecutorAllocationManager], link:spark-ExternalShuffleService.adoc[ExternalShuffleService], etc.
+
+Spark Metrics of a Spark application are only available in cluster modes and is turned off in `local` mode.
+
+CAUTION: FIXME Link to the code where metrics are off.
+
+The main part of Spark Metrics is link:spark-MetricsSystem.adoc[MetricsSystem] that is...FIXME The link:spark-MetricsSystem.adoc#subsystems[Spark subsystems] access it through `SparkEnv` and the link:spark-SparkEnv.adoc#metricsSystem[metricsSystem] property.
+
+[source, scala]
+----
+val metricsSystem = SparkEnv.get.metricsSystem
+----
+
+link:spark-metrics-Source.adoc[org.apache.spark.metrics.source.Source] is the top-level class for the metric registries in Spark. Sources expose their internal status.
+
+Metrics System is available at http://localhost:4040/metrics/json/ (for the default setup of a Spark application).
+
+```
+$ http http://localhost:4040/metrics/json/
+HTTP/1.1 200 OK
+Cache-Control: no-cache, no-store, must-revalidate
+Content-Length: 2200
+Content-Type: text/json;charset=utf-8
+Date: Sat, 25 Feb 2017 14:14:16 GMT
+Server: Jetty(9.2.z-SNAPSHOT)
+X-Frame-Options: SAMEORIGIN
+
+{
+    "counters": {
+        "app-20170225151406-0000.driver.HiveExternalCatalog.fileCacheHits": {
+            "count": 0
+        },
+        "app-20170225151406-0000.driver.HiveExternalCatalog.filesDiscovered": {
+            "count": 0
+        },
+        "app-20170225151406-0000.driver.HiveExternalCatalog.hiveClientCalls": {
+            "count": 2
+        },
+        "app-20170225151406-0000.driver.HiveExternalCatalog.parallelListingJobCount": {
+            "count": 0
+        },
+        "app-20170225151406-0000.driver.HiveExternalCatalog.partitionsFetched": {
+            "count": 0
+        }
+    },
+    "gauges": {
+    ...
+    "timers": {
+        "app-20170225151406-0000.driver.DAGScheduler.messageProcessingTime": {
+            "count": 0,
+            "duration_units": "milliseconds",
+            "m15_rate": 0.0,
+            "m1_rate": 0.0,
+            "m5_rate": 0.0,
+            "max": 0.0,
+            "mean": 0.0,
+            "mean_rate": 0.0,
+            "min": 0.0,
+            "p50": 0.0,
+            "p75": 0.0,
+            "p95": 0.0,
+            "p98": 0.0,
+            "p99": 0.0,
+            "p999": 0.0,
+            "rate_units": "calls/second",
+            "stddev": 0.0
+        }
+    },
+    "version": "3.0.0"
+}
+```
+
+NOTE: You can access a Spark subsystem's `MetricsSystem` using its corresponding "leading" port, e.g. `4040` for the `driver`, `8080` for Spark Standalone's `master` and `applications`.
+
+NOTE: You have to use the trailing slash (`/`) to have the output.
+
+Enable `org.apache.spark.metrics.sink.JmxSink` in `conf/metrics.properties` and use jconsole to access Spark metrics through JMX.
+
+```
+*.sink.jmx.class=org.apache.spark.metrics.sink.JmxSink
+```
+
+.jconsole and JmxSink in spark-shell
+image::images/spark-metrics-jconsole.png[align="center"]
+
+=== Spark Standalone Master
+
+```
+$ http http://192.168.1.4:8080/metrics/master/json/path
+HTTP/1.1 200 OK
+Cache-Control: no-cache, no-store, must-revalidate
+Content-Length: 207
+Content-Type: text/json;charset=UTF-8
+Server: Jetty(8.y.z-SNAPSHOT)
+X-Frame-Options: SAMEORIGIN
+
+{
+    "counters": {},
+    "gauges": {
+        "master.aliveWorkers": {
+            "value": 0
+        },
+        "master.apps": {
+            "value": 0
+        },
+        "master.waitingApps": {
+            "value": 0
+        },
+        "master.workers": {
+            "value": 0
+        }
+    },
+    "histograms": {},
+    "meters": {},
+    "timers": {},
+    "version": "3.0.0"
+}
+```

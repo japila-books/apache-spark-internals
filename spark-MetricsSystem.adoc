@@ -1,8 +1,6 @@
 == [[MetricsSystem]] MetricsSystem
 
-Spark uses http://metrics.dropwizard.io/3.1.0/[Metrics 3.1.0] Java library to give you insight into the <<subsystems, Spark subsystems>> (aka _instances_), e.g. link:spark-dagscheduler.adoc[DAGScheduler], link:spark-blockmanager.adoc[BlockManager], link:spark-Executor.adoc[Executor], link:spark-ExecutorAllocationManager.adoc[ExecutorAllocationManager], link:spark-ExternalShuffleService.adoc[ExternalShuffleService], etc.
-
-NOTE: Metrics are only available for cluster modes, i.e. `local` mode turns metrics off.
+`MetricsSystem` is...FIXME
 
 [[subsystems]]
 .Subsystems and Their MetricsSystems (in alphabetical order)
@@ -32,87 +30,6 @@ NOTE: Metrics are only available for cluster modes, i.e. `local` mode turns metr
 | `mesos_cluster`
 | Spark on Mesos' `MesosClusterScheduler` is created.
 |===
-
-<<subsystems, Subsystems>> access their `MetricsSystem` using link:spark-SparkEnv.adoc#metricsSystem[SparkEnv].
-
-[source, scala]
-----
-val metricsSystem = SparkEnv.get.metricsSystem
-----
-
-CAUTION: FIXME Mention TaskContextImpl and Task.run
-
-link:spark-metrics-Source.adoc[org.apache.spark.metrics.source.Source] is the top-level class for the metric registries in Spark. Sources expose their internal status.
-
-Metrics System is available at http://localhost:4040/metrics/json/ (for the default setup of a Spark application).
-
-```
-$ http http://localhost:4040/metrics/json/
-HTTP/1.1 200 OK
-Cache-Control: no-cache, no-store, must-revalidate
-Content-Length: 2200
-Content-Type: text/json;charset=utf-8
-Date: Sat, 25 Feb 2017 14:14:16 GMT
-Server: Jetty(9.2.z-SNAPSHOT)
-X-Frame-Options: SAMEORIGIN
-
-{
-    "counters": {
-        "app-20170225151406-0000.driver.HiveExternalCatalog.fileCacheHits": {
-            "count": 0
-        },
-        "app-20170225151406-0000.driver.HiveExternalCatalog.filesDiscovered": {
-            "count": 0
-        },
-        "app-20170225151406-0000.driver.HiveExternalCatalog.hiveClientCalls": {
-            "count": 2
-        },
-        "app-20170225151406-0000.driver.HiveExternalCatalog.parallelListingJobCount": {
-            "count": 0
-        },
-        "app-20170225151406-0000.driver.HiveExternalCatalog.partitionsFetched": {
-            "count": 0
-        }
-    },
-    "gauges": {
-    ...
-    "timers": {
-        "app-20170225151406-0000.driver.DAGScheduler.messageProcessingTime": {
-            "count": 0,
-            "duration_units": "milliseconds",
-            "m15_rate": 0.0,
-            "m1_rate": 0.0,
-            "m5_rate": 0.0,
-            "max": 0.0,
-            "mean": 0.0,
-            "mean_rate": 0.0,
-            "min": 0.0,
-            "p50": 0.0,
-            "p75": 0.0,
-            "p95": 0.0,
-            "p98": 0.0,
-            "p99": 0.0,
-            "p999": 0.0,
-            "rate_units": "calls/second",
-            "stddev": 0.0
-        }
-    },
-    "version": "3.0.0"
-}
-```
-
-NOTE: You can access a Spark subsystem's `MetricsSystem` using its corresponding "leading" port, e.g. `4040` for the `driver`, `8080` for Spark Standalone's `master` and `applications`.
-
-NOTE: You have to use the trailing slash (`/`) to have the output.
-
-Enable `org.apache.spark.metrics.sink.JmxSink` in `conf/metrics.properties` and use jconsole to access Spark metrics through JMX.
-
-```
-*.sink.jmx.class=org.apache.spark.metrics.sink.JmxSink
-```
-
-.jconsole and JmxSink in spark-shell
-image::images/spark-metrics-jconsole.png[align="center"]
 
 [[internal-properties]]
 .MetricsSystem's Internal Properties
@@ -187,40 +104,6 @@ CAUTION: FIXME
 === [[report]] `report` Method
 
 CAUTION: FIXME
-
-=== Master
-
-```
-$ http http://192.168.1.4:8080/metrics/master/json/path
-HTTP/1.1 200 OK
-Cache-Control: no-cache, no-store, must-revalidate
-Content-Length: 207
-Content-Type: text/json;charset=UTF-8
-Server: Jetty(8.y.z-SNAPSHOT)
-X-Frame-Options: SAMEORIGIN
-
-{
-    "counters": {},
-    "gauges": {
-        "master.aliveWorkers": {
-            "value": 0
-        },
-        "master.apps": {
-            "value": 0
-        },
-        "master.waitingApps": {
-            "value": 0
-        },
-        "master.workers": {
-            "value": 0
-        }
-    },
-    "histograms": {},
-    "meters": {},
-    "timers": {},
-    "version": "3.0.0"
-}
-```
 
 === [[createMetricsSystem]] Creating MetricsSystem Instance For Subsystem -- `createMetricsSystem` Factory Method
 
@@ -301,9 +184,9 @@ buildRegistryName(source: Source): String
 
 NOTE: `buildRegistryName` is used to build the metrics source identifiers for a Spark application's driver and executors, but also for other Spark framework's components (e.g. Spark Standalone's master and workers).
 
-NOTE: `buildRegistryName` uses <<spark.metrics.namespace, spark.metrics.namespace>> and link:spark-Executor.adoc#spark.executor.id[spark.executor.id] Spark properties to differentiate between a Spark application's driver and executors, and the other Spark framework's components.
+NOTE: `buildRegistryName` uses link:spark-metrics-properties.adoc#spark.metrics.namespace[spark.metrics.namespace] and link:spark-Executor.adoc#spark.executor.id[spark.executor.id] Spark properties to differentiate between a Spark application's driver and executors, and the other Spark framework's components.
 
-(only when <<instance, instance>> is `driver` or `executor`) `buildRegistryName` builds metrics source name that is made up of <<spark.metrics.namespace, spark.metrics.namespace>>, link:spark-Executor.adoc#spark.executor.id[spark.executor.id] and the name of the `source`.
+(only when <<instance, instance>> is `driver` or `executor`) `buildRegistryName` builds metrics source name that is made up of link:spark-metrics-properties.adoc#spark.metrics.namespace[spark.metrics.namespace], link:spark-Executor.adoc#spark.executor.id[spark.executor.id] and the name of the `source`.
 
 NOTE: `buildRegistryName` uses Metrics' http://metrics.dropwizard.io/3.2.0/apidocs/com/codahale/metrics/MetricRegistry.html[MetricRegistry] to build metrics source identifiers.
 
@@ -385,21 +268,3 @@ registerSinks(): Unit
 `registerSinks`...FIXME
 
 NOTE: `registerSinks` is used exclusively when `MetricsSystem` is requested to <<start, start>>.
-
-=== [[settings]] Settings
-
-.Spark Properties
-[cols="1,1,2",options="header",width="100%"]
-|===
-| Spark Property
-| Default Value
-| Description
-
-| [[spark.metrics.namespace]] `spark.metrics.namespace`
-| link:spark-SparkConf.adoc#spark.app.id[Spark application's ID] (aka `spark.app.id`)
-| Root namespace for metrics reporting.
-
-Given a Spark application's ID changes with every invocation of a Spark application, a custom `spark.metrics.namespace` can be specified for metrics reporting.
-
-Used when `MetricsSystem` is requested for a <<buildRegistryName, metrics source identifier>>.
-|===
