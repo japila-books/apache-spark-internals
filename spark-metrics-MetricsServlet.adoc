@@ -2,7 +2,48 @@
 
 `MetricsServlet` is a link:spark-metrics-Sink.adoc[Metrics Sink]...FIXME
 
-`MetricsServlet` is <<creating-instance, created>> exclusively when `MetricsSystem` is requested to link:spark-MetricsSystem.adoc#registerSinks[register metrics sinks] (when being link:spark-MetricsSystem.adoc#start[started]).
+`MetricsServlet` uses https://fasterxml.github.io/jackson-databind/[jackson-databind], the general data-binding package for Jackson (as <<mapper, ObjectMapper>>) with https://metrics.dropwizard.io/3.1.0/[Dropwizard Metrics] library (when registering a Coda Hale `MetricsModule`).
+
+`MetricsServlet` is <<creating-instance, created>> exclusively when `MetricsSystem` is requested to link:spark-MetricsSystem.adoc#registerSinks[register metrics sinks] (when being link:spark-MetricsSystem.adoc#start[started]) and...FIXME (`servlet` key?)
+
+[[properties]]
+.MetricsServlet's Configuration Properties
+[cols="1,2",options="header",width="100%"]
+|===
+| Name
+| Description
+
+| `path`
+| [[path]] FIXME
+
+| `sample`
+| [[sample]] FIXME
+|===
+
+[[internal-registries]]
+.MetricsServlet's Internal Properties (e.g. Registries, Counters and Flags)
+[cols="1,2",options="header",width="100%"]
+|===
+| Name
+| Description
+
+| `mapper`
+| [[mapper]] Jaxson's https://fasterxml.github.io/jackson-databind/javadoc/2.6/com/fasterxml/jackson/databind/ObjectMapper.html[com.fasterxml.jackson.databind.ObjectMapper] that _"provides functionality for reading and writing JSON, either to and from basic POJOs (Plain Old Java Objects), or to and from a general-purpose JSON Tree Model (JsonNode), as well as related functionality for performing conversions."_
+
+When created, `mapper` is requested to register a Coda Hale https://metrics.dropwizard.io/3.1.0/apidocs/com/codahale/metrics/json/MetricsModule.html[com.codahale.metrics.json.MetricsModule].
+
+Used exclusively when `MetricsServlet` is requested to <<getMetricsSnapshot, getMetricsSnapshot>>.
+
+| `servletPath`
+| [[servletPath]] Value of <<path, path>> configuration property
+
+| `servletShowSample`
+| [[servletShowSample]] Flag to control whether to show samples (`true`) or not (`false`).
+
+`servletShowSample` is the value of <<sample, sample>> configuration property (if defined) or `false`.
+
+Used when <<mapper, ObjectMapper>> is requested to register a Coda Hale https://metrics.dropwizard.io/3.1.0/apidocs/com/codahale/metrics/json/MetricsModule.html[com.codahale.metrics.json.MetricsModule].
+|===
 
 === [[getHandlers]] `getHandlers` Method
 
@@ -11,7 +52,7 @@
 getHandlers(conf: SparkConf): Array[ServletContextHandler]
 ----
 
-`getHandlers`...FIXME
+`getHandlers` returns a collection of a single `ServletContextHandler`
 
 NOTE: `getHandlers` is used exclusively when `MetricsSystem` is requested for link:spark-MetricsSystem.adoc#getServletHandlers[metrics ServletContextHandlers].
 
@@ -24,3 +65,14 @@ NOTE: `getHandlers` is used exclusively when `MetricsSystem` is requested for li
 * [[securityMgr]] `SecurityManager`
 
 `MetricsServlet` initializes the <<internal-registries, internal registries and counters>>.
+
+=== [[getMetricsSnapshot]] `getMetricsSnapshot` Method
+
+[source, scala]
+----
+getMetricsSnapshot(request: HttpServletRequest): String
+----
+
+`getMetricsSnapshot` simply requests the <<mapper, Jaxson ObjectMapper>> to serialize the <<registry, MetricRegistry>> to a JSON string (using link:++https://fasterxml.github.io/jackson-databind/javadoc/2.6/com/fasterxml/jackson/databind/ObjectMapper.html#writeValueAsString-java.lang.Object-++[ObjectMapper.writeValueAsString]).
+
+NOTE: `getMetricsSnapshot` is used exclusively when `MetricsServlet` is requested to <<getHandlers, getHandlers>>.
