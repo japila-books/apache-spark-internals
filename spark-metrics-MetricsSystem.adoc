@@ -51,7 +51,11 @@ Used when `MetricsSystem` registers <<registerSinks, sinks>> and <<registerSourc
 
 | [[metricsServlet]] `metricsServlet`
 | (uninitialized)
-| FIXME
+| link:spark-metrics-MetricsServlet.adoc[MetricsServlet]
+
+Initialized when `MetricsSystem` registers <<registerSinks, sinks>>
+
+Used when `MetricsSystem` is requested for a <<getServletHandlers, JSON servlet handler>>
 |===
 
 [[internal-registries]]
@@ -247,16 +251,29 @@ ERROR Source class [classPath] cannot be instantiated
 
 NOTE: `registerSources` is used exclusively when `MetricsSystem` is <<start, started>>.
 
-=== [[getServletHandlers]] `getServletHandlers` Method
+=== [[getServletHandlers]] Requesting JSON Servlet Handler -- `getServletHandlers` Method
 
 [source, scala]
 ----
 getServletHandlers: Array[ServletContextHandler]
 ----
 
-`getServletHandlers` makes sure that the `MetricsSystem` is <<running, running>> and requests <<metricsServlet, MetricsServlet>> to link:spark-metrics-MetricsServlet.adoc#getHandlers[getHandlers].
+`getServletHandlers` simply requests <<metricsServlet, MetricsServlet>> for a link:spark-metrics-MetricsServlet.adoc#getHandlers[JSON servlet handler] when the `MetricsSystem` is <<running, running>>.
 
-NOTE: `getServletHandlers` is used when...FIXME
+When `MetricsSystem` is not <<running, running>> `getServletHandlers` throws an `IllegalArgumentException`.
+
+```
+Can only call getServletHandlers on a running MetricsSystem
+```
+
+[NOTE]
+====
+`getServletHandlers` is used when:
+
+* `SparkContext` is link:spark-SparkContext-creating-instance-internals.adoc#MetricsSystem-getServletHandlers[created]
+
+* Spark Standalone's `Master` and `Worker` are requested to start (as `onStart`)
+====
 
 === [[registerSinks]] Registering Metrics Sinks -- `registerSinks` Internal Method
 
@@ -265,6 +282,20 @@ NOTE: `getServletHandlers` is used when...FIXME
 registerSinks(): Unit
 ----
 
-`registerSinks`...FIXME
+`registerSinks` requests the <<metricsConfig, MetricsConfig>> for the link:spark-metrics-MetricsConfig.adoc#getInstance[configuration] of the <<instance, instance>>.
+
+`registerSinks` requests the <<metricsConfig, MetricsConfig>> for the link:spark-metrics-MetricsConfig.adoc#subProperties[configuration] of all metrics sinks (i.e. configuration entries that match `^sink\\.(.+)\\.(.+)` regular expression).
+
+For every metrics sink configuration, `registerSinks` takes `class` property and (if defined) creates an instance of the metric sink using an constructor that takes the configuration, <<registry, MetricRegistry>> and <<securityMgr, SecurityManager>>.
+
+For a single *servlet* metrics sink, `registerSinks` converts the sink to a link:spark-metrics-MetricsServlet.adoc[MetricsServlet] and sets the <<metricsServlet, metricsServlet>> internal registry.
+
+For all other metrics sinks, `registerSinks` adds the sink to the <<sinks, sinks>> internal registry.
+
+In case of an `Exception`, `registerSinks` prints out the following ERROR message to the logs:
+
+```
+Sink class [classPath] cannot be instantiated
+```
 
 NOTE: `registerSinks` is used exclusively when `MetricsSystem` is requested to <<start, start>>.

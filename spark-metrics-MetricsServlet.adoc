@@ -1,23 +1,26 @@
 == [[MetricsServlet]] MetricsServlet
 
-`MetricsServlet` is a link:spark-metrics-Sink.adoc[Metrics Sink]...FIXME
+`MetricsServlet` is a link:spark-metrics-Sink.adoc[Metrics Sink] that gives <<getMetricsSnapshot, metrics snapshots>> in <<mapper, JSON>> format.
 
-`MetricsServlet` uses https://fasterxml.github.io/jackson-databind/[jackson-databind], the general data-binding package for Jackson (as <<mapper, ObjectMapper>>) with https://metrics.dropwizard.io/3.1.0/[Dropwizard Metrics] library (when registering a Coda Hale `MetricsModule`).
+`MetricsServlet` is <<creating-instance, created>> exclusively when `MetricsSystem` is requested to link:spark-metrics-MetricsSystem.adoc#registerSinks[register metrics sinks] (at link:spark-metrics-MetricsSystem.adoc#start[startup]) and a metrics sink is configured with *sink.servlet* prefix (in link:spark-metrics-MetricsConfig.adoc[metrics configuration]).
 
-`MetricsServlet` is <<creating-instance, created>> exclusively when `MetricsSystem` is requested to link:spark-MetricsSystem.adoc#registerSinks[register metrics sinks] (when being link:spark-MetricsSystem.adoc#start[started]) and...FIXME (`servlet` key?)
+`MetricsServlet` uses https://fasterxml.github.io/jackson-databind/[jackson-databind], the general data-binding package for Jackson (as <<mapper, ObjectMapper>>) with https://metrics.dropwizard.io/3.1.0/[Dropwizard Metrics] library (i.e. registering a Coda Hale `MetricsModule`).
 
 [[properties]]
 .MetricsServlet's Configuration Properties
-[cols="1,2",options="header",width="100%"]
+[cols="1,1,2",options="header",width="100%"]
 |===
 | Name
+| Default
 | Description
 
 | `path`
-| [[path]] FIXME
+| `/metrics/json`
+| [[path]] Path URI prefix to bind to
 
 | `sample`
-| [[sample]] FIXME
+| `false`
+| [[sample]] Whether to show entire set of samples for histograms
 |===
 
 [[internal-registries]]
@@ -45,17 +48,6 @@ Used exclusively when `MetricsServlet` is requested to <<getMetricsSnapshot, get
 Used when <<mapper, ObjectMapper>> is requested to register a Coda Hale https://metrics.dropwizard.io/3.1.0/apidocs/com/codahale/metrics/json/MetricsModule.html[com.codahale.metrics.json.MetricsModule].
 |===
 
-=== [[getHandlers]] `getHandlers` Method
-
-[source, scala]
-----
-getHandlers(conf: SparkConf): Array[ServletContextHandler]
-----
-
-`getHandlers` returns a collection of a single `ServletContextHandler`
-
-NOTE: `getHandlers` is used exclusively when `MetricsSystem` is requested for link:spark-MetricsSystem.adoc#getServletHandlers[metrics ServletContextHandlers].
-
 === [[creating-instance]] Creating MetricsServlet Instance
 
 `MetricsServlet` takes the following when created:
@@ -66,13 +58,24 @@ NOTE: `getHandlers` is used exclusively when `MetricsSystem` is requested for li
 
 `MetricsServlet` initializes the <<internal-registries, internal registries and counters>>.
 
-=== [[getMetricsSnapshot]] `getMetricsSnapshot` Method
+=== [[getMetricsSnapshot]] Requesting Metrics Snapshot -- `getMetricsSnapshot` Method
 
 [source, scala]
 ----
 getMetricsSnapshot(request: HttpServletRequest): String
 ----
 
-`getMetricsSnapshot` simply requests the <<mapper, Jaxson ObjectMapper>> to serialize the <<registry, MetricRegistry>> to a JSON string (using link:++https://fasterxml.github.io/jackson-databind/javadoc/2.6/com/fasterxml/jackson/databind/ObjectMapper.html#writeValueAsString-java.lang.Object-++[ObjectMapper.writeValueAsString]).
+`getMetricsSnapshot` simply requests the <<mapper, Jackson ObjectMapper>> to serialize the <<registry, MetricRegistry>> to a JSON string (using link:++https://fasterxml.github.io/jackson-databind/javadoc/2.6/com/fasterxml/jackson/databind/ObjectMapper.html#writeValueAsString-java.lang.Object-++[ObjectMapper.writeValueAsString]).
 
 NOTE: `getMetricsSnapshot` is used exclusively when `MetricsServlet` is requested to <<getHandlers, getHandlers>>.
+
+=== [[getHandlers]] Requesting JSON Servlet Handler -- `getHandlers` Method
+
+[source, scala]
+----
+getHandlers(conf: SparkConf): Array[ServletContextHandler]
+----
+
+`getHandlers` returns just a single `ServletContextHandler` (in a collection) that gives <<getMetricsSnapshot, metrics snapshot>> in JSON format at every request at <<servletPath, servletPath>> URI path.
+
+NOTE: `getHandlers` is used exclusively when `MetricsSystem` is requested for link:spark-metrics-MetricsSystem.adoc#getServletHandlers[metrics ServletContextHandlers].
