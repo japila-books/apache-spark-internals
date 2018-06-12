@@ -23,7 +23,7 @@ TIP: Use link:spark-submit.adoc[spark-submit]'s command-line options, i.e. link:
 
 A <<creating-instance, `BlockManager` is created>> when a link:spark-SparkEnv.adoc#create[Spark application starts] and must be <<initialize, initialized>> before it is fully operable.
 
-When <<externalShuffleServiceEnabled, External Shuffle Service is enabled>>, `BlockManager` uses link:spark-shuffleclient.adoc#ExternalShuffleClient[ExternalShuffleClient] to read other executors' shuffle files.
+When <<externalShuffleServiceEnabled, External Shuffle Service is enabled>>, `BlockManager` uses link:spark-ShuffleClient-ExternalShuffleClient.adoc[ExternalShuffleClient] to read other executors' shuffle files.
 
 [[metrics]]
 `BlockManager` uses link:spark-BlockManager-BlockManagerSource.adoc[BlockManagerSource] to report metrics under the name *BlockManager*.
@@ -228,7 +228,7 @@ CAUTION: FIXME
 
 === [[externalShuffleServiceEnabled]] Is External Shuffle Service Enabled? -- `externalShuffleServiceEnabled` Flag
 
-When the link:spark-ExternalShuffleService.adoc[External Shuffle Service] is enabled for a Spark application, `BlockManager` uses link:spark-shuffleclient.adoc#ExternalShuffleClient[ExternalShuffleClient] to read other executors' shuffle files.
+When the link:spark-ExternalShuffleService.adoc[External Shuffle Service] is enabled for a Spark application, `BlockManager` uses link:spark-ShuffleClient-ExternalShuffleClient.adoc[ExternalShuffleClient] to read other executors' shuffle files.
 
 CAUTION: FIXME How is `shuffleClient` used?
 
@@ -501,7 +501,7 @@ NOTE: It is computed specially in Spark on YARN.
 
 CAUTION: FIXME Describe the YARN-specific part.
 
-`BlockManager` creates a client to read other executors' shuffle files (as `shuffleClient`). If the external shuffle service is used an link:spark-shuffleclient.adoc#ExternalShuffleClient[ExternalShuffleClient] is created or the input link:spark-blocktransferservice.adoc[BlockTransferService] is used.
+`BlockManager` creates a client to read other executors' shuffle files (as `shuffleClient`). If the external shuffle service is used an link:spark-ShuffleClient-ExternalShuffleClient.adoc[ExternalShuffleClient] is created or the input link:spark-blocktransferservice.adoc[BlockTransferService] is used.
 
 `BlockManager` sets <<spark.block.failures.beforeLocationRefresh, the maximum number of failures before this block manager refreshes the block locations from the driver>> (as `maxFailuresBeforeLocationRefresh`).
 
@@ -511,7 +511,7 @@ CAUTION: FIXME Describe the YARN-specific part.
 
 CAUTION: FIXME
 
-(that is assumed to be a link:spark-shuffleclient.adoc#ExternalShuffleClient[ExternalShuffleClient])
+(that is assumed to be a link:spark-ShuffleClient-ExternalShuffleClient.adoc[ExternalShuffleClient])
 
 === [[shuffleServerId]] `shuffleServerId`
 
@@ -531,7 +531,7 @@ NOTE: The method must be called before a `BlockManager` can be considered fully 
 `initialize` does the following in order:
 
 1. Initializes link:spark-blocktransferservice.adoc#init[BlockTransferService]
-2. Initializes the internal shuffle client, be it link:spark-shuffleclient.adoc#ExternalShuffleClient[ExternalShuffleClient] or link:spark-blocktransferservice.adoc[BlockTransferService].
+2. Initializes the internal shuffle client, be it link:spark-ShuffleClient-ExternalShuffleClient.adoc[ExternalShuffleClient] or link:spark-blocktransferservice.adoc[BlockTransferService].
 3. link:spark-BlockManagerMaster.adoc#registerBlockManager[Registers itself with the driver's `BlockManagerMaster`] (using the `id`, `maxMemory` and its `slaveEndpoint`).
 +
 The `BlockManagerMaster` reference is passed in when the <<creating-instance, `BlockManager` is created>> on the driver and executors.
@@ -571,7 +571,7 @@ When executed, you should see the following INFO message in the logs:
 INFO Registering executor with local external shuffle service.
 ```
 
-It uses <<shuffleClient, shuffleClient>> to link:spark-shuffleclient.adoc#ExternalShuffleClient-registerWithShuffleServer[register the block manager] using <<shuffleServerId, shuffleServerId>> (i.e. the host, the port and the executorId) and a `ExecutorShuffleInfo`.
+It uses <<shuffleClient, shuffleClient>> to link:spark-ShuffleClient-ExternalShuffleClient.adoc#registerWithShuffleServer[register the block manager] using <<shuffleServerId, shuffleServerId>> (i.e. the host, the port and the executorId) and a `ExecutorShuffleInfo`.
 
 NOTE: The `ExecutorShuffleInfo` uses `localDirs` and `subDirsPerLocalDir` from link:spark-DiskBlockManager.adoc[DiskBlockManager] and the class name of the constructor link:spark-ShuffleManager.adoc[ShuffleManager].
 
@@ -818,6 +818,25 @@ addUpdatedBlockStatusToTaskMetrics(blockId: BlockId, status: BlockStatus): Unit
 `addUpdatedBlockStatusToTaskMetrics` link:spark-taskscheduler-taskcontext.adoc#get[takes an active `TaskContext`] (if available) and link:spark-taskscheduler-taskmetrics.adoc#incUpdatedBlockStatuses[records updated `BlockStatus` for `Block`] (in the link:spark-taskscheduler-taskcontext.adoc#taskMetrics[task's `TaskMetrics`]).
 
 NOTE: `addUpdatedBlockStatusToTaskMetrics` is used when `BlockManager` <<doPutBytes, doPutBytes>> (for a block that was successfully stored), <<doPut, doPut>>, <<doPutIterator, doPutIterator>>, <<dropFromMemory, removes blocks from memory>> (possibly spilling it to disk) and <<removeBlock, removes block from memory and disk>>.
+
+=== [[shuffleMetricsSource]] `shuffleMetricsSource` Method
+
+[source, scala]
+----
+shuffleMetricsSource: Source
+----
+
+`shuffleMetricsSource` creates a link:spark-BlockManager-ShuffleMetricsSource.adoc[ShuffleMetricsSource] with the following link:spark-BlockManager-ShuffleMetricsSource.adoc#sourceName[source names] per link:spark-ExternalShuffleService.adoc#spark.shuffle.service.enabled[spark.shuffle.service.enabled] configuration property:
+
+* *ExternalShuffle* when link:spark-ExternalShuffleService.adoc#spark.shuffle.service.enabled[spark.shuffle.service.enabled] configuration property is on (`true`)
+
+* *NettyBlockTransfer* when link:spark-ExternalShuffleService.adoc#spark.shuffle.service.enabled[spark.shuffle.service.enabled] configuration property is off (`false`)
+
+NOTE: link:spark-ExternalShuffleService.adoc#spark.shuffle.service.enabled[spark.shuffle.service.enabled] configuration property is off (`false`) by default.
+
+`shuffleMetricsSource` requests the <<shuffleClient, ShuffleClient>> for the link:spark-ShuffleClient.adoc#shuffleMetrics[shuffle-related metrics].
+
+NOTE: `shuffleMetricsSource` is used exclusively when `Executor` is link:spark-Executor.adoc#creating-instance[created] (for non-local modes).
 
 === [[settings]] Settings
 

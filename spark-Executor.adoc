@@ -19,7 +19,7 @@ Executors <<startDriverHeartbeater, reports heartbeat and partial metrics for ac
 .HeartbeatReceiver's Heartbeat Message Handler
 image::images/spark-HeartbeatReceiver-Heartbeat.png[align="center"]
 
-Executors provide in-memory storage for RDDs that are cached in Spark applications (via link:spark-blockmanager.adoc[Block Manager]).
+Executors provide in-memory storage for RDDs that are cached in Spark applications (via link:spark-BlockManager.adoc[Block Manager]).
 
 When an executor starts it first registers with the driver and communicates directly to execute tasks.
 
@@ -119,9 +119,10 @@ CAUTION: FIXME
 * [[executorHostname]] Executor's host name
 * [[env]] link:spark-SparkEnv.adoc[SparkEnv]
 * [[userClassPath]] Collection of user-defined JARs (<<createClassLoader, to add to tasks' class path>>). Empty by default
-* [[isLocal]] Flag whether it runs in local or cluster mode (disabled by default, i.e. cluster is preferred)
+* [[isLocal]] Flag that says whether the executor runs in local or cluster mode (default: `false`, i.e. cluster mode is preferred)
+* [[uncaughtExceptionHandler]] Java's `UncaughtExceptionHandler` (default: `SparkUncaughtExceptionHandler`)
 
-NOTE: User-defined JARs are defined using link:spark-CoarseGrainedExecutorBackend.adoc#main[`--user-class-path` command-line option of `CoarseGrainedExecutorBackend`] that can be set using <<spark.executor.extraClassPath, spark.executor.extraClassPath>> property.
+NOTE: User-defined JARs are defined using link:spark-CoarseGrainedExecutorBackend.adoc#main[--user-class-path] command-line option of `CoarseGrainedExecutorBackend` that can be set using <<spark.executor.extraClassPath, spark.executor.extraClassPath>> property.
 
 NOTE: `isLocal` is enabled exclusively for link:spark-LocalEndpoint.adoc[LocalEndpoint] (for link:spark-local.adoc[Spark in local mode]).
 
@@ -131,9 +132,14 @@ When created, you should see the following INFO messages in the logs:
 INFO Executor: Starting executor ID [executorId] on host [executorHostname]
 ```
 
-(only for <<isLocal, non-local mode>>) `Executor` sets `SparkUncaughtExceptionHandler` as the default handler invoked when a thread abruptly terminates due to an uncaught exception.
+(only for <<isLocal, non-local modes>>) `Executor` sets `SparkUncaughtExceptionHandler` as the default handler invoked when a thread abruptly terminates due to an uncaught exception.
 
-(only for <<isLocal, non-local mode>>) `Executor` link:spark-metrics-MetricsSystem.adoc#registerSource[registers `ExecutorSource`] and link:spark-blockmanager.adoc#initialize[initializes the local `BlockManager`].
+(only for <<isLocal, non-local modes>>) `Executor` requests the link:spark-SparkEnv.adoc#blockManager[BlockManager] to link:spark-BlockManager.adoc#initialize[initialize] (with the link:spark-SparkConf.adoc#getAppId[Spark application id] of the link:spark-SparkEnv.adoc#conf[SparkConf]).
+
+NOTE: link:spark-SparkConf.adoc#getAppId[Spark application id] corresponds to the value of link:spark-SparkConf.adoc#spark.app.id[spark.app.id] Spark property.
+
+[[creating-instance-BlockManager-shuffleMetricsSource]]
+(only for <<isLocal, non-local modes>>) `Executor` requests the link:spark-SparkEnv.adoc#metricsSystem[MetricsSystem] to link:spark-metrics-MetricsSystem.adoc#registerSource[register] the <<executorSource, ExecutorSource>> and link:spark-BlockManager.adoc#shuffleMetricsSource[shuffleMetricsSource] of the link:spark-SparkEnv.adoc#blockManager[BlockManager].
 
 NOTE: `Executor` uses `SparkEnv` to access the local link:spark-SparkEnv.adoc#metricsSystem[MetricsSystem] and link:spark-SparkEnv.adoc#blockManager[BlockManager].
 
@@ -184,7 +190,7 @@ CAUTION: FIXME How do `mergeShuffleReadMetrics` and `setJvmGCTime` influence `ac
 
 NOTE: Executors track the link:spark-executor-TaskRunner.adoc[TaskRunner] that run link:spark-taskscheduler-tasks.adoc[tasks]. A link:spark-executor-TaskRunner.adoc#run[task might not be assigned to a TaskRunner yet] when the executor sends a heartbeat.
 
-A blocking link:spark-HeartbeatReceiver.adoc#Heartbeat[Heartbeat] message that holds the executor id, all accumulator updates (per task id), and link:spark-blockmanager.adoc#BlockManagerId[BlockManagerId] is sent to link:spark-HeartbeatReceiver.adoc[HeartbeatReceiver RPC endpoint] (with <<spark.executor.heartbeatInterval, spark.executor.heartbeatInterval>> timeout).
+A blocking link:spark-HeartbeatReceiver.adoc#Heartbeat[Heartbeat] message that holds the executor id, all accumulator updates (per task id), and link:spark-BlockManager.adoc#BlockManagerId[BlockManagerId] is sent to link:spark-HeartbeatReceiver.adoc[HeartbeatReceiver RPC endpoint] (with <<spark.executor.heartbeatInterval, spark.executor.heartbeatInterval>> timeout).
 
 CAUTION: FIXME When is `heartbeatReceiverRef` created?
 
@@ -194,7 +200,7 @@ If the response link:spark-HeartbeatReceiver.adoc#Heartbeat[requests to reregist
 INFO Executor: Told to re-register on heartbeat
 ```
 
-The link:spark-blockmanager.adoc#reregister[BlockManager is reregistered].
+The link:spark-BlockManager.adoc#reregister[BlockManager is reregistered].
 
 The internal <<heartbeatFailures, heartbeatFailures>> counter is reset (i.e. becomes `0`).
 
@@ -236,11 +242,11 @@ NOTE: Internal accumulators are a task's metrics while external accumulators are
 
 `reportHeartBeat` sends a blocking link:spark-HeartbeatReceiver.adoc#Heartbeat[Heartbeat] message to <<heartbeatReceiverRef, `HeartbeatReceiver` endpoint>> (running on the driver). `reportHeartBeat` uses <<spark.executor.heartbeatInterval, spark.executor.heartbeatInterval>> for the RPC timeout.
 
-NOTE: A `Heartbeat` message contains the executor identifier, the accumulator updates, and the identifier of the link:spark-blockmanager.adoc[BlockManager].
+NOTE: A `Heartbeat` message contains the executor identifier, the accumulator updates, and the identifier of the link:spark-BlockManager.adoc[BlockManager].
 
 NOTE: `reportHeartBeat` uses `SparkEnv` link:spark-SparkEnv.adoc#blockManager[to access the current `BlockManager`].
 
-If the response (from <<heartbeatReceiverRef, `HeartbeatReceiver` endpoint>>) is to re-register the `BlockManager`, you should see the following INFO message in the logs and `reportHeartBeat` link:spark-blockmanager.adoc#reregister[requests `BlockManager` to re-register] (which will register the blocks the `BlockManager` manages with the driver).
+If the response (from <<heartbeatReceiverRef, `HeartbeatReceiver` endpoint>>) is to re-register the `BlockManager`, you should see the following INFO message in the logs and `reportHeartBeat` link:spark-BlockManager.adoc#reregister[requests `BlockManager` to re-register] (which will register the blocks the `BlockManager` manages with the driver).
 
 ```
 INFO Told to re-register on heartbeat
