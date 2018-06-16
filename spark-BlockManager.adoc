@@ -272,11 +272,24 @@ putBytes(
   tellMaster: Boolean = true): Boolean
 ----
 
-`putBytes` stores the `blockId` block (with `bytes` bytes and `level` storage level).
+`putBytes` makes sure that the `bytes` are not `null` and <<doPutBytes, doPutBytes>>.
 
-`putBytes` simply passes the call on to the internal <<doPutBytes, doPutBytes>>.
+[NOTE]
+====
+`putBytes` is used when:
 
-NOTE: `putBytes` is executed when link:spark-executor-TaskRunner.adoc#run-result-sent-via-blockmanager[`TaskRunner` sends a task result via `BlockManager`], <<putBlockData, `BlockManager` puts a block locally>> and in link:spark-TorrentBroadcast.adoc[TorrentBroadcast].
+* `TaskRunner` is requested to link:spark-executor-TaskRunner.adoc#run-result-sent-via-blockmanager[run] (and the result size is above link:spark-Executor.adoc#maxDirectResultSize[maxDirectResultSize])
+
+* `BlockManager` is requested to <<putBlockData, puts a block data locally>>
+
+* `TorrentBroadcast` is requested to link:spark-TorrentBroadcast.adoc#writeBlocks[writeBlocks] and link:spark-TorrentBroadcast.adoc#readBlocks[readBlocks]
+
+* Spark Streaming's `WriteAheadLogBackedBlockRDD` is requested to `compute`
+
+* Spark Streaming's `BlockManagerBasedBlockHandler` is requested to `storeBlock`
+
+* Spark Streaming's `WriteAheadLogBasedBlockHandler` is requested to `storeBlock`
+====
 
 ==== [[doPutBytes]] `doPutBytes` Internal Method
 
@@ -321,7 +334,7 @@ The function waits till the earlier asynchronous replication finishes for a bloc
 
 The final result of `doPutBytes` is the result of storing the block successful or not (as computed earlier).
 
-NOTE: `doPutBytes` is called exclusively from <<putBytes, `putBytes` method>>.
+NOTE: `doPutBytes` is used exclusively when `BlockManager` is requested to <<putBytes, putBytes>>.
 
 === [[replicate]] `replicate` Internal Method
 
@@ -682,13 +695,18 @@ Ultimately, `dropFromMemory` returns the current storage level of the block.
 
 NOTE: `dropFromMemory` is part of the single-method <<BlockEvictionHandler, BlockEvictionHandler>> interface.
 
-=== [[reportAllBlocks]] `reportAllBlocks` Method
+=== [[reportAllBlocks]] `reportAllBlocks` Internal Method
 
-CAUTION: FIXME
+[source, scala]
+----
+reportAllBlocks(): Unit
+----
 
-NOTE: `reportAllBlocks` is called when `BlockManager` is requested to <<reregister, re-register all blocks to the driver>>.
+`reportAllBlocks`...FIXME
 
-=== [[reportBlockStatus]] Reporting Current Storage Status of Block to Driver -- `reportBlockStatus` Method
+NOTE: `reportAllBlocks` is used when `BlockManager` is requested to <<reregister, re-register all blocks to the driver>>.
+
+=== [[reportBlockStatus]] Reporting Current Storage Status of Block to Driver -- `reportBlockStatus` Internal Method
 
 [source, scala]
 ----
@@ -713,7 +731,7 @@ In either case, it prints out the following DEBUG message to the logs:
 DEBUG BlockManager: Told master about block [blockId]
 ```
 
-NOTE: `reportBlockStatus` is called by <<getBlockData, getBlockData>>, <<doPutBytes, doPutBytes>>, <<doPutIterator, doPutIterator>>, <<dropFromMemory, dropFromMemory>> and <<removeBlockInternal, removeBlockInternal>>.
+NOTE: `reportBlockStatus` is used when `BlockManager` is requested to <<getBlockData, getBlockData>>, <<doPutBytes, doPutBytes>>, <<doPutIterator, doPutIterator>>, <<dropFromMemory, dropFromMemory>> and <<removeBlockInternal, removeBlockInternal>>.
 
 === [[tryToReportBlockStatus]] Reporting Block Status Update to Driver -- `tryToReportBlockStatus` Internal Method
 
@@ -728,7 +746,7 @@ def tryToReportBlockStatus(
 
 `tryToReportBlockStatus` link:spark-BlockManagerMaster.adoc#updateBlockInfo[reports block status update] to <<master, BlockManagerMaster>> and returns its response.
 
-NOTE: `tryToReportBlockStatus` is used when `BlockManager` <<reportAllBlocks, reportAllBlocks>> or <<reportBlockStatus, reportBlockStatus>>.
+NOTE: `tryToReportBlockStatus` is used when `BlockManager` is requested to <<reportAllBlocks, reportAllBlocks>> or <<reportBlockStatus, reportBlockStatus>>.
 
 === [[BlockEvictionHandler]] BlockEvictionHandler
 
