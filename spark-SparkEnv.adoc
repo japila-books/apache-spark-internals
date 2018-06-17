@@ -81,39 +81,53 @@ create(
   mockOutputCommitCoordinator: Option[OutputCommitCoordinator] = None): SparkEnv
 ----
 
-`create` is a internal helper method to create a "base" `SparkEnv` regardless of the target environment, i.e. a driver or an executor.
+`create` is a internal helper method to create a "base" `SparkEnv` (for a driver or an executor).
 
-.``create``'s Input Arguments and Their Usage
+.create's Input Arguments and Their Usage
 [cols="1,2",options="header",width="100%"]
 |===
-| Input Argument | Usage
-| `bindAddress` | Used to create link:spark-rpc.adoc[RpcEnv] and link:spark-NettyBlockTransferService.adoc#creating-instance[NettyBlockTransferService].
+| Input Argument
+| Usage
 
-| `advertiseAddress` | Used to create link:spark-rpc.adoc[RpcEnv] and link:spark-NettyBlockTransferService.adoc#creating-instance[NettyBlockTransferService].
+| `bindAddress`
+| Used to create link:spark-rpc.adoc[RpcEnv] and link:spark-NettyBlockTransferService.adoc#creating-instance[NettyBlockTransferService].
 
-| `numUsableCores` | Used to create link:spark-MemoryManager.adoc[MemoryManager], link:spark-NettyBlockTransferService.adoc#creating-instance[NettyBlockTransferService] and link:spark-BlockManager.adoc#creating-instance[BlockManager].
+| `advertiseAddress`
+| Used to create link:spark-rpc.adoc[RpcEnv] and link:spark-NettyBlockTransferService.adoc#creating-instance[NettyBlockTransferService].
+
+| `numUsableCores`
+| Used to create link:spark-MemoryManager.adoc[MemoryManager],
+ link:spark-NettyBlockTransferService.adoc#creating-instance[NettyBlockTransferService] and link:spark-BlockManager.adoc#creating-instance[BlockManager].
 |===
 
+[[create-Serializer]]
 When executed, `create` creates a `Serializer` (based on <<spark_serializer, spark.serializer>> setting). You should see the following `DEBUG` message in the logs:
 
 ```
 DEBUG SparkEnv: Using serializer: [serializer]
 ```
 
-It creates another `Serializer` (based on <<spark_closure_serializer, spark.closure.serializer>>).
+[[create-closure-Serializer]]
+`create` creates a closure `Serializer` (based on <<spark_closure_serializer, spark.closure.serializer>>).
 
-[[ShuffleManager]]
-It creates a link:spark-ShuffleManager.adoc[ShuffleManager] based on link:spark-ShuffleManager.adoc#spark_shuffle_manager[spark.shuffle.manager] Spark property.
+[[ShuffleManager]][[create-ShuffleManager]]
+`create` creates a link:spark-ShuffleManager.adoc[ShuffleManager] based on link:spark-ShuffleManager.adoc#spark_shuffle_manager[spark.shuffle.manager] Spark property.
 
-[[MemoryManager]]
-It creates a link:spark-MemoryManager.adoc[MemoryManager] based on <<spark_memory_useLegacyMode, spark.memory.useLegacyMode>> setting (with link:spark-UnifiedMemoryManager.adoc[UnifiedMemoryManager] being the default and `numCores` the input `numUsableCores`).
+[[MemoryManager]][[create-MemoryManager]]
+`create` creates a link:spark-MemoryManager.adoc[MemoryManager] based on <<spark_memory_useLegacyMode, spark.memory.useLegacyMode>> setting (with link:spark-UnifiedMemoryManager.adoc[UnifiedMemoryManager] being the default and `numCores` the input `numUsableCores`).
 
-[[NettyBlockTransferService]]
-`create` creates a link:spark-NettyBlockTransferService.adoc#creating-instance[NettyBlockTransferService]. It uses link:spark-driver.adoc#spark_driver_blockManager_port[`spark.driver.blockManager.port` for the port on the driver] and link:spark-BlockManager.adoc#spark_blockManager_port[`spark.blockManager.port` for the port on executors].
+[[NettyBlockTransferService]][[create-NettyBlockTransferService]]
+`create` creates a link:spark-NettyBlockTransferService.adoc#creating-instance[NettyBlockTransferService] with the following ports:
+
+* link:spark-driver.adoc#spark_driver_blockManager_port[spark.driver.blockManager.port] for the driver (default: `0`)
+
+* link:spark-BlockManager.adoc#spark_blockManager_port[spark.blockManager.port] for an executor (default: `0`)
+
+NOTE: `create` uses the `NettyBlockTransferService` to <<create-BlockManager, create a BlockManager>>.
 
 CAUTION: FIXME A picture with `SparkEnv`, `NettyBlockTransferService` and the ports "armed".
 
-[[BlockManagerMaster]]
+[[BlockManagerMaster]][[create-BlockManagerMaster]]
 `create` creates a link:spark-BlockManagerMaster.adoc#creating-instance[BlockManagerMaster] object with the `BlockManagerMaster` RPC endpoint reference (by <<registerOrLookupEndpoint, registering or looking it up by name>> and link:spark-blockmanager-BlockManagerMasterEndpoint.adoc[BlockManagerMasterEndpoint]), the input link:spark-SparkConf.adoc[SparkConf], and the input `isDriver` flag.
 
 .Creating BlockManager for the Driver
@@ -124,30 +138,33 @@ NOTE: `create` registers the *BlockManagerMaster* RPC endpoint for the driver an
 .Creating BlockManager for Executor
 image::images/sparkenv-executor-blockmanager.png[align="center"]
 
-[[BlockManager]]
+[[BlockManager]][[create-BlockManager]]
 It creates a link:spark-BlockManager.adoc#creating-instance[BlockManager] (using the above <<BlockManagerMaster, BlockManagerMaster>>, <<NettyBlockTransferService, NettyBlockTransferService>> and other services).
 
 `create` creates a link:spark-service-broadcastmanager.adoc[BroadcastManager].
 
-[[MapOutputTracker]]
+[[MapOutputTracker]][[create-MapOutputTracker]]
 `create` creates a link:spark-service-MapOutputTrackerMaster.adoc[MapOutputTrackerMaster] or link:spark-service-MapOutputTrackerWorker.adoc[MapOutputTrackerWorker] for the driver and executors, respectively.
 
 NOTE: The choice of the real implementation of link:spark-service-mapoutputtracker.adoc[MapOutputTracker] is based on whether the input `executorId` is *driver* or not.
 
-[[MapOutputTrackerMasterEndpoint]]
+[[MapOutputTrackerMasterEndpoint]][[create-MapOutputTrackerMasterEndpoint]]
 `create` <<registerOrLookupEndpoint, registers or looks up `RpcEndpoint`>> as *MapOutputTracker*. It registers link:spark-service-MapOutputTrackerMasterEndpoint.adoc[MapOutputTrackerMasterEndpoint] on the driver and creates a RPC endpoint reference on executors. The RPC endpoint reference gets assigned as the link:spark-service-mapoutputtracker.adoc#trackerEndpoint[MapOutputTracker RPC endpoint].
 
 CAUTION: FIXME
 
+[[create-CacheManager]]
 It creates a CacheManager.
 
+[[create-MetricsSystem]]
 It creates a MetricsSystem for a driver and a worker separately.
 
 It initializes `userFiles` temporary directory used for downloading dependencies for a driver while this is the executor's current working directory for an executor.
 
+[[create-OutputCommitCoordinator]]
 An OutputCommitCoordinator is created.
 
-NOTE: `create` is called by <<createDriverEnv, createDriverEnv>> and <<createExecutorEnv, createExecutorEnv>>.
+NOTE: `create` is used when `SparkEnv` is requested for the `SparkEnv` for the <<createDriverEnv, driver>> and <<createExecutorEnv, executors>>.
 
 === [[registerOrLookupEndpoint]] Registering or Looking up RPC Endpoint by Name -- `registerOrLookupEndpoint` Method
 

@@ -102,12 +102,6 @@ stop(): Unit
 
 NOTE: `stop` is used exclusively when `SparkEnv` is requested to link:spark-SparkEnv.adoc#stop[stop].
 
-=== [[putSingle]] `putSingle` Method
-
-CAUTION: FIXME
-
-NOTE: `putSingle` is used when link:spark-TorrentBroadcast.adoc#readBroadcastBlock[`TorrentBroadcast` reads the blocks of a broadcast variable and stores them in a local `BlockManager`].
-
 === [[getMatchingBlockIds]] Getting IDs of Existing Blocks (For a Given Filter) -- `getMatchingBlockIds` Method
 
 [source, scala]
@@ -194,21 +188,6 @@ NOTE: `get` is used when `BlockManager` is requested to <<getOrElseUpdate, `getO
 === [[getSingle]] `getSingle` Method
 
 CAUTION: FIXME
-
-=== [[getOrElseUpdate]] `getOrElseUpdate` Method
-
-CAUTION: FIXME
-
-[source, scala]
-----
-getOrElseUpdate[T](
-  blockId: BlockId,
-  level: StorageLevel,
-  classTag: ClassTag[T],
-  makeIterator: () => Iterator[T]): Either[BlockResult, Iterator[T]]
-----
-
-`getOrElseUpdate`...FIXME
 
 === [[getLocalBytes]] Getting Local Block Data As Bytes -- `getLocalBytes` Method
 
@@ -334,15 +313,7 @@ The final result of `doPutBytes` is the result of storing the block successful o
 
 NOTE: `doPutBytes` is used exclusively when `BlockManager` is requested to <<putBytes, putBytes>>.
 
-=== [[replicate]] `replicate` Internal Method
-
-CAUTION: FIXME
-
 === [[maybeCacheDiskValuesInMemory]] `maybeCacheDiskValuesInMemory` Method
-
-CAUTION: FIXME
-
-=== [[doPutIterator]] `doPutIterator` Method
 
 CAUTION: FIXME
 
@@ -483,7 +454,7 @@ CAUTION: FIXME
 * [[memoryManager]] link:spark-MemoryManager.adoc[MemoryManager]
 * link:spark-service-mapoutputtracker.adoc[MapOutputTracker]
 * link:spark-ShuffleManager.adoc[ShuffleManager]
-* link:spark-blocktransferservice.adoc[BlockTransferService]
+* link:spark-BlockTransferService.adoc[BlockTransferService]
 * `SecurityManager`
 
 NOTE: `executorId` is `SparkContext.DRIVER_IDENTIFIER`, i.e. `driver` for the driver and the value of link:spark-CoarseGrainedExecutorBackend.adoc#executor-id[--executor-id] command-line argument for link:spark-CoarseGrainedExecutorBackend.adoc[CoarseGrainedExecutorBackend] executors or link:spark-executor-backends-MesosExecutorBackend.adoc[MesosExecutorBackend].
@@ -512,7 +483,7 @@ NOTE: It is computed specially in Spark on YARN.
 
 CAUTION: FIXME Describe the YARN-specific part.
 
-`BlockManager` creates a client to read other executors' shuffle files (as `shuffleClient`). If the external shuffle service is used an link:spark-ShuffleClient-ExternalShuffleClient.adoc[ExternalShuffleClient] is created or the input link:spark-blocktransferservice.adoc[BlockTransferService] is used.
+`BlockManager` creates a client to read other executors' shuffle files (as `shuffleClient`). If the external shuffle service is used an link:spark-ShuffleClient-ExternalShuffleClient.adoc[ExternalShuffleClient] is created or the input link:spark-BlockTransferService.adoc[BlockTransferService] is used.
 
 `BlockManager` sets <<spark.block.failures.beforeLocationRefresh, the maximum number of failures before this block manager refreshes the block locations from the driver>> (as `maxFailuresBeforeLocationRefresh`).
 
@@ -541,12 +512,12 @@ NOTE: The method must be called before a `BlockManager` can be considered fully 
 
 `initialize` does the following in order:
 
-1. Initializes link:spark-blocktransferservice.adoc#init[BlockTransferService]
-2. Initializes the internal shuffle client, be it link:spark-ShuffleClient-ExternalShuffleClient.adoc[ExternalShuffleClient] or link:spark-blocktransferservice.adoc[BlockTransferService].
+1. Initializes link:spark-BlockTransferService.adoc#init[BlockTransferService]
+2. Initializes the internal shuffle client, be it link:spark-ShuffleClient-ExternalShuffleClient.adoc[ExternalShuffleClient] or link:spark-BlockTransferService.adoc[BlockTransferService].
 3. link:spark-BlockManagerMaster.adoc#registerBlockManager[Registers itself with the driver's `BlockManagerMaster`] (using the `id`, `maxMemory` and its `slaveEndpoint`).
 +
 The `BlockManagerMaster` reference is passed in when the <<creating-instance, `BlockManager` is created>> on the driver and executors.
-4. Sets <<shuffleServerId, shuffleServerId>> to an instance of <<BlockManagerId, BlockManagerId>> given an executor id, host name and port for link:spark-blocktransferservice.adoc[BlockTransferService].
+4. Sets <<shuffleServerId, shuffleServerId>> to an instance of <<BlockManagerId, BlockManagerId>> given an executor id, host name and port for link:spark-BlockTransferService.adoc[BlockTransferService].
 5. It creates the address of the server that serves this executor's shuffle files (using <<shuffleServerId, shuffleServerId>>)
 
 CAUTION: FIXME Review the initialize procedure again
@@ -872,3 +843,102 @@ NOTE: `shuffleMetricsSource` is used exclusively when `Executor` is link:spark-E
 | Controls whether link:spark-blockmanager-DiskBlockObjectWriter.adoc#commitAndGet[`DiskBlockObjectWriter` should force outstanding writes to disk when committing a single atomic block], i.e. all operating system buffers should synchronize with the disk to ensure that all changes to a file are in fact recorded in the storage.
 
 |===
+
+=== [[replicate]] Replicating Block Across Node(s) -- `replicate` Internal Method
+
+[source, scala]
+----
+replicate(
+  blockId: BlockId,
+  data: BlockData,
+  level: StorageLevel,
+  classTag: ClassTag[_],
+  existingReplicas: Set[BlockManagerId] = Set.empty): Unit
+----
+
+`replicate`...FIXME
+
+NOTE: `replicate` is used when `BlockManager` is requested to <<doPutBytes, doPutBytes>>, <<doPutIterator, doPutIterator>> and <<replicateBlock, replicateBlock>>.
+
+=== [[replicateBlock]] `replicateBlock` Method
+
+[source, scala]
+----
+replicateBlock(
+  blockId: BlockId,
+  existingReplicas: Set[BlockManagerId],
+  maxReplicas: Int): Unit
+----
+
+`replicateBlock`...FIXME
+
+NOTE: `replicateBlock` is used exclusively when `BlockManagerSlaveEndpoint` is requested to link:spark-blockmanager-BlockManagerSlaveEndpoint.adoc#receiveAndReply-ReplicateBlock[handle ReplicateBlock messages].
+
+=== [[doPutIterator]] `doPutIterator` Internal Method
+
+[source, scala]
+----
+doPutIterator[T](
+  blockId: BlockId,
+  iterator: () => Iterator[T],
+  level: StorageLevel,
+  classTag: ClassTag[T],
+  tellMaster: Boolean = true,
+  keepReadLock: Boolean = false): Option[PartiallyUnrolledIterator[T]]
+----
+
+`doPutIterator`...FIXME
+
+NOTE: `doPutIterator` is used when `BlockManager` is requested to <<getOrElseUpdate, getOrElseUpdate>> and <<putIterator, putIterator>>.
+
+=== [[putIterator]] `putIterator` Method
+
+[source, scala]
+----
+putIterator[T: ClassTag](
+  blockId: BlockId,
+  values: Iterator[T],
+  level: StorageLevel,
+  tellMaster: Boolean = true): Boolean
+----
+
+`putIterator`...FIXME
+
+[NOTE]
+====
+`putIterator` is used when:
+
+* `BlockManager` is requested to <<putSingle, putSingle>>
+
+* Spark Streaming's `BlockManagerBasedBlockHandler` is requested to `storeBlock`
+====
+
+=== [[getOrElseUpdate]] `getOrElseUpdate` Method
+
+[source, scala]
+----
+getOrElseUpdate[T](
+  blockId: BlockId,
+  level: StorageLevel,
+  classTag: ClassTag[T],
+  makeIterator: () => Iterator[T]): Either[BlockResult, Iterator[T]]
+----
+
+`getOrElseUpdate`...FIXME
+
+NOTE: `getOrElseUpdate` is used when `RDD` is requested to link:spark-rdd.adoc#getOrCompute[getOrCompute].
+
+=== [[putSingle]] `putSingle` Method
+
+[source, scala]
+----
+putSingle[T: ClassTag](
+  blockId: BlockId,
+  value: T,
+  level: StorageLevel,
+  tellMaster: Boolean = true): Boolean
+----
+
+`putSingle`...FIXME
+
+NOTE: `putSingle` is used when `TorrentBroadcast` is requested to link:spark-TorrentBroadcast.adoc#writeBlocks[read the blocks of a broadcast variable] and link:spark-TorrentBroadcast.adoc#readBroadcastBlock[readBroadcastBlock].

@@ -1,9 +1,11 @@
-== [[TorrentBroadcast]] `TorrentBroadcast` -- Default `Broadcast` Implementation
+== [[TorrentBroadcast]] TorrentBroadcast -- BroadcastFactory With BitTorrent-Like Protocol For Block Distribution
 
-`TorrentBroadcast` is the default and only implementation of the link:spark-broadcast.adoc#contract[`Broadcast` Contract] that describes link:spark-broadcast.adoc[broadcast variables]. `TorrentBroadcast` uses a BitTorrent-like protocol for block distribution (that only happens when tasks access broadcast variables on executors).
+`TorrentBroadcast` is a link:spark-BroadcastFactory.adoc[BroadcastFactory] that uses a BitTorrent-like protocol for block distribution (that only happens when tasks access broadcast variables on executors).
 
 .TorrentBroadcast - broadcasting using BitTorrent
 image::images/sparkcontext-broadcast-bittorrent.png[align="center"]
+
+`TorrentBroadcast` is <<creating-instance, created>> exclusively when `TorrentBroadcastFactory` is requested to link:spark-TorrentBroadcastFactory.adoc#newBroadcast[newBroadcast].
 
 When a link:spark-SparkContext.adoc#broadcast[broadcast variable is created (using `SparkContext.broadcast`)] on the driver, a <<creating-instance, new instance of `TorrentBroadcast` is created>>.
 
@@ -23,6 +25,16 @@ image::images/sparkcontext-broadcast-bittorrent-newBroadcast.png[align="center"]
 NOTE: `TorrentBroadcast`-based broadcast variables are created using link:spark-TorrentBroadcastFactory.adoc[TorrentBroadcastFactory].
 
 NOTE: `TorrentBroadcast` belongs to `org.apache.spark.broadcast` package.
+
+[[_value]]
+`TorrentBroadcast` uses `_value` internal registry for the value that is computed by <<readBroadcastBlock, readBroadcastBlock>> when first requested.
+
+[source, scala]
+----
+_value: T
+----
+
+NOTE: `_value` is a `@transient private lazy val` which means that it is not serialized to be sent remotely and instantiated when first requested.
 
 [TIP]
 ====
@@ -48,28 +60,6 @@ CAUTION: FIXME
 === [[releaseLock]] `releaseLock` Method
 
 CAUTION: FIXME
-
-=== [[creating-instance]] Creating `TorrentBroadcast` Instance
-
-[source, scala]
-----
-TorrentBroadcast[T](obj: T, id: Long)
-extends Broadcast[T](id)
-----
-
-When created, `TorrentBroadcast` <<readBroadcastBlock, reads broadcast blocks>> (to the internal `_value`).
-
-NOTE: The internal `_value` is transient so it is not serialized and sent over the wire to executors. It is later recreated lazily on executors when requested.
-
-`TorrentBroadcast` then sets the internal optional link:spark-CompressionCodec.adoc#createCodec[CompressionCodec] and the size of broadcast block (as controlled by  link:spark-service-broadcastmanager.adoc#spark_broadcast_blockSize[spark.broadcast.blockSize] Spark property in link:spark-SparkConf.adoc[SparkConf] per driver and executors).
-
-NOTE: Compression is controlled by link:spark-service-broadcastmanager.adoc#spark_broadcast_compress[spark.broadcast.compress] Spark property and is enabled by default.
-
-The internal `broadcastId` is link:spark-BlockDataManager.adoc#BroadcastBlockId[BroadcastBlockId] for the input `id`.
-
-The internal `numBlocks` is set to <<writeBlocks, the number of the pieces the broadcast was divided into>>.
-
-NOTE: A broadcast's blocks are first stored in the local link:spark-BlockManager.adoc[BlockManager] on the driver.
 
 === [[getValue]] Getting Value of Broadcast Variable -- `getValue` Method
 
@@ -129,7 +119,7 @@ Failed to store [broadcastId] in BlockManager
 
 The broadcast variable is returned.
 
-NOTE: `readBroadcastBlock` is exclusively used to <<creating-instance, recreate a broadcast variable on executors>>.
+NOTE: `readBroadcastBlock` is used exclusively when `TorrentBroadcast` is requested for the <<_value, value>>.
 
 === [[setConf]] `setConf` Internal Method
 
@@ -155,8 +145,6 @@ writeBlocks(value: T): Int
 
 `writeBlocks` stores the broadcast's `value` and blocks in the driver's link:spark-BlockManager.adoc[BlockManager]. It returns the number of the broadcast blocks the broadcast was divided into.
 
-NOTE: `writeBlocks` is exclusively used when a <<creating-instance, `TorrentBroadcast` is created>> that happens on the driver only. It sets the internal `numBlocks` property that is serialized as a number before the broadcast is sent to executors (after they have called link:spark-broadcast.adoc#value[`value` method]).
-
 Internally, `writeBlocks` link:spark-BlockManager.adoc#putSingle[stores the block for `value` broadcast to the local `BlockManager`] (using a new link:spark-BlockDataManager.adoc#BroadcastBlockId[BroadcastBlockId], `value`, `MEMORY_AND_DISK` storage level and without telling the driver).
 
 If storing the broadcast block fails, you should see the following `SparkException` in the logs:
@@ -174,6 +162,8 @@ If storing any of the broadcast pieces fails, you should see the following `Spar
 ```
 Failed to store [pieceId] of [broadcastId] in local BlockManager
 ```
+
+NOTE: `writeBlocks` is used exclusively when `TorrentBroadcast` is <<creating-instance, created>> (that happens on the driver only).
 
 === [[blockifyObject]] Chunking Broadcast Into Blocks -- `blockifyObject` Method
 
@@ -235,3 +225,12 @@ DEBUG TorrentBroadcast: Unpersisting TorrentBroadcast [id]
 `unpersist` requests link:spark-BlockManagerMaster.adoc#removeBroadcast[`BlockManagerMaster` to remove the `id` broadcast].
 
 NOTE: `unpersist` uses link:spark-SparkEnv.adoc#blockManager[`SparkEnv` to get the `BlockManagerMaster`] (through `blockManager` property).
+
+=== [[creating-instance]] Creating TorrentBroadcast Instance
+
+`TorrentBroadcast` takes the following when created:
+
+* [[obj]] Object (the value) to be broadcast
+* [[id]] ID
+
+`TorrentBroadcast` initializes the <<internal-registries, internal registries and counters>>.

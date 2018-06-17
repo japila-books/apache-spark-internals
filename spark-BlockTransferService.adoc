@@ -1,0 +1,109 @@
+== [[BlockTransferService]] BlockTransferService -- Pluggable Block Transfers
+
+`BlockTransferService` is the <<contract, base>> for link:spark-ShuffleClient.adoc[ShuffleClients] that can <<fetchBlocks, fetch>> and <<uploadBlock, upload>> blocks of data synchronously or asynchronously.
+
+[[contract]]
+[source, scala]
+----
+package org.apache.spark.network
+
+abstract class BlockTransferService extends ShuffleClient {
+  // only required methods that have no implementation
+  // the others follow
+  def init(blockDataManager: BlockDataManager): Unit
+  def close(): Unit
+  def port: Int
+  def hostName: String
+  def fetchBlocks(
+    host: String,
+    port: Int,
+    execId: String,
+    blockIds: Array[String],
+    listener: BlockFetchingListener,
+    tempFileManager: TempFileManager): Unit
+  def uploadBlock(
+    hostname: String,
+    port: Int,
+    execId: String,
+    blockId: BlockId,
+    blockData: ManagedBuffer,
+    level: StorageLevel,
+    classTag: ClassTag[_]): Future[Unit]
+}
+----
+
+NOTE: `BlockTransferService` is a `private[spark]` contract.
+
+.(Subset of) BlockTransferService Contract
+[cols="1,2",options="header",width="100%"]
+|===
+| Method
+| Description
+
+| `init`
+| [[init]] Used when...FIXME
+
+| `close`
+| [[close]] Used when...FIXME
+
+| `port`
+| [[port]] Used when...FIXME
+
+| `hostName`
+| [[hostName]] Used when...FIXME
+
+| `fetchBlocks`
+a| [[fetchBlocks]] Fetches a sequence of blocks from a remote node asynchronously
+
+Used exclusively when `BlockTransferService` is requested to <<fetchBlockSync, fetch only one block (in a blocking fashion)>>
+
+NOTE: `fetchBlocks` is part of link:spark-ShuffleClient.adoc#fetchBlocks[ShuffleClient Contract] to...FIXME.
+
+| `uploadBlock`
+| [[uploadBlock]] Used exclusively when `BlockTransferService` is requested to <<uploadBlockSync, upload a single block to a remote node (in a blocking fashion)>>.
+|===
+
+[[implementations]]
+NOTE: link:spark-NettyBlockTransferService.adoc[NettyBlockTransferService] is the one and only known implementation of <<contract, BlockTransferService Contract>>.
+
+NOTE: `BlockTransferService` was introduced in https://issues.apache.org/jira/browse/SPARK-3019[SPARK-3019 Pluggable block transfer interface (BlockTransferService)] and is available since Spark 1.2.0.
+
+=== [[fetchBlockSync]] `fetchBlockSync` Method
+
+[source, scala]
+----
+fetchBlockSync(
+  host: String,
+  port: Int,
+  execId: String,
+  blockId: String,
+  tempFileManager: TempFileManager): ManagedBuffer
+----
+
+`fetchBlockSync`...FIXME
+
+Synchronous (and hence blocking) `fetchBlockSync` to fetch one block `blockId` (that corresponds to the link:spark-ShuffleClient.adoc[ShuffleClient] parent's asynchronous link:spark-ShuffleClient.adoc#fetchBlocks[fetchBlocks]).
+
+`fetchBlockSync` is a mere wrapper around link:spark-ShuffleClient.adoc#fetchBlocks[fetchBlocks] to fetch one `blockId` block that waits until the fetch finishes.
+
+NOTE: `fetchBlockSync` is used when...FIXME
+
+=== [[uploadBlockSync]] Uploading Single Block to Remote Node (Blocking Fashion) -- `uploadBlockSync` Method
+
+[source, scala]
+----
+uploadBlockSync(
+  hostname: String,
+  port: Int,
+  execId: String,
+  blockId: BlockId,
+  blockData: ManagedBuffer,
+  level: StorageLevel,
+  classTag: ClassTag[_]): Unit
+----
+
+`uploadBlockSync`...FIXME
+
+`uploadBlockSync` is a mere blocking wrapper around <<uploadBlock, uploadBlock>> that waits until the upload finishes.
+
+NOTE: `uploadBlockSync` is used exclusively when `BlockManager` is requested to link:spark-BlockManager.adoc#replicate[replicate] (when a link:spark-rdd-StorageLevel.adoc[replication level is greater than 1]).
