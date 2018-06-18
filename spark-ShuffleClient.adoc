@@ -1,6 +1,10 @@
-== [[ShuffleClient]] ShuffleClient
+== [[ShuffleClient]] ShuffleClient -- Contract to Fetch Shuffle Blocks
 
-`ShuffleClient` is the <<contract, contract>> of <<implementations, clients>> that read shuffle block files.
+`ShuffleClient` is the <<contract, contract>> of <<implementations, clients>> that can <<fetchBlocks, fetch shuffle block files>>.
+
+`ShuffleClient` can optionally be <<init, initialized>> with an `appId` (that actually does nothing by default)
+
+`ShuffleClient` has <<shuffleMetrics, shuffle-related Spark metrics>> that are used when `BlockManager` is requested for a link:spark-BlockManager.adoc#shuffleMetricsSource[shuffle-related Spark metrics source] (only when `Executor` is link:spark-Executor.adoc#creating-instance[created] for a non-local / cluster mode).
 
 [[contract]]
 [source, java]
@@ -27,34 +31,10 @@ abstract class ShuffleClient implements Closeable {
 | Description
 
 | `fetchBlocks`
-| [[fetchBlocks]] Fetches a sequence of blocks from a remote node asynchronously
+| [[fetchBlocks]] Fetches a sequence of blocks from a remote block manager node asynchronously
 
 Used exclusively when `ShuffleBlockFetcherIterator` is requested to link:spark-ShuffleBlockFetcherIterator.adoc#sendRequest[sendRequest]
 |===
-
-[[init]]
-`ShuffleClient` can optionally be initialized with an executor's `appId` and does nothing by default.
-
-[source, java]
-----
-void init(String appId) {}
-----
-
-`init` is used when:
-
-* `BlockManager` is requested to link:spark-BlockManager.adoc#initialize[initialize]
-
-* Spark on Mesos' `MesosCoarseGrainedSchedulerBackend` is requested to `registered`
-
-[[shuffleMetrics]]
-`ShuffleClient` can optionally have shuffle-related metrics that are used when `BlockManager` is requested for link:spark-BlockManager.adoc#shuffleMetricsSource[shuffleMetricsSource] (that happens only when `Executor` is link:spark-Executor.adoc#creating-instance[created] for a non-local / cluster mode).
-
-[source, java]
-----
-MetricSet shuffleMetrics()
-----
-
-By default, `shuffleMetrics` returns an empty https://metrics.dropwizard.io/3.1.0/apidocs/com/codahale/metrics/MetricSet.html[MetricSet].
 
 [[implementations]]
 .ShuffleClients
@@ -69,3 +49,32 @@ By default, `shuffleMetrics` returns an empty https://metrics.dropwizard.io/3.1.
 | link:spark-ShuffleClient-ExternalShuffleClient.adoc[ExternalShuffleClient]
 | [[ExternalShuffleClient]]
 |===
+
+=== [[init]] `init` Method
+
+[source, java]
+----
+void init(String appId)
+----
+
+`init` does nothing by default.
+
+[NOTE]
+====
+`init` is used when:
+
+* `BlockManager` is requested to link:spark-BlockManager.adoc#initialize[initialize]
+
+* Spark on Mesos' `MesosCoarseGrainedSchedulerBackend` is requested to `registered`
+====
+
+=== [[shuffleMetrics]] Requesting Shuffle-Related Spark Metrics -- `shuffleMetrics` Method
+
+[source, java]
+----
+MetricSet shuffleMetrics()
+----
+
+`shuffleMetrics` returns an empty Dropwizard Metrics' https://metrics.dropwizard.io/3.1.0/apidocs/com/codahale/metrics/MetricSet.html[MetricSet] by default.
+
+NOTE: `shuffleMetrics` is used exclusively when `BlockManager` is requested for a link:spark-BlockManager.adoc#shuffleMetricsSource[shuffle-related Spark metrics source] (only when `Executor` is link:spark-Executor.adoc#creating-instance[created] for a non-local / cluster mode).
