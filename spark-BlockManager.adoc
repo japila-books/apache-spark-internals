@@ -1,16 +1,25 @@
-== [[BlockManager]] BlockManager -- Key-Value Store for Blocks
+== [[BlockManager]] BlockManager -- Key-Value Store for Blocks of Data
 
-`BlockManager` is a key-value store for blocks of data (simply _blocks_) in Spark. `BlockManager` acts as a local cache that runs on every "node" in a Spark application, i.e. the link:spark-driver.adoc[driver] and link:spark-Executor.adoc[executors] (and is created when link:spark-SparkEnv.adoc#BlockManager[`SparkEnv` is created]).
+`BlockManager` is a key-value store for blocks of data (simply _blocks_) in Apache Spark.
+
+`BlockManager` acts as a local cache that runs on every node in a Spark application, i.e. the link:spark-driver.adoc[driver] and link:spark-Executor.adoc[executors] (and is created when `SparkEnv` is link:spark-SparkEnv.adoc#create-BlockManager[created]).
 
 `BlockManager` provides interface for uploading and fetching blocks both locally and remotely using various stores, i.e. <<stores, memory, disk, and off-heap>>.
 
-When <<creating-instance, `BlockManager` is created>>, it creates its own private instances of link:spark-DiskBlockManager.adoc[DiskBlockManager], link:spark-BlockInfoManager.adoc[BlockInfoManager], link:spark-MemoryStore.adoc[MemoryStore] and link:spark-DiskStore.adoc[DiskStore] (that it immediately wires together, i.e. `BlockInfoManager` with `MemoryStore` and `DiskStore` with `DiskBlockManager`).
+When <<creating-instance, created>>, `BlockManager` uses a <<diskBlockManager, DiskBlockManager>>, <<blockInfoManager, BlockInfoManager>>, <<memoryStore, MemoryStore>> and <<diskStore, DiskStore>> (that it immediately wires together, i.e. `BlockInfoManager` with `MemoryStore` and `DiskStore` with `DiskBlockManager`).
+
+[[futureExecutionContext]]
+`BlockManager` uses a Scala https://www.scala-lang.org/api/current/scala/concurrent/ExecutionContextExecutorService.html[ExecutionContextExecutorService] to execute *FIXME* asynchronously (on a thread pool with *block-manager-future* prefix and maximum of 128 threads).
 
 The common idiom in Spark to access a `BlockManager` regardless of a location, i.e. the driver or executors, is through link:spark-SparkEnv.adoc#get[SparkEnv]:
 
 [source, scala]
 ----
-SparkEnv.get.blockManager
+// BlockManager is a private[spark] class
+// so the following has to be under org.apache.spark package
+// e.g. package org.apache.spark
+import org.apache.spark.storage.BlockManager
+val bm: BlockManager = SparkEnv.get.blockManager
 ----
 
 `BlockManager` is a link:spark-BlockDataManager.adoc[BlockDataManager], i.e. manages the storage for blocks that can represent cached RDD partitions, intermediate shuffle outputs, broadcasts, etc. It is also a <<BlockEvictionHandler, BlockEvictionHandler>> that drops a block from memory and storing it on a disk if applicable.
@@ -35,6 +44,14 @@ When <<externalShuffleServiceEnabled, External Shuffle Service is enabled>>, `Bl
 | Name
 | Initial Value
 | Description
+
+| [[blockInfoManager]] `blockInfoManager`
+| FIXME
+| link:spark-BlockInfoManager.adoc[BlockInfoManager] for...FIXME
+
+| [[diskStore]] `diskStore`
+| FIXME
+| link:spark-DiskStore.adoc[DiskStore] for...FIXME
 
 | [[diskBlockManager]] `diskBlockManager`
 | FIXME
@@ -164,18 +181,18 @@ getRemoteValues[T: ClassTag](blockId: BlockId): Option[BlockResult]
 
 [source, scala]
 ----
-get[T](blockId: BlockId): Option[BlockResult]
+get[T: ClassTag](blockId: BlockId): Option[BlockResult]
 ----
 
-`get` attempts to get the `blockId` block from a local block manager first before querying remote block managers.
+`get` attempts to get the `blockId` block from a local block manager first before requesting it from remote block managers.
 
-Internally, `get` tries to <<getLocalValues, get `blockId` block from the local `BlockManager`>>. If the `blockId` block was found, you should see the following INFO message in the logs and `get` returns the local <<BlockResult, BlockResult>>.
+Internally, `get` tries to <<getLocalValues, get the block from the local BlockManager>>. If the block was found, you should see the following INFO message in the logs and `get` returns the local <<BlockResult, BlockResult>>.
 
 ```
 INFO Found block [blockId] locally
 ```
 
-If however the `blockId` block was not found locally, `get` tries to <<getRemoteValues, get the block from remote ``BlockManager``s>>. If the `blockId` block was retrieved from a remote `BlockManager`, you should see the following INFO message in the logs and `get` returns the remote <<BlockResult, BlockResult>>.
+If however the block was not found locally, `get` tries to <<getRemoteValues, get the block from remote block managers>>. If retrieved from a remote block manager, you should see the following INFO message in the logs and `get` returns the remote <<BlockResult, BlockResult>>.
 
 ```
 INFO Found block [blockId] remotely
@@ -183,17 +200,18 @@ INFO Found block [blockId] remotely
 
 In the end, `get` returns "nothing" (i.e. `NONE`) when the `blockId` block was not found either in the local `BlockManager` or any remote `BlockManager`.
 
-NOTE: `get` is used when `BlockManager` is requested to <<getOrElseUpdate, `getOrElseUpdate` a block>>, <<getSingle, getSingle>> and to link:spark-rdd-blockrdd.adoc#[compute a `BlockRDD`].
+[NOTE]
+====
+`get` is used when:
 
-=== [[getSingle]] `getSingle` Method
+* `BlockManager` is requested to <<getOrElseUpdate, getOrElseUpdate>> and <<getSingle, getSingle>>
 
-CAUTION: FIXME
+* `BlockRDD` is requested to link:spark-rdd-BlockRDD.adoc#compute[compute a partition]
+
+* Spark Streaming's `WriteAheadLogBackedBlockRDD` is requested to `compute` a partition
+====
 
 === [[getLocalBytes]] Getting Local Block Data As Bytes -- `getLocalBytes` Method
-
-CAUTION: FIXME
-
-=== [[getRemoteBytes]] `getRemoteBytes` Method
 
 CAUTION: FIXME
 
@@ -446,18 +464,19 @@ CAUTION: FIXME
 
 `BlockManager` takes the following when created:
 
-* `executorId` (for the driver and executors)
-* link:spark-rpc.adoc[RpcEnv]
+* [[executorId]] Executor ID
+* [[rpcEnv]] link:spark-rpc.adoc[RpcEnv]
 * [[master]] link:spark-BlockManagerMaster.adoc[BlockManagerMaster]
-* link:spark-SerializerManager.adoc[SerializerManager]
-* link:spark-SparkConf.adoc[SparkConf]
+* [[serializerManager]] link:spark-SerializerManager.adoc[SerializerManager]
+* [[conf]] link:spark-SparkConf.adoc[SparkConf]
 * [[memoryManager]] link:spark-MemoryManager.adoc[MemoryManager]
-* link:spark-service-mapoutputtracker.adoc[MapOutputTracker]
-* link:spark-ShuffleManager.adoc[ShuffleManager]
-* link:spark-BlockTransferService.adoc[BlockTransferService]
-* `SecurityManager`
+* [[mapOutputTracker]] link:spark-service-mapoutputtracker.adoc[MapOutputTracker]
+* [[shuffleManager]] link:spark-ShuffleManager.adoc[ShuffleManager]
+* <<blockTransferService, BlockTransferService>>
+* [[securityManager]] `SecurityManager`
+* [[numUsableCores]] CPU cores
 
-NOTE: `executorId` is `SparkContext.DRIVER_IDENTIFIER`, i.e. `driver` for the driver and the value of link:spark-CoarseGrainedExecutorBackend.adoc#executor-id[--executor-id] command-line argument for link:spark-CoarseGrainedExecutorBackend.adoc[CoarseGrainedExecutorBackend] executors or link:spark-executor-backends-MesosExecutorBackend.adoc[MesosExecutorBackend].
+NOTE: `executorId` is `SparkContext.DRIVER_IDENTIFIER`, i.e. `driver` for the driver, and the value of link:spark-CoarseGrainedExecutorBackend.adoc#executor-id[--executor-id] command-line argument for link:spark-CoarseGrainedExecutorBackend.adoc[CoarseGrainedExecutorBackend] executors or link:spark-executor-backends-MesosExecutorBackend.adoc[MesosExecutorBackend].
 
 CAUTION: FIXME Elaborate on the executor backends and executor ids.
 
@@ -488,12 +507,6 @@ CAUTION: FIXME Describe the YARN-specific part.
 `BlockManager` sets <<spark.block.failures.beforeLocationRefresh, the maximum number of failures before this block manager refreshes the block locations from the driver>> (as `maxFailuresBeforeLocationRefresh`).
 
 `BlockManager` registers link:spark-blockmanager-BlockManagerSlaveEndpoint.adoc[BlockManagerSlaveEndpoint] with the input link:spark-rpc.adoc[RpcEnv], itself, and link:spark-service-mapoutputtracker.adoc[MapOutputTracker] (as `slaveEndpoint`).
-
-=== [[shuffleClient]] `shuffleClient`
-
-CAUTION: FIXME
-
-(that is assumed to be a link:spark-ShuffleClient-ExternalShuffleClient.adoc[ExternalShuffleClient])
 
 === [[shuffleServerId]] `shuffleServerId`
 
@@ -844,7 +857,7 @@ NOTE: `shuffleMetricsSource` is used exclusively when `Executor` is link:spark-E
 
 |===
 
-=== [[replicate]] Replicating Block Across Node(s) -- `replicate` Internal Method
+=== [[replicate]] Replicating Block To Peers -- `replicate` Internal Method
 
 [source, scala]
 ----
@@ -926,7 +939,7 @@ getOrElseUpdate[T](
 
 `getOrElseUpdate`...FIXME
 
-NOTE: `getOrElseUpdate` is used when `RDD` is requested to link:spark-rdd.adoc#getOrCompute[getOrCompute].
+NOTE: `getOrElseUpdate` is used exclusively when `RDD` is requested to link:spark-rdd.adoc#getOrCompute[get or compute an RDD partition] (for a `RDDBlockId` for a RDD ID and a partition index).
 
 === [[putSingle]] `putSingle` Method
 
@@ -942,3 +955,83 @@ putSingle[T: ClassTag](
 `putSingle`...FIXME
 
 NOTE: `putSingle` is used when `TorrentBroadcast` is requested to link:spark-TorrentBroadcast.adoc#writeBlocks[read the blocks of a broadcast variable] and link:spark-TorrentBroadcast.adoc#readBroadcastBlock[readBroadcastBlock].
+
+=== [[getRemoteBytes]] Fetching Block From Remote Nodes -- `getRemoteBytes` Method
+
+[source, scala]
+----
+getRemoteBytes(blockId: BlockId): Option[ChunkedByteBuffer]
+----
+
+`getRemoteBytes`...FIXME
+
+[NOTE]
+====
+`getRemoteBytes` is used when:
+
+* `BlockManager` is requested to <<getRemoteValues, getRemoteValues>>
+
+* `TorrentBroadcast` is requested to link:spark-TorrentBroadcast.adoc#readBlocks[readBlocks]
+
+* `TaskResultGetter` is requested to link:spark-TaskResultGetter.adoc#enqueueSuccessfulTask[enqueuing a successful IndirectTaskResult]
+====
+
+=== [[getRemoteValues]] `getRemoteValues` Internal Method
+
+[source, scala]
+----
+getRemoteValues[T: ClassTag](blockId: BlockId): Option[BlockResult]
+----
+
+`getRemoteValues`...FIXME
+
+NOTE: `getRemoteValues` is used exclusively when `BlockManager` is requested to <<get, get a block by BlockId>>.
+
+=== [[getSingle]] `getSingle` Method
+
+[source, scala]
+----
+getSingle[T: ClassTag](blockId: BlockId): Option[T]
+----
+
+`getSingle`...FIXME
+
+NOTE: `getSingle` is used exclusively in Spark tests.
+
+=== [[shuffleClient]] `shuffleClient` Property
+
+[source, scala]
+----
+shuffleClient: ShuffleClient
+----
+
+`shuffleClient` is a link:spark-ShuffleClient.adoc[ShuffleClient] that `BlockManager` uses for the following:
+
+* <<shuffleMetricsSource, shuffleMetricsSource>>
+
+* <<registerWithExternalShuffleServer, Registering the BlockManager of an executor with an external shuffle server>>
+
+`shuffleClient` is also used when `BlockStoreShuffleReader` is requested to link:spark-BlockStoreShuffleReader.adoc#read[read combined key-value records for a reduce task] (and creates a link:spark-ShuffleBlockFetcherIterator.adoc#shuffleClient[ShuffleBlockFetcherIterator]).
+
+`shuffleClient` can be either a link:spark-ShuffleClient-ExternalShuffleClient.adoc[ExternalShuffleClient] or the <<blockTransferService, BlockTransferService>> (that is the link:spark-NettyBlockTransferService.adoc[NettyBlockTransferService] given by link:spark-SparkEnv.adoc#create-BlockManager[SparkEnv]).
+
+CAUTION: FIXME Figure
+
+[[shuffleClient-externalShuffleServiceEnabled]]
+`shuffleClient` uses `spark.shuffle.service.enabled` configuration property (default: `false`) that controls whether to use link:spark-ShuffleClient-ExternalShuffleClient.adoc[ExternalShuffleClient] (`true`) or the <<blockTransferService, BlockTransferService>> (i.e. link:spark-NettyBlockTransferService.adoc[NettyBlockTransferService]).
+
+=== [[blockTransferService]] `blockTransferService` Property
+
+When <<creating-instance, created>>, `BlockManager` is given a link:spark-BlockTransferService.adoc[BlockTransferService] that is used for the following services:
+
+* <<getRemoteBytes, Fetching a block from remote nodes>>
+
+* <<replicate, Replicating a block to peers>>
+
+NOTE: Remote nodes, peers, block managers are all synonyms.
+
+The `BlockTransferService` acts as the <<shuffleClient, ShuffleClient>> when <<shuffleClient-externalShuffleServiceEnabled, spark.shuffle.service.enabled>> configuration property is off (which is the default).
+
+When <<initialize, initialized>>, `BlockManager` requests the `BlockTransferService` to link:spark-BlockTransferService.adoc#init[init]. `BlockManager` also requests the <<shuffleClient, ShuffleClient>> to link:spark-ShuffleClient.adoc#init[init] (that does nothing by default).
+
+When <<stop, stopped>>, `BlockManager` requests the `BlockTransferService` to link:spark-BlockTransferService.adoc#close[close]. `BlockManager` also requests the <<shuffleClient, ShuffleClient>> to `close`.

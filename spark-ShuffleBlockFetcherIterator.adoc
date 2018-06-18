@@ -2,6 +2,8 @@
 
 `ShuffleBlockFetcherIterator` is a Scala http://www.scala-lang.org/api/current/scala/collection/Iterator.html[Iterator] that fetches multiple shuffle blocks (aka _shuffle map outputs_) from local and remote BlockManagers.
 
+`ShuffleBlockFetcherIterator` is <<creating-instance, created>> exclusively when `BlockStoreShuffleReader` is requested to link:spark-BlockStoreShuffleReader.adoc#read[read combined key-value records for a reduce task].
+
 `ShuffleBlockFetcherIterator` allows for <<next, iterating over a sequence of blocks>> as `(BlockId, InputStream)` pairs so a caller can handle shuffle blocks in a pipelined fashion as they are received.
 
 `ShuffleBlockFetcherIterator` <<fetchUpToMaxBytes, throttles the remote fetches>> to avoid using too much memory.
@@ -90,28 +92,16 @@ CAUTION: FIXME
 
 When created, `ShuffleBlockFetcherIterator` takes the following:
 
-1. link:spark-taskscheduler-taskcontext.adoc[TaskContext]
-2. link:spark-ShuffleClient.adoc[ShuffleClient]
-3. link:spark-BlockManager.adoc[BlockManager]
-4. `blocksByAddress` list of blocks to fetch per link:spark-BlockManager.adoc[BlockManager].
-+
-```
-blocksByAddress: Seq[(BlockManagerId, Seq[(BlockId, Long)])]
-```
-
-5. `streamWrapper` function to wrap the returned input stream
-+
-```
-streamWrapper: (BlockId, InputStream) => InputStream
-```
-
-6. <<maxBytesInFlight, maxBytesInFlight>> -- the maximum size (in bytes) of map outputs to fetch simultaneously from each reduce task (controlled by link:spark-BlockStoreShuffleReader.adoc#spark_reducer_maxSizeInFlight[spark.reducer.maxSizeInFlight] Spark property)
-
-7. <<maxReqsInFlight, maxReqsInFlight>> -- the maximum number of remote requests to fetch blocks at any given point (controlled by link:spark-BlockStoreShuffleReader.adoc#spark_reducer_maxReqsInFlight[spark.reducer.maxReqsInFlight] Spark property)
-
-8. `detectCorrupt` flag to detect any corruption in fetched blocks (controlled by link:spark-BlockStoreShuffleReader.adoc#spark_shuffle_detectCorrupt[spark.shuffle.detectCorrupt] Spark property)
-
-CAUTION: FIXME
+* [[context]] link:spark-taskscheduler-taskcontext.adoc[TaskContext]
+* [[shuffleClient]] link:spark-ShuffleClient.adoc[ShuffleClient]
+* [[blockManager]] link:spark-BlockManager.adoc[BlockManager]
+* [[blocksByAddress]] Blocks to fetch per link:spark-BlockManager.adoc[BlockManager] (as `Seq[(BlockManagerId, Seq[(BlockId, Long)])]`)
+* [[streamWrapper]] Function to wrap the returned input stream (as `(BlockId, InputStream) => InputStream`)
+* <<maxBytesInFlight, maxBytesInFlight>> -- the maximum size (in bytes) of map outputs to fetch simultaneously from each reduce task (controlled by link:spark-BlockStoreShuffleReader.adoc#spark_reducer_maxSizeInFlight[spark.reducer.maxSizeInFlight] Spark property)
+* <<maxReqsInFlight, maxReqsInFlight>> -- the maximum number of remote requests to fetch blocks at any given point (controlled by link:spark-BlockStoreShuffleReader.adoc#spark_reducer_maxReqsInFlight[spark.reducer.maxReqsInFlight] Spark property)
+* [[maxBlocksInFlightPerAddress]] `maxBlocksInFlightPerAddress`
+* [[maxReqSizeShuffleToMem]] `maxReqSizeShuffleToMem`
+* [[detectCorrupt]] `detectCorrupt` flag to detect any corruption in fetched blocks (controlled by link:spark-BlockStoreShuffleReader.adoc#spark_shuffle_detectCorrupt[spark.shuffle.detectCorrupt] Spark property)
 
 === [[next]] `next` Method
 
