@@ -1,12 +1,12 @@
-== [[BlockManager]] BlockManager -- Key-Value Store for Blocks of Data
+== [[BlockManager]] BlockManager -- Key-Value Store of Blocks of Data
 
-`BlockManager` is a key-value store for blocks of data (simply _blocks_) in Apache Spark.
+`BlockManager` is a key-value store of blocks of data (*block storage*) identified by a block ID.
 
-`BlockManager` acts as a local cache that runs on every node in a Spark application, i.e. the link:spark-driver.adoc[driver] and link:spark-Executor.adoc[executors] (and is created when `SparkEnv` is link:spark-SparkEnv.adoc#create-BlockManager[created]).
+`BlockManager` acts as a local cache that runs on every node in a Spark cluster, i.e. the link:spark-driver.adoc[driver] and link:spark-Executor.adoc[executors].
 
 `BlockManager` provides interface for uploading and fetching blocks both locally and remotely using various stores, i.e. <<stores, memory, disk, and off-heap>>.
 
-When <<creating-instance, created>>, `BlockManager` uses a <<diskBlockManager, DiskBlockManager>>, <<blockInfoManager, BlockInfoManager>>, <<memoryStore, MemoryStore>> and <<diskStore, DiskStore>> (that it immediately wires together, i.e. `BlockInfoManager` with `MemoryStore` and `DiskStore` with `DiskBlockManager`).
+`BlockManager` is <<creating-instance, created>> exclusively when `SparkEnv` is link:spark-SparkEnv.adoc#create-BlockManager[created] (for the driver and executors). While being created, `BlockManager` gets a <<diskBlockManager, DiskBlockManager>>, <<blockInfoManager, BlockInfoManager>>, <<memoryStore, MemoryStore>> and <<diskStore, DiskStore>> (that it immediately wires together, i.e. `BlockInfoManager` with `MemoryStore` and `DiskStore` with `DiskBlockManager`).
 
 [[futureExecutionContext]]
 `BlockManager` uses a Scala https://www.scala-lang.org/api/current/scala/concurrent/ExecutionContextExecutorService.html[ExecutionContextExecutorService] to execute *FIXME* asynchronously (on a thread pool with *block-manager-future* prefix and maximum of 128 threads).
@@ -62,6 +62,7 @@ When <<externalShuffleServiceEnabled, External Shuffle Service is enabled>>, `Bl
 | Total maximum value that `BlockManager` can ever possibly use (that depends on <<memoryManager, MemoryManager>> and may vary over time).
 |===
 
+[[logging]]
 [TIP]
 ====
 Enable `INFO`, `DEBUG` or `TRACE` logging level for `org.apache.spark.storage.BlockManager` logger to see what happens inside.
@@ -924,21 +925,6 @@ putIterator[T: ClassTag](
 * Spark Streaming's `BlockManagerBasedBlockHandler` is requested to `storeBlock`
 ====
 
-=== [[getOrElseUpdate]] `getOrElseUpdate` Method
-
-[source, scala]
-----
-getOrElseUpdate[T](
-  blockId: BlockId,
-  level: StorageLevel,
-  classTag: ClassTag[T],
-  makeIterator: () => Iterator[T]): Either[BlockResult, Iterator[T]]
-----
-
-`getOrElseUpdate`...FIXME
-
-NOTE: `getOrElseUpdate` is used exclusively when `RDD` is requested to link:spark-rdd-RDD.adoc#getOrCompute[get or compute an RDD partition] (for a `RDDBlockId` for a RDD ID and a partition index).
-
 === [[putSingle]] `putSingle` Method
 
 [source, scala]
@@ -1033,3 +1019,43 @@ The `BlockTransferService` acts as the <<shuffleClient, ShuffleClient>> when <<s
 When <<initialize, initialized>>, `BlockManager` requests the `BlockTransferService` to link:spark-BlockTransferService.adoc#init[init]. `BlockManager` also requests the <<shuffleClient, ShuffleClient>> to link:spark-ShuffleClient.adoc#init[init] (that does nothing by default).
 
 When <<stop, stopped>>, `BlockManager` requests the `BlockTransferService` to link:spark-BlockTransferService.adoc#close[close]. `BlockManager` also requests the <<shuffleClient, ShuffleClient>> to `close`.
+
+=== [[getOrElseUpdate]] Getting Block If Available Or Computing and Storing It Otherwise -- `getOrElseUpdate` Method
+
+[source, scala]
+----
+getOrElseUpdate[T](
+  blockId: BlockId,
+  level: StorageLevel,
+  classTag: ClassTag[T],
+  makeIterator: () => Iterator[T]): Either[BlockResult, Iterator[T]]
+----
+
+[NOTE]
+====
+I think it is fair to say that `getOrElseUpdate` is like link:++https://www.scala-lang.org/api/current/scala/collection/mutable/Map.html#getOrElseUpdate(key:K,op:=%3EV):V++[getOrElseUpdate] of https://www.scala-lang.org/api/current/scala/collection/mutable/Map.html[scala.collection.mutable.Map]:
+
+`getOrElseUpdate(key: K, op: ⇒ V): V`
+
+If given key `K` is already in this map, `getOrElseUpdate` returns the associated value `V`.
+
+Otherwise, `getOrElseUpdate` computes a value `V` from given expression `op`, stores with the key `K` in the map and returns that value.
+
+Since `BlockManager` is a key-value store of blocks of data identified by a block ID that works just fine.
+====
+
+`getOrElseUpdate` first tries to <<get, get>> the block (as `BlockResult`) by the `BlockId` (from the local block manager first and, if unavailable, querying remote block managers).
+
+TIP: Enable `INFO` logging level for `org.apache.spark.storage.BlockManager` logger to see what happens when `BlockManager` tries to <<get, get a block>>. See <<logging, logging>> in this document.
+
+`getOrElseUpdate` returns the `BlockResult` if the block was found (in a local or remote storage).
+
+If the block is not available, `getOrElseUpdate` <<doPutIterator, doPutIterator>> (for the input `BlockId`, the `makeIterator` function and the `StorageLevel`).
+
+`getOrElseUpdate` branches off per the result.
+
+For `None`, `getOrElseUpdate` <<getLocalValues, getLocalValues>> for the `BlockId` and eventually returns the `BlockResult` (unless terminated by a `SparkException` due to some internal error).
+
+For `Some(iter)`, `getOrElseUpdate` returns an iterator of `T` values.
+
+NOTE: `getOrElseUpdate` is used exclusively when `RDD` is requested to link:spark-rdd-RDD.adoc#getOrCompute[get or compute an RDD partition] (for a `RDDBlockId` with a RDD ID and a partition index).
