@@ -1,68 +1,137 @@
 == [[MemoryManager]] MemoryManager -- Memory Management System
 
-`MemoryManager` is an abstract base *memory manager* to manage shared memory for execution and storage.
+`MemoryManager` is the <<contract, base>> of <<implementations, memory managers>> that manage shared memory for task execution and block storage.
+
+[[contract]]
+[source, scala]
+----
+package org.apache.spark.memory
+
+abstract class MemoryManager(...) {
+  // only required methods that have no implementation
+  // the others follow
+  def acquireExecutionMemory(
+    numBytes: Long,
+    taskAttemptId: Long,
+    memoryMode: MemoryMode): Long
+  def acquireStorageMemory(blockId: BlockId, numBytes: Long, memoryMode: MemoryMode): Boolean
+  def acquireUnrollMemory(blockId: BlockId, numBytes: Long, memoryMode: MemoryMode): Boolean
+  def maxOffHeapStorageMemory: Long
+  def maxOnHeapStorageMemory: Long
+}
+----
+
+NOTE: `MemoryManager` is a `private[spark]` contract.
+
+.(Subset of) MemoryManager Contract
+[cols="1,2",options="header",width="100%"]
+|===
+| Method
+| Description
+
+| `acquireExecutionMemory`
+| [[acquireExecutionMemory]] Used exclusively when `TaskMemoryManager` is requested to link:spark-taskscheduler-TaskMemoryManager.adoc#acquireExecutionMemory[acquireExecutionMemory]
+
+| `acquireStorageMemory`
+a| [[acquireStorageMemory]] Used when:
+
+* `UnifiedMemoryManager` is requested to link:spark-UnifiedMemoryManager.adoc#acquireUnrollMemory[acquireUnrollMemory]
+
+* `MemoryStore` is requested to link:spark-MemoryStore.adoc#putBytes[putBytes], link:spark-MemoryStore.adoc#putIteratorAsValues[putIteratorAsValues] and link:spark-MemoryStore.adoc#putIteratorAsBytes[putIteratorAsBytes]
+
+| `acquireUnrollMemory`
+| [[acquireUnrollMemory]] Used exclusively when `MemoryStore` is requested to link:spark-MemoryStore.adoc#reserveUnrollMemoryForThisTask[reserveUnrollMemoryForThisTask]
+
+| `maxOffHeapStorageMemory`
+a| [[maxOffHeapStorageMemory]] Used when:
+
+* `UnifiedMemoryManager` is requested to link:spark-UnifiedMemoryManager.adoc#acquireStorageMemory[acquireStorageMemory]
+
+* `BlockManager` is link:spark-BlockManager.adoc#maxOffHeapMemory[created]
+
+* `MemoryStore` is requested for the link:spark-MemoryStore.adoc#maxMemory[total amount of memory available for storage (in bytes)]
+
+| `maxOnHeapStorageMemory`
+a| [[maxOnHeapStorageMemory]] Used when:
+
+* `BlockManager` is link:spark-BlockManager.adoc#maxOnHeapMemory[created]
+
+* `UnifiedMemoryManager` is requested to link:spark-UnifiedMemoryManager.adoc#acquireStorageMemory[acquireStorageMemory]
+
+* `MemoryStore` is requested for the link:spark-MemoryStore.adoc#maxMemory[total amount of memory available for storage (in bytes)]
+
+* (legacy) `StaticMemoryManager` is link:spark-StaticMemoryManager.adoc#maxOnHeapStorageMemory[created], is requested to link:spark-StaticMemoryManager.adoc#acquireStorageMemory[acquireStorageMemory]
+|===
+
+`MemoryManager` is <<creating-instance, created>> along with link:spark-SparkEnv.adoc#create[SparkEnv].
+
+NOTE: `MemoryManager` is a Scala abstract class and cannot be created directly, but only as one of the <<implementations, implementations>>.
 
 *Execution memory* is used for computation in shuffles, joins, sorts and aggregations.
 
 *Storage memory* is used for caching and propagating internal data across the nodes in a cluster.
 
-A `MemoryManager` is created when link:spark-SparkEnv.adoc#create[SparkEnv is created] (one per JVM) and can be one of the two possible implementations:
+[[implementations]]
+.MemoryManagers
+[cols="1,2",options="header",width="100%"]
+|===
+| MemoryManager
+| Description
 
-1. link:spark-UnifiedMemoryManager.adoc[UnifiedMemoryManager] -- the default memory manager since Spark 1.6.
-2. `StaticMemoryManager` (legacy)
+| link:spark-StaticMemoryManager.adoc[StaticMemoryManager]
+| [[StaticMemoryManager]] (legacy)
 
-NOTE: `org.apache.spark.memory.MemoryManager` is a `private[spark]` Scala trait in Spark.
+| link:spark-UnifiedMemoryManager.adoc[UnifiedMemoryManager]
+| [[UnifiedMemoryManager]] The default memory manager
+|===
 
-=== [[contract]] MemoryManager Contract
-
-Every `MemoryManager` obeys the following contract:
-
-* <<maxOnHeapStorageMemory, maxOnHeapStorageMemory>>
-* <<acquireStorageMemory, acquireStorageMemory>>
-
-==== [[acquireStorageMemory]] `acquireStorageMemory`
-
-[source, scala]
-----
-acquireStorageMemory(blockId: BlockId, numBytes: Long, memoryMode: MemoryMode): Boolean
-----
-
-`acquireStorageMemory`
-
-CAUTION: FIXME
-
-`acquireStorageMemory` is used in link:spark-MemoryStore.adoc[MemoryStore] to put bytes.
-
-==== [[maxOffHeapStorageMemory]] `maxOffHeapStorageMemory` Attribute
+=== [[tungstenMemoryMode]] `tungstenMemoryMode` Property
 
 [source, scala]
 ----
-maxOffHeapStorageMemory: Long
+tungstenMemoryMode: MemoryMode
 ----
-
-CAUTION: FIXME
-
-==== [[maxOnHeapStorageMemory]] `maxOnHeapStorageMemory` Attribute
-
-[source, scala]
-----
-maxOnHeapStorageMemory: Long
-----
-
-`maxOnHeapStorageMemory` is the total amount of memory available for storage, in bytes. It can vary over time.
-
-CAUTION: FIXME Where is this used?
-
-It is used in link:spark-MemoryStore.adoc[MemoryStore] to ??? and link:spark-BlockManager.adoc[BlockManager] to ???
-
-=== [[releaseExecutionMemory]] `releaseExecutionMemory`
-
-=== [[releaseAllExecutionMemoryForTask]] `releaseAllExecutionMemoryForTask`
-
-=== [[tungstenMemoryMode]] `tungstenMemoryMode`
 
 `tungstenMemoryMode` informs others whether Spark works in `OFF_HEAP` or `ON_HEAP` memory mode.
 
 It uses `spark.memory.offHeap.enabled` (default: `false`), `spark.memory.offHeap.size` (default: `0`), and `org.apache.spark.unsafe.Platform.unaligned` before `OFF_HEAP` is assumed.
 
 CAUTION: FIXME Describe `org.apache.spark.unsafe.Platform.unaligned`.
+
+=== [[creating-instance]] Creating MemoryManager Instance
+
+`MemoryManager` takes the following when created:
+
+* [[conf]] link:spark-SparkConf.adoc[SparkConf]
+* [[numCores]] Number of CPU cores
+* [[onHeapStorageMemory]] `onHeapStorageMemory`
+* [[onHeapExecutionMemory]] `onHeapExecutionMemory`
+
+`MemoryManager` initializes the <<internal-registries, internal registries and counters>>.
+
+NOTE: `MemoryManager` is a Scala abstract class and cannot be created directly, but only as one of the <<implementations, implementations>>.
+
+=== [[releaseExecutionMemory]] `releaseExecutionMemory` Method
+
+[source, scala]
+----
+releaseExecutionMemory(
+  numBytes: Long,
+  taskAttemptId: Long,
+  memoryMode: MemoryMode): Unit
+----
+
+`releaseExecutionMemory`...FIXME
+
+NOTE: `releaseExecutionMemory` is used when `TaskMemoryManager` is requested to link:spark-taskscheduler-TaskMemoryManager.adoc#releaseExecutionMemory[releaseExecutionMemory] and link:spark-taskscheduler-TaskMemoryManager.adoc#cleanUpAllAllocatedMemory[cleanUpAllAllocatedMemory]
+
+=== [[releaseAllExecutionMemoryForTask]] `releaseAllExecutionMemoryForTask` Method
+
+[source, scala]
+----
+releaseAllExecutionMemoryForTask(taskAttemptId: Long): Long
+----
+
+`releaseAllExecutionMemoryForTask`...FIXME
+
+NOTE: `releaseAllExecutionMemoryForTask` is used exclusively when `TaskRunner` is requested to link:spark-executor-TaskRunner.adoc#run[run] (and cleans up after itself).
