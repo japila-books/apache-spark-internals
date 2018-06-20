@@ -1,25 +1,36 @@
 == [[MemoryStore]] MemoryStore
 
-*Memory store* (`MemoryStore`) manages blocks.
+`MemoryStore` is the *memory store* for blocks of data.
 
-`MemoryStore` requires link:spark-SparkConf.adoc[SparkConf], link:spark-BlockInfoManager.adoc[BlockInfoManager], link:spark-SerializerManager.adoc[SerializerManager], link:spark-MemoryManager.adoc[MemoryManager] and a link:spark-BlockEvictionHandler.adoc[BlockEvictionHandler].
+`MemoryStore` is <<creating-instance, created>> exclusively when `BlockManager` is link:spark-BlockManager.adoc#memoryStore[created].
 
-.`MemoryStore` Internal Registries
+.Creating MemoryStore
+image::images/spark-MemoryStore.png[align="center"]
+
+The "idiom" to access the current `MemoryStore` is to request `SparkEnv` for the link:spark-SparkEnv.adoc#blockManager[BlockManager] that manages the link:spark-BlockManager.adoc#memoryStore[MemoryStore].
+
+[source, scala]
+----
+SparkEnv.get.blockManager.memoryStore
+----
+
+[[unrollMemoryThreshold]]
+`MemoryStore` uses <<spark.storage.unrollMemoryThreshold, spark.storage.unrollMemoryThreshold>> configuration property (default: `1024 * 1024` bytes) when requested to <<putIteratorAsValues, putIteratorAsValues>> and <<putIteratorAsBytes, putIteratorAsBytes>>.
+
+[[internal-registries]]
+.MemoryStore's Internal Properties (e.g. Registries, Counters and Flags)
 [cols="1,2",options="header",width="100%"]
 |===
-| Name | Description
-| [[entries]] `entries` | Collection of ...FIXME
+| Name
+| Description
 
-`entries` is Java's `LinkedHashMap` with the initial capacity of `32`, the load factor of `0.75` and _access-order_ ordering mode (i.e. iteration is in the order in which its entries were last accessed, from least-recently accessed to most-recently).
+| `entries`
+a| [[entries]] Java's https://docs.oracle.com/javase/8/docs/api/java/util/LinkedHashMap.html[java.util.LinkedHashMap] (with the initial capacity of `32`, the load factor of `0.75` and _access-order_ ordering mode, i.e. iteration is in the order in which its entries were last accessed, from least-recently accessed to most-recently).
 
-NOTE: `entries` is Java's https://docs.oracle.com/javase/8/docs/api/java/util/LinkedHashMap.html[java.util.LinkedHashMap].
+Used when...FIXME
 |===
 
 CAUTION: FIXME Where are these dependencies used?
-
-CAUTION: FIXME Where is the `MemoryStore` created? What params provided?
-
-NOTE: `MemoryStore` is a `private[spark]` class.
 
 [TIP]
 ====
@@ -36,7 +47,25 @@ Refer to link:spark-logging.adoc[Logging].
 
 === [[releaseUnrollMemoryForThisTask]] `releaseUnrollMemoryForThisTask` Method
 
-CAUTION: FIXME
+[source, scala]
+----
+releaseUnrollMemoryForThisTask(memoryMode: MemoryMode, memory: Long = Long.MaxValue): Unit
+----
+
+`releaseUnrollMemoryForThisTask`...FIXME
+
+[NOTE]
+====
+`releaseUnrollMemoryForThisTask` is used when:
+
+* `Task` is requested to link:spark-taskscheduler-Task.adoc#run[run] (and cleans up after itself)
+
+* `MemoryStore` is requested to <<putIteratorAsValues, putIteratorAsValues>> and <<putIteratorAsBytes, putIteratorAsBytes>>
+
+* `PartiallyUnrolledIterator` is requested to `releaseUnrollMemory`
+
+* `PartiallySerializedBlock` is requested to `discard` and `finishWritingToStream`
+====
 
 === [[getValues]] `getValues` Method
 
@@ -56,15 +85,6 @@ getBytes(blockId: BlockId): Option[ChunkedByteBuffer]
 
 `getBytes` does...FIXME
 
-=== [[contains]] Is Block Available? -- `contains` Method
-
-[source, scala]
-----
-contains(blockId: BlockId): Boolean
-----
-
-`contains` returns `true` when the internal <<entries, entries>> registry contains `blockId`.
-
 === [[putIteratorAsBytes]] `putIteratorAsBytes` Method
 
 [source, scala]
@@ -79,22 +99,6 @@ putIteratorAsBytes[T](
 `putIteratorAsBytes` tries to put the `blockId` block in memory store as bytes.
 
 CAUTION: FIXME
-
-=== [[putIteratorAsValues]] `putIteratorAsValues` Method
-
-[source, scala]
-----
-putIteratorAsValues[T](
-  blockId: BlockId,
-  values: Iterator[T],
-  classTag: ClassTag[T]): Either[PartiallyUnrolledIterator[T], Long]
-----
-
-`putIteratorAsValues` tries to put the `blockId` block in memory store as `values`.
-
-NOTE: `putIteratorAsValues` is a `private[storage]` method.
-
-NOTE: is called when `BlockManager` stores  link:spark-BlockManager.adoc#doPutBytes[bytes of a block] or link:spark-BlockManager.adoc#doPutIterator[iterator of values of a block] or when link:spark-BlockManager.adoc#maybeCacheDiskValuesInMemory[attempting to cache spilled values read from disk].
 
 === [[remove]] Removing Block
 
@@ -146,8 +150,18 @@ INFO Block [blockId] stored as bytes in memory (estimated size [size], free [byt
 .Spark Properties
 [cols="1,1,2",options="header",width="100%"]
 |===
-| Spark Property | Default Value | Description
-| [[spark_storage_unrollMemoryThreshold]] `spark.storage.unrollMemoryThreshold` | `1k` |
+| Spark Property
+| Default Value
+| Description
+
+| `spark.storage.unrollMemoryThreshold`
+| `1024 * 1024`
+| [[spark_storage_unrollMemoryThreshold]][[spark.storage.unrollMemoryThreshold]]
+Initial per-task memory size needed to store a block in memory.
+
+`spark.storage.unrollMemoryThreshold` has to be at most the <<maxMemory, total amount of memory available for storage>>.
+
+Used when `MemoryStore` is requested to <<putIteratorAsValues, putIteratorAsValues>> and <<putIteratorAsBytes, putIteratorAsBytes>>.
 |===
 
 === [[evictBlocksToFreeSpace]] Evicting Blocks From Memory -- `evictBlocksToFreeSpace` Method
@@ -163,3 +177,50 @@ evictBlocksToFreeSpace(
 `evictBlocksToFreeSpace`...FIXME
 
 NOTE: `evictBlocksToFreeSpace` is used when `StorageMemoryPool` is requested to link:spark-StorageMemoryPool.adoc#acquireMemory[acquireMemory] and link:spark-StorageMemoryPool.adoc#freeSpaceToShrinkPool[freeSpaceToShrinkPool].
+
+=== [[contains]] Checking Whether Block Exists In MemoryStore -- `contains` Method
+
+[source, scala]
+----
+contains(blockId: BlockId): Boolean
+----
+
+`contains` is positive (`true`) when the <<entries, entries>> internal registry contains `blockId` key.
+
+NOTE: `contains` is used when...FIXME
+
+=== [[putIteratorAsValues]] `putIteratorAsValues` Method
+
+[source, scala]
+----
+putIteratorAsValues[T](
+  blockId: BlockId,
+  values: Iterator[T],
+  classTag: ClassTag[T]): Either[PartiallyUnrolledIterator[T], Long]
+----
+
+`putIteratorAsValues` makes sure that the `BlockId` does not exist or throws an `IllegalArgumentException`:
+
+```
+requirement failed: Block [blockId] is already present in the MemoryStore
+```
+
+`putIteratorAsValues` <<reserveUnrollMemoryForThisTask, reserveUnrollMemoryForThisTask>> (with the <<unrollMemoryThreshold, initial memory threshold>> and `ON_HEAP` memory mode).
+
+CAUTION: FIXME
+
+`putIteratorAsValues` tries to put the `blockId` block in memory store as `values`.
+
+NOTE: `putIteratorAsValues` is used when `BlockManager` stores  link:spark-BlockManager.adoc#doPutBytes[bytes of a block] or link:spark-BlockManager.adoc#doPutIterator[iterator of values of a block] or when link:spark-BlockManager.adoc#maybeCacheDiskValuesInMemory[attempting to cache spilled values read from disk].
+
+=== [[creating-instance]] Creating MemoryStore Instance
+
+`MemoryStore` takes the following when created:
+
+* [[conf]] link:spark-SparkConf.adoc[SparkConf]
+* [[blockInfoManager]] link:spark-BlockInfoManager.adoc[BlockInfoManager]
+* [[serializerManager]] link:spark-SerializerManager.adoc[SerializerManager]
+* [[memoryManager]] link:spark-MemoryManager.adoc[MemoryManager]
+* [[blockEvictionHandler]] link:spark-BlockEvictionHandler.adoc[BlockEvictionHandler]
+
+`MemoryStore` initializes the <<internal-registries, internal registries and counters>>.
