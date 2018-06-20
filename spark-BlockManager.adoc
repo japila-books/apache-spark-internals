@@ -22,7 +22,9 @@ import org.apache.spark.storage.BlockManager
 val bm: BlockManager = SparkEnv.get.blockManager
 ----
 
-`BlockManager` is a link:spark-BlockDataManager.adoc[BlockDataManager], i.e. manages the storage for blocks that can represent cached RDD partitions, intermediate shuffle outputs, broadcasts, etc. It is also a <<BlockEvictionHandler, BlockEvictionHandler>> that drops a block from memory and storing it on a disk if applicable.
+`BlockManager` is a link:spark-BlockDataManager.adoc[BlockDataManager], i.e. manages the storage for blocks that can represent cached RDD partitions, intermediate shuffle outputs, broadcasts, etc.
+
+`BlockManager` is a link:spark-BlockEvictionHandler.adoc[BlockEvictionHandler] that can <<dropFromMemory, drop a block from memory and store it on a disk>> if required.
 
 *Cached blocks* are blocks with non-zero sum of memory and disk sizes.
 
@@ -60,6 +62,10 @@ When <<externalShuffleServiceEnabled, External Shuffle Service is enabled>>, `Bl
 | [[maxMemory]] `maxMemory`
 | Total available link:spark-MemoryManager.adoc#maxOnHeapStorageMemory[on-heap] and link:spark-MemoryManager.adoc#maxOffHeapStorageMemory[off-heap] memory for storage (in bytes)
 | Total maximum value that `BlockManager` can ever possibly use (that depends on <<memoryManager, MemoryManager>> and may vary over time).
+
+| `memoryStore`
+|
+| [[memoryStore]] link:spark-MemoryStore.adoc[MemoryStore] (with the <<blockInfoManager, BlockInfoManager>>, the <<serializerManager, SerializerManager>>, <<memoryManager, MemoryManager>> and this `BlockManager` as the link:spark-BlockEvictionHandler.adoc[BlockEvictionHandler])
 |===
 
 [[logging]]
@@ -102,10 +108,6 @@ CAUTION: FIXME
 CAUTION: FIXME
 
 === [[releaseAllLocksForTask]] `releaseAllLocksForTask` Method
-
-CAUTION: FIXME
-
-=== [[memoryStore]] `memoryStore` Property
 
 CAUTION: FIXME
 
@@ -635,49 +637,6 @@ NOTE: It is acceptable that the `BlockInfo` says to use memory or disk yet the b
 
 NOTE: `getCurrentBlockStatus` is used when <<reregister, executor's BlockManager is requested to report the current status of the local blocks to the master>>, <<doPutBytes, saving a block to a storage>> or <<dropFromMemory, removing a block from memory only>> or <<removeBlock, both, i.e. from memory and disk>>.
 
-=== [[dropFromMemory]] Removing Blocks From Memory Only -- `dropFromMemory` Method
-
-[source, scala]
-----
-dropFromMemory(
-  blockId: BlockId,
-  data: () => Either[Array[T], ChunkedByteBuffer]): StorageLevel
-----
-
-When `dropFromMemory` is executed, you should see the following INFO message in the logs:
-
-```
-INFO BlockManager: Dropping block [blockId] from memory
-```
-
-It then asserts that the `blockId` block is link:spark-BlockInfoManager.adoc#assertBlockIsLockedForWriting[locked for writing].
-
-If the block's link:spark-rdd-StorageLevel.adoc[StorageLevel] uses disks and the internal link:spark-DiskStore.adoc[DiskStore] object (`diskStore`) does not contain the block, it is saved then. You should see the following INFO message in the logs:
-
-```
-INFO BlockManager: Writing block [blockId] to disk
-```
-
-CAUTION: FIXME Describe the case with saving a block to disk.
-
-The block's memory size is fetched and recorded (using `MemoryStore.getSize`).
-
-The block is link:spark-MemoryStore.adoc#remove[removed from memory] if exists. If not, you should see the following WARN message in the logs:
-
-```
-WARN BlockManager: Block [blockId] could not be dropped from memory as it does not exist
-```
-
-It then <<getCurrentBlockStatus, calculates the current storage status of the block>> and <<reportBlockStatus, reports it to the driver>>. It only happens when `info.tellMaster`.
-
-CAUTION: FIXME When would `info.tellMaster` be `true`?
-
-A block is considered updated when it was written to disk or removed from memory or both. If either happened, the link:spark-taskscheduler-taskmetrics.adoc#incUpdatedBlockStatuses[current TaskContext metrics are updated with the change].
-
-Ultimately, `dropFromMemory` returns the current storage level of the block.
-
-NOTE: `dropFromMemory` is part of the single-method <<BlockEvictionHandler, BlockEvictionHandler>> interface.
-
 === [[reportAllBlocks]] `reportAllBlocks` Internal Method
 
 [source, scala]
@@ -730,21 +689,6 @@ def tryToReportBlockStatus(
 `tryToReportBlockStatus` link:spark-BlockManagerMaster.adoc#updateBlockInfo[reports block status update] to <<master, BlockManagerMaster>> and returns its response.
 
 NOTE: `tryToReportBlockStatus` is used when `BlockManager` is requested to <<reportAllBlocks, reportAllBlocks>> or <<reportBlockStatus, reportBlockStatus>>.
-
-=== [[BlockEvictionHandler]] BlockEvictionHandler
-
-`BlockEvictionHandler` is a `private[storage]` Scala trait with a single method <<BlockEvictionHandler-dropFromMemory, dropFromMemory>>.
-
-[source, scala]
-----
-dropFromMemory(
-  blockId: BlockId,
-  data: () => Either[Array[T], ChunkedByteBuffer]): StorageLevel
-----
-
-NOTE: A `BlockManager` is a `BlockEvictionHandler`.
-
-NOTE: `dropFromMemory` is called when  link:spark-MemoryStore.adoc#evictBlocksToFreeSpace[`MemoryStore` evicts blocks from memory to free space].
 
 === [[broadcast]] Broadcast Values
 
@@ -1066,11 +1010,11 @@ doPutIterator[T](
   keepReadLock: Boolean = false): Option[PartiallyUnrolledIterator[T]]
 ----
 
-`doPutIterator` simply <<doPut, doPut>> with the `putBody: BlockInfo => Option[T]` function that does the following:
+`doPutIterator` simply <<doPut, doPut>> with the `putBody` function that accepts a `BlockInfo` and does the following:
 
-. `putBody` branches off per whether the `StorageLevel` indicates to use link:spark-rdd-StorageLevel.adoc#useMemory[memory] or link:spark-rdd-StorageLevel.adoc#useDisk[disk] only, i.e.
+. `putBody` branches off per whether the `StorageLevel` indicates to use a link:spark-rdd-StorageLevel.adoc#useMemory[memory] or simply a link:spark-rdd-StorageLevel.adoc#useDisk[disk], i.e.
 
-* When the input `StorageLevel` indicates to link:spark-rdd-StorageLevel.adoc#useMemory[use memory] for storage in link:spark-rdd-StorageLevel.adoc#deserialized[deserialized] format, `putBody`...FIXME
+* When the input `StorageLevel` indicates to link:spark-rdd-StorageLevel.adoc#useMemory[use a memory] for storage in link:spark-rdd-StorageLevel.adoc#deserialized[deserialized] format, `putBody` requests <<memoryStore, MemoryStore>> to putIteratorAsValues
 
 * When the input `StorageLevel` indicates to link:spark-rdd-StorageLevel.adoc#useMemory[use memory] for storage in link:spark-rdd-StorageLevel.adoc#deserialized[serialized] format, `putBody`...FIXME
 
@@ -1101,3 +1045,46 @@ Put block [blockId] remotely took [time] ms
 . In the end, `putBody` may or may not give a `PartiallyUnrolledIterator` if...FIXME
 
 NOTE: `doPutIterator` is used when `BlockManager` is requested to <<getOrElseUpdate, get a block from block managers or computing and storing it otherwise>> and <<putIterator, putIterator>>.
+
+=== [[dropFromMemory]] Removing Blocks From Memory Only -- `dropFromMemory` Method
+
+[source, scala]
+----
+dropFromMemory(
+  blockId: BlockId,
+  data: () => Either[Array[T], ChunkedByteBuffer]): StorageLevel
+----
+
+NOTE: `dropFromMemory` is part of the link:spark-BlockEvictionHandler.adoc#dropFromMemory[BlockEvictionHandler Contract] to...FIXME
+
+When `dropFromMemory` is executed, you should see the following INFO message in the logs:
+
+```
+INFO BlockManager: Dropping block [blockId] from memory
+```
+
+It then asserts that the `blockId` block is link:spark-BlockInfoManager.adoc#assertBlockIsLockedForWriting[locked for writing].
+
+If the block's link:spark-rdd-StorageLevel.adoc[StorageLevel] uses disks and the internal link:spark-DiskStore.adoc[DiskStore] object (`diskStore`) does not contain the block, it is saved then. You should see the following INFO message in the logs:
+
+```
+INFO BlockManager: Writing block [blockId] to disk
+```
+
+CAUTION: FIXME Describe the case with saving a block to disk.
+
+The block's memory size is fetched and recorded (using `MemoryStore.getSize`).
+
+The block is link:spark-MemoryStore.adoc#remove[removed from memory] if exists. If not, you should see the following WARN message in the logs:
+
+```
+WARN BlockManager: Block [blockId] could not be dropped from memory as it does not exist
+```
+
+It then <<getCurrentBlockStatus, calculates the current storage status of the block>> and <<reportBlockStatus, reports it to the driver>>. It only happens when `info.tellMaster`.
+
+CAUTION: FIXME When would `info.tellMaster` be `true`?
+
+A block is considered updated when it was written to disk or removed from memory or both. If either happened, the link:spark-taskscheduler-taskmetrics.adoc#incUpdatedBlockStatuses[current TaskContext metrics are updated with the change].
+
+Ultimately, `dropFromMemory` returns the current storage level of the block.
