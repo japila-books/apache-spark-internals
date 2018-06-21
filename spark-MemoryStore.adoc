@@ -14,6 +14,8 @@ The "idiom" to access the current `MemoryStore` is to request `SparkEnv` for the
 SparkEnv.get.blockManager.memoryStore
 ----
 
+`MemoryStore` uses Java's <<entries, java.util.LinkedHashMap>> with *access-order* ordering mode. In access-order, the order of iteration is the order in which the entries were last accessed, from least-recently accessed to most-recently. That gives *LRU cache* behaviour when <<evictBlocksToFreeSpace, evicting blocks>>.
+
 [[unrollMemoryThreshold]]
 `MemoryStore` uses <<spark.storage.unrollMemoryThreshold, spark.storage.unrollMemoryThreshold>> configuration property (default: `1024 * 1024` bytes) when requested to <<putIteratorAsValues, putIteratorAsValues>> and <<putIteratorAsBytes, putIteratorAsBytes>>.
 
@@ -25,13 +27,14 @@ SparkEnv.get.blockManager.memoryStore
 | Description
 
 | `entries`
-a| [[entries]] Java's https://docs.oracle.com/javase/8/docs/api/java/util/LinkedHashMap.html[java.util.LinkedHashMap] (with the initial capacity of `32`, the load factor of `0.75` and _access-order_ ordering mode, i.e. iteration is in the order in which its entries were last accessed, from least-recently accessed to most-recently).
+a| [[entries]] Java's https://docs.oracle.com/javase/8/docs/api/java/util/LinkedHashMap.html[java.util.LinkedHashMap] of `MemoryEntries` per link:spark-BlockDataManager.adoc#BlockId[BlockId] (with the initial capacity of `32`, the load factor of `0.75` and _access-order_ ordering mode, i.e. iteration is in the order in which its entries were last accessed, from least-recently accessed to most-recently).
 
-Used when...FIXME
+Used when `MemoryStore` is requested to <<contains, contains>>, <<getBytes, getBytes>>, <<getValues, getValues>>, <<getSize, getSize>>, <<putBytes, putBytes>>, <<putIteratorAsValues, putIteratorAsValues>>, <<putIteratorAsBytes, putIteratorAsBytes>>, <<remove, remove>>, <<clear, clear>>, <<evictBlocksToFreeSpace, evictBlocksToFreeSpace>>
 |===
 
 CAUTION: FIXME Where are these dependencies used?
 
+[[logging]]
 [TIP]
 ====
 Enable `INFO` or `DEBUG` logging level for `org.apache.spark.storage.memory.MemoryStore` logger to see what happens inside.
@@ -156,10 +159,15 @@ INFO Block [blockId] stored as bytes in memory (estimated size [size], free [byt
 
 | `spark.storage.unrollMemoryThreshold`
 | `1024 * 1024`
-| [[spark_storage_unrollMemoryThreshold]][[spark.storage.unrollMemoryThreshold]]
+a| [[spark.storage.unrollMemoryThreshold]]
 Initial per-task memory size needed to store a block in memory.
 
-`spark.storage.unrollMemoryThreshold` has to be at most the <<maxMemory, total amount of memory available for storage>>.
+`spark.storage.unrollMemoryThreshold` should be at most the <<maxMemory, total amount of memory available for storage>>. If not, you should see the following WARN message in the logs:
+
+[options="wrap"]
+----
+Max memory [maxMemory] is less than the initial memory threshold [unrollMemoryThreshold] needed to store a block in memory. Please configure Spark with more memory.
+----
 
 Used when `MemoryStore` is requested to <<putIteratorAsValues, putIteratorAsValues>> and <<putIteratorAsBytes, putIteratorAsBytes>>.
 |===
@@ -239,13 +247,22 @@ reserveUnrollMemoryForThisTask(
 
 NOTE: `reserveUnrollMemoryForThisTask` is used when `MemoryStore` is requested to <<putIteratorAsValues, putIteratorAsValues>> and <<putIteratorAsBytes, putIteratorAsBytes>>.
 
-=== [[maxMemory]] Calculating Total Amount Of Memory Available For Storage -- `maxMemory` Internal Method
+=== [[maxMemory]] Requesting Total Amount Of Memory Available For Storage (In Bytes) -- `maxMemory` Internal Method
 
 [source, scala]
 ----
 maxMemory: Long
 ----
 
-`maxMemory`...FIXME
+`maxMemory` requests the <<memoryManager, MemoryManager>> for the current link:spark-MemoryManager.adoc#maxOnHeapStorageMemory[maxOnHeapStorageMemory] and link:spark-MemoryManager.adoc#maxOffHeapStorageMemory[maxOffHeapStorageMemory], and simply returns their sum.
 
-NOTE: `maxMemory` is used when...FIXME
+[TIP]
+====
+Enable INFO <<logging, logging>> to find the `maxMemory` in the logs when `MemoryStore` is <<creating-instance, created>>:
+
+```
+MemoryStore started with capacity [maxMemory] MB
+```
+====
+
+NOTE: `maxMemory` is used for <<logging, logging>> purposes only.
