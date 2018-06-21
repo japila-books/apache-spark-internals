@@ -85,18 +85,25 @@ NOTE: `MemoryManager` is a Scala abstract class and cannot be created directly, 
 | [[UnifiedMemoryManager]] The default memory manager
 |===
 
-=== [[tungstenMemoryMode]] `tungstenMemoryMode` Property
+[[internal-registries]]
+.MemoryManager's Internal Properties (e.g. Registries, Counters and Flags)
+[cols="1,2",options="header",width="100%"]
+|===
+| Name
+| Description
 
-[source, scala]
-----
-tungstenMemoryMode: MemoryMode
-----
+| `pageSizeBytes`
+| [[pageSizeBytes]] FIXME
 
-`tungstenMemoryMode` informs others whether Spark works in `OFF_HEAP` or `ON_HEAP` memory mode.
+Used when...FIXME
 
-It uses `spark.memory.offHeap.enabled` (default: `false`), `spark.memory.offHeap.size` (default: `0`), and `org.apache.spark.unsafe.Platform.unaligned` before `OFF_HEAP` is assumed.
+| `tungstenMemoryAllocator`
+a| [[tungstenMemoryAllocator]] FIXME
 
-CAUTION: FIXME Describe `org.apache.spark.unsafe.Platform.unaligned`.
+Used when...FIXME
+
+NOTE: `tungstenMemoryAllocator` is a Scala `final val` and cannot be changed by custom <<implementations, MemoryManagers>>.
+|===
 
 === [[creating-instance]] Creating MemoryManager Instance
 
@@ -135,3 +142,33 @@ releaseAllExecutionMemoryForTask(taskAttemptId: Long): Long
 `releaseAllExecutionMemoryForTask`...FIXME
 
 NOTE: `releaseAllExecutionMemoryForTask` is used exclusively when `TaskRunner` is requested to link:spark-executor-TaskRunner.adoc#run[run] (and cleans up after itself).
+
+=== [[tungstenMemoryMode]] `tungstenMemoryMode` Property
+
+[source, scala]
+----
+tungstenMemoryMode: MemoryMode
+----
+
+`tungstenMemoryMode` returns `OFF_HEAP` only when the following are all met:
+
+* link:spark-MemoryManager-properties.adoc#spark.memory.offHeap.enabled[spark.memory.offHeap.enabled] configuration property is enabled (it is not by default)
+
+* link:spark-MemoryManager-properties.adoc#spark.memory.offHeap.size[spark.memory.offHeap.size] configuration property is greater than `0` (it is `0` by default)
+
+* JVM supports unaligned memory access (aka *unaligned Unsafe*, i.e. `sun.misc.Unsafe` package is available and the underlying system has unaligned-access capability)
+
+Otherwise, `tungstenMemoryMode` returns `ON_HEAP`.
+
+NOTE: Given that link:spark-MemoryManager-properties.adoc#spark.memory.offHeap.enabled[spark.memory.offHeap.enabled] configuration property is disabled (`false`) by default and link:spark-MemoryManager-properties.adoc#spark.memory.offHeap.size[spark.memory.offHeap.size] configuration property is `0` by default, Spark seems to encourage using Tungsten memory allocated on the JVM heap (`ON_HEAP`).
+
+NOTE: `tungstenMemoryMode` is a Scala `final val` and cannot be changed by custom <<implementations, MemoryManagers>>.
+
+[NOTE]
+====
+`tungstenMemoryMode` is used when:
+
+* `TaskMemoryManager` is link:spark-taskscheduler-TaskMemoryManager.adoc#tungstenMemoryMode[created]
+
+* `MemoryManager` is created (and initializes the <<pageSizeBytes, pageSizeBytes>> and <<tungstenMemoryAllocator, tungstenMemoryAllocator>> internal properties)
+====
