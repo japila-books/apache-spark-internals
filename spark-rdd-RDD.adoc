@@ -37,9 +37,9 @@ NOTE: `getOrCompute` uses link:spark-SparkEnv.adoc#get[SparkEnv] to access the c
 [[getOrCompute-readCachedBlock]]
 `getOrCompute` records whether...FIXME (readCachedBlock)
 
-`getOrCompute` branches off per the response from the link:spark-BlockManager.adoc#getOrElseUpdate[BlockManager] and whether the internal `readCachedBlock` flag is now on or still off. In either case, `getOrCompute` creates an `InterruptibleIterator`.
+`getOrCompute` branches off per the response from the link:spark-BlockManager.adoc#getOrElseUpdate[BlockManager] and whether the internal `readCachedBlock` flag is now on or still off. In either case, `getOrCompute` creates an link:spark-InterruptibleIterator.adoc[InterruptibleIterator].
 
-NOTE: `InterruptibleIterator` simply delegates to a wrapped internal `Iterator`, but allows for link:spark-taskscheduler-taskcontext.adoc#isInterrupted[task killing functionality].
+NOTE: link:spark-InterruptibleIterator.adoc[InterruptibleIterator] simply delegates to a wrapped internal `Iterator`, but allows for link:spark-taskscheduler-TaskContext.adoc#isInterrupted[task killing functionality].
 
 For a `BlockResult` available and `readCachedBlock` flag on, `getOrCompute`...FIXME
 
@@ -54,3 +54,18 @@ NOTE: link:spark-BlockManager.adoc#getOrElseUpdate[BlockManager.getOrElseUpdate]
 NOTE: `getOrCompute` is used on Spark executors.
 
 NOTE: `getOrCompute` is a `private[spark]` method that is exclusively used when <<iterator, iterating over partition when a RDD is cached>>.
+
+=== [[compute]] Computing Partition (in TaskContext) -- `compute` Method
+
+[source, scala]
+----
+compute(split: Partition, context: TaskContext): Iterator[T]
+----
+
+The abstract `compute` method computes the input `split` link:spark-rdd-partitions.adoc[partition] in the link:spark-taskscheduler-TaskContext.adoc[TaskContext] to produce a collection of values (of type `T`).
+
+`compute` is implemented by any type of RDD in Spark and is called every time the records are requested unless RDD is link:spark-rdd-caching.adoc[cached] or link:spark-rdd-checkpointing.adoc[checkpointed] (and the records can be read from an external storage, but this time closer to the compute node).
+
+When an RDD is link:spark-rdd-caching.adoc[cached], for specified link:spark-rdd-StorageLevel.adoc[storage levels] (i.e. all but `NONE`) link:spark-cachemanager.adoc[`CacheManager` is requested to get or compute partitions].
+
+NOTE: `compute` method runs on the link:spark-driver.adoc[driver].

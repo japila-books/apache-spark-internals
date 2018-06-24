@@ -1,6 +1,6 @@
 == [[TaskContext]] TaskContext
 
-`TaskContext` is the <<contract, contract>> for contextual information about a link:spark-taskscheduler-Task.adoc[Task] in Spark that allows for <<registering-task-listeners, registering task listeners>>.
+`TaskContext` is the <<contract, base>> for <<implementations, contextual information>> about a task.
 
 You can access the active `TaskContext` instance using <<get, TaskContext.get>> method.
 
@@ -10,84 +10,118 @@ import org.apache.spark.TaskContext
 val ctx = TaskContext.get
 ----
 
-Using `TaskContext` you can <<getLocalProperty, access local properties>> that were set by the driver.
+`TaskContext` allows for <<registering-task-listeners, registering task listeners>> and <<getLocalProperty, accessing local properties>> that were set on the driver.
 
 NOTE: `TaskContext` is serializable.
 
-=== [[contract]] TaskContext Contract
-
+[[contract]]
 [source, scala]
 ----
-trait TaskContext {
-  def taskSucceeded(index: Int, result: Any)
-  def jobFailed(exception: Exception)
+package org.apache.spark
+
+abstract class TaskContext extends Serializable {
+  // only required methods that have no implementation
+  // the others follow
+  def isCompleted(): Boolean
+  def isInterrupted(): Boolean
+  def isRunningLocally(): Boolean
+  def addTaskCompletionListener(listener: TaskCompletionListener): TaskContext
+  def addTaskFailureListener(listener: TaskFailureListener): TaskContext
+  def stageId(): Int
+  def stageAttemptNumber(): Int
+  def partitionId(): Int
+  def attemptNumber(): Int
+  def taskAttemptId(): Long
+  def getLocalProperty(key: String): String
+  def taskMetrics(): TaskMetrics
+  def getMetricsSources(sourceName: String): Seq[Source]
+  private[spark] def killTaskIfInterrupted(): Unit
+  private[spark] def getKillReason(): Option[String]
+  private[spark] def taskMemoryManager(): TaskMemoryManager
+  private[spark] def registerAccumulator(a: AccumulatorV2[_, _]): Unit
+  private[spark] def setFetchFailed(fetchFailed: FetchFailedException): Unit
 }
 ----
 
-.TaskContext Contract
+.(Subset of) TaskContext Contract
 [cols="1,2",options="header",width="100%"]
 |===
 | Method
 | Description
 
-| [[stageId]] `stageId`
-| Id of the link:spark-DAGScheduler-Stage.adoc[Stage] the task belongs to.
+| `addTaskCompletionListener`
+| [[addTaskCompletionListener]] Registers a `TaskCompletionListener`
 
 Used when...
 
-| [[partitionId]] `partitionId`
-| Id of the link:spark-rdd-Partition.adoc[Partition] computed by the task.
+| `addTaskFailureListener`
+| [[addTaskFailureListener]] Registers a `TaskFailureListener`
 
 Used when...
 
-| [[attemptNumber]] `attemptNumber`
-| Specifies how many times the task has been attempted (starting from 0).
+| `attemptNumber`
+| [[attemptNumber]] Specifies how many times the task has been attempted (starting from 0).
 
 Used when...
 
-| [[taskAttemptId]] `taskAttemptId`
-| Id of the attempt of the task.
-
-Used when...
-
-| [[getMetricsSources]] `getMetricsSources`
-| Gives all the metrics sources by `sourceName` which are associated with the instance that runs the task.
-
-| [[getLocalProperty]] `getLocalProperty`
-| Used when...
+| `getLocalProperty`
+| [[getLocalProperty]] Used when...
 
 Accesses local properties set by the driver using link:spark-sparkcontext-local-properties.adoc#setLocalProperty[SparkContext.setLocalProperty].
 
-| [[taskMetrics]] `taskMetrics`
-| link:spark-taskscheduler-taskmetrics.adoc[TaskMetrics] of the active link:spark-taskscheduler-Task.adoc[Task].
+| `getMetricsSources`
+| [[getMetricsSources]] Gives all the metrics sources by `sourceName` which are associated with the instance that runs the task.
+
+| `isCompleted`
+| [[isCompleted]] Used when...
+
+| `isInterrupted`
+| [[isInterrupted]] A flag that is enabled when a task was killed.
 
 Used when...
 
-| [[taskMemoryManager]] `taskMemoryManager`
-| Used when...
+| `killTaskIfInterrupted`
+a| [[killTaskIfInterrupted]] If the task was marked for interruption, i.e. cancellation, `killTaskIfInterrupted` (is supposed to) throws a `TaskKilledException` with the reason for the interrupt (that in turn kills the task).
 
-| [[registerAccumulator]] `registerAccumulator`
-| Used when...
+Used (to break a task execution) when:
 
-| [[isCompleted]] `isCompleted`
-| Used when...
+* `InterruptibleIterator` is requested to link:spark-InterruptibleIterator.adoc#hasNext[hasNext]
 
-| [[isInterrupted]] `isInterrupted`
-| A flag that is enabled when a task was killed.
+* `TaskRunner` is requested to link:spark-executor-TaskRunner.adoc#run[run]
 
-Used when...
+* `SortedIterator` and `UnsafeSorterSpillReader` are requested to `loadNext`
 
-| [[addTaskCompletionListener]] `addTaskCompletionListener`
-| Registers a `TaskCompletionListener`
+* Spark SQL's `FileScanRDD` is requested to `compute`
 
-Used when...
-
-| [[addTaskFailureListener]] `addTaskFailureListener`
-| Registers a `TaskFailureListener`
+| `partitionId`
+| [[partitionId]] Id of the link:spark-rdd-Partition.adoc[Partition] computed by the task.
 
 Used when...
 
+| `registerAccumulator`
+| [[registerAccumulator]] Used when...
+
+| `stageId`
+| [[stageId]] Id of the link:spark-DAGScheduler-Stage.adoc[Stage] the task belongs to.
+
+Used when...
+
+| `taskAttemptId`
+| [[taskAttemptId]] Id of the attempt of the task.
+
+Used when...
+
+| `taskMemoryManager`
+| [[taskMemoryManager]] Used when...
+
+| `taskMetrics`
+| [[taskMetrics]] link:spark-taskscheduler-taskmetrics.adoc[TaskMetrics] of the active link:spark-taskscheduler-Task.adoc[Task].
+
+Used when...
 |===
+
+[[implementations]]
+NOTE: link:spark-taskscheduler-TaskContextImpl.adoc[TaskContextImpl] is the one and only known implementation of <<contract, TaskContext Contract>> in Apache Spark.
 
 === [[unset]] `unset` Method
 
