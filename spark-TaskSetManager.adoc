@@ -4,12 +4,12 @@
 
 NOTE: A link:spark-taskscheduler-tasksets.adoc[TaskSet] represents a set of link:spark-taskscheduler-Task.adoc[tasks] that correspond to missing link:spark-rdd-partitions.adoc[partitions] of a link:spark-DAGScheduler-Stage.adoc[stage].
 
-<<creating-instance, `TaskSetManager` is created>> when link:spark-TaskSchedulerImpl.adoc#createTaskSetManager[`TaskSchedulerImpl` submits tasks (for a given `TaskSet`)].
+`TaskSetManager` is <<creating-instance, created>> exclusively when `TaskSchedulerImpl` is requested to <<spark-TaskSchedulerImpl.adoc#createTaskSetManager, create one>> (when submitting tasks for a given `TaskSet`).
 
 .TaskSetManager and its Dependencies
 image::images/TaskSetManager-TaskSchedulerImpl-TaskSet.png[align="center"]
 
-When <<creating-instance, `TaskSetManager` is created>> for a <<taskSet, TaskSet>>, `TaskSetManager` <<addPendingTask, registers all the tasks as pending execution>>.
+When <<creating-instance, created>> with a given <<taskSet, TaskSet>>, `TaskSetManager` <<addPendingTask, registers all the tasks as pending execution>>.
 
 `TaskSetManager` is notified when a task (from the `TaskSet` it manages) finishes -- <<handleSuccessfulTask, sucessfully>> or due to a <<handleFailedTask, failure>> (in task execution or <<executorLost, an executor being lost>>).
 
@@ -674,13 +674,13 @@ Finally, `abort` <<maybeFinishTaskSet, attempts to mark the `TaskSet` finished>>
 
 === [[creating-instance]] Creating TaskSetManager Instance
 
-`TaskSetManager` takes the following when created:
+`TaskSetManager` takes the following to be created:
 
-* [[sched]] link:spark-TaskSchedulerImpl.adoc[TaskSchedulerImpl]
-* [[taskSet]] link:spark-taskscheduler-tasksets.adoc[TaskSet] that the `TaskSetManager` manages scheduling for
-* [[maxTaskFailures]] Acceptable number of task failure, i.e. how many times a <<handleFailedTask, single task can fail>> before an <<abort, entire `TaskSet` gets aborted>>.
-* [[blacklistTracker]] (optional) BlacklistTracker
-* [[clock]] `Clock` (defaults to `SystemClock`)
+* [[sched]] <<spark-TaskSchedulerImpl.adoc#, TaskSchedulerImpl>>
+* [[taskSet]] <<spark-taskscheduler-tasksets.adoc#, TaskSet>>
+* [[maxTaskFailures]] Number of task failures, i.e. how many times a <<handleFailedTask, single task can fail>> before an entire TaskSet is <<abort, aborted>>
+* [[blacklistTracker]] (optional) BlacklistTracker (default: `None`)
+* [[clock]] `Clock` (default: `SystemClock`)
 
 `TaskSetManager` initializes the <<internal-registries, internal registries and counters>>.
 
@@ -1014,56 +1014,16 @@ canFetchMoreResults(size: Long): Boolean
 
 Internally, `canFetchMoreResults` increments the internal <<totalResultSize, totalResultSize>> with the input `size` (which is the size of the result of a task) and increments the internal <<calculatedTasks, calculatedTasks>>.
 
-If the current internal <<totalResultSize, totalResultSize>> is bigger than the <<maxResultSize, maximum result size>>, `canFetchMoreResults` prints out the following ERROR message to the logs:
+If the current internal <<totalResultSize, totalResultSize>> is bigger than the <<spark-TaskSetManager-configuration-properties.adoc#maxResultSize, maximum result size>>, `canFetchMoreResults` prints out the following ERROR message to the logs:
 
 ```
 Total size of serialized results of [calculatedTasks] tasks ([totalResultSize]) is bigger than spark.driver.maxResultSize ([maxResultSize])
 ```
 
-NOTE: `canFetchMoreResults` uses <<spark.driver.maxResultSize, spark.driver.maxResultSize>> configuration property to control the maximum result size. The default value is `1g`.
+NOTE: `canFetchMoreResults` uses <<spark-TaskSetManager-configuration-properties.adoc#spark.driver.maxResultSize, spark.driver.maxResultSize>> configuration property to control the maximum result size. The default value is `1g`.
 
 In the end, `canFetchMoreResults` <<abort, aborts>> the <<taskSet, TaskSet>> and returns `false`.
 
 Otherwise, `canFetchMoreResults` returns `true`.
 
 NOTE: `canFetchMoreResults` is used exclusively when `TaskResultGetter` is requested to  link:spark-TaskResultGetter.adoc#enqueueSuccessfulTask[enqueue a successful task].
-
-=== [[settings]] Settings
-
-.Spark Properties
-[cols="1,1,2",options="header",width="100%"]
-|===
-| Spark Property
-| Default Value
-| Description
-
-| [[maxResultSize]][[spark.driver.maxResultSize]] `spark.driver.maxResultSize`
-| `1g`
-| The maximum size of all the task results in a `TaskSet`. If the value is smaller than `1m` or `1048576` (1024 * 1024), it is considered `0`.
-
-Used when <<canFetchMoreResults, `TaskSetManager` checks available memory for a task result>> and `Utils.getMaxResultSize`.
-
-| `spark.scheduler.executorTaskBlacklistTime`
-| `0L`
-| Time interval to pass after which a task can be re-launched on the executor where it has once failed. It is to prevent repeated task failures due to executor failures.
-
-| [[spark_logging_exceptionPrintInterval]] `spark.logging.exceptionPrintInterval`
-| `10000`
-| How frequently to reprint duplicate exceptions in full (in millis).
-
-| [[spark.locality.wait]] `spark.locality.wait`
-| `3s`
-| For locality-aware delay scheduling for `PROCESS_LOCAL`, `NODE_LOCAL`, and `RACK_LOCAL` link:spark-TaskSchedulerImpl.adoc#TaskLocality[TaskLocalities] when locality-specific setting is not set.
-
-| [[spark.locality.wait.process]] `spark.locality.wait.process`
-| The value of <<spark.locality.wait, spark.locality.wait>>
-| Scheduling delay for `PROCESS_LOCAL` link:spark-TaskSchedulerImpl.adoc#TaskLocality[TaskLocality]
-
-| [[spark.locality.wait.node]] `spark.locality.wait.node`
-| The value of <<spark.locality.wait, spark.locality.wait>>
-| Scheduling delay for `NODE_LOCAL` link:spark-TaskSchedulerImpl.adoc#TaskLocality[TaskLocality]
-
-| [[spark.locality.wait.rack]] `spark.locality.wait.rack`
-| The value of <<spark.locality.wait, spark.locality.wait>>
-| Scheduling delay for `RACK_LOCAL` link:spark-TaskSchedulerImpl.adoc#TaskLocality[TaskLocality]
-|===
