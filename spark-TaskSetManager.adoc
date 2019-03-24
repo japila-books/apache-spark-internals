@@ -27,7 +27,7 @@ The responsibilities of a `TaskSetManager` include:
 
 [TIP]
 ====
-Enable DEBUG logging levels for `org.apache.spark.scheduler.TaskSchedulerImpl` (or `org.apache.spark.scheduler.cluster.YarnScheduler` for YARN) and `org.apache.spark.scheduler.TaskSetManager` and execute the following two-stage job to see their low-level innerworkings.
+Enable `DEBUG` logging level for `org.apache.spark.scheduler.TaskSchedulerImpl` (or `org.apache.spark.scheduler.cluster.YarnScheduler` for YARN) and `org.apache.spark.scheduler.TaskSetManager` and execute the following two-stage job to see their low-level innerworkings.
 
 A cluster manager is recommended since it gives more task localization choices (with YARN additionally supporting rack localization).
 
@@ -213,6 +213,7 @@ Starts from `0` when <<creating-instance, `TaskSetManager` is created>>.
 Only increased with the size of a task result whenever a `TaskSetManager` <<canFetchMoreResults, checks that there is enough memory to fetch the task result>>.
 |===
 
+[[logging]]
 [TIP]
 ====
 Enable `DEBUG` logging level for `org.apache.spark.scheduler.TaskSetManager` logger to see what happens inside.
@@ -226,25 +227,67 @@ log4j.logger.org.apache.spark.scheduler.TaskSetManager=DEBUG
 Refer to link:spark-logging.adoc[Logging].
 ====
 
-=== [[isTaskBlacklistedOnExecOrNode]] `isTaskBlacklistedOnExecOrNode` Method
+=== [[isTaskBlacklistedOnExecOrNode]] `isTaskBlacklistedOnExecOrNode` Internal Method
 
-CAUTION: FIXME
+[source, scala]
+----
+isTaskBlacklistedOnExecOrNode(
+  index: Int,
+  execId: String,
+  host: String): Boolean
+----
+
+`isTaskBlacklistedOnExecOrNode`...FIXME
+
+NOTE: `isTaskBlacklistedOnExecOrNode` is used when `TaskSetManager` is requested to <<dequeueTaskFromList, dequeueTaskFromList>> and <<dequeueSpeculativeTask, dequeueSpeculativeTask>>.
 
 === [[getLocalityIndex]] `getLocalityIndex` Method
 
-CAUTION: FIXME
+[source, scala]
+----
+getLocalityIndex(locality: TaskLocality.TaskLocality): Int
+----
 
-=== [[dequeueSpeculativeTask]] `dequeueSpeculativeTask` Method
+`getLocalityIndex`...FIXME
 
-CAUTION: FIXME
+NOTE: `getLocalityIndex` is used when `TaskSetManager` is requested to <<resourceOffer, resourceOffer>> and <<recomputeLocality, recomputeLocality>>.
+
+=== [[dequeueSpeculativeTask]] `dequeueSpeculativeTask` Internal Method
+
+[source, scala]
+----
+dequeueSpeculativeTask(
+  execId: String,
+  host: String,
+  locality: TaskLocality.Value): Option[(Int, TaskLocality.Value)]
+----
+
+`dequeueSpeculativeTask`...FIXME
+
+NOTE: `dequeueSpeculativeTask` is used exclusively when `TaskSetManager` is requested to <<dequeueTask, dequeueTask>>.
 
 === [[executorAdded]] `executorAdded` Method
 
-`executorAdded` simply calls <<recomputeLocality, recomputeLocality>> method.
+[source, scala]
+----
+executorAdded(): Unit
+----
 
-=== [[abortIfCompletelyBlacklisted]] `abortIfCompletelyBlacklisted` Method
+`executorAdded` simply <<recomputeLocality, recomputeLocality>>.
 
-CAUTION: FIXME
+NOTE: `executorAdded` is used exclusively when `TaskSchedulerImpl` is requested to <<spark-TaskSchedulerImpl.adoc#resourceOffers, resourceOffers>>.
+
+=== [[abortIfCompletelyBlacklisted]] `abortIfCompletelyBlacklisted` Internal Method
+
+[source, scala]
+----
+abortIfCompletelyBlacklisted(
+  hostToExecutors: HashMap[String, HashSet[String]]): Unit
+----
+
+`abortIfCompletelyBlacklisted`...FIXME
+
+NOTE: `abortIfCompletelyBlacklisted` is used exclusively when `TaskSchedulerImpl` is requested to <<spark-TaskSchedulerImpl.adoc#resourceOffers, resourceOffers>>.
 
 === [[schedulable]] TaskSetManager is Schedulable
 
@@ -302,12 +345,12 @@ removeRunningTask(tid: Long): Unit
 
 === [[checkSpeculatableTasks]] Checking Speculatable Tasks -- `checkSpeculatableTasks` Method
 
-NOTE: `checkSpeculatableTasks` is part of the link:spark-taskscheduler-schedulable.adoc#contract[Schedulable Contract].
-
 [source, scala]
 ----
 checkSpeculatableTasks(minTimeToSpeculation: Int): Boolean
 ----
+
+NOTE: `checkSpeculatableTasks` is part of the link:spark-taskscheduler-schedulable.adoc#contract[Schedulable Contract].
 
 `checkSpeculatableTasks` checks whether there are speculatable tasks in a `TaskSet`.
 
@@ -345,9 +388,16 @@ INFO Marking task [index] in stage [taskSet.id] (on [info.host]) as speculatable
 
 The task gets added to the internal `speculatableTasks` collection. The method responds positively.
 
-=== [[getAllowedLocalityLevel]] `getAllowedLocalityLevel` Method
+=== [[getAllowedLocalityLevel]] `getAllowedLocalityLevel` Internal Method
 
-CAUTION: FIXME
+[source, scala]
+----
+getAllowedLocalityLevel(curTime: Long): TaskLocality.TaskLocality
+----
+
+`getAllowedLocalityLevel`...FIXME
+
+NOTE: `getAllowedLocalityLevel` is used exclusively when `TaskSetManager` is requested to <<resourceOffer, find a task for execution (given a resource offer)>>.
 
 === [[resourceOffer]] Finding Task For Execution (Given Resource Offer) -- `resourceOffer` Method
 
@@ -427,7 +477,7 @@ INFO TaskSetManager: Starting task 1.0 in stage 0.0 (TID 1, localhost, partition
 
 IMPORTANT: This is the moment when `TaskSetManager` informs `DAGScheduler` that a task has started.
 
-NOTE: `resourceOffer` is used when `TaskSchedulerImpl` link:spark-TaskSchedulerImpl.adoc#resourceOfferSingleTaskSet[resourceOfferSingleTaskSet].
+NOTE: `resourceOffer` is used exclusively when `TaskSchedulerImpl` is requested to <<spark-TaskSchedulerImpl.adoc#resourceOfferSingleTaskSet, resourceOfferSingleTaskSet>>.
 
 === [[dequeueTask]] Dequeueing Task For Execution (Given Locality Information) -- `dequeueTask` Internal Method
 
@@ -456,7 +506,7 @@ In the end, when no task could be found, `dequeueTask` <<dequeueSpeculativeTask,
 
 NOTE: The speculative marker is enabled for a task only when `dequeueTask` did not manage to find a task for the available task localities and did find a speculative task.
 
-NOTE: `dequeueTask` is used exclusively when `TaskSetManager` <<resourceOffer, finds a task for execution (given resource offer)>>.
+NOTE: `dequeueTask` is used exclusively when `TaskSetManager` is requested to <<resourceOffer, find a task for execution (given a resource offer)>>.
 
 === [[dequeueTaskFromList]] Finding Higest Task Index (Not Blacklisted, With No Copies Running and Not Completed Already) -- `dequeueTaskFromList` Internal Method
 
@@ -478,7 +528,7 @@ If so, `dequeueTaskFromList` returns the task index.
 
 If `dequeueTaskFromList` has checked all the indices and no index has passed the checks, `dequeueTaskFromList` returns `None` (to indicate that no index has met the requirements).
 
-NOTE: `dequeueTaskFromList` is used exclusively when `TaskSetManager` <<dequeueTask, dequeues a task tor execution (given locality information)>>.
+NOTE: `dequeueTaskFromList` is used exclusively when `TaskSetManager` is requested to <<dequeueTask, dequeue a task for execution (given a locality information)>>.
 
 === [[getPendingTasksForExecutor]] Finding Tasks (Indices) Registered For Execution on Executor -- `getPendingTasksForExecutor` Internal Method
 
@@ -491,7 +541,7 @@ getPendingTasksForExecutor(executorId: String): ArrayBuffer[Int]
 
 NOTE: `getPendingTasksForExecutor` may find no matching tasks and return an empty collection.
 
-NOTE: `getPendingTasksForExecutor` is used exclusively when `TaskSetManager` <<dequeueTask, dequeues a task tor execution (given locality information)>>.
+NOTE: `getPendingTasksForExecutor` is used exclusively when `TaskSetManager` is requested to <<dequeueTask, dequeue a task for execution (given a locality information)>>.
 
 === [[getPendingTasksForHost]] Finding Tasks (Indices) Registered For Execution on Host -- `getPendingTasksForHost` Internal Method
 
@@ -504,7 +554,7 @@ getPendingTasksForHost(host: String): ArrayBuffer[Int]
 
 NOTE: `getPendingTasksForHost` may find no matching tasks and return an empty collection.
 
-NOTE: `getPendingTasksForHost` is used exclusively when `TaskSetManager` <<dequeueTask, dequeues a task tor execution (given locality information)>>.
+NOTE: `getPendingTasksForHost` is used exclusively when `TaskSetManager` is requested to <<dequeueTask, dequeue a task for execution (given a locality information)>>.
 
 === [[getPendingTasksForRack]] Finding Tasks (Indices) Registered For Execution on Rack -- `getPendingTasksForRack` Internal Method
 
@@ -517,13 +567,13 @@ getPendingTasksForRack(rack: String): ArrayBuffer[Int]
 
 NOTE: `getPendingTasksForRack` may find no matching tasks and return an empty collection.
 
-NOTE: `getPendingTasksForRack` is used exclusively when `TaskSetManager` <<dequeueTask, dequeues a task tor execution (given locality information)>>.
+NOTE: `getPendingTasksForRack` is used exclusively when `TaskSetManager` is requested to <<dequeueTask, dequeue a task for execution (given a locality information)>>.
 
 === [[scheduling-tasks]] Scheduling Tasks in TaskSet
 
 CAUTION: FIXME
 
-For each submitted <<taskset, TaskSet>>, a new TaskSetManager is created. The TaskSetManager completely and exclusively owns a TaskSet submitted for execution.
+For each submitted <<taskset, TaskSet>>, a new `TaskSetManager` is created. The TaskSetManager completely and exclusively owns a TaskSet submitted for execution.
 
 CAUTION: FIXME A picture with `TaskSetManager` owning TaskSet
 
@@ -608,7 +658,7 @@ Up to link:spark-TaskSchedulerImpl.adoc#spark_task_maxFailures[spark.task.maxFai
 
 === Task retries and `spark.task.maxFailures`
 
-When you start Spark program you set up link:spark-TaskSchedulerImpl.adoc#spark_task_maxFailures[spark.task.maxFailures] for the number of failures that are acceptable until TaskSetManager gives up and marks a job failed.
+When you start Spark program you set up link:spark-TaskSchedulerImpl.adoc#spark_task_maxFailures[spark.task.maxFailures] for the number of failures that are acceptable until `TaskSetManager` gives up and marks a job failed.
 
 TIP: In Spark shell with local master, `spark.task.maxFailures` is fixed to `1` and you need to use link:spark-local.adoc[local-with-retries master] to change it to some other value.
 
@@ -661,7 +711,9 @@ A `TaskSetManager` remains in the zombie state until all tasks have finished run
 
 [source, scala]
 ----
-abort(message: String, exception: Option[Throwable] = None): Unit
+abort(
+  message: String,
+  exception: Option[Throwable] = None): Unit
 ----
 
 `abort` informs link:spark-dagscheduler.adoc#taskSetFailed[`DAGScheduler` that the `TaskSet` has been aborted].
@@ -670,7 +722,20 @@ CAUTION: FIXME image with DAGScheduler call
 
 The TaskSetManager enters <<zombie-state, zombie state>>.
 
-Finally, `abort` <<maybeFinishTaskSet, attempts to mark the `TaskSet` finished>>.
+In the end, `abort` <<maybeFinishTaskSet, attempts to mark the `TaskSet` finished>>.
+
+[NOTE]
+====
+`abort` is used when:
+
+* `TaskResultGetter` is requested to <<spark-TaskResultGetter.adoc#enqueueSuccessfulTask, enqueueSuccessfulTask>> (that has failed)
+
+* `TaskSchedulerImpl` is requested to <<spark-TaskSchedulerImpl.adoc#cancelTasks, cancelTasks>> and <<spark-TaskSchedulerImpl.adoc#error, error>>
+
+* `TaskSetManager` is requested to <<resourceOffer, resourceOffer>>, <<abortIfCompletelyBlacklisted, abortIfCompletelyBlacklisted>>, <<canFetchMoreResults, canFetchMoreResults>>, and <<handleFailedTask, handleFailedTask>>
+
+* `DriverEndpoint` is requested to <<spark-CoarseGrainedSchedulerBackend-DriverEndpoint.adoc#launchTasks, launch tasks on executors>>
+====
 
 === [[creating-instance]] Creating TaskSetManager Instance
 
@@ -773,7 +838,14 @@ Task [index] in stage [id] failed [maxTaskFailures] times, most recent failure: 
 
 In the end (except when the number of failures of `tid` task grew beyond the acceptable number), `handleFailedTask` <<maybeFinishTaskSet, attempts to mark the `TaskSet` as finished>>.
 
-NOTE: `handleFailedTask` is used when `TaskSchedulerImpl` link:spark-TaskSchedulerImpl.adoc#handleFailedTask[is informed that a task has failed] or when `TaskSetManager` <<executorLost, is informed that an executor has been lost>>.
+[NOTE]
+====
+`handleFailedTask` is used when:
+
+* `TaskSchedulerImpl` is requested to <<spark-TaskSchedulerImpl.adoc#handleFailedTask, handle a failed task>>
+
+* `TaskSetManager` is requested to <<executorLost, handle a lost executor>>
+====
 
 ==== [[handleFailedTask-FetchFailed]] `FetchFailed` TaskFailedReason
 
