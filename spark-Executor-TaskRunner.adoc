@@ -1,65 +1,83 @@
 == [[TaskRunner]] TaskRunner
 
-`TaskRunner` is a *thread of execution* of a <<taskDescription, single task>>.
+`TaskRunner` is a *thread of execution* (a https://docs.oracle.com/javase/8/docs/api/java/lang/Runnable.html[java.lang.Runnable]) of a <<taskDescription, single task>>.
 
-`TaskRunner` is <<creating-instance, created>> exclusively when `Executor` is requested to link:spark-Executor.adoc#launchTask[launch a task].
+`TaskRunner` is <<creating-instance, created>> exclusively when `Executor` is requested to <<spark-Executor.adoc#launchTask, launch a task>>.
 
-.Executor creates TaskRunner and runs (almost) immediately
+.Executor creates TaskRunner and runs it (almost) immediately
 image::images/spark-TaskRunner.png[align="center"]
 
-`TaskRunner` can be <<run, run>> or <<kill, killed>> that simply means running or killing the <<task, task this `TaskRunner` object manages>>, respectively.
+Once <<creating-instance, created>>, `TaskRunner` can be <<run, run>> and optionally <<kill, killed>>.
+
+Put simply, a `TaskRunner` manages execution of a <<taskDescription, single task>>.
+
+[[threadName]]
+`TaskRunner` uses *Executor task launch worker for task [taskId]* as the (thread) name.
+
+[[creating-instance]]
+`TaskRunner` takes the following to be created:
+
+* [[execBackend]] <<spark-ExecutorBackend.adoc#, ExecutorBackend>> (that manages the parent <<spark-Executor.adoc#, executor>>)
+* [[taskDescription]] <<spark-TaskDescription.adoc#, Metadata of the task to be executed>>
+
+NOTE: `TaskRunner` is an internal class of the <<spark-Executor.adoc#, Executor>> class and has access to its internals (properties and methods).
 
 [[internal-registries]]
-.TaskRunner's Internal Registries and Counters
-[cols="1,2",options="header",width="100%"]
+.TaskRunner's Internal Properties (e.g. Registries, Counters and Flags)
+[cols="1m,3",options="header",width="100%"]
 |===
 | Name
 | Description
 
-| [[taskId]] `taskId`
-| FIXME
+| finished
+a| [[finished]][[isFinished]] Flag that says whether the <<taskDescription, task>> has finished or not
 
-Used when...FIXME
+Default: `false`
 
-| [[threadName]] `threadName`
-| FIXME
+Enabled (`true`) after `TaskRunner` has been requested to <<setTaskFinishedAndClearInterruptStatus, setTaskFinishedAndClearInterruptStatus>>
 
-Used when...FIXME
+Used when `TaskRunner` is requested to <<kill, kill the task>>
 
-| [[taskName]] `taskName`
-| FIXME
+| reasonIfKilled
+a| [[reasonIfKilled]] Reason to <<kill, kill the task>> (and avoid <<run, executing it>>)
 
-Used when...FIXME
+Default: `(empty)` (`None`)
 
-| [[finished]] `finished`
-| FIXME
+| startGCTime
+a| [[startGCTime]] Timestamp (which is really the <<spark-Executor.adoc#computeTotalGcTime, total amount of time this Executor JVM process has already spent in garbage collection>>) that is used to mark the GC "zero" time (when <<run, run the task>>) and then compute the *JVM GC time metric* when:
 
-Used when...FIXME
+* `TaskRunner` is requested to <<collectAccumulatorsAndResetStatusOnFailure, collectAccumulatorsAndResetStatusOnFailure>> and <<run, run>>
 
-| [[killed]] `killed`
-| FIXME
+* `Executor` is requested to <<spark-Executor.adoc#reportHeartBeat, reportHeartBeat>>
 
-Used when...FIXME
+| task
+a| [[task]] Deserialized <<spark-taskscheduler-Task.adoc#, task>> to execute
 
-| [[threadId]] `threadId`
-| FIXME
+Used when:
 
-Used when...FIXME
+* `TaskRunner` is requested to <<kill, kill the task>>, <<collectAccumulatorsAndResetStatusOnFailure, collectAccumulatorsAndResetStatusOnFailure>>, <<run, run the task>>, <<hasFetchFailure, hasFetchFailure>>
 
-| [[startGCTime]] `startGCTime`
-| FIXME
+* `Executor` is requested to <<spark-Executor.adoc#reportHeartBeat, reportHeartBeat>>
 
-Used when...FIXME
+| taskId
+a| [[taskId]] The <<spark-TaskDescription.adoc#taskId, task ID>> (of the <<taskDescription, TaskDescription>>)
 
-| [[task]] `task`
-| FIXME
+Used when:
 
-Used when...FIXME
+* `TaskRunner` is requested to <<run, run>> (to create a <<spark-TaskMemoryManager.adoc#, TaskMemoryManager>> and serialize a `IndirectTaskResult` for a large task result) and <<kill, kill>> the task and for the <<threadName, threadName>>
 
-| [[replClassLoader]] `replClassLoader`
-| FIXME
+* `Executor` is requested to <<spark-Executor.adoc#reportHeartBeat, reportHeartBeat>>
 
-Used when...FIXME
+| taskName
+a| [[taskName]] The <<spark-TaskDescription.adoc#name, name of the task>> (of the <<taskDescription, TaskDescription>>) that is used exclusively for <<logging, logging>> purposes when `TaskRunner` is requested to <<run, run>> and <<kill, kill>> the task
+
+| threadId
+a| [[threadId]][[getThreadId]] Current thread ID
+
+Default: `-1`
+
+Set immediately when `TaskRunner` is requested to <<run, run the task>> and used exclusively when `TaskReaper` is requested for the thread info of the current thread (aka _thread dump_)
+
 |===
 
 [[logging]]
@@ -76,34 +94,16 @@ log4j.logger.org.apache.spark.executor.Executor=DEBUG
 Refer to link:spark-logging.adoc[Logging].
 ====
 
-=== [[creating-instance]] Creating TaskRunner Instance
+=== [[setTaskFinishedAndClearInterruptStatus]] `setTaskFinishedAndClearInterruptStatus` Internal Method
 
-`TaskRunner` takes the following when created:
+[source, scala]
+----
+setTaskFinishedAndClearInterruptStatus(): Unit
+----
 
-* [[execBackend]] link:spark-ExecutorBackend.adoc[ExecutorBackend]
-* [[taskDescription]] link:spark-TaskDescription.adoc[TaskDescription]
+`setTaskFinishedAndClearInterruptStatus`...FIXME
 
-`TaskRunner` initializes the <<internal-registries, internal registries and counters>>.
-
-=== [[computeTotalGcTime]] `computeTotalGcTime` Method
-
-CAUTION: FIXME
-
-=== [[updateDependencies]] `updateDependencies` Method
-
-CAUTION: FIXME
-
-=== [[setTaskFinishedAndClearInterruptStatus]] `setTaskFinishedAndClearInterruptStatus` Method
-
-CAUTION: FIXME
-
-=== Lifecycle
-
-CAUTION: FIXME Image with state changes
-
-A `TaskRunner` object is created when link:spark-Executor.adoc#launchTask[an executor is requested to launch a task].
-
-It is created with an link:spark-ExecutorBackend.adoc[ExecutorBackend] (to send the task's status updates to), task and attempt ids, task name, and serialized version of the task (as `ByteBuffer`).
+NOTE: `setTaskFinishedAndClearInterruptStatus` is used when `TaskRunner` is requested to <<collectAccumulatorsAndResetStatusOnFailure, collectAccumulatorsAndResetStatusOnFailure>> and <<run, run>>.
 
 === [[run]] Running Task -- `run` Method
 
@@ -174,13 +174,13 @@ After the task's run has finished (inside the "finally" block of the "monitored"
 
 `run` then link:spark-TaskMemoryManager.adoc#cleanUpAllAllocatedMemory[requests `TaskMemoryManager` to clean up allocated memory] (that helps finding memory leaks).
 
-If `run` detects memory leak of the managed memory (i.e. the memory freed is greater than `0`) and <<spark_unsafe_exceptionOnMemoryLeak, spark.unsafe.exceptionOnMemoryLeak>> Spark property is enabled (it is not by default) and no exception was reported while the task ran, `run` reports a `SparkException`:
+If `run` detects memory leak of the managed memory (i.e. the memory freed is greater than `0`) and <<spark-TaskSetManager-configuration-properties.adoc#spark.unsafe.exceptionOnMemoryLeak, spark.unsafe.exceptionOnMemoryLeak>> Spark property is enabled (it is not by default) and no exception was reported while the task ran, `run` reports a `SparkException`:
 
 ```
 Managed memory leak detected; size = [freedMemory] bytes, TID = [taskId]
 ```
 
-Otherwise, if <<spark_unsafe_exceptionOnMemoryLeak, spark.unsafe.exceptionOnMemoryLeak>> is disabled, you should see the following ERROR message in the logs instead:
+Otherwise, if <<spark-TaskSetManager-configuration-properties.adoc#spark.unsafe.exceptionOnMemoryLeak, spark.unsafe.exceptionOnMemoryLeak>> is disabled, you should see the following ERROR message in the logs instead:
 
 ```
 ERROR Executor: Managed memory leak detected; size = [freedMemory] bytes, TID = [taskId]
@@ -188,14 +188,14 @@ ERROR Executor: Managed memory leak detected; size = [freedMemory] bytes, TID = 
 
 NOTE: If `run` detects a memory leak, it leads to a `SparkException` or ERROR message in the logs.
 
-If `run` detects lock leaking (i.e. the number of locks released) and <<spark_storage_exceptionOnPinLeak, spark.storage.exceptionOnPinLeak>> Spark property is enabled (it is not by default) and no exception was reported while the task ran, `run` reports a `SparkException`:
+If `run` detects lock leaking (i.e. the number of locks released) and <<spark-TaskSetManager-configuration-properties.adoc#spark.storage.exceptionOnPinLeak, spark.storage.exceptionOnPinLeak>> Spark property is enabled (it is not by default) and no exception was reported while the task ran, `run` reports a `SparkException`:
 
 ```
 [releasedLocks] block locks were not released by TID = [taskId]:
 [releasedLocks separated by comma]
 ```
 
-Otherwise, if <<spark_storage_exceptionOnPinLeak, spark.storage.exceptionOnPinLeak>> is disabled or the task reported an exception, you should see the following INFO message in the logs instead:
+Otherwise, if <<spark-TaskSetManager-configuration-properties.adoc#spark.storage.exceptionOnPinLeak, spark.storage.exceptionOnPinLeak>> is disabled or the task reported an exception, you should see the following INFO message in the logs instead:
 
 ```
 INFO Executor: [releasedLocks] block locks were not released by TID = [taskId]:
@@ -410,20 +410,25 @@ INFO TaskRunner: Executor is trying to kill [taskName] (TID [taskId])
 
 NOTE: <<killed, killed>> flag is checked periodically in <<run, run>> to stop executing the task. Once killed, the task will eventually stop.
 
-=== [[settings]] Settings
+=== [[collectAccumulatorsAndResetStatusOnFailure]] `collectAccumulatorsAndResetStatusOnFailure` Method
 
-.Spark Properties
-[cols="1,1,2",options="header",width="100%”]
-|===
-| Spark Property
-| Default Value
-| Description
+[source, scala]
+----
+collectAccumulatorsAndResetStatusOnFailure(
+  taskStartTime: Long): (Seq[AccumulatorV2[_, _]], Seq[AccumulableInfo])
+----
 
-| [[spark_unsafe_exceptionOnMemoryLeak]] `spark.unsafe.exceptionOnMemoryLeak`
-| `false`
-| FIXME
+`collectAccumulatorsAndResetStatusOnFailure`...FIXME
 
-| [[spark_storage_exceptionOnPinLeak]] `spark.storage.exceptionOnPinLeak`
-| `false`
-| FIXME
-|===
+NOTE: `collectAccumulatorsAndResetStatusOnFailure` is used exclusively when `TaskRunner` is requested to <<run, run>>.
+
+=== [[hasFetchFailure]] `hasFetchFailure` Internal Method
+
+[source, scala]
+----
+hasFetchFailure: Boolean
+----
+
+`hasFetchFailure`...FIXME
+
+NOTE: `hasFetchFailure` is used exclusively when `TaskRunner` is requested to <<run, run>>.
