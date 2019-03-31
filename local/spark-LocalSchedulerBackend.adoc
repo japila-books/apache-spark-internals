@@ -1,23 +1,89 @@
 == [[LocalSchedulerBackend]] LocalSchedulerBackend
 
-`LocalSchedulerBackend` is a link:spark-SchedulerBackend.adoc[scheduler backend] and a link:spark-ExecutorBackend.adoc[ExecutorBackend] for link:spark-local.adoc[Spark local run mode].
+`LocalSchedulerBackend` is a <<../spark-SchedulerBackend.adoc#, SchedulerBackend>> and an <<../spark-ExecutorBackend.adoc#, ExecutorBackend>> for the <<../spark-local.adoc#, Spark local>> deployment mode.
 
-`LocalSchedulerBackend` acts as a "cluster manager" for local mode to offer resources on the single link:spark-workers.adoc[worker] it manages, i.e. it calls `TaskSchedulerImpl.resourceOffers(offers)` with `offers` being a single-element collection with link:spark-TaskSchedulerImpl.adoc#WorkerOffer[WorkerOffer].
+`LocalSchedulerBackend` is <<creating-instance, created>> when `SparkContext` is requested to <<../spark-SparkContext.adoc#createTaskScheduler, create the SchedulerBackend with the TaskScheduler>> for the following master URLs:
 
-NOTE: link:spark-TaskSchedulerImpl.adoc#WorkerOffer[WorkerOffer] represents a resource offer with CPU cores available on an executor.
+* *local* (with exactly <<totalCores, 1 CPU core>>)
 
-When an executor sends task status updates (using `ExecutorBackend.statusUpdate`), they are passed along as <<messages, StatusUpdate>> to link:local/spark-LocalEndpoint.adoc[LocalEndpoint].
+* *local[n]* (with exactly <<totalCores, n CPU cores>>)
+
+* *++local[*]++* (with the <<totalCores, total number of CPU cores>> that matches the number of available CPU cores on the local machine)
+
+* *local[n, m]* (with exactly <<totalCores, n CPU cores>>)
+
+* *++local[*, m]++* (with the <<totalCores, total number of CPU cores>> that matches the number of available CPU cores on the local machine)
+
+`LocalSchedulerBackend` acts as a "cluster manager" for the local deployment mode to offer resources on the single link:../spark-workers.adoc[worker] it manages, i.e. it calls `TaskSchedulerImpl.resourceOffers(offers)` with `offers` being a single-element collection with link:../spark-TaskSchedulerImpl.adoc#WorkerOffer[WorkerOffer].
+
+NOTE: link:../spark-TaskSchedulerImpl.adoc#WorkerOffer[WorkerOffer] represents a resource offer with CPU cores available on an executor.
+
+When an executor sends task status updates (using `ExecutorBackend.statusUpdate`), they are passed along as <<messages, StatusUpdate>> to <<spark-LocalEndpoint.adoc#, LocalEndpoint>>.
 
 .Task status updates flow in local mode
-image::images/LocalSchedulerBackend-LocalEndpoint-Executor-task-status-updates.png[align="center"]
+image::../images/LocalSchedulerBackend-LocalEndpoint-Executor-task-status-updates.png[align="center"]
 
-When `LocalSchedulerBackend` starts up, it registers a new link:spark-rpc-RpcEndpoint.adoc[RpcEndpoint] called *LocalSchedulerBackendEndpoint* that is backed by link:local/spark-LocalEndpoint.adoc[LocalEndpoint]. This is announced on link:spark-LiveListenerBus.adoc[LiveListenerBus] as `driver` (using link:spark-SparkListener.adoc#SparkListenerExecutorAdded[SparkListenerExecutorAdded] message).
+While being <<creating-instance, created>>, `LocalSchedulerBackend` requests the <<launcherBackend, LauncherBackend>> to `connect`.
 
-The application ids are in the format of `local-[current time millis]`.
+[[appId]]
+[[applicationId]]
+When requested for the <<../spark-SchedulerBackend.adoc#applicationId, applicationId>>, `LocalSchedulerBackend` uses *local-[current time millis]*.
 
-It communicates with link:local/spark-LocalEndpoint.adoc[LocalEndpoint] using <<messages, RPC messages>>.
+[[maxNumConcurrentTasks]]
+When requested for the <<../spark-SchedulerBackend.adoc#maxNumConcurrentTasks, maxNumConcurrentTasks>>, `LocalSchedulerBackend` simply divides the <<totalCores, total number of CPU cores>> by <<../spark-TaskSchedulerImpl.adoc#CPUS_PER_TASK, spark.task.cpus>> configuration (default: `1`).
 
-The default parallelism is controlled using link:spark-rdd-partitions.adoc#spark_default_parallelism[spark.default.parallelism] property.
+[[defaultParallelism]]
+When requested for the <<../spark-SchedulerBackend.adoc#defaultParallelism, defaultParallelism>>, `LocalSchedulerBackend` uses <<../spark-TaskSetManager-configuration-properties.adoc#spark.default.parallelism, spark.default.parallelism>> configuration (if defined) or the <<totalCores, total number of CPU cores>>.
+
+[[creating-instance]]
+`LocalSchedulerBackend` takes the following to be created:
+
+* [[conf]] <<../spark-SparkConf.adoc#, SparkConf>>
+* [[scheduler]] <<../spark-TaskSchedulerImpl.adoc#, TaskSchedulerImpl>>
+* [[totalCores]] Total number of CPU cores (aka _totalCores_)
+
+[[internal-registries]]
+.LocalSchedulerBackend's Internal Properties (e.g. Registries, Counters and Flags)
+[cols="1m,3",options="header",width="100%"]
+|===
+| Name
+| Description
+
+| localEndpoint
+a| [[localEndpoint]] <<../spark-RpcEndpointRef.adoc#, RpcEndpointRef>>
+
+Used when...FIXME
+
+| userClassPath
+a| [[userClassPath]] <<getUserClasspath, User-defined CLASSPATH>> (given the <<conf, SparkConf>>)
+
+Used when...FIXME
+
+| launcherBackend
+a| [[launcherBackend]] `LauncherBackend`
+
+Used when...FIXME
+
+| listenerBus
+a| [[listenerBus]] <<../spark-LiveListenerBus.adoc#, LiveListenerBus>>
+
+Used when...FIXME
+
+|===
+
+[[logging]]
+[TIP]
+====
+Enable `INFO` logging level for `org.apache.spark.scheduler.local.LocalSchedulerBackend` logger to see what happens inside.
+
+Add the following line to `conf/log4j.properties`:
+
+```
+log4j.logger.org.apache.spark.scheduler.local.LocalSchedulerBackend=INFO
+```
+
+Refer to <<../spark-logging.adoc#, Logging>>.
+====
 
 === [[start]] Starting Scheduling Backend -- `start` Method
 
@@ -26,7 +92,7 @@ The default parallelism is controlled using link:spark-rdd-partitions.adoc#spark
 start(): Unit
 ----
 
-NOTE: `start` is part of the <<spark-SchedulerBackend.adoc#start, SchedulerBackend Contract>> to start the scheduling backend.
+NOTE: `start` is part of the <<../spark-SchedulerBackend.adoc#start, SchedulerBackend Contract>> to start the scheduling backend.
 
 `start`...FIXME
 
@@ -80,3 +146,14 @@ stop(): Unit
 NOTE: `stop` is part of the <<../spark-SchedulerBackend.adoc#stop, SchedulerBackend Contract>> to stop a scheduling backend.
 
 `stop`...FIXME
+
+=== [[getUserClasspath]] `getUserClasspath` Method
+
+[source, scala]
+----
+getUserClasspath(conf: SparkConf): Seq[URL]
+----
+
+`getUserClasspath`...FIXME
+
+NOTE: `getUserClasspath` is used when...FIXME
