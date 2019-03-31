@@ -4,7 +4,7 @@
 
 `LocalEndpoint` is <<creating-instance, created>> exclusively when `LocalSchedulerBackend` is requested to <<spark-LocalSchedulerBackend.adoc#start, start>>.
 
-Put simply, `LocalEndpoint` is the communication channel between <<../spark-TaskScheduler.adoc#, Task Scheduler>> and <<local/spark-LocalSchedulerBackend.adoc#, LocalSchedulerBackend>>. It is a (thread-safe) <<../spark-rpc-RpcEndpoint.adoc#, RpcEndpoint>> that hosts an <<../spark-Executor.adoc#, executor>> (with id `driver` and hostname `localhost`) for Spark local mode.
+Put simply, `LocalEndpoint` is the communication channel between <<scheduler, TaskSchedulerImpl>> and <<executorBackend, LocalSchedulerBackend>>. `LocalEndpoint` is a (thread-safe) <<../spark-rpc-RpcEndpoint.adoc#, RpcEndpoint>> that hosts an <<executor, executor>> (with `driver` ID and `localhost` hostname) for Spark local mode.
 
 [[messages]]
 .LocalEndpoint's RPC Messages
@@ -13,14 +13,17 @@ Put simply, `LocalEndpoint` is the communication channel between <<../spark-Task
 | Message
 | Description
 
+| <<KillTask, KillTask>>
+| Requests the <<executor, executor>> to <<../spark-Executor.adoc#killTask, kill a given task>>
+
 | <<ReviveOffers, ReviveOffers>>
 | Calls <<reviveOffers, reviveOffers>>
 
 | <<StatusUpdate, StatusUpdate>>
 |
 
-| <<KillTask, KillTask>>
-| Requests the <<executor, executor>> to <<../spark-Executor.adoc#killTask, kill a given task>>
+| <<StopExecutor, StopExecutor>>
+| Requests the <<executor, executor>> to <<../spark-Executor.adoc#stop, stop>>
 
 |===
 
@@ -31,11 +34,18 @@ INFO Executor: Starting executor ID driver on host localhost
 INFO Executor: Using REPL class URI: http://192.168.1.4:56131
 ```
 
-[[localExecutorId]]
-`LocalEndpoint` uses the *driver* name for the ID of the <<executor, executor>>.
+[[executor]]
+`LocalEndpoint` uses a single <<../spark-Executor.adoc#, Executor>> with the following:
 
-[[localExecutorHostname]]
-`LocalEndpoint` uses *localhost* for the hostname of the <<executor, executor>>.
+* [[localExecutorId]] *driver* ID for the <<../spark-Executor.adoc#executorId, executor ID>>
+
+* [[localExecutorHostname]] *localhost* for the <<../spark-Executor.adoc#executorHostname, hostname>>
+
+* <<userClassPath, User-defined CLASSPATH>> for the <<../spark-Executor.adoc#userClassPath, user-defined CLASSPATH>>
+
+* <<../spark-Executor.adoc#isLocal, isLocal>> flag enabled
+
+The <<executor, executor>> is used when `LocalEndpoint` is requested to handle <<KillTask, KillTask>> and <<StopExecutor, StopExecutor>> RPC messages, and <<reviveOffers, reviveOffers>>.
 
 [[internal-registries]]
 .LocalEndpoint's Internal Properties (e.g. Registries, Counters and Flags)
@@ -44,19 +54,18 @@ INFO Executor: Using REPL class URI: http://192.168.1.4:56131
 | Name
 | Description
 
-| executor
-a| [[executor]] <<../spark-Executor.adoc#, Executor>>
+| freeCores
+a| [[freeCores]] The number of CPU cores that are free to use (to schedule tasks)
 
 Default: Initial <<totalCores, number of CPU cores>> (aka _totalCores_)
 
-Used when...FIXME
+Increments when `LocalEndpoint` is requested to handle <<StatusUpdate, StatusUpdate>> RPC message with a finished state
 
-| freeCores
-a| [[freeCores]] The number of CPU cores free
+Decrements when `LocalEndpoint` is requested to <<reviveOffers, reviveOffers>> and there were tasks to execute
 
-Default: <<totalCores, totalCores>>
+NOTE: A single task to execute costs <<../spark-TaskSchedulerImpl.adoc#CPUS_PER_TASK, spark.task.cpus>> configuration (default: `1`).
 
-Used when...FIXME
+Used when `LocalEndpoint` is requested to <<reviveOffers, reviveOffers>>
 
 |===
 
@@ -86,26 +95,14 @@ Refer to <<../spark-logging.adoc#, Logging>>.
 
 `LocalEndpoint` initializes the <<internal-registries, internal registries and counters>>.
 
-=== [[messages]] RPC Messages
-
-LocalEndpoint accepts the following RPC message types:
-
-* `ReviveOffers` (receive-only, non-blocking) - read <<task-submission, Task Submission a.k.a. reviveOffers>>.
-
-* [[StatusUpdate]] `StatusUpdate` (receive-only, non-blocking) that passes the message to TaskScheduler (using `statusUpdate`) and if link:spark-taskscheduler-Task.adoc[the task's status is finished], it revives offers (see `ReviveOffers`).
-
-* `KillTask` (receive-only, non-blocking) that kills the task that is currently running on the executor.
-
-* [[StopExecutor]] `StopExecutor` (receive-reply, blocking) that stops the executor.
-
-=== [[receive]] Processing RPC Messages -- `receive` Method
+=== [[receive]] Processing Receive-Only RPC Messages -- `receive` Method
 
 [source, scala]
 ----
 receive: PartialFunction[Any, Unit]
 ----
 
-NOTE: `receive` is part of the <<../spark-rpc-RpcEndpoint.adoc#receive, RpcEndpoint Contract>> to process RPC messages.
+NOTE: `receive` is part of the <<../spark-rpc-RpcEndpoint.adoc#receive, RpcEndpoint Contract>> to process receive-only RPC messages.
 
 `receive` handles (_processes_) <<ReviveOffers, ReviveOffers>>, <<StatusUpdate, StatusUpdate>>, and <<KillTask, KillTask>> RPC messages.
 
@@ -118,7 +115,7 @@ ReviveOffers()
 
 When <<receive, received>>, `LocalEndpoint` <<reviveOffers, reviveOffers>>.
 
-NOTE: `ReviveOffers` RPC message is sent out when...FIXME
+NOTE: `ReviveOffers` RPC message is sent out exclusively when `LocalSchedulerBackend` is requested to <<spark-LocalSchedulerBackend.adoc#reviveOffers, reviveOffers>>.
 
 ==== [[StatusUpdate]] `StatusUpdate` RPC Message
 
@@ -134,7 +131,7 @@ When <<receive, received>>, `LocalEndpoint` requests the <<scheduler, TaskSchedu
 
 If the given <<../spark-taskscheduler-Task.adoc#TaskState, TaskState>> is a *finished state* (one of `FINISHED`, `FAILED`, `KILLED`, `LOST` states), `LocalEndpoint` adds <<../spark-TaskSchedulerImpl.adoc#CPUS_PER_TASK, spark.task.cpus>> configuration (default: `1`) to the <<freeCores, freeCores>> registry followed by <<reviveOffers, reviveOffers>>.
 
-NOTE: `StatusUpdate` RPC message is sent out when...FIXME
+NOTE: `StatusUpdate` RPC message is sent out exclusively when `LocalSchedulerBackend` is requested to <<spark-LocalSchedulerBackend.adoc#statusUpdate, statusUpdate>>.
 
 ==== [[KillTask]] `KillTask` RPC Message
 
@@ -148,9 +145,9 @@ KillTask(
 
 When <<receive, received>>, `LocalEndpoint` requests the single <<executor, Executor>> to <<../spark-Executor.adoc#killTask, kill a task>> (given the `taskId`, the `interruptThread` flag and the reason).
 
-NOTE: `KillTask` RPC message is sent out when...FIXME
+NOTE: `KillTask` RPC message is sent out exclusively when `LocalSchedulerBackend` is requested to <<spark-LocalSchedulerBackend.adoc#killTask, kill a task>>.
 
-=== [[reviveOffers]] `reviveOffers` Method
+=== [[reviveOffers]] Reviving Offers -- `reviveOffers` Method
 
 [source, scala]
 ----
@@ -160,3 +157,25 @@ reviveOffers(): Unit
 `reviveOffers`...FIXME
 
 NOTE: `reviveOffers` is used when `LocalEndpoint` is requested to <<receive, handle RPC messages>> (namely <<ReviveOffers, ReviveOffers>> and <<StatusUpdate, StatusUpdate>>).
+
+=== [[receiveAndReply]] Processing Receive-Reply RPC Messages -- `receiveAndReply` Method
+
+[source, scala]
+----
+receiveAndReply(context: RpcCallContext): PartialFunction[Any, Unit]
+----
+
+NOTE: `receiveAndReply` is part of the <<../spark-rpc-RpcEndpoint.adoc#receiveAndReply, RpcEndpoint Contract>> to process receive-reply RPC messages.
+
+`receiveAndReply` handles (_processes_) <<StopExecutor, StopExecutor>> RPC message exclusively.
+
+==== [[StopExecutor]] `StopExecutor` RPC Message
+
+[source, scala]
+----
+StopExecutor()
+----
+
+When <<receiveAndReply, received>>, `LocalEndpoint` requests the single <<executor, Executor>> to <<../spark-Executor.adoc#stop, stop>> and requests the given `RpcCallContext` to `reply` with `true` (as the response).
+
+NOTE: `StopExecutor` RPC message is sent out exclusively when `LocalSchedulerBackend` is requested to <<spark-LocalSchedulerBackend.adoc#stop, stop>>.
