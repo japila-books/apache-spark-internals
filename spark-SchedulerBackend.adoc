@@ -1,124 +1,188 @@
-== [[SchedulerBackend]] SchedulerBackend -- Pluggable Scheduler Backends
+== [[SchedulerBackend]] SchedulerBackend -- Pluggable Task Scheduling Systems
 
-`SchedulerBackend` is a pluggable <<contract, interface>> to support various cluster managers, e.g. link:spark-mesos/spark-mesos.adoc[Apache Mesos], link:yarn/README.adoc[Hadoop YARN] or Spark's own link:spark-standalone.adoc[Spark Standalone] and link:local/spark-LocalSchedulerBackend.adoc[Spark local].
+`SchedulerBackend` is the <<contract, abstraction>> of <<implementations, task scheduling systems>> in Apache Spark that can <<reviveOffers, revive resource offers>> from various cluster managers (e.g. built-in Spark Standalone, Hadoop YARN, Kubernetes, Apache Mesos, and Spark local).
 
-As the cluster managers differ by their custom task scheduling modes and resource offers mechanisms Spark abstracts the differences in <<contract, SchedulerBackend contract>>.
+`SchedulerBackend` simply abstracts away the differences between cluster managers with regards to resource offers and task scheduling modes.
 
-[[builtin-implementations]]
-.Built-In (Direct and Indirect) SchedulerBackends per Cluster Environment
-[cols="1,2",options="header",width="100%"]
-|===
-| Cluster Environment
-| SchedulerBackends
+NOTE: Being a scheduler backend system assumes a http://mesos.apache.org/[Apache Mesos]-like scheduling model in which "an application" gets *resource offers* as machines become available so it is possible to launch tasks on them. Once required resource allocation is obtained, the scheduler backend can start executors.
 
-| Local mode
-| link:local/spark-LocalSchedulerBackend.adoc[LocalSchedulerBackend]
-
-| (base for custom SchedulerBackends)
-| link:spark-CoarseGrainedSchedulerBackend.adoc[CoarseGrainedSchedulerBackend]
-
-| Spark Standalone
-| link:spark-standalone-StandaloneSchedulerBackend.adoc[StandaloneSchedulerBackend]
-
-| Spark on YARN
-a| link:yarn/spark-yarn-yarnschedulerbackend.adoc[YarnSchedulerBackend]:
-
-* link:yarn/spark-yarn-client-yarnclientschedulerbackend.adoc[YarnClientSchedulerBackend] (for client deploy mode)
-* link:yarn/spark-yarn-cluster-yarnclusterschedulerbackend.adoc[YarnClusterSchedulerBackend] (for cluster deploy mode)
-
-| Spark on Mesos
-a|
-
-* link:spark-mesos/spark-mesos-MesosCoarseGrainedSchedulerBackend.adoc[MesosCoarseGrainedSchedulerBackend]
-* `MesosFineGrainedSchedulerBackend`
-|===
-
-A scheduler backend is created and started as part of SparkContext's initialization (when link:spark-TaskScheduler.adoc[TaskSchedulerImpl] is started - see link:spark-SparkContext-creating-instance-internals.adoc#createTaskScheduler[Creating Scheduler Backend and Task Scheduler]).
-
-CAUTION: FIXME Image how it gets created with SparkContext in play here or in SparkContext doc.
-
-Scheduler backends are started and stopped as part of TaskSchedulerImpl's initialization and stopping.
-
-Being a scheduler backend in Spark assumes a http://mesos.apache.org/[Apache Mesos]-like model in which "an application" gets *resource offers* as machines become available and can launch tasks on them. Once a scheduler backend obtains the resource allocation, it can start executors.
-
-TIP: Understanding how http://mesos.apache.org/[Apache Mesos] works can greatly improve understanding Spark.
-
-=== [[contract]] SchedulerBackend Contract
-
-[source, scala]
-----
-trait SchedulerBackend {
-  def applicationId(): String
-  def applicationAttemptId(): Option[String]
-  def defaultParallelism(): Int
-  def getDriverLogUrls: Option[Map[String, String]]
-  def isReady(): Boolean
-  def killTask(taskId: Long, executorId: String, interruptThread: Boolean): Unit
-  def reviveOffers(): Unit
-  def start(): Unit
-  def stop(): Unit
-}
-----
-
-NOTE: `org.apache.spark.scheduler.SchedulerBackend` is a `private[spark]` Scala trait in Spark.
-
+[[contract]]
 .SchedulerBackend Contract
-[cols="1,2",options="header",width="100%"]
+[cols="1m,3",options="header",width="100%"]
 |===
 | Method
 | Description
 
-| [[applicationId]] `applicationId`
-| Unique identifier of Spark Application
+| applicationAttemptId
+a| [[applicationAttemptId]]
 
-Used when `TaskSchedulerImpl` is asked for the <<applicationId, unique identifier of a Spark application>> (that is actually a part of link:spark-TaskScheduler.adoc#applicationId[TaskScheduler contract]).
+[source, scala]
+----
+applicationAttemptId(): Option[String]
+----
 
-| [[applicationAttemptId]] `applicationAttemptId`
-| Attempt id of a Spark application
+*Execution attempt ID* of the Spark application
 
-Only supported by link:spark-yarn-yarnschedulerbackend.adoc#applicationAttemptId[YARN cluster scheduler backend] as the YARN cluster manager supports multiple application attempts.
+Default: `None` (undefined)
 
-Used when...
+Used exclusively when `TaskSchedulerImpl` is requested for the <<spark-TaskSchedulerImpl.adoc#applicationAttemptId, execution attempt ID of a Spark application>>
 
-NOTE: `applicationAttemptId` is also a part of link:spark-TaskScheduler.adoc#contract[TaskScheduler contract] and link:spark-TaskSchedulerImpl.adoc#applicationAttemptId[`TaskSchedulerImpl` directly calls the SchedulerBackend's `applicationAttemptId`].
+| applicationId
+a| [[applicationId]][[appId]]
 
-| [[defaultParallelism]] `defaultParallelism`
-| Used when `TaskSchedulerImpl` link:spark-TaskSchedulerImpl.adoc#defaultParallelism[finds the default level of parallelism] (as a hint for sizing jobs).
+[source, scala]
+----
+applicationId(): String
+----
 
-| [[getDriverLogUrls]] `getDriverLogUrls`
-| Returns no URLs by default and only supported by link:yarn/spark-yarn-cluster-yarnclusterschedulerbackend.adoc#YarnClusterSchedulerBackend[YarnClusterSchedulerBackend]
+*Unique identifier* of the Spark Application
 
-| [[isReady]] `isReady`
-| Controls whether `SchedulerBackend` is ready (i.e. `true`) or not (i.e. `false`). Enabled by default.
+Default: `spark-application-[currentTimeMillis]`
 
-Used when link:spark-TaskSchedulerImpl.adoc#waitBackendReady[`TaskSchedulerImpl` waits until `SchedulerBackend` is ready] (which happens link:spark-SparkContext-creating-instance-internals.adoc#postStartHook[just before `SparkContext` is fully initialized]).
+Used exclusively when `TaskSchedulerImpl` is requested for the <<spark-TaskSchedulerImpl.adoc#applicationId, unique identifier of a Spark application>>
 
-| [[killTask]] `killTask`
-a| Reports a `UnsupportedOperationException` by default.
+| defaultParallelism
+a| [[defaultParallelism]]
+
+[source, scala]
+----
+defaultParallelism(): Int
+----
+
+*Default parallelism*, i.e. a hint for the number of tasks in stages while sizing jobs
+
+Used exclusively when `TaskSchedulerImpl` is requested for the <<spark-TaskSchedulerImpl.adoc#defaultParallelism, default parallelism>>
+
+| getDriverLogUrls
+a| [[getDriverLogUrls]]
+
+[source, scala]
+----
+getDriverLogUrls: Option[Map[String, String]]
+----
+
+*Driver log URLs*
+
+Default: `None` (undefined)
+
+Used exclusively when `SparkContext` is requested to <<spark-SparkContext.adoc#postApplicationStart, postApplicationStart>>
+
+| isReady
+a| [[isReady]]
+
+[source, scala]
+----
+isReady(): Boolean
+----
+
+Controls whether the <<spark-SchedulerBackend.adoc#, SchedulerBackend>> is ready (`true`) or not (`false`)
+
+Default: `true`
+
+Used exclusively when `TaskSchedulerImpl` is requested to <<spark-TaskSchedulerImpl.adoc#waitBackendReady, wait until scheduling backend is ready>>
+
+| killTask
+a| [[killTask]]
+
+[source, scala]
+----
+killTask(
+  taskId: Long,
+  executorId: String,
+  interruptThread: Boolean,
+  reason: String): Unit
+----
+
+Kills a given task
+
+Default: Throws an `UnsupportedOperationException`
 
 Used when:
 
-* `TaskSchedulerImpl` link:spark-TaskSchedulerImpl.adoc#cancelTasks[cancels the tasks for a stage]
-* `TaskSetManager` is link:spark-TaskSetManager.adoc#handleSuccessfulTask[notified about successful task attempt].
+* `TaskSchedulerImpl` is requested to <<spark-TaskSchedulerImpl.adoc#killTaskAttempt, killTaskAttempt>> and <<spark-TaskSchedulerImpl.adoc#killAllTaskAttempts, killAllTaskAttempts>>
 
-| [[reviveOffers]] `reviveOffers`
-a|
+* `TaskSetManager` is requested to <<spark-TaskSetManager.adoc#handleSuccessfulTask, handle a successful task attempt>>
 
-Used when `TaskSchedulerImpl`:
+| maxNumConcurrentTasks
+a| [[maxNumConcurrentTasks]]
 
-* link:spark-TaskSchedulerImpl.adoc#submitTasks[Submits tasks (from `TaskSet`)]
-* link:spark-TaskSchedulerImpl.adoc#statusUpdate[Receives task status updates]
-* link:spark-TaskSchedulerImpl.adoc#handleFailedTask[Notifies `TaskSetManager` that a task has failed]
-* link:spark-TaskSchedulerImpl.adoc#checkSpeculatableTasks[Checks for speculatable tasks]
-* link:spark-TaskSchedulerImpl.adoc#executorLost[Gets notified about executor being lost]
+[source, scala]
+----
+maxNumConcurrentTasks(): Int
+----
 
-| [[start]] `start`
-| Starts `SchedulerBackend`.
+*Maximum number of concurrent tasks* that can be launched now
 
-Used when link:spark-TaskSchedulerImpl.adoc#start[`TaskSchedulerImpl` is started].
+Used exclusively when `SparkContext` is requested to <<spark-SparkContext.adoc#maxNumConcurrentTasks, maxNumConcurrentTasks>>
 
-| [[stop]] `stop`
-| Stops `SchedulerBackend`.
+| reviveOffers
+a| [[reviveOffers]]
 
-Used when link:spark-TaskSchedulerImpl.adoc#stop[`TaskSchedulerImpl` is stopped].
+[source, scala]
+----
+reviveOffers(): Unit
+----
+
+Handles resource allocation offers (from the scheduling system)
+
+Used when `TaskSchedulerImpl` is requested to:
+
+* <<spark-TaskSchedulerImpl.adoc#submitTasks, Submit tasks (from a TaskSet)>>
+
+* <<spark-TaskSchedulerImpl.adoc#statusUpdate, Handle a task status update>>
+
+* <<spark-TaskSchedulerImpl.adoc#handleFailedTask, Notify the TaskSetManager that a task has failed>>
+
+* <<spark-TaskSchedulerImpl.adoc#checkSpeculatableTasks, Check for speculatable tasks>>
+
+* <<spark-TaskSchedulerImpl.adoc#executorLost, Handle a lost executor event>>
+
+| start
+a| [[start]]
+
+[source, scala]
+----
+start(): Unit
+----
+
+Starts the <<spark-SchedulerBackend.adoc#, SchedulerBackend>>
+
+Used exclusively when `TaskSchedulerImpl` is requested to <<spark-TaskSchedulerImpl.adoc#start, start>>
+
+| stop
+a| [[stop]]
+
+[source, scala]
+----
+stop(): Unit
+----
+
+Stops the <<spark-SchedulerBackend.adoc#, SchedulerBackend>>
+
+Used when:
+
+* `TaskSchedulerImpl` is requested to <<spark-TaskSchedulerImpl.adoc#stop, stop>>
+
+* `MesosCoarseGrainedSchedulerBackend` is requested to <<spark-mesos/spark-mesos-MesosCoarseGrainedSchedulerBackend.adoc#stopSchedulerBackend, stopSchedulerBackend>>
+
 |===
+
+[[implementations]]
+.SchedulerBackends (Direct Implementations and Extensions)
+[cols="1,3",options="header",width="100%"]
+|===
+| SchedulerBackend
+| Description
+
+| <<spark-CoarseGrainedSchedulerBackend.adoc#, CoarseGrainedSchedulerBackend>>
+| [[CoarseGrainedSchedulerBackend]] Base `SchedulerBackend` for coarse-grained scheduling systems
+
+| <<local/spark-LocalSchedulerBackend.adoc#, LocalSchedulerBackend>>
+| [[LocalSchedulerBackend]] Spark local
+
+| MesosFineGrainedSchedulerBackend
+| [[MesosFineGrainedSchedulerBackend]] Fine-grained scheduling system for Apache Mesos
+
+|===
+
+NOTE: `org.apache.spark.scheduler.SchedulerBackend` is a `private[spark]` Scala trait in Spark.
