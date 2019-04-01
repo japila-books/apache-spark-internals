@@ -14,16 +14,16 @@
 
 * *++local[*, m]++* (with the <<totalCores, total number of CPU cores>> that matches the number of available CPU cores on the local machine)
 
+While being <<creating-instance, created>>, `LocalSchedulerBackend` requests the <<launcherBackend, LauncherBackend>> to `connect`.
+
 When an executor sends task status updates (using `ExecutorBackend.statusUpdate`), they are passed along as <<messages, StatusUpdate>> to <<spark-LocalEndpoint.adoc#, LocalEndpoint>>.
 
 .Task status updates flow in local mode
 image::../images/LocalSchedulerBackend-LocalEndpoint-Executor-task-status-updates.png[align="center"]
 
-While being <<creating-instance, created>>, `LocalSchedulerBackend` requests the <<launcherBackend, LauncherBackend>> to `connect`.
-
 [[appId]]
 [[applicationId]]
-When requested for the <<../spark-SchedulerBackend.adoc#applicationId, applicationId>>, `LocalSchedulerBackend` uses *local-[current time millis]*.
+When requested for the <<../spark-SchedulerBackend.adoc#applicationId, applicationId>>, `LocalSchedulerBackend` uses *local-[currentTimeMillis]*.
 
 [[maxNumConcurrentTasks]]
 When requested for the <<../spark-SchedulerBackend.adoc#maxNumConcurrentTasks, maxNumConcurrentTasks>>, `LocalSchedulerBackend` simply divides the <<totalCores, total number of CPU cores>> by <<../spark-TaskSchedulerImpl.adoc#CPUS_PER_TASK, spark.task.cpus>> configuration (default: `1`).
@@ -88,7 +88,13 @@ start(): Unit
 
 NOTE: `start` is part of the <<../spark-SchedulerBackend.adoc#start, SchedulerBackend Contract>> to start the scheduling backend.
 
-`start`...FIXME
+`start` requests the `SparkEnv` object for the current <<spark-SparkEnv.adoc#rpcEnv, RpcEnv>>.
+
+`start` then creates a <<spark-LocalEndpoint.adoc#, LocalEndpoint>> and requests the `RpcEnv` to <<../spark-rpc-RpcEnv.adoc#setupEndpoint, register it>> as *LocalSchedulerBackendEndpoint* RPC endpoint.
+
+`start` requests the <<listenerBus, LiveListenerBus>> to <<../spark-LiveListenerBus.adoc#post, post>> a <<../spark-SparkListener.adoc#SparkListenerExecutorAdded, SparkListenerExecutorAdded>> event.
+
+In the end, `start` requests the <<launcherBackend, LauncherBackend>> to `setAppId` as the <<appId, appId>> and `setState` as `RUNNING`.
 
 === [[reviveOffers]] `reviveOffers` Method
 
