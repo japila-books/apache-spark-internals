@@ -1,6 +1,6 @@
 == [[LocalSchedulerBackend]] LocalSchedulerBackend
 
-`LocalSchedulerBackend` is a <<../spark-SchedulerBackend.adoc#, SchedulerBackend>> and an <<../spark-ExecutorBackend.adoc#, ExecutorBackend>> for the <<spark-local.adoc#, Spark local>> deployment mode.
+`LocalSchedulerBackend` is a <<../spark-SchedulerBackend.adoc#, SchedulerBackend>> and an <<../spark-ExecutorBackend.adoc#, ExecutorBackend>> for the <<spark-local.adoc#, Spark local>>.
 
 `LocalSchedulerBackend` is <<creating-instance, created>> when `SparkContext` is requested to <<../spark-SparkContext.adoc#createTaskScheduler, create the SchedulerBackend with the TaskScheduler>> for the following master URLs:
 
@@ -13,10 +13,6 @@
 * *local[n, m]* (with exactly <<totalCores, n CPU cores>>)
 
 * *++local[*, m]++* (with the <<totalCores, total number of CPU cores>> that matches the number of available CPU cores on the local machine)
-
-`LocalSchedulerBackend` acts as a "cluster manager" for the local deployment mode to offer resources on the single link:../spark-workers.adoc[worker] it manages, i.e. it calls `TaskSchedulerImpl.resourceOffers(offers)` with `offers` being a single-element collection with link:../spark-TaskSchedulerImpl.adoc#WorkerOffer[WorkerOffer].
-
-NOTE: link:../spark-TaskSchedulerImpl.adoc#WorkerOffer[WorkerOffer] represents a resource offer with CPU cores available on an executor.
 
 When an executor sends task status updates (using `ExecutorBackend.statusUpdate`), they are passed along as <<messages, StatusUpdate>> to <<spark-LocalEndpoint.adoc#, LocalEndpoint>>.
 
@@ -33,7 +29,10 @@ When requested for the <<../spark-SchedulerBackend.adoc#applicationId, applicati
 When requested for the <<../spark-SchedulerBackend.adoc#maxNumConcurrentTasks, maxNumConcurrentTasks>>, `LocalSchedulerBackend` simply divides the <<totalCores, total number of CPU cores>> by <<../spark-TaskSchedulerImpl.adoc#CPUS_PER_TASK, spark.task.cpus>> configuration (default: `1`).
 
 [[defaultParallelism]]
-When requested for the <<../spark-SchedulerBackend.adoc#defaultParallelism, defaultParallelism>>, `LocalSchedulerBackend` uses <<../spark-TaskSetManager-configuration-properties.adoc#spark.default.parallelism, spark.default.parallelism>> configuration (if defined) or the <<totalCores, total number of CPU cores>>.
+When requested for the <<../spark-SchedulerBackend.adoc#defaultParallelism, defaultParallelism>>, `LocalSchedulerBackend` uses <<../spark-configuration-properties.adoc#spark.default.parallelism, spark.default.parallelism>> configuration (if defined) or the <<totalCores, total number of CPU cores>>.
+
+[[userClassPath]]
+When <<creating-instance, created>>, `LocalSchedulerBackend` <<getUserClasspath, uses>> the <<../spark-configuration-properties.adoc#spark.executor.extraClassPath, spark.executor.extraClassPath>> configuration property (in the given <<conf, SparkConf>>) for the *user-defined class path for executors* that is used exclusively when `LocalSchedulerBackend` is requested to <<start, start>> (and creates a <<spark-LocalEndpoint.adoc#, LocalEndpoint>> that in turn uses it to create the one <<spark-LocalEndpoint.adoc#executor, Executor>>).
 
 [[creating-instance]]
 `LocalSchedulerBackend` takes the following to be created:
@@ -51,11 +50,6 @@ When requested for the <<../spark-SchedulerBackend.adoc#defaultParallelism, defa
 
 | localEndpoint
 a| [[localEndpoint]] <<../spark-RpcEndpointRef.adoc#, RpcEndpointRef>>
-
-Used when...FIXME
-
-| userClassPath
-a| [[userClassPath]] <<getUserClasspath, User-defined CLASSPATH>> (given the <<conf, SparkConf>>)
 
 Used when...FIXME
 
@@ -147,13 +141,13 @@ NOTE: `stop` is part of the <<../spark-SchedulerBackend.adoc#stop, SchedulerBack
 
 `stop`...FIXME
 
-=== [[getUserClasspath]] `getUserClasspath` Method
+=== [[getUserClasspath]] User-Defined Class Path for Executors -- `getUserClasspath` Method
 
 [source, scala]
 ----
 getUserClasspath(conf: SparkConf): Seq[URL]
 ----
 
-`getUserClasspath`...FIXME
+`getUserClasspath` simply requests the given `SparkConf` for the <<../spark-configuration-properties.adoc#spark.executor.extraClassPath, spark.executor.extraClassPath>> configuration property and converts the entries (separated by the system-dependent path separator) to URLs.
 
-NOTE: `getUserClasspath` is used when...FIXME
+NOTE: `getUserClasspath` is used exclusively when `LocalSchedulerBackend` is <<userClassPath, created>>.
