@@ -407,11 +407,16 @@ Unless `reason` is `LossReasonPending`, the executor is removed from `executorId
 
 NOTE: The internal `removeExecutor` is called as part of <<statusUpdate, statusUpdate>> and link:spark-TaskScheduler.adoc#executorLost[executorLost].
 
-=== [[postStartHook]] Intercepting Nearly-Completed SparkContext Initialization -- `postStartHook` Callback
+=== [[postStartHook]] Handling Nearly-Completed SparkContext Initialization -- `postStartHook` Callback
 
-`postStartHook` is a custom implementation of link:spark-TaskScheduler.adoc#contract[postStartHook from the TaskScheduler Contract] that waits until a scheduler backend is ready (using the internal blocking <<waitBackendReady, waitBackendReady>>).
+[source, scala]
+----
+postStartHook(): Unit
+----
 
-NOTE: `postStartHook` is used when link:spark-SparkContext.adoc#creating-instance[SparkContext is created] (before it is fully created) and link:yarn/spark-yarn-yarnclusterscheduler.adoc#postStartHook[YarnClusterScheduler.postStartHook].
+NOTE: `postStartHook` is part of the <<spark-TaskScheduler.adoc#postStartHook, TaskScheduler Contract>> to notify a <<spark-TaskScheduler.adoc#, task scheduler>> that the `SparkContext` (and hence the Spark application itself) is about to finish initialization.
+
+`postStartHook` simply <<waitBackendReady, waits until a scheduler backend is ready>>.
 
 === [[stop]] Stopping TaskSchedulerImpl -- `stop` Method
 
@@ -564,19 +569,17 @@ NOTE: `executorAdded` uses <<dagScheduler, DAGScheduler>> that was given when <<
 waitBackendReady(): Unit
 ----
 
-`waitBackendReady` waits until a link:spark-SchedulerBackend.adoc#isReady[SchedulerBackend is ready].
+`waitBackendReady` waits until the <<backend, SchedulerBackend>> is <<spark-SchedulerBackend.adoc#isReady, ready>>. If it is, `waitBackendReady` returns immediately. Otherwise, `waitBackendReady` keeps checking every `100` milliseconds (hardcoded) or the <<sc, SparkContext>> is <<spark-SparkContext.adoc#stopped, stopped>>.
 
-NOTE: link:spark-SchedulerBackend.adoc#isReady[`SchedulerBackend` is ready] by default.
+NOTE: A `SchedulerBackend` is <<spark-SchedulerBackend.adoc#isReady, ready>> by default.
 
-`waitBackendReady` keeps checking the status every `100` milliseconds until `SchedulerBackend` is ready or the link:spark-SparkContext.adoc#stop[SparkContext is stopped].
-
-If the `SparkContext` happens to be stopped while waiting, `waitBackendReady` reports a `IllegalStateException`:
+If the `SparkContext` happens to be stopped while waiting, `waitBackendReady` throws an `IllegalStateException`:
 
 ```
 Spark context stopped while waiting for backend
 ```
 
-NOTE: `waitBackendReady` is used when `TaskSchedulerImpl` <<postStartHook, is notified that `SparkContext` is near to get fully initialized>>.
+NOTE: `waitBackendReady` is used exclusively when `TaskSchedulerImpl` is requested to <<postStartHook, handle a notification that SparkContext is about to be fully initialized>>.
 
 === [[resourceOffers]] Creating TaskDescriptions For Available Executor Resource Offers (with CPU Cores) -- `resourceOffers` Method
 
