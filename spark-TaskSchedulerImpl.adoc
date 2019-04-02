@@ -1,8 +1,6 @@
 == [[TaskSchedulerImpl]] TaskSchedulerImpl -- Default TaskScheduler
 
-`TaskSchedulerImpl` is the default link:spark-TaskScheduler.adoc[TaskScheduler].
-
-`TaskSchedulerImpl` can schedule tasks for multiple types of cluster managers by means of link:spark-SchedulerBackend.adoc[SchedulerBackends].
+`TaskSchedulerImpl` is the default link:spark-TaskScheduler.adoc[TaskScheduler] that uses a <<backend, SchedulerBackend>> to schedule tasks (for execution on a cluster manager).
 
 When a Spark application starts (and so an instance of link:spark-SparkContext.adoc#creating-instance[SparkContext is created]) `TaskSchedulerImpl` with a link:spark-SchedulerBackend.adoc[SchedulerBackend] and link:spark-dagscheduler.adoc[DAGScheduler] are created and soon started.
 
@@ -13,7 +11,7 @@ image::images/taskschedulerimpl-sparkcontext-schedulerbackend-dagscheduler.png[a
 
 `TaskSchedulerImpl` can <<getRackForHost, track racks per host and port>> (that however is link:yarn/spark-yarn-yarnscheduler.adoc[only used with Hadoop YARN cluster manager]).
 
-Using <<spark_scheduler_mode, spark.scheduler.mode>> setting you can select the link:spark-taskscheduler-schedulingmode.adoc[scheduling policy].
+Using <<spark-configuration-properties.adoc#spark.scheduler.mode, spark.scheduler.mode>> setting you can select the link:spark-taskscheduler-schedulingmode.adoc[scheduling policy].
 
 `TaskSchedulerImpl` <<submitTasks, submits tasks>> using link:spark-taskscheduler-schedulablebuilders.adoc[SchedulableBuilders].
 
@@ -21,76 +19,72 @@ Using <<spark_scheduler_mode, spark.scheduler.mode>> setting you can select the 
 `TaskSchedulerImpl` uses <<spark-configuration-properties.adoc#spark.task.cpus, spark.task.cpus>> configuration property (default: `1`) for...FIXME
 
 [[internal-registries]]
-.TaskSchedulerImpl's Internal Registries and Counters
-[cols="1,2",options="header",width="100%"]
+.TaskSchedulerImpl's Internal Properties (e.g. Registries, Counters and Flags)
+[cols="1m,3",options="header",width="100%"]
 |===
 | Name
 | Description
 
-| [[backend]] `backend`
-| link:spark-SchedulerBackend.adoc[SchedulerBackend]
-
-Set when `TaskSchedulerImpl` <<initialize, is initialized>>.
-
-| [[dagScheduler]] `dagScheduler`
-| link:spark-dagscheduler.adoc[DAGScheduler]
+| dagScheduler
+a| [[dagScheduler]] link:spark-dagscheduler.adoc[DAGScheduler]
 
 Used when...FIXME
 
-| [[executorIdToHost]] `executorIdToHost`
-| Lookup table of hosts per executor.
+| executorIdToHost
+a| [[executorIdToHost]] Lookup table of hosts per executor.
 
 Used when...FIXME
 
-| [[executorIdToRunningTaskIds]] `executorIdToRunningTaskIds`
-| Lookup table of running tasks per executor.
+| executorIdToRunningTaskIds
+a| [[executorIdToRunningTaskIds]] Lookup table of running tasks per executor.
 
 Used when...FIXME
 
-| [[executorIdToTaskCount]] `executorIdToTaskCount`
-| Lookup table of the number of running tasks by link:spark-Executor.adoc[executor].
+| executorIdToTaskCount
+a| [[executorIdToTaskCount]] Lookup table of the number of running tasks by link:spark-Executor.adoc[executor].
 
-| [[executorsByHost]] `executorsByHost`
-| Collection of link:spark-Executor.adoc[executors] per host
+| executorsByHost
+a| [[executorsByHost]] Collection of link:spark-Executor.adoc[executors] per host
 
-| [[hasLaunchedTask]] `hasLaunchedTask`
-| Flag...FIXME
-
-Used when...FIXME
-
-| [[hostToExecutors]] `hostToExecutors`
-| Lookup table of executors per hosts in a cluster.
+| hasLaunchedTask
+a| [[hasLaunchedTask]] Flag...FIXME
 
 Used when...FIXME
 
-| [[hostsByRack]] `hostsByRack`
-| Lookup table of hosts per rack.
+| hostToExecutors
+a| [[hostToExecutors]] Lookup table of executors per hosts in a cluster.
 
 Used when...FIXME
 
-| [[nextTaskId]] `nextTaskId`
-| The next link:spark-taskscheduler-Task.adoc[task] id counting from `0`.
+| hostsByRack
+a| [[hostsByRack]] Lookup table of hosts per rack.
+
+Used when...FIXME
+
+| nextTaskId
+a| [[nextTaskId]] The next link:spark-taskscheduler-Task.adoc[task] id counting from `0`.
 
 Used when `TaskSchedulerImpl`...
 
-| [[rootPool]] `rootPool`
-| Schedulable link:spark-taskscheduler-pool.adoc[Pool]
+| rootPool
+a| [[rootPool]] Schedulable link:spark-taskscheduler-pool.adoc[Pool]
 
 Used when `TaskSchedulerImpl`...
 
-| [[schedulingMode]] `schedulingMode`
-| link:spark-taskscheduler-schedulingmode.adoc[SchedulingMode]
+| schedulingMode
+a| [[schedulingMode]] link:spark-taskscheduler-schedulingmode.adoc[SchedulingMode]
 
 Used when `TaskSchedulerImpl`...
 
-| [[taskSetsByStageIdAndAttempt]] `taskSetsByStageIdAndAttempt`
-| Lookup table of link:spark-taskscheduler-tasksets.adoc[TaskSet] by stage and attempt ids.
+| taskSetsByStageIdAndAttempt
+a| [[taskSetsByStageIdAndAttempt]] Lookup table of link:spark-taskscheduler-tasksets.adoc[TaskSet] by stage and attempt ids.
 
-| [[taskIdToExecutorId]] `taskIdToExecutorId`
-| Lookup table of link:spark-Executor.adoc[executor] by task id.
+| taskIdToExecutorId
+a| [[taskIdToExecutorId]] Lookup table of link:spark-Executor.adoc[executor] by task id.
 
-| [[taskIdToTaskSetManager]] `taskIdToTaskSetManager`
-| Registry of active link:spark-TaskSetManager.adoc[TaskSetManager] per task id.
+| taskIdToTaskSetManager
+a| [[taskIdToTaskSetManager]] Registry of active link:spark-TaskSetManager.adoc[TaskSetManager] per task id.
+
 |===
 
 [TIP]
@@ -105,6 +99,24 @@ log4j.logger.org.apache.spark.scheduler.TaskSchedulerImpl=DEBUG
 
 Refer to link:spark-logging.adoc[Logging].
 ====
+
+=== [[backend]] TaskSchedulerImpl and SchedulerBackend
+
+`TaskSchedulerImpl` is assigned a <<spark-SchedulerBackend.adoc#, SchedulerBackend>> at <<initialize, initialization>>.
+
+The lifecycle of the `SchedulerBackend` is tightly coupled to the lifecycle of the `TaskSchedulerImpl`:
+
+* At <<start, startup>>, `TaskSchedulerImpl` requests the `SchedulerBackend` to <<spark-SchedulerBackend.adoc#start, start>>, too
+
+* When <<stop, stopped>>, so <<spark-SchedulerBackend.adoc#stop, is>> the `SchedulerBackend`
+
+`TaskSchedulerImpl` <<waitBackendReady, waits until the SchedulerBackend is ready>> before requesting it for the following:
+
+* <<spark-SchedulerBackend.adoc#reviveOffers, Reviving resource offers>> when requested to <<submitTasks, submitTasks>>, <<statusUpdate, statusUpdate>>, <<handleFailedTask, handleFailedTask>>, <<checkSpeculatableTasks, checkSpeculatableTasks>>, and <<executorLost, executorLost>>
+
+* <<spark-SchedulerBackend.adoc#killTask, Killing tasks>> when requested to <<killTaskAttempt, killTaskAttempt>> and <<killAllTaskAttempts, killAllTaskAttempts>>
+
+* <<spark-SchedulerBackend.adoc#defaultParallelism, Default parallelism>>, <<applicationId, applicationId>> and <<applicationAttemptId, applicationAttemptId>> when requested for the <<defaultParallelism, defaultParallelism>>, <<spark-SchedulerBackend.adoc#applicationId, applicationId>> and <<spark-SchedulerBackend.adoc#applicationAttemptId, applicationAttemptId>>, respectively
 
 === [[applicationId]] Finding Unique Identifier of Spark Application -- `applicationId` Method
 
@@ -230,7 +242,7 @@ It is set up when a <<initialize, `TaskSchedulerImpl` is initialized>> and can b
 
 * link:spark-taskscheduler-FairSchedulableBuilder.adoc[FairSchedulableBuilder] for FAIR scheduling policy.
 
-NOTE: Use <<spark_scheduler_mode, spark.scheduler.mode>> setting to select the scheduling policy.
+NOTE: Use <<spark-configuration-properties.adoc#spark.scheduler.mode, spark.scheduler.mode>> setting to select the scheduling policy.
 
 === [[getRackForHost]] Tracking Racks per Hosts and Ports -- `getRackForHost` Method
 
@@ -262,9 +274,9 @@ NOTE: It is overriden by the YARN-specific TaskScheduler link:yarn/spark-yarn-ya
 
 `TaskSchedulerImpl` initializes the <<internal-registries, internal registries and counters>>.
 
-NOTE: There is another `TaskSchedulerImpl` constructor that requires a link:spark-SparkContext.adoc[SparkContext] object only and sets <<maxTaskFailures, maxTaskFailures>> to <<spark_task_maxFailures, spark.task.maxFailures>> or, if not set, defaults to `4`.
+NOTE: There is another `TaskSchedulerImpl` constructor that requires a link:spark-SparkContext.adoc[SparkContext] object only and sets <<maxTaskFailures, maxTaskFailures>> to <<spark-configuration-properties.adoc#spark.task.maxFailures, spark.task.maxFailures>> or, if not set, defaults to `4`.
 
-`TaskSchedulerImpl` sets link:spark-TaskScheduler.adoc#contract[schedulingMode] to the value of <<spark_scheduler_mode, spark.scheduler.mode>> setting (defaults to `FIFO`).
+`TaskSchedulerImpl` sets link:spark-TaskScheduler.adoc#contract[schedulingMode] to the value of <<spark-configuration-properties.adoc#spark.scheduler.mode, spark.scheduler.mode>> setting (defaults to `FIFO`).
 
 NOTE: `schedulingMode` is part of link:spark-TaskScheduler.adoc#contract[TaskScheduler Contract].
 
@@ -390,7 +402,7 @@ NOTE: `checkSpeculatableTasks` is executed periodically as part of link:spark-ta
 
 === [[maxTaskFailures]] Acceptable Number of Task Failures -- `maxTaskFailures` Attribute
 
-The acceptable number of task failures (`maxTaskFailures`) can be explicitly defined when <<creating-instance, creating TaskSchedulerImpl instance>> or based on <<spark_task_maxFailures, spark.task.maxFailures>> setting that defaults to 4 failures.
+The acceptable number of task failures (`maxTaskFailures`) can be explicitly defined when <<creating-instance, creating TaskSchedulerImpl instance>> or based on <<spark-configuration-properties.adoc#spark.task.maxFailures, spark.task.maxFailures>> setting that defaults to 4 failures.
 
 NOTE: It is exclusively used when <<submitTasks, submitting tasks>> through link:spark-TaskSetManager.adoc[TaskSetManager].
 
@@ -481,9 +493,9 @@ NOTE: The link:spark-TaskScheduler.adoc#rootPool[root pool] can be a single flat
 
 `submitTasks` makes sure that the requested resources, i.e. CPU and memory, are assigned to the Spark application for a <<isLocal, non-local environment>>.
 
-When `submitTasks` is called the very first time (`hasReceivedTask` is `false`) in cluster mode only (i.e. `isLocal` of the `TaskSchedulerImpl` is `false`), `starvationTimer` is scheduled to execute after <<spark_starvation_timeout, spark.starvation.timeout>>  to ensure that the requested resources, i.e. CPUs and memory, were assigned by a cluster manager.
+When `submitTasks` is called the very first time (`hasReceivedTask` is `false`) in cluster mode only (i.e. `isLocal` of the `TaskSchedulerImpl` is `false`), `starvationTimer` is scheduled to execute after <<spark-configuration-properties.adoc#spark.starvation.timeout, spark.starvation.timeout>>  to ensure that the requested resources, i.e. CPUs and memory, were assigned by a cluster manager.
 
-NOTE: After the first `spark.starvation.timeout` passes, the internal `hasReceivedTask` flag becomes `true`.
+NOTE: After the first <<spark-configuration-properties.adoc#spark.starvation.timeout, spark.starvation.timeout>> passes, the internal `hasReceivedTask` flag becomes `true`.
 
 Every time the starvation timer thread is executed and `hasLaunchedTask` flag is `false`, the following WARN message is printed out to the logs:
 
@@ -711,28 +723,3 @@ WorkerOffer(executorId: String, host: String, cores: Int)
 ----
 
 `WorkerOffer` represents a resource offer with free CPU `cores` available on an `executorId` executor on a `host`.
-
-=== [[settings]] Settings
-
-.Spark Properties
-[cols="1,1,2",options="header",width="100%"]
-|===
-| Spark Property
-| Default Value
-| Description
-
-| [[spark_task_maxFailures]][[spark.task.maxFailures]] `spark.task.maxFailures`
-a|
-
-* `4` in link:spark-cluster.adoc[cluster mode]
-* `1` in link:local/spark-local.adoc[local]
-* `maxFailures` in link:local/spark-local.adoc#masterURL[local-with-retries]
-
-| The number of individual task failures before giving up on the entire link:spark-taskscheduler-tasksets.adoc[TaskSet] and the job afterwards.
-
-| [[spark_starvation_timeout]] `spark.starvation.timeout` | `15s` | Threshold above which Spark warns a user that an initial TaskSet may be starved.
-
-| [[spark_scheduler_mode]] `spark.scheduler.mode` | `FIFO` | A case-insensitive name of the link:spark-taskscheduler-schedulingmode.adoc[scheduling mode] -- `FAIR`, `FIFO`, or `NONE`.
-
-NOTE: Only `FAIR` and `FIFO` are supported by `TaskSchedulerImpl`. See <<schedulableBuilder, schedulableBuilder>>.
-|===
