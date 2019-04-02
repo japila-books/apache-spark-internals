@@ -1,9 +1,27 @@
-== Spark local (pseudo-cluster)
+== Spark local
 
-You can run Spark in *local mode*. In this non-distributed single-JVM deployment mode, Spark spawns all the execution components - link:spark-driver.adoc[driver], link:spark-Executor.adoc[executor], link:local/spark-LocalSchedulerBackend.adoc[LocalSchedulerBackend], and link:spark-master.adoc[master] - in the same single JVM. The default parallelism is the number of threads as specified in the <<masterURL, master URL>>. This is the only mode where a driver is used for execution.
+*Spark local* is one of the available runtime environments in Apache Spark. It is the only available runtime with no need for a proper cluster manager (and hence many call it a *pseudo-cluster*, however such concept do exist in Spark and is a bit different).
+
+Spark local is used for the following *master URLs* (as specified using <<../spark-SparkConf.adoc#, SparkConf.setMaster>> method or <<../spark-configuration-properties.adoc#spark.master, spark.master>> configuration property):
+
+* *local* (with exactly 1 CPU core)
+
+* *local[n]* (with exactly `n` CPU cores)
+
+* *++local[*]++* (with the total number of CPU cores that is the number of available CPU cores on the local machine)
+
+* *local[n, m]* (with exactly `n` CPU cores and `m` retries when a task fails)
+
+* *++local[*, m]++* (with the total number of CPU cores that is the number of available CPU cores on the local machine)
+
+Internally, Spark local uses <<spark-LocalSchedulerBackend.adoc#, LocalSchedulerBackend>> as the <<../spark-SchedulerBackend.adoc#, SchedulerBackend>> and <<../spark-ExecutorBackend.adoc#, ExecutorBackend>>.
 
 .Architecture of Spark local
-image::diagrams/spark-local-architecture.png[align="center"]
+image::../diagrams/spark-local-architecture.png[align="center"]
+
+In this non-distributed multi-threaded runtime environment, Spark spawns all the main execution components - the link:spark-driver.adoc[driver] and an link:spark-Executor.adoc[executor] - in the same single JVM.
+
+The default parallelism is the number of threads as specified in the <<masterURL, master URL>>. This is the only mode where a driver is used for execution (as it acts both as the driver and the only executor).
 
 The local mode is very convenient for testing, debugging or demonstration purposes as it requires no earlier setup to launch Spark applications.
 
@@ -39,14 +57,14 @@ The URL says how many threads can be used in total:
 
 * `local[*]` uses as many threads as the number of processors available to the Java virtual machine (it uses https://docs.oracle.com/javase/8/docs/api/java/lang/Runtime.html#availableProcessors--[Runtime.getRuntime.availableProcessors()] to know the number).
 
-CAUTION: FIXME What happens when there's less cores than `n` in the master URL? It is a question from twitter.
+NOTE: What happens when there are less cores than `n` in `local[n]` master URL? _"Breaks"_ scheduling as Spark assumes more CPU cores available to execute tasks.
 
 * [[local-with-retries]] `local[N, maxFailures]` (called *local-with-retries*) with `N` being `*` or the number of threads to use (as explained above) and `maxFailures` being the value of link:spark-TaskScheduler.adoc#spark_task_maxFailures[spark.task.maxFailures].
 
 === [[task-submission]] Task Submission a.k.a. reviveOffers
 
 .TaskSchedulerImpl.submitTasks in local mode
-image::images/taskscheduler-submitTasks-local-mode.png[align="center"]
+image::../images/taskscheduler-submitTasks-local-mode.png[align="center"]
 
 When `ReviveOffers` or `StatusUpdate` messages are received, link:local/spark-LocalEndpoint.adoc[LocalEndpoint] places an offer to `TaskSchedulerImpl` (using `TaskSchedulerImpl.resourceOffers`).
 
