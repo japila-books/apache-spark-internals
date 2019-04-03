@@ -1,99 +1,210 @@
-== [[Schedulable]] Schedulable
+== [[Schedulable]] Schedulable Contract -- Schedulable Entities
 
-`Schedulable` is a <<contract, contract of schedulable entities>>.
+`Schedulable` is the <<contract, abstraction>> of <<implementations, schedulable entities>> that manages the <<schedulableQueue, schedulableQueue>> and can <<getSortedTaskSetQueue, getSortedTaskSetQueue>>.
 
-NOTE: `Schedulable` is a `private[spark]` Scala trait. You can find the sources in https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/scheduler/Schedulable.scala[org.apache.spark.scheduler.Schedulable].
+[[contract]]
+.Schedulable Contract
+[cols="1m,3",options="header",width="100%"]
+|===
+| Method
+| Description
 
-There are currently two types of `Schedulable` entities in Spark:
+| addSchedulable
+a| [[addSchedulable]]
 
-* link:spark-taskscheduler-pool.adoc[Pool]
-* link:spark-TaskSetManager.adoc[TaskSetManager]
-
-=== [[contract]] Schedulable Contract
-
-Every `Schedulable` follows the following contract:
-
-* It has a `name`.
-+
 [source, scala]
 ----
-name: String
-----
-
-* It has a `parent` link:spark-taskscheduler-pool.adoc[Pool] (of other `Schedulables`).
-+
-[source, scala]
-----
-parent: Pool
-----
-+
-With the `parent` property you could build a tree of `Schedulables`
-
-* It has a `schedulingMode`, `weight`, `minShare`, `runningTasks`, `priority`, `stageId`.
-+
-[source, scala]
-----
-schedulingMode: SchedulingMode
-weight: Int
-minShare: Int
-runningTasks: Int
-priority: Int
-stageId: Int
-----
-
-* It manages a <<schedulableQueue, collection of Schedulables>> and can add or remove one.
-+
-[source, scala]
-----
-schedulableQueue: ConcurrentLinkedQueue[Schedulable]
 addSchedulable(schedulable: Schedulable): Unit
-removeSchedulable(schedulable: Schedulable): Unit
 ----
-+
-NOTE: `schedulableQueue` is https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/ConcurrentLinkedQueue.html[java.util.concurrent.ConcurrentLinkedQueue].
 
-* It can query for a `Schedulable` by name.
-+
+Registers a <<spark-taskscheduler-Schedulable.adoc#, Schedulable>>
+
+Used when:
+
+* `FIFOSchedulableBuilder` is requested to <<spark-taskscheduler-FIFOSchedulableBuilder.adoc#addTaskSetManager, addTaskSetManager>>
+
+* `FairSchedulableBuilder` is requested to <<spark-taskscheduler-FairSchedulableBuilder.adoc#buildDefaultPool, buildDefaultPool>>, <<spark-taskscheduler-FairSchedulableBuilder.adoc#buildFairSchedulerPool, buildFairSchedulerPool>>, and <<spark-taskscheduler-FairSchedulableBuilder.adoc#addTaskSetManager, addTaskSetManager>>
+
+| checkSpeculatableTasks
+a| [[checkSpeculatableTasks]]
+
+[source, scala]
+----
+checkSpeculatableTasks(minTimeToSpeculation: Int): Boolean
+----
+
+Used when...FIXME
+
+| executorLost
+a| [[executorLost]]
+
+[source, scala]
+----
+executorLost(
+  executorId: String,
+  host: String,
+  reason: ExecutorLossReason): Unit
+----
+
+Handles an executor lost event
+
+Used when:
+
+* `Pool` is requested to <<spark-taskscheduler-pool.adoc#executorLost, handle an executor lost event>>
+
+* `TaskSchedulerImpl` is requested to <<spark-TaskSchedulerImpl.adoc#removeExecutor, removeExecutor>>
+
+| getSchedulableByName
+a| [[getSchedulableByName]]
+
 [source, scala]
 ----
 getSchedulableByName(name: String): Schedulable
 ----
 
-* It can <<getSortedTaskSetQueue, return a sorted collection of TaskSetManagers>>.
+Used when...FIXME
 
-[[executorLost]]
-* It can be informed about lost link:spark-Executor.adoc[executors].
-+
-[source, scala]
-----
-executorLost(executorId: String, host: String, reason: ExecutorLossReason): Unit
-----
-+
-It is called by link:spark-TaskSchedulerImpl.adoc#removeExecutor[TaskSchedulerImpl] to inform link:spark-TaskSetManager.adoc[TaskSetManagers] about executors being lost.
-
-* It checks for *speculatable tasks*.
-+
-[source, scala]
-----
-checkSpeculatableTasks(): Boolean
-----
-+
-CAUTION: FIXME What are speculatable tasks?
-
-==== [[getSortedTaskSetQueue]] getSortedTaskSetQueue
+| getSortedTaskSetQueue
+a| [[getSortedTaskSetQueue]]
 
 [source, scala]
 ----
 getSortedTaskSetQueue: ArrayBuffer[TaskSetManager]
 ----
 
-`getSortedTaskSetQueue` is used in link:spark-TaskSchedulerImpl.adoc#resourceOffers[`TaskSchedulerImpl` to handle resource offers] (to link:spark-TaskSetManager.adoc#executorAdded[let every TaskSetManager know about a new executor ready to execute tasks]).
+Builds a collection of <<spark-TaskSetManager.adoc#, TaskSetManagers>> sorted by <<priority, priority>>
 
-==== [[schedulableQueue]] schedulableQueue
+Used when:
+
+* `Pool` is requested to <<spark-taskscheduler-pool.adoc#getSortedTaskSetQueue, getSortedTaskSetQueue>> (recursively)
+
+* `TaskSchedulerImpl` is requested to <<spark-TaskSchedulerImpl.adoc#resourceOffers, resourceOffers>>
+
+| minShare
+a| [[minShare]]
+
+[source, scala]
+----
+minShare: Int
+----
+
+Used when...FIXME
+
+| name
+a| [[name]]
+
+[source, scala]
+----
+name: String
+----
+
+Used when...FIXME
+
+| parent
+a| [[parent]]
+
+[source, scala]
+----
+parent: Pool
+----
+
+Used when...FIXME
+
+| priority
+a| [[priority]]
+
+[source, scala]
+----
+priority: Int
+----
+
+Used when...FIXME
+
+| removeSchedulable
+a| [[removeSchedulable]]
+
+[source, scala]
+----
+removeSchedulable(schedulable: Schedulable): Unit
+----
+
+Used when...FIXME
+
+| runningTasks
+a| [[runningTasks]]
+
+[source, scala]
+----
+runningTasks: Int
+----
+
+Used when...FIXME
+
+| schedulableQueue
+a| [[schedulableQueue]]
 
 [source, scala]
 ----
 schedulableQueue: ConcurrentLinkedQueue[Schedulable]
 ----
 
-`schedulableQueue` is used in link:spark-SparkContext.adoc#getAllPools[SparkContext.getAllPools].
+Queue of <<spark-taskscheduler-Schedulable.adoc#, schedulables>> (as https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/ConcurrentLinkedQueue.html[ConcurrentLinkedQueue])
+
+Used when:
+
+* `SparkContext` is requested to <<spark-SparkContext.adoc#getAllPools, getAllPools>>
+
+* `Pool` is requested to <<spark-taskscheduler-pool.adoc#addSchedulable, addSchedulable>>, <<spark-taskscheduler-pool.adoc#removeSchedulable, removeSchedulable>>, <<spark-taskscheduler-pool.adoc#getSchedulableByName, getSchedulableByName>>, <<spark-taskscheduler-pool.adoc#executorLost, executorLost>>, <<spark-taskscheduler-pool.adoc#checkSpeculatableTasks, checkSpeculatableTasks>>, and <<spark-taskscheduler-pool.adoc#getSortedTaskSetQueue, getSortedTaskSetQueue>>
+
+| schedulingMode
+a| [[schedulingMode]]
+
+[source, scala]
+----
+schedulingMode: SchedulingMode
+----
+
+<<spark-taskscheduler-schedulingmode.adoc#, SchedulingMode>>
+
+Used when:
+
+* `Pool` is <<spark-taskscheduler-pool.adoc#taskSetSchedulingAlgorithm, created>>
+
+* web UI's `PoolTable` is requested to render a page with pools (`poolRow`)
+
+| stageId
+a| [[stageId]]
+
+[source, scala]
+----
+stageId: Int
+----
+
+Used when...FIXME
+
+| weight
+a| [[weight]]
+
+[source, scala]
+----
+weight: Int
+----
+
+Used when...FIXME
+
+|===
+
+[[implementations]]
+.Schedulables
+[cols="1,3",options="header",width="100%"]
+|===
+| Schedulable
+| Description
+
+| <<spark-taskscheduler-pool.adoc#, Pool>>
+| [[Pool]] Pool of <<spark-taskscheduler-Schedulable.adoc#, schedulables>> (i.e. a recursive data structure for prioritizing task sets)
+
+| <<spark-TaskSetManager.adoc#, TaskSetManager>>
+| [[TaskSetManager]] Manages scheduling of tasks of a <<spark-taskscheduler-TaskSet.adoc#, TaskSet>>
+
+|===
