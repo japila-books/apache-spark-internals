@@ -2,7 +2,7 @@
 
 `TaskSchedulerImpl` is the default link:spark-TaskScheduler.adoc[TaskScheduler] that uses a <<backend, SchedulerBackend>> to schedule tasks (for execution on a cluster manager).
 
-When a Spark application starts (and so an instance of link:spark-SparkContext.adoc#creating-instance[SparkContext is created]) `TaskSchedulerImpl` with a link:spark-SchedulerBackend.adoc[SchedulerBackend] and link:spark-dagscheduler.adoc[DAGScheduler] are created and soon started.
+When a Spark application starts (and so an instance of link:spark-SparkContext.adoc#creating-instance[SparkContext is created]) `TaskSchedulerImpl` with a link:spark-SchedulerBackend.adoc[SchedulerBackend] and link:spark-DAGScheduler.adoc[DAGScheduler] are created and soon started.
 
 .TaskSchedulerImpl and Other Services
 image::images/taskschedulerimpl-sparkcontext-schedulerbackend-dagscheduler.png[align="center"]
@@ -13,7 +13,7 @@ image::images/taskschedulerimpl-sparkcontext-schedulerbackend-dagscheduler.png[a
 
 Using <<spark-configuration-properties.adoc#spark.scheduler.mode, spark.scheduler.mode>> setting you can select the link:spark-taskscheduler-schedulingmode.adoc[scheduling policy].
 
-`TaskSchedulerImpl` <<submitTasks, submits tasks>> using link:spark-taskscheduler-schedulablebuilders.adoc[SchedulableBuilders].
+`TaskSchedulerImpl` <<submitTasks, submits tasks>> using link:spark-taskscheduler-SchedulableBuilder.adoc[SchedulableBuilders].
 
 [[CPUS_PER_TASK]]
 `TaskSchedulerImpl` uses <<spark-configuration-properties.adoc#spark.task.cpus, spark.task.cpus>> configuration property (default: `1`) for...FIXME
@@ -26,7 +26,7 @@ Using <<spark-configuration-properties.adoc#spark.scheduler.mode, spark.schedule
 | Description
 
 | dagScheduler
-a| [[dagScheduler]] link:spark-dagscheduler.adoc[DAGScheduler]
+a| [[dagScheduler]] link:spark-DAGScheduler.adoc[DAGScheduler]
 
 Used when...FIXME
 
@@ -77,7 +77,7 @@ a| [[schedulingMode]] link:spark-taskscheduler-schedulingmode.adoc[SchedulingMod
 Used when `TaskSchedulerImpl`...
 
 | taskSetsByStageIdAndAttempt
-a| [[taskSetsByStageIdAndAttempt]] Lookup table of link:spark-taskscheduler-tasksets.adoc[TaskSet] by stage and attempt ids.
+a| [[taskSetsByStageIdAndAttempt]] Lookup table of link:spark-taskscheduler-TaskSet.adoc[TaskSet] by stage and attempt ids.
 
 | taskIdToExecutorId
 a| [[taskIdToExecutorId]] Lookup table of link:spark-Executor.adoc[executor] by task id.
@@ -196,7 +196,7 @@ NOTE: `cancelTasks` is part of link:spark-TaskScheduler.adoc#contract[TaskSchedu
 
 `cancelTasks` cancels all tasks submitted for execution in a stage `stageId`.
 
-NOTE: `cancelTasks` is used exclusively when `DAGScheduler` link:spark-dagscheduler.adoc#failJobAndIndependentStages[cancels a stage].
+NOTE: `cancelTasks` is used exclusively when `DAGScheduler` link:spark-DAGScheduler.adoc#failJobAndIndependentStages[cancels a stage].
 
 === [[handleSuccessfulTask]] `handleSuccessfulTask` Method
 
@@ -234,7 +234,7 @@ CAUTION: FIXME
 
 === [[schedulableBuilder]] `schedulableBuilder` Attribute
 
-`schedulableBuilder` is a link:spark-taskscheduler-schedulablebuilders.adoc[SchedulableBuilder] for the `TaskSchedulerImpl`.
+`schedulableBuilder` is a link:spark-taskscheduler-SchedulableBuilder.adoc[SchedulableBuilder] for the `TaskSchedulerImpl`.
 
 It is set up when a <<initialize, `TaskSchedulerImpl` is initialized>> and can be one of two available builders:
 
@@ -313,7 +313,7 @@ NOTE: <<schedulingMode, schedulingMode>> and <<rootPool, rootPool>> are a part o
 * link:spark-taskscheduler-FIFOSchedulableBuilder.adoc[FIFOSchedulableBuilder] for `FIFO` scheduling mode
 * link:spark-taskscheduler-FairSchedulableBuilder.adoc[FairSchedulableBuilder] for `FAIR` scheduling mode
 
-`initialize` link:spark-taskscheduler-schedulablebuilders.adoc#buildPools[requests `SchedulableBuilder` to build pools].
+`initialize` link:spark-taskscheduler-SchedulableBuilder.adoc#buildPools[requests `SchedulableBuilder` to build pools].
 
 CAUTION: FIXME Why are `rootPool` and `schedulableBuilder` created only now? What do they need that it is not available when `TaskSchedulerImpl` is created?
 
@@ -354,7 +354,7 @@ When `state` is one of the link:spark-taskscheduler-Task.adoc#states[finished st
 
 `statusUpdate` requests <<taskResultGetter, TaskResultGetter>> to link:spark-TaskResultGetter.adoc#enqueueSuccessfulTask[schedule an asynchrounous task to deserialize the task result (and notify `TaskSchedulerImpl` back)] for `tid` in `FINISHED` state and link:spark-TaskResultGetter.adoc#enqueueFailedTask[schedule an asynchrounous task to deserialize `TaskFailedReason` (and notify `TaskSchedulerImpl` back)] for `tid` in the other finished states (i.e. `FAILED`, `KILLED`, `LOST`).
 
-If a task is in `LOST` state, `statusUpdate` link:spark-dagscheduler.adoc#executorLost[notifies `DAGScheduler` that the executor was lost] (with `SlaveLost` and the reason `Task [tid] was lost, so marking the executor as lost as well.`) and link:spark-SchedulerBackend.adoc#reviveOffers[requests `SchedulerBackend` to revive offers].
+If a task is in `LOST` state, `statusUpdate` link:spark-DAGScheduler.adoc#executorLost[notifies `DAGScheduler` that the executor was lost] (with `SlaveLost` and the reason `Task [tid] was lost, so marking the executor as lost as well.`) and link:spark-SchedulerBackend.adoc#reviveOffers[requests `SchedulerBackend` to revive offers].
 
 In case the `TaskSetManager` for `tid` could not be found (in <<taskIdToTaskSetManager, taskIdToTaskSetManager>> registry), you should see the following ERROR message in the logs:
 
@@ -459,9 +459,9 @@ NOTE: *Default level of parallelism* is a hint for sizing jobs that `SparkContex
 submitTasks(taskSet: TaskSet): Unit
 ----
 
-NOTE: `submitTasks` is part of the <<spark-TaskScheduler.adoc#submitTasks, TaskScheduler Contract>> to submit the tasks (of the given <<spark-taskscheduler-tasksets.adoc#, TaskSet>>) for execution.
+NOTE: `submitTasks` is part of the <<spark-TaskScheduler.adoc#submitTasks, TaskScheduler Contract>> to submit the tasks (of the given <<spark-taskscheduler-TaskSet.adoc#, TaskSet>>) for execution.
 
-In essence, `submitTasks` registers a new <<spark-TaskSetManager.adoc#, TaskSetManager>> for the given <<spark-taskscheduler-tasksets.adoc#, TaskSet>> and requests the <<backend, SchedulerBackend>> to <<spark-SchedulerBackend.adoc#reviveOffers, handle resource allocation offers (from the scheduling system)>>.
+In essence, `submitTasks` registers a new <<spark-TaskSetManager.adoc#, TaskSetManager>> for the given <<spark-taskscheduler-TaskSet.adoc#, TaskSet>> and requests the <<backend, SchedulerBackend>> to <<spark-SchedulerBackend.adoc#reviveOffers, handle resource allocation offers (from the scheduling system)>>.
 
 .TaskSchedulerImpl.submitTasks
 image::images/taskschedulerImpl-submitTasks.png[align="center"]
@@ -472,11 +472,11 @@ Internally, `submitTasks` first prints out the following INFO message to the log
 Adding task set [id] with [length] tasks
 ```
 
-`submitTasks` then <<createTaskSetManager, creates a TaskSetManager>> (for the given <<spark-taskscheduler-tasksets.adoc#, TaskSet>> and the <<maxTaskFailures, acceptable number of task failures>>).
+`submitTasks` then <<createTaskSetManager, creates a TaskSetManager>> (for the given <<spark-taskscheduler-TaskSet.adoc#, TaskSet>> and the <<maxTaskFailures, acceptable number of task failures>>).
 
-`submitTasks` registers (_adds_) the `TaskSetManager` per <<spark-taskscheduler-tasksets.adoc#stageId, stage>> and <<spark-taskscheduler-tasksets.adoc#stageAttemptId, stage attempt>> IDs (of the <<spark-taskscheduler-tasksets.adoc#, TaskSet>>) in the <<taskSetsByStageIdAndAttempt, taskSetsByStageIdAndAttempt>> internal registry.
+`submitTasks` registers (_adds_) the `TaskSetManager` per <<spark-taskscheduler-TaskSet.adoc#stageId, stage>> and <<spark-taskscheduler-TaskSet.adoc#stageAttemptId, stage attempt>> IDs (of the <<spark-taskscheduler-TaskSet.adoc#, TaskSet>>) in the <<taskSetsByStageIdAndAttempt, taskSetsByStageIdAndAttempt>> internal registry.
 
-NOTE: <<taskSetsByStageIdAndAttempt, taskSetsByStageIdAndAttempt>> internal registry tracks the <<spark-TaskSetManager.adoc#, TaskSetManagers>> (that represent <<spark-taskscheduler-tasksets.adoc#, TaskSets>>) per stage and stage attempts. In other words, there could be many `TaskSetManagers` for a single stage, each representing a unique stage attempt.
+NOTE: <<taskSetsByStageIdAndAttempt, taskSetsByStageIdAndAttempt>> internal registry tracks the <<spark-TaskSetManager.adoc#, TaskSetManagers>> (that represent <<spark-taskscheduler-TaskSet.adoc#, TaskSets>>) per stage and stage attempts. In other words, there could be many `TaskSetManagers` for a single stage, each representing a unique stage attempt.
 
 NOTE: Not only could a task be retried (cf. <<maxTaskFailures, acceptable number of task failures>>), but also a single stage.
 
@@ -488,7 +488,7 @@ more than one active taskSet for stage [stage]: [TaskSet ids]
 
 NOTE: `TaskSetManager` is considered *active* when it is not a *zombie*.
 
-`submitTasks` requests the <<schedulableBuilder, SchedulableBuilder>> to link:spark-taskscheduler-schedulablebuilders.adoc#addTaskSetManager[add the TaskSetManager to the schedulable pool].
+`submitTasks` requests the <<schedulableBuilder, SchedulableBuilder>> to link:spark-taskscheduler-SchedulableBuilder.adoc#addTaskSetManager[add the TaskSetManager to the schedulable pool].
 
 NOTE: The link:spark-TaskScheduler.adoc#rootPool[schedulable pool] can be a single flat linked queue (in link:spark-taskscheduler-FIFOSchedulableBuilder.adoc[FIFO scheduling mode]) or a hierarchy of pools of `Schedulables` (in link:spark-taskscheduler-FairSchedulableBuilder.adoc[FAIR scheduling mode]).
 
@@ -547,7 +547,7 @@ NOTE: `handleFailedTask` is called when link:spark-TaskResultGetter.adoc#enqueue
 taskSetFinished(manager: TaskSetManager): Unit
 ----
 
-`taskSetFinished` looks all link:spark-taskscheduler-tasksets.adoc[TaskSet]s up by the stage id (in <<taskSetsByStageIdAndAttempt, taskSetsByStageIdAndAttempt>> registry) and removes the stage attempt from them, possibly with removing the entire stage record from `taskSetsByStageIdAndAttempt` registry completely (if there are no other attempts registered).
+`taskSetFinished` looks all link:spark-taskscheduler-TaskSet.adoc[TaskSet]s up by the stage id (in <<taskSetsByStageIdAndAttempt, taskSetsByStageIdAndAttempt>> registry) and removes the stage attempt from them, possibly with removing the entire stage record from `taskSetsByStageIdAndAttempt` registry completely (if there are no other attempts registered).
 
 .TaskSchedulerImpl.taskSetFinished is called when all tasks are finished
 image::images/taskschedulerimpl-tasksetmanager-tasksetfinished.png[align="center"]
@@ -571,7 +571,7 @@ NOTE: `taskSetFinished` method is called when link:spark-TaskSetManager.adoc#may
 executorAdded(execId: String, host: String)
 ----
 
-`executorAdded` just link:spark-dagscheduler.adoc#executorAdded[notifies `DAGScheduler` that an executor was added].
+`executorAdded` just link:spark-DAGScheduler.adoc#executorAdded[notifies `DAGScheduler` that an executor was added].
 
 CAUTION: FIXME Image with a call from TaskSchedulerImpl to DAGScheduler, please.
 
@@ -638,9 +638,9 @@ image::images/TaskSchedulerImpl-resourceOffers-rootPool-getSortedTaskSetQueue.pn
 ====
 `rootPool` is configured when <<initialize, `TaskSchedulerImpl` is initialized>>.
 
-`rootPool` is part of the link:spark-TaskScheduler.adoc#rootPool[TaskScheduler Contract] and exclusively managed by link:spark-taskscheduler-schedulablebuilders.adoc[SchedulableBuilders], i.e. link:spark-taskscheduler-FIFOSchedulableBuilder.adoc[FIFOSchedulableBuilder] and link:spark-taskscheduler-FairSchedulableBuilder.adoc[FairSchedulableBuilder] (that  link:spark-taskscheduler-schedulablebuilders.adoc#addTaskSetManager[manage registering TaskSetManagers with the root pool]).
+`rootPool` is part of the link:spark-TaskScheduler.adoc#rootPool[TaskScheduler Contract] and exclusively managed by link:spark-taskscheduler-SchedulableBuilder.adoc[SchedulableBuilders], i.e. link:spark-taskscheduler-FIFOSchedulableBuilder.adoc[FIFOSchedulableBuilder] and link:spark-taskscheduler-FairSchedulableBuilder.adoc[FairSchedulableBuilder] (that  link:spark-taskscheduler-SchedulableBuilder.adoc#addTaskSetManager[manage registering TaskSetManagers with the root pool]).
 
-link:spark-TaskSetManager.adoc[TaskSetManager] manages execution of the tasks in a single link:spark-taskscheduler-tasksets.adoc[TaskSet] that represents a single link:spark-DAGScheduler-Stage.adoc[Stage].
+link:spark-TaskSetManager.adoc[TaskSetManager] manages execution of the tasks in a single link:spark-taskscheduler-TaskSet.adoc[TaskSet] that represents a single link:spark-DAGScheduler-Stage.adoc[Stage].
 ====
 
 For every `TaskSetManager` (in scheduling order), you should see the following DEBUG message in the logs:
@@ -742,4 +742,4 @@ NOTE: `workerRemoved` is part of the <<spark-TaskScheduler.adoc#workerRemoved, T
 Handle removed worker [workerId]: [message]
 ```
 
-In the end, `workerRemoved` simply requests the <<dagScheduler, DAGScheduler>> to <<spark-dagscheduler.adoc#workerRemoved, handle the worker removed>>.
+In the end, `workerRemoved` simply requests the <<dagScheduler, DAGScheduler>> to <<spark-DAGScheduler.adoc#workerRemoved, handle the worker removed>>.

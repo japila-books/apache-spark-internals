@@ -2,7 +2,7 @@
 
 `TaskSetManager` is a <<schedulable, Schedulable>> that manages scheduling of tasks in a <<taskSet, TaskSet>>.
 
-NOTE: A link:spark-taskscheduler-tasksets.adoc[TaskSet] represents a set of link:spark-taskscheduler-Task.adoc[tasks] that correspond to missing link:spark-rdd-partitions.adoc[partitions] of a link:spark-DAGScheduler-Stage.adoc[stage].
+NOTE: A link:spark-taskscheduler-TaskSet.adoc[TaskSet] represents a set of link:spark-taskscheduler-Task.adoc[tasks] that correspond to missing link:spark-rdd-partitions.adoc[partitions] of a link:spark-DAGScheduler-Stage.adoc[stage].
 
 `TaskSetManager` is <<creating-instance, created>> exclusively when `TaskSchedulerImpl` is requested to <<spark-TaskSchedulerImpl.adoc#createTaskSetManager, create one>> (when submitting tasks for a given `TaskSet`).
 
@@ -306,8 +306,8 @@ It means that it can only be a leaf in the tree of Schedulables (with link:spark
 * `weight` is always `1`.
 * `minShare` is always `0`.
 * `runningTasks` is the number of running tasks in the internal  `runningTasksSet`.
-* `priority` is the priority of the owned link:spark-taskscheduler-tasksets.adoc[TaskSet] (using `taskSet.priority`).
-* `stageId` is the stage id of the owned link:spark-taskscheduler-tasksets.adoc[TaskSet] (using `taskSet.stageId`).
+* `priority` is the priority of the owned link:spark-taskscheduler-TaskSet.adoc[TaskSet] (using `taskSet.priority`).
+* `stageId` is the stage id of the owned link:spark-taskscheduler-TaskSet.adoc[TaskSet] (using `taskSet.stageId`).
 
 * `schedulableQueue` returns no queue, i.e. `null`.
 * `addSchedulable` and `removeSchedulable` do nothing.
@@ -325,7 +325,7 @@ It means that it can only be a leaf in the tree of Schedulables (with link:spark
 handleTaskGettingResult(tid: Long): Unit
 ----
 
-`handleTaskGettingResult` finds link:spark-TaskInfo.adoc[TaskInfo] for `tid` task in <<taskInfos, taskInfos>> internal registry and marks it as fetching indirect task result. It then link:spark-dagscheduler.adoc#taskGettingResult[notifies `DAGScheduler`].
+`handleTaskGettingResult` finds link:spark-TaskInfo.adoc[TaskInfo] for `tid` task in <<taskInfos, taskInfos>> internal registry and marks it as fetching indirect task result. It then link:spark-DAGScheduler.adoc#taskGettingResult[notifies `DAGScheduler`].
 
 NOTE: `handleTaskGettingResult` is executed when link:spark-TaskSchedulerImpl.adoc#handleTaskGettingResult[`TaskSchedulerImpl` is notified about fetching indirect task result].
 
@@ -477,7 +477,7 @@ For example:
 INFO TaskSetManager: Starting task 1.0 in stage 0.0 (TID 1, localhost, partition 1, PROCESS_LOCAL, 2054 bytes)
 ----
 
-`resourceOffer` link:spark-dagscheduler.adoc#taskStarted[notifies `DAGScheduler` that the task has been started].
+`resourceOffer` link:spark-DAGScheduler.adoc#taskStarted[notifies `DAGScheduler` that the task has been started].
 
 IMPORTANT: This is the moment when `TaskSetManager` informs `DAGScheduler` that a task has started.
 
@@ -597,7 +597,7 @@ CAUTION: FIXME What's delay scheduling?
 
 === [[events]] Events
 
-Once a task has finished, `TaskSetManager` informs link:spark-dagscheduler.adoc#taskEnded[DAGScheduler].
+Once a task has finished, `TaskSetManager` informs link:spark-DAGScheduler.adoc#taskEnded[DAGScheduler].
 
 CAUTION: FIXME
 
@@ -608,7 +608,7 @@ CAUTION: FIXME
 handleSuccessfulTask(tid: Long, result: DirectTaskResult[_]): Unit
 ----
 
-`handleSuccessfulTask` records the `tid` task as finished, link:spark-dagscheduler.adoc#taskEnded[notifies the `DAGScheduler` that the task has ended] and <<maybeFinishTaskSet, attempts to mark the `TaskSet` finished>>.
+`handleSuccessfulTask` records the `tid` task as finished, link:spark-DAGScheduler.adoc#taskEnded[notifies the `DAGScheduler` that the task has ended] and <<maybeFinishTaskSet, attempts to mark the `TaskSet` finished>>.
 
 NOTE: `handleSuccessfulTask` is executed after link:spark-TaskSchedulerImpl.adoc#handleSuccessfulTask[`TaskSchedulerImpl` has been informed that `tid` task finished successfully (and the task result was deserialized)].
 
@@ -616,7 +616,7 @@ Internally, `handleSuccessfulTask` finds link:spark-TaskInfo.adoc[TaskInfo] (in 
 
 It then removes `tid` task from <<runningTasksSet, runningTasksSet>> internal registry.
 
-`handleSuccessfulTask` link:spark-dagscheduler.adoc#taskEnded[notifies `DAGScheduler` that `tid` task ended successfully] (with the `Task` object from <<tasks, tasks>> internal registry and the result as `Success`).
+`handleSuccessfulTask` link:spark-DAGScheduler.adoc#taskEnded[notifies `DAGScheduler` that `tid` task ended successfully] (with the `Task` object from <<tasks, tasks>> internal registry and the result as `Success`).
 
 At this point, `handleSuccessfulTask` finds the other <<taskAttempts, running task attempts>> of `tid` task and link:spark-SchedulerBackend.adoc#killTask[requests `SchedulerBackend` to kill them] (since they are no longer necessary now when at least one task attempt has completed successfully). You should see the following INFO message in the logs:
 
@@ -720,7 +720,7 @@ abort(
   exception: Option[Throwable] = None): Unit
 ----
 
-`abort` informs link:spark-dagscheduler.adoc#taskSetFailed[`DAGScheduler` that the `TaskSet` has been aborted].
+`abort` informs link:spark-DAGScheduler.adoc#taskSetFailed[`DAGScheduler` that the `TaskSet` has been aborted].
 
 CAUTION: FIXME image with DAGScheduler call
 
@@ -746,7 +746,7 @@ In the end, `abort` <<maybeFinishTaskSet, attempts to mark the `TaskSet` finishe
 `TaskSetManager` takes the following to be created:
 
 * [[sched]] <<spark-TaskSchedulerImpl.adoc#, TaskSchedulerImpl>>
-* [[taskSet]] <<spark-taskscheduler-tasksets.adoc#, TaskSet>>
+* [[taskSet]] <<spark-taskscheduler-TaskSet.adoc#, TaskSet>>
 * [[maxTaskFailures]] Number of task failures, i.e. how many times a <<handleFailedTask, single task can fail>> before an entire TaskSet is <<abort, aborted>>
 * [[blacklistTracker]] (optional) BlacklistTracker (default: `None`)
 * [[clock]] `Clock` (default: `SystemClock`)
@@ -811,7 +811,7 @@ Lost task [id] in stage [taskSetId] (TID [tid], [host], executor [executorId]): 
 
 NOTE: Description of how the final failure exception is "computed" was moved to respective sections below to make the reading slightly more pleasant and comprehensible.
 
-`handleFailedTask` link:spark-dagscheduler.adoc#taskEnded[informs `DAGScheduler` that `tid` task has ended] (passing on the `Task` instance from <<tasks, tasks>> internal registry, the input `reason`, `null` result, calculated `accumUpdates` per failure, and the link:spark-TaskInfo.adoc[TaskInfo]).
+`handleFailedTask` link:spark-DAGScheduler.adoc#taskEnded[informs `DAGScheduler` that `tid` task has ended] (passing on the `Task` instance from <<tasks, tasks>> internal registry, the input `reason`, `null` result, calculated `accumUpdates` per failure, and the link:spark-TaskInfo.adoc[TaskInfo]).
 
 IMPORTANT: This is the moment when `TaskSetManager` informs `DAGScheduler` that a task has ended.
 
@@ -959,7 +959,7 @@ executorLost(execId: String, host: String, reason: ExecutorLossReason): Unit
 
 NOTE: `executorLost` is part of the link:spark-taskscheduler-schedulable.adoc#contract[Schedulable contract] that link:spark-TaskSchedulerImpl.adoc#removeExecutor[`TaskSchedulerImpl` uses to inform `TaskSetManagers` about lost executors].
 
-NOTE: Since `TaskSetManager` manages execution of the tasks in a single link:spark-taskscheduler-tasksets.adoc[TaskSet], when an executor gets lost, the affected tasks that have been running on the failed executor need to be re-enqueued. `executorLost` is the mechanism to "announce" the event to all `TaskSetManagers`.
+NOTE: Since `TaskSetManager` manages execution of the tasks in a single link:spark-taskscheduler-TaskSet.adoc[TaskSet], when an executor gets lost, the affected tasks that have been running on the failed executor need to be re-enqueued. `executorLost` is the mechanism to "announce" the event to all `TaskSetManagers`.
 
 Internally, `executorLost` first checks whether the <<tasks, tasks>> are link:spark-taskscheduler-ShuffleMapTask.adoc[ShuffleMapTasks] and whether an link:spark-ExternalShuffleService.adoc[external shuffle service] is enabled (that could serve the map shuffle outputs in case of failure).
 
@@ -971,7 +971,7 @@ If `executorLost` is indeed due to an executor lost that executed tasks for a li
 
 NOTE: `executorLost` uses records every tasks on the lost executor in <<successful, successful>> (as `false`) and decrements <<copiesRunning copiesRunning>>, and <<tasksSuccessful, tasksSuccessful>> for every task.
 
-`executorLost` <<addPendingTask, registers every task as pending execution (per preferred locations)>> and link:spark-dagscheduler.adoc#taskEnded[informs `DAGScheduler` that the tasks (on the lost executor) have ended] (with link:spark-dagscheduler.adoc#handleTaskCompletion-Resubmitted[Resubmitted] reason).
+`executorLost` <<addPendingTask, registers every task as pending execution (per preferred locations)>> and link:spark-DAGScheduler.adoc#taskEnded[informs `DAGScheduler` that the tasks (on the lost executor) have ended] (with link:spark-DAGScheduler.adoc#handleTaskCompletion-Resubmitted[Resubmitted] reason).
 
 NOTE: `executorLost` uses link:spark-TaskSchedulerImpl.adoc#dagScheduler[`TaskSchedulerImpl` to access the `DAGScheduler`]. `TaskSchedulerImpl` is given when the <<creating-instance, `TaskSetManager` was created>>.
 
