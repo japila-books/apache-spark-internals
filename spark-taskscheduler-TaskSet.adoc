@@ -1,37 +1,40 @@
-== [[TaskSet]] TaskSet -- Set of Tasks for Single Stage
+== [[TaskSet]] TaskSet -- Set of Missing Tasks (of Stage)
 
-A *TaskSet* is a collection of tasks that belong to a single link:spark-DAGScheduler-Stage.adoc[stage] and a *stage attempt*. It has also *priority* and *properties* attributes. Priority is used in FIFO scheduling mode (see <<priority-field-fifo-scheduling, Priority Field and FIFO Scheduling>>) while properties are the properties of the first job in the stage.
+`TaskSet` is a <<tasks, collection of independent tasks>> of a single <<stageId, stage>> (and a <<stageAttemptId, stage execution attempt>>) that are *missing* (_uncomputed_), i.e. for which computation results are unavailable (as RDD blocks on <<spark-BlockManager.adoc#, BlockManagers>> on executors).
 
-CAUTION: FIXME Where are `properties` of a TaskSet used?
+In other words, a `TaskSet` represents the missing partitions of a stage that (as tasks) can be run right away based on the data that is already on the cluster, e.g. map output files from previous stages, though they may fail if this data becomes unavailable.
 
-A TaskSet represents the missing partitions of a stage.
+NOTE: Since the <<tasks, tasks>> of a `TaskSet` are only the missing tasks, their number does not necessarily have to be the number of all the tasks of a <<stageId, stage>>. For a brand new stage (that has never been attempted to compute) their numbers are exactly the same.
 
-The pair of a stage and a stage attempt uniquely describes a TaskSet and that is what you can see in the logs when a TaskSet is used:
+`TaskSet` is <<creating-instance, created>> exclusively when `DAGScheduler` is requested to <<spark-DAGScheduler.adoc#submitMissingTasks, submit the missing tasks of a stage>>.
+
+NOTE: Once <<spark-DAGScheduler.adoc#submitMissingTasks, submitted>> for execution (to a <<spark-TaskScheduler.adoc#, TaskScheduler>>), the execution of the `TaskSet` is managed by a <<spark-TaskSetManager.adoc#, TaskSetManager>> that allows for <<spark-configuration-properties.adoc#spark.task.maxFailures, spark.task.maxFailures>> (default: `1` for <<local/spark-local.adoc#, Spark on local>> and `4` for <<spark-cluster.adoc#, Spark clustered>>).
+
+[[creating-instance]]
+`TaskSet` takes the following to be created:
+
+* [[tasks]] Collection of <<spark-taskscheduler-Task.adoc#, tasks>> (`Array[Task[_]]`)
+* [[stageId]] <<spark-DAGScheduler-Stage.adoc#, Stage>> ID
+* [[stageAttemptId]] *Stage execution attempt ID*
+* [[priority]] *Priority* (for <<fifo-scheduling, FIFO scheduling>>)
+* [[properties]] Key-value *properties*
+
+[[id]]
+`TaskSet` is uniquely identified by an `id` that is the <<stageId, stageId>> followed by the <<stageAttemptId, stageAttemptId>> with the comma (`.`) in-between.
+
+```
+[stageId].[stageAttemptId]
+```
+
+[[toString]]
+A textual representation (`toString`) of `TaskSet` is *TaskSet [id]*.
 
 ```
 TaskSet [stageId].[stageAttemptId]
 ```
 
-A TaskSet contains a fully-independent sequence of tasks that can run right away based on the data that is already on the cluster, e.g. map output files from previous stages, though it may fail if this data becomes unavailable.
+=== [[fifo-scheduling]] Task Scheduling Prioritization in FIFO Scheduling
 
-TaskSet can be submitted (consult link:spark-TaskScheduler.adoc#contract[TaskScheduler Contract]).
+The <<priority, priority>> of a `TaskSet` is exactly the ID of the earliest-created active job that needs the stage (that is given when `DAGScheduler` is requested to <<spark-DAGScheduler.adoc#submitMissingTasks, submit the missing tasks of a stage>>).
 
-=== [[removeRunningTask]] removeRunningTask
-
-CAUTION: FIXME Review `TaskSet.removeRunningTask(tid)`
-
-=== Where TaskSets are used
-
-* link:spark-DAGScheduler.adoc#submitMissingTasks[DAGScheduler.submitMissingTasks]
-** `TaskSchedulerImpl.submitTasks`
-* `TaskSchedulerImpl.createTaskSetManager`
-
-=== [[priority-field-fifo-scheduling]] Priority Field and FIFO Scheduling
-
-A TaskSet has `priority` field that turns into the *priority* field's value of link:spark-TaskSetManager.adoc[TaskSetManager] (which is a link:spark-taskscheduler-schedulable.adoc[Schedulable]).
-
-The `priority` field is used in link:spark-taskscheduler-pool.adoc#FIFOSchedulingAlgorithm[FIFOSchedulingAlgorithm] in which equal priorities give stages an advantage (not to say _priority_).
-
-NOTE: `FIFOSchedulingAlgorithm` is only used for `FIFO` scheduling mode in a link:spark-taskscheduler-pool.adoc[Pool] (i.e. a schedulable collection of `Schedulable` objects).
-
-Effectively, the `priority` field is the job's id of the first job this stage was part of (for FIFO scheduling).
+Once <<spark-DAGScheduler.adoc#submitMissingTasks, submitted>> for execution (to a <<spark-TaskScheduler.adoc#, TaskScheduler>>), the <<priority, priority>> of a `TaskSet` is the <<spark-TaskSetManager.adoc#priority, priority>> of the `TaskSetManager` (which is a <<spark-taskscheduler-schedulable.adoc#, Schedulable>>) that is used for *task prioritization* (_prioritizing scheduling of tasks_) in the <<spark-taskscheduler-pool.adoc#FIFOSchedulingAlgorithm, FIFO>> scheduling mode.
