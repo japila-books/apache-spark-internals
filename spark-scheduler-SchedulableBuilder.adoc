@@ -1,55 +1,69 @@
-== [[SchedulableBuilder]] Schedulable Builders
+== [[SchedulableBuilder]] SchedulableBuilder Contract -- Builders of Schedulable Pools
 
-`SchedulableBuilder` is a <<contract, contract of schedulable builders>> that operate on a <<rootPool, pool of TaskSetManagers>> (from an owning link:spark-TaskSchedulerImpl.adoc[TaskSchedulerImpl]).
+`SchedulableBuilder` is the <<contract, abstraction>> of <<implementations, schedulable builders>> that manage a <<rootPool, root pool (of Schedulables)>>, which is to <<buildPools, build a pool>> and <<addTaskSetManager, register a new Schedulable (with the pool)>>.
 
-Schedulable builders can <<buildPools, build pools>> and <<addTaskSetManager, add new Schedulable entities to the pool>>.
+`SchedulableBuilder` is a `private[spark]` Scala trait that is used exclusively by <<spark-TaskSchedulerImpl.adoc#, TaskSchedulerImpl>> (the default Spark scheduler). When requested to <<spark-TaskSchedulerImpl.adoc#initialize, initialize>>, `TaskSchedulerImpl` uses the <<spark-configuration-properties.adoc#spark.scheduler.mode, spark.scheduler.mode>> configuration property (default: `FIFO`) to select one of the <<implementations, available schedulable builders>>.
 
-NOTE: A `SchedulableBuilder` is created when <<initialize, TaskSchedulerImpl is being initialized>>. You can select the `SchedulableBuilder` to use by link:spark-configuration-properties.adoc#spark.scheduler.mode[spark.scheduler.mode] setting.
+[[contract]]
+.SchedulableBuilder Contract
+[cols="1m,3",options="header",width="100%"]
+|===
+| Method
+| Description
 
-Spark comes with two implementations of the <<contract, SchedulableBuilder Contract>>:
-
-* link:spark-scheduler-FIFOSchedulableBuilder.adoc[FIFOSchedulableBuilder] - the default `SchedulableBuilder`
-* link:spark-scheduler-FairSchedulableBuilder.adoc[FairSchedulableBuilder]
-
-NOTE: `SchedulableBuilder` is a `private[spark]` Scala trait. You can find the sources in https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/scheduler/SchedulableBuilder.scala[org.apache.spark.scheduler.SchedulableBuilder].
-
-=== [[contract]] SchedulableBuilder Contract
-
-Every `SchedulableBuilder` provides the following services:
-
-* It manages a <<rootPool, root pool>>.
-
-* It can <<buildPools, build pools>>.
-
-* It can <<addTaskSetManager, add a Schedulable with properties>>.
-
-==== [[rootPool]] Root Pool (rootPool method)
-
-[source, scala]
-----
-rootPool: Pool
-----
-
-`rootPool` method returns a link:spark-Schedulable-Pool.adoc[Pool] (of link:spark-taskscheduler-Schedulable.adoc[Schedulables]).
-
-This is the data structure managed (_aka_ wrapped) by `SchedulableBuilders`.
-
-==== [[buildPools]] Build Pools (buildPools method)
-
-[source, scala]
-----
-buildPools(): Unit
-----
-
-NOTE: It is exclusively called by link:spark-TaskSchedulerImpl.adoc#initialize[TaskSchedulerImpl.initialize].
-
-==== [[addTaskSetManager]] Adding Schedulable (to Pool) (addTaskSetManager method)
+| addTaskSetManager
+a| [[addTaskSetManager]]
 
 [source, scala]
 ----
 addTaskSetManager(manager: Schedulable, properties: Properties): Unit
 ----
 
-`addTaskSetManager` registers the `manager` link:spark-taskscheduler-Schedulable.adoc[Schedulable] (with additional `properties`) to the <<rootPool, rootPool>>.
+Registers a new <<spark-taskscheduler-Schedulable.adoc#, Schedulable>> with the <<rootPool, rootPool>>
 
-NOTE: `addTaskSetManager` is exclusively used by link:spark-TaskSchedulerImpl.adoc#submitTasks[`TaskSchedulerImpl` to submit a `TaskSetManager` for a stage for execution].
+Used exclusively when `TaskSchedulerImpl` is requested to <<spark-TaskSchedulerImpl.adoc#submitTasks, submit tasks (of TaskSet) for execution>> (and registers a new <<spark-TaskSetManager.adoc#, TaskSetManager>> for the `TaskSet`)
+
+| buildPools
+a| [[buildPools]]
+
+[source, scala]
+----
+buildPools(): Unit
+----
+
+Builds a tree of <<spark-Schedulable-Pool.adoc#, pools (of Schedulables)>>
+
+Used exclusively when `TaskSchedulerImpl` is requested to <<spark-TaskSchedulerImpl.adoc#initialize, initialize>> (and creates a <<spark-TaskSchedulerImpl.adoc#schedulableBuilder, SchedulableBuilder>> per <<spark-configuration-properties.adoc#spark.scheduler.mode, spark.scheduler.mode>> configuration property)
+
+| rootPool
+a| [[rootPool]]
+
+[source, scala]
+----
+rootPool: Pool
+----
+
+Root (top-level) <<spark-Schedulable-Pool.adoc#, pool (of Schedulables)>>
+
+Used when:
+
+* `FIFOSchedulableBuilder` is requested to <<spark-scheduler-FIFOSchedulableBuilder.adoc#addTaskSetManager, addTaskSetManager>>
+
+* `FairSchedulableBuilder` is requested to <<spark-scheduler-FairSchedulableBuilder.adoc#buildDefaultPool, buildDefaultPool>>, <<spark-scheduler-FairSchedulableBuilder.adoc#buildFairSchedulerPool, buildFairSchedulerPool>>, and <<spark-scheduler-FairSchedulableBuilder.adoc#addTaskSetManager, addTaskSetManager>>
+
+|===
+
+[[implementations]]
+.SchedulableBuilders
+[cols="1,3",options="header",width="100%"]
+|===
+| SchedulableBuilder
+| Description
+
+| <<spark-scheduler-FairSchedulableBuilder.adoc#, FairSchedulableBuilder>>
+| [[FairSchedulableBuilder]]
+
+| <<spark-scheduler-FIFOSchedulableBuilder.adoc#, FIFOSchedulableBuilder>>
+| [[FIFOSchedulableBuilder]] Default `SchedulableBuilder`
+
+|===
