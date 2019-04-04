@@ -18,6 +18,22 @@ TIP: Use *conf/fairscheduler.xml.template* as a template for the <<allocations-f
 [[DEFAULT_POOL_NAME]]
 `FairSchedulableBuilder` always has the *default* pool defined (and <<buildDefaultPool, registers it>> unless done in the <<allocations-file, allocation pools configuration file>>).
 
+[[FAIR_SCHEDULER_PROPERTIES]]
+[[spark.scheduler.pool]]
+`FairSchedulableBuilder` uses *spark.scheduler.pool* local property for the name of the pool to use when requested to <<addTaskSetManager, addTaskSetManager>> (default: <<DEFAULT_POOL_NAME, default>>).
+
+NOTE: Use link:spark-sparkcontext-local-properties.adoc#setLocalProperty[SparkContext.setLocalProperty] to set properties per thread (aka *local properties*) to group jobs in logical groups, e.g. to allow `FairSchedulableBuilder` to use `spark.scheduler.pool` property and to group jobs from different threads to be submitted for execution on a non-<<DEFAULT_POOL_NAME, default>> pool.
+
+[source, scala]
+----
+scala> :type sc
+org.apache.spark.SparkContext
+
+sc.setLocalProperty("spark.scheduler.pool", "production")
+
+// whatever is executed afterwards is submitted to production pool
+----
+
 [[logging]]
 [TIP]
 ====
@@ -86,45 +102,32 @@ When neither <<spark-configuration-properties.adoc#spark.scheduler.allocation.fi
 Fair Scheduler configuration file not found so jobs will be scheduled in FIFO order. To use fair scheduling, configure pools in [DEFAULT_SCHEDULER_FILE] or set spark.scheduler.allocation.file to a file that contains the configuration.
 ```
 
-=== [[addTaskSetManager]] addTaskSetManager
-
-`addTaskSetManager` link:spark-taskscheduler-Schedulable.adoc#contract[looks up the default pool (using Pool.getSchedulableByName)].
-
-NOTE: `addTaskSetManager` is part of the <<contract, SchedulableBuilder Contract>>.
-
-NOTE: Although the `Pool.getSchedulableByName` method may return no Schedulable for a name, the default root pool does exist as <<buildDefaultPool, it is assumed it was registered before>>.
-
-If `properties` for the `Schedulable` were given, `spark.scheduler.pool` property is looked up and becomes the current pool name (or defaults to `default`).
-
-NOTE: `spark.scheduler.pool` is the only property supported. Refer to <<spark.scheduler.pool, spark.scheduler.pool>> later in this document.
-
-If the pool name is not available, it is registered with the pool name, `FIFO` scheduling mode, minimum share `0`, and weight `1`.
-
-After the new pool was registered, you should see the following INFO message in the logs:
-
-```
-INFO FairSchedulableBuilder: Created pool [poolName], schedulingMode: FIFO, minShare: 0, weight: 1
-```
-
-The `manager` schedulable is registered to the pool (either the one that already existed or was created just now).
-
-You should see the following INFO message in the logs:
-
-```
-INFO FairSchedulableBuilder: Added task set [manager.name] to pool [poolName]
-```
-
-=== [[spark.scheduler.pool]] spark.scheduler.pool Property
-
-link:spark-sparkcontext-local-properties.adoc#setLocalProperty[SparkContext.setLocalProperty] allows for setting properties per thread to group jobs in logical groups. This mechanism is used by `FairSchedulableBuilder` to watch for `spark.scheduler.pool` property to group jobs from threads and submit them to a non-default pool.
+=== [[addTaskSetManager]] `addTaskSetManager` Method
 
 [source, scala]
 ----
-val sc: SparkContext = ???
-sc.setLocalProperty("spark.scheduler.pool", "myPool")
+addTaskSetManager(manager: Schedulable, properties: Properties): Unit
 ----
 
-TIP: See <<addTaskSetManager, addTaskSetManager>> for how this setting is used.
+NOTE: `addTaskSetManager` is part of the <<spark-scheduler-SchedulableBuilder.adoc#addTaskSetManager, SchedulableBuilder Contract>> to register a new <<spark-taskscheduler-Schedulable.adoc#, Schedulable>> with the <<rootPool, rootPool>>
+
+`addTaskSetManager` finds the pool by name (in the given `Properties`) under the <<FAIR_SCHEDULER_PROPERTIES, spark.scheduler.pool>> property or defaults to the <<DEFAULT_POOL_NAME, default>> pool if undefined.
+
+`addTaskSetManager` then requests the <<rootPool, root pool>> to <<spark-Schedulable-Pool.adoc#getSchedulableByName, find the Schedulable by that name>>.
+
+Unless found, `addTaskSetManager` creates a new <<spark-Schedulable-Pool.adoc#, Pool>> with the <<buildDefaultPool, default configuration>> (as if the <<DEFAULT_POOL_NAME, default>> pool were used) and requests the <<rootPool, Pool>> to <<spark-Schedulable-Pool.adoc#addSchedulable, register it>>. In the end, `addTaskSetManager` prints out the following WARN message to the logs:
+
+```
+A job was submitted with scheduler pool [poolName], which has not been configured. This can happen when the file that pools are read from isn't set, or when that file doesn't contain [poolName]. Created [poolName] with default configuration (schedulingMode: [mode], minShare: [minShare], weight: [weight])
+```
+
+`addTaskSetManager` then requests the pool (found or newly-created) to <<spark-Schedulable-Pool.adoc#addSchedulable, register>> the given <<spark-taskscheduler-Schedulable.adoc#, Schedulable>>.
+
+In the end, `addTaskSetManager` prints out the following INFO message to the logs:
+
+```
+Added task set [name] tasks to pool [poolName]
+```
 
 === [[buildDefaultPool]] Registering Default Pool -- `buildDefaultPool` Method
 
