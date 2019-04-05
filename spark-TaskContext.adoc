@@ -1,8 +1,8 @@
 == [[TaskContext]] TaskContext
 
-`TaskContext` is the <<contract, base>> for <<implementations, contextual information>> about a task.
+`TaskContext` is the <<contract, base>> for <<implementations, task contexts>> that are contextual information about a task.
 
-You can access the active `TaskContext` instance using <<get, TaskContext.get>> method.
+The current thread-local `TaskContext` instance is available using <<get, TaskContext.get>> object method.
 
 [source, scala]
 ----
@@ -10,142 +10,307 @@ import org.apache.spark.TaskContext
 val ctx = TaskContext.get
 ----
 
+[[implementations]]
+NOTE: link:spark-TaskContextImpl.adoc[TaskContextImpl] is the default implementation of the <<contract, TaskContext Contract>> in Apache Spark.
+
 `TaskContext` allows for <<registering-task-listeners, registering task listeners>> and <<getLocalProperty, accessing local properties>> that were set on the driver.
 
-NOTE: `TaskContext` is serializable.
-
 [[contract]]
-[source, scala]
-----
-package org.apache.spark
-
-abstract class TaskContext extends Serializable {
-  // only required methods that have no implementation
-  // the others follow
-  def isCompleted(): Boolean
-  def isInterrupted(): Boolean
-  def isRunningLocally(): Boolean
-  def addTaskCompletionListener(listener: TaskCompletionListener): TaskContext
-  def addTaskFailureListener(listener: TaskFailureListener): TaskContext
-  def stageId(): Int
-  def stageAttemptNumber(): Int
-  def partitionId(): Int
-  def attemptNumber(): Int
-  def taskAttemptId(): Long
-  def getLocalProperty(key: String): String
-  def taskMetrics(): TaskMetrics
-  def getMetricsSources(sourceName: String): Seq[Source]
-  private[spark] def killTaskIfInterrupted(): Unit
-  private[spark] def getKillReason(): Option[String]
-  private[spark] def taskMemoryManager(): TaskMemoryManager
-  private[spark] def registerAccumulator(a: AccumulatorV2[_, _]): Unit
-  private[spark] def setFetchFailed(fetchFailed: FetchFailedException): Unit
-}
-----
-
-.(Subset of) TaskContext Contract
-[cols="1,2",options="header",width="100%"]
+.TaskContext Contract
+[cols="1m,3",options="header",width="100%"]
 |===
 | Method
 | Description
 
-| `addTaskCompletionListener`
-| [[addTaskCompletionListener]] Registers a `TaskCompletionListener`
+| addTaskCompletionListener
+a| [[addTaskCompletionListener]]
 
-Used when...
+[source, scala]
+----
+addTaskCompletionListener(
+  listener: TaskCompletionListener): TaskContext
+// a concrete method for a Scala-friendly usage
+addTaskCompletionListener[U](f: (TaskContext) => U): TaskContext
+----
 
-| `addTaskFailureListener`
-| [[addTaskFailureListener]] Registers a `TaskFailureListener`
+Registers a `TaskCompletionListener`
 
-Used when...
+Used when...FIXME
 
-| `attemptNumber`
-| [[attemptNumber]] Specifies how many times the task has been attempted (starting from 0).
+| addTaskFailureListener
+a| [[addTaskFailureListener]]
 
-Used when...
+[source, scala]
+----
+addTaskFailureListener(listener: TaskFailureListener): TaskContext
+// a concrete method for a Scala-friendly usage
+addTaskFailureListener(f: (TaskContext, Throwable) => Unit): TaskContext
+----
 
-| `getLocalProperty`
-| [[getLocalProperty]] Used when...
+Registers a `TaskFailureListener`
 
-Accesses local properties set by the driver using link:spark-sparkcontext-local-properties.adoc#setLocalProperty[SparkContext.setLocalProperty].
+Used when...FIXME
 
-| `getMetricsSources`
-| [[getMetricsSources]] Gives all the metrics sources by `sourceName` which are associated with the instance that runs the task.
+| attemptNumber
+a| [[attemptNumber]]
 
-| `isCompleted`
-| [[isCompleted]] Used when...
+[source, scala]
+----
+attemptNumber(): Int
+----
 
-| `isInterrupted`
-| [[isInterrupted]] A flag that is enabled when a task was killed.
+Specifies how many times the task has been attempted to execute (starting from `0`)
 
-Used when...
+Used when...FIXME
 
-| `killTaskIfInterrupted`
-a| [[killTaskIfInterrupted]] If the task was marked for interruption, i.e. cancellation, `killTaskIfInterrupted` (is supposed to) throws a `TaskKilledException` with the reason for the interrupt (that in turn kills the task).
+| fetchFailed
+a| [[fetchFailed]]
 
-Used (to break a task execution) when:
+[source, scala]
+----
+fetchFailed: Option[FetchFailedException]
+----
 
-* `InterruptibleIterator` is requested to link:spark-InterruptibleIterator.adoc#hasNext[hasNext]
+Used when...FIXME
 
-* `TaskRunner` is requested to link:spark-Executor-TaskRunner.adoc#run[run]
+| getKillReason
+a| [[getKillReason]]
 
-* `SortedIterator` and `UnsafeSorterSpillReader` are requested to `loadNext`
+[source, scala]
+----
+getKillReason(): Option[String]
+----
 
-* Spark SQL's `FileScanRDD` is requested to `compute`
+Used when...FIXME
 
-| `partitionId`
-| [[partitionId]] Id of the link:spark-rdd-Partition.adoc[Partition] computed by the task.
+| getLocalProperties
+a| [[getLocalProperties]]
 
-Used when...
+[source, scala]
+----
+getLocalProperties: Properties
+----
 
-| `registerAccumulator`
-| [[registerAccumulator]] Used when...
+Used when...FIXME
 
-| `stageId`
-| [[stageId]] Id of the link:spark-scheduler-Stage.adoc[Stage] the task belongs to.
+| getLocalProperty
+a| [[getLocalProperty]]
 
-Used when...
+[source, scala]
+----
+getLocalProperty(key: String): String
+----
 
-| `taskAttemptId`
-| [[taskAttemptId]] Id of the attempt of the task.
+Used when...FIXME
 
-Used when...
+| getMetricsSources
+a| [[getMetricsSources]]
 
-| `taskMemoryManager`
-| [[taskMemoryManager]] Used when...
+[source, scala]
+----
+getMetricsSources(sourceName: String): Seq[Source]
+----
 
-| `taskMetrics`
-| [[taskMetrics]] link:spark-executor-TaskMetrics.adoc[TaskMetrics] of the active link:spark-scheduler-Task.adoc[Task].
+<<spark-metrics-Source.adoc#, Metrics sources>> by `sourceName` which are associated with the instance that runs the task.
 
-Used when...
+Used when...FIXME
+
+| isCompleted
+a| [[isCompleted]]
+
+[source, scala]
+----
+isCompleted(): Boolean
+----
+
+Used when...FIXME
+
+| isInterrupted
+a| [[isInterrupted]]
+
+[source, scala]
+----
+isInterrupted(): Boolean
+----
+
+Used when...FIXME
+
+| isRunningLocally
+a| [[isRunningLocally]]
+
+[source, scala]
+----
+isRunningLocally(): Boolean
+----
+
+Used when...FIXME
+
+| killTaskIfInterrupted
+a| [[killTaskIfInterrupted]]
+
+[source, scala]
+----
+killTaskIfInterrupted(): Unit
+----
+
+Used when...FIXME
+
+| markInterrupted
+a| [[markInterrupted]]
+
+[source, scala]
+----
+markInterrupted(reason: String): Unit
+----
+
+Used when...FIXME
+
+| markTaskCompleted
+a| [[markTaskCompleted]]
+
+[source, scala]
+----
+markTaskCompleted(error: Option[Throwable]): Unit
+----
+
+Used when...FIXME
+
+| markTaskFailed
+a| [[markTaskFailed]]
+
+[source, scala]
+----
+markTaskFailed(error: Throwable): Unit
+----
+
+Used when...FIXME
+
+| partitionId
+a| [[partitionId]]
+
+[source, scala]
+----
+partitionId(): Int
+----
+
+ID of the link:spark-rdd-Partition.adoc[Partition] computed by the task
+
+Used when...FIXME
+
+| registerAccumulator
+a| [[registerAccumulator]]
+
+[source, scala]
+----
+registerAccumulator(a: AccumulatorV2[_, _]): Unit
+----
+
+Used when...FIXME
+
+| setFetchFailed
+a| [[setFetchFailed]]
+
+[source, scala]
+----
+setFetchFailed(fetchFailed: FetchFailedException): Unit
+----
+
+Used when...FIXME
+
+| stageAttemptNumber
+a| [[stageAttemptNumber]]
+
+[source, scala]
+----
+stageAttemptNumber(): Int
+----
+
+Used when...FIXME
+
+| stageId
+a| [[stageId]]
+
+[source, scala]
+----
+stageId(): Int
+----
+
+ID of the link:spark-scheduler-Stage.adoc[Stage] the task belongs to
+
+Used when...FIXME
+
+| taskAttemptId
+a| [[taskAttemptId]]
+
+[source, scala]
+----
+taskAttemptId(): Long
+----
+
+*Task (execution) attempt ID*
+
+Used when...FIXME
+
+| taskMemoryManager
+a| [[taskMemoryManager]]
+
+[source, scala]
+----
+taskMemoryManager(): TaskMemoryManager
+----
+
+<<spark-memory-TaskMemoryManager.adoc#, TaskMemoryManager>>
+
+Used when...FIXME
+
+| taskMetrics
+a| [[taskMetrics]]
+
+[source, scala]
+----
+taskMetrics(): TaskMetrics
+----
+
+<<spark-executor-TaskMetrics.adoc#, TaskMetrics>>
+
+Used when...FIXME
+
 |===
 
-[[implementations]]
-NOTE: link:spark-TaskContextImpl.adoc[TaskContextImpl] is the one and only known implementation of <<contract, TaskContext Contract>> in Apache Spark.
+=== [[setTaskContext]] Setting Thread-Local TaskContext -- `setTaskContext` Object Method
 
-=== [[unset]] `unset` Method
+[source, scala]
+----
+setTaskContext(tc: TaskContext): Unit
+----
 
-CAUTION: FIXME
+`setTaskContext` binds the given `TaskContext` as a thread-local variable.
 
-=== [[setTaskContext]] `setTaskContext` Method
+[NOTE]
+====
+`setTaskContext` is used when:
 
-CAUTION: FIXME
+* `Task` is requested to <<spark-scheduler-Task.adoc#run, run>> (when `Executor` is requested to <<spark-Executor.adoc#launchTask, launch a task (on "Executor task launch worker" thread pool) sometime in the future>>)
 
-=== [[get]] Accessing Active TaskContext -- `get` Method
+* _other cases of less importance_
+====
+
+=== [[get]] Accessing Active TaskContext -- `get` Object Method
 
 [source, scala]
 ----
 get(): TaskContext
 ----
 
-`get` method returns the `TaskContext` instance for an active task (as a link:spark-TaskContextImpl.adoc[TaskContextImpl]). There can only be one instance and tasks can use the object to access contextual information about themselves.
+`get` returns the thread-local `TaskContext` instance (by requesting the `taskContext` thread-local variable to get the instance).
+
+NOTE: `get` is a method of `TaskContext` object in Scala and so it is just one instance available (per classloader). With the https://docs.oracle.com/javase/8/docs/api/java/lang/ThreadLocal.html[ThreadLocal] variable (`ThreadLocal[TaskContext]`), the `TaskContext` instance is thread-local and so allows for associating state with the thread of a task.
 
 [source, scala]
 ----
 val rdd = sc.range(0, 3, numSlices = 3)
 
-scala> rdd.partitions.size
-res0: Int = 3
+assert(rdd.partitions.size == 3)
 
 rdd.foreach { n =>
   import org.apache.spark.TaskContext
@@ -159,8 +324,6 @@ rdd.foreach { n =>
   println(msg)
 }
 ----
-
-NOTE: `TaskContext` object uses https://docs.oracle.com/javase/8/docs/api/java/lang/ThreadLocal.html[ThreadLocal] to keep it thread-local, i.e. to associate state with the thread of a task.
 
 === [[registering-task-listeners]] Registering Task Listeners
 
@@ -244,14 +407,3 @@ rdd.mapPartitions { (it: Iterator[Long]) =>
   it
 }.map(throwExceptionForOddNumber).count
 ----
-
-=== [[getPartitionId]] (Unused) Accessing Partition Id -- `getPartitionId` Method
-
-[source, scala]
-----
-getPartitionId(): Int
-----
-
-`getPartitionId` <<get, gets the active `TaskContext`>> and returns <<partitionId, partitionId>> or `0` (if `TaskContext` not available).
-
-NOTE: `getPartitionId` is not used.
