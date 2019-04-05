@@ -9,12 +9,12 @@ image::diagrams/stage-tasks.png[align="center"]
 
 In other words, a Spark job is a computation with that computation sliced into stages.
 
-A stage is uniquely identified by `id`. When a stage is created, link:spark-DAGScheduler.adoc[DAGScheduler] increments internal counter `nextStageId` to track the number of link:spark-DAGScheduler.adoc#submitStage[stage submissions].
+A stage is uniquely identified by `id`. When a stage is created, link:spark-scheduler-DAGScheduler.adoc[DAGScheduler] increments internal counter `nextStageId` to track the number of link:spark-scheduler-DAGScheduler.adoc#submitStage[stage submissions].
 
 [[rdd]]
 A stage can only work on the partitions of a single RDD (identified by `rdd`), but can be associated with many other dependent parent stages (via internal field `parents`), with the boundary of a stage marked by shuffle dependencies.
 
-Submitting a stage can therefore trigger execution of a series of dependent parent stages (refer to link:spark-DAGScheduler.adoc#runJob[RDDs, Job Execution, Stages, and Partitions]).
+Submitting a stage can therefore trigger execution of a series of dependent parent stages (refer to link:spark-scheduler-DAGScheduler.adoc#runJob[RDDs, Job Execution, Stages, and Partitions]).
 
 .Submitting a job triggers execution of the stage and its parent stages
 image::diagrams/job-stage.png[align="center"]
@@ -23,10 +23,10 @@ Finally, every stage has a `firstJobId` that is the id of the job that submitted
 
 There are two types of stages:
 
-* link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage] is an intermediate stage (in the execution DAG) that produces data for other stage(s). It writes *map output files* for a shuffle. It can also be the final stage in a job in link:spark-DAGScheduler.adoc#adaptive-query-planning[Adaptive Query Planning / Adaptive Scheduling].
-* link:spark-dagscheduler-ResultStage.adoc[ResultStage] is the final stage that executes link:spark-rdd.adoc#actions[a Spark action] in a user program by running a function on an RDD.
+* link:spark-scheduler-ShuffleMapStage.adoc[ShuffleMapStage] is an intermediate stage (in the execution DAG) that produces data for other stage(s). It writes *map output files* for a shuffle. It can also be the final stage in a job in link:spark-scheduler-DAGScheduler.adoc#adaptive-query-planning[Adaptive Query Planning / Adaptive Scheduling].
+* link:spark-scheduler-ResultStage.adoc[ResultStage] is the final stage that executes link:spark-rdd.adoc#actions[a Spark action] in a user program by running a function on an RDD.
 
-When a job is submitted, a new stage is created with the parent link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage] linked -- they can be created from scratch or linked to, i.e. shared, if other jobs use them already.
+When a job is submitted, a new stage is created with the parent link:spark-scheduler-ShuffleMapStage.adoc[ShuffleMapStage] linked -- they can be created from scratch or linked to, i.e. shared, if other jobs use them already.
 
 .DAGScheduler and Stages for a job
 image::diagrams/scheduler-job-shuffles-result-stages.png[align="center"]
@@ -47,7 +47,7 @@ RDD operations with link:spark-rdd.adoc[narrow dependencies], like `map()` and `
 
 In the end, every stage will have only shuffle dependencies on other stages, and may compute multiple operations inside it. The actual pipelining of these operations happens in the `RDD.compute()` functions of various RDDs, e.g. `MappedRDD`, `FilteredRDD`, etc.
 
-At some point of time in a stage's life, every partition of the stage gets transformed into a task - link:spark-taskscheduler-ShuffleMapTask.adoc[ShuffleMapTask] or link:spark-taskscheduler-ResultTask.adoc[ResultTask] for link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage] and link:spark-dagscheduler-ResultStage.adoc[ResultStage], respectively.
+At some point of time in a stage's life, every partition of the stage gets transformed into a task - link:spark-scheduler-ShuffleMapTask.adoc[ShuffleMapTask] or link:spark-scheduler-ResultTask.adoc[ResultTask] for link:spark-scheduler-ShuffleMapStage.adoc[ShuffleMapStage] and link:spark-scheduler-ResultStage.adoc[ResultStage], respectively.
 
 Partitions are computed in jobs, and result stages may not always need to compute all partitions in their target RDD, e.g. for actions like `first()` and `lookup()`.
 
@@ -63,7 +63,7 @@ There is also the following DEBUG message with pending partitions:
 DEBUG DAGScheduler: New pending partitions: Set(0)
 ```
 
-Tasks are later submitted to link:spark-TaskScheduler.adoc[Task Scheduler] (via `taskScheduler.submitTasks`).
+Tasks are later submitted to link:spark-scheduler-TaskScheduler.adoc[Task Scheduler] (via `taskScheduler.submitTasks`).
 
 When no tasks in a stage can be submitted, the following DEBUG message shows in the logs:
 
@@ -89,7 +89,7 @@ Used when...FIXME
 Used when...FIXME
 
 | [[jobIds]] `jobIds`
-| Set of link:spark-dagscheduler-jobs.adoc[jobs] the stage belongs to.
+| Set of link:spark-scheduler-ActiveJob.adoc[jobs] the stage belongs to.
 
 Used when...FIXME
 
@@ -144,7 +144,7 @@ NOTE: `Stage` is a `private[scheduler] abstract` contract.
 
 `Stage.findMissingPartitions()` calculates the ids of the missing partitions, i.e. partitions for which the ActiveJob knows they are not finished (and so they are missing).
 
-A link:spark-dagscheduler-ResultStage.adoc[ResultStage] stage knows it by querying the active job about partition ids (`numPartitions`) that are not finished (using `ActiveJob.finished` array of booleans).
+A link:spark-scheduler-ResultStage.adoc[ResultStage] stage knows it by querying the active job about partition ids (`numPartitions`) that are not finished (using `ActiveJob.finished` array of booleans).
 
 .ResultStage.findMissingPartitions and ActiveJob
 image::images/resultstage-findMissingPartitions.png[align="center"]
@@ -175,12 +175,12 @@ makeNewStageAttempt(
   taskLocalityPreferences: Seq[Seq[TaskLocation]] = Seq.empty): Unit
 ----
 
-`makeNewStageAttempt` link:spark-taskscheduler-taskmetrics.adoc[creates a new `TaskMetrics`] and link:spark-taskscheduler-taskmetrics.adoc#register[registers the internal accumulators (using the RDD's `SparkContext`)].
+`makeNewStageAttempt` link:spark-executor-TaskMetrics.adoc[creates a new `TaskMetrics`] and link:spark-executor-TaskMetrics.adoc#register[registers the internal accumulators (using the RDD's `SparkContext`)].
 
 NOTE: `makeNewStageAttempt` uses <<rdd, rdd>> that was defined when <<creating-instance, `Stage` was created>>.
 
-`makeNewStageAttempt` sets <<_latestInfo, _latestInfo>> to be a link:spark-dagscheduler-StageInfo.adoc#fromStage[`StageInfo` from the current stage] (with <<nextAttemptId, nextAttemptId>>, `numPartitionsToCompute`, and `taskLocalityPreferences`).
+`makeNewStageAttempt` sets <<_latestInfo, _latestInfo>> to be a link:spark-scheduler-StageInfo.adoc#fromStage[`StageInfo` from the current stage] (with <<nextAttemptId, nextAttemptId>>, `numPartitionsToCompute`, and `taskLocalityPreferences`).
 
 `makeNewStageAttempt` increments <<nextAttemptId, nextAttemptId>> counter.
 
-NOTE: `makeNewStageAttempt` is used exclusively when link:spark-DAGScheduler.adoc#submitMissingTasks[`DAGScheduler` submits missing tasks for a stage].
+NOTE: `makeNewStageAttempt` is used exclusively when link:spark-scheduler-DAGScheduler.adoc#submitMissingTasks[`DAGScheduler` submits missing tasks for a stage].

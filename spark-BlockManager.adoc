@@ -328,7 +328,7 @@ NOTE: link:spark-DiskStore.adoc[DiskStore] is requested to store the bytes of a 
 
 If the storage level is to use disk only, link:spark-DiskStore.adoc#putBytes[`DiskStore` stores the bytes].
 
-`doPutBytes` requests <<getCurrentBlockStatus, current block status>> and if the block was successfully stored, and the driver should know about it (`tellMaster`), the function <<reportBlockStatus, reports the current storage status of the block to the driver>>. The link:spark-taskscheduler-taskmetrics.adoc#incUpdatedBlockStatuses[current `TaskContext` metrics are updated with the updated block status] (only when executed inside a task where `TaskContext` is available).
+`doPutBytes` requests <<getCurrentBlockStatus, current block status>> and if the block was successfully stored, and the driver should know about it (`tellMaster`), the function <<reportBlockStatus, reports the current storage status of the block to the driver>>. The link:spark-executor-TaskMetrics.adoc#incUpdatedBlockStatuses[current `TaskContext` metrics are updated with the updated block status] (only when executed inside a task where `TaskContext` is available).
 
 You should see the following DEBUG message in the logs:
 
@@ -421,7 +421,7 @@ WARN Block [blockId] could not be removed as it was not found in either the disk
 
 The block is removed from link:spark-BlockInfoManager.adoc[BlockInfoManager].
 
-It then <<getCurrentBlockStatus, calculates the current block status>> that is used to <<reportBlockStatus, report the block status to the driver>> (if the input `tellMaster` and the info's `tellMaster` are both enabled, i.e. `true`) and the link:spark-taskscheduler-taskmetrics.adoc#incUpdatedBlockStatuses[current TaskContext metrics are updated with the change].
+It then <<getCurrentBlockStatus, calculates the current block status>> that is used to <<reportBlockStatus, report the block status to the driver>> (if the input `tellMaster` and the info's `tellMaster` are both enabled, i.e. `true`) and the link:spark-executor-TaskMetrics.adoc#incUpdatedBlockStatuses[current TaskContext metrics are updated with the change].
 
 NOTE: It is used to <<removeRdd, remove RDDs>> and <<removeBroadcast, broadcast>> as well as in link:spark-blockmanager-BlockManagerSlaveEndpoint.adoc#RemoveBlock[`BlockManagerSlaveEndpoint` while handling `RemoveBlock` messages].
 
@@ -741,7 +741,7 @@ registerTask(taskAttemptId: Long): Unit
 
 `registerTask` link:spark-BlockInfoManager.adoc#registerTask[registers the input `taskAttemptId` with `BlockInfoManager`].
 
-NOTE: `registerTask` is used exclusively when link:spark-taskscheduler-Task.adoc#run[`Task` runs].
+NOTE: `registerTask` is used exclusively when link:spark-scheduler-Task.adoc#run[`Task` runs].
 
 === [[getDiskWriter]] Offering DiskBlockObjectWriter To Write Blocks To Disk (For Current BlockManager) -- `getDiskWriter` Method
 
@@ -768,7 +768,7 @@ NOTE: `getDiskWriter` is used when link:spark-BypassMergeSortShuffleWriter.adoc#
 addUpdatedBlockStatusToTaskMetrics(blockId: BlockId, status: BlockStatus): Unit
 ----
 
-`addUpdatedBlockStatusToTaskMetrics` link:spark-taskscheduler-TaskContext.adoc#get[takes an active `TaskContext`] (if available) and link:spark-taskscheduler-taskmetrics.adoc#incUpdatedBlockStatuses[records updated `BlockStatus` for `Block`] (in the link:spark-taskscheduler-TaskContext.adoc#taskMetrics[task's `TaskMetrics`]).
+`addUpdatedBlockStatusToTaskMetrics` link:spark-TaskContext.adoc#get[takes an active `TaskContext`] (if available) and link:spark-executor-TaskMetrics.adoc#incUpdatedBlockStatuses[records updated `BlockStatus` for `Block`] (in the link:spark-TaskContext.adoc#taskMetrics[task's `TaskMetrics`]).
 
 NOTE: `addUpdatedBlockStatusToTaskMetrics` is used when `BlockManager` <<doPutBytes, doPutBytes>> (for a block that was successfully stored), <<doPut, doPut>>, <<doPutIterator, doPutIterator>>, <<dropFromMemory, removes blocks from memory>> (possibly spilling it to disk) and <<removeBlock, removes block from memory and disk>>.
 
@@ -892,7 +892,7 @@ getRemoteBytes(blockId: BlockId): Option[ChunkedByteBuffer]
 
 * `TorrentBroadcast` is requested to link:spark-TorrentBroadcast.adoc#readBlocks[readBlocks]
 
-* `TaskResultGetter` is requested to link:spark-TaskResultGetter.adoc#enqueueSuccessfulTask[enqueuing a successful IndirectTaskResult]
+* `TaskResultGetter` is requested to link:spark-scheduler-TaskResultGetter.adoc#enqueueSuccessfulTask[enqueuing a successful IndirectTaskResult]
 ====
 
 === [[getRemoteValues]] `getRemoteValues` Internal Method
@@ -1097,6 +1097,6 @@ It then <<getCurrentBlockStatus, calculates the current storage status of the bl
 
 CAUTION: FIXME When would `info.tellMaster` be `true`?
 
-A block is considered updated when it was written to disk or removed from memory or both. If either happened, the link:spark-taskscheduler-taskmetrics.adoc#incUpdatedBlockStatuses[current TaskContext metrics are updated with the change].
+A block is considered updated when it was written to disk or removed from memory or both. If either happened, the link:spark-executor-TaskMetrics.adoc#incUpdatedBlockStatuses[current TaskContext metrics are updated with the change].
 
 Ultimately, `dropFromMemory` returns the current storage level of the block.

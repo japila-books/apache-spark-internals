@@ -2,7 +2,7 @@
 
 `MapOutputTrackerMaster` is the link:spark-service-mapoutputtracker.adoc[MapOutputTracker] for the driver.
 
-A `MapOutputTrackerMaster` is the source of truth for link:spark-MapStatus.adoc[MapStatus] objects (map output locations) per shuffle id (as recorded from link:spark-taskscheduler-ShuffleMapTask.adoc[ShuffleMapTasks]).
+A `MapOutputTrackerMaster` is the source of truth for link:spark-scheduler-MapStatus.adoc[MapStatus] objects (map output locations) per shuffle id (as recorded from link:spark-scheduler-ShuffleMapTask.adoc[ShuffleMapTasks]).
 
 NOTE: `MapOutputTrackerMaster` uses Java's thread-safe https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/ConcurrentHashMap.html[java.util.concurrent.ConcurrentHashMap] for link:spark-service-mapoutputtracker.adoc#mapStatuses[`mapStatuses` internal cache].
 
@@ -23,7 +23,7 @@ NOTE: There is currently a hardcoded limit of map and reduce tasks above which S
 Used when...FIXME
 
 | [[cachedSerializedStatuses]] `cachedSerializedStatuses`
-| Internal registry of serialized link:spark-MapStatus.adoc[shuffle map output statuses] (as `Array[Byte]`) per...FIXME
+| Internal registry of serialized link:spark-scheduler-MapStatus.adoc[shuffle map output statuses] (as `Array[Byte]`) per...FIXME
 
 Used when...FIXME
 
@@ -165,7 +165,7 @@ You should see the following DEBUG message in the logs:
 DEBUG MapOutputTrackerMaster: Increasing epoch to [epoch]
 ```
 
-NOTE: `incrementEpoch` is used when `MapOutputTrackerMaster` <<registerMapOutputs, registers map outputs>> (with `changeEpoch` flag enabled -- it is disabled by default) and <<unregisterMapOutput, unregisters map outputs>> (for a shuffle, mapper and block manager), and when link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleExecutorLost[`DAGScheduler` is notified that an executor got lost] (with `filesLost` flag enabled).
+NOTE: `incrementEpoch` is used when `MapOutputTrackerMaster` <<registerMapOutputs, registers map outputs>> (with `changeEpoch` flag enabled -- it is disabled by default) and <<unregisterMapOutput, unregisters map outputs>> (for a shuffle, mapper and block manager), and when link:spark-scheduler-DAGSchedulerEventProcessLoop.adoc#handleExecutorLost[`DAGScheduler` is notified that an executor got lost] (with `filesLost` flag enabled).
 
 === [[getLocationsWithLargestOutputs]] Finding Locations with Largest Number of Shuffle Map Outputs -- `getLocationsWithLargestOutputs` Method
 
@@ -188,9 +188,9 @@ Internally, `getLocationsWithLargestOutputs` queries the <<mapStatuses, mapStatu
 
 [NOTE]
 ====
-One entry in `mapStatuses` internal cache is a link:spark-MapStatus.adoc[MapStatus] array indexed by partition id.
+One entry in `mapStatuses` internal cache is a link:spark-scheduler-MapStatus.adoc[MapStatus] array indexed by partition id.
 
-`MapStatus` includes link:spark-MapStatus.adoc#contract[information about the `BlockManager` (as `BlockManagerId`) and estimated size of the reduce blocks].
+`MapStatus` includes link:spark-scheduler-MapStatus.adoc#contract[information about the `BlockManager` (as `BlockManagerId`) and estimated size of the reduce blocks].
 ====
 
 `getLocationsWithLargestOutputs` iterates over the `MapStatus` array and builds an interim mapping between link:spark-BlockManager.adoc#BlockManagerId[BlockManagerId] and the cumulative sum of shuffle blocks across link:spark-BlockManager.adoc[BlockManagers].
@@ -206,7 +206,7 @@ containsShuffle(shuffleId: Int): Boolean
 
 `containsShuffle` checks if the input `shuffleId` is registered in the <<cachedSerializedStatuses, cachedSerializedStatuses>> or link:spark-service-mapoutputtracker.adoc#mapStatuses[mapStatuses] internal caches.
 
-NOTE: `containsShuffle` is used exclusively when link:spark-DAGScheduler.adoc#createShuffleMapStage[`DAGScheduler` creates a `ShuffleMapStage`] (for link:spark-rdd-ShuffleDependency.adoc[ShuffleDependency] and link:spark-dagscheduler-jobs.adoc[ActiveJob]).
+NOTE: `containsShuffle` is used exclusively when link:spark-scheduler-DAGScheduler.adoc#createShuffleMapStage[`DAGScheduler` creates a `ShuffleMapStage`] (for link:spark-rdd-ShuffleDependency.adoc[ShuffleDependency] and link:spark-scheduler-ActiveJob.adoc[ActiveJob]).
 
 === [[registerShuffle]] Registering ShuffleDependency -- `registerShuffle` Method
 
@@ -217,7 +217,7 @@ registerShuffle(shuffleId: Int, numMaps: Int): Unit
 
 `registerShuffle` registers the input `shuffleId` in the link:spark-service-mapoutputtracker.adoc#mapStatuses[mapStatuses] internal cache.
 
-NOTE: The number of link:spark-MapStatus.adoc[MapStatus] entries in the new array in `mapStatuses` internal cache is exactly the input `numMaps`.
+NOTE: The number of link:spark-scheduler-MapStatus.adoc[MapStatus] entries in the new array in `mapStatuses` internal cache is exactly the input `numMaps`.
 
 `registerShuffle` adds a lock in the <<shuffleIdLocks, `shuffleIdLocks` internal registry>> (without using it).
 
@@ -227,7 +227,7 @@ If the `shuffleId` has already been registered, `registerShuffle` throws a `Ille
 Shuffle ID [id] registered twice
 ```
 
-NOTE: `registerShuffle` is used exclusively when link:spark-DAGScheduler.adoc#createShuffleMapStage[`DAGScheduler` creates a `ShuffleMapStage`] (for link:spark-rdd-ShuffleDependency.adoc[ShuffleDependency] and link:spark-dagscheduler-jobs.adoc[ActiveJob]).
+NOTE: `registerShuffle` is used exclusively when link:spark-scheduler-DAGScheduler.adoc#createShuffleMapStage[`DAGScheduler` creates a `ShuffleMapStage`] (for link:spark-rdd-ShuffleDependency.adoc[ShuffleDependency] and link:spark-scheduler-ActiveJob.adoc[ActiveJob]).
 
 === [[registerMapOutputs]] Registering Map Outputs for Shuffle (Possibly with Epoch Change) -- `registerMapOutputs` Method
 
@@ -245,7 +245,7 @@ registerMapOutputs(
 
 [NOTE]
 ====
-`registerMapOutputs` is used when `DAGScheduler` handles link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleTaskCompletion-Success-ShuffleMapTask[successful `ShuffleMapTask` completion] and link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleExecutorLost[executor lost events].
+`registerMapOutputs` is used when `DAGScheduler` handles link:spark-scheduler-DAGSchedulerEventProcessLoop.adoc#handleTaskCompletion-Success-ShuffleMapTask[successful `ShuffleMapTask` completion] and link:spark-scheduler-DAGSchedulerEventProcessLoop.adoc#handleExecutorLost[executor lost events].
 
 In both cases, the input `changeEpoch` is enabled.
 ====
@@ -285,7 +285,7 @@ INFO Epoch changed, not caching!
 
 `getSerializedMapOutputStatuses` returns the serialized map statuses.
 
-NOTE: `getSerializedMapOutputStatuses` is used when <<MessageLoop, `MapOutputTrackerMaster` responds to `GetMapOutputMessage` requests>> and link:spark-DAGScheduler.adoc#createShuffleMapStage[`DAGScheduler` creates `ShuffleMapStage` for `ShuffleDependency`] (copying the shuffle map output locations from previous jobs to avoid unnecessarily regenerating data).
+NOTE: `getSerializedMapOutputStatuses` is used when <<MessageLoop, `MapOutputTrackerMaster` responds to `GetMapOutputMessage` requests>> and link:spark-scheduler-DAGScheduler.adoc#createShuffleMapStage[`DAGScheduler` creates `ShuffleMapStage` for `ShuffleDependency`] (copying the shuffle map output locations from previous jobs to avoid unnecessarily regenerating data).
 
 ==== [[checkCachedStatuses]] Finding Cached Serialized Map Statuses -- `checkCachedStatuses` Internal Method
 

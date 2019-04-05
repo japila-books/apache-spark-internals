@@ -18,7 +18,7 @@ Put simply, a `TaskRunner` manages execution of a <<taskDescription, single task
 `TaskRunner` takes the following to be created:
 
 * [[execBackend]] <<spark-ExecutorBackend.adoc#, ExecutorBackend>> (that manages the parent <<spark-Executor.adoc#, executor>>)
-* [[taskDescription]] <<spark-TaskDescription.adoc#, Metadata of the task to be executed>>
+* [[taskDescription]] <<spark-scheduler-TaskDescription.adoc#, Metadata of the task to be executed>>
 
 NOTE: `TaskRunner` is an internal class of the <<spark-Executor.adoc#, Executor>> class and has access to its internals (properties and methods).
 
@@ -51,7 +51,7 @@ a| [[startGCTime]] Timestamp (which is really the <<spark-Executor.adoc#computeT
 * `Executor` is requested to <<spark-Executor.adoc#reportHeartBeat, reportHeartBeat>>
 
 | task
-a| [[task]] Deserialized <<spark-taskscheduler-Task.adoc#, task>> to execute
+a| [[task]] Deserialized <<spark-scheduler-Task.adoc#, task>> to execute
 
 Used when:
 
@@ -60,16 +60,16 @@ Used when:
 * `Executor` is requested to <<spark-Executor.adoc#reportHeartBeat, reportHeartBeat>>
 
 | taskId
-a| [[taskId]] The <<spark-TaskDescription.adoc#taskId, task ID>> (of the <<taskDescription, TaskDescription>>)
+a| [[taskId]] The <<spark-scheduler-TaskDescription.adoc#taskId, task ID>> (of the <<taskDescription, TaskDescription>>)
 
 Used when:
 
-* `TaskRunner` is requested to <<run, run>> (to create a <<spark-TaskMemoryManager.adoc#, TaskMemoryManager>> and serialize a `IndirectTaskResult` for a large task result) and <<kill, kill>> the task and for the <<threadName, threadName>>
+* `TaskRunner` is requested to <<run, run>> (to create a <<spark-memory-TaskMemoryManager.adoc#, TaskMemoryManager>> and serialize a `IndirectTaskResult` for a large task result) and <<kill, kill>> the task and for the <<threadName, threadName>>
 
 * `Executor` is requested to <<spark-Executor.adoc#reportHeartBeat, reportHeartBeat>>
 
 | taskName
-a| [[taskName]] The <<spark-TaskDescription.adoc#name, name of the task>> (of the <<taskDescription, TaskDescription>>) that is used exclusively for <<logging, logging>> purposes when `TaskRunner` is requested to <<run, run>> and <<kill, kill>> the task
+a| [[taskName]] The <<spark-scheduler-TaskDescription.adoc#name, name of the task>> (of the <<taskDescription, TaskDescription>>) that is used exclusively for <<logging, logging>> purposes when `TaskRunner` is requested to <<run, run>> and <<kill, kill>> the task
 
 | threadId
 a| [[threadId]][[getThreadId]] Current thread ID
@@ -118,7 +118,7 @@ When executed, `run` initializes <<threadId, threadId>> as the current thread id
 
 `run` then sets the name of the current thread as <<threadName, threadName>> (using Java's link:++https://docs.oracle.com/javase/8/docs/api/java/lang/Thread.html#setName-java.lang.String-++[Thread]).
 
-`run` link:spark-TaskMemoryManager.adoc#creating-instance[creates a `TaskMemoryManager`] (using the current link:spark-MemoryManager.adoc[MemoryManager] and <<taskId, taskId>>).
+`run` link:spark-memory-TaskMemoryManager.adoc#creating-instance[creates a `TaskMemoryManager`] (using the current link:spark-MemoryManager.adoc[MemoryManager] and <<taskId, taskId>>).
 
 NOTE: `run` uses link:spark-SparkEnv.adoc#memoryManager[`SparkEnv` to access the current `MemoryManager`].
 
@@ -144,11 +144,11 @@ NOTE: `run` uses `ExecutorBackend` that was specified when `TaskRunner` <<creati
 
 `run` <<updateDependencies, updates dependencies>>.
 
-NOTE: `run` uses link:spark-TaskDescription.adoc[TaskDescription] that is specified when `TaskRunner` <<creating-instance, is created>>.
+NOTE: `run` uses link:spark-scheduler-TaskDescription.adoc[TaskDescription] that is specified when `TaskRunner` <<creating-instance, is created>>.
 
 `run` link:spark-SerializerInstance.adoc#deserialize[deserializes the task] (using the context class loader) and sets its `localProperties` and `TaskMemoryManager`. `run` sets the <<task, task>> internal reference to hold the deserialized task.
 
-NOTE: `run` uses `TaskDescription` link:spark-TaskDescription.adoc#serializedTask[to access serialized task].
+NOTE: `run` uses `TaskDescription` link:spark-scheduler-TaskDescription.adoc#serializedTask[to access serialized task].
 
 If <<killed, killed>> flag is enabled, `run` throws a `TaskKilledException`.
 
@@ -164,7 +164,7 @@ NOTE: `run` uses link:spark-SparkEnv.adoc#mapOutputTracker[`SparkEnv` to access 
 
 `run` records the current time as the task's start time (as `taskStart`).
 
-`run` link:spark-taskscheduler-Task.adoc#run[runs the task] (with `taskAttemptId` as <<taskId, taskId>>, `attemptNumber` from `TaskDescription`, and `metricsSystem` as the current link:spark-metrics-MetricsSystem.adoc[MetricsSystem]).
+`run` link:spark-scheduler-Task.adoc#run[runs the task] (with `taskAttemptId` as <<taskId, taskId>>, `attemptNumber` from `TaskDescription`, and `metricsSystem` as the current link:spark-metrics-MetricsSystem.adoc[MetricsSystem]).
 
 NOTE: `run` uses link:spark-SparkEnv.adoc#metricsSystem[`SparkEnv` to access the current `MetricsSystem`].
 
@@ -172,7 +172,7 @@ NOTE: The task runs inside a "monitored" block (i.e. `try-finally` block) to det
 
 After the task's run has finished (inside the "finally" block of the "monitored" block), `run` link:spark-BlockManager.adoc#releaseAllLocksForTask[requests `BlockManager` to release all locks of the task] (for the task's <<taskId, taskId>>). The locks are later used for lock leak detection.
 
-`run` then link:spark-TaskMemoryManager.adoc#cleanUpAllAllocatedMemory[requests `TaskMemoryManager` to clean up allocated memory] (that helps finding memory leaks).
+`run` then link:spark-memory-TaskMemoryManager.adoc#cleanUpAllAllocatedMemory[requests `TaskMemoryManager` to clean up allocated memory] (that helps finding memory leaks).
 
 If `run` detects memory leak of the managed memory (i.e. the memory freed is greater than `0`) and <<spark-configuration-properties.adoc#spark.unsafe.exceptionOnMemoryLeak, spark.unsafe.exceptionOnMemoryLeak>> Spark property is enabled (it is not by default) and no exception was reported while the task ran, `run` reports a `SparkException`:
 
@@ -206,7 +206,7 @@ NOTE: If `run` detects any lock leak, it leads to a `SparkException` or INFO mes
 
 Rigth after the "monitored" block, `run` records the current time as the task's finish time (as `taskFinish`).
 
-If the link:spark-taskscheduler-Task.adoc#kill[task was killed] (while it was running), `run` reports a `TaskKilledException` (and the `TaskRunner` exits).
+If the link:spark-scheduler-Task.adoc#kill[task was killed] (while it was running), `run` reports a `TaskKilledException` (and the `TaskRunner` exits).
 
 `run` link:spark-Serializer.adoc#newInstance[creates a `Serializer`] and link:spark-Serializer.adoc#serialize[serializes the task's result]. `run` measures the time to serialize the result.
 
@@ -214,18 +214,18 @@ NOTE: `run` uses `SparkEnv` link:spark-SparkEnv.adoc#serializer[to access the cu
 
 IMPORTANT: This is when `TaskExecutor` serializes the computed value of a task to be sent back to the driver.
 
-`run` records the link:spark-taskscheduler-Task.adoc#metrics[task metrics]:
+`run` records the link:spark-scheduler-Task.adoc#metrics[task metrics]:
 
-* link:spark-taskscheduler-taskmetrics.adoc#setExecutorDeserializeTime[executorDeserializeTime]
-* link:spark-taskscheduler-taskmetrics.adoc#setExecutorDeserializeCpuTime[executorDeserializeCpuTime]
-* link:spark-taskscheduler-taskmetrics.adoc#setExecutorRunTime[executorRunTime]
-* link:spark-taskscheduler-taskmetrics.adoc#setExecutorCpuTime[executorCpuTime]
-* link:spark-taskscheduler-taskmetrics.adoc#setJvmGCTime[jvmGCTime]
-* link:spark-taskscheduler-taskmetrics.adoc#setResultSerializationTime[resultSerializationTime]
+* link:spark-executor-TaskMetrics.adoc#setExecutorDeserializeTime[executorDeserializeTime]
+* link:spark-executor-TaskMetrics.adoc#setExecutorDeserializeCpuTime[executorDeserializeCpuTime]
+* link:spark-executor-TaskMetrics.adoc#setExecutorRunTime[executorRunTime]
+* link:spark-executor-TaskMetrics.adoc#setExecutorCpuTime[executorCpuTime]
+* link:spark-executor-TaskMetrics.adoc#setJvmGCTime[jvmGCTime]
+* link:spark-executor-TaskMetrics.adoc#setResultSerializationTime[resultSerializationTime]
 
-`run` link:spark-taskscheduler-Task.adoc#collectAccumulatorUpdates[collects the latest values of internal and external accumulators used in the task].
+`run` link:spark-scheduler-Task.adoc#collectAccumulatorUpdates[collects the latest values of internal and external accumulators used in the task].
 
-`run` creates a link:spark-taskscheduler-TaskResult.adoc#DirectTaskResult[DirectTaskResult] (with the serialized result and the latest values of accumulators).
+`run` creates a link:spark-scheduler-TaskResult.adoc#DirectTaskResult[DirectTaskResult] (with the serialized result and the latest values of accumulators).
 
 `run` link:spark-Serializer.adoc#serialize[serializes the `DirectTaskResult`] and gets the byte buffer's limit.
 
@@ -262,7 +262,7 @@ org.apache.spark.SparkException: Job aborted due to stage failure: Total size of
 ...
 ```
 
-In this case, `run` creates a link:spark-taskscheduler-TaskResult.adoc#IndirectTaskResult[IndirectTaskResult] (with a `TaskResultBlockId` for the task's <<taskId, taskId>> and `resultSize`) and link:spark-Serializer.adoc#serialize[serializes it].
+In this case, `run` creates a link:spark-scheduler-TaskResult.adoc#IndirectTaskResult[IndirectTaskResult] (with a `TaskResultBlockId` for the task's <<taskId, taskId>> and `resultSize`) and link:spark-Serializer.adoc#serialize[serializes it].
 
 [[run-result-sent-via-blockmanager]]
 When `maxResultSize` is not positive or `resultSize` is smaller than `maxResultSize` but greater than link:spark-Executor.adoc#maxDirectResultSize[maxDirectResultSize], `run` creates a `TaskResultBlockId` for the task's <<taskId, taskId>> and link:spark-BlockManager.adoc#putBytes[stores the serialized `DirectTaskResult` in `BlockManager`] (as the `TaskResultBlockId` with `MEMORY_AND_DISK_SER` storage level).
@@ -273,7 +273,7 @@ You should see the following INFO message in the logs:
 INFO Executor: Finished [taskName] (TID [taskId]). [resultSize] bytes result sent via BlockManager)
 ```
 
-In this case, `run` creates a link:spark-taskscheduler-TaskResult.adoc#IndirectTaskResult[IndirectTaskResult] (with a `TaskResultBlockId` for the task's <<taskId, taskId>> and `resultSize`) and link:spark-Serializer.adoc#serialize[serializes it].
+In this case, `run` creates a link:spark-scheduler-TaskResult.adoc#IndirectTaskResult[IndirectTaskResult] (with a `TaskResultBlockId` for the task's <<taskId, taskId>> and `resultSize`) and link:spark-Serializer.adoc#serialize[serializes it].
 
 NOTE: The difference between the two above cases is that the result is dropped or stored in `BlockManager` with `MEMORY_AND_DISK_SER` storage level.
 
@@ -285,7 +285,7 @@ INFO Executor: Finished [taskName] (TID [taskId]). [resultSize] bytes result sen
 
 `run` uses the serialized `DirectTaskResult` byte buffer as the final `serializedResult`.
 
-NOTE: The final `serializedResult` is either a link:spark-taskscheduler-TaskResult.adoc#IndirectTaskResult[IndirectTaskResult] (possibly with the block stored in `BlockManager`) or a link:spark-taskscheduler-TaskResult.adoc#DirectTaskResult[DirectTaskResult].
+NOTE: The final `serializedResult` is either a link:spark-scheduler-TaskResult.adoc#IndirectTaskResult[IndirectTaskResult] (possibly with the block stored in `BlockManager`) or a link:spark-scheduler-TaskResult.adoc#DirectTaskResult[DirectTaskResult].
 
 `run` link:spark-ExecutorBackend.adoc#statusUpdate[notifies `ExecutorBackend`] that <<taskId, taskId>> is in `TaskState.FINISHED` state with the serialized result and removes <<taskId, taskId>> from the owning executor's link:spark-Executor.adoc#runningTasks[ runningTasks] registry.
 
@@ -372,10 +372,10 @@ ERROR Exception in [taskName] (TID [taskId])
 
 `run` then records the following task metrics (only when <<task, Task>> is available):
 
-* link:spark-taskscheduler-taskmetrics.adoc#setExecutorRunTime[executorRunTime]
-* link:spark-taskscheduler-taskmetrics.adoc#setJvmGCTime[jvmGCTime]
+* link:spark-executor-TaskMetrics.adoc#setExecutorRunTime[executorRunTime]
+* link:spark-executor-TaskMetrics.adoc#setJvmGCTime[jvmGCTime]
 
-`run` then link:spark-taskscheduler-Task.adoc#collectAccumulatorUpdates[collects the latest values of internal and external accumulators] (with `taskFailed` flag enabled to inform that the collection is for a failed task).
+`run` then link:spark-scheduler-Task.adoc#collectAccumulatorUpdates[collects the latest values of internal and external accumulators] (with `taskFailed` flag enabled to inform that the collection is for a failed task).
 
 Otherwise, when <<task, Task>> is not available, the accumulator collection is empty.
 
@@ -398,7 +398,7 @@ NOTE: The difference between this most `Throwable` case and other `FAILED` cases
 kill(interruptThread: Boolean): Unit
 ----
 
-`kill` marks the `TaskRunner` as <<killed, killed>> and link:spark-taskscheduler-Task.adoc#kill[kills the task] (if available and not <<finished, finished>> already).
+`kill` marks the `TaskRunner` as <<killed, killed>> and link:spark-scheduler-Task.adoc#kill[kills the task] (if available and not <<finished, finished>> already).
 
 NOTE: `kill` passes the input `interruptThread` on to the task itself while killing it.
 

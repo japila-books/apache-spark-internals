@@ -1,6 +1,6 @@
 == [[MapOutputTracker]] MapOutputTracker -- Shuffle Map Output Registry
 
-`MapOutputTracker` is a Spark service that runs on the driver and executors that <<mapStatuses, tracks the shuffle map outputs>> (with link:spark-MapStatus.adoc[information about the `BlockManager` and estimated size of the reduce blocks per shuffle]).
+`MapOutputTracker` is a Spark service that runs on the driver and executors that <<mapStatuses, tracks the shuffle map outputs>> (with link:spark-scheduler-MapStatus.adoc[information about the `BlockManager` and estimated size of the reduce blocks per shuffle]).
 
 NOTE: `MapOutputTracker` is registered as the *MapOutputTracker* RPC Endpoint in the RPC Environment when link:spark-SparkEnv.adoc#MapOutputTrackerMasterEndpoint[`SparkEnv` is created].
 
@@ -24,7 +24,7 @@ SparkEnv.get.mapOutputTracker
 | Description
 
 | [[mapStatuses]] `mapStatuses`
-| Internal cache with link:spark-MapStatus.adoc[MapStatus] array (indexed by partition id) per link:spark-rdd-ShuffleDependency.adoc#shuffleId[shuffle id].
+| Internal cache with link:spark-scheduler-MapStatus.adoc[MapStatus] array (indexed by partition id) per link:spark-rdd-ShuffleDependency.adoc#shuffleId[shuffle id].
 
 Used when `MapOutputTracker` <<getStatuses, finds map outputs for a `ShuffleDependency`>>, <<updateEpoch, updates epoch>> and <<unregisterShuffle, unregisters a shuffle>>.
 
@@ -40,11 +40,11 @@ Can be <<updateEpoch, updated>> (on `MapOutputTrackerWorkers`) or link:spark-ser
 
 |===
 
-`MapOutputTracker` is also used for `mapOutputTracker.containsShuffle` and link:spark-service-MapOutputTrackerMaster.adoc#registerShuffle[MapOutputTrackerMaster.registerShuffle] when a new link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage] is created.
+`MapOutputTracker` is also used for `mapOutputTracker.containsShuffle` and link:spark-service-MapOutputTrackerMaster.adoc#registerShuffle[MapOutputTrackerMaster.registerShuffle] when a new link:spark-scheduler-ShuffleMapStage.adoc[ShuffleMapStage] is created.
 
-link:spark-service-MapOutputTrackerMaster.adoc#getStatistics[MapOutputTrackerMaster.getStatistics(dependency)] returns `MapOutputStatistics` that becomes the result of link:spark-dagscheduler-JobWaiter.adoc[JobWaiter.taskSucceeded] for link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage] if it's the final stage in a job.
+link:spark-service-MapOutputTrackerMaster.adoc#getStatistics[MapOutputTrackerMaster.getStatistics(dependency)] returns `MapOutputStatistics` that becomes the result of link:spark-scheduler-JobWaiter.adoc[JobWaiter.taskSucceeded] for link:spark-scheduler-ShuffleMapStage.adoc[ShuffleMapStage] if it's the final stage in a job.
 
-link:spark-service-MapOutputTrackerMaster.adoc#registerMapOutputs[MapOutputTrackerMaster.registerMapOutputs] for a shuffle id and a list of `MapStatus` when a link:spark-dagscheduler-ShuffleMapStage.adoc[ShuffleMapStage] is finished.
+link:spark-service-MapOutputTrackerMaster.adoc#registerMapOutputs[MapOutputTrackerMaster.registerMapOutputs] for a shuffle id and a list of `MapStatus` when a link:spark-scheduler-ShuffleMapStage.adoc[ShuffleMapStage] is finished.
 
 NOTE: `MapOutputTracker` is used in link:spark-BlockStoreShuffleReader.adoc[BlockStoreShuffleReader] and when creating link:spark-BlockManager.adoc[BlockManager] and link:spark-blockmanager-BlockManagerSlaveEndpoint.adoc[BlockManagerSlaveEndpoint].
 
@@ -79,11 +79,11 @@ getStatistics(dep: ShuffleDependency[_, _, _]): MapOutputStatistics
 
 `getStatistics` returns a `MapOutputStatistics` which is simply a pair of the link:spark-rdd-ShuffleDependency.adoc#shuffleId[shuffle id] (of the input `ShuffleDependency`) and the total sums of estimated sizes of the reduce shuffle blocks from all the link:spark-BlockManager.adoc[BlockManager]s.
 
-Internally, `getStatistics` <<getStatuses, finds map outputs>> for the input link:spark-rdd-ShuffleDependency.adoc[ShuffleDependency] and calculates the total sizes for the link:spark-MapStatus.adoc#getSizeForBlock[estimated sizes of the reduce block (in bytes)] for every link:spark-MapStatus.adoc[MapStatus] and partition.
+Internally, `getStatistics` <<getStatuses, finds map outputs>> for the input link:spark-rdd-ShuffleDependency.adoc[ShuffleDependency] and calculates the total sizes for the link:spark-scheduler-MapStatus.adoc#getSizeForBlock[estimated sizes of the reduce block (in bytes)] for every link:spark-scheduler-MapStatus.adoc[MapStatus] and partition.
 
 NOTE: The internal `totalSizes` array has the number of elements as specified by the link:spark-rdd-Partitioner.adoc#numPartitions[number of partitions of the `Partitioner`] of the input `ShuffleDependency`. `totalSizes` contains elements as a sum of the estimated size of the block for partition in a link:spark-BlockManager.adoc[BlockManager] (for a `MapStatus`).
 
-NOTE: `getStatistics` is used when link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleMapStageSubmitted[`DAGScheduler` accepts a `ShuffleDependency` for execution] (and the link:spark-dagscheduler-ShuffleMapStage.adoc#isAvailable[corresponding `ShuffleMapStage` has already been computed]) and link:#handleTaskCompletion-Success-ShuffleMapTask[gets notified that a `ShuffleMapTask` has completed] (and map-stage jobs waiting for the stage are then marked as finished).
+NOTE: `getStatistics` is used when link:spark-scheduler-DAGSchedulerEventProcessLoop.adoc#handleMapStageSubmitted[`DAGScheduler` accepts a `ShuffleDependency` for execution] (and the link:spark-scheduler-ShuffleMapStage.adoc#isAvailable[corresponding `ShuffleMapStage` has already been computed]) and link:#handleTaskCompletion-Success-ShuffleMapTask[gets notified that a `ShuffleMapTask` has completed] (and map-stage jobs waiting for the stage are then marked as finished).
 
 === [[getMapSizesByExecutorId]] Computing BlockManagerIds with Their Blocks and Sizes -- `getMapSizesByExecutorId` Methods
 
@@ -124,7 +124,7 @@ getEpoch: Long
 
 `getEpoch` returns the current <<epoch, epoch>>.
 
-NOTE: `getEpoch` is used when link:spark-dagscheduler-DAGSchedulerEventProcessLoop.adoc#handleExecutorLost[`DAGScheduler` is notified that an executor was lost] and when link:spark-TaskSetManager.adoc#creating-instance[`TaskSetManager` is created] (and sets the epoch for the tasks in a link:spark-taskscheduler-TaskSet.adoc[TaskSet]).
+NOTE: `getEpoch` is used when link:spark-scheduler-DAGSchedulerEventProcessLoop.adoc#handleExecutorLost[`DAGScheduler` is notified that an executor was lost] and when link:spark-scheduler-TaskSetManager.adoc#creating-instance[`TaskSetManager` is created] (and sets the epoch for the tasks in a link:spark-scheduler-TaskSet.adoc[TaskSet]).
 
 === [[updateEpoch]] Updating Epoch -- `updateEpoch` Method
 
@@ -174,7 +174,7 @@ NOTE: `stop` is overriden by link:spark-service-MapOutputTrackerMaster.adoc#stop
 getStatuses(shuffleId: Int): Array[MapStatus]
 ----
 
-`getStatuses` finds link:spark-MapStatus.adoc[MapStatuses] for the input `shuffleId` in the <<mapStatuses, mapStatuses>> internal cache and, when not available, fetches them from a remote link:spark-service-MapOutputTrackerMaster.adoc[MapOutputTrackerMaster] (using RPC).
+`getStatuses` finds link:spark-scheduler-MapStatus.adoc[MapStatuses] for the input `shuffleId` in the <<mapStatuses, mapStatuses>> internal cache and, when not available, fetches them from a remote link:spark-service-MapOutputTrackerMaster.adoc[MapOutputTrackerMaster] (using RPC).
 
 Internally, `getStatuses` first queries the <<mapStatuses, `mapStatuses` internal cache>> and returns the map outputs if found.
 
@@ -233,7 +233,7 @@ convertMapStatuses(
   statuses: Array[MapStatus]): Seq[(BlockManagerId, Seq[(BlockId, Long)])]
 ----
 
-`convertMapStatuses` iterates over the input `statuses` array (of link:spark-MapStatus.adoc[MapStatus] entries indexed by map id) and creates a collection of link:spark-BlockManager.adoc#BlockManagerId[BlockManagerId] (for each `MapStatus` entry) with a link:spark-BlockDataManager.adoc#ShuffleBlockId[ShuffleBlockId] (with the input `shuffleId`, a `mapId`, and `partition` ranging from the input `startPartition` and `endPartition`) and link:spark-MapStatus.adoc#getSizeForBlock[estimated size for the reduce block] for every status and partitions.
+`convertMapStatuses` iterates over the input `statuses` array (of link:spark-scheduler-MapStatus.adoc[MapStatus] entries indexed by map id) and creates a collection of link:spark-BlockManager.adoc#BlockManagerId[BlockManagerId] (for each `MapStatus` entry) with a link:spark-BlockDataManager.adoc#ShuffleBlockId[ShuffleBlockId] (with the input `shuffleId`, a `mapId`, and `partition` ranging from the input `startPartition` and `endPartition`) and link:spark-scheduler-MapStatus.adoc#getSizeForBlock[estimated size for the reduce block] for every status and partitions.
 
 For any empty `MapStatus`, you should see the following ERROR message in the logs:
 

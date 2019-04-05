@@ -1,6 +1,6 @@
 == [[Executor]] Executor
 
-`Executor` is a distributed agent that is responsible for executing link:spark-taskscheduler-Task.adoc[tasks].
+`Executor` is a distributed agent that is responsible for executing link:spark-scheduler-Task.adoc[tasks].
 
 `Executor` is created when:
 
@@ -163,7 +163,7 @@ launchTask(
   taskDescription: TaskDescription): Unit
 ----
 
-Internally, `launchTask` creates a <<spark-Executor-TaskRunner.adoc#, TaskRunner>> (with the given <<spark-ExecutorBackend.adoc#, ExecutorBackend>> and the <<spark-TaskDescription.adoc#, TaskDescription>>) and registers it in the <<runningTasks, runningTasks>> internal registry (by the <<spark-TaskDescription.adoc#taskId, task ID>>).
+Internally, `launchTask` creates a <<spark-Executor-TaskRunner.adoc#, TaskRunner>> (with the given <<spark-ExecutorBackend.adoc#, ExecutorBackend>> and the <<spark-scheduler-TaskDescription.adoc#, TaskDescription>>) and registers it in the <<runningTasks, runningTasks>> internal registry (by the <<spark-scheduler-TaskDescription.adoc#taskId, task ID>>).
 
 In the end, `launchTask` requests the <<threadPool, "Executor task launch worker" thread pool>> to execute the `TaskRunner` (sometime in the future).
 
@@ -193,11 +193,11 @@ An executor sends heartbeats using the <<heartbeater, internal heartbeater -- He
 .HeartbeatReceiver's Heartbeat Message Handler
 image::images/spark-HeartbeatReceiver-Heartbeat.png[align="center"]
 
-For each link:spark-taskscheduler-Task.adoc[task] in link:spark-Executor-TaskRunner.adoc[TaskRunner] (in <<runningTasks, runningTasks>> internal registry), the task's metrics are computed (i.e. `mergeShuffleReadMetrics` and `setJvmGCTime`) that become part of the heartbeat (with accumulators).
+For each link:spark-scheduler-Task.adoc[task] in link:spark-Executor-TaskRunner.adoc[TaskRunner] (in <<runningTasks, runningTasks>> internal registry), the task's metrics are computed (i.e. `mergeShuffleReadMetrics` and `setJvmGCTime`) that become part of the heartbeat (with accumulators).
 
 CAUTION: FIXME How do `mergeShuffleReadMetrics` and `setJvmGCTime` influence `accumulators`?
 
-NOTE: Executors track the link:spark-Executor-TaskRunner.adoc[TaskRunner] that run link:spark-taskscheduler-Task.adoc[tasks]. A link:spark-Executor-TaskRunner.adoc#run[task might not be assigned to a TaskRunner yet] when the executor sends a heartbeat.
+NOTE: Executors track the link:spark-Executor-TaskRunner.adoc[TaskRunner] that run link:spark-scheduler-Task.adoc[tasks]. A link:spark-Executor-TaskRunner.adoc#run[task might not be assigned to a TaskRunner yet] when the executor sends a heartbeat.
 
 A blocking link:spark-HeartbeatReceiver.adoc#Heartbeat[Heartbeat] message that holds the executor id, all accumulator updates (per task id), and link:spark-BlockManager.adoc#BlockManagerId[BlockManagerId] is sent to link:spark-HeartbeatReceiver.adoc[HeartbeatReceiver RPC endpoint] (with <<spark.executor.heartbeatInterval, spark.executor.heartbeatInterval>> timeout).
 
@@ -227,7 +227,7 @@ ERROR Executor: Exit as unable to send heartbeats to driver more than [HEARTBEAT
 
 The executor exits (using `System.exit` and exit code 56).
 
-TIP: Read about `TaskMetrics` in link:spark-taskscheduler-taskmetrics.adoc[TaskMetrics].
+TIP: Read about `TaskMetrics` in link:spark-executor-TaskMetrics.adoc[TaskMetrics].
 
 === [[reportHeartBeat]] Heartbeating With Partial Metrics For Active Tasks To Driver -- `reportHeartBeat` Internal Method
 
@@ -240,12 +240,12 @@ reportHeartBeat(): Unit
 
 NOTE: link:spark-Executor-TaskRunner.adoc[TaskRunner] has link:spark-Executor-TaskRunner.adoc#task[task] deserialized when it link:spark-Executor-TaskRunner.adoc#run[runs the task].
 
-For every running task, `reportHeartBeat` takes its link:spark-taskscheduler-Task.adoc#metrics[TaskMetrics] and:
+For every running task, `reportHeartBeat` takes its link:spark-scheduler-Task.adoc#metrics[TaskMetrics] and:
 
-* Requests link:spark-taskscheduler-taskmetrics.adoc#mergeShuffleReadMetrics[ShuffleRead metrics to be merged]
-* link:spark-taskscheduler-taskmetrics.adoc#setJvmGCTime[Sets jvmGCTime metrics]
+* Requests link:spark-executor-TaskMetrics.adoc#mergeShuffleReadMetrics[ShuffleRead metrics to be merged]
+* link:spark-executor-TaskMetrics.adoc#setJvmGCTime[Sets jvmGCTime metrics]
 
-`reportHeartBeat` then records the latest values of link:spark-taskscheduler-taskmetrics.adoc#accumulators[internal and external accumulators] for every task.
+`reportHeartBeat` then records the latest values of link:spark-executor-TaskMetrics.adoc#accumulators[internal and external accumulators] for every task.
 
 NOTE: Internal accumulators are a task's metrics while external accumulators are a Spark application's accumulators that a user has created.
 
@@ -261,7 +261,7 @@ If the response (from <<heartbeatReceiverRef, `HeartbeatReceiver` endpoint>>) is
 INFO Told to re-register on heartbeat
 ```
 
-NOTE: `HeartbeatResponse` requests `BlockManager` to re-register when either link:spark-TaskScheduler.adoc#executorHeartbeatReceived[TaskScheduler] or link:spark-HeartbeatReceiver.adoc#Heartbeat[HeartbeatReceiver] know nothing about the executor.
+NOTE: `HeartbeatResponse` requests `BlockManager` to re-register when either link:spark-scheduler-TaskScheduler.adoc#executorHeartbeatReceived[TaskScheduler] or link:spark-HeartbeatReceiver.adoc#Heartbeat[HeartbeatReceiver] know nothing about the executor.
 
 When posting the `Heartbeat` was successful, `reportHeartBeat` resets <<heartbeatFailures, heartbeatFailures>> internal counter.
 
@@ -291,7 +291,7 @@ The name of the thread pool is *driver-heartbeater*.
 
 === [[resource-offers]] Resource Offers
 
-Read link:spark-TaskSchedulerImpl.adoc#resourceOffers[resourceOffers] in TaskSchedulerImpl and link:spark-TaskSetManager.adoc##resourceOffers[resourceOffer] in TaskSetManager.
+Read link:spark-scheduler-TaskSchedulerImpl.adoc#resourceOffers[resourceOffers] in TaskSchedulerImpl and link:spark-scheduler-TaskSetManager.adoc##resourceOffers[resourceOffer] in TaskSetManager.
 
 === [[threadPool]] "Executor task launch worker" Thread Pool -- `threadPool` Property
 
