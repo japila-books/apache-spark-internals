@@ -1,26 +1,53 @@
 == [[Task]] Task
 
-`Task` (aka _command_) is the smallest individual unit of execution that is launched to compute a link:spark-rdd-Partition.adoc[RDD partition].
+`Task` (aka _command_) is the *smallest individual unit of execution* that computes a single <<partitionId, RDD partition>>.
 
-.Tasks correspond to partitions in RDD
+.Tasks Are Runtime Representation of RDD Partitions
 image::images/spark-rdd-partitions-job-stage-tasks.png[align="center"]
 
-A task is described by the <<contract, Task contract>> with a single <<runTask, runTask>> to run it and optional <<preferredLocations, placement preferences>> to place the computation on right executors.
+[[creating-instance]]
+`Task` is described by the following:
 
-There are two concrete implementations of `Task` contract:
+* [[stageId]] ID of the <<spark-scheduler-Stage.adoc#, stage>> (*Stage ID*)
+* [[stageAttemptId]] Stage (execution) attempt ID
+* [[partitionId]] ID of the <<spark-rdd-Partition.adoc#, partition>> (*Partition ID*)
+* [[localProperties]] Local properties
+* [[serializedTaskMetrics]] Serialized <<spark-executor-TaskMetrics.adoc#, TaskMetrics>> (`Array[Byte]`)
+* [[jobId]] Optional ID of the <<spark-scheduler-ActiveJob.adoc#, job>> (default: `None`)
+* [[appId]] Optional ID of the Spark application (default: `None`)
+* [[appAttemptId]] Optional ID of the Spark application's (execution) attempt ID (default: `None`)
+* [[isBarrier]] `isBarrier` flag that is to say whether the task belongs to a barrier stage (default: `false`)
 
-* link:spark-scheduler-ShuffleMapTask.adoc[ShuffleMapTask] that executes a task and divides the task's output to multiple buckets (based on the task's partitioner).
-* link:spark-scheduler-ResultTask.adoc[ResultTask] that executes a task and sends the task's output back to the driver application.
+Tasks are <<creating-instance, created>> when `DAGScheduler` is requested to <<spark-scheduler-DAGScheduler.adoc#submitMissingTasks, submit missing tasks of a stage>>.
+
+NOTE: `Task` is a Scala abstract class and cannot be <<creating-instance, created>> directly. It is created indirectly for the <<implementations, concrete Tasks>>.
+
+`Task` can be <<runTask, run>> (possibly on <<preferredLocations, preferred executor>>).
+
+Tasks are link:spark-Executor.adoc#launchTask[launched on executors] and <<run, ran when `TaskRunner` starts>>.
+
+In other words, a task is a computation on the records in a RDD partition in a stage of a RDD in a Spark job.
+
+NOTE: In Scala `Task` is actually `Task[T]` in which `T` is the type of the result of a task (i.e. the type of the value computed).
+
+[[implementations]]
+.Tasks
+[cols="1,3",options="header",width="100%"]
+|===
+| Task
+| Description
+
+| <<spark-scheduler-ResultTask.adoc#, ResultTask>>
+| [[ResultTask]] Computes a <<spark-scheduler-ResultStage.adoc#, ResultStage>> and gives the result back to the driver
+
+| <<spark-scheduler-ShuffleMapTask.adoc#, ShuffleMapTask>>
+| [[ShuffleMapTask]] Computes a <<spark-scheduler-ShuffleMapStage.adoc#, ShuffleMapStage>>
+
+|===
 
 The very last stage in a Spark job consists of multiple link:spark-scheduler-ResultTask.adoc[ResultTasks], while earlier stages can only be link:spark-scheduler-ShuffleMapTask.adoc[ShuffleMapTasks].
 
 CAUTION: FIXME You could have a Spark job with link:spark-scheduler-ShuffleMapTask.adoc[ShuffleMapTask] being the last.
-
-Tasks are link:spark-Executor.adoc#launchTask[launched on executors] and <<run, ran when `TaskRunner` starts>>.
-
-In other (more technical) words, a task is a computation on the records in a RDD partition in a stage of a RDD in a Spark job.
-
-NOTE: `T` is the type defined when a <<creating-instance, `Task` is created>>.
 
 [[internal-registries]]
 .`Task` Internal Registries and Counters
@@ -95,21 +122,6 @@ Empty by default and so no task location preferences are defined that says the t
 
 Defined by the custom tasks, i.e. link:spark-scheduler-ShuffleMapTask.adoc#preferredLocations[ShuffleMapTask] and link:spark-scheduler-ResultTask.adoc#preferredLocations[ResultTask].
 |===
-
-=== [[creating-instance]] Creating Task Instance
-
-`Task` takes the following when created:
-
-* [[stageId]] link:spark-scheduler-Stage.adoc[Stage] ID
-* [[stageAttemptId]] Stage attempt ID (different per stage execution re-attempt)
-* [[partitionId]] link:spark-rdd-Partition.adoc[Partition] ID
-* [[localProperties]] Local `Properties` (defaults to empty properties)
-* [[serializedTaskMetrics]] Serialized link:spark-executor-TaskMetrics.adoc[TaskMetrics] (that link:spark-scheduler-Stage.adoc#latestInfo[were part of the owning Stage])
-* (optional) [[jobId]] link:spark-scheduler-ActiveJob.adoc[Job] ID
-* (optional) [[appId]] Application ID
-* (optional) [[appAttemptId]] Application attempt ID
-
-`Task` initializes the <<internal-registries, internal registries and counters>>.
 
 === [[run]] Running Task Thread -- `run` Method
 
