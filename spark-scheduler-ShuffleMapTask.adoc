@@ -1,84 +1,78 @@
 == [[ShuffleMapTask]] ShuffleMapTask -- Task for ShuffleMapStage
 
-`ShuffleMapTask` is a link:spark-scheduler-Task.adoc[Task] that <<runTask, computes a `MapStatus`>>, i.e. writes the result of computing records in a RDD partition to the link:spark-ShuffleManager.adoc[shuffle system] and returns information about the link:spark-BlockManager.adoc[BlockManager] and estimated size of the result shuffle blocks.
+`ShuffleMapTask` is a concrete <<spark-scheduler-Task.adoc#, Task>> that <<runTask, computes a MapStatus>>, i.e. writes the result of executing a <<taskBinary, serialized task code>> over the records (in a <<partition, RDD partition>>) to the link:spark-ShuffleManager.adoc[shuffle system] and returns information about the link:spark-BlockManager.adoc[BlockManager] and estimated size of the result shuffle blocks.
 
-`ShuffleMapTask` is created exclusively when link:spark-scheduler-DAGScheduler.adoc#submitMissingTasks[`DAGScheduler` submits missing tasks for a `ShuffleMapStage`].
+`ShuffleMapTask` is created exclusively when `DAGScheduler` is requested to <<spark-scheduler-DAGScheduler.adoc#submitMissingTasks, submitting missing tasks of a ShuffleMapStage>>.
 
-[[internal-registries]]
-.ShuffleMapTask's Internal Registries and Counters
-[cols="1,2",options="header",width="100%"]
-|===
-| Name
-| Description
+[NOTE]
+====
+Spark uses <<spark-broadcast.adoc#, broadcast variables>> to send (serialized) tasks to executors.
 
-| [[preferredLocs]] `preferredLocs`
-| Collection of link:spark-TaskLocation.adoc[TaskLocations].
+<<runTask, runTask>> expects that the <<taskBinary, serialized task binary>> should be a tuple of a <<spark-rdd-RDD.adoc#, RDD>> and a <<spark-rdd-ShuffleDependency.adoc#, ShuffleDependency>>.
+====
 
-Corresponds directly to unique entries in <<locs, locs>> with the only rule that when `locs` is not defined, it is empty, and no task location preferences are defined.
+[[logging]]
+[TIP]
+====
+Enable `ALL` logging level for `org.apache.spark.scheduler.ShuffleMapTask` logger to see what happens inside.
 
-Initialized when <<creating-instance, `ShuffleMapTask` is created>>.
+Add the following line to `conf/log4j.properties`:
 
-Used exclusively when `ShuffleMapTask` is requested for <<preferredLocations, preferred locations>>.
+```
+log4j.logger.org.apache.spark.scheduler.ShuffleMapTask=ALL
+```
 
-|===
-
-NOTE: Spark uses link:spark-broadcast.adoc[broadcast variables] to send (serialized) tasks to executors.
+Refer to <<spark-logging.adoc#, Logging>>.
+====
 
 === [[creating-instance]] Creating ShuffleMapTask Instance
 
-`ShuffleMapTask` takes the following when created:
+`ShuffleMapTask` takes the following to be created:
 
-* `stageId` -- the link:spark-scheduler-Stage.adoc[stage] of the task
-* `stageAttemptId` -- the stage's attempt
-* `taskBinary` -- the link:spark-broadcast.adoc[broadcast variable] with the serialized task (as an array of bytes)
-* link:spark-rdd-Partition.adoc[Partition]
-* [[locs]] Collection of link:spark-TaskLocation.adoc[TaskLocations]
-* `localProperties` -- task-specific local properties
-* `serializedTaskMetrics` -- the serialized FIXME (as an array of bytes)
-* `jobId` -- optional link:spark-scheduler-ActiveJob.adoc[ActiveJob] id (default: undefined)
-* `appId` -- optional application id (default: undefined)
-* `appAttemptId` -- optional application attempt id (default: undefined)
+* [[stageId]] <<spark-scheduler-Stage.adoc#, Stage>> ID
+* [[stageAttemptId]] Stage attempt ID
+* [[taskBinary]] <<spark-broadcast.adoc#, Broadcast variable>> with the serialized code to execute (`Broadcast[Array[Byte]]`)
+* [[partition]] <<spark-rdd-Partition.adoc#, RDD partition>>
+* [[locs]] link:spark-TaskLocation.adoc[TaskLocations] (`Seq[TaskLocation]`)
+* [[localProperties]] Task-specific local properties
+* [[serializedTaskMetrics]] Serialized task metrics (`Array[Byte]`)
+* [[jobId]] Optional <<spark-scheduler-ActiveJob.adoc#, job>> ID (default: `None`)
+* [[appId]] Optional application ID (default: `None`)
+* [[appAttemptId]] Optional application attempt ID (default: `None`)
+* [[isBarrier]] `isBarrier` flag (default: `false`)
 
 `ShuffleMapTask` calculates <<preferredLocs, preferredLocs>> internal attribute that is the input `locs` if defined. Otherwise, it is empty.
 
-NOTE: `preferredLocs` and `locs` are transient so they are not sent over the wire with the task.
+NOTE: <<preferredLocs, preferredLocs>> and <<locs, locs>> are transient values and so they are not sent over the wire with the task.
 
 `ShuffleMapTask` initializes the <<internal-registries, internal registries and counters>>.
 
-=== [[runTask]] Writing Records (After Computing RDD Partition) to Shuffle System -- `runTask` Method
+=== [[runTask]] Running Task -- `runTask` Method
 
 [source, scala]
 ----
 runTask(context: TaskContext): MapStatus
 ----
 
-NOTE: `runTask` is part of link:spark-scheduler-Task.adoc#contract[Task contract] to...FIXME
+NOTE: `runTask` is part of link:spark-scheduler-Task.adoc#runTask[Task contract] to run a task.
 
-`runTask` computes a link:spark-scheduler-MapStatus.adoc[MapStatus] (which is the link:spark-BlockManager.adoc[BlockManager] and an estimated size of the result shuffle block) after the records of the link:spark-rdd-Partition.adoc[Partition] were written to the link:spark-ShuffleManager.adoc[shuffle system].
+`runTask` writes the result (_records_) of executing the <<taskBinary, serialized task code>> over the records (in the <<partition, RDD partition>>) to the link:spark-ShuffleManager.adoc[shuffle system] and returns a link:spark-scheduler-MapStatus.adoc[MapStatus] (with the link:spark-BlockManager.adoc[BlockManager] and an estimated size of the result shuffle blocks).
 
-Internally, `runTask` uses the link:spark-Serializer.adoc#deserialize[current closure `Serializer` to deserialize the `taskBinary` serialized task] (into a pair of link:spark-rdd.adoc[RDD] and link:spark-rdd-ShuffleDependency.adoc[ShuffleDependency]).
+Internally, `runTask` requests the <<spark-SparkEnv.adoc#, SparkEnv>> for the new instance of <<spark-SparkEnv.adoc#closureSerializer, closure serializer>> and requests it to <<spark-Serializer.adoc#deserialize, deserialize>> the <<taskBinary, taskBinary>> (into a tuple of a <<spark-rdd-RDD.adoc#, RDD>> and a <<spark-rdd-ShuffleDependency.adoc#, ShuffleDependency>>).
 
-`runTask` measures the thread and CPU time for deserialization (using the System clock and JMX if supported) and stores it in `_executorDeserializeTime` and `_executorDeserializeCpuTime` attributes.
+`runTask` measures the <<spark-scheduler-Task.adoc#_executorDeserializeTime, thread>> and <<spark-scheduler-Task.adoc#_executorDeserializeCpuTime, CPU>> deserialization times.
 
-NOTE: `runTask` uses link:spark-SparkEnv.adoc#closureSerializer[`SparkEnv` to access the current closure `Serializer`].
+`runTask` requests the <<spark-SparkEnv.adoc#, SparkEnv>> for the <<spark-SparkEnv.adoc#shuffleManager, ShuffleManager>> and requests it for a <<spark-ShuffleManager.adoc#getWriter, ShuffleWriter>> (for the <<spark-rdd-ShuffleDependency.adoc#shuffleHandle, ShuffleHandle>>, the <<spark-scheduler-Task.adoc#partitionId, RDD partition>>, and the <<spark-TaskContext.adoc#, TaskContext>>).
 
-NOTE: The `taskBinary` serialized task is given when <<creating-instance, `ShuffleMapTask` is created>>.
+`runTask` then requests the <<rdd, RDD>> for the <<spark-rdd-RDD.adoc#iterator, records>> (of the <<partition, partition>>) that the `ShuffleWriter` is requested to <<spark-ShuffleWriter.adoc#write, write out>> (to the shuffle system).
 
-`runTask` requests link:spark-ShuffleManager.adoc#getWriter[`ShuffleManager` for a `ShuffleWriter`] (given the link:spark-rdd-ShuffleDependency.adoc#shuffleHandle[`ShuffleHandle` of the deserialized `ShuffleDependency`], `partitionId` and input link:spark-TaskContext.adoc[TaskContext]).
+In the end, `runTask` requests the `ShuffleWriter` to <<spark-ShuffleWriter.adoc#stop, stop>> (with the `success` flag on) and returns the <<spark-scheduler-MapStatus.adoc#, shuffle map output status>>.
 
-NOTE: `runTask` uses link:spark-SparkEnv.adoc#shuffleManager[`SparkEnv` to access the current `ShuffleManager`].
+NOTE: This is the moment in ``Task``'s lifecycle (and its corresponding RDD) when a link:spark-rdd.adoc#iterator[RDD partition is computed] and in turn becomes a sequence of records (i.e. real data) on an executor.
 
-NOTE: The `partitionId` partition is given when <<creating-instance, `ShuffleMapTask` is created>>.
+In case of any exceptions, `runTask` requests the `ShuffleWriter` to <<spark-ShuffleWriter.adoc#stop, stop>> (with the `success` flag off) and (re)throws the exception.
 
-`runTask` link:spark-rdd.adoc#iterator[gets the records in the RDD partition] (as an `Iterator`) and link:spark-ShuffleWriter.adoc#write[writes them] (to the shuffle system).
-
-NOTE: This is the moment in ``Task``'s lifecycle (and its corresponding RDD) when a link:spark-rdd.adoc#iterator[RDD partition is computed] and in turn becomes a sequence of records (i.e. real data) on a executor.
-
-`runTask` link:spark-ShuffleWriter.adoc#stop[stops the `ShuffleWriter`] (with `success` flag enabled) and returns the `MapStatus`.
-
-When the record writing was not successful, `runTask` link:spark-ShuffleWriter.adoc#stop[stops the `ShuffleWriter`] (with `success` flag disabled) and the exception is re-thrown.
-
-You may also see the following DEBUG message in the logs when the link:spark-ShuffleWriter.adoc#stop[`ShuffleWriter` could not be stopped].
+`runTask` may also print out the following DEBUG message to the logs when the `ShuffleWriter` could not be <<spark-ShuffleWriter.adoc#stop, stopped>>.
 
 ```
 DEBUG Could not stop writer
@@ -91,6 +85,23 @@ DEBUG Could not stop writer
 preferredLocations: Seq[TaskLocation]
 ----
 
-NOTE: `preferredLocations` is part of link:spark-scheduler-Task.adoc#contract[Task contract] to...FIXME
+NOTE: `preferredLocations` is part of link:spark-scheduler-Task.adoc#preferredLocations[Task contract] to...FIXME
 
 `preferredLocations` simply returns <<preferredLocs, preferredLocs>> internal property.
+
+=== [[internal-registries]] Internal Registries and Counters
+
+.ShuffleMapTask's Internal Properties (e.g. Registries, Counters and Flags)
+[cols="1m,3",options="header",width="100%"]
+|===
+| Name
+| Description
+
+| preferredLocs
+| [[preferredLocs]] link:spark-TaskLocation.adoc[TaskLocations] that are the unique entries in the given <<locs, locs>> with the only rule that when `locs` is not defined, it is empty, and no task location preferences are defined.
+
+Initialized when `ShuffleMapTask` is <<creating-instance, created>>
+
+Used exclusively when `ShuffleMapTask` is requested for the <<preferredLocations, preferred locations>>
+
+|===
