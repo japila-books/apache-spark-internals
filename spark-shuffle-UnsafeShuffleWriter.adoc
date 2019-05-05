@@ -1,38 +1,35 @@
 == [[UnsafeShuffleWriter]] UnsafeShuffleWriter -- ShuffleWriter for SerializedShuffleHandle
 
-`UnsafeShuffleWriter` is a concrete link:spark-shuffle-ShuffleWriter.adoc[ShuffleWriter] that is used to <<write, write records>> (i.e. key-value pairs).
+`UnsafeShuffleWriter` is a concrete link:spark-shuffle-ShuffleWriter.adoc[ShuffleWriter] that is used to <<write, write records>> (key-value pairs).
 
-`UnsafeShuffleWriter` is chosen when link:spark-shuffle-SortShuffleManager.adoc#getWriter[`SortShuffleManager` is requested for a `ShuffleWriter`] for a link:spark-shuffle-SerializedShuffleHandle.adoc[SerializedShuffleHandle].
+`UnsafeShuffleWriter` is <<creating-instance, created>> exclusively when `SortShuffleManager` is requested for a <<spark-shuffle-SortShuffleManager.adoc#getWriter, ShuffleWriter>> for a <<spark-shuffle-SerializedShuffleHandle.adoc#, SerializedShuffleHandle>>.
 
-`UnsafeShuffleWriter` can use a specialized NIO-based merge procedure that avoids extra serialization/deserialization.
+`UnsafeShuffleWriter` can use a <<transferToEnabled, specialized NIO-based merge procedure>> that avoids extra serialization/deserialization when <<spark.file.transferTo, spark.file.transferTo>> configuration property (default: `true`) is enabled.
 
-.UnsafeShuffleWriter's Internal Properties
-[cols="1,1,2",options="header",width="100%"]
-|===
-| Name
-| Initial Value
-| Description
+[[DEFAULT_INITIAL_SORT_BUFFER_SIZE]]
+[[initialSortBufferSize]]
+`UnsafeShuffleWriter` uses the <<initialSortBufferSize, initial buffer size for sorting>> (default: `4096`) when creating a <<sorter, ShuffleExternalSorter>> (when requested to <<open, open>>).
 
-| `sorter`
-| (uninitialized)
-| link:spark-shuffle-ShuffleExternalSorter.adoc[ShuffleExternalSorter]
+TIP: Use <<spark-configuration-properties.adoc#spark.shuffle.sort.initialBufferSize, spark.shuffle.sort.initialBufferSize>> configuration property to change the default buffer size.
 
-Initialized when `UnsafeShuffleWriter` <<open, opens>> (which is when <<creating-instance, `UnsafeShuffleWriter` is created>>) and destroyed when it <<closeAndWriteOutput, closes internal resources and writes spill files merged>>.
+[[inputBufferSizeInBytes]]
+`UnsafeShuffleWriter` uses the <<spark-configuration-properties.adoc#spark.shuffle.file.buffer, spark.shuffle.file.buffer>> configuration property (default: `32k`) for...FIXME
 
-Used when `UnsafeShuffleWriter` <<insertRecordIntoSorter, inserts a record into `ShuffleExternalSorter`>>, <<write, writes records>>, <<forceSorterToSpill, forceSorterToSpill>>, <<updatePeakMemoryUsed, updatePeakMemoryUsed>>, <<closeAndWriteOutput, closes internal resources and writes spill files merged>>, <<stop, stops>>.
-|===
+[[outputBufferSizeInBytes]]
+`UnsafeShuffleWriter` uses the <<spark-configuration-properties.adoc#spark.shuffle.unsafe.file.output.buffer, spark.shuffle.unsafe.file.output.buffer>> configuration property (default: `32k`) for...FIXME
 
+[[logging]]
 [TIP]
 ====
-Enable `ERROR` or `DEBUG` logging levels for `org.apache.spark.shuffle.sort.UnsafeShuffleWriter` logger to see what happens in `UnsafeShuffleWriter`.
+Enable `ALL` logging levels for `org.apache.spark.shuffle.sort.UnsafeShuffleWriter` logger to see what happens inside.
 
 Add the following line to `conf/log4j.properties`:
 
 ```
-log4j.logger.org.apache.spark.shuffle.sort.UnsafeShuffleWriter=DEBUG
+log4j.logger.org.apache.spark.shuffle.sort.UnsafeShuffleWriter=ALL
 ```
 
-Refer to link:spark-logging.adoc[Logging].
+Refer to <<spark-logging.adoc#, Logging>>.
 ====
 
 === [[mergeSpillsWithTransferTo]] `mergeSpillsWithTransferTo` Method
@@ -51,14 +48,14 @@ CAUTION: FIXME
 
 CAUTION: FIXME
 
-=== [[write]] Writing Records -- `write` Method
+=== [[write]] Writing Records to Shuffle System -- `write` Method
 
 [source, java]
 ----
-void write(Iterator<Product2<K, V>> records) throws IOException
+void write(Iterator<Product2<K, V>> records)
 ----
 
-NOTE: `write` is part of link:spark-shuffle-ShuffleWriter.adoc#contract[`ShuffleWriter` contract].
+NOTE: `write` is part of the <<spark-shuffle-ShuffleWriter.adoc#write, ShuffleWriter Contract>> to write records to a shuffle system.
 
 Internally, `write` traverses the input sequence of records (for a RDD partition) and <<insertRecordIntoSorter, insertRecordIntoSorter>> one by one. When all the records have been processed, `write` <<closeAndWriteOutput, closes internal resources and writes spill files merged>>.
 
@@ -66,42 +63,38 @@ In the end, `write` link:spark-shuffle-ShuffleExternalSorter.adoc#cleanupResourc
 
 CAUTION: FIXME
 
-=== [[stop]] Stopping UnsafeShuffleWriter -- `stop` Method
+=== [[stop]] Stopping ShuffleWriter -- `stop` Method
 
-[source, java]
+[source, scala]
 ----
 Option<MapStatus> stop(boolean success)
 ----
 
-CAUTION: FIXME
+NOTE: `stop` is part of the <<spark-shuffle-ShuffleWriter.adoc#stop, ShuffleWriter Contract>> to stop the <<spark-shuffle-ShuffleWriter.adoc#, ShuffleWriter>>.
 
-NOTE: `stop` is part of link:spark-shuffle-ShuffleWriter.adoc#contract[`ShuffleWriter` contract].
+`stop`...FIXME
 
 === [[creating-instance]] Creating UnsafeShuffleWriter Instance
 
-`UnsafeShuffleWriter` takes the following when created:
+`UnsafeShuffleWriter` takes the following to be created:
 
-1. link:spark-BlockManager.adoc[BlockManager]
-2. `IndexShuffleBlockResolver`
-3. link:spark-memory-TaskMemoryManager.adoc[TaskMemoryManager]
-4. link:spark-shuffle-SerializedShuffleHandle.adoc[SerializedShuffleHandle]
-5. `mapId`
-6. link:spark-TaskContext.adoc[TaskContext]
-7. link:spark-SparkConf.adoc[SparkConf]
+* [[blockManager]] <<spark-BlockManager.adoc#, BlockManager>>
+* [[shuffleBlockResolver]] <<spark-shuffle-IndexShuffleBlockResolver.adoc#, IndexShuffleBlockResolver>>
+* [[memoryManager]] <<spark-memory-TaskMemoryManager.adoc#, TaskMemoryManager>>
+* [[handle]] <<spark-shuffle-SerializedShuffleHandle.adoc#, SerializedShuffleHandle>>
+* [[mapId]] Map ID
+* [[taskContext]] <<spark-TaskContext.adoc#, TaskContext>>
+* [[sparkConf]] <<spark-SparkConf.adoc#, SparkConf>>
 
-`UnsafeShuffleWriter` makes sure that the number of shuffle output partitions (of the `ShuffleDependency` of the input `SerializedShuffleHandle`) is at most `(1 << 24) - 1`, i.e. `16777215`.
-
-NOTE: The number of shuffle output partitions is first enforced when link:spark-shuffle-SortShuffleManager.adoc#canUseSerializedShuffle[`SortShuffleManager` checks if `SerializedShuffleHandle` can be used for `ShuffleHandle`] (that eventually leads to `UnsafeShuffleWriter`).
-
-`UnsafeShuffleWriter` uses <<spark_file_transferTo, spark.file.transferTo>> and <<spark_shuffle_sort_initialBufferSize, spark.shuffle.sort.initialBufferSize>> Spark properties to initialize `transferToEnabled` and `initialSortBufferSize` attributes, respectively.
-
-If the number of shuffle output partitions is greater than the maximum, `UnsafeShuffleWriter` throws a `IllegalArgumentException`.
+`UnsafeShuffleWriter` requests the <<handle, SerializedShuffleHandle>> for the <<spark-shuffle-BaseShuffleHandle.adoc#dependency, ShuffleDependency>> that is then requested for the <<spark-rdd-ShuffleDependency.adoc#partitioner, Partitioner>> and, in the end, for the <<spark-rdd-Partitioner.adoc#numPartitions, number of partitions>>. `UnsafeShuffleWriter` makes sure that the number of shuffle output partitions is below <<spark-shuffle-SortShuffleManager.adoc#MAX_SHUFFLE_OUTPUT_PARTITIONS_FOR_SERIALIZED_MODE, `(1 << 24)` partition identifiers that can be encoded>> and throws an `IllegalArgumentException` if not met:
 
 ```
 UnsafeShuffleWriter can only be used for shuffles with at most 16777215 reduce partitions
 ```
 
-NOTE: `UnsafeShuffleWriter` is created exclusively when link:spark-shuffle-SortShuffleManager.adoc#getWriter[`SortShuffleManager` selects a `ShuffleWriter`] (for a link:spark-shuffle-SerializedShuffleHandle.adoc[SerializedShuffleHandle]).
+NOTE: The number of shuffle output partitions is first enforced when link:spark-shuffle-SortShuffleManager.adoc#canUseSerializedShuffle[`SortShuffleManager` checks if `SerializedShuffleHandle` can be used for `ShuffleHandle`] (that eventually leads to `UnsafeShuffleWriter`).
+
+In the end, `UnsafeShuffleWriter` <<open, creates a ShuffleExternalSorter and a SerializationStream>>.
 
 === [[open]] Opening UnsafeShuffleWriter (Creating ShuffleExternalSorter and SerializationStream) -- `open` Internal Method
 
@@ -177,21 +170,33 @@ ERROR Error while deleting temp file [path]
 
 NOTE: `closeAndWriteOutput` is used exclusively when <<write, `UnsafeShuffleWriter` writes records>>.
 
-=== [[settings]] Settings
+=== [[internal-registries]] Internal Properties
 
-.Spark Properties
-[cols="1,1,2",options="header",width="100%"]
+.UnsafeShuffleWriter's Internal Properties (e.g. Registries, Counters and Flags)
+[cols="1m,3",options="header",width="100%"]
 |===
-| Spark Property
-| Default Value
+| Name
 | Description
 
-| [[spark_file_transferTo]] `spark.file.transferTo`
-| `true`
-| Controls whether...FIXME
+| partitioner
+a| [[partitioner]]
 
-| [[spark_shuffle_sort_initialBufferSize]] `spark.shuffle.sort.initialBufferSize`
-| `4096` (bytes)
-| Default initial sort buffer size
+| serializer
+a| [[serializer]]
 
+| shuffleId
+a| [[shuffleId]]
+
+| sorter
+a| [[sorter]] link:spark-shuffle-ShuffleExternalSorter.adoc[ShuffleExternalSorter]
+
+Initialized when `UnsafeShuffleWriter` is requested to <<open, open>> (which is when <<creating-instance, created>>) and destroyed when requested to <<closeAndWriteOutput, close internal resources and writes spill files merged>>.
+
+Used when `UnsafeShuffleWriter` <<insertRecordIntoSorter, inserts a record into `ShuffleExternalSorter`>>, <<write, writes records>>, <<forceSorterToSpill, forceSorterToSpill>>, <<updatePeakMemoryUsed, updatePeakMemoryUsed>>, <<closeAndWriteOutput, closes internal resources and writes spill files merged>>, <<stop, stops>>.
+
+| transferToEnabled
+a| [[transferToEnabled]]
+
+| writeMetrics
+a| [[writeMetrics]]
 |===
