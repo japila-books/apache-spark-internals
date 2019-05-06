@@ -1,37 +1,96 @@
-== [[MapStatus]] MapStatus -- Shuffle Map Output Status
+== [[MapStatus]] MapStatus Contract -- Shuffle Map Output Status
 
-`MapStatus` is the link:spark-scheduler-ShuffleMapTask.adoc#runTask[result of running a `ShuffleMapTask`] that includes <<contract, information about the `BlockManager` and estimated size of the reduce blocks>>.
+`MapStatus` is the <<contract, abstraction>> of <<implementations, shuffle map output statuses>> that are metadata of shuffle map outputs with <<getSizeForBlock, estimated size for the reduce block>> and <<location, block location>>.
 
-There are two types of `MapStatus`:
+`MapStatus` is <<apply, created>> as the result of <<spark-scheduler-ShuffleMapTask.adoc#runTask, executing a ShuffleMapTask>> (after a <<spark-shuffle-ShuffleManager.adoc#getWriter, ShuffleWriter>> has <<spark-shuffle-ShuffleWriter.adoc#stop, finished writing partition records successfully>>).
 
-* *CompressedMapStatus* that compresses the estimated map output size to 8 bits (`Byte`) for efficient reporting.
-* *HighlyCompressedMapStatus* that stores the average size of non-empty blocks, and a compressed bitmap for tracking which blocks are empty.
+After a <<spark-scheduler-ShuffleMapTask.adoc#runTask, ShuffleMapTask has finished execution successfully>>, `DAGScheduler` is requested to <<spark-scheduler-DAGScheduler.adoc#handleTaskCompletion, handleTaskCompletion>> (of the `ShuffleMapTask`) that requests the <<spark-scheduler-DAGScheduler.adoc#mapOutputTracker, MapOutputTrackerMaster>> to <<spark-service-MapOutputTrackerMaster.adoc#registerMapOutput, register the MapStatus>>.
 
-When the number of blocks (the size of `uncompressedSizes`) is greater than *2000*, `HighlyCompressedMapStatus` is chosen.
-
-CAUTION: FIXME What exactly is 2000? Is this the number of tasks in a job?
-
-=== [[contract]] `MapStatus` Contract
-
-[source, scala]
-----
-trait MapStatus {
-  def location: BlockManagerId
-  def getSizeForBlock(reduceId: Int): Long
-}
-----
-
-NOTE: `MapStatus` is a `private[spark]` contract.
-
-.`MapStatus` Contract
-[cols="1,2",options="header",width="100%"]
+[[contract]]
+.MapStatus Contract
+[cols="1m,3",options="header",width="100%"]
 |===
 | Method
 | Description
 
-| [[location]] `location`
-| The link:spark-BlockManager.adoc[BlockManager] where a `ShuffleMapTask` ran and the result is stored.
+| getSizeForBlock
+a| [[getSizeForBlock]]
 
-| [[getSizeForBlock]] `getSizeForBlock`
-| The estimated size for the reduce block (in bytes).
+[source, scala]
+----
+getSizeForBlock(reduceId: Int): Long
+----
+
+Estimated size for the reduce block (in bytes)
+
+Used when:
+
+* `MapOutputTrackerMaster` is requested for a <<spark-service-MapOutputTrackerMaster.adoc#getStatistics, MapOutputStatistics>> and <<spark-service-MapOutputTrackerMaster.adoc#getLocationsWithLargestOutputs, locations with largest number of shuffle map outputs>>
+
+* `MapOutputTracker` object is requested to <<spark-service-mapoutputtracker.adoc#convertMapStatuses, convert MapStatuses To BlockManagerIds with ShuffleBlockIds and Their Sizes>>
+
+| location
+a| [[location]]
+
+[source, scala]
+----
+location: BlockManagerId
+----
+
+Block location, i.e. the <<spark-BlockManager.adoc#, BlockManager>> where a `ShuffleMapTask` ran and the result is stored.
+
+Used when:
+
+* `DAGScheduler` is requested to <<spark-scheduler-DAGScheduler.adoc#handleTaskCompletion, handleTaskCompletion>> (of a `ShuffleMapTask`)
+
+* `ShuffleStatus` is requested to `removeMapOutput` and `removeOutputsByFilter`
+
+* `MapOutputTrackerMaster` is requested for <<spark-service-MapOutputTrackerMaster.adoc#getLocationsWithLargestOutputs, locations with largest number of shuffle map outputs>>
+
+* `MapOutputTracker` object is requested to <<spark-service-mapoutputtracker.adoc#convertMapStatuses, convert MapStatuses To BlockManagerIds with ShuffleBlockIds and Their Sizes>>
+
 |===
+
+[[implementations]]
+.MapStatuses
+[cols="1m,3",options="header",width="100%"]
+|===
+| MapStatus
+| Description
+
+| CompressedMapStatus
+| [[CompressedMapStatus]] Default `MapStatus` that compresses the <<getSizeForBlock, estimated map output size>> to 8 bits (`Byte`) for efficient reporting
+
+| HighlyCompressedMapStatus
+| [[HighlyCompressedMapStatus]] Stores the average size of non-empty blocks, and a compressed bitmap for tracking which blocks are empty. Used when the number of partitions is above the <<minPartitionsToUseHighlyCompressMapStatus, spark.shuffle.minNumPartitionsToHighlyCompress>> threshold
+
+|===
+
+[[minPartitionsToUseHighlyCompressMapStatus]]
+`MapStatus` object uses <<spark-configuration-properties.adoc#spark.shuffle.minNumPartitionsToHighlyCompress, spark.shuffle.minNumPartitionsToHighlyCompress>> internal configuration property for the *minimum number of partitions* threshold to create a <<spark-scheduler-MapStatus.adoc#HighlyCompressedMapStatus, HighlyCompressedMapStatus>> when requested to <<apply, create a MapStatus>>.
+
+=== [[apply]] Creating MapStatus -- `apply` Factory Method
+
+[source, scala]
+----
+apply(
+  loc: BlockManagerId,
+  uncompressedSizes: Array[Long]): MapStatus
+----
+
+`apply` creates a concrete <<MapStatus, MapStatus>> per the size of the given `uncompressedSizes` array:
+
+* <<HighlyCompressedMapStatus, HighlyCompressedMapStatus>> when above the <<minPartitionsToUseHighlyCompressMapStatus, minPartitionsToUseHighlyCompressMapStatus>> threshold
+
+* <<CompressedMapStatus, CompressedMapStatus>> otherwise
+
+[NOTE]
+====
+`apply` is used when:
+
+* `SortShuffleWriter` is requested to <<spark-shuffle-SortShuffleWriter.adoc#write, write records (into shuffle partitioned file in disk store)>>
+
+* `BypassMergeSortShuffleWriter` is requested to <<spark-shuffle-BypassMergeSortShuffleWriter.adoc#write, write records (into one single shuffle block data file)>>
+
+* `UnsafeShuffleWriter` is requested to <<spark-shuffle-UnsafeShuffleWriter.adoc#closeAndWriteOutput, close the internal resources and write out merged spill files>>
+====
