@@ -2,64 +2,38 @@
 
 `DiskBlockManager` creates and maintains the logical mapping between logical blocks and physical on-disk locations.
 
-By default, one block is mapped to one file with a name given by its BlockId. It is however possible to have a block map to only a segment of a file.
+By default, one block is mapped to one file with a name given by its `BlockId`. It is however possible to have a block map to only a segment of a file.
 
 Block files are hashed among the <<getConfiguredLocalDirs, local directories>>.
 
 NOTE: `DiskBlockManager` is used exclusively by link:spark-DiskStore.adoc[DiskStore] and created when link:spark-BlockManager.adoc#creating-instance[`BlockManager` is created] (and passed to `DiskStore`).
 
-[[internal-registries]]
-.DiskBlockManager's Internal Properties (e.g. Registries, Counters and Flags)
-[cols="1,2",options="header",width="100%"]
-|===
-| Name
-| Description
-
-| [[localDirs]] `localDirs`
-a| Local directories for storing block data
-
-`localDirs` is initialized using <<createLocalDirs, createLocalDirs>>.
-
-NOTE: There has to be at least one local directory or `DiskBlockManager` cannot be <<creating-instance, created>>.
-
----
-
-Used when:
-
-* `DiskBlockManager` is requested to <<getFile, getFile>>, initialize <<subDirs, subDirs>> and <<doStop, stop>>
-
-* `BlockManager` is requested to link:spark-BlockManager.adoc#registerWithExternalShuffleServer[register the executor's BlockManager with an external shuffle server]
-
-* PySpark's `BasePythonRunner` is requested to `compute`
-
-| [[subDirsPerLocalDir]] `subDirsPerLocalDir`
-a| The value of <<spark.diskStore.subDirectories, spark.diskStore.subDirectories>> Spark configuration property or `64`.
-
----
-
-Used when:
-
-* `DiskBlockManager` is <<subDirs, created>> and is requested to <<getFile, getFile>>
-
-* `BlockManager` is requested to link:spark-BlockManager.adoc#registerWithExternalShuffleServer[register the executor's BlockManager with an external shuffle server]
-|===
-
+[[logging]]
 [TIP]
 ====
-Enable `INFO` or `DEBUG` logging levels for `org.apache.spark.storage.DiskBlockManager` logger to see what happens inside.
+Enable `ALL` logging level for `org.apache.spark.storage.DiskBlockManager` logger to see what happens inside.
 
 Add the following line to `conf/log4j.properties`:
 
 ```
-log4j.logger.org.apache.spark.storage.DiskBlockManager=DEBUG
+log4j.logger.org.apache.spark.storage.DiskBlockManager=ALL
 ```
 
-Refer to link:spark-logging.adoc[Logging].
+Refer to <<spark-logging.adoc#, Logging>>.
 ====
 
-=== [[getFile]] Finding File -- `getFile` Method
+=== [[getFile]] Finding Block File -- `getFile` Method
 
-CAUTION: FIXME
+[source, scala]
+----
+getFile(blockId: BlockId): File // <1>
+getFile(filename: String): File
+----
+<1> Uses `getFile` with the name of the given `BlockId`
+
+`getFile`...FIXME
+
+NOTE: `getFile` is used when...FIXME
 
 === [[createTempShuffleBlock]] `createTempShuffleBlock` Method
 
@@ -90,7 +64,7 @@ NOTE: `getAllFiles` is used exclusively when `DiskBlockManager` is requested to 
 DiskBlockManager(conf: SparkConf, deleteFilesOnStop: Boolean)
 ----
 
-When created, `DiskBlockManager` uses <<spark_diskStore_subDirectories, spark.diskStore.subDirectories>> to set `subDirsPerLocalDir`.
+When created, `DiskBlockManager` uses <<spark-configuration-properties.adoc#spark.diskStore.subDirectories, spark.diskStore.subDirectories>> configuration property to set `subDirsPerLocalDir`.
 
 `DiskBlockManager` <<createLocalDirs, creates one or many local directories to store block data>> (as <<localDirs, localDirs>>). When not successful, you should see the following ERROR message in the logs and `DiskBlockManager` exits with error code `53`.
 
@@ -248,16 +222,35 @@ NOTE: `subDirs(n)` is to access ``n``-th local directory.
 
 NOTE: `subDirs` is used when `DiskBlockManager` is requested to <<getFile, getFile>> or <<getAllFiles, getAllFiles>>.
 
-=== [[settings]] Settings
+=== [[internal-registries]] Internal Properties
 
-.Spark Properties
-[cols="1,1,2",options="header",width="100%"]
+.DiskBlockManager's Internal Properties (e.g. Registries, Counters and Flags)
+[cols="1m,3",options="header",width="100%"]
 |===
-| Spark Property
-| Default Value
+| Name
 | Description
 
-| [[spark_diskStore_subDirectories]][[spark.diskStore.subDirectories]] `spark.diskStore.subDirectories`
-| `64`
-| The number of ...FIXME
+| localDirs
+a| [[localDirs]] Local directories for block data
+
+`localDirs` is initialized using <<createLocalDirs, createLocalDirs>>.
+
+There has to be at least one local directory or `DiskBlockManager` cannot be <<creating-instance, created>>.
+
+Used when:
+
+* `DiskBlockManager` is requested to <<getFile, getFile>>, initialize <<subDirs, subDirs>> and <<doStop, stop>>
+
+* `BlockManager` is requested to link:spark-BlockManager.adoc#registerWithExternalShuffleServer[register the executor's BlockManager with an external shuffle server]
+
+* PySpark's `BasePythonRunner` is requested to `compute`
+
+| subDirsPerLocalDir
+a| [[subDirsPerLocalDir]] <<spark-configuration-properties.adoc#spark.diskStore.subDirectories, spark.diskStore.subDirectories>> configuration property (default: `64`)
+
+Used when:
+
+* `DiskBlockManager` is <<subDirs, created>> and is requested to <<getFile, getFile>>
+
+* `BlockManager` is requested to link:spark-BlockManager.adoc#registerWithExternalShuffleServer[register the executor's BlockManager with an external shuffle server]
 |===
