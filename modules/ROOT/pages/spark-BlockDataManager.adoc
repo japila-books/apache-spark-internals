@@ -1,83 +1,82 @@
-== [[BlockDataManager]] BlockDataManager -- Block Storage Management API
+= [[BlockDataManager]] BlockDataManager Contract -- Block Storage Management API
 
-`BlockDataManager` is the <<contract, contract>> for managing storage for blocks of data (aka _block storage management API_).
+`BlockDataManager` is the <<contract, abstraction>> of <<implementations, block data managers>> that manage storage for blocks of data (aka _block storage management API_).
+
+`BlockDataManager` uses <<spark-BlockId.adoc#, BlockIds>> to identify blocks of data globally.
+
+[[implementations]]
+NOTE: <<spark-BlockManager.adoc#, BlockManager>> is the default and only implementation of the <<contract, BlockDataManager Contract>> in Apache Spark.
 
 [[contract]]
-[source, scala]
-----
-package org.apache.spark.network
-
-trait BlockDataManager {
-  def getBlockData(blockId: BlockId): ManagedBuffer
-  def putBlockData(
-    blockId: BlockId,
-    data: ManagedBuffer,
-    level: StorageLevel,
-    classTag: ClassTag[_]): Boolean
-  def releaseLock(blockId: BlockId, taskAttemptId: Option[Long]): Unit
-}
-----
-
-NOTE: `BlockDataManager` is a `private[spark]` contract.
-
 .BlockDataManager Contract
-[cols="1,2",options="header",width="100%"]
+[cols="1m,3",options="header",width="100%"]
 |===
 | Method
 | Description
 
-| `getBlockData`
-a| [[getBlockData]] Fetches a local block data by `blockId`
+| getBlockData
+a| [[getBlockData]]
+
+[source, scala]
+----
+getBlockData(blockId: BlockId): ManagedBuffer
+----
+
+Fetches a block data (as a <<spark-ManagedBuffer.adoc#, ManagedBuffer>>) for the given <<spark-BlockId.adoc#, BlockId>>
 
 Used when:
 
-* `NettyBlockRpcServer` is requested to link:spark-NettyBlockRpcServer.adoc#receive-OpenBlocks[handle an OpenBlocks message]
+* `NettyBlockRpcServer` is requested to <<spark-NettyBlockRpcServer.adoc#receive-OpenBlocks, handle a OpenBlocks message>>
 
-* `ShuffleBlockFetcherIterator` is requested to link:spark-ShuffleBlockFetcherIterator.adoc#fetchLocalBlocks[fetchLocalBlocks]
+* `ShuffleBlockFetcherIterator` is requested to <<spark-ShuffleBlockFetcherIterator.adoc#fetchLocalBlocks, fetchLocalBlocks>>
 
-| `putBlockData`
-| [[putBlockData]] Uploads a block data locally by `blockId`. The return value says whether the operation has succeeded (`true`) or failed (`false`).
+| putBlockData
+a| [[putBlockData]]
 
-Used when...FIXME
+[source, scala]
+----
+putBlockData(
+  blockId: BlockId,
+  data: ManagedBuffer,
+  level: StorageLevel,
+  classTag: ClassTag[_]): Boolean
+----
 
-| `releaseLock`
-| [[releaseLock]] Releases the lock for <<getBlockData, getBlockData>> and <<putBlockData, putBlockData>> methods
+Stores (_puts_) a block data (as a <<spark-ManagedBuffer.adoc#, ManagedBuffer>>) for the given <<spark-BlockId.adoc#, BlockId>>. Returns `true` when completed successfully or `false` when failed.
 
-Used when...FIXME
+Used exclusively when `NettyBlockRpcServer` is requested to <<spark-NettyBlockRpcServer.adoc#receive-UploadBlock, handle an UploadBlock message>>
+
+| putBlockDataAsStream
+a| [[putBlockDataAsStream]]
+
+[source, scala]
+----
+putBlockDataAsStream(
+  blockId: BlockId,
+  level: StorageLevel,
+  classTag: ClassTag[_]): StreamCallbackWithID
+----
+
+Stores a block data that will be received as a stream
+
+Used exclusively when `NettyBlockRpcServer` is requested to <<spark-NettyBlockRpcServer.adoc#receiveStream, receiveStream>>
+
+| releaseLock
+a| [[releaseLock]]
+
+[source, scala]
+----
+releaseLock(
+  blockId: BlockId,
+  taskAttemptId: Option[Long]): Unit
+----
+
+Releases a lock
+
+Used when:
+
+* `TorrentBroadcast` is requested to <<spark-TorrentBroadcast.adoc#releaseLock, releaseLock>
+
+* `BlockManager` is requested to <<spark-BlockManager.adoc#handleLocalReadFailure, handleLocalReadFailure>>, <<spark-BlockManager.adoc#getLocalValues, getLocalValues>>, <<spark-BlockManager.adoc#getOrElseUpdate, getOrElseUpdate>>, <<spark-BlockManager.adoc#doPut, doPut>>, and <<spark-BlockManager.adoc#releaseLockAndDispose, releaseLockAndDispose>>
+
 |===
-
-Blocks are identified by `BlockId` that has a globally unique identifier (`name`) and stored as <<ManagedBuffer, ManagedBuffer>>.
-
-[[BlockId]]
-.BlockIds
-[width="100%",cols="1,2",options="header"]
-|===
-| Name
-| Description
-
-| [[RDDBlockId]] RDDBlockId
-| Described by RDD ID (`rddId`) and a partition index (`splitIndex`)
-
-Created when an `RDD` is requested to link:spark-rdd-RDD.adoc#getOrCompute[get or compute an RDD partition] (identified by `splitIndex`).
-
-| [[ShuffleBlockId]] `ShuffleBlockId`
-| Described by `shuffleId`, `mapId` and `reduceId`
-
-| [[ShuffleDataBlockId]] ShuffleDataBlockId
-| Described by `shuffleId`, `mapId` and `reduceId`
-
-| [[ShuffleIndexBlockId]] ShuffleIndexBlockId
-| Described by `shuffleId`, `mapId` and `reduceId`
-
-| [[BroadcastBlockId]] `BroadcastBlockId`
-| Described by `broadcastId` identifier and optional `field`
-
-| [[TaskResultBlockId]] TaskResultBlockId
-| Described by `taskId`
-
-| [[StreamBlockId]] StreamBlockId
-| Described by `streamId` and `uniqueId`
-|===
-
-[[implementations]]
-NOTE: link:spark-BlockManager.adoc[BlockManager] is the one and only known implementation of <<contract, BlockDataManager Contract>> in Apache Spark.
