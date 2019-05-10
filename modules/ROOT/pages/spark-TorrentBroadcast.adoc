@@ -36,6 +36,9 @@ _value: T
 
 NOTE: `_value` is a `@transient private lazy val` which means that it is not serialized to be sent remotely and instantiated when first requested.
 
+[[broadcastId]]
+`TorrentBroadcast` uses a <<spark-BlockId.adoc#BroadcastBlockId, BroadcastBlockId>> for...FIXME
+
 [TIP]
 ====
 Enable `INFO` or `DEBUG` logging levels for `org.apache.spark.broadcast.TorrentBroadcast` logger to see what happens inside.
@@ -126,13 +129,13 @@ setConf(conf: SparkConf): Unit
 
 `setConf` uses the input `conf` link:spark-SparkConf.adoc[SparkConf] to set compression codec and the block size.
 
-Internally, `setConf` reads link:spark-service-broadcastmanager.adoc#spark_broadcast_compress[spark.broadcast.compress] Spark property and if enabled (which it is by default) sets a link:spark-CompressionCodec.adoc#createCodec[CompressionCodec] (as an internal `compressionCodec` property).
+Internally, `setConf` reads <<spark-service-broadcastmanager.adoc#spark.broadcast.compress, spark.broadcast.compress>> Spark property and if enabled (which it is by default) sets a link:spark-CompressionCodec.adoc#createCodec[CompressionCodec] (as an internal `compressionCodec` property).
 
 `setConf` also reads link:spark-service-broadcastmanager.adoc#spark_broadcast_blockSize[spark.broadcast.blockSize] Spark property and sets the block size (as the internal `blockSize` property).
 
 NOTE: `setConf` is executed when <<creating-instance, `TorrentBroadcast` is created>> or <<readBroadcastBlock, re-created when deserialized on executors>>.
 
-=== [[writeBlocks]] Storing Broadcast and Its Blocks in Local BlockManager -- `writeBlocks` Internal Method
+=== [[writeBlocks]] Storing Broadcast and Blocks in Local BlockManager -- `writeBlocks` Internal Method
 
 [source, scala]
 ----
@@ -149,7 +152,7 @@ If storing the broadcast block fails, you should see the following `SparkExcepti
 Failed to store [broadcastId] in BlockManager
 ```
 
-`writeBlocks` divides `value` into blocks (of link:spark-service-broadcastmanager.adoc#spark_broadcast_blockSize[spark.broadcast.blockSize] size) using the link:spark-SparkEnv.adoc#serializer[Serializer] and an optional link:spark-CompressionCodec.adoc[CompressionCodec] (enabled by link:spark-service-broadcastmanager.adoc#spark_broadcast_compress[spark.broadcast.compress]). Every block gets its own `BroadcastBlockId` (with `piece` and an index) that is wrapped inside a `ChunkedByteBuffer`. link:spark-BlockManager.adoc#putBytes[Blocks are stored in the local `BlockManager`] (using the `piece` block id, `MEMORY_AND_DISK_SER` storage level and informing the driver).
+`writeBlocks` divides `value` into blocks (of link:spark-service-broadcastmanager.adoc#spark_broadcast_blockSize[spark.broadcast.blockSize] size) using the link:spark-SparkEnv.adoc#serializer[Serializer] and an optional link:spark-CompressionCodec.adoc[CompressionCodec] (enabled by <<spark-service-broadcastmanager.adoc#spark.broadcast.compress, spark.broadcast.compress>>). Every block gets its own `BroadcastBlockId` (with `piece` and an index) that is wrapped inside a `ChunkedByteBuffer`. link:spark-BlockManager.adoc#putBytes[Blocks are stored in the local `BlockManager`] (using the `piece` block id, `MEMORY_AND_DISK_SER` storage level and informing the driver).
 
 NOTE: The entire broadcast value is stored in the local `BlockManager` with `MEMORY_AND_DISK` storage level, and the pieces with `MEMORY_AND_DISK_SER` storage level.
 
@@ -231,7 +234,7 @@ NOTE: `unpersist` uses link:spark-SparkEnv.adoc#blockManager[`SparkEnv` to get t
 
 `TorrentBroadcast` initializes the <<internal-registries, internal registries and counters>>.
 
-=== [[readBlocks]] `readBlocks` Internal Method
+=== [[readBlocks]] Reading Blocks -- `readBlocks` Internal Method
 
 [source, scala]
 ----

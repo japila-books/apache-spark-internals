@@ -1,31 +1,115 @@
-= [[BlockId]] BlockId
+= [[BlockId]] BlockId -- Named Block Data Identifier
 
+`BlockId` is the <<contract, abstraction>> of <<implementations, block data identifiers>> that are uniquely identified by a <<name, name>>.
+
+[[contract]]
+.BlockId Contract (Abstract Methods Only)
+[%autowidth.spread,cols="20m,80",options="header"]
+|===
+| Method
+| Description
+
+| name
+a| [[name]]
+
+[source, scala]
+----
+name: String
+----
+
+Used when...FIXME
+
+|===
+
+NOTE: `BlockId` is a Scala sealed abstract class and so all the possible <<implementations, implementations>> are in the single Scala file alongside `BlockId`.
+
+[[implementations]]
 .BlockIds
 [cols="1m,3",options="header",width="100%"]
 |===
-| Name
+| BlockId
 | Description
 
-| RDDBlockId
-| [[RDDBlockId]] Described by RDD ID (`rddId`) and a partition index (`splitIndex`)
+| BroadcastBlockId
+a| [[BroadcastBlockId]] `BlockId` for <<spark-broadcast.adoc#, broadcast variables>> with `broadcastId` identifier and optional `field` name (default: `empty`)
 
-Created when an `RDD` is requested to link:spark-rdd-RDD.adoc#getOrCompute[get or compute an RDD partition] (identified by `splitIndex`).
+Uses `broadcast_` prefix for the <<name, name>>
+
+Used when:
+
+* `TorrentBroadcast` is <<spark-TorrentBroadcast.adoc#broadcastId, created>>, requested to <<spark-TorrentBroadcast.adoc#writeBlocks, store a broadcast and the blocks in a local BlockManager>>, and <<readBlocks, read blocks>>
+
+* `BlockManager` is requested to <<spark-BlockManager.adoc#removeBroadcast, remove all the blocks of a broadcast variable>>
+
+* `AppStatusListener` is requested to <<spark-SparkListener-AppStatusListener.adoc#updateBroadcastBlock, updateBroadcastBlock>> (when <<spark-SparkListener-AppStatusListener.adoc#onBlockUpdated, onBlockUpdated>> for a `BroadcastBlockId`)
+
+<<spark-SerializerManager.adoc#shouldCompress, Compressed>> when <<spark-service-broadcastmanager.adoc#spark.broadcast.compress, spark.broadcast.compress>> configuration property is enabled (default: `true`)
+
+| RDDBlockId
+a| [[RDDBlockId]] `BlockId` for RDD partitions with `rddId` and `splitIndex` identifiers
+
+Uses `rdd_` prefix for the <<name, name>>
+
+Used when:
+
+* `StorageStatus` is requested to <<spark-blockmanager-StorageStatus.adoc#addBlock, register the status of a data block>>, <<spark-blockmanager-StorageStatus.adoc#getBlock, get the status of a data block>>, <<spark-blockmanager-StorageStatus.adoc#updateStorageInfo, updateStorageInfo>>
+
+* `LocalCheckpointRDD` is requested to `compute` a partition
+
+* `LocalRDDCheckpointData` is requested to `doCheckpoint`
+
+* `RDD` is requested to <<spark-rdd-RDD.adoc#getOrCompute, getOrCompute>>
+
+* `DAGScheduler` is requested for the <<spark-scheduler-DAGScheduler.adoc#getCacheLocs, BlockManagers (executors) for cached RDD partitions>>
+
+* `AppStatusListener` is requested to <<spark-SparkListener-AppStatusListener.adoc#updateRDDBlock, updateRDDBlock>> (when <<spark-SparkListener-AppStatusListener.adoc#onBlockUpdated, onBlockUpdated>> for a `RDDBlockId`)
+
+<<spark-SerializerManager.adoc#shouldCompress, Compressed>> when <<spark-SerializerManager.adoc#spark.rdd.compress, spark.rdd.compress>> configuration property is enabled (default: `false`)
 
 | ShuffleBlockId
-| [[ShuffleBlockId]] Described by `shuffleId`, `mapId` and `reduceId`
+a| [[ShuffleBlockId]] `BlockId` for _FIXME_ with `shuffleId`, `mapId`, and `reduceId` identifiers
+
+Uses `shuffle_` prefix for the <<name, name>>
+
+Used when:
+
+* `ShuffleBlockFetcherIterator` is requested to <<spark-ShuffleBlockFetcherIterator.adoc#throwFetchFailedException, throwFetchFailedException>>
+
+* `MapOutputTracker` object is requested to <<spark-service-mapoutputtracker.adoc#convertMapStatuses, convertMapStatuses>>
+
+* `SortShuffleWriter` is requested to <<spark-shuffle-SortShuffleWriter.adoc#write, write partition records>>
+
+* `ShuffleBlockResolver` is requested for a <<spark-shuffle-ShuffleBlockResolver.adoc#getBlockData, ManagedBuffer to read shuffle block data file>>
+
+<<spark-SerializerManager.adoc#shouldCompress, Compressed>> when <<spark-SerializerManager.adoc#spark.shuffle.compress, spark.shuffle.compress>> configuration property is enabled (default: `true`)
 
 | ShuffleDataBlockId
-| [[ShuffleDataBlockId]] Described by `shuffleId`, `mapId` and `reduceId`
+| [[ShuffleDataBlockId]]
 
 | ShuffleIndexBlockId
-| [[ShuffleIndexBlockId]] Described by `shuffleId`, `mapId` and `reduceId`
-
-| BroadcastBlockId
-| [[BroadcastBlockId]] Described by `broadcastId` identifier and optional `field`
-
-| TaskResultBlockId
-| [[TaskResultBlockId]] Described by `taskId`
+| [[ShuffleIndexBlockId]]
 
 | StreamBlockId
-| [[StreamBlockId]] Described by `streamId` and `uniqueId`
+| [[StreamBlockId]]
+
+| TaskResultBlockId
+| [[TaskResultBlockId]]
+
+| TempLocalBlockId
+| [[TempLocalBlockId]]
+
+| TempShuffleBlockId
+| [[TempShuffleBlockId]]
+
 |===
+
+== [[apply]] Creating BlockId -- `apply` Factory Method
+
+[source, scala]
+----
+apply(name: String): BlockId
+----
+
+`apply` simply creates a concrete <<implementations, BlockId>> by the given name.
+
+NOTE: `apply` is used when...FIXME
