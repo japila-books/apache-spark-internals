@@ -1,34 +1,34 @@
-== [[Executor]] Executor
+= [[Executor]] Executor
 
-`Executor` is a distributed agent that is responsible for executing link:spark-scheduler-Task.adoc[tasks].
+`Executor` is a distributed agent that is responsible for executing <<spark-scheduler-Task.adoc#, tasks>>.
 
 `Executor` is created when:
 
-* `CoarseGrainedExecutorBackend` link:spark-CoarseGrainedExecutorBackend.adoc#RegisteredExecutor[receives `RegisteredExecutor` message] (for Spark Standalone and YARN)
+* `CoarseGrainedExecutorBackend` <<spark-CoarseGrainedExecutorBackend.adoc#RegisteredExecutor, receives `RegisteredExecutor` message>> (for Spark Standalone and YARN)
 
-* Spark on Mesos's `MesosExecutorBackend` link:spark-mesos/spark-executor-backends-MesosExecutorBackend.adoc#registered[does `registered`]
+* Spark on Mesos's `MesosExecutorBackend` is requested to xref:spark-on-mesos:spark-executor-backends-MesosExecutorBackend.adoc#registered[registered]
 
-* `LocalEndpoint` link:local/spark-LocalEndpoint.adoc#creating-instance[is created] (for local mode)
+* xref:spark-local:spark-LocalEndpoint.adoc[LocalEndpoint] is created (for local mode)
 
-`Executor` _typically_ runs for the entire lifetime of a Spark application which is called *static allocation of executors* (but you could also opt in for link:spark-dynamic-allocation.adoc[dynamic allocation]).
+`Executor` _typically_ runs for the entire lifetime of a Spark application which is called *static allocation of executors* (but you could also opt in for <<spark-dynamic-allocation.adoc#, dynamic allocation>>).
 
-NOTE: Executors are managed exclusively by link:spark-ExecutorBackend.adoc[executor backends].
+NOTE: Executors are managed exclusively by <<spark-ExecutorBackend.adoc#, executor backends>>.
 
-Executors <<startDriverHeartbeater, reports heartbeat and partial metrics for active tasks>> to <<heartbeatReceiverRef, `HeartbeatReceiver` RPC Endpoint>> on the driver.
+Executors <<startDriverHeartbeater, reports heartbeat and partial metrics for active tasks>> to the <<heartbeatReceiverRef, HeartbeatReceiver RPC Endpoint>> on the driver.
 
 .HeartbeatReceiver's Heartbeat Message Handler
 image::spark-HeartbeatReceiver-Heartbeat.png[align="center"]
 
-Executors provide in-memory storage for RDDs that are cached in Spark applications (via link:spark-BlockManager.adoc[Block Manager]).
+Executors provide in-memory storage for RDDs that are cached in Spark applications (via <<spark-BlockManager.adoc#, Block Manager>>).
 
-When an executor starts it first registers with the driver and communicates directly to execute tasks.
+When started, an executor first registers itself with the driver that establishes a communication channel directly to the driver to accept tasks for execution.
 
 .Launching tasks on executor using TaskRunners
 image::executor-taskrunner-executorbackend.png[align="center"]
 
 *Executor offers* are described by executor id and the host on which an executor runs (see <<resource-offers, Resource Offers>> in this document).
 
-Executors can run multiple tasks over its lifetime, both in parallel and sequentially. They track link:spark-Executor-TaskRunner.adoc[running tasks] (by their task ids in <<runningTasks, runningTasks>> internal registry). Consult <<launchTask, Launching Tasks>> section.
+Executors can run multiple tasks over its lifetime, both in parallel and sequentially. They track <<spark-Executor-TaskRunner.adoc#, running tasks>> (by their task ids in <<runningTasks, runningTasks>> internal registry). Consult <<launchTask, Launching Tasks>> section.
 
 Executors use a <<threadPool, Executor task launch worker thread pool>> for <<launchTask, launching tasks>>.
 
@@ -36,98 +36,36 @@ Executors send <<metrics, metrics>> (and heartbeats) using the <<heartbeater, in
 
 It is recommended to have as many executors as data nodes and as many cores as you can get from the cluster.
 
-Executors are described by their *id*, *hostname*, *environment* (as `SparkEnv`), and *classpath* (and, less importantly, and more for internal optimization, whether they run in link:local/spark-local.adoc[local] or link:spark-cluster.adoc[cluster mode]).
-
-CAUTION: FIXME How many cores are assigned per executor?
-
-[[internal-properties]]
-.Executor's Internal Properties
-[cols="1,1,2",options="header",width="100%"]
-|===
-| Name
-| Initial Value
-| Description
-
-| [[executorSource]] executorSource
-| link:spark-executor-ExecutorSource.adoc[ExecutorSource]
-| FIXME
-|===
-
-.Executor's Internal Registries and Counters
-[cols="1m,3",options="header",width="100%"]
-|===
-| Name
-| Description
-
-| heartbeatFailures
-| [[heartbeatFailures]]
-
-| heartbeatReceiverRef
-| [[heartbeatReceiverRef]] link:spark-RpcEndpointRef.adoc[RPC endpoint reference] to link:spark-HeartbeatReceiver.adoc[HeartbeatReceiver] on the driver (available on link:spark-driver.adoc#spark.driver.host[spark.driver.host] at link:spark-driver.adoc#spark.driver.port[spark.driver.port] port).
-
-Set when `Executor` <<creating-instance, is created>>.
-
-Used exclusively when `Executor` <<reportHeartBeat, reports heartbeats and partial metrics for active tasks to the driver>> (that happens every <<spark.executor.heartbeatInterval, spark.executor.heartbeatInterval>> interval).
-
-| maxDirectResultSize
-| [[maxDirectResultSize]]
-
-| maxResultSize
-a| [[maxResultSize]]
-
-Used exclusively when `TaskRunner` is requested to <<spark-Executor-TaskRunner.adoc#run, run>> (and creates a serialized `ByteBuffer` result that is a `IndirectTaskResult`)
-
-| runningTasks
-| [[runningTasks]] Lookup table of link:spark-Executor-TaskRunner.adoc[TaskRunners] per...FIXME
-|===
+Executors are described by their *id*, *hostname*, *environment* (as `SparkEnv`), and *classpath* (and, less importantly, and more for internal optimization, whether they run in <<local/spark-local.adoc#, local>> or <<spark-cluster.adoc#, cluster>> mode).
 
 [[logging]]
 [TIP]
 ====
-Enable `INFO` or `DEBUG` logging level for `org.apache.spark.executor.Executor` logger to see what happens inside.
+Enable `ALL` logging level for `org.apache.spark.executor.Executor` logger to see what happens inside.
 
 Add the following line to `conf/log4j.properties`:
 
 ```
-log4j.logger.org.apache.spark.executor.Executor=DEBUG
+log4j.logger.org.apache.spark.executor.Executor=ALL
 ```
 
-Refer to link:spark-logging.adoc[Logging].
+Refer to <<spark-logging.adoc#, Logging>>.
 ====
 
-=== [[updateDependencies]] `updateDependencies` Internal Method
+== [[creating-instance]] Creating Executor Instance
 
-[source, scala]
-----
-updateDependencies(newFiles: Map[String, Long], newJars: Map[String, Long]): Unit
-----
-
-`updateDependencies`...FIXME
-
-NOTE: `updateDependencies` is used exclusively when `TaskRunner` is link:spark-Executor-TaskRunner.adoc#run[started] to run a task.
-
-=== [[createClassLoader]] `createClassLoader` Method
-
-CAUTION: FIXME
-
-=== [[addReplClassLoaderIfNeeded]] `addReplClassLoaderIfNeeded` Method
-
-CAUTION: FIXME
-
-=== [[creating-instance]] Creating Executor Instance
-
-`Executor` takes the following when created:
+`Executor` takes the following to be created:
 
 * [[executorId]] Executor ID
-* [[executorHostname]] Executor's host name
-* [[env]] link:spark-SparkEnv.adoc[SparkEnv]
-* [[userClassPath]] User-defined JARs (<<createClassLoader, to add to tasks' class path>>). Empty by default
-* [[isLocal]] Flag that says whether the executor runs in local or cluster mode (default: `false`, i.e. cluster mode is preferred)
+* [[executorHostname]] Host name
+* [[env]] <<spark-SparkEnv.adoc#, SparkEnv>>
+* [[userClassPath]] User-defined jars (`Seq[URL]` / default: `Nil`)
+* [[isLocal]] Flag to control whether the executor runs in local or cluster mode (default: `false`)
 * [[uncaughtExceptionHandler]] Java's `UncaughtExceptionHandler` (default: `SparkUncaughtExceptionHandler`)
 
-NOTE: User-defined JARs are defined using link:spark-CoarseGrainedExecutorBackend.adoc#main[--user-class-path] command-line option of `CoarseGrainedExecutorBackend` that can be set using <<spark-configuration-properties.adoc#spark.executor.extraClassPath, spark.executor.extraClassPath>> property.
+NOTE: User-defined JARs are defined using <<spark-CoarseGrainedExecutorBackend.adoc#main, --user-class-path>> command-line option of `CoarseGrainedExecutorBackend` that can be set using <<spark-configuration-properties.adoc#spark.executor.extraClassPath, spark.executor.extraClassPath>> property.
 
-NOTE: `isLocal` is enabled exclusively for link:local/spark-LocalEndpoint.adoc[LocalEndpoint] (for link:local/spark-local.adoc[Spark in local mode]).
+NOTE: `isLocal` is enabled exclusively for xref:spark-local:spark-LocalEndpoint.adoc[LocalEndpoint] (for xref:spark-local:index.adoc[Spark in local mode]).
 
 When created, you should see the following INFO messages in the logs:
 
@@ -137,24 +75,37 @@ INFO Executor: Starting executor ID [executorId] on host [executorHostname]
 
 (only for <<isLocal, non-local modes>>) `Executor` sets `SparkUncaughtExceptionHandler` as the default handler invoked when a thread abruptly terminates due to an uncaught exception.
 
-(only for <<isLocal, non-local modes>>) `Executor` requests the link:spark-SparkEnv.adoc#blockManager[BlockManager] to link:spark-BlockManager.adoc#initialize[initialize] (with the link:spark-SparkConf.adoc#getAppId[Spark application id] of the link:spark-SparkEnv.adoc#conf[SparkConf]).
+(only for <<isLocal, non-local modes>>) `Executor` requests the xref:spark-SparkEnv.adoc#blockManager[BlockManager] to xref:spark-BlockManager.adoc#initialize[initialize] (with the xref:spark-SparkConf.adoc#getAppId[Spark application id] of the xref:spark-SparkEnv.adoc#conf[SparkConf]).
 
-NOTE: link:spark-SparkConf.adoc#getAppId[Spark application id] corresponds to the value of link:spark-SparkConf.adoc#spark.app.id[spark.app.id] Spark property.
+NOTE: xref:spark-SparkConf.adoc#getAppId[Spark application id] corresponds to the value of xref:spark-SparkConf.adoc#spark.app.id[spark.app.id] Spark property.
 
 [[creating-instance-BlockManager-shuffleMetricsSource]]
-(only for <<isLocal, non-local modes>>) `Executor` requests the link:spark-SparkEnv.adoc#metricsSystem[MetricsSystem] to link:spark-metrics-MetricsSystem.adoc#registerSource[register] the <<executorSource, ExecutorSource>> and link:spark-BlockManager.adoc#shuffleMetricsSource[shuffleMetricsSource] of the link:spark-SparkEnv.adoc#blockManager[BlockManager].
+(only for <<isLocal, non-local modes>>) `Executor` requests the xref:spark-SparkEnv.adoc#metricsSystem[MetricsSystem] to xref:metrics:spark-metrics-MetricsSystem.adoc#registerSource[register] the <<executorSource, ExecutorSource>> and xref:spark-BlockManager.adoc#shuffleMetricsSource[shuffleMetricsSource] of the xref:spark-SparkEnv.adoc#blockManager[BlockManager].
 
-NOTE: `Executor` uses `SparkEnv` to access the local link:spark-SparkEnv.adoc#metricsSystem[MetricsSystem] and link:spark-SparkEnv.adoc#blockManager[BlockManager].
+NOTE: `Executor` uses `SparkEnv` to access the local xref:spark-SparkEnv.adoc#metricsSystem[MetricsSystem] and xref:spark-SparkEnv.adoc#blockManager[BlockManager].
 
-`Executor` <<createClassLoader, creates a task class loader>> (optionally with <<addReplClassLoaderIfNeeded, REPL support>>) that the link:spark-Serializer.adoc#setDefaultClassLoader[current `Serializer` is requested to use] (when deserializing task later).
+`Executor` <<createClassLoader, creates a task class loader>> (optionally with <<addReplClassLoaderIfNeeded, REPL support>>) that the xref:spark-Serializer.adoc#setDefaultClassLoader[current `Serializer` is requested to use] (when deserializing task later).
 
-NOTE: `Executor` uses `SparkEnv` link:spark-SparkEnv.adoc#serializer[to access the local `Serializer`].
+NOTE: `Executor` uses `SparkEnv` xref:spark-SparkEnv.adoc#serializer[to access the local `Serializer`].
 
 `Executor` <<startDriverHeartbeater, starts sending heartbeats and active tasks metrics>>.
 
-`Executor` initializes the <<internal-registries, internal registries and counters>> in the meantime (not necessarily at the very end).
+`Executor` initializes the <<internal-properties, internal properties>>.
 
-=== [[launchTask]] Launching Task -- `launchTask` Method
+== [[updateDependencies]] `updateDependencies` Internal Method
+
+[source, scala]
+----
+updateDependencies(
+  newFiles: Map[String, Long],
+  newJars: Map[String, Long]): Unit
+----
+
+`updateDependencies`...FIXME
+
+NOTE: `updateDependencies` is used exclusively when `TaskRunner` is requested to <<spark-Executor-TaskRunner.adoc#run, start>> (and run a task).
+
+== [[launchTask]] Launching Task -- `launchTask` Method
 
 [source, scala]
 ----
@@ -163,7 +114,7 @@ launchTask(
   taskDescription: TaskDescription): Unit
 ----
 
-Internally, `launchTask` creates a <<spark-Executor-TaskRunner.adoc#, TaskRunner>> (with the given <<spark-ExecutorBackend.adoc#, ExecutorBackend>> and the <<spark-scheduler-TaskDescription.adoc#, TaskDescription>>) and registers it in the <<runningTasks, runningTasks>> internal registry (by the <<spark-scheduler-TaskDescription.adoc#taskId, task ID>>).
+`launchTask` simply creates a <<spark-Executor-TaskRunner.adoc#, TaskRunner>> (with the given <<spark-ExecutorBackend.adoc#, ExecutorBackend>> and the <<spark-scheduler-TaskDescription.adoc#, TaskDescription>>) and adds it to the <<runningTasks, runningTasks>> internal registry.
 
 In the end, `launchTask` requests the <<threadPool, "Executor task launch worker" thread pool>> to execute the `TaskRunner` (sometime in the future).
 
@@ -176,172 +127,74 @@ image::executor-taskrunner-executorbackend.png[align="center"]
 
 * `CoarseGrainedExecutorBackend` executor backend is requested to <<spark-CoarseGrainedExecutorBackend.adoc#LaunchTask, handle a LaunchTask message>>
 
-* `LocalEndpoint` RPC endpoint (of <<local/spark-LocalSchedulerBackend.adoc#, LocalSchedulerBackend>>) is requested to <<local/spark-LocalEndpoint.adoc#reviveOffers, reviveOffers>>
+* `LocalEndpoint` RPC endpoint (of xref:spark-local:spark-LocalSchedulerBackend.adoc#[LocalSchedulerBackend]) is requested to xref:spark-local:spark-LocalEndpoint.adoc#reviveOffers[reviveOffers]
 
-* `MesosExecutorBackend` executor backend is requested to <<spark-executor-backends-MesosExecutorBackend.adoc#launchTask, launchTask>>
+* `MesosExecutorBackend` executor backend is requested to xref:spark-on-mesos:spark-executor-backends-MesosExecutorBackend.adoc#launchTask[launchTask]
 ====
 
-=== [[startDriverHeartbeater]][[heartbeats-and-active-task-metrics]] Sending Heartbeats and Active Tasks Metrics -- `startDriverHeartbeater` Method
-
-Executors keep sending <<metrics, metrics for active tasks>> to the driver every <<spark.executor.heartbeatInterval, spark.executor.heartbeatInterval>> (defaults to `10s` with some random initial delay so the heartbeats from different executors do not pile up on the driver).
-
-.Executors use HeartbeatReceiver endpoint to report task metrics
-image::executor-heartbeatReceiver-endpoint.png[align="center"]
-
-An executor sends heartbeats using the <<heartbeater, internal heartbeater -- Heartbeat Sender Thread>>.
-
-.HeartbeatReceiver's Heartbeat Message Handler
-image::spark-HeartbeatReceiver-Heartbeat.png[align="center"]
-
-For each link:spark-scheduler-Task.adoc[task] in link:spark-Executor-TaskRunner.adoc[TaskRunner] (in <<runningTasks, runningTasks>> internal registry), the task's metrics are computed (i.e. `mergeShuffleReadMetrics` and `setJvmGCTime`) that become part of the heartbeat (with accumulators).
-
-CAUTION: FIXME How do `mergeShuffleReadMetrics` and `setJvmGCTime` influence `accumulators`?
-
-NOTE: Executors track the link:spark-Executor-TaskRunner.adoc[TaskRunner] that run link:spark-scheduler-Task.adoc[tasks]. A link:spark-Executor-TaskRunner.adoc#run[task might not be assigned to a TaskRunner yet] when the executor sends a heartbeat.
-
-A blocking link:spark-HeartbeatReceiver.adoc#Heartbeat[Heartbeat] message that holds the executor id, all accumulator updates (per task id), and link:spark-BlockManager.adoc#BlockManagerId[BlockManagerId] is sent to link:spark-HeartbeatReceiver.adoc[HeartbeatReceiver RPC endpoint] (with <<spark.executor.heartbeatInterval, spark.executor.heartbeatInterval>> timeout).
-
-CAUTION: FIXME When is `heartbeatReceiverRef` created?
-
-If the response link:spark-HeartbeatReceiver.adoc#Heartbeat[requests to reregister BlockManager], you should see the following INFO message in the logs:
-
-```
-INFO Executor: Told to re-register on heartbeat
-```
-
-The link:spark-BlockManager.adoc#reregister[BlockManager is reregistered].
-
-The internal <<heartbeatFailures, heartbeatFailures>> counter is reset (i.e. becomes `0`).
-
-If there are any issues with communicating with the driver, you should see the following WARN message in the logs:
-
-```
-WARN Executor: Issue communicating with driver in heartbeater
-```
-
-The internal <<heartbeatFailures, heartbeatFailures>> is incremented and checked to be less than the <<spark.executor.heartbeat.maxFailures, acceptable number of failures>> (i.e. `spark.executor.heartbeat.maxFailures` Spark property). If the number is greater, the following ERROR is printed out to the logs:
-
-```
-ERROR Executor: Exit as unable to send heartbeats to driver more than [HEARTBEAT_MAX_FAILURES] times
-```
-
-The executor exits (using `System.exit` and exit code 56).
-
-TIP: Read about `TaskMetrics` in link:spark-executor-TaskMetrics.adoc[TaskMetrics].
-
-=== [[reportHeartBeat]] Heartbeating With Partial Metrics For Active Tasks To Driver -- `reportHeartBeat` Internal Method
-
-[source, scala]
-----
-reportHeartBeat(): Unit
-----
-
-`reportHeartBeat` collects link:spark-Executor-TaskRunner.adoc[TaskRunners] for <<runningTasks, currently running tasks>> (aka _active tasks_) with their link:spark-Executor-TaskRunner.adoc#task[tasks] deserialized (i.e. either ready for execution or already started).
-
-NOTE: link:spark-Executor-TaskRunner.adoc[TaskRunner] has link:spark-Executor-TaskRunner.adoc#task[task] deserialized when it link:spark-Executor-TaskRunner.adoc#run[runs the task].
-
-For every running task, `reportHeartBeat` takes its link:spark-scheduler-Task.adoc#metrics[TaskMetrics] and:
-
-* Requests link:spark-executor-TaskMetrics.adoc#mergeShuffleReadMetrics[ShuffleRead metrics to be merged]
-* link:spark-executor-TaskMetrics.adoc#setJvmGCTime[Sets jvmGCTime metrics]
-
-`reportHeartBeat` then records the latest values of link:spark-executor-TaskMetrics.adoc#accumulators[internal and external accumulators] for every task.
-
-NOTE: Internal accumulators are a task's metrics while external accumulators are a Spark application's accumulators that a user has created.
-
-`reportHeartBeat` sends a blocking link:spark-HeartbeatReceiver.adoc#Heartbeat[Heartbeat] message to <<heartbeatReceiverRef, `HeartbeatReceiver` endpoint>> (running on the driver). `reportHeartBeat` uses <<spark.executor.heartbeatInterval, spark.executor.heartbeatInterval>> for the RPC timeout.
-
-NOTE: A `Heartbeat` message contains the executor identifier, the accumulator updates, and the identifier of the link:spark-BlockManager.adoc[BlockManager].
-
-NOTE: `reportHeartBeat` uses `SparkEnv` link:spark-SparkEnv.adoc#blockManager[to access the current `BlockManager`].
-
-If the response (from <<heartbeatReceiverRef, `HeartbeatReceiver` endpoint>>) is to re-register the `BlockManager`, you should see the following INFO message in the logs and `reportHeartBeat` link:spark-BlockManager.adoc#reregister[requests `BlockManager` to re-register] (which will register the blocks the `BlockManager` manages with the driver).
-
-```
-INFO Told to re-register on heartbeat
-```
-
-NOTE: `HeartbeatResponse` requests `BlockManager` to re-register when either link:spark-scheduler-TaskScheduler.adoc#executorHeartbeatReceived[TaskScheduler] or link:spark-HeartbeatReceiver.adoc#Heartbeat[HeartbeatReceiver] know nothing about the executor.
-
-When posting the `Heartbeat` was successful, `reportHeartBeat` resets <<heartbeatFailures, heartbeatFailures>> internal counter.
-
-In case of a non-fatal exception, you should see the following WARN message in the logs (followed by the stack trace).
-
-```
-WARN Issue communicating with driver in heartbeater
-```
-
-Every failure `reportHeartBeat` increments <<heartbeatFailures, heartbeat failures>> up to <<spark.executor.heartbeat.maxFailures, spark.executor.heartbeat.maxFailures>> Spark property. When the heartbeat failures reaches the maximum, you should see the following ERROR message in the logs and the executor terminates with the error code: `56`.
-
-```
-ERROR Exit as unable to send heartbeats to driver more than [HEARTBEAT_MAX_FAILURES] times
-```
-
-NOTE: `reportHeartBeat` is used when `Executor` <<startDriverHeartbeater, schedules reporting heartbeat and partial metrics for active tasks to the driver>> (that happens every <<spark.executor.heartbeatInterval, spark.executor.heartbeatInterval>> Spark property).
-
-=== [[heartbeater]] heartbeater -- Heartbeat Sender Thread
+== [[heartbeater]] heartbeater -- Heartbeat Sender Thread
 
 `heartbeater` is a daemon https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/ScheduledThreadPoolExecutor.html[ScheduledThreadPoolExecutor] with a single thread.
 
 The name of the thread pool is *driver-heartbeater*.
 
-=== [[coarse-grained-executor]] Coarse-Grained Executors
+== [[coarse-grained-executor]] Coarse-Grained Executors
 
-*Coarse-grained executors* are executors that use link:spark-CoarseGrainedExecutorBackend.adoc[CoarseGrainedExecutorBackend] for task scheduling.
+*Coarse-grained executors* are executors that use xref:spark-CoarseGrainedExecutorBackend.adoc[CoarseGrainedExecutorBackend] for task scheduling.
 
-=== [[resource-offers]] Resource Offers
+== [[resource-offers]] Resource Offers
 
-Read link:spark-scheduler-TaskSchedulerImpl.adoc#resourceOffers[resourceOffers] in TaskSchedulerImpl and link:spark-scheduler-TaskSetManager.adoc##resourceOffers[resourceOffer] in TaskSetManager.
+Read xref:spark-scheduler-TaskSchedulerImpl.adoc#resourceOffers[resourceOffers] in TaskSchedulerImpl and xref:spark-scheduler-TaskSetManager.adoc#resourceOffers[resourceOffer] in TaskSetManager.
 
-=== [[threadPool]] "Executor task launch worker" Thread Pool -- `threadPool` Property
+== [[threadPool]] "Executor task launch worker" Thread Pool -- `threadPool` Property
 
 `Executor` uses `threadPool` daemon cached thread pool with the name *Executor task launch worker-[ID]* (with `ID` being the task id) for <<launchTask, launching tasks>>.
 
 `threadPool` is created when <<creating-instance, `Executor` is created>> and shut down when <<stop, it stops>>.
 
-=== [[memory]] Executor Memory -- `spark.executor.memory` or `SPARK_EXECUTOR_MEMORY` settings
+== [[memory]] Executor Memory -- `spark.executor.memory` or `SPARK_EXECUTOR_MEMORY` settings
 
 You can control the amount of memory per executor using <<spark.executor.memory, spark.executor.memory>> setting. It sets the available memory equally for all executors per application.
 
-NOTE: The amount of memory per executor is looked up when link:spark-SparkContext.adoc#creating-instance[SparkContext is created].
+NOTE: The amount of memory per executor is looked up when xref:spark-SparkContext.adoc#creating-instance[SparkContext is created].
 
-You can change the assigned memory per executor per node in link:spark-standalone.adoc[standalone cluster] using link:spark-SparkContext.adoc#environment-variables[SPARK_EXECUTOR_MEMORY] environment variable.
+You can change the assigned memory per executor per node in xref:spark-standalone.adoc[standalone cluster] using xref:spark-SparkContext.adoc#environment-variables[SPARK_EXECUTOR_MEMORY] environment variable.
 
-You can find the value displayed as *Memory per Node* in link:spark-standalone-Master.adoc[web UI for standalone Master] (as depicted in the figure below).
+You can find the value displayed as *Memory per Node* in xref:spark-standalone-Master.adoc[web UI for standalone Master] (as depicted in the figure below).
 
 .Memory per Node in Spark Standalone's web UI
 image::spark-standalone-webui-memory-per-node.png[align="center"]
 
-The above figure shows the result of running link:spark-shell.adoc[Spark shell] with the amount of memory per executor defined explicitly (on command line), i.e.
+The above figure shows the result of running xref:spark-shell.adoc[Spark shell] with the amount of memory per executor defined explicitly (on command line), i.e.
 
 ```
 ./bin/spark-shell --master spark://localhost:7077 -c spark.executor.memory=2g
 ```
 
-=== [[metrics]] Metrics
+== [[metrics]] Metrics
 
-Every executor registers its own link:spark-executor-ExecutorSource.adoc[ExecutorSource] to link:spark-metrics-MetricsSystem.adoc#report[report metrics].
+Every executor registers its own xref:spark-executor-ExecutorSource.adoc[ExecutorSource] to xref:spark-metrics-MetricsSystem.adoc#report[report metrics].
 
-=== [[stop]] Stopping Executor -- `stop` Method
+== [[stop]] Stopping Executor -- `stop` Method
 
 [source, scala]
 ----
 stop(): Unit
 ----
 
-`stop` link:spark-metrics-MetricsSystem.adoc#report[requests `MetricsSystem` for a report].
+`stop` xref:spark-metrics-MetricsSystem.adoc#report[requests `MetricsSystem` for a report].
 
-NOTE: `stop` uses `SparkEnv` link:spark-SparkEnv.adoc#metricsSystem[to access the current `MetricsSystem`].
+NOTE: `stop` uses `SparkEnv` xref:spark-SparkEnv.adoc#metricsSystem[to access the current `MetricsSystem`].
 
 `stop` shuts <<heartbeater, driver-heartbeater thread>> down (and waits at most 10 seconds).
 
 `stop` shuts <<threadPool, Executor task launch worker thread pool>> down.
 
-(only when <<isLocal, not local>>) `stop` link:spark-SparkEnv.adoc#stop[requests `SparkEnv` to stop].
+(only when <<isLocal, not local>>) `stop` xref:spark-SparkEnv.adoc#stop[requests `SparkEnv` to stop].
 
-NOTE: `stop` is used when link:spark-CoarseGrainedExecutorBackend.adoc#Shutdown[CoarseGrainedExecutorBackend] and link:local/spark-LocalEndpoint.adoc#StopExecutor[LocalEndpoint] are requested to stop their managed executors.
+NOTE: `stop` is used when xref:spark-CoarseGrainedExecutorBackend.adoc#Shutdown[CoarseGrainedExecutorBackend] and xref:local/spark-LocalEndpoint.adoc#StopExecutor[LocalEndpoint] are requested to stop their managed executors.
 
-=== [[computeTotalGcTime]] `computeTotalGcTime` Internal Method
+== [[computeTotalGcTime]] `computeTotalGcTime` Internal Method
 
 [source, scala]
 ----
@@ -359,92 +212,155 @@ computeTotalGcTime(): Long
 * `Executor` is requested to <<reportHeartBeat, heartbeat with partial metrics for active tasks to the driver>>
 ====
 
-=== [[settings]] Settings
+== [[createClassLoader]] `createClassLoader` Internal Method
 
-.Spark Properties
-[cols="1,1,2",options="header",width="100%"]
+[source, scala]
+----
+createClassLoader(): MutableURLClassLoader
+----
+
+`createClassLoader`...FIXME
+
+NOTE: `createClassLoader` is used when...FIXME
+
+== [[addReplClassLoaderIfNeeded]] `addReplClassLoaderIfNeeded` Internal Method
+
+[source, scala]
+----
+addReplClassLoaderIfNeeded(parent: ClassLoader): ClassLoader
+----
+
+`addReplClassLoaderIfNeeded`...FIXME
+
+NOTE: `addReplClassLoaderIfNeeded` is used when...FIXME
+
+== [[reportHeartBeat]] Heartbeating With Partial Metrics For Active Tasks To Driver -- `reportHeartBeat` Internal Method
+
+[source, scala]
+----
+reportHeartBeat(): Unit
+----
+
+`reportHeartBeat` collects xref:spark-Executor-TaskRunner.adoc[TaskRunners] for <<runningTasks, currently running tasks>> (aka _active tasks_) with their xref:spark-Executor-TaskRunner.adoc#task[tasks] deserialized (i.e. either ready for execution or already started).
+
+NOTE: xref:spark-Executor-TaskRunner.adoc[TaskRunner] has xref:spark-Executor-TaskRunner.adoc#task[task] deserialized when it xref:spark-Executor-TaskRunner.adoc#run[runs the task].
+
+For every running task, `reportHeartBeat` takes its xref:spark-scheduler-Task.adoc#metrics[TaskMetrics] and:
+
+* Requests xref:spark-executor-TaskMetrics.adoc#mergeShuffleReadMetrics[ShuffleRead metrics to be merged]
+* xref:spark-executor-TaskMetrics.adoc#setJvmGCTime[Sets jvmGCTime metrics]
+
+`reportHeartBeat` then records the latest values of xref:spark-executor-TaskMetrics.adoc#accumulators[internal and external accumulators] for every task.
+
+NOTE: Internal accumulators are a task's metrics while external accumulators are a Spark application's accumulators that a user has created.
+
+`reportHeartBeat` sends a blocking xref:spark-HeartbeatReceiver.adoc#Heartbeat[Heartbeat] message to <<heartbeatReceiverRef, `HeartbeatReceiver` endpoint>> (running on the driver). `reportHeartBeat` uses <<spark.executor.heartbeatInterval, spark.executor.heartbeatInterval>> for the RPC timeout.
+
+NOTE: A `Heartbeat` message contains the executor identifier, the accumulator updates, and the identifier of the xref:spark-BlockManager.adoc[BlockManager].
+
+NOTE: `reportHeartBeat` uses `SparkEnv` xref:spark-SparkEnv.adoc#blockManager[to access the current `BlockManager`].
+
+If the response (from <<heartbeatReceiverRef, `HeartbeatReceiver` endpoint>>) is to re-register the `BlockManager`, you should see the following INFO message in the logs and `reportHeartBeat` xref:spark-BlockManager.adoc#reregister[requests `BlockManager` to re-register] (which will register the blocks the `BlockManager` manages with the driver).
+
+```
+INFO Told to re-register on heartbeat
+```
+
+NOTE: `HeartbeatResponse` requests `BlockManager` to re-register when either xref:spark-scheduler-TaskScheduler.adoc#executorHeartbeatReceived[TaskScheduler] or xref:spark-HeartbeatReceiver.adoc#Heartbeat[HeartbeatReceiver] know nothing about the executor.
+
+When posting the `Heartbeat` was successful, `reportHeartBeat` resets <<heartbeatFailures, heartbeatFailures>> internal counter.
+
+In case of a non-fatal exception, you should see the following WARN message in the logs (followed by the stack trace).
+
+```
+WARN Issue communicating with driver in heartbeater
+```
+
+Every failure `reportHeartBeat` increments <<heartbeatFailures, heartbeat failures>> up to <<spark.executor.heartbeat.maxFailures, spark.executor.heartbeat.maxFailures>> Spark property. When the heartbeat failures reaches the maximum, you should see the following ERROR message in the logs and the executor terminates with the error code: `56`.
+
+```
+ERROR Exit as unable to send heartbeats to driver more than [HEARTBEAT_MAX_FAILURES] times
+```
+
+NOTE: `reportHeartBeat` is used when `Executor` <<startDriverHeartbeater, schedules reporting heartbeat and partial metrics for active tasks to the driver>> (that happens every <<spark.executor.heartbeatInterval, spark.executor.heartbeatInterval>> Spark property).
+
+== [[startDriverHeartbeater]][[heartbeats-and-active-task-metrics]] Sending Heartbeats and Active Tasks Metrics -- `startDriverHeartbeater` Internal Method
+
+Executors keep sending <<metrics, metrics for active tasks>> to the driver every <<spark.executor.heartbeatInterval, spark.executor.heartbeatInterval>> (defaults to `10s` with some random initial delay so the heartbeats from different executors do not pile up on the driver).
+
+.Executors use HeartbeatReceiver endpoint to report task metrics
+image::executor-heartbeatReceiver-endpoint.png[align="center"]
+
+An executor sends heartbeats using the <<heartbeater, internal heartbeater -- Heartbeat Sender Thread>>.
+
+.HeartbeatReceiver's Heartbeat Message Handler
+image::spark-HeartbeatReceiver-Heartbeat.png[align="center"]
+
+For each xref:spark-scheduler-Task.adoc[task] in xref:spark-Executor-TaskRunner.adoc[TaskRunner] (in <<runningTasks, runningTasks>> internal registry), the task's metrics are computed (i.e. `mergeShuffleReadMetrics` and `setJvmGCTime`) that become part of the heartbeat (with accumulators).
+
+CAUTION: FIXME How do `mergeShuffleReadMetrics` and `setJvmGCTime` influence `accumulators`?
+
+NOTE: Executors track the xref:spark-Executor-TaskRunner.adoc[TaskRunner] that run xref:spark-scheduler-Task.adoc[tasks]. A xref:spark-Executor-TaskRunner.adoc#run[task might not be assigned to a TaskRunner yet] when the executor sends a heartbeat.
+
+A blocking xref:spark-HeartbeatReceiver.adoc#Heartbeat[Heartbeat] message that holds the executor id, all accumulator updates (per task id), and xref:spark-BlockManager.adoc#BlockManagerId[BlockManagerId] is sent to xref:spark-HeartbeatReceiver.adoc[HeartbeatReceiver RPC endpoint] (with <<spark.executor.heartbeatInterval, spark.executor.heartbeatInterval>> timeout).
+
+CAUTION: FIXME When is `heartbeatReceiverRef` created?
+
+If the response xref:spark-HeartbeatReceiver.adoc#Heartbeat[requests to reregister BlockManager], you should see the following INFO message in the logs:
+
+```
+INFO Executor: Told to re-register on heartbeat
+```
+
+The xref:spark-BlockManager.adoc#reregister[BlockManager is reregistered].
+
+The internal <<heartbeatFailures, heartbeatFailures>> counter is reset (i.e. becomes `0`).
+
+If there are any issues with communicating with the driver, you should see the following WARN message in the logs:
+
+```
+WARN Executor: Issue communicating with driver in heartbeater
+```
+
+The internal <<heartbeatFailures, heartbeatFailures>> is incremented and checked to be less than the <<spark.executor.heartbeat.maxFailures, acceptable number of failures>> (i.e. `spark.executor.heartbeat.maxFailures` Spark property). If the number is greater, the following ERROR is printed out to the logs:
+
+```
+ERROR Executor: Exit as unable to send heartbeats to driver more than [HEARTBEAT_MAX_FAILURES] times
+```
+
+The executor exits (using `System.exit` and exit code 56).
+
+TIP: Read about `TaskMetrics` in xref:spark-executor-TaskMetrics.adoc[TaskMetrics].
+
+== [[internal-properties]] Internal Properties
+
+[cols="30m,70",options="header",width="100%"]
 |===
-| Spark Property
-| Default Value
+| Name
 | Description
 
-| [[spark.executor.cores]] `spark.executor.cores`
-|
-| Number of cores for an executor.
+| executorSource
+a| [[executorSource]] <<spark-executor-ExecutorSource.adoc#, ExecutorSource>>
 
-| [[spark.executor.extraJavaOptions]] `spark.executor.extraJavaOptions`
-|
-| Extra Java options for executors.
+| heartbeatFailures
+a| [[heartbeatFailures]]
 
-Used to link:yarn/spark-yarn-ExecutorRunnable.adoc#prepareCommand[prepare the command to launch `CoarseGrainedExecutorBackend` in a YARN container].
+| heartbeatReceiverRef
+a| [[heartbeatReceiverRef]] <<spark-RpcEndpointRef.adoc#, RPC endpoint reference>> to <<spark-HeartbeatReceiver.adoc#, HeartbeatReceiver>> on the <<spark-driver.adoc#, driver>>
 
-| [[spark.executor.extraLibraryPath]] `spark.executor.extraLibraryPath`
-|
-| Extra library paths separated by system-dependent path separator, i.e. `:` on Unix/MacOS systems and `;` on Microsoft Windows.
+Set when `Executor` <<creating-instance, is created>>.
 
-Used to link:yarn/spark-yarn-ExecutorRunnable.adoc#prepareCommand[prepare the command to launch `CoarseGrainedExecutorBackend` in a YARN container].
+Used exclusively when `Executor` <<reportHeartBeat, reports heartbeats and partial metrics for active tasks to the driver>> (that happens every <<spark.executor.heartbeatInterval, spark.executor.heartbeatInterval>> interval).
 
-| [[spark.executor.heartbeat.maxFailures]] `spark.executor.heartbeat.maxFailures`
-| `60`
-| Number of times an executor will try to send heartbeats to the driver before it gives up and exits (with exit code `56`).
+| maxDirectResultSize
+a| [[maxDirectResultSize]]
 
-NOTE: It was introduced in https://issues.apache.org/jira/browse/SPARK-13522[SPARK-13522 Executor should kill itself when it's unable to heartbeat to the driver more than N times].
+| maxResultSize
+a| [[maxResultSize]]
 
-| [[spark.executor.heartbeatInterval]] `spark.executor.heartbeatInterval`
-| `10s`
-| Interval after which an executor reports heartbeat and metrics for active tasks to the driver.
+Used exclusively when `TaskRunner` is requested to <<spark-Executor-TaskRunner.adoc#run, run>> (and creates a serialized `ByteBuffer` result that is a `IndirectTaskResult`)
 
-Refer to <<heartbeats-and-active-task-metrics, Sending heartbeats and partial metrics for active tasks>> in this document.
+| runningTasks
+a| [[runningTasks]] <<spark-Executor-TaskRunner.adoc#, TaskRunners>> per task ID (`ConcurrentHashMap[Long, TaskRunner]`)
 
-| [[spark.executor.id]] `spark.executor.id`
-|
-|
-
-| [[spark.executor.instances]] `spark.executor.instances`
-| `0`
-| Number of executors to use.
-
-| `spark.executor.logs.rolling.maxSize`
-|
-|
-
-| `spark.executor.logs.rolling.maxRetainedFiles`
-|
-|
-
-| `spark.executor.logs.rolling.strategy`
-|
-|
-
-| `spark.executor.logs.rolling.time.interval`
-|
-|
-
-| [[spark.executor.memory]] `spark.executor.memory`
-| `1g`
-| Amount of memory to use per executor process.
-
-Equivalent to link:spark-SparkContext.adoc#environment-variables[SPARK_EXECUTOR_MEMORY] environment variable.
-
-Refer to <<memory, Executor Memory -- spark.executor.memory or SPARK_EXECUTOR_MEMORY settings>> in this document.
-
-| [[spark_executor_port]] `spark.executor.port`
-|
-|
-
-| `spark.executor.port`
-|
-|
-
-| [[spark_executor_userClassPathFirst]] `spark.executor.userClassPathFirst`
-| `false`
-| Flag to control whether to load classes in user jars before those in Spark jars.
-
-| `spark.executor.uri`
-|
-| Equivalent to `SPARK_EXECUTOR_URI`
-
-| [[spark.task.maxDirectResultSize]] `spark.task.maxDirectResultSize`
-| `1048576B`
-|
 |===
