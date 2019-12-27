@@ -1,6 +1,10 @@
 = FileCommitProtocol
 
-`FileCommitProtocol` is an <<contract, abstraction>> of <<implementations, job and task committers>> that can setup, commit or abort a job or task.
+`FileCommitProtocol` is an <<contract, abstraction>> of <<implementations, committers>> that can setup, commit or abort a job or task.
+
+`FileCommitProtocol` is used when `SparkHadoopWriter` utility is used to <<spark-internal-io-SparkHadoopWriter.adoc#write, write an RDD out>>.
+
+A concrete <<implementations, FileCommitProtocol>> is created using <<instantiate, FileCommitProtocol.instantiate>> utility.
 
 [[contract]]
 .FileCommitProtocol Contract (Abstract Methods Only)
@@ -143,3 +147,45 @@ deleteWithJob(
 `deleteWithJob`...FIXME
 
 NOTE: `deleteWithJob` is used when...FIXME
+
+== [[instantiate]] Instantiating FileCommitProtocol -- `instantiate` Utility
+
+[source, scala]
+----
+instantiate(
+  className: String,
+  jobId: String,
+  outputPath: String,
+  dynamicPartitionOverwrite: Boolean = false): FileCommitProtocol
+----
+
+`instantiate` prints out the following DEBUG message to the logs:
+
+```
+Creating committer [className]; job [jobId]; output=[outputPath]; dynamic=[dynamicPartitionOverwrite]
+```
+
+`instantiate` tries to find a constructor method that takes three arguments (two of type `String` and one `Boolean`) for the given `jobId`, `outputPath` and `dynamicPartitionOverwrite` flag.
+
+`instantiate` prints out the following DEBUG message to the logs:
+
+```
+Using (String, String, Boolean) constructor
+```
+
+In case of `NoSuchMethodException`, `instantiate` prints out the following DEBUG message to the logs:
+
+```
+Falling back to (String, String) constructor
+```
+
+`instantiate` tries to find a constructor method that takes two arguments (two of type `String`) for the given `jobId` and `outputPath`.
+
+With two `String` arguments, `instantiate` requires that the given `dynamicPartitionOverwrite` flag is disabled (`false`) or throws an `IllegalArgumentException`:
+
+[options="wrap"]
+----
+requirement failed: Dynamic Partition Overwrite is enabled but the committer [className] does not have the appropriate constructor
+----
+
+NOTE: `instantiate` is used when <<spark-internal-io-HadoopMapRedWriteConfigUtil.adoc#createCommitter, HadoopMapRedWriteConfigUtil>> and <<spark-internal-io-HadoopMapReduceWriteConfigUtil.adoc#createCommitter, HadoopMapReduceWriteConfigUtil>> are requested to create a <<spark-internal-io-HadoopMapReduceCommitProtocol.adoc#, HadoopMapReduceCommitProtocol>>.
