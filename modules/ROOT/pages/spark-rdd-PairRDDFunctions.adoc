@@ -1,37 +1,146 @@
-== [[PairRDDFunctions]] PairRDDFunctions
+= [[PairRDDFunctions]] PairRDDFunctions
 
-TIP: Read up the scaladoc of http://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.rdd.PairRDDFunctions[PairRDDFunctions].
+`PairRDDFunctions` is an extension of `RDDs` of (key, value) pairs (`RDD[(K, V)]`) with extra <<transformations, transformations>>.
 
-`PairRDDFunctions` are available in RDDs of key-value pairs via Scala's implicit conversion.
+`PairRDDFunctions` is available in RDDs of key-value pairs via Scala implicit conversion.
 
-TIP: *Partitioning* is an advanced feature that is directly linked to (or inferred by) use of `PairRDDFunctions`. Read up about it in link:spark-rdd-partitions.adoc[Partitions and Partitioning].
+[[transformations]]
+.PairRDDFunctions' Transformations
+[cols="30m,70",options="header",width="100%"]
+|===
+| Method
+| Description
 
-=== [[countApproxDistinctByKey]] `countApproxDistinctByKey` Transformation
-
-CAUTION: FIXME
-
-=== [[foldByKey]] `foldByKey` Transformation
-
-CAUTION: FIXME
-
-=== [[aggregateByKey]] `aggregateByKey` Transformation
-
-CAUTION: FIXME
-
-=== [[combineByKey]] `combineByKey` Transformation
-
-CAUTION: FIXME
-
-=== [[partitionBy]] `partitionBy` Operator
+| aggregateByKey
+a| [[aggregateByKey]]
 
 [source, scala]
 ----
-partitionBy(partitioner: Partitioner): RDD[(K, V)]
+aggregateByKey[U: ClassTag](
+  zeroValue: U)(
+    seqOp: (U, V) => U,
+    combOp: (U, U) => U): RDD[(K, U)]
+aggregateByKey[U: ClassTag](
+  zeroValue: U, numPartitions: Int)(
+    seqOp: (U, V) => U,
+    combOp: (U, U) => U): RDD[(K, U)]
+aggregateByKey[U: ClassTag](
+  zeroValue: U, partitioner: Partitioner)(
+    seqOp: (U, V) => U,
+    combOp: (U, U) => U): RDD[(K, U)]
 ----
 
-CAUTION: FIXME
+| combineByKey
+a| [[combineByKey]]
 
-=== [[reduceByKey]][[groupByKey]] `groupByKey` and `reduceByKey` Transformations
+[source, scala]
+----
+combineByKey[C](
+  createCombiner: V => C,
+  mergeValue: (C, V) => C,
+  mergeCombiners: (C, C) => C): RDD[(K, C)]
+combineByKey[C](
+  createCombiner: V => C,
+  mergeValue: (C, V) => C,
+  mergeCombiners: (C, C) => C,
+  numPartitions: Int): RDD[(K, C)]
+combineByKey[C](
+  createCombiner: V => C,
+  mergeValue: (C, V) => C,
+  mergeCombiners: (C, C) => C,
+  partitioner: Partitioner,
+  mapSideCombine: Boolean = true,
+  serializer: Serializer = null): RDD[(K, C)]
+----
+
+| countApproxDistinctByKey
+a| [[countApproxDistinctByKey]]
+
+[source, scala]
+----
+countApproxDistinctByKey(
+  relativeSD: Double = 0.05): RDD[(K, Long)]
+countApproxDistinctByKey(
+  relativeSD: Double,
+  numPartitions: Int): RDD[(K, Long)]
+countApproxDistinctByKey(
+  relativeSD: Double,
+  partitioner: Partitioner): RDD[(K, Long)]
+countApproxDistinctByKey(
+  p: Int,
+  sp: Int,
+  partitioner: Partitioner): RDD[(K, Long)]
+----
+
+| flatMapValues
+a| [[flatMapValues]]
+
+[source, scala]
+----
+flatMapValues[U](
+  f: V => TraversableOnce[U]): RDD[(K, U)]
+----
+
+| foldByKey
+a| [[foldByKey]]
+
+[source, scala]
+----
+foldByKey(
+  zeroValue: V)(
+    func: (V, V) => V): RDD[(K, V)]
+foldByKey(
+  zeroValue: V, numPartitions: Int)(
+    func: (V, V) => V): RDD[(K, V)]
+foldByKey(
+  zeroValue: V,
+  partitioner: Partitioner)(
+    func: (V, V) => V): RDD[(K, V)]
+----
+
+| mapValues
+a| [[mapValues]]
+
+[source, scala]
+----
+mapValues[U](
+  f: V => U): RDD[(K, U)]
+----
+
+| partitionBy
+a| [[partitionBy]]
+
+[source, scala]
+----
+partitionBy(
+  partitioner: Partitioner): RDD[(K, V)]
+----
+
+| saveAsHadoopDataset
+a| [[saveAsHadoopDataset]]
+
+[source, scala]
+----
+saveAsHadoopDataset(
+  conf: JobConf): Unit
+----
+
+`saveAsHadoopDataset` uses the `SparkHadoopWriter` utility to <<spark-internal-io-SparkHadoopWriter.adoc#write, write the key-value RDD out>> with a <<spark-internal-io-HadoopMapRedWriteConfigUtil.adoc#, HadoopMapRedWriteConfigUtil>> (for the given Hadoop https://hadoop.apache.org/docs/r2.7.3/api/org/apache/hadoop/mapred/JobConf.html[JobConf])
+
+| saveAsNewAPIHadoopDataset
+a| [[saveAsNewAPIHadoopDataset]]
+
+[source, scala]
+----
+saveAsNewAPIHadoopDataset(
+  conf: Configuration): Unit
+----
+
+`saveAsNewAPIHadoopDataset` uses the `SparkHadoopWriter` utility to <<spark-internal-io-SparkHadoopWriter.adoc#write, write the key-value RDD out>> with a <<spark-internal-io-HadoopMapReduceWriteConfigUtil.adoc#, HadoopMapReduceWriteConfigUtil>> (for the given Hadoop https://hadoop.apache.org/docs/r2.7.3/api/org/apache/hadoop/conf/Configuration.html[Configuration])
+
+|===
+
+== [[reduceByKey]][[groupByKey]] `groupByKey` and `reduceByKey` Transformations
 
 `reduceByKey` is sort of a particular case of <<aggregateByKey, aggregateByKey>>.
 
@@ -59,11 +168,7 @@ rdd.keyBy(_.kind).reduceByKey(....)
 
 or `mapValues` or plenty of other solutions. _FIXME, man_.
 
-=== [[mapValues]][[flatMapValues]] mapValues, flatMapValues
-
-CAUTION: FIXME
-
-=== [[combineByKeyWithClassTag]] `combineByKeyWithClassTag` Transformations
+== [[combineByKeyWithClassTag]] `combineByKeyWithClassTag` Transformations
 
 [source, scala]
 ----
