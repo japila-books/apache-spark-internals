@@ -4,6 +4,20 @@
 
 `SparkHadoopWriter` utility is used by <<spark-rdd-PairRDDFunctions.adoc#saveAsNewAPIHadoopDataset, RDD.saveAsNewAPIHadoopDataset>> and <<spark-rdd-PairRDDFunctions.adoc#saveAsHadoopDataset, RDD.saveAsHadoopDataset>> transformations.
 
+[[logging]]
+[TIP]
+====
+Enable `ALL` logging level for `org.apache.spark.internal.io.SparkHadoopWriter` logger to see what happens inside.
+
+Add the following line to `conf/log4j.properties`:
+
+```
+log4j.logger.org.apache.spark.internal.io.SparkHadoopWriter=ALL
+```
+
+Refer to <<spark-logging.adoc#, Logging>>.
+====
+
 == [[write]] Writing Key-Value RDD Out (As Hadoop OutputFormat) -- `write` Utility
 
 [source, scala]
@@ -57,7 +71,7 @@ Aborting job [getJobID].
 Job aborted.
 ```
 
-== [[executeTask]] `executeTask` Internal Utility
+== [[executeTask]] Writing RDD Partition -- `executeTask` Internal Utility
 
 [source, scala]
 ----
@@ -72,6 +86,34 @@ executeTask[K, V: ClassTag](
   iterator: Iterator[(K, V)]): TaskCommitMessage
 ----
 
-`executeTask`...FIXME
+`executeTask` requests the given `HadoopWriteConfigUtil` to <<spark-internal-io-HadoopWriteConfigUtil.adoc#createTaskAttemptContext, create a TaskAttemptContext>>.
+
+`executeTask` requests the given `FileCommitProtocol` to <<spark-internal-io-FileCommitProtocol.adoc#setupTask, set up a task>> with the `TaskAttemptContext`.
+
+`executeTask` requests the given `HadoopWriteConfigUtil` to <<spark-internal-io-HadoopWriteConfigUtil.adoc#initWriter, initWriter>> (with the `TaskAttemptContext` and the given `sparkPartitionId`).
+
+`executeTask` <<initHadoopOutputMetrics, initHadoopOutputMetrics>>.
+
+`executeTask` writes all rows of the RDD partition (from the given `Iterator[(K, V)]`). `executeTask` requests the given `HadoopWriteConfigUtil` to <<spark-internal-io-HadoopWriteConfigUtil.adoc#write, write>>. In the end, `executeTask` requests the given `HadoopWriteConfigUtil` to <<spark-internal-io-HadoopWriteConfigUtil.adoc#closeWriter, closeWriter>> and the given `FileCommitProtocol` to <<spark-internal-io-FileCommitProtocol.adoc#commitTask, commit the task>>.
+
+`executeTask` updates metrics about writing data to external systems (*bytesWritten* and *recordsWritten*) every few records and at the end.
+
+In case of any errors, `executeTask` requests the given `HadoopWriteConfigUtil` to <<spark-internal-io-HadoopWriteConfigUtil.adoc#closeWriter, closeWriter>> and the given `FileCommitProtocol` to <<spark-internal-io-FileCommitProtocol.adoc#abortTask, abort the task>>. In the end, `executeTask` prints out the following ERROR message to the logs:
+
+```
+Task [taskAttemptID] aborted.
+```
 
 NOTE: `executeTask` is used when `SparkHadoopWriter` utility is used to <<write, write>>.
+
+== [[initHadoopOutputMetrics]] `initHadoopOutputMetrics` Utility
+
+[source, scala]
+----
+initHadoopOutputMetrics(
+  context: TaskContext): (OutputMetrics, () => Long)
+----
+
+`initHadoopOutputMetrics`...FIXME
+
+NOTE: `initHadoopOutputMetrics` is used when `SparkHadoopWriter` utility is used to <<executeTask, executeTask>>.
