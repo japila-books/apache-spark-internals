@@ -1,17 +1,17 @@
 = Spark History Server
 
-*Spark History Server* is the web UI for xref:ROOT:spark-SparkListener-EventLoggingListener.adoc[completed] and running (aka _incomplete_) Spark applications. It is an extension of Spark's xref:webui:spark-webui.adoc[web UI].
+*Spark History Server* is the web UI of xref:ROOT:spark-SparkListener-EventLoggingListener.adoc[completed] and still running (aka _incomplete_) Spark applications with event log collection enabled (using xref:ROOT:spark-SparkListener-EventLoggingListener.adoc#spark_eventLog_enabled[spark.eventLog.enabled] configuration property).
 
 .History Server's web UI
 image::spark-history-server-webui.png[align="center"]
 
-TIP: Enable collecting events in your Spark applications using xref:ROOT:spark-SparkListener-EventLoggingListener.adoc#spark_eventLog_enabled[spark.eventLog.enabled] Spark property.
+Spark History Server is an extension of Spark's xref:webui:index.adoc[web UI].
 
-You can start History Server by executing <<start_history_server_sh, start-history-server.sh>> shell script and stop it using <<stop_history_server_sh, stop-history-server.sh>>.
+Spark History Server can be started using <<start_history_server_sh, start-history-server.sh>> and stopped using <<stop_history_server_sh, stop-history-server.sh>> shell scripts.
 
 `start-history-server.sh` accepts `--properties-file [propertiesFile]` command-line option that specifies the properties file with the custom xref:ROOT:spark-properties.adoc[Spark properties].
 
-[source]
+[source,plaintext]
 ----
 $ ./sbin/start-history-server.sh --properties-file history.properties
 ----
@@ -33,79 +33,107 @@ Refer to xref:ROOT:spark-logging.adoc[Logging].
 
 == [[start_history_server_sh]] Starting History Server -- `start-history-server.sh` Shell Script
 
-You can start a `HistoryServer` instance by executing `$SPARK_HOME/sbin/start-history-server.sh` script (where `SPARK_HOME` is the directory of your Spark installation).
+`$SPARK_HOME/sbin/start-history-server.sh` shell script (where `SPARK_HOME` is the directory of your Spark installation) is used to start a Spark History Server instance.
 
-```
+[source,plaintext]
+----
 $ ./sbin/start-history-server.sh
 starting org.apache.spark.deploy.history.HistoryServer, logging to .../spark/logs/spark-jacek-org.apache.spark.deploy.history.HistoryServer-1-japila.out
-```
+----
 
-Internally, `start-history-server.sh` script starts xref:HistoryServer.adoc#[org.apache.spark.deploy.history.HistoryServer] standalone application (using `spark-daemon.sh` shell script).
+Internally, `start-history-server.sh` script starts xref:HistoryServer.adoc[org.apache.spark.deploy.history.HistoryServer] standalone application (using `spark-daemon.sh` shell script).
 
-```
+[source,plaintext]
+----
 $ ./bin/spark-class org.apache.spark.deploy.history.HistoryServer
-```
+----
 
 TIP: Using the more explicit approach with `spark-class` to start Spark History Server could be easier to trace execution by seeing the logs printed out to the standard output and hence terminal directly.
 
-When started, it prints out the following INFO message to the logs:
+When started, `start-history-server.sh` prints out the following INFO message to the logs:
 
 ```
 Started daemon with process name: [processName]
 ```
 
-It registers signal handlers (using `SignalUtils`) for `TERM`, `HUP`, `INT` to log their execution:
+`start-history-server.sh` registers signal handlers (using `SignalUtils`) for `TERM`, `HUP`, `INT` to log their execution:
 
 ```
 RECEIVED SIGNAL [signal]
 ```
 
-It inits security if enabled (using `spark.history.kerberos.enabled` setting).
+`start-history-server.sh` inits security if enabled (using `spark.history.kerberos.enabled` setting).
 
 CAUTION: FIXME Describe `initSecurity`
 
-It creates a `SecurityManager`.
+`start-history-server.sh` creates a `SecurityManager`.
 
-It creates a xref:ApplicationHistoryProvider.adoc[ApplicationHistoryProvider] (by reading <<spark_history_provider, spark.history.provider>>).
+`start-history-server.sh` creates a xref:ApplicationHistoryProvider.adoc[ApplicationHistoryProvider] (by reading <<spark_history_provider, spark.history.provider>>).
 
-It xref:HistoryServer.adoc#creating-instance[creates a `HistoryServer`] and requests it to bind to <<spark_history_ui_port, spark.history.ui.port>> port.
+In the end, `start-history-server.sh` creates a xref:HistoryServer.adoc[HistoryServer] and requests it to bind to the port as configured using <<spark_history_ui_port, spark.history.ui.port>> Spark property.
 
 [TIP]
 ====
 The host's IP can be specified using `SPARK_LOCAL_IP` environment variable (defaults to `0.0.0.0`).
 ====
 
-You should see the following INFO message in the logs:
+`start-history-server.sh` prints out the following INFO message to the logs:
 
 ```
 Bound HistoryServer to [host], and started at [webUrl]
 ```
 
-It registers a shutdown hook to call `stop` on the `HistoryServer` instance.
+`start-history-server.sh` registers a shutdown hook to call `stop` on the `HistoryServer` instance.
 
 TIP: Use <<stop_history_server, stop-history-server.sh>> shell script to to stop a running History Server.
 
 == [[stop_history_server_sh]] Stopping History Server -- `stop-history-server.sh` Shell Script
 
-You can stop a running instance of `HistoryServer` using `$SPARK_HOME/sbin/stop-history-server.sh` shell script.
+`$SPARK_HOME/sbin/stop-history-server.sh` shell script (where `SPARK_HOME` is the directory of your Spark installation) is used to stop a running instance of Spark History Server.
 
-```
+[source,plaintext]
+----
 $ ./sbin/stop-history-server.sh
 stopping org.apache.spark.deploy.history.HistoryServer
-```
+----
 
-== [[settings]] Settings
+== [[properties]] Spark Properties
 
-.Spark Properties
-[cols="1,1,2",options="header",width="100%"]
+[cols="30m,30,40",options="header",width="100%"]
 |===
-| Setting | Default Value | Description
-| [[spark_history_ui_port]] `spark.history.ui.port` | `18080` | The port of the History Server's UI.
-| [[spark_history_fs_logDirectory]] `spark.history.fs.logDirectory` | `file:/tmp/spark-events` | The directory with the event logs. The directory has to exist before starting History Server.
-| `spark.history.retainedApplications` | `50` | How many Spark applications to retain.
-| `spark.history.ui.maxApplications` | (unbounded) | how many Spark applications to show in the UI.
-| `spark.history.kerberos.enabled` | `false` | Enable security when working with HDFS with security enabled (Kerberos).
-| `spark.history.kerberos.principal` | (empty) | Kerberos principal. Required when `spark.history.kerberos.enabled` is enabled.
-| `spark.history.kerberos.keytab` | (empty) | Keytab to use for login to Kerberos. Required when `spark.history.kerberos.enabled` is enabled.
-| [[spark_history_provider]] `spark.history.provider` | xref:FsHistoryProvider.adoc[org.apache.spark.deploy.history.FsHistoryProvider] | The fully-qualified class name for a xref:ApplicationHistoryProvider.adoc[ApplicationHistoryProvider].
+| Setting
+| Default Value
+| Description
+
+| spark.history.ui.port
+| `18080`
+| [[spark_history_ui_port]] The port of the History Server's UI.
+
+| spark.history.fs.logDirectory
+| `file:/tmp/spark-events`
+| [[spark_history_fs_logDirectory]] The directory with the event logs. The directory has to exist before starting History Server.
+
+| spark.history.retainedApplications
+| `50`
+| [[spark.history.retainedApplications]] How many Spark applications to retain.
+
+| spark.history.ui.maxApplications
+| (unbounded)
+| [[spark.history.ui.maxApplications]] how many Spark applications to show in the UI.
+
+| spark.history.kerberos.enabled
+| `false`
+| [[spark.history.kerberos.enabled]] Enable security when working with HDFS with security enabled (Kerberos).
+
+| spark.history.kerberos.principal
+| (empty)
+| [[spark.history.kerberos.principal]] Kerberos principal. Required when `spark.history.kerberos.enabled` is enabled.
+
+| spark.history.kerberos.keytab
+| (empty)
+| [[spark.history.kerberos.keytab]] Keytab to use for login to Kerberos. Required when `spark.history.kerberos.enabled` is enabled.
+
+| spark.history.provider
+| xref:FsHistoryProvider.adoc[org.apache.spark.deploy.history.FsHistoryProvider]
+| [[spark_history_provider]] The fully-qualified class name for a xref:ApplicationHistoryProvider.adoc[ApplicationHistoryProvider].
 |===
