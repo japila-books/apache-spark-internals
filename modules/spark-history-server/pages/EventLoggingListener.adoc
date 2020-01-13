@@ -1,12 +1,14 @@
 = [[EventLoggingListener]] EventLoggingListener -- Spark Listener For Persisting Events
 
-`EventLoggingListener` is a xref:ROOT:spark-scheduler-SparkListener.adoc[SparkListener] that is responsible for <<logEvent, writing out JSON-encoded events>> of a Spark application with event logging enabled (based on xref:configuration-properties.adoc#spark.eventLog.enabled[spark.eventLog.enabled] configuration property).
+`EventLoggingListener` is a xref:ROOT:spark-scheduler-SparkListener.adoc[SparkListener] that <<logEvent, writes out JSON-encoded events>> of a Spark application with event logging enabled (based on xref:configuration-properties.adoc#spark.eventLog.enabled[spark.eventLog.enabled] configuration property).
+
+`EventLoggingListener` supports custom <<configuration-properties.adoc#EventLoggingListener, configuration properties>>.
 
 `EventLoggingListener` writes out log files to a directory (based on xref:configuration-properties.adoc#spark.eventLog.dir[spark.eventLog.dir] configuration property). All xref:ROOT:spark-scheduler-SparkListener.adoc[Spark events] are logged (but xref:ROOT:spark-scheduler-SparkListener.adoc#SparkListenerBlockUpdated[SparkListenerBlockUpdated] and xref:ROOT:spark-scheduler-SparkListener.adoc#SparkListenerExecutorMetricsUpdate[SparkListenerExecutorMetricsUpdate]).
 
 TIP: Use xref:index.adoc[Spark History Server] to view the event logs in a browser (similarly to xref:webui:index.adoc[web UI] of a Spark application).
 
-[[inprogress-extension]]
+[[inprogress-extension]][[IN_PROGRESS]]
 `EventLoggingListener` uses *.inprogress* file extension for in-flight event log files of active Spark applications.
 
 `EventLoggingListener` can compress events (based on xref:configuration-properties.adoc#spark.eventLog.compress[spark.eventLog.compress] configuration property).
@@ -39,6 +41,17 @@ Refer to xref:ROOT:spark-logging.adoc[Logging].
 
 NOTE: When initialized with no <<hadoopConf, Hadoop Configuration>>, `EventLoggingListener` uses `SparkHadoopUtil` utility to xref:ROOT:spark-SparkHadoopUtil.adoc#newConfiguration[create a new one].
 
+== [[logPath]] Event Log File -- `logPath` Property
+
+[source, scala]
+----
+logPath: String
+----
+
+`logPath` is...FIXME
+
+NOTE: `logPath` is used when `EventLoggingListener` is requested to <<start, start>> and <<stop, stop>>.
+
 == [[start]] Starting EventLoggingListener -- `start` Method
 
 [source, scala]
@@ -46,11 +59,7 @@ NOTE: When initialized with no <<hadoopConf, Hadoop Configuration>>, `EventLoggi
 start(): Unit
 ----
 
-`start` checks whether `logBaseDir` is really a directory, and if it is not, it throws a `IllegalArgumentException` with the following message:
-
-```
-Log directory [logBaseDir] does not exist.
-```
+`start` deletes the <<logPath, logPath>> with the <<IN_PROGRESS, .inprogress>> extension.
 
 The log file's working name is created based on `appId` with or without the compression codec used and `appAttemptId`, i.e. `local-1461696754069`. It also uses `.inprogress` extension.
 
@@ -78,9 +87,15 @@ At this point, `EventLoggingListener` is ready for event logging and you should 
 Logging events to [logPath]
 ```
 
+`start` throws an `IllegalArgumentException` when the <<logBaseDir, logBaseDir>> is not a directory:
+
+```
+Log directory [logBaseDir] is not a directory.
+```
+
 NOTE: `start` is executed while `SparkContext` is xref:ROOT:spark-SparkContext-creating-instance-internals.adoc#_eventLogger[created].
 
-== [[logEvent]] Logging Event as JSON -- `logEvent` Method
+== [[logEvent]] Logging Event (In JSON Format) -- `logEvent` Method
 
 [source, scala]
 ----
@@ -115,3 +130,41 @@ Target log file already exists ([logPath])
 ```
 
 NOTE: `stop` is executed while `SparkContext` is requested to xref:ROOT:spark-SparkContext.adoc#stop[stop].
+
+== [[getLogPath]] `getLogPath` Utility
+
+[source, scala]
+----
+getLogPath(
+  logBaseDir: URI,
+  appId: String,
+  appAttemptId: Option[String],
+  compressionCodecName: Option[String] = None): String
+----
+
+`getLogPath`...FIXME
+
+NOTE: `getLogPath` is used when `EventLoggingListener` is <<creating-instance, created>> (for the <<logPath, logPath>>).
+
+== [[internal-properties]] Internal Properties
+
+[cols="30m,70",options="header",width="100%"]
+|===
+| Name
+| Description
+
+| hadoopDataStream
+a| [[hadoopDataStream]] Hadoop http://hadoop.apache.org/docs/r2.7.3/api/org/apache/hadoop/fs/FSDataOutputStream.html[FSDataOutputStream] (default: `None`)
+
+Used when...FIXME
+
+| writer
+a| [[writer]] https://docs.oracle.com/javase/8/docs/api/java/io/PrintWriter.html[java.io.PrintWriter] for <<logEvent, writing out events>> to the <<logPath, event log file>>.
+
+Initialized when `EventLoggingListener` is requested to <<start, start>>
+
+Used when `EventLoggingListener` is requested to <<logEvent, logEvent>>
+
+Closed when `EventLoggingListener` is requested to <<stop, stop>>
+
+|===
