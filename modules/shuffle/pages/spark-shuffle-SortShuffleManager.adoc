@@ -1,10 +1,10 @@
 == [[SortShuffleManager]] SortShuffleManager -- The Default (And Only) Sort-Based Shuffle System
 
-`SortShuffleManager` is the default and only link:spark-shuffle-ShuffleManager.adoc[ShuffleManager] in Spark with the short name `sort` or `tungsten-sort`.
+*SortShuffleManager* is the default and only link:spark-shuffle-ShuffleManager.adoc[ShuffleManager] in Spark with the short name `sort` or `tungsten-sort`.
 
-NOTE: You can use <<spark-configuration-properties.adoc#spark.shuffle.manager, spark.shuffle.manager>> Spark property to activate your own implementation of link:spark-shuffle-ShuffleManager.adoc#contract[ShuffleManager contract].
+NOTE: You can use xref:ROOT:spark-configuration-properties.adoc#spark.shuffle.manager[spark.shuffle.manager] Spark property to activate your own implementation of link:spark-shuffle-ShuffleManager.adoc#contract[ShuffleManager contract].
 
-`SortShuffleManager` is <<creating-instance, created>> when `SparkEnv` is link:spark-SparkEnv.adoc#ShuffleManager[created] (on the driver and executors at the very beginning of a Spark application's lifecycle).
+`SortShuffleManager` is <<creating-instance, created>> when `SparkEnv` is xref:ROOT:spark-SparkEnv.adoc#ShuffleManager[created] (on the driver and executors at the very beginning of a Spark application's lifecycle).
 
 [[MAX_SHUFFLE_OUTPUT_PARTITIONS_FOR_SERIALIZED_MODE]]
 `SortShuffleManager` allows for `(1 << 24)` partition identifiers that can be encoded (i.e. `16777216`).
@@ -20,8 +20,20 @@ Add the following line to `conf/log4j.properties`:
 log4j.logger.org.apache.spark.shuffle.sort.SortShuffleManager$=ALL
 ```
 
-Refer to <<spark-logging.adoc#, Logging>>.
+Refer to xref:ROOT:spark-logging.adoc[Logging].
 ====
+
+=== [[creating-instance]] Creating SortShuffleManager Instance
+
+`SortShuffleManager` takes a xref:ROOT:spark-SparkConf.adoc[SparkConf].
+
+`SortShuffleManager` makes sure that <<spark_shuffle_spill, spark.shuffle.spill>> Spark property is enabled. If not you should see the following WARN message in the logs:
+
+```
+WARN SortShuffleManager: spark.shuffle.spill was set to false, but this configuration is ignored as of Spark 1.6+. Shuffle will continue to spill to disk when necessary.
+```
+
+`SortShuffleManager` initializes the <<internal-registries, internal registries and counters>>.
 
 === [[unregisterShuffle]] Unregistering Shuffle -- `unregisterShuffle` Method
 
@@ -36,18 +48,6 @@ NOTE: `unregisterShuffle` is part of the <<spark-shuffle-ShuffleManager.adoc#unr
 
 If the given `shuffleId` was registered, `unregisterShuffle` requests the <<shuffleBlockResolver, IndexShuffleBlockResolver>> to <<spark-shuffle-IndexShuffleBlockResolver.adoc#removeDataByMap, remove the shuffle index and data files>> one by one (up to the number of mappers producing the output for the shuffle).
 
-=== [[creating-instance]] Creating SortShuffleManager Instance
-
-`SortShuffleManager` takes a link:spark-SparkConf.adoc[SparkConf].
-
-`SortShuffleManager` makes sure that <<spark_shuffle_spill, spark.shuffle.spill>> Spark property is enabled. If not you should see the following WARN message in the logs:
-
-```
-WARN SortShuffleManager: spark.shuffle.spill was set to false, but this configuration is ignored as of Spark 1.6+. Shuffle will continue to spill to disk when necessary.
-```
-
-`SortShuffleManager` initializes the <<internal-registries, internal registries and counters>>.
-
 === [[registerShuffle]] Creating ShuffleHandle (For ShuffleDependency) -- `registerShuffle` Method
 
 [source, scala]
@@ -58,7 +58,7 @@ registerShuffle[K, V, C](
   dependency: ShuffleDependency[K, V, C]): ShuffleHandle
 ----
 
-NOTE: `registerShuffle` is part of link:spark-shuffle-ShuffleManager.adoc#contract[ShuffleManager contract].
+NOTE: `registerShuffle` is part of xref:spark-shuffle-ShuffleManager.adoc#registerShuffle[ShuffleManager] contract.
 
 CAUTION: FIXME Copy the conditions
 
@@ -80,7 +80,7 @@ getWriter[K, V](
   context: TaskContext): ShuffleWriter[K, V]
 ----
 
-NOTE: `getWriter` is part of link:spark-shuffle-ShuffleManager.adoc#contract[`ShuffleManager` contract].
+NOTE: `getWriter` is part of link:spark-shuffle-ShuffleManager.adoc#getWriter[ShuffleManager] contract.
 
 Internally, `getWriter` makes sure that a `ShuffleHandle` is associated with its `numMaps` in <<numMapsForShuffle, `numMapsForShuffle` internal registry>>.
 
@@ -107,7 +107,7 @@ getReader[K, C](
   context: TaskContext): ShuffleReader[K, C]
 ----
 
-NOTE: `getReader` is part of link:spark-shuffle-ShuffleManager.adoc#getReader[ShuffleManager Contract].
+NOTE: `getReader` is part of link:spark-shuffle-ShuffleManager.adoc#getReader[ShuffleManager] contract.
 
 `getReader` returns a new link:spark-shuffle-BlockStoreShuffleReader.adoc[BlockStoreShuffleReader] passing all the input parameters on to it.
 
@@ -133,9 +133,9 @@ shouldBypassMergeSort(conf: SparkConf, dep: ShuffleDependency[_, _, _]): Boolean
 
 `shouldBypassMergeSort` holds (i.e. is positive) when:
 
-1. The input link:spark-rdd-ShuffleDependency.adoc[ShuffleDependency] has link:spark-rdd-ShuffleDependency.adoc#mapSideCombine[`mapSideCombine` flag enabled] and link:spark-rdd-ShuffleDependency.adoc#aggregator[`aggregator` defined].
+1. The input xref:rdd:spark-rdd-ShuffleDependency.adoc[ShuffleDependency] has xref:rdd:spark-rdd-ShuffleDependency.adoc#mapSideCombine[`mapSideCombine` flag enabled] and xref:rdd:spark-rdd-ShuffleDependency.adoc#aggregator[`aggregator` defined].
 
-2. `mapSideCombine` flag is disabled (i.e. `false`) but the link:spark-rdd-ShuffleDependency.adoc#partitioner[number of partitions (of the `Partitioner` of the input `ShuffleDependency`)] is at most <<spark_shuffle_sort_bypassMergeThreshold, spark.shuffle.sort.bypassMergeThreshold>> Spark property (which defaults to `200`).
+2. `mapSideCombine` flag is disabled (i.e. `false`) but the xref:rdd:spark-rdd-ShuffleDependency.adoc#partitioner[number of partitions (of the `Partitioner` of the input `ShuffleDependency`)] is at most <<spark_shuffle_sort_bypassMergeThreshold, spark.shuffle.sort.bypassMergeThreshold>> Spark property (which defaults to `200`).
 
 Otherwise, `shouldBypassMergeSort` does not hold (i.e. `false`).
 
@@ -150,11 +150,11 @@ canUseSerializedShuffle(dependency: ShuffleDependency[_, _, _]): Boolean
 
 `canUseSerializedShuffle` condition holds (i.e. is positive) when all of the following hold (checked in that order):
 
-1. The link:spark-Serializer.adoc#supportsRelocationOfSerializedObjects[`Serializer` of the input `ShuffleDependency` supports relocation of serialized objects].
+1. The xref:ROOT:spark-Serializer.adoc#supportsRelocationOfSerializedObjects[`Serializer` of the input `ShuffleDependency` supports relocation of serialized objects].
 
-2. The link:spark-rdd-ShuffleDependency.adoc#aggregator[`Aggregator` of the input `ShuffleDependency` is _not_ defined].
+2. The xref:rdd:spark-rdd-ShuffleDependency.adoc#aggregator[`Aggregator` of the input `ShuffleDependency` is _not_ defined].
 
-3. The link:spark-rdd-ShuffleDependency.adoc#partitioner[number of shuffle output partitions of the input `ShuffleDependency`] is at most the supported maximum number (which is `(1 << 24) - 1`, i.e. `16777215`).
+3. The xref:rdd:spark-rdd-ShuffleDependency.adoc#partitioner[number of shuffle output partitions of the input `ShuffleDependency`] is at most the supported maximum number (which is `(1 << 24) - 1`, i.e. `16777215`).
 
 You should see the following DEBUG message in the logs when `canUseSerializedShuffle` holds:
 
@@ -187,20 +187,11 @@ NOTE: `canUseSerializedShuffle` is exclusively used when <<registerShuffle, `Sor
 | `200`
 | The maximum number of reduce partitions below which `SortShuffleManager` avoids merge-sorting data if there is no map-side aggregation either.
 
-| [[spark_shuffle_spill]] `spark.shuffle.spill`
-| `true`
-| No longer in use.
-
-When `false` the following WARN shows in the logs when <<creating-instance, `SortShuffleManager` is created>>:
-
-`WARN SortShuffleManager: spark.shuffle.spill was set to false, but this configuration is ignored as of Spark 1.6+. Shuffle will continue to spill to disk when necessary.`
-
 |===
 
 === [[internal-properties]] Internal Properties
 
-.SortShuffleManager's Internal Properties (e.g. Registries, Counters and Flags)
-[cols="1m,3",options="header",width="100%"]
+[cols="30m,70",options="header",width="100%"]
 |===
 | Name
 | Description
