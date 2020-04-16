@@ -1,41 +1,54 @@
-== [[DiskBlockManager]] DiskBlockManager
+= [[DiskBlockManager]] DiskBlockManager
 
-`DiskBlockManager` creates and maintains the logical mapping between logical blocks and physical on-disk locations.
+*DiskBlockManager* creates and maintains the logical mapping between logical blocks and physical on-disk locations.
 
 By default, one block is mapped to one file with a name given by its `BlockId`. It is however possible to have a block map to only a segment of a file.
 
 Block files are hashed among the <<getConfiguredLocalDirs, local directories>>.
 
-NOTE: `DiskBlockManager` is used exclusively by link:spark-DiskStore.adoc[DiskStore] and created when xref:ROOT:BlockManager.adoc#creating-instance[`BlockManager` is created] (and passed to `DiskStore`).
+DiskBlockManager is <<creating-instance, created>> for a xref:storage:BlockManager.adoc#diskBlockManager[BlockManager]
 
-[[logging]]
-[TIP]
-====
-Enable `ALL` logging level for `org.apache.spark.storage.DiskBlockManager` logger to see what happens inside.
+DiskBlockManager is used to create a xref:DiskStore.adoc[DiskStore].
 
-Add the following line to `conf/log4j.properties`:
+== [[creating-instance]] Creating Instance
+
+* [[conf]] xref:ROOT:spark-SparkConf.adoc[SparkConf]
+* [[deleteFilesOnStop]] `deleteFilesOnStop` flag
+
+When created, DiskBlockManager uses xref:ROOT:spark-configuration-properties.adoc#spark.diskStore.subDirectories[spark.diskStore.subDirectories] configuration property to set <<subDirsPerLocalDir, subDirsPerLocalDir>>.
+
+DiskBlockManager <<createLocalDirs, creates one or many local directories to store block data>> (as <<localDirs, localDirs>>). When not successful, you should see the following ERROR message in the logs and DiskBlockManager exits with error code `53`.
 
 ```
-log4j.logger.org.apache.spark.storage.DiskBlockManager=ALL
+Failed to create any local dir.
 ```
 
-Refer to <<spark-logging.adoc#, Logging>>.
-====
+DiskBlockManager initializes the internal <<subDirs, subDirs>> collection of locks for every local directory to store block data with an array of `subDirsPerLocalDir` size for files.
 
-=== [[getFile]] Finding Block File -- `getFile` Method
+In the end, DiskBlockManager <<addShutdownHook, registers a shutdown hook>> to clean up the local directories for blocks.
+
+== [[getFile]] Finding Block File
 
 [source, scala]
 ----
-getFile(blockId: BlockId): File // <1>
-getFile(filename: String): File
+getFile(
+  blockId: BlockId): File // <1>
+getFile(
+  filename: String): File
 ----
-<1> Uses `getFile` with the name of the given `BlockId`
+<1> Uses the name of the given `BlockId`
 
 `getFile`...FIXME
 
-NOTE: `getFile` is used when...FIXME
+`getFile` is used when:
 
-=== [[createTempShuffleBlock]] `createTempShuffleBlock` Method
+* DiskBlockManager is requested to <<containsBlock, containsBlock>>, <<createTempLocalBlock, createTempLocalBlock>>, <<createTempShuffleBlock, createTempShuffleBlock>>
+
+* DiskStore is requested to xref:DiskStore.adoc#getBytes[getBytes], xref:DiskStore.adoc#remove[remove], xref:DiskStore.adoc#contains[contains], and xref:DiskStore.adoc#put[put]
+
+* IndexShuffleBlockResolver is requested to xref:shuffle:IndexShuffleBlockResolver.adoc#getDataFile[getDataFile] and xref:shuffle:IndexShuffleBlockResolver.adoc#getIndexFile[getIndexFile]
+
+== [[createTempShuffleBlock]] `createTempShuffleBlock` Method
 
 [source, scala]
 ----
@@ -46,7 +59,7 @@ createTempShuffleBlock(): (TempShuffleBlockId, File)
 
 CAUTION: FIXME
 
-=== [[getAllFiles]] `getAllFiles` Method
+== [[getAllFiles]] `getAllFiles` Method
 
 [source, scala]
 ----
@@ -55,28 +68,9 @@ getAllFiles(): Seq[File]
 
 `getAllFiles`...FIXME
 
-NOTE: `getAllFiles` is used exclusively when `DiskBlockManager` is requested to <<getAllBlocks, getAllBlocks>>.
+NOTE: `getAllFiles` is used exclusively when DiskBlockManager is requested to <<getAllBlocks, getAllBlocks>>.
 
-=== [[creating-instance]] Creating `DiskBlockManager` Instance
-
-[source, scala]
-----
-DiskBlockManager(conf: SparkConf, deleteFilesOnStop: Boolean)
-----
-
-When created, `DiskBlockManager` uses <<spark-configuration-properties.adoc#spark.diskStore.subDirectories, spark.diskStore.subDirectories>> configuration property to set `subDirsPerLocalDir`.
-
-`DiskBlockManager` <<createLocalDirs, creates one or many local directories to store block data>> (as <<localDirs, localDirs>>). When not successful, you should see the following ERROR message in the logs and `DiskBlockManager` exits with error code `53`.
-
-```
-ERROR DiskBlockManager: Failed to create any local dir.
-```
-
-`DiskBlockManager` initializes the internal <<subDirs, subDirs>> collection of locks for every local directory to store block data with an array of `subDirsPerLocalDir` size for files.
-
-In the end, `DiskBlockManager` <<addShutdownHook, registers a shutdown hook>> to clean up the local directories for blocks.
-
-=== [[addShutdownHook]] Registering Shutdown Hook -- `addShutdownHook` Internal Method
+== [[addShutdownHook]] Registering Shutdown Hook -- `addShutdownHook` Internal Method
 
 [source, scala]
 ----
@@ -97,7 +91,7 @@ DEBUG DiskBlockManager: Adding shutdown hook
 INFO DiskBlockManager: Shutdown hook called
 ```
 
-=== [[doStop]] Stopping DiskBlockManager (Removing Local Directories for Blocks) -- `doStop` Internal Method
+== [[doStop]] Stopping DiskBlockManager (Removing Local Directories for Blocks) -- `doStop` Internal Method
 
 [source, scala]
 ----
@@ -106,9 +100,9 @@ doStop(): Unit
 
 `doStop` deletes the local directories recursively (only when the constructor's `deleteFilesOnStop` is enabled and the parent directories are not registered to be removed at shutdown).
 
-NOTE: `doStop` is used when `DiskBlockManager` is requested to <<addShutdownHook, shut down>> or <<stop, stop>>.
+NOTE: `doStop` is used when DiskBlockManager is requested to <<addShutdownHook, shut down>> or <<stop, stop>>.
 
-=== [[getConfiguredLocalDirs]] Getting Local Directories for Spark to Write Files -- `Utils.getConfiguredLocalDirs` Internal Method
+== [[getConfiguredLocalDirs]] Getting Local Directories for Spark to Write Files -- `Utils.getConfiguredLocalDirs` Internal Method
 
 [source, scala]
 ----
@@ -133,12 +127,12 @@ In the end, when no earlier environment variables were found, `getConfiguredLoca
 ====
 `getConfiguredLocalDirs` is used when:
 
-* `DiskBlockManager` is requested to <<createLocalDirs, createLocalDirs>>
+* DiskBlockManager is requested to <<createLocalDirs, createLocalDirs>>
 
 * `Utils` helper is requested to link:spark-Utils.adoc#getLocalDir[getLocalDir] and link:spark-Utils.adoc#getOrCreateLocalRootDirsImpl[getOrCreateLocalRootDirsImpl]
 ====
 
-=== [[getYarnLocalDirs]] Getting Writable Directories in YARN -- `getYarnLocalDirs` Internal Method
+== [[getYarnLocalDirs]] Getting Writable Directories in YARN -- `getYarnLocalDirs` Internal Method
 
 [source, scala]
 ----
@@ -149,7 +143,7 @@ getYarnLocalDirs(conf: SparkConf): String
 
 `getYarnLocalDirs` throws an `Exception` with the message `Yarn Local dirs can't be empty` if `LOCAL_DIRS` environment variable was not set.
 
-=== [[isRunningInYarnContainer]] Checking If Spark Runs on YARN -- `isRunningInYarnContainer` Internal Method
+== [[isRunningInYarnContainer]] Checking If Spark Runs on YARN -- `isRunningInYarnContainer` Internal Method
 
 [source, scala]
 ----
@@ -160,7 +154,7 @@ isRunningInYarnContainer(conf: SparkConf): Boolean
 
 NOTE: `CONTAINER_ID` environment variable is exported by YARN NodeManager.
 
-=== [[getAllBlocks]] Getting All Blocks Stored On Disk -- `getAllBlocks` Method
+== [[getAllBlocks]] Getting All Blocks Stored On Disk -- `getAllBlocks` Method
 
 [source, scala]
 ----
@@ -173,7 +167,7 @@ Internally, `getAllBlocks` takes the <<getAllFiles, block files>> and returns th
 
 NOTE: `getAllBlocks` is used exclusively when `BlockManager` is requested to xref:ROOT:BlockManager.adoc#getMatchingBlockIds[find IDs of existing blocks for a given filter].
 
-=== [[createLocalDirs]] Creating Local Directories for Storing Block Data -- `createLocalDirs` Internal Method
+== [[createLocalDirs]] Creating Local Directories for Storing Block Data -- `createLocalDirs` Internal Method
 
 [source, scala]
 ----
@@ -198,7 +192,7 @@ ERROR DiskBlockManager: Failed to create local dir in [rootDir]. Ignoring this d
 
 NOTE: `createLocalDirs` is used exclusively when <<localDirs, localDirs>> is initialized.
 
-=== [[stop]] `stop` Internal Method
+== [[stop]] `stop` Internal Method
 
 [source, scala]
 ----
@@ -209,20 +203,33 @@ stop(): Unit
 
 NOTE: `stop` is used exclusively when `BlockManager` is requested to xref:ROOT:BlockManager.adoc#stop[stop].
 
-=== [[subDirs]] File Locks for Local Block Store Directories -- `subDirs` Internal Property
+== [[subDirs]] File Locks for Local Block Store Directories -- `subDirs` Internal Property
 
 [source, scala]
 ----
 subDirs: Array[Array[File]]
 ----
 
-`subDirs` is a collection of <<subDirsPerLocalDir, subDirsPerLocalDir>> file locks for every <<createLocalDirs, local block store directory>> where `DiskBlockManager` stores block data (with the columns being the number of local directories and the rows as collection of `subDirsPerLocalDir` size).
+`subDirs` is a collection of <<subDirsPerLocalDir, subDirsPerLocalDir>> file locks for every <<createLocalDirs, local block store directory>> where DiskBlockManager stores block data (with the columns being the number of local directories and the rows as collection of `subDirsPerLocalDir` size).
 
 NOTE: `subDirs(n)` is to access ``n``-th local directory.
 
-NOTE: `subDirs` is used when `DiskBlockManager` is requested to <<getFile, getFile>> or <<getAllFiles, getAllFiles>>.
+NOTE: `subDirs` is used when DiskBlockManager is requested to <<getFile, getFile>> or <<getAllFiles, getAllFiles>>.
 
-=== [[internal-registries]] Internal Properties
+== [[logging]] Logging
+
+Enable `ALL` logging level for `org.apache.spark.storage.DiskBlockManager` logger to see what happens inside.
+
+Add the following line to `conf/log4j.properties`:
+
+[source]
+----
+log4j.logger.org.apache.spark.storage.DiskBlockManager=ALL
+----
+
+Refer to xref:ROOT:spark-logging.adoc[Logging].
+
+== [[internal-registries]] Internal Properties
 
 .DiskBlockManager's Internal Properties (e.g. Registries, Counters and Flags)
 [cols="1m,3",options="header",width="100%"]
@@ -235,11 +242,11 @@ a| [[localDirs]] Local directories for block data
 
 `localDirs` is initialized using <<createLocalDirs, createLocalDirs>>.
 
-There has to be at least one local directory or `DiskBlockManager` cannot be <<creating-instance, created>>.
+There has to be at least one local directory or DiskBlockManager cannot be <<creating-instance, created>>.
 
 Used when:
 
-* `DiskBlockManager` is requested to <<getFile, getFile>>, initialize <<subDirs, subDirs>> and <<doStop, stop>>
+* DiskBlockManager is requested to <<getFile, getFile>>, initialize <<subDirs, subDirs>> and <<doStop, stop>>
 
 * `BlockManager` is requested to xref:ROOT:BlockManager.adoc#registerWithExternalShuffleServer[register the executor's BlockManager with an external shuffle server]
 
@@ -250,7 +257,7 @@ a| [[subDirsPerLocalDir]] <<spark-configuration-properties.adoc#spark.diskStore.
 
 Used when:
 
-* `DiskBlockManager` is <<subDirs, created>> and is requested to <<getFile, getFile>>
+* DiskBlockManager is <<subDirs, created>> and is requested to <<getFile, getFile>>
 
 * `BlockManager` is requested to xref:ROOT:BlockManager.adoc#registerWithExternalShuffleServer[register the executor's BlockManager with an external shuffle server]
 |===

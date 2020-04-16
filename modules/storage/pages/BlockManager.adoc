@@ -60,13 +60,13 @@ NOTE: `executorId` is `SparkContext.DRIVER_IDENTIFIER`, i.e. `driver` for the dr
 
 When created, BlockManager sets <<externalShuffleServiceEnabled, externalShuffleServiceEnabled>> internal flag per xref:ROOT:spark-ExternalShuffleService.adoc#spark.shuffle.service.enabled[spark.shuffle.service.enabled] Spark property.
 
-BlockManager then creates an instance of link:spark-DiskBlockManager.adoc[DiskBlockManager] (requesting `deleteFilesOnStop` when an external shuffle service is not in use).
+BlockManager then creates an instance of xref:DiskBlockManager.adoc[DiskBlockManager] (requesting `deleteFilesOnStop` when an external shuffle service is not in use).
 
 BlockManager creates an instance of link:spark-BlockInfoManager.adoc[BlockInfoManager] (as `blockInfoManager`).
 
 BlockManager creates *block-manager-future* daemon cached thread pool with 128 threads maximum (as `futureExecutionContext`).
 
-BlockManager creates a xref:spark-MemoryStore.adoc[MemoryStore] and xref:spark-DiskStore.adoc[DiskStore].
+BlockManager creates a xref:spark-MemoryStore.adoc[MemoryStore] and xref:DiskStore.adoc[DiskStore].
 
 xref:ROOT:spark-MemoryManager.adoc[MemoryManager] gets the link:spark-MemoryStore.adoc[MemoryStore] object assigned.
 
@@ -90,11 +90,35 @@ BlockManager is given a xref:shuffle:ShuffleManager.adoc[ShuffleManager] when <<
 
 BlockManager uses the ShuffleManager for the following:
 
-* <<getBlockData, Retrieving a block data>>
+* <<getBlockData, Retrieving a block data>> (for shuffle blocks)
 
-* <<getLocalBytes, Retrieving a non-shuffle block data>>
+* <<getLocalBytes, Retrieving a non-shuffle block data>> (for shuffle blocks anyway)
 
 * <<registerWithExternalShuffleServer, Registering an executor with a local external shuffle service>> (when <<initialize, initialized>> on an executor with <<externalShuffleServiceEnabled, externalShuffleServiceEnabled>>)
+
+== [[diskBlockManager]] BlockManager and DiskBlockManager
+
+When <<creating-instance, created>>, BlockManager creates a xref:DiskBlockManager.adoc[DiskBlockManager].
+
+BlockManager uses the BlockManager for the following:
+
+* Creating a <<diskStore, DiskStore>>
+
+* <<registerWithExternalShuffleServer, Registering an executor with a local external shuffle service>> (when <<initialize, initialized>> on an executor with <<externalShuffleServiceEnabled, externalShuffleServiceEnabled>>)
+
+The BlockManager is available as `diskBlockManager` reference to other Spark systems.
+
+[source, scala]
+----
+import org.apache.spark.SparkEnv
+SparkEnv.get.blockManager.diskBlockManager
+----
+
+== [[diskStore]] BlockManager and DiskStore
+
+When <<creating-instance, created>>, BlockManager creates a xref:DiskStore.adoc[DiskStore] (with the <<diskBlockManager, DiskBlockManager>>).
+
+BlockManager uses the DiskStore when requested to <<getStatus, getStatus>>, <<getCurrentBlockStatus, getCurrentBlockStatus>>, <<getLocalValues, getLocalValues>>, <<doGetLocalBytes, doGetLocalBytes>>, <<doPutBytes, doPutBytes>>, <<doPutIterator, doPutIterator>>, <<dropFromMemory, dropFromMemory>>, <<removeBlockInternal, removeBlockInternal>>.
 
 == [[metrics]] Performance Metrics
 
@@ -142,19 +166,18 @@ getMatchingBlockIds(filter: BlockId => Boolean): Seq[BlockId]
 
 NOTE: `getMatchingBlockIds` is used exclusively when `BlockManagerSlaveEndpoint` is requested to link:spark-blockmanager-BlockManagerSlaveEndpoint.adoc#GetMatchingBlockIds[handle a GetMatchingBlockIds message].
 
-== [[getLocalValues]] `getLocalValues` Method
+== [[getLocalValues]] getLocalValues Method
 
 [source, scala]
 ----
-getLocalValues(blockId: BlockId): Option[BlockResult]
+getLocalValues(
+  blockId: BlockId): Option[BlockResult]
 ----
 
-`getLocalValues`...FIXME
-
-Internally, when `getLocalValues` is executed, you should see the following DEBUG message in the logs:
+`getLocalValues` prints out the following DEBUG message to the logs:
 
 ```
-DEBUG BlockManager: Getting local block [blockId]
+Getting local block [blockId]
 ```
 
 `getLocalValues` link:spark-BlockInfoManager.adoc#lockForReading[obtains a read lock for `blockId`].
@@ -162,13 +185,13 @@ DEBUG BlockManager: Getting local block [blockId]
 When no `blockId` block was found, you should see the following DEBUG message in the logs and `getLocalValues` returns "nothing" (i.e. `NONE`).
 
 ```
-DEBUG Block [blockId] was not found
+Block [blockId] was not found
 ```
 
 When the `blockId` block was found, you should see the following DEBUG message in the logs:
 
 ```
-DEBUG Level for block [blockId] is [level]
+Level for block [blockId] is [level]
 ```
 
 If `blockId` block has memory level and link:spark-MemoryStore.adoc#contains[is registered in `MemoryStore`], `getLocalValues` returns a <<BlockResult, BlockResult>> as `Memory` read method and with a `CompletionIterator` for an interator:
@@ -275,7 +298,7 @@ A *Store* is the place where blocks are held.
 There are the following possible stores:
 
 * link:spark-MemoryStore.adoc[MemoryStore] for memory storage level.
-* link:spark-DiskStore.adoc[DiskStore] for disk storage level.
+* xref:DiskStore.adoc[DiskStore] for disk storage level.
 * `ExternalBlockStore` for OFF_HEAP storage level.
 
 == [[putBlockData]] Storing Block Data Locally -- `putBlockData` Method
@@ -344,11 +367,11 @@ If the put did not succeed and the storage level is to use disk, you should see 
 WARN BlockManager: Persisting block [blockId] to disk instead.
 ```
 
-And link:spark-DiskStore.adoc#putBytes[`DiskStore` stores the bytes].
+And xref:DiskStore.adoc#putBytes[`DiskStore` stores the bytes].
 
-NOTE: link:spark-DiskStore.adoc[DiskStore] is requested to store the bytes of a block with memory and disk storage level only when link:spark-MemoryStore.adoc[MemoryStore] has failed.
+NOTE: xref:DiskStore.adoc[DiskStore] is requested to store the bytes of a block with memory and disk storage level only when link:spark-MemoryStore.adoc[MemoryStore] has failed.
 
-If the storage level is to use disk only, link:spark-DiskStore.adoc#putBytes[`DiskStore` stores the bytes].
+If the storage level is to use disk only, xref:DiskStore.adoc#putBytes[`DiskStore` stores the bytes].
 
 `doPutBytes` requests <<getCurrentBlockStatus, current block status>> and if the block was successfully stored, and the driver should know about it (`tellMaster`), the function <<reportBlockStatus, reports the current storage status of the block to the driver>>. The xref:metrics:spark-executor-TaskMetrics.adoc#incUpdatedBlockStatuses[current `TaskContext` metrics are updated with the updated block status] (only when executed inside a task where `TaskContext` is available).
 
@@ -419,7 +442,7 @@ DEBUG Putting block [blockId] [withOrWithout] replication took [usedTime] ms
 removeBlock(blockId: BlockId, tellMaster: Boolean = true): Unit
 ----
 
-`removeBlock` removes the `blockId` block from the link:spark-MemoryStore.adoc[MemoryStore] and link:spark-DiskStore.adoc[DiskStore].
+`removeBlock` removes the `blockId` block from the link:spark-MemoryStore.adoc[MemoryStore] and xref:DiskStore.adoc[DiskStore].
 
 When executed, it prints out the following DEBUG message to the logs:
 
@@ -433,7 +456,7 @@ It requests link:spark-BlockInfoManager.adoc[BlockInfoManager] for lock for writ
 WARN Asked to remove block [blockId], which does not exist
 ```
 
-Otherwise, with a write lock for the block, the block is removed from link:spark-MemoryStore.adoc[MemoryStore] and link:spark-DiskStore.adoc[DiskStore] (see link:spark-MemoryStore.adoc#remove[Removing Block in `MemoryStore`] and link:spark-DiskStore.adoc#remove[Removing Block in `DiskStore`]).
+Otherwise, with a write lock for the block, the block is removed from link:spark-MemoryStore.adoc[MemoryStore] and xref:DiskStore.adoc[DiskStore] (see link:spark-MemoryStore.adoc#remove[Removing Block in `MemoryStore`] and xref:DiskStore.adoc#remove[Removing Block in `DiskStore`]).
 
 If both removals fail, it prints out the following WARN message:
 
@@ -553,7 +576,7 @@ INFO Registering executor with local external shuffle service.
 
 It uses <<shuffleClient, shuffleClient>> to link:spark-ShuffleClient-ExternalShuffleClient.adoc#registerWithShuffleServer[register the block manager] using <<shuffleServerId, shuffleServerId>> (i.e. the host, the port and the executorId) and a `ExecutorShuffleInfo`.
 
-NOTE: The `ExecutorShuffleInfo` uses `localDirs` and `subDirsPerLocalDir` from link:spark-DiskBlockManager.adoc[DiskBlockManager] and the class name of the constructor xref:shuffle:ShuffleManager.adoc[ShuffleManager].
+NOTE: The `ExecutorShuffleInfo` uses `localDirs` and `subDirsPerLocalDir` from xref:DiskBlockManager.adoc[DiskBlockManager] and the class name of the constructor xref:shuffle:ShuffleManager.adoc[ShuffleManager].
 
 It tries to register at most 3 times with 5-second sleeps in-between.
 
@@ -609,13 +632,13 @@ NOTE: `reregister` is called when a link:spark-Executor.adoc#heartbeats-and-acti
 getCurrentBlockStatus(blockId: BlockId, info: BlockInfo): BlockStatus
 ----
 
-`getCurrentBlockStatus` returns the current `BlockStatus` of the `BlockId` block (with the block's current link:spark-rdd-StorageLevel.adoc[StorageLevel], memory and disk sizes). It uses link:spark-MemoryStore.adoc[MemoryStore] and link:spark-DiskStore.adoc[DiskStore] for size and other information.
+`getCurrentBlockStatus` returns the current `BlockStatus` of the `BlockId` block (with the block's current link:spark-rdd-StorageLevel.adoc[StorageLevel], memory and disk sizes). It uses link:spark-MemoryStore.adoc[MemoryStore] and xref:DiskStore.adoc[DiskStore] for size and other information.
 
-NOTE: Most of the information to build `BlockStatus` is already in `BlockInfo` except that it may not necessarily reflect the current state per link:spark-MemoryStore.adoc[MemoryStore] and link:spark-DiskStore.adoc[DiskStore].
+NOTE: Most of the information to build `BlockStatus` is already in `BlockInfo` except that it may not necessarily reflect the current state per link:spark-MemoryStore.adoc[MemoryStore] and xref:DiskStore.adoc[DiskStore].
 
 Internally, it uses the input link:spark-BlockInfo.adoc[BlockInfo] to know about the block's storage level. If the storage level is not set (i.e. `null`), the returned `BlockStatus` assumes the link:spark-rdd-StorageLevel.adoc[default `NONE` storage level] and the memory and disk sizes being `0`.
 
-If however the storage level is set, `getCurrentBlockStatus` uses link:spark-MemoryStore.adoc[MemoryStore] and link:spark-DiskStore.adoc[DiskStore] to check whether the block is stored in the storages or not and request for their sizes in the storages respectively (using their `getSize` or assume `0`).
+If however the storage level is set, `getCurrentBlockStatus` uses link:spark-MemoryStore.adoc[MemoryStore] and xref:DiskStore.adoc[DiskStore] to check whether the block is stored in the storages or not and request for their sizes in the storages respectively (using their `getSize` or assume `0`).
 
 NOTE: It is acceptable that the `BlockInfo` says to use memory or disk yet the block is not in the storages (yet or anymore). The method will give current status.
 
@@ -915,7 +938,7 @@ shuffleClient: ShuffleClient
 
 * <<registerWithExternalShuffleServer, Registering the BlockManager of an executor with an external shuffle server>>
 
-`shuffleClient` is also used when `BlockStoreShuffleReader` is requested to link:spark-shuffle-BlockStoreShuffleReader.adoc#read[read combined key-value records for a reduce task] (and creates a link:spark-ShuffleBlockFetcherIterator.adoc#shuffleClient[ShuffleBlockFetcherIterator]).
+`shuffleClient` is also used when `BlockStoreShuffleReader` is requested to link:spark-shuffle-BlockStoreShuffleReader.adoc#read[read combined key-value records for a reduce task] (and creates a xref:storage:ShuffleBlockFetcherIterator.adoc#shuffleClient[ShuffleBlockFetcherIterator]).
 
 `shuffleClient` can be either a link:spark-ShuffleClient-ExternalShuffleClient.adoc[ExternalShuffleClient] or the <<blockTransferService, BlockTransferService>> (that is the link:spark-NettyBlockTransferService.adoc[NettyBlockTransferService] given by link:spark-SparkEnv.adoc#create-BlockManager[SparkEnv]).
 
@@ -1062,7 +1085,7 @@ INFO BlockManager: Dropping block [blockId] from memory
 
 It then asserts that the `blockId` block is link:spark-BlockInfoManager.adoc#assertBlockIsLockedForWriting[locked for writing].
 
-If the block's link:spark-rdd-StorageLevel.adoc[StorageLevel] uses disks and the internal link:spark-DiskStore.adoc[DiskStore] object (`diskStore`) does not contain the block, it is saved then. You should see the following INFO message in the logs:
+If the block's link:spark-rdd-StorageLevel.adoc[StorageLevel] uses disks and the internal xref:DiskStore.adoc[DiskStore] object (`diskStore`) does not contain the block, it is saved then. You should see the following INFO message in the logs:
 
 ```
 INFO BlockManager: Writing block [blockId] to disk
@@ -1133,12 +1156,6 @@ Refer to xref:ROOT:spark-logging.adoc[Logging].
 
 | blockInfoManager
 | [[blockInfoManager]] link:spark-BlockInfoManager.adoc[BlockInfoManager] for...FIXME
-
-| diskStore
-| [[diskStore]] link:spark-DiskStore.adoc[DiskStore] for...FIXME
-
-| diskBlockManager
-| [[diskBlockManager]] link:spark-DiskBlockManager.adoc[DiskBlockManager] for...FIXME
 
 | maxMemory
 | [[maxMemory]] Total maximum value that BlockManager can ever possibly use (that depends on <<memoryManager, MemoryManager>> and may vary over time).
