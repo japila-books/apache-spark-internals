@@ -1,16 +1,23 @@
 = DiskStore
 
-*DiskStore* is...FIXME
-
-DiskStore is <<creating-instance, created>> for xref:storage:BlockManager.adoc#diskStore[BlockManager].
+*DiskStore* manages data blocks on disk for xref:storage:BlockManager.adoc#diskStore[BlockManager].
 
 == [[creating-instance]] Creating Instance
 
-`DiskStore` takes the following to be created:
+DiskStore takes the following to be created:
 
 * [[conf]] xref:ROOT:spark-SparkConf.adoc[SparkConf]
 * [[diskManager]] xref:storage:DiskBlockManager.adoc[DiskBlockManager]
 * [[securityManager]] SecurityManager
+
+== [[blockSizes]] blockSizes Internal Registry
+
+[source, scala]
+----
+blockSizes: ConcurrentHashMap[BlockId, Long]
+----
+
+blockSizes is a Java {java-javadoc-url}/java/util/concurrent/ConcurrentHashMap.html[java.util.concurrent.ConcurrentHashMap] that DiskStore uses to track xref:storage:spark-BlockId.adoc[BlockIds] by their size on disk.
 
 == [[contains]] Checking if Block File Exists
 
@@ -28,7 +35,7 @@ contains(
 
 * DiskStore is requested to <<put, put>>
 
-== [[put]] Writing Block
+== [[put]] Writing Block to Disk
 
 [source, scala]
 ----
@@ -37,7 +44,31 @@ put(
   writeFunc: WritableByteChannel => Unit): Unit
 ----
 
-`put`...FIXME
+`put` prints out the following DEBUG message to the logs:
+
+```
+Attempting to put block [blockId]
+```
+
+`put` requests the <<diskManager, DiskBlockManager>> for the xref:storage:DiskBlockManager.adoc#getFile[block file] for the input xref:storage:spark-BlockId.adoc[BlockId].
+
+`put` <<openForWrite, opens the block file for writing>> (wrapped into a CountingWritableChannel to count the bytes written).
+
+`put` executes the given writeFunc function with the WritableByteChannel of the block file and registers the bytes written to the <<blockSizes, blockSizes>> internal registry.
+
+In the end, `put` prints out the following DEBUG message to the logs:
+
+```
+Block [fileName] stored as [size] file on disk in [time] ms
+```
+
+In case of any exception, `put` <<remove, deletes the block file>>.
+
+`put` throws an `IllegalStateException` when the BlockId is already <<contains, is already present in the disk store>>:
+
+```
+Block [blockId] is already present in the disk store
+```
 
 `put` is used when:
 
@@ -73,6 +104,18 @@ remove(
 * BlockManager is requested to xref:storage:BlockManager.adoc#removeBlockInternal[removeBlockInternal]
 
 * DiskStore is requested to <<put, put>> (when an exception was thrown)
+
+== [[openForWrite]] Opening Block File For Writing
+
+[source, scala]
+----
+openForWrite(
+  file: File): WritableByteChannel
+----
+
+`openForWrite`...FIXME
+
+`openForWrite` is used when DiskStore is requested to <<put, write a block to disk>>.
 
 == [[logging]] Logging
 
