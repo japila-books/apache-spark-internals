@@ -1,0 +1,240 @@
+= [[MemoryStore]] MemoryStore
+
+MemoryStore is the *memory store* for blocks of data for xref:storage:BlockManager.adoc#memoryStore[BlockManager].
+
+.MemoryStore and BlockManager
+image::MemoryStore-BlockManager.png[align="center"]
+
+The "idiom" to access the current MemoryStore is to request `SparkEnv` for the xref:ROOT:spark-SparkEnv.adoc#blockManager[BlockManager] that manages the xref:storage:BlockManager.adoc#memoryStore[MemoryStore].
+
+[source, scala]
+----
+SparkEnv.get.blockManager.memoryStore
+----
+
+.Creating MemoryStore
+image::spark-MemoryStore.png[align="center"]
+
+[[unrollMemoryThreshold]]
+MemoryStore uses xref:ROOT:spark-configuration-properties.adoc#spark.storage.unrollMemoryThreshold[spark.storage.unrollMemoryThreshold] configuration property when requested to <<putIteratorAsValues, putIteratorAsValues>> and <<putIteratorAsBytes, putIteratorAsBytes>>.
+
+== [[creating-instance]] Creating Instance
+
+MemoryStore takes the following to be created:
+
+* [[conf]] xref:ROOT:spark-SparkConf.adoc[SparkConf]
+* [[blockInfoManager]] xref:storage:spark-BlockInfoManager.adoc[BlockInfoManager]
+* [[serializerManager]] xref:ROOT:spark-SerializerManager.adoc[SerializerManager]
+* [[memoryManager]] xref:ROOT:spark-MemoryManager.adoc[MemoryManager]
+* [[blockEvictionHandler]] xref:storage:spark-BlockEvictionHandler.adoc[BlockEvictionHandler]
+
+== [[releaseUnrollMemoryForThisTask]] `releaseUnrollMemoryForThisTask` Method
+
+[source, scala]
+----
+releaseUnrollMemoryForThisTask(
+  memoryMode: MemoryMode,
+  memory: Long = Long.MaxValue): Unit
+----
+
+`releaseUnrollMemoryForThisTask`...FIXME
+
+[NOTE]
+====
+`releaseUnrollMemoryForThisTask` is used when:
+
+* `Task` is requested to xref:ROOT:spark-scheduler-Task.adoc#run[run] (and cleans up after itself)
+
+* MemoryStore is requested to <<putIteratorAsValues, putIteratorAsValues>> and <<putIteratorAsBytes, putIteratorAsBytes>>
+
+* `PartiallyUnrolledIterator` is requested to `releaseUnrollMemory`
+
+* `PartiallySerializedBlock` is requested to `discard` and `finishWritingToStream`
+====
+
+== [[getValues]] `getValues` Method
+
+[source, scala]
+----
+getValues(blockId: BlockId): Option[Iterator[_]]
+----
+
+`getValues` does...FIXME
+
+== [[getBytes]] `getBytes` Method
+
+[source, scala]
+----
+getBytes(blockId: BlockId): Option[ChunkedByteBuffer]
+----
+
+`getBytes` does...FIXME
+
+== [[putIteratorAsBytes]] `putIteratorAsBytes` Method
+
+[source, scala]
+----
+putIteratorAsBytes[T](
+  blockId: BlockId,
+  values: Iterator[T],
+  classTag: ClassTag[T],
+  memoryMode: MemoryMode): Either[PartiallySerializedBlock[T], Long]
+----
+
+`putIteratorAsBytes` tries to put the `blockId` block in memory store as bytes.
+
+CAUTION: FIXME
+
+== [[remove]] Removing Block
+
+CAUTION: FIXME
+
+== [[putBytes]] Acquiring Storage Memory for Blocks
+
+[source, scala]
+----
+putBytes[T](
+  blockId: BlockId,
+  size: Long,
+  memoryMode: MemoryMode,
+  _bytes: () => ChunkedByteBuffer): Boolean
+----
+
+`putBytes` requests xref:ROOT:spark-MemoryManager.adoc#acquireStorageMemory[storage memory  for `blockId` from `MemoryManager`] and registers the block in <<entries, entries>> internal registry.
+
+Internally, `putBytes` first makes sure that `blockId` block has not been registered already in <<entries, entries>> internal registry.
+
+`putBytes` then requests xref:ROOT:spark-MemoryManager.adoc#acquireStorageMemory[`size` memory for the `blockId` block in a given `memoryMode` from the current `MemoryManager`].
+
+[NOTE]
+====
+`memoryMode` can be `ON_HEAP` or `OFF_HEAP` and is a property of a xref:storage:StorageLevel.adoc[StorageLevel].
+
+```
+import org.apache.spark.storage.StorageLevel._
+scala> MEMORY_AND_DISK.useOffHeap
+res0: Boolean = false
+
+scala> OFF_HEAP.useOffHeap
+res1: Boolean = true
+```
+====
+
+If successful, `putBytes` "materializes" `_bytes` byte buffer and makes sure that the size is exactly `size`. It then registers a `SerializedMemoryEntry` (for the bytes and `memoryMode`) for `blockId` in the internal <<entries, entries>> registry.
+
+You should see the following INFO message in the logs:
+
+```
+INFO Block [blockId] stored as bytes in memory (estimated size [size], free [bytes])
+```
+
+`putBytes` returns `true` only after `blockId` was successfully registered in the internal <<entries, entries>> registry.
+
+== [[evictBlocksToFreeSpace]] Evicting Blocks From Memory
+
+[source, scala]
+----
+evictBlocksToFreeSpace(
+  blockId: Option[BlockId],
+  space: Long,
+  memoryMode: MemoryMode): Long
+----
+
+`evictBlocksToFreeSpace`...FIXME
+
+NOTE: `evictBlocksToFreeSpace` is used when `StorageMemoryPool` is requested to xref:ROOT:spark-StorageMemoryPool.adoc#acquireMemory[acquireMemory] and xref:ROOT:spark-StorageMemoryPool.adoc#freeSpaceToShrinkPool[freeSpaceToShrinkPool].
+
+== [[contains]] Checking Whether Block Exists In MemoryStore
+
+[source, scala]
+----
+contains(blockId: BlockId): Boolean
+----
+
+`contains` is positive (`true`) when the <<entries, entries>> internal registry contains `blockId` key.
+
+NOTE: `contains` is used when...FIXME
+
+== [[putIteratorAsValues]] `putIteratorAsValues` Method
+
+[source, scala]
+----
+putIteratorAsValues[T](
+  blockId: BlockId,
+  values: Iterator[T],
+  classTag: ClassTag[T]): Either[PartiallyUnrolledIterator[T], Long]
+----
+
+`putIteratorAsValues` makes sure that the `BlockId` does not exist or throws an `IllegalArgumentException`:
+
+```
+requirement failed: Block [blockId] is already present in the MemoryStore
+```
+
+`putIteratorAsValues` <<reserveUnrollMemoryForThisTask, reserveUnrollMemoryForThisTask>> (with the <<unrollMemoryThreshold, initial memory threshold>> and `ON_HEAP` memory mode).
+
+CAUTION: FIXME
+
+`putIteratorAsValues` tries to put the `blockId` block in memory store as `values`.
+
+NOTE: `putIteratorAsValues` is used when `BlockManager` stores  xref:ROOT:BlockManager.adoc#doPutBytes[bytes of a block] or xref:ROOT:BlockManager.adoc#doPutIterator[iterator of values of a block] or when xref:ROOT:BlockManager.adoc#maybeCacheDiskValuesInMemory[attempting to cache spilled values read from disk].
+
+== [[reserveUnrollMemoryForThisTask]] `reserveUnrollMemoryForThisTask` Method
+
+[source, scala]
+----
+reserveUnrollMemoryForThisTask(
+  blockId: BlockId,
+  memory: Long,
+  memoryMode: MemoryMode): Boolean
+----
+
+`reserveUnrollMemoryForThisTask` acquires a lock on <<memoryManager, MemoryManager>> and requests it to xref:ROOT:spark-MemoryManager.adoc#acquireUnrollMemory[acquireUnrollMemory].
+
+NOTE: `reserveUnrollMemoryForThisTask` is used when MemoryStore is requested to <<putIteratorAsValues, putIteratorAsValues>> and <<putIteratorAsBytes, putIteratorAsBytes>>.
+
+== [[maxMemory]] Total Amount Of Memory Available For Storage
+
+[source, scala]
+----
+maxMemory: Long
+----
+
+`maxMemory` requests the <<memoryManager, MemoryManager>> for the current xref:ROOT:spark-MemoryManager.adoc#maxOnHeapStorageMemory[maxOnHeapStorageMemory] and xref:ROOT:spark-MemoryManager.adoc#maxOffHeapStorageMemory[maxOffHeapStorageMemory], and simply returns their sum.
+
+[TIP]
+====
+Enable INFO <<logging, logging>> to find the `maxMemory` in the logs when MemoryStore is <<creating-instance, created>>:
+
+```
+MemoryStore started with capacity [maxMemory] MB
+```
+====
+
+NOTE: `maxMemory` is used for <<logging, logging>> purposes only.
+
+== [[logging]] Logging
+
+Enable `ALL` logging level for `org.apache.spark.storage.memory.MemoryStore` logger to see what happens inside.
+
+Add the following line to `conf/log4j.properties`:
+
+[source]
+----
+log4j.logger.org.apache.spark.storage.memory.MemoryStore=ALL
+----
+
+Refer to xref:ROOT:spark-logging.adoc[Logging].
+
+== [[internal-registries]] Internal Registries
+
+=== [[entries]] MemoryEntries by BlockId
+
+[source, scala]
+----
+entries: LinkedHashMap[BlockId, MemoryEntry[_]]
+----
+
+When created, MemoryStore creates a Java {java-javadoc-url}/java/util/LinkedHashMap.html[LinkedHashMap] of `MemoryEntries` per xref:storage:spark-BlockId.adoc[BlockId] (with the initial capacity of `32` and the load factor of `0.75`).
+
+entries uses *access-order* ordering mode where the order of iteration is the order in which the entries were last accessed (from least-recently accessed to most-recently). That gives *LRU cache* behaviour when <<evictBlocksToFreeSpace, evicting blocks>>.

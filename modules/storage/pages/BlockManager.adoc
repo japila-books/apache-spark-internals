@@ -66,17 +66,11 @@ BlockManager creates an instance of link:spark-BlockInfoManager.adoc[BlockInfoMa
 
 BlockManager creates *block-manager-future* daemon cached thread pool with 128 threads maximum (as `futureExecutionContext`).
 
-BlockManager creates a xref:spark-MemoryStore.adoc[MemoryStore] and xref:DiskStore.adoc[DiskStore].
-
-xref:ROOT:spark-MemoryManager.adoc[MemoryManager] gets the link:spark-MemoryStore.adoc[MemoryStore] object assigned.
-
 BlockManager calculates the maximum memory to use (as `maxMemory`) by requesting the maximum xref:ROOT:spark-MemoryManager.adoc#maxOnHeapStorageMemory[on-heap] and xref:ROOT:spark-MemoryManager.adoc#maxOffHeapStorageMemory[off-heap] storage memory from the assigned `MemoryManager`.
 
 BlockManager calculates the port used by the external shuffle service (as `externalShuffleServicePort`).
 
 NOTE: It is computed specially in Spark on YARN.
-
-CAUTION: FIXME Describe the YARN-specific part.
 
 BlockManager creates a client to read other executors' shuffle files (as `shuffleClient`). If the external shuffle service is used an xref:ROOT:spark-ShuffleClient-ExternalShuffleClient.adoc[ExternalShuffleClient] is created or the input xref:ROOT:spark-BlockTransferService.adoc[BlockTransferService] is used.
 
@@ -119,7 +113,7 @@ SparkEnv.get.blockManager.diskBlockManager
 
 == [[memoryStore]] MemoryStore
 
-When <<creating-instance, created>>, BlockManager creates a xref:spark-MemoryStore.adoc[MemoryStore] (with the <<blockInfoManager, BlockInfoManager>>, the <<serializerManager, SerializerManager>>, the <<memoryManager, MemoryManager>> and itself as a xref:spark-BlockEvictionHandler.adoc[BlockEvictionHandler]).
+When <<creating-instance, created>>, BlockManager creates a xref:MemoryStore.adoc[MemoryStore] (with the <<blockInfoManager, BlockInfoManager>>, the <<serializerManager, SerializerManager>>, the <<memoryManager, MemoryManager>> and itself as a xref:spark-BlockEvictionHandler.adoc[BlockEvictionHandler]).
 
 .MemoryStore and BlockManager
 image::MemoryStore-BlockManager.png[align="center"]
@@ -217,10 +211,10 @@ When the `blockId` block was found, you should see the following DEBUG message i
 Level for block [blockId] is [level]
 ```
 
-If `blockId` block has memory level and link:spark-MemoryStore.adoc#contains[is registered in `MemoryStore`], `getLocalValues` returns a <<BlockResult, BlockResult>> as `Memory` read method and with a `CompletionIterator` for an interator:
+If `blockId` block has memory level and xref:storage:MemoryStore.adoc#contains[is registered in `MemoryStore`], `getLocalValues` returns a <<BlockResult, BlockResult>> as `Memory` read method and with a `CompletionIterator` for an interator:
 
-1. link:spark-MemoryStore.adoc#getValues[Values iterator from `MemoryStore` for `blockId`] for "deserialized" persistence levels.
-2. Iterator from link:spark-SerializerManager.adoc#dataDeserializeStream[`SerializerManager` after the data stream has been deserialized] for the `blockId` block and link:spark-MemoryStore.adoc#getBytes[the bytes for `blockId` block] for "serialized" persistence levels.
+1. xref:storage:MemoryStore.adoc#getValues[Values iterator from `MemoryStore` for `blockId`] for "deserialized" persistence levels.
+2. Iterator from link:spark-SerializerManager.adoc#dataDeserializeStream[`SerializerManager` after the data stream has been deserialized] for the `blockId` block and xref:storage:MemoryStore.adoc#getBytes[the bytes for `blockId` block] for "serialized" persistence levels.
 
 NOTE: `getLocalValues` is used when xref:ROOT:spark-TorrentBroadcast.adoc#readBroadcastBlock[`TorrentBroadcast` reads the blocks of a broadcast variable and stores them in a local BlockManager].
 
@@ -320,7 +314,7 @@ A *Store* is the place where blocks are held.
 
 There are the following possible stores:
 
-* link:spark-MemoryStore.adoc[MemoryStore] for memory storage level.
+* xref:storage:MemoryStore.adoc[MemoryStore] for memory storage level.
 * xref:DiskStore.adoc[DiskStore] for disk storage level.
 * `ExternalBlockStore` for OFF_HEAP storage level.
 
@@ -382,7 +376,7 @@ doPutBytes[T](
 
 Inside the function, if the xref:storage:StorageLevel.adoc[storage `level`]'s replication is greater than 1, it immediately starts <<replicate, replication>> of the `blockId` block on a separate thread (from `futureExecutionContext` thread pool). The replication uses the input `bytes` and `level` storage level.
 
-For a memory storage level, the function checks whether the storage `level` is deserialized or not. For a deserialized storage `level`, ``BlockManager``'s xref:ROOT:spark-SerializerManager.adoc#dataDeserializeStream[`SerializerManager` deserializes `bytes` into an iterator of values] that link:spark-MemoryStore.adoc#putIteratorAsValues[`MemoryStore` stores]. If however the storage `level` is not deserialized, the function requests link:spark-MemoryStore.adoc#putBytes[`MemoryStore` to store the bytes]
+For a memory storage level, the function checks whether the storage `level` is deserialized or not. For a deserialized storage `level`, ``BlockManager``'s xref:ROOT:spark-SerializerManager.adoc#dataDeserializeStream[`SerializerManager` deserializes `bytes` into an iterator of values] that xref:storage:MemoryStore.adoc#putIteratorAsValues[`MemoryStore` stores]. If however the storage `level` is not deserialized, the function requests xref:storage:MemoryStore.adoc#putBytes[`MemoryStore` to store the bytes]
 
 If the put did not succeed and the storage level is to use disk, you should see the following WARN message in the logs:
 
@@ -392,7 +386,7 @@ WARN BlockManager: Persisting block [blockId] to disk instead.
 
 And xref:DiskStore.adoc#putBytes[`DiskStore` stores the bytes].
 
-NOTE: xref:DiskStore.adoc[DiskStore] is requested to store the bytes of a block with memory and disk storage level only when link:spark-MemoryStore.adoc[MemoryStore] has failed.
+NOTE: xref:DiskStore.adoc[DiskStore] is requested to store the bytes of a block with memory and disk storage level only when xref:storage:MemoryStore.adoc[MemoryStore] has failed.
 
 If the storage level is to use disk only, xref:DiskStore.adoc#putBytes[`DiskStore` stores the bytes].
 
@@ -465,7 +459,7 @@ DEBUG Putting block [blockId] [withOrWithout] replication took [usedTime] ms
 removeBlock(blockId: BlockId, tellMaster: Boolean = true): Unit
 ----
 
-`removeBlock` removes the `blockId` block from the link:spark-MemoryStore.adoc[MemoryStore] and xref:DiskStore.adoc[DiskStore].
+`removeBlock` removes the `blockId` block from the xref:storage:MemoryStore.adoc[MemoryStore] and xref:DiskStore.adoc[DiskStore].
 
 When executed, it prints out the following DEBUG message to the logs:
 
@@ -479,7 +473,7 @@ It requests link:spark-BlockInfoManager.adoc[BlockInfoManager] for lock for writ
 WARN Asked to remove block [blockId], which does not exist
 ```
 
-Otherwise, with a write lock for the block, the block is removed from link:spark-MemoryStore.adoc[MemoryStore] and xref:DiskStore.adoc[DiskStore] (see link:spark-MemoryStore.adoc#remove[Removing Block in `MemoryStore`] and xref:DiskStore.adoc#remove[Removing Block in `DiskStore`]).
+Otherwise, with a write lock for the block, the block is removed from xref:storage:MemoryStore.adoc[MemoryStore] and xref:DiskStore.adoc[DiskStore] (see xref:storage:MemoryStore.adoc#remove[Removing Block in `MemoryStore`] and xref:DiskStore.adoc#remove[Removing Block in `DiskStore`]).
 
 If both removals fail, it prints out the following WARN message:
 
@@ -655,13 +649,13 @@ NOTE: `reregister` is called when a link:spark-Executor.adoc#heartbeats-and-acti
 getCurrentBlockStatus(blockId: BlockId, info: BlockInfo): BlockStatus
 ----
 
-`getCurrentBlockStatus` returns the current `BlockStatus` of the `BlockId` block (with the block's current xref:storage:StorageLevel.adoc[StorageLevel], memory and disk sizes). It uses link:spark-MemoryStore.adoc[MemoryStore] and xref:DiskStore.adoc[DiskStore] for size and other information.
+`getCurrentBlockStatus` returns the current `BlockStatus` of the `BlockId` block (with the block's current xref:storage:StorageLevel.adoc[StorageLevel], memory and disk sizes). It uses xref:storage:MemoryStore.adoc[MemoryStore] and xref:DiskStore.adoc[DiskStore] for size and other information.
 
-NOTE: Most of the information to build `BlockStatus` is already in `BlockInfo` except that it may not necessarily reflect the current state per link:spark-MemoryStore.adoc[MemoryStore] and xref:DiskStore.adoc[DiskStore].
+NOTE: Most of the information to build `BlockStatus` is already in `BlockInfo` except that it may not necessarily reflect the current state per xref:storage:MemoryStore.adoc[MemoryStore] and xref:DiskStore.adoc[DiskStore].
 
 Internally, it uses the input link:spark-BlockInfo.adoc[BlockInfo] to know about the block's storage level. If the storage level is not set (i.e. `null`), the returned `BlockStatus` assumes the xref:storage:StorageLevel.adoc[default `NONE` storage level] and the memory and disk sizes being `0`.
 
-If however the storage level is set, `getCurrentBlockStatus` uses link:spark-MemoryStore.adoc[MemoryStore] and xref:DiskStore.adoc[DiskStore] to check whether the block is stored in the storages or not and request for their sizes in the storages respectively (using their `getSize` or assume `0`).
+If however the storage level is set, `getCurrentBlockStatus` uses xref:storage:MemoryStore.adoc[MemoryStore] and xref:DiskStore.adoc[DiskStore] to check whether the block is stored in the storages or not and request for their sizes in the storages respectively (using their `getSize` or assume `0`).
 
 NOTE: It is acceptable that the `BlockInfo` says to use memory or disk yet the block is not in the storages (yet or anymore). The method will give current status.
 
@@ -1053,7 +1047,7 @@ doPutIterator[T](
 
 . `putBody` branches off per whether the `StorageLevel` indicates to use a xref:storage:StorageLevel.adoc#useMemory[memory] or simply a xref:storage:StorageLevel.adoc#useDisk[disk], i.e.
 
-* When the input `StorageLevel` indicates to xref:storage:StorageLevel.adoc#useMemory[use a memory] for storage in xref:storage:StorageLevel.adoc#deserialized[deserialized] format, `putBody` requests <<memoryStore, MemoryStore>> to link:spark-MemoryStore.adoc#putIteratorAsValues[putIteratorAsValues] (for the `BlockId` and with the `iterator` factory function).
+* When the input `StorageLevel` indicates to xref:storage:StorageLevel.adoc#useMemory[use a memory] for storage in xref:storage:StorageLevel.adoc#deserialized[deserialized] format, `putBody` requests <<memoryStore, MemoryStore>> to xref:storage:MemoryStore.adoc#putIteratorAsValues[putIteratorAsValues] (for the `BlockId` and with the `iterator` factory function).
 +
 If the <<memoryStore, MemoryStore>> returned a correct value, the internal `size` is set to the value.
 +
@@ -1118,7 +1112,7 @@ CAUTION: FIXME Describe the case with saving a block to disk.
 
 The block's memory size is fetched and recorded (using `MemoryStore.getSize`).
 
-The block is link:spark-MemoryStore.adoc#remove[removed from memory] if exists. If not, you should see the following WARN message in the logs:
+The block is xref:storage:MemoryStore.adoc#remove[removed from memory] if exists. If not, you should see the following WARN message in the logs:
 
 ```
 WARN BlockManager: Block [blockId] could not be dropped from memory as it does not exist
