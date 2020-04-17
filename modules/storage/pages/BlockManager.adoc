@@ -357,7 +357,7 @@ def doPutBytes[T](
 
 `doPutBytes` calls the internal helper <<doPut, doPut>> with a function that accepts a `BlockInfo` and does the uploading.
 
-Inside the function, if the xref:rdd:spark-rdd-StorageLevel.adoc[storage `level`]'s replication is greater than 1, it immediately starts <<replicate, replication>> of the `blockId` block on a separate thread (from `futureExecutionContext` thread pool). The replication uses the input `bytes` and `level` storage level.
+Inside the function, if the xref:storage:StorageLevel.adoc[storage `level`]'s replication is greater than 1, it immediately starts <<replicate, replication>> of the `blockId` block on a separate thread (from `futureExecutionContext` thread pool). The replication uses the input `bytes` and `level` storage level.
 
 For a memory storage level, the function checks whether the storage `level` is deserialized or not. For a deserialized storage `level`, ``BlockManager``'s xref:ROOT:spark-SerializerManager.adoc#dataDeserializeStream[`SerializerManager` deserializes `bytes` into an iterator of values] that link:spark-MemoryStore.adoc#putIteratorAsValues[`MemoryStore` stores]. If however the storage `level` is not deserialized, the function requests link:spark-MemoryStore.adoc#putBytes[`MemoryStore` to store the bytes]
 
@@ -632,11 +632,11 @@ NOTE: `reregister` is called when a link:spark-Executor.adoc#heartbeats-and-acti
 getCurrentBlockStatus(blockId: BlockId, info: BlockInfo): BlockStatus
 ----
 
-`getCurrentBlockStatus` returns the current `BlockStatus` of the `BlockId` block (with the block's current link:spark-rdd-StorageLevel.adoc[StorageLevel], memory and disk sizes). It uses link:spark-MemoryStore.adoc[MemoryStore] and xref:DiskStore.adoc[DiskStore] for size and other information.
+`getCurrentBlockStatus` returns the current `BlockStatus` of the `BlockId` block (with the block's current xref:storage:StorageLevel.adoc[StorageLevel], memory and disk sizes). It uses link:spark-MemoryStore.adoc[MemoryStore] and xref:DiskStore.adoc[DiskStore] for size and other information.
 
 NOTE: Most of the information to build `BlockStatus` is already in `BlockInfo` except that it may not necessarily reflect the current state per link:spark-MemoryStore.adoc[MemoryStore] and xref:DiskStore.adoc[DiskStore].
 
-Internally, it uses the input link:spark-BlockInfo.adoc[BlockInfo] to know about the block's storage level. If the storage level is not set (i.e. `null`), the returned `BlockStatus` assumes the link:spark-rdd-StorageLevel.adoc[default `NONE` storage level] and the memory and disk sizes being `0`.
+Internally, it uses the input link:spark-BlockInfo.adoc[BlockInfo] to know about the block's storage level. If the storage level is not set (i.e. `null`), the returned `BlockStatus` assumes the xref:storage:StorageLevel.adoc[default `NONE` storage level] and the memory and disk sizes being `0`.
 
 If however the storage level is set, `getCurrentBlockStatus` uses link:spark-MemoryStore.adoc[MemoryStore] and xref:DiskStore.adoc[DiskStore] to check whether the block is stored in the storages or not and request for their sizes in the storages respectively (using their `getSize` or assume `0`).
 
@@ -1028,17 +1028,17 @@ doPutIterator[T](
 
 `doPutIterator` simply <<doPut, doPut>> with the `putBody` function that accepts a `BlockInfo` and does the following:
 
-. `putBody` branches off per whether the `StorageLevel` indicates to use a link:spark-rdd-StorageLevel.adoc#useMemory[memory] or simply a link:spark-rdd-StorageLevel.adoc#useDisk[disk], i.e.
+. `putBody` branches off per whether the `StorageLevel` indicates to use a xref:storage:StorageLevel.adoc#useMemory[memory] or simply a xref:storage:StorageLevel.adoc#useDisk[disk], i.e.
 
-* When the input `StorageLevel` indicates to link:spark-rdd-StorageLevel.adoc#useMemory[use a memory] for storage in link:spark-rdd-StorageLevel.adoc#deserialized[deserialized] format, `putBody` requests <<memoryStore, MemoryStore>> to link:spark-MemoryStore.adoc#putIteratorAsValues[putIteratorAsValues] (for the `BlockId` and with the `iterator` factory function).
+* When the input `StorageLevel` indicates to xref:storage:StorageLevel.adoc#useMemory[use a memory] for storage in xref:storage:StorageLevel.adoc#deserialized[deserialized] format, `putBody` requests <<memoryStore, MemoryStore>> to link:spark-MemoryStore.adoc#putIteratorAsValues[putIteratorAsValues] (for the `BlockId` and with the `iterator` factory function).
 +
 If the <<memoryStore, MemoryStore>> returned a correct value, the internal `size` is set to the value.
 +
 If however the <<memoryStore, MemoryStore>> failed to give a correct value, FIXME
 
-* When the input `StorageLevel` indicates to link:spark-rdd-StorageLevel.adoc#useMemory[use memory] for storage in link:spark-rdd-StorageLevel.adoc#deserialized[serialized] format, `putBody`...FIXME
+* When the input `StorageLevel` indicates to xref:storage:StorageLevel.adoc#useMemory[use memory] for storage in xref:storage:StorageLevel.adoc#deserialized[serialized] format, `putBody`...FIXME
 
-* When the input `StorageLevel` does not indicate to use memory for storage but link:spark-rdd-StorageLevel.adoc#useDisk[disk] instead, `putBody`...FIXME
+* When the input `StorageLevel` does not indicate to use memory for storage but xref:storage:StorageLevel.adoc#useDisk[disk] instead, `putBody`...FIXME
 
 . `putBody` requests the <<getCurrentBlockStatus, current block status>>
 
@@ -1054,7 +1054,7 @@ If however the <<memoryStore, MemoryStore>> failed to give a correct value, FIXM
 Put block [blockId] locally took [time] ms
 ```
 
-* When the input `StorageLevel` indicates to use link:spark-rdd-StorageLevel.adoc#replication[replication], `putBody` <<doGetLocalBytes, doGetLocalBytes>> followed by <<replicate, replicate>> (with the input `BlockId` and the `StorageLevel` as well as the `BlockData` to replicate)
+* When the input `StorageLevel` indicates to use xref:storage:StorageLevel.adoc#replication[replication], `putBody` <<doGetLocalBytes, doGetLocalBytes>> followed by <<replicate, replicate>> (with the input `BlockId` and the `StorageLevel` as well as the `BlockData` to replicate)
 
 * With a successful replication, `putBody` prints out the following DEBUG message to the logs:
 +
@@ -1085,7 +1085,7 @@ INFO BlockManager: Dropping block [blockId] from memory
 
 It then asserts that the `blockId` block is link:spark-BlockInfoManager.adoc#assertBlockIsLockedForWriting[locked for writing].
 
-If the block's link:spark-rdd-StorageLevel.adoc[StorageLevel] uses disks and the internal xref:DiskStore.adoc[DiskStore] object (`diskStore`) does not contain the block, it is saved then. You should see the following INFO message in the logs:
+If the block's xref:storage:StorageLevel.adoc[StorageLevel] uses disks and the internal xref:DiskStore.adoc[DiskStore] object (`diskStore`) does not contain the block, it is saved then. You should see the following INFO message in the logs:
 
 ```
 INFO BlockManager: Writing block [blockId] to disk
