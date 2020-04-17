@@ -10,6 +10,8 @@ DiskBlockManager is <<creating-instance, created>> for a xref:storage:BlockManag
 
 DiskBlockManager is used to create a xref:DiskStore.adoc[DiskStore].
 
+TIP: Consult xref:demo-diskblockmanager-and-block-data.adoc[Demo: DiskBlockManager and Block Data].
+
 == [[creating-instance]] Creating Instance
 
 * [[conf]] xref:ROOT:spark-SparkConf.adoc[SparkConf]
@@ -27,7 +29,52 @@ DiskBlockManager initializes the internal <<subDirs, subDirs>> collection of loc
 
 In the end, DiskBlockManager <<addShutdownHook, registers a shutdown hook>> to clean up the local directories for blocks.
 
-== [[getFile]] Finding Block File
+== [[localDirs]] Local Directories for Blocks
+
+[source,scala]
+----
+localDirs: Array[File]
+----
+
+While being created, DiskBlockManager <<createLocalDirs, creates local directories>> for block data. DiskBlockManager expects at least one local directory or prints out the following ERROR message to the logs and exits the JVM (with exit code 53).
+
+```
+Failed to create any local dir.
+```
+
+localDirs is used when:
+
+* DiskBlockManager is requested to <<getFile, getFile>>, initialize the <<subDirs, subDirs>> internal registry, and to <<doStop, doStop>>
+
+* BlockManager is requested to xref:storage:BlockManager.adoc#registerWithExternalShuffleServer[register with an external shuffle server]
+
+== [[createLocalDirs]] Creating Local Directories for Block Data
+
+[source, scala]
+----
+createLocalDirs(
+  conf: SparkConf): Array[File]
+----
+
+createLocalDirs creates `blockmgr-[random UUID]` directory under local directories to store block data.
+
+Internally, createLocalDirs <<getConfiguredLocalDirs, finds the configured local directories where Spark can write files>> and creates a subdirectory `blockmgr-[UUID]` under every configured parent directory.
+
+For every local directory, createLocalDirs prints out the following INFO message to the logs:
+
+```
+Created local directory at [localDir]
+```
+
+In case of an exception, createLocalDirs prints out the following ERROR message to the logs and skips the directory.
+
+```
+Failed to create local dir in [rootDir]. Ignoring this directory.
+```
+
+createLocalDirs is used when the <<localDirs, localDirs>> internal registry is initialized.
+
+== [[getFile]] Finding Block File (and Creating Parent Directories)
 
 [source, scala]
 ----
@@ -38,7 +85,9 @@ getFile(
 ----
 <1> Uses the name of the given `BlockId`
 
-`getFile`...FIXME
+`getFile` computes a hash of the file name of the input xref:storage:spark-BlockId.adoc[BlockId] that is used for the name of the parent directory and subdirectory.
+
+`getFile` creates the subdirectory unless it already exists.
 
 `getFile` is used when:
 
@@ -167,31 +216,6 @@ Internally, `getAllBlocks` takes the <<getAllFiles, block files>> and returns th
 
 NOTE: `getAllBlocks` is used exclusively when `BlockManager` is requested to xref:ROOT:BlockManager.adoc#getMatchingBlockIds[find IDs of existing blocks for a given filter].
 
-== [[createLocalDirs]] Creating Local Directories for Storing Block Data -- `createLocalDirs` Internal Method
-
-[source, scala]
-----
-createLocalDirs(conf: SparkConf): Array[File]
-----
-
-`createLocalDirs` creates `blockmgr-[random UUID]` directory under local directories to store block data.
-
-Internally, `createLocalDirs` reads <<getConfiguredLocalDirs, local writable directories>> and creates a subdirectory `blockmgr-[random UUID]` under every configured parent directory.
-
-If successful, you should see the following INFO message in the logs:
-
-```
-INFO DiskBlockManager: Created local directory at [localDir]
-```
-
-When failed to create a local directory, you should see the following ERROR message in the logs:
-
-```
-ERROR DiskBlockManager: Failed to create local dir in [rootDir]. Ignoring this directory.
-```
-
-NOTE: `createLocalDirs` is used exclusively when <<localDirs, localDirs>> is initialized.
-
 == [[stop]] `stop` Internal Method
 
 [source, scala]
@@ -236,21 +260,6 @@ Refer to xref:ROOT:spark-logging.adoc[Logging].
 |===
 | Name
 | Description
-
-| localDirs
-a| [[localDirs]] Local directories for block data
-
-`localDirs` is initialized using <<createLocalDirs, createLocalDirs>>.
-
-There has to be at least one local directory or DiskBlockManager cannot be <<creating-instance, created>>.
-
-Used when:
-
-* DiskBlockManager is requested to <<getFile, getFile>>, initialize <<subDirs, subDirs>> and <<doStop, stop>>
-
-* `BlockManager` is requested to xref:ROOT:BlockManager.adoc#registerWithExternalShuffleServer[register the executor's BlockManager with an external shuffle server]
-
-* PySpark's `BasePythonRunner` is requested to `compute`
 
 | subDirsPerLocalDir
 a| [[subDirsPerLocalDir]] <<spark-configuration-properties.adoc#spark.diskStore.subDirectories, spark.diskStore.subDirectories>> configuration property (default: `64`)
