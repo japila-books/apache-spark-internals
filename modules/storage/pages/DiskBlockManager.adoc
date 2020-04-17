@@ -14,18 +14,12 @@ TIP: Consult xref:demo-diskblockmanager-and-block-data.adoc[Demo: DiskBlockManag
 
 == [[creating-instance]] Creating Instance
 
+DiskBlockManager takes the following to be created:
+
 * [[conf]] xref:ROOT:spark-SparkConf.adoc[SparkConf]
 * [[deleteFilesOnStop]] `deleteFilesOnStop` flag
 
-When created, DiskBlockManager uses xref:ROOT:spark-configuration-properties.adoc#spark.diskStore.subDirectories[spark.diskStore.subDirectories] configuration property to set <<subDirsPerLocalDir, subDirsPerLocalDir>>.
-
-DiskBlockManager <<createLocalDirs, creates one or many local directories to store block data>> (as <<localDirs, localDirs>>). When not successful, you should see the following ERROR message in the logs and DiskBlockManager exits with error code `53`.
-
-```
-Failed to create any local dir.
-```
-
-DiskBlockManager initializes the internal <<subDirs, subDirs>> collection of locks for every local directory to store block data with an array of `subDirsPerLocalDir` size for files.
+When created, DiskBlockManager <<localDirs, creates one or many local directories to store block data>> and initializes the internal <<subDirs, subDirs>> collection of locks for every local directory.
 
 In the end, DiskBlockManager <<addShutdownHook, registers a shutdown hook>> to clean up the local directories for blocks.
 
@@ -47,6 +41,21 @@ localDirs is used when:
 * DiskBlockManager is requested to <<getFile, getFile>>, initialize the <<subDirs, subDirs>> internal registry, and to <<doStop, doStop>>
 
 * BlockManager is requested to xref:storage:BlockManager.adoc#registerWithExternalShuffleServer[register with an external shuffle server]
+
+== [[subDirsPerLocalDir]][[subDirs]] File Locks for Local Block Store Directories
+
+[source, scala]
+----
+subDirs: Array[Array[File]]
+----
+
+`subDirs` is a lookup table for file locks of every <<localDirs, local block directory>> (with the first dimension for local directories and the second for locks).
+
+The number of block subdirectories is controlled by xref:ROOT:spark-configuration-properties.adoc#spark.diskStore.subDirectories[spark.diskStore.subDirectories] configuration property (default: `64`).
+
+`subDirs(dirId)(subDirId)` is used to access `subDirId` subdirectory in `dirId` local directory.
+
+subDirs is used when DiskBlockManager is requested for a <<getFile, block file>> or <<getAllFiles, all block files>>.
 
 == [[createLocalDirs]] Creating Local Directories for Block Data
 
@@ -108,7 +117,7 @@ createTempShuffleBlock(): (TempShuffleBlockId, File)
 
 CAUTION: FIXME
 
-== [[getAllFiles]] `getAllFiles` Method
+== [[getAllFiles]] All Block Files
 
 [source, scala]
 ----
@@ -227,19 +236,6 @@ stop(): Unit
 
 NOTE: `stop` is used exclusively when `BlockManager` is requested to xref:ROOT:BlockManager.adoc#stop[stop].
 
-== [[subDirs]] File Locks for Local Block Store Directories -- `subDirs` Internal Property
-
-[source, scala]
-----
-subDirs: Array[Array[File]]
-----
-
-`subDirs` is a collection of <<subDirsPerLocalDir, subDirsPerLocalDir>> file locks for every <<createLocalDirs, local block store directory>> where DiskBlockManager stores block data (with the columns being the number of local directories and the rows as collection of `subDirsPerLocalDir` size).
-
-NOTE: `subDirs(n)` is to access ``n``-th local directory.
-
-NOTE: `subDirs` is used when DiskBlockManager is requested to <<getFile, getFile>> or <<getAllFiles, getAllFiles>>.
-
 == [[logging]] Logging
 
 Enable `ALL` logging level for `org.apache.spark.storage.DiskBlockManager` logger to see what happens inside.
@@ -252,21 +248,3 @@ log4j.logger.org.apache.spark.storage.DiskBlockManager=ALL
 ----
 
 Refer to xref:ROOT:spark-logging.adoc[Logging].
-
-== [[internal-registries]] Internal Properties
-
-.DiskBlockManager's Internal Properties (e.g. Registries, Counters and Flags)
-[cols="1m,3",options="header",width="100%"]
-|===
-| Name
-| Description
-
-| subDirsPerLocalDir
-a| [[subDirsPerLocalDir]] <<spark-configuration-properties.adoc#spark.diskStore.subDirectories, spark.diskStore.subDirectories>> configuration property (default: `64`)
-
-Used when:
-
-* DiskBlockManager is <<subDirs, created>> and is requested to <<getFile, getFile>>
-
-* `BlockManager` is requested to xref:ROOT:BlockManager.adoc#registerWithExternalShuffleServer[register the executor's BlockManager with an external shuffle server]
-|===
