@@ -1,79 +1,29 @@
-== [[MemoryManager]] MemoryManager -- Memory Management System
+= [[MemoryManager]] MemoryManager
 
-`MemoryManager` is the <<contract, base>> of <<implementations, memory managers>> that manage shared memory for task execution and block storage.
+*MemoryManager* is an <<contract, abstraction>> of <<implementations, memory managers>> that manage shared memory for task execution (using xref:memory:TaskMemoryManager.adoc#memoryManager[TaskMemoryManager]) and block storage (using xref:storage:BlockManager.adoc#memoryManager[BlockManager]).
 
-[[contract]]
-[source, scala]
+MemoryManager is used to create xref:storage:BlockManager.adoc#memoryManager[BlockManager] (and then xref:storage:MemoryStore.adoc#memoryManager[MemoryStore]) and xref:memory:TaskMemoryManager.adoc#memoryManager[TaskMemoryManager].
+
+.MemoryManager and Core Services
+image::MemoryManager.png[align="center"]
+
+MemoryManager is available as xref:ROOT:spark-SparkEnv.adoc#memoryManager[SparkEnv.memoryManager].
+
+[source,scala]
 ----
-package org.apache.spark.memory
-
-abstract class MemoryManager(...) {
-  // only required methods that have no implementation
-  // the others follow
-  def acquireExecutionMemory(
-    numBytes: Long,
-    taskAttemptId: Long,
-    memoryMode: MemoryMode): Long
-  def acquireStorageMemory(blockId: BlockId, numBytes: Long, memoryMode: MemoryMode): Boolean
-  def acquireUnrollMemory(blockId: BlockId, numBytes: Long, memoryMode: MemoryMode): Boolean
-  def maxOffHeapStorageMemory: Long
-  def maxOnHeapStorageMemory: Long
-}
+import org.apache.spark.SparkEnv
+val mm = SparkEnv.get.memoryManager
 ----
 
-NOTE: `MemoryManager` is a `private[spark]` contract.
-
-.(Subset of) MemoryManager Contract
-[cols="1,2",options="header",width="100%"]
-|===
-| Method
-| Description
-
-| `acquireExecutionMemory`
-| [[acquireExecutionMemory]] Used exclusively when `TaskMemoryManager` is requested to link:TaskMemoryManager.adoc#acquireExecutionMemory[acquireExecutionMemory]
-
-| `acquireStorageMemory`
-a| [[acquireStorageMemory]] Used when:
-
-* `UnifiedMemoryManager` is requested to link:UnifiedMemoryManager.adoc#acquireUnrollMemory[acquireUnrollMemory]
-
-* `MemoryStore` is requested to xref:storage:MemoryStore.adoc#putBytes[putBytes], xref:storage:MemoryStore.adoc#putIteratorAsValues[putIteratorAsValues] and xref:storage:MemoryStore.adoc#putIteratorAsBytes[putIteratorAsBytes]
-
-| `acquireUnrollMemory`
-| [[acquireUnrollMemory]] Used exclusively when `MemoryStore` is requested to xref:storage:MemoryStore.adoc#reserveUnrollMemoryForThisTask[reserveUnrollMemoryForThisTask]
-
-| `maxOffHeapStorageMemory`
-a| [[maxOffHeapStorageMemory]] Used when:
-
-* `UnifiedMemoryManager` is requested to link:UnifiedMemoryManager.adoc#acquireStorageMemory[acquireStorageMemory]
-
-* `BlockManager` is xref:ROOT:BlockManager.adoc#maxOffHeapMemory[created]
-
-* `MemoryStore` is requested for the xref:storage:MemoryStore.adoc#maxMemory[total amount of memory available for storage (in bytes)]
-
-| `maxOnHeapStorageMemory`
-a| [[maxOnHeapStorageMemory]] Used when:
-
-* `BlockManager` is xref:ROOT:BlockManager.adoc#maxOnHeapMemory[created]
-
-* `UnifiedMemoryManager` is requested to link:UnifiedMemoryManager.adoc#acquireStorageMemory[acquireStorageMemory]
-
-* `MemoryStore` is requested for the xref:storage:MemoryStore.adoc#maxMemory[total amount of memory available for storage (in bytes)]
-
-* (legacy) `StaticMemoryManager` is link:StaticMemoryManager.adoc#maxOnHeapStorageMemory[created], is requested to link:StaticMemoryManager.adoc#acquireStorageMemory[acquireStorageMemory]
-|===
-
-`MemoryManager` is <<creating-instance, created>> along with link:spark-SparkEnv.adoc#create[SparkEnv].
-
-NOTE: `MemoryManager` is a Scala abstract class and cannot be created directly, but only as one of the <<implementations, implementations>>.
+A <<implementations, concrete MemoryManager>> is chosen based on xref:ROOT:spark-configuration-properties.adoc#spark.memory.useLegacyMode[spark.memory.useLegacyMode] configuration property for xref:ROOT:spark-SparkEnv.adoc#memoryManager[SparkEnv] for the driver and executors.
 
 *Execution memory* is used for computation in shuffles, joins, sorts and aggregations.
 
 *Storage memory* is used for caching and propagating internal data across the nodes in a cluster.
 
-[[implementations]]
-.MemoryManagers
-[cols="1,2",options="header",width="100%"]
+== [[implementations]] MemoryManagers
+
+[cols="30m,70",options="header",width="100%"]
 |===
 | MemoryManager
 | Description
@@ -85,50 +35,60 @@ NOTE: `MemoryManager` is a Scala abstract class and cannot be created directly, 
 | [[UnifiedMemoryManager]] The default memory manager
 |===
 
-[[internal-registries]]
-.MemoryManager's Internal Properties (e.g. Registries, Counters and Flags)
-[cols="1,2",options="header",width="100%"]
+== [[creating-instance]] Creating Instance
+
+MemoryManager takes the following to be created:
+
+* [[conf]] xref:ROOT:spark-SparkConf.adoc[SparkConf]
+* [[numCores]] Number of CPU cores
+* [[onHeapStorageMemory]] Size of the on-heap storage memory
+* [[onHeapExecutionMemory]] Size of the on-heap execution memory
+
+MemoryManager initializes the <<internal-properties, internal properties>>.
+
+== [[contract]] MemoryManager Contract
+
+[cols="30m,70",options="header",width="100%"]
 |===
-| Name
+| Method
 | Description
 
-| `onHeapStorageMemoryPool`
-| [[onHeapStorageMemoryPool]] FIXME
+| acquireExecutionMemory
+| [[acquireExecutionMemory]] Used exclusively when `TaskMemoryManager` is requested to link:TaskMemoryManager.adoc#acquireExecutionMemory[acquireExecutionMemory]
 
-Used when...FIXME
+| acquireStorageMemory
+a| [[acquireStorageMemory]] Used when:
 
-| `offHeapStorageMemoryPool`
-| [[offHeapStorageMemoryPool]] FIXME
+* `UnifiedMemoryManager` is requested to link:UnifiedMemoryManager.adoc#acquireUnrollMemory[acquireUnrollMemory]
 
-Used when...FIXME
+* `MemoryStore` is requested to xref:storage:MemoryStore.adoc#putBytes[putBytes], xref:storage:MemoryStore.adoc#putIteratorAsValues[putIteratorAsValues] and xref:storage:MemoryStore.adoc#putIteratorAsBytes[putIteratorAsBytes]
 
-| `pageSizeBytes`
-| [[pageSizeBytes]] FIXME
+| acquireUnrollMemory
+| [[acquireUnrollMemory]] Used exclusively when `MemoryStore` is requested to xref:storage:MemoryStore.adoc#reserveUnrollMemoryForThisTask[reserveUnrollMemoryForThisTask]
 
-Used when...FIXME
+| maxOffHeapStorageMemory
+a| [[maxOffHeapStorageMemory]] Used when:
 
-| `tungstenMemoryAllocator`
-a| [[tungstenMemoryAllocator]] FIXME
+* `UnifiedMemoryManager` is requested to link:UnifiedMemoryManager.adoc#acquireStorageMemory[acquireStorageMemory]
 
-Used when...FIXME
+* `BlockManager` is xref:ROOT:BlockManager.adoc#maxOffHeapMemory[created]
 
-NOTE: `tungstenMemoryAllocator` is a Scala `final val` and cannot be changed by custom <<implementations, MemoryManagers>>.
+* `MemoryStore` is requested for the xref:storage:MemoryStore.adoc#maxMemory[total amount of memory available for storage (in bytes)]
+
+| maxOnHeapStorageMemory
+a| [[maxOnHeapStorageMemory]] Used when:
+
+* `BlockManager` is xref:ROOT:BlockManager.adoc#maxOnHeapMemory[created]
+
+* `UnifiedMemoryManager` is requested to link:UnifiedMemoryManager.adoc#acquireStorageMemory[acquireStorageMemory]
+
+* `MemoryStore` is requested for the xref:storage:MemoryStore.adoc#maxMemory[total amount of memory available for storage (in bytes)]
+
+* (legacy) `StaticMemoryManager` is link:StaticMemoryManager.adoc#maxOnHeapStorageMemory[created], is requested to link:StaticMemoryManager.adoc#acquireStorageMemory[acquireStorageMemory]
+
 |===
 
-=== [[creating-instance]] Creating MemoryManager Instance
-
-`MemoryManager` takes the following when created:
-
-* [[conf]] link:spark-SparkConf.adoc[SparkConf]
-* [[numCores]] Number of CPU cores
-* [[onHeapStorageMemory]] `onHeapStorageMemory`
-* [[onHeapExecutionMemory]] `onHeapExecutionMemory`
-
-`MemoryManager` initializes the <<internal-registries, internal registries and counters>>.
-
-NOTE: `MemoryManager` is a Scala abstract class and cannot be created directly, but only as one of the <<implementations, implementations>>.
-
-=== [[releaseExecutionMemory]] `releaseExecutionMemory` Method
+== [[releaseExecutionMemory]] `releaseExecutionMemory` Method
 
 [source, scala]
 ----
@@ -142,7 +102,7 @@ releaseExecutionMemory(
 
 NOTE: `releaseExecutionMemory` is used when `TaskMemoryManager` is requested to link:TaskMemoryManager.adoc#releaseExecutionMemory[releaseExecutionMemory] and link:TaskMemoryManager.adoc#cleanUpAllAllocatedMemory[cleanUpAllAllocatedMemory]
 
-=== [[releaseAllExecutionMemoryForTask]] `releaseAllExecutionMemoryForTask` Method
+== [[releaseAllExecutionMemoryForTask]] `releaseAllExecutionMemoryForTask` Method
 
 [source, scala]
 ----
@@ -153,7 +113,7 @@ releaseAllExecutionMemoryForTask(taskAttemptId: Long): Long
 
 NOTE: `releaseAllExecutionMemoryForTask` is used exclusively when `TaskRunner` is requested to link:spark-Executor-TaskRunner.adoc#run[run] (and cleans up after itself).
 
-=== [[tungstenMemoryMode]] `tungstenMemoryMode` Flag
+== [[tungstenMemoryMode]] `tungstenMemoryMode` Flag
 
 [source, scala]
 ----
@@ -180,10 +140,10 @@ NOTE: `tungstenMemoryMode` is a Scala `final val` and cannot be changed by custo
 
 * `TaskMemoryManager` is link:TaskMemoryManager.adoc#tungstenMemoryMode[created]
 
-* `MemoryManager` is created (and initializes the <<pageSizeBytes, pageSizeBytes>> and <<tungstenMemoryAllocator, tungstenMemoryAllocator>> internal properties)
+* MemoryManager is created (and initializes the <<pageSizeBytes, pageSizeBytes>> and <<tungstenMemoryAllocator, tungstenMemoryAllocator>> internal properties)
 ====
 
-=== [[freePage]] `freePage` Method
+== [[freePage]] `freePage` Method
 
 [source, java]
 ----
@@ -193,3 +153,32 @@ void freePage(MemoryBlock page)
 `freePage`...FIXME
 
 NOTE: `freePage` is used when...FIXME
+
+== [[internal-properties]] Internal Properties
+
+[cols="30m,70",options="header",width="100%"]
+|===
+| Name
+| Description
+
+| `onHeapStorageMemoryPool`
+| [[onHeapStorageMemoryPool]] FIXME
+
+Used when...FIXME
+
+| `offHeapStorageMemoryPool`
+| [[offHeapStorageMemoryPool]] FIXME
+
+Used when...FIXME
+
+| `pageSizeBytes`
+| [[pageSizeBytes]] FIXME
+
+Used when...FIXME
+
+| `tungstenMemoryAllocator`
+a| [[tungstenMemoryAllocator]] FIXME
+
+Used when...FIXME
+
+|===

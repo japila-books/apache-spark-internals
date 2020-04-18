@@ -1,30 +1,35 @@
-== [[TaskMemoryManager]] TaskMemoryManager -- Memory Manager of Single Task
+= [[TaskMemoryManager]] TaskMemoryManager
 
-`TaskMemoryManager` manages the memory allocated to an link:spark-scheduler-Task.adoc[individual task].
+*TaskMemoryManager* manages the memory allocated to execute a single <<taskAttemptId, task>> (using <<memoryManager, MemoryManager>>).
 
-`TaskMemoryManager` is <<creating-instance, created>> when:
-
-* `TaskRunner` is requested to link:spark-Executor-TaskRunner.adoc#run[run]
-
-* Spark SQL's `HashedRelation` is created or requested to read
+TaskMemoryManager is <<creating-instance, created>> when `TaskRunner` is requested to xref:ROOT:spark-Executor-TaskRunner.adoc#run[run].
 
 .Creating TaskMemoryManager for Task
-image::spark-TaskMemoryManager.png[align="center"]
+image::TaskMemoryManager.png[align="center"]
 
-`TaskMemoryManager` assumes that:
+TaskMemoryManager assumes that:
 
 * The number of bits to address pages (aka `PAGE_NUMBER_BITS`) is `13`
 * The number of bits to encode offsets in data pages (aka `OFFSET_BITS`) is `51` (i.e. 64 bits - `PAGE_NUMBER_BITS`)
 * The number of entries in the <<pageTable, page table>> and <<allocatedPages, allocated pages>> (aka `PAGE_TABLE_SIZE`) is `8192` (i.e. 1 << `PAGE_NUMBER_BITS`)
 * The maximum page size (aka `MAXIMUM_PAGE_SIZE_BYTES`) is `15GB` (i.e. `((1L << 31) - 1) * 8L`)
 
-When <<creating-instance, created>>, `TaskMemoryManager` is given a <<memoryManager, MemoryManager>> that is used for the following:
+== [[creating-instance]] Creating Instance
 
-* <<acquireExecutionMemory, Acquiring an execution memory>>
+TaskMemoryManager takes the following to be created:
 
-* <<cleanUpAllAllocatedMemory, cleanUpAllAllocatedMemory>>
+* <<memoryManager, MemoryManager>>
+* [[taskAttemptId]] link:spark-Executor-TaskRunner.adoc#taskId[Task ID]
 
-* <<releaseExecutionMemory, releaseExecutionMemory>>
+TaskMemoryManager initializes the <<internal-properties, internal properties>>.
+
+== [[memoryManager]] MemoryManager
+
+TaskMemoryManager is given a xref:memory:MemoryManager.adoc[MemoryManager] when <<creating-instance, created>>.
+
+TaskMemoryManager uses the MemoryManager for the following:
+
+* <<acquireExecutionMemory, Acquiring>>, <<releaseExecutionMemory, releasing>> or <<cleanUpAllAllocatedMemory, cleaning up>> execution memory
 
 * <<showMemoryUsage, showMemoryUsage>>
 
@@ -36,51 +41,7 @@ When <<creating-instance, created>>, `TaskMemoryManager` is given a <<memoryMana
 
 * <<getMemoryConsumptionForThisTask, getMemoryConsumptionForThisTask>>
 
-[[internal-registries]]
-.TaskMemoryManager's Internal Properties (e.g. Registries, Counters and Flags)
-[cols="1,2",options="header",width="100%"]
-|===
-| Name
-| Description
-
-| `acquiredButNotUsed`
-| [[acquiredButNotUsed]] The size of memory allocated but not used.
-
-| `allocatedPages`
-| [[allocatedPages]] Collection of flags (`true` or `false` values) of size `PAGE_TABLE_SIZE` with all bits initially disabled (i.e. `false`).
-
-TIP: `allocatedPages` is https://docs.oracle.com/javase/8/docs/api/java/util/BitSet.html[java.util.BitSet].
-
-When <<allocatePage, allocatePage>> is called, it will record the page in the registry by setting the bit at the specified index (that corresponds to the allocated page) to `true`.
-
-| `consumers`
-| [[consumers]] link:MemoryConsumer.adoc[MemoryConsumers]
-
-| `pageTable`
-| [[pageTable]] The array of size `PAGE_TABLE_SIZE` with indices being `MemoryBlock` objects.
-
-When <<allocatePage, allocating a `MemoryBlock` page for Tungsten consumers>>, the index corresponds to `pageNumber` that points to the `MemoryBlock` page allocated.
-
-| `tungstenMemoryMode`
-| [[tungstenMemoryMode]] `MemoryMode` (i.e. `OFF_HEAP` or `ON_HEAP`)
-
-Set to the link:MemoryManager.adoc#tungstenMemoryMode[tungstenMemoryMode] of the <<memoryManager, MemoryManager>> while `TaskMemoryManager` is <<creating-instance, created>>
-|===
-
-[TIP]
-====
-Enable `INFO`, `DEBUG` or even `TRACE` logging levels for `org.apache.spark.memory.TaskMemoryManager` logger to see what happens inside.
-
-Add the following line to `conf/log4j.properties`:
-
-```
-log4j.logger.org.apache.spark.memory.TaskMemoryManager=TRACE
-```
-
-Refer to link:spark-logging.adoc[Logging].
-====
-
-=== [[cleanUpAllAllocatedMemory]] `cleanUpAllAllocatedMemory` Method
+== [[cleanUpAllAllocatedMemory]] `cleanUpAllAllocatedMemory` Method
 
 [source, java]
 ----
@@ -107,7 +68,7 @@ CAUTION: FIXME Image with the interactions to `MemoryManager`.
 
 NOTE: `cleanUpAllAllocatedMemory` is used exclusively when `TaskRunner` is requested to link:spark-Executor-TaskRunner.adoc#run[run] (and cleans up after itself).
 
-=== [[acquireExecutionMemory]] Acquiring Execution Memory -- `acquireExecutionMemory` Method
+== [[acquireExecutionMemory]] Acquiring Execution Memory -- `acquireExecutionMemory` Method
 
 [source, java]
 ----
@@ -122,7 +83,7 @@ NOTE: link:MemoryConsumer.adoc[MemoryConsumer] knows its mode -- on- or off-heap
 
 `acquireExecutionMemory` first calls `memoryManager.acquireExecutionMemory(required, taskAttemptId, mode)`.
 
-TIP: `TaskMemoryManager` is a mere wrapper of `MemoryManager` to track <<consumers, consumers>>?
+TIP: TaskMemoryManager is a mere wrapper of `MemoryManager` to track <<consumers, consumers>>?
 
 CAUTION: FIXME
 
@@ -168,7 +129,7 @@ DEBUG Task [taskAttemptId] acquired [bytes] for [consumer]
 
 NOTE: `acquireExecutionMemory` is called when a link:MemoryConsumer.adoc#acquireMemory[`MemoryConsumer` tries to acquires a memory] and <<allocatePage, allocatePage>>.
 
-=== [[allocatePage]] Allocating Memory Block for Tungsten Consumers -- `allocatePage` Method
+== [[allocatePage]] Allocating Memory Block for Tungsten Consumers -- `allocatePage` Method
 
 [source, java]
 ----
@@ -225,16 +186,7 @@ Another <<allocatePage, allocatePage>> attempt is recursively tried.
 
 CAUTION: FIXME Why is there a hope for being able to allocate a page?
 
-=== [[creating-instance]] Creating TaskMemoryManager Instance
-
-`TaskMemoryManager` takes the following when created:
-
-* [[memoryManager]] link:MemoryManager.adoc[MemoryManager]
-* [[taskAttemptId]] link:spark-Executor-TaskRunner.adoc#taskId[Task ID]
-
-`TaskMemoryManager` initializes the <<internal-registries, internal registries and counters>>.
-
-=== [[releaseExecutionMemory]] `releaseExecutionMemory` Method
+== [[releaseExecutionMemory]] `releaseExecutionMemory` Method
 
 [source, java]
 ----
@@ -249,10 +201,10 @@ void releaseExecutionMemory(long size, MemoryConsumer consumer)
 
 * `MemoryConsumer` is requested to link:MemoryConsumer.adoc#freeMemory[freeMemory]
 
-* `TaskMemoryManager` is requested to <<allocatePage, allocatePage>> and <<freePage, freePage>>
+* TaskMemoryManager is requested to <<allocatePage, allocatePage>> and <<freePage, freePage>>
 ====
 
-=== [[getMemoryConsumptionForThisTask]] `getMemoryConsumptionForThisTask` Method
+== [[getMemoryConsumptionForThisTask]] `getMemoryConsumptionForThisTask` Method
 
 [source, java]
 ----
@@ -263,7 +215,7 @@ long getMemoryConsumptionForThisTask()
 
 NOTE: `getMemoryConsumptionForThisTask` is used exclusively in Spark tests.
 
-=== [[showMemoryUsage]] `showMemoryUsage` Method
+== [[showMemoryUsage]] `showMemoryUsage` Method
 
 [source, java]
 ----
@@ -274,7 +226,7 @@ void showMemoryUsage()
 
 NOTE: `showMemoryUsage` is used exclusively when `MemoryConsumer` is requested to link:MemoryConsumer.adoc#throwOom[throwOom].
 
-=== [[pageSizeBytes]] `pageSizeBytes` Method
+== [[pageSizeBytes]] `pageSizeBytes` Method
 
 [source, java]
 ----
@@ -285,7 +237,7 @@ long pageSizeBytes()
 
 NOTE: `pageSizeBytes` is used when...FIXME
 
-=== [[freePage]] Freeing Memory Page -- `freePage` Method
+== [[freePage]] Freeing Memory Page -- `freePage` Method
 
 [source, java]
 ----
@@ -296,7 +248,7 @@ void freePage(MemoryBlock page, MemoryConsumer consumer)
 
 NOTE: `pageSizeBytes` is used when `MemoryConsumer` is requested to link:MemoryConsumer.adoc#freePage[freePage] and link:MemoryConsumer.adoc#throwOom[throwOom].
 
-=== [[getPage]] Getting Page -- `getPage` Method
+== [[getPage]] Getting Page -- `getPage` Method
 
 [source, java]
 ----
@@ -307,7 +259,7 @@ Object getPage(long pagePlusOffsetAddress)
 
 NOTE: `getPage` is used when...FIXME
 
-=== [[getOffsetInPage]] Getting Page Offset -- `getOffsetInPage` Method
+== [[getOffsetInPage]] Getting Page Offset -- `getOffsetInPage` Method
 
 [source, java]
 ----
@@ -317,3 +269,48 @@ long getOffsetInPage(long pagePlusOffsetAddress)
 `getPage`...FIXME
 
 NOTE: `getPage` is used when...FIXME
+
+== [[logging]] Logging
+
+Enable `ALL` logging level for `org.apache.spark.memory.TaskMemoryManager` logger to see what happens inside.
+
+Add the following line to `conf/log4j.properties`:
+
+
+[source]
+----
+log4j.logger.org.apache.spark.memory.TaskMemoryManager=ALL
+----
+
+Refer to xref:ROOT:spark-logging.adoc[Logging].
+
+== [[internal-properties]] Internal Properties
+
+[cols="30m,70",options="header",width="100%"]
+|===
+| Name
+| Description
+
+| acquiredButNotUsed
+| [[acquiredButNotUsed]] The size of memory allocated but not used.
+
+| allocatedPages
+| [[allocatedPages]] Collection of flags (`true` or `false` values) of size `PAGE_TABLE_SIZE` with all bits initially disabled (i.e. `false`).
+
+TIP: `allocatedPages` is https://docs.oracle.com/javase/8/docs/api/java/util/BitSet.html[java.util.BitSet].
+
+When <<allocatePage, allocatePage>> is called, it will record the page in the registry by setting the bit at the specified index (that corresponds to the allocated page) to `true`.
+
+| consumers
+| [[consumers]] link:MemoryConsumer.adoc[MemoryConsumers]
+
+| pageTable
+| [[pageTable]] The array of size `PAGE_TABLE_SIZE` with indices being `MemoryBlock` objects.
+
+When <<allocatePage, allocating a `MemoryBlock` page for Tungsten consumers>>, the index corresponds to `pageNumber` that points to the `MemoryBlock` page allocated.
+
+| tungstenMemoryMode
+| [[tungstenMemoryMode]] `MemoryMode` (i.e. `OFF_HEAP` or `ON_HEAP`)
+
+Set to the link:MemoryManager.adoc#tungstenMemoryMode[tungstenMemoryMode] of the <<memoryManager, MemoryManager>> while TaskMemoryManager is <<creating-instance, created>>
+|===

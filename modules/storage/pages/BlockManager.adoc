@@ -16,15 +16,12 @@ BlockManager is <<creating-instance, created>> exclusively when `SparkEnv` is xr
 [[futureExecutionContext]]
 BlockManager uses a Scala https://www.scala-lang.org/api/current/scala/concurrent/ExecutionContextExecutorService.html[ExecutionContextExecutorService] to execute *FIXME* asynchronously (on a thread pool with *block-manager-future* prefix and maximum of 128 threads).
 
-BlockManager is available as xref:ROOT:spark-SparkEnv.adoc#blockManager[SparkEnv.blockManager] regardless of the node (i.e. the driver or executors).
+BlockManager is available as xref:ROOT:spark-SparkEnv.adoc#blockManager[SparkEnv.blockManager] on the driver and executors.
 
 [source, scala]
 ----
-// BlockManager is a private[spark] class
-// so the following has to be under org.apache.spark package
-// e.g. package org.apache.spark
-import org.apache.spark.storage.BlockManager
-val bm: BlockManager = SparkEnv.get.blockManager
+import org.apache.spark.SparkEnv
+val bm = SparkEnv.get.blockManager
 ----
 
 [[BlockEvictionHandler]]
@@ -49,7 +46,7 @@ BlockManager takes the following to be created:
 * [[master]] xref:BlockManagerMaster.adoc[BlockManagerMaster]
 * [[serializerManager]] xref:ROOT:spark-SerializerManager.adoc[SerializerManager]
 * [[conf]] xref:ROOT:spark-SparkConf.adoc[SparkConf]
-* [[memoryManager]] xref:memory:MemoryManager.adoc[MemoryManager]
+* <<memoryManager, MemoryManager>>
 * [[mapOutputTracker]] xref:ROOT:spark-service-mapoutputtracker.adoc[MapOutputTracker]
 * <<shuffleManager, ShuffleManager>>
 * <<blockTransferService, BlockTransferService>>
@@ -77,6 +74,16 @@ BlockManager creates a client to read other executors' shuffle files (as `shuffl
 BlockManager sets <<spark.block.failures.beforeLocationRefresh, the maximum number of failures before this block manager refreshes the block locations from the driver>> (as `maxFailuresBeforeLocationRefresh`).
 
 BlockManager registers link:spark-blockmanager-BlockManagerSlaveEndpoint.adoc[BlockManagerSlaveEndpoint] with the input xref:ROOT:spark-rpc.adoc[RpcEnv], itself, and xref:ROOT:spark-service-mapoutputtracker.adoc[MapOutputTracker] (as `slaveEndpoint`).
+
+== [[memoryManager]] MemoryManager
+
+BlockManager is given a xref:memory:MemoryManager.adoc[MemoryManager] when <<creating-instance, created>>.
+
+BlockManager uses the MemoryManager for the following:
+
+* Create the <<memoryStore, MemoryStore>> (that is then assigned to xref:memory:MemoryManager.adoc#setMemoryStore[MemoryManager] as a "circular dependency")
+
+* Initialize <<maxOnHeapMemory, maxOnHeapMemory>> and <<maxOffHeapMemory, maxOffHeapMemory>> (for reporting)
 
 == [[shuffleManager]] ShuffleManager
 
