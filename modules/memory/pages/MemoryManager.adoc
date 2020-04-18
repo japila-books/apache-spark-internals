@@ -1,6 +1,12 @@
 = [[MemoryManager]] MemoryManager
 
-*MemoryManager* is an <<contract, abstraction>> of <<implementations, memory managers>> that manage shared memory for task execution (using xref:memory:TaskMemoryManager.adoc#memoryManager[TaskMemoryManager]) and block storage (using xref:storage:BlockManager.adoc#memoryManager[BlockManager]).
+*MemoryManager* is an abstraction of <<implementations, memory managers>> that manage shared memory for task execution (using xref:memory:TaskMemoryManager.adoc#memoryManager[TaskMemoryManager]) and block storage (using xref:storage:BlockManager.adoc#memoryManager[BlockManager]).
+
+MemoryManager splits available memory into two regions:
+
+* *Execution memory* for computations in shuffles, joins, sorts and aggregations
+
+* *Storage memory* for caching and propagating internal data across Spark nodes
 
 MemoryManager is used to create xref:storage:BlockManager.adoc#memoryManager[BlockManager] (and then xref:storage:MemoryStore.adoc#memoryManager[MemoryStore]) and xref:memory:TaskMemoryManager.adoc#memoryManager[TaskMemoryManager].
 
@@ -15,11 +21,7 @@ import org.apache.spark.SparkEnv
 val mm = SparkEnv.get.memoryManager
 ----
 
-A <<implementations, concrete MemoryManager>> is chosen based on xref:ROOT:spark-configuration-properties.adoc#spark.memory.useLegacyMode[spark.memory.useLegacyMode] configuration property for xref:ROOT:spark-SparkEnv.adoc#memoryManager[SparkEnv] for the driver and executors.
-
-*Execution memory* is used for computation in shuffles, joins, sorts and aggregations.
-
-*Storage memory* is used for caching and propagating internal data across the nodes in a cluster.
+A <<implementations, concrete MemoryManager>> is chosen based on xref:ROOT:spark-configuration-properties.adoc#spark.memory.useLegacyMode[spark.memory.useLegacyMode] configuration property (for xref:ROOT:spark-SparkEnv.adoc#memoryManager[SparkEnv] for the driver and executors).
 
 == [[implementations]] MemoryManagers
 
@@ -46,47 +48,91 @@ MemoryManager takes the following to be created:
 
 MemoryManager initializes the <<internal-properties, internal properties>>.
 
-== [[contract]] MemoryManager Contract
+== [[acquireExecutionMemory]] Acquiring Execution Memory for Task
 
-[cols="30m,70",options="header",width="100%"]
-|===
-| Method
-| Description
+[source, scala]
+----
+acquireExecutionMemory(
+  numBytes: Long,
+  taskAttemptId: Long,
+  memoryMode: MemoryMode): Long
+----
 
-| acquireExecutionMemory
-| [[acquireExecutionMemory]] Used exclusively when `TaskMemoryManager` is requested to xref:TaskMemoryManager.adoc#acquireExecutionMemory[acquireExecutionMemory]
+`acquireExecutionMemory` tries to acquire up to `numBytes` of execution memory for the current task (by `taskAttemptId`) and return the number of bytes obtained, or 0 if none can be allocated.
 
-| acquireStorageMemory
-a| [[acquireStorageMemory]] Used when:
+`acquireExecutionMemory` is used when TaskMemoryManager is requested to xref:memory:TaskMemoryManager.adoc#acquireExecutionMemory[acquire execution memory].
 
-* `UnifiedMemoryManager` is requested to xref:UnifiedMemoryManager.adoc#acquireUnrollMemory[acquireUnrollMemory]
+== [[acquireStorageMemory]] Acquiring Storage Memory for Block
 
-* `MemoryStore` is requested to xref:storage:MemoryStore.adoc#putBytes[putBytes], xref:storage:MemoryStore.adoc#putIteratorAsValues[putIteratorAsValues] and xref:storage:MemoryStore.adoc#putIteratorAsBytes[putIteratorAsBytes]
+[source, scala]
+----
+acquireStorageMemory(
+  blockId: BlockId,
+  numBytes: Long,
+  memoryMode: MemoryMode): Boolean
+----
 
-| acquireUnrollMemory
-| [[acquireUnrollMemory]] Used exclusively when `MemoryStore` is requested to xref:storage:MemoryStore.adoc#reserveUnrollMemoryForThisTask[reserveUnrollMemoryForThisTask]
+`acquireStorageMemory` tries to acquire `numBytes` bytes of memory to cache the given xref:storage:spark-BlockId.adoc[block], evicting existing ones if necessary.
 
-| maxOffHeapStorageMemory
-a| [[maxOffHeapStorageMemory]] Used when:
+`acquireStorageMemory` is used when:
 
-* `UnifiedMemoryManager` is requested to xref:UnifiedMemoryManager.adoc#acquireStorageMemory[acquireStorageMemory]
+* UnifiedMemoryManager is requested to xref:memory:UnifiedMemoryManager.adoc#acquireUnrollMemory[acquireUnrollMemory]
 
-* `BlockManager` is xref:ROOT:BlockManager.adoc#maxOffHeapMemory[created]
+* `MemoryStore` is requested to xref:storage:MemoryStore.adoc#putBytes[putBytes] and xref:storage:MemoryStore.adoc#putIterator[putIterator]
 
-* `MemoryStore` is requested for the xref:storage:MemoryStore.adoc#maxMemory[total amount of memory available for storage (in bytes)]
+== [[acquireUnrollMemory]] Acquiring Unroll Memory for Block
 
-| maxOnHeapStorageMemory
-a| [[maxOnHeapStorageMemory]] Used when:
+[source, scala]
+----
+acquireUnrollMemory(
+  blockId: BlockId,
+  numBytes: Long,
+  memoryMode: MemoryMode): Boolean
+----
 
-* `BlockManager` is xref:ROOT:BlockManager.adoc#maxOnHeapMemory[created]
+`acquireUnrollMemory` tries to acquire `numBytes` bytes of memory to unroll the given xref:storage:spark-BlockId.adoc[block], evicting existing ones if necessary.
 
-* `UnifiedMemoryManager` is requested to xref:UnifiedMemoryManager.adoc#acquireStorageMemory[acquireStorageMemory]
+`acquireUnrollMemory` is used when MemoryStore is requested to xref:storage:MemoryStore.adoc#reserveUnrollMemoryForThisTask[reserveUnrollMemoryForThisTask].
 
-* `MemoryStore` is requested for the xref:storage:MemoryStore.adoc#maxMemory[total amount of memory available for storage (in bytes)]
+== [[maxOffHeapStorageMemory]] Total Available Off-Heap Storage Memory
 
-* (legacy) `StaticMemoryManager` is xref:StaticMemoryManager.adoc#maxOnHeapStorageMemory[created], is requested to xref:StaticMemoryManager.adoc#acquireStorageMemory[acquireStorageMemory]
+[source, scala]
+----
+maxOffHeapStorageMemory: Long
+----
 
-|===
+`maxOffHeapStorageMemory` is the total available off-heap memory for storage (in bytes).
+
+`maxOffHeapStorageMemory` may vary over time.
+
+`maxOffHeapStorageMemory` is used when:
+
+* UnifiedMemoryManager is requested to xref:memory:UnifiedMemoryManager.adoc#acquireStorageMemory[acquireStorageMemory]
+
+* BlockManager is xref:storage:BlockManager.adoc#maxOffHeapMemory[created]
+
+* MemoryStore is requested for the xref:storage:MemoryStore.adoc#maxMemory[total amount of memory available]
+
+== [[maxOnHeapStorageMemory]] Total Available On-Heap Storage Memory
+
+[source, scala]
+----
+maxOnHeapStorageMemory: Long
+----
+
+`maxOnHeapStorageMemory` is the total available on-heap memory for storage (in bytes).
+
+`maxOnHeapStorageMemory` may vary over time.
+
+`maxOnHeapStorageMemory` is used when:
+
+* UnifiedMemoryManager is requested to xref:memory:UnifiedMemoryManager.adoc#acquireStorageMemory[acquireStorageMemory]
+
+* BlockManager is xref:storage:BlockManager.adoc#maxOnHeapMemory[created]
+
+* MemoryStore is requested for the xref:storage:MemoryStore.adoc#maxMemory[total amount of memory available]
+
+* (legacy) StaticMemoryManager is xref:memory:StaticMemoryManager.adoc#maxOnHeapStorageMemory[created] and requested to xref:memory:StaticMemoryManager.adoc#acquireStorageMemory[acquireStorageMemory]
 
 == [[releaseExecutionMemory]] `releaseExecutionMemory` Method
 
@@ -122,15 +168,15 @@ tungstenMemoryMode: MemoryMode
 
 `tungstenMemoryMode` returns `OFF_HEAP` only when the following are all met:
 
-* xref:spark-MemoryManager-properties.adoc#spark.memory.offHeap.enabled[spark.memory.offHeap.enabled] configuration property is enabled (it is not by default)
+* xref:ROOT:spark-configuration-properties.adoc#spark.memory.offHeap.enabled[spark.memory.offHeap.enabled] configuration property is enabled (it is not by default)
 
-* xref:spark-MemoryManager-properties.adoc#spark.memory.offHeap.size[spark.memory.offHeap.size] configuration property is greater than `0` (it is `0` by default)
+* xref:ROOT:spark-configuration-properties.adoc#spark.memory.offHeap.size[spark.memory.offHeap.size] configuration property is greater than `0` (it is `0` by default)
 
 * JVM supports unaligned memory access (aka *unaligned Unsafe*, i.e. `sun.misc.Unsafe` package is available and the underlying system has unaligned-access capability)
 
 Otherwise, `tungstenMemoryMode` returns `ON_HEAP`.
 
-NOTE: Given that xref:spark-MemoryManager-properties.adoc#spark.memory.offHeap.enabled[spark.memory.offHeap.enabled] configuration property is disabled (`false`) by default and xref:spark-MemoryManager-properties.adoc#spark.memory.offHeap.size[spark.memory.offHeap.size] configuration property is `0` by default, Spark seems to encourage using Tungsten memory allocated on the JVM heap (`ON_HEAP`).
+NOTE: Given that xref:ROOT:spark-configuration-properties.adoc#spark.memory.offHeap.enabled[spark.memory.offHeap.enabled] configuration property is disabled (`false`) by default and xref:ROOT:spark-configuration-properties.adoc#spark.memory.offHeap.size[spark.memory.offHeap.size] configuration property is `0` by default, Spark seems to encourage using Tungsten memory allocated on the JVM heap (`ON_HEAP`).
 
 NOTE: `tungstenMemoryMode` is a Scala `final val` and cannot be changed by custom <<implementations, MemoryManagers>>.
 
@@ -161,24 +207,16 @@ NOTE: `freePage` is used when...FIXME
 | Name
 | Description
 
-| `onHeapStorageMemoryPool`
+| onHeapStorageMemoryPool
 | [[onHeapStorageMemoryPool]] FIXME
 
-Used when...FIXME
-
-| `offHeapStorageMemoryPool`
+| offHeapStorageMemoryPool
 | [[offHeapStorageMemoryPool]] FIXME
 
-Used when...FIXME
-
-| `pageSizeBytes`
+| pageSizeBytes
 | [[pageSizeBytes]] FIXME
 
-Used when...FIXME
-
-| `tungstenMemoryAllocator`
+| tungstenMemoryAllocator
 a| [[tungstenMemoryAllocator]] FIXME
-
-Used when...FIXME
 
 |===
