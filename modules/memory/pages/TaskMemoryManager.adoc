@@ -19,9 +19,19 @@ TaskMemoryManager assumes that:
 TaskMemoryManager takes the following to be created:
 
 * <<memoryManager, MemoryManager>>
-* [[taskAttemptId]] link:spark-Executor-TaskRunner.adoc#taskId[Task ID]
+* [[taskAttemptId]] xref:ROOT:spark-Executor-TaskRunner.adoc#taskId[Task attempt ID]
 
 TaskMemoryManager initializes the <<internal-properties, internal properties>>.
+
+== [[consumers]] Spillable Memory Consumers
+
+TaskMemoryManager tracks xref:memory:MemoryConsumer.adoc[spillable memory consumers].
+
+TaskMemoryManager registers a new memory consumer when requested to <<acquireExecutionMemory, acquire execution memory>>.
+
+TaskMemoryManager removes (_clears_) all registered memory consumer when requested to <<cleanUpAllAllocatedMemory, clean up all allocated memory>>.
+
+Memory consumers are used to report memory usage when TaskMemoryManager is requested to <<showMemoryUsage, show memory usage>>.
 
 == [[memoryManager]] MemoryManager
 
@@ -41,7 +51,7 @@ TaskMemoryManager uses the MemoryManager for the following:
 
 * <<getMemoryConsumptionForThisTask, getMemoryConsumptionForThisTask>>
 
-== [[cleanUpAllAllocatedMemory]] `cleanUpAllAllocatedMemory` Method
+== [[cleanUpAllAllocatedMemory]] Cleaning Up All Allocated Memory
 
 [source, java]
 ----
@@ -77,7 +87,9 @@ long acquireExecutionMemory(
   MemoryConsumer consumer)
 ----
 
-`acquireExecutionMemory` allocates up to `required` size of memory for `consumer`. When no memory could be allocated, it calls `spill` on every consumer, itself including. Finally, `acquireExecutionMemory` returns the allocated memory.
+`acquireExecutionMemory` allocates up to `required` size of memory for the xref:memory:MemoryConsumer.adoc[MemoryConsumer].
+
+When no memory could be allocated, it calls `spill` on every consumer, itself including. Finally, `acquireExecutionMemory` returns the allocated memory.
 
 NOTE: `acquireExecutionMemory` synchronizes on itself, and so no other calls on the object could be completed.
 
@@ -129,16 +141,22 @@ You should see the following DEBUG message in the logs:
 DEBUG Task [taskAttemptId] acquired [bytes] for [consumer]
 ```
 
-NOTE: `acquireExecutionMemory` is called when a link:MemoryConsumer.adoc#acquireMemory[`MemoryConsumer` tries to acquires a memory] and <<allocatePage, allocatePage>>.
+acquireExecutionMemory is used when:
 
-== [[allocatePage]] Allocating Memory Block for Tungsten Consumers -- `allocatePage` Method
+* MemoryConsumer is requested to xref:memory:MemoryConsumer.adoc#acquireMemory[acquire execution memory]
+
+* TaskMemoryManager is requested to <<allocatePage, allocate a page>>
+
+== [[allocatePage]] Allocating Memory Block for Tungsten Consumers
 
 [source, java]
 ----
-MemoryBlock allocatePage(long size, MemoryConsumer consumer)
+MemoryBlock allocatePage(
+  long size,
+  MemoryConsumer consumer)
 ----
 
-NOTE: It only handles *Tungsten Consumers*, i.e. link:MemoryConsumer.adoc[MemoryConsumers] in  `tungstenMemoryMode` mode.
+NOTE: It only handles *Tungsten Consumers*, i.e. link:MemoryConsumer.adoc[MemoryConsumers] in `tungstenMemoryMode` mode.
 
 `allocatePage` allocates a block of memory (aka _page_) smaller than `MAXIMUM_PAGE_SIZE_BYTES` maximum size.
 
@@ -217,16 +235,36 @@ long getMemoryConsumptionForThisTask()
 
 NOTE: `getMemoryConsumptionForThisTask` is used exclusively in Spark tests.
 
-== [[showMemoryUsage]] `showMemoryUsage` Method
+== [[showMemoryUsage]] Displaying Memory Usage
 
 [source, java]
 ----
 void showMemoryUsage()
 ----
 
-`showMemoryUsage`...FIXME
+`showMemoryUsage` prints out the following INFO message to the logs (with the <<taskAttemptId, taskAttemptId>>):
 
-NOTE: `showMemoryUsage` is used exclusively when `MemoryConsumer` is requested to link:MemoryConsumer.adoc#throwOom[throwOom].
+```
+Memory used in task [taskAttemptId]
+```
+
+`showMemoryUsage` requests every <<consumers, MemoryConsumer>> to xref:memory:MemoryConsumer.adoc#getUsed[report memory used]. `showMemoryUsage` prints out the following INFO message to the logs for a MemoryConsumer with some memory usage (and excludes zero-memory consumers):
+
+```
+Acquired by [consumer]: [memUsage]
+```
+
+`showMemoryUsage` prints out the following INFO messages to the logs:
+
+```
+[amount] bytes of memory were used by task [taskAttemptId] but are not associated with specific consumers
+```
+
+```
+[executionMemoryUsed] bytes of memory are used for execution and [storageMemoryUsed] bytes of memory are used for storage
+```
+
+`showMemoryUsage` is used when MemoryConsumer is requested to xref:memory:MemoryConsumer.adoc#throwOom[throw an OutOfMemoryError].
 
 == [[pageSizeBytes]] `pageSizeBytes` Method
 
@@ -302,9 +340,6 @@ Refer to xref:ROOT:spark-logging.adoc[Logging].
 TIP: `allocatedPages` is https://docs.oracle.com/javase/8/docs/api/java/util/BitSet.html[java.util.BitSet].
 
 When <<allocatePage, allocatePage>> is called, it will record the page in the registry by setting the bit at the specified index (that corresponds to the allocated page) to `true`.
-
-| consumers
-| [[consumers]] link:MemoryConsumer.adoc[MemoryConsumers]
 
 | pageTable
 | [[pageTable]] The array of size `PAGE_TABLE_SIZE` with indices being `MemoryBlock` objects.

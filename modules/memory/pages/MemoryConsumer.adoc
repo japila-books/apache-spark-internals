@@ -1,14 +1,55 @@
-== [[MemoryConsumer]] MemoryConsumer
+= [[MemoryConsumer]] MemoryConsumer
 
-`MemoryConsumer` is the contract for memory consumers of `TaskMemoryManager` with support for <<spill, spilling>>.
+*MemoryConsumer* is an abstraction of <<extensions, spillable memory consumers>> of xref:memory:TaskMemoryManager.adoc#consumers[TaskMemoryManager].
 
-A `MemoryConsumer` basically tracks <<used, how much memory is allocated>>.
+MemoryConsumers correspond to individual operators and data structures within a task. The TaskMemoryManager receives memory allocation requests from MemoryConsumers and issues callbacks to consumers in order to trigger <<spill, spilling>> when running low on memory.
 
-Creating a `MemoryConsumer` requires a link:TaskMemoryManager.adoc[TaskMemoryManager] with optional `pageSize` and a `MemoryMode`.
+A MemoryConsumer basically tracks <<used, how much memory is allocated>>.
 
-NOTE: If not specified, `pageSize` defaults to link:TaskMemoryManager.adoc#pageSizeBytes[TaskMemoryManager.pageSizeBytes] and `ON_HEAP` memory mode.
+Creating a MemoryConsumer requires a link:TaskMemoryManager.adoc[TaskMemoryManager] with optional `pageSize` and a `MemoryMode`.
 
-=== [[contract]][[spill]] `spill` Method
+== [[creating-instance]] Creating Instance
+
+MemoryConsumer takes the following to be created:
+
+* [[taskMemoryManager]] xref:memory:TaskMemoryManager.adoc[TaskMemoryManager]
+* [[pageSize]] Page size (in bytes)
+* [[mode]] MemoryMode
+
+MemoryConsumer initializes the <<internal-properties, internal properties>>.
+
+== [[extensions]] Extensions
+
+.MemoryConsumers (Direct Implementations and Extensions Only)
+[cols="30,70",options="header",width="100%"]
+|===
+| MemoryConsumer
+| Description
+
+| xref:BytesToBytesMap.adoc[BytesToBytesMap]
+| [[BytesToBytesMap]] Used in Spark SQL
+
+| HybridRowQueue
+| [[HybridRowQueue]]
+
+| LongToUnsafeRowMap
+| [[LongToUnsafeRowMap]]
+
+| RowBasedKeyValueBatch
+| [[RowBasedKeyValueBatch]]
+
+| ShuffleExternalSorter
+| [[ShuffleExternalSorter]]
+
+| Spillable
+| [[Spillable]]
+
+| UnsafeExternalSorter
+| [[UnsafeExternalSorter]]
+
+|===
+
+== [[contract]][[spill]] `spill` Method
 
 [source, java]
 ----
@@ -20,26 +61,28 @@ CAUTION: FIXME
 
 NOTE: `spill` is used when link:TaskMemoryManager.adoc#acquireExecutionMemory[`TaskMemoryManager` forces `MemoryConsumers` to release memory when requested to acquire execution memory]
 
-=== [[used]] Memory Allocated -- `used` Registry
+== [[used]][[getUsed]] Memory Allocated (Used)
 
-`used` is the amount of memory in use (i.e. allocated) by the `MemoryConsumer`.
+`used` is the amount of memory in use (i.e. allocated) by the MemoryConsumer.
 
-=== [[freePage]] Deallocate MemoryBlock -- `freePage` Method
+== [[freePage]] Deallocate MemoryBlock
 
 [source, java]
 ----
-protected void freePage(MemoryBlock page)
+void freePage(
+  MemoryBlock page)
 ----
 
 `freePage` is a protected method to deallocate the `MemoryBlock`.
 
 Internally, it decrements <<used, used>> registry by the size of `page` and link:TaskMemoryManager.adoc#freePage[frees the page].
 
-=== [[allocateArray]] Allocate LongArray -- `allocateArray` Method
+== [[allocateArray]] Allocate Array
 
 [source, java]
 ----
-LongArray allocateArray(long size)
+LongArray allocateArray(
+  long size)
 ----
 
 `allocateArray` allocates `LongArray` of `size` length.
@@ -52,33 +95,45 @@ However, if it was not possible to allocate the `size` memory, it link:TaskMemor
 Unable to acquire [required] bytes of memory, got [got]
 ```
 
-=== [[acquireMemory]] Acquiring Memory -- `acquireMemory` Method
+== [[acquireMemory]] Acquiring Execution Memory (Allocating Memory)
 
 [source, java]
 ----
-long acquireMemory(long size)
+long acquireMemory(
+  long size)
 ----
 
-`acquireMemory` link:TaskMemoryManager.adoc#acquireExecutionMemory[acquires execution memory of `size` size]. The memory is recorded in <<used, used>> registry.
+acquireMemory requests the <<taskMemoryManager, TaskMemoryManager>> to xref:memory:TaskMemoryManager.adoc#acquireExecutionMemory[acquire execution memory] (of the given size).
 
-=== [[throwOom]] `throwOom` Internal Method
+The memory allocated is then added to the <<used, used>> internal registry.
+
+acquireMemory is used when:
+
+* Spillable is requested to maybeSpill
+
+* Spark SQL's LongToUnsafeRowMap is requested to ensureAcquireMemory
+
+== [[allocatePage]] Allocating Memory Block (Page)
 
 [source, java]
 ----
-void throwOom(final MemoryBlock page, final long required)
+MemoryBlock allocatePage(
+  long required)
+----
+
+allocatePage...FIXME
+
+allocatePage is used when...FIXME
+
+== [[throwOom]] Throwing OutOfMemoryError
+
+[source, java]
+----
+void throwOom(
+  MemoryBlock page,
+  long required)
 ----
 
 `throwOom`...FIXME
 
-NOTE: `throwOom` is used when `MemoryConsumer` is requested to <<allocateArray, allocateArray>> and <<allocatePage, allocatePage>>.
-
-=== [[allocatePage]] `allocatePage` Method
-
-[source, java]
-----
-MemoryBlock allocatePage(long required)
-----
-
-`allocatePage`...FIXME
-
-NOTE: `allocatePage` is used when...FIXME
+`throwOom` is used when MemoryConsumer is requested to <<allocateArray, allocate an array>> or a <<allocatePage, memory block (page)>> and failed to acquire enough.
