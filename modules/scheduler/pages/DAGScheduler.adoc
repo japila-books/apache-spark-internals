@@ -64,19 +64,19 @@ DAGScheduler takes the following to be created:
 
 While being created, DAGScheduler xref:scheduler:TaskScheduler.adoc#setDAGScheduler[associates itself] with the <<taskScheduler, TaskScheduler>> and starts <<eventProcessLoop, DAGScheduler Event Bus>>.
 
-== [[taskScheduler]] TaskScheduler
+== [[taskScheduler]] DAGScheduler and TaskScheduler
 
 DAGScheduler is given a xref:scheduler:TaskScheduler.adoc[TaskScheduler] when <<creating-instance, created>>.
 
 DAGScheduler uses the TaskScheduler for the following:
 
-* <<submitMissingTasks, submitMissingTasks>>
+* <<submitMissingTasks, Submitting missing tasks of a stage>>
 
-* <<handleTaskCompletion, handleTaskCompletion>>
+* <<handleTaskCompletion, Handling task completion (CompletionEvent)>>
 
-* <<killTaskAttempt, killTaskAttempt>>
+* <<killTaskAttempt, Killing a task>>
 
-* <<failJobAndIndependentStages, failJobAndIndependentStages>>
+* <<failJobAndIndependentStages, Failing a job and all other independent single-job stages>>
 
 * <<stop, Stopping itself>>
 
@@ -258,7 +258,7 @@ The <<cleanupStateForJobAndIndependentStages, state of the `job` and independent
 
 Ultimately, xref:ROOT:spark-scheduler-SparkListener.adoc#SparkListenerJobEnd[SparkListenerJobEnd] is posted to xref:ROOT:spark-scheduler-LiveListenerBus.adoc[LiveListenerBus] (as <<listenerBus, listenerBus>>) for the `job`, the current time (in millis) and `JobSucceeded` job result.
 
-NOTE: `markMapStageJobAsFinished` is used in xref:scheduler:DAGSchedulerEventProcessLoop.adoc#handleMapStageSubmitted[handleMapStageSubmitted] and xref:scheduler:DAGSchedulerEventProcessLoop.adoc##handleTaskCompletion[handleTaskCompletion].
+NOTE: `markMapStageJobAsFinished` is used in xref:scheduler:DAGSchedulerEventProcessLoop.adoc#handleMapStageSubmitted[handleMapStageSubmitted] and xref:scheduler:DAGSchedulerEventProcessLoop.adoc#handleTaskCompletion[handleTaskCompletion].
 
 == [[submitJob]] Submitting Job
 
@@ -567,7 +567,7 @@ Internally, `getShuffleDependencies` takes the direct xref:rdd:index.adoc#depend
 
 NOTE: `getShuffleDependencies` is used when DAGScheduler <<getOrCreateParentStages, finds or creates missing direct parent ShuffleMapStages>> (for ShuffleDependencies of given RDD) and <<getMissingAncestorShuffleDependencies, finds all missing shuffle dependencies for a given RDD>>.
 
-== [[failJobAndIndependentStages]] Failing Job and Independent Single-Job Stages -- `failJobAndIndependentStages` Internal Method
+== [[failJobAndIndependentStages]] Failing Job and Independent Single-Job Stages
 
 [source, scala]
 ----
@@ -686,7 +686,7 @@ submitStage(
   stage: Stage): Unit
 ----
 
-submitStage is an internal method that DAGScheduler uses to submit the input `stage` or its missing parents (if there any stages not computed yet before the input `stage` could).
+submitStage submits the input `stage` or its missing parents (if there any stages not computed yet before the input `stage` could).
 
 NOTE: submitStage is also used to xref:scheduler:DAGSchedulerEventProcessLoop.adoc#resubmitFailedStages[resubmit failed stages].
 
@@ -734,7 +734,7 @@ submitStage is used recursively for missing parents of the stage and when DAGSch
 
 * <<submitWaitingChildStages, submitWaitingChildStages>>
 
-* <<handleJobSubmitted, handleJobSubmitted>>, <<handleMapStageSubmitted, handleMapStageSubmitted>>, and <<handleTaskCompletion, handleTaskCompletion>>
+* Handle <<handleJobSubmitted, JobSubmitted>>, <<handleMapStageSubmitted, MapStageSubmitted>> and <<handleTaskCompletion, TaskCompletion>> events
 
 == [[handleJobSubmitted]] Handling Job Submitted Event
 
@@ -770,11 +770,12 @@ handleMapStageSubmitted(
 
 NOTE: `handleMapStageSubmitted` is used when...FIXME
 
-== [[handleTaskCompletion]] Handling Task Completion (CompletionEvent) -- `handleTaskCompletion` Method
+== [[handleTaskCompletion]] Handling Task Completion (CompletionEvent)
 
 [source, scala]
 ----
-handleTaskCompletion(event: CompletionEvent): Unit
+handleTaskCompletion(
+  event: CompletionEvent): Unit
 ----
 
 `handleTaskCompletion`...FIXME
@@ -855,94 +856,48 @@ submitMissingTasks(
   jobId: Int): Unit
 ----
 
-submitMissingTasks...FIXME
-
-CAUTION: FIXME
-
-When executed, you should see the following DEBUG message in the logs:
+submitMissingTasks prints out the following DEBUG message to the logs:
 
 ```
 submitMissingTasks([stage])
 ```
 
-The input ``stage``'s xref:scheduler:spark-scheduler-Stage.adoc#pendingPartitions[`pendingPartitions` internal field] is cleared (it is later filled out with the partitions to run tasks for).
+submitMissingTasks requests the given xref:scheduler:spark-scheduler-Stage.adoc[Stage] for the xref:scheduler:spark-scheduler-Stage.adoc#findMissingPartitions[missing partitions] (partitions that need to be computed).
 
-submitMissingTasks requests the `stage` for xref:scheduler:spark-scheduler-Stage.adoc#findMissingPartitions[missing partitions], i.e. the indices of the partitions to compute.
+submitMissingTasks adds the stage to the <<runningStages, runningStages>> internal registry.
 
-submitMissingTasks marks the `stage` as running (i.e. adds it to <<runningStages, runningStages>> internal registry).
-
-submitMissingTasks xref:ROOT:spark-service-outputcommitcoordinator.adoc#stageStart[notifies `OutputCommitCoordinator` that the stage is started].
-
-NOTE: The input `maxPartitionId` argument handed over to xref:ROOT:spark-service-outputcommitcoordinator.adoc#stageStart[OutputCommitCoordinator] depends on the type of the stage, i.e. `ShuffleMapStage` or `ResultStage`. `ShuffleMapStage` tracks the number of partitions itself (as `numPartitions` property) while `ResultStage` uses the internal `RDD` to find out the number.
+submitMissingTasks notifies the <<outputCommitCoordinator, OutputCommitCoordinator>> that xref:ROOT:spark-service-outputcommitcoordinator.adoc#stageStart[stage execution started].
 
 [[submitMissingTasks-taskIdToLocations]]
-For the missing partitions, submitMissingTasks computes their *task locality preferences*, i.e. pairs of missing partition ids and <<getPreferredLocs, their task locality information>>.
-HERE
-NOTE: The locality information of a RDD is called *preferred locations*.
+submitMissingTasks <<getPreferredLocs, determines preferred locations>> (_task locality preferences_) of the missing partitions.
 
-In case of _non-fatal_ exceptions at this time (while getting the locality information), submitMissingTasks xref:scheduler:spark-scheduler-Stage.adoc#makeNewStageAttempt[creates a new stage attempt].
+submitMissingTasks requests the stage for a xref:scheduler:spark-scheduler-Stage.adoc#makeNewStageAttempt[new stage attempt].
 
-NOTE: A stage attempt is an internal property of a stage.
+submitMissingTasks requests the <<listenerBus, LiveListenerBus>> to xref:ROOT:spark-scheduler-LiveListenerBus.adoc#post[post] a xref:ROOT:spark-scheduler-SparkListener.adoc#SparkListenerStageSubmitted[SparkListenerStageSubmitted] event.
 
-Despite the failure to submit any tasks, submitMissingTasks does announce that at least there was an attempt on xref:ROOT:spark-scheduler-LiveListenerBus.adoc[LiveListenerBus] by posting a xref:ROOT:spark-scheduler-SparkListener.adoc#SparkListenerStageSubmitted[SparkListenerStageSubmitted] message.
+submitMissingTasks uses the <<closureSerializer, closure Serializer>> to xref:ROOT:spark-Serializer.adoc#serialize[serialize] the stage and create a so-called task binary. submitMissingTasks serializes the RDD (of the stage) and either the ShuffleDependency or the compute function based on the type of the stage, i.e. ShuffleMapStage and ResultStage, respectively.
 
-NOTE: The Spark application's xref:ROOT:spark-scheduler-LiveListenerBus.adoc[LiveListenerBus] is given when <<creating-instance, DAGScheduler is created>>.
+submitMissingTasks creates a xref:ROOT:spark-SparkContext.adoc#broadcast[broadcast variable] for the task binary.
 
-submitMissingTasks then <<abortStage, aborts the stage>> (with the reason being "Task creation failed" followed by the exception).
+NOTE: That shows how important xref:ROOT:spark-broadcast.adoc[broadcast variables] are for Spark itself to distribute data among executors in a Spark application in the most efficient way.
 
-The `stage` is removed from the internal <<runningStages, `runningStages` collection of stages>> and submitMissingTasks exits.
+submitMissingTasks creates xref:scheduler:Task.adoc[tasks] for every missing partition:
 
-When no exception was thrown (while computing the locality information for tasks), submitMissingTasks xref:scheduler:spark-scheduler-Stage.adoc#makeNewStageAttempt[creates a new stage attempt] and announces it on xref:ROOT:spark-scheduler-LiveListenerBus.adoc[LiveListenerBus] by posting a xref:ROOT:spark-scheduler-SparkListener.adoc#SparkListenerStageSubmitted[SparkListenerStageSubmitted] message.
+* xref:scheduler:ShuffleMapTask.adoc[ShuffleMapTasks] for a xref:scheduler:spark-scheduler-ShuffleMapStage.adoc[ShuffleMapStage]
 
-NOTE: Yes, that _is_ correct. Whether there was a task submission failure or not, submitMissingTasks creates a new stage attempt and posts a `SparkListenerStageSubmitted`. That makes sense, _doesn't it?_
+* xref:scheduler:ResultTask.adoc[ResultTasks] for a xref:scheduler:spark-scheduler-ResultStage.adoc[ResultStage]
 
-At that time, submitMissingTasks serializes the RDD (of the stage for which tasks are submitted for) and, depending on the type of the stage, the xref:scheduler:spark-scheduler-ShuffleMapStage.adoc#shuffleDep[`ShuffleDependency` (for `ShuffleMapStage`)] or the xref:scheduler:spark-scheduler-ResultStage.adoc#func[function (for `ResultStage`)].
-
-NOTE: submitMissingTasks uses a closure `Serializer` that <<creating-instance, DAGScheduler creates for the entire lifetime when it is created>>. The closure serializer is available through xref:ROOT:spark-SparkEnv.adoc#closureSerializer[SparkEnv].
-
-The serialized so-called _task binary bytes_ are xref:ROOT:spark-SparkContext.adoc#broadcast["wrapped" as a broadcast variable] (to make it available for executors to execute later on).
-
-NOTE: That exact moment should make clear how important xref:ROOT:spark-broadcast.adoc[broadcast variables] are for Spark itself that you, a Spark developer, can use, too, to distribute data across the nodes in a Spark application in a very efficient way.
-
-Any `NotSerializableException` exceptions lead to <<abortStage, aborting the stage>> (with the reason being "Task not serializable: [exception]") and removing the stage from the <<runningStages, internal `runningStages` collection of stages>>. submitMissingTasks exits.
-
-Any _non-fatal_ exceptions lead to <<abortStage, aborting the stage>> (with the reason being "Task serialization failed" followed by the exception) and removing the stage from the <<runningStages, internal `runningStages` collection of stages>>. submitMissingTasks exits.
-
-With no exceptions along the way, submitMissingTasks computes a collection of xref:scheduler:Task.adoc[tasks] to execute for the missing partitions (of the `stage`).
-
-submitMissingTasks creates a xref:scheduler:ShuffleMapTask.adoc[ShuffleMapTask] or xref:scheduler:ResultTask.adoc[ResultTask] for every missing partition of the `stage` being xref:scheduler:spark-scheduler-ShuffleMapStage.adoc[ShuffleMapStage] or xref:scheduler:spark-scheduler-ResultStage.adoc[ResultStage], respectively. submitMissingTasks uses the preferred locations (computed earlier) per partition.
-
-CAUTION: FIXME Image with creating tasks for partitions in the stage.
-
-Any _non-fatal_ exceptions lead to <<abortStage, aborting the stage>> (with the reason being "Task creation failed" followed by the exception) and removing the stage from the <<runningStages, internal `runningStages` collection of stages>>. submitMissingTasks exits.
-
-If there are tasks to submit for execution (i.e. there are missing partitions in the stage), you should see the following INFO message in the logs:
+If there are tasks to submit for execution (i.e. there are missing partitions in the stage), submitMissingTasks prints out the following INFO message to the logs:
 
 ```
-Submitting [size] missing tasks from [stage] ([rdd])
+Submitting [size] missing tasks from [stage] ([rdd]) (first 15 tasks are for partitions [partitionIds])
 ```
 
-submitMissingTasks records the partitions (of the tasks) in the ``stage``'s xref:scheduler:spark-scheduler-Stage.adoc#pendingPartitions[`pendingPartitions` property].
+submitMissingTasks requests the <<taskScheduler, TaskScheduler>> to xref:scheduler:TaskScheduler.adoc#submitTasks[submit the tasks for execution] (as a new xref:scheduler:TaskSet.adoc[TaskSet]).
 
-NOTE: `pendingPartitions` property of the `stage` was cleared when submitMissingTasks started.
+With no tasks to submit for execution, submitMissingTasks <<markStageAsFinished, marks the stage as finished successfully>>.
 
-You should see the following DEBUG message in the logs:
-
-```
-New pending partitions: [pendingPartitions]
-```
-
-submitMissingTasks xref:scheduler:TaskScheduler.adoc#submitTasks[submits the tasks to `TaskScheduler` for execution] (with the id of the `stage`, attempt id, the input `jobId`, and the properties of the `ActiveJob` with `jobId`).
-
-NOTE: A `TaskScheduler` was given when <<creating-instance, DAGScheduler was created>>.
-
-CAUTION: FIXME What are the `ActiveJob` properties for? Where are they used?
-
-submitMissingTasks records the xref:scheduler:spark-scheduler-Stage.adoc#latestInfo[submission time in the stage's `StageInfo`] and exits.
-
-If however there are no tasks to submit for execution, submitMissingTasks <<markStageAsFinished, marks the stage as finished>> (with no `errorMessage`).
-
-You should see a DEBUG message that varies per the type of the input `stage` which are:
+submitMissingTasks prints out the following DEBUG messages based on the type of the stage:
 
 ```
 Stage [stage] is actually done; (available: [isAvailable],available outputs: [numAvailableOutputs],partitions: [numPartitions])
@@ -960,11 +915,13 @@ In the end, with no tasks to submit for execution, submitMissingTasks <<submitWa
 
 submitMissingTasks is used when DAGScheduler is requested to <<submitStage, submit a stage for execution>>.
 
-== [[getPreferredLocs]] Computing Preferred Locations for Missing Partitions -- `getPreferredLocs` Method
+== [[getPreferredLocs]] Finding Preferred Locations for Missing Partitions
 
 [source, scala]
 ----
-getPreferredLocs(rdd: RDD[_], partition: Int): Seq[TaskLocation]
+getPreferredLocs(
+  rdd: RDD[_],
+  partition: Int): Seq[TaskLocation]
 ----
 
 `getPreferredLocs` is simply an alias for the internal (recursive) <<getPreferredLocsInternal, getPreferredLocsInternal>>.
@@ -1129,6 +1086,20 @@ doCancelAllJobs(): Unit
 doCancelAllJobs...FIXME
 
 doCancelAllJobs is used when DAGSchedulerEventProcessLoop is requested to xref:scheduler:DAGSchedulerEventProcessLoop.adoc#AllJobsCancelled[handle an AllJobsCancelled event] and xref:scheduler:DAGSchedulerEventProcessLoop.adoc#onError[onError].
+
+== [[killTaskAttempt]] Killing Task
+
+[source, scala]
+----
+killTaskAttempt(
+  taskId: Long,
+  interruptThread: Boolean,
+  reason: String): Boolean
+----
+
+killTaskAttempt requests the <<taskScheduler, TaskScheduler>> to xref:scheduler:TaskScheduler.adoc#killTaskAttempt[kill a task].
+
+killTaskAttempt is used when SparkContext is requested to xref:ROOT:spark-SparkContext.adoc#killTaskAttempt[kill a task].
 
 == [[logging]] Logging
 
