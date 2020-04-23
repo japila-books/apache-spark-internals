@@ -1,0 +1,272 @@
+= [[MapOutputTracker]] MapOutputTracker
+
+*MapOutputTracker* is a base abstraction of <<extensions, MapOutput trackers>> that can <<getMapSizesByExecutorId, getMapSizesByExecutorId>> and <<unregisterShuffle, unregisterShuffle>>.
+
+MapOutputTracker is a core component of Apache Spark that runs on the driver and executors to <<mapStatuses, track the shuffle map outputs>> (with xref:scheduler:spark-scheduler-MapStatus.adoc[information about the `BlockManager` and estimated size of the reduce blocks per shuffle]).
+
+Accessing the current MapOutputTracker is possible using xref:ROOT:spark-SparkEnv.adoc#get[SparkEnv].
+
+[source, scala]
+----
+SparkEnv.get.mapOutputTracker
+----
+
+MapOutputTracker is also used for `mapOutputTracker.containsShuffle` and xref:ROOT:spark-service-MapOutputTrackerMaster.adoc#registerShuffle[MapOutputTrackerMaster.registerShuffle] when a new xref:scheduler:spark-scheduler-ShuffleMapStage.adoc[ShuffleMapStage] is created.
+
+xref:ROOT:spark-service-MapOutputTrackerMaster.adoc#getStatistics[MapOutputTrackerMaster.getStatistics(dependency)] returns `MapOutputStatistics` that becomes the result of xref:scheduler:spark-scheduler-JobWaiter.adoc[JobWaiter.taskSucceeded] for xref:scheduler:spark-scheduler-ShuffleMapStage.adoc[ShuffleMapStage] if it's the final stage in a job.
+
+xref:ROOT:spark-service-MapOutputTrackerMaster.adoc#registerMapOutputs[MapOutputTrackerMaster.registerMapOutputs] for a shuffle id and a list of `MapStatus` when a xref:scheduler:spark-scheduler-ShuffleMapStage.adoc[ShuffleMapStage] is finished.
+
+NOTE: MapOutputTracker is used in xref:shuffle:spark-shuffle-BlockStoreShuffleReader.adoc[BlockStoreShuffleReader] and when creating xref:storage:BlockManager.adoc[BlockManager] and xref:storage:spark-blockmanager-BlockManagerSlaveEndpoint.adoc[BlockManagerSlaveEndpoint].
+
+== [[extensions]] MapOutputTrackers
+
+[cols="30,70",options="header",width="100%"]
+|===
+| MapOutputTracker
+| Description
+
+| xref:ROOT:spark-service-MapOutputTrackerMaster.adoc[MapOutputTrackerMaster]
+| [[MapOutputTrackerMaster]] Runs on the driver
+
+| xref:ROOT:spark-service-MapOutputTrackerWorker.adoc[MapOutputTrackerWorker]
+| [[MapOutputTrackerWorker]] Runs on executors
+
+|===
+
+== [[creating-instance]][[conf]] Creating Instance
+
+MapOutputTracker takes a single xref:ROOT:spark-SparkConf.adoc[SparkConf] to be created.
+
+== [[trackerEndpoint]][[ENDPOINT_NAME]] MapOutputTracker RPC Endpoint
+
+trackerEndpoint is a xref:ROOT:spark-RpcEndpointRef.adoc[RpcEndpointRef] of the *MapOutputTracker* RPC endpoint.
+
+trackerEndpoint is initialized (registered or looked up) when SparkEnv is xref:ROOT:spark-SparkEnv.adoc#create[created] for the driver and executors.
+
+trackerEndpoint is used to <<askTracker, communicate (synchronously)>>.
+
+trackerEndpoint is cleared (`null`) when MapOutputTrackerMaster is requested to xref:ROOT:spark-service-MapOutputTrackerMaster.adoc#stop[stop].
+
+== [[deserializeMapStatuses]] `deserializeMapStatuses` Method
+
+CAUTION: FIXME
+
+== [[sendTracker]] `sendTracker` Method
+
+CAUTION: FIXME
+
+== [[serializeMapStatuses]] `serializeMapStatuses` Method
+
+CAUTION: FIXME
+
+== [[getStatistics]] Computing Statistics for ShuffleDependency
+
+[source, scala]
+----
+getStatistics(
+  dep: ShuffleDependency[_, _, _]): MapOutputStatistics
+----
+
+`getStatistics` returns a `MapOutputStatistics` which is simply a pair of the xref:rdd:spark-rdd-ShuffleDependency.adoc#shuffleId[shuffle id] (of the input `ShuffleDependency`) and the total sums of estimated sizes of the reduce shuffle blocks from all the xref:storage:BlockManager.adoc[BlockManager]s.
+
+Internally, `getStatistics` <<getStatuses, finds map outputs>> for the input xref:rdd:spark-rdd-ShuffleDependency.adoc[ShuffleDependency] and calculates the total sizes for the xref:scheduler:spark-scheduler-MapStatus.adoc#getSizeForBlock[estimated sizes of the reduce block (in bytes)] for every xref:scheduler:spark-scheduler-MapStatus.adoc[MapStatus] and partition.
+
+NOTE: The internal `totalSizes` array has the number of elements as specified by the xref:rdd:spark-rdd-Partitioner.adoc#numPartitions[number of partitions of the `Partitioner`] of the input `ShuffleDependency`. `totalSizes` contains elements as a sum of the estimated size of the block for partition in a xref:storage:BlockManager.adoc[BlockManager] (for a `MapStatus`).
+
+NOTE: `getStatistics` is used when xref:scheduler:DAGSchedulerEventProcessLoop.adoc#handleMapStageSubmitted[`DAGScheduler` accepts a `ShuffleDependency` for execution] (and the xref:scheduler:spark-scheduler-ShuffleMapStage.adoc#isAvailable[corresponding `ShuffleMapStage` has already been computed]) and xref:scheduler:DAGSchedulerEventProcessLoop.adoc#handleTaskCompletion-Success-ShuffleMapTask[gets notified that a `ShuffleMapTask` has completed] (and map-stage jobs waiting for the stage are then marked as finished).
+
+== [[getMapSizesByExecutorId]] Computing BlockManagerIds with Their Blocks and Sizes
+
+[source, scala]
+----
+getMapSizesByExecutorId(
+  shuffleId: Int,
+  startPartition: Int,
+  endPartition: Int): Seq[(BlockManagerId, Seq[(BlockId, Long)])]
+----
+
+getMapSizesByExecutorId returns a collection of xref:storage:BlockManager.adoc#BlockManagerId[BlockManagerId]s with their blocks and sizes.
+
+When executed, you should see the following DEBUG message in the logs:
+
+```
+Fetching outputs for shuffle [id], partitions [startPartition]-[endPartition]
+```
+
+getMapSizesByExecutorId <<getStatuses, finds map outputs>> for the input `shuffleId`.
+
+NOTE: getMapSizesByExecutorId gets the map outputs for all the partitions (despite the method's signature).
+
+In the end, getMapSizesByExecutorId <<convertMapStatuses, converts shuffle map outputs>> (as `MapStatuses`) into the collection of xref:storage:BlockManager.adoc#BlockManagerId[BlockManagerId]s with their blocks and sizes.
+
+getMapSizesByExecutorId is used when BlockStoreShuffleReader is requested to xref:shuffle:spark-shuffle-BlockStoreShuffleReader.adoc#read[read combined records for a reduce task].
+
+== [[getEpoch]] Finding Current Epoch
+
+[source, scala]
+----
+getEpoch: Long
+----
+
+`getEpoch` returns the current <<epoch, epoch>>.
+
+NOTE: `getEpoch` is used when xref:scheduler:DAGSchedulerEventProcessLoop.adoc#handleExecutorLost[`DAGScheduler` is notified that an executor was lost] and when xref:scheduler:TaskSetManager.adoc#creating-instance[`TaskSetManager` is created] (and sets the epoch for the tasks in a xref:scheduler:TaskSet.adoc[TaskSet]).
+
+== [[updateEpoch]] Updating Epoch
+
+[source, scala]
+----
+updateEpoch(newEpoch: Long): Unit
+----
+
+`updateEpoch` updates <<epoch, epoch>> when the input `newEpoch` is greater (and hence more recent) and clears the <<mapStatuses, `mapStatuses` internal cache>>.
+
+You should see the following INFO message in the logs:
+
+```
+INFO MapOutputTrackerWorker: Updating epoch to [newEpoch] and clearing cache
+```
+
+NOTE: `updateEpoch` is exclusively used when xref:ROOT:spark-Executor-TaskRunner.adoc#run[`TaskRunner` runs] (for a task).
+
+== [[unregisterShuffle]] Unregistering Shuffle
+
+[source, scala]
+----
+unregisterShuffle(shuffleId: Int): Unit
+----
+
+`unregisterShuffle` unregisters `shuffleId`, i.e. removes `shuffleId` entry from the <<mapStatuses, mapStatuses>> internal cache.
+
+NOTE: `unregisterShuffle` is used when xref:ROOT:spark-service-contextcleaner.adoc#doCleanupShuffle[`ContextCleaner` removes a shuffle (blocks) from `MapOutputTrackerMaster` and `BlockManagerMaster`] (aka _shuffle cleanup_) and when `BlockManagerSlaveEndpoint` xref:storage:spark-blockmanager-BlockManagerSlaveEndpoint.adoc#RemoveShuffle[handles `RemoveShuffle` message].
+
+== [[stop]] Stopping MapOutputTracker
+
+[source, scala]
+----
+stop(): Unit
+----
+
+stop does nothing at all.
+
+stop is used when SparkEnv is requested to xref:ROOT:spark-SparkEnv.adoc#stop[stop] (and stops all the services, incl. MapOutputTracker).
+
+== [[getStatuses]] Finding Map Outputs For `ShuffleDependency` in Cache or Fetching Remotely
+
+[source, scala]
+----
+getStatuses(shuffleId: Int): Array[MapStatus]
+----
+
+`getStatuses` finds xref:scheduler:spark-scheduler-MapStatus.adoc[MapStatuses] for the input `shuffleId` in the <<mapStatuses, mapStatuses>> internal cache and, when not available, fetches them from a remote xref:ROOT:spark-service-MapOutputTrackerMaster.adoc[MapOutputTrackerMaster] (using RPC).
+
+Internally, `getStatuses` first queries the <<mapStatuses, `mapStatuses` internal cache>> and returns the map outputs if found.
+
+If not found (in the `mapStatuses` internal cache), you should see the following INFO message in the logs:
+
+```
+Don't have map outputs for shuffle [id], fetching them
+```
+
+If some other process fetches the map outputs for the `shuffleId` (as recorded in `fetching` internal registry), `getStatuses` waits until it is done.
+
+When no other process fetches the map outputs, `getStatuses` registers the input `shuffleId` in `fetching` internal registry (of shuffle map outputs being fetched).
+
+You should see the following INFO message in the logs:
+
+```
+Doing the fetch; tracker endpoint = [trackerEndpoint]
+```
+
+`getStatuses` sends a `GetMapOutputStatuses` RPC remote message for the input `shuffleId` to the trackerEndpoint expecting a `Array[Byte]`.
+
+NOTE: `getStatuses` requests shuffle map outputs remotely within a timeout and with retries. Refer to xref:ROOT:spark-RpcEndpointRef.adoc[RpcEndpointRef].
+
+`getStatuses` <<deserializeMapStatuses, deserializes the map output statuses>> and records the result in the <<mapStatuses, `mapStatuses` internal cache>>.
+
+You should see the following INFO message in the logs:
+
+```
+Got the output locations
+```
+
+`getStatuses` removes the input `shuffleId` from `fetching` internal registry.
+
+You should see the following DEBUG message in the logs:
+
+```
+Fetching map output statuses for shuffle [id] took [time] ms
+```
+
+If `getStatuses` could not find the map output locations for the input `shuffleId` (locally and remotely), you should see the following ERROR message in the logs and throws a `MetadataFetchFailedException`.
+
+```
+Missing all output locations for shuffle [id]
+```
+
+NOTE: `getStatuses` is used when MapOutputTracker <<getMapSizesByExecutorId, getMapSizesByExecutorId>> and <<getStatistics, computes statistics for `ShuffleDependency`>>.
+
+== [[convertMapStatuses]] Converting MapStatuses To BlockManagerIds with ShuffleBlockIds and Their Sizes
+
+[source, scala]
+----
+convertMapStatuses(
+  shuffleId: Int,
+  startPartition: Int,
+  endPartition: Int,
+  statuses: Array[MapStatus]): Seq[(BlockManagerId, Seq[(BlockId, Long)])]
+----
+
+`convertMapStatuses` iterates over the input `statuses` array (of xref:scheduler:spark-scheduler-MapStatus.adoc[MapStatus] entries indexed by map id) and creates a collection of xref:storage:BlockManager.adoc#BlockManagerId[BlockManagerId] (for each `MapStatus` entry) with a xref:storage:spark-BlockDataManager.adoc#ShuffleBlockId[ShuffleBlockId] (with the input `shuffleId`, a `mapId`, and `partition` ranging from the input `startPartition` and `endPartition`) and xref:scheduler:spark-scheduler-MapStatus.adoc#getSizeForBlock[estimated size for the reduce block] for every status and partitions.
+
+For any empty `MapStatus`, you should see the following ERROR message in the logs:
+
+```
+Missing an output location for shuffle [id]
+```
+
+And `convertMapStatuses` throws a `MetadataFetchFailedException` (with `shuffleId`, `startPartition`, and the above error message).
+
+NOTE: `convertMapStatuses` is exclusively used when <<getMapSizesByExecutorId, MapOutputTracker computes ``BlockManagerId``s with their ``ShuffleBlockId``s and sizes>>.
+
+== [[askTracker]] Sending Blocking Messages To trackerEndpoint RpcEndpointRef
+
+[source, scala]
+----
+askTracker[T](message: Any): T
+----
+
+`askTracker` xref:ROOT:spark-RpcEndpointRef.adoc#askWithRetry[sends the `message`] to <<trackerEndpoint, trackerEndpoint RpcEndpointRef>> and waits for a result.
+
+When an exception happens, you should see the following ERROR message in the logs and `askTracker` throws a `SparkException`.
+
+```
+Error communicating with MapOutputTracker
+```
+
+NOTE: `askTracker` is used when MapOutputTracker <<getStatuses, fetches map outputs for `ShuffleDependency` remotely>> and <<sendTracker, sends a one-way message>>.
+
+== [[internal-properties]] Internal Properties
+
+[cols="30m,70",options="header",width="100%"]
+|===
+| Name
+| Description
+
+| [[mapStatuses]] `mapStatuses`
+| Internal cache with xref:scheduler:spark-scheduler-MapStatus.adoc[MapStatus] array (indexed by partition id) per xref:rdd:spark-rdd-ShuffleDependency.adoc#shuffleId[shuffle id].
+
+Used when MapOutputTracker <<getStatuses, finds map outputs for a `ShuffleDependency`>>, <<updateEpoch, updates epoch>> and <<unregisterShuffle, unregisters a shuffle>>.
+
+| [[epoch]] `epoch`
+| Tracks the epoch in a Spark application.
+
+Starts from `0` when <<creating-instance, MapOutputTracker is created>>.
+
+Can be <<updateEpoch, updated>> (on `MapOutputTrackerWorkers`) or xref:ROOT:spark-service-MapOutputTrackerMaster.adoc#incrementEpoch[incremented] (on the driver's `MapOutputTrackerMaster`).
+
+| [[epochLock]] `epochLock`
+| FIXME
+
+|===
