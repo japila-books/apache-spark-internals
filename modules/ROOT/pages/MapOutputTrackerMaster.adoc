@@ -73,7 +73,21 @@ MapOutputTrackerMaster uses the following configuration properties:
 
 == [[shuffleStatuses]] Shuffle Status Registry
 
-MapOutputTrackerMaster uses an internal registry for ShuffleStatuses by shuffle ID.
+MapOutputTrackerMaster uses an internal registry for xref:ROOT:ShuffleStatus.adoc[ShuffleStatuses] by shuffle ID.
+
+MapOutputTrackerMaster adds a new shuffle when requested to <<registerShuffle, register one>>.
+
+MapOutputTrackerMaster uses the registry when requested for the following:
+
+* <<registerMapOutput, registerMapOutput>>
+
+* <<getStatistics, getStatistics>>
+
+* <<MessageLoop, MessageLoop>>
+
+* <<unregisterMapOutput, unregisterMapOutput>>, <<unregisterAllMapOutput, unregisterAllMapOutput>>, <<unregisterShuffle, unregisterShuffle>>, <<removeOutputsOnHost, removeOutputsOnHost>>, <<removeOutputsOnExecutor, removeOutputsOnExecutor>>, <<containsShuffle, containsShuffle>>, <<getNumAvailableOutputs, getNumAvailableOutputs>>, <<findMissingPartitions, findMissingPartitions>>, <<getLocationsWithLargestOutputs, getLocationsWithLargestOutputs>>, <<getMapSizesByExecutorId, getMapSizesByExecutorId>>
+
+MapOutputTrackerMaster removes (_clears_) all shuffles when requested to <<stop, stop>>.
 
 == [[epoch]][[getEpoch]] Epoch Number
 
@@ -209,7 +223,7 @@ containsShuffle checks if the input `shuffleId` is registered in the <<cachedSer
 
 containsShuffle is used when xref:scheduler:DAGScheduler.adoc#createShuffleMapStage[`DAGScheduler` creates a `ShuffleMapStage`] (for xref:rdd:spark-rdd-ShuffleDependency.adoc[ShuffleDependency] and xref:scheduler:spark-scheduler-ActiveJob.adoc[ActiveJob]).
 
-== [[registerShuffle]] Registering ShuffleDependency
+== [[registerShuffle]] Registering Shuffle
 
 [source, scala]
 ----
@@ -218,19 +232,15 @@ registerShuffle(
   numMaps: Int): Unit
 ----
 
-registerShuffle registers the input `shuffleId` in the xref:ROOT:MapOutputTracker.adoc#mapStatuses[mapStatuses] internal cache.
+registerShuffle adds the input shuffle ID and the number of partitions (as a xref:ROOT:ShuffleStatus.adoc[ShuffleStatus]) to <<shuffleStatuses, shuffleStatuses>> internal registry.
 
-NOTE: The number of xref:scheduler:spark-scheduler-MapStatus.adoc[MapStatus] entries in the new array in `mapStatuses` internal cache is exactly the input `numMaps`.
-
-registerShuffle adds a lock in the <<shuffleIdLocks, `shuffleIdLocks` internal registry>> (without using it).
-
-If the `shuffleId` has already been registered, registerShuffle throws a `IllegalArgumentException` with the following message:
+If the shuffle ID has already been registered, registerShuffle throws an IllegalArgumentException:
 
 ```
-Shuffle ID [id] registered twice
+Shuffle ID [shuffleId] registered twice
 ```
 
-registerShuffle is used when xref:scheduler:DAGScheduler.adoc#createShuffleMapStage[`DAGScheduler` creates a `ShuffleMapStage`] (for xref:rdd:spark-rdd-ShuffleDependency.adoc[ShuffleDependency] and xref:scheduler:spark-scheduler-ActiveJob.adoc[ActiveJob]).
+registerShuffle is used when DAGScheduler is requested to xref:scheduler:DAGScheduler.adoc#createShuffleMapStage[create a ShuffleMapStage] (for a xref:rdd:spark-rdd-ShuffleDependency.adoc[ShuffleDependency] and xref:scheduler:spark-scheduler-ActiveJob.adoc[ActiveJob]).
 
 == [[registerMapOutputs]] Registering Map Outputs for Shuffle (Possibly with Epoch Change)
 
@@ -317,7 +327,7 @@ checkCachedStatuses uses xref:ROOT:MapOutputTracker.adoc#mapStatuses[mapStatuses
 
 `PoisonPill` is posted when <<stop, MapOutputTrackerMaster stops>>.
 
-== [[registerMapOutput]] `registerMapOutput` Method
+== [[registerMapOutput]] Registering Shuffle Map Output
 
 [source, scala]
 ----
@@ -327,9 +337,13 @@ registerMapOutput(
   status: MapStatus): Unit
 ----
 
-`registerMapOutput`...FIXME
+registerMapOutput finds the xref:ROOT:ShuffleStatus.adoc[ShuffleStatus] by the given shuffle ID and xref:ROOT:ShuffleStatus.adoc#addMapOutput[adds the given MapStatus]:
 
-NOTE: `registerMapOutput` is used when...FIXME
+* The given mapId is the xref:scheduler:Task.adoc#partitionId[partitionId] of the xref:scheduler:ShuffleMapTask.adoc[ShuffleMapTask] that finished.
+
+* The given shuffleId is the xref:rdd:spark-rdd-ShuffleDependency.adoc#shuffleId[shuffleId] of the xref:rdd:spark-rdd-ShuffleDependency.adoc[ShuffleDependency] of the xref:scheduler:spark-scheduler-ShuffleMapStage.adoc#shuffleDep[ShuffleMapStage] (for which the ShuffleMapTask completed)
+
+registerMapOutput is used when DAGScheduler is requested to xref:scheduler:DAGScheduler.adoc#handleTaskCompletion[handle a ShuffleMapTask completion].
 
 == [[getStatistics]] `getStatistics` Method
 
@@ -341,6 +355,92 @@ getStatistics(dep: ShuffleDependency[_, _, _]): MapOutputStatistics
 `getStatistics`...FIXME
 
 NOTE: `getStatistics` is used when...FIXME
+
+== [[unregisterAllMapOutput]] unregisterAllMapOutput Method
+
+[source, scala]
+----
+unregisterAllMapOutput(
+  shuffleId: Int): Unit
+----
+
+unregisterAllMapOutput...FIXME
+
+unregisterAllMapOutput is used when...FIXME
+
+== [[unregisterShuffle]] unregisterShuffle Method
+
+[source, scala]
+----
+unregisterShuffle(
+  shuffleId: Int): Unit
+----
+
+unregisterShuffle...FIXME
+
+unregisterShuffle is used when...FIXME
+
+== [[removeOutputsOnHost]] removeOutputsOnHost Method
+
+[source, scala]
+----
+removeOutputsOnHost(
+  host: String): Unit
+----
+
+removeOutputsOnHost...FIXME
+
+removeOutputsOnHost is used when...FIXME
+
+== [[removeOutputsOnExecutor]] removeOutputsOnExecutor Method
+
+[source, scala]
+----
+removeOutputsOnExecutor(
+  execId: String): Unit
+----
+
+removeOutputsOnExecutor...FIXME
+
+removeOutputsOnExecutor is used when...FIXME
+
+== [[getNumAvailableOutputs]] getNumAvailableOutputs Method
+
+[source, scala]
+----
+getNumAvailableOutputs(
+  shuffleId: Int): Int
+----
+
+getNumAvailableOutputs...FIXME
+
+getNumAvailableOutputs is used when...FIXME
+
+== [[findMissingPartitions]] findMissingPartitions Method
+
+[source, scala]
+----
+findMissingPartitions(
+  shuffleId: Int): Option[Seq[Int]]
+----
+
+findMissingPartitions...FIXME
+
+findMissingPartitions is used when...FIXME
+
+== [[getMapSizesByExecutorId]] getMapSizesByExecutorId Method
+
+[source, scala]
+----
+getMapSizesByExecutorId(
+  shuffleId: Int,
+  startPartition: Int,
+  endPartition: Int): Iterator[(BlockManagerId, Seq[(BlockId, Long)])]
+----
+
+NOTE: getMapSizesByExecutorId is part of the xref:ROOT:MapOutputTracker.adoc#getMapSizesByExecutorId[MapOutputTracker] abstraction.
+
+getMapSizesByExecutorId...FIXME
 
 == [[logging]] Logging
 
