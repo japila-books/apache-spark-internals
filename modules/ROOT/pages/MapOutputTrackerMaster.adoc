@@ -4,8 +4,6 @@
 
 A MapOutputTrackerMaster is the source of truth for xref:scheduler:spark-scheduler-MapStatus.adoc[MapStatus] objects (map output locations) per shuffle id (as recorded from xref:scheduler:ShuffleMapTask.adoc[ShuffleMapTasks]).
 
-NOTE: MapOutputTrackerMaster uses Java's thread-safe https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/ConcurrentHashMap.html[java.util.concurrent.ConcurrentHashMap] for xref:ROOT:MapOutputTracker.adoc#mapStatuses[`mapStatuses` internal cache].
-
 NOTE: There is currently a hardcoded limit of map and reduce tasks above which Spark does not assign preferred locations aka locality preferences based on map output sizes -- `1000` for map and reduce each.
 
 MapOutputTrackerMaster uses `MetadataCleaner` with `MetadataCleanerType.MAP_OUTPUT_TRACKER` as `cleanerType` and <<cleanup, cleanup>> function to drop entries in `mapStatuses`.
@@ -20,6 +18,36 @@ MapOutputTrackerMaster takes the following to be created:
 
 MapOutputTrackerMaster initializes the <<internal-properties, internal properties>> and <<threadpool, starts map-output-dispatcher threads>>.
 
+== [[mapOutputRequests]][[GetMapOutputMessage]] GetMapOutputMessage Queue
+
+MapOutputTrackerMaster uses a blocking queue (a Java {java-javadoc-url}/java/util/concurrent/LinkedBlockingQueue.html[LinkedBlockingQueue]) for requests for map output statuses.
+
+[source,scala]
+----
+GetMapOutputMessage(shuffleId: Int, context: RpcCallContext)
+----
+
+GetMapOutputMessage holds the shuffle ID and the RpcCallContext of the caller.
+
+A new GetMapOutputMessage is added to the queue when MapOutputTrackerMaster is requested to <<post, post one>>.
+
+MapOutputTrackerMaster uses <<MessageLoop, MessageLoop Dispatcher Threads>> to process GetMapOutputMessages.
+
+== [[MessageLoop]][[run]] MessageLoop Dispatcher Thread
+
+MessageLoop is a thread of execution to handle <<GetMapOutputMessage, GetMapOutputMessages>> until <<PoisonPill, PoisonPill>> arrives.
+
+MessageLoop takes a GetMapOutputMessage and prints out the following DEBUG message to the logs:
+
+[source,plaintext]
+----
+Handling request to send map output locations for shuffle [shuffleId] to [hostPort]
+----
+
+MessageLoop then finds the xref:ROOT:ShuffleStatus.adoc[ShuffleStatus] by the shuffle ID in the <<shuffleStatuses, shuffleStatuses>> internal registry and replies back (to the RPC client) with a xref:ROOT:ShuffleStatus.adoc#serializedMapStatus[serialized map output status] (with the <<broadcastManager, BroadcastManager>> and <<spark.shuffle.mapOutput.minSizeForBroadcast, spark.shuffle.mapOutput.minSizeForBroadcast>> configuration property).
+
+MessageLoop threads run on the <<threadpool, map-output-dispatcher Thread Pool>>.
+
 == [[threadpool]] map-output-dispatcher Thread Pool
 
 [source, scala]
@@ -29,25 +57,45 @@ threadpool: ThreadPoolExecutor
 
 threadpool is a daemon fixed thread pool registered with *map-output-dispatcher* thread name prefix.
 
-threadpool uses xref:ROOT:spark-configuration-properties.adoc#spark.shuffle.mapOutput.dispatcher.numThreads[spark.shuffle.mapOutput.dispatcher.numThreads] configuration property for the number of <<MessageLoop, `MessageLoop` dispatcher threads>> to process received `GetMapOutputMessage` messages.
+threadpool uses xref:ROOT:spark-configuration-properties.adoc#spark.shuffle.mapOutput.dispatcher.numThreads[spark.shuffle.mapOutput.dispatcher.numThreads] configuration property for the number of <<MessageLoop, MessageLoop dispatcher threads>> to process received `GetMapOutputMessage` messages.
 
 The dispatcher threads are started immediately when <<creating-instance, MapOutputTrackerMaster is created>>.
 
 The thread pool is shut down when MapOutputTrackerMaster is requested to <<stop, stop>>.
 
+== [[configuration-properties]] Configuration Properties
+
+MapOutputTrackerMaster uses the following configuration properties:
+
+* [[spark.shuffle.mapOutput.minSizeForBroadcast]] xref:ROOT:spark-configuration-properties.adoc#spark.shuffle.mapOutput.minSizeForBroadcast[spark.shuffle.mapOutput.minSizeForBroadcast]
+
+* [[spark.shuffle.mapOutput.dispatcher.numThreads]] xref:ROOT:spark-configuration-properties.adoc#spark.shuffle.mapOutput.dispatcher.numThreads[spark.shuffle.mapOutput.dispatcher.numThreads]
+
+== [[shuffleStatuses]] Shuffle Status Registry
+
+MapOutputTrackerMaster uses an internal registry for ShuffleStatuses by shuffle ID.
+
 == [[epoch]][[getEpoch]] Epoch Number
 
 MapOutputTrackerMaster uses an *epoch number* to...FIXME
+
+== [[post]] Enqueueing GetMapOutputMessage
+
+[source, scala]
+----
+post(
+  message: GetMapOutputMessage): Unit
+----
+
+post simply adds the input GetMapOutputMessage to the <<mapOutputRequests, mapOutputRequests>> internal queue.
+
+post is used when MapOutputTrackerMasterEndpoint is requested to xref:ROOT:MapOutputTrackerMasterEndpoint.adoc#GetMapOutputStatuses[handle a GetMapOutputStatuses message].
 
 == [[removeBroadcast]] `removeBroadcast` Method
 
 CAUTION: FIXME
 
 == [[clearCachedBroadcast]] `clearCachedBroadcast` Method
-
-CAUTION: FIXME
-
-== [[post]] `post` Method
 
 CAUTION: FIXME
 
@@ -263,22 +311,6 @@ cached status not found for : [shuffleId]
 
 checkCachedStatuses uses xref:ROOT:MapOutputTracker.adoc#mapStatuses[mapStatuses] internal cache to get map output statuses for the `shuffleId` (of the owning <<getSerializedMapOutputStatuses, getSerializedMapOutputStatuses>>) or falls back to an empty array and sets it to a local `statuses`. checkCachedStatuses sets the local `epochGotten` to the current <<epoch, epoch>> and returns `false`.
 
-== [[MessageLoop]][[run]] `MessageLoop` Dispatcher Thread
-
-`MessageLoop` is a dispatcher thread that, once started, runs indefinitely until <<PoisonPill, PoisonPill>> arrives.
-
-`MessageLoop` takes `GetMapOutputMessage` messages off <<mapOutputRequests, mapOutputRequests>> internal queue (waiting if necessary until a message becomes available).
-
-Unless `PoisonPill` is processed, you should see the following DEBUG message in the logs:
-
-```
-DEBUG Handling request to send map output locations for shuffle [shuffleId] to [hostPort]
-```
-
-`MessageLoop` replies back with <<getSerializedMapOutputStatuses, serialized map output statuses for the `shuffleId`>> (from the incoming `GetMapOutputMessage` message).
-
-NOTE: `MessageLoop` is created and executed immediately when <<creating-instance, MapOutputTrackerMaster is created>>.
-
 == [[PoisonPill]] PoisonPill Message
 
 `PoisonPill` is a `GetMapOutputMessage` (with `-99` as `shuffleId`) that indicates that <<MessageLoop, MessageLoop>> should exit its message loop.
@@ -349,12 +381,5 @@ Used when...FIXME
 | Internal registry of locks for shuffle ids.
 
 Used when...FIXME
-
-| [[mapOutputRequests]] `mapOutputRequests`
-| Internal queue with `GetMapOutputMessage` requests for map output statuses.
-
-Used when MapOutputTrackerMaster <<post, posts `GetMapOutputMessage` messages to>> and <<run, take one head element off this queue>>.
-
-NOTE: `mapOutputRequests` uses Java's https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/LinkedBlockingQueue.html[java.util.concurrent.LinkedBlockingQueue].
 
 |===
