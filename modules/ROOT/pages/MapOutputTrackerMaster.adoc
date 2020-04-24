@@ -16,7 +16,7 @@ MapOutputTrackerMaster takes the following to be created:
 * [[broadcastManager]] xref:ROOT:spark-service-broadcastmanager.adoc[BroadcastManager]
 * [[isLocal]] isLocal flag (whether MapOutputTrackerMaster runs in local or on a cluster)
 
-MapOutputTrackerMaster initializes the <<internal-properties, internal properties>> and <<threadpool, starts map-output-dispatcher threads>>.
+MapOutputTrackerMaster starts <<MessageLoop, dispatcher threads>> on the <<threadpool, map-output-dispatcher thread pool>>.
 
 == [[mapOutputRequests]][[GetMapOutputMessage]] GetMapOutputMessage Queue
 
@@ -71,9 +71,9 @@ MapOutputTrackerMaster uses the following configuration properties:
 
 * [[spark.shuffle.mapOutput.dispatcher.numThreads]] xref:ROOT:spark-configuration-properties.adoc#spark.shuffle.mapOutput.dispatcher.numThreads[spark.shuffle.mapOutput.dispatcher.numThreads]
 
-== [[shuffleStatuses]] Shuffle Status Registry
+== [[shuffleStatuses]] Shuffle Map Output Status Registry
 
-MapOutputTrackerMaster uses an internal registry for xref:ROOT:ShuffleStatus.adoc[ShuffleStatuses] by shuffle ID.
+MapOutputTrackerMaster uses an internal registry of xref:ROOT:ShuffleStatus.adoc[ShuffleStatuses] by shuffle stages.
 
 MapOutputTrackerMaster adds a new shuffle when requested to <<registerShuffle, register one>>.
 
@@ -117,9 +117,19 @@ CAUTION: FIXME
 
 CAUTION: FIXME
 
-== [[unregisterMapOutput]] `unregisterMapOutput` Method
+== [[unregisterMapOutput]] Unregistering Shuffle Map Output
 
-CAUTION: FIXME
+[source, scala]
+----
+unregisterMapOutput(
+  shuffleId: Int,
+  mapId: Int,
+  bmAddress: BlockManagerId): Unit
+----
+
+unregisterMapOutput...FIXME
+
+unregisterMapOutput is used when DAGScheduler is requested to xref:scheduler:DAGScheduler.adoc#handleTaskCompletion[handle a task completion (due to a fetch failure)].
 
 == [[cleanup]] cleanup Function for MetadataCleaner
 
@@ -144,11 +154,13 @@ You should see the following DEBUG message in the logs for entries being removed
 DEBUG Removing key [entry.getKey]
 ```
 
-== [[getPreferredLocationsForShuffle]] Finding Preferred BlockManagers with Most Shuffle Map Outputs (For ShuffleDependency and Partition) -- getPreferredLocationsForShuffle Method
+== [[getPreferredLocationsForShuffle]] Finding Preferred BlockManagers with Most Shuffle Map Outputs
 
 [source, scala]
 ----
-getPreferredLocationsForShuffle(dep: ShuffleDependency[_, _, _], partitionId: Int): Seq[String]
+getPreferredLocationsForShuffle(
+  dep: ShuffleDependency[_, _, _],
+  partitionId: Int): Seq[String]
 ----
 
 getPreferredLocationsForShuffle finds the locations (i.e. xref:storage:BlockManager.adoc[BlockManagers]) with the most map outputs for the input xref:rdd:spark-rdd-ShuffleDependency.adoc[ShuffleDependency] and xref:rdd:spark-rdd-Partition.adoc[Partition].
@@ -165,7 +177,7 @@ NOTE: `0.2` is the fraction of total map output that must be at a location to be
 
 getPreferredLocationsForShuffle is used when xref:rdd:ShuffledRDD.adoc#getPreferredLocations[ShuffledRDD] and Spark SQL's ShuffledRowRDD ask for preferred locations for a partition.
 
-== [[incrementEpoch]] Incrementing Epoch -- `incrementEpoch` Method
+== [[incrementEpoch]] Incrementing Epoch
 
 [source, scala]
 ----
@@ -182,7 +194,7 @@ DEBUG MapOutputTrackerMaster: Increasing epoch to [epoch]
 
 NOTE: `incrementEpoch` is used when MapOutputTrackerMaster <<registerMapOutputs, registers map outputs>> (with `changeEpoch` flag enabled -- it is disabled by default) and <<unregisterMapOutput, unregisters map outputs>> (for a shuffle, mapper and block manager), and when xref:scheduler:DAGSchedulerEventProcessLoop.adoc#handleExecutorLost[`DAGScheduler` is notified that an executor got lost] (with `filesLost` flag enabled).
 
-== [[getLocationsWithLargestOutputs]] Finding Locations with Largest Number of Shuffle Map Outputs -- getLocationsWithLargestOutputs Method
+== [[getLocationsWithLargestOutputs]] Finding Locations with Largest Number of Shuffle Map Outputs
 
 [source, scala]
 ----
@@ -345,18 +357,19 @@ registerMapOutput finds the xref:ROOT:ShuffleStatus.adoc[ShuffleStatus] by the g
 
 registerMapOutput is used when DAGScheduler is requested to xref:scheduler:DAGScheduler.adoc#handleTaskCompletion[handle a ShuffleMapTask completion].
 
-== [[getStatistics]] `getStatistics` Method
+== [[getStatistics]] getStatistics Method
 
 [source, scala]
 ----
-getStatistics(dep: ShuffleDependency[_, _, _]): MapOutputStatistics
+getStatistics(
+  dep: ShuffleDependency[_, _, _]): MapOutputStatistics
 ----
 
-`getStatistics`...FIXME
+getStatistics...FIXME
 
-NOTE: `getStatistics` is used when...FIXME
+getStatistics is used when...FIXME
 
-== [[unregisterAllMapOutput]] unregisterAllMapOutput Method
+== [[unregisterAllMapOutput]] Unregistering All Map Outputs of Shuffle Stage
 
 [source, scala]
 ----
@@ -366,9 +379,9 @@ unregisterAllMapOutput(
 
 unregisterAllMapOutput...FIXME
 
-unregisterAllMapOutput is used when...FIXME
+unregisterAllMapOutput is used when DAGScheduler is requested to xref:scheduler:DAGScheduler.adoc#handleTaskCompletion[handle a task completion (due to a fetch failure)].
 
-== [[unregisterShuffle]] unregisterShuffle Method
+== [[unregisterShuffle]] Deregistering Shuffle
 
 [source, scala]
 ----
@@ -378,9 +391,9 @@ unregisterShuffle(
 
 unregisterShuffle...FIXME
 
-unregisterShuffle is used when...FIXME
+unregisterShuffle is part of the xref:ROOT:MapOutputTracker.adoc#unregisterShuffle[MapOutputTracker] abstraction.
 
-== [[removeOutputsOnHost]] removeOutputsOnHost Method
+== [[removeOutputsOnHost]] Deregistering Shuffle Outputs Associated with Host
 
 [source, scala]
 ----
@@ -390,9 +403,9 @@ removeOutputsOnHost(
 
 removeOutputsOnHost...FIXME
 
-removeOutputsOnHost is used when...FIXME
+removeOutputsOnHost is used when DAGScheduler is requested to xref:scheduler:DAGScheduler.adoc#removeExecutorAndUnregisterOutputs[removeExecutorAndUnregisterOutputs] and xref:scheduler:DAGScheduler.adoc#handleWorkerRemoved[handle a worker removal].
 
-== [[removeOutputsOnExecutor]] removeOutputsOnExecutor Method
+== [[removeOutputsOnExecutor]] Deregistering Shuffle Outputs Associated with Executor
 
 [source, scala]
 ----
@@ -402,7 +415,7 @@ removeOutputsOnExecutor(
 
 removeOutputsOnExecutor...FIXME
 
-removeOutputsOnExecutor is used when...FIXME
+removeOutputsOnExecutor is used when DAGScheduler is requested to xref:scheduler:DAGScheduler.adoc#removeExecutorAndUnregisterOutputs[removeExecutorAndUnregisterOutputs].
 
 == [[getNumAvailableOutputs]] getNumAvailableOutputs Method
 
@@ -416,7 +429,7 @@ getNumAvailableOutputs...FIXME
 
 getNumAvailableOutputs is used when...FIXME
 
-== [[findMissingPartitions]] findMissingPartitions Method
+== [[findMissingPartitions]] Finding Missing Partitions
 
 [source, scala]
 ----
@@ -426,7 +439,7 @@ findMissingPartitions(
 
 findMissingPartitions...FIXME
 
-findMissingPartitions is used when...FIXME
+findMissingPartitions is used when ShuffleMapStage is requested for xref:scheduler:spark-scheduler-ShuffleMapStage.adoc#findMissingPartitions[missing partitions].
 
 == [[getMapSizesByExecutorId]] getMapSizesByExecutorId Method
 
@@ -454,32 +467,3 @@ log4j.logger.org.apache.spark.MapOutputTrackerMaster=ALL
 ----
 
 Refer to xref:ROOT:spark-logging.adoc[Logging].
-
-== [[internal-properties]] Internal Properties
-
-[cols="30m,70",options="header",width="100%"]
-|===
-| Name
-| Description
-
-| [[cachedSerializedBroadcast]] `cachedSerializedBroadcast`
-| Internal registry of...FIXME
-
-Used when...FIXME
-
-| [[cachedSerializedStatuses]] `cachedSerializedStatuses`
-| Internal registry of serialized xref:scheduler:MapStatus.adoc[shuffle map output statuses] (as `Array[Byte]`) per...FIXME
-
-Used when...FIXME
-
-| [[cacheEpoch]] `cacheEpoch`
-| Internal registry with...FIXME
-
-Used when...FIXME
-
-| [[shuffleIdLocks]] `shuffleIdLocks`
-| Internal registry of locks for shuffle ids.
-
-Used when...FIXME
-
-|===
