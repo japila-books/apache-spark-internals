@@ -6,8 +6,6 @@ A MapOutputTrackerMaster is the source of truth for xref:scheduler:MapStatus.ado
 
 NOTE: There is currently a hardcoded limit of map and reduce tasks above which Spark does not assign preferred locations aka locality preferences based on map output sizes -- `1000` for map and reduce each.
 
-MapOutputTrackerMaster uses `MetadataCleaner` with `MetadataCleanerType.MAP_OUTPUT_TRACKER` as `cleanerType` and <<cleanup, cleanup>> function to drop entries in `mapStatuses`.
-
 == [[creating-instance]] Creating Instance
 
 MapOutputTrackerMaster takes the following to be created:
@@ -17,6 +15,14 @@ MapOutputTrackerMaster takes the following to be created:
 * [[isLocal]] isLocal flag (whether MapOutputTrackerMaster runs in local or on a cluster)
 
 MapOutputTrackerMaster starts <<MessageLoop, dispatcher threads>> on the <<threadpool, map-output-dispatcher thread pool>>.
+
+== [[REDUCER_PREF_LOCS_FRACTION]] Map Output Threshold for Preferred Location of Reduce Task
+
+MapOutputTrackerMaster defines `0.2` as the fraction of total map output that must be at a location for it to considered as a preferred location for a reduce task.
+
+Making this larger will focus on fewer locations where most data can be read locally, but may lead to more delay in scheduling if those locations are busy.
+
+MapOutputTrackerMaster uses the fraction when requested for the <<getPreferredLocationsForShuffle, preferred locations of shuffle RDDs>>.
 
 == [[mapOutputRequests]][[GetMapOutputMessage]] GetMapOutputMessage Queue
 
@@ -35,7 +41,7 @@ MapOutputTrackerMaster uses <<MessageLoop, MessageLoop Dispatcher Threads>> to p
 
 == [[MessageLoop]][[run]] MessageLoop Dispatcher Thread
 
-MessageLoop is a thread of execution to handle <<GetMapOutputMessage, GetMapOutputMessages>> until <<PoisonPill, PoisonPill>> arrives.
+MessageLoop is a thread of execution to handle <<GetMapOutputMessage, GetMapOutputMessages>> until a PoisonPill marker message arrives (posted when <<stop, MapOutputTrackerMaster stops>>).
 
 MessageLoop takes a GetMapOutputMessage and prints out the following DEBUG message to the logs:
 
@@ -67,9 +73,11 @@ The thread pool is shut down when MapOutputTrackerMaster is requested to <<stop,
 
 MapOutputTrackerMaster uses the following configuration properties:
 
-* [[spark.shuffle.mapOutput.minSizeForBroadcast]] xref:ROOT:spark-configuration-properties.adoc#spark.shuffle.mapOutput.minSizeForBroadcast[spark.shuffle.mapOutput.minSizeForBroadcast]
+* [[spark.shuffle.mapOutput.minSizeForBroadcast]][[minSizeForBroadcast]] xref:ROOT:spark-configuration-properties.adoc#spark.shuffle.mapOutput.minSizeForBroadcast[spark.shuffle.mapOutput.minSizeForBroadcast]
 
 * [[spark.shuffle.mapOutput.dispatcher.numThreads]] xref:ROOT:spark-configuration-properties.adoc#spark.shuffle.mapOutput.dispatcher.numThreads[spark.shuffle.mapOutput.dispatcher.numThreads]
+
+* [[spark.shuffle.reduceLocality.enabled]] xref:ROOT:spark-configuration-properties.adoc#spark.shuffle.reduceLocality.enabled[spark.shuffle.reduceLocality.enabled]
 
 == [[shuffleStatuses]] Shuffle Map Output Status Registry
 
@@ -93,6 +101,12 @@ MapOutputTrackerMaster removes (_clears_) all shuffles when requested to <<stop,
 
 MapOutputTrackerMaster uses an *epoch number* to...FIXME
 
+getEpoch is used when:
+
+* DAGScheduler is requested to xref:scheduler:DAGScheduler.adoc#removeExecutorAndUnregisterOutputs[removeExecutorAndUnregisterOutputs]
+
+* xref:scheduler:TaskSetManager.adoc[TaskSetManager] is created (and sets the epoch to tasks)
+
 == [[post]] Enqueueing GetMapOutputMessage
 
 [source, scala]
@@ -105,17 +119,16 @@ post simply adds the input GetMapOutputMessage to the <<mapOutputRequests, mapOu
 
 post is used when MapOutputTrackerMasterEndpoint is requested to xref:ROOT:MapOutputTrackerMasterEndpoint.adoc#GetMapOutputStatuses[handle a GetMapOutputStatuses message].
 
-== [[removeBroadcast]] `removeBroadcast` Method
+== [[stop]] Stopping MapOutputTrackerMaster
 
-CAUTION: FIXME
+[source, scala]
+----
+stop(): Unit
+----
 
-== [[clearCachedBroadcast]] `clearCachedBroadcast` Method
+stop...FIXME
 
-CAUTION: FIXME
-
-== [[stop]] `stop` Method
-
-CAUTION: FIXME
+stop is part of the xref:ROOT:MapOutputTracker.adoc#stop[MapOutputTracker] abstraction.
 
 == [[unregisterMapOutput]] Unregistering Shuffle Map Output
 
@@ -131,30 +144,7 @@ unregisterMapOutput...FIXME
 
 unregisterMapOutput is used when DAGScheduler is requested to xref:scheduler:DAGScheduler.adoc#handleTaskCompletion[handle a task completion (due to a fetch failure)].
 
-== [[cleanup]] cleanup Function for MetadataCleaner
-
-`cleanup(cleanupTime: Long)` method removes old entries in `mapStatuses` and `cachedSerializedStatuses` that have timestamp earlier than `cleanupTime`.
-
-It uses `org.apache.spark.util.TimeStampedHashMap.clearOldValues` method.
-
-[TIP]
-====
-Enable `DEBUG` logging level for `org.apache.spark.util.TimeStampedHashMap` logger to see what happens in TimeStampedHashMap.
-
-Add the following line to `conf/log4j.properties`:
-
-```
-log4j.logger.org.apache.spark.util.TimeStampedHashMap=DEBUG
-```
-====
-
-You should see the following DEBUG message in the logs for entries being removed:
-
-```
-DEBUG Removing key [entry.getKey]
-```
-
-== [[getPreferredLocationsForShuffle]] Finding Preferred BlockManagers with Most Shuffle Map Outputs
+== [[getPreferredLocationsForShuffle]] Finding Preferred Locations (with Most Shuffle Map Outputs)
 
 [source, scala]
 ----
@@ -175,7 +165,7 @@ If the condition holds, getPreferredLocationsForShuffle <<getLocationsWithLarges
 
 NOTE: `0.2` is the fraction of total map output that must be at a location to be considered as a preferred location for a reduce task. It is not configurable.
 
-getPreferredLocationsForShuffle is used when xref:rdd:ShuffledRDD.adoc#getPreferredLocations[ShuffledRDD] and Spark SQL's ShuffledRowRDD ask for preferred locations for a partition.
+getPreferredLocationsForShuffle is used when xref:rdd:ShuffledRDD.adoc#getPreferredLocations[ShuffledRDD] and Spark SQL's ShuffledRowRDD are requested for preferred locations of a partition.
 
 == [[incrementEpoch]] Incrementing Epoch
 
@@ -184,56 +174,31 @@ getPreferredLocationsForShuffle is used when xref:rdd:ShuffledRDD.adoc#getPrefer
 incrementEpoch(): Unit
 ----
 
-`incrementEpoch` increments the internal xref:ROOT:MapOutputTracker.adoc#epoch[epoch].
+incrementEpoch increments the internal xref:ROOT:MapOutputTracker.adoc#epoch[epoch].
 
-You should see the following DEBUG message in the logs:
+incrementEpoch prints out the following DEBUG message to the logs:
 
 ```
-DEBUG MapOutputTrackerMaster: Increasing epoch to [epoch]
+Increasing epoch to [epoch]
 ```
 
-NOTE: `incrementEpoch` is used when MapOutputTrackerMaster <<registerMapOutputs, registers map outputs>> (with `changeEpoch` flag enabled -- it is disabled by default) and <<unregisterMapOutput, unregisters map outputs>> (for a shuffle, mapper and block manager), and when xref:scheduler:DAGSchedulerEventProcessLoop.adoc#handleExecutorLost[`DAGScheduler` is notified that an executor got lost] (with `filesLost` flag enabled).
+incrementEpoch is used when:
 
-== [[getLocationsWithLargestOutputs]] Finding Locations with Largest Number of Shuffle Map Outputs
+* MapOutputTrackerMaster is requested to <<unregisterMapOutput, unregisterMapOutput>>, <<unregisterAllMapOutput, unregisterAllMapOutput>>, <<removeOutputsOnHost, removeOutputsOnHost>> and <<removeOutputsOnExecutor, removeOutputsOnExecutor>>
+
+* DAGScheduler is requested to xref:scheduler:DAGScheduler.adoc#handleTaskCompletion[handle a ShuffleMapTask completion] (of a ShuffleMapStage)
+
+== [[containsShuffle]] Checking Availability of Shuffle Map Output Status
 
 [source, scala]
 ----
-getLocationsWithLargestOutputs(
-  shuffleId: Int,
-  reducerId: Int,
-  numReducers: Int,
-  fractionThreshold: Double): Option[Array[BlockManagerId]]
-----
-
-getLocationsWithLargestOutputs returns xref:storage:BlockManager.adoc#BlockManagerId[BlockManagerId]s with the largest size (of all the shuffle blocks they manage) above the input `fractionThreshold` (given the total size of all the shuffle blocks for the shuffle across all xref:storage:BlockManager.adoc[BlockManagers]).
-
-NOTE: getLocationsWithLargestOutputs may return no `BlockManagerId` if their shuffle blocks do not total up above the input `fractionThreshold`.
-
-NOTE: The input `numReducers` is not used.
-
-Internally, getLocationsWithLargestOutputs queries the <<mapStatuses, mapStatuses>> internal cache for the input `shuffleId`.
-
-[NOTE]
-====
-One entry in `mapStatuses` internal cache is a xref:scheduler:MapStatus.adoc[MapStatus] array indexed by partition id.
-
-`MapStatus` includes xref:scheduler:MapStatus.adoc#contract[information about the `BlockManager` (as `BlockManagerId`) and estimated size of the reduce blocks].
-====
-
-getLocationsWithLargestOutputs iterates over the `MapStatus` array and builds an interim mapping between xref:storage:BlockManager.adoc#BlockManagerId[BlockManagerId] and the cumulative sum of shuffle blocks across xref:storage:BlockManager.adoc[BlockManagers].
-
-getLocationsWithLargestOutputs is used when MapOutputTrackerMaster is requested for the <<getPreferredLocationsForShuffle, preferred locations (BlockManagers and hence executors) for a shuffle>>.
-
-== [[containsShuffle]] Requesting Tracking Status of Shuffle Map Output
-
-[source, scala]
-----
-containsShuffle(shuffleId: Int): Boolean
+containsShuffle(
+  shuffleId: Int): Boolean
 ----
 
 containsShuffle checks if the input `shuffleId` is registered in the <<cachedSerializedStatuses, cachedSerializedStatuses>> or xref:ROOT:MapOutputTracker.adoc#mapStatuses[mapStatuses] internal caches.
 
-containsShuffle is used when xref:scheduler:DAGScheduler.adoc#createShuffleMapStage[`DAGScheduler` creates a `ShuffleMapStage`] (for xref:rdd:spark-rdd-ShuffleDependency.adoc[ShuffleDependency] and xref:scheduler:spark-scheduler-ActiveJob.adoc[ActiveJob]).
+containsShuffle is used when DAGScheduler is requested to xref:scheduler:DAGScheduler.adoc#createShuffleMapStage[create a createShuffleMapStage] (for a xref:rdd:spark-rdd-ShuffleDependency.adoc[ShuffleDependency]).
 
 == [[registerShuffle]] Registering Shuffle
 
@@ -252,7 +217,7 @@ If the shuffle ID has already been registered, registerShuffle throws an Illegal
 Shuffle ID [shuffleId] registered twice
 ```
 
-registerShuffle is used when DAGScheduler is requested to xref:scheduler:DAGScheduler.adoc#createShuffleMapStage[create a ShuffleMapStage] (for a xref:rdd:spark-rdd-ShuffleDependency.adoc[ShuffleDependency] and xref:scheduler:spark-scheduler-ActiveJob.adoc[ActiveJob]).
+registerShuffle is used when DAGScheduler is requested to xref:scheduler:DAGScheduler.adoc#createShuffleMapStage[create a ShuffleMapStage] (for a xref:rdd:spark-rdd-ShuffleDependency.adoc[ShuffleDependency]).
 
 == [[registerMapOutputs]] Registering Map Outputs for Shuffle (Possibly with Epoch Change)
 
@@ -333,12 +298,6 @@ cached status not found for : [shuffleId]
 
 checkCachedStatuses uses xref:ROOT:MapOutputTracker.adoc#mapStatuses[mapStatuses] internal cache to get map output statuses for the `shuffleId` (of the owning <<getSerializedMapOutputStatuses, getSerializedMapOutputStatuses>>) or falls back to an empty array and sets it to a local `statuses`. checkCachedStatuses sets the local `epochGotten` to the current <<epoch, epoch>> and returns `false`.
 
-== [[PoisonPill]] PoisonPill Message
-
-`PoisonPill` is a `GetMapOutputMessage` (with `-99` as `shuffleId`) that indicates that <<MessageLoop, MessageLoop>> should exit its message loop.
-
-`PoisonPill` is posted when <<stop, MapOutputTrackerMaster stops>>.
-
 == [[registerMapOutput]] Registering Shuffle Map Output
 
 [source, scala]
@@ -357,7 +316,7 @@ registerMapOutput finds the xref:ROOT:ShuffleStatus.adoc[ShuffleStatus] by the g
 
 registerMapOutput is used when DAGScheduler is requested to xref:scheduler:DAGScheduler.adoc#handleTaskCompletion[handle a ShuffleMapTask completion].
 
-== [[getStatistics]] getStatistics Method
+== [[getStatistics]] Calculating Shuffle Map Output Statistics
 
 [source, scala]
 ----
@@ -367,9 +326,9 @@ getStatistics(
 
 getStatistics...FIXME
 
-getStatistics is used when...FIXME
+getStatistics is used when DAGScheduler is requested to xref:scheduler:DAGScheduler.adoc#handleMapStageSubmitted[handle a ShuffleMapStage submission] (and the stage has finished) and xref:scheduler:DAGScheduler.adoc#markMapStageJobsAsFinished[markMapStageJobsAsFinished].
 
-== [[unregisterAllMapOutput]] Unregistering All Map Outputs of Shuffle Stage
+== [[unregisterAllMapOutput]] Deregistering All Map Outputs of Shuffle Stage
 
 [source, scala]
 ----
@@ -417,7 +376,7 @@ removeOutputsOnExecutor...FIXME
 
 removeOutputsOnExecutor is used when DAGScheduler is requested to xref:scheduler:DAGScheduler.adoc#removeExecutorAndUnregisterOutputs[removeExecutorAndUnregisterOutputs].
 
-== [[getNumAvailableOutputs]] getNumAvailableOutputs Method
+== [[getNumAvailableOutputs]] Number of Partitions with Shuffle Map Outputs Available
 
 [source, scala]
 ----
@@ -427,7 +386,7 @@ getNumAvailableOutputs(
 
 getNumAvailableOutputs...FIXME
 
-getNumAvailableOutputs is used when...FIXME
+getNumAvailableOutputs is used when ShuffleMapStage is requested for the xref:scheduler:spark-scheduler-ShuffleMapStage.adoc#numAvailableOutputs[number of partitions with shuffle outputs available].
 
 == [[findMissingPartitions]] Finding Missing Partitions
 
@@ -441,7 +400,7 @@ findMissingPartitions...FIXME
 
 findMissingPartitions is used when ShuffleMapStage is requested for xref:scheduler:spark-scheduler-ShuffleMapStage.adoc#findMissingPartitions[missing partitions].
 
-== [[getMapSizesByExecutorId]] getMapSizesByExecutorId Method
+== [[getMapSizesByExecutorId]] Finding Locations with Blocks and Sizes
 
 [source, scala]
 ----
@@ -451,9 +410,39 @@ getMapSizesByExecutorId(
   endPartition: Int): Iterator[(BlockManagerId, Seq[(BlockId, Long)])]
 ----
 
-NOTE: getMapSizesByExecutorId is part of the xref:ROOT:MapOutputTracker.adoc#getMapSizesByExecutorId[MapOutputTracker] abstraction.
-
 getMapSizesByExecutorId...FIXME
+
+getMapSizesByExecutorId is part of the xref:ROOT:MapOutputTracker.adoc#getMapSizesByExecutorId[MapOutputTracker] abstraction.
+
+== [[getLocationsWithLargestOutputs]] Finding Locations with Largest Number of Shuffle Map Outputs
+
+[source, scala]
+----
+getLocationsWithLargestOutputs(
+  shuffleId: Int,
+  reducerId: Int,
+  numReducers: Int,
+  fractionThreshold: Double): Option[Array[BlockManagerId]]
+----
+
+getLocationsWithLargestOutputs returns xref:storage:BlockManager.adoc#BlockManagerId[BlockManagerId]s with the largest size (of all the shuffle blocks they manage) above the input `fractionThreshold` (given the total size of all the shuffle blocks for the shuffle across all xref:storage:BlockManager.adoc[BlockManagers]).
+
+NOTE: getLocationsWithLargestOutputs may return no `BlockManagerId` if their shuffle blocks do not total up above the input `fractionThreshold`.
+
+NOTE: The input `numReducers` is not used.
+
+Internally, getLocationsWithLargestOutputs queries the <<mapStatuses, mapStatuses>> internal cache for the input `shuffleId`.
+
+[NOTE]
+====
+One entry in `mapStatuses` internal cache is a xref:scheduler:MapStatus.adoc[MapStatus] array indexed by partition id.
+
+`MapStatus` includes xref:scheduler:MapStatus.adoc#contract[information about the `BlockManager` (as `BlockManagerId`) and estimated size of the reduce blocks].
+====
+
+getLocationsWithLargestOutputs iterates over the `MapStatus` array and builds an interim mapping between xref:storage:BlockManager.adoc#BlockManagerId[BlockManagerId] and the cumulative sum of shuffle blocks across xref:storage:BlockManager.adoc[BlockManagers].
+
+getLocationsWithLargestOutputs is used when MapOutputTrackerMaster is requested for the <<getPreferredLocationsForShuffle, preferred locations of a shuffle>>.
 
 == [[logging]] Logging
 
