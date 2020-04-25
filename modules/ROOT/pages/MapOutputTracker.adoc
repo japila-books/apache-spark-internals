@@ -1,23 +1,13 @@
 = [[MapOutputTracker]] MapOutputTracker
 
-*MapOutputTracker* is a base abstraction of <<extensions, MapOutput trackers>> that can <<getMapSizesByExecutorId, getMapSizesByExecutorId>> and <<unregisterShuffle, unregisterShuffle>>.
+*MapOutputTracker* is a base abstraction of <<extensions, shuffle map output location registries>> that can <<getMapSizesByExecutorId, find shuffle blocks by executor>> and <<unregisterShuffle, deregister map output status information of a shuffle stage>>.
 
-MapOutputTracker is a core component of Apache Spark that runs on the driver and executors to <<mapStatuses, track the shuffle map outputs>> (with xref:scheduler:MapStatus.adoc[information about the `BlockManager` and estimated size of the reduce blocks per shuffle]).
-
-Accessing the current MapOutputTracker is possible using xref:ROOT:spark-SparkEnv.adoc#get[SparkEnv].
+MapOutputTracker is available using xref:ROOT:spark-SparkEnv.adoc#get[SparkEnv] (on the driver and executors).
 
 [source, scala]
 ----
 SparkEnv.get.mapOutputTracker
 ----
-
-MapOutputTracker is also used for `mapOutputTracker.containsShuffle` and xref:ROOT:MapOutputTrackerMaster.adoc#registerShuffle[MapOutputTrackerMaster.registerShuffle] when a new xref:scheduler:spark-scheduler-ShuffleMapStage.adoc[ShuffleMapStage] is created.
-
-xref:ROOT:MapOutputTrackerMaster.adoc#getStatistics[MapOutputTrackerMaster.getStatistics(dependency)] returns `MapOutputStatistics` that becomes the result of xref:scheduler:spark-scheduler-JobWaiter.adoc[JobWaiter.taskSucceeded] for xref:scheduler:spark-scheduler-ShuffleMapStage.adoc[ShuffleMapStage] if it's the final stage in a job.
-
-xref:ROOT:MapOutputTrackerMaster.adoc#registerMapOutputs[MapOutputTrackerMaster.registerMapOutputs] for a shuffle id and a list of `MapStatus` when a xref:scheduler:spark-scheduler-ShuffleMapStage.adoc[ShuffleMapStage] is finished.
-
-NOTE: MapOutputTracker is used in xref:shuffle:spark-shuffle-BlockStoreShuffleReader.adoc[BlockStoreShuffleReader] and when creating xref:storage:BlockManager.adoc[BlockManager] and xref:storage:spark-blockmanager-BlockManagerSlaveEndpoint.adoc[BlockManagerSlaveEndpoint].
 
 == [[extensions]] MapOutputTrackers
 
@@ -48,33 +38,67 @@ trackerEndpoint is used to <<askTracker, communicate (synchronously)>>.
 
 trackerEndpoint is cleared (`null`) when MapOutputTrackerMaster is requested to xref:ROOT:MapOutputTrackerMaster.adoc#stop[stop].
 
-== [[deserializeMapStatuses]] `deserializeMapStatuses` Method
-
-CAUTION: FIXME
-
-== [[sendTracker]] `sendTracker` Method
-
-CAUTION: FIXME
-
-== [[serializeMapStatuses]] `serializeMapStatuses` Method
-
-CAUTION: FIXME
-
-== [[getStatistics]] Computing Statistics for ShuffleDependency
+== [[serializeMapStatuses]] serializeMapStatuses Utility
 
 [source, scala]
 ----
-getStatistics(
-  dep: ShuffleDependency[_, _, _]): MapOutputStatistics
+serializeMapStatuses(
+  statuses: Array[MapStatus],
+  broadcastManager: BroadcastManager,
+  isLocal: Boolean,
+  minBroadcastSize: Int): (Array[Byte], Broadcast[Array[Byte]])
 ----
 
-`getStatistics` returns a `MapOutputStatistics` which is simply a pair of the xref:rdd:spark-rdd-ShuffleDependency.adoc#shuffleId[shuffle id] (of the input `ShuffleDependency`) and the total sums of estimated sizes of the reduce shuffle blocks from all the xref:storage:BlockManager.adoc[BlockManager]s.
+serializeMapStatuses serializes the given array of map output locations into an efficient byte format (to send to reduce tasks). serializeMapStatuses compresses the serialized bytes using GZIP. They are supposed to be pretty compressible because many map outputs will be on the same hostname.
 
-Internally, `getStatistics` <<getStatuses, finds map outputs>> for the input xref:rdd:spark-rdd-ShuffleDependency.adoc[ShuffleDependency] and calculates the total sizes for the xref:scheduler:MapStatus.adoc#getSizeForBlock[estimated sizes of the reduce block (in bytes)] for every xref:scheduler:MapStatus.adoc[MapStatus] and partition.
+Internally, serializeMapStatuses creates a Java {java-javadoc-url}/java/io/ByteArrayOutputStream.html[ByteArrayOutputStream].
 
-NOTE: The internal `totalSizes` array has the number of elements as specified by the xref:rdd:spark-rdd-Partitioner.adoc#numPartitions[number of partitions of the `Partitioner`] of the input `ShuffleDependency`. `totalSizes` contains elements as a sum of the estimated size of the block for partition in a xref:storage:BlockManager.adoc[BlockManager] (for a `MapStatus`).
+serializeMapStatuses writes out 0 (direct) first.
 
-NOTE: `getStatistics` is used when xref:scheduler:DAGSchedulerEventProcessLoop.adoc#handleMapStageSubmitted[`DAGScheduler` accepts a `ShuffleDependency` for execution] (and the xref:scheduler:spark-scheduler-ShuffleMapStage.adoc#isAvailable[corresponding `ShuffleMapStage` has already been computed]) and xref:scheduler:DAGSchedulerEventProcessLoop.adoc#handleTaskCompletion-Success-ShuffleMapTask[gets notified that a `ShuffleMapTask` has completed] (and map-stage jobs waiting for the stage are then marked as finished).
+serializeMapStatuses creates a Java {java-javadoc-url}/java/util/zip/GZIPOutputStream.html[GZIPOutputStream] (with the ByteArrayOutputStream created) and writes out the given statuses array.
+
+serializeMapStatuses decides whether to return the output array (of the output stream) or use a broadcast variable based on the size of the byte array.
+
+If the size of the result byte array is the given minBroadcastSize threshold or bigger, serializeMapStatuses requests the input BroadcastManager to xref:ROOT:spark-service-broadcastmanager.adoc#newBroadcast[create a broadcast variable].
+
+serializeMapStatuses resets the ByteArrayOutputStream and starts over.
+
+serializeMapStatuses writes out 1 (broadcast) first.
+
+serializeMapStatuses creates a new Java GZIPOutputStream (with the ByteArrayOutputStream created) and writes out the broadcast variable.
+
+serializeMapStatuses prints out the following INFO message to the logs:
+
+[source,plaintext]
+----
+Broadcast mapstatuses size = [length], actual size = [length]
+----
+
+serializeMapStatuses is used when ShuffleStatus is requested to xref:ROOT:ShuffleStatus.adoc#serializedMapStatus[serialize shuffle map output statuses].
+
+== [[deserializeMapStatuses]] deserializeMapStatuses Utility
+
+[source, scala]
+----
+deserializeMapStatuses(
+  bytes: Array[Byte]): Array[MapStatus]
+----
+
+deserializeMapStatuses...FIXME
+
+deserializeMapStatuses is used when...FIXME
+
+== [[sendTracker]] sendTracker Utility
+
+[source, scala]
+----
+sendTracker(
+  message: Any): Unit
+----
+
+sendTracker...FIXME
+
+sendTracker is used when...FIXME
 
 == [[getMapSizesByExecutorId]] Finding Locations with Blocks and Sizes
 
@@ -102,35 +126,7 @@ In the end, getMapSizesByExecutorId <<convertMapStatuses, converts shuffle map o
 
 getMapSizesByExecutorId is used when BlockStoreShuffleReader is requested to xref:shuffle:spark-shuffle-BlockStoreShuffleReader.adoc#read[read combined records for a reduce task].
 
-== [[getEpoch]] Current Epoch
-
-[source, scala]
-----
-getEpoch: Long
-----
-
-`getEpoch` returns the current <<epoch, epoch>>.
-
-NOTE: `getEpoch` is used when xref:scheduler:DAGSchedulerEventProcessLoop.adoc#handleExecutorLost[`DAGScheduler` is notified that an executor was lost] and when xref:scheduler:TaskSetManager.adoc#creating-instance[`TaskSetManager` is created] (and sets the epoch for the tasks in a xref:scheduler:TaskSet.adoc[TaskSet]).
-
-== [[updateEpoch]] Updating Epoch
-
-[source, scala]
-----
-updateEpoch(newEpoch: Long): Unit
-----
-
-`updateEpoch` updates <<epoch, epoch>> when the input `newEpoch` is greater (and hence more recent) and clears the <<mapStatuses, `mapStatuses` internal cache>>.
-
-You should see the following INFO message in the logs:
-
-```
-INFO MapOutputTrackerWorker: Updating epoch to [newEpoch] and clearing cache
-```
-
-NOTE: `updateEpoch` is exclusively used when xref:ROOT:spark-Executor-TaskRunner.adoc#run[`TaskRunner` runs] (for a task).
-
-== [[unregisterShuffle]] Unregistering Shuffle
+== [[unregisterShuffle]] Deregistering Map Output Status Information of Shuffle Stage
 
 [source, scala]
 ----
@@ -138,7 +134,7 @@ unregisterShuffle(
   shuffleId: Int): Unit
 ----
 
-Deletes map output status information for the given shuffle stage
+Deregisters map output status information for the given shuffle stage
 
 Used when:
 
@@ -168,7 +164,7 @@ convertMapStatuses(
   statuses: Array[MapStatus]): Seq[(BlockManagerId, Seq[(BlockId, Long)])]
 ----
 
-`convertMapStatuses` iterates over the input `statuses` array (of xref:scheduler:MapStatus.adoc[MapStatus] entries indexed by map id) and creates a collection of xref:storage:BlockManager.adoc#BlockManagerId[BlockManagerId] (for each `MapStatus` entry) with a xref:storage:spark-BlockDataManager.adoc#ShuffleBlockId[ShuffleBlockId] (with the input `shuffleId`, a `mapId`, and `partition` ranging from the input `startPartition` and `endPartition`) and xref:scheduler:MapStatus.adoc#getSizeForBlock[estimated size for the reduce block] for every status and partitions.
+convertMapStatuses iterates over the input `statuses` array (of xref:scheduler:MapStatus.adoc[MapStatus] entries indexed by map id) and creates a collection of xref:storage:BlockManager.adoc#BlockManagerId[BlockManagerId] (for each `MapStatus` entry) with a xref:storage:spark-BlockDataManager.adoc#ShuffleBlockId[ShuffleBlockId] (with the input `shuffleId`, a `mapId`, and `partition` ranging from the input `startPartition` and `endPartition`) and xref:scheduler:MapStatus.adoc#getSizeForBlock[estimated size for the reduce block] for every status and partitions.
 
 For any empty `MapStatus`, you should see the following ERROR message in the logs:
 
@@ -176,9 +172,9 @@ For any empty `MapStatus`, you should see the following ERROR message in the log
 Missing an output location for shuffle [id]
 ```
 
-And `convertMapStatuses` throws a `MetadataFetchFailedException` (with `shuffleId`, `startPartition`, and the above error message).
+And convertMapStatuses throws a `MetadataFetchFailedException` (with `shuffleId`, `startPartition`, and the above error message).
 
-NOTE: `convertMapStatuses` is exclusively used when <<getMapSizesByExecutorId, MapOutputTracker computes ``BlockManagerId``s with their ``ShuffleBlockId``s and sizes>>.
+convertMapStatuses is used when <<getMapSizesByExecutorId, MapOutputTracker computes ``BlockManagerId``s with their ``ShuffleBlockId``s and sizes>>.
 
 == [[askTracker]] Sending Blocking Messages To trackerEndpoint RpcEndpointRef
 
@@ -187,36 +183,18 @@ NOTE: `convertMapStatuses` is exclusively used when <<getMapSizesByExecutorId, M
 askTracker[T](message: Any): T
 ----
 
-`askTracker` xref:ROOT:spark-RpcEndpointRef.adoc#askWithRetry[sends the `message`] to <<trackerEndpoint, trackerEndpoint RpcEndpointRef>> and waits for a result.
+askTracker xref:ROOT:spark-RpcEndpointRef.adoc#askWithRetry[sends the `message`] to <<trackerEndpoint, trackerEndpoint RpcEndpointRef>> and waits for a result.
 
-When an exception happens, you should see the following ERROR message in the logs and `askTracker` throws a `SparkException`.
+When an exception happens, you should see the following ERROR message in the logs and askTracker throws a `SparkException`.
 
 ```
 Error communicating with MapOutputTracker
 ```
 
-NOTE: `askTracker` is used when MapOutputTracker <<getStatuses, fetches map outputs for `ShuffleDependency` remotely>> and <<sendTracker, sends a one-way message>>.
+askTracker is used when MapOutputTracker <<getStatuses, fetches map outputs for `ShuffleDependency` remotely>> and <<sendTracker, sends a one-way message>>.
 
-== [[internal-properties]] Internal Properties
-
-[cols="30m,70",options="header",width="100%"]
-|===
-| Name
-| Description
-
-| [[mapStatuses]] `mapStatuses`
-| Internal cache with xref:scheduler:MapStatus.adoc[MapStatus] array (indexed by partition id) per xref:rdd:spark-rdd-ShuffleDependency.adoc#shuffleId[shuffle id].
-
-Used when MapOutputTracker <<getStatuses, finds map outputs for a `ShuffleDependency`>>, <<updateEpoch, updates epoch>> and <<unregisterShuffle, unregisters a shuffle>>.
-
-| [[epoch]] `epoch`
-| Tracks the epoch in a Spark application.
+== [[epoch]][[epochLock]] Epoch
 
 Starts from `0` when <<creating-instance, MapOutputTracker is created>>.
 
 Can be <<updateEpoch, updated>> (on `MapOutputTrackerWorkers`) or xref:ROOT:MapOutputTrackerMaster.adoc#incrementEpoch[incremented] (on the driver's `MapOutputTrackerMaster`).
-
-| [[epochLock]] `epochLock`
-| FIXME
-
-|===
