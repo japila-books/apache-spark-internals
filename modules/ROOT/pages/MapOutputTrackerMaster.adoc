@@ -16,7 +16,39 @@ MapOutputTrackerMaster takes the following to be created:
 
 MapOutputTrackerMaster starts <<MessageLoop, dispatcher threads>> on the <<threadpool, map-output-dispatcher thread pool>>.
 
-== [[REDUCER_PREF_LOCS_FRACTION]] Map Output Threshold for Preferred Location of Reduce Task
+== [[shuffleStatuses]] Shuffle Map Output Status Registry
+
+MapOutputTrackerMaster uses an internal registry of xref:ROOT:ShuffleStatus.adoc[ShuffleStatuses] by shuffle stages.
+
+MapOutputTrackerMaster adds a new shuffle when requested to <<registerShuffle, register one>> (when DAGScheduler is requested to xref:scheduler:DAGScheduler.adoc#createShuffleMapStage[create a ShuffleMapStage] for a xref:rdd:spark-rdd-ShuffleDependency.adoc[ShuffleDependency]).
+
+MapOutputTrackerMaster uses the registry when requested for the following:
+
+* <<registerMapOutput, registerMapOutput>>
+
+* <<getStatistics, getStatistics>>
+
+* <<MessageLoop, MessageLoop>>
+
+* <<unregisterMapOutput, unregisterMapOutput>>, <<unregisterAllMapOutput, unregisterAllMapOutput>>, <<unregisterShuffle, unregisterShuffle>>, <<removeOutputsOnHost, removeOutputsOnHost>>, <<removeOutputsOnExecutor, removeOutputsOnExecutor>>, <<containsShuffle, containsShuffle>>, <<getNumAvailableOutputs, getNumAvailableOutputs>>, <<findMissingPartitions, findMissingPartitions>>, <<getLocationsWithLargestOutputs, getLocationsWithLargestOutputs>>, <<getMapSizesByExecutorId, getMapSizesByExecutorId>>
+
+MapOutputTrackerMaster removes (_clears_) all shuffles when requested to <<stop, stop>>.
+
+== [[configuration-properties]] Configuration Properties
+
+MapOutputTrackerMaster uses the following configuration properties:
+
+* [[spark.shuffle.mapOutput.minSizeForBroadcast]][[minSizeForBroadcast]] xref:ROOT:spark-configuration-properties.adoc#spark.shuffle.mapOutput.minSizeForBroadcast[spark.shuffle.mapOutput.minSizeForBroadcast]
+
+* [[spark.shuffle.mapOutput.dispatcher.numThreads]] xref:ROOT:spark-configuration-properties.adoc#spark.shuffle.mapOutput.dispatcher.numThreads[spark.shuffle.mapOutput.dispatcher.numThreads]
+
+* [[spark.shuffle.reduceLocality.enabled]][[shuffleLocalityEnabled]] xref:ROOT:spark-configuration-properties.adoc#spark.shuffle.reduceLocality.enabled[spark.shuffle.reduceLocality.enabled]
+
+== [[SHUFFLE_PREF_MAP_THRESHOLD]][[SHUFFLE_PREF_REDUCE_THRESHOLD]] Map and Reduce Task Thresholds for Preferred Locations
+
+MapOutputTrackerMaster defines 1000 tasks as the threshold of the number of map and reduce tasks to <<getPreferredLocationsForShuffle, compute preferred locations>> with <<shuffleLocalityEnabled, spark.shuffle.reduceLocality.enabled>> as computing the top locations is expensive.
+
+== [[REDUCER_PREF_LOCS_FRACTION]] Map Output Threshold for Preferred Location of Reduce Tasks
 
 MapOutputTrackerMaster defines `0.2` as the fraction of total map output that must be at a location for it to considered as a preferred location for a reduce task.
 
@@ -69,34 +101,6 @@ The dispatcher threads are started immediately when <<creating-instance, MapOutp
 
 The thread pool is shut down when MapOutputTrackerMaster is requested to <<stop, stop>>.
 
-== [[configuration-properties]] Configuration Properties
-
-MapOutputTrackerMaster uses the following configuration properties:
-
-* [[spark.shuffle.mapOutput.minSizeForBroadcast]][[minSizeForBroadcast]] xref:ROOT:spark-configuration-properties.adoc#spark.shuffle.mapOutput.minSizeForBroadcast[spark.shuffle.mapOutput.minSizeForBroadcast]
-
-* [[spark.shuffle.mapOutput.dispatcher.numThreads]] xref:ROOT:spark-configuration-properties.adoc#spark.shuffle.mapOutput.dispatcher.numThreads[spark.shuffle.mapOutput.dispatcher.numThreads]
-
-* [[spark.shuffle.reduceLocality.enabled]] xref:ROOT:spark-configuration-properties.adoc#spark.shuffle.reduceLocality.enabled[spark.shuffle.reduceLocality.enabled]
-
-== [[shuffleStatuses]] Shuffle Map Output Status Registry
-
-MapOutputTrackerMaster uses an internal registry of xref:ROOT:ShuffleStatus.adoc[ShuffleStatuses] by shuffle stages.
-
-MapOutputTrackerMaster adds a new shuffle when requested to <<registerShuffle, register one>>.
-
-MapOutputTrackerMaster uses the registry when requested for the following:
-
-* <<registerMapOutput, registerMapOutput>>
-
-* <<getStatistics, getStatistics>>
-
-* <<MessageLoop, MessageLoop>>
-
-* <<unregisterMapOutput, unregisterMapOutput>>, <<unregisterAllMapOutput, unregisterAllMapOutput>>, <<unregisterShuffle, unregisterShuffle>>, <<removeOutputsOnHost, removeOutputsOnHost>>, <<removeOutputsOnExecutor, removeOutputsOnExecutor>>, <<containsShuffle, containsShuffle>>, <<getNumAvailableOutputs, getNumAvailableOutputs>>, <<findMissingPartitions, findMissingPartitions>>, <<getLocationsWithLargestOutputs, getLocationsWithLargestOutputs>>, <<getMapSizesByExecutorId, getMapSizesByExecutorId>>
-
-MapOutputTrackerMaster removes (_clears_) all shuffles when requested to <<stop, stop>>.
-
 == [[epoch]][[getEpoch]] Epoch Number
 
 MapOutputTrackerMaster uses an *epoch number* to...FIXME
@@ -144,7 +148,7 @@ unregisterMapOutput...FIXME
 
 unregisterMapOutput is used when DAGScheduler is requested to xref:scheduler:DAGScheduler.adoc#handleTaskCompletion[handle a task completion (due to a fetch failure)].
 
-== [[getPreferredLocationsForShuffle]] Finding Preferred Locations (with Most Shuffle Map Outputs)
+== [[getPreferredLocationsForShuffle]] Computing Preferred Locations (with Most Shuffle Map Outputs)
 
 [source, scala]
 ----
@@ -153,7 +157,15 @@ getPreferredLocationsForShuffle(
   partitionId: Int): Seq[String]
 ----
 
-getPreferredLocationsForShuffle finds the locations (i.e. xref:storage:BlockManager.adoc[BlockManagers]) with the most map outputs for the input xref:rdd:spark-rdd-ShuffleDependency.adoc[ShuffleDependency] and xref:rdd:spark-rdd-Partition.adoc[Partition].
+getPreferredLocationsForShuffle computes the locations (xref:storage:BlockManager.adoc[BlockManagers]) with the most shuffle map outputs for the input xref:rdd:spark-rdd-ShuffleDependency.adoc[ShuffleDependency] and xref:rdd:spark-rdd-Partition.adoc[Partition].
+
+getPreferredLocationsForShuffle computes the locations when all of the following are met:
+
+* <<spark.shuffle.reduceLocality.enabled, spark.shuffle.reduceLocality.enabled>> configuration property is enabled
+
+* The number of "map" partitions (of the xref:rdd:spark-rdd-ShuffleDependency.adoc#rdd[RDD] of the input xref:rdd:spark-rdd-ShuffleDependency.adoc[ShuffleDependency]) is below <<SHUFFLE_PREF_MAP_THRESHOLD, SHUFFLE_PREF_MAP_THRESHOLD>>
+
+* The number of "reduce" partitions (of the xref:rdd:spark-rdd-ShuffleDependency.adoc#partitioner[Partitioner] of the input xref:rdd:spark-rdd-ShuffleDependency.adoc[ShuffleDependency]) is below <<SHUFFLE_PREF_REDUCE_THRESHOLD, SHUFFLE_PREF_REDUCE_THRESHOLD>>
 
 NOTE: getPreferredLocationsForShuffle is simply <<getLocationsWithLargestOutputs, getLocationsWithLargestOutputs>> with a guard condition.
 
