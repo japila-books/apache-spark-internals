@@ -1,6 +1,6 @@
 = [[MapOutputTrackerMaster]] MapOutputTrackerMaster
 
-*MapOutputTrackerMaster* is the xref:ROOT:MapOutputTracker.adoc[MapOutputTracker] for the driver.
+*MapOutputTrackerMaster* is the xref:scheduler:MapOutputTracker.adoc[MapOutputTracker] for the driver.
 
 A MapOutputTrackerMaster is the source of truth of <<shuffleStatuses, shuffle map output locations>>.
 
@@ -16,7 +16,7 @@ MapOutputTrackerMaster starts <<MessageLoop, dispatcher threads>> on the <<threa
 
 == [[shuffleStatuses]] Shuffle Map Output Status Registry
 
-MapOutputTrackerMaster uses an internal registry of xref:ROOT:ShuffleStatus.adoc[ShuffleStatuses] by shuffle stages.
+MapOutputTrackerMaster uses an internal registry of xref:scheduler:ShuffleStatus.adoc[ShuffleStatuses] by shuffle stages.
 
 MapOutputTrackerMaster adds a new shuffle when requested to <<registerShuffle, register one>> (when DAGScheduler is requested to xref:scheduler:DAGScheduler.adoc#createShuffleMapStage[create a ShuffleMapStage] for a xref:rdd:ShuffleDependency.adoc[ShuffleDependency]).
 
@@ -80,7 +80,7 @@ MessageLoop takes a GetMapOutputMessage and prints out the following DEBUG messa
 Handling request to send map output locations for shuffle [shuffleId] to [hostPort]
 ----
 
-MessageLoop then finds the xref:ROOT:ShuffleStatus.adoc[ShuffleStatus] by the shuffle ID in the <<shuffleStatuses, shuffleStatuses>> internal registry and replies back (to the RPC client) with a xref:ROOT:ShuffleStatus.adoc#serializedMapStatus[serialized map output status] (with the <<broadcastManager, BroadcastManager>> and <<spark.shuffle.mapOutput.minSizeForBroadcast, spark.shuffle.mapOutput.minSizeForBroadcast>> configuration property).
+MessageLoop then finds the xref:scheduler:ShuffleStatus.adoc[ShuffleStatus] by the shuffle ID in the <<shuffleStatuses, shuffleStatuses>> internal registry and replies back (to the RPC client) with a xref:scheduler:ShuffleStatus.adoc#serializedMapStatus[serialized map output status] (with the <<broadcastManager, BroadcastManager>> and <<spark.shuffle.mapOutput.minSizeForBroadcast, spark.shuffle.mapOutput.minSizeForBroadcast>> configuration property).
 
 MessageLoop threads run on the <<threadpool, map-output-dispatcher Thread Pool>>.
 
@@ -119,7 +119,7 @@ post(
 
 post simply adds the input GetMapOutputMessage to the <<mapOutputRequests, mapOutputRequests>> internal queue.
 
-post is used when MapOutputTrackerMasterEndpoint is requested to xref:ROOT:MapOutputTrackerMasterEndpoint.adoc#GetMapOutputStatuses[handle a GetMapOutputStatuses message].
+post is used when MapOutputTrackerMasterEndpoint is requested to xref:scheduler:MapOutputTrackerMasterEndpoint.adoc#GetMapOutputStatuses[handle a GetMapOutputStatuses message].
 
 == [[stop]] Stopping MapOutputTrackerMaster
 
@@ -130,7 +130,7 @@ stop(): Unit
 
 stop...FIXME
 
-stop is part of the xref:ROOT:MapOutputTracker.adoc#stop[MapOutputTracker] abstraction.
+stop is part of the xref:scheduler:MapOutputTracker.adoc#stop[MapOutputTracker] abstraction.
 
 == [[unregisterMapOutput]] Unregistering Shuffle Map Output
 
@@ -184,7 +184,7 @@ getPreferredLocationsForShuffle is used when xref:rdd:ShuffledRDD.adoc#getPrefer
 incrementEpoch(): Unit
 ----
 
-incrementEpoch increments the internal xref:ROOT:MapOutputTracker.adoc#epoch[epoch].
+incrementEpoch increments the internal xref:scheduler:MapOutputTracker.adoc#epoch[epoch].
 
 incrementEpoch prints out the following DEBUG message to the logs:
 
@@ -206,7 +206,7 @@ containsShuffle(
   shuffleId: Int): Boolean
 ----
 
-containsShuffle checks if the input `shuffleId` is registered in the <<cachedSerializedStatuses, cachedSerializedStatuses>> or xref:ROOT:MapOutputTracker.adoc#mapStatuses[mapStatuses] internal caches.
+containsShuffle checks if the input `shuffleId` is registered in the <<cachedSerializedStatuses, cachedSerializedStatuses>> or xref:scheduler:MapOutputTracker.adoc#mapStatuses[mapStatuses] internal caches.
 
 containsShuffle is used when DAGScheduler is requested to xref:scheduler:DAGScheduler.adoc#createShuffleMapStage[create a createShuffleMapStage] (for a xref:rdd:ShuffleDependency.adoc[ShuffleDependency]).
 
@@ -219,7 +219,7 @@ registerShuffle(
   numMaps: Int): Unit
 ----
 
-registerShuffle adds the input shuffle ID and the number of partitions (as a xref:ROOT:ShuffleStatus.adoc[ShuffleStatus]) to <<shuffleStatuses, shuffleStatuses>> internal registry.
+registerShuffle adds the input shuffle ID and the number of partitions (as a xref:scheduler:ShuffleStatus.adoc[ShuffleStatus]) to <<shuffleStatuses, shuffleStatuses>> internal registry.
 
 If the shuffle ID has already been registered, registerShuffle throws an IllegalArgumentException:
 
@@ -239,7 +239,7 @@ registerMapOutputs(
   changeEpoch: Boolean = false): Unit
 ----
 
-registerMapOutputs registers the input `statuses` (as the shuffle map output) with the input `shuffleId` in the xref:ROOT:MapOutputTracker.adoc#mapStatuses[mapStatuses] internal cache.
+registerMapOutputs registers the input `statuses` (as the shuffle map output) with the input `shuffleId` in the xref:scheduler:MapOutputTracker.adoc#mapStatuses[mapStatuses] internal cache.
 
 registerMapOutputs <<incrementEpoch, increments epoch>> if the input `changeEpoch` is enabled (it is not by default).
 
@@ -261,7 +261,7 @@ Otherwise, getSerializedMapOutputStatuses acquires the <<shuffleIdLocks, shuffle
 
 getSerializedMapOutputStatuses returns the serialized map statuses if found.
 
-If not, getSerializedMapOutputStatuses xref:ROOT:MapOutputTracker.adoc#serializeMapStatuses[serializes the local array of `MapStatuses`] (from <<checkCachedStatuses, checkCachedStatuses>>).
+If not, getSerializedMapOutputStatuses xref:scheduler:MapOutputTracker.adoc#serializeMapStatuses[serializes the local array of `MapStatuses`] (from <<checkCachedStatuses, checkCachedStatuses>>).
 
 You should see the following INFO message in the logs:
 
@@ -292,7 +292,7 @@ checkCachedStatuses(): Boolean
 
 checkCachedStatuses is an internal helper method that <<getSerializedMapOutputStatuses, getSerializedMapOutputStatuses>> uses to do some bookkeeping (when the <<epoch, epoch>> and <<cacheEpoch, cacheEpoch>> differ) and set local `statuses`, `retBytes` and `epochGotten` (that getSerializedMapOutputStatuses uses).
 
-Internally, checkCachedStatuses acquires the xref:ROOT:MapOutputTracker.adoc#epochLock[`epochLock` lock] and checks the status of <<epoch, epoch>> to <<cacheEpoch, cached `cacheEpoch`>>.
+Internally, checkCachedStatuses acquires the xref:scheduler:MapOutputTracker.adoc#epochLock[`epochLock` lock] and checks the status of <<epoch, epoch>> to <<cacheEpoch, cached `cacheEpoch`>>.
 
 If `epoch` is younger (i.e. greater), checkCachedStatuses clears <<cachedSerializedStatuses, cachedSerializedStatuses>> internal cache, <<clearCachedBroadcast, cached broadcasts>> and sets `cacheEpoch` to be `epoch`.
 
@@ -306,7 +306,7 @@ When not found, you should see the following DEBUG message in the logs:
 cached status not found for : [shuffleId]
 ```
 
-checkCachedStatuses uses xref:ROOT:MapOutputTracker.adoc#mapStatuses[mapStatuses] internal cache to get map output statuses for the `shuffleId` (of the owning <<getSerializedMapOutputStatuses, getSerializedMapOutputStatuses>>) or falls back to an empty array and sets it to a local `statuses`. checkCachedStatuses sets the local `epochGotten` to the current <<epoch, epoch>> and returns `false`.
+checkCachedStatuses uses xref:scheduler:MapOutputTracker.adoc#mapStatuses[mapStatuses] internal cache to get map output statuses for the `shuffleId` (of the owning <<getSerializedMapOutputStatuses, getSerializedMapOutputStatuses>>) or falls back to an empty array and sets it to a local `statuses`. checkCachedStatuses sets the local `epochGotten` to the current <<epoch, epoch>> and returns `false`.
 
 == [[registerMapOutput]] Registering Shuffle Map Output
 
@@ -318,7 +318,7 @@ registerMapOutput(
   status: MapStatus): Unit
 ----
 
-registerMapOutput finds the xref:ROOT:ShuffleStatus.adoc[ShuffleStatus] by the given shuffle ID and xref:ROOT:ShuffleStatus.adoc#addMapOutput[adds the given MapStatus]:
+registerMapOutput finds the xref:scheduler:ShuffleStatus.adoc[ShuffleStatus] by the given shuffle ID and xref:scheduler:ShuffleStatus.adoc#addMapOutput[adds the given MapStatus]:
 
 * The given mapId is the xref:scheduler:Task.adoc#partitionId[partitionId] of the xref:scheduler:ShuffleMapTask.adoc[ShuffleMapTask] that finished.
 
@@ -360,7 +360,7 @@ unregisterShuffle(
 
 unregisterShuffle...FIXME
 
-unregisterShuffle is part of the xref:ROOT:MapOutputTracker.adoc#unregisterShuffle[MapOutputTracker] abstraction.
+unregisterShuffle is part of the xref:scheduler:MapOutputTracker.adoc#unregisterShuffle[MapOutputTracker] abstraction.
 
 == [[removeOutputsOnHost]] Deregistering Shuffle Outputs Associated with Host
 
@@ -422,7 +422,7 @@ getMapSizesByExecutorId(
 
 getMapSizesByExecutorId...FIXME
 
-getMapSizesByExecutorId is part of the xref:ROOT:MapOutputTracker.adoc#getMapSizesByExecutorId[MapOutputTracker] abstraction.
+getMapSizesByExecutorId is part of the xref:scheduler:MapOutputTracker.adoc#getMapSizesByExecutorId[MapOutputTracker] abstraction.
 
 == [[getLocationsWithLargestOutputs]] Finding Locations with Largest Number of Shuffle Map Outputs
 
