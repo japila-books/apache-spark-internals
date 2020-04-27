@@ -7,7 +7,9 @@ The introduction that follows was highly influenced by the scaladoc of https://g
 
 == [[introduction]] Introduction
 
-*DAGScheduler* is the scheduling layer of Apache Spark that implements *stage-oriented scheduling*. It transforms a *logical execution plan* (i.e. xref:rdd:spark-rdd-lineage.adoc[RDD lineage] of dependencies built using xref:rdd:spark-rdd-transformations.adoc[RDD transformations]) to a *physical execution plan* (using xref:scheduler:Stage.adoc[stages]).
+*DAGScheduler* is the scheduling layer of Apache Spark that implements *stage-oriented scheduling*.
+
+DAGScheduler transforms a *logical execution plan* (i.e. xref:rdd:spark-rdd-lineage.adoc[RDD lineage] of dependencies built using xref:rdd:spark-rdd-transformations.adoc[RDD transformations]) to a *physical execution plan* (using xref:scheduler:Stage.adoc[stages]).
 
 .DAGScheduler Transforming RDD Lineage Into Stage DAG
 image::dagscheduler-rdd-lineage-stage-dag.png[align="center"]
@@ -31,6 +33,9 @@ DAGScheduler does three things in Spark (thorough explanations follow):
 * Handles failures due to *shuffle output files* being lost.
 
 DAGScheduler computes https://en.wikipedia.org/wiki/Directed_acyclic_graph[a directed acyclic graph (DAG)] of stages for each job, keeps track of which RDDs and stage outputs are materialized, and finds a minimal schedule to run jobs. It then submits stages to xref:scheduler:TaskScheduler.adoc[TaskScheduler].
+
+.DAGScheduler.submitJob
+image::dagscheduler-submitjob.png[align="center"]
 
 In addition to coming up with the execution DAG, DAGScheduler also determines the preferred locations to run each task on, based on the current cache status, and passes the information to xref:scheduler:TaskScheduler.adoc[TaskScheduler].
 
@@ -64,11 +69,85 @@ While being created, DAGScheduler xref:scheduler:TaskScheduler.adoc#setDAGSchedu
 
 == [[event-loop]][[eventProcessLoop]] DAGScheduler Event Bus
 
-DAGScheduler uses an xref:scheduler:DAGSchedulerEventProcessLoop.adoc[event bus] to which Spark (by <<submitJob, submitJob>>) posts jobs to schedule their execution. Later on, xref:scheduler:TaskSetManager.adoc[TaskSetManager] talks back to DAGScheduler to inform about the status of the tasks using the same "communication channel".
+DAGScheduler uses an xref:scheduler:DAGSchedulerEventProcessLoop.adoc[event bus] to process scheduling-related events on a separate thread (one by one and asynchronously).
 
-It allows Spark to release the current thread when posting happens and let the event loop handle events on a separate thread - asynchronously.
+DAGScheduler starts the event bus when created and stops it when requested to <<stop, stop>>.
 
-...IMAGE...FIXME
+DAGScheduler defines <<event-posting-methods, event-posting methods>> that allow posting DAGSchedulerEvent events to the event bus.
+
+[[event-posting-methods]]
+.DAGScheduler Event Posting Methods
+[cols="20m,20m,60",options="header",width="100%"]
+|===
+| Method
+| Event Posted
+| Trigger
+
+| [[cancelAllJobs]] cancelAllJobs
+| xref:scheduler:DAGSchedulerEvent.adoc#AllJobsCancelled[AllJobsCancelled]
+| SparkContext is requested to xref:ROOT:spark-SparkContext.adoc#cancelAllJobs[cancel all running or scheduled Spark jobs]
+
+| [[cancelJob]] cancelJob
+| xref:scheduler:DAGSchedulerEvent.adoc#JobCancelled[JobCancelled]
+| xref:ROOT:spark-SparkContext.adoc#cancelJob[SparkContext] or xref:scheduler:spark-scheduler-JobWaiter.adoc[JobWaiter] are requested to cancel a Spark job
+
+| [[cancelJobGroup]] cancelJobGroup
+| xref:scheduler:DAGSchedulerEvent.adoc#JobGroupCancelled[JobGroupCancelled]
+| SparkContext is requested to xref:ROOT:spark-SparkContext.adoc#cancelJobGroup[cancel a job group]
+
+| [[cancelStage]] cancelStage
+| xref:scheduler:DAGSchedulerEvent.adoc#StageCancelled[StageCancelled]
+| SparkContext is requested to xref:ROOT:spark-SparkContext.adoc#cancelStage[cancel a stage]
+
+| [[executorAdded]] executorAdded
+| xref:scheduler:DAGSchedulerEvent.adoc#ExecutorAdded[ExecutorAdded]
+| TaskSchedulerImpl is requested to xref:scheduler:TaskSchedulerImpl.adoc#resourceOffers[handle resource offers] (and a new executor is found in the resource offers)
+
+| [[executorLost]] executorLost
+| xref:scheduler:DAGSchedulerEvent.adoc#ExecutorLost[ExecutorLost]
+| TaskSchedulerImpl is requested to xref:scheduler:TaskSchedulerImpl.adoc#statusUpdate[handle a task status update] (and a task gets lost which is used to indicate that the executor got broken and hence should be considered lost) or xref:scheduler:TaskSchedulerImpl.adoc#executorLost[executorLost]
+
+| [[runApproximateJob]] runApproximateJob
+| xref:scheduler:DAGSchedulerEvent.adoc#JobSubmitted[JobSubmitted]
+| SparkContext is requested to xref:ROOT:spark-SparkContext.adoc#runApproximateJob[run an approximate job]
+
+| [[speculativeTaskSubmitted]] speculativeTaskSubmitted
+| xref:scheduler:DAGSchedulerEvent.adoc#SpeculativeTaskSubmitted[SpeculativeTaskSubmitted]
+|
+
+| [[submitJob]] submitJob
+| xref:scheduler:DAGSchedulerEvent.adoc#JobSubmitted[JobSubmitted]
+a|
+
+* SparkContext is requested to xref:ROOT:spark-SparkContext.adoc#submitJob[submits a job]
+
+* DAGScheduler is requested to <<runJob, run a job>>
+
+| [[submitMapStage]] submitMapStage
+| xref:scheduler:DAGSchedulerEvent.adoc#MapStageSubmitted[MapStageSubmitted]
+| SparkContext is requested to xref:ROOT:spark-SparkContext.adoc#submitMapStage[submit a MapStage for execution].
+
+| [[taskEnded]] taskEnded
+| xref:scheduler:DAGSchedulerEvent.adoc#CompletionEvent[CompletionEvent]
+| TaskSetManager is requested to xref:scheduler:TaskSetManager.adoc#handleSuccessfulTask[handleSuccessfulTask], xref:scheduler:TaskSetManager.adoc#handleFailedTask[handleFailedTask], and xref:scheduler:TaskSetManager.adoc#executorLost[executorLost]
+
+| [[taskGettingResult]] taskGettingResult
+| xref:scheduler:DAGSchedulerEvent.adoc#GettingResultEvent[GettingResultEvent]
+| TaskSetManager is requested to xref:scheduler:TaskSetManager.adoc#handleTaskGettingResult[handle a task fetching result]
+
+| [[taskSetFailed]] taskSetFailed
+| xref:scheduler:DAGSchedulerEvent.adoc#TaskSetFailed[TaskSetFailed]
+| TaskSetManager is requested to xref:scheduler:TaskSetManager.adoc#abort[abort]
+
+| [[taskStarted]] taskStarted
+| xref:scheduler:DAGSchedulerEvent.adoc#BeginEvent[BeginEvent]
+| TaskSetManager is requested to xref:scheduler:TaskSetManager.adoc#resourceOffer[start a task]
+
+| [[workerRemoved]] workerRemoved
+| xref:scheduler:DAGSchedulerEvent.adoc#WorkerRemoved[WorkerRemoved]
+| TaskSchedulerImpl is requested to xref:scheduler:TaskSchedulerImpl.adoc#workerRemoved[handle a removed worker event]
+
+|===
 
 == [[taskScheduler]] DAGScheduler and TaskScheduler
 
@@ -281,211 +360,6 @@ Ultimately, xref:ROOT:spark-scheduler-SparkListener.adoc#SparkListenerJobEnd[Spa
 
 markMapStageJobAsFinished is used in xref:scheduler:DAGSchedulerEventProcessLoop.adoc#handleMapStageSubmitted[handleMapStageSubmitted] and xref:scheduler:DAGSchedulerEventProcessLoop.adoc#handleTaskCompletion[handleTaskCompletion].
 
-== [[submitJob]] Submitting Job
-
-[source, scala]
-----
-submitJob[T, U](
-  rdd: RDD[T],
-  func: (TaskContext, Iterator[T]) => U,
-  partitions: Seq[Int],
-  callSite: CallSite,
-  resultHandler: (Int, U) => Unit,
-  properties: Properties): JobWaiter[U]
-----
-
-submitJob creates a xref:scheduler:spark-scheduler-JobWaiter.adoc[JobWaiter] and posts a xref:scheduler:DAGSchedulerEventProcessLoop.adoc#JobSubmitted[`JobSubmitted` event].
-
-.DAGScheduler.submitJob
-image::dagscheduler-submitjob.png[align="center"]
-
-Internally, submitJob does the following:
-
-1. Checks whether `partitions` reference available partitions of the input `rdd`.
-2. Increments <<nextJobId, nextJobId>> internal job counter.
-3. Returns a 0-task xref:scheduler:spark-scheduler-JobWaiter.adoc[JobWaiter] when the number of `partitions` is zero.
-4. Posts a `JobSubmitted` event and returns a `JobWaiter`.
-
-You may see a `IllegalArgumentException` thrown when the input `partitions` references partitions not in the input `rdd`:
-
-```
-Attempting to access a non-existent partition: [p]. Total number of partitions: [maxPartitions]
-```
-
-NOTE: submitJob is called when xref:ROOT:spark-SparkContext.adoc#submitJob[`SparkContext` submits a job] and <<runJob, DAGScheduler runs a job>>.
-
-submitJob assumes that the partitions of a RDD are indexed from 0 onwards in sequential order.
-
-== [[submitMapStage]] Submitting ShuffleDependency for Execution
-
-[source, scala]
-----
-submitMapStage[K, V, C](
-  dependency: ShuffleDependency[K, V, C],
-  callback: MapOutputStatistics => Unit,
-  callSite: CallSite,
-  properties: Properties): JobWaiter[MapOutputStatistics]
-----
-
-submitMapStage creates a xref:scheduler:spark-scheduler-JobWaiter.adoc[JobWaiter] (that it eventually returns) and posts a xref:scheduler:DAGSchedulerEventProcessLoop.adoc#MapStageSubmitted[MapStageSubmitted] event to <<eventProcessLoop, DAGScheduler Event Bus>>).
-
-Internally, submitMapStage increments <<nextJobId, `nextJobId` internal counter>> to get the job id.
-
-submitMapStage then creates a xref:scheduler:spark-scheduler-JobWaiter.adoc[JobWaiter] (with the job id and with one artificial task that will however get completed only when the entire stage finishes).
-
-submitMapStage announces the map stage submission application-wide (by posting a xref:scheduler:DAGSchedulerEventProcessLoop.adoc#MapStageSubmitted[MapStageSubmitted] to xref:ROOT:spark-scheduler-LiveListenerBus.adoc[LiveListenerBus]).
-
-NOTE: A `MapStageSubmitted` holds the newly-created job id and `JobWaiter` with the input `dependency`, `callSite` and `properties` parameters.
-
-submitMapStage returns the `JobWaiter`.
-
-If the number of partition to compute is `0`, submitMapStage throws a `SparkException`:
-
-```
-Can't run submitMapStage on RDD with 0 partitions
-```
-
-submitMapStage is used when SparkContext is requested to xref:ROOT:spark-SparkContext.adoc#submitMapStage[submit a MapStage for execution].
-
-== [[cancelStage]] Relaying Stage Cancellation From SparkContext
-
-[source, scala]
-----
-cancelStage(
-  stageId: Int)
-----
-
-cancelStage merely posts a xref:scheduler:DAGSchedulerEventProcessLoop.adoc#StageCancelled[StageCancelled] event to the <<eventProcessLoop, DAGScheduler Event Bus>>.
-
-cancelStage is used when SparkContext is requested to xref:ROOT:spark-SparkContext.adoc#cancelStage[cancel a stage].
-
-== [[cancelJobGroup]] Relaying Job Group Cancellation From SparkContext
-
-[source, scala]
-----
-cancelJobGroup(
-  groupId: String): Unit
-----
-
-cancelJobGroup prints the following INFO message to the logs followed by posting a xref:scheduler:DAGSchedulerEventProcessLoop.adoc#JobGroupCancelled[JobGroupCancelled] event to the <<eventProcessLoop, DAGScheduler Event Bus>>.
-
-```
-Asked to cancel job group [groupId]
-```
-
-cancelJobGroup is used when SparkContext is requested to xref:ROOT:spark-SparkContext.adoc#cancelJobGroup[cancel a job group].
-
-== [[cancelAllJobs]] Relaying All Jobs Cancellation From SparkContext
-
-[source, scala]
-----
-cancelAllJobs(): Unit
-----
-
-cancelAllJobs merely posts a xref:scheduler:DAGSchedulerEventProcessLoop.adoc#AllJobsCancelled[AllJobsCancelled] event to the <<eventProcessLoop, DAGScheduler Event Bus>>.
-
-cancelAllJobs is used when SparkContext is requested to xref:ROOT:spark-SparkContext.adoc#cancelAllJobs[cancel all running or scheduled Spark jobs].
-
-== [[taskStarted]] Relaying Task Started From TaskSetManager
-
-[source, scala]
-----
-taskStarted(
-  task: Task[_],
-  taskInfo: TaskInfo)
-----
-
-taskStarted merely posts a xref:scheduler:DAGSchedulerEventProcessLoop.adoc#BeginEvent[BeginEvent] event to the <<eventProcessLoop, DAGScheduler Event Bus>>.
-
-taskStarted is used when TaskSetManager is requested to xref:scheduler:TaskSetManager.adoc#resourceOffer[start a task].
-
-== [[taskGettingResult]] Relaying Task Fetching/Getting Result From TaskSetManager
-
-[source, scala]
-----
-taskGettingResult(
-  taskInfo: TaskInfo): Unit
-----
-
-taskGettingResult merely posts a xref:scheduler:DAGSchedulerEventProcessLoop.adoc#GettingResultEvent[GettingResultEvent] event to the <<eventProcessLoop, DAGScheduler Event Bus>>.
-
-taskGettingResult is used when TaskSetManager is requested to xref:scheduler:TaskSetManager.adoc#handleTaskGettingResult[handle a task fetching result].
-
-== [[taskEnded]] Relaying Task End From TaskSetManager
-
-[source, scala]
-----
-taskEnded(
-  task: Task[_],
-  reason: TaskEndReason,
-  result: Any,
-  accumUpdates: Map[Long, Any],
-  taskInfo: TaskInfo,
-  taskMetrics: TaskMetrics): Unit
-----
-
-taskEnded simply posts a xref:scheduler:DAGSchedulerEventProcessLoop.adoc#CompletionEvent[CompletionEvent] event to the <<eventProcessLoop, DAGScheduler Event Bus>>.
-
-taskEnded is used when TaskSetManager is requested to xref:scheduler:TaskSetManager.adoc#handleSuccessfulTask[handleSuccessfulTask], xref:scheduler:TaskSetManager.adoc#handleFailedTask[handleFailedTask], and xref:scheduler:TaskSetManager.adoc#executorLost[executorLost].
-
-== [[taskSetFailed]] Relaying TaskSet Failed From TaskSetManager
-
-[source, scala]
-----
-taskSetFailed(
-  taskSet: TaskSet,
-  reason: String,
-  exception: Option[Throwable]): Unit
-----
-
-taskSetFailed simply posts a xref:scheduler:DAGSchedulerEventProcessLoop.adoc#TaskSetFailed[TaskSetFailed] to <<eventProcessLoop, DAGScheduler Event Bus>>.
-
-NOTE: The input arguments of taskSetFailed are exactly the arguments of xref:scheduler:DAGSchedulerEventProcessLoop.adoc#TaskSetFailed[TaskSetFailed].
-
-taskSetFailed is used when TaskSetManager is requested to xref:scheduler:TaskSetManager.adoc#abort[abort].
-
-== [[executorLost]] Relaying Executor Lost From TaskSchedulerImpl
-
-[source, scala]
-----
-executorLost(
-  execId: String,
-  reason: ExecutorLossReason): Unit
-----
-
-executorLost simply posts a xref:scheduler:DAGSchedulerEventProcessLoop.adoc#ExecutorLost[ExecutorLost] event to <<eventProcessLoop, DAGScheduler Event Bus>>.
-
-executorLost is used when TaskSchedulerImpl is requested to xref:scheduler:TaskSchedulerImpl.adoc#statusUpdate[handle a task status update] (and a task gets lost which is used to indicate that the executor got broken and hence should be considered lost) or xref:scheduler:TaskSchedulerImpl.adoc#executorLost[executorLost].
-
-== [[executorAdded]] Relaying Executor Added From TaskSchedulerImpl
-
-[source, scala]
-----
-executorAdded(
-  execId: String,
-  host: String): Unit
-----
-
-executorAdded simply posts a xref:scheduler:DAGSchedulerEventProcessLoop.adoc#ExecutorAdded[ExecutorAdded] event to <<eventProcessLoop, DAGScheduler Event Bus>>.
-
-executorAdded is used when TaskSchedulerImpl is requested to xref:scheduler:TaskSchedulerImpl.adoc#resourceOffers[handle resource offers] (and a new executor is found in the resource offers).
-
-== [[cancelJob]] Relaying Job Cancellation From SparkContext or JobWaiter
-
-[source, scala]
-----
-cancelJob(
-  jobId: Int): Unit
-----
-
-cancelJob prints the following INFO message and posts a xref:scheduler:DAGSchedulerEventProcessLoop.adoc#JobCancelled[JobCancelled] to <<eventProcessLoop, DAGScheduler Event Bus>>.
-
-```
-Asked to cancel job [id]
-```
-
-cancelJob is used when xref:ROOT:spark-SparkContext.adoc#cancelJob[SparkContext] or xref:scheduler:spark-scheduler-JobWaiter.adoc[JobWaiter] are requested to cancel a Spark job.
-
 == [[getOrCreateParentStages]] Finding Or Creating Missing Direct Parent ShuffleMapStages (For ShuffleDependencies) of RDD
 
 [source, scala]
@@ -591,9 +465,9 @@ Job [id] not registered for stage [id] even though that stage was registered for
 
 Only when there is exactly one job registered for the stage and the stage is in RUNNING state (in `runningStages` internal registry), xref:scheduler:TaskScheduler.adoc#contract[`TaskScheduler` is requested to cancel the stage's tasks] and <<markStageAsFinished, marks the stage finished>>.
 
-NOTE: failJobAndIndependentStages is called from xref:scheduler:DAGSchedulerEventProcessLoop.adoc#handleJobCancellation[handleJobCancellation] and abortStage.
-
 NOTE: failJobAndIndependentStages uses <<jobIdToStageIds, jobIdToStageIds>>, <<stageIdToStage, stageIdToStage>>, and <<runningStages, runningStages>> internal registries.
+
+failJobAndIndependentStages is used when...FIXME
 
 == [[abortStage]] Aborting Stage
 
@@ -725,63 +599,6 @@ submitStage is used recursively for missing parents of the stage and when DAGSch
 * <<submitWaitingChildStages, submitWaitingChildStages>>
 
 * Handle <<handleJobSubmitted, JobSubmitted>>, <<handleMapStageSubmitted, MapStageSubmitted>> and <<handleTaskCompletion, TaskCompletion>> events
-
-== [[handleJobSubmitted]] Handling Job Submitted Event
-
-[source, scala]
-----
-handleJobSubmitted(
-  jobId: Int,
-  finalRDD: RDD[_],
-  func: (TaskContext, Iterator[_]) => _,
-  partitions: Array[Int],
-  callSite: CallSite,
-  listener: JobListener,
-  properties: Properties): Unit
-----
-
-handleJobSubmitted...FIXME
-
-handleJobSubmitted is used when DAGSchedulerEventProcessLoop is requested to xref:scheduler:DAGSchedulerEventProcessLoop.adoc#JobSubmitted[handle a JobSubmitted event].
-
-== [[resubmitFailedStages]] resubmitFailedStages Method
-
-[source, scala]
-----
-resubmitFailedStages(): Unit
-----
-
-resubmitFailedStages...FIXME
-
-resubmitFailedStages is used when DAGSchedulerEventProcessLoop is requested to xref:scheduler:DAGSchedulerEventProcessLoop.adoc#ResubmitFailedStages[handle a ResubmitFailedStages event].
-
-== [[handleMapStageSubmitted]] Handling MapStageSubmitted Event
-
-[source, scala]
-----
-handleMapStageSubmitted(
-  jobId: Int,
-  dependency: ShuffleDependency[_, _, _],
-  callSite: CallSite,
-  listener: JobListener,
-  properties: Properties): Unit
-----
-
-handleMapStageSubmitted...FIXME
-
-handleMapStageSubmitted is used when DAGSchedulerEventProcessLoop is requested to xref:scheduler:DAGSchedulerEventProcessLoop.adoc#MapStageSubmitted[handle a MapStageSubmitted event].
-
-== [[handleTaskCompletion]] Handling Task Completion (CompletionEvent)
-
-[source, scala]
-----
-handleTaskCompletion(
-  event: CompletionEvent): Unit
-----
-
-handleTaskCompletion...FIXME
-
-handleTaskCompletion is used when DAGSchedulerEventProcessLoop is requested to xref:scheduler:DAGSchedulerEventProcessLoop.adoc#CompletionEvent[handle a CompletionEvent event].
 
 == [[stage-attempts]] Stage Attempts
 
@@ -1030,37 +847,6 @@ checkBarrierStageWithNumSlots...FIXME
 
 checkBarrierStageWithNumSlots is used when DAGScheduler is requested to create <<createShuffleMapStage, ShuffleMapStage>> and <<createResultStage, ResultStage>> stages.
 
-== [[workerRemoved]] Handling Worker Removed Event
-
-[source, scala]
-----
-workerRemoved(
-  workerId: String,
-  host: String,
-  message: String): Unit
-----
-
-workerRemoved simply requests the <<eventProcessLoop, DAGSchedulerEventProcessLoop>> to post a xref:scheduler:DAGSchedulerEventProcessLoop.adoc#WorkerRemoved[WorkerRemoved] message.
-
-workerRemoved is used when TaskSchedulerImpl is requested to xref:scheduler:TaskSchedulerImpl.adoc#workerRemoved[handle a removed worker event].
-
-== [[runApproximateJob]] Running Approximate Job
-
-[source, scala]
-----
-runApproximateJob[T, U, R](
-  rdd: RDD[T],
-  func: (TaskContext, Iterator[T]) => U,
-  evaluator: ApproximateEvaluator[U, R],
-  callSite: CallSite,
-  timeout: Long,
-  properties: Properties): PartialResult[R]
-----
-
-runApproximateJob...FIXME
-
-runApproximateJob is used when SparkContext is requested to xref:ROOT:spark-SparkContext.adoc#runApproximateJob[run an approximate job].
-
 == [[killTaskAttempt]] Killing Task
 
 [source, scala]
@@ -1075,20 +861,6 @@ killTaskAttempt requests the <<taskScheduler, TaskScheduler>> to xref:scheduler:
 
 killTaskAttempt is used when SparkContext is requested to xref:ROOT:spark-SparkContext.adoc#killTaskAttempt[kill a task].
 
-== [[handleWorkerRemoved]] Handling WorkerRemoved Event
-
-[source, scala]
-----
-handleWorkerRemoved(
-  workerId: String,
-  host: String,
-  message: String): Unit
-----
-
-handleWorkerRemoved...FIXME
-
-handleWorkerRemoved is used when DAGSchedulerEventProcessLoop is requested to xref:scheduler:DAGSchedulerEventProcessLoop.adoc#WorkerRemoved[WorkerRemoved] event.
-
 == [[cleanUpAfterSchedulerStop]] cleanUpAfterSchedulerStop Method
 
 [source, scala]
@@ -1099,17 +871,6 @@ cleanUpAfterSchedulerStop(): Unit
 cleanUpAfterSchedulerStop...FIXME
 
 cleanUpAfterSchedulerStop is used when DAGSchedulerEventProcessLoop is requested to xref:scheduler:DAGSchedulerEventProcessLoop.adoc#onStop[onStop].
-
-== [[doCancelAllJobs]] doCancelAllJobs Method
-
-[source, scala]
-----
-doCancelAllJobs(): Unit
-----
-
-doCancelAllJobs...FIXME
-
-doCancelAllJobs is used when DAGSchedulerEventProcessLoop is requested to xref:scheduler:DAGSchedulerEventProcessLoop.adoc#AllJobsCancelled[handle an AllJobsCancelled event] and xref:scheduler:DAGSchedulerEventProcessLoop.adoc#onError[onError].
 
 == [[removeExecutorAndUnregisterOutputs]] removeExecutorAndUnregisterOutputs Method
 
@@ -1177,6 +938,225 @@ postTaskEnd(
 postTaskEnd...FIXME
 
 postTaskEnd is used when DAGScheduler is requested to <<handleTaskCompletion, handle a task completion>>.
+
+== Event Handlers
+
+=== [[doCancelAllJobs]] AllJobsCancelled Event Handler
+
+[source, scala]
+----
+doCancelAllJobs(): Unit
+----
+
+doCancelAllJobs...FIXME
+
+doCancelAllJobs is used when DAGSchedulerEventProcessLoop is requested to handle an xref:scheduler:DAGSchedulerEventProcessLoop.adoc#AllJobsCancelled[AllJobsCancelled] event and xref:scheduler:DAGSchedulerEventProcessLoop.adoc#onError[onError].
+
+=== [[handleBeginEvent]] BeginEvent Event Handler
+
+[source, scala]
+----
+handleBeginEvent(
+  task: Task[_],
+  taskInfo: TaskInfo): Unit
+----
+
+handleBeginEvent...FIXME
+
+handleBeginEvent is used when DAGSchedulerEventProcessLoop is requested to handle a xref:scheduler:DAGSchedulerEvent.adoc#BeginEvent[BeginEvent] event.
+
+=== [[handleTaskCompletion]] CompletionEvent Event Handler
+
+[source, scala]
+----
+handleTaskCompletion(
+  event: CompletionEvent): Unit
+----
+
+handleTaskCompletion...FIXME
+
+handleTaskCompletion is used when DAGSchedulerEventProcessLoop is requested to handle a xref:scheduler:DAGSchedulerEvent.adoc#CompletionEvent[CompletionEvent] event.
+
+=== [[handleExecutorAdded]] ExecutorAdded Event Handler
+
+[source, scala]
+----
+handleExecutorAdded(
+  execId: String,
+  host: String): Unit
+----
+
+handleExecutorAdded...FIXME
+
+handleExecutorAdded is used when DAGSchedulerEventProcessLoop is requested to handle an xref:scheduler:DAGSchedulerEvent.adoc#ExecutorAdded[ExecutorAdded] event.
+
+=== [[handleExecutorLost]] ExecutorLost Event Handler
+
+[source, scala]
+----
+handleExecutorLost(
+  execId: String,
+  workerLost: Boolean): Unit
+----
+
+handleExecutorLost...FIXME
+
+handleExecutorLost is used when DAGSchedulerEventProcessLoop is requested to handle an xref:scheduler:DAGSchedulerEvent.adoc#ExecutorLost[ExecutorLost] event.
+
+=== [[handleGetTaskResult]] GettingResultEvent Event Handler
+
+[source, scala]
+----
+handleGetTaskResult(
+  taskInfo: TaskInfo): Unit
+----
+
+handleGetTaskResult...FIXME
+
+handleGetTaskResult is used when DAGSchedulerEventProcessLoop is requested to handle a xref:scheduler:DAGSchedulerEvent.adoc#GettingResultEvent[GettingResultEvent] event.
+
+=== [[handleJobCancellation]] JobCancelled Event Handler
+
+[source, scala]
+----
+handleJobCancellation(
+  jobId: Int,
+  reason: Option[String]): Unit
+----
+
+handleJobCancellation...FIXME
+
+handleJobCancellation is used when DAGScheduler is requested to handle a xref:scheduler:DAGSchedulerEvent.adoc#JobCancelled[JobCancelled] event, <<doCancelAllJobs, doCancelAllJobs>>, <<handleJobGroupCancelled, handleJobGroupCancelled>>, <<handleStageCancellation, handleStageCancellation>>.
+
+=== [[handleJobGroupCancelled]] JobGroupCancelled Event Handler
+
+[source, scala]
+----
+handleJobGroupCancelled(
+  groupId: String): Unit
+----
+
+handleJobGroupCancelled...FIXME
+
+handleJobGroupCancelled is used when DAGScheduler is requested to handle xref:scheduler:DAGSchedulerEvent.adoc#JobGroupCancelled[JobGroupCancelled] event.
+
+=== [[handleJobSubmitted]] JobSubmitted Event Handler
+
+[source, scala]
+----
+handleJobSubmitted(
+  jobId: Int,
+  finalRDD: RDD[_],
+  func: (TaskContext, Iterator[_]) => _,
+  partitions: Array[Int],
+  callSite: CallSite,
+  listener: JobListener,
+  properties: Properties): Unit
+----
+
+handleJobSubmitted xref:scheduler:DAGScheduler.adoc#createResultStage[creates a new `ResultStage`] (as `finalStage` in the picture below) given the input `finalRDD`, `func`, `partitions`, `jobId` and `callSite`.
+
+.`DAGScheduler.handleJobSubmitted` Method
+image::dagscheduler-handleJobSubmitted.png[align="center"]
+
+handleJobSubmitted creates an xref:scheduler:spark-scheduler-ActiveJob.adoc[ActiveJob] (with the input `jobId`, `callSite`, `listener`, `properties`, and the xref:scheduler:ResultStage.adoc[ResultStage]).
+
+handleJobSubmitted xref:scheduler:DAGScheduler.adoc#clearCacheLocs[clears the internal cache of RDD partition locations].
+
+CAUTION: FIXME Why is this clearing here so important?
+
+You should see the following INFO messages in the logs:
+
+```
+Got job [id] ([callSite]) with [number] output partitions
+Final stage: [stage] ([name])
+Parents of final stage: [parents]
+Missing parents: [missingStages]
+```
+
+handleJobSubmitted then registers the new job in xref:scheduler:DAGScheduler.adoc#jobIdToActiveJob[jobIdToActiveJob] and xref:scheduler:DAGScheduler.adoc#activeJobs[activeJobs] internal registries, and xref:scheduler:ResultStage.adoc#setActiveJob[with the final `ResultStage`].
+
+NOTE: `ResultStage` can only have one `ActiveJob` registered.
+
+handleJobSubmitted xref:scheduler:DAGScheduler.adoc#jobIdToStageIds[finds all the registered stages for the input `jobId`] and collects xref:scheduler:Stage.adoc#latestInfo[their latest `StageInfo`].
+
+In the end, handleJobSubmitted posts  xref:ROOT:spark-scheduler-SparkListener.adoc#SparkListenerJobStart[SparkListenerJobStart] message to xref:ROOT:spark-scheduler-LiveListenerBus.adoc[LiveListenerBus] and xref:scheduler:DAGScheduler.adoc#submitStage[submits the stage].
+
+handleJobSubmitted is used when DAGSchedulerEventProcessLoop is requested to handle a xref:scheduler:DAGSchedulerEvent.adoc#JobSubmitted[JobSubmitted] event.
+
+=== [[handleMapStageSubmitted]] MapStageSubmitted Event Handler
+
+[source, scala]
+----
+handleMapStageSubmitted(
+  jobId: Int,
+  dependency: ShuffleDependency[_, _, _],
+  callSite: CallSite,
+  listener: JobListener,
+  properties: Properties): Unit
+----
+
+handleMapStageSubmitted...FIXME
+
+handleMapStageSubmitted is used when DAGSchedulerEventProcessLoop is requested to handle a xref:scheduler:DAGSchedulerEvent.adoc#MapStageSubmitted[MapStageSubmitted] event.
+
+=== [[resubmitFailedStages]] ResubmitFailedStages Event Handler
+
+[source, scala]
+----
+resubmitFailedStages(): Unit
+----
+
+resubmitFailedStages...FIXME
+
+resubmitFailedStages is used when DAGSchedulerEventProcessLoop is requested to handle a xref:scheduler:DAGSchedulerEvent.adoc#ResubmitFailedStages[ResubmitFailedStages] event.
+
+=== [[handleSpeculativeTaskSubmitted]] SpeculativeTaskSubmitted Event Handler
+
+[source, scala]
+----
+handleSpeculativeTaskSubmitted(): Unit
+----
+
+handleSpeculativeTaskSubmitted...FIXME
+
+handleSpeculativeTaskSubmitted is used when DAGSchedulerEventProcessLoop is requested to handle a xref:scheduler:DAGSchedulerEvent.adoc#SpeculativeTaskSubmitted[SpeculativeTaskSubmitted] event.
+
+=== [[handleStageCancellation]] StageCancelled Event Handler
+
+[source, scala]
+----
+handleStageCancellation(): Unit
+----
+
+handleStageCancellation...FIXME
+
+handleStageCancellation is used when DAGSchedulerEventProcessLoop is requested to handle a xref:scheduler:DAGSchedulerEvent.adoc#StageCancelled[StageCancelled] event.
+
+=== [[handleTaskSetFailed]] TaskSetFailed Event Handler
+
+[source, scala]
+----
+handleTaskSetFailed(): Unit
+----
+
+handleTaskSetFailed...FIXME
+
+handleTaskSetFailed is used when DAGSchedulerEventProcessLoop is requested to handle a xref:scheduler:DAGSchedulerEvent.adoc#TaskSetFailed[TaskSetFailed] event.
+
+=== [[handleWorkerRemoved]] WorkerRemoved Event Handler
+
+[source, scala]
+----
+handleWorkerRemoved(
+  workerId: String,
+  host: String,
+  message: String): Unit
+----
+
+handleWorkerRemoved...FIXME
+
+handleWorkerRemoved is used when DAGSchedulerEventProcessLoop is requested to handle a xref:scheduler:DAGSchedulerEvent.adoc#WorkerRemoved[WorkerRemoved] event.
 
 == [[logging]] Logging
 
