@@ -17,7 +17,7 @@ val anyScalaValue = ???
 val b = sc.broadcast(anyScalaValue) // <-- TorrentBroadcast is created
 ----
 
-A broadcast variable is stored on the driver's xref:ROOT:BlockManager.adoc[BlockManager] as a single value and separately as broadcast blocks (after it was <<blockifyObject, divided into broadcast blocks, i.e. blockified>>). The broadcast block size is the value of link:spark-service-broadcastmanager.adoc#spark_broadcast_blockSize[spark.broadcast.blockSize] Spark property.
+A broadcast variable is stored on the driver's xref:storage:BlockManager.adoc[BlockManager] as a single value and separately as broadcast blocks (after it was <<blockifyObject, divided into broadcast blocks, i.e. blockified>>). The broadcast block size is the value of link:spark-service-broadcastmanager.adoc#spark_broadcast_blockSize[spark.broadcast.blockSize] Spark property.
 
 .TorrentBroadcast puts broadcast and the chunks to driver's BlockManager
 image::sparkcontext-broadcast-bittorrent-newBroadcast.png[align="center"]
@@ -86,9 +86,9 @@ Internally, `readBroadcastBlock` <<setConf, sets the `SparkConf`>>
 
 NOTE: The current link:spark-SparkConf.adoc[SparkConf] is available using link:spark-SparkEnv.adoc#conf[SparkEnv.get.conf].
 
-`readBroadcastBlock` requests the xref:ROOT:BlockManager.adoc#getLocalValues[local `BlockManager` for values of the broadcast].
+`readBroadcastBlock` requests the xref:storage:BlockManager.adoc#getLocalValues[local `BlockManager` for values of the broadcast].
 
-NOTE: The current xref:ROOT:BlockManager.adoc[BlockManager] is available using link:spark-SparkEnv.adoc#blockManager[SparkEnv.get.blockManager].
+NOTE: The current xref:storage:BlockManager.adoc[BlockManager] is available using link:spark-SparkEnv.adoc#blockManager[SparkEnv.get.blockManager].
 
 If the broadcast was available locally, `readBroadcastBlock` <<releaseLock, releases a lock>> for the broadcast and returns the value.
 
@@ -110,7 +110,7 @@ INFO Reading broadcast variable [id] took [usedTimeMs]
 
 NOTE: `readBroadcastBlock` uses the link:spark-SparkEnv.adoc#serializer[current `Serializer`] and the internal link:spark-CompressionCodec.adoc[CompressionCodec] to bring all the blocks together as one single broadcast variable.
 
-`readBroadcastBlock` xref:ROOT:BlockManager.adoc#putSingle[stores the broadcast variable with `MEMORY_AND_DISK` storage level to the local `BlockManager`]. When storing the broadcast variable was unsuccessful, a `SparkException` is thrown.
+`readBroadcastBlock` xref:storage:BlockManager.adoc#putSingle[stores the broadcast variable with `MEMORY_AND_DISK` storage level to the local `BlockManager`]. When storing the broadcast variable was unsuccessful, a `SparkException` is thrown.
 
 ```
 Failed to store [broadcastId] in BlockManager
@@ -142,9 +142,9 @@ NOTE: `setConf` is executed when <<creating-instance, `TorrentBroadcast` is crea
 writeBlocks(value: T): Int
 ----
 
-`writeBlocks` stores the broadcast's `value` and blocks in the driver's xref:ROOT:BlockManager.adoc[BlockManager]. It returns the number of the broadcast blocks the broadcast was divided into.
+`writeBlocks` stores the broadcast's `value` and blocks in the driver's xref:storage:BlockManager.adoc[BlockManager]. It returns the number of the broadcast blocks the broadcast was divided into.
 
-Internally, `writeBlocks` xref:ROOT:BlockManager.adoc#putSingle[stores the block for `value` broadcast to the local `BlockManager`] (using a new link:spark-BlockDataManager.adoc#BroadcastBlockId[BroadcastBlockId], `value`, `MEMORY_AND_DISK` storage level and without telling the driver).
+Internally, `writeBlocks` xref:storage:BlockManager.adoc#putSingle[stores the block for `value` broadcast to the local `BlockManager`] (using a new link:spark-BlockDataManager.adoc#BroadcastBlockId[BroadcastBlockId], `value`, `MEMORY_AND_DISK` storage level and without telling the driver).
 
 If storing the broadcast block fails, you should see the following `SparkException` in the logs:
 
@@ -152,7 +152,7 @@ If storing the broadcast block fails, you should see the following `SparkExcepti
 Failed to store [broadcastId] in BlockManager
 ```
 
-`writeBlocks` divides `value` into blocks (of link:spark-service-broadcastmanager.adoc#spark_broadcast_blockSize[spark.broadcast.blockSize] size) using the link:spark-SparkEnv.adoc#serializer[Serializer] and an optional link:spark-CompressionCodec.adoc[CompressionCodec] (enabled by <<spark-service-broadcastmanager.adoc#spark.broadcast.compress, spark.broadcast.compress>>). Every block gets its own `BroadcastBlockId` (with `piece` and an index) that is wrapped inside a `ChunkedByteBuffer`. xref:ROOT:BlockManager.adoc#putBytes[Blocks are stored in the local `BlockManager`] (using the `piece` block id, `MEMORY_AND_DISK_SER` storage level and informing the driver).
+`writeBlocks` divides `value` into blocks (of link:spark-service-broadcastmanager.adoc#spark_broadcast_blockSize[spark.broadcast.blockSize] size) using the link:spark-SparkEnv.adoc#serializer[Serializer] and an optional link:spark-CompressionCodec.adoc[CompressionCodec] (enabled by <<spark-service-broadcastmanager.adoc#spark.broadcast.compress, spark.broadcast.compress>>). Every block gets its own `BroadcastBlockId` (with `piece` and an index) that is wrapped inside a `ChunkedByteBuffer`. xref:storage:BlockManager.adoc#putBytes[Blocks are stored in the local `BlockManager`] (using the `piece` block id, `MEMORY_AND_DISK_SER` storage level and informing the driver).
 
 NOTE: The entire broadcast value is stored in the local `BlockManager` with `MEMORY_AND_DISK` storage level, and the pieces with `MEMORY_AND_DISK_SER` storage level.
 
