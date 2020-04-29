@@ -1,97 +1,95 @@
-== [[SortShuffleWriter]] SortShuffleWriter -- Fallback ShuffleWriter
+= [[SortShuffleWriter]] SortShuffleWriter
 
-`SortShuffleWriter` is a concrete link:ShuffleWriter.adoc[ShuffleWriter] that is used when xref:SortShuffleManager.adoc#getWriter[`SortShuffleManager` returns a `ShuffleWriter` for `ShuffleHandle`] (and the more specialized xref:shuffle:BypassMergeSortShuffleWriter.adoc[BypassMergeSortShuffleWriter] and link:spark-shuffle-UnsafeShuffleWriter.adoc[UnsafeShuffleWriter] could not be used).
+*SortShuffleWriter* is a concrete xref:shuffle:ShuffleWriter.adoc[ShuffleWriter] that is used when xref:shuffle:SortShuffleManager.adoc#getWriter[`SortShuffleManager` returns a `ShuffleWriter` for `ShuffleHandle`] (and the more specialized xref:shuffle:BypassMergeSortShuffleWriter.adoc[BypassMergeSortShuffleWriter] and xref:shuffle:spark-shuffle-UnsafeShuffleWriter.adoc[UnsafeShuffleWriter] could not be used).
 
-NOTE: `SortShuffleWriter` is parameterized by types for `K` keys, `V` values, and `C` combiner values.
+SortShuffleWriter is created when xref:SortShuffleManager.adoc#getWriter[`SortShuffleManager` returns a `ShuffleWriter` for the fallback `BaseShuffleHandle`].
 
-[[internal-registries]]
-.SortShuffleWriter's Internal Registries and Counters
-[cols="1,2",options="header",width="100%"]
+`SortShuffleWriter[K, V, C]` is a parameterized type with `K` keys, `V` values, and `C` combiner values.
+
+== [[creating-instance]] Creating Instance
+
+SortShuffleWriter takes the following to be created:
+
+* [[shuffleBlockResolver]] xref:shuffle:IndexShuffleBlockResolver.adoc[IndexShuffleBlockResolver]
+* [[handle]] xref:shuffle:spark-shuffle-BaseShuffleHandle.adoc[BaseShuffleHandle]
+* [[mapId]] Map ID
+* [[context]] xref:scheduler:spark-TaskContext.adoc[TaskContext]
+
+== [[mapStatus]] MapStatus
+
+SortShuffleWriter uses an internal variable for a xref:scheduler:MapStatus.adoc[MapStatus] after <<write, writing records>>.
+
+<<write, Writing records>> itself does not return a value, SortShuffleWriter uses the variable when requested to <<stop, stop>> (which allows returning a MapStatus).
+
+== [[write]] Writing Records (Into Shuffle Partitioned File In Disk Store)
+
+[source, scala]
+----
+write(
+  records: Iterator[Product2[K, V]]): Unit
+----
+
+write creates an xref:ROOT:spark-ExternalSorter.adoc[ExternalSorter] based on the xref:shuffle:spark-shuffle-BaseShuffleHandle.adoc#dependency[ShuffleDependency] (of the <<handle, BaseShuffleHandle>>), namely the xref:rdd:ShuffleDependency.adoc#mapSideCombine[Map-Size Partial Aggregation] flag. The ExternalSorter uses the aggregator and keyOrdering when the flag is enabled.
+
+write requests the ExternalSorter to xref:ROOT:spark-ExternalSorter.adoc#insertAll[inserts all the records].
+
+write requests the <<shuffleBlockResolver, IndexShuffleBlockResolver>> for a xref:shuffle:IndexShuffleBlockResolver.adoc#getDataFile[shuffle output file] (for the shuffle and the <<mapId, map>> IDs) and creates a temporary file alongside the shuffle output file (in the same directory).
+
+write creates a xref:storage:spark-BlockDataManager.adoc#ShuffleBlockId[ShuffleBlockId] (for the shuffle and the <<mapId, map>> IDs).
+
+write requests ExternalSorter to xref:ROOT:spark-ExternalSorter.adoc#writePartitionedFile[write all the records (previously inserted in) into the temporary partitioned file in the disk store]. ExternalSorter returns the length of every partition.
+
+write requests <<shuffleBlockResolver, IndexShuffleBlockResolver>> to xref:shuffle:IndexShuffleBlockResolver.adoc#writeIndexFileAndCommit[write an index file and commit] (with the shuffle and the <<mapId, map>> IDs, the temporary shuffle output file).
+
+write creates a xref:scheduler:MapStatus.adoc[MapStatus] (with the xref:storage:BlockManager.adoc#shuffleServerId[location of the shuffle server] that serves the shuffle files and the sizes of the shuffle partitions). The `MapStatus` is later available as the <<mapStatus, mapStatus>> internal attribute.
+
+write does not handle exceptions so when they occur, they will break the processing.
+
+In the end, write deletes the temporary shuffle output file. write prints out the following ERROR message to the logs if the file count not be deleted:
+
+```
+Error while deleting temp file [path]
+```
+
+write is part of the xref:shuffle:ShuffleWriter.adoc#write[ShuffleWriter] abstraction.
+
+== [[stop]] Closing SortShuffleWriter (and Calculating MapStatus)
+
+[source, scala]
+----
+stop(
+  success: Boolean): Option[MapStatus]
+----
+
+stop turns <<stopping, stopping>> flag on and returns the internal <<mapStatus, mapStatus>> if the input `success` is enabled.
+
+Otherwise, when <<stopping, stopping>> flag is already enabled or the input `success` is disabled, stop returns no `MapStatus` (i.e. `None`).
+
+In the end, stop requests the ExternalSorter to xref:ROOT:spark-ExternalSorter.adoc#stop[stop] and increments the shuffle write time task metrics.
+
+stop is part of the xref:shuffle:ShuffleWriter.adoc#contract[ShuffleWriter] abstraction.
+
+== [[logging]] Logging
+
+Enable `ALL` logging level for `org.apache.spark.shuffle.sort.SortShuffleWriter` logger to see what happens inside.
+
+Add the following line to `conf/log4j.properties`:
+
+[source]
+----
+log4j.logger.org.apache.spark.shuffle.sort.SortShuffleWriter=ALL
+----
+
+Refer to xref:ROOT:spark-logging.adoc[Logging].
+
+== [[internal-properties]] Internal Properties
+
+[cols="30m,70",options="header",width="100%"]
 |===
 | Name
 | Description
 
-| [[mapStatus]] `mapStatus`
-| `MapStatus` the <<write, `SortShuffleWriter` has recently persisted>> (as a shuffle partitioned file in disk store).
-
-NOTE: Since <<write, write>> does not return a value, `mapStatus` attribute is used to be returned when <<stop, `SortShuffleWriter` is closed>>.
-
 | [[stopping]] `stopping`
-| Internal flag to mark that <<stop, `SortShuffleWriter` is closed>>.
+| Internal flag to mark that <<stop, SortShuffleWriter is closed>>.
+
 |===
-
-[TIP]
-====
-Enable `ERROR` logging level for `org.apache.spark.shuffle.sort.SortShuffleWriter` logger to see what happens in `SortShuffleWriter`.
-
-Add the following line to `conf/log4j.properties`:
-
-```
-log4j.logger.org.apache.spark.shuffle.sort.SortShuffleWriter=ERROR
-```
-
-Refer to link:spark-logging.adoc[Logging].
-====
-
-=== [[creating-instance]] Creating SortShuffleWriter Instance
-
-`SortShuffleWriter` takes the following when created:
-
-1. link:IndexShuffleBlockResolver.adoc[IndexShuffleBlockResolver]
-2. link:spark-shuffle-BaseShuffleHandle.adoc[BaseShuffleHandle]
-3. `mapId` -- the mapper task id
-4. link:spark-TaskContext.adoc[TaskContext]
-
-NOTE: `SortShuffleWriter` is created when xref:SortShuffleManager.adoc#getWriter[`SortShuffleManager` returns a `ShuffleWriter` for the fallback `BaseShuffleHandle`].
-
-=== [[write]] Writing Records (Into Shuffle Partitioned File In Disk Store)
-
-[source, scala]
-----
-write(records: Iterator[Product2[K, V]]): Unit
-----
-
-NOTE: `write` is part of link:ShuffleWriter.adoc#contract[ShuffleWriter contract] to write a sequence of records (for a RDD partition).
-
-Internally, `write` creates a link:spark-ExternalSorter.adoc[ExternalSorter] with the types `K, V, C` or `K, V, V` depending on xref:rdd:ShuffleDependency.adoc.adoc#mapSideCombine[`mapSideCombine` flag of the `ShuffleDependency`] being enabled or not, respectively.
-
-NOTE: xref:rdd:ShuffleDependency.adoc.adoc[ShuffleDependency] is defined when <<creating-instance, `SortShuffleWriter` is created>> (as the link:spark-shuffle-BaseShuffleHandle.adoc#dependency[`dependency` of `BaseShuffleHandle`]).
-
-NOTE: `write` makes sure that xref:rdd:ShuffleDependency.adoc.adoc#aggregator[`Aggregator` is defined for `ShuffleDependency`] when `mapSideCombine` flag is enabled.
-
-`write` link:spark-ExternalSorter.adoc#insertAll[inserts all the records to `ExternalSorter`]
-
-`write` link:IndexShuffleBlockResolver.adoc#getDataFile[requests `IndexShuffleBlockResolver` for the shuffle data output file] (for the xref:rdd:ShuffleDependency.adoc.adoc[ShuffleDependency] and `mapId`) and creates a temporary file for the shuffle data file in the same directory.
-
-`write` creates a link:spark-BlockDataManager.adoc#ShuffleBlockId[ShuffleBlockId] (for the xref:rdd:ShuffleDependency.adoc.adoc[ShuffleDependency] and `mapId` and the special `IndexShuffleBlockResolver.NOOP_REDUCE_ID` reduce id).
-
-`write` link:spark-ExternalSorter.adoc#writePartitionedFile[requests `ExternalSorter` to write all the records (previously inserted in) into the temporary partitioned file in the disk store].
-
-`write` link:IndexShuffleBlockResolver.adoc#writeIndexFileAndCommit[requests `IndexShuffleBlockResolver` to write an index file] (for the temporary partitioned file).
-
-`write` creates a `MapStatus` (with the xref:storage:BlockManager.adoc#shuffleServerId[location of the shuffle server] that serves the executor's shuffle files and the sizes of the shuffle partitioned file's partitions).
-
-NOTE: The newly-created `MapStatus` is available as <<mapStatus, mapStatus>> internal attribute.
-
-NOTE: `write` does not handle exceptions so when they occur, they will break the processing.
-
-In the end, `write` deletes the temporary partitioned file. You may see the following ERROR message in the logs if `write` did not manage to do so:
-
-```
-ERROR Error while deleting temp file [path]
-```
-
-=== [[stop]] Closing SortShuffleWriter (and Calculating MapStatus) -- `stop` Method
-
-[source, scala]
-----
-stop(success: Boolean): Option[MapStatus]
-----
-
-NOTE: `stop` is part of link:ShuffleWriter.adoc#contract[ShuffleWriter contract] to close itself (and return the last written xref:scheduler:MapStatus.adoc[MapStatus]).
-
-`stop` turns <<stopping, stopping>> flag on and returns the internal <<mapStatus, mapStatus>> if the input `success` is enabled.
-
-Otherwise, when <<stopping, stopping>> flag is already enabled or the input `success` is disabled, `stop` returns no `MapStatus` (i.e. `None`).
-
-In the end, `stop` link:spark-ExternalSorter.adoc#stop[stops the `ExternalSorter`] and increments the shuffle write time task metrics.
