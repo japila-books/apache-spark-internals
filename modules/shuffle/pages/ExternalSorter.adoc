@@ -1,107 +1,126 @@
-== [[ExternalSorter]] ExternalSorter
+= [[ExternalSorter]] ExternalSorter
 
-`ExternalSorter` is a `Spillable` of `WritablePartitionedPairCollection` of ``K``-key / ``C``-value pairs.
+*ExternalSorter* is a `Spillable` of `WritablePartitionedPairCollection` of pairs (of K keys and C values).
 
-When <<creating-instance, created>> `ExternalSorter` expects three different types of data defined, i.e. `K`, `V`, `C`, for keys, values, and combiner (partial) values, respectively.
+`ExternalSorter[K, V, C]` is a parameterized type of `K` keys, `V` values, and `C` combiner (partial) values.
 
-NOTE: `ExternalSorter` is exclusively used when xref:shuffle:SortShuffleWriter.adoc#write[`SortShuffleWriter` writes records] and xref:shuffle:BlockStoreShuffleReader.adoc#read[`BlockStoreShuffleReader` reads combined key-value pairs] (for reduce task when xref:rdd:ShuffleDependency.adoc.adoc#keyOrdering[`ShuffleDependency` has key ordering defined (to sort output)].
+== [[creating-instance]] Creating Instance
 
-[TIP]
-====
-Enable `INFO` or `WARN` logging levels for `org.apache.spark.util.collection.ExternalSorter` logger to see what happens in `ExternalSorter`.
+ExternalSorter takes the following to be created:
+
+* [[context]] xref:scheduler:spark-TaskContext.adoc[TaskContext]
+* [[aggregator]] Optional xref:rdd:spark-Aggregator.adoc[Aggregator] (default: undefined)
+* [[partitioner]] Optional xref:rdd:Partitioner[Partitioner] (default: undefined)
+* [[ordering]] Optional Scala's http://www.scala-lang.org/api/current/scala/math/Ordering.html[Ordering] for keys (default: undefined)
+* [[serializer]] xref:ROOT:spark-Serializer.adoc[Serializer] (default: xref:ROOT:spark-SparkEnv.adoc#serializer[system Serializer])
+
+ExternalSorter is created when:
+
+* SortShuffleWriter is requested to xref:shuffle:SortShuffleWriter.adoc#write[write records] (as a `ExternalSorter[K, V, C]` or `ExternalSorter[K, V, V]` based on xref:rdd:ShuffleDependency.adoc#mapSideCombine[Map-Size Partial Aggregation Flag])
+
+* BlockStoreShuffleReader is requested to xref:shuffle:BlockStoreShuffleReader.adoc#read[read records] (with sort ordering defined)
+
+== [[spills]] Spills Internal Registry
+
+ExternalSorter manages spilled files.
+
+== [[insertAll]] Inserting Records
+
+[source, scala]
+----
+insertAll(
+  records: Iterator[Product2[K, V]]): Unit
+----
+
+insertAll...FIXME
+
+insertAll is used when:
+
+* SortShuffleWriter is requested to xref:shuffle:SortShuffleWriter.adoc#write[write records] (as a `ExternalSorter[K, V, C]` or `ExternalSorter[K, V, V]` based on xref:rdd:ShuffleDependency.adoc#mapSideCombine[Map-Size Partial Aggregation Flag])
+
+* BlockStoreShuffleReader is requested to xref:shuffle:BlockStoreShuffleReader.adoc#read[read records] (with sort ordering defined)
+
+== [[writePartitionedFile]] Writing Partitioned File
+
+[source, scala]
+----
+writePartitionedFile(
+  blockId: BlockId,
+  outputFile: File): Array[Long]
+----
+
+writePartitionedFile...FIXME
+
+writePartitionedFile is used when SortShuffleWriter is requested to xref:shuffle:SortShuffleWriter.adoc#write[write records].
+
+== [[stop]] Stopping ExternalSorter
+
+[source, scala]
+----
+stop(): Unit
+----
+
+stop...FIXME
+
+stop is used when:
+
+* BlockStoreShuffleReader is requested to xref:shuffle:BlockStoreShuffleReader.adoc#read[read records] (with sort ordering defined)
+
+* SortShuffleWriter is requested to xref:shuffle:SortShuffleWriter.adoc#stop[stop]
+
+== [[spill]] Spilling Data to Disk
+
+[source, scala]
+----
+spill(
+  collection: WritablePartitionedPairCollection[K, C]): Unit
+----
+
+spill requests the given WritablePartitionedPairCollection for a destructive WritablePartitionedIterator.
+
+spill <<spillMemoryIteratorToDisk, spillMemoryIteratorToDisk>> (with the destructive WritablePartitionedIterator) that creates a SpilledFile.
+
+spill adds the SpilledFile to the <<spills, spills>> internal registry.
+
+spill is part of the Spillable abstraction.
+
+== [[spillMemoryIteratorToDisk]] spillMemoryIteratorToDisk Internal Method
+
+[source, scala]
+----
+spillMemoryIteratorToDisk(
+  inMemoryIterator: WritablePartitionedIterator): SpilledFile
+----
+
+spillMemoryIteratorToDisk...FIXME
+
+spillMemoryIteratorToDisk is used when:
+
+* ExternalSorter is requested to <<spill, spill>>
+
+* SpillableIterator is requested to spill
+
+== [[maybeSpillCollection]] Spilling In-Memory Collection to Disk
+
+[source, scala]
+----
+maybeSpillCollection(
+  usingMap: Boolean): Unit
+----
+
+maybeSpillCollection...FIXME
+
+maybeSpillCollection is used when ExternalSorter is requested to <<insertAll, insertAll>>.
+
+== [[logging]] Logging
+
+Enable `ALL` logging level for `org.apache.spark.util.collection.ExternalSorter` logger to see what happens inside.
 
 Add the following line to `conf/log4j.properties`:
 
-```
-log4j.logger.org.apache.spark.util.collection.ExternalSorter=INFO
-```
-
-Refer to link:spark-logging.adoc[Logging].
-====
-
-=== [[stop]] `stop` Method
-
-CAUTION: FIXME
-
-=== [[writePartitionedFile]] `writePartitionedFile` Method
-
-CAUTION: FIXME
-
-=== [[creating-instance]] Creating ExternalSorter Instance
-
-`ExternalSorter` takes the following:
-
-1. TaskContext
-2. Optional link:spark-Aggregator.adoc[Aggregator]
-3. Optional link:spark-rdd-Partitioner.adoc[Partitioner]
-4. Optional Scala's http://www.scala-lang.org/api/current/scala/math/Ordering.html[Ordering]
-5. Optional link:spark-Serializer.adoc[Serializer]
-
-NOTE: `ExternalSorter` uses link:spark-SparkEnv.adoc#serializer[`SparkEnv` to access the default `Serializer`].
-
-NOTE: `ExternalSorter` is created when xref:shuffle:SortShuffleWriter.adoc#write[`SortShuffleWriter` writes records] and xref:shuffle:BlockStoreShuffleReader.adoc#read[`BlockStoreShuffleReader` reads combined key-value pairs] (for reduce task when xref:rdd:ShuffleDependency.adoc.adoc#keyOrdering[`ShuffleDependency` has key ordering defined (to sort output)].
-
-=== [[spillMemoryIteratorToDisk]] `spillMemoryIteratorToDisk` Internal Method
-
-[source, scala]
+[source]
 ----
-spillMemoryIteratorToDisk(inMemoryIterator: WritablePartitionedIterator): SpilledFile
+log4j.logger.org.apache.spark.util.collection.ExternalSorter=ALL
 ----
 
-CAUTION: FIXME
-
-=== [[spill]] `spill` Method
-
-[source, scala]
-----
-spill(collection: WritablePartitionedPairCollection[K, C]): Unit
-----
-
-NOTE: `spill` is part of Spillable contract.
-
-CAUTION: FIXME
-
-=== [[maybeSpillCollection]] `maybeSpillCollection` Internal Method
-
-[source, scala]
-----
-maybeSpillCollection(usingMap: Boolean): Unit
-----
-
-CAUTION: FIXME
-
-=== [[insertAll]] `insertAll` Method
-
-[source, scala]
-----
-insertAll(records: Iterator[Product2[K, V]]): Unit
-----
-
-CAUTION: FIXME
-
-NOTE: `insertAll` is used when xref:shuffle:SortShuffleWriter.adoc#write[`SortShuffleWriter` writes records] and xref:shuffle:BlockStoreShuffleReader.adoc#read[`BlockStoreShuffleReader` reads combined key-value pairs] (for reduce task when xref:rdd:ShuffleDependency.adoc.adoc#keyOrdering[`ShuffleDependency` has key ordering defined (to sort output)].
-
-=== [[settings]] Settings
-
-.Spark Properties
-[cols="1,1,2",options="header",width="100%"]
-|===
-| Spark Property
-| Default Value
-| Description
-
-| [[spark_shuffle_file_buffer]] `spark.shuffle.file.buffer`
-| `32k`
-| Size of the in-memory buffer for each shuffle file output stream. In bytes unless the unit is specified.
-
-These buffers reduce the number of disk seeks and system calls made in creating intermediate shuffle files.
-
-Used in `ExternalSorter`, xref:shuffle:BypassMergeSortShuffleWriter.adoc[BypassMergeSortShuffleWriter] and `ExternalAppendOnlyMap` (for `fileBufferSize`) and in xref:shuffle:ShuffleExternalSorter.adoc[ShuffleExternalSorter] (for xref:shuffle:ShuffleExternalSorter.adoc#fileBufferSizeBytes[fileBufferSizeBytes]).
-
-NOTE: `spark.shuffle.file.buffer` was previously known as `spark.shuffle.file.buffer.kb`.
-
-| [[spark_shuffle_spill_batchSize]] `spark.shuffle.spill.batchSize`
-| `10000`
-| Size of object batches when reading/writing from serializers.
-
-|===
+Refer to xref:ROOT:spark-logging.adoc[Logging].
