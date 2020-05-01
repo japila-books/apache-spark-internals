@@ -1,6 +1,6 @@
 = [[ExternalSorter]] ExternalSorter
 
-*ExternalSorter* is a `Spillable` of `WritablePartitionedPairCollection` of pairs (of K keys and C values).
+*ExternalSorter* is a xref:shuffle:Spillable.adoc[Spillable] of `WritablePartitionedPairCollection` of pairs (of K keys and C values).
 
 `ExternalSorter[K, V, C]` is a parameterized type of `K` keys, `V` values, and `C` combiner (partial) values.
 
@@ -32,7 +32,31 @@ insertAll(
   records: Iterator[Product2[K, V]]): Unit
 ----
 
-insertAll...FIXME
+insertAll branches off per whether the optional <<aggregator, Aggregator>> was <<insertAll-shouldCombine, specified>> or <<insertAll-no-aggregator, not>> (to create the <<creating-instance, ExternalSorter>>).
+
+insertAll takes all records eagerly and materializes the given records iterator.
+
+=== [[insertAll-shouldCombine]] Map-Side Aggregator Specified
+
+If there is an Aggregator specified, insertAll creates an update function based on the xref:rdd:spark-Aggregator.adoc#mergeValue[mergeValue] and xref:rdd:spark-Aggregator.adoc#createCombiner[createCombiner] functions of the Aggregator.
+
+For every record, insertAll xref:shuffle:Spillable.adoc#addElementsRead[increment internal read counter].
+
+insertAll requests the <<map, PartitionedAppendOnlyMap>> to changeValue for the key (made up of the <<getPartition, partition>> of the key of the current record and the key itself, i.e. `(partition, key)`) with the update function.
+
+In the end, insertAll <<maybeSpillCollection, maybeSpillCollection>> (with the usingMap flag on since the <<map, PartitionedAppendOnlyMap>> was updated).
+
+=== [[insertAll-no-aggregator]] No Map-Side Aggregator Specified
+
+With no Aggregator specified, insertAll iterates over all the records and uses the <<buffer, PartitionedPairBuffer>> instead.
+
+For every record, insertAll xref:shuffle:Spillable.adoc#addElementsRead[increment internal read counter].
+
+insertAll requests the <<buffer, PartitionedPairBuffer>> to insert with the <<getPartition, partition>> of the key of the current record, the key itself and the value of the current record.
+
+In the end, insertAll <<maybeSpillCollection, maybeSpillCollection>> (with the usingMap flag off since this time the <<buffer, PartitionedPairBuffer>> was updated, not the <<map, PartitionedAppendOnlyMap>>).
+
+=== [[insertAll-usage]] Usage
 
 insertAll is used when:
 
@@ -82,7 +106,7 @@ spill <<spillMemoryIteratorToDisk, spillMemoryIteratorToDisk>> (with the destruc
 
 spill adds the SpilledFile to the <<spills, spills>> internal registry.
 
-spill is part of the Spillable abstraction.
+spill is part of the xref:Spillable.adoc#spill[Spillable] abstraction.
 
 == [[spillMemoryIteratorToDisk]] spillMemoryIteratorToDisk Internal Method
 
