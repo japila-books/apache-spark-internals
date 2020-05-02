@@ -20,7 +20,7 @@ ExternalSorter is created when:
 
 * BlockStoreShuffleReader is requested to xref:shuffle:BlockStoreShuffleReader.adoc#read[read records] (with sort ordering defined)
 
-== [[buffer]][[map]] Collections of In-Memory Records
+== [[in-memory-collection]][[buffer]][[map]] In-Memory Collections of Records
 
 ExternalSorter uses PartitionedPairBuffers or PartitionedAppendOnlyMaps to store records in memory before spilling to disk. ExternalSorter uses PartitionedPairBuffers when created with no <<aggregator, Aggregator>> specified. Otherwise, ExternalSorter uses PartitionedAppendOnlyMaps.
 
@@ -28,9 +28,19 @@ ExternalSorter creates a PartitionedPairBuffer and a PartitionedAppendOnlyMap wh
 
 ExternalSorter inserts records to the collections when <<insertAll, insertAll>>.
 
-ExternalSorter <<maybeSpillCollection, maybeSpillCollection>> and, xref:shuffle:Spillable.adoc#maybeSpill[if spilled to disk], creates a new collection.
+ExternalSorter <<maybeSpillCollection, tries to spill the in-memory collection to disk>> and, xref:shuffle:Spillable.adoc#maybeSpill[if spilled], creates a new collection.
 
 ExternalSorter releases the collections (``null``s them) when requested to <<forceSpill, forceSpill>> and <<stop, stop>>. That is when the JVM garbage collector takes care of evicting them from memory completely.
+
+== [[peakMemoryUsedBytes]][[_peakMemoryUsedBytes]] Peak Size of In-Memory Collection
+
+ExternalSorter tracks the peak size (in bytes) of the <<in-memory-collection>> whenever requested to <<maybeSpillCollection, maybeSpillCollection>>.
+
+The peak size is used when:
+
+* BlockStoreShuffleReader is requested to xref:shuffle:BlockStoreShuffleReader.adoc#read[read combined records for a reduce task] (with a sort ordering defined)
+
+* ExternalSorter is requested to <<writePartitionedFile, write all records into a partitioned file>>
 
 == [[spills]] Spills Internal Registry
 
@@ -76,7 +86,7 @@ insertAll is used when:
 
 * BlockStoreShuffleReader is requested to xref:shuffle:BlockStoreShuffleReader.adoc#read[read records] (with sort ordering defined)
 
-== [[writePartitionedFile]] Writing Partitioned File
+== [[writePartitionedFile]] Writing All Records Into Partitioned File
 
 [source, scala]
 ----
@@ -144,7 +154,11 @@ maybeSpillCollection(
   usingMap: Boolean): Unit
 ----
 
-maybeSpillCollection...FIXME
+maybeSpillCollection branches per the input usingMap flag (that is to determine which in-memory collection to use, the <<map, PartitionedAppendOnlyMap>> or the <<buffer, PartitionedPairBuffer>>).
+
+maybeSpillCollection requests the collection to estimate size (in bytes) that is tracked as the <<peakMemoryUsedBytes, peakMemoryUsedBytes>> metric (for every size bigger than what is currently recorded).
+
+maybeSpillCollection xref:shuffle:Spillable.adoc#maybeSpill[spills the collection to disk if needed]. If spilled, maybeSpillCollection creates a new collection (a new PartitionedAppendOnlyMap or a new PartitionedPairBuffer).
 
 maybeSpillCollection is used when ExternalSorter is requested to <<insertAll, insertAll>>.
 
