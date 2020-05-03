@@ -1,8 +1,9 @@
 = [[PairRDDFunctions]] PairRDDFunctions
+:page-toctitle: Transformations
 
-`PairRDDFunctions` is an extension of `RDDs` of (key, value) pairs (`RDD[(K, V)]`) with extra <<transformations, transformations>>.
+*PairRDDFunctions* is an extension of RDD API to provide additional <<transformations, transformations>> for RDDs of key-value pairs (`RDD[(K, V)]`).
 
-`PairRDDFunctions` is available in RDDs of key-value pairs via Scala implicit conversion.
+PairRDDFunctions is available in RDDs of key-value pairs via Scala implicit conversion.
 
 [[transformations]]
 .PairRDDFunctions' Transformations
@@ -184,7 +185,7 @@ saveAsNewAPIHadoopFile[F <: NewOutputFormat[K, V]](
 
 |===
 
-== [[reduceByKey]][[groupByKey]] `groupByKey` and `reduceByKey` Transformations
+== [[reduceByKey]][[groupByKey]] groupByKey and reduceByKey
 
 `reduceByKey` is sort of a particular case of <<aggregateByKey, aggregateByKey>>.
 
@@ -192,7 +193,7 @@ You may want to look at the number of partitions from another angle.
 
 It may often not be important to have a given number of partitions upfront (at RDD creation time upon link:spark-data-sources.adoc[loading data from data sources]), so only "regrouping" the data by key after it is an RDD might be...the key (_pun not intended_).
 
-You can use `groupByKey` or another `PairRDDFunctions` method to have a key in one processing flow.
+You can use `groupByKey` or another PairRDDFunctions method to have a key in one processing flow.
 
 You could use `partitionBy` that is available for RDDs to be RDDs of tuples, i.e. `PairRDD`:
 
@@ -212,7 +213,7 @@ rdd.keyBy(_.kind).reduceByKey(....)
 
 or `mapValues` or plenty of other solutions. _FIXME, man_.
 
-== [[combineByKeyWithClassTag]] `combineByKeyWithClassTag` Transformations
+== [[combineByKeyWithClassTag]] combineByKeyWithClassTag
 
 [source, scala]
 ----
@@ -233,9 +234,81 @@ combineByKeyWithClassTag[C](
   mapSideCombine: Boolean = true,
   serializer: Serializer = null)(implicit ct: ClassTag[C]): RDD[(K, C)]
 ----
-<1> FIXME
-<2> FIXME too
+<1> Uses the xref:rdd:spark-rdd-Partitioner.adoc#defaultPartitioner[default partitioner]
+<2> Uses a xref:rdd:spark-rdd-HashPartitioner.adoc[HashPartitioner] with the given number of partitions
 
-`combineByKeyWithClassTag` transformations use `mapSideCombine` enabled (i.e. `true`) by default. They create a xref:ShuffledRDD.adoc[ShuffledRDD] with the value of `mapSideCombine` when the input partitioner is different from the current one in an RDD.
+combineByKeyWithClassTag creates an xref:rdd:Aggregator.adoc[Aggregator] for the given aggregation functions.
 
-NOTE: `combineByKeyWithClassTag` is a base transformation for <<combineByKey, combineByKey>>-based transformations, <<aggregateByKey, aggregateByKey>>, <<foldByKey, foldByKey>>, <<reduceByKey, reduceByKey>>, <<countApproxDistinctByKey, countApproxDistinctByKey>>, and <<groupByKey, groupByKey>>.
+combineByKeyWithClassTag branches off per the given xref:rdd:spark-rdd-Partitioner.adoc[Partitioner].
+
+If the input partitioner and the RDD's are the same, combineByKeyWithClassTag simply xref:rdd:spark-rdd-transformations.adoc#mapPartitions[mapPartitions] on the RDD with the following arguments:
+
+* Iterator of the xref:rdd:Aggregator.adoc#combineValuesByKey[Aggregator]
+
+* preservesPartitioning flag turned on
+
+If the input partitioner is different than the RDD's, combineByKeyWithClassTag creates a xref:rdd:ShuffledRDD.adoc[ShuffledRDD] (with the Serializer, the Aggregator, and the mapSideCombine flag).
+
+=== [[combineByKeyWithClassTag-usage]] Usage
+
+combineByKeyWithClassTag lays the foundation for the following transformations:
+
+* <<combineByKey, combineByKey>>
+* <<aggregateByKey, aggregateByKey>>
+* <<foldByKey, foldByKey>>
+* <<reduceByKey, reduceByKey>>
+* <<countApproxDistinctByKey, countApproxDistinctByKey>>
+* <<groupByKey, groupByKey>>
+
+=== [[combineByKeyWithClassTag-requirements]] Requirements
+
+combineByKeyWithClassTag requires that the mergeCombiners is defined (not-``null``) or throws an IllegalArgumentException:
+
+[source,plaintext]
+----
+mergeCombiners must be defined
+----
+
+combineByKeyWithClassTag throws a SparkException for the keys being of type array with the mapSideCombine flag enabled:
+
+[source,plaintext]
+----
+Cannot use map-side combining with array keys.
+----
+
+combineByKeyWithClassTag throws a SparkException for the keys being of type array with the partitioner being a xref:rdd:spark-rdd-HashPartitioner.adoc[HashPartitioner]:
+
+[source,plaintext]
+----
+HashPartitioner cannot partition array keys.
+----
+
+=== [[combineByKeyWithClassTag-example]] Example
+
+[source,scala]
+----
+val nums = sc.parallelize(0 to 9, numSlices = 4)
+val groups = nums.keyBy(_ % 2)
+def createCombiner(n: Int) = {
+  println(s"createCombiner($n)")
+  n
+}
+def mergeValue(n1: Int, n2: Int) = {
+  println(s"mergeValue($n1, $n2)")
+  n1 + n2
+}
+def mergeCombiners(c1: Int, c2: Int) = {
+  println(s"mergeCombiners($c1, $c2)")
+  c1 + c2
+}
+val countByGroup = groups.combineByKeyWithClassTag(
+  createCombiner,
+  mergeValue,
+  mergeCombiners)
+println(countByGroup.toDebugString)
+/*
+(4) ShuffledRDD[3] at combineByKeyWithClassTag at <console>:31 []
+ +-(4) MapPartitionsRDD[1] at keyBy at <console>:25 []
+    |  ParallelCollectionRDD[0] at parallelize at <console>:24 []
+*/
+----
