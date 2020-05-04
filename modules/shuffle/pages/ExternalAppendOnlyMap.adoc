@@ -24,7 +24,7 @@ ExternalAppendOnlyMap is created when:
 
 == [[currentMap]] SizeTrackingAppendOnlyMap
 
-ExternalAppendOnlyMap manages SizeTrackingAppendOnlyMaps.
+ExternalAppendOnlyMap manages a SizeTrackingAppendOnlyMap.
 
 A SizeTrackingAppendOnlyMap is created immediately when ExternalAppendOnlyMap is and every time when <<insertAll, insertAll>> and <<forceSpill, forceSpill>> spilled to disk.
 
@@ -45,7 +45,7 @@ insertAll creates an update function that uses the <<mergeValue, mergeValue>> fu
 
 For every key-value pair (from the input iterator), insertAll does the following:
 
-* Requests the <<currentMap, SizeTrackingAppendOnlyMap>> for the estimated size and if greater than the <<_peakMemoryUsedBytes, _peakMemoryUsedBytes>> metric updates it.
+* Requests the <<currentMap, SizeTrackingAppendOnlyMap>> for the estimated size and, if greater than the <<_peakMemoryUsedBytes, _peakMemoryUsedBytes>> metric, updates it.
 
 * xref:shuffle:Spillable.adoc#maybeSpill[Spills to a disk if necessary] and, if spilled, creates a new <<currentMap, SizeTrackingAppendOnlyMap>>
 
@@ -82,3 +82,45 @@ iterator: Iterator[(K, C)]
 iterator...FIXME
 
 iterator is used when...FIXME
+
+== [[spill]] Spilling to Disk if Necessary
+
+[source, scala]
+----
+spill(
+  collection: SizeTracker): Unit
+----
+
+spill...FIXME
+
+spill is used when...FIXME
+
+== [[forceSpill]] Forcing Disk Spilling
+
+[source, scala]
+----
+forceSpill(): Boolean
+----
+
+forceSpill returns a flag to indicate whether spilling to disk has really happened (`true`) or not (`false`).
+
+forceSpill branches off per the current state it is in (and should rather use a state-aware implementation).
+
+When a <<readingIterator, SpillableIterator>> is in use, forceSpill requests it to spill and, if it did, dereferences (``null``ify) the <<currentMap, SizeTrackingAppendOnlyMap>>. forceSpill returns whatever the spilling of the <<readingIterator, SpillableIterator>> returned.
+
+When there is at least one element in the <<currentMap, SizeTrackingAppendOnlyMap>>, forceSpill <<spill, spills>> it. forceSpill then creates a new <<currentMap, SizeTrackingAppendOnlyMap>> and always returns `true`.
+
+In other cases, forceSpill simply returns `false`.
+
+forceSpill is part of the xref:shuffle:Spillable.adoc[Spillable] abstraction.
+
+== [[freeCurrentMap]] Freeing Up SizeTrackingAppendOnlyMap and Releasing Memory
+
+[source, scala]
+----
+freeCurrentMap(): Unit
+----
+
+freeCurrentMap dereferences (``null``ify) the <<currentMap, SizeTrackingAppendOnlyMap>> (if there still was one) followed by xref:shuffle:Spillable.adoc#releaseMemory[releasing all memory].
+
+freeCurrentMap is used when SpillableIterator is requested to destroy itself.
