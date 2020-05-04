@@ -20,7 +20,17 @@ ExternalAppendOnlyMap is created when:
 
 * Aggregator is requested to xref:rdd:Aggregator.adoc#combineValuesByKey[combineValuesByKey] and xref:rdd:Aggregator.adoc#combineCombinersByKey[combineCombinersByKey]
 
-* CoGroupedRDD is requested to xref:rdd:spark-rdd-CoGroupedRDD.adoc#compute[compute]
+* CoGroupedRDD is requested to xref:rdd:spark-rdd-CoGroupedRDD.adoc#compute[compute a partition]
+
+== [[currentMap]] SizeTrackingAppendOnlyMap
+
+ExternalAppendOnlyMap manages SizeTrackingAppendOnlyMaps.
+
+A SizeTrackingAppendOnlyMap is created immediately when ExternalAppendOnlyMap is and every time when <<insertAll, insertAll>> and <<forceSpill, forceSpill>> spilled to disk.
+
+SizeTrackingAppendOnlyMap are dereferenced (``null``ed) for the memory to be garbage-collected when <<forceSpill, forceSpill>> and <<freeCurrentMap, freeCurrentMap>>.
+
+SizeTrackingAppendOnlyMap is used when <<insertAll, insertAll>>, <<spill, spill>>, <<forceSpill, forceSpill>> and <<iterator, iterator>>.
 
 == [[insertAll]] Inserting All Key-Value Pairs (from Iterator)
 
@@ -30,9 +40,37 @@ insertAll(
   entries: Iterator[Product2[K, V]]): Unit
 ----
 
-insertAll...FIXME
+[[insertAll-update-function]]
+insertAll creates an update function that uses the <<mergeValue, mergeValue>> function for an existing value or the <<createCombiner, createCombiner>> function for a new value.
 
-insertAll is used when...FIXME
+For every key-value pair (from the input iterator), insertAll does the following:
+
+* Requests the <<currentMap, SizeTrackingAppendOnlyMap>> for the estimated size and if greater than the <<_peakMemoryUsedBytes, _peakMemoryUsedBytes>> metric updates it.
+
+* xref:shuffle:Spillable.adoc#maybeSpill[Spills to a disk if necessary] and, if spilled, creates a new <<currentMap, SizeTrackingAppendOnlyMap>>
+
+* Requests the <<currentMap, SizeTrackingAppendOnlyMap>> to change value for the current value (with the <<insertAll-update-function, update>> function)
+
+* xref:shuffle:Spillable.adoc#addElementsRead[Increments the elements read counter]
+
+=== [[insertAll-usage]] Usage
+
+insertAll is used when:
+
+* Aggregator is requested to xref:rdd:Aggregator.adoc#combineValuesByKey[combineValuesByKey] and xref:rdd:Aggregator.adoc#combineCombinersByKey[combineCombinersByKey]
+
+* CoGroupedRDD is requested to xref:rdd:spark-rdd-CoGroupedRDD.adoc#compute[compute a partition]
+
+* ExternalAppendOnlyMap is requested to <<insert, insert a key-value pair>>
+
+=== [[insertAll-requirements]] Requirements
+
+insertAll throws an IllegalStateException when the <<currentMap, currentMap>> internal registry is `null`:
+
+[source,plaintext]
+----
+Cannot insert new elements into a map after calling iterator
+----
 
 == [[iterator]] Iterator of "Combined" Pairs
 
