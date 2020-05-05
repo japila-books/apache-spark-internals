@@ -1,162 +1,118 @@
-== [[BypassMergeSortShuffleWriter]] BypassMergeSortShuffleWriter -- ShuffleWriter for BypassMergeSortShuffleHandle
+= [[BypassMergeSortShuffleWriter]] BypassMergeSortShuffleWriter
 
-`BypassMergeSortShuffleWriter` is a concrete link:ShuffleWriter.adoc[ShuffleWriter] that xref:scheduler:ShuffleMapTask.adoc[ShuffleMapTask] uses to <<write, write records into one single shuffle block data file>> when the xref:scheduler:ShuffleMapTask.adoc#runTask[task runs for a `ShuffleDependency`].
+*BypassMergeSortShuffleWriter* is a xref:shuffle:ShuffleWriter.adoc[ShuffleWriter] for xref:scheduler:ShuffleMapTask.adoc[ShuffleMapTasks] to <<write, write records into one single shuffle block data file>>.
 
-.BypassMergeSortShuffleWriter writing records (for ShuffleMapTask) using DiskBlockObjectWriters
+.BypassMergeSortShuffleWriter and DiskBlockObjectWriters
 image::BypassMergeSortShuffleWriter-write.png[align="center"]
 
-<<creating-instance, `BypassMergeSortShuffleWriter` is created>> exclusively when xref:SortShuffleManager.adoc#getWriter[`SortShuffleManager` selects a `ShuffleWriter`] (for a link:spark-shuffle-BypassMergeSortShuffleHandle.adoc[BypassMergeSortShuffleHandle]).
+== [[creating-instance]] Creating Instance
 
-TIP: Review the xref:SortShuffleManager.adoc#shouldBypassMergeSort[conditions `SortShuffleManager` uses to select `BypassMergeSortShuffleHandle` for a `ShuffleHandle`].
+BypassMergeSortShuffleWriter takes the following to be created:
 
-[[internal-registries]]
-.BypassMergeSortShuffleWriter's Internal Registries and Counters
-[cols="1,2",options="header",width="100%"]
-|===
-| Name
-| Description
+* [[blockManager]] xref:storage:BlockManager.adoc[BlockManager]
+* <<shuffleBlockResolver, IndexShuffleBlockResolver>>
+* [[handle]] xref:shuffle:BypassMergeSortShuffleHandle.adoc[BypassMergeSortShuffleHandle<K, V>]
+* [[mapId]] Map ID
+* [[taskContext]] xref:scheduler:spark-TaskContext.adoc[TaskContext]
+* [[conf]] xref:ROOT:spark-SparkConf.adoc[SparkConf]
 
-| [[numPartitions]] `numPartitions`
-| FIXME
+BypassMergeSortShuffleWriter is <<creating-instance, created>> when SortShuffleManager is requested for a xref:SortShuffleManager.adoc#getWriter[ShuffleWriter for a BypassMergeSortShuffleHandle].
 
-| [[partitionWriters]] `partitionWriters`
-| FIXME
+== [[shuffleBlockResolver]] IndexShuffleBlockResolver
 
-| [[partitionWriterSegments]] `partitionWriterSegments`
-| FIXME
+BypassMergeSortShuffleWriter is given a xref:shuffle:IndexShuffleBlockResolver.adoc[IndexShuffleBlockResolver] to be created.
 
-| [[shuffleBlockResolver]] `shuffleBlockResolver`
-| link:IndexShuffleBlockResolver.adoc[IndexShuffleBlockResolver].
+BypassMergeSortShuffleWriter uses the IndexShuffleBlockResolver for <<write, writing records>> (to xref:shuffle:IndexShuffleBlockResolver.adoc#writeIndexFileAndCommit[writeIndexFileAndCommit] and xref:shuffle:IndexShuffleBlockResolver.adoc#getDataFile[getDataFile]).
 
-Initialized when <<creating-instance, `BypassMergeSortShuffleWriter` is created>>.
+== [[serializer]] Serializer
 
-Used when <<write, `BypassMergeSortShuffleWriter` writes records>>.
+When created, BypassMergeSortShuffleWriter requests the xref:shuffle:spark-shuffle-BaseShuffleHandle.adoc#dependency[ShuffleDependency] (of the given <<handle, BypassMergeSortShuffleHandle>>) for the xref:rdd:ShuffleDependency.adoc#serializer[Serializer].
 
-| [[mapStatus]] `mapStatus`
-| xref:scheduler:MapStatus.adoc[MapStatus] that <<stop, `BypassMergeSortShuffleWriter` returns when stopped>>
+BypassMergeSortShuffleWriter creates a new instance of the Serializer for <<write, writing records>>.
 
-Initialized every time `BypassMergeSortShuffleWriter` <<write, writes records>>.
+== [[configuration-properties]] Configuration Properties
 
-Used when <<stop, `BypassMergeSortShuffleWriter` stops>> (with `success` enabled) as a marker if <<write, any records were written>> and <<stop, returned if they did>>.
+=== [[fileBufferSize]][[spark.shuffle.file.buffer]] spark.shuffle.file.buffer
 
-| [[partitionLengths]] `partitionLengths`
-| Temporary array of partition lengths after records are <<write, written to a shuffle system>>.
+BypassMergeSortShuffleWriter uses xref:ROOT:spark-configuration-properties.adoc#spark.shuffle.file.buffer[spark.shuffle.file.buffer] configuration property for...FIXME
 
-Initialized every time `BypassMergeSortShuffleWriter` <<write, writes records>> before passing it in to link:IndexShuffleBlockResolver.adoc#writeIndexFileAndCommit[IndexShuffleBlockResolver]). After `IndexShuffleBlockResolver` finishes, it is used to initialize <<mapStatus, mapStatus>> internal property.
+=== [[transferToEnabled]][[spark.file.transferTo]] spark.file.transferTo
 
-| [[transferToEnabled]] `transferToEnabled`
-| Internal flag that controls the use of Java New I/O when <<writePartitionedFile, `BypassMergeSortShuffleWriter` concatenates per-partition shuffle files into a single shuffle block data file>>.
+BypassMergeSortShuffleWriter uses xref:ROOT:spark-configuration-properties.adoc#spark.file.transferTo[spark.file.transferTo] configuration property to control whether to use Java New I/O while <<writePartitionedFile, writing to a partitioned file>>.
 
-Specified when <<creating-instance, `BypassMergeSortShuffleWriter` is created>> and controlled by <<spark-configuration-properties.adoc#spark.file.transferTo, spark.file.transferTo>> Spark property. Enabled by default.
-
-|===
-
-[TIP]
-====
-Enable `ERROR` logging level for `org.apache.spark.shuffle.sort.BypassMergeSortShuffleWriter` logger to see what happens in `BypassMergeSortShuffleWriter`.
-
-Add the following line to `conf/log4j.properties`:
-
-```
-log4j.logger.org.apache.spark.shuffle.sort.BypassMergeSortShuffleWriter=ERROR
-```
-
-Refer to link:spark-logging.adoc[Logging].
-====
-
-=== [[creating-instance]] Creating BypassMergeSortShuffleWriter Instance
-
-`BypassMergeSortShuffleWriter` takes the following when created:
-
-1. xref:storage:BlockManager.adoc[BlockManager]
-2. link:IndexShuffleBlockResolver.adoc[IndexShuffleBlockResolver]
-3. link:spark-shuffle-BypassMergeSortShuffleHandle.adoc[BypassMergeSortShuffleHandle]
-4. `mapId`
-5. link:spark-TaskContext.adoc[TaskContext]
-6. link:spark-SparkConf.adoc[SparkConf]
-
-[[fileBufferSize]]
-`BypassMergeSortShuffleWriter` uses xref:shuffle:ExternalSorter.adoc#spark_shuffle_file_buffer[spark.shuffle.file.buffer] (for `fileBufferSize` as `32k` by default) and <<spark-configuration-properties.adoc#spark.file.transferTo, spark.file.transferTo>> (for <<transferToEnabled, transferToEnabled>> internal flag which is enabled by default) Spark properties.
-
-`BypassMergeSortShuffleWriter` initializes the <<internal-registries, internal registries and counters>>.
-
-=== [[write]] Writing Records (Into One Single Shuffle Block Data File) -- `write` Method
+== [[write]] Writing Records to Shuffle File
 
 [source, java]
 ----
-void write(Iterator<Product2<K, V>> records)
+void write(
+  Iterator<Product2<K, V>> records)
 ----
 
-NOTE: `write` is part of link:ShuffleWriter.adoc#contract[`ShuffleWriter` contract] to write a sequence of records to a shuffle system.
+write is part of xref:shuffle:ShuffleWriter.adoc#write[ShuffleWriter] abstraction.
 
-Internally, when the input `records` iterator has no more records, `write` creates an empty <<partitionLengths, partitionLengths>> internal array of `numPartitions` size.
+write creates a new instance of the <<serializer, Serializer>>.
 
-`write` then link:IndexShuffleBlockResolver.adoc#writeIndexFileAndCommit[requests the internal `IndexShuffleBlockResolver` to write shuffle index and data files] (with `dataTmp` as `null`) and sets the internal `mapStatus` (with the address of xref:storage:BlockManager.adoc[BlockManager] in use and <<partitionLengths, partitionLengths>>).
+write initializes the <<partitionWriters, partitionWriters>> and <<partitionWriterSegments, partitionWriterSegments>> internal registries (for xref:storage:spark-blockmanager-DiskBlockObjectWriter.adoc[DiskBlockObjectWriters] and FileSegments for <<numPartitions, every partition>>, respectively).
 
-However, when there are records to write, `write` creates a new link:spark-Serializer.adoc[Serializer].
+write requests the <<blockManager, BlockManager>> for the xref:storage:BlockManager.adoc#diskBlockManager[DiskBlockManager] and for <<numPartitions, every partition>> write requests it for a xref:storage:DiskBlockManager.adoc#createTempShuffleBlock[shuffle block ID and the file]. write creates a xref:storage:BlockManager.adoc#getDiskWriter[DiskBlockObjectWriter] for the shuffle block (using the <<blockManager, BlockManager>>). write stores the reference to DiskBlockObjectWriters in the <<partitionWriters, partitionWriters>> internal registry.
 
-NOTE: link:spark-Serializer.adoc[Serializer] was specified when <<creating-instance, `BypassMergeSortShuffleWriter` was created>> and is exactly the `Serializer` of the xref:rdd:ShuffleDependency.adoc.adoc#serializer[ShuffleDependency].
+After all DiskBlockObjectWriters are created, write requests the <<writeMetrics, ShuffleWriteMetrics>> to xref:metrics:spark-executor-ShuffleWriteMetrics.adoc#incWriteTime[increment shuffle write time metric].
 
-`write` initializes <<partitionWriters, partitionWriters>> internal array of link:spark-blockmanager-DiskBlockObjectWriter.adoc[DiskBlockObjectWriters] for <<numPartitions, every partition>>.
+For every record (a key-value pair), write requests the <<partitioner, Partitioner>> for the xref:rdd:spark-rdd-Partitioner.adoc#getPartition[partition ID] for the key. The partition ID is then used as an index of the partition writer (among the <<partitionWriters, DiskBlockObjectWriters>>) to xref:storage:spark-blockmanager-DiskBlockObjectWriter.adoc#write[write the current record out to a block file].
 
-For <<numPartitions, every partition>>, `write` xref:storage:DiskBlockManager.adoc#createTempShuffleBlock[requests `DiskBlockManager` for a temporary shuffle block and its file].
+Once all records have been writted out to their respective block files, write does the following for every <<partitionWriters, DiskBlockObjectWriter>>:
 
-NOTE: `write` uses xref:storage:BlockManager.adoc#diskBlockManager[`BlockManager` to access `DiskBlockManager`]. `BlockManager` was specified when <<creating-instance, `BypassMergeSortShuffleWriter` was created>>.
+. Requests the DiskBlockObjectWriter to xref:storage:spark-blockmanager-DiskBlockObjectWriter.adoc#commitAndGet[commit and return a corresponding FileSegment of the shuffle block]
 
-`write` xref:storage:BlockManager.adoc#getDiskWriter[requests `BlockManager` for a `DiskBlockObjectWriter`] (for the temporary `blockId` and `file`, link:spark-SerializerInstance.adoc[SerializerInstance], `fileBufferSize` and `writeMetrics`).
+. Saves the (reference to) FileSegments in the <<partitionWriterSegments, partitionWriterSegments>> internal registry
 
-After link:spark-blockmanager-DiskBlockObjectWriter.adoc[DiskBlockObjectWriters] were created, `write` link:spark-executor-ShuffleWriteMetrics.adoc#incWriteTime[increments shuffle write time].
+. Requests the DiskBlockObjectWriter to xref:storage:spark-blockmanager-DiskBlockObjectWriter.adoc#close[close]
 
-`write` initializes <<partitionWriterSegments, partitionWriterSegments>> with `FileSegment` for <<numPartitions, every partition>>.
+NOTE: At this point, all the records are in shuffle block files on a local disk. The records are split across block files by key.
 
-`write` takes records serially, i.e. record by record, and, after link:spark-rdd-Partitioner.adoc#getPartition[computing the partition for a key], link:spark-blockmanager-DiskBlockObjectWriter.adoc#write[requests the corresponding `DiskBlockObjectWriter` to write them].
+write requests the <<shuffleBlockResolver, IndexShuffleBlockResolver>> for the xref:shuffle:IndexShuffleBlockResolver.adoc#getDataFile[shuffle file] for the <<shuffleId, shuffle>> and the <<mapId, map IDs>>.
 
-NOTE: `write` uses <<partitionWriters, partitionWriters>> internal array of `DiskBlockObjectWriter` indexed by partition number.
+write creates a temporary file (based on the name of the shuffle file) and <<writePartitionedFile, writes all the per-partition shuffle files to it>>. The size of every per-partition shuffle files is saved as the <<partitionLengths, partitionLengths>> internal registry.
 
-NOTE: `write` uses the xref:rdd:ShuffleDependency.adoc.adoc#partitioner[`Partitioner` from the `ShuffleDependency`] for which <<creating-instance, `BypassMergeSortShuffleWriter` was created>>.
+NOTE: At this point, all the per-partition shuffle block files are one single map shuffle data file.
 
-NOTE: `write` initializes <<partitionWriters, partitionWriters>> with <<numPartitions, numPartitions>> number of `DiskBlockObjectWriters`.
+write requests the <<shuffleBlockResolver, IndexShuffleBlockResolver>> to xref:shuffle:IndexShuffleBlockResolver.adoc#writeIndexFileAndCommit[write shuffle index and data files] for the <<shuffleId, shuffle>> and the <<mapId, map IDs>> (with the <<partitionLengths, partitionLengths>> and the temporary shuffle output file).
 
-After all the `records` have been written, `write` requests every `DiskBlockObjectWriter` to `commitAndGet` and saves the commit results in <<partitionWriterSegments, partitionWriterSegments>>. `write` link:spark-blockmanager-DiskBlockObjectWriter.adoc#close[closes every `DiskBlockObjectWriter`].
+write returns a xref:scheduler:MapStatus.adoc[shuffle map output status] (with the xref:storage:BlockManager.adoc#shuffleServerId[shuffle server ID] and the <<partitionLengths, partitionLengths>>).
 
-`write` link:IndexShuffleBlockResolver.adoc#getDataFile[requests `IndexShuffleBlockResolver` for the shuffle block data file] for `shuffleId` and `mapId`.
+=== [[write-no-records]] No Records
 
-NOTE: `IndexShuffleBlockResolver` was defined when <<creating-instance, `BypassMergeSortShuffleWriter` was created>>.
+When there is no records to write out, write initializes the <<partitionLengths, partitionLengths>> internal array (of <<numPartitions, numPartitions>> size) with all elements being 0.
 
-`write` creates a temporary shuffle block data file and <<writePartitionedFile, writes the per-partition shuffle files to it>>.
+write requests the <<shuffleBlockResolver, IndexShuffleBlockResolver>> to xref:shuffle:IndexShuffleBlockResolver.adoc#writeIndexFileAndCommit[write shuffle index and data files], but the difference (compared to when there are records to write) is that the `dataTmp` argument is simply `null`.
 
-NOTE: This is the moment when `BypassMergeSortShuffleWriter` concatenates per-partition shuffle file segments into one single map shuffle data file.
+write sets the internal `mapStatus` (with the address of xref:storage:BlockManager.adoc[BlockManager] in use and <<partitionLengths, partitionLengths>>).
 
-In the end, `write` link:IndexShuffleBlockResolver.adoc#writeIndexFileAndCommit[requests `IndexShuffleBlockResolver` to write shuffle index and data files] for the `shuffleId` and `mapId` (with `partitionLengths` and the temporary file) and creates a new <<mapStatus, mapStatus>> (with the xref:storage:BlockManager.adoc#shuffleServerId[location of the `BlockManager`] and <<partitionLengths, partitionLengths>>).
+=== [[write-requirements]] Requirements
 
-=== [[writePartitionedFile]] Concatenating Per-Partition Files Into Single File (and Tracking Write Time) -- `writePartitionedFile` Internal Method
+write requires that there are no <<partitionWriters, DiskBlockObjectWriters>>.
 
-[source, scala]
+== [[writePartitionedFile]] Concatenating Per-Partition Files Into Single File
+
+[source, java]
 ----
-long[] writePartitionedFile(File outputFile) throws IOException
+long[] writePartitionedFile(
+  File outputFile)
 ----
 
-`writePartitionedFile` creates a file output stream for the input `outputFile` in append mode.
+writePartitionedFile creates a file output stream for the input `outputFile` in append mode.
 
-NOTE: `writePartitionedFile` uses Java's https://docs.oracle.com/javase/8/docs/api/java/io/FileOutputStream.html[java.io.FileOutputStream] to create a file output stream.
+writePartitionedFile starts tracking write time (as `writeStartTime`).
 
-`writePartitionedFile` starts tracking write time (as `writeStartTime`).
+For every <<numPartitions, numPartitions>> partition, writePartitionedFile takes the file from the `FileSegment` (from <<partitionWriterSegments, partitionWriterSegments>>) and creates a file input stream to read raw bytes.
 
-For every <<numPartitions, numPartitions>> partition, `writePartitionedFile` takes the file from the `FileSegment` (from <<partitionWriterSegments, partitionWriterSegments>>) and creates a file input stream to read raw bytes.
+writePartitionedFile then <<copyStream, copies the raw bytes from each partition segment input stream to `outputFile`>> (possibly using Java New I/O per <<transferToEnabled, transferToEnabled>> flag set when <<creating-instance, BypassMergeSortShuffleWriter was created>>) and records the length of the shuffle data file (in `lengths` internal array).
 
-NOTE: `writePartitionedFile` uses Java's https://docs.oracle.com/javase/8/docs/api/java/io/FileInputStream.html[java.io.FileInputStream] to create a file input stream.
+In the end, writePartitionedFile xref:metrics:spark-executor-ShuffleWriteMetrics.adoc#incWriteTime[increments shuffle write time], clears <<partitionWriters, partitionWriters>> array and returns the lengths of the shuffle data files per partition.
 
-`writePartitionedFile` then <<copyStream, copies the raw bytes from each partition segment input stream to `outputFile`>> (possibly using Java New I/O per <<transferToEnabled, transferToEnabled>> flag set when <<creating-instance, `BypassMergeSortShuffleWriter` was created>>) and records the length of the shuffle data file (in `lengths` internal array).
+writePartitionedFile is used when BypassMergeSortShuffleWriter is requested to <<write, write records>>.
 
-NOTE: `transferToEnabled` is controlled by <<spark-configuration-properties.adoc#spark.file.transferTo, spark.file.transferTo>> Spark property and is enabled (i.e. `true`) by default.
-
-In the end, `writePartitionedFile` link:spark-executor-ShuffleWriteMetrics.adoc#incWriteTime[increments shuffle write time], clears <<partitionWriters, partitionWriters>> array and returns the lengths of the shuffle data files per partition.
-
-NOTE: `writePartitionedFile` uses `ShuffleWriteMetrics` to track shuffle write time that was created when <<creating-instance, `BypassMergeSortShuffleWriter` was created>>.
-
-NOTE: `writePartitionedFile` is used exclusively when `BypassMergeSortShuffleWriter` <<write, writes records>>.
-
-=== [[copyStream]] Copying Raw Bytes Between Input Streams (Possibly Using Java New I/O) -- `Utils.copyStream` Method
+== [[copyStream]] Copying Raw Bytes Between Input Streams
 
 [source, scala]
 ----
@@ -167,18 +123,59 @@ copyStream(
   transferToEnabled: Boolean = false): Long
 ----
 
-`copyStream` branches off depending on the type of `in` and `out` streams, i.e. whether they are both `FileInputStream` with `transferToEnabled` input flag is enabled.
+copyStream branches off depending on the type of `in` and `out` streams, i.e. whether they are both `FileInputStream` with `transferToEnabled` input flag is enabled.
 
-If they are both `FileInputStream` with `transferToEnabled` enabled, `copyStream` gets their `FileChannels` and transfers bytes from the input file to the output file and counts the number of bytes, possibly zero, that were actually transferred.
+If they are both `FileInputStream` with `transferToEnabled` enabled, copyStream gets their `FileChannels` and transfers bytes from the input file to the output file and counts the number of bytes, possibly zero, that were actually transferred.
 
-NOTE: `copyStream` uses Java's https://docs.oracle.com/javase/8/docs/api/java/nio/channels/FileChannel.html[java.nio.channels.FileChannel] to manage file channels.
+NOTE: copyStream uses Java's {java-javadoc-url}/java/nio/channels/FileChannel.html[java.nio.channels.FileChannel] to manage file channels.
 
-If either `in` and `out` input streams are not `FileInputStream` or `transferToEnabled` flag is disabled (default), `copyStream` reads data from `in` to write to `out` and counts the number of bytes written.
+If either `in` and `out` input streams are not `FileInputStream` or `transferToEnabled` flag is disabled (default), copyStream reads data from `in` to write to `out` and counts the number of bytes written.
 
-`copyStream` can optionally close `in` and `out` streams (depending on the input `closeStreams` -- disabled by default).
+copyStream can optionally close `in` and `out` streams (depending on the input `closeStreams` -- disabled by default).
 
-NOTE: `Utils.copyStream` is used when <<writePartitionedFile, `BypassMergeSortShuffleWriter` writes records into one single shuffle block data file>> (among other places).
+NOTE: `Utils.copyStream` is used when <<writePartitionedFile, BypassMergeSortShuffleWriter writes records into one single shuffle block data file>> (among other places).
 
-NOTE: `Utils.copyStream` is here temporarily (until I find a better place).
+TIP: Visit the official web site of https://jcp.org/jsr/detail/51.jsp[JSR 51: New I/O APIs for the Java Platform] and read up on {java-javadoc-url}/java/nio/package-summary.html[java.nio package].
 
-TIP: Visit the official web site of https://jcp.org/jsr/detail/51.jsp[JSR 51: New I/O APIs for the Java Platform] and read up on link:http://docs.oracle.com/javase/8/docs/api/java/nio/package-summary.html[java.nio package].
+== [[logging]] Logging
+
+Enable `ALL` logging level for `org.apache.spark.shuffle.sort.BypassMergeSortShuffleWriter` logger to see what happens inside.
+
+Add the following line to `conf/log4j.properties`:
+
+[source]
+----
+log4j.logger.org.apache.spark.shuffle.sort.BypassMergeSortShuffleWriter=ALL
+----
+
+Refer to xref:ROOT:spark-logging.adoc[Logging].
+
+== [[internal-properties]] Internal Properties
+
+[cols="30m,70",options="header",width="100%"]
+|===
+| Name
+| Description
+
+| numPartitions
+| [[numPartitions]]
+
+| partitionWriters
+| [[partitionWriters]]
+
+| partitionWriterSegments
+| [[partitionWriterSegments]]
+
+| mapStatus
+| [[mapStatus]] xref:scheduler:MapStatus.adoc[MapStatus] that <<stop, BypassMergeSortShuffleWriter returns when stopped>>
+
+Initialized every time BypassMergeSortShuffleWriter <<write, writes records>>.
+
+Used when <<stop, BypassMergeSortShuffleWriter stops>> (with `success` enabled) as a marker if <<write, any records were written>> and <<stop, returned if they did>>.
+
+| partitionLengths
+| [[partitionLengths]] Temporary array of partition lengths after records are <<write, written to a shuffle system>>.
+
+Initialized every time BypassMergeSortShuffleWriter <<write, writes records>> before passing it in to link:IndexShuffleBlockResolver.adoc#writeIndexFileAndCommit[IndexShuffleBlockResolver]). After IndexShuffleBlockResolver finishes, it is used to initialize <<mapStatus, mapStatus>> internal property.
+
+|===
