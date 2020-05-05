@@ -18,6 +18,10 @@ BypassMergeSortShuffleWriter takes the following to be created:
 
 BypassMergeSortShuffleWriter is <<creating-instance, created>> when SortShuffleManager is requested for a xref:SortShuffleManager.adoc#getWriter[ShuffleWriter for a BypassMergeSortShuffleHandle].
 
+== [[partitionWriters]] Per-Partition DiskBlockObjectWriters
+
+BypassMergeSortShuffleWriter uses xref:storage:DiskBlockObjectWriter.adoc[DiskBlockObjectWriter] when...FIXME
+
 == [[shuffleBlockResolver]] IndexShuffleBlockResolver
 
 BypassMergeSortShuffleWriter is given a xref:shuffle:IndexShuffleBlockResolver.adoc[IndexShuffleBlockResolver] to be created.
@@ -52,21 +56,21 @@ write is part of xref:shuffle:ShuffleWriter.adoc#write[ShuffleWriter] abstractio
 
 write creates a new instance of the <<serializer, Serializer>>.
 
-write initializes the <<partitionWriters, partitionWriters>> and <<partitionWriterSegments, partitionWriterSegments>> internal registries (for xref:storage:spark-blockmanager-DiskBlockObjectWriter.adoc[DiskBlockObjectWriters] and FileSegments for <<numPartitions, every partition>>, respectively).
+write initializes the <<partitionWriters, partitionWriters>> and <<partitionWriterSegments, partitionWriterSegments>> internal registries (for xref:storage:DiskBlockObjectWriter.adoc[DiskBlockObjectWriters] and FileSegments for <<numPartitions, every partition>>, respectively).
 
 write requests the <<blockManager, BlockManager>> for the xref:storage:BlockManager.adoc#diskBlockManager[DiskBlockManager] and for <<numPartitions, every partition>> write requests it for a xref:storage:DiskBlockManager.adoc#createTempShuffleBlock[shuffle block ID and the file]. write creates a xref:storage:BlockManager.adoc#getDiskWriter[DiskBlockObjectWriter] for the shuffle block (using the <<blockManager, BlockManager>>). write stores the reference to DiskBlockObjectWriters in the <<partitionWriters, partitionWriters>> internal registry.
 
 After all DiskBlockObjectWriters are created, write requests the <<writeMetrics, ShuffleWriteMetrics>> to xref:metrics:spark-executor-ShuffleWriteMetrics.adoc#incWriteTime[increment shuffle write time metric].
 
-For every record (a key-value pair), write requests the <<partitioner, Partitioner>> for the xref:rdd:spark-rdd-Partitioner.adoc#getPartition[partition ID] for the key. The partition ID is then used as an index of the partition writer (among the <<partitionWriters, DiskBlockObjectWriters>>) to xref:storage:spark-blockmanager-DiskBlockObjectWriter.adoc#write[write the current record out to a block file].
+For every record (a key-value pair), write requests the <<partitioner, Partitioner>> for the xref:rdd:spark-rdd-Partitioner.adoc#getPartition[partition ID] for the key. The partition ID is then used as an index of the partition writer (among the <<partitionWriters, DiskBlockObjectWriters>>) to xref:storage:DiskBlockObjectWriter.adoc#write[write the current record out to a block file].
 
 Once all records have been writted out to their respective block files, write does the following for every <<partitionWriters, DiskBlockObjectWriter>>:
 
-. Requests the DiskBlockObjectWriter to xref:storage:spark-blockmanager-DiskBlockObjectWriter.adoc#commitAndGet[commit and return a corresponding FileSegment of the shuffle block]
+. Requests the DiskBlockObjectWriter to xref:storage:DiskBlockObjectWriter.adoc#commitAndGet[commit and return a corresponding FileSegment of the shuffle block]
 
 . Saves the (reference to) FileSegments in the <<partitionWriterSegments, partitionWriterSegments>> internal registry
 
-. Requests the DiskBlockObjectWriter to xref:storage:spark-blockmanager-DiskBlockObjectWriter.adoc#close[close]
+. Requests the DiskBlockObjectWriter to xref:storage:DiskBlockObjectWriter.adoc#close[close]
 
 NOTE: At this point, all the records are in shuffle block files on a local disk. The records are split across block files by key.
 
@@ -159,9 +163,6 @@ Refer to xref:ROOT:spark-logging.adoc[Logging].
 
 | numPartitions
 | [[numPartitions]]
-
-| partitionWriters
-| [[partitionWriters]]
 
 | partitionWriterSegments
 | [[partitionWriterSegments]]
