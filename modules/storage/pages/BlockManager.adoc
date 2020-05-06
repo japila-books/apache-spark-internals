@@ -50,12 +50,12 @@ BlockManager takes the following to be created:
 * [[mapOutputTracker]] xref:scheduler:MapOutputTracker.adoc[MapOutputTracker]
 * <<shuffleManager, ShuffleManager>>
 * <<blockTransferService, BlockTransferService>>
-* [[securityManager]] `SecurityManager`
+* [[securityManager]] SecurityManager
 * [[numUsableCores]] CPU cores
 
 NOTE: `executorId` is `SparkContext.DRIVER_IDENTIFIER`, i.e. `driver` for the driver, and the value of xref:ROOT:spark-CoarseGrainedExecutorBackend.adoc#executor-id[--executor-id] command-line argument for xref:ROOT:spark-CoarseGrainedExecutorBackend.adoc[CoarseGrainedExecutorBackend] executors (or xref:spark-on-mesos:spark-executor-backends-MesosExecutorBackend.adoc[MesosExecutorBackend]).
 
-When created, BlockManager sets <<externalShuffleServiceEnabled, externalShuffleServiceEnabled>> internal flag per xref:ROOT:spark-ExternalShuffleService.adoc#spark.shuffle.service.enabled[spark.shuffle.service.enabled] Spark property.
+When created, BlockManager sets <<externalShuffleServiceEnabled, externalShuffleServiceEnabled>> internal flag based on xref:ROOT:spark-configuration-properties.adoc#spark.shuffle.service.enabled[spark.shuffle.service.enabled] configuration property.
 
 BlockManager then creates an instance of xref:DiskBlockManager.adoc[DiskBlockManager] (requesting `deleteFilesOnStop` when an external shuffle service is not in use).
 
@@ -75,9 +75,21 @@ BlockManager sets <<spark.block.failures.beforeLocationRefresh, the maximum numb
 
 BlockManager registers link:spark-blockmanager-BlockManagerSlaveEndpoint.adoc[BlockManagerSlaveEndpoint] with the input xref:ROOT:spark-rpc.adoc[RpcEnv], itself, and xref:scheduler:MapOutputTracker.adoc[MapOutputTracker] (as `slaveEndpoint`).
 
+== [[blockTransferService]] BlockTransferService
+
+BlockManager is given a xref:ROOT:spark-BlockTransferService.adoc[BlockTransferService] to be created.
+
+BlockTransferService is used as the <<shuffleClient, ShuffleClient>> when BlockManager is configured to use no external shuffle service (based on xref:ROOT:spark-configuration-properties.adoc#spark.shuffle.service.enabled[spark.shuffle.service.enabled] configuration property).
+
+BlockTransferService is xref:ROOT:spark-BlockTransferService.adoc#init[initialized] when BlockManager <<initialize, is>>.
+
+BlockTransferService is xref:ROOT:spark-BlockTransferService.adoc#close[closed] when BlockManager is requested to <<stop, stop>>.
+
+BlockTransferService is used when BlockManager is requested to <<getRemoteBytes, fetching a block from>> or <<replicate, replicate a block to>> remote block managers.
+
 == [[memoryManager]] MemoryManager
 
-BlockManager is given a xref:memory:MemoryManager.adoc[MemoryManager] when <<creating-instance, created>>.
+BlockManager is given a xref:memory:MemoryManager.adoc[MemoryManager] to be <<creating-instance, created>>.
 
 BlockManager uses the MemoryManager for the following:
 
@@ -168,7 +180,7 @@ CAUTION: FIXME
 
 CAUTION: FIXME
 
-== [[stop]] Stopping BlockManager -- `stop` Method
+== [[stop]] Stopping BlockManager
 
 [source, scala]
 ----
@@ -179,7 +191,7 @@ stop(): Unit
 
 NOTE: `stop` is used exclusively when `SparkEnv` is requested to xref:ROOT:spark-SparkEnv.adoc#stop[stop].
 
-== [[getMatchingBlockIds]] Getting IDs of Existing Blocks (For a Given Filter) -- `getMatchingBlockIds` Method
+== [[getMatchingBlockIds]] Getting IDs of Existing Blocks (For a Given Filter)
 
 [source, scala]
 ----
@@ -236,7 +248,7 @@ getRemoteValues[T: ClassTag](blockId: BlockId): Option[BlockResult]
 
 `getRemoteValues`...FIXME
 
-== [[get]] Retrieving Block from Local or Remote Block Managers -- `get` Method
+== [[get]] Retrieving Block from Local or Remote Block Managers
 
 [source, scala]
 ----
@@ -266,7 +278,7 @@ In the end, `get` returns "nothing" (i.e. `NONE`) when the `blockId` block was n
 * BlockManager is requested to <<getOrElseUpdate, getOrElseUpdate>> and <<getSingle, getSingle>>
 ====
 
-== [[getBlockData]] Retrieving Block Data -- `getBlockData` Method
+== [[getBlockData]] Retrieving Block Data
 
 [source, scala]
 ----
@@ -286,7 +298,7 @@ If not found, getBlockData <<reportBlockStatus, informs the BlockManagerMaster>>
 
 NOTE: `getBlockData` is executed for shuffle blocks or local blocks that the BlockManagerMaster knows this executor really has (unless BlockManagerMaster is outdated).
 
-== [[getLocalBytes]] Retrieving Non-Shuffle Local Block Data -- `getLocalBytes` Method
+== [[getLocalBytes]] Retrieving Non-Shuffle Local Block Data
 
 [source, scala]
 ----
@@ -309,7 +321,7 @@ getLocalBytes(
 
 CAUTION: FIXME
 
-== [[externalShuffleServiceEnabled]] Is External Shuffle Service Enabled? -- `externalShuffleServiceEnabled` Flag
+== [[externalShuffleServiceEnabled]] Is External Shuffle Service Enabled?
 
 When the xref:ROOT:spark-ExternalShuffleService.adoc[External Shuffle Service] is enabled for a Spark application, BlockManager uses xref:ROOT:spark-ShuffleClient-ExternalShuffleClient.adoc[ExternalShuffleClient] to read other executors' shuffle files.
 
@@ -325,7 +337,7 @@ There are the following possible stores:
 * xref:DiskStore.adoc[DiskStore] for disk storage level.
 * `ExternalBlockStore` for OFF_HEAP storage level.
 
-== [[putBlockData]] Storing Block Data Locally -- `putBlockData` Method
+== [[putBlockData]] Storing Block Data Locally
 
 [source, scala]
 ----
@@ -342,7 +354,7 @@ NOTE: `putBlockData` is part of the link:spark-BlockDataManager.adoc#putBlockDat
 
 Internally, `putBlockData` wraps `ChunkedByteBuffer` around `data` buffer's NIO `ByteBuffer` and calls <<putBytes, putBytes>>.
 
-== [[putBytes]] Storing Block Bytes Locally -- `putBytes` Method
+== [[putBytes]] Storing Block Bytes Locally
 
 [source, scala]
 ----
@@ -459,7 +471,7 @@ Ultimately, the following DEBUG message is printed out to the logs:
 DEBUG Putting block [blockId] [withOrWithout] replication took [usedTime] ms
 ```
 
-== [[removeBlock]] Removing Block From Memory and Disk -- `removeBlock` Method
+== [[removeBlock]] Removing Block From Memory and Disk
 
 [source, scala]
 ----
@@ -494,7 +506,7 @@ It then <<getCurrentBlockStatus, calculates the current block status>> that is u
 
 NOTE: It is used to <<removeRdd, remove RDDs>> and <<removeBroadcast, broadcast>> as well as in link:spark-blockmanager-BlockManagerSlaveEndpoint.adoc#RemoveBlock[`BlockManagerSlaveEndpoint` while handling `RemoveBlock` messages].
 
-== [[removeRdd]] Removing RDD Blocks -- `removeRdd` Method
+== [[removeRdd]] Removing RDD Blocks
 
 [source, scala]
 ----
@@ -515,7 +527,7 @@ The number of blocks removed is the final result.
 
 NOTE: It is used by link:spark-blockmanager-BlockManagerSlaveEndpoint.adoc#RemoveRdd[`BlockManagerSlaveEndpoint` while handling `RemoveRdd` messages].
 
-== [[removeBroadcast]] Removing All Blocks of Broadcast Variable -- `removeBroadcast` Method
+== [[removeBroadcast]] Removing All Blocks of Broadcast Variable
 
 [source, scala]
 ----
@@ -536,7 +548,7 @@ The number of blocks removed is the final result.
 
 NOTE: It is used by link:spark-blockmanager-BlockManagerSlaveEndpoint.adoc#RemoveBroadcast[`BlockManagerSlaveEndpoint` while handling `RemoveBroadcast` messages].
 
-== [[getStatus]] Getting Block Status -- `getStatus` Method
+== [[getStatus]] Getting Block Status
 
 CAUTION: FIXME
 
@@ -544,7 +556,7 @@ CAUTION: FIXME
 
 CAUTION: FIXME
 
-== [[initialize]] Initializing BlockManager -- `initialize` Method
+== [[initialize]] Initializing BlockManager
 
 [source, scala]
 ----
@@ -581,7 +593,7 @@ Ultimately, if the initialization happens on an executor and the <<externalShuff
 
 NOTE: `initialize` is called when the link:spark-SparkContext-creating-instance-internals.adoc#BlockManager-initialization[driver is launched (and `SparkContext` is created)] and when an link:spark-Executor.adoc#creating-instance[`Executor` is created] (for link:spark-CoarseGrainedExecutorBackend.adoc#RegisteredExecutor[CoarseGrainedExecutorBackend] and link:spark-executor-backends-MesosExecutorBackend.adoc[MesosExecutorBackend]).
 
-== [[registerWithExternalShuffleServer]] Registering Executor's BlockManager with External Shuffle Server -- `registerWithExternalShuffleServer` Method
+== [[registerWithExternalShuffleServer]] Registering Executor's BlockManager with External Shuffle Server
 
 [source, scala]
 ----
@@ -614,7 +626,7 @@ ERROR Failed to connect to external shuffle server, will retry [#attempts] more 
 
 NOTE: registerWithExternalShuffleServer is used when BlockManager is requested to <<initialize, initialize>> (when executed on an executor with <<externalShuffleServiceEnabled, externalShuffleServiceEnabled>>).
 
-== [[reregister]] Re-registering BlockManager with Driver and Reporting Blocks -- `reregister` Method
+== [[reregister]] Re-registering BlockManager with Driver and Reporting Blocks
 
 [source, scala]
 ----
@@ -649,7 +661,7 @@ After the ERROR message, `reregister` stops reporting.
 
 NOTE: `reregister` is called when a link:spark-Executor.adoc#heartbeats-and-active-task-metrics[`Executor` was informed to re-register while sending heartbeats].
 
-== [[getCurrentBlockStatus]] Calculate Current Block Status -- `getCurrentBlockStatus` Method
+== [[getCurrentBlockStatus]] Calculate Current Block Status
 
 [source, scala]
 ----
@@ -679,7 +691,7 @@ reportAllBlocks(): Unit
 
 NOTE: `reportAllBlocks` is used when BlockManager is requested to <<reregister, re-register all blocks to the driver>>.
 
-== [[reportBlockStatus]] Reporting Current Storage Status of Block to Driver -- `reportBlockStatus` Internal Method
+== [[reportBlockStatus]] Reporting Current Storage Status of Block to Driver
 
 [source, scala]
 ----
@@ -706,7 +718,7 @@ DEBUG BlockManager: Told master about block [blockId]
 
 NOTE: `reportBlockStatus` is used when BlockManager is requested to <<getBlockData, getBlockData>>, <<doPutBytes, doPutBytes>>, <<doPutIterator, doPutIterator>>, <<dropFromMemory, dropFromMemory>> and <<removeBlockInternal, removeBlockInternal>>.
 
-== [[tryToReportBlockStatus]] Reporting Block Status Update to Driver -- `tryToReportBlockStatus` Internal Method
+== [[tryToReportBlockStatus]] Reporting Block Status Update to Driver
 
 [source, scala]
 ----
@@ -755,7 +767,7 @@ When a non-local executor starts, it initializes a BlockManager object using lin
 
 `BlockResult` is a description of a fetched block with the `readMethod` and `bytes`.
 
-== [[registerTask]] Registering Task with BlockInfoManager -- `registerTask` Method
+== [[registerTask]] Registering Task with BlockInfoManager
 
 [source, scala]
 ----
@@ -766,7 +778,7 @@ registerTask(taskAttemptId: Long): Unit
 
 NOTE: `registerTask` is used exclusively when xref:scheduler:Task.adoc#run[`Task` runs].
 
-== [[getDiskWriter]] Creating DiskBlockObjectWriter -- `getDiskWriter` Method
+== [[getDiskWriter]] Creating DiskBlockObjectWriter
 
 [source, scala]
 ----
@@ -778,26 +790,23 @@ getDiskWriter(
   writeMetrics: ShuffleWriteMetrics): DiskBlockObjectWriter
 ----
 
-`getDiskWriter` simply creates a xref:storage:DiskBlockObjectWriter.adoc[DiskBlockObjectWriter] (with <<spark-configuration-properties.adoc#spark.shuffle.sync, spark.shuffle.sync>> Spark property for `syncWrites`).
+getDiskWriter creates a xref:storage:DiskBlockObjectWriter.adoc[DiskBlockObjectWriter] (with xref:ROOT:spark-configuration-properties.adoc#spark.shuffle.sync[spark.shuffle.sync] configuration property as syncWrites argument).
 
-NOTE: `getDiskWriter` uses the same `serializerManager` that was used to <<creating-instance, create a BlockManager>>.
+getDiskWriter uses the <<serializerManager, SerializerManager>> of the BlockManager.
 
-[NOTE]
-====
-`getDiskWriter` is used when:
+getDiskWriter is used when:
 
-* `BypassMergeSortShuffleWriter` is requested to xref:shuffle:BypassMergeSortShuffleWriter.adoc#write[write records]
+* BypassMergeSortShuffleWriter is requested to xref:shuffle:BypassMergeSortShuffleWriter.adoc#write[write records (of a partition)]
 
-* `ShuffleExternalSorter` is requested to xref:shuffle:ShuffleExternalSorter.adoc#writeSortedFile[writeSortedFile]
+* ShuffleExternalSorter is requested to xref:shuffle:ShuffleExternalSorter.adoc#writeSortedFile[writeSortedFile]
 
 * ExternalAppendOnlyMap is requested to xref:shuffle:ExternalAppendOnlyMap.adoc#spillMemoryIteratorToDisk[spillMemoryIteratorToDisk]
 
-* `ExternalSorter` is requested to xref:shuffle:ExternalSorter.adoc#spillMemoryIteratorToDisk[spillMemoryIteratorToDisk] and xref:shuffle:ExternalSorter.adoc#writePartitionedFile[writePartitionedFile]
+* ExternalSorter is requested to xref:shuffle:ExternalSorter.adoc#spillMemoryIteratorToDisk[spillMemoryIteratorToDisk] and xref:shuffle:ExternalSorter.adoc#writePartitionedFile[writePartitionedFile]
 
-* `UnsafeSorterSpillWriter` is created
-====
+* xref:memory:UnsafeSorterSpillWriter.adoc[UnsafeSorterSpillWriter] is created
 
-== [[addUpdatedBlockStatusToTaskMetrics]] Recording Updated BlockStatus In Current Task's TaskMetrics -- `addUpdatedBlockStatusToTaskMetrics` Internal Method
+== [[addUpdatedBlockStatusToTaskMetrics]] Recording Updated BlockStatus In Current Task's TaskMetrics
 
 [source, scala]
 ----
@@ -808,39 +817,22 @@ addUpdatedBlockStatusToTaskMetrics(blockId: BlockId, status: BlockStatus): Unit
 
 NOTE: `addUpdatedBlockStatusToTaskMetrics` is used when BlockManager <<doPutBytes, doPutBytes>> (for a block that was successfully stored), <<doPut, doPut>>, <<doPutIterator, doPutIterator>>, <<dropFromMemory, removes blocks from memory>> (possibly spilling it to disk) and <<removeBlock, removes block from memory and disk>>.
 
-== [[shuffleMetricsSource]] Requesting Shuffle-Related Spark Metrics Source -- `shuffleMetricsSource` Method
+== [[shuffleMetricsSource]] Requesting Shuffle-Related Spark Metrics Source
 
 [source, scala]
 ----
 shuffleMetricsSource: Source
 ----
 
-`shuffleMetricsSource` requests the <<shuffleClient, ShuffleClient>> for the link:spark-ShuffleClient.adoc#shuffleMetrics[shuffle-related metrics] and creates a link:spark-BlockManager-ShuffleMetricsSource.adoc[ShuffleMetricsSource] with the link:spark-BlockManager-ShuffleMetricsSource.adoc#sourceName[source name] per link:spark-ExternalShuffleService.adoc#spark.shuffle.service.enabled[spark.shuffle.service.enabled] configuration property:
+`shuffleMetricsSource` requests the <<shuffleClient, ShuffleClient>> for the link:spark-ShuffleClient.adoc#shuffleMetrics[shuffle-related metrics] and creates a link:spark-BlockManager-ShuffleMetricsSource.adoc[ShuffleMetricsSource] with the link:spark-BlockManager-ShuffleMetricsSource.adoc#sourceName[source name] per xref:ROOT:spark-configuration-properties.adoc#spark.shuffle.service.enabled[spark.shuffle.service.enabled] configuration property:
 
-* *ExternalShuffle* when link:spark-ExternalShuffleService.adoc#spark.shuffle.service.enabled[spark.shuffle.service.enabled] configuration property is on (`true`)
+* *ExternalShuffle* when xref:ROOT:spark-configuration-properties.adoc#spark.shuffle.service.enabled[spark.shuffle.service.enabled] configuration property is on (`true`)
 
-* *NettyBlockTransfer* when link:spark-ExternalShuffleService.adoc#spark.shuffle.service.enabled[spark.shuffle.service.enabled] configuration property is off (`false`)
-
-NOTE: link:spark-ExternalShuffleService.adoc#spark.shuffle.service.enabled[spark.shuffle.service.enabled] configuration property is off (`false`) by default.
+* *NettyBlockTransfer* when xref:ROOT:spark-configuration-properties.adoc#spark.shuffle.service.enabled[spark.shuffle.service.enabled] configuration property is off (`false`)
 
 NOTE: `shuffleMetricsSource` is used exclusively when `Executor` is link:spark-Executor.adoc#creating-instance[created] (for non-local / cluster modes).
 
-== [[settings]] Settings
-
-.Spark Properties
-[cols="1,1,2",options="header",width="100%"]
-|===
-| Spark Property
-| Default Value
-| Description
-
-| [[spark_blockManager_port]] `spark.blockManager.port`
-| `0`
-| Port to use for the block manager when a more specific setting for the driver or executors is not provided.
-
-|===
-
-== [[replicate]] Replicating Block To Peers -- `replicate` Internal Method
+== [[replicate]] Replicating Block To Peers
 
 [source, scala]
 ----
@@ -907,7 +899,7 @@ putSingle[T: ClassTag](
 
 NOTE: `putSingle` is used when `TorrentBroadcast` is requested to link:spark-TorrentBroadcast.adoc#writeBlocks[read the blocks of a broadcast variable] and link:spark-TorrentBroadcast.adoc#readBroadcastBlock[readBroadcastBlock].
 
-== [[getRemoteBytes]] Fetching Block From Remote Nodes -- `getRemoteBytes` Method
+== [[getRemoteBytes]] Fetching Block From Remote Nodes
 
 [source, scala]
 ----
@@ -969,25 +961,9 @@ shuffleClient: ShuffleClient
 CAUTION: FIXME Figure
 
 [[shuffleClient-externalShuffleServiceEnabled]]
-`shuffleClient` uses `spark.shuffle.service.enabled` configuration property (default: `false`) that controls whether to use link:spark-ShuffleClient-ExternalShuffleClient.adoc[ExternalShuffleClient] (`true`) or the <<blockTransferService, BlockTransferService>> (i.e. link:spark-NettyBlockTransferService.adoc[NettyBlockTransferService]).
+`shuffleClient` uses xref:ROOT:spark-configuration-properties.adoc#spark.shuffle.service.enabled[spark.shuffle.service.enabled] configuration property that controls whether to use link:spark-ShuffleClient-ExternalShuffleClient.adoc[ExternalShuffleClient] (`true`) or the <<blockTransferService, BlockTransferService>> (i.e. link:spark-NettyBlockTransferService.adoc[NettyBlockTransferService]).
 
-== [[blockTransferService]] `blockTransferService` Property
-
-When <<creating-instance, created>>, BlockManager is given a link:spark-BlockTransferService.adoc[BlockTransferService] that is used for the following services:
-
-* <<getRemoteBytes, Fetching a block from remote nodes>>
-
-* <<replicate, Replicating a block to peers>>
-
-NOTE: Remote nodes, peers, block managers are all synonyms.
-
-The `BlockTransferService` acts as the <<shuffleClient, ShuffleClient>> when <<shuffleClient-externalShuffleServiceEnabled, spark.shuffle.service.enabled>> configuration property is off (which is the default).
-
-When <<initialize, initialized>>, BlockManager requests the `BlockTransferService` to link:spark-BlockTransferService.adoc#init[init]. BlockManager also requests the <<shuffleClient, ShuffleClient>> to link:spark-ShuffleClient.adoc#init[init] (that does nothing by default).
-
-When <<stop, stopped>>, BlockManager requests the `BlockTransferService` to link:spark-BlockTransferService.adoc#close[close]. BlockManager also requests the <<shuffleClient, ShuffleClient>> to `close`.
-
-== [[getOrElseUpdate]] Getting Block From Block Managers Or Computing and Storing It Otherwise -- `getOrElseUpdate` Method
+== [[getOrElseUpdate]] Getting Block From Block Managers Or Computing and Storing It Otherwise
 
 [source, scala]
 ----
@@ -1090,7 +1066,7 @@ Put block [blockId] remotely took [time] ms
 
 NOTE: `doPutIterator` is used when BlockManager is requested to <<getOrElseUpdate, get a block from block managers or computing and storing it otherwise>> and <<putIterator, putIterator>>.
 
-== [[dropFromMemory]] Removing Blocks From Memory Only -- `dropFromMemory` Method
+== [[dropFromMemory]] Removing Blocks From Memory Only
 
 [source, scala]
 ----
