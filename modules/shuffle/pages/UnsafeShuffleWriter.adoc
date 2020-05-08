@@ -7,6 +7,11 @@ UnsafeShuffleWriter is <<creating-instance, created>> when SortShuffleManager is
 .UnsafeShuffleWriter, SortShuffleManager and SerializedShuffleHandle
 image::UnsafeShuffleWriter.png[align="center"]
 
+UnsafeShuffleWriter <<open, opens a ShuffleExternalSorter and the buffers>> immediately while being <<creating-instance, created>>.
+
+.UnsafeShuffleWriter and ShuffleExternalSorter
+image::UnsafeShuffleWriter-ShuffleExternalSorter.png[align="center"]
+
 When requested to <<write, write key-value records of a partition>>, UnsafeShuffleWriter simply <<insertRecordIntoSorter, inserts every record into ShuffleExternalSorter>> followed by <<closeAndWriteOutput, closing the internal resources and writing out merged spill files>> (that, among other things, creates the <<mapStatus, MapStatus>>).
 
 When requested to <<stop, stop>>, UnsafeShuffleWriter records the peak execution memory metric and returns the <<mapStatus, mapStatus>> (that was created when requested to <<write, write>>).
@@ -126,21 +131,6 @@ stop...FIXME
 
 stop is part of the xref:shuffle:ShuffleWriter.adoc#stop[ShuffleWriter] abstraction.
 
-== [[open]] Opening UnsafeShuffleWriter
-
-[source, java]
-----
-void open()
-----
-
-open makes sure that the internal reference to xref:shuffle:ShuffleExternalSorter.adoc[ShuffleExternalSorter] (as `sorter`) is not defined and xref:shuffle:ShuffleExternalSorter.adoc#creating-instance[creates one itself].
-
-open creates a new byte array output stream (as `serBuffer`) with the buffer capacity of `1M`.
-
-open creates a new link:spark-SerializationStream.adoc[SerializationStream] for the new byte array output stream using link:spark-SerializerInstance.adoc[SerializerInstance].
-
-open is used when UnsafeShuffleWriter is <<creating-instance, created>>.
-
 == [[insertRecordIntoSorter]] Inserting Record Into ShuffleExternalSorter
 
 [source, java]
@@ -149,11 +139,19 @@ void insertRecordIntoSorter(
   Product2<K, V> record)
 ----
 
-insertRecordIntoSorter xref:rdd:spark-rdd-Partitioner.adoc#getPartition[calculates the partition for the key of the input record].
+insertRecordIntoSorter requires that the <<sorter, ShuffleExternalSorter>> is available.
 
-insertRecordIntoSorter then writes the key and the value of the input `record` to xref:ROOT:spark-SerializationStream.adoc[SerializationStream] and calculates the size of the serialized buffer.
+insertRecordIntoSorter requests the <<serBuffer, MyByteArrayOutputStream>> to reset (so that all currently accumulated output in the output stream is discarded and reusing the already allocated buffer space).
 
-In the end, insertRecordIntoSorter xref:shuffle:ShuffleExternalSorter.adoc#insertRecord[inserts the serialized buffer to `ShuffleExternalSorter`] (as `Platform.BYTE_ARRAY_OFFSET` ).
+insertRecordIntoSorter requests the <<serOutputStream, SerializationStream>> to write out the record (write the xref:ROOT:spark-SerializationStream.adoc#writeKey[key] and the xref:ROOT:spark-SerializationStream.adoc#writeValue[value]) and to xref:ROOT:spark-SerializationStream.adoc#flush[flush].
+
+[[insertRecordIntoSorter-serializedRecordSize]]
+insertRecordIntoSorter requests the <<serBuffer, MyByteArrayOutputStream>> for the length of the buffer.
+
+[[insertRecordIntoSorter-partitionId]]
+insertRecordIntoSorter requests the <<partitioner, Partitioner>> for the xref:rdd:spark-rdd-Partitioner.adoc#getPartition[partition] for the given record (by the key).
+
+In the end, insertRecordIntoSorter requests the <<sorter, ShuffleExternalSorter>> to xref:shuffle:ShuffleExternalSorter.adoc#insertRecord[insert] the <<serBuffer, MyByteArrayOutputStream>> as a byte array (with the <<insertRecordIntoSorter-serializedRecordSize, length>> and the <<insertRecordIntoSorter-partitionId, partition>>).
 
 insertRecordIntoSorter is used when UnsafeShuffleWriter is requested to <<write, write records>>.
 
@@ -218,6 +216,23 @@ long getPeakMemoryUsedBytes()
 getPeakMemoryUsedBytes simply <<updatePeakMemoryUsed, updatePeakMemoryUsed>> and returns the internal <<peakMemoryUsedBytes, peakMemoryUsedBytes>> registry.
 
 getPeakMemoryUsedBytes is used when UnsafeShuffleWriter is requested to <<stop, stop>>.
+
+== [[open]] Opening UnsafeShuffleWriter and Buffers
+
+[source, java]
+----
+void open()
+----
+
+open requires that there is no <<sorter, ShuffleExternalSorter>> available.
+
+open creates a xref:shuffle:ShuffleExternalSorter.adoc[ShuffleExternalSorter].
+
+open creates a <<serBuffer, serialized buffer>> with the capacity of <<DEFAULT_INITIAL_SER_BUFFER_SIZE, 1M>>.
+
+open requests the <<serializer, SerializerInstance>> for a xref:ROOT:spark-SerializerInstance.adoc#serializeStream[SerializationStream] to the <<serBuffer, serBuffer>> (available internally as the <<serOutputStream, serOutputStream>> reference).
+
+open is used when UnsafeShuffleWriter is <<creating-instance, created>>.
 
 == [[logging]] Logging
 
@@ -292,11 +307,11 @@ xref:rdd:ShuffleDependency.adoc#shuffleId[Shuffle ID] (of the <<spark-shuffle-Ba
 
 Used exclusively when requested to <<closeAndWriteOutput, close internal resources and write out merged spill files>>
 
-=== [[sorter]] sorter
+=== [[sorter]] ShuffleExternalSorter
 
-xref:shuffle:ShuffleExternalSorter.adoc[ShuffleExternalSorter]
+UnsafeShuffleWriter uses a xref:shuffle:ShuffleExternalSorter.adoc[ShuffleExternalSorter].
 
-Initialized when UnsafeShuffleWriter is requested to <<open, open>> (while being <<creating-instance, created>>)
+ShuffleExternalSorter is created when UnsafeShuffleWriter is requested to <<open, open>> (while being <<creating-instance, created>>) and dereferenced (``null``ed) when requested to <<closeAndWriteOutput, close internal resources and write out merged spill files>>.
 
 Used when UnsafeShuffleWriter is requested for the following:
 
@@ -306,13 +321,9 @@ Used when UnsafeShuffleWriter is requested for the following:
 
 * <<closeAndWriteOutput, Closing internal resources and writing out merged spill files>>
 
-* <<insertRecordIntoSorter, Inserting a record into ShuffleExternalSorter>>
+* <<insertRecordIntoSorter, Inserting a record>>
 
-* <<forceSorterToSpill, Forcing ShuffleExternalSorter to spill to disk (freeing up execution memory)>> (for testing)
-
-* <<stop, stop>>
-
-Destroyed (`null`) when requested to <<closeAndWriteOutput, close internal resources and write out merged spill files>>
+* <<stop, Stopping>>
 
 === [[writeMetrics]] writeMetrics
 
