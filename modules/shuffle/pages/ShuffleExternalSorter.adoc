@@ -2,6 +2,9 @@
 
 *ShuffleExternalSorter* is a specialized cache-efficient sorter that sorts arrays of compressed record pointers and partition ids. By using only 8 bytes of space per record in the sorting array, ShuffleExternalSorter can fit more of the array into cache.
 
+.ShuffleExternalSorter and UnsafeShuffleWriter
+image::ShuffleExternalSorter.png[align="center"]
+
 == [[creating-instance]] Creating Instance
 
 ShuffleExternalSorter takes the following to be created:
@@ -20,6 +23,26 @@ ShuffleExternalSorter uses xref:ROOT:configuration-properties.adoc#spark.shuffle
 ShuffleExternalSorter creates a <<inMemSorter, ShuffleInMemorySorter>> (with `spark.shuffle.sort.useRadixSort` Spark property enabled by default).
 
 ShuffleExternalSorter is created for xref:shuffle:UnsafeShuffleWriter.adoc[UnsafeShuffleWriter].
+
+== [[inMemSorter]] ShuffleInMemorySorter
+
+ShuffleExternalSorter manages a xref:shuffle:ShuffleInMemorySorter.adoc[ShuffleInMemorySorter]:
+
+* ShuffleInMemorySorter is created immediately when ShuffleExternalSorter is
+
+* ShuffleInMemorySorter is requested to xref:shuffle:ShuffleInMemorySorter.adoc#free[free up memory] and dereferenced (``null``ed) when ShuffleExternalSorter is requested to <<cleanupResources, cleanupResources>> and <<closeAndGetSpills, closeAndGetSpills>>
+
+ShuffleExternalSorter uses the ShuffleInMemorySorter when requested for the following:
+
+* <<writeSortedFile, writeSortedFile>>
+
+* <<spill, spill>>
+
+* <<getMemoryUsage, getMemoryUsage>>
+
+* <<growPointerArrayIfNecessary, growPointerArrayIfNecessary>>
+
+* <<insertRecord, insertRecord>>
 
 == [[MemoryConsumer]] ShuffleExternalSorter as MemoryConsumer
 
@@ -44,7 +67,7 @@ getMemoryUsage...FIXME
 
 getMemoryUsage is used when...FIXME
 
-== [[writeSortedFile]] writeSortedFile Internal Method
+== [[writeSortedFile]] writeSortedFile Method
 
 [source, java]
 ----
@@ -54,7 +77,7 @@ void writeSortedFile(
 
 writeSortedFile...FIXME
 
-writeSortedFile is used when...FIXME
+writeSortedFile is used when ShuffleExternalSorter is requested to <<spill, spill>> and <<closeAndGetSpills, closeAndGetSpills>>.
 
 == [[cleanupResources]] cleanupResources Internal Method
 
@@ -86,7 +109,7 @@ spill <<writeSortedFile, writeSortedFile>> (with the `isLastFile` flag disabled)
 
 spill <<freeMemory, frees execution memory>> (and records the memory bytes spilled as `spillSize`).
 
-spill then requests the <<inMemSorter, ShuffleInMemorySorter>> to <<spark-shuffle-ShuffleInMemorySorter.adoc#reset, reset>> followed by requesting the xref:scheduler:spark-TaskContext.adoc#taskMetrics[TaskMetrics] (of the <<taskContext, TaskContext>>) to xref:metrics:spark-executor-TaskMetrics.adoc#incMemoryBytesSpilled[increase the memory bytes spilled].
+spill then requests the <<inMemSorter, ShuffleInMemorySorter>> to xref:shuffle:ShuffleInMemorySorter.adoc#reset[reset] followed by requesting the xref:scheduler:spark-TaskContext.adoc#taskMetrics[TaskMetrics] (of the <<taskContext, TaskContext>>) to xref:metrics:spark-executor-TaskMetrics.adoc#incMemoryBytesSpilled[increase the memory bytes spilled].
 
 In the end, spill returns the memory bytes spilled (_spill size_).
 
@@ -98,7 +121,7 @@ spill returns `0` when one of the following holds:
 
 * <<inMemSorter, ShuffleInMemorySorter>> is not assigned
 
-* <<inMemSorter, ShuffleInMemorySorter>> manages no <<spark-shuffle-ShuffleInMemorySorter.adoc#numRecords, records>>
+* <<inMemSorter, ShuffleInMemorySorter>> manages no xref:shuffle:ShuffleInMemorySorter.adoc#numRecords[records]
 ====
 
 spill is part of the xref:memory:MemoryConsumer.adoc#spill[MemoryConsumer] contract.
