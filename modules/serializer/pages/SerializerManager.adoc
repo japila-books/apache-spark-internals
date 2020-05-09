@@ -1,89 +1,135 @@
 = SerializerManager
 
-When link:spark-SparkEnv.adoc#create[`SparkEnv` is created] (either for the driver or executors), it instantiates `SerializerManager` that is then used to create a xref:storage:BlockManager.adoc[BlockManager].
+*SerializerManager* is used to <<getSerializer, select a serializer>> for shuffle blocks (either the default <<defaultSerializer, JavaSerializer>> or <<kryoSerializer, KryoSerializer>> based on the key and value of a record).
 
-`SerializerManager` <<getSerializer, automatically selects the "best" serializer for shuffle blocks>> that could either be `KryoSerializer` <<canUseKryo, when a RDD's types are known to be compatible with Kryo>> or the <<creating-instance, default `Serializer`>>.
+SerializerManager is used to create a xref:storage:BlockManager.adoc[BlockManager].
 
-The common idiom in Spark's code is to access the current `SerializerManager` using link:spark-SparkEnv.adoc#get[SparkEnv].
+== [[creating-instance]] Creating Instance
+
+SerializerManager takes the following to be created:
+
+* [[defaultSerializer]] xref:serializer:Serializer.adoc[Serializer]
+* [[conf]] xref:ROOT:spark-SparkConf.adoc[SparkConf]
+* [[encryptionKey]] Optional encryption key (`[Array[Byte]]`)
+
+SerializerManager is created when SparkEnv utility is used to xref:ROOT:spark-SparkEnv.adoc#create[create a SparkEnv for the driver and executors].
+
+== [[SparkEnv]] Accessing SerializerManager Using SparkEnv
+
+SerializerManager is available using xref:ROOT:spark-SparkEnv.adoc#serializerManager[SparkEnv] on the driver and executors.
 
 [source, scala]
 ----
+import org.apache.spark.SparkEnv
 SparkEnv.get.serializerManager
 ----
 
-NOTE: `SerializerManager` was introduced in https://github.com/apache/spark/commit/de1a84e56e81347cb0d1ec67cc86944ea98bb9a9[SPARK-13926].
+== [[kryoSerializer]] KryoSerializer
 
-== [[creating-instance]] Creating `SerializerManager` Instance
+SerializerManager creates a KryoSerializer when created.
 
-CAUTION: FIXME
+KryoSerializer is used as a <<getSerializer, serializer>> when the type of a given key and value is <<canUseKryo, compatible with Kryo>>.
 
-== [[wrapStream]] `wrapStream` Method
-
-CAUTION: FIXME
-
-== [[dataDeserializeStream]] `dataDeserializeStream` Method
-
-CAUTION: FIXME
-
-== [[canUseKryo]][[selecting-serializer]] Automatic Selection of Best Serializer
-
-CAUTION: FIXME
-
-`SerializerManager` will automatically pick a Kryo serializer for ShuffledRDDs whose key, value, and/or combiner types are primitives, arrays of primitives, or strings.
-
-== [[getSerializer]] Selecting "Best" `Serializer` -- `getSerializer` Method
+== [[wrapStream]] Wrapping Input or Output Stream for Block
 
 [source, scala]
 ----
-getSerializer(keyClassTag: ClassTag[_], valueClassTag: ClassTag[_]): Serializer
+wrapStream(
+  blockId: BlockId,
+  s: InputStream): InputStream
+wrapStream(
+  blockId: BlockId,
+  s: OutputStream): OutputStream
 ----
 
-`getSerializer` selects the "best" xref:serializer:Serializer.adoc[Serializer] given the input types for keys and values (in a RDD).
+wrapStream...FIXME
 
-`getSerializer` returns `KryoSerializer` when the <<canUseKryo, types of keys and values are compatible with Kryo>> or the default `Serializer`.
+wrapStream is used when...FIXME
 
-NOTE: The default `Serializer` is defined when <<creating-instance, `SerializerManager` is created>>.
-
-NOTE: `getSerializer` is used when `ShuffledRDD` is requested for xref:rdd:ShuffledRDD.adoc#getDependencies[dependencies].
-
-== [[shouldCompress]] `shouldCompress` Internal Method
+== [[dataSerializeStream]] dataSerializeStream Method
 
 [source, scala]
 ----
-shouldCompress(blockId: BlockId): Boolean
+dataSerializeStream[T: ClassTag](
+  blockId: BlockId,
+  outputStream: OutputStream,
+  values: Iterator[T]): Unit
 ----
 
-`shouldCompress`...FIXME
+dataSerializeStream...FIXME
 
-NOTE: `shouldCompress` is used when...FIXME
+dataSerializeStream is used when...FIXME
 
-== [[settings]] Settings
+== [[dataSerializeWithExplicitClassTag]] dataSerializeWithExplicitClassTag Method
 
-.Spark Properties
-[cols="1,1,2",options="header",width="100%"]
-|===
-| Name
-| Default value
-| Description
+[source, scala]
+----
+dataSerializeWithExplicitClassTag(
+  blockId: BlockId,
+  values: Iterator[_],
+  classTag: ClassTag[_]): ChunkedByteBuffer
+----
 
-| [[spark.shuffle.compress]] `spark.shuffle.compress`
-| `true`
-| The flag to control whether to compress shuffle output when stored
+dataSerializeWithExplicitClassTag...FIXME
 
-| [[spark.rdd.compress]] `spark.rdd.compress`
-| `false`
-| The flag to control whether to compress RDD partitions when stored serialized.
+dataSerializeWithExplicitClassTag is used when...FIXME
 
-| `spark.shuffle.spill.compress`
-| `true`
-| The flag to control whether to compress shuffle output temporarily spilled to disk.
+== [[dataDeserializeStream]] dataDeserializeStream Method
 
-| [[spark.block.failures.beforeLocationRefresh]] `spark.block.failures.beforeLocationRefresh`
-| `5`
-|
+[source, scala]
+----
+dataDeserializeStream[T](
+  blockId: BlockId,
+  inputStream: InputStream)
+  (classTag: ClassTag[T]): Iterator[T]
+----
 
-| [[spark.io.encryption.enabled]] `spark.io.encryption.enabled`
-| `false`
-| The flag to enable IO encryption
+dataDeserializeStream...FIXME
 
-|===
+dataDeserializeStream is used when...FIXME
+
+== [[getSerializer]] Selecting Serializer
+
+[source, scala]
+----
+getSerializer(
+  ct: ClassTag[_],
+  autoPick: Boolean): Serializer
+getSerializer(
+  keyClassTag: ClassTag[_],
+  valueClassTag: ClassTag[_]): Serializer
+----
+
+getSerializer returns the <<kryoSerializer, KryoSerializer>> when the given arguments are <<canUseKryo, compatible with Kryo>>. Otherwise, getSerializer returns the <<defaultSerializer, Serializer>>.
+
+getSerializer is used when:
+
+* ShuffledRDD is requested for xref:rdd:ShuffledRDD.adoc#getDependencies[dependencies].
+
+* SerializerManager is requested to <<dataSerializeStream, dataSerializeStream>>, <<dataSerializeWithExplicitClassTag, dataSerializeWithExplicitClassTag>> and <<dataDeserializeStream, dataDeserializeStream>>
+
+* SerializedValuesHolder (of xref:storage:MemoryStore.adoc[MemoryStore]) is requested for a SerializationStream
+
+== [[canUseKryo]] Checking Whether Kryo Serializer Could Be Used
+
+[source, scala]
+----
+canUseKryo(
+  ct: ClassTag[_]): Boolean
+----
+
+canUseKryo is `true` when the given ClassTag is a primitive, an array of primitives or a String. Otherwise, canUseKryo is `false`.
+
+canUseKryo is used when SerializerManager is requested for a <<getSerializer, Serializer>>.
+
+== [[shouldCompress]] shouldCompress Method
+
+[source, scala]
+----
+shouldCompress(
+  blockId: BlockId): Boolean
+----
+
+shouldCompress...FIXME
+
+shouldCompress is used when...FIXME
