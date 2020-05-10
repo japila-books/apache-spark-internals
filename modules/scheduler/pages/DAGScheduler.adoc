@@ -196,11 +196,11 @@ Job [jobId] failed: [callSite], took [time] s
 
 runJob is used when SparkContext is requested to xref:ROOT:spark-SparkContext.adoc#runJob[run a job].
 
-== [[cacheLocs]][[clearCacheLocs]] cacheLocs Registry
+== [[cacheLocs]][[clearCacheLocs]] Partition Placement Preferences
 
 DAGScheduler keeps track of block locations per RDD and partition.
 
-DAGScheduler uses xref:rdd:spark-TaskLocation.adoc[TaskLocation] that includes a host name and an executor id on that host (as `ExecutorCacheTaskLocation`).
+DAGScheduler uses xref:scheduler:TaskLocation.adoc[TaskLocation] that includes a host name and an executor id on that host (as `ExecutorCacheTaskLocation`).
 
 The keys are RDDs (their ids) and the values are arrays indexed by partition numbers.
 
@@ -755,11 +755,11 @@ getCacheLocs(
   rdd: RDD[_]): IndexedSeq[Seq[TaskLocation]]
 ----
 
-getCacheLocs gives xref:rdd:spark-TaskLocation.adoc[TaskLocations] (block locations) for the partitions of the input `rdd`. getCacheLocs caches lookup results in <<cacheLocs, cacheLocs>> internal registry.
+getCacheLocs gives xref:scheduler:TaskLocation.adoc[TaskLocations] (block locations) for the partitions of the input `rdd`. getCacheLocs caches lookup results in <<cacheLocs, cacheLocs>> internal registry.
 
 NOTE: The size of the collection from getCacheLocs is exactly the number of partitions in `rdd` RDD.
 
-NOTE: The size of every xref:rdd:spark-TaskLocation.adoc[TaskLocation] collection (i.e. every entry in the result of getCacheLocs) is exactly the number of blocks managed using xref:storage:BlockManager.adoc[BlockManagers] on executors.
+NOTE: The size of every xref:scheduler:TaskLocation.adoc[TaskLocation] collection (i.e. every entry in the result of getCacheLocs) is exactly the number of blocks managed using xref:storage:BlockManager.adoc[BlockManagers] on executors.
 
 Internally, getCacheLocs finds `rdd` in the <<cacheLocs, cacheLocs>> internal registry (of partition locations per RDD).
 
@@ -767,15 +767,15 @@ If `rdd` is not in <<cacheLocs, cacheLocs>> internal registry, getCacheLocs bran
 
 For `NONE` storage level (i.e. no caching), the result is an empty locations (i.e. no location preference).
 
-For other non-``NONE`` storage levels, getCacheLocs xref:storage:BlockManagerMaster.adoc#getLocations-block-array[requests `BlockManagerMaster` for block locations] that are then mapped to xref:rdd:spark-TaskLocation.adoc[TaskLocations] with the hostname of the owning `BlockManager` for a block (of a partition) and the executor id.
+For other non-``NONE`` storage levels, getCacheLocs xref:storage:BlockManagerMaster.adoc#getLocations-block-array[requests `BlockManagerMaster` for block locations] that are then mapped to xref:scheduler:TaskLocation.adoc[TaskLocations] with the hostname of the owning `BlockManager` for a block (of a partition) and the executor id.
 
 NOTE: getCacheLocs uses <<blockManagerMaster, BlockManagerMaster>> that was defined when <<creating-instance, DAGScheduler was created>>.
 
-getCacheLocs records the computed block locations per partition (as xref:rdd:spark-TaskLocation.adoc[TaskLocation]) in <<cacheLocs, cacheLocs>> internal registry.
+getCacheLocs records the computed block locations per partition (as xref:scheduler:TaskLocation.adoc[TaskLocation]) in <<cacheLocs, cacheLocs>> internal registry.
 
 NOTE: getCacheLocs requests locations from `BlockManagerMaster` using xref:storage:spark-BlockDataManager.adoc#RDDBlockId[RDDBlockId] with the RDD id and the partition indices (which implies that the order of the partitions matters to request proper blocks).
 
-NOTE: DAGScheduler uses xref:rdd:spark-TaskLocation.adoc[TaskLocations] (with host and executor) while xref:storage:BlockManagerMaster.adoc[BlockManagerMaster] uses xref:storage:BlockManager.adoc#BlockManagerId[BlockManagerId] (to track similar information, i.e. block locations).
+NOTE: DAGScheduler uses xref:scheduler:TaskLocation.adoc[TaskLocations] (with host and executor) while xref:storage:BlockManagerMaster.adoc[BlockManagerMaster] uses xref:storage:BlockManager.adoc#BlockManagerId[BlockManagerId] (to track similar information, i.e. block locations).
 
 getCacheLocs is used when DAGScheduler is requested to finds <<getMissingParentStages, missing parent MapStages>> and <<getPreferredLocsInternal, getPreferredLocsInternal>>.
 
@@ -797,7 +797,7 @@ NOTE: Preferred locations of the partitions of a RDD are also called *placement 
 
 Otherwise, if not found, getPreferredLocsInternal finds the first parent xref:rdd:spark-rdd-NarrowDependency.adoc[NarrowDependency] and (recursively) <<getPreferredLocsInternal, finds `TaskLocations`>>.
 
-If all the attempts fail to yield any non-empty result, getPreferredLocsInternal returns an empty collection of xref:rdd:spark-TaskLocation.adoc[TaskLocations].
+If all the attempts fail to yield any non-empty result, getPreferredLocsInternal returns an empty collection of xref:scheduler:TaskLocation.adoc[TaskLocations].
 
 getPreferredLocsInternal is used when DAGScheduler is requested for the <<getPreferredLocs, preferred locations for missing partitions>>.
 
