@@ -2,8 +2,6 @@
 
 *SerializerManager* is used to <<getSerializer, select a serializer>> for shuffle blocks (either the default <<defaultSerializer, JavaSerializer>> or <<kryoSerializer, KryoSerializer>> based on the key and value of a record).
 
-SerializerManager is used to create a xref:storage:BlockManager.adoc[BlockManager].
-
 == [[creating-instance]] Creating Instance
 
 SerializerManager takes the following to be created:
@@ -30,6 +28,26 @@ SerializerManager creates a KryoSerializer when created.
 
 KryoSerializer is used as a <<getSerializer, serializer>> when the type of a given key and value is <<canUseKryo, compatible with Kryo>>.
 
+== [[wrapForCompression]] Wrapping Input or Output Stream for Block
+
+[source, scala]
+----
+wrapForCompression(
+  blockId: BlockId,
+  s: OutputStream): OutputStream
+wrapForCompression(
+  blockId: BlockId,
+  s: InputStream): InputStream
+----
+
+wrapForCompression...FIXME
+
+wrapForCompression is used when:
+
+* SerializerManager is requested to <<wrapStream, wrapStream>>, <<dataSerializeStream, dataSerializeStream>>, <<dataDeserializeStream, dataDeserializeStream>> and <<dataSerializeWithExplicitClassTag, dataSerializeWithExplicitClassTag>>
+
+* SerializedValuesHolder (of xref:storage:MemoryStore.adoc[MemoryStore]) is requested for a SerializationStream
+
 == [[wrapStream]] Wrapping Input or Output Stream for Block
 
 [source, scala]
@@ -44,7 +62,17 @@ wrapStream(
 
 wrapStream...FIXME
 
-wrapStream is used when...FIXME
+wrapStream is used when:
+
+* BlockStoreShuffleReader is requested to xref:shuffle:BlockStoreShuffleReader.adoc#read[read combined records for a reduce task]
+
+* DiskMapIterator (of xref:shuffle:ExternalAppendOnlyMap.adoc[ExternalAppendOnlyMap]) is requested for nextBatchStream
+
+* SpillReader (of xref:shuffle:ExternalSorter.adoc[ExternalSorter]) is requested for nextBatchStream
+
+* xref:memory:UnsafeSorterSpillReader.adoc[UnsafeSorterSpillReader] is created
+
+* DiskBlockObjectWriter is requested to xref:storage:DiskBlockObjectWriter.adoc#open[open]
 
 == [[dataSerializeStream]] dataSerializeStream Method
 
@@ -58,7 +86,7 @@ dataSerializeStream[T: ClassTag](
 
 dataSerializeStream...FIXME
 
-dataSerializeStream is used when...FIXME
+dataSerializeStream is used when BlockManager is requested to xref:storage:BlockManager.adoc#doPutIterator[doPutIterator] and xref:storage:BlockManager.adoc#dropFromMemory[dropFromMemory].
 
 == [[dataSerializeWithExplicitClassTag]] dataSerializeWithExplicitClassTag Method
 
@@ -72,7 +100,7 @@ dataSerializeWithExplicitClassTag(
 
 dataSerializeWithExplicitClassTag...FIXME
 
-dataSerializeWithExplicitClassTag is used when...FIXME
+dataSerializeWithExplicitClassTag is used when BlockManager is requested to xref:storage:BlockManager.adoc#doGetLocalBytes[doGetLocalBytes].
 
 == [[dataDeserializeStream]] dataDeserializeStream Method
 
@@ -86,7 +114,11 @@ dataDeserializeStream[T](
 
 dataDeserializeStream...FIXME
 
-dataDeserializeStream is used when...FIXME
+dataDeserializeStream is used when:
+
+* BlockManager is requested to xref:storage:BlockManager.adoc#getLocalValues[getLocalValues], xref:storage:BlockManager.adoc#getRemoteValues[getRemoteValues] and xref:storage:BlockManager.adoc#doPutBytes[doPutBytes]
+
+* MemoryStore is requested to xref:storage:MemoryStore.adoc#putIteratorAsBytes[putIteratorAsBytes] (when PartiallySerializedBlock is requested for a PartiallyUnrolledIterator)
 
 == [[getSerializer]] Selecting Serializer
 
@@ -132,4 +164,4 @@ shouldCompress(
 
 shouldCompress...FIXME
 
-shouldCompress is used when...FIXME
+shouldCompress is used when SerializerManager is requested to <<wrapForCompression, wrapForCompression>>.
