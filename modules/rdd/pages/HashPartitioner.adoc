@@ -1,17 +1,42 @@
-== [[HashPartitioner]] HashPartitioner
+= HashPartitioner
 
-`HashPartitioner` is a `Partitioner` that uses `partitions` configurable number of partitions to shuffle data around.
+*HashPartitioner* is a xref:rdd:Partitioner.adoc[Partitioner] for hash-based partitioning.
 
-.`HashPartitioner` Attributes and Method
-[cols="1,3",options="header",width="100%"]
-|===
-| Property | Description
-| `numPartitions` | Exactly `partitions` number of partitions
-| `getPartition` | `0` for `null` keys and Java's link:++https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html#hashCode--++[Object.hashCode] for non-``null`` keys (modulo `partitions` number of partitions or `0` for negative hashes).
-| `equals` | `true` for ``HashPartitioner``s with `partitions` number of partitions. Otherwise, `false`.
-| `hashCode` | Exactly `partitions` number of partitions
-|===
+HashPartitioner is used as the default Partitioner.
 
-NOTE: `HashPartitioner` is the default `Partitioner` for link:spark-rdd-partitions.adoc#coalesce[coalesce] transformation with `shuffle` enabled, e.g. calling link:spark-rdd-partitions.adoc#repartition[repartition].
+== [[partitions]][[numPartitions]] Number of Partitions
 
-It is possible to re-shuffle data despite all the records for the key `k` being already on a single Spark executor (i.e. xref:storage:BlockManager.adoc[BlockManager] to be precise). When ``HashPartitioner``'s result for `k1` is `3` the key `k1` will go to the third executor.
+HashPartitioner takes a number of partitions to be created.
+
+HashPartitioner uses the number of partitions to find the <<getPartition, partition ID for a given key>> (of a key-value record).
+
+== [[getPartition]] Finding Partition ID for Key
+
+[source, scala]
+----
+getPartition(key: Any): Int
+----
+
+getPartition returns 0 as the partition ID for `null` keys.
+
+For non-``null`` keys, getPartition uses the key's {java-javadoc-url}/java/lang/Object.html#++hashCode--++[Object.hashCode] modulo the configured <<numPartitions, number of partitions>>. For a negative result, getPartition adds the <<numPartitions, number of partitions>> (used for the modulo operator) to make it positive.
+
+getPartition is part of the xref:rdd:Partitioner.adoc#getPartition[Partitioner] abstraction.
+
+== [[equals]] equals Method
+
+[source, scala]
+----
+equals(other: Any): Boolean
+----
+
+Two HashPartitioners are considered equal when the <<numPartitions, number of partitions>> are the same.
+
+== [[hashCode]] hashCode Method
+
+[source, scala]
+----
+hashCode: Int
+----
+
+hashCode is the <<numPartitions, number of partitions>>.
