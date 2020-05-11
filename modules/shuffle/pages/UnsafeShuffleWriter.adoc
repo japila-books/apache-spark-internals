@@ -1,4 +1,4 @@
-= [[UnsafeShuffleWriter]] UnsafeShuffleWriter
+= UnsafeShuffleWriter
 
 *UnsafeShuffleWriter* is a xref:shuffle:ShuffleWriter.adoc[ShuffleWriter] for xref:shuffle:SerializedShuffleHandle.adoc[SerializedShuffleHandles].
 
@@ -16,7 +16,7 @@ When requested to <<write, write key-value records of a partition>>, UnsafeShuff
 
 When requested to <<stop, stop>>, UnsafeShuffleWriter records the peak execution memory metric and returns the <<mapStatus, mapStatus>> (that was created when requested to <<write, write>>).
 
-== [[creating-instance]] Creating UnsafeShuffleWriter Instance
+== [[creating-instance]] Creating Instance
 
 UnsafeShuffleWriter takes the following to be created:
 
@@ -58,6 +58,7 @@ UnsafeShuffleWriter uses the xref:ROOT:configuration-properties.adoc#spark.shuff
 UnsafeShuffleWriter uses the xref:ROOT:configuration-properties.adoc#spark.shuffle.unsafe.file.output.buffer[spark.shuffle.unsafe.file.output.buffer] configuration property (default: `32k`) for...FIXME
 
 == [[transferToEnabled]] transferToEnabled
+
 UnsafeShuffleWriter can use a <<mergeSpillsWithTransferTo, specialized NIO-based fast merge procedure>> that avoids extra serialization/deserialization when xref:ROOT:configuration-properties.adoc#spark.file.transferTo[spark.file.transferTo] configuration property is enabled.
 
 == [[initialSortBufferSize]][[DEFAULT_INITIAL_SORT_BUFFER_SIZE]] initialSortBufferSize
@@ -79,7 +80,7 @@ mergeSpillsWithTransferTo...FIXME
 
 mergeSpillsWithTransferTo is used when UnsafeShuffleWriter is requested to <<mergeSpills, mergeSpills>> (with the <<transferToEnabled, transferToEnabled>> flag enabled and no encryption).
 
-== [[mergeSpills]] mergeSpills Internal Method
+== [[mergeSpills]] Merging Spills
 
 [source, java]
 ----
@@ -88,7 +89,48 @@ long[] mergeSpills(
   File outputFile)
 ----
 
-mergeSpills...FIXME
+=== [[mergeSpills-many-spills]] Many Spills
+
+With multiple SpillInfos to merge, mergeSpills selects between fast and <<mergeSpillsWithFileStream, slow merge strategies>>. The fast merge strategy can be <<mergeSpillsWithTransferTo, transferTo>>- or <<mergeSpillsWithFileStream, fileStream>>-based.
+
+mergeSpills uses the xref:ROOT:configuration-properties.adoc#spark.shuffle.unsafe.fastMergeEnabled[spark.shuffle.unsafe.fastMergeEnabled] configuration property to consider one of the fast merge strategies.
+
+A fast merge strategy is supported when xref:ROOT:configuration-properties.adoc#spark.shuffle.compress[spark.shuffle.compress] configuration property is disabled or the IO compression codec xref:ROOT:spark-CompressionCodec.adoc#supportsConcatenationOfSerializedStreams[supports decompression of concatenated compressed streams].
+
+With xref:ROOT:configuration-properties.adoc#spark.shuffle.compress[spark.shuffle.compress] configuration property enabled, mergeSpills will always use the slow merge strategy.
+
+With fast merge strategy enabled and supported, <<transferToEnabled, transferToEnabled>> enabled and encryption disabled, mergeSpills prints out the following DEBUG message to the logs and <<mergeSpillsWithTransferTo, mergeSpillsWithTransferTo>>.
+
+[source,plaintext]
+----
+Using transferTo-based fast merge
+----
+
+With fast merge strategy enabled and supported, no <<transferToEnabled, transferToEnabled>> or encryption enabled, mergeSpills prints out the following DEBUG message to the logs and <<mergeSpillsWithFileStream, mergeSpillsWithFileStream>> (with no compression codec).
+
+[source,plaintext]
+----
+Using fileStream-based fast merge
+----
+
+For slow merge, mergeSpills prints out the following DEBUG message to the logs and <<mergeSpillsWithFileStream, mergeSpillsWithFileStream>> (with the compression codec).
+
+[source,plaintext]
+----
+Using slow merge
+----
+
+In the end, mergeSpills requests the <<writeMetrics, ShuffleWriteMetrics>> to xref:metrics:spark-executor-ShuffleWriteMetrics.adoc#decBytesWritten[decBytesWritten] and xref:metrics:spark-executor-ShuffleWriteMetrics.adoc#incBytesWritten[incBytesWritten], and returns the partition length array.
+
+=== [[mergeSpills-one-spill]] One Spill
+
+With one SpillInfo to merge, mergeSpills simply renames the spill file to be the output file and returns the partition length array of the one spill.
+
+=== [[mergeSpills-no-spills]] No Spills
+
+With no SpillInfos to merge, mergeSpills creates an empty output file and returns an array of ``0``s of size of the xref:rdd:Partitioner.adoc#numPartitions[numPartitions] of the <<partitioner, Partitioner>>.
+
+=== [[mergeSpills-usage]] Usage
 
 mergeSpills is used when UnsafeShuffleWriter is requested to <<closeAndWriteOutput, close internal resources and write out merged spill files>>.
 
@@ -192,7 +234,7 @@ Error while deleting temp file [path]
 
 closeAndWriteOutput is used when UnsafeShuffleWriter is requested to <<write, write records>>.
 
-== [[mergeSpillsWithFileStream]] mergeSpillsWithFileStream Internal Method
+== [[mergeSpillsWithFileStream]] mergeSpillsWithFileStream Method
 
 [source, java]
 ----
@@ -202,9 +244,13 @@ long[] mergeSpillsWithFileStream(
   CompressionCodec compressionCodec)
 ----
 
+mergeSpillsWithFileStream will be given an xref:ROOT:spark-CompressionCodec.adoc[IO compression codec] when shuffle compression is enabled.
+
 mergeSpillsWithFileStream...FIXME
 
-mergeSpillsWithFileStream is used when UnsafeShuffleWriter is requested to <<mergeSpills, mergeSpills>>.
+mergeSpillsWithFileStream requires that there are at least two spills to merge.
+
+mergeSpillsWithFileStream is used when UnsafeShuffleWriter is requested to <<mergeSpills, merge spills>>.
 
 == [[getPeakMemoryUsedBytes]] Getting Peak Memory Used
 
