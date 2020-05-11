@@ -12,7 +12,7 @@ UnsafeShuffleWriter <<open, opens resources>> (a <<sorter, ShuffleExternalSorter
 .UnsafeShuffleWriter and ShuffleExternalSorter
 image::UnsafeShuffleWriter-ShuffleExternalSorter.png[align="center"]
 
-When requested to <<write, write key-value records of a partition>>, UnsafeShuffleWriter simply <<insertRecordIntoSorter, inserts every record into ShuffleExternalSorter>> followed by <<closeAndWriteOutput, closing the internal resources and writing out merged spill files>> (that, among other things, creates the <<mapStatus, MapStatus>>).
+When requested to <<write, write key-value records of a partition>>, UnsafeShuffleWriter simply <<insertRecordIntoSorter, inserts every record into ShuffleExternalSorter>> followed by <<closeAndWriteOutput, close internal resources and merge spill files>> (that, among other things, creates the <<mapStatus, MapStatus>>).
 
 When requested to <<stop, stop>>, UnsafeShuffleWriter records the peak execution memory metric and returns the <<mapStatus, mapStatus>> (that was created when requested to <<write, write>>).
 
@@ -132,7 +132,7 @@ With no SpillInfos to merge, mergeSpills creates an empty output file and return
 
 === [[mergeSpills-usage]] Usage
 
-mergeSpills is used when UnsafeShuffleWriter is requested to <<closeAndWriteOutput, close internal resources and write out merged spill files>>.
+mergeSpills is used when UnsafeShuffleWriter is requested to <<closeAndWriteOutput, close internal resources and merge spill files>>.
 
 == [[updatePeakMemoryUsed]] updatePeakMemoryUsed Internal Method
 
@@ -143,7 +143,7 @@ void updatePeakMemoryUsed()
 
 updatePeakMemoryUsed...FIXME
 
-updatePeakMemoryUsed is used when UnsafeShuffleWriter is requested for the <<getPeakMemoryUsedBytes, peak memory used>> and to <<closeAndWriteOutput, close internal resources and write out merged spill files>>
+updatePeakMemoryUsed is used when UnsafeShuffleWriter is requested for the <<getPeakMemoryUsedBytes, peak memory used>> and to <<closeAndWriteOutput, close internal resources and merge spill files>>.
 
 == [[write]] Writing Key-Value Records of Partition
 
@@ -153,7 +153,7 @@ void write(
   Iterator<Product2<K, V>> records)
 ----
 
-write traverses the input sequence of records (for a RDD partition) and <<insertRecordIntoSorter, insertRecordIntoSorter>> one by one. When all the records have been processed, write <<closeAndWriteOutput, closes internal resources and writes spill files merged>>.
+write traverses the input sequence of records (for a RDD partition) and <<insertRecordIntoSorter, insertRecordIntoSorter>> one by one. When all the records have been processed, write <<closeAndWriteOutput, closes internal resources and merges spill files>>.
 
 In the end, write xref:shuffle:ShuffleExternalSorter.adoc#cleanupResources[requests `ShuffleExternalSorter` to clean after itself].
 
@@ -197,35 +197,40 @@ In the end, insertRecordIntoSorter requests the <<sorter, ShuffleExternalSorter>
 
 insertRecordIntoSorter is used when UnsafeShuffleWriter is requested to <<write, write records>>.
 
-== [[closeAndWriteOutput]] Closing Internal Resources and Writing Out Merged Spill Files
+== [[closeAndWriteOutput]] Closing Internal Resources and Merging Spill Files
 
 [source, java]
 ----
 void closeAndWriteOutput()
 ----
 
-closeAndWriteOutput first <<updatePeakMemoryUsed, updates peak memory used>>.
+closeAndWriteOutput asserts that the <<sorter, ShuffleExternalSorter>> is available (non-``null``).
 
-closeAndWriteOutput removes the internal `ByteArrayOutputStream` and xref:serializer:SerializationStream.adoc[SerializationStream].
+closeAndWriteOutput <<updatePeakMemoryUsed, updates peak memory used>>.
 
-closeAndWriteOutput requests ShuffleExternalSorter to xref:shuffle:ShuffleExternalSorter.adoc#closeAndGetSpills[close itself and return `SpillInfo` metadata].
+closeAndWriteOutput removes the references to the <<serBuffer, ByteArrayOutputStream>> and <<serOutputStream, SerializationStream>> output streams (``null``s them).
 
-closeAndWriteOutput removes the internal `ShuffleExternalSorter`.
+closeAndWriteOutput requests the <<sorter, ShuffleExternalSorter>> to xref:shuffle:ShuffleExternalSorter.adoc#closeAndGetSpills[close and return spill metadata].
 
-closeAndWriteOutput requests `IndexShuffleBlockResolver` for the data file for the `shuffleId` and `mapId`.
+closeAndWriteOutput removes the reference to the <<sorter, ShuffleExternalSorter>> (``null``s it).
 
-closeAndWriteOutput creates a temporary file to <<mergeSpills, merge spill files>>, deletes them afterwards, and requests `IndexShuffleBlockResolver` to write index file and commit.
+closeAndWriteOutput requests the <<shuffleBlockResolver, IndexShuffleBlockResolver>> for the xref:shuffle:IndexShuffleBlockResolver.adoc#getDataFile[output data file] for the <<shuffleId, shuffle>> and <<mapId, map>> IDs.
 
-closeAndWriteOutput creates a xref:scheduler:MapStatus.adoc[MapStatus] with the xref:storage:BlockManager.adoc#shuffleServerId[location of the executor's `BlockManager`] and partition lengths in the merged file.
+[[closeAndWriteOutput-partitionLengths]][[closeAndWriteOutput-tmp]]
+closeAndWriteOutput creates a temporary file (along the data output file) and uses it to <<mergeSpills, merge spill files>> (that gives a partition length array). All spill files are then deleted.
 
-If there is an issue with deleting spill files, you should see the following ERROR message in the logs:
+closeAndWriteOutput requests the <<shuffleBlockResolver, IndexShuffleBlockResolver>> to xref:shuffle:IndexShuffleBlockResolver.adoc#writeIndexFileAndCommit[write shuffle index and data files] (for the <<shuffleId, shuffle>> and <<mapId, map>> IDs, the <<closeAndWriteOutput-partitionLengths, partition length array>> and the <<closeAndWriteOutput-tmp, temporary output data file>>).
+
+In the end, closeAndWriteOutput creates a xref:scheduler:MapStatus.adoc[MapStatus] with the xref:storage:BlockManager.adoc#shuffleServerId[location of the local BlockManager] and the <<closeAndWriteOutput-partitionLengths, partition length array>>.
+
+closeAndWriteOutput prints out the following ERROR message to the logs if there is an issue with deleting spill files:
 
 [source,plaintext]
 ----
 Error while deleting spill file [path]
 ----
 
-If there is an issue with deleting the temporary file, you should see the following ERROR message in the logs:
+closeAndWriteOutput prints out the following ERROR message to the logs if there is an issue with deleting the <<closeAndWriteOutput-tmp, temporary output data file>>:
 
 [source,plaintext]
 ----
@@ -299,7 +304,7 @@ Refer to xref:ROOT:spark-logging.adoc[Logging].
 
 xref:scheduler:MapStatus.adoc[MapStatus]
 
-Created when UnsafeShuffleWriter is requested to <<closeAndWriteOutput, close internal resources and write out merged spill files>> (with the xref:storage:BlockManager.adoc#shuffleServerId[BlockManagerId] of the <<blockManager, BlockManager>> and `partitionLengths`)
+Created when UnsafeShuffleWriter is requested to <<closeAndWriteOutput, close internal resources and merge spill files>> (with the xref:storage:BlockManager.adoc#shuffleServerId[BlockManagerId] of the <<blockManager, BlockManager>> and `partitionLengths`)
 
 Returned when UnsafeShuffleWriter is requested to <<stop, stop>>
 
@@ -321,7 +326,7 @@ Peak memory used (in bytes) that is updated exclusively in <<updatePeakMemoryUse
 
 Use <<getPeakMemoryUsedBytes, getPeakMemoryUsedBytes>> to access the current value
 
-=== [[serBuffer]] serBuffer
+=== [[serBuffer]] ByteArrayOutputStream for Serialized Data
 
 {java-javadoc-url}/java/io/ByteArrayOutputStream.html[java.io.ByteArrayOutputStream] of serialized data (written into a byte array of <<DEFAULT_INITIAL_SER_BUFFER_SIZE, 1MB>> initial size)
 
@@ -331,7 +336,7 @@ Used when UnsafeShuffleWriter is requested for the following:
 
 * <<insertRecordIntoSorter, insertRecordIntoSorter>>
 
-Destroyed (`null`) when requested to <<closeAndWriteOutput, close internal resources and write out merged spill files>>
+Destroyed (`null`) when requested to <<closeAndWriteOutput, close internal resources and merge spill files>>.
 
 === [[serializer]] serializer
 
@@ -345,19 +350,19 @@ xref:serializer:SerializationStream.adoc[SerializationStream] (that is created w
 
 Used when UnsafeShuffleWriter is requested to <<insertRecordIntoSorter, insertRecordIntoSorter>>
 
-Destroyed (`null`) when requested to <<closeAndWriteOutput, close internal resources and write out merged spill files>>
+Destroyed (`null`) when requested to <<closeAndWriteOutput, close internal resources and merge spill files>>.
 
 === [[shuffleId]] shuffleId
 
 xref:rdd:ShuffleDependency.adoc#shuffleId[Shuffle ID] (of the <<spark-shuffle-BaseShuffleHandle.adoc#dependency, ShuffleDependency>> of the <<handle, SerializedShuffleHandle>>)
 
-Used exclusively when requested to <<closeAndWriteOutput, close internal resources and write out merged spill files>>
+Used exclusively when requested to <<closeAndWriteOutput, close internal resources and merge spill files>>
 
 === [[sorter]] ShuffleExternalSorter
 
 UnsafeShuffleWriter uses a xref:shuffle:ShuffleExternalSorter.adoc[ShuffleExternalSorter].
 
-ShuffleExternalSorter is created when UnsafeShuffleWriter is requested to <<open, open>> (while being <<creating-instance, created>>) and dereferenced (``null``ed) when requested to <<closeAndWriteOutput, close internal resources and write out merged spill files>>.
+ShuffleExternalSorter is created when UnsafeShuffleWriter is requested to <<open, open>> (while being <<creating-instance, created>>) and dereferenced (``null``ed) when requested to <<closeAndWriteOutput, close internal resources and merge spill files>>.
 
 Used when UnsafeShuffleWriter is requested for the following:
 
@@ -365,7 +370,7 @@ Used when UnsafeShuffleWriter is requested for the following:
 
 * <<write, Writing records>>
 
-* <<closeAndWriteOutput, Closing internal resources and writing out merged spill files>>
+* <<closeAndWriteOutput, Closing internal resources and merging spill files>>
 
 * <<insertRecordIntoSorter, Inserting a record>>
 
