@@ -7,14 +7,24 @@
 ReliableCheckpointRDD takes the following to be created:
 
 * [[sc]] xref:ROOT:spark-SparkContext.adoc[SparkContext]
-* [[checkpointPath]] Checkpoint directory
-* [[_partitioner]] Optional xref:rdd:Partitioner.adoc[Partitioner] (default: undefined)
+* [[checkpointPath]] Checkpoint Directory (on a Hadoop DFS-compatible file system)
+* <<_partitioner, Partitioner>>
 
 ReliableCheckpointRDD is created when:
 
 * ReliableCheckpointRDD utility is used to <<writeRDDToCheckpointDirectory, created one>>.
 
 * SparkContext is requested to xref:ROOT:spark-SparkContext.adoc#checkpointFile[checkpointFile]
+
+== [[checkpointPartitionerFileName]] Checkpointed Partitioner File
+
+ReliableCheckpointRDD uses *_partitioner* as the name of the file in the <<checkpointPath, checkpoint directory>> with the <<partitioner, Partitioner>> serialized to.
+
+== [[partitioner]] Partitioner
+
+ReliableCheckpointRDD can be given a xref:rdd:Partitioner.adoc[Partitioner] to be created.
+
+When xref:rdd:RDD.adoc#partitioner[requested for the Partitioner] (as an RDD), ReliableCheckpointRDD returns the one it was created with or <<readCheckpointedPartitionerFile, reads the partitioner from the given RDD checkpoint directory, if exists>>.
 
 == [[writeRDDToCheckpointDirectory]] Writing RDD to Checkpoint Directory
 
@@ -29,3 +39,74 @@ writeRDDToCheckpointDirectory[T: ClassTag](
 writeRDDToCheckpointDirectory...FIXME
 
 writeRDDToCheckpointDirectory is used when ReliableRDDCheckpointData is requested to xref:rdd:ReliableRDDCheckpointData.adoc#doCheckpoint[doCheckpoint].
+
+== [[writePartitionerToCheckpointDir]] Writing Partitioner to Checkpoint Directory
+
+[source,scala]
+----
+writePartitionerToCheckpointDir(
+  sc: SparkContext,
+  partitioner: Partitioner,
+  checkpointDirPath: Path): Unit
+----
+
+writePartitionerToCheckpointDir creates the <<checkpointPartitionerFileName, partitioner file>> with the buffer size based on xref:ROOT:configuration-properties.adoc#spark.buffer.size[spark.buffer.size] configuration property.
+
+writePartitionerToCheckpointDir requests the xref:ROOT:spark-SparkEnv.adoc#serializer[default Serializer] for a new xref:serializer:Serializer.adoc#newInstance[SerializerInstance].
+
+writePartitionerToCheckpointDir requests the SerializerInstance to xref:serializer:SerializerInstance.adoc#serializeStream[serialize the output stream] and xref:serializer:DeserializationStream.adoc#writeObject[writes] the given Partitioner.
+
+In the end, writePartitionerToCheckpointDir prints out the following DEBUG message to the logs:
+
+[source,plaintext]
+----
+Written partitioner to [partitionerFilePath]
+----
+
+In case of any non-fatal exception, writePartitionerToCheckpointDir prints out the following DEBUG message to the logs:
+
+[source,plaintext]
+----
+Error writing partitioner [partitioner] to [checkpointDirPath]
+----
+
+writePartitionerToCheckpointDir is used when ReliableCheckpointRDD is requested to <<writeRDDToCheckpointDirectory, write the RDD to the checkpoint directory>>.
+
+== [[readCheckpointedPartitionerFile]] Reading Partitioner from Checkpointed Directory
+
+[source,scala]
+----
+readCheckpointedPartitionerFile(
+  sc: SparkContext,
+  checkpointDirPath: String): Option[Partitioner]
+----
+
+readCheckpointedPartitionerFile opens the <<checkpointPartitionerFileName, partitioner file>> with the buffer size based on xref:ROOT:configuration-properties.adoc#spark.buffer.size[spark.buffer.size] configuration property.
+
+readCheckpointedPartitionerFile requests the xref:ROOT:spark-SparkEnv.adoc#serializer[default Serializer] for a new xref:serializer:Serializer.adoc#newInstance[SerializerInstance].
+
+readCheckpointedPartitionerFile requests the SerializerInstance to xref:serializer:SerializerInstance.adoc#deserializeStream[deserialize the input stream] and xref:serializer:DeserializationStream.adoc#readObject[read the Partitioner] from the partitioner file.
+
+readCheckpointedPartitionerFile prints out the following DEBUG message to the logs and returns the partitioner.
+
+[source,plaintext]
+----
+Read partitioner from [partitionerFilePath]
+----
+
+In case of FileNotFoundException or any non-fatal exceptions, readCheckpointedPartitionerFile prints out a corresponding message to the logs and returns None.
+
+readCheckpointedPartitionerFile is used when ReliableCheckpointRDD is requested for the <<partitioner, Partitioner>>.
+
+== [[logging]] Logging
+
+Enable `ALL` logging level for `org.apache.spark.rdd.ReliableCheckpointRDD$` logger to see what happens inside.
+
+Add the following line to `conf/log4j.properties`:
+
+[source,plaintext]
+----
+log4j.logger.org.apache.spark.rdd.ReliableCheckpointRDD$=ALL
+----
+
+Refer to xref:ROOT:spark-logging.adoc[Logging].
