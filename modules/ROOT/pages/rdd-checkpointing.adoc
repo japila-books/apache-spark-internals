@@ -34,3 +34,41 @@ This is useful for RDDs with long lineages that need to be truncated periodicall
 Local checkpointing trades fault-tolerance for performance.
 
 NOTE: The checkpoint directory set through `SparkContext.setCheckpointDir` is not used.
+
+== [[demo]] Demo
+
+[source,plaintext]
+----
+val rdd = sc.parallelize(0 to 9)
+
+scala> rdd.checkpoint
+org.apache.spark.SparkException: Checkpoint directory has not been set in the SparkContext
+  at org.apache.spark.rdd.RDD.checkpoint(RDD.scala:1599)
+  ... 49 elided
+
+sc.setCheckpointDir("/tmp/rdd-checkpoint")
+
+// Creates a subdirectory for this SparkContext
+$ ls /tmp/rdd-checkpoint/
+fc21e1d1-3cd9-4d51-880f-58d1dd07f783
+
+// Mark the RDD to checkpoint at the earliest action
+rdd.checkpoint
+
+scala> println(rdd.getCheckpointFile)
+Some(file:/tmp/rdd-checkpoint/fc21e1d1-3cd9-4d51-880f-58d1dd07f783/rdd-2)
+
+scala> println(ns.id)
+2
+
+scala> println(rdd.getNumPartitions)
+16
+
+rdd.count
+
+// Check out the checkpoint directory
+// You should find a directory for the checkpointed RDD, e.g. rdd-2
+// The number of part-000* files is exactly the number of partitions
+$ ls -ltra /tmp/rdd-checkpoint/fc21e1d1-3cd9-4d51-880f-58d1dd07f783/rdd-2/part-000* | wc -l
+      16
+----
