@@ -1,37 +1,98 @@
-= [[SparkEnv]] SparkEnv
+= SparkEnv
 
-*Spark Runtime Environment* (SparkEnv) is the runtime environment with Spark's public services that interact with each other to establish a distributed computing platform for a Spark application.
+*SparkEnv* is the Spark Execution Environment with the <<services, core services>> of Apache Spark (that interact with each other to establish a distributed computing platform for a Spark application).
 
-Spark Runtime Environment is represented by a <<SparkEnv, SparkEnv>> object that holds all the required runtime services for a running Spark application with separate environments for the <<createDriverEnv, driver>> and <<createExecutorEnv, executors>>.
+SparkEnv are two separate execution environments for the <<createDriverEnv, driver>> and <<createExecutorEnv, executors>>.
 
-The idiomatic way in Spark to access the current SparkEnv when on the driver or executors is to use <<get, get>> method.
+== [[services]] Accessing Core Services
+
+[cols="40m,60",options="header",width="100%"]
+|===
+| Property
+| Service
+
+| [[blockManager]] blockManager
+| xref:storage:BlockManager.adoc[BlockManager]
+
+| [[broadcastManager]] broadcastManager
+| xref:ROOT:spark-service-broadcastmanager.adoc[BroadcastManager]
+
+| [[closureSerializer]] closureSerializer
+| xref:serializer:Serializer.adoc[Serializer]
+
+| [[conf]] conf
+| xref:ROOT:spark-SparkConf.adoc[SparkConf]
+
+| [[mapOutputTracker]] mapOutputTracker
+| xref:scheduler:MapOutputTracker.adoc[MapOutputTracker]
+
+| [[memoryManager]] memoryManager
+| xref:memory:MemoryManager.adoc[MemoryManager]
+
+| [[metricsSystem]] metricsSystem
+| xref:metrics:spark-metrics-MetricsSystem.adoc[MetricsSystem]
+
+| [[outputCommitCoordinator]] outputCommitCoordinator
+| xref:scheduler:OutputCommitCoordinator.adoc[OutputCommitCoordinator]
+
+| [[rpcEnv]] rpcEnv
+| xref:ROOT:spark-rpc-RpcEnv.adoc[RpcEnv]
+
+| [[securityManager]] securityManager
+| SecurityManager
+
+| [[serializer]] serializer
+| xref:serializer:Serializer.adoc[Serializer]
+
+| [[serializerManager]] serializerManager
+| xref:serializer:SerializerManager.adoc[SerializerManager]
+
+| [[shuffleManager]] shuffleManager
+| xref:shuffle:ShuffleManager.adoc[ShuffleManager]
+
+|===
+
+== [[creating-instance]] Creating Instance
+
+SparkEnv takes the following to be created:
+
+* [[executorId]] String
+* <<rpcEnv, RpcEnv>>
+* <<serializer, Serializer>>
+* <<closureSerializer, Serializer>>
+* <<serializerManager, SerializerManager>>
+* <<mapOutputTracker, MapOutputTracker>>
+* <<shuffleManager, ShuffleManager>>
+* <<broadcastManager, BroadcastManager>>
+* <<blockManager, BlockManager>>
+* <<securityManager, SecurityManager>>
+* <<metricsSystem, MetricsSystem>>
+* <<memoryManager, MemoryManager>>
+* <<outputCommitCoordinator, OutputCommitCoordinator>>
+* <<conf, SparkConf>>
+
+SparkEnv is created when:
+
+* xref:ROOT:spark-SparkContext-creating-instance-internals.adoc[SparkContext] is created (for the <<createDriverEnv, driver>>)
+
+* CoarseGrainedExecutorBackend is requested to xref:ROOT:spark-CoarseGrainedExecutorBackend.adoc#run[run] (for <<createExecutorEnv, executors>>)
+
+* MesosExecutorBackend is requested to xref:spark-on-mesos:spark-executor-backends-MesosExecutorBackend.adoc#registered[registered] (for <<createExecutorEnv, executors>>)
+
+== [[get]] Accessing SparkEnv
 
 [source, scala]
 ----
-import org.apache.spark._
-scala> SparkEnv.get
-res0: org.apache.spark.SparkEnv = org.apache.spark.SparkEnv@49322d04
+get: SparkEnv
 ----
 
-== [[services]] Core Components
+get returns the SparkEnv on the driver and executors.
 
-[cols="1,1,2",options="header",width="100%"]
-|===
-| Property | Service | Description
-| [[rpcEnv]] rpcEnv | link:spark-rpc.adoc[RpcEnv] |
-| [[serializer]] serializer | Serializer |
-| [[closureSerializer]] closureSerializer | xref:serializer:Serializer.adoc[Serializer] |
-| [[serializerManager]] serializerManager | SerializerManager |
-| [[mapOutputTracker]] <<MapOutputTracker, mapOutputTracker>> | xref:scheduler:MapOutputTracker.adoc[MapOutputTracker] |
-| [[shuffleManager]] <<ShuffleManager, shuffleManager>> | xref:shuffle:ShuffleManager.adoc[ShuffleManager] |
-| [[broadcastManager]] broadcastManager | BroadcastManager |
-| [[blockManager]] <<BlockManager, blockManager>> | xref:storage:BlockManager.adoc[BlockManager] |
-| securityManager | SecurityManager |
-| [[metricsSystem]] metricsSystem | link:spark-metrics-MetricsSystem.adoc[MetricsSystem] |
-| [[memoryManager]] memoryManager | xref:memory:MemoryManager.adoc[MemoryManager] |
-| outputCommitCoordinator | OutputCommitCoordinator |
-| [[conf]] conf | link:spark-SparkConf.adoc[SparkConf]
-|===
+[source, scala]
+----
+import org.apache.spark.SparkEnv
+assert(SparkEnv.get.isInstanceOf[SparkEnv])
+----
 
 == [[create]] Creating "Base" SparkEnv
 
@@ -40,16 +101,17 @@ res0: org.apache.spark.SparkEnv = org.apache.spark.SparkEnv@49322d04
 create(
   conf: SparkConf,
   executorId: String,
-  hostname: String,
-  port: Int,
-  isDriver: Boolean,
+  bindAddress: String,
+  advertiseAddress: String,
+  port: Option[Int],
   isLocal: Boolean,
   numUsableCores: Int,
+  ioEncryptionKey: Option[Array[Byte]],
   listenerBus: LiveListenerBus = null,
   mockOutputCommitCoordinator: Option[OutputCommitCoordinator] = None): SparkEnv
 ----
 
-create is an utility to create a "base" SparkEnv (for the driver and executors).
+create is an utility to create the "base" SparkEnv (that is "enhanced" for the driver and executors later on).
 
 .create's Input Arguments and Their Usage
 [cols="1,2",options="header",width="100%"]
@@ -69,7 +131,7 @@ create is an utility to create a "base" SparkEnv (for the driver and executors).
 |===
 
 [[create-Serializer]]
-When executed, create creates a `Serializer` (based on <<spark_serializer, spark.serializer>> setting). You should see the following `DEBUG` message in the logs:
+create creates a `Serializer` (based on <<spark_serializer, spark.serializer>> setting). You should see the following `DEBUG` message in the logs:
 
 ```
 DEBUG SparkEnv: Using serializer: [serializer]
@@ -188,7 +250,6 @@ createExecutorEnv(
   conf: SparkConf,
   executorId: String,
   hostname: String,
-  port: Int,
   numCores: Int,
   ioEncryptionKey: Option[Array[Byte]],
   isLocal: Boolean): SparkEnv
@@ -207,22 +268,6 @@ NOTE: The number of cores `numCores` is configured using `--cores` command-line 
 
 NOTE: `createExecutorEnv` is used when link:spark-CoarseGrainedExecutorBackend.adoc#run[`CoarseGrainedExecutorBackend` runs] and link:spark-executor-backends-MesosExecutorBackend.adoc#registered[`MesosExecutorBackend` registers a Spark executor].
 
-== [[get]] Getting Current SparkEnv
-
-[source, scala]
-----
-get: SparkEnv
-----
-
-`get` returns the current SparkEnv.
-
-[source, scala]
-----
-import org.apache.spark._
-scala> SparkEnv.get
-res0: org.apache.spark.SparkEnv = org.apache.spark.SparkEnv@49322d04
-----
-
 == [[stop]] Stopping SparkEnv
 
 [source, scala]
@@ -230,9 +275,9 @@ res0: org.apache.spark.SparkEnv = org.apache.spark.SparkEnv@49322d04
 stop(): Unit
 ----
 
-`stop` checks <<isStopped, isStopped>> internal flag and does nothing when enabled.
+stop checks <<isStopped, isStopped>> internal flag and does nothing when enabled already.
 
-Otherwise, `stop` turns `isStopped` flag on, stops all `pythonWorkers` and requests the following services to stop:
+Otherwise, stop turns `isStopped` flag on, stops all `pythonWorkers` and requests the following services to stop:
 
 1. xref:scheduler:MapOutputTracker.adoc#stop[MapOutputTracker]
 2. xref:shuffle:ShuffleManager.adoc#stop[ShuffleManager]
@@ -242,15 +287,15 @@ Otherwise, `stop` turns `isStopped` flag on, stops all `pythonWorkers` and reque
 6. link:spark-metrics-MetricsSystem.adoc#stop[MetricsSystem]
 7. xref:scheduler:OutputCommitCoordinator.adoc#stop[OutputCommitCoordinator]
 
-`stop` link:spark-rpc.adoc#shutdown[requests `RpcEnv` to shut down] and link:spark-rpc.adoc#awaitTermination[waits till it terminates].
+stop link:spark-rpc.adoc#shutdown[requests `RpcEnv` to shut down] and link:spark-rpc.adoc#awaitTermination[waits till it terminates].
 
-Only on the driver, `stop` deletes the <<driverTmpDir, temporary directory>>. You can see the following WARN message in the logs if the deletion fails.
+Only on the driver, stop deletes the <<driverTmpDir, temporary directory>>. You can see the following WARN message in the logs if the deletion fails.
 
 ```
 Exception while deleting Spark temp dir: [path]
 ```
 
-NOTE: `stop` is used when link:spark-SparkContext.adoc#stop[`SparkContext` stops] (on the driver) and link:spark-Executor.adoc#stop[`Executor` stops].
+NOTE: stop is used when link:spark-SparkContext.adoc#stop[`SparkContext` stops] (on the driver) and link:spark-Executor.adoc#stop[`Executor` stops].
 
 == [[set]] `set` Method
 
@@ -263,7 +308,7 @@ set(e: SparkEnv): Unit
 
 NOTE: `set` is used when...FIXME
 
-== [[environmentDetails]] `environmentDetails` Object Method
+== [[environmentDetails]] environmentDetails Utility
 
 [source, scala]
 ----
@@ -274,9 +319,9 @@ environmentDetails(
   addedFiles: Seq[String]): Map[String, Seq[(String, String)]]
 ----
 
-`environmentDetails`...FIXME
+environmentDetails...FIXME
 
-NOTE: `environmentDetails` is used exclusively when `SparkContext` is requested to <<spark-SparkContext.adoc#postEnvironmentUpdate, postEnvironmentUpdate>>.
+environmentDetails is used when SparkContext is requested to xref:ROOT:spark-SparkContext.adoc#postEnvironmentUpdate[post a SparkListenerEnvironmentUpdate event].
 
 == [[logging]] Logging
 
