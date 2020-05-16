@@ -2,35 +2,76 @@
 
 *NettyBlockTransferService* is a xref:core:BlockTransferService.adoc[] that uses Netty for <<uploadBlock, uploading>> or <<fetchBlocks, fetching>> blocks of data.
 
-NettyBlockTransferService is <<creating-instance, created>> when `SparkEnv` is xref:core:SparkEnv.adoc#create-NettyBlockTransferService[created] for the driver and executors (to xref:core:SparkEnv.adoc#create-BlockManager[create the BlockManager]).
-
-.Creating NettyBlockTransferService for BlockManager
+.NettyBlockTransferService, SparkEnv and BlockManager
 image::NettyBlockTransferService.png[align="center"]
 
-`BlockManager` uses NettyBlockTransferService for the following:
+== [[creating-instance]] Creating Instance
 
-* FIXME (should it be here or in BlockManager?)
+NettyBlockTransferService takes the following to be created:
 
-* xref:storage:BlockManager.adoc#shuffleClient[ShuffleClient] (when xref:ROOT:configuration-properties.adoc#spark.shuffle.service.enabled[spark.shuffle.service.enabled] configuration property is off) for...FIXME
+* [[conf]] xref:ROOT:SparkConf.adoc[SparkConf]
+* [[securityManager]] SecurityManager
+* [[bindAddress]] Bind address
+* [[hostName]] Host name
+* [[_port]] Port number
+* [[numCores]] Number of CPU cores
 
-[[port]]
-NettyBlockTransferService simply requests the <<server, TransportServer>> for the link:spark-TransportServer.adoc#getPort[port].
+NettyBlockTransferService is created when SparkEnv is xref:core:SparkEnv.adoc#create-NettyBlockTransferService[created] for the driver and executors (and xref:core:SparkEnv.adoc#create-BlockManager[creates the BlockManager]).
 
-[[logging]]
-[TIP]
-====
-Enable `INFO` or `TRACE` logging level for `org.apache.spark.network.netty.NettyBlockTransferService` logger to see what happens inside.
+== [[transportConf]][[transportContext]] TransportConf, TransportContext
 
-Add the following line to `conf/log4j.properties`:
+NettyBlockTransferService creates a xref:network:TransportConf.adoc[] for *shuffle* module (using xref:network:SparkTransportConf.adoc#fromSparkConf[SparkTransportConf] utility) when <<creating-instance, created>>.
 
-```
-log4j.logger.org.apache.spark.network.netty.NettyBlockTransferService=TRACE
-```
+NettyBlockTransferService uses the TransportConf for the following:
 
-Refer to link:spark-logging.adoc[Logging].
-====
+* Create a xref:network:TransportContext.adoc[] when requested to <<init, initialize>>
 
-== [[fetchBlocks]] `fetchBlocks` Method
+* Create a OneForOneBlockFetcher and a xref:core:RetryingBlockFetcher.adoc[RetryingBlockFetcher] when requested to <<fetchBlocks, fetch blocks>>
+
+NettyBlockTransferService uses the TransportContext to create the <<clientFactory, TransportClientFactory>> and the <<server, TransportServer>>.
+
+== [[clientFactory]] TransportClientFactory
+
+NettyBlockTransferService creates a xref:network:TransportClientFactory.adoc[] when requested to <<init, initialize>>.
+
+NettyBlockTransferService uses the TransportClientFactory for the following:
+
+* <<shuffleMetrics, Shuffle metrics>>
+
+* <<fetchBlocks, Fetching blocks>>
+
+* <<uploadBlock, Uploading blocks>>
+
+NettyBlockTransferService requests the TransportClientFactory to xref:network:TransportClientFactory.adoc#close[close] when requested to <<close, close>>.
+
+== [[server]] TransportServer
+
+NettyBlockTransferService <<createServer, creates a TransportServer>> when requested to <<init, initialize>>.
+
+NettyBlockTransferService uses the TransportServer for the following:
+
+* <<shuffleMetrics, Shuffle metrics>>
+
+* <<port, Port>>
+
+NettyBlockTransferService requests the TransportServer to xref:network:TransportServer.adoc#close[close] when requested to <<close, close>>.
+
+== [[port]] Port
+
+NettyBlockTransferService simply requests the <<server, TransportServer>> for the xref:network:TransportServer.adoc#getPort[port].
+
+== [[shuffleMetrics]] Shuffle Metrics
+
+[source,scala]
+----
+shuffleMetrics(): MetricSet
+----
+
+shuffleMetrics...FIXME
+
+shuffleMetrics is part of the xref:core:ShuffleClient.adoc#shuffleMetrics[ShuffleClient] abstraction.
+
+== [[fetchBlocks]] Fetching Blocks
 
 [source, scala]
 ----
@@ -42,17 +83,15 @@ fetchBlocks(
   listener: BlockFetchingListener): Unit
 ----
 
-NOTE: `fetchBlocks` is part of xref:core:BlockTransferService.adoc#fetchBlocks[BlockTransferService Contract] to...FIXME.
-
-When executed, `fetchBlocks` prints out the following TRACE message in the logs:
+When executed, fetchBlocks prints out the following TRACE message in the logs:
 
 ```
 TRACE Fetch blocks from [host]:[port] (executor id [execId])
 ```
 
-`fetchBlocks` then creates a `RetryingBlockFetcher.BlockFetchStarter` where `createAndStart` method...FIXME
+fetchBlocks then creates a `RetryingBlockFetcher.BlockFetchStarter` where `createAndStart` method...FIXME
 
-Depending on the maximum number of acceptable IO exceptions (such as connection timeouts) per request, if the number is greater than `0`, `fetchBlocks` creates a xref:core:RetryingBlockFetcher.adoc#creating-instance[RetryingBlockFetcher] and xref:core:RetryingBlockFetcher.adoc#start[starts] it immediately.
+Depending on the maximum number of acceptable IO exceptions (such as connection timeouts) per request, if the number is greater than `0`, fetchBlocks creates a xref:core:RetryingBlockFetcher.adoc#creating-instance[RetryingBlockFetcher] and xref:core:RetryingBlockFetcher.adoc#start[starts] it immediately.
 
 NOTE: `RetryingBlockFetcher` is created with the `RetryingBlockFetcher.BlockFetchStarter` created earlier, the input `blockIds` and `listener`.
 
@@ -64,20 +103,20 @@ In case of any `Exception`, you should see the following ERROR message in the lo
 ERROR Exception while beginning fetchBlocks
 ```
 
-== [[appId]] Application Id -- `appId` Property
+fetchBlocks is part of xref:core:BlockTransferService.adoc#fetchBlocks[BlockTransferService] abstraction.
 
-CAUTION: FIXME
+== [[appId]] Application Id
 
-== [[close]] Closing NettyBlockTransferService -- `close` Method
+== [[close]] Closing NettyBlockTransferService
 
 [source, scala]
 ----
 close(): Unit
 ----
 
-NOTE: `close` is part of the xref:core:BlockTransferService.adoc#close[BlockTransferService Contract].
+close...FIXME
 
-`close`...FIXME
+close is part of the xref:core:BlockTransferService.adoc#close[BlockTransferService] abstraction.
 
 == [[init]] Initializing NettyBlockTransferService
 
@@ -87,15 +126,7 @@ init(
   blockDataManager: BlockDataManager): Unit
 ----
 
-init starts a server for...FIXME
-
-Internally, init xref:core:NettyBlockRpcServer.adoc#creating-instance[creates a `NettyBlockRpcServer`] (using the application id, a `JavaSerializer` and the input `blockDataManager`).
-
-CAUTION: FIXME Describe security when `authEnabled` is enabled.
-
-init creates a `TransportContext` with the `NettyBlockRpcServer` created earlier.
-
-CAUTION: FIXME Describe `transportConf` and `TransportContext`.
+init creates a xref:core:NettyBlockRpcServer.adoc[] (for the xref:ROOT:SparkConf.adoc#getAppId[application id], a JavaSerializer and the given xref:storage:spark-BlockDataManager.adoc[BlockDataManager]) that is used to create a <<transportContext, TransportContext>>.
 
 init creates the internal `clientFactory` and a server.
 
@@ -104,14 +135,14 @@ CAUTION: FIXME What's the "a server"?
 In the end, you should see the INFO message in the logs:
 
 ```
-INFO NettyBlockTransferService: Server created on [hostName]:[port]
+Server created on [hostName]:[port]
 ```
 
 NOTE: `hostname` is given when xref:core:SparkEnv.adoc#NettyBlockTransferService[NettyBlockTransferService is created] and is controlled by link:spark-driver.adoc#spark_driver_host[`spark.driver.host` Spark property] for the driver and differs per deployment environment for executors (as controlled by link:spark-CoarseGrainedExecutorBackend.adoc#main[`--hostname` for `CoarseGrainedExecutorBackend`]).
 
 init is part of the xref:core:BlockTransferService.adoc#init[BlockTransferService] abstraction.
 
-== [[uploadBlock]] Uploading Block -- `uploadBlock` Method
+== [[uploadBlock]] Uploading Block
 
 [source, scala]
 ----
@@ -125,9 +156,7 @@ uploadBlock(
   classTag: ClassTag[_]): Future[Unit]
 ----
 
-NOTE: `uploadBlock` is part of the xref:core:BlockTransferService.adoc#uploadBlock[BlockTransferService Contract].
-
-Internally, `uploadBlock` creates a `TransportClient` client to send a <<UploadBlock, `UploadBlock` message>> (to the input `hostname` and `port`).
+Internally, uploadBlock creates a `TransportClient` client to send a <<UploadBlock, `UploadBlock` message>> (to the input `hostname` and `port`).
 
 NOTE: `UploadBlock` message is processed by xref:core:NettyBlockRpcServer.adoc[NettyBlockRpcServer].
 
@@ -149,7 +178,9 @@ When an upload failed, you should see the following ERROR message in the logs:
 ERROR Error while uploading block [blockId]
 ```
 
-== [[UploadBlock]] `UploadBlock` Message
+uploadBlock is part of the xref:core:BlockTransferService.adoc#uploadBlock[BlockTransferService] abstraction.
+
+== [[UploadBlock]] UploadBlock Message
 
 `UploadBlock` is a `BlockTransferMessage` that describes a block being uploaded, i.e. send over the wire from a <<uploadBlock, NettyBlockTransferService>> to a xref:core:NettyBlockRpcServer.adoc#UploadBlock[NettyBlockRpcServer].
 
@@ -166,26 +197,27 @@ ERROR Error while uploading block [blockId]
 
 As an `Encodable`, `UploadBlock` can calculate the encoded size and do encoding and decoding itself to or from a `ByteBuf`, respectively.
 
-== [[createServer]] `createServer` Internal Method
+== [[createServer]] createServer Internal Method
 
 [source, scala]
 ----
-createServer(bootstraps: List[TransportServerBootstrap]): TransportServer
+createServer(
+  bootstraps: List[TransportServerBootstrap]): TransportServer
 ----
 
-`createServer`...FIXME
+createServer...FIXME
 
-NOTE: `createServer` is used exclusively when NettyBlockTransferService is requested to <<init, init>>.
+createServer is used when NettyBlockTransferService is requested to <<init, initialize>>.
 
-== [[creating-instance]] Creating NettyBlockTransferService Instance
+== [[logging]] Logging
 
-NettyBlockTransferService takes the following when created:
+Enable `ALL` logging level for `org.apache.spark.network.netty.NettyBlockTransferService` logger to see what happens inside.
 
-* [[conf]] xref:ROOT:SparkConf.adoc[SparkConf]
-* [[securityManager]] `SecurityManager`
-* [[bindAddress]] Bind address to bind to
-* [[hostName]] Host name to bind to
-* [[_port]] Port number
-* [[numCores]] Number of CPU cores
+Add the following line to `conf/log4j.properties`:
 
-NettyBlockTransferService initializes the <<internal-registries, internal registries and counters>>.
+[source,plaintext]
+----
+log4j.logger.org.apache.spark.network.netty.NettyBlockTransferService=ALL
+----
+
+Refer to xref:ROOT:spark-logging.adoc[Logging].
