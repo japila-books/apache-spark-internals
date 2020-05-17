@@ -273,49 +273,50 @@ In the end, `runExecutorLauncher` <<registerAM, registers `ApplicationMaster` wi
 
 NOTE: `runExecutorLauncher` is used exclusively when <<run, `ApplicationMaster` is started>> in <<isClusterMode, `client` deploy mode>>.
 
-=== [[runDriver]] Running Spark Application's Driver and Registering ApplicationMaster with YARN ResourceManager (Cluster Deploy Mode) -- `runDriver` Internal Method
+=== [[runDriver]] Running Spark Application's Driver and Registering ApplicationMaster with YARN ResourceManager (Cluster Deploy Mode)
 
 [source, scala]
 ----
-runDriver(securityMgr: SecurityManager): Unit
+runDriver(
+  securityMgr: SecurityManager): Unit
 ----
 
-`runDriver` starts a Spark application on a <<userClassThread, separate thread>>, registers `YarnAM` endpoint in the application's `RpcEnv` followed by registering `ApplicationMaster` with YARN ResourceManager. In the end, `runDriver` waits for the Spark application to finish.
+runDriver starts a Spark application on a <<userClassThread, separate thread>>, registers `YarnAM` endpoint in the application's `RpcEnv` followed by registering `ApplicationMaster` with YARN ResourceManager. In the end, runDriver waits for the Spark application to finish.
 
-Internally, `runDriver` <<addAmIpFilter, registers web UI security filters>> and <<startUserApplication, starts a Spark application>> (on a <<userClassThread, separate Thread>>).
+Internally, runDriver <<addAmIpFilter, registers web UI security filters>> and <<startUserApplication, starts a Spark application>> (on a <<userClassThread, separate Thread>>).
 
 You should see the following INFO message in the logs:
 
 ```
-INFO Waiting for spark context initialization...
+Waiting for spark context initialization...
 ```
 
 [[runDriver-rpcEnv]]
-`runDriver` waits link:spark-yarn-settings.adoc#spark.yarn.am.waitTime[spark.yarn.am.waitTime] time till the Spark application's xref:ROOT:SparkContext.adoc[] is available and accesses the link:../index.adoc[current `RpcEnv`] (and saves it as the internal <<rpcEnv, rpcEnv>>).
+runDriver waits link:spark-yarn-settings.adoc#spark.yarn.am.waitTime[spark.yarn.am.waitTime] time till the Spark application's xref:ROOT:SparkContext.adoc[] is available and accesses the link:../index.adoc[current `RpcEnv`] (and saves it as the internal <<rpcEnv, rpcEnv>>).
 
-NOTE: `runDriver` uses xref:core:SparkEnv.adoc#rpcEnv[`SparkEnv` to access the current `RpcEnv`] that the xref:ROOT:SparkContext.adoc#env[Spark application's `SparkContext` manages].
+NOTE: runDriver uses xref:core:SparkEnv.adoc#rpcEnv[`SparkEnv` to access the current `RpcEnv`] that the xref:ROOT:SparkContext.adoc#env[Spark application's `SparkContext` manages].
 
-`runDriver` <<runAMEndpoint, creates `RpcEndpointRef` to the driver's `YarnScheduler` endpoint and registers `YarnAM` endpoint>> (using link:../spark-driver.adoc#spark_driver_host[spark.driver.host] and link:../spark-driver.adoc#spark_driver_port[spark.driver.port] properties for the driver's host and port and `isClusterMode` enabled).
+runDriver <<runAMEndpoint, creates `RpcEndpointRef` to the driver's `YarnScheduler` endpoint and registers `YarnAM` endpoint>> (using link:../spark-driver.adoc#spark_driver_host[spark.driver.host] and link:../spark-driver.adoc#spark_driver_port[spark.driver.port] properties for the driver's host and port and `isClusterMode` enabled).
 
-`runDriver` <<registerAM, registers `ApplicationMaster` with YARN ResourceManager and requests cluster resources>> (using the Spark application's <<rpcEnv, RpcEnv>>, the driver's RPC endpoint reference, `webUrl` if web UI is enabled and the input `securityMgr`).
+runDriver <<registerAM, registers `ApplicationMaster` with YARN ResourceManager and requests cluster resources>> (using the Spark application's <<rpcEnv, RpcEnv>>, the driver's RPC endpoint reference, `webUrl` if web UI is enabled and the input `securityMgr`).
 
-`runDriver` pauses until the Spark application finishes.
+runDriver pauses until the Spark application finishes.
 
-NOTE: `runDriver` uses Java's link:https://docs.oracle.com/javase/8/docs/api/java/lang/Thread.html#join--[Thread.join] on the internal <<userClassThread, Thread>> reference to the Spark application running on it.
+NOTE: runDriver uses Java's link:https://docs.oracle.com/javase/8/docs/api/java/lang/Thread.html#join--[Thread.join] on the internal <<userClassThread, Thread>> reference to the Spark application running on it.
 
-If the Spark application has not started in link:spark-yarn-settings.adoc#spark.yarn.am.waitTime[spark.yarn.am.waitTime] time, `runDriver` reports a `IllegalStateException`:
+If the Spark application has not started in link:spark-yarn-settings.adoc#spark.yarn.am.waitTime[spark.yarn.am.waitTime] time, runDriver reports a `IllegalStateException`:
 
 ```
 SparkContext is null but app is still running!
 ```
 
-If `TimeoutException` is reported while waiting for the Spark application to start, you should see the following ERROR message in the logs and `runDriver` <<finish, finishes>> with `FAILED` final application status and the error code `13`.
+If `TimeoutException` is reported while waiting for the Spark application to start, you should see the following ERROR message in the logs and runDriver <<finish, finishes>> with `FAILED` final application status and the error code `13`.
 
 ```
-ERROR SparkContext did not initialize after waiting for [spark.yarn.am.waitTime] ms. Please check earlier log output for errors. Failing the application.
+SparkContext did not initialize after waiting for [spark.yarn.am.waitTime] ms. Please check earlier log output for errors. Failing the application.
 ```
 
-NOTE: `runDriver` is used exclusively when <<run, `ApplicationMaster` is started>> in <<isClusterMode, `cluster` deploy mode>>.
+runDriver is used when ApplicationMaster is <<run, started>> (in <<isClusterMode, cluster deploy mode>>).
 
 === [[startUserApplication]] Starting Spark Application (in Separate Driver Thread) -- `startUserApplication` Method
 
@@ -616,3 +617,16 @@ NOTE: `YarnScheduler` RPC endpoint is registered when the link:spark-yarn-yarnsc
 `runAMEndpoint` then link:../index.adoc#setupEndpoint[registers the RPC endpoint] as *YarnAM* (and link:spark-yarn-AMEndpoint.adoc[AMEndpoint] implementation with ``ApplicationMaster``'s <<rpcEnv, RpcEnv>>, `YarnScheduler` endpoint reference, and `isClusterMode` flag).
 
 NOTE: `runAMEndpoint` is used when `ApplicationMaster` <<waitForSparkDriver, waits for the driver>> (in client deploy mode) and <<runDriver, runs the driver>> (in cluster deploy mode).
+
+=== [[createAllocator]] createAllocator Method
+
+[source,scala]
+----
+createAllocator(
+  driverRef: RpcEndpointRef,
+  _sparkConf: SparkConf): Unit
+----
+
+createAllocator...FIXME
+
+createAllocator is used when...FIXME
