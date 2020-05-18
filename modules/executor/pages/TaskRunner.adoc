@@ -7,16 +7,16 @@ image::TaskRunner.png[align="center"]
 
 Once <<creating-instance, created>>, TaskRunner can be <<run, started>> and optionally <<kill, killed>> (which starts and kills a given <<taskDescription, task>>, respectively).
 
-TaskRunner is an internal class of the xref:core:Executor.adoc[] class and has access to its internals (properties and methods).
+TaskRunner is an internal class of the xref:executor:Executor.adoc[] class and has access to its internals (properties and methods).
 
 == [[creating-instance]] Creating Instance
 
 TaskRunner takes the following to be created:
 
-* [[execBackend]] xref:ROOT:spark-ExecutorBackend.adoc[ExecutorBackend] (that manages the parent xref:core:Executor.adoc[])
+* [[execBackend]] xref:executor:ExecutorBackend.adoc[] (that manages the parent xref:executor:Executor.adoc[])
 * [[taskDescription]] xref:scheduler:spark-scheduler-TaskDescription.adoc[TaskDescription]
 
-TaskRunner is created when Executor is requested to xref:core:Executor.adoc#launchTask[launch a task].
+TaskRunner is created when Executor is requested to xref:executor:Executor.adoc#launchTask[launch a task].
 
 == [[threadName]] Thread Name
 
@@ -51,7 +51,7 @@ You should see the following INFO message in the logs:
 Running [taskName] (TID [taskId])
 ```
 
-run xref:spark-ExecutorBackend.adoc#statusUpdate[notifies `ExecutorBackend`] that <<taskId, taskId>> is in `TaskState.RUNNING` state.
+run xref:executor:ExecutorBackend.adoc#statusUpdate[notifies `ExecutorBackend`] that <<taskId, taskId>> is in `TaskState.RUNNING` state.
 
 NOTE: run uses `ExecutorBackend` that was specified when TaskRunner <<creating-instance, was created>>.
 
@@ -125,18 +125,18 @@ If the xref:scheduler:Task.adoc#kill[task was killed] (while it was running), ru
 
 run xref:serializer:Serializer.adoc#newInstance[creates a `Serializer`] and xref:serializer:Serializer.adoc#serialize[serializes the task's result]. run measures the time to serialize the result.
 
-NOTE: run uses `SparkEnv` xref:core:SparkEnv.adoc#serializer[to access the current `Serializer`]. `SparkEnv` was specified when xref:core:Executor.adoc#creating-instance[the owning `Executor` was created].
+NOTE: run uses `SparkEnv` xref:core:SparkEnv.adoc#serializer[to access the current `Serializer`]. `SparkEnv` was specified when xref:executor:Executor.adoc#creating-instance[the owning `Executor` was created].
 
 IMPORTANT: This is when `TaskExecutor` serializes the computed value of a task to be sent back to the driver.
 
 run records the xref:scheduler:Task.adoc#metrics[task metrics]:
 
-* xref:metrics:spark-executor-TaskMetrics.adoc#setExecutorDeserializeTime[executorDeserializeTime]
-* xref:metrics:spark-executor-TaskMetrics.adoc#setExecutorDeserializeCpuTime[executorDeserializeCpuTime]
-* xref:metrics:spark-executor-TaskMetrics.adoc#setExecutorRunTime[executorRunTime]
-* xref:metrics:spark-executor-TaskMetrics.adoc#setExecutorCpuTime[executorCpuTime]
-* xref:metrics:spark-executor-TaskMetrics.adoc#setJvmGCTime[jvmGCTime]
-* xref:metrics:spark-executor-TaskMetrics.adoc#setResultSerializationTime[resultSerializationTime]
+* xref:executor:TaskMetrics.adoc#setExecutorDeserializeTime[executorDeserializeTime]
+* xref:executor:TaskMetrics.adoc#setExecutorDeserializeCpuTime[executorDeserializeCpuTime]
+* xref:executor:TaskMetrics.adoc#setExecutorRunTime[executorRunTime]
+* xref:executor:TaskMetrics.adoc#setExecutorCpuTime[executorCpuTime]
+* xref:executor:TaskMetrics.adoc#setJvmGCTime[jvmGCTime]
+* xref:executor:TaskMetrics.adoc#setResultSerializationTime[resultSerializationTime]
 
 run xref:scheduler:Task.adoc#collectAccumulatorUpdates[collects the latest values of internal and external accumulators used in the task].
 
@@ -146,11 +146,11 @@ run xref:serializer:Serializer.adoc#serialize[serializes the `DirectTaskResult`]
 
 NOTE: A serialized `DirectTaskResult` is Java's https://docs.oracle.com/javase/8/docs/api/java/nio/ByteBuffer.html[java.nio.ByteBuffer].
 
-run selects the proper serialized version of the result before xref:spark-ExecutorBackend.adoc#statusUpdate[sending it to `ExecutorBackend`].
+run selects the proper serialized version of the result before xref:executor:ExecutorBackend.adoc#statusUpdate[sending it to `ExecutorBackend`].
 
 run branches off based on the serialized `DirectTaskResult` byte buffer's limit.
 
-When xref:core:Executor.adoc#maxResultSize[maxResultSize] is greater than `0` and the serialized `DirectTaskResult` buffer limit exceeds it, the following WARN message is displayed in the logs:
+When xref:executor:Executor.adoc#maxResultSize[maxResultSize] is greater than `0` and the serialized `DirectTaskResult` buffer limit exceeds it, the following WARN message is displayed in the logs:
 
 ```
 Finished [taskName] (TID [taskId]). Result is larger than maxResultSize ([resultSize] > [maxResultSize]), dropping it.
@@ -180,7 +180,7 @@ org.apache.spark.SparkException: Job aborted due to stage failure: Total size of
 In this case, run creates a xref:spark-scheduler-TaskResult.adoc#IndirectTaskResult[IndirectTaskResult] (with a `TaskResultBlockId` for the task's <<taskId, taskId>> and `resultSize`) and xref:serializer:Serializer.adoc#serialize[serializes it].
 
 [[run-result-sent-via-blockmanager]]
-When `maxResultSize` is not positive or `resultSize` is smaller than `maxResultSize` but greater than xref:core:Executor.adoc#maxDirectResultSize[maxDirectResultSize], run creates a `TaskResultBlockId` for the task's <<taskId, taskId>> and xref:BlockManager.adoc#putBytes[stores the serialized `DirectTaskResult` in `BlockManager`] (as the `TaskResultBlockId` with `MEMORY_AND_DISK_SER` storage level).
+When `maxResultSize` is not positive or `resultSize` is smaller than `maxResultSize` but greater than xref:executor:Executor.adoc#maxDirectResultSize[maxDirectResultSize], run creates a `TaskResultBlockId` for the task's <<taskId, taskId>> and xref:BlockManager.adoc#putBytes[stores the serialized `DirectTaskResult` in `BlockManager`] (as the `TaskResultBlockId` with `MEMORY_AND_DISK_SER` storage level).
 
 You should see the following INFO message in the logs:
 
@@ -202,7 +202,7 @@ run uses the serialized `DirectTaskResult` byte buffer as the final `serializedR
 
 NOTE: The final `serializedResult` is either a xref:spark-scheduler-TaskResult.adoc#IndirectTaskResult[IndirectTaskResult] (possibly with the block stored in `BlockManager`) or a xref:spark-scheduler-TaskResult.adoc#DirectTaskResult[DirectTaskResult].
 
-run xref:spark-ExecutorBackend.adoc#statusUpdate[notifies `ExecutorBackend`] that <<taskId, taskId>> is in `TaskState.FINISHED` state with the serialized result and removes <<taskId, taskId>> from the owning executor's xref:core:Executor.adoc#runningTasks[ runningTasks] registry.
+run xref:executor:ExecutorBackend.adoc#statusUpdate[notifies `ExecutorBackend`] that <<taskId, taskId>> is in `TaskState.FINISHED` state with the serialized result and removes <<taskId, taskId>> from the owning executor's xref:executor:Executor.adoc#runningTasks[ runningTasks] registry.
 
 NOTE: run uses `ExecutorBackend` that is specified when TaskRunner <<creating-instance, is created>>.
 
@@ -245,7 +245,7 @@ run is part of {java-javadoc-url}/java/lang/Runnable.html[java.lang.Runnable] co
 
 When xref:shuffle:FetchFailedException.adoc[FetchFailedException] is reported while running a task, run <<setTaskFinishedAndClearInterruptStatus, setTaskFinishedAndClearInterruptStatus>>.
 
-run xref:shuffle:FetchFailedException.adoc#toTaskFailedReason[requests `FetchFailedException` for the `TaskFailedReason`], serializes it and xref:spark-ExecutorBackend.adoc#statusUpdate[notifies `ExecutorBackend` that the task has failed] (with <<taskId, taskId>>, `TaskState.FAILED`, and a serialized reason).
+run xref:shuffle:FetchFailedException.adoc#toTaskFailedReason[requests `FetchFailedException` for the `TaskFailedReason`], serializes it and xref:executor:ExecutorBackend.adoc#statusUpdate[notifies `ExecutorBackend` that the task has failed] (with <<taskId, taskId>>, `TaskState.FAILED`, and a serialized reason).
 
 NOTE: `ExecutorBackend` was specified when <<creating-instance, TaskRunner was created>>.
 
@@ -259,7 +259,7 @@ When `TaskKilledException` is reported while running a task, you should see the 
 Executor killed [taskName] (TID [taskId]), reason: [reason]
 ```
 
-run then <<setTaskFinishedAndClearInterruptStatus, setTaskFinishedAndClearInterruptStatus>> and xref:spark-ExecutorBackend.adoc#statusUpdate[notifies `ExecutorBackend` that the task has been killed] (with <<taskId, taskId>>, `TaskState.KILLED`, and a serialized `TaskKilled` object).
+run then <<setTaskFinishedAndClearInterruptStatus, setTaskFinishedAndClearInterruptStatus>> and xref:executor:ExecutorBackend.adoc#statusUpdate[notifies `ExecutorBackend` that the task has been killed] (with <<taskId, taskId>>, `TaskState.KILLED`, and a serialized `TaskKilled` object).
 
 === [[run-InterruptedException]] InterruptedException (with Task Killed)
 
@@ -269,13 +269,13 @@ When `InterruptedException` is reported while running a task, and the task has b
 Executor interrupted and killed [taskName] (TID [taskId]), reason: [killReason]
 ```
 
-run then <<setTaskFinishedAndClearInterruptStatus, setTaskFinishedAndClearInterruptStatus>> and xref:spark-ExecutorBackend.adoc#statusUpdate[notifies `ExecutorBackend` that the task has been killed] (with <<taskId, taskId>>, `TaskState.KILLED`, and a serialized `TaskKilled` object).
+run then <<setTaskFinishedAndClearInterruptStatus, setTaskFinishedAndClearInterruptStatus>> and xref:executor:ExecutorBackend.adoc#statusUpdate[notifies `ExecutorBackend` that the task has been killed] (with <<taskId, taskId>>, `TaskState.KILLED`, and a serialized `TaskKilled` object).
 
 NOTE: The difference between this `InterruptedException` and <<run-TaskKilledException, TaskKilledException>> is the INFO message in the logs.
 
 === [[run-CommitDeniedException]] CommitDeniedException
 
-When `CommitDeniedException` is reported while running a task, run <<setTaskFinishedAndClearInterruptStatus, setTaskFinishedAndClearInterruptStatus>> and xref:spark-ExecutorBackend.adoc#statusUpdate[notifies `ExecutorBackend` that the task has failed] (with <<taskId, taskId>>, `TaskState.FAILED`, and a serialized `TaskKilled` object).
+When `CommitDeniedException` is reported while running a task, run <<setTaskFinishedAndClearInterruptStatus, setTaskFinishedAndClearInterruptStatus>> and xref:executor:ExecutorBackend.adoc#statusUpdate[notifies `ExecutorBackend` that the task has failed] (with <<taskId, taskId>>, `TaskState.FAILED`, and a serialized `TaskKilled` object).
 
 NOTE: The difference between this `CommitDeniedException` and <<run-FetchFailedException, FetchFailedException>> is just the reason being sent to `ExecutorBackend`.
 
@@ -289,8 +289,8 @@ Exception in [taskName] (TID [taskId])
 
 run then records the following task metrics (only when <<task, Task>> is available):
 
-* xref:metrics:spark-executor-TaskMetrics.adoc#setExecutorRunTime[executorRunTime]
-* xref:metrics:spark-executor-TaskMetrics.adoc#setJvmGCTime[jvmGCTime]
+* xref:executor:TaskMetrics.adoc#setExecutorRunTime[executorRunTime]
+* xref:executor:TaskMetrics.adoc#setJvmGCTime[jvmGCTime]
 
 run then xref:scheduler:Task.adoc#collectAccumulatorUpdates[collects the latest values of internal and external accumulators] (with `taskFailed` flag enabled to inform that the collection is for a failed task).
 
@@ -302,7 +302,7 @@ NOTE: run uses a closure xref:serializer:Serializer.adoc[Serializer] to serializ
 
 CAUTION: FIXME Why does run create `new ExceptionFailure(t, accUpdates).withAccums(accums)`, i.e. accumulators occur twice in the object.
 
-run <<setTaskFinishedAndClearInterruptStatus, setTaskFinishedAndClearInterruptStatus>> and xref:spark-ExecutorBackend.adoc#statusUpdate[notifies `ExecutorBackend` that the task has failed] (with <<taskId, taskId>>, `TaskState.FAILED`, and the serialized `ExceptionFailure`).
+run <<setTaskFinishedAndClearInterruptStatus, setTaskFinishedAndClearInterruptStatus>> and xref:executor:ExecutorBackend.adoc#statusUpdate[notifies `ExecutorBackend` that the task has failed] (with <<taskId, taskId>>, `TaskState.FAILED`, and the serialized `ExceptionFailure`).
 
 run may also trigger `SparkUncaughtExceptionHandler.uncaughtException(t)` if this is a fatal error.
 
@@ -396,11 +396,11 @@ Default: `(empty)` (`None`)
 
 === [[startGCTime]] startGCTime Timestamp
 
-Timestamp (which is really the xref:core:Executor.adoc#computeTotalGcTime[total amount of time this Executor JVM process has already spent in garbage collection]) that is used to mark the GC "zero" time (when <<run, run the task>>) and then compute the *JVM GC time metric* when:
+Timestamp (which is really the xref:executor:Executor.adoc#computeTotalGcTime[total amount of time this Executor JVM process has already spent in garbage collection]) that is used to mark the GC "zero" time (when <<run, run the task>>) and then compute the *JVM GC time metric* when:
 
 * TaskRunner is requested to <<collectAccumulatorsAndResetStatusOnFailure, collectAccumulatorsAndResetStatusOnFailure>> and <<run, run>>
 
-* `Executor` is requested to xref:core:Executor.adoc#reportHeartBeat[reportHeartBeat]
+* `Executor` is requested to xref:executor:Executor.adoc#reportHeartBeat[reportHeartBeat]
 
 === [[task]] Task
 
@@ -410,7 +410,7 @@ Used when:
 
 * TaskRunner is requested to <<kill, kill the task>>, <<collectAccumulatorsAndResetStatusOnFailure, collectAccumulatorsAndResetStatusOnFailure>>, <<run, run the task>>, <<hasFetchFailure, hasFetchFailure>>
 
-* `Executor` is requested to xref:core:Executor.adoc#reportHeartBeat[reportHeartBeat]
+* `Executor` is requested to xref:executor:Executor.adoc#reportHeartBeat[reportHeartBeat]
 
 === [[taskId]] Task Id
 
@@ -420,7 +420,7 @@ Used when:
 
 * TaskRunner is requested to <<run, run>> (to create a xref:memory:TaskMemoryManager.adoc[TaskMemoryManager] and serialize a `IndirectTaskResult` for a large task result) and <<kill, kill>> the task and for the <<threadName, threadName>>
 
-* `Executor` is requested to xref:core:Executor.adoc#reportHeartBeat[reportHeartBeat]
+* `Executor` is requested to xref:executor:Executor.adoc#reportHeartBeat[reportHeartBeat]
 
 === [[taskName]] Task Name
 

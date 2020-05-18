@@ -1,26 +1,20 @@
-== [[CoarseGrainedExecutorBackend]] CoarseGrainedExecutorBackend
+= CoarseGrainedExecutorBackend
 
-`CoarseGrainedExecutorBackend` is a <<main, standalone application>> that is started in a resource container when:
-
-. Spark Standalone's link:spark-standalone-StandaloneSchedulerBackend.adoc#start[`StandaloneSchedulerBackend` starts]
-
-. Spark on YARN's link:yarn/spark-yarn-ExecutorRunnable.adoc#run[`ExecutorRunnable` is started].
-
-. Spark on Mesos's link:spark-mesos/spark-mesos-MesosCoarseGrainedSchedulerBackend.adoc#createCommand[`MesosCoarseGrainedSchedulerBackend` launches Spark executors]
-
-When <<run, started>>, `CoarseGrainedExecutorBackend` <<creating-instance, registers the Executor RPC endpoint>> to communicate with the driver (i.e. with xref:scheduler:CoarseGrainedSchedulerBackend-DriverEndpoint.adoc[CoarseGrainedScheduler RPC endpoint]).
-
-.CoarseGrainedExecutorBackend Communicates with Driver's CoarseGrainedSchedulerBackend Endpoint
-image::CoarseGrainedExecutorBackend.png[align="center"]
-
-When <<main, launched>>, `CoarseGrainedExecutorBackend` immediately connects to the owning xref:scheduler:CoarseGrainedSchedulerBackend.adoc[CoarseGrainedSchedulerBackend] to inform that it is ready to launch tasks.
-
-`CoarseGrainedExecutorBackend` is an link:spark-ExecutorBackend.adoc[ExecutorBackend] that controls the lifecycle of a single <<executor, executor>> and sends <<statusUpdate, the executor's status updates>> to the driver.
+CoarseGrainedExecutorBackend is an xref:executor:ExecutorBackend.adoc[] that controls the lifecycle of a single <<executor, executor>> and sends <<statusUpdate, the executor's status updates>> to the driver.
 
 .CoarseGrainedExecutorBackend Sending Task Status Updates to Driver's CoarseGrainedScheduler Endpoint
 image::CoarseGrainedExecutorBackend-statusUpdate.png[align="center"]
 
-`CoarseGrainedExecutorBackend` is a xref:rpc:index.adoc#ThreadSafeRpcEndpoint[ThreadSafeRpcEndpoint] that <<onStart, connects to the driver>> (before accepting <<messages, messages>>) and <<onDisconnected, shuts down when the driver disconnects>>.
+CoarseGrainedExecutorBackend is a xref:rpc:RpcEndpoint.adoc#ThreadSafeRpcEndpoint[ThreadSafeRpcEndpoint] that <<onStart, connects to the driver>> (before accepting <<messages, messages>>) and <<onDisconnected, shuts down when the driver disconnects>>.
+
+CoarseGrainedExecutorBackend is started in a resource container (as a <<main, standalone application>>).
+
+When <<run, started>>, CoarseGrainedExecutorBackend <<creating-instance, registers the Executor RPC endpoint>> to communicate with the driver (i.e. with xref:scheduler:CoarseGrainedSchedulerBackend-DriverEndpoint.adoc[]).
+
+.CoarseGrainedExecutorBackend Communicates with Driver's CoarseGrainedSchedulerBackend Endpoint
+image::CoarseGrainedExecutorBackend.png[align="center"]
+
+When <<main, launched>>, CoarseGrainedExecutorBackend immediately connects to the owning xref:scheduler:CoarseGrainedSchedulerBackend.adoc[CoarseGrainedSchedulerBackend] to inform that it is ready to launch tasks.
 
 [[messages]]
 .CoarseGrainedExecutorBackend's RPC Messages
@@ -51,58 +45,14 @@ Sent exclusively when `CoarseGrainedSchedulerBackend` xref:scheduler:CoarseGrain
 
 |===
 
-[[internal-properties]]
-.CoarseGrainedExecutorBackend's Internal Properties
-[cols="1,^1,3",options="header",width="100%"]
-|===
-| Name
-| Initial Value
-| Description
-
-| [[ser]] `ser`
-| xref:serializer:SerializerInstance.adoc[SerializerInstance]
-| Initialized when <<creating-instance, `CoarseGrainedExecutorBackend` is created>>.
-
-NOTE: `CoarseGrainedExecutorBackend` uses the input `env` to xref:core:SparkEnv.adoc#closureSerializer[access `closureSerializer`].
-
-| [[driver]] `driver`
-| (empty)
-| xref:rpc:RpcEndpointRef.adoc[RpcEndpointRef] of the driver
-
-FIXME
-
-| [[stopping]] `stopping`
-| `false`
-| Enabled when `CoarseGrainedExecutorBackend` gets notified to <<StopExecutor, stop itself>> or <<Shutdown, shut down the managed executor>>.
-
-Used when `CoarseGrainedExecutorBackend` RPC Endpoint gets notified that <<onDisconnected, a remote RPC endpoint disconnected>>.
-
-| [[executor]] `executor`
-| (uninitialized)
-| Single managed coarse-grained xref:core:Executor.adoc#coarse-grained-executor[Executor] managed exclusively by the `CoarseGrainedExecutorBackend` to forward <<LaunchTask, launch>> and <<KillTask, kill>> task requests to from the driver.
-
-Initialized after `CoarseGrainedExecutorBackend` <<RegisteredExecutor, has registered with `CoarseGrainedSchedulerBackend`>> and stopped when `CoarseGrainedExecutorBackend` gets requested to <<Shutdown, shut down>>.
-|===
-
-[TIP]
-====
-Enable `INFO` logging level for `org.apache.spark.executor.CoarseGrainedExecutorBackend` logger to see what happens inside.
-
-Add the following line to `conf/log4j.properties`:
-
-```
-log4j.logger.org.apache.spark.executor.CoarseGrainedExecutorBackend=INFO
-```
-====
-
-=== [[LaunchTask]] Forwarding Launch Task Request to Executor (from Driver) -- `LaunchTask` Message Handler
+== [[LaunchTask]] Forwarding Launch Task Request to Executor (from Driver) -- `LaunchTask` Message Handler
 
 [source, scala]
 ----
 LaunchTask(data: SerializableBuffer) extends CoarseGrainedClusterMessage
 ----
 
-NOTE: `CoarseGrainedExecutorBackend` acts as a proxy between the driver and the managed single <<executor, executor>> and merely re-packages `LaunchTask` payload (as serialized `data`) to pass it along for execution.
+NOTE: CoarseGrainedExecutorBackend acts as a proxy between the driver and the managed single <<executor, executor>> and merely re-packages `LaunchTask` payload (as serialized `data`) to pass it along for execution.
 
 `LaunchTask` first link:spark-scheduler-TaskDescription.adoc#decode[decodes `TaskDescription` from `data`]. You should see the following INFO message in the logs:
 
@@ -110,9 +60,9 @@ NOTE: `CoarseGrainedExecutorBackend` acts as a proxy between the driver and the 
 INFO CoarseGrainedExecutorBackend: Got assigned task [id]
 ```
 
-`LaunchTask` then xref:core:Executor.adoc#launchTask[launches the task on the executor] (passing itself as the owning link:spark-ExecutorBackend.adoc[ExecutorBackend] and decoded link:spark-scheduler-TaskDescription.adoc[TaskDescription]).
+`LaunchTask` then xref:executor:Executor.adoc#launchTask[launches the task on the executor] (passing itself as the owning xref:executor:ExecutorBackend.adoc[] and decoded xref:scheduler:spark-scheduler-TaskDescription.adoc[TaskDescription]).
 
-If <<executor, executor>> is not available, `LaunchTask` <<exitExecutor, terminates `CoarseGrainedExecutorBackend`>> with the error code `1` and `ExecutorLossReason` with the following message:
+If <<executor, executor>> is not available, `LaunchTask` <<exitExecutor, terminates CoarseGrainedExecutorBackend>> with the error code `1` and `ExecutorLossReason` with the following message:
 
 ```
 Received LaunchTask command but executor was null
@@ -120,14 +70,14 @@ Received LaunchTask command but executor was null
 
 NOTE: `LaunchTask` is sent when `CoarseGrainedSchedulerBackend` is requested to xref:scheduler:CoarseGrainedSchedulerBackend-DriverEndpoint.adoc#launchTasks[launch tasks] (one `LaunchTask` per task).
 
-=== [[statusUpdate]] Sending Task Status Updates to Driver -- `statusUpdate` Method
+== [[statusUpdate]] Sending Task Status Updates to Driver -- `statusUpdate` Method
 
 [source, scala]
 ----
 statusUpdate(taskId: Long, state: TaskState, data: ByteBuffer): Unit
 ----
 
-NOTE: `statusUpdate` is part of link:spark-ExecutorBackend.adoc#statusUpdate[ExecutorBackend Contract] to send task status updates to a scheduler (on the driver).
+NOTE: `statusUpdate` is part of xref:executor:ExecutorBackend.adoc#statusUpdate[ExecutorBackend Contract] to send task status updates to a scheduler (on the driver).
 
 `statusUpdate` creates a xref:scheduler:CoarseGrainedSchedulerBackend-DriverEndpoint.adoc#StatusUpdate[StatusUpdate] (with the input `taskId`, `state`, and `data` together with the <<executorId, executor id>>) and sends it to the <<driver, driver>> (if connected already).
 
@@ -140,13 +90,13 @@ When no <<driver, driver>> is available, you should see the following WARN messa
 WARN Drop [msg] because has not yet connected to driver
 ```
 
-=== [[driverURL]] Driver's URL
+== [[driverURL]] Driver's URL
 
 The driver's URL is of the format `spark://[RpcEndpoint name]@[hostname]:[port]`, e.g. `spark://CoarseGrainedScheduler@192.168.1.6:64859`.
 
-=== [[main]] Launching CoarseGrainedExecutorBackend Standalone Application (in Resource Container)
+== [[main]] Launching CoarseGrainedExecutorBackend Standalone Application (in Resource Container)
 
-`CoarseGrainedExecutorBackend` is a standalone application (i.e. comes with `main` entry method) that parses <<command-line-arguments, command-line arguments>> and <<run, runs CoarseGrainedExecutorBackend's Executor RPC endpoint>> to communicate with the driver.
+CoarseGrainedExecutorBackend is a standalone application (i.e. comes with main entry method) that parses <<command-line-arguments, command-line arguments>> and <<run, runs CoarseGrainedExecutorBackend's Executor RPC endpoint>> to communicate with the driver.
 
 [[command-line-arguments]]
 .CoarseGrainedExecutorBackend Command-Line Arguments
@@ -188,7 +138,7 @@ NOTE: `--worker-url` is only used in link:spark-standalone-StandaloneSchedulerBa
 
 |===
 
-When executed with unrecognized command-line arguments or required arguments are missing, `main` shows the usage help and exits (with exit status `1`).
+When executed with unrecognized command-line arguments or required arguments are missing, main shows the usage help and exits (with exit status `1`).
 
 [source]
 ----
@@ -206,18 +156,15 @@ Usage: CoarseGrainedExecutorBackend [options]
    --user-class-path <url>
 ----
 
-[NOTE]
-====
-`main` is used when:
+main is used when:
 
-* Spark Standalone's link:spark-standalone-StandaloneSchedulerBackend.adoc#start[`StandaloneSchedulerBackend` starts].
+* (Spark Standalone) StandaloneSchedulerBackend is requested to xref:spark-standalone:spark-standalone-StandaloneSchedulerBackend.adoc#start[start]
 
-* Spark on YARN's link:yarn/spark-yarn-ExecutorRunnable.adoc#run[`ExecutorRunnable` is started] (in a YARN resource container).
+* (Spark on YARN) ExecutorRunnable is requested to xref:spark-on-yarn:spark-yarn-ExecutorRunnable.adoc#run[start] (in a YARN resource container).
 
-* Spark on Mesos's link:spark-mesos/spark-mesos-MesosCoarseGrainedSchedulerBackend.adoc#createCommand[`MesosCoarseGrainedSchedulerBackend` launches Spark executors]
-====
+* (Spark on Mesos) MesosCoarseGrainedSchedulerBackend is requested to xref:spark-on-mesos:spark-mesos-MesosCoarseGrainedSchedulerBackend.adoc#createCommand[launch Spark executors]
 
-=== [[run]] Starting CoarseGrainedExecutorBackend
+== [[run]] Starting CoarseGrainedExecutorBackend
 
 [source, scala]
 ----
@@ -240,11 +187,11 @@ NOTE: `run` link:spark-SparkHadoopUtil.adoc#runAsSparkUser[runs itself with a Ha
 NOTE: `run` expects a clear `hostname` with no `:` included (for a port perhaps).
 
 [[run-driverPropsFetcher]]
-`run` uses xref:core:Executor.adoc#spark_executor_port[spark.executor.port] Spark property (or `0` if not set) for the port to xref:rpc:index.adoc#create[create a `RpcEnv`] called *driverPropsFetcher* (together with the input `hostname` and `clientMode` enabled).
+`run` uses xref:executor:Executor.adoc#spark_executor_port[spark.executor.port] Spark property (or `0` if not set) for the port to xref:rpc:index.adoc#create[create a `RpcEnv`] called *driverPropsFetcher* (together with the input `hostname` and `clientMode` enabled).
 
 `run` xref:rpc:index.adoc#setupEndpointRefByURI[resolves `RpcEndpointRef` for the input `driverUrl`] and requests `SparkAppConfig` (by posting a blocking `RetrieveSparkAppConfig`).
 
-IMPORTANT: This is the first moment when `CoarseGrainedExecutorBackend` initiates communication with the driver available at `driverUrl` through `RpcEnv`.
+IMPORTANT: This is the first moment when CoarseGrainedExecutorBackend initiates communication with the driver available at `driverUrl` through `RpcEnv`.
 
 `run` uses `SparkAppConfig` to get the driver's `sparkProperties` and adds xref:ROOT:SparkConf.adoc#spark.app.id[spark.app.id] Spark property with the value of the input `appId`.
 
@@ -272,7 +219,7 @@ IMPORTANT: This is the moment when `SparkEnv` gets created with all the executor
 
 [NOTE]
 ====
-The optional input `workerUrl` is defined only when <<worker-url, `--worker-url` command-line argument>> was used to <<main, launch `CoarseGrainedExecutorBackend` standalone application>>.
+The optional input `workerUrl` is defined only when <<worker-url, `--worker-url` command-line argument>> was used to <<main, launch CoarseGrainedExecutorBackend standalone application>>.
 
 `--worker-url` is only used in link:spark-standalone-StandaloneSchedulerBackend.adoc[Spark Standalone].
 ====
@@ -285,9 +232,9 @@ CAUTION: FIXME Think of the place for `Utils.initDaemon`, `Utils.getProcessName`
 
 run is used when CoarseGrainedExecutorBackend standalone application is <<main, launched>>.
 
-=== [[creating-instance]] Creating CoarseGrainedExecutorBackend Instance
+== [[creating-instance]] Creating CoarseGrainedExecutorBackend Instance
 
-`CoarseGrainedExecutorBackend` takes the following when created:
+CoarseGrainedExecutorBackend takes the following when created:
 
 . [[rpcEnv]] xref:rpc:index.adoc[RpcEnv]
 . `driverUrl`
@@ -297,13 +244,13 @@ run is used when CoarseGrainedExecutorBackend standalone application is <<main, 
 . `userClassPath`
 . xref:core:SparkEnv.adoc[SparkEnv]
 
-NOTE: `driverUrl`, `executorId`, `hostname`, `cores` and `userClassPath` correspond to `CoarseGrainedExecutorBackend` standalone application's <<command-line-arguments, command-line arguments>>.
+NOTE: `driverUrl`, `executorId`, `hostname`, `cores` and `userClassPath` correspond to CoarseGrainedExecutorBackend standalone application's <<command-line-arguments, command-line arguments>>.
 
-`CoarseGrainedExecutorBackend` initializes the <<internal-properties, internal properties>>.
+CoarseGrainedExecutorBackend initializes the <<internal-properties, internal properties>>.
 
-NOTE: `CoarseGrainedExecutorBackend` is created (to act as an RPC endpoint) when <<run, `Executor` RPC endpoint is registered>>.
+NOTE: CoarseGrainedExecutorBackend is created (to act as an RPC endpoint) when <<run, `Executor` RPC endpoint is registered>>.
 
-=== [[onStart]] Registering with Driver -- `onStart` Method
+== [[onStart]] Registering with Driver -- `onStart` Method
 
 [source, scala]
 ----
@@ -318,17 +265,17 @@ When executed, you should see the following INFO message in the logs:
 INFO CoarseGrainedExecutorBackend: Connecting to driver: [driverUrl]
 ```
 
-NOTE: <<driverUrl, driverUrl>> is given when <<creating-instance, `CoarseGrainedExecutorBackend` is created>>.
+NOTE: <<driverUrl, driverUrl>> is given when <<creating-instance, CoarseGrainedExecutorBackend is created>>.
 
 `onStart` then xref:rpc:index.adoc#asyncSetupEndpointRefByURI[takes the `RpcEndpointRef` of the driver asynchronously] and initializes the internal <<driver, driver>> property. `onStart` sends a blocking xref:scheduler:CoarseGrainedSchedulerBackend.adoc#RegisterExecutor[RegisterExecutor] message immediately (with <<executorId, executorId>>, xref:rpc:RpcEndpointRef.adoc[RpcEndpointRef] to itself, <<hostname, hostname>>, <<cores, cores>> and <<extractLogUrls, log URLs>>).
 
-In case of failures, `onStart` <<exitExecutor, terminates `CoarseGrainedExecutorBackend`>> with the error code `1` and the reason (and no notification to the driver):
+In case of failures, `onStart` <<exitExecutor, terminates CoarseGrainedExecutorBackend>> with the error code `1` and the reason (and no notification to the driver):
 
 ```
 Cannot register with driver: [driverUrl]
 ```
 
-=== [[RegisteredExecutor]] Creating Single Managed Executor -- `RegisteredExecutor` Message Handler
+== [[RegisteredExecutor]] Creating Single Managed Executor -- `RegisteredExecutor` Message Handler
 
 [source, scala]
 ----
@@ -342,19 +289,19 @@ When `RegisteredExecutor` is received, you should see the following INFO in the 
 INFO CoarseGrainedExecutorBackend: Successfully registered with driver
 ```
 
-`CoarseGrainedExecutorBackend` xref:core:Executor.adoc#creating-instance[creates a `Executor`] (with `isLocal` disabled) that becomes the single managed <<executor, Executor>>.
+CoarseGrainedExecutorBackend xref:executor:Executor.adoc#creating-instance[creates a `Executor`] (with `isLocal` disabled) that becomes the single managed <<executor, Executor>>.
 
-NOTE: `CoarseGrainedExecutorBackend` uses `executorId`, `hostname`, `env`, `userClassPath` to create the `Executor` that are specified when `CoarseGrainedExecutorBackend` <<creating-instance, is created>>.
+NOTE: CoarseGrainedExecutorBackend uses `executorId`, `hostname`, `env`, `userClassPath` to create the `Executor` that are specified when CoarseGrainedExecutorBackend <<creating-instance, is created>>.
 
-If creating the `Executor` fails with a non-fatal exception, `RegisteredExecutor` <<exitExecutor, terminates `CoarseGrainedExecutorBackend`>> with the reason:
+If creating the `Executor` fails with a non-fatal exception, `RegisteredExecutor` <<exitExecutor, terminates CoarseGrainedExecutorBackend>> with the reason:
 
 ```
 Unable to create executor due to [message]
 ```
 
-NOTE: `RegisteredExecutor` is sent exclusively when `CoarseGrainedSchedulerBackend` RPC Endpoint xref:scheduler:CoarseGrainedSchedulerBackend-DriverEndpoint.adoc#RegisterExecutor[receives a `RegisterExecutor`] (that is sent right before `CoarseGrainedExecutorBackend` RPC Endpoint <<onStart, starts accepting messages>> which happens when `CoarseGrainedExecutorBackend` <<run, is started>>).
+NOTE: `RegisteredExecutor` is sent exclusively when `CoarseGrainedSchedulerBackend` RPC Endpoint xref:scheduler:CoarseGrainedSchedulerBackend-DriverEndpoint.adoc#RegisterExecutor[receives a `RegisterExecutor`] (that is sent right before CoarseGrainedExecutorBackend RPC Endpoint <<onStart, starts accepting messages>> which happens when CoarseGrainedExecutorBackend <<run, is started>>).
 
-=== [[RegisterExecutorFailed]] RegisterExecutorFailed
+== [[RegisterExecutorFailed]] RegisterExecutorFailed
 
 [source, scala]
 ----
@@ -367,9 +314,9 @@ When a `RegisterExecutorFailed` message arrives, the following ERROR is printed 
 ERROR CoarseGrainedExecutorBackend: Slave registration failed: [message]
 ```
 
-`CoarseGrainedExecutorBackend` then exits with the exit code `1`.
+CoarseGrainedExecutorBackend then exits with the exit code `1`.
 
-=== [[KillTask]] Killing Tasks -- `KillTask` Message Handler
+== [[KillTask]] Killing Tasks -- `KillTask` Message Handler
 
 `KillTask(taskId, _, interruptThread)` message kills a task (calls `Executor.killTask`).
 
@@ -379,7 +326,7 @@ If an executor has not been initialized yet (FIXME: why?), the following ERROR m
 ERROR Received KillTask command but executor was null
 ```
 
-=== [[StopExecutor]] StopExecutor Handler
+== [[StopExecutor]] StopExecutor Handler
 
 [source, scala]
 ----
@@ -397,7 +344,7 @@ In the end, the handler sends a <<Shutdown, Shutdown>> message to itself.
 
 NOTE: `StopExecutor` message is sent when `CoarseGrainedSchedulerBackend` RPC Endpoint (aka `DriverEndpoint`) processes xref:scheduler:CoarseGrainedSchedulerBackend-DriverEndpoint.adoc#StopExecutors[StopExecutors] or xref:scheduler:CoarseGrainedSchedulerBackend-DriverEndpoint.adoc#RemoveExecutor[RemoveExecutor] messages.
 
-=== [[Shutdown]] Shutdown Handler
+== [[Shutdown]] Shutdown Handler
 
 [source, scala]
 ----
@@ -405,11 +352,11 @@ case object Shutdown
 extends CoarseGrainedClusterMessage
 ----
 
-`Shutdown` turns <<stopping, stopping>> internal flag on and starts the `CoarseGrainedExecutorBackend-stop-executor` thread that xref:core:Executor.adoc#stop[stops the owned `Executor`] (using <<executor, executor>> reference).
+`Shutdown` turns <<stopping, stopping>> internal flag on and starts the `CoarseGrainedExecutorBackend-stop-executor` thread that xref:executor:Executor.adoc#stop[stops the owned `Executor`] (using <<executor, executor>> reference).
 
-NOTE: `Shutdown` message is sent exclusively when <<StopExecutor, `CoarseGrainedExecutorBackend` receives `StopExecutor`>>.
+NOTE: `Shutdown` message is sent exclusively when <<StopExecutor, CoarseGrainedExecutorBackend receives `StopExecutor`>>.
 
-=== [[exitExecutor]] Terminating CoarseGrainedExecutorBackend (and Notifying Driver with RemoveExecutor) -- `exitExecutor` Method
+== [[exitExecutor]] Terminating CoarseGrainedExecutorBackend (and Notifying Driver with RemoveExecutor) -- `exitExecutor` Method
 
 [source, scala]
 ----
@@ -434,7 +381,7 @@ You may see the following WARN message in the logs when the notification fails.
 Unable to notify the driver due to [message]
 ```
 
-In the end, `exitExecutor` terminates the `CoarseGrainedExecutorBackend` JVM process with the status `code`.
+In the end, `exitExecutor` terminates the CoarseGrainedExecutorBackend JVM process with the status `code`.
 
 NOTE: `exitExecutor` uses Java's https://docs.oracle.com/javase/8/docs/api/java/lang/System.html#exit-int-[System.exit] and initiates JVM's shutdown sequence (and executing all registered shutdown hooks).
 
@@ -442,29 +389,70 @@ NOTE: `exitExecutor` uses Java's https://docs.oracle.com/javase/8/docs/api/java/
 ====
 `exitExecutor` is used when:
 
-* `CoarseGrainedExecutorBackend` fails to <<onStart, associate with the driver>>, <<RegisteredExecutor, create a managed executor>> or <<RegisterExecutorFailed, register with the driver>>
+* CoarseGrainedExecutorBackend fails to <<onStart, associate with the driver>>, <<RegisteredExecutor, create a managed executor>> or <<RegisterExecutorFailed, register with the driver>>
 
 * no <<executor, executor>> has been created before <<LaunchTask, launch>> or <<KillTask, kill>> task requests
 
 * <<onDisconnected, driver has disconnected>>.
 ====
 
-=== [[onDisconnected]] `onDisconnected` Callback
+== [[onDisconnected]] `onDisconnected` Callback
 
 CAUTION: FIXME
 
-=== [[start]] `start` Method
+== [[start]] `start` Method
 
 CAUTION: FIXME
 
-=== [[stop]] `stop` Method
+== [[stop]] `stop` Method
 
 CAUTION: FIXME
 
-=== [[requestTotalExecutors]] `requestTotalExecutors`
+== [[requestTotalExecutors]] `requestTotalExecutors`
 
 CAUTION: FIXME
 
-=== [[extractLogUrls]] Extracting Log URLs -- `extractLogUrls` Method
+== [[extractLogUrls]] Extracting Log URLs -- `extractLogUrls` Method
 
 CAUTION: FIXME
+
+== [[logging]] Logging
+
+Enable `ALL` logging level for `org.apache.spark.executor.CoarseGrainedExecutorBackend` logger to see what happens inside.
+
+Add the following line to `conf/log4j.properties`:
+
+[source,plaintext]
+----
+log4j.logger.org.apache.spark.executor.CoarseGrainedExecutorBackend=ALL
+----
+
+Refer to xref:ROOT:spark-logging.adoc[Logging].
+
+== [[internal-properties]] Internal Properties
+
+=== [[ser]] SerializerInstance
+
+xref:serializer:SerializerInstance.adoc[SerializerInstance]
+
+Initialized when <<creating-instance, CoarseGrainedExecutorBackend is created>>.
+
+NOTE: CoarseGrainedExecutorBackend uses the input `env` to xref:core:SparkEnv.adoc#closureSerializer[access `closureSerializer`].
+
+=== [[driver]] Driver RpcEndpointRef
+
+xref:rpc:RpcEndpointRef.adoc[RpcEndpointRef] of the driver
+
+=== [[stopping]] stopping Flag
+
+Enabled when CoarseGrainedExecutorBackend gets notified to <<StopExecutor, stop itself>> or <<Shutdown, shut down the managed executor>>.
+
+Default: `false`
+
+Used when CoarseGrainedExecutorBackend RPC Endpoint gets notified that <<onDisconnected, a remote RPC endpoint disconnected>>.
+
+=== [[executor]] Executor
+
+Single managed coarse-grained xref:executor:Executor.adoc#coarse-grained-executor[Executor] managed exclusively by the CoarseGrainedExecutorBackend to forward <<LaunchTask, launch>> and <<KillTask, kill>> task requests to from the driver.
+
+Initialized after CoarseGrainedExecutorBackend <<RegisteredExecutor, has registered with `CoarseGrainedSchedulerBackend`>> and stopped when CoarseGrainedExecutorBackend gets requested to <<Shutdown, shut down>>.
