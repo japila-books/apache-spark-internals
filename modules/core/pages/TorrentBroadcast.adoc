@@ -1,11 +1,9 @@
 = TorrentBroadcast
 
-TorrentBroadcast is a xref:core:BroadcastFactory.adoc[BroadcastFactory] that uses a BitTorrent-like protocol for block distribution (that only happens when tasks access broadcast variables on executors).
+*TorrentBroadcast* is a xref:core:BroadcastFactory.adoc[BroadcastFactory] that uses a BitTorrent-like protocol for block distribution (that only happens when tasks access broadcast variables on executors).
 
 .TorrentBroadcast - broadcasting using BitTorrent
 image::sparkcontext-broadcast-bittorrent.png[align="center"]
-
-TorrentBroadcast is <<creating-instance, created>> exclusively when `TorrentBroadcastFactory` is requested to xref:core:TorrentBroadcastFactory.adoc#newBroadcast[newBroadcast].
 
 When a xref:ROOT:SparkContext.adoc#broadcast[broadcast variable is created (using `SparkContext.broadcast`)] on the driver, a <<creating-instance, new instance of TorrentBroadcast is created>>.
 
@@ -51,6 +49,17 @@ log4j.logger.org.apache.spark.broadcast.TorrentBroadcast=DEBUG
 
 Refer to link:spark-logging.adoc[Logging].
 ====
+
+== [[creating-instance]] Creating TorrentBroadcast Instance
+
+TorrentBroadcast takes the following when created:
+
+* [[obj]] Object (the value) to be broadcast
+* [[id]] ID
+
+TorrentBroadcast initializes the <<internal-registries, internal registries and counters>>.
+
+TorrentBroadcast is <<creating-instance, created>> exclusively when `TorrentBroadcastFactory` is requested to xref:core:TorrentBroadcastFactory.adoc#newBroadcast[newBroadcast].
 
 == [[unBlockifyObject]] `unBlockifyObject` Method
 
@@ -201,7 +210,7 @@ doDestroy(blocking: Boolean): Unit
 
 NOTE: `doDestroy` is executed when link:spark-broadcast.adoc#destroy-internal[`Broadcast` removes the persisted data and metadata related to a broadcast variable].
 
-== [[unpersist]] `unpersist` Internal Method
+== [[unpersist]] unpersist Utility
 
 [source, scala]
 ----
@@ -211,28 +220,24 @@ unpersist(
   blocking: Boolean): Unit
 ----
 
-`unpersist` removes all broadcast blocks from executors and possibly the driver (only when `removeFromDriver` flag is enabled).
+unpersist removes all broadcast blocks from executors and, with the given removeFromDriver flag enabled, from the driver.
 
-NOTE: `unpersist` belongs to TorrentBroadcast private object and is executed when TorrentBroadcast <<doUnpersist, unpersists a broadcast variable>> and <<doDestroy, removes a broadcast variable completely>>.
+When executed, unpersist prints out the following DEBUG message in the logs:
 
-When executed, you should see the following DEBUG message in the logs:
+[source,plaintext]
+----
+Unpersisting TorrentBroadcast [id]
+----
 
-```
-DEBUG TorrentBroadcast: Unpersisting TorrentBroadcast [id]
-```
+unpersist requests xref:storage:BlockManagerMaster.adoc#removeBroadcast[`BlockManagerMaster` to remove the `id` broadcast].
 
-`unpersist` requests xref:storage:BlockManagerMaster.adoc#removeBroadcast[`BlockManagerMaster` to remove the `id` broadcast].
+NOTE: unpersist uses xref:core:SparkEnv.adoc#blockManager[`SparkEnv` to get the `BlockManagerMaster`] (through `blockManager` property).
 
-NOTE: `unpersist` uses xref:core:SparkEnv.adoc#blockManager[`SparkEnv` to get the `BlockManagerMaster`] (through `blockManager` property).
+unpersist is used when:
 
-== [[creating-instance]] Creating TorrentBroadcast Instance
+* TorrentBroadcast is requested to <<doUnpersist, unpersist a broadcast variable on executors>> and <<doDestroy, remove a broadcast variable from the driver and executors>>
 
-TorrentBroadcast takes the following when created:
-
-* [[obj]] Object (the value) to be broadcast
-* [[id]] ID
-
-TorrentBroadcast initializes the <<internal-registries, internal registries and counters>>.
+* TorrentBroadcastFactory is requested to xref:TorrentBroadcastFactory.adoc#unbroadcast[unbroadcast]
 
 == [[readBlocks]] Reading Blocks -- `readBlocks` Internal Method
 
