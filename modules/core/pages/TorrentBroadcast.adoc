@@ -1,8 +1,8 @@
 = TorrentBroadcast
 
-*TorrentBroadcast* is a xref:ROOT:Broadcast.adoc[] that uses a BitTorrent-like protocol for block distribution (that only happens when tasks access broadcast variables on executors).
+*TorrentBroadcast* is a xref:ROOT:Broadcast.adoc[] that uses a BitTorrent-like protocol for broadcast blocks distribution.
 
-.TorrentBroadcast - broadcasting using BitTorrent
+.TorrentBroadcast -- Broadcasting using BitTorrent
 image::sparkcontext-broadcast-bittorrent.png[align="center"]
 
 When a xref:ROOT:SparkContext.adoc#broadcast[broadcast variable is created (using `SparkContext.broadcast`)] on the driver, a <<creating-instance, new instance of TorrentBroadcast is created>>.
@@ -21,8 +21,6 @@ A broadcast variable is stored on the driver's xref:storage:BlockManager.adoc[Bl
 image::sparkcontext-broadcast-bittorrent-newBroadcast.png[align="center"]
 
 NOTE: TorrentBroadcast-based broadcast variables are created using xref:core:TorrentBroadcastFactory.adoc[TorrentBroadcastFactory].
-
-NOTE: TorrentBroadcast belongs to `org.apache.spark.broadcast` package.
 
 == [[creating-instance]] Creating Instance
 
@@ -224,6 +222,8 @@ unpersist is used when:
 
 * TorrentBroadcastFactory is requested to xref:TorrentBroadcastFactory.adoc#unbroadcast[unbroadcast]
 
+== [[numBlocks]] numBlocks Internal Value
+
 == [[readBlocks]] Reading Broadcast Blocks
 
 [source, scala]
@@ -231,7 +231,31 @@ unpersist is used when:
 readBlocks(): Array[BlockData]
 ----
 
+readBlocks creates a local array of xref:storage:BlockData.adoc[]s for <<numBlocks, numBlocks>> elements (that is later modified and returned).
+
+readBlocks uses the xref:core:SparkEnv.adoc[] to access xref:core:SparkEnv.adoc#blockManager[BlockManager] (that is later used to fetch local or remote blocks).
+
+For every block (randomly-chosen by block ID between 0 and <<numBlocks, numBlocks>>), readBlocks creates a xref:storage:spark-BlockId.adoc#BroadcastBlockId[BroadcastBlockId] for the <<id, id>> (of the broadcast variable) and the chunk identified by the `piece` prefix followed by the ID.
+
+readBlocks prints out the following DEBUG message to the logs:
+
+[source,plaintext]
+----
+Reading piece [pieceId] of [broadcastId]
+----
+
+readBlocks first tries to look up the piece locally by requesting the BlockManager to xref:storage:BlockManager.adoc#getLocalBytes[getLocalBytes] and, if found, stores the reference in the local block array (for the piece ID) and <<releaseLock, releaseLock>> for the chunk.
+
+If not found locally, readBlocks requests the BlockManager to xref:storage:BlockManager.adoc#getRemoteBytes[getRemoteBytes].
+
 readBlocks...FIXME
+
+readBlocks throws a SparkException for blocks neither available locally nor remotely:
+
+[source,plaintext]
+----
+Failed to get [pieceId] of [broadcastId]
+----
 
 readBlocks is used when TorrentBroadcast is requested to <<readBroadcastBlock, readBroadcastBlock>>.
 
