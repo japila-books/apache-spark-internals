@@ -1,6 +1,6 @@
 = TorrentBroadcast
 
-*TorrentBroadcast* is a xref:core:BroadcastFactory.adoc[BroadcastFactory] that uses a BitTorrent-like protocol for block distribution (that only happens when tasks access broadcast variables on executors).
+*TorrentBroadcast* is a xref:ROOT:spark-broadcast.adoc[] that uses a BitTorrent-like protocol for block distribution (that only happens when tasks access broadcast variables on executors).
 
 .TorrentBroadcast - broadcasting using BitTorrent
 image::sparkcontext-broadcast-bittorrent.png[align="center"]
@@ -24,127 +24,112 @@ NOTE: TorrentBroadcast-based broadcast variables are created using xref:core:Tor
 
 NOTE: TorrentBroadcast belongs to `org.apache.spark.broadcast` package.
 
-[[_value]]
-TorrentBroadcast uses `_value` internal registry for the value that is computed by <<readBroadcastBlock, readBroadcastBlock>> when first requested.
+== [[creating-instance]] Creating Instance
+
+TorrentBroadcast takes the following to be created:
+
+* [[obj]] Object (the value) to be broadcast
+* [[id]] ID
+
+TorrentBroadcast is created when TorrentBroadcastFactory is requested for a xref:core:TorrentBroadcastFactory.adoc#newBroadcast[new broadcast variable].
+
+== [[_value]] Transient Lazy Broadcast Value
 
 [source, scala]
 ----
 _value: T
 ----
 
-NOTE: `_value` is a `@transient private lazy val` which means that it is not serialized to be sent remotely and instantiated when first requested.
+TorrentBroadcast uses `_value` internal registry for the value that is <<readBroadcastBlock, computed>> on demand (and cached afterwards).
 
-[[broadcastId]]
-TorrentBroadcast uses a <<spark-BlockId.adoc#BroadcastBlockId, BroadcastBlockId>> for...FIXME
+`_value` is a `@transient private lazy val` and uses two Scala language features:
 
-[TIP]
-====
-Enable `INFO` or `DEBUG` logging levels for `org.apache.spark.broadcast.TorrentBroadcast` logger to see what happens inside.
+* It is not serialized when the TorrentBroadcast is serialized to be sent over the wire to executors (and has to be <<readBroadcastBlock, re-computed>> afterwards)
 
-Add the following line to `conf/log4j.properties`:
+* It is lazily instantiated when first requested and cached afterwards
 
-```
-log4j.logger.org.apache.spark.broadcast.TorrentBroadcast=DEBUG
-```
-
-Refer to link:spark-logging.adoc[Logging].
-====
-
-== [[creating-instance]] Creating TorrentBroadcast Instance
-
-TorrentBroadcast takes the following when created:
-
-* [[obj]] Object (the value) to be broadcast
-* [[id]] ID
-
-TorrentBroadcast initializes the <<internal-registries, internal registries and counters>>.
-
-TorrentBroadcast is <<creating-instance, created>> exclusively when `TorrentBroadcastFactory` is requested to xref:core:TorrentBroadcastFactory.adoc#newBroadcast[newBroadcast].
-
-== [[unBlockifyObject]] `unBlockifyObject` Method
-
-CAUTION: FIXME
-
-== [[releaseLock]] `releaseLock` Method
-
-CAUTION: FIXME
-
-== [[getValue]] Getting Value of Broadcast Variable -- `getValue` Method
+== [[getValue]] Getting Value of Broadcast Variable
 
 [source, scala]
 ----
 def getValue(): T
 ----
 
-`getValue` returns the value of a broadcast variable.
+getValue returns the <<_value, _value>>.
 
-NOTE: `getValue` is part of the link:spark-broadcast.adoc#contract[`Broadcast` Variable Contract] and is the only way to access the value of a broadcast variable.
+getValue is part of the xref:ROOT:spark-broadcast.adoc#getValue[Broadcast] abstraction.
 
-Internaly, `getValue` reads the internal `_value` that, once accessed, <<readBroadcastBlock, reads broadcast blocks from the local or remote BlockManagers>>.
+== [[broadcastId]] BroadcastBlockId
 
-NOTE: The internal `_value` is __transient__ and __lazy__, i.e. it is not preserved when serialized and (re)created only when requested, respectively. That "trick" allows for serializing broadcast values on the driver before they are transferred to executors over the wire.
+TorrentBroadcast uses a xref:storage:spark-BlockId.adoc#BroadcastBlockId[BroadcastBlockId] for...FIXME
 
-== [[readBroadcastBlock]] `readBroadcastBlock` Internal Method
+== [[readBroadcastBlock]] readBroadcastBlock Internal Method
 
 [source, scala]
 ----
 readBroadcastBlock(): T
 ----
 
-Internally, `readBroadcastBlock` <<setConf, sets the `SparkConf`>>
+readBroadcastBlock xref:SparkEnv.adoc#get[uses the SparkEnv] to access xref:SparkEnv.adoc#broadcastManager[BroadcastManager] that is requested for xref:BroadcastManager.adoc#cachedValues[cached broadcast values].
 
-NOTE: The current xref:ROOT:SparkConf.adoc[SparkConf] is available using xref:core:SparkEnv.adoc#conf[SparkEnv.get.conf].
+readBroadcastBlock looks up the <<broadcastId, BroadcastBlockId>> in the cached broadcast values and returns it if found.
 
-`readBroadcastBlock` requests the xref:storage:BlockManager.adoc#getLocalValues[local `BlockManager` for values of the broadcast].
+If not found, readBroadcastBlock requests the SparkEnv for the xref:core:SparkEnv.adoc#conf[SparkConf] and <<setConf, setConf>>.
 
-NOTE: The current xref:storage:BlockManager.adoc[BlockManager] is available using xref:core:SparkEnv.adoc#blockManager[SparkEnv.get.blockManager].
+readBroadcastBlock xref:SparkEnv.adoc#get[uses the SparkEnv] to access xref:SparkEnv.adoc#blockManager[BlockManager].
 
-If the broadcast was available locally, `readBroadcastBlock` <<releaseLock, releases a lock>> for the broadcast and returns the value.
+readBroadcastBlock requests the BlockManager for xref:storage:BlockManager.adoc#getLocalValues[getLocalValues].
 
-If however the broadcast was not found locally, you should see the following INFO message in the logs:
+If the broadcast data was available locally, readBroadcastBlock <<releaseLock, releases a lock>> for the broadcast and returns the value.
 
-```
-INFO Started reading broadcast variable [id]
-```
+If however the broadcast data was not found locally, you should see the following INFO message in the logs:
 
-`readBroadcastBlock` <<readBlocks, reads blocks (as chunks)>> of the broadcast.
+[source,plaintext]
+----
+Started reading broadcast variable [id]
+----
+
+readBroadcastBlock <<readBlocks, reads blocks (as chunks)>> of the broadcast.
 
 You should see the following INFO message in the logs:
 
-```
-INFO Reading broadcast variable [id] took [usedTimeMs]
-```
+[source,plaintext]
+----
+Reading broadcast variable [id] took [usedTimeMs]
+----
 
-`readBroadcastBlock` <<unBlockifyObject, _unblockifies_ the collection of `ByteBuffer` blocks>>
+readBroadcastBlock <<unBlockifyObject, _unblockifies_ the collection of `ByteBuffer` blocks>>
 
-NOTE: `readBroadcastBlock` uses the xref:core:SparkEnv.adoc#serializer[current `Serializer`] and the internal xref:io:CompressionCodec.adoc[CompressionCodec] to bring all the blocks together as one single broadcast variable.
+NOTE: readBroadcastBlock uses the xref:core:SparkEnv.adoc#serializer[current `Serializer`] and the internal xref:io:CompressionCodec.adoc[CompressionCodec] to bring all the blocks together as one single broadcast variable.
 
-`readBroadcastBlock` xref:storage:BlockManager.adoc#putSingle[stores the broadcast variable with `MEMORY_AND_DISK` storage level to the local `BlockManager`]. When storing the broadcast variable was unsuccessful, a `SparkException` is thrown.
+readBroadcastBlock xref:storage:BlockManager.adoc#putSingle[stores the broadcast variable with `MEMORY_AND_DISK` storage level to the local `BlockManager`]. When storing the broadcast variable was unsuccessful, a `SparkException` is thrown.
 
-```
+[source,plaintext]
+----
 Failed to store [broadcastId] in BlockManager
-```
+----
 
 The broadcast variable is returned.
 
-NOTE: `readBroadcastBlock` is used exclusively when TorrentBroadcast is requested for the <<_value, value>>.
+readBroadcastBlock is used when TorrentBroadcast is requested for the <<_value, broadcast value>>.
 
-== [[setConf]] `setConf` Internal Method
+== [[setConf]] setConf Internal Method
 
 [source, scala]
 ----
-setConf(conf: SparkConf): Unit
+setConf(
+  conf: SparkConf): Unit
 ----
 
-`setConf` uses the input `conf` xref:ROOT:SparkConf.adoc[SparkConf] to set compression codec and the block size.
+setConf uses the input `conf` xref:ROOT:SparkConf.adoc[SparkConf] to set compression codec and the block size.
 
-Internally, `setConf` reads xref:core:BroadcastManager.adoc#spark.broadcast.compress[spark.broadcast.compress] configuration property and if enabled (which it is by default) sets a xref:io:CompressionCodec.adoc#createCodec[CompressionCodec] (as an internal `compressionCodec` property).
+Internally, setConf reads xref:core:BroadcastManager.adoc#spark.broadcast.compress[spark.broadcast.compress] configuration property and if enabled (which it is by default) sets a xref:io:CompressionCodec.adoc#createCodec[CompressionCodec] (as an internal `compressionCodec` property).
 
-`setConf` also reads xref:core:BroadcastManager.adoc#spark_broadcast_blockSize[spark.broadcast.blockSize] Spark property and sets the block size (as the internal `blockSize` property).
+setConf also reads xref:core:BroadcastManager.adoc#spark_broadcast_blockSize[spark.broadcast.blockSize] Spark property and sets the block size (as the internal `blockSize` property).
 
-NOTE: `setConf` is executed when <<creating-instance, TorrentBroadcast is created>> or <<readBroadcastBlock, re-created when deserialized on executors>>.
+setConf is executed when <<creating-instance, TorrentBroadcast is created>> or <<readBroadcastBlock, re-created when deserialized on executors>>.
 
-== [[writeBlocks]] Storing Broadcast and Blocks in Local BlockManager -- `writeBlocks` Internal Method
+== [[writeBlocks]] Storing Broadcast and Blocks in Local BlockManager
 
 [source, scala]
 ----
@@ -239,13 +224,52 @@ unpersist is used when:
 
 * TorrentBroadcastFactory is requested to xref:TorrentBroadcastFactory.adoc#unbroadcast[unbroadcast]
 
-== [[readBlocks]] Reading Blocks -- `readBlocks` Internal Method
+== [[readBlocks]] Reading Broadcast Blocks
 
 [source, scala]
 ----
 readBlocks(): Array[BlockData]
 ----
 
-`readBlocks`...FIXME
+readBlocks...FIXME
 
-NOTE: `readBlocks` is used when...FIXME
+readBlocks is used when TorrentBroadcast is requested to <<readBroadcastBlock, readBroadcastBlock>>.
+
+== [[unBlockifyObject]] unBlockifyObject Utility
+
+[source, scala]
+----
+unBlockifyObject[T: ClassTag](
+  blocks: Array[InputStream],
+  serializer: Serializer,
+  compressionCodec: Option[CompressionCodec]): T
+----
+
+unBlockifyObject...FIXME
+
+unBlockifyObject is used when TorrentBroadcast is requested to <<readBroadcastBlock, readBroadcastBlock>>.
+
+== [[releaseLock]] releaseLock Internal Method
+
+[source, scala]
+----
+releaseLock(
+  blockId: BlockId): Unit
+----
+
+releaseLock...FIXME
+
+releaseLock is used when TorrentBroadcast is requested to <<readBroadcastBlock, readBroadcastBlock>> and <<readBlocks, readBlocks>>.
+
+== [[logging]] Logging
+
+Enable `ALL` logging level for `org.apache.spark.broadcast.TorrentBroadcast` logger to see what happens inside.
+
+Add the following line to `conf/log4j.properties`:
+
+[source]
+----
+log4j.logger.org.apache.spark.broadcast.TorrentBroadcast=ALL
+----
+
+Refer to xref:ROOT:spark-logging.adoc[Logging].
