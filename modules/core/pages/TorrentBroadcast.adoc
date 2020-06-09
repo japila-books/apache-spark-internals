@@ -46,6 +46,10 @@ TorrentBroadcast uses `_value` internal registry for the value that is <<readBro
 
 * It is lazily instantiated when first requested and cached afterwards
 
+== [[numBlocks]] numBlocks Internal Value
+
+TorrentBroadcast uses `numBlocks` internal value for the total number of blocks it contains. It is <<writeBlocks, initialized>> when TorrentBroadcast is <<creating-instance, created>>.
+
 == [[getValue]] Getting Value of Broadcast Variable
 
 [source, scala]
@@ -127,36 +131,38 @@ setConf also reads xref:core:BroadcastManager.adoc#spark_broadcast_blockSize[spa
 
 setConf is executed when <<creating-instance, TorrentBroadcast is created>> or <<readBroadcastBlock, re-created when deserialized on executors>>.
 
-== [[writeBlocks]] Storing Broadcast and Blocks in Local BlockManager
+== [[writeBlocks]] Storing Broadcast and Blocks to BlockManager
 
 [source, scala]
 ----
-writeBlocks(value: T): Int
+writeBlocks(
+  value: T): Int
 ----
 
-`writeBlocks` stores the broadcast's `value` and blocks in the driver's xref:storage:BlockManager.adoc[BlockManager]. It returns the number of the broadcast blocks the broadcast was divided into.
+writeBlocks stores the given value (that is the <<obj, broadcast value>>) and the blocks in xref:storage:BlockManager.adoc[]. writeBlocks returns the <<numBlocks, number of blocks of the broadcast>> (was divided into).
 
-Internally, `writeBlocks` xref:storage:BlockManager.adoc#putSingle[stores the block for `value` broadcast to the local `BlockManager`] (using a new link:spark-BlockDataManager.adoc#BroadcastBlockId[BroadcastBlockId], `value`, `MEMORY_AND_DISK` storage level and without telling the driver).
+Internally, writeBlocks uses the xref:core:SparkEnv.adoc#get[SparkEnv] to access xref:core:SparkEnv.adoc#blockManager[BlockManager].
 
-If storing the broadcast block fails, you should see the following `SparkException` in the logs:
+writeBlocks requests the BlockManager to xref:storage:BlockManager.adoc#putSingle[putSingle] (with MEMORY_AND_DISK storage level).
 
-```
-Failed to store [broadcastId] in BlockManager
-```
+writeBlocks <<blockifyObject, blockify>> the given value (of the <<blockSize, block size>>, the system xref:core:SparkEnv.adoc#serializer[Serializer], and the optional <<compressionCodec, compressionCodec>>).
 
-`writeBlocks` divides `value` into blocks (of xref:core:BroadcastManager.adoc#spark_broadcast_blockSize[spark.broadcast.blockSize] size) using the xref:core:SparkEnv.adoc#serializer[Serializer] and an optional xref:io:CompressionCodec.adoc[CompressionCodec] (enabled by xref:core:BroadcastManager.adoc#spark.broadcast.compress[spark.broadcast.compress]). Every block gets its own `BroadcastBlockId` (with `piece` and an index) that is wrapped inside a `ChunkedByteBuffer`. xref:storage:BlockManager.adoc#putBytes[Blocks are stored in the local `BlockManager`] (using the `piece` block id, `MEMORY_AND_DISK_SER` storage level and informing the driver).
+For every block, writeBlocks creates a xref:storage:spark-BlockId.adoc#BroadcastBlockId[BroadcastBlockId] for the <<id, broadcast variable ID>> and `piece[index]` identifier, and requests the BlockManager to xref:storage:BlockManager.adoc#putBytes[putBytes] (with MEMORY_AND_DISK_SER storage level).
 
-NOTE: The entire broadcast value is stored in the local `BlockManager` with `MEMORY_AND_DISK` storage level, and the pieces with `MEMORY_AND_DISK_SER` storage level.
+The entire broadcast value is stored in the local BlockManager with MEMORY_AND_DISK storage level whereas the blocks with MEMORY_AND_DISK_SER storage level.
 
-If storing any of the broadcast pieces fails, you should see the following `SparkException` in the logs:
+With <<checksumEnabled, checksumEnabled>> writeBlocks...FIXME
 
-```
+In case of an error while storing the value or the blocks, writeBlocks throws a SparkException:
+
+[source,plaintext]
+----
 Failed to store [pieceId] of [broadcastId] in local BlockManager
-```
+----
 
-NOTE: `writeBlocks` is used exclusively when TorrentBroadcast is <<creating-instance, created>> (that happens on the driver only).
+writeBlocks is used when TorrentBroadcast is <<creating-instance, created>> for the <<numBlocks, numBlocks>> internal registry (that happens on the driver only).
 
-== [[blockifyObject]] Chunking Broadcast Into Blocks
+== [[blockifyObject]] Chunking Broadcast Variable Into Blocks
 
 [source, scala]
 ----
@@ -167,9 +173,9 @@ blockifyObject[T](
   compressionCodec: Option[CompressionCodec]): Array[ByteBuffer]
 ----
 
-`blockifyObject` divides (aka _blockifies_) the input `obj` broadcast variable into blocks (of `ByteBuffer`). `blockifyObject` uses the input `serializer` `Serializer` to write `obj` in a serialized format to a `ChunkedByteBufferOutputStream` (of `blockSize` size) with the optional xref:io:CompressionCodec.adoc[CompressionCodec].
+blockifyObject divides (aka _blockifies_) the input `obj` value into blocks (`ByteBuffer` chunks). blockifyObject uses the given xref:serializer:Serializer.adoc[] to write the value in a serialized format to a `ChunkedByteBufferOutputStream` of the given `blockSize` size with the optional xref:io:CompressionCodec.adoc[CompressionCodec].
 
-NOTE: `blockifyObject` is executed when <<writeBlocks, TorrentBroadcast stores a broadcast and its blocks to a local `BlockManager`>>.
+blockifyObject is used when TorrentBroadcast is requested to <<writeBlocks, stores itself as blocks to a local BlockManager>>.
 
 == [[doUnpersist]] `doUnpersist` Method
 
@@ -221,8 +227,6 @@ unpersist is used when:
 * TorrentBroadcast is requested to <<doUnpersist, unpersist a broadcast variable on executors>> and <<doDestroy, remove a broadcast variable from the driver and executors>>
 
 * TorrentBroadcastFactory is requested to xref:TorrentBroadcastFactory.adoc#unbroadcast[unbroadcast]
-
-== [[numBlocks]] numBlocks Internal Value
 
 == [[readBlocks]] Reading Broadcast Blocks
 
