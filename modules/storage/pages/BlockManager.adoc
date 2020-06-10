@@ -27,7 +27,7 @@ TIP: Use xref:tools:spark-submit.adoc[spark-submit]'s command-line options, i.e.
 
 A <<creating-instance, BlockManager is created>> when a xref:core:SparkEnv.adoc#create[Spark application starts] and must be <<initialize, initialized>> before it is fully operable.
 
-When <<externalShuffleServiceEnabled, External Shuffle Service is enabled>>, BlockManager uses xref:core:ExternalShuffleClient.adoc[ExternalShuffleClient] to read other executors' shuffle files.
+When <<externalShuffleServiceEnabled, External Shuffle Service is enabled>>, BlockManager uses xref:storage:ExternalShuffleClient.adoc[ExternalShuffleClient] to read other executors' shuffle files.
 
 == [[creating-instance]] Creating Instance
 
@@ -61,7 +61,7 @@ BlockManager calculates the port used by the external shuffle service (as `exter
 
 NOTE: It is computed specially in Spark on YARN.
 
-BlockManager creates a client to read other executors' shuffle files (as `shuffleClient`). If the external shuffle service is used an xref:core:ExternalShuffleClient.adoc[ExternalShuffleClient] is created or the input xref:core:BlockTransferService.adoc[BlockTransferService] is used.
+BlockManager creates a client to read other executors' shuffle files (as `shuffleClient`). If the external shuffle service is used an xref:storage:ExternalShuffleClient.adoc[ExternalShuffleClient] is created or the input xref:storage:BlockTransferService.adoc[BlockTransferService] is used.
 
 BlockManager sets the xref:ROOT:configuration-properties.adoc#spark.block.failures.beforeLocationRefresh[maximum number of failures] before this block manager refreshes the block locations from the driver (as `maxFailuresBeforeLocationRefresh`).
 
@@ -83,13 +83,13 @@ SparkEnv.get.blockManager
 
 == [[blockTransferService]] BlockTransferService
 
-BlockManager is given a xref:core:BlockTransferService.adoc[BlockTransferService] to be created.
+BlockManager is given a xref:storage:BlockTransferService.adoc[BlockTransferService] to be created.
 
 BlockTransferService is used as the <<shuffleClient, ShuffleClient>> when BlockManager is configured to use no external shuffle service (based on xref:ROOT:configuration-properties.adoc#spark.shuffle.service.enabled[spark.shuffle.service.enabled] configuration property).
 
-BlockTransferService is xref:core:BlockTransferService.adoc#init[initialized] when BlockManager <<initialize, is>>.
+BlockTransferService is xref:storage:BlockTransferService.adoc#init[initialized] when BlockManager <<initialize, is>>.
 
-BlockTransferService is xref:core:BlockTransferService.adoc#close[closed] when BlockManager is requested to <<stop, stop>>.
+BlockTransferService is xref:storage:BlockTransferService.adoc#close[closed] when BlockManager is requested to <<stop, stop>>.
 
 BlockTransferService is used when BlockManager is requested to <<getRemoteBytes, fetching a block from>> or <<replicate, replicate a block to>> remote block managers.
 
@@ -329,7 +329,7 @@ CAUTION: FIXME
 
 == [[externalShuffleServiceEnabled]] Is External Shuffle Service Enabled?
 
-When the xref:ROOT:ExternalShuffleService.adoc[External Shuffle Service] is enabled for a Spark application, BlockManager uses xref:core:ExternalShuffleClient.adoc[ExternalShuffleClient] to read other executors' shuffle files.
+When the xref:ROOT:ExternalShuffleService.adoc[External Shuffle Service] is enabled for a Spark application, BlockManager uses xref:storage:ExternalShuffleClient.adoc[ExternalShuffleClient] to read other executors' shuffle files.
 
 CAUTION: FIXME How is `shuffleClient` used?
 
@@ -576,12 +576,12 @@ NOTE: The method must be called before a BlockManager can be considered fully op
 
 initialize does the following in order:
 
-1. Initializes xref:core:BlockTransferService.adoc#init[BlockTransferService]
-2. Initializes the internal shuffle client, be it xref:core:ExternalShuffleClient.adoc[ExternalShuffleClient] or xref:core:BlockTransferService.adoc[BlockTransferService].
+1. Initializes xref:storage:BlockTransferService.adoc#init[BlockTransferService]
+2. Initializes the internal shuffle client, be it xref:storage:ExternalShuffleClient.adoc[ExternalShuffleClient] or xref:storage:BlockTransferService.adoc[BlockTransferService].
 3. xref:BlockManagerMaster.adoc#registerBlockManager[Registers itself with the driver's `BlockManagerMaster`] (using the `id`, `maxMemory` and its `slaveEndpoint`).
 +
 The `BlockManagerMaster` reference is passed in when the <<creating-instance, BlockManager is created>> on the driver and executors.
-4. Sets <<shuffleServerId, shuffleServerId>> to an instance of <<BlockManagerId, BlockManagerId>> given an executor id, host name and port for xref:core:BlockTransferService.adoc[BlockTransferService].
+4. Sets <<shuffleServerId, shuffleServerId>> to an instance of <<BlockManagerId, BlockManagerId>> given an executor id, host name and port for xref:storage:BlockTransferService.adoc[BlockTransferService].
 5. It creates the address of the server that serves this executor's shuffle files (using <<shuffleServerId, shuffleServerId>>)
 
 CAUTION: FIXME Review the initialize procedure again
@@ -617,7 +617,7 @@ When executed, you should see the following INFO message in the logs:
 INFO Registering executor with local external shuffle service.
 ```
 
-It uses <<shuffleClient, shuffleClient>> to xref:core:ExternalShuffleClient.adoc#registerWithShuffleServer[register the block manager] using <<shuffleServerId, shuffleServerId>> (i.e. the host, the port and the executorId) and a `ExecutorShuffleInfo`.
+It uses <<shuffleClient, shuffleClient>> to xref:storage:ExternalShuffleClient.adoc#registerWithShuffleServer[register the block manager] using <<shuffleServerId, shuffleServerId>> (i.e. the host, the port and the executorId) and a `ExecutorShuffleInfo`.
 
 NOTE: The `ExecutorShuffleInfo` uses `localDirs` and `subDirsPerLocalDir` from xref:DiskBlockManager.adoc[DiskBlockManager] and the class name of the constructor xref:shuffle:ShuffleManager.adoc[ShuffleManager].
 
@@ -831,7 +831,7 @@ NOTE: `addUpdatedBlockStatusToTaskMetrics` is used when BlockManager <<doPutByte
 shuffleMetricsSource: Source
 ----
 
-`shuffleMetricsSource` requests the <<shuffleClient, ShuffleClient>> for the xref:core:ShuffleClient.adoc#shuffleMetrics[shuffle-related metrics] and creates a link:spark-BlockManager-ShuffleMetricsSource.adoc[ShuffleMetricsSource] with the link:spark-BlockManager-ShuffleMetricsSource.adoc#sourceName[source name] per xref:ROOT:configuration-properties.adoc#spark.shuffle.service.enabled[spark.shuffle.service.enabled] configuration property:
+`shuffleMetricsSource` requests the <<shuffleClient, ShuffleClient>> for the xref:storage:ShuffleClient.adoc#shuffleMetrics[shuffle-related metrics] and creates a link:spark-BlockManager-ShuffleMetricsSource.adoc[ShuffleMetricsSource] with the link:spark-BlockManager-ShuffleMetricsSource.adoc#sourceName[source name] per xref:ROOT:configuration-properties.adoc#spark.shuffle.service.enabled[spark.shuffle.service.enabled] configuration property:
 
 * *ExternalShuffle* when xref:ROOT:configuration-properties.adoc#spark.shuffle.service.enabled[spark.shuffle.service.enabled] configuration property is on (`true`)
 
@@ -955,7 +955,7 @@ NOTE: `getSingle` is used exclusively in Spark tests.
 shuffleClient: ShuffleClient
 ----
 
-`shuffleClient` is a xref:core:ShuffleClient.adoc[ShuffleClient] that BlockManager uses for the following:
+`shuffleClient` is a xref:storage:ShuffleClient.adoc[] that BlockManager uses for the following:
 
 * <<shuffleMetricsSource, shuffleMetricsSource>>
 
@@ -963,12 +963,12 @@ shuffleClient: ShuffleClient
 
 `shuffleClient` is also used when `BlockStoreShuffleReader` is requested to xref:shuffle:BlockStoreShuffleReader.adoc#read[read combined key-value records for a reduce task] (and creates a xref:storage:ShuffleBlockFetcherIterator.adoc#shuffleClient[ShuffleBlockFetcherIterator]).
 
-`shuffleClient` can be either a xref:core:ExternalShuffleClient.adoc[ExternalShuffleClient] or the <<blockTransferService, BlockTransferService>> (that is the xref:core:NettyBlockTransferService.adoc[NettyBlockTransferService] given by xref:core:SparkEnv.adoc#create-BlockManager[SparkEnv]).
+`shuffleClient` can be either a xref:storage:ExternalShuffleClient.adoc[ExternalShuffleClient] or the <<blockTransferService, BlockTransferService>> (that is the xref:storage:NettyBlockTransferService.adoc[NettyBlockTransferService] given by xref:core:SparkEnv.adoc#create-BlockManager[SparkEnv]).
 
 CAUTION: FIXME Figure
 
 [[shuffleClient-externalShuffleServiceEnabled]]
-`shuffleClient` uses xref:ROOT:configuration-properties.adoc#spark.shuffle.service.enabled[spark.shuffle.service.enabled] configuration property that controls whether to use xref:core:ExternalShuffleClient.adoc[ExternalShuffleClient] (`true`) or the <<blockTransferService, BlockTransferService>> (i.e. xref:core:NettyBlockTransferService.adoc[NettyBlockTransferService]).
+`shuffleClient` uses xref:ROOT:configuration-properties.adoc#spark.shuffle.service.enabled[spark.shuffle.service.enabled] configuration property that controls whether to use xref:storage:ExternalShuffleClient.adoc[ExternalShuffleClient] (`true`) or the <<blockTransferService, BlockTransferService>> (i.e. xref:storage:NettyBlockTransferService.adoc[NettyBlockTransferService]).
 
 == [[getOrElseUpdate]] Getting Block From Block Managers Or Computing and Storing It Otherwise
 
