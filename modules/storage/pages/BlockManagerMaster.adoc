@@ -4,20 +4,15 @@ BlockManagerMaster xref:core:SparkEnv.adoc#BlockManagerMaster[runs on the driver
 
 BlockManagerMaster uses xref:storage:BlockManagerMasterEndpoint.adoc[] registered under *BlockManagerMaster* RPC endpoint name on the driver (with the endpoint references on executors) to allow executors for sending block status updates to it and hence keep track of block statuses.
 
-NOTE: BlockManagerMaster is created in xref:core:SparkEnv.adoc#BlockManagerMaster[`SparkEnv` (for the driver and executors)], and immediately used to create their xref:storage:BlockManager.adoc[BlockManagers].
+== [[creating-instance]] Creating Instance
 
-[TIP]
-====
-Enable `INFO` or `DEBUG` logging level for `org.apache.spark.storage.BlockManagerMaster` logger to see what happens inside.
+BlockManagerMaster takes the following to be created:
 
-Add the following line to `conf/log4j.properties`:
+* [[driverEndpoint]] xref:rpc:RpcEndpointRef.adoc[]
+* [[conf]] xref:ROOT:SparkConf.adoc[]
+* [[isDriver]] Flag whether BlockManagerMaster is created for the driver or executors
 
-```
-log4j.logger.org.apache.spark.storage.BlockManagerMaster=INFO
-```
-
-Refer to link:spark-logging.adoc[Logging].
-====
+BlockManagerMaster is created when SparkEnv utility is used to xref:core:SparkEnv.adoc#create[create a SparkEnv (for the driver and executors)] (to create a xref:storage:BlockManager.adoc[]).
 
 == [[removeExecutorAsync]] `removeExecutorAsync` Method
 
@@ -26,16 +21,6 @@ CAUTION: FIXME
 == [[contains]] `contains` Method
 
 CAUTION: FIXME
-
-== [[creating-instance]] Creating BlockManagerMaster Instance
-
-BlockManagerMaster takes the following when created:
-
-* [[driverEndpoint]] xref:rpc:RpcEndpointRef.adoc[RpcEndpointRef] to...FIXME
-* [[conf]] xref:ROOT:SparkConf.adoc[SparkConf]
-* [[isDriver]] Flag whether BlockManagerMaster is created for the driver or executors.
-
-BlockManagerMaster initializes the <<internal-registries, internal registries and counters>>.
 
 == [[removeExecutor]] Removing Executor -- `removeExecutor` Method
 
@@ -151,7 +136,7 @@ Otherwise, a `SparkException` is thrown.
 BlockManagerMasterEndpoint returned false, expected true.
 ```
 
-== [[registerBlockManager]] Registering BlockManager with Driver -- `registerBlockManager` Method
+== [[registerBlockManager]] Registering BlockManager with Driver
 
 [source, scala]
 ----
@@ -161,28 +146,28 @@ registerBlockManager(
   slaveEndpoint: RpcEndpointRef): BlockManagerId
 ----
 
-`registerBlockManager` prints the following INFO message to the logs:
+registerBlockManager prints the following INFO message to the logs:
 
 ```
-INFO BlockManagerMaster: Registering BlockManager [blockManagerId]
+Registering BlockManager [blockManagerId]
 ```
 
 .Registering BlockManager with the Driver
 image::BlockManagerMaster-RegisterBlockManager.png[align="center"]
 
-`registerBlockManager` then notifies the driver that the `blockManagerId` xref:storage:BlockManager.adoc[BlockManager] tries to register. `registerBlockManager` posts a xref:storage:BlockManagerMasterEndpoint.adoc#RegisterBlockManager[blocking `RegisterBlockManager` message to BlockManagerMaster RPC endpoint].
+registerBlockManager then notifies the driver that the `blockManagerId` xref:storage:BlockManager.adoc[BlockManager] tries to register. registerBlockManager posts a xref:storage:BlockManagerMasterEndpoint.adoc#RegisterBlockManager[blocking `RegisterBlockManager` message to BlockManagerMaster RPC endpoint].
 
 NOTE: The input `maxMemSize` is the xref:storage:BlockManager.adoc#maxMemory[total available on-heap and off-heap memory for storage on a `BlockManager`].
 
-`registerBlockManager` waits until a confirmation comes (as xref:storage:BlockManagerId.adoc[]) that becomes the return value.
+registerBlockManager waits until a confirmation comes (as xref:storage:BlockManagerId.adoc[]) that becomes the return value.
 
 You should see the following INFO message in the logs:
 
 ```
-INFO BlockManagerMaster: Registered BlockManager [updatedId]
+Registered BlockManager [updatedId]
 ```
 
-NOTE: `registerBlockManager` is used when `BlockManager` xref:storage:BlockManager.adoc#initialize[is initialized] or xref:storage:BlockManager.adoc#reregister[re-registers itself with the driver] (and reports the blocks).
+registerBlockManager is used when BlockManager is requested to xref:storage:BlockManager.adoc#initialize[initialize] and xref:storage:BlockManager.adoc#reregister[re-register itself with the driver].
 
 == [[updateBlockInfo]] Relaying Block Status Update From BlockManager to Driver (by Sending Blocking UpdateBlockInfo to BlockManagerMaster RPC Endpoint) -- `updateBlockInfo` Method
 
@@ -308,3 +293,16 @@ hasCachedBlocks(executorId: String): Boolean
 ----
 
 `hasCachedBlocks` posts a `HasCachedBlocks(executorId)` message to xref:storage:BlockManagerMasterEndpoint.adoc[] and waits for a response which becomes the result.
+
+== [[logging]] Logging
+
+Enable `ALL` logging level for `org.apache.spark.storage.BlockManagerMaster` logger to see what happens inside.
+
+Add the following line to `conf/log4j.properties`:
+
+[source]
+----
+log4j.logger.org.apache.spark.storage.BlockManagerMaster=ALL
+----
+
+Refer to xref:ROOT:spark-logging.adoc[Logging].
