@@ -1,198 +1,353 @@
 = BlockManagerMasterEndpoint
 
-*BlockManagerMasterEndpoint* is the xref:rpc:index.adoc#ThreadSafeRpcEndpoint[ThreadSafeRpcEndpoint] for xref:storage:BlockManagerMaster.adoc[BlockManagerMaster] under *BlockManagerMaster* name.
+*BlockManagerMasterEndpoint* is a xref:rpc:RpcEndpoint.adoc#ThreadSafeRpcEndpoint[ThreadSafeRpcEndpoint] for xref:storage:BlockManagerMaster.adoc[BlockManagerMaster].
+
+BlockManagerMasterEndpoint is registered under *BlockManagerMaster* name.
 
 BlockManagerMasterEndpoint tracks status of the xref:storage:BlockManager.adoc[BlockManagers] (on the executors) in a Spark application.
 
-<<creating-instance, BlockManagerMasterEndpoint is created>> when xref:core:SparkEnv.adoc#create[`SparkEnv` is created] (for the driver and executors).
+== [[creating-instance]] Creating Instance
 
-[[messages]]
-.BlockManagerMaster RPC Endpoint's Messages (in alphabetical order)
-[width="100%",cols="1,2",options="header"]
-|===
-| Message
-| When posted?
+BlockManagerMasterEndpoint takes the following to be created:
 
-| <<RegisterBlockManager, RegisterBlockManager>>
-| Posted when `BlockManagerMaster` xref:BlockManagerMaster.adoc#registerBlockManager[registers a `BlockManager`].
+* [[rpcEnv]] xref:rpc:RpcEnv.adoc[]
+* [[isLocal]] Flag whether BlockManagerMasterEndpoint works in local or cluster mode
+* [[conf]] xref:ROOT:SparkConf.adoc[]
+* [[listenerBus]] xref:ROOT:spark-scheduler-LiveListenerBus.adoc[LiveListenerBus]
 
-| <<UpdateBlockInfo, UpdateBlockInfo>>
-| Posted when `BlockManagerMaster` xref:BlockManagerMaster.adoc#updateBlockInfo[receives a block status update (from BlockManager on an executor)].
-|===
+BlockManagerMasterEndpoint is created when SparkEnv utility is used to xref:core:SparkEnv.adoc#create[create a SparkEnv] for the driver and executors (and creates a xref:storage:BlockManagerMaster.adoc[] for a xref:storage:BlockManager.adoc#master[BlockManager]).
 
-[[internal-registries]]
-.BlockManagerMasterEndpoint's Internal Registries and Counters
-[cols="1,2",options="header",width="100%"]
-|===
-| Name
-| Description
+When created, BlockManagerMasterEndpoint prints out the following INFO message to the logs:
 
-| [[blockManagerIdByExecutor]] `blockManagerIdByExecutor`
-| FIXME
+[source,plaintext]
+----
+BlockManagerMasterEndpoint up
+----
 
-| [[blockManagerInfo]] `blockManagerInfo`
-| Lookup table of `BlockManagerInfo` per xref:storage:BlockManager.adoc#BlockManagerId[BlockManagerId]
+== [[messages]] Messages
 
-Updated when BlockManagerMasterEndpoint <<register, registers a new `BlockManager`>> or <<removeBlockManager, removes a `BlockManager`>>
+=== [[RegisterBlockManager]] RegisterBlockManager
 
-| [[blockLocations]] `blockLocations`
-| Collection of xref:storage:BlockId.adoc[] and their locations (as `BlockManagerId`).
+[source,scala]
+----
+RegisterBlockManager(
+  blockManagerId: BlockManagerId,
+  maxOnHeapMemSize: Long,
+  maxOffHeapMemSize: Long,
+  sender: RpcEndpointRef)
+----
 
-Used in `removeRdd` to remove blocks for a RDD, `removeBlockManager` to remove blocks after a BlockManager gets removed, `removeBlockFromWorkers`, `updateBlockInfo`, and <<getLocations, getLocations>>.
-|===
+Posted when `BlockManagerMaster` xref:BlockManagerMaster.adoc#registerBlockManager[registers a `BlockManager`]
 
-[[logging]]
-[TIP]
-====
-Enable `INFO` logging level for `org.apache.spark.storage.BlockManagerMasterEndpoint` logger to see what happens inside.
+When received, BlockManagerMasterEndpoint <<register, registers the `BlockManager`>>.
 
-Add the following line to `conf/log4j.properties`:
-
-```
-log4j.logger.org.apache.spark.storage.BlockManagerMasterEndpoint=INFO
-```
-
-Refer to link:spark-logging.adoc[Logging].
-====
-
-== [[storageStatus]] `storageStatus` Internal Method
-
-CAUTION: FIXME
-
-== [[getLocationsMultipleBlockIds]] `getLocationsMultipleBlockIds` Method
-
-CAUTION: FIXME
-
-== [[removeShuffle]] Removing Shuffle Blocks -- `removeShuffle` Internal Method
-
-CAUTION: FIXME
-
-== [[UpdateBlockInfo]] UpdateBlockInfo
+=== [[UpdateBlockInfo]] UpdateBlockInfo
 
 [source, scala]
 ----
-class UpdateBlockInfo(
-  var blockManagerId: BlockManagerId,
-  var blockId: BlockId,
-  var storageLevel: StorageLevel,
-  var memSize: Long,
-  var diskSize: Long)
+UpdateBlockInfo(
+  blockManagerId: BlockManagerId,
+  blockId: BlockId,
+  storageLevel: StorageLevel,
+  memSize: Long,
+  diskSize: Long)
 ----
 
 When received, BlockManagerMasterEndpoint...FIXME
 
-CAUTION: FIXME
+Posted when `BlockManagerMaster` xref:BlockManagerMaster.adoc#updateBlockInfo[receives a block status update (from BlockManager on an executor)].
 
-== [[RemoveExecutor]] RemoveExecutor
-
-[source, scala]
-----
-RemoveExecutor(execId: String)
-----
-
-When received, <<removeExecutor, executor `execId` is removed>> and the response `true` sent back.
-
-NOTE: `RemoveExecutor` is posted when xref:BlockManagerMaster.adoc#removeExecutor[`BlockManagerMaster` removes an executor].
-
-== [[getPeers]] Finding Peers of BlockManager -- `getPeers` Internal Method
+=== [[GetLocations]] GetLocations
 
 [source, scala]
 ----
-getPeers(blockManagerId: BlockManagerId): Seq[BlockManagerId]
+GetLocations(
+  blockId: BlockId)
 ----
 
-`getPeers` finds all the registered `BlockManagers` (using <<blockManagerInfo, blockManagerInfo>> internal registry) and checks if the input `blockManagerId` is amongst them.
+When received, BlockManagerMasterEndpoint replies with the <<getLocations, locations>> of `blockId`.
 
-If the input `blockManagerId` is registered, `getPeers` returns all the registered `BlockManagers` but the one on the driver and `blockManagerId`.
+Posted when xref:BlockManagerMaster.adoc#getLocations-block[`BlockManagerMaster` requests the block locations of a single block].
 
-Otherwise, `getPeers` returns no `BlockManagers`.
+=== [[GetLocationsAndStatus]] GetLocationsAndStatus
+
+[source, scala]
+----
+GetLocationsAndStatus(
+  blockId: BlockId)
+----
+
+When received, BlockManagerMasterEndpoint...FIXME
+
+Posted when...FIXME
+
+=== [[GetLocationsMultipleBlockIds]] GetLocationsMultipleBlockIds
+
+[source, scala]
+----
+GetLocationsMultipleBlockIds(
+  blockIds: Array[BlockId])
+----
+
+When received, BlockManagerMasterEndpoint replies with the <<getLocationsMultipleBlockIds, getLocationsMultipleBlockIds>> for the given xref:storage:BlockId.adoc[].
+
+Posted when xref:BlockManagerMaster.adoc#getLocations[`BlockManagerMaster` requests the block locations for multiple blocks].
+
+=== [[GetPeers]] GetPeers
+
+[source, scala]
+----
+GetPeers(
+  blockManagerId: BlockManagerId)
+----
+
+When received, BlockManagerMasterEndpoint replies with the <<getPeers, peers>> of `blockManagerId`.
+
+*Peers* of a xref:storage:BlockManager.adoc[BlockManager] are the other BlockManagers in a cluster (except the driver's BlockManager). Peers are used to know the available executors in a Spark application.
+
+Posted when xref:BlockManagerMaster.adoc#getPeers[`BlockManagerMaster` requests the peers of a `BlockManager`].
+
+=== [[GetExecutorEndpointRef]] GetExecutorEndpointRef
+
+[source, scala]
+----
+GetExecutorEndpointRef(
+  executorId: String)
+----
+
+When received, BlockManagerMasterEndpoint...FIXME
+
+Posted when...FIXME
+
+=== [[GetMemoryStatus]] GetMemoryStatus
+
+[source, scala]
+----
+GetMemoryStatus
+----
+
+When received, BlockManagerMasterEndpoint...FIXME
+
+Posted when...FIXME
+
+=== [[GetStorageStatus]] GetStorageStatus
+
+[source, scala]
+----
+GetStorageStatus
+----
+
+When received, BlockManagerMasterEndpoint...FIXME
+
+Posted when...FIXME
+
+=== [[GetBlockStatus]] GetBlockStatus
+
+[source, scala]
+----
+GetBlockStatus(
+  blockId: BlockId,
+  askSlaves: Boolean = true)
+----
+
+When received, BlockManagerMasterEndpoint...FIXME
+
+Posted when...FIXME
+
+=== [[GetMatchingBlockIds]] GetMatchingBlockIds
+
+[source, scala]
+----
+GetMatchingBlockIds(
+  filter: BlockId => Boolean,
+  askSlaves: Boolean = true)
+----
+
+When received, BlockManagerMasterEndpoint...FIXME
+
+Posted when...FIXME
+
+=== [[RemoveRdd]] RemoveRdd
+
+[source, scala]
+----
+RemoveRdd(
+  rddId: Int)
+----
+
+When received, BlockManagerMasterEndpoint...FIXME
+
+Posted when...FIXME
+
+=== [[RemoveShuffle]] RemoveShuffle
+
+[source, scala]
+----
+RemoveShuffle(
+  shuffleId: Int)
+----
+
+When received, BlockManagerMasterEndpoint...FIXME
+
+Posted when...FIXME
+
+=== [[RemoveBroadcast]] RemoveBroadcast
+
+[source, scala]
+----
+RemoveBroadcast(
+  broadcastId: Long,
+  removeFromDriver: Boolean = true)
+----
+
+When received, BlockManagerMasterEndpoint...FIXME
+
+Posted when...FIXME
+
+=== [[RemoveBlock]] RemoveBlock
+
+[source, scala]
+----
+RemoveBlock(
+  blockId: BlockId)
+----
+
+When received, BlockManagerMasterEndpoint...FIXME
+
+Posted when...FIXME
+
+=== [[RemoveExecutor]] RemoveExecutor
+
+[source, scala]
+----
+RemoveExecutor(
+  execId: String)
+----
+
+When received, BlockManagerMasterEndpoint <<removeExecutor, executor `execId` is removed>> and the response `true` sent back.
+
+Posted when xref:BlockManagerMaster.adoc#removeExecutor[`BlockManagerMaster` removes an executor].
+
+=== [[StopBlockManagerMaster]] StopBlockManagerMaster
+
+[source, scala]
+----
+StopBlockManagerMaster
+----
+
+When received, BlockManagerMasterEndpoint...FIXME
+
+Posted when...FIXME
+
+=== [[BlockManagerHeartbeat]] BlockManagerHeartbeat
+
+[source, scala]
+----
+BlockManagerHeartbeat(
+  blockManagerId: BlockManagerId)
+----
+
+When received, BlockManagerMasterEndpoint...FIXME
+
+Posted when...FIXME
+
+=== [[HasCachedBlocks]] HasCachedBlocks
+
+[source, scala]
+----
+HasCachedBlocks(
+  executorId: String)
+----
+
+When received, BlockManagerMasterEndpoint...FIXME
+
+Posted when...FIXME
+
+== [[storageStatus]] storageStatus Internal Method
+
+[source,scala]
+----
+storageStatus: Array[StorageStatus]
+----
+
+storageStatus...FIXME
+
+storageStatus is used when BlockManagerMasterEndpoint is requested to handle <<GetStorageStatus, GetStorageStatus>> message.
+
+== [[getLocationsMultipleBlockIds]] getLocationsMultipleBlockIds Internal Method
+
+[source,scala]
+----
+getLocationsMultipleBlockIds(
+  blockIds: Array[BlockId]): IndexedSeq[Seq[BlockManagerId]]
+----
+
+getLocationsMultipleBlockIds...FIXME
+
+getLocationsMultipleBlockIds is used when BlockManagerMasterEndpoint is requested to handle <<GetLocationsMultipleBlockIds, GetLocationsMultipleBlockIds>> message.
+
+== [[removeShuffle]] removeShuffle Internal Method
+
+[source,scala]
+----
+removeShuffle(
+  shuffleId: Int): Future[Seq[Boolean]]
+----
+
+removeShuffle...FIXME
+
+removeShuffle is used when BlockManagerMasterEndpoint is requested to handle <<RemoveShuffle, RemoveShuffle>> message.
+
+== [[getPeers]] getPeers Internal Method
+
+[source, scala]
+----
+getPeers(
+  blockManagerId: BlockManagerId): Seq[BlockManagerId]
+----
+
+getPeers finds all the registered `BlockManagers` (using <<blockManagerInfo, blockManagerInfo>> internal registry) and checks if the input `blockManagerId` is amongst them.
+
+If the input `blockManagerId` is registered, getPeers returns all the registered `BlockManagers` but the one on the driver and `blockManagerId`.
+
+Otherwise, getPeers returns no `BlockManagers`.
 
 NOTE: *Peers* of a xref:storage:BlockManager.adoc[BlockManager] are the other BlockManagers in a cluster (except the driver's BlockManager). Peers are used to know the available executors in a Spark application.
 
-NOTE: `getPeers` is used exclusively when BlockManagerMasterEndpoint xref:storage:BlockManagerMasterEndpoint.adoc#GetPeers[handles `GetPeers` message].
+getPeers is used when BlockManagerMasterEndpoint is requested to handle <<GetPeers, GetPeers>> message.
 
-== [[GetPeers]] Finding Peers of BlockManager -- `GetPeers` Message
-
-[source, scala]
-----
-GetPeers(blockManagerId: BlockManagerId)
-extends ToBlockManagerMaster
-----
-
-`GetPeers` replies with the <<getPeers, peers>> of `blockManagerId`.
-
-NOTE: *Peers* of a xref:storage:BlockManager.adoc[BlockManager] are the other BlockManagers in a cluster (except the driver's BlockManager). Peers are used to know the available executors in a Spark application.
-
-NOTE: `GetPeers` is posted when xref:BlockManagerMaster.adoc#getPeers[`BlockManagerMaster` requests the peers of a `BlockManager`].
-
-== [[BlockManagerHeartbeat]] BlockManagerHeartbeat
-
-CAUTION: FIXME
-
-== [[GetLocations]] `GetLocations` Message
+== [[register]] register Internal Method
 
 [source, scala]
 ----
-GetLocations(blockId: BlockId)
-extends ToBlockManagerMaster
+register(
+  idWithoutTopologyInfo: BlockManagerId,
+  maxOnHeapMemSize: Long,
+  maxOffHeapMemSize: Long,
+  slaveEndpoint: RpcEndpointRef): BlockManagerId
 ----
 
-`GetLocations` replies with the <<getLocations, locations>> of `blockId`.
-
-NOTE: `GetLocations` is posted when xref:BlockManagerMaster.adoc#getLocations-block[`BlockManagerMaster` requests the block locations of a single block].
-
-== [[GetLocationsMultipleBlockIds]] `GetLocationsMultipleBlockIds` Message
-
-[source, scala]
-----
-GetLocationsMultipleBlockIds(blockIds: Array[BlockId])
-extends ToBlockManagerMaster
-----
-
-`GetLocationsMultipleBlockIds` replies with the <<getLocationsMultipleBlockIds, getLocationsMultipleBlockIds>> for the given xref:storage:BlockId.adoc[].
-
-NOTE: `GetLocationsMultipleBlockIds` is posted when xref:BlockManagerMaster.adoc#getLocations[`BlockManagerMaster` requests the block locations for multiple blocks].
-
-== [[RegisterBlockManager]] RegisterBlockManager Event
-
-[source, scala]
-----
-RegisterBlockManager(
-  blockManagerId: BlockManagerId,
-  maxMemSize: Long,
-  sender: RpcEndpointRef)
-----
-
-When received, BlockManagerMasterEndpoint <<register, registers the `BlockManager`>>.
-
-=== [[register]] Registering BlockManager (on Executor) -- `register` Internal Method
-
-[source, scala]
-----
-register(id: BlockManagerId, maxMemSize: Long, slaveEndpoint: RpcEndpointRef): Unit
-----
-
-`register` records the current time and registers `BlockManager` (using xref:storage:BlockManager.adoc#BlockManagerId[BlockManagerId]) unless it has been registered already (in <<blockManagerInfo, blockManagerInfo>> internal registry).
+register records the current time and registers `BlockManager` (using xref:storage:BlockManagerId.adoc[]) unless it has been registered already (in <<blockManagerInfo, blockManagerInfo>> internal registry).
 
 NOTE: The input `maxMemSize` is the xref:storage:BlockManager.adoc#maxMemory[total available on-heap and off-heap memory for storage on a `BlockManager`].
-
-NOTE: `register` is executed when <<RegisterBlockManager, `RegisterBlockManager` has been received>>.
 
 NOTE: Registering a `BlockManager` can only happen once for an executor (identified by `BlockManagerId.executorId` in <<blockManagerIdByExecutor, blockManagerIdByExecutor>> internal registry).
 
 If another `BlockManager` has earlier been registered for the executor, you should see the following ERROR message in the logs:
 
-```
-ERROR Got two different block manager registrations on same executor - will replace old one [oldId] with new one [id]
-```
+[source,plaintext]
+----
+Got two different block manager registrations on same executor - will replace old one [oldId] with new one [id]
+----
 
 And then <<removeExecutor, executor is removed>>.
 
 You should see the following INFO message in the logs:
 
-```
-INFO Registering block manager [hostPort] with [bytes] RAM, [id]
-```
+[source,plaintext]
+----
+Registering block manager [hostPort] with [bytes] RAM, [id]
+----
 
 The `BlockManager` is recorded in the internal registries:
 
@@ -207,46 +362,36 @@ NOTE: The method can only be executed on the driver where `listenerBus` is avail
 
 CAUTION: FIXME Describe `listenerBus` + omnigraffle it.
 
-=== Other RPC Messages
+register is used when BlockManagerMasterEndpoint is requested to handle <<RegisterBlockManager, RegisterBlockManager>> message.
 
-* GetLocationsMultipleBlockIds
-* GetRpcHostPortForExecutor
-* GetMemoryStatus
-* GetStorageStatus
-* GetBlockStatus
-* GetMatchingBlockIds
-* RemoveShuffle
-* RemoveBroadcast
-* RemoveBlock
-* StopBlockManagerMaster
-* BlockManagerHeartbeat
-* HasCachedBlocks
-
-== [[removeExecutor]] Removing Executor -- `removeExecutor` Internal Method
+== [[removeExecutor]] removeExecutor Internal Method
 
 [source, scala]
 ----
-removeExecutor(execId: String)
+removeExecutor(
+  execId: String): Unit
 ----
 
-`removeExecutor` prints the following INFO message to the logs:
+removeExecutor prints the following INFO message to the logs:
 
-```
-INFO BlockManagerMasterEndpoint: Trying to remove executor [execId] from BlockManagerMaster.
-```
+[source,plaintext]
+----
+Trying to remove executor [execId] from BlockManagerMaster.
+----
 
-If the `execId` executor is registered (in the internal <<blockManagerIdByExecutor, blockManagerIdByExecutor>> internal registry), `removeExecutor` <<removeBlockManager, removes the corresponding `BlockManager`>>.
+If the `execId` executor is registered (in the internal <<blockManagerIdByExecutor, blockManagerIdByExecutor>> internal registry), removeExecutor <<removeBlockManager, removes the corresponding `BlockManager`>>.
 
-NOTE: `removeExecutor` is executed when BlockManagerMasterEndpoint <<RemoveExecutor, receives a `RemoveExecutor`>> or <<register, registers a new `BlockManager`>> (and another `BlockManager` was already registered that is replaced by the new one).
+removeExecutor is used when BlockManagerMasterEndpoint is requested to handle <<RemoveExecutor, RemoveExecutor>> or <<RegisterBlockManager, RegisterBlockManager>> messages.
 
-== [[removeBlockManager]] Removing BlockManager -- `removeBlockManager` Internal Method
+== [[removeBlockManager]] removeBlockManager Internal Method
 
 [source, scala]
 ----
-removeBlockManager(blockManagerId: BlockManagerId)
+removeBlockManager(
+  blockManagerId: BlockManagerId): Unit
 ----
 
-`removeBlockManager` looks up `blockManagerId` and removes the executor it was working on from the internal registries:
+removeBlockManager looks up `blockManagerId` and removes the executor it was working on from the internal registries:
 
 * <<blockManagerIdByExecutor, blockManagerIdByExecutor>>
 * <<blockManagerInfo, blockManagerInfo>>
@@ -257,28 +402,62 @@ link:spark-scheduler-SparkListener.adoc#SparkListenerBlockManagerRemoved[SparkLi
 
 You should then see the following INFO message in the logs:
 
-```
-INFO BlockManagerMasterEndpoint: Removing block manager [blockManagerId]
-```
+[source,plaintext]
+----
+Removing block manager [blockManagerId]
+----
 
-NOTE: `removeBlockManager` is used exclusively when BlockManagerMasterEndpoint <<removeExecutor, removes an executor>>.
+removeBlockManager is used when BlockManagerMasterEndpoint is requested to <<removeExecutor, removeExecutor>> (to handle <<RemoveExecutor, RemoveExecutor>> or <<RegisterBlockManager, RegisterBlockManager>> messages).
 
-== [[getLocations]] Get Block Locations -- `getLocations` Method
+== [[getLocations]] getLocations Internal Method
 
 [source, scala]
 ----
-getLocations(blockId: BlockId): Seq[BlockManagerId]
+getLocations(
+  blockId: BlockId): Seq[BlockManagerId]
 ----
 
-When executed, `getLocations` looks up the given xref:storage:BlockId.adoc[] in the `blockLocations` internal registry and returns the locations (as a collection of `BlockManagerId`) or an empty collection.
+getLocations looks up the given xref:storage:BlockId.adoc[] in the `blockLocations` internal registry and returns the locations (as a collection of `BlockManagerId`) or an empty collection.
 
-== [[creating-instance]] Creating BlockManagerMasterEndpoint Instance
+getLocations is used when BlockManagerMasterEndpoint is requested to handle <<GetLocations, GetLocations>> and <<GetLocationsMultipleBlockIds, GetLocationsMultipleBlockIds>> messages.
 
-BlockManagerMasterEndpoint takes the following when created:
+== [[logging]] Logging
 
-* [[rpcEnv]] xref:rpc:index.adoc[RpcEnv]
-* [[isLocal]] Flag whether BlockManagerMasterEndpoint works in local or cluster mode
-* [[conf]] xref:ROOT:SparkConf.adoc[SparkConf]
-* [[listenerBus]] link:spark-scheduler-LiveListenerBus.adoc[LiveListenerBus]
+Enable `ALL` logging level for `org.apache.spark.storage.BlockManagerMasterEndpoint` logger to see what happens inside.
 
-BlockManagerMasterEndpoint initializes the <<internal-registries, internal registries and counters>>.
+Add the following line to `conf/log4j.properties`:
+
+[source]
+----
+log4j.logger.org.apache.spark.storage.BlockManagerMasterEndpoint=ALL
+----
+
+Refer to xref:ROOT:spark-logging.adoc[Logging].
+
+== [[internal-properties]] Internal Properties
+
+=== [[blockManagerIdByExecutor]] blockManagerIdByExecutor
+
+[source,scala]
+----
+blockManagerIdByExecutor: Map[String, BlockManagerId]
+----
+
+Lookup table of xref:storage:BlockManagerId.adoc[]s by executor ID
+
+=== [[blockManagerInfo]] blockManagerInfo
+
+Lookup table of `BlockManagerInfo` per xref:storage:BlockManagerId.adoc[]
+
+Updated when BlockManagerMasterEndpoint <<register, registers a new `BlockManager`>> or <<removeBlockManager, removes a `BlockManager`>>
+
+=== [[blockLocations]] blockLocations
+
+[source,scala]
+----
+blockLocations: Map[BlockId, Set[BlockManagerId]]
+----
+
+Collection of xref:storage:BlockId.adoc[] and their locations (as `BlockManagerId`).
+
+Used in `removeRdd` to remove blocks for a RDD, removeBlockManager to remove blocks after a BlockManager gets removed, `removeBlockFromWorkers`, `updateBlockInfo`, and <<getLocations, getLocations>>.
