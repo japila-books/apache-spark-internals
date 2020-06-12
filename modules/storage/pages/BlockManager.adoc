@@ -1,17 +1,12 @@
 = BlockManager
 
-*BlockManager* is a block storage of blocks of data identified by a block ID.
+*BlockManager* is a storage of chunks of data (_blocks_) that are identified by a block ID.
 
-BlockManager runs on every node in a Spark application, i.e. the xref:ROOT:spark-driver.adoc[driver] and xref:executor:Executor.adoc[executors].
-
-[[BlockDataManager]]
-BlockManager is a xref:storage:BlockDataManager.adoc[] and manages the storage for blocks that with cached RDD partitions, intermediate shuffle outputs, broadcasts, etc.
+BlockManager runs on the xref:ROOT:spark-driver.adoc[driver] and xref:executor:Executor.adoc[executors].
 
 BlockManager is a local cache.
 
 BlockManager provides interface for uploading and fetching blocks both locally and remotely using various stores, i.e. <<stores, memory, disk, and off-heap>>.
-
-BlockManager is <<creating-instance, created>> exclusively when `SparkEnv` is xref:core:SparkEnv.adoc#create-BlockManager[created] (for the driver and executors). BlockManager gets a <<diskBlockManager, DiskBlockManager>>, a <<blockInfoManager, BlockInfoManager>>, a <<memoryStore, MemoryStore>> and a <<diskStore, DiskStore>> (and wires them up together).
 
 [[futureExecutionContext]]
 BlockManager uses a Scala https://www.scala-lang.org/api/current/scala/concurrent/ExecutionContextExecutorService.html[ExecutionContextExecutorService] to execute *FIXME* asynchronously (on a thread pool with *block-manager-future* prefix and maximum of 128 threads).
@@ -25,27 +20,23 @@ TIP: Use xref:webui:index.adoc[Web UI], esp. xref:webui:spark-webui-storage.adoc
 
 TIP: Use xref:tools:spark-submit.adoc[spark-submit]'s command-line options, i.e. xref:tools:spark-submit.adoc#driver-memory[--driver-memory] for the driver and xref:tools:spark-submit.adoc#executor-memory[--executor-memory] for executors or their equivalents as Spark properties, i.e. xref:tools:spark-submit.adoc#spark.executor.memory[spark.executor.memory] and xref:tools:spark-submit.adoc#spark_driver_memory[spark.driver.memory], to control the memory for storage memory.
 
-A <<creating-instance, BlockManager is created>> when a xref:core:SparkEnv.adoc#create[Spark application starts] and must be <<initialize, initialized>> before it is fully operable.
-
 When <<externalShuffleServiceEnabled, External Shuffle Service is enabled>>, BlockManager uses xref:storage:ExternalShuffleClient.adoc[ExternalShuffleClient] to read other executors' shuffle files.
 
 == [[creating-instance]] Creating Instance
 
 BlockManager takes the following to be created:
 
-* [[executorId]] Executor ID
-* [[rpcEnv]] xref:ROOT:index.adoc[RpcEnv]
-* [[master]] xref:BlockManagerMaster.adoc[BlockManagerMaster]
-* [[serializerManager]] xref:serializer:SerializerManager.adoc[SerializerManager]
-* [[conf]] xref:ROOT:SparkConf.adoc[SparkConf]
+* <<executorId, Executor ID>>
+* [[rpcEnv]] xref:rpc:RpcEnv.adoc[]
+* [[master]] xref:storage:BlockManagerMaster.adoc[]
+* [[serializerManager]] xref:serializer:SerializerManager.adoc[]
+* [[conf]] xref:ROOT:SparkConf.adoc[]
 * <<memoryManager, MemoryManager>>
-* [[mapOutputTracker]] xref:scheduler:MapOutputTracker.adoc[MapOutputTracker]
+* <<mapOutputTracker, MapOutputTracker>>
 * <<shuffleManager, ShuffleManager>>
 * <<blockTransferService, BlockTransferService>>
 * [[securityManager]] SecurityManager
-* [[numUsableCores]] CPU cores
-
-NOTE: `executorId` is `SparkContext.DRIVER_IDENTIFIER`, i.e. `driver` for the driver, and the value of xref:executor:CoarseGrainedExecutorBackend.adoc#executor-id[--executor-id] command-line argument for xref:executor:CoarseGrainedExecutorBackend.adoc[] executors (or xref:spark-on-mesos:spark-executor-backends-MesosExecutorBackend.adoc[MesosExecutorBackend]).
+* [[numUsableCores]] Number of CPU cores
 
 When created, BlockManager sets <<externalShuffleServiceEnabled, externalShuffleServiceEnabled>> internal flag based on xref:ROOT:configuration-properties.adoc#spark.shuffle.service.enabled[spark.shuffle.service.enabled] configuration property.
 
@@ -67,6 +58,26 @@ BlockManager sets the xref:ROOT:configuration-properties.adoc#spark.block.failur
 
 BlockManager registers link:spark-blockmanager-BlockManagerSlaveEndpoint.adoc[BlockManagerSlaveEndpoint] with the input xref:ROOT:index.adoc[RpcEnv], itself, and xref:scheduler:MapOutputTracker.adoc[MapOutputTracker] (as `slaveEndpoint`).
 
+BlockManager is created when SparkEnv is xref:core:SparkEnv.adoc#create-BlockManager[created] (for the driver and executors) when a Spark application starts.
+
+== [[BlockDataManager]] BlockManager as BlockDataManager
+
+BlockManager is a xref:storage:BlockDataManager.adoc[] and manages the storage for blocks that with cached RDD partitions, intermediate shuffle outputs, broadcasts, etc.
+
+== [[mapOutputTracker]] BlockManager and MapOutputTracker
+
+BlockManager is given a xref:scheduler:MapOutputTracker.adoc[] when <<creating-instance, created>>.
+
+== [[executorId]] Executor ID
+
+BlockManager is given an Executor ID when <<creating-instance, created>>.
+
+The Executor ID is one of the following:
+
+* *driver* (`SparkContext.DRIVER_IDENTIFIER`) for the driver
+
+* Value of xref:executor:CoarseGrainedExecutorBackend.adoc#executor-id[--executor-id] command-line argument for xref:executor:CoarseGrainedExecutorBackend.adoc[] executors (or xref:spark-on-mesos:spark-executor-backends-MesosExecutorBackend.adoc[MesosExecutorBackend])
+
 == [[slaveEndpoint]] BlockManagerEndpoint RPC Endpoint
 
 When created, BlockManager requests the <<rpcEnv, RpcEnv>> to xref:rpc:RpcEnv.adoc#setupEndpoint[register BlockManagerEndpoint RPC endpoint].
@@ -75,10 +86,13 @@ When created, BlockManager requests the <<rpcEnv, RpcEnv>> to xref:rpc:RpcEnv.ad
 
 BlockManager is available using xref:core:SparkEnv.adoc#blockManager[SparkEnv] on the driver and executors.
 
-[source, scala]
+[source,plaintext]
 ----
 import org.apache.spark.SparkEnv
-SparkEnv.get.blockManager
+val bm = SparkEnv.get.blockManager
+
+scala> :type bm
+org.apache.spark.storage.BlockManager
 ----
 
 == [[blockTransferService]] BlockTransferService
@@ -166,25 +180,29 @@ BlockManager uses the DiskStore when requested to <<getStatus, getStatus>>, <<ge
 
 BlockManager uses link:spark-BlockManager-BlockManagerSource.adoc[BlockManagerSource] to report metrics under the name *BlockManager*.
 
-== [[getLocations]] `getLocations` Method
+== [[getPeers]] getPeers Internal Method
 
-CAUTION: FIXME
+[source,scala]
+----
+getPeers(
+  forceFetch: Boolean): Seq[BlockManagerId]
+----
 
-== [[blockIdsToHosts]] `blockIdsToHosts` Method
+getPeers...FIXME
 
-CAUTION: FIXME
+getPeers is used when BlockManager is requested to <<replicateBlock, replicateBlock>> and <<replicate, replicate>>.
 
-== [[getLocationBlockIds]] `getLocationBlockIds` Method
+== [[releaseAllLocksForTask]] Releasing All Locks For Task
 
-CAUTION: FIXME
+[source,scala]
+----
+releaseAllLocksForTask(
+  taskAttemptId: Long): Seq[BlockId]
+----
 
-== [[getPeers]] `getPeers` Method
+releaseAllLocksForTask...FIXME
 
-CAUTION: FIXME
-
-== [[releaseAllLocksForTask]] `releaseAllLocksForTask` Method
-
-CAUTION: FIXME
+releaseAllLocksForTask is used when TaskRunner is requested to xref:executor:TaskRunner.adoc#run[run] (after a task is finished successfully or not).
 
 == [[stop]] Stopping BlockManager
 
@@ -193,20 +211,21 @@ CAUTION: FIXME
 stop(): Unit
 ----
 
-`stop`...FIXME
+stop...FIXME
 
-NOTE: `stop` is used exclusively when `SparkEnv` is requested to xref:core:SparkEnv.adoc#stop[stop].
+stop is used when SparkEnv is requested to xref:core:SparkEnv.adoc#stop[stop].
 
 == [[getMatchingBlockIds]] Getting IDs of Existing Blocks (For a Given Filter)
 
 [source, scala]
 ----
-getMatchingBlockIds(filter: BlockId => Boolean): Seq[BlockId]
+getMatchingBlockIds(
+  filter: BlockId => Boolean): Seq[BlockId]
 ----
 
-`getMatchingBlockIds`...FIXME
+getMatchingBlockIds...FIXME
 
-NOTE: `getMatchingBlockIds` is used exclusively when `BlockManagerSlaveEndpoint` is requested to link:spark-blockmanager-BlockManagerSlaveEndpoint.adoc#GetMatchingBlockIds[handle a GetMatchingBlockIds message].
+getMatchingBlockIds is used when BlockManagerSlaveEndpoint is requested to xref:storage:spark-blockmanager-BlockManagerSlaveEndpoint.adoc#GetMatchingBlockIds[handle a GetMatchingBlockIds message].
 
 == [[getLocalValues]] getLocalValues Method
 
@@ -216,15 +235,15 @@ getLocalValues(
   blockId: BlockId): Option[BlockResult]
 ----
 
-`getLocalValues` prints out the following DEBUG message to the logs:
+getLocalValues prints out the following DEBUG message to the logs:
 
 ```
 Getting local block [blockId]
 ```
 
-`getLocalValues` link:spark-BlockInfoManager.adoc#lockForReading[obtains a read lock for `blockId`].
+getLocalValues link:spark-BlockInfoManager.adoc#lockForReading[obtains a read lock for `blockId`].
 
-When no `blockId` block was found, you should see the following DEBUG message in the logs and `getLocalValues` returns "nothing" (i.e. `NONE`).
+When no `blockId` block was found, you should see the following DEBUG message in the logs and getLocalValues returns "nothing" (i.e. `NONE`).
 
 ```
 Block [blockId] was not found
@@ -236,12 +255,12 @@ When the `blockId` block was found, you should see the following DEBUG message i
 Level for block [blockId] is [level]
 ```
 
-If `blockId` block has memory level and xref:storage:MemoryStore.adoc#contains[is registered in `MemoryStore`], `getLocalValues` returns a <<BlockResult, BlockResult>> as `Memory` read method and with a `CompletionIterator` for an interator:
+If `blockId` block has memory level and xref:storage:MemoryStore.adoc#contains[is registered in `MemoryStore`], getLocalValues returns a <<BlockResult, BlockResult>> as `Memory` read method and with a `CompletionIterator` for an interator:
 
 1. xref:storage:MemoryStore.adoc#getValues[Values iterator from `MemoryStore` for `blockId`] for "deserialized" persistence levels.
 2. Iterator from xref:serializer:SerializerManager.adoc#dataDeserializeStream[`SerializerManager` after the data stream has been deserialized] for the `blockId` block and xref:storage:MemoryStore.adoc#getBytes[the bytes for `blockId` block] for "serialized" persistence levels.
 
-NOTE: `getLocalValues` is used when xref:core:TorrentBroadcast.adoc#readBroadcastBlock[`TorrentBroadcast` reads the blocks of a broadcast variable and stores them in a local BlockManager].
+getLocalValues is used when xref:core:TorrentBroadcast.adoc#readBroadcastBlock[`TorrentBroadcast` reads the blocks of a broadcast variable and stores them in a local BlockManager].
 
 CAUTION: FIXME
 
@@ -827,13 +846,13 @@ NOTE: `addUpdatedBlockStatusToTaskMetrics` is used when BlockManager <<doPutByte
 shuffleMetricsSource: Source
 ----
 
-`shuffleMetricsSource` requests the <<shuffleClient, ShuffleClient>> for the xref:storage:ShuffleClient.adoc#shuffleMetrics[shuffle-related metrics] and creates a link:spark-BlockManager-ShuffleMetricsSource.adoc[ShuffleMetricsSource] with the link:spark-BlockManager-ShuffleMetricsSource.adoc#sourceName[source name] per xref:ROOT:configuration-properties.adoc#spark.shuffle.service.enabled[spark.shuffle.service.enabled] configuration property:
+shuffleMetricsSource requests the <<shuffleClient, ShuffleClient>> for the xref:storage:ShuffleClient.adoc#shuffleMetrics[shuffle-related metrics] and creates a link:spark-BlockManager-ShuffleMetricsSource.adoc[ShuffleMetricsSource] with the link:spark-BlockManager-ShuffleMetricsSource.adoc#sourceName[source name] per xref:ROOT:configuration-properties.adoc#spark.shuffle.service.enabled[spark.shuffle.service.enabled] configuration property:
 
 * *ExternalShuffle* when xref:ROOT:configuration-properties.adoc#spark.shuffle.service.enabled[spark.shuffle.service.enabled] configuration property is on (`true`)
 
 * *NettyBlockTransfer* when xref:ROOT:configuration-properties.adoc#spark.shuffle.service.enabled[spark.shuffle.service.enabled] configuration property is off (`false`)
 
-NOTE: `shuffleMetricsSource` is used exclusively when `Executor` is xref:executor:Executor.adoc#creating-instance[created] (for non-local / cluster modes).
+shuffleMetricsSource is used when Executor is xref:executor:Executor.adoc#creating-instance[created] (for non-local / cluster modes).
 
 == [[replicate]] Replicating Block To Peers
 
@@ -847,11 +866,11 @@ replicate(
   existingReplicas: Set[BlockManagerId] = Set.empty): Unit
 ----
 
-`replicate`...FIXME
+replicate...FIXME
 
-NOTE: `replicate` is used when BlockManager is requested to <<doPutBytes, doPutBytes>>, <<doPutIterator, doPutIterator>> and <<replicateBlock, replicateBlock>>.
+replicate is used when BlockManager is requested to <<doPutBytes, doPutBytes>>, <<doPutIterator, doPutIterator>> and <<replicateBlock, replicateBlock>>.
 
-== [[replicateBlock]] `replicateBlock` Method
+== [[replicateBlock]] replicateBlock Method
 
 [source, scala]
 ----
@@ -861,9 +880,9 @@ replicateBlock(
   maxReplicas: Int): Unit
 ----
 
-`replicateBlock`...FIXME
+replicateBlock...FIXME
 
-NOTE: `replicateBlock` is used exclusively when `BlockManagerSlaveEndpoint` is requested to link:spark-blockmanager-BlockManagerSlaveEndpoint.adoc#receiveAndReply-ReplicateBlock[handle ReplicateBlock messages].
+replicateBlock is used when BlockManagerSlaveEndpoint is requested to xref:storage:spark-blockmanager-BlockManagerSlaveEndpoint.adoc#receiveAndReply-ReplicateBlock[handle a ReplicateBlock message].
 
 == [[putIterator]] `putIterator` Method
 
@@ -1136,6 +1155,32 @@ releaseLockAndDispose(
 releaseLockAndDispose...FIXME
 
 releaseLockAndDispose is used when...FIXME
+
+== [[blockIdsToLocations]] blockIdsToLocations Utility
+
+[source,scala]
+----
+blockIdsToLocations(
+  blockIds: Array[BlockId],
+  env: SparkEnv,
+  blockManagerMaster: BlockManagerMaster = null): Map[BlockId, Seq[String]]
+----
+
+blockIdsToLocations...FIXME
+
+blockIdsToLocations is used in the _now defunct_ Spark Streaming (when BlockRDD is requested for _locations).
+
+=== [[getLocationBlockIds]] getLocationBlockIds Internal Method
+
+[source,scala]
+----
+getLocationBlockIds(
+  blockIds: Array[BlockId]): Array[Seq[BlockManagerId]]
+----
+
+getLocationBlockIds...FIXME
+
+getLocationBlockIds is used when BlockManager utility is requested to <<blockIdsToLocations, blockIdsToLocations>> (for the _now defunct_ Spark Streaming).
 
 == [[logging]] Logging
 
