@@ -1,0 +1,3 @@
+= BlockManagerInfo
+
+*BlockManagerInfo* is...FIXME

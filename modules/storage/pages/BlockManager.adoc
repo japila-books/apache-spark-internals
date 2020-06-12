@@ -56,7 +56,7 @@ BlockManager creates a client to read other executors' shuffle files (as `shuffl
 
 BlockManager sets the xref:ROOT:configuration-properties.adoc#spark.block.failures.beforeLocationRefresh[maximum number of failures] before this block manager refreshes the block locations from the driver (as `maxFailuresBeforeLocationRefresh`).
 
-BlockManager registers link:spark-blockmanager-BlockManagerSlaveEndpoint.adoc[BlockManagerSlaveEndpoint] with the input xref:ROOT:index.adoc[RpcEnv], itself, and xref:scheduler:MapOutputTracker.adoc[MapOutputTracker] (as `slaveEndpoint`).
+BlockManager registers a xref:storage:BlockManagerSlaveEndpoint.adoc[] with the input xref:ROOT:index.adoc[RpcEnv], itself, and xref:scheduler:MapOutputTracker.adoc[MapOutputTracker] (as `slaveEndpoint`).
 
 BlockManager is created when SparkEnv is xref:core:SparkEnv.adoc#create-BlockManager[created] (for the driver and executors) when a Spark application starts.
 
@@ -80,7 +80,11 @@ The Executor ID is one of the following:
 
 == [[slaveEndpoint]] BlockManagerEndpoint RPC Endpoint
 
-When created, BlockManager requests the <<rpcEnv, RpcEnv>> to xref:rpc:RpcEnv.adoc#setupEndpoint[register BlockManagerEndpoint RPC endpoint].
+While being <<creating-instance, created>>, BlockManager requests the <<rpcEnv, RpcEnv>> to xref:rpc:RpcEnv.adoc#setupEndpoint[register an RPC endpoint] for xref:storage:BlockManagerSlaveEndpoint.adoc[] under the name *BlockManagerEndpoint[ID]*.
+
+The RPC endpoint is used when BlockManager is requested to <<initialize, initialize>> and <<reregister, reregister>>.
+
+The endpoint is stopped (by requesting the <<rpcEnv, RpcEnv>> to xref:rpc:RpcEnv.adoc#stop[stop the reference]) when BlockManager is requested to <<stop, stop>>.
 
 == [[SparkEnv]] Accessing BlockManager Using SparkEnv
 
@@ -225,7 +229,7 @@ getMatchingBlockIds(
 
 getMatchingBlockIds...FIXME
 
-getMatchingBlockIds is used when BlockManagerSlaveEndpoint is requested to xref:storage:spark-blockmanager-BlockManagerSlaveEndpoint.adoc#GetMatchingBlockIds[handle a GetMatchingBlockIds message].
+getMatchingBlockIds is used when BlockManagerSlaveEndpoint is requested to xref:storage:BlockManagerSlaveEndpoint.adoc#GetMatchingBlockIds[handle a GetMatchingBlockIds message].
 
 == [[getLocalValues]] getLocalValues Method
 
@@ -529,7 +533,7 @@ The block is removed from link:spark-BlockInfoManager.adoc[BlockInfoManager].
 
 It then <<getCurrentBlockStatus, calculates the current block status>> that is used to <<reportBlockStatus, report the block status to the driver>> (if the input `tellMaster` and the info's `tellMaster` are both enabled, i.e. `true`) and the xref:executor:TaskMetrics.adoc#incUpdatedBlockStatuses[current TaskContext metrics are updated with the change].
 
-NOTE: It is used to <<removeRdd, remove RDDs>> and <<removeBroadcast, broadcast>> as well as in link:spark-blockmanager-BlockManagerSlaveEndpoint.adoc#RemoveBlock[`BlockManagerSlaveEndpoint` while handling `RemoveBlock` messages].
+NOTE: It is used to <<removeRdd, remove RDDs>> and <<removeBroadcast, broadcast>> as well as in xref:storage:BlockManagerSlaveEndpoint.adoc#RemoveBlock[`BlockManagerSlaveEndpoint` while handling `RemoveBlock` messages].
 
 == [[removeRdd]] Removing RDD Blocks
 
@@ -550,7 +554,7 @@ It then requests RDD blocks from link:spark-BlockInfoManager.adoc[BlockInfoManag
 
 The number of blocks removed is the final result.
 
-NOTE: It is used by link:spark-blockmanager-BlockManagerSlaveEndpoint.adoc#RemoveRdd[`BlockManagerSlaveEndpoint` while handling `RemoveRdd` messages].
+NOTE: It is used by xref:storage:BlockManagerSlaveEndpoint.adoc#RemoveRdd[`BlockManagerSlaveEndpoint` while handling `RemoveRdd` messages].
 
 == [[removeBroadcast]] Removing All Blocks of Broadcast Variable
 
@@ -571,7 +575,7 @@ It then requests all the xref:storage:BlockId.adoc#BroadcastBlockId[BroadcastBlo
 
 The number of blocks removed is the final result.
 
-NOTE: It is used by link:spark-blockmanager-BlockManagerSlaveEndpoint.adoc#RemoveBroadcast[`BlockManagerSlaveEndpoint` while handling `RemoveBroadcast` messages].
+NOTE: It is used by xref:storage:BlockManagerSlaveEndpoint.adoc#RemoveBroadcast[`BlockManagerSlaveEndpoint` while handling `RemoveBroadcast` messages].
 
 == [[getStatus]] Getting Block Status
 
@@ -607,17 +611,18 @@ CAUTION: FIXME Review the initialize procedure again
 
 CAUTION: FIXME Describe `shuffleServerId`. Where is it used?
 
-If the <<externalShuffleServiceEnabled, External Shuffle Service is used>>, the following INFO appears in the logs:
+If the <<externalShuffleServiceEnabled, External Shuffle Service is used>>, initialize prints out the following INFO message to the logs:
 
-```
-INFO external shuffle service port = [externalShuffleServicePort]
-```
+[source,plaintext]
+----
+external shuffle service port = [externalShuffleServicePort]
+----
 
-It xref:BlockManagerMaster.adoc#registerBlockManager[registers itself to the driver's BlockManagerMaster] passing the xref:storage:BlockManagerId.adoc[], the maximum memory (as `maxMemory`), and the link:spark-blockmanager-BlockManagerSlaveEndpoint.adoc[BlockManagerSlaveEndpoint].
+It xref:BlockManagerMaster.adoc#registerBlockManager[registers itself to the driver's BlockManagerMaster] passing the xref:storage:BlockManagerId.adoc[], the maximum memory (as `maxMemory`), and the xref:storage:BlockManagerSlaveEndpoint.adoc[].
 
 Ultimately, if the initialization happens on an executor and the <<externalShuffleServiceEnabled, External Shuffle Service is used>>, it <<registerWithExternalShuffleServer, registers to the shuffle service>>.
 
-NOTE: initialize is called when the link:spark-SparkContext-creating-instance-internals.adoc#BlockManager-initialization[driver is launched (and `SparkContext` is created)] and when an xref:executor:Executor.adoc#creating-instance[`Executor` is created] (for xref:executor:CoarseGrainedExecutorBackend.adoc#RegisteredExecutor[CoarseGrainedExecutorBackend] and xref:spark-on-mesos:spark-executor-backends-MesosExecutorBackend.adoc[MesosExecutorBackend]).
+initialize is used when the link:spark-SparkContext-creating-instance-internals.adoc#BlockManager-initialization[driver is launched (and `SparkContext` is created)] and when an xref:executor:Executor.adoc#creating-instance[`Executor` is created] (for xref:executor:CoarseGrainedExecutorBackend.adoc#RegisteredExecutor[CoarseGrainedExecutorBackend] and xref:spark-on-mesos:spark-executor-backends-MesosExecutorBackend.adoc[MesosExecutorBackend]).
 
 == [[registerWithExternalShuffleServer]] Registering Executor's BlockManager with External Shuffle Server
 
@@ -665,7 +670,7 @@ When executed, `reregister` prints the following INFO message to the logs:
 INFO BlockManager: BlockManager [blockManagerId] re-registering with master
 ```
 
-`reregister` then xref:BlockManagerMaster.adoc#registerBlockManager[registers itself to the driver's `BlockManagerMaster`] (just as it was when <<initialize, BlockManager was initializing>>). It passes the xref:storage:BlockManagerId.adoc[], the maximum memory (as `maxMemory`), and the link:spark-blockmanager-BlockManagerSlaveEndpoint.adoc[BlockManagerSlaveEndpoint].
+`reregister` then xref:BlockManagerMaster.adoc#registerBlockManager[registers itself to the driver's `BlockManagerMaster`] (just as it was when <<initialize, BlockManager was initializing>>). It passes the xref:storage:BlockManagerId.adoc[], the maximum memory (as `maxMemory`), and the xref:storage:BlockManagerSlaveEndpoint.adoc[].
 
 `reregister` will then report all the local blocks to the xref:BlockManagerMaster.adoc[BlockManagerMaster].
 
@@ -882,7 +887,7 @@ replicateBlock(
 
 replicateBlock...FIXME
 
-replicateBlock is used when BlockManagerSlaveEndpoint is requested to xref:storage:spark-blockmanager-BlockManagerSlaveEndpoint.adoc#receiveAndReply-ReplicateBlock[handle a ReplicateBlock message].
+replicateBlock is used when BlockManagerSlaveEndpoint is requested to xref:storage:BlockManagerSlaveEndpoint.adoc#ReplicateBlock[handle a ReplicateBlock message].
 
 == [[putIterator]] `putIterator` Method
 

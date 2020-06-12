@@ -171,7 +171,7 @@ RegisterBlockManager(
   sender: RpcEndpointRef)
 ----
 
-When received, BlockManagerMasterEndpoint <<register, registers the BlockManager>> (by the given xref:storage:BlockManagerId.adoc[]).
+When received, BlockManagerMasterEndpoint is requested to <<register, register the BlockManager>> (by the given xref:storage:BlockManagerId.adoc[]).
 
 Posted when BlockManagerMaster is requested to xref:storage:BlockManagerMaster.adoc#registerBlockManager[register a BlockManager]
 
@@ -327,7 +327,7 @@ register(
   slaveEndpoint: RpcEndpointRef): BlockManagerId
 ----
 
-register records the current time and registers `BlockManager` (using xref:storage:BlockManagerId.adoc[]) unless it has been registered already (in <<blockManagerInfo, blockManagerInfo>> internal registry).
+register registers a xref:storage:BlockManager.adoc[] (based on the given xref:storage:BlockManagerId.adoc[]) in the <<blockManagerIdByExecutor, blockManagerIdByExecutor>> and <<blockManagerInfo, blockManagerInfo>> registries and posts a SparkListenerBlockManagerAdded message (to the <<listenerBus, LiveListenerBus>>).
 
 NOTE: The input `maxMemSize` is the xref:storage:BlockManager.adoc#maxMemory[total available on-heap and off-heap memory for storage on a `BlockManager`].
 
@@ -342,7 +342,7 @@ Got two different block manager registrations on same executor - will replace ol
 
 And then <<removeExecutor, executor is removed>>.
 
-You should see the following INFO message in the logs:
+register prints out the following INFO message to the logs:
 
 [source,plaintext]
 ----
@@ -354,13 +354,7 @@ The `BlockManager` is recorded in the internal registries:
 * <<blockManagerIdByExecutor, blockManagerIdByExecutor>>
 * <<blockManagerInfo, blockManagerInfo>>
 
-CAUTION: FIXME Why does `blockManagerInfo` require a new `System.currentTimeMillis()` since `time` was already recorded?
-
-In either case, link:spark-scheduler-SparkListener.adoc#SparkListenerBlockManagerAdded[SparkListenerBlockManagerAdded] is posted (to xref:ROOT:SparkContext.adoc#listenerBus[listenerBus]).
-
-NOTE: The method can only be executed on the driver where `listenerBus` is available.
-
-CAUTION: FIXME Describe `listenerBus` + omnigraffle it.
+In the end, register requests the <<listenerBus, LiveListenerBus>> to xref:ROOT:spark-scheduler-LiveListenerBus.adoc#post[post] a xref:ROOT:spark-scheduler-SparkListener.adoc#SparkListenerBlockManagerAdded[SparkListenerBlockManagerAdded] message.
 
 register is used when BlockManagerMasterEndpoint is requested to handle <<RegisterBlockManager, RegisterBlockManager>> message.
 
@@ -445,17 +439,24 @@ blockManagerIdByExecutor: Map[String, BlockManagerId]
 
 Lookup table of xref:storage:BlockManagerId.adoc[]s by executor ID
 
-An executor is added when BlockManagerMasterEndpoint is requested to handle a <<RegisterBlockManager, RegisterBlockManager>> message (via <<register, register>>).
+A new executor is added when BlockManagerMasterEndpoint is requested to handle a <<RegisterBlockManager, RegisterBlockManager>> message (and <<register, registers a new BlockManager>>).
 
 An executor is removed when BlockManagerMasterEndpoint is requested to handle a <<RemoveExecutor, RemoveExecutor>> and a <<RegisterBlockManager, RegisterBlockManager>> messages (via <<removeBlockManager, removeBlockManager>>)
 
 Used when BlockManagerMasterEndpoint is requested to handle <<HasCachedBlocks, HasCachedBlocks>> message, <<removeExecutor, removeExecutor>>, <<register, register>> and <<getExecutorEndpointRef, getExecutorEndpointRef>>.
 
-=== [[blockManagerInfo]] blockManagerInfo
+=== [[blockManagerInfo]] blockManagerInfo Lookup Table
 
-Lookup table of `BlockManagerInfo` per xref:storage:BlockManagerId.adoc[]
+[source,scala]
+----
+blockManagerIdByExecutor: Map[String, BlockManagerId]
+----
 
-Updated when BlockManagerMasterEndpoint <<register, registers a new `BlockManager`>> or <<removeBlockManager, removes a `BlockManager`>>
+Lookup table of xref:storage:BlockManagerInfo.adoc[] by xref:storage:BlockManagerId.adoc[]
+
+A new BlockManagerInfo is added when BlockManagerMasterEndpoint is requested to handle a <<RegisterBlockManager, RegisterBlockManager>> message (and <<register, registers a new BlockManager>>).
+
+A BlockManagerInfo is removed when BlockManagerMasterEndpoint is requested to <<removeBlockManager, remove a BlockManager>> (to handle <<RemoveExecutor, RemoveExecutor>> and <<RegisterBlockManager, RegisterBlockManager>> messages).
 
 === [[blockLocations]] blockLocations
 
