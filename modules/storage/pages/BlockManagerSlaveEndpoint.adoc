@@ -1,22 +1,46 @@
 = BlockManagerSlaveEndpoint
 
-*BlockManagerSlaveEndpoint* is a xref:rpc:RpcEndpoint.adoc#ThreadSafeRpcEndpoint[ThreadSafeRpcEndpoint] for remote communication between executors and the driver.
-
-While a <<creating-instance, BlockManager is being created>> so is the BlockManagerSlaveEndpoint RPC endpoint with the name *BlockManagerEndpoint[randomId]* to handle <<messages, RPC messages>>.
+*BlockManagerSlaveEndpoint* is a xref:rpc:RpcEndpoint.adoc#ThreadSafeRpcEndpoint[ThreadSafeRpcEndpoint] for xref:storage:BlockManager.adoc#slaveEndpoint[BlockManager].
 
 == [[creating-instance]] Creating Instance
 
 BlockManagerSlaveEndpoint takes the following to be created:
 
 * [[rpcEnv]] xref:rpc:RpcEnv.adoc[]
-* [[blockManager]] xref:storage:BlockManager.adoc[]
+* [[blockManager]] Parent xref:storage:BlockManager.adoc[]
 * [[mapOutputTracker]] xref:scheduler:MapOutputTracker.adoc[]
 
-BlockManagerSlaveEndpoint is created for xref:storage:BlockManager.adoc#slaveEndpoint[BlockManager].
+BlockManagerSlaveEndpoint is created for xref:storage:BlockManager.adoc#slaveEndpoint[BlockManager] (and registered under the name *BlockManagerEndpoint[ID]*).
 
 == [[messages]] Messages
 
-=== [[RemoveBlock]] RemoveBlock Message
+=== [[GetBlockStatus]] GetBlockStatus
+
+[source, scala]
+----
+GetBlockStatus(
+  blockId: BlockId,
+  askSlaves: Boolean = true)
+----
+
+When received, BlockManagerSlaveEndpoint requests the <<blockManager, BlockManager>> for the xref:storage:BlockManager.adoc#getStatus[status of a given block] (by xref:storage:BlockId.adoc[]) and sends it back to a sender.
+
+Posted when...FIXME
+
+=== [[GetMatchingBlockIds]] GetMatchingBlockIds
+
+[source, scala]
+----
+GetMatchingBlockIds(
+  filter: BlockId => Boolean,
+  askSlaves: Boolean = true)
+----
+
+When received, BlockManagerSlaveEndpoint requests the <<blockManager, BlockManager>> to xref:storage:BlockManager.adoc#getMatchingBlockIds[find IDs of existing blocks for a given filter] and sends them back to a sender.
+
+Posted when...FIXME
+
+=== [[RemoveBlock]] RemoveBlock
 
 [source, scala]
 ----
@@ -24,45 +48,81 @@ RemoveBlock(
   blockId: BlockId)
 ----
 
-When a `RemoveBlock` message comes in, you should see the following DEBUG message in the logs:
+When received, BlockManagerSlaveEndpoint prints out the following DEBUG message to the logs:
 
-```
+[source,plaintext]
+----
 removing block [blockId]
-```
+----
 
-It then calls <<removeBlock, BlockManager to remove `blockId` block>>.
-
-NOTE: Handling `RemoveBlock` messages happens on a separate thread. See <<asyncThreadPool, BlockManagerSlaveEndpoint Thread Pool>>.
+BlockManagerSlaveEndpoint then <<removeBlock, BlockManager to remove `blockId` block>>.
 
 When the computation is successful, you should see the following DEBUG in the logs:
 
 ```
-DEBUG BlockManagerSlaveEndpoint: Done removing block [blockId], response is [response]
+Done removing block [blockId], response is [response]
 ```
 
 And `true` response is sent back. You should see the following DEBUG in the logs:
 
 ```
-DEBUG BlockManagerSlaveEndpoint: Sent response: true to [senderAddress]
+Sent response: true to [senderAddress]
 ```
 
 In case of failure, you should see the following ERROR in the logs and the stack trace.
 
 ```
-ERROR BlockManagerSlaveEndpoint: Error in removing block [blockId]
+Error in removing block [blockId]
 ```
 
-== [[RemoveRdd]] RemoveRdd Message
+=== [[RemoveBroadcast]] RemoveBroadcast
 
 [source, scala]
 ----
-RemoveRdd(rddId: Int)
+RemoveBroadcast(
+  broadcastId: Long,
+  removeFromDriver: Boolean = true)
 ----
 
-When a `RemoveRdd` message comes in, you should see the following DEBUG message in the logs:
+When received, BlockManagerSlaveEndpoint prints out the following DEBUG message to the logs:
+
+[source,plaintext]
+----
+removing broadcast [broadcastId]
+----
+
+It then calls <<removeBroadcast, BlockManager to remove the `broadcastId` broadcast>>.
+
+When the computation is successful, you should see the following DEBUG in the logs:
 
 ```
-DEBUG BlockManagerSlaveEndpoint: removing RDD [rddId]
+Done removing broadcast [broadcastId], response is [response]
+```
+
+And the result is sent back. You should see the following DEBUG in the logs:
+
+```
+Sent response: [response] to [senderAddress]
+```
+
+In case of failure, you should see the following ERROR in the logs and the stack trace.
+
+```
+Error in removing broadcast [broadcastId]
+```
+
+=== [[RemoveRdd]] RemoveRdd
+
+[source, scala]
+----
+RemoveRdd(
+  rddId: Int)
+----
+
+When received, BlockManagerSlaveEndpoint prints out the following DEBUG message to the logs:
+
+```
+removing RDD [rddId]
 ```
 
 It then calls <<removeRdd, BlockManager to remove `rddId` RDD>>.
@@ -72,32 +132,33 @@ NOTE: Handling `RemoveRdd` messages happens on a separate thread. See <<asyncThr
 When the computation is successful, you should see the following DEBUG in the logs:
 
 ```
-DEBUG BlockManagerSlaveEndpoint: Done removing RDD [rddId], response is [response]
+Done removing RDD [rddId], response is [response]
 ```
 
 And the number of blocks removed is sent back. You should see the following DEBUG in the logs:
 
 ```
-DEBUG BlockManagerSlaveEndpoint: Sent response: [#blocks] to [senderAddress]
+Sent response: [#blocks] to [senderAddress]
 ```
 
 In case of failure, you should see the following ERROR in the logs and the stack trace.
 
 ```
-ERROR BlockManagerSlaveEndpoint: Error in removing RDD [rddId]
+Error in removing RDD [rddId]
 ```
 
-== [[RemoveShuffle]] RemoveShuffle Message
+=== [[RemoveShuffle]] RemoveShuffle
 
 [source, scala]
 ----
-RemoveShuffle(shuffleId: Int)
+RemoveShuffle(
+  shuffleId: Int)
 ----
 
-When a `RemoveShuffle` message comes in, you should see the following DEBUG message in the logs:
+When received, BlockManagerSlaveEndpoint prints out the following DEBUG message to the logs:
 
 ```
-DEBUG BlockManagerSlaveEndpoint: removing shuffle [shuffleId]
+removing shuffle [shuffleId]
 ```
 
 If xref:scheduler:MapOutputTracker.adoc[MapOutputTracker] was given (when the RPC endpoint was created), it calls xref:scheduler:MapOutputTracker.adoc#unregisterShuffle[MapOutputTracker to unregister the `shuffleId` shuffle].
@@ -109,87 +170,83 @@ NOTE: Handling `RemoveShuffle` messages happens on a separate thread. See <<asyn
 When the computation is successful, you should see the following DEBUG in the logs:
 
 ```
-DEBUG BlockManagerSlaveEndpoint: Done removing shuffle [shuffleId], response is [response]
+Done removing shuffle [shuffleId], response is [response]
 ```
 
 And the result is sent back. You should see the following DEBUG in the logs:
 
 ```
-DEBUG BlockManagerSlaveEndpoint: Sent response: [response] to [senderAddress]
+Sent response: [response] to [senderAddress]
 ```
 
 In case of failure, you should see the following ERROR in the logs and the stack trace.
 
 ```
-ERROR BlockManagerSlaveEndpoint: Error in removing shuffle [shuffleId]
+Error in removing shuffle [shuffleId]
 ```
 
-NOTE: `RemoveShuffle` is posted when xref:BlockManagerMaster.adoc#removeShuffle[BlockManagerMaster] and xref:storage:BlockManagerMasterEndpoint.adoc#removeShuffle[BlockManagerMasterEndpoint] remove all blocks for a shuffle.
+Posted when xref:BlockManagerMaster.adoc#removeShuffle[BlockManagerMaster] and xref:storage:BlockManagerMasterEndpoint.adoc#removeShuffle[BlockManagerMasterEndpoint] are requested to remove all blocks of a shuffle.
 
-== [[RemoveBroadcast]] RemoveBroadcast Message
+=== [[ReplicateBlock]] ReplicateBlock
 
 [source, scala]
 ----
-RemoveBroadcast(broadcastId: Long)
+ReplicateBlock(
+  blockId: BlockId,
+  replicas: Seq[BlockManagerId],
+  maxReplicas: Int)
 ----
 
-When a `RemoveBroadcast` message comes in, you should see the following DEBUG message in the logs:
+When received, BlockManagerSlaveEndpoint...FIXME
 
-```
-DEBUG BlockManagerSlaveEndpoint: removing broadcast [broadcastId]
-```
+Posted when...FIXME
 
-It then calls <<removeBroadcast, BlockManager to remove the `broadcastId` broadcast>>.
+=== [[TriggerThreadDump]] TriggerThreadDump
 
-NOTE: Handling `RemoveBroadcast` messages happens on a separate thread. See <<asyncThreadPool, BlockManagerSlaveEndpoint Thread Pool>>.
+When received, BlockManagerSlaveEndpoint is requested for the thread info for all live threads with stack trace and synchronization information.
 
-When the computation is successful, you should see the following DEBUG in the logs:
+== [[asyncThreadPool]][[asyncExecutionContext]] block-manager-slave-async-thread-pool Thread Pool
 
-```
-DEBUG BlockManagerSlaveEndpoint: Done removing broadcast [broadcastId], response is [response]
-```
+BlockManagerSlaveEndpoint creates a thread pool of maximum 100 daemon threads with *block-manager-slave-async-thread-pool* thread prefix (using {java-javadoc-url}/java/util/concurrent/ThreadPoolExecutor.html[java.util.concurrent.ThreadPoolExecutor]).
 
-And the result is sent back. You should see the following DEBUG in the logs:
+BlockManagerSlaveEndpoint uses the thread pool (as a Scala implicit value) when requested to <<doAsync, doAsync>> to communicate in a non-blocking, asynchronous way.
 
-```
-DEBUG BlockManagerSlaveEndpoint: Sent response: [response] to [senderAddress]
-```
-
-In case of failure, you should see the following ERROR in the logs and the stack trace.
-
-```
-ERROR BlockManagerSlaveEndpoint: Error in removing broadcast [broadcastId]
-```
-
-== [[GetBlockStatus]] GetBlockStatus Message
-
-[source, scala]
-----
-GetBlockStatus(blockId: BlockId)
-----
-
-When a `GetBlockStatus` message comes in, it responds with the result of <<getStatus, calling BlockManager about the status of `blockId`>>.
-
-== [[GetMatchingBlockIds]] `GetMatchingBlockIds` Message
-
-[source, scala]
-----
-GetMatchingBlockIds(filter: BlockId => Boolean, askSlaves: Boolean = true)
-----
-
-When received a `GetMatchingBlockIds`, BlockManagerSlaveEndpoint requests <<blockManager, BlockManager>> to xref:storage:BlockManager.adoc#getMatchingBlockIds[find IDs of existing blocks for a given filter] and sends them back.
-
-== [[TriggerThreadDump]] TriggerThreadDump Message
-
-When a `TriggerThreadDump` message comes in, a thread dump is generated and sent back.
-
-== [[asyncThreadPool]] BlockManagerSlaveEndpoint Thread Pool
-
-BlockManagerSlaveEndpoint uses *block-manager-slave-async-thread-pool* daemon thread pool (`asyncThreadPool`) for some messages to talk to other Spark services, i.e. `BlockManager`, xref:scheduler:MapOutputTracker.adoc[MapOutputTracker], xref:shuffle:ShuffleManager.adoc[ShuffleManager] in a non-blocking, asynchronous way.
+The thread pool is shut down when BlockManagerSlaveEndpoint is requested to <<onStop, stop>>.
 
 The reason for the async thread pool is that the block-related operations might take quite some time and to release the main RPC thread other threads are spawned to talk to the external services and pass responses on to the clients.
 
-NOTE: BlockManagerSlaveEndpoint uses Java's https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/ThreadPoolExecutor.html[java.util.concurrent.ThreadPoolExecutor].
+== [[doAsync]] doAsync Internal Method
+
+[source,scala]
+----
+doAsync[T](
+  actionMessage: String,
+  context: RpcCallContext)(
+  body: => T)
+----
+
+doAsync creates a Scala Future to execute the following asynchronously (i.e. on a separate thread from the <<asyncThreadPool, Thread Pool>>):
+
+. Prints out the given `actionMessage` as a DEBUG message to the logs
+
+. Executes the given `body`
+
+When completed successfully, doAsync prints out the following DEBUG messages to the logs and requests the given RpcCallContext to reply the response to the sender.
+
+[source,plaintext]
+----
+Done [actionMessage], response is [response]
+Sent response: [response] to [senderAddress]
+----
+
+In case of a failure, doAsync prints out the following ERROR message to the logs and requests the given RpcCallContext to send the failure to the sender.
+
+[source,plaintext]
+----
+Error in [actionMessage]
+----
+
+doAsync is used when BlockManagerSlaveEndpoint is requested to handle <<RemoveBlock, RemoveBlock>>, <<RemoveRdd, RemoveRdd>>, <<RemoveShuffle, RemoveShuffle>> and <<RemoveBroadcast, RemoveBroadcast>> messages.
 
 == [[logging]] Logging
 
