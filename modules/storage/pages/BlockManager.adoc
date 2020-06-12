@@ -42,8 +42,6 @@ When created, BlockManager sets <<externalShuffleServiceEnabled, externalShuffle
 
 BlockManager then creates an instance of xref:DiskBlockManager.adoc[DiskBlockManager] (requesting `deleteFilesOnStop` when an external shuffle service is not in use).
 
-BlockManager creates an instance of link:spark-BlockInfoManager.adoc[BlockInfoManager] (as `blockInfoManager`).
-
 BlockManager creates *block-manager-future* daemon cached thread pool with 128 threads maximum (as `futureExecutionContext`).
 
 BlockManager calculates the maximum memory to use (as `maxMemory`) by requesting the maximum xref:memory:MemoryManager.adoc#maxOnHeapStorageMemory[on-heap] and xref:memory:MemoryManager.adoc#maxOffHeapStorageMemory[off-heap] storage memory from the assigned `MemoryManager`.
@@ -59,6 +57,14 @@ BlockManager sets the xref:ROOT:configuration-properties.adoc#spark.block.failur
 BlockManager registers a xref:storage:BlockManagerSlaveEndpoint.adoc[] with the input xref:ROOT:index.adoc[RpcEnv], itself, and xref:scheduler:MapOutputTracker.adoc[MapOutputTracker] (as `slaveEndpoint`).
 
 BlockManager is created when SparkEnv is xref:core:SparkEnv.adoc#create-BlockManager[created] (for the driver and executors) when a Spark application starts.
+
+== [[blockInfoManager]] BlockInfoManager
+
+BlockManager creates a xref:storage:BlockInfoManager.adoc[] when <<creating-instance, created>>.
+
+BlockManager uses the BlockInfoManager to create a <<memoryStore, MemoryStore>>.
+
+BlockManager uses the BlockInfoManager for...FIXME
 
 == [[master]] BlockManager and BlockManagerMaster
 
@@ -249,7 +255,7 @@ getLocalValues prints out the following DEBUG message to the logs:
 Getting local block [blockId]
 ```
 
-getLocalValues link:spark-BlockInfoManager.adoc#lockForReading[obtains a read lock for `blockId`].
+getLocalValues xref:storage:BlockInfoManager.adoc#lockForReading[obtains a read lock for `blockId`].
 
 When no `blockId` block was found, you should see the following DEBUG message in the logs and getLocalValues returns "nothing" (i.e. `NONE`).
 
@@ -474,9 +480,9 @@ doPut[T](
 
 `doPut` is an internal helper method for <<doPutBytes, doPutBytes>> and <<doPutIterator, doPutIterator>>.
 
-`doPut` executes the input `putBody` function with a link:spark-BlockInfo.adoc[BlockInfo] being a new `BlockInfo` object (with `level` storage level) that link:spark-BlockInfoManager.adoc#lockNewBlockForWriting[`BlockInfoManager` managed to create a write lock for].
+`doPut` executes the input `putBody` function with a xref:storage:BlockInfo.adoc[] being a new `BlockInfo` object (with `level` storage level) that xref:storage:BlockInfoManager.adoc#lockNewBlockForWriting[`BlockInfoManager` managed to create a write lock for].
 
-If the block has already been created (and link:spark-BlockInfoManager.adoc#lockNewBlockForWriting[`BlockInfoManager` did not manage to create a write lock for]), the following WARN message is printed out to the logs:
+If the block has already been created (and xref:storage:BlockInfoManager.adoc#lockNewBlockForWriting[`BlockInfoManager` did not manage to create a write lock for]), the following WARN message is printed out to the logs:
 
 ```
 WARN Block [blockId] already exists on this machine; not re-adding it
@@ -488,9 +494,9 @@ If however the write lock has been given, `doPut` executes `putBody`.
 
 If the result of `putBody` is `None` the block is considered saved successfully.
 
-For successful save and `keepReadLock` enabled, link:spark-BlockInfoManager.adoc#downgradeLock[`BlockInfoManager` is requested to downgrade an exclusive write lock for `blockId` to a shared read lock].
+For successful save and `keepReadLock` enabled, xref:storage:BlockInfoManager.adoc#downgradeLock[`BlockInfoManager` is requested to downgrade an exclusive write lock for `blockId` to a shared read lock].
 
-For successful save and `keepReadLock` disabled, link:spark-BlockInfoManager.adoc#unlock[`BlockInfoManager` is requested to release lock on `blockId`].
+For successful save and `keepReadLock` disabled, xref:storage:BlockInfoManager.adoc#unlock[`BlockInfoManager` is requested to release lock on `blockId`].
 
 For unsuccessful save, <<removeBlockInternal, the block is removed from memory and disk stores>> and the following WARN message is printed out to the logs:
 
@@ -519,7 +525,7 @@ When executed, it prints out the following DEBUG message to the logs:
 DEBUG Removing block [blockId]
 ```
 
-It requests link:spark-BlockInfoManager.adoc[BlockInfoManager] for lock for writing for the `blockId` block. If it receives none, it prints out the following WARN message to the logs and quits.
+It requests xref:storage:BlockInfoManager.adoc[] for lock for writing for the `blockId` block. If it receives none, it prints out the following WARN message to the logs and quits.
 
 ```
 WARN Asked to remove block [blockId], which does not exist
@@ -533,7 +539,7 @@ If both removals fail, it prints out the following WARN message:
 WARN Block [blockId] could not be removed as it was not found in either the disk, memory, or external block store
 ```
 
-The block is removed from link:spark-BlockInfoManager.adoc[BlockInfoManager].
+The block is removed from xref:storage:BlockInfoManager.adoc[].
 
 It then <<getCurrentBlockStatus, calculates the current block status>> that is used to <<reportBlockStatus, report the block status to the driver>> (if the input `tellMaster` and the info's `tellMaster` are both enabled, i.e. `true`) and the xref:executor:TaskMetrics.adoc#incUpdatedBlockStatuses[current TaskContext metrics are updated with the change].
 
@@ -554,7 +560,7 @@ It prints out the following INFO message to the logs:
 INFO Removing RDD [rddId]
 ```
 
-It then requests RDD blocks from link:spark-BlockInfoManager.adoc[BlockInfoManager] and <<removeBlock, removes them (from memory and disk)>> (without informing the driver).
+It then requests RDD blocks from xref:storage:BlockInfoManager.adoc[] and <<removeBlock, removes them (from memory and disk)>> (without informing the driver).
 
 The number of blocks removed is the final result.
 
@@ -575,7 +581,7 @@ Internally, it starts by printing out the following DEBUG message to the logs:
 Removing broadcast [broadcastId]
 ```
 
-It then requests all the xref:storage:BlockId.adoc#BroadcastBlockId[BroadcastBlockId] objects that belong to the `broadcastId` broadcast from link:spark-BlockInfoManager.adoc[BlockInfoManager] and <<removeBlock, removes them (from memory and disk)>>.
+It then requests all the xref:storage:BlockId.adoc#BroadcastBlockId[BroadcastBlockId] objects that belong to the `broadcastId` broadcast from xref:storage:BlockInfoManager.adoc[] and <<removeBlock, removes them (from memory and disk)>>.
 
 The number of blocks removed is the final result.
 
@@ -684,7 +690,7 @@ You should see the following INFO message in the logs:
 INFO BlockManager: Reporting [blockInfoManager.size] blocks to the master.
 ```
 
-For each block metadata (in link:spark-BlockInfoManager.adoc[BlockInfoManager]) it <<getCurrentBlockStatus, gets block current status>> and <<tryToReportBlockStatus, tries to send it to the BlockManagerMaster>>.
+For each block metadata (in xref:storage:BlockInfoManager.adoc[]) it <<getCurrentBlockStatus, gets block current status>> and <<tryToReportBlockStatus, tries to send it to the BlockManagerMaster>>.
 
 If there is an issue communicating to the xref:BlockManagerMaster.adoc[BlockManagerMaster], you should see the following ERROR message in the logs:
 
@@ -707,7 +713,7 @@ getCurrentBlockStatus(blockId: BlockId, info: BlockInfo): BlockStatus
 
 NOTE: Most of the information to build `BlockStatus` is already in `BlockInfo` except that it may not necessarily reflect the current state per xref:storage:MemoryStore.adoc[MemoryStore] and xref:DiskStore.adoc[DiskStore].
 
-Internally, it uses the input link:spark-BlockInfo.adoc[BlockInfo] to know about the block's storage level. If the storage level is not set (i.e. `null`), the returned `BlockStatus` assumes the xref:storage:StorageLevel.adoc[default `NONE` storage level] and the memory and disk sizes being `0`.
+Internally, it uses the input xref:storage:BlockInfo.adoc[] to know about the block's storage level. If the storage level is not set (i.e. `null`), the returned `BlockStatus` assumes the xref:storage:StorageLevel.adoc[default `NONE` storage level] and the memory and disk sizes being `0`.
 
 If however the storage level is set, `getCurrentBlockStatus` uses xref:storage:MemoryStore.adoc[MemoryStore] and xref:DiskStore.adoc[DiskStore] to check whether the block is stored in the storages or not and request for their sizes in the storages respectively (using their `getSize` or assume `0`).
 
@@ -805,7 +811,7 @@ When a non-local executor starts, it initializes a BlockManager object using xre
 registerTask(taskAttemptId: Long): Unit
 ----
 
-`registerTask` link:spark-BlockInfoManager.adoc#registerTask[registers the input `taskAttemptId` with `BlockInfoManager`].
+`registerTask` xref:storage:BlockInfoManager.adoc#registerTask[registers the input `taskAttemptId` with `BlockInfoManager`].
 
 NOTE: `registerTask` is used exclusively when xref:scheduler:Task.adoc#run[`Task` runs].
 
@@ -1114,7 +1120,7 @@ When `dropFromMemory` is executed, you should see the following INFO message in 
 INFO BlockManager: Dropping block [blockId] from memory
 ```
 
-It then asserts that the `blockId` block is link:spark-BlockInfoManager.adoc#assertBlockIsLockedForWriting[locked for writing].
+It then asserts that the `blockId` block is xref:storage:BlockInfoManager.adoc#assertBlockIsLockedForWriting[locked for writing].
 
 If the block's xref:storage:StorageLevel.adoc[StorageLevel] uses disks and the internal xref:DiskStore.adoc[DiskStore] object (`diskStore`) does not contain the block, it is saved then. You should see the following INFO message in the logs:
 
@@ -1205,10 +1211,6 @@ log4j.logger.org.apache.spark.storage.BlockManager=ALL
 Refer to xref:ROOT:spark-logging.adoc[Logging].
 
 == [[internal-properties]] Internal Properties
-
-=== [[blockInfoManager]] BlockInfoManager
-
-link:spark-BlockInfoManager.adoc[BlockInfoManager] for...FIXME
 
 === [[maxMemory]] Maximum Memory
 
