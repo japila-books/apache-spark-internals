@@ -1,6 +1,6 @@
-= [[LiveListenerBus]] LiveListenerBus
+= LiveListenerBus
 
-*LiveListenerBus* is an event bus to announce application-wide events in a Spark application. It asynchronously passes <<events, listener events>> to <<spark_extraListeners, registered Spark listeners>>.
+*LiveListenerBus* is an event bus to announce application-wide events in a Spark application. It asynchronously passes <<events, listener events>> to registered xref:ROOT:spark-scheduler-SparkListener.adoc[]s (based on xref:ROOT:configuration-properties.adoc#spark.extraListeners[spark.extraListeners] configuration property).
 
 .LiveListenerBus, SparkListenerEvents, and Senders
 image::spark-sparklistener-event-senders.png[align="center"]
@@ -9,17 +9,20 @@ LiveListenerBus is a single-JVM link:spark-SparkListenerBus.adoc[SparkListenerBu
 
 NOTE: The event queue is http://docs.oracle.com/javase/8/docs/api/java/util/concurrent/LinkedBlockingQueue.html[java.util.concurrent.LinkedBlockingQueue] with capacity of 10000 `SparkListenerEvent` events.
 
-[[creating-instance]]
-[[conf]]
-LiveListenerBus takes a xref:ROOT:SparkConf.adoc[SparkConf] when created.
+== [[creating-instance]] Creating Instance
 
-LiveListenerBus is <<creating-instance, created>> and started when `SparkContext` is xref:ROOT:SparkContext.adoc#listenerBus[initialized].
+LiveListenerBus takes the following to be created:
 
-== [[start]] Starting LiveListenerBus -- `start` method
+* [[conf]] xref:ROOT:SparkConf.adoc[]
+
+LiveListenerBus is created (and <<start, started>>) when SparkContext is requested to xref:ROOT:SparkContext.adoc#listenerBus[initialize].
+
+== [[start]] Starting LiveListenerBus
 
 [source, scala]
 ----
-start(sc: SparkContext): Unit
+start(
+  sc: SparkContext): Unit
 ----
 
 `start` starts <<listenerThread, processing events>>.
@@ -49,14 +52,15 @@ CAUTION: FIXME Who's enabling the `stopped` flag and when/why?
 If LiveListenerBus has been stopped, the following ERROR appears in the logs:
 
 ```
-ERROR [name] has already stopped! Dropping event [event]
+[name] has already stopped! Dropping event [event]
 ```
 
-== [[onDropEvent]] Event Dropped Callback -- `onDropEvent` method
+== [[onDropEvent]] Event Dropped Callback
 
 [source, scala]
 ----
-onDropEvent(event: SparkListenerEvent): Unit
+onDropEvent(
+  event: SparkListenerEvent): Unit
 ----
 
 `onDropEvent` is called when no further events can be added to the internal `eventQueue` queue (while <<post, posting a SparkListenerEvent event>>).
@@ -69,7 +73,7 @@ ERROR Dropping SparkListenerEvent because no remaining room in event queue. This
 
 NOTE: It uses the internal `logDroppedEvent` atomic variable to track the state.
 
-== [[stop]] Stopping LiveListenerBus -- `stop` method
+== [[stop]] Stopping LiveListenerBus
 
 [source, scala]
 ----
@@ -86,39 +90,33 @@ Attempted to stop [name] that has not yet started!
 
 `stopped` flag is enabled.
 
-== [[listenerThread]] `listenerThread` for Event Polling
+== [[listenerThread]] listenerThread for Event Polling
 
-LiveListenerBus uses link:spark-SparkListenerBus.adoc[SparkListenerBus] single-daemon thread that ensures that the polling events from the event queue is only after <<start, the listener was started>> and only one event at a time.
+LiveListenerBus uses xref:ROOT:spark-SparkListenerBus.adoc[] single-daemon thread that ensures that the polling events from the event queue is only after <<start, the listener was started>> and only one event at a time.
 
 CAUTION: FIXME There is some logic around no events in the queue.
 
-== [[settings]] Settings
-
-.Spark Properties
-[cols="1,1,2",options="header",width="100%"]
-|===
-| Spark Property | Default Value | Description
-| [[spark_extraListeners]] `spark.extraListeners` | (empty) | The comma-separated list of fully-qualified class names of link:spark-scheduler-SparkListener.adoc[Spark listeners] that should be registered (when link:spark-SparkContext-creating-instance-internals.adoc#registering_SparkListeners[`SparkContext` is initialized])
-|===
-
-== [[addToStatusQueue]] Registering SparkListenerInterface with Application Status Queue -- `addToStatusQueue` Method
+== [[addToStatusQueue]] Registering SparkListenerInterface with Application Status Queue
 
 [source, scala]
 ----
-addToStatusQueue(listener: SparkListenerInterface): Unit
+addToStatusQueue(
+  listener: SparkListenerInterface): Unit
 ----
 
-`addToStatusQueue` simply <<addToQueue, adds the SparkListenerInterface>> to <<EVENT_LOG_QUEUE, eventLog>> queue.
+addToStatusQueue simply <<addToQueue, adds the SparkListenerInterface>> to <<EVENT_LOG_QUEUE, eventLog>> queue.
 
-NOTE: `addToStatusQueue` is used when...FIXME
+addToStatusQueue is used when...FIXME
 
-== [[addToQueue]] Registering SparkListenerInterface with Queue -- `addToQueue` Method
+== [[addToQueue]] Registering SparkListenerInterface with Queue
 
 [source, scala]
 ----
-addToQueue(listener: SparkListenerInterface, queue: String): Unit
+addToQueue(
+  listener: SparkListenerInterface,
+  queue: String): Unit
 ----
 
-`addToQueue`...FIXME
+addToQueue...FIXME
 
-NOTE: `addToQueue` is used when...FIXME
+addToQueue is used when...FIXME
