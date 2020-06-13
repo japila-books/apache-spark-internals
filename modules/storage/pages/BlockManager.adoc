@@ -603,13 +603,29 @@ The number of blocks removed is the final result.
 
 NOTE: It is used by xref:storage:BlockManagerSlaveEndpoint.adoc#RemoveBroadcast[`BlockManagerSlaveEndpoint` while handling `RemoveBroadcast` messages].
 
-== [[getStatus]] Getting Block Status
+== [[shuffleServerId]] BlockManagerId of Shuffle Server
 
-CAUTION: FIXME
+BlockManager uses xref:storage:BlockManagerId.adoc[] for the location (address) of the server that serves shuffle files of this executor.
 
-== [[shuffleServerId]] `shuffleServerId`
+The BlockManagerId is either the BlockManagerId of the external shuffle service (when <<externalShuffleServiceEnabled, enabled>>) or the <<blockManagerId, blockManagerId>>.
 
-CAUTION: FIXME
+The BlockManagerId of the Shuffle Server is used for the location of a xref:scheduler:MapStatus.adoc[shuffle map output] when:
+
+* BypassMergeSortShuffleWriter is requested to xref:shuffle:BypassMergeSortShuffleWriter.adoc#write[write partition records to a shuffle file]
+
+* UnsafeShuffleWriter is requested to xref:shuffle:UnsafeShuffleWriter.adoc#closeAndWriteOutput[close and write output]
+
+== [[getStatus]] getStatus Method
+
+[source,scala]
+----
+getStatus(
+  blockId: BlockId): Option[BlockStatus]
+----
+
+getStatus...FIXME
+
+getStatus is used when BlockManagerSlaveEndpoint is requested to handle xref:storage:BlockManagerSlaveEndpoint.adoc#GetBlockStatus[GetBlockStatus] message.
 
 == [[initialize]] Initializing BlockManager
 
@@ -657,14 +673,14 @@ initialize is used when the link:spark-SparkContext-creating-instance-internals.
 registerWithExternalShuffleServer(): Unit
 ----
 
-`registerWithExternalShuffleServer` is an internal helper method to register the BlockManager for an executor with an xref:deploy:ExternalShuffleService.adoc[external shuffle server].
+registerWithExternalShuffleServer is an internal helper method to register the BlockManager for an executor with an xref:deploy:ExternalShuffleService.adoc[external shuffle server].
 
 NOTE: It is executed when a <<initialize, BlockManager is initialized on an executor and an external shuffle service is used>>.
 
 When executed, you should see the following INFO message in the logs:
 
 ```
-INFO Registering executor with local external shuffle service.
+Registering executor with local external shuffle service.
 ```
 
 It uses <<shuffleClient, shuffleClient>> to xref:storage:ExternalShuffleClient.adoc#registerWithShuffleServer[register the block manager] using <<shuffleServerId, shuffleServerId>> (i.e. the host, the port and the executorId) and a `ExecutorShuffleInfo`.
@@ -678,10 +694,10 @@ NOTE: The maximum number of attempts and the sleep time in-between are hard-code
 Any issues while connecting to the external shuffle service are reported as ERROR messages in the logs:
 
 ```
-ERROR Failed to connect to external shuffle server, will retry [#attempts] more times after waiting 5 seconds...
+Failed to connect to external shuffle server, will retry [#attempts] more times after waiting 5 seconds...
 ```
 
-NOTE: registerWithExternalShuffleServer is used when BlockManager is requested to <<initialize, initialize>> (when executed on an executor with <<externalShuffleServiceEnabled, externalShuffleServiceEnabled>>).
+registerWithExternalShuffleServer is used when BlockManager is requested to <<initialize, initialize>> (when executed on an executor with <<externalShuffleServiceEnabled, externalShuffleServiceEnabled>>).
 
 == [[reregister]] Re-registering BlockManager with Driver and Reporting Blocks
 
@@ -690,20 +706,20 @@ NOTE: registerWithExternalShuffleServer is used when BlockManager is requested t
 reregister(): Unit
 ----
 
-When executed, `reregister` prints the following INFO message to the logs:
+When executed, reregister prints the following INFO message to the logs:
 
 ```
-INFO BlockManager: BlockManager [blockManagerId] re-registering with master
+BlockManager [blockManagerId] re-registering with master
 ```
 
-`reregister` then xref:BlockManagerMaster.adoc#registerBlockManager[registers itself to the driver's `BlockManagerMaster`] (just as it was when <<initialize, BlockManager was initializing>>). It passes the xref:storage:BlockManagerId.adoc[], the maximum memory (as `maxMemory`), and the xref:storage:BlockManagerSlaveEndpoint.adoc[].
+reregister then xref:BlockManagerMaster.adoc#registerBlockManager[registers itself to the driver's `BlockManagerMaster`] (just as it was when <<initialize, BlockManager was initializing>>). It passes the xref:storage:BlockManagerId.adoc[], the maximum memory (as `maxMemory`), and the xref:storage:BlockManagerSlaveEndpoint.adoc[].
 
-`reregister` will then report all the local blocks to the xref:BlockManagerMaster.adoc[BlockManagerMaster].
+reregister will then report all the local blocks to the xref:BlockManagerMaster.adoc[BlockManagerMaster].
 
 You should see the following INFO message in the logs:
 
 ```
-INFO BlockManager: Reporting [blockInfoManager.size] blocks to the master.
+Reporting [blockInfoManager.size] blocks to the master.
 ```
 
 For each block metadata (in xref:storage:BlockInfoManager.adoc[]) it <<getCurrentBlockStatus, gets block current status>> and <<tryToReportBlockStatus, tries to send it to the BlockManagerMaster>>.
@@ -711,42 +727,44 @@ For each block metadata (in xref:storage:BlockInfoManager.adoc[]) it <<getCurren
 If there is an issue communicating to the xref:BlockManagerMaster.adoc[BlockManagerMaster], you should see the following ERROR message in the logs:
 
 ```
-ERROR BlockManager: Failed to report [blockId] to master; giving up.
+Failed to report [blockId] to master; giving up.
 ```
 
-After the ERROR message, `reregister` stops reporting.
+After the ERROR message, reregister stops reporting.
 
-NOTE: `reregister` is called when a xref:executor:Executor.adoc#heartbeats-and-active-task-metrics[`Executor` was informed to re-register while sending heartbeats].
+reregister is used when a xref:executor:Executor.adoc#heartbeats-and-active-task-metrics[`Executor` was informed to re-register while sending heartbeats].
 
 == [[getCurrentBlockStatus]] Calculate Current Block Status
 
 [source, scala]
 ----
-getCurrentBlockStatus(blockId: BlockId, info: BlockInfo): BlockStatus
+getCurrentBlockStatus(
+  blockId: BlockId,
+  info: BlockInfo): BlockStatus
 ----
 
-`getCurrentBlockStatus` returns the current `BlockStatus` of the `BlockId` block (with the block's current xref:storage:StorageLevel.adoc[StorageLevel], memory and disk sizes). It uses xref:storage:MemoryStore.adoc[MemoryStore] and xref:DiskStore.adoc[DiskStore] for size and other information.
+getCurrentBlockStatus gives the current `BlockStatus` of the `BlockId` block (with the block's current xref:storage:StorageLevel.adoc[StorageLevel], memory and disk sizes). It uses xref:storage:MemoryStore.adoc[MemoryStore] and xref:DiskStore.adoc[DiskStore] for size and other information.
 
 NOTE: Most of the information to build `BlockStatus` is already in `BlockInfo` except that it may not necessarily reflect the current state per xref:storage:MemoryStore.adoc[MemoryStore] and xref:DiskStore.adoc[DiskStore].
 
 Internally, it uses the input xref:storage:BlockInfo.adoc[] to know about the block's storage level. If the storage level is not set (i.e. `null`), the returned `BlockStatus` assumes the xref:storage:StorageLevel.adoc[default `NONE` storage level] and the memory and disk sizes being `0`.
 
-If however the storage level is set, `getCurrentBlockStatus` uses xref:storage:MemoryStore.adoc[MemoryStore] and xref:DiskStore.adoc[DiskStore] to check whether the block is stored in the storages or not and request for their sizes in the storages respectively (using their `getSize` or assume `0`).
+If however the storage level is set, getCurrentBlockStatus uses xref:storage:MemoryStore.adoc[MemoryStore] and xref:DiskStore.adoc[DiskStore] to check whether the block is stored in the storages or not and request for their sizes in the storages respectively (using their `getSize` or assume `0`).
 
 NOTE: It is acceptable that the `BlockInfo` says to use memory or disk yet the block is not in the storages (yet or anymore). The method will give current status.
 
-NOTE: `getCurrentBlockStatus` is used when <<reregister, executor's BlockManager is requested to report the current status of the local blocks to the master>>, <<doPutBytes, saving a block to a storage>> or <<dropFromMemory, removing a block from memory only>> or <<removeBlock, both, i.e. from memory and disk>>.
+getCurrentBlockStatus is used when <<reregister, executor's BlockManager is requested to report the current status of the local blocks to the master>>, <<doPutBytes, saving a block to a storage>> or <<dropFromMemory, removing a block from memory only>> or <<removeBlock, both, i.e. from memory and disk>>.
 
-== [[reportAllBlocks]] `reportAllBlocks` Internal Method
+== [[reportAllBlocks]] reportAllBlocks Internal Method
 
 [source, scala]
 ----
 reportAllBlocks(): Unit
 ----
 
-`reportAllBlocks`...FIXME
+reportAllBlocks...FIXME
 
-NOTE: `reportAllBlocks` is used when BlockManager is requested to <<reregister, re-register all blocks to the driver>>.
+reportAllBlocks is used when BlockManager is requested to <<reregister, re-register all blocks to the driver>>.
 
 == [[reportBlockStatus]] Reporting Current Storage Status of Block to Driver
 
@@ -759,10 +777,10 @@ reportBlockStatus(
   droppedMemorySize: Long = 0L): Unit
 ----
 
-`reportBlockStatus` is an internal method for <<tryToReportBlockStatus, reporting a block status to the driver>> and if told to re-register it prints out the following INFO message to the logs:
+reportBlockStatus is an internal method for <<tryToReportBlockStatus, reporting a block status to the driver>> and if told to re-register it prints out the following INFO message to the logs:
 
 ```
-INFO BlockManager: Got told to re-register updating block [blockId]
+Got told to re-register updating block [blockId]
 ```
 
 It does asynchronous reregistration (using `asyncReregister`).
@@ -770,10 +788,10 @@ It does asynchronous reregistration (using `asyncReregister`).
 In either case, it prints out the following DEBUG message to the logs:
 
 ```
-DEBUG BlockManager: Told master about block [blockId]
+Told master about block [blockId]
 ```
 
-NOTE: `reportBlockStatus` is used when BlockManager is requested to <<getBlockData, getBlockData>>, <<doPutBytes, doPutBytes>>, <<doPutIterator, doPutIterator>>, <<dropFromMemory, dropFromMemory>> and <<removeBlockInternal, removeBlockInternal>>.
+reportBlockStatus is used when BlockManager is requested to <<getBlockData, getBlockData>>, <<doPutBytes, doPutBytes>>, <<doPutIterator, doPutIterator>>, <<dropFromMemory, dropFromMemory>> and <<removeBlockInternal, removeBlockInternal>>.
 
 == [[tryToReportBlockStatus]] Reporting Block Status Update to Driver
 
@@ -786,35 +804,17 @@ def tryToReportBlockStatus(
   droppedMemorySize: Long = 0L): Boolean
 ----
 
-`tryToReportBlockStatus` xref:BlockManagerMaster.adoc#updateBlockInfo[reports block status update] to <<master, BlockManagerMaster>> and returns its response.
+tryToReportBlockStatus xref:BlockManagerMaster.adoc#updateBlockInfo[reports block status update] to <<master, BlockManagerMaster>> and returns its response.
 
-NOTE: `tryToReportBlockStatus` is used when BlockManager is requested to <<reportAllBlocks, reportAllBlocks>> or <<reportBlockStatus, reportBlockStatus>>.
-
-== [[broadcast]] Broadcast Values
-
-When a new broadcast value is created, xref:core:TorrentBroadcast.adoc[TorrentBroadcast] blocks are put in the block manager.
-
-You should see the following `TRACE` message:
-
-```
-TRACE Put for block [blockId] took [startTimeMs] to get into synchronized block
-```
-
-It puts the data in the memory first and drop to disk if the memory store can't hold it.
-
-```
-DEBUG Put block [blockId] locally took [startTimeMs]
-```
+tryToReportBlockStatus is used when BlockManager is requested to <<reportAllBlocks, reportAllBlocks>> or <<reportBlockStatus, reportBlockStatus>>.
 
 == [[execution-context]] Execution Context
 
 *block-manager-future* is the execution context for...FIXME
 
-== Misc
+== [[ByteBuffer]] ByteBuffer
 
 The underlying abstraction for blocks in Spark is a `ByteBuffer` that limits the size of a block to 2GB (`Integer.MAX_VALUE` - see http://stackoverflow.com/q/8076472/1305344[Why does FileChannel.map take up to Integer.MAX_VALUE of data?] and https://issues.apache.org/jira/browse/SPARK-1476[SPARK-1476 2GB limit in spark for blocks]). This has implication not just for managed blocks in use, but also for shuffle blocks (memory mapped blocks are limited to 2GB, even though the API allows for `long`), ser-deser via byte array-backed output streams.
-
-When a non-local executor starts, it initializes a BlockManager object using xref:ROOT:SparkConf.adoc#spark.app.id[spark.app.id] Spark property for the id.
 
 == [[BlockResult]] BlockResult
 
@@ -824,12 +824,13 @@ When a non-local executor starts, it initializes a BlockManager object using xre
 
 [source, scala]
 ----
-registerTask(taskAttemptId: Long): Unit
+registerTask(
+  taskAttemptId: Long): Unit
 ----
 
-`registerTask` xref:storage:BlockInfoManager.adoc#registerTask[registers the input `taskAttemptId` with `BlockInfoManager`].
+registerTask xref:storage:BlockInfoManager.adoc#registerTask[registers the input `taskAttemptId` with `BlockInfoManager`].
 
-NOTE: `registerTask` is used exclusively when xref:scheduler:Task.adoc#run[`Task` runs].
+registerTask is used when Task is requested to xref:scheduler:Task.adoc#run[run].
 
 == [[getDiskWriter]] Creating DiskBlockObjectWriter
 
@@ -863,12 +864,14 @@ getDiskWriter is used when:
 
 [source, scala]
 ----
-addUpdatedBlockStatusToTaskMetrics(blockId: BlockId, status: BlockStatus): Unit
+addUpdatedBlockStatusToTaskMetrics(
+  blockId: BlockId,
+  status: BlockStatus): Unit
 ----
 
-`addUpdatedBlockStatusToTaskMetrics` link:spark-TaskContext.adoc#get[takes an active `TaskContext`] (if available) and xref:executor:TaskMetrics.adoc#incUpdatedBlockStatuses[records updated `BlockStatus` for `Block`] (in the link:spark-TaskContext.adoc#taskMetrics[task's `TaskMetrics`]).
+addUpdatedBlockStatusToTaskMetrics link:spark-TaskContext.adoc#get[takes an active `TaskContext`] (if available) and xref:executor:TaskMetrics.adoc#incUpdatedBlockStatuses[records updated `BlockStatus` for `Block`] (in the link:spark-TaskContext.adoc#taskMetrics[task's `TaskMetrics`]).
 
-NOTE: `addUpdatedBlockStatusToTaskMetrics` is used when BlockManager <<doPutBytes, doPutBytes>> (for a block that was successfully stored), <<doPut, doPut>>, <<doPutIterator, doPutIterator>>, <<dropFromMemory, removes blocks from memory>> (possibly spilling it to disk) and <<removeBlock, removes block from memory and disk>>.
+addUpdatedBlockStatusToTaskMetrics is used when BlockManager <<doPutBytes, doPutBytes>> (for a block that was successfully stored), <<doPut, doPut>>, <<doPutIterator, doPutIterator>>, <<dropFromMemory, removes blocks from memory>> (possibly spilling it to disk) and <<removeBlock, removes block from memory and disk>>.
 
 == [[shuffleMetricsSource]] Requesting Shuffle-Related Spark Metrics Source
 
@@ -877,7 +880,7 @@ NOTE: `addUpdatedBlockStatusToTaskMetrics` is used when BlockManager <<doPutByte
 shuffleMetricsSource: Source
 ----
 
-shuffleMetricsSource requests the <<shuffleClient, ShuffleClient>> for the xref:storage:ShuffleClient.adoc#shuffleMetrics[shuffle-related metrics] and creates a link:spark-BlockManager-ShuffleMetricsSource.adoc[ShuffleMetricsSource] with the link:spark-BlockManager-ShuffleMetricsSource.adoc#sourceName[source name] per xref:ROOT:configuration-properties.adoc#spark.shuffle.service.enabled[spark.shuffle.service.enabled] configuration property:
+shuffleMetricsSource requests the <<shuffleClient, ShuffleClient>> for the xref:storage:ShuffleClient.adoc#shuffleMetrics[shuffle metrics] and creates a xref:storage:ShuffleMetricsSource.adoc[] with the xref:storage:ShuffleMetricsSource.adoc#sourceName[source name] based on xref:ROOT:configuration-properties.adoc#spark.shuffle.service.enabled[spark.shuffle.service.enabled] configuration property:
 
 * *ExternalShuffle* when xref:ROOT:configuration-properties.adoc#spark.shuffle.service.enabled[spark.shuffle.service.enabled] configuration property is on (`true`)
 
