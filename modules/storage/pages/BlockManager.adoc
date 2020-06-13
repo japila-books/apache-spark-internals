@@ -27,7 +27,7 @@ When <<externalShuffleServiceEnabled, External Shuffle Service is enabled>>, Blo
 BlockManager takes the following to be created:
 
 * <<executorId, Executor ID>>
-* [[rpcEnv]] xref:rpc:RpcEnv.adoc[]
+* <<rpcEnv, RpcEnv>>
 * <<master, BlockManagerMaster>>
 * [[serializerManager]] xref:serializer:SerializerManager.adoc[]
 * [[conf]] xref:ROOT:SparkConf.adoc[]
@@ -36,7 +36,7 @@ BlockManager takes the following to be created:
 * <<shuffleManager, ShuffleManager>>
 * <<blockTransferService, BlockTransferService>>
 * [[securityManager]] SecurityManager
-* [[numUsableCores]] Number of CPU cores
+* [[numUsableCores]] Number of CPU cores (for an xref:storage:ExternalShuffleClient.adoc[] with <<externalShuffleServiceEnabled, externalShuffleServiceEnabled>>)
 
 When created, BlockManager sets <<externalShuffleServiceEnabled, externalShuffleServiceEnabled>> internal flag based on xref:ROOT:configuration-properties.adoc#spark.shuffle.service.enabled[spark.shuffle.service.enabled] configuration property.
 
@@ -57,6 +57,28 @@ BlockManager sets the xref:ROOT:configuration-properties.adoc#spark.block.failur
 BlockManager registers a xref:storage:BlockManagerSlaveEndpoint.adoc[] with the input xref:ROOT:index.adoc[RpcEnv], itself, and xref:scheduler:MapOutputTracker.adoc[MapOutputTracker] (as `slaveEndpoint`).
 
 BlockManager is created when SparkEnv is xref:core:SparkEnv.adoc#create-BlockManager[created] (for the driver and executors) when a Spark application starts.
+
+== [[shuffleClient]][[externalShuffleServiceEnabled]] ShuffleClient and External Shuffle Service
+
+BlockManager manages the lifecycle of a xref:storage:ShuffleClient.adoc[]:
+
+* Creates when <<creating-instance, created>>
+
+* xref:storage:ShuffleClient.adoc#init[Inits] (and possibly <<registerWithExternalShuffleServer, registers with an external shuffle server>>) when requested to <<initialize, initialize>>
+
+* Closes when requested to <<stop, stop>>
+
+The ShuffleClient can be an xref:storage:ExternalShuffleClient.adoc[] or the given <<blockTransferService, BlockTransferService>> based on xref:ROOT:configuration-properties.adoc#spark.shuffle.service.enabled[spark.shuffle.service.enabled] configuration property. When enabled, BlockManager uses the xref:storage:ExternalShuffleClient.adoc[].
+
+The ShuffleClient is available to other Spark services (using `shuffleClient` value) and is used when BlockStoreShuffleReader is requested to xref:shuffle:BlockStoreShuffleReader.adoc#read[read combined key-value records for a reduce task].
+
+When requested for <<shuffleMetricsSource, shuffle metrics>>, BlockManager simply requests xref:storage:ShuffleClient.adoc#shuffleMetrics[them] from the ShuffleClient.
+
+== [[rpcEnv]] BlockManager and RpcEnv
+
+BlockManager is given a xref:rpc:RpcEnv.adoc[] when <<creating-instance, created>>.
+
+The RpcEnv is used to set up a <<slaveEndpoint, BlockManagerSlaveEndpoint>>.
 
 == [[blockInfoManager]] BlockInfoManager
 
@@ -111,7 +133,7 @@ org.apache.spark.storage.BlockManager
 
 == [[blockTransferService]] BlockTransferService
 
-BlockManager is given a xref:storage:BlockTransferService.adoc[BlockTransferService] to be created.
+BlockManager is given a xref:storage:BlockTransferService.adoc[BlockTransferService] when <<creating-instance, created>>.
 
 BlockTransferService is used as the <<shuffleClient, ShuffleClient>> when BlockManager is configured to use no external shuffle service (based on xref:ROOT:configuration-properties.adoc#spark.shuffle.service.enabled[spark.shuffle.service.enabled] configuration property).
 
@@ -123,7 +145,7 @@ BlockTransferService is used when BlockManager is requested to <<getRemoteBytes,
 
 == [[memoryManager]] MemoryManager
 
-BlockManager is given a xref:memory:MemoryManager.adoc[MemoryManager] to be <<creating-instance, created>>.
+BlockManager is given a xref:memory:MemoryManager.adoc[MemoryManager] when <<creating-instance, created>>.
 
 BlockManager uses the MemoryManager for the following:
 
@@ -359,12 +381,6 @@ getLocalBytes(
 == [[removeBlockInternal]] `removeBlockInternal` Method
 
 CAUTION: FIXME
-
-== [[externalShuffleServiceEnabled]] Is External Shuffle Service Enabled?
-
-When the xref:ROOT:ExternalShuffleService.adoc[External Shuffle Service] is enabled for a Spark application, BlockManager uses xref:storage:ExternalShuffleClient.adoc[ExternalShuffleClient] to read other executors' shuffle files.
-
-CAUTION: FIXME How is `shuffleClient` used?
 
 == [[stores]] Stores
 
@@ -977,28 +993,6 @@ getSingle[T: ClassTag](blockId: BlockId): Option[T]
 `getSingle`...FIXME
 
 NOTE: `getSingle` is used exclusively in Spark tests.
-
-== [[shuffleClient]] `shuffleClient` Property
-
-[source, scala]
-----
-shuffleClient: ShuffleClient
-----
-
-`shuffleClient` is a xref:storage:ShuffleClient.adoc[] that BlockManager uses for the following:
-
-* <<shuffleMetricsSource, shuffleMetricsSource>>
-
-* <<registerWithExternalShuffleServer, Registering the BlockManager of an executor with an external shuffle server>>
-
-`shuffleClient` is also used when `BlockStoreShuffleReader` is requested to xref:shuffle:BlockStoreShuffleReader.adoc#read[read combined key-value records for a reduce task] (and creates a xref:storage:ShuffleBlockFetcherIterator.adoc#shuffleClient[ShuffleBlockFetcherIterator]).
-
-`shuffleClient` can be either a xref:storage:ExternalShuffleClient.adoc[ExternalShuffleClient] or the <<blockTransferService, BlockTransferService>> (that is the xref:storage:NettyBlockTransferService.adoc[NettyBlockTransferService] given by xref:core:SparkEnv.adoc#create-BlockManager[SparkEnv]).
-
-CAUTION: FIXME Figure
-
-[[shuffleClient-externalShuffleServiceEnabled]]
-`shuffleClient` uses xref:ROOT:configuration-properties.adoc#spark.shuffle.service.enabled[spark.shuffle.service.enabled] configuration property that controls whether to use xref:storage:ExternalShuffleClient.adoc[ExternalShuffleClient] (`true`) or the <<blockTransferService, BlockTransferService>> (i.e. xref:storage:NettyBlockTransferService.adoc[NettyBlockTransferService]).
 
 == [[getOrElseUpdate]] Getting Block From Block Managers Or Computing and Storing It Otherwise
 
