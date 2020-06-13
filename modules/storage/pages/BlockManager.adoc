@@ -11,9 +11,6 @@ BlockManager provides interface for uploading and fetching blocks both locally a
 [[futureExecutionContext]]
 BlockManager uses a Scala https://www.scala-lang.org/api/current/scala/concurrent/ExecutionContextExecutorService.html[ExecutionContextExecutorService] to execute *FIXME* asynchronously (on a thread pool with *block-manager-future* prefix and maximum of 128 threads).
 
-[[BlockEvictionHandler]]
-BlockManager is a link:spark-BlockEvictionHandler.adoc[BlockEvictionHandler] that can <<dropFromMemory, drop a block from memory and store it on a disk>> if required.
-
 *Cached blocks* are blocks with non-zero sum of memory and disk sizes.
 
 TIP: Use xref:webui:index.adoc[Web UI], esp. xref:webui:spark-webui-storage.adoc[Storage] and xref:webui:spark-webui-executors.adoc[Executors] tabs, to monitor the memory used.
@@ -57,6 +54,10 @@ BlockManager sets the xref:ROOT:configuration-properties.adoc#spark.block.failur
 BlockManager registers a xref:storage:BlockManagerSlaveEndpoint.adoc[] with the input xref:ROOT:index.adoc[RpcEnv], itself, and xref:scheduler:MapOutputTracker.adoc[MapOutputTracker] (as `slaveEndpoint`).
 
 BlockManager is created when SparkEnv is xref:core:SparkEnv.adoc#create-BlockManager[created] (for the driver and executors) when a Spark application starts.
+
+== [[BlockEvictionHandler]] BlockEvictionHandler
+
+BlockManager is a xref:storage:BlockEvictionHandler.adoc[] that can <<dropFromMemory, drop a block from memory and store it on a disk>> if required.
 
 == [[shuffleClient]][[externalShuffleServiceEnabled]] ShuffleClient and External Shuffle Service
 
@@ -188,7 +189,7 @@ SparkEnv.get.blockManager.diskBlockManager
 
 == [[memoryStore]] MemoryStore
 
-When <<creating-instance, created>>, BlockManager creates a xref:MemoryStore.adoc[MemoryStore] (with the <<blockInfoManager, BlockInfoManager>>, the <<serializerManager, SerializerManager>>, the <<memoryManager, MemoryManager>> and itself as a xref:spark-BlockEvictionHandler.adoc[BlockEvictionHandler]).
+When <<creating-instance, created>>, BlockManager creates a xref:MemoryStore.adoc[MemoryStore] (with the <<blockInfoManager, BlockInfoManager>>, the <<serializerManager, SerializerManager>>, the <<memoryManager, MemoryManager>> and itself as a xref:storage:BlockEvictionHandler.adoc[]).
 
 .MemoryStore and BlockManager
 image::MemoryStore-BlockManager.png[align="center"]
@@ -1109,12 +1110,10 @@ dropFromMemory(
   data: () => Either[Array[T], ChunkedByteBuffer]): StorageLevel
 ----
 
-NOTE: `dropFromMemory` is part of the link:spark-BlockEvictionHandler.adoc#dropFromMemory[BlockEvictionHandler Contract] to...FIXME
-
-When `dropFromMemory` is executed, you should see the following INFO message in the logs:
+When dropFromMemory is executed, you should see the following INFO message in the logs:
 
 ```
-INFO BlockManager: Dropping block [blockId] from memory
+Dropping block [blockId] from memory
 ```
 
 It then asserts that the `blockId` block is xref:storage:BlockInfoManager.adoc#assertBlockIsLockedForWriting[locked for writing].
@@ -1122,7 +1121,7 @@ It then asserts that the `blockId` block is xref:storage:BlockInfoManager.adoc#a
 If the block's xref:storage:StorageLevel.adoc[StorageLevel] uses disks and the internal xref:DiskStore.adoc[DiskStore] object (`diskStore`) does not contain the block, it is saved then. You should see the following INFO message in the logs:
 
 ```
-INFO BlockManager: Writing block [blockId] to disk
+Writing block [blockId] to disk
 ```
 
 CAUTION: FIXME Describe the case with saving a block to disk.
@@ -1132,7 +1131,7 @@ The block's memory size is fetched and recorded (using `MemoryStore.getSize`).
 The block is xref:storage:MemoryStore.adoc#remove[removed from memory] if exists. If not, you should see the following WARN message in the logs:
 
 ```
-WARN BlockManager: Block [blockId] could not be dropped from memory as it does not exist
+Block [blockId] could not be dropped from memory as it does not exist
 ```
 
 It then <<getCurrentBlockStatus, calculates the current storage status of the block>> and <<reportBlockStatus, reports it to the driver>>. It only happens when `info.tellMaster`.
@@ -1141,7 +1140,9 @@ CAUTION: FIXME When would `info.tellMaster` be `true`?
 
 A block is considered updated when it was written to disk or removed from memory or both. If either happened, the xref:executor:TaskMetrics.adoc#incUpdatedBlockStatuses[current TaskContext metrics are updated with the change].
 
-Ultimately, `dropFromMemory` returns the current storage level of the block.
+In the end, dropFromMemory returns the current storage level of the block.
+
+dropFromMemory is part of the xref:storage:BlockEvictionHandler.adoc#dropFromMemory[BlockEvictionHandler] abstraction.
 
 == [[handleLocalReadFailure]] `handleLocalReadFailure` Internal Method
 
