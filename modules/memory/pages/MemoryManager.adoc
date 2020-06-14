@@ -6,7 +6,7 @@ MemoryManager splits available memory into two regions:
 
 * *Execution memory* for computations in shuffles, joins, sorts and aggregations
 
-* *Storage memory* for caching and propagating internal data across Spark nodes
+* *Storage memory* for caching and propagating internal data across Spark nodes (in <<onHeapStorageMemoryPool, on->> and <<offHeapStorageMemoryPool, off-heap>> mode)
 
 MemoryManager is used to create xref:storage:BlockManager.adoc#memoryManager[BlockManager] (and xref:storage:MemoryStore.adoc#memoryManager[MemoryStore]) and xref:memory:TaskMemoryManager.adoc#memoryManager[TaskMemoryManager].
 
@@ -119,12 +119,30 @@ maxOnHeapStorageMemory is used when:
 
 MemoryManager takes the following to be created:
 
-* [[conf]] xref:ROOT:SparkConf.adoc[SparkConf]
+* [[conf]] xref:ROOT:SparkConf.adoc[]
 * [[numCores]] Number of CPU cores
 * [[onHeapStorageMemory]] Size of the on-heap storage memory
 * [[onHeapExecutionMemory]] Size of the on-heap execution memory
 
 MemoryManager is an abstract class and cannot be created directly. It is created indirectly for the <<implementations, concrete MemoryManagers>>.
+
+== [[onHeapStorageMemoryPool]][[offHeapStorageMemoryPool]] MemoryPools for Storage
+
+MemoryManager creates two xref:memory:StorageMemoryPool.adoc[]s for on- and off-heap storage (ON_HEAP and OFF_HEAP memory modes, respectively) when <<creating-instance, created>>.
+
+MemoryManager immediately requests them to xref:memory:MemoryPool.adoc#incrementPoolSize[incrementPoolSize] as follows:
+
+* On-heap storage memory pool is initialized to the assigned <<onHeapStorageMemory, onHeapStorageMemory>> size
+
+* Off-heap storage memory pool is initialized to the xref:ROOT:configuration-properties.adoc#spark.memory.storageFraction[spark.memory.storageFraction] of xref:ROOT:configuration-properties.adoc#spark.memory.offHeap.size[spark.memory.offHeap.size]
+
+MemoryManager requests the MemoryPools to xref:memory:StorageMemoryPool.adoc#setMemoryStore[use a given MemoryStore] when requested to <<setMemoryStore, setMemoryStore>>.
+
+MemoryManager requests the MemoryPools to xref:memory:StorageMemoryPool.adoc#releaseMemory[releaseMemory] when requested to <<releaseStorageMemory, releaseStorageMemory>>.
+
+MemoryManager requests the MemoryPools to xref:memory:StorageMemoryPool.adoc#releaseAllMemory[releaseAllMemory] when requested to <<releaseAllStorageMemory, releaseAllStorageMemory>>.
+
+MemoryManager requests the MemoryPools for the xref:memory:StorageMemoryPool.adoc#memoryUsed[memoryUsed] when requested for <<storageMemoryUsed, storageMemoryUsed>>.
 
 == [[SparkEnv]] Accessing MemoryManager Using SparkEnv
 
@@ -178,7 +196,7 @@ releaseUnrollMemory...FIXME
 
 releaseUnrollMemory is used when...FIXME
 
-== [[setMemoryStore]] setMemoryStore Method
+== [[setMemoryStore]] Associating MemoryStore with Storage MemoryPools
 
 [source,scala]
 ----
@@ -186,9 +204,9 @@ setMemoryStore(
   store: MemoryStore): Unit
 ----
 
-setMemoryStore...FIXME
+setMemoryStore requests the <<onHeapStorageMemoryPool, onHeapStorageMemoryPool>> and <<offHeapStorageMemoryPool, offHeapStorageMemoryPool>> to xref:memory:StorageMemoryPool.adoc#setMemoryStore[use] the given xref:storage:MemoryStore.adoc[].
 
-setMemoryStore is used when...FIXME
+setMemoryStore is used when xref:storage:BlockManager.adoc[] is created.
 
 == [[releaseExecutionMemory]] `releaseExecutionMemory` Method
 
@@ -263,9 +281,13 @@ NOTE: `freePage` is used when...FIXME
 storageMemoryUsed: Long
 ----
 
-storageMemoryUsed gives the total of the memory used by the <<onHeapStorageMemoryPool, on-heap StorageMemoryPool>> and <<offHeapStorageMemoryPool, off-heap StorageMemoryPool>>.
+storageMemoryUsed gives the total of the memory used by the <<onHeapStorageMemoryPool, on-heap>> and <<offHeapStorageMemoryPool, off-heap>> StorageMemoryPools.
 
-storageMemoryUsed is used when...FIXME
+storageMemoryUsed is used when:
+
+* MemoryStore is requested for xref:storage:MemoryStore.adoc#memoryUsed[memoryUsed]
+
+* TaskMemoryManager is requested to xref:memory:TaskMemoryManager.adoc#showMemoryUsage[showMemoryUsage]
 
 == [[releaseStorageMemory]] releaseStorageMemory Method
 
@@ -313,12 +335,6 @@ maxOffHeapMemory is used when...FIXME
 |===
 | Name
 | Description
-
-| onHeapStorageMemoryPool
-| [[onHeapStorageMemoryPool]] FIXME
-
-| offHeapStorageMemoryPool
-| [[offHeapStorageMemoryPool]] FIXME
 
 | pageSizeBytes
 | [[pageSizeBytes]] FIXME
