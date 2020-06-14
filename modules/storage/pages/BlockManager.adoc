@@ -189,20 +189,40 @@ SparkEnv.get.blockManager.diskBlockManager
 
 == [[memoryStore]] MemoryStore
 
-When <<creating-instance, created>>, BlockManager creates a xref:MemoryStore.adoc[MemoryStore] (with the <<blockInfoManager, BlockInfoManager>>, the <<serializerManager, SerializerManager>>, the <<memoryManager, MemoryManager>> and itself as a xref:storage:BlockEvictionHandler.adoc[]).
+BlockManager creates a xref:storage:MemoryStore.adoc[] when <<creating-instance, created>> (with the <<blockInfoManager, BlockInfoManager>>, the <<serializerManager, SerializerManager>>, the <<memoryManager, MemoryManager>> and itself as a xref:storage:BlockEvictionHandler.adoc[]).
 
 .MemoryStore and BlockManager
 image::MemoryStore-BlockManager.png[align="center"]
 
-BlockManager uses the MemoryStore when requested to <<doGetLocalBytes, doGetLocalBytes>>.
+BlockManager requests the <<memoryManager, MemoryManager>> to xref:memory:MemoryManager.adoc#setMemoryStore[use] the MemoryStore.
 
-The MemoryStore is available as `memoryStore` reference to other Spark systems.
+BlockManager uses the MemoryStore for the following:
+
+* <<getStatus, getStatus>> and <<getCurrentBlockStatus, getCurrentBlockStatus>>
+
+* <<getLocalValues, getLocalValues>>
+
+* <<doGetLocalBytes, doGetLocalBytes>>
+
+* <<doPutBytes, doPutBytes>> and <<doPutIterator, doPutIterator>>
+
+* <<maybeCacheDiskBytesInMemory, maybeCacheDiskBytesInMemory>> and <<maybeCacheDiskValuesInMemory, maybeCacheDiskValuesInMemory>>
+
+* <<dropFromMemory, dropFromMemory>>
+
+* <<removeBlockInternal, removeBlockInternal>>
+
+The MemoryStore is requested to xref:storage:MemoryStore.adoc#clear[clear] when BlockManager is requested to <<stop, stop>>.
+
+The MemoryStore is available as `memoryStore` private reference to other Spark services.
 
 [source, scala]
 ----
 import org.apache.spark.SparkEnv
 SparkEnv.get.blockManager.memoryStore
 ----
+
+The MemoryStore is used (via `SparkEnv.get.blockManager.memoryStore` reference) when Task is requested to xref:scheduler:Task.adoc#run[run] (that has finished and requests the MemoryStore to xref:storage:MemoryStore.adoc#releaseUnrollMemoryForThisTask[releaseUnrollMemoryForThisTask]).
 
 == [[diskStore]] DiskStore
 
@@ -264,7 +284,7 @@ getMatchingBlockIds...FIXME
 
 getMatchingBlockIds is used when BlockManagerSlaveEndpoint is requested to xref:storage:BlockManagerSlaveEndpoint.adoc#GetMatchingBlockIds[handle a GetMatchingBlockIds message].
 
-== [[getLocalValues]] getLocalValues Method
+== [[getLocalValues]] Getting Local Block
 
 [source, scala]
 ----
@@ -297,9 +317,26 @@ If `blockId` block has memory level and xref:storage:MemoryStore.adoc#contains[i
 1. xref:storage:MemoryStore.adoc#getValues[Values iterator from `MemoryStore` for `blockId`] for "deserialized" persistence levels.
 2. Iterator from xref:serializer:SerializerManager.adoc#dataDeserializeStream[`SerializerManager` after the data stream has been deserialized] for the `blockId` block and xref:storage:MemoryStore.adoc#getBytes[the bytes for `blockId` block] for "serialized" persistence levels.
 
-getLocalValues is used when xref:core:TorrentBroadcast.adoc#readBroadcastBlock[`TorrentBroadcast` reads the blocks of a broadcast variable and stores them in a local BlockManager].
+getLocalValues is used when:
 
-CAUTION: FIXME
+* TorrentBroadcast is requested to xref:core:TorrentBroadcast.adoc#readBroadcastBlock[readBroadcastBlock]
+
+* BlockManager is requested to <<get, get>> and <<getOrElseUpdate, getOrElseUpdate>>
+
+=== [[maybeCacheDiskValuesInMemory]] maybeCacheDiskValuesInMemory Internal Method
+
+[source,scala]
+----
+maybeCacheDiskValuesInMemory[T](
+  blockInfo: BlockInfo,
+  blockId: BlockId,
+  level: StorageLevel,
+  diskIterator: Iterator[T]): Iterator[T]
+----
+
+maybeCacheDiskValuesInMemory...FIXME
+
+maybeCacheDiskValuesInMemory is used when BlockManager is requested to <<getLocalValues, getLocalValues>>.
 
 == [[getRemoteValues]] `getRemoteValues` Internal Method
 
@@ -379,9 +416,18 @@ getLocalBytes(
 * BlockManager is requested for the <<getBlockData, block data>> (of a non-shuffle block)
 ====
 
-== [[removeBlockInternal]] `removeBlockInternal` Method
+== [[removeBlockInternal]] removeBlockInternal Internal Method
 
-CAUTION: FIXME
+[source, scala]
+----
+removeBlockInternal(
+  blockId: BlockId,
+  tellMaster: Boolean): Unit
+----
+
+removeBlockInternal...FIXME
+
+removeBlockInternal is used when BlockManager is requested to <<doPut, doPut>> and <<removeBlock, removeBlock>>.
 
 == [[stores]] Stores
 
@@ -479,10 +525,6 @@ The final result of `doPutBytes` is the result of storing the block successful o
 
 NOTE: `doPutBytes` is used exclusively when BlockManager is requested to <<putBytes, putBytes>>.
 
-== [[maybeCacheDiskValuesInMemory]] `maybeCacheDiskValuesInMemory` Method
-
-CAUTION: FIXME
-
 == [[doPut]] `doPut` Internal Method
 
 [source, scala]
@@ -531,21 +573,23 @@ DEBUG Putting block [blockId] [withOrWithout] replication took [usedTime] ms
 
 [source, scala]
 ----
-removeBlock(blockId: BlockId, tellMaster: Boolean = true): Unit
+removeBlock(
+  blockId: BlockId,
+  tellMaster: Boolean = true): Unit
 ----
 
-`removeBlock` removes the `blockId` block from the xref:storage:MemoryStore.adoc[MemoryStore] and xref:DiskStore.adoc[DiskStore].
+removeBlock removes the `blockId` block from the xref:storage:MemoryStore.adoc[MemoryStore] and xref:DiskStore.adoc[DiskStore].
 
 When executed, it prints out the following DEBUG message to the logs:
 
 ```
-DEBUG Removing block [blockId]
+Removing block [blockId]
 ```
 
 It requests xref:storage:BlockInfoManager.adoc[] for lock for writing for the `blockId` block. If it receives none, it prints out the following WARN message to the logs and quits.
 
 ```
-WARN Asked to remove block [blockId], which does not exist
+Asked to remove block [blockId], which does not exist
 ```
 
 Otherwise, with a write lock for the block, the block is removed from xref:storage:MemoryStore.adoc[MemoryStore] and xref:DiskStore.adoc[DiskStore] (see xref:storage:MemoryStore.adoc#remove[Removing Block in `MemoryStore`] and xref:DiskStore.adoc#remove[Removing Block in `DiskStore`]).
@@ -553,14 +597,18 @@ Otherwise, with a write lock for the block, the block is removed from xref:stora
 If both removals fail, it prints out the following WARN message:
 
 ```
-WARN Block [blockId] could not be removed as it was not found in either the disk, memory, or external block store
+Block [blockId] could not be removed as it was not found in either the disk, memory, or external block store
 ```
 
 The block is removed from xref:storage:BlockInfoManager.adoc[].
 
-It then <<getCurrentBlockStatus, calculates the current block status>> that is used to <<reportBlockStatus, report the block status to the driver>> (if the input `tellMaster` and the info's `tellMaster` are both enabled, i.e. `true`) and the xref:executor:TaskMetrics.adoc#incUpdatedBlockStatuses[current TaskContext metrics are updated with the change].
+removeBlock then <<getCurrentBlockStatus, calculates the current block status>> that is used to <<reportBlockStatus, report the block status to the driver>> (if the input `tellMaster` and the info's `tellMaster` are both enabled, i.e. `true`) and the xref:executor:TaskMetrics.adoc#incUpdatedBlockStatuses[current TaskContext metrics are updated with the change].
 
-NOTE: It is used to <<removeRdd, remove RDDs>> and <<removeBroadcast, broadcast>> as well as in xref:storage:BlockManagerSlaveEndpoint.adoc#RemoveBlock[`BlockManagerSlaveEndpoint` while handling `RemoveBlock` messages].
+removeBlock is used when:
+
+* BlockManager is requested to <<handleLocalReadFailure, handleLocalReadFailure>>, <<removeRdd, remove an RDD>> and <<removeBroadcast, broadcast>>
+
+* BlockManagerSlaveEndpoint is requested to handle a xref:storage:BlockManagerSlaveEndpoint.adoc#RemoveBlock[RemoveBlock] message
 
 == [[removeRdd]] Removing RDD Blocks
 
@@ -1048,7 +1096,7 @@ For `Some(iter)`, `getOrElseUpdate` returns an iterator of `T` values.
 
 NOTE: `getOrElseUpdate` is used exclusively when `RDD` is requested to xref:rdd:RDD.adoc#getOrCompute[get or compute an RDD partition] (for a `RDDBlockId` with a RDD ID and a partition index).
 
-== [[doPutIterator]] `doPutIterator` Internal Method
+== [[doPutIterator]] doPutIterator Internal Method
 
 [source, scala]
 ----
@@ -1101,7 +1149,7 @@ Put block [blockId] remotely took [time] ms
 
 NOTE: `doPutIterator` is used when BlockManager is requested to <<getOrElseUpdate, get a block from block managers or computing and storing it otherwise>> and <<putIterator, putIterator>>.
 
-== [[dropFromMemory]] Removing Blocks From Memory Only
+== [[dropFromMemory]] Dropping Block from Memory
 
 [source,scala]
 ----

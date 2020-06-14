@@ -1,22 +1,12 @@
 = MemoryStore
 
-*MemoryStore* is the *memory store* for blocks of data for xref:storage:BlockManager.adoc#memoryStore[BlockManager].
+*MemoryStore* is responsible for managing blocks of data for xref:storage:BlockManager.adoc#memoryStore[BlockManager].
 
 .MemoryStore and BlockManager
 image::MemoryStore-BlockManager.png[align="center"]
 
-The "idiom" to access the current MemoryStore is to request `SparkEnv` for the xref:core:SparkEnv.adoc#blockManager[BlockManager] that manages the xref:storage:BlockManager.adoc#memoryStore[MemoryStore].
-
-[source, scala]
-----
-SparkEnv.get.blockManager.memoryStore
-----
-
 .Creating MemoryStore
 image::spark-MemoryStore.png[align="center"]
-
-[[unrollMemoryThreshold]]
-MemoryStore uses xref:ROOT:configuration-properties.adoc#spark.storage.unrollMemoryThreshold[spark.storage.unrollMemoryThreshold] configuration property when requested to <<putIteratorAsValues, putIteratorAsValues>> and <<putIteratorAsBytes, putIteratorAsBytes>>.
 
 == [[creating-instance]] Creating Instance
 
@@ -28,7 +18,23 @@ MemoryStore takes the following to be created:
 * [[memoryManager]] xref:memory:MemoryManager.adoc[]
 * [[blockEvictionHandler]] xref:storage:BlockEvictionHandler.adoc[]
 
-== [[releaseUnrollMemoryForThisTask]] `releaseUnrollMemoryForThisTask` Method
+MemoryStore is created for xref:storage:BlockManager.adoc#memoryStore[BlockManager].
+
+== [[memoryStore]] Accessing MemoryStore
+
+MemoryStore is available using xref:storage:BlockManager.adoc#memoryStore[BlockManager.memoryStore] reference to other Spark services.
+
+[source,scala]
+----
+import org.apache.spark.SparkEnv
+SparkEnv.get.blockManager.memoryStore
+----
+
+== [[unrollMemoryThreshold]][[spark.storage.unrollMemoryThreshold]] spark.storage.unrollMemoryThreshold Configuration Property
+
+MemoryStore uses xref:ROOT:configuration-properties.adoc#spark.storage.unrollMemoryThreshold[spark.storage.unrollMemoryThreshold] configuration property for <<putIterator, putIterator>> and <<putIteratorAsBytes, putIteratorAsBytes>>.
+
+== [[releaseUnrollMemoryForThisTask]] releaseUnrollMemoryForThisTask Method
 
 [source, scala]
 ----
@@ -37,40 +43,43 @@ releaseUnrollMemoryForThisTask(
   memory: Long = Long.MaxValue): Unit
 ----
 
-`releaseUnrollMemoryForThisTask`...FIXME
+releaseUnrollMemoryForThisTask...FIXME
 
-[NOTE]
-====
-`releaseUnrollMemoryForThisTask` is used when:
+releaseUnrollMemoryForThisTask is used when:
 
-* `Task` is requested to xref:scheduler:Task.adoc#run[run] (and cleans up after itself)
+* Task is requested to xref:scheduler:Task.adoc#run[run] (and cleans up after itself)
 
-* MemoryStore is requested to <<putIteratorAsValues, putIteratorAsValues>> and <<putIteratorAsBytes, putIteratorAsBytes>>
+* MemoryStore is requested to <<putIterator, putIterator>>
 
-* `PartiallyUnrolledIterator` is requested to `releaseUnrollMemory`
+* PartiallyUnrolledIterator is requested to releaseUnrollMemory
 
-* `PartiallySerializedBlock` is requested to `discard` and `finishWritingToStream`
-====
+* PartiallySerializedBlock is requested to discard and finishWritingToStream
 
-== [[getValues]] `getValues` Method
+== [[getValues]] getValues Method
 
 [source, scala]
 ----
-getValues(blockId: BlockId): Option[Iterator[_]]
+getValues(
+  blockId: BlockId): Option[Iterator[_]]
 ----
 
-`getValues` does...FIXME
+getValues...FIXME
 
-== [[getBytes]] `getBytes` Method
+getValues is used when BlockManager is requested to xref:storage:BlockManager.adoc#doGetLocalBytes[doGetLocalBytes], xref:storage:BlockManager.adoc#getLocalValues[getLocalValues] and xref:storage:BlockManager.adoc#maybeCacheDiskBytesInMemory[maybeCacheDiskBytesInMemory].
+
+== [[getBytes]] getBytes Method
 
 [source, scala]
 ----
-getBytes(blockId: BlockId): Option[ChunkedByteBuffer]
+getBytes(
+  blockId: BlockId): Option[ChunkedByteBuffer]
 ----
 
-`getBytes` does...FIXME
+getBytes...FIXME
 
-== [[putIteratorAsBytes]] `putIteratorAsBytes` Method
+getBytes is used when BlockManager is requested to xref:storage:BlockManager.adoc#doGetLocalBytes[doGetLocalBytes], xref:storage:BlockManager.adoc#getLocalValues[getLocalValues] and xref:storage:BlockManager.adoc#maybeCacheDiskBytesInMemory[maybeCacheDiskBytesInMemory].
+
+== [[putIteratorAsBytes]] putIteratorAsBytes Method
 
 [source, scala]
 ----
@@ -81,30 +90,55 @@ putIteratorAsBytes[T](
   memoryMode: MemoryMode): Either[PartiallySerializedBlock[T], Long]
 ----
 
-`putIteratorAsBytes` tries to put the `blockId` block in memory store as bytes.
+putIteratorAsBytes...FIXME
 
-CAUTION: FIXME
+putIteratorAsBytes is used when BlockManager is requested to xref:storage:BlockManager.adoc#doPutIterator[doPutIterator].
 
-== [[remove]] Removing Block
+== [[remove]] Dropping Block from Memory
 
-CAUTION: FIXME
+[source, scala]
+----
+remove(
+  blockId: BlockId): Boolean
+----
+
+remove removes the given xref:storage:BlockId.adoc[] from the <<entries, entries>> internal registry and branches off based on whether the <<remove-block-removed, block was found and removed>> or <<remove-no-block, not>>.
+
+=== [[remove-block-removed]] Block Removed
+
+When found and removed, remove requests the <<memoryManager, MemoryManager>> to xref:memory:MemoryManager.adoc#releaseStorageMemory[releaseStorageMemory] and prints out the following DEBUG message to the logs:
+
+[source,plaintext]
+----
+Block [blockId] of size [size] dropped from memory (free [memory])
+----
+
+remove returns `true`.
+
+=== [[remove-no-block]] No Block Removed
+
+If no BlockId was registered and removed, remove returns `false`.
+
+=== [[remove-usage]] Usage
+
+remove is used when BlockManager is requested to xref:storage:BlockManager.adoc#dropFromMemory[dropFromMemory] and xref:storage:BlockManager.adoc#removeBlockInternal[removeBlockInternal].
 
 == [[putBytes]] Acquiring Storage Memory for Blocks
 
 [source, scala]
 ----
-putBytes[T](
+putBytes[T: ClassTag](
   blockId: BlockId,
   size: Long,
   memoryMode: MemoryMode,
   _bytes: () => ChunkedByteBuffer): Boolean
 ----
 
-`putBytes` requests xref:memory:MemoryManager.adoc#acquireStorageMemory[storage memory  for `blockId` from `MemoryManager`] and registers the block in <<entries, entries>> internal registry.
+putBytes requests xref:memory:MemoryManager.adoc#acquireStorageMemory[storage memory  for `blockId` from `MemoryManager`] and registers the block in <<entries, entries>> internal registry.
 
-Internally, `putBytes` first makes sure that `blockId` block has not been registered already in <<entries, entries>> internal registry.
+Internally, putBytes first makes sure that `blockId` block has not been registered already in <<entries, entries>> internal registry.
 
-`putBytes` then requests xref:memory:MemoryManager.adoc#acquireStorageMemory[`size` memory for the `blockId` block in a given `memoryMode` from the current `MemoryManager`].
+putBytes then requests xref:memory:MemoryManager.adoc#acquireStorageMemory[`size` memory for the `blockId` block in a given `memoryMode` from the current `MemoryManager`].
 
 [NOTE]
 ====
@@ -120,15 +154,17 @@ res1: Boolean = true
 ```
 ====
 
-If successful, `putBytes` "materializes" `_bytes` byte buffer and makes sure that the size is exactly `size`. It then registers a `SerializedMemoryEntry` (for the bytes and `memoryMode`) for `blockId` in the internal <<entries, entries>> registry.
+If successful, putBytes "materializes" `_bytes` byte buffer and makes sure that the size is exactly `size`. It then registers a `SerializedMemoryEntry` (for the bytes and `memoryMode`) for `blockId` in the internal <<entries, entries>> registry.
 
 You should see the following INFO message in the logs:
 
 ```
-INFO Block [blockId] stored as bytes in memory (estimated size [size], free [bytes])
+Block [blockId] stored as bytes in memory (estimated size [size], free [bytes])
 ```
 
-`putBytes` returns `true` only after `blockId` was successfully registered in the internal <<entries, entries>> registry.
+putBytes returns `true` only after `blockId` was successfully registered in the internal <<entries, entries>> registry.
+
+putBytes is used when BlockManager is requested to xref:storage:BlockManager.adoc#doPutBytes[doPutBytes] and xref:storage:BlockManager.adoc#maybeCacheDiskBytesInMemory[maybeCacheDiskBytesInMemory].
 
 == [[evictBlocksToFreeSpace]] Evicting Blocks
 
@@ -152,11 +188,11 @@ contains(
   blockId: BlockId): Boolean
 ----
 
-`contains` is positive (`true`) when the <<entries, entries>> internal registry contains `blockId` key.
+contains is positive (`true`) when the <<entries, entries>> internal registry contains `blockId` key.
 
-NOTE: `contains` is used when...FIXME
+contains is used when...FIXME
 
-== [[putIteratorAsValues]] `putIteratorAsValues` Method
+== [[putIteratorAsValues]] putIteratorAsValues Method
 
 [source, scala]
 ----
@@ -166,19 +202,19 @@ putIteratorAsValues[T](
   classTag: ClassTag[T]): Either[PartiallyUnrolledIterator[T], Long]
 ----
 
-`putIteratorAsValues` makes sure that the `BlockId` does not exist or throws an `IllegalArgumentException`:
+putIteratorAsValues makes sure that the `BlockId` does not exist or throws an `IllegalArgumentException`:
 
 ```
 requirement failed: Block [blockId] is already present in the MemoryStore
 ```
 
-`putIteratorAsValues` <<reserveUnrollMemoryForThisTask, reserveUnrollMemoryForThisTask>> (with the <<unrollMemoryThreshold, initial memory threshold>> and `ON_HEAP` memory mode).
+putIteratorAsValues <<reserveUnrollMemoryForThisTask, reserveUnrollMemoryForThisTask>> (with the <<unrollMemoryThreshold, initial memory threshold>> and `ON_HEAP` memory mode).
 
 CAUTION: FIXME
 
-`putIteratorAsValues` tries to put the `blockId` block in memory store as `values`.
+putIteratorAsValues tries to put the `blockId` block in memory store as `values`.
 
-NOTE: `putIteratorAsValues` is used when `BlockManager` stores  xref:storage:BlockManager.adoc#doPutBytes[bytes of a block] or xref:storage:BlockManager.adoc#doPutIterator[iterator of values of a block] or when xref:storage:BlockManager.adoc#maybeCacheDiskValuesInMemory[attempting to cache spilled values read from disk].
+putIteratorAsValues is used when BlockManager is requested to store xref:storage:BlockManager.adoc#doPutBytes[bytes] or xref:storage:BlockManager.adoc#doPutIterator[values] of a block or when xref:storage:BlockManager.adoc#maybeCacheDiskValuesInMemory[attempting to cache spilled values read from disk].
 
 == [[reserveUnrollMemoryForThisTask]] `reserveUnrollMemoryForThisTask` Method
 
@@ -214,6 +250,22 @@ MemoryStore started with capacity [maxMemory] MB
 
 NOTE: `maxMemory` is used for <<logging, logging>> purposes only.
 
+== [[putIterator]] putIterator Internal Method
+
+[source, scala]
+----
+putIterator[T](
+  blockId: BlockId,
+  values: Iterator[T],
+  classTag: ClassTag[T],
+  memoryMode: MemoryMode,
+  valuesHolder: ValuesHolder[T]): Either[Long, Long]
+----
+
+putIterator...FIXME
+
+putIterator is used when MemoryStore is requested to <<putIteratorAsValues, putIteratorAsValues>> and <<putIteratorAsBytes, putIteratorAsBytes>>.
+
 == [[logging]] Logging
 
 Enable `ALL` logging level for `org.apache.spark.storage.memory.MemoryStore` logger to see what happens inside.
@@ -236,6 +288,6 @@ Refer to xref:ROOT:spark-logging.adoc[Logging].
 entries: LinkedHashMap[BlockId, MemoryEntry[_]]
 ----
 
-When created, MemoryStore creates a Java {java-javadoc-url}/java/util/LinkedHashMap.html[LinkedHashMap] of `MemoryEntries` per xref:storage:BlockId.adoc[] (with the initial capacity of `32` and the load factor of `0.75`).
+MemoryStore creates a Java {java-javadoc-url}/java/util/LinkedHashMap.html[LinkedHashMap] of `MemoryEntries` per xref:storage:BlockId.adoc[] (with the initial capacity of `32` and the load factor of `0.75`) when <<creating-instance>>.
 
-entries uses *access-order* ordering mode where the order of iteration is the order in which the entries were last accessed (from least-recently accessed to most-recently). That gives *LRU cache* behaviour when <<evictBlocksToFreeSpace, evicting blocks>>.
+entries uses *access-order* ordering mode where the order of iteration is the order in which the entries were last accessed (from least-recently accessed to most-recently). That gives *LRU cache* behaviour when MemoryStore is requested to <<evictBlocksToFreeSpace, evict blocks>>.
