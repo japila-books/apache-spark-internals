@@ -1,10 +1,11 @@
 = BlockManager
 
-*BlockManager* is a storage of chunks of data (_blocks_) that are identified by a block ID.
+*BlockManager* manages the storage for blocks (_chunks of data_ ) that can be stored in <<memoryStore, memory>> and on <<diskStore, disk>>.
+
+.BlockManager and Stores
+image::BlockManager.png[align="center"]
 
 BlockManager runs on the xref:ROOT:spark-driver.adoc[driver] and xref:executor:Executor.adoc[executors].
-
-BlockManager is a local cache.
 
 BlockManager provides interface for uploading and fetching blocks both locally and remotely using various stores, i.e. <<stores, memory, disk, and off-heap>>.
 
@@ -55,6 +56,9 @@ BlockManager registers a xref:storage:BlockManagerSlaveEndpoint.adoc[] with the 
 
 BlockManager is created when SparkEnv is xref:core:SparkEnv.adoc#create-BlockManager[created] (for the driver and executors) when a Spark application starts.
 
+.BlockManager and SparkEnv
+image::BlockManager-SparkEnv.png[align="center"]
+
 == [[BlockEvictionHandler]] BlockEvictionHandler
 
 BlockManager is a xref:storage:BlockEvictionHandler.adoc[] that can <<dropFromMemory, drop a block from memory>> (and store it on a disk when needed).
@@ -95,7 +99,7 @@ BlockManager is given a xref:storage:BlockManagerMaster.adoc[] when <<creating-i
 
 == [[BlockDataManager]] BlockManager as BlockDataManager
 
-BlockManager is a xref:storage:BlockDataManager.adoc[] and manages the storage for blocks that with cached RDD partitions, intermediate shuffle outputs, broadcasts, etc.
+BlockManager is a xref:storage:BlockDataManager.adoc[].
 
 == [[mapOutputTracker]] BlockManager and MapOutputTracker
 
@@ -168,7 +172,7 @@ BlockManager uses the ShuffleManager for the following:
 
 == [[diskBlockManager]] DiskBlockManager
 
-When <<creating-instance, created>>, BlockManager creates a xref:DiskBlockManager.adoc[DiskBlockManager].
+BlockManager creates a xref:DiskBlockManager.adoc[DiskBlockManager] when <<creating-instance, created>>.
 
 .DiskBlockManager and BlockManager
 image::DiskBlockManager-BlockManager.png[align="center"]
@@ -226,7 +230,7 @@ The MemoryStore is used (via `SparkEnv.get.blockManager.memoryStore` reference) 
 
 == [[diskStore]] DiskStore
 
-When <<creating-instance, created>>, BlockManager creates a xref:DiskStore.adoc[DiskStore] (with the <<diskBlockManager, DiskBlockManager>>).
+BlockManager creates a xref:DiskStore.adoc[DiskStore] (with the <<diskBlockManager, DiskBlockManager>>) when <<creating-instance, created>>.
 
 .DiskStore and BlockManager
 image::DiskStore-BlockManager.png[align="center"]
@@ -1158,13 +1162,14 @@ dropFromMemory(
   data: () => Either[Array[T], ChunkedByteBuffer]): StorageLevel
 ----
 
-When dropFromMemory is executed, you should see the following INFO message in the logs:
+dropFromMemory prints out the following INFO message to the logs:
 
-```
+[source,plaintext]
+----
 Dropping block [blockId] from memory
-```
+----
 
-It then asserts that the `blockId` block is xref:storage:BlockInfoManager.adoc#assertBlockIsLockedForWriting[locked for writing].
+dropFromMemory then asserts that the given block is xref:storage:BlockInfoManager.adoc#assertBlockIsLockedForWriting[locked for writing].
 
 If the block's xref:storage:StorageLevel.adoc[StorageLevel] uses disks and the internal xref:DiskStore.adoc[DiskStore] object (`diskStore`) does not contain the block, it is saved then. You should see the following INFO message in the logs:
 
