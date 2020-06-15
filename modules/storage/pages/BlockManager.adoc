@@ -89,9 +89,29 @@ The RpcEnv is used to set up a <<slaveEndpoint, BlockManagerSlaveEndpoint>>.
 
 BlockManager creates a xref:storage:BlockInfoManager.adoc[] when <<creating-instance, created>>.
 
+BlockManager requests the BlockInfoManager to xref:storage:BlockInfoManager.adoc#clear[clear] when requested to <<stop, stop>>.
+
 BlockManager uses the BlockInfoManager to create a <<memoryStore, MemoryStore>>.
 
-BlockManager uses the BlockInfoManager for...FIXME
+BlockManager uses the BlockInfoManager when requested for the following:
+
+* <<reportAllBlocks, reportAllBlocks>>
+
+* <<getStatus, getStatus>>
+
+* <<getMatchingBlockIds, getMatchingBlockIds>>
+
+* <<getLocalValues, getLocalValues>> and <<getLocalBytes, getLocalBytes>>
+
+* <<doPut, doPut>>
+
+* <<replicateBlock, replicateBlock>>
+
+* <<dropFromMemory, dropFromMemory>>
+
+* <<removeRdd, removeRdd>>, <<removeBroadcast, removeBroadcast>>, <<removeBlock, removeBlock>>, <<removeBlockInternal, removeBlockInternal>>
+
+* <<downgradeLock, downgradeLock>>, <<releaseLock, releaseLock>>, <<registerTask, registerTask>>, <<releaseAllLocksForTask, releaseAllLocksForTask>>
 
 == [[master]] BlockManager and BlockManagerMaster
 
@@ -263,7 +283,7 @@ releaseAllLocksForTask(
 
 releaseAllLocksForTask...FIXME
 
-releaseAllLocksForTask is used when TaskRunner is requested to xref:executor:TaskRunner.adoc#run[run] (after a task is finished successfully or not).
+releaseAllLocksForTask is used when TaskRunner is requested to xref:executor:TaskRunner.adoc#run[run] (at the end of a task).
 
 == [[stop]] Stopping BlockManager
 
@@ -529,7 +549,7 @@ The final result of `doPutBytes` is the result of storing the block successful o
 
 NOTE: `doPutBytes` is used exclusively when BlockManager is requested to <<putBytes, putBytes>>.
 
-== [[doPut]] `doPut` Internal Method
+== [[doPut]] doPut Internal Method
 
 [source, scala]
 ----
@@ -541,19 +561,18 @@ doPut[T](
   keepReadLock: Boolean)(putBody: BlockInfo => Option[T]): Option[T]
 ----
 
-`doPut` is an internal helper method for <<doPutBytes, doPutBytes>> and <<doPutIterator, doPutIterator>>.
-
-`doPut` executes the input `putBody` function with a xref:storage:BlockInfo.adoc[] being a new `BlockInfo` object (with `level` storage level) that xref:storage:BlockInfoManager.adoc#lockNewBlockForWriting[`BlockInfoManager` managed to create a write lock for].
+doPut executes the input `putBody` function with a xref:storage:BlockInfo.adoc[] being a new `BlockInfo` object (with `level` storage level) that xref:storage:BlockInfoManager.adoc#lockNewBlockForWriting[`BlockInfoManager` managed to create a write lock for].
 
 If the block has already been created (and xref:storage:BlockInfoManager.adoc#lockNewBlockForWriting[`BlockInfoManager` did not manage to create a write lock for]), the following WARN message is printed out to the logs:
 
-```
-WARN Block [blockId] already exists on this machine; not re-adding it
-```
+[source,plaintext]
+----
+Block [blockId] already exists on this machine; not re-adding it
+----
 
-`doPut` <<releaseLock, releases the read lock for the block>> when `keepReadLock` flag is disabled and returns `None` immediately.
+doPut <<releaseLock, releases the read lock for the block>> when `keepReadLock` flag is disabled and returns `None` immediately.
 
-If however the write lock has been given, `doPut` executes `putBody`.
+If however the write lock has been given, doPut executes `putBody`.
 
 If the result of `putBody` is `None` the block is considered saved successfully.
 
@@ -563,15 +582,19 @@ For successful save and `keepReadLock` disabled, xref:storage:BlockInfoManager.a
 
 For unsuccessful save, <<removeBlockInternal, the block is removed from memory and disk stores>> and the following WARN message is printed out to the logs:
 
-```
-WARN Putting block [blockId] failed
-```
+[source,plaintext]
+----
+Putting block [blockId] failed
+----
 
-Ultimately, the following DEBUG message is printed out to the logs:
+In the end, doPut prints out the following DEBUG message to the logs:
 
-```
-DEBUG Putting block [blockId] [withOrWithout] replication took [usedTime] ms
-```
+[source,plaintext]
+----
+Putting block [blockId] [withOrWithout] replication took [usedTime] ms
+----
+
+doPut is used when BlockManager is requested to <<doPutBytes, doPutBytes>> and <<doPutIterator, doPutIterator>>.
 
 == [[removeBlock]] Removing Block From Memory and Disk
 
@@ -873,7 +896,7 @@ The underlying abstraction for blocks in Spark is a `ByteBuffer` that limits the
 
 `BlockResult` is a description of a fetched block with the `readMethod` and `bytes`.
 
-== [[registerTask]] Registering Task with BlockInfoManager
+== [[registerTask]] Registering Task
 
 [source, scala]
 ----
@@ -881,9 +904,9 @@ registerTask(
   taskAttemptId: Long): Unit
 ----
 
-registerTask xref:storage:BlockInfoManager.adoc#registerTask[registers the input `taskAttemptId` with `BlockInfoManager`].
+registerTask requests the <<blockInfoManager, BlockInfoManager>> to xref:storage:BlockInfoManager.adoc#registerTask[register a given task].
 
-registerTask is used when Task is requested to xref:scheduler:Task.adoc#run[run].
+registerTask is used when Task is requested to xref:scheduler:Task.adoc#run[run] (at the start of a task).
 
 == [[getDiskWriter]] Creating DiskBlockObjectWriter
 
@@ -1221,6 +1244,31 @@ releaseLockAndDispose(
 releaseLockAndDispose...FIXME
 
 releaseLockAndDispose is used when...FIXME
+
+== [[releaseLock]] releaseLock Method
+
+[source, scala]
+----
+releaseLock(
+  blockId: BlockId,
+  taskAttemptId: Option[Long] = None): Unit
+----
+
+releaseLock requests the <<blockInfoManager, BlockInfoManager>> to xref:storage:BlockInfoManager.adoc#unlock[unlock the given block].
+
+releaseLock is part of the xref:storage:BlockDataManager.adoc#releaseLock[BlockDataManager] abstraction.
+
+== [[downgradeLock]] downgradeLock Method
+
+[source, scala]
+----
+downgradeLock(
+  blockId: BlockId): Unit
+----
+
+downgradeLock requests the <<blockInfoManager, BlockInfoManager>> to xref:storage:BlockInfoManager.adoc#downgradeLock[downgradeLock] for the given xref:storage:BlockId.adoc[block].
+
+downgradeLock seems _not_ to be used.
 
 == [[blockIdsToLocations]] blockIdsToLocations Utility
 
