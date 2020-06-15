@@ -1,74 +1,90 @@
 = BlockTransferService
 
-*BlockTransferService* is the <<contract, base>> for xref:storage:ShuffleClient.adoc[]s that can <<fetchBlocks, fetch>> and <<uploadBlock, upload>> blocks of data synchronously or asynchronously.
+*BlockTransferService* is an <<contract, extension>> of the xref:storage:ShuffleClient.adoc[] abstraction for <<implementations, shuffle clients>> that can <<fetchBlocks, fetch>> and <<uploadBlock, upload>> blocks of data synchronously or asynchronously.
 
-BlockTransferService is a networking service available by the name of a host and a port.
+BlockTransferService is a networking service available by a <<hostName, host name>> and a <<port, port>>.
 
-[[contract]]
-[source, scala]
+BlockTransferService was introduced in https://issues.apache.org/jira/browse/SPARK-3019[SPARK-3019 Pluggable block transfer interface (BlockTransferService)].
+
+== [[contract]] Contract
+
+=== [[close]] close
+
+[source,scala]
 ----
-package org.apache.spark.network
-
-abstract class BlockTransferService extends ShuffleClient {
-  // only required methods that have no implementation
-  // the others follow
-  def init(blockDataManager: BlockDataManager): Unit
-  def close(): Unit
-  def port: Int
-  def hostName: String
-  def fetchBlocks(
-    host: String,
-    port: Int,
-    execId: String,
-    blockIds: Array[String],
-    listener: BlockFetchingListener,
-    tempFileManager: TempFileManager): Unit
-  def uploadBlock(
-    hostname: String,
-    port: Int,
-    execId: String,
-    blockId: BlockId,
-    blockData: ManagedBuffer,
-    level: StorageLevel,
-    classTag: ClassTag[_]): Future[Unit]
-}
+close(): Unit
 ----
 
-.(Subset of) BlockTransferService Contract
-[cols="1,2",options="header",width="100%"]
-|===
-| Method
-| Description
+Used when BlockManager is requested to xref:storage:BlockManager.adoc#stop[stop]
 
-| `init`
-| [[init]] Used when BlockManager is requested to xref:storage:BlockManager.adoc#initialize[initialize]
+=== [[fetchBlocks]] fetchBlocks
 
-| `close`
-| [[close]] Used when...FIXME
+[source,scala]
+----
+fetchBlocks(
+  host: String,
+  port: Int,
+  execId: String,
+  blockIds: Array[String],
+  listener: BlockFetchingListener,
+  tempFileManager: DownloadFileManager): Unit
+----
 
-| `port`
-| [[port]] Used when...FIXME
+Fetches a sequence of blocks from a remote node asynchronously
 
-| `hostName`
-| [[hostName]] Used when...FIXME
+fetchBlocks is part of the xref:storage:ShuffleClient.adoc#fetchBlocks[ShuffleClient] abstraction.
 
-| `fetchBlocks`
-a| [[fetchBlocks]] Fetches a sequence of blocks from a remote node asynchronously
+Used when BlockTransferService is requested to <<fetchBlockSync, fetch only one block (in a blocking fashion)>>
 
-Used exclusively when BlockTransferService is requested to <<fetchBlockSync, fetch only one block (in a blocking fashion)>>
+=== [[hostName]] hostName
 
-NOTE: `fetchBlocks` is part of xref:storage:ShuffleClient.adoc#fetchBlocks[ShuffleClient Contract] to...FIXME.
+[source,scala]
+----
+hostName: String
+----
 
-| `uploadBlock`
-| [[uploadBlock]] Used exclusively when BlockTransferService is requested to <<uploadBlockSync, upload a single block to a remote node (in a blocking fashion)>>.
-|===
+Used when BlockManager is requested to xref:storage:BlockManager.adoc#initialize[initialize]
 
-[[implementations]]
-NOTE: xref:storage:NettyBlockTransferService.adoc[] is the one and only known implementation of <<contract, BlockTransferService Contract>>.
+=== [[init]] init
 
-NOTE: BlockTransferService was introduced in https://issues.apache.org/jira/browse/SPARK-3019[SPARK-3019 Pluggable block transfer interface (BlockTransferService)] and is available since Spark 1.2.0.
+[source,scala]
+----
+init(
+  blockDataManager: BlockDataManager): Unit
+----
 
-== [[fetchBlockSync]] `fetchBlockSync` Method
+Used when BlockManager is requested to xref:storage:BlockManager.adoc#initialize[initialize] (with the xref:storage:BlockDataManager.adoc[] being the BlockManager itself)
+
+=== [[port]] port
+
+[source,scala]
+----
+port: Int
+----
+
+Used when BlockManager is requested to xref:storage:BlockManager.adoc#initialize[initialize]
+
+=== [[uploadBlock]] uploadBlock
+
+[source,scala]
+----
+uploadBlock(
+  hostname: String,
+  port: Int,
+  execId: String,
+  blockId: BlockId,
+  blockData: ManagedBuffer,
+  level: StorageLevel,
+  classTag: ClassTag[_]): Future[Unit]
+----
+
+Used when BlockTransferService is requested to <<uploadBlockSync, upload a single block to a remote node (in a blocking fashion)>>
+
+== [[implementations]] BlockTransferServices
+
+xref:storage:NettyBlockTransferService.adoc[] is the default and only known BlockTransferService.
+
+== [[fetchBlockSync]] fetchBlockSync Method
 
 [source, scala]
 ----
@@ -80,15 +96,15 @@ fetchBlockSync(
   tempFileManager: TempFileManager): ManagedBuffer
 ----
 
-`fetchBlockSync`...FIXME
+fetchBlockSync...FIXME
 
-Synchronous (and hence blocking) `fetchBlockSync` to fetch one block `blockId` (that corresponds to the xref:storage:ShuffleClient.adoc[] parent's asynchronous xref:storage:ShuffleClient.adoc#fetchBlocks[fetchBlocks]).
+Synchronous (and hence blocking) fetchBlockSync to fetch one block `blockId` (that corresponds to the xref:storage:ShuffleClient.adoc[] parent's asynchronous xref:storage:ShuffleClient.adoc#fetchBlocks[fetchBlocks]).
 
-`fetchBlockSync` is a mere wrapper around xref:storage:ShuffleClient.adoc#fetchBlocks[fetchBlocks] to fetch one `blockId` block that waits until the fetch finishes.
+fetchBlockSync is a mere wrapper around xref:storage:ShuffleClient.adoc#fetchBlocks[fetchBlocks] to fetch one `blockId` block that waits until the fetch finishes.
 
-NOTE: `fetchBlockSync` is used when...FIXME
+fetchBlockSync is used when...FIXME
 
-== [[uploadBlockSync]] Uploading Single Block to Remote Node (Blocking Fashion) -- `uploadBlockSync` Method
+== [[uploadBlockSync]] Uploading Single Block to Remote Node (Blocking Fashion)
 
 [source, scala]
 ----
@@ -102,8 +118,8 @@ uploadBlockSync(
   classTag: ClassTag[_]): Unit
 ----
 
-`uploadBlockSync`...FIXME
+uploadBlockSync...FIXME
 
-`uploadBlockSync` is a mere blocking wrapper around <<uploadBlock, uploadBlock>> that waits until the upload finishes.
+uploadBlockSync is a mere blocking wrapper around <<uploadBlock, uploadBlock>> that waits until the upload finishes.
 
-NOTE: `uploadBlockSync` is used exclusively when `BlockManager` is requested to xref:storage:BlockManager.adoc#replicate[replicate] (when a xref:storage:StorageLevel.adoc[replication level is greater than 1]).
+uploadBlockSync is used when BlockManager is requested to xref:storage:BlockManager.adoc#replicate[replicate] (when a xref:storage:StorageLevel.adoc[replication level is greater than 1]).
