@@ -10,7 +10,7 @@ image::NettyBlockRpcServer.png[align="center"]
 NettyBlockRpcServer takes the following to be created:
 
 * [[appId]] Application ID
-* [[serializer]] xref:serializer:Serializer.adoc[Serializer]
+* [[serializer]] xref:serializer:Serializer.adoc[]
 * [[blockManager]] xref:storage:BlockDataManager.adoc[]
 
 NettyBlockRpcServer is created when NettyBlockTransferService is requested to xref:storage:NettyBlockTransferService.adoc#init[initialize].
@@ -33,11 +33,19 @@ receive...FIXME
 
 receive is part of xref:network:RpcHandler.adoc#receive[RpcHandler] abstraction.
 
-== [[messages]] NettyBlockRpcServer Messages
+== [[messages]] Messages
 
-=== [[OpenBlocks]][[receive-OpenBlocks]] OpenBlocks Message Handler
+=== [[OpenBlocks]] OpenBlocks
 
-When OpenBlocks arrives, NettyBlockRpcServer requests the <<blockManager, BlockDataManager>> for xref:storage:BlockDataManager.adoc#getBlockData[block data] for every block id in the message. The block data is a collection of `ManagedBuffer` for every block id in the incoming message.
+[source,java]
+----
+OpenBlocks(
+  String appId,
+  String execId,
+  String[] blockIds)
+----
+
+When received, NettyBlockRpcServer requests the <<blockManager, BlockDataManager>> for xref:storage:BlockDataManager.adoc#getBlockData[block data] for every block id in the message. The block data is a collection of xref:network:ManagedBuffer.adoc[] for every block id in the incoming message.
 
 NettyBlockRpcServer then xref:network:OneForOneStreamManager.adoc#registerStream[registers a stream of ``ManagedBuffer``s (for the blocks) with the internal `StreamManager`] under `streamId`.
 
@@ -52,15 +60,27 @@ NettyBlockRpcServer: Registered streamId [streamId]  with [size] buffers
 
 In the end, NettyBlockRpcServer responds with a `StreamHandle` (with the `streamId` and the number of blocks). The response is serialized as a `ByteBuffer`.
 
-=== [[UploadBlock]][[receive-UploadBlock]] UploadBlock Message Handler
+Posted when OneForOneBlockFetcher is requested to xref:storage:OneForOneBlockFetcher.adoc#start[start].
 
-When UploadBlock arrives, NettyBlockRpcServer deserializes the `metadata` of the input message to get the xref:storage:StorageLevel.adoc[StorageLevel] and `ClassTag` of the block being uploaded.
+=== [[UploadBlock]] UploadBlock
+
+[source,java]
+----
+UploadBlock(
+  String appId,
+  String execId,
+  String blockId,
+  byte[] metadata,
+  byte[] blockData)
+----
+
+When received, NettyBlockRpcServer deserializes the `metadata` of the input message to get the xref:storage:StorageLevel.adoc[StorageLevel] and `ClassTag` of the block being uploaded.
 
 NettyBlockRpcServer creates a xref:storage:BlockId.adoc[] for the block id and requests the <<blockManager, BlockDataManager>> to xref:storage:BlockDataManager.adoc#putBlockData[store the block].
 
 In the end, NettyBlockRpcServer responds with a `0`-capacity `ByteBuffer`.
 
-UploadBlock is sent when NettyBlockTransferService is requested to xref:storage:NettyBlockTransferService.adoc#uploadBlock[upload a block].
+Posted when NettyBlockTransferService is requested to xref:storage:NettyBlockTransferService.adoc#uploadBlock[upload a block].
 
 == [[receiveStream]] Receiving RPC Message with Streamed Data
 
