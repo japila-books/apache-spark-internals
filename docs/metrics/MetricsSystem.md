@@ -1,324 +1,162 @@
 # MetricsSystem
 
-`MetricsSystem` is a [registry](#registry) of metrics [sources](#sources) and [sinks](#sinks) of a [Spark subsystem](#subsystems) (e.g. the driver of a Spark application).
+`MetricsSystem` is a [registry](#registry) of metrics [sources](#sources) and [sinks](#sinks) of a [Spark subsystem](index.md#metrics-systems).
 
-![Creating MetricsSystem for Driver](../images/spark-metrics-MetricsSystem-driver.png)
+## Creating Instance
 
-MetricsSystem may have at most one <<metricsServlet, MetricsServlet JSON metrics sink>> (which is link:spark-metrics-MetricsConfig.adoc#setDefaultProperties[registered by default]).
+`MetricsSystem` takes the following to be created:
 
-When <<creating-instance, created>>, MetricsSystem requests <<metricsConfig, MetricsConfig>> to link:spark-metrics-MetricsConfig.adoc#initialize[initialize].
+* <span id="instance"> Instance Name
+* <span id="conf"> [SparkConf](../SparkConf.md)
+* <span id="securityMgr"> `SecurityManager`
 
-.Creating MetricsSystem
-image::spark-metrics-MetricsSystem.png[align="center"]
+While being created, `MetricsSystem` requests the [MetricsConfig](#metricsConfig) to [initialize](MetricsConfig.md#initialize).
 
-[[metrics-instances]]
-[[subsystems]]
-.Metrics Instances (Subsystems) and MetricsSystems
-[cols="1,2",options="header",width="100%"]
-|===
-| Name
-| When Created
+![Creating MetricsSystem](../images/spark-metrics-MetricsSystem.png)
 
-| `applications`
-| Spark Standalone's `Master` is link:spark-standalone-Master.adoc#creating-instance[created].
+`MetricsSystem` is created (using [createMetricsSystem](#createMetricsSystem) utility) for the [Metrics Systems](index.md#metrics-systems).
 
-| `driver`
-| `SparkEnv` is xref:core:SparkEnv.adoc#create[created] for the driver.
+## <span id="createMetricsSystem"> Creating MetricsSystem
 
-| `executor`
-| `SparkEnv` is xref:core:SparkEnv.adoc#create[created] for an executor.
-
-| `master`
-| Spark Standalone's `Master` is link:spark-standalone-Master.adoc#creating-instance[created].
-
-| `mesos_cluster`
-| Spark on Mesos' `MesosClusterScheduler` is created.
-
-| `shuffleService`
-| `ExternalShuffleService` is xref:deploy:ExternalShuffleService.adoc#creating-instance[created].
-
-| `worker`
-| Spark Standalone's `Worker` is link:spark-standalone-worker.adoc#creating-instance[created].
-|===
-
-MetricsSystem uses <<registry, MetricRegistry>> as the integration point to Dropwizard Metrics library.
-
-[[internal-registries]]
-.MetricsSystem's Internal Registries and Counters
-[cols="1,2",options="header",width="100%"]
-|===
-| Name
-| Description
-
-| [[metricsConfig]] `metricsConfig`
-| link:spark-metrics-MetricsConfig.adoc[MetricsConfig]
-
-Initialized when MetricsSystem is <<creating-instance, created>>.
-
-Used when MetricsSystem registers <<registerSinks, sinks>> and <<registerSources, sources>>.
-
-| [[metricsServlet]] `metricsServlet`
-| link:spark-metrics-MetricsServlet.adoc[MetricsServlet JSON metrics sink] that is only available for the <<metrics-instances, metrics instances>> with a web UI, i.e. the driver of a Spark application and Spark Standalone's `Master`.
-
-Initialized when MetricsSystem registers <<registerSinks, sinks>> (and finds a configuration entry with `servlet` sink name).
-
-Used exclusively when MetricsSystem is requested for a <<getServletHandlers, JSON servlet handler>>.
-
-| [[registry]] `registry`
-a| Dropwizard Metrics' https://metrics.dropwizard.io/3.1.0/apidocs/com/codahale/metrics/MetricRegistry.html[MetricRegistry]
-
-Used when MetricsSystem is requested to:
-
-* <<registerSource, register a metrics source>>
-
-* <<removeSource, remove a metrics source>>
-
-* <<start, start>> (that in turn <<registerSinks, registers metrics sinks>>)
-
-| [[running]] `running`
-| Flag that indicates whether MetricsSystem has been <<start, started>> (`true`) or not (`false`)
-
-Default: `false`
-
-| [[sinks]] `sinks`
-| link:spark-metrics-Sink.adoc[Metrics sinks] in a Spark application.
-
-Used when MetricsSystem <<registerSinks, registers a new metrics sink>> and <<start, starts them eventually>>.
-
-| [[sources]] `sources`
-| link:spark-metrics-Source.adoc[Metrics sources] in a Spark application.
-
-Used when MetricsSystem <<registerSource, registers a new metrics source>>.
-|===
-
-[TIP]
-====
-Enable `WARN` or `ERROR` logging levels for `org.apache.spark.metrics.MetricsSystem` logger to see what happens in MetricsSystem.
-
-Add the following line to `conf/log4j.properties`:
-
-```
-log4j.logger.org.apache.spark.metrics.MetricsSystem=WARN
+```scala
+createMetricsSystem(
+  instance: String
+  conf: SparkConf
+  securityMgr: SecurityManager): MetricsSystem
 ```
 
-Refer to link:spark-logging.adoc[Logging].
-====
+`createMetricsSystem` creates a new `MetricsSystem` (for the given parameters).
 
-== [[StaticSources]] "Static" Metrics Sources for Spark SQL -- StaticSources
+`createMetricsSystem` is used to create [metrics systems](index.md#metrics-systems).
 
-CAUTION: FIXME
+## <span id="StaticSources"><span id="allSources"> Metrics Sources for Spark SQL
 
-== [[registerSource]] Registering Metrics Source -- `registerSource` Method
+* `CodegenMetrics`
+* `HiveCatalogMetrics`
 
-[source, scala]
-----
-registerSource(source: Source): Unit
-----
+## <span id="registerSource"> Registering Metrics Source
 
-`registerSource` adds `source` to <<sources, sources>> internal registry.
-
-`registerSource` <<buildRegistryName, creates an identifier>> for the metrics source and registers it with <<registry, MetricRegistry>>.
-
-NOTE: `registerSource` uses Metrics' link:++http://metrics.dropwizard.io/3.1.0/apidocs/com/codahale/metrics/MetricRegistry.html#register-java.lang.String-T-++[MetricRegistry.register] to register a metrics source under a given name.
-
-When `registerSource` tries to register a name more than once, you should see the following INFO message in the logs:
-
-```
-INFO Metrics already registered
+```scala
+registerSource(
+  source: Source): Unit
 ```
 
-[NOTE]
-====
-`registerSource` is used when:
+`registerSource` adds `source` to the [sources](#sources) internal registry.
 
-* `SparkContext` link:spark-SparkContext-creating-instance-internals.adoc#registerSource[registers metrics sources] for:
-** xref:scheduler:DAGScheduler.adoc#metricsSource[DAGScheduler]
-** link:spark-BlockManager-BlockManagerSource.adoc[BlockManager]
-** link:spark-ExecutorAllocationManager.adoc#executorAllocationManagerSource[ExecutorAllocationManager] (for xref:ROOT:spark-dynamic-allocation.adoc[])
+`registerSource` [creates an identifier](#buildRegistryName) for the metrics source and registers it with the [MetricRegistry](#registry).
 
-* MetricsSystem <<start, is started>> (and registers the "static" metrics sources -- `CodegenMetrics` and `HiveCatalogMetrics`) and does <<registerSources, registerSources>>.
+`registerSource` uses Metrics' [MetricRegistry.register](http://metrics.dropwizard.io/3.1.0/apidocs/com/codahale/metrics/MetricRegistry.html#register-java.lang.String-T-) to register a metrics source under a given name.
 
-* `Executor` xref:executor:Executor.adoc#creating-instance[is created] (and registers a xref:executor:ExecutorSource.adoc[])
+`registerSource` prints out the following INFO message to the logs when registering a name more than once:
 
-* `ExternalShuffleService` xref:deploy:ExternalShuffleService.adoc#start[is started] (and registers `ExternalShuffleServiceSource`)
+```text
+Metrics already registered
+```
 
-* Spark Structured Streaming's `StreamExecution` runs batches as data arrives (when metrics are enabled).
-* Spark Streaming's `StreamingContext` is started (and registers `StreamingSource`)
+## <span id="buildRegistryName"> Building Metrics Source Identifier
 
-* Spark Standalone's `Master` and `Worker` start (and register their `MasterSource` and `WorkerSource`, respectively)
-* Spark Standalone's `Master` registers a Spark application (and registers a `ApplicationSource`)
-* Spark on Mesos' `MesosClusterScheduler` is started (and registers a `MesosClusterSchedulerSource`)
-====
+```scala
+buildRegistryName(
+  source: Source): String
+```
 
-== [[buildRegistryName]] Building Metrics Source Identifier -- `buildRegistryName` Method
+`buildRegistryName` uses spark-metrics-properties.md#spark.metrics.namespace[spark.metrics.namespace] and xref:executor:Executor.md#spark.executor.id[spark.executor.id] Spark properties to differentiate between a Spark application's driver and executors, and the other Spark framework's components.
 
-[source, scala]
-----
-buildRegistryName(source: Source): String
-----
+(only when <<instance, instance>> is `driver` or `executor`) `buildRegistryName` builds metrics source name that is made up of link:spark-metrics-properties.md#spark.metrics.namespace[spark.metrics.namespace], xref:executor:Executor.md#spark.executor.id[spark.executor.id] and the name of the `source`.
 
-NOTE: `buildRegistryName` is used to build the metrics source identifiers for a Spark application's driver and executors, but also for other Spark framework's components (e.g. Spark Standalone's master and workers).
+!!! note
+    `buildRegistryName` uses Dropwizard Metrics' [MetricRegistry](https://metrics.dropwizard.io/3.1.0/apidocs/com/codahale/metrics/MetricRegistry.html) to build metrics source identifiers.
 
-NOTE: `buildRegistryName` uses link:spark-metrics-properties.adoc#spark.metrics.namespace[spark.metrics.namespace] and xref:executor:Executor.adoc#spark.executor.id[spark.executor.id] Spark properties to differentiate between a Spark application's driver and executors, and the other Spark framework's components.
+FIXME Finish for the other components.
 
-(only when <<instance, instance>> is `driver` or `executor`) `buildRegistryName` builds metrics source name that is made up of link:spark-metrics-properties.adoc#spark.metrics.namespace[spark.metrics.namespace], xref:executor:Executor.adoc#spark.executor.id[spark.executor.id] and the name of the `source`.
+`buildRegistryName` is used when `MetricsSystem` is requested to [register](#registerSource) or [remove](#removeSource) a metrics source.
 
-NOTE: `buildRegistryName` uses Dropwizard Metrics' https://metrics.dropwizard.io/3.1.0/apidocs/com/codahale/metrics/MetricRegistry.html[MetricRegistry] to build metrics source identifiers.
+## <span id="registerSources"> Registering Metrics Sources for Spark Instance
 
-CAUTION: FIXME Finish for the other components.
-
-NOTE: `buildRegistryName` is used when MetricsSystem <<registerSource, registers>> or <<removeSource, removes>> a metrics source.
-
-== [[registerSources]] Registering Metrics Sources for Spark Instance -- `registerSources` Internal Method
-
-[source, scala]
-----
+```scala
 registerSources(): Unit
-----
+```
 
 `registerSources` finds <<metricsConfig, metricsConfig>> configuration for the <<instance, metrics instance>>.
 
 NOTE: `instance` is defined when MetricsSystem <<creating-instance, is created>>.
 
-`registerSources` finds the configuration of all the link:spark-metrics-Source.adoc[metrics sources] for the subsystem (as described with `source.` prefix).
+`registerSources` finds the configuration of all the link:spark-metrics-Source.md[metrics sources] for the subsystem (as described with `source.` prefix).
 
 For every metrics source, `registerSources` finds `class` property, creates an instance, and in the end <<registerSource, registers it>>.
 
 When `registerSources` fails, you should see the following ERROR message in the logs followed by the exception.
 
+```text
+Source class [classPath] cannot be instantiated
 ```
-ERROR Source class [classPath] cannot be instantiated
-```
 
-NOTE: `registerSources` is used exclusively when MetricsSystem is <<start, started>>.
+`registerSources` is used when `MetricsSystem` is requested to [start](#start).
 
-== [[getServletHandlers]] Requesting JSON Servlet Handler -- `getServletHandlers` Method
+## <span id="getServletHandlers"> Requesting JSON Servlet Handler
 
-[source, scala]
-----
+```scala
 getServletHandlers: Array[ServletContextHandler]
-----
+```
 
-If the MetricsSystem is <<running, running>> and the <<metricsServlet, MetricsServlet>> is defined for the metrics system, `getServletHandlers` simply requests the <<metricsServlet, MetricsServlet>> for the link:spark-metrics-MetricsServlet.adoc#getHandlers[JSON servlet handler].
+If the MetricsSystem is <<running, running>> and the <<metricsServlet, MetricsServlet>> is defined for the metrics system, `getServletHandlers` simply requests the <<metricsServlet, MetricsServlet>> for the link:spark-metrics-MetricsServlet.md#getHandlers[JSON servlet handler].
 
 When MetricsSystem is not <<running, running>> `getServletHandlers` throws an `IllegalArgumentException`.
 
-```
+```text
 Can only call getServletHandlers on a running MetricsSystem
 ```
 
-[NOTE]
-====
 `getServletHandlers` is used when:
 
-* `SparkContext` is link:spark-SparkContext-creating-instance-internals.adoc#MetricsSystem-getServletHandlers[created]
+* `SparkContext` is [created](../spark-SparkContext-creating-instance-internals.md#MetricsSystem-getServletHandlers)
+* (Spark Standalone) `Master` and `Worker` are requested to start
 
-* Spark Standalone's `Master` and `Worker` are requested to start (as `onStart`)
-====
+## <span id="registerSinks"> Registering Metrics Sinks
 
-== [[registerSinks]] Registering Metrics Sinks -- `registerSinks` Internal Method
-
-[source, scala]
-----
+```scala
 registerSinks(): Unit
-----
+```
 
-`registerSinks` requests the <<metricsConfig, MetricsConfig>> for the link:spark-metrics-MetricsConfig.adoc#getInstance[configuration] of the <<instance, instance>>.
+`registerSinks` requests the <<metricsConfig, MetricsConfig>> for the link:spark-metrics-MetricsConfig.md#getInstance[configuration] of the <<instance, instance>>.
 
-`registerSinks` requests the <<metricsConfig, MetricsConfig>> for the link:spark-metrics-MetricsConfig.adoc#subProperties[configuration] of all metrics sinks (i.e. configuration entries that match `^sink\\.(.+)\\.(.+)` regular expression).
+`registerSinks` requests the <<metricsConfig, MetricsConfig>> for the link:spark-metrics-MetricsConfig.md#subProperties[configuration] of all metrics sinks (i.e. configuration entries that match `^sink\\.(.+)\\.(.+)` regular expression).
 
 For every metrics sink configuration, `registerSinks` takes `class` property and (if defined) creates an instance of the metric sink using an constructor that takes the configuration, <<registry, MetricRegistry>> and <<securityMgr, SecurityManager>>.
 
-For a single *servlet* metrics sink, `registerSinks` converts the sink to a link:spark-metrics-MetricsServlet.adoc[MetricsServlet] and sets the <<metricsServlet, metricsServlet>> internal registry.
+For a single *servlet* metrics sink, `registerSinks` converts the sink to a link:spark-metrics-MetricsServlet.md[MetricsServlet] and sets the <<metricsServlet, metricsServlet>> internal registry.
 
 For all other metrics sinks, `registerSinks` adds the sink to the <<sinks, sinks>> internal registry.
 
 In case of an `Exception`, `registerSinks` prints out the following ERROR message to the logs:
 
-```
+```text
 Sink class [classPath] cannot be instantiated
 ```
 
-NOTE: `registerSinks` is used exclusively when MetricsSystem is requested to <<start, start>>.
+`registerSinks` is used when `MetricsSystem` is requested to [start](#start).
 
-== [[stop]] `stop` Method
+## <span id="stop"> Stopping
 
-[source, scala]
-----
+```scala
 stop(): Unit
-----
+```
 
 `stop`...FIXME
 
-NOTE: `stop` is used when...FIXME
+## <span id="report"> Reporting Metrics
 
-== [[getSourcesByName]] `getSourcesByName` Method
-
-[source, scala]
-----
-getSourcesByName(sourceName: String): Seq[Source]
-----
-
-`getSourcesByName`...FIXME
-
-NOTE: `getSourcesByName` is used when...FIXME
-
-== [[removeSource]] `removeSource` Method
-
-[source, scala]
-----
-removeSource(source: Source): Unit
-----
-
-`removeSource`...FIXME
-
-NOTE: `removeSource` is used when...FIXME
-
-== [[creating-instance]] Creating MetricsSystem Instance
-
-MetricsSystem takes the following when created:
-
-* [[instance]] Instance name
-* [[conf]] xref:ROOT:SparkConf.adoc[SparkConf]
-* [[securityMgr]] `SecurityManager`
-
-MetricsSystem initializes the <<internal-registries, internal registries and counters>>.
-
-When created, MetricsSystem requests <<metricsConfig, MetricsConfig>> to link:spark-metrics-MetricsConfig.adoc#initialize[initialize].
-
-NOTE: <<createMetricsSystem, createMetricsSystem>> is used to create a new `MetricsSystems` instance instead.
-
-== [[createMetricsSystem]] Creating MetricsSystem Instance For Subsystem -- `createMetricsSystem` Factory Method
-
-[source, scala]
-----
-createMetricsSystem(
-  instance: String
-  conf: SparkConf
-  securityMgr: SecurityManager): MetricsSystem
-----
-
-`createMetricsSystem` returns a new <<creating-instance, MetricsSystem>>.
-
-NOTE: `createMetricsSystem` is used when a <<metrics-instances, metrics instance>> is created.
-
-== [[report]] Requesting Sinks to Report Metrics -- `report` Method
-
-[source, scala]
-----
+```scala
 report(): Unit
-----
+```
 
-`report` simply requests the registered <<sinks, metrics sinks>> to link:spark-metrics-Sink.adoc#report[report metrics].
+`report` simply requests the registered [metrics sinks](#sinks) to [report metrics](Sink.md#report).
 
-NOTE: `report` is used when xref:ROOT:SparkContext.adoc#stop[SparkContext], xref:executor:Executor.adoc#stop[Executor], Spark Standalone's `Master` and `Worker`, Spark on Mesos' `MesosClusterScheduler` are requested to stop
+## <span id="start"> Starting
 
-== [[start]] Starting MetricsSystem -- `start` Method
-
-[source, scala]
-----
+```scala
 start(): Unit
-----
+```
 
 `start` turns <<running, running>> flag on.
 
@@ -328,24 +166,70 @@ NOTE: `start` can only be called once and <<start-IllegalArgumentException, thro
 
 `start` then registers the configured metrics <<registerSources, sources>> and <<registerSinks, sinks>> for the <<instance, Spark instance>>.
 
-In the end, `start` requests the registered <<sinks, metrics sinks>> to link:spark-metrics-Sink.adoc#start[start].
+In the end, `start` requests the registered <<sinks, metrics sinks>> to link:spark-metrics-Sink.md#start[start].
 
 [[start-IllegalArgumentException]]
 `start` throws an `IllegalArgumentException` when <<running, running>> flag is on.
 
-```
+```text
 requirement failed: Attempting to start a MetricsSystem that is already running
 ```
 
-[NOTE]
-====
-`start` is used when:
+## Logging
 
-* `SparkContext` is link:spark-SparkContext-creating-instance-internals.adoc#MetricsSystem-start[created]
+Enable `ALL` logging level for `org.apache.spark.metrics.MetricsSystem` logger to see what happens inside.
 
-* `SparkEnv` is xref:core:SparkEnv.adoc#create[created] (on executors)
+Add the following line to `conf/log4j.properties`:
 
-* `ExternalShuffleService` is requested to xref:deploy:ExternalShuffleService.adoc#start[start]
+```text
+log4j.logger.org.apache.spark.metrics.MetricsSystem=ALL
+```
 
-* Spark Standalone's `Master` and `Worker`, and Spark on Mesos' `MesosClusterScheduler` are requested to start
-====
+Refer to [Logging](../spark-logging.md).
+
+## Internal Registries
+
+### <span id="registry"> MetricRegistry
+
+Integration point to Dropwizard Metrics' [MetricRegistry](https://metrics.dropwizard.io/3.1.0/apidocs/com/codahale/metrics/MetricRegistry.html)
+
+Used when MetricsSystem is requested to:
+
+* [Register](#registerSource) or [remove](#removeSource) a metrics source
+* [Start](#start) (that in turn [registers metrics sinks](#registerSinks))
+
+### <span id="metricsConfig"> MetricsConfig
+
+[MetricsConfig](MetricsConfig.md)
+
+Initialized when MetricsSystem is <<creating-instance, created>>.
+
+Used when MetricsSystem registers <<registerSinks, sinks>> and <<registerSources, sources>>.
+
+### <span id="metricsServlet"> MetricsServlet
+
+[MetricsServlet JSON metrics sink](MetricsServlet.md) that is only available for the <<metrics-instances, metrics instances>> with a web UI (i.e. the driver of a Spark application and Spark Standalone's `Master`).
+
+`MetricsSystem` may have at most one `MetricsServlet` JSON metrics sink (which is [registered by default](MetricsConfig.md#setDefaultProperties)).
+
+Initialized when MetricsSystem registers <<registerSinks, sinks>> (and finds a configuration entry with `servlet` sink name).
+
+Used when MetricsSystem is requested for a <<getServletHandlers, JSON servlet handler>>.
+
+### <span id="running"> running Flag
+
+Indicates whether `MetricsSystem` has been [started](#start) (`true`) or not (`false`)
+
+Default: `false`
+
+### <span id="sinks"> sinks
+
+[Metrics sinks](Sink.md)
+
+Used when MetricsSystem <<registerSinks, registers a new metrics sink>> and <<start, starts them eventually>>.
+
+### <span id="sources"> sources
+
+[Metrics sources](Source.md)
+
+Used when MetricsSystem <<registerSource, registers a new metrics source>>.

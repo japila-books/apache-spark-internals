@@ -1,6 +1,6 @@
 # Spark Metrics
 
-**Spark Metrics** gives you execution metrics of [Spark subsystems](MetricsSystem.md#subsystems) (_metrics instances_), e.g. the driver of a Spark application or the master of a Spark Standalone cluster.
+**Spark Metrics** gives you execution metrics of [Spark subsystems](MetricsSystem.md#subsystems) (_metrics instances_, e.g. the driver of a Spark application or the master of a Spark Standalone cluster).
 
 Spark Metrics uses [Dropwizard Metrics 3.1.0](http://metrics.dropwizard.io/3.1.0/) Java library for the metrics infrastructure.
 
@@ -8,13 +8,49 @@ Spark Metrics uses [Dropwizard Metrics 3.1.0](http://metrics.dropwizard.io/3.1.0
 >
 > **Metrics** provides a powerful toolkit of ways to measure the behavior of critical components *in your production environment*.
 
+## Metrics Systems
+
+### applicationMaster
+
+Registered when `ApplicationMaster` (Hadoop YARN) is requested to `createAllocator`
+
+### applications
+
+Registered when `Master` (Spark Standalone) is created
+
+### driver
+
+Registered when `SparkEnv` is created for the driver
+
+![Creating MetricsSystem for Driver](../images/spark-metrics-MetricsSystem-driver.png)
+
+### executor
+
+Registered when `SparkEnv` is created for an executor
+
+### master
+
+Registered when `Master` (Spark Standalone) is created
+
+### mesos_cluster
+
+Registered when `MesosClusterScheduler` (Apache Mesos) is created
+
+### shuffleService
+
+Registered when `ExternalShuffleService` is created
+
+### worker
+
+Registered when `Worker` (Spark Standalone) is created
+
 ## <span id="MetricsSystem"> MetricsSystem
 
 Spark Metrics uses [MetricsSystem](MetricsSystem.md).
 
-`MetricsSystem` uses Dropwizard Metrics' link:spark-metrics-MetricsSystem.adoc#registry[MetricRegistry] that acts as the integration point between Spark and the metrics library.
+`MetricsSystem` uses Dropwizard Metrics' link:spark-metrics-MetricsSystem.md#registry[MetricRegistry] that acts as the integration point between Spark and the metrics library.
 
-A Spark subsystem can access the `MetricsSystem` through the [SparkEnv.metricsSystem](../SparkEnv.adoc#metricsSystem) property.
+A Spark subsystem can access the `MetricsSystem` through the [SparkEnv.metricsSystem](../SparkEnv.md#metricsSystem) property.
 
 ```text
 val metricsSystem = SparkEnv.get.metricsSystem
@@ -22,9 +58,9 @@ val metricsSystem = SparkEnv.get.metricsSystem
 
 ## <span id="MetricsConfig"> MetricsConfig
 
-`MetricsConfig` is the configuration of the link:spark-metrics-MetricsSystem.adoc[MetricsSystem] (i.e. metrics link:spark-metrics-Source.adoc[sources] and link:spark-metrics-Sink.adoc[sinks]).
+`MetricsConfig` is the configuration of the link:spark-metrics-MetricsSystem.md[MetricsSystem] (i.e. metrics link:spark-metrics-Source.md[sources] and link:spark-metrics-Sink.md[sinks]).
 
-*metrics.properties* is the default metrics configuration file. It is configured using link:spark-metrics-properties.adoc#spark.metrics.conf[spark.metrics.conf] configuration property. The file is first loaded from the path directly before using Spark's CLASSPATH.
+*metrics.properties* is the default metrics configuration file. It is configured using link:spark-metrics-properties.md#spark.metrics.conf[spark.metrics.conf] configuration property. The file is first loaded from the path directly before using Spark's CLASSPATH.
 
 `MetricsConfig` also accepts a metrics configuration using ``spark.metrics.conf.``-prefixed configuration properties.
 
@@ -32,13 +68,13 @@ Spark comes with `conf/metrics.properties.template` file that is a template of m
 
 ## <span id="MetricsServlet"> MetricsServlet Metrics Sink
 
-Among the metrics sinks is link:spark-metrics-MetricsServlet.adoc[MetricsServlet] that is used when *sink.servlet* metrics sink is configured in link:spark-metrics-MetricsConfig.adoc[metrics configuration].
+Among the metrics sinks is link:spark-metrics-MetricsServlet.md[MetricsServlet] that is used when *sink.servlet* metrics sink is configured in link:spark-metrics-MetricsConfig.md[metrics configuration].
 
 CAUTION: FIXME Describe configuration files and properties
 
 ## <span id="JmxSink"> JmxSink Metrics Sink
 
-Enable `org.apache.spark.metrics.sink.JmxSink` in link:spark-metrics-MetricsConfig.adoc[metrics configuration].
+Enable `org.apache.spark.metrics.sink.JmxSink` in link:spark-metrics-MetricsConfig.md[metrics configuration].
 
 You can then use `jconsole` to access Spark metrics through JMX.
 

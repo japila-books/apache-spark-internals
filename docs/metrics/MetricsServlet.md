@@ -2,7 +2,7 @@
 
 `MetricsServlet` is a [metrics sink](Sink.md) that gives [metrics snapshots](#getMetricsSnapshot) in [JSON](#mapper) format.
 
-`MetricsServlet` is a ["special" sink](spark-metrics-MetricsSystem.adoc#metricsServlet) as it is only available to the metrics instances with a web UI:
+`MetricsServlet` is a ["special" sink](MetricsSystem.md#metricsServlet) as it is only available to the metrics instances with a web UI:
 
 * Driver of a Spark application
 * Spark Standalone's `Master` and `Worker`
@@ -51,7 +51,7 @@ X-XSS-Protection: 1; mode=block
     ...
 ```
 
-`MetricsServlet` is <<creating-instance, created>> exclusively when `MetricsSystem` is link:spark-metrics-MetricsSystem.adoc#start[started] (and requested to link:spark-metrics-MetricsSystem.adoc#registerSinks[register metrics sinks]).
+`MetricsServlet` is <<creating-instance, created>> exclusively when `MetricsSystem` is [started](MetricsSystem.md#start) (and requested to [register metrics sinks](MetricsSystem.md#registerSinks)).
 
 `MetricsServlet` can be configured using configuration properties with *sink.servlet* prefix (in link:spark-metrics-MetricsConfig.adoc[metrics configuration]). That is not required since `MetricsConfig` link:spark-metrics-MetricsConfig.adoc#setDefaultProperties[makes sure] that `MetricsServlet` is always configured.
 
@@ -129,4 +129,4 @@ getHandlers(conf: SparkConf): Array[ServletContextHandler]
 
 `getHandlers` returns just a single `ServletContextHandler` (in a collection) that gives <<getMetricsSnapshot, metrics snapshot>> in JSON format at every request at <<servletPath, servletPath>> URI path.
 
-NOTE: `getHandlers` is used exclusively when `MetricsSystem` is requested for link:spark-metrics-MetricsSystem.adoc#getServletHandlers[metrics ServletContextHandlers].
+NOTE: `getHandlers` is used exclusively when `MetricsSystem` is requested for link:MetricsSystem.md#getServletHandlers[metrics ServletContextHandlers].

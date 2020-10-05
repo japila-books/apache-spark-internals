@@ -16,8 +16,6 @@ Using Spark Application Frameworks, Spark simplifies access to machine learning 
 
 Spark is mainly written in http://scala-lang.org/[Scala], but provides developer API for languages like Java, Python, and R.
 
-NOTE: Microsoft's https://github.com/Microsoft/Mobius[Mobius project] provides C# API for Spark _"enabling the implementation of Spark driver program and data processing operations in the languages supported in the .NET framework like C# or F#."_
-
 If you have large amounts of data that requires low latency processing that a typical MapReduce program cannot provide, Spark is a viable alternative.
 
 * Access any data type across any data source.

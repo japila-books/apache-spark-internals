@@ -1,10 +1,10 @@
-== Logging
+# Logging
 
-Spark uses http://logging.apache.org/log4j[log4j] for logging.
+Spark uses [log4j](http://logging.apache.org/log4j) for logging.
 
-=== [[levels]] Logging Levels
+## <span id="levels"> Logging Levels
 
-The valid logging levels are http://logging.apache.org/log4j/2.x/log4j-api/apidocs/index.html[log4j's Levels] (from most specific to least):
+The valid logging levels are [log4j's Levels](http://logging.apache.org/log4j/2.x/log4j-api/apidocs/index.html) (from most specific to least):
 
 * `OFF` (most specific, no logging)
 * `FATAL` (most specific, little data)
@@ -15,45 +15,43 @@ The valid logging levels are http://logging.apache.org/log4j/2.x/log4j-api/apido
 * `TRACE` (least specific, a lot of data)
 * `ALL` (least specific, all data)
 
-=== conf/log4j.properties
+## conf/log4j.properties
 
 You can set up the default logging for Spark shell in `conf/log4j.properties`. Use `conf/log4j.properties.template` as a starting point.
 
-=== [[setting-default-log-level]] Setting Default Log Level Programatically
+## <span id="setting-default-log-level"> Setting Default Log Level Programatically
 
-Refer to xref:ROOT:SparkContext.adoc#setting-default-log-level[Setting Default Log Level Programatically] in xref:ROOT:SparkContext.adoc[SparkContext -- Entry Point to Spark Core].
+Refer to [Setting Default Log Level Programatically](SparkContext.md#setting-default-log-level) in [SparkContext -- Entry Point to Spark Core](SparkContext.md).
 
-=== [[setting-log-levels-applications]] Setting Log Levels in Spark Applications
+## <span id="setting-log-levels-applications"> Setting Log Levels in Spark Applications
 
-In standalone Spark applications or while in link:spark-shell.adoc[Spark Shell] session, use the following:
+In standalone Spark applications or while in [Spark Shell](tools/spark-shell.md) session, use the following:
 
-[source, scala]
-----
+```text
 import org.apache.log4j.{Level, Logger}
 
 Logger.getLogger(classOf[RackResolver]).getLevel
 Logger.getLogger("org").setLevel(Level.OFF)
 Logger.getLogger("akka").setLevel(Level.OFF)
-----
+```
 
-=== [[sbt]] sbt
+## sbt
 
 When running a Spark application from within sbt using `run` task, you can use the following `build.sbt` to configure logging levels:
 
-[source, scala]
-----
+```text
 fork in run := true
 javaOptions in run ++= Seq(
   "-Dlog4j.debug=true",
   "-Dlog4j.configuration=log4j.properties")
 outputStrategy := Some(StdoutOutput)
-----
+```
 
 With the above configuration `log4j.properties` file should be on CLASSPATH which can be in `src/main/resources` directory (that is included in CLASSPATH by default).
 
 When `run` starts, you should see the following output in sbt:
 
-```
+```text
 [spark-activator]> run
 [info] Running StreamingApp
 log4j: Trying to find [log4j.properties] using context classloader sun.misc.Launcher$AppClassLoader@1b6d3586.
@@ -61,10 +59,10 @@ log4j: Using URL [file:/Users/jacek/dev/oss/spark-activator/target/scala-2.11/cl
 log4j: Reading configuration from URL file:/Users/jacek/dev/oss/spark-activator/target/scala-2.11/classes/log4j.properties
 ```
 
-=== [[disable]] Disabling Logging
+## Disabling Logging
 
 Use the following `conf/log4j.properties` to disable logging completely:
 
-```
+```text
 log4j.logger.org=OFF
 ```
