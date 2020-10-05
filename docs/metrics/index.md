@@ -1,27 +1,26 @@
-= Spark Metrics
+# Spark Metrics
 
-*Spark Metrics* gives you execution metrics of link:spark-metrics-MetricsSystem.adoc#subsystems[Spark subsystems] (aka _metrics instances_), e.g. the driver of a Spark application or the master of a Spark Standalone cluster.
+**Spark Metrics** gives you execution metrics of [Spark subsystems](MetricsSystem.md#subsystems) (_metrics instances_), e.g. the driver of a Spark application or the master of a Spark Standalone cluster.
 
-Spark Metrics uses http://metrics.dropwizard.io/3.1.0/[Dropwizard Metrics 3.1.0] Java library for the metrics infrastructure.
+Spark Metrics uses [Dropwizard Metrics 3.1.0](http://metrics.dropwizard.io/3.1.0/) Java library for the metrics infrastructure.
 
-> *Metrics* is a Java library which gives you unparalleled insight into what your code does in production.
+> **Metrics** is a Java library which gives you unparalleled insight into what your code does in production.
+>
+> **Metrics** provides a powerful toolkit of ways to measure the behavior of critical components *in your production environment*.
 
-> *Metrics* provides a powerful toolkit of ways to measure the behavior of critical components *in your production environment*.
+## <span id="MetricsSystem"> MetricsSystem
 
-== [[MetricsSystem]] MetricsSystem -- Registry of Metrics Sources and Sinks of Spark Subsystem
-
-The main part of Spark Metrics is link:spark-metrics-MetricsSystem.adoc[MetricsSystem] which is a registry of metrics link:spark-metrics-Source.adoc[sources] and link:spark-metrics-Sink.adoc[sinks] of a Spark subsystem.
+The main part of Spark Metrics is [MetricsSystem](MetricsSystem.md) which is a registry of metrics link:spark-metrics-Source.adoc[sources] and link:spark-metrics-Sink.adoc[sinks] of a Spark subsystem.
 
 `MetricsSystem` uses Dropwizard Metrics' link:spark-metrics-MetricsSystem.adoc#registry[MetricRegistry] that acts as the integration point between Spark and the metrics library.
 
 A Spark subsystem can access the `MetricsSystem` through the xref:core:SparkEnv.adoc#metricsSystem[SparkEnv.metricsSystem] property.
 
-[source, scala]
-----
+```text
 val metricsSystem = SparkEnv.get.metricsSystem
-----
+```
 
-== [[MetricsConfig]] MetricsConfig -- Metrics System Configuration
+## <span id="MetricsConfig"> MetricsConfig
 
 `MetricsConfig` is the configuration of the link:spark-metrics-MetricsSystem.adoc[MetricsSystem] (i.e. metrics link:spark-metrics-Source.adoc[sources] and link:spark-metrics-Sink.adoc[sinks]).
 
@@ -31,30 +30,29 @@ val metricsSystem = SparkEnv.get.metricsSystem
 
 Spark comes with `conf/metrics.properties.template` file that is a template of metrics configuration.
 
-== [[MetricsServlet]] MetricsServlet Metrics Sink
+## <span id="MetricsServlet"> MetricsServlet Metrics Sink
 
 Among the metrics sinks is link:spark-metrics-MetricsServlet.adoc[MetricsServlet] that is used when *sink.servlet* metrics sink is configured in link:spark-metrics-MetricsConfig.adoc[metrics configuration].
 
 CAUTION: FIXME Describe configuration files and properties
 
-== [[JmxSink]] JmxSink Metrics Sink
+## <span id="JmxSink"> JmxSink Metrics Sink
 
 Enable `org.apache.spark.metrics.sink.JmxSink` in link:spark-metrics-MetricsConfig.adoc[metrics configuration].
 
 You can then use `jconsole` to access Spark metrics through JMX.
 
-```
+```text
 *.sink.jmx.class=org.apache.spark.metrics.sink.JmxSink
 ```
 
-.jconsole and JmxSink in spark-shell
-image::spark-metrics-jconsole.png[align="center"]
+![jconsole and JmxSink in spark-shell](../images/spark-metrics-jconsole.png)
 
-== JSON URI Path
+## JSON URI Path
 
 Metrics System is available at http://localhost:4040/metrics/json (for the default setup of a Spark application).
 
-```
+```text
 $ http --follow http://localhost:4040/metrics/json
 HTTP/1.1 200 OK
 Cache-Control: no-cache, no-store, must-revalidate
@@ -113,9 +111,9 @@ NOTE: You can access a Spark subsystem's `MetricsSystem` using its corresponding
 
 NOTE: You have to use the trailing slash (`/`) to have the output.
 
-== Spark Standalone Master
+## Spark Standalone Master
 
-```
+```text
 $ http http://192.168.1.4:8080/metrics/master/json/path
 HTTP/1.1 200 OK
 Cache-Control: no-cache, no-store, must-revalidate

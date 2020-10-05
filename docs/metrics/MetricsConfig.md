@@ -1,6 +1,6 @@
-== [[MetricsConfig]] MetricsConfig -- Metrics System Configuration
+# MetricsConfig
 
-`MetricsConfig` is the configuration of the link:spark-metrics-MetricsSystem.adoc[MetricsSystem] (i.e. metrics link:spark-metrics-Source.adoc[sources] and link:spark-metrics-Sink.adoc[sinks]).
+`MetricsConfig` is the configuration of the [MetricsSystem](MetricsSystem.md) (i.e. metrics [sources](Source.md) and [sinks](Sink.md)).
 
 `MetricsConfig` is <<creating-instance, created>> when link:spark-metrics-MetricsSystem.adoc#creating-instance[MetricsSystem] is.
 

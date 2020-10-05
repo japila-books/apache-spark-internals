@@ -1,4 +1,4 @@
-== [[Sink]] Sink -- Contract of Metrics Sinks
+# Sink
 
 `Sink` is a <<contract, contract>> of *metrics sinks*.
 

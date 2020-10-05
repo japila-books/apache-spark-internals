@@ -64,7 +64,7 @@ Used when...FIXME
 | `HiveCatalogMetrics`
 | [[HiveCatalogMetrics]]
 
-| `JvmSource`
+| xref:metrics:JvmSource.adoc[JvmSource]
 | [[JvmSource]]
 
 | `LiveListenerBusMetrics`

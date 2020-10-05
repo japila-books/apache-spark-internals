@@ -1,15 +1,15 @@
-== [[MetricsServlet]] MetricsServlet JSON Metrics Sink
+# MetricsServlet JSON Metrics Sink
 
-`MetricsServlet` is a link:spark-metrics-Sink.adoc[metrics sink] that gives <<getMetricsSnapshot, metrics snapshots>> in <<mapper, JSON>> format.
+`MetricsServlet` is a [metrics sink](Sink.md) that gives [metrics snapshots](#getMetricsSnapshot) in [JSON](#mapper) format.
 
-`MetricsServlet` is a link:spark-metrics-MetricsSystem.adoc#metricsServlet["special" sink] as it is only available to the metrics instances with a web UI:
+`MetricsServlet` is a ["special" sink](spark-metrics-MetricsSystem.adoc#metricsServlet) as it is only available to the metrics instances with a web UI:
 
 * Driver of a Spark application
 * Spark Standalone's `Master` and `Worker`
 
-You can access the metrics from `MetricsServlet` at <<path, /metrics/json>> URI by default. The entire URL depends on a metrics instance, e.g. http://localhost:4040/metrics/json/ for a running Spark application.
+You can access the metrics from `MetricsServlet` at [/metrics/json](#path) URI by default. The entire URL depends on a metrics instance, e.g. http://localhost:4040/metrics/json/ for a running Spark application.
 
-```
+```text
 $ http http://localhost:4040/metrics/json/
 HTTP/1.1 200 OK
 Cache-Control: no-cache, no-store, must-revalidate

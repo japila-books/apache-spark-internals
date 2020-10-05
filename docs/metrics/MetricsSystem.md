@@ -1,4 +1,4 @@
-= MetricsSystem
+# MetricsSystem
 
 MetricsSystem is a <<registry, registry>> of metrics <<sources, sources>> and <<sinks, sinks>> of a <<subsystems, Spark subsystem>>, e.g. the driver of a Spark application.
 
