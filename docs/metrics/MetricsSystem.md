@@ -1,9 +1,8 @@
 # MetricsSystem
 
-MetricsSystem is a <<registry, registry>> of metrics <<sources, sources>> and <<sinks, sinks>> of a <<subsystems, Spark subsystem>>, e.g. the driver of a Spark application.
+`MetricsSystem` is a [registry](#registry) of metrics [sources](#sources) and [sinks](#sinks) of a [Spark subsystem](#subsystems) (e.g. the driver of a Spark application).
 
-.Creating MetricsSystem for Driver
-image::spark-metrics-MetricsSystem-driver.png[align="center"]
+![Creating MetricsSystem for Driver](../images/spark-metrics-MetricsSystem-driver.png)
 
 MetricsSystem may have at most one <<metricsServlet, MetricsServlet JSON metrics sink>> (which is link:spark-metrics-MetricsConfig.adoc#setDefaultProperties[registered by default]).
 

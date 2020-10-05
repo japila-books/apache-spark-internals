@@ -1,7 +1,6 @@
-= Resilient Distributed Dataset (RDD)
-:navtitle: Resilient Distributed Dataset
+# Resilient Distributed Dataset (RDD)
 
-*Resilient Distributed Dataset* (aka *RDD*) is the primary data abstraction in Apache Spark and the core of Spark (that I often refer to as "Spark Core").
+**Resilient Distributed Dataset** (aka *RDD*) is the primary data abstraction in Apache Spark and the core of Spark (that I often refer to as "Spark Core").
 
 .The origins of RDD
 ****

@@ -10,11 +10,11 @@ Spark Metrics uses [Dropwizard Metrics 3.1.0](http://metrics.dropwizard.io/3.1.0
 
 ## <span id="MetricsSystem"> MetricsSystem
 
-The main part of Spark Metrics is [MetricsSystem](MetricsSystem.md) which is a registry of metrics link:spark-metrics-Source.adoc[sources] and link:spark-metrics-Sink.adoc[sinks] of a Spark subsystem.
+Spark Metrics uses [MetricsSystem](MetricsSystem.md).
 
 `MetricsSystem` uses Dropwizard Metrics' link:spark-metrics-MetricsSystem.adoc#registry[MetricRegistry] that acts as the integration point between Spark and the metrics library.
 
-A Spark subsystem can access the `MetricsSystem` through the xref:core:SparkEnv.adoc#metricsSystem[SparkEnv.metricsSystem] property.
+A Spark subsystem can access the `MetricsSystem` through the [SparkEnv.metricsSystem](../SparkEnv.adoc#metricsSystem) property.
 
 ```text
 val metricsSystem = SparkEnv.get.metricsSystem

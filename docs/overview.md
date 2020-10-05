@@ -1,19 +1,16 @@
-= Apache Spark
+# Apache Spark
 
-http://spark.apache.org/[Apache Spark] is an *open-source distributed general-purpose cluster computing framework* with (mostly) *in-memory data processing engine* that can do ETL, analytics, machine learning and graph processing on large volumes of data at rest (batch processing) or in motion (streaming processing) with <<unified-api, rich concise high-level APIs>> for the programming languages: Scala, Python, Java, R, and SQL.
+[Apache Spark](http://spark.apache.org/) is an **open-source distributed general-purpose cluster computing framework** with (mostly) **in-memory data processing engine** that can do ETL, analytics, machine learning and graph processing on large volumes of data at rest (batch processing) or in motion (streaming processing) with [rich concise high-level APIs](#unified-api) for the programming languages: Scala, Python, Java, R, and SQL.
 
-.The Spark Platform
-image::diagrams/spark-platform.png[align="center"]
+![The Spark Platform](images/spark-platform.png)
 
 You could also describe Spark as a distributed, data processing engine for *batch and streaming modes* featuring SQL queries, graph processing, and machine learning.
 
-In contrast to Hadoop’s two-stage disk-based MapReduce computation engine, Spark's multi-stage (mostly) in-memory computing engine allows for running most computations in memory, and hence most of the time provides better performance for certain applications, e.g. iterative algorithms or interactive data mining (read https://databricks.com/blog/2014/11/05/spark-officially-sets-a-new-record-in-large-scale-sorting.html[Spark officially sets a new record in large-scale sorting]).
+In contrast to Hadoop’s two-stage disk-based MapReduce computation engine, Spark's multi-stage (mostly) in-memory computing engine allows for running most computations in memory, and hence most of the time provides better performance for certain applications, e.g. iterative algorithms or interactive data mining (read [Spark officially sets a new record in large-scale sorting](https://databricks.com/blog/2014/11/05/spark-officially-sets-a-new-record-in-large-scale-sorting.html)).
 
 Spark aims at speed, ease of use, extensibility and interactive analytics.
 
-Spark is often called *cluster computing engine* or simply *execution engine*.
-
-Spark is a *distributed platform for executing complex multi-stage applications*, like *machine learning algorithms*, and *interactive ad hoc queries*. Spark provides an efficient abstraction for in-memory cluster computing called xref:rdd:index.adoc[Resilient Distributed Dataset].
+Spark is a **distributed platform for executing complex multi-stage applications**, like **machine learning algorithms**, and **interactive ad hoc queries**. Spark provides an efficient abstraction for in-memory cluster computing called [Resilient Distributed Dataset](rdd/index.md).
 
 Using Spark Application Frameworks, Spark simplifies access to machine learning and predictive analytics at scale.
 
