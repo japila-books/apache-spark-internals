@@ -1,4 +1,4 @@
-= MemoryManager
+# MemoryManager
 
 *MemoryManager* is an <<contract, abstraction>> of <<implementations, memory managers>> that manage shared memory for task execution (xref:memory:TaskMemoryManager.adoc#memoryManager[TaskMemoryManager]) and block storage (xref:storage:BlockManager.adoc#memoryManager[BlockManager]).
 

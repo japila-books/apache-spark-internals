@@ -1,11 +1,9 @@
-= Spark Scheduler
-:page-toclevels: -1
-:navtitle: Scheduler
+# Spark Scheduler
 
-*Spark Scheduler* is a core component of Apache Spark that is responsible for scheduling tasks for execution.
+**Spark Scheduler** is a core component of Apache Spark that is responsible for scheduling tasks for execution.
 
-Spark Scheduler uses the high-level stage-oriented xref:DAGScheduler.adoc[DAGScheduler] and the low-level task-oriented xref:TaskScheduler.adoc[TaskScheduler].
+Spark Scheduler uses the high-level stage-oriented [DAGScheduler](DAGScheduler.md) and the low-level task-oriented [TaskScheduler](TaskScheduler.md).
 
-== [[i-want-more]] Further reading or watching
+## Resources
 
-* (video) https://databricks.com/session/apache-spark-scheduler[Deep Dive into the Apache Spark Scheduler] by Xingbo Jiang (Databricks)
+* [Deep Dive into the Apache Spark Scheduler](https://databricks.com/session/apache-spark-scheduler) by Xingbo Jiang (Databricks)
