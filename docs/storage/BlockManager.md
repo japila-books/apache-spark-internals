@@ -1,4 +1,4 @@
-= BlockManager
+# BlockManager
 
 *BlockManager* manages the storage for blocks (_chunks of data_) that can be stored in <<memoryStore, memory>> and on <<diskStore, disk>>.
 
