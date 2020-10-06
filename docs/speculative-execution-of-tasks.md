@@ -1,4 +1,4 @@
-= Speculative Execution of Tasks
+# Speculative Execution of Tasks
 
 *Speculative tasks* (also *speculatable tasks* or *task strugglers*) are tasks that run slower than most (FIXME the setting) of the all tasks in a job.
 

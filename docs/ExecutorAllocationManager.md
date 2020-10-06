@@ -1,4 +1,4 @@
-== [[ExecutorAllocationManager]] ExecutorAllocationManager -- Allocation Manager for Spark Core
+# ExecutorAllocationManager -- Allocation Manager for Spark Core
 
 `ExecutorAllocationManager` is responsible for dynamically allocating and removing xref:executor:Executor.adoc[executors] based on the workload.
 

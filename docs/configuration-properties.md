@@ -1,4 +1,4 @@
-= Spark Configuration Properties
+# Spark Configuration Properties
 
 == [[properties]] Properties
 

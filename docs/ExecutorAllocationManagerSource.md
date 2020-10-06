@@ -1,4 +1,4 @@
-== [[ExecutorAllocationManagerSource]] ExecutorAllocationManagerSource -- Metric Source for Dynamic Allocation
+# ExecutorAllocationManagerSource -- Metric Source for Dynamic Allocation
 
 `ExecutorAllocationManagerSource` is a link:spark-metrics-MetricsSystem.adoc[metric source] for xref:ROOT:spark-dynamic-allocation.adoc[] with name `ExecutorAllocationManager` and the following gauges:
 

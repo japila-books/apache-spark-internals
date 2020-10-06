@@ -1,4 +1,4 @@
-= RpcEnv
+# RpcEnv
 
 RpcEnv is an <<contract, abstraction>> of <<implementations, RPC systems>>.
 

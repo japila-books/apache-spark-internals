@@ -1,6 +1,6 @@
-= SerializerManager
+# SerializerManager
 
-*SerializerManager* is used to <<getSerializer, select a serializer>> for shuffle blocks (either the default <<defaultSerializer, JavaSerializer>> or <<kryoSerializer, KryoSerializer>> based on the key and value of a record).
+`SerializerManager` is used to <<getSerializer, select a serializer>> for shuffle blocks (either the default <<defaultSerializer, JavaSerializer>> or <<kryoSerializer, KryoSerializer>> based on the key and value of a record).
 
 == [[creating-instance]] Creating Instance
 

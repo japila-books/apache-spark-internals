@@ -1,4 +1,4 @@
-= Dynamic Allocation of Executors
+# Dynamic Allocation of Executors
 
 *Dynamic Allocation (of Executors)* (aka _Elastic Scaling_) is a Spark feature that allows for adding or removing xref:executor:Executor.adoc[Spark executors] dynamically to match the workload.
 

@@ -1,6 +1,6 @@
 # OutputCommitCoordinator
 
-*OutputCommitCoordinator* is used to coordinate <<result-commits, result commits>> by means of *commit locks* (using the internal <<authorizedCommittersByStage, authorizedCommittersByStage>> registry).
+`OutputCommitCoordinator` is used to coordinate <<result-commits, result commits>> by means of *commit locks* (using the internal <<authorizedCommittersByStage, authorizedCommittersByStage>> registry).
 
 [[result-commits]]
 *Result commits* are the outputs of running tasks (and a running task is described by a task attempt for a partition in a stage).

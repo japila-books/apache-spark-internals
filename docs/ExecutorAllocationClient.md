@@ -1,4 +1,4 @@
-== [[ExecutorAllocationClient]] ExecutorAllocationClient
+# ExecutorAllocationClient
 
 `ExecutorAllocationClient` is a <<contract, contract>> for clients to communicate with a cluster manager to request or kill executors.
 

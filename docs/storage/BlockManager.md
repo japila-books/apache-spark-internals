@@ -1,13 +1,12 @@
 # BlockManager
 
-*BlockManager* manages the storage for blocks (_chunks of data_) that can be stored in <<memoryStore, memory>> and on <<diskStore, disk>>.
+`BlockManager` manages the storage for blocks (_chunks of data_) that can be stored in <<memoryStore, memory>> and on <<diskStore, disk>>.
 
-.BlockManager and Stores
-image::BlockManager.png[align="center"]
+![BlockManager and Stores](../images/storage/BlockManager.png)
 
-BlockManager runs on the xref:ROOT:spark-driver.adoc[driver] and xref:executor:Executor.adoc[executors].
+`BlockManager` runs on the [driver](spark-driver.md) and xref:executor:Executor.adoc[executors].
 
-BlockManager provides interface for uploading and fetching blocks both locally and remotely using various stores, i.e. <<stores, memory, disk, and off-heap>>.
+`BlockManager` provides interface for uploading and fetching blocks both locally and remotely using various stores, i.e. <<stores, memory, disk, and off-heap>>.
 
 [[futureExecutionContext]]
 BlockManager uses a Scala https://www.scala-lang.org/api/current/scala/concurrent/ExecutionContextExecutorService.html[ExecutionContextExecutorService] to execute *FIXME* asynchronously (on a thread pool with *block-manager-future* prefix and maximum of 128 threads).

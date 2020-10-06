@@ -1,17 +1,16 @@
 # MemoryManager
 
-*MemoryManager* is an <<contract, abstraction>> of <<implementations, memory managers>> that manage shared memory for task execution (xref:memory:TaskMemoryManager.adoc#memoryManager[TaskMemoryManager]) and block storage (xref:storage:BlockManager.adoc#memoryManager[BlockManager]).
+`MemoryManager` is an <<contract, abstraction>> of <<implementations, memory managers>> that manage shared memory for task execution (xref:memory:TaskMemoryManager.adoc#memoryManager[TaskMemoryManager]) and block storage (xref:storage:BlockManager.adoc#memoryManager[BlockManager]).
 
-MemoryManager splits available memory into two regions:
+`MemoryManager` splits available memory into two regions:
 
 * *Execution memory* for computations in shuffles, joins, sorts and aggregations
 
 * *Storage memory* for caching and propagating internal data across Spark nodes (in <<onHeapStorageMemoryPool, on->> and <<offHeapStorageMemoryPool, off-heap>> mode)
 
-MemoryManager is used to create xref:storage:BlockManager.adoc#memoryManager[BlockManager] (and xref:storage:MemoryStore.adoc#memoryManager[MemoryStore]) and xref:memory:TaskMemoryManager.adoc#memoryManager[TaskMemoryManager].
+`MemoryManager` is used to create xref:storage:BlockManager.adoc#memoryManager[BlockManager] (and xref:storage:MemoryStore.adoc#memoryManager[MemoryStore]) and xref:memory:TaskMemoryManager.adoc#memoryManager[TaskMemoryManager].
 
-.MemoryManager and Core Services
-image::MemoryManager.png[align="center"]
+![MemoryManager and Core Services](../images/memory/MemoryManager.png)
 
 == [[contract]] Contract
 

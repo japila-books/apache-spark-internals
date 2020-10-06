@@ -1,13 +1,12 @@
 # MapOutputTracker
 
-*MapOutputTracker* is a base abstraction of <<extensions, shuffle map output location registries>> that can <<getMapSizesByExecutorId, find shuffle blocks by executor>> and <<unregisterShuffle, deregister map output status information of a shuffle stage>>.
+`MapOutputTracker` is a base abstraction of <<extensions, shuffle map output location registries>> that can <<getMapSizesByExecutorId, find shuffle blocks by executor>> and <<unregisterShuffle, deregister map output status information of a shuffle stage>>.
 
-MapOutputTracker is available using xref:core:SparkEnv.adoc#get[SparkEnv] (on the driver and executors).
+`MapOutputTracker` is available using [SparkEnv](../SparkEnv.md#mapOutputTracker) (on the driver and executors).
 
-[source, scala]
-----
+```scala
 SparkEnv.get.mapOutputTracker
-----
+```
 
 == [[extensions]] MapOutputTrackers
 

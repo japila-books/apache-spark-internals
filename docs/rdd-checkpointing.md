@@ -1,4 +1,4 @@
-= RDD Checkpointing
+# RDD Checkpointing
 
 *RDD Checkpointing* is a process of truncating xref:rdd:spark-rdd-lineage.adoc[RDD lineage graph] and saving it to a reliable distributed (HDFS) or local file system.
 

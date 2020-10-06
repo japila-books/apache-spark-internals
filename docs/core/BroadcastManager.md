@@ -1,9 +1,8 @@
 # BroadcastManager
 
-*BroadcastManager* is a Spark service to manage xref:ROOT:Broadcast.adoc[]s in a Spark application.
+`BroadcastManager` is a Spark service to manage xref:ROOT:Broadcast.adoc[]s in a Spark application.
 
-.BroadcastManager, SparkEnv and BroadcastFactory
-image::BroadcastManager.png[]
+[BroadcastManager, SparkEnv and BroadcastFactory](../images/core/BroadcastManager.png)
 
 BroadcastManager assigns <<nextBroadcastId, unique identifiers>> to broadcast variables.
 

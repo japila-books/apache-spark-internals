@@ -1,10 +1,10 @@
-= ShuffleManager
+# ShuffleManager
 
-*ShuffleManager* is an abstraction of <<implementations, shuffle systems>> that manage shuffle data.
+`ShuffleManager` is an abstraction of <<implementations, shuffle systems>> that manage shuffle data.
 
-ShuffleManager is selected using xref:ROOT:configuration-properties.adoc#spark.shuffle.manager[spark.shuffle.manager] configuration property.
+`ShuffleManager` is selected using [spark.shuffle.manager](configuration-properties.md#spark.shuffle.manager) configuration property.
 
-ShuffleManager is used to create a xref:storage:BlockManager.adoc#shuffleManager[BlockManager].
+`ShuffleManager` is used to create a [BlockManager](../storage/BlockManager.md#shuffleManager).
 
 == [[implementations]] Available ShuffleManagers
 
