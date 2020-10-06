@@ -4,7 +4,7 @@ ShuffleClient is the <<contract, contract>> of <<implementations, clients>> that
 
 ShuffleClient can optionally be <<init, initialized>> with an `appId` (that actually does nothing by default)
 
-ShuffleClient has <<shuffleMetrics, shuffle-related Spark metrics>> that are used when `BlockManager` is requested for a xref:storage:BlockManager.adoc#shuffleMetricsSource[shuffle-related Spark metrics source] (only when `Executor` is xref:executor:Executor.adoc#creating-instance[created] for a non-local / cluster mode).
+ShuffleClient has <<shuffleMetrics, shuffle-related Spark metrics>> that are used when `BlockManager` is requested for a storage:BlockManager.md#shuffleMetricsSource[shuffle-related Spark metrics source] (only when `Executor` is executor:Executor.md#creating-instance[created] for a non-local / cluster mode).
 
 [[contract]]
 [source, java]
@@ -33,7 +33,7 @@ abstract class ShuffleClient implements Closeable {
 | `fetchBlocks`
 | [[fetchBlocks]] Fetches a sequence of blocks from a remote block manager node asynchronously
 
-Used exclusively when `ShuffleBlockFetcherIterator` is requested to xref:storage:ShuffleBlockFetcherIterator.adoc#sendRequest[sendRequest]
+Used exclusively when `ShuffleBlockFetcherIterator` is requested to storage:ShuffleBlockFetcherIterator.md#sendRequest[sendRequest]
 |===
 
 [[implementations]]
@@ -43,10 +43,10 @@ Used exclusively when `ShuffleBlockFetcherIterator` is requested to xref:storage
 | ShuffleClient
 | Description
 
-| xref:storage:BlockTransferService.adoc[]
+| storage:BlockTransferService.md[]
 | [[BlockTransferService]]
 
-| xref:storage:ExternalShuffleClient.adoc[]
+| storage:ExternalShuffleClient.md[]
 | [[ExternalShuffleClient]]
 |===
 
@@ -64,7 +64,7 @@ void init(
 ====
 `init` is used when:
 
-* `BlockManager` is requested to xref:storage:BlockManager.adoc#initialize[initialize]
+* `BlockManager` is requested to storage:BlockManager.md#initialize[initialize]
 
 * Spark on Mesos' `MesosCoarseGrainedSchedulerBackend` is requested to `registered`
 ====
@@ -78,4 +78,4 @@ MetricSet shuffleMetrics()
 
 `shuffleMetrics` returns an empty Dropwizard Metrics' https://metrics.dropwizard.io/3.1.0/apidocs/com/codahale/metrics/MetricSet.html[MetricSet] by default.
 
-NOTE: `shuffleMetrics` is used exclusively when `BlockManager` is requested for a xref:storage:BlockManager.adoc#shuffleMetricsSource[shuffle-related Spark metrics source] (only when `Executor` is xref:executor:Executor.adoc#creating-instance[created] for a non-local / cluster mode).
+NOTE: `shuffleMetrics` is used exclusively when `BlockManager` is requested for a storage:BlockManager.md#shuffleMetricsSource[shuffle-related Spark metrics source] (only when `Executor` is executor:Executor.md#creating-instance[created] for a non-local / cluster mode).

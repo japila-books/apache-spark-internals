@@ -1,32 +1,32 @@
 = NettyRpcEnv
 
-*NettyRpcEnv* is an xref:rpc:RpcEnv.adoc[] using https://netty.io/[Netty] (_"an asynchronous event-driven network application framework for rapid development of maintainable high performance protocol servers & clients"_).
+*NettyRpcEnv* is an rpc:RpcEnv.md[] using https://netty.io/[Netty] (_"an asynchronous event-driven network application framework for rapid development of maintainable high performance protocol servers & clients"_).
 
 == [[creating-instance]] Creating Instance
 
 NettyRpcEnv takes the following to be created:
 
-* [[conf]] xref:ROOT:SparkConf.adoc[]
+* [[conf]] ROOT:SparkConf.md[]
 * [[javaSerializerInstance]] JavaSerializerInstance
 * [[host]] Host name
 * [[securityManager]] SecurityManager
 * [[numUsableCores]] Number of CPU cores
 
-NettyRpcEnv is created when NettyRpcEnvFactory is requested to xref:rpc:NettyRpcEnvFactory.adoc#create[create an RpcEnv].
+NettyRpcEnv is created when NettyRpcEnvFactory is requested to rpc:NettyRpcEnvFactory.md#create[create an RpcEnv].
 
 == [[streamManager]] NettyStreamManager
 
-NettyRpcEnv creates a xref:rpc:NettyStreamManager.adoc[] when <<creating-instance, created>>.
+NettyRpcEnv creates a rpc:NettyStreamManager.md[] when <<creating-instance, created>>.
 
 NettyStreamManager is used for the following:
 
 * Create a NettyRpcHandler for the <<transportContext, TransportContext>>
 
-* As the xref:rpc:RpcEnv.adoc#fileServer[RpcEnvFileServer]
+* As the rpc:RpcEnv.md#fileServer[RpcEnvFileServer]
 
 == [[transportContext]] TransportContext
 
-NettyRpcEnv creates a xref:network:TransportContext.adoc[].
+NettyRpcEnv creates a network:TransportContext.md[].
 
 == [[startServer]] Starting Server
 
@@ -39,7 +39,7 @@ startServer(
 
 startServer...FIXME
 
-startServer is used when NettyRpcEnvFactory is requested to xref:rpc:NettyRpcEnvFactory.adoc#create[create an RpcEnv] (in server mode).
+startServer is used when NettyRpcEnvFactory is requested to rpc:NettyRpcEnvFactory.md#create[create an RpcEnv] (in server mode).
 
 == [[deserialize]] deserialize Method
 

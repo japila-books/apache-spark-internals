@@ -1,6 +1,6 @@
 # Jobs Tab
 
-*Jobs* tab in xref:index.adoc[web UI] shows xref:spark-webui-AllJobsPage.adoc[status of all Spark jobs] in a Spark application (xref:ROOT:SparkContext.adoc[]).
+*Jobs* tab in index.md[web UI] shows spark-webui-AllJobsPage.md[status of all Spark jobs] in a Spark application (ROOT:SparkContext.md[]).
 
 .Jobs Tab in Web UI
 image::spark-webui-jobs.png[align="center"]
@@ -10,18 +10,18 @@ Jobs tab is available under `/jobs` URL (e.g. http://localhost:4040/jobs).
 .Event Timeline in Jobs Tab
 image::spark-webui-jobs-event-timeline.png[align="center"]
 
-The Jobs tab consists of two pages, i.e. xref:spark-webui-AllJobsPage.adoc[All Jobs] and <<JobPage, Details for Job>> pages.
+The Jobs tab consists of two pages, i.e. spark-webui-AllJobsPage.md[All Jobs] and <<JobPage, Details for Job>> pages.
 
-Internally, the Jobs tab is represented by xref:spark-webui-JobsTab.adoc[JobsTab].
+Internally, the Jobs tab is represented by spark-webui-JobsTab.md[JobsTab].
 
 == [[JobPage]] Details for Job -- `JobPage` Page
 
-When you click a job in xref:spark-webui-AllJobsPage.adoc[AllJobsPage], you see the *Details for Job* page.
+When you click a job in spark-webui-AllJobsPage.md[AllJobsPage], you see the *Details for Job* page.
 
 .Details for Job Page
 image::spark-webui-jobs-details-for-job.png[align="center"]
 
-`JobPage` is a xref:spark-webui-WebUIPage.adoc[WebUIPage] that shows statistics and stage list for a given job.
+`JobPage` is a spark-webui-WebUIPage.md[WebUIPage] that shows statistics and stage list for a given job.
 
 Details for Job page is registered under `/job` URL, i.e. `http://localhost:4040/jobs/job/?id=0` and accepts one mandatory `id` request parameter as a job identifier.
 

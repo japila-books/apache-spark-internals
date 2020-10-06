@@ -2,7 +2,7 @@
 
 *TaskMemoryManager* manages the memory allocated to execute a single <<taskAttemptId, task>> (using <<memoryManager, MemoryManager>>).
 
-TaskMemoryManager is <<creating-instance, created>> when `TaskRunner` is requested to xref:executor:TaskRunner.adoc#run[run].
+TaskMemoryManager is <<creating-instance, created>> when `TaskRunner` is requested to executor:TaskRunner.md#run[run].
 
 .Creating TaskMemoryManager for Task
 image::TaskMemoryManager.png[align="center"]
@@ -19,13 +19,13 @@ TaskMemoryManager assumes that:
 TaskMemoryManager takes the following to be created:
 
 * <<memoryManager, MemoryManager>>
-* [[taskAttemptId]] xref:executor:TaskRunner.adoc#taskId[Task attempt ID]
+* [[taskAttemptId]] executor:TaskRunner.md#taskId[Task attempt ID]
 
 TaskMemoryManager initializes the <<internal-properties, internal properties>>.
 
 == [[consumers]] Spillable Memory Consumers
 
-TaskMemoryManager tracks xref:memory:MemoryConsumer.adoc[spillable memory consumers].
+TaskMemoryManager tracks memory:MemoryConsumer.md[spillable memory consumers].
 
 TaskMemoryManager registers a new memory consumer when requested to <<acquireExecutionMemory, acquire execution memory>>.
 
@@ -35,7 +35,7 @@ Memory consumers are used to report memory usage when TaskMemoryManager is reque
 
 == [[memoryManager]] MemoryManager
 
-TaskMemoryManager is given a xref:memory:MemoryManager.adoc[MemoryManager] when <<creating-instance, created>>.
+TaskMemoryManager is given a memory:MemoryManager.md[MemoryManager] when <<creating-instance, created>>.
 
 TaskMemoryManager uses the MemoryManager for the following:
 
@@ -70,13 +70,13 @@ WARN TaskMemoryManager: leak [bytes] memory from [consumer]
 
 The `consumers` collection is then cleared.
 
-link:MemoryManager.adoc#releaseExecutionMemory[MemoryManager.releaseExecutionMemory] is executed to release the memory that is not used by any consumer.
+MemoryManager.md#releaseExecutionMemory[MemoryManager.releaseExecutionMemory] is executed to release the memory that is not used by any consumer.
 
-Before `cleanUpAllAllocatedMemory` returns, it calls link:MemoryManager.adoc#releaseAllExecutionMemoryForTask[MemoryManager.releaseAllExecutionMemoryForTask] that in turn becomes the return value.
+Before `cleanUpAllAllocatedMemory` returns, it calls MemoryManager.md#releaseAllExecutionMemoryForTask[MemoryManager.releaseAllExecutionMemoryForTask] that in turn becomes the return value.
 
 CAUTION: FIXME Image with the interactions to `MemoryManager`.
 
-NOTE: `cleanUpAllAllocatedMemory` is used exclusively when `TaskRunner` is requested to xref:executor:TaskRunner.adoc#run[run] (and cleans up after itself).
+NOTE: `cleanUpAllAllocatedMemory` is used exclusively when `TaskRunner` is requested to executor:TaskRunner.md#run[run] (and cleans up after itself).
 
 == [[acquireExecutionMemory]] Acquiring Execution Memory
 
@@ -87,13 +87,13 @@ long acquireExecutionMemory(
   MemoryConsumer consumer)
 ----
 
-`acquireExecutionMemory` allocates up to `required` size of memory for the xref:memory:MemoryConsumer.adoc[MemoryConsumer].
+`acquireExecutionMemory` allocates up to `required` size of memory for the memory:MemoryConsumer.md[MemoryConsumer].
 
 When no memory could be allocated, it calls `spill` on every consumer, itself including. Finally, `acquireExecutionMemory` returns the allocated memory.
 
 NOTE: `acquireExecutionMemory` synchronizes on itself, and so no other calls on the object could be completed.
 
-NOTE: xref:memory:MemoryConsumer.adoc[MemoryConsumer] knows its mode -- on- or off-heap.
+NOTE: memory:MemoryConsumer.md[MemoryConsumer] knows its mode -- on- or off-heap.
 
 `acquireExecutionMemory` first calls `memoryManager.acquireExecutionMemory(required, taskAttemptId, mode)`.
 
@@ -101,7 +101,7 @@ TIP: TaskMemoryManager is a mere wrapper of `MemoryManager` to track <<consumers
 
 CAUTION: FIXME
 
-When the memory obtained is less than requested (by `required`), `acquireExecutionMemory` requests all <<consumers, consumers>> to link:MemoryConsumer.adoc#spill[release memory (by spilling it to disk)].
+When the memory obtained is less than requested (by `required`), `acquireExecutionMemory` requests all <<consumers, consumers>> to MemoryConsumer.md#spill[release memory (by spilling it to disk)].
 
 NOTE: `acquireExecutionMemory` requests memory from consumers that work in the same mode except the requesting one.
 
@@ -121,7 +121,7 @@ You may also see the following ERROR message in the logs when there is an error 
 ERROR error while calling spill() on [consumer]
 ```
 
-If the earlier `spill` on the consumers did not work out and there is still memory to be acquired, `acquireExecutionMemory` link:MemoryConsumer.adoc#spill[requests the input `consumer` to spill memory to disk] (that in fact requested more memory!)
+If the earlier `spill` on the consumers did not work out and there is still memory to be acquired, `acquireExecutionMemory` MemoryConsumer.md#spill[requests the input `consumer` to spill memory to disk] (that in fact requested more memory!)
 
 If the `consumer` releases some memory, you should see the following DEBUG message in the logs:
 
@@ -143,7 +143,7 @@ DEBUG Task [taskAttemptId] acquired [bytes] for [consumer]
 
 acquireExecutionMemory is used when:
 
-* MemoryConsumer is requested to xref:memory:MemoryConsumer.adoc#acquireMemory[acquire execution memory]
+* MemoryConsumer is requested to memory:MemoryConsumer.md#acquireMemory[acquire execution memory]
 
 * TaskMemoryManager is requested to <<allocatePage, allocate a page>>
 
@@ -156,7 +156,7 @@ MemoryBlock allocatePage(
   MemoryConsumer consumer)
 ----
 
-NOTE: It only handles *Tungsten Consumers*, i.e. link:MemoryConsumer.adoc[MemoryConsumers] in `tungstenMemoryMode` mode.
+NOTE: It only handles *Tungsten Consumers*, i.e. MemoryConsumer.md[MemoryConsumers] in `tungstenMemoryMode` mode.
 
 `allocatePage` allocates a block of memory (aka _page_) smaller than `MAXIMUM_PAGE_SIZE_BYTES` maximum size.
 
@@ -219,7 +219,7 @@ void releaseExecutionMemory(long size, MemoryConsumer consumer)
 ====
 `releaseExecutionMemory` is used when:
 
-* `MemoryConsumer` is requested to link:MemoryConsumer.adoc#freeMemory[freeMemory]
+* `MemoryConsumer` is requested to MemoryConsumer.md#freeMemory[freeMemory]
 
 * TaskMemoryManager is requested to <<allocatePage, allocatePage>> and <<freePage, freePage>>
 ====
@@ -249,7 +249,7 @@ showMemoryUsage prints out the following INFO message to the logs (with the <<ta
 Memory used in task [taskAttemptId]
 ----
 
-showMemoryUsage requests every <<consumers, MemoryConsumer>> to xref:memory:MemoryConsumer.adoc#getUsed[report memory used]. showMemoryUsage prints out the following INFO message to the logs for a MemoryConsumer with some memory usage (and excludes zero-memory consumers):
+showMemoryUsage requests every <<consumers, MemoryConsumer>> to memory:MemoryConsumer.md#getUsed[report memory used]. showMemoryUsage prints out the following INFO message to the logs for a MemoryConsumer with some memory usage (and excludes zero-memory consumers):
 
 [source,plaintext]
 ----
@@ -268,7 +268,7 @@ showMemoryUsage prints out the following INFO messages to the logs:
 [executionMemoryUsed] bytes of memory are used for execution and [storageMemoryUsed] bytes of memory are used for storage
 ----
 
-showMemoryUsage is used when MemoryConsumer is requested to xref:memory:MemoryConsumer.adoc#throwOom[throw an OutOfMemoryError].
+showMemoryUsage is used when MemoryConsumer is requested to memory:MemoryConsumer.md#throwOom[throw an OutOfMemoryError].
 
 == [[pageSizeBytes]] `pageSizeBytes` Method
 
@@ -277,7 +277,7 @@ showMemoryUsage is used when MemoryConsumer is requested to xref:memory:MemoryCo
 long pageSizeBytes()
 ----
 
-`pageSizeBytes` simply requests the <<memoryManager, MemoryManager>> for link:MemoryManager.adoc#pageSizeBytes[pageSizeBytes].
+`pageSizeBytes` simply requests the <<memoryManager, MemoryManager>> for MemoryManager.md#pageSizeBytes[pageSizeBytes].
 
 NOTE: `pageSizeBytes` is used when...FIXME
 
@@ -288,9 +288,9 @@ NOTE: `pageSizeBytes` is used when...FIXME
 void freePage(MemoryBlock page, MemoryConsumer consumer)
 ----
 
-`pageSizeBytes` simply requests the <<memoryManager, MemoryManager>> for link:MemoryManager.adoc#pageSizeBytes[pageSizeBytes].
+`pageSizeBytes` simply requests the <<memoryManager, MemoryManager>> for MemoryManager.md#pageSizeBytes[pageSizeBytes].
 
-NOTE: `pageSizeBytes` is used when `MemoryConsumer` is requested to link:MemoryConsumer.adoc#freePage[freePage] and link:MemoryConsumer.adoc#throwOom[throwOom].
+NOTE: `pageSizeBytes` is used when `MemoryConsumer` is requested to MemoryConsumer.md#freePage[freePage] and MemoryConsumer.md#throwOom[throwOom].
 
 == [[getPage]] Getting Page -- `getPage` Method
 
@@ -326,7 +326,7 @@ Add the following line to `conf/log4j.properties`:
 log4j.logger.org.apache.spark.memory.TaskMemoryManager=ALL
 ----
 
-Refer to xref:ROOT:spark-logging.adoc[Logging].
+Refer to ROOT:spark-logging.md[Logging].
 
 == [[internal-properties]] Internal Properties
 
@@ -353,5 +353,5 @@ When <<allocatePage, allocating a `MemoryBlock` page for Tungsten consumers>>, t
 | tungstenMemoryMode
 | [[tungstenMemoryMode]] `MemoryMode` (i.e. `OFF_HEAP` or `ON_HEAP`)
 
-Set to the link:MemoryManager.adoc#tungstenMemoryMode[tungstenMemoryMode] of the <<memoryManager, MemoryManager>> while TaskMemoryManager is <<creating-instance, created>>
+Set to the MemoryManager.md#tungstenMemoryMode[tungstenMemoryMode] of the <<memoryManager, MemoryManager>> while TaskMemoryManager is <<creating-instance, created>>
 |===

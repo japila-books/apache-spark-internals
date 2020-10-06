@@ -1,6 +1,6 @@
 = ExternalShuffleClient
 
-*ExternalShuffleClient* is a xref:storage:ShuffleClient.adoc[] that...FIXME
+*ExternalShuffleClient* is a storage:ShuffleClient.md[] that...FIXME
 
 == [[init]] Initializing ExternalShuffleClient
 
@@ -12,7 +12,7 @@ void init(
 
 init...FIXME
 
-init is part of the xref:storage:ShuffleClient.adoc#init[ShuffleClient] abstraction.
+init is part of the storage:ShuffleClient.md#init[ShuffleClient] abstraction.
 
 == [[registerWithShuffleServer]] Register Block Manager with Shuffle Server
 
@@ -44,4 +44,4 @@ void fetchBlocks(
 
 fetchBlocks...FIXME
 
-fetchBlocks is part of xref:storage:ShuffleClient.adoc#fetchBlocks[ShuffleClient] abstraction.
+fetchBlocks is part of storage:ShuffleClient.md#fetchBlocks[ShuffleClient] abstraction.

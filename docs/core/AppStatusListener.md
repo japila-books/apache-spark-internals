@@ -1,25 +1,25 @@
 = AppStatusListener
 
-*AppStatusListener* is a xref:ROOT:SparkListener.adoc[].
+*AppStatusListener* is a ROOT:SparkListener.md[].
 
 == [[creating-instance]] Creating Instance
 
 AppStatusListener takes the following to be created:
 
-* [[kvstore]] xref:core:ElementTrackingStore.adoc[]
-* [[conf]] xref:ROOT:SparkConf.adoc[]
+* [[kvstore]] core:ElementTrackingStore.md[]
+* [[conf]] ROOT:SparkConf.md[]
 * <<live, live Flag>>
 * [[lastUpdateTime]] Optional lastUpdateTime (default: `None`)
 
 AppStatusListener is created when:
 
-* AppStatusStore is requested to xref:core:AppStatusStore.adoc#createLiveStore[createLiveStore] (with the <<live, live>> flag enabled)
+* AppStatusStore is requested to core:AppStatusStore.md#createLiveStore[createLiveStore] (with the <<live, live>> flag enabled)
 
-* FsHistoryProvider is requested to xref:spark-history-server:FsHistoryProvider.adoc#rebuildAppStore[rebuildAppStore] (with the <<live, live>> flag disabled)
+* FsHistoryProvider is requested to spark-history-server:FsHistoryProvider.md#rebuildAppStore[rebuildAppStore] (with the <<live, live>> flag disabled)
 
 == [[live]] live Flag
 
-AppStatusListener is given a flag that indicates whether it is created for a live Spark application (for xref:core:AppStatusStore.adoc[]) or when replaying Spark applications for xref:spark-history-server:index.adoc[] (for xref:spark-history-server:FsHistoryProvider.adoc[]).
+AppStatusListener is given a flag that indicates whether it is created for a live Spark application (for core:AppStatusStore.md[]) or when replaying Spark applications for spark-history-server:index.md[] (for spark-history-server:FsHistoryProvider.md[]).
 
 == [[event-handlers]] Event Handlers
 
@@ -102,7 +102,7 @@ AppStatusListener is given a flag that indicates whether it is created for a liv
 onStageSubmitted(event: SparkListenerStageSubmitted): Unit
 ----
 
-NOTE: `onStageSubmitted` is part of xref:ROOT:SparkListener.adoc#onStageSubmitted[SparkListener Contract] to...FIXME.
+NOTE: `onStageSubmitted` is part of ROOT:SparkListener.md#onStageSubmitted[SparkListener Contract] to...FIXME.
 
 `onStageSubmitted`...FIXME
 
@@ -113,7 +113,7 @@ NOTE: `onStageSubmitted` is part of xref:ROOT:SparkListener.adoc#onStageSubmitte
 update(entity: LiveEntity, now: Long, last: Boolean = false): Unit
 ----
 
-`update` simply requests the `LiveEntity` to link:spark-core-LiveEntity.adoc#write[write] (with the <<kvstore, ElementTrackingStore>> as the store and the `last` flag as `checkTriggers` flag).
+`update` simply requests the `LiveEntity` to spark-core-LiveEntity.md#write[write] (with the <<kvstore, ElementTrackingStore>> as the store and the `last` flag as `checkTriggers` flag).
 
 NOTE: `update` is used in event handlers (i.e. `onApplicationStart`, `onExecutorRemoved`, `onJobEnd`, `onStageSubmitted`, `onTaskEnd`, `onStageCompleted`), <<liveUpdate, liveUpdate>>, <<maybeUpdate, maybeUpdate>>, <<flush, flush>> and <<updateRDDBlock, updateRDDBlock>>.
 
@@ -159,7 +159,7 @@ updateStreamBlock(event: SparkListenerBlockUpdated, stream: StreamBlockId): Unit
 
 `updateStreamBlock`...FIXME
 
-NOTE: `updateStreamBlock` is used exclusively when AppStatusListener is requested to <<onBlockUpdated, handle a SparkListenerBlockUpdated event>> (for a xref:storage:BlockId.adoc#StreamBlockId[StreamBlockId]).
+NOTE: `updateStreamBlock` is used exclusively when AppStatusListener is requested to <<onBlockUpdated, handle a SparkListenerBlockUpdated event>> (for a storage:BlockId.md#StreamBlockId[StreamBlockId]).
 
 == [[onBlockUpdated]] Intercepting SparkListenerBlockUpdated Events -- `onBlockUpdated` Handler Method
 
@@ -168,13 +168,13 @@ NOTE: `updateStreamBlock` is used exclusively when AppStatusListener is requeste
 onBlockUpdated(event: SparkListenerBlockUpdated): Unit
 ----
 
-NOTE: `onBlockUpdated` is part of xref:ROOT:SparkListener.adoc#onBlockUpdated[SparkListener Contract] to...FIXME.
+NOTE: `onBlockUpdated` is part of ROOT:SparkListener.md#onBlockUpdated[SparkListener Contract] to...FIXME.
 
-`onBlockUpdated` simply dispatches to the following event-specific handlers (per xref:storage:BlockId.adoc[] type):
+`onBlockUpdated` simply dispatches to the following event-specific handlers (per storage:BlockId.md[] type):
 
-* <<updateRDDBlock, updateRDDBlock>> for xref:storage:BlockId.adoc#RDDBlockId[RDDBlockIds]
+* <<updateRDDBlock, updateRDDBlock>> for storage:BlockId.md#RDDBlockId[RDDBlockIds]
 
-* <<updateStreamBlock, updateStreamBlock>> for xref:storage:BlockId.adoc#StreamBlockId[StreamBlockIds]
+* <<updateStreamBlock, updateStreamBlock>> for storage:BlockId.md#StreamBlockId[StreamBlockIds]
 
 * Ignores (_swallows_) the `SparkListenerBlockUpdated` event for the other types
 
@@ -189,7 +189,7 @@ updateRDDBlock(
 
 `updateRDDBlock`...FIXME
 
-NOTE: `updateRDDBlock` is used exclusively when AppStatusListener is requested to <<onBlockUpdated, handle a SparkListenerBlockUpdated event>> (for a xref:storage:BlockId.adoc#RDDBlockId[RDDBlockId]).
+NOTE: `updateRDDBlock` is used exclusively when AppStatusListener is requested to <<onBlockUpdated, handle a SparkListenerBlockUpdated event>> (for a storage:BlockId.md#RDDBlockId[RDDBlockId]).
 
 == [[updateBroadcastBlock]] `updateBroadcastBlock` Internal Method
 
@@ -226,7 +226,7 @@ NOTE: `updateBroadcastBlock` is used...FIXME
 Default: `1`
 
 | `liveRDDs`
-| [[liveRDDs]] xref:webui:spark-core-LiveRDD.adoc[LiveRDDs] by RDD ID
+| [[liveRDDs]] webui:spark-core-LiveRDD.md[LiveRDDs] by RDD ID
 
 | `liveStages`
 | [[liveStages]] `LiveStages` by `(Int, Int)`

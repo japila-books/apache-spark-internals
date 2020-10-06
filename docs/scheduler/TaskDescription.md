@@ -1,13 +1,13 @@
 = TaskDescription
 
 [[creating-instance]]
-`TaskDescription` is a metadata of a xref:scheduler:Task.adoc[task] with the following properties:
+`TaskDescription` is a metadata of a scheduler:Task.md[task] with the following properties:
 
 * [[taskId]] Task ID
 * [[attemptNumber]] Task attempt number
 * [[executorId]] Executor ID
 * [[name]] Task name
-* [[index]] Task index (within the xref:scheduler:TaskSet.adoc[TaskSet])
+* [[index]] Task index (within the scheduler:TaskSet.md[TaskSet])
 * [[addedFiles]] Added files (as `Map[String, Long]`)
 * [[addedJars]] Added JAR files (as `Map[String, Long]`)
 * [[properties]] `Properties`
@@ -19,7 +19,7 @@ The <<name, name>> of the task is of the format:
 task [taskID] in stage [taskSetID]
 ```
 
-`TaskDescription` is <<creating-instance, created>> exclusively when `TaskSetManager` is requested to xref:scheduler:TaskSetManager.adoc#resourceOffer[find a task ready for execution (given a resource offer)].
+`TaskDescription` is <<creating-instance, created>> exclusively when `TaskSetManager` is requested to scheduler:TaskSetManager.md#resourceOffer[find a task ready for execution (given a resource offer)].
 
 [[toString]]
 The textual representation of a `TaskDescription` is as follows:
@@ -43,9 +43,9 @@ Internally, `decode`...FIXME
 ====
 `decode` is used when:
 
-* `CoarseGrainedExecutorBackend` is requested to xref:CoarseGrainedExecutorBackend.adoc#LaunchTask[handle a LaunchTask message]
+* `CoarseGrainedExecutorBackend` is requested to CoarseGrainedExecutorBackend.md#LaunchTask[handle a LaunchTask message]
 
-* Spark on Mesos' `MesosExecutorBackend` is requested to xref:spark-on-mesos:spark-executor-backends-MesosExecutorBackend.adoc#launchTask[launch a task]
+* Spark on Mesos' `MesosExecutorBackend` is requested to spark-on-mesos:spark-executor-backends-MesosExecutorBackend.md#launchTask[launch a task]
 ====
 
 == [[encode]] Encoding TaskDescription (to Serialized Format)
@@ -63,7 +63,7 @@ Internally, `encode`...FIXME
 ====
 `encode` is used when:
 
-* `DriverEndpoint` (of `CoarseGrainedSchedulerBackend`) is requested to xref:scheduler:CoarseGrainedSchedulerBackend-DriverEndpoint.adoc#launchTasks[launchTasks]
+* `DriverEndpoint` (of `CoarseGrainedSchedulerBackend`) is requested to scheduler:CoarseGrainedSchedulerBackend-DriverEndpoint.md#launchTasks[launchTasks]
 
 * Spark on Mesos' `MesosFineGrainedSchedulerBackend` is requested to `createMesosTask`
 ====

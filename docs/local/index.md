@@ -2,7 +2,7 @@
 
 *Spark local* is one of the available runtime environments in Apache Spark. It is the only available runtime with no need for a proper cluster manager (and hence many call it a *pseudo-cluster*, however such concept do exist in Spark and is a bit different).
 
-Spark local is used for the following *master URLs* (as specified using <<../SparkConf.adoc#, SparkConf.setMaster>> method or <<../configuration-properties.adoc#spark.master, spark.master>> configuration property):
+Spark local is used for the following *master URLs* (as specified using <<../SparkConf.md#, SparkConf.setMaster>> method or <<../configuration-properties.md#spark.master, spark.master>> configuration property):
 
 * *local* (with exactly 1 CPU core)
 
@@ -14,12 +14,12 @@ Spark local is used for the following *master URLs* (as specified using <<../Spa
 
 * *++local[*, m]++* (with the total number of CPU cores that is the number of available CPU cores on the local machine)
 
-Internally, Spark local uses <<spark-LocalSchedulerBackend.adoc#, LocalSchedulerBackend>> as the <<../SchedulerBackend.adoc#, SchedulerBackend>> and xref:executor:ExecutorBackend.adoc[].
+Internally, Spark local uses <<spark-LocalSchedulerBackend.md#, LocalSchedulerBackend>> as the <<../SchedulerBackend.md#, SchedulerBackend>> and executor:ExecutorBackend.md[].
 
 .Architecture of Spark local
 image::../diagrams/spark-local-architecture.png[align="center"]
 
-In this non-distributed multi-threaded runtime environment, Spark spawns all the main execution components - the link:spark-driver.adoc[driver] and an xref:executor:Executor.adoc[] - in the same single JVM.
+In this non-distributed multi-threaded runtime environment, Spark spawns all the main execution components - the spark-driver.md[driver] and an executor:Executor.md[] - in the same single JVM.
 
 The default parallelism is the number of threads as specified in the <<masterURL, master URL>>. This is the only mode where a driver is used for execution (as it acts both as the driver and the only executor).
 
@@ -34,7 +34,7 @@ scala> sc.isLocal
 res0: Boolean = true
 ```
 
-link:spark-shell.adoc[Spark shell] defaults to local mode with `local[*]` as the link:spark-deployment-environments.adoc#master-urls[the master URL].
+spark-shell.md[Spark shell] defaults to local mode with `local[*]` as the spark-deployment-environments.md#master-urls[the master URL].
 
 ```
 scala> sc.master
@@ -43,11 +43,11 @@ res0: String = local[*]
 
 Tasks are not re-executed on failure in local mode (unless <<masterURL, local-with-retries master URL>> is used).
 
-The xref:scheduler:TaskScheduler.adoc[task scheduler] in local mode works with link:local/spark-LocalSchedulerBackend.adoc[LocalSchedulerBackend] task scheduler backend.
+The scheduler:TaskScheduler.md[task scheduler] in local mode works with local/spark-LocalSchedulerBackend.md[LocalSchedulerBackend] task scheduler backend.
 
 == [[masterURL]] Master URL
 
-You can run Spark in local mode using `local`, `local[n]` or the most general `local[*]` for link:spark-deployment-environments.adoc#master-urls[the master URL].
+You can run Spark in local mode using `local`, `local[n]` or the most general `local[*]` for spark-deployment-environments.md#master-urls[the master URL].
 
 The URL says how many threads can be used in total:
 
@@ -59,14 +59,14 @@ The URL says how many threads can be used in total:
 
 NOTE: What happens when there are less cores than `n` in `local[n]` master URL? _"Breaks"_ scheduling as Spark assumes more CPU cores available to execute tasks.
 
-* [[local-with-retries]] `local[N, maxFailures]` (called *local-with-retries*) with `N` being `*` or the number of threads to use (as explained above) and `maxFailures` being the value of <<../configuration-properties.adoc#spark.task.maxFailures, spark.task.maxFailures>> configuration property.
+* [[local-with-retries]] `local[N, maxFailures]` (called *local-with-retries*) with `N` being `*` or the number of threads to use (as explained above) and `maxFailures` being the value of <<../configuration-properties.md#spark.task.maxFailures, spark.task.maxFailures>> configuration property.
 
 == [[task-submission]] Task Submission a.k.a. reviveOffers
 
 .TaskSchedulerImpl.submitTasks in local mode
 image::taskscheduler-submitTasks-local-mode.png[align="center"]
 
-When `ReviveOffers` or `StatusUpdate` messages are received, link:local/spark-LocalEndpoint.adoc[LocalEndpoint] places an offer to `TaskSchedulerImpl` (using `TaskSchedulerImpl.resourceOffers`).
+When `ReviveOffers` or `StatusUpdate` messages are received, local/spark-LocalEndpoint.md[LocalEndpoint] places an offer to `TaskSchedulerImpl` (using `TaskSchedulerImpl.resourceOffers`).
 
 If there is one or more tasks that match the offer, they are launched (using `executor.launchTask` method).
 

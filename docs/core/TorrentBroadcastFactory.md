@@ -1,14 +1,14 @@
 = TorrentBroadcastFactory
 
-*TorrentBroadcastFactory* is a xref:core:BroadcastFactory.adoc[BroadcastFactory] of xref:core:TorrentBroadcast.adoc[TorrentBroadcast]s (for BitTorrent-like xref:ROOT:Broadcast.adoc[]s).
+*TorrentBroadcastFactory* is a core:BroadcastFactory.md[BroadcastFactory] of core:TorrentBroadcast.md[TorrentBroadcast]s (for BitTorrent-like ROOT:Broadcast.md[]s).
 
-NOTE: As of https://issues.apache.org/jira/browse/SPARK-12588[Spark 2.0] TorrentBroadcastFactory is is the one and only known xref:core:BroadcastFactory.adoc[BroadcastFactory].
+NOTE: As of https://issues.apache.org/jira/browse/SPARK-12588[Spark 2.0] TorrentBroadcastFactory is is the one and only known core:BroadcastFactory.md[BroadcastFactory].
 
 == [[creating-instance]] Creating Instance
 
 TorrentBroadcastFactory takes no arguments to be created.
 
-TorrentBroadcastFactory is created for xref:BroadcastManager.adoc#broadcastFactory[BroadcastManager].
+TorrentBroadcastFactory is created for BroadcastManager.md#broadcastFactory[BroadcastManager].
 
 == [[newBroadcast]] Creating Broadcast Variable (TorrentBroadcast)
 
@@ -20,9 +20,9 @@ newBroadcast[T: ClassTag](
   id: Long): Broadcast[T]
 ----
 
-newBroadcast creates a xref:core:TorrentBroadcast.adoc[] (for the given `value_` and `id` and ignoring the `isLocal` flag).
+newBroadcast creates a core:TorrentBroadcast.md[] (for the given `value_` and `id` and ignoring the `isLocal` flag).
 
-newBroadcast is part of the xref:BroadcastFactory.adoc#newBroadcast[BroadcastFactory] abstraction.
+newBroadcast is part of the BroadcastFactory.md#newBroadcast[BroadcastFactory] abstraction.
 
 == [[unbroadcast]] Unbroadcasting Broadcast Variable
 
@@ -34,9 +34,9 @@ unbroadcast(
   blocking: Boolean): Unit
 ----
 
-unbroadcast xref:core:TorrentBroadcast.adoc#unpersist[removes all persisted state associated with the TorrentBroadcast] (by the given id).
+unbroadcast core:TorrentBroadcast.md#unpersist[removes all persisted state associated with the TorrentBroadcast] (by the given id).
 
-unbroadcast is part of the xref:BroadcastFactory.adoc#unbroadcast[BroadcastFactory] abstraction.
+unbroadcast is part of the BroadcastFactory.md#unbroadcast[BroadcastFactory] abstraction.
 
 == [[initialize]] Initializing TorrentBroadcastFactory
 
@@ -50,7 +50,7 @@ initialize(
 
 initialize does nothing.
 
-initialize is part of the xref:BroadcastFactory.adoc#initialize[BroadcastFactory] abstraction.
+initialize is part of the BroadcastFactory.md#initialize[BroadcastFactory] abstraction.
 
 == [[stop]] Stopping TorrentBroadcastFactory
 
@@ -61,4 +61,4 @@ stop(): Unit
 
 stop does nothing.
 
-stop is part of the xref:BroadcastFactory.adoc#stop[BroadcastFactory] abstraction.
+stop is part of the BroadcastFactory.md#stop[BroadcastFactory] abstraction.

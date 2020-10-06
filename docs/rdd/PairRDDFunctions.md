@@ -126,7 +126,7 @@ saveAsHadoopDataset(
   conf: JobConf): Unit
 ----
 
-`saveAsHadoopDataset` uses the `SparkHadoopWriter` utility to <<spark-internal-io-SparkHadoopWriter.adoc#write, write the key-value RDD out>> with a <<spark-internal-io-HadoopMapRedWriteConfigUtil.adoc#, HadoopMapRedWriteConfigUtil>> (for the given Hadoop https://hadoop.apache.org/docs/r2.7.3/api/org/apache/hadoop/mapred/JobConf.html[JobConf])
+`saveAsHadoopDataset` uses the `SparkHadoopWriter` utility to <<spark-internal-io-SparkHadoopWriter.md#write, write the key-value RDD out>> with a <<spark-internal-io-HadoopMapRedWriteConfigUtil.md#, HadoopMapRedWriteConfigUtil>> (for the given Hadoop https://hadoop.apache.org/docs/r2.7.3/api/org/apache/hadoop/mapred/JobConf.html[JobConf])
 
 | saveAsHadoopFile
 a| [[saveAsHadoopFile]]
@@ -166,7 +166,7 @@ Saves this RDD of key-value pairs (`RDD[K,V]`) to any Hadoop-supported storage s
 
 The configuration should set relevant output params (an https://hadoop.apache.org/docs/r2.7.3/api/org/apache/hadoop/mapreduce/OutputFormat.html[output format], output paths, e.g. a table name to write to) in the same way as it would be configured for a Hadoop MapReduce job.
 
-`saveAsNewAPIHadoopDataset` uses the `SparkHadoopWriter` utility to <<spark-internal-io-SparkHadoopWriter.adoc#write, write the key-value RDD out>> with a <<spark-internal-io-HadoopMapReduceWriteConfigUtil.adoc#, HadoopMapReduceWriteConfigUtil>> (for the given Hadoop https://hadoop.apache.org/docs/r2.7.3/api/org/apache/hadoop/conf/Configuration.html[Configuration])
+`saveAsNewAPIHadoopDataset` uses the `SparkHadoopWriter` utility to <<spark-internal-io-SparkHadoopWriter.md#write, write the key-value RDD out>> with a <<spark-internal-io-HadoopMapReduceWriteConfigUtil.md#, HadoopMapReduceWriteConfigUtil>> (for the given Hadoop https://hadoop.apache.org/docs/r2.7.3/api/org/apache/hadoop/conf/Configuration.html[Configuration])
 
 | saveAsNewAPIHadoopFile
 a| [[saveAsNewAPIHadoopFile]]
@@ -191,7 +191,7 @@ saveAsNewAPIHadoopFile[F <: NewOutputFormat[K, V]](
 
 You may want to look at the number of partitions from another angle.
 
-It may often not be important to have a given number of partitions upfront (at RDD creation time upon link:spark-data-sources.adoc[loading data from data sources]), so only "regrouping" the data by key after it is an RDD might be...the key (_pun not intended_).
+It may often not be important to have a given number of partitions upfront (at RDD creation time upon spark-data-sources.md[loading data from data sources]), so only "regrouping" the data by key after it is an RDD might be...the key (_pun not intended_).
 
 You can use `groupByKey` or another PairRDDFunctions method to have a key in one processing flow.
 
@@ -234,20 +234,20 @@ combineByKeyWithClassTag[C](
   mapSideCombine: Boolean = true,
   serializer: Serializer = null)(implicit ct: ClassTag[C]): RDD[(K, C)]
 ----
-<1> Uses the xref:rdd:Partitioner.adoc#defaultPartitioner[default partitioner]
-<2> Uses a xref:rdd:HashPartitioner.adoc[HashPartitioner] with the given number of partitions
+<1> Uses the rdd:Partitioner.md#defaultPartitioner[default partitioner]
+<2> Uses a rdd:HashPartitioner.md[HashPartitioner] with the given number of partitions
 
-combineByKeyWithClassTag creates an xref:rdd:Aggregator.adoc[Aggregator] for the given aggregation functions.
+combineByKeyWithClassTag creates an rdd:Aggregator.md[Aggregator] for the given aggregation functions.
 
-combineByKeyWithClassTag branches off per the given xref:rdd:Partitioner.adoc[Partitioner].
+combineByKeyWithClassTag branches off per the given rdd:Partitioner.md[Partitioner].
 
-If the input partitioner and the RDD's are the same, combineByKeyWithClassTag simply xref:rdd:spark-rdd-transformations.adoc#mapPartitions[mapPartitions] on the RDD with the following arguments:
+If the input partitioner and the RDD's are the same, combineByKeyWithClassTag simply rdd:spark-rdd-transformations.md#mapPartitions[mapPartitions] on the RDD with the following arguments:
 
-* Iterator of the xref:rdd:Aggregator.adoc#combineValuesByKey[Aggregator]
+* Iterator of the rdd:Aggregator.md#combineValuesByKey[Aggregator]
 
 * preservesPartitioning flag turned on
 
-If the input partitioner is different than the RDD's, combineByKeyWithClassTag creates a xref:rdd:ShuffledRDD.adoc[ShuffledRDD] (with the Serializer, the Aggregator, and the mapSideCombine flag).
+If the input partitioner is different than the RDD's, combineByKeyWithClassTag creates a rdd:ShuffledRDD.md[ShuffledRDD] (with the Serializer, the Aggregator, and the mapSideCombine flag).
 
 === [[combineByKeyWithClassTag-usage]] Usage
 
@@ -276,7 +276,7 @@ combineByKeyWithClassTag throws a SparkException for the keys being of type arra
 Cannot use map-side combining with array keys.
 ----
 
-combineByKeyWithClassTag throws a SparkException for the keys being of type array with the partitioner being a xref:rdd:HashPartitioner.adoc[HashPartitioner]:
+combineByKeyWithClassTag throws a SparkException for the keys being of type array with the partitioner being a rdd:HashPartitioner.md[HashPartitioner]:
 
 [source,plaintext]
 ----

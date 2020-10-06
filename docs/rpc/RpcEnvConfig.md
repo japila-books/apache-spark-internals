@@ -2,9 +2,9 @@
 :page-toclevels: -1
 
 [[creating-instance]]
-*RpcEnvConfig* is a configuration of an xref:rpc:RpcEnv.adoc[]:
+*RpcEnvConfig* is a configuration of an rpc:RpcEnv.md[]:
 
-* [[conf]] xref:ROOT:SparkConf.adoc[]
+* [[conf]] ROOT:SparkConf.md[]
 * [[name]] System Name
 * [[bindAddress]] Bind Address
 * [[advertiseAddress]] Advertised Address
@@ -13,13 +13,13 @@
 * [[numUsableCores]] Number of CPU cores
 * <<clientMode, clientMode flag>>
 
-RpcEnvConfig is created when RpcEnv utility is used to xref:rpc:RpcEnv.adoc#create[create an RpcEnv] (using xref:rpc:RpcEnvFactory.adoc[]).
+RpcEnvConfig is created when RpcEnv utility is used to rpc:RpcEnv.md#create[create an RpcEnv] (using rpc:RpcEnvFactory.md[]).
 
 == [[clientMode]] Client Mode
 
-When an RPC Environment is initialized xref:core:SparkEnv.adoc#createDriverEnv[as part of the initialization of the driver] or xref:core:SparkEnv.adoc#createExecutorEnv[executors] (using `RpcEnv.create`), `clientMode` is `false` for the driver and `true` for executors.
+When an RPC Environment is initialized core:SparkEnv.md#createDriverEnv[as part of the initialization of the driver] or core:SparkEnv.md#createExecutorEnv[executors] (using `RpcEnv.create`), `clientMode` is `false` for the driver and `true` for executors.
 
-Copied (almost verbatim) from https://issues.apache.org/jira/browse/SPARK-10997[SPARK-10997 Netty-based RPC env should support a "client-only" mode] and the link:https://github.com/apache/spark/commit/71d1c907dec446db566b19f912159fd8f46deb7d[commit]:
+Copied (almost verbatim) from https://issues.apache.org/jira/browse/SPARK-10997[SPARK-10997 Netty-based RPC env should support a "client-only" mode] and the https://github.com/apache/spark/commit/71d1c907dec446db566b19f912159fd8f46deb7d[commit]:
 
 "Client mode" means the RPC env will not listen for incoming connections.
 
@@ -29,4 +29,4 @@ The AM connects to the driver in "client mode", and that connection is used for 
 
 In "general", non-YARN case, `clientMode` flag is therefore enabled for executors and disabled for the driver.
 
-In Spark on YARN in link:spark-deploy-mode.adoc#client[`client` deploy mode], `clientMode` flag is however enabled explicitly when Spark on YARN's link:spark-yarn-applicationmaster.adoc#runExecutorLauncher-sparkYarnAM[ApplicationMaster] creates the `sparkYarnAM` RPC Environment.
+In Spark on YARN in spark-deploy-mode.md#client[`client` deploy mode], `clientMode` flag is however enabled explicitly when Spark on YARN's spark-yarn-applicationmaster.md#runExecutorLauncher-sparkYarnAM[ApplicationMaster] creates the `sparkYarnAM` RPC Environment.

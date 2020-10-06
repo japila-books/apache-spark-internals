@@ -1,6 +1,6 @@
 == Actions
 
-*Actions* are link:spark-rdd-operations.adoc[RDD operations] that produce non-RDD values. They materialize a value in a Spark program. In other words, a RDD operation that returns a value of any type but `RDD[T]` is an action.
+*Actions* are spark-rdd-operations.md[RDD operations] that produce non-RDD values. They materialize a value in a Spark program. In other words, a RDD operation that returns a value of any type but `RDD[T]` is an action.
 
 ```
 action: RDD => a value
@@ -8,11 +8,11 @@ action: RDD => a value
 
 NOTE: Actions are synchronous. You can use <<AsyncRDDActions, AsyncRDDActions>> to release a calling thread while calling actions.
 
-They trigger execution of <<transformations, RDD transformations>> to return values. Simply put, an action evaluates the link:spark-rdd-lineage.adoc[RDD lineage graph].
+They trigger execution of <<transformations, RDD transformations>> to return values. Simply put, an action evaluates the spark-rdd-lineage.md[RDD lineage graph].
 
 You can think of actions as a valve and until action is fired, the data to be processed is not even in the pipes, i.e. transformations. Only actions can materialize the entire processing pipeline with real data.
 
-Actions are one of two ways to send data from xref:executor:Executor.adoc[executors] to the link:spark-driver.adoc[driver] (the other being link:spark-accumulators.adoc[accumulators]).
+Actions are one of two ways to send data from executor:Executor.md[executors] to the spark-driver.md[driver] (the other being spark-accumulators.md[accumulators]).
 
 Actions in http://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.rdd.RDD[org.apache.spark.rdd.RDD]:
 
@@ -28,7 +28,7 @@ Actions in http://spark.apache.org/docs/latest/api/scala/index.html#org.apache.s
 * `max`
 * `min`
 * `reduce`
-* link:spark-io.adoc#saving-rdds-to-files[saveAs* actions], e.g. `saveAsTextFile`, `saveAsHadoopFile`
+* spark-io.md#saving-rdds-to-files[saveAs* actions], e.g. `saveAsTextFile`, `saveAsHadoopFile`
 * `take`
 * `takeOrdered`
 * `takeSample`
@@ -37,7 +37,7 @@ Actions in http://spark.apache.org/docs/latest/api/scala/index.html#org.apache.s
 * `treeAggregate`
 * `treeReduce`
 
-Actions run link:spark-scheduler-ActiveJob.adoc[jobs] using xref:ROOT:SparkContext.adoc#runJob[SparkContext.runJob] or directly xref:scheduler:DAGScheduler.adoc#runJob[DAGScheduler.runJob].
+Actions run spark-scheduler-ActiveJob.md[jobs] using ROOT:SparkContext.md#runJob[SparkContext.runJob] or directly scheduler:DAGScheduler.md#runJob[DAGScheduler.runJob].
 
 [source,scala]
 ----
@@ -46,7 +46,7 @@ res0: Long = 502
 ----
 <1> `words` is an RDD of `String`.
 
-TIP: You should cache RDDs you work with when you want to execute two or more actions on it for a better performance. Refer to link:spark-rdd-caching.adoc[RDD Caching and Persistence].
+TIP: You should cache RDDs you work with when you want to execute two or more actions on it for a better performance. Refer to spark-rdd-caching.md[RDD Caching and Persistence].
 
 Before calling an action, Spark does closure/function cleaning (using `SparkContext.clean`) to make it ready for serialization and sending over the wire to executors. Cleaning can throw a `SparkException` if the computation cannot be cleaned.
 

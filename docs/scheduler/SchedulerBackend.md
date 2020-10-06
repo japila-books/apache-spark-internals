@@ -13,10 +13,10 @@ NOTE: Being a scheduler backend system assumes a http://mesos.apache.org/[Apache
 | SchedulerBackend
 | Description
 
-| xref:scheduler:CoarseGrainedSchedulerBackend.adoc[CoarseGrainedSchedulerBackend]
+| scheduler:CoarseGrainedSchedulerBackend.md[CoarseGrainedSchedulerBackend]
 | [[CoarseGrainedSchedulerBackend]] Base SchedulerBackend for coarse-grained scheduling systems
 
-| xref:spark-local:spark-LocalSchedulerBackend.adoc[LocalSchedulerBackend]
+| spark-local:spark-LocalSchedulerBackend.md[LocalSchedulerBackend]
 | [[LocalSchedulerBackend]] Spark local
 
 | MesosFineGrainedSchedulerBackend
@@ -33,7 +33,7 @@ start(): Unit
 
 Starts the SchedulerBackend
 
-Used when TaskSchedulerImpl is requested to xref:scheduler:TaskSchedulerImpl.adoc#start[start]
+Used when TaskSchedulerImpl is requested to scheduler:TaskSchedulerImpl.md#start[start]
 
 == [[contract]] Contract
 
@@ -54,7 +54,7 @@ applicationAttemptId(): Option[String]
 
 Default: `None` (undefined)
 
-Used exclusively when `TaskSchedulerImpl` is requested for the xref:scheduler:TaskSchedulerImpl.adoc#applicationAttemptId[execution attempt ID of a Spark application]
+Used exclusively when `TaskSchedulerImpl` is requested for the scheduler:TaskSchedulerImpl.md#applicationAttemptId[execution attempt ID of a Spark application]
 
 | applicationId
 a| [[applicationId]][[appId]]
@@ -68,7 +68,7 @@ applicationId(): String
 
 Default: `spark-application-[currentTimeMillis]`
 
-Used exclusively when `TaskSchedulerImpl` is requested for the xref:scheduler:TaskSchedulerImpl.adoc#applicationId[unique identifier of a Spark application]
+Used exclusively when `TaskSchedulerImpl` is requested for the scheduler:TaskSchedulerImpl.md#applicationId[unique identifier of a Spark application]
 
 | defaultParallelism
 a| [[defaultParallelism]]
@@ -80,7 +80,7 @@ defaultParallelism(): Int
 
 *Default parallelism*, i.e. a hint for the number of tasks in stages while sizing jobs
 
-Used exclusively when `TaskSchedulerImpl` is requested for the xref:scheduler:TaskSchedulerImpl.adoc#defaultParallelism[default parallelism]
+Used exclusively when `TaskSchedulerImpl` is requested for the scheduler:TaskSchedulerImpl.md#defaultParallelism[default parallelism]
 
 | getDriverLogUrls
 a| [[getDriverLogUrls]]
@@ -94,7 +94,7 @@ getDriverLogUrls: Option[Map[String, String]]
 
 Default: `None` (undefined)
 
-Used exclusively when `SparkContext` is requested to xref:ROOT:SparkContext.adoc#postApplicationStart[postApplicationStart]
+Used exclusively when `SparkContext` is requested to ROOT:SparkContext.md#postApplicationStart[postApplicationStart]
 
 | isReady
 a| [[isReady]]
@@ -104,11 +104,11 @@ a| [[isReady]]
 isReady(): Boolean
 ----
 
-Controls whether the xref:scheduler:SchedulerBackend.adoc[SchedulerBackend] is ready (`true`) or not (`false`)
+Controls whether the scheduler:SchedulerBackend.md[SchedulerBackend] is ready (`true`) or not (`false`)
 
 Default: `true`
 
-Used exclusively when `TaskSchedulerImpl` is requested to xref:scheduler:TaskSchedulerImpl.adoc#waitBackendReady[wait until scheduling backend is ready]
+Used exclusively when `TaskSchedulerImpl` is requested to scheduler:TaskSchedulerImpl.md#waitBackendReady[wait until scheduling backend is ready]
 
 | killTask
 a| [[killTask]]
@@ -128,9 +128,9 @@ Default: Throws an `UnsupportedOperationException`
 
 Used when:
 
-* `TaskSchedulerImpl` is requested to xref:scheduler:TaskSchedulerImpl.adoc#killTaskAttempt[killTaskAttempt] and xref:scheduler:TaskSchedulerImpl.adoc#killAllTaskAttempts[killAllTaskAttempts]
+* `TaskSchedulerImpl` is requested to scheduler:TaskSchedulerImpl.md#killTaskAttempt[killTaskAttempt] and scheduler:TaskSchedulerImpl.md#killAllTaskAttempts[killAllTaskAttempts]
 
-* `TaskSetManager` is requested to xref:scheduler:TaskSetManager.adoc#handleSuccessfulTask[handle a successful task attempt]
+* `TaskSetManager` is requested to scheduler:TaskSetManager.md#handleSuccessfulTask[handle a successful task attempt]
 
 | maxNumConcurrentTasks
 a| [[maxNumConcurrentTasks]]
@@ -142,7 +142,7 @@ maxNumConcurrentTasks(): Int
 
 *Maximum number of concurrent tasks* that can be launched now
 
-Used exclusively when `SparkContext` is requested to xref:ROOT:SparkContext.adoc#maxNumConcurrentTasks[maxNumConcurrentTasks]
+Used exclusively when `SparkContext` is requested to ROOT:SparkContext.md#maxNumConcurrentTasks[maxNumConcurrentTasks]
 
 | reviveOffers
 a| [[reviveOffers]]
@@ -156,15 +156,15 @@ Handles resource allocation offers (from the scheduling system)
 
 Used when `TaskSchedulerImpl` is requested to:
 
-* xref:scheduler:TaskSchedulerImpl.adoc#submitTasks[Submit tasks (from a TaskSet)]
+* scheduler:TaskSchedulerImpl.md#submitTasks[Submit tasks (from a TaskSet)]
 
-* xref:scheduler:TaskSchedulerImpl.adoc#statusUpdate[Handle a task status update]
+* scheduler:TaskSchedulerImpl.md#statusUpdate[Handle a task status update]
 
-* xref:scheduler:TaskSchedulerImpl.adoc#handleFailedTask[Notify the TaskSetManager that a task has failed]
+* scheduler:TaskSchedulerImpl.md#handleFailedTask[Notify the TaskSetManager that a task has failed]
 
-* xref:scheduler:TaskSchedulerImpl.adoc#checkSpeculatableTasks[Check for speculatable tasks]
+* scheduler:TaskSchedulerImpl.md#checkSpeculatableTasks[Check for speculatable tasks]
 
-* xref:scheduler:TaskSchedulerImpl.adoc#executorLost[Handle a lost executor event]
+* scheduler:TaskSchedulerImpl.md#executorLost[Handle a lost executor event]
 
 | stop
 a| [[stop]]
@@ -178,8 +178,8 @@ Stops the SchedulerBackend
 
 Used when:
 
-* `TaskSchedulerImpl` is requested to xref:scheduler:TaskSchedulerImpl.adoc#stop[stop]
+* `TaskSchedulerImpl` is requested to scheduler:TaskSchedulerImpl.md#stop[stop]
 
-* `MesosCoarseGrainedSchedulerBackend` is requested to <<spark-mesos/spark-mesos-MesosCoarseGrainedSchedulerBackend.adoc#stopSchedulerBackend, stopSchedulerBackend>>
+* `MesosCoarseGrainedSchedulerBackend` is requested to <<spark-mesos/spark-mesos-MesosCoarseGrainedSchedulerBackend.md#stopSchedulerBackend, stopSchedulerBackend>>
 
 |===

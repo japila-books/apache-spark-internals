@@ -1,6 +1,6 @@
 = Demo: DiskBlockManager and Block Data
 
-The demo shows how Spark stores data blocks on local disk (using xref:storage:DiskBlockManager.adoc[DiskBlockManager] and xref:storage:DiskStore.adoc[DiskStore] among the services).
+The demo shows how Spark stores data blocks on local disk (using storage:DiskBlockManager.md[DiskBlockManager] and storage:DiskStore.md[DiskStore] among the services).
 
 == Configure Local Directories
 
@@ -60,7 +60,7 @@ Click the link in RDD Name column and review the information.
 
 == Enable Logging
 
-Enable ALL logging level for xref:storage:DiskStore.adoc#logging[org.apache.spark.storage.DiskStore] and xref:storage:DiskBlockManager.adoc#logging[org.apache.spark.storage.DiskBlockManager] loggers to have an even deeper insight on the block storage internals.
+Enable ALL logging level for storage:DiskStore.md#logging[org.apache.spark.storage.DiskStore] and storage:DiskBlockManager.md#logging[org.apache.spark.storage.DiskBlockManager] loggers to have an even deeper insight on the block storage internals.
 
 ```
 log4j.logger.org.apache.spark.storage.DiskBlockManager=ALL

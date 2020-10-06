@@ -1,8 +1,8 @@
 = ExternalShuffleBlockHandler
 
-*ExternalShuffleBlockHandler* is a xref:network:RpcHandler.adoc[].
+*ExternalShuffleBlockHandler* is a network:RpcHandler.md[].
 
-When created, ExternalShuffleBlockHandler requires a xref:network:OneForOneStreamManager.adoc[] and xref:network:TransportConf.adoc[] with a `registeredExecutorFile` to create a `ExternalShuffleBlockResolver`.
+When created, ExternalShuffleBlockHandler requires a network:OneForOneStreamManager.md[] and network:TransportConf.md[] with a `registeredExecutorFile` to create a `ExternalShuffleBlockResolver`.
 
 It <<handleMessage, handles two `BlockTransferMessage` messages>>: <<OpenBlocks, OpenBlocks>> and <<RegisterExecutor, RegisterExecutor>>.
 
@@ -43,7 +43,7 @@ CAUTION: FIXME `checkAuth`?
 
 It then <<ExternalShuffleBlockResolver-getBlockData, gets block data>> for each block id in `blockIds` (using <<ExternalShuffleBlockResolver, ExternalShuffleBlockResolver>>).
 
-Finally, it xref:network:OneForOneStreamManager.adoc#registerStream[registers a stream] and does `callback.onSuccess` with a serialized byte buffer (for the `streamId` and the number of blocks in `msg`).
+Finally, it network:OneForOneStreamManager.md#registerStream[registers a stream] and does `callback.onSuccess` with a serialized byte buffer (for the `streamId` and the number of blocks in `msg`).
 
 CAUTION: FIXME `callback.onSuccess`?
 
@@ -76,4 +76,4 @@ Add the following line to `conf/log4j.properties`:
 log4j.logger.org.apache.spark.network.shuffle.ExternalShuffleBlockHandler=ALL
 ----
 
-Refer to xref:ROOT:spark-logging.adoc[Logging].
+Refer to ROOT:spark-logging.md[Logging].

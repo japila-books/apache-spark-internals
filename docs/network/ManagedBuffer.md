@@ -27,7 +27,7 @@ a| [[createInputStream]]
 InputStream createInputStream()
 ----
 
-Used exclusively when `ShuffleBlockFetcherIterator` is requested to xref:storage:ShuffleBlockFetcherIterator.adoc#next[retrieve the next element]
+Used exclusively when `ShuffleBlockFetcherIterator` is requested to storage:ShuffleBlockFetcherIterator.md#next[retrieve the next element]
 
 | nioByteBuffer
 a| [[nioByteBuffer]]
@@ -61,7 +61,7 @@ Used when:
 
 * `MessageWithHeader` is requested to `retain`
 
-* `ShuffleBlockFetcherIterator` is requested to xref:storage:ShuffleBlockFetcherIterator.adoc#sendRequest[send a remote shuffle block fetch request] and xref:storage:ShuffleBlockFetcherIterator.adoc#fetchLocalBlocks[fetchLocalBlocks]
+* `ShuffleBlockFetcherIterator` is requested to storage:ShuffleBlockFetcherIterator.md#sendRequest[send a remote shuffle block fetch request] and storage:ShuffleBlockFetcherIterator.md#fetchLocalBlocks[fetchLocalBlocks]
 
 | size
 a| [[size]]

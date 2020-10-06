@@ -1,3 +1,3 @@
 = [[ExecutionMemoryPool]] ExecutionMemoryPool
 
-*ExecutionMemoryPool* is a xref:memory:MemoryPool.adoc[MemoryPool].
+*ExecutionMemoryPool* is a memory:MemoryPool.md[MemoryPool].

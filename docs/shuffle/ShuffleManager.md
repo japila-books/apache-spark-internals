@@ -2,17 +2,17 @@
 
 `ShuffleManager` is an abstraction of <<implementations, shuffle systems>> that manage shuffle data.
 
-`ShuffleManager` is selected using [spark.shuffle.manager](configuration-properties.md#spark.shuffle.manager) configuration property.
+`ShuffleManager` is selected using [spark.shuffle.manager](../configuration-properties.md#spark.shuffle.manager) configuration property.
 
 `ShuffleManager` is used to create a [BlockManager](../storage/BlockManager.md#shuffleManager).
 
 == [[implementations]] Available ShuffleManagers
 
-xref:shuffle:SortShuffleManager.adoc[SortShuffleManager] is the default and only known ShuffleManager in Apache Spark.
+shuffle:SortShuffleManager.md[SortShuffleManager] is the default and only known ShuffleManager in Apache Spark.
 
 == [[SparkEnv]] Accessing ShuffleManager using SparkEnv
 
-The driver and executor access the ShuffleManager instance using xref:core:SparkEnv.adoc#shuffleManager[SparkEnv.shuffleManager].
+The driver and executor access the ShuffleManager instance using core:SparkEnv.md#shuffleManager[SparkEnv.shuffleManager].
 
 [source, scala]
 ----
@@ -30,15 +30,15 @@ getReader[K, C](
   context: TaskContext): ShuffleReader[K, C]
 ----
 
-Gives xref:shuffle:spark-shuffle-ShuffleReader.adoc[ShuffleReader] to read shuffle data in the xref:shuffle:spark-shuffle-ShuffleHandle.adoc[ShuffleHandle]
+Gives shuffle:spark-shuffle-ShuffleReader.md[ShuffleReader] to read shuffle data in the shuffle:spark-shuffle-ShuffleHandle.md[ShuffleHandle]
 
-Used when the following RDDs are requested to xref:rdd:RDD.adoc#compute[compute a partition]:
+Used when the following RDDs are requested to rdd:RDD.md#compute[compute a partition]:
 
-* xref:rdd:spark-rdd-CoGroupedRDD.adoc[CoGroupedRDD]
+* rdd:spark-rdd-CoGroupedRDD.md[CoGroupedRDD]
 
-* xref:rdd:ShuffledRDD.adoc[ShuffledRDD]
+* rdd:ShuffledRDD.md[ShuffledRDD]
 
-* xref:rdd:spark-rdd-SubtractedRDD.adoc[SubtractedRDD]
+* rdd:spark-rdd-SubtractedRDD.md[SubtractedRDD]
 
 == [[getWriter]] Getting ShuffleWriter for ShuffleHandle
 
@@ -50,9 +50,9 @@ getWriter[K, V](
   context: TaskContext): ShuffleWriter[K, V]
 ----
 
-Gives xref:shuffle:ShuffleWriter.adoc[ShuffleWriter] to write shuffle data in the xref:shuffle:spark-shuffle-ShuffleHandle.adoc[ShuffleHandle]
+Gives shuffle:ShuffleWriter.md[ShuffleWriter] to write shuffle data in the shuffle:spark-shuffle-ShuffleHandle.md[ShuffleHandle]
 
-Used exclusively when ShuffleMapTask is requested to xref:scheduler:ShuffleMapTask.adoc#runTask[run] (and requests the xref:shuffle:ShuffleWriter.adoc[ShuffleWriter] to write records for a partition)
+Used exclusively when ShuffleMapTask is requested to scheduler:ShuffleMapTask.md#runTask[run] (and requests the shuffle:ShuffleWriter.md[ShuffleWriter] to write records for a partition)
 
 == [[registerShuffle]] Registering Shuffle of ShuffleDependency (and Getting ShuffleHandle)
 
@@ -64,9 +64,9 @@ registerShuffle[K, V, C](
   dependency: ShuffleDependency[K, V, C]): ShuffleHandle
 ----
 
-Registers a shuffle (by the given shuffleId and xref:rdd:ShuffleDependency.adoc[ShuffleDependency]) and returns a xref:shuffle:spark-shuffle-ShuffleHandle.adoc[ShuffleHandle]
+Registers a shuffle (by the given shuffleId and rdd:ShuffleDependency.md[ShuffleDependency]) and returns a shuffle:spark-shuffle-ShuffleHandle.md[ShuffleHandle]
 
-Used when ShuffleDependency is xref:rdd:ShuffleDependency.adoc#shuffleHandle[created] (and registers with the shuffle system)
+Used when ShuffleDependency is rdd:ShuffleDependency.md#shuffleHandle[created] (and registers with the shuffle system)
 
 == [[shuffleBlockResolver]] Getting ShuffleBlockResolver
 
@@ -75,13 +75,13 @@ Used when ShuffleDependency is xref:rdd:ShuffleDependency.adoc#shuffleHandle[cre
 shuffleBlockResolver: ShuffleBlockResolver
 ----
 
-Gives xref:shuffle:ShuffleBlockResolver.adoc[ShuffleBlockResolver] of the shuffle system
+Gives shuffle:ShuffleBlockResolver.md[ShuffleBlockResolver] of the shuffle system
 
 Used when:
 
-* SortShuffleManager is requested for a xref:shuffle:SortShuffleManager.adoc#getWriter[ShuffleWriter for a ShuffleHandle], to xref:shuffle:SortShuffleManager.adoc#unregisterShuffle[unregister a shuffle] and xref:shuffle:SortShuffleManager.adoc#stop[stop]
+* SortShuffleManager is requested for a shuffle:SortShuffleManager.md#getWriter[ShuffleWriter for a ShuffleHandle], to shuffle:SortShuffleManager.md#unregisterShuffle[unregister a shuffle] and shuffle:SortShuffleManager.md#stop[stop]
 
-* BlockManager is requested to xref:storage:BlockManager.adoc#getBlockData[get shuffle data] and xref:storage:BlockManager.adoc#getLocalBytes[getLocalBytes]
+* BlockManager is requested to storage:BlockManager.md#getBlockData[get shuffle data] and storage:BlockManager.md#getLocalBytes[getLocalBytes]
 
 == [[stop]] Stopping ShuffleManager
 
@@ -92,7 +92,7 @@ stop(): Unit
 
 Stops the shuffle system
 
-Used when SparkEnv is requested to xref:core:SparkEnv.adoc#stop[stop]
+Used when SparkEnv is requested to core:SparkEnv.md#stop[stop]
 
 == [[unregisterShuffle]] Unregistering Shuffle
 
@@ -104,4 +104,4 @@ unregisterShuffle(
 
 Unregisters a given shuffle
 
-Used when BlockManagerSlaveEndpoint is requested to xref:storage:BlockManagerSlaveEndpoint.adoc#RemoveShuffle[handle a RemoveShuffle message]
+Used when BlockManagerSlaveEndpoint is requested to storage:BlockManagerSlaveEndpoint.md#RemoveShuffle[handle a RemoveShuffle message]

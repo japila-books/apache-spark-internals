@@ -1,6 +1,6 @@
 == [[ExecutorsListener]] ExecutorsListener Spark Listener
 
-`ExecutorsListener` is a xref:ROOT:SparkListener.adoc[] that tracks <<internal-registries, executors and their tasks>> in a Spark application for link:spark-webui-StagePage.adoc[Stage Details] page, link:spark-webui-jobs.adoc[Jobs] tab and `/allexecutors` REST endpoint.
+`ExecutorsListener` is a ROOT:SparkListener.md[] that tracks <<internal-registries, executors and their tasks>> in a Spark application for spark-webui-StagePage.md[Stage Details] page, spark-webui-jobs.md[Jobs] tab and `/allexecutors` REST endpoint.
 
 [[SparkListener-callbacks]]
 .ExecutorsListener's SparkListener Callbacks (in alphabetical order)
@@ -13,9 +13,9 @@
 | May create an entry for the driver in <<executorToTaskSummary, executorToTaskSummary>> registry
 
 | <<onExecutorAdded, onExecutorAdded>>
-| May create an entry in <<executorToTaskSummary, executorToTaskSummary>> registry. It also makes sure that the number of entries for dead executors does not exceed link:spark-webui-properties.adoc#spark.ui.retainedDeadExecutors[spark.ui.retainedDeadExecutors] and removes excess.
+| May create an entry in <<executorToTaskSummary, executorToTaskSummary>> registry. It also makes sure that the number of entries for dead executors does not exceed spark-webui-properties.md#spark.ui.retainedDeadExecutors[spark.ui.retainedDeadExecutors] and removes excess.
 
-Adds an entry to <<executorEvents, executorEvents>> registry and optionally removes the oldest if the number of entries exceeds link:spark-webui-properties.adoc#spark.ui.timeline.executors.maximum[spark.ui.timeline.executors.maximum].
+Adds an entry to <<executorEvents, executorEvents>> registry and optionally removes the oldest if the number of entries exceeds spark-webui-properties.md#spark.ui.timeline.executors.maximum[spark.ui.timeline.executors.maximum].
 
 | <<onExecutorBlacklisted, onExecutorBlacklisted>>
 | FIXME
@@ -23,7 +23,7 @@ Adds an entry to <<executorEvents, executorEvents>> registry and optionally remo
 | <<onExecutorRemoved, onExecutorRemoved>>
 | Marks an executor dead in <<executorToTaskSummary, executorToTaskSummary>> registry.
 
-Adds an entry to <<executorEvents, executorEvents>> registry and optionally removes the oldest if the number of entries exceeds link:spark-webui-properties.adoc#spark.ui.timeline.executors.maximum[spark.ui.timeline.executors.maximum].
+Adds an entry to <<executorEvents, executorEvents>> registry and optionally removes the oldest if the number of entries exceeds spark-webui-properties.md#spark.ui.timeline.executors.maximum[spark.ui.timeline.executors.maximum].
 
 | <<onExecutorUnblacklisted, onExecutorUnblacklisted>>
 | FIXME
@@ -41,7 +41,7 @@ Adds an entry to <<executorEvents, executorEvents>> registry and optionally remo
 | May create an entry for an executor in <<executorToTaskSummary, executorToTaskSummary>> registry.
 |===
 
-`ExecutorsListener` requires a link:spark-webui-StorageStatusListener.adoc[StorageStatusListener] and xref:ROOT:SparkConf.adoc[SparkConf].
+`ExecutorsListener` requires a spark-webui-StorageStatusListener.md[StorageStatusListener] and ROOT:SparkConf.md[SparkConf].
 
 [[internal-registries]]
 .ExecutorsListener's Internal Registries and Counters
@@ -53,12 +53,12 @@ Adds an entry to <<executorEvents, executorEvents>> registry and optionally remo
 | [[executorToTaskSummary]] `executorToTaskSummary`
 | The lookup table for `ExecutorTaskSummary` per executor id.
 
-Used to build a `ExecutorSummary` for `/allexecutors` REST endpoint, to display stdout and stderr logs in link:spark-webui-StagePage.adoc#tasks[Tasks] and link:spark-webui-StagePage.adoc#aggregated-metrics-by-executor[Aggregated Metrics by Executor] sections in link:spark-webui-StagePage.adoc[Stage Details] page.
+Used to build a `ExecutorSummary` for `/allexecutors` REST endpoint, to display stdout and stderr logs in spark-webui-StagePage.md#tasks[Tasks] and spark-webui-StagePage.md#aggregated-metrics-by-executor[Aggregated Metrics by Executor] sections in spark-webui-StagePage.md[Stage Details] page.
 
 | [[executorEvents]] `executorEvents`
-| A collection of xref:ROOT:SparkListener.adoc#SparkListenerEvent[SparkListenerEvent]s.
+| A collection of ROOT:SparkListener.md#SparkListenerEvent[SparkListenerEvent]s.
 
-Used to build the event timeline in link:spark-webui-AllJobsPage.adoc[AllJobsPage] and link:spark-webui-jobs.adoc#JobPage[Details for Job] pages.
+Used to build the event timeline in spark-webui-AllJobsPage.md[AllJobsPage] and spark-webui-jobs.md#JobPage[Details for Job] pages.
 |===
 
 === [[updateExecutorBlacklist]] `updateExecutorBlacklist` Method
@@ -88,9 +88,9 @@ CAUTION: FIXME
 onApplicationStart(applicationStart: SparkListenerApplicationStart): Unit
 ----
 
-NOTE: `onApplicationStart` is part of xref:ROOT:SparkListener.adoc#onApplicationStart[SparkListener contract] to announce that a Spark application has been started.
+NOTE: `onApplicationStart` is part of ROOT:SparkListener.md#onApplicationStart[SparkListener contract] to announce that a Spark application has been started.
 
-`onApplicationStart` takes `driverLogs` property from the input `applicationStart` (if defined) and finds the driver's active link:spark-blockmanager-StorageStatus.adoc[StorageStatus] (using the current link:spark-webui-StorageStatusListener.adoc[StorageStatusListener]). `onApplicationStart` then uses the driver's link:spark-blockmanager-StorageStatus.adoc[StorageStatus] (if defined) to set `executorLogs`.
+`onApplicationStart` takes `driverLogs` property from the input `applicationStart` (if defined) and finds the driver's active spark-blockmanager-StorageStatus.md[StorageStatus] (using the current spark-webui-StorageStatusListener.md[StorageStatusListener]). `onApplicationStart` then uses the driver's spark-blockmanager-StorageStatus.md[StorageStatus] (if defined) to set `executorLogs`.
 
 .ExecutorTaskSummary and ExecutorInfo Attributes
 [options="header",width="100%"]
@@ -106,7 +106,7 @@ NOTE: `onApplicationStart` is part of xref:ROOT:SparkListener.adoc#onApplication
 onExecutorAdded(executorAdded: SparkListenerExecutorAdded): Unit
 ----
 
-NOTE: `onExecutorAdded` is part of xref:ROOT:SparkListener.adoc#onExecutorAdded[SparkListener contract] to announce that a new executor has been registered with the Spark application.
+NOTE: `onExecutorAdded` is part of ROOT:SparkListener.md#onExecutorAdded[SparkListener contract] to announce that a new executor has been registered with the Spark application.
 
 `onExecutorAdded` finds the executor (using the input `executorAdded`) in the internal <<executorToTaskSummary, `executorToTaskSummary` registry>> and sets the attributes. If not found, `onExecutorAdded` creates a new entry.
 
@@ -116,12 +116,12 @@ NOTE: `onExecutorAdded` is part of xref:ROOT:SparkListener.adoc#onExecutorAdded[
 | ExecutorTaskSummary Attribute | ExecutorInfo Attribute
 | `executorLogs` | `logUrlMap`
 | `totalCores` | `totalCores`
-| `tasksMax` | `totalCores` / xref:ROOT:configuration-properties.adoc#spark.task.cpus[spark.task.cpus]
+| `tasksMax` | `totalCores` / ROOT:configuration-properties.md#spark.task.cpus[spark.task.cpus]
 |===
 
-`onExecutorAdded` adds the input `executorAdded` to <<executorEvents, `executorEvents` collection>>. If the number of elements in `executorEvents` collection is greater than link:spark-webui-properties.adoc#spark.ui.timeline.executors.maximum[spark.ui.timeline.executors.maximum] configuration property, the first/oldest event is removed.
+`onExecutorAdded` adds the input `executorAdded` to <<executorEvents, `executorEvents` collection>>. If the number of elements in `executorEvents` collection is greater than spark-webui-properties.md#spark.ui.timeline.executors.maximum[spark.ui.timeline.executors.maximum] configuration property, the first/oldest event is removed.
 
-`onExecutorAdded` removes the oldest dead executor from <<executorToTaskSummary, `executorToTaskSummary` lookup table>> if their number is greater than link:spark-webui-properties.adoc#spark.ui.retainedDeadExecutors[spark.ui.retainedDeadExecutors].
+`onExecutorAdded` removes the oldest dead executor from <<executorToTaskSummary, `executorToTaskSummary` lookup table>> if their number is greater than spark-webui-properties.md#spark.ui.retainedDeadExecutors[spark.ui.retainedDeadExecutors].
 
 === [[onExecutorRemoved]] Intercepting Executor Removed Events -- `onExecutorRemoved` Callback
 
@@ -130,9 +130,9 @@ NOTE: `onExecutorAdded` is part of xref:ROOT:SparkListener.adoc#onExecutorAdded[
 onExecutorRemoved(executorRemoved: SparkListenerExecutorRemoved): Unit
 ----
 
-NOTE: `onExecutorRemoved` is part of xref:ROOT:SparkListener.adoc#onExecutorRemoved[SparkListener contract] to announce that an executor has been unregistered with the Spark application.
+NOTE: `onExecutorRemoved` is part of ROOT:SparkListener.md#onExecutorRemoved[SparkListener contract] to announce that an executor has been unregistered with the Spark application.
 
-`onExecutorRemoved` adds the input `executorRemoved` to <<executorEvents, `executorEvents` collection>>. It then removes the oldest event if the number of elements in `executorEvents` collection is greater than link:spark-webui-properties.adoc#spark.ui.timeline.executors.maximum[spark.ui.timeline.executors.maximum] configuration property.
+`onExecutorRemoved` adds the input `executorRemoved` to <<executorEvents, `executorEvents` collection>>. It then removes the oldest event if the number of elements in `executorEvents` collection is greater than spark-webui-properties.md#spark.ui.timeline.executors.maximum[spark.ui.timeline.executors.maximum] configuration property.
 
 The executor is marked as removed/inactive in <<executorToTaskSummary, `executorToTaskSummary` lookup table>>.
 
@@ -143,7 +143,7 @@ The executor is marked as removed/inactive in <<executorToTaskSummary, `executor
 onTaskStart(taskStart: SparkListenerTaskStart): Unit
 ----
 
-NOTE: `onTaskStart` is part of xref:ROOT:SparkListener.adoc#onTaskStart[SparkListener contract] to announce that a task has been started.
+NOTE: `onTaskStart` is part of ROOT:SparkListener.md#onTaskStart[SparkListener contract] to announce that a task has been started.
 
 `onTaskStart` increments `tasksActive` for the executor (using the input `SparkListenerTaskStart`).
 
@@ -161,9 +161,9 @@ NOTE: `onTaskStart` is part of xref:ROOT:SparkListener.adoc#onTaskStart[SparkLis
 onTaskEnd(taskEnd: SparkListenerTaskEnd): Unit
 ----
 
-NOTE: `onTaskEnd` is part of xref:ROOT:SparkListener.adoc#onTaskEnd[SparkListener contract] to announce that a task has ended.
+NOTE: `onTaskEnd` is part of ROOT:SparkListener.md#onTaskEnd[SparkListener contract] to announce that a task has ended.
 
-`onTaskEnd` takes link:spark-scheduler-TaskInfo.adoc[TaskInfo] from the input `taskEnd` (if available).
+`onTaskEnd` takes spark-scheduler-TaskInfo.md[TaskInfo] from the input `taskEnd` (if available).
 
 Depending on the reason for `SparkListenerTaskEnd` `onTaskEnd` does the following:
 
@@ -197,7 +197,7 @@ If the `TaskMetrics` (in the input `taskEnd`) is available, the metrics are adde
 | `outputBytes` | `outputMetrics.bytesWritten`
 | `outputRecords` | `outputMetrics.recordsWritten`
 | `shuffleRead` | `shuffleReadMetrics.remoteBytesRead`
-| `shuffleWrite` | xref:executor:ShuffleWriteMetrics.adoc#bytesWritten[shuffleWriteMetrics.bytesWritten]
+| `shuffleWrite` | executor:ShuffleWriteMetrics.md#bytesWritten[shuffleWriteMetrics.bytesWritten]
 | `jvmGCTime` | `metrics.jvmGCTime`
 |===
 
@@ -208,7 +208,7 @@ If the `TaskMetrics` (in the input `taskEnd`) is available, the metrics are adde
 activeStorageStatusList: Seq[StorageStatus]
 ----
 
-`activeStorageStatusList` requests <<storageStatusListener, StorageStatusListener>> for link:spark-webui-StorageStatusListener.adoc#storageStatusList[active BlockManagers (on executors)].
+`activeStorageStatusList` requests <<storageStatusListener, StorageStatusListener>> for spark-webui-StorageStatusListener.md#storageStatusList[active BlockManagers (on executors)].
 
 [NOTE]
 ====

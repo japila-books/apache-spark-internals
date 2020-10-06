@@ -4,7 +4,7 @@ RpcEnv is an <<contract, abstraction>> of <<implementations, RPC systems>>.
 
 == [[implementations]] Available RpcEnvs
 
-xref:rpc:NettyRpcEnv.adoc[] is the default and only known RpcEnv in Apache Spark.
+rpc:NettyRpcEnv.md[] is the default and only known RpcEnv in Apache Spark.
 
 == [[contract]] Contract
 
@@ -15,7 +15,7 @@ xref:rpc:NettyRpcEnv.adoc[] is the default and only known RpcEnv in Apache Spark
 address: RpcAddress
 ----
 
-xref:rpc:RpcAddress.adoc[] of the RPC system
+rpc:RpcAddress.md[] of the RPC system
 
 === [[asyncSetupEndpointRefByURI]] asyncSetupEndpointRefByURI Method
 
@@ -25,13 +25,13 @@ asyncSetupEndpointRefByURI(
   uri: String): Future[RpcEndpointRef]
 ----
 
-Sets up an RPC endpoing by URI (asynchronously) and returns xref:rpc:RpcEndpointRef.adoc[]
+Sets up an RPC endpoing by URI (asynchronously) and returns rpc:RpcEndpointRef.md[]
 
 Used when:
 
 * WorkerWatcher is created
 
-* CoarseGrainedExecutorBackend is requested to xref:executor:CoarseGrainedExecutorBackend.adoc#onStart[onStart]
+* CoarseGrainedExecutorBackend is requested to executor:CoarseGrainedExecutorBackend.md#onStart[onStart]
 
 * RpcEnv is requested to <<setupEndpointRefByURI, setupEndpointRefByURI>>
 
@@ -46,7 +46,7 @@ Waits till the RPC system terminates
 
 Used when:
 
-* SparkEnv is requested to xref:core:SparkEnv.adoc#stop[stop]
+* SparkEnv is requested to core:SparkEnv.md#stop[stop]
 
 * ClientApp is requested to start
 
@@ -68,7 +68,7 @@ Used when:
 
 * PersistenceEngine is requested to readPersistedData
 
-* NettyRpcEnv is requested to xref:rpc:NettyRpcEnv.adoc#deserialize[deserialize]
+* NettyRpcEnv is requested to rpc:NettyRpcEnv.md#deserialize[deserialize]
 
 === [[endpointRef]] endpointRef Method
 
@@ -78,7 +78,7 @@ endpointRef(
   endpoint: RpcEndpoint): RpcEndpointRef
 ----
 
-Used when RpcEndpoint is requested for the xref:rpc:RpcEndpoint.adoc#self[RpcEndpointRef to itself]
+Used when RpcEndpoint is requested for the rpc:RpcEndpoint.md#self[RpcEndpointRef to itself]
 
 === [[fileServer]] RpcEnvFileServer
 
@@ -87,9 +87,9 @@ Used when RpcEndpoint is requested for the xref:rpc:RpcEndpoint.adoc#self[RpcEnd
 fileServer: RpcEnvFileServer
 ----
 
-xref:rpc:RpcEnvFileServer.adoc[] of the RPC system
+rpc:RpcEnvFileServer.md[] of the RPC system
 
-Used when xref:ROOT:SparkContext.adoc[] is created (and registers the REPL's output directory) and requested to xref:ROOT:SparkContext.adoc#addFile[addFile] or xref:ROOT:SparkContext.adoc#addJar[addJar]
+Used when ROOT:SparkContext.md[] is created (and registers the REPL's output directory) and requested to ROOT:SparkContext.md#addFile[addFile] or ROOT:SparkContext.md#addJar[addJar]
 
 === [[openChannel]] openChannel Method
 
@@ -118,9 +118,9 @@ setupEndpoint(
 
 Used when:
 
-* xref:ROOT:SparkContext.adoc[] is created (and registers the xref:ROOT:spark-SparkContext-creating-instance-internals.adoc#_heartbeatReceiver[HeartbeatReceiver])
+* ROOT:SparkContext.md[] is created (and registers the ROOT:spark-SparkContext-creating-instance-internals.md#_heartbeatReceiver[HeartbeatReceiver])
 
-* SparkEnv utility is used to xref:core:SparkEnv.adoc#create[create a SparkEnv] (and register the BlockManagerMaster, MapOutputTracker and OutputCommitCoordinator RPC endpoints on the driver)
+* SparkEnv utility is used to core:SparkEnv.md#create[create a SparkEnv] (and register the BlockManagerMaster, MapOutputTracker and OutputCommitCoordinator RPC endpoints on the driver)
 
 * ClientApp is requested to start (and register the client RPC endpoint)
 
@@ -134,17 +134,17 @@ Used when:
 
 * CoarseGrainedExecutorBackend standalone application is launched (and registers the Executor and WorkerWatcher RPC endpoints)
 
-* TaskSchedulerImpl is requested to xref:scheduler:TaskSchedulerImpl.adoc#maybeInitBarrierCoordinator[maybeInitBarrierCoordinator]
+* TaskSchedulerImpl is requested to scheduler:TaskSchedulerImpl.md#maybeInitBarrierCoordinator[maybeInitBarrierCoordinator]
 
-* CoarseGrainedSchedulerBackend is requested to xref:scheduler:CoarseGrainedSchedulerBackend.adoc#createDriverEndpointRef[createDriverEndpointRef] (and registers the CoarseGrainedScheduler RPC endpoint)
+* CoarseGrainedSchedulerBackend is requested to scheduler:CoarseGrainedSchedulerBackend.md#createDriverEndpointRef[createDriverEndpointRef] (and registers the CoarseGrainedScheduler RPC endpoint)
 
-* LocalSchedulerBackend is requested to xref:spark-local:spark-LocalSchedulerBackend.adoc#start[start] (and registers the LocalSchedulerBackendEndpoint RPC endpoint)
+* LocalSchedulerBackend is requested to spark-local:spark-LocalSchedulerBackend.md#start[start] (and registers the LocalSchedulerBackendEndpoint RPC endpoint)
 
-* xref:storage:BlockManager.adoc#slaveEndpoint[BlockManager] is created (and registers the BlockManagerEndpoint RPC endpoint)
+* storage:BlockManager.md#slaveEndpoint[BlockManager] is created (and registers the BlockManagerEndpoint RPC endpoint)
 
-* (Spark on YARN) ApplicationMaster is requested to xref:spark-on-yarn:spark-yarn-applicationmaster.adoc#createAllocator[createAllocator] (and registers the YarnAM RPC endpoint)
+* (Spark on YARN) ApplicationMaster is requested to spark-on-yarn:spark-yarn-applicationmaster.md#createAllocator[createAllocator] (and registers the YarnAM RPC endpoint)
 
-* (Spark on YARN) xref:spark-on-yarn:spark-yarn-yarnschedulerbackend.adoc#yarnSchedulerEndpointRef[YarnSchedulerBackend] is created (and registers the YarnScheduler RPC endpoint)
+* (Spark on YARN) spark-on-yarn:spark-yarn-yarnschedulerbackend.md#yarnSchedulerEndpointRef[YarnSchedulerBackend] is created (and registers the YarnScheduler RPC endpoint)
 
 === [[setupEndpointRef]] setupEndpointRef Method
 
@@ -155,7 +155,7 @@ setupEndpointRef(
   endpointName: String): RpcEndpointRef
 ----
 
-setupEndpointRef creates an RpcEndpointAddress (for the given xref:rpc:RpcAddress.adoc[] and endpoint name) and <<setupEndpointRefByURI, setupEndpointRefByURI>>.
+setupEndpointRef creates an RpcEndpointAddress (for the given rpc:RpcAddress.md[] and endpoint name) and <<setupEndpointRefByURI, setupEndpointRefByURI>>.
 
 setupEndpointRef is used when:
 
@@ -165,9 +165,9 @@ setupEndpointRef is used when:
 
 * Worker is requested to tryRegisterAllMasters and reregisterWithMaster
 
-* RpcUtils utility is used to xref:rpc:RpcUtils.adoc#makeDriverRef[makeDriverRef]
+* RpcUtils utility is used to rpc:RpcUtils.md#makeDriverRef[makeDriverRef]
 
-* (Spark on YARN) ApplicationMaster is requested to xref:spark-on-yarn:spark-yarn-applicationmaster.adoc#runDriver[runDriver] and xref:spark-on-yarn:spark-yarn-applicationmaster.adoc#runExecutorLauncher[runExecutorLauncher]
+* (Spark on YARN) ApplicationMaster is requested to spark-on-yarn:spark-yarn-applicationmaster.md#runDriver[runDriver] and spark-on-yarn:spark-yarn-applicationmaster.md#runExecutorLauncher[runExecutorLauncher]
 
 === [[setupEndpointRefByURI]] setupEndpointRefByURI Method
 
@@ -181,7 +181,7 @@ setupEndpointRefByURI <<asyncSetupEndpointRefByURI, asyncSetupEndpointRefByURI>>
 
 setupEndpointRefByURI is used when:
 
-* CoarseGrainedExecutorBackend standalone application is xref:executor:CoarseGrainedExecutorBackend.adoc#run[launched]
+* CoarseGrainedExecutorBackend standalone application is executor:CoarseGrainedExecutorBackend.md#run[launched]
 
 * RpcEnv is requested to <<setupEndpointRef, setupEndpointRef>>
 
@@ -196,15 +196,15 @@ Shuts down the RPC system
 
 Used when:
 
-* SparkEnv is requested to xref:core:SparkEnv.adoc#stop[stop]
+* SparkEnv is requested to core:SparkEnv.md#stop[stop]
 
-* LocalSparkCluster is requested to xref:spark-standalone:spark-standalone-LocalSparkCluster.adoc#stop[stop]
+* LocalSparkCluster is requested to spark-standalone:spark-standalone-LocalSparkCluster.md#stop[stop]
 
 * DriverWrapper is launched
 
-* CoarseGrainedExecutorBackend is xref:executor:CoarseGrainedExecutorBackend.adoc#run[launched]
+* CoarseGrainedExecutorBackend is executor:CoarseGrainedExecutorBackend.md#run[launched]
 
-* NettyRpcEnvFactory is requested to xref:rpc:NettyRpcEnvFactory.adoc#create[create an RpcEnv] (in server mode and failed to assign a port)
+* NettyRpcEnvFactory is requested to rpc:NettyRpcEnvFactory.md#create[create an RpcEnv] (in server mode and failed to assign a port)
 
 === [[stop]] Stopping RpcEndpointRef
 
@@ -216,11 +216,11 @@ stop(
 
 Used when:
 
-* SparkContext is requested to xref:ROOT:SparkContext.adoc#stop[stop]
+* SparkContext is requested to ROOT:SparkContext.md#stop[stop]
 
-* RpcEndpoint is requested to xref:rpc:RpcEndpoint.adoc#stop[stop]
+* RpcEndpoint is requested to rpc:RpcEndpoint.md#stop[stop]
 
-* BlockManager is requested to xref:storage:BlockManager.adoc#stop[stop]
+* BlockManager is requested to storage:BlockManager.md#stop[stop]
 
 == [[defaultLookupTimeout]] Default Endpoint Lookup Timeout
 
@@ -230,7 +230,7 @@ When a remote endpoint is resolved, a local RPC environment connects to the remo
 
 It is a prioritized list of *lookup timeout* properties (the higher on the list, the more important):
 
-* xref:ROOT:configuration-properties.adoc#spark.rpc.lookupTimeout[spark.rpc.lookupTimeout]
+* ROOT:configuration-properties.md#spark.rpc.lookupTimeout[spark.rpc.lookupTimeout]
 * <<spark.network.timeout, spark.network.timeout>>
 
 Their value can be a number alone (seconds) or any number with time suffix, e.g. `50s`, `100ms`, or `250us`. See <<settings, Settings>>.
@@ -239,7 +239,7 @@ Their value can be a number alone (seconds) or any number with time suffix, e.g.
 
 RpcEnv takes the following to be created:
 
-* [[conf]] xref:ROOT:SparkConf.adoc[]
+* [[conf]] ROOT:SparkConf.md[]
 
 RpcEnv is created using <<create, RpcEnv.create>> utility.
 
@@ -268,15 +268,15 @@ create(
 ----
 <1> Uses 0 for numUsableCores
 
-create creates a xref:rpc:NettyRpcEnvFactory.adoc[] and requests to xref:rpc:NettyRpcEnvFactory.adoc#create[create an RpcEnv] (with an xref:rpc:RpcEnvConfig.adoc[] with all the given arguments).
+create creates a rpc:NettyRpcEnvFactory.md[] and requests to rpc:NettyRpcEnvFactory.md#create[create an RpcEnv] (with an rpc:RpcEnvConfig.md[] with all the given arguments).
 
 create is used when:
 
-* SparkEnv utility is requested to xref:core:SparkEnv.adoc#create[create a SparkEnv] (clientMode flag is turned on for executors and off for the driver)
+* SparkEnv utility is requested to core:SparkEnv.md#create[create a SparkEnv] (clientMode flag is turned on for executors and off for the driver)
 
 * With clientMode flag turned on:
 
-** (Spark on YARN) ApplicationMaster is requested to xref:spark-on-yarn:spark-yarn-applicationmaster.adoc#runExecutorLauncher[runExecutorLauncher] (in client deploy mode with clientMode flag is turned on)
+** (Spark on YARN) ApplicationMaster is requested to spark-on-yarn:spark-yarn-applicationmaster.md#runExecutorLauncher[runExecutorLauncher] (in client deploy mode with clientMode flag is turned on)
 
 ** ClientApp is requested to start
 
@@ -286,4 +286,4 @@ create is used when:
 
 ** (Spark Standalone) Worker is requested to startRpcEnvAndEndpoint
 
-** CoarseGrainedExecutorBackend is requested to xref:executor:CoarseGrainedExecutorBackend.adoc#run[run]
+** CoarseGrainedExecutorBackend is requested to executor:CoarseGrainedExecutorBackend.md#run[run]

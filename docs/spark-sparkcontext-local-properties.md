@@ -2,13 +2,13 @@
 
 The purpose of *local properties* concept is to create logical groups of jobs by means of properties that (regardless of the threads used to submit the jobs) makes the separate jobs launched from different threads belong to a single logical group.
 
-You can <<setLocalProperty, set a local property>> that will affect Spark jobs submitted from a thread, such as the Spark fair scheduler pool. You can use your own custom properties. The properties are propagated through to worker tasks and can be accessed there via link:spark-TaskContext.adoc#getLocalProperty[TaskContext.getLocalProperty].
+You can <<setLocalProperty, set a local property>> that will affect Spark jobs submitted from a thread, such as the Spark fair scheduler pool. You can use your own custom properties. The properties are propagated through to worker tasks and can be accessed there via spark-TaskContext.md#getLocalProperty[TaskContext.getLocalProperty].
 
-NOTE: Propagating local properties to workers starts when `SparkContext` is requested to xref:ROOT:SparkContext.adoc#runJob[run] or xref:ROOT:SparkContext.adoc#submitJob[submit] a Spark job that in turn xref:scheduler:DAGScheduler.adoc#runJob[passes them along to `DAGScheduler`].
+NOTE: Propagating local properties to workers starts when `SparkContext` is requested to ROOT:SparkContext.md#runJob[run] or ROOT:SparkContext.md#submitJob[submit] a Spark job that in turn scheduler:DAGScheduler.md#runJob[passes them along to `DAGScheduler`].
 
-NOTE: Local properties is used to link:spark-scheduler-FairSchedulableBuilder.adoc#spark.scheduler.pool[group jobs into pools in FAIR job scheduler by spark.scheduler.pool per-thread property] and in link:spark-sql-SQLExecution.adoc#withNewExecutionId[SQLExecution.withNewExecutionId Helper Methods]
+NOTE: Local properties is used to spark-scheduler-FairSchedulableBuilder.md#spark.scheduler.pool[group jobs into pools in FAIR job scheduler by spark.scheduler.pool per-thread property] and in spark-sql-SQLExecution.md#withNewExecutionId[SQLExecution.withNewExecutionId Helper Methods]
 
-A common use case for the local property concept is to set a local property in a thread, say link:spark-scheduler-FairSchedulableBuilder.adoc[spark.scheduler.pool], after which all jobs submitted within the thread will be grouped, say into a pool by FAIR job scheduler.
+A common use case for the local property concept is to set a local property in a thread, say spark-scheduler-FairSchedulableBuilder.md[spark.scheduler.pool], after which all jobs submitted within the thread will be grouped, say into a pool by FAIR job scheduler.
 
 [source, scala]
 ----
@@ -33,7 +33,7 @@ rdd.count
 localProperties: InheritableThreadLocal[Properties]
 ----
 
-`localProperties` is a `protected[spark]` property of a xref:ROOT:SparkContext.adoc[SparkContext] that are the properties through which you can create logical job groups.
+`localProperties` is a `protected[spark]` property of a ROOT:SparkContext.md[SparkContext] that are the properties through which you can create logical job groups.
 
 TIP: Read up on Java's https://docs.oracle.com/javase/8/docs/api/java/lang/InheritableThreadLocal.html[java.lang.InheritableThreadLocal].
 

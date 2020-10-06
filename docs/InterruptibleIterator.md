@@ -8,13 +8,13 @@ Quoting the official Scala https://www.scala-lang.org/api/2.11.x/index.html#scal
 
 `InterruptibleIterator` is <<creating-instance, created>> when:
 
-* `RDD` is requested to xref:rdd:RDD.adoc#getOrCompute[get or compute a RDD partition]
+* `RDD` is requested to rdd:RDD.md#getOrCompute[get or compute a RDD partition]
 
-* xref:rdd:spark-rdd-CoGroupedRDD.adoc#compute[CoGroupedRDD], xref:rdd:spark-rdd-HadoopRDD.adoc#compute[HadoopRDD], xref:rdd:spark-rdd-NewHadoopRDD.adoc#compute[NewHadoopRDD], xref:rdd:spark-rdd-ParallelCollectionRDD.adoc#compute[ParallelCollectionRDD] are requested to `compute` a partition
+* rdd:spark-rdd-CoGroupedRDD.md#compute[CoGroupedRDD], rdd:spark-rdd-HadoopRDD.md#compute[HadoopRDD], rdd:spark-rdd-NewHadoopRDD.md#compute[NewHadoopRDD], rdd:spark-rdd-ParallelCollectionRDD.md#compute[ParallelCollectionRDD] are requested to `compute` a partition
 
-* `BlockStoreShuffleReader` is requested to xref:shuffle:BlockStoreShuffleReader.adoc#read[read combined key-value records for a reduce task]
+* `BlockStoreShuffleReader` is requested to shuffle:BlockStoreShuffleReader.md#read[read combined key-value records for a reduce task]
 
-* `PairRDDFunctions` is requested to xref:rdd:PairRDDFunctions.adoc#combineByKeyWithClassTag[combineByKeyWithClassTag]
+* `PairRDDFunctions` is requested to rdd:PairRDDFunctions.md#combineByKeyWithClassTag[combineByKeyWithClassTag]
 
 * Spark SQL's `DataSourceRDD` and `JDBCRDD` are requested to `compute` a partition
 
@@ -25,7 +25,7 @@ Quoting the official Scala https://www.scala-lang.org/api/2.11.x/index.html#scal
 [[creating-instance]]
 `InterruptibleIterator` takes the following when created:
 
-* [[context]] link:spark-TaskContext.adoc[TaskContext]
+* [[context]] spark-TaskContext.md[TaskContext]
 * [[delegate]] Scala `Iterator[T]`
 
 NOTE: `InterruptibleIterator` is a Developer API which is a lower-level, unstable API intended for Spark developers that may change or be removed in minor versions of Apache Spark.
@@ -37,9 +37,9 @@ NOTE: `InterruptibleIterator` is a Developer API which is a lower-level, unstabl
 hasNext: Boolean
 ----
 
-NOTE: `hasNext` is part of link:++https://www.scala-lang.org/api/2.11.x/index.html#scala.collection.Iterator@hasNext:Boolean++[Iterator Contract] to test whether this iterator can provide another element.
+NOTE: `hasNext` is part of ++https://www.scala-lang.org/api/2.11.x/index.html#scala.collection.Iterator@hasNext:Boolean++[Iterator Contract] to test whether this iterator can provide another element.
 
-`hasNext` requests the <<context, TaskContext>> to link:spark-TaskContext.adoc#killTaskIfInterrupted[kill the task if interrupted] (that simply throws a `TaskKilledException` that in turn breaks the task execution).
+`hasNext` requests the <<context, TaskContext>> to spark-TaskContext.md#killTaskIfInterrupted[kill the task if interrupted] (that simply throws a `TaskKilledException` that in turn breaks the task execution).
 
 In the end, `hasNext` requests the <<delegate, delegate Iterator>> to `hasNext`.
 
@@ -50,6 +50,6 @@ In the end, `hasNext` requests the <<delegate, delegate Iterator>> to `hasNext`.
 next(): T
 ----
 
-NOTE: `next` is part of link:++https://www.scala-lang.org/api/2.11.x/index.html#scala.collection.Iterator@next():A++[Iterator Contract] to produce the next element of this iterator.
+NOTE: `next` is part of ++https://www.scala-lang.org/api/2.11.x/index.html#scala.collection.Iterator@next():A++[Iterator Contract] to produce the next element of this iterator.
 
 `next` simply requests the <<delegate, delegate Iterator>> to `next`.

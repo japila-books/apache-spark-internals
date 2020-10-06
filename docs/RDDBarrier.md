@@ -1,8 +1,8 @@
 == [[RDDBarrier]] RDDBarrier
 
-`RDDBarrier` is used to mark the current stage as a <<spark-barrier-execution-mode.adoc#barrier-stage, barrier stage>> in <<spark-barrier-execution-mode.adoc#, Barrier Execution Mode>>.
+`RDDBarrier` is used to mark the current stage as a <<spark-barrier-execution-mode.md#barrier-stage, barrier stage>> in <<spark-barrier-execution-mode.md#, Barrier Execution Mode>>.
 
-`RDDBarrier` is <<creating-instance, created>> exclusively as the result of <<spark-rdd-transformations.adoc#barrier, RDD.barrier>> transformation (which is *new in Spark 2.4.0*).
+`RDDBarrier` is <<creating-instance, created>> exclusively as the result of <<spark-rdd-transformations.md#barrier, RDD.barrier>> transformation (which is *new in Spark 2.4.0*).
 
 [source, scala]
 ----
@@ -11,7 +11,7 @@ barrier(): RDDBarrier[T]
 
 [[creating-instance]]
 [[rdd]]
-`RDDBarrier` takes a single xref:rdd:RDD.adoc[RDD] to be created and gives the single <<mapPartitions, mapPartitions>> transformation (on the `RDD`) that simply changes the regular xref:rdd:spark-rdd-transformations.adoc#mapPartitions[RDD.mapPartitions] transformation to create a xref:rdd:spark-rdd-MapPartitionsRDD.adoc[MapPartitionsRDD] with the xref:rdd:spark-rdd-MapPartitionsRDD.adoc#isFromBarrier[isFromBarrier] flag enabled.
+`RDDBarrier` takes a single rdd:RDD.md[RDD] to be created and gives the single <<mapPartitions, mapPartitions>> transformation (on the `RDD`) that simply changes the regular rdd:spark-rdd-transformations.md#mapPartitions[RDD.mapPartitions] transformation to create a rdd:spark-rdd-MapPartitionsRDD.md[MapPartitionsRDD] with the rdd:spark-rdd-MapPartitionsRDD.md#isFromBarrier[isFromBarrier] flag enabled.
 
 [[mapPartitions]]
 [source, scala]

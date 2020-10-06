@@ -1,15 +1,15 @@
 == [[StoragePage]] StoragePage
 
 [[prefix]]
-`StoragePage` is a link:spark-webui-WebUIPage.adoc[WebUIPage] with an empty link:spark-webui-WebUIPage.adoc#prefix[prefix].
+`StoragePage` is a spark-webui-WebUIPage.md[WebUIPage] with an empty spark-webui-WebUIPage.md#prefix[prefix].
 
-`StoragePage` is <<creating-instance, created>> exclusively when `StorageTab` is link:spark-webui-StorageTab.adoc#creating-instance[created].
+`StoragePage` is <<creating-instance, created>> exclusively when `StorageTab` is spark-webui-StorageTab.md#creating-instance[created].
 
 [[creating-instance]]
 `StoragePage` takes the following when created:
 
-* [[parent]] Parent link:spark-webui-SparkUITab.adoc[SparkUITab]
-* [[store]] xref:core:AppStatusStore.adoc[]
+* [[parent]] Parent spark-webui-SparkUITab.md[SparkUITab]
+* [[store]] core:AppStatusStore.md[]
 
 === [[rddRow]] Rendering HTML Table Row for RDD Details -- `rddRow` Internal Method
 
@@ -51,10 +51,10 @@ NOTE: `receiverBlockTables` is used when...FIXME
 render(request: HttpServletRequest): Seq[Node]
 ----
 
-NOTE: `render` is part of link:spark-webui-WebUIPage.adoc#render[WebUIPage Contract] to...FIXME.
+NOTE: `render` is part of spark-webui-WebUIPage.md#render[WebUIPage Contract] to...FIXME.
 
-`render` requests the <<store, AppStatusStore>> for xref:core:AppStatusStore.adoc#rddList[rddList] and <<rddTable, renders an HTML table with their details>> (if available).
+`render` requests the <<store, AppStatusStore>> for core:AppStatusStore.md#rddList[rddList] and <<rddTable, renders an HTML table with their details>> (if available).
 
-`render` requests the <<store, AppStatusStore>> for xref:core:AppStatusStore.adoc#streamBlocksList[streamBlocksList] and <<receiverBlockTables, renders an HTML table with receiver blocks>> (if available).
+`render` requests the <<store, AppStatusStore>> for core:AppStatusStore.md#streamBlocksList[streamBlocksList] and <<receiverBlockTables, renders an HTML table with receiver blocks>> (if available).
 
 In the end, `render` requests `UIUtils` to `headerSparkPage` (with `Storage` title).

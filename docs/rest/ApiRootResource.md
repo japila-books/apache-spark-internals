@@ -1,6 +1,6 @@
 == [[ApiRootResource]] ApiRootResource -- /api/v1 URI Handler
 
-`ApiRootResource` is the link:spark-api-ApiRequestContext.adoc[ApiRequestContext] for the `/v1` URI path.
+`ApiRootResource` is the spark-api-ApiRequestContext.md[ApiRequestContext] for the `/v1` URI path.
 
 `ApiRootResource` uses `@Path("/v1")` annotation at the class level. It is a partial URI path template relative to the base URI of the server on which the resource is deployed, the context root of the application, and the URL pattern to which the JAX-RS runtime responds.
 
@@ -8,7 +8,7 @@ TIP: Learn more about `@Path` annotation in https://docs.oracle.com/cd/E19798-01
 
 `ApiRootResource` <<getServletHandler, registers>> the `/api/*` context handler (with the REST resources and providers in `org.apache.spark.status.api.v1` package).
 
-With the `@Path("/v1")` annotation and after <<getServletHandler, registering>> the `/api/*` context handler, `ApiRootResource` serves HTTP requests for <<paths, paths>> under the `/api/v1` URI paths for link:spark-webui-SparkUI.adoc#initialize[SparkUI] and xref:spark-history-server:HistoryServer.adoc#initialize[HistoryServer].
+With the `@Path("/v1")` annotation and after <<getServletHandler, registering>> the `/api/*` context handler, `ApiRootResource` serves HTTP requests for <<paths, paths>> under the `/api/v1` URI paths for spark-webui-SparkUI.md#initialize[SparkUI] and spark-history-server:HistoryServer.md#initialize[HistoryServer].
 
 `ApiRootResource` gives the metrics of a Spark application in JSON format (using JAX-RS API).
 
@@ -70,11 +70,11 @@ Vary: Accept-Encoding, User-Agent
 
 | [[applications]] `applications`
 |
-| [[ApplicationListResource]] Delegates to the link:spark-api-ApplicationListResource.adoc[ApplicationListResource] resource class
+| [[ApplicationListResource]] Delegates to the spark-api-ApplicationListResource.md[ApplicationListResource] resource class
 
 | [[applications_appId]] `applications/\{appId}`
 |
-| [[OneApplicationResource]] Delegates to the link:spark-api-OneApplicationResource.adoc[OneApplicationResource] resource class
+| [[OneApplicationResource]] Delegates to the spark-api-OneApplicationResource.md[OneApplicationResource] resource class
 
 | [[version]] `version`
 | GET
@@ -94,6 +94,6 @@ NOTE: The Jetty `ServletContextHandler` created does not support HTTP sessions a
 
 `getServletHandler` creates a Jetty `ServletHolder` with the resources and providers in `org.apache.spark.status.api.v1` package. It then registers the `ServletHolder` to serve `/*` context path (under the `ServletContextHandler` for `/api`).
 
-`getServletHandler` requests `UIRootFromServletContext` to link:spark-api-UIRootFromServletContext.adoc#setUiRoot[setUiRoot] with the `ServletContextHandler` and the input link:spark-api-UIRoot.adoc[UIRoot].
+`getServletHandler` requests `UIRootFromServletContext` to spark-api-UIRootFromServletContext.md#setUiRoot[setUiRoot] with the `ServletContextHandler` and the input spark-api-UIRoot.md[UIRoot].
 
-NOTE: `getServletHandler` is used when link:spark-webui-SparkUI.adoc#initialize[SparkUI] and xref:spark-history-server:HistoryServer.adoc#initialize[HistoryServer] are requested to initialize.
+NOTE: `getServletHandler` is used when spark-webui-SparkUI.md#initialize[SparkUI] and spark-history-server:HistoryServer.md#initialize[HistoryServer] are requested to initialize.

@@ -1,6 +1,6 @@
 = [[ExternalSorter]] ExternalSorter
 
-*ExternalSorter* is a xref:shuffle:Spillable.adoc[Spillable] of WritablePartitionedPairCollection of pairs (of K keys and C values).
+*ExternalSorter* is a shuffle:Spillable.md[Spillable] of WritablePartitionedPairCollection of pairs (of K keys and C values).
 
 `ExternalSorter[K, V, C]` is a parameterized type of `K` keys, `V` values, and `C` combiner (partial) values.
 
@@ -8,17 +8,17 @@
 
 ExternalSorter takes the following to be created:
 
-* [[context]] xref:scheduler:spark-TaskContext.adoc[TaskContext]
-* [[aggregator]] Optional xref:rdd:Aggregator.adoc[Aggregator] (default: undefined)
-* [[partitioner]] Optional xref:rdd:Partitioner[Partitioner] (default: undefined)
+* [[context]] scheduler:spark-TaskContext.md[TaskContext]
+* [[aggregator]] Optional rdd:Aggregator.md[Aggregator] (default: undefined)
+* [[partitioner]] Optional rdd:Partitioner[Partitioner] (default: undefined)
 * [[ordering]] Optional Scala's http://www.scala-lang.org/api/current/scala/math/Ordering.html[Ordering] for keys (default: undefined)
-* [[serializer]] Optional xref:serializer:Serializer.adoc[Serializer] (default: xref:core:SparkEnv.adoc#serializer[system Serializer])
+* [[serializer]] Optional serializer:Serializer.md[Serializer] (default: core:SparkEnv.md#serializer[system Serializer])
 
 ExternalSorter is created when:
 
-* SortShuffleWriter is requested to xref:shuffle:SortShuffleWriter.adoc#write[write records] (as a `ExternalSorter[K, V, C]` or `ExternalSorter[K, V, V]` based on xref:rdd:ShuffleDependency.adoc#mapSideCombine[Map-Size Partial Aggregation Flag])
+* SortShuffleWriter is requested to shuffle:SortShuffleWriter.md#write[write records] (as a `ExternalSorter[K, V, C]` or `ExternalSorter[K, V, V]` based on rdd:ShuffleDependency.md#mapSideCombine[Map-Size Partial Aggregation Flag])
 
-* BlockStoreShuffleReader is requested to xref:shuffle:BlockStoreShuffleReader.adoc#read[read records] (with sort ordering defined)
+* BlockStoreShuffleReader is requested to shuffle:BlockStoreShuffleReader.md#read[read records] (with sort ordering defined)
 
 == [[in-memory-collection]][[buffer]][[map]] In-Memory Collections of Records
 
@@ -28,7 +28,7 @@ ExternalSorter creates a PartitionedPairBuffer and a PartitionedAppendOnlyMap wh
 
 ExternalSorter inserts records to the collections when <<insertAll, insertAll>>.
 
-ExternalSorter <<maybeSpillCollection, spills the in-memory collection to disk if needed>> and, xref:shuffle:Spillable.adoc#maybeSpill[if so], creates a new collection.
+ExternalSorter <<maybeSpillCollection, spills the in-memory collection to disk if needed>> and, shuffle:Spillable.md#maybeSpill[if so], creates a new collection.
 
 ExternalSorter releases the collections (``null``s them) when requested to <<forceSpill, forceSpill>> and <<stop, stop>>. That is when the JVM garbage collector takes care of evicting them from memory completely.
 
@@ -38,7 +38,7 @@ ExternalSorter tracks the peak size (in bytes) of the <<in-memory-collection, in
 
 The peak size is used when:
 
-* BlockStoreShuffleReader is requested to xref:shuffle:BlockStoreShuffleReader.adoc#read[read combined records for a reduce task] (with a sort ordering defined)
+* BlockStoreShuffleReader is requested to shuffle:BlockStoreShuffleReader.md#read[read combined records for a reduce task] (with a sort ordering defined)
 
 * ExternalSorter is requested to <<writePartitionedFile, write all records into a partitioned file>>
 
@@ -60,9 +60,9 @@ insertAll takes all records eagerly and materializes the given records iterator.
 
 === [[insertAll-shouldCombine]] Map-Side Aggregator Specified
 
-If there is an Aggregator specified, insertAll creates an update function based on the xref:rdd:Aggregator.adoc#mergeValue[mergeValue] and xref:rdd:Aggregator.adoc#createCombiner[createCombiner] functions of the Aggregator.
+If there is an Aggregator specified, insertAll creates an update function based on the rdd:Aggregator.md#mergeValue[mergeValue] and rdd:Aggregator.md#createCombiner[createCombiner] functions of the Aggregator.
 
-For every record, insertAll xref:shuffle:Spillable.adoc#addElementsRead[increment internal read counter].
+For every record, insertAll shuffle:Spillable.md#addElementsRead[increment internal read counter].
 
 insertAll requests the <<map, PartitionedAppendOnlyMap>> to changeValue for the key (made up of the <<getPartition, partition>> of the key of the current record and the key itself, i.e. `(partition, key)`) with the update function.
 
@@ -72,7 +72,7 @@ In the end, insertAll <<maybeSpillCollection, spills the in-memory collection to
 
 With no Aggregator specified, insertAll iterates over all the records and uses the <<buffer, PartitionedPairBuffer>> instead.
 
-For every record, insertAll xref:shuffle:Spillable.adoc#addElementsRead[increment internal read counter].
+For every record, insertAll shuffle:Spillable.md#addElementsRead[increment internal read counter].
 
 insertAll requests the <<buffer, PartitionedPairBuffer>> to insert with the <<getPartition, partition>> of the key of the current record, the key itself and the value of the current record.
 
@@ -82,9 +82,9 @@ In the end, insertAll <<maybeSpillCollection, spills the in-memory collection to
 
 insertAll is used when:
 
-* SortShuffleWriter is requested to xref:shuffle:SortShuffleWriter.adoc#write[write records] (as a `ExternalSorter[K, V, C]` or `ExternalSorter[K, V, V]` based on xref:rdd:ShuffleDependency.adoc#mapSideCombine[Map-Size Partial Aggregation Flag])
+* SortShuffleWriter is requested to shuffle:SortShuffleWriter.md#write[write records] (as a `ExternalSorter[K, V, C]` or `ExternalSorter[K, V, V]` based on rdd:ShuffleDependency.md#mapSideCombine[Map-Size Partial Aggregation Flag])
 
-* BlockStoreShuffleReader is requested to xref:shuffle:BlockStoreShuffleReader.adoc#read[read records] (with sort ordering defined)
+* BlockStoreShuffleReader is requested to shuffle:BlockStoreShuffleReader.md#read[read records] (with sort ordering defined)
 
 == [[writePartitionedFile]] Writing All Records Into Partitioned File
 
@@ -97,7 +97,7 @@ writePartitionedFile(
 
 writePartitionedFile...FIXME
 
-writePartitionedFile is used when SortShuffleWriter is requested to xref:shuffle:SortShuffleWriter.adoc#write[write records].
+writePartitionedFile is used when SortShuffleWriter is requested to shuffle:SortShuffleWriter.md#write[write records].
 
 == [[stop]] Stopping ExternalSorter
 
@@ -110,9 +110,9 @@ stop...FIXME
 
 stop is used when:
 
-* BlockStoreShuffleReader is requested to xref:shuffle:BlockStoreShuffleReader.adoc#read[read records] (with sort ordering defined)
+* BlockStoreShuffleReader is requested to shuffle:BlockStoreShuffleReader.md#read[read records] (with sort ordering defined)
 
-* SortShuffleWriter is requested to xref:shuffle:SortShuffleWriter.adoc#stop[stop]
+* SortShuffleWriter is requested to shuffle:SortShuffleWriter.md#stop[stop]
 
 == [[spill]] Spilling Data to Disk
 
@@ -128,7 +128,7 @@ spill <<spillMemoryIteratorToDisk, spillMemoryIteratorToDisk>> (with the destruc
 
 spill adds the SpilledFile to the <<spills, spills>> internal registry.
 
-spill is part of the xref:Spillable.adoc#spill[Spillable] abstraction.
+spill is part of the Spillable.md#spill[Spillable] abstraction.
 
 == [[spillMemoryIteratorToDisk]] spillMemoryIteratorToDisk Method
 
@@ -158,7 +158,7 @@ maybeSpillCollection branches per the input usingMap flag (that is to determine 
 
 maybeSpillCollection requests the collection to estimate size (in bytes) that is tracked as the <<peakMemoryUsedBytes, peakMemoryUsedBytes>> metric (for every size bigger than what is currently recorded).
 
-maybeSpillCollection xref:shuffle:Spillable.adoc#maybeSpill[spills the collection to disk if needed]. If spilled, maybeSpillCollection creates a new collection (a new PartitionedAppendOnlyMap or a new PartitionedPairBuffer).
+maybeSpillCollection shuffle:Spillable.md#maybeSpill[spills the collection to disk if needed]. If spilled, maybeSpillCollection creates a new collection (a new PartitionedAppendOnlyMap or a new PartitionedPairBuffer).
 
 maybeSpillCollection is used when ExternalSorter is requested to <<insertAll, insertAll>>.
 
@@ -171,7 +171,7 @@ iterator: Iterator[Product2[K, C]]
 
 iterator...FIXME
 
-iterator is used when BlockStoreShuffleReader is requested to xref:shuffle:BlockStoreShuffleReader.adoc#read[read combined records for a reduce task].
+iterator is used when BlockStoreShuffleReader is requested to shuffle:BlockStoreShuffleReader.md#read[read combined records for a reduce task].
 
 == [[partitionedIterator]] partitionedIterator Method
 
@@ -195,4 +195,4 @@ Add the following line to `conf/log4j.properties`:
 log4j.logger.org.apache.spark.util.collection.ExternalSorter=ALL
 ----
 
-Refer to xref:ROOT:spark-logging.adoc[Logging].
+Refer to ROOT:spark-logging.md[Logging].

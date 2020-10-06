@@ -17,9 +17,9 @@ a| [[conf]]
 conf: SparkConf
 ----
 
-xref:ROOT:SparkConf.adoc[]
+ROOT:SparkConf.md[]
 
-Used exclusively when `LauncherBackend` is requested to <<connect, connect>> (to access xref:ROOT:configuration-properties.adoc#spark.launcher.port[spark.launcher.port] and xref:ROOT:configuration-properties.adoc#spark.launcher.secret[spark.launcher.secret] configuration properties)
+Used exclusively when `LauncherBackend` is requested to <<connect, connect>> (to access ROOT:configuration-properties.md#spark.launcher.port[spark.launcher.port] and ROOT:configuration-properties.md#spark.launcher.secret[spark.launcher.secret] configuration properties)
 
 | onStopRequest
 a| [[onStopRequest]]
@@ -74,13 +74,13 @@ Used when...FIXME
 [[implementations]]
 `LauncherBackend` is <<creating-instance, created>> (as an anonymous class) for the following:
 
-* Spark on YARN's <<yarn/spark-yarn-client.adoc#launcherBackend, Client>>
+* Spark on YARN's <<yarn/spark-yarn-client.md#launcherBackend, Client>>
 
-* Spark local's <<local/spark-LocalSchedulerBackend.adoc#launcherBackend, LocalSchedulerBackend>>
+* Spark local's <<local/spark-LocalSchedulerBackend.md#launcherBackend, LocalSchedulerBackend>>
 
-* Spark on Mesos' <<spark-mesos/spark-mesos-MesosCoarseGrainedSchedulerBackend.adoc#launcherBackend, MesosCoarseGrainedSchedulerBackend>>
+* Spark on Mesos' <<spark-mesos/spark-mesos-MesosCoarseGrainedSchedulerBackend.md#launcherBackend, MesosCoarseGrainedSchedulerBackend>>
 
-* Spark Standalone's <<spark-standalone-StandaloneSchedulerBackend.adoc#launcherBackend, StandaloneSchedulerBackend>>
+* Spark Standalone's <<spark-standalone-StandaloneSchedulerBackend.md#launcherBackend, StandaloneSchedulerBackend>>
 
 === [[close]] Closing -- `close` Method
 
@@ -106,13 +106,13 @@ connect(): Unit
 ====
 `connect` is used when:
 
-* Spark Standalone's `StandaloneSchedulerBackend` is requested to <<spark-standalone-StandaloneSchedulerBackend.adoc#start, start>> (in `client` deploy mode)
+* Spark Standalone's `StandaloneSchedulerBackend` is requested to <<spark-standalone-StandaloneSchedulerBackend.md#start, start>> (in `client` deploy mode)
 
-* Spark local's `LocalSchedulerBackend` is <<local/spark-LocalSchedulerBackend.adoc#, created>>
+* Spark local's `LocalSchedulerBackend` is <<local/spark-LocalSchedulerBackend.md#, created>>
 
-* Spark on Mesos' `MesosCoarseGrainedSchedulerBackend` is requested to <<spark-mesos/spark-mesos-MesosCoarseGrainedSchedulerBackend.adoc#start, start>> (in `client` deploy mode)
+* Spark on Mesos' `MesosCoarseGrainedSchedulerBackend` is requested to <<spark-mesos/spark-mesos-MesosCoarseGrainedSchedulerBackend.md#start, start>> (in `client` deploy mode)
 
-* Spark on YARN's `Client` is requested to <<yarn/spark-yarn-client.adoc#submitApplication, submit a Spark application>>
+* Spark on YARN's `Client` is requested to <<yarn/spark-yarn-client.md#submitApplication, submit a Spark application>>
 ====
 
 === [[fireStopRequest]] `fireStopRequest` Internal Method

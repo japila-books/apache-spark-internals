@@ -1,6 +1,6 @@
 == [[SparkSubmitCommandBuilder]] `SparkSubmitCommandBuilder` Command Builder
 
-`SparkSubmitCommandBuilder` is used to build a command that link:spark-submit.adoc#main[spark-submit] and link:spark-SparkLauncher.adoc[SparkLauncher] use to launch a Spark application.
+`SparkSubmitCommandBuilder` is used to build a command that spark-submit.md#main[spark-submit] and spark-SparkLauncher.md[SparkLauncher] use to launch a Spark application.
 
 `SparkSubmitCommandBuilder` uses the first argument to distinguish between shells:
 
@@ -10,7 +10,7 @@
 
 CAUTION: FIXME Describe `run-example`
 
-`SparkSubmitCommandBuilder` parses command-line arguments using `OptionParser` (which is a link:spark-submit-SparkSubmitOptionParser.adoc[SparkSubmitOptionParser]). `OptionParser` comes with the following methods:
+`SparkSubmitCommandBuilder` parses command-line arguments using `OptionParser` (which is a spark-submit-SparkSubmitOptionParser.md[SparkSubmitOptionParser]). `OptionParser` comes with the following methods:
 
 1. `handle` to handle the known options (see the table below). It sets up `master`, `deployMode`, `propertiesFile`, `conf`, `mainClass`, `sparkArgs` internal properties.
 
@@ -27,7 +27,7 @@ NOTE: For `spark-shell` it assumes that the application arguments are after ``sp
 public List<String> buildCommand(Map<String, String> env)
 ----
 
-NOTE: `buildCommand` is part of the link:spark-AbstractCommandBuilder.adoc[AbstractCommandBuilder] public API.
+NOTE: `buildCommand` is part of the spark-AbstractCommandBuilder.md[AbstractCommandBuilder] public API.
 
 `SparkSubmitCommandBuilder.buildCommand` simply passes calls on to <<buildSparkSubmitCommand, buildSparkSubmitCommand>> private method (unless it was executed for `pyspark` or `sparkr` scripts which we are not interested in in this document).
 
@@ -38,11 +38,11 @@ NOTE: `buildCommand` is part of the link:spark-AbstractCommandBuilder.adoc[Abstr
 private List<String> buildSparkSubmitCommand(Map<String, String> env)
 ----
 
-`buildSparkSubmitCommand` starts by <<getEffectiveConfig, building so-called effective config>>. When in <<isClientMode, client mode>>, `buildSparkSubmitCommand` adds link:spark-driver.adoc#spark_driver_extraClassPath[spark.driver.extraClassPath] to the result Spark command.
+`buildSparkSubmitCommand` starts by <<getEffectiveConfig, building so-called effective config>>. When in <<isClientMode, client mode>>, `buildSparkSubmitCommand` adds spark-driver.md#spark_driver_extraClassPath[spark.driver.extraClassPath] to the result Spark command.
 
-NOTE: Use `spark-submit` to have link:spark-driver.adoc#spark_driver_extraClassPath[spark.driver.extraClassPath] in effect.
+NOTE: Use `spark-submit` to have spark-driver.md#spark_driver_extraClassPath[spark.driver.extraClassPath] in effect.
 
-`buildSparkSubmitCommand` link:spark-AbstractCommandBuilder.adoc#buildJavaCommand[builds the first part of the Java command] passing in the extra classpath (only for `client` deploy mode).
+`buildSparkSubmitCommand` spark-AbstractCommandBuilder.md#buildJavaCommand[builds the first part of the Java command] passing in the extra classpath (only for `client` deploy mode).
 
 CAUTION: FIXME Add `isThriftServer` case.
 
@@ -65,9 +65,9 @@ CAUTION: FIXME Elaborate on `addPermGenSizeOpt`
 List<String> buildSparkSubmitArgs()
 ----
 
-`buildSparkSubmitArgs` builds a list of command-line arguments for link:spark-submit.adoc[spark-submit].
+`buildSparkSubmitArgs` builds a list of command-line arguments for spark-submit.md[spark-submit].
 
-`buildSparkSubmitArgs` uses a link:spark-submit-SparkSubmitOptionParser.adoc[SparkSubmitOptionParser] to add the command-line arguments that `spark-submit` recognizes (when it is executed later on and uses the very same `SparkSubmitOptionParser` parser to parse command-line arguments).
+`buildSparkSubmitArgs` uses a spark-submit-SparkSubmitOptionParser.md[SparkSubmitOptionParser] to add the command-line arguments that `spark-submit` recognizes (when it is executed later on and uses the very same `SparkSubmitOptionParser` parser to parse command-line arguments).
 
 .`SparkSubmitCommandBuilder` Properties and Corresponding `SparkSubmitOptionParser` Attributes
 [options="header",width="100%"]
@@ -95,7 +95,7 @@ List<String> buildSparkSubmitArgs()
 Map<String, String> getEffectiveConfig()
 ----
 
-`getEffectiveConfig` internal method builds `effectiveConfig` that is `conf` with the Spark properties file loaded (using link:spark-AbstractCommandBuilder.adoc#loadPropertiesFile[loadPropertiesFile] internal method) skipping keys that have already been loaded (it happened when the command-line options were parsed in <<SparkSubmitCommandBuilder, handle>> method).
+`getEffectiveConfig` internal method builds `effectiveConfig` that is `conf` with the Spark properties file loaded (using spark-AbstractCommandBuilder.md#loadPropertiesFile[loadPropertiesFile] internal method) skipping keys that have already been loaded (it happened when the command-line options were parsed in <<SparkSubmitCommandBuilder, handle>> method).
 
 NOTE: Command-line options (e.g. `--driver-class-path`) have higher precedence than their corresponding Spark settings in a Spark properties file (e.g. `spark.driver.extraClassPath`). You can therefore control the final settings by overriding Spark settings on command line using the command-line options.
 charset and trims white spaces around values.
@@ -115,7 +115,7 @@ CAUTION: FIXME Review `master` and `deployMode`. How are they set?
 
 === [[OptionParser]] OptionParser
 
-`OptionParser` is a custom link:spark-submit-SparkSubmitOptionParser.adoc[SparkSubmitOptionParser] that `SparkSubmitCommandBuilder` uses to parse command-line arguments. It defines all the link:spark-submit-SparkSubmitOptionParser.adoc#callbacks[SparkSubmitOptionParser callbacks], i.e. <<OptionParser-handle, handle>>, <<OptionParser-handleUnknown, handleUnknown>>, and <<OptionParser-handleExtraArgs, handleExtraArgs>>, for command-line argument handling.
+`OptionParser` is a custom spark-submit-SparkSubmitOptionParser.md[SparkSubmitOptionParser] that `SparkSubmitCommandBuilder` uses to parse command-line arguments. It defines all the spark-submit-SparkSubmitOptionParser.md#callbacks[SparkSubmitOptionParser callbacks], i.e. <<OptionParser-handle, handle>>, <<OptionParser-handleUnknown, handleUnknown>>, and <<OptionParser-handleExtraArgs, handleExtraArgs>>, for command-line argument handling.
 
 ==== [[OptionParser-handle]] OptionParser's `handle` Callback
 
@@ -124,7 +124,7 @@ CAUTION: FIXME Review `master` and `deployMode`. How are they set?
 boolean handle(String opt, String value)
 ----
 
-`OptionParser` comes with a custom `handle` callback (from the link:spark-submit-SparkSubmitOptionParser.adoc#callbacks[SparkSubmitOptionParser callbacks]).
+`OptionParser` comes with a custom `handle` callback (from the spark-submit-SparkSubmitOptionParser.md#callbacks[SparkSubmitOptionParser callbacks]).
 
 .`handle` Method
 [options="header",width="100%"]
@@ -140,7 +140,7 @@ boolean handle(String opt, String value)
 | `--conf` | Expects a `key=value` pair that it puts in `conf`
 | `--class` | Sets `mainClass` (in `conf`).
 
-It may also set `allowsMixedArguments` and `appResource` if the execution is for one of the special classes, i.e. link:spark-shell.adoc[spark-shell], `SparkSQLCLIDriver`, or link:spark-sql-thrift-server.adoc[HiveThriftServer2].
+It may also set `allowsMixedArguments` and `appResource` if the execution is for one of the special classes, i.e. spark-shell.md[spark-shell], `SparkSQLCLIDriver`, or spark-sql-thrift-server.md[HiveThriftServer2].
 | `--kill` \| `--status` | Disables `isAppResourceReq` and adds itself with the value to `sparkArgs`.
 | `--help` \| `--usage-error` | Disables `isAppResourceReq` and adds itself to `sparkArgs`.
 | `--version` | Disables `isAppResourceReq` and adds itself to `sparkArgs`.
@@ -154,15 +154,15 @@ It may also set `allowsMixedArguments` and `appResource` if the execution is for
 boolean handleUnknown(String opt)
 ----
 
-If `allowsMixedArguments` is enabled, `handleUnknown` simply adds the input `opt` to `appArgs` and allows for further link:spark-submit-SparkSubmitOptionParser.adoc#parse[parsing of the argument list].
+If `allowsMixedArguments` is enabled, `handleUnknown` simply adds the input `opt` to `appArgs` and allows for further spark-submit-SparkSubmitOptionParser.md#parse[parsing of the argument list].
 
 CAUTION: FIXME Where's `allowsMixedArguments` enabled?
 
-If `isExample` is enabled, `handleUnknown` sets `mainClass` to be `org.apache.spark.examples.[opt]` (unless the input `opt` has already the package prefix) and stops further link:spark-submit-SparkSubmitOptionParser.adoc#parse[parsing of the argument list].
+If `isExample` is enabled, `handleUnknown` sets `mainClass` to be `org.apache.spark.examples.[opt]` (unless the input `opt` has already the package prefix) and stops further spark-submit-SparkSubmitOptionParser.md#parse[parsing of the argument list].
 
 CAUTION: FIXME Where's `isExample` enabled?
 
-Otherwise, `handleUnknown` sets `appResource` and stops further link:spark-submit-SparkSubmitOptionParser.adoc#parse[parsing of the argument list].
+Otherwise, `handleUnknown` sets `appResource` and stops further spark-submit-SparkSubmitOptionParser.md#parse[parsing of the argument list].
 
 ==== [[OptionParser-handleExtraArgs]] OptionParser's `handleExtraArgs` Method
 

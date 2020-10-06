@@ -2,9 +2,9 @@
 
 `TaskSetManager` is a <<schedulable, Schedulable>> that manages scheduling of tasks of a <<taskSet, TaskSet>>.
 
-NOTE: A xref:scheduler:TaskSet.adoc[TaskSet] represents a set of xref:scheduler:Task.adoc[tasks] that correspond to missing link:spark-rdd-partitions.adoc[partitions] of a xref:scheduler:Stage.adoc[stage].
+NOTE: A scheduler:TaskSet.md[TaskSet] represents a set of scheduler:Task.md[tasks] that correspond to missing spark-rdd-partitions.md[partitions] of a scheduler:Stage.md[stage].
 
-`TaskSetManager` is <<creating-instance, created>> exclusively when `TaskSchedulerImpl` is requested to xref:scheduler:TaskSchedulerImpl.adoc#createTaskSetManager[create one] (when submitting tasks for a given `TaskSet`).
+`TaskSetManager` is <<creating-instance, created>> exclusively when `TaskSchedulerImpl` is requested to scheduler:TaskSchedulerImpl.md#createTaskSetManager[create one] (when submitting tasks for a given `TaskSet`).
 
 .TaskSetManager and its Dependencies
 image::TaskSetManager-TaskSchedulerImpl-TaskSet.png[align="center"]
@@ -15,12 +15,12 @@ When <<creating-instance, created>> with a given <<taskSet, TaskSet>>, `TaskSetM
 
 `TaskSetManager` uses <<maxTaskFailures, maxTaskFailures>> to control how many times a <<handleFailedTask, single task can fail>> before an <<abort, entire `TaskSet` gets aborted>> that can take the following values:
 
-* `1` for link:local/spark-local.adoc[`local` run mode]
-* `maxFailures` in link:local/spark-local.adoc#local-with-retries[Spark local-with-retries] (i.e. `local[N, maxFailures]`)
-* xref:ROOT:configuration-properties.adoc#spark.task.maxFailures[spark.task.maxFailures] configuration property for link:local/spark-local.adoc[Spark local-cluster] and link:spark-cluster.adoc[Spark clustered] (using Spark Standalone, Mesos and YARN)
+* `1` for local/spark-local.md[`local` run mode]
+* `maxFailures` in local/spark-local.md#local-with-retries[Spark local-with-retries] (i.e. `local[N, maxFailures]`)
+* ROOT:configuration-properties.md#spark.task.maxFailures[spark.task.maxFailures] configuration property for local/spark-local.md[Spark local-cluster] and spark-cluster.md[Spark clustered] (using Spark Standalone, Mesos and YARN)
 
 [[maxResultSize]]
-`TaskSetManager` uses xref:ROOT:configuration-properties.adoc#MAX_RESULT_SIZE[spark.driver.maxResultSize] configuration property (default: `1g`) to <<canFetchMoreResults, check available memory for task results>>.
+`TaskSetManager` uses ROOT:configuration-properties.md#MAX_RESULT_SIZE[spark.driver.maxResultSize] configuration property (default: `1g`) to <<canFetchMoreResults, check available memory for task results>>.
 
 The responsibilities of a `TaskSetManager` include:
 
@@ -101,10 +101,10 @@ The number of task copies of a task is increased when <<resourceOffer, finds a t
 |
 
 | [[epoch]] `epoch`
-| Current xref:scheduler:MapOutputTracker.adoc#getEpoch[map output tracker epoch].
+| Current scheduler:MapOutputTracker.md#getEpoch[map output tracker epoch].
 
 | [[failedExecutors]] `failedExecutors`
-| Lookup table of link:spark-scheduler-TaskInfo.adoc[TaskInfo] indices that failed to executor ids and the time of the failure.
+| Lookup table of spark-scheduler-TaskInfo.md[TaskInfo] indices that failed to executor ids and the time of the failure.
 
 Used in <<handleFailedTask, handleFailedTask>>.
 
@@ -120,7 +120,7 @@ Read <<zombie-state, Zombie state>> in this document.
 |
 
 | [[myLocalityLevels]] `myLocalityLevels`
-| xref:scheduler:TaskSchedulerImpl.adoc#TaskLocality[`TaskLocality` locality preferences] of the pending tasks in the <<taskSet, TaskSet>> ranging from `PROCESS_LOCAL` through `NODE_LOCAL`, `NO_PREF`, and `RACK_LOCAL` to `ANY`.
+| scheduler:TaskSchedulerImpl.md#TaskLocality[`TaskLocality` locality preferences] of the pending tasks in the <<taskSet, TaskSet>> ranging from `PROCESS_LOCAL` through `NODE_LOCAL`, `NO_PREF`, and `RACK_LOCAL` to `ANY`.
 
 NOTE: `myLocalityLevels` may contain only a few of all the available `TaskLocality` preferences with `ANY` as a mandatory task locality preference.
 
@@ -168,9 +168,9 @@ Updated with an task index when `TaskSetManager` <<addPendingTask, registers a t
 | [[runningTasksSet]] `runningTasksSet`
 | Collection of running tasks that a `TaskSetManager` manages.
 
-Used to implement <<runningTasks, runningTasks>> (that is simply the size of `runningTasksSet` but a required part of any link:spark-scheduler-Schedulable.adoc#contract[Schedulable]). `runningTasksSet` is expanded when <<addRunningTask, registering a running task>> and shrinked when <<removeRunningTask, unregistering a running task>>.
+Used to implement <<runningTasks, runningTasks>> (that is simply the size of `runningTasksSet` but a required part of any spark-scheduler-Schedulable.md#contract[Schedulable]). `runningTasksSet` is expanded when <<addRunningTask, registering a running task>> and shrinked when <<removeRunningTask, unregistering a running task>>.
 
-Used in xref:scheduler:TaskSchedulerImpl.adoc#cancelTasks[`TaskSchedulerImpl` to cancel tasks].
+Used in scheduler:TaskSchedulerImpl.md#cancelTasks[`TaskSchedulerImpl` to cancel tasks].
 
 | [[speculatableTasks]] `speculatableTasks`
 |
@@ -180,7 +180,7 @@ Used in xref:scheduler:TaskSchedulerImpl.adoc#cancelTasks[`TaskSchedulerImpl` to
 
 Set when <<creating-instance, `TaskSetManager` is created>>.
 
-NOTE: `stageId` is part of link:spark-scheduler-Schedulable.adoc#contract[Schedulable contract].
+NOTE: `stageId` is part of spark-scheduler-Schedulable.md#contract[Schedulable contract].
 
 | [[successful]] `successful`
 | Status of <<tasks, tasks>> (with a boolean flag, i.e. `true` or `false`, per task).
@@ -192,19 +192,19 @@ The flag for a task is turned on, i.e. `true`, when a task finishes <<handleSucc
 A flag is explicitly turned off only for <<executorLost, `ShuffleMapTask` tasks when their executor is lost>>.
 
 | [[taskAttempts]] `taskAttempts`
-| Registry of link:spark-scheduler-TaskInfo.adoc[TaskInfos] per every task attempt per task.
+| Registry of spark-scheduler-TaskInfo.md[TaskInfos] per every task attempt per task.
 
 | [[taskInfos]] `taskInfos`
-| Registry of link:spark-scheduler-TaskInfo.adoc[TaskInfos] per task id.
+| Registry of spark-scheduler-TaskInfo.md[TaskInfos] per task id.
 
 Updated with the task (id) and the corresponding `TaskInfo` when `TaskSetManager` <<resourceOffer, finds a task for execution (given resource offer)>>.
 
 NOTE: It _appears_ that the entires stay forever, i.e. are never removed (perhaps because the maintenance overhead is not needed given a `TaskSetManager` is a short-lived entity).
 
 | [[tasks]] `tasks`
-| Lookup table of xref:scheduler:Task.adoc[Tasks] (per partition id) to schedule execution of.
+| Lookup table of scheduler:Task.md[Tasks] (per partition id) to schedule execution of.
 
-NOTE: The tasks all belong to a single <<taskSet, TaskSet>> that was given when <<creating-instance, `TaskSetManager` was created>> (which actually represent a single xref:scheduler:Stage.adoc[Stage]).
+NOTE: The tasks all belong to a single <<taskSet, TaskSet>> that was given when <<creating-instance, `TaskSetManager` was created>> (which actually represent a single scheduler:Stage.md[Stage]).
 
 | [[tasksSuccessful]] `tasksSuccessful`
 |
@@ -228,7 +228,7 @@ Add the following line to `conf/log4j.properties`:
 log4j.logger.org.apache.spark.scheduler.TaskSetManager=DEBUG
 ```
 
-Refer to link:spark-logging.adoc[Logging].
+Refer to spark-logging.md[Logging].
 ====
 
 === [[isTaskBlacklistedOnExecOrNode]] `isTaskBlacklistedOnExecOrNode` Internal Method
@@ -279,7 +279,7 @@ executorAdded(): Unit
 
 `executorAdded` simply <<recomputeLocality, recomputeLocality>>.
 
-NOTE: `executorAdded` is used exclusively when `TaskSchedulerImpl` is requested to xref:scheduler:TaskSchedulerImpl.adoc#resourceOffers[resourceOffers].
+NOTE: `executorAdded` is used exclusively when `TaskSchedulerImpl` is requested to scheduler:TaskSchedulerImpl.md#resourceOffers[resourceOffers].
 
 === [[abortIfCompletelyBlacklisted]] `abortIfCompletelyBlacklisted` Internal Method
 
@@ -291,23 +291,23 @@ abortIfCompletelyBlacklisted(
 
 `abortIfCompletelyBlacklisted`...FIXME
 
-NOTE: `abortIfCompletelyBlacklisted` is used exclusively when `TaskSchedulerImpl` is requested to xref:scheduler:TaskSchedulerImpl.adoc#resourceOffers[resourceOffers].
+NOTE: `abortIfCompletelyBlacklisted` is used exclusively when `TaskSchedulerImpl` is requested to scheduler:TaskSchedulerImpl.md#resourceOffers[resourceOffers].
 
 === [[schedulable]] TaskSetManager is Schedulable
 
-`TaskSetManager` is a link:spark-scheduler-Schedulable.adoc[Schedulable] with the following implementation:
+`TaskSetManager` is a spark-scheduler-Schedulable.md[Schedulable] with the following implementation:
 
 * `name` is `TaskSet_[taskSet.stageId.toString]`
 * no `parent` is ever assigned, i.e. it is always `null`.
 +
-It means that it can only be a leaf in the tree of Schedulables (with link:spark-scheduler-Pool.adoc[Pools] being the nodes).
+It means that it can only be a leaf in the tree of Schedulables (with spark-scheduler-Pool.md[Pools] being the nodes).
 
 * `schedulingMode` always returns `SchedulingMode.NONE` (since there is nothing to schedule).
 * `weight` is always `1`.
 * `minShare` is always `0`.
 * `runningTasks` is the number of running tasks in the internal  `runningTasksSet`.
-* `priority` is the priority of the owned xref:scheduler:TaskSet.adoc[TaskSet] (using `taskSet.priority`).
-* `stageId` is the stage id of the owned xref:scheduler:TaskSet.adoc[TaskSet] (using `taskSet.stageId`).
+* `priority` is the priority of the owned scheduler:TaskSet.md[TaskSet] (using `taskSet.priority`).
+* `stageId` is the stage id of the owned scheduler:TaskSet.md[TaskSet] (using `taskSet.stageId`).
 
 * `schedulableQueue` returns no queue, i.e. `null`.
 * `addSchedulable` and `removeSchedulable` do nothing.
@@ -325,9 +325,9 @@ It means that it can only be a leaf in the tree of Schedulables (with link:spark
 handleTaskGettingResult(tid: Long): Unit
 ----
 
-`handleTaskGettingResult` finds link:spark-scheduler-TaskInfo.adoc[TaskInfo] for `tid` task in <<taskInfos, taskInfos>> internal registry and marks it as fetching indirect task result. It then xref:scheduler:DAGScheduler.adoc#taskGettingResult[notifies `DAGScheduler`].
+`handleTaskGettingResult` finds spark-scheduler-TaskInfo.md[TaskInfo] for `tid` task in <<taskInfos, taskInfos>> internal registry and marks it as fetching indirect task result. It then scheduler:DAGScheduler.md#taskGettingResult[notifies `DAGScheduler`].
 
-NOTE: `handleTaskGettingResult` is executed when xref:scheduler:TaskSchedulerImpl.adoc#handleTaskGettingResult[`TaskSchedulerImpl` is notified about fetching indirect task result].
+NOTE: `handleTaskGettingResult` is executed when scheduler:TaskSchedulerImpl.md#handleTaskGettingResult[`TaskSchedulerImpl` is notified about fetching indirect task result].
 
 === [[addRunningTask]] Registering Running Task -- `addRunningTask` Method
 
@@ -336,7 +336,7 @@ NOTE: `handleTaskGettingResult` is executed when xref:scheduler:TaskSchedulerImp
 addRunningTask(tid: Long): Unit
 ----
 
-`addRunningTask` adds `tid` to <<runningTasksSet, runningTasksSet>> internal registry and link:spark-scheduler-Pool.adoc#increaseRunningTasks[requests the `parent` pool to increase the number of running tasks] (if defined).
+`addRunningTask` adds `tid` to <<runningTasksSet, runningTasksSet>> internal registry and spark-scheduler-Pool.md#increaseRunningTasks[requests the `parent` pool to increase the number of running tasks] (if defined).
 
 === [[removeRunningTask]] Unregistering Running Task -- `removeRunningTask` Method
 
@@ -345,7 +345,7 @@ addRunningTask(tid: Long): Unit
 removeRunningTask(tid: Long): Unit
 ----
 
-`removeRunningTask` removes `tid` from <<runningTasksSet, runningTasksSet>> internal registry and link:spark-scheduler-Pool.adoc#decreaseRunningTasks[requests the `parent` pool to decrease the number of running task] (if defined).
+`removeRunningTask` removes `tid` from <<runningTasksSet, runningTasksSet>> internal registry and spark-scheduler-Pool.md#decreaseRunningTasks[requests the `parent` pool to decrease the number of running task] (if defined).
 
 === [[checkSpeculatableTasks]] Checking Speculatable Tasks -- `checkSpeculatableTasks` Method
 
@@ -354,17 +354,17 @@ removeRunningTask(tid: Long): Unit
 checkSpeculatableTasks(minTimeToSpeculation: Int): Boolean
 ----
 
-NOTE: `checkSpeculatableTasks` is part of the link:spark-scheduler-Schedulable.adoc#contract[Schedulable Contract].
+NOTE: `checkSpeculatableTasks` is part of the spark-scheduler-Schedulable.md#contract[Schedulable Contract].
 
 `checkSpeculatableTasks` checks whether there are speculatable tasks in a `TaskSet`.
 
-NOTE: `checkSpeculatableTasks` is called when for xref:ROOT:speculative-execution-of-tasks.adoc[].
+NOTE: `checkSpeculatableTasks` is called when for ROOT:speculative-execution-of-tasks.md[].
 
 If the TaskSetManager is <<zombie-state, zombie>> or has a single task in TaskSet, it assumes no speculatable tasks.
 
 The method goes on with the assumption of no speculatable tasks by default.
 
-It computes the minimum number of finished tasks for speculation (as xref:ROOT:configuration-properties.adoc#spark.speculation.quantile[spark.speculation.quantile] of all the finished tasks).
+It computes the minimum number of finished tasks for speculation (as ROOT:configuration-properties.md#spark.speculation.quantile[spark.speculation.quantile] of all the finished tasks).
 
 You should see the DEBUG message in the logs:
 
@@ -374,7 +374,7 @@ DEBUG Checking for speculative tasks: minFinished = [minFinishedForSpeculation]
 
 It then checks whether the number is equal or greater than the number of tasks completed successfully (using `tasksSuccessful`).
 
-Having done that, it computes the median duration of all the successfully completed tasks (using <<taskInfos, `taskInfos` internal registry>>) and task length threshold using the median duration multiplied by xref:ROOT:configuration-properties.adoc#spark.speculation.multiplier[spark.speculation.multiplier] that has to be equal or less than `100`.
+Having done that, it computes the median duration of all the successfully completed tasks (using <<taskInfos, `taskInfos` internal registry>>) and task length threshold using the median duration multiplied by ROOT:configuration-properties.md#spark.speculation.multiplier[spark.speculation.multiplier] that has to be equal or less than `100`.
 
 You should see the DEBUG message in the logs:
 
@@ -413,31 +413,31 @@ resourceOffer(
   maxLocality: TaskLocality): Option[TaskDescription]
 ----
 
-(only if <<taskSetBlacklistHelperOpt, TaskSetBlacklist>> is defined) `resourceOffer` requests `TaskSetBlacklist` to check if the input link:spark-scheduler-TaskSetBlacklist.adoc#isExecutorBlacklistedForTaskSet[`execId` executor] or link:spark-scheduler-TaskSetBlacklist.adoc#isNodeBlacklistedForTaskSet[`host` node] are blacklisted.
+(only if <<taskSetBlacklistHelperOpt, TaskSetBlacklist>> is defined) `resourceOffer` requests `TaskSetBlacklist` to check if the input spark-scheduler-TaskSetBlacklist.md#isExecutorBlacklistedForTaskSet[`execId` executor] or spark-scheduler-TaskSetBlacklist.md#isNodeBlacklistedForTaskSet[`host` node] are blacklisted.
 
-When `TaskSetManager` is a <<zombie-state, zombie>> or the resource offer (as executor and host) is blacklisted, `resourceOffer` finds no tasks to execute (and returns no link:spark-scheduler-TaskDescription.adoc[TaskDescription]).
+When `TaskSetManager` is a <<zombie-state, zombie>> or the resource offer (as executor and host) is blacklisted, `resourceOffer` finds no tasks to execute (and returns no spark-scheduler-TaskDescription.md[TaskDescription]).
 
 NOTE: `resourceOffer` finds a task to schedule for a resource offer when neither `TaskSetManager` is a <<zombie-state, zombie>> nor the resource offer is blacklisted.
 
 `resourceOffer` calculates the allowed task locality for task selection. When the input `maxLocality` is not `NO_PREF` task locality, `resourceOffer` <<getAllowedLocalityLevel, getAllowedLocalityLevel>> (for the current time) and sets it as the current task locality if more localized (specific).
 
-NOTE: xref:scheduler:TaskSchedulerImpl.adoc[TaskLocality] can be the most localized `PROCESS_LOCAL`, `NODE_LOCAL` through `NO_PREF` and `RACK_LOCAL` to `ANY`.
+NOTE: scheduler:TaskSchedulerImpl.md[TaskLocality] can be the most localized `PROCESS_LOCAL`, `NODE_LOCAL` through `NO_PREF` and `RACK_LOCAL` to `ANY`.
 
 `resourceOffer` <<dequeueTask, dequeues a task tor execution (given locality information)>>.
 
-If a task (index) is found, `resourceOffer` takes the xref:scheduler:Task.adoc[Task] (from <<tasks, tasks>> registry).
+If a task (index) is found, `resourceOffer` takes the scheduler:Task.md[Task] (from <<tasks, tasks>> registry).
 
-`resourceOffer` xref:scheduler:TaskSchedulerImpl.adoc#newTaskId[requests `TaskSchedulerImpl` for the id for the new task].
+`resourceOffer` scheduler:TaskSchedulerImpl.md#newTaskId[requests `TaskSchedulerImpl` for the id for the new task].
 
 `resourceOffer` increments the <<copiesRunning, number of the copies of the task that are currently running>> and finds the task attempt number (as the size of <<taskAttempts, taskAttempts>> entries for the task index).
 
-`resourceOffer` link:spark-scheduler-TaskInfo.adoc#creating-instance[creates a `TaskInfo`] that is then registered in <<taskInfos, taskInfos>> and <<taskAttempts, taskAttempts>>.
+`resourceOffer` spark-scheduler-TaskInfo.md#creating-instance[creates a `TaskInfo`] that is then registered in <<taskInfos, taskInfos>> and <<taskAttempts, taskAttempts>>.
 
 If the maximum acceptable task locality is not `NO_PREF`, `resourceOffer` <<getLocalityIndex, getLocalityIndex>> (using the task's locality) and records it as <<currentLocalityIndex, currentLocalityIndex>> with the current time as <<lastLaunchTime, lastLaunchTime>>.
 
 `resourceOffer` serializes the task.
 
-NOTE: `resourceOffer` uses xref:core:SparkEnv.adoc#closureSerializer[`SparkEnv` to access the closure `Serializer`] and xref:serializer:Serializer.adoc#newInstance[create an instance thereof].
+NOTE: `resourceOffer` uses core:SparkEnv.md#closureSerializer[`SparkEnv` to access the closure `Serializer`] and serializer:Serializer.md#newInstance[create an instance thereof].
 
 If the task serialization fails, you should see the following ERROR message in the logs:
 
@@ -477,11 +477,11 @@ For example:
 INFO TaskSetManager: Starting task 1.0 in stage 0.0 (TID 1, localhost, partition 1, PROCESS_LOCAL, 2054 bytes)
 ----
 
-`resourceOffer` xref:scheduler:DAGScheduler.adoc#taskStarted[notifies `DAGScheduler` that the task has been started].
+`resourceOffer` scheduler:DAGScheduler.md#taskStarted[notifies `DAGScheduler` that the task has been started].
 
 IMPORTANT: This is the moment when `TaskSetManager` informs `DAGScheduler` that a task has started.
 
-NOTE: `resourceOffer` is used exclusively when `TaskSchedulerImpl` is requested to xref:scheduler:TaskSchedulerImpl.adoc#resourceOfferSingleTaskSet[resourceOfferSingleTaskSet].
+NOTE: `resourceOffer` is used exclusively when `TaskSchedulerImpl` is requested to scheduler:TaskSchedulerImpl.md#resourceOfferSingleTaskSet[resourceOfferSingleTaskSet].
 
 === [[dequeueTask]] Dequeueing Task For Execution (Given Locality Information) -- `dequeueTask` Internal Method
 
@@ -492,7 +492,7 @@ dequeueTask(execId: String, host: String, maxLocality: TaskLocality): Option[(In
 
 `dequeueTask` tries to <<dequeueTaskFromList, find the higest task index>> (meeting localization requirements) using <<getPendingTasksForExecutor, tasks (indices) registered for execution on `execId` executor>>. If a task is found, `dequeueTask` returns its index, `PROCESS_LOCAL` task locality and the speculative marker disabled.
 
-`dequeueTask` then goes over all the possible xref:scheduler:TaskSchedulerImpl.adoc#TaskLocality[task localities] and checks what locality is allowed given the input `maxLocality`.
+`dequeueTask` then goes over all the possible scheduler:TaskSchedulerImpl.md#TaskLocality[task localities] and checks what locality is allowed given the input `maxLocality`.
 
 `dequeueTask` checks out `NODE_LOCAL`, `NO_PREF`, `RACK_LOCAL` and `ANY` in that order.
 
@@ -502,7 +502,7 @@ For `NO_PREF` `dequeueTask` tries to <<dequeueTaskFromList, find the higest task
 
 NOTE: For `NO_PREF` the task locality is `PROCESS_LOCAL`.
 
-For `RACK_LOCAL` `dequeueTask` xref:scheduler:TaskSchedulerImpl.adoc#getRackForHost[finds the rack for the input `host`] and if available tries to <<dequeueTaskFromList, find the higest task index>> (meeting localization requirements) using <<getPendingTasksForRack, tasks (indices) registered for execution on the rack>>. If a task is found, `dequeueTask` returns its index, `RACK_LOCAL` task locality and the speculative marker disabled.
+For `RACK_LOCAL` `dequeueTask` scheduler:TaskSchedulerImpl.md#getRackForHost[finds the rack for the input `host`] and if available tries to <<dequeueTaskFromList, find the higest task index>> (meeting localization requirements) using <<getPendingTasksForRack, tasks (indices) registered for execution on the rack>>. If a task is found, `dequeueTask` returns its index, `RACK_LOCAL` task locality and the speculative marker disabled.
 
 For `ANY` `dequeueTask` tries to <<dequeueTaskFromList, find the higest task index>> (meeting localization requirements) using <<allPendingTasks, allPendingTasks>> internal registry and if found returns its index, `ANY` task locality and the speculative marker disabled.
 
@@ -597,7 +597,7 @@ CAUTION: FIXME What's delay scheduling?
 
 === [[events]] Events
 
-Once a task has finished, `TaskSetManager` informs xref:scheduler:DAGScheduler.adoc#taskEnded[DAGScheduler].
+Once a task has finished, `TaskSetManager` informs scheduler:DAGScheduler.md#taskEnded[DAGScheduler].
 
 CAUTION: FIXME
 
@@ -610,17 +610,17 @@ handleSuccessfulTask(
   result: DirectTaskResult[_]): Unit
 ----
 
-`handleSuccessfulTask` records the `tid` task as finished, xref:scheduler:DAGScheduler.adoc#taskEnded[notifies the `DAGScheduler` that the task has ended] and <<maybeFinishTaskSet, attempts to mark the `TaskSet` finished>>.
+`handleSuccessfulTask` records the `tid` task as finished, scheduler:DAGScheduler.md#taskEnded[notifies the `DAGScheduler` that the task has ended] and <<maybeFinishTaskSet, attempts to mark the `TaskSet` finished>>.
 
-NOTE: `handleSuccessfulTask` is executed after xref:scheduler:TaskSchedulerImpl.adoc#handleSuccessfulTask[`TaskSchedulerImpl` has been informed that `tid` task finished successfully (and the task result was deserialized)].
+NOTE: `handleSuccessfulTask` is executed after scheduler:TaskSchedulerImpl.md#handleSuccessfulTask[`TaskSchedulerImpl` has been informed that `tid` task finished successfully (and the task result was deserialized)].
 
-Internally, `handleSuccessfulTask` finds link:spark-scheduler-TaskInfo.adoc[TaskInfo] (in <<taskInfos, taskInfos>> internal registry) and marks it as `FINISHED`.
+Internally, `handleSuccessfulTask` finds spark-scheduler-TaskInfo.md[TaskInfo] (in <<taskInfos, taskInfos>> internal registry) and marks it as `FINISHED`.
 
 It then removes `tid` task from <<runningTasksSet, runningTasksSet>> internal registry.
 
-`handleSuccessfulTask` xref:scheduler:DAGScheduler.adoc#taskEnded[notifies `DAGScheduler` that `tid` task ended successfully] (with the `Task` object from <<tasks, tasks>> internal registry and the result as `Success`).
+`handleSuccessfulTask` scheduler:DAGScheduler.md#taskEnded[notifies `DAGScheduler` that `tid` task ended successfully] (with the `Task` object from <<tasks, tasks>> internal registry and the result as `Success`).
 
-At this point, `handleSuccessfulTask` finds the other <<taskAttempts, running task attempts>> of `tid` task and xref:scheduler:SchedulerBackend.adoc#killTask[requests `SchedulerBackend` to kill them] (since they are no longer necessary now when at least one task attempt has completed successfully). You should see the following INFO message in the logs:
+At this point, `handleSuccessfulTask` finds the other <<taskAttempts, running task attempts>> of `tid` task and scheduler:SchedulerBackend.md#killTask[requests `SchedulerBackend` to kill them] (since they are no longer necessary now when at least one task attempt has completed successfully). You should see the following INFO message in the logs:
 
 [options="wrap"]
 ----
@@ -647,7 +647,7 @@ INFO Ignoring task-finished event for [id] in stage [id] because task [index] ha
 
 Ultimately, `handleSuccessfulTask` <<maybeFinishTaskSet, attempts to mark the `TaskSet` finished>>.
 
-NOTE: `handleSuccessfulTask` is used exclusively when `TaskSchedulerImpl` is requested to xref:scheduler:TaskSchedulerImpl.adoc#handleSuccessfulTask[handleSuccessfulTask].
+NOTE: `handleSuccessfulTask` is used exclusively when `TaskSchedulerImpl` is requested to scheduler:TaskSchedulerImpl.md#handleSuccessfulTask[handleSuccessfulTask].
 
 === [[maybeFinishTaskSet]] Attempting to Mark TaskSet Finished -- `maybeFinishTaskSet` Internal Method
 
@@ -656,19 +656,19 @@ NOTE: `handleSuccessfulTask` is used exclusively when `TaskSchedulerImpl` is req
 maybeFinishTaskSet(): Unit
 ----
 
-`maybeFinishTaskSet` xref:scheduler:TaskSchedulerImpl.adoc#taskSetFinished[notifies `TaskSchedulerImpl` that a `TaskSet` has finished] when there are no other <<runningTasksSet, running tasks>> and the <<isZombie, TaskSetManager is not in zombie state>>.
+`maybeFinishTaskSet` scheduler:TaskSchedulerImpl.md#taskSetFinished[notifies `TaskSchedulerImpl` that a `TaskSet` has finished] when there are no other <<runningTasksSet, running tasks>> and the <<isZombie, TaskSetManager is not in zombie state>>.
 
 === [[task-retries]] Retrying Tasks on Failure
 
 CAUTION: FIXME
 
-Up to xref:ROOT:configuration-properties.adoc#spark.task.maxFailures[spark.task.maxFailures] attempts
+Up to ROOT:configuration-properties.md#spark.task.maxFailures[spark.task.maxFailures] attempts
 
 === Task retries and `spark.task.maxFailures`
 
-When you start Spark program you set up xref:ROOT:configuration-properties.adoc#spark.task.maxFailures[spark.task.maxFailures] for the number of failures that are acceptable until `TaskSetManager` gives up and marks a job failed.
+When you start Spark program you set up ROOT:configuration-properties.md#spark.task.maxFailures[spark.task.maxFailures] for the number of failures that are acceptable until `TaskSetManager` gives up and marks a job failed.
 
-TIP: In Spark shell with local master, xref:ROOT:configuration-properties.adoc#spark.task.maxFailures[spark.task.maxFailures] is fixed to `1` and you need to use link:local/spark-local.adoc[local-with-retries master] to change it to some other value.
+TIP: In Spark shell with local master, ROOT:configuration-properties.md#spark.task.maxFailures[spark.task.maxFailures] is fixed to `1` and you need to use local/spark-local.md[local-with-retries master] to change it to some other value.
 
 In the following example, you are going to execute a job with two partitions and keep one failing at all times (by throwing an exception). The aim is to learn the behavior of retrying task execution in a stage in TaskSet. You will only look at a single task execution, namely `0.0`.
 
@@ -724,7 +724,7 @@ abort(
   exception: Option[Throwable] = None): Unit
 ----
 
-`abort` informs xref:scheduler:DAGScheduler.adoc#taskSetFailed[`DAGScheduler` that the `TaskSet` has been aborted].
+`abort` informs scheduler:DAGScheduler.md#taskSetFailed[`DAGScheduler` that the `TaskSet` has been aborted].
 
 CAUTION: FIXME image with DAGScheduler call
 
@@ -736,32 +736,32 @@ In the end, `abort` <<maybeFinishTaskSet, attempts to mark the `TaskSet` finishe
 ====
 `abort` is used when:
 
-* `TaskResultGetter` is requested to xref:scheduler:TaskResultGetter.adoc#enqueueSuccessfulTask[enqueueSuccessfulTask] (that has failed)
+* `TaskResultGetter` is requested to scheduler:TaskResultGetter.md#enqueueSuccessfulTask[enqueueSuccessfulTask] (that has failed)
 
-* `TaskSchedulerImpl` is requested to xref:scheduler:TaskSchedulerImpl.adoc#cancelTasks[cancelTasks] and xref:scheduler:TaskSchedulerImpl.adoc#error[error]
+* `TaskSchedulerImpl` is requested to scheduler:TaskSchedulerImpl.md#cancelTasks[cancelTasks] and scheduler:TaskSchedulerImpl.md#error[error]
 
 * `TaskSetManager` is requested to <<resourceOffer, resourceOffer>>, <<abortIfCompletelyBlacklisted, abortIfCompletelyBlacklisted>>, <<canFetchMoreResults, canFetchMoreResults>>, and <<handleFailedTask, handleFailedTask>>
 
-* `DriverEndpoint` is requested to xref:scheduler:CoarseGrainedSchedulerBackend-DriverEndpoint.adoc#launchTasks[launch tasks on executors]
+* `DriverEndpoint` is requested to scheduler:CoarseGrainedSchedulerBackend-DriverEndpoint.md#launchTasks[launch tasks on executors]
 ====
 
 === [[creating-instance]] Creating TaskSetManager Instance
 
 `TaskSetManager` takes the following to be created:
 
-* [[sched]] xref:scheduler:TaskSchedulerImpl.adoc[TaskSchedulerImpl]
-* [[taskSet]] xref:scheduler:TaskSet.adoc[TaskSet]
+* [[sched]] scheduler:TaskSchedulerImpl.md[TaskSchedulerImpl]
+* [[taskSet]] scheduler:TaskSet.md[TaskSet]
 * [[maxTaskFailures]] Number of task failures, i.e. how many times a <<handleFailedTask, single task can fail>> before an entire TaskSet is <<abort, aborted>>
 * [[blacklistTracker]] (optional) BlacklistTracker (default: `None`)
 * [[clock]] `Clock` (default: `SystemClock`)
 
 `TaskSetManager` initializes the <<internal-registries, internal registries and counters>>.
 
-NOTE: `maxTaskFailures` is `1` for `local` run mode, `maxFailures` for Spark local-with-retries, and xref:ROOT:configuration-properties.adoc#spark.task.maxFailures[spark.task.maxFailures] configuration property for Spark local-cluster and Spark with cluster managers (Spark Standalone, Mesos and YARN).
+NOTE: `maxTaskFailures` is `1` for `local` run mode, `maxFailures` for Spark local-with-retries, and ROOT:configuration-properties.md#spark.task.maxFailures[spark.task.maxFailures] configuration property for Spark local-cluster and Spark with cluster managers (Spark Standalone, Mesos and YARN).
 
-`TaskSetManager` xref:scheduler:MapOutputTracker.adoc#getEpoch[requests the current epoch from `MapOutputTracker`] and sets it on all tasks in the taskset.
+`TaskSetManager` scheduler:MapOutputTracker.md#getEpoch[requests the current epoch from `MapOutputTracker`] and sets it on all tasks in the taskset.
 
-NOTE: `TaskSetManager` uses <<sched, TaskSchedulerImpl>> (that was given when <<creating-instance, created>>) to xref:scheduler:TaskSchedulerImpl.adoc#mapOutputTracker[access the current `MapOutputTracker`].
+NOTE: `TaskSetManager` uses <<sched, TaskSchedulerImpl>> (that was given when <<creating-instance, created>>) to scheduler:TaskSchedulerImpl.md#mapOutputTracker[access the current `MapOutputTracker`].
 
 You should see the following DEBUG in the logs:
 
@@ -771,7 +771,7 @@ DEBUG Epoch for [taskSet]: [epoch]
 
 CAUTION: FIXME Why is the epoch important?
 
-NOTE: `TaskSetManager` requests xref:scheduler:TaskSchedulerImpl.adoc#mapOutputTracker[`MapOutputTracker` from `TaskSchedulerImpl`] which is _likely_ for unit testing only since xref:core:SparkEnv.adoc#mapOutputTracker[`MapOutputTracker` is available using `SparkEnv`].
+NOTE: `TaskSetManager` requests scheduler:TaskSchedulerImpl.md#mapOutputTracker[`MapOutputTracker` from `TaskSchedulerImpl`] which is _likely_ for unit testing only since core:SparkEnv.md#mapOutputTracker[`MapOutputTracker` is available using `SparkEnv`].
 
 `TaskSetManager` <<addPendingTask, adds the tasks as pending execution>> (in reverse order from the highest partition to the lowest).
 
@@ -787,18 +787,18 @@ handleFailedTask(
   reason: TaskFailedReason): Unit
 ----
 
-`handleFailedTask` finds link:spark-scheduler-TaskInfo.adoc[TaskInfo] of `tid` task in <<taskInfos, taskInfos>> internal registry and simply quits if the task is already marked as failed or killed.
+`handleFailedTask` finds spark-scheduler-TaskInfo.md[TaskInfo] of `tid` task in <<taskInfos, taskInfos>> internal registry and simply quits if the task is already marked as failed or killed.
 
 .TaskSetManager Gets Notified that Task Has Failed
 image::TaskSetManager-handleFailedTask.png[align="center"]
 
-NOTE: `handleFailedTask` is executed after xref:scheduler:TaskSchedulerImpl.adoc#handleFailedTask[`TaskSchedulerImpl` has been informed that `tid` task failed] or <<executorLost, an executor was lost>>. In either case, tasks could not finish successfully or could not report their status back.
+NOTE: `handleFailedTask` is executed after scheduler:TaskSchedulerImpl.md#handleFailedTask[`TaskSchedulerImpl` has been informed that `tid` task failed] or <<executorLost, an executor was lost>>. In either case, tasks could not finish successfully or could not report their status back.
 
-`handleFailedTask` <<removeRunningTask, unregisters `tid` task from the internal registry of running tasks>> and then link:spark-scheduler-TaskInfo.adoc#markFinished[marks the corresponding `TaskInfo` as finished] (passing in the input `state`).
+`handleFailedTask` <<removeRunningTask, unregisters `tid` task from the internal registry of running tasks>> and then spark-scheduler-TaskInfo.md#markFinished[marks the corresponding `TaskInfo` as finished] (passing in the input `state`).
 
 `handleFailedTask` decrements the number of the running copies of `tid` task (in <<copiesRunning, copiesRunning>> internal registry).
 
-NOTE: With xref:ROOT:speculative-execution-of-tasks.adoc[] enabled, there can be many copies of a task running simultaneuosly.
+NOTE: With ROOT:speculative-execution-of-tasks.md[] enabled, there can be many copies of a task running simultaneuosly.
 
 `handleFailedTask` uses the following pattern as the reason of the failure:
 
@@ -815,7 +815,7 @@ Lost task [id] in stage [taskSetId] (TID [tid], [host], executor [executorId]): 
 
 NOTE: Description of how the final failure exception is "computed" was moved to respective sections below to make the reading slightly more pleasant and comprehensible.
 
-`handleFailedTask` xref:scheduler:DAGScheduler.adoc#taskEnded[informs `DAGScheduler` that `tid` task has ended] (passing on the `Task` instance from <<tasks, tasks>> internal registry, the input `reason`, `null` result, calculated `accumUpdates` per failure, and the link:spark-scheduler-TaskInfo.adoc[TaskInfo]).
+`handleFailedTask` scheduler:DAGScheduler.md#taskEnded[informs `DAGScheduler` that `tid` task has ended] (passing on the `Task` instance from <<tasks, tasks>> internal registry, the input `reason`, `null` result, calculated `accumUpdates` per failure, and the spark-scheduler-TaskInfo.md[TaskInfo]).
 
 IMPORTANT: This is the moment when `TaskSetManager` informs `DAGScheduler` that a task has ended.
 
@@ -826,11 +826,11 @@ If `tid` task has already been marked as completed (in <<successful, successful>
 INFO Task [id] in stage [id] (TID [tid]) failed, but the task will not be re-executed (either because the task failed with a shuffle data fetch failure, so the previous stage needs to be re-run, or because a different copy of the task has already succeeded).
 ----
 
-TIP: Read up on xref:ROOT:speculative-execution-of-tasks.adoc[] to find out why a single task could be executed multiple times.
+TIP: Read up on ROOT:speculative-execution-of-tasks.md[] to find out why a single task could be executed multiple times.
 
 If however `tid` task was not recorded as <<successful, completed>>, `handleFailedTask` <<addPendingTask, records it as pending>>.
 
-If the `TaskSetManager` is not a <<zombie-state, zombie>> and the task failed `reason` should be counted towards the maximum number of times the task is allowed to fail before the stage is aborted (i.e. `TaskFailedReason.countTowardsTaskFailures` attribute is enabled), the optional link:spark-scheduler-TaskSetBlacklist.adoc#updateBlacklistForFailedTask[`TaskSetBlacklist` is notified] (passing on the host, executor and the task's index). `handleFailedTask` then increments the <<numFailures, number of failures>> for `tid` task and checks if the number of failures is equal or greater than the <<maxTaskFailures, allowed number of task failures per `TaskSet`>> (as defined when the <<creating-instance, `TaskSetManager` was created>>).
+If the `TaskSetManager` is not a <<zombie-state, zombie>> and the task failed `reason` should be counted towards the maximum number of times the task is allowed to fail before the stage is aborted (i.e. `TaskFailedReason.countTowardsTaskFailures` attribute is enabled), the optional spark-scheduler-TaskSetBlacklist.md#updateBlacklistForFailedTask[`TaskSetBlacklist` is notified] (passing on the host, executor and the task's index). `handleFailedTask` then increments the <<numFailures, number of failures>> for `tid` task and checks if the number of failures is equal or greater than the <<maxTaskFailures, allowed number of task failures per `TaskSet`>> (as defined when the <<creating-instance, `TaskSetManager` was created>>).
 
 If so, i.e. the number of task failures of `tid` task reached the maximum value, you should see the following ERROR message in the logs:
 
@@ -850,7 +850,7 @@ In the end (except when the number of failures of `tid` task grew beyond the acc
 ====
 `handleFailedTask` is used when:
 
-* `TaskSchedulerImpl` is requested to xref:scheduler:TaskSchedulerImpl.adoc#handleFailedTask[handle a failed task]
+* `TaskSchedulerImpl` is requested to scheduler:TaskSchedulerImpl.md#handleFailedTask[handle a failed task]
 
 * `TaskSetManager` is requested to <<handleSuccessfulTask, handle a successful task>> and <<executorLost, handle a lost executor>>
 ====
@@ -881,7 +881,7 @@ And `handleFailedTask` <<abort, aborts the `TaskSet`>> and then quits.
 
 Otherwise, if the exception is not of type `NotSerializableException`, `handleFailedTask` accesses accumulators and calculates whether to print the WARN message (with the failure reason) or the INFO message.
 
-If the failure has already been reported (and is therefore a duplication), xref:ROOT:configuration-properties.adoc#spark.logging.exceptionPrintInterval[spark.logging.exceptionPrintInterval] is checked before reprinting the duplicate exception in its entirety.
+If the failure has already been reported (and is therefore a duplication), ROOT:configuration-properties.md#spark.logging.exceptionPrintInterval[spark.logging.exceptionPrintInterval] is checked before reprinting the duplicate exception in its entirety.
 
 For full printout of the `ExceptionFailure`, the following WARN appears in the logs:
 
@@ -926,13 +926,13 @@ addPendingTask(index: Int): Unit
 
 `addPendingTask` registers a `index` task in the pending-task lists that the task should be eventually scheduled to (per its preferred locations).
 
-Internally, `addPendingTask` takes the xref:scheduler:Task.adoc#preferredLocations[preferred locations of the task] (given `index`) and registers the task in the internal pending-task registries for every preferred location:
+Internally, `addPendingTask` takes the scheduler:Task.md#preferredLocations[preferred locations of the task] (given `index`) and registers the task in the internal pending-task registries for every preferred location:
 
-* <<pendingTasksForExecutor, pendingTasksForExecutor>> when the xref:scheduler:TaskLocation.adoc[TaskLocation] is `ExecutorCacheTaskLocation`.
-* <<pendingTasksForHost, pendingTasksForHost>> for the hosts of a xref:scheduler:TaskLocation.adoc[TaskLocation].
-* <<pendingTasksForRack, pendingTasksForRack>> for the xref:scheduler:TaskSchedulerImpl.adoc#getRackForHost[racks from  `TaskSchedulerImpl` per the host] (of a xref:scheduler:TaskLocation.adoc[TaskLocation]).
+* <<pendingTasksForExecutor, pendingTasksForExecutor>> when the scheduler:TaskLocation.md[TaskLocation] is `ExecutorCacheTaskLocation`.
+* <<pendingTasksForHost, pendingTasksForHost>> for the hosts of a scheduler:TaskLocation.md[TaskLocation].
+* <<pendingTasksForRack, pendingTasksForRack>> for the scheduler:TaskSchedulerImpl.md#getRackForHost[racks from  `TaskSchedulerImpl` per the host] (of a scheduler:TaskLocation.md[TaskLocation]).
 
-For a xref:scheduler:TaskLocation.adoc[TaskLocation] being `HDFSCacheTaskLocation`, `addPendingTask` xref:scheduler:TaskSchedulerImpl.adoc#getExecutorsAliveOnHost[requests `TaskSchedulerImpl` for the executors on the host] (of a preferred location) and registers the task in <<pendingTasksForExecutor, pendingTasksForExecutor>> for every executor (if available).
+For a scheduler:TaskLocation.md[TaskLocation] being `HDFSCacheTaskLocation`, `addPendingTask` scheduler:TaskSchedulerImpl.md#getExecutorsAliveOnHost[requests `TaskSchedulerImpl` for the executors on the host] (of a preferred location) and registers the task in <<pendingTasksForExecutor, pendingTasksForExecutor>> for every executor (if available).
 
 You should see the following INFO message in the logs:
 
@@ -959,27 +959,27 @@ NOTE: `addPendingTask` is used immediatelly when `TaskSetManager` <<creating-ins
 executorLost(execId: String, host: String, reason: ExecutorLossReason): Unit
 ----
 
-`executorLost` re-enqueues all the xref:scheduler:ShuffleMapTask.adoc[ShuffleMapTasks] that have completed already on the lost executor (when xref:deploy:ExternalShuffleService.adoc[external shuffle service] is not in use) and <<handleFailedTask, reports all currently-running tasks on the lost executor as failed>>.
+`executorLost` re-enqueues all the scheduler:ShuffleMapTask.md[ShuffleMapTasks] that have completed already on the lost executor (when deploy:ExternalShuffleService.md[external shuffle service] is not in use) and <<handleFailedTask, reports all currently-running tasks on the lost executor as failed>>.
 
-NOTE: `executorLost` is part of the link:spark-scheduler-Schedulable.adoc#contract[Schedulable contract] that xref:scheduler:TaskSchedulerImpl.adoc#removeExecutor[`TaskSchedulerImpl` uses to inform `TaskSetManagers` about lost executors].
+NOTE: `executorLost` is part of the spark-scheduler-Schedulable.md#contract[Schedulable contract] that scheduler:TaskSchedulerImpl.md#removeExecutor[`TaskSchedulerImpl` uses to inform `TaskSetManagers` about lost executors].
 
-NOTE: Since `TaskSetManager` manages execution of the tasks in a single xref:scheduler:TaskSet.adoc[TaskSet], when an executor gets lost, the affected tasks that have been running on the failed executor need to be re-enqueued. `executorLost` is the mechanism to "announce" the event to all `TaskSetManagers`.
+NOTE: Since `TaskSetManager` manages execution of the tasks in a single scheduler:TaskSet.md[TaskSet], when an executor gets lost, the affected tasks that have been running on the failed executor need to be re-enqueued. `executorLost` is the mechanism to "announce" the event to all `TaskSetManagers`.
 
-Internally, `executorLost` first checks whether the <<tasks, tasks>> are xref:scheduler:ShuffleMapTask.adoc[ShuffleMapTasks] and whether an xref:deploy:ExternalShuffleService.adoc[external shuffle service] is enabled (that could serve the map shuffle outputs in case of failure).
+Internally, `executorLost` first checks whether the <<tasks, tasks>> are scheduler:ShuffleMapTask.md[ShuffleMapTasks] and whether an deploy:ExternalShuffleService.md[external shuffle service] is enabled (that could serve the map shuffle outputs in case of failure).
 
-NOTE: `executorLost` checks out the first task in <<tasks, tasks>> as it is assumed the other belong to the same stage. If the task is a xref:scheduler:ShuffleMapTask.adoc[ShuffleMapTask], the entire <<taskSet, TaskSet>> is for a xref:scheduler:ShuffleMapStage.adoc[ShuffleMapStage].
+NOTE: `executorLost` checks out the first task in <<tasks, tasks>> as it is assumed the other belong to the same stage. If the task is a scheduler:ShuffleMapTask.md[ShuffleMapTask], the entire <<taskSet, TaskSet>> is for a scheduler:ShuffleMapStage.md[ShuffleMapStage].
 
-NOTE: `executorLost` uses xref:core:SparkEnv.adoc#blockManager[`SparkEnv` to access the current `BlockManager`] and finds out whether an xref:storage:BlockManager.adoc#externalShuffleServiceEnabled[external shuffle service is enabled] or not (based on xref:ROOT:configuration-properties.adoc#spark.shuffle.service.enabled[spark.shuffle.service.enabled] configuration property).
+NOTE: `executorLost` uses core:SparkEnv.md#blockManager[`SparkEnv` to access the current `BlockManager`] and finds out whether an storage:BlockManager.md#externalShuffleServiceEnabled[external shuffle service is enabled] or not (based on ROOT:configuration-properties.md#spark.shuffle.service.enabled[spark.shuffle.service.enabled] configuration property).
 
-If `executorLost` is indeed due to an executor lost that executed tasks for a xref:scheduler:ShuffleMapStage.adoc[ShuffleMapStage] (that this `TaskSetManager` manages) and no external shuffle server is enabled, `executorLost` finds <<taskInfos, all the tasks>> that were scheduled on this lost executor and marks the <<successful, ones that were already successfully completed>> as not executed yet.
+If `executorLost` is indeed due to an executor lost that executed tasks for a scheduler:ShuffleMapStage.md[ShuffleMapStage] (that this `TaskSetManager` manages) and no external shuffle server is enabled, `executorLost` finds <<taskInfos, all the tasks>> that were scheduled on this lost executor and marks the <<successful, ones that were already successfully completed>> as not executed yet.
 
 NOTE: `executorLost` uses records every tasks on the lost executor in <<successful, successful>> (as `false`) and decrements <<copiesRunning copiesRunning>>, and <<tasksSuccessful, tasksSuccessful>> for every task.
 
-`executorLost` <<addPendingTask, registers every task as pending execution (per preferred locations)>> and xref:scheduler:DAGScheduler.adoc#taskEnded[informs `DAGScheduler` that the tasks (on the lost executor) have ended] (with xref:scheduler:DAGScheduler.adoc#handleTaskCompletion-Resubmitted[Resubmitted] reason).
+`executorLost` <<addPendingTask, registers every task as pending execution (per preferred locations)>> and scheduler:DAGScheduler.md#taskEnded[informs `DAGScheduler` that the tasks (on the lost executor) have ended] (with scheduler:DAGScheduler.md#handleTaskCompletion-Resubmitted[Resubmitted] reason).
 
-NOTE: `executorLost` uses xref:scheduler:TaskSchedulerImpl.adoc#dagScheduler[`TaskSchedulerImpl` to access the `DAGScheduler`]. `TaskSchedulerImpl` is given when the <<creating-instance, `TaskSetManager` was created>>.
+NOTE: `executorLost` uses scheduler:TaskSchedulerImpl.md#dagScheduler[`TaskSchedulerImpl` to access the `DAGScheduler`]. `TaskSchedulerImpl` is given when the <<creating-instance, `TaskSetManager` was created>>.
 
-Regardless of whether this `TaskSetManager` manages `ShuffleMapTasks` or not (it could also manage xref:scheduler:ResultTask.adoc[ResultTasks]) and whether the external shuffle service is used or not, `executorLost` finds all <<taskInfos, currently-running tasks>> on this lost executor and <<handleFailedTask, reports them as failed>> (with the task state `FAILED`).
+Regardless of whether this `TaskSetManager` manages `ShuffleMapTasks` or not (it could also manage scheduler:ResultTask.md[ResultTasks]) and whether the external shuffle service is used or not, `executorLost` finds all <<taskInfos, currently-running tasks>> on this lost executor and <<handleFailedTask, reports them as failed>> (with the task state `FAILED`).
 
 NOTE: `executorLost` finds out if the reason for the executor lost is due to application fault, i.e. assumes ``ExecutorExited``'s exit status as the indicator, `ExecutorKilled` for non-application's fault and any other reason is an application fault.
 
@@ -996,7 +996,7 @@ recomputeLocality(): Unit
 
 CAUTION: FIXME But *why* are the caches important (and have to be recomputed)?
 
-`recomputeLocality` records the current xref:scheduler:TaskSchedulerImpl.adoc#TaskLocality[TaskLocality] level of this `TaskSetManager` (that is <<currentLocalityIndex, currentLocalityIndex>> in <<myLocalityLevels, myLocalityLevels>>).
+`recomputeLocality` records the current scheduler:TaskSchedulerImpl.md#TaskLocality[TaskLocality] level of this `TaskSetManager` (that is <<currentLocalityIndex, currentLocalityIndex>> in <<myLocalityLevels, myLocalityLevels>>).
 
 NOTE: `TaskLocality` is one of `PROCESS_LOCAL`, `NODE_LOCAL`, `NO_PREF`, `RACK_LOCAL` and `ANY` values.
 
@@ -1017,7 +1017,7 @@ computeValidLocalityLevels(): Array[TaskLocality]
 
 `computeValidLocalityLevels` computes valid locality levels for tasks that were registered in corresponding registries per locality level.
 
-NOTE: xref:scheduler:TaskSchedulerImpl.adoc[TaskLocality] is a task locality preference and can be the most localized `PROCESS_LOCAL`, `NODE_LOCAL` through `NO_PREF` and `RACK_LOCAL` to `ANY`.
+NOTE: scheduler:TaskSchedulerImpl.md[TaskLocality] is a task locality preference and can be the most localized `PROCESS_LOCAL`, `NODE_LOCAL` through `NO_PREF` and `RACK_LOCAL` to `ANY`.
 
 .TaskLocalities and Corresponding Internal Registries
 [cols="1,2",options="header",width="100%"]
@@ -1038,7 +1038,7 @@ NOTE: xref:scheduler:TaskSchedulerImpl.adoc[TaskLocality] is a task locality pre
 
 `computeValidLocalityLevels` walks over every internal registry and if it is not empty <<getLocalityWait, computes locality wait>> for the corresponding `TaskLocality` and proceeds with it only when the locality wait is not `0`.
 
-For `TaskLocality` with pending tasks, `computeValidLocalityLevels` asks `TaskSchedulerImpl` whether there is at least one executor alive (for xref:scheduler:TaskSchedulerImpl.adoc#isExecutorAlive[PROCESS_LOCAL], xref:scheduler:TaskSchedulerImpl.adoc#hasExecutorsAliveOnHost[NODE_LOCAL] and xref:scheduler:TaskSchedulerImpl.adoc#hasHostAliveOnRack[RACK_LOCAL]) and if so registers the `TaskLocality`.
+For `TaskLocality` with pending tasks, `computeValidLocalityLevels` asks `TaskSchedulerImpl` whether there is at least one executor alive (for scheduler:TaskSchedulerImpl.md#isExecutorAlive[PROCESS_LOCAL], scheduler:TaskSchedulerImpl.md#hasExecutorsAliveOnHost[NODE_LOCAL] and scheduler:TaskSchedulerImpl.md#hasHostAliveOnRack[RACK_LOCAL]) and if so registers the `TaskLocality`.
 
 NOTE: `computeValidLocalityLevels` uses <<sched, TaskSchedulerImpl>> that was given when <<TaskSetManager, `TaskSetManager` was created>>.
 
@@ -1059,9 +1059,9 @@ NOTE: `computeValidLocalityLevels` is used when `TaskSetManager` <<creating-inst
 getLocalityWait(level: TaskLocality): Long
 ----
 
-`getLocalityWait` finds *locality wait* (in milliseconds) for a given xref:scheduler:TaskSchedulerImpl.adoc#TaskLocality[TaskLocality].
+`getLocalityWait` finds *locality wait* (in milliseconds) for a given scheduler:TaskSchedulerImpl.md#TaskLocality[TaskLocality].
 
-`getLocalityWait` uses xref:ROOT:configuration-properties.adoc#spark.locality.wait[spark.locality.wait] (default: `3s`) when the ``TaskLocality``-specific property is not defined or `0` for `NO_PREF` and `ANY`.
+`getLocalityWait` uses ROOT:configuration-properties.md#spark.locality.wait[spark.locality.wait] (default: `3s`) when the ``TaskLocality``-specific property is not defined or `0` for `NO_PREF` and `ANY`.
 
 NOTE: `NO_PREF` and `ANY` task localities have no locality wait.
 
@@ -1072,13 +1072,13 @@ NOTE: `NO_PREF` and `ANY` task localities have no locality wait.
 | Spark Property
 
 | PROCESS_LOCAL
-| xref:ROOT:configuration-properties.adoc#spark.locality.wait.process[spark.locality.wait.process]
+| ROOT:configuration-properties.md#spark.locality.wait.process[spark.locality.wait.process]
 
 | NODE_LOCAL
-| xref:ROOT:configuration-properties.adoc#spark.locality.wait.node[spark.locality.wait.node]
+| ROOT:configuration-properties.md#spark.locality.wait.node[spark.locality.wait.node]
 
 | RACK_LOCAL
-| xref:ROOT:configuration-properties.adoc#spark.locality.wait.rack[spark.locality.wait.rack]
+| ROOT:configuration-properties.md#spark.locality.wait.rack[spark.locality.wait.rack]
 |===
 
 NOTE: `getLocalityWait` is used when `TaskSetManager` calculates <<localityWaits, localityWaits>>, <<computeValidLocalityLevels, computes locality levels (for scheduled tasks)>> and <<recomputeLocality, recomputes locality preferences>>.
@@ -1094,16 +1094,16 @@ canFetchMoreResults(size: Long): Boolean
 
 Internally, `canFetchMoreResults` increments the internal <<totalResultSize, totalResultSize>> with the input `size` (which is the size of the result of a task) and increments the internal <<calculatedTasks, calculatedTasks>>.
 
-If the current internal <<totalResultSize, totalResultSize>> is bigger than the xref:ROOT:configuration-properties.adoc#maxResultSize[maximum result size], `canFetchMoreResults` prints out the following ERROR message to the logs:
+If the current internal <<totalResultSize, totalResultSize>> is bigger than the ROOT:configuration-properties.md#maxResultSize[maximum result size], `canFetchMoreResults` prints out the following ERROR message to the logs:
 
 ```
 Total size of serialized results of [calculatedTasks] tasks ([totalResultSize]) is bigger than spark.driver.maxResultSize ([maxResultSize])
 ```
 
-NOTE: `canFetchMoreResults` uses xref:ROOT:configuration-properties.adoc#spark.driver.maxResultSize[spark.driver.maxResultSize] configuration property to control the maximum result size. The default value is `1g`.
+NOTE: `canFetchMoreResults` uses ROOT:configuration-properties.md#spark.driver.maxResultSize[spark.driver.maxResultSize] configuration property to control the maximum result size. The default value is `1g`.
 
 In the end, `canFetchMoreResults` <<abort, aborts>> the <<taskSet, TaskSet>> and returns `false`.
 
 Otherwise, `canFetchMoreResults` returns `true`.
 
-NOTE: `canFetchMoreResults` is used exclusively when `TaskResultGetter` is requested to  xref:scheduler:TaskResultGetter.adoc#enqueueSuccessfulTask[enqueue a successful task].
+NOTE: `canFetchMoreResults` is used exclusively when `TaskResultGetter` is requested to  scheduler:TaskResultGetter.md#enqueueSuccessfulTask[enqueue a successful task].

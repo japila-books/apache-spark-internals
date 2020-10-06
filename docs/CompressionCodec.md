@@ -4,7 +4,7 @@
 
 A concrete CompressionCodec is supposed to <<createCodec, come with a constructor that accepts a single argument being SparkConf>>.
 
-The default compression codec is configured using xref:ROOT:configuration-properties.adoc#spark.io.compression.codec[spark.io.compression.codec] configuration property.
+The default compression codec is configured using ROOT:configuration-properties.md#spark.io.compression.codec[spark.io.compression.codec] configuration property.
 
 == [[implementations]][[shortCompressionCodecNames]] Available CompressionCodecs
 
@@ -18,9 +18,9 @@ The default compression codec is configured using xref:ROOT:configuration-proper
 | lz4
 a| [[LZ4CompressionCodec]] https://github.com/lz4/lz4-java[LZ4 compression]
 
-* The default compression codec based on xref:ROOT:configuration-properties.adoc#spark.io.compression.codec[spark.io.compression.codec] configuration property
+* The default compression codec based on ROOT:configuration-properties.md#spark.io.compression.codec[spark.io.compression.codec] configuration property
 
-* Uses xref:ROOT:configuration-properties.adoc#spark.io.compression.lz4.blockSize[spark.io.compression.lz4.blockSize] configuration property for the block size
+* Uses ROOT:configuration-properties.md#spark.io.compression.lz4.blockSize[spark.io.compression.lz4.blockSize] configuration property for the block size
 
 | LZFCompressionCodec
 | lzf
@@ -30,15 +30,15 @@ a| [[LZ4CompressionCodec]] https://github.com/lz4/lz4-java[LZ4 compression]
 | snappy
 a| [[SnappyCompressionCodec]] https://google.github.io/snappy/[Snappy compression]
 
-* Uses xref:ROOT:configuration-properties.adoc#spark.io.compression.snappy.blockSize[spark.io.compression.snappy.blockSize] configuration property for the block size
+* Uses ROOT:configuration-properties.md#spark.io.compression.snappy.blockSize[spark.io.compression.snappy.blockSize] configuration property for the block size
 
 | ZStdCompressionCodec
 | zstd
 a| [[ZStdCompressionCodec]] https://facebook.github.io/zstd/[ZStandard compression]
 
-* xref:ROOT:configuration-properties.adoc#spark.io.compression.zstd.bufferSize[spark.io.compression.zstd.bufferSize] for the buffer size
+* ROOT:configuration-properties.md#spark.io.compression.zstd.bufferSize[spark.io.compression.zstd.bufferSize] for the buffer size
 
-* xref:ROOT:configuration-properties.adoc#spark.io.compression.zstd.level[spark.io.compression.zstd.level] for the compression level
+* ROOT:configuration-properties.md#spark.io.compression.zstd.level[spark.io.compression.zstd.level] for the compression level
 
 |===
 
@@ -52,17 +52,17 @@ compressedOutputStream(
 
 compressedOutputStream is used when:
 
-* TorrentBroadcast is requested to xref:core:TorrentBroadcast.adoc#blockifyObject[blockifyObject]
+* TorrentBroadcast is requested to core:TorrentBroadcast.md#blockifyObject[blockifyObject]
 
 * ReliableCheckpointRDD is requested to writePartitionToCheckpointFile
 
-* EventLoggingListener is requested to xref:spark-history-server:EventLoggingListener.adoc#start[start]
+* EventLoggingListener is requested to spark-history-server:EventLoggingListener.md#start[start]
 
 * GenericAvroSerializer is requested to compress a schema
 
-* SerializerManager is requested to xref:serializer:SerializerManager.adoc#wrapForCompression[wrap an output stream of a block for compression]
+* SerializerManager is requested to serializer:SerializerManager.md#wrapForCompression[wrap an output stream of a block for compression]
 
-* UnsafeShuffleWriter is requested to xref:shuffle:UnsafeShuffleWriter.adoc#mergeSpillsWithFileStream[mergeSpillsWithFileStream]
+* UnsafeShuffleWriter is requested to shuffle:UnsafeShuffleWriter.md#mergeSpillsWithFileStream[mergeSpillsWithFileStream]
 
 == [[compressedInputStream]] Compressing Input Stream
 
@@ -74,17 +74,17 @@ compressedInputStream(
 
 compressedInputStream is used when:
 
-* TorrentBroadcast is requested to xref:core:TorrentBroadcast.adoc#unBlockifyObject[unBlockifyObject]
+* TorrentBroadcast is requested to core:TorrentBroadcast.md#unBlockifyObject[unBlockifyObject]
 
 * ReliableCheckpointRDD is requested to readCheckpointFile
 
-* EventLoggingListener is requested to xref:spark-history-server:EventLoggingListener.adoc#openEventLog[openEventLog]
+* EventLoggingListener is requested to spark-history-server:EventLoggingListener.md#openEventLog[openEventLog]
 
 * GenericAvroSerializer is requested to decompress a schema
 
-* SerializerManager is requested to xref:serializer:SerializerManager.adoc#wrapForCompression[wrap an input stream of a block for compression]
+* SerializerManager is requested to serializer:SerializerManager.md#wrapForCompression[wrap an input stream of a block for compression]
 
-* UnsafeShuffleWriter is requested to xref:shuffle:UnsafeShuffleWriter.adoc#mergeSpillsWithFileStream[mergeSpillsWithFileStream]
+* UnsafeShuffleWriter is requested to shuffle:UnsafeShuffleWriter.md#mergeSpillsWithFileStream[mergeSpillsWithFileStream]
 
 == [[createCodec]] Creating CompressionCodec
 
@@ -97,7 +97,7 @@ createCodec(
   codecName: String): CompressionCodec
 ----
 
-createCodec creates an instance of the compression codec by the given name (using a constructor that accepts a xref:ROOT:SparkConf.adoc[SparkConf]).
+createCodec creates an instance of the compression codec by the given name (using a constructor that accepts a ROOT:SparkConf.md[SparkConf]).
 
 createCodec uses <<getCodecName, getCodecName>> utility to find the codec name unless specified explicitly.
 
@@ -112,17 +112,17 @@ Codec [codecName] is not available. Consider setting spark.io.compression.codec=
 
 createCodec is used when:
 
-* TorrentBroadcast is requested to xref:core:TorrentBroadcast.adoc#setConf[setConf]
+* TorrentBroadcast is requested to core:TorrentBroadcast.md#setConf[setConf]
 
 * ReliableCheckpointRDD is requested to writePartitionToCheckpointFile and readCheckpointFile
 
-* xref:spark-history-server:EventLoggingListener.adoc[EventLoggingListener] is created and requested to xref:spark-history-server:EventLoggingListener.adoc#openEventLog[openEventLog]
+* spark-history-server:EventLoggingListener.md[EventLoggingListener] is created and requested to spark-history-server:EventLoggingListener.md#openEventLog[openEventLog]
 
 * GenericAvroSerializer is created
 
 * SerializerManager is created
 
-* UnsafeShuffleWriter is requested to xref:shuffle:UnsafeShuffleWriter.adoc#mergeSpills[merge spills]
+* UnsafeShuffleWriter is requested to shuffle:UnsafeShuffleWriter.md#mergeSpills[merge spills]
 
 == [[getCodecName]] Finding Compression Codec Name
 
@@ -132,11 +132,11 @@ getCodecName(
   conf: SparkConf): String
 ----
 
-getCodecName takes the name of a compression codec based on xref:ROOT:configuration-properties.adoc#spark.io.compression.codec[spark.io.compression.codec] configuration property (using the xref:ROOT:SparkConf.adoc[SparkConf]) if available or defaults to `lz4`.
+getCodecName takes the name of a compression codec based on ROOT:configuration-properties.md#spark.io.compression.codec[spark.io.compression.codec] configuration property (using the ROOT:SparkConf.md[SparkConf]) if available or defaults to `lz4`.
 
 getCodecName is used when:
 
-* SparkContext is created (and xref:ROOT:spark-SparkContext-creating-instance-internals.adoc#_eventLogCodec[initializes event logging])
+* SparkContext is created (and ROOT:spark-SparkContext-creating-instance-internals.md#_eventLogCodec[initializes event logging])
 
 * CompressionCodec utility is used to <<createCodec, creating a CompressionCodec>>
 
@@ -150,4 +150,4 @@ supportsConcatenationOfSerializedStreams(
 
 supportsConcatenationOfSerializedStreams returns `true` when the given CompressionCodec is one of the <<implementations, build-in ones>>.
 
-supportsConcatenationOfSerializedStreams is used when UnsafeShuffleWriter is requested to xref:shuffle:UnsafeShuffleWriter.adoc#mergeSpills[merge spills].
+supportsConcatenationOfSerializedStreams is used when UnsafeShuffleWriter is requested to shuffle:UnsafeShuffleWriter.md#mergeSpills[merge spills].

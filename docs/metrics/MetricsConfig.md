@@ -2,9 +2,9 @@
 
 `MetricsConfig` is the configuration of the [MetricsSystem](MetricsSystem.md) (i.e. metrics [sources](Source.md) and [sinks](Sink.md)).
 
-`MetricsConfig` is <<creating-instance, created>> when link:spark-metrics-MetricsSystem.adoc#creating-instance[MetricsSystem] is.
+`MetricsConfig` is <<creating-instance, created>> when spark-metrics-MetricsSystem.md#creating-instance[MetricsSystem] is.
 
-`MetricsConfig` uses *metrics.properties* as the default metrics configuration file. It is configured using link:spark-metrics-properties.adoc#spark.metrics.conf[spark.metrics.conf] configuration property. The file is first loaded from the path directly before using Spark's CLASSPATH.
+`MetricsConfig` uses *metrics.properties* as the default metrics configuration file. It is configured using spark-metrics-properties.md#spark.metrics.conf[spark.metrics.conf] configuration property. The file is first loaded from the path directly before using Spark's CLASSPATH.
 
 `MetricsConfig` accepts a metrics configuration using ``spark.metrics.conf.``-prefixed configuration properties.
 
@@ -37,13 +37,13 @@ Spark comes with `conf/metrics.properties.template` file that is a template of m
 The order of precedence of metrics configuration settings is as follows:
 
 . <<default-properties, Default metrics properties>>
-. link:spark-metrics-properties.adoc#spark.metrics.conf[spark.metrics.conf] configuration property or `metrics.properties` configuration file
+. spark-metrics-properties.md#spark.metrics.conf[spark.metrics.conf] configuration property or `metrics.properties` configuration file
 . ``spark.metrics.conf.``-prefixed Spark properties
 ====
 
 [[creating-instance]]
 [[conf]]
-`MetricsConfig` takes a xref:ROOT:SparkConf.adoc[SparkConf] when created.
+`MetricsConfig` takes a ROOT:SparkConf.md[SparkConf] when created.
 
 [[internal-registries]]
 .MetricsConfig's Internal Registries and Counters
@@ -68,7 +68,7 @@ Used to <<initialize, initialize>> per-subsystem's <<perInstanceSubProperties, p
 initialize(): Unit
 ----
 
-`initialize` <<setDefaultProperties, sets the default properties>> and <<loadPropertiesFromFile, loads configuration properties from a configuration file>> (that is defined using link:spark-metrics-properties.adoc#spark.metrics.conf[spark.metrics.conf] configuration property).
+`initialize` <<setDefaultProperties, sets the default properties>> and <<loadPropertiesFromFile, loads configuration properties from a configuration file>> (that is defined using spark-metrics-properties.md#spark.metrics.conf[spark.metrics.conf] configuration property).
 
 `initialize` takes all Spark properties that start with *spark.metrics.conf.* prefix from <<conf, SparkConf>> and adds them to <<properties, properties>> (without the prefix).
 
@@ -76,7 +76,7 @@ In the end, `initialize` splits <<perInstanceSubProperties, configuration per Sp
 
 NOTE: `initialize` accepts `*` (star) for the default configuration or any combination of lower- and upper-case letters for Spark subsystem names.
 
-NOTE: `initialize` is used exclusively when `MetricsSystem` is link:spark-metrics-MetricsSystem.adoc#creating-instance[created].
+NOTE: `initialize` is used exclusively when `MetricsSystem` is spark-metrics-MetricsSystem.md#creating-instance[created].
 
 === [[setDefaultProperties]] `setDefaultProperties` Internal Method
 
@@ -122,7 +122,7 @@ subProperties(prop: Properties, regex: Regex): mutable.HashMap[String, Propertie
 driver.hello.world => (driver, (hello.world))
 ----
 
-NOTE: `subProperties` is used when `MetricsConfig` <<initialize, is initialized>> (to apply the default metrics configuration) and when `MetricsSystem` link:spark-metrics-MetricsSystem.adoc#registerSources[registers metrics sources] and link:spark-metrics-MetricsSystem.adoc#registerSinks[sinks].
+NOTE: `subProperties` is used when `MetricsConfig` <<initialize, is initialized>> (to apply the default metrics configuration) and when `MetricsSystem` spark-metrics-MetricsSystem.md#registerSources[registers metrics sources] and spark-metrics-MetricsSystem.md#registerSinks[sinks].
 
 === [[getInstance]] `getInstance` Method
 

@@ -10,24 +10,24 @@
 def rdd: RDD[T]
 ----
 
-Whenever you apply a link:spark-rdd-transformations.adoc[transformation] (e.g. `map`, `flatMap`) to a RDD you build the so-called link:spark-rdd-lineage.adoc[RDD lineage graph]. ``Dependency``-ies represent the edges in a lineage graph.
+Whenever you apply a spark-rdd-transformations.md[transformation] (e.g. `map`, `flatMap`) to a RDD you build the so-called spark-rdd-lineage.md[RDD lineage graph]. ``Dependency``-ies represent the edges in a lineage graph.
 
-NOTE: link:spark-rdd-NarrowDependency.adoc[NarrowDependency] and xref:rdd:ShuffleDependency.adoc[ShuffleDependency] are the two top-level subclasses of `Dependency` abstract class.
+NOTE: spark-rdd-NarrowDependency.md[NarrowDependency] and rdd:ShuffleDependency.md[ShuffleDependency] are the two top-level subclasses of `Dependency` abstract class.
 
 .Kinds of Dependencies
 [cols="1,2",options="header",width="100%"]
 |===
 | Name | Description
-| link:spark-rdd-NarrowDependency.adoc[NarrowDependency] |
-| xref:rdd:ShuffleDependency.adoc[ShuffleDependency] |
-| link:spark-rdd-NarrowDependency.adoc#OneToOneDependency[OneToOneDependency] |
-| link:spark-rdd-NarrowDependency.adoc#PruneDependency[PruneDependency] |
-| link:spark-rdd-NarrowDependency.adoc#RangeDependency[RangeDependency] |
+| spark-rdd-NarrowDependency.md[NarrowDependency] |
+| rdd:ShuffleDependency.md[ShuffleDependency] |
+| spark-rdd-NarrowDependency.md#OneToOneDependency[OneToOneDependency] |
+| spark-rdd-NarrowDependency.md#PruneDependency[PruneDependency] |
+| spark-rdd-NarrowDependency.md#RangeDependency[RangeDependency] |
 |===
 
 [NOTE]
 ====
-The dependencies of a RDD are available using xref:rdd:index.adoc#dependencies[dependencies] method.
+The dependencies of a RDD are available using rdd:index.md#dependencies[dependencies] method.
 
 ```
 // A demo RDD
@@ -46,7 +46,7 @@ scala> myRdd.dependencies.map(_.rdd).foreach(println)
 MapPartitionsRDD[7] at groupBy at <console>:24
 ```
 
-You use link:spark-rdd-lineage.adoc#toDebugString[toDebugString] method to print out the RDD lineage in a user-friendly way.
+You use spark-rdd-lineage.md#toDebugString[toDebugString] method to print out the RDD lineage in a user-friendly way.
 
 ```
 scala> myRdd.toDebugString

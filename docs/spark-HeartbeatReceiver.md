@@ -1,16 +1,16 @@
 == [[HeartbeatReceiver]] HeartbeatReceiver RPC Endpoint
 
 [[ENDPOINT_NAME]]
-`HeartbeatReceiver` is a xref:rpc:RpcEndpoint.adoc#ThreadSafeRpcEndpoint[ThreadSafeRpcEndpoint] registered on the driver under the name *HeartbeatReceiver*.
+`HeartbeatReceiver` is a rpc:RpcEndpoint.md#ThreadSafeRpcEndpoint[ThreadSafeRpcEndpoint] registered on the driver under the name *HeartbeatReceiver*.
 
-`HeartbeatReceiver` receives <<Heartbeat, Heartbeat>> messages from executors that Spark uses as the mechanism to receive accumulator updates (with task metrics and a Spark application's accumulators) and xref:scheduler:TaskScheduler.adoc#executorHeartbeatReceived[pass them along to `TaskScheduler`].
+`HeartbeatReceiver` receives <<Heartbeat, Heartbeat>> messages from executors that Spark uses as the mechanism to receive accumulator updates (with task metrics and a Spark application's accumulators) and scheduler:TaskScheduler.md#executorHeartbeatReceived[pass them along to `TaskScheduler`].
 
 .HeartbeatReceiver RPC Endpoint and Heartbeats from Executors
 image::spark-HeartbeatReceiver-Heartbeat.png[align="center"]
 
-NOTE: `HeartbeatReceiver` is registered immediately after a Spark application is started, i.e. when `SparkContext` link:spark-SparkContext-creating-instance-internals.adoc#_heartbeatReceiver[is created].
+NOTE: `HeartbeatReceiver` is registered immediately after a Spark application is started, i.e. when `SparkContext` spark-SparkContext-creating-instance-internals.md#_heartbeatReceiver[is created].
 
-`HeartbeatReceiver` is a xref:ROOT:SparkListener.adoc[] to get notified when <<onExecutorAdded, a new executor is added>> to or <<onExecutorRemoved, no longer available>> in a Spark application. `HeartbeatReceiver` tracks executors (in <<executorLastSeen, executorLastSeen>> registry) to handle <<Heartbeat, Heartbeat>> and <<ExpireDeadHosts, ExpireDeadHosts>> messages from executors that are assigned to the Spark application.
+`HeartbeatReceiver` is a ROOT:SparkListener.md[] to get notified when <<onExecutorAdded, a new executor is added>> to or <<onExecutorRemoved, no longer available>> in a Spark application. `HeartbeatReceiver` tracks executors (in <<executorLastSeen, executorLastSeen>> registry) to handle <<Heartbeat, Heartbeat>> and <<ExpireDeadHosts, ExpireDeadHosts>> messages from executors that are assigned to the Spark application.
 
 [[messages]]
 .HeartbeatReceiver RPC Endpoint's Messages (in alphabetical order)
@@ -29,10 +29,10 @@ NOTE: `HeartbeatReceiver` is registered immediately after a Spark application is
 | FIXME
 
 | <<Heartbeat, Heartbeat>>
-| Posted when `Executor` xref:executor:Executor.adoc#reportHeartBeat[informs that it is alive and reports task metrics].
+| Posted when `Executor` executor:Executor.md#reportHeartBeat[informs that it is alive and reports task metrics].
 
 | <<TaskSchedulerIsSet, TaskSchedulerIsSet>>
-| Posted when `SparkContext` link:spark-SparkContext-creating-instance-internals.adoc#TaskSchedulerIsSet[informs that `TaskScheduler` is available].
+| Posted when `SparkContext` spark-SparkContext-creating-instance-internals.md#TaskSchedulerIsSet[informs that `TaskScheduler` is available].
 |===
 
 [[internal-registries]]
@@ -46,7 +46,7 @@ NOTE: `HeartbeatReceiver` is registered immediately after a Spark application is
 | Executor ids and the timestamps of when the last heartbeat was received.
 
 | [[scheduler]] `scheduler`
-| xref:scheduler:TaskScheduler.adoc[TaskScheduler]
+| scheduler:TaskScheduler.md[TaskScheduler]
 |===
 
 [TIP]
@@ -59,23 +59,23 @@ Add the following line to `conf/log4j.properties`:
 log4j.logger.org.apache.spark.HeartbeatReceiver=TRACE
 ```
 
-Refer to link:spark-logging.adoc[Logging].
+Refer to spark-logging.md[Logging].
 ====
 
 === [[creating-instance]] Creating HeartbeatReceiver Instance
 
 `HeartbeatReceiver` takes the following when created:
 
-* [[sc]] xref:ROOT:SparkContext.adoc[]
+* [[sc]] ROOT:SparkContext.md[]
 * [[clock]] `Clock`
 
-`HeartbeatReceiver` xref:ROOT:SparkContext.adoc#addSparkListener[registers itself as a `SparkListener`].
+`HeartbeatReceiver` ROOT:SparkContext.md#addSparkListener[registers itself as a `SparkListener`].
 
 `HeartbeatReceiver` initializes the <<internal-registries, internal registries and counters>>.
 
 === [[onStart]] Starting HeartbeatReceiver RPC Endpoint -- `onStart` Method
 
-NOTE: `onStart` is part of the xref:rpc:RpcEndpoint.adoc[RpcEndpoint Contract]
+NOTE: `onStart` is part of the rpc:RpcEndpoint.md[RpcEndpoint Contract]
 
 When called, `HeartbeatReceiver` sends a blocking <<ExpireDeadHosts, ExpireDeadHosts>> every <<spark.network.timeoutInterval, spark.network.timeoutInterval>> on <<eventLoopThread, eventLoopThread - Heartbeat Receiver Event Loop Thread>>.
 
@@ -120,7 +120,7 @@ For any such executor, the following WARN message is printed out to the logs:
 WARN HeartbeatReceiver: Removing executor [executorId] with no recent heartbeats: [time] ms exceeds timeout [timeout] ms
 ```
 
-xref:scheduler:TaskScheduler.adoc#executorLost[TaskScheduler.executorLost] is called (with `SlaveLost("Executor heartbeat timed out after [timeout] ms"`).
+scheduler:TaskScheduler.md#executorLost[TaskScheduler.executorLost] is called (with `SlaveLost("Executor heartbeat timed out after [timeout] ms"`).
 
 `SparkContext.killAndReplaceExecutor` is asynchronously called for the executor (i.e. on <<killExecutorThread, killExecutorThread>>).
 
@@ -142,7 +142,7 @@ When the executor is found, `HeartbeatReceiver` updates the time the heartbeat w
 
 NOTE: `HeartbeatReceiver` uses the internal <<clock, Clock>> to know the current time.
 
-`HeartbeatReceiver` then submits an asynchronous task to notify `TaskScheduler` that the xref:scheduler:TaskScheduler.adoc#executorHeartbeatReceived[heartbeat was received from the executor] (using <<scheduler, TaskScheduler>> internal reference). `HeartbeatReceiver` posts a `HeartbeatResponse` back to the executor (with the response from `TaskScheduler` whether the executor has been registered already or not so it may eventually need to re-register).
+`HeartbeatReceiver` then submits an asynchronous task to notify `TaskScheduler` that the scheduler:TaskScheduler.md#executorHeartbeatReceived[heartbeat was received from the executor] (using <<scheduler, TaskScheduler>> internal reference). `HeartbeatReceiver` posts a `HeartbeatResponse` back to the executor (with the response from `TaskScheduler` whether the executor has been registered already or not so it may eventually need to re-register).
 
 If however the executor was not found (in <<executorLastSeen, executorLastSeen>> registry), i.e. the executor was not registered before, you should see the following DEBUG message in the logs and the response is to notify the executor to re-register.
 
@@ -158,7 +158,7 @@ WARN Dropping [heartbeat] because TaskScheduler is not ready yet
 
 NOTE: <<scheduler, TaskScheduler>> can be unassigned when no <<TaskSchedulerIsSet, TaskSchedulerIsSet>> has not been received yet.
 
-NOTE: `Heartbeats` messages are the mechanism of xref:executor:Executor.adoc#heartbeats-and-active-task-metrics[executors to inform the Spark application that they are alive and update about the state of active tasks].
+NOTE: `Heartbeats` messages are the mechanism of executor:Executor.md#heartbeats-and-active-task-metrics[executors to inform the Spark application that they are alive and update about the state of active tasks].
 
 === [[TaskSchedulerIsSet]] TaskSchedulerIsSet
 
@@ -180,7 +180,7 @@ onExecutorAdded(executorAdded: SparkListenerExecutorAdded): Unit
 
 `onExecutorAdded` simply <<addExecutor, sends a `ExecutorRegistered` message to itself>> (that in turn registers an executor).
 
-NOTE: `onExecutorAdded` is part of xref:ROOT:SparkListener.adoc#onExecutorAdded[SparkListener contract] to announce that a new executor was registered with a Spark application.
+NOTE: `onExecutorAdded` is part of ROOT:SparkListener.md#onExecutorAdded[SparkListener contract] to announce that a new executor was registered with a Spark application.
 
 === [[addExecutor]] Sending ExecutorRegistered Message to Itself -- `addExecutor` Internal Method
 
@@ -202,7 +202,7 @@ onExecutorRemoved(executorRemoved: SparkListenerExecutorRemoved): Unit
 
 `onExecutorRemoved` simply passes the call to <<removeExecutor, removeExecutor>> (that in turn unregisters an executor).
 
-NOTE: `onExecutorRemoved` is part of xref:ROOT:SparkListener.adoc#onExecutorRemoved[SparkListener contract] to announce that an executor is no longer available for a Spark application.
+NOTE: `onExecutorRemoved` is part of ROOT:SparkListener.md#onExecutorRemoved[SparkListener contract] to announce that an executor is no longer available for a Spark application.
 
 === [[removeExecutor]] Sending ExecutorRemoved Message to Itself -- `removeExecutor` Method
 
@@ -217,7 +217,7 @@ NOTE: `removeExecutor` is used when `HeartbeatReceiver` <<onExecutorRemoved, is 
 
 === [[onStop]] Stopping HeartbeatReceiver RPC Endpoint -- `onStop` Method
 
-NOTE: `onStop` is part of the xref:rpc:index.adoc#RpcEndpoint[RpcEndpoint Contract]
+NOTE: `onStop` is part of the rpc:index.md#RpcEndpoint[RpcEndpoint Contract]
 
 When called, `HeartbeatReceiver` cancels the checking task (that sends a blocking <<ExpireDeadHosts, ExpireDeadHosts>> every <<spark.network.timeoutInterval, spark.network.timeoutInterval>> on <<eventLoopThread, eventLoopThread - Heartbeat Receiver Event Loop Thread>> - see <<onStart, Starting (onStart method)>>) and shuts down <<eventLoopThread, eventLoopThread>> and <<killExecutorThread, killExecutorThread>> executors.
 
@@ -265,7 +265,7 @@ NOTE: `expireDeadHosts` is used when `HeartbeatReceiver` <<ExpireDeadHosts, rece
 
 | [[spark.network.timeout]] `spark.network.timeout`
 | <<spark_storage_blockManagerSlaveTimeoutMs, spark.storage.blockManagerSlaveTimeoutMs>>
-| See xref:rpc:index.adoc#spark.network.timeout[spark.network.timeout] in xref:rpc:index.adoc[RPC Environment (RpcEnv)]
+| See rpc:index.md#spark.network.timeout[spark.network.timeout] in rpc:index.md[RPC Environment (RpcEnv)]
 
 | [[spark.network.timeoutInterval]] `spark.network.timeoutInterval`
 | <<spark.storage.blockManagerTimeoutIntervalMs, spark.storage.blockManagerTimeoutIntervalMs>>

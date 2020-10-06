@@ -2,7 +2,7 @@
 
 `HadoopWriteConfigUtil[K, V]` is an <<contract, abstraction>> of <<implementations, writer configurers>>.
 
-`HadoopWriteConfigUtil` is used for <<spark-internal-io-SparkHadoopWriter.adoc#, SparkHadoopWriter>> utility when requested to <<spark-internal-io-SparkHadoopWriter.adoc#write, write an RDD of key-value pairs>> (for xref:rdd:PairRDDFunctions.adoc#saveAsNewAPIHadoopDataset[saveAsNewAPIHadoopDataset] and xref:rdd:PairRDDFunctions.adoc#saveAsHadoopDataset[saveAsHadoopDataset] transformations).
+`HadoopWriteConfigUtil` is used for <<spark-internal-io-SparkHadoopWriter.md#, SparkHadoopWriter>> utility when requested to <<spark-internal-io-SparkHadoopWriter.md#write, write an RDD of key-value pairs>> (for rdd:PairRDDFunctions.md#saveAsNewAPIHadoopDataset[saveAsNewAPIHadoopDataset] and rdd:PairRDDFunctions.md#saveAsHadoopDataset[saveAsHadoopDataset] transformations).
 
 [[contract]]
 .HadoopWriteConfigUtil Contract
@@ -93,7 +93,7 @@ write(
 
 Writes out the key-value pair
 
-Used when `SparkHadoopWriter` is requested to <<spark-internal-io-SparkHadoopWriter.adoc#executeTask, executeTask>> (while <<spark-internal-io-SparkHadoopWriter.adoc#write, writing out key-value pairs of a partition>>)
+Used when `SparkHadoopWriter` is requested to <<spark-internal-io-SparkHadoopWriter.md#executeTask, executeTask>> (while <<spark-internal-io-SparkHadoopWriter.md#write, writing out key-value pairs of a partition>>)
 
 |===
 
@@ -104,10 +104,10 @@ Used when `SparkHadoopWriter` is requested to <<spark-internal-io-SparkHadoopWri
 | HadoopWriteConfigUtil
 | Description
 
-| <<spark-internal-io-HadoopMapReduceWriteConfigUtil.adoc#, HadoopMapReduceWriteConfigUtil>>
+| <<spark-internal-io-HadoopMapReduceWriteConfigUtil.md#, HadoopMapReduceWriteConfigUtil>>
 | [[HadoopMapReduceWriteConfigUtil]]
 
-| <<spark-internal-io-HadoopMapRedWriteConfigUtil.adoc#, HadoopMapRedWriteConfigUtil>>
+| <<spark-internal-io-HadoopMapRedWriteConfigUtil.md#, HadoopMapRedWriteConfigUtil>>
 | [[HadoopMapRedWriteConfigUtil]]
 
 |===

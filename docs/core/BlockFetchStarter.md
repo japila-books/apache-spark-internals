@@ -12,8 +12,8 @@ void createAndStart(String[] blockIds, BlockFetchingListener listener)
 
 `createAndStart` is used when:
 
-* `ExternalShuffleClient` is requested to xref:storage:ExternalShuffleClient.adoc#fetchBlocks[fetchBlocks] (when xref:network:TransportConf.adoc#io.maxRetries[maxIORetries] is `0`)
+* `ExternalShuffleClient` is requested to storage:ExternalShuffleClient.md#fetchBlocks[fetchBlocks] (when network:TransportConf.md#io.maxRetries[maxIORetries] is `0`)
 
-* `NettyBlockTransferService` is requested to xref:storage:NettyBlockTransferService.adoc#fetchBlocks[fetchBlocks] (when xref:network:TransportConf.adoc#io.maxRetries[maxIORetries] is `0`)
+* `NettyBlockTransferService` is requested to storage:NettyBlockTransferService.md#fetchBlocks[fetchBlocks] (when network:TransportConf.md#io.maxRetries[maxIORetries] is `0`)
 
-* `RetryingBlockFetcher` is requested to xref:core:RetryingBlockFetcher.adoc#fetchAllOutstanding[fetchAllOutstanding]
+* `RetryingBlockFetcher` is requested to core:RetryingBlockFetcher.md#fetchAllOutstanding[fetchAllOutstanding]

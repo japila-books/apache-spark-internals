@@ -1,21 +1,21 @@
 = [[UnifiedMemoryManager]] UnifiedMemoryManager
 
-*UnifiedMemoryManager* is the default xref:MemoryManager.adoc[MemoryManager] (based on xref:ROOT:configuration-properties.adoc#spark.memory.useLegacyMode[spark.memory.useLegacyMode] configuration property).
+*UnifiedMemoryManager* is the default MemoryManager.md[MemoryManager] (based on ROOT:configuration-properties.md#spark.memory.useLegacyMode[spark.memory.useLegacyMode] configuration property).
 
 == [[creating-instance]] Creating Instance
 
 UnifiedMemoryManager takes the following to be created:
 
-* [[conf]] xref:ROOT:SparkConf.adoc[SparkConf]
+* [[conf]] ROOT:SparkConf.md[SparkConf]
 * [[maxHeapMemory]] Maximum heap memory
 * [[onHeapStorageRegionSize]] Size of the on-heap storage region
 * [[numCores]] Number of CPU cores
 
 UnifiedMemoryManager requires that:
 
-* Sum of the pool size of the xref:MemoryManager.adoc#onHeapExecutionMemoryPool[on-heap ExecutionMemoryPool] and xref:MemoryManager.adoc#onHeapStorageMemoryPool[on-heap StorageMemoryPool] is exactly the <<maxHeapMemory, maximum heap memory>>
+* Sum of the pool size of the MemoryManager.md#onHeapExecutionMemoryPool[on-heap ExecutionMemoryPool] and MemoryManager.md#onHeapStorageMemoryPool[on-heap StorageMemoryPool] is exactly the <<maxHeapMemory, maximum heap memory>>
 
-* Sum of the pool size of the xref:MemoryManager.adoc#offHeapExecutionMemoryPool[off-heap ExecutionMemoryPool] and xref:MemoryManager.adoc#offHeapStorageMemoryPool[off-heap StorageMemoryPool] is exactly the maximum off-heap memory (based on xref:ROOT:configuration-properties.adoc#spark.memory.offHeap.size[spark.memory.offHeap.size] configuration property)
+* Sum of the pool size of the MemoryManager.md#offHeapExecutionMemoryPool[off-heap ExecutionMemoryPool] and MemoryManager.md#offHeapStorageMemoryPool[off-heap StorageMemoryPool] is exactly the maximum off-heap memory (based on ROOT:configuration-properties.md#spark.memory.offHeap.size[spark.memory.offHeap.size] configuration property)
 
 == [[apply]] Creating UnifiedMemoryManager
 
@@ -26,13 +26,13 @@ apply(
   numCores: Int): UnifiedMemoryManager
 ----
 
-`apply` computes the <<getMaxMemory, maximum heap memory>> (using the input xref:ROOT:SparkConf.adoc[SparkConf]).
+`apply` computes the <<getMaxMemory, maximum heap memory>> (using the input ROOT:SparkConf.md[SparkConf]).
 
-`apply` computes the size of the on-heap storage region which is a fraction of the maximum heap memory based on xref:ROOT:configuration-properties.adoc#spark.memory.storageFraction[spark.memory.storageFraction] configuration property (default: `0.5`).
+`apply` computes the size of the on-heap storage region which is a fraction of the maximum heap memory based on ROOT:configuration-properties.md#spark.memory.storageFraction[spark.memory.storageFraction] configuration property (default: `0.5`).
 
 In the end, `apply` creates a <<creating-instance, UnifiedMemoryManager>> (with the given and computed values).
 
-`apply` is used when `SparkEnv` utility is used to xref:core:SparkEnv.adoc#create[create a SparkEnv] (for the driver and executors).
+`apply` is used when `SparkEnv` utility is used to core:SparkEnv.md#create[create a SparkEnv] (for the driver and executors).
 
 == [[getMaxMemory]] Calculating Maximum Heap Memory
 
@@ -74,7 +74,7 @@ res1: Long = 912
 `getMaxMemory` makes sure that the following requirements are met:
 
 1. System memory is not smaller than about 1,5 of the reserved system memory.
-2. xref:executor:Executor.adoc#spark.executor.memory[spark.executor.memory] is not smaller than about 1,5 of the reserved system memory.
+2. executor:Executor.md#spark.executor.memory[spark.executor.memory] is not smaller than about 1,5 of the reserved system memory.
 
 Ultimately, `getMaxMemory` returns <<spark_memory_fraction, spark.memory.fraction>> of the maximum amount of memory for the JVM (minus the reserved system memory).
 
@@ -90,7 +90,7 @@ acquireExecutionMemory(
   memoryMode: MemoryMode): Long
 ----
 
-NOTE: `acquireExecutionMemory` is part of the xref:memory:MemoryManager.adoc#acquireExecutionMemory[MemoryManager] contract
+NOTE: `acquireExecutionMemory` is part of the memory:MemoryManager.md#acquireExecutionMemory[MemoryManager] contract
 
 `acquireExecutionMemory` does...FIXME
 
@@ -132,7 +132,7 @@ acquireStorageMemory(
   memoryMode: MemoryMode): Boolean
 ----
 
-NOTE: `acquireStorageMemory` is part of the xref:memory:MemoryManager.adoc#acquireStorageMemory[MemoryManager] contract.
+NOTE: `acquireStorageMemory` is part of the memory:MemoryManager.md#acquireStorageMemory[MemoryManager] contract.
 
 `acquireStorageMemory` has two modes of operation per `memoryMode`, i.e. `MemoryMode.ON_HEAP` or `MemoryMode.OFF_HEAP`, for execution and storage pools, and the maximum amount of memory to use.
 
@@ -160,14 +160,14 @@ Ultimately, `acquireStorageMemory` requests the storage pool for `numBytes` for 
 
 [NOTE]
 ====
-`acquireStorageMemory` is used when `MemoryStore` xref:storage:MemoryStore.adoc#putBytes[acquires storage memory to putBytes] or xref:storage:MemoryStore.adoc#putIteratorAsValues[putIteratorAsValues] and xref:storage:MemoryStore.adoc#putIteratorAsBytes[putIteratorAsBytes].
+`acquireStorageMemory` is used when `MemoryStore` storage:MemoryStore.md#putBytes[acquires storage memory to putBytes] or storage:MemoryStore.md#putIteratorAsValues[putIteratorAsValues] and storage:MemoryStore.md#putIteratorAsBytes[putIteratorAsBytes].
 
 It is also used internally when UnifiedMemoryManager <<acquireUnrollMemory, acquires unroll memory>>.
 ====
 
 == [[acquireUnrollMemory]] `acquireUnrollMemory` Method
 
-NOTE: `acquireUnrollMemory` is part of the xref:memory:MemoryManager.adoc#acquireUnrollMemory[MemoryManager] contract.
+NOTE: `acquireUnrollMemory` is part of the memory:MemoryManager.md#acquireUnrollMemory[MemoryManager] contract.
 
 `acquireUnrollMemory` simply forwards all the calls to <<acquireStorageMemory, acquireStorageMemory>>.
 
@@ -178,6 +178,6 @@ NOTE: `acquireUnrollMemory` is part of the xref:memory:MemoryManager.adoc#acquir
 maxOnHeapStorageMemory: Long
 ----
 
-NOTE: `maxOnHeapStorageMemory` is part of the xref:memory:MemoryManager.adoc#acquireExecutionMemory[MemoryManager] contract
+NOTE: `maxOnHeapStorageMemory` is part of the memory:MemoryManager.md#acquireExecutionMemory[MemoryManager] contract
 
 `maxOnHeapStorageMemory` is the difference between `maxHeapMemory` of the UnifiedMemoryManager and the memory currently in use in `onHeapExecutionMemoryPool` execution memory pool.

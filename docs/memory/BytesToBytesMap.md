@@ -1,6 +1,6 @@
 = [[BytesToBytesMap]] BytesToBytesMap
 
-*BytesToBytesMap* is a xref:MemoryConsumer.adoc[MemoryConsumer].
+*BytesToBytesMap* is a MemoryConsumer.md[MemoryConsumer].
 
 BytesToBytesMap is used to create Spark SQL's UnsafeKVExternalSorter and UnsafeHashedRelation.
 
@@ -8,8 +8,8 @@ BytesToBytesMap is used to create Spark SQL's UnsafeKVExternalSorter and UnsafeH
 
 BytesToBytesMap takes the following to be created:
 
-* [[taskMemoryManager]] xref:memory:TaskMemoryManager.adoc[TaskMemoryManager]
-* [[blockManager]] xref:storage:BlockManager.adoc[BlockManager]
+* [[taskMemoryManager]] memory:TaskMemoryManager.md[TaskMemoryManager]
+* [[blockManager]] storage:BlockManager.md[BlockManager]
 * <<serializerManager, SerializerManager>>
 * [[initialCapacity]] Initial capacity
 * [[loadFactor]] Load factor (default: 0.5)
@@ -20,9 +20,9 @@ BytesToBytesMap is created for Spark SQL's UnsafeFixedWidthAggregationMap and Un
 
 == [[serializerManager]] SerializerManager
 
-BytesToBytesMap is given a xref:serializer:SerializerManager.adoc[SerializerManager] when <<creating-instance, created>>.
+BytesToBytesMap is given a serializer:SerializerManager.md[SerializerManager] when <<creating-instance, created>>.
 
-BytesToBytesMap uses the SerializerManager when (MapIterator is) requested to advanceToNextPage (to request UnsafeSorterSpillWriter for a xref:memory:UnsafeSorterSpillWriter.adoc#getReader[UnsafeSorterSpillReader]).
+BytesToBytesMap uses the SerializerManager when (MapIterator is) requested to advanceToNextPage (to request UnsafeSorterSpillWriter for a memory:UnsafeSorterSpillWriter.md#getReader[UnsafeSorterSpillReader]).
 
 == [[MAX_CAPACITY]] Maximum Supported Capacity
 
@@ -30,7 +30,7 @@ BytesToBytesMap supports up to `1 << 29` keys.
 
 == [[spillWriters]] UnsafeSorterSpillWriters
 
-BytesToBytesMap manages xref:UnsafeSorterSpillWriter.adoc[UnsafeSorterSpillWriters].
+BytesToBytesMap manages UnsafeSorterSpillWriter.md[UnsafeSorterSpillWriters].
 
 BytesToBytesMap registers a new UnsafeSorterSpillWriter when requested to <<spill, spill>>.
 
@@ -78,7 +78,7 @@ def _c(capacity: Int) = {
 }
 ----
 
-allocate xref:MemoryConsumer.adoc#allocateArray[allocates an array] twice as big as the power-of-two capacity and fills it all with 0s.
+allocate MemoryConsumer.md#allocateArray[allocates an array] twice as big as the power-of-two capacity and fills it all with 0s.
 
 allocate initializes the <<growthThreshold, growthThreshold>> and <<mask, mask>> internal properties.
 
@@ -95,7 +95,7 @@ long spill(
   MemoryConsumer trigger)
 ----
 
-NOTE: spill is part of the xref:memory:MemoryConsumer.adoc#spill[MemoryConsumer] abstraction.
+NOTE: spill is part of the memory:MemoryConsumer.md#spill[MemoryConsumer] abstraction.
 
 spill requests the <<destructiveIterator, MapIterator>> to spill when the given MemoryConsumer is not this BytesToBytesMap and the MapIterator is available.
 

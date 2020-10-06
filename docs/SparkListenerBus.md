@@ -1,10 +1,10 @@
 = SparkListenerBus
 
-`SparkListenerBus` is a `private[spark]` <<ListenerBus, ListenerBus>> for xref:ROOT:SparkListener.adoc#SparkListenerInterface[SparkListenerInterface] listeners that process xref:ROOT:SparkListener.adoc#SparkListenerEvent[SparkListenerEvent] events.
+`SparkListenerBus` is a `private[spark]` <<ListenerBus, ListenerBus>> for ROOT:SparkListener.md#SparkListenerInterface[SparkListenerInterface] listeners that process ROOT:SparkListener.md#SparkListenerEvent[SparkListenerEvent] events.
 
 `SparkListenerBus` comes with a custom `doPostEvent` method that simply relays `SparkListenerEvent` events to appropriate `SparkListenerInterface` methods.
 
-NOTE: There are two custom `SparkListenerBus` listeners: xref:scheduler:LiveListenerBus.adoc[] and xref:spark-history-server:ReplayListenerBus.adoc[].
+NOTE: There are two custom `SparkListenerBus` listeners: scheduler:LiveListenerBus.md[] and spark-history-server:ReplayListenerBus.md[].
 
 .SparkListenerEvent to SparkListenerInterface's Method "mapping"
 [width="100%",options="header"]
@@ -17,7 +17,7 @@ NOTE: There are two custom `SparkListenerBus` listeners: xref:scheduler:LiveList
 | `SparkListenerJobEnd` | `onJobEnd`
 | `SparkListenerTaskStart` | `onTaskStart`
 | `SparkListenerTaskGettingResult` | `onTaskGettingResult`
-| xref:ROOT:SparkListener.adoc#SparkListenerTaskEnd[SparkListenerTaskEnd] | `onTaskEnd`
+| ROOT:SparkListener.md#SparkListenerTaskEnd[SparkListenerTaskEnd] | `onTaskEnd`
 | `SparkListenerEnvironmentUpdate` | `onEnvironmentUpdate`
 | `SparkListenerBlockManagerAdded` | `onBlockManagerAdded`
 | `SparkListenerBlockManagerRemoved` | `onBlockManagerRemoved`
@@ -64,7 +64,7 @@ In case of exception while posting an event to a listener you should see the fol
 ERROR Listener [listener] threw an exception
 ```
 
-NOTE: There are three custom `ListenerBus` listeners: <<SparkListenerBus, SparkListenerBus>>, link:spark-sql-streaming-StreamingQueryListenerBus.adoc[StreamingQueryListenerBus], and link:spark-streaming/spark-streaming-jobscheduler.adoc#StreamingListenerBus[StreamingListenerBus].
+NOTE: There are three custom `ListenerBus` listeners: <<SparkListenerBus, SparkListenerBus>>, spark-sql-streaming-StreamingQueryListenerBus.md[StreamingQueryListenerBus], and spark-streaming/spark-streaming-jobscheduler.md#StreamingListenerBus[StreamingListenerBus].
 
 [TIP]
 ====
@@ -76,5 +76,5 @@ Add the following line to `conf/log4j.properties`:
 log4j.logger.org.apache.spark.util.ListenerBus=ERROR
 ```
 
-Refer to link:spark-logging.adoc[Logging].
+Refer to spark-logging.md[Logging].
 ====

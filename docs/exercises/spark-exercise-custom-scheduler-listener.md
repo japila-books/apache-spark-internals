@@ -1,6 +1,6 @@
 == Exercise: Developing Custom SparkListener to monitor DAGScheduler in Scala
 
-The example shows how to develop a custom Spark Listener. You should read xref:ROOT:SparkListener.adoc[] first to understand the motivation for the example.
+The example shows how to develop a custom Spark Listener. You should read ROOT:SparkListener.md[] first to understand the motivation for the example.
 
 === Requirements
 
@@ -78,7 +78,7 @@ You should find the result jar file with the custom scheduler listener ready und
 
 === Activating Custom Listener in Spark shell
 
-Start link:../spark-shell.adoc[spark-shell] with additional configurations for the extra custom listener and the jar that includes the class.
+Start ../spark-shell.md[spark-shell] with additional configurations for the extra custom listener and the jar that includes the class.
 
 ```
 $ spark-shell \
@@ -87,7 +87,7 @@ $ spark-shell \
   --driver-class-path target/scala-2.11/custom-spark-listener_2.11-1.0.jar
 ```
 
-Create a link:../spark-sql-Dataset.adoc#implicits[Dataset] and execute an action like `show` to start a job as follows:
+Create a ../spark-sql-Dataset.md#implicits[Dataset] and execute an action like `show` to start a job as follows:
 
 ```
 scala> spark.read.text("README.md").count
@@ -101,7 +101,7 @@ The lines with `[CustomSparkListener]` came from your custom Spark listener. Con
 
 === BONUS Activating Custom Listener in Spark Application
 
-TIP: Read xref:ROOT:SparkContext.adoc#addSparkListener[Registering SparkListener].
+TIP: Read ROOT:SparkContext.md#addSparkListener[Registering SparkListener].
 
 === Questions
 

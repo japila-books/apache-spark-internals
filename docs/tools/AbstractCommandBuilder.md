@@ -1,6 +1,6 @@
 == [[AbstractCommandBuilder]] AbstractCommandBuilder
 
-`AbstractCommandBuilder` is the base command builder for  link:spark-submit-SparkSubmitCommandBuilder.adoc[SparkSubmitCommandBuilder] and `SparkClassCommandBuilder` specialized command builders.
+`AbstractCommandBuilder` is the base command builder for  spark-submit-SparkSubmitCommandBuilder.md[SparkSubmitCommandBuilder] and `SparkClassCommandBuilder` specialized command builders.
 
 `AbstractCommandBuilder` expects that command builders define `buildCommand`.
 
@@ -46,7 +46,7 @@ NOTE: Directories always end up with the OS-specific file separator at the end o
 
 1. `SPARK_CLASSPATH` environment variable
 2. The input `appClassPath`
-3. The link:spark-AbstractCommandBuilder.adoc#getConfDir[configuration directory]
+3. The spark-AbstractCommandBuilder.md#getConfDir[configuration directory]
 4. (only with `SPARK_PREPEND_CLASSES` set or `SPARK_TESTING` being `1`) Locally compiled Spark classes in `classes`, `test-classes` and Core's jars.
 +
 CAUTION: FIXME Elaborate on "locally compiled Spark classes".
@@ -70,7 +70,7 @@ NOTE: `childEnv` is queried first before System properties. It is always empty f
 Properties loadPropertiesFile()
 ----
 
-`loadPropertiesFile` is part of `AbstractCommandBuilder` _private_ API that loads Spark settings from a properties file (when specified on the command line) or link:spark-properties.adoc#spark-defaults-conf[spark-defaults.conf] in the <<configuration-directory, configuration directory>>.
+`loadPropertiesFile` is part of `AbstractCommandBuilder` _private_ API that loads Spark settings from a properties file (when specified on the command line) or spark-properties.md#spark-defaults-conf[spark-defaults.conf] in the <<configuration-directory, configuration directory>>.
 
 It loads the settings from the following files starting from the first and checking every location until the first properties file is found:
 

@@ -1,6 +1,6 @@
 = TransportConf
 
-TransportConf is a class for the transport-related network configuration for modules, e.g. xref:deploy:ExternalShuffleService.adoc[ExternalShuffleService] or xref:spark-on-yarn:spark-yarn-YarnShuffleService.adoc[YarnShuffleService].
+TransportConf is a class for the transport-related network configuration for modules, e.g. deploy:ExternalShuffleService.md[ExternalShuffleService] or spark-on-yarn:spark-yarn-YarnShuffleService.md[YarnShuffleService].
 
 TransportConf exposes methods to access settings for a single module as <<spark.module.prefix, spark.module.prefix>> or <<general-settings, general network-related settings>>.
 
@@ -12,7 +12,7 @@ The settings can be in the form of *spark.[module].[prefix]* with the following 
 
 * `io.preferDirectBufs` (default: `true`) -- a flag to control whether Spark prefers allocating off-heap byte buffers within Netty (`true`) or not (`false`).
 
-* `io.connectionTimeout` (default: xref:rpc:index.adoc#spark.network.timeout[spark.network.timeout] or `120s`) -- the connection timeout in milliseconds.
+* `io.connectionTimeout` (default: rpc:index.md#spark.network.timeout[spark.network.timeout] or `120s`) -- the connection timeout in milliseconds.
 
 * `io.backLog` (default: `-1` for no backlog) -- the requested maximum length of the queue of incoming connections.
 

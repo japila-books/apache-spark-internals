@@ -6,20 +6,20 @@
 
 UnsafeExternalSorter takes the following to be created:
 
-* [[taskMemoryManager]] xref:memory:TaskMemoryManager.adoc[TaskMemoryManager]
-* [[blockManager]] xref:storage:BlockManager.adoc[BlockManager]
+* [[taskMemoryManager]] memory:TaskMemoryManager.md[TaskMemoryManager]
+* [[blockManager]] storage:BlockManager.md[BlockManager]
 * <<serializerManager, SerializerManager>>
-* [[taskContext]] xref:scheduler:spark-TaskContext.adoc[TaskContext]
+* [[taskContext]] scheduler:spark-TaskContext.md[TaskContext]
 * [[recordComparatorSupplier]] Supplier<RecordComparator>
 * [[prefixComparator]] PrefixComparator
 * [[initialSize]] Initial size
 * [[pageSizeBytes]] Page size (in bytes)
 * [[numElementsForSpillThreshold]] numElementsForSpillThreshold
-* [[existingInMemorySorter]] xref:memory:UnsafeInMemorySorter.adoc[UnsafeInMemorySorter]
+* [[existingInMemorySorter]] memory:UnsafeInMemorySorter.md[UnsafeInMemorySorter]
 * [[canUseRadixSort]] canUseRadixSort flag
 
 == [[serializerManager]] SerializerManager
 
-UnsafeExternalSorter is given a xref:serializer:SerializerManager.adoc[SerializerManager] when <<creating-instance, created>>.
+UnsafeExternalSorter is given a serializer:SerializerManager.md[SerializerManager] when <<creating-instance, created>>.
 
-UnsafeExternalSorter uses the SerializerManager for <<getSortedIterator, getSortedIterator>>, <<getIterator, getIterator>>, and (SpillableIterator) <<spill, spill>> (to request UnsafeSorterSpillWriter for a xref:memory:UnsafeSorterSpillWriter.adoc#getReader[UnsafeSorterSpillReader]).
+UnsafeExternalSorter uses the SerializerManager for <<getSortedIterator, getSortedIterator>>, <<getIterator, getIterator>>, and (SpillableIterator) <<spill, spill>> (to request UnsafeSorterSpillWriter for a memory:UnsafeSorterSpillWriter.md#getReader[UnsafeSorterSpillReader]).

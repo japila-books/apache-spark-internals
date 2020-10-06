@@ -1,19 +1,19 @@
 == [[StagesTab]] StagesTab -- Stages for All Jobs
 
 [[prefix]]
-`StagesTab` is a link:spark-webui-SparkUITab.adoc[SparkUITab] with *stages* link:spark-webui-SparkUITab.adoc#prefix[prefix].
+`StagesTab` is a spark-webui-SparkUITab.md[SparkUITab] with *stages* spark-webui-SparkUITab.md#prefix[prefix].
 
-`StagesTab` is <<creating-instance, created>> exclusively when `SparkUI` is link:spark-webui-SparkUI.adoc#initialize[initialized].
+`StagesTab` is <<creating-instance, created>> exclusively when `SparkUI` is spark-webui-SparkUI.md#initialize[initialized].
 
-When <<creating-instance, created>>, `StagesTab` creates the following pages and link:spark-webui-WebUITab.adoc#attachPage[attaches] them immediately:
+When <<creating-instance, created>>, `StagesTab` creates the following pages and spark-webui-WebUITab.md#attachPage[attaches] them immediately:
 
-* link:spark-webui-AllStagesPage.adoc[AllStagesPage]
+* spark-webui-AllStagesPage.md[AllStagesPage]
 
-* link:spark-webui-StagePage.adoc[StagePage]
+* spark-webui-StagePage.md[StagePage]
 
-* link:spark-webui-PoolPage.adoc[PoolPage]
+* spark-webui-PoolPage.md[PoolPage]
 
-*Stages* tab in link:spark-webui.adoc[web UI] shows link:spark-webui-AllStagesPage.adoc[the current state of all stages of all jobs in a Spark application] (i.e. a xref:ROOT:SparkContext.adoc[]) with two optional pages for link:spark-webui-StagePage.adoc[the tasks and statistics for a stage] (when a stage is selected) and link:spark-webui-PoolPage.adoc[pool details] (when the application works in link:spark-scheduler-SchedulingMode.adoc#FAIR[FAIR scheduling mode]).
+*Stages* tab in spark-webui.md[web UI] shows spark-webui-AllStagesPage.md[the current state of all stages of all jobs in a Spark application] (i.e. a ROOT:SparkContext.md[]) with two optional pages for spark-webui-StagePage.md[the tasks and statistics for a stage] (when a stage is selected) and spark-webui-PoolPage.md[pool details] (when the application works in spark-scheduler-SchedulingMode.md#FAIR[FAIR scheduling mode]).
 
 The title of the tab is *Stages for All Jobs*.
 
@@ -29,16 +29,16 @@ The Stages page shows the stages in a Spark application per state in their respe
 .Stages Page With One Stage Completed
 image::spark-webui-stages-completed.png[align="center"]
 
-NOTE: The state sections are only displayed when there are stages in a given state. Refer to link:spark-webui-AllStagesPage.adoc[Stages for All Jobs].
+NOTE: The state sections are only displayed when there are stages in a given state. Refer to spark-webui-AllStagesPage.md[Stages for All Jobs].
 
-In link:spark-scheduler-SchedulingMode.adoc#FAIR[FAIR scheduling mode] you have access to the table showing the scheduler pools.
+In spark-scheduler-SchedulingMode.md#FAIR[FAIR scheduling mode] you have access to the table showing the scheduler pools.
 
 .Fair Scheduler Pools Table
 image::spark-webui-stages-fairschedulerpools.png[align="center"]
 
 Internally, the page is represented by https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/ui/jobs/StagesTab.scala[org.apache.spark.ui.jobs.StagesTab] class.
 
-The page uses the parent's link:spark-webui-SparkUI.adoc[SparkUI] to access required services, i.e. xref:ROOT:SparkContext.adoc[], link:spark-sql-SQLConf.adoc[SparkConf], link:spark-webui-JobProgressListener.adoc[JobProgressListener], link:spark-webui-RDDOperationGraphListener.adoc[RDDOperationGraphListener], and to know whether <<killEnabled, kill is enabled or not>>.
+The page uses the parent's spark-webui-SparkUI.md[SparkUI] to access required services, i.e. ROOT:SparkContext.md[], spark-sql-SQLConf.md[SparkConf], spark-webui-JobProgressListener.md[JobProgressListener], spark-webui-RDDOperationGraphListener.md[RDDOperationGraphListener], and to know whether <<killEnabled, kill is enabled or not>>.
 
 `StagesTab` is <<creating-instance, created>> when...FIXME
 
@@ -50,8 +50,8 @@ CAUTION: FIXME
 
 `StagesTab` takes the following when created:
 
-* [[parent]] link:spark-webui-SparkUI.adoc[SparkUI]
-* [[store]] xref:core:AppStatusStore.adoc[]
+* [[parent]] spark-webui-SparkUI.md[SparkUI]
+* [[store]] core:AppStatusStore.md[]
 
 === [[handleKillRequest]] Handling Request to Kill Stage (from web UI) -- `handleKillRequest` Method
 

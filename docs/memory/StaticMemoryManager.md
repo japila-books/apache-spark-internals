@@ -12,7 +12,7 @@ acquireUnrollMemory(
   memoryMode: MemoryMode): Boolean
 ----
 
-NOTE: `acquireUnrollMemory` is part of link:MemoryManager.adoc#acquireUnrollMemory[MemoryManager Contract] to...FIXME.
+NOTE: `acquireUnrollMemory` is part of MemoryManager.md#acquireUnrollMemory[MemoryManager Contract] to...FIXME.
 
 `acquireUnrollMemory`...FIXME
 
@@ -26,6 +26,6 @@ acquireStorageMemory(
   memoryMode: MemoryMode): Boolean
 ----
 
-NOTE: `acquireStorageMemory` is part of link:MemoryManager.adoc#acquireStorageMemory[MemoryManager Contract] to...FIXME.
+NOTE: `acquireStorageMemory` is part of MemoryManager.md#acquireStorageMemory[MemoryManager Contract] to...FIXME.
 
 `acquireStorageMemory`...FIXME

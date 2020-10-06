@@ -60,9 +60,9 @@ buildRegistryName(
   source: Source): String
 ```
 
-`buildRegistryName` uses spark-metrics-properties.md#spark.metrics.namespace[spark.metrics.namespace] and xref:executor:Executor.md#spark.executor.id[spark.executor.id] Spark properties to differentiate between a Spark application's driver and executors, and the other Spark framework's components.
+`buildRegistryName` uses spark-metrics-properties.md#spark.metrics.namespace[spark.metrics.namespace] and executor:Executor.md#spark.executor.id[spark.executor.id] Spark properties to differentiate between a Spark application's driver and executors, and the other Spark framework's components.
 
-(only when <<instance, instance>> is `driver` or `executor`) `buildRegistryName` builds metrics source name that is made up of link:spark-metrics-properties.md#spark.metrics.namespace[spark.metrics.namespace], xref:executor:Executor.md#spark.executor.id[spark.executor.id] and the name of the `source`.
+(only when <<instance, instance>> is `driver` or `executor`) `buildRegistryName` builds metrics source name that is made up of spark-metrics-properties.md#spark.metrics.namespace[spark.metrics.namespace], executor:Executor.md#spark.executor.id[spark.executor.id] and the name of the `source`.
 
 !!! note
     `buildRegistryName` uses Dropwizard Metrics' [MetricRegistry](https://metrics.dropwizard.io/3.1.0/apidocs/com/codahale/metrics/MetricRegistry.html) to build metrics source identifiers.
@@ -81,7 +81,7 @@ registerSources(): Unit
 
 NOTE: `instance` is defined when MetricsSystem <<creating-instance, is created>>.
 
-`registerSources` finds the configuration of all the link:spark-metrics-Source.md[metrics sources] for the subsystem (as described with `source.` prefix).
+`registerSources` finds the configuration of all the spark-metrics-Source.md[metrics sources] for the subsystem (as described with `source.` prefix).
 
 For every metrics source, `registerSources` finds `class` property, creates an instance, and in the end <<registerSource, registers it>>.
 
@@ -99,7 +99,7 @@ Source class [classPath] cannot be instantiated
 getServletHandlers: Array[ServletContextHandler]
 ```
 
-If the MetricsSystem is <<running, running>> and the <<metricsServlet, MetricsServlet>> is defined for the metrics system, `getServletHandlers` simply requests the <<metricsServlet, MetricsServlet>> for the link:spark-metrics-MetricsServlet.md#getHandlers[JSON servlet handler].
+If the MetricsSystem is <<running, running>> and the <<metricsServlet, MetricsServlet>> is defined for the metrics system, `getServletHandlers` simply requests the <<metricsServlet, MetricsServlet>> for the spark-metrics-MetricsServlet.md#getHandlers[JSON servlet handler].
 
 When MetricsSystem is not <<running, running>> `getServletHandlers` throws an `IllegalArgumentException`.
 
@@ -118,13 +118,13 @@ Can only call getServletHandlers on a running MetricsSystem
 registerSinks(): Unit
 ```
 
-`registerSinks` requests the <<metricsConfig, MetricsConfig>> for the link:spark-metrics-MetricsConfig.md#getInstance[configuration] of the <<instance, instance>>.
+`registerSinks` requests the <<metricsConfig, MetricsConfig>> for the spark-metrics-MetricsConfig.md#getInstance[configuration] of the <<instance, instance>>.
 
-`registerSinks` requests the <<metricsConfig, MetricsConfig>> for the link:spark-metrics-MetricsConfig.md#subProperties[configuration] of all metrics sinks (i.e. configuration entries that match `^sink\\.(.+)\\.(.+)` regular expression).
+`registerSinks` requests the <<metricsConfig, MetricsConfig>> for the spark-metrics-MetricsConfig.md#subProperties[configuration] of all metrics sinks (i.e. configuration entries that match `^sink\\.(.+)\\.(.+)` regular expression).
 
 For every metrics sink configuration, `registerSinks` takes `class` property and (if defined) creates an instance of the metric sink using an constructor that takes the configuration, <<registry, MetricRegistry>> and <<securityMgr, SecurityManager>>.
 
-For a single *servlet* metrics sink, `registerSinks` converts the sink to a link:spark-metrics-MetricsServlet.md[MetricsServlet] and sets the <<metricsServlet, metricsServlet>> internal registry.
+For a single *servlet* metrics sink, `registerSinks` converts the sink to a spark-metrics-MetricsServlet.md[MetricsServlet] and sets the <<metricsServlet, metricsServlet>> internal registry.
 
 For all other metrics sinks, `registerSinks` adds the sink to the <<sinks, sinks>> internal registry.
 
@@ -166,7 +166,7 @@ NOTE: `start` can only be called once and <<start-IllegalArgumentException, thro
 
 `start` then registers the configured metrics <<registerSources, sources>> and <<registerSinks, sinks>> for the <<instance, Spark instance>>.
 
-In the end, `start` requests the registered <<sinks, metrics sinks>> to link:spark-metrics-Sink.md#start[start].
+In the end, `start` requests the registered <<sinks, metrics sinks>> to spark-metrics-Sink.md#start[start].
 
 [[start-IllegalArgumentException]]
 `start` throws an `IllegalArgumentException` when <<running, running>> flag is on.

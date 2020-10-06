@@ -1,6 +1,6 @@
 == [[OneApplicationResource]] OneApplicationResource -- applications/appId URI Handler
 
-`OneApplicationResource` is a link:spark-api-AbstractApplicationResource.adoc[AbstractApplicationResource] (and so a link:spark-api-ApiRequestContext.adoc[ApiRequestContext] indirectly) that link:spark-api-ApiRootResource.adoc#applications_appId[ApiRootResource] uses to handle <<root, applications/appId>> URI path.
+`OneApplicationResource` is a spark-api-AbstractApplicationResource.md[AbstractApplicationResource] (and so a spark-api-ApiRequestContext.md[ApiRequestContext] indirectly) that spark-api-ApiRootResource.md#applications_appId[ApiRootResource] uses to handle <<root, applications/appId>> URI path.
 
 [[paths]]
 .OneApplicationResource's Paths
@@ -84,7 +84,7 @@ Vary: Accept-Encoding, User-Agent
 getApp(): ApplicationInfo
 ----
 
-`getApp` requests the link:spark-api-ApiRequestContext.adoc#uiRoot[UIRoot] for the link:spark-api-UIRoot.adoc#getApplicationInfo[application info] (given the link:spark-api-BaseAppResource.adoc#appId[appId]).
+`getApp` requests the spark-api-ApiRequestContext.md#uiRoot[UIRoot] for the spark-api-UIRoot.md#getApplicationInfo[application info] (given the spark-api-BaseAppResource.md#appId[appId]).
 
 In the end, `getApp` returns the `ApplicationInfo` if available or reports a `NotFoundException`:
 

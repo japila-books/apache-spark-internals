@@ -9,7 +9,7 @@ CAUTION: FIXME
 compute(p: Partition, context: TaskContext): Iterator[(K, V)]
 ----
 
-NOTE: `compute` is part of xref:rdd:RDD.adoc#compute[RDD Contract] to compute a link:spark-rdd-Partition.adoc[partition] (in a link:spark-TaskContext.adoc[TaskContext]).
+NOTE: `compute` is part of rdd:RDD.md#compute[RDD Contract] to compute a spark-rdd-Partition.md[partition] (in a spark-TaskContext.md[TaskContext]).
 
 `compute`...FIXME
 

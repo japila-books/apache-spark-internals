@@ -11,10 +11,10 @@ Partitioner is used to ensure that records for a given key have to reside on a s
 | Partitioner
 | Description
 
-| xref:rdd:HashPartitioner.adoc[HashPartitioner]
+| rdd:HashPartitioner.md[HashPartitioner]
 | [[HashPartitioner]] Hash-based partitioning
 
-| xref:rdd:RangePartitioner.adoc[RangePartitioner]
+| rdd:RangePartitioner.md[RangePartitioner]
 | [[RangePartitioner]]
 
 |===

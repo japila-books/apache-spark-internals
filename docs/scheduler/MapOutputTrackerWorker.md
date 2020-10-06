@@ -1,8 +1,8 @@
 = [[MapOutputTrackerWorker]] MapOutputTrackerWorker
 
-*MapOutputTrackerWorker* is the xref:scheduler:MapOutputTracker.adoc[MapOutputTracker] for executors.
+*MapOutputTrackerWorker* is the scheduler:MapOutputTracker.md[MapOutputTracker] for executors.
 
-`MapOutputTrackerWorker` uses Java's thread-safe https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/ConcurrentHashMap.html[java.util.concurrent.ConcurrentHashMap] for xref:scheduler:MapOutputTracker.adoc#mapStatuses[`mapStatuses` internal cache] and any lookup cache miss triggers a fetch from the driver's xref:scheduler:MapOutputTrackerMaster.adoc[MapOutputTrackerMaster].
+`MapOutputTrackerWorker` uses Java's thread-safe https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/ConcurrentHashMap.html[java.util.concurrent.ConcurrentHashMap] for scheduler:MapOutputTracker.md#mapStatuses[`mapStatuses` internal cache] and any lookup cache miss triggers a fetch from the driver's scheduler:MapOutputTrackerMaster.md[MapOutputTrackerMaster].
 
 == [[getStatuses]] Finding Shuffle Map Outputs
 
@@ -12,7 +12,7 @@ getStatuses(
   shuffleId: Int): Array[MapStatus]
 ----
 
-`getStatuses` finds xref:scheduler:MapStatus.adoc[MapStatuses] for the input `shuffleId` in the <<mapStatuses, mapStatuses>> internal cache and, when not available, fetches them from a remote xref:scheduler:MapOutputTrackerMaster.adoc[MapOutputTrackerMaster] (using RPC).
+`getStatuses` finds scheduler:MapStatus.md[MapStatuses] for the input `shuffleId` in the <<mapStatuses, mapStatuses>> internal cache and, when not available, fetches them from a remote scheduler:MapOutputTrackerMaster.md[MapOutputTrackerMaster] (using RPC).
 
 Internally, `getStatuses` first queries the <<mapStatuses, `mapStatuses` internal cache>> and returns the map outputs if found.
 
@@ -34,7 +34,7 @@ Doing the fetch; tracker endpoint = [trackerEndpoint]
 
 `getStatuses` sends a `GetMapOutputStatuses` RPC remote message for the input `shuffleId` to the trackerEndpoint expecting a `Array[Byte]`.
 
-NOTE: `getStatuses` requests shuffle map outputs remotely within a timeout and with retries. Refer to xref:rpc:RpcEndpointRef.adoc[RpcEndpointRef].
+NOTE: `getStatuses` requests shuffle map outputs remotely within a timeout and with retries. Refer to rpc:RpcEndpointRef.md[RpcEndpointRef].
 
 `getStatuses` <<deserializeMapStatuses, deserializes the map output statuses>> and records the result in the <<mapStatuses, `mapStatuses` internal cache>>.
 
@@ -71,4 +71,4 @@ Add the following line to `conf/log4j.properties`:
 log4j.logger.org.apache.spark.MapOutputTrackerWorker=ALL
 ----
 
-Refer to xref:ROOT:spark-logging.adoc[Logging].
+Refer to ROOT:spark-logging.md[Logging].

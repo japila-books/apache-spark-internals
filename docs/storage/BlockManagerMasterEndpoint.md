@@ -1,22 +1,22 @@
 = BlockManagerMasterEndpoint -- BlockManagerMaster RPC Endpoint
 :navtitle: BlockManagerMasterEndpoint
 
-*BlockManagerMasterEndpoint* is a xref:rpc:RpcEndpoint.adoc#ThreadSafeRpcEndpoint[ThreadSafeRpcEndpoint] for xref:storage:BlockManagerMaster.adoc[BlockManagerMaster].
+*BlockManagerMasterEndpoint* is a rpc:RpcEndpoint.md#ThreadSafeRpcEndpoint[ThreadSafeRpcEndpoint] for storage:BlockManagerMaster.md[BlockManagerMaster].
 
 BlockManagerMasterEndpoint is registered under *BlockManagerMaster* name.
 
-BlockManagerMasterEndpoint tracks status of the xref:storage:BlockManager.adoc[BlockManagers] (on the executors) in a Spark application.
+BlockManagerMasterEndpoint tracks status of the storage:BlockManager.md[BlockManagers] (on the executors) in a Spark application.
 
 == [[creating-instance]] Creating Instance
 
 BlockManagerMasterEndpoint takes the following to be created:
 
-* [[rpcEnv]] xref:rpc:RpcEnv.adoc[]
+* [[rpcEnv]] rpc:RpcEnv.md[]
 * [[isLocal]] Flag whether BlockManagerMasterEndpoint works in local or cluster mode
-* [[conf]] xref:ROOT:SparkConf.adoc[]
-* [[listenerBus]] xref:scheduler:LiveListenerBus.adoc[]
+* [[conf]] ROOT:SparkConf.md[]
+* [[listenerBus]] scheduler:LiveListenerBus.md[]
 
-BlockManagerMasterEndpoint is created for the xref:core:SparkEnv.adoc#create[SparkEnv] on the driver (to create a xref:storage:BlockManagerMaster.adoc[] for a xref:storage:BlockManager.adoc#master[BlockManager]).
+BlockManagerMasterEndpoint is created for the core:SparkEnv.md#create[SparkEnv] on the driver (to create a storage:BlockManagerMaster.md[] for a storage:BlockManager.md#master[BlockManager]).
 
 When created, BlockManagerMasterEndpoint prints out the following INFO message to the logs:
 
@@ -27,7 +27,7 @@ BlockManagerMasterEndpoint up
 
 == [[messages]][[receiveAndReply]] Messages
 
-As an xref:rpc:RpcEndpoint.adoc[], BlockManagerMasterEndpoint handles RPC messages.
+As an rpc:RpcEndpoint.md[], BlockManagerMasterEndpoint handles RPC messages.
 
 === [[BlockManagerHeartbeat]] BlockManagerHeartbeat
 
@@ -51,7 +51,7 @@ GetLocations(
 
 When received, BlockManagerMasterEndpoint replies with the <<getLocations, locations>> of `blockId`.
 
-Posted when xref:BlockManagerMaster.adoc#getLocations-block[`BlockManagerMaster` requests the block locations of a single block].
+Posted when BlockManagerMaster.md#getLocations-block[`BlockManagerMaster` requests the block locations of a single block].
 
 === [[GetLocationsAndStatus]] GetLocationsAndStatus
 
@@ -73,9 +73,9 @@ GetLocationsMultipleBlockIds(
   blockIds: Array[BlockId])
 ----
 
-When received, BlockManagerMasterEndpoint replies with the <<getLocationsMultipleBlockIds, getLocationsMultipleBlockIds>> for the given xref:storage:BlockId.adoc[].
+When received, BlockManagerMasterEndpoint replies with the <<getLocationsMultipleBlockIds, getLocationsMultipleBlockIds>> for the given storage:BlockId.md[].
 
-Posted when xref:BlockManagerMaster.adoc#getLocations[`BlockManagerMaster` requests the block locations for multiple blocks].
+Posted when BlockManagerMaster.md#getLocations[`BlockManagerMaster` requests the block locations for multiple blocks].
 
 === [[GetPeers]] GetPeers
 
@@ -87,9 +87,9 @@ GetPeers(
 
 When received, BlockManagerMasterEndpoint replies with the <<getPeers, peers>> of `blockManagerId`.
 
-*Peers* of a xref:storage:BlockManager.adoc[BlockManager] are the other BlockManagers in a cluster (except the driver's BlockManager). Peers are used to know the available executors in a Spark application.
+*Peers* of a storage:BlockManager.md[BlockManager] are the other BlockManagers in a cluster (except the driver's BlockManager). Peers are used to know the available executors in a Spark application.
 
-Posted when xref:BlockManagerMaster.adoc#getPeers[`BlockManagerMaster` requests the peers of a `BlockManager`].
+Posted when BlockManagerMaster.md#getPeers[`BlockManagerMaster` requests the peers of a `BlockManager`].
 
 === [[GetExecutorEndpointRef]] GetExecutorEndpointRef
 
@@ -174,9 +174,9 @@ RegisterBlockManager(
   sender: RpcEndpointRef)
 ----
 
-When received, BlockManagerMasterEndpoint is requested to <<register, register the BlockManager>> (by the given xref:storage:BlockManagerId.adoc[]).
+When received, BlockManagerMasterEndpoint is requested to <<register, register the BlockManager>> (by the given storage:BlockManagerId.md[]).
 
-Posted when BlockManagerMaster is requested to xref:storage:BlockManagerMaster.adoc#registerBlockManager[register a BlockManager]
+Posted when BlockManagerMaster is requested to storage:BlockManagerMaster.md#registerBlockManager[register a BlockManager]
 
 === [[RemoveRdd]] RemoveRdd
 
@@ -237,7 +237,7 @@ RemoveExecutor(
 
 When received, BlockManagerMasterEndpoint <<removeExecutor, executor `execId` is removed>> and the response `true` sent back.
 
-Posted when xref:BlockManagerMaster.adoc#removeExecutor[`BlockManagerMaster` removes an executor].
+Posted when BlockManagerMaster.md#removeExecutor[`BlockManagerMaster` removes an executor].
 
 === [[StopBlockManagerMaster]] StopBlockManagerMaster
 
@@ -264,7 +264,7 @@ UpdateBlockInfo(
 
 When received, BlockManagerMasterEndpoint...FIXME
 
-Posted when BlockManagerMaster is requested to xref:storage:BlockManagerMaster.adoc#updateBlockInfo[handle a block status update (from BlockManager on an executor)].
+Posted when BlockManagerMaster is requested to storage:BlockManagerMaster.md#updateBlockInfo[handle a block status update (from BlockManager on an executor)].
 
 == [[storageStatus]] storageStatus Internal Method
 
@@ -315,7 +315,7 @@ If the input `blockManagerId` is registered, getPeers returns all the registered
 
 Otherwise, getPeers returns no `BlockManagers`.
 
-NOTE: *Peers* of a xref:storage:BlockManager.adoc[BlockManager] are the other BlockManagers in a cluster (except the driver's BlockManager). Peers are used to know the available executors in a Spark application.
+NOTE: *Peers* of a storage:BlockManager.md[BlockManager] are the other BlockManagers in a cluster (except the driver's BlockManager). Peers are used to know the available executors in a Spark application.
 
 getPeers is used when BlockManagerMasterEndpoint is requested to handle <<GetPeers, GetPeers>> message.
 
@@ -330,9 +330,9 @@ register(
   slaveEndpoint: RpcEndpointRef): BlockManagerId
 ----
 
-register registers a xref:storage:BlockManager.adoc[] (based on the given xref:storage:BlockManagerId.adoc[]) in the <<blockManagerIdByExecutor, blockManagerIdByExecutor>> and <<blockManagerInfo, blockManagerInfo>> registries and posts a SparkListenerBlockManagerAdded message (to the <<listenerBus, LiveListenerBus>>).
+register registers a storage:BlockManager.md[] (based on the given storage:BlockManagerId.md[]) in the <<blockManagerIdByExecutor, blockManagerIdByExecutor>> and <<blockManagerInfo, blockManagerInfo>> registries and posts a SparkListenerBlockManagerAdded message (to the <<listenerBus, LiveListenerBus>>).
 
-NOTE: The input `maxMemSize` is the xref:storage:BlockManager.adoc#maxMemory[total available on-heap and off-heap memory for storage on a `BlockManager`].
+NOTE: The input `maxMemSize` is the storage:BlockManager.md#maxMemory[total available on-heap and off-heap memory for storage on a `BlockManager`].
 
 NOTE: Registering a `BlockManager` can only happen once for an executor (identified by `BlockManagerId.executorId` in <<blockManagerIdByExecutor, blockManagerIdByExecutor>> internal registry).
 
@@ -357,7 +357,7 @@ The `BlockManager` is recorded in the internal registries:
 * <<blockManagerIdByExecutor, blockManagerIdByExecutor>>
 * <<blockManagerInfo, blockManagerInfo>>
 
-In the end, register requests the <<listenerBus, LiveListenerBus>> to xref:scheduler:LiveListenerBus.adoc#post[post] a xref:ROOT:SparkListener.adoc#SparkListenerBlockManagerAdded[SparkListenerBlockManagerAdded] message.
+In the end, register requests the <<listenerBus, LiveListenerBus>> to scheduler:LiveListenerBus.md#post[post] a ROOT:SparkListener.md#SparkListenerBlockManagerAdded[SparkListenerBlockManagerAdded] message.
 
 register is used when BlockManagerMasterEndpoint is requested to handle <<RegisterBlockManager, RegisterBlockManager>> message.
 
@@ -395,7 +395,7 @@ removeBlockManager looks up `blockManagerId` and removes the executor it was wor
 
 It then goes over all the blocks for the `BlockManager`, and removes the executor for each block from `blockLocations` registry.
 
-xref:ROOT:SparkListener.adoc#SparkListenerBlockManagerRemoved[SparkListenerBlockManagerRemoved(System.currentTimeMillis(), blockManagerId)] is posted to xref:ROOT:SparkContext.adoc#listenerBus[listenerBus].
+ROOT:SparkListener.md#SparkListenerBlockManagerRemoved[SparkListenerBlockManagerRemoved(System.currentTimeMillis(), blockManagerId)] is posted to ROOT:SparkContext.md#listenerBus[listenerBus].
 
 You should then see the following INFO message in the logs:
 
@@ -414,7 +414,7 @@ getLocations(
   blockId: BlockId): Seq[BlockManagerId]
 ----
 
-getLocations looks up the given xref:storage:BlockId.adoc[] in the `blockLocations` internal registry and returns the locations (as a collection of `BlockManagerId`) or an empty collection.
+getLocations looks up the given storage:BlockId.md[] in the `blockLocations` internal registry and returns the locations (as a collection of `BlockManagerId`) or an empty collection.
 
 getLocations is used when BlockManagerMasterEndpoint is requested to handle <<GetLocations, GetLocations>> and <<GetLocationsMultipleBlockIds, GetLocationsMultipleBlockIds>> messages.
 
@@ -429,7 +429,7 @@ Add the following line to `conf/log4j.properties`:
 log4j.logger.org.apache.spark.storage.BlockManagerMasterEndpoint=ALL
 ----
 
-Refer to xref:ROOT:spark-logging.adoc[Logging].
+Refer to ROOT:spark-logging.md[Logging].
 
 == [[internal-properties]] Internal Properties
 
@@ -440,7 +440,7 @@ Refer to xref:ROOT:spark-logging.adoc[Logging].
 blockManagerIdByExecutor: Map[String, BlockManagerId]
 ----
 
-Lookup table of xref:storage:BlockManagerId.adoc[]s by executor ID
+Lookup table of storage:BlockManagerId.md[]s by executor ID
 
 A new executor is added when BlockManagerMasterEndpoint is requested to handle a <<RegisterBlockManager, RegisterBlockManager>> message (and <<register, registers a new BlockManager>>).
 
@@ -455,7 +455,7 @@ Used when BlockManagerMasterEndpoint is requested to handle <<HasCachedBlocks, H
 blockManagerIdByExecutor: Map[String, BlockManagerId]
 ----
 
-Lookup table of xref:storage:BlockManagerInfo.adoc[] by xref:storage:BlockManagerId.adoc[]
+Lookup table of storage:BlockManagerInfo.md[] by storage:BlockManagerId.md[]
 
 A new BlockManagerInfo is added when BlockManagerMasterEndpoint is requested to handle a <<RegisterBlockManager, RegisterBlockManager>> message (and <<register, registers a new BlockManager>>).
 
@@ -468,6 +468,6 @@ A BlockManagerInfo is removed when BlockManagerMasterEndpoint is requested to <<
 blockLocations: Map[BlockId, Set[BlockManagerId]]
 ----
 
-Collection of xref:storage:BlockId.adoc[] and their locations (as `BlockManagerId`).
+Collection of storage:BlockId.md[] and their locations (as `BlockManagerId`).
 
 Used in `removeRdd` to remove blocks for a RDD, removeBlockManager to remove blocks after a BlockManager gets removed, `removeBlockFromWorkers`, `updateBlockInfo`, and <<getLocations, getLocations>>.

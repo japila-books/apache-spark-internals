@@ -1,8 +1,8 @@
 = ReplayListenerBus
 
-ReplayListenerBus is a xref:ROOT:spark-SparkListenerBus.adoc[] that can <<replay, replay JSON-encoded `SparkListenerEvent` events>>.
+ReplayListenerBus is a ROOT:spark-SparkListenerBus.md[] that can <<replay, replay JSON-encoded `SparkListenerEvent` events>>.
 
-ReplayListenerBus is used by xref:spark-history-server:FsHistoryProvider.adoc[].
+ReplayListenerBus is used by spark-history-server:FsHistoryProvider.md[].
 
 == [[replay]] Replaying JSON-encoded SparkListenerEvents from Stream
 
@@ -14,9 +14,9 @@ replay(
   maybeTruncated: Boolean = false): Unit
 ----
 
-`replay` reads JSON-encoded xref:ROOT:SparkListener.adoc#SparkListenerEvent[SparkListenerEvent] events from `logData` (one event per line) and posts them to all registered xref:ROOT:SparkListener.adoc#SparkListenerInterface[SparkListenerInterface listeners].
+`replay` reads JSON-encoded ROOT:SparkListener.md#SparkListenerEvent[SparkListenerEvent] events from `logData` (one event per line) and posts them to all registered ROOT:SparkListener.md#SparkListenerInterface[SparkListenerInterface listeners].
 
-`replay` uses xref:spark-history-server:JsonProtocol.adoc#sparkEventFromJson[`JsonProtocol` to convert JSON-encoded events to `SparkListenerEvent` objects].
+`replay` uses spark-history-server:JsonProtocol.md#sparkEventFromJson[`JsonProtocol` to convert JSON-encoded events to `SparkListenerEvent` objects].
 
 NOTE: `replay` uses *jackson* from http://json4s.org/[json4s] library to parse the AST for JSON.
 

@@ -1,10 +1,10 @@
 = SortShuffleManager
 
-*SortShuffleManager* is the default and only known xref:ShuffleManager.adoc[ShuffleManager] in Apache Spark (with the short name `sort` or `tungsten-sort`).
+*SortShuffleManager* is the default and only known ShuffleManager.md[ShuffleManager] in Apache Spark (with the short name `sort` or `tungsten-sort`).
 
-NOTE: Use xref:ROOT:configuration-properties.adoc#spark.shuffle.manager[spark.shuffle.manager] configuration property to activate custom xref:ShuffleManager.adoc[ShuffleManager].
+NOTE: Use ROOT:configuration-properties.md#spark.shuffle.manager[spark.shuffle.manager] configuration property to activate custom ShuffleManager.md[ShuffleManager].
 
-SortShuffleManager is <<creating-instance, created>> when SparkEnv is xref:core:SparkEnv.adoc#ShuffleManager[created] (on the driver and executors at the very beginning of a Spark application's lifecycle).
+SortShuffleManager is <<creating-instance, created>> when SparkEnv is core:SparkEnv.md#ShuffleManager[created] (on the driver and executors at the very beginning of a Spark application's lifecycle).
 
 .SortShuffleManager and SparkEnv (Driver and Executors)
 image::SortShuffleManager.png[align="center"]
@@ -12,7 +12,7 @@ image::SortShuffleManager.png[align="center"]
 == [[creating-instance]] Creating Instance
 
 [[conf]]
-SortShuffleManager takes a single xref:ROOT:SparkConf.adoc[SparkConf] to be created.
+SortShuffleManager takes a single ROOT:SparkConf.md[SparkConf] to be created.
 
 == [[MAX_SHUFFLE_OUTPUT_PARTITIONS_FOR_SERIALIZED_MODE]] Maximum Number of Partition Identifiers
 
@@ -29,11 +29,11 @@ Lookup table with the number of mappers producing the output for a shuffle (as {
 shuffleBlockResolver: ShuffleBlockResolver
 ----
 
-shuffleBlockResolver is an xref:shuffle:IndexShuffleBlockResolver.adoc[IndexShuffleBlockResolver] that is created immediately when SortShuffleManager is.
+shuffleBlockResolver is an shuffle:IndexShuffleBlockResolver.md[IndexShuffleBlockResolver] that is created immediately when SortShuffleManager is.
 
 shuffleBlockResolver is used when SortShuffleManager is requested for a <<getWriter, ShuffleWriter for a given partition>>, to <<unregisterShuffle, unregister a shuffle metadata>> and <<stop, stop>>.
 
-shuffleBlockResolver is part of the xref:shuffle:ShuffleManager.adoc#shuffleBlockResolver[ShuffleManager] abstraction.
+shuffleBlockResolver is part of the shuffle:ShuffleManager.md#shuffleBlockResolver[ShuffleManager] abstraction.
 
 == [[getWriter]] Getting ShuffleWriter For Partition and ShuffleHandle
 
@@ -45,9 +45,9 @@ getWriter[K, V](
   context: TaskContext): ShuffleWriter[K, V]
 ----
 
-getWriter registers the given ShuffleHandle (by the xref:spark-shuffle-ShuffleHandle.adoc#shuffleId[shuffleId] and xref:spark-shuffle-BaseShuffleHandle.adoc#numMaps[numMaps]) in the <<numMapsForShuffle, numMapsForShuffle>> internal registry unless already done.
+getWriter registers the given ShuffleHandle (by the spark-shuffle-ShuffleHandle.md#shuffleId[shuffleId] and spark-shuffle-BaseShuffleHandle.md#numMaps[numMaps]) in the <<numMapsForShuffle, numMapsForShuffle>> internal registry unless already done.
 
-NOTE: getWriter expects that the input ShuffleHandle is of type xref:spark-shuffle-BaseShuffleHandle.adoc[BaseShuffleHandle]. Moreover, getWriter further expects that in two (out of three cases) it is a more specialized xref:IndexShuffleBlockResolver.adoc[IndexShuffleBlockResolver].
+NOTE: getWriter expects that the input ShuffleHandle is of type spark-shuffle-BaseShuffleHandle.md[BaseShuffleHandle]. Moreover, getWriter further expects that in two (out of three cases) it is a more specialized IndexShuffleBlockResolver.md[IndexShuffleBlockResolver].
 
 getWriter then creates a new ShuffleWriter based on the type of the given ShuffleHandle.
 
@@ -56,18 +56,18 @@ getWriter then creates a new ShuffleWriter based on the type of the given Shuffl
 | ShuffleHandle
 | ShuffleWriter
 
-| xref:shuffle:SerializedShuffleHandle.adoc[SerializedShuffleHandle]
-| xref:shuffle:UnsafeShuffleWriter.adoc[UnsafeShuffleWriter]
+| shuffle:SerializedShuffleHandle.md[SerializedShuffleHandle]
+| shuffle:UnsafeShuffleWriter.md[UnsafeShuffleWriter]
 
-| xref:shuffle:BypassMergeSortShuffleHandle.adoc[BypassMergeSortShuffleHandle]
-| xref:shuffle:BypassMergeSortShuffleWriter.adoc[BypassMergeSortShuffleWriter]
+| shuffle:BypassMergeSortShuffleHandle.md[BypassMergeSortShuffleHandle]
+| shuffle:BypassMergeSortShuffleWriter.md[BypassMergeSortShuffleWriter]
 
-| xref:shuffle:spark-shuffle-BaseShuffleHandle.adoc[BaseShuffleHandle]
-| xref:shuffle:SortShuffleWriter.adoc[SortShuffleWriter]
+| shuffle:spark-shuffle-BaseShuffleHandle.md[BaseShuffleHandle]
+| shuffle:SortShuffleWriter.md[SortShuffleWriter]
 
 |===
 
-getWriter is part of the xref:shuffle:ShuffleManager.adoc#getWriter[ShuffleManager] abstraction.
+getWriter is part of the shuffle:ShuffleManager.md#getWriter[ShuffleManager] abstraction.
 
 == [[unregisterShuffle]] Unregistering Shuffle
 
@@ -79,9 +79,9 @@ unregisterShuffle(
 
 unregisterShuffle tries to remove the given `shuffleId` from the <<numMapsForShuffle, numMapsForShuffle>> internal registry.
 
-If the given `shuffleId` was registered, unregisterShuffle requests the <<shuffleBlockResolver, IndexShuffleBlockResolver>> to <<IndexShuffleBlockResolver.adoc#removeDataByMap, remove the shuffle index and data files>> one by one (up to the number of mappers producing the output for the shuffle).
+If the given `shuffleId` was registered, unregisterShuffle requests the <<shuffleBlockResolver, IndexShuffleBlockResolver>> to <<IndexShuffleBlockResolver.md#removeDataByMap, remove the shuffle index and data files>> one by one (up to the number of mappers producing the output for the shuffle).
 
-unregisterShuffle is part of the xref:shuffle:ShuffleManager.adoc#unregisterShuffle[ShuffleManager] abstraction.
+unregisterShuffle is part of the shuffle:ShuffleManager.md#unregisterShuffle[ShuffleManager] abstraction.
 
 == [[registerShuffle]] Creating ShuffleHandle (For ShuffleDependency)
 
@@ -97,13 +97,13 @@ CAUTION: FIXME Copy the conditions
 
 `registerShuffle` returns a new `ShuffleHandle` that can be one of the following:
 
-1. xref:shuffle:BypassMergeSortShuffleHandle.adoc[BypassMergeSortShuffleHandle] (with `ShuffleDependency[K, V, V]`) when xref:shuffle:SortShuffleWriter.adoc#shouldBypassMergeSort[shouldBypassMergeSort] condition holds.
+1. shuffle:BypassMergeSortShuffleHandle.md[BypassMergeSortShuffleHandle] (with `ShuffleDependency[K, V, V]`) when shuffle:SortShuffleWriter.md#shouldBypassMergeSort[shouldBypassMergeSort] condition holds.
 
-2. xref:shuffle:SerializedShuffleHandle.adoc[SerializedShuffleHandle] (with `ShuffleDependency[K, V, V]`) when <<canUseSerializedShuffle, canUseSerializedShuffle condition holds>>.
+2. shuffle:SerializedShuffleHandle.md[SerializedShuffleHandle] (with `ShuffleDependency[K, V, V]`) when <<canUseSerializedShuffle, canUseSerializedShuffle condition holds>>.
 
-3. xref:shuffle:spark-shuffle-BaseShuffleHandle.adoc[BaseShuffleHandle]
+3. shuffle:spark-shuffle-BaseShuffleHandle.md[BaseShuffleHandle]
 
-registerShuffle is part of the xref:shuffle:ShuffleManager.adoc#registerShuffle[ShuffleManager] abstraction.
+registerShuffle is part of the shuffle:ShuffleManager.md#registerShuffle[ShuffleManager] abstraction.
 
 == [[getReader]] Creating BlockStoreShuffleReader For ShuffleHandle And Reduce Partitions
 
@@ -116,11 +116,11 @@ getReader[K, C](
   context: TaskContext): ShuffleReader[K, C]
 ----
 
-getReader returns a new xref:shuffle:BlockStoreShuffleReader.adoc[BlockStoreShuffleReader] passing all the input parameters on to it.
+getReader returns a new shuffle:BlockStoreShuffleReader.md[BlockStoreShuffleReader] passing all the input parameters on to it.
 
-getReader assumes that the input `ShuffleHandle` is of type xref:shuffle:spark-shuffle-BaseShuffleHandle.adoc[BaseShuffleHandle].
+getReader assumes that the input `ShuffleHandle` is of type shuffle:spark-shuffle-BaseShuffleHandle.md[BaseShuffleHandle].
 
-getReader is part of the xref:shuffle:ShuffleManager.adoc#getReader[ShuffleManager] abstraction.
+getReader is part of the shuffle:ShuffleManager.md#getReader[ShuffleManager] abstraction.
 
 == [[stop]] Stopping SortShuffleManager
 
@@ -129,9 +129,9 @@ getReader is part of the xref:shuffle:ShuffleManager.adoc#getReader[ShuffleManag
 stop(): Unit
 ----
 
-stop simply requests the <<shuffleBlockResolver, IndexShuffleBlockResolver>> to xref:shuffle:IndexShuffleBlockResolver.adoc#stop[stop] (which actually does nothing).
+stop simply requests the <<shuffleBlockResolver, IndexShuffleBlockResolver>> to shuffle:IndexShuffleBlockResolver.md#stop[stop] (which actually does nothing).
 
-stop is part of the xref:shuffle:ShuffleManager.adoc#stop[ShuffleManager] abstraction.
+stop is part of the shuffle:ShuffleManager.md#stop[ShuffleManager] abstraction.
 
 == [[canUseSerializedShuffle]] Requirements of SerializedShuffleHandle (as ShuffleHandle)
 
@@ -143,11 +143,11 @@ canUseSerializedShuffle(
 
 canUseSerializedShuffle returns `true` when all of the following hold:
 
-. xref:rdd:ShuffleDependency.adoc#serializer[Serializer] (of the given xref:rdd:ShuffleDependency.adoc[ShuffleDependency]) xref:serializer:Serializer.adoc#supportsRelocationOfSerializedObjects[supports relocation of serialized objects]
+. rdd:ShuffleDependency.md#serializer[Serializer] (of the given rdd:ShuffleDependency.md[ShuffleDependency]) serializer:Serializer.md#supportsRelocationOfSerializedObjects[supports relocation of serialized objects]
 
-. No map-side aggregation (the xref:rdd:ShuffleDependency.adoc#mapSideCombine[mapSideCombine] flag of the given xref:rdd:ShuffleDependency.adoc[ShuffleDependency] is off)
+. No map-side aggregation (the rdd:ShuffleDependency.md#mapSideCombine[mapSideCombine] flag of the given rdd:ShuffleDependency.md[ShuffleDependency] is off)
 
-. xref:rdd:Partitioner.adoc#numPartitions[Number of partitions] (of the xref:rdd:ShuffleDependency.adoc#partitioner[Partitioner] of the given xref:rdd:ShuffleDependency.adoc[ShuffleDependency]) is not greater than the <<MAX_SHUFFLE_OUTPUT_PARTITIONS_FOR_SERIALIZED_MODE, supported maximum number>> (i.e. `(1 << 24) - 1`, i.e. `16777215`)
+. rdd:Partitioner.md#numPartitions[Number of partitions] (of the rdd:ShuffleDependency.md#partitioner[Partitioner] of the given rdd:ShuffleDependency.md[ShuffleDependency]) is not greater than the <<MAX_SHUFFLE_OUTPUT_PARTITIONS_FOR_SERIALIZED_MODE, supported maximum number>> (i.e. `(1 << 24) - 1`, i.e. `16777215`)
 
 canUseSerializedShuffle prints out the following DEBUG message to the logs:
 
@@ -167,7 +167,7 @@ Can't use serialized shuffle for shuffle [id] because an aggregator is defined
 Can't use serialized shuffle for shuffle [id] because it has more than [number] partitions
 ----
 
-shouldBypassMergeSort is used when SortShuffleManager is requested to xref:shuffle:SortShuffleManager.adoc#registerShuffle[register a shuffle (and creates a ShuffleHandle)].
+shouldBypassMergeSort is used when SortShuffleManager is requested to shuffle:SortShuffleManager.md#registerShuffle[register a shuffle (and creates a ShuffleHandle)].
 
 == [[logging]] Logging
 
@@ -180,4 +180,4 @@ Add the following line to `conf/log4j.properties`:
 log4j.logger.org.apache.spark.shuffle.sort.SortShuffleManager=ALL
 ----
 
-Refer to xref:ROOT:spark-logging.adoc[Logging].
+Refer to ROOT:spark-logging.md[Logging].

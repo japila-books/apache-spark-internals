@@ -1,12 +1,12 @@
 == [[LiveRDD]] LiveRDD
 
-`LiveRDD` is a link:spark-core-LiveEntity.adoc[LiveEntity] that...FIXME
+`LiveRDD` is a spark-core-LiveEntity.md[LiveEntity] that...FIXME
 
-`LiveRDD` is <<creating-instance, created>> exclusively when `AppStatusListener` is requested to xref:core:AppStatusListener.adoc#onStageSubmitted[handle onStageSubmitted event]
+`LiveRDD` is <<creating-instance, created>> exclusively when `AppStatusListener` is requested to core:AppStatusListener.md#onStageSubmitted[handle onStageSubmitted event]
 
 [[creating-instance]]
 [[info]]
-`LiveRDD` takes a xref:storage:RDDInfo.adoc[RDDInfo] when created.
+`LiveRDD` takes a storage:RDDInfo.md[RDDInfo] when created.
 
 === [[doUpdate]] `doUpdate` Method
 
@@ -15,6 +15,6 @@
 doUpdate(): Any
 ----
 
-NOTE: `doUpdate` is part of link:spark-core-LiveEntity.adoc#doUpdate[LiveEntity Contract] to...FIXME.
+NOTE: `doUpdate` is part of spark-core-LiveEntity.md#doUpdate[LiveEntity Contract] to...FIXME.
 
 `doUpdate`...FIXME

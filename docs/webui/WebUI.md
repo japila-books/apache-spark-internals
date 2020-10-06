@@ -12,7 +12,7 @@
 
 NOTE: Spark on YARN uses a different web framework for the web UI.
 
-`WebUI` is used as the parent of link:spark-webui-WebUITab.adoc#parent[WebUITabs].
+`WebUI` is used as the parent of spark-webui-WebUITab.md#parent[WebUITabs].
 
 [[contract]]
 [source, scala]
@@ -49,7 +49,7 @@ NOTE: `initialize` does not add anything special to the Scala type hierarchy but
 | WebUI
 | Description
 
-| xref:spark-history-server:HistoryServer.adoc[HistoryServer]
+| spark-history-server:HistoryServer.md[HistoryServer]
 | [[HistoryServer]] Used in Spark History Server
 
 | `MasterWebUI`
@@ -58,7 +58,7 @@ NOTE: `initialize` does not add anything special to the Scala type hierarchy but
 | `MesosClusterUI`
 | [[MesosClusterUI]] Used in Spark on Mesos cluster manager
 
-| link:spark-webui-SparkUI.adoc[SparkUI]
+| spark-webui-SparkUI.md[SparkUI]
 | [[SparkUI]] `WebUI` of a Spark application
 
 | `WorkerWebUI`
@@ -79,7 +79,7 @@ Once <<bind, bound to a Jetty HTTP server>>, `WebUI` is available at an HTTP por
 | Description
 
 | `tabs`
-| [[tabs]] link:spark-webui-WebUITab.adoc[WebUITabs]
+| [[tabs]] spark-webui-WebUITab.md[WebUITabs]
 
 Used when...FIXME
 
@@ -89,7 +89,7 @@ Used when...FIXME
 Used when...FIXME
 
 | `pageToHandlers`
-| [[pageToHandlers]] `ServletContextHandlers` per link:spark-webui-WebUIPage.adoc[WebUIPage]
+| [[pageToHandlers]] `ServletContextHandlers` per spark-webui-WebUIPage.md[WebUIPage]
 
 Used when...FIXME
 
@@ -128,7 +128,7 @@ Add the following line to `conf/log4j.properties`:
 log4j.logger.org.apache.spark.ui=INFO
 ```
 
-Refer to link:spark-logging.adoc[Logging].
+Refer to spark-logging.md[Logging].
 ====
 
 === [[creating-instance]] Creating WebUI Instance
@@ -138,7 +138,7 @@ Refer to link:spark-logging.adoc[Logging].
 * [[securityManager]] `SecurityManager`
 * [[sslOptions]] `SSLOptions`
 * [[port]] Port number
-* [[conf]] xref:ROOT:SparkConf.adoc[SparkConf]
+* [[conf]] ROOT:SparkConf.md[SparkConf]
 * [[basePath]] `basePath` (default: empty)
 * [[name]] Name (default: empty)
 
@@ -197,17 +197,17 @@ NOTE: `detachHandler` is used when...FIXME
 attachPage(page: WebUIPage): Unit
 ----
 
-Internally, `attachPage` creates the path of the link:spark-webui-WebUIPage.adoc[WebUIPage] that is `/` (forward slash) followed by the link:spark-webui-WebUIPage.adoc#prefix[prefix] of the page.
+Internally, `attachPage` creates the path of the spark-webui-WebUIPage.md[WebUIPage] that is `/` (forward slash) followed by the spark-webui-WebUIPage.md#prefix[prefix] of the page.
 
-`attachPage` link:spark-webui-JettyUtils.adoc#createServletHandler[creates a HTTP request handler]...FIXME
+`attachPage` spark-webui-JettyUtils.md#createServletHandler[creates a HTTP request handler]...FIXME
 
 [NOTE]
 ====
 `attachPage` is used when:
 
-* `WebUI` is requested to <<attachTab, attach a WebUITab>> (the link:spark-webui-WebUITab.adoc#pages[WebUIPages] actually)
+* `WebUI` is requested to <<attachTab, attach a WebUITab>> (the spark-webui-WebUITab.md#pages[WebUIPages] actually)
 
-* xref:spark-history-server:HistoryServer.adoc#initialize[HistoryServer], Spark Standalone's `MasterWebUI` and `WorkerWebUI`, Spark on Mesos' `MesosClusterUI` are requested to `initialize`
+* spark-history-server:HistoryServer.md#initialize[HistoryServer], Spark Standalone's `MasterWebUI` and `WorkerWebUI`, Spark on Mesos' `MesosClusterUI` are requested to `initialize`
 ====
 
 === [[attachTab]] Attaching Tab And Associated Pages to UI -- `attachTab` Method
@@ -217,7 +217,7 @@ Internally, `attachPage` creates the path of the link:spark-webui-WebUIPage.adoc
 attachTab(tab: WebUITab): Unit
 ----
 
-`attachTab` <<attachPage, attaches>> every `WebUIPage` of the input link:spark-webui-WebUITab.adoc#pages[WebUITab].
+`attachTab` <<attachPage, attaches>> every `WebUIPage` of the input spark-webui-WebUITab.md#pages[WebUITab].
 
 In the end, `attachTab` adds the input `WebUITab` to <<tabs, WebUITab tabs>>.
 
@@ -247,13 +247,13 @@ attachHandler(handler: ServletContextHandler): Unit
 ====
 `attachHandler` is used when:
 
-* <<implementations, web UIs>> (i.e. xref:spark-history-server:HistoryServer.adoc#initialize[HistoryServer], Spark Standalone's `MasterWebUI` and `WorkerWebUI`, Spark on Mesos' `MesosClusterUI`, link:spark-webui-SparkUI.adoc#initialize[SparkUI]) are requested to initialize
+* <<implementations, web UIs>> (i.e. spark-history-server:HistoryServer.md#initialize[HistoryServer], Spark Standalone's `MasterWebUI` and `WorkerWebUI`, Spark on Mesos' `MesosClusterUI`, spark-webui-SparkUI.md#initialize[SparkUI]) are requested to initialize
 
 * `WebUI` is requested to <<attachPage, attach a page to web UI>> and <<addStaticHandler, addStaticHandler>>
 
-* `SparkContext` is created (and link:spark-SparkContext-creating-instance-internals.adoc#metricsSystem[attaches the driver metrics servlet handler to the web UI])
+* `SparkContext` is created (and spark-SparkContext-creating-instance-internals.md#metricsSystem[attaches the driver metrics servlet handler to the web UI])
 
-* `HistoryServer` is requested to xref:spark-history-server:HistoryServer.adoc#attachSparkUI[attachSparkUI]
+* `HistoryServer` is requested to spark-history-server:HistoryServer.md#attachSparkUI[attachSparkUI]
 
 * Spark Standalone's `Master` and `Worker` are requested to `onStart` (and attach their metrics servlet handlers to the web ui)
 ====
@@ -267,7 +267,7 @@ getBasePath: String
 
 `getBasePath` simply returns the <<basePath, base path>>.
 
-NOTE: `getBasePath` is used exclusively when `WebUITab` is requested for the link:spark-webui-WebUITab.adoc#basePath[base path].
+NOTE: `getBasePath` is used exclusively when `WebUITab` is requested for the spark-webui-WebUITab.md#basePath[base path].
 
 === [[getTabs]] Requesting Header Tabs -- `getTabs` Method
 
@@ -278,7 +278,7 @@ getTabs: Seq[WebUITab]
 
 `getTabs` simply returns the <<tabs, registered tabs>>.
 
-NOTE: `getTabs` is used exclusively when `WebUITab` is requested for the link:spark-webui-WebUITab.adoc#headerTabs[header tabs].
+NOTE: `getTabs` is used exclusively when `WebUITab` is requested for the spark-webui-WebUITab.md#headerTabs[header tabs].
 
 === [[getHandlers]] Requesting Handlers -- `getHandlers` Method
 

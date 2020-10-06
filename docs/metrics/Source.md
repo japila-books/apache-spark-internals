@@ -40,7 +40,7 @@ Used when...FIXME
 | `ApplicationSource`
 | [[ApplicationSource]]
 
-| xref:storage:spark-BlockManager-BlockManagerSource.adoc[BlockManagerSource]
+| storage:spark-BlockManager-BlockManagerSource.md[BlockManagerSource]
 | [[BlockManagerSource]]
 
 | `CacheMetrics`
@@ -49,13 +49,13 @@ Used when...FIXME
 | `CodegenMetrics`
 | [[CodegenMetrics]]
 
-| xref:metrics:spark-scheduler-DAGSchedulerSource.adoc[DAGSchedulerSource]
+| metrics:spark-scheduler-DAGSchedulerSource.md[DAGSchedulerSource]
 | [[DAGSchedulerSource]]
 
-| xref:ROOT:spark-service-ExecutorAllocationManagerSource.adoc[ExecutorAllocationManagerSource]
+| ROOT:spark-service-ExecutorAllocationManagerSource.md[ExecutorAllocationManagerSource]
 | [[ExecutorAllocationManagerSource]]
 
-| xref:executor:ExecutorSource.adoc[]
+| executor:ExecutorSource.md[]
 | [[ExecutorSource]]
 
 | `ExternalShuffleServiceSource`
@@ -64,7 +64,7 @@ Used when...FIXME
 | `HiveCatalogMetrics`
 | [[HiveCatalogMetrics]]
 
-| xref:metrics:JvmSource.adoc[JvmSource]
+| metrics:JvmSource.md[JvmSource]
 | [[JvmSource]]
 
 | `LiveListenerBusMetrics`
@@ -76,7 +76,7 @@ Used when...FIXME
 | `MesosClusterSchedulerSource`
 | [[MesosClusterSchedulerSource]]
 
-| xref:storage:ShuffleMetricsSource.adoc[]
+| storage:ShuffleMetricsSource.md[]
 | [[ShuffleMetricsSource]]
 
 | `StreamingSource`

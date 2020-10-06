@@ -1,6 +1,6 @@
 = BlockTransferService
 
-*BlockTransferService* is an <<contract, extension>> of the xref:storage:ShuffleClient.adoc[] abstraction for <<implementations, shuffle clients>> that can <<fetchBlocks, fetch>> and <<uploadBlock, upload>> blocks of data synchronously or asynchronously.
+*BlockTransferService* is an <<contract, extension>> of the storage:ShuffleClient.md[] abstraction for <<implementations, shuffle clients>> that can <<fetchBlocks, fetch>> and <<uploadBlock, upload>> blocks of data synchronously or asynchronously.
 
 BlockTransferService is a networking service available by a <<hostName, host name>> and a <<port, port>>.
 
@@ -15,7 +15,7 @@ BlockTransferService was introduced in https://issues.apache.org/jira/browse/SPA
 close(): Unit
 ----
 
-Used when BlockManager is requested to xref:storage:BlockManager.adoc#stop[stop]
+Used when BlockManager is requested to storage:BlockManager.md#stop[stop]
 
 === [[fetchBlocks]] fetchBlocks
 
@@ -32,7 +32,7 @@ fetchBlocks(
 
 Fetches a sequence of blocks from a remote node asynchronously
 
-fetchBlocks is part of the xref:storage:ShuffleClient.adoc#fetchBlocks[ShuffleClient] abstraction.
+fetchBlocks is part of the storage:ShuffleClient.md#fetchBlocks[ShuffleClient] abstraction.
 
 Used when BlockTransferService is requested to <<fetchBlockSync, fetch only one block (in a blocking fashion)>>
 
@@ -43,7 +43,7 @@ Used when BlockTransferService is requested to <<fetchBlockSync, fetch only one 
 hostName: String
 ----
 
-Used when BlockManager is requested to xref:storage:BlockManager.adoc#initialize[initialize]
+Used when BlockManager is requested to storage:BlockManager.md#initialize[initialize]
 
 === [[init]] init
 
@@ -53,7 +53,7 @@ init(
   blockDataManager: BlockDataManager): Unit
 ----
 
-Used when BlockManager is requested to xref:storage:BlockManager.adoc#initialize[initialize] (with the xref:storage:BlockDataManager.adoc[] being the BlockManager itself)
+Used when BlockManager is requested to storage:BlockManager.md#initialize[initialize] (with the storage:BlockDataManager.md[] being the BlockManager itself)
 
 === [[port]] port
 
@@ -62,7 +62,7 @@ Used when BlockManager is requested to xref:storage:BlockManager.adoc#initialize
 port: Int
 ----
 
-Used when BlockManager is requested to xref:storage:BlockManager.adoc#initialize[initialize]
+Used when BlockManager is requested to storage:BlockManager.md#initialize[initialize]
 
 === [[uploadBlock]] uploadBlock
 
@@ -82,7 +82,7 @@ Used when BlockTransferService is requested to <<uploadBlockSync, upload a singl
 
 == [[implementations]] BlockTransferServices
 
-xref:storage:NettyBlockTransferService.adoc[] is the default and only known BlockTransferService.
+storage:NettyBlockTransferService.md[] is the default and only known BlockTransferService.
 
 == [[fetchBlockSync]] fetchBlockSync Method
 
@@ -98,9 +98,9 @@ fetchBlockSync(
 
 fetchBlockSync...FIXME
 
-Synchronous (and hence blocking) fetchBlockSync to fetch one block `blockId` (that corresponds to the xref:storage:ShuffleClient.adoc[] parent's asynchronous xref:storage:ShuffleClient.adoc#fetchBlocks[fetchBlocks]).
+Synchronous (and hence blocking) fetchBlockSync to fetch one block `blockId` (that corresponds to the storage:ShuffleClient.md[] parent's asynchronous storage:ShuffleClient.md#fetchBlocks[fetchBlocks]).
 
-fetchBlockSync is a mere wrapper around xref:storage:ShuffleClient.adoc#fetchBlocks[fetchBlocks] to fetch one `blockId` block that waits until the fetch finishes.
+fetchBlockSync is a mere wrapper around storage:ShuffleClient.md#fetchBlocks[fetchBlocks] to fetch one `blockId` block that waits until the fetch finishes.
 
 fetchBlockSync is used when...FIXME
 
@@ -122,4 +122,4 @@ uploadBlockSync...FIXME
 
 uploadBlockSync is a mere blocking wrapper around <<uploadBlock, uploadBlock>> that waits until the upload finishes.
 
-uploadBlockSync is used when BlockManager is requested to xref:storage:BlockManager.adoc#replicate[replicate] (when a xref:storage:StorageLevel.adoc[replication level is greater than 1]).
+uploadBlockSync is used when BlockManager is requested to storage:BlockManager.md#replicate[replicate] (when a storage:StorageLevel.md[replication level is greater than 1]).

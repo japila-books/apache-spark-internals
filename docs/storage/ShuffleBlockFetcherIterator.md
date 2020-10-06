@@ -2,7 +2,7 @@
 
 *ShuffleBlockFetcherIterator* is a Scala http://www.scala-lang.org/api/current/scala/collection/Iterator.html[Iterator] that fetches shuffle blocks (aka _shuffle map outputs_) from block managers.
 
-ShuffleBlockFetcherIterator is <<creating-instance, created>> exclusively when `BlockStoreShuffleReader` is requested to xref:shuffle:BlockStoreShuffleReader.adoc#read[read combined key-value records for a reduce task].
+ShuffleBlockFetcherIterator is <<creating-instance, created>> exclusively when `BlockStoreShuffleReader` is requested to shuffle:BlockStoreShuffleReader.md#read[read combined key-value records for a reduce task].
 
 ShuffleBlockFetcherIterator allows for <<next, iterating over a sequence of blocks>> as `(BlockId, InputStream)` pairs so a caller can handle shuffle blocks in a pipelined fashion as they are received.
 
@@ -93,7 +93,7 @@ Add the following line to `conf/log4j.properties`:
 log4j.logger.org.apache.spark.storage.ShuffleBlockFetcherIterator=TRACE
 ```
 
-Refer to link:spark-logging.adoc[Logging].
+Refer to spark-logging.md[Logging].
 ====
 
 == [[fetchUpToMaxBytes]] `fetchUpToMaxBytes` Method
@@ -104,16 +104,16 @@ CAUTION: FIXME
 
 When created, ShuffleBlockFetcherIterator takes the following:
 
-* [[context]] link:spark-TaskContext.adoc[TaskContext]
-* [[shuffleClient]] xref:storage:ShuffleClient.adoc[]
-* [[blockManager]] xref:storage:BlockManager.adoc[BlockManager]
-* [[blocksByAddress]] Blocks to fetch per xref:storage:BlockManager.adoc[BlockManager] (as `Seq[(BlockManagerId, Seq[(BlockId, Long)])]`)
+* [[context]] spark-TaskContext.md[TaskContext]
+* [[shuffleClient]] storage:ShuffleClient.md[]
+* [[blockManager]] storage:BlockManager.md[BlockManager]
+* [[blocksByAddress]] Blocks to fetch per storage:BlockManager.md[BlockManager] (as `Seq[(BlockManagerId, Seq[(BlockId, Long)])]`)
 * [[streamWrapper]] Function to wrap the returned input stream (as `(BlockId, InputStream) => InputStream`)
-* <<maxBytesInFlight, maxBytesInFlight>> -- the maximum size (in bytes) of map outputs to fetch simultaneously from each reduce task (controlled by xref:shuffle:BlockStoreShuffleReader.adoc#spark_reducer_maxSizeInFlight[spark.reducer.maxSizeInFlight] Spark property)
-* <<maxReqsInFlight, maxReqsInFlight>> -- the maximum number of remote requests to fetch blocks at any given point (controlled by xref:shuffle:BlockStoreShuffleReader.adoc#spark_reducer_maxReqsInFlight[spark.reducer.maxReqsInFlight] Spark property)
+* <<maxBytesInFlight, maxBytesInFlight>> -- the maximum size (in bytes) of map outputs to fetch simultaneously from each reduce task (controlled by shuffle:BlockStoreShuffleReader.md#spark_reducer_maxSizeInFlight[spark.reducer.maxSizeInFlight] Spark property)
+* <<maxReqsInFlight, maxReqsInFlight>> -- the maximum number of remote requests to fetch blocks at any given point (controlled by shuffle:BlockStoreShuffleReader.md#spark_reducer_maxReqsInFlight[spark.reducer.maxReqsInFlight] Spark property)
 * [[maxBlocksInFlightPerAddress]] `maxBlocksInFlightPerAddress`
 * [[maxReqSizeShuffleToMem]] `maxReqSizeShuffleToMem`
-* [[detectCorrupt]] `detectCorrupt` flag to detect any corruption in fetched blocks (controlled by xref:shuffle:BlockStoreShuffleReader.adoc#spark_shuffle_detectCorrupt[spark.shuffle.detectCorrupt] Spark property)
+* [[detectCorrupt]] `detectCorrupt` flag to detect any corruption in fetched blocks (controlled by shuffle:BlockStoreShuffleReader.md#spark_shuffle_detectCorrupt[spark.shuffle.detectCorrupt] Spark property)
 
 == [[initialize]] Initializing ShuffleBlockFetcherIterator -- `initialize` Internal Method
 
@@ -122,9 +122,9 @@ When created, ShuffleBlockFetcherIterator takes the following:
 initialize(): Unit
 ----
 
-`initialize` registers a task cleanup and fetches shuffle blocks from remote and local xref:storage:BlockManager.adoc[BlockManagers].
+`initialize` registers a task cleanup and fetches shuffle blocks from remote and local storage:BlockManager.md[BlockManagers].
 
-Internally, `initialize` link:spark-TaskContext.adoc#addTaskCompletionListener[registers a `TaskCompletionListener`] (that will <<cleanup, clean up>> right after the task finishes).
+Internally, `initialize` spark-TaskContext.md#addTaskCompletionListener[registers a `TaskCompletionListener`] (that will <<cleanup, clean up>> right after the task finishes).
 
 `initialize` <<splitLocalRemoteBlocks, splitLocalRemoteBlocks>>.
 
@@ -132,7 +132,7 @@ Internally, `initialize` link:spark-TaskContext.adoc#addTaskCompletionListener[r
 
 As ShuffleBlockFetcherIterator is in initialization phase, `initialize` makes sure that <<reqsInFlight, reqsInFlight>> and <<bytesInFlight, bytesInFlight>> internal counters are both `0`. Otherwise, `initialize` throws an exception.
 
-`initialize` <<fetchUpToMaxBytes, fetches shuffle blocks>> (from remote xref:storage:BlockManager.adoc[BlockManagers]).
+`initialize` <<fetchUpToMaxBytes, fetches shuffle blocks>> (from remote storage:BlockManager.md[BlockManagers]).
 
 You should see the following INFO message in the logs:
 
@@ -165,9 +165,9 @@ DEBUG ShuffleBlockFetcherIterator: Sending request for [blocks.size] blocks ([si
 
 `sendRequest` increments <<bytesInFlight, bytesInFlight>> and <<reqsInFlight, reqsInFlight>> internal counters.
 
-NOTE: The input `FetchRequest` contains the remote xref:storage:BlockManagerId.adoc[] address and the shuffle blocks to fetch (as a sequence of xref:storage:BlockId.adoc[] and their sizes).
+NOTE: The input `FetchRequest` contains the remote storage:BlockManagerId.md[] address and the shuffle blocks to fetch (as a sequence of storage:BlockId.md[] and their sizes).
 
-`sendRequest` xref:storage:ShuffleClient.adoc#fetchBlocks[requests `ShuffleClient` to fetch shuffle blocks] (from the host, the port, and the executor as defined in the input `FetchRequest`).
+`sendRequest` storage:ShuffleClient.md#fetchBlocks[requests `ShuffleClient` to fetch shuffle blocks] (from the host, the port, and the executor as defined in the input `FetchRequest`).
 
 NOTE: `ShuffleClient` was defined when <<creating-instance, ShuffleBlockFetcherIterator was created>>.
 
@@ -229,7 +229,7 @@ throwFetchFailedException(
   e: Throwable): Nothing
 ----
 
-`throwFetchFailedException` throws a xref:shuffle:FetchFailedException.adoc[FetchFailedException] when the input `blockId` is a `ShuffleBlockId`.
+`throwFetchFailedException` throws a shuffle:FetchFailedException.md[FetchFailedException] when the input `blockId` is a `ShuffleBlockId`.
 
 NOTE: `throwFetchFailedException` creates a `FetchFailedException` passing on the root cause of a failure, i.e. the input `e`.
 
@@ -287,7 +287,7 @@ NOTE: `fetchLocalBlocks` is used when...FIXME
 hasNext: Boolean
 ----
 
-NOTE: `hasNext` is part of Scala's link:++https://www.scala-lang.org/api/current/scala/collection/Iterator.html#hasNext:Boolean++[Iterator Contract] to test whether this iterator can provide another element.
+NOTE: `hasNext` is part of Scala's ++https://www.scala-lang.org/api/current/scala/collection/Iterator.html#hasNext:Boolean++[Iterator Contract] to test whether this iterator can provide another element.
 
 `hasNext` is positive (`true`) when <<numBlocksProcessed, numBlocksProcessed>> is less than <<numBlocksToFetch, numBlocksToFetch>>.
 
@@ -311,6 +311,6 @@ NOTE: `splitLocalRemoteBlocks` is used exclusively when ShuffleBlockFetcherItera
 next(): (BlockId, InputStream)
 ----
 
-NOTE: `next` is part of Scala's link:++https://www.scala-lang.org/api/current/scala/collection/Iterator.html#next():A++[Iterator Contract] to produce the next element of this iterator.
+NOTE: `next` is part of Scala's ++https://www.scala-lang.org/api/current/scala/collection/Iterator.html#next():A++[Iterator Contract] to produce the next element of this iterator.
 
 `next`...FIXME

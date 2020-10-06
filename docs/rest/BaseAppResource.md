@@ -1,6 +1,6 @@
 == [[BaseAppResource]] BaseAppResource
 
-`BaseAppResource` is the contract of link:spark-api-ApiRequestContext.adoc[ApiRequestContexts] that can <<withUI, withUI>> and use <<appId, appId>> and <<attemptId, attemptId>> path parameters in URI paths.
+`BaseAppResource` is the contract of spark-api-ApiRequestContext.md[ApiRequestContexts] that can <<withUI, withUI>> and use <<appId, appId>> and <<attemptId, attemptId>> path parameters in URI paths.
 
 [[path-params]]
 .BaseAppResource's Path Parameters
@@ -27,13 +27,13 @@ Used when...FIXME
 | BaseAppResource
 | Description
 
-| link:spark-api-AbstractApplicationResource.adoc[AbstractApplicationResource]
+| spark-api-AbstractApplicationResource.md[AbstractApplicationResource]
 | [[AbstractApplicationResource]]
 
 | `BaseStreamingAppResource`
 | [[BaseStreamingAppResource]]
 
-| link:spark-api-StagesResource.adoc[StagesResource]
+| spark-api-StagesResource.md[StagesResource]
 | [[StagesResource]]
 |===
 

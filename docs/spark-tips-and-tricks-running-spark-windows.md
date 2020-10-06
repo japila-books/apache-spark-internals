@@ -2,7 +2,7 @@
 
 Running Spark applications on Windows in general is no different than running it on other operating systems like Linux or macOS.
 
-NOTE: A Spark application could be link:spark-shell.adoc[spark-shell] or your own custom Spark application.
+NOTE: A Spark application could be spark-shell.md[spark-shell] or your own custom Spark application.
 
 What makes the huge difference between the operating systems is Hadoop that is used internally for file system access in Spark.
 
@@ -34,7 +34,7 @@ java.io.IOException: Could not locate executable null\bin\winutils.exe in the Ha
 ====
 You need to have Administrator rights on your laptop. All the following commands must be executed in a command-line window (`cmd`) ran as Administrator, i.e. using *Run as administrator* option while executing `cmd`.
 
-Read the official document in Microsoft TechNet -- link:++https://technet.microsoft.com/en-us/library/cc947813(v=ws.10).aspx++[Start a Command Prompt as an Administrator].
+Read the official document in Microsoft TechNet -- ++https://technet.microsoft.com/en-us/library/cc947813(v=ws.10).aspx++[Start a Command Prompt as an Administrator].
 ====
 
 Download `winutils.exe` binary from https://github.com/steveloughran/winutils repository.

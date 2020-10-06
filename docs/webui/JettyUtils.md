@@ -45,7 +45,7 @@ createServletHandler[T <: AnyRef](
 ====
 `createServletHandler` is used when:
 
-* `WebUI` is requested to link:spark-webui-WebUI.adoc#attachPage[attachPage]
+* `WebUI` is requested to spark-webui-WebUI.md#attachPage[attachPage]
 
 * `MetricsServlet` is requested to `getHandlers`
 
@@ -62,7 +62,7 @@ createServlet[T <: AnyRef](
   conf: SparkConf): HttpServlet
 ----
 
-`createServlet` creates the `X-Frame-Options` header that can be either `ALLOW-FROM` with the value of link:spark-webui-properties.adoc#spark.ui.allowFramingFrom[spark.ui.allowFramingFrom] configuration property if defined or `SAMEORIGIN`.
+`createServlet` creates the `X-Frame-Options` header that can be either `ALLOW-FROM` with the value of spark-webui-properties.md#spark.ui.allowFramingFrom[spark.ui.allowFramingFrom] configuration property if defined or `SAMEORIGIN`.
 
 `createServlet` creates a Java Servlets `HttpServlet` with support for `GET` requests.
 
@@ -136,7 +136,7 @@ NOTE: https://www.eclipse.org/jetty/documentation/current/advanced-extras.html#d
 Could not find resource path for Web UI: [resourceBase]
 ```
 
-NOTE: `createStaticHandler` is used when link:spark-webui-SparkUI.adoc#initialize[SparkUI], xref:spark-history-server:HistoryServer.adoc#initialize[HistoryServer], Spark Standalone's `MasterWebUI` and `WorkerWebUI`, Spark on Mesos' `MesosClusterUI` are requested to initialize.
+NOTE: `createStaticHandler` is used when spark-webui-SparkUI.md#initialize[SparkUI], spark-history-server:HistoryServer.md#initialize[HistoryServer], Spark Standalone's `MasterWebUI` and `WorkerWebUI`, Spark on Mesos' `MesosClusterUI` are requested to initialize.
 
 === [[createRedirectHandler]] `createRedirectHandler` Method
 
@@ -152,4 +152,4 @@ createRedirectHandler(
 
 `createRedirectHandler`...FIXME
 
-NOTE: `createRedirectHandler` is used when link:spark-webui-SparkUI.adoc#initialize[SparkUI] and Spark Standalone's `MasterWebUI` are requested to initialize.
+NOTE: `createRedirectHandler` is used when spark-webui-SparkUI.md#initialize[SparkUI] and Spark Standalone's `MasterWebUI` are requested to initialize.

@@ -1,8 +1,8 @@
 = LocalSchedulerBackend
 
-LocalSchedulerBackend is a <<../SchedulerBackend.adoc#, SchedulerBackend>> and an xref:executor:ExecutorBackend.adoc[] for the <<spark-local.adoc#, Spark local>>.
+LocalSchedulerBackend is a <<../SchedulerBackend.md#, SchedulerBackend>> and an executor:ExecutorBackend.md[] for the <<spark-local.md#, Spark local>>.
 
-LocalSchedulerBackend is <<creating-instance, created>> when `SparkContext` is requested to xref:ROOT:SparkContext.adoc#createTaskScheduler[create the SchedulerBackend with the TaskScheduler] for the following master URLs:
+LocalSchedulerBackend is <<creating-instance, created>> when `SparkContext` is requested to ROOT:SparkContext.md#createTaskScheduler[create the SchedulerBackend with the TaskScheduler] for the following master URLs:
 
 * *local* (with exactly <<totalCores, 1 CPU core>>)
 
@@ -14,31 +14,31 @@ LocalSchedulerBackend is <<creating-instance, created>> when `SparkContext` is r
 
 * *++local[*, m]++* (with the <<totalCores, total number of CPU cores>> that is the number of available CPU cores on the local machine)
 
-While being <<creating-instance, created>>, LocalSchedulerBackend requests the <<launcherBackend, LauncherBackend>> to <<../spark-LauncherBackend.adoc#connect, connect>>.
+While being <<creating-instance, created>>, LocalSchedulerBackend requests the <<launcherBackend, LauncherBackend>> to <<../spark-LauncherBackend.md#connect, connect>>.
 
-When an executor sends task status updates (using `ExecutorBackend.statusUpdate`), they are passed along as <<messages, StatusUpdate>> to <<spark-LocalEndpoint.adoc#, LocalEndpoint>>.
+When an executor sends task status updates (using `ExecutorBackend.statusUpdate`), they are passed along as <<messages, StatusUpdate>> to <<spark-LocalEndpoint.md#, LocalEndpoint>>.
 
 .Task status updates flow in local mode
 image::LocalSchedulerBackend-LocalEndpoint-Executor-task-status-updates.png[align="center"]
 
 [[appId]]
 [[applicationId]]
-When requested for the <<../SchedulerBackend.adoc#applicationId, applicationId>>, LocalSchedulerBackend uses *local-[currentTimeMillis]*.
+When requested for the <<../SchedulerBackend.md#applicationId, applicationId>>, LocalSchedulerBackend uses *local-[currentTimeMillis]*.
 
 [[maxNumConcurrentTasks]]
-When requested for the <<../SchedulerBackend.adoc#maxNumConcurrentTasks, maxNumConcurrentTasks>>, LocalSchedulerBackend simply divides the <<totalCores, total number of CPU cores>> by xref:scheduler:TaskSchedulerImpl.adoc#CPUS_PER_TASK[spark.task.cpus] configuration (default: `1`).
+When requested for the <<../SchedulerBackend.md#maxNumConcurrentTasks, maxNumConcurrentTasks>>, LocalSchedulerBackend simply divides the <<totalCores, total number of CPU cores>> by scheduler:TaskSchedulerImpl.md#CPUS_PER_TASK[spark.task.cpus] configuration (default: `1`).
 
 [[defaultParallelism]]
-When requested for the <<../SchedulerBackend.adoc#defaultParallelism, defaultParallelism>>, LocalSchedulerBackend uses <<../configuration-properties.adoc#spark.default.parallelism, spark.default.parallelism>> configuration (if defined) or the <<totalCores, total number of CPU cores>>.
+When requested for the <<../SchedulerBackend.md#defaultParallelism, defaultParallelism>>, LocalSchedulerBackend uses <<../configuration-properties.md#spark.default.parallelism, spark.default.parallelism>> configuration (if defined) or the <<totalCores, total number of CPU cores>>.
 
 [[userClassPath]]
-When <<creating-instance, created>>, LocalSchedulerBackend <<getUserClasspath, uses>> the <<../configuration-properties.adoc#spark.executor.extraClassPath, spark.executor.extraClassPath>> configuration property (in the given <<conf, SparkConf>>) for the *user-defined class path for executors* that is used exclusively when LocalSchedulerBackend is requested to <<start, start>> (and creates a <<spark-LocalEndpoint.adoc#, LocalEndpoint>> that in turn uses it to create the one <<spark-LocalEndpoint.adoc#executor, Executor>>).
+When <<creating-instance, created>>, LocalSchedulerBackend <<getUserClasspath, uses>> the <<../configuration-properties.md#spark.executor.extraClassPath, spark.executor.extraClassPath>> configuration property (in the given <<conf, SparkConf>>) for the *user-defined class path for executors* that is used exclusively when LocalSchedulerBackend is requested to <<start, start>> (and creates a <<spark-LocalEndpoint.md#, LocalEndpoint>> that in turn uses it to create the one <<spark-LocalEndpoint.md#executor, Executor>>).
 
 [[creating-instance]]
 LocalSchedulerBackend takes the following to be created:
 
-* [[conf]] <<../SparkConf.adoc#, SparkConf>>
-* [[scheduler]] xref:scheduler:TaskSchedulerImpl.adoc[TaskSchedulerImpl]
+* [[conf]] <<../SparkConf.md#, SparkConf>>
+* [[scheduler]] scheduler:TaskSchedulerImpl.md[TaskSchedulerImpl]
 * [[totalCores]] Total number of CPU cores (aka _totalCores_)
 
 [[internal-registries]]
@@ -49,25 +49,25 @@ LocalSchedulerBackend takes the following to be created:
 | Description
 
 | localEndpoint
-a| [[localEndpoint]] xref:rpc:RpcEndpointRef.adoc[RpcEndpointRef] to *LocalSchedulerBackendEndpoint* RPC endpoint (that is <<spark-LocalEndpoint.adoc#, LocalEndpoint>> which LocalSchedulerBackend registers when <<start, started>>)
+a| [[localEndpoint]] rpc:RpcEndpointRef.md[RpcEndpointRef] to *LocalSchedulerBackendEndpoint* RPC endpoint (that is <<spark-LocalEndpoint.md#, LocalEndpoint>> which LocalSchedulerBackend registers when <<start, started>>)
 
 Used when LocalSchedulerBackend is requested for the following:
 
-* <<reviveOffers, reviveOffers>> (and sends a <<spark-LocalEndpoint.adoc#ReviveOffers, ReviveOffers>> one-way asynchronous message)
+* <<reviveOffers, reviveOffers>> (and sends a <<spark-LocalEndpoint.md#ReviveOffers, ReviveOffers>> one-way asynchronous message)
 
-* <<killTask, killTask>> (and sends a <<spark-LocalEndpoint.adoc#KillTask, KillTask>> one-way asynchronous message)
+* <<killTask, killTask>> (and sends a <<spark-LocalEndpoint.md#KillTask, KillTask>> one-way asynchronous message)
 
-* <<statusUpdate, statusUpdate>> (and sends a <<spark-LocalEndpoint.adoc#StatusUpdate, StatusUpdate>> one-way asynchronous message)
+* <<statusUpdate, statusUpdate>> (and sends a <<spark-LocalEndpoint.md#StatusUpdate, StatusUpdate>> one-way asynchronous message)
 
-* <<stop, stop>> (and sends a <<spark-LocalEndpoint.adoc#StopExecutor, StopExecutor>> asynchronous message)
+* <<stop, stop>> (and sends a <<spark-LocalEndpoint.md#StopExecutor, StopExecutor>> asynchronous message)
 
 | launcherBackend
-a| [[launcherBackend]] <<../spark-LauncherBackend.adoc#, LauncherBackend>>
+a| [[launcherBackend]] <<../spark-LauncherBackend.md#, LauncherBackend>>
 
 Used when LocalSchedulerBackend is <<creating-instance, created>>, <<start, started>> and <<stop, stopped>>
 
 | listenerBus
-a| [[listenerBus]] xref:scheduler:LiveListenerBus.adoc[] that is used exclusively when LocalSchedulerBackend is requested to <<start, start>>
+a| [[listenerBus]] scheduler:LiveListenerBus.md[] that is used exclusively when LocalSchedulerBackend is requested to <<start, start>>
 
 |===
 
@@ -82,7 +82,7 @@ Add the following line to `conf/log4j.properties`:
 log4j.logger.org.apache.spark.scheduler.local.LocalSchedulerBackend=INFO
 ```
 
-Refer to <<../spark-logging.adoc#, Logging>>.
+Refer to <<../spark-logging.md#, Logging>>.
 ====
 
 == [[start]] Starting Scheduling Backend -- `start` Method
@@ -92,15 +92,15 @@ Refer to <<../spark-logging.adoc#, Logging>>.
 start(): Unit
 ----
 
-NOTE: `start` is part of the <<../SchedulerBackend.adoc#start, SchedulerBackend Contract>> to start the scheduling backend.
+NOTE: `start` is part of the <<../SchedulerBackend.md#start, SchedulerBackend Contract>> to start the scheduling backend.
 
-`start` requests the `SparkEnv` object for the current xref:core:SparkEnv.adoc#rpcEnv[RpcEnv].
+`start` requests the `SparkEnv` object for the current core:SparkEnv.md#rpcEnv[RpcEnv].
 
-`start` then creates a <<spark-LocalEndpoint.adoc#, LocalEndpoint>> and requests the `RpcEnv` to xref:rpc:RpcEnv.adoc#setupEndpoint[register it] as *LocalSchedulerBackendEndpoint* RPC endpoint.
+`start` then creates a <<spark-LocalEndpoint.md#, LocalEndpoint>> and requests the `RpcEnv` to rpc:RpcEnv.md#setupEndpoint[register it] as *LocalSchedulerBackendEndpoint* RPC endpoint.
 
-`start` requests the <<listenerBus, LiveListenerBus>> to xref:scheduler:LiveListenerBus.adoc#post[post] a xref:ROOT:SparkListener.adoc#SparkListenerExecutorAdded[SparkListenerExecutorAdded] event.
+`start` requests the <<listenerBus, LiveListenerBus>> to scheduler:LiveListenerBus.md#post[post] a ROOT:SparkListener.md#SparkListenerExecutorAdded[SparkListenerExecutorAdded] event.
 
-In the end, `start` requests the <<launcherBackend, LauncherBackend>> to <<../spark-LauncherBackend.adoc#setAppId, setAppId>> as the <<appId, appId>> and <<../spark-LauncherBackend.adoc#setState, setState>> as `RUNNING`.
+In the end, `start` requests the <<launcherBackend, LauncherBackend>> to <<../spark-LauncherBackend.md#setAppId, setAppId>> as the <<appId, appId>> and <<../spark-LauncherBackend.md#setState, setState>> as `RUNNING`.
 
 == [[reviveOffers]] `reviveOffers` Method
 
@@ -109,7 +109,7 @@ In the end, `start` requests the <<launcherBackend, LauncherBackend>> to <<../sp
 reviveOffers(): Unit
 ----
 
-NOTE: `reviveOffers` is part of the <<../SchedulerBackend.adoc#reviveOffers, SchedulerBackend Contract>> to...FIXME.
+NOTE: `reviveOffers` is part of the <<../SchedulerBackend.md#reviveOffers, SchedulerBackend Contract>> to...FIXME.
 
 `reviveOffers`...FIXME
 
@@ -124,7 +124,7 @@ killTask(
   reason: String): Unit
 ----
 
-NOTE: `killTask` is part of the <<../SchedulerBackend.adoc#killTask, SchedulerBackend Contract>> to kill a task.
+NOTE: `killTask` is part of the <<../SchedulerBackend.md#killTask, SchedulerBackend Contract>> to kill a task.
 
 `killTask`...FIXME
 
@@ -138,7 +138,7 @@ statusUpdate(
   data: ByteBuffer): Unit
 ----
 
-NOTE: `statusUpdate` is part of the xref:executor:ExecutorBackend.adoc#statusUpdate[ExecutorBackend] abstraction.
+NOTE: `statusUpdate` is part of the executor:ExecutorBackend.md#statusUpdate[ExecutorBackend] abstraction.
 
 `statusUpdate`...FIXME
 
@@ -149,7 +149,7 @@ NOTE: `statusUpdate` is part of the xref:executor:ExecutorBackend.adoc#statusUpd
 stop(): Unit
 ----
 
-NOTE: `stop` is part of the <<../SchedulerBackend.adoc#stop, SchedulerBackend Contract>> to stop a scheduling backend.
+NOTE: `stop` is part of the <<../SchedulerBackend.md#stop, SchedulerBackend Contract>> to stop a scheduling backend.
 
 `stop`...FIXME
 
@@ -160,6 +160,6 @@ NOTE: `stop` is part of the <<../SchedulerBackend.adoc#stop, SchedulerBackend Co
 getUserClasspath(conf: SparkConf): Seq[URL]
 ----
 
-`getUserClasspath` simply requests the given `SparkConf` for the <<../configuration-properties.adoc#spark.executor.extraClassPath, spark.executor.extraClassPath>> configuration property and converts the entries (separated by the system-dependent path separator) to URLs.
+`getUserClasspath` simply requests the given `SparkConf` for the <<../configuration-properties.md#spark.executor.extraClassPath, spark.executor.extraClassPath>> configuration property and converts the entries (separated by the system-dependent path separator) to URLs.
 
 NOTE: `getUserClasspath` is used exclusively when LocalSchedulerBackend is <<userClassPath, created>>.

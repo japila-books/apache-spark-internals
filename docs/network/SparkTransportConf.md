@@ -28,4 +28,4 @@ defaultNumThreads calculates the default number of threads for both the Netty cl
 
 NOTE: 8 is the maximum number of threads for Netty and is not configurable.
 
-NOTE: defaultNumThreads uses link:++https://docs.oracle.com/javase/8/docs/api/java/lang/Runtime.html#availableProcessors--++[Java's Runtime for the number of processors in JVM].
+NOTE: defaultNumThreads uses ++https://docs.oracle.com/javase/8/docs/api/java/lang/Runtime.html#availableProcessors--++[Java's Runtime for the number of processors in JVM].

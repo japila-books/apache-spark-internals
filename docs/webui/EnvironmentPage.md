@@ -1,14 +1,14 @@
 = EnvironmentPage
 
 [[prefix]]
-`EnvironmentPage` is a link:spark-webui-WebUIPage.adoc[WebUIPage] with an empty link:spark-webui-WebUIPage.adoc#prefix[prefix].
+`EnvironmentPage` is a spark-webui-WebUIPage.md[WebUIPage] with an empty spark-webui-WebUIPage.md#prefix[prefix].
 
-`EnvironmentPage` is <<creating-instance, created>> exclusively when `EnvironmentTab` is link:spark-webui-EnvironmentTab.adoc#creating-instance[created].
+`EnvironmentPage` is <<creating-instance, created>> exclusively when `EnvironmentTab` is spark-webui-EnvironmentTab.md#creating-instance[created].
 
 == [[creating-instance]] Creating EnvironmentPage Instance
 
 `EnvironmentPage` takes the following when created:
 
-* [[parent]] Parent link:spark-webui-EnvironmentTab.adoc[EnvironmentTab]
-* [[conf]] xref:ROOT:SparkConf.adoc[SparkConf]
-* [[store]] xref:core:AppStatusStore.adoc[]
+* [[parent]] Parent spark-webui-EnvironmentTab.md[EnvironmentTab]
+* [[conf]] ROOT:SparkConf.md[SparkConf]
+* [[store]] core:AppStatusStore.md[]

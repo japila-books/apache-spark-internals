@@ -1,6 +1,6 @@
 = HashPartitioner
 
-*HashPartitioner* is a xref:rdd:Partitioner.adoc[Partitioner] for hash-based partitioning.
+*HashPartitioner* is a rdd:Partitioner.md[Partitioner] for hash-based partitioning.
 
 HashPartitioner is used as the default Partitioner.
 
@@ -21,7 +21,7 @@ getPartition returns 0 as the partition ID for `null` keys.
 
 For non-``null`` keys, getPartition uses the key's {java-javadoc-url}/java/lang/Object.html#++hashCode--++[Object.hashCode] modulo the configured <<numPartitions, number of partitions>>. For a negative result, getPartition adds the <<numPartitions, number of partitions>> (used for the modulo operator) to make it positive.
 
-getPartition is part of the xref:rdd:Partitioner.adoc#getPartition[Partitioner] abstraction.
+getPartition is part of the rdd:Partitioner.md#getPartition[Partitioner] abstraction.
 
 == [[equals]] equals Method
 

@@ -122,7 +122,7 @@ repartition(numPartitions: Int)(implicit ord: Ordering[T] = null): RDD[T]
 
 `repartition` is <<coalesce, coalesce>> with `numPartitions` and `shuffle` enabled.
 
-With the following computation you can see that `repartition(5)` causes 5 tasks to be started using `NODE_LOCAL` link:spark-data-locality.adoc[data locality].
+With the following computation you can see that `repartition(5)` causes 5 tasks to be started using `NODE_LOCAL` spark-data-locality.md[data locality].
 
 ```
 scala> lines.repartition(5).count
@@ -137,7 +137,7 @@ scala> lines.repartition(5).count
 ...
 ```
 
-You can see a change after executing `repartition(1)` causes 2 tasks to be started using `PROCESS_LOCAL` link:spark-data-locality.adoc[data locality].
+You can see a change after executing `repartition(1)` causes 2 tasks to be started using `PROCESS_LOCAL` spark-data-locality.md[data locality].
 
 ```
 scala> lines.repartition(1).count
@@ -172,11 +172,11 @@ TIP: It's useful to get familiar with https://hadoop.apache.org/docs/current/api
 coalesce(numPartitions: Int, shuffle: Boolean = false)(implicit ord: Ordering[T] = null): RDD[T]
 ----
 
-The `coalesce` transformation is used to change the number of partitions. It can trigger link:spark-rdd-shuffle.adoc[RDD shuffling] depending on the `shuffle` flag (disabled by default, i.e. `false`).
+The `coalesce` transformation is used to change the number of partitions. It can trigger spark-rdd-shuffle.md[RDD shuffling] depending on the `shuffle` flag (disabled by default, i.e. `false`).
 
 In the following sample, you `parallelize` a local 10-number sequence and `coalesce` it first without and then with shuffling (note the `shuffle` parameter being `false` and `true`, respectively).
 
-TIP: Use link:spark-rdd-lineage.adoc#toDebugString[toDebugString] to check out the link:spark-rdd-lineage.adoc[RDD lineage graph].
+TIP: Use spark-rdd-lineage.md#toDebugString[toDebugString] to check out the spark-rdd-lineage.md[RDD lineage graph].
 
 ```
 scala> val rdd = sc.parallelize(0 to 10, 8)

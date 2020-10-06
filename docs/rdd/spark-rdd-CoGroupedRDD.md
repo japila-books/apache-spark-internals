@@ -17,4 +17,4 @@ compute(s: Partition, context: TaskContext): Iterator[(K, Array[Iterable[_]])]
 
 compute...FIXME
 
-compute is part of xref:rdd:RDD.adoc#compute[RDD] abstraction.
+compute is part of rdd:RDD.md#compute[RDD] abstraction.

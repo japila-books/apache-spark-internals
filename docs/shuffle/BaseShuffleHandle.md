@@ -1,12 +1,12 @@
 == [[BaseShuffleHandle]] BaseShuffleHandle -- Fallback Shuffle Handle
 
-`BaseShuffleHandle` is a `ShuffleHandle` that is created solely to capture the parameters when xref:SortShuffleManager.adoc#registerShuffle[`SortShuffleManager` is requested for a `ShuffleHandle`] (for a `ShuffleDependency`):
+`BaseShuffleHandle` is a `ShuffleHandle` that is created solely to capture the parameters when SortShuffleManager.md#registerShuffle[`SortShuffleManager` is requested for a `ShuffleHandle`] (for a `ShuffleDependency`):
 
 1. [[shuffleId]] `shuffleId`
 2. [[numMaps]] `numMaps`
-3. [[dependency]] xref:rdd:ShuffleDependency.adoc[ShuffleDependency]
+3. [[dependency]] rdd:ShuffleDependency.md[ShuffleDependency]
 
-NOTE: `BaseShuffleHandle` is the last possible choice when xref:SortShuffleManager.adoc#registerShuffle[`SortShuffleManager` is requested for a `ShuffleHandle`] (after xref:shuffle:BypassMergeSortShuffleHandle.adoc[BypassMergeSortShuffleHandle] and xref:shuffle:SerializedShuffleHandle.adoc[SerializedShuffleHandle] have already been considered and failed the check).
+NOTE: `BaseShuffleHandle` is the last possible choice when SortShuffleManager.md#registerShuffle[`SortShuffleManager` is requested for a `ShuffleHandle`] (after shuffle:BypassMergeSortShuffleHandle.md[BypassMergeSortShuffleHandle] and shuffle:SerializedShuffleHandle.md[SerializedShuffleHandle] have already been considered and failed the check).
 
 [source, scala]
 ----

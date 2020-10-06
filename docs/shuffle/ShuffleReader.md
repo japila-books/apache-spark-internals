@@ -25,10 +25,10 @@ a| [[read]] Reading combined key-value records for a reduce task
 
 Used when:
 
-* xref:rdd:spark-rdd-CoGroupedRDD.adoc#compute[CoGroupedRDD], xref:rdd:ShuffledRDD.adoc#compute[ShuffledRDD], and xref:rdd:spark-rdd-SubtractedRDD.adoc#compute[SubtractedRDD] are requested to compute a partition (for a `ShuffleDependency` dependency)
+* rdd:spark-rdd-CoGroupedRDD.md#compute[CoGroupedRDD], rdd:ShuffledRDD.md#compute[ShuffledRDD], and rdd:spark-rdd-SubtractedRDD.md#compute[SubtractedRDD] are requested to compute a partition (for a `ShuffleDependency` dependency)
 
 * Spark SQL's `ShuffledRowRDD` is requested to `compute` a partition
 |===
 
 [[implementations]]
-NOTE: xref:shuffle:BlockStoreShuffleReader.adoc[BlockStoreShuffleReader] is the one and only known <<contract, ShuffleReader>> in Apache Spark.
+NOTE: shuffle:BlockStoreShuffleReader.md[BlockStoreShuffleReader] is the one and only known <<contract, ShuffleReader>> in Apache Spark.

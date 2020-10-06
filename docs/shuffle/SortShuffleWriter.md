@@ -1,8 +1,8 @@
 = [[SortShuffleWriter]] SortShuffleWriter
 
-*SortShuffleWriter* is a concrete xref:shuffle:ShuffleWriter.adoc[ShuffleWriter] that is used when xref:shuffle:SortShuffleManager.adoc#getWriter[`SortShuffleManager` returns a `ShuffleWriter` for `ShuffleHandle`] (and the more specialized xref:shuffle:BypassMergeSortShuffleWriter.adoc[BypassMergeSortShuffleWriter] and xref:shuffle:UnsafeShuffleWriter.adoc[UnsafeShuffleWriter] could not be used).
+*SortShuffleWriter* is a concrete shuffle:ShuffleWriter.md[ShuffleWriter] that is used when shuffle:SortShuffleManager.md#getWriter[`SortShuffleManager` returns a `ShuffleWriter` for `ShuffleHandle`] (and the more specialized shuffle:BypassMergeSortShuffleWriter.md[BypassMergeSortShuffleWriter] and shuffle:UnsafeShuffleWriter.md[UnsafeShuffleWriter] could not be used).
 
-SortShuffleWriter is created when xref:SortShuffleManager.adoc#getWriter[`SortShuffleManager` returns a `ShuffleWriter` for the fallback `BaseShuffleHandle`].
+SortShuffleWriter is created when SortShuffleManager.md#getWriter[`SortShuffleManager` returns a `ShuffleWriter` for the fallback `BaseShuffleHandle`].
 
 `SortShuffleWriter[K, V, C]` is a parameterized type with `K` keys, `V` values, and `C` combiner values.
 
@@ -10,14 +10,14 @@ SortShuffleWriter is created when xref:SortShuffleManager.adoc#getWriter[`SortSh
 
 SortShuffleWriter takes the following to be created:
 
-* [[shuffleBlockResolver]] xref:shuffle:IndexShuffleBlockResolver.adoc[IndexShuffleBlockResolver]
-* [[handle]] xref:shuffle:spark-shuffle-BaseShuffleHandle.adoc[BaseShuffleHandle]
+* [[shuffleBlockResolver]] shuffle:IndexShuffleBlockResolver.md[IndexShuffleBlockResolver]
+* [[handle]] shuffle:spark-shuffle-BaseShuffleHandle.md[BaseShuffleHandle]
 * [[mapId]] Map ID
-* [[context]] xref:scheduler:spark-TaskContext.adoc[TaskContext]
+* [[context]] scheduler:spark-TaskContext.md[TaskContext]
 
 == [[mapStatus]] MapStatus
 
-SortShuffleWriter uses an internal variable for a xref:scheduler:MapStatus.adoc[MapStatus] after <<write, writing records>>.
+SortShuffleWriter uses an internal variable for a scheduler:MapStatus.md[MapStatus] after <<write, writing records>>.
 
 <<write, Writing records>> itself does not return a value, SortShuffleWriter uses the variable when requested to <<stop, stop>> (which allows returning a MapStatus).
 
@@ -29,19 +29,19 @@ write(
   records: Iterator[Product2[K, V]]): Unit
 ----
 
-write creates an xref:shuffle:ExternalSorter.adoc[ExternalSorter] based on the xref:shuffle:spark-shuffle-BaseShuffleHandle.adoc#dependency[ShuffleDependency] (of the <<handle, BaseShuffleHandle>>), namely the xref:rdd:ShuffleDependency.adoc#mapSideCombine[Map-Size Partial Aggregation] flag. The ExternalSorter uses the aggregator and keyOrdering when the flag is enabled.
+write creates an shuffle:ExternalSorter.md[ExternalSorter] based on the shuffle:spark-shuffle-BaseShuffleHandle.md#dependency[ShuffleDependency] (of the <<handle, BaseShuffleHandle>>), namely the rdd:ShuffleDependency.md#mapSideCombine[Map-Size Partial Aggregation] flag. The ExternalSorter uses the aggregator and keyOrdering when the flag is enabled.
 
-write requests the ExternalSorter to xref:shuffle:ExternalSorter.adoc#insertAll[inserts all the records].
+write requests the ExternalSorter to shuffle:ExternalSorter.md#insertAll[inserts all the records].
 
-write requests the <<shuffleBlockResolver, IndexShuffleBlockResolver>> for a xref:shuffle:IndexShuffleBlockResolver.adoc#getDataFile[shuffle output file] (for the shuffle and the <<mapId, map>> IDs) and creates a temporary file alongside the shuffle output file (in the same directory).
+write requests the <<shuffleBlockResolver, IndexShuffleBlockResolver>> for a shuffle:IndexShuffleBlockResolver.md#getDataFile[shuffle output file] (for the shuffle and the <<mapId, map>> IDs) and creates a temporary file alongside the shuffle output file (in the same directory).
 
-write creates a xref:storage:BlockId.adoc#ShuffleBlockId[ShuffleBlockId] (for the shuffle and the <<mapId, map>> IDs).
+write creates a storage:BlockId.md#ShuffleBlockId[ShuffleBlockId] (for the shuffle and the <<mapId, map>> IDs).
 
-write requests ExternalSorter to xref:shuffle:ExternalSorter.adoc#writePartitionedFile[write all the records (previously inserted in) into the temporary partitioned file in the disk store]. ExternalSorter returns the length of every partition.
+write requests ExternalSorter to shuffle:ExternalSorter.md#writePartitionedFile[write all the records (previously inserted in) into the temporary partitioned file in the disk store]. ExternalSorter returns the length of every partition.
 
-write requests <<shuffleBlockResolver, IndexShuffleBlockResolver>> to xref:shuffle:IndexShuffleBlockResolver.adoc#writeIndexFileAndCommit[write an index file and commit] (with the shuffle and the <<mapId, map>> IDs, the temporary shuffle output file).
+write requests <<shuffleBlockResolver, IndexShuffleBlockResolver>> to shuffle:IndexShuffleBlockResolver.md#writeIndexFileAndCommit[write an index file and commit] (with the shuffle and the <<mapId, map>> IDs, the temporary shuffle output file).
 
-write creates a xref:scheduler:MapStatus.adoc[MapStatus] (with the xref:storage:BlockManager.adoc#shuffleServerId[location of the shuffle server] that serves the shuffle files and the sizes of the shuffle partitions). The `MapStatus` is later available as the <<mapStatus, mapStatus>> internal attribute.
+write creates a scheduler:MapStatus.md[MapStatus] (with the storage:BlockManager.md#shuffleServerId[location of the shuffle server] that serves the shuffle files and the sizes of the shuffle partitions). The `MapStatus` is later available as the <<mapStatus, mapStatus>> internal attribute.
 
 write does not handle exceptions so when they occur, they will break the processing.
 
@@ -51,7 +51,7 @@ In the end, write deletes the temporary shuffle output file. write prints out th
 Error while deleting temp file [path]
 ```
 
-write is part of the xref:shuffle:ShuffleWriter.adoc#write[ShuffleWriter] abstraction.
+write is part of the shuffle:ShuffleWriter.md#write[ShuffleWriter] abstraction.
 
 == [[stop]] Closing SortShuffleWriter (and Calculating MapStatus)
 
@@ -65,9 +65,9 @@ stop turns <<stopping, stopping>> flag on and returns the internal <<mapStatus, 
 
 Otherwise, when <<stopping, stopping>> flag is already enabled or the input `success` is disabled, stop returns no `MapStatus` (i.e. `None`).
 
-In the end, stop requests the ExternalSorter to xref:shuffle:ExternalSorter.adoc#stop[stop] and increments the shuffle write time task metrics.
+In the end, stop requests the ExternalSorter to shuffle:ExternalSorter.md#stop[stop] and increments the shuffle write time task metrics.
 
-stop is part of the xref:shuffle:ShuffleWriter.adoc#contract[ShuffleWriter] abstraction.
+stop is part of the shuffle:ShuffleWriter.md#contract[ShuffleWriter] abstraction.
 
 == [[shouldBypassMergeSort]] Requirements of BypassMergeSortShuffleHandle (as ShuffleHandle)
 
@@ -80,13 +80,13 @@ shouldBypassMergeSort(
 
 shouldBypassMergeSort returns `true` when all of the following hold:
 
-. No map-side aggregation (the xref:rdd:ShuffleDependency.adoc#mapSideCombine[mapSideCombine] flag of the given xref:rdd:ShuffleDependency.adoc[ShuffleDependency] is off)
+. No map-side aggregation (the rdd:ShuffleDependency.md#mapSideCombine[mapSideCombine] flag of the given rdd:ShuffleDependency.md[ShuffleDependency] is off)
 
-. xref:rdd:Partitioner.adoc#numPartitions[Number of partitions] (of the xref:rdd:ShuffleDependency.adoc#partitioner[Partitioner] of the given xref:rdd:ShuffleDependency.adoc[ShuffleDependency]) is not greater than xref:ROOT:configuration-properties.adoc#spark.shuffle.sort.bypassMergeThreshold[spark.shuffle.sort.bypassMergeThreshold] configuration property
+. rdd:Partitioner.md#numPartitions[Number of partitions] (of the rdd:ShuffleDependency.md#partitioner[Partitioner] of the given rdd:ShuffleDependency.md[ShuffleDependency]) is not greater than ROOT:configuration-properties.md#spark.shuffle.sort.bypassMergeThreshold[spark.shuffle.sort.bypassMergeThreshold] configuration property
 
 Otherwise, shouldBypassMergeSort does not hold (i.e. `false`).
 
-shouldBypassMergeSort is used when SortShuffleManager is requested to xref:shuffle:SortShuffleManager.adoc#registerShuffle[register a shuffle (and creates a ShuffleHandle)].
+shouldBypassMergeSort is used when SortShuffleManager is requested to shuffle:SortShuffleManager.md#registerShuffle[register a shuffle (and creates a ShuffleHandle)].
 
 == [[logging]] Logging
 
@@ -99,7 +99,7 @@ Add the following line to `conf/log4j.properties`:
 log4j.logger.org.apache.spark.shuffle.sort.SortShuffleWriter=ALL
 ----
 
-Refer to xref:ROOT:spark-logging.adoc[Logging].
+Refer to ROOT:spark-logging.md[Logging].
 
 == [[internal-properties]] Internal Properties
 

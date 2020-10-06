@@ -11,14 +11,14 @@ And later in the document:
 .Broadcasting a value to executors
 image::sparkcontext-broadcast-executors.png[align="center"]
 
-To use a broadcast value in a Spark transformation you have to create it first using xref:ROOT:SparkContext.adoc#broadcast[SparkContext.broadcast] and then use `value` method to access the shared value. Learn it in <<introductory-example, Introductory Example>> section.
+To use a broadcast value in a Spark transformation you have to create it first using ROOT:SparkContext.md#broadcast[SparkContext.broadcast] and then use `value` method to access the shared value. Learn it in <<introductory-example, Introductory Example>> section.
 
-The Broadcast feature in Spark uses SparkContext to create broadcast values and xref:core:BroadcastManager.adoc[] and xref:core:ContextCleaner.adoc[ContextCleaner] to manage their lifecycle.
+The Broadcast feature in Spark uses SparkContext to create broadcast values and core:BroadcastManager.md[] and core:ContextCleaner.md[ContextCleaner] to manage their lifecycle.
 
 .SparkContext to broadcast using BroadcastManager and ContextCleaner
 image::sparkcontext-broadcastmanager-contextcleaner.png[align="center"]
 
-TIP: Not only can Spark developers use broadcast variables for efficient data distribution, but Spark itself uses them quite often. A very notable use case is when xref:scheduler:DAGScheduler.adoc#submitMissingTasks[Spark distributes tasks to executors for their execution]. That _does_ change my perspective on the role of broadcast variables in Spark.
+TIP: Not only can Spark developers use broadcast variables for efficient data distribution, but Spark itself uses them quite often. A very notable use case is when scheduler:DAGScheduler.md#submitMissingTasks[Spark distributes tasks to executors for their execution]. That _does_ change my perspective on the role of broadcast variables in Spark.
 
 The idea is to transfer values used in transformations from a driver to executors in a most effective way so they are copied once and used many times by tasks (rather than being copied every time a task is launched).
 
@@ -50,7 +50,7 @@ The developer-facing `Broadcast` contract allows Spark developers to use it in t
 
 == [[lifecycle]] Lifecycle of Broadcast Variable
 
-You can create a broadcast variable of type `T` using xref:ROOT:SparkContext.adoc#broadcast[SparkContext.broadcast] method.
+You can create a broadcast variable of type `T` using ROOT:SparkContext.md#broadcast[SparkContext.broadcast] method.
 
 ```
 scala> val b = sc.broadcast(1)
@@ -61,7 +61,7 @@ b: org.apache.spark.broadcast.Broadcast[Int] = Broadcast(0)
 ====
 Enable `DEBUG` logging level for `org.apache.spark.storage.BlockManager` logger to debug `broadcast` method.
 
-Read xref:storage:BlockManager.adoc[BlockManager] to find out how to enable the logging level.
+Read storage:BlockManager.md[BlockManager] to find out how to enable the logging level.
 ====
 
 With DEBUG logging level enabled, you should see the following messages in the logs:
@@ -136,7 +136,7 @@ Internally, `value` makes sure that the broadcast variable is **valid**, i.e. <<
 ====
 `getValue` is abstracted and broadcast variable implementations are supposed to provide a concrete behaviour.
 
-Refer to xref:core:TorrentBroadcast.adoc#getValue[TorrentBroadcast].
+Refer to core:TorrentBroadcast.md#getValue[TorrentBroadcast].
 ====
 
 == [[unpersist]] Unpersisting Broadcast Variable -- `unpersist` Methods
@@ -255,7 +255,7 @@ The `Broadcast` contract is made up of the following methods that custom `Broadc
 2. `doUnpersist`
 3. `doDestroy`
 
-NOTE: xref:core:TorrentBroadcast.adoc[TorrentBroadcast] is the only implementation of the `Broadcast` contract.
+NOTE: core:TorrentBroadcast.md[TorrentBroadcast] is the only implementation of the `Broadcast` contract.
 
 NOTE: <<developer-contract, `Broadcast` Spark Developer-Facing Contract>> is the developer-facing `Broadcast` contract that allows Spark developers to use it in their applications.
 

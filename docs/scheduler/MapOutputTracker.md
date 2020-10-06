@@ -15,27 +15,27 @@ SparkEnv.get.mapOutputTracker
 | MapOutputTracker
 | Description
 
-| xref:scheduler:MapOutputTrackerMaster.adoc[MapOutputTrackerMaster]
+| scheduler:MapOutputTrackerMaster.md[MapOutputTrackerMaster]
 | [[MapOutputTrackerMaster]] Runs on the driver
 
-| xref:scheduler:MapOutputTrackerWorker.adoc[MapOutputTrackerWorker]
+| scheduler:MapOutputTrackerWorker.md[MapOutputTrackerWorker]
 | [[MapOutputTrackerWorker]] Runs on executors
 
 |===
 
 == [[creating-instance]][[conf]] Creating Instance
 
-MapOutputTracker takes a single xref:ROOT:SparkConf.adoc[SparkConf] to be created.
+MapOutputTracker takes a single ROOT:SparkConf.md[SparkConf] to be created.
 
 == [[trackerEndpoint]][[ENDPOINT_NAME]] MapOutputTracker RPC Endpoint
 
-trackerEndpoint is a xref:rpc:RpcEndpointRef.adoc[RpcEndpointRef] of the *MapOutputTracker* RPC endpoint.
+trackerEndpoint is a rpc:RpcEndpointRef.md[RpcEndpointRef] of the *MapOutputTracker* RPC endpoint.
 
-trackerEndpoint is initialized (registered or looked up) when SparkEnv is xref:core:SparkEnv.adoc#create[created] for the driver and executors.
+trackerEndpoint is initialized (registered or looked up) when SparkEnv is core:SparkEnv.md#create[created] for the driver and executors.
 
 trackerEndpoint is used to <<askTracker, communicate (synchronously)>>.
 
-trackerEndpoint is cleared (`null`) when MapOutputTrackerMaster is requested to xref:scheduler:MapOutputTrackerMaster.adoc#stop[stop].
+trackerEndpoint is cleared (`null`) when MapOutputTrackerMaster is requested to scheduler:MapOutputTrackerMaster.md#stop[stop].
 
 == [[serializeMapStatuses]] serializeMapStatuses Utility
 
@@ -58,7 +58,7 @@ serializeMapStatuses creates a Java {java-javadoc-url}/java/util/zip/GZIPOutputS
 
 serializeMapStatuses decides whether to return the output array (of the output stream) or use a broadcast variable based on the size of the byte array.
 
-If the size of the result byte array is the given minBroadcastSize threshold or bigger, serializeMapStatuses requests the input BroadcastManager to xref:core:BroadcastManager.adoc#newBroadcast[create a broadcast variable].
+If the size of the result byte array is the given minBroadcastSize threshold or bigger, serializeMapStatuses requests the input BroadcastManager to core:BroadcastManager.md#newBroadcast[create a broadcast variable].
 
 serializeMapStatuses resets the ByteArrayOutputStream and starts over.
 
@@ -73,7 +73,7 @@ serializeMapStatuses prints out the following INFO message to the logs:
 Broadcast mapstatuses size = [length], actual size = [length]
 ----
 
-serializeMapStatuses is used when ShuffleStatus is requested to xref:scheduler:ShuffleStatus.adoc#serializedMapStatus[serialize shuffle map output statuses].
+serializeMapStatuses is used when ShuffleStatus is requested to scheduler:ShuffleStatus.md#serializedMapStatus[serialize shuffle map output statuses].
 
 == [[deserializeMapStatuses]] deserializeMapStatuses Utility
 
@@ -109,7 +109,7 @@ getMapSizesByExecutorId(
   endPartition: Int): Seq[(BlockManagerId, Seq[(BlockId, Long)])]
 ----
 
-getMapSizesByExecutorId returns a collection of xref:storage:BlockManagerId.adoc[]s with their blocks and sizes.
+getMapSizesByExecutorId returns a collection of storage:BlockManagerId.md[]s with their blocks and sizes.
 
 When executed, you should see the following DEBUG message in the logs:
 
@@ -121,9 +121,9 @@ getMapSizesByExecutorId <<getStatuses, finds map outputs>> for the input `shuffl
 
 NOTE: getMapSizesByExecutorId gets the map outputs for all the partitions (despite the method's signature).
 
-In the end, getMapSizesByExecutorId <<convertMapStatuses, converts shuffle map outputs>> (as `MapStatuses`) into the collection of xref:storage:BlockManagerId.adoc[]s with their blocks and sizes.
+In the end, getMapSizesByExecutorId <<convertMapStatuses, converts shuffle map outputs>> (as `MapStatuses`) into the collection of storage:BlockManagerId.md[]s with their blocks and sizes.
 
-getMapSizesByExecutorId is used when BlockStoreShuffleReader is requested to xref:shuffle:BlockStoreShuffleReader.adoc#read[read combined records for a reduce task].
+getMapSizesByExecutorId is used when BlockStoreShuffleReader is requested to shuffle:BlockStoreShuffleReader.md#read[read combined records for a reduce task].
 
 == [[unregisterShuffle]] Deregistering Map Output Status Information of Shuffle Stage
 
@@ -137,9 +137,9 @@ Deregisters map output status information for the given shuffle stage
 
 Used when:
 
-* ContextCleaner is requested for xref:core:ContextCleaner.adoc#doCleanupShuffle[shuffle cleanup]
+* ContextCleaner is requested for core:ContextCleaner.md#doCleanupShuffle[shuffle cleanup]
 
-* BlockManagerSlaveEndpoint is requested to xref:storage:BlockManagerSlaveEndpoint.adoc#RemoveShuffle[remove a shuffle]
+* BlockManagerSlaveEndpoint is requested to storage:BlockManagerSlaveEndpoint.md#RemoveShuffle[remove a shuffle]
 
 == [[stop]] Stopping MapOutputTracker
 
@@ -150,7 +150,7 @@ stop(): Unit
 
 stop does nothing at all.
 
-stop is used when SparkEnv is requested to xref:core:SparkEnv.adoc#stop[stop] (and stops all the services, incl. MapOutputTracker).
+stop is used when SparkEnv is requested to core:SparkEnv.md#stop[stop] (and stops all the services, incl. MapOutputTracker).
 
 == [[convertMapStatuses]] Converting MapStatuses To BlockManagerIds with ShuffleBlockIds and Their Sizes
 
@@ -163,7 +163,7 @@ convertMapStatuses(
   statuses: Array[MapStatus]): Seq[(BlockManagerId, Seq[(BlockId, Long)])]
 ----
 
-convertMapStatuses iterates over the input `statuses` array (of xref:scheduler:MapStatus.adoc[MapStatus] entries indexed by map id) and creates a collection of xref:storage:BlockManagerId.adoc[]s (for each `MapStatus` entry) with a xref:storage:BlockId.adoc#ShuffleBlockId[ShuffleBlockId] (with the input `shuffleId`, a `mapId`, and `partition` ranging from the input `startPartition` and `endPartition`) and xref:scheduler:MapStatus.adoc#getSizeForBlock[estimated size for the reduce block] for every status and partitions.
+convertMapStatuses iterates over the input `statuses` array (of scheduler:MapStatus.md[MapStatus] entries indexed by map id) and creates a collection of storage:BlockManagerId.md[]s (for each `MapStatus` entry) with a storage:BlockId.md#ShuffleBlockId[ShuffleBlockId] (with the input `shuffleId`, a `mapId`, and `partition` ranging from the input `startPartition` and `endPartition`) and scheduler:MapStatus.md#getSizeForBlock[estimated size for the reduce block] for every status and partitions.
 
 For any empty `MapStatus`, you should see the following ERROR message in the logs:
 
@@ -182,7 +182,7 @@ convertMapStatuses is used when <<getMapSizesByExecutorId, MapOutputTracker comp
 askTracker[T](message: Any): T
 ----
 
-askTracker xref:rpc:RpcEndpointRef.adoc#askWithRetry[sends the `message`] to <<trackerEndpoint, trackerEndpoint RpcEndpointRef>> and waits for a result.
+askTracker rpc:RpcEndpointRef.md#askWithRetry[sends the `message`] to <<trackerEndpoint, trackerEndpoint RpcEndpointRef>> and waits for a result.
 
 When an exception happens, you should see the following ERROR message in the logs and askTracker throws a `SparkException`.
 
@@ -196,4 +196,4 @@ askTracker is used when MapOutputTracker <<getStatuses, fetches map outputs for 
 
 Starts from `0` when <<creating-instance, MapOutputTracker is created>>.
 
-Can be <<updateEpoch, updated>> (on `MapOutputTrackerWorkers`) or xref:scheduler:MapOutputTrackerMaster.adoc#incrementEpoch[incremented] (on the driver's `MapOutputTrackerMaster`).
+Can be <<updateEpoch, updated>> (on `MapOutputTrackerWorkers`) or scheduler:MapOutputTrackerMaster.md#incrementEpoch[incremented] (on the driver's `MapOutputTrackerMaster`).

@@ -8,7 +8,7 @@ NOTE: The barrier execution mode is experimental and it only handles limited sce
 
 In case of a task failure, instead of only restarting the failed task, Spark will abort the entire stage and re-launch all tasks for this stage.
 
-Use <<spark-rdd-transformations.adoc#barrier, RDD.barrier>> transformation to mark the current stage as a <<barrier-stage, barrier stage>>.
+Use <<spark-rdd-transformations.md#barrier, RDD.barrier>> transformation to mark the current stage as a <<barrier-stage, barrier stage>>.
 
 [[barrier]]
 [source, scala]
@@ -16,7 +16,7 @@ Use <<spark-rdd-transformations.adoc#barrier, RDD.barrier>> transformation to ma
 barrier(): RDDBarrier[T]
 ----
 
-`barrier` simply creates a <<spark-RDDBarrier.adoc#, RDDBarrier>> that comes with the barrier-aware <<spark-RDDBarrier.adoc#mapPartitions, mapPartitions>> transformation.
+`barrier` simply creates a <<spark-RDDBarrier.md#, RDDBarrier>> that comes with the barrier-aware <<spark-RDDBarrier.md#mapPartitions, mapPartitions>> transformation.
 
 [[mapPartitions]]
 [source, scala]
@@ -26,20 +26,20 @@ mapPartitions[S: ClassTag](
   preservesPartitioning: Boolean = false): RDD[S]
 ----
 
-`mapPartitions` is simply changes the regular <<spark-rdd-transformations.adoc#mapPartitions, RDD.mapPartitions>> transformation to create a xref:rdd:spark-rdd-MapPartitionsRDD.adoc[MapPartitionsRDD] with the xref:rdd:spark-rdd-MapPartitionsRDD.adoc#isFromBarrier[isFromBarrier] flag enabled.
+`mapPartitions` is simply changes the regular <<spark-rdd-transformations.md#mapPartitions, RDD.mapPartitions>> transformation to create a rdd:spark-rdd-MapPartitionsRDD.md[MapPartitionsRDD] with the rdd:spark-rdd-MapPartitionsRDD.md#isFromBarrier[isFromBarrier] flag enabled.
 
-* `Task` has a xref:scheduler:Task.adoc#isBarrier[isBarrier] flag that says whether this task belongs to a barrier stage (default: `false`).
+* `Task` has a scheduler:Task.md#isBarrier[isBarrier] flag that says whether this task belongs to a barrier stage (default: `false`).
 
 Spark must launch all the tasks at the same time for a <<barrier-stage, barrier stage>>.
 
 An RDD is in a <<barrier-stage, barrier stage>>, if at least one of its parent RDD(s), or itself, are mapped from an `RDDBarrier`.
 
-xref:rdd:ShuffledRDD.adoc[ShuffledRDD] has the xref:rdd:RDD.adoc#isBarrier[isBarrier] flag always disabled (`false`).
+rdd:ShuffledRDD.md[ShuffledRDD] has the rdd:RDD.md#isBarrier[isBarrier] flag always disabled (`false`).
 
-xref:rdd:spark-rdd-MapPartitionsRDD.adoc[MapPartitionsRDD] is the only one RDD that can have the xref:rdd:RDD.adoc#isBarrier_[isBarrier] flag enabled.
+rdd:spark-rdd-MapPartitionsRDD.md[MapPartitionsRDD] is the only one RDD that can have the rdd:RDD.md#isBarrier_[isBarrier] flag enabled.
 
-xref:rdd:spark-RDDBarrier.adoc#mapPartitions[RDDBarrier.mapPartitions] is the only transformation that creates a xref:rdd:spark-rdd-MapPartitionsRDD.adoc[MapPartitionsRDD] with the xref:rdd:spark-rdd-MapPartitionsRDD.adoc#isFromBarrier[isFromBarrier] flag enabled.
+rdd:spark-RDDBarrier.md#mapPartitions[RDDBarrier.mapPartitions] is the only transformation that creates a rdd:spark-rdd-MapPartitionsRDD.md[MapPartitionsRDD] with the rdd:spark-rdd-MapPartitionsRDD.md#isFromBarrier[isFromBarrier] flag enabled.
 
 == [[barrier-stage]] Barrier Stage
 
-*Barrier Stage* is a xref:scheduler:Stage.adoc[stage] that...FIXME
+*Barrier Stage* is a scheduler:Stage.md[stage] that...FIXME

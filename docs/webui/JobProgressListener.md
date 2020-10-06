@@ -1,8 +1,8 @@
 == [[JobProgressListener]] `JobProgressListener` Spark Listener
 
-`JobProgressListener` is a xref:ROOT:SparkListener.adoc[] for link:spark-webui.adoc[web UI].
+`JobProgressListener` is a ROOT:SparkListener.md[] for spark-webui.md[web UI].
 
-`JobProgressListener` intercepts the following xref:ROOT:SparkListener.adoc#SparkListenerEvent[Spark events].
+`JobProgressListener` intercepts the following ROOT:SparkListener.md#SparkListenerEvent[Spark events].
 
 .`JobProgressListener` Events
 [cols="1,2",options="header",width="100%"]
@@ -18,19 +18,19 @@
 
 | <<onExecutorMetricsUpdate, onExecutorMetricsUpdate>> |
 
-| `onEnvironmentUpdate` | Sets `schedulingMode` property using the current xref:ROOT:configuration-properties.adoc#spark.scheduler.mode[spark.scheduler.mode] (from `Spark Properties` environment details).
+| `onEnvironmentUpdate` | Sets `schedulingMode` property using the current ROOT:configuration-properties.md#spark.scheduler.mode[spark.scheduler.mode] (from `Spark Properties` environment details).
 
-Used in link:spark-webui-AllJobsPage.adoc[AllJobsPage] (for the Scheduling Mode), and to display pools in link:spark-webui-JobsTab.adoc[JobsTab] and link:spark-webui-StagesTab.adoc[StagesTab].
+Used in spark-webui-AllJobsPage.md[AllJobsPage] (for the Scheduling Mode), and to display pools in spark-webui-JobsTab.md[JobsTab] and spark-webui-StagesTab.md[StagesTab].
 
 *FIXME*: Add the links/screenshots for pools.
 | `onBlockManagerAdded` | Records an executor and its block manager in the internal <<executorIdToBlockManagerId, executorIdToBlockManagerId>> registry.
 | `onBlockManagerRemoved` | Removes the executor from the internal <<executorIdToBlockManagerId, executorIdToBlockManagerId>> registry.
 | `onApplicationStart` | Records a Spark application's start time (in the internal `startTime`).
 
-Used in link:spark-webui-jobs.adoc[Jobs tab] (for a total uptime and the event timeline) and link:spark-webui-jobs.adoc[Job page] (for the event timeline).
+Used in spark-webui-jobs.md[Jobs tab] (for a total uptime and the event timeline) and spark-webui-jobs.md[Job page] (for the event timeline).
 | `onApplicationEnd` | Records a Spark application's end time (in the internal `endTime`).
 
-Used in link:spark-webui-jobs.adoc[Jobs tab] (for a total uptime).
+Used in spark-webui-jobs.md[Jobs tab] (for a total uptime).
 | `onTaskGettingResult` | Does nothing.
 
 *FIXME*: Why is this event intercepted at all?!
@@ -68,9 +68,9 @@ CAUTION: FIXME
 | [[skippedStages]] `skippedStages` |
 | [[failedStages]] `failedStages` |
 
-| [[executorIdToBlockManagerId]] `executorIdToBlockManagerId` | The lookup table of xref:storage:BlockManagerId.adoc[]s per executor id.
+| [[executorIdToBlockManagerId]] `executorIdToBlockManagerId` | The lookup table of storage:BlockManagerId.md[]s per executor id.
 
-Used to track block managers so the Stage page can display `Address` in  link:spark-webui-StagePage.adoc#ExecutorTable[Aggregated Metrics by Executor].
+Used to track block managers so the Stage page can display `Address` in  spark-webui-StagePage.md#ExecutorTable[Aggregated Metrics by Executor].
 
 FIXME: How does Executors page collect the very same information?
 |===
@@ -90,11 +90,11 @@ onJobStart(jobStart: SparkListenerJobStart): Unit
 
 `onJobStart` looks the job ids for the group id (in <<jobGroupToJobIds, jobGroupToJobIds>> registry) and adds the job id.
 
-The internal <<pendingStages, pendingStages>> is updated with xref:scheduler:spark-scheduler-StageInfo.adoc[StageInfo] for the stage id (for every `StageInfo` in `SparkListenerJobStart.stageInfos` collection).
+The internal <<pendingStages, pendingStages>> is updated with scheduler:spark-scheduler-StageInfo.md[StageInfo] for the stage id (for every `StageInfo` in `SparkListenerJobStart.stageInfos` collection).
 
 `onJobStart` records the stages of the job in <<stageIdToActiveJobIds, stageIdToActiveJobIds>>.
 
-`onJobStart` records xref:scheduler:spark-scheduler-StageInfo.adoc[StageInfos] in <<stageIdToInfo, stageIdToInfo>> and <<stageIdToData, stageIdToData>>.
+`onJobStart` records scheduler:spark-scheduler-StageInfo.md[StageInfos] in <<stageIdToInfo, stageIdToInfo>> and <<stageIdToData, stageIdToData>>.
 
 === [[onJobEnd]] `onJobEnd` Method
 
@@ -131,7 +131,7 @@ onTaskStart(taskStart: SparkListenerTaskStart): Unit
 
 `onTaskStart` updates `StageUIData` and `JobUIData`, and registers a new `TaskUIData`.
 
-`onTaskStart` takes link:spark-scheduler-TaskInfo.adoc[TaskInfo] from the input `taskStart`.
+`onTaskStart` takes spark-scheduler-TaskInfo.md[TaskInfo] from the input `taskStart`.
 
 `onTaskStart` looks the `StageUIData` for the stage and stage attempt ids up (in <<stageIdToData, stageIdToData>> registry).
 
@@ -148,7 +148,7 @@ onTaskEnd(taskEnd: SparkListenerTaskEnd): Unit
 
 `onTaskEnd` updates the `StageUIData` (and `TaskUIData`), `ExecutorSummary`, and `JobUIData`.
 
-`onTaskEnd` takes link:spark-scheduler-TaskInfo.adoc[TaskInfo] from the input `taskEnd`.
+`onTaskEnd` takes spark-scheduler-TaskInfo.md[TaskInfo] from the input `taskEnd`.
 
 NOTE: `onTaskEnd` does its processing when the `TaskInfo` is available and `stageAttemptId` is not `-1`.
 

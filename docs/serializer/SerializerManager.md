@@ -6,15 +6,15 @@
 
 SerializerManager takes the following to be created:
 
-* [[defaultSerializer]] xref:serializer:Serializer.adoc[Serializer]
-* [[conf]] xref:ROOT:SparkConf.adoc[SparkConf]
+* [[defaultSerializer]] serializer:Serializer.md[Serializer]
+* [[conf]] ROOT:SparkConf.md[SparkConf]
 * [[encryptionKey]] Optional encryption key (`[Array[Byte]]`)
 
-SerializerManager is created when SparkEnv utility is used to xref:core:SparkEnv.adoc#create[create a SparkEnv for the driver and executors].
+SerializerManager is created when SparkEnv utility is used to core:SparkEnv.md#create[create a SparkEnv for the driver and executors].
 
 == [[SparkEnv]] Accessing SerializerManager Using SparkEnv
 
-SerializerManager is available using xref:core:SparkEnv.adoc#serializerManager[SparkEnv] on the driver and executors.
+SerializerManager is available using core:SparkEnv.md#serializerManager[SparkEnv] on the driver and executors.
 
 [source, scala]
 ----
@@ -46,7 +46,7 @@ wrapForCompression is used when:
 
 * SerializerManager is requested to <<wrapStream, wrapStream>>, <<dataSerializeStream, dataSerializeStream>>, <<dataDeserializeStream, dataDeserializeStream>> and <<dataSerializeWithExplicitClassTag, dataSerializeWithExplicitClassTag>>
 
-* SerializedValuesHolder (of xref:storage:MemoryStore.adoc[MemoryStore]) is requested for a SerializationStream
+* SerializedValuesHolder (of storage:MemoryStore.md[MemoryStore]) is requested for a SerializationStream
 
 == [[wrapStream]] Wrapping Input or Output Stream for Block
 
@@ -64,15 +64,15 @@ wrapStream...FIXME
 
 wrapStream is used when:
 
-* BlockStoreShuffleReader is requested to xref:shuffle:BlockStoreShuffleReader.adoc#read[read combined records for a reduce task]
+* BlockStoreShuffleReader is requested to shuffle:BlockStoreShuffleReader.md#read[read combined records for a reduce task]
 
-* DiskMapIterator (of xref:shuffle:ExternalAppendOnlyMap.adoc[ExternalAppendOnlyMap]) is requested for nextBatchStream
+* DiskMapIterator (of shuffle:ExternalAppendOnlyMap.md[ExternalAppendOnlyMap]) is requested for nextBatchStream
 
-* SpillReader (of xref:shuffle:ExternalSorter.adoc[ExternalSorter]) is requested for nextBatchStream
+* SpillReader (of shuffle:ExternalSorter.md[ExternalSorter]) is requested for nextBatchStream
 
-* xref:memory:UnsafeSorterSpillReader.adoc[UnsafeSorterSpillReader] is created
+* memory:UnsafeSorterSpillReader.md[UnsafeSorterSpillReader] is created
 
-* DiskBlockObjectWriter is requested to xref:storage:DiskBlockObjectWriter.adoc#open[open]
+* DiskBlockObjectWriter is requested to storage:DiskBlockObjectWriter.md#open[open]
 
 == [[dataSerializeStream]] dataSerializeStream Method
 
@@ -86,7 +86,7 @@ dataSerializeStream[T: ClassTag](
 
 dataSerializeStream...FIXME
 
-dataSerializeStream is used when BlockManager is requested to xref:storage:BlockManager.adoc#doPutIterator[doPutIterator] and xref:storage:BlockManager.adoc#dropFromMemory[dropFromMemory].
+dataSerializeStream is used when BlockManager is requested to storage:BlockManager.md#doPutIterator[doPutIterator] and storage:BlockManager.md#dropFromMemory[dropFromMemory].
 
 == [[dataSerializeWithExplicitClassTag]] dataSerializeWithExplicitClassTag Method
 
@@ -100,7 +100,7 @@ dataSerializeWithExplicitClassTag(
 
 dataSerializeWithExplicitClassTag...FIXME
 
-dataSerializeWithExplicitClassTag is used when BlockManager is requested to xref:storage:BlockManager.adoc#doGetLocalBytes[doGetLocalBytes].
+dataSerializeWithExplicitClassTag is used when BlockManager is requested to storage:BlockManager.md#doGetLocalBytes[doGetLocalBytes].
 
 == [[dataDeserializeStream]] dataDeserializeStream Method
 
@@ -116,9 +116,9 @@ dataDeserializeStream...FIXME
 
 dataDeserializeStream is used when:
 
-* BlockManager is requested to xref:storage:BlockManager.adoc#getLocalValues[getLocalValues], xref:storage:BlockManager.adoc#getRemoteValues[getRemoteValues] and xref:storage:BlockManager.adoc#doPutBytes[doPutBytes]
+* BlockManager is requested to storage:BlockManager.md#getLocalValues[getLocalValues], storage:BlockManager.md#getRemoteValues[getRemoteValues] and storage:BlockManager.md#doPutBytes[doPutBytes]
 
-* MemoryStore is requested to xref:storage:MemoryStore.adoc#putIteratorAsBytes[putIteratorAsBytes] (when PartiallySerializedBlock is requested for a PartiallyUnrolledIterator)
+* MemoryStore is requested to storage:MemoryStore.md#putIteratorAsBytes[putIteratorAsBytes] (when PartiallySerializedBlock is requested for a PartiallyUnrolledIterator)
 
 == [[getSerializer]] Selecting Serializer
 
@@ -136,11 +136,11 @@ getSerializer returns the <<kryoSerializer, KryoSerializer>> when the given argu
 
 getSerializer is used when:
 
-* ShuffledRDD is requested for xref:rdd:ShuffledRDD.adoc#getDependencies[dependencies].
+* ShuffledRDD is requested for rdd:ShuffledRDD.md#getDependencies[dependencies].
 
 * SerializerManager is requested to <<dataSerializeStream, dataSerializeStream>>, <<dataSerializeWithExplicitClassTag, dataSerializeWithExplicitClassTag>> and <<dataDeserializeStream, dataDeserializeStream>>
 
-* SerializedValuesHolder (of xref:storage:MemoryStore.adoc[MemoryStore]) is requested for a SerializationStream
+* SerializedValuesHolder (of storage:MemoryStore.md[MemoryStore]) is requested for a SerializationStream
 
 == [[canUseKryo]] Checking Whether Kryo Serializer Could Be Used
 

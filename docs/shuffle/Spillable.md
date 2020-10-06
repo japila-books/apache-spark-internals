@@ -1,13 +1,13 @@
 = [[Spillable]] Spillable
 
-*Spillable* is an extension of the xref:memory:MemoryConsumer.adoc[MemoryConsumer] abstraction for <<implementations, collections>> that can <<spill, spill to disk>>.
+*Spillable* is an extension of the memory:MemoryConsumer.md[MemoryConsumer] abstraction for <<implementations, collections>> that can <<spill, spill to disk>>.
 
 `Spillable[C]` is a parameterized type of `C` combiner (partial) values.
 
 == [[creating-instance]] Creating Instance
 
 [[taskMemoryManager]]
-Spillable takes a single xref:memory:TaskMemoryManager.adoc[TaskMemoryManager] to be created.
+Spillable takes a single memory:TaskMemoryManager.md[TaskMemoryManager] to be created.
 
 `Spillable` is an abstract class and cannot be created directly. It is created indirectly for the <<implementations, concrete Spillables>>.
 
@@ -19,10 +19,10 @@ Spillable takes a single xref:memory:TaskMemoryManager.adoc[TaskMemoryManager] t
 | Spillable
 | Description
 
-| xref:shuffle:ExternalAppendOnlyMap.adoc[ExternalAppendOnlyMap]
+| shuffle:ExternalAppendOnlyMap.md[ExternalAppendOnlyMap]
 | [[ExternalAppendOnlyMap]]
 
-| xref:shuffle:ExternalSorter.adoc[ExternalSorter]
+| shuffle:ExternalSorter.md[ExternalSorter]
 | [[ExternalSorter]]
 
 |===
@@ -31,11 +31,11 @@ Spillable takes a single xref:memory:TaskMemoryManager.adoc[TaskMemoryManager] t
 
 === [[numElementsForceSpillThreshold]] spark.shuffle.spill.numElementsForceSpillThreshold
 
-Spillable uses xref:ROOT:configuration-properties.adoc#spark.shuffle.spill.numElementsForceSpillThreshold[spark.shuffle.spill.numElementsForceSpillThreshold] configuration property to force spilling in-memory objects to disk when requested to <<maybeSpill, maybeSpill>>.
+Spillable uses ROOT:configuration-properties.md#spark.shuffle.spill.numElementsForceSpillThreshold[spark.shuffle.spill.numElementsForceSpillThreshold] configuration property to force spilling in-memory objects to disk when requested to <<maybeSpill, maybeSpill>>.
 
 === [[initialMemoryThreshold]] spark.shuffle.spill.initialMemoryThreshold
 
-Spillable uses xref:ROOT:configuration-properties.adoc#spark.shuffle.spill.initialMemoryThreshold[spark.shuffle.spill.initialMemoryThreshold] configuration property as the initial threshold for the size of a collection (and the minimum memory required to operate properly).
+Spillable uses ROOT:configuration-properties.md#spark.shuffle.spill.initialMemoryThreshold[spark.shuffle.spill.initialMemoryThreshold] configuration property as the initial threshold for the size of a collection (and the minimum memory required to operate properly).
 
 Spillable uses it when requested to <<spill, spill>> and <<releaseMemory, releaseMemory>>
 
@@ -60,9 +60,9 @@ releaseMemory...FIXME
 
 releaseMemory is used when:
 
-* ExternalAppendOnlyMap is requested to xref:shuffle:ExternalAppendOnlyMap.adoc#freeCurrentMap[freeCurrentMap]
+* ExternalAppendOnlyMap is requested to shuffle:ExternalAppendOnlyMap.md#freeCurrentMap[freeCurrentMap]
 
-* ExternalSorter is requested to xref:shuffle:ExternalSorter.adoc#stop[stop]
+* ExternalSorter is requested to shuffle:ExternalSorter.md#stop[stop]
 
 * Spillable is requested to <<maybeSpill, maybeSpill>> and <<spill, spill>> (and spilled to disk in either case)
 
@@ -78,7 +78,7 @@ spill spills the given in-memory collection to disk to release memory
 
 spill is used when:
 
-* ExternalAppendOnlyMap is requested to xref:shuffle:ExternalAppendOnlyMap.adoc#forceSpill[forceSpill]
+* ExternalAppendOnlyMap is requested to shuffle:ExternalAppendOnlyMap.md#forceSpill[forceSpill]
 
 * Spillable is requested to <<maybeSpill, maybeSpill>>
 
@@ -106,6 +106,6 @@ maybeSpill...FIXME
 
 maybeSpill is used when:
 
-* ExternalAppendOnlyMap is requested to xref:shuffle:ExternalAppendOnlyMap.adoc#insertAll[insertAll]
+* ExternalAppendOnlyMap is requested to shuffle:ExternalAppendOnlyMap.md#insertAll[insertAll]
 
-* ExternalSorter is requested to xref:shuffle:ExternalSorter.adoc#maybeSpillCollection[attempt to spill an in-memory collection to disk if needed]
+* ExternalSorter is requested to shuffle:ExternalSorter.md#maybeSpillCollection[attempt to spill an in-memory collection to disk if needed]

@@ -1,11 +1,11 @@
 = ExternalShuffleService
 :navtitle: External Shuffle Service
 
-*ExternalShuffleService* is a Spark service that can serve shuffle blocks from outside an xref:executor:Executor.adoc[Executor] process. It runs as a standalone application and manages shuffle output files so they are available for executors at all time. As the shuffle output files are managed externally to the executors it offers an uninterrupted access to the shuffle output files regardless of executors being killed or down.
+*ExternalShuffleService* is a Spark service that can serve shuffle blocks from outside an executor:Executor.md[Executor] process. It runs as a standalone application and manages shuffle output files so they are available for executors at all time. As the shuffle output files are managed externally to the executors it offers an uninterrupted access to the shuffle output files regardless of executors being killed or down.
 
-You start ExternalShuffleService using <<start-script, `start-shuffle-service.sh` shell script>> and enable its use by the driver and executors using xref:ROOT:configuration-properties.adoc#spark.shuffle.service.enabled[spark.shuffle.service.enabled].
+You start ExternalShuffleService using <<start-script, `start-shuffle-service.sh` shell script>> and enable its use by the driver and executors using ROOT:configuration-properties.md#spark.shuffle.service.enabled[spark.shuffle.service.enabled].
 
-There is a custom external shuffle service for Spark on YARN -- xref:spark-on-yarn:spark-yarn-YarnShuffleService.adoc[YarnShuffleService].
+There is a custom external shuffle service for Spark on YARN -- spark-on-yarn:spark-yarn-YarnShuffleService.md[YarnShuffleService].
 
 == [[start-script]] start-shuffle-service.sh Shell Script
 
@@ -30,7 +30,7 @@ Using Spark's default log4j profile: org/apache/spark/log4j-defaults.properties
 16/06/07 08:02:03 INFO ExternalShuffleService: Starting shuffle service on port 7337 with useSasl = false
 ----
 
-You can also use xref:tools:spark-class.adoc[spark-class] to launch ExternalShuffleService.
+You can also use tools:spark-class.md[spark-class] to launch ExternalShuffleService.
 
 [source,plaintext]
 ----
@@ -45,7 +45,7 @@ CAUTION: FIXME `Utils.initDaemon(log)`? See spark-submit.
 
 It loads default Spark properties and creates a `SecurityManager`.
 
-It sets xref:ROOT:configuration-properties.adoc#spark.shuffle.service.enabled[spark.shuffle.service.enabled] to `true` (as <<create-instance, later it is checked whether it is enabled or not>>).
+It sets ROOT:configuration-properties.md#spark.shuffle.service.enabled[spark.shuffle.service.enabled] to `true` (as <<create-instance, later it is checked whether it is enabled or not>>).
 
 A ExternalShuffleService is <<create-instance, created>> and <<start, started>>.
 
@@ -74,15 +74,15 @@ Successfully cleaned up directory: [localDir]
 
 == [[creating-instance]] Creating Instance
 
-ExternalShuffleService requires a xref:ROOT:SparkConf.adoc[SparkConf] and link:spark-security.adoc[SecurityManager].
+ExternalShuffleService requires a ROOT:SparkConf.md[SparkConf] and spark-security.md[SecurityManager].
 
-When created, it reads xref:ROOT:configuration-properties.adoc#spark.shuffle.service.enabled[spark.shuffle.service.enabled] configuration property (disabled by default) and <<spark.shuffle.service.port, spark.shuffle.service.port>> (defaults to `7337`) configuration settings. It also checks whether authentication is enabled.
+When created, it reads ROOT:configuration-properties.md#spark.shuffle.service.enabled[spark.shuffle.service.enabled] configuration property (disabled by default) and <<spark.shuffle.service.port, spark.shuffle.service.port>> (defaults to `7337`) configuration settings. It also checks whether authentication is enabled.
 
 CAUTION: FIXME Review `securityManager.isAuthenticationEnabled()`
 
-ExternalShuffleService creates a xref:network:TransportConf.adoc[] (as `transportConf`).
+ExternalShuffleService creates a network:TransportConf.md[] (as `transportConf`).
 
-It creates a xref:deploy:ExternalShuffleBlockHandler.adoc[] (as `blockHandler`) and `TransportContext` (as `transportContext`).
+It creates a deploy:ExternalShuffleBlockHandler.md[] (as `blockHandler`) and `TransportContext` (as `transportContext`).
 
 CAUTION: FIXME TransportContext?
 
@@ -132,4 +132,4 @@ Add the following line to `conf/log4j.properties`:
 log4j.logger.org.apache.spark.deploy.ExternalShuffleService=ALL
 ----
 
-Refer to xref:ROOT:spark-logging.adoc[Logging].
+Refer to ROOT:spark-logging.md[Logging].

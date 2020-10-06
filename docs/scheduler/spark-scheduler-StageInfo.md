@@ -14,4 +14,4 @@ fromStage(
 
 fromStage...FIXME
 
-fromStage is used when Stage is created (and initializes the xref:scheduler:Stage.adoc#_latestInfo[StageInfo]) and xref:scheduler:Stage.adoc#makeNewStageAttempt[makeNewStageAttempt].
+fromStage is used when Stage is created (and initializes the scheduler:Stage.md#_latestInfo[StageInfo]) and scheduler:Stage.md#makeNewStageAttempt[makeNewStageAttempt].

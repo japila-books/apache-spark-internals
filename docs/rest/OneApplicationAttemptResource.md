@@ -1,8 +1,8 @@
 == [[OneApplicationAttemptResource]] OneApplicationAttemptResource
 
-`OneApplicationAttemptResource` is a link:spark-api-AbstractApplicationResource.adoc[AbstractApplicationResource] (and so a link:spark-api-ApiRequestContext.adoc[ApiRequestContext] indirectly).
+`OneApplicationAttemptResource` is a spark-api-AbstractApplicationResource.md[AbstractApplicationResource] (and so a spark-api-ApiRequestContext.md[ApiRequestContext] indirectly).
 
-`OneApplicationAttemptResource` is used when `AbstractApplicationResource` is requested to link:spark-api-AbstractApplicationResource.adoc#applicationAttempt[applicationAttempt].
+`OneApplicationAttemptResource` is used when `AbstractApplicationResource` is requested to spark-api-AbstractApplicationResource.md#applicationAttempt[applicationAttempt].
 
 [[paths]]
 .OneApplicationAttemptResource's Paths
@@ -30,9 +30,9 @@
 getAttempt(): ApplicationAttemptInfo
 ----
 
-`getAttempt` requests the link:spark-api-ApiRequestContext.adoc#uiRoot[UIRoot] for the link:spark-api-UIRoot.adoc#getApplicationInfo[application info] (given the link:spark-api-BaseAppResource.adoc#appId[appId]) and finds the link:spark-api-BaseAppResource.adoc#attemptId[attemptId] among the available attempts.
+`getAttempt` requests the spark-api-ApiRequestContext.md#uiRoot[UIRoot] for the spark-api-UIRoot.md#getApplicationInfo[application info] (given the spark-api-BaseAppResource.md#appId[appId]) and finds the spark-api-BaseAppResource.md#attemptId[attemptId] among the available attempts.
 
-NOTE: link:spark-api-BaseAppResource.adoc#appId[appId] and link:spark-api-BaseAppResource.adoc#attemptId[attemptId] are path parameters.
+NOTE: spark-api-BaseAppResource.md#appId[appId] and spark-api-BaseAppResource.md#attemptId[attemptId] are path parameters.
 
 In the end, `getAttempt` returns the `ApplicationAttemptInfo` if available or reports a `NotFoundException`:
 

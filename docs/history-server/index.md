@@ -1,24 +1,24 @@
 = Spark History Server
 
-*Spark History Server* is the web UI of Spark applications with event log collection enabled (based on xref:ROOT:configuration-properties.adoc#spark.eventLog.enabled[spark.eventLog.enabled] configuration property).
+*Spark History Server* is the web UI of Spark applications with event log collection enabled (based on ROOT:configuration-properties.md#spark.eventLog.enabled[spark.eventLog.enabled] configuration property).
 
 .History Server's web UI
 image::spark-history-server-webui.png[align="center"]
 
-Spark History Server is an extension of Spark's xref:webui:index.adoc[web UI].
+Spark History Server is an extension of Spark's webui:index.md[web UI].
 
 Spark History Server can be started using <<start_history_server_sh, start-history-server.sh>> and stopped using <<stop_history_server_sh, stop-history-server.sh>> shell scripts.
 
-Spark History Server supports custom xref:spark-history-server:configuration-properties.adoc#HistoryServer[configuration properties] that can be defined using `--properties-file [propertiesFile]` command-line option. The properties file can have any valid ``spark.``-prefixed Spark property.
+Spark History Server supports custom spark-history-server:configuration-properties.md#HistoryServer[configuration properties] that can be defined using `--properties-file [propertiesFile]` command-line option. The properties file can have any valid ``spark.``-prefixed Spark property.
 
 [source,plaintext]
 ----
 $ ./sbin/start-history-server.sh --properties-file history.properties
 ----
 
-If not specified explicitly, Spark History Server uses the default configuration file, i.e. xref:ROOT:spark-properties.adoc#spark-defaults-conf[spark-defaults.conf].
+If not specified explicitly, Spark History Server uses the default configuration file, i.e. ROOT:spark-properties.md#spark-defaults-conf[spark-defaults.conf].
 
-Spark History Server can replay events from event log files recorded by xref:EventLoggingListener.adoc[EventLoggingListener].
+Spark History Server can replay events from event log files recorded by EventLoggingListener.md[EventLoggingListener].
 
 [[logging]]
 [TIP]
@@ -31,7 +31,7 @@ Add the following line to `conf/log4j.properties`:
 log4j.logger.org.apache.spark.deploy.history=INFO
 ```
 
-Refer to xref:ROOT:spark-logging.adoc[Logging].
+Refer to ROOT:spark-logging.md[Logging].
 ====
 
 == [[start_history_server_sh]] Starting History Server -- `start-history-server.sh` Shell Script
@@ -44,7 +44,7 @@ $ ./sbin/start-history-server.sh
 starting org.apache.spark.deploy.history.HistoryServer, logging to .../spark/logs/spark-jacek-org.apache.spark.deploy.history.HistoryServer-1-japila.out
 ----
 
-Internally, `start-history-server.sh` script starts xref:HistoryServer.adoc[org.apache.spark.deploy.history.HistoryServer] standalone application (using `spark-daemon.sh` shell script).
+Internally, `start-history-server.sh` script starts HistoryServer.md[org.apache.spark.deploy.history.HistoryServer] standalone application (using `spark-daemon.sh` shell script).
 
 [source,plaintext]
 ----
@@ -65,15 +65,15 @@ Started daemon with process name: [processName]
 RECEIVED SIGNAL [signal]
 ```
 
-`start-history-server.sh` inits security if enabled (based on xref:ROOT:configuration-properties.adoc#spark.history.kerberos.enabled[spark.history.kerberos.enabled] configuration property).
+`start-history-server.sh` inits security if enabled (based on ROOT:configuration-properties.md#spark.history.kerberos.enabled[spark.history.kerberos.enabled] configuration property).
 
 CAUTION: FIXME Describe `initSecurity`
 
 `start-history-server.sh` creates a `SecurityManager`.
 
-`start-history-server.sh` creates a xref:ApplicationHistoryProvider.adoc[ApplicationHistoryProvider] (based on xref:ROOT:configuration-properties.adoc#spark.history.provider[spark.history.provider] configuration property).
+`start-history-server.sh` creates a ApplicationHistoryProvider.md[ApplicationHistoryProvider] (based on ROOT:configuration-properties.md#spark.history.provider[spark.history.provider] configuration property).
 
-In the end, `start-history-server.sh` creates a xref:HistoryServer.adoc[HistoryServer] and requests it to bind to the port (based on xref:ROOT:configuration-properties.adoc#spark.history.ui.port[spark.history.ui.port] configuration property).
+In the end, `start-history-server.sh` creates a HistoryServer.md[HistoryServer] and requests it to bind to the port (based on ROOT:configuration-properties.md#spark.history.ui.port[spark.history.ui.port] configuration property).
 
 [TIP]
 ====

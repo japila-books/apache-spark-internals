@@ -1,6 +1,6 @@
 == [[ApplicationListResource]] ApplicationListResource -- applications URI Handler
 
-`ApplicationListResource` is a link:spark-api-ApiRequestContext.adoc[ApiRequestContext] that link:spark-api-ApiRootResource.adoc#applications[ApiRootResource] uses to handle <<root, applications>> URI path.
+`ApplicationListResource` is a spark-api-ApiRequestContext.md[ApiRequestContext] that spark-api-ApiRootResource.md#applications[ApiRootResource] uses to handle <<root, applications>> URI path.
 
 [[paths]]
 .ApplicationListResource's Paths

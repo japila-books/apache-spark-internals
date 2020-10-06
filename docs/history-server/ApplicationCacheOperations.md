@@ -29,9 +29,9 @@ NOTE: `ApplicationCacheOperations` is a `private[history]` contract.
 | Description
 
 | `getAppUI`
-| [[getAppUI]] link:spark-webui-SparkUI.adoc[SparkUI] (the UI of a Spark application)
+| [[getAppUI]] spark-webui-SparkUI.md[SparkUI] (the UI of a Spark application)
 
-Used exclusively when `ApplicationCache` is requested for xref:ApplicationCache.adoc#loadApplicationEntry[loadApplicationEntry]
+Used exclusively when `ApplicationCache` is requested for ApplicationCache.md#loadApplicationEntry[loadApplicationEntry]
 
 | `attachSparkUI`
 | [[attachSparkUI]]
@@ -41,4 +41,4 @@ Used exclusively when `ApplicationCache` is requested for xref:ApplicationCache.
 |===
 
 [[implementations]]
-NOTE: xref:HistoryServer.adoc[HistoryServer] is the one and only known implementation of <<contract, ApplicationCacheOperations contract>> in Apache Spark.
+NOTE: HistoryServer.md[HistoryServer] is the one and only known implementation of <<contract, ApplicationCacheOperations contract>> in Apache Spark.

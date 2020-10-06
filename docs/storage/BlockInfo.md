@@ -1,28 +1,28 @@
 = BlockInfo
 
-*BlockInfo* is a metadata of xref:storage:BlockId.adoc[memory block] -- the memory block's <<size, size>>, the <<readerCount, number of readers>> and the <<writerTask, id of the writer task>>.
+*BlockInfo* is a metadata of storage:BlockId.md[memory block] -- the memory block's <<size, size>>, the <<readerCount, number of readers>> and the <<writerTask, id of the writer task>>.
 
-BlockInfo has a xref:storage:StorageLevel.adoc[], `ClassTag` and `tellMaster` flag.
+BlockInfo has a storage:StorageLevel.md[], `ClassTag` and `tellMaster` flag.
 
 == [[size]] Size
 
 `size` attribute is the size of the memory block. It starts with `0`.
 
-It represents the number of bytes that xref:storage:BlockManager.adoc#putBytes[`BlockManager` saved] or xref:storage:BlockManager.adoc#doPutIterator[BlockManager.doPutIterator].
+It represents the number of bytes that storage:BlockManager.md#putBytes[`BlockManager` saved] or storage:BlockManager.md#doPutIterator[BlockManager.doPutIterator].
 
 == [[readerCount]] Reader Count -- `readerCount` Counter
 
 `readerCount` counter is the number of readers of the memory block, i.e. the number of read locks. It starts with `0`.
 
-`readerCount` is incremented when a xref:storage:BlockInfoManager.adoc#lockForReading[read lock is acquired] and decreases when the following happens:
+`readerCount` is incremented when a storage:BlockInfoManager.md#lockForReading[read lock is acquired] and decreases when the following happens:
 
-* The xref:storage:BlockManager.adoc#unlock[memory block is unlocked]
+* The storage:BlockManager.md#unlock[memory block is unlocked]
 
-* xref:storage:BlockInfoManager.adoc#releaseAllLocksForTask[All locks for the memory block obtained by a task are released].
+* storage:BlockInfoManager.md#releaseAllLocksForTask[All locks for the memory block obtained by a task are released].
 
-* xref:storage:BlockInfoManager.adoc#removeBlock[memory block is removed]
+* storage:BlockInfoManager.md#removeBlock[memory block is removed]
 
-* xref:storage:BlockInfoManager.adoc#clear[Clearing the current state of `BlockInfoManager`].
+* storage:BlockInfoManager.md#clear[Clearing the current state of `BlockInfoManager`].
 
 == [[writerTask]] Writer Task -- `writerTask` Attribute
 
@@ -38,12 +38,12 @@ A writer task can be one of the three possible identifiers:
 
 The writer task is assigned in the following scenarios:
 
-* A xref:storage:BlockInfoManager.adoc#lockForWriting[write lock is requested for a memory block (with no writer and readers)]
+* A storage:BlockInfoManager.md#lockForWriting[write lock is requested for a memory block (with no writer and readers)]
 
-* A xref:storage:BlockInfoManager.adoc#unlock[memory block is unlocked]
+* A storage:BlockInfoManager.md#unlock[memory block is unlocked]
 
-* xref:storage:BlockInfoManager.adoc#releaseAllLocksForTask[All locks obtained by a task are released]
+* storage:BlockInfoManager.md#releaseAllLocksForTask[All locks obtained by a task are released]
 
-* A xref:storage:BlockInfoManager.adoc#removeBlock[memory block is removed]
+* A storage:BlockInfoManager.md#removeBlock[memory block is removed]
 
-* xref:storage:BlockInfoManager.adoc#clear[Clearing the current state of `BlockInfoManager`].
+* storage:BlockInfoManager.md#clear[Clearing the current state of `BlockInfoManager`].

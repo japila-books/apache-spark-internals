@@ -29,9 +29,9 @@ NOTE: `ApplicationHistoryProvider` is a `private[history]` contract.
 | [[getListing]]
 
 | `getAppUI`
-| [[getAppUI]] link:spark-webui-SparkUI.adoc[SparkUI] (the UI of a Spark application)
+| [[getAppUI]] spark-webui-SparkUI.md[SparkUI] (the UI of a Spark application)
 
-Used exclusively when `HistoryServer` is requested for the xref:HistoryServer.adoc#getAppUI[UI of a Spark application]
+Used exclusively when `HistoryServer` is requested for the HistoryServer.md#getAppUI[UI of a Spark application]
 
 | `writeEventLogs`
 | [[writeEventLogs]] Writes events to a stream
@@ -43,4 +43,4 @@ Used exclusively when `HistoryServer` is requested for the xref:HistoryServer.ad
 `ApplicationHistoryProvider` is a Scala abstract class and cannot be created directly, but only as one of the <<implementations, implementations>>.
 
 [[implementations]]
-NOTE: xref:FsHistoryProvider.adoc[FsHistoryProvider] is the one and only known implementation of <<contract, ApplicationHistoryProvider contract>> in Apache Spark.
+NOTE: FsHistoryProvider.md[FsHistoryProvider] is the one and only known implementation of <<contract, ApplicationHistoryProvider contract>> in Apache Spark.

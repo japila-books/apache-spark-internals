@@ -1,16 +1,16 @@
 = BlockManagerSlaveEndpoint
 
-*BlockManagerSlaveEndpoint* is a xref:rpc:RpcEndpoint.adoc#ThreadSafeRpcEndpoint[ThreadSafeRpcEndpoint] for xref:storage:BlockManager.adoc#slaveEndpoint[BlockManager].
+*BlockManagerSlaveEndpoint* is a rpc:RpcEndpoint.md#ThreadSafeRpcEndpoint[ThreadSafeRpcEndpoint] for storage:BlockManager.md#slaveEndpoint[BlockManager].
 
 == [[creating-instance]] Creating Instance
 
 BlockManagerSlaveEndpoint takes the following to be created:
 
-* [[rpcEnv]] xref:rpc:RpcEnv.adoc[]
-* [[blockManager]] Parent xref:storage:BlockManager.adoc[]
-* [[mapOutputTracker]] xref:scheduler:MapOutputTracker.adoc[]
+* [[rpcEnv]] rpc:RpcEnv.md[]
+* [[blockManager]] Parent storage:BlockManager.md[]
+* [[mapOutputTracker]] scheduler:MapOutputTracker.md[]
 
-BlockManagerSlaveEndpoint is created for xref:storage:BlockManager.adoc#slaveEndpoint[BlockManager] (and registered under the name *BlockManagerEndpoint[ID]*).
+BlockManagerSlaveEndpoint is created for storage:BlockManager.md#slaveEndpoint[BlockManager] (and registered under the name *BlockManagerEndpoint[ID]*).
 
 == [[messages]] Messages
 
@@ -23,7 +23,7 @@ GetBlockStatus(
   askSlaves: Boolean = true)
 ----
 
-When received, BlockManagerSlaveEndpoint requests the <<blockManager, BlockManager>> for the xref:storage:BlockManager.adoc#getStatus[status of a given block] (by xref:storage:BlockId.adoc[]) and sends it back to a sender.
+When received, BlockManagerSlaveEndpoint requests the <<blockManager, BlockManager>> for the storage:BlockManager.md#getStatus[status of a given block] (by storage:BlockId.md[]) and sends it back to a sender.
 
 Posted when...FIXME
 
@@ -36,7 +36,7 @@ GetMatchingBlockIds(
   askSlaves: Boolean = true)
 ----
 
-When received, BlockManagerSlaveEndpoint requests the <<blockManager, BlockManager>> to xref:storage:BlockManager.adoc#getMatchingBlockIds[find IDs of existing blocks for a given filter] and sends them back to a sender.
+When received, BlockManagerSlaveEndpoint requests the <<blockManager, BlockManager>> to storage:BlockManager.md#getMatchingBlockIds[find IDs of existing blocks for a given filter] and sends them back to a sender.
 
 Posted when...FIXME
 
@@ -161,9 +161,9 @@ When received, BlockManagerSlaveEndpoint prints out the following DEBUG message 
 removing shuffle [shuffleId]
 ```
 
-If xref:scheduler:MapOutputTracker.adoc[MapOutputTracker] was given (when the RPC endpoint was created), it calls xref:scheduler:MapOutputTracker.adoc#unregisterShuffle[MapOutputTracker to unregister the `shuffleId` shuffle].
+If scheduler:MapOutputTracker.md[MapOutputTracker] was given (when the RPC endpoint was created), it calls scheduler:MapOutputTracker.md#unregisterShuffle[MapOutputTracker to unregister the `shuffleId` shuffle].
 
-It then calls xref:shuffle:ShuffleManager.adoc#unregisterShuffle[ShuffleManager to unregister the `shuffleId` shuffle].
+It then calls shuffle:ShuffleManager.md#unregisterShuffle[ShuffleManager to unregister the `shuffleId` shuffle].
 
 NOTE: Handling `RemoveShuffle` messages happens on a separate thread. See <<asyncThreadPool, BlockManagerSlaveEndpoint Thread Pool>>.
 
@@ -185,7 +185,7 @@ In case of failure, you should see the following ERROR in the logs and the stack
 Error in removing shuffle [shuffleId]
 ```
 
-Posted when xref:BlockManagerMaster.adoc#removeShuffle[BlockManagerMaster] and xref:storage:BlockManagerMasterEndpoint.adoc#removeShuffle[BlockManagerMasterEndpoint] are requested to remove all blocks of a shuffle.
+Posted when BlockManagerMaster.md#removeShuffle[BlockManagerMaster] and storage:BlockManagerMasterEndpoint.md#removeShuffle[BlockManagerMasterEndpoint] are requested to remove all blocks of a shuffle.
 
 === [[ReplicateBlock]] ReplicateBlock
 
@@ -259,4 +259,4 @@ Add the following line to `conf/log4j.properties`:
 log4j.logger.org.apache.spark.storage.BlockManagerSlaveEndpoint=ALL
 ----
 
-Refer to xref:ROOT:spark-logging.adoc[Logging].
+Refer to ROOT:spark-logging.md[Logging].

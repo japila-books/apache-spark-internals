@@ -2,7 +2,7 @@
 
 `FileCommitProtocol` is an <<contract, abstraction>> of <<implementations, committers>> that can setup, commit or abort a Spark job or task (while writing out a key-value RDD and the partitions).
 
-`FileCommitProtocol` is used for xref:rdd:PairRDDFunctions.adoc#saveAsNewAPIHadoopDataset[saveAsNewAPIHadoopDataset] and xref:rdd:PairRDDFunctions.adoc#saveAsHadoopDataset[saveAsHadoopDataset] transformations (that use `SparkHadoopWriter` utility to <<spark-internal-io-SparkHadoopWriter.adoc#write, write a key-value RDD out>>).
+`FileCommitProtocol` is used for rdd:PairRDDFunctions.md#saveAsNewAPIHadoopDataset[saveAsNewAPIHadoopDataset] and rdd:PairRDDFunctions.md#saveAsHadoopDataset[saveAsHadoopDataset] transformations (that use `SparkHadoopWriter` utility to <<spark-internal-io-SparkHadoopWriter.md#write, write a key-value RDD out>>).
 
 A concrete <<implementations, FileCommitProtocol>> is created using <<instantiate, FileCommitProtocol.instantiate>> utility.
 
@@ -26,7 +26,7 @@ Aborts a job
 
 Used when:
 
-* `SparkHadoopWriter` utility is used to <<spark-internal-io-SparkHadoopWriter.adoc#write, write a key-value RDD>>
+* `SparkHadoopWriter` utility is used to <<spark-internal-io-SparkHadoopWriter.md#write, write a key-value RDD>>
 
 * (Spark SQL) `FileFormatWriter` utility is used to write a result of a structured query
 
@@ -43,7 +43,7 @@ Intercepts that a Spark task is (about to be) aborted
 
 Used when:
 
-* `SparkHadoopWriter` utility is used to <<spark-internal-io-SparkHadoopWriter.adoc#executeTask, write an RDD partition>>
+* `SparkHadoopWriter` utility is used to <<spark-internal-io-SparkHadoopWriter.md#executeTask, write an RDD partition>>
 
 * (Spark SQL) `FileFormatDataWriter` is requested to abort (when `FileFormatWriter` utility is used to write a result of a structured query)
 
@@ -59,7 +59,7 @@ commitJob(
 
 Used when:
 
-* `SparkHadoopWriter` utility is used to <<spark-internal-io-SparkHadoopWriter.adoc#write, write a key-value RDD>>
+* `SparkHadoopWriter` utility is used to <<spark-internal-io-SparkHadoopWriter.md#write, write a key-value RDD>>
 
 * (Spark SQL) `FileFormatWriter` utility is used to write a result of a structured query
 
@@ -74,7 +74,7 @@ commitTask(
 
 Used when:
 
-* `SparkHadoopWriter` utility is used to <<spark-internal-io-SparkHadoopWriter.adoc#executeTask, write an RDD partition>>
+* `SparkHadoopWriter` utility is used to <<spark-internal-io-SparkHadoopWriter.md#executeTask, write an RDD partition>>
 
 * (Spark SQL) `FileFormatDataWriter` is requested to commit (when `FileFormatWriter` utility is used to write a result of a structured query)
 
@@ -132,7 +132,7 @@ setupJob(
 
 Used when:
 
-* `SparkHadoopWriter` utility is used to <<spark-internal-io-SparkHadoopWriter.adoc#executeTask, write an RDD partition>> (while <<spark-internal-io-SparkHadoopWriter.adoc#write, writing out a key-value RDD>>)
+* `SparkHadoopWriter` utility is used to <<spark-internal-io-SparkHadoopWriter.md#executeTask, write an RDD partition>> (while <<spark-internal-io-SparkHadoopWriter.md#write, writing out a key-value RDD>>)
 
 * (Spark SQL) `FileFormatWriter` utility is used to write a result of a structured query
 
@@ -149,7 +149,7 @@ Sets up the task with the Hadoop https://hadoop.apache.org/docs/r2.7.3/api/org/a
 
 Used when:
 
-* `SparkHadoopWriter` is requested to <<spark-internal-io-SparkHadoopWriter.adoc#executeTask, write an RDD partition>> (while <<spark-internal-io-SparkHadoopWriter.adoc#write, writing out a key-value RDD>>)
+* `SparkHadoopWriter` is requested to <<spark-internal-io-SparkHadoopWriter.md#executeTask, write an RDD partition>> (while <<spark-internal-io-SparkHadoopWriter.md#write, writing out a key-value RDD>>)
 
 * (Spark SQL) `FileFormatWriter` utility is used to write out a RDD partition (while writing out a result of a structured query)
 
@@ -162,10 +162,10 @@ Used when:
 | FileCommitProtocol
 | Description
 
-| <<spark-internal-io-HadoopMapReduceCommitProtocol.adoc#, HadoopMapReduceCommitProtocol>>
+| <<spark-internal-io-HadoopMapReduceCommitProtocol.md#, HadoopMapReduceCommitProtocol>>
 | [[HadoopMapReduceCommitProtocol]]
 
-| <<spark-internal-io-HadoopMapRedCommitProtocol.adoc#, HadoopMapRedCommitProtocol>>
+| <<spark-internal-io-HadoopMapRedCommitProtocol.md#, HadoopMapRedCommitProtocol>>
 | [[HadoopMapRedCommitProtocol]]
 
 | `SQLHadoopMapReduceCommitProtocol`
@@ -218,7 +218,7 @@ requirement failed: Dynamic Partition Overwrite is enabled but the committer [cl
 ====
 `instantiate` is used when:
 
-* <<spark-internal-io-HadoopMapRedWriteConfigUtil.adoc#createCommitter, HadoopMapRedWriteConfigUtil>> and <<spark-internal-io-HadoopMapReduceWriteConfigUtil.adoc#createCommitter, HadoopMapReduceWriteConfigUtil>> are requested to create a <<spark-internal-io-HadoopMapReduceCommitProtocol.adoc#, HadoopMapReduceCommitProtocol>> committer
+* <<spark-internal-io-HadoopMapRedWriteConfigUtil.md#createCommitter, HadoopMapRedWriteConfigUtil>> and <<spark-internal-io-HadoopMapReduceWriteConfigUtil.md#createCommitter, HadoopMapReduceWriteConfigUtil>> are requested to create a <<spark-internal-io-HadoopMapReduceCommitProtocol.md#, HadoopMapReduceCommitProtocol>> committer
 
 * (Spark SQL) `InsertIntoHadoopFsRelationCommand`, `InsertIntoHiveDirCommand`, and `InsertIntoHiveTable` logical commands are executed
 

@@ -1,8 +1,8 @@
 = StorageMemoryPool
 
-*StorageMemoryPool* is a xref:memory:MemoryPool.adoc[].
+*StorageMemoryPool* is a memory:MemoryPool.md[].
 
-StorageMemoryPool is <<creating-instance, created>> along with link:MemoryManager.adoc#creating-instance[MemoryManager] (as link:MemoryManager.adoc#onHeapStorageMemoryPool[onHeapStorageMemoryPool] and link:MemoryManager.adoc#offHeapStorageMemoryPool[offHeapStorageMemoryPool] pools).
+StorageMemoryPool is <<creating-instance, created>> along with MemoryManager.md#creating-instance[MemoryManager] (as MemoryManager.md#onHeapStorageMemoryPool[onHeapStorageMemoryPool] and MemoryManager.md#offHeapStorageMemoryPool[offHeapStorageMemoryPool] pools).
 
 [[internal-registries]]
 .StorageMemoryPool's Internal Properties (e.g. Registries, Counters and Flags)
@@ -22,7 +22,7 @@ Used when...FIXME
 Used when...FIXME
 
 | `_memoryStore`
-| [[_memoryStore]][[memoryStore]] xref:storage:MemoryStore.adoc[MemoryStore]
+| [[_memoryStore]][[memoryStore]] storage:MemoryStore.md[MemoryStore]
 
 Used when...FIXME
 |===
@@ -56,9 +56,9 @@ acquireMemory(
 ====
 `acquireMemory` is used when:
 
-* `StaticMemoryManager` is requested to link:StaticMemoryManager.adoc#acquireUnrollMemory[acquireUnrollMemory] and link:StaticMemoryManager.adoc#acquireStorageMemory[acquireStorageMemory]
+* `StaticMemoryManager` is requested to StaticMemoryManager.md#acquireUnrollMemory[acquireUnrollMemory] and StaticMemoryManager.md#acquireStorageMemory[acquireStorageMemory]
 
-* `UnifiedMemoryManager` is requested to link:UnifiedMemoryManager.adoc#acquireStorageMemory[acquireStorageMemory]
+* `UnifiedMemoryManager` is requested to UnifiedMemoryManager.md#acquireStorageMemory[acquireStorageMemory]
 ====
 
 == [[freeSpaceToShrinkPool]] `freeSpaceToShrinkPool` Method
@@ -70,7 +70,7 @@ freeSpaceToShrinkPool(spaceToFree: Long): Long
 
 `freeSpaceToShrinkPool`...FIXME
 
-NOTE: `freeSpaceToShrinkPool` is used exclusively when `UnifiedMemoryManager` is requested to link:UnifiedMemoryManager.adoc#acquireExecutionMemory[acquireExecutionMemory].
+NOTE: `freeSpaceToShrinkPool` is used exclusively when `UnifiedMemoryManager` is requested to UnifiedMemoryManager.md#acquireExecutionMemory[acquireExecutionMemory].
 
 == [[creating-instance]] Creating StorageMemoryPool Instance
 

@@ -1,6 +1,6 @@
 = TransportRequestHandler
 
-*TransportRequestHandler* is a xref:network:MessageHandler.adoc[] of <<handle, RequestMessage messages>> from Netty's <<channel, Channel>>.
+*TransportRequestHandler* is a network:MessageHandler.md[] of <<handle, RequestMessage messages>> from Netty's <<channel, Channel>>.
 
 == [[creating-instance]] Creating Instance
 
@@ -8,10 +8,10 @@ TransportRequestHandler takes the following to be created:
 
 * [[channel]] Netty's https://netty.io/4.1/api/io/netty/channel/Channel.html[Channel]
 * [[reverseClient]] TransportClient
-* [[rpcHandler]] xref:network:RpcHandler.adoc[]
+* [[rpcHandler]] network:RpcHandler.md[]
 * [[maxChunksBeingTransferred]] Maximum number of chunks allowed to be transferred at the same time
 
-TransportRequestHandler is created when TransportContext is requested to xref:network:TransportContext.adoc#createChannelHandler[create a ChannelHandler].
+TransportRequestHandler is created when TransportContext is requested to network:TransportContext.md#createChannelHandler[create a ChannelHandler].
 
 == [[processRpcRequest]] processRpcRequest Internal Method
 
@@ -82,7 +82,7 @@ For unknown requests, handle simply throws a `IllegalArgumentException`.
 Unknown request type: [request]
 ```
 
-handle is part of xref:network:MessageHandler.adoc#handle[MessageHandler] abstraction.
+handle is part of network:MessageHandler.md#handle[MessageHandler] abstraction.
 
 == [[logging]] Logging
 
@@ -95,4 +95,4 @@ Add the following line to `conf/log4j.properties`:
 log4j.logger.org.apache.spark.network.server.TransportRequestHandler=ALL
 ----
 
-Refer to xref:ROOT:spark-logging.adoc[Logging].
+Refer to ROOT:spark-logging.md[Logging].

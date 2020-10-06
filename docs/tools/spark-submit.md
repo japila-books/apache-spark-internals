@@ -15,12 +15,12 @@ Usage: spark-submit run-example [options] example-class [example args]
 ...
 ```
 
-When executed, `spark-submit` script first checks whether `SPARK_HOME` environment variable is set and sets it to the directory that contains `bin/spark-submit` shell script if not. It then executes link:spark-class.adoc[`spark-class` shell script] to run <<main, `SparkSubmit` standalone application>>.
+When executed, `spark-submit` script first checks whether `SPARK_HOME` environment variable is set and sets it to the directory that contains `bin/spark-submit` shell script if not. It then executes spark-class.md[`spark-class` shell script] to run <<main, `SparkSubmit` standalone application>>.
 
 CAUTION: FIXME Add Cluster Manager and Deploy Mode to the table below (see `options` value)
 
 [[options-properties-variables]]
-.Command-Line Options, Spark Properties and Environment Variables (from ``SparkSubmitArguments``'s link:spark-submit-SparkSubmitArguments.adoc#loadEnvironmentArguments[loadEnvironmentArguments] and link:spark-submit-SparkSubmitArguments.adoc#handle[handle])
+.Command-Line Options, Spark Properties and Environment Variables (from ``SparkSubmitArguments``'s spark-submit-SparkSubmitArguments.md#loadEnvironmentArguments[loadEnvironmentArguments] and spark-submit-SparkSubmitArguments.md#handle[handle])
 [cols="1,1,1,2,1", options="header",width="100%"]
 |===
 | Command-Line Option | Spark Property | Environment Variable | Description | Internal Property
@@ -44,7 +44,7 @@ CAUTION: FIXME Add Cluster Manager and Deploy Mode to the table below (see `opti
 | `--master` | `spark.master` | `MASTER` | Master URL. Defaults to `local[*]` | `master`
 | `--class` | | | | `mainClass`
 | `--name` | `spark.app.name` | `SPARK_YARN_APP_NAME` (YARN only) | Uses `mainClass` or the directory off `primaryResource` when no other ways set it | `name`
-| `--num-executors` | xref:executor:Executor.adoc#spark.executor.instances[spark.executor.instances] | | | `numExecutors`
+| `--num-executors` | executor:Executor.md#spark.executor.instances[spark.executor.instances] | | | `numExecutors`
 | [[packages]] `--packages` | `spark.jars.packages` | | | `packages`
 | `--principal` | `spark.yarn.principal` | | | `principal`
 | `--properties-file` | `spark.yarn.principal` | | | `propertiesFile`
@@ -70,7 +70,7 @@ $ SPARK_PRINT_LAUNCH_COMMAND=1 ./bin/spark-shell
 Spark Command: /Library/Ja...
 ```
 
-Refer to link:spark-tips-and-tricks.adoc#SPARK_PRINT_LAUNCH_COMMAND[Print Launch Command of Spark Scripts] (or link:spark-class.adoc#main[`org.apache.spark.launcher.Main` Standalone Application] where this environment variable is actually used).
+Refer to spark-tips-and-tricks.md#SPARK_PRINT_LAUNCH_COMMAND[Print Launch Command of Spark Scripts] (or spark-class.md#main[`org.apache.spark.launcher.Main` Standalone Application] where this environment variable is actually used).
 ====
 
 [TIP]
@@ -96,7 +96,7 @@ prepareSubmitEnvironment(args: SparkSubmitArguments)
 | Element | Description
 | `childArgs` | Arguments
 | `childClasspath` | Classpath elements
-| `sysProps` | link:spark-properties.adoc[Spark properties]
+| `sysProps` | spark-properties.md[Spark properties]
 | `childMainClass` | Main class
 |===
 
@@ -114,9 +114,9 @@ TIP: See the elements of the return tuple using <<verbose-mode, `--verbose` comm
 --properties-file [FILE]
 ```
 
-`--properties-file` command-line option sets the path to a file `FILE` from which Spark loads extra link:spark-properties.adoc[Spark properties].
+`--properties-file` command-line option sets the path to a file `FILE` from which Spark loads extra spark-properties.md[Spark properties].
 
-TIP: Spark uses link:spark-properties.adoc#spark-defaults-conf[conf/spark-defaults.conf] by default.
+TIP: Spark uses spark-properties.md#spark-defaults-conf[conf/spark-defaults.conf] by default.
 
 === [[driver-cores]] Driver Cores in Cluster Deploy Mode -- `--driver-cores` command-line option
 
@@ -124,11 +124,11 @@ TIP: Spark uses link:spark-properties.adoc#spark-defaults-conf[conf/spark-defaul
 --driver-cores NUM
 ```
 
-`--driver-cores` command-line option sets the number of cores to `NUM` for the link:spark-driver.adoc[driver] in the link:spark-deploy-mode.adoc#cluster[cluster deploy mode].
+`--driver-cores` command-line option sets the number of cores to `NUM` for the spark-driver.md[driver] in the spark-deploy-mode.md#cluster[cluster deploy mode].
 
 NOTE: `--driver-cores` switch is only available for cluster mode (for Standalone, Mesos, and YARN).
 
-NOTE: It corresponds to link:spark-driver.adoc#spark_driver_cores[spark.driver.cores] setting.
+NOTE: It corresponds to spark-driver.md#spark_driver_cores[spark.driver.cores] setting.
 
 NOTE: It is printed out to the standard error output in <<verbose-mode, verbose mode>>.
 
@@ -164,11 +164,11 @@ CAUTION: FIXME
 --queue QUEUE_NAME
 ```
 
-With `--queue` you can choose the YARN resource queue to link:spark-yarn-client.adoc#createApplicationSubmissionContext[submit a Spark application to]. The link:yarn/spark-yarn-settings.adoc#spark.yarn.queue[default queue name is `default`].
+With `--queue` you can choose the YARN resource queue to spark-yarn-client.md#createApplicationSubmissionContext[submit a Spark application to]. The yarn/spark-yarn-settings.md#spark.yarn.queue[default queue name is `default`].
 
 CAUTION: FIXME What is a `queue`?
 
-NOTE: It corresponds to link:yarn/spark-yarn-settings.adoc#spark.yarn.queue[spark.yarn.queue] Spark's setting.
+NOTE: It corresponds to yarn/spark-yarn-settings.md#spark.yarn.queue[spark.yarn.queue] Spark's setting.
 
 TIP: It is printed out to the standard error output in <<verbose-mode, verbose mode>>.
 
@@ -230,7 +230,7 @@ CAUTION: FIXME Describe `spark.driver.userClassPathFirst`
 
 It <<addJarToClasspath, adds the jars>> specified in `childClasspath` input parameter to the context classloader (that is later responsible for loading the `childMainClass` main class).
 
-NOTE: `childClasspath` input parameter corresponds to <<jars, --jars command-line option>> with the primary resource if specified in link:spark-deploy-mode.adoc#client[client deploy mode].
+NOTE: `childClasspath` input parameter corresponds to <<jars, --jars command-line option>> with the primary resource if specified in spark-deploy-mode.md#client[client deploy mode].
 
 It sets all the system properties specified in `sysProps` input parameter (using Java's https://docs.oracle.com/javase/8/docs/api/java/lang/System.html#setProperty-java.lang.String-java.lang.String-[System.setProperty] method).
 
@@ -380,7 +380,7 @@ Options:
 * `--executor-memory`
 * `--files`
 * `--jars`
-* `--kill` for link:spark-standalone.adoc[Standalone cluster mode] only
+* `--kill` for spark-standalone.md[Standalone cluster mode] only
 * `--master`
 * `--name`
 * `--packages`
@@ -389,13 +389,13 @@ Options:
 * `--proxy-user`
 * `--py-files`
 * `--repositories`
-* `--status` for link:spark-standalone.adoc[Standalone cluster mode] only
+* `--status` for spark-standalone.md[Standalone cluster mode] only
 * `--total-executor-cores`
 
 List of switches, i.e. command-line options that do not take parameters:
 
 * `--help` or `-h`
-* `--supervise` for link:spark-standalone.adoc[Standalone cluster mode] only
+* `--supervise` for spark-standalone.md[Standalone cluster mode] only
 * `--usage-error`
 * `--verbose` or `-v` (see <<verbose-mode, Verbose Mode>>)
 * `--version` (see <<version, Version>>)
@@ -413,13 +413,13 @@ YARN-only options:
 
 `--driver-class-path` command-line option sets the extra class path entries (e.g. jars and directories) that should be added to a driver's JVM.
 
-TIP: You should use `--driver-class-path` in `client` deploy mode (not xref:ROOT:SparkConf.adoc[SparkConf]) to ensure that the CLASSPATH is set up with the entries. `client` deploy mode uses the same JVM for the driver as ``spark-submit``'s.
+TIP: You should use `--driver-class-path` in `client` deploy mode (not ROOT:SparkConf.md[SparkConf]) to ensure that the CLASSPATH is set up with the entries. `client` deploy mode uses the same JVM for the driver as ``spark-submit``'s.
 
-`--driver-class-path` sets the internal `driverExtraClassPath` property (when link:spark-submit-SparkSubmitArguments.adoc#handle[SparkSubmitArguments.handle] called).
+`--driver-class-path` sets the internal `driverExtraClassPath` property (when spark-submit-SparkSubmitArguments.md#handle[SparkSubmitArguments.handle] called).
 
 It works for all cluster managers and deploy modes.
 
-If `driverExtraClassPath` not set on command-line, the link:spark-driver.adoc#spark_driver_extraClassPath[spark.driver.extraClassPath] setting is used.
+If `driverExtraClassPath` not set on command-line, the spark-driver.md#spark_driver_extraClassPath[spark.driver.extraClassPath] setting is used.
 
 NOTE: Command-line options (e.g. `--driver-class-path`) have higher precedence than their corresponding Spark settings in a Spark properties file (e.g. `spark.driver.extraClassPath`). You can therefore control the final settings by overriding Spark settings on command line using the command-line options.
 
@@ -427,7 +427,7 @@ NOTE: Command-line options (e.g. `--driver-class-path`) have higher precedence t
 [options="header",width="100%"]
 |===
 | Setting / System Property | Command-Line Option | Description
-| link:spark-driver.adoc#spark_driver_extraClassPath[spark.driver.extraClassPath] | `--driver-class-path` | Extra class path entries (e.g. jars and directories) to pass to a driver's JVM.
+| spark-driver.md#spark_driver_extraClassPath[spark.driver.extraClassPath] | `--driver-class-path` | Extra class path entries (e.g. jars and directories) to pass to a driver's JVM.
 |===
 
 === [[version]] Version -- `--version` command-line option
@@ -466,7 +466,7 @@ FIXME
 
 === [[deploy-mode]] Deploy Mode -- `--deploy-mode` command-line option
 
-You use spark-submit's `--deploy-mode` command-line option to specify the link:spark-deploy-mode.adoc[deploy mode] for a Spark application.
+You use spark-submit's `--deploy-mode` command-line option to specify the spark-deploy-mode.md[deploy mode] for a Spark application.
 
 === [[environment-variables]] Environment Variables
 
@@ -474,7 +474,7 @@ The following is the list of environment variables that are considered when comm
 
 * `MASTER` for `--master`
 * `SPARK_DRIVER_MEMORY` for `--driver-memory`
-* `SPARK_EXECUTOR_MEMORY` (see xref:ROOT:SparkContext.adoc#environment-variables[Environment Variables] in the SparkContext document)
+* `SPARK_EXECUTOR_MEMORY` (see ROOT:SparkContext.md#environment-variables[Environment Variables] in the SparkContext document)
 * `SPARK_EXECUTOR_CORES`
 * `DEPLOY_MODE`
 * `SPARK_YARN_APP_NAME`
@@ -496,16 +496,16 @@ FIXME Why should I care?
 
 TIP: The source code of the script lives in https://github.com/apache/spark/blob/master/bin/spark-submit.
 
-When executed, `spark-submit` script simply passes the call to link:spark-class.adoc[spark-class] with `org.apache.spark.deploy.SparkSubmit` class followed by command-line arguments.
+When executed, `spark-submit` script simply passes the call to spark-class.md[spark-class] with `org.apache.spark.deploy.SparkSubmit` class followed by command-line arguments.
 
 [TIP]
 ====
 `spark-class` uses the class name -- `org.apache.spark.deploy.SparkSubmit` -- to parse command-line arguments appropriately.
 
-Refer to link:spark-class.adoc#main[`org.apache.spark.launcher.Main` Standalone Application]
+Refer to spark-class.md#main[`org.apache.spark.launcher.Main` Standalone Application]
 ====
 
-It creates an instance of link:spark-submit-SparkSubmitArguments.adoc[SparkSubmitArguments].
+It creates an instance of spark-submit-SparkSubmitArguments.md[SparkSubmitArguments].
 
 If in <<verbose-mode, verbose mode>>, it prints out the application arguments.
 

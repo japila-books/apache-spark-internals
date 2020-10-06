@@ -5,20 +5,20 @@ AppStatusStore is...FIXME
 .AppStatusStore in Spark Application
 image::AppStatusStore-createLiveStore.png[align="center"]
 
-AppStatusStore is available as xref:ROOT:SparkContext.adoc#statusStore[SparkContext.statusStore] to other Spark services.
+AppStatusStore is available as ROOT:SparkContext.md#statusStore[SparkContext.statusStore] to other Spark services.
 
 == [[creating-instance]] Creating Instance
 
 AppStatusStore takes the following to be created:
 
-* [[store]] xref:core:KVStore.adoc[]
-* [[listener]] Optional xref:core:AppStatusListener.adoc[] (default: `None`)
+* [[store]] core:KVStore.md[]
+* [[listener]] Optional core:AppStatusListener.md[] (default: `None`)
 
 AppStatusStore is created when:
 
-* SparkContext is xref:ROOT:spark-SparkContext-creating-instance-internals.adoc#_statusStore[created] (that triggers <<createLiveStore, creating an AppStatusStore for an active Spark application>>)
+* SparkContext is ROOT:spark-SparkContext-creating-instance-internals.md#_statusStore[created] (that triggers <<createLiveStore, creating an AppStatusStore for an active Spark application>>)
 
-* FsHistoryProvider is requested to xref:spark-history-server:FsHistoryProvider.adoc#getAppUI[create a LoadedAppUI]
+* FsHistoryProvider is requested to spark-history-server:FsHistoryProvider.md#getAppUI[create a LoadedAppUI]
 
 == [[streamBlocksList]] `streamBlocksList` Method
 
@@ -52,13 +52,13 @@ createLiveStore(
 
 createLiveStore creates a fully-initialized AppStatusStore.
 
-Internally, createLiveStore creates a xref:core:ElementTrackingStore.adoc[] (with a new xref:core:InMemoryStore.adoc[] and the input xref:ROOT:SparkConf.adoc[SparkConf]).
+Internally, createLiveStore creates a core:ElementTrackingStore.md[] (with a new core:InMemoryStore.md[] and the input ROOT:SparkConf.md[SparkConf]).
 
-createLiveStore creates a xref:core:AppStatusListener.adoc[] (with the `ElementTrackingStore` created, the input `SparkConf` and the `live` flag enabled).
+createLiveStore creates a core:AppStatusListener.md[] (with the `ElementTrackingStore` created, the input `SparkConf` and the `live` flag enabled).
 
 In the end, createLiveStore creates an <<creating-instance, AppStatusStore>> (with the `ElementTrackingStore` and `AppStatusListener` just created).
 
-createLiveStore is used when SparkContext is xref:ROOT:spark-SparkContext-creating-instance-internals.adoc#_statusStore[created].
+createLiveStore is used when SparkContext is ROOT:spark-SparkContext-creating-instance-internals.md#_statusStore[created].
 
 == [[close]] Closing AppStatusStore
 
@@ -67,7 +67,7 @@ createLiveStore is used when SparkContext is xref:ROOT:spark-SparkContext-creati
 close(): Unit
 ----
 
-`close` simply requests <<store, KVStore>> to xref:core:KVStore.adoc#close[close].
+`close` simply requests <<store, KVStore>> to core:KVStore.md#close[close].
 
 NOTE: `close` is used when...FIXME
 
@@ -78,9 +78,9 @@ NOTE: `close` is used when...FIXME
 rddList(cachedOnly: Boolean = true): Seq[v1.RDDStorageInfo]
 ----
 
-`rddList` requests the <<store, KVStore>> for a xref:core:KVStore.adoc#view[view] over `RDDStorageInfoWrapper` entities.
+`rddList` requests the <<store, KVStore>> for a core:KVStore.md#view[view] over `RDDStorageInfoWrapper` entities.
 
-In the end, `rddList` takes `RDDStorageInfos` with at least one link:spark-webui-RDDStorageInfo.adoc#numCachedPartitions[partition cached] (when `cachedOnly` flag is on) or all `RDDStorageInfos` (when `cachedOnly` flag is off).
+In the end, `rddList` takes `RDDStorageInfos` with at least one spark-webui-RDDStorageInfo.md#numCachedPartitions[partition cached] (when `cachedOnly` flag is on) or all `RDDStorageInfos` (when `cachedOnly` flag is off).
 
 NOTE: `cachedOnly` flag is on and therefore `rddList` gives RDDs cached only.
 
@@ -88,9 +88,9 @@ NOTE: `cachedOnly` flag is on and therefore `rddList` gives RDDs cached only.
 ====
 `rddList` is used when:
 
-* `StoragePage` is requested to link:spark-webui-StoragePage.adoc#render[render] itself
+* `StoragePage` is requested to spark-webui-StoragePage.md#render[render] itself
 
-* `AbstractApplicationResource` is requested to handle link:spark-api-AbstractApplicationResource.adoc#storage_rdd[ storage/rdd] REST API
+* `AbstractApplicationResource` is requested to handle spark-api-AbstractApplicationResource.md#storage_rdd[ storage/rdd] REST API
 
 * `StagePagedTable` is requested to `makeDescription`
 ====

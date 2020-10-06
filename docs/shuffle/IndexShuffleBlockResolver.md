@@ -1,8 +1,8 @@
 = [[IndexShuffleBlockResolver]] IndexShuffleBlockResolver
 
-*IndexShuffleBlockResolver* is a xref:ShuffleBlockResolver.adoc[ShuffleBlockResolver] that manages shuffle block data and uses *shuffle index files* for faster shuffle data access.
+*IndexShuffleBlockResolver* is a ShuffleBlockResolver.md[ShuffleBlockResolver] that manages shuffle block data and uses *shuffle index files* for faster shuffle data access.
 
-IndexShuffleBlockResolver is <<creating-instance, created>> for xref:SortShuffleManager.adoc#shuffleBlockResolver[SortShuffleManager] (for xref:ShuffleManager.adoc#shuffleBlockResolver[retrieving shuffle block data]).
+IndexShuffleBlockResolver is <<creating-instance, created>> for SortShuffleManager.md#shuffleBlockResolver[SortShuffleManager] (for ShuffleManager.md#shuffleBlockResolver[retrieving shuffle block data]).
 
 .IndexShuffleBlockResolver and SortShuffleManager
 image::IndexShuffleBlockResolver-SortShuffleManager.png[align="center"]
@@ -10,14 +10,14 @@ image::IndexShuffleBlockResolver-SortShuffleManager.png[align="center"]
 IndexShuffleBlockResolver can <<writeIndexFileAndCommit, write>>, <<getBlockData, look up>> and <<removeDataByMap, remove>> shuffle block index and data files (given shuffle and
 map IDs).
 
-IndexShuffleBlockResolver is later used to create the xref:SortShuffleManager.adoc#getWriter[ShuffleWriter] given a xref:spark-shuffle-ShuffleHandle.adoc[ShuffleHandle].
+IndexShuffleBlockResolver is later used to create the SortShuffleManager.md#getWriter[ShuffleWriter] given a spark-shuffle-ShuffleHandle.md[ShuffleHandle].
 
 == [[creating-instance]] Creating Instance
 
 IndexShuffleBlockResolver takes the following to be created:
 
-* [[conf]] xref:ROOT:SparkConf.adoc[SparkConf]
-* [[_blockManager]][[blockManager]] xref:storage:BlockManager.adoc[BlockManager]
+* [[conf]] ROOT:SparkConf.md[SparkConf]
+* [[_blockManager]][[blockManager]] storage:BlockManager.md[BlockManager]
 
 IndexShuffleBlockResolver initializes the <<internal-properties, internal properties>>.
 
@@ -61,7 +61,7 @@ or
 fail to rename file [dataTmp] to [dataFile]
 ```
 
-NOTE: `writeIndexFileAndCommit` is used when link:ShuffleWriter.adoc[ShuffleWriters] are requested to write records to a shuffle system, i.e. xref:shuffle:SortShuffleWriter.adoc#write[SortShuffleWriter], xref:shuffle:BypassMergeSortShuffleWriter.adoc#write[BypassMergeSortShuffleWriter], and xref:shuffle:UnsafeShuffleWriter.adoc#closeAndWriteOutput[UnsafeShuffleWriter].
+NOTE: `writeIndexFileAndCommit` is used when ShuffleWriter.md[ShuffleWriters] are requested to write records to a shuffle system, i.e. shuffle:SortShuffleWriter.md#write[SortShuffleWriter], shuffle:BypassMergeSortShuffleWriter.md#write[BypassMergeSortShuffleWriter], and shuffle:UnsafeShuffleWriter.md#closeAndWriteOutput[UnsafeShuffleWriter].
 
 == [[getBlockData]] Creating ManagedBuffer to Read Shuffle Block Data File -- `getBlockData` Method
 
@@ -71,15 +71,15 @@ getBlockData(
   blockId: ShuffleBlockId): ManagedBuffer
 ----
 
-NOTE: `getBlockData` is part of xref:ShuffleBlockResolver.adoc#getBlockData[ShuffleBlockResolver] contract.
+NOTE: `getBlockData` is part of ShuffleBlockResolver.md#getBlockData[ShuffleBlockResolver] contract.
 
 Internally, `getBlockData` <<getIndexFile, finds the index file>> for the input shuffle `blockId`.
 
-NOTE: xref:storage:BlockId.adoc#ShuffleBlockId[ShuffleBlockId] knows `shuffleId` and `mapId`.
+NOTE: storage:BlockId.md#ShuffleBlockId[ShuffleBlockId] knows `shuffleId` and `mapId`.
 
 `getBlockData` discards `blockId.reduceId` bytes of data from the index file.
 
-NOTE: `getBlockData` uses Guava's link:++https://google.github.io/guava/releases/snapshot/api/docs/com/google/common/io/ByteStreams.html#skipFully-java.io.InputStream-long-++[com.google.common.io.ByteStreams] to skip the bytes.
+NOTE: `getBlockData` uses Guava's ++https://google.github.io/guava/releases/snapshot/api/docs/com/google/common/io/ByteStreams.html#skipFully-java.io.InputStream-long-++[com.google.common.io.ByteStreams] to skip the bytes.
 
 `getBlockData` reads the start and end offsets from the index file and then creates a `FileSegmentManagedBuffer` to read the <<getDataFile, data file>> for the offsets (using <<transportConf, transportConf>> internal property).
 
@@ -130,7 +130,7 @@ or
 Error deleting index [path]
 ```
 
-NOTE: `removeDataByMap` is used exclusively when `SortShuffleManager` is requested to xref:SortShuffleManager.adoc#unregisterShuffle[unregister a shuffle] (remove a shuffle from a shuffle system).
+NOTE: `removeDataByMap` is used exclusively when `SortShuffleManager` is requested to SortShuffleManager.md#unregisterShuffle[unregister a shuffle] (remove a shuffle from a shuffle system).
 
 == [[stop]] Stopping IndexShuffleBlockResolver -- `stop` Method
 
@@ -139,7 +139,7 @@ NOTE: `removeDataByMap` is used exclusively when `SortShuffleManager` is request
 stop(): Unit
 ----
 
-NOTE: `stop` is part of link:ShuffleBlockResolver.adoc#stop[ShuffleBlockResolver contract].
+NOTE: `stop` is part of ShuffleBlockResolver.md#stop[ShuffleBlockResolver contract].
 
 `stop` is a noop operation, i.e. does nothing when called.
 
@@ -152,7 +152,7 @@ getIndexFile(
   mapId: Int): File
 ----
 
-`getIndexFile` requests the <<blockManager, BlockManager>> for the xref:storage:BlockManager.adoc#diskBlockManager[DiskBlockManager] that is in turn requested for the xref:storage:DiskBlockManager.adoc#getFile[shuffle index file] (with a new ShuffleIndexBlockId with the given shuffleId and mapId).
+`getIndexFile` requests the <<blockManager, BlockManager>> for the storage:BlockManager.md#diskBlockManager[DiskBlockManager] that is in turn requested for the storage:DiskBlockManager.md#getFile[shuffle index file] (with a new ShuffleIndexBlockId with the given shuffleId and mapId).
 
 NOTE: `getIndexFile` is used when IndexShuffleBlockResolver <<writeIndexFileAndCommit, writes shuffle index and data files>>, <<getBlockData, creates a `ManagedBuffer` to read a shuffle block data file>>, and <<removeDataByMap, removes the shuffle index and data files>>.
 
@@ -165,7 +165,7 @@ getDataFile(
   mapId: Int): File
 ----
 
-`getDataFile` requests the <<blockManager, BlockManager>> for the xref:storage:BlockManager.adoc#diskBlockManager[DiskBlockManager] that is in turn requested for the xref:storage:DiskBlockManager.adoc#getFile[shuffle block data file] (for a xref:storage:BlockId.adoc#ShuffleDataBlockId[ShuffleDataBlockId])
+`getDataFile` requests the <<blockManager, BlockManager>> for the storage:BlockManager.md#diskBlockManager[DiskBlockManager] that is in turn requested for the storage:DiskBlockManager.md#getFile[shuffle block data file] (for a storage:BlockId.md#ShuffleDataBlockId[ShuffleDataBlockId])
 
 [NOTE]
 ====
@@ -173,7 +173,7 @@ getDataFile(
 
 * IndexShuffleBlockResolver is requested to <<getBlockData, get a ManagedBuffer for block data>>, <<removeDataByMap, removeDataByMap>>, and <<writeIndexFileAndCommit, write shuffle index and data files>>
 
-* xref:shuffle:BypassMergeSortShuffleWriter.adoc#write[BypassMergeSortShuffleWriter], xref:shuffle:UnsafeShuffleWriter.adoc#closeAndWriteOutput[UnsafeShuffleWriter], and xref:SortShuffleWriter.adoc#write[SortShuffleWriter] are requested to write records to a shuffle system
+* shuffle:BypassMergeSortShuffleWriter.md#write[BypassMergeSortShuffleWriter], shuffle:UnsafeShuffleWriter.md#closeAndWriteOutput[UnsafeShuffleWriter], and SortShuffleWriter.md#write[SortShuffleWriter] are requested to write records to a shuffle system
 ====
 
 == [[logging]] Logging
@@ -187,7 +187,7 @@ Add the following line to `conf/log4j.properties`:
 log4j.logger.org.apache.spark.shuffle.IndexShuffleBlockResolver=ALL
 ----
 
-Refer to xref:ROOT:spark-logging.adoc[Logging].
+Refer to ROOT:spark-logging.md[Logging].
 
 == [[internal-properties]] Internal Properties
 
@@ -197,8 +197,8 @@ Refer to xref:ROOT:spark-logging.adoc[Logging].
 | Description
 
 | transportConf
-a| [[transportConf]] xref:network:TransportConf.adoc[] for *shuffle* module
+a| [[transportConf]] network:TransportConf.md[] for *shuffle* module
 
-Created immediately when IndexShuffleBlockResolver is <<creating-instance, created>> by requesting `SparkTransportConf` object to xref:network:TransportConf.adoc#SparkTransportConf-fromSparkConf[create one from SparkConf]
+Created immediately when IndexShuffleBlockResolver is <<creating-instance, created>> by requesting `SparkTransportConf` object to network:TransportConf.md#SparkTransportConf-fromSparkConf[create one from SparkConf]
 
 |===

@@ -17,13 +17,13 @@ a| [[addSchedulable]]
 addSchedulable(schedulable: Schedulable): Unit
 ----
 
-Registers a <<spark-scheduler-Schedulable.adoc#, Schedulable>>
+Registers a <<spark-scheduler-Schedulable.md#, Schedulable>>
 
 Used when:
 
-* `FIFOSchedulableBuilder` is requested to <<spark-scheduler-FIFOSchedulableBuilder.adoc#addTaskSetManager, addTaskSetManager>>
+* `FIFOSchedulableBuilder` is requested to <<spark-scheduler-FIFOSchedulableBuilder.md#addTaskSetManager, addTaskSetManager>>
 
-* `FairSchedulableBuilder` is requested to <<spark-scheduler-FairSchedulableBuilder.adoc#buildDefaultPool, buildDefaultPool>>, <<spark-scheduler-FairSchedulableBuilder.adoc#buildFairSchedulerPool, buildFairSchedulerPool>>, and <<spark-scheduler-FairSchedulableBuilder.adoc#addTaskSetManager, addTaskSetManager>>
+* `FairSchedulableBuilder` is requested to <<spark-scheduler-FairSchedulableBuilder.md#buildDefaultPool, buildDefaultPool>>, <<spark-scheduler-FairSchedulableBuilder.md#buildFairSchedulerPool, buildFairSchedulerPool>>, and <<spark-scheduler-FairSchedulableBuilder.md#addTaskSetManager, addTaskSetManager>>
 
 | checkSpeculatableTasks
 a| [[checkSpeculatableTasks]]
@@ -50,9 +50,9 @@ Handles an executor lost event
 
 Used when:
 
-* `Pool` is requested to <<spark-scheduler-Pool.adoc#executorLost, handle an executor lost event>>
+* `Pool` is requested to <<spark-scheduler-Pool.md#executorLost, handle an executor lost event>>
 
-* `TaskSchedulerImpl` is requested to xref:scheduler:TaskSchedulerImpl.adoc#removeExecutor[removeExecutor]
+* `TaskSchedulerImpl` is requested to scheduler:TaskSchedulerImpl.md#removeExecutor[removeExecutor]
 
 | getSchedulableByName
 a| [[getSchedulableByName]]
@@ -62,7 +62,7 @@ a| [[getSchedulableByName]]
 getSchedulableByName(name: String): Schedulable
 ----
 
-Finds a <<spark-scheduler-Schedulable.adoc#, Schedulable>> by name
+Finds a <<spark-scheduler-Schedulable.md#, Schedulable>> by name
 
 Used when...FIXME
 
@@ -74,13 +74,13 @@ a| [[getSortedTaskSetQueue]]
 getSortedTaskSetQueue: ArrayBuffer[TaskSetManager]
 ----
 
-Builds a collection of xref:scheduler:TaskSetManager.adoc[TaskSetManagers] sorted by <<priority, priority>>
+Builds a collection of scheduler:TaskSetManager.md[TaskSetManagers] sorted by <<priority, priority>>
 
 Used when:
 
-* `Pool` is requested to <<spark-scheduler-Pool.adoc#getSortedTaskSetQueue, getSortedTaskSetQueue>> (recursively)
+* `Pool` is requested to <<spark-scheduler-Pool.md#getSortedTaskSetQueue, getSortedTaskSetQueue>> (recursively)
 
-* `TaskSchedulerImpl` is requested to xref:scheduler:TaskSchedulerImpl.adoc#resourceOffers[resourceOffers]
+* `TaskSchedulerImpl` is requested to scheduler:TaskSchedulerImpl.md#resourceOffers[resourceOffers]
 
 | minShare
 a| [[minShare]]
@@ -150,13 +150,13 @@ a| [[schedulableQueue]]
 schedulableQueue: ConcurrentLinkedQueue[Schedulable]
 ----
 
-Queue of <<spark-scheduler-Schedulable.adoc#, schedulables>> (as https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/ConcurrentLinkedQueue.html[ConcurrentLinkedQueue])
+Queue of <<spark-scheduler-Schedulable.md#, schedulables>> (as https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/ConcurrentLinkedQueue.html[ConcurrentLinkedQueue])
 
 Used when:
 
-* `SparkContext` is requested to xref:ROOT:SparkContext.adoc#getAllPools[getAllPools]
+* `SparkContext` is requested to ROOT:SparkContext.md#getAllPools[getAllPools]
 
-* `Pool` is requested to <<spark-scheduler-Pool.adoc#addSchedulable, addSchedulable>>, <<spark-scheduler-Pool.adoc#removeSchedulable, removeSchedulable>>, <<spark-scheduler-Pool.adoc#getSchedulableByName, getSchedulableByName>>, <<spark-scheduler-Pool.adoc#executorLost, executorLost>>, <<spark-scheduler-Pool.adoc#checkSpeculatableTasks, checkSpeculatableTasks>>, and <<spark-scheduler-Pool.adoc#getSortedTaskSetQueue, getSortedTaskSetQueue>>
+* `Pool` is requested to <<spark-scheduler-Pool.md#addSchedulable, addSchedulable>>, <<spark-scheduler-Pool.md#removeSchedulable, removeSchedulable>>, <<spark-scheduler-Pool.md#getSchedulableByName, getSchedulableByName>>, <<spark-scheduler-Pool.md#executorLost, executorLost>>, <<spark-scheduler-Pool.md#checkSpeculatableTasks, checkSpeculatableTasks>>, and <<spark-scheduler-Pool.md#getSortedTaskSetQueue, getSortedTaskSetQueue>>
 
 | schedulingMode
 a| [[schedulingMode]]
@@ -166,11 +166,11 @@ a| [[schedulingMode]]
 schedulingMode: SchedulingMode
 ----
 
-<<spark-scheduler-SchedulingMode.adoc#, SchedulingMode>>
+<<spark-scheduler-SchedulingMode.md#, SchedulingMode>>
 
 Used when:
 
-* `Pool` is <<spark-scheduler-Pool.adoc#taskSetSchedulingAlgorithm, created>>
+* `Pool` is <<spark-scheduler-Pool.md#taskSetSchedulingAlgorithm, created>>
 
 * web UI's `PoolTable` is requested to render a page with pools (`poolRow`)
 
@@ -203,10 +203,10 @@ Used when...FIXME
 | Schedulable
 | Description
 
-| <<spark-scheduler-Pool.adoc#, Pool>>
-| [[Pool]] Pool of <<spark-scheduler-Schedulable.adoc#, schedulables>> (i.e. a recursive data structure for prioritizing task sets)
+| <<spark-scheduler-Pool.md#, Pool>>
+| [[Pool]] Pool of <<spark-scheduler-Schedulable.md#, schedulables>> (i.e. a recursive data structure for prioritizing task sets)
 
-| xref:scheduler:TaskSetManager.adoc[TaskSetManager]
-| [[TaskSetManager]] Manages scheduling of tasks of a xref:scheduler:TaskSet.adoc[TaskSet]
+| scheduler:TaskSetManager.md[TaskSetManager]
+| [[TaskSetManager]] Manages scheduling of tasks of a scheduler:TaskSet.md[TaskSet]
 
 |===

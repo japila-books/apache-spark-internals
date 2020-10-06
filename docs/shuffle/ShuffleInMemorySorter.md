@@ -1,6 +1,6 @@
 = [[ShuffleInMemorySorter]] ShuffleInMemorySorter
 
-*ShuffleInMemorySorter* is used by xref:shuffle:ShuffleExternalSorter.adoc#inMemSorter[ShuffleExternalSorter] to <<getSortedIterator, sort pointers of key-value records and partition IDs>> using <<useRadixSort, radix or tim>> sort algorithms.
+*ShuffleInMemorySorter* is used by shuffle:ShuffleExternalSorter.md#inMemSorter[ShuffleExternalSorter] to <<getSortedIterator, sort pointers of key-value records and partition IDs>> using <<useRadixSort, radix or tim>> sort algorithms.
 
 .ShuffleInMemorySorter and ShuffleExternalSorter
 image::ShuffleInMemorySorter.png[align="center"]
@@ -9,13 +9,13 @@ image::ShuffleInMemorySorter.png[align="center"]
 
 ShuffleInMemorySorter takes the following to be created:
 
-* [[consumer]] xref:memory:MemoryConsumer.adoc[MemoryConsumer]
+* [[consumer]] memory:MemoryConsumer.md[MemoryConsumer]
 * [[initialSize]] Initial size
 * [[useRadixSort]] useRadixSort flag (to indicate whether to use <<getSortedIterator, radix or tim sorting algorithms>>)
 
-ShuffleInMemorySorter requests the given <<consumer, MemoryConsumer>> to xref:memory:MemoryConsumer.adoc#allocateArray[allocate an array] of the given <<initialSize, initial size>> for the <<array, Unsafe LongArray of Record Pointers and Partition IDs>>.
+ShuffleInMemorySorter requests the given <<consumer, MemoryConsumer>> to memory:MemoryConsumer.md#allocateArray[allocate an array] of the given <<initialSize, initial size>> for the <<array, Unsafe LongArray of Record Pointers and Partition IDs>>.
 
-ShuffleInMemorySorter is created for a xref:shuffle:ShuffleExternalSorter.adoc#inMemSorter[ShuffleExternalSorter].
+ShuffleInMemorySorter is created for a shuffle:ShuffleExternalSorter.md#inMemSorter[ShuffleExternalSorter].
 
 == [[getSortedIterator]] Iterator of Records Sorted
 
@@ -26,7 +26,7 @@ ShuffleSorterIterator getSortedIterator()
 
 getSortedIterator...FIXME
 
-getSortedIterator is used when ShuffleExternalSorter is requested to xref:shuffle:ShuffleExternalSorter.adoc#writeSortedFile[writeSortedFile].
+getSortedIterator is used when ShuffleExternalSorter is requested to shuffle:ShuffleExternalSorter.md#writeSortedFile[writeSortedFile].
 
 == [[reset]] Resetting
 
@@ -72,7 +72,7 @@ Add the following line to `conf/log4j.properties`:
 log4j.logger.org.apache.spark.shuffle.sort.ShuffleExternalSorter=ALL
 ----
 
-Refer to xref:ROOT:spark-logging.adoc[Logging].
+Refer to ROOT:spark-logging.md[Logging].
 
 == [[internal-properties]] Internal Properties
 

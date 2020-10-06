@@ -2,7 +2,7 @@
 
 RpcEndpoint is a <<contract, contract>> to define an RPC endpoint that can <<receive, receive>> *messages* using *callbacks*, i.e. *functions* to execute when a message arrives.
 
-RpcEndpoint defines how to handle *messages* (what *functions* to execute given a message). RpcEndpoints register (with a name or uri) to `RpcEnv` to receive messages from xref:rpc:RpcEndpointRef.adoc[RpcEndpointRefs].
+RpcEndpoint defines how to handle *messages* (what *functions* to execute given a message). RpcEndpoints register (with a name or uri) to `RpcEnv` to receive messages from rpc:RpcEndpointRef.md[RpcEndpointRefs].
 
 [[contract]]
 [source, scala]
@@ -22,7 +22,7 @@ trait RpcEndpoint {
 }
 ----
 
-RpcEndpoint lives in xref:rpc:index.adoc[RpcEnv] after being registered by a name.
+RpcEndpoint lives in rpc:index.md[RpcEnv] after being registered by a name.
 
 A RpcEndpoint can be registered to one and only one RpcEnv.
 

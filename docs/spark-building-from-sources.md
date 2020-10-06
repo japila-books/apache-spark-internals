@@ -32,7 +32,7 @@ CAUTION: FIXME Describe yarn profile and others
 
 CAUTION: FIXME
 
-TIP: Read link:spark-sql-thrift-server.adoc[Thrift JDBC/ODBC Server -- Spark Thrift Server (STS)].
+TIP: Read spark-sql-thrift-server.md[Thrift JDBC/ODBC Server -- Spark Thrift Server (STS)].
 
 === [[maven]] Using Apache Maven as the build tool
 

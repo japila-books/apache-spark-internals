@@ -16,7 +16,7 @@ getBlockData parses `blockId` (in the format of `shuffle_[shuffleId]\_[mapId]_[r
 
 getBlockData splits `blockId` to 4 parts using `_` (underscore). It works exclusively with `shuffle` block ids with the other three parts being `shuffleId`, `mapId`, and `reduceId`.
 
-It looks up an executor (i.e. a `ExecutorShuffleInfo` in `executors` private registry) for `appId` and `execId` to search for a xref:storage:BlockDataManager.adoc#ManagedBuffer[ManagedBuffer].
+It looks up an executor (i.e. a `ExecutorShuffleInfo` in `executors` private registry) for `appId` and `execId` to search for a storage:BlockDataManager.md#ManagedBuffer[ManagedBuffer].
 
 The `ManagedBuffer` is indexed using a binary file `shuffle_[shuffleId]\_[mapId]_0.index` (that contains offset and length of the buffer) with a data file being `shuffle_[shuffleId]_[mapId]_0.data` (that is returned as `FileSegmentManagedBuffer`).
 
@@ -49,4 +49,4 @@ Add the following line to `conf/log4j.properties`:
 log4j.logger.org.apache.spark.network.shuffle.ExternalShuffleBlockResolver=ALL
 ----
 
-Refer to xref:ROOT:spark-logging.adoc[Logging].
+Refer to ROOT:spark-logging.md[Logging].

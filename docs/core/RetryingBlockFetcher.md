@@ -4,11 +4,11 @@
 
 RetryingBlockFetcher is <<creating-instance, created>> and immediately <<start, started>> when:
 
-* `NettyBlockTransferService` is requested to xref:storage:NettyBlockTransferService.adoc#fetchBlocks[fetchBlocks] (when xref:network:TransportConf.adoc#io.maxRetries[maxIORetries] is greater than `0` which it is by default)
+* `NettyBlockTransferService` is requested to storage:NettyBlockTransferService.md#fetchBlocks[fetchBlocks] (when network:TransportConf.md#io.maxRetries[maxIORetries] is greater than `0` which it is by default)
 
-* `ExternalShuffleClient` is requested to xref:storage:ExternalShuffleClient.adoc#fetchBlocks[fetchBlocks] (when xref:network:TransportConf.adoc#io.maxRetries[maxIORetries] is greater than `0` which it is by default)
+* `ExternalShuffleClient` is requested to storage:ExternalShuffleClient.md#fetchBlocks[fetchBlocks] (when network:TransportConf.md#io.maxRetries[maxIORetries] is greater than `0` which it is by default)
 
-RetryingBlockFetcher uses a <<fetchStarter, BlockFetchStarter>> to xref:core:BlockFetchStarter.adoc#createAndStart[createAndStart] when requested to <<start, start>> and later <<initiateRetry, initiateRetry>>.
+RetryingBlockFetcher uses a <<fetchStarter, BlockFetchStarter>> to core:BlockFetchStarter.md#createAndStart[createAndStart] when requested to <<start, start>> and later <<initiateRetry, initiateRetry>>.
 
 [[outstandingBlocksIds]]
 RetryingBlockFetcher uses `outstandingBlocksIds` internal registry of outstanding block IDs to fetch that is initially the <<blockIds, block IDs to fetch>> when <<creating-instance, created>>.
@@ -28,10 +28,10 @@ RetryingBlockFetcher uses a <<RetryingBlockFetchListener, RetryingBlockFetchList
 
 RetryingBlockFetcher takes the following when created:
 
-* [[conf]] xref:network:TransportConf.adoc[]
-* [[fetchStarter]] xref:core:BlockFetchStarter.adoc[]
+* [[conf]] network:TransportConf.md[]
+* [[fetchStarter]] core:BlockFetchStarter.md[]
 * [[blockIds]] Block IDs to fetch
-* [[listener]] xref:core:BlockFetchingListener.adoc[]
+* [[listener]] core:BlockFetchingListener.md[]
 
 == [[start]] Starting RetryingBlockFetcher -- `start` Method
 
@@ -46,9 +46,9 @@ void start()
 ====
 `start` is used when:
 
-* `NettyBlockTransferService` is requested to xref:storage:NettyBlockTransferService.adoc#fetchBlocks[fetchBlocks] (when xref:network:TransportConf.adoc#io.maxRetries[maxIORetries] is greater than `0` which it is by default)
+* `NettyBlockTransferService` is requested to storage:NettyBlockTransferService.md#fetchBlocks[fetchBlocks] (when network:TransportConf.md#io.maxRetries[maxIORetries] is greater than `0` which it is by default)
 
-* `ExternalShuffleClient` is requested to xref:storage:ExternalShuffleClient.adoc#fetchBlocks[fetchBlocks] (when xref:network:TransportConf.adoc#io.maxRetries[maxIORetries] is greater than `0` which it is by default)
+* `ExternalShuffleClient` is requested to storage:ExternalShuffleClient.md#fetchBlocks[fetchBlocks] (when network:TransportConf.md#io.maxRetries[maxIORetries] is greater than `0` which it is by default)
 ====
 
 == [[initiateRetry]] `initiateRetry` Internal Method
@@ -76,13 +76,13 @@ synchronized void initiateRetry()
 void fetchAllOutstanding()
 ----
 
-`fetchAllOutstanding` requests <<fetchStarter, BlockFetchStarter>> to xref:core:BlockFetchStarter.adoc#createAndStart[createAndStart] for the <<outstandingBlocksIds, outstandingBlocksIds>>.
+`fetchAllOutstanding` requests <<fetchStarter, BlockFetchStarter>> to core:BlockFetchStarter.md#createAndStart[createAndStart] for the <<outstandingBlocksIds, outstandingBlocksIds>>.
 
 NOTE: `fetchAllOutstanding` is used when RetryingBlockFetcher is requested to <<start, start>> and <<initiateRetry, initiateRetry>>.
 
 == [[RetryingBlockFetchListener]] RetryingBlockFetchListener
 
-`RetryingBlockFetchListener` is a xref:core:BlockFetchingListener.adoc[] that <<currentListener, RetryingBlockFetcher>> uses to remove block IDs from the <<outstandingBlocksIds, outstandingBlocksIds>> internal registry.
+`RetryingBlockFetchListener` is a core:BlockFetchingListener.md[] that <<currentListener, RetryingBlockFetcher>> uses to remove block IDs from the <<outstandingBlocksIds, outstandingBlocksIds>> internal registry.
 
 === [[RetryingBlockFetchListener-onBlockFetchSuccess]] `onBlockFetchSuccess` Method
 
@@ -91,7 +91,7 @@ NOTE: `fetchAllOutstanding` is used when RetryingBlockFetcher is requested to <<
 void onBlockFetchSuccess(String blockId, ManagedBuffer data)
 ----
 
-NOTE: `onBlockFetchSuccess` is part of xref:core:BlockFetchingListener.adoc#onBlockFetchSuccess[BlockFetchingListener Contract].
+NOTE: `onBlockFetchSuccess` is part of core:BlockFetchingListener.md#onBlockFetchSuccess[BlockFetchingListener Contract].
 
 `onBlockFetchSuccess`...FIXME
 
@@ -102,6 +102,6 @@ NOTE: `onBlockFetchSuccess` is part of xref:core:BlockFetchingListener.adoc#onBl
 void onBlockFetchFailure(String blockId, Throwable exception)
 ----
 
-NOTE: `onBlockFetchFailure` is part of xref:core:BlockFetchingListener.adoc#onBlockFetchFailure[BlockFetchingListener Contract].
+NOTE: `onBlockFetchFailure` is part of core:BlockFetchingListener.md#onBlockFetchFailure[BlockFetchingListener Contract].
 
 `onBlockFetchFailure`...FIXME

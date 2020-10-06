@@ -1,14 +1,14 @@
 == [[TaskResultGetter]] TaskResultGetter
 
-`TaskResultGetter` is a helper class of xref:scheduler:TaskSchedulerImpl.adoc#statusUpdate[TaskSchedulerImpl] for _asynchronous_ deserialization of <<enqueueSuccessfulTask, task results of tasks that have finished successfully>> (possibly fetching remote blocks) or <<enqueueFailedTask, the failures for failed tasks>>.
+`TaskResultGetter` is a helper class of scheduler:TaskSchedulerImpl.md#statusUpdate[TaskSchedulerImpl] for _asynchronous_ deserialization of <<enqueueSuccessfulTask, task results of tasks that have finished successfully>> (possibly fetching remote blocks) or <<enqueueFailedTask, the failures for failed tasks>>.
 
 CAUTION: FIXME Image with the dependencies
 
-TIP: Consult xref:scheduler:Task.adoc#states[Task States] in Tasks to learn about the different task states.
+TIP: Consult scheduler:Task.md#states[Task States] in Tasks to learn about the different task states.
 
-NOTE: The only instance of `TaskResultGetter` is created while xref:scheduler:TaskSchedulerImpl.adoc#creating-instance[`TaskSchedulerImpl` is created].
+NOTE: The only instance of `TaskResultGetter` is created while scheduler:TaskSchedulerImpl.md#creating-instance[`TaskSchedulerImpl` is created].
 
-`TaskResultGetter` requires a xref:core:SparkEnv.adoc[SparkEnv] and xref:scheduler:TaskSchedulerImpl.adoc[TaskSchedulerImpl] to be created and is stopped when xref:scheduler:TaskSchedulerImpl.adoc#stop[`TaskSchedulerImpl` stops].
+`TaskResultGetter` requires a core:SparkEnv.md[SparkEnv] and scheduler:TaskSchedulerImpl.md[TaskSchedulerImpl] to be created and is stopped when scheduler:TaskSchedulerImpl.md#stop[`TaskSchedulerImpl` stops].
 
 `TaskResultGetter` uses <<task-result-getter, `task-result-getter` asynchronous task executor>> for operation.
 
@@ -22,7 +22,7 @@ Add the following line to `conf/log4j.properties`:
 log4j.logger.org.apache.spark.scheduler.TaskResultGetter=DEBUG
 ```
 
-Refer to link:spark-logging.adoc[Logging].
+Refer to spark-logging.md[Logging].
 ====
 
 === [[getTaskResultExecutor]][[task-result-getter]] `task-result-getter` Asynchronous Task Executor
@@ -52,9 +52,9 @@ stop(): Unit
 serializer: ThreadLocal[SerializerInstance]
 ----
 
-`serializer` is a thread-local xref:serializer:SerializerInstance.adoc[SerializerInstance] that `TaskResultGetter` uses to deserialize byte buffers (with ``TaskResult``s or a `TaskEndReason`).
+`serializer` is a thread-local serializer:SerializerInstance.md[SerializerInstance] that `TaskResultGetter` uses to deserialize byte buffers (with ``TaskResult``s or a `TaskEndReason`).
 
-When created for a new thread, `serializer` is initialized with a new instance of `Serializer` (using xref:core:SparkEnv.adoc#closureSerializer[SparkEnv.closureSerializer]).
+When created for a new thread, `serializer` is initialized with a new instance of `Serializer` (using core:SparkEnv.md#closureSerializer[SparkEnv.closureSerializer]).
 
 NOTE: `TaskResultGetter` uses https://docs.oracle.com/javase/8/docs/api/java/lang/ThreadLocal.html[java.lang.ThreadLocal] for the thread-local `SerializerInstance` variable.
 
@@ -65,9 +65,9 @@ NOTE: `TaskResultGetter` uses https://docs.oracle.com/javase/8/docs/api/java/lan
 taskResultSerializer: ThreadLocal[SerializerInstance]
 ----
 
-`taskResultSerializer` is a thread-local xref:serializer:SerializerInstance.adoc[SerializerInstance] that `TaskResultGetter` uses to...
+`taskResultSerializer` is a thread-local serializer:SerializerInstance.md[SerializerInstance] that `TaskResultGetter` uses to...
 
-When created for a new thread, `taskResultSerializer` is initialized with a new instance of `Serializer` (using xref:core:SparkEnv.adoc#serializer[SparkEnv.serializer]).
+When created for a new thread, `taskResultSerializer` is initialized with a new instance of `Serializer` (using core:SparkEnv.md#serializer[SparkEnv.serializer]).
 
 NOTE: `TaskResultGetter` uses https://docs.oracle.com/javase/8/docs/api/java/lang/ThreadLocal.html[java.lang.ThreadLocal] for the thread-local `SerializerInstance` variable.
 
@@ -81,21 +81,21 @@ enqueueSuccessfulTask(
   serializedData: ByteBuffer): Unit
 ----
 
-`enqueueSuccessfulTask` submits an asynchronous task (to <<getTaskResultExecutor, task-result-getter>> asynchronous task executor) that first deserializes `serializedData` to a `DirectTaskResult`, then updates the internal accumulator (with the size of the `DirectTaskResult`) and ultimately notifies the `TaskSchedulerImpl` that the `tid` task was completed and xref:scheduler:TaskSchedulerImpl.adoc#handleSuccessfulTask[the task result was received successfully] or xref:scheduler:TaskSchedulerImpl.adoc#handleFailedTask[not].
+`enqueueSuccessfulTask` submits an asynchronous task (to <<getTaskResultExecutor, task-result-getter>> asynchronous task executor) that first deserializes `serializedData` to a `DirectTaskResult`, then updates the internal accumulator (with the size of the `DirectTaskResult`) and ultimately notifies the `TaskSchedulerImpl` that the `tid` task was completed and scheduler:TaskSchedulerImpl.md#handleSuccessfulTask[the task result was received successfully] or scheduler:TaskSchedulerImpl.md#handleFailedTask[not].
 
 NOTE: `enqueueSuccessfulTask` is just the asynchronous task enqueued for execution by <<getTaskResultExecutor, task-result-getter>> asynchronous task executor at some point in the future.
 
 Internally, the enqueued task first deserializes `serializedData` to a `TaskResult` (using the internal thread-local <<serializer, serializer>>).
 
-The link:spark-scheduler-TaskResult.adoc[TaskResult] could be a link:spark-scheduler-TaskResult.adoc#DirectTaskResult[DirectTaskResult] or a link:spark-scheduler-TaskResult.adoc#IndirectTaskResult[IndirectTaskResult].
+The spark-scheduler-TaskResult.md[TaskResult] could be a spark-scheduler-TaskResult.md#DirectTaskResult[DirectTaskResult] or a spark-scheduler-TaskResult.md#IndirectTaskResult[IndirectTaskResult].
 
-For a link:spark-scheduler-TaskResult.adoc#DirectTaskResult[DirectTaskResult], the task xref:scheduler:TaskSetManager.adoc#canFetchMoreResults[checks the available memory for the task result] and, when the size overflows xref:ROOT:configuration-properties.adoc#spark.driver.maxResultSize[spark.driver.maxResultSize], it simply returns.
+For a spark-scheduler-TaskResult.md#DirectTaskResult[DirectTaskResult], the task scheduler:TaskSetManager.md#canFetchMoreResults[checks the available memory for the task result] and, when the size overflows ROOT:configuration-properties.md#spark.driver.maxResultSize[spark.driver.maxResultSize], it simply returns.
 
-NOTE: `enqueueSuccessfulTask` is a mere thread so returning from a thread is to do nothing else. That is why the xref:scheduler:TaskSetManager.adoc#canFetchMoreResults[check for quota does abort] when there is not enough memory.
+NOTE: `enqueueSuccessfulTask` is a mere thread so returning from a thread is to do nothing else. That is why the scheduler:TaskSetManager.md#canFetchMoreResults[check for quota does abort] when there is not enough memory.
 
 Otherwise, when there _is_ enough memory to hold the task result, it deserializes the `DirectTaskResult` (using the internal thread-local <<taskResultSerializer, taskResultSerializer>>).
 
-For a link:spark-scheduler-TaskResult.adoc#IndirectTaskResult[IndirectTaskResult], the task checks the available memory for the task result and, when the size could overflow the maximum result size, it xref:storage:BlockManagerMaster.adoc#removeBlock[removes the block] and simply returns.
+For a spark-scheduler-TaskResult.md#IndirectTaskResult[IndirectTaskResult], the task checks the available memory for the task result and, when the size could overflow the maximum result size, it storage:BlockManagerMaster.md#removeBlock[removes the block] and simply returns.
 
 Otherwise, when there _is_ enough memory to hold the task result, you should see the following DEBUG message in the logs:
 
@@ -103,25 +103,25 @@ Otherwise, when there _is_ enough memory to hold the task result, you should see
 DEBUG Fetching indirect task result for TID [tid]
 ```
 
-The task xref:scheduler:TaskSchedulerImpl.adoc#handleTaskGettingResult[notifies `TaskSchedulerImpl` that it is about to fetch a remote block for a task result]. It then xref:storage:BlockManager.adoc#getRemoteBytes[gets the block from remote block managers (as serialized bytes)].
+The task scheduler:TaskSchedulerImpl.md#handleTaskGettingResult[notifies `TaskSchedulerImpl` that it is about to fetch a remote block for a task result]. It then storage:BlockManager.md#getRemoteBytes[gets the block from remote block managers (as serialized bytes)].
 
-When the block could not be fetched, xref:scheduler:TaskSchedulerImpl.adoc#handleFailedTask[`TaskSchedulerImpl` is informed] (with `TaskResultLost` task failure reason) and the task simply returns.
+When the block could not be fetched, scheduler:TaskSchedulerImpl.md#handleFailedTask[`TaskSchedulerImpl` is informed] (with `TaskResultLost` task failure reason) and the task simply returns.
 
-NOTE: `enqueueSuccessfulTask` is a mere thread so returning from a thread is to do nothing else and so the real handling is when xref:scheduler:TaskSchedulerImpl.adoc#handleFailedTask[`TaskSchedulerImpl` is informed].
+NOTE: `enqueueSuccessfulTask` is a mere thread so returning from a thread is to do nothing else and so the real handling is when scheduler:TaskSchedulerImpl.md#handleFailedTask[`TaskSchedulerImpl` is informed].
 
-The task result (as a serialized byte buffer) is then deserialized to a link:spark-scheduler-TaskResult.adoc#DirectTaskResult[DirectTaskResult] (using the internal thread-local <<serializer, serializer>>) and deserialized again using the internal thread-local <<taskResultSerializer, taskResultSerializer>> (just like for the `DirectTaskResult` case). The  xref:storage:BlockManagerMaster.adoc#removeBlock[block is removed from `BlockManagerMaster`] and simply returns.
+The task result (as a serialized byte buffer) is then deserialized to a spark-scheduler-TaskResult.md#DirectTaskResult[DirectTaskResult] (using the internal thread-local <<serializer, serializer>>) and deserialized again using the internal thread-local <<taskResultSerializer, taskResultSerializer>> (just like for the `DirectTaskResult` case). The  storage:BlockManagerMaster.md#removeBlock[block is removed from `BlockManagerMaster`] and simply returns.
 
-NOTE: A link:spark-scheduler-TaskResult.adoc#IndirectTaskResult[IndirectTaskResult] is deserialized twice to become the final deserialized task result (using <<serializer, serializer>> for a `DirectTaskResult`). Compare it to a `DirectTaskResult` task result that is deserialized once only.
+NOTE: A spark-scheduler-TaskResult.md#IndirectTaskResult[IndirectTaskResult] is deserialized twice to become the final deserialized task result (using <<serializer, serializer>> for a `DirectTaskResult`). Compare it to a `DirectTaskResult` task result that is deserialized once only.
 
-With no exceptions thrown, `enqueueSuccessfulTask` xref:scheduler:TaskSchedulerImpl.adoc#handleSuccessfulTask[informs the `TaskSchedulerImpl` that the `tid` task was completed and the task result was received].
+With no exceptions thrown, `enqueueSuccessfulTask` scheduler:TaskSchedulerImpl.md#handleSuccessfulTask[informs the `TaskSchedulerImpl` that the `tid` task was completed and the task result was received].
 
-A `ClassNotFoundException` leads to xref:scheduler:TaskSetManager.adoc#abort[aborting the `TaskSet`] (with `ClassNotFound with classloader: [loader]` error message) while any non-fatal exception shows the following ERROR message in the logs followed by xref:scheduler:TaskSetManager.adoc#abort[aborting the `TaskSet`].
+A `ClassNotFoundException` leads to scheduler:TaskSetManager.md#abort[aborting the `TaskSet`] (with `ClassNotFound with classloader: [loader]` error message) while any non-fatal exception shows the following ERROR message in the logs followed by scheduler:TaskSetManager.md#abort[aborting the `TaskSet`].
 
 ```
 ERROR Exception while getting task result
 ```
 
-NOTE: `enqueueSuccessfulTask` is used exclusively when `TaskSchedulerImpl` is requested to  xref:scheduler:TaskSchedulerImpl.adoc#statusUpdate[handle a task status update] (and the task has finished successfully).
+NOTE: `enqueueSuccessfulTask` is used exclusively when `TaskSchedulerImpl` is requested to  scheduler:TaskSchedulerImpl.md#statusUpdate[handle a task status update] (and the task has finished successfully).
 
 === [[enqueueFailedTask]] Deserializing TaskFailedReason and Notifying TaskSchedulerImpl -- `enqueueFailedTask` Method
 
@@ -134,7 +134,7 @@ enqueueFailedTask(
   serializedData: ByteBuffer): Unit
 ----
 
-`enqueueFailedTask` submits an asynchronous task (to <<getTaskResultExecutor, `task-result-getter` asynchronous task executor>>) that first attempts to deserialize a `TaskFailedReason` from `serializedData` (using the internal thread-local <<serializer, serializer>>) and then xref:scheduler:TaskSchedulerImpl.adoc#handleFailedTask[notifies `TaskSchedulerImpl` that the task has failed].
+`enqueueFailedTask` submits an asynchronous task (to <<getTaskResultExecutor, `task-result-getter` asynchronous task executor>>) that first attempts to deserialize a `TaskFailedReason` from `serializedData` (using the internal thread-local <<serializer, serializer>>) and then scheduler:TaskSchedulerImpl.md#handleFailedTask[notifies `TaskSchedulerImpl` that the task has failed].
 
 Any `ClassNotFoundException` leads to the following ERROR message in the logs (without breaking the flow of `enqueueFailedTask`):
 
@@ -142,7 +142,7 @@ Any `ClassNotFoundException` leads to the following ERROR message in the logs (w
 ERROR Could not deserialize TaskEndReason: ClassNotFound with classloader [loader]
 ```
 
-NOTE: `enqueueFailedTask` is called when xref:scheduler:TaskSchedulerImpl.adoc#statusUpdate[`TaskSchedulerImpl` is notified about a task that has failed (and is in `FAILED`, `KILLED` or `LOST` state)].
+NOTE: `enqueueFailedTask` is called when scheduler:TaskSchedulerImpl.md#statusUpdate[`TaskSchedulerImpl` is notified about a task that has failed (and is in `FAILED`, `KILLED` or `LOST` state)].
 
 === [[settings]] Settings
 

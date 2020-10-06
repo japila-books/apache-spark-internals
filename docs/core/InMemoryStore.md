@@ -1,6 +1,6 @@
 = InMemoryStore
 
-InMemoryStore is a xref:core:KVStore.adoc[].
+InMemoryStore is a core:KVStore.md[].
 
 == [[creating-instance]] Creating Instance
 
@@ -8,6 +8,6 @@ InMemoryStore takes no arguments when created.
 
 InMemoryStore is created when:
 
-* FsHistoryProvider is xref:spark-history-server:FsHistoryProvider.adoc#listing[created] and requested to xref:spark-history-server:FsHistoryProvider.adoc#createInMemoryStore[createInMemoryStore]
+* FsHistoryProvider is spark-history-server:FsHistoryProvider.md#listing[created] and requested to spark-history-server:FsHistoryProvider.md#createInMemoryStore[createInMemoryStore]
 
-* AppStatusStore utility is used to xref:core:AppStatusStore.adoc#createLiveStore[create an AppStatusStore for a live Spark application]
+* AppStatusStore utility is used to core:AppStatusStore.md#createLiveStore[create an AppStatusStore for a live Spark application]

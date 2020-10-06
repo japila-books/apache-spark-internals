@@ -1,6 +1,6 @@
 == Transformations -- Lazy Operations on RDD (to Create One or More RDDs)
 
-*Transformations* are lazy operations on an xref:rdd:RDD.adoc[RDD] that create one or many new RDDs.
+*Transformations* are lazy operations on an rdd:RDD.md[RDD] that create one or many new RDDs.
 
 ```
 // T and U are Scala types
@@ -8,7 +8,7 @@ transformation: RDD[T] => RDD[U]
 transformation: RDD[T] => Seq[RDD[U]]
 ```
 
-In other words, transformations are *functions* that take an RDD as the input and produce one or many RDDs as the output. Transformations do not change the input RDD (since xref:rdd:index.adoc#introduction[RDDs are immutable] and hence cannot be modified), but produce one or more new RDDs by applying the computations they represent.
+In other words, transformations are *functions* that take an RDD as the input and produce one or many RDDs as the output. Transformations do not change the input RDD (since rdd:index.md#introduction[RDDs are immutable] and hence cannot be modified), but produce one or more new RDDs by applying the computations they represent.
 
 [[methods]]
 .(Subset of) RDD Transformations (Public API)
@@ -35,9 +35,9 @@ a| [[barrier]]
 barrier(): RDDBarrier[T]
 ----
 
-(*New in 2.4.0*) Marks the current stage as a <<spark-barrier-execution-mode.adoc#barrier-stage, barrier stage>> in <<spark-barrier-execution-mode.adoc#, Barrier Execution Mode>>, where Spark must launch all tasks together
+(*New in 2.4.0*) Marks the current stage as a <<spark-barrier-execution-mode.md#barrier-stage, barrier stage>> in <<spark-barrier-execution-mode.md#, Barrier Execution Mode>>, where Spark must launch all tasks together
 
-Internally, `barrier` creates a <<spark-RDDBarrier.adoc#, RDDBarrier>> over the RDD
+Internally, `barrier` creates a <<spark-RDDBarrier.md#, RDDBarrier>> over the RDD
 
 | cache
 a| [[cache]]
@@ -47,7 +47,7 @@ a| [[cache]]
 cache(): this.type
 ----
 
-Persists the RDD with the xref:storage:StorageLevel.adoc#MEMORY_ONLY[MEMORY_ONLY] storage level
+Persists the RDD with the storage:StorageLevel.md#MEMORY_ONLY[MEMORY_ONLY] storage level
 
 Synonym of <<persist, persist>>
 
@@ -137,7 +137,7 @@ persist(newLevel: StorageLevel): this.type
 
 |===
 
-By applying transformations you incrementally build a link:spark-rdd-lineage.adoc[RDD lineage] with all the parent RDDs of the final RDD(s).
+By applying transformations you incrementally build a spark-rdd-lineage.md[RDD lineage] with all the parent RDDs of the final RDD(s).
 
 Transformations are lazy, i.e. are not executed immediately. Only after calling an action are transformations executed.
 
@@ -193,7 +193,7 @@ Spark groups narrow transformations as a stage which is called *pipelining*.
 
 NOTE: Wide transformations are also called shuffle transformations as they may or may not depend on a shuffle.
 
-All of the tuples with the same key must end up in the same partition, processed by the same task. To satisfy these operations, Spark must execute link:spark-rdd-shuffle.adoc[RDD shuffle], which transfers data across cluster and results in a new stage with a new set of partitions.
+All of the tuples with the same key must end up in the same partition, processed by the same task. To satisfy these operations, Spark must execute spark-rdd-shuffle.md[RDD shuffle], which transfers data across cluster and results in a new stage with a new set of partitions.
 
 === [[zipWithIndex]] zipWithIndex
 

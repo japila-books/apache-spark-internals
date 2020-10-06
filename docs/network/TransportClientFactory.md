@@ -30,13 +30,13 @@ TransportClient createClient(InetSocketAddress address)
 ====
 `createClient` is used when:
 
-* `NettyBlockTransferService` is requested to xref:storage:NettyBlockTransferService.adoc#fetchBlocks[fetchBlocks] and xref:storage:NettyBlockTransferService.adoc#uploadBlock[uploadBlock]
+* `NettyBlockTransferService` is requested to storage:NettyBlockTransferService.md#fetchBlocks[fetchBlocks] and storage:NettyBlockTransferService.md#uploadBlock[uploadBlock]
 
 * `NettyRpcEnv` is requested to `createClient` and `downloadClient`
 
 * TransportClientFactory is requested to <<createUnmanagedClient, createUnmanagedClient>>.
 
-* `ExternalShuffleClient` is requested to xref:storage:ExternalShuffleClient.adoc#fetchBlocks[fetchBlocks]
+* `ExternalShuffleClient` is requested to storage:ExternalShuffleClient.md#fetchBlocks[fetchBlocks]
 
 * Spark on Mesos' `MesosExternalShuffleClient` is requested to `registerDriverWithShuffleService`
 ====

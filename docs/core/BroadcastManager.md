@@ -1,24 +1,24 @@
 # BroadcastManager
 
-`BroadcastManager` is a Spark service to manage xref:ROOT:Broadcast.adoc[]s in a Spark application.
+`BroadcastManager` is a Spark service to manage ROOT:Broadcast.md[]s in a Spark application.
 
 [BroadcastManager, SparkEnv and BroadcastFactory](../images/core/BroadcastManager.png)
 
 BroadcastManager assigns <<nextBroadcastId, unique identifiers>> to broadcast variables.
 
-BroadcastManager is used to create a xref:scheduler:MapOutputTrackerMaster.adoc#BroadcastManager[MapOutputTrackerMaster]
+BroadcastManager is used to create a scheduler:MapOutputTrackerMaster.md#BroadcastManager[MapOutputTrackerMaster]
 
 == [[creating-instance]] Creating Instance
 
 BroadcastManager takes the following to be created:
 
 * <<isDriver, isDriver>> flag
-* [[conf]] xref:ROOT:SparkConf.adoc[SparkConf]
+* [[conf]] ROOT:SparkConf.md[SparkConf]
 * [[securityManager]] SecurityManager
 
 When created, BroadcastManager <<initialize, initializes>>.
 
-BroadcastManager is created when SparkEnv is xref:core:SparkEnv.adoc[created] (for the driver and executors and hence the need for the <<isDriver, isDriver>> flag).
+BroadcastManager is created when SparkEnv is core:SparkEnv.md[created] (for the driver and executors and hence the need for the <<isDriver, isDriver>> flag).
 
 == [[isDriver]] isDriver Flag
 
@@ -26,11 +26,11 @@ BroadcastManager is given `isDriver` flag when <<creating-instance, created>>.
 
 The isDriver flag indicates whether the initialization happens on the driver (`true`) or executors (`false`).
 
-BroadcastManager uses the flag when requested to <<initialize, initialize>> for the <<broadcastFactory, TorrentBroadcastFactory>> to xref:TorrentBroadcastFactory.adoc#initialize[initialize].
+BroadcastManager uses the flag when requested to <<initialize, initialize>> for the <<broadcastFactory, TorrentBroadcastFactory>> to TorrentBroadcastFactory.md#initialize[initialize].
 
 == [[broadcastFactory]] TorrentBroadcastFactory
 
-BroadcastManager manages a xref:core:BroadcastFactory.adoc[BroadcastFactory]:
+BroadcastManager manages a core:BroadcastFactory.md[BroadcastFactory]:
 
 * It is created and initialized in <<initialize, initialize>>
 
@@ -58,7 +58,7 @@ Every <<newBroadcast, newBroadcast>> is given a new and unique identifier.
 initialize(): Unit
 ----
 
-initialize creates a <<broadcastFactory, TorrentBroadcastFactory>> and requests it to xref:core:TorrentBroadcastFactory.adoc#initialize[initialize].
+initialize creates a <<broadcastFactory, TorrentBroadcastFactory>> and requests it to core:TorrentBroadcastFactory.md#initialize[initialize].
 
 initialize turns `initialized` internal flag on to guard against multiple initializations. With the initialized flag already enabled, initialize does nothing.
 
@@ -71,7 +71,7 @@ initialize is used once when BroadcastManager is <<creating-instance, created>>.
 stop(): Unit
 ----
 
-stop requests the <<broadcastFactory, BroadcastFactory>> to xref:core:BroadcastFactory.adoc#stop[stop].
+stop requests the <<broadcastFactory, BroadcastFactory>> to core:BroadcastFactory.md#stop[stop].
 
 == [[newBroadcast]] Creating Broadcast Variable
 
@@ -82,12 +82,12 @@ newBroadcast[T](
   isLocal: Boolean): Broadcast[T]
 ----
 
-newBroadcast requests the xref:core:BroadcastFactory.adoc[current `BroadcastFactory` for a new broadcast variable].
+newBroadcast requests the core:BroadcastFactory.md[current `BroadcastFactory` for a new broadcast variable].
 
 The `BroadcastFactory` is created when <<initialize, BroadcastManager is initialized>>.
 
 newBroadcast is used when:
 
-* MapOutputTracker utility is used to xref:scheduler:MapOutputTracker.adoc#serializeMapStatuses[serializeMapStatuses]
+* MapOutputTracker utility is used to scheduler:MapOutputTracker.md#serializeMapStatuses[serializeMapStatuses]
 
-* SparkContext is requested for a xref:ROOT:SparkContext.adoc#broadcast[new broadcast variable]
+* SparkContext is requested for a ROOT:SparkContext.md#broadcast[new broadcast variable]

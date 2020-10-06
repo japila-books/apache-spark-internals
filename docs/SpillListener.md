@@ -1,6 +1,6 @@
 == [[SpillListener]] SpillListener -- Detecting Spills in Jobs (for Testing)
 
-`SpillListener` is a xref:ROOT:SparkListener.adoc[] that intercepts (_listens to_) the following events:
+`SpillListener` is a ROOT:SparkListener.md[] that intercepts (_listens to_) the following events:
 
 * <<onTaskEnd, onTaskEnd>>
 
@@ -39,7 +39,7 @@ Used when...FIXME
 onTaskEnd(taskEnd: SparkListenerTaskEnd): Unit
 ----
 
-NOTE: `onTaskEnd` is part of the xref:ROOT:SparkListener.adoc#onTaskEnd[SparkListener] Contract.
+NOTE: `onTaskEnd` is part of the ROOT:SparkListener.md#onTaskEnd[SparkListener] Contract.
 
 `onTaskEnd`...FIXME
 
@@ -50,6 +50,6 @@ NOTE: `onTaskEnd` is part of the xref:ROOT:SparkListener.adoc#onTaskEnd[SparkLis
 onStageCompleted(stageComplete: SparkListenerStageCompleted): Unit
 ----
 
-NOTE: `onStageCompleted` is part of the xref:ROOT:SparkListener.adoc#onStageCompleted[SparkListener] Contract.
+NOTE: `onStageCompleted` is part of the ROOT:SparkListener.md#onStageCompleted[SparkListener] Contract.
 
 `onStageCompleted`...FIXME

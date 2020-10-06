@@ -1,6 +1,6 @@
 = MemoryStore
 
-*MemoryStore* manages blocks of data in memory for xref:storage:BlockManager.adoc#memoryStore[BlockManager].
+*MemoryStore* manages blocks of data in memory for storage:BlockManager.md#memoryStore[BlockManager].
 
 .MemoryStore and BlockManager
 image::MemoryStore-BlockManager.png[align="center"]
@@ -9,26 +9,26 @@ image::MemoryStore-BlockManager.png[align="center"]
 
 MemoryStore takes the following to be created:
 
-* [[conf]] xref:ROOT:SparkConf.adoc[]
+* [[conf]] ROOT:SparkConf.md[]
 * <<blockInfoManager, BlockInfoManager>>
-* [[serializerManager]] xref:serializer:SerializerManager.adoc[]
-* [[memoryManager]] xref:memory:MemoryManager.adoc[]
-* [[blockEvictionHandler]] xref:storage:BlockEvictionHandler.adoc[]
+* [[serializerManager]] serializer:SerializerManager.md[]
+* [[memoryManager]] memory:MemoryManager.md[]
+* [[blockEvictionHandler]] storage:BlockEvictionHandler.md[]
 
-MemoryStore is created for xref:storage:BlockManager.adoc#memoryStore[BlockManager].
+MemoryStore is created for storage:BlockManager.md#memoryStore[BlockManager].
 
 .Creating MemoryStore
 image::spark-MemoryStore.png[align="center"]
 
 == [[blockInfoManager]] BlockInfoManager
 
-MemoryStore is given a xref:storage:BlockInfoManager.adoc[] when <<creating-instance, created>>.
+MemoryStore is given a storage:BlockInfoManager.md[] when <<creating-instance, created>>.
 
 MemoryStore uses the BlockInfoManager when requested to <<evictBlocksToFreeSpace, evictBlocksToFreeSpace>>.
 
 == [[memoryStore]] Accessing MemoryStore
 
-MemoryStore is available using xref:storage:BlockManager.adoc#memoryStore[BlockManager.memoryStore] reference to other Spark services.
+MemoryStore is available using storage:BlockManager.md#memoryStore[BlockManager.memoryStore] reference to other Spark services.
 
 [source,scala]
 ----
@@ -38,7 +38,7 @@ SparkEnv.get.blockManager.memoryStore
 
 == [[unrollMemoryThreshold]][[spark.storage.unrollMemoryThreshold]] spark.storage.unrollMemoryThreshold Configuration Property
 
-MemoryStore uses xref:ROOT:configuration-properties.adoc#spark.storage.unrollMemoryThreshold[spark.storage.unrollMemoryThreshold] configuration property for <<putIterator, putIterator>> and <<putIteratorAsBytes, putIteratorAsBytes>>.
+MemoryStore uses ROOT:configuration-properties.md#spark.storage.unrollMemoryThreshold[spark.storage.unrollMemoryThreshold] configuration property for <<putIterator, putIterator>> and <<putIteratorAsBytes, putIteratorAsBytes>>.
 
 == [[releaseUnrollMemoryForThisTask]] releaseUnrollMemoryForThisTask Method
 
@@ -53,7 +53,7 @@ releaseUnrollMemoryForThisTask...FIXME
 
 releaseUnrollMemoryForThisTask is used when:
 
-* Task is requested to xref:scheduler:Task.adoc#run[run] (and cleans up after itself)
+* Task is requested to scheduler:Task.md#run[run] (and cleans up after itself)
 
 * MemoryStore is requested to <<putIterator, putIterator>>
 
@@ -71,7 +71,7 @@ getValues(
 
 getValues...FIXME
 
-getValues is used when BlockManager is requested to xref:storage:BlockManager.adoc#doGetLocalBytes[doGetLocalBytes], xref:storage:BlockManager.adoc#getLocalValues[getLocalValues] and xref:storage:BlockManager.adoc#maybeCacheDiskBytesInMemory[maybeCacheDiskBytesInMemory].
+getValues is used when BlockManager is requested to storage:BlockManager.md#doGetLocalBytes[doGetLocalBytes], storage:BlockManager.md#getLocalValues[getLocalValues] and storage:BlockManager.md#maybeCacheDiskBytesInMemory[maybeCacheDiskBytesInMemory].
 
 == [[getBytes]] getBytes Method
 
@@ -83,7 +83,7 @@ getBytes(
 
 getBytes...FIXME
 
-getBytes is used when BlockManager is requested to xref:storage:BlockManager.adoc#doGetLocalBytes[doGetLocalBytes], xref:storage:BlockManager.adoc#getLocalValues[getLocalValues] and xref:storage:BlockManager.adoc#maybeCacheDiskBytesInMemory[maybeCacheDiskBytesInMemory].
+getBytes is used when BlockManager is requested to storage:BlockManager.md#doGetLocalBytes[doGetLocalBytes], storage:BlockManager.md#getLocalValues[getLocalValues] and storage:BlockManager.md#maybeCacheDiskBytesInMemory[maybeCacheDiskBytesInMemory].
 
 == [[putIteratorAsBytes]] putIteratorAsBytes Method
 
@@ -98,7 +98,7 @@ putIteratorAsBytes[T](
 
 putIteratorAsBytes...FIXME
 
-putIteratorAsBytes is used when BlockManager is requested to xref:storage:BlockManager.adoc#doPutIterator[doPutIterator].
+putIteratorAsBytes is used when BlockManager is requested to storage:BlockManager.md#doPutIterator[doPutIterator].
 
 == [[remove]] Dropping Block from Memory
 
@@ -108,11 +108,11 @@ remove(
   blockId: BlockId): Boolean
 ----
 
-remove removes the given xref:storage:BlockId.adoc[] from the <<entries, entries>> internal registry and branches off based on whether the <<remove-block-removed, block was found and removed>> or <<remove-no-block, not>>.
+remove removes the given storage:BlockId.md[] from the <<entries, entries>> internal registry and branches off based on whether the <<remove-block-removed, block was found and removed>> or <<remove-no-block, not>>.
 
 === [[remove-block-removed]] Block Removed
 
-When found and removed, remove requests the <<memoryManager, MemoryManager>> to xref:memory:MemoryManager.adoc#releaseStorageMemory[releaseStorageMemory] and prints out the following DEBUG message to the logs:
+When found and removed, remove requests the <<memoryManager, MemoryManager>> to memory:MemoryManager.md#releaseStorageMemory[releaseStorageMemory] and prints out the following DEBUG message to the logs:
 
 [source,plaintext]
 ----
@@ -127,7 +127,7 @@ If no BlockId was registered and removed, remove returns `false`.
 
 === [[remove-usage]] Usage
 
-remove is used when BlockManager is requested to xref:storage:BlockManager.adoc#dropFromMemory[dropFromMemory] and xref:storage:BlockManager.adoc#removeBlockInternal[removeBlockInternal].
+remove is used when BlockManager is requested to storage:BlockManager.md#dropFromMemory[dropFromMemory] and storage:BlockManager.md#removeBlockInternal[removeBlockInternal].
 
 == [[putBytes]] Acquiring Storage Memory for Blocks
 
@@ -140,15 +140,15 @@ putBytes[T: ClassTag](
   _bytes: () => ChunkedByteBuffer): Boolean
 ----
 
-putBytes requests xref:memory:MemoryManager.adoc#acquireStorageMemory[storage memory  for `blockId` from `MemoryManager`] and registers the block in <<entries, entries>> internal registry.
+putBytes requests memory:MemoryManager.md#acquireStorageMemory[storage memory  for `blockId` from `MemoryManager`] and registers the block in <<entries, entries>> internal registry.
 
 Internally, putBytes first makes sure that `blockId` block has not been registered already in <<entries, entries>> internal registry.
 
-putBytes then requests xref:memory:MemoryManager.adoc#acquireStorageMemory[`size` memory for the `blockId` block in a given `memoryMode` from the current `MemoryManager`].
+putBytes then requests memory:MemoryManager.md#acquireStorageMemory[`size` memory for the `blockId` block in a given `memoryMode` from the current `MemoryManager`].
 
 [NOTE]
 ====
-`memoryMode` can be `ON_HEAP` or `OFF_HEAP` and is a property of a xref:storage:StorageLevel.adoc[StorageLevel].
+`memoryMode` can be `ON_HEAP` or `OFF_HEAP` and is a property of a storage:StorageLevel.md[StorageLevel].
 
 ```
 import org.apache.spark.storage.StorageLevel._
@@ -170,7 +170,7 @@ Block [blockId] stored as bytes in memory (estimated size [size], free [bytes])
 
 putBytes returns `true` only after `blockId` was successfully registered in the internal <<entries, entries>> registry.
 
-putBytes is used when BlockManager is requested to xref:storage:BlockManager.adoc#doPutBytes[doPutBytes] and xref:storage:BlockManager.adoc#maybeCacheDiskBytesInMemory[maybeCacheDiskBytesInMemory].
+putBytes is used when BlockManager is requested to storage:BlockManager.md#doPutBytes[doPutBytes] and storage:BlockManager.md#maybeCacheDiskBytesInMemory[maybeCacheDiskBytesInMemory].
 
 == [[evictBlocksToFreeSpace]] Evicting Blocks
 
@@ -184,7 +184,7 @@ evictBlocksToFreeSpace(
 
 evictBlocksToFreeSpace...FIXME
 
-evictBlocksToFreeSpace is used when StorageMemoryPool is requested to xref:memory:StorageMemoryPool.adoc#acquireMemory[acquireMemory] and xref:memory:StorageMemoryPool.adoc#freeSpaceToShrinkPool[freeSpaceToShrinkPool].
+evictBlocksToFreeSpace is used when StorageMemoryPool is requested to memory:StorageMemoryPool.md#acquireMemory[acquireMemory] and memory:StorageMemoryPool.md#freeSpaceToShrinkPool[freeSpaceToShrinkPool].
 
 == [[contains]] Checking Whether Block Exists In MemoryStore
 
@@ -220,7 +220,7 @@ CAUTION: FIXME
 
 putIteratorAsValues tries to put the `blockId` block in memory store as `values`.
 
-putIteratorAsValues is used when BlockManager is requested to store xref:storage:BlockManager.adoc#doPutBytes[bytes] or xref:storage:BlockManager.adoc#doPutIterator[values] of a block or when xref:storage:BlockManager.adoc#maybeCacheDiskValuesInMemory[attempting to cache spilled values read from disk].
+putIteratorAsValues is used when BlockManager is requested to store storage:BlockManager.md#doPutBytes[bytes] or storage:BlockManager.md#doPutIterator[values] of a block or when storage:BlockManager.md#maybeCacheDiskValuesInMemory[attempting to cache spilled values read from disk].
 
 == [[reserveUnrollMemoryForThisTask]] `reserveUnrollMemoryForThisTask` Method
 
@@ -232,7 +232,7 @@ reserveUnrollMemoryForThisTask(
   memoryMode: MemoryMode): Boolean
 ----
 
-`reserveUnrollMemoryForThisTask` acquires a lock on <<memoryManager, MemoryManager>> and requests it to xref:memory:MemoryManager.adoc#acquireUnrollMemory[acquireUnrollMemory].
+`reserveUnrollMemoryForThisTask` acquires a lock on <<memoryManager, MemoryManager>> and requests it to memory:MemoryManager.md#acquireUnrollMemory[acquireUnrollMemory].
 
 NOTE: `reserveUnrollMemoryForThisTask` is used when MemoryStore is requested to <<putIteratorAsValues, putIteratorAsValues>> and <<putIteratorAsBytes, putIteratorAsBytes>>.
 
@@ -243,7 +243,7 @@ NOTE: `reserveUnrollMemoryForThisTask` is used when MemoryStore is requested to 
 maxMemory: Long
 ----
 
-`maxMemory` requests the <<memoryManager, MemoryManager>> for the current xref:memory:MemoryManager.adoc#maxOnHeapStorageMemory[maxOnHeapStorageMemory] and xref:memory:MemoryManager.adoc#maxOffHeapStorageMemory[maxOffHeapStorageMemory], and simply returns their sum.
+`maxMemory` requests the <<memoryManager, MemoryManager>> for the current memory:MemoryManager.md#maxOnHeapStorageMemory[maxOnHeapStorageMemory] and memory:MemoryManager.md#maxOffHeapStorageMemory[maxOffHeapStorageMemory], and simply returns their sum.
 
 [TIP]
 ====
@@ -303,7 +303,7 @@ logMemoryUsage is used when MemoryStore is requested to <<logUnrollFailureMessag
 memoryUsed: Long
 ----
 
-memoryUsed requests the <<memoryManager, MemoryManager>> for the xref:memory:MemoryManager.adoc#storageMemoryUsed[storageMemoryUsed].
+memoryUsed requests the <<memoryManager, MemoryManager>> for the memory:MemoryManager.md#storageMemoryUsed[storageMemoryUsed].
 
 memoryUsed is used when MemoryStore is requested for <<blocksMemoryUsed, blocksMemoryUsed>> and to <<logMemoryUsage, logMemoryUsage>>.
 
@@ -329,7 +329,7 @@ Add the following line to `conf/log4j.properties`:
 log4j.logger.org.apache.spark.storage.memory.MemoryStore=ALL
 ----
 
-Refer to xref:ROOT:spark-logging.adoc[Logging].
+Refer to ROOT:spark-logging.md[Logging].
 
 == [[internal-registries]] Internal Registries
 
@@ -340,6 +340,6 @@ Refer to xref:ROOT:spark-logging.adoc[Logging].
 entries: LinkedHashMap[BlockId, MemoryEntry[_]]
 ----
 
-MemoryStore creates a Java {java-javadoc-url}/java/util/LinkedHashMap.html[LinkedHashMap] of `MemoryEntries` per xref:storage:BlockId.adoc[] (with the initial capacity of `32` and the load factor of `0.75`) when <<creating-instance>>.
+MemoryStore creates a Java {java-javadoc-url}/java/util/LinkedHashMap.html[LinkedHashMap] of `MemoryEntries` per storage:BlockId.md[] (with the initial capacity of `32` and the load factor of `0.75`) when <<creating-instance>>.
 
 entries uses *access-order* ordering mode where the order of iteration is the order in which the entries were last accessed (from least-recently accessed to most-recently). That gives *LRU cache* behaviour when MemoryStore is requested to <<evictBlocksToFreeSpace, evict blocks>>.

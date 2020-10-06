@@ -1,7 +1,7 @@
 = RpcEndpointRef -- Reference to RPC Endpoint
 :navtitle: RpcEndpointRef
 
-RpcEndpointRef is a reference to a xref:rpc:RpcEndpoint.adoc[RpcEndpoint] in a xref:rpc:index.adoc[RpcEnv].
+RpcEndpointRef is a reference to a rpc:RpcEndpoint.md[RpcEndpoint] in a rpc:index.md[RpcEnv].
 
 RpcEndpointRef is a serializable entity and so you can send it over a network or save it for later use (it can however be deserialized using the owning `RpcEnv` only).
 
@@ -14,7 +14,7 @@ You can send a semi-synchronous message, i.e. "subscribe" to be notified when a 
 * `spark.rpc.numRetries` (default: `3`) - the number of times to retry connection attempts.
 * `spark.rpc.retry.wait` (default: `3s`) - the number of milliseconds to wait on each retry.
 
-It also uses xref:rpc:index.adoc#endpoint-lookup-timeout[lookup timeouts].
+It also uses rpc:index.md#endpoint-lookup-timeout[lookup timeouts].
 
 == [[send]] send Method
 

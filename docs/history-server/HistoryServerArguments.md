@@ -1,6 +1,6 @@
 == HistoryServerArguments
 
-`HistoryServerArguments` is the command-line parser for the xref:index.adoc[History Server].
+`HistoryServerArguments` is the command-line parser for the index.md[History Server].
 
 When `HistoryServerArguments` is executed with a single command-line parameter it is assumed to be the event logs directory.
 
@@ -16,9 +16,9 @@ WARN HistoryServerArguments: Setting log directory through the command line is d
 
 The same WARN message shows up for `--dir` and `-d` command-line options.
 
-`--properties-file [propertiesFile]` command-line option specifies the file with the custom link:spark-properties.adoc[Spark properties].
+`--properties-file [propertiesFile]` command-line option specifies the file with the custom spark-properties.md[Spark properties].
 
-NOTE: When not specified explicitly, History Server uses the default configuration file, i.e. link:spark-properties.adoc#spark-defaults-conf[spark-defaults.conf].
+NOTE: When not specified explicitly, History Server uses the default configuration file, i.e. spark-properties.md#spark-defaults-conf[spark-defaults.conf].
 
 [TIP]
 ====
@@ -30,5 +30,5 @@ Add the following line to `conf/log4j.properties`:
 log4j.logger.org.apache.spark.deploy.history.HistoryServerArguments=WARN
 ```
 
-Refer to link:spark-logging.adoc[Logging].
+Refer to spark-logging.md[Logging].
 ====

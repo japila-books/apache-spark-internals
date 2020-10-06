@@ -1,8 +1,8 @@
 = FsHistoryProvider
 
-*FsHistoryProvider* is the default xref:ApplicationHistoryProvider.adoc[ApplicationHistoryProvider] for xref:index.adoc[Spark History Server].
+*FsHistoryProvider* is the default ApplicationHistoryProvider.md[ApplicationHistoryProvider] for index.md[Spark History Server].
 
-FsHistoryProvider is <<creating-instance, created>> exclusively when `HistoryServer` is xref:HistoryServer.adoc#main[started] as a standalone application and `spark.history.provider` configuration property was not defined.
+FsHistoryProvider is <<creating-instance, created>> exclusively when `HistoryServer` is HistoryServer.md#main[started] as a standalone application and `spark.history.provider` configuration property was not defined.
 
 [TIP]
 ====
@@ -14,7 +14,7 @@ Add the following line to `conf/log4j.properties`:
 log4j.logger.org.apache.spark.deploy.history.FsHistoryProvider=DEBUG
 ```
 
-Refer to link:spark-logging.adoc[Logging].
+Refer to spark-logging.md[Logging].
 ====
 
 == [[rebuildAppStore]] `rebuildAppStore` Internal Method
@@ -38,7 +38,7 @@ NOTE: `rebuildAppStore` is used when...FIXME
 getAppUI(appId: String, attemptId: Option[String]): Option[LoadedAppUI]
 ----
 
-NOTE: `getAppUI` is part of xref:ApplicationHistoryProvider.adoc#getAppUI[ApplicationHistoryProvider Contract] to...FIXME.
+NOTE: `getAppUI` is part of ApplicationHistoryProvider.md#getAppUI[ApplicationHistoryProvider Contract] to...FIXME.
 
 `getAppUI`...FIXME
 
@@ -46,7 +46,7 @@ NOTE: `getAppUI` is part of xref:ApplicationHistoryProvider.adoc#getAppUI[Applic
 
 FsHistoryProvider takes the following when created:
 
-* [[conf]] xref:ROOT:SparkConf.adoc[SparkConf]
+* [[conf]] ROOT:SparkConf.md[SparkConf]
 * [[clock]] `Clock` (default: `SystemClock`)
 
 FsHistoryProvider initializes the <<internal-registries, internal registries and counters>>.

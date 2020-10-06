@@ -1,38 +1,38 @@
 = [[DiskBlockObjectWriter]] DiskBlockObjectWriter
 
-*DiskBlockObjectWriter* is a custom {java-javadoc-url}/java/io/OutputStream.html[java.io.OutputStream] that xref:storage:BlockManager.adoc#getDiskWriter[BlockManager] offers for <<write, writing data blocks to disk>>.
+*DiskBlockObjectWriter* is a custom {java-javadoc-url}/java/io/OutputStream.html[java.io.OutputStream] that storage:BlockManager.md#getDiskWriter[BlockManager] offers for <<write, writing data blocks to disk>>.
 
 DiskBlockObjectWriter is used when:
 
-* BypassMergeSortShuffleWriter is requested for xref:shuffle:BypassMergeSortShuffleWriter.adoc#partitionWriters[partition writers]
+* BypassMergeSortShuffleWriter is requested for shuffle:BypassMergeSortShuffleWriter.md#partitionWriters[partition writers]
 
-* UnsafeSorterSpillWriter is requested for a xref:memory:UnsafeSorterSpillWriter.adoc#writer[partition writer]
+* UnsafeSorterSpillWriter is requested for a memory:UnsafeSorterSpillWriter.md#writer[partition writer]
 
-* ShuffleExternalSorter is requested to xref:shuffle:ShuffleExternalSorter.adoc#writeSortedFile[writeSortedFile]
+* ShuffleExternalSorter is requested to shuffle:ShuffleExternalSorter.md#writeSortedFile[writeSortedFile]
 
-* ExternalSorter is requested to xref:shuffle:ExternalSorter.adoc#spillMemoryIteratorToDisk[spillMemoryIteratorToDisk]
+* ExternalSorter is requested to shuffle:ExternalSorter.md#spillMemoryIteratorToDisk[spillMemoryIteratorToDisk]
 
 == [[creating-instance]] Creating Instance
 
 DiskBlockObjectWriter takes the following to be created:
 
 * [[file]] Java {java-javadoc-url}/java/io/File.html[File]
-* [[serializerManager]] xref:serializer:SerializerManager.adoc[]
-* [[serializerInstance]] xref:serializer:SerializerInstance.adoc[]
+* [[serializerManager]] serializer:SerializerManager.md[]
+* [[serializerInstance]] serializer:SerializerInstance.md[]
 * [[bufferSize]] Buffer size
 * [[syncWrites]] syncWrites flag
-* [[writeMetrics]] xref:executor:ShuffleWriteMetrics.adoc[]
-* [[blockId]] xref:storage:BlockId.adoc[] (default: `null`)
+* [[writeMetrics]] executor:ShuffleWriteMetrics.md[]
+* [[blockId]] storage:BlockId.md[] (default: `null`)
 
 DiskBlockObjectWriter is created when:
 
-* BlockManager is requested for xref:storage:BlockManager.adoc#getDiskWriter[one]
+* BlockManager is requested for storage:BlockManager.md#getDiskWriter[one]
 
-* BypassMergeSortShuffleWriter is requested to xref:shuffle:BypassMergeSortShuffleWriter.adoc#write[write records] (as xref:shuffle:BypassMergeSortShuffleWriter.adoc#partitionWriters[partition writers])
+* BypassMergeSortShuffleWriter is requested to shuffle:BypassMergeSortShuffleWriter.md#write[write records] (as shuffle:BypassMergeSortShuffleWriter.md#partitionWriters[partition writers])
 
 == [[objOut]] SerializationStream
 
-DiskBlockObjectWriter manages a xref:serializer:SerializationStream.adoc[SerializationStream] for <<write, writing a key-value record>>:
+DiskBlockObjectWriter manages a serializer:SerializationStream.md[SerializationStream] for <<write, writing a key-value record>>:
 
 * Opens it when requested to <<open, open>>
 
@@ -59,17 +59,17 @@ write(
 
 write <<open, opens the underlying stream>> unless <<streamOpen, open>> already.
 
-write requests the <<objOut, SerializationStream>> to xref:serializer:SerializationStream.adoc#writeKey[write the key] and then the xref:serializer:SerializationStream.adoc#writeValue[value].
+write requests the <<objOut, SerializationStream>> to serializer:SerializationStream.md#writeKey[write the key] and then the serializer:SerializationStream.md#writeValue[value].
 
 In the end, write <<recordWritten, updates the write metrics>>.
 
 write is used when:
 
-* BypassMergeSortShuffleWriter is requested to xref:shuffle:BypassMergeSortShuffleWriter.adoc#write[write records of a partition]
+* BypassMergeSortShuffleWriter is requested to shuffle:BypassMergeSortShuffleWriter.md#write[write records of a partition]
 
-* ExternalAppendOnlyMap is requested to xref:shuffle:ExternalAppendOnlyMap.adoc#spillMemoryIteratorToDisk[spillMemoryIteratorToDisk]
+* ExternalAppendOnlyMap is requested to shuffle:ExternalAppendOnlyMap.md#spillMemoryIteratorToDisk[spillMemoryIteratorToDisk]
 
-* ExternalSorter is requested to xref:shuffle:ExternalSorter.adoc#writePartitionedFile[write all records into a partitioned file]
+* ExternalSorter is requested to shuffle:ExternalSorter.md#writePartitionedFile[write all records into a partitioned file]
 ** SpillableIterator is requested to spill
 
 * WritablePartitionedPairCollection is requested for a destructiveSortedWritablePartitionedIterator
@@ -147,9 +147,9 @@ Writer already closed. Cannot be reopened.
 
 Unless DiskBlockObjectWriter has already been initialized (i.e. <<initialized, initialized>> flag is enabled), `open` <<initialize, initializes>> it (and turns <<initialized, initialized>> flag on).
 
-Regardless of whether DiskBlockObjectWriter was already initialized or not, `open` xref:serializer:SerializerManager.adoc#wrapStream[requests `SerializerManager` to wrap `mcs` output stream for encryption and compression] (for <<blockId, blockId>>) and sets it as <<bs, bs>>.
+Regardless of whether DiskBlockObjectWriter was already initialized or not, `open` serializer:SerializerManager.md#wrapStream[requests `SerializerManager` to wrap `mcs` output stream for encryption and compression] (for <<blockId, blockId>>) and sets it as <<bs, bs>>.
 
-`open` requests the <<serializerInstance, SerializerInstance>> to xref:serializer:SerializerInstance.adoc#serializeStream[serialize `bs` output stream] and sets it as <<objOut, objOut>>.
+`open` requests the <<serializerInstance, SerializerInstance>> to serializer:SerializerInstance.md#serializeStream[serialize `bs` output stream] and sets it as <<objOut, objOut>>.
 
 NOTE: `open` uses `SerializerInstance` that was specified when <<creating-instance, DiskBlockObjectWriter was created>>
 

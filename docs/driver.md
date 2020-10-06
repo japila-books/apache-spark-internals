@@ -1,8 +1,8 @@
-== Driver
+# Driver
 
-A *Spark driver* (_aka_ *an application's driver process*) is a JVM process that hosts xref:ROOT:SparkContext.adoc[SparkContext] for a Spark application. It is the master node in a Spark application.
+A *Spark driver* (_aka_ *an application's driver process*) is a JVM process that hosts ROOT:SparkContext.md[SparkContext] for a Spark application. It is the master node in a Spark application.
 
-It is the cockpit of jobs and tasks execution (using xref:scheduler:DAGScheduler.adoc[DAGScheduler] and xref:scheduler:TaskScheduler.adoc[Task Scheduler]). It hosts link:spark-webui.adoc[Web UI] for the environment.
+It is the cockpit of jobs and tasks execution (using scheduler:DAGScheduler.md[DAGScheduler] and scheduler:TaskScheduler.md[Task Scheduler]). It hosts spark-webui.md[Web UI] for the environment.
 
 .Driver with the services
 image::spark-driver.png[align="center"]
@@ -13,16 +13,16 @@ A driver is where the task scheduler lives and spawns tasks across workers.
 
 A driver coordinates workers and overall execution of tasks.
 
-NOTE: link:spark-shell.adoc[Spark shell] is a Spark application and the driver. It creates a `SparkContext` that is available as `sc`.
+NOTE: spark-shell.md[Spark shell] is a Spark application and the driver. It creates a `SparkContext` that is available as `sc`.
 
-Driver requires the additional services (beside the common ones like xref:shuffle:ShuffleManager.adoc[], xref:memory:MemoryManager.adoc[], xref:storage:BlockTransferService.adoc[], xref:core:BroadcastManager.adoc[]):
+Driver requires the additional services (beside the common ones like shuffle:ShuffleManager.md[], memory:MemoryManager.md[], storage:BlockTransferService.md[], core:BroadcastManager.md[]):
 
 * Listener Bus
-* xref:rpc:index.adoc[]
-* xref:scheduler:MapOutputTrackerMaster.adoc[] with the name *MapOutputTracker*
-* xref:storage:BlockManagerMaster.adoc[] with the name *BlockManagerMaster*
-* xref:metrics:spark-metrics-MetricsSystem.adoc[] with the name *driver*
-* xref:scheduler:OutputCommitCoordinator.adoc[] with the endpoint's name *OutputCommitCoordinator*
+* rpc:index.md[]
+* scheduler:MapOutputTrackerMaster.md[] with the name *MapOutputTracker*
+* storage:BlockManagerMaster.md[] with the name *BlockManagerMaster*
+* metrics:spark-metrics-MetricsSystem.md[] with the name *driver*
+* scheduler:OutputCommitCoordinator.md[] with the endpoint's name *OutputCommitCoordinator*
 
 CAUTION: FIXME Diagram of RpcEnv for a driver (and later executors). Perhaps it should be in the notes about RpcEnv?
 
@@ -30,21 +30,21 @@ CAUTION: FIXME Diagram of RpcEnv for a driver (and later executors). Perhaps it 
 * Your Spark application runs as long as the Spark driver.
 ** Once the driver terminates, so does your Spark application.
 * Creates `SparkContext`, `RDD`'s, and executes transformations and actions
-* Launches xref:scheduler:Task.adoc[tasks]
+* Launches scheduler:Task.md[tasks]
 
 === [[driver-memory]] Driver's Memory
 
-It can be set first using link:spark-submit.adoc#command-line-options[spark-submit's `--driver-memory`] command-line option or <<spark_driver_memory, spark.driver.memory>> and falls back to link:spark-submit.adoc#environment-variables[SPARK_DRIVER_MEMORY] if not set earlier.
+It can be set first using spark-submit.md#command-line-options[spark-submit's `--driver-memory`] command-line option or <<spark_driver_memory, spark.driver.memory>> and falls back to spark-submit.md#environment-variables[SPARK_DRIVER_MEMORY] if not set earlier.
 
-NOTE: It is printed out to the standard error output in link:spark-submit.adoc#verbose-mode[spark-submit's verbose mode].
+NOTE: It is printed out to the standard error output in spark-submit.md#verbose-mode[spark-submit's verbose mode].
 
 === [[driver-memory]] Driver's Cores
 
-It can be set first using link:spark-submit.adoc#driver-cores[spark-submit's `--driver-cores`] command-line option for link:spark-deploy-mode.adoc#cluster[`cluster` deploy mode].
+It can be set first using spark-submit.md#driver-cores[spark-submit's `--driver-cores`] command-line option for spark-deploy-mode.md#cluster[`cluster` deploy mode].
 
-NOTE: In link:spark-deploy-mode.adoc#client[`client` deploy mode] the driver's memory corresponds to the memory of the JVM process the Spark application runs on.
+NOTE: In spark-deploy-mode.md#client[`client` deploy mode] the driver's memory corresponds to the memory of the JVM process the Spark application runs on.
 
-NOTE: It is printed out to the standard error output in link:spark-submit.adoc#verbose-mode[spark-submit's verbose mode].
+NOTE: It is printed out to the standard error output in spark-submit.md#verbose-mode[spark-submit's verbose mode].
 
 === [[settings]] Settings
 
@@ -52,29 +52,29 @@ NOTE: It is printed out to the standard error output in link:spark-submit.adoc#v
 [cols="1,1,2",options="header",width="100%"]
 |===
 | Spark Property | Default Value | Description
-| [[spark_driver_blockManager_port]] `spark.driver.blockManager.port` | xref:storage:BlockManager.adoc#spark_blockManager_port[spark.blockManager.port] | Port to use for the xref:storage:BlockManager.adoc[BlockManager] on the driver.
+| [[spark_driver_blockManager_port]] `spark.driver.blockManager.port` | storage:BlockManager.md#spark_blockManager_port[spark.blockManager.port] | Port to use for the storage:BlockManager.md[BlockManager] on the driver.
 
-More precisely, `spark.driver.blockManager.port` is used when xref:core:SparkEnv.adoc#NettyBlockTransferService[`NettyBlockTransferService` is created] (while `SparkEnv` is created for the driver).
+More precisely, `spark.driver.blockManager.port` is used when core:SparkEnv.md#NettyBlockTransferService[`NettyBlockTransferService` is created] (while `SparkEnv` is created for the driver).
 
 | [[spark_driver_host]][[spark.driver.host]] `spark.driver.host`
-| link:spark-SparkContext-creating-instance-internals.adoc#localHostName[localHostName]
+| spark-SparkContext-creating-instance-internals.md#localHostName[localHostName]
 | The address of the node where the driver runs on.
 
-Set when xref:ROOT:SparkContext.adoc#creating-instance[`SparkContext` is created]
+Set when ROOT:SparkContext.md#creating-instance[`SparkContext` is created]
 
 | [[spark_driver_port]][[spark.driver.port]] `spark.driver.port`
 | `0`
-| The port the driver listens to. It is first set to `0` in the driver when xref:ROOT:SparkContext.adoc#creating-instance[SparkContext is initialized].
+| The port the driver listens to. It is first set to `0` in the driver when ROOT:SparkContext.md#creating-instance[SparkContext is initialized].
 
-Set to the port of xref:rpc:index.adoc[RpcEnv] of the driver (in <<create, SparkEnv.create>>) or when link:yarn/spark-yarn-applicationmaster.adoc#waitForSparkDriver[client-mode `ApplicationMaster` connected to the driver] (in Spark on YARN).
+Set to the port of rpc:index.md[RpcEnv] of the driver (in <<create, SparkEnv.create>>) or when yarn/spark-yarn-applicationmaster.md#waitForSparkDriver[client-mode `ApplicationMaster` connected to the driver] (in Spark on YARN).
 
 | [[spark_driver_memory]] `spark.driver.memory` | `1g` | The driver's memory size (in MiBs).
 
 Refer to <<driver-memory, Driver's Memory>>.
 
-| [[spark_driver_cores]] `spark.driver.cores` | `1` | The number of CPU cores assigned to the driver in link:spark-deploy-mode.adoc#cluster[cluster deploy mode].
+| [[spark_driver_cores]] `spark.driver.cores` | `1` | The number of CPU cores assigned to the driver in spark-deploy-mode.md#cluster[cluster deploy mode].
 
-NOTE: When link:yarn/spark-yarn-client.adoc#creating-instance[Client is created] (for Spark on YARN in cluster mode only), it sets the number of cores for `ApplicationManager` using `spark.driver.cores`.
+NOTE: When yarn/spark-yarn-client.md#creating-instance[Client is created] (for Spark on YARN in cluster mode only), it sets the number of cores for `ApplicationManager` using `spark.driver.cores`.
 
 Refer to <<driver-cores, Driver's Cores>>.
 
@@ -84,7 +84,7 @@ Refer to <<driver-cores, Driver's Cores>>.
 
 | [[spark.driver.appUIAddress]] spark.driver.appUIAddress
 
-`spark.driver.appUIAddress` is used exclusively in link:yarn/README.adoc[Spark on YARN]. It is set when link:yarn/spark-yarn-client-yarnclientschedulerbackend.adoc#start[YarnClientSchedulerBackend starts] to link:yarn/spark-yarn-applicationmaster.adoc#runExecutorLauncher[run ExecutorLauncher] (and link:yarn/spark-yarn-applicationmaster.adoc#registerAM[register ApplicationMaster] for the Spark application).
+`spark.driver.appUIAddress` is used exclusively in yarn/README.md[Spark on YARN]. It is set when yarn/spark-yarn-client-yarnclientschedulerbackend.md#start[YarnClientSchedulerBackend starts] to yarn/spark-yarn-applicationmaster.md#runExecutorLauncher[run ExecutorLauncher] (and yarn/spark-yarn-applicationmaster.md#registerAM[register ApplicationMaster] for the Spark application).
 
 | [[spark_driver_libraryPath]] `spark.driver.libraryPath` | |
 
@@ -92,17 +92,17 @@ Refer to <<driver-cores, Driver's Cores>>.
 
 ==== [[spark_driver_extraClassPath]] spark.driver.extraClassPath
 
-`spark.driver.extraClassPath` system property sets the additional classpath entries (e.g. jars and directories) that should be added to the driver's classpath in link:spark-deploy-mode.adoc#cluster[`cluster` deploy mode].
+`spark.driver.extraClassPath` system property sets the additional classpath entries (e.g. jars and directories) that should be added to the driver's classpath in spark-deploy-mode.md#cluster[`cluster` deploy mode].
 
 [NOTE]
 ====
-For link:spark-deploy-mode.adoc#client[`client` deploy mode] you can use a properties file or command line to set `spark.driver.extraClassPath`.
+For spark-deploy-mode.md#client[`client` deploy mode] you can use a properties file or command line to set `spark.driver.extraClassPath`.
 
-Do not use xref:ROOT:SparkConf.adoc[SparkConf] since it is too late for `client` deploy mode given the JVM has already been set up to start a Spark application.
+Do not use ROOT:SparkConf.md[SparkConf] since it is too late for `client` deploy mode given the JVM has already been set up to start a Spark application.
 
-Refer to link:spark-class.adoc#buildSparkSubmitCommand[`buildSparkSubmitCommand` Internal Method] for the very low-level details of how it is handled internally.
+Refer to spark-class.md#buildSparkSubmitCommand[`buildSparkSubmitCommand` Internal Method] for the very low-level details of how it is handled internally.
 ====
 
 `spark.driver.extraClassPath` uses a OS-specific path separator.
 
-NOTE: Use ``spark-submit``'s link:spark-submit.adoc#driver-class-path[`--driver-class-path` command-line option] on command line to override `spark.driver.extraClassPath` from a link:spark-properties.adoc#spark-defaults-conf[Spark properties file].
+NOTE: Use ``spark-submit``'s spark-submit.md#driver-class-path[`--driver-class-path` command-line option] on command line to override `spark.driver.extraClassPath` from a spark-properties.md#spark-defaults-conf[Spark properties file].

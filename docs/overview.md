@@ -27,13 +27,13 @@ Spark runs locally as well as in clusters, on-premises or in cloud. It runs on t
 
 Apache Spark's https://jaceklaskowski.gitbooks.io/spark-structured-streaming/[Structured Streaming] and https://jaceklaskowski.gitbooks.io/mastering-spark-sql/[SQL] programming models with MLlib and GraphX make it easier for developers and data scientists to build applications that exploit machine learning and graph analytics.
 
-At a high level, any Spark application creates *RDDs* out of some input, run xref:rdd:index.adoc[(lazy) transformations] of these RDDs to some other form (shape), and finally perform xref:rdd:index.adoc[actions] to collect or store data. Not much, huh?
+At a high level, any Spark application creates *RDDs* out of some input, run rdd:index.md[(lazy) transformations] of these RDDs to some other form (shape), and finally perform rdd:index.md[actions] to collect or store data. Not much, huh?
 
 You can look at Spark from programmer's, data engineer's and administrator's point of view. And to be honest, all three types of people will spend quite a lot of their time with Spark to finally reach the point where they exploit all the available features. Programmers use language-specific APIs (and work at the level of RDDs using transformations and actions), data engineers use higher-level abstractions like DataFrames or Pipelines APIs or external tools (that connect to Spark), and finally it all can only be possible to run because administrators set up Spark clusters to deploy Spark applications to.
 
 It is Spark's goal to be a general-purpose computing platform with various specialized applications frameworks on top of a single unified engine.
 
-NOTE: When you hear "Apache Spark" it can be two things -- the Spark engine aka *Spark Core* or the Apache Spark open source project which is an "umbrella" term for Spark Core and the accompanying Spark Application Frameworks, i.e. Spark SQL, link:spark-streaming/spark-streaming.adoc[Spark Streaming], link:spark-mllib/spark-mllib.adoc[Spark MLlib] and link:spark-graphx.adoc[Spark GraphX] that sit on top of Spark Core and the main data abstraction in Spark called xref:rdd:index.adoc[RDD - Resilient Distributed Dataset].
+NOTE: When you hear "Apache Spark" it can be two things -- the Spark engine aka *Spark Core* or the Apache Spark open source project which is an "umbrella" term for Spark Core and the accompanying Spark Application Frameworks, i.e. Spark SQL, spark-streaming/spark-streaming.md[Spark Streaming], spark-mllib/spark-mllib.md[Spark MLlib] and spark-graphx.md[Spark GraphX] that sit on top of Spark Core and the main data abstraction in Spark called rdd:index.md[RDD - Resilient Distributed Dataset].
 
 == [[why-spark]] Why Spark
 
@@ -41,9 +41,9 @@ Let's list a few of the many reasons for Spark. We are doing it first, and then 
 
 === Easy to Get Started
 
-Spark offers link:spark-shell.adoc[spark-shell] that makes for a very easy head start to writing and running Spark applications on the command line on your laptop.
+Spark offers spark-shell.md[spark-shell] that makes for a very easy head start to writing and running Spark applications on the command line on your laptop.
 
-You could then use link:spark-standalone.adoc[Spark Standalone] built-in cluster manager to deploy your Spark applications to a production-grade cluster to run on a full dataset.
+You could then use spark-standalone.md[Spark Standalone] built-in cluster manager to deploy your Spark applications to a production-grade cluster to run on a full dataset.
 
 === Unified Engine for Diverse Workloads
 
@@ -55,7 +55,7 @@ As said by Matei Zaharia - the author of Apache Spark - in https://youtu.be/49Hr
 
 Spark combines batch, interactive, and streaming workloads under one rich concise API.
 
-Spark supports *near real-time streaming workloads* via link:spark-streaming/spark-streaming.adoc[Spark Streaming] application framework.
+Spark supports *near real-time streaming workloads* via spark-streaming/spark-streaming.md[Spark Streaming] application framework.
 
 ETL workloads and Analytics workloads are different, however Spark attempts to offer a unified platform for a wide variety of workloads.
 
@@ -67,7 +67,7 @@ You should watch the video https://youtu.be/SxAxAhn-BDU[What is Apache Spark?] b
 
 === Leverages the Best in distributed batch data processing
 
-When you think about *distributed batch data processing*, link:varia/spark-hadoop.adoc[Hadoop] naturally comes to mind as a viable solution.
+When you think about *distributed batch data processing*, varia/spark-hadoop.md[Hadoop] naturally comes to mind as a viable solution.
 
 Spark draws many ideas out of Hadoop MapReduce. They work together well - Spark on YARN and HDFS - while improving on the performance and simplicity of the distributed computing engine.
 
@@ -91,7 +91,7 @@ It expanded on the available computation styles beyond the only map-and-reduce a
 
 === Unified development and deployment environment for all
 
-Regardless of the Spark tools you use - the Spark API for the many programming languages supported - Scala, Java, Python, R, or link:spark-shell.adoc[the Spark shell], or the many Spark Application Frameworks leveraging the concept of xref:rdd:index.adoc[RDD], i.e. Spark SQL, link:spark-streaming/spark-streaming.adoc[Spark Streaming], link:spark-mllib/spark-mllib.adoc[Spark MLlib] and link:spark-graphx.adoc[Spark GraphX], you still use the same development and deployment environment to for large data sets to yield a result, be it a prediction (link:spark-mllib/spark-mllib.adoc[Spark MLlib]), a structured data queries (Spark SQL) or just a large distributed batch (Spark Core) or streaming (Spark Streaming) computation.
+Regardless of the Spark tools you use - the Spark API for the many programming languages supported - Scala, Java, Python, R, or spark-shell.md[the Spark shell], or the many Spark Application Frameworks leveraging the concept of rdd:index.md[RDD], i.e. Spark SQL, spark-streaming/spark-streaming.md[Spark Streaming], spark-mllib/spark-mllib.md[Spark MLlib] and spark-graphx.md[Spark GraphX], you still use the same development and deployment environment to for large data sets to yield a result, be it a prediction (spark-mllib/spark-mllib.md[Spark MLlib]), a structured data queries (Spark SQL) or just a large distributed batch (Spark Core) or streaming (Spark Streaming) computation.
 
 It's also very productive of Spark that teams can exploit the different skills the team members have acquired so far. Data analysts, data scientists, Python programmers, or Java, or Scala, or R, can all use the same Spark platform using tailor-made API. It makes for bringing skilled people with their expertise in different programming languages together to a Spark project.
 
@@ -99,9 +99,9 @@ It's also very productive of Spark that teams can exploit the different skills t
 
 It is also called _ad hoc queries_.
 
-Using link:spark-shell.adoc[the Spark shell] you can execute computations to process large amount of data (_The Big Data_). It's all interactive and very useful to explore the data before final production release.
+Using spark-shell.md[the Spark shell] you can execute computations to process large amount of data (_The Big Data_). It's all interactive and very useful to explore the data before final production release.
 
-Also, using the Spark shell you can access any link:spark-cluster.adoc[Spark cluster] as if it was your local machine. Just point the Spark shell to a 20-node of 10TB RAM memory in total (using `--master`) and use all the components (and their abstractions) like Spark SQL, Spark MLlib, link:spark-streaming/spark-streaming.adoc[Spark Streaming], and Spark GraphX.
+Also, using the Spark shell you can access any spark-cluster.md[Spark cluster] as if it was your local machine. Just point the Spark shell to a 20-node of 10TB RAM memory in total (using `--master`) and use all the components (and their abstractions) like Spark SQL, Spark MLlib, spark-streaming/spark-streaming.md[Spark Streaming], and Spark GraphX.
 
 Depending on your needs and skills, you may see a better fit for SQL vs programming APIs or apply machine learning algorithms (Spark MLlib) from data in graph data structures (Spark GraphX).
 
@@ -109,7 +109,7 @@ Depending on your needs and skills, you may see a better fit for SQL vs programm
 
 Regardless of which programming language you are good at, be it Scala, Java, Python, R or SQL, you can use the same single clustered runtime environment for prototyping, ad hoc queries, and deploying your applications leveraging the many ingestion data points offered by the Spark platform.
 
-You can be as low-level as using RDD API directly or leverage higher-level APIs of Spark SQL (Datasets), Spark MLlib (ML Pipelines), Spark GraphX (Graphs) or link:spark-streaming/spark-streaming.adoc[Spark Streaming] (DStreams).
+You can be as low-level as using RDD API directly or leverage higher-level APIs of Spark SQL (Datasets), Spark MLlib (ML Pipelines), Spark GraphX (Graphs) or spark-streaming/spark-streaming.md[Spark Streaming] (DStreams).
 
 Or use them all in a single application.
 
@@ -131,13 +131,13 @@ Spark embraces many concepts in a single unified development and runtime environ
 * DataFrames from R are available in Scala, Java, Python, R APIs.
 * Single node computations in machine learning algorithms are migrated to their distributed versions in Spark MLlib.
 
-This single platform gives plenty of opportunities for Python, Scala, Java, and R programmers as well as data engineers (SparkR) and scientists (using proprietary enterprise data warehouses with link:spark-sql-thrift-server.adoc[Thrift JDBC/ODBC Server] in Spark SQL).
+This single platform gives plenty of opportunities for Python, Scala, Java, and R programmers as well as data engineers (SparkR) and scientists (using proprietary enterprise data warehouses with spark-sql-thrift-server.md[Thrift JDBC/ODBC Server] in Spark SQL).
 
 Mind the proverb https://en.wiktionary.org/wiki/if_all_you_have_is_a_hammer,_everything_looks_like_a_nail[if all you have is a hammer, everything looks like a nail], too.
 
 === Low-level Optimizations
 
-Apache Spark uses a xref:scheduler:DAGScheduler.adoc[directed acyclic graph (DAG) of computation stages] (aka *execution DAG*). It postpones any processing until really required for actions. Spark's *lazy evaluation* gives plenty of opportunities to induce low-level optimizations (so users have to know less to do more).
+Apache Spark uses a scheduler:DAGScheduler.md[directed acyclic graph (DAG) of computation stages] (aka *execution DAG*). It postpones any processing until really required for actions. Spark's *lazy evaluation* gives plenty of opportunities to induce low-level optimizations (so users have to know less to do more).
 
 Mind the proverb https://en.wiktionary.org/wiki/less_is_more[less is more].
 
@@ -147,7 +147,7 @@ Spark supports diverse workloads, but successfully targets low-latency iterative
 
 Many Machine Learning algorithms require plenty of iterations before the result models get optimal, like logistic regression. The same applies to graph algorithms to traverse all the nodes and edges when needed. Such computations can increase their performance when the interim partial results are stored in memory or at very fast solid state drives.
 
-Spark can link:spark-rdd-caching.adoc[cache intermediate data in memory for faster model building and training]. Once the data is loaded to memory (as an initial step), reusing it multiple times incurs no performance slowdowns.
+Spark can spark-rdd-caching.md[cache intermediate data in memory for faster model building and training]. Once the data is loaded to memory (as an initial step), reusing it multiple times incurs no performance slowdowns.
 
 Also, graph algorithms can traverse graphs one connection per iteration with the partial result in memory.
 
@@ -171,11 +171,11 @@ Spark offers three kinds of data processing using *batch*, *interactive*, and *s
 
 === Little to no disk use for better performance
 
-In the no-so-long-ago times, when the most prevalent distributed computing framework was link:varia/spark-hadoop.adoc[Hadoop MapReduce], you could reuse a data between computation (even partial ones!) only after you've written it to an external storage like link:varia/spark-hadoop.adoc[Hadoop Distributed Filesystem (HDFS)]. It can cost you a lot of time to compute even very basic multi-stage computations. It simply suffers from IO (and perhaps network) overhead.
+In the no-so-long-ago times, when the most prevalent distributed computing framework was varia/spark-hadoop.md[Hadoop MapReduce], you could reuse a data between computation (even partial ones!) only after you've written it to an external storage like varia/spark-hadoop.md[Hadoop Distributed Filesystem (HDFS)]. It can cost you a lot of time to compute even very basic multi-stage computations. It simply suffers from IO (and perhaps network) overhead.
 
 One of the many motivations to build Spark was to have a framework that is good at data reuse.
 
-Spark cuts it out in a way to keep as much data as possible in memory and keep it there until a job is finished. It doesn't matter how many stages belong to a job. What does matter is the available memory and how effective you are in using Spark API (so xref:rdd:index.adoc[no shuffle occur]).
+Spark cuts it out in a way to keep as much data as possible in memory and keep it there until a job is finished. It doesn't matter how many stages belong to a job. What does matter is the available memory and how effective you are in using Spark API (so rdd:index.md[no shuffle occur]).
 
 The less network and disk IO, the better performance, and Spark tries hard to find ways to minimize both.
 

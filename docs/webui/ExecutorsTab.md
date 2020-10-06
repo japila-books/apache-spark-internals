@@ -1,18 +1,18 @@
 == [[ExecutorsTab]] ExecutorsTab
 
 [[prefix]]
-`ExecutorsTab` is a link:spark-webui-SparkUITab.adoc[SparkUITab] with *executors* link:spark-webui-SparkUITab.adoc#prefix[prefix].
+`ExecutorsTab` is a spark-webui-SparkUITab.md[SparkUITab] with *executors* spark-webui-SparkUITab.md#prefix[prefix].
 
-`ExecutorsTab` is <<creating-instance, created>> exclusively when `SparkUI` is link:spark-webui-SparkUI.adoc#initialize[initialized].
+`ExecutorsTab` is <<creating-instance, created>> exclusively when `SparkUI` is spark-webui-SparkUI.md#initialize[initialized].
 
 [[creating-instance]]
 [[parent]]
-`ExecutorsTab` takes the parent link:spark-webui-SparkUI.adoc[SparkUI] when created.
+`ExecutorsTab` takes the parent spark-webui-SparkUI.md[SparkUI] when created.
 
-When <<creating-instance, created>>, `ExecutorsTab` creates the following pages and link:spark-webui-WebUITab.adoc#attachPage[attaches] them immediately:
+When <<creating-instance, created>>, `ExecutorsTab` creates the following pages and spark-webui-WebUITab.md#attachPage[attaches] them immediately:
 
-* link:spark-webui-ExecutorsPage.adoc[ExecutorsPage]
+* spark-webui-ExecutorsPage.md[ExecutorsPage]
 
-* link:spark-webui-ExecutorThreadDumpPage.adoc[ExecutorThreadDumpPage]
+* spark-webui-ExecutorThreadDumpPage.md[ExecutorThreadDumpPage]
 
-`ExecutorsTab` uses link:spark-webui-executors-ExecutorsListener.adoc[ExecutorsListener] to collect information about executors in a Spark application.
+`ExecutorsTab` uses spark-webui-executors-ExecutorsListener.md[ExecutorsListener] to collect information about executors in a Spark application.

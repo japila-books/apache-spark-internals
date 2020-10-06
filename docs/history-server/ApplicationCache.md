@@ -2,7 +2,7 @@
 
 `ApplicationCache` is...FIXME
 
-`ApplicationCache` is <<creating-instance, created>> exclusively when `HistoryServer` is xref:HistoryServer.adoc#appCache[created].
+`ApplicationCache` is <<creating-instance, created>> exclusively when `HistoryServer` is HistoryServer.md#appCache[created].
 
 `ApplicationCache` uses https://github.com/google/guava/wiki/Release14[Google Guava 14.0.1] library for the internal <<appLoader, appLoader>>.
 
@@ -14,7 +14,7 @@
 | Description
 
 | `appLoader`
-| [[appLoader]] Google Guava's https://google.github.io/guava/releases/14.0/api/docs/com/google/common/cache/CacheLoader.html[CacheLoader] with a custom link:++https://google.github.io/guava/releases/14.0/api/docs/com/google/common/cache/CacheLoader.html#load(K)++[load] which is simply <<loadApplicationEntry, loadApplicationEntry>>.
+| [[appLoader]] Google Guava's https://google.github.io/guava/releases/14.0/api/docs/com/google/common/cache/CacheLoader.html[CacheLoader] with a custom ++https://google.github.io/guava/releases/14.0/api/docs/com/google/common/cache/CacheLoader.html#load(K)++[load] which is simply <<loadApplicationEntry, loadApplicationEntry>>.
 
 Used when...FIXME
 
@@ -38,7 +38,7 @@ Used when `ApplicationCache` is requested for the following:
 
 `ApplicationCache` takes the following when created:
 
-* [[operations]] xref:ApplicationCacheOperations.adoc[ApplicationCacheOperations]
+* [[operations]] ApplicationCacheOperations.md[ApplicationCacheOperations]
 * [[retainedApplications]] `retainedApplications`
 * [[clock]] `Clock`
 
@@ -86,4 +86,4 @@ withSparkUI[T](appId: String, attemptId: Option[String])(fn: SparkUI => T): T
 
 `withSparkUI`...FIXME
 
-NOTE: `withSparkUI` is used when `HistoryServer` is requested to xref:HistoryServer.adoc#withSparkUI[withSparkUI] and xref:HistoryServer.adoc#loadAppUi[loadAppUi].
+NOTE: `withSparkUI` is used when `HistoryServer` is requested to HistoryServer.md#withSparkUI[withSparkUI] and HistoryServer.md#loadAppUi[loadAppUi].

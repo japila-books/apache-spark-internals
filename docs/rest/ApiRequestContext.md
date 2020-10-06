@@ -44,16 +44,16 @@ Used when...FIXME
 | ApiRequestContext
 | Description
 
-| link:spark-api-ApiRootResource.adoc[ApiRootResource]
+| spark-api-ApiRootResource.md[ApiRootResource]
 | [[ApiRootResource]]
 
 | `ApiStreamingApp`
 | [[ApiStreamingApp]]
 
-| link:spark-api-ApplicationListResource.adoc[ApplicationListResource]
+| spark-api-ApplicationListResource.md[ApplicationListResource]
 | [[ApplicationListResource]]
 
-| link:spark-api-BaseAppResource.adoc[BaseAppResource]
+| spark-api-BaseAppResource.md[BaseAppResource]
 | [[BaseAppResource]]
 
 | `SecurityFilter`
@@ -67,6 +67,6 @@ Used when...FIXME
 uiRoot: UIRoot
 ----
 
-`uiRoot` simply requests `UIRootFromServletContext` to link:spark-api-UIRootFromServletContext.adoc#getUiRoot[get the current UIRoot] (for the given <<servletContext, servletContext>>).
+`uiRoot` simply requests `UIRootFromServletContext` to spark-api-UIRootFromServletContext.md#getUiRoot[get the current UIRoot] (for the given <<servletContext, servletContext>>).
 
 NOTE: `uiRoot` is used when...FIXME

@@ -1,14 +1,14 @@
 # ExecutorAllocationManager -- Allocation Manager for Spark Core
 
-`ExecutorAllocationManager` is responsible for dynamically allocating and removing xref:executor:Executor.adoc[executors] based on the workload.
+`ExecutorAllocationManager` is responsible for dynamically allocating and removing executor:Executor.md[executors] based on the workload.
 
-It intercepts Spark events using the internal link:spark-SparkListener-ExecutorAllocationListener.adoc[ExecutorAllocationListener] that keeps track of the workload (changing the <<internal-registries, internal registries>> that the allocation manager uses for executors management).
+It intercepts Spark events using the internal spark-SparkListener-ExecutorAllocationListener.md[ExecutorAllocationListener] that keeps track of the workload (changing the <<internal-registries, internal registries>> that the allocation manager uses for executors management).
 
-It uses link:spark-service-ExecutorAllocationClient.adoc[ExecutorAllocationClient], xref:scheduler:LiveListenerBus.adoc[], and xref:ROOT:SparkConf.adoc[SparkConf] (that are all passed in when `ExecutorAllocationManager` is created).
+It uses spark-service-ExecutorAllocationClient.md[ExecutorAllocationClient], scheduler:LiveListenerBus.md[], and ROOT:SparkConf.md[SparkConf] (that are all passed in when `ExecutorAllocationManager` is created).
 
-`ExecutorAllocationManager` is created when link:spark-SparkContext-creating-instance-internals.adoc#ExecutorAllocationManager[`SparkContext` is created and dynamic allocation of executors is enabled].
+`ExecutorAllocationManager` is created when spark-SparkContext-creating-instance-internals.md#ExecutorAllocationManager[`SparkContext` is created and dynamic allocation of executors is enabled].
 
-NOTE: `SparkContext` expects that `SchedulerBackend` follows the link:spark-service-ExecutorAllocationClient.adoc#contract[ExecutorAllocationClient contract] when dynamic allocation of executors is enabled.
+NOTE: `SparkContext` expects that `SchedulerBackend` follows the spark-service-ExecutorAllocationClient.md#contract[ExecutorAllocationClient contract] when dynamic allocation of executors is enabled.
 
 [[internal-properties]]
 .ExecutorAllocationManager's Internal Properties
@@ -19,7 +19,7 @@ NOTE: `SparkContext` expects that `SchedulerBackend` follows the link:spark-serv
 | Description
 
 | [[executorAllocationManagerSource]] executorAllocationManagerSource
-| link:spark-service-ExecutorAllocationManagerSource.adoc[ExecutorAllocationManagerSource]
+| spark-service-ExecutorAllocationManagerSource.md[ExecutorAllocationManagerSource]
 | FIXME
 
 | tasksPerExecutorForFullParallelism
@@ -75,7 +75,7 @@ Add the following line to `conf/log4j.properties`:
 log4j.logger.org.apache.spark.ExecutorAllocationManager=INFO
 ```
 
-Refer to link:spark-logging.adoc[Logging].
+Refer to spark-logging.md[Logging].
 ====
 
 === [[addExecutors]] `addExecutors` Method
@@ -97,13 +97,13 @@ CAUTION: FIXME
 start(): Unit
 ----
 
-`start` registers link:spark-SparkListener-ExecutorAllocationListener.adoc[ExecutorAllocationListener] (with xref:scheduler:LiveListenerBus.adoc[]) to monitor scheduler events and make decisions when to add and remove executors. It then immediately starts <<spark-dynamic-executor-allocation, spark-dynamic-executor-allocation allocation executor>> that is responsible for the <<schedule, scheduling>> every `100` milliseconds.
+`start` registers spark-SparkListener-ExecutorAllocationListener.md[ExecutorAllocationListener] (with scheduler:LiveListenerBus.md[]) to monitor scheduler events and make decisions when to add and remove executors. It then immediately starts <<spark-dynamic-executor-allocation, spark-dynamic-executor-allocation allocation executor>> that is responsible for the <<schedule, scheduling>> every `100` milliseconds.
 
 NOTE: `100` milliseconds for the period between successive <<schedule, scheduling>> is fixed, i.e. not configurable.
 
-It link:spark-service-ExecutorAllocationClient.adoc#requestTotalExecutors[requests executors] using the input link:spark-service-ExecutorAllocationClient.adoc[ExecutorAllocationClient]. It requests xref:ROOT:spark-dynamic-allocation.adoc#spark.dynamicAllocation.initialExecutors[spark.dynamicAllocation.initialExecutors].
+It spark-service-ExecutorAllocationClient.md#requestTotalExecutors[requests executors] using the input spark-service-ExecutorAllocationClient.md[ExecutorAllocationClient]. It requests ROOT:spark-dynamic-allocation.md#spark.dynamicAllocation.initialExecutors[spark.dynamicAllocation.initialExecutors].
 
-NOTE: `start` is called while link:spark-SparkContext-creating-instance-internals.adoc#ExecutorAllocationManager[SparkContext is being created] (for xref:ROOT:spark-dynamic-allocation.adoc[]).
+NOTE: `start` is called while spark-SparkContext-creating-instance-internals.md#ExecutorAllocationManager[SparkContext is being created] (for ROOT:spark-dynamic-allocation.md[]).
 
 === [[schedule]] Scheduling Executors -- `schedule` Method
 
@@ -157,9 +157,9 @@ NOTE: `stop` waits 10 seconds for the termination to be complete.
 
 `ExecutorAllocationManager` takes the following when created:
 
-* [[client]] link:spark-service-ExecutorAllocationClient.adoc[ExecutorAllocationClient]
-* [[listenerBus]] xref:scheduler:LiveListenerBus.adoc[]
-* [[conf]] xref:ROOT:SparkConf.adoc[SparkConf]
+* [[client]] spark-service-ExecutorAllocationClient.md[ExecutorAllocationClient]
+* [[listenerBus]] scheduler:LiveListenerBus.md[]
+* [[conf]] ROOT:SparkConf.md[SparkConf]
 
 `ExecutorAllocationManager` initializes the <<internal-registries, internal registries and counters>>.
 
@@ -170,7 +170,7 @@ NOTE: `stop` waits 10 seconds for the termination to be complete.
 validateSettings(): Unit
 ----
 
-`validateSettings` makes sure that the xref:ROOT:spark-dynamic-allocation.adoc#settings[settings for dynamic allocation] are correct.
+`validateSettings` makes sure that the ROOT:spark-dynamic-allocation.md#settings[settings for dynamic allocation] are correct.
 
 `validateSettings` validates the following and throws a `SparkException` if not set correctly.
 
@@ -182,9 +182,9 @@ validateSettings(): Unit
 
 . <<spark.dynamicAllocation.executorIdleTimeout, spark.dynamicAllocation.executorIdleTimeout>> must be greater than `0`
 
-. xref:ROOT:configuration-properties.adoc#spark.shuffle.service.enabled[spark.shuffle.service.enabled] must be enabled.
+. ROOT:configuration-properties.md#spark.shuffle.service.enabled[spark.shuffle.service.enabled] must be enabled.
 
-. The number of tasks per core, i.e. xref:executor:Executor.adoc#spark.executor.cores[spark.executor.cores] divided by xref:ROOT:configuration-properties.adoc#spark.task.cpus[spark.task.cpus], is not zero.
+. The number of tasks per core, i.e. executor:Executor.md#spark.executor.cores[spark.executor.cores] divided by ROOT:configuration-properties.md#spark.task.cpus[spark.task.cpus], is not zero.
 
 NOTE: `validateSettings` is used when <<creating-instance, `ExecutorAllocationManager` is created>>.
 

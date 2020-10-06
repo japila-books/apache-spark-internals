@@ -1,12 +1,12 @@
 == [[WebUIPage]] WebUIPage -- Contract of Pages in Web UI
 
-`WebUIPage` is the <<contract, contract>> of <<implementations, web pages>> of a link:spark-webui-WebUI.adoc[WebUI] that can be rendered in <<render, HTML>> and <<renderJson, JSON>>.
+`WebUIPage` is the <<contract, contract>> of <<implementations, web pages>> of a spark-webui-WebUI.md[WebUI] that can be rendered in <<render, HTML>> and <<renderJson, JSON>>.
 
 `WebUIPage` can be:
 
-* link:spark-webui-WebUI.adoc#attachPage[attached] or link:spark-webui-WebUI.adoc#detachPage[detached] from a `WebUI`
+* spark-webui-WebUI.md#attachPage[attached] or spark-webui-WebUI.md#detachPage[detached] from a `WebUI`
 
-* link:spark-webui-WebUITab.adoc#attachPage[attached] to a `WebUITab`
+* spark-webui-WebUITab.md#attachPage[attached] to a `WebUITab`
 
 [[prefix]]
 `WebUIPage` has a prefix that...FIXME
@@ -31,7 +31,7 @@ NOTE: `WebUIPage` is a `private[spark]` contract.
 | Description
 
 | `render`
-| [[render]] Used exclusively when `WebUI` is requested to link:spark-webui-WebUI.adoc#attachPage[attach a page] (and...FIXME)
+| [[render]] Used exclusively when `WebUI` is requested to spark-webui-WebUI.md#attachPage[attach a page] (and...FIXME)
 
 | `renderJson`
 | [[renderJson]] Used when...FIXME
@@ -47,13 +47,13 @@ NOTE: `WebUIPage` is a `private[spark]` contract.
 | `AllExecutionsPage`
 | [[AllExecutionsPage]] Used in Spark SQL module
 
-| link:spark-webui-AllJobsPage.adoc[AllJobsPage]
+| spark-webui-AllJobsPage.md[AllJobsPage]
 | [[AllJobsPage]]
 
-| link:spark-webui-AllStagesPage.adoc[AllStagesPage]
+| spark-webui-AllStagesPage.md[AllStagesPage]
 | [[AllStagesPage]]
 
-| link:spark-standalone-webui-ApplicationPage.adoc[ApplicationPage]
+| spark-standalone-webui-ApplicationPage.md[ApplicationPage]
 | [[ApplicationPage]] Used in Spark Standalone cluster manager
 
 | `BatchPage`
@@ -62,22 +62,22 @@ NOTE: `WebUIPage` is a `private[spark]` contract.
 | `DriverPage`
 | [[DriverPage]] Used in Spark on Mesos module
 
-| link:spark-webui-EnvironmentPage.adoc[EnvironmentPage]
+| spark-webui-EnvironmentPage.md[EnvironmentPage]
 | [[EnvironmentPage]]
 
 | `ExecutionPage`
 | [[ExecutionPage]] Used in Spark SQL module
 
-| link:spark-webui-ExecutorsPage.adoc[ExecutorsPage]
+| spark-webui-ExecutorsPage.md[ExecutorsPage]
 | [[ExecutorsPage]]
 
-| link:spark-webui-executors.adoc#ExecutorThreadDumpPage[ExecutorThreadDumpPage]
+| spark-webui-executors.md#ExecutorThreadDumpPage[ExecutorThreadDumpPage]
 | [[ExecutorThreadDumpPage]]
 
 | `HistoryPage`
 | [[HistoryPage]] Used in Spark History Server module
 
-| link:spark-webui-jobs.adoc[JobPage]
+| spark-webui-jobs.md[JobPage]
 | [[JobPage]]
 
 | `LogPage`
@@ -89,16 +89,16 @@ NOTE: `WebUIPage` is a `private[spark]` contract.
 | `MesosClusterPage`
 | [[MesosClusterPage]] Used in Spark on Mesos module
 
-| link:spark-webui-PoolPage.adoc[PoolPage]
+| spark-webui-PoolPage.md[PoolPage]
 | [[PoolPage]]
 
-| link:spark-webui-RDDPage.adoc[RDDPage]
+| spark-webui-RDDPage.md[RDDPage]
 | [[RDDPage]]
 
-| link:spark-webui-StagePage.adoc[StagePage]
+| spark-webui-StagePage.md[StagePage]
 | [[StagePage]]
 
-| link:spark-webui-StoragePage.adoc[StoragePage]
+| spark-webui-StoragePage.md[StoragePage]
 | [[StoragePage]]
 
 | `StreamingPage`

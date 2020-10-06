@@ -1,6 +1,6 @@
 == [[NewHadoopRDD]] NewHadoopRDD
 
-`NewHadoopRDD` is an xref:rdd:index.adoc[RDD] of `K` keys and `V` values.
+`NewHadoopRDD` is an rdd:index.md[RDD] of `K` keys and `V` values.
 
 <<creating-instance, `NewHadoopRDD` is created>> when:
 
@@ -19,7 +19,7 @@ CAUTION: FIXME
 
 `NewHadoopRDD` takes the following when created:
 
-* [[sc]] xref:ROOT:SparkContext.adoc[]
+* [[sc]] ROOT:SparkContext.md[]
 * [[inputFormatClass]] HDFS' `InputFormat[K, V]`
 * [[keyClass]] `K` class name
 * [[valueClass]] `V` class name

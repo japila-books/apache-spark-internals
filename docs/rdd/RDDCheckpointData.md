@@ -9,11 +9,11 @@
 | RDDCheckpointData
 | Description
 
-| xref:rdd:LocalRDDCheckpointData.adoc[LocalRDDCheckpointData]
+| rdd:LocalRDDCheckpointData.md[LocalRDDCheckpointData]
 | [[LocalRDDCheckpointData]]
 
-| xref:rdd:ReliableRDDCheckpointData.adoc[ReliableRDDCheckpointData]
-| [[ReliableRDDCheckpointData]] xref:ROOT:rdd-checkpointing.adoc#reliable-checkpointing[Reliable Checkpointing]
+| rdd:ReliableRDDCheckpointData.md[ReliableRDDCheckpointData]
+| [[ReliableRDDCheckpointData]] ROOT:rdd-checkpointing.md#reliable-checkpointing[Reliable Checkpointing]
 
 |===
 
@@ -21,7 +21,7 @@
 
 RDDCheckpointData takes the following to be created:
 
-* [[rdd]] xref:rdd:RDD.adoc[RDD]
+* [[rdd]] rdd:RDD.md[RDD]
 
 == [[Serializable]] RDDCheckpointData as Serializable
 
@@ -48,9 +48,9 @@ checkpoint <<doCheckpoint, doCheckpoint>> that gives an CheckpointRDD (that is t
 
 checkpoint changes the <<cpState, state>> to <<Checkpointed, Checkpointed>>.
 
-In the end, checkpoint requests the given <<rdd, RDD>> to xref:rdd:RDD.adoc#markCheckpointed[markCheckpointed].
+In the end, checkpoint requests the given <<rdd, RDD>> to rdd:RDD.md#markCheckpointed[markCheckpointed].
 
-checkpoint is used when RDD is requested to xref:rdd:RDD.adoc#doCheckpoint[doCheckpoint].
+checkpoint is used when RDD is requested to rdd:RDD.md#doCheckpoint[doCheckpoint].
 
 == [[doCheckpoint]] doCheckpoint Method
 

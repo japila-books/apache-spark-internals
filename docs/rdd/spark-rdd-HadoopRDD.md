@@ -2,7 +2,7 @@
 
 https://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.rdd.HadoopRDD[HadoopRDD] is an RDD that provides core functionality for reading data stored in HDFS, a local file system (available on all nodes), or any Hadoop-supported file system URI using the older MapReduce API (https://hadoop.apache.org/docs/current/api/org/apache/hadoop/mapred/package-summary.html[org.apache.hadoop.mapred]).
 
-HadoopRDD is created as a result of calling the following methods in xref:ROOT:SparkContext.adoc[]:
+HadoopRDD is created as a result of calling the following methods in ROOT:SparkContext.md[]:
 
 * `hadoopFile`
 * `textFile` (the most often used in examples!)
@@ -32,7 +32,7 @@ Spark settings for `HadoopRDD`:
 
 * *spark.hadoop.cloneConf* (default: `false`) - shouldCloneJobConf - should a Hadoop job configuration `JobConf` object be cloned before spawning a Hadoop job. Refer to https://issues.apache.org/jira/browse/SPARK-2546[[SPARK-2546\] Configuration object thread safety issue]. When `true`, you should see a DEBUG message `Cloning Hadoop Configuration`.
 
-You can register callbacks on link:spark-TaskContext.adoc[TaskContext].
+You can register callbacks on spark-TaskContext.md[TaskContext].
 
 HadoopRDDs are not checkpointed. They do nothing when `checkpoint()` is called.
 

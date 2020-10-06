@@ -9,28 +9,28 @@ image::ShuffleExternalSorter.png[align="center"]
 
 ShuffleExternalSorter takes the following to be created:
 
-* [[memoryManager]] xref:memory:TaskMemoryManager.adoc[]
-* [[blockManager]] xref:storage:BlockManager.adoc[]
-* [[taskContext]] xref:scheduler:spark-TaskContext.adoc[]
+* [[memoryManager]] memory:TaskMemoryManager.md[]
+* [[blockManager]] storage:BlockManager.md[]
+* [[taskContext]] scheduler:spark-TaskContext.md[]
 * [[initialSize]] Initial size
 * [[numPartitions]] Number of partitions
-* [[conf]] xref:ROOT:SparkConf.adoc[]
-* [[writeMetrics]] xref:executor:ShuffleWriteMetrics.adoc[]
+* [[conf]] ROOT:SparkConf.md[]
+* [[writeMetrics]] executor:ShuffleWriteMetrics.md[]
 
 [[fileBufferSizeBytes]]
-ShuffleExternalSorter uses xref:ROOT:configuration-properties.adoc#spark.shuffle.file.buffer[spark.shuffle.file.buffer] (for `fileBufferSizeBytes`) and xref:ROOT:configuration-properties.adoc#spark.shuffle.spill.numElementsForceSpillThreshold[spark.shuffle.spill.numElementsForceSpillThreshold] (for `numElementsForSpillThreshold`) Spark properties.
+ShuffleExternalSorter uses ROOT:configuration-properties.md#spark.shuffle.file.buffer[spark.shuffle.file.buffer] (for `fileBufferSizeBytes`) and ROOT:configuration-properties.md#spark.shuffle.spill.numElementsForceSpillThreshold[spark.shuffle.spill.numElementsForceSpillThreshold] (for `numElementsForSpillThreshold`) Spark properties.
 
 ShuffleExternalSorter creates a <<inMemSorter, ShuffleInMemorySorter>> (with `spark.shuffle.sort.useRadixSort` Spark property enabled by default).
 
-ShuffleExternalSorter is created for xref:shuffle:UnsafeShuffleWriter.adoc[UnsafeShuffleWriter].
+ShuffleExternalSorter is created for shuffle:UnsafeShuffleWriter.md[UnsafeShuffleWriter].
 
 == [[inMemSorter]] ShuffleInMemorySorter
 
-ShuffleExternalSorter manages a xref:shuffle:ShuffleInMemorySorter.adoc[ShuffleInMemorySorter]:
+ShuffleExternalSorter manages a shuffle:ShuffleInMemorySorter.md[ShuffleInMemorySorter]:
 
 * ShuffleInMemorySorter is created immediately when ShuffleExternalSorter is
 
-* ShuffleInMemorySorter is requested to xref:shuffle:ShuffleInMemorySorter.adoc#free[free up memory] and dereferenced (``null``ed) when ShuffleExternalSorter is requested to <<cleanupResources, cleanupResources>> and <<closeAndGetSpills, closeAndGetSpills>>
+* ShuffleInMemorySorter is requested to shuffle:ShuffleInMemorySorter.md#free[free up memory] and dereferenced (``null``ed) when ShuffleExternalSorter is requested to <<cleanupResources, cleanupResources>> and <<closeAndGetSpills, closeAndGetSpills>>
 
 ShuffleExternalSorter uses the ShuffleInMemorySorter when requested for the following:
 
@@ -46,11 +46,11 @@ ShuffleExternalSorter uses the ShuffleInMemorySorter when requested for the foll
 
 == [[MemoryConsumer]] ShuffleExternalSorter as MemoryConsumer
 
-ShuffleExternalSorter is a xref:memory:MemoryConsumer.adoc[MemoryConsumer] that can <<spill, spill to disk to free up execution memory>>.
+ShuffleExternalSorter is a memory:MemoryConsumer.md[MemoryConsumer] that can <<spill, spill to disk to free up execution memory>>.
 
 == [[pageSize]] Page Size
 
-ShuffleExternalSorter uses the xref:memory:MemoryConsumer.adoc#pageSize[page size] to be the minimum of `PackedRecordPointer.MAXIMUM_PAGE_SIZE_BYTES` and xref:memory:TaskMemoryManager.adoc#pageSizeBytes[pageSizeBytes], and Tungsten memory mode).
+ShuffleExternalSorter uses the memory:MemoryConsumer.md#pageSize[page size] to be the minimum of `PackedRecordPointer.MAXIMUM_PAGE_SIZE_BYTES` and memory:TaskMemoryManager.md#pageSizeBytes[pageSizeBytes], and Tungsten memory mode).
 
 == [[allocatedPages]] allocatedPages
 
@@ -109,7 +109,7 @@ spill <<writeSortedFile, writeSortedFile>> (with the `isLastFile` flag disabled)
 
 spill <<freeMemory, frees execution memory>> (and records the memory bytes spilled as `spillSize`).
 
-spill then requests the <<inMemSorter, ShuffleInMemorySorter>> to xref:shuffle:ShuffleInMemorySorter.adoc#reset[reset] followed by requesting the xref:scheduler:spark-TaskContext.adoc#taskMetrics[TaskMetrics] (of the <<taskContext, TaskContext>>) to xref:executor:TaskMetrics.adoc#incMemoryBytesSpilled[increase the memory bytes spilled].
+spill then requests the <<inMemSorter, ShuffleInMemorySorter>> to shuffle:ShuffleInMemorySorter.md#reset[reset] followed by requesting the scheduler:spark-TaskContext.md#taskMetrics[TaskMetrics] (of the <<taskContext, TaskContext>>) to executor:TaskMetrics.md#incMemoryBytesSpilled[increase the memory bytes spilled].
 
 In the end, spill returns the memory bytes spilled (_spill size_).
 
@@ -121,10 +121,10 @@ spill returns `0` when one of the following holds:
 
 * <<inMemSorter, ShuffleInMemorySorter>> is not assigned
 
-* <<inMemSorter, ShuffleInMemorySorter>> manages no xref:shuffle:ShuffleInMemorySorter.adoc#numRecords[records]
+* <<inMemSorter, ShuffleInMemorySorter>> manages no shuffle:ShuffleInMemorySorter.md#numRecords[records]
 ====
 
-spill is part of the xref:memory:MemoryConsumer.adoc#spill[MemoryConsumer] contract.
+spill is part of the memory:MemoryConsumer.md#spill[MemoryConsumer] contract.
 
 == [[growPointerArrayIfNecessary]] growPointerArrayIfNecessary Method
 
@@ -198,4 +198,4 @@ Add the following line to `conf/log4j.properties`:
 log4j.logger.org.apache.spark.shuffle.sort.ShuffleExternalSorter=ALL
 ----
 
-Refer to xref:ROOT:spark-logging.adoc[Logging].
+Refer to ROOT:spark-logging.md[Logging].

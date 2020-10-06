@@ -1,17 +1,17 @@
 == [[AllJobsPage]] AllJobsPage -- Showing All Jobs in Web UI
 
 [[prefix]]
-`AllJobsPage` is a link:spark-webui-WebUIPage.adoc[WebUIPage] with an empty link:spark-webui-WebUIPage.adoc#prefix[prefix].
+`AllJobsPage` is a spark-webui-WebUIPage.md[WebUIPage] with an empty spark-webui-WebUIPage.md#prefix[prefix].
 
-`AllJobsPage` is <<creating-instance, created>> exclusively when `JobsTab` is link:spark-webui-JobsTab.adoc#creating-instance[created].
+`AllJobsPage` is <<creating-instance, created>> exclusively when `JobsTab` is spark-webui-JobsTab.md#creating-instance[created].
 
 `AllJobsPage` renders a summary, an event timeline, and active, completed, and failed jobs of a Spark application.
 
 TIP: Jobs (in any state) are displayed when their number is greater than `0`.
 
-`AllJobsPage` displays the *Summary* section with the link:spark-webui-SparkUI.adoc#getSparkUser[current Spark user], total uptime, scheduling mode, and the number of jobs per status.
+`AllJobsPage` displays the *Summary* section with the spark-webui-SparkUI.md#getSparkUser[current Spark user], total uptime, scheduling mode, and the number of jobs per status.
 
-NOTE: `AllJobsPage` uses link:spark-webui-JobProgressListener.adoc[JobProgressListener] for `Scheduling Mode`.
+NOTE: `AllJobsPage` uses spark-webui-JobProgressListener.md[JobProgressListener] for `Scheduling Mode`.
 
 .Summary Section in Jobs Tab
 image::spark-webui-jobs-summary-section.png[align="center"]
@@ -21,7 +21,7 @@ Under the summary section is the *Event Timeline* section.
 .Event Timeline in Jobs Tab
 image::spark-webui-jobs-event-timeline.png[align="center"]
 
-NOTE: link:spark-webui-AllJobsPage.adoc[AllJobsPage] uses link:spark-webui-executors-ExecutorsListener.adoc[ExecutorsListener] to build the event timeline.
+NOTE: spark-webui-AllJobsPage.md[AllJobsPage] uses spark-webui-executors-ExecutorsListener.md[ExecutorsListener] to build the event timeline.
 
 *Active Jobs*, *Completed Jobs*, and *Failed Jobs* sections follow.
 
@@ -40,11 +40,11 @@ The Event Timeline section shows not only jobs but also executors.
 .Executors in Event Timeline
 image::spark-webui-jobs-timeline-executors.png[align="center"]
 
-TIP: Use xref:ROOT:SparkContext.adoc#dynamic-allocation[Programmable Dynamic Allocation] (using `SparkContext`) to manage executors for demo purposes.
+TIP: Use ROOT:SparkContext.md#dynamic-allocation[Programmable Dynamic Allocation] (using `SparkContext`) to manage executors for demo purposes.
 
 === [[creating-instance]] Creating AllJobsPage Instance
 
 `AllJobsPage` takes the following when created:
 
-* [[parent]] Parent link:spark-webui-JobsTab.adoc[JobsTab]
-* [[store]] xref:core:AppStatusStore.adoc[]
+* [[parent]] Parent spark-webui-JobsTab.md[JobsTab]
+* [[store]] core:AppStatusStore.md[]

@@ -1,6 +1,6 @@
 = NettyBlockRpcServer
 
-NettyBlockRpcServer is an xref:network:RpcHandler.adoc[] to handle <<messages, messages>> for xref:storage:NettyBlockTransferService.adoc[NettyBlockTransferService].
+NettyBlockRpcServer is an network:RpcHandler.md[] to handle <<messages, messages>> for storage:NettyBlockTransferService.md[NettyBlockTransferService].
 
 .NettyBlockRpcServer and NettyBlockTransferService
 image::NettyBlockRpcServer.png[align="center"]
@@ -10,14 +10,14 @@ image::NettyBlockRpcServer.png[align="center"]
 NettyBlockRpcServer takes the following to be created:
 
 * [[appId]] Application ID
-* [[serializer]] xref:serializer:Serializer.adoc[]
-* [[blockManager]] xref:storage:BlockDataManager.adoc[]
+* [[serializer]] serializer:Serializer.md[]
+* [[blockManager]] storage:BlockDataManager.md[]
 
-NettyBlockRpcServer is created when NettyBlockTransferService is requested to xref:storage:NettyBlockTransferService.adoc#init[initialize].
+NettyBlockRpcServer is created when NettyBlockTransferService is requested to storage:NettyBlockTransferService.md#init[initialize].
 
 == [[streamManager]] OneForOneStreamManager
 
-NettyBlockRpcServer uses a xref:network:OneForOneStreamManager.adoc[] for...FIXME
+NettyBlockRpcServer uses a network:OneForOneStreamManager.md[] for...FIXME
 
 == [[receive]] Receiving RPC Messages
 
@@ -31,7 +31,7 @@ receive(
 
 receive...FIXME
 
-receive is part of xref:network:RpcHandler.adoc#receive[RpcHandler] abstraction.
+receive is part of network:RpcHandler.md#receive[RpcHandler] abstraction.
 
 == [[messages]] Messages
 
@@ -45,11 +45,11 @@ OpenBlocks(
   String[] blockIds)
 ----
 
-When received, NettyBlockRpcServer requests the <<blockManager, BlockDataManager>> for xref:storage:BlockDataManager.adoc#getBlockData[block data] for every block id in the message. The block data is a collection of xref:network:ManagedBuffer.adoc[] for every block id in the incoming message.
+When received, NettyBlockRpcServer requests the <<blockManager, BlockDataManager>> for storage:BlockDataManager.md#getBlockData[block data] for every block id in the message. The block data is a collection of network:ManagedBuffer.md[] for every block id in the incoming message.
 
-NettyBlockRpcServer then xref:network:OneForOneStreamManager.adoc#registerStream[registers a stream of ``ManagedBuffer``s (for the blocks) with the internal `StreamManager`] under `streamId`.
+NettyBlockRpcServer then network:OneForOneStreamManager.md#registerStream[registers a stream of ``ManagedBuffer``s (for the blocks) with the internal `StreamManager`] under `streamId`.
 
-NOTE: The internal `StreamManager` is xref:network:OneForOneStreamManager.adoc[OneForOneStreamManager] and is created when <<creating-instance, NettyBlockRpcServer is created>>.
+NOTE: The internal `StreamManager` is network:OneForOneStreamManager.md[OneForOneStreamManager] and is created when <<creating-instance, NettyBlockRpcServer is created>>.
 
 You should see the following TRACE message in the logs:
 
@@ -60,7 +60,7 @@ NettyBlockRpcServer: Registered streamId [streamId]  with [size] buffers
 
 In the end, NettyBlockRpcServer responds with a `StreamHandle` (with the `streamId` and the number of blocks). The response is serialized as a `ByteBuffer`.
 
-Posted when OneForOneBlockFetcher is requested to xref:storage:OneForOneBlockFetcher.adoc#start[start].
+Posted when OneForOneBlockFetcher is requested to storage:OneForOneBlockFetcher.md#start[start].
 
 === [[UploadBlock]] UploadBlock
 
@@ -74,13 +74,13 @@ UploadBlock(
   byte[] blockData)
 ----
 
-When received, NettyBlockRpcServer deserializes the `metadata` of the input message to get the xref:storage:StorageLevel.adoc[StorageLevel] and `ClassTag` of the block being uploaded.
+When received, NettyBlockRpcServer deserializes the `metadata` of the input message to get the storage:StorageLevel.md[StorageLevel] and `ClassTag` of the block being uploaded.
 
-NettyBlockRpcServer creates a xref:storage:BlockId.adoc[] for the block id and requests the <<blockManager, BlockDataManager>> to xref:storage:BlockDataManager.adoc#putBlockData[store the block].
+NettyBlockRpcServer creates a storage:BlockId.md[] for the block id and requests the <<blockManager, BlockDataManager>> to storage:BlockDataManager.md#putBlockData[store the block].
 
 In the end, NettyBlockRpcServer responds with a `0`-capacity `ByteBuffer`.
 
-Posted when NettyBlockTransferService is requested to xref:storage:NettyBlockTransferService.adoc#uploadBlock[upload a block].
+Posted when NettyBlockTransferService is requested to storage:NettyBlockTransferService.md#uploadBlock[upload a block].
 
 == [[receiveStream]] Receiving RPC Message with Streamed Data
 
@@ -94,7 +94,7 @@ receiveStream(
 
 receiveStream...FIXME
 
-receiveStream is part of xref:network:RpcHandler.adoc#receive[RpcHandler] abstraction.
+receiveStream is part of network:RpcHandler.md#receive[RpcHandler] abstraction.
 
 == [[logging]] Logging
 
@@ -107,4 +107,4 @@ Add the following line to `conf/log4j.properties`:
 log4j.logger.org.apache.spark.network.netty.NettyBlockRpcServer=ALL
 ----
 
-Refer to xref:ROOT:spark-logging.adoc[Logging].
+Refer to ROOT:spark-logging.md[Logging].

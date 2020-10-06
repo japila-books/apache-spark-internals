@@ -4,18 +4,18 @@
 
 `WebUITab` can be:
 
-* link:spark-webui-WebUI.adoc#attachTab[attached] or link:spark-webui-WebUI.adoc#detachTab[detached] from a `WebUI`
+* spark-webui-WebUI.md#attachTab[attached] or spark-webui-WebUI.md#detachTab[detached] from a `WebUI`
 
-* link:spark-webui-WebUITab.adoc#attachPage[attached] to a `WebUITab`
+* spark-webui-WebUITab.md#attachPage[attached] to a `WebUITab`
 
 [[pages]]
-`WebUITab` is simply a collection of link:spark-webui-WebUIPage.adoc[WebUIPages] that can be <<attachPage, attached>> to the tab.
+`WebUITab` is simply a collection of spark-webui-WebUIPage.md[WebUIPages] that can be <<attachPage, attached>> to the tab.
 
 [[name]]
 `WebUITab` has a name (and defaults to <<prefix, prefix>> capitalized).
 
 [[implementations]]
-NOTE: link:spark-webui-SparkUITab.adoc[SparkUITab] is the one and only implementation of `WebUITab` contract.
+NOTE: spark-webui-SparkUITab.md[SparkUITab] is the one and only implementation of `WebUITab` contract.
 
 NOTE: `WebUITab` is a `private[spark]` contract.
 
@@ -26,11 +26,11 @@ NOTE: `WebUITab` is a `private[spark]` contract.
 attachPage(page: WebUIPage): Unit
 ----
 
-`attachPage` prepends the link:spark-webui-WebUIPage.adoc#prefix[page prefix] (of the input `WebUIPage`) with the <<prefix, tab prefix>> (with no ending slash, i.e. `/`, if the page prefix is undefined).
+`attachPage` prepends the spark-webui-WebUIPage.md#prefix[page prefix] (of the input `WebUIPage`) with the <<prefix, tab prefix>> (with no ending slash, i.e. `/`, if the page prefix is undefined).
 
 In the end, `attachPage` adds the `WebUIPage` to <<pages, pages>> registry.
 
-NOTE: `attachPage` is used when link:spark-webui-SparkUITab.adoc#implementations[web UI tabs] register their pages.
+NOTE: `attachPage` is used when spark-webui-SparkUITab.md#implementations[web UI tabs] register their pages.
 
 === [[basePath]] Requesting Base URI Path -- `basePath` Method
 
@@ -39,7 +39,7 @@ NOTE: `attachPage` is used when link:spark-webui-SparkUITab.adoc#implementations
 basePath: String
 ----
 
-`basePath` requests the <<parent, parent WebUI>> for the link:spark-webui-WebUI.adoc#basePath[base path].
+`basePath` requests the <<parent, parent WebUI>> for the spark-webui-WebUI.md#basePath[base path].
 
 NOTE: `basePath` is used when...FIXME
 
@@ -50,15 +50,15 @@ NOTE: `basePath` is used when...FIXME
 headerTabs: Seq[WebUITab]
 ----
 
-`headerTabs` requests the <<parent, parent WebUI>> for the link:spark-webui-WebUI.adoc#headerTabs[header tabs].
+`headerTabs` requests the <<parent, parent WebUI>> for the spark-webui-WebUI.md#headerTabs[header tabs].
 
-NOTE: `headerTabs` is used exclusively when `UIUtils` is requested to link:spark-webui-UIUtils.adoc#headerSparkPage[headerSparkPage].
+NOTE: `headerTabs` is used exclusively when `UIUtils` is requested to spark-webui-UIUtils.md#headerSparkPage[headerSparkPage].
 
 === [[creating-instance]] Creating WebUITab Instance
 
 `WebUITab` takes the following when created:
 
-* [[parent]] Parent link:spark-webui-WebUI.adoc[WebUI]
+* [[parent]] Parent spark-webui-WebUI.md[WebUI]
 * [[prefix]] Prefix
 
 `WebUITab` initializes the <<internal-registries, internal registries and counters>>.

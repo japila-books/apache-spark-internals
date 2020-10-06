@@ -1,6 +1,6 @@
 == [[SparkUITab]] SparkUITab
 
-`SparkUITab` is the <<contract, contract>> of link:spark-webui-WebUITab.adoc[WebUITab] extensions with two additional properties:
+`SparkUITab` is the <<contract, contract>> of spark-webui-WebUITab.md[WebUITab] extensions with two additional properties:
 
 * <<appName, appName>>
 * <<appSparkVersion, appSparkVersion>>
@@ -39,19 +39,19 @@ NOTE: `SparkUITab` is a `private[spark]` contract.
 | SparkUITab
 | Description
 
-| link:spark-webui-EnvironmentTab.adoc[EnvironmentTab]
+| spark-webui-EnvironmentTab.md[EnvironmentTab]
 | [[EnvironmentTab]]
 
-| link:spark-webui-ExecutorsTab.adoc[ExecutorsTab]
+| spark-webui-ExecutorsTab.md[ExecutorsTab]
 | [[ExecutorsTab]]
 
-| link:spark-webui-JobsTab.adoc[JobsTab]
+| spark-webui-JobsTab.md[JobsTab]
 | [[JobsTab]]
 
-| link:spark-webui-StagesTab.adoc[StagesTab]
+| spark-webui-StagesTab.md[StagesTab]
 | [[StagesTab]]
 
-| link:spark-webui-StorageTab.adoc[StorageTab]
+| spark-webui-StorageTab.md[StorageTab]
 | [[StorageTab]]
 
 | `SQLTab`

@@ -2,7 +2,7 @@
 
 *MemoryPool* is a bookkeeping abstraction of <<extensions, memory pools>>.
 
-MemoryPool is used by the xref:memory:MemoryManager.adoc[MemoryManager] to track the division of memory between storage and execution.
+MemoryPool is used by the memory:MemoryManager.md[MemoryManager] to track the division of memory between storage and execution.
 
 == [[extensions]] Extensions
 
@@ -12,10 +12,10 @@ MemoryPool is used by the xref:memory:MemoryManager.adoc[MemoryManager] to track
 | MemoryPool
 | Description
 
-| xref:ExecutionMemoryPool.adoc[ExecutionMemoryPool]
+| ExecutionMemoryPool.md[ExecutionMemoryPool]
 | [[ExecutionMemoryPool]]
 
-| xref:StorageMemoryPool.adoc[StorageMemoryPool]
+| StorageMemoryPool.md[StorageMemoryPool]
 | [[StorageMemoryPool]]
 
 |===
@@ -48,13 +48,13 @@ memoryUsed gives the amount of memory used in this pool (in bytes).
 
 memoryUsed is used when:
 
-* MemoryManager is requested for the xref:memory:MemoryManager.adoc#storageMemoryUsed[total storage memory in use]
+* MemoryManager is requested for the memory:MemoryManager.md#storageMemoryUsed[total storage memory in use]
 
 * MemoryPool is requested for the current <<memoryFree, memory free>> and to <<decrementPoolSize, shrink pool size>>
 
 * StorageMemoryPool is requested to acquireMemory
 
-* UnifiedMemoryManager is requested to xref:memory:UnifiedMemoryManager.adoc#maxOnHeapStorageMemory[maxOnHeapStorageMemory], xref:memory:UnifiedMemoryManager.adoc#maxOffHeapStorageMemory[maxOffHeapStorageMemory] and xref:memory:UnifiedMemoryManager.adoc#acquireExecutionMemory[acquireExecutionMemory]
+* UnifiedMemoryManager is requested to memory:UnifiedMemoryManager.md#maxOnHeapStorageMemory[maxOnHeapStorageMemory], memory:UnifiedMemoryManager.md#maxOffHeapStorageMemory[maxOffHeapStorageMemory] and memory:UnifiedMemoryManager.md#acquireExecutionMemory[acquireExecutionMemory]
 
 == [[memoryFree]] Amount of Free Memory
 

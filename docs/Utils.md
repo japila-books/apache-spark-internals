@@ -17,11 +17,11 @@ getLocalDir(conf: SparkConf): String
 
 * `Utils` is requested to <<fetchFile, fetchFile>>
 
-* `SparkEnv` is xref:core:SparkEnv.adoc#create[created] (on the driver)
+* `SparkEnv` is core:SparkEnv.md#create[created] (on the driver)
 
-* link:spark-shell.adoc[spark-shell] is launched
+* spark-shell.md[spark-shell] is launched
 
-* Spark on YARN's `Client` is requested to link:spark-yarn-client.adoc#prepareLocalResources[prepareLocalResources] and link:spark-yarn-client.adoc#createConfArchive[create ++__spark_conf__.zip++ archive with configuration files and Spark configuration]
+* Spark on YARN's `Client` is requested to spark-yarn-client.md#prepareLocalResources[prepareLocalResources] and spark-yarn-client.md#createConfArchive[create ++__spark_conf__.zip++ archive with configuration files and Spark configuration]
 
 * PySpark's  `PythonBroadcast` is requested to `readObject`
 
@@ -48,9 +48,9 @@ fetchFile(
 ====
 `fetchFile` is used when:
 
-* `SparkContext` is requested to xref:ROOT:SparkContext.adoc#addFile[addFile]
+* `SparkContext` is requested to ROOT:SparkContext.md#addFile[addFile]
 
-* `Executor` is requested to xref:executor:Executor.adoc#updateDependencies[updateDependencies]
+* `Executor` is requested to executor:Executor.md#updateDependencies[updateDependencies]
 
 * Spark Standalone's `DriverRunner` is requested to `downloadUserJar`
 ====
@@ -81,5 +81,5 @@ getOrCreateLocalRootDirs(conf: SparkConf): Array[String]
 
 * `Utils` is requested to <<getLocalDir, getLocalDir>>
 
-* `Worker` is requested to link:spark-standalone-worker.adoc#receive[handle a LaunchExecutor message]
+* `Worker` is requested to spark-standalone-worker.md#receive[handle a LaunchExecutor message]
 ====

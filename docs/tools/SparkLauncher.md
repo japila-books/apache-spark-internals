@@ -1,10 +1,10 @@
 == [[SparkLauncher]] `SparkLauncher` -- Launching Spark Applications Programmatically
 
-`SparkLauncher` is an interface to launch Spark applications programmatically, i.e. from a code (not link:spark-submit.adoc[spark-submit] directly). It uses a builder pattern to configure a Spark application and launch it as a child process using link:spark-submit.adoc[spark-submit].
+`SparkLauncher` is an interface to launch Spark applications programmatically, i.e. from a code (not spark-submit.md[spark-submit] directly). It uses a builder pattern to configure a Spark application and launch it as a child process using spark-submit.md[spark-submit].
 
 `SparkLauncher` belongs to `org.apache.spark.launcher` Scala package in `spark-launcher` build module.
 
-`SparkLauncher` uses link:spark-submit-SparkSubmitCommandBuilder.adoc[SparkSubmitCommandBuilder] to build the Spark command of a Spark application to launch.
+`SparkLauncher` uses spark-submit-SparkSubmitCommandBuilder.md[SparkSubmitCommandBuilder] to build the Spark command of a Spark application to launch.
 
 .``SparkLauncher``'s Builder Methods to Set Up Invocation of Spark Application
 [options="header",width="100%"]
@@ -32,7 +32,7 @@
 | `setMaster(String master)` | Sets the master URL.
 | `setPropertiesFile(String path)` | Sets the internal `propertiesFile`.
 
-See link:spark-AbstractCommandBuilder.adoc#loadPropertiesFile[`loadPropertiesFile` Internal Method].
+See spark-AbstractCommandBuilder.md#loadPropertiesFile[`loadPropertiesFile` Internal Method].
 | `setSparkHome(String sparkHome)` | Sets a custom `SPARK_HOME`.
 | `setVerbose(boolean verbose)` | Enables verbose reporting for SparkSubmit.
 |===

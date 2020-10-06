@@ -2,7 +2,7 @@
 
 *Spark properties* are the means of tuning the execution environment of a Spark application.
 
-The default Spark properties file is <<spark-defaults-conf, `$SPARK_HOME/conf/spark-defaults.conf`>> that could be overriden using `spark-submit` with the link:spark-submit.adoc#properties-file[--properties-file] command-line option.
+The default Spark properties file is <<spark-defaults-conf, `$SPARK_HOME/conf/spark-defaults.conf`>> that could be overriden using `spark-submit` with the spark-submit.md#properties-file[--properties-file] command-line option.
 
 .Environment Variables
 [options="header",width="100%"]
@@ -32,7 +32,7 @@ This should be on a fast, local disk in your system. It can also be a comma-sepa
 
 `spark-defaults.conf` (under `SPARK_CONF_DIR` or `$SPARK_HOME/conf`) is the default properties file with the Spark properties of your Spark applications.
 
-NOTE: `spark-defaults.conf` is loaded by link:spark-AbstractCommandBuilder.adoc#loadPropertiesFile[AbstractCommandBuilder's `loadPropertiesFile` internal method].
+NOTE: `spark-defaults.conf` is loaded by spark-AbstractCommandBuilder.md#loadPropertiesFile[AbstractCommandBuilder's `loadPropertiesFile` internal method].
 
 === [[getDefaultPropertiesFile]] Calculating Path of Default Spark Properties -- `Utils.getDefaultPropertiesFile` method
 

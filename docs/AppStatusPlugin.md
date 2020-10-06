@@ -45,9 +45,9 @@ loadPlugins(): Iterable[AppStatusPlugin]
 ====
 `loadPlugins` is used when:
 
-* `SparkContext` is link:spark-SparkContext-creating-instance-internals.adoc#ui[created] (and creates a web UI)
+* `SparkContext` is spark-SparkContext-creating-instance-internals.md#ui[created] (and creates a web UI)
 
-* `FsHistoryProvider` is requested to xref:spark-history-server:FsHistoryProvider.adoc#getAppUI[create a web UI]
+* `FsHistoryProvider` is requested to spark-history-server:FsHistoryProvider.md#getAppUI[create a web UI]
 
 * `AppStatusStore` creates an in-memory store for a live Spark application
 ====

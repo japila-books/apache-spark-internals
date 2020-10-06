@@ -10,7 +10,7 @@ The partitions are given as a collection of partition ids (`partitions`) and the
 .`ResultStage` and partitions
 image::dagscheduler-resultstage-partitions.png[align="center"]
 
-TIP: Read about `TaskContext` in xref:scheduler:spark-TaskContext.adoc[TaskContext].
+TIP: Read about `TaskContext` in scheduler:spark-TaskContext.md[TaskContext].
 
 == [[findMissingPartitions]] Finding Missing Partitions
 
@@ -19,7 +19,7 @@ TIP: Read about `TaskContext` in xref:scheduler:spark-TaskContext.adoc[TaskConte
 findMissingPartitions(): Seq[Int]
 ----
 
-NOTE: findMissingPartitions is part of the xref:scheduler:Stage.adoc#findMissingPartitions[Stage] abstraction.
+NOTE: findMissingPartitions is part of the scheduler:Stage.md#findMissingPartitions[Stage] abstraction.
 
 findMissingPartitions...FIXME
 

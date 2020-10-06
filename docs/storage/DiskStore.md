@@ -1,6 +1,6 @@
 = DiskStore
 
-*DiskStore* manages data blocks on disk for xref:storage:BlockManager.adoc#diskStore[BlockManager].
+*DiskStore* manages data blocks on disk for storage:BlockManager.md#diskStore[BlockManager].
 
 .DiskStore and BlockManager
 image::DiskStore-BlockManager.png[align="center"]
@@ -9,8 +9,8 @@ image::DiskStore-BlockManager.png[align="center"]
 
 DiskStore takes the following to be created:
 
-* [[conf]] xref:ROOT:SparkConf.adoc[]
-* [[diskManager]] xref:storage:DiskBlockManager.adoc[]
+* [[conf]] ROOT:SparkConf.md[]
+* [[diskManager]] storage:DiskBlockManager.md[]
 * [[securityManager]] SecurityManager
 
 == [[getBytes]] getBytes Method
@@ -23,7 +23,7 @@ getBytes(
 
 getBytes...FIXME
 
-getBytes is used when BlockManager is requested to xref:storage:BlockManager.adoc#getLocalValues[getLocalValues] and xref:storage:BlockManager.adoc#doGetLocalBytes[doGetLocalBytes].
+getBytes is used when BlockManager is requested to storage:BlockManager.md#getLocalValues[getLocalValues] and storage:BlockManager.md#doGetLocalBytes[doGetLocalBytes].
 
 == [[blockSizes]] blockSizes Internal Registry
 
@@ -32,7 +32,7 @@ getBytes is used when BlockManager is requested to xref:storage:BlockManager.ado
 blockSizes: ConcurrentHashMap[BlockId, Long]
 ----
 
-blockSizes is a Java {java-javadoc-url}/java/util/concurrent/ConcurrentHashMap.html[java.util.concurrent.ConcurrentHashMap] that DiskStore uses to track xref:storage:BlockId.adoc[]s by their size on disk.
+blockSizes is a Java {java-javadoc-url}/java/util/concurrent/ConcurrentHashMap.html[java.util.concurrent.ConcurrentHashMap] that DiskStore uses to track storage:BlockId.md[]s by their size on disk.
 
 == [[contains]] Checking if Block File Exists
 
@@ -42,11 +42,11 @@ contains(
   blockId: BlockId): Boolean
 ----
 
-`contains` requests the <<diskManager, DiskBlockManager>> for the xref:storage:DiskBlockManager.adoc#getFile[block file] by (the name of) the input xref:storage:BlockId.adoc[] and check whether the file actually exists or not.
+`contains` requests the <<diskManager, DiskBlockManager>> for the storage:DiskBlockManager.md#getFile[block file] by (the name of) the input storage:BlockId.md[] and check whether the file actually exists or not.
 
 `contains` is used when:
 
-* BlockManager is requested to xref:storage:BlockManager.adoc#getStatus[getStatus], xref:storage:BlockManager.adoc#getCurrentBlockStatus[getCurrentBlockStatus], xref:storage:BlockManager.adoc#getLocalValues[getLocalValues], xref:storage:BlockManager.adoc#doGetLocalBytes[doGetLocalBytes], xref:storage:BlockManager.adoc#dropFromMemory[dropFromMemory]
+* BlockManager is requested to storage:BlockManager.md#getStatus[getStatus], storage:BlockManager.md#getCurrentBlockStatus[getCurrentBlockStatus], storage:BlockManager.md#getLocalValues[getLocalValues], storage:BlockManager.md#doGetLocalBytes[doGetLocalBytes], storage:BlockManager.md#dropFromMemory[dropFromMemory]
 
 * DiskStore is requested to <<put, put>>
 
@@ -65,7 +65,7 @@ put(
 Attempting to put block [blockId]
 ```
 
-`put` requests the <<diskManager, DiskBlockManager>> for the xref:storage:DiskBlockManager.adoc#getFile[block file] for the input xref:storage:BlockId.adoc[].
+`put` requests the <<diskManager, DiskBlockManager>> for the storage:DiskBlockManager.md#getFile[block file] for the input storage:BlockId.md[].
 
 `put` <<openForWrite, opens the block file for writing>> (wrapped into a CountingWritableChannel to count the bytes written).
 
@@ -87,7 +87,7 @@ Block [blockId] is already present in the disk store
 
 `put` is used when:
 
-* BlockManager is requested to xref:storage:BlockManager.adoc#doPutIterator[doPutIterator] and xref:storage:BlockManager.adoc#dropFromMemory[dropFromMemory]
+* BlockManager is requested to storage:BlockManager.md#doPutIterator[doPutIterator] and storage:BlockManager.md#dropFromMemory[dropFromMemory]
 
 * DiskStore is requested to <<putBytes, putBytes>>
 
@@ -102,7 +102,7 @@ putBytes(
 
 `putBytes`...FIXME
 
-`putBytes` is used when BlockManager is requested to xref:storage:BlockManager.adoc#doPutBytes[doPutBytes] and xref:storage:BlockManager.adoc#dropFromMemory[dropFromMemory].
+`putBytes` is used when BlockManager is requested to storage:BlockManager.md#doPutBytes[doPutBytes] and storage:BlockManager.md#dropFromMemory[dropFromMemory].
 
 == [[remove]] Removing Block
 
@@ -116,7 +116,7 @@ remove(
 
 `remove` is used when:
 
-* BlockManager is requested to xref:storage:BlockManager.adoc#removeBlockInternal[removeBlockInternal]
+* BlockManager is requested to storage:BlockManager.md#removeBlockInternal[removeBlockInternal]
 
 * DiskStore is requested to <<put, put>> (when an exception was thrown)
 
@@ -143,4 +143,4 @@ Add the following line to `conf/log4j.properties`:
 log4j.logger.org.apache.spark.storage.DiskStore=ALL
 ----
 
-Refer to xref:ROOT:spark-logging.adoc[Logging].
+Refer to ROOT:spark-logging.md[Logging].

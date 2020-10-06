@@ -7,18 +7,18 @@
 * [[name]] RDD name
 * [[numPartitions]] Number of RDD partitions
 * [[numCachedPartitions]] Number of cached RDD partitions
-* [[storageLevel]] xref:storage:StorageLevel.adoc[Storage level] ID
+* [[storageLevel]] storage:StorageLevel.md[Storage level] ID
 * [[memoryUsed]] Memory used
 * [[diskUsed]] Disk used
 * [[dataDistribution]] Data distribution (as `Seq[RDDDataDistribution]`)
 * [[partitions]] Partitions (as `Seq[RDDPartitionInfo]]`)
 
-`RDDStorageInfo` is <<creating-instance, created>> exclusively when `LiveRDD` is requested to xref:webui:spark-core-LiveRDD.adoc#doUpdate[doUpdate] (when requested to link:spark-core-LiveEntity.adoc#write[write]).
+`RDDStorageInfo` is <<creating-instance, created>> exclusively when `LiveRDD` is requested to webui:spark-core-LiveRDD.md#doUpdate[doUpdate] (when requested to spark-core-LiveEntity.md#write[write]).
 
 `RDDStorageInfo` is used when:
 
-. web UI's `StoragePage` is requested to render an HTML link:spark-webui-StoragePage.adoc#rddRow[table row] and an entire link:spark-webui-StoragePage.adoc#rddTable[table] for RDD details
+. web UI's `StoragePage` is requested to render an HTML spark-webui-StoragePage.md#rddRow[table row] and an entire spark-webui-StoragePage.md#rddTable[table] for RDD details
 
-. REST API's `AbstractApplicationResource` is requested for link:spark-api-AbstractApplicationResource.adoc#rddList[rddList] (at `storage/rdd` path)
+. REST API's `AbstractApplicationResource` is requested for spark-api-AbstractApplicationResource.md#rddList[rddList] (at `storage/rdd` path)
 
-. `AppStatusStore` is requested for xref:core:AppStatusStore.adoc#rddList[rddList]
+. `AppStatusStore` is requested for core:AppStatusStore.md#rddList[rddList]

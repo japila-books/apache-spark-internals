@@ -15,13 +15,13 @@ compute(
   context: TaskContext): Iterator[T]
 ----
 
-compute computes the input `split` xref:rdd:spark-rdd-partitions.adoc[partition] in the xref:scheduler:spark-TaskContext.adoc[TaskContext] to produce a collection of values (of type `T`).
+compute computes the input `split` rdd:spark-rdd-partitions.md[partition] in the scheduler:spark-TaskContext.md[TaskContext] to produce a collection of values (of type `T`).
 
-compute is implemented by any type of RDD in Spark and is called every time the records are requested unless RDD is xref:rdd:spark-rdd-caching.adoc[cached] or xref:ROOT:rdd-checkpointing.adoc[checkpointed] (and the records can be read from an external storage, but this time closer to the compute node).
+compute is implemented by any type of RDD in Spark and is called every time the records are requested unless RDD is rdd:spark-rdd-caching.md[cached] or ROOT:rdd-checkpointing.md[checkpointed] (and the records can be read from an external storage, but this time closer to the compute node).
 
-When an RDD is xref:rdd:spark-rdd-caching.adoc[cached], for specified xref:storage:StorageLevel.adoc[storage levels] (i.e. all but `NONE`)...FIXME
+When an RDD is rdd:spark-rdd-caching.md[cached], for specified storage:StorageLevel.md[storage levels] (i.e. all but `NONE`)...FIXME
 
-compute runs on the xref:ROOT:spark-driver.adoc[driver].
+compute runs on the ROOT:spark-driver.md[driver].
 
 compute is used when RDD is requested to <<computeOrReadCheckpoint, computeOrReadCheckpoint>>.
 
@@ -51,7 +51,7 @@ getPreferredLocations(
   split: Partition): Seq[String] = Nil
 ----
 
-getPreferredLocations is used when RDD is requested for the <<preferredLocations, preferred locations>> of a given xref:rdd:spark-rdd-Partition.adoc[partition].
+getPreferredLocations is used when RDD is requested for the <<preferredLocations, preferred locations>> of a given rdd:spark-rdd-Partition.md[partition].
 
 === [[partitioner]] Partitioner
 
@@ -60,7 +60,7 @@ getPreferredLocations is used when RDD is requested for the <<preferredLocations
 partitioner: Option[Partitioner] = None
 ----
 
-RDD can have a xref:rdd:Partitioner.adoc[Partitioner] defined.
+RDD can have a rdd:Partitioner.md[Partitioner] defined.
 
 == [[extensions]][[implementations]] (Subset of) Available RDDs
 
@@ -69,23 +69,23 @@ RDD can have a xref:rdd:Partitioner.adoc[Partitioner] defined.
 | RDD
 | Description
 
-| xref:rdd:spark-rdd-CoGroupedRDD.adoc[CoGroupedRDD]
+| rdd:spark-rdd-CoGroupedRDD.md[CoGroupedRDD]
 | [[CoGroupedRDD]]
 
 | CoalescedRDD
-| [[CoalescedRDD]] Result of xref:rdd:spark-rdd-partitions.adoc#repartition[repartition] or xref:rdd:spark-rdd-partitions.adoc#coalesce[coalesce] transformations
+| [[CoalescedRDD]] Result of rdd:spark-rdd-partitions.md#repartition[repartition] or rdd:spark-rdd-partitions.md#coalesce[coalesce] transformations
 
-| xref:rdd:spark-rdd-HadoopRDD.adoc[HadoopRDD]
+| rdd:spark-rdd-HadoopRDD.md[HadoopRDD]
 | [[HadoopRDD]] Allows for reading data stored in HDFS using the older MapReduce API. The most notable use case is the return RDD of `SparkContext.textFile`.
 
-| xref:rdd:spark-rdd-MapPartitionsRDD.adoc[MapPartitionsRDD]
-| [[MapPartitionsRDD]] Result of calling map-like operations (e.g. `map`, `flatMap`, `filter`, xref:rdd:spark-rdd-transformations.adoc#mapPartitions[mapPartitions])
+| rdd:spark-rdd-MapPartitionsRDD.md[MapPartitionsRDD]
+| [[MapPartitionsRDD]] Result of calling map-like operations (e.g. `map`, `flatMap`, `filter`, rdd:spark-rdd-transformations.md#mapPartitions[mapPartitions])
 
-| xref:rdd:spark-rdd-ParallelCollectionRDD.adoc[ParallelCollectionRDD]
+| rdd:spark-rdd-ParallelCollectionRDD.md[ParallelCollectionRDD]
 | [[ParallelCollectionRDD]]
 
-| xref:rdd:ShuffledRDD.adoc[ShuffledRDD]
-| [[ShuffledRDD]] Result of "shuffle" operators (e.g. xref:rdd:spark-rdd-partitions.adoc#repartition[repartition] or xref:rdd:spark-rdd-partitions.adoc#coalesce[coalesce])
+| rdd:ShuffledRDD.md[ShuffledRDD]
+| [[ShuffledRDD]] Result of "shuffle" operators (e.g. rdd:spark-rdd-partitions.md#repartition[repartition] or rdd:spark-rdd-partitions.md#coalesce[coalesce])
 
 |===
 
@@ -93,14 +93,14 @@ RDD can have a xref:rdd:Partitioner.adoc[Partitioner] defined.
 
 RDD takes the following to be created:
 
-* [[_sc]] xref:ROOT:SparkContext.adoc[]
-* [[deps]] *Parent RDDs*, i.e. xref:rdd:spark-rdd-Dependency.adoc[Dependencies] (that have to be all computed successfully before this RDD)
+* [[_sc]] ROOT:SparkContext.md[]
+* [[deps]] *Parent RDDs*, i.e. rdd:spark-rdd-Dependency.md[Dependencies] (that have to be all computed successfully before this RDD)
 
 RDD is an abstract class and cannot be created directly. It is created indirectly for the <<implementations, concrete RDDs>>.
 
 == [[storageLevel]][[getStorageLevel]] StorageLevel
 
-RDD can have a xref:storage:StorageLevel.adoc[StorageLevel] specified. The default StorageLevel is xref:storage:StorageLevel.adoc#NONE[NONE].
+RDD can have a storage:StorageLevel.md[StorageLevel] specified. The default StorageLevel is storage:StorageLevel.md#NONE[NONE].
 
 storageLevel can be specified using <<persist, persist>> method.
 
@@ -122,19 +122,19 @@ id: Int
 
 id is an *unique identifier* (aka *RDD ID*) in the given <<_sc, SparkContext>>.
 
-id requests the <<sc, SparkContext>> for xref:ROOT:SparkContext.adoc#newRddId[newRddId] right when RDD is created.
+id requests the <<sc, SparkContext>> for ROOT:SparkContext.md#newRddId[newRddId] right when RDD is created.
 
 == [[isBarrier_]][[isBarrier]] Barrier Stage
 
-An RDD can be part of a xref:ROOT:spark-barrier-execution-mode.adoc#barrier-stage[barrier stage]. By default, `isBarrier` flag is enabled (`true`) when:
+An RDD can be part of a ROOT:spark-barrier-execution-mode.md#barrier-stage[barrier stage]. By default, `isBarrier` flag is enabled (`true`) when:
 
-. There are no xref:rdd:ShuffleDependency.adoc[ShuffleDependencies] among the <<dependencies, RDD dependencies>>
+. There are no rdd:ShuffleDependency.md[ShuffleDependencies] among the <<dependencies, RDD dependencies>>
 
-. There is at least one xref:rdd:spark-rdd-Dependency.adoc#rdd[parent RDD] that has the flag enabled
+. There is at least one rdd:spark-rdd-Dependency.md#rdd[parent RDD] that has the flag enabled
 
-xref:rdd:ShuffledRDD.adoc[ShuffledRDD] has the flag always disabled.
+rdd:ShuffledRDD.md[ShuffledRDD] has the flag always disabled.
 
-xref:rdd:spark-rdd-MapPartitionsRDD.adoc[MapPartitionsRDD] is the only one RDD that can have the flag enabled.
+rdd:spark-rdd-MapPartitionsRDD.md[MapPartitionsRDD] is the only one RDD that can have the flag enabled.
 
 == [[getOrCompute]] Getting Or Computing RDD Partition
 
@@ -145,28 +145,28 @@ getOrCompute(
   context: TaskContext): Iterator[T]
 ----
 
-`getOrCompute` creates a xref:storage:BlockId.adoc#RDDBlockId[RDDBlockId] for the <<id, RDD id>> and the link:spark-rdd-Partition.adoc#index[partition index].
+`getOrCompute` creates a storage:BlockId.md#RDDBlockId[RDDBlockId] for the <<id, RDD id>> and the spark-rdd-Partition.md#index[partition index].
 
-`getOrCompute` requests the `BlockManager` to xref:storage:BlockManager.adoc#getOrElseUpdate[getOrElseUpdate] for the block ID (with the <<storageLevel, storage level>> and the `makeIterator` function).
+`getOrCompute` requests the `BlockManager` to storage:BlockManager.md#getOrElseUpdate[getOrElseUpdate] for the block ID (with the <<storageLevel, storage level>> and the `makeIterator` function).
 
-NOTE: `getOrCompute` uses xref:core:SparkEnv.adoc#get[SparkEnv] to access the current xref:core:SparkEnv.adoc#blockManager[BlockManager].
+NOTE: `getOrCompute` uses core:SparkEnv.md#get[SparkEnv] to access the current core:SparkEnv.md#blockManager[BlockManager].
 
 [[getOrCompute-readCachedBlock]]
 `getOrCompute` records whether...FIXME (readCachedBlock)
 
-`getOrCompute` branches off per the response from the xref:storage:BlockManager.adoc#getOrElseUpdate[BlockManager] and whether the internal `readCachedBlock` flag is now on or still off. In either case, `getOrCompute` creates an link:spark-InterruptibleIterator.adoc[InterruptibleIterator].
+`getOrCompute` branches off per the response from the storage:BlockManager.md#getOrElseUpdate[BlockManager] and whether the internal `readCachedBlock` flag is now on or still off. In either case, `getOrCompute` creates an spark-InterruptibleIterator.md[InterruptibleIterator].
 
-NOTE: link:spark-InterruptibleIterator.adoc[InterruptibleIterator] simply delegates to a wrapped internal `Iterator`, but allows for link:spark-TaskContext.adoc#isInterrupted[task killing functionality].
+NOTE: spark-InterruptibleIterator.md[InterruptibleIterator] simply delegates to a wrapped internal `Iterator`, but allows for spark-TaskContext.md#isInterrupted[task killing functionality].
 
 For a `BlockResult` available and `readCachedBlock` flag on, `getOrCompute`...FIXME
 
 For a `BlockResult` available and `readCachedBlock` flag off, `getOrCompute`...FIXME
 
-NOTE: The `BlockResult` could be found in a local block manager or fetched from a remote block manager. It may also have been stored (persisted) just now. In either case, the `BlockResult` is available (and xref:storage:BlockManager.adoc#getOrElseUpdate[BlockManager.getOrElseUpdate] gives a `Left` value with the `BlockResult`).
+NOTE: The `BlockResult` could be found in a local block manager or fetched from a remote block manager. It may also have been stored (persisted) just now. In either case, the `BlockResult` is available (and storage:BlockManager.md#getOrElseUpdate[BlockManager.getOrElseUpdate] gives a `Left` value with the `BlockResult`).
 
 For `Right(iter)` (regardless of the value of `readCachedBlock` flag since...FIXME), `getOrCompute`...FIXME
 
-NOTE: xref:storage:BlockManager.adoc#getOrElseUpdate[BlockManager.getOrElseUpdate] gives a `Right(iter)` value to indicate an error with a block.
+NOTE: storage:BlockManager.md#getOrElseUpdate[BlockManager.getOrElseUpdate] gives a `Right(iter)` value to indicate an error with a block.
 
 NOTE: `getOrCompute` is used on Spark executors.
 
@@ -179,13 +179,13 @@ NOTE: `getOrCompute` is used exclusively when RDD is requested for the <<iterato
 dependencies: Seq[Dependency[_]]
 ----
 
-`dependencies` returns the link:spark-rdd-Dependency.adoc[dependencies of a RDD].
+`dependencies` returns the spark-rdd-Dependency.md[dependencies of a RDD].
 
 NOTE: `dependencies` is a final method that no class in Spark can ever override.
 
-Internally, `dependencies` checks out whether the RDD is xref:ROOT:rdd-checkpointing.adoc[checkpointed] and acts accordingly.
+Internally, `dependencies` checks out whether the RDD is ROOT:rdd-checkpointing.md[checkpointed] and acts accordingly.
 
-For a RDD being checkpointed, `dependencies` returns a single-element collection with a link:spark-rdd-NarrowDependency.adoc#OneToOneDependency[OneToOneDependency].
+For a RDD being checkpointed, `dependencies` returns a single-element collection with a spark-rdd-NarrowDependency.md#OneToOneDependency[OneToOneDependency].
 
 For a non-checkpointed RDD, `dependencies` collection is computed using <<contract, `getDependencies` method>>.
 
@@ -200,7 +200,7 @@ iterator(
   context: TaskContext): Iterator[T]
 ----
 
-iterator <<getOrCompute, gets or computes the `split` partition>> when xref:rdd:spark-rdd-caching.adoc[cached] or <<computeOrReadCheckpoint, computes it (possibly by reading from checkpoint)>>.
+iterator <<getOrCompute, gets or computes the `split` partition>> when rdd:spark-rdd-caching.md[cached] or <<computeOrReadCheckpoint, computes it (possibly by reading from checkpoint)>>.
 
 == [[checkpointRDD]] Getting CheckpointRDD
 
@@ -233,7 +233,7 @@ getNarrowAncestors: Seq[RDD[_]]
 
 getNarrowAncestors...FIXME
 
-getNarrowAncestors is used when StageInfo is requested to xref:scheduler:spark-scheduler-StageInfo.adoc#fromStage[fromStage].
+getNarrowAncestors is used when StageInfo is requested to scheduler:spark-scheduler-StageInfo.md#fromStage[fromStage].
 
 == [[toLocalIterator]] toLocalIterator Method
 
@@ -253,7 +253,7 @@ persist(
   newLevel: StorageLevel): this.type
 ----
 
-Refer to xref:rdd:spark-rdd-caching.adoc#persist[Persisting RDD].
+Refer to rdd:spark-rdd-caching.md#persist[Persisting RDD].
 
 == [[persist-internal]] persist Internal Method
 
@@ -284,7 +284,7 @@ unpersist...FIXME
 localCheckpoint(): this.type
 ----
 
-localCheckpoint marks this RDD for xref:ROOT:rdd-checkpointing.adoc[local checkpointing] using Spark's caching layer.
+localCheckpoint marks this RDD for ROOT:rdd-checkpointing.md[local checkpointing] using Spark's caching layer.
 
 == [[computeOrReadCheckpoint]] Computing Partition or Reading From Checkpoint
 
@@ -329,7 +329,7 @@ preferredLocations requests the CheckpointRDD for <<checkpointRDD, placement pre
 
 preferredLocations is a template method that uses  <<getPreferredLocations, getPreferredLocations>> that custom RDDs can override to specify placement preferences for a partition. getPreferredLocations defines no placement preferences by default.
 
-preferredLocations is mainly used when DAGScheduler is requested to xref:scheduler:DAGScheduler.adoc#getPreferredLocs[compute the preferred locations for missing partitions].
+preferredLocations is mainly used when DAGScheduler is requested to scheduler:DAGScheduler.md#getPreferredLocs[compute the preferred locations for missing partitions].
 
 == [[partitions]] Accessing RDD Partitions
 
@@ -338,7 +338,7 @@ preferredLocations is mainly used when DAGScheduler is requested to xref:schedul
 partitions: Array[Partition]
 ----
 
-partitions returns the xref:rdd:spark-rdd-partitions.adoc[Partitions] of a `RDD`.
+partitions returns the rdd:spark-rdd-partitions.md[Partitions] of a `RDD`.
 
 partitions requests CheckpointRDD for the <<checkpointRDD, partitions>> (if the RDD is checkpointed) or <<getPartitions, finds them itself>> and cache (in <<partitions_, partitions_>> internal registry that is used next time).
 
@@ -364,7 +364,7 @@ doCheckpoint(): Unit
 
 doCheckpoint...FIXME
 
-doCheckpoint is used when SparkContext is requested to xref:ROOT:SparkContext.adoc#runJob[run a job (synchronously)].
+doCheckpoint is used when SparkContext is requested to ROOT:SparkContext.md#runJob[run a job (synchronously)].
 
 == [[checkpoint]] Reliable Checkpointing -- checkpoint Method
 

@@ -1,6 +1,6 @@
 = CleanerListener
 
-*CleanerListener* is an abstraction of listeners that can be xref:core:ContextCleaner.adoc#attachListener[registered with ContextCleaner] to be informed when <<rddCleaned, RDDs>>, <<broadcastCleaned, broadcasts>>, <<shuffleCleaned, shuffles>>, <<accumCleaned, accumulators>> and <<checkpointCleaned, checkpointed RDDs>> are cleaned.
+*CleanerListener* is an abstraction of listeners that can be core:ContextCleaner.md#attachListener[registered with ContextCleaner] to be informed when <<rddCleaned, RDDs>>, <<broadcastCleaned, broadcasts>>, <<shuffleCleaned, shuffles>>, <<accumCleaned, accumulators>> and <<checkpointCleaned, checkpointed RDDs>> are cleaned.
 
 == [[rddCleaned]] rddCleaned Callback Method
 

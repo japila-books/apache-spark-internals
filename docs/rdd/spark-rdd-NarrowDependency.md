@@ -1,6 +1,6 @@
 == [[NarrowDependency]] NarrowDependency -- Narrow Dependencies
 
-`NarrowDependency` is a base (abstract) link:spark-rdd-Dependency.adoc[Dependency] with _narrow_ (limited) number of link:spark-rdd-Partition.adoc[partitions] of the parent RDD that are required to compute a partition of the child RDD.
+`NarrowDependency` is a base (abstract) spark-rdd-Dependency.md[Dependency] with _narrow_ (limited) number of spark-rdd-Partition.md[partitions] of the parent RDD that are required to compute a partition of the child RDD.
 
 NOTE: Narrow dependencies allow for pipelined execution.
 

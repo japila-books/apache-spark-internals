@@ -1,35 +1,35 @@
 = SparkUI
 
-*SparkUI* is the link:spark-webui-WebUI.adoc[web UI] of a Spark application (aka *Application UI*).
+*SparkUI* is the spark-webui-WebUI.md[web UI] of a Spark application (aka *Application UI*).
 
 SparkUI is <<creating-instance, created>> along with the following:
 
-* link:spark-SparkContext-creating-instance-internals.adoc#_ui[SparkContext] (for a live Spark application with link:spark-webui-properties.adoc#spark.ui.enabled[spark.ui.enabled] configuration property enabled)
+* spark-SparkContext-creating-instance-internals.md#_ui[SparkContext] (for a live Spark application with spark-webui-properties.md#spark.ui.enabled[spark.ui.enabled] configuration property enabled)
 
-* `FsHistoryProvider` is requested for the xref:spark-history-server:FsHistoryProvider.adoc#getAppUI[application UI] (for a live or completed Spark application)
+* `FsHistoryProvider` is requested for the spark-history-server:FsHistoryProvider.md#getAppUI[application UI] (for a live or completed Spark application)
 
 .Creating SparkUI for Live Spark Application
 image::spark-webui-SparkUI.png[align="center"]
 
 When <<create, created>> (while `SparkContext` is created for a live Spark application), SparkUI gets the following:
 
-* Live link:spark-SparkContext-creating-instance-internals.adoc#_statusStore[AppStatusStore] (with a xref:core:ElementTrackingStore.adoc[] using an xref:core:InMemoryStore.adoc[] and a xref:core:AppStatusListener.adoc[] for a live Spark application)
+* Live spark-SparkContext-creating-instance-internals.md#_statusStore[AppStatusStore] (with a core:ElementTrackingStore.md[] using an core:InMemoryStore.md[] and a core:AppStatusListener.md[] for a live Spark application)
 
-* Name of the Spark application that is exactly the value of xref:ROOT:SparkConf.adoc#spark.app.name[spark.app.name] configuration property
+* Name of the Spark application that is exactly the value of ROOT:SparkConf.md#spark.app.name[spark.app.name] configuration property
 
 * Empty base path
 
-When started, SparkUI binds to <<appUIAddress, appUIAddress>> address that you can control using `SPARK_PUBLIC_DNS` environment variable or link:spark-driver.adoc#spark_driver_host[spark.driver.host] Spark property.
+When started, SparkUI binds to <<appUIAddress, appUIAddress>> address that you can control using `SPARK_PUBLIC_DNS` environment variable or spark-driver.md#spark_driver_host[spark.driver.host] Spark property.
 
-NOTE: With link:spark-webui-properties.adoc#spark.ui.killEnabled[spark.ui.killEnabled] configuration property turned on, SparkUI <<initialize, allows to kill jobs and stages>> (subject to `SecurityManager.checkModifyPermissions` permissions).
+NOTE: With spark-webui-properties.md#spark.ui.killEnabled[spark.ui.killEnabled] configuration property turned on, SparkUI <<initialize, allows to kill jobs and stages>> (subject to `SecurityManager.checkModifyPermissions` permissions).
 
 SparkUI gets an <<store, AppStatusStore>> that is then used for the following:
 
-* <<initialize, Initializing tabs>>, i.e. link:spark-webui-JobsTab.adoc#creating-instance[JobsTab], link:spark-webui-StagesTab.adoc#creating-instance[StagesTab], link:spark-webui-StorageTab.adoc#creating-instance[StorageTab], link:spark-webui-EnvironmentTab.adoc#creating-instance[EnvironmentTab]
+* <<initialize, Initializing tabs>>, i.e. spark-webui-JobsTab.md#creating-instance[JobsTab], spark-webui-StagesTab.md#creating-instance[StagesTab], spark-webui-StorageTab.md#creating-instance[StorageTab], spark-webui-EnvironmentTab.md#creating-instance[EnvironmentTab]
 
-* `AbstractApplicationResource` is requested for link:spark-api-AbstractApplicationResource.adoc#jobsList[jobsList], link:spark-api-AbstractApplicationResource.adoc#oneJob[oneJob], link:spark-api-AbstractApplicationResource.adoc#executorList[executorList], link:spark-api-AbstractApplicationResource.adoc#allExecutorList[allExecutorList], link:spark-api-AbstractApplicationResource.adoc#rddList[rddList], link:spark-api-AbstractApplicationResource.adoc#rddData[rddData], link:spark-api-AbstractApplicationResource.adoc#environmentInfo[environmentInfo]
+* `AbstractApplicationResource` is requested for spark-api-AbstractApplicationResource.md#jobsList[jobsList], spark-api-AbstractApplicationResource.md#oneJob[oneJob], spark-api-AbstractApplicationResource.md#executorList[executorList], spark-api-AbstractApplicationResource.md#allExecutorList[allExecutorList], spark-api-AbstractApplicationResource.md#rddList[rddList], spark-api-AbstractApplicationResource.md#rddData[rddData], spark-api-AbstractApplicationResource.md#environmentInfo[environmentInfo]
 
-* `StagesResource` is requested for link:spark-api-StagesResource.adoc#stageList[stageList], link:spark-api-StagesResource.adoc#stageData[stageData], link:spark-api-StagesResource.adoc#oneAttemptData[oneAttemptData], link:spark-api-StagesResource.adoc#taskSummary[taskSummary], link:spark-api-StagesResource.adoc#taskList[taskList]
+* `StagesResource` is requested for spark-api-StagesResource.md#stageList[stageList], spark-api-StagesResource.md#stageData[stageData], spark-api-StagesResource.md#oneAttemptData[oneAttemptData], spark-api-StagesResource.md#taskSummary[taskSummary], spark-api-StagesResource.md#taskList[taskList]
 
 * SparkUI is requested for the current <<getSparkUser, Spark user>>
 
@@ -58,7 +58,7 @@ Add the following line to `conf/log4j.properties`:
 log4j.logger.org.apache.spark.ui.SparkUI=INFO
 ```
 
-Refer to link:spark-logging.adoc[Logging].
+Refer to spark-logging.md[Logging].
 ====
 
 == [[setAppId]] Assigning Unique Identifier of Spark Application -- `setAppId` Method
@@ -70,7 +70,7 @@ setAppId(id: String): Unit
 
 `setAppId` sets the internal <<appId, appId>>.
 
-NOTE: `setAppId` is used exclusively when `SparkContext` link:spark-SparkContext-creating-instance-internals.adoc#spark.app.id[is initialized].
+NOTE: `setAppId` is used exclusively when `SparkContext` spark-SparkContext-creating-instance-internals.md#spark.app.id[is initialized].
 
 == [[stop]] Stopping SparkUI -- `stop` Method
 
@@ -107,7 +107,7 @@ getSparkUser: String
 
 `getSparkUser` returns the name of the user a Spark application runs as.
 
-Internally, `getSparkUser` requests `user.name` System property from link:spark-webui-EnvironmentListener.adoc[EnvironmentListener] Spark listener.
+Internally, `getSparkUser` requests `user.name` System property from spark-webui-EnvironmentListener.md[EnvironmentListener] Spark listener.
 
 NOTE: `getSparkUser` is used...FIXME
 
@@ -129,7 +129,7 @@ createLiveUI(
 
 Internally, `createLiveUI` simply forwards the call to <<create, create>>.
 
-NOTE: `createLiveUI` is called when link:spark-SparkContext-creating-instance-internals.adoc#ui[`SparkContext` is created] (and link:spark-webui-properties.adoc#spark.ui.enabled[spark.ui.enabled] is enabled).
+NOTE: `createLiveUI` is called when spark-SparkContext-creating-instance-internals.md#ui[`SparkContext` is created] (and spark-webui-properties.md#spark.ui.enabled[spark.ui.enabled] is enabled).
 
 == [[createHistoryUI]] `createHistoryUI` Method
 
@@ -172,7 +172,7 @@ create(
   appSparkVersion: String = org.apache.spark.SPARK_VERSION): SparkUI
 ----
 
-`create` creates a SparkUI backed by a xref:core:AppStatusStore.adoc[].
+`create` creates a SparkUI backed by a core:AppStatusStore.md[].
 
 Internally, `create` simply creates a new <<creating-instance, SparkUI>> (with the predefined Spark version).
 
@@ -180,18 +180,18 @@ Internally, `create` simply creates a new <<creating-instance, SparkUI>> (with t
 ====
 `create` is used when:
 
-* `SparkContext` is link:spark-SparkContext-creating-instance-internals.adoc#_ui[created] (for a running Spark application)
+* `SparkContext` is spark-SparkContext-creating-instance-internals.md#_ui[created] (for a running Spark application)
 
-* `FsHistoryProvider` is requested to xref:spark-history-server:FsHistoryProvider.adoc#getAppUI[getAppUI] (for a Spark application that already finished)
+* `FsHistoryProvider` is requested to spark-history-server:FsHistoryProvider.md#getAppUI[getAppUI] (for a Spark application that already finished)
 ====
 
 == [[creating-instance]] Creating SparkUI Instance
 
 SparkUI takes the following when created:
 
-* [[store]] xref:core:AppStatusStore.adoc[]
-* [[sc]] xref:ROOT:SparkContext.adoc[]
-* [[conf]] xref:ROOT:SparkConf.adoc[SparkConf]
+* [[store]] core:AppStatusStore.md[]
+* [[sc]] ROOT:SparkContext.md[]
+* [[conf]] ROOT:SparkConf.md[SparkConf]
 * [[securityManager]] `SecurityManager`
 * [[appName]] Application name
 * [[basePath]] `basePath`
@@ -207,24 +207,24 @@ SparkUI initializes the <<internal-registries, internal registries and counters>
 initialize(): Unit
 ----
 
-NOTE: `initialize` is part of link:spark-webui-WebUI.adoc#initialize[WebUI Contract] to initialize web components.
+NOTE: `initialize` is part of spark-webui-WebUI.md#initialize[WebUI Contract] to initialize web components.
 
 `initialize` creates and <<attachTab, attaches>> the following tabs (with the reference to the SparkUI and its <<store, AppStatusStore>>):
 
-. link:spark-webui-JobsTab.adoc[JobsTab]
-. link:spark-webui-StagesTab.adoc[StagesTab]
-. link:spark-webui-StorageTab.adoc[StorageTab]
-. link:spark-webui-EnvironmentTab.adoc[EnvironmentTab]
-. link:spark-webui-ExecutorsTab.adoc[ExecutorsTab]
+. spark-webui-JobsTab.md[JobsTab]
+. spark-webui-StagesTab.md[StagesTab]
+. spark-webui-StorageTab.md[StorageTab]
+. spark-webui-EnvironmentTab.md[EnvironmentTab]
+. spark-webui-ExecutorsTab.md[ExecutorsTab]
 
-In the end, `initialize` creates and link:spark-webui-WebUI.adoc#attachHandler[attaches] the following `ServletContextHandlers`:
+In the end, `initialize` creates and spark-webui-WebUI.md#attachHandler[attaches] the following `ServletContextHandlers`:
 
-. link:spark-webui-JettyUtils.adoc#createStaticHandler[Creates a static handler] for serving files from a static directory, i.e. `/static` to serve static files from `org/apache/spark/ui/static` directory (on CLASSPATH)
+. spark-webui-JettyUtils.md#createStaticHandler[Creates a static handler] for serving files from a static directory, i.e. `/static` to serve static files from `org/apache/spark/ui/static` directory (on CLASSPATH)
 
-. link:spark-webui-JettyUtils.adoc#createRedirectHandler[Creates a redirect handler] to redirect `/` to `/jobs/` (and so the link:spark-webui-jobs.adoc[Jobs tab] is the welcome tab when you open the web UI)
+. spark-webui-JettyUtils.md#createRedirectHandler[Creates a redirect handler] to redirect `/` to `/jobs/` (and so the spark-webui-jobs.md[Jobs tab] is the welcome tab when you open the web UI)
 
-. link:spark-api-ApiRootResource.adoc#getServletHandler[Creates the /api/* context handler] for the link:spark-api.adoc[Status REST API]
+. spark-api-ApiRootResource.md#getServletHandler[Creates the /api/* context handler] for the spark-api.md[Status REST API]
 
-. link:spark-webui-JettyUtils.adoc#createRedirectHandler[Creates a redirect handler] to redirect `/jobs/job/kill` to `/jobs/` and request the `JobsTab` to execute link:spark-webui-JobsTab.adoc#handleKillRequest[handleKillRequest] before redirection
+. spark-webui-JettyUtils.md#createRedirectHandler[Creates a redirect handler] to redirect `/jobs/job/kill` to `/jobs/` and request the `JobsTab` to execute spark-webui-JobsTab.md#handleKillRequest[handleKillRequest] before redirection
 
-. link:spark-webui-JettyUtils.adoc#createRedirectHandler[Creates a redirect handler] to redirect `/stages/stage/kill` to `/stages/` and request the `StagesTab` to execute link:spark-webui-StagesTab.adoc#handleKillRequest[handleKillRequest] before redirection
+. spark-webui-JettyUtils.md#createRedirectHandler[Creates a redirect handler] to redirect `/stages/stage/kill` to `/stages/` and request the `StagesTab` to execute spark-webui-StagesTab.md#handleKillRequest[handleKillRequest] before redirection

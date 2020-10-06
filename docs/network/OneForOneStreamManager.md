@@ -1,12 +1,12 @@
 = OneForOneStreamManager
 
-*OneForOneStreamManager* is a xref:network:StreamManager.adoc[].
+*OneForOneStreamManager* is a network:StreamManager.md[].
 
 == [[creating-instance]] Creating Instance
 
 OneForOneStreamManager takes no arguments to be created.
 
-OneForOneStreamManager is created for xref:deploy:ExternalShuffleBlockHandler.adoc[] and xref:storage:ExternalShuffleClient.adoc[ExternalShuffleClient] (indirectly via NoOpRpcHandler).
+OneForOneStreamManager is created for deploy:ExternalShuffleBlockHandler.md[] and storage:ExternalShuffleClient.md[ExternalShuffleClient] (indirectly via NoOpRpcHandler).
 
 == [[registerStream]] registerStream Method
 

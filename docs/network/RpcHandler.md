@@ -34,7 +34,7 @@ a| [[receive]] Used when:
 
 * `SaslRpcHandler` is requested to `receive` (after authentication is complete)
 
-* `TransportRequestHandler` is requested to xref:network:TransportRequestHandler.adoc#processRpcRequest[processRpcRequest]
+* `TransportRequestHandler` is requested to network:TransportRequestHandler.md#processRpcRequest[processRpcRequest]
 
 | `getStreamManager`
 | [[getStreamManager]] Used when...FIXME
@@ -50,10 +50,10 @@ a| [[receive]] Used when:
 | `AuthRpcHandler`
 | [[AuthRpcHandler]]
 
-| xref:deploy:ExternalShuffleBlockHandler.adoc[]
+| deploy:ExternalShuffleBlockHandler.md[]
 | [[ExternalShuffleBlockHandler]]
 
-| xref:storage:NettyBlockRpcServer.adoc[]
+| storage:NettyBlockRpcServer.md[]
 | [[NettyBlockRpcServer]]
 
 | `NettyRpcHandler`

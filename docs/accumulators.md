@@ -1,8 +1,8 @@
 == [[AccumulatorV2]] Accumulators
 
-*Accumulators* are variables that are "added" to through an associative and commutative "add" operation. They act as a container for accumulating partial values across multiple tasks (running on executors). They are designed to be used safely and efficiently in parallel and distributed Spark computations and are meant for distributed counters and sums (e.g. xref:executor:TaskMetrics.adoc[task metrics]).
+*Accumulators* are variables that are "added" to through an associative and commutative "add" operation. They act as a container for accumulating partial values across multiple tasks (running on executors). They are designed to be used safely and efficiently in parallel and distributed Spark computations and are meant for distributed counters and sums (e.g. executor:TaskMetrics.md[task metrics]).
 
-You can create built-in accumulators for xref:ROOT:SparkContext.adoc#creating-accumulators[longs, doubles, or collections] or register custom accumulators using the xref:ROOT:SparkContext.adoc#register[SparkContext.register] methods. You can create accumulators with or without a name, but only <<named, named accumulators>> are displayed in link:spark-webui-StagePage.adoc#accumulators[web UI] (under Stages tab for a given stage).
+You can create built-in accumulators for ROOT:SparkContext.md#creating-accumulators[longs, doubles, or collections] or register custom accumulators using the ROOT:SparkContext.md#register[SparkContext.register] methods. You can create accumulators with or without a name, but only <<named, named accumulators>> are displayed in spark-webui-StagePage.md#accumulators[web UI] (under Stages tab for a given stage).
 
 .Accumulators in the Spark UI
 image::spark-webui-accumulators.png[align="center"]
@@ -16,7 +16,7 @@ executor2: accumulator.add(incByExecutor2)
 driver:  println(accumulator.value)
 ```
 
-Accumulators are not thread-safe. They do not really have to since the xref:scheduler:DAGScheduler.adoc#updateAccumulators[DAGScheduler.updateAccumulators] method that the driver uses to update the values of accumulators after a task completes (successfully or with a failure) is only executed on a xref:scheduler:DAGScheduler.adoc#eventProcessLoop[single thread that runs scheduling loop]. Beside that, they are write-only data structures for workers that have their own local accumulator reference whereas accessing the value of an accumulator is only allowed by the driver.
+Accumulators are not thread-safe. They do not really have to since the scheduler:DAGScheduler.md#updateAccumulators[DAGScheduler.updateAccumulators] method that the driver uses to update the values of accumulators after a task completes (successfully or with a failure) is only executed on a scheduler:DAGScheduler.md#eventProcessLoop[single thread that runs scheduling loop]. Beside that, they are write-only data structures for workers that have their own local accumulator reference whereas accessing the value of an accumulator is only allowed by the driver.
 
 Accumulators are serializable so they can safely be referenced in the code executed in executors and then safely send over the wire for execution.
 
@@ -26,7 +26,7 @@ val counter = sc.longAccumulator("counter")
 sc.parallelize(1 to 9).foreach(x => counter.add(x))
 ----
 
-Internally, xref:ROOT:SparkContext.adoc#longAccumulator[longAccumulator], xref:ROOT:SparkContext.adoc#doubleAccumulator[doubleAccumulator], and xref:ROOT:SparkContext.adoc#collectionAccumulator[collectionAccumulator] methods create the built-in typed accumulators and call xref:ROOT:SparkContext.adoc#register[SparkContext.register].
+Internally, ROOT:SparkContext.md#longAccumulator[longAccumulator], ROOT:SparkContext.md#doubleAccumulator[doubleAccumulator], and ROOT:SparkContext.md#collectionAccumulator[collectionAccumulator] methods create the built-in typed accumulators and call ROOT:SparkContext.md#register[SparkContext.register].
 
 TIP: Read the official documentation about http://spark.apache.org/docs/latest/programming-guide.html#accumulators[Accumulators].
 
@@ -71,9 +71,9 @@ register(
   countFailedValues: Boolean = false): Unit
 ----
 
-`register` creates a <<metadata, AccumulatorMetadata>> metadata object for the accumulator (with a link:spark-AccumulatorContext.adoc#newId[new unique identifier]) that is then used to link:spark-AccumulatorContext.adoc#register[register the accumulator with].
+`register` creates a <<metadata, AccumulatorMetadata>> metadata object for the accumulator (with a spark-AccumulatorContext.md#newId[new unique identifier]) that is then used to spark-AccumulatorContext.md#register[register the accumulator with].
 
-In the end, `register` xref:core:ContextCleaner.adoc#registerAccumulatorForCleanup[registers the accumulator for cleanup] (only when xref:ROOT:SparkContext.adoc#cleaner[`ContextCleaner` is defined in the `SparkContext`]).
+In the end, `register` core:ContextCleaner.md#registerAccumulatorForCleanup[registers the accumulator for cleanup] (only when ROOT:SparkContext.md#cleaner[`ContextCleaner` is defined in the `SparkContext`]).
 
 `register` reports a `IllegalStateException` if <<metadata, metadata>> is already defined (which means that `register` was called already).
 
@@ -87,9 +87,9 @@ NOTE: `register` is a `private[spark]` method.
 ====
 `register` is used when:
 
-* `SparkContext` xref:ROOT:SparkContext.adoc#register[registers accumulators]
-* `TaskMetrics` xref:executor:TaskMetrics.adoc#register[registers the internal accumulators]
-* link:spark-sql-SQLMetric.adoc[SQLMetrics] creates metrics.
+* `SparkContext` ROOT:SparkContext.md#register[registers accumulators]
+* `TaskMetrics` executor:TaskMetrics.md#register[registers the internal accumulators]
+* spark-sql-SQLMetric.md[SQLMetrics] creates metrics.
 ====
 
 === [[AccumulatorMetadata]] AccumulatorMetadata
@@ -100,11 +100,11 @@ NOTE: `register` is a `private[spark]` method.
 * [[name]] (optional) name
 * [[countFailedValues]] Flag whether to include the latest value of an accumulator on failure
 
-NOTE: `countFailedValues` is used exclusively when xref:scheduler:Task.adoc#collectAccumulatorUpdates[`Task` collects the latest values of accumulators] (irrespective of task status -- a success or a failure).
+NOTE: `countFailedValues` is used exclusively when scheduler:Task.md#collectAccumulatorUpdates[`Task` collects the latest values of accumulators] (irrespective of task status -- a success or a failure).
 
 === [[named]] Named Accumulators
 
-An accumulator can have an optional name that you can specify when xref:ROOT:SparkContext.adoc#creating-accumulators[creating an accumulator].
+An accumulator can have an optional name that you can specify when ROOT:SparkContext.md#creating-accumulators[creating an accumulator].
 
 [source, scala]
 ----

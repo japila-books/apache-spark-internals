@@ -9,9 +9,9 @@ image::ContextCleaner.png[align="center"]
 
 ContextCleaner takes the following to be created:
 
-* [[sc]] xref:ROOT:SparkContext.adoc[]
+* [[sc]] ROOT:SparkContext.md[]
 
-ContextCleaner is created and requested to <<start, start>> when SparkContext is requested to xref:ROOT:spark-SparkContext-creating-instance-internals.adoc#_cleaner[start] with xref:ROOT:configuration-properties.adoc#spark.cleaner.referenceTracking[spark.cleaner.referenceTracking] configuration property enabled.
+ContextCleaner is created and requested to <<start, start>> when SparkContext is requested to ROOT:spark-SparkContext-creating-instance-internals.md#_cleaner[start] with ROOT:configuration-properties.md#spark.cleaner.referenceTracking[spark.cleaner.referenceTracking] configuration property enabled.
 
 == [[cleaningThread]] Spark Context Cleaner Cleaning Thread
 
@@ -21,7 +21,7 @@ The Spark Context Cleaner thread is started when ContextCleaner is requested to 
 
 == [[listeners]][[attachListener]] CleanerListeners
 
-ContextCleaner allows attaching xref:core:CleanerListener.adoc[CleanerListeners] to be informed when objects are cleaned using `attachListener` method.
+ContextCleaner allows attaching core:CleanerListener.md[CleanerListeners] to be informed when objects are cleaned using `attachListener` method.
 
 [source,scala]
 ----
@@ -71,7 +71,7 @@ registerRDDCheckpointDataForCleanup[T](
 
 registerRDDCheckpointDataForCleanup...FIXME
 
-registerRDDCheckpointDataForCleanup is used when ContextCleaner is requested to <<doCheckpoint, doCheckpoint>> (with xref:ROOT:configuration-properties.adoc#spark.cleaner.referenceTracking.cleanCheckpoints[spark.cleaner.referenceTracking.cleanCheckpoints] configuration property enabled).
+registerRDDCheckpointDataForCleanup is used when ContextCleaner is requested to <<doCheckpoint, doCheckpoint>> (with ROOT:configuration-properties.md#spark.cleaner.referenceTracking.cleanCheckpoints[spark.cleaner.referenceTracking.cleanCheckpoints] configuration property enabled).
 
 == [[registerBroadcastForCleanup]] registerBroadcastForCleanup Method
 
@@ -83,7 +83,7 @@ registerBroadcastForCleanup[T](
 
 registerBroadcastForCleanup...FIXME
 
-registerBroadcastForCleanup is used when SparkContext is used to xref:ROOT:SparkContext.adoc#broadcast[create a broadcast variable].
+registerBroadcastForCleanup is used when SparkContext is used to ROOT:SparkContext.md#broadcast[create a broadcast variable].
 
 == [[registerRDDForCleanup]] registerRDDForCleanup Method
 
@@ -95,7 +95,7 @@ registerRDDForCleanup(
 
 registerRDDForCleanup...FIXME
 
-registerRDDForCleanup is used for xref:rdd:RDD.adoc#persist[RDD.persist] operation.
+registerRDDForCleanup is used for rdd:RDD.md#persist[RDD.persist] operation.
 
 == [[registerAccumulatorForCleanup]] registerAccumulatorForCleanup Method
 
@@ -118,7 +118,7 @@ stop(): Unit
 
 stop...FIXME
 
-stop is used when SparkContext is requested to xref:ROOT:SparkContext.adoc#stop[stop].
+stop is used when SparkContext is requested to ROOT:SparkContext.md#stop[stop].
 
 == [[start]] Starting ContextCleaner
 
@@ -127,11 +127,11 @@ stop is used when SparkContext is requested to xref:ROOT:SparkContext.adoc#stop[
 start(): Unit
 ----
 
-start starts the <<cleaningThread, cleaning thread>> and an action to request the JVM garbage collector (using `System.gc()`) on regular basis per xref:ROOT:configuration-properties.adoc#spark.cleaner.periodicGC.interval[spark.cleaner.periodicGC.interval] configuration property.
+start starts the <<cleaningThread, cleaning thread>> and an action to request the JVM garbage collector (using `System.gc()`) on regular basis per ROOT:configuration-properties.md#spark.cleaner.periodicGC.interval[spark.cleaner.periodicGC.interval] configuration property.
 
 The action to request the JVM GC is scheduled on <<periodicGCService, periodicGCService executor service>>.
 
-start is used when SparkContext is xref:ROOT:spark-SparkContext-creating-instance-internals.adoc#_cleaner[created].
+start is used when SparkContext is ROOT:spark-SparkContext-creating-instance-internals.md#_cleaner[created].
 
 == [[periodicGCService]] periodicGCService Single-Thread Executor Service
 
@@ -147,11 +147,11 @@ registerShuffleForCleanup(
   shuffleDependency: ShuffleDependency[_, _, _]): Unit
 ----
 
-registerShuffleForCleanup registers the given xref:rdd:ShuffleDependency.adoc[ShuffleDependency] for cleanup.
+registerShuffleForCleanup registers the given rdd:ShuffleDependency.md[ShuffleDependency] for cleanup.
 
 Internally, registerShuffleForCleanup simply executes <<registerForCleanup, registerForCleanup>> for the given ShuffleDependency.
 
-registerShuffleForCleanup is used when ShuffleDependency is xref:rdd:ShuffleDependency.adoc[created].
+registerShuffleForCleanup is used when ShuffleDependency is rdd:ShuffleDependency.md[created].
 
 == [[registerForCleanup]] Registering Object Reference For Cleanup
 
@@ -177,7 +177,7 @@ doCleanupShuffle(
   blocking: Boolean): Unit
 ----
 
-doCleanupShuffle performs a shuffle cleanup which is to remove the shuffle from the current xref:scheduler:MapOutputTrackerMaster.adoc[MapOutputTrackerMaster] and xref:storage:BlockManagerMaster.adoc[BlockManagerMaster]. doCleanupShuffle also notifies xref:core:CleanerListener.adoc[CleanerListeners].
+doCleanupShuffle performs a shuffle cleanup which is to remove the shuffle from the current scheduler:MapOutputTrackerMaster.md[MapOutputTrackerMaster] and storage:BlockManagerMaster.md[BlockManagerMaster]. doCleanupShuffle also notifies core:CleanerListener.md[CleanerListeners].
 
 Internally, when executed, doCleanupShuffle prints out the following DEBUG message to the logs:
 
@@ -186,11 +186,11 @@ Internally, when executed, doCleanupShuffle prints out the following DEBUG messa
 Cleaning shuffle [id]
 ----
 
-doCleanupShuffle uses xref:core:SparkEnv.adoc[SparkEnv] to access the xref:core:SparkEnv.adoc#mapOutputTracker[MapOutputTracker] to xref:scheduler:MapOutputTracker.adoc#unregisterShuffle[unregister the given shuffle].
+doCleanupShuffle uses core:SparkEnv.md[SparkEnv] to access the core:SparkEnv.md#mapOutputTracker[MapOutputTracker] to scheduler:MapOutputTracker.md#unregisterShuffle[unregister the given shuffle].
 
-doCleanupShuffle uses xref:core:SparkEnv.adoc[SparkEnv] to access the xref:core:SparkEnv.adoc#blockManager[BlockManagerMaster] to xref:storage:BlockManagerMaster.adoc#removeShuffle[remove the shuffle blocks] (for the given shuffleId).
+doCleanupShuffle uses core:SparkEnv.md[SparkEnv] to access the core:SparkEnv.md#blockManager[BlockManagerMaster] to storage:BlockManagerMaster.md#removeShuffle[remove the shuffle blocks] (for the given shuffleId).
 
-doCleanupShuffle informs all registered <<listeners, CleanerListeners>> that xref:core:CleanerListener.adoc#shuffleCleaned[shuffle was cleaned].
+doCleanupShuffle informs all registered <<listeners, CleanerListeners>> that core:CleanerListener.md#shuffleCleaned[shuffle was cleaned].
 
 In the end, doCleanupShuffle prints out the following DEBUG message to the logs:
 
@@ -219,7 +219,7 @@ Add the following line to `conf/log4j.properties`:
 log4j.logger.org.apache.spark.ContextCleaner=ALL
 ----
 
-Refer to xref:ROOT:spark-logging.adoc[Logging].
+Refer to ROOT:spark-logging.md[Logging].
 
 == [[internal-properties]] Internal Properties
 

@@ -1,8 +1,8 @@
 = BroadcastFactory
 
-*BroadcastFactory* is an <<contract, abstraction>> for <<implementations, factories>> that xref:core:BroadcastManager.adoc[BroadcastManager] uses for xref:ROOT:Broadcast.adoc[].
+*BroadcastFactory* is an <<contract, abstraction>> for <<implementations, factories>> that core:BroadcastManager.md[BroadcastManager] uses for ROOT:Broadcast.md[].
 
-NOTE: As of https://issues.apache.org/jira/browse/SPARK-12588[Spark 2.0], it is no longer possible to plug a custom BroadcastFactory in, and xref:core:TorrentBroadcastFactory.adoc[TorrentBroadcastFactory] is the one and only known implementation.
+NOTE: As of https://issues.apache.org/jira/browse/SPARK-12588[Spark 2.0], it is no longer possible to plug a custom BroadcastFactory in, and core:TorrentBroadcastFactory.md[TorrentBroadcastFactory] is the one and only known implementation.
 
 == [[contract]] Contract
 
@@ -16,7 +16,7 @@ initialize(
   securityMgr: SecurityManager): Unit
 ----
 
-Used when BroadcastManager is xref:BroadcastManager.adoc#creating-instance[created].
+Used when BroadcastManager is BroadcastManager.md#creating-instance[created].
 
 === [[newBroadcast]] newBroadcast Method
 
@@ -28,7 +28,7 @@ newBroadcast[T: ClassTag](
   id: Long): Broadcast[T]
 ----
 
-Used when BroadcastManager is requested for a xref:BroadcastManager.adoc#newBroadcast[new broadcast variable].
+Used when BroadcastManager is requested for a BroadcastManager.md#newBroadcast[new broadcast variable].
 
 === [[stop]] stop Method
 
@@ -37,7 +37,7 @@ Used when BroadcastManager is requested for a xref:BroadcastManager.adoc#newBroa
 stop(): Unit
 ----
 
-Used when BroadcastManager is requested to xref:BroadcastManager.adoc#stop[stop].
+Used when BroadcastManager is requested to BroadcastManager.md#stop[stop].
 
 === [[unbroadcast]] unbroadcast Method
 
@@ -49,8 +49,8 @@ unbroadcast(
   blocking: Boolean): Unit
 ----
 
-Used when BroadcastManager is requested to xref:BroadcastManager.adoc#unbroadcast[unbroadcast a broadcast variable].
+Used when BroadcastManager is requested to BroadcastManager.md#unbroadcast[unbroadcast a broadcast variable].
 
 == [[implementations]] Available BroadcastFactories
 
-xref:core:TorrentBroadcastFactory.adoc[TorrentBroadcastFactory] is the default and only known BroadcastFactory in Apache Spark.
+core:TorrentBroadcastFactory.md[TorrentBroadcastFactory] is the default and only known BroadcastFactory in Apache Spark.

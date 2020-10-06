@@ -1,6 +1,6 @@
 = NettyRpcEnvFactory
 
-*NettyRpcEnvFactory* is an xref:rpc:RpcEnvFactory.adoc[] for a <<create, Netty-based RpcEnv>>.
+*NettyRpcEnvFactory* is an rpc:RpcEnvFactory.md[] for a <<create, Netty-based RpcEnv>>.
 
 == [[create]] Creating RpcEnv
 
@@ -14,10 +14,10 @@ create creates a JavaSerializerInstance (using a JavaSerializer).
 
 NOTE: KryoSerializer is not supported.
 
-create creates a xref:rpc:NettyRpcEnv.adoc[] with the JavaSerializerInstance. create uses the given xref:rpc:RpcEnvConfig.adoc[] for the xref:rpc:RpcEnvConfig.adoc#advertiseAddress[advertised address], xref:rpc:RpcEnvConfig.adoc#securityManager[SecurityManager] and xref:rpc:RpcEnvConfig.adoc#numUsableCores[number of CPU cores].
+create creates a rpc:NettyRpcEnv.md[] with the JavaSerializerInstance. create uses the given rpc:RpcEnvConfig.md[] for the rpc:RpcEnvConfig.md#advertiseAddress[advertised address], rpc:RpcEnvConfig.md#securityManager[SecurityManager] and rpc:RpcEnvConfig.md#numUsableCores[number of CPU cores].
 
-create returns the NettyRpcEnv unless the xref:rpc:RpcEnvConfig.adoc#clientMode[clientMode] is turned off (_server mode_).
+create returns the NettyRpcEnv unless the rpc:RpcEnvConfig.md#clientMode[clientMode] is turned off (_server mode_).
 
-In server mode, create attempts to start the NettyRpcEnv on a given port. create uses the given xref:rpc:RpcEnvConfig.adoc[] for the xref:rpc:RpcEnvConfig.adoc#port[port], xref:rpc:RpcEnvConfig.adoc#bindAddress[bind address], and xref:rpc:RpcEnvConfig.adoc#name[name]. With the port, the NettyRpcEnv is requested to xref:rpc:NettyRpcEnv.adoc#startServer[start a server].
+In server mode, create attempts to start the NettyRpcEnv on a given port. create uses the given rpc:RpcEnvConfig.md[] for the rpc:RpcEnvConfig.md#port[port], rpc:RpcEnvConfig.md#bindAddress[bind address], and rpc:RpcEnvConfig.md#name[name]. With the port, the NettyRpcEnv is requested to rpc:NettyRpcEnv.md#startServer[start a server].
 
-create is part of the xref:rpc:RpcEnvFactory.adoc#create[RpcEnvFactory] abstraction.
+create is part of the rpc:RpcEnvFactory.md#create[RpcEnvFactory] abstraction.

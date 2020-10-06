@@ -1,11 +1,11 @@
 = LiveListenerBus
 
-*LiveListenerBus* is an event bus to announce application-wide events in a Spark application. It asynchronously passes <<events, listener events>> to registered xref:ROOT:SparkListener.adoc[]s (based on xref:ROOT:configuration-properties.adoc#spark.extraListeners[spark.extraListeners] configuration property).
+*LiveListenerBus* is an event bus to announce application-wide events in a Spark application. It asynchronously passes <<events, listener events>> to registered ROOT:SparkListener.md[]s (based on ROOT:configuration-properties.md#spark.extraListeners[spark.extraListeners] configuration property).
 
 .LiveListenerBus, SparkListenerEvents, and Senders
 image::spark-sparklistener-event-senders.png[align="center"]
 
-LiveListenerBus is a single-JVM link:spark-SparkListenerBus.adoc[SparkListenerBus] that uses <<listenerThread, listenerThread to poll events>>. Emitters are supposed to use <<post, `post` method to post `SparkListenerEvent` events>>.
+LiveListenerBus is a single-JVM spark-SparkListenerBus.md[SparkListenerBus] that uses <<listenerThread, listenerThread to poll events>>. Emitters are supposed to use <<post, `post` method to post `SparkListenerEvent` events>>.
 
 NOTE: The event queue is http://docs.oracle.com/javase/8/docs/api/java/util/concurrent/LinkedBlockingQueue.html[java.util.concurrent.LinkedBlockingQueue] with capacity of 10000 `SparkListenerEvent` events.
 
@@ -13,9 +13,9 @@ NOTE: The event queue is http://docs.oracle.com/javase/8/docs/api/java/util/conc
 
 LiveListenerBus takes the following to be created:
 
-* [[conf]] xref:ROOT:SparkConf.adoc[]
+* [[conf]] ROOT:SparkConf.md[]
 
-LiveListenerBus is created (and <<start, started>>) when SparkContext is requested to xref:ROOT:SparkContext.adoc#listenerBus[initialize].
+LiveListenerBus is created (and <<start, started>>) when SparkContext is requested to ROOT:SparkContext.md#listenerBus[initialize].
 
 == [[start]] Starting LiveListenerBus
 
@@ -92,7 +92,7 @@ Attempted to stop [name] that has not yet started!
 
 == [[listenerThread]] listenerThread for Event Polling
 
-LiveListenerBus uses xref:ROOT:spark-SparkListenerBus.adoc[] single-daemon thread that ensures that the polling events from the event queue is only after <<start, the listener was started>> and only one event at a time.
+LiveListenerBus uses ROOT:spark-SparkListenerBus.md[] single-daemon thread that ensures that the polling events from the event queue is only after <<start, the listener was started>> and only one event at a time.
 
 CAUTION: FIXME There is some logic around no events in the queue.
 

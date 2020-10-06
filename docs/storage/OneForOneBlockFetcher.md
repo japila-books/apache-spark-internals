@@ -10,11 +10,11 @@ OneForOneBlockFetcher takes the following to be created:
 * [[appId]] Application ID
 * [[execId]] Executor ID
 * [[blockIds]] Block IDs
-* [[listener]] xref:core:BlockFetchingListener.adoc[]
-* [[transportConf]] xref:network:TransportConf.adoc[]
+* [[listener]] core:BlockFetchingListener.md[]
+* [[transportConf]] network:TransportConf.md[]
 * [[downloadFileManager]] DownloadFileManager
 
-OneForOneBlockFetcher is created when xref:storage:NettyBlockTransferService.adoc#fetchBlocks[NettyBlockTransferService] and xref:storage:ExternalShuffleClient.adoc#fetchBlocks[ExternalShuffleClient] are requested to fetch blocks.
+OneForOneBlockFetcher is created when storage:NettyBlockTransferService.md#fetchBlocks[NettyBlockTransferService] and storage:ExternalShuffleClient.md#fetchBlocks[ExternalShuffleClient] are requested to fetch blocks.
 
 == [[openMessage]] OpenBlocks Message
 
@@ -31,4 +31,4 @@ void start()
 
 start...FIXME
 
-start is used when xref:storage:NettyBlockTransferService.adoc#fetchBlocks[NettyBlockTransferService] and xref:storage:ExternalShuffleClient.adoc#fetchBlocks[ExternalShuffleClient] are requested to fetch blocks.
+start is used when storage:NettyBlockTransferService.md#fetchBlocks[NettyBlockTransferService] and storage:ExternalShuffleClient.md#fetchBlocks[ExternalShuffleClient] are requested to fetch blocks.

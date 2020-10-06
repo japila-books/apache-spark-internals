@@ -1,6 +1,6 @@
 == Exercise: One-liners using PairRDDFunctions
 
-This is a set of one-liners to give you a entry point into using xref:rdd:PairRDDFunctions.adoc[PairRDDFunctions].
+This is a set of one-liners to give you a entry point into using rdd:PairRDDFunctions.md[PairRDDFunctions].
 
 === Exercise
 

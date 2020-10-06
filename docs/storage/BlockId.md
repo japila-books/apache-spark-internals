@@ -15,35 +15,35 @@ name: String
 
 Used when:
 
-* NettyBlockTransferService is requested to xref:storage:NettyBlockTransferService.adoc#uploadBlock[upload a block]
+* NettyBlockTransferService is requested to storage:NettyBlockTransferService.md#uploadBlock[upload a block]
 
-* AppStatusListener is requested to xref:core:AppStatusListener.adoc#updateRDDBlock[updateRDDBlock], xref:core:AppStatusListener.adoc#updateStreamBlock[updateStreamBlock]
+* AppStatusListener is requested to core:AppStatusListener.md#updateRDDBlock[updateRDDBlock], core:AppStatusListener.md#updateStreamBlock[updateStreamBlock]
 
-* BlockManager is requested to xref:storage:BlockManager.adoc#putBlockDataAsStream[putBlockDataAsStream]
+* BlockManager is requested to storage:BlockManager.md#putBlockDataAsStream[putBlockDataAsStream]
 
-* UpdateBlockInfo is requested to xref:storage:BlockManagerMasterEndpoint.adoc#UpdateBlockInfo[writeExternal]
+* UpdateBlockInfo is requested to storage:BlockManagerMasterEndpoint.md#UpdateBlockInfo[writeExternal]
 
-* DiskBlockManager is requested to xref:storage:DiskBlockManager.adoc#getFile[getFile] and xref:storage:DiskBlockManager.adoc#containsBlock[containsBlock]
+* DiskBlockManager is requested to storage:DiskBlockManager.md#getFile[getFile] and storage:DiskBlockManager.md#containsBlock[containsBlock]
 
-* DiskStore is requested to xref:storage:DiskStore.adoc#getBytes[getBytes]
+* DiskStore is requested to storage:DiskStore.md#getBytes[getBytes]
 
 == [[implementations]] Available BlockIds
 
 === [[BroadcastBlockId]] BroadcastBlockId
 
-BlockId for xref:ROOT:Broadcast.adoc[]s with `broadcastId` identifier and optional `field` name (default: `empty`)
+BlockId for ROOT:Broadcast.md[]s with `broadcastId` identifier and optional `field` name (default: `empty`)
 
 Uses `broadcast_` prefix for the <<name, name>>
 
 Used when:
 
-* TorrentBroadcast is xref:core:TorrentBroadcast.adoc#broadcastId[created], requested to xref:core:TorrentBroadcast.adoc#writeBlocks[store a broadcast and the blocks in a local BlockManager], and <<readBlocks, read blocks>>
+* TorrentBroadcast is core:TorrentBroadcast.md#broadcastId[created], requested to core:TorrentBroadcast.md#writeBlocks[store a broadcast and the blocks in a local BlockManager], and <<readBlocks, read blocks>>
 
-* BlockManager is requested to xref:storage:BlockManager.adoc#removeBroadcast[remove all the blocks of a broadcast variable]
+* BlockManager is requested to storage:BlockManager.md#removeBroadcast[remove all the blocks of a broadcast variable]
 
-* AppStatusListener is requested to xref:core:AppStatusListener.adoc#updateBroadcastBlock[updateBroadcastBlock] (when xref:core:AppStatusListener.adoc#onBlockUpdated[onBlockUpdated] for a `BroadcastBlockId`)
+* AppStatusListener is requested to core:AppStatusListener.md#updateBroadcastBlock[updateBroadcastBlock] (when core:AppStatusListener.md#onBlockUpdated[onBlockUpdated] for a `BroadcastBlockId`)
 
-xref:serializer:SerializerManager.adoc#shouldCompress[Compressed] when xref:core:BroadcastManager.adoc#spark.broadcast.compress[spark.broadcast.compress] configuration property is enabled
+serializer:SerializerManager.md#shouldCompress[Compressed] when core:BroadcastManager.md#spark.broadcast.compress[spark.broadcast.compress] configuration property is enabled
 
 === [[RDDBlockId]] RDDBlockId
 
@@ -53,19 +53,19 @@ Uses `rdd_` prefix for the <<name, name>>
 
 Used when:
 
-* `StorageStatus` is requested to <<spark-blockmanager-StorageStatus.adoc#addBlock, register the status of a data block>>, <<spark-blockmanager-StorageStatus.adoc#getBlock, get the status of a data block>>, <<spark-blockmanager-StorageStatus.adoc#updateStorageInfo, updateStorageInfo>>
+* `StorageStatus` is requested to <<spark-blockmanager-StorageStatus.md#addBlock, register the status of a data block>>, <<spark-blockmanager-StorageStatus.md#getBlock, get the status of a data block>>, <<spark-blockmanager-StorageStatus.md#updateStorageInfo, updateStorageInfo>>
 
 * `LocalCheckpointRDD` is requested to `compute` a partition
 
-* LocalRDDCheckpointData is requested to xref:rdd:LocalRDDCheckpointData.adoc#doCheckpoint[doCheckpoint]
+* LocalRDDCheckpointData is requested to rdd:LocalRDDCheckpointData.md#doCheckpoint[doCheckpoint]
 
-* `RDD` is requested to xref:rdd:RDD.adoc#getOrCompute[getOrCompute]
+* `RDD` is requested to rdd:RDD.md#getOrCompute[getOrCompute]
 
-* `DAGScheduler` is requested for the xref:scheduler:DAGScheduler.adoc#getCacheLocs[BlockManagers (executors) for cached RDD partitions]
+* `DAGScheduler` is requested for the scheduler:DAGScheduler.md#getCacheLocs[BlockManagers (executors) for cached RDD partitions]
 
-* `AppStatusListener` is requested to xref:core:AppStatusListener.adoc#updateRDDBlock[updateRDDBlock] (when xref:core:AppStatusListener.adoc#onBlockUpdated[onBlockUpdated] for a `RDDBlockId`)
+* `AppStatusListener` is requested to core:AppStatusListener.md#updateRDDBlock[updateRDDBlock] (when core:AppStatusListener.md#onBlockUpdated[onBlockUpdated] for a `RDDBlockId`)
 
-xref:serializer:SerializerManager.adoc#shouldCompress[Compressed] when xref:ROOT:configuration-properties.adoc#spark.rdd.compress[spark.rdd.compress] configuration property is enabled (default: `false`)
+serializer:SerializerManager.md#shouldCompress[Compressed] when ROOT:configuration-properties.md#spark.rdd.compress[spark.rdd.compress] configuration property is enabled (default: `false`)
 
 === [[ShuffleBlockId]] ShuffleBlockId
 
@@ -75,15 +75,15 @@ Uses `shuffle_` prefix for the <<name, name>>
 
 Used when:
 
-* `ShuffleBlockFetcherIterator` is requested to xref:storage:ShuffleBlockFetcherIterator.adoc#throwFetchFailedException[throwFetchFailedException]
+* `ShuffleBlockFetcherIterator` is requested to storage:ShuffleBlockFetcherIterator.md#throwFetchFailedException[throwFetchFailedException]
 
-* `MapOutputTracker` object is requested to xref:scheduler:MapOutputTracker.adoc#convertMapStatuses[convertMapStatuses]
+* `MapOutputTracker` object is requested to scheduler:MapOutputTracker.md#convertMapStatuses[convertMapStatuses]
 
-* `SortShuffleWriter` is requested to xref:shuffle:SortShuffleWriter.adoc#write[write partition records]
+* `SortShuffleWriter` is requested to shuffle:SortShuffleWriter.md#write[write partition records]
 
-* `ShuffleBlockResolver` is requested for a xref:shuffle:ShuffleBlockResolver.adoc#getBlockData[ManagedBuffer to read shuffle block data file]
+* `ShuffleBlockResolver` is requested for a shuffle:ShuffleBlockResolver.md#getBlockData[ManagedBuffer to read shuffle block data file]
 
-xref:serializer:SerializerManager.adoc#shouldCompress[Compressed] when xref:ROOT:configuration-properties.adoc#spark.shuffle.compress[spark.shuffle.compress] configuration property is enabled (default: `true`)
+serializer:SerializerManager.md#shouldCompress[Compressed] when ROOT:configuration-properties.md#spark.shuffle.compress[spark.shuffle.compress] configuration property is enabled (default: `true`)
 
 === [[ShuffleDataBlockId]] ShuffleDataBlockId
 
@@ -109,12 +109,12 @@ apply creates one of the available <<implementations, BlockIds>> by the given na
 
 apply is used when:
 
-* NettyBlockRpcServer is requested to xref:storage:NettyBlockRpcServer.adoc#receive[handle an RPC message] and xref:storage:NettyBlockRpcServer.adoc#receiveStream[receiveStream]
+* NettyBlockRpcServer is requested to storage:NettyBlockRpcServer.md#receive[handle an RPC message] and storage:NettyBlockRpcServer.md#receiveStream[receiveStream]
 
 * UpdateBlockInfo is requested to deserialize (readExternal)
 
-* DiskBlockManager is requested for xref:storage:DiskBlockManager.adoc#getAllBlocks[all the blocks (from files stored on disk)]
+* DiskBlockManager is requested for storage:DiskBlockManager.md#getAllBlocks[all the blocks (from files stored on disk)]
 
-* ShuffleBlockFetcherIterator is requested to xref:storage:ShuffleBlockFetcherIterator.adoc#sendRequest[sendRequest]
+* ShuffleBlockFetcherIterator is requested to storage:ShuffleBlockFetcherIterator.md#sendRequest[sendRequest]
 
-* JsonProtocol utility is used to xref:spark-history-server:JsonProtocol.adoc#accumValueFromJson[accumValueFromJson], xref:spark-history-server:JsonProtocol.adoc#taskMetricsFromJson[taskMetricsFromJson] and xref:spark-history-server:JsonProtocol.adoc#blockUpdatedInfoFromJson[blockUpdatedInfoFromJson]
+* JsonProtocol utility is used to spark-history-server:JsonProtocol.md#accumValueFromJson[accumValueFromJson], spark-history-server:JsonProtocol.md#taskMetricsFromJson[taskMetricsFromJson] and spark-history-server:JsonProtocol.md#blockUpdatedInfoFromJson[blockUpdatedInfoFromJson]

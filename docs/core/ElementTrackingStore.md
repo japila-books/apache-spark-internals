@@ -1,13 +1,13 @@
 = ElementTrackingStore
 
-*ElementTrackingStore* is a xref:core:KVStore.adoc[].
+*ElementTrackingStore* is a core:KVStore.md[].
 
 == [[creating-instance]] Creating Instance
 
 ElementTrackingStore takes the following to be created:
 
-* [[store]] xref:core:KVStore.adoc[]
-* [[conf]] xref:ROOT:SparkConf.adoc[]
+* [[store]] core:KVStore.md[]
+* [[conf]] ROOT:SparkConf.md[]
 
 ElementTrackingStore is created when...FIXME
 
@@ -18,7 +18,7 @@ ElementTrackingStore is created when...FIXME
 write(value: Any, checkTriggers: Boolean): Unit
 ----
 
-NOTE: `write` is part of link:LINK#write[HERE Contract] to...FIXME.
+NOTE: `write` is part of LINK#write[HERE Contract] to...FIXME.
 
 `write`...FIXME
 

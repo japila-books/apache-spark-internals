@@ -83,13 +83,13 @@ void write(
 | KVStore
 | Description
 
-| xref:core:ElementTrackingStore.adoc[]
+| core:ElementTrackingStore.md[]
 | [[ElementTrackingStore]]
 
-| xref:core:InMemoryStore.adoc[]
+| core:InMemoryStore.md[]
 | [[InMemoryStore]]
 
-| xref:core:LevelDB.adoc[]
+| core:LevelDB.md[]
 | [[LevelDB]]
 
 |===

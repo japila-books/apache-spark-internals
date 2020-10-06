@@ -1,14 +1,14 @@
 = EnvironmentTab
 
 [[prefix]]
-`EnvironmentTab` is a link:spark-webui-SparkUITab.adoc[SparkUITab] with *environment* link:spark-webui-SparkUITab.adoc#prefix[prefix].
+`EnvironmentTab` is a spark-webui-SparkUITab.md[SparkUITab] with *environment* spark-webui-SparkUITab.md#prefix[prefix].
 
-`EnvironmentTab` is <<creating-instance, created>> exclusively when `SparkUI` is link:spark-webui-SparkUI.adoc#initialize[initialized].
+`EnvironmentTab` is <<creating-instance, created>> exclusively when `SparkUI` is spark-webui-SparkUI.md#initialize[initialized].
 
 [[creating-instance]]
 `EnvironmentTab` takes the following when created:
 
-* [[parent]] Parent link:spark-webui-SparkUI.adoc[SparkUI]
-* [[store]] xref:core:AppStatusStore.adoc[]
+* [[parent]] Parent spark-webui-SparkUI.md[SparkUI]
+* [[store]] core:AppStatusStore.md[]
 
-When created, `EnvironmentTab` creates the link:spark-webui-EnvironmentPage.adoc#creating-instance[EnvironmentPage] page and link:spark-webui-WebUITab.adoc#attachPage[attaches] it immediately.
+When created, `EnvironmentTab` creates the spark-webui-EnvironmentPage.md#creating-instance[EnvironmentPage] page and spark-webui-WebUITab.md#attachPage[attaches] it immediately.

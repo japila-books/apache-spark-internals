@@ -1,17 +1,17 @@
 == [[FairSchedulableBuilder]] FairSchedulableBuilder -- SchedulableBuilder for FAIR Scheduling Mode
 
-`FairSchedulableBuilder` is a <<spark-scheduler-SchedulableBuilder.adoc#, SchedulableBuilder>> that is <<creating-instance, created>> exclusively for xref:scheduler:TaskSchedulerImpl.adoc[TaskSchedulerImpl] for *FAIR scheduling mode* (when xref:ROOT:configuration-properties.adoc#spark.scheduler.mode[spark.scheduler.mode] configuration property is `FAIR`).
+`FairSchedulableBuilder` is a <<spark-scheduler-SchedulableBuilder.md#, SchedulableBuilder>> that is <<creating-instance, created>> exclusively for scheduler:TaskSchedulerImpl.md[TaskSchedulerImpl] for *FAIR scheduling mode* (when ROOT:configuration-properties.md#spark.scheduler.mode[spark.scheduler.mode] configuration property is `FAIR`).
 
 [[creating-instance]]
 `FairSchedulableBuilder` takes the following to be created:
 
-* [[rootPool]] <<spark-scheduler-Pool.adoc#, Root pool of schedulables>>
-* [[conf]] xref:ROOT:SparkConf.adoc[]
+* [[rootPool]] <<spark-scheduler-Pool.md#, Root pool of schedulables>>
+* [[conf]] ROOT:SparkConf.md[]
 
 Once <<creating-instance, created>>, `TaskSchedulerImpl` requests the `FairSchedulableBuilder` to <<buildPools, build the pools>>.
 
 [[DEFAULT_SCHEDULER_FILE]]
-`FairSchedulableBuilder` uses the pools defined in an <<allocations-file, allocation pools configuration file>> that is assumed to be the value of the xref:ROOT:configuration-properties.adoc#spark.scheduler.allocation.file[spark.scheduler.allocation.file] configuration property or the default *fairscheduler.xml* (that is <<buildPools, expected to be available on a Spark application's class path>>).
+`FairSchedulableBuilder` uses the pools defined in an <<allocations-file, allocation pools configuration file>> that is assumed to be the value of the ROOT:configuration-properties.md#spark.scheduler.allocation.file[spark.scheduler.allocation.file] configuration property or the default *fairscheduler.xml* (that is <<buildPools, expected to be available on a Spark application's class path>>).
 
 TIP: Use *conf/fairscheduler.xml.template* as a template for the <<allocations-file, allocation pools configuration file>>.
 
@@ -22,7 +22,7 @@ TIP: Use *conf/fairscheduler.xml.template* as a template for the <<allocations-f
 [[spark.scheduler.pool]]
 `FairSchedulableBuilder` uses *spark.scheduler.pool* local property for the name of the pool to use when requested to <<addTaskSetManager, addTaskSetManager>> (default: <<DEFAULT_POOL_NAME, default>>).
 
-NOTE: Use link:spark-sparkcontext-local-properties.adoc#setLocalProperty[SparkContext.setLocalProperty] to set properties per thread (aka *local properties*) to group jobs in logical groups, e.g. to allow `FairSchedulableBuilder` to use `spark.scheduler.pool` property and to group jobs from different threads to be submitted for execution on a non-<<DEFAULT_POOL_NAME, default>> pool.
+NOTE: Use spark-sparkcontext-local-properties.md#setLocalProperty[SparkContext.setLocalProperty] to set properties per thread (aka *local properties*) to group jobs in logical groups, e.g. to allow `FairSchedulableBuilder` to use `spark.scheduler.pool` property and to group jobs from different threads to be submitted for execution on a non-<<DEFAULT_POOL_NAME, default>> pool.
 
 [source, scala]
 ----
@@ -45,7 +45,7 @@ Add the following line to `conf/log4j.properties`:
 log4j.logger.org.apache.spark.scheduler.FairSchedulableBuilder=ALL
 ```
 
-Refer to <<spark-logging.adoc#, Logging>>.
+Refer to <<spark-logging.md#, Logging>>.
 ====
 
 === [[allocations-file]] Allocation Pools Configuration File
@@ -80,23 +80,23 @@ TIP: The top-level element's name `allocations` can be anything. Spark does not 
 buildPools(): Unit
 ----
 
-NOTE: `buildPools` is part of the <<spark-scheduler-SchedulableBuilder.adoc#buildPools, SchedulableBuilder Contract>> to build a tree of <<spark-scheduler-Pool.adoc#, pools (of Schedulables)>>.
+NOTE: `buildPools` is part of the <<spark-scheduler-SchedulableBuilder.md#buildPools, SchedulableBuilder Contract>> to build a tree of <<spark-scheduler-Pool.md#, pools (of Schedulables)>>.
 
 `buildPools` <<buildFairSchedulerPool, creates Fair Scheduler pools from a configuration file>> if available and then <<buildDefaultPool, builds the default pool>>.
 
-`buildPools` prints out the following INFO message to the logs when the configuration file (per the xref:ROOT:configuration-properties.adoc#spark.scheduler.allocation.file[spark.scheduler.allocation.file] configuration property) could be read:
+`buildPools` prints out the following INFO message to the logs when the configuration file (per the ROOT:configuration-properties.md#spark.scheduler.allocation.file[spark.scheduler.allocation.file] configuration property) could be read:
 
 ```
 Creating Fair Scheduler pools from [file]
 ```
 
-`buildPools` prints out the following INFO message to the logs when the xref:ROOT:configuration-properties.adoc#spark.scheduler.allocation.file[spark.scheduler.allocation.file] configuration property was not used to define the configuration file and the <<DEFAULT_SCHEDULER_FILE, default configuration file>> is used instead:
+`buildPools` prints out the following INFO message to the logs when the ROOT:configuration-properties.md#spark.scheduler.allocation.file[spark.scheduler.allocation.file] configuration property was not used to define the configuration file and the <<DEFAULT_SCHEDULER_FILE, default configuration file>> is used instead:
 
 ```
 Creating Fair Scheduler pools from default file: [DEFAULT_SCHEDULER_FILE]
 ```
 
-When neither xref:ROOT:configuration-properties.adoc#spark.scheduler.allocation.file[spark.scheduler.allocation.file] configuration property nor the <<DEFAULT_SCHEDULER_FILE, default configuration file>> could be used, `buildPools` prints out the following WARN message to the logs:
+When neither ROOT:configuration-properties.md#spark.scheduler.allocation.file[spark.scheduler.allocation.file] configuration property nor the <<DEFAULT_SCHEDULER_FILE, default configuration file>> could be used, `buildPools` prints out the following WARN message to the logs:
 
 ```
 Fair Scheduler configuration file not found so jobs will be scheduled in FIFO order. To use fair scheduling, configure pools in [DEFAULT_SCHEDULER_FILE] or set spark.scheduler.allocation.file to a file that contains the configuration.
@@ -109,19 +109,19 @@ Fair Scheduler configuration file not found so jobs will be scheduled in FIFO or
 addTaskSetManager(manager: Schedulable, properties: Properties): Unit
 ----
 
-NOTE: `addTaskSetManager` is part of the <<spark-scheduler-SchedulableBuilder.adoc#addTaskSetManager, SchedulableBuilder Contract>> to register a new <<spark-scheduler-Schedulable.adoc#, Schedulable>> with the <<rootPool, rootPool>>
+NOTE: `addTaskSetManager` is part of the <<spark-scheduler-SchedulableBuilder.md#addTaskSetManager, SchedulableBuilder Contract>> to register a new <<spark-scheduler-Schedulable.md#, Schedulable>> with the <<rootPool, rootPool>>
 
 `addTaskSetManager` finds the pool by name (in the given `Properties`) under the <<FAIR_SCHEDULER_PROPERTIES, spark.scheduler.pool>> property or defaults to the <<DEFAULT_POOL_NAME, default>> pool if undefined.
 
-`addTaskSetManager` then requests the <<rootPool, root pool>> to <<spark-scheduler-Pool.adoc#getSchedulableByName, find the Schedulable by that name>>.
+`addTaskSetManager` then requests the <<rootPool, root pool>> to <<spark-scheduler-Pool.md#getSchedulableByName, find the Schedulable by that name>>.
 
-Unless found, `addTaskSetManager` creates a new <<spark-scheduler-Pool.adoc#, Pool>> with the <<buildDefaultPool, default configuration>> (as if the <<DEFAULT_POOL_NAME, default>> pool were used) and requests the <<rootPool, Pool>> to <<spark-scheduler-Pool.adoc#addSchedulable, register it>>. In the end, `addTaskSetManager` prints out the following WARN message to the logs:
+Unless found, `addTaskSetManager` creates a new <<spark-scheduler-Pool.md#, Pool>> with the <<buildDefaultPool, default configuration>> (as if the <<DEFAULT_POOL_NAME, default>> pool were used) and requests the <<rootPool, Pool>> to <<spark-scheduler-Pool.md#addSchedulable, register it>>. In the end, `addTaskSetManager` prints out the following WARN message to the logs:
 
 ```
 A job was submitted with scheduler pool [poolName], which has not been configured. This can happen when the file that pools are read from isn't set, or when that file doesn't contain [poolName]. Created [poolName] with default configuration (schedulingMode: [mode], minShare: [minShare], weight: [weight])
 ```
 
-`addTaskSetManager` then requests the pool (found or newly-created) to <<spark-scheduler-Pool.adoc#addSchedulable, register>> the given <<spark-scheduler-Schedulable.adoc#, Schedulable>>.
+`addTaskSetManager` then requests the pool (found or newly-created) to <<spark-scheduler-Pool.md#addSchedulable, register>> the given <<spark-scheduler-Schedulable.md#, Schedulable>>.
 
 In the end, `addTaskSetManager` prints out the following INFO message to the logs:
 
@@ -138,7 +138,7 @@ buildDefaultPool(): Unit
 
 `buildDefaultPool` requests the <<rootPool, root pool>> to <<getSchedulableByName, find the default pool>> (one with the <<DEFAULT_POOL_NAME, default>> name).
 
-Unless already available, `buildDefaultPool` creates a <<spark-scheduler-Pool.adoc#, schedulable pool>> with the following:
+Unless already available, `buildDefaultPool` creates a <<spark-scheduler-Pool.md#, schedulable pool>> with the following:
 
 * <<DEFAULT_POOL_NAME, default>> pool name
 
@@ -148,7 +148,7 @@ Unless already available, `buildDefaultPool` creates a <<spark-scheduler-Pool.ad
 
 * `1` for the initial weight
 
-In the end, `buildDefaultPool` requests the <<rootPool, Pool>> to <<spark-scheduler-Pool.adoc#addSchedulable, register the pool>> followed by the INFO message in the logs:
+In the end, `buildDefaultPool` requests the <<rootPool, Pool>> to <<spark-scheduler-Pool.md#addSchedulable, register the pool>> followed by the INFO message in the logs:
 
 ```
 Created default pool: [name], schedulingMode: [mode], minShare: [minShare], weight: [weight]
@@ -167,7 +167,7 @@ buildFairSchedulerPool(
 
 `buildFairSchedulerPool` starts by loading the XML file from the given `InputStream`.
 
-For every *pool* element, `buildFairSchedulerPool` creates a <<spark-scheduler-Pool.adoc#, schedulable pool>> with the following:
+For every *pool* element, `buildFairSchedulerPool` creates a <<spark-scheduler-Pool.md#, schedulable pool>> with the following:
 
 * Pool name per *name* attribute
 
@@ -177,7 +177,7 @@ For every *pool* element, `buildFairSchedulerPool` creates a <<spark-scheduler-P
 
 * Initial weight per *weight* element (default: `1`)
 
-In the end, `buildFairSchedulerPool` requests the <<rootPool, Pool>> to <<spark-scheduler-Pool.adoc#addSchedulable, register the pool>> followed by the INFO message in the logs:
+In the end, `buildFairSchedulerPool` requests the <<rootPool, Pool>> to <<spark-scheduler-Pool.md#addSchedulable, register the pool>> followed by the INFO message in the logs:
 
 ```
 Created pool: [name], schedulingMode: [mode], minShare: [minShare], weight: [weight]

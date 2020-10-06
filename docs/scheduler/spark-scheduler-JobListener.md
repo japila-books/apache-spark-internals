@@ -1,10 +1,10 @@
 = [[JobListener]] JobListener
 
-Spark subscribes for job completion or failure events (after submitting a job to xref:scheduler:DAGScheduler.adoc[DAGScheduler]) using `JobListener` trait.
+Spark subscribes for job completion or failure events (after submitting a job to scheduler:DAGScheduler.md[DAGScheduler]) using `JobListener` trait.
 
 The following are the job listeners used:
 
-1. xref:scheduler:spark-scheduler-JobWaiter.adoc[JobWaiter]  waits until xref:scheduler:DAGScheduler.adoc[DAGScheduler] completes a job and passes the results of tasks to a `resultHandler` function.
+1. scheduler:spark-scheduler-JobWaiter.md[JobWaiter]  waits until scheduler:DAGScheduler.md[DAGScheduler] completes a job and passes the results of tasks to a `resultHandler` function.
 2. `ApproximateActionListener`...FIXME
 
 An instance of `JobListener` is used in the following places:

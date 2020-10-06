@@ -1,6 +1,6 @@
 == [[SparkSubmitOptionParser]] `SparkSubmitOptionParser` -- spark-submit's Command-Line Parser
 
-`SparkSubmitOptionParser` is the parser of link:spark-submit.adoc[spark-submit]'s command-line options.
+`SparkSubmitOptionParser` is the parser of spark-submit.md[spark-submit]'s command-line options.
 
 .`spark-submit` Command-Line Options
 [cols="1,2",options="header",width="100%"]
@@ -28,7 +28,7 @@
 | `--num-executors` |
 | `--packages` |
 | `--principal` |
-| `--properties-file [FILE]` | `propertiesFile` internal property. Refer to link:spark-submit.adoc#properties-file[Custom Spark Properties File -- `--properties-file` command-line option].
+| `--properties-file [FILE]` | `propertiesFile` internal property. Refer to spark-submit.md#properties-file[Custom Spark Properties File -- `--properties-file` command-line option].
 | `--proxy-user` |
 | `--py-files` |
 | `--queue` |

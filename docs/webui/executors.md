@@ -1,17 +1,17 @@
 == Executors Tab
 
-*Executors* tab in link:spark-webui.adoc[web UI] shows...FIXME
+*Executors* tab in spark-webui.md[web UI] shows...FIXME
 
 .Executors Tab in web UI (local mode)
 image::spark-webui-executors.png[align="center"]
 
 The Executors tab is available under `/executors` URL, i.e. http://localhost:4040/executors.
 
-Internally, the Executors tab is represented by link:spark-webui-ExecutorsTab.adoc[ExecutorsTab].
+Internally, the Executors tab is represented by spark-webui-ExecutorsTab.md[ExecutorsTab].
 
 [NOTE]
 ====
-What's interesting in how Storage Memory is displayed in the Executors tab is that the default `UnifiedMemoryManager` xref:memory:UnifiedMemoryManager.adoc#getMaxMemory[calculates the maximum memory] in a way that is different from what the page displays (using the custom JavaScript `formatBytes` function in `utils.js`).
+What's interesting in how Storage Memory is displayed in the Executors tab is that the default `UnifiedMemoryManager` memory:UnifiedMemoryManager.md#getMaxMemory[calculates the maximum memory] in a way that is different from what the page displays (using the custom JavaScript `formatBytes` function in `utils.js`).
 
 [source, scala]
 ----

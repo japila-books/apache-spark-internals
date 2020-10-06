@@ -35,7 +35,7 @@ NOTE: `UIRoot` is a `private[spark]` contract.
 | [[securityManager]] Used when...FIXME
 
 | `withSparkUI`
-| [[withSparkUI]] Used exclusively when `BaseAppResource` is requested link:spark-api-BaseAppResource.adoc#withUI[withUI]
+| [[withSparkUI]] Used exclusively when `BaseAppResource` is requested spark-api-BaseAppResource.md#withUI[withUI]
 |===
 
 [[implementations]]
@@ -45,10 +45,10 @@ NOTE: `UIRoot` is a `private[spark]` contract.
 | UIRoot
 | Description
 
-| xref:spark-history-server:HistoryServer.adoc[HistoryServer]
+| spark-history-server:HistoryServer.md[HistoryServer]
 | [[HistoryServer]] Application UI for active and completed Spark applications (i.e. Spark applications that are still running or have already finished)
 
-| link:spark-webui-SparkUI.adoc[SparkUI]
+| spark-webui-SparkUI.md[SparkUI]
 | [[SparkUI]] Application UI for an active Spark application (i.e. a Spark application that is still running)
 |===
 

@@ -1,16 +1,16 @@
 == [[AllStagesPage]] Stages for All Jobs Page
 
-`AllStagesPage` is a web page (section) that is registered with the link:spark-webui-StagesTab.adoc[Stages tab] that <<render, displays all stages in a Spark application>> - active, pending, completed, and failed stages with their count.
+`AllStagesPage` is a web page (section) that is registered with the spark-webui-StagesTab.md[Stages tab] that <<render, displays all stages in a Spark application>> - active, pending, completed, and failed stages with their count.
 
 .Stages Tab in web UI for FAIR scheduling mode (with pools only)
 image::spark-webui-stages-alljobs.png[align="center"]
 
 [[pool-names]]
-In link:spark-scheduler-SchedulingMode.adoc#FAIR[FAIR scheduling mode] you have access to the table showing the scheduler pools as well as the pool names per stage.
+In spark-scheduler-SchedulingMode.md#FAIR[FAIR scheduling mode] you have access to the table showing the scheduler pools as well as the pool names per stage.
 
-NOTE: Pool names are calculated using xref:ROOT:SparkContext.adoc#getAllPools[SparkContext.getAllPools].
+NOTE: Pool names are calculated using ROOT:SparkContext.md#getAllPools[SparkContext.getAllPools].
 
-Internally, `AllStagesPage` is a link:spark-webui-WebUIPage.adoc[WebUIPage] with access to the parent link:spark-webui-StagesTab.adoc[Stages tab] and more importantly the link:spark-webui-JobProgressListener.adoc[JobProgressListener] to have access to current state of the entire Spark application.
+Internally, `AllStagesPage` is a spark-webui-WebUIPage.md[WebUIPage] with access to the parent spark-webui-StagesTab.md[Stages tab] and more importantly the spark-webui-JobProgressListener.md[JobProgressListener] to have access to current state of the entire Spark application.
 
 === [[render]] Rendering AllStagesPage (render method)
 
@@ -21,7 +21,7 @@ render(request: HttpServletRequest): Seq[Node]
 
 `render` generates a HTML page to display in a web browser.
 
-It uses the parent's link:spark-webui-JobProgressListener.adoc[JobProgressListener] to know about:
+It uses the parent's spark-webui-JobProgressListener.md[JobProgressListener] to know about:
 
 * active stages (as `activeStages`)
 * pending stages (as `pendingStages`)
@@ -30,7 +30,7 @@ It uses the parent's link:spark-webui-JobProgressListener.adoc[JobProgressListen
 * the number of completed stages (as `numCompletedStages`)
 * the number of failed stages (as `numFailedStages`)
 
-NOTE: Stage information is available as xref:scheduler:spark-scheduler-StageInfo.adoc[StageInfo] object.
+NOTE: Stage information is available as scheduler:spark-scheduler-StageInfo.md[StageInfo] object.
 
 There are 4 different tables for the different states of stages - active, pending, completed, and failed. They are displayed only when there are stages in a given state.
 

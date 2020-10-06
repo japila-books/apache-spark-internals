@@ -16,4 +16,4 @@ CAUTION: FIXME
 
 === [[AccumulatorContext-SQL_ACCUM_IDENTIFIER]] AccumulatorContext.SQL_ACCUM_IDENTIFIER
 
-`AccumulatorContext.SQL_ACCUM_IDENTIFIER` is an internal identifier for Spark SQL's internal accumulators. The value is `sql` and Spark uses it to distinguish link:spark-sql-SparkPlan.adoc#SQLMetric[Spark SQL metrics] from others.
+`AccumulatorContext.SQL_ACCUM_IDENTIFIER` is an internal identifier for Spark SQL's internal accumulators. The value is `sql` and Spark uses it to distinguish spark-sql-SparkPlan.md#SQLMetric[Spark SQL metrics] from others.

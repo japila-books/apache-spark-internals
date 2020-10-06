@@ -10,6 +10,6 @@ createCommitter(
   jobId: Int): HadoopMapReduceCommitProtocol
 ----
 
-NOTE: `createCommitter` is part of the <<spark-internal-io-HadoopWriteConfigUtil.adoc#createCommitter, HadoopWriteConfigUtil>> contract to...FIXME.
+NOTE: `createCommitter` is part of the <<spark-internal-io-HadoopWriteConfigUtil.md#createCommitter, HadoopWriteConfigUtil>> contract to...FIXME.
 
 `createCommitter`...FIXME

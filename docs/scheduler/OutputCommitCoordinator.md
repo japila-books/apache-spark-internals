@@ -68,7 +68,7 @@ When the lock for `partition` is cleared, You should see the following DEBUG mes
 DEBUG OutputCommitCoordinator: Authorized committer (attemptNumber=[attemptNumber], stage=[stage], partition=[partition]) failed; clearing lock
 ```
 
-NOTE: `taskCompleted` is executed only when xref:scheduler:DAGSchedulerEventProcessLoop.adoc#handleTaskCompletion[`DAGScheduler` informs that a task has completed].
+NOTE: `taskCompleted` is executed only when scheduler:DAGSchedulerEventProcessLoop.md#handleTaskCompletion[`DAGScheduler` informs that a task has completed].
 
 == [[logging]] Logging
 
@@ -81,7 +81,7 @@ Add the following line to `conf/log4j.properties`:
 log4j.logger.org.apache.spark.scheduler.OutputCommitCoordinator=ALL
 ----
 
-Refer to xref:ROOT:spark-logging.adoc[Logging].
+Refer to ROOT:spark-logging.md[Logging].
 
 == [[internal-properties]] Internal Properties
 

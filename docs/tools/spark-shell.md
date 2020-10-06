@@ -4,7 +4,7 @@
 
 TIP: Spark shell is particularly helpful for fast interactive prototyping.
 
-Under the covers, Spark shell is a standalone Spark application written in Scala that offers environment with auto-completion (using `TAB` key) where you can run ad-hoc queries and get familiar with the features of Spark (that help you in developing your own standalone Spark applications). It is a very convenient tool to explore the many things available in Spark with immediate feedback. It is one of the many reasons why link:spark-overview.adoc#why-spark[Spark is so helpful for tasks to process datasets of any size].
+Under the covers, Spark shell is a standalone Spark application written in Scala that offers environment with auto-completion (using `TAB` key) where you can run ad-hoc queries and get familiar with the features of Spark (that help you in developing your own standalone Spark applications). It is a very convenient tool to explore the many things available in Spark with immediate feedback. It is one of the many reasons why spark-overview.md#why-spark[Spark is so helpful for tasks to process datasets of any size].
 
 There are variants of Spark shell for different languages: `spark-shell` for Scala, `pyspark` for Python and `sparkR` for R.
 
@@ -17,7 +17,7 @@ $ ./bin/spark-shell
 scala>
 ```
 
-`spark-shell` is an extension of Scala REPL with automatic instantiation of link:spark-sql-SparkSession.adoc[SparkSession] as `spark` (and xref:ROOT:SparkContext.adoc[] as `sc`).
+`spark-shell` is an extension of Scala REPL with automatic instantiation of spark-sql-SparkSession.md[SparkSession] as `spark` (and ROOT:SparkContext.md[] as `sc`).
 
 [source, scala]
 ----
@@ -29,7 +29,7 @@ scala> spark.version
 res0: String = 2.1.0-SNAPSHOT
 ----
 
-`spark-shell` also imports link:spark-sql-SparkSession.adoc#implicits[Scala SQL's implicits] and link:spark-sql-SparkSession.adoc#sql[`sql` method].
+`spark-shell` also imports spark-sql-SparkSession.md#implicits[Scala SQL's implicits] and spark-sql-SparkSession.md#sql[`sql` method].
 
 [source, scala]
 ----
@@ -40,14 +40,14 @@ scala> :imports
 
 [NOTE]
 ====
-When you execute `spark-shell` you actually execute link:spark-submit.adoc[Spark submit] as follows:
+When you execute `spark-shell` you actually execute spark-submit.md[Spark submit] as follows:
 
 [options="wrap"]
 ----
 org.apache.spark.deploy.SparkSubmit --class org.apache.spark.repl.Main --name Spark shell spark-shell
 ----
 
-Set `SPARK_PRINT_LAUNCH_COMMAND` to see the entire command to be executed. Refer to link:spark-tips-and-tricks.adoc#SPARK_PRINT_LAUNCH_COMMAND[Print Launch Command of Spark Scripts].
+Set `SPARK_PRINT_LAUNCH_COMMAND` to see the entire command to be executed. Refer to spark-tips-and-tricks.md#SPARK_PRINT_LAUNCH_COMMAND[Print Launch Command of Spark Scripts].
 ====
 
 === [[using-spark-shell]] Using Spark shell
@@ -77,14 +77,14 @@ Type :help for more information.
 scala>
 ```
 
-Spark shell creates an instance of link:spark-sql-SparkSession.adoc[SparkSession] under the name `spark` for you (so you don't have to know the details how to do it yourself on day 1).
+Spark shell creates an instance of spark-sql-SparkSession.md[SparkSession] under the name `spark` for you (so you don't have to know the details how to do it yourself on day 1).
 
 ```
 scala> :type spark
 org.apache.spark.sql.SparkSession
 ```
 
-Besides, there is also `sc` value created which is an instance of xref:ROOT:SparkContext.adoc[].
+Besides, there is also `sc` value created which is an instance of ROOT:SparkContext.md[].
 
 ```
 scala> :type sc
@@ -105,7 +105,7 @@ scala> :q
 | Spark Property | Default Value | Description
 | [[spark_repl_class_uri]] `spark.repl.class.uri` | `null` | Used in `spark-shell` to create REPL ClassLoader to load new classes defined in the Scala REPL as a user types code.
 
-Enable `INFO` logging level for xref:executor:Executor.adoc[org.apache.spark.executor.Executor] logger to have the value printed out to the logs:
+Enable `INFO` logging level for executor:Executor.md[org.apache.spark.executor.Executor] logger to have the value printed out to the logs:
 
 `INFO Using REPL class URI: [classUri]`
 

@@ -1,18 +1,18 @@
 = RangePartitioner
 
-RangePartitioner is a xref:rdd:Partitioner.adoc[Partitioner] for...FIXME
+RangePartitioner is a rdd:Partitioner.md[Partitioner] for...FIXME
 
 [[ordering]]
 `RangePartitioner[K : Ordering : ClassTag, V]` is a parameterized type of `K` keys that can be sorted (_ordered_) and `V` values.
 
-RangePartitioner is used for xref:rdd:spark-rdd-OrderedRDDFunctions.adoc#sortByKey[sortByKey] operator.
+RangePartitioner is used for rdd:spark-rdd-OrderedRDDFunctions.md#sortByKey[sortByKey] operator.
 
 == [[creating-instance]] Creating Instance
 
 RangePartitioner takes the following to be created:
 
 * [[partitions]] Number of partitions
-* [[rdd]] xref:rdd:RDD.adoc[RDD] (`RDD[_ <: Product2[K, V]]`)
+* [[rdd]] rdd:RDD.md[RDD] (`RDD[_ <: Product2[K, V]]`)
 * [[ascending]] ascending flag (default: `true`)
 * [[samplePointsPerPartitionHint]] samplePointsPerPartitionHint (default: 20)
 
@@ -29,7 +29,7 @@ numPartitions: Int
 
 numPartitions is simply one more than the length of the <<rangeBounds, rangeBounds>> array.
 
-numPartitions is part of the xref:rdd:Partitioner.adoc#numPartitions[Partitioner] abstraction.
+numPartitions is part of the rdd:Partitioner.md#numPartitions[Partitioner] abstraction.
 
 == [[getPartition]] Finding Partition ID for Key
 
@@ -40,4 +40,4 @@ getPartition(key: Any): Int
 
 getPartition...FIXME
 
-getPartition is part of the xref:rdd:Partitioner.adoc#getPartition[Partitioner] abstraction.
+getPartition is part of the rdd:Partitioner.md#getPartition[Partitioner] abstraction.

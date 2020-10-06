@@ -1,11 +1,11 @@
 = TorrentBroadcast
 
-*TorrentBroadcast* is a xref:ROOT:Broadcast.adoc[] that uses a BitTorrent-like protocol for broadcast blocks distribution.
+*TorrentBroadcast* is a ROOT:Broadcast.md[] that uses a BitTorrent-like protocol for broadcast blocks distribution.
 
 .TorrentBroadcast -- Broadcasting using BitTorrent
 image::sparkcontext-broadcast-bittorrent.png[align="center"]
 
-When a xref:ROOT:SparkContext.adoc#broadcast[broadcast variable is created (using `SparkContext.broadcast`)] on the driver, a <<creating-instance, new instance of TorrentBroadcast is created>>.
+When a ROOT:SparkContext.md#broadcast[broadcast variable is created (using `SparkContext.broadcast`)] on the driver, a <<creating-instance, new instance of TorrentBroadcast is created>>.
 
 [source, scala]
 ----
@@ -15,12 +15,12 @@ val anyScalaValue = ???
 val b = sc.broadcast(anyScalaValue) // <-- TorrentBroadcast is created
 ----
 
-A broadcast variable is stored on the driver's xref:storage:BlockManager.adoc[BlockManager] as a single value and separately as broadcast blocks (after it was <<blockifyObject, divided into broadcast blocks, i.e. blockified>>). The broadcast block size is the value of xref:core:BroadcastManager.adoc#spark_broadcast_blockSize[spark.broadcast.blockSize] Spark property.
+A broadcast variable is stored on the driver's storage:BlockManager.md[BlockManager] as a single value and separately as broadcast blocks (after it was <<blockifyObject, divided into broadcast blocks, i.e. blockified>>). The broadcast block size is the value of core:BroadcastManager.md#spark_broadcast_blockSize[spark.broadcast.blockSize] Spark property.
 
 .TorrentBroadcast puts broadcast and the chunks to driver's BlockManager
 image::sparkcontext-broadcast-bittorrent-newBroadcast.png[align="center"]
 
-NOTE: TorrentBroadcast-based broadcast variables are created using xref:core:TorrentBroadcastFactory.adoc[TorrentBroadcastFactory].
+NOTE: TorrentBroadcast-based broadcast variables are created using core:TorrentBroadcastFactory.md[TorrentBroadcastFactory].
 
 == [[creating-instance]] Creating Instance
 
@@ -29,7 +29,7 @@ TorrentBroadcast takes the following to be created:
 * [[obj]] Object (the value) to be broadcast
 * [[id]] ID
 
-TorrentBroadcast is created when TorrentBroadcastFactory is requested for a xref:core:TorrentBroadcastFactory.adoc#newBroadcast[new broadcast variable].
+TorrentBroadcast is created when TorrentBroadcastFactory is requested for a core:TorrentBroadcastFactory.md#newBroadcast[new broadcast variable].
 
 == [[_value]] Transient Lazy Broadcast Value
 
@@ -59,11 +59,11 @@ def getValue(): T
 
 getValue returns the <<_value, _value>>.
 
-getValue is part of the xref:ROOT:Broadcast.adoc#getValue[Broadcast] abstraction.
+getValue is part of the ROOT:Broadcast.md#getValue[Broadcast] abstraction.
 
 == [[broadcastId]] BroadcastBlockId
 
-TorrentBroadcast uses a xref:storage:BlockId.adoc#BroadcastBlockId[BroadcastBlockId] for...FIXME
+TorrentBroadcast uses a storage:BlockId.md#BroadcastBlockId[BroadcastBlockId] for...FIXME
 
 == [[readBroadcastBlock]] readBroadcastBlock Internal Method
 
@@ -72,15 +72,15 @@ TorrentBroadcast uses a xref:storage:BlockId.adoc#BroadcastBlockId[BroadcastBloc
 readBroadcastBlock(): T
 ----
 
-readBroadcastBlock xref:SparkEnv.adoc#get[uses the SparkEnv] to access xref:SparkEnv.adoc#broadcastManager[BroadcastManager] that is requested for xref:BroadcastManager.adoc#cachedValues[cached broadcast values].
+readBroadcastBlock SparkEnv.md#get[uses the SparkEnv] to access SparkEnv.md#broadcastManager[BroadcastManager] that is requested for BroadcastManager.md#cachedValues[cached broadcast values].
 
 readBroadcastBlock looks up the <<broadcastId, BroadcastBlockId>> in the cached broadcast values and returns it if found.
 
-If not found, readBroadcastBlock requests the SparkEnv for the xref:core:SparkEnv.adoc#conf[SparkConf] and <<setConf, setConf>>.
+If not found, readBroadcastBlock requests the SparkEnv for the core:SparkEnv.md#conf[SparkConf] and <<setConf, setConf>>.
 
-readBroadcastBlock xref:SparkEnv.adoc#get[uses the SparkEnv] to access xref:SparkEnv.adoc#blockManager[BlockManager].
+readBroadcastBlock SparkEnv.md#get[uses the SparkEnv] to access SparkEnv.md#blockManager[BlockManager].
 
-readBroadcastBlock requests the BlockManager for xref:storage:BlockManager.adoc#getLocalValues[getLocalValues].
+readBroadcastBlock requests the BlockManager for storage:BlockManager.md#getLocalValues[getLocalValues].
 
 If the broadcast data was available locally, readBroadcastBlock <<releaseLock, releases a lock>> for the broadcast and returns the value.
 
@@ -102,9 +102,9 @@ Reading broadcast variable [id] took [usedTimeMs]
 
 readBroadcastBlock <<unBlockifyObject, _unblockifies_ the collection of `ByteBuffer` blocks>>
 
-NOTE: readBroadcastBlock uses the xref:core:SparkEnv.adoc#serializer[current `Serializer`] and the internal xref:io:CompressionCodec.adoc[CompressionCodec] to bring all the blocks together as one single broadcast variable.
+NOTE: readBroadcastBlock uses the core:SparkEnv.md#serializer[current `Serializer`] and the internal io:CompressionCodec.md[CompressionCodec] to bring all the blocks together as one single broadcast variable.
 
-readBroadcastBlock xref:storage:BlockManager.adoc#putSingle[stores the broadcast variable with `MEMORY_AND_DISK` storage level to the local `BlockManager`]. When storing the broadcast variable was unsuccessful, a `SparkException` is thrown.
+readBroadcastBlock storage:BlockManager.md#putSingle[stores the broadcast variable with `MEMORY_AND_DISK` storage level to the local `BlockManager`]. When storing the broadcast variable was unsuccessful, a `SparkException` is thrown.
 
 [source,plaintext]
 ----
@@ -123,11 +123,11 @@ setConf(
   conf: SparkConf): Unit
 ----
 
-setConf uses the input `conf` xref:ROOT:SparkConf.adoc[SparkConf] to set compression codec and the block size.
+setConf uses the input `conf` ROOT:SparkConf.md[SparkConf] to set compression codec and the block size.
 
-Internally, setConf reads xref:core:BroadcastManager.adoc#spark.broadcast.compress[spark.broadcast.compress] configuration property and if enabled (which it is by default) sets a xref:io:CompressionCodec.adoc#createCodec[CompressionCodec] (as an internal `compressionCodec` property).
+Internally, setConf reads core:BroadcastManager.md#spark.broadcast.compress[spark.broadcast.compress] configuration property and if enabled (which it is by default) sets a io:CompressionCodec.md#createCodec[CompressionCodec] (as an internal `compressionCodec` property).
 
-setConf also reads xref:core:BroadcastManager.adoc#spark_broadcast_blockSize[spark.broadcast.blockSize] Spark property and sets the block size (as the internal `blockSize` property).
+setConf also reads core:BroadcastManager.md#spark_broadcast_blockSize[spark.broadcast.blockSize] Spark property and sets the block size (as the internal `blockSize` property).
 
 setConf is executed when <<creating-instance, TorrentBroadcast is created>> or <<readBroadcastBlock, re-created when deserialized on executors>>.
 
@@ -139,15 +139,15 @@ writeBlocks(
   value: T): Int
 ----
 
-writeBlocks stores the given value (that is the <<obj, broadcast value>>) and the blocks in xref:storage:BlockManager.adoc[]. writeBlocks returns the <<numBlocks, number of blocks of the broadcast>> (was divided into).
+writeBlocks stores the given value (that is the <<obj, broadcast value>>) and the blocks in storage:BlockManager.md[]. writeBlocks returns the <<numBlocks, number of blocks of the broadcast>> (was divided into).
 
-Internally, writeBlocks uses the xref:core:SparkEnv.adoc#get[SparkEnv] to access xref:core:SparkEnv.adoc#blockManager[BlockManager].
+Internally, writeBlocks uses the core:SparkEnv.md#get[SparkEnv] to access core:SparkEnv.md#blockManager[BlockManager].
 
-writeBlocks requests the BlockManager to xref:storage:BlockManager.adoc#putSingle[putSingle] (with MEMORY_AND_DISK storage level).
+writeBlocks requests the BlockManager to storage:BlockManager.md#putSingle[putSingle] (with MEMORY_AND_DISK storage level).
 
-writeBlocks <<blockifyObject, blockify>> the given value (of the <<blockSize, block size>>, the system xref:core:SparkEnv.adoc#serializer[Serializer], and the optional <<compressionCodec, compressionCodec>>).
+writeBlocks <<blockifyObject, blockify>> the given value (of the <<blockSize, block size>>, the system core:SparkEnv.md#serializer[Serializer], and the optional <<compressionCodec, compressionCodec>>).
 
-For every block, writeBlocks creates a xref:storage:BlockId.adoc#BroadcastBlockId[BroadcastBlockId] for the <<id, broadcast variable ID>> and `piece[index]` identifier, and requests the BlockManager to xref:storage:BlockManager.adoc#putBytes[putBytes] (with MEMORY_AND_DISK_SER storage level).
+For every block, writeBlocks creates a storage:BlockId.md#BroadcastBlockId[BroadcastBlockId] for the <<id, broadcast variable ID>> and `piece[index]` identifier, and requests the BlockManager to storage:BlockManager.md#putBytes[putBytes] (with MEMORY_AND_DISK_SER storage level).
 
 The entire broadcast value is stored in the local BlockManager with MEMORY_AND_DISK storage level whereas the blocks with MEMORY_AND_DISK_SER storage level.
 
@@ -173,7 +173,7 @@ blockifyObject[T](
   compressionCodec: Option[CompressionCodec]): Array[ByteBuffer]
 ----
 
-blockifyObject divides (aka _blockifies_) the input `obj` value into blocks (`ByteBuffer` chunks). blockifyObject uses the given xref:serializer:Serializer.adoc[] to write the value in a serialized format to a `ChunkedByteBufferOutputStream` of the given `blockSize` size with the optional xref:io:CompressionCodec.adoc[CompressionCodec].
+blockifyObject divides (aka _blockifies_) the input `obj` value into blocks (`ByteBuffer` chunks). blockifyObject uses the given serializer:Serializer.md[] to write the value in a serialized format to a `ChunkedByteBufferOutputStream` of the given `blockSize` size with the optional io:CompressionCodec.md[CompressionCodec].
 
 blockifyObject is used when TorrentBroadcast is requested to <<writeBlocks, stores itself as blocks to a local BlockManager>>.
 
@@ -186,7 +186,7 @@ doUnpersist(blocking: Boolean): Unit
 
 `doUnpersist` <<unpersist, removes all the persisted state associated with a broadcast variable on executors>>.
 
-NOTE: `doUnpersist` is part of the xref:ROOT:Broadcast.adoc#contract[`Broadcast` Variable Contract] and is executed from <<unpersist, unpersist>> method.
+NOTE: `doUnpersist` is part of the ROOT:Broadcast.md#contract[`Broadcast` Variable Contract] and is executed from <<unpersist, unpersist>> method.
 
 == [[doDestroy]] `doDestroy` Method
 
@@ -197,7 +197,7 @@ doDestroy(blocking: Boolean): Unit
 
 `doDestroy` <<unpersist, removes all the persisted state associated with a broadcast variable on all the nodes in a Spark application>>, i.e. the driver and executors.
 
-NOTE: `doDestroy` is executed when xref:ROOT:Broadcast.adoc#destroy-internal[`Broadcast` removes the persisted data and metadata related to a broadcast variable].
+NOTE: `doDestroy` is executed when ROOT:Broadcast.md#destroy-internal[`Broadcast` removes the persisted data and metadata related to a broadcast variable].
 
 == [[unpersist]] unpersist Utility
 
@@ -218,15 +218,15 @@ When executed, unpersist prints out the following DEBUG message in the logs:
 Unpersisting TorrentBroadcast [id]
 ----
 
-unpersist requests xref:storage:BlockManagerMaster.adoc#removeBroadcast[`BlockManagerMaster` to remove the `id` broadcast].
+unpersist requests storage:BlockManagerMaster.md#removeBroadcast[`BlockManagerMaster` to remove the `id` broadcast].
 
-NOTE: unpersist uses xref:core:SparkEnv.adoc#blockManager[`SparkEnv` to get the `BlockManagerMaster`] (through `blockManager` property).
+NOTE: unpersist uses core:SparkEnv.md#blockManager[`SparkEnv` to get the `BlockManagerMaster`] (through `blockManager` property).
 
 unpersist is used when:
 
 * TorrentBroadcast is requested to <<doUnpersist, unpersist a broadcast variable on executors>> and <<doDestroy, remove a broadcast variable from the driver and executors>>
 
-* TorrentBroadcastFactory is requested to xref:TorrentBroadcastFactory.adoc#unbroadcast[unbroadcast]
+* TorrentBroadcastFactory is requested to TorrentBroadcastFactory.md#unbroadcast[unbroadcast]
 
 == [[readBlocks]] Reading Broadcast Blocks
 
@@ -235,11 +235,11 @@ unpersist is used when:
 readBlocks(): Array[BlockData]
 ----
 
-readBlocks creates a local array of xref:storage:BlockData.adoc[]s for <<numBlocks, numBlocks>> elements (that is later modified and returned).
+readBlocks creates a local array of storage:BlockData.md[]s for <<numBlocks, numBlocks>> elements (that is later modified and returned).
 
-readBlocks uses the xref:core:SparkEnv.adoc[] to access xref:core:SparkEnv.adoc#blockManager[BlockManager] (that is later used to fetch local or remote blocks).
+readBlocks uses the core:SparkEnv.md[] to access core:SparkEnv.md#blockManager[BlockManager] (that is later used to fetch local or remote blocks).
 
-For every block (randomly-chosen by block ID between 0 and <<numBlocks, numBlocks>>), readBlocks creates a xref:storage:BlockId.adoc#BroadcastBlockId[BroadcastBlockId] for the <<id, id>> (of the broadcast variable) and the chunk identified by the `piece` prefix followed by the ID.
+For every block (randomly-chosen by block ID between 0 and <<numBlocks, numBlocks>>), readBlocks creates a storage:BlockId.md#BroadcastBlockId[BroadcastBlockId] for the <<id, id>> (of the broadcast variable) and the chunk identified by the `piece` prefix followed by the ID.
 
 readBlocks prints out the following DEBUG message to the logs:
 
@@ -248,9 +248,9 @@ readBlocks prints out the following DEBUG message to the logs:
 Reading piece [pieceId] of [broadcastId]
 ----
 
-readBlocks first tries to look up the piece locally by requesting the BlockManager to xref:storage:BlockManager.adoc#getLocalBytes[getLocalBytes] and, if found, stores the reference in the local block array (for the piece ID) and <<releaseLock, releaseLock>> for the chunk.
+readBlocks first tries to look up the piece locally by requesting the BlockManager to storage:BlockManager.md#getLocalBytes[getLocalBytes] and, if found, stores the reference in the local block array (for the piece ID) and <<releaseLock, releaseLock>> for the chunk.
 
-If not found locally, readBlocks requests the BlockManager to xref:storage:BlockManager.adoc#getRemoteBytes[getRemoteBytes].
+If not found locally, readBlocks requests the BlockManager to storage:BlockManager.md#getRemoteBytes[getRemoteBytes].
 
 readBlocks...FIXME
 
@@ -300,4 +300,4 @@ Add the following line to `conf/log4j.properties`:
 log4j.logger.org.apache.spark.broadcast.TorrentBroadcast=ALL
 ----
 
-Refer to xref:ROOT:spark-logging.adoc[Logging].
+Refer to ROOT:spark-logging.md[Logging].

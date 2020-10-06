@@ -41,7 +41,7 @@ abstract class MessageHandler<T extends Message> {
 | MessageHandler
 | Description
 
-| xref:network:TransportRequestHandler.adoc[]
+| network:TransportRequestHandler.md[]
 | [[TransportRequestHandler]]
 
 | TransportResponseHandler

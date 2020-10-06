@@ -4,7 +4,7 @@ It is like any introductory big data example should somehow demonstrate how to c
 
 In the following example you're going to count the words in `README.md` file that sits in your Spark distribution and save the result under `README.count` directory.
 
-You're going to use link:spark-shell.adoc[the Spark shell] for the example. Execute `spark-shell`.
+You're going to use spark-shell.md[the Spark shell] for the example. Execute `spark-shell`.
 
 [source,scala]
 ----
@@ -16,7 +16,7 @@ val wc = words.map(w => (w, 1)).reduceByKey(_ + _) // <3>
 
 wc.saveAsTextFile("README.count")                  // <4>
 ----
-<1> Read the text file - refer to link:spark-io.adoc[Using Input and Output (I/O)].
+<1> Read the text file - refer to spark-io.md[Using Input and Output (I/O)].
 <2> Split each line into words and flatten the result.
 <3> Map each word into a pair and count them by word (key).
 <4> Save the result into text files - one per partition.
@@ -55,4 +55,4 @@ Please read the questions and give answers first before looking at the link give
 3. How to `filter` out words by name?
 4. How to `count` words?
 
-Please refer to the chapter link:spark-rdd-partitions.adoc[Partitions] to find some of the answers.
+Please refer to the chapter spark-rdd-partitions.md[Partitions] to find some of the answers.

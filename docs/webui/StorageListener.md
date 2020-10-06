@@ -1,6 +1,6 @@
 = StorageListener
 
-StorageListener is a xref:webui:spark-webui-BlockStatusListener.adoc[BlockStatusListener] that uses <<SparkListener-callbacks, SparkListener callbacks>> to track changes in the persistence status of RDD blocks in a Spark application.
+StorageListener is a webui:spark-webui-BlockStatusListener.md[BlockStatusListener] that uses <<SparkListener-callbacks, SparkListener callbacks>> to track changes in the persistence status of RDD blocks in a Spark application.
 
 [[SparkListener-callbacks]]
 .StorageListener's SparkListener Callbacks (in alphabetical order)
@@ -13,13 +13,13 @@ StorageListener is a xref:webui:spark-webui-BlockStatusListener.adoc[BlockStatus
 | Updates <<_rddInfoMap, _rddInfoMap>> with the update to a single block.
 
 | <<onStageCompleted, onStageCompleted>>
-| Removes xref:storage:RDDInfo.adoc[RDDInfo] instances from <<_rddInfoMap, _rddInfoMap>> that participated in the completed stage as well as the ones that are no longer cached.
+| Removes storage:RDDInfo.md[RDDInfo] instances from <<_rddInfoMap, _rddInfoMap>> that participated in the completed stage as well as the ones that are no longer cached.
 
 | <<onStageSubmitted, onStageSubmitted>>
-| Updates <<_rddInfoMap, _rddInfoMap>> registry with the names of every xref:storage:RDDInfo.adoc[RDDInfo] in the submitted stage, possibly adding new xref:storage:RDDInfo.adoc[RDDInfo] instances if they were not registered yet.
+| Updates <<_rddInfoMap, _rddInfoMap>> registry with the names of every storage:RDDInfo.md[RDDInfo] in the submitted stage, possibly adding new storage:RDDInfo.md[RDDInfo] instances if they were not registered yet.
 
 | <<onUnpersistRDD, onUnpersistRDD>>
-| Removes an xref:storage:RDDInfo.adoc[RDDInfo] from <<_rddInfoMap, _rddInfoMap>> registry for the unpersisted RDD.
+| Removes an storage:RDDInfo.md[RDDInfo] from <<_rddInfoMap, _rddInfoMap>> registry for the unpersisted RDD.
 
 |===
 
@@ -31,7 +31,7 @@ StorageListener is a xref:webui:spark-webui-BlockStatusListener.adoc[BlockStatus
 | Description
 
 | [[_rddInfoMap]] `_rddInfoMap`
-| xref:storage:RDDInfo.adoc[RDDInfo] instances per IDs
+| storage:RDDInfo.md[RDDInfo] instances per IDs
 
 Used when...FIXME
 |===
@@ -40,11 +40,11 @@ Used when...FIXME
 
 StorageListener takes the following when created:
 
-* [[storageStatusListener]] link:spark-webui-StorageStatusListener.adoc[StorageStatusListener]
+* [[storageStatusListener]] spark-webui-StorageStatusListener.md[StorageStatusListener]
 
 StorageListener initializes the <<internal-registries, internal registries and counters>>.
 
-NOTE: StorageListener is created when `SparkUI` link:spark-webui-SparkUI.adoc#create[is created].
+NOTE: StorageListener is created when `SparkUI` spark-webui-SparkUI.md#create[is created].
 
 == [[activeStorageStatusList]] Finding Active BlockManagers -- `activeStorageStatusList` Method
 
@@ -53,7 +53,7 @@ NOTE: StorageListener is created when `SparkUI` link:spark-webui-SparkUI.adoc#cr
 activeStorageStatusList: Seq[StorageStatus]
 ----
 
-`activeStorageStatusList` requests <<storageStatusListener, StorageStatusListener>> for link:spark-webui-StorageStatusListener.adoc#storageStatusList[active BlockManagers (on executors)].
+`activeStorageStatusList` requests <<storageStatusListener, StorageStatusListener>> for spark-webui-StorageStatusListener.md#storageStatusList[active BlockManagers (on executors)].
 
 [NOTE]
 ====
@@ -70,9 +70,9 @@ activeStorageStatusList: Seq[StorageStatus]
 onBlockUpdated(blockUpdated: SparkListenerBlockUpdated): Unit
 ----
 
-`onBlockUpdated` creates a `BlockStatus` (from the input `SparkListenerBlockUpdated`) and <<updateRDDInfo, updates registered RDDInfos (with block updates from BlockManagers)>> (passing in xref:storage:BlockId.adoc[] and `BlockStatus` as a single-element collection of updated blocks).
+`onBlockUpdated` creates a `BlockStatus` (from the input `SparkListenerBlockUpdated`) and <<updateRDDInfo, updates registered RDDInfos (with block updates from BlockManagers)>> (passing in storage:BlockId.md[] and `BlockStatus` as a single-element collection of updated blocks).
 
-NOTE: `onBlockUpdated` is part of xref:ROOT:SparkListener.adoc#onBlockUpdated[SparkListener contract] to announce that there was a change in a block status (on a `BlockManager` on an executor).
+NOTE: `onBlockUpdated` is part of ROOT:SparkListener.md#onBlockUpdated[SparkListener contract] to announce that there was a change in a block status (on a `BlockManager` on an executor).
 
 == [[onStageCompleted]] Intercepting Stage Completed Events -- `onStageCompleted` Callback
 
@@ -83,7 +83,7 @@ onStageCompleted(stageCompleted: SparkListenerStageCompleted): Unit
 
 `onStageCompleted` finds the identifiers of the RDDs that have participated in the completed stage and removes them from <<_rddInfoMap, _rddInfoMap>> registry as well as the RDDs that are no longer cached.
 
-NOTE: `onStageCompleted` is part of xref:ROOT:SparkListener.adoc#onStageCompleted[SparkListener contract] to announce that a stage has finished.
+NOTE: `onStageCompleted` is part of ROOT:SparkListener.md#onStageCompleted[SparkListener contract] to announce that a stage has finished.
 
 == [[onStageSubmitted]] Intercepting Stage Submitted Events -- `onStageSubmitted` Callback
 
@@ -92,9 +92,9 @@ NOTE: `onStageCompleted` is part of xref:ROOT:SparkListener.adoc#onStageComplete
 onStageSubmitted(stageSubmitted: SparkListenerStageSubmitted): Unit
 ----
 
-`onStageSubmitted` updates <<_rddInfoMap, _rddInfoMap>> registry with the names of every xref:storage:RDDInfo.adoc[RDDInfo] in `stageSubmitted`, possibly adding new xref:storage:RDDInfo.adoc[RDDInfo] instances if they were not registered yet.
+`onStageSubmitted` updates <<_rddInfoMap, _rddInfoMap>> registry with the names of every storage:RDDInfo.md[RDDInfo] in `stageSubmitted`, possibly adding new storage:RDDInfo.md[RDDInfo] instances if they were not registered yet.
 
-NOTE: `onStageSubmitted` is part of xref:ROOT:SparkListener.adoc#onStageSubmitted[SparkListener contract] to announce that the missing tasks of a stage were submitted for execution.
+NOTE: `onStageSubmitted` is part of ROOT:SparkListener.md#onStageSubmitted[SparkListener contract] to announce that the missing tasks of a stage were submitted for execution.
 
 == [[onUnpersistRDD]] Intercepting Unpersist RDD Events -- `onUnpersistRDD` Callback
 
@@ -103,9 +103,9 @@ NOTE: `onStageSubmitted` is part of xref:ROOT:SparkListener.adoc#onStageSubmitte
 onUnpersistRDD(unpersistRDD: SparkListenerUnpersistRDD): Unit
 ----
 
-`onUnpersistRDD` removes the xref:storage:RDDInfo.adoc[RDDInfo] from <<_rddInfoMap, _rddInfoMap>> registry for the unpersisted RDD (from `unpersistRDD`).
+`onUnpersistRDD` removes the storage:RDDInfo.md[RDDInfo] from <<_rddInfoMap, _rddInfoMap>> registry for the unpersisted RDD (from `unpersistRDD`).
 
-NOTE: `onUnpersistRDD` is part of xref:ROOT:SparkListener.adoc#onUnpersistRDD[SparkListener contract] to announce that an RDD has been unpersisted.
+NOTE: `onUnpersistRDD` is part of ROOT:SparkListener.md#onUnpersistRDD[SparkListener contract] to announce that an RDD has been unpersisted.
 
 == [[updateRDDInfo]] Updating Registered RDDInfos (with Block Updates from BlockManagers)
 
@@ -114,9 +114,9 @@ NOTE: `onUnpersistRDD` is part of xref:ROOT:SparkListener.adoc#onUnpersistRDD[Sp
 updateRDDInfo(updatedBlocks: Seq[(BlockId, BlockStatus)]): Unit
 ----
 
-`updateRDDInfo` finds the RDDs for the input `updatedBlocks` (for xref:storage:BlockId.adoc[]s).
+`updateRDDInfo` finds the RDDs for the input `updatedBlocks` (for storage:BlockId.md[]s).
 
-NOTE: `updateRDDInfo` finds `BlockIds` that are xref:storage:BlockId.adoc#RDDBlockId[RDDBlockIds].
+NOTE: `updateRDDInfo` finds `BlockIds` that are storage:BlockId.md#RDDBlockId[RDDBlockIds].
 
 `updateRDDInfo` takes `RDDInfo` entries (in <<_rddInfoMap, _rddInfoMap>> registry) for which there are blocks in the input `updatedBlocks` and <<StorageUtils.updateRddInfo, updates RDDInfos (using StorageStatus)>> (from <<activeStorageStatusList, activeStorageStatusList>>).
 
@@ -135,6 +135,6 @@ CAUTION: FIXME
 ====
 `updateRddInfo` is used when:
 
-* `SparkContext` xref:ROOT:SparkContext.adoc#getRDDStorageInfo[is requested for storage status of cached RDDs]
+* `SparkContext` ROOT:SparkContext.md#getRDDStorageInfo[is requested for storage status of cached RDDs]
 * StorageListener <<updateRDDInfo, updates registered RDDInfos (with block updates from BlockManagers)>>
 ====

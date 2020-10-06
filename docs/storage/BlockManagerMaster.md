@@ -1,18 +1,18 @@
 = BlockManagerMaster
 
-BlockManagerMaster xref:core:SparkEnv.adoc#BlockManagerMaster[runs on the driver].
+BlockManagerMaster core:SparkEnv.md#BlockManagerMaster[runs on the driver].
 
-BlockManagerMaster uses xref:storage:BlockManagerMasterEndpoint.adoc[] registered under *BlockManagerMaster* RPC endpoint name on the driver (with the endpoint references on executors) to allow executors for sending block status updates to it and hence keep track of block statuses.
+BlockManagerMaster uses storage:BlockManagerMasterEndpoint.md[] registered under *BlockManagerMaster* RPC endpoint name on the driver (with the endpoint references on executors) to allow executors for sending block status updates to it and hence keep track of block statuses.
 
 == [[creating-instance]] Creating Instance
 
 BlockManagerMaster takes the following to be created:
 
-* [[driverEndpoint]] xref:rpc:RpcEndpointRef.adoc[]
-* [[conf]] xref:ROOT:SparkConf.adoc[]
+* [[driverEndpoint]] rpc:RpcEndpointRef.md[]
+* [[conf]] ROOT:SparkConf.md[]
 * [[isDriver]] Flag whether BlockManagerMaster is created for the driver or executors
 
-BlockManagerMaster is created when SparkEnv utility is used to xref:core:SparkEnv.adoc#create[create a SparkEnv (for the driver and executors)] (to create a xref:storage:BlockManager.adoc[]).
+BlockManagerMaster is created when SparkEnv utility is used to core:SparkEnv.md#create[create a SparkEnv (for the driver and executors)] (to create a storage:BlockManager.md[]).
 
 == [[removeExecutorAsync]] `removeExecutorAsync` Method
 
@@ -29,7 +29,7 @@ CAUTION: FIXME
 removeExecutor(execId: String): Unit
 ----
 
-`removeExecutor` posts xref:storage:BlockManagerMasterEndpoint.adoc#RemoveExecutor[`RemoveExecutor` to BlockManagerMaster RPC endpoint] and waits for a response.
+`removeExecutor` posts storage:BlockManagerMasterEndpoint.md#RemoveExecutor[`RemoveExecutor` to BlockManagerMaster RPC endpoint] and waits for a response.
 
 If `false` in response comes in, a `SparkException` is thrown with the following message:
 
@@ -43,7 +43,7 @@ If all goes fine, you should see the following INFO message in the logs:
 INFO BlockManagerMaster: Removed executor [execId]
 ```
 
-NOTE: `removeExecutor` is executed when xref:scheduler:DAGSchedulerEventProcessLoop.adoc#handleExecutorLost[`DAGScheduler` processes `ExecutorLost` event].
+NOTE: `removeExecutor` is executed when scheduler:DAGSchedulerEventProcessLoop.md#handleExecutorLost[`DAGScheduler` processes `ExecutorLost` event].
 
 == [[removeBlock]] Removing Block -- `removeBlock` Method
 
@@ -52,7 +52,7 @@ NOTE: `removeExecutor` is executed when xref:scheduler:DAGSchedulerEventProcessL
 removeBlock(blockId: BlockId): Unit
 ----
 
-`removeBlock` simply posts a `RemoveBlock` blocking message to xref:storage:BlockManagerMasterEndpoint.adoc[] (and ultimately disregards the reponse).
+`removeBlock` simply posts a `RemoveBlock` blocking message to storage:BlockManagerMasterEndpoint.md[] (and ultimately disregards the reponse).
 
 == [[removeRdd]] Removing RDD Blocks -- `removeRdd` Method
 
@@ -63,7 +63,7 @@ removeRdd(rddId: Int, blocking: Boolean)
 
 `removeRdd` removes all the blocks of `rddId` RDD, possibly in `blocking` fashion.
 
-Internally, `removeRdd` posts a `RemoveRdd(rddId)` message to xref:storage:BlockManagerMasterEndpoint.adoc[] on a separate thread.
+Internally, `removeRdd` posts a `RemoveRdd(rddId)` message to storage:BlockManagerMasterEndpoint.md[] on a separate thread.
 
 If there is an issue, you should see the following WARN message in the logs and the entire exception:
 
@@ -71,7 +71,7 @@ If there is an issue, you should see the following WARN message in the logs and 
 WARN Failed to remove RDD [rddId] - [exception]
 ```
 
-If it is a `blocking` operation, it waits for a result for xref:rpc:index.adoc#spark.rpc.askTimeout[spark.rpc.askTimeout], xref:rpc:index.adoc#spark.network.timeout[spark.network.timeout] or `120` secs.
+If it is a `blocking` operation, it waits for a result for rpc:index.md#spark.rpc.askTimeout[spark.rpc.askTimeout], rpc:index.md#spark.network.timeout[spark.network.timeout] or `120` secs.
 
 == [[removeShuffle]] Removing Shuffle Blocks -- `removeShuffle` Method
 
@@ -82,7 +82,7 @@ removeShuffle(shuffleId: Int, blocking: Boolean)
 
 `removeShuffle` removes all the blocks of `shuffleId` shuffle, possibly in a `blocking` fashion.
 
-It posts a `RemoveShuffle(shuffleId)` message to xref:storage:BlockManagerMasterEndpoint.adoc[] on a separate thread.
+It posts a `RemoveShuffle(shuffleId)` message to storage:BlockManagerMasterEndpoint.md[] on a separate thread.
 
 If there is an issue, you should see the following WARN message in the logs and the entire exception:
 
@@ -90,9 +90,9 @@ If there is an issue, you should see the following WARN message in the logs and 
 WARN Failed to remove shuffle [shuffleId] - [exception]
 ```
 
-If it is a `blocking` operation, it waits for the result for xref:rpc:index.adoc#spark.rpc.askTimeout[spark.rpc.askTimeout], xref:rpc:index.adoc#spark.network.timeout[spark.network.timeout] or `120` secs.
+If it is a `blocking` operation, it waits for the result for rpc:index.md#spark.rpc.askTimeout[spark.rpc.askTimeout], rpc:index.md#spark.network.timeout[spark.network.timeout] or `120` secs.
 
-NOTE: `removeShuffle` is used exclusively when xref:core:ContextCleaner.adoc#doCleanupShuffle[`ContextCleaner` removes a shuffle].
+NOTE: `removeShuffle` is used exclusively when core:ContextCleaner.md#doCleanupShuffle[`ContextCleaner` removes a shuffle].
 
 == [[removeBroadcast]] Removing Broadcast Blocks -- `removeBroadcast` Method
 
@@ -103,7 +103,7 @@ removeBroadcast(broadcastId: Long, removeFromMaster: Boolean, blocking: Boolean)
 
 `removeBroadcast` removes all the blocks of `broadcastId` broadcast, possibly in a `blocking` fashion.
 
-It posts a `RemoveBroadcast(broadcastId, removeFromMaster)` message to xref:storage:BlockManagerMasterEndpoint.adoc[] on a separate thread.
+It posts a `RemoveBroadcast(broadcastId, removeFromMaster)` message to storage:BlockManagerMasterEndpoint.md[] on a separate thread.
 
 If there is an issue, you should see the following WARN message in the logs and the entire exception:
 
@@ -111,7 +111,7 @@ If there is an issue, you should see the following WARN message in the logs and 
 WARN Failed to remove broadcast [broadcastId] with removeFromMaster = [removeFromMaster] - [exception]
 ```
 
-If it is a `blocking` operation, it waits for the result for xref:rpc:index.adoc#spark.rpc.askTimeout[spark.rpc.askTimeout], xref:rpc:index.adoc#spark.network.timeout[spark.network.timeout] or `120` secs.
+If it is a `blocking` operation, it waits for the result for rpc:index.md#spark.rpc.askTimeout[spark.rpc.askTimeout], rpc:index.md#spark.network.timeout[spark.network.timeout] or `120` secs.
 
 == [[stop]] Stopping BlockManagerMaster -- `stop` Method
 
@@ -120,7 +120,7 @@ If it is a `blocking` operation, it waits for the result for xref:rpc:index.adoc
 stop(): Unit
 ----
 
-`stop` sends a `StopBlockManagerMaster` message to xref:storage:BlockManagerMasterEndpoint.adoc[] and waits for a response.
+`stop` sends a `StopBlockManagerMaster` message to storage:BlockManagerMasterEndpoint.md[] and waits for a response.
 
 NOTE: It is only executed for the driver.
 
@@ -156,20 +156,20 @@ Registering BlockManager [blockManagerId]
 .Registering BlockManager with the Driver
 image::BlockManagerMaster-RegisterBlockManager.png[align="center"]
 
-registerBlockManager then notifies the driver that the xref:storage:BlockManagerId.adoc[] is registering itself. registerBlockManager posts a xref:storage:BlockManagerMasterEndpoint.adoc#RegisterBlockManager[blocking `RegisterBlockManager` message to BlockManagerMaster RPC endpoint].
+registerBlockManager then notifies the driver that the storage:BlockManagerId.md[] is registering itself. registerBlockManager posts a storage:BlockManagerMasterEndpoint.md#RegisterBlockManager[blocking `RegisterBlockManager` message to BlockManagerMaster RPC endpoint].
 
-NOTE: The input `maxMemSize` is the xref:storage:BlockManager.adoc#maxMemory[total available on-heap and off-heap memory for storage on a `BlockManager`].
+NOTE: The input `maxMemSize` is the storage:BlockManager.md#maxMemory[total available on-heap and off-heap memory for storage on a `BlockManager`].
 
-registerBlockManager waits until a confirmation comes (as xref:storage:BlockManagerId.adoc[]).
+registerBlockManager waits until a confirmation comes (as storage:BlockManagerId.md[]).
 
-In the end, registerBlockManager prints the following INFO message to the logs and returns the xref:storage:BlockManagerId.adoc[] received.
+In the end, registerBlockManager prints the following INFO message to the logs and returns the storage:BlockManagerId.md[] received.
 
 [source,plaintext]
 ----
 Registered BlockManager [updatedId]
 ----
 
-registerBlockManager is used when BlockManager is requested to xref:storage:BlockManager.adoc#initialize[initialize] and xref:storage:BlockManager.adoc#reregister[re-register itself with the driver].
+registerBlockManager is used when BlockManager is requested to storage:BlockManager.md#initialize[initialize] and storage:BlockManager.md#reregister[re-register itself with the driver].
 
 == [[updateBlockInfo]] Relaying Block Status Update From BlockManager to Driver
 
@@ -183,7 +183,7 @@ updateBlockInfo(
   diskSize: Long): Boolean
 ----
 
-`updateBlockInfo` sends a blocking xref:storage:BlockManagerMasterEndpoint.adoc#UpdateBlockInfo[UpdateBlockInfo] event to <<driverEndpoint, BlockManagerMaster RPC endpoint>> (and waits for a response).
+`updateBlockInfo` sends a blocking storage:BlockManagerMasterEndpoint.md#UpdateBlockInfo[UpdateBlockInfo] event to <<driverEndpoint, BlockManagerMaster RPC endpoint>> (and waits for a response).
 
 `updateBlockInfo` prints out the following DEBUG message to the logs:
 
@@ -193,7 +193,7 @@ DEBUG BlockManagerMaster: Updated info of block [blockId]
 
 `updateBlockInfo` returns the response from the <<driverEndpoint, BlockManagerMaster RPC endpoint>>.
 
-NOTE: `updateBlockInfo` is used exclusively when `BlockManager` is requested to xref:storage:BlockManager.adoc#tryToReportBlockStatus[report a block status update to the driver].
+NOTE: `updateBlockInfo` is used exclusively when `BlockManager` is requested to storage:BlockManager.md#tryToReportBlockStatus[report a block status update to the driver].
 
 == [[getLocations-block]] Get Block Locations of One Block -- `getLocations` Method
 
@@ -202,9 +202,9 @@ NOTE: `updateBlockInfo` is used exclusively when `BlockManager` is requested to 
 getLocations(blockId: BlockId): Seq[BlockManagerId]
 ----
 
-`getLocations` xref:storage:BlockManagerMasterEndpoint.adoc#GetLocations[posts a blocking `GetLocations` message to BlockManagerMaster RPC endpoint] and returns the response.
+`getLocations` storage:BlockManagerMasterEndpoint.md#GetLocations[posts a blocking `GetLocations` message to BlockManagerMaster RPC endpoint] and returns the response.
 
-NOTE: `getLocations` is used when <<contains, BlockManagerMaster checks if a block was registered>> and xref:storage:BlockManager.adoc#getLocations[`BlockManager` getLocations].
+NOTE: `getLocations` is used when <<contains, BlockManagerMaster checks if a block was registered>> and storage:BlockManager.md#getLocations[`BlockManager` getLocations].
 
 == [[getLocations-block-array]] Get Block Locations for Multiple Blocks -- `getLocations` Method
 
@@ -213,9 +213,9 @@ NOTE: `getLocations` is used when <<contains, BlockManagerMaster checks if a blo
 getLocations(blockIds: Array[BlockId]): IndexedSeq[Seq[BlockManagerId]]
 ----
 
-`getLocations` xref:storage:BlockManagerMasterEndpoint.adoc#GetLocationsMultipleBlockIds[posts a blocking `GetLocationsMultipleBlockIds` message to BlockManagerMaster RPC endpoint] and returns the response.
+`getLocations` storage:BlockManagerMasterEndpoint.md#GetLocationsMultipleBlockIds[posts a blocking `GetLocationsMultipleBlockIds` message to BlockManagerMaster RPC endpoint] and returns the response.
 
-NOTE: `getLocations` is used when xref:scheduler:DAGScheduler.adoc#getCacheLocs[`DAGScheduler` finds BlockManagers (and so executors) for cached RDD partitions] and when `BlockManager` xref:storage:BlockManager.adoc#getLocationBlockIds[getLocationBlockIds] and xref:storage:BlockManager.adoc#blockIdsToHosts[blockIdsToHosts].
+NOTE: `getLocations` is used when scheduler:DAGScheduler.md#getCacheLocs[`DAGScheduler` finds BlockManagers (and so executors) for cached RDD partitions] and when `BlockManager` storage:BlockManager.md#getLocationBlockIds[getLocationBlockIds] and storage:BlockManager.md#blockIdsToHosts[blockIdsToHosts].
 
 == [[getPeers]] Finding Peers of BlockManager -- `getPeers` Internal Method
 
@@ -224,11 +224,11 @@ NOTE: `getLocations` is used when xref:scheduler:DAGScheduler.adoc#getCacheLocs[
 getPeers(blockManagerId: BlockManagerId): Seq[BlockManagerId]
 ----
 
-`getPeers` xref:storage:BlockManagerMasterEndpoint.adoc#GetPeers[posts a blocking `GetPeers` message to BlockManagerMaster RPC endpoint] and returns the response.
+`getPeers` storage:BlockManagerMasterEndpoint.md#GetPeers[posts a blocking `GetPeers` message to BlockManagerMaster RPC endpoint] and returns the response.
 
-NOTE: *Peers* of a xref:storage:BlockManager.adoc[BlockManager] are the other BlockManagers in a cluster (except the driver's BlockManager). Peers are used to know the available executors in a Spark application.
+NOTE: *Peers* of a storage:BlockManager.md[BlockManager] are the other BlockManagers in a cluster (except the driver's BlockManager). Peers are used to know the available executors in a Spark application.
 
-NOTE: `getPeers` is used when xref:storage:BlockManager.adoc#getPeers[`BlockManager` finds the peers of a `BlockManager`], Structured Streaming's `KafkaSource` and Spark Streaming's `KafkaRDD`.
+NOTE: `getPeers` is used when storage:BlockManager.md#getPeers[`BlockManager` finds the peers of a `BlockManager`], Structured Streaming's `KafkaSource` and Spark Streaming's `KafkaRDD`.
 
 == [[getExecutorEndpointRef]] `getExecutorEndpointRef` Method
 
@@ -237,7 +237,7 @@ NOTE: `getPeers` is used when xref:storage:BlockManager.adoc#getPeers[`BlockMana
 getExecutorEndpointRef(executorId: String): Option[RpcEndpointRef]
 ----
 
-`getExecutorEndpointRef` posts `GetExecutorEndpointRef(executorId)` message to xref:storage:BlockManagerMasterEndpoint.adoc[] and waits for a response which becomes the return value.
+`getExecutorEndpointRef` posts `GetExecutorEndpointRef(executorId)` message to storage:BlockManagerMasterEndpoint.md[] and waits for a response which becomes the return value.
 
 == [[getMemoryStatus]] `getMemoryStatus` Method
 
@@ -246,7 +246,7 @@ getExecutorEndpointRef(executorId: String): Option[RpcEndpointRef]
 getMemoryStatus: Map[BlockManagerId, (Long, Long)]
 ----
 
-`getMemoryStatus` posts a `GetMemoryStatus` message xref:storage:BlockManagerMasterEndpoint.adoc[] and waits for a response which becomes the return value.
+`getMemoryStatus` posts a `GetMemoryStatus` message storage:BlockManagerMasterEndpoint.md[] and waits for a response which becomes the return value.
 
 == [[getStorageStatus]] Storage Status (Posting GetStorageStatus to BlockManagerMaster RPC endpoint) -- `getStorageStatus` Method
 
@@ -255,7 +255,7 @@ getMemoryStatus: Map[BlockManagerId, (Long, Long)]
 getStorageStatus: Array[StorageStatus]
 ----
 
-`getStorageStatus` posts a `GetStorageStatus` message to xref:storage:BlockManagerMasterEndpoint.adoc[] and waits for a response which becomes the return value.
+`getStorageStatus` posts a `GetStorageStatus` message to storage:BlockManagerMasterEndpoint.md[] and waits for a response which becomes the return value.
 
 == [[getBlockStatus]] `getBlockStatus` Method
 
@@ -266,9 +266,9 @@ getBlockStatus(
   askSlaves: Boolean = true): Map[BlockManagerId, BlockStatus]
 ----
 
-`getBlockStatus` posts a `GetBlockStatus(blockId, askSlaves)` message to xref:storage:BlockManagerMasterEndpoint.adoc[] and waits for a response (of type `Map[BlockManagerId, Future[Option[BlockStatus]]]`).
+`getBlockStatus` posts a `GetBlockStatus(blockId, askSlaves)` message to storage:BlockManagerMasterEndpoint.md[] and waits for a response (of type `Map[BlockManagerId, Future[Option[BlockStatus]]]`).
 
-It then builds a sequence of future results that are `BlockStatus` statuses and waits for a result for xref:rpc:index.adoc#spark.rpc.askTimeout[spark.rpc.askTimeout], xref:rpc:index.adoc#spark.network.timeout[spark.network.timeout] or `120` secs.
+It then builds a sequence of future results that are `BlockStatus` statuses and waits for a result for rpc:index.md#spark.rpc.askTimeout[spark.rpc.askTimeout], rpc:index.md#spark.network.timeout[spark.network.timeout] or `120` secs.
 
 No result leads to a `SparkException` with the following message:
 
@@ -285,7 +285,7 @@ getMatchingBlockIds(
   askSlaves: Boolean): Seq[BlockId]
 ----
 
-`getMatchingBlockIds` posts a `GetMatchingBlockIds(filter, askSlaves)` message to xref:storage:BlockManagerMasterEndpoint.adoc[] and waits for a response which becomes the result for xref:rpc:index.adoc#spark.rpc.askTimeout[spark.rpc.askTimeout], xref:rpc:index.adoc#spark.network.timeout[spark.network.timeout] or `120` secs.
+`getMatchingBlockIds` posts a `GetMatchingBlockIds(filter, askSlaves)` message to storage:BlockManagerMasterEndpoint.md[] and waits for a response which becomes the result for rpc:index.md#spark.rpc.askTimeout[spark.rpc.askTimeout], rpc:index.md#spark.network.timeout[spark.network.timeout] or `120` secs.
 
 == [[hasCachedBlocks]] `hasCachedBlocks` Method
 
@@ -294,7 +294,7 @@ getMatchingBlockIds(
 hasCachedBlocks(executorId: String): Boolean
 ----
 
-`hasCachedBlocks` posts a `HasCachedBlocks(executorId)` message to xref:storage:BlockManagerMasterEndpoint.adoc[] and waits for a response which becomes the result.
+`hasCachedBlocks` posts a `HasCachedBlocks(executorId)` message to storage:BlockManagerMasterEndpoint.md[] and waits for a response which becomes the result.
 
 == [[logging]] Logging
 
@@ -307,4 +307,4 @@ Add the following line to `conf/log4j.properties`:
 log4j.logger.org.apache.spark.storage.BlockManagerMaster=ALL
 ----
 
-Refer to xref:ROOT:spark-logging.adoc[Logging].
+Refer to ROOT:spark-logging.md[Logging].

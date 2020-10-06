@@ -4,11 +4,11 @@
 
 BlockFetchingListener is used when:
 
-* xref:storage:ShuffleClient.adoc#fetchBlocks[ShuffleClient], xref:storage:BlockTransferService.adoc#fetchBlocks[BlockTransferService], xref:storage:NettyBlockTransferService.adoc#fetchBlocks[NettyBlockTransferService], and xref:storage:ExternalShuffleClient.adoc#fetchBlocks[ExternalShuffleClient] are requested to fetch a sequence of blocks
+* storage:ShuffleClient.md#fetchBlocks[ShuffleClient], storage:BlockTransferService.md#fetchBlocks[BlockTransferService], storage:NettyBlockTransferService.md#fetchBlocks[NettyBlockTransferService], and storage:ExternalShuffleClient.md#fetchBlocks[ExternalShuffleClient] are requested to fetch a sequence of blocks
 
-* `BlockFetchStarter` is requested to xref:core:BlockFetchStarter.adoc#createAndStart[createAndStart]
+* `BlockFetchStarter` is requested to core:BlockFetchStarter.md#createAndStart[createAndStart]
 
-* xref:core:RetryingBlockFetcher.adoc[] and xref:storage:OneForOneBlockFetcher.adoc[] are created
+* core:RetryingBlockFetcher.md[] and storage:OneForOneBlockFetcher.md[] are created
 
 [[contract]]
 [source, java]
@@ -41,12 +41,12 @@ interface BlockFetchingListener extends EventListener {
 | BlockFetchingListener
 | Description
 
-| xref:core:RetryingBlockFetcher.adoc#RetryingBlockFetchListener[RetryingBlockFetchListener]
+| core:RetryingBlockFetcher.md#RetryingBlockFetchListener[RetryingBlockFetchListener]
 | [[RetryingBlockFetchListener]]
 
-| "Unnamed" in xref:storage:ShuffleBlockFetcherIterator.adoc#sendRequest[ShuffleBlockFetcherIterator]
+| "Unnamed" in storage:ShuffleBlockFetcherIterator.md#sendRequest[ShuffleBlockFetcherIterator]
 | [[ShuffleBlockFetcherIterator]]
 
-| "Unnamed" in xref:storage:BlockTransferService.adoc#fetchBlockSync[BlockTransferService]
+| "Unnamed" in storage:BlockTransferService.md#fetchBlockSync[BlockTransferService]
 | [[BlockTransferService]]
 |===

@@ -22,7 +22,7 @@ interface RpcResponseCallback {
 | `onSuccess`
 a| [[onSuccess]] Used when:
 
-* `NettyBlockRpcServer` is requested to xref:storage:NettyBlockRpcServer.adoc#receive[receive RPC messages] (i.e. `OpenBlocks` and `UploadBlock` messages)
+* `NettyBlockRpcServer` is requested to storage:NettyBlockRpcServer.md#receive[receive RPC messages] (i.e. `OpenBlocks` and `UploadBlock` messages)
 
 * `RemoteNettyRpcCallContext` is requested to `send`
 
@@ -54,7 +54,7 @@ a| [[onSuccess]] Used when:
 | "Unnamed" in TransportClient
 |
 
-| "Unnamed" in xref:storage:OneForOneBlockFetcher.adoc[]
+| "Unnamed" in storage:OneForOneBlockFetcher.md[]
 |
 
 | `OneWayRpcCallback`

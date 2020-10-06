@@ -1,6 +1,6 @@
 = Spark Architecture
 
-Spark uses a *master/worker architecture*. There is a link:spark-driver.adoc[driver] that talks to a single coordinator called link:spark-master.adoc[master] that manages link:spark-workers.adoc[workers] in which xref:executor:Executor.adoc[executors] run.
+Spark uses a *master/worker architecture*. There is a spark-driver.md[driver] that talks to a single coordinator called spark-master.md[master] that manages spark-workers.md[workers] in which executor:Executor.md[executors] run.
 
 .Spark architecture
 image::driver-sparkcontext-clustermanager-workers-executors.png[align="center"]

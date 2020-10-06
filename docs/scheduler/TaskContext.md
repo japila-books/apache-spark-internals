@@ -2,7 +2,7 @@
 
 *TaskContext* is the <<contract, base>> for <<implementations, task contexts>> that serve the following purpose:
 
-* Hold contextual information about a xref:scheduler:Task.adoc[task] at execution, e.g. <<partitionId, partitionId>>, <<stageId, stageId>>, <<attemptNumber, attemptNumber>>, <<taskAttemptId, taskAttemptId>>
+* Hold contextual information about a scheduler:Task.md[task] at execution, e.g. <<partitionId, partitionId>>, <<stageId, stageId>>, <<attemptNumber, attemptNumber>>, <<taskAttemptId, taskAttemptId>>
 
 * Give access to the lifecycle of a task, e.g. <<addTaskCompletionListener, addTaskCompletionListener>>, <<addTaskFailureListener, addTaskFailureListener>>
 
@@ -112,7 +112,7 @@ a| [[getMetricsSources]]
 getMetricsSources(sourceName: String): Seq[Source]
 ----
 
-<<spark-metrics-Source.adoc#, Metrics sources>> by `sourceName` which are associated with the instance that runs the task.
+<<spark-metrics-Source.md#, Metrics sources>> by `sourceName` which are associated with the instance that runs the task.
 
 Used when...FIXME
 
@@ -194,7 +194,7 @@ a| [[partitionId]]
 partitionId(): Int
 ----
 
-ID of the link:spark-rdd-Partition.adoc[Partition] computed by the task
+ID of the spark-rdd-Partition.md[Partition] computed by the task
 
 Used when...FIXME
 
@@ -236,7 +236,7 @@ a| [[stageId]]
 stageId(): Int
 ----
 
-ID of the xref:scheduler:Stage.adoc[Stage] the task belongs to
+ID of the scheduler:Stage.md[Stage] the task belongs to
 
 Used when...FIXME
 
@@ -260,7 +260,7 @@ a| [[taskMemoryManager]]
 taskMemoryManager(): TaskMemoryManager
 ----
 
-xref:memory:TaskMemoryManager.adoc[TaskMemoryManager]
+memory:TaskMemoryManager.md[TaskMemoryManager]
 
 Used when...FIXME
 
@@ -272,7 +272,7 @@ a| [[taskMetrics]]
 taskMetrics(): TaskMetrics
 ----
 
-xref:executor:TaskMetrics.adoc[]
+executor:TaskMetrics.md[]
 
 Used when...FIXME
 
@@ -285,10 +285,10 @@ Used when...FIXME
 | TaskContext
 | Description
 
-| <<spark-BarrierTaskContext.adoc#, BarrierTaskContext>>
+| <<spark-BarrierTaskContext.md#, BarrierTaskContext>>
 | [[BarrierTaskContext]]
 
-| <<spark-TaskContextImpl.adoc#, TaskContextImpl>>
+| <<spark-TaskContextImpl.md#, TaskContextImpl>>
 | [[TaskContextImpl]]
 
 |===
@@ -306,7 +306,7 @@ setTaskContext(tc: TaskContext): Unit
 ====
 `setTaskContext` is used when:
 
-* `Task` is requested to xref:scheduler:Task.adoc#run[run] (when `Executor` is requested to xref:executor:Executor.adoc#launchTask[launch a task (on "Executor task launch worker" thread pool) sometime in the future])
+* `Task` is requested to scheduler:Task.md#run[run] (when `Executor` is requested to executor:Executor.md#launchTask[launch a task (on "Executor task launch worker" thread pool) sometime in the future])
 
 * _other cases of less importance_
 ====

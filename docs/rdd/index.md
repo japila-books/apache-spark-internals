@@ -16,8 +16,8 @@ Using RDD Spark hides data partitioning and so distribution that in turn allowed
 The features of RDDs (decomposing the name):
 
 * *Resilient*, i.e. fault-tolerant with the help of <<lineage, RDD lineage graph>> and so able to recompute missing or damaged partitions due to node failures.
-* *Distributed* with data residing on multiple nodes in a link:spark-cluster.adoc[cluster].
-* *Dataset* is a collection of link:spark-rdd-partitions.adoc[partitioned data] with primitive values or values of values, e.g. tuples or other objects (that represent records of the data you work with).
+* *Distributed* with data residing on multiple nodes in a spark-cluster.md[cluster].
+* *Dataset* is a collection of spark-rdd-partitions.md[partitioned data] with primitive values or values of values, e.g. tuples or other objects (that represent records of the data you work with).
 
 .RDDs
 image::spark-rdds.png[align="center"]
@@ -41,14 +41,14 @@ Beside the above traits (that are directly embedded in the name of the data abst
 * *Partitioned* -- records are partitioned (split into logical partitions) and distributed across nodes in a cluster.
 * *Location-Stickiness* -- `RDD` can define <<preferredLocations, placement preferences>> to compute partitions (as close to the records as possible).
 
-NOTE: *Preferred location* (aka _locality preferences_ or _placement preferences_ or _locality info_) is information about the locations of RDD records (that Spark's xref:scheduler:DAGScheduler.adoc#preferred-locations[DAGScheduler] uses to place computing partitions on to have the tasks as close to the data as possible).
+NOTE: *Preferred location* (aka _locality preferences_ or _placement preferences_ or _locality info_) is information about the locations of RDD records (that Spark's scheduler:DAGScheduler.md#preferred-locations[DAGScheduler] uses to place computing partitions on to have the tasks as close to the data as possible).
 
-Computing partitions in a RDD is a distributed process by design and to achieve even *data distribution* as well as leverage link:spark-data-locality.adoc[data locality] (in distributed systems like HDFS or Cassandra in which data is partitioned by default), they are *partitioned* to a fixed number of link:spark-rdd-partitions.adoc[partitions] - logical chunks (parts) of data. The logical division is for processing only and internally it is not divided whatsoever. Each partition comprises of *records*.
+Computing partitions in a RDD is a distributed process by design and to achieve even *data distribution* as well as leverage spark-data-locality.md[data locality] (in distributed systems like HDFS or Cassandra in which data is partitioned by default), they are *partitioned* to a fixed number of spark-rdd-partitions.md[partitions] - logical chunks (parts) of data. The logical division is for processing only and internally it is not divided whatsoever. Each partition comprises of *records*.
 
 .RDDs
 image::spark-rdd-partitioned-distributed.png[align="center"]
 
-link:spark-rdd-partitions.adoc[Partitions are the units of parallelism]. You can control the number of partitions of a RDD using link:spark-rdd-partitions.adoc#repartition[repartition] or link:spark-rdd-partitions.adoc#coalesce[coalesce] transformations. Spark tries to be as close to data as possible without wasting time to send data across network by means of link:spark-rdd-shuffle.adoc[RDD shuffling], and creates as many partitions as required to follow the storage layout and thus optimize data access. It leads to a one-to-one mapping between (physical) data in distributed data storage, e.g. HDFS or Cassandra, and partitions.
+spark-rdd-partitions.md[Partitions are the units of parallelism]. You can control the number of partitions of a RDD using spark-rdd-partitions.md#repartition[repartition] or spark-rdd-partitions.md#coalesce[coalesce] transformations. Spark tries to be as close to data as possible without wasting time to send data across network by means of spark-rdd-shuffle.md[RDD shuffling], and creates as many partitions as required to follow the storage layout and thus optimize data access. It leads to a one-to-one mapping between (physical) data in distributed data storage, e.g. HDFS or Cassandra, and partitions.
 
 RDDs support two kinds of operations:
 
@@ -65,24 +65,24 @@ network.
 
 Technically, RDDs follow the <<contract, contract>> defined by the five main intrinsic properties:
 
-* [[dependencies]] *Parent RDDs* (aka xref:rdd:RDD.adoc#dependencies[RDD dependencies])
+* [[dependencies]] *Parent RDDs* (aka rdd:RDD.md#dependencies[RDD dependencies])
 
-* An array of link:spark-rdd-partitions.adoc[partitions] that a dataset is divided to.
+* An array of spark-rdd-partitions.md[partitions] that a dataset is divided to.
 
-* A xref:rdd:RDD.adoc#compute[compute] function to do a computation on partitions.
+* A rdd:RDD.md#compute[compute] function to do a computation on partitions.
 
-* An optional xref:rdd:Partitioner.adoc[Partitioner] that defines how keys are hashed, and the pairs partitioned (for key-value RDDs)
+* An optional rdd:Partitioner.md[Partitioner] that defines how keys are hashed, and the pairs partitioned (for key-value RDDs)
 
 * Optional <<getPreferredLocations, preferred locations>> (aka *locality info*), i.e. hosts for a partition where the records live or are the closest to read from.
 
 This RDD abstraction supports an expressive set of operations without having to modify scheduler for each one.
 
 [[context]]
-An RDD is a named (by `name`) and uniquely identified (by `id`) entity in a xref:ROOT:SparkContext.adoc[] (available as `context` property).
+An RDD is a named (by `name`) and uniquely identified (by `id`) entity in a ROOT:SparkContext.md[] (available as `context` property).
 
-RDDs live in one and only one xref:ROOT:SparkContext.adoc[] that creates a logical boundary.
+RDDs live in one and only one ROOT:SparkContext.md[] that creates a logical boundary.
 
-NOTE: RDDs cannot be shared between `SparkContexts` (see xref:ROOT:SparkContext.adoc#sparkcontext-and-rdd[SparkContext and RDDs]).
+NOTE: RDDs cannot be shared between `SparkContexts` (see ROOT:SparkContext.md#sparkcontext-and-rdd[SparkContext and RDDs]).
 
 An RDD can optionally have a friendly name accessible using `name` that can be changed using `=`:
 
@@ -106,7 +106,7 @@ scala> ns.toDebugString
 res3: String = (8) Friendly name ParallelCollectionRDD[2] at parallelize at <console>:24 []
 ```
 
-RDDs are a container of instructions on how to materialize big (arrays of) distributed data, and how to split it into partitions so Spark (using xref:executor:Executor.adoc[executors]) can hold some of them.
+RDDs are a container of instructions on how to materialize big (arrays of) distributed data, and how to split it into partitions so Spark (using executor:Executor.md[executors]) can hold some of them.
 
 In general data distribution can help executing processing in parallel so a task processes a chunk of data that it could eventually keep in memory.
 
@@ -118,13 +118,13 @@ Saving partitions results in part-files instead of one single file (unless there
 
 A *transformation* is a lazy operation on a RDD that returns another RDD, e.g. `map`, `flatMap`, `filter`, `reduceByKey`, `join`, `cogroup`, etc.
 
-Find out more in xref:rdd:spark-rdd-transformations.adoc[Transformations].
+Find out more in rdd:spark-rdd-transformations.md[Transformations].
 
 == [[actions]] Actions
 
 An *action* is an operation that triggers execution of <<transformations, RDD transformations>> and returns a value (to a Spark driver - the user program).
 
-TIP: Go in-depth in the section link:spark-rdd-actions.adoc[Actions].
+TIP: Go in-depth in the section spark-rdd-actions.md[Actions].
 
 == [[creating-rdds]] Creating RDDs
 
@@ -169,11 +169,11 @@ scala> val words = sc.textFile("README.md").flatMap(_.split("\\W+")).cache
 words: org.apache.spark.rdd.RDD[String] = MapPartitionsRDD[27] at flatMap at <console>:24
 ```
 
-NOTE: You link:spark-rdd-caching.adoc[cache] it so the computation is not performed every time you work with `words`.
+NOTE: You spark-rdd-caching.md[cache] it so the computation is not performed every time you work with `words`.
 
 == [[creating-rdds-from-input]] Creating RDDs from Input
 
-Refer to link:spark-io.adoc[Using Input and Output (I/O)] to learn about the IO API to create RDDs.
+Refer to spark-io.md[Using Input and Output (I/O)] to learn about the IO API to create RDDs.
 
 === Transformations
 
@@ -183,7 +183,7 @@ Refer to <<transformations, Transformations>> section to learn more.
 
 == RDDs in Web UI
 
-It is quite informative to look at RDDs in the Web UI that is at http://localhost:4040 for link:spark-shell.adoc[Spark shell].
+It is quite informative to look at RDDs in the Web UI that is at http://localhost:4040 for spark-shell.md[Spark shell].
 
 Execute the following Spark application (type all the lines in `spark-shell`):
 

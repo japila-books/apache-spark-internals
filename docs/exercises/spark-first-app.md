@@ -15,7 +15,7 @@ The application's main code is under `src/main/scala` directory, in `SparkMeApp.
 
 With the files in a directory, executing `sbt package` results in a package that can be deployed onto a Spark cluster using `spark-submit`.
 
-In this example, you're going to use Spark's link:local/spark-local.adoc[local mode].
+In this example, you're going to use Spark's local/spark-local.md[local mode].
 
 === Project's build - build.sbt
 
@@ -88,7 +88,7 @@ In `target/scala-2.11/sparkme-project_2.11-1.0.jar` there is the final applicati
 
 === Submitting Application to Spark (local)
 
-NOTE: The application is going to be deployed to `local[*]`. Change it to whatever cluster you have available (refer to link:spark-cluster.adoc[Running Spark in cluster]).
+NOTE: The application is going to be deployed to `local[*]`. Change it to whatever cluster you have available (refer to spark-cluster.md[Running Spark in cluster]).
 
 `spark-submit` the SparkMe application and specify the file to process (as it is the only and required input parameter to the application), e.g. `build.sbt` of the project.
 

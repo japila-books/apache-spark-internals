@@ -4,7 +4,7 @@
 
 TIP: Read the official documentation about the topic {url-spark-docs}/rdd-programming-guide.html#shuffle-operations[Shuffle operations]. It is _still_ better than this page.
 
-*Shuffling* is a process of link:spark-rdd-partitions.adoc[redistributing data across partitions] (aka _repartitioning_) that may or may not cause moving data across JVM processes or even over the wire (between executors on separate machines).
+*Shuffling* is a process of spark-rdd-partitions.md[redistributing data across partitions] (aka _repartitioning_) that may or may not cause moving data across JVM processes or even over the wire (between executors on separate machines).
 
 Shuffling is the process of data transfer between stages.
 
@@ -60,7 +60,7 @@ The screenshot of Web UI shows 3 stages with two `parallelize` to Shuffle Write 
 
 CAUTION: FIXME Just learnt about sc.range(0, 5) as a shorter version of sc.parallelize(0 to 5)
 
-`join` operation is one of the *cogroup operations* that uses `defaultPartitioner`, i.e. walks through link:spark-rdd-lineage.adoc[the RDD lineage graph] (sorted by the number of partitions decreasing) and picks the partitioner with positive number of output partitions. Otherwise, it checks xref:ROOT:configuration-properties.adoc#spark.default.parallelism[spark.default.parallelism] configuration and if defined picks xref:rdd:HashPartitioner.adoc[HashPartitioner] with the default parallelism of the xref:scheduler:SchedulerBackend.adoc[SchedulerBackend].
+`join` operation is one of the *cogroup operations* that uses `defaultPartitioner`, i.e. walks through spark-rdd-lineage.md[the RDD lineage graph] (sorted by the number of partitions decreasing) and picks the partitioner with positive number of output partitions. Otherwise, it checks ROOT:configuration-properties.md#spark.default.parallelism[spark.default.parallelism] configuration and if defined picks rdd:HashPartitioner.md[HashPartitioner] with the default parallelism of the scheduler:SchedulerBackend.md[SchedulerBackend].
 
 `join` is almost `CoGroupedRDD.mapValues`.
 

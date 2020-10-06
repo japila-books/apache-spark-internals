@@ -1,8 +1,8 @@
 = Netty-based RpcEnv
 
-Netty-based RPC Environment is created by `NettyRpcEnvFactory` when xref:rpc:index.adoc#settings[spark.rpc] is `netty` or `org.apache.spark.rpc.netty.NettyRpcEnvFactory`.
+Netty-based RPC Environment is created by `NettyRpcEnvFactory` when rpc:index.md#settings[spark.rpc] is `netty` or `org.apache.spark.rpc.netty.NettyRpcEnvFactory`.
 
-NettyRpcEnv is only started on link:spark-driver.adoc[the driver]. See <<client-mode, Client Mode>>.
+NettyRpcEnv is only started on spark-driver.md[the driver]. See <<client-mode, Client Mode>>.
 
 The default port to listen to is `7077`.
 
@@ -59,11 +59,11 @@ The Netty-based implementation uses the following properties:
 
 == [[endpoints]] Endpoints
 
-* `endpoint-verifier` (`RpcEndpointVerifier`) - a xref:rpc:RpcEndpoint.adoc[RpcEndpoint] for remote RpcEnvs to query whether an RpcEndpoint exists or not. It uses `Dispatcher` that keeps track of registered endpoints and responds `true`/`false` to `CheckExistence` message.
+* `endpoint-verifier` (`RpcEndpointVerifier`) - a rpc:RpcEndpoint.md[RpcEndpoint] for remote RpcEnvs to query whether an RpcEndpoint exists or not. It uses `Dispatcher` that keeps track of registered endpoints and responds `true`/`false` to `CheckExistence` message.
 
 `endpoint-verifier` is used to check out whether a given endpoint exists or not before the endpoint's reference is given back to clients.
 
-One use case is when an link:spark-standalone.adoc#AppClient[AppClient connects to standalone Masters] before it registers the application it acts for.
+One use case is when an spark-standalone.md#AppClient[AppClient connects to standalone Masters] before it registers the application it acts for.
 
 CAUTION: FIXME Who'd like to use `endpoint-verifier` and how?
 

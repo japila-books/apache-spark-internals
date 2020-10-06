@@ -1,10 +1,10 @@
 = [[CoarseGrainedSchedulerBackend]] CoarseGrainedSchedulerBackend
 
-`CoarseGrainedSchedulerBackend` is a xref:scheduler:SchedulerBackend.adoc[SchedulerBackend].
+`CoarseGrainedSchedulerBackend` is a scheduler:SchedulerBackend.md[SchedulerBackend].
 
-`CoarseGrainedSchedulerBackend` is an link:spark-service-ExecutorAllocationClient.adoc[ExecutorAllocationClient].
+`CoarseGrainedSchedulerBackend` is an spark-service-ExecutorAllocationClient.md[ExecutorAllocationClient].
 
-`CoarseGrainedSchedulerBackend` is responsible for requesting resources from a cluster manager for executors that it in turn uses to xref:scheduler:CoarseGrainedSchedulerBackend-DriverEndpoint.adoc#launchTasks[launch tasks] (on xref:executor:CoarseGrainedExecutorBackend.adoc[]).
+`CoarseGrainedSchedulerBackend` is responsible for requesting resources from a cluster manager for executors that it in turn uses to scheduler:CoarseGrainedSchedulerBackend-DriverEndpoint.md#launchTasks[launch tasks] (on executor:CoarseGrainedExecutorBackend.md[]).
 
 `CoarseGrainedSchedulerBackend` holds executors for the duration of the Spark job rather than relinquishing executors whenever a task is done and asking the scheduler to launch a new executor for each new task.
 
@@ -12,7 +12,7 @@ CAUTION: FIXME Picture with dependencies
 
 `CoarseGrainedSchedulerBackend` registers <<CoarseGrainedScheduler, CoarseGrainedScheduler RPC Endpoint>> that executors use for RPC communication.
 
-NOTE: *Active executors* are executors that are not <<executorsPendingToRemove, pending to be removed>> or xref:scheduler:CoarseGrainedSchedulerBackend-DriverEndpoint.adoc#executorsPendingLossReason[lost].
+NOTE: *Active executors* are executors that are not <<executorsPendingToRemove, pending to be removed>> or scheduler:CoarseGrainedSchedulerBackend-DriverEndpoint.md#executorsPendingLossReason[lost].
 
 [[builtin-implementations]]
 .Built-In CoarseGrainedSchedulerBackends per Cluster Environment
@@ -22,13 +22,13 @@ NOTE: *Active executors* are executors that are not <<executorsPendingToRemove, 
 | CoarseGrainedSchedulerBackend
 
 | Spark Standalone
-| link:spark-standalone-StandaloneSchedulerBackend.adoc[StandaloneSchedulerBackend]
+| spark-standalone-StandaloneSchedulerBackend.md[StandaloneSchedulerBackend]
 
 | Spark on YARN
-| link:yarn/spark-yarn-yarnschedulerbackend.adoc[YarnSchedulerBackend]
+| yarn/spark-yarn-yarnschedulerbackend.md[YarnSchedulerBackend]
 
 | Spark on Mesos
-| link:spark-mesos/spark-mesos-MesosCoarseGrainedSchedulerBackend.adoc[MesosCoarseGrainedSchedulerBackend]
+| spark-mesos/spark-mesos-MesosCoarseGrainedSchedulerBackend.md[MesosCoarseGrainedSchedulerBackend]
 |===
 
 NOTE: `CoarseGrainedSchedulerBackend` is only created indirectly through <<builtin-implementations, built-in implementations per cluster environment>>.
@@ -45,19 +45,19 @@ NOTE: `CoarseGrainedSchedulerBackend` is only created indirectly through <<built
 |
 | The last (highest) identifier of all <<RegisterExecutor, allocated executors>>.
 
-Used exclusively in link:yarn/spark-yarn-cluster-YarnSchedulerEndpoint.adoc#RetrieveLastAllocatedExecutorId[`YarnSchedulerEndpoint` to respond to `RetrieveLastAllocatedExecutorId` message].
+Used exclusively in yarn/spark-yarn-cluster-YarnSchedulerEndpoint.md#RetrieveLastAllocatedExecutorId[`YarnSchedulerEndpoint` to respond to `RetrieveLastAllocatedExecutorId` message].
 
 | [[createTime]] `createTime`
 | Current time
 | The time <<creating-instance, `CoarseGrainedSchedulerBackend` was created>>.
 
 | [[defaultAskTimeout]] `defaultAskTimeout`
-| xref:rpc:index.adoc#spark.rpc.askTimeout[spark.rpc.askTimeout] or xref:rpc:index.adoc#spark.network.timeout[spark.network.timeout] or `120s`
+| rpc:index.md#spark.rpc.askTimeout[spark.rpc.askTimeout] or rpc:index.md#spark.network.timeout[spark.network.timeout] or `120s`
 | Default timeout for blocking RPC messages (_aka_ ask messages).
 
 | [[driverEndpoint]] `driverEndpoint`
 | (uninitialized)
-a| xref:rpc:RpcEndpointRef.adoc[RPC endpoint reference] to `CoarseGrainedScheduler` RPC endpoint (with xref:scheduler:CoarseGrainedSchedulerBackend-DriverEndpoint.adoc[DriverEndpoint] as the message handler).
+a| rpc:RpcEndpointRef.md[RPC endpoint reference] to `CoarseGrainedScheduler` RPC endpoint (with scheduler:CoarseGrainedSchedulerBackend-DriverEndpoint.md[DriverEndpoint] as the message handler).
 
 Initialized when `CoarseGrainedSchedulerBackend` <<start, starts>>.
 
@@ -76,7 +76,7 @@ Used when `CoarseGrainedSchedulerBackend` executes the following (asynchronously
 
 NOTE: `ExecutorData` holds an executor's endpoint reference, address, host, the number of free and total CPU cores, the URL of execution logs.
 
-Element added when xref:scheduler:CoarseGrainedSchedulerBackend-DriverEndpoint.adoc#RegisterExecutor[`DriverEndpoint` receives `RegisterExecutor` message] and removed when xref:scheduler:CoarseGrainedSchedulerBackend-DriverEndpoint.adoc#RemoveExecutor[`DriverEndpoint` receives `RemoveExecutor` message] or xref:scheduler:CoarseGrainedSchedulerBackend-DriverEndpoint.adoc#onDisconnected[a remote host (with one or many executors) disconnects].
+Element added when scheduler:CoarseGrainedSchedulerBackend-DriverEndpoint.md#RegisterExecutor[`DriverEndpoint` receives `RegisterExecutor` message] and removed when scheduler:CoarseGrainedSchedulerBackend-DriverEndpoint.md#RemoveExecutor[`DriverEndpoint` receives `RemoveExecutor` message] or scheduler:CoarseGrainedSchedulerBackend-DriverEndpoint.md#onDisconnected[a remote host (with one or many executors) disconnects].
 
 | [[executorsPendingToRemove]] `executorsPendingToRemove`
 | empty
@@ -131,7 +131,7 @@ Add the following line to `conf/log4j.properties`:
 log4j.logger.org.apache.spark.scheduler.cluster.CoarseGrainedSchedulerBackend=DEBUG
 ```
 
-Refer to link:spark-logging.adoc[Logging].
+Refer to spark-logging.md[Logging].
 ====
 
 == [[killExecutorsOnHost]] Killing All Executors on Node -- `killExecutorsOnHost` Method
@@ -150,14 +150,14 @@ makeOffers(executorId: String): Unit
 
 CAUTION: Only free cores are considered in making offers. Memory is not! Why?!
 
-It then requests xref:scheduler:TaskSchedulerImpl.adoc#resourceOffers[`TaskSchedulerImpl` to process the resource offers] to create a collection of link:spark-scheduler-TaskDescription.adoc[TaskDescription] collections that it in turn uses to xref:scheduler:CoarseGrainedSchedulerBackend-DriverEndpoint.adoc#launchTasks[launch tasks].
+It then requests scheduler:TaskSchedulerImpl.md#resourceOffers[`TaskSchedulerImpl` to process the resource offers] to create a collection of spark-scheduler-TaskDescription.md[TaskDescription] collections that it in turn uses to scheduler:CoarseGrainedSchedulerBackend-DriverEndpoint.md#launchTasks[launch tasks].
 
 == [[creating-instance]] Creating CoarseGrainedSchedulerBackend Instance
 
 `CoarseGrainedSchedulerBackend` takes the following when created:
 
-. [[scheduler]] xref:scheduler:TaskSchedulerImpl.adoc[TaskSchedulerImpl]
-. [[rpcEnv]] xref:rpc:index.adoc[RpcEnv]
+. [[scheduler]] scheduler:TaskSchedulerImpl.md[TaskSchedulerImpl]
+. [[rpcEnv]] rpc:index.md[RpcEnv]
 
 `CoarseGrainedSchedulerBackend` initializes the <<internal-registries, internal registries and counters>>.
 
@@ -165,7 +165,7 @@ It then requests xref:scheduler:TaskSchedulerImpl.adoc#resourceOffers[`TaskSched
 
 When called, `getExecutorIds` simply returns executor ids from the internal <<executorDataMap, executorDataMap>> registry.
 
-NOTE: It is called when xref:ROOT:SparkContext.adoc#getExecutorIds[SparkContext calculates executor ids].
+NOTE: It is called when ROOT:SparkContext.md#getExecutorIds[SparkContext calculates executor ids].
 
 == [[contract]] CoarseGrainedSchedulerBackend Contract
 
@@ -236,7 +236,7 @@ requestExecutors(numAdditionalExecutors: Int): Boolean
 
 `requestExecutors` is a "decorator" method that ultimately calls a cluster-specific <<doRequestTotalExecutors, doRequestTotalExecutors>> method and returns whether the request was acknowledged or not (it is assumed `false` by default).
 
-NOTE: `requestExecutors` method is part of link:spark-service-ExecutorAllocationClient.adoc[ExecutorAllocationClient Contract] that xref:ROOT:SparkContext.adoc#requestExecutors[SparkContext uses for requesting additional executors] (as a part of a developer API for dynamic allocation of executors).
+NOTE: `requestExecutors` method is part of spark-service-ExecutorAllocationClient.md[ExecutorAllocationClient Contract] that ROOT:SparkContext.md#requestExecutors[SparkContext uses for requesting additional executors] (as a part of a developer API for dynamic allocation of executors).
 
 When called, you should see the following INFO message followed by DEBUG message in the logs:
 
@@ -271,7 +271,7 @@ requestTotalExecutors(
 
 `requestTotalExecutors` is a "decorator" method that ultimately calls a cluster-specific <<doRequestTotalExecutors, doRequestTotalExecutors>> method and returns whether the request was acknowledged or not (it is assumed `false` by default).
 
-NOTE: `requestTotalExecutors` is part of link:spark-service-ExecutorAllocationClient.adoc[ExecutorAllocationClient Contract] that xref:ROOT:SparkContext.adoc#requestTotalExecutors[SparkContext uses for requesting the exact number of executors].
+NOTE: `requestTotalExecutors` is part of spark-service-ExecutorAllocationClient.md[ExecutorAllocationClient Contract] that ROOT:SparkContext.md#requestTotalExecutors[SparkContext uses for requesting the exact number of executors].
 
 It sets the internal <<localityAwareTasks, localityAwareTasks>> and <<hostToLocalTaskCount, hostToLocalTaskCount>> registries. It then calculates the exact number of executors which is the input `numExecutors` and the <<executorsPendingToRemove, executors pending removal>> decreased by the number of <<numExistingExecutors, already-assigned executors>>.
 
@@ -292,9 +292,9 @@ NOTE: The method is a synchronized block that makes multiple concurrent requests
 defaultParallelism(): Int
 ----
 
-NOTE: `defaultParallelism` is part of the xref:scheduler:SchedulerBackend.adoc#contract[SchedulerBackend Contract].
+NOTE: `defaultParallelism` is part of the scheduler:SchedulerBackend.md#contract[SchedulerBackend Contract].
 
-`defaultParallelism` is xref:ROOT:configuration-properties.adoc#spark.default.parallelism[spark.default.parallelism] configuration property if defined.
+`defaultParallelism` is ROOT:configuration-properties.md#spark.default.parallelism[spark.default.parallelism] configuration property if defined.
 
 Otherwise, `defaultParallelism` is the maximum of <<totalCoreCount, totalCoreCount>> or `2`.
 
@@ -305,9 +305,9 @@ Otherwise, `defaultParallelism` is the maximum of <<totalCoreCount, totalCoreCou
 killTask(taskId: Long, executorId: String, interruptThread: Boolean): Unit
 ----
 
-NOTE: `killTask` is part of the xref:scheduler:SchedulerBackend.adoc#killTask[SchedulerBackend contract].
+NOTE: `killTask` is part of the scheduler:SchedulerBackend.md#killTask[SchedulerBackend contract].
 
-`killTask` simply sends a xref:scheduler:CoarseGrainedSchedulerBackend-DriverEndpoint.adoc#KillTask[KillTask] message to <<driverEndpoint, driverEndpoint>>.
+`killTask` simply sends a scheduler:CoarseGrainedSchedulerBackend-DriverEndpoint.md#KillTask[KillTask] message to <<driverEndpoint, driverEndpoint>>.
 
 CAUTION: FIXME Image
 
@@ -335,7 +335,7 @@ INFO CoarseGrainedSchedulerBackend: Shutting down all executors
 Stale executor after cluster manager re-registered.
 ```
 
-`reset` is a method that is defined in `CoarseGrainedSchedulerBackend`, but used and overriden exclusively by link:yarn/spark-yarn-yarnschedulerbackend.adoc[YarnSchedulerBackend].
+`reset` is a method that is defined in `CoarseGrainedSchedulerBackend`, but used and overriden exclusively by yarn/spark-yarn-yarnschedulerbackend.md[YarnSchedulerBackend].
 
 == [[removeExecutor]] Remove Executor -- `removeExecutor` Method
 
@@ -346,15 +346,15 @@ removeExecutor(executorId: String, reason: ExecutorLossReason)
 
 `removeExecutor` sends a blocking <<RemoveExecutor, RemoveExecutor>> message to <<driverEndpoint, driverEndpoint>>.
 
-NOTE: It is called by subclasses link:spark-standalone.adoc#SparkDeploySchedulerBackend[SparkDeploySchedulerBackend], link:spark-mesos/spark-mesos.adoc#CoarseMesosSchedulerBackend[CoarseMesosSchedulerBackend], and link:yarn/spark-yarn-yarnschedulerbackend.adoc[YarnSchedulerBackend].
+NOTE: It is called by subclasses spark-standalone.md#SparkDeploySchedulerBackend[SparkDeploySchedulerBackend], spark-mesos/spark-mesos.md#CoarseMesosSchedulerBackend[CoarseMesosSchedulerBackend], and yarn/spark-yarn-yarnschedulerbackend.md[YarnSchedulerBackend].
 
 == [[CoarseGrainedScheduler]] CoarseGrainedScheduler RPC Endpoint -- `driverEndpoint`
 
 When <<start, CoarseGrainedSchedulerBackend starts>>, it registers *CoarseGrainedScheduler* RPC endpoint to be the driver's communication endpoint.
 
-`driverEndpoint` is a xref:scheduler:CoarseGrainedSchedulerBackend-DriverEndpoint.adoc[DriverEndpoint].
+`driverEndpoint` is a scheduler:CoarseGrainedSchedulerBackend-DriverEndpoint.md[DriverEndpoint].
 
-NOTE: `CoarseGrainedSchedulerBackend` is created while xref:ROOT:SparkContext.adoc#createTaskScheduler[SparkContext is being created] that in turn lives inside a link:spark-driver.adoc[Spark driver]. That explains the name `driverEndpoint` (at least partially).
+NOTE: `CoarseGrainedSchedulerBackend` is created while ROOT:SparkContext.md#createTaskScheduler[SparkContext is being created] that in turn lives inside a spark-driver.md[Spark driver]. That explains the name `driverEndpoint` (at least partially).
 
 It is called *standalone scheduler's driver endpoint* internally.
 
@@ -371,14 +371,14 @@ CAUTION: FIXME A potential issue with `driverEndpoint.asInstanceOf[NettyRpcEndpo
 start(): Unit
 ----
 
-NOTE: `start` is part of the xref:scheduler:SchedulerBackend.adoc#contract[SchedulerBackend contract].
+NOTE: `start` is part of the scheduler:SchedulerBackend.md#contract[SchedulerBackend contract].
 
-`start` takes all ``spark.``-prefixed properties and registers the <<driverEndpoint, `CoarseGrainedScheduler` RPC endpoint>> (backed by xref:scheduler:CoarseGrainedSchedulerBackend-DriverEndpoint.adoc[DriverEndpoint ThreadSafeRpcEndpoint]).
+`start` takes all ``spark.``-prefixed properties and registers the <<driverEndpoint, `CoarseGrainedScheduler` RPC endpoint>> (backed by scheduler:CoarseGrainedSchedulerBackend-DriverEndpoint.md[DriverEndpoint ThreadSafeRpcEndpoint]).
 
 .CoarseGrainedScheduler Endpoint
 image::CoarseGrainedScheduler-rpc-endpoint.png[align="center"]
 
-NOTE: `start` uses <<scheduler, TaskSchedulerImpl>> to access the current xref:ROOT:SparkContext.adoc[SparkContext] and in turn xref:ROOT:SparkConf.adoc[SparkConf].
+NOTE: `start` uses <<scheduler, TaskSchedulerImpl>> to access the current ROOT:SparkContext.md[SparkContext] and in turn ROOT:SparkConf.md[SparkConf].
 
 NOTE: `start` uses <<rpcEnv, RpcEnv>> that was given when <<creating-instance, `CoarseGrainedSchedulerBackend` was created>>.
 
@@ -389,7 +389,7 @@ NOTE: `start` uses <<rpcEnv, RpcEnv>> that was given when <<creating-instance, `
 isReady(): Boolean
 ----
 
-NOTE: `isReady` is part of the xref:scheduler:SchedulerBackend.adoc#contract[SchedulerBackend contract].
+NOTE: `isReady` is part of the scheduler:SchedulerBackend.md#contract[SchedulerBackend contract].
 
 `isReady` allows to delay task launching until <<sufficientResourcesRegistered, sufficient resources are available>> or <<spark.scheduler.maxRegisteredResourcesWaitingTime, spark.scheduler.maxRegisteredResourcesWaitingTime>> passes.
 
@@ -424,9 +424,9 @@ Otherwise, when <<sufficientResourcesRegistered, no sufficient resources are ava
 reviveOffers(): Unit
 ----
 
-NOTE: `reviveOffers` is part of the xref:scheduler:SchedulerBackend.adoc#reviveOffers[SchedulerBackend contract].
+NOTE: `reviveOffers` is part of the scheduler:SchedulerBackend.md#reviveOffers[SchedulerBackend contract].
 
-`reviveOffers` simply sends a xref:scheduler:CoarseGrainedSchedulerBackend-DriverEndpoint.adoc#ReviveOffers[ReviveOffers] message to <<driverEndpoint, `CoarseGrainedSchedulerBackend` RPC endpoint>>.
+`reviveOffers` simply sends a scheduler:CoarseGrainedSchedulerBackend-DriverEndpoint.md#ReviveOffers[ReviveOffers] message to <<driverEndpoint, `CoarseGrainedSchedulerBackend` RPC endpoint>>.
 
 .CoarseGrainedExecutorBackend Revives Offers
 image::CoarseGrainedExecutorBackend-reviveOffers.png[align="center"]
@@ -438,9 +438,9 @@ image::CoarseGrainedExecutorBackend-reviveOffers.png[align="center"]
 stop(): Unit
 ----
 
-NOTE: `stop` is part of the xref:scheduler:SchedulerBackend.adoc#contract[SchedulerBackend contract].
+NOTE: `stop` is part of the scheduler:SchedulerBackend.md#contract[SchedulerBackend contract].
 
-`stop` <<stopExecutors, stops all executors>> and <<driverEndpoint, `CoarseGrainedScheduler` RPC endpoint>> (by sending a blocking xref:scheduler:CoarseGrainedSchedulerBackend-DriverEndpoint.adoc#StopDriver[StopDriver] message).
+`stop` <<stopExecutors, stops all executors>> and <<driverEndpoint, `CoarseGrainedScheduler` RPC endpoint>> (by sending a blocking scheduler:CoarseGrainedSchedulerBackend-DriverEndpoint.md#StopDriver[StopDriver] message).
 
 In case of any `Exception`, `stop` reports a `SparkException` with the message:
 
@@ -456,7 +456,7 @@ createDriverEndpointRef(
   properties: ArrayBuffer[(String, String)]): RpcEndpointRef
 ----
 
-createDriverEndpointRef <<createDriverEndpoint, creates DriverEndpoint>> and xref:rpc:index.adoc#setupEndpoint[registers it] as *CoarseGrainedScheduler*.
+createDriverEndpointRef <<createDriverEndpoint, creates DriverEndpoint>> and rpc:index.md#setupEndpoint[registers it] as *CoarseGrainedScheduler*.
 
 createDriverEndpointRef is used when CoarseGrainedSchedulerBackend is requested to <<start, start>>.
 
@@ -467,9 +467,9 @@ createDriverEndpointRef is used when CoarseGrainedSchedulerBackend is requested 
 createDriverEndpoint(properties: Seq[(String, String)]): DriverEndpoint
 ----
 
-`createDriverEndpoint` simply creates a xref:scheduler:CoarseGrainedSchedulerBackend-DriverEndpoint.adoc#creating-instance[DriverEndpoint].
+`createDriverEndpoint` simply creates a scheduler:CoarseGrainedSchedulerBackend-DriverEndpoint.md#creating-instance[DriverEndpoint].
 
-NOTE: xref:scheduler:CoarseGrainedSchedulerBackend-DriverEndpoint.adoc[DriverEndpoint] is the <<driverEndpoint, RPC endpoint of `CoarseGrainedSchedulerBackend`>>.
+NOTE: scheduler:CoarseGrainedSchedulerBackend-DriverEndpoint.md[DriverEndpoint] is the <<driverEndpoint, RPC endpoint of `CoarseGrainedSchedulerBackend`>>.
 
 NOTE: The purpose of `createDriverEndpoint` is to allow YARN to use the custom `YarnDriverEndpoint`.
 

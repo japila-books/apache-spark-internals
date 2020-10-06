@@ -9,10 +9,10 @@
 | StreamManager
 | Description
 
-| xref:rpc:NettyStreamManager.adoc[]
+| rpc:NettyStreamManager.md[]
 | [[NettyStreamManager]]
 
-| xref:network:OneForOneStreamManager.adoc[OneForOneStreamManager]
+| network:OneForOneStreamManager.md[OneForOneStreamManager]
 | [[OneForOneStreamManager]]
 
 |===

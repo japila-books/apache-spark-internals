@@ -1,8 +1,8 @@
 == [[StatsReportListener]] StatsReportListener -- Logging Summary Statistics
 
-`org.apache.spark.scheduler.StatsReportListener` (see https://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.scheduler.StatsReportListener[the listener's scaladoc]) is a xref:ROOT:SparkListener.adoc[] that logs summary statistics when each stage completes.
+`org.apache.spark.scheduler.StatsReportListener` (see https://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.scheduler.StatsReportListener[the listener's scaladoc]) is a ROOT:SparkListener.md[] that logs summary statistics when each stage completes.
 
-`StatsReportListener` listens to xref:ROOT:SparkListener.adoc#SparkListenerTaskEnd[SparkListenerTaskEnd] and xref:ROOT:SparkListener.adoc#SparkListenerStageCompleted[SparkListenerStageCompleted] events and prints them out at `INFO` logging level.
+`StatsReportListener` listens to ROOT:SparkListener.md#SparkListenerTaskEnd[SparkListenerTaskEnd] and ROOT:SparkListener.md#SparkListenerStageCompleted[SparkListenerStageCompleted] events and prints them out at `INFO` logging level.
 
 [TIP]
 ====
@@ -14,7 +14,7 @@ Add the following line to `conf/log4j.properties`:
 log4j.logger.org.apache.spark.scheduler.StatsReportListener=INFO
 ```
 
-Refer to link:spark-logging.adoc[Logging].
+Refer to spark-logging.md[Logging].
 ====
 
 === [[onStageCompleted]] Intercepting Stage Completed Events -- `onStageCompleted` Callback

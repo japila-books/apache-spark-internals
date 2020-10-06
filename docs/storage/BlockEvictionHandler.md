@@ -13,8 +13,8 @@ dropFromMemory[T: ClassTag](
   data: () => Either[Array[T], ChunkedByteBuffer]): StorageLevel
 ----
 
-Used when MemoryStore is requested to xref:storage:MemoryStore.adoc#evictBlocksToFreeSpace[evictBlocksToFreeSpace].
+Used when MemoryStore is requested to storage:MemoryStore.md#evictBlocksToFreeSpace[evictBlocksToFreeSpace].
 
 == [[implementations]] Available BlockEvictionHandlers
 
-xref:storage:BlockManager.adoc[] is the default and only known BlockEvictionHandler in Apache Spark.
+storage:BlockManager.md[] is the default and only known BlockEvictionHandler in Apache Spark.

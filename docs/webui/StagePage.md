@@ -1,9 +1,9 @@
 == [[StagePage]] StagePage -- Stage Details
 
 [[prefix]]
-`StagePage` is a link:spark-webui-WebUIPage.adoc[WebUIPage] with *stage* link:spark-webui-WebUIPage.adoc#prefix[prefix].
+`StagePage` is a spark-webui-WebUIPage.md[WebUIPage] with *stage* spark-webui-WebUIPage.md#prefix[prefix].
 
-`StagePage` is <<creating-instance, created>> exclusively when `StagesTab` is link:spark-webui-StagesTab.adoc#creating-instance[created].
+`StagePage` is <<creating-instance, created>> exclusively when `StagesTab` is spark-webui-StagesTab.md#creating-instance[created].
 
 `StagePage` shows the task details for a stage given its id and attempt id.
 
@@ -12,18 +12,18 @@ image::spark-webui-stage-details.png[align="center"]
 
 `StagePage` renders a page available under `/stage` URL that requires two <<parameters, request parameters>> -- `id` and `attempt`, e.g. http://localhost:4040/stages/stage/?id=2&attempt=0.
 
-`StagePage` uses the parent's link:spark-webui-JobProgressListener.adoc[JobProgressListener] and link:spark-webui-RDDOperationGraphListener.adoc[RDDOperationGraphListener] to calculate the <<metrics, metrics>>. More specifically, `StagePage` uses ``JobProgressListener``'s link:spark-webui-JobProgressListener.adoc#stageIdToData[stageIdToData] registry to access the stage for given stage `id` and `attempt`.
+`StagePage` uses the parent's spark-webui-JobProgressListener.md[JobProgressListener] and spark-webui-RDDOperationGraphListener.md[RDDOperationGraphListener] to calculate the <<metrics, metrics>>. More specifically, `StagePage` uses ``JobProgressListener``'s spark-webui-JobProgressListener.md#stageIdToData[stageIdToData] registry to access the stage for given stage `id` and `attempt`.
 
-`StagePage` uses link:spark-webui-executors-ExecutorsListener.adoc[ExecutorsListener] to display stdout and stderr logs of the executors in <<tasks, Tasks section>>.
+`StagePage` uses spark-webui-executors-ExecutorsListener.md[ExecutorsListener] to display stdout and stderr logs of the executors in <<tasks, Tasks section>>.
 
 === [[tasks]][[TaskPagedTable]] Tasks Section
 
 .Tasks Section
 image::spark-webui-stage-tasks.png[align="center"]
 
-Tasks paged table displays link:spark-webui-JobProgressListener.adoc#StageUIData[StageUIData] that link:spark-webui-JobProgressListener.adoc#stageIdToData[`JobProgressListener` collected for a stage and stage attempt].
+Tasks paged table displays spark-webui-JobProgressListener.md#StageUIData[StageUIData] that spark-webui-JobProgressListener.md#stageIdToData[`JobProgressListener` collected for a stage and stage attempt].
 
-NOTE: The section uses link:spark-webui-executors-ExecutorsListener.adoc[ExecutorsListener] to access stdout and stderr logs for `Executor ID / Host` column.
+NOTE: The section uses spark-webui-executors-ExecutorsListener.md[ExecutorsListener] to access stdout and stderr logs for `Executor ID / Host` column.
 
 === [[summary-task-metrics]] Summary Metrics for Completed Tasks in Stage
 
@@ -60,7 +60,7 @@ If the stage has an output, the 9th row is *Output Size / Records* which is the 
 
 If the stage has shuffle read there will be three more rows in the table. The first row is *Shuffle Read Blocked Time* which is the time that tasks spent blocked waiting for shuffle data to be read from remote machines (using `shuffleReadMetrics.fetchWaitTime` task metric). The other row is *Shuffle Read Size / Records* which is the total shuffle bytes and records read (including both data read locally and data read from remote executors using `shuffleReadMetrics.totalBytesRead` and `shuffleReadMetrics.recordsRead` task metrics). And the last row is *Shuffle Remote Reads* which is the total shuffle bytes read from remote executors (which is a subset of the shuffle read bytes; the remaining shuffle data is read locally). It uses `shuffleReadMetrics.remoteBytesRead` task metric.
 
-If the stage has shuffle write, the following row is *Shuffle Write Size / Records* (using xref:executor:ShuffleWriteMetrics.adoc#bytesWritten[shuffleWriteMetrics.bytesWritten] and xref:executor:ShuffleWriteMetrics.adoc#recordsWritten[shuffleWriteMetrics.recordsWritten] task metrics).
+If the stage has shuffle write, the following row is *Shuffle Write Size / Records* (using executor:ShuffleWriteMetrics.md#bytesWritten[shuffleWriteMetrics.bytesWritten] and executor:ShuffleWriteMetrics.md#recordsWritten[shuffleWriteMetrics.recordsWritten] task metrics).
 
 If the stage has bytes spilled, the following two rows are *Shuffle spill (memory)* (using `memoryBytesSpilled` task metric) and *Shuffle spill (disk)* (using `diskBytesSpilled` task metric).
 
@@ -70,7 +70,7 @@ If the stage has bytes spilled, the following two rows are *Shuffle spill (memor
 
 `attempt` is...
 
-NOTE: `id` and `attempt` uniquely identify the stage in link:spark-webui-JobProgressListener.adoc#stageIdToData[JobProgressListener.stageIdToData] to retrieve `StageUIData`.
+NOTE: `id` and `attempt` uniquely identify the stage in spark-webui-JobProgressListener.md#stageIdToData[JobProgressListener.stageIdToData] to retrieve `StageUIData`.
 
 `task.page` (default: `1`) is...
 
@@ -132,20 +132,20 @@ image::spark-webui-stage-aggregated-metrics-by-executor.png[align="center"]
 
 It gets `executorSummary` from `StageUIData` (for the stage and stage attempt id) and creates rows per executor.
 
-It also link:spark-webui-JobProgressListener.adoc#blockManagerIds[requests BlockManagers (from JobProgressListener)] to map executor ids to a pair of host and port to display in Address column.
+It also spark-webui-JobProgressListener.md#blockManagerIds[requests BlockManagers (from JobProgressListener)] to map executor ids to a pair of host and port to display in Address column.
 
 === [[accumulators]] Accumulators
 
-Stage page displays the table with link:spark-accumulators.adoc#named[named accumulators] (only if they exist). It contains the name and value of the accumulators.
+Stage page displays the table with spark-accumulators.md#named[named accumulators] (only if they exist). It contains the name and value of the accumulators.
 
 .Accumulators Section
 image::spark-webui-stage-accumulators.png[align="center"]
 
-NOTE: The information with name and value is stored in link:spark-accumulators.adoc#AccumulableInfo[AccumulableInfo] (that is available in link:spark-webui-JobProgressListener.adoc#StageUIData[StageUIData]).
+NOTE: The information with name and value is stored in spark-accumulators.md#AccumulableInfo[AccumulableInfo] (that is available in spark-webui-JobProgressListener.md#StageUIData[StageUIData]).
 
 === [[creating-instance]] Creating StagePage Instance
 
 `StagePage` takes the following when created:
 
-* [[parent]] Parent link:spark-webui-StagesTab.adoc[StagesTab]
-* [[store]] xref:core:AppStatusStore.adoc[]
+* [[parent]] Parent spark-webui-StagesTab.md[StagesTab]
+* [[store]] core:AppStatusStore.md[]

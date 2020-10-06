@@ -15,13 +15,13 @@ Default: `0`
 In Spark on Kubernetes the default port is `7079`
 
 | spark.default.parallelism
-a| [[spark.default.parallelism]] Number of partitions to use for xref:rdd:HashPartitioner.adoc[HashPartitioner]
+a| [[spark.default.parallelism]] Number of partitions to use for rdd:HashPartitioner.md[HashPartitioner]
 
-`spark.default.parallelism` corresponds to xref:scheduler:SchedulerBackend.adoc#defaultParallelism[default parallelism] of a scheduler backend and is as follows:
+`spark.default.parallelism` corresponds to scheduler:SchedulerBackend.md#defaultParallelism[default parallelism] of a scheduler backend and is as follows:
 
-* The number of threads for link:local/spark-LocalSchedulerBackend.adoc[LocalSchedulerBackend].
-* the number of CPU cores in link:spark-mesos.adoc#defaultParallelism[Spark on Mesos] and defaults to `8`.
-* Maximum of `totalCoreCount` and `2` in xref:scheduler:CoarseGrainedSchedulerBackend.adoc#defaultParallelism[CoarseGrainedSchedulerBackend].
+* The number of threads for local/spark-LocalSchedulerBackend.md[LocalSchedulerBackend].
+* the number of CPU cores in spark-mesos.md#defaultParallelism[Spark on Mesos] and defaults to `8`.
+* Maximum of `totalCoreCount` and `2` in scheduler:CoarseGrainedSchedulerBackend.md#defaultParallelism[CoarseGrainedSchedulerBackend].
 
 | spark.diskStore.subDirectories
 a| [[spark.diskStore.subDirectories]]
@@ -29,7 +29,7 @@ a| [[spark.diskStore.subDirectories]]
 Default: `64`
 
 | spark.driver.blockManager.port
-a| [[spark.driver.blockManager.port]][[DRIVER_BLOCK_MANAGER_PORT]] Port the xref:storage:BlockManager.adoc[block manager] on the driver listens on
+a| [[spark.driver.blockManager.port]][[DRIVER_BLOCK_MANAGER_PORT]] Port the storage:BlockManager.md[block manager] on the driver listens on
 
 Default: <<spark.blockManager.port, spark.blockManager.port>>
 
@@ -40,9 +40,9 @@ Default: `1g`
 
 Used when:
 
-* `Executor` is xref:executor:Executor.adoc#maxResultSize[created] (and later for a xref:executor:TaskRunner.adoc[])
+* `Executor` is executor:Executor.md#maxResultSize[created] (and later for a executor:TaskRunner.md[])
 
-* `TaskSetManager` is xref:scheduler:TaskSetManager.adoc#maxResultSize[created] (and later requested to xref:scheduler:TaskSetManager.adoc#canFetchMoreResults[check available memory for task results])
+* `TaskSetManager` is scheduler:TaskSetManager.md#maxResultSize[created] (and later requested to scheduler:TaskSetManager.md#canFetchMoreResults[check available memory for task results])
 
 | spark.executor.extraClassPath
 a| [[spark.executor.extraClassPath]][[EXECUTOR_CLASS_PATH]] *User-defined class path for executors*, i.e. URLs representing user-defined class path entries that are added to an executor's class path. URLs are separated by system-dependent path separator, i.e. `:` on Unix-like systems and `;` on Microsoft Windows.
@@ -51,30 +51,30 @@ Default: `(empty)`
 
 Used when:
 
-* Spark Standalone's `StandaloneSchedulerBackend` is requested to xref:spark-standalone:spark-standalone-StandaloneSchedulerBackend.adoc#start[start] (and creates a command for xref:executor:CoarseGrainedExecutorBackend.adoc[])
+* Spark Standalone's `StandaloneSchedulerBackend` is requested to spark-standalone:spark-standalone-StandaloneSchedulerBackend.md#start[start] (and creates a command for executor:CoarseGrainedExecutorBackend.md[])
 
-* Spark local's `LocalSchedulerBackend` is requested for the xref:spark-local:spark-LocalSchedulerBackend.adoc#getUserClasspath[user-defined class path for executors]
+* Spark local's `LocalSchedulerBackend` is requested for the spark-local:spark-LocalSchedulerBackend.md#getUserClasspath[user-defined class path for executors]
 
-* Spark on Mesos' `MesosCoarseGrainedSchedulerBackend` is requested to xref:spark-on-mesos:spark-mesos-MesosCoarseGrainedSchedulerBackend.adoc#createCommand[create a command for CoarseGrainedExecutorBackend]
+* Spark on Mesos' `MesosCoarseGrainedSchedulerBackend` is requested to spark-on-mesos:spark-mesos-MesosCoarseGrainedSchedulerBackend.md#createCommand[create a command for CoarseGrainedExecutorBackend]
 
 * Spark on Mesos' `MesosFineGrainedSchedulerBackend` is requested to create a command for `MesosExecutorBackend`
 
 * Spark on Kubernetes' `BasicExecutorFeatureStep` is requested to `configurePod`
 
-* Spark on YARN's `ExecutorRunnable` is requested to xref:spark-on-yarn:spark-yarn-ExecutorRunnable.adoc#prepareEnvironment[prepareEnvironment] (for `CoarseGrainedExecutorBackend`)
+* Spark on YARN's `ExecutorRunnable` is requested to spark-on-yarn:spark-yarn-ExecutorRunnable.md#prepareEnvironment[prepareEnvironment] (for `CoarseGrainedExecutorBackend`)
 
 | spark.executor.cores
-a| [[spark.executor.cores]] Number of cores of an xref:executor:Executor.adoc[]
+a| [[spark.executor.cores]] Number of cores of an executor:Executor.md[]
 
 | spark.executor.extraJavaOptions
-a| [[spark.executor.extraJavaOptions]] Extra Java options of an xref:executor:Executor.adoc[]
+a| [[spark.executor.extraJavaOptions]] Extra Java options of an executor:Executor.md[]
 
-Used when Spark on YARN's `ExecutorRunnable` is requested to xref:spark-on-yarn:spark-yarn-ExecutorRunnable.adoc#prepareCommand[prepare the command to launch CoarseGrainedExecutorBackend in a YARN container]
+Used when Spark on YARN's `ExecutorRunnable` is requested to spark-on-yarn:spark-yarn-ExecutorRunnable.md#prepareCommand[prepare the command to launch CoarseGrainedExecutorBackend in a YARN container]
 
 | spark.executor.extraLibraryPath
 a| [[spark.executor.extraLibraryPath]] Extra library paths separated by system-dependent path separator, i.e. `:` on Unix/MacOS systems and `;` on Microsoft Windows
 
-Used when Spark on YARN's `ExecutorRunnable` is requested to xref:spark-on-yarn:spark-yarn-ExecutorRunnable.adoc#prepareCommand[prepare the command to launch CoarseGrainedExecutorBackend in a YARN container]
+Used when Spark on YARN's `ExecutorRunnable` is requested to spark-on-yarn:spark-yarn-ExecutorRunnable.md#prepareCommand[prepare the command to launch CoarseGrainedExecutorBackend in a YARN container]
 
 | spark.executor.uri
 a| [[spark.executor.uri]] Equivalent to `SPARK_EXECUTOR_URI`
@@ -95,21 +95,21 @@ a| [[spark.executor.logs.rolling.maxSize]]
 a| [[spark.executor.id]]
 
 | spark.executor.heartbeatInterval
-a| [[spark.executor.heartbeatInterval]] Interval after which an xref:executor:Executor.adoc[] reports heartbeat and metrics for active tasks to the driver
+a| [[spark.executor.heartbeatInterval]] Interval after which an executor:Executor.md[] reports heartbeat and metrics for active tasks to the driver
 
 Default: `10s`
 
-Refer to xref:executor:Executor.adoc#heartbeats-and-active-task-metrics[Sending heartbeats and partial metrics for active tasks]
+Refer to executor:Executor.md#heartbeats-and-active-task-metrics[Sending heartbeats and partial metrics for active tasks]
 
 | spark.executor.heartbeat.maxFailures
-a| [[spark.executor.heartbeat.maxFailures]] Number of times an xref:executor:Executor.adoc[] will try to send heartbeats to the driver before it gives up and exits (with exit code `56`).
+a| [[spark.executor.heartbeat.maxFailures]] Number of times an executor:Executor.md[] will try to send heartbeats to the driver before it gives up and exits (with exit code `56`).
 
 Default: `60`
 
 NOTE: Introduced in https://issues.apache.org/jira/browse/SPARK-13522[SPARK-13522 Executor should kill itself when it's unable to heartbeat to the driver more than N times].
 
 | spark.executor.instances
-a| [[spark.executor.instances]] Number of xref:executor:Executor.adoc[] in use
+a| [[spark.executor.instances]] Number of executor:Executor.md[] in use
 
 Default: `0`
 
@@ -124,13 +124,13 @@ a| [[spark.executor.userClassPathFirst]] Flag to control whether to load classes
 Default: `false`
 
 | spark.executor.memory
-a| [[spark.executor.memory]] Amount of memory to use for an xref:executor:Executor.adoc[]
+a| [[spark.executor.memory]] Amount of memory to use for an executor:Executor.md[]
 
 Default: `1g`
 
-Equivalent to xref:ROOT:SparkContext.adoc#environment-variables[SPARK_EXECUTOR_MEMORY] environment variable.
+Equivalent to ROOT:SparkContext.md#environment-variables[SPARK_EXECUTOR_MEMORY] environment variable.
 
-Refer to xref:executor:Executor.adoc#memory[Executor Memory -- spark.executor.memory or SPARK_EXECUTOR_MEMORY settings]
+Refer to executor:Executor.md#memory[Executor Memory -- spark.executor.memory or SPARK_EXECUTOR_MEMORY settings]
 
 | spark.executor.port
 a| [[spark.executor.port]]
@@ -142,22 +142,22 @@ a| [[spark.launcher.port]]
 a| [[spark.launcher.secret]]
 
 | spark.locality.wait
-a| [[spark.locality.wait]] For locality-aware delay scheduling for `PROCESS_LOCAL`, `NODE_LOCAL`, and `RACK_LOCAL` xref:scheduler:TaskSchedulerImpl.adoc#TaskLocality[TaskLocalities] when locality-specific setting is not set.
+a| [[spark.locality.wait]] For locality-aware delay scheduling for `PROCESS_LOCAL`, `NODE_LOCAL`, and `RACK_LOCAL` scheduler:TaskSchedulerImpl.md#TaskLocality[TaskLocalities] when locality-specific setting is not set.
 
 Default: `3s`
 
 | spark.locality.wait.node
-a| [[spark.locality.wait.node]] Scheduling delay for `NODE_LOCAL` xref:scheduler:TaskSchedulerImpl.adoc#TaskLocality[TaskLocality]
+a| [[spark.locality.wait.node]] Scheduling delay for `NODE_LOCAL` scheduler:TaskSchedulerImpl.md#TaskLocality[TaskLocality]
 
 Default: The value of <<spark.locality.wait, spark.locality.wait>>
 
 | spark.locality.wait.process
-a| [[spark.locality.wait.process]] Scheduling delay for `PROCESS_LOCAL` xref:scheduler:TaskSchedulerImpl.adoc#TaskLocality[TaskLocality]
+a| [[spark.locality.wait.process]] Scheduling delay for `PROCESS_LOCAL` scheduler:TaskSchedulerImpl.md#TaskLocality[TaskLocality]
 
 Default: The value of <<spark.locality.wait, spark.locality.wait>>
 
 | spark.locality.wait.rack
-a| [[spark.locality.wait.rack]] Scheduling delay for `RACK_LOCAL` xref:scheduler:TaskSchedulerImpl.adoc#TaskLocality[TaskLocality]
+a| [[spark.locality.wait.rack]] Scheduling delay for `RACK_LOCAL` scheduler:TaskSchedulerImpl.md#TaskLocality[TaskLocality]
 
 Default: The value of <<spark.locality.wait, spark.locality.wait>>
 
@@ -170,7 +170,7 @@ Default: `10000`
 a| [[spark.master]] *Master URL* to connect a Spark application to
 
 | spark.scheduler.allocation.file
-a| [[spark.scheduler.allocation.file]] Path to the configuration file of <<spark-scheduler-FairSchedulableBuilder.adoc#, FairSchedulableBuilder>>
+a| [[spark.scheduler.allocation.file]] Path to the configuration file of <<spark-scheduler-FairSchedulableBuilder.md#, FairSchedulableBuilder>>
 
 Default: `fairscheduler.xml` (on a Spark application's class path)
 
@@ -180,7 +180,7 @@ a| [[spark.scheduler.executorTaskBlacklistTime]] How long to wait before a task 
 Default: `0L`
 
 | spark.scheduler.mode
-a| [[spark.scheduler.mode]][[SCHEDULER_MODE_PROPERTY]] *Scheduling Mode* of the xref:scheduler:TaskSchedulerImpl.adoc[TaskSchedulerImpl], i.e. case-insensitive name of the xref:spark-scheduler-SchedulingMode.adoc[scheduling mode] that `TaskSchedulerImpl` uses to choose between the <<spark-scheduler-SchedulableBuilder.adoc#implementations, available SchedulableBuilders>> for task scheduling (of tasks of jobs submitted for execution to the same `SparkContext`)
+a| [[spark.scheduler.mode]][[SCHEDULER_MODE_PROPERTY]] *Scheduling Mode* of the scheduler:TaskSchedulerImpl.md[TaskSchedulerImpl], i.e. case-insensitive name of the spark-scheduler-SchedulingMode.md[scheduling mode] that `TaskSchedulerImpl` uses to choose between the <<spark-scheduler-SchedulableBuilder.md#implementations, available SchedulableBuilders>> for task scheduling (of tasks of jobs submitted for execution to the same `SparkContext`)
 
 Default: `FIFO`
 
@@ -193,7 +193,7 @@ Supported values:
 
 Scheduling mode is particularly useful in multi-tenant environments in which a single `SparkContext` could be shared across different users (to make a cluster resource utilization more efficient).
 
-TIP: Use web UI to know the current scheduling mode (e.g. <<spark-webui-environment.adoc#, Environment>> tab as part of *Spark Properties* and <<spark-webui-jobs.adoc#, Jobs>> tab as *Scheduling Mode*).
+TIP: Use web UI to know the current scheduling mode (e.g. <<spark-webui-environment.md#, Environment>> tab as part of *Spark Properties* and <<spark-webui-jobs.md#, Jobs>> tab as *Scheduling Mode*).
 
 | spark.starvation.timeout
 a| [[spark.starvation.timeout]] Threshold above which Spark warns a user that an initial TaskSet may be starved
@@ -210,22 +210,22 @@ Default: `1`
 
 Used when:
 
-* `ExecutorAllocationManager` is <<spark-ExecutorAllocationManager.adoc#tasksPerExecutorForFullParallelism, created>>
+* `ExecutorAllocationManager` is <<spark-ExecutorAllocationManager.md#tasksPerExecutorForFullParallelism, created>>
 
-* `TaskSchedulerImpl` is xref:scheduler:TaskSchedulerImpl.adoc#CPUS_PER_TASK[created]
+* `TaskSchedulerImpl` is scheduler:TaskSchedulerImpl.md#CPUS_PER_TASK[created]
 
-* AppStatusListener is requested to xref:core:AppStatusListener.adoc#onEnvironmentUpdate[handle an SparkListenerEnvironmentUpdate event]
+* AppStatusListener is requested to core:AppStatusListener.md#onEnvironmentUpdate[handle an SparkListenerEnvironmentUpdate event]
 
 * `LocalityPreferredContainerPlacementStrategy` is requested to `numExecutorsPending`
 
 | spark.task.maxFailures
-a| [[spark.task.maxFailures]] The number of individual task failures before giving up on the entire xref:scheduler:TaskSet.adoc[TaskSet] and the job afterwards
+a| [[spark.task.maxFailures]] The number of individual task failures before giving up on the entire scheduler:TaskSet.md[TaskSet] and the job afterwards
 
 Default:
 
-* `1` in xref:spark-local:spark-local.adoc[local]
-* `maxFailures` in xref:spark-local:spark-local.adoc#masterURL[local-with-retries]
-* `4` in xref:spark-cluster.adoc[cluster mode]
+* `1` in spark-local:spark-local.md[local]
+* `maxFailures` in spark-local:spark-local.md#masterURL[local-with-retries]
+* `4` in spark-cluster.md[cluster mode]
 
 | spark.unsafe.exceptionOnMemoryLeak
 a| [[spark.unsafe.exceptionOnMemoryLeak]]
@@ -258,7 +258,7 @@ Default: `0.6`
 
 == [[spark.memory.useLegacyMode]] spark.memory.useLegacyMode
 
-Controls the type of xref:memory:MemoryManager.adoc[MemoryManager] to use. When enabled (i.e. `true`) it is the legacy xref:memory:StaticMemoryManager.adoc[StaticMemoryManager] while xref:memory:UnifiedMemoryManager.adoc[UnifiedMemoryManager] otherwise (i.e. `false`).
+Controls the type of memory:MemoryManager.md[MemoryManager] to use. When enabled (i.e. `true`) it is the legacy memory:StaticMemoryManager.md[StaticMemoryManager] while memory:UnifiedMemoryManager.md[UnifiedMemoryManager] otherwise (i.e. `false`).
 
 Default: `false`
 
@@ -270,9 +270,9 @@ Default: `false`
 
 Tracks whether Tungsten memory will be allocated on the JVM heap or off-heap (using `sun.misc.Unsafe`).
 
-If enabled, <<spark.memory.offHeap.size, spark.memory.offHeap.size>> has to be xref:memory:MemoryManager.adoc#tungstenMemoryMode[greater than 0].
+If enabled, <<spark.memory.offHeap.size, spark.memory.offHeap.size>> has to be memory:MemoryManager.md#tungstenMemoryMode[greater than 0].
 
-Used when MemoryManager is requested for xref:memory:MemoryManager.adoc#tungstenMemoryMode[tungstenMemoryMode].
+Used when MemoryManager is requested for memory:MemoryManager.md#tungstenMemoryMode[tungstenMemoryMode].
 
 == [[spark.shuffle.file.buffer]] spark.shuffle.file.buffer
 
@@ -288,7 +288,7 @@ Size of object batches when reading or writing from serializers.
 
 Default: `10000`
 
-Used by xref:shuffle:ExternalAppendOnlyMap.adoc[ExternalAppendOnlyMap] and xref:shuffle:ExternalSorter.adoc[ExternalSorter]
+Used by shuffle:ExternalAppendOnlyMap.md[ExternalAppendOnlyMap] and shuffle:ExternalSorter.md[ExternalSorter]
 
 == [[spark.shuffle.spill.initialMemoryThreshold]] spark.shuffle.spill.initialMemoryThreshold
 
@@ -296,7 +296,7 @@ Initial threshold for the size of an in-memory collection
 
 Default: `5 * 1024 * 1024`
 
-Used by xref:shuffle:Spillable.adoc[Spillable]
+Used by shuffle:Spillable.md[Spillable]
 
 == [[spark.shuffle.spill.numElementsForceSpillThreshold]][[SHUFFLE_SPILL_NUM_ELEMENTS_FORCE_SPILL_THRESHOLD]] spark.shuffle.spill.numElementsForceSpillThreshold
 
@@ -310,11 +310,11 @@ Used when:
 
 * ShuffleExternalSorter is created
 
-* Spillable is requested to xref:shuffle:Spillable.adoc#maybeSpill[maybeSpill]
+* Spillable is requested to shuffle:Spillable.md#maybeSpill[maybeSpill]
 
 == [[spark.shuffle.manager]] spark.shuffle.manager
 
-Specifies the fully-qualified class name or the <<spark.shuffle.manager-aliases, alias>> of the xref:shuffle:ShuffleManager.adoc[ShuffleManager] in a Spark application
+Specifies the fully-qualified class name or the <<spark.shuffle.manager-aliases, alias>> of the shuffle:ShuffleManager.md[ShuffleManager] in a Spark application
 
 Default: `sort`
 
@@ -325,7 +325,7 @@ The supported aliases:
 
 * [[spark.shuffle.manager-tungsten-sort]] `tungsten-sort`
 
-Used when `SparkEnv` object is requested to xref:core:SparkEnv.adoc#create[create a "base" SparkEnv for a driver or an executor]
+Used when `SparkEnv` object is requested to core:SparkEnv.md#create[create a "base" SparkEnv for a driver or an executor]
 
 == [[spark.shuffle.mapOutput.dispatcher.numThreads]] spark.shuffle.mapOutput.dispatcher.numThreads
 
@@ -333,7 +333,7 @@ Default: `8`
 
 == [[spark.shuffle.mapOutput.minSizeForBroadcast]] spark.shuffle.mapOutput.minSizeForBroadcast
 
-Size of serialized shuffle map output statuses when xref:scheduler:MapOutputTrackerMaster.adoc#MessageLoop[MapOutputTrackerMaster] uses to determine whether to use a broadcast variable to send them to executors
+Size of serialized shuffle map output statuses when scheduler:MapOutputTrackerMaster.md#MessageLoop[MapOutputTrackerMaster] uses to determine whether to use a broadcast variable to send them to executors
 
 Default: `512k`
 
@@ -351,7 +351,7 @@ Increase this if you are running jobs with many thousands of map and reduce task
 
 == [[spark.shuffle.minNumPartitionsToHighlyCompress]] spark.shuffle.minNumPartitionsToHighlyCompress
 
-*(internal)* Minimum number of partitions (threshold) when `MapStatus` object creates a xref:scheduler:MapStatus.adoc#HighlyCompressedMapStatus[HighlyCompressedMapStatus] (over xref:scheduler:MapStatus.adoc#CompressedMapStatus[CompressedMapStatus]) when requested for xref:scheduler:MapStatus.adoc#apply[one] (for xref:shuffle:ShuffleWriter.adoc[ShuffleWriters]).
+*(internal)* Minimum number of partitions (threshold) when `MapStatus` object creates a scheduler:MapStatus.md#HighlyCompressedMapStatus[HighlyCompressedMapStatus] (over scheduler:MapStatus.md#CompressedMapStatus[CompressedMapStatus]) when requested for scheduler:MapStatus.md#apply[one] (for shuffle:ShuffleWriter.md[ShuffleWriters]).
 
 Default: `2000`
 
@@ -363,11 +363,11 @@ Enables locality preferences for reduce tasks
 
 Default: `true`
 
-When enabled (`true`), MapOutputTrackerMaster will xref:scheduler:MapOutputTrackerMaster.adoc#getPreferredLocationsForShuffle[compute the preferred hosts] on which to run a given map output partition in a given shuffle, i.e. the nodes that the most outputs for that partition are on.
+When enabled (`true`), MapOutputTrackerMaster will scheduler:MapOutputTrackerMaster.md#getPreferredLocationsForShuffle[compute the preferred hosts] on which to run a given map output partition in a given shuffle, i.e. the nodes that the most outputs for that partition are on.
 
 == [[spark.shuffle.sort.bypassMergeThreshold]] spark.shuffle.sort.bypassMergeThreshold
 
-Maximum number of reduce partitions below which xref:shuffle:SortShuffleManager.adoc[SortShuffleManager] avoids merge-sorting data for no map-side aggregation
+Maximum number of reduce partitions below which shuffle:SortShuffleManager.md[SortShuffleManager] avoids merge-sorting data for no map-side aggregation
 
 Default: `200`
 
@@ -375,17 +375,17 @@ Default: `200`
 
 Initial buffer size for sorting
 
-Default: xref:shuffle:UnsafeShuffleWriter.adoc#DEFAULT_INITIAL_SORT_BUFFER_SIZE[4096]
+Default: shuffle:UnsafeShuffleWriter.md#DEFAULT_INITIAL_SORT_BUFFER_SIZE[4096]
 
-Used exclusively when `UnsafeShuffleWriter` is requested to xref:shuffle:UnsafeShuffleWriter.adoc#open[open] (and creates a xref:shuffle:ShuffleExternalSorter.adoc[ShuffleExternalSorter])
+Used exclusively when `UnsafeShuffleWriter` is requested to shuffle:UnsafeShuffleWriter.md#open[open] (and creates a shuffle:ShuffleExternalSorter.md[ShuffleExternalSorter])
 
 == [[spark.shuffle.sync]] spark.shuffle.sync
 
-Controls whether DiskBlockObjectWriter should force outstanding writes to disk while xref:storage:DiskBlockObjectWriter.adoc#commitAndGet[committing a single atomic block], i.e. all operating system buffers should synchronize with the disk to ensure that all changes to a file are in fact recorded in the storage.
+Controls whether DiskBlockObjectWriter should force outstanding writes to disk while storage:DiskBlockObjectWriter.md#commitAndGet[committing a single atomic block], i.e. all operating system buffers should synchronize with the disk to ensure that all changes to a file are in fact recorded in the storage.
 
 Default: `false`
 
-Used when BlockManager is requested for a xref:storage:BlockManager.adoc#getDiskWriter[DiskBlockObjectWriter]
+Used when BlockManager is requested for a storage:BlockManager.md#getDiskWriter[DiskBlockObjectWriter]
 
 == [[spark.shuffle.unsafe.file.output.buffer]] spark.shuffle.unsafe.file.output.buffer
 
@@ -421,7 +421,7 @@ Default: `true`
 
 == [[spark.shuffle.service.enabled]][[SHUFFLE_SERVICE_ENABLED]] spark.shuffle.service.enabled
 
-Controls whether to use the xref:deploy:ExternalShuffleService.adoc[External Shuffle Service]
+Controls whether to use the deploy:ExternalShuffleService.md[External Shuffle Service]
 
 Default: `false`
 
@@ -439,7 +439,7 @@ Default: `true`
 
 == [[spark.shuffle.unsafe.fastMergeEnabled]] spark.shuffle.unsafe.fastMergeEnabled
 
-Enables fast merge strategy for UnsafeShuffleWriter to xref:shuffle:UnsafeShuffleWriter.adoc#mergeSpills[merge spill files].
+Enables fast merge strategy for UnsafeShuffleWriter to shuffle:UnsafeShuffleWriter.md#mergeSpills[merge spill files].
 
 Default: `true`
 
@@ -467,37 +467,37 @@ Default: `false`
 
 == [[spark.closure.serializer]] spark.closure.serializer
 
-xref:serializer:Serializer.adoc[Serializer]
+serializer:Serializer.md[Serializer]
 
 Default: `org.apache.spark.serializer.JavaSerializer`
 
 == [[spark.serializer]] spark.serializer
 
-xref:serializer:Serializer.adoc[Serializer]
+serializer:Serializer.md[Serializer]
 
 Default: `org.apache.spark.serializer.JavaSerializer`
 
 == [[spark.io.compression.codec]] spark.io.compression.codec
 
-The default xref:io:CompressionCodec.adoc[CompressionCodec]
+The default io:CompressionCodec.md[CompressionCodec]
 
 Default: `lz4`
 
 == [[spark.io.compression.lz4.blockSize]] spark.io.compression.lz4.blockSize
 
-The block size of the xref:io:CompressionCodec.adoc#LZ4CompressionCodec[LZ4CompressionCodec]
+The block size of the io:CompressionCodec.md#LZ4CompressionCodec[LZ4CompressionCodec]
 
 Default: `32k`
 
 == [[spark.io.compression.snappy.blockSize]] spark.io.compression.snappy.blockSize
 
-The block size of the xref:io:CompressionCodec.adoc#SnappyCompressionCodec[SnappyCompressionCodec]
+The block size of the io:CompressionCodec.md#SnappyCompressionCodec[SnappyCompressionCodec]
 
 Default: `32k`
 
 == [[spark.io.compression.zstd.bufferSize]] spark.io.compression.zstd.bufferSize
 
-The buffer size of the BufferedOutputStream of the xref:io:CompressionCodec.adoc#ZStdCompressionCodec[ZStdCompressionCodec]
+The buffer size of the BufferedOutputStream of the io:CompressionCodec.md#ZStdCompressionCodec[ZStdCompressionCodec]
 
 Default: `32k`
 
@@ -505,7 +505,7 @@ The buffer is used to avoid the overhead of excessive JNI calls while compressin
 
 == [[spark.io.compression.zstd.level]] spark.io.compression.zstd.level
 
-The compression level of the xref:io:CompressionCodec.adoc#ZStdCompressionCodec[ZStdCompressionCodec]
+The compression level of the io:CompressionCodec.md#ZStdCompressionCodec[ZStdCompressionCodec]
 
 Default: `1`
 
@@ -552,7 +552,7 @@ The size of a block (in kB unless the unit is specified)
 
 Default: `4m`
 
-Used when xref:core:TorrentBroadcast.adoc#writeBlocks[`TorrentBroadcast` stores brodcast blocks to `BlockManager`]
+Used when core:TorrentBroadcast.md#writeBlocks[`TorrentBroadcast` stores brodcast blocks to `BlockManager`]
 
 == [[spark.broadcast.compress]] spark.broadcast.compress
 
@@ -560,15 +560,15 @@ Controls broadcast compression
 
 Default: `true`
 
-Used when xref:core:TorrentBroadcast.adoc#creating-instance[`TorrentBroadcast` is created] and later when xref:core:TorrentBroadcast.adoc#writeBlocks[it stores broadcast blocks to `BlockManager`]. Also in xref:serializer:SerializerManager.adoc#settings[SerializerManager].
+Used when core:TorrentBroadcast.md#creating-instance[`TorrentBroadcast` is created] and later when core:TorrentBroadcast.md#writeBlocks[it stores broadcast blocks to `BlockManager`]. Also in serializer:SerializerManager.md#settings[SerializerManager].
 
 == [[spark.app.id]] spark.app.id
 
-Unique identifier of a Spark application that Spark uses to uniquely identify xref:metrics:spark-metrics-MetricsSystem.adoc#buildRegistryName[metric sources].
+Unique identifier of a Spark application that Spark uses to uniquely identify metrics:spark-metrics-MetricsSystem.md#buildRegistryName[metric sources].
 
-Default: xref:scheduler:TaskScheduler.adoc#applicationId[TaskScheduler.applicationId()]
+Default: scheduler:TaskScheduler.md#applicationId[TaskScheduler.applicationId()]
 
-Set when SparkContext xref:ROOT:spark-SparkContext-creating-instance-internals.adoc#spark.app.id[is created] (right after TaskScheduler xref:ROOT:spark-SparkContext-creating-instance-internals.adoc#taskScheduler-start[is started] that actually gives the identifier).
+Set when SparkContext ROOT:spark-SparkContext-creating-instance-internals.md#spark.app.id[is created] (right after TaskScheduler ROOT:spark-SparkContext-creating-instance-internals.md#taskScheduler-start[is started] that actually gives the identifier).
 
 == [[spark.app.name]] spark.app.name
 
@@ -578,7 +578,7 @@ Default: (undefined)
 
 == [[spark.rpc.lookupTimeout]] spark.rpc.lookupTimeout
 
-Timeout to use for the xref:rpc:RpcEnv.adoc#defaultLookupTimeout[Default Endpoint Lookup Timeout]
+Timeout to use for the rpc:RpcEnv.md#defaultLookupTimeout[Default Endpoint Lookup Timeout]
 
 Default: `120s`
 
@@ -608,19 +608,19 @@ Default: `120s`
 
 == [[spark.extraListeners]] spark.extraListeners
 
-A comma-separated list of fully-qualified class names of xref:ROOT:SparkListener.adoc[]s (to be registered when SparkContext is xref:ROOT:spark-SparkContext-creating-instance-internals.adoc#registering_SparkListeners[created])
+A comma-separated list of fully-qualified class names of ROOT:SparkListener.md[]s (to be registered when SparkContext is ROOT:spark-SparkContext-creating-instance-internals.md#registering_SparkListeners[created])
 
 Default: (empty)
 
 == [[spark.speculation]] spark.speculation
 
-Enables (`true`) or disables (`false`) xref:ROOT:speculative-execution-of-tasks.adoc[]
+Enables (`true`) or disables (`false`) ROOT:speculative-execution-of-tasks.md[]
 
 Default: `false`
 
 == [[spark.speculation.interval]] spark.speculation.interval
 
-The time interval to use before checking for speculative tasks in xref:ROOT:speculative-execution-of-tasks.adoc[].
+The time interval to use before checking for speculative tasks in ROOT:speculative-execution-of-tasks.md[].
 
 Default: `100ms`
 
@@ -630,7 +630,7 @@ Default: `1.5`
 
 == [[spark.speculation.quantile]] spark.speculation.quantile
 
-The percentage of tasks that has not finished yet at which to start speculation in xref:ROOT:speculative-execution-of-tasks.adoc[].
+The percentage of tasks that has not finished yet at which to start speculation in ROOT:speculative-execution-of-tasks.md[].
 
 Default: `0.75`
 
@@ -640,6 +640,6 @@ Initial per-task memory size needed to store a block in memory.
 
 Default: `1024 * 1024`
 
-Must be at most the xref:storage:MemoryStore.adoc#maxMemory[total amount of memory available for storage]
+Must be at most the storage:MemoryStore.md#maxMemory[total amount of memory available for storage]
 
-Used when MemoryStore is requested to xref:storage:MemoryStore.adoc#putIterator[putIterator] and xref:storage:MemoryStore.adoc#putIteratorAsBytes[putIteratorAsBytes]
+Used when MemoryStore is requested to storage:MemoryStore.md#putIterator[putIterator] and storage:MemoryStore.md#putIteratorAsBytes[putIteratorAsBytes]

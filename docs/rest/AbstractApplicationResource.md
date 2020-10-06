@@ -1,6 +1,6 @@
 == [[AbstractApplicationResource]] AbstractApplicationResource
 
-`AbstractApplicationResource` is a link:spark-api-BaseAppResource.adoc[BaseAppResource] with a set of <<paths, URI paths>> that are common across <<implementations, implementations>>.
+`AbstractApplicationResource` is a spark-api-BaseAppResource.md[BaseAppResource] with a set of <<paths, URI paths>> that are common across <<implementations, implementations>>.
 
 ```
 // start spark-shell
@@ -58,10 +58,10 @@ $ http http://localhost:4040/api/v1/applications/local-1528211089216/storage/rdd
 | AbstractApplicationResource
 | Description
 
-| link:spark-api-OneApplicationResource.adoc[OneApplicationResource]
+| spark-api-OneApplicationResource.md[OneApplicationResource]
 | [[OneApplicationResource]] Handles `applications/appId` requests
 
-| link:spark-api-OneApplicationAttemptResource.adoc[OneApplicationAttemptResource]
+| spark-api-OneApplicationAttemptResource.md[OneApplicationAttemptResource]
 | [[OneApplicationAttemptResource]]
 |===
 

@@ -51,7 +51,7 @@ NOTE: `Sink` is a `private[spark]` contract.
 | `JmxSink`
 | [[JmxSink]]
 
-| link:spark-metrics-MetricsServlet.adoc[MetricsServlet]
+| spark-metrics-MetricsServlet.md[MetricsServlet]
 | [[MetricsServlet]]
 
 | `Slf4jSink`

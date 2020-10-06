@@ -6,15 +6,15 @@
 
 TransportContext takes the following to be created:
 
-* [[conf]] xref:network:TransportConf.adoc[]
-* [[rpcHandler]] xref:network:RpcHandler.adoc[]
+* [[conf]] network:TransportConf.md[]
+* [[rpcHandler]] network:RpcHandler.md[]
 * [[closeIdleConnections]] closeIdleConnections flag (default: `false`)
 
 TransportContext is created when:
 
-* ExternalShuffleClient is requested to xref:storage:ExternalShuffleClient.adoc#init[initialize]
+* ExternalShuffleClient is requested to storage:ExternalShuffleClient.md#init[initialize]
 
-* YarnShuffleService is requested to xref:spark-on-yarn:spark-yarn-YarnShuffleService.adoc#serviceInit[serviceInit]
+* YarnShuffleService is requested to spark-on-yarn:spark-yarn-YarnShuffleService.md#serviceInit[serviceInit]
 
 == [[createClientFactory]] createClientFactory Method
 
@@ -57,9 +57,9 @@ initializePipeline...FIXME
 
 initializePipeline is used when:
 
-* `TransportServer` is requested to xref:network:TransportServer.adoc#init[init]
+* `TransportServer` is requested to network:TransportServer.md#init[init]
 
-* `TransportClientFactory` is requested to xref:network:TransportClientFactory.adoc#createClient[createClient]
+* `TransportClientFactory` is requested to network:TransportClientFactory.md#createClient[createClient]
 
 == [[createServer]] Creating Server
 
@@ -81,10 +81,10 @@ createServer simply creates a TransportServer (with the current TransportContext
 
 createServer is used when:
 
-* `NettyBlockTransferService` is requested to xref:storage:NettyBlockTransferService.adoc#createServer[createServer]
+* `NettyBlockTransferService` is requested to storage:NettyBlockTransferService.md#createServer[createServer]
 
 * `NettyRpcEnv` is requested to `startServer`
 
-* `ExternalShuffleService` is requested to xref:deploy:ExternalShuffleService.adoc#start[start]
+* `ExternalShuffleService` is requested to deploy:ExternalShuffleService.md#start[start]
 
 * Spark on YARN's `YarnShuffleService` is requested to `serviceInit`

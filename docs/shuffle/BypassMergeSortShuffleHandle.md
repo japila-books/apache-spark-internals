@@ -1,10 +1,10 @@
 == [[BypassMergeSortShuffleHandle]] BypassMergeSortShuffleHandle -- Marker Interface for Bypass Merge Sort Shuffle Handles
 
-`BypassMergeSortShuffleHandles` is a link:spark-shuffle-BaseShuffleHandle.adoc[BaseShuffleHandle] with no additional methods or fields and serves only to identify the choice of **bypass merge sort shuffle**.
+`BypassMergeSortShuffleHandles` is a spark-shuffle-BaseShuffleHandle.md[BaseShuffleHandle] with no additional methods or fields and serves only to identify the choice of **bypass merge sort shuffle**.
 
-Like link:spark-shuffle-BaseShuffleHandle.adoc[BaseShuffleHandle], `BypassMergeSortShuffleHandles` takes `shuffleId`, `numMaps`, and a xref:rdd:ShuffleDependency.adoc[ShuffleDependency].
+Like spark-shuffle-BaseShuffleHandle.md[BaseShuffleHandle], `BypassMergeSortShuffleHandles` takes `shuffleId`, `numMaps`, and a rdd:ShuffleDependency.md[ShuffleDependency].
 
-`BypassMergeSortShuffleHandle` is created when xref:SortShuffleManager.adoc#registerShuffle[`SortShuffleManager` is requested for a `ShuffleHandle`] (for a `ShuffleDependency`).
+`BypassMergeSortShuffleHandle` is created when SortShuffleManager.md#registerShuffle[`SortShuffleManager` is requested for a `ShuffleHandle`] (for a `ShuffleDependency`).
 
 [source, scala]
 ----

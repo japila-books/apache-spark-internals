@@ -1,8 +1,8 @@
 = ExecutorSource
 
-ExecutorSource is a link:spark-metrics-Source.adoc[metrics source] of an xref:executor:Executor.adoc[]. It uses an executor's xref:executor:Executor.adoc#threadPool[threadPool] for calculating the gauges.
+ExecutorSource is a spark-metrics-Source.md[metrics source] of an executor:Executor.md[]. It uses an executor's executor:Executor.md#threadPool[threadPool] for calculating the gauges.
 
-NOTE: Every executor has its own separate ExecutorSource that is registered when xref:executor:CoarseGrainedExecutorBackend.adoc#RegisteredExecutor[`CoarseGrainedExecutorBackend` receives a `RegisteredExecutor`].
+NOTE: Every executor has its own separate ExecutorSource that is registered when executor:CoarseGrainedExecutorBackend.md#RegisteredExecutor[`CoarseGrainedExecutorBackend` receives a `RegisteredExecutor`].
 
 The name of a ExecutorSource is **executor**.
 

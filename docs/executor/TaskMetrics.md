@@ -1,27 +1,27 @@
 = TaskMetrics
 
-TaskMetrics is a <<metrics, collection of metrics>> (as <<spark-accumulators.adoc#, AccumulatorV2s>>) tracked during execution of a xref:scheduler:Task.adoc[Task].
+TaskMetrics is a <<metrics, collection of metrics>> (as <<spark-accumulators.md#, AccumulatorV2s>>) tracked during execution of a scheduler:Task.md[Task].
 
 TaskMetrics is <<creating-instance, created>> when:
 
-* `Stage` is requested to xref:scheduler:Stage.adoc#makeNewStageAttempt[create a new stage attempt] (when `DAGScheduler` is requested to xref:scheduler:DAGScheduler.adoc#submitMissingTasks[submit the missing tasks of a stage])
+* `Stage` is requested to scheduler:Stage.md#makeNewStageAttempt[create a new stage attempt] (when `DAGScheduler` is requested to scheduler:DAGScheduler.md#submitMissingTasks[submit the missing tasks of a stage])
 
 * TaskMetrics utility is requested to <<empty, empty>>, <<fromAccumulatorInfos, fromAccumulatorInfos>>, and <<fromAccumulators, fromAccumulators>>
 
 [[creating-instance]]
 TaskMetrics takes no arguments to be created.
 
-TaskMetrics is available using <<spark-TaskContext.adoc#taskMetrics, TaskContext.taskMetrics>>.
+TaskMetrics is available using <<spark-TaskContext.md#taskMetrics, TaskContext.taskMetrics>>.
 
-TIP: Use xref:ROOT:SparkListener.adoc#onTaskEnd[SparkListener.onTaskEnd] to intercept xref:ROOT:SparkListener.adoc#SparkListenerTaskEnd[SparkListenerTaskEnd] events to access the <<TaskMetrics, TaskMetrics>> of a task that has finished successfully.
+TIP: Use ROOT:SparkListener.md#onTaskEnd[SparkListener.onTaskEnd] to intercept ROOT:SparkListener.md#SparkListenerTaskEnd[SparkListenerTaskEnd] events to access the <<TaskMetrics, TaskMetrics>> of a task that has finished successfully.
 
-TIP: Use <<spark-SparkListener-StatsReportListener.adoc#, StatsReportListener>> for summary statistics at runtime (after a stage completes).
+TIP: Use <<spark-SparkListener-StatsReportListener.md#, StatsReportListener>> for summary statistics at runtime (after a stage completes).
 
-TIP: Use xref:spark-history-server:EventLoggingListener.adoc[EventLoggingListener] for post-execution (history) statistics.
+TIP: Use spark-history-server:EventLoggingListener.md[EventLoggingListener] for post-execution (history) statistics.
 
-TaskMetrics uses link:spark-accumulators.adoc[accumulators] to represent the metrics and offers "increment" methods to increment them.
+TaskMetrics uses spark-accumulators.md[accumulators] to represent the metrics and offers "increment" methods to increment them.
 
-NOTE: The local values of the accumulators for a xref:scheduler:Task.adoc[task] (as accumulated while the xref:scheduler:Task.adoc#run[task runs]) are sent from the executor to the driver when the task completes (and <<fromAccumulators, `DAGScheduler` re-creates TaskMetrics>>).
+NOTE: The local values of the accumulators for a scheduler:Task.md[task] (as accumulated while the scheduler:Task.md#run[task runs]) are sent from the executor to the driver when the task completes (and <<fromAccumulators, `DAGScheduler` re-creates TaskMetrics>>).
 
 [[metrics]]
 .Metrics
@@ -52,21 +52,21 @@ NOTE: The local values of the accumulators for a xref:scheduler:Task.adoc[task] 
 | Description
 
 | [[nameToAccums]] `nameToAccums`
-| Internal link:spark-accumulators.adoc[accumulators] indexed by their names.
+| Internal spark-accumulators.md[accumulators] indexed by their names.
 
 Used when TaskMetrics <<fromAccumulators, re-creates TaskMetrics from `AccumulatorV2s`>>, ...FIXME
 
 NOTE: `nameToAccums` is a `transient` and `lazy` value.
 
 | [[internalAccums]] `internalAccums`
-| Collection of internal link:spark-accumulators.adoc[AccumulatorV2] objects.
+| Collection of internal spark-accumulators.md[AccumulatorV2] objects.
 
 Used when...FIXME
 
 NOTE: `internalAccums` is a `transient` and `lazy` value.
 
 | [[externalAccums]] `externalAccums`
-| Collection of external link:spark-accumulators.adoc[AccumulatorV2] objects.
+| Collection of external spark-accumulators.md[AccumulatorV2] objects.
 
 Used when TaskMetrics <<fromAccumulators, re-creates TaskMetrics from `AccumulatorV2s`>>, ...FIXME
 
@@ -128,11 +128,11 @@ fromAccumulators(accums: Seq[AccumulatorV2[_, _]]): TaskMetrics
 
 Internally, `fromAccumulators` creates a new TaskMetrics. It then splits `accums` into internal and external task metrics collections (using <<nameToAccums, nameToAccums>> internal registry).
 
-For every internal task metrics, `fromAccumulators` finds the metrics in <<nameToAccums, nameToAccums>> internal registry (of the new TaskMetrics instance), copies link:spark-accumulators.adoc#metadata[metadata], and link:spark-accumulators.adoc#merge[merges state].
+For every internal task metrics, `fromAccumulators` finds the metrics in <<nameToAccums, nameToAccums>> internal registry (of the new TaskMetrics instance), copies spark-accumulators.md#metadata[metadata], and spark-accumulators.md#merge[merges state].
 
 In the end, `fromAccumulators` <<externalAccums, adds the external accumulators to the new TaskMetrics instance>>.
 
-NOTE: `fromAccumulators` is used exclusively when xref:scheduler:DAGSchedulerEventProcessLoop.adoc#handleTaskCompletion[`DAGScheduler` gets notified that a task has finished] (and re-creates TaskMetrics).
+NOTE: `fromAccumulators` is used exclusively when scheduler:DAGSchedulerEventProcessLoop.md#handleTaskCompletion[`DAGScheduler` gets notified that a task has finished] (and re-creates TaskMetrics).
 
 == [[incMemoryBytesSpilled]] Increasing Memory Bytes Spilled -- `incMemoryBytesSpilled` Method
 
@@ -147,21 +147,21 @@ incMemoryBytesSpilled(v: Long): Unit
 ====
 `incMemoryBytesSpilled` is used when:
 
-1. xref:rdd:Aggregator.adoc#updateMetrics[`Aggregator` updates task metrics]
+1. rdd:Aggregator.md#updateMetrics[`Aggregator` updates task metrics]
 
-2. link:spark-rdd-CoGroupedRDD.adoc[`CoGroupedRDD` computes a `Partition`]
+2. spark-rdd-CoGroupedRDD.md[`CoGroupedRDD` computes a `Partition`]
 
-3. xref:shuffle:BlockStoreShuffleReader.adoc#read[`BlockStoreShuffleReader` reads combined key-value records for a reduce task]
+3. shuffle:BlockStoreShuffleReader.md#read[`BlockStoreShuffleReader` reads combined key-value records for a reduce task]
 
-4. xref:shuffle:ShuffleExternalSorter.adoc#spill[`ShuffleExternalSorter` frees execution memory by spilling to disk]
+4. shuffle:ShuffleExternalSorter.md#spill[`ShuffleExternalSorter` frees execution memory by spilling to disk]
 
-5. xref:shuffle:ExternalSorter.adoc#writePartitionedFile[`ExternalSorter` writes the records into a temporary partitioned file in the disk store]
+5. shuffle:ExternalSorter.md#writePartitionedFile[`ExternalSorter` writes the records into a temporary partitioned file in the disk store]
 
 6. `UnsafeExternalSorter` spills current records due to memory pressure
 
 7. `SpillableIterator` spills records to disk
 
-8. xref:spark-history-server:JsonProtocol.adoc#taskMetricsFromJson[`JsonProtocol` creates TaskMetrics from JSON]
+8. spark-history-server:JsonProtocol.md#taskMetricsFromJson[`JsonProtocol` creates TaskMetrics from JSON]
 ====
 
 == [[incUpdatedBlockStatuses]] Recording Updated BlockStatus For Block -- `incUpdatedBlockStatuses` Method
@@ -173,7 +173,7 @@ incUpdatedBlockStatuses(v: (BlockId, BlockStatus)): Unit
 
 `incUpdatedBlockStatuses` adds `v` in <<_updatedBlockStatuses, _updatedBlockStatuses>> internal registry.
 
-NOTE: `incUpdatedBlockStatuses` is used exclusively when xref:storage:BlockManager.adoc#addUpdatedBlockStatusToTaskMetrics[`BlockManager` does `addUpdatedBlockStatusToTaskMetrics`].
+NOTE: `incUpdatedBlockStatuses` is used exclusively when storage:BlockManager.md#addUpdatedBlockStatusToTaskMetrics[`BlockManager` does `addUpdatedBlockStatusToTaskMetrics`].
 
 == [[register]] Registering Internal Accumulators -- `register` Method
 
@@ -182,9 +182,9 @@ NOTE: `incUpdatedBlockStatuses` is used exclusively when xref:storage:BlockManag
 register(sc: SparkContext): Unit
 ----
 
-`register` link:spark-accumulators.adoc#register[registers the internal accumulators] (from <<nameToAccums, nameToAccums>> internal registry) with `countFailedValues` enabled (`true`).
+`register` spark-accumulators.md#register[registers the internal accumulators] (from <<nameToAccums, nameToAccums>> internal registry) with `countFailedValues` enabled (`true`).
 
-NOTE: `register` is used exclusively when xref:scheduler:Stage.adoc#makeNewStageAttempt[`Stage` is requested for its new attempt].
+NOTE: `register` is used exclusively when scheduler:Stage.md#makeNewStageAttempt[`Stage` is requested for its new attempt].
 
 == [[empty]] `empty` Factory Method
 
@@ -199,11 +199,11 @@ empty: TaskMetrics
 ====
 `empty` is used when:
 
-* `TaskContextImpl` is <<spark-TaskContextImpl.adoc#taskMetrics, created>>
+* `TaskContextImpl` is <<spark-TaskContextImpl.md#taskMetrics, created>>
 
 * TaskMetrics utility is requested to <<registered, registered>>
 
-* JsonProtocol utility is requested to xref:spark-history-server:JsonProtocol.adoc#taskMetricsFromJson[taskMetricsFromJson]
+* JsonProtocol utility is requested to spark-history-server:JsonProtocol.md#taskMetricsFromJson[taskMetricsFromJson]
 ====
 
 == [[registered]] `registered` Factory Method
@@ -215,7 +215,7 @@ registered: TaskMetrics
 
 `registered`...FIXME
 
-NOTE: `registered` is used exclusively when `Task` is xref:scheduler:Task.adoc#serializedTaskMetrics[created].
+NOTE: `registered` is used exclusively when `Task` is scheduler:Task.md#serializedTaskMetrics[created].
 
 == [[fromAccumulatorInfos]] `fromAccumulatorInfos` Factory Method
 
@@ -226,7 +226,7 @@ fromAccumulatorInfos(infos: Seq[AccumulableInfo]): TaskMetrics
 
 `fromAccumulatorInfos`...FIXME
 
-NOTE: `fromAccumulatorInfos` is used exclusively when `AppStatusListener` is requested to xref:core:AppStatusListener.adoc#onExecutorMetricsUpdate[onExecutorMetricsUpdate] (for xref:spark-history-server:index.adoc[Spark History Server] only).
+NOTE: `fromAccumulatorInfos` is used exclusively when `AppStatusListener` is requested to core:AppStatusListener.md#onExecutorMetricsUpdate[onExecutorMetricsUpdate] (for spark-history-server:index.md[Spark History Server] only).
 
 == [[fromAccumulators]] `fromAccumulators` Factory Method
 
@@ -237,4 +237,4 @@ fromAccumulators(accums: Seq[AccumulatorV2[_, _]]): TaskMetrics
 
 `fromAccumulators`...FIXME
 
-NOTE: `fromAccumulators` is used exclusively when `DAGScheduler` is requested to xref:scheduler:DAGScheduler.adoc#postTaskEnd[postTaskEnd].
+NOTE: `fromAccumulators` is used exclusively when `DAGScheduler` is requested to scheduler:DAGScheduler.md#postTaskEnd[postTaskEnd].

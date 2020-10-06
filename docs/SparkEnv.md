@@ -58,9 +58,9 @@ createDriverEnv(
 
 ![Spark Environment for driver](images/sparkenv-driver.png)
 
-`createDriverEnv` accepts an instance of xref:ROOT:SparkConf.md[SparkConf], link:spark-deployment-environments.md[whether it runs in local mode or not], xref:scheduler:LiveListenerBus.md[], the number of cores to use for execution in local mode or `0` otherwise, and a xref:scheduler:OutputCommitCoordinator.md[OutputCommitCoordinator] (default: none).
+`createDriverEnv` accepts an instance of ROOT:SparkConf.md[SparkConf], spark-deployment-environments.md[whether it runs in local mode or not], scheduler:LiveListenerBus.md[], the number of cores to use for execution in local mode or `0` otherwise, and a scheduler:OutputCommitCoordinator.md[OutputCommitCoordinator] (default: none).
 
-`createDriverEnv` ensures that link:spark-driver.md#spark_driver_host[spark.driver.host] and link:spark-driver.md#spark_driver_port[spark.driver.port] settings are defined.
+`createDriverEnv` ensures that spark-driver.md#spark_driver_host[spark.driver.host] and spark-driver.md#spark_driver_port[spark.driver.port] settings are defined.
 
 It then passes the call straight on to the <<create, create helper method>> (with `driver` executor id, `isDriver` enabled, and the input parameters).
 
@@ -121,14 +121,14 @@ create is an utility to create the "base" SparkEnv (that is "enhanced" for the d
 | Usage
 
 | `bindAddress`
-| Used to create xref:rpc:index.md[RpcEnv] and xref:storage:NettyBlockTransferService.md#creating-instance[NettyBlockTransferService].
+| Used to create rpc:index.md[RpcEnv] and storage:NettyBlockTransferService.md#creating-instance[NettyBlockTransferService].
 
 | `advertiseAddress`
-| Used to create xref:rpc:index.md[RpcEnv] and xref:storage:NettyBlockTransferService.md#creating-instance[NettyBlockTransferService].
+| Used to create rpc:index.md[RpcEnv] and storage:NettyBlockTransferService.md#creating-instance[NettyBlockTransferService].
 
 | `numUsableCores`
-| Used to create xref:memory:MemoryManager.md[MemoryManager],
- xref:storage:NettyBlockTransferService.md#creating-instance[NettyBlockTransferService] and xref:storage:BlockManager.md#creating-instance[BlockManager].
+| Used to create memory:MemoryManager.md[MemoryManager],
+ storage:NettyBlockTransferService.md#creating-instance[NettyBlockTransferService] and storage:BlockManager.md#creating-instance[BlockManager].
 |===
 
 [[create-Serializer]]
@@ -142,24 +142,24 @@ Using serializer: [serializer]
 create creates a closure `Serializer` (based on <<spark_closure_serializer, spark.closure.serializer>>).
 
 [[ShuffleManager]][[create-ShuffleManager]]
-create creates a xref:shuffle:ShuffleManager.md[ShuffleManager] given the value of xref:ROOT:configuration-properties.md#spark.shuffle.manager[spark.shuffle.manager] configuration property.
+create creates a shuffle:ShuffleManager.md[ShuffleManager] given the value of ROOT:configuration-properties.md#spark.shuffle.manager[spark.shuffle.manager] configuration property.
 
 [[MemoryManager]][[create-MemoryManager]]
-create creates a xref:memory:MemoryManager.md[MemoryManager] based on xref:ROOT:configuration-properties.md#spark.memory.useLegacyMode[spark.memory.useLegacyMode] setting (with xref:memory:UnifiedMemoryManager.md[UnifiedMemoryManager] being the default and `numCores` the input `numUsableCores`).
+create creates a memory:MemoryManager.md[MemoryManager] based on ROOT:configuration-properties.md#spark.memory.useLegacyMode[spark.memory.useLegacyMode] setting (with memory:UnifiedMemoryManager.md[UnifiedMemoryManager] being the default and `numCores` the input `numUsableCores`).
 
 [[NettyBlockTransferService]][[create-NettyBlockTransferService]]
-create creates a xref:storage:NettyBlockTransferService.md#creating-instance[NettyBlockTransferService] with the following ports:
+create creates a storage:NettyBlockTransferService.md#creating-instance[NettyBlockTransferService] with the following ports:
 
-* link:spark-driver.md#spark_driver_blockManager_port[spark.driver.blockManager.port] for the driver (default: `0`)
+* spark-driver.md#spark_driver_blockManager_port[spark.driver.blockManager.port] for the driver (default: `0`)
 
-* xref:storage:BlockManager.md#spark_blockManager_port[spark.blockManager.port] for an executor (default: `0`)
+* storage:BlockManager.md#spark_blockManager_port[spark.blockManager.port] for an executor (default: `0`)
 
 NOTE: create uses the `NettyBlockTransferService` to <<create-BlockManager, create a BlockManager>>.
 
 CAUTION: FIXME A picture with SparkEnv, `NettyBlockTransferService` and the ports "armed".
 
 [[BlockManagerMaster]][[create-BlockManagerMaster]]
-create creates a xref:storage:BlockManagerMaster.md#creating-instance[BlockManagerMaster] object with the `BlockManagerMaster` RPC endpoint reference (by <<registerOrLookupEndpoint, registering or looking it up by name>> and xref:storage:BlockManagerMasterEndpoint.md[]), the input xref:ROOT:SparkConf.md[SparkConf], and the input `isDriver` flag.
+create creates a storage:BlockManagerMaster.md#creating-instance[BlockManagerMaster] object with the `BlockManagerMaster` RPC endpoint reference (by <<registerOrLookupEndpoint, registering or looking it up by name>> and storage:BlockManagerMasterEndpoint.md[]), the input ROOT:SparkConf.md[SparkConf], and the input `isDriver` flag.
 
 .Creating BlockManager for the Driver
 image::sparkenv-driver-blockmanager.png[align="center"]
@@ -170,17 +170,17 @@ NOTE: create registers the *BlockManagerMaster* RPC endpoint for the driver and 
 image::sparkenv-executor-blockmanager.png[align="center"]
 
 [[BlockManager]][[create-BlockManager]]
-create creates a xref:storage:BlockManager.md#creating-instance[BlockManager] (using the above <<BlockManagerMaster, BlockManagerMaster>>, <<create-NettyBlockTransferService, NettyBlockTransferService>> and other services).
+create creates a storage:BlockManager.md#creating-instance[BlockManager] (using the above <<BlockManagerMaster, BlockManagerMaster>>, <<create-NettyBlockTransferService, NettyBlockTransferService>> and other services).
 
-create creates a xref:core:BroadcastManager.md[].
+create creates a core:BroadcastManager.md[].
 
 [[MapOutputTracker]][[create-MapOutputTracker]]
-create creates a xref:scheduler:MapOutputTrackerMaster.md[MapOutputTrackerMaster] or xref:scheduler:MapOutputTrackerWorker.md[MapOutputTrackerWorker] for the driver and executors, respectively.
+create creates a scheduler:MapOutputTrackerMaster.md[MapOutputTrackerMaster] or scheduler:MapOutputTrackerWorker.md[MapOutputTrackerWorker] for the driver and executors, respectively.
 
-NOTE: The choice of the real implementation of xref:scheduler:MapOutputTracker.md[MapOutputTracker] is based on whether the input `executorId` is *driver* or not.
+NOTE: The choice of the real implementation of scheduler:MapOutputTracker.md[MapOutputTracker] is based on whether the input `executorId` is *driver* or not.
 
 [[MapOutputTrackerMasterEndpoint]][[create-MapOutputTrackerMasterEndpoint]]
-create <<registerOrLookupEndpoint, registers or looks up `RpcEndpoint`>> as *MapOutputTracker*. It registers xref:scheduler:MapOutputTrackerMasterEndpoint.md[MapOutputTrackerMasterEndpoint] on the driver and creates a RPC endpoint reference on executors. The RPC endpoint reference gets assigned as the xref:scheduler:MapOutputTracker.md#trackerEndpoint[MapOutputTracker RPC endpoint].
+create <<registerOrLookupEndpoint, registers or looks up `RpcEndpoint`>> as *MapOutputTracker*. It registers scheduler:MapOutputTrackerMasterEndpoint.md[MapOutputTrackerMasterEndpoint] on the driver and creates a RPC endpoint reference on executors. The RPC endpoint reference gets assigned as the scheduler:MapOutputTracker.md#trackerEndpoint[MapOutputTracker RPC endpoint].
 
 CAUTION: FIXME
 
@@ -246,15 +246,15 @@ stop checks <<isStopped, isStopped>> internal flag and does nothing when enabled
 
 Otherwise, stop turns `isStopped` flag on, stops all `pythonWorkers` and requests the following services to stop:
 
-1. xref:scheduler:MapOutputTracker.md#stop[MapOutputTracker]
-2. xref:shuffle:ShuffleManager.md#stop[ShuffleManager]
-3. xref:core:BroadcastManager.md#stop[BroadcastManager]
-4. xref:storage:BlockManager.md#stop[BlockManager]
-5. xref:storage:BlockManagerMaster.md#stop[BlockManagerMaster]
-6. link:spark-metrics-MetricsSystem.md#stop[MetricsSystem]
-7. xref:scheduler:OutputCommitCoordinator.md#stop[OutputCommitCoordinator]
+1. scheduler:MapOutputTracker.md#stop[MapOutputTracker]
+2. shuffle:ShuffleManager.md#stop[ShuffleManager]
+3. core:BroadcastManager.md#stop[BroadcastManager]
+4. storage:BlockManager.md#stop[BlockManager]
+5. storage:BlockManagerMaster.md#stop[BlockManagerMaster]
+6. spark-metrics-MetricsSystem.md#stop[MetricsSystem]
+7. scheduler:OutputCommitCoordinator.md#stop[OutputCommitCoordinator]
 
-stop xref:rpc:index.md#shutdown[requests `RpcEnv` to shut down] and xref:rpc:index.md#awaitTermination[waits till it terminates].
+stop rpc:index.md#shutdown[requests `RpcEnv` to shut down] and rpc:index.md#awaitTermination[waits till it terminates].
 
 Only on the driver, stop deletes the <<driverTmpDir, temporary directory>>. You can see the following WARN message in the logs if the deletion fails.
 
@@ -262,7 +262,7 @@ Only on the driver, stop deletes the <<driverTmpDir, temporary directory>>. You 
 Exception while deleting Spark temp dir: [path]
 ```
 
-NOTE: stop is used when xref:ROOT:SparkContext.md#stop[`SparkContext` stops] (on the driver) and xref:executor:Executor.md#stop[`Executor` stops].
+NOTE: stop is used when ROOT:SparkContext.md#stop[`SparkContext` stops] (on the driver) and executor:Executor.md#stop[`Executor` stops].
 
 == [[set]] `set` Method
 
@@ -288,7 +288,7 @@ environmentDetails(
 
 environmentDetails...FIXME
 
-environmentDetails is used when SparkContext is requested to xref:ROOT:SparkContext.md#postEnvironmentUpdate[post a SparkListenerEnvironmentUpdate event].
+environmentDetails is used when SparkContext is requested to ROOT:SparkContext.md#postEnvironmentUpdate[post a SparkListenerEnvironmentUpdate event].
 
 == [[logging]] Logging
 
@@ -301,7 +301,7 @@ Add the following line to `conf/log4j.properties`:
 log4j.logger.org.apache.spark.SparkEnv=ALL
 ----
 
-Refer to xref:ROOT:spark-logging.md[Logging].
+Refer to ROOT:spark-logging.md[Logging].
 
 == [[internal-properties]] Internal Properties
 

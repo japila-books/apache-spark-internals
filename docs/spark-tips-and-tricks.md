@@ -44,7 +44,7 @@ WARN Set SPARK_LOCAL_IP if you need to bind to another address
 
 == [[spark-standalone-windows]] Starting standalone Master and workers on Windows 7
 
-Windows 7 users can use link:spark-class.adoc[spark-class] to start link:spark-standalone.adoc[Spark Standalone] as there are no launch scripts for the Windows platform.
+Windows 7 users can use spark-class.md[spark-class] to start spark-standalone.md[Spark Standalone] as there are no launch scripts for the Windows platform.
 
 ```
 $ ./bin/spark-class org.apache.spark.deploy.master.Master -h localhost

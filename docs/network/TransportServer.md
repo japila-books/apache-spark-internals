@@ -6,15 +6,15 @@
 
 TransportServer takes the following when created:
 
-* [[context]] xref:network:TransportContext.adoc[]
+* [[context]] network:TransportContext.md[]
 * [[hostToBind]] Host name to bind to
 * [[portToBind]] Port number to bind to
-* [[appRpcHandler]] xref:network:RpcHandler.adoc[]
+* [[appRpcHandler]] network:RpcHandler.md[]
 * [[bootstraps]] `TransportServerBootstraps`
 
 When created, TransportServer <<init, init>> with the <<hostToBind, host>> and <<portToBind, port>> to bind to.
 
-TransportServer is created when TransportContext is requested to xref:network:TransportContext.adoc#createServer[create a server].
+TransportServer is created when TransportContext is requested to network:TransportContext.md#createServer[create a server].
 
 == [[init]] `init` Internal Method
 

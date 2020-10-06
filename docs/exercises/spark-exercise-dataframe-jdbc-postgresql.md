@@ -41,7 +41,7 @@ downloading https://repo1.maven.org/maven2/org/postgresql/postgresql/42.1.1/post
 ```
 ====
 
-Start `./bin/spark-shell` with link:spark-submit.adoc#driver-class-path[--driver-class-path] command line option and the driver jar.
+Start `./bin/spark-shell` with spark-submit.md#driver-class-path[--driver-class-path] command line option and the driver jar.
 
 ```
 SPARK_PRINT_LAUNCH_COMMAND=1 ./bin/spark-shell --driver-class-path /Users/jacek/.ivy2/jars/org.postgresql_postgresql-42.1.1.jar
@@ -115,7 +115,7 @@ If things can go wrong, they sooner or later go wrong. Here is a list of possibl
 
 ==== java.sql.SQLException: No suitable driver
 
-Ensure that the JDBC driver sits on the CLASSPATH. Use link:spark-submit.adoc#driver-class-path[--driver-class-path] as described above (`--packages` or `--jars` do not work).
+Ensure that the JDBC driver sits on the CLASSPATH. Use spark-submit.md#driver-class-path[--driver-class-path] as described above (`--packages` or `--jars` do not work).
 
 ```
 scala> val df = spark.

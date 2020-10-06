@@ -1,6 +1,6 @@
 == Operators - Transformations and Actions
 
-RDDs have two types of operations: link:spark-rdd-transformations.adoc[transformations] and link:spark-rdd-actions.adoc[actions].
+RDDs have two types of operations: spark-rdd-transformations.md[transformations] and spark-rdd-actions.md[actions].
 
 NOTE: Operators are also called *operations*.
 

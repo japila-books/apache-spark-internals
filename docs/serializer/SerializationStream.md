@@ -31,7 +31,7 @@ writeAll is used when:
 
 * ReliableCheckpointRDD utility is requested to writePartitionToCheckpointFile
 
-* SerializerManager is requested to xref:serializer:SerializerManager.adoc#dataSerializeStream[dataSerializeStream] and xref:serializer:SerializerManager.adoc#dataSerializeWithExplicitClassTag[dataSerializeWithExplicitClassTag]
+* SerializerManager is requested to serializer:SerializerManager.md#dataSerializeStream[dataSerializeStream] and serializer:SerializerManager.md#dataSerializeWithExplicitClassTag[dataSerializeWithExplicitClassTag]
 
 == [[writeObject]] Writing Object
 
@@ -57,9 +57,9 @@ writeKey <<writeObject, writes the object>> representing the key of a key-value 
 
 writeKey is used when:
 
-* UnsafeShuffleWriter is requested to xref:shuffle:UnsafeShuffleWriter.adoc#insertRecordIntoSorter[insert a record into a ShuffleExternalSorter]
+* UnsafeShuffleWriter is requested to shuffle:UnsafeShuffleWriter.md#insertRecordIntoSorter[insert a record into a ShuffleExternalSorter]
 
-* DiskBlockObjectWriter is requested to xref:storage:DiskBlockObjectWriter.adoc#write[write the key and value of a record]
+* DiskBlockObjectWriter is requested to storage:DiskBlockObjectWriter.md#write[write the key and value of a record]
 
 == [[writeValue]] Writing Value (of Key-Value Record)
 
@@ -73,9 +73,9 @@ writeValue <<writeObject, writes the object>> representing the value of a key-va
 
 writeValue is used when:
 
-* UnsafeShuffleWriter is requested to xref:shuffle:UnsafeShuffleWriter.adoc#insertRecordIntoSorter[insert a record into a ShuffleExternalSorter]
+* UnsafeShuffleWriter is requested to shuffle:UnsafeShuffleWriter.md#insertRecordIntoSorter[insert a record into a ShuffleExternalSorter]
 
-* DiskBlockObjectWriter is requested to xref:storage:DiskBlockObjectWriter.adoc#write[write the key and value of a record]
+* DiskBlockObjectWriter is requested to storage:DiskBlockObjectWriter.md#write[write the key and value of a record]
 
 == [[flush]] Flushing Stream
 
@@ -86,6 +86,6 @@ flush(): Unit
 
 flush is used when:
 
-* UnsafeShuffleWriter is requested to xref:shuffle:UnsafeShuffleWriter.adoc#insertRecordIntoSorter[insert a record into a ShuffleExternalSorter]
+* UnsafeShuffleWriter is requested to shuffle:UnsafeShuffleWriter.md#insertRecordIntoSorter[insert a record into a ShuffleExternalSorter]
 
-* DiskBlockObjectWriter is requested to xref:storage:DiskBlockObjectWriter.adoc#commitAndGet[commitAndGet]
+* DiskBlockObjectWriter is requested to storage:DiskBlockObjectWriter.md#commitAndGet[commitAndGet]
