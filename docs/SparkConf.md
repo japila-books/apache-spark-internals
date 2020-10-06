@@ -1,4 +1,4 @@
-= SparkConf
+# SparkConf
 
 Every user program starts with creating an instance of `SparkConf` that holds the xref:ROOT:spark-deployment-environments.adoc#master-urls[master URL] to connect to (`spark.master`), the name for your Spark application (that is later displayed in xref:webui:index.adoc[web UI] and becomes `spark.app.name`) and other Spark properties required for proper runs. The instance of `SparkConf` can be used to create xref:ROOT:SparkContext.adoc[SparkContext].
 
