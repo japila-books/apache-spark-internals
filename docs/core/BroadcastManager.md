@@ -1,4 +1,4 @@
-= BroadcastManager
+# BroadcastManager
 
 *BroadcastManager* is a Spark service to manage xref:ROOT:Broadcast.adoc[]s in a Spark application.
 
