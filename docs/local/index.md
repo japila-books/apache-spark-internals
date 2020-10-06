@@ -1,4 +1,4 @@
-= Spark local
+# Spark local
 
 *Spark local* is one of the available runtime environments in Apache Spark. It is the only available runtime with no need for a proper cluster manager (and hence many call it a *pseudo-cluster*, however such concept do exist in Spark and is a bit different).
 

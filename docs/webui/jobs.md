@@ -1,4 +1,4 @@
-= Jobs Tab
+# Jobs Tab
 
 *Jobs* tab in xref:index.adoc[web UI] shows xref:spark-webui-AllJobsPage.adoc[status of all Spark jobs] in a Spark application (xref:ROOT:SparkContext.adoc[]).
 
