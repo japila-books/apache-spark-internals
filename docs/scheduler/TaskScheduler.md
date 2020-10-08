@@ -80,7 +80,7 @@ applicationAttemptId(): Option[String]
 
 *Unique identifier of an (execution) attempt* of the Spark application
 
-Used when `SparkContext` is ROOT:spark-SparkContext-creating-instance-internals.md#_applicationAttemptId[created]
+Used when [SparkContext](../SparkContext.md) is created
 
 | cancelTasks
 a| [[cancelTasks]]
@@ -201,7 +201,7 @@ start(): Unit
 
 Starts the TaskScheduler
 
-Used when `SparkContext` is ROOT:spark-SparkContext-creating-instance-internals.md#taskScheduler-start[created]
+Used when [SparkContext](../SparkContext.md) is created
 
 | stop
 a| [[stop]]
@@ -267,14 +267,11 @@ postStartHook(): Unit
 
 `postStartHook` does nothing by default, but allows <<implementations, custom implementations>> for some additional post-start initialization.
 
-[NOTE]
-====
 `postStartHook` is used when:
 
-* `SparkContext` is ROOT:spark-SparkContext-creating-instance-internals.md#postStartHook[created] (right before considered fully initialized)
+* [SparkContext](../SparkContext.md) is created
 
 * Spark on YARN's `YarnClusterScheduler` is requested to spark-on-yarn:spark-yarn-yarnclusterscheduler.md#postStartHook[postStartHook]
-====
 
 == [[applicationId]][[appId]] Unique Identifier of Spark Application
 
@@ -285,4 +282,4 @@ applicationId(): String
 
 `applicationId` is the *unique identifier* of the Spark application and defaults to *spark-application-[currentTimeMillis]*.
 
-NOTE: `applicationId` is used when `SparkContext` is ROOT:spark-SparkContext-creating-instance-internals.md#_applicationId[created].
+`applicationId` is used when [SparkContext](../SparkContext.md) is created.

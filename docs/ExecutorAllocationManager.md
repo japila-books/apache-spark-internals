@@ -1,4 +1,4 @@
-# ExecutorAllocationManager -- Allocation Manager for Spark Core
+# ExecutorAllocationManager &mdash; Allocation Manager for Spark Core
 
 `ExecutorAllocationManager` is responsible for dynamically allocating and removing executor:Executor.md[executors] based on the workload.
 
@@ -6,7 +6,7 @@ It intercepts Spark events using the internal spark-SparkListener-ExecutorAlloca
 
 It uses spark-service-ExecutorAllocationClient.md[ExecutorAllocationClient], scheduler:LiveListenerBus.md[], and ROOT:SparkConf.md[SparkConf] (that are all passed in when `ExecutorAllocationManager` is created).
 
-`ExecutorAllocationManager` is created when spark-SparkContext-creating-instance-internals.md#ExecutorAllocationManager[`SparkContext` is created and dynamic allocation of executors is enabled].
+`ExecutorAllocationManager` is created when [SparkContext](SparkContext.md) is created.
 
 NOTE: `SparkContext` expects that `SchedulerBackend` follows the spark-service-ExecutorAllocationClient.md#contract[ExecutorAllocationClient contract] when dynamic allocation of executors is enabled.
 
@@ -103,7 +103,7 @@ NOTE: `100` milliseconds for the period between successive <<schedule, schedulin
 
 It spark-service-ExecutorAllocationClient.md#requestTotalExecutors[requests executors] using the input spark-service-ExecutorAllocationClient.md[ExecutorAllocationClient]. It requests ROOT:spark-dynamic-allocation.md#spark.dynamicAllocation.initialExecutors[spark.dynamicAllocation.initialExecutors].
 
-NOTE: `start` is called while spark-SparkContext-creating-instance-internals.md#ExecutorAllocationManager[SparkContext is being created] (for ROOT:spark-dynamic-allocation.md[]).
+`start` is used when [SparkContext](SparkContext.md) is created.
 
 === [[schedule]] Scheduling Executors -- `schedule` Method
 

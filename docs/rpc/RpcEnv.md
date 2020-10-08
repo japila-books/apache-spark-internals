@@ -107,18 +107,17 @@ Used when:
 
 * ExecutorClassLoader is requested to getClassFileInputStreamFromSparkRPC
 
-=== [[setupEndpoint]] setupEndpoint Method
+## <span id="setupEndpoint"> setupEndpoint
 
-[source,scala]
-----
+```scala
 setupEndpoint(
   name: String,
   endpoint: RpcEndpoint): RpcEndpointRef
-----
+```
 
 Used when:
 
-* ROOT:SparkContext.md[] is created (and registers the ROOT:spark-SparkContext-creating-instance-internals.md#_heartbeatReceiver[HeartbeatReceiver])
+* [SparkContext](../SparkContext.md) is created
 
 * SparkEnv utility is used to core:SparkEnv.md#create[create a SparkEnv] (and register the BlockManagerMaster, MapOutputTracker and OutputCommitCoordinator RPC endpoints on the driver)
 

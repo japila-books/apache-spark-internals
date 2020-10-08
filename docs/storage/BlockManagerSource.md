@@ -1,9 +1,9 @@
-== [[BlockManagerSource]] BlockManagerSource -- Metrics Source for BlockManager
+# BlockManagerSource -- Metrics Source for BlockManager
 
 `BlockManagerSource` is the spark-metrics-Source.md[metrics source] of a storage:BlockManager.md[BlockManager].
 
 [[sourceName]]
-`BlockManagerSource` is registered under the name *BlockManager* (when `SparkContext` is spark-SparkContext-creating-instance-internals.md#registerSource[created]).
+`BlockManagerSource` is registered under the name **BlockManager** (when [SparkContext](../SparkContext.md) is created).
 
 [[metrics]]
 .BlockManagerSource's Gauge Metrics (in alphabetical order)
@@ -75,4 +75,4 @@ $ http --follow http://localhost:4040/metrics/json \
 [[blockManager]]
 `BlockManagerSource` takes a storage:BlockManager.md[BlockManager] when created.
 
-`BlockManagerSource` is <<creating-instance, created>> when `SparkContext` is spark-SparkContext-creating-instance-internals.md#registerSource[created].
+`BlockManagerSource` is created when [SparkContext](../SparkContext.md) is created.

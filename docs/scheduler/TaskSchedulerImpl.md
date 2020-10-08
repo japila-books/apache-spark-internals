@@ -223,8 +223,6 @@ NOTE: `initialize` is called while ROOT:SparkContext.md#createTaskScheduler[Spar
 
 == [[start]] Starting TaskSchedulerImpl
 
-As part of ROOT:spark-SparkContext-creating-instance-internals.md[initialization of a `SparkContext`], TaskSchedulerImpl is started (using `start` from the scheduler:TaskScheduler.md#contract[TaskScheduler Contract]).
-
 [source, scala]
 ----
 start(): Unit

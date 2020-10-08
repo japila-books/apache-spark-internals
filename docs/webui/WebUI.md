@@ -1,4 +1,4 @@
-== [[WebUI]] WebUI -- Base Web UI
+# WebUI -- Base Web UI
 
 `WebUI` is the <<contract, base>> of the <<implementations, web UIs>> in Apache Spark:
 
@@ -243,20 +243,17 @@ attachHandler(handler: ServletContextHandler): Unit
 
 `attachHandler` simply adds the input Jetty `ServletContextHandler` to <<handlers, handlers>> registry and requests the <<serverInfo, ServerInfo>> to `addHandler` (only if the `ServerInfo` is defined).
 
-[NOTE]
-====
 `attachHandler` is used when:
 
 * <<implementations, web UIs>> (i.e. spark-history-server:HistoryServer.md#initialize[HistoryServer], Spark Standalone's `MasterWebUI` and `WorkerWebUI`, Spark on Mesos' `MesosClusterUI`, spark-webui-SparkUI.md#initialize[SparkUI]) are requested to initialize
 
 * `WebUI` is requested to <<attachPage, attach a page to web UI>> and <<addStaticHandler, addStaticHandler>>
 
-* `SparkContext` is created (and spark-SparkContext-creating-instance-internals.md#metricsSystem[attaches the driver metrics servlet handler to the web UI])
+* [SparkContext](../SparkContext.md) is created
 
 * `HistoryServer` is requested to spark-history-server:HistoryServer.md#attachSparkUI[attachSparkUI]
 
 * Spark Standalone's `Master` and `Worker` are requested to `onStart` (and attach their metrics servlet handlers to the web ui)
-====
 
 === [[getBasePath]] `getBasePath` Method
 

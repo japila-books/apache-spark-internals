@@ -1,10 +1,10 @@
-= SparkUI
+# SparkUI
 
-*SparkUI* is the spark-webui-WebUI.md[web UI] of a Spark application (aka *Application UI*).
+`SparkUI` is the [web UI](WebUI.md) of a Spark application (aka **Application UI**).
 
 SparkUI is <<creating-instance, created>> along with the following:
 
-* spark-SparkContext-creating-instance-internals.md#_ui[SparkContext] (for a live Spark application with spark-webui-properties.md#spark.ui.enabled[spark.ui.enabled] configuration property enabled)
+* [SparkContext](../SparkContext.md) is created (for a live Spark application with spark-webui-properties.md#spark.ui.enabled[spark.ui.enabled] configuration property enabled)
 
 * `FsHistoryProvider` is requested for the spark-history-server:FsHistoryProvider.md#getAppUI[application UI] (for a live or completed Spark application)
 
@@ -13,7 +13,7 @@ image::spark-webui-SparkUI.png[align="center"]
 
 When <<create, created>> (while `SparkContext` is created for a live Spark application), SparkUI gets the following:
 
-* Live spark-SparkContext-creating-instance-internals.md#_statusStore[AppStatusStore] (with a core:ElementTrackingStore.md[] using an core:InMemoryStore.md[] and a core:AppStatusListener.md[] for a live Spark application)
+* Live [AppStatusStore](../SparkContext-creating-instance-internals.md#_statusStore) (with a core:ElementTrackingStore.md[] using an core:InMemoryStore.md[] and a core:AppStatusListener.md[] for a live Spark application)
 
 * Name of the Spark application that is exactly the value of ROOT:SparkConf.md#spark.app.name[spark.app.name] configuration property
 
@@ -70,7 +70,7 @@ setAppId(id: String): Unit
 
 `setAppId` sets the internal <<appId, appId>>.
 
-NOTE: `setAppId` is used exclusively when `SparkContext` spark-SparkContext-creating-instance-internals.md#spark.app.id[is initialized].
+`setAppId` is used when [SparkContext](../SparkContext.md) is created.
 
 == [[stop]] Stopping SparkUI -- `stop` Method
 
@@ -129,7 +129,7 @@ createLiveUI(
 
 Internally, `createLiveUI` simply forwards the call to <<create, create>>.
 
-NOTE: `createLiveUI` is called when spark-SparkContext-creating-instance-internals.md#ui[`SparkContext` is created] (and spark-webui-properties.md#spark.ui.enabled[spark.ui.enabled] is enabled).
+`createLiveUI` is used when [SparkContext](../SparkContext.md) is created.
 
 == [[createHistoryUI]] `createHistoryUI` Method
 
@@ -176,16 +176,12 @@ create(
 
 Internally, `create` simply creates a new <<creating-instance, SparkUI>> (with the predefined Spark version).
 
-[NOTE]
-====
 `create` is used when:
 
-* `SparkContext` is spark-SparkContext-creating-instance-internals.md#_ui[created] (for a running Spark application)
-
+* [SparkContext](../SparkContext.md) is created
 * `FsHistoryProvider` is requested to spark-history-server:FsHistoryProvider.md#getAppUI[getAppUI] (for a Spark application that already finished)
-====
 
-== [[creating-instance]] Creating SparkUI Instance
+## Creating Instance
 
 SparkUI takes the following when created:
 

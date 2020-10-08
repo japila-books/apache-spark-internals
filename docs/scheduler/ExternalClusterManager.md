@@ -1,12 +1,10 @@
-= ExternalClusterManager
+# ExternalClusterManager
 
-ExternalClusterManager is a <<contract, contract for pluggable cluster managers>>. It returns a scheduler:TaskScheduler.md[task scheduler] and a scheduler:SchedulerBackend.md[backend scheduler] that will be used by ROOT:SparkContext.md[SparkContext] to schedule tasks.
+`ExternalClusterManager` is a <<contract, contract for pluggable cluster managers>>. It returns a scheduler:TaskScheduler.md[task scheduler] and a scheduler:SchedulerBackend.md[backend scheduler] that will be used by ROOT:SparkContext.md[SparkContext] to schedule tasks.
 
 NOTE: The support for pluggable cluster managers was introduced in https://issues.apache.org/jira/browse/SPARK-13904[SPARK-13904 Add support for pluggable cluster manager].
 
-External cluster managers are spark-SparkContext-creating-instance-internals.md#getClusterManager[registered using the `java.util.ServiceLoader` mechanism] (with service markers under `META-INF/services` directory). This allows auto-loading implementations of ExternalClusterManager interface.
-
-NOTE: ExternalClusterManager is a `private[spark]` trait in `org.apache.spark.scheduler` package.
+External cluster managers are [registered using the `java.util.ServiceLoader` mechanism](../SparkContext-creating-instance-internals.md#getClusterManager) (with service markers under `META-INF/services` directory). This allows auto-loading implementations of ExternalClusterManager interface.
 
 NOTE: The two implementations of the <<contract, ExternalClusterManager contract>> in Spark 2.0 are yarn/spark-yarn-YarnClusterManager.md[YarnClusterManager] and `MesosClusterManager`.
 
@@ -21,7 +19,7 @@ canCreate(masterURL: String): Boolean
 
 `canCreate` is a mechanism to match a ExternalClusterManager implementation to a given master URL.
 
-NOTE: `canCreate` is used when spark-SparkContext-creating-instance-internals.md#getClusterManager[`SparkContext` loads the external cluster manager for a master URL].
+`canCreate` is used when [SparkContext](../SparkContext) is created.
 
 === [[createTaskScheduler]] `createTaskScheduler` Method
 

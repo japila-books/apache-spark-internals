@@ -1,5 +1,19 @@
 # Spark Configuration Properties
 
+## <span id="spark.app.id"> spark.app.id
+
+Unique identifier of a Spark application that Spark uses to uniquely identify [metric sources](metrics/MetricsSystem.md#buildRegistryName).
+
+Default: [TaskScheduler.applicationId()](scheduler/TaskScheduler.md#applicationId)
+
+Set when [SparkContext](SparkContext.md) is created
+
+## <span id="spark.extraListeners"> spark.extraListeners
+
+A comma-separated list of fully-qualified class names of [SparkListener](SparkListener.md)s (to be registered when [SparkContext](SparkContext.md) is created)
+
+Default: (empty)
+
 == [[properties]] Properties
 
 [cols="1m,1",options="header",width="100%"]
@@ -562,14 +576,6 @@ Default: `true`
 
 Used when core:TorrentBroadcast.md#creating-instance[`TorrentBroadcast` is created] and later when core:TorrentBroadcast.md#writeBlocks[it stores broadcast blocks to `BlockManager`]. Also in serializer:SerializerManager.md#settings[SerializerManager].
 
-== [[spark.app.id]] spark.app.id
-
-Unique identifier of a Spark application that Spark uses to uniquely identify metrics:spark-metrics-MetricsSystem.md#buildRegistryName[metric sources].
-
-Default: scheduler:TaskScheduler.md#applicationId[TaskScheduler.applicationId()]
-
-Set when SparkContext ROOT:spark-SparkContext-creating-instance-internals.md#spark.app.id[is created] (right after TaskScheduler ROOT:spark-SparkContext-creating-instance-internals.md#taskScheduler-start[is started] that actually gives the identifier).
-
 == [[spark.app.name]] spark.app.name
 
 Application Name
@@ -605,12 +611,6 @@ Default: `120s`
 Network timeout to use for RPC remote endpoint lookup. Fallback for <<spark.rpc.askTimeout, spark.rpc.askTimeout>>.
 
 Default: `120s`
-
-== [[spark.extraListeners]] spark.extraListeners
-
-A comma-separated list of fully-qualified class names of ROOT:SparkListener.md[]s (to be registered when SparkContext is ROOT:spark-SparkContext-creating-instance-internals.md#registering_SparkListeners[created])
-
-Default: (empty)
 
 == [[spark.speculation]] spark.speculation
 

@@ -109,7 +109,7 @@ Can only call getServletHandlers on a running MetricsSystem
 
 `getServletHandlers` is used when:
 
-* `SparkContext` is [created](../spark-SparkContext-creating-instance-internals.md#MetricsSystem-getServletHandlers)
+* `SparkContext` is [created](../SparkContext-creating-instance-internals.md#MetricsSystem-getServletHandlers)
 * (Spark Standalone) `Master` and `Worker` are requested to start
 
 ## <span id="registerSinks"> Registering Metrics Sinks

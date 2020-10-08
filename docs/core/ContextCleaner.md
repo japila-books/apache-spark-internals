@@ -1,17 +1,16 @@
-= ContextCleaner
+# ContextCleaner
 
-*ContextCleaner* is a Spark service that is responsible for <<keepCleaning, application-wide garbage collection>> (_cleanup_) of <<registerShuffleForCleanup, shuffles>>, <<registerRDDForCleanup, RDDs>>, <<registerBroadcastForCleanup, broadcasts>>, <<registerAccumulatorForCleanup, accumulators>> and <<registerRDDCheckpointDataForCleanup, checkpointed RDDs>> that is aimed at reducing the memory requirements of long-running data-heavy Spark applications.
+`ContextCleaner` is a Spark service that is responsible for <<keepCleaning, application-wide garbage collection>> (_cleanup_) of <<registerShuffleForCleanup, shuffles>>, <<registerRDDForCleanup, RDDs>>, <<registerBroadcastForCleanup, broadcasts>>, <<registerAccumulatorForCleanup, accumulators>> and <<registerRDDCheckpointDataForCleanup, checkpointed RDDs>> that is aimed at reducing the memory requirements of long-running data-heavy Spark applications.
 
-.ContextCleaner and SparkContext
-image::ContextCleaner.png[align="center"]
+![ContextCleaner and SparkContext](../images/core/ContextCleaner.png)
 
-== [[creating-instance]] Creating Instance
+## Creating Instance
 
 ContextCleaner takes the following to be created:
 
 * [[sc]] ROOT:SparkContext.md[]
 
-ContextCleaner is created and requested to <<start, start>> when SparkContext is requested to ROOT:spark-SparkContext-creating-instance-internals.md#_cleaner[start] with ROOT:configuration-properties.md#spark.cleaner.referenceTracking[spark.cleaner.referenceTracking] configuration property enabled.
+`ContextCleaner` is created and requested to [start](#start) when [SparkContext](../SparkContext.md) is created with ROOT:configuration-properties.md#spark.cleaner.referenceTracking[spark.cleaner.referenceTracking] configuration property enabled.
 
 == [[cleaningThread]] Spark Context Cleaner Cleaning Thread
 
@@ -131,7 +130,7 @@ start starts the <<cleaningThread, cleaning thread>> and an action to request th
 
 The action to request the JVM GC is scheduled on <<periodicGCService, periodicGCService executor service>>.
 
-start is used when SparkContext is ROOT:spark-SparkContext-creating-instance-internals.md#_cleaner[created].
+`start` is used when [SparkContext](../SparkContext.md) is created.
 
 == [[periodicGCService]] periodicGCService Single-Thread Executor Service
 

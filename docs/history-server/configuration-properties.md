@@ -1,8 +1,16 @@
-= Configuration Properties
+# Configuration Properties
 
 The following contains the configuration properties of <<EventLoggingListener, EventLoggingListener>> and <<HistoryServer, Spark History Server>>.
 
 NOTE: EventLoggingListener.md[EventLoggingListener] is responsible for writing out JSON-encoded events of a Spark application to an event log file that HistoryServer.md[HistoryServer] can display in a web UI-based interface.
+
+## <span id="spark.eventLog.dir"> spark.eventLog.dir
+
+Directory where Spark events are logged to (e.g. `hdfs://namenode:8021/directory`)
+
+Default: `/tmp/spark-events`
+
+The directory must exist before [SparkContext](../SparkContext.md) is created.
 
 [[EventLoggingListener]]
 .EventLoggingListener's Spark Properties
@@ -20,13 +28,6 @@ Default: `100`
 a| [[spark.eventLog.compress]] Whether to enable (`true`) or disable (`false`) event compression (using a io:CompressionCodec.md[CompressionCodec])
 
 Default: `false`
-
-| spark.eventLog.dir
-a| [[spark.eventLog.dir]] Directory where Spark events are logged to (e.g. `hdfs://namenode:8021/directory`)
-
-Default: `/tmp/spark-events`
-
-The directory must exist before ROOT:spark-SparkContext-creating-instance-internals.md#_eventLogger[Spark starts up].
 
 | spark.eventLog.enabled
 a| [[spark.eventLog.enabled]] Whether to enable (`true`) or disable (`false`) persisting Spark events.

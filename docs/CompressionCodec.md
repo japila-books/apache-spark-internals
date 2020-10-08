@@ -124,21 +124,19 @@ createCodec is used when:
 
 * UnsafeShuffleWriter is requested to shuffle:UnsafeShuffleWriter.md#mergeSpills[merge spills]
 
-== [[getCodecName]] Finding Compression Codec Name
+## <span id="getCodecName"> Finding Compression Codec Name
 
-[source, scala]
-----
+```scala
 getCodecName(
   conf: SparkConf): String
-----
+```
 
-getCodecName takes the name of a compression codec based on ROOT:configuration-properties.md#spark.io.compression.codec[spark.io.compression.codec] configuration property (using the ROOT:SparkConf.md[SparkConf]) if available or defaults to `lz4`.
+`getCodecName` takes the name of a compression codec based on ROOT:configuration-properties.md#spark.io.compression.codec[spark.io.compression.codec] configuration property (using the ROOT:SparkConf.md[SparkConf]) if available or defaults to `lz4`.
 
-getCodecName is used when:
+`getCodecName` is used when:
 
-* SparkContext is created (and ROOT:spark-SparkContext-creating-instance-internals.md#_eventLogCodec[initializes event logging])
-
-* CompressionCodec utility is used to <<createCodec, creating a CompressionCodec>>
+* [SparkContext](SparkContext.md) is created
+* CompressionCodec utility is used to [creating a CompressionCodec](#createCodec)
 
 == [[supportsConcatenationOfSerializedStreams]] supportsConcatenationOfSerializedStreams Method
 

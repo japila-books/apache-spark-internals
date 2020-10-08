@@ -739,7 +739,7 @@ It BlockManagerMaster.md#registerBlockManager[registers itself to the driver's B
 
 Ultimately, if the initialization happens on an executor and the <<externalShuffleServiceEnabled, External Shuffle Service is used>>, it <<registerWithExternalShuffleServer, registers to the shuffle service>>.
 
-initialize is used when the spark-SparkContext-creating-instance-internals.md#BlockManager-initialization[driver is launched (and `SparkContext` is created)] and when an executor:Executor.md#creating-instance[`Executor` is created] (for executor:CoarseGrainedExecutorBackend.md#RegisteredExecutor[CoarseGrainedExecutorBackend] and spark-on-mesos:spark-executor-backends-MesosExecutorBackend.md[MesosExecutorBackend]).
+`initialize` is used when [SparkContext](../SparkContext.md) is created and when an executor:Executor.md#creating-instance[`Executor` is created] (for executor:CoarseGrainedExecutorBackend.md#RegisteredExecutor[CoarseGrainedExecutorBackend] and spark-on-mesos:spark-executor-backends-MesosExecutorBackend.md[MesosExecutorBackend]).
 
 == [[registerWithExternalShuffleServer]] Registering Executor's BlockManager with External Shuffle Server
 

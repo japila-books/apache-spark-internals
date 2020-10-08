@@ -1,35 +1,33 @@
-= SparkContext
+# SparkContext
 
-*SparkContext* is the entry point to all components of Apache Spark (execution engine) and so the heart of a Spark application. In fact, you can consider an application a Spark application only when it uses a SparkContext (directly or indirectly).
+`SparkContext` is the entry point to all of the components of Apache Spark (execution engine) and so the heart of a Spark application. In fact, you can consider an application a Spark application only when it uses a SparkContext (directly or indirectly).
 
-[[methods]]
-.SparkContext's Developer API (Public Methods)
-[cols="1,3",options="header",width="100%"]
-|===
-| Method
-| Description
+![Spark context acts as the master of your Spark application](images/diagrams/sparkcontext-services.png)
 
-| <<addJar-internals, addJar>>
-a| [[addJar]]
+!!! important
+    There should be one active `SparkContext` per JVM and Spark developers should use [SparkContext.getOrCreate](#getOrCreate) utility for sharing it (e.g. across threads).
 
-[source, scala]
-----
-addJar(path: String): Unit
-----
+## Creating Instance
 
-|
-a| _More to be added soon_
+`SparkContext` takes the following to be created:
 
-|===
+* <span id="config"> [SparkConf](SparkConf.md)
 
-Spark context spark-SparkContext-creating-instance-internals.md[sets up internal services] and establishes a connection to a spark-deployment-environments.md[Spark execution environment].
+`SparkContext` is created (directly or indirectly using [getOrCreate](#getOrCreate) utility).
 
-Once a <<creating-instance, SparkContext is created>> you can use it to <<creating-rdds, create RDDs>>, <<creating-accumulators, accumulators>> and <<broadcast, broadcast variables>>, access Spark services and <<runJob, run jobs>> (until SparkContext is <<stop, stopped>>).
+While being created, `SparkContext` [sets up core services](SparkContext-creating-instance-internals.md) and establishes a connection to a [Spark execution environment](spark-deployment-environments.md).
 
-A Spark context is essentially a client of Spark's execution environment and acts as the _master of your Spark application_ (don't get confused with the other meaning of spark-master.md[Master] in Spark, though).
+## <span id="getOrCreate"> getOrCreate Utility
 
-.Spark context acts as the master of your Spark application
-image::diagrams/sparkcontext-services.png[align="center"]
+```scala
+getOrCreate(): SparkContext
+getOrCreate(
+  config: SparkConf): SparkContext
+```
+
+`getOrCreate`...FIXME
+
+## Old Information
 
 SparkContext offers the following functions:
 
@@ -87,17 +85,6 @@ addFile(
 
 `addFile` adds the `path` file to be downloaded...FIXME
 
-[NOTE]
-====
-`addFile` is used when:
-
-* SparkContext is spark-SparkContext-creating-instance-internals.md#files[initialized] (and `files` were defined)
-
-* Spark SQL's `AddFileCommand` is executed
-
-* Spark SQL's `SessionResourceLoader` is requested to load a file resource
-====
-
 == [[unpersistRDD]] Removing RDD Blocks from BlockManagerMaster -- `unpersistRDD` Internal Method
 
 [source, scala]
@@ -134,7 +121,7 @@ postApplicationStart(): Unit
 
 `postApplicationStart`...FIXME
 
-NOTE: `postApplicationStart` is used exclusively while SparkContext is being <<spark-SparkContext-creating-instance-internals.md#postApplicationStart, created>>
+`postApplicationStart` is used exclusively when `SparkContext` is created.
 
 == [[postApplicationEnd]] `postApplicationEnd` Method
 
@@ -236,12 +223,6 @@ WARN Requesting executors is only supported in coarse-grained mode
 ```
 
 CAUTION: FIXME Why does SparkContext implement the method for coarse-grained scheduler backends? Why doesn't SparkContext throw an exception when the method is called? Nobody seems to be using it (!)
-
-== [[creating-instance]] Creating SparkContext Instance
-
-You can create a SparkContext instance with or without creating a ROOT:SparkConf.md[SparkConf] object first.
-
-NOTE: You may want to read spark-SparkContext-creating-instance-internals.md[Inside Creating SparkContext] to learn what happens behind the scenes when SparkContext is created.
 
 === [[getOrCreate]] Getting Existing or Creating New SparkContext -- `getOrCreate` Methods
 
@@ -899,9 +880,7 @@ The value of `spark.buffer.size` (default: `65536`) is used as the value of `io.
 
 `listenerBus` is a scheduler:LiveListenerBus.md[] object that acts as a mechanism to announce events to other services on the spark-driver.md[driver].
 
-NOTE: It is created and started when spark-SparkContext-creating-instance-internals.md[SparkContext starts] and, since it is a single-JVM event bus, is exclusively used on the driver.
-
-NOTE: `listenerBus` is a `private[spark]` value in SparkContext.
+`LiveListenerBus` is created and started when `SparkContext` is created and, since it is a single-JVM event bus, is exclusively used on the driver.
 
 == [[startTime]] Time when SparkContext was Created -- `startTime` Property
 
@@ -917,17 +896,6 @@ startTime: Long
 scala> sc.startTime
 res0: Long = 1464425605653
 ----
-
-== [[sparkUser]] Spark User -- `sparkUser` Property
-
-[source, scala]
-----
-sparkUser: String
-----
-
-`sparkUser` is the user who started the SparkContext instance.
-
-NOTE: It is computed when spark-SparkContext-creating-instance-internals.md#sparkUser[SparkContext is created] using spark-SparkContext-creating-instance-internals.md#[Utils.getCurrentUserName].
 
 == [[submitMapStage]] Submitting `ShuffleDependency` for Execution -- `submitMapStage` Internal Method
 
@@ -999,7 +967,7 @@ cleaner: Option[ContextCleaner]
 
 SparkContext may have a core:ContextCleaner.md[ContextCleaner] defined.
 
-ContextCleaner is created when ROOT:spark-SparkContext-creating-instance-internals.md#_cleaner[SparkContext is created] with ROOT:configuration-properties.md#spark.cleaner.referenceTracking[spark.cleaner.referenceTracking] configuration property enabled.
+`ContextCleaner` is created when `SparkContext` is created with ROOT:configuration-properties.md#spark.cleaner.referenceTracking[spark.cleaner.referenceTracking] configuration property enabled.
 
 == [[getPreferredLocs]] Finding Preferred Locations (Placement Preferences) for RDD Partition
 
@@ -1097,7 +1065,7 @@ statusStore is used when:
 uiWebUrl: Option[String]
 ----
 
-`uiWebUrl` requests the spark-SparkContext-creating-instance-internals.md#_ui[SparkUI] for spark-webui-WebUI.md#webUrl[webUrl].
+`uiWebUrl` requests the `SparkUI` for [webUrl](webui/WebUI.md#webUrl).
 
 == [[maxNumConcurrentTasks]] `maxNumConcurrentTasks` Method
 
@@ -1167,7 +1135,7 @@ postEnvironmentUpdate(): Unit
 
 `postEnvironmentUpdate`...FIXME
 
-NOTE: `postEnvironmentUpdate` is used when SparkContext is <<spark-SparkContext-creating-instance-internals.md#postEnvironmentUpdate, created>>, and requested to <<addFile, addFile>> and <<addJar, addJar>>.
+`postEnvironmentUpdate` is used when [SparkContext](SparkContext.md) is created, and requested to <<addFile, addFile>> and <<addJar, addJar>>.
 
 == [[addJar-internals]] `addJar` Method
 

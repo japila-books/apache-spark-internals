@@ -75,11 +75,11 @@ Logging events to [logPath]
 
 `start` throws an `IllegalArgumentException` when the <<logBaseDir, logBaseDir>> is not a directory:
 
-```
+```text
 Log directory [logBaseDir] is not a directory.
 ```
 
-NOTE: `start` is executed while `SparkContext` is ROOT:spark-SparkContext-creating-instance-internals.md#_eventLogger[created].
+`start` is used when [SparkContext](SparkContext.md) is created.
 
 == [[logEvent]] Logging Event (In JSON Format)
 

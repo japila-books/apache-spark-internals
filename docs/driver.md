@@ -57,7 +57,7 @@ NOTE: It is printed out to the standard error output in spark-submit.md#verbose-
 More precisely, `spark.driver.blockManager.port` is used when core:SparkEnv.md#NettyBlockTransferService[`NettyBlockTransferService` is created] (while `SparkEnv` is created for the driver).
 
 | [[spark_driver_host]][[spark.driver.host]] `spark.driver.host`
-| spark-SparkContext-creating-instance-internals.md#localHostName[localHostName]
+| [localHostName](SparkContext-creating-instance-internals.md#localHostName)
 | The address of the node where the driver runs on.
 
 Set when ROOT:SparkContext.md#creating-instance[`SparkContext` is created]

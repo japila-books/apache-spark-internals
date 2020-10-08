@@ -1,11 +1,10 @@
-= Web UI -- Spark Application's Web Console
+# Web UI &mdash; Spark Application's Web Console
 
-*Web UI* (aka *Application UI* or *webUI* or *Spark UI*) is the web interface of a Spark application to monitor and inspect Spark jobs in a web browser.
+**Web UI** (aka *Application UI* or *webUI* or *Spark UI*) is the web interface of a Spark application to monitor and inspect Spark jobs in a web browser.
 
-.Welcome Page of web UI &mdash; Jobs Tab
-image::spark-webui-jobs.png[align="center"]
+![Welcome Page of web UI &mdash; Jobs Tab](../images/webui/spark-webui-jobs.png)
 
-Every Spark application (ROOT:SparkContext.md[]) starts a ROOT:spark-SparkContext-creating-instance-internals.md#ui[web UI] that is available at `http://[driverHostname]:4040` by default.
+web UI is available at `http://[driverHostname]:4040` by default.
 
 NOTE: The default port can be changed using spark-webui-properties.md#spark.ui.port[spark.ui.port] configuration property. `SparkContext` will increase the port if it is already taken until a free one is found.
 

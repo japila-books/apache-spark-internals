@@ -1,14 +1,13 @@
-== [[HeartbeatReceiver]] HeartbeatReceiver RPC Endpoint
+# HeartbeatReceiver RPC Endpoint
 
 [[ENDPOINT_NAME]]
 `HeartbeatReceiver` is a rpc:RpcEndpoint.md#ThreadSafeRpcEndpoint[ThreadSafeRpcEndpoint] registered on the driver under the name *HeartbeatReceiver*.
 
 `HeartbeatReceiver` receives <<Heartbeat, Heartbeat>> messages from executors that Spark uses as the mechanism to receive accumulator updates (with task metrics and a Spark application's accumulators) and scheduler:TaskScheduler.md#executorHeartbeatReceived[pass them along to `TaskScheduler`].
 
-.HeartbeatReceiver RPC Endpoint and Heartbeats from Executors
-image::spark-HeartbeatReceiver-Heartbeat.png[align="center"]
+![HeartbeatReceiver RPC Endpoint and Heartbeats from Executors](images/spark-HeartbeatReceiver-Heartbeat.png)
 
-NOTE: `HeartbeatReceiver` is registered immediately after a Spark application is started, i.e. when `SparkContext` spark-SparkContext-creating-instance-internals.md#_heartbeatReceiver[is created].
+NOTE: `HeartbeatReceiver` is registered immediately after a Spark application is started, i.e. when [SparkContext](SparkContext.md) is created.
 
 `HeartbeatReceiver` is a ROOT:SparkListener.md[] to get notified when <<onExecutorAdded, a new executor is added>> to or <<onExecutorRemoved, no longer available>> in a Spark application. `HeartbeatReceiver` tracks executors (in <<executorLastSeen, executorLastSeen>> registry) to handle <<Heartbeat, Heartbeat>> and <<ExpireDeadHosts, ExpireDeadHosts>> messages from executors that are assigned to the Spark application.
 
@@ -32,7 +31,7 @@ NOTE: `HeartbeatReceiver` is registered immediately after a Spark application is
 | Posted when `Executor` executor:Executor.md#reportHeartBeat[informs that it is alive and reports task metrics].
 
 | <<TaskSchedulerIsSet, TaskSchedulerIsSet>>
-| Posted when `SparkContext` spark-SparkContext-creating-instance-internals.md#TaskSchedulerIsSet[informs that `TaskScheduler` is available].
+| Posted when `SparkContext` [informs that `TaskScheduler` is available](SparkContext-creating-instance-internals.md#TaskSchedulerIsSet).
 |===
 
 [[internal-registries]]

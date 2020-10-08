@@ -1,13 +1,10 @@
-= AppStatusStore
+# AppStatusStore
 
-AppStatusStore is...FIXME
-
-.AppStatusStore in Spark Application
-image::AppStatusStore-createLiveStore.png[align="center"]
+![AppStatusStore in Spark Application](../images/core/AppStatusStore-createLiveStore.png)
 
 AppStatusStore is available as ROOT:SparkContext.md#statusStore[SparkContext.statusStore] to other Spark services.
 
-== [[creating-instance]] Creating Instance
+## Creating Instance
 
 AppStatusStore takes the following to be created:
 
@@ -16,7 +13,7 @@ AppStatusStore takes the following to be created:
 
 AppStatusStore is created when:
 
-* SparkContext is ROOT:spark-SparkContext-creating-instance-internals.md#_statusStore[created] (that triggers <<createLiveStore, creating an AppStatusStore for an active Spark application>>)
+* [SparkContext](../SparkContext.md) is created (that triggers <<createLiveStore, creating an AppStatusStore for an active Spark application>>)
 
 * FsHistoryProvider is requested to spark-history-server:FsHistoryProvider.md#getAppUI[create a LoadedAppUI]
 
@@ -58,7 +55,7 @@ createLiveStore creates a core:AppStatusListener.md[] (with the `ElementTracking
 
 In the end, createLiveStore creates an <<creating-instance, AppStatusStore>> (with the `ElementTrackingStore` and `AppStatusListener` just created).
 
-createLiveStore is used when SparkContext is ROOT:spark-SparkContext-creating-instance-internals.md#_statusStore[created].
+`createLiveStore` is used when [SparkContext](../SparkContext.md) is created.
 
 == [[close]] Closing AppStatusStore
 

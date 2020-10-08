@@ -32,22 +32,16 @@ NOTE: `AppStatusPlugin` is a `private[spark]` Scala trait.
 |
 |===
 
-=== [[loadPlugins]] `loadPlugins` Method
+## <span id="loadPlugins"> loadPlugins
 
-[source, scala]
-----
+```scala
 loadPlugins(): Iterable[AppStatusPlugin]
-----
+```
 
 `loadPlugins`...FIXME
 
-[NOTE]
-====
 `loadPlugins` is used when:
 
-* `SparkContext` is spark-SparkContext-creating-instance-internals.md#ui[created] (and creates a web UI)
-
+* [SparkContext](SparkContext.md) is created
 * `FsHistoryProvider` is requested to spark-history-server:FsHistoryProvider.md#getAppUI[create a web UI]
-
 * `AppStatusStore` creates an in-memory store for a live Spark application
-====

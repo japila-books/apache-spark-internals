@@ -1,4 +1,4 @@
-= TaskLocation
+# TaskLocation
 
 TaskLocation represents a placement preference of an RDD partition, i.e. a hint of the location to submit scheduler:Task.md[tasks] for execution.
 
@@ -11,7 +11,8 @@ Every TaskLocation describes the location by host name, but could also use other
 
 TaskLocations of an RDD and a partition is available using ROOT:SparkContext.md#getPreferredLocs[SparkContext.getPreferredLocs] method.
 
-TaskLocation is a Scala `private[spark] sealed` trait so all the available implementations of TaskLocation trait are in a single Scala file.
+??? note "Sealed"
+    `TaskLocation` is a Scala `private[spark] sealed` trait so all the available implementations of TaskLocation trait are in a single Scala file.
 
 == [[ExecutorCacheTaskLocation]] ExecutorCacheTaskLocation
 
