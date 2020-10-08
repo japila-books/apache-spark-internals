@@ -79,7 +79,7 @@ Logging events to [logPath]
 Log directory [logBaseDir] is not a directory.
 ```
 
-`start` is used when [SparkContext](SparkContext.md) is created.
+`start` is used when [SparkContext](../SparkContext.md) is created.
 
 == [[logEvent]] Logging Event (In JSON Format)
 
@@ -115,7 +115,7 @@ If the target log file exists and overwrite is disabled, an `java.io.IOException
 Target log file already exists ([logPath])
 ```
 
-NOTE: `stop` is executed while `SparkContext` is requested to ROOT:SparkContext.md#stop[stop].
+NOTE: `stop` is executed while `SparkContext` is requested to [stop](../SparkContext.md#stop).
 
 == [[getLogPath]] getLogPath Utility
 

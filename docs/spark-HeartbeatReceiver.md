@@ -5,7 +5,7 @@
 
 `HeartbeatReceiver` receives <<Heartbeat, Heartbeat>> messages from executors that Spark uses as the mechanism to receive accumulator updates (with task metrics and a Spark application's accumulators) and scheduler:TaskScheduler.md#executorHeartbeatReceived[pass them along to `TaskScheduler`].
 
-![HeartbeatReceiver RPC Endpoint and Heartbeats from Executors](images/spark-HeartbeatReceiver-Heartbeat.png)
+![HeartbeatReceiver RPC Endpoint and Heartbeats from Executors](images/executor/HeartbeatReceiver-Heartbeat.png)
 
 NOTE: `HeartbeatReceiver` is registered immediately after a Spark application is started, i.e. when [SparkContext](SparkContext.md) is created.
 

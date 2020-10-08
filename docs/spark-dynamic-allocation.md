@@ -6,7 +6,7 @@ Unlike the "traditional" static allocation where a Spark application reserves CP
 
 Dynamic allocation is enabled using <<spark.dynamicAllocation.enabled, spark.dynamicAllocation.enabled>> setting. When enabled, it is assumed that the deploy:ExternalShuffleService.md[External Shuffle Service] is also used (it is not by default as controlled by ROOT:configuration-properties.md#spark.shuffle.service.enabled[spark.shuffle.service.enabled] property).
 
-[ExecutorAllocationManager](spark-ExecutorAllocationManager.md) is responsible for dynamic allocation of executors.
+[ExecutorAllocationManager](ExecutorAllocationManager.md) is responsible for dynamic allocation of executors.
 
 Dynamic allocation reports the current state using spark-service-ExecutorAllocationManagerSource.md[`ExecutorAllocationManager` metric source].
 
