@@ -1,5 +1,19 @@
 # Spark Configuration Properties
 
+## <span id="spark.plugins"> spark.plugins
+
+A comma-separated list of class names implementing [org.apache.spark.api.plugin.SparkPlugin](plugins/SparkPlugin.md) to load into a Spark application.
+
+Default: `(empty)`
+
+Since: `3.0.0`
+
+Set when [SparkContext](SparkContext.md) is created
+
+## <span id="spark.plugins.defaultList"> spark.plugins.defaultList
+
+FIXME
+
 ## <span id="spark.app.id"> spark.app.id
 
 Unique identifier of a Spark application that Spark uses to uniquely identify [metric sources](metrics/MetricsSystem.md#buildRegistryName).

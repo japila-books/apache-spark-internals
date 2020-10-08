@@ -27,6 +27,16 @@ getOrCreate(
 
 `getOrCreate`...FIXME
 
+## <span id="_plugins"><span id="PluginContainer"> PluginContainer
+
+`SparkContext` creates a [PluginContainer](plugins/PluginContainer.md) when [created](#creating-instance).
+
+`PluginContainer` is created (for the driver where `SparkContext` lives) using [PluginContainer.apply](plugins/PluginContainer.md#apply) utility.
+
+`PluginContainer` is then requested to [registerMetrics](plugins/PluginContainer.md#registerMetrics) with the [applicationId](#applicationId).
+
+`PluginContainer` is requested to [shutdown](plugins/PluginContainer.md#shutdown) when `SparkContext` is requested to [stop](#stop).
+
 ## Old Information
 
 SparkContext offers the following functions:

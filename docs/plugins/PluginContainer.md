@@ -1,6 +1,8 @@
 # PluginContainer
 
-`PluginContainer` is an [abstraction](#contract) of [plugins](#implementations).
+`PluginContainer` is an [abstraction](#contract) of [plugin containers](#implementations) that can [registerMetrics](#registerMetrics) (for the driver and executors).
+
+`PluginContainer` is created for the driver and executors using [apply](#apply) utility.
 
 ## Contract
 
@@ -31,3 +33,31 @@ Used when:
 
 * [DriverPluginContainer](DriverPluginContainer.md)
 * [ExecutorPluginContainer](ExecutorPluginContainer.md)
+
+## <span id="apply"> Creating PluginContainer
+
+```scala
+// the driver
+apply(
+  sc: SparkContext,
+  resources: java.util.Map[String, ResourceInformation]): Option[PluginContainer]
+// executors
+apply(
+  env: SparkEnv,
+  resources: java.util.Map[String, ResourceInformation]): Option[PluginContainer]
+// private helper
+apply(
+  ctx: Either[SparkContext, SparkEnv],
+  resources: java.util.Map[String, ResourceInformation]): Option[PluginContainer]
+```
+
+`apply` creates a `PluginContainer` for the driver or executors (based on the type of the first input argument, i.e. [SparkContext](../SparkContext.md) or [SparkEnv](../SparkEnv.md), respectively).
+
+`apply` first loads the [SparkPlugin](SparkPlugin.md)s defined by [spark.plugins](../configuration-properties.md#spark.plugins) configuration property.
+
+Only when there was at least one plugin loaded, `apply` creates a [DriverPluginContainer](DriverPluginContainer.md) or [ExecutorPluginContainer](ExecutorPluginContainer.md).
+
+`apply` is used when:
+
+* `SparkContext` is [created](../SparkContext.md#PluginContainer)
+* `Executor` is [created](../executor/Executor.md#plugins)
