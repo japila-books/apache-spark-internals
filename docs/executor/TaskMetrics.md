@@ -1,4 +1,4 @@
-= TaskMetrics
+# TaskMetrics
 
 TaskMetrics is a <<metrics, collection of metrics>> (as <<spark-accumulators.md#, AccumulatorV2s>>) tracked during execution of a scheduler:Task.md[Task].
 

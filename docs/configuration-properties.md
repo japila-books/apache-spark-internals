@@ -17,6 +17,22 @@ Used when:
 * Spark SQL's `UnsafeExternalRowSorter` is created
 * Spark SQL's `UnsafeFixedWidthAggregationMap` is requested for an `UnsafeKVExternalSorter`
 
+## <span id="spark.shuffle.file.buffer"> spark.shuffle.file.buffer
+
+Size of the in-memory buffer for each shuffle file output stream, in KiB unless otherwise specified. These buffers reduce the number of disk seeks and system calls made in creating intermediate shuffle files.
+
+Default: `32k`
+
+Must be greater than `0` and less than or equal to `2097151` (`(Integer.MAX_VALUE - 15) / 1024`)
+
+Used when the following are created:
+
+* [BypassMergeSortShuffleWriter](shuffle/BypassMergeSortShuffleWriter.md)
+* [ShuffleExternalSorter](shuffle/ShuffleExternalSorter.md)
+* [UnsafeShuffleWriter](shuffle/UnsafeShuffleWriter.md)
+* [ExternalAppendOnlyMap](shuffle/ExternalAppendOnlyMap.md)
+* [ExternalSorter](shuffle/ExternalSorter.md)
+
 ## <span id="spark.plugins"> spark.plugins
 
 A comma-separated list of class names implementing [org.apache.spark.api.plugin.SparkPlugin](plugins/SparkPlugin.md) to load into a Spark application.
@@ -318,14 +334,6 @@ Tracks whether Tungsten memory will be allocated on the JVM heap or off-heap (us
 If enabled, <<spark.memory.offHeap.size, spark.memory.offHeap.size>> has to be memory:MemoryManager.md#tungstenMemoryMode[greater than 0].
 
 Used when MemoryManager is requested for memory:MemoryManager.md#tungstenMemoryMode[tungstenMemoryMode].
-
-== [[spark.shuffle.file.buffer]] spark.shuffle.file.buffer
-
-Size of the in-memory buffer for each shuffle file output stream, in KiB unless otherwise specified. These buffers reduce the number of disk seeks and system calls made in creating intermediate shuffle files.
-
-Default: `32k`
-
-Must be greater than `0` and less than or equal to `2097151` (`(Integer.MAX_VALUE - 15) / 1024`)
 
 == [[spark.shuffle.spill.batchSize]] spark.shuffle.spill.batchSize
 

@@ -1,6 +1,6 @@
-= UnsafeShuffleWriter
+# UnsafeShuffleWriter
 
-*UnsafeShuffleWriter* is a shuffle:ShuffleWriter.md[ShuffleWriter] for shuffle:SerializedShuffleHandle.md[SerializedShuffleHandles].
+`UnsafeShuffleWriter` is a [ShuffleWriter](ShuffleWriter.md) for [SerializedShuffleHandles](SerializedShuffleHandle.md).
 
 UnsafeShuffleWriter is <<creating-instance, created>> when SortShuffleManager is requested for a shuffle:SortShuffleManager.md#getWriter[ShuffleWriter] for a <<handle, SerializedShuffleHandle>>.
 
@@ -9,8 +9,7 @@ image::UnsafeShuffleWriter.png[align="center"]
 
 UnsafeShuffleWriter <<open, opens resources>> (a <<sorter, ShuffleExternalSorter>> and the buffers) immediately while being <<creating-instance, created>>.
 
-.UnsafeShuffleWriter and ShuffleExternalSorter
-image::UnsafeShuffleWriter-ShuffleExternalSorter.png[align="center"]
+![UnsafeShuffleWriter and ShuffleExternalSorter](../images/shuffle/UnsafeShuffleWriter-ShuffleExternalSorter.png)
 
 When requested to <<write, write key-value records of a partition>>, UnsafeShuffleWriter simply <<insertRecordIntoSorter, inserts every record into ShuffleExternalSorter>> followed by <<closeAndWriteOutput, close internal resources and merge spill files>> (that, among other things, creates the <<mapStatus, MapStatus>>).
 

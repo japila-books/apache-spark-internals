@@ -1,201 +1,203 @@
 # ShuffleExternalSorter
 
-`ShuffleExternalSorter` is a specialized cache-efficient sorter that sorts arrays of compressed record pointers and partition ids. By using only 8 bytes of space per record in the sorting array, ShuffleExternalSorter can fit more of the array into cache.
+`ShuffleExternalSorter` is a specialized cache-efficient sorter that sorts arrays of compressed record pointers and partition ids.
 
-.ShuffleExternalSorter and UnsafeShuffleWriter
-image::ShuffleExternalSorter.png[align="center"]
+`ShuffleExternalSorter` uses only 8 bytes of space per record in the sorting array to fit more of the array into cache.
 
-== [[creating-instance]] Creating Instance
+`ShuffleExternalSorter` is created and used by [UnsafeShuffleWriter](UnsafeShuffleWriter.md#ShuffleExternalSorter) only.
 
-ShuffleExternalSorter takes the following to be created:
+![ShuffleExternalSorter and UnsafeShuffleWriter](../images/shuffle/ShuffleExternalSorter.png)
 
-* [[memoryManager]] memory:TaskMemoryManager.md[]
-* [[blockManager]] storage:BlockManager.md[]
-* [[taskContext]] scheduler:spark-TaskContext.md[]
-* [[initialSize]] Initial size
-* [[numPartitions]] Number of partitions
-* [[conf]] ROOT:SparkConf.md[]
-* [[writeMetrics]] executor:ShuffleWriteMetrics.md[]
+## <span id="MemoryConsumer"> MemoryConsumer
 
-[[fileBufferSizeBytes]]
-ShuffleExternalSorter uses ROOT:configuration-properties.md#spark.shuffle.file.buffer[spark.shuffle.file.buffer] (for `fileBufferSizeBytes`) and ROOT:configuration-properties.md#spark.shuffle.spill.numElementsForceSpillThreshold[spark.shuffle.spill.numElementsForceSpillThreshold] (for `numElementsForSpillThreshold`) Spark properties.
+`ShuffleExternalSorter` is a [MemoryConsumer](../memory/MemoryConsumer.md) with page size of 128 MB (unless [TaskMemoryManager](../memory/TaskMemoryManager.md#pageSizeBytes) uses smaller).
 
-ShuffleExternalSorter creates a <<inMemSorter, ShuffleInMemorySorter>> (with `spark.shuffle.sort.useRadixSort` Spark property enabled by default).
+`ShuffleExternalSorter` can [spill to disk to free up execution memory](#spill).
 
-ShuffleExternalSorter is created for shuffle:UnsafeShuffleWriter.md[UnsafeShuffleWriter].
+## Configuration Properties
 
-== [[inMemSorter]] ShuffleInMemorySorter
+### <span id="fileBufferSizeBytes"> spark.shuffle.file.buffer
 
-ShuffleExternalSorter manages a shuffle:ShuffleInMemorySorter.md[ShuffleInMemorySorter]:
+`ShuffleExternalSorter` uses [spark.shuffle.file.buffer](../configuration-properties.md#spark.shuffle.file.buffer) configuration property for...FIXME
 
-* ShuffleInMemorySorter is created immediately when ShuffleExternalSorter is
+### <span id="numElementsForSpillThreshold"> spark.shuffle.spill.numElementsForceSpillThreshold
 
-* ShuffleInMemorySorter is requested to shuffle:ShuffleInMemorySorter.md#free[free up memory] and dereferenced (``null``ed) when ShuffleExternalSorter is requested to <<cleanupResources, cleanupResources>> and <<closeAndGetSpills, closeAndGetSpills>>
+`ShuffleExternalSorter` uses [spark.shuffle.spill.numElementsForceSpillThreshold](../configuration-properties.md#spark.shuffle.spill.numElementsForceSpillThreshold) configuration property for...FIXME
 
-ShuffleExternalSorter uses the ShuffleInMemorySorter when requested for the following:
+## Creating Instance
 
-* <<writeSortedFile, writeSortedFile>>
+`ShuffleExternalSorter` takes the following to be created:
 
-* <<spill, spill>>
+* <span id="memoryManager"> [TaskMemoryManager](../memory/TaskMemoryManager.md)
+* <span id="blockManager"> [BlockManager](../storage/BlockManager.md)
+* <span id="taskContext"> [TaskContext](../scheduler/TaskContext.md)
+* <span id="initialSize"> Initial Size
+* <span id="numPartitions"> Number of Partitions
+* <span id="conf"> [SparkConf](../SparkConf.md)
+* <span id="writeMetrics"> `ShuffleWriteMetricsReporter`
 
-* <<getMemoryUsage, getMemoryUsage>>
+`ShuffleExternalSorter` is created when `UnsafeShuffleWriter` is requested to [open a ShuffleExternalSorter](UnsafeShuffleWriter.md#open).
 
-* <<growPointerArrayIfNecessary, growPointerArrayIfNecessary>>
+## <span id="inMemSorter"> ShuffleInMemorySorter
 
-* <<insertRecord, insertRecord>>
+`ShuffleExternalSorter` manages a [ShuffleInMemorySorter](ShuffleInMemorySorter.md):
 
-== [[MemoryConsumer]] ShuffleExternalSorter as MemoryConsumer
+* `ShuffleInMemorySorter` is created immediately when `ShuffleExternalSorter` is
 
-ShuffleExternalSorter is a memory:MemoryConsumer.md[MemoryConsumer] that can <<spill, spill to disk to free up execution memory>>.
+* `ShuffleInMemorySorter` is requested to [free up memory](ShuffleInMemorySorter.md#free) and dereferenced (``null``ed) when `ShuffleExternalSorter` is requested to [cleanupResources](#cleanupResources) and [closeAndGetSpills](#closeAndGetSpills)
 
-== [[pageSize]] Page Size
+`ShuffleExternalSorter` uses the `ShuffleInMemorySorter` for the following:
 
-ShuffleExternalSorter uses the memory:MemoryConsumer.md#pageSize[page size] to be the minimum of `PackedRecordPointer.MAXIMUM_PAGE_SIZE_BYTES` and memory:TaskMemoryManager.md#pageSizeBytes[pageSizeBytes], and Tungsten memory mode).
+* [writeSortedFile](#writeSortedFile)
+* [spill](#spill)
+* [getMemoryUsage](#getMemoryUsage)
+* [growPointerArrayIfNecessary](#growPointerArrayIfNecessary)
+* [insertRecord](#insertRecord)
 
-== [[allocatedPages]] allocatedPages
+## <span id="spill"> Spilling To Disk
 
-ShuffleExternalSorter uses...FIXME
-
-== [[getMemoryUsage]] getMemoryUsage Internal Method
-
-[source, java]
-----
-long getMemoryUsage()
-----
-
-getMemoryUsage...FIXME
-
-getMemoryUsage is used when...FIXME
-
-== [[writeSortedFile]] writeSortedFile Method
-
-[source, java]
-----
-void writeSortedFile(
-  boolean isLastFile)
-----
-
-writeSortedFile...FIXME
-
-writeSortedFile is used when ShuffleExternalSorter is requested to <<spill, spill>> and <<closeAndGetSpills, closeAndGetSpills>>.
-
-== [[cleanupResources]] cleanupResources Internal Method
-
-[source, java]
-----
-void cleanupResources()
-----
-
-cleanupResources...FIXME
-
-cleanupResources is used when...FIXME
-
-== [[spill]] Spilling To Disk
-
-[source, java]
-----
+```java
 long spill(
   long size,
   MemoryConsumer trigger)
-----
-
-spill prints out the following INFO message to the logs:
-
 ```
+
+`spill` returns the memory bytes spilled (_spill size_).
+
+`spill` prints out the following INFO message to the logs:
+
+```text
 Thread [threadId] spilling sort data of [memoryUsage] to disk ([spillsSize] [time|times] so far)
 ```
 
-spill <<writeSortedFile, writeSortedFile>> (with the `isLastFile` flag disabled).
+`spill` [writeSortedFile](#writeSortedFile) (with the `isLastFile` flag disabled).
 
-spill <<freeMemory, frees execution memory>> (and records the memory bytes spilled as `spillSize`).
+`spill` [frees up execution memory](#freeMemory) (and records the memory bytes spilled as `spillSize`).
 
-spill then requests the <<inMemSorter, ShuffleInMemorySorter>> to shuffle:ShuffleInMemorySorter.md#reset[reset] followed by requesting the scheduler:spark-TaskContext.md#taskMetrics[TaskMetrics] (of the <<taskContext, TaskContext>>) to executor:TaskMetrics.md#incMemoryBytesSpilled[increase the memory bytes spilled].
+`spill` requests the [ShuffleInMemorySorter](#inMemSorter) to [reset](ShuffleInMemorySorter.md#reset).
 
-In the end, spill returns the memory bytes spilled (_spill size_).
+In the end, `spill` requests the [TaskContext](#taskContext) for [TaskMetrics](../scheduler/TaskContext.md#taskMetrics) to [increase the memory bytes spilled](../executor/TaskMetrics.md#incMemoryBytesSpilled).
 
-[NOTE]
-====
-spill returns `0` when one of the following holds:
+`spill` is part of the [MemoryConsumer](../memory/MemoryConsumer.md#spill) abstraction.
 
-* The given `trigger` is not the current ShuffleExternalSorter
+## <span id="closeAndGetSpills"> closeAndGetSpills
 
-* <<inMemSorter, ShuffleInMemorySorter>> is not assigned
-
-* <<inMemSorter, ShuffleInMemorySorter>> manages no shuffle:ShuffleInMemorySorter.md#numRecords[records]
-====
-
-spill is part of the memory:MemoryConsumer.md#spill[MemoryConsumer] contract.
-
-== [[growPointerArrayIfNecessary]] growPointerArrayIfNecessary Method
-
-[source, java]
-----
-void growPointerArrayIfNecessary()
-----
-
-growPointerArrayIfNecessary...FIXME
-
-growPointerArrayIfNecessary is used when...FIXME
-
-== [[closeAndGetSpills]] closeAndGetSpills Method
-
-[source, java]
-----
+```java
 SpillInfo[] closeAndGetSpills()
-----
+```
 
-closeAndGetSpills...FIXME
+`closeAndGetSpills`...FIXME
 
-closeAndGetSpills is used when...FIXME
+`closeAndGetSpills` is used when `UnsafeShuffleWriter` is requested to [closeAndWriteOutput](UnsafeShuffleWriter.md#closeAndWriteOutput).
 
-== [[insertRecord]] Inserting Serialized Record Into ShuffleInMemorySorter
+## <span id="getMemoryUsage"> getMemoryUsage
 
-[source, java]
-----
+```java
+long getMemoryUsage()
+```
+
+`getMemoryUsage`...FIXME
+
+`getMemoryUsage` is used when `ShuffleExternalSorter` is created and requested to [spill](#spill) and [updatePeakMemoryUsed](#updatePeakMemoryUsed).
+
+## <span id="updatePeakMemoryUsed"> updatePeakMemoryUsed
+
+```java
+void updatePeakMemoryUsed()
+```
+
+`updatePeakMemoryUsed`...FIXME
+
+`updatePeakMemoryUsed` is used when `ShuffleExternalSorter` is requested to [getPeakMemoryUsedBytes](#getPeakMemoryUsedBytes) and [freeMemory](#freeMemory).
+
+## <span id="writeSortedFile"> writeSortedFile
+
+```java
+void writeSortedFile(
+  boolean isLastFile)
+```
+
+`writeSortedFile`...FIXME
+
+`writeSortedFile` is used when `ShuffleExternalSorter` is requested to [spill](#spill) and [closeAndGetSpills](#closeAndGetSpills).
+
+## <span id="cleanupResources"> cleanupResources
+
+```java
+void cleanupResources()
+```
+
+`cleanupResources`...FIXME
+
+`cleanupResources` is used when `UnsafeShuffleWriter` is requested to [write records](UnsafeShuffleWriter.md#write) and [stop](UnsafeShuffleWriter.md#stop).
+
+## <span id="insertRecord"> Inserting Serialized Record Into ShuffleInMemorySorter
+
+```java
 void insertRecord(
   Object recordBase,
   long recordOffset,
   int length,
   int partitionId)
-----
+```
 
-insertRecord requires that the <<inMemSorter, ShuffleInMemorySorter>> is available.
+`insertRecord`...FIXME
 
-insertRecord...FIXME
+`insertRecord` [growPointerArrayIfNecessary](#growPointerArrayIfNecessary).
 
-insertRecord is used when...FIXME
+`insertRecord`...FIXME
 
-== [[freeMemory]] freeMemory Method
+`insertRecord` [acquireNewPageIfNecessary](#acquireNewPageIfNecessary).
 
-[source, java]
-----
+`insertRecord`...FIXME
+
+`insertRecord` is used when `UnsafeShuffleWriter` is requested to [insertRecordIntoSorter](UnsafeShuffleWriter.md#insertRecordIntoSorter)
+
+### <span id="growPointerArrayIfNecessary"> growPointerArrayIfNecessary
+
+```java
+void growPointerArrayIfNecessary()
+```
+
+`growPointerArrayIfNecessary`...FIXME
+
+### <span id="acquireNewPageIfNecessary"> acquireNewPageIfNecessary
+
+```java
+void acquireNewPageIfNecessary(
+  int required)
+```
+
+`acquireNewPageIfNecessary`...FIXME
+
+## <span id="freeMemory"> freeMemory
+
+```java
 long freeMemory()
-----
+```
 
-freeMemory...FIXME
+`freeMemory`...FIXME
 
-freeMemory is used when...FIXME
+`freeMemory` is used when `ShuffleExternalSorter` is requested to [spill](#spill), [cleanupResources](#cleanupResources), and [closeAndGetSpills](#closeAndGetSpills).
 
-== [[getPeakMemoryUsedBytes]] getPeakMemoryUsedBytes Method
+## <span id="getPeakMemoryUsedBytes"> Peak Memory Used
 
-[source, java]
-----
+```java
 long getPeakMemoryUsedBytes()
-----
+```
 
-getPeakMemoryUsedBytes...FIXME
+`getPeakMemoryUsedBytes`...FIXME
 
-getPeakMemoryUsedBytes is used when...FIXME
+`getPeakMemoryUsedBytes` is used when `UnsafeShuffleWriter` is requested to [updatePeakMemoryUsed](UnsafeShuffleWriter.md#updatePeakMemoryUsed).
 
-== [[logging]] Logging
+## Logging
 
-Enable `ALL` logging levels for `org.apache.spark.shuffle.sort.ShuffleExternalSorter` logger to see what happens in ShuffleExternalSorter.
+Enable `ALL` logging level for `org.apache.spark.shuffle.sort.ShuffleExternalSorter` logger to see what happens inside.
 
 Add the following line to `conf/log4j.properties`:
 
-[source,plaintext]
-----
+```text
 log4j.logger.org.apache.spark.shuffle.sort.ShuffleExternalSorter=ALL
-----
+```
 
-Refer to ROOT:spark-logging.md[Logging].
+Refer to [Logging](../spark-logging.md).
