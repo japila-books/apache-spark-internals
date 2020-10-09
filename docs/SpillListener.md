@@ -1,55 +1,36 @@
-== [[SpillListener]] SpillListener -- Detecting Spills in Jobs (for Testing)
+# SpillListener
 
-`SpillListener` is a ROOT:SparkListener.md[] that intercepts (_listens to_) the following events:
+`SpillListener` is a [SparkListener](SparkListener.md) that intercepts (_listens to_) the following events for detecting spills in jobs:
 
-* <<onTaskEnd, onTaskEnd>>
+* [onTaskEnd](#onTaskEnd)
+* [onStageCompleted](#onStageCompleted)
 
-* <<onStageCompleted, onStageCompleted>>
+`SpillListener` is used for testing only.
 
-`SpillListener` is <<creating-instance, created>> exclusively for `TestUtils` when requested for `assertSpilled` and `assertNotSpilled`.
+## Creating Instance
 
-[[creating-instance]]
 `SpillListener` takes no input arguments to be created.
 
-NOTE: `SpillListener` is a Scala `private class`.
+`SpillListener` is created when `TestUtils` is requested to `assertSpilled` and `assertNotSpilled`.
 
-[[internal-registries]]
-.SpillListener's Internal Properties (e.g. Registries, Counters and Flags)
-[cols="1m,3",options="header",width="100%"]
-|===
-| Name
-| Description
+## <span id="onTaskEnd"> onTaskEnd Callback
 
-| spilledStageIds
-a| [[spilledStageIds]] (`mutable.HashMap[Int, ArrayBuffer[TaskMetrics]]`)
-
-Used when...FIXME
-
-| stageIdToTaskMetrics
-a| [[stageIdToTaskMetrics]] (`mutable.HashSet[Int]`)
-
-Used when...FIXME
-
-|===
-
-=== [[onTaskEnd]] `onTaskEnd` Callback
-
-[source, scala]
-----
-onTaskEnd(taskEnd: SparkListenerTaskEnd): Unit
-----
-
-NOTE: `onTaskEnd` is part of the ROOT:SparkListener.md#onTaskEnd[SparkListener] Contract.
+```scala
+onTaskEnd(
+  taskEnd: SparkListenerTaskEnd): Unit
+```
 
 `onTaskEnd`...FIXME
 
-=== [[onStageCompleted]] `onStageCompleted` Callback
+`onTaskEnd` is part of the [SparkListener](SparkListener.md#onTaskEnd) abstraction.
 
-[source, scala]
-----
-onStageCompleted(stageComplete: SparkListenerStageCompleted): Unit
-----
+## <span id="onStageCompleted"> onStageCompleted Callback
 
-NOTE: `onStageCompleted` is part of the ROOT:SparkListener.md#onStageCompleted[SparkListener] Contract.
+```scala
+onStageCompleted(
+  stageComplete: SparkListenerStageCompleted): Unit
+```
 
 `onStageCompleted`...FIXME
+
+`onStageCompleted` is part of the [SparkListener](SparkListener.md#onStageCompleted) abstraction.
