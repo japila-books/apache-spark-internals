@@ -1,8 +1,7 @@
-= [[RDD]] RDD -- Description of Distributed Computation
-:navtitle: RDD
+# RDD &mdash; Description of Distributed Computation
 
 [[T]]
-RDD is a description of a fault-tolerant and resilient computation over a possibly distributed collection of records (of type `T`).
+`RDD` is a description of a fault-tolerant and resilient computation over a possibly distributed collection of records (of type `T`).
 
 == [[contract]] RDD Contract
 
@@ -15,11 +14,11 @@ compute(
   context: TaskContext): Iterator[T]
 ----
 
-compute computes the input `split` rdd:spark-rdd-partitions.md[partition] in the scheduler:spark-TaskContext.md[TaskContext] to produce a collection of values (of type `T`).
+compute computes the input `split` spark-rdd-partitions.md[partition] in the scheduler:spark-TaskContext.md[TaskContext] to produce a collection of values (of type `T`).
 
-compute is implemented by any type of RDD in Spark and is called every time the records are requested unless RDD is rdd:spark-rdd-caching.md[cached] or ROOT:rdd-checkpointing.md[checkpointed] (and the records can be read from an external storage, but this time closer to the compute node).
+compute is implemented by any type of RDD in Spark and is called every time the records are requested unless RDD is spark-rdd-caching.md[cached] or ROOT:rdd-checkpointing.md[checkpointed] (and the records can be read from an external storage, but this time closer to the compute node).
 
-When an RDD is rdd:spark-rdd-caching.md[cached], for specified storage:StorageLevel.md[storage levels] (i.e. all but `NONE`)...FIXME
+When an RDD is spark-rdd-caching.md[cached], for specified storage:StorageLevel.md[storage levels] (i.e. all but `NONE`)...FIXME
 
 compute runs on the ROOT:spark-driver.md[driver].
 
@@ -51,7 +50,7 @@ getPreferredLocations(
   split: Partition): Seq[String] = Nil
 ----
 
-getPreferredLocations is used when RDD is requested for the <<preferredLocations, preferred locations>> of a given rdd:spark-rdd-Partition.md[partition].
+getPreferredLocations is used when RDD is requested for the <<preferredLocations, preferred locations>> of a given spark-rdd-Partition.md[partition].
 
 === [[partitioner]] Partitioner
 
@@ -60,7 +59,7 @@ getPreferredLocations is used when RDD is requested for the <<preferredLocations
 partitioner: Option[Partitioner] = None
 ----
 
-RDD can have a rdd:Partitioner.md[Partitioner] defined.
+RDD can have a Partitioner.md[Partitioner] defined.
 
 == [[extensions]][[implementations]] (Subset of) Available RDDs
 
@@ -69,23 +68,23 @@ RDD can have a rdd:Partitioner.md[Partitioner] defined.
 | RDD
 | Description
 
-| rdd:spark-rdd-CoGroupedRDD.md[CoGroupedRDD]
+| [CoGroupedRDD](CoGroupedRDD.md)
 | [[CoGroupedRDD]]
 
 | CoalescedRDD
-| [[CoalescedRDD]] Result of rdd:spark-rdd-partitions.md#repartition[repartition] or rdd:spark-rdd-partitions.md#coalesce[coalesce] transformations
+| [[CoalescedRDD]] Result of spark-rdd-partitions.md#repartition[repartition] or spark-rdd-partitions.md#coalesce[coalesce] transformations
 
-| rdd:spark-rdd-HadoopRDD.md[HadoopRDD]
+| spark-rdd-HadoopRDD.md[HadoopRDD]
 | [[HadoopRDD]] Allows for reading data stored in HDFS using the older MapReduce API. The most notable use case is the return RDD of `SparkContext.textFile`.
 
-| rdd:spark-rdd-MapPartitionsRDD.md[MapPartitionsRDD]
-| [[MapPartitionsRDD]] Result of calling map-like operations (e.g. `map`, `flatMap`, `filter`, rdd:spark-rdd-transformations.md#mapPartitions[mapPartitions])
+| spark-rdd-MapPartitionsRDD.md[MapPartitionsRDD]
+| [[MapPartitionsRDD]] Result of calling map-like operations (e.g. `map`, `flatMap`, `filter`, spark-rdd-transformations.md#mapPartitions[mapPartitions])
 
-| rdd:spark-rdd-ParallelCollectionRDD.md[ParallelCollectionRDD]
+| spark-rdd-ParallelCollectionRDD.md[ParallelCollectionRDD]
 | [[ParallelCollectionRDD]]
 
-| rdd:ShuffledRDD.md[ShuffledRDD]
-| [[ShuffledRDD]] Result of "shuffle" operators (e.g. rdd:spark-rdd-partitions.md#repartition[repartition] or rdd:spark-rdd-partitions.md#coalesce[coalesce])
+| ShuffledRDD.md[ShuffledRDD]
+| [[ShuffledRDD]] Result of "shuffle" operators (e.g. spark-rdd-partitions.md#repartition[repartition] or spark-rdd-partitions.md#coalesce[coalesce])
 
 |===
 
@@ -94,7 +93,7 @@ RDD can have a rdd:Partitioner.md[Partitioner] defined.
 RDD takes the following to be created:
 
 * [[_sc]] ROOT:SparkContext.md[]
-* [[deps]] *Parent RDDs*, i.e. rdd:spark-rdd-Dependency.md[Dependencies] (that have to be all computed successfully before this RDD)
+* [[deps]] *Parent RDDs*, i.e. [Dependencies](Dependency.md) (that have to be all computed successfully before this RDD)
 
 RDD is an abstract class and cannot be created directly. It is created indirectly for the <<implementations, concrete RDDs>>.
 
@@ -128,13 +127,13 @@ id requests the <<sc, SparkContext>> for ROOT:SparkContext.md#newRddId[newRddId]
 
 An RDD can be part of a ROOT:spark-barrier-execution-mode.md#barrier-stage[barrier stage]. By default, `isBarrier` flag is enabled (`true`) when:
 
-. There are no rdd:ShuffleDependency.md[ShuffleDependencies] among the <<dependencies, RDD dependencies>>
+. There are no [ShuffleDependencies](ShuffleDependency.md) among the <<dependencies, RDD dependencies>>
 
-. There is at least one rdd:spark-rdd-Dependency.md#rdd[parent RDD] that has the flag enabled
+. There is at least one [parent RDD](Dependency.md#rdd) that has the flag enabled
 
-rdd:ShuffledRDD.md[ShuffledRDD] has the flag always disabled.
+ShuffledRDD.md[ShuffledRDD] has the flag always disabled.
 
-rdd:spark-rdd-MapPartitionsRDD.md[MapPartitionsRDD] is the only one RDD that can have the flag enabled.
+spark-rdd-MapPartitionsRDD.md[MapPartitionsRDD] is the only one RDD that can have the flag enabled.
 
 == [[getOrCompute]] Getting Or Computing RDD Partition
 
@@ -179,13 +178,13 @@ NOTE: `getOrCompute` is used exclusively when RDD is requested for the <<iterato
 dependencies: Seq[Dependency[_]]
 ----
 
-`dependencies` returns the spark-rdd-Dependency.md[dependencies of a RDD].
+`dependencies` returns the [dependencies of a RDD](Dependency.md).
 
 NOTE: `dependencies` is a final method that no class in Spark can ever override.
 
 Internally, `dependencies` checks out whether the RDD is ROOT:rdd-checkpointing.md[checkpointed] and acts accordingly.
 
-For a RDD being checkpointed, `dependencies` returns a single-element collection with a spark-rdd-NarrowDependency.md#OneToOneDependency[OneToOneDependency].
+For a RDD being checkpointed, `dependencies` returns a single-element collection with a [OneToOneDependency](NarrowDependency.md#OneToOneDependency).
 
 For a non-checkpointed RDD, `dependencies` collection is computed using <<contract, `getDependencies` method>>.
 
@@ -200,13 +199,13 @@ iterator(
   context: TaskContext): Iterator[T]
 ----
 
-iterator <<getOrCompute, gets or computes the `split` partition>> when rdd:spark-rdd-caching.md[cached] or <<computeOrReadCheckpoint, computes it (possibly by reading from checkpoint)>>.
+iterator <<getOrCompute, gets or computes the `split` partition>> when spark-rdd-caching.md[cached] or <<computeOrReadCheckpoint, computes it (possibly by reading from checkpoint)>>.
 
 == [[checkpointRDD]] Getting CheckpointRDD
 
 [source, scala]
 ----
-checkpointRDD: Option[CheckpointRDD[T]]
+checkpoint Option[CheckpointRDD[T]]
 ----
 
 checkpointRDD gives the CheckpointRDD from the <<checkpointData, checkpointData>> internal registry if available (if the RDD was checkpointed).
@@ -253,7 +252,7 @@ persist(
   newLevel: StorageLevel): this.type
 ----
 
-Refer to rdd:spark-rdd-caching.md#persist[Persisting RDD].
+Refer to spark-rdd-caching.md#persist[Persisting RDD].
 
 == [[persist-internal]] persist Internal Method
 
@@ -338,7 +337,7 @@ preferredLocations is mainly used when DAGScheduler is requested to scheduler:DA
 partitions: Array[Partition]
 ----
 
-partitions returns the rdd:spark-rdd-partitions.md[Partitions] of a `RDD`.
+partitions returns the spark-rdd-partitions.md[Partitions] of a `RDD`.
 
 partitions requests CheckpointRDD for the <<checkpointRDD, partitions>> (if the RDD is checkpointed) or <<getPartitions, finds them itself>> and cache (in <<partitions_, partitions_>> internal registry that is used next time).
 

@@ -1,6 +1,6 @@
-== [[MapPartitionsRDD]] MapPartitionsRDD
+# MapPartitionsRDD
 
-`MapPartitionsRDD` is an rdd:RDD.md[RDD] that has exactly rdd:spark-rdd-NarrowDependency.md#OneToOneDependency[one-to-one narrow dependency] on the <<prev, parent RDD>> and "describes" a distributed computation of the given <<f, function>> to every RDD partition.
+`MapPartitionsRDD` is an [RDD](RDD.md) that has exactly [one-to-one narrow dependency](NarrowDependency.md#OneToOneDependency) on the <<prev, parent RDD>> and "describes" a distributed computation of the given <<f, function>> to every RDD partition.
 
 `MapPartitionsRDD` is <<creating-instance, created>> when:
 

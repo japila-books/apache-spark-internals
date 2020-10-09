@@ -1,6 +1,6 @@
 = MapOutputTrackerMaster
 
-*MapOutputTrackerMaster* is the scheduler:MapOutputTracker.md[MapOutputTracker] for the driver.
+*MapOutputTrackerMaster* is the MapOutputTracker.md[MapOutputTracker] for the driver.
 
 A MapOutputTrackerMaster is the source of truth of <<shuffleStatuses, shuffle map output locations>>.
 
@@ -20,9 +20,9 @@ MapOutputTrackerMaster is given a core:BroadcastManager.md[] to be created.
 
 == [[shuffleStatuses]] Shuffle Map Output Status Registry
 
-MapOutputTrackerMaster uses an internal registry of scheduler:ShuffleStatus.md[ShuffleStatuses] by shuffle stages.
+MapOutputTrackerMaster uses an internal registry of ShuffleStatus.md[ShuffleStatuses] by shuffle stages.
 
-MapOutputTrackerMaster adds a new shuffle when requested to <<registerShuffle, register one>> (when DAGScheduler is requested to scheduler:DAGScheduler.md#createShuffleMapStage[create a ShuffleMapStage] for a rdd:ShuffleDependency.md[ShuffleDependency]).
+MapOutputTrackerMaster adds a new shuffle when requested to <<registerShuffle, register one>> (when DAGScheduler is requested to [create a ShuffleMapStage](DAGScheduler.md#createShuffleMapStage) for a [ShuffleDependency](../rdd/ShuffleDependency.md)).
 
 MapOutputTrackerMaster uses the registry when requested for the following:
 
@@ -84,7 +84,7 @@ MessageLoop takes a GetMapOutputMessage and prints out the following DEBUG messa
 Handling request to send map output locations for shuffle [shuffleId] to [hostPort]
 ----
 
-MessageLoop then finds the scheduler:ShuffleStatus.md[ShuffleStatus] by the shuffle ID in the <<shuffleStatuses, shuffleStatuses>> internal registry and replies back (to the RPC client) with a scheduler:ShuffleStatus.md#serializedMapStatus[serialized map output status] (with the <<broadcastManager, BroadcastManager>> and <<spark.shuffle.mapOutput.minSizeForBroadcast, spark.shuffle.mapOutput.minSizeForBroadcast>> configuration property).
+MessageLoop then finds the ShuffleStatus.md[ShuffleStatus] by the shuffle ID in the <<shuffleStatuses, shuffleStatuses>> internal registry and replies back (to the RPC client) with a ShuffleStatus.md#serializedMapStatus[serialized map output status] (with the <<broadcastManager, BroadcastManager>> and <<spark.shuffle.mapOutput.minSizeForBroadcast, spark.shuffle.mapOutput.minSizeForBroadcast>> configuration property).
 
 MessageLoop threads run on the <<threadpool, map-output-dispatcher Thread Pool>>.
 
@@ -109,9 +109,9 @@ MapOutputTrackerMaster uses an *epoch number* to...FIXME
 
 getEpoch is used when:
 
-* DAGScheduler is requested to scheduler:DAGScheduler.md#removeExecutorAndUnregisterOutputs[removeExecutorAndUnregisterOutputs]
+* DAGScheduler is requested to DAGScheduler.md#removeExecutorAndUnregisterOutputs[removeExecutorAndUnregisterOutputs]
 
-* scheduler:TaskSetManager.md[TaskSetManager] is created (and sets the epoch to tasks)
+* TaskSetManager.md[TaskSetManager] is created (and sets the epoch to tasks)
 
 == [[post]] Enqueueing GetMapOutputMessage
 
@@ -123,7 +123,7 @@ post(
 
 post simply adds the input GetMapOutputMessage to the <<mapOutputRequests, mapOutputRequests>> internal queue.
 
-post is used when MapOutputTrackerMasterEndpoint is requested to scheduler:MapOutputTrackerMasterEndpoint.md#GetMapOutputStatuses[handle a GetMapOutputStatuses message].
+post is used when MapOutputTrackerMasterEndpoint is requested to MapOutputTrackerMasterEndpoint.md#GetMapOutputStatuses[handle a GetMapOutputStatuses message].
 
 == [[stop]] Stopping MapOutputTrackerMaster
 
@@ -134,7 +134,7 @@ stop(): Unit
 
 stop...FIXME
 
-stop is part of the scheduler:MapOutputTracker.md#stop[MapOutputTracker] abstraction.
+stop is part of the MapOutputTracker.md#stop[MapOutputTracker] abstraction.
 
 == [[unregisterMapOutput]] Unregistering Shuffle Map Output
 
@@ -148,7 +148,7 @@ unregisterMapOutput(
 
 unregisterMapOutput...FIXME
 
-unregisterMapOutput is used when DAGScheduler is requested to scheduler:DAGScheduler.md#handleTaskCompletion[handle a task completion (due to a fetch failure)].
+unregisterMapOutput is used when DAGScheduler is requested to DAGScheduler.md#handleTaskCompletion[handle a task completion (due to a fetch failure)].
 
 == [[getPreferredLocationsForShuffle]] Computing Preferred Locations (with Most Shuffle Map Outputs)
 
@@ -159,19 +159,19 @@ getPreferredLocationsForShuffle(
   partitionId: Int): Seq[String]
 ----
 
-getPreferredLocationsForShuffle computes the locations (storage:BlockManager.md[BlockManagers]) with the most shuffle map outputs for the input rdd:ShuffleDependency.md[ShuffleDependency] and rdd:spark-rdd-Partition.md[Partition].
+getPreferredLocationsForShuffle computes the locations (storage:BlockManager.md[BlockManagers]) with the most shuffle map outputs for the input [ShuffleDependency](../rdd/ShuffleDependency.md) and [Partition](../rdd/spark-rdd-Partition.md).
 
 getPreferredLocationsForShuffle computes the locations when all of the following are met:
 
 * <<spark.shuffle.reduceLocality.enabled, spark.shuffle.reduceLocality.enabled>> configuration property is enabled
 
-* The number of "map" partitions (of the rdd:ShuffleDependency.md#rdd[RDD] of the input rdd:ShuffleDependency.md[ShuffleDependency]) is below <<SHUFFLE_PREF_MAP_THRESHOLD, SHUFFLE_PREF_MAP_THRESHOLD>>
+* The number of "map" partitions (of the ../rdd/ShuffleDependency.md#rdd[RDD] of the input [ShuffleDependency](../rdd/ShuffleDependency.md)) is below <<SHUFFLE_PREF_MAP_THRESHOLD, SHUFFLE_PREF_MAP_THRESHOLD>>
 
-* The number of "reduce" partitions (of the rdd:ShuffleDependency.md#partitioner[Partitioner] of the input rdd:ShuffleDependency.md[ShuffleDependency]) is below <<SHUFFLE_PREF_REDUCE_THRESHOLD, SHUFFLE_PREF_REDUCE_THRESHOLD>>
+* The number of "reduce" partitions (of the [Partitioner](../rdd/ShuffleDependency.md#partitioner) of the input [ShuffleDependency](../rdd/ShuffleDependency.md)) is below <<SHUFFLE_PREF_REDUCE_THRESHOLD, SHUFFLE_PREF_REDUCE_THRESHOLD>>
 
 NOTE: getPreferredLocationsForShuffle is simply <<getLocationsWithLargestOutputs, getLocationsWithLargestOutputs>> with a guard condition.
 
-Internally, getPreferredLocationsForShuffle checks whether <<spark_shuffle_reduceLocality_enabled, `spark.shuffle.reduceLocality.enabled` Spark property>> is enabled (it is by default) with the number of partitions of the rdd:ShuffleDependency.md#rdd[RDD of the input `ShuffleDependency`] and partitions in the rdd:ShuffleDependency.md#partitioner[partitioner of the input `ShuffleDependency`] both being less than `1000`.
+Internally, getPreferredLocationsForShuffle checks whether <<spark_shuffle_reduceLocality_enabled, `spark.shuffle.reduceLocality.enabled` Spark property>> is enabled (it is by default) with the number of partitions of the [RDD of the input `ShuffleDependency`](../rdd/ShuffleDependency.md#rdd) and partitions in the [partitioner of the input `ShuffleDependency`](../rdd/ShuffleDependency.md#partitioner) both being less than `1000`.
 
 NOTE: The thresholds for the number of partitions in the RDD and of the partitioner when computing the preferred locations are `1000` and are not configurable.
 
@@ -179,7 +179,7 @@ If the condition holds, getPreferredLocationsForShuffle <<getLocationsWithLarges
 
 NOTE: `0.2` is the fraction of total map output that must be at a location to be considered as a preferred location for a reduce task. It is not configurable.
 
-getPreferredLocationsForShuffle is used when rdd:ShuffledRDD.md#getPreferredLocations[ShuffledRDD] and Spark SQL's ShuffledRowRDD are requested for preferred locations of a partition.
+getPreferredLocationsForShuffle is used when ../rdd/ShuffledRDD.md#getPreferredLocations[ShuffledRDD] and Spark SQL's ShuffledRowRDD are requested for preferred locations of a partition.
 
 == [[incrementEpoch]] Incrementing Epoch
 
@@ -188,7 +188,7 @@ getPreferredLocationsForShuffle is used when rdd:ShuffledRDD.md#getPreferredLoca
 incrementEpoch(): Unit
 ----
 
-incrementEpoch increments the internal scheduler:MapOutputTracker.md#epoch[epoch].
+incrementEpoch increments the internal MapOutputTracker.md#epoch[epoch].
 
 incrementEpoch prints out the following DEBUG message to the logs:
 
@@ -200,7 +200,7 @@ incrementEpoch is used when:
 
 * MapOutputTrackerMaster is requested to <<unregisterMapOutput, unregisterMapOutput>>, <<unregisterAllMapOutput, unregisterAllMapOutput>>, <<removeOutputsOnHost, removeOutputsOnHost>> and <<removeOutputsOnExecutor, removeOutputsOnExecutor>>
 
-* DAGScheduler is requested to scheduler:DAGScheduler.md#handleTaskCompletion[handle a ShuffleMapTask completion] (of a ShuffleMapStage)
+* DAGScheduler is requested to DAGScheduler.md#handleTaskCompletion[handle a ShuffleMapTask completion] (of a ShuffleMapStage)
 
 == [[containsShuffle]] Checking Availability of Shuffle Map Output Status
 
@@ -210,9 +210,9 @@ containsShuffle(
   shuffleId: Int): Boolean
 ----
 
-containsShuffle checks if the input `shuffleId` is registered in the <<cachedSerializedStatuses, cachedSerializedStatuses>> or scheduler:MapOutputTracker.md#mapStatuses[mapStatuses] internal caches.
+containsShuffle checks if the input `shuffleId` is registered in the <<cachedSerializedStatuses, cachedSerializedStatuses>> or MapOutputTracker.md#mapStatuses[mapStatuses] internal caches.
 
-containsShuffle is used when DAGScheduler is requested to scheduler:DAGScheduler.md#createShuffleMapStage[create a createShuffleMapStage] (for a rdd:ShuffleDependency.md[ShuffleDependency]).
+containsShuffle is used when DAGScheduler is requested to DAGScheduler.md#createShuffleMapStage[create a createShuffleMapStage] (for a [ShuffleDependency](../rdd/ShuffleDependency.md)).
 
 == [[registerShuffle]] Registering Shuffle
 
@@ -223,7 +223,7 @@ registerShuffle(
   numMaps: Int): Unit
 ----
 
-registerShuffle adds the input shuffle ID and the number of partitions (as a scheduler:ShuffleStatus.md[ShuffleStatus]) to <<shuffleStatuses, shuffleStatuses>> internal registry.
+registerShuffle adds the input shuffle ID and the number of partitions (as a ShuffleStatus.md[ShuffleStatus]) to <<shuffleStatuses, shuffleStatuses>> internal registry.
 
 If the shuffle ID has already been registered, registerShuffle throws an IllegalArgumentException:
 
@@ -231,7 +231,7 @@ If the shuffle ID has already been registered, registerShuffle throws an Illegal
 Shuffle ID [shuffleId] registered twice
 ```
 
-registerShuffle is used when DAGScheduler is requested to scheduler:DAGScheduler.md#createShuffleMapStage[create a ShuffleMapStage] (for a rdd:ShuffleDependency.md[ShuffleDependency]).
+registerShuffle is used when DAGScheduler is requested to DAGScheduler.md#createShuffleMapStage[create a ShuffleMapStage] (for a [ShuffleDependency](../rdd/ShuffleDependency.md)).
 
 == [[registerMapOutputs]] Registering Map Outputs for Shuffle (Possibly with Epoch Change)
 
@@ -243,11 +243,11 @@ registerMapOutputs(
   changeEpoch: Boolean = false): Unit
 ----
 
-registerMapOutputs registers the input `statuses` (as the shuffle map output) with the input `shuffleId` in the scheduler:MapOutputTracker.md#mapStatuses[mapStatuses] internal cache.
+registerMapOutputs registers the input `statuses` (as the shuffle map output) with the input `shuffleId` in the MapOutputTracker.md#mapStatuses[mapStatuses] internal cache.
 
 registerMapOutputs <<incrementEpoch, increments epoch>> if the input `changeEpoch` is enabled (it is not by default).
 
-registerMapOutputs is used when `DAGScheduler` handles scheduler:DAGSchedulerEventProcessLoop.md#handleTaskCompletion-Success-ShuffleMapTask[successful `ShuffleMapTask` completion] and scheduler:DAGSchedulerEventProcessLoop.md#handleExecutorLost[executor lost events].
+registerMapOutputs is used when `DAGScheduler` handles DAGSchedulerEventProcessLoop.md#handleTaskCompletion-Success-ShuffleMapTask[successful `ShuffleMapTask` completion] and DAGSchedulerEventProcessLoop.md#handleExecutorLost[executor lost events].
 
 == [[getSerializedMapOutputStatuses]] Finding Serialized Map Output Statuses (And Possibly Broadcasting Them)
 
@@ -265,7 +265,7 @@ Otherwise, getSerializedMapOutputStatuses acquires the <<shuffleIdLocks, shuffle
 
 getSerializedMapOutputStatuses returns the serialized map statuses if found.
 
-If not, getSerializedMapOutputStatuses scheduler:MapOutputTracker.md#serializeMapStatuses[serializes the local array of `MapStatuses`] (from <<checkCachedStatuses, checkCachedStatuses>>).
+If not, getSerializedMapOutputStatuses MapOutputTracker.md#serializeMapStatuses[serializes the local array of `MapStatuses`] (from <<checkCachedStatuses, checkCachedStatuses>>).
 
 You should see the following INFO message in the logs:
 
@@ -285,7 +285,7 @@ getSerializedMapOutputStatuses <<removeBroadcast, removes the broadcast>>.
 
 getSerializedMapOutputStatuses returns the serialized map statuses.
 
-getSerializedMapOutputStatuses is used when <<MessageLoop, MapOutputTrackerMaster responds to `GetMapOutputMessage` requests>> and scheduler:DAGScheduler.md#createShuffleMapStage[`DAGScheduler` creates `ShuffleMapStage` for `ShuffleDependency`] (copying the shuffle map output locations from previous jobs to avoid unnecessarily regenerating data).
+getSerializedMapOutputStatuses is used when <<MessageLoop, MapOutputTrackerMaster responds to `GetMapOutputMessage` requests>> and DAGScheduler.md#createShuffleMapStage[`DAGScheduler` creates `ShuffleMapStage` for `ShuffleDependency`] (copying the shuffle map output locations from previous jobs to avoid unnecessarily regenerating data).
 
 === [[checkCachedStatuses]] Finding Cached Serialized Map Statuses
 
@@ -296,7 +296,7 @@ checkCachedStatuses(): Boolean
 
 checkCachedStatuses is an internal helper method that <<getSerializedMapOutputStatuses, getSerializedMapOutputStatuses>> uses to do some bookkeeping (when the <<epoch, epoch>> and <<cacheEpoch, cacheEpoch>> differ) and set local `statuses`, `retBytes` and `epochGotten` (that getSerializedMapOutputStatuses uses).
 
-Internally, checkCachedStatuses acquires the scheduler:MapOutputTracker.md#epochLock[`epochLock` lock] and checks the status of <<epoch, epoch>> to <<cacheEpoch, cached `cacheEpoch`>>.
+Internally, checkCachedStatuses acquires the MapOutputTracker.md#epochLock[`epochLock` lock] and checks the status of <<epoch, epoch>> to <<cacheEpoch, cached `cacheEpoch`>>.
 
 If `epoch` is younger (i.e. greater), checkCachedStatuses clears <<cachedSerializedStatuses, cachedSerializedStatuses>> internal cache, <<clearCachedBroadcast, cached broadcasts>> and sets `cacheEpoch` to be `epoch`.
 
@@ -310,7 +310,7 @@ When not found, you should see the following DEBUG message in the logs:
 cached status not found for : [shuffleId]
 ```
 
-checkCachedStatuses uses scheduler:MapOutputTracker.md#mapStatuses[mapStatuses] internal cache to get map output statuses for the `shuffleId` (of the owning <<getSerializedMapOutputStatuses, getSerializedMapOutputStatuses>>) or falls back to an empty array and sets it to a local `statuses`. checkCachedStatuses sets the local `epochGotten` to the current <<epoch, epoch>> and returns `false`.
+checkCachedStatuses uses MapOutputTracker.md#mapStatuses[mapStatuses] internal cache to get map output statuses for the `shuffleId` (of the owning <<getSerializedMapOutputStatuses, getSerializedMapOutputStatuses>>) or falls back to an empty array and sets it to a local `statuses`. checkCachedStatuses sets the local `epochGotten` to the current <<epoch, epoch>> and returns `false`.
 
 == [[registerMapOutput]] Registering Shuffle Map Output
 
@@ -322,13 +322,13 @@ registerMapOutput(
   status: MapStatus): Unit
 ----
 
-registerMapOutput finds the scheduler:ShuffleStatus.md[ShuffleStatus] by the given shuffle ID and scheduler:ShuffleStatus.md#addMapOutput[adds the given MapStatus]:
+registerMapOutput finds the ShuffleStatus.md[ShuffleStatus] by the given shuffle ID and ShuffleStatus.md#addMapOutput[adds the given MapStatus]:
 
-* The given mapId is the scheduler:Task.md#partitionId[partitionId] of the scheduler:ShuffleMapTask.md[ShuffleMapTask] that finished.
+* The given mapId is the Task.md#partitionId[partitionId] of the ShuffleMapTask.md[ShuffleMapTask] that finished.
 
-* The given shuffleId is the rdd:ShuffleDependency.md#shuffleId[shuffleId] of the rdd:ShuffleDependency.md[ShuffleDependency] of the scheduler:ShuffleMapStage.md#shuffleDep[ShuffleMapStage] (for which the ShuffleMapTask completed)
+* The given shuffleId is the [shuffleId](../rdd/ShuffleDependency.md#shuffleId) of the [ShuffleDependency](../rdd/ShuffleDependency.md) of the [ShuffleMapStage](ShuffleMapStage.md#shuffleDep) (for which the ShuffleMapTask completed)
 
-registerMapOutput is used when DAGScheduler is requested to scheduler:DAGScheduler.md#handleTaskCompletion[handle a ShuffleMapTask completion].
+registerMapOutput is used when DAGScheduler is requested to DAGScheduler.md#handleTaskCompletion[handle a ShuffleMapTask completion].
 
 == [[getStatistics]] Calculating Shuffle Map Output Statistics
 
@@ -340,7 +340,7 @@ getStatistics(
 
 getStatistics...FIXME
 
-getStatistics is used when DAGScheduler is requested to scheduler:DAGScheduler.md#handleMapStageSubmitted[handle a ShuffleMapStage submission] (and the stage has finished) and scheduler:DAGScheduler.md#markMapStageJobsAsFinished[markMapStageJobsAsFinished].
+getStatistics is used when DAGScheduler is requested to DAGScheduler.md#handleMapStageSubmitted[handle a ShuffleMapStage submission] (and the stage has finished) and DAGScheduler.md#markMapStageJobsAsFinished[markMapStageJobsAsFinished].
 
 == [[unregisterAllMapOutput]] Deregistering All Map Outputs of Shuffle Stage
 
@@ -352,7 +352,7 @@ unregisterAllMapOutput(
 
 unregisterAllMapOutput...FIXME
 
-unregisterAllMapOutput is used when DAGScheduler is requested to scheduler:DAGScheduler.md#handleTaskCompletion[handle a task completion (due to a fetch failure)].
+unregisterAllMapOutput is used when DAGScheduler is requested to DAGScheduler.md#handleTaskCompletion[handle a task completion (due to a fetch failure)].
 
 == [[unregisterShuffle]] Deregistering Shuffle
 
@@ -364,7 +364,7 @@ unregisterShuffle(
 
 unregisterShuffle...FIXME
 
-unregisterShuffle is part of the scheduler:MapOutputTracker.md#unregisterShuffle[MapOutputTracker] abstraction.
+unregisterShuffle is part of the MapOutputTracker.md#unregisterShuffle[MapOutputTracker] abstraction.
 
 == [[removeOutputsOnHost]] Deregistering Shuffle Outputs Associated with Host
 
@@ -376,7 +376,7 @@ removeOutputsOnHost(
 
 removeOutputsOnHost...FIXME
 
-removeOutputsOnHost is used when DAGScheduler is requested to scheduler:DAGScheduler.md#removeExecutorAndUnregisterOutputs[removeExecutorAndUnregisterOutputs] and scheduler:DAGScheduler.md#handleWorkerRemoved[handle a worker removal].
+removeOutputsOnHost is used when DAGScheduler is requested to DAGScheduler.md#removeExecutorAndUnregisterOutputs[removeExecutorAndUnregisterOutputs] and DAGScheduler.md#handleWorkerRemoved[handle a worker removal].
 
 == [[removeOutputsOnExecutor]] Deregistering Shuffle Outputs Associated with Executor
 
@@ -388,7 +388,7 @@ removeOutputsOnExecutor(
 
 removeOutputsOnExecutor...FIXME
 
-removeOutputsOnExecutor is used when DAGScheduler is requested to scheduler:DAGScheduler.md#removeExecutorAndUnregisterOutputs[removeExecutorAndUnregisterOutputs].
+removeOutputsOnExecutor is used when DAGScheduler is requested to DAGScheduler.md#removeExecutorAndUnregisterOutputs[removeExecutorAndUnregisterOutputs].
 
 == [[getNumAvailableOutputs]] Number of Partitions with Shuffle Map Outputs Available
 
@@ -400,7 +400,7 @@ getNumAvailableOutputs(
 
 getNumAvailableOutputs...FIXME
 
-getNumAvailableOutputs is used when ShuffleMapStage is requested for the scheduler:ShuffleMapStage.md#numAvailableOutputs[number of partitions with shuffle outputs available].
+getNumAvailableOutputs is used when ShuffleMapStage is requested for the ShuffleMapStage.md#numAvailableOutputs[number of partitions with shuffle outputs available].
 
 == [[findMissingPartitions]] Finding Missing Partitions
 
@@ -412,7 +412,7 @@ findMissingPartitions(
 
 findMissingPartitions...FIXME
 
-findMissingPartitions is used when ShuffleMapStage is requested for scheduler:ShuffleMapStage.md#findMissingPartitions[missing partitions].
+findMissingPartitions is used when ShuffleMapStage is requested for ShuffleMapStage.md#findMissingPartitions[missing partitions].
 
 == [[getMapSizesByExecutorId]] Finding Locations with Blocks and Sizes
 
@@ -426,7 +426,7 @@ getMapSizesByExecutorId(
 
 getMapSizesByExecutorId...FIXME
 
-getMapSizesByExecutorId is part of the scheduler:MapOutputTracker.md#getMapSizesByExecutorId[MapOutputTracker] abstraction.
+getMapSizesByExecutorId is part of the MapOutputTracker.md#getMapSizesByExecutorId[MapOutputTracker] abstraction.
 
 == [[getLocationsWithLargestOutputs]] Finding Locations with Largest Number of Shuffle Map Outputs
 
@@ -449,9 +449,9 @@ Internally, getLocationsWithLargestOutputs queries the <<mapStatuses, mapStatuse
 
 [NOTE]
 ====
-One entry in `mapStatuses` internal cache is a scheduler:MapStatus.md[MapStatus] array indexed by partition id.
+One entry in `mapStatuses` internal cache is a MapStatus.md[MapStatus] array indexed by partition id.
 
-`MapStatus` includes scheduler:MapStatus.md#contract[information about the `BlockManager` (as `BlockManagerId`) and estimated size of the reduce blocks].
+`MapStatus` includes MapStatus.md#contract[information about the `BlockManager` (as `BlockManagerId`) and estimated size of the reduce blocks].
 ====
 
 getLocationsWithLargestOutputs iterates over the `MapStatus` array and builds an interim mapping between storage:BlockManagerId.md[] and the cumulative sum of shuffle blocks across storage:BlockManager.md[BlockManagers].

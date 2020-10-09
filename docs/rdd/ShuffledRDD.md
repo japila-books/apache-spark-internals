@@ -1,6 +1,6 @@
 = [[ShuffledRDD]] ShuffledRDD
 
-*ShuffledRDD* is an rdd:RDD.md[RDD] of key-value pairs that represents a *shuffle step* in a spark-rdd-lineage.md[RDD lineage].
+*ShuffledRDD* is an RDD.md[RDD] of key-value pairs that represents a *shuffle step* in a spark-rdd-lineage.md[RDD lineage].
 
 ShuffledRDD is given an <<prev, RDD>> of key-value pairs of K and V types, respectively, when <<creating-instance, created>> and <<compute, computes>> key-value pairs of K and C types, respectively.
 
@@ -8,25 +8,25 @@ ShuffledRDD is <<creating-instance, created>> for the following RDD transformati
 
 * spark-rdd-OrderedRDDFunctions.md#sortByKey[OrderedRDDFunctions.sortByKey] and spark-rdd-OrderedRDDFunctions.md#repartitionAndSortWithinPartitions[OrderedRDDFunctions.repartitionAndSortWithinPartitions]
 
-* rdd:PairRDDFunctions.md#combineByKeyWithClassTag[PairRDDFunctions.combineByKeyWithClassTag] and rdd:PairRDDFunctions.md#partitionBy[PairRDDFunctions.partitionBy]
+* PairRDDFunctions.md#combineByKeyWithClassTag[PairRDDFunctions.combineByKeyWithClassTag] and PairRDDFunctions.md#partitionBy[PairRDDFunctions.partitionBy]
 
 * spark-rdd-transformations.md#coalesce[RDD.coalesce] (with `shuffle` flag enabled)
 
 ShuffledRDD uses custom <<ShuffledRDDPartition, ShuffledRDDPartition>> partitions.
 
 [[isBarrier]]
-ShuffledRDD has rdd:RDD.md#isBarrier[isBarrier] flag always disabled (`false`).
+ShuffledRDD has RDD.md#isBarrier[isBarrier] flag always disabled (`false`).
 
 == [[creating-instance]] Creating Instance
 
 ShuffledRDD takes the following to be created:
 
-* [[prev]] Previous rdd:RDD.md[RDD] of key-value pairs (`RDD[_ <: Product2[K, V]]`)
-* [[part]] rdd:Partitioner.md[Partitioner]
+* [[prev]] Previous RDD.md[RDD] of key-value pairs (`RDD[_ <: Product2[K, V]]`)
+* [[part]] Partitioner.md[Partitioner]
 
 == [[mapSideCombine]][[setMapSideCombine]] Map-Side Combine Flag
 
-ShuffledRDD uses a *map-side combine* flag to create a rdd:ShuffleDependency.md[ShuffleDependency] when requested for the <<getDependencies, dependencies>> (there is always only one).
+ShuffledRDD uses a *map-side combine* flag to create a [ShuffleDependency](ShuffleDependency.md) when requested for the <<getDependencies, dependencies>> (there is always only one).
 
 The flag is disabled (`false`) by default and can be changed using setMapSideCombine method.
 
@@ -36,7 +36,7 @@ setMapSideCombine(
   mapSideCombine: Boolean): ShuffledRDD[K, V, C]
 ----
 
-setMapSideCombine is used for rdd:PairRDDFunctions.md#combineByKeyWithClassTag[PairRDDFunctions.combineByKeyWithClassTag] transformation (which defaults to the flag enabled).
+setMapSideCombine is used for PairRDDFunctions.md#combineByKeyWithClassTag[PairRDDFunctions.combineByKeyWithClassTag] transformation (which defaults to the flag enabled).
 
 == [[compute]] Computing Partition
 
@@ -47,15 +47,15 @@ compute(
   context: TaskContext): Iterator[(K, C)]
 ----
 
-compute requests the only rdd:RDD.md#dependencies[dependency] (that is assumed a rdd:ShuffleDependency.md[ShuffleDependency]) for the rdd:ShuffleDependency.md#shuffleHandle[ShuffleHandle].
+compute requests the only RDD.md#dependencies[dependency] (that is assumed a [ShuffleDependency](ShuffleDependency.md)) for the [ShuffleHandle](ShuffleDependency.md#shuffleHandle).
 
-compute uses the core:SparkEnv.md[SparkEnv] to access the core:SparkEnv.md#shuffleManager[ShuffleManager].
+compute uses the [SparkEnv](../SparkEnv.md) to access the [ShuffleManager](../SparkEnv.md#shuffleManager).
 
-compute requests the shuffle:ShuffleManager.md#shuffleManager[ShuffleManager] for the shuffle:ShuffleManager.md#getReader[ShuffleReader] (for the ShuffleHandle, the rdd:spark-rdd-Partition.md[partition]).
+compute requests the shuffle:ShuffleManager.md#shuffleManager[ShuffleManager] for the shuffle:ShuffleManager.md#getReader[ShuffleReader] (for the ShuffleHandle, the spark-rdd-Partition.md[partition]).
 
 In the end, compute requests the ShuffleReader to shuffle:spark-shuffle-ShuffleReader.md#read[read] the combined key-value pairs (of type `(K, C)`).
 
-compute is part of the rdd:RDD.md#compute[RDD] abstraction.
+compute is part of the RDD.md#compute[RDD] abstraction.
 
 == [[getPreferredLocations]] Placement Preferences of Partition
 
@@ -65,11 +65,11 @@ getPreferredLocations(
   partition: Partition): Seq[String]
 ----
 
-getPreferredLocations requests `MapOutputTrackerMaster` for the scheduler:MapOutputTrackerMaster.md#getPreferredLocationsForShuffle[preferred locations] of the given rdd:spark-rdd-Partition.md[partition] (storage:BlockManager.md[BlockManagers] with the most map outputs).
+getPreferredLocations requests `MapOutputTrackerMaster` for the scheduler:MapOutputTrackerMaster.md#getPreferredLocationsForShuffle[preferred locations] of the given spark-rdd-Partition.md[partition] (storage:BlockManager.md[BlockManagers] with the most map outputs).
 
 getPreferredLocations uses SparkEnv to access the current core:SparkEnv.md#mapOutputTracker[MapOutputTrackerMaster].
 
-getPreferredLocations is part of the rdd:RDD.md#compute[RDD] abstraction.
+getPreferredLocations is part of the RDD.md#compute[RDD] abstraction.
 
 == [[getDependencies]] Dependencies
 
@@ -82,13 +82,13 @@ getDependencies uses the <<userSpecifiedSerializer, user-specified Serializer>> 
 
 getDependencies uses the <<mapSideCombine, mapSideCombine>> internal flag for the types of the keys and values (i.e. `K` and `C` or `K` and `V` when the flag is enabled or not, respectively).
 
-In the end, getDependencies returns a single rdd:ShuffleDependency.md[ShuffleDependency] (with the <<prev, previous RDD>>, the <<part, Partitioner>>, and the Serializer).
+In the end, getDependencies returns a single [ShuffleDependency](ShuffleDependency.md) (with the <<prev, previous RDD>>, the <<part, Partitioner>>, and the Serializer).
 
-getDependencies is part of the rdd:RDD.md#getDependencies[RDD] abstraction.
+getDependencies is part of the RDD.md#getDependencies[RDD] abstraction.
 
 == [[ShuffledRDDPartition]] ShuffledRDDPartition
 
-ShuffledRDDPartition gets an `index` to be created (that in turn is the index of partitions as calculated by the rdd:Partitioner.md[Partitioner] of a <<ShuffledRDD, ShuffledRDD>>).
+ShuffledRDDPartition gets an `index` to be created (that in turn is the index of partitions as calculated by the Partitioner.md[Partitioner] of a <<ShuffledRDD, ShuffledRDD>>).
 
 == Demos
 
@@ -132,13 +132,13 @@ scala> println(sorted.toDebugString)
 | Description
 
 | userSpecifiedSerializer
-a| [[userSpecifiedSerializer]] User-specified serializer:Serializer.md[Serializer] for the single rdd:ShuffleDependency.md[ShuffleDependency] dependency
+a| [[userSpecifiedSerializer]] User-specified [Serializer](../serializer/Serializer.md) for the single [ShuffleDependency](ShuffleDependency.md) dependency
 
 [source, scala]
 ----
 userSpecifiedSerializer: Option[Serializer] = None
 ----
 
-`userSpecifiedSerializer` is undefined (`None`) by default and can be changed using `setSerializer` method (that is used for rdd:PairRDDFunctions.md#combineByKeyWithClassTag[PairRDDFunctions.combineByKeyWithClassTag] transformation).
+`userSpecifiedSerializer` is undefined (`None`) by default and can be changed using `setSerializer` method (that is used for PairRDDFunctions.md#combineByKeyWithClassTag[PairRDDFunctions.combineByKeyWithClassTag] transformation).
 
 |===

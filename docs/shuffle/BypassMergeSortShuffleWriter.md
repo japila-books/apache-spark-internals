@@ -30,7 +30,7 @@ BypassMergeSortShuffleWriter uses the IndexShuffleBlockResolver for <<write, wri
 
 == [[serializer]] Serializer
 
-When created, BypassMergeSortShuffleWriter requests the shuffle:spark-shuffle-BaseShuffleHandle.md#dependency[ShuffleDependency] (of the given <<handle, BypassMergeSortShuffleHandle>>) for the rdd:ShuffleDependency.md#serializer[Serializer].
+When created, BypassMergeSortShuffleWriter requests the shuffle:spark-shuffle-BaseShuffleHandle.md#dependency[ShuffleDependency] (of the given <<handle, BypassMergeSortShuffleHandle>>) for the [Serializer](../rdd/ShuffleDependency.md#serializer).
 
 BypassMergeSortShuffleWriter creates a new instance of the Serializer for <<write, writing records>>.
 

@@ -1,4 +1,4 @@
-= CoGroupedRDD
+# CoGroupedRDD
 
 A RDD that cogroups its pair RDD parents. For each key k in parent RDDs, the resulting RDD contains a tuple with the list of values for that key.
 

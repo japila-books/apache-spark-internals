@@ -107,9 +107,9 @@ Event handler: scheduler:DAGScheduler.md#handleJobSubmitted[handleJobSubmitted]
 MapStageSubmitted event carries the following:
 
 * Job ID
-* rdd:ShuffleDependency.md[ShuffleDependency]
+* [ShuffleDependency](../rdd/ShuffleDependency.md)
 * CallSite
-* scheduler:spark-scheduler-JobListener.md[JobListener]
+* [JobListener](../scheduler/spark-scheduler-JobListener.md)
 * Execution properties
 
 Posted when DAGScheduler is requested to scheduler:DAGScheduler.md#submitMapStage[submitMapStage]

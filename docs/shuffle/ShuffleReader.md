@@ -25,7 +25,7 @@ a| [[read]] Reading combined key-value records for a reduce task
 
 Used when:
 
-* rdd:spark-rdd-CoGroupedRDD.md#compute[CoGroupedRDD], rdd:ShuffledRDD.md#compute[ShuffledRDD], and rdd:spark-rdd-SubtractedRDD.md#compute[SubtractedRDD] are requested to compute a partition (for a `ShuffleDependency` dependency)
+* [CoGroupedRDD](../rdd/CoGroupedRDD.md#compute), [ShuffledRDD](../rdd/ShuffledRDD.md#compute), and [SubtractedRDD](../rdd/SubtractedRDD.md#compute) are requested to compute a partition (for a `ShuffleDependency` dependency)
 
 * Spark SQL's `ShuffledRowRDD` is requested to `compute` a partition
 |===

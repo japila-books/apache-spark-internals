@@ -1,107 +1,118 @@
 # ShuffleManager
 
-`ShuffleManager` is an abstraction of <<implementations, shuffle systems>> that manage shuffle data.
+`ShuffleManager` is an [abstraction](#contract) of [shuffle managers](#implementations) that manage shuffle data.
 
-`ShuffleManager` is selected using [spark.shuffle.manager](../configuration-properties.md#spark.shuffle.manager) configuration property.
+`ShuffleManager` is specified using [spark.shuffle.manager](../configuration-properties.md#spark.shuffle.manager) configuration property.
 
 `ShuffleManager` is used to create a [BlockManager](../storage/BlockManager.md#shuffleManager).
 
-== [[implementations]] Available ShuffleManagers
+## Contract
 
-shuffle:SortShuffleManager.md[SortShuffleManager] is the default and only known ShuffleManager in Apache Spark.
+### <span id="getReader"> Getting ShuffleReader for ShuffleHandle
 
-== [[SparkEnv]] Accessing ShuffleManager using SparkEnv
-
-The driver and executor access the ShuffleManager instance using core:SparkEnv.md#shuffleManager[SparkEnv.shuffleManager].
-
-[source, scala]
-----
-val shuffleManager = SparkEnv.get.shuffleManager
-----
-
-== [[getReader]] Getting ShuffleReader for ShuffleHandle
-
-[source, scala]
-----
+```scala
 getReader[K, C](
   handle: ShuffleHandle,
   startPartition: Int,
   endPartition: Int,
-  context: TaskContext): ShuffleReader[K, C]
-----
+  context: TaskContext,
+  metrics: ShuffleReadMetricsReporter): ShuffleReader[K, C]
+```
 
-Gives shuffle:spark-shuffle-ShuffleReader.md[ShuffleReader] to read shuffle data in the shuffle:spark-shuffle-ShuffleHandle.md[ShuffleHandle]
+[ShuffleReader](ShuffleReader.md) to read shuffle data in the [ShuffleHandle](ShuffleHandle.md)
 
-Used when the following RDDs are requested to rdd:RDD.md#compute[compute a partition]:
+Used when the following RDDs are requested to compute a partition:
 
-* rdd:spark-rdd-CoGroupedRDD.md[CoGroupedRDD]
+* `CoGroupedRDD` is requested to [compute a partition](../rdd/CoGroupedRDD.md#compute)
+* `ShuffledRDD` is requested to [compute a partition](../rdd/ShuffledRDD.md#compute)
+* `SubtractedRDD` is requested to [compute a partition](../rdd/SubtractedRDD.md#compute)
+* `ShuffledRowRDD` (Spark SQL) is requested to `compute` a partition
 
-* rdd:ShuffledRDD.md[ShuffledRDD]
+### <span id="getReaderForRange"> getReaderForRange
 
-* rdd:spark-rdd-SubtractedRDD.md[SubtractedRDD]
+```scala
+getReaderForRange[K, C](
+  handle: ShuffleHandle,
+  startMapIndex: Int,
+  endMapIndex: Int,
+  startPartition: Int,
+  endPartition: Int,
+  context: TaskContext,
+  metrics: ShuffleReadMetricsReporter): ShuffleReader[K, C]
+```
 
-== [[getWriter]] Getting ShuffleWriter for ShuffleHandle
+[ShuffleReader](ShuffleReader.md) for a range of reduce partitions to read from map output in the [ShuffleHandle](ShuffleHandle.md)
 
-[source, scala]
-----
+Used when `ShuffledRowRDD` (Spark SQL) is requested to compute a partition
+
+### <span id="getWriter"> Getting ShuffleWriter for ShuffleHandle
+
+```scala
 getWriter[K, V](
   handle: ShuffleHandle,
-  mapId: Int,
-  context: TaskContext): ShuffleWriter[K, V]
-----
+  mapId: Long,
+  context: TaskContext,
+  metrics: ShuffleWriteMetricsReporter): ShuffleWriter[K, V]
+```
 
-Gives shuffle:ShuffleWriter.md[ShuffleWriter] to write shuffle data in the shuffle:spark-shuffle-ShuffleHandle.md[ShuffleHandle]
+[ShuffleWriter](ShuffleWriter.md) to write shuffle data in the [ShuffleHandle](ShuffleHandle.md)
 
-Used exclusively when ShuffleMapTask is requested to scheduler:ShuffleMapTask.md#runTask[run] (and requests the shuffle:ShuffleWriter.md[ShuffleWriter] to write records for a partition)
+Used when `ShuffleWriteProcessor` is requested to [write a partition](ShuffleWriteProcessor.md#write)
 
-== [[registerShuffle]] Registering Shuffle of ShuffleDependency (and Getting ShuffleHandle)
+### <span id="registerShuffle"> Registering Shuffle of ShuffleDependency (and Getting ShuffleHandle)
 
-[source, scala]
-----
+```scala
 registerShuffle[K, V, C](
   shuffleId: Int,
-  numMaps: Int,
   dependency: ShuffleDependency[K, V, C]): ShuffleHandle
-----
+```
 
-Registers a shuffle (by the given shuffleId and rdd:ShuffleDependency.md[ShuffleDependency]) and returns a shuffle:spark-shuffle-ShuffleHandle.md[ShuffleHandle]
+Registers a shuffle (by the given `shuffleId` and [ShuffleDependency](../rdd/ShuffleDependency.md)) and gives a [ShuffleHandle](ShuffleHandle.md)
 
-Used when ShuffleDependency is rdd:ShuffleDependency.md#shuffleHandle[created] (and registers with the shuffle system)
+Used when `ShuffleDependency` is [created](../rdd/ShuffleDependency.md#shuffleHandle) (and registers with the shuffle system)
 
-== [[shuffleBlockResolver]] Getting ShuffleBlockResolver
+### <span id="shuffleBlockResolver"> ShuffleBlockResolver
 
-[source, scala]
-----
+```scala
 shuffleBlockResolver: ShuffleBlockResolver
-----
+```
 
-Gives shuffle:ShuffleBlockResolver.md[ShuffleBlockResolver] of the shuffle system
+[ShuffleBlockResolver](ShuffleBlockResolver.md) of the shuffle system
 
 Used when:
 
-* SortShuffleManager is requested for a shuffle:SortShuffleManager.md#getWriter[ShuffleWriter for a ShuffleHandle], to shuffle:SortShuffleManager.md#unregisterShuffle[unregister a shuffle] and shuffle:SortShuffleManager.md#stop[stop]
+* `SortShuffleManager` is requested for a [ShuffleWriter for a ShuffleHandle](SortShuffleManager.md#getWriter), to [unregister a shuffle](SortShuffleManager.md#unregisterShuffle) and [stop](SortShuffleManager.md#stop)
+* `BlockManager` is requested to [getLocalBlockData](../storage/BlockManager.md#getLocalBlockData) and [getHostLocalShuffleData](../storage/BlockManager.md#getHostLocalShuffleData)
 
-* BlockManager is requested to storage:BlockManager.md#getBlockData[get shuffle data] and storage:BlockManager.md#getLocalBytes[getLocalBytes]
+### <span id="stop"> Stopping ShuffleManager
 
-== [[stop]] Stopping ShuffleManager
-
-[source, scala]
-----
+```scala
 stop(): Unit
-----
+```
 
 Stops the shuffle system
 
-Used when SparkEnv is requested to core:SparkEnv.md#stop[stop]
+Used when `SparkEnv` is requested to [stop](../SparkEnv.md#stop)
 
-== [[unregisterShuffle]] Unregistering Shuffle
+### <span id="unregisterShuffle"> Unregistering Shuffle
 
-[source, scala]
-----
+```scala
 unregisterShuffle(
   shuffleId: Int): Boolean
-----
+```
 
 Unregisters a given shuffle
 
-Used when BlockManagerSlaveEndpoint is requested to storage:BlockManagerSlaveEndpoint.md#RemoveShuffle[handle a RemoveShuffle message]
+Used when `BlockManagerSlaveEndpoint` is requested to [handle a RemoveShuffle message](../storage/BlockManagerSlaveEndpoint.md#RemoveShuffle)
+
+## Implementations
+
+* [SortShuffleManager](SortShuffleManager.md)
+
+## <span id="SparkEnv"> Accessing ShuffleManager using SparkEnv
+
+`ShuffleManager` is available on the driver and executors using [SparkEnv.shuffleManager](../SparkEnv.md#shuffleManager).
+
+```scala
+val shuffleManager = SparkEnv.get.shuffleManager
+```

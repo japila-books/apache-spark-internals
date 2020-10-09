@@ -1,6 +1,6 @@
 # TaskMetrics
 
-TaskMetrics is a <<metrics, collection of metrics>> (as <<spark-accumulators.md#, AccumulatorV2s>>) tracked during execution of a scheduler:Task.md[Task].
+`TaskMetrics` is a <<metrics, collection of metrics>> (as <<spark-accumulators.md#, AccumulatorV2s>>) tracked during execution of a scheduler:Task.md[Task].
 
 TaskMetrics is <<creating-instance, created>> when:
 
@@ -149,7 +149,7 @@ incMemoryBytesSpilled(v: Long): Unit
 
 1. rdd:Aggregator.md#updateMetrics[`Aggregator` updates task metrics]
 
-2. spark-rdd-CoGroupedRDD.md[`CoGroupedRDD` computes a `Partition`]
+2. `CoGroupedRDD` is requested to [compute a partition](../rdd/CoGroupedRDD.md#compute)
 
 3. shuffle:BlockStoreShuffleReader.md#read[`BlockStoreShuffleReader` reads combined key-value records for a reduce task]
 

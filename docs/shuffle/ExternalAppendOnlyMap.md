@@ -1,10 +1,10 @@
-= [[ExternalAppendOnlyMap]] ExternalAppendOnlyMap
+# ExternalAppendOnlyMap
 
-*ExternalAppendOnlyMap* is a shuffle:Spillable.md[Spillable] of SizeTrackers.
+`ExternalAppendOnlyMap` is a [Spillable](Spillable.md) of SizeTrackers.
 
 `ExternalAppendOnlyMap[K, V, C]` is a parameterized type of `K` keys, `V` values, and `C` combiner (partial) values.
 
-== [[creating-instance]] Creating Instance
+## Creating Instance
 
 ExternalAppendOnlyMap takes the following to be created:
 
@@ -20,7 +20,7 @@ ExternalAppendOnlyMap is created when:
 
 * Aggregator is requested to rdd:Aggregator.md#combineValuesByKey[combineValuesByKey] and rdd:Aggregator.md#combineCombinersByKey[combineCombinersByKey]
 
-* CoGroupedRDD is requested to rdd:spark-rdd-CoGroupedRDD.md#compute[compute a partition]
+* `CoGroupedRDD` is requested to [compute a partition](../rdd/CoGroupedRDD.md#compute)
 
 == [[currentMap]] SizeTrackingAppendOnlyMap
 
@@ -59,7 +59,7 @@ insertAll is used when:
 
 * Aggregator is requested to rdd:Aggregator.md#combineValuesByKey[combineValuesByKey] and rdd:Aggregator.md#combineCombinersByKey[combineCombinersByKey]
 
-* CoGroupedRDD is requested to rdd:spark-rdd-CoGroupedRDD.md#compute[compute a partition]
+* `CoGroupedRDD` is requested to [compute a partition](../rdd/CoGroupedRDD.md#compute)
 
 * ExternalAppendOnlyMap is requested to <<insert, insert a key-value pair>>
 

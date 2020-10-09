@@ -16,7 +16,7 @@ ExternalSorter takes the following to be created:
 
 ExternalSorter is created when:
 
-* SortShuffleWriter is requested to shuffle:SortShuffleWriter.md#write[write records] (as a `ExternalSorter[K, V, C]` or `ExternalSorter[K, V, V]` based on rdd:ShuffleDependency.md#mapSideCombine[Map-Size Partial Aggregation Flag])
+* SortShuffleWriter is requested to shuffle:SortShuffleWriter.md#write[write records] (as a `ExternalSorter[K, V, C]` or `ExternalSorter[K, V, V]` based on [Map-Size Partial Aggregation Flag](../rdd/ShuffleDependency.md#mapSideCombine))
 
 * BlockStoreShuffleReader is requested to shuffle:BlockStoreShuffleReader.md#read[read records] (with sort ordering defined)
 
@@ -82,7 +82,7 @@ In the end, insertAll <<maybeSpillCollection, spills the in-memory collection to
 
 insertAll is used when:
 
-* SortShuffleWriter is requested to shuffle:SortShuffleWriter.md#write[write records] (as a `ExternalSorter[K, V, C]` or `ExternalSorter[K, V, V]` based on rdd:ShuffleDependency.md#mapSideCombine[Map-Size Partial Aggregation Flag])
+* SortShuffleWriter is requested to shuffle:SortShuffleWriter.md#write[write records] (as a `ExternalSorter[K, V, C]` or `ExternalSorter[K, V, V]` based on [Map-Size Partial Aggregation Flag](../rdd/ShuffleDependency.md#mapSideCombine))
 
 * BlockStoreShuffleReader is requested to shuffle:BlockStoreShuffleReader.md#read[read records] (with sort ordering defined)
 

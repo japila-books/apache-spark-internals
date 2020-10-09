@@ -1,6 +1,6 @@
 # SortShuffleWriter
 
-`SortShuffleWriter` is a concrete [ShuffleWriter](ShuffleWriter.md) that is used when shuffle:SortShuffleManager.md#getWriter[`SortShuffleManager` returns a `ShuffleWriter` for `ShuffleHandle`] (and the more specialized shuffle:BypassMergeSortShuffleWriter.md[BypassMergeSortShuffleWriter] and shuffle:UnsafeShuffleWriter.md[UnsafeShuffleWriter] could not be used).
+`SortShuffleWriter` is a concrete [ShuffleWriter](ShuffleWriter.md) that is used when SortShuffleManager.md#getWriter[`SortShuffleManager` returns a `ShuffleWriter` for `ShuffleHandle`] (and the more specialized BypassMergeSortShuffleWriter.md[BypassMergeSortShuffleWriter] and UnsafeShuffleWriter.md[UnsafeShuffleWriter] could not be used).
 
 SortShuffleWriter is created when SortShuffleManager.md#getWriter[`SortShuffleManager` returns a `ShuffleWriter` for the fallback `BaseShuffleHandle`].
 
@@ -10,8 +10,8 @@ SortShuffleWriter is created when SortShuffleManager.md#getWriter[`SortShuffleMa
 
 SortShuffleWriter takes the following to be created:
 
-* [[shuffleBlockResolver]] shuffle:IndexShuffleBlockResolver.md[IndexShuffleBlockResolver]
-* [[handle]] shuffle:spark-shuffle-BaseShuffleHandle.md[BaseShuffleHandle]
+* [[shuffleBlockResolver]] IndexShuffleBlockResolver.md[IndexShuffleBlockResolver]
+* [[handle]] spark-shuffle-BaseShuffleHandle.md[BaseShuffleHandle]
 * [[mapId]] Map ID
 * [[context]] scheduler:spark-TaskContext.md[TaskContext]
 
@@ -29,17 +29,17 @@ write(
   records: Iterator[Product2[K, V]]): Unit
 ----
 
-write creates an shuffle:ExternalSorter.md[ExternalSorter] based on the shuffle:spark-shuffle-BaseShuffleHandle.md#dependency[ShuffleDependency] (of the <<handle, BaseShuffleHandle>>), namely the rdd:ShuffleDependency.md#mapSideCombine[Map-Size Partial Aggregation] flag. The ExternalSorter uses the aggregator and keyOrdering when the flag is enabled.
+write creates an ExternalSorter.md[ExternalSorter] based on the spark-shuffle-BaseShuffleHandle.md#dependency[ShuffleDependency] (of the <<handle, BaseShuffleHandle>>), namely the [Map-Size Partial Aggregation](../rdd/ShuffleDependency.md#mapSideCombine) flag. The ExternalSorter uses the aggregator and keyOrdering when the flag is enabled.
 
-write requests the ExternalSorter to shuffle:ExternalSorter.md#insertAll[inserts all the records].
+write requests the ExternalSorter to [inserts all the records](ExternalSorter.md#insertAll).
 
-write requests the <<shuffleBlockResolver, IndexShuffleBlockResolver>> for a shuffle:IndexShuffleBlockResolver.md#getDataFile[shuffle output file] (for the shuffle and the <<mapId, map>> IDs) and creates a temporary file alongside the shuffle output file (in the same directory).
+write requests the <<shuffleBlockResolver, IndexShuffleBlockResolver>> for a IndexShuffleBlockResolver.md#getDataFile[shuffle output file] (for the shuffle and the <<mapId, map>> IDs) and creates a temporary file alongside the shuffle output file (in the same directory).
 
 write creates a storage:BlockId.md#ShuffleBlockId[ShuffleBlockId] (for the shuffle and the <<mapId, map>> IDs).
 
-write requests ExternalSorter to shuffle:ExternalSorter.md#writePartitionedFile[write all the records (previously inserted in) into the temporary partitioned file in the disk store]. ExternalSorter returns the length of every partition.
+write requests ExternalSorter to ExternalSorter.md#writePartitionedFile[write all the records (previously inserted in) into the temporary partitioned file in the disk store]. ExternalSorter returns the length of every partition.
 
-write requests <<shuffleBlockResolver, IndexShuffleBlockResolver>> to shuffle:IndexShuffleBlockResolver.md#writeIndexFileAndCommit[write an index file and commit] (with the shuffle and the <<mapId, map>> IDs, the temporary shuffle output file).
+write requests <<shuffleBlockResolver, IndexShuffleBlockResolver>> to IndexShuffleBlockResolver.md#writeIndexFileAndCommit[write an index file and commit] (with the shuffle and the <<mapId, map>> IDs, the temporary shuffle output file).
 
 write creates a scheduler:MapStatus.md[MapStatus] (with the storage:BlockManager.md#shuffleServerId[location of the shuffle server] that serves the shuffle files and the sizes of the shuffle partitions). The `MapStatus` is later available as the <<mapStatus, mapStatus>> internal attribute.
 
@@ -51,7 +51,7 @@ In the end, write deletes the temporary shuffle output file. write prints out th
 Error while deleting temp file [path]
 ```
 
-write is part of the shuffle:ShuffleWriter.md#write[ShuffleWriter] abstraction.
+write is part of the ShuffleWriter.md#write[ShuffleWriter] abstraction.
 
 == [[stop]] Closing SortShuffleWriter (and Calculating MapStatus)
 
@@ -65,9 +65,9 @@ stop turns <<stopping, stopping>> flag on and returns the internal <<mapStatus, 
 
 Otherwise, when <<stopping, stopping>> flag is already enabled or the input `success` is disabled, stop returns no `MapStatus` (i.e. `None`).
 
-In the end, stop requests the ExternalSorter to shuffle:ExternalSorter.md#stop[stop] and increments the shuffle write time task metrics.
+In the end, stop requests the ExternalSorter to ExternalSorter.md#stop[stop] and increments the shuffle write time task metrics.
 
-stop is part of the shuffle:ShuffleWriter.md#contract[ShuffleWriter] abstraction.
+stop is part of the ShuffleWriter.md#contract[ShuffleWriter] abstraction.
 
 == [[shouldBypassMergeSort]] Requirements of BypassMergeSortShuffleHandle (as ShuffleHandle)
 
@@ -80,13 +80,13 @@ shouldBypassMergeSort(
 
 shouldBypassMergeSort returns `true` when all of the following hold:
 
-. No map-side aggregation (the rdd:ShuffleDependency.md#mapSideCombine[mapSideCombine] flag of the given rdd:ShuffleDependency.md[ShuffleDependency] is off)
+. No map-side aggregation (the [mapSideCombine](../rdd/ShuffleDependency.md#mapSideCombine) flag of the given [ShuffleDependency](../rdd/ShuffleDependency.md) is off)
 
-. rdd:Partitioner.md#numPartitions[Number of partitions] (of the rdd:ShuffleDependency.md#partitioner[Partitioner] of the given rdd:ShuffleDependency.md[ShuffleDependency]) is not greater than ROOT:configuration-properties.md#spark.shuffle.sort.bypassMergeThreshold[spark.shuffle.sort.bypassMergeThreshold] configuration property
+. [Number of partitions](../rdd/Partitioner.md#numPartitions) (of the [Partitioner](../rdd/ShuffleDependency.md#partitioner) of the given [ShuffleDependency](../rdd/ShuffleDependency.md)) is not greater than [spark.shuffle.sort.bypassMergeThreshold](../configuration-properties.md#spark.shuffle.sort.bypassMergeThreshold) configuration property
 
-Otherwise, shouldBypassMergeSort does not hold (i.e. `false`).
+Otherwise, `shouldBypassMergeSort` does not hold (i.e. `false`).
 
-shouldBypassMergeSort is used when SortShuffleManager is requested to shuffle:SortShuffleManager.md#registerShuffle[register a shuffle (and creates a ShuffleHandle)].
+`shouldBypassMergeSort` is used when `SortShuffleManager` is requested to [register a shuffle (and creates a ShuffleHandle)](SortShuffleManager.md#registerShuffle).
 
 == [[logging]] Logging
 

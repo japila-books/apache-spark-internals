@@ -64,7 +64,7 @@ NOTE: <<handleExecutorLost, handleExecutorLost>> is also called when DAGSchedule
 
 1. A job identifier (as `jobId`)
 
-2. The rdd:ShuffleDependency.md[ShuffleDependency]
+2. The [ShuffleDependency](../rdd/ShuffleDependency.md)
 
 3. A `CallSite` (as `callSite`)
 
@@ -150,7 +150,7 @@ handleMapStageSubmitted(
 .`MapStageSubmitted` Event Handling
 image::scheduler-handlemapstagesubmitted.png[align="center"]
 
-handleMapStageSubmitted scheduler:DAGScheduler.md#getOrCreateShuffleMapStage[finds or creates a new `ShuffleMapStage`] for the input rdd:ShuffleDependency.md[ShuffleDependency] and `jobId`.
+handleMapStageSubmitted scheduler:DAGScheduler.md#getOrCreateShuffleMapStage[finds or creates a new `ShuffleMapStage`] for the input [ShuffleDependency](../rdd/ShuffleDependency.md) and `jobId`.
 
 handleMapStageSubmitted creates an spark-scheduler-ActiveJob.md[ActiveJob] (with the input `jobId`, `callSite`, `listener` and `properties`, and the `ShuffleMapStage`).
 
@@ -160,11 +160,11 @@ CAUTION: FIXME Why is this clearing here so important?
 
 You should see the following INFO messages in the logs:
 
-```
-INFO DAGScheduler: Got map stage job [id] ([callSite]) with [number] output partitions
-INFO DAGScheduler: Final stage: [stage] ([name])
-INFO DAGScheduler: Parents of final stage: [parents]
-INFO DAGScheduler: Missing parents: [missingStages]
+```text
+Got map stage job [id] ([callSite]) with [number] output partitions
+Final stage: [stage] ([name])
+Parents of final stage: [parents]
+Missing parents: [missingStages]
 ```
 
 handleMapStageSubmitted registers the new job in scheduler:DAGScheduler.md#jobIdToActiveJob[jobIdToActiveJob] and scheduler:DAGScheduler.md#activeJobs[activeJobs] internal registries, and scheduler:ShuffleMapStage.md#addActiveJob[with the final `ShuffleMapStage`].
@@ -195,7 +195,7 @@ NOTE: `MapStageSubmitted` event processing is very similar to <<JobSubmitted, Jo
 ====
 The difference between <<handleMapStageSubmitted, handleMapStageSubmitted>> and <<handleJobSubmitted, handleJobSubmitted>>:
 
-* handleMapStageSubmitted has a rdd:ShuffleDependency.md[ShuffleDependency] among the input parameters while handleJobSubmitted has `finalRDD`, `func`, and `partitions`.
+* handleMapStageSubmitted has a [ShuffleDependency](../rdd/ShuffleDependency.md) among the input parameters while handleJobSubmitted has `finalRDD`, `func`, and `partitions`.
 * handleMapStageSubmitted initializes `finalStage` as `getShuffleMapStage(dependency, jobId)` while handleJobSubmitted as `finalStage = newResultStage(finalRDD, func, partitions, jobId, callSite)`
 * handleMapStageSubmitted INFO logs `Got map stage job %s (%s) with %d output partitions` with `dependency.rdd.partitions.length` while handleJobSubmitted does `Got job %s (%s) with %d output partitions` with `partitions.length`.
 * FIXME: Could the above be cut to `ActiveJob.numPartitions`?
@@ -410,7 +410,7 @@ NOTE: scheduler:ResultStage.md[ResultStage] tracks the optional `ActiveJob` as s
 If there is _no_ job for the `ResultStage`, you should see the following INFO message in the logs:
 
 ```
-INFO DAGScheduler: Ignoring result from [task] because its job has finished
+Ignoring result from [task] because its job has finished
 ```
 
 Otherwise, when the `ResultStage` has a `ActiveJob`, `handleTaskCompletion` checks the status of the partition output for the partition the `ResultTask` ran for.

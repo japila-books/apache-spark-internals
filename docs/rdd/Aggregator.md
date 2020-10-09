@@ -1,6 +1,6 @@
-= [[Aggregator]] Aggregator
+# Aggregator
 
-*Aggregator* is a set of <<aggregation-functions, aggregation functions>> used to aggregate data using rdd:PairRDDFunctions.md#combineByKeyWithClassTag[PairRDDFunctions.combineByKeyWithClassTag] transformation.
+`Aggregator` is a set of <<aggregation-functions, aggregation functions>> used to aggregate data using rdd:PairRDDFunctions.md#combineByKeyWithClassTag[PairRDDFunctions.combineByKeyWithClassTag] transformation.
 
 `Aggregator[K, V, C]` is a parameterized type of `K` keys, `V` values, and `C` combiner (partial) values.
 
@@ -11,7 +11,7 @@ Aggregator transforms an `RDD[(K, V)]` into an `RDD[(K, C)]` (for a "combined ty
 * [[mergeValue]] `mergeValue: (C, V) => C`
 * [[mergeCombiners]] `mergeCombiners: (C, C) => C`
 
-Aggregator is used to create a rdd:ShuffleDependency.md[ShuffleDependency] and shuffle:ExternalSorter.md[ExternalSorter].
+Aggregator is used to create a [ShuffleDependency](ShuffleDependency.md) and [ExternalSorter](../shuffle/ExternalSorter.md).
 
 == [[combineValuesByKey]] combineValuesByKey Method
 
@@ -34,7 +34,7 @@ combineValuesByKey is used when:
 
 * rdd:PairRDDFunctions.md#combineByKeyWithClassTag[PairRDDFunctions.combineByKeyWithClassTag] transformation is used (with the same Partitioner as the RDD's)
 
-* BlockStoreShuffleReader is requested to shuffle:BlockStoreShuffleReader.md#read[read combined records for a reduce task] (with the rdd:ShuffleDependency.md#mapSideCombine[Map-Size Partial Aggregation Flag] off)
+* BlockStoreShuffleReader is requested to shuffle:BlockStoreShuffleReader.md#read[read combined records for a reduce task] (with the [Map-Size Partial Aggregation Flag](ShuffleDependency.md#mapSideCombine) off)
 
 == [[combineCombinersByKey]] combineCombinersByKey Method
 
@@ -47,7 +47,7 @@ combineCombinersByKey(
 
 combineCombinersByKey...FIXME
 
-combineCombinersByKey is used when BlockStoreShuffleReader is requested to shuffle:BlockStoreShuffleReader.md#read[read combined records for a reduce task] (with the rdd:ShuffleDependency.md#mapSideCombine[Map-Size Partial Aggregation Flag] on).
+combineCombinersByKey is used when BlockStoreShuffleReader is requested to shuffle:BlockStoreShuffleReader.md#read[read combined records for a reduce task] (with the [Map-Size Partial Aggregation Flag](ShuffleDependency.md#mapSideCombine) on).
 
 == [[updateMetrics]] Updating Task Metrics
 

@@ -19,7 +19,7 @@ NOTE: `read` uses storage:BlockManager.md#shuffleClient[`BlockManager` to access
 
 NOTE: `read` uses scheduler:MapOutputTracker.md#getMapSizesByExecutorId[`MapOutputTracker` to find the BlockManagers with the shuffle blocks and sizes] to create `ShuffleBlockFetcherIterator`.
 
-`read` creates a new serializer:SerializerInstance.md[SerializerInstance] (using rdd:ShuffleDependency.md#serializer[`Serializer` from ShuffleDependency]).
+`read` creates a new serializer:SerializerInstance.md[SerializerInstance] (using [`Serializer` from ShuffleDependency](../rdd/ShuffleDependency.md#serializer)).
 
 `read` creates a key/value iterator by `deserializeStream` every shuffle block stream.
 
@@ -27,11 +27,11 @@ NOTE: `read` uses scheduler:MapOutputTracker.md#getMapSizesByExecutorId[`MapOutp
 
 NOTE: `read` uses `CompletionIterator` (to count the records read) and spark-InterruptibleIterator.md[InterruptibleIterator] (to support task cancellation).
 
-If the rdd:ShuffleDependency.md#aggregator[`ShuffleDependency` has an `Aggregator` defined], `read` wraps the current iterator inside an iterator defined by rdd:Aggregator.md#combineCombinersByKey[Aggregator.combineCombinersByKey] (for rdd:ShuffleDependency.md#mapSideCombine[`mapSideCombine` enabled]) or rdd:Aggregator.md#combineValuesByKey[Aggregator.combineValuesByKey] otherwise.
+If the [`ShuffleDependency` has an `Aggregator` defined](../rdd/ShuffleDependency.md#aggregator), `read` wraps the current iterator inside an iterator defined by [Aggregator.combineCombinersByKey](../rdd/Aggregator.md#combineCombinersByKey) (for [`mapSideCombine` enabled](../rdd/ShuffleDependency.md#mapSideCombine)) or [Aggregator.combineValuesByKey](../rdd/Aggregator.md#combineValuesByKey) otherwise.
 
-NOTE: `run` reports an exception when rdd:ShuffleDependency.md#aggregator[`ShuffleDependency` has no `Aggregator` defined] with rdd:ShuffleDependency.md#mapSideCombine[`mapSideCombine` flag enabled].
+NOTE: `run` reports an exception when [`ShuffleDependency` has no `Aggregator` defined](../rdd/ShuffleDependency.md#aggregator) with [`mapSideCombine` flag enabled](../rdd/ShuffleDependency.md#mapSideCombine).
 
-For rdd:ShuffleDependency.md#keyOrdering[`keyOrdering` defined in `ShuffleDependency`], `run` does the following:
+For [keyOrdering](../rdd/ShuffleDependency.md#keyOrdering) defined in the `ShuffleDependency`, `run` does the following:
 
 1. shuffle:ExternalSorter.md#creating-instance[Creates an `ExternalSorter`]
 2. shuffle:ExternalSorter.md#insertAll[Inserts all the records] into the `ExternalSorter`

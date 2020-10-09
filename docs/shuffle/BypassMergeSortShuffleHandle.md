@@ -1,13 +1,14 @@
-== [[BypassMergeSortShuffleHandle]] BypassMergeSortShuffleHandle -- Marker Interface for Bypass Merge Sort Shuffle Handles
+# BypassMergeSortShuffleHandle &mdash; Marker Interface for Bypass Merge Sort Shuffle Handles
 
-`BypassMergeSortShuffleHandles` is a spark-shuffle-BaseShuffleHandle.md[BaseShuffleHandle] with no additional methods or fields and serves only to identify the choice of **bypass merge sort shuffle**.
+`BypassMergeSortShuffleHandles` is a [BaseShuffleHandle](BaseShuffleHandle.md) with no additional methods or fields and serves only to identify the choice of **bypass merge sort shuffle**.
 
-Like spark-shuffle-BaseShuffleHandle.md[BaseShuffleHandle], `BypassMergeSortShuffleHandles` takes `shuffleId`, `numMaps`, and a rdd:ShuffleDependency.md[ShuffleDependency].
+Like [BaseShuffleHandle](BaseShuffleHandle.md), `BypassMergeSortShuffleHandles` takes `shuffleId`, `numMaps`, and a [ShuffleDependency](../rdd/ShuffleDependency.md).
 
-`BypassMergeSortShuffleHandle` is created when SortShuffleManager.md#registerShuffle[`SortShuffleManager` is requested for a `ShuffleHandle`] (for a `ShuffleDependency`).
+`BypassMergeSortShuffleHandle` is created when `SortShuffleManager` is requested for a [ShuffleHandle](SortShuffleManager.md#registerShuffle) (for a `ShuffleDependency`).
 
-[source, scala]
-----
+## Demo
+
+```text
 scala> val rdd = sc.parallelize(0 to 8).groupBy(_ % 3)
 rdd: org.apache.spark.rdd.RDD[(Int, Iterable[Int])] = ShuffledRDD[2] at groupBy at <console>:24
 
@@ -38,4 +39,4 @@ res4: Int = 8
 
 scala> shuffleDep.shuffleHandle
 res5: org.apache.spark.shuffle.ShuffleHandle = org.apache.spark.shuffle.sort.BypassMergeSortShuffleHandle@68893394
-----
+```

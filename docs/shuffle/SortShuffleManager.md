@@ -131,11 +131,11 @@ canUseSerializedShuffle(
 
 canUseSerializedShuffle returns `true` when all of the following hold:
 
-. rdd:ShuffleDependency.md#serializer[Serializer] (of the given rdd:ShuffleDependency.md[ShuffleDependency]) serializer:Serializer.md#supportsRelocationOfSerializedObjects[supports relocation of serialized objects]
+. [Serializer](../rdd/ShuffleDependency.md#serializer) (of the given [ShuffleDependency](../rdd/ShuffleDependency.md)) serializer:Serializer.md#supportsRelocationOfSerializedObjects[supports relocation of serialized objects]
 
-. No map-side aggregation (the rdd:ShuffleDependency.md#mapSideCombine[mapSideCombine] flag of the given rdd:ShuffleDependency.md[ShuffleDependency] is off)
+. No map-side aggregation (the [mapSideCombine](../rdd/ShuffleDependency.md#mapSideCombine) flag of the given [ShuffleDependency](../rdd/ShuffleDependency.md) is off)
 
-. rdd:Partitioner.md#numPartitions[Number of partitions] (of the rdd:ShuffleDependency.md#partitioner[Partitioner] of the given rdd:ShuffleDependency.md[ShuffleDependency]) is not greater than the <<MAX_SHUFFLE_OUTPUT_PARTITIONS_FOR_SERIALIZED_MODE, supported maximum number>> (i.e. `(1 << 24) - 1`, i.e. `16777215`)
+. [Number of partitions](../rdd/Partitioner.md#numPartitions) (of the [Partitioner](../rdd/ShuffleDependency.md#partitioner) of the given [ShuffleDependency](../rdd/ShuffleDependency.md)) is not greater than the <<MAX_SHUFFLE_OUTPUT_PARTITIONS_FOR_SERIALIZED_MODE, supported maximum number>> (i.e. `(1 << 24) - 1`, i.e. `16777215`)
 
 canUseSerializedShuffle prints out the following DEBUG message to the logs:
 

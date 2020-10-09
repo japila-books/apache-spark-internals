@@ -1,4 +1,4 @@
-== [[Dependency]] RDD Dependencies
+# RDD Dependencies
 
 `Dependency` class is the base (abstract) class to model a dependency relationship between two or more RDDs.
 
@@ -12,17 +12,17 @@ def rdd: RDD[T]
 
 Whenever you apply a spark-rdd-transformations.md[transformation] (e.g. `map`, `flatMap`) to a RDD you build the so-called spark-rdd-lineage.md[RDD lineage graph]. ``Dependency``-ies represent the edges in a lineage graph.
 
-NOTE: spark-rdd-NarrowDependency.md[NarrowDependency] and rdd:ShuffleDependency.md[ShuffleDependency] are the two top-level subclasses of `Dependency` abstract class.
+NOTE: [NarrowDependency](NarrowDependency.md) and [ShuffleDependency](ShuffleDependency.md) are the two top-level subclasses of `Dependency` abstract class.
 
 .Kinds of Dependencies
 [cols="1,2",options="header",width="100%"]
 |===
 | Name | Description
-| spark-rdd-NarrowDependency.md[NarrowDependency] |
-| rdd:ShuffleDependency.md[ShuffleDependency] |
-| spark-rdd-NarrowDependency.md#OneToOneDependency[OneToOneDependency] |
-| spark-rdd-NarrowDependency.md#PruneDependency[PruneDependency] |
-| spark-rdd-NarrowDependency.md#RangeDependency[RangeDependency] |
+| [NarrowDependency](NarrowDependency.md) |
+| [ShuffleDependency](ShuffleDependency.md) |
+| [OneToOneDependency](NarrowDependency.md#OneToOneDependency) |
+| [PruneDependency](NarrowDependency.md#PruneDependency) |
+| [RangeDependency](NarrowDependency.md#RangeDependency) |
 |===
 
 [NOTE]

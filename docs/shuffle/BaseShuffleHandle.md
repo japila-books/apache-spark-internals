@@ -1,15 +1,16 @@
-== [[BaseShuffleHandle]] BaseShuffleHandle -- Fallback Shuffle Handle
+# BaseShuffleHandle &mdash; Fallback Shuffle Handle
 
-`BaseShuffleHandle` is a `ShuffleHandle` that is created solely to capture the parameters when SortShuffleManager.md#registerShuffle[`SortShuffleManager` is requested for a `ShuffleHandle`] (for a `ShuffleDependency`):
+`BaseShuffleHandle` is a [ShuffleHandle](ShuffleHandle.md) that is created solely to capture the parameters when [`SortShuffleManager` is requested for a `ShuffleHandle`](SortShuffleManager.md#registerShuffle) (for a `ShuffleDependency`):
 
 1. [[shuffleId]] `shuffleId`
 2. [[numMaps]] `numMaps`
-3. [[dependency]] rdd:ShuffleDependency.md[ShuffleDependency]
+3. [[dependency]] [ShuffleDependency](../rdd/ShuffleDependency.md)
 
 NOTE: `BaseShuffleHandle` is the last possible choice when SortShuffleManager.md#registerShuffle[`SortShuffleManager` is requested for a `ShuffleHandle`] (after shuffle:BypassMergeSortShuffleHandle.md[BypassMergeSortShuffleHandle] and shuffle:SerializedShuffleHandle.md[SerializedShuffleHandle] have already been considered and failed the check).
 
-[source, scala]
-----
+## Demo
+
+```text
 // Start a Spark application, e.g. spark-shell, with the Spark properties to trigger selection of BaseShuffleHandle:
 // 1. spark.shuffle.spill.numElementsForceSpillThreshold=1
 // 2. spark.shuffle.sort.bypassMergeThreshold=1
@@ -45,4 +46,4 @@ res4: Int = 2
 
 scala> shuffleDep.shuffleHandle
 res5: org.apache.spark.shuffle.ShuffleHandle = org.apache.spark.shuffle.BaseShuffleHandle@22b0fe7e
-----
+```

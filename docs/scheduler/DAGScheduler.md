@@ -9,12 +9,12 @@ The introduction that follows was highly influenced by the scaladoc of https://g
 
 *DAGScheduler* is the scheduling layer of Apache Spark that implements *stage-oriented scheduling*.
 
-DAGScheduler transforms a *logical execution plan* (i.e. rdd:spark-rdd-lineage.md[RDD lineage] of dependencies built using rdd:spark-rdd-transformations.md[RDD transformations]) to a *physical execution plan* (using scheduler:Stage.md[stages]).
+DAGScheduler transforms a *logical execution plan* (i.e. rdd/spark-rdd-lineage.md[RDD lineage] of dependencies built using rdd/spark-rdd-transformations.md[RDD transformations]) to a *physical execution plan* (using scheduler:Stage.md[stages]).
 
 .DAGScheduler Transforming RDD Lineage Into Stage DAG
 image::dagscheduler-rdd-lineage-stage-dag.png[align="center"]
 
-After an rdd:spark-rdd-actions.md[action] has been called, ROOT:SparkContext.md[SparkContext] hands over a logical plan to DAGScheduler that it in turn translates to a set of stages that are submitted as scheduler:TaskSet.md[TaskSets] for execution.
+After an rdd/spark-rdd-actions.md[action] has been called, ROOT:SparkContext.md[SparkContext] hands over a logical plan to DAGScheduler that it in turn translates to a set of stages that are submitted as scheduler:TaskSet.md[TaskSets] for execution.
 
 .Executing action leads to new ResultStage and ActiveJob in DAGScheduler
 image::dagscheduler-rdd-partitions-job-resultstage.png[align="center"]
@@ -39,7 +39,7 @@ image::dagscheduler-submitjob.png[align="center"]
 
 In addition to coming up with the execution DAG, DAGScheduler also determines the preferred locations to run each task on, based on the current cache status, and passes the information to scheduler:TaskScheduler.md[TaskScheduler].
 
-DAGScheduler tracks which rdd:spark-rdd-caching.md[RDDs are cached (or persisted)] to avoid "recomputing" them, i.e. redoing the map side of a shuffle. DAGScheduler remembers what scheduler:ShuffleMapStage.md[ShuffleMapStage]s have already produced output files (that are stored in storage:BlockManager.md[BlockManager]s).
+DAGScheduler tracks which rdd/spark-rdd-caching.md[RDDs are cached (or persisted)] to avoid "recomputing" them, i.e. redoing the map side of a shuffle. DAGScheduler remembers what scheduler:ShuffleMapStage.md[ShuffleMapStage]s have already produced output files (that are stored in storage:BlockManager.md[BlockManager]s).
 
 DAGScheduler is only interested in cache location coordinates, i.e. host and executor id, per partition of a RDD.
 
@@ -51,7 +51,7 @@ DAGScheduler runs stages in topological order.
 
 DAGScheduler uses ROOT:SparkContext.md[SparkContext], scheduler:TaskScheduler.md[TaskScheduler], scheduler:LiveListenerBus.md[], scheduler:MapOutputTracker.md[MapOutputTracker] and storage:BlockManager.md[BlockManager] for its services. However, at the very minimum, DAGScheduler takes a `SparkContext` only (and requests `SparkContext` for the other services).
 
-When DAGScheduler schedules a job as a result of rdd:index.md#actions[executing an action on a RDD] or ROOT:SparkContext.md#runJob[calling SparkContext.runJob() method directly], it spawns parallel tasks to compute (partial) results per partition.
+When DAGScheduler schedules a job as a result of rdd/index.md#actions[executing an action on a RDD] or ROOT:SparkContext.md#runJob[calling SparkContext.runJob() method directly], it spawns parallel tasks to compute (partial) results per partition.
 
 == [[creating-instance]][[initialization]] Creating Instance
 
@@ -170,7 +170,7 @@ DAGScheduler uses the TaskScheduler for the following:
 [source, scala]
 ----
 runJob[T, U](
-  rdd: RDD[T],
+  rdd/ RDD[T],
   func: (TaskContext, Iterator[T]) => U,
   partitions: Seq[Int],
   callSite: CallSite,
@@ -229,7 +229,7 @@ The number of ActiveJobs is available using metrics:spark-scheduler-DAGScheduler
 [source, scala]
 ----
 createResultStage(
-  rdd: RDD[_],
+  rdd/ RDD[_],
   func: (TaskContext, Iterator[_]) => _,
   partitions: Array[Int],
   jobId: Int,
@@ -249,13 +249,13 @@ createShuffleMapStage(
   jobId: Int): ShuffleMapStage
 ----
 
-createShuffleMapStage creates a scheduler:ShuffleMapStage.md[ShuffleMapStage] for the given rdd:ShuffleDependency.md[ShuffleDependency] as follows:
+createShuffleMapStage creates a scheduler:ShuffleMapStage.md[ShuffleMapStage] for the given [ShuffleDependency](../rdd/ShuffleDependency.md) as follows:
 
 * Stage ID is generated based on <<nextStageId, nextStageId>> internal counter
 
-* RDD is taken from the given rdd:ShuffleDependency.md#rdd[ShuffleDependency]
+* RDD is taken from the given [ShuffleDependency](../rdd/ShuffleDependency.md#rdd)
 
-* Number of tasks is the number of rdd:RDD.md#partitions[partitions] of the RDD
+* Number of tasks is the number of [partitions](../rdd/RDD.md#partitions) of the RDD
 
 * <<getOrCreateParentStages, Parent RDDs>>
 
@@ -365,11 +365,11 @@ markMapStageJobAsFinished is used in scheduler:DAGSchedulerEventProcessLoop.md#h
 [source, scala]
 ----
 getOrCreateParentStages(
-  rdd: RDD[_],
+  rdd/ RDD[_],
   firstJobId: Int): List[Stage]
 ----
 
-getOrCreateParentStages <<getShuffleDependencies, finds all direct parent `ShuffleDependencies`>> of the input `rdd` and then <<getOrCreateShuffleMapStage, finds `ShuffleMapStage` stages>> for each rdd:ShuffleDependency.md[ShuffleDependency].
+getOrCreateParentStages <<getShuffleDependencies, finds all direct parent `ShuffleDependencies`>> of the input `rdd` and then <<getOrCreateShuffleMapStage, finds `ShuffleMapStage` stages>> for each [ShuffleDependency](../rdd/ShuffleDependency.md).
 
 getOrCreateParentStages is used when DAGScheduler is requested to create a <<createShuffleMapStage, ShuffleMapStage>> or a <<createResultStage, ResultStage>>.
 
@@ -407,10 +407,10 @@ getOrCreateShuffleMapStage is used when DAGScheduler is requested to <<getOrCrea
 [source, scala]
 ----
 getMissingAncestorShuffleDependencies(
-  rdd: RDD[_]): Stack[ShuffleDependency[_, _, _]]
+  rdd/ RDD[_]): Stack[ShuffleDependency[_, _, _]]
 ----
 
-getMissingAncestorShuffleDependencies finds all missing rdd:ShuffleDependency.md[shuffle dependencies] for the given rdd:index.md[RDD] traversing its rdd:spark-rdd-lineage.md[RDD lineage].
+getMissingAncestorShuffleDependencies finds all missing [shuffle dependencies](../rdd/ShuffleDependency.md) for the given [RDD](../rdd/index.md) traversing its rdd/spark-rdd-lineage.md[RDD lineage].
 
 NOTE: A *missing shuffle dependency* of a RDD is a dependency not registered in <<shuffleIdToMapStage, `shuffleIdToMapStage` internal registry>>.
 
@@ -423,15 +423,14 @@ getMissingAncestorShuffleDependencies is used when DAGScheduler is requested to 
 [source, scala]
 ----
 getShuffleDependencies(
-  rdd: RDD[_]): HashSet[ShuffleDependency[_, _, _]]
+  rdd/ RDD[_]): HashSet[ShuffleDependency[_, _, _]]
 ----
 
-getShuffleDependencies finds direct parent rdd:ShuffleDependency.md[shuffle dependencies] for the given rdd:index.md[RDD].
+getShuffleDependencies finds direct parent [shuffle dependencies](../rdd/ShuffleDependency.md) for the given [RDD](../rdd/index.md).
 
-.getShuffleDependencies Finds Direct Parent ShuffleDependencies (shuffle1 and shuffle2)
-image::spark-DAGScheduler-getShuffleDependencies.png[align="center"]
+![getShuffleDependencies Finds Direct Parent ShuffleDependencies (shuffle1 and shuffle2)](../images/scheduler/spark-DAGScheduler-getShuffleDependencies.png)
 
-Internally, getShuffleDependencies takes the direct rdd:index.md#dependencies[shuffle dependencies of the input RDD] and direct shuffle dependencies of all the parent non-``ShuffleDependencies`` in the rdd:spark-rdd-lineage.md[dependency chain] (aka _RDD lineage_).
+Internally, getShuffleDependencies takes the direct rdd/index.md#dependencies[shuffle dependencies of the input RDD] and direct shuffle dependencies of all the parent non-``ShuffleDependencies`` in the [dependency chain](../rdd/spark-rdd-lineage.md) (aka _RDD lineage_).
 
 getShuffleDependencies is used when DAGScheduler is requested to <<getOrCreateParentStages, find or create missing direct parent ShuffleMapStages>> (for ShuffleDependencies of a RDD) and <<getMissingAncestorShuffleDependencies, find all missing shuffle dependencies for a given RDD>>.
 
@@ -511,7 +510,7 @@ stageDependsOn compares two stages and returns whether the `stage` depends on `t
 
 NOTE: A stage `A` depends on stage `B` if `B` is among the ancestors of `A`.
 
-Internally, stageDependsOn walks through the graph of RDDs of the input `stage`. For every RDD in the RDD's dependencies (using `RDD.dependencies`) stageDependsOn adds the RDD of a rdd:spark-rdd-NarrowDependency.md[NarrowDependency] to a stack of RDDs to visit while for a rdd:ShuffleDependency.md[ShuffleDependency] it <<getOrCreateShuffleMapStage, finds `ShuffleMapStage` stages for a `ShuffleDependency`>> for the dependency and the ``stage``'s first job id that it later adds to a stack of RDDs to visit if the map stage is ready, i.e. all the partitions have shuffle outputs.
+Internally, stageDependsOn walks through the graph of RDDs of the input `stage`. For every RDD in the RDD's dependencies (using `RDD.dependencies`) stageDependsOn adds the RDD of a [NarrowDependency](../rdd/NarrowDependency.md) to a stack of RDDs to visit while for a [ShuffleDependency](../rdd/ShuffleDependency.md) it <<getOrCreateShuffleMapStage, finds `ShuffleMapStage` stages for a `ShuffleDependency`>> for the dependency and the ``stage``'s first job id that it later adds to a stack of RDDs to visit if the map stage is ready, i.e. all the partitions have shuffle outputs.
 
 After all the RDDs of the input `stage` are visited, stageDependsOn checks if the ``target``'s RDD is among the RDDs of the `stage`, i.e. whether the `stage` depends on `target` stage.
 
@@ -614,7 +613,7 @@ The latest `StageInfo` for the most recent attempt for a stage is accessible thr
 
 == [[preferred-locations]] Preferred Locations
 
-DAGScheduler computes where to run each task in a stage based on the rdd:index.md#getPreferredLocations[preferred locations of its underlying RDDs], or <<getCacheLocs, the location of cached or shuffle data>>.
+DAGScheduler computes where to run each task in a stage based on the rdd/index.md#getPreferredLocations[preferred locations of its underlying RDDs], or <<getCacheLocs, the location of cached or shuffle data>>.
 
 == [[adaptive-query-planning]] Adaptive Query Planning / Adaptive Scheduling
 
@@ -646,17 +645,17 @@ NOTE: A `Stage` tracks the associated RDD using scheduler:Stage.md#rdd[`rdd` pro
 
 NOTE: An *uncached partition* of a RDD is a partition that has `Nil` in the <<cacheLocs, internal registry of partition locations per RDD>> (which results in no RDD blocks in any of the active storage:BlockManager.md[BlockManager]s on executors).
 
-getMissingParentStages traverses the rdd:index.md#dependencies[parent dependencies of the RDD] and acts according to their type, i.e. rdd:ShuffleDependency.md[ShuffleDependency] or rdd:spark-rdd-NarrowDependency.md[NarrowDependency].
+getMissingParentStages traverses the rdd/index.md#dependencies[parent dependencies of the RDD] and acts according to their type, i.e. [ShuffleDependency](../rdd/ShuffleDependency.md) or [NarrowDependency](../rdd/NarrowDependency.md).
 
-NOTE: rdd:ShuffleDependency.md[ShuffleDependency] and rdd:spark-rdd-NarrowDependency.md[NarrowDependency] are the main top-level rdd:spark-rdd-Dependency.md[Dependencies].
+NOTE: [ShuffleDependency](../rdd/ShuffleDependency.md) and [NarrowDependency](../rdd/NarrowDependency.md) are the main top-level [Dependencies](../rdd/Dependency.md).
 
-For each `NarrowDependency`, getMissingParentStages simply marks the corresponding RDD to visit and moves on to a next dependency of a RDD or works on another unvisited parent RDD.
+For each `NarrowDependency`, `getMissingParentStages` simply marks the corresponding RDD to visit and moves on to a next dependency of a RDD or works on another unvisited parent RDD.
 
-NOTE: rdd:spark-rdd-NarrowDependency.md[NarrowDependency] is a RDD dependency that allows for pipelined execution.
+NOTE: [NarrowDependency](../rdd/NarrowDependency.md) is a RDD dependency that allows for pipelined execution.
 
 getMissingParentStages focuses on `ShuffleDependency` dependencies.
 
-NOTE: rdd:ShuffleDependency.md[ShuffleDependency] is a RDD dependency that represents a dependency on the output of a scheduler:ShuffleMapStage.md[ShuffleMapStage], i.e. *shuffle map stage*.
+NOTE: [ShuffleDependency](../rdd/ShuffleDependency.md) is a RDD dependency that represents a dependency on the output of a [ShuffleMapStage](ShuffleMapStage.md), i.e. **shuffle map stage**.
 
 For each `ShuffleDependency`, getMissingParentStages <<getOrCreateShuffleMapStage, finds `ShuffleMapStage` stages>>. If the `ShuffleMapStage` is not _available_, it is added to the set of missing (map) stages.
 
@@ -739,7 +738,7 @@ submitMissingTasks is used when DAGScheduler is requested to <<submitStage, subm
 [source, scala]
 ----
 getPreferredLocs(
-  rdd: RDD[_],
+  rdd/ RDD[_],
   partition: Int): Seq[TaskLocation]
 ----
 
@@ -752,7 +751,7 @@ getPreferredLocs is used when...FIXME
 [source, scala]
 ----
 getCacheLocs(
-  rdd: RDD[_]): IndexedSeq[Seq[TaskLocation]]
+  rdd/ RDD[_]): IndexedSeq[Seq[TaskLocation]]
 ----
 
 getCacheLocs gives scheduler:TaskLocation.md[TaskLocations] (block locations) for the partitions of the input `rdd`. getCacheLocs caches lookup results in <<cacheLocs, cacheLocs>> internal registry.
@@ -784,18 +783,18 @@ getCacheLocs is used when DAGScheduler is requested to finds <<getMissingParentS
 [source, scala]
 ----
 getPreferredLocsInternal(
-  rdd: RDD[_],
+  rdd/ RDD[_],
   partition: Int,
   visited: HashSet[(RDD[_], Int)]): Seq[TaskLocation]
 ----
 
 getPreferredLocsInternal first <<getCacheLocs, finds the `TaskLocations` for the `partition` of the `rdd`>> (using <<cacheLocs, cacheLocs>> internal cache) and returns them.
 
-Otherwise, if not found, getPreferredLocsInternal rdd:index.md#preferredLocations[requests `rdd` for the preferred locations of `partition`] and returns them.
+Otherwise, if not found, getPreferredLocsInternal rdd/index.md#preferredLocations[requests `rdd` for the preferred locations of `partition`] and returns them.
 
 NOTE: Preferred locations of the partitions of a RDD are also called *placement preferences* or *locality preferences*.
 
-Otherwise, if not found, getPreferredLocsInternal finds the first parent rdd:spark-rdd-NarrowDependency.md[NarrowDependency] and (recursively) <<getPreferredLocsInternal, finds `TaskLocations`>>.
+Otherwise, if not found, getPreferredLocsInternal finds the first parent [NarrowDependency](../rdd/NarrowDependency.md) and (recursively) <<getPreferredLocsInternal, finds `TaskLocations`>>.
 
 If all the attempts fail to yield any non-empty result, getPreferredLocsInternal returns an empty collection of scheduler:TaskLocation.md[TaskLocations].
 
@@ -840,7 +839,7 @@ updateAccumulators is used when DAGScheduler is requested to <<handleTaskComplet
 [source, scala]
 ----
 checkBarrierStageWithNumSlots(
-  rdd: RDD[_]): Unit
+  rdd/ RDD[_]): Unit
 ----
 
 checkBarrierStageWithNumSlots...FIXME
@@ -1046,7 +1045,7 @@ handleJobGroupCancelled is used when DAGScheduler is requested to handle schedul
 ----
 handleJobSubmitted(
   jobId: Int,
-  finalRDD: RDD[_],
+  finalrdd/ RDD[_],
   func: (TaskContext, Iterator[_]) => _,
   partitions: Array[Int],
   callSite: CallSite,
@@ -1209,7 +1208,7 @@ Used when DAGScheduler creates a <<createShuffleMapStage, shuffle map stage>> an
 A stage is added when <<submitMissingTasks, submitMissingTasks>> gets executed (without first checking if the stage has not already been added).
 
 | shuffleIdToMapStage
-| [[shuffleIdToMapStage]] The lookup table of scheduler:ShuffleMapStage.md[ShuffleMapStage]s per rdd:ShuffleDependency.md[ShuffleDependency].
+| [[shuffleIdToMapStage]] The lookup table of scheduler:ShuffleMapStage.md[ShuffleMapStage]s per [ShuffleDependency](../rdd/ShuffleDependency.md).
 
 | stageIdToStage
 | [[stageIdToStage]] The lookup table for stages per their ids.

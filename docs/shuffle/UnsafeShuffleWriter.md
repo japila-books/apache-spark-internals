@@ -177,11 +177,11 @@ Option<MapStatus> stop(
   boolean success)
 ----
 
-stop...FIXME
+`stop`...FIXME
 
 When requested to <<stop, stop>>, UnsafeShuffleWriter records the peak execution memory metric and returns the <<mapStatus, mapStatus>> (that was created when requested to <<write, write>>).
 
-stop is part of the shuffle:ShuffleWriter.md#stop[ShuffleWriter] abstraction.
+`stop` is part of the [ShuffleWriter](ShuffleWriter.md#stop) abstraction.
 
 == [[insertRecordIntoSorter]] Inserting Record Into ShuffleExternalSorter
 
@@ -201,9 +201,9 @@ insertRecordIntoSorter requests the <<serOutputStream, SerializationStream>> to 
 insertRecordIntoSorter requests the <<serBuffer, MyByteArrayOutputStream>> for the length of the buffer.
 
 [[insertRecordIntoSorter-partitionId]]
-insertRecordIntoSorter requests the <<partitioner, Partitioner>> for the rdd:Partitioner.md#getPartition[partition] for the given record (by the key).
+insertRecordIntoSorter requests the <<partitioner, Partitioner>> for the ../rdd/Partitioner.md#getPartition[partition] for the given record (by the key).
 
-In the end, insertRecordIntoSorter requests the <<sorter, ShuffleExternalSorter>> to shuffle:ShuffleExternalSorter.md#insertRecord[insert] the <<serBuffer, MyByteArrayOutputStream>> as a byte array (with the <<insertRecordIntoSorter-serializedRecordSize, length>> and the <<insertRecordIntoSorter-partitionId, partition>>).
+In the end, insertRecordIntoSorter requests the <<sorter, ShuffleExternalSorter>> to ShuffleExternalSorter.md#insertRecord[insert] the <<serBuffer, MyByteArrayOutputStream>> as a byte array (with the <<insertRecordIntoSorter-serializedRecordSize, length>> and the <<insertRecordIntoSorter-partitionId, partition>>).
 
 insertRecordIntoSorter is used when UnsafeShuffleWriter is requested to <<write, write records>>.
 
@@ -219,16 +219,16 @@ void closeAndWriteOutput()
 
 `closeAndWriteOutput` removes the references to the <<serBuffer, ByteArrayOutputStream>> and <<serOutputStream, SerializationStream>> output streams (``null``s them).
 
-`closeAndWriteOutput` requests the <<sorter, ShuffleExternalSorter>> to shuffle:ShuffleExternalSorter.md#closeAndGetSpills[close and return spill metadata].
+`closeAndWriteOutput` requests the <<sorter, ShuffleExternalSorter>> to ShuffleExternalSorter.md#closeAndGetSpills[close and return spill metadata].
 
 `closeAndWriteOutput` removes the reference to the <<sorter, ShuffleExternalSorter>> (``null``s it).
 
-`closeAndWriteOutput` requests the <<shuffleBlockResolver, IndexShuffleBlockResolver>> for the shuffle:IndexShuffleBlockResolver.md#getDataFile[output data file] for the <<shuffleId, shuffle>> and <<mapId, map>> IDs.
+`closeAndWriteOutput` requests the <<shuffleBlockResolver, IndexShuffleBlockResolver>> for the IndexShuffleBlockResolver.md#getDataFile[output data file] for the <<shuffleId, shuffle>> and <<mapId, map>> IDs.
 
 [[closeAndWriteOutput-partitionLengths]][[closeAndWriteOutput-tmp]]
 closeAndWriteOutput creates a temporary file (along the data output file) and uses it to <<mergeSpills, merge spill files>> (that gives a partition length array). All spill files are then deleted.
 
-closeAndWriteOutput requests the <<shuffleBlockResolver, IndexShuffleBlockResolver>> to shuffle:IndexShuffleBlockResolver.md#writeIndexFileAndCommit[write shuffle index and data files] (for the <<shuffleId, shuffle>> and <<mapId, map>> IDs, the <<closeAndWriteOutput-partitionLengths, partition length array>> and the <<closeAndWriteOutput-tmp, temporary output data file>>).
+closeAndWriteOutput requests the <<shuffleBlockResolver, IndexShuffleBlockResolver>> to IndexShuffleBlockResolver.md#writeIndexFileAndCommit[write shuffle index and data files] (for the <<shuffleId, shuffle>> and <<mapId, map>> IDs, the <<closeAndWriteOutput-partitionLengths, partition length array>> and the <<closeAndWriteOutput-tmp, temporary output data file>>).
 
 In the end, closeAndWriteOutput creates a scheduler:MapStatus.md[MapStatus] with the storage:BlockManager.md#shuffleServerId[location of the local BlockManager] and the <<closeAndWriteOutput-partitionLengths, partition length array>>.
 
@@ -284,7 +284,7 @@ void open()
 
 open requires that there is no <<sorter, ShuffleExternalSorter>> available.
 
-open creates a shuffle:ShuffleExternalSorter.md[ShuffleExternalSorter].
+open creates a ShuffleExternalSorter.md[ShuffleExternalSorter].
 
 open creates a <<serBuffer, serialized buffer>> with the capacity of <<DEFAULT_INITIAL_SER_BUFFER_SIZE, 1M>>.
 
@@ -317,19 +317,19 @@ Returned when UnsafeShuffleWriter is requested to <<stop, stop>>
 
 ### <span id="partitioner"> Partitioner
 
-[Partitioner](../rdd/Partitioner.md) (as used by the shuffle:spark-shuffle-BaseShuffleHandle.md#dependency[ShuffleDependency] of the <<handle, SerializedShuffleHandle>>)
+[Partitioner](../rdd/Partitioner.md) (as used by the spark-shuffle-BaseShuffleHandle.md#dependency[ShuffleDependency] of the <<handle, SerializedShuffleHandle>>)
 
 Used when UnsafeShuffleWriter is requested for the following:
 
-* <<open, open>> (and create a shuffle:ShuffleExternalSorter.md[ShuffleExternalSorter] with the given rdd:Partitioner.md#numPartitions[number of partitions])
+* <<open, open>> (and create a ShuffleExternalSorter.md[ShuffleExternalSorter] with the given ../rdd/Partitioner.md#numPartitions[number of partitions])
 
-* <<insertRecordIntoSorter, insertRecordIntoSorter>> (and request the rdd:Partitioner.md#getPartition[partition for the key])
+* <<insertRecordIntoSorter, insertRecordIntoSorter>> (and request the ../rdd/Partitioner.md#getPartition[partition for the key])
 
-* <<mergeSpills, mergeSpills>>, <<mergeSpillsWithFileStream, mergeSpillsWithFileStream>> and <<mergeSpillsWithTransferTo, mergeSpillsWithTransferTo>> (for the rdd:Partitioner.md#numPartitions[number of partitions] to create partition lengths)
+* <<mergeSpills, mergeSpills>>, <<mergeSpillsWithFileStream, mergeSpillsWithFileStream>> and <<mergeSpillsWithTransferTo, mergeSpillsWithTransferTo>> (for the ../rdd/Partitioner.md#numPartitions[number of partitions] to create partition lengths)
 
 ### <span id="peakMemoryUsedBytes"> Peak Memory Used
 
-Peak memory used (in bytes) that is updated exclusively in <<updatePeakMemoryUsed, updatePeakMemoryUsed>> (after requesting the <<sorter, ShuffleExternalSorter>> for shuffle:ShuffleExternalSorter.md#getPeakMemoryUsedBytes[getPeakMemoryUsedBytes])
+Peak memory used (in bytes) that is updated exclusively in <<updatePeakMemoryUsed, updatePeakMemoryUsed>> (after requesting the <<sorter, ShuffleExternalSorter>> for ShuffleExternalSorter.md#getPeakMemoryUsedBytes[getPeakMemoryUsedBytes])
 
 Use <<getPeakMemoryUsedBytes, getPeakMemoryUsedBytes>> to access the current value
 
@@ -347,7 +347,7 @@ Destroyed (`null`) when requested to <<closeAndWriteOutput, close internal resou
 
 === [[serializer]] serializer
 
-serializer:SerializerInstance.md[SerializerInstance] (that is a new instance of the rdd:ShuffleDependency.md#serializer[Serializer] of the shuffle:spark-shuffle-BaseShuffleHandle.md#dependency[ShuffleDependency] of the <<handle, SerializedShuffleHandle>>)
+serializer:SerializerInstance.md[SerializerInstance] (that is a new instance of the [Serializer](../rdd/ShuffleDependency.md#serializer) of the spark-shuffle-BaseShuffleHandle.md#dependency[ShuffleDependency] of the <<handle, SerializedShuffleHandle>>)
 
 Used exclusively when UnsafeShuffleWriter is requested to <<open, open>> (and creates the <<serOutputStream, SerializationStream>>)
 
@@ -359,9 +359,9 @@ Used when UnsafeShuffleWriter is requested to <<insertRecordIntoSorter, insertRe
 
 Destroyed (`null`) when requested to <<closeAndWriteOutput, close internal resources and merge spill files>>.
 
-=== [[shuffleId]] shuffleId
+## <span id="shuffleId"> Shuffle ID
 
-rdd:ShuffleDependency.md#shuffleId[Shuffle ID] (of the <<spark-shuffle-BaseShuffleHandle.md#dependency, ShuffleDependency>> of the <<handle, SerializedShuffleHandle>>)
+[Shuffle ID](../rdd/ShuffleDependency.md#shuffleId) (of the [ShuffleDependency](BaseShuffleHandle.md#dependency) of the [SerializedShuffleHandle](#handle))
 
 Used exclusively when requested to <<closeAndWriteOutput, close internal resources and merge spill files>>
 
