@@ -1,5 +1,22 @@
 # Spark Configuration Properties
 
+## <span id="spark.shuffle.spill.numElementsForceSpillThreshold"><span id="SHUFFLE_SPILL_NUM_ELEMENTS_FORCE_SPILL_THRESHOLD"> spark.shuffle.spill.numElementsForceSpillThreshold
+
+**(internal)** The maximum number of elements in memory before forcing the shuffle sorter to spill.
+
+Default: `Integer.MAX_VALUE`
+
+The default value is to never force the sorter to spill, until Spark reaches some limitations, like the max page size limitation for the pointer array in the sorter.
+
+Used when:
+
+* [ShuffleExternalSorter](shuffle/ShuffleExternalSorter.md) is created
+* [Spillable](shuffle/Spillable.md) is created
+* Spark SQL's `SortBasedAggregator` is requested for an `UnsafeKVExternalSorter`
+* Spark SQL's `ObjectAggregationMap` is requested to `dumpToExternalSorter`
+* Spark SQL's `UnsafeExternalRowSorter` is created
+* Spark SQL's `UnsafeFixedWidthAggregationMap` is requested for an `UnsafeKVExternalSorter`
+
 ## <span id="spark.plugins"> spark.plugins
 
 A comma-separated list of class names implementing [org.apache.spark.api.plugin.SparkPlugin](plugins/SparkPlugin.md) to load into a Spark application.
@@ -325,20 +342,6 @@ Initial threshold for the size of an in-memory collection
 Default: `5 * 1024 * 1024`
 
 Used by shuffle:Spillable.md[Spillable]
-
-== [[spark.shuffle.spill.numElementsForceSpillThreshold]][[SHUFFLE_SPILL_NUM_ELEMENTS_FORCE_SPILL_THRESHOLD]] spark.shuffle.spill.numElementsForceSpillThreshold
-
-*(internal)* The maximum number of elements in memory before forcing the shuffle sorter to spill. Claimed to be used for testing only
-
-Default: `Integer.MAX_VALUE`
-
-The default value is to never force the sorter to spill, until we reach some limitations, like the max page size limitation for the pointer array in the sorter.
-
-Used when:
-
-* ShuffleExternalSorter is created
-
-* Spillable is requested to shuffle:Spillable.md#maybeSpill[maybeSpill]
 
 == [[spark.shuffle.manager]] spark.shuffle.manager
 

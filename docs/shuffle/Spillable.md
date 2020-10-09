@@ -1,6 +1,6 @@
-= [[Spillable]] Spillable
+# Spillable
 
-*Spillable* is an extension of the memory:MemoryConsumer.md[MemoryConsumer] abstraction for <<implementations, collections>> that can <<spill, spill to disk>>.
+`Spillable` is an extension of the memory:MemoryConsumer.md[MemoryConsumer] abstraction for <<implementations, collections>> that can <<spill, spill to disk>>.
 
 `Spillable[C]` is a parameterized type of `C` combiner (partial) values.
 

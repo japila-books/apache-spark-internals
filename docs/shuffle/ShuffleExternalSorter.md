@@ -1,6 +1,6 @@
-= [[ShuffleExternalSorter]] ShuffleExternalSorter
+# ShuffleExternalSorter
 
-*ShuffleExternalSorter* is a specialized cache-efficient sorter that sorts arrays of compressed record pointers and partition ids. By using only 8 bytes of space per record in the sorting array, ShuffleExternalSorter can fit more of the array into cache.
+`ShuffleExternalSorter` is a specialized cache-efficient sorter that sorts arrays of compressed record pointers and partition ids. By using only 8 bytes of space per record in the sorting array, ShuffleExternalSorter can fit more of the array into cache.
 
 .ShuffleExternalSorter and UnsafeShuffleWriter
 image::ShuffleExternalSorter.png[align="center"]
