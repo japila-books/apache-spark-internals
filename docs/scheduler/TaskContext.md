@@ -1,6 +1,6 @@
-= TaskContext
+# TaskContext
 
-*TaskContext* is the <<contract, base>> for <<implementations, task contexts>> that serve the following purpose:
+`TaskContext` is the <<contract, base>> for <<implementations, task contexts>> that serve the following purpose:
 
 * Hold contextual information about a scheduler:Task.md[task] at execution, e.g. <<partitionId, partitionId>>, <<stageId, stageId>>, <<attemptNumber, attemptNumber>>, <<taskAttemptId, taskAttemptId>>
 

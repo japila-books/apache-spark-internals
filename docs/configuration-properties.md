@@ -1,5 +1,18 @@
 # Spark Configuration Properties
 
+## <span id="spark.shuffle.manager"> spark.shuffle.manager
+
+A fully-qualified class name or the alias of the [ShuffleManager](shuffle/ShuffleManager.md) in a Spark application
+
+Default: `sort`
+
+Supported aliases:
+
+* `sort`
+* `tungsten-sort`
+
+Used when `SparkEnv` object is requested to [create a "base" SparkEnv for a driver or an executor](SparkEnv.md#create)
+
 ## <span id="spark.shuffle.spill.numElementsForceSpillThreshold"><span id="SHUFFLE_SPILL_NUM_ELEMENTS_FORCE_SPILL_THRESHOLD"> spark.shuffle.spill.numElementsForceSpillThreshold
 
 **(internal)** The maximum number of elements in memory before forcing the shuffle sorter to spill.
@@ -350,21 +363,6 @@ Initial threshold for the size of an in-memory collection
 Default: `5 * 1024 * 1024`
 
 Used by shuffle:Spillable.md[Spillable]
-
-== [[spark.shuffle.manager]] spark.shuffle.manager
-
-Specifies the fully-qualified class name or the <<spark.shuffle.manager-aliases, alias>> of the shuffle:ShuffleManager.md[ShuffleManager] in a Spark application
-
-Default: `sort`
-
-[[spark.shuffle.manager-aliases]]
-The supported aliases:
-
-* [[spark.shuffle.manager-sort]] `sort`
-
-* [[spark.shuffle.manager-tungsten-sort]] `tungsten-sort`
-
-Used when `SparkEnv` object is requested to core:SparkEnv.md#create[create a "base" SparkEnv for a driver or an executor]
 
 == [[spark.shuffle.mapOutput.dispatcher.numThreads]] spark.shuffle.mapOutput.dispatcher.numThreads
 

@@ -1,137 +1,145 @@
 # UnsafeShuffleWriter
 
-`UnsafeShuffleWriter` is a [ShuffleWriter](ShuffleWriter.md) for [SerializedShuffleHandles](SerializedShuffleHandle.md).
+`UnsafeShuffleWriter<K, V>` is a [ShuffleWriter](ShuffleWriter.md) for [SerializedShuffleHandle](SerializedShuffleHandle.md)s.
 
-UnsafeShuffleWriter is <<creating-instance, created>> when SortShuffleManager is requested for a shuffle:SortShuffleManager.md#getWriter[ShuffleWriter] for a <<handle, SerializedShuffleHandle>>.
+![UnsafeShuffleWriter, SortShuffleManager and SerializedShuffleHandle](../images/shuffle/UnsafeShuffleWriter.png)
 
-.UnsafeShuffleWriter, SortShuffleManager and SerializedShuffleHandle
-image::UnsafeShuffleWriter.png[align="center"]
-
-UnsafeShuffleWriter <<open, opens resources>> (a <<sorter, ShuffleExternalSorter>> and the buffers) immediately while being <<creating-instance, created>>.
+`UnsafeShuffleWriter` [opens resources](#open) (a [ShuffleExternalSorter](#sorter) and the buffers) while being [created](#creating-instance).
 
 ![UnsafeShuffleWriter and ShuffleExternalSorter](../images/shuffle/UnsafeShuffleWriter-ShuffleExternalSorter.png)
 
-When requested to <<write, write key-value records of a partition>>, UnsafeShuffleWriter simply <<insertRecordIntoSorter, inserts every record into ShuffleExternalSorter>> followed by <<closeAndWriteOutput, close internal resources and merge spill files>> (that, among other things, creates the <<mapStatus, MapStatus>>).
+## Creating Instance
 
-When requested to <<stop, stop>>, UnsafeShuffleWriter records the peak execution memory metric and returns the <<mapStatus, mapStatus>> (that was created when requested to <<write, write>>).
+`UnsafeShuffleWriter` takes the following to be created:
 
-== [[creating-instance]] Creating Instance
+* <span id="blockManager"> [BlockManager](../storage/BlockManager.md)
+* <span id="memoryManager"> [TaskMemoryManager](../memory/TaskMemoryManager.md)
+* <span id="handle"> [SerializedShuffleHandle](SerializedShuffleHandle.md)
+* <span id="mapId"> Map ID
+* <span id="taskContext"> [TaskContext](../scheduler/TaskContext.md)
+* <span id="sparkConf"> [SparkConf](../SparkConf.md)
+* <span id="writeMetrics"> `ShuffleWriteMetricsReporter`
+* <span id="shuffleExecutorComponents"> `ShuffleExecutorComponents`
 
-UnsafeShuffleWriter takes the following to be created:
+`UnsafeShuffleWriter` is created when `SortShuffleManager` is requested for a [ShuffleWriter](SortShuffleManager.md#getWriter) for a [SerializedShuffleHandle](SerializedShuffleHandle.md).
 
-* [[blockManager]] storage:BlockManager.md[BlockManager]
-* <<shuffleBlockResolver, IndexShuffleBlockResolver>>
-* [[memoryManager]] memory:TaskMemoryManager.md[TaskMemoryManager]
-* [[handle]] shuffle:SerializedShuffleHandle.md[SerializedShuffleHandle]
-* [[mapId]] Map ID
-* [[taskContext]] scheduler:spark-TaskContext.md[TaskContext]
-* [[sparkConf]] ROOT:SparkConf.md[SparkConf]
+`UnsafeShuffleWriter` makes sure that the number of partitions at most 16MB reduce partitions (`1 << 24`) (as the upper bound of the [partition identifiers that can be encoded](SortShuffleManager.md#MAX_SHUFFLE_OUTPUT_PARTITIONS_FOR_SERIALIZED_MODE)) or throws an `IllegalArgumentException`:
 
-UnsafeShuffleWriter requests the <<handle, SerializedShuffleHandle>> for the <<spark-shuffle-BaseShuffleHandle.md#dependency, ShuffleDependency>> that is then requested for the rdd:ShuffleDependency.md#partitioner[Partitioner] and, in the end, for the rdd:Partitioner.md#numPartitions[number of partitions]. UnsafeShuffleWriter makes sure that the number of shuffle output partitions is below SortShuffleManager.md#MAX_SHUFFLE_OUTPUT_PARTITIONS_FOR_SERIALIZED_MODE[`(1 << 24)` partition identifiers that can be encoded] and throws an `IllegalArgumentException` if not met:
-
-[source,plaintext]
-----
+```text
 UnsafeShuffleWriter can only be used for shuffles with at most 16777215 reduce partitions
-----
+```
 
-NOTE: The number of shuffle output partitions is first enforced when SortShuffleManager.md#canUseSerializedShuffle[`SortShuffleManager` checks if `SerializedShuffleHandle` can be used for `ShuffleHandle`] (that eventually leads to UnsafeShuffleWriter).
+`UnsafeShuffleWriter` uses the [number of partitions](../rdd/Partitioner.md#numPartitions) of the [Partitioner](../rdd/ShuffleDependency.md#partitioner) that is used for the [ShuffleDependency](BaseShuffleHandle.md#dependency) of the [SerializedShuffleHandle](#handle).
 
-In the end, UnsafeShuffleWriter <<open, creates a ShuffleExternalSorter and a SerializationStream>>.
+!!! note
+    The number of shuffle output partitions is first enforced when `SortShuffleManager` is requested to [check out whether a SerializedShuffleHandle can be used for ShuffleHandle](SortShuffleManager.md#canUseSerializedShuffle) (that eventually leads to `UnsafeShuffleWriter`).
 
-== [[shuffleBlockResolver]] IndexShuffleBlockResolver
+In the end, `UnsafeShuffleWriter` [creates a ShuffleExternalSorter and a SerializationStream](#open).
 
-UnsafeShuffleWriter is given a shuffle:IndexShuffleBlockResolver.md[IndexShuffleBlockResolver] to be created.
+## <span id="sorter"> ShuffleExternalSorter
 
-UnsafeShuffleWriter uses the IndexShuffleBlockResolver for...FIXME
+`UnsafeShuffleWriter` uses a [ShuffleExternalSorter](ShuffleExternalSorter.md).
 
-== [[DEFAULT_INITIAL_SER_BUFFER_SIZE]] DEFAULT_INITIAL_SER_BUFFER_SIZE
+`ShuffleExternalSorter` is created when `UnsafeShuffleWriter` is requested to [open](#open) (while being [created](#creating-instance)) and dereferenced (``null``ed) when requested to [close internal resources and merge spill files](#closeAndWriteOutput).
 
-UnsafeShuffleWriter uses a fixed buffer size for the <<serBuffer, output stream of serialized data written into a byte array>> (default: `1024 * 1024`).
+Used when `UnsafeShuffleWriter` is requested for the following:
 
-== [[inputBufferSizeInBytes]] inputBufferSizeInBytes
+* [Updating peak memory used](#updatePeakMemoryUsed)
+* [Writing records](#write)
+* [Closing internal resources and merging spill files](#closeAndWriteOutput)
+* [Inserting a record](#insertRecordIntoSorter)
+* [Stopping](#stop)
 
-UnsafeShuffleWriter uses the ROOT:configuration-properties.md#spark.shuffle.file.buffer[spark.shuffle.file.buffer] configuration property for...FIXME
+## <span id="shuffleBlockResolver"> IndexShuffleBlockResolver
 
-== [[outputBufferSizeInBytes]] outputBufferSizeInBytes
+`UnsafeShuffleWriter` is given a [IndexShuffleBlockResolver](IndexShuffleBlockResolver.md) when [created](#creating-instance).
 
-UnsafeShuffleWriter uses the ROOT:configuration-properties.md#spark.shuffle.unsafe.file.output.buffer[spark.shuffle.unsafe.file.output.buffer] configuration property (default: `32k`) for...FIXME
+`UnsafeShuffleWriter` uses the IndexShuffleBlockResolver for...FIXME
 
-== [[transferToEnabled]] transferToEnabled
+## <span id="DEFAULT_INITIAL_SER_BUFFER_SIZE"> Initial Serialized Buffer Size
 
-UnsafeShuffleWriter can use a <<mergeSpillsWithTransferTo, specialized NIO-based fast merge procedure>> that avoids extra serialization/deserialization when ROOT:configuration-properties.md#spark.file.transferTo[spark.file.transferTo] configuration property is enabled.
+`UnsafeShuffleWriter` uses a fixed buffer size for the [output stream of serialized data written into a byte array](#serBuffer) (default: `1024 * 1024`).
 
-== [[initialSortBufferSize]][[DEFAULT_INITIAL_SORT_BUFFER_SIZE]] initialSortBufferSize
+## <span id="inputBufferSizeInBytes"> inputBufferSizeInBytes
 
-UnsafeShuffleWriter uses the <<initialSortBufferSize, initial buffer size for sorting>> (default: `4096`) when creating a <<sorter, ShuffleExternalSorter>> (when requested to <<open, open>>).
+`UnsafeShuffleWriter` uses the [spark.shuffle.file.buffer](../configuration-properties.md#spark.shuffle.file.buffer) configuration property for...FIXME
 
-TIP: Use ROOT:configuration-properties.md#spark.shuffle.sort.initialBufferSize[spark.shuffle.sort.initialBufferSize] configuration property to change the default buffer size.
+## <span id="outputBufferSizeInBytes"> outputBufferSizeInBytes
 
-== [[mergeSpillsWithTransferTo]] mergeSpillsWithTransferTo Internal Method
+`UnsafeShuffleWriter` uses the [spark.shuffle.unsafe.file.output.buffer](../configuration-properties.md#spark.shuffle.unsafe.file.output.buffer) configuration property for...FIXME
 
-[source, java]
-----
-long[] mergeSpillsWithTransferTo(
-  SpillInfo[] spills,
-  File outputFile)
-----
+## <span id="transferToEnabled"> transferToEnabled
 
-mergeSpillsWithTransferTo...FIXME
+`UnsafeShuffleWriter` can use a [specialized NIO-based fast merge procedure](#mergeSpillsWithTransferTo) that avoids extra serialization/deserialization when [spark.file.transferTo](../configuration-properties.md#spark.file.transferTo) configuration property is enabled.
 
-mergeSpillsWithTransferTo is used when UnsafeShuffleWriter is requested to <<mergeSpills, mergeSpills>> (with the <<transferToEnabled, transferToEnabled>> flag enabled and no encryption).
+## <span id="initialSortBufferSize"><span id="DEFAULT_INITIAL_SORT_BUFFER_SIZE"> initialSortBufferSize
 
-== [[mergeSpills]] Merging Spills
+`UnsafeShuffleWriter` uses the initial buffer size for sorting (default: `4096`) when creating a [ShuffleExternalSorter](#sorter) (when requested to [open](#open)).
 
-[source, java]
-----
+!!! tip
+    Use [spark.shuffle.sort.initialBufferSize](../configuration-properties.md#spark.shuffle.sort.initialBufferSize) configuration property to change the buffer size.
+
+## <span id="mergeSpills"> Merging Spills
+
+```java
 long[] mergeSpills(
   SpillInfo[] spills,
   File outputFile)
-----
+```
 
-=== [[mergeSpills-many-spills]] Many Spills
+### <span id="mergeSpills-many-spills"> Many Spills
 
-With multiple SpillInfos to merge, mergeSpills selects between fast and <<mergeSpillsWithFileStream, slow merge strategies>>. The fast merge strategy can be <<mergeSpillsWithTransferTo, transferTo>>- or <<mergeSpillsWithFileStream, fileStream>>-based.
+With multiple `SpillInfos` to merge, `mergeSpills` selects between fast and [slow merge strategies](#mergeSpillsWithFileStream). The fast merge strategy can be [transferTo](#mergeSpillsWithTransferTo)- or [fileStream](#mergeSpillsWithFileStream)-based.
 
-mergeSpills uses the ROOT:configuration-properties.md#spark.shuffle.unsafe.fastMergeEnabled[spark.shuffle.unsafe.fastMergeEnabled] configuration property to consider one of the fast merge strategies.
+mergeSpills uses the [spark.shuffle.unsafe.fastMergeEnabled](../configuration-properties.md#spark.shuffle.unsafe.fastMergeEnabled) configuration property to consider one of the fast merge strategies.
 
-A fast merge strategy is supported when ROOT:configuration-properties.md#spark.shuffle.compress[spark.shuffle.compress] configuration property is disabled or the IO compression codec io:CompressionCodec.md#supportsConcatenationOfSerializedStreams[supports decompression of concatenated compressed streams].
+A fast merge strategy is supported when [spark.shuffle.compress](../configuration-properties.md#spark.shuffle.compress) configuration property is disabled or the IO compression codec [supports decompression of concatenated compressed streams](../CompressionCodec.md#supportsConcatenationOfSerializedStreams).
 
-With ROOT:configuration-properties.md#spark.shuffle.compress[spark.shuffle.compress] configuration property enabled, mergeSpills will always use the slow merge strategy.
+With [spark.shuffle.compress](../configuration-properties.md#spark.shuffle.compress) configuration property enabled, `mergeSpills` will always use the slow merge strategy.
 
-With fast merge strategy enabled and supported, <<transferToEnabled, transferToEnabled>> enabled and encryption disabled, mergeSpills prints out the following DEBUG message to the logs and <<mergeSpillsWithTransferTo, mergeSpillsWithTransferTo>>.
+With fast merge strategy enabled and supported, [transferToEnabled](#transferToEnabled) enabled and encryption disabled, `mergeSpills` prints out the following DEBUG message to the logs and [mergeSpillsWithTransferTo](#mergeSpillsWithTransferTo).
 
-[source,plaintext]
-----
+```text
 Using transferTo-based fast merge
-----
+```
 
-With fast merge strategy enabled and supported, no <<transferToEnabled, transferToEnabled>> or encryption enabled, mergeSpills prints out the following DEBUG message to the logs and <<mergeSpillsWithFileStream, mergeSpillsWithFileStream>> (with no compression codec).
+With fast merge strategy enabled and supported, no [transferToEnabled](#transferToEnabled) or encryption enabled, `mergeSpills` prints out the following DEBUG message to the logs and [mergeSpillsWithFileStream](#mergeSpillsWithFileStream) (with no compression codec).
 
-[source,plaintext]
-----
+```text
 Using fileStream-based fast merge
-----
+```
 
-For slow merge, mergeSpills prints out the following DEBUG message to the logs and <<mergeSpillsWithFileStream, mergeSpillsWithFileStream>> (with the compression codec).
+For slow merge, `mergeSpills` prints out the following DEBUG message to the logs and [mergeSpillsWithFileStream](#mergeSpillsWithFileStream) (with the compression codec).
 
-[source,plaintext]
-----
+```text
 Using slow merge
-----
+```
 
-In the end, mergeSpills requests the <<writeMetrics, ShuffleWriteMetrics>> to executor:ShuffleWriteMetrics.md#decBytesWritten[decBytesWritten] and executor:ShuffleWriteMetrics.md#incBytesWritten[incBytesWritten], and returns the partition length array.
+In the end, `mergeSpills` requests the [ShuffleWriteMetrics](#writeMetrics) to [decBytesWritten](../executor/ShuffleWriteMetrics.md#decBytesWritten) and [incBytesWritten](../executor/ShuffleWriteMetrics.md#incBytesWritten), and returns the partition length array.
 
-=== [[mergeSpills-one-spill]] One Spill
+### <span id="mergeSpills-one-spill"> One Spill
 
-With one SpillInfo to merge, mergeSpills simply renames the spill file to be the output file and returns the partition length array of the one spill.
+With one `SpillInfo` to merge, `mergeSpills` simply renames the spill file to be the output file and returns the partition length array of the one spill.
 
-=== [[mergeSpills-no-spills]] No Spills
+### <span id="mergeSpills-no-spills"> No Spills
 
-With no SpillInfos to merge, mergeSpills creates an empty output file and returns an array of ``0``s of size of the rdd:Partitioner.md#numPartitions[numPartitions] of the <<partitioner, Partitioner>>.
+With no `SpillInfo`s to merge, `mergeSpills` creates an empty output file and returns an array of ``0``s of size of the [numPartitions](../rdd/Partitioner.md#numPartitions) of the [Partitioner](#partitioner).
 
-=== [[mergeSpills-usage]] Usage
+### <span id="mergeSpills-usage"> Usage
 
-mergeSpills is used when UnsafeShuffleWriter is requested to <<closeAndWriteOutput, close internal resources and merge spill files>>.
+`mergeSpills` is used when `UnsafeShuffleWriter` is requested to [close internal resources and merge spill files](#closeAndWriteOutput).
+
+### <span id="mergeSpillsWithTransferTo"> mergeSpillsWithTransferTo
+
+```java
+long[] mergeSpillsWithTransferTo(
+  SpillInfo[] spills,
+  File outputFile)
+```
+
+`mergeSpillsWithTransferTo`...FIXME
+
+`mergeSpillsWithTransferTo` is used when `UnsafeShuffleWriter` is requested to [mergeSpills](#mergeSpills) (with the [transferToEnabled](#transferToEnabled) flag enabled and no encryption).
 
 == [[updatePeakMemoryUsed]] updatePeakMemoryUsed Internal Method
 
@@ -144,21 +152,22 @@ updatePeakMemoryUsed...FIXME
 
 updatePeakMemoryUsed is used when UnsafeShuffleWriter is requested for the <<getPeakMemoryUsedBytes, peak memory used>> and to <<closeAndWriteOutput, close internal resources and merge spill files>>.
 
-== [[write]] Writing Key-Value Records of Partition
+## <span id="write"> Writing Key-Value Records of Partition
 
-[source, java]
-----
+```java
 void write(
   Iterator<Product2<K, V>> records)
-----
+```
 
-write traverses the input sequence of records (for a RDD partition) and <<insertRecordIntoSorter, insertRecordIntoSorter>> one by one. When all the records have been processed, write <<closeAndWriteOutput, closes internal resources and merges spill files>>.
+`write` traverses the input sequence of records (for a RDD partition) and [insertRecordIntoSorter](#insertRecordIntoSorter) one by one. When all the records have been processed, `write` [closes internal resources and merges spill files](#closeAndWriteOutput).
 
-In the end, write shuffle:ShuffleExternalSorter.md#cleanupResources[requests `ShuffleExternalSorter` to clean after itself].
+In the end, `write` requests `ShuffleExternalSorter` to [clean up](ShuffleExternalSorter.md#cleanupResources).
 
 CAUTION: FIXME
 
-write is part of the shuffle:ShuffleWriter.md#write[ShuffleWriter] abstraction.
+When requested to <<write, write key-value records of a partition>>, UnsafeShuffleWriter simply <<insertRecordIntoSorter, inserts every record into ShuffleExternalSorter>> followed by <<closeAndWriteOutput, close internal resources and merge spill files>> (that, among other things, creates the <<mapStatus, MapStatus>>).
+
+`write` is part of the [ShuffleWriter](ShuffleWriter.md#write) abstraction.
 
 == [[stop]] Stopping ShuffleWriter
 
@@ -169,6 +178,8 @@ Option<MapStatus> stop(
 ----
 
 stop...FIXME
+
+When requested to <<stop, stop>>, UnsafeShuffleWriter records the peak execution memory metric and returns the <<mapStatus, mapStatus>> (that was created when requested to <<write, write>>).
 
 stop is part of the shuffle:ShuffleWriter.md#stop[ShuffleWriter] abstraction.
 
@@ -196,24 +207,23 @@ In the end, insertRecordIntoSorter requests the <<sorter, ShuffleExternalSorter>
 
 insertRecordIntoSorter is used when UnsafeShuffleWriter is requested to <<write, write records>>.
 
-== [[closeAndWriteOutput]] Closing and Writing Output (Merging Spill Files)
+## <span id="closeAndWriteOutput"> Closing and Writing Output (Merging Spill Files)
 
-[source, java]
-----
+```java
 void closeAndWriteOutput()
-----
+```
 
-closeAndWriteOutput asserts that the <<sorter, ShuffleExternalSorter>> is available (non-``null``).
+`closeAndWriteOutput` asserts that the [ShuffleExternalSorter](#sorter) is created (non-``null``).
 
-closeAndWriteOutput <<updatePeakMemoryUsed, updates peak memory used>>.
+`closeAndWriteOutput` [updates peak memory used](#updatePeakMemoryUsed).
 
-closeAndWriteOutput removes the references to the <<serBuffer, ByteArrayOutputStream>> and <<serOutputStream, SerializationStream>> output streams (``null``s them).
+`closeAndWriteOutput` removes the references to the <<serBuffer, ByteArrayOutputStream>> and <<serOutputStream, SerializationStream>> output streams (``null``s them).
 
-closeAndWriteOutput requests the <<sorter, ShuffleExternalSorter>> to shuffle:ShuffleExternalSorter.md#closeAndGetSpills[close and return spill metadata].
+`closeAndWriteOutput` requests the <<sorter, ShuffleExternalSorter>> to shuffle:ShuffleExternalSorter.md#closeAndGetSpills[close and return spill metadata].
 
-closeAndWriteOutput removes the reference to the <<sorter, ShuffleExternalSorter>> (``null``s it).
+`closeAndWriteOutput` removes the reference to the <<sorter, ShuffleExternalSorter>> (``null``s it).
 
-closeAndWriteOutput requests the <<shuffleBlockResolver, IndexShuffleBlockResolver>> for the shuffle:IndexShuffleBlockResolver.md#getDataFile[output data file] for the <<shuffleId, shuffle>> and <<mapId, map>> IDs.
+`closeAndWriteOutput` requests the <<shuffleBlockResolver, IndexShuffleBlockResolver>> for the shuffle:IndexShuffleBlockResolver.md#getDataFile[output data file] for the <<shuffleId, shuffle>> and <<mapId, map>> IDs.
 
 [[closeAndWriteOutput-partitionLengths]][[closeAndWriteOutput-tmp]]
 closeAndWriteOutput creates a temporary file (along the data output file) and uses it to <<mergeSpills, merge spill files>> (that gives a partition length array). All spill files are then deleted.
@@ -224,19 +234,17 @@ In the end, closeAndWriteOutput creates a scheduler:MapStatus.md[MapStatus] with
 
 closeAndWriteOutput prints out the following ERROR message to the logs if there is an issue with deleting spill files:
 
-[source,plaintext]
-----
+```text
 Error while deleting spill file [path]
-----
+```
 
 closeAndWriteOutput prints out the following ERROR message to the logs if there is an issue with deleting the <<closeAndWriteOutput-tmp, temporary output data file>>:
 
-[source,plaintext]
-----
+```text
 Error while deleting temp file [path]
-----
+```
 
-closeAndWriteOutput is used when UnsafeShuffleWriter is requested to <<write, write records>>.
+`closeAndWriteOutput` is used when `UnsafeShuffleWriter` is requested to [write records](#write).
 
 == [[mergeSpillsWithFileStream]] mergeSpillsWithFileStream Method
 
@@ -297,19 +305,19 @@ log4j.logger.org.apache.spark.shuffle.sort.UnsafeShuffleWriter=ALL
 
 Refer to ROOT:spark-logging.md[Logging].
 
-== [[internal-properties]] Internal Properties
+## Internal Properties
 
-=== [[mapStatus]] mapStatus
+### <span id="mapStatus"> MapStatus
 
-scheduler:MapStatus.md[MapStatus]
+[MapStatus](../scheduler/MapStatus.md)
 
 Created when UnsafeShuffleWriter is requested to <<closeAndWriteOutput, close internal resources and merge spill files>> (with the storage:BlockManagerId.md[] of the <<blockManager, BlockManager>> and `partitionLengths`)
 
 Returned when UnsafeShuffleWriter is requested to <<stop, stop>>
 
-=== [[partitioner]] partitioner
+### <span id="partitioner"> Partitioner
 
-rdd:Partitioner.md[Partitioner] (as used by the shuffle:spark-shuffle-BaseShuffleHandle.md#dependency[ShuffleDependency] of the <<handle, SerializedShuffleHandle>>)
+[Partitioner](../rdd/Partitioner.md) (as used by the shuffle:spark-shuffle-BaseShuffleHandle.md#dependency[ShuffleDependency] of the <<handle, SerializedShuffleHandle>>)
 
 Used when UnsafeShuffleWriter is requested for the following:
 
@@ -319,13 +327,13 @@ Used when UnsafeShuffleWriter is requested for the following:
 
 * <<mergeSpills, mergeSpills>>, <<mergeSpillsWithFileStream, mergeSpillsWithFileStream>> and <<mergeSpillsWithTransferTo, mergeSpillsWithTransferTo>> (for the rdd:Partitioner.md#numPartitions[number of partitions] to create partition lengths)
 
-=== [[peakMemoryUsedBytes]] peakMemoryUsedBytes
+### <span id="peakMemoryUsedBytes"> Peak Memory Used
 
 Peak memory used (in bytes) that is updated exclusively in <<updatePeakMemoryUsed, updatePeakMemoryUsed>> (after requesting the <<sorter, ShuffleExternalSorter>> for shuffle:ShuffleExternalSorter.md#getPeakMemoryUsedBytes[getPeakMemoryUsedBytes])
 
 Use <<getPeakMemoryUsedBytes, getPeakMemoryUsedBytes>> to access the current value
 
-=== [[serBuffer]] ByteArrayOutputStream for Serialized Data
+### <span id="serBuffer"> ByteArrayOutputStream for Serialized Data
 
 {java-javadoc-url}/java/io/ByteArrayOutputStream.html[java.io.ByteArrayOutputStream] of serialized data (written into a byte array of <<DEFAULT_INITIAL_SER_BUFFER_SIZE, 1MB>> initial size)
 
@@ -356,24 +364,6 @@ Destroyed (`null`) when requested to <<closeAndWriteOutput, close internal resou
 rdd:ShuffleDependency.md#shuffleId[Shuffle ID] (of the <<spark-shuffle-BaseShuffleHandle.md#dependency, ShuffleDependency>> of the <<handle, SerializedShuffleHandle>>)
 
 Used exclusively when requested to <<closeAndWriteOutput, close internal resources and merge spill files>>
-
-=== [[sorter]] ShuffleExternalSorter
-
-UnsafeShuffleWriter uses a shuffle:ShuffleExternalSorter.md[ShuffleExternalSorter].
-
-ShuffleExternalSorter is created when UnsafeShuffleWriter is requested to <<open, open>> (while being <<creating-instance, created>>) and dereferenced (``null``ed) when requested to <<closeAndWriteOutput, close internal resources and merge spill files>>.
-
-Used when UnsafeShuffleWriter is requested for the following:
-
-* <<updatePeakMemoryUsed, Updating peak memory used>>
-
-* <<write, Writing records>>
-
-* <<closeAndWriteOutput, Closing internal resources and merging spill files>>
-
-* <<insertRecordIntoSorter, Inserting a record>>
-
-* <<stop, Stopping>>
 
 === [[writeMetrics]] writeMetrics
 

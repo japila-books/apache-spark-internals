@@ -1,18 +1,40 @@
-= SortShuffleManager
+# SortShuffleManager
 
-*SortShuffleManager* is the default and only known ShuffleManager.md[ShuffleManager] in Apache Spark (with the short name `sort` or `tungsten-sort`).
+`SortShuffleManager` is the default and only [ShuffleManager](ShuffleManager.md) in Apache Spark (with the short name `sort` or `tungsten-sort`).
 
-NOTE: Use ROOT:configuration-properties.md#spark.shuffle.manager[spark.shuffle.manager] configuration property to activate custom ShuffleManager.md[ShuffleManager].
+![SortShuffleManager and SparkEnv (Driver and Executors)](../images/shuffle/SortShuffleManager.png)
 
-SortShuffleManager is <<creating-instance, created>> when SparkEnv is core:SparkEnv.md#ShuffleManager[created] (on the driver and executors at the very beginning of a Spark application's lifecycle).
+## Creating Instance
 
-.SortShuffleManager and SparkEnv (Driver and Executors)
-image::SortShuffleManager.png[align="center"]
+`SortShuffleManager` takes the following to be created:
 
-== [[creating-instance]] Creating Instance
+* <span id="conf"> [SparkConf](../SparkConf.md)
 
-[[conf]]
-SortShuffleManager takes a single ROOT:SparkConf.md[SparkConf] to be created.
+`SortShuffleManager` is created when `SparkEnv` is [created](../SparkEnv.md#ShuffleManager) (on the driver and executors at the very beginning of a Spark application's lifecycle).
+
+## <span id="getWriter"> Getting ShuffleWriter For Partition and ShuffleHandle
+
+```scala
+getWriter[K, V](
+  handle: ShuffleHandle,
+  mapId: Int,
+  context: TaskContext): ShuffleWriter[K, V]
+```
+
+`getWriter` registers the given [ShuffleHandle](ShuffleHandle.md) (by the [shuffleId](ShuffleHandle.md#shuffleId) and [numMaps](BaseShuffleHandle.md#numMaps)) in the [numMapsForShuffle](#numMapsForShuffle) internal registry unless already done.
+
+!!! note
+    `getWriter` expects that the input `ShuffleHandle` is a [BaseShuffleHandle](BaseShuffleHandle.md). Moreover, `getWriter` expects that in two (out of three cases) it is a more specialized [IndexShuffleBlockResolver](IndexShuffleBlockResolver.md).
+
+`getWriter` then creates a new `ShuffleWriter` based on the type of the given `ShuffleHandle`.
+
+ShuffleHandle | ShuffleWriter
+--------------|--------------
+[SerializedShuffleHandle](SerializedShuffleHandle.md) | [UnsafeShuffleWriter](UnsafeShuffleWriter.md)
+[BypassMergeSortShuffleHandle](BypassMergeSortShuffleHandle.md) | [BypassMergeSortShuffleWriter](BypassMergeSortShuffleWriter.md)
+[BaseShuffleHandle](BaseShuffleHandle.md) | [SortShuffleWriter](SortShuffleWriter.md)
+
+`getWriter` is part of the [ShuffleManager](ShuffleManager.md#getWriter) abstraction.
 
 == [[MAX_SHUFFLE_OUTPUT_PARTITIONS_FOR_SERIALIZED_MODE]] Maximum Number of Partition Identifiers
 
@@ -34,40 +56,6 @@ shuffleBlockResolver is an shuffle:IndexShuffleBlockResolver.md[IndexShuffleBloc
 shuffleBlockResolver is used when SortShuffleManager is requested for a <<getWriter, ShuffleWriter for a given partition>>, to <<unregisterShuffle, unregister a shuffle metadata>> and <<stop, stop>>.
 
 shuffleBlockResolver is part of the shuffle:ShuffleManager.md#shuffleBlockResolver[ShuffleManager] abstraction.
-
-== [[getWriter]] Getting ShuffleWriter For Partition and ShuffleHandle
-
-[source, scala]
-----
-getWriter[K, V](
-  handle: ShuffleHandle,
-  mapId: Int,
-  context: TaskContext): ShuffleWriter[K, V]
-----
-
-getWriter registers the given ShuffleHandle (by the spark-shuffle-ShuffleHandle.md#shuffleId[shuffleId] and spark-shuffle-BaseShuffleHandle.md#numMaps[numMaps]) in the <<numMapsForShuffle, numMapsForShuffle>> internal registry unless already done.
-
-NOTE: getWriter expects that the input ShuffleHandle is of type spark-shuffle-BaseShuffleHandle.md[BaseShuffleHandle]. Moreover, getWriter further expects that in two (out of three cases) it is a more specialized IndexShuffleBlockResolver.md[IndexShuffleBlockResolver].
-
-getWriter then creates a new ShuffleWriter based on the type of the given ShuffleHandle.
-
-[cols="2",options="header",width="100%"]
-|===
-| ShuffleHandle
-| ShuffleWriter
-
-| shuffle:SerializedShuffleHandle.md[SerializedShuffleHandle]
-| shuffle:UnsafeShuffleWriter.md[UnsafeShuffleWriter]
-
-| shuffle:BypassMergeSortShuffleHandle.md[BypassMergeSortShuffleHandle]
-| shuffle:BypassMergeSortShuffleWriter.md[BypassMergeSortShuffleWriter]
-
-| shuffle:spark-shuffle-BaseShuffleHandle.md[BaseShuffleHandle]
-| shuffle:SortShuffleWriter.md[SortShuffleWriter]
-
-|===
-
-getWriter is part of the shuffle:ShuffleManager.md#getWriter[ShuffleManager] abstraction.
 
 == [[unregisterShuffle]] Unregistering Shuffle
 

@@ -4,6 +4,8 @@
 
 The core abstraction is [ShuffleManager](ShuffleManager.md) with the default and only known implementation being [SortShuffleManager](SortShuffleManager.md).
 
+[spark.shuffle.manager](../configuration-properties.md#spark.shuffle.manager) configuration property allows for a custom [ShuffleManager](ShuffleManager.md).
+
 ## Resources
 
 * [Improving Apache Spark Downscaling](https://databricks.com/session_eu19/improving-apache-spark-downscaling) by Christopher Crosbie (Google) Ben Sidhom (Google)
