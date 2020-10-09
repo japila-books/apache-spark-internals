@@ -1,9 +1,8 @@
-= [[ShuffleInMemorySorter]] ShuffleInMemorySorter
+# ShuffleInMemorySorter
 
-*ShuffleInMemorySorter* is used by shuffle:ShuffleExternalSorter.md#inMemSorter[ShuffleExternalSorter] to <<getSortedIterator, sort pointers of key-value records and partition IDs>> using <<useRadixSort, radix or tim>> sort algorithms.
+`ShuffleInMemorySorter` is used by [ShuffleExternalSorter](ShuffleExternalSorter.md#inMemSorter) to <<getSortedIterator, sort pointers of key-value records and partition IDs>> using <<useRadixSort, radix or tim>> sort algorithms.
 
-.ShuffleInMemorySorter and ShuffleExternalSorter
-image::ShuffleInMemorySorter.png[align="center"]
+![ShuffleInMemorySorter and ShuffleExternalSorter](../images/shuffle/ShuffleInMemorySorter.png)
 
 == [[creating-instance]] Creating Instance
 

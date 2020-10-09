@@ -1,111 +1,120 @@
 # Spillable
 
-`Spillable` is an extension of the memory:MemoryConsumer.md[MemoryConsumer] abstraction for <<implementations, collections>> that can <<spill, spill to disk>>.
+`Spillable` is an [extension](#contract) of the [MemoryConsumer](../memory/MemoryConsumer.md) abstraction for [spillable collections](#implementations) that can [spill to disk](#spill).
 
 `Spillable[C]` is a parameterized type of `C` combiner (partial) values.
 
-== [[creating-instance]] Creating Instance
+## Contract
 
-[[taskMemoryManager]]
-Spillable takes a single memory:TaskMemoryManager.md[TaskMemoryManager] to be created.
+### <span id="forceSpill"> forceSpill
 
-`Spillable` is an abstract class and cannot be created directly. It is created indirectly for the <<implementations, concrete Spillables>>.
+```scala
+forceSpill(): Boolean
+```
 
-== [[extensions]] Extensions
+Force spilling the current in-memory collection to disk to release memory.
 
-.Spillables
-[cols="30,70",options="header",width="100%"]
-|===
-| Spillable
-| Description
+Used when `Spillable` is requested to [spill](#spill)
 
-| shuffle:ExternalAppendOnlyMap.md[ExternalAppendOnlyMap]
-| [[ExternalAppendOnlyMap]]
+### <span id="spill"> spill
 
-| shuffle:ExternalSorter.md[ExternalSorter]
-| [[ExternalSorter]]
-
-|===
-
-== [[configuration-properties]] Configuration Properties
-
-=== [[numElementsForceSpillThreshold]] spark.shuffle.spill.numElementsForceSpillThreshold
-
-Spillable uses ROOT:configuration-properties.md#spark.shuffle.spill.numElementsForceSpillThreshold[spark.shuffle.spill.numElementsForceSpillThreshold] configuration property to force spilling in-memory objects to disk when requested to <<maybeSpill, maybeSpill>>.
-
-=== [[initialMemoryThreshold]] spark.shuffle.spill.initialMemoryThreshold
-
-Spillable uses ROOT:configuration-properties.md#spark.shuffle.spill.initialMemoryThreshold[spark.shuffle.spill.initialMemoryThreshold] configuration property as the initial threshold for the size of a collection (and the minimum memory required to operate properly).
-
-Spillable uses it when requested to <<spill, spill>> and <<releaseMemory, releaseMemory>>
-
-== [[myMemoryThreshold]] Memory Threshold
-
-Spillable uses a threshold for the memory size (in bytes) to know when to <<maybeSpill, spill to disk>>.
-
-When the size of the in-memory collection is above the threshold, Spillable will try to acquire more memory. Unless given all requested memory, Spillable spills to disk.
-
-The memory threshold starts as <<initialMemoryThreshold, spark.shuffle.spill.initialMemoryThreshold>> configuration property and is increased every time Spillable is requested to <<maybeSpill, spill to disk if needed>>, but managed to acquire required memory. The threshold goes back to the <<initialMemoryThreshold, initial value>> when requested to <<releaseMemory, release all memory>>.
-
-Used when Spillable is requested to <<spill, spill>> and <<releaseMemory, releaseMemory>>.
-
-== [[releaseMemory]] Releasing All Memory
-
-[source, scala]
-----
-releaseMemory(): Unit
-----
-
-releaseMemory...FIXME
-
-releaseMemory is used when:
-
-* ExternalAppendOnlyMap is requested to shuffle:ExternalAppendOnlyMap.md#freeCurrentMap[freeCurrentMap]
-
-* ExternalSorter is requested to shuffle:ExternalSorter.md#stop[stop]
-
-* Spillable is requested to <<maybeSpill, maybeSpill>> and <<spill, spill>> (and spilled to disk in either case)
-
-== [[spill]] Spilling In-Memory Collection to Disk (to Release Memory)
-
-[source, scala]
-----
+```scala
 spill(
   collection: C): Unit
-----
+```
 
-spill spills the given in-memory collection to disk to release memory
+Spills the current in-memory collection to disk, and releases the memory.
 
-spill is used when:
+Used when:
 
-* ExternalAppendOnlyMap is requested to shuffle:ExternalAppendOnlyMap.md#forceSpill[forceSpill]
+* `ExternalAppendOnlyMap` is requested to [forceSpill](ExternalAppendOnlyMap.md#forceSpill)
+* `Spillable` is requested to [spilling to disk if necessary](#maybeSpill)
 
-* Spillable is requested to <<maybeSpill, maybeSpill>>
+## Implementations
 
-== [[forceSpill]] forceSpill Method
+* [ExternalAppendOnlyMap](ExternalAppendOnlyMap.md)
+* [ExternalSorter](ExternalSorter.md)
 
-[source, scala]
-----
+## <span id="myMemoryThreshold"> Memory Threshold
+
+`Spillable` uses a threshold for the memory size (in bytes) to know when to [spill to disk](#maybeSpill).
+
+When the size of the in-memory collection is above the threshold, `Spillable` will try to acquire more memory. Unless given all requested memory, `Spillable` spills to disk.
+
+The memory threshold starts as [spark.shuffle.spill.initialMemoryThreshold](#initialMemoryThreshold) configuration property and is increased every time `Spillable` is requested to [spill to disk if needed](#maybeSpill), but managed to acquire required memory. The threshold goes back to the [initial value](#initialMemoryThreshold) when requested to [release all memory](#releaseMemory).
+
+Used when `Spillable` is requested to [spill](#spill) and [releaseMemory](#releaseMemory).
+
+## Creating Instance
+
+`Spillable` takes the following to be created:
+
+* <span id="taskMemoryManager"> [TaskMemoryManager](../memory/TaskMemoryManager.md)
+
+??? note "Abstract Class"
+    `Spillable` is an abstract class and cannot be created directly. It is created indirectly for the [concrete Spillables](#implementations).
+
+## Configuration Properties
+
+### <span id="numElementsForceSpillThreshold"> spark.shuffle.spill.numElementsForceSpillThreshold
+
+`Spillable` uses [spark.shuffle.spill.numElementsForceSpillThreshold](../configuration-properties.md#spark.shuffle.spill.numElementsForceSpillThreshold) configuration property to force spilling in-memory objects to disk when requested to [maybeSpill](#maybeSpill).
+
+### <span id="initialMemoryThreshold"> spark.shuffle.spill.initialMemoryThreshold
+
+`Spillable` uses [spark.shuffle.spill.initialMemoryThreshold](../configuration-properties.md#spark.shuffle.spill.initialMemoryThreshold) configuration property as the initial threshold for the size of a collection (and the minimum memory required to operate properly).
+
+`Spillable` uses it when requested to [spill](#spill) and [releaseMemory](#releaseMemory).
+
+## <span id="releaseMemory"> Releasing All Memory
+
+```scala
+releaseMemory(): Unit
+```
+
+`releaseMemory`...FIXME
+
+`releaseMemory` is used when:
+
+* `ExternalAppendOnlyMap` is requested to [freeCurrentMap](ExternalAppendOnlyMap.md#freeCurrentMap)
+* `ExternalSorter` is requested to [stop](ExternalSorter.md#stop)
+* `Spillable` is requested to [maybeSpill](#maybeSpill) and [spill](#spill) (and spilled to disk in either case)
+
+## <span id="spill"> Spilling In-Memory Collection to Disk (to Release Memory)
+
+```scala
+spill(
+  collection: C): Unit
+```
+
+`spill` spills the given in-memory collection to disk to release memory.
+
+`spill` is used when:
+
+* `ExternalAppendOnlyMap` is requested to [forceSpill](ExternalAppendOnlyMap.md#forceSpill)
+* `Spillable` is requested to [maybeSpill](#maybeSpill)
+
+## <span id="forceSpill"> forceSpill
+
+```scala
 forceSpill(): Boolean
-----
+```
 
-forceSpill forcefully spills the Spillable to disk to release memory
+`forceSpill` forcefully spills the Spillable to disk to release memory.
 
-forceSpill is used when Spillable is requested to <<spill, spill an in-memory collection to disk>>.
+`forceSpill` is used when `Spillable` is requested to [spill an in-memory collection to disk](#spill).
 
-== [[maybeSpill]] Spilling to Disk if Necessary
+## <span id="maybeSpill"> Spilling to Disk if Necessary
 
-[source, scala]
-----
+```scala
 maybeSpill(
   collection: C,
   currentMemory: Long): Boolean
-----
+```
 
-maybeSpill...FIXME
+`maybeSpill`...FIXME
 
-maybeSpill is used when:
+`maybeSpill` is used when:
 
-* ExternalAppendOnlyMap is requested to shuffle:ExternalAppendOnlyMap.md#insertAll[insertAll]
-
-* ExternalSorter is requested to shuffle:ExternalSorter.md#maybeSpillCollection[attempt to spill an in-memory collection to disk if needed]
+* `ExternalAppendOnlyMap` is requested to [insertAll](ExternalAppendOnlyMap.md#insertAll)
+* `ExternalSorter` is requested to [attempt to spill an in-memory collection to disk if needed](ExternalSorter.md#maybeSpillCollection)

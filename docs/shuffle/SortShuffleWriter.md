@@ -1,6 +1,6 @@
-= [[SortShuffleWriter]] SortShuffleWriter
+# SortShuffleWriter
 
-*SortShuffleWriter* is a concrete shuffle:ShuffleWriter.md[ShuffleWriter] that is used when shuffle:SortShuffleManager.md#getWriter[`SortShuffleManager` returns a `ShuffleWriter` for `ShuffleHandle`] (and the more specialized shuffle:BypassMergeSortShuffleWriter.md[BypassMergeSortShuffleWriter] and shuffle:UnsafeShuffleWriter.md[UnsafeShuffleWriter] could not be used).
+`SortShuffleWriter` is a concrete [ShuffleWriter](ShuffleWriter.md) that is used when shuffle:SortShuffleManager.md#getWriter[`SortShuffleManager` returns a `ShuffleWriter` for `ShuffleHandle`] (and the more specialized shuffle:BypassMergeSortShuffleWriter.md[BypassMergeSortShuffleWriter] and shuffle:UnsafeShuffleWriter.md[UnsafeShuffleWriter] could not be used).
 
 SortShuffleWriter is created when SortShuffleManager.md#getWriter[`SortShuffleManager` returns a `ShuffleWriter` for the fallback `BaseShuffleHandle`].
 

@@ -1,3 +1,3 @@
-== [[ShuffleHandle]] ShuffleHandle Contract
+# ShuffleHandle
 
 `ShuffleHandle` is...FIXME

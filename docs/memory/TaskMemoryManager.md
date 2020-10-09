@@ -1,11 +1,10 @@
-= TaskMemoryManager
+# TaskMemoryManager
 
-*TaskMemoryManager* manages the memory allocated to execute a single <<taskAttemptId, task>> (using <<memoryManager, MemoryManager>>).
+`TaskMemoryManager` manages the memory allocated to execute a single <<taskAttemptId, task>> (using <<memoryManager, MemoryManager>>).
 
-TaskMemoryManager is <<creating-instance, created>> when `TaskRunner` is requested to executor:TaskRunner.md#run[run].
+`TaskMemoryManager` is <<creating-instance, created>> when `TaskRunner` is requested to executor:TaskRunner.md#run[run].
 
-.Creating TaskMemoryManager for Task
-image::TaskMemoryManager.png[align="center"]
+![Creating TaskMemoryManager for Task](../images/memory/TaskMemoryManager.png)
 
 TaskMemoryManager assumes that:
 

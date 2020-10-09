@@ -1,6 +1,6 @@
-= [[ShuffleWriter]] ShuffleWriter
+# ShuffleWriter
 
-*ShuffleWriter* of K keys and V values (`ShuffleWriter[K, V]`) is an abstraction of <<implementations, shuffle writers>> that can <<write, write key-value records>> (of a RDD partition) to a shuffle system.
+`ShuffleWriter` of `K` keys and `V` values (`ShuffleWriter[K, V]`) is an abstraction of <<implementations, shuffle writers>> that can <<write, write key-value records>> (of a RDD partition) to a shuffle system.
 
 ShuffleWriter is used when scheduler:ShuffleMapTask.md[ShuffleMapTask] is requested to scheduler:ShuffleMapTask.md#runTask[run].
 

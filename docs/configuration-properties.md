@@ -1,5 +1,13 @@
 # Spark Configuration Properties
 
+## <span id="spark.shuffle.spill.initialMemoryThreshold"> spark.shuffle.spill.initialMemoryThreshold
+
+Initial threshold for the size of an in-memory collection
+
+Default: 5MB
+
+Used by [Spillable](shuffle/Spillable.md#initialMemoryThreshold)
+
 ## <span id="spark.shuffle.manager"> spark.shuffle.manager
 
 A fully-qualified class name or the alias of the [ShuffleManager](shuffle/ShuffleManager.md) in a Spark application
@@ -355,14 +363,6 @@ Size of object batches when reading or writing from serializers.
 Default: `10000`
 
 Used by shuffle:ExternalAppendOnlyMap.md[ExternalAppendOnlyMap] and shuffle:ExternalSorter.md[ExternalSorter]
-
-== [[spark.shuffle.spill.initialMemoryThreshold]] spark.shuffle.spill.initialMemoryThreshold
-
-Initial threshold for the size of an in-memory collection
-
-Default: `5 * 1024 * 1024`
-
-Used by shuffle:Spillable.md[Spillable]
 
 == [[spark.shuffle.mapOutput.dispatcher.numThreads]] spark.shuffle.mapOutput.dispatcher.numThreads
 

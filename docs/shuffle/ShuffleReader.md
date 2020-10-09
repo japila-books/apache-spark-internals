@@ -1,4 +1,4 @@
-== [[ShuffleReader]] ShuffleReader
+# ShuffleReader
 
 `ShuffleReader` is a <<contract, contract>> of <<implementations, shuffle readers>> to <<read, read combined key-value records for a reduce task>>.
 
