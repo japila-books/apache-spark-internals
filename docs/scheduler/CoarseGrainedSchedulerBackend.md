@@ -1,18 +1,16 @@
-= [[CoarseGrainedSchedulerBackend]] CoarseGrainedSchedulerBackend
+# CoarseGrainedSchedulerBackend
 
-`CoarseGrainedSchedulerBackend` is a scheduler:SchedulerBackend.md[SchedulerBackend].
+`CoarseGrainedSchedulerBackend` is a [SchedulerBackend](SchedulerBackend.md).
 
-`CoarseGrainedSchedulerBackend` is an spark-service-ExecutorAllocationClient.md[ExecutorAllocationClient].
+`CoarseGrainedSchedulerBackend` is an [ExecutorAllocationClient](../ExecutorAllocationClient.md).
 
-`CoarseGrainedSchedulerBackend` is responsible for requesting resources from a cluster manager for executors that it in turn uses to scheduler:CoarseGrainedSchedulerBackend-DriverEndpoint.md#launchTasks[launch tasks] (on executor:CoarseGrainedExecutorBackend.md[]).
+`CoarseGrainedSchedulerBackend` is responsible for requesting resources from a cluster manager for executors that it in turn uses to CoarseGrainedSchedulerBackend-DriverEndpoint.md#launchTasks[launch tasks] (on executor:CoarseGrainedExecutorBackend.md[]).
 
 `CoarseGrainedSchedulerBackend` holds executors for the duration of the Spark job rather than relinquishing executors whenever a task is done and asking the scheduler to launch a new executor for each new task.
 
-CAUTION: FIXME Picture with dependencies
-
 `CoarseGrainedSchedulerBackend` registers <<CoarseGrainedScheduler, CoarseGrainedScheduler RPC Endpoint>> that executors use for RPC communication.
 
-NOTE: *Active executors* are executors that are not <<executorsPendingToRemove, pending to be removed>> or scheduler:CoarseGrainedSchedulerBackend-DriverEndpoint.md#executorsPendingLossReason[lost].
+NOTE: *Active executors* are executors that are not <<executorsPendingToRemove, pending to be removed>> or CoarseGrainedSchedulerBackend-DriverEndpoint.md#executorsPendingLossReason[lost].
 
 [[builtin-implementations]]
 .Built-In CoarseGrainedSchedulerBackends per Cluster Environment

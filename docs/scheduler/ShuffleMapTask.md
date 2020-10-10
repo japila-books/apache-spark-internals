@@ -15,7 +15,7 @@
 * [[locs]] [TaskLocations](TaskLocation.md)
 * [[localProperties]] Task-specific local properties
 * [[serializedTaskMetrics]] Serialized task metrics (`Array[Byte]`)
-* [[jobId]] Optional [job ID](spark-scheduler-ActiveJob.md) (default: `None`)
+* [[jobId]] Optional [job ID](ActiveJob.md) (default: `None`)
 * [[appId]] Optional application ID (default: `None`)
 * [[appAttemptId]] Optional application attempt ID (default: `None`)
 * [[isBarrier]] isBarrier flag (default: `false`)

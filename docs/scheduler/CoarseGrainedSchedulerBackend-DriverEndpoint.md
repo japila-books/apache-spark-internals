@@ -1,17 +1,14 @@
-= [[DriverEndpoint]] DriverEndpoint
-:navtitle: CoarseGrainedSchedulerBackend RPC Endpoint
+# DriverEndpoint &mdash; CoarseGrainedSchedulerBackend RPC Endpoint
 
 DriverEndpoint is a rpc:RpcEndpoint.md#ThreadSafeRpcEndpoint[ThreadSafeRpcEndpoint] that acts as a <<messages, message handler>> for scheduler:CoarseGrainedSchedulerBackend.md[CoarseGrainedSchedulerBackend] to communicate with executor:CoarseGrainedExecutorBackend.md[].
 
-.CoarseGrainedSchedulerBackend uses DriverEndpoint for communication with CoarseGrainedExecutorBackend
-image::CoarseGrainedSchedulerBackend-DriverEndpoint-CoarseGrainedExecutorBackend.png[align="center"]
+![CoarseGrainedSchedulerBackend uses DriverEndpoint for communication with CoarseGrainedExecutorBackend](../images/CoarseGrainedSchedulerBackend-DriverEndpoint-CoarseGrainedExecutorBackend.png)
 
 DriverEndpoint <<creating-instance, is created>> when `CoarseGrainedSchedulerBackend` scheduler:CoarseGrainedSchedulerBackend.md#starts[starts].
 
 DriverEndpoint uses scheduler:CoarseGrainedSchedulerBackend.md#executorDataMap[executorDataMap] internal registry of all the executor:CoarseGrainedExecutorBackend.md#onStart[executors that registered with the driver]. An executor sends a <<RegisterExecutor, RegisterExecutor>> message to inform that it wants to register.
 
-.Executor registration (RegisterExecutor RPC message flow)
-image::CoarseGrainedSchedulerBackend-RegisterExecutor-event.png[align="center"]
+![Executor registration (RegisterExecutor RPC message flow)](../images/CoarseGrainedSchedulerBackend-RegisterExecutor-event.png)
 
 DriverEndpoint uses a <<reviveThread, single thread executor>> called *driver-revive-thread* to <<makeOffers, make executor resource offers (for launching tasks)>> (by emitting <<ReviveOffers, ReviveOffers>> message every scheduler:CoarseGrainedSchedulerBackend.md#spark.scheduler.revive.interval[spark.scheduler.revive.interval]).
 

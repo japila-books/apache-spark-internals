@@ -1,11 +1,10 @@
-= [[TaskSchedulerImpl]] TaskSchedulerImpl
+# TaskSchedulerImpl
 
-*TaskSchedulerImpl* is the default scheduler:TaskScheduler.md[TaskScheduler] that uses a <<backend, SchedulerBackend>> to schedule tasks (for execution on a cluster manager).
+`TaskSchedulerImpl` is the default [TaskScheduler](TaskScheduler.md) that uses a [SchedulerBackend](#backend) to schedule tasks (for execution on a cluster manager).
 
 When a Spark application starts (and so an instance of ROOT:SparkContext.md#creating-instance[SparkContext is created]) TaskSchedulerImpl with a scheduler:SchedulerBackend.md[SchedulerBackend] and scheduler:DAGScheduler.md[DAGScheduler] are created and soon started.
 
-.TaskSchedulerImpl and Other Services
-image::taskschedulerimpl-sparkcontext-schedulerbackend-dagscheduler.png[align="center"]
+![TaskSchedulerImpl and Other Services](../images/scheduler/taskschedulerimpl-sparkcontext-schedulerbackend-dagscheduler.png)
 
 TaskSchedulerImpl <<resourceOffers, generates tasks for executor resource offers>>.
 
@@ -18,7 +17,7 @@ TaskSchedulerImpl <<submitTasks, submits tasks>> using scheduler:spark-scheduler
 [[CPUS_PER_TASK]]
 TaskSchedulerImpl uses ROOT:configuration-properties.md#spark.task.cpus[spark.task.cpus] configuration property for...FIXME
 
-== [[creating-instance]] Creating Instance
+## Creating Instance
 
 TaskSchedulerImpl takes the following to be created:
 

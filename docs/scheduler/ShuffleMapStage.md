@@ -20,14 +20,14 @@ ShuffleMapStage takes the following to be created:
 * [[rdd]] [RDD](../rdd/ShuffleDependency.md#rdd) of the <<shuffleDep, ShuffleDependency>>
 * [[numTasks]] Number of tasks
 * [[parents]] Parent Stage.md[stages]
-* [[firstJobId]] ID of the [ActiveJob](spark-scheduler-ActiveJob.md) that created it
+* [[firstJobId]] ID of the [ActiveJob](ActiveJob.md) that created it
 * [[callSite]] CallSite
 * [[shuffleDep]] [ShuffleDependency](../rdd/ShuffleDependency.md)
 * [[mapOutputTrackerMaster]] [MapOutputTrackerMaster](MapOutputTrackerMaster.md)
 
 == [[_mapStageJobs]][[mapStageJobs]][[addActiveJob]][[removeActiveJob]] Jobs Registry
 
-ShuffleMapStage keeps track of spark-scheduler-ActiveJob.md[jobs] that were submitted to execute it independently (if any).
+ShuffleMapStage keeps track of [jobs](ActiveJob.md) that were submitted to execute it independently (if any).
 
 The registry is used when DAGScheduler is requested to DAGScheduler.md#markMapStageJobsAsFinished[markMapStageJobsAsFinished] (FIXME: when DAGSchedulerEventProcessLoop.md#handleTaskCompletion[`DAGScheduler` is notified that a `ShuffleMapTask` has finished successfully] and the task made ShuffleMapStage completed and so marks any map-stage jobs waiting on this stage as finished).
 

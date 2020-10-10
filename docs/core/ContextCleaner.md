@@ -146,11 +146,11 @@ registerShuffleForCleanup(
   shuffleDependency: ShuffleDependency[_, _, _]): Unit
 ----
 
-registerShuffleForCleanup registers the given [ShuffleDependency](rdd/ShuffleDependency.md) for cleanup.
+registerShuffleForCleanup registers the given [ShuffleDependency](../rdd/ShuffleDependency.md) for cleanup.
 
 Internally, registerShuffleForCleanup simply executes <<registerForCleanup, registerForCleanup>> for the given ShuffleDependency.
 
-`registerShuffleForCleanup` is used when [ShuffleDependency](rdd/ShuffleDependency.md) is created.
+`registerShuffleForCleanup` is used when [ShuffleDependency](../rdd/ShuffleDependency.md) is created.
 
 == [[registerForCleanup]] Registering Object Reference For Cleanup
 
