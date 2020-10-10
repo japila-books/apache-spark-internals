@@ -1,11 +1,11 @@
-= Deployment Environments -- Run Modes
+# Deployment Environments
 
-Spark Deployment Environments (aka Run Modes):
+Spark Deployment Environments (_Run Modes_):
 
 * local/spark-local.md[local]
 * spark-cluster.md[clustered]
 ** spark-standalone.md[Spark Standalone]
-** spark-mesos/spark-mesos.md[Spark on Apache Mesos]
+** Spark on Apache Mesos
 ** yarn/README.md[Spark on Hadoop YARN]
 
 A Spark application is composed of the driver and executors that can run locally (on a single JVM) or using cluster resources (like CPU, RAM and disk that are managed by a cluster manager).

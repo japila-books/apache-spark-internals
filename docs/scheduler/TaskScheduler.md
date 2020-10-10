@@ -1,9 +1,8 @@
-= [[TaskScheduler]] TaskScheduler
+# TaskScheduler
 
-*TaskScheduler* is an abstraction of <<implementations, Spark schedulers>> that can <<submitTasks, submit tasks for execution>> in a Spark application (per <<schedulingMode, scheduling policy>>).
+`TaskScheduler` is an abstraction of <<implementations, Spark schedulers>> that can <<submitTasks, submit tasks for execution>> in a Spark application (per <<schedulingMode, scheduling policy>>).
 
-.TaskScheduler and SparkContext
-image::sparkstandalone-sparkcontext-taskscheduler-schedulerbackend.png[align="center"]
+![TaskScheduler and SparkContext](../images/scheduler/sparkstandalone-sparkcontext-taskscheduler-schedulerbackend.png)
 
 NOTE: TaskScheduler works closely with scheduler:DAGScheduler.md[DAGScheduler] that <<submitTasks, submits sets of tasks for execution>> (for every stage in a Spark job).
 

@@ -1,10 +1,11 @@
-= [[SchedulerBackend]] SchedulerBackend
+# SchedulerBackend
 
-*SchedulerBackend* is an abstraction of <<implementations, task scheduling systems>> that can <<reviveOffers, revive resource offers>> from cluster managers.
+`SchedulerBackend` is an abstraction of <<implementations, task scheduling systems>> that can <<reviveOffers, revive resource offers>> from cluster managers.
 
 SchedulerBackend abstraction allows TaskSchedulerImpl to use variety of cluster managers (with their own resource offers and task scheduling modes).
 
-NOTE: Being a scheduler backend system assumes a http://mesos.apache.org/[Apache Mesos]-like scheduling model in which "an application" gets *resource offers* as machines become available so it is possible to launch tasks on them. Once required resource allocation is obtained, the scheduler backend can start executors.
+!!! note
+    Being a scheduler backend system assumes a [Apache Mesos](http://mesos.apache.org/)-like scheduling model in which "an application" gets **resource offers** as machines become available so it is possible to launch tasks on them. Once required resource allocation is obtained, the scheduler backend can start executors.
 
 == [[implementations]] Direct Implementations and Extensions
 

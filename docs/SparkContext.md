@@ -37,6 +37,43 @@ getOrCreate(
 
 `PluginContainer` is requested to [shutdown](plugins/PluginContainer.md#shutdown) when `SparkContext` is requested to [stop](#stop).
 
+## <span id="createTaskScheduler"> Creating SchedulerBackend and TaskScheduler
+
+```scala
+createTaskScheduler(
+  sc: SparkContext,
+  master: String,
+  deployMode: String): (SchedulerBackend, TaskScheduler)
+```
+
+`createTaskScheduler` creates a [SchedulerBackend](scheduler/SchedulerBackend.md) and a [TaskScheduler](scheduler/TaskScheduler.md) for the given master URL and deployment mode.
+
+![SparkContext creates Task Scheduler and Scheduler Backend](images/diagrams/sparkcontext-createtaskscheduler.png)
+
+Internally, `createTaskScheduler` branches off per the given master URL ([master URL](spark-deployment-environments.md#master-urls)) to select the requested implementations.
+
+`createTaskScheduler` accepts the following master URLs:
+
+* `local` - local mode with 1 thread only
+* `local[n]` or `local[*]` - local mode with `n` threads
+* `local[n, m]` or `local[*, m]` -- local mode with `n` threads and `m` number of failures
+* `spark://hostname:port` for Spark Standalone
+* `local-cluster[n, m, z]` -- local cluster with `n` workers, `m` cores per worker, and `z` memory per worker
+* Other URLs are simply handed over to [getClusterManager](#getClusterManager) to load an external cluster manager if available
+
+`createTaskScheduler` is used when `SparkContext` is [created](#creating-instance).
+
+## <span id="getClusterManager"> Finding ExternalClusterManager for Master URL
+
+```scala
+getClusterManager(
+  url: String): Option[ExternalClusterManager]
+```
+
+`getClusterManager`...FIXME
+
+`getClusterManager` is used when `SparkContext` is requested for a [SchedulerBackend and TaskScheduler](#createTaskScheduler).
+
 ## Old Information
 
 SparkContext offers the following functions:
@@ -1087,34 +1124,6 @@ maxNumConcurrentTasks(): Int
 `maxNumConcurrentTasks` simply requests the <<schedulerBackend, SchedulerBackend>> for the scheduler:SchedulerBackend.md#maxNumConcurrentTasks[maximum number of tasks that can be launched concurrently].
 
 NOTE: `maxNumConcurrentTasks` is used exclusively when `DAGScheduler` is requested to scheduler:DAGScheduler.md#checkBarrierStageWithNumSlots[checkBarrierStageWithNumSlots].
-
-== [[createTaskScheduler]] Creating SchedulerBackend and TaskScheduler -- `createTaskScheduler` Internal Factory Method
-
-[source, scala]
-----
-createTaskScheduler(
-  sc: SparkContext,
-  master: String,
-  deployMode: String): (SchedulerBackend, TaskScheduler)
-----
-
-`createTaskScheduler` creates the scheduler:SchedulerBackend.md[SchedulerBackend] and the scheduler:TaskScheduler.md[TaskScheduler] for the given master URL and deployment mode.
-
-.SparkContext creates Task Scheduler and Scheduler Backend
-image::diagrams/sparkcontext-createtaskscheduler.png[align="center"]
-
-Internally, `createTaskScheduler` branches off per the given master URL (spark-deployment-environments.md#master-urls[master URL]) to select the requested implementations.
-
-`createTaskScheduler` understands the following master URLs:
-
-* `local` - local mode with 1 thread only
-* `local[n]` or `local[*]` - local mode with `n` threads
-* `local[n, m]` or `local[*, m]` -- local mode with `n` threads and `m` number of failures
-* `spark://hostname:port` for Spark Standalone
-* `local-cluster[n, m, z]` -- local cluster with `n` workers, `m` cores per worker, and `z` memory per worker
-* any other URL is passed to <<getClusterManager, `getClusterManager` to load an external cluster manager>>.
-
-CAUTION: FIXME
 
 == [[environment-variables]] Environment Variables
 
