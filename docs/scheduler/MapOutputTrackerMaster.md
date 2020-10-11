@@ -1,10 +1,10 @@
-= MapOutputTrackerMaster
+# MapOutputTrackerMaster
 
-*MapOutputTrackerMaster* is the MapOutputTracker.md[MapOutputTracker] for the driver.
+`MapOutputTrackerMaster` is a [MapOutputTracker](MapOutputTracker.md) for the driver.
 
-A MapOutputTrackerMaster is the source of truth of <<shuffleStatuses, shuffle map output locations>>.
+`MapOutputTrackerMaster` is the source of truth of [shuffle map output locations](#shuffleStatuses).
 
-== [[creating-instance]] Creating Instance
+## Creating Instance
 
 MapOutputTrackerMaster takes the following to be created:
 

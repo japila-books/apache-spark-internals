@@ -1,4 +1,4 @@
-= [[ActiveJob]] ActiveJob
+# ActiveJob
 
 A *job* (aka _action job_ or _active job_) is a top-level work item (computation) submitted to scheduler:DAGScheduler.md[DAGScheduler] to rdd:spark-rdd-actions.md[compute the result of an action] (or for scheduler:DAGScheduler.md#adaptive-query-planning[Adaptive Query Planning / Adaptive Scheduling]).
 
