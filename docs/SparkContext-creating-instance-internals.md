@@ -123,7 +123,7 @@ CAUTION: FIXME What's MetadataCleaner?
 
 === [[_progressBar]] Creating ConsoleProgressBar
 
-`SparkContext` creates the optional spark-sparkcontext-ConsoleProgressBar.md#creating-instance[ConsoleProgressBar] when spark-webui-properties.md#spark.ui.showConsoleProgress[spark.ui.showConsoleProgress] property is enabled and the `INFO` logging level for `SparkContext` is disabled.
+`SparkContext` creates the optional [ConsoleProgressBar](ConsoleProgressBar.md#creating-instance) when spark-webui-properties.md#spark.ui.showConsoleProgress[spark.ui.showConsoleProgress] property is enabled and the `INFO` logging level for `SparkContext` is disabled.
 
 === [[_ui]][[ui]] Creating SparkUI
 

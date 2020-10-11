@@ -65,9 +65,9 @@ While being created, `DAGScheduler` requests the [TaskScheduler](#taskScheduler)
 
 `DAGScheduler` uses an [event bus](DAGSchedulerEventProcessLoop.md) to process scheduling events on a separate thread (one by one and asynchronously).
 
-`DAGScheduler` starts the event bus when created and stops it when requested to [stop](#stop).
+`DAGScheduler` requests the event bus to start right when [created](#creating-instance) and stops it when requested to [stop](#stop).
 
-`DAGScheduler` defines [event-posting methods](#event-posting-methods) that allow posting `DAGSchedulerEvent` events to the event bus.
+`DAGScheduler` defines [event-posting methods](#event-posting-methods) for posting [DAGSchedulerEvent](DAGSchedulerEvent.md) events to the event bus.
 
 ## <span id="taskScheduler"> TaskScheduler
 
@@ -80,98 +80,6 @@ While being created, `DAGScheduler` requests the [TaskScheduler](#taskScheduler)
 * [Killing a task](#killTaskAttempt)
 * [Failing a job and all other independent single-job stages](#failJobAndIndependentStages)
 * [Stopping itself](#stop)
-
-## Event Posting Methods
-
-### <span id="cancelAllJobs"> cancelAllJobs
-
-Posts an [AllJobsCancelled](DAGSchedulerEvent.md#AllJobsCancelled)
-
-Used when `SparkContext` is requested to [cancel all running or scheduled Spark jobs](../SparkContext.md#cancelAllJobs)
-
-### <span id="cancelJob"> cancelJob
-
-Posts a [JobCancelled](DAGSchedulerEvent.md#JobCancelled)
-
-Used when [SparkContext](../SparkContext.md#cancelJob) or [JobWaiter](spark-scheduler-JobWaiter.md) are requested to cancel a Spark job
-
-### <span id="cancelJobGroup"> cancelJobGroup
-
-Posts a [JobGroupCancelled](DAGSchedulerEvent.md#JobGroupCancelled)
-
-Used when `SparkContext` is requested to [cancel a job group](../SparkContext.md#cancelJobGroup)
-
-### <span id="cancelStage"> cancelStage
-
-Posts a [StageCancelled](DAGSchedulerEvent.md#StageCancelled)
-| SparkContext is requested to [cancel a stage](../SparkContext.md#cancelStage)
-
-### <span id="executorAdded"> executorAdded
-
-Posts an [ExecutorAdded](DAGSchedulerEvent.md#ExecutorAdded)
-
-Used when `TaskSchedulerImpl` is requested to [handle resource offers](TaskSchedulerImpl.md#resourceOffers) (and a new executor is found in the resource offers)
-
-### <span id="executorLost"> executorLost
-
-Posts a [ExecutorLost](DAGSchedulerEvent.md#ExecutorLost)
-
-Used when `TaskSchedulerImpl` is requested to [handle a task status update](TaskSchedulerImpl.md#statusUpdate) (and a task gets lost which is used to indicate that the executor got broken and hence should be considered lost) or [executorLost](TaskSchedulerImpl.md#executorLost)
-
-### <span id="runApproximateJob"> runApproximateJob
-
-Posts a [JobSubmitted](DAGSchedulerEvent.md#JobSubmitted)
-
-Used when `SparkContext` is requested to [run an approximate job](../SparkContext.md#runApproximateJob)
-
-### <span id="speculativeTaskSubmitted"> speculativeTaskSubmitted
-
-Posts a [SpeculativeTaskSubmitted](DAGSchedulerEvent.md#SpeculativeTaskSubmitted)
-
-### <span id="submitJob"> submitJob
-
-Posts a [JobSubmitted](DAGSchedulerEvent.md#JobSubmitted)
-
-Used when:
-
-* `SparkContext` is requested to [submits a job](../SparkContext.md#submitJob)
-* `DAGScheduler` is requested to [run a job](#runJob)
-
-### <span id="submitMapStage"> submitMapStage
-
-Posts a [MapStageSubmitted](DAGSchedulerEvent.md#MapStageSubmitted)
-
-Used when `SparkContext` is requested to [submit a MapStage for execution](../SparkContext.md#submitMapStage)
-
-### <span id="taskEnded"> taskEnded
-
-Posts a [CompletionEvent](DAGSchedulerEvent.md#CompletionEvent)
-
-Used when `TaskSetManager` is requested to [handleSuccessfulTask](TaskSetManager.md#handleSuccessfulTask), [handleFailedTask](TaskSetManager.md#handleFailedTask), and [executorLost](TaskSetManager.md#executorLost)
-
-### <span id="taskGettingResult"> taskGettingResult
-
-Posts a [GettingResultEvent](DAGSchedulerEvent.md#GettingResultEvent)
-
-Used when `TaskSetManager` is requested to [handle a task fetching result](TaskSetManager.md#handleTaskGettingResult)
-
-### <span id="taskSetFailed"> taskSetFailed
-
-Posts a [TaskSetFailed](DAGSchedulerEvent.md#TaskSetFailed)
-
-Used when `TaskSetManager` is requested to [abort](TaskSetManager.md#abort)
-
-### <span id="taskStarted"> taskStarted
-
-Posts a [BeginEvent](DAGSchedulerEvent.md#BeginEvent)
-
-Used when `TaskSetManager` is requested to [start a task](TaskSetManager.md#resourceOffer)
-
-### <span id="workerRemoved"> workerRemoved
-
-Posts a [WorkerRemoved](DAGSchedulerEvent.md#WorkerRemoved)
-
-Used when `TaskSchedulerImpl` is requested to [handle a removed worker event](TaskSchedulerImpl.md#workerRemoved)
 
 ## <span id="runJob"> Running Job
 
@@ -792,9 +700,9 @@ If all the attempts fail to yield any non-empty result, `getPreferredLocsInterna
 stop(): Unit
 ```
 
-`stop` stops the internal `dag-scheduler-message` thread pool, <<event-loop, dag-scheduler-event-loop>>, and TaskScheduler.md#stop[TaskScheduler].
+`stop` stops the internal `dag-scheduler-message` thread pool, [dag-scheduler-event-loop](#event-loop), and [TaskScheduler](TaskScheduler.md#stop).
 
-`stop` is used when...FIXME
+`stop` is used when `SparkContext` is requested to [stop](../SparkContext.md#stop).
 
 ## <span id="updateAccumulators"> Updating Accumulators with Partial Values from Completed Tasks
 
@@ -940,7 +848,7 @@ handleBeginEvent(
 
 `handleBeginEvent` is used when `DAGSchedulerEventProcessLoop` is requested to handle a [BeginEvent](DAGSchedulerEvent.md#BeginEvent) event.
 
-### <span id="handleTaskCompletion"> CompletionEvent Event Handler
+### <span id="handleTaskCompletion"> Handling CompletionEvent
 
 ```scala
 handleTaskCompletion(
@@ -1009,7 +917,7 @@ handleJobGroupCancelled(
 
 `handleJobGroupCancelled` is used when `DAGScheduler` is requested to handle [JobGroupCancelled](DAGSchedulerEvent.md#JobGroupCancelled) event.
 
-### <span id="handleJobSubmitted"> JobSubmitted Event Handler
+### <span id="handleJobSubmitted"> Handling JobSubmitted Event
 
 ```scala
 handleJobSubmitted(
@@ -1161,17 +1069,112 @@ A stage is added when <<submitMissingTasks, submitMissingTasks>> gets executed (
 
 ### <span id="shuffleIdToMapStage"> shuffleIdToMapStage
 
-Lookup table of [ShuffleMapStage](ShuffleMapStage.md)s per [ShuffleDependency](../rdd/ShuffleDependency.md)
+A lookup table of [ShuffleMapStage](ShuffleMapStage.md)s by [ShuffleDependency](../rdd/ShuffleDependency.md)
 
 ### <span id="stageIdToStage"> stageIdToStage
 
-The lookup table for stages per their ids
+A lookup table of stages by stage ID
 
-Used when DAGScheduler [creates a shuffle map stage](#createShuffleMapStage), [creates a result stage](#createResultStage), <<cleanupStateForJobAndIndependentStages, cleans up job state and independent stages>>, is informed that DAGSchedulerEventProcessLoop.md#handleBeginEvent[a task is started], DAGSchedulerEventProcessLoop.md#handleTaskSetFailed[a taskset has failed], DAGSchedulerEventProcessLoop.md#handleJobSubmitted[a job is submitted (to compute a `ResultStage`)], DAGSchedulerEventProcessLoop.md#handleMapStageSubmitted[a map stage was submitted], DAGSchedulerEventProcessLoop.md#handleTaskCompletion[a task has completed] or DAGSchedulerEventProcessLoop.md#handleStageCancellation[a stage was cancelled], <<updateAccumulators, updates accumulators>>, <<abortStage, aborts a stage>> and <<failJobAndIndependentStages, fails a job and independent stages>>.
+Used when DAGScheduler [creates a shuffle map stage](#createShuffleMapStage), [creates a result stage](#createResultStage), [cleans up job state and independent stages](#cleanupStateForJobAndIndependentStages), is informed that [a task is started](DAGSchedulerEventProcessLoop.md#handleBeginEvent), [a taskset has failed](DAGSchedulerEventProcessLoop.md#handleTaskSetFailed), [a job is submitted (to compute a `ResultStage`)](DAGSchedulerEventProcessLoop.md#handleJobSubmitted), [a map stage was submitted](DAGSchedulerEventProcessLoop.md#handleMapStageSubmitted), [a task has completed](DAGSchedulerEventProcessLoop.md#handleTaskCompletion) or [a stage was cancelled](DAGSchedulerEventProcessLoop.md#handleStageCancellation), [updates accumulators](#updateAccumulators), [aborts a stage](#abortStage) and [fails a job and independent stages](#failJobAndIndependentStages).
 
 ### <span id="waitingStages"> waitingStages
 
-The stages with parents to be computed
+Stages with parents to be computed
+
+## Event Posting Methods
+
+### <span id="cancelAllJobs"> Posting AllJobsCancelled
+
+Posts an [AllJobsCancelled](DAGSchedulerEvent.md#AllJobsCancelled)
+
+Used when `SparkContext` is requested to [cancel all running or scheduled Spark jobs](../SparkContext.md#cancelAllJobs)
+
+### <span id="cancelJob"> Posting JobCancelled
+
+Posts a [JobCancelled](DAGSchedulerEvent.md#JobCancelled)
+
+Used when [SparkContext](../SparkContext.md#cancelJob) or [JobWaiter](spark-scheduler-JobWaiter.md) are requested to cancel a Spark job
+
+### <span id="cancelJobGroup"> Posting JobGroupCancelled
+
+Posts a [JobGroupCancelled](DAGSchedulerEvent.md#JobGroupCancelled)
+
+Used when `SparkContext` is requested to [cancel a job group](../SparkContext.md#cancelJobGroup)
+
+### <span id="cancelStage"> Posting StageCancelled
+
+Posts a [StageCancelled](DAGSchedulerEvent.md#StageCancelled)
+
+Used when `SparkContext` is requested to [cancel a stage](../SparkContext.md#cancelStage)
+
+### <span id="executorAdded"> Posting ExecutorAdded
+
+Posts an [ExecutorAdded](DAGSchedulerEvent.md#ExecutorAdded)
+
+Used when `TaskSchedulerImpl` is requested to [handle resource offers](TaskSchedulerImpl.md#resourceOffers) (and a new executor is found in the resource offers)
+
+### <span id="executorLost"> Posting ExecutorLost
+
+Posts a [ExecutorLost](DAGSchedulerEvent.md#ExecutorLost)
+
+Used when `TaskSchedulerImpl` is requested to [handle a task status update](TaskSchedulerImpl.md#statusUpdate) (and a task gets lost which is used to indicate that the executor got broken and hence should be considered lost) or [executorLost](TaskSchedulerImpl.md#executorLost)
+
+### <span id="runApproximateJob"> Posting JobSubmitted
+
+Posts a [JobSubmitted](DAGSchedulerEvent.md#JobSubmitted)
+
+Used when `SparkContext` is requested to [run an approximate job](../SparkContext.md#runApproximateJob)
+
+### <span id="speculativeTaskSubmitted"> Posting SpeculativeTaskSubmitted
+
+Posts a [SpeculativeTaskSubmitted](DAGSchedulerEvent.md#SpeculativeTaskSubmitted)
+
+Used when `TaskSetManager` is requested to [checkAndSubmitSpeculatableTask](TaskSetManager.md#checkAndSubmitSpeculatableTask)
+
+### <span id="submitJob"> Posting JobSubmitted
+
+Posts a [JobSubmitted](DAGSchedulerEvent.md#JobSubmitted)
+
+Used when:
+
+* `SparkContext` is requested to [submits a job](../SparkContext.md#submitJob)
+* `DAGScheduler` is requested to [run a job](#runJob)
+
+### <span id="submitMapStage"> Posting MapStageSubmitted
+
+Posts a [MapStageSubmitted](DAGSchedulerEvent.md#MapStageSubmitted)
+
+Used when `SparkContext` is requested to [submit a MapStage for execution](../SparkContext.md#submitMapStage)
+
+### <span id="taskEnded"> Posting CompletionEvent
+
+Posts a [CompletionEvent](DAGSchedulerEvent.md#CompletionEvent)
+
+Used when `TaskSetManager` is requested to [handleSuccessfulTask](TaskSetManager.md#handleSuccessfulTask), [handleFailedTask](TaskSetManager.md#handleFailedTask), and [executorLost](TaskSetManager.md#executorLost)
+
+### <span id="taskGettingResult"> Posting GettingResultEvent
+
+Posts a [GettingResultEvent](DAGSchedulerEvent.md#GettingResultEvent)
+
+Used when `TaskSetManager` is requested to [handle a task fetching result](TaskSetManager.md#handleTaskGettingResult)
+
+### <span id="taskSetFailed"> Posting TaskSetFailed
+
+Posts a [TaskSetFailed](DAGSchedulerEvent.md#TaskSetFailed)
+
+Used when `TaskSetManager` is requested to [abort](TaskSetManager.md#abort)
+
+### <span id="taskStarted"> Posting BeginEvent
+
+Posts a [BeginEvent](DAGSchedulerEvent.md#BeginEvent)
+
+Used when `TaskSetManager` is requested to [start a task](TaskSetManager.md#resourceOffer)
+
+### <span id="workerRemoved"> Posting WorkerRemoved
+
+Posts a [WorkerRemoved](DAGSchedulerEvent.md#WorkerRemoved)
+
+Used when `TaskSchedulerImpl` is requested to [handle a removed worker event](TaskSchedulerImpl.md#workerRemoved)
 
 ## Logging
 

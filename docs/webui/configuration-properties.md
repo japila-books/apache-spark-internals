@@ -1,4 +1,4 @@
-== web UI Configuration Properties
+# web UI Configuration Properties
 
 [[properties]]
 .web UI Configuration Properties
@@ -37,10 +37,6 @@ Used exclusively when `SparkUI` is requested to spark-webui-SparkUI.md#initializ
 | [[spark.ui.retainedDeadExecutors]] `spark.ui.retainedDeadExecutors`
 | `100`
 | The maximum number of entries in spark-webui-executors-ExecutorsListener.md#executorToTaskSummary[executorToTaskSummary] (in `ExecutorsListener`) and spark-webui-StorageStatusListener.md#deadExecutorStorageStatus[deadExecutorStorageStatus] (in `StorageStatusListener`) internal registries.
-
-| [[spark.ui.showConsoleProgress]] `spark.ui.showConsoleProgress`
-| `true`
-| Controls whether to create spark-sparkcontext-ConsoleProgressBar.md[ConsoleProgressBar] (`true`) or not (`false`).
 
 | [[spark.ui.timeline.executors.maximum]] `spark.ui.timeline.executors.maximum`
 | `1000`

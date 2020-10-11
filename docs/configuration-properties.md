@@ -1,5 +1,15 @@
 # Spark Configuration Properties
 
+## <span id="spark.ui.showConsoleProgress"> spark.ui.showConsoleProgress
+
+Enables [ConsoleProgressBar](../ConsoleProgressBar.md) (`true`) or not (`false`).
+
+Default: `true`
+
+## <span id="spark.logLineage"> spark.logLineage
+
+Default: `false`
+
 ## <span id="spark.shuffle.spill.initialMemoryThreshold"> spark.shuffle.spill.initialMemoryThreshold
 
 Initial threshold for the size of an in-memory collection

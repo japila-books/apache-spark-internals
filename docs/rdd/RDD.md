@@ -3,6 +3,24 @@
 [[T]]
 `RDD` is a description of a fault-tolerant and resilient computation over a possibly distributed collection of records (of type `T`).
 
+## <span id="toDebugString"> Recursive Dependencies
+
+```scala
+toDebugString: String
+```
+
+`toDebugString`...FIXME
+
+## <span id="doCheckpoint"> doCheckpoint
+
+```scala
+doCheckpoint(): Unit
+```
+
+`doCheckpoint`...FIXME
+
+`doCheckpoint` is used when `SparkContext` is requested to [run a job synchronously](../SparkContext.md#runJob).
+
 == [[contract]] RDD Contract
 
 === [[compute]] Computing Partition (in TaskContext)
@@ -353,17 +371,6 @@ markCheckpointed(): Unit
 markCheckpointed...FIXME
 
 markCheckpointed is used when...FIXME
-
-== [[doCheckpoint]] doCheckpoint Method
-
-[source, scala]
-----
-doCheckpoint(): Unit
-----
-
-doCheckpoint...FIXME
-
-doCheckpoint is used when SparkContext is requested to ROOT:SparkContext.md#runJob[run a job (synchronously)].
 
 == [[checkpoint]] Reliable Checkpointing -- checkpoint Method
 

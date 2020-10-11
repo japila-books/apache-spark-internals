@@ -74,6 +74,87 @@ getClusterManager(
 
 `getClusterManager` is used when `SparkContext` is requested for a [SchedulerBackend and TaskScheduler](#createTaskScheduler).
 
+## <span id="runJob"> Running Job Synchronously
+
+```scala
+runJob[T, U: ClassTag](
+  rdd: RDD[T],
+  func: (TaskContext, Iterator[T]) => U): Array[U]
+runJob[T, U: ClassTag](
+  rdd: RDD[T],
+  processPartition: (TaskContext, Iterator[T]) => U,
+  resultHandler: (Int, U) => Unit): Unit
+runJob[T, U: ClassTag](
+  rdd: RDD[T],
+  func: (TaskContext, Iterator[T]) => U,
+  partitions: Seq[Int]): Array[U]
+runJob[T, U: ClassTag](
+  rdd: RDD[T],
+  func: (TaskContext, Iterator[T]) => U,
+  partitions: Seq[Int],
+  resultHandler: (Int, U) => Unit): Unit
+runJob[T, U: ClassTag](
+  rdd: RDD[T],
+  func: Iterator[T] => U): Array[U]
+runJob[T, U: ClassTag](
+  rdd: RDD[T],
+  processPartition: Iterator[T] => U,
+  resultHandler: (Int, U) => Unit): Unit
+runJob[T, U: ClassTag](
+  rdd: RDD[T],
+  func: Iterator[T] => U,
+  partitions: Seq[Int]): Array[U]
+```
+
+![Executing action](images/spark-runjob.png)
+
+`runJob` [getCallSite](#getCallSite) and [cleans](#clean) the given `func` function.
+
+`runJob` prints out the following INFO message to the logs:
+
+```text
+Starting job: [callSite]
+```
+
+With [spark.logLineage](configuration-properties.md#spark.logLineage) enabled, `runJob` requests the given `RDD` for the [recursive dependencies](rdd/RDD.md#toDebugString) and prints out the following INFO message to the logs:
+
+```text
+RDD's recursive dependencies:
+[toDebugString]
+```
+
+`runJob` requests the [DAGScheduler](#dagScheduler) to [run a job](scheduler/DAGScheduler.md#runJob).
+
+`runJob` requests the [ConsoleProgressBar](#progressBar) to [finishAll](ConsoleProgressBar.md#finishAll) if defined.
+
+In the end, `runJob` requests the given `RDD` to [doCheckpoint](rdd/RDD.md#doCheckpoint).
+
+`runJob` throws an `IllegalStateException` when `SparkContext` is [stopped](#stopped):
+
+```text
+SparkContext has been shutdown
+```
+
+### <span id="runJob-demo"> runJob Demo
+
+`runJob` is essentially executing a `func` function on all or a subset of partitions of an RDD and returning the result as an array (with elements being the results per partition).
+
+```scala
+sc.setLocalProperty("callSite.short", "runJob Demo")
+
+val partitionsNumber = 4
+val rdd = sc.parallelize(
+  Seq("hello world", "nice to see you"),
+  numSlices = partitionsNumber)
+
+import org.apache.spark.TaskContext
+val func = (t: TaskContext, ss: Iterator[String]) => 1
+val result = sc.runJob(rdd, func)
+assert(result.length == partitionsNumber)
+
+sc.clearCallSite()
+```
+
 ## Old Information
 
 SparkContext offers the following functions:
@@ -327,7 +408,7 @@ val sc = new SparkContext(conf)
 When a Spark context starts up you should see the following INFO in the logs (amongst the other messages that come from the Spark services):
 
 ```
-INFO SparkContext: Running Spark version 2.0.0-SNAPSHOT
+Running Spark version 2.0.0-SNAPSHOT
 ```
 
 NOTE: Only one SparkContext may be running in a single JVM (check out https://issues.apache.org/jira/browse/SPARK-2243[SPARK-2243 Support multiple SparkContexts in the same JVM]). Sharing access to a SparkContext in the JVM is the solution to share data within Spark (without relying on other means of data sharing using external data stores).
@@ -679,7 +760,7 @@ The configuration setting `spark.jars` is a comma-separated list of jar paths to
 
 ```
 scala> sc.addJar("build.sbt")
-15/11/11 21:54:54 INFO SparkContext: Added JAR build.sbt at http://192.168.1.4:49427/jars/build.sbt with timestamp 1447275294457
+15/11/11 21:54:54 Added JAR build.sbt at http://192.168.1.4:49427/jars/build.sbt with timestamp 1447275294457
 ```
 
 CAUTION: FIXME Why is HttpFileServer used for addJar?
@@ -690,93 +771,6 @@ SparkContext keeps track of:
 
 [[nextShuffleId]]
 * shuffle ids using `nextShuffleId` internal counter for scheduler:ShuffleMapStage.md[registering shuffle dependencies] to shuffle:ShuffleManager.md[Shuffle Service].
-
-== [[runJob]] Running Job Synchronously
-
-rdd:index.md#actions[RDD actions] run spark-scheduler-ActiveJob.md[jobs] using one of `runJob` methods.
-
-[source, scala]
-----
-runJob[T, U](
-  rdd: RDD[T],
-  func: (TaskContext, Iterator[T]) => U,
-  partitions: Seq[Int],
-  resultHandler: (Int, U) => Unit): Unit
-runJob[T, U](
-  rdd: RDD[T],
-  func: (TaskContext, Iterator[T]) => U,
-  partitions: Seq[Int]): Array[U]
-runJob[T, U](
-  rdd: RDD[T],
-  func: Iterator[T] => U,
-  partitions: Seq[Int]): Array[U]
-runJob[T, U](rdd: RDD[T], func: (TaskContext, Iterator[T]) => U): Array[U]
-runJob[T, U](rdd: RDD[T], func: Iterator[T] => U): Array[U]
-runJob[T, U](
-  rdd: RDD[T],
-  processPartition: (TaskContext, Iterator[T]) => U,
-  resultHandler: (Int, U) => Unit)
-runJob[T, U: ClassTag](
-  rdd: RDD[T],
-  processPartition: Iterator[T] => U,
-  resultHandler: (Int, U) => Unit)
-----
-
-`runJob` executes a function on one or many partitions of a RDD (in a SparkContext space) to produce a collection of values per partition.
-
-NOTE: `runJob` can only work when a SparkContext is _not_ <<stop, stopped>>.
-
-Internally, `runJob` first makes sure that the SparkContext is not <<stop, stopped>>. If it is, you should see the following `IllegalStateException` exception in the logs:
-
-```
-java.lang.IllegalStateException: SparkContext has been shutdown
-  at org.apache.spark.SparkContext.runJob(SparkContext.scala:1893)
-  at org.apache.spark.SparkContext.runJob(SparkContext.scala:1914)
-  at org.apache.spark.SparkContext.runJob(SparkContext.scala:1934)
-  ... 48 elided
-```
-
-`runJob` then <<getCallSite, calculates the call site>> and <<clean, cleans a `func` closure>>.
-
-You should see the following INFO message in the logs:
-
-```
-INFO SparkContext: Starting job: [callSite]
-```
-
-With spark-rdd-lineage.md#spark_logLineage[spark.logLineage] enabled (which is not by default), you should see the following INFO message with spark-rdd-lineage.md#toDebugString[toDebugString] (executed on `rdd`):
-
-```
-INFO SparkContext: RDD's recursive dependencies:
-[toDebugString]
-```
-
-`runJob` requests  scheduler:DAGScheduler.md#runJob[`DAGScheduler` to run a job].
-
-TIP: `runJob` just prepares input parameters for scheduler:DAGScheduler.md#runJob[`DAGScheduler` to run a job].
-
-After `DAGScheduler` is done and the job has finished, `runJob` spark-sparkcontext-ConsoleProgressBar.md#finishAll[stops `ConsoleProgressBar`] and ROOT:rdd-checkpointing.md#doCheckpoint[performs RDD checkpointing of `rdd`].
-
-TIP: For some actions, e.g. `first()` and `lookup()`, there is no need to compute all the partitions of the RDD in a job. And Spark knows it.
-
-[source,scala]
-----
-// RDD to work with
-val lines = sc.parallelize(Seq("hello world", "nice to see you"))
-
-import org.apache.spark.TaskContext
-scala> sc.runJob(lines, (t: TaskContext, i: Iterator[String]) => 1) // <1>
-res0: Array[Int] = Array(1, 1)  // <2>
-----
-<1> Run a job using `runJob` on `lines` RDD with a function that returns 1 for every partition (of `lines` RDD).
-<2> What can you say about the number of partitions of the `lines` RDD? Is your result `res0` different than mine? Why?
-
-TIP: Read spark-TaskContext.md[TaskContext].
-
-Running a job is essentially executing a `func` function on all or a subset of partitions in an `rdd` RDD and returning the result as an array (with elements being the results per partition).
-
-.Executing action
-image::spark-runjob.png[align="center"]
 
 == [[stop]][[stopping]] Stopping SparkContext -- `stop` Method
 
@@ -790,7 +784,7 @@ stop(): Unit
 Internally, `stop` enables `stopped` internal flag. If already stopped, you should see the following INFO message in the logs:
 
 ```
-INFO SparkContext: SparkContext already stopped.
+SparkContext already stopped.
 ```
 
 `stop` then does the following:
@@ -805,7 +799,7 @@ INFO SparkContext: SparkContext already stopped.
 8. Requests spark-history-server:EventLoggingListener.md#stop[`EventLoggingListener` to stop]
 9. Requests scheduler:DAGScheduler.md#stop[`DAGScheduler` to stop]
 10. Requests rpc:index.md#stop[RpcEnv to stop `HeartbeatReceiver` endpoint]
-11. Requests spark-sparkcontext-ConsoleProgressBar.md#stop[`ConsoleProgressBar` to stop]
+11. Requests [`ConsoleProgressBar` to stop](ConsoleProgressBar.md#stop)
 12. Clears the reference to `TaskScheduler`, i.e. `_taskScheduler` is `null`
 13. Requests core:SparkEnv.md#stop[`SparkEnv` to stop] and clears `SparkEnv`
 14. Clears yarn/spark-yarn-client.md#SPARK_YARN_MODE[`SPARK_YARN_MODE` flag]
@@ -814,7 +808,7 @@ INFO SparkContext: SparkContext already stopped.
 Ultimately, you should see the following INFO message in the logs:
 
 ```
-INFO SparkContext: Successfully stopped SparkContext
+Successfully stopped SparkContext
 ```
 
 == [[addSparkListener]] Registering SparkListener -- `addSparkListener` Method
@@ -1101,7 +1095,7 @@ statusStore is used when:
 
 * SparkContext is requested to <<getRDDStorageInfo, getRDDStorageInfo>>
 
-* ConsoleProgressBar is requested to ROOT:spark-sparkcontext-ConsoleProgressBar.md#refresh[refresh]
+* `ConsoleProgressBar` is requested to [refresh](ConsoleProgressBar.md#refresh)
 
 * SharedState (Spark SQL) is requested for a SQLAppStatusStore
 
