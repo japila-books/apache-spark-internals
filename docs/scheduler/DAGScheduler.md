@@ -93,23 +93,54 @@ runJob[T, U](
   properties: Properties): Unit
 ```
 
-`runJob` submits an action job to the `DAGScheduler` and waits for a result.
+`runJob` [submits a job](#submitJob) and waits until a result is available.
 
-Internally, `runJob` executes [submitJob](#submitJob) and then waits until a result comes using [JobWaiter](spark-scheduler-JobWaiter.md).
-
-When the job succeeds, `runJob` prints out the following INFO message to the logs:
+`runJob` prints out the following INFO message to the logs when the job has finished successfully:
 
 ```text
 Job [jobId] finished: [callSite], took [time] s
 ```
 
-When the job fails, `runJob` prints out the following INFO message to the logs and the exception (that led to the failure) is thrown.
+`runJob` prints out the following INFO message to the logs when the job has failed:
 
 ```text
 Job [jobId] failed: [callSite], took [time] s
 ```
 
 `runJob` is used when `SparkContext` is requested to [run a job](../SparkContext.md#runJob).
+
+## <span id="submitJob"> Submitting Job
+
+```scala
+submitJob[T, U](
+  rdd: RDD[T],
+  func: (TaskContext, Iterator[T]) => U,
+  partitions: Seq[Int],
+  callSite: CallSite,
+  resultHandler: (Int, U) => Unit,
+  properties: Properties): JobWaiter[U]
+```
+
+`submitJob` increments the [nextJobId](#nextJobId) internal counter.
+
+`submitJob` creates a [JobWaiter](JobWaiter.md) for the (number of) partitions and the given `resultHandler` function.
+
+`submitJob` requests the [DAGSchedulerEventProcessLoop](#eventProcessLoop) to post a [JobSubmitted](DAGSchedulerEvent.md#JobSubmitted).
+
+In the end, `submitJob` returns the `JobWaiter`.
+
+For empty partitions (no partitions to compute), `submitJob` requests the [LiveListenerBus](#listenerBus) to post a [SparkListenerJobStart](../SparkListenerEvent.md#SparkListenerJobStart) and [SparkListenerJobEnd](../SparkListenerEvent.md#SparkListenerJobEnd) (with `JobSucceeded` result marker) events and returns a [JobWaiter](JobWaiter.md) with no tasks to wait for.
+
+`submitJob` throws an `IllegalArgumentException` when the partitions indices are not among the [partitions](../rdd/RDD.md#partitions) of the given `RDD`:
+
+```text
+Attempting to access a non-existent partition: [p]. Total number of partitions: [maxPartitions]
+```
+
+`submitJob` is used when:
+
+* `SparkContext` is requested to [submit a job](../SparkContext.md#submitJob)
+* `DAGScheduler` is requested to [run a job](#runJob)
 
 ## <span id="cacheLocs"><span id="clearCacheLocs"> Partition Placement Preferences
 
@@ -1049,11 +1080,17 @@ The lookup table of all stages per `ActiveJob` id
 
 [DAGSchedulerSource](../metrics/DAGSchedulerSource.md)
 
-### <span id="nextJobId"> nextJobId
+### <span id="nextJobId"> nextJobId Counter
 
-The next job id counting from `0`.
+```scala
+nextJobId: AtomicInteger
+```
 
-Used when DAGScheduler <<submitJob, submits a job>> and <<submitMapStage, a map stage>>, and <<runApproximateJob, runs an approximate job>>.
+`nextJobId` is a Java [AtomicInteger]({{ java.javadoc }}/java/util/concurrent/atomic/AtomicInteger.html) for job IDs.
+
+`nextJobId` starts at `0`.
+
+Used when `DAGScheduler` is requested for [numTotalJobs](#numTotalJobs), to [submitJob](#submitJob), [runApproximateJob](#runApproximateJob) and [submitMapStage](#submitMapStage).
 
 ### <span id="nextStageId"> nextStageId
 
@@ -1093,7 +1130,7 @@ Used when `SparkContext` is requested to [cancel all running or scheduled Spark 
 
 Posts a [JobCancelled](DAGSchedulerEvent.md#JobCancelled)
 
-Used when [SparkContext](../SparkContext.md#cancelJob) or [JobWaiter](spark-scheduler-JobWaiter.md) are requested to cancel a Spark job
+Used when [SparkContext](../SparkContext.md#cancelJob) or [JobWaiter](JobWaiter.md) are requested to cancel a Spark job
 
 ### <span id="cancelJobGroup"> Posting JobGroupCancelled
 
@@ -1130,15 +1167,6 @@ Used when `SparkContext` is requested to [run an approximate job](../SparkContex
 Posts a [SpeculativeTaskSubmitted](DAGSchedulerEvent.md#SpeculativeTaskSubmitted)
 
 Used when `TaskSetManager` is requested to [checkAndSubmitSpeculatableTask](TaskSetManager.md#checkAndSubmitSpeculatableTask)
-
-### <span id="submitJob"> Posting JobSubmitted
-
-Posts a [JobSubmitted](DAGSchedulerEvent.md#JobSubmitted)
-
-Used when:
-
-* `SparkContext` is requested to [submits a job](../SparkContext.md#submitJob)
-* `DAGScheduler` is requested to [run a job](#runJob)
 
 ### <span id="submitMapStage"> Posting MapStageSubmitted
 

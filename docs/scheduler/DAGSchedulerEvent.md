@@ -1,4 +1,4 @@
-= [[DAGSchedulerEvent]] DAGScheduler Events
+# DAGSchedulerEvents
 
 == [[AllJobsCancelled]] AllJobsCancelled
 

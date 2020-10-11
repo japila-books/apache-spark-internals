@@ -108,7 +108,7 @@ runJob[T, U: ClassTag](
 
 ![Executing action](images/spark-runjob.png)
 
-`runJob` [getCallSite](#getCallSite) and [cleans](#clean) the given `func` function.
+`runJob` finds the [call site](#getCallSite) and [cleans up](#clean) the given `func` function.
 
 `runJob` prints out the following INFO message to the logs:
 
@@ -153,6 +153,51 @@ val result = sc.runJob(rdd, func)
 assert(result.length == partitionsNumber)
 
 sc.clearCallSite()
+```
+
+## <span id="getCallSite"> Call Site
+
+```scala
+getCallSite(): CallSite
+```
+
+`getCallSite`...FIXME
+
+`getCallSite` is used when:
+
+* `SparkContext` is requested to [broadcast](#broadcast), [runJob](#runJob), [runApproximateJob](#runApproximateJob), [submitJob](#submitJob) and [submitMapStage](#submitMapStage)
+* `AsyncRDDActions` is requested to [takeAsync](rdd/AsyncRDDActions.md#takeAsync)
+* `RDD` is [created](rdd/RDD.md#creationSite)
+
+## <span id="clean"> Closure Cleaning
+
+```scala
+clean(
+  f: F,
+  checkSerializable: Boolean = true): F
+```
+
+`clean` cleans up the given `f` closure (using `ClosureCleaner.clean` utility).
+
+!!! tip
+    Enable `DEBUG` logging level for `org.apache.spark.util.ClosureCleaner` logger to see what happens inside the class.
+
+    Add the following line to `conf/log4j.properties`:
+
+    ```
+    log4j.logger.org.apache.spark.util.ClosureCleaner=DEBUG
+    ```
+
+    Refer to [Logging](spark-logging.md).
+
+With `DEBUG` logging level you should see the following messages in the logs:
+
+```text
++++ Cleaning closure [func] ([func.getClass.getName]) +++
+ + declared fields: [declaredFields.size]
+     [field]
+ ...
++++ closure [func] ([func.getClass.getName]) is now cleaned +++
 ```
 
 ## Old Information
@@ -591,7 +636,7 @@ submitJob[T, U, R](
 
 `submitJob` submits a job in an asynchronous, non-blocking way to scheduler:DAGScheduler.md#submitJob[DAGScheduler].
 
-It cleans the `processPartition` input function argument and returns an instance of spark-rdd-actions.md#FutureAction[SimpleFutureAction] that holds the scheduler:spark-scheduler-JobWaiter.md[JobWaiter] instance.
+It cleans the `processPartition` input function argument and returns an instance of spark-rdd-actions.md#FutureAction[SimpleFutureAction] that holds the [JobWaiter](scheduler/JobWaiter.md) instance.
 
 CAUTION: FIXME What are `resultFunc`?
 
@@ -858,48 +903,6 @@ LogManager.getLogger("org").setLevel(Level.OFF)
 
 ====
 
-== [[clean]][[closure-cleaning]] Closure Cleaning -- `clean` Method
-
-[source, scala]
-----
-clean(f: F, checkSerializable: Boolean = true): F
-----
-
-Every time an action is called, Spark cleans up the closure, i.e. the body of the action, before it is serialized and sent over the wire to executors.
-
-SparkContext comes with `clean(f: F, checkSerializable: Boolean = true)` method that does this. It in turn calls `ClosureCleaner.clean` method.
-
-Not only does `ClosureCleaner.clean` method clean the closure, but also does it transitively, i.e. referenced closures are cleaned transitively.
-
-A closure is considered serializable as long as it does not explicitly reference unserializable objects. It does so by traversing the hierarchy of enclosing closures and null out any references that are not actually used by the starting closure.
-
-[TIP]
-====
-Enable `DEBUG` logging level for `org.apache.spark.util.ClosureCleaner` logger to see what happens inside the class.
-
-Add the following line to `conf/log4j.properties`:
-
-```
-log4j.logger.org.apache.spark.util.ClosureCleaner=DEBUG
-```
-
-Refer to spark-logging.md[Logging].
-====
-
-With `DEBUG` logging level you should see the following messages in the logs:
-
-```
-+++ Cleaning closure [func] ([func.getClass.getName]) +++
- + declared fields: [declaredFields.size]
-     [field]
- ...
-+++ closure [func] ([func.getClass.getName]) is now cleaned +++
-```
-
-Serialization is verified using a new instance of `Serializer` (as core:SparkEnv.md#closureSerializer[closure Serializer]). Refer to spark-serialization.md[Serialization].
-
-CAUTION: FIXME an example, please.
-
 == [[hadoopConfiguration]] Hadoop Configuration
 
 While a <<creating-instance, SparkContext is being created>>, so is a Hadoop configuration (as an instance of https://hadoop.apache.org/docs/current/api/org/apache/hadoop/conf/Configuration.html[org.apache.hadoop.conf.Configuration] that is available as `_hadoopConfiguration`).
@@ -953,10 +956,6 @@ Internally, `submitMapStage` <<getCallSite, calculates the call site>> first and
 NOTE: Interestingly, `submitMapStage` is used exclusively when Spark SQL's spark-sql-SparkPlan-ShuffleExchange.md[ShuffleExchange] physical operator is executed.
 
 NOTE: `submitMapStage` _seems_ related to scheduler:DAGScheduler.md#adaptive-query-planning[Adaptive Query Planning / Adaptive Scheduling].
-
-== [[getCallSite]] Calculating Call Site -- `getCallSite` Method
-
-CAUTION: FIXME
 
 == [[cancelJobGroup]] Cancelling Job Group -- `cancelJobGroup` Method
 

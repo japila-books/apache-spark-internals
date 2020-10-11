@@ -1,4 +1,4 @@
-= SparkListenerBus
+# SparkListenerBus
 
 `SparkListenerBus` is a `private[spark]` <<ListenerBus, ListenerBus>> for ROOT:SparkListener.md#SparkListenerInterface[SparkListenerInterface] listeners that process ROOT:SparkListener.md#SparkListenerEvent[SparkListenerEvent] events.
 

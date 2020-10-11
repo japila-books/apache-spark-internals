@@ -2,7 +2,7 @@
 
 ## <span id="spark.ui.showConsoleProgress"> spark.ui.showConsoleProgress
 
-Enables [ConsoleProgressBar](../ConsoleProgressBar.md) (`true`) or not (`false`).
+Enables [ConsoleProgressBar](ConsoleProgressBar.md)
 
 Default: `true`
 
