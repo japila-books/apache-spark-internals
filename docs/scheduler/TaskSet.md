@@ -1,6 +1,6 @@
-= [[TaskSet]] TaskSet
+# TaskSet
 
-*TaskSet* is a <<tasks, collection of independent tasks>> of a single <<stageId, stage>> (and a <<stageAttemptId, stage execution attempt>>) that are *missing* (_uncomputed_), i.e. for which computation results are unavailable (as RDD blocks on storage:BlockManager.md[BlockManagers] on executors).
+`TaskSet` is a <<tasks, collection of independent tasks>> of a single <<stageId, stage>> (and a <<stageAttemptId, stage execution attempt>>) that are *missing* (_uncomputed_), i.e. for which computation results are unavailable (as RDD blocks on storage:BlockManager.md[BlockManagers] on executors).
 
 In other words, a TaskSet represents the missing partitions of a stage that (as tasks) can be run right away based on the data that is already on the cluster, e.g. map output files from previous stages, though they may fail if this data becomes unavailable.
 

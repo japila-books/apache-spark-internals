@@ -131,7 +131,7 @@ onTaskStart(taskStart: SparkListenerTaskStart): Unit
 
 `onTaskStart` updates `StageUIData` and `JobUIData`, and registers a new `TaskUIData`.
 
-`onTaskStart` takes spark-scheduler-TaskInfo.md[TaskInfo] from the input `taskStart`.
+`onTaskStart` takes [TaskInfo](../scheduler/TaskInfo.md) from the input `taskStart`.
 
 `onTaskStart` looks the `StageUIData` for the stage and stage attempt ids up (in <<stageIdToData, stageIdToData>> registry).
 
@@ -148,7 +148,7 @@ onTaskEnd(taskEnd: SparkListenerTaskEnd): Unit
 
 `onTaskEnd` updates the `StageUIData` (and `TaskUIData`), `ExecutorSummary`, and `JobUIData`.
 
-`onTaskEnd` takes spark-scheduler-TaskInfo.md[TaskInfo] from the input `taskEnd`.
+`onTaskEnd` takes [TaskInfo](../scheduler/TaskInfo.md) from the input `taskEnd`.
 
 NOTE: `onTaskEnd` does its processing when the `TaskInfo` is available and `stageAttemptId` is not `-1`.
 

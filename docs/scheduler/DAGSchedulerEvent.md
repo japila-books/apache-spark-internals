@@ -1,110 +1,112 @@
-# DAGSchedulerEvents
+# DAGSchedulerEvent
 
-== [[AllJobsCancelled]] AllJobsCancelled
+`DAGSchedulerEvent` is an abstraction of events that are handled by the [DAGScheduler](DAGScheduler.md).
 
-AllJobsCancelled event carries no extra information.
+## <span id="AllJobsCancelled"> AllJobsCancelled
 
-Posted when DAGScheduler is requested to scheduler:DAGScheduler.md#cancelAllJobs[cancelAllJobs]
+Carries no extra information
 
-Event handler: scheduler:DAGScheduler.md#doCancelAllJobs[doCancelAllJobs]
+Posted when `DAGScheduler` is requested to [cancelAllJobs](DAGScheduler.md#cancelAllJobs)
 
-== [[BeginEvent]] BeginEvent
+Event handler: [doCancelAllJobs](DAGScheduler.md#doCancelAllJobs)
 
-BeginEvent event carries the following:
+## <span id="BeginEvent"> BeginEvent
 
-* scheduler:Task.md[Task]
-* scheduler:spark-scheduler-TaskInfo.md[TaskInfo]
+Carries the following:
 
-Posted when DAGScheduler is requested to scheduler:DAGScheduler.md#taskStarted[taskStarted]
+* [Task](Task.md)
+* [TaskInfo](TaskInfo.md)
 
-Event handler: scheduler:DAGScheduler.md#handleBeginEvent[handleBeginEvent]
+Posted when `DAGScheduler` is requested to [taskStarted](DAGScheduler.md#taskStarted)
 
-== [[CompletionEvent]] CompletionEvent
+Event handler: [handleBeginEvent](DAGScheduler.md#handleBeginEvent)
 
-CompletionEvent event carries the following:
+## <span id="CompletionEvent"> CompletionEvent
 
-* scheduler:Task.md[Task]
+Carries the following:
+
+* [Task](Task.md)
 * Reason
 * Result (value computed)
 * Accumulator updates
-* scheduler:spark-scheduler-TaskInfo.md[TaskInfo]
+* [TaskInfo](TaskInfo.md)
 
-Posted when DAGScheduler is requested to scheduler:DAGScheduler.md#taskEnded[taskEnded]
+Posted when `DAGScheduler` is requested to [taskEnded](DAGScheduler.md#taskEnded)
 
-Event handler: scheduler:DAGScheduler.md#handleTaskCompletion[handleTaskCompletion]
+Event handler: [handleTaskCompletion](DAGScheduler.md#handleTaskCompletion)
 
-== [[ExecutorAdded]] ExecutorAdded
+## <span id="ExecutorAdded"> ExecutorAdded
 
-ExecutorAdded event carries the following:
+Carries the following:
 
 * Executor ID
 * Host name
 
-Posted when DAGScheduler is requested to scheduler:DAGScheduler.md#executorAdded[executorAdded]
+Posted when `DAGScheduler` is requested to [executorAdded](DAGScheduler.md#executorAdded)
 
-Event handler: scheduler:DAGScheduler.md#handleExecutorAdded[handleExecutorAdded]
+Event handler: [handleExecutorAdded](DAGScheduler.md#handleExecutorAdded)
 
-== [[ExecutorLost]] ExecutorLost
+## <span id="ExecutorLost"> ExecutorLost
 
-ExecutorLost event carries the following:
+Carries the following:
 
 * Executor ID
 * Reason
 
-Posted when DAGScheduler is requested to scheduler:DAGScheduler.md#executorLost[executorLost]
+Posted when `DAGScheduler` is requested to [executorLost](DAGScheduler.md#executorLost)
 
-Event handler: scheduler:DAGScheduler.md#handleExecutorLost[handleExecutorLost]
+Event handler: [handleExecutorLost](DAGScheduler.md#handleExecutorLost)
 
-== [[GettingResultEvent]] GettingResultEvent
+## <span id="GettingResultEvent"> GettingResultEvent
 
-GettingResultEvent event carries the following:
+Carries the following:
 
-* scheduler:spark-scheduler-TaskInfo.md[TaskInfo]
+* [TaskInfo](TaskInfo.md)
 
-Posted when DAGScheduler is requested to scheduler:DAGScheduler.md#taskGettingResult[taskGettingResult]
+Posted when `DAGScheduler` is requested to [taskGettingResult](DAGScheduler.md#taskGettingResult)
 
-Event handler: scheduler:DAGScheduler.md#handleGetTaskResult[handleGetTaskResult]
+Event handler: [handleGetTaskResult](DAGScheduler.md#handleGetTaskResult)
 
-== [[JobCancelled]] JobCancelled
+## <span id="JobCancelled"> JobCancelled
 
 JobCancelled event carries the following:
 
 * Job ID
 * Reason (optional)
 
-Posted when DAGScheduler is requested to scheduler:DAGScheduler.md#cancelJob[cancelJob]
+Posted when `DAGScheduler` is requested to [cancelJob](DAGScheduler.md#cancelJob)
 
-Event handler: scheduler:DAGScheduler.md#handleJobCancellation[handleJobCancellation]
+Event handler: [handleJobCancellation](DAGScheduler.md#handleJobCancellation)
 
-== [[JobGroupCancelled]] JobGroupCancelled
+## <span id="JobGroupCancelled"> JobGroupCancelled
 
-JobGroupCancelled event carries the following:
+Carries the following:
 
 * Group ID
 
-Posted when DAGScheduler is requested to scheduler:DAGScheduler.md#cancelJobGroup[cancelJobGroup]
+Posted when `DAGScheduler` is requested to [cancelJobGroup](DAGScheduler.md#cancelJobGroup)
 
-Event handler: scheduler:DAGScheduler.md#handleJobGroupCancelled[handleJobGroupCancelled]
+Event handler: [handleJobGroupCancelled](DAGScheduler.md#handleJobGroupCancelled)
 
-== [[JobSubmitted]] JobSubmitted
+## <span id="JobSubmitted"> JobSubmitted
 
-JobSubmitted event carries the following:
+Carries the following:
 
 * Job ID
-* rdd:RDD.md[RDD]
+* [RDD](../rdd/RDD.md)
 * Partition function (`(TaskContext, Iterator[_]) => _`)
 * Partitions to compute
 * CallSite
 * [JobListener](JobListener.md) to keep updated about the status of the stage execution
 * Execution properties
 
-Posted when DAGScheduler is requested to scheduler:DAGScheduler.md#submitJob[submit a job], scheduler:DAGScheduler.md#runApproximateJob[run an approximate job] and scheduler:DAGScheduler.md#handleJobSubmitted[handleJobSubmitted]
+Posted when `DAGScheduler` is requested to [submit a job](DAGScheduler.md#submitJob), [run an approximate job](DAGScheduler.md#runApproximateJob) and [handleJobSubmitted](DAGScheduler.md#handleJobSubmitted)
 
-Event handler: scheduler:DAGScheduler.md#handleJobSubmitted[handleJobSubmitted]
+Event handler: [handleJobSubmitted](DAGScheduler.md#handleJobSubmitted)
 
-== [[MapStageSubmitted]] MapStageSubmitted
+## <span id="MapStageSubmitted"> MapStageSubmitted
 
-MapStageSubmitted event carries the following:
+Carries the following:
 
 * Job ID
 * [ShuffleDependency](../rdd/ShuffleDependency.md)
@@ -112,59 +114,59 @@ MapStageSubmitted event carries the following:
 * [JobListener](JobListener.md)
 * Execution properties
 
-Posted when DAGScheduler is requested to scheduler:DAGScheduler.md#submitMapStage[submitMapStage]
+Posted when `DAGScheduler` is requested to [submitMapStage](DAGScheduler.md#submitMapStage)
 
-Event handler: scheduler:DAGScheduler.md#handleMapStageSubmitted[handleMapStageSubmitted]
+Event handler: [handleMapStageSubmitted](DAGScheduler.md#handleMapStageSubmitted)
 
-== [[ResubmitFailedStages]] ResubmitFailedStages
+## <span id="ResubmitFailedStages"> ResubmitFailedStages
 
-ResubmitFailedStages event carries no extra information.
+Carries no extra information.
 
-Posted when DAGScheduler is requested to scheduler:DAGScheduler.md#handleTaskCompletion[handleTaskCompletion]
+Posted when `DAGScheduler` is requested to [handleTaskCompletion](DAGScheduler.md#handleTaskCompletion)
 
-Event handler: scheduler:DAGScheduler.md#resubmitFailedStages[resubmitFailedStages]
+Event handler: [resubmitFailedStages](DAGScheduler.md#resubmitFailedStages)
 
-== [[SpeculativeTaskSubmitted]] SpeculativeTaskSubmitted
+## <span id="SpeculativeTaskSubmitted"> SpeculativeTaskSubmitted
 
-SpeculativeTaskSubmitted event carries the following:
+Carries the following:
 
-* scheduler:Task.md[Task]
+* [Task](Task.md)
 
-Posted when DAGScheduler is requested to scheduler:DAGScheduler.md#speculativeTaskSubmitted[speculativeTaskSubmitted]
+Posted when `DAGScheduler` is requested to [speculativeTaskSubmitted](DAGScheduler.md#speculativeTaskSubmitted)
 
-Event handler: scheduler:DAGScheduler.md#handleSpeculativeTaskSubmitted[handleSpeculativeTaskSubmitted]
+Event handler: [handleSpeculativeTaskSubmitted](DAGScheduler.md#handleSpeculativeTaskSubmitted)
 
-== [[StageCancelled]] StageCancelled
+## <span id="StageCancelled"> StageCancelled
 
-StageCancelled event carries the following:
+Carries the following:
 
 * Stage ID
 * Reason (optional)
 
-Posted when DAGScheduler is requested to scheduler:DAGScheduler.md#cancelStage[cancelStage]
+Posted when `DAGScheduler` is requested to [cancelStage](DAGScheduler.md#cancelStage)
 
-Event handler: scheduler:DAGScheduler.md#handleStageCancellation[handleStageCancellation]
+Event handler: [handleStageCancellation](DAGScheduler.md#handleStageCancellation)
 
-== [[TaskSetFailed]] TaskSetFailed
+## <span id="TaskSetFailed"> TaskSetFailed
 
-TaskSetFailed event carries the following:
+Carries the following:
 
-* scheduler:TaskSet.md[TaskSet]
+* [TaskSet](TaskSet.md)
 * Reason
 * Exception (optional)
 
-Posted when DAGScheduler is requested to scheduler:DAGScheduler.md#taskSetFailed[taskSetFailed]
+Posted when `DAGScheduler` is requested to [taskSetFailed](DAGScheduler.md#taskSetFailed)
 
-Event handler: scheduler:DAGScheduler.md#handleTaskSetFailed[handleTaskSetFailed]
+Event handler: [handleTaskSetFailed](DAGScheduler.md#handleTaskSetFailed)
 
-== [[WorkerRemoved]] WorkerRemoved
+## <span id="WorkerRemoved"> WorkerRemoved
 
-WorkerRemoved event carries the following:
+Carries the following:
 
 * Worked ID
 * Host name
 * Reason
 
-Posted when DAGScheduler is requested to scheduler:DAGScheduler.md#workerRemoved[workerRemoved]
+Posted when `DAGScheduler` is requested to [workerRemoved](DAGScheduler.md#workerRemoved)
 
-Event handler: scheduler:DAGScheduler.md#handleWorkerRemoved[handleWorkerRemoved]
+Event handler: [handleWorkerRemoved](DAGScheduler.md#handleWorkerRemoved)

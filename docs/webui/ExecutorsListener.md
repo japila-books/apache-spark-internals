@@ -163,7 +163,7 @@ onTaskEnd(taskEnd: SparkListenerTaskEnd): Unit
 
 NOTE: `onTaskEnd` is part of ROOT:SparkListener.md#onTaskEnd[SparkListener contract] to announce that a task has ended.
 
-`onTaskEnd` takes spark-scheduler-TaskInfo.md[TaskInfo] from the input `taskEnd` (if available).
+`onTaskEnd` takes [TaskInfo](../scheduler/TaskInfo.md) from the input `taskEnd` (if available).
 
 Depending on the reason for `SparkListenerTaskEnd` `onTaskEnd` does the following:
 

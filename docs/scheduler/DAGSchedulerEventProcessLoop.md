@@ -32,7 +32,7 @@ Event handler: <<handleTaskCompletion, handleTaskCompletion>>
 * [[CompletionEvent-reason]] `TaskEndReason`
 * [[CompletionEvent-result]] Result of executing the task
 * [[CompletionEvent-accumUpdates]] <<spark-accumulators.md#, AccumulatorV2s>>
-* [[CompletionEvent-taskInfo]] <<spark-scheduler-TaskInfo.md#, TaskInfo>>
+* [[CompletionEvent-taskInfo]] [TaskInfo](TaskInfo.md)
 
 | <<ExecutorAdded, ExecutorAdded>> | <<handleExecutorAdded, handleExecutorAdded>> | DAGScheduler was informed (through scheduler:DAGScheduler.md#executorAdded[executorAdded]) that an executor was spun up on a host.
 
@@ -342,7 +342,7 @@ NOTE: `CompletionEvent` holds contextual information about the completed task.
 | spark-accumulators.md[Accumulators] with...FIXME
 
 | `taskInfo`
-| spark-scheduler-TaskInfo.md[TaskInfo]
+| [TaskInfo](TaskInfo.md)
 |===
 
 `handleTaskCompletion` starts by scheduler:OutputCommitCoordinator.md#taskCompleted[notifying `OutputCommitCoordinator` that a task completed].

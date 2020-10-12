@@ -1,4 +1,4 @@
-== [[TaskSetManager]] TaskSetManager
+# TaskSetManager
 
 `TaskSetManager` is a <<schedulable, Schedulable>> that manages scheduling of tasks of a <<taskSet, TaskSet>>.
 
@@ -104,7 +104,7 @@ The number of task copies of a task is increased when <<resourceOffer, finds a t
 | Current scheduler:MapOutputTracker.md#getEpoch[map output tracker epoch].
 
 | [[failedExecutors]] `failedExecutors`
-| Lookup table of spark-scheduler-TaskInfo.md[TaskInfo] indices that failed to executor ids and the time of the failure.
+| Lookup table of [TaskInfo](TaskInfo.md) indices that failed to executor ids and the time of the failure.
 
 Used in <<handleFailedTask, handleFailedTask>>.
 
@@ -192,10 +192,10 @@ The flag for a task is turned on, i.e. `true`, when a task finishes <<handleSucc
 A flag is explicitly turned off only for <<executorLost, `ShuffleMapTask` tasks when their executor is lost>>.
 
 | [[taskAttempts]] `taskAttempts`
-| Registry of spark-scheduler-TaskInfo.md[TaskInfos] per every task attempt per task.
+| Registry of [TaskInfo](TaskInfo.md)s per every task attempt per task.
 
 | [[taskInfos]] `taskInfos`
-| Registry of spark-scheduler-TaskInfo.md[TaskInfos] per task id.
+| Registry of [TaskInfo](TaskInfo.md)s per task id.
 
 Updated with the task (id) and the corresponding `TaskInfo` when `TaskSetManager` <<resourceOffer, finds a task for execution (given resource offer)>>.
 
@@ -325,7 +325,7 @@ It means that it can only be a leaf in the tree of Schedulables (with spark-sche
 handleTaskGettingResult(tid: Long): Unit
 ----
 
-`handleTaskGettingResult` finds spark-scheduler-TaskInfo.md[TaskInfo] for `tid` task in <<taskInfos, taskInfos>> internal registry and marks it as fetching indirect task result. It then scheduler:DAGScheduler.md#taskGettingResult[notifies `DAGScheduler`].
+`handleTaskGettingResult` finds [TaskInfo](TaskInfo.md) for `tid` task in <<taskInfos, taskInfos>> internal registry and marks it as fetching indirect task result. It then scheduler:DAGScheduler.md#taskGettingResult[notifies `DAGScheduler`].
 
 NOTE: `handleTaskGettingResult` is executed when scheduler:TaskSchedulerImpl.md#handleTaskGettingResult[`TaskSchedulerImpl` is notified about fetching indirect task result].
 
@@ -431,7 +431,7 @@ If a task (index) is found, `resourceOffer` takes the scheduler:Task.md[Task] (f
 
 `resourceOffer` increments the <<copiesRunning, number of the copies of the task that are currently running>> and finds the task attempt number (as the size of <<taskAttempts, taskAttempts>> entries for the task index).
 
-`resourceOffer` spark-scheduler-TaskInfo.md#creating-instance[creates a `TaskInfo`] that is then registered in <<taskInfos, taskInfos>> and <<taskAttempts, taskAttempts>>.
+`resourceOffer` creates a [TaskInfo](TaskInfo.md) that is then registered in <<taskInfos, taskInfos>> and <<taskAttempts, taskAttempts>>.
 
 If the maximum acceptable task locality is not `NO_PREF`, `resourceOffer` <<getLocalityIndex, getLocalityIndex>> (using the task's locality) and records it as <<currentLocalityIndex, currentLocalityIndex>> with the current time as <<lastLaunchTime, lastLaunchTime>>.
 
@@ -614,7 +614,7 @@ handleSuccessfulTask(
 
 NOTE: `handleSuccessfulTask` is executed after scheduler:TaskSchedulerImpl.md#handleSuccessfulTask[`TaskSchedulerImpl` has been informed that `tid` task finished successfully (and the task result was deserialized)].
 
-Internally, `handleSuccessfulTask` finds spark-scheduler-TaskInfo.md[TaskInfo] (in <<taskInfos, taskInfos>> internal registry) and marks it as `FINISHED`.
+Internally, `handleSuccessfulTask` finds [TaskInfo](TaskInfo.md) (in <<taskInfos, taskInfos>> internal registry) and marks it as `FINISHED`.
 
 It then removes `tid` task from <<runningTasksSet, runningTasksSet>> internal registry.
 
@@ -787,14 +787,14 @@ handleFailedTask(
   reason: TaskFailedReason): Unit
 ----
 
-`handleFailedTask` finds spark-scheduler-TaskInfo.md[TaskInfo] of `tid` task in <<taskInfos, taskInfos>> internal registry and simply quits if the task is already marked as failed or killed.
+`handleFailedTask` finds [TaskInfo](TaskInfo.md) of `tid` task in <<taskInfos, taskInfos>> internal registry and simply quits if the task is already marked as failed or killed.
 
 .TaskSetManager Gets Notified that Task Has Failed
 image::TaskSetManager-handleFailedTask.png[align="center"]
 
 NOTE: `handleFailedTask` is executed after scheduler:TaskSchedulerImpl.md#handleFailedTask[`TaskSchedulerImpl` has been informed that `tid` task failed] or <<executorLost, an executor was lost>>. In either case, tasks could not finish successfully or could not report their status back.
 
-`handleFailedTask` <<removeRunningTask, unregisters `tid` task from the internal registry of running tasks>> and then spark-scheduler-TaskInfo.md#markFinished[marks the corresponding `TaskInfo` as finished] (passing in the input `state`).
+`handleFailedTask` <<removeRunningTask, unregisters `tid` task from the internal registry of running tasks>> and then [marks the corresponding `TaskInfo` as finished](TaskInfo.md#markFinished) (passing in the input `state`).
 
 `handleFailedTask` decrements the number of the running copies of `tid` task (in <<copiesRunning, copiesRunning>> internal registry).
 
@@ -815,7 +815,7 @@ Lost task [id] in stage [taskSetId] (TID [tid], [host], executor [executorId]): 
 
 NOTE: Description of how the final failure exception is "computed" was moved to respective sections below to make the reading slightly more pleasant and comprehensible.
 
-`handleFailedTask` scheduler:DAGScheduler.md#taskEnded[informs `DAGScheduler` that `tid` task has ended] (passing on the `Task` instance from <<tasks, tasks>> internal registry, the input `reason`, `null` result, calculated `accumUpdates` per failure, and the spark-scheduler-TaskInfo.md[TaskInfo]).
+`handleFailedTask` scheduler:DAGScheduler.md#taskEnded[informs `DAGScheduler` that `tid` task has ended] (passing on the `Task` instance from <<tasks, tasks>> internal registry, the input `reason`, `null` result, calculated `accumUpdates` per failure, and the [TaskInfo](TaskInfo.md)).
 
 IMPORTANT: This is the moment when `TaskSetManager` informs `DAGScheduler` that a task has ended.
 
