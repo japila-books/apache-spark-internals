@@ -1,11 +1,10 @@
-= [[Stage]] Stage
+# Stage
 
-A *stage* is a physical unit of execution. It is a step in a physical execution plan.
+`Stage` is a physical unit of execution. It is a step in a physical execution plan.
 
 A stage is a set of parallel tasks -- one task per partition (of an RDD that computes partial results of a function executed as part of a Spark job).
 
-.Stage, tasks and submitting a job
-image::stage-tasks.png[align="center"]
+![Stage, tasks and submitting a job](../images/scheduler/stage-tasks.png)
 
 In other words, a Spark job is a computation with that computation sliced into stages.
 
@@ -16,8 +15,7 @@ A stage can only work on the partitions of a single RDD (identified by `rdd`), b
 
 Submitting a stage can therefore trigger execution of a series of dependent parent stages (refer to scheduler:DAGScheduler.md#runJob[RDDs, Job Execution, Stages, and Partitions]).
 
-.Submitting a job triggers execution of the stage and its parent stages
-image::job-stage.png[align="center"]
+![Submitting a job triggers execution of the stage and its parent stages](../images/scheduler/job-stage.png)
 
 Finally, every stage has a `firstJobId` that is the id of the job that submitted the stage.
 
@@ -28,20 +26,17 @@ There are two types of stages:
 
 When a job is submitted, a new stage is created with the parent scheduler:ShuffleMapStage.md[ShuffleMapStage] linked -- they can be created from scratch or linked to, i.e. shared, if other jobs use them already.
 
-.DAGScheduler and Stages for a job
-image::scheduler-job-shuffles-result-stages.png[align="center"]
+![DAGScheduler and Stages for a job](../images/scheduler/scheduler-job-shuffles-result-stages.png)
 
 A stage tracks the jobs (their ids) it belongs to (using the internal `jobIds` registry).
 
 DAGScheduler splits up a job into a collection of stages. Each stage contains a sequence of rdd:index.md[narrow transformations] that can be completed without rdd:spark-rdd-shuffle.md[shuffling] the entire data set, separated at *shuffle boundaries*, i.e. where shuffle occurs. Stages are thus a result of breaking the RDD graph at shuffle boundaries.
 
-.Graph of Stages
-image::dagscheduler-stages.png[align="center"]
+![Graph of Stages](../images/scheduler/dagscheduler-stages.png)
 
 Shuffle boundaries introduce a barrier where stages/tasks must wait for the previous stage to finish before they fetch map outputs.
 
-.DAGScheduler splits a job into stages
-image::scheduler-job-splits-into-stages.png[align="center"]
+![DAGScheduler splits a job into stages](../images/scheduler/scheduler-job-splits-into-stages.png)
 
 RDD operations with rdd:index.md[narrow dependencies], like `map()` and `filter()`, are pipelined together into one set of tasks in each stage, but operations with shuffle dependencies require multiple stages, i.e. one to write a set of map output files, and another to read those files after a barrier.
 

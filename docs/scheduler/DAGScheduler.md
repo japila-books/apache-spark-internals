@@ -961,32 +961,33 @@ handleJobSubmitted(
   properties: Properties): Unit
 ```
 
-`handleJobSubmitted` [creates a new ResultStage](#createResultStage) (as `finalStage` in the picture below) given the input `finalRDD`, `func`, `partitions`, `jobId` and `callSite`.
+`handleJobSubmitted` [creates a ResultStage](#createResultStage) (as `finalStage` in the picture below) for the given RDD, `func`, `partitions`, `jobId` and `callSite`.
 
 ![DAGScheduler.handleJobSubmitted Method](../images/scheduler/dagscheduler-handleJobSubmitted.png)
 
-`handleJobSubmitted` creates an ActiveJob.md[ActiveJob] (with the input `jobId`, `callSite`, `listener`, `properties`, and the ResultStage.md[ResultStage]).
+`handleJobSubmitted` creates an [ActiveJob](ActiveJob.md) for the [ResultStage](ResultStage.md).
 
 `handleJobSubmitted` [clears the internal cache of RDD partition locations](#clearCacheLocs).
 
-CAUTION: FIXME Why is this clearing here so important?
+!!! important
+    FIXME Why is this clearing here so important?
 
-You should see the following INFO messages in the logs:
+`handleJobSubmitted` prints out the following INFO messages to the logs (with [missingParentStages](#getMissingParentStages)):
 
-```
+```text
 Got job [id] ([callSite]) with [number] output partitions
 Final stage: [stage] ([name])
 Parents of final stage: [parents]
-Missing parents: [missingStages]
+Missing parents: [missingParentStages]
 ```
 
-`handleJobSubmitted` then registers the new job in #jobIdToActiveJob[jobIdToActiveJob] and #activeJobs[activeJobs] internal registries, and [with the final `ResultStage`](ResultStage.md#setActiveJob).
+`handleJobSubmitted` registers the new `ActiveJob` in [jobIdToActiveJob](#jobIdToActiveJob) and [activeJobs](#activeJobs) internal registries.
 
-NOTE: `ResultStage` can only have one `ActiveJob` registered.
+`handleJobSubmitted` requests the `ResultStage` to [associate itself with the ActiveJob](ResultStage.md#setActiveJob).
 
-`handleJobSubmitted` [finds all the registered stages for the input `jobId`](#jobIdToStageIds) and collects Stage.md#latestInfo[their latest `StageInfo`].
+`handleJobSubmitted` uses the [jobIdToStageIds](#jobIdToStageIds) internal registry to find all registered stages for the given `jobId`. `handleJobSubmitted` uses the [stageIdToStage](#stageIdToStage) internal registry to request the `Stages` for the [latestInfo](Stage.md#latestInfo).
 
-In the end, `handleJobSubmitted` posts a [SparkListenerJobStart](../SparkListener.md#SparkListenerJobStart) message to [LiveListenerBus](LiveListenerBus.md) and [submits the stage](#submitStage).
+In the end, `handleJobSubmitted` posts a [SparkListenerJobStart](../SparkListener.md#SparkListenerJobStart) message to the [LiveListenerBus](#listenerBus) and [submits the ResultStage](#submitStage).
 
 `handleJobSubmitted` is used when `DAGSchedulerEventProcessLoop` is requested to handle a [JobSubmitted](DAGSchedulerEvent.md#JobSubmitted) event.
 

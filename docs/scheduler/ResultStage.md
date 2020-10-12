@@ -1,16 +1,12 @@
-= [[ResultStage]] ResultStage
+# ResultStage
 
-A `ResultStage` is the final stage in a job that applies a function on one or many partitions of the target RDD to compute the result of an action.
+`ResultStage` is the final stage in a job that applies a function on one or many partitions of the target RDD to compute the result of an action.
 
-.Job creates ResultStage as the first stage
-image::dagscheduler-job-resultstage.png[align="center"]
+![Job creates ResultStage as the first stage](../images/scheduler/dagscheduler-job-resultstage.png)
 
 The partitions are given as a collection of partition ids (`partitions`) and the function `func: (TaskContext, Iterator[_]) => _`.
 
-.`ResultStage` and partitions
-image::dagscheduler-resultstage-partitions.png[align="center"]
-
-TIP: Read about `TaskContext` in scheduler:spark-TaskContext.md[TaskContext].
+![ResultStage and partitions](../images/scheduler/dagscheduler-resultstage-partitions.png)
 
 == [[findMissingPartitions]] Finding Missing Partitions
 
