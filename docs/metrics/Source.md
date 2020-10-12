@@ -49,7 +49,7 @@ Used when...FIXME
 | `CodegenMetrics`
 | [[CodegenMetrics]]
 
-| metrics:spark-scheduler-DAGSchedulerSource.md[DAGSchedulerSource]
+| [DAGSchedulerSource](../scheduler/DAGSchedulerSource.md)
 | [[DAGSchedulerSource]]
 
 | ROOT:spark-service-ExecutorAllocationManagerSource.md[ExecutorAllocationManagerSource]

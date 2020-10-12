@@ -1,6 +1,6 @@
 # DAGSchedulerEvent
 
-`DAGSchedulerEvent` is an abstraction of events that are handled by the [DAGScheduler](DAGScheduler.md).
+`DAGSchedulerEvent` is an abstraction of events that are handled by the [DAGScheduler](DAGScheduler.md) (on [dag-scheduler-event-loop daemon thread](DAGSchedulerEventProcessLoop.md)).
 
 ## <span id="AllJobsCancelled"> AllJobsCancelled
 
@@ -25,10 +25,10 @@ Event handler: [handleBeginEvent](DAGScheduler.md#handleBeginEvent)
 
 Carries the following:
 
-* [Task](Task.md)
+* Completed [Task](Task.md)
 * Reason
 * Result (value computed)
-* Accumulator updates
+* [Accumulator](../accumulators.md) updates
 * [TaskInfo](TaskInfo.md)
 
 Posted when `DAGScheduler` is requested to [taskEnded](DAGScheduler.md#taskEnded)

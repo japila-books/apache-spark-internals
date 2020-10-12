@@ -1,8 +1,6 @@
 # DAGSchedulerSource
 
-`DAGSchedulerSource` is the [metrics source](Source.md) of [DAGScheduler](../scheduler/DAGScheduler.md).
-
-`DAGScheduler` uses [Spark Metrics System](MetricsSystem.md) to report metrics about internal status.
+`DAGSchedulerSource` is the [metrics source](../metrics/Source.md) of [DAGScheduler](DAGScheduler.md#DAGSchedulerSource).
 
 The name of the source is **DAGScheduler**.
 
