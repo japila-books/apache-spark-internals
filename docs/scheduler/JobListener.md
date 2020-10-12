@@ -1,27 +1,29 @@
 # JobListener
 
-Spark subscribes for job completion or failure events (after submitting a job to [DAGScheduler](DAGScheduler.md)) using `JobListener` trait.
+`JobListener` is an [abstraction](#contract) of [listeners](#implementations) that listen for [job completion](#taskSucceeded) or [failure](#jobFailed) events (after submitting a job to the [DAGScheduler](DAGScheduler.md)).
 
-The following are the job listeners used:
+## Contract
 
-1. [JobWaiter](JobWaiter.md)  waits until scheduler:DAGScheduler.md[DAGScheduler] completes a job and passes the results of tasks to a `resultHandler` function.
-2. `ApproximateActionListener`...FIXME
+### <span id="taskSucceeded"> taskSucceeded
 
-An instance of `JobListener` is used in the following places:
+```scala
+taskSucceeded(
+  index: Int,
+  result: Any): Unit
+```
 
-* In `ActiveJob` as a listener to notify if tasks in this job finish or the job fails.
-* In `JobSubmitted`
+Used when `DAGScheduler` is requested to [handleTaskCompletion](DAGScheduler.md#handleTaskCompletion) or [markMapStageJobAsFinished](DAGScheduler.md#markMapStageJobAsFinished)
 
-== [[contract]][[taskSucceeded]][[jobFailed]] `JobListener` Contract
+### <span id="jobFailed"> jobFailed
 
-`JobListener` is a `private[spark]` contract with the following two methods:
+```scala
+jobFailed(
+  exception: Exception): Unit
+```
 
-[source, scala]
-----
-private[spark] trait JobListener {
-  def taskSucceeded(index: Int, result: Any)
-  def jobFailed(exception: Exception)
-}
-----
+Used when `DAGScheduler` is requested to [cleanUpAfterSchedulerStop](DAGScheduler.md#cleanUpAfterSchedulerStop), [handleJobSubmitted](DAGScheduler.md#handleJobSubmitted), [handleMapStageSubmitted](DAGScheduler.md#handleMapStageSubmitted), [handleTaskCompletion](DAGScheduler.md#handleTaskCompletion) or [failJobAndIndependentStages](DAGScheduler.md#failJobAndIndependentStages)
 
-A `JobListener` object is notified each time a task succeeds (by `taskSucceeded`) and when the whole job fails (by `jobFailed`).
+## Implementations
+
+* ApproximateActionListener
+* [JobWaiter](JobWaiter.md)
