@@ -1,19 +1,47 @@
-= [[JobWaiter]] JobWaiter
+# JobWaiter
 
-[source, scala]
-----
-JobWaiter[T](
-  dagScheduler: DAGScheduler,
-  val jobId: Int,
-  totalTasks: Int,
-  resultHandler: (Int, T) => Unit)
-extends JobListener
-----
+`JobWaiter` is a [JobListener](JobListener.md) to listen to task events and to know when [all have finished successfully or not](#jobPromise).
 
-`JobWaiter` is a scheduler:spark-scheduler-JobListener.md[JobListener] that is used when `DAGScheduler` scheduler:DAGScheduler.md#submitJob[submits a job] or scheduler:DAGScheduler.md#submitMapStage[submits a map stage].
+## Creating Instance
 
-You can use a `JobWaiter` to block until the job finishes executing or to cancel it.
+`JobWaiter` takes the following to be created:
 
-While the methods execute, scheduler:DAGSchedulerEventProcessLoop.md#JobSubmitted[`JobSubmitted`] and scheduler:DAGSchedulerEventProcessLoop.md#MapStageSubmitted[MapStageSubmitted] events are posted that reference the `JobWaiter`.
+* <span id="dagScheduler"> [DAGScheduler](DAGScheduler.md)
+* <span id="jobId"> Job ID
+* <span id="totalTasks"> Total number of tasks
+* <span id="resultHandler"> Result Handler Function (`(Int, T) => Unit`)
 
-As a `JobListener`, `JobWaiter` gets notified about task completions or failures, using `taskSucceeded` and `jobFailed`, respectively. When the total number of tasks (that equals the number of partitions to compute) equals the number of `taskSucceeded`, the `JobWaiter` instance is marked successful. A `jobFailed` event marks the `JobWaiter` instance failed.
+`JobWaiter` is created when `DAGScheduler` is requested to submit a [job](DAGScheduler.md#submitJob) or a [map stage](DAGScheduler.md#submitMapStage).
+
+## <span id="jobPromise"> Scala Promise
+
+```scala
+jobPromise: Promise[Unit]
+```
+
+`jobPromise` is a Scala [Promise]({{ scala.doc }}/scala/concurrent/Promise.html) that is completed when [all tasks have finished successfully](#taskSucceeded) or [failed with an exception](#jobFailed).
+
+## <span id="taskSucceeded"> taskSucceeded
+
+```scala
+taskSucceeded(
+  index: Int,
+  result: Any): Unit
+```
+
+`taskSucceeded` executes the [Result Handler Function](#resultHandler) with the given `index` and `result`.
+
+`taskSucceeded` marks the waiter finished successfully when all [tasks](#totalTasks) have finished.
+
+`taskSucceeded` is part of the [JobListener](JobListener.md#taskSucceeded) abstraction.
+
+## <span id="jobFailed"> jobFailed
+
+```scala
+jobFailed(
+  exception: Exception): Unit
+```
+
+`jobFailed` marks the waiter failed.
+
+`jobFailed` is part of the [JobListener](JobListener.md#jobFailed) abstraction.

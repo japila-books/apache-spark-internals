@@ -68,7 +68,7 @@ NOTE: <<handleExecutorLost, handleExecutorLost>> is also called when DAGSchedule
 
 3. A `CallSite` (as `callSite`)
 
-4. The scheduler:spark-scheduler-JobListener.md[JobListener] to inform about the status of the stage.
+4. The [JobListener](JobListener.md) to inform about the status of the stage.
 
 5. `Properties` of the execution
 
@@ -187,7 +187,7 @@ When handleMapStageSubmitted could not find or create a `ShuffleMapStage`, you s
 WARN Creating new stage failed due to exception - job: [id]
 ```
 
-handleMapStageSubmitted notifies scheduler:spark-scheduler-JobListener.md#jobFailed[`listener` about the job failure] and exits.
+handleMapStageSubmitted notifies [`listener` about the job failure](JobListener.md#jobFailed) and exits.
 
 NOTE: `MapStageSubmitted` event processing is very similar to <<JobSubmitted, JobSubmitted>> events.
 
@@ -433,11 +433,11 @@ If the `ActiveJob` has finished (when the number of partitions computed is exact
 2. scheduler:DAGScheduler.md#cleanupStateForJobAndIndependentStages[Cleans up after `ActiveJob` and independent stages].
 3. Announces the job completion application-wide (by posting a ROOT:SparkListener.md#SparkListenerJobEnd[SparkListenerJobEnd] to scheduler:LiveListenerBus.md[]).
 
-In the end, `handleTaskCompletion` scheduler:spark-scheduler-JobListener.md#taskSucceeded[notifies `JobListener` of the `ActiveJob` that the task succeeded].
+In the end, `handleTaskCompletion` [notifies `JobListener` of the `ActiveJob` that the task succeeded](JobListener.md#taskSucceeded).
 
 NOTE: A task succeeded notification holds the output index and the result.
 
-When the notification throws an exception (because it runs user code), `handleTaskCompletion` scheduler:spark-scheduler-JobListener.md#jobFailed[notifies `JobListener` about the failure] (wrapping it inside a `SparkDriverExecutionException` exception).
+When the notification throws an exception (because it runs user code), `handleTaskCompletion` [notifies `JobListener` about the failure](JobListener.md#jobFailed) (wrapping it inside a `SparkDriverExecutionException` exception).
 
 ==== [[handleTaskCompletion-Success-ShuffleMapTask]] Handling Successful `ShuffleMapTask` Completion
 

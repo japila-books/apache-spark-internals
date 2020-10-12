@@ -292,7 +292,7 @@ markMapStageJobAsFinished(
 
 Internally, `markMapStageJobAsFinished` marks the zeroth partition finished and increases the number of tasks finished in `job`.
 
-The spark-scheduler-JobListener.md#taskSucceeded[`job` listener is notified about the 0th task succeeded].
+The [`job` listener is notified about the 0th task succeeded](JobListener.md#taskSucceeded).
 
 The <<cleanupStateForJobAndIndependentStages, state of the `job` and independent stages are cleaned up>>.
 
@@ -1086,7 +1086,7 @@ The lookup table of all stages per `ActiveJob` id
 nextJobId: AtomicInteger
 ```
 
-`nextJobId` is a Java [AtomicInteger]({{ java.javadoc }}/java/util/concurrent/atomic/AtomicInteger.html) for job IDs.
+`nextJobId` is a Java [AtomicInteger]({{ java.doc }}/java/util/concurrent/atomic/AtomicInteger.html) for job IDs.
 
 `nextJobId` starts at `0`.
 

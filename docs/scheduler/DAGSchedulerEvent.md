@@ -95,7 +95,7 @@ JobSubmitted event carries the following:
 * Partition function (`(TaskContext, Iterator[_]) => _`)
 * Partitions to compute
 * CallSite
-* scheduler:spark-scheduler-JobListener.md[JobListener] to keep updated about the status of the stage execution
+* [JobListener](JobListener.md) to keep updated about the status of the stage execution
 * Execution properties
 
 Posted when DAGScheduler is requested to scheduler:DAGScheduler.md#submitJob[submit a job], scheduler:DAGScheduler.md#runApproximateJob[run an approximate job] and scheduler:DAGScheduler.md#handleJobSubmitted[handleJobSubmitted]
@@ -109,7 +109,7 @@ MapStageSubmitted event carries the following:
 * Job ID
 * [ShuffleDependency](../rdd/ShuffleDependency.md)
 * CallSite
-* [JobListener](../scheduler/spark-scheduler-JobListener.md)
+* [JobListener](JobListener.md)
 * Execution properties
 
 Posted when DAGScheduler is requested to scheduler:DAGScheduler.md#submitMapStage[submitMapStage]
