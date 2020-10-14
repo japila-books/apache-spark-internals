@@ -1,8 +1,8 @@
-= ReliableCheckpointRDD
+# ReliableCheckpointRDD
 
-*ReliableCheckpointRDD* is an rdd:CheckpointRDD.md[CheckpointRDD]...FIXME
+`ReliableCheckpointRDD` is an [CheckpointRDD](CheckpointRDD.md).
 
-== [[creating-instance]] Creating Instance
+## Creating Instance
 
 ReliableCheckpointRDD takes the following to be created:
 

@@ -1,6 +1,6 @@
-= RangePartitioner
+# RangePartitioner
 
-RangePartitioner is a rdd:Partitioner.md[Partitioner] for...FIXME
+`RangePartitioner` is a [Partitioner](Partitioner.md).
 
 [[ordering]]
 `RangePartitioner[K : Ordering : ClassTag, V]` is a parameterized type of `K` keys that can be sorted (_ordered_) and `V` values.

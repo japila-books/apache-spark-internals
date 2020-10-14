@@ -1,18 +1,18 @@
-= NettyRpcEnvFactory
+# NettyRpcEnvFactory
 
-*NettyRpcEnvFactory* is an rpc:RpcEnvFactory.md[] for a <<create, Netty-based RpcEnv>>.
+`NettyRpcEnvFactory` is an [RpcEnvFactory](RpcEnvFactory.md) for a [Netty-based RpcEnv](#create).
 
-== [[create]] Creating RpcEnv
+## <span id="create"> Creating RpcEnv
 
-[source,scala]
-----
+```scala
 create(
   config: RpcEnvConfig): RpcEnv
-----
+```
 
-create creates a JavaSerializerInstance (using a JavaSerializer).
+`create` creates a `JavaSerializerInstance` (using a JavaSerializer).
 
-NOTE: KryoSerializer is not supported.
+!!! note
+    `KryoSerializer` is not supported.
 
 create creates a rpc:NettyRpcEnv.md[] with the JavaSerializerInstance. create uses the given rpc:RpcEnvConfig.md[] for the rpc:RpcEnvConfig.md#advertiseAddress[advertised address], rpc:RpcEnvConfig.md#securityManager[SecurityManager] and rpc:RpcEnvConfig.md#numUsableCores[number of CPU cores].
 

@@ -1,6 +1,6 @@
-= [[DiskBlockObjectWriter]] DiskBlockObjectWriter
+# DiskBlockObjectWriter
 
-*DiskBlockObjectWriter* is a custom {java-javadoc-url}/java/io/OutputStream.html[java.io.OutputStream] that storage:BlockManager.md#getDiskWriter[BlockManager] offers for <<write, writing data blocks to disk>>.
+`DiskBlockObjectWriter` is a custom [java.io.OutputStream]({{ java.doc }}/java/io/OutputStream.html) that [BlockManager](BlockManager.md#getDiskWriter) offers for [writing data blocks to disk](#write).
 
 DiskBlockObjectWriter is used when:
 

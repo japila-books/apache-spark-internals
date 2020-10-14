@@ -1,91 +1,88 @@
-= SerializationStream
+# SerializationStream
 
-*SerializationStream* is an abstraction of <<implementations, streams>> for writing serialized key-value records.
+`SerializationStream` is an [abstraction](#contract) of [serialized streams](#implementations) for [writing out serialized key-value records](#writeAll).
 
-== [[implementations]] Available SerializationStreams
+## Contract
 
-[cols="30,70",options="header",width="100%"]
-|===
-| SerializationStream
-| Description
+### <span id="close"> Closing Stream
 
-| JavaSerializationStream
-| [[JavaSerializationStream]]
+```scala
+close(): Unit
+```
 
-| KryoSerializationStream
-| [[KryoSerializationStream]]
+### <span id="flush"> Flushing Stream
 
-|===
+```scala
+flush(): Unit
+```
 
-== [[writeAll]] Writing All Records
+Used when:
 
-[source, scala]
-----
-writeAll[T: ClassTag](
-  iter: Iterator[T]): SerializationStream
-----
+* `UnsafeShuffleWriter` is requested to [insert a record into a ShuffleExternalSorter](../shuffle/UnsafeShuffleWriter.md#insertRecordIntoSorter)
+* `DiskBlockObjectWriter` is requested to [commitAndGet](../storage/DiskBlockObjectWriter.md#commitAndGet)
 
-writeAll <<writeObject, writes all records>> of the given iterator.
+### <span id="writeObject"> Writing Out Object
 
-writeAll is used when:
-
-* ReliableCheckpointRDD utility is requested to writePartitionToCheckpointFile
-
-* SerializerManager is requested to serializer:SerializerManager.md#dataSerializeStream[dataSerializeStream] and serializer:SerializerManager.md#dataSerializeWithExplicitClassTag[dataSerializeWithExplicitClassTag]
-
-== [[writeObject]] Writing Object
-
-[source, scala]
-----
+```scala
 writeObject[T: ClassTag](
   t: T): SerializationStream
-----
+```
 
-writeObject is the most general-purpose method to write an object.
+Used when:
 
-writeObject is used when...FIXME
+* `MemoryStore` is requested to [putIteratorAsBytes](../storage/MemoryStore.md#putIteratorAsBytes)
+* `JavaSerializerInstance` is requested to `serialize`
+* `RequestMessage` is requested to `serialize` (for [NettyRpcEnv](../rpc/NettyRpcEnv.md))
+* `ParallelCollectionPartition` is requested to `writeObject` (for [ParallelCollectionRDD](../rdd/spark-rdd-ParallelCollectionRDD.md))
+* `ReliableRDDCheckpointData` is requested to [doCheckpoint](../rdd/ReliableRDDCheckpointData.md#doCheckpoint)
+* `TorrentBroadcast` is [created](../core/TorrentBroadcast.md) (and requested to [writeBlocks](../core/TorrentBroadcast.md#writeBlocks))
+* `RangePartitioner` is requested to [writeObject](../rdd/RangePartitioner.md#writeObject)
+* `SerializationStream` is requested to [writeKey](#writeKey), [writeValue](#writeValue) or [writeAll](#writeAll)
+* `FileSystemPersistenceEngine` is requested to `serializeIntoFile` (for Spark Standalone's `Master`)
 
-== [[writeKey]] Writing Key (of Key-Value Record)
+## Implementations
 
-[source, scala]
-----
+* `JavaSerializationStream`
+* `KryoSerializationStream`
+
+## <span id="writeAll"> Writing Out All Records
+
+```scala
+writeAll[T: ClassTag](
+  iter: Iterator[T]): SerializationStream
+```
+
+`writeAll` writes out records of the given iterator ([one by one as objects](#writeObject)).
+
+`writeAll` is used when:
+
+* `ReliableCheckpointRDD` is requested to [doCheckpoint](../rdd/ReliableCheckpointRDD.md#doCheckpoint)
+* `SerializerManager` is requested to [dataSerializeStream](SerializerManager.md#dataSerializeStream) and [dataSerializeWithExplicitClassTag](SerializerManager.md#dataSerializeWithExplicitClassTag)
+
+## <span id="writeKey"> Writing Out Key
+
+```scala
 writeKey[T: ClassTag](
   key: T): SerializationStream
-----
+```
 
-writeKey <<writeObject, writes the object>> representing the key of a key-value record.
+[Writes out](#writeObject) the key
 
-writeKey is used when:
+`writeKey` is used when:
 
-* UnsafeShuffleWriter is requested to shuffle:UnsafeShuffleWriter.md#insertRecordIntoSorter[insert a record into a ShuffleExternalSorter]
+* `UnsafeShuffleWriter` is requested to [insert a record into a ShuffleExternalSorter](../shuffle/UnsafeShuffleWriter.md#insertRecordIntoSorter)
+* `DiskBlockObjectWriter` is requested to [write the key and value of a record](../storage/DiskBlockObjectWriter.md#write)
 
-* DiskBlockObjectWriter is requested to storage:DiskBlockObjectWriter.md#write[write the key and value of a record]
+## <span id="writeValue"> Writing Out Value
 
-== [[writeValue]] Writing Value (of Key-Value Record)
-
-[source, scala]
-----
+```scala
 writeValue[T: ClassTag](
   value: T): SerializationStream
-----
+```
 
-writeValue <<writeObject, writes the object>> representing the value of a key-value record.
+[Writes out](#writeObject) the value
 
-writeValue is used when:
+`writeValue` is used when:
 
-* UnsafeShuffleWriter is requested to shuffle:UnsafeShuffleWriter.md#insertRecordIntoSorter[insert a record into a ShuffleExternalSorter]
-
-* DiskBlockObjectWriter is requested to storage:DiskBlockObjectWriter.md#write[write the key and value of a record]
-
-== [[flush]] Flushing Stream
-
-[source, scala]
-----
-flush(): Unit
-----
-
-flush is used when:
-
-* UnsafeShuffleWriter is requested to shuffle:UnsafeShuffleWriter.md#insertRecordIntoSorter[insert a record into a ShuffleExternalSorter]
-
-* DiskBlockObjectWriter is requested to storage:DiskBlockObjectWriter.md#commitAndGet[commitAndGet]
+* `UnsafeShuffleWriter` is requested to [insert a record into a ShuffleExternalSorter](../shuffle/UnsafeShuffleWriter.md#insertRecordIntoSorter)
+* `DiskBlockObjectWriter` is requested to [write the key and value of a record](../storage/DiskBlockObjectWriter.md#write)

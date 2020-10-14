@@ -1,11 +1,10 @@
-= MemoryStore
+# MemoryStore
 
-*MemoryStore* manages blocks of data in memory for storage:BlockManager.md#memoryStore[BlockManager].
+`MemoryStore` manages blocks of data in memory for [BlockManager](BlockManager.md#memoryStore).
 
-.MemoryStore and BlockManager
-image::MemoryStore-BlockManager.png[align="center"]
+![MemoryStore and BlockManager](../images/storage/MemoryStore-BlockManager.png)
 
-== [[creating-instance]] Creating Instance
+## Creating Instance
 
 MemoryStore takes the following to be created:
 

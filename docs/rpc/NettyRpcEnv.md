@@ -1,10 +1,10 @@
-= NettyRpcEnv
+# NettyRpcEnv
 
-*NettyRpcEnv* is an rpc:RpcEnv.md[] using https://netty.io/[Netty] (_"an asynchronous event-driven network application framework for rapid development of maintainable high performance protocol servers & clients"_).
+`NettyRpcEnv` is an [RpcEnv](RpcEnv.md) using [Netty](https://netty.io/) (_"an asynchronous event-driven network application framework for rapid development of maintainable high performance protocol servers & clients"_).
 
-== [[creating-instance]] Creating Instance
+## Creating Instance
 
-NettyRpcEnv takes the following to be created:
+`NettyRpcEnv` takes the following to be created:
 
 * [[conf]] ROOT:SparkConf.md[]
 * [[javaSerializerInstance]] JavaSerializerInstance
@@ -12,17 +12,17 @@ NettyRpcEnv takes the following to be created:
 * [[securityManager]] SecurityManager
 * [[numUsableCores]] Number of CPU cores
 
-NettyRpcEnv is created when NettyRpcEnvFactory is requested to rpc:NettyRpcEnvFactory.md#create[create an RpcEnv].
+`NettyRpcEnv` is created when `NettyRpcEnvFactory` is requested to [create an RpcEnv](NettyRpcEnvFactory.md#create).
 
 == [[streamManager]] NettyStreamManager
 
-NettyRpcEnv creates a rpc:NettyStreamManager.md[] when <<creating-instance, created>>.
+NettyRpcEnv creates a NettyStreamManager.md[] when <<creating-instance, created>>.
 
 NettyStreamManager is used for the following:
 
 * Create a NettyRpcHandler for the <<transportContext, TransportContext>>
 
-* As the rpc:RpcEnv.md#fileServer[RpcEnvFileServer]
+* As the RpcEnv.md#fileServer[RpcEnvFileServer]
 
 == [[transportContext]] TransportContext
 
