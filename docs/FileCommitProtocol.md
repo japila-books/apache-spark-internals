@@ -1,207 +1,178 @@
-= FileCommitProtocol
+# FileCommitProtocol
 
-`FileCommitProtocol` is an <<contract, abstraction>> of <<implementations, committers>> that can setup, commit or abort a Spark job or task (while writing out a key-value RDD and the partitions).
+`FileCommitProtocol` is an [abstraction](#contract) of [file committers](#implementations) that can setup, commit or abort a Spark job or task (while writing out a pair RDD and partitions).
 
-`FileCommitProtocol` is used for rdd:PairRDDFunctions.md#saveAsNewAPIHadoopDataset[saveAsNewAPIHadoopDataset] and rdd:PairRDDFunctions.md#saveAsHadoopDataset[saveAsHadoopDataset] transformations (that use `SparkHadoopWriter` utility to <<spark-internal-io-SparkHadoopWriter.md#write, write a key-value RDD out>>).
+`FileCommitProtocol` is used for [RDD.saveAsNewAPIHadoopDataset](rdd/PairRDDFunctions.md#saveAsNewAPIHadoopDataset) and [RDD.saveAsHadoopDataset](rdd/PairRDDFunctions.md#saveAsHadoopDataset) transformations (that use `SparkHadoopWriter` utility to [write a key-value RDD out](SparkHadoopWriter.md#write)).
 
-A concrete <<implementations, FileCommitProtocol>> is created using <<instantiate, FileCommitProtocol.instantiate>> utility.
+`FileCommitProtocol` is created using [FileCommitProtocol.instantiate](#instantiate) utility.
 
-[[contract]]
-.FileCommitProtocol Contract
-[cols="30m,70",options="header",width="100%"]
-|===
-| Method
-| Description
+## Contract
 
-| abortJob
-a| [[abortJob]]
+### <span id="abortJob"> Aborting Job
 
-[source, scala]
-----
+```scala
 abortJob(
   jobContext: JobContext): Unit
-----
+```
 
 Aborts a job
 
 Used when:
 
-* `SparkHadoopWriter` utility is used to <<spark-internal-io-SparkHadoopWriter.md#write, write a key-value RDD>>
+* `SparkHadoopWriter` utility is used to [write a key-value RDD](SparkHadoopWriter.md#write) (and writing fails)
+* (Spark SQL) `FileFormatWriter` utility is used to write a result of a structured query (and writing fails)
+* (Spark SQL) `FileBatchWrite` is requested to `abort`
 
-* (Spark SQL) `FileFormatWriter` utility is used to write a result of a structured query
+### <span id="abortTask"> Aborting Task
 
-| abortTask
-a| [[abortTask]]
-
-[source, scala]
-----
+```scala
 abortTask(
   taskContext: TaskAttemptContext): Unit
-----
+```
 
-Intercepts that a Spark task is (about to be) aborted
+Abort a task
 
 Used when:
 
-* `SparkHadoopWriter` utility is used to <<spark-internal-io-SparkHadoopWriter.md#executeTask, write an RDD partition>>
+* `SparkHadoopWriter` utility is used to [write an RDD partition](SparkHadoopWriter.md#executeTask)
+* (Spark SQL) `FileFormatDataWriter` is requested to `abort`
 
-* (Spark SQL) `FileFormatDataWriter` is requested to abort (when `FileFormatWriter` utility is used to write a result of a structured query)
+### <span id="commitJob"> Committing Job
 
-| commitJob
-a| [[commitJob]]
-
-[source, scala]
-----
+```scala
 commitJob(
   jobContext: JobContext,
   taskCommits: Seq[TaskCommitMessage]): Unit
-----
+```
+
+Commits a job after the writes succeed
 
 Used when:
 
-* `SparkHadoopWriter` utility is used to <<spark-internal-io-SparkHadoopWriter.md#write, write a key-value RDD>>
-
+* `SparkHadoopWriter` utility is used to [write a key-value RDD](SparkHadoopWriter.md#write)
 * (Spark SQL) `FileFormatWriter` utility is used to write a result of a structured query
+* (Spark SQL) `FileBatchWrite` is requested to `commit`
 
-| commitTask
-a| [[commitTask]]
+### <span id="commitTask"> Committing Task
 
-[source, scala]
-----
+```scala
 commitTask(
   taskContext: TaskAttemptContext): TaskCommitMessage
-----
+```
 
 Used when:
 
-* `SparkHadoopWriter` utility is used to <<spark-internal-io-SparkHadoopWriter.md#executeTask, write an RDD partition>>
+* `SparkHadoopWriter` utility is used to [write an RDD partition](SparkHadoopWriter.md#executeTask)
+* (Spark SQL) `FileFormatDataWriter` is requested to `commit`
 
-* (Spark SQL) `FileFormatDataWriter` is requested to commit (when `FileFormatWriter` utility is used to write a result of a structured query)
+### <span id="deleteWithJob"> Deleting Path with Job
 
-| newTaskTempFile
-a| [[newTaskTempFile]]
+```scala
+deleteWithJob(
+  fs: FileSystem,
+  path: Path,
+  recursive: Boolean): Boolean
+```
 
-[source, scala]
-----
+`deleteWithJob` requests the given Hadoop [FileSystem]({{ hadoop.api }}/org/apache/hadoop/fs/FileSystem.html) to delete a `path` directory.
+
+Used when `InsertIntoHadoopFsRelationCommand` logical command (Spark SQL) is executed
+
+### <span id="newTaskTempFile"> newTaskTempFile
+
+```scala
 newTaskTempFile(
   taskContext: TaskAttemptContext,
   dir: Option[String],
   ext: String): String
-----
+```
 
 Used when:
 
 * (Spark SQL) `SingleDirectoryDataWriter` and `DynamicPartitionDataWriter` are requested to `write` (and in turn `newOutputWriter`)
 
-| newTaskTempFileAbsPath
-a| [[newTaskTempFileAbsPath]]
+### <span id="newTaskTempFileAbsPath"> newTaskTempFileAbsPath
 
-[source, scala]
-----
+```scala
 newTaskTempFileAbsPath(
   taskContext: TaskAttemptContext,
   absoluteDir: String,
   ext: String): String
-----
+```
 
 Used when:
 
 * (Spark SQL) `DynamicPartitionDataWriter` is requested to `write`
 
-| onTaskCommit
-a| [[onTaskCommit]]
+### <span id="onTaskCommit"> On Task Committed
 
-[source, scala]
-----
+```scala
 onTaskCommit(
-  taskCommit: TaskCommitMessage): Unit = {}
-----
+  taskCommit: TaskCommitMessage): Unit
+```
 
 Used when:
 
 * (Spark SQL) `FileFormatWriter` is requested to `write`
 
-| setupJob
-a| [[setupJob]]
+### <span id="setupJob"> Setting Up Job
 
-[source, scala]
-----
+```scala
 setupJob(
   jobContext: JobContext): Unit
-----
+```
 
 Used when:
 
-* `SparkHadoopWriter` utility is used to <<spark-internal-io-SparkHadoopWriter.md#executeTask, write an RDD partition>> (while <<spark-internal-io-SparkHadoopWriter.md#write, writing out a key-value RDD>>)
-
+* `SparkHadoopWriter` utility is used to [write an RDD partition](SparkHadoopWriter.md#executeTask) (while [writing out a key-value RDD](SparkHadoopWriter.md#write))
 * (Spark SQL) `FileFormatWriter` utility is used to write a result of a structured query
+* (Spark SQL) `FileWriteBuilder` is requested to `buildForBatch`
 
-| setupTask
-a| [[setupTask]]
+### <span id="setupTask"> Setting Up Task
 
-[source, scala]
-----
+```scala
 setupTask(
   taskContext: TaskAttemptContext): Unit
-----
+```
 
-Sets up the task with the Hadoop https://hadoop.apache.org/docs/r2.7.3/api/org/apache/hadoop/mapreduce/TaskAttemptContext.html[TaskAttemptContext]
+Sets up the task with the Hadoop [TaskAttemptContext]({{ hadoop.api }}/org/apache/hadoop/mapreduce/TaskAttemptContext.html)
 
 Used when:
 
-* `SparkHadoopWriter` is requested to <<spark-internal-io-SparkHadoopWriter.md#executeTask, write an RDD partition>> (while <<spark-internal-io-SparkHadoopWriter.md#write, writing out a key-value RDD>>)
-
+* `SparkHadoopWriter` is requested to [write an RDD partition](SparkHadoopWriter.md#executeTask) (while [writing out a key-value RDD](SparkHadoopWriter.md#write))
 * (Spark SQL) `FileFormatWriter` utility is used to write out a RDD partition (while writing out a result of a structured query)
+* (Spark SQL) `FileWriterFactory` is requested to `createWriter`
 
-|===
+## Implementations
 
-[[implementations]]
-.FileCommitProtocols
-[cols="30,70",options="header",width="100%"]
-|===
-| FileCommitProtocol
-| Description
+* [HadoopMapReduceCommitProtocol](HadoopMapReduceCommitProtocol.md)
+* `ManifestFileCommitProtocol` (qv. [Spark Structured Streaming]({{ book.structured_streaming }}/datasources/file/ManifestFileCommitProtocol))
 
-| <<spark-internal-io-HadoopMapReduceCommitProtocol.md#, HadoopMapReduceCommitProtocol>>
-| [[HadoopMapReduceCommitProtocol]]
+## <span id="instantiate"> Instantiating FileCommitProtocol Committer
 
-| <<spark-internal-io-HadoopMapRedCommitProtocol.md#, HadoopMapRedCommitProtocol>>
-| [[HadoopMapRedCommitProtocol]]
-
-| `SQLHadoopMapReduceCommitProtocol`
-| [[SQLHadoopMapReduceCommitProtocol]] Used for batch queries (Spark SQL)
-
-| `ManifestFileCommitProtocol`
-| [[ManifestFileCommitProtocol]] Used for streaming queries (Spark Structured Streaming)
-
-|===
-
-== [[instantiate]] Instantiating FileCommitProtocol Committer -- `instantiate` Utility
-
-[source, scala]
-----
+```scala
 instantiate(
   className: String,
   jobId: String,
   outputPath: String,
   dynamicPartitionOverwrite: Boolean = false): FileCommitProtocol
-----
+```
 
 `instantiate` prints out the following DEBUG message to the logs:
 
-```
+```text
 Creating committer [className]; job [jobId]; output=[outputPath]; dynamic=[dynamicPartitionOverwrite]
 ```
 
 `instantiate` tries to find a constructor method that takes three arguments (two of type `String` and one `Boolean`) for the given `jobId`, `outputPath` and `dynamicPartitionOverwrite` flag. If found, `instantiate` prints out the following DEBUG message to the logs:
 
-```
+```text
 Using (String, String, Boolean) constructor
 ```
 
 In case of `NoSuchMethodException`, `instantiate` prints out the following DEBUG message to the logs:
 
-```
+```text
 Falling back to (String, String) constructor
 ```
 
@@ -209,32 +180,24 @@ Falling back to (String, String) constructor
 
 With two `String` arguments, `instantiate` requires that the given `dynamicPartitionOverwrite` flag is disabled (`false`) or throws an `IllegalArgumentException`:
 
-[options="wrap"]
-----
+```text
 requirement failed: Dynamic Partition Overwrite is enabled but the committer [className] does not have the appropriate constructor
-----
+```
 
-[NOTE]
-====
 `instantiate` is used when:
 
-* <<spark-internal-io-HadoopMapRedWriteConfigUtil.md#createCommitter, HadoopMapRedWriteConfigUtil>> and <<spark-internal-io-HadoopMapReduceWriteConfigUtil.md#createCommitter, HadoopMapReduceWriteConfigUtil>> are requested to create a <<spark-internal-io-HadoopMapReduceCommitProtocol.md#, HadoopMapReduceCommitProtocol>> committer
-
+* [HadoopMapRedWriteConfigUtil](HadoopMapRedWriteConfigUtil.md#createCommitter) and [HadoopMapReduceWriteConfigUtil](HadoopMapReduceWriteConfigUtil.md#createCommitter) are requested to create a [HadoopMapReduceCommitProtocol](HadoopMapReduceCommitProtocol.md) committer
 * (Spark SQL) `InsertIntoHadoopFsRelationCommand`, `InsertIntoHiveDirCommand`, and `InsertIntoHiveTable` logical commands are executed
+* ([Spark Structured Streaming]({{ book.structured_streaming }}/datasources/file/FileStreamSink/#addBatch)) `FileStreamSink` is requested to write out a micro-batch data
 
-* (Spark Structured Streaming) `FileStreamSink` is requested to `addBatch`
-====
+## Logging
 
-== [[deleteWithJob]] `deleteWithJob` Method
+Enable `ALL` logging level for `org.apache.spark.internal.io.FileCommitProtocol` logger to see what happens inside.
 
-[source, scala]
-----
-deleteWithJob(
-  fs: FileSystem,
-  path: Path,
-  recursive: Boolean): Boolean
-----
+Add the following line to `conf/log4j.properties`:
 
-`deleteWithJob` simply requests the Hadoop https://hadoop.apache.org/docs/r2.7.3/api/org/apache/hadoop/fs/FileSystem.html[FileSystem] to delete a directory.
+```text
+log4j.logger.org.apache.spark.internal.io.FileCommitProtocol=ALL
+```
 
-NOTE: `deleteWithJob` is used when `InsertIntoHadoopFsRelationCommand` logical command (Spark SQL) is executed.
+Refer to [Logging](spark-logging.md).
