@@ -1,6 +1,6 @@
 # DiskBlockManager
 
-`DiskBlockManager` creates and maintains the logical mapping between logical blocks and physical on-disk locations for a [BlockManager](BlockManager.md#diskBlockManager).
+`DiskBlockManager` manages a logical mapping of logical blocks and their physical on-disk locations for a [BlockManager](BlockManager.md#diskBlockManager).
 
 ![DiskBlockManager and BlockManager](../images/storage/DiskBlockManager-BlockManager.png)
 
@@ -150,7 +150,7 @@ In non-YARN mode (or for the driver in yarn-client mode), `getConfiguredLocalDir
 2. `SPARK_LOCAL_DIRS` environment variable
 3. `MESOS_DIRECTORY` environment variable (only when External Shuffle Service is not used)
 
-In the end, when no earlier environment variables were found, `getConfiguredLocalDirs` uses [spark.local.dir](../spark-properties.md#spark.local.dir) Spark property or falls back to `java.io.tmpdir` System property.
+In the end, when no earlier environment variables were found, `getConfiguredLocalDirs` uses [spark.local.dir](../configuration-properties.md#spark.local.dir) configuration property or falls back to `java.io.tmpdir` System property.
 
 `getConfiguredLocalDirs` is used when:
 

@@ -1,4 +1,4 @@
-== Spark Properties and spark-defaults.conf Properties File
+# Spark Properties and spark-defaults.conf Properties File
 
 *Spark properties* are the means of tuning the execution environment of a Spark application.
 
@@ -12,21 +12,6 @@ The default Spark properties file is <<spark-defaults-conf, `$SPARK_HOME/conf/sp
 |===
 
 TIP: Read the official documentation of Apache Spark on http://spark.apache.org/docs/latest/configuration.html[Spark Configuration].
-
-[[properties]]
-.Spark Application's Properties
-[cols="1,1,2",options="header",width="100%"]
-|===
-| Property Name
-| Default
-| Description
-
-| [[spark.local.dir]] `spark.local.dir`
-| `/tmp`
-| Comma-separated list of directories that are used as a temporary storage for "scratch" space, including map output files and RDDs that get stored on disk.
-
-This should be on a fast, local disk in your system. It can also be a comma-separated list of multiple directories on different disks.
-|===
 
 === [[spark-defaults-conf]] `spark-defaults.conf` -- Default Spark Properties File
 

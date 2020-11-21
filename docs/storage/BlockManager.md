@@ -57,6 +57,38 @@ BlockManager is created when SparkEnv is [created](../SparkEnv.md#create-BlockMa
 
 ![BlockManager and SparkEnv](../images/storage/BlockManager-SparkEnv.png)
 
+## <span id="subDirsPerLocalDir"> spark.diskStore.subDirectories Configuration Property
+
+`BlockManager` uses [spark.diskStore.subDirectories](../configuration-properties.md#spark.diskStore.subDirectories) configuration property to initialize a `subDirsPerLocalDir` local value.
+
+`subDirsPerLocalDir` is used when:
+
+* `IndexShuffleBlockResolver` is requested to [getDataFile](../shuffle/IndexShuffleBlockResolver.md#getDataFile) and [getIndexFile](../shuffle/IndexShuffleBlockResolver.md#getIndexFile)
+* `BlockManager` is requested to [readDiskBlockFromSameHostExecutor](#readDiskBlockFromSameHostExecutor)
+
+## <span id="getRemoteBlock"> Fetching Remote Block
+
+```scala
+getRemoteBlock[T](
+  blockId: BlockId,
+  bufferTransformer: ManagedBuffer => T): Option[T]
+```
+
+`getRemoteBlock`...FIXME
+
+`getRemoteBlock` is used for [getRemoteValues](#getRemoteValues) and [getRemoteBytes](#getRemoteBytes).
+
+### <span id="readDiskBlockFromSameHostExecutor"> readDiskBlockFromSameHostExecutor
+
+```scala
+readDiskBlockFromSameHostExecutor(
+  blockId: BlockId,
+  localDirs: Array[String],
+  blockSize: Long): Option[ManagedBuffer]
+```
+
+`readDiskBlockFromSameHostExecutor`...FIXME
+
 ## <span id="futureExecutionContext"> ExecutionContextExecutorService
 
 `BlockManager` uses a Scala [ExecutionContextExecutorService]({{ scala.api }}/scala/concurrent/ExecutionContextExecutorService.html) to execute *FIXME* asynchronously (on a thread pool with **block-manager-future** prefix and maximum of 128 threads).
@@ -352,15 +384,6 @@ maybeCacheDiskValuesInMemory[T](
 
 `maybeCacheDiskValuesInMemory` is used when `BlockManager` is requested to [getLocalValues](#getLocalValues).
 
-## <span id="getRemoteValues"> getRemoteValues
-
-```scala
-getRemoteValues[T: ClassTag](
-  blockId: BlockId): Option[BlockResult]
-```
-
-`getRemoteValues`...FIXME
-
 ## <span id="get"> Retrieving Block from Local or Remote Block Managers
 
 ```scala
@@ -386,7 +409,7 @@ In the end, `get` returns "nothing" (i.e. `NONE`) when the `blockId` block was n
 
 `get` is used when:
 
-* `BlockManager` is requested to [getOrElseUpdate](#getOrElseUpdate) and [getSingle](#getSingle)
+* `BlockManager` is requested to [getOrElseUpdate](#getOrElseUpdate)
 
 ### <span id="getRemoteValues"> getRemoteValues
 
@@ -988,7 +1011,7 @@ putSingle[T: ClassTag](
 
 `putSingle` is used when `TorrentBroadcast` is requested to [write the blocks](../core/TorrentBroadcast.md#writeBlocks) and [readBroadcastBlock](../core/TorrentBroadcast.md#readBroadcastBlock).
 
-## <span id="getRemoteBytes"> Fetching Block From Remote Nodes
+## <span id="getRemoteBytes"> Fetching Block Bytes From Remote Nodes
 
 ```scala
 getRemoteBytes(
@@ -999,13 +1022,10 @@ getRemoteBytes(
 
 `getRemoteBytes` is used when:
 
-* `BlockManager` is requested to [getRemoteValues](#getRemoteValues)
-
 * `TorrentBroadcast` is requested to [readBlocks](../core/TorrentBroadcast.md#readBlocks)
+* `TaskResultGetter` is requested to [enqueueSuccessfulTask](../scheduler/TaskResultGetter.md#enqueueSuccessfulTask)
 
-* `TaskResultGetter` is requested to [enqueuing a successful IndirectTaskResult](../scheduler/TaskResultGetter.md#enqueueSuccessfulTask)
-
-## <span id="getOrElseUpdate"> Getting Block From Block Managers Or Computing and Storing It Otherwise
+## <span id="getOrElseUpdate"> Getting Block or Computing and Storing it
 
 ```scala
 getOrElseUpdate[T](
@@ -1042,7 +1062,7 @@ For `None`, `getOrElseUpdate` [getLocalValues](#getLocalValues) for the `BlockId
 
 For `Some(iter)`, `getOrElseUpdate` returns an iterator of `T` values.
 
-`getOrElseUpdate` is used when `RDD` is requested to [get or compute an RDD partition](../rdd/RDD.md#getOrCompute) (for a `RDDBlockId` with a RDD ID and a partition index).
+`getOrElseUpdate` is used when `RDD` is requested to [get or compute an RDD partition](../rdd/RDD.md#getOrCompute) (for an `RDDBlockId` with the RDD's [id](../rdd/RDD.md#id) and partition index).
 
 ## <span id="doPutIterator"> doPutIterator
 

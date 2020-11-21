@@ -1,5 +1,19 @@
 # Spark Configuration Properties
 
+## <span id="spark.diskStore.subDirectories"><span id="DISKSTORE_SUB_DIRECTORIES"> spark.diskStore.subDirectories
+
+Number of subdirectories inside each path listed in [spark.local.dir](#spark.local.dir) for hashing block files into.
+
+Default: `64`
+
+Used by [BlockManager](storage/BlockManager.md#subDirsPerLocalDir) and [DiskBlockManager](storage/DiskBlockManager.md#subDirsPerLocalDir)
+
+## <span id="spark.local.dir"> spark.local.dir
+
+A comma-separated list of directories that are used as a temporary storage for "scratch" space (incl. map output files and RDDs that get stored on disk). This should be on a fast, local disk in your system.
+
+Default: `/tmp`
+
 ## <span id="spark.ui.showConsoleProgress"> spark.ui.showConsoleProgress
 
 Enables [ConsoleProgressBar](ConsoleProgressBar.md)
@@ -114,11 +128,6 @@ a| [[spark.default.parallelism]] Number of partitions to use for rdd:HashPartiti
 * The number of threads for local/spark-LocalSchedulerBackend.md[LocalSchedulerBackend].
 * the number of CPU cores in spark-mesos.md#defaultParallelism[Spark on Mesos] and defaults to `8`.
 * Maximum of `totalCoreCount` and `2` in scheduler:CoarseGrainedSchedulerBackend.md#defaultParallelism[CoarseGrainedSchedulerBackend].
-
-| spark.diskStore.subDirectories
-a| [[spark.diskStore.subDirectories]]
-
-Default: `64`
 
 | spark.driver.blockManager.port
 a| [[spark.driver.blockManager.port]][[DRIVER_BLOCK_MANAGER_PORT]] Port the storage:BlockManager.md[block manager] on the driver listens on
