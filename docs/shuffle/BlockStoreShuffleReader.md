@@ -1,4 +1,4 @@
-== [[BlockStoreShuffleReader]] BlockStoreShuffleReader
+# BlockStoreShuffleReader
 
 `BlockStoreShuffleReader` is the one and only known spark-shuffle-ShuffleReader.md[ShuffleReader] that <<read, reads the combined key-values for the reduce task>> (for a range of <<startPartition, start>> and <<endPartition, end>> reduce partitions) from a shuffle by requesting them from block managers.
 
@@ -23,7 +23,7 @@ NOTE: `read` uses scheduler:MapOutputTracker.md#getMapSizesByExecutorId[`MapOutp
 
 `read` creates a key/value iterator by `deserializeStream` every shuffle block stream.
 
-`read` updates the spark-TaskContext.md#taskMetrics[context task metrics] for each record read.
+`read` updates the [context task metrics](../scheduler/TaskContext.md#taskMetrics) for each record read.
 
 NOTE: `read` uses `CompletionIterator` (to count the records read) and spark-InterruptibleIterator.md[InterruptibleIterator] (to support task cancellation).
 
@@ -71,14 +71,14 @@ Used when <<read, `BlockStoreShuffleReader` creates a `ShuffleBlockFetcherIterat
 
 |===
 
-=== [[creating-instance]] Creating BlockStoreShuffleReader Instance
+## Creating Instance
 
 `BlockStoreShuffleReader` takes the following when created:
 
 * [[handle]] spark-shuffle-BaseShuffleHandle.md[BaseShuffleHandle]
 * [[startPartition]] Reduce start partition index
 * [[endPartition]] Reduce end partition index
-* [[context]] spark-TaskContext.md[TaskContext]
+* [[context]] [TaskContext](../scheduler/TaskContext.md)
 * [[serializerManager]] serializer:SerializerManager.md[SerializerManager]
 * [[blockManager]] storage:BlockManager.md[BlockManager]
 * [[mapOutputTracker]] scheduler:MapOutputTracker.md[MapOutputTracker]

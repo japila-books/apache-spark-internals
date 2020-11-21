@@ -13,7 +13,7 @@ ExternalAppendOnlyMap takes the following to be created:
 * [[mergeCombiners]] mergeCombiners function (`(C, C) => C`)
 * [[serializer]] Optional serializer:Serializer.md[Serializer] (default: core:SparkEnv.md#serializer[system Serializer])
 * [[blockManager]] Optional storage:BlockManager.md[BlockManager] (default: core:SparkEnv.md#blockManager[system BlockManager])
-* [[context]] Optional scheduler:spark-TaskContext.md[TaskContext] (default: scheduler:spark-TaskContext.md#get[current TaskContext])
+* [[context]] [TaskContext](../scheduler/TaskContext.md)
 * [[serializerManager]] Optional serializer:SerializerManager.md[SerializerManager] (default: core:SparkEnv.md#serializerManager[system SerializerManager])
 
 ExternalAppendOnlyMap is created when:

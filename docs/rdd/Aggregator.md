@@ -58,7 +58,7 @@ updateMetrics(
   map: ExternalAppendOnlyMap[_, _, _]): Unit
 ----
 
-updateMetrics requests the input scheduler:spark-TaskContext.md[TaskContext] for the scheduler:spark-TaskContext.md#taskMetrics[TaskMetrics] to update the metrics based on the metrics of the input shuffle:ExternalAppendOnlyMap.md[ExternalAppendOnlyMap]:
+updateMetrics requests the input [TaskContext](../scheduler/TaskContext.md) for the [TaskMetrics](../scheduler/TaskContext.md#taskMetrics) to update the metrics based on the metrics of the input [ExternalAppendOnlyMap](../shuffle/ExternalAppendOnlyMap.md):
 
 * executor:TaskMetrics.md#incMemoryBytesSpilled[Increment memory bytes spilled]
 

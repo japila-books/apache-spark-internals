@@ -16,7 +16,7 @@ makeDriverRef...FIXME
 
 makeDriverRef is used when:
 
-* scheduler:spark-BarrierTaskContext.md#barrierCoordinator[BarrierTaskContext] is created
+* [BarrierTaskContext](../scheduler/BarrierTaskContext.md#barrierCoordinator) is created
 
 * SparkEnv utility is used to core:SparkEnv.md#create[create a SparkEnv] (on executors)
 

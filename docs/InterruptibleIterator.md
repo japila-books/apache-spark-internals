@@ -25,7 +25,7 @@ Quoting the official Scala https://www.scala-lang.org/api/2.11.x/index.html#scal
 [[creating-instance]]
 `InterruptibleIterator` takes the following when created:
 
-* [[context]] spark-TaskContext.md[TaskContext]
+* [[context]] [TaskContext](scheduler/TaskContext.md)
 * [[delegate]] Scala `Iterator[T]`
 
 NOTE: `InterruptibleIterator` is a Developer API which is a lower-level, unstable API intended for Spark developers that may change or be removed in minor versions of Apache Spark.
@@ -39,7 +39,7 @@ hasNext: Boolean
 
 NOTE: `hasNext` is part of ++https://www.scala-lang.org/api/2.11.x/index.html#scala.collection.Iterator@hasNext:Boolean++[Iterator Contract] to test whether this iterator can provide another element.
 
-`hasNext` requests the <<context, TaskContext>> to spark-TaskContext.md#killTaskIfInterrupted[kill the task if interrupted] (that simply throws a `TaskKilledException` that in turn breaks the task execution).
+`hasNext` requests the <<context, TaskContext>> to [kill the task if interrupted](scheduler/TaskContext.md#killTaskIfInterrupted) (that simply throws a `TaskKilledException` that in turn breaks the task execution).
 
 In the end, `hasNext` requests the <<delegate, delegate Iterator>> to `hasNext`.
 

@@ -32,7 +32,7 @@ compute(
   context: TaskContext): Iterator[T]
 ----
 
-compute computes the input `split` spark-rdd-partitions.md[partition] in the scheduler:spark-TaskContext.md[TaskContext] to produce a collection of values (of type `T`).
+compute computes the input `split` spark-rdd-partitions.md[partition] in the [TaskContext](../scheduler/TaskContext.md) to produce a collection of values (of type `T`).
 
 compute is implemented by any type of RDD in Spark and is called every time the records are requested unless RDD is spark-rdd-caching.md[cached] or ROOT:rdd-checkpointing.md[checkpointed] (and the records can be read from an external storage, but this time closer to the compute node).
 
@@ -173,7 +173,7 @@ NOTE: `getOrCompute` uses core:SparkEnv.md#get[SparkEnv] to access the current c
 
 `getOrCompute` branches off per the response from the storage:BlockManager.md#getOrElseUpdate[BlockManager] and whether the internal `readCachedBlock` flag is now on or still off. In either case, `getOrCompute` creates an spark-InterruptibleIterator.md[InterruptibleIterator].
 
-NOTE: spark-InterruptibleIterator.md[InterruptibleIterator] simply delegates to a wrapped internal `Iterator`, but allows for spark-TaskContext.md#isInterrupted[task killing functionality].
+NOTE: spark-InterruptibleIterator.md[InterruptibleIterator] simply delegates to a wrapped internal `Iterator`, but allows for [task killing functionality](../scheduler/TaskContext.md#isInterrupted).
 
 For a `BlockResult` available and `readCachedBlock` flag on, `getOrCompute`...FIXME
 

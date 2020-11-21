@@ -1,6 +1,6 @@
-= ShuffleBlockFetcherIterator
+# ShuffleBlockFetcherIterator
 
-*ShuffleBlockFetcherIterator* is a Scala http://www.scala-lang.org/api/current/scala/collection/Iterator.html[Iterator] that fetches shuffle blocks (aka _shuffle map outputs_) from block managers.
+`ShuffleBlockFetcherIterator` is a Scala http://www.scala-lang.org/api/current/scala/collection/Iterator.html[Iterator] that fetches shuffle blocks (aka _shuffle map outputs_) from block managers.
 
 ShuffleBlockFetcherIterator is <<creating-instance, created>> exclusively when `BlockStoreShuffleReader` is requested to shuffle:BlockStoreShuffleReader.md#read[read combined key-value records for a reduce task].
 
@@ -100,11 +100,11 @@ Refer to spark-logging.md[Logging].
 
 CAUTION: FIXME
 
-== [[creating-instance]] Creating ShuffleBlockFetcherIterator Instance
+## Creating Instance
 
 When created, ShuffleBlockFetcherIterator takes the following:
 
-* [[context]] spark-TaskContext.md[TaskContext]
+* [[context]] [TaskContext](../scheduler/TaskContext.md)
 * [[shuffleClient]] storage:ShuffleClient.md[]
 * [[blockManager]] storage:BlockManager.md[BlockManager]
 * [[blocksByAddress]] Blocks to fetch per storage:BlockManager.md[BlockManager] (as `Seq[(BlockManagerId, Seq[(BlockId, Long)])]`)
@@ -124,7 +124,7 @@ initialize(): Unit
 
 `initialize` registers a task cleanup and fetches shuffle blocks from remote and local storage:BlockManager.md[BlockManagers].
 
-Internally, `initialize` spark-TaskContext.md#addTaskCompletionListener[registers a `TaskCompletionListener`] (that will <<cleanup, clean up>> right after the task finishes).
+Internally, `initialize` [registers a `TaskCompletionListener`](../scheduler/TaskContext.md#addTaskCompletionListener) (that will <<cleanup, clean up>> right after the task finishes).
 
 `initialize` <<splitLocalRemoteBlocks, splitLocalRemoteBlocks>>.
 

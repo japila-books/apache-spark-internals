@@ -1,8 +1,8 @@
-== Local Properties -- Creating Logical Job Groups
+# Local Properties &mdash; Creating Logical Job Groups
 
 The purpose of *local properties* concept is to create logical groups of jobs by means of properties that (regardless of the threads used to submit the jobs) makes the separate jobs launched from different threads belong to a single logical group.
 
-You can <<setLocalProperty, set a local property>> that will affect Spark jobs submitted from a thread, such as the Spark fair scheduler pool. You can use your own custom properties. The properties are propagated through to worker tasks and can be accessed there via spark-TaskContext.md#getLocalProperty[TaskContext.getLocalProperty].
+You can <<setLocalProperty, set a local property>> that will affect Spark jobs submitted from a thread, such as the Spark fair scheduler pool. You can use your own custom properties. The properties are propagated through to worker tasks and can be accessed there via [TaskContext.getLocalProperty](scheduler/TaskContext.md#getLocalProperty).
 
 NOTE: Propagating local properties to workers starts when `SparkContext` is requested to ROOT:SparkContext.md#runJob[run] or ROOT:SparkContext.md#submitJob[submit] a Spark job that in turn scheduler:DAGScheduler.md#runJob[passes them along to `DAGScheduler`].
 

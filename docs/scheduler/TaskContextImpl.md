@@ -1,6 +1,6 @@
-== [[TaskContextImpl]] TaskContextImpl -- Default TaskContext
+# TaskContextImpl
 
-`TaskContextImpl` is a concrete <<spark-TaskContext.md#, TaskContext>> that is <<creating-instance, created>> exclusively when `Task` is requested to scheduler:Task.md#run[run] (when `Executor` is requested to executor:Executor.md#launchTask[launch a task (on "Executor task launch worker" thread pool) sometime in the future]).
+`TaskContextImpl` is a concrete [TaskContext](TaskContext.md) that is <<creating-instance, created>> exclusively when `Task` is requested to scheduler:Task.md#run[run] (when `Executor` is requested to executor:Executor.md#launchTask[launch a task (on "Executor task launch worker" thread pool) sometime in the future]).
 
 [[creating-instance]]
 `TaskContextImpl` takes the following to be created:
@@ -70,7 +70,7 @@ Used when...FIXME
 addTaskCompletionListener(listener: TaskCompletionListener): TaskContext
 ----
 
-NOTE: `addTaskCompletionListener` is part of the <<spark-TaskContext.md#addTaskCompletionListener, TaskContext Contract>> to register a `TaskCompletionListener`.
+`addTaskCompletionListener` is part of the [TaskContext](TaskContext.md#addTaskCompletionListener) abstraction.
 
 `addTaskCompletionListener`...FIXME
 
@@ -81,7 +81,7 @@ NOTE: `addTaskCompletionListener` is part of the <<spark-TaskContext.md#addTaskC
 addTaskFailureListener(listener: TaskFailureListener): TaskContext
 ----
 
-NOTE: `addTaskFailureListener` is part of the <<spark-TaskContext.md#addTaskFailureListener, TaskContext Contract>> to register a `TaskFailureListener`.
+`addTaskFailureListener` is part of the [TaskContext](TaskContext.md#addTaskFailureListener) abstraction.
 
 `addTaskFailureListener`...FIXME
 
@@ -92,7 +92,7 @@ NOTE: `addTaskFailureListener` is part of the <<spark-TaskContext.md#addTaskFail
 markTaskFailed(error: Throwable): Unit
 ----
 
-NOTE: `markTaskFailed` is part of the <<spark-TaskContext.md#markTaskFailed, TaskContext Contract>> to mark the task as failed and trigger the `TaskFailureListeners`.
+`markTaskFailed` is part of the [TaskContext](TaskContext.md#markTaskFailed) abstraction.
 
 `markTaskFailed`...FIXME
 
@@ -103,7 +103,7 @@ NOTE: `markTaskFailed` is part of the <<spark-TaskContext.md#markTaskFailed, Tas
 markTaskCompleted(error: Option[Throwable]): Unit
 ----
 
-NOTE: `markTaskCompleted` is part of the <<spark-TaskContext.md#markTaskCompleted, TaskContext Contract>> to mark the task as completed and trigger the `TaskCompletionListeners`.
+`markTaskCompleted` is part of the [TaskContext](TaskContext.md#markTaskCompleted) abstraction.
 
 `markTaskCompleted`...FIXME
 
@@ -129,7 +129,7 @@ NOTE: `invokeListeners` is used when...FIXME
 markInterrupted(reason: String): Unit
 ----
 
-NOTE: `markInterrupted` is part of the <<spark-TaskContext.md#markInterrupted, TaskContext Contract>> to mark the task for interruption, i.e. cancellation.
+`markInterrupted` is part of the [TaskContext](TaskContext.md#markInterrupted) abstraction.
 
 `markInterrupted`...FIXME
 
@@ -140,6 +140,6 @@ NOTE: `markInterrupted` is part of the <<spark-TaskContext.md#markInterrupted, T
 killTaskIfInterrupted(): Unit
 ----
 
-NOTE: `killTaskIfInterrupted` is part of the <<spark-TaskContext.md#killTaskIfInterrupted, TaskContext Contract>> to mark the task for interruption, i.e. cancellation.
+`killTaskIfInterrupted` is part of the [TaskContext](TaskContext.md#killTaskIfInterrupted) abstraction.
 
 `killTaskIfInterrupted`...FIXME

@@ -103,7 +103,7 @@ run(
 
 NOTE: `run` uses core:SparkEnv.md#blockManager[`SparkEnv` to access the current `BlockManager`].
 
-`run` spark-TaskContextImpl.md#creating-instance[creates a `TaskContextImpl`] that in turn becomes the task's spark-TaskContext.md#setTaskContext[TaskContext].
+`run` [creates a `TaskContextImpl`](TaskContextImpl.md#creating-instance) that in turn becomes the task's [TaskContext](TaskContext.md#setTaskContext).
 
 NOTE: `run` is a `final` method and so must not be overriden.
 
@@ -115,15 +115,15 @@ NOTE: `run` is a `final` method and so must not be overriden.
 
 NOTE: This is the moment when the custom `Task`'s <<runTask, runTask>> is executed.
 
-In the end, `run` spark-TaskContextImpl.md#markTaskCompleted[notifies `TaskContextImpl` that the task has completed] (regardless of the final outcome -- a success or a failure).
+In the end, `run` [notifies `TaskContextImpl` that the task has completed](TaskContextImpl.md#markTaskCompleted) (regardless of the final outcome -- a success or a failure).
 
-In case of any exceptions, `run` spark-TaskContextImpl.md#markTaskFailed[notifies `TaskContextImpl` that the task has failed]. `run` storage:MemoryStore.md#releaseUnrollMemoryForThisTask[requests `MemoryStore` to release unroll memory for this task] (for both `ON_HEAP` and `OFF_HEAP` memory modes).
+In case of any exceptions, `run` [notifies `TaskContextImpl` that the task has failed](TaskContextImpl.md#markTaskFailed). `run` storage:MemoryStore.md#releaseUnrollMemoryForThisTask[requests `MemoryStore` to release unroll memory for this task] (for both `ON_HEAP` and `OFF_HEAP` memory modes).
 
 NOTE: `run` uses core:SparkEnv.md#blockManager[`SparkEnv` to access the current `BlockManager`] that it uses to access storage:BlockManager.md#memoryStore[MemoryStore].
 
 `run` memory:MemoryManager.md[requests `MemoryManager` to notify any tasks waiting for execution memory to be freed to wake up and try to acquire memory again].
 
-`run` spark-TaskContext.md#unset[unsets the task's `TaskContext`].
+`run` [unsets the task's `TaskContext`](TaskContext.md#unset).
 
 NOTE: `run` uses core:SparkEnv.md#memoryManager[`SparkEnv` to access the current `MemoryManager`].
 
@@ -161,7 +161,7 @@ collectAccumulatorUpdates(taskFailed: Boolean = false): Seq[AccumulableInfo]
 
 `collectAccumulatorUpdates` collects the latest values of internal and external accumulators from a task (and returns the values as a collection of spark-accumulators.md#AccumulableInfo[AccumulableInfo]).
 
-Internally, `collectAccumulatorUpdates` spark-TaskContextImpl.md#taskMetrics[takes `TaskMetrics`].
+Internally, `collectAccumulatorUpdates` [takes `TaskMetrics`](TaskContextImpl.md#taskMetrics).
 
 NOTE: `collectAccumulatorUpdates` uses <<context, TaskContextImpl>> to access the task's `TaskMetrics`.
 
@@ -184,13 +184,13 @@ kill(interruptThread: Boolean)
 
 `kill` marks the task to be killed, i.e. it sets the internal `_killed` flag to `true`.
 
-`kill` calls spark-TaskContextImpl.md#markInterrupted[TaskContextImpl.markInterrupted] when `context` is set.
+`kill` calls [TaskContextImpl.markInterrupted](TaskContextImpl.md#markInterrupted) when `context` is set.
 
 If `interruptThread` is enabled and the internal `taskThread` is available, `kill` interrupts it.
 
 CAUTION: FIXME When could `context` and `interruptThread` not be set?
 
-== [[internal-registries]] Internal Properties
+## Internal Properties
 
 .Task's Internal Properties (e.g. Registries, Counters and Flags)
 [cols="1m,3",options="header",width="100%"]
@@ -211,9 +211,9 @@ CAUTION: FIXME When could `context` and `interruptThread` not be set?
 | [[_killed]]
 
 | context
-| [[context]] <<spark-TaskContext.md#, TaskContext>>
+| [[context]] [TaskContext](TaskContext.md)
 
-Set to be a <<spark-BarrierTaskContext.md#, BarrierTaskContext>> or <<spark-TaskContextImpl.md#, TaskContextImpl>> when the <<isBarrier, isBarrier>> flag is enabled or not, respectively, when Task is requested to <<run, run>>
+Set to be a [BarrierTaskContext](BarrierTaskContext.md) or [TaskContextImpl](TaskContextImpl.md) when the <<isBarrier, isBarrier>> flag is enabled or not, respectively, when Task is requested to <<run, run>>
 
 | epoch
 | [[epoch]] Task epoch

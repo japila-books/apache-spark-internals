@@ -1,14 +1,14 @@
-= [[ExternalSorter]] ExternalSorter
+# ExternalSorter
 
-*ExternalSorter* is a shuffle:Spillable.md[Spillable] of WritablePartitionedPairCollection of pairs (of K keys and C values).
+`ExternalSorter` is a shuffle:Spillable.md[Spillable] of WritablePartitionedPairCollection of pairs (of K keys and C values).
 
 `ExternalSorter[K, V, C]` is a parameterized type of `K` keys, `V` values, and `C` combiner (partial) values.
 
-== [[creating-instance]] Creating Instance
+## Creating Instance
 
 ExternalSorter takes the following to be created:
 
-* [[context]] scheduler:spark-TaskContext.md[TaskContext]
+* [[context]] [TaskContext](../scheduler/TaskContext.md)
 * [[aggregator]] Optional rdd:Aggregator.md[Aggregator] (default: undefined)
 * [[partitioner]] Optional rdd:Partitioner[Partitioner] (default: undefined)
 * [[ordering]] Optional Scala's http://www.scala-lang.org/api/current/scala/math/Ordering.html[Ordering] for keys (default: undefined)

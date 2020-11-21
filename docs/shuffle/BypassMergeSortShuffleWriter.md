@@ -1,11 +1,11 @@
-= BypassMergeSortShuffleWriter
+# BypassMergeSortShuffleWriter
 
-*BypassMergeSortShuffleWriter* is a shuffle:ShuffleWriter.md[ShuffleWriter] for scheduler:ShuffleMapTask.md[ShuffleMapTasks] to <<write, write records into one single shuffle block data file>>.
+`BypassMergeSortShuffleWriter` is a shuffle:ShuffleWriter.md[ShuffleWriter] for scheduler:ShuffleMapTask.md[ShuffleMapTasks] to <<write, write records into one single shuffle block data file>>.
 
 .BypassMergeSortShuffleWriter and DiskBlockObjectWriters
 image::BypassMergeSortShuffleWriter-write.png[align="center"]
 
-== [[creating-instance]] Creating Instance
+## Creating Instance
 
 BypassMergeSortShuffleWriter takes the following to be created:
 
@@ -13,7 +13,7 @@ BypassMergeSortShuffleWriter takes the following to be created:
 * <<shuffleBlockResolver, IndexShuffleBlockResolver>>
 * [[handle]] shuffle:BypassMergeSortShuffleHandle.md[BypassMergeSortShuffleHandle<K, V>]
 * [[mapId]] Map ID
-* [[taskContext]] scheduler:spark-TaskContext.md[TaskContext]
+* [[taskContext]] [TaskContext](../scheduler/TaskContext.md)
 * [[conf]] ROOT:SparkConf.md[SparkConf]
 
 BypassMergeSortShuffleWriter is created when SortShuffleManager is requested for a SortShuffleManager.md#getWriter[ShuffleWriter] (for a <<handle, BypassMergeSortShuffleHandle>>).

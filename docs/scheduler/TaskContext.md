@@ -285,10 +285,10 @@ Used when...FIXME
 | TaskContext
 | Description
 
-| <<spark-BarrierTaskContext.md#, BarrierTaskContext>>
+| [BarrierTaskContext](BarrierTaskContext.md)
 | [[BarrierTaskContext]]
 
-| <<spark-TaskContextImpl.md#, TaskContextImpl>>
+| [TaskContextImpl](TaskContextImpl.md)
 | [[TaskContextImpl]]
 
 |===

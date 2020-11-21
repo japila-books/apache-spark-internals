@@ -13,7 +13,7 @@ SortShuffleWriter takes the following to be created:
 * [[shuffleBlockResolver]] IndexShuffleBlockResolver.md[IndexShuffleBlockResolver]
 * [[handle]] spark-shuffle-BaseShuffleHandle.md[BaseShuffleHandle]
 * [[mapId]] Map ID
-* [[context]] scheduler:spark-TaskContext.md[TaskContext]
+* [[context]] [TaskContext](../scheduler/TaskContext.md)
 
 == [[mapStatus]] MapStatus
 

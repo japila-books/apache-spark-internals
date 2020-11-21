@@ -367,7 +367,7 @@ Used exclusively when requested to <<closeAndWriteOutput, close internal resourc
 
 === [[writeMetrics]] writeMetrics
 
-executor:ShuffleWriteMetrics.md[] (of the scheduler:spark-TaskContext.md#taskMetrics[TaskMetrics] of the <<taskContext, TaskContext>>)
+executor:ShuffleWriteMetrics.md[] (of the [TaskMetrics](../scheduler/TaskContext.md#taskMetrics) of the <<taskContext, TaskContext>>)
 
 Used when UnsafeShuffleWriter is requested for the following:
 

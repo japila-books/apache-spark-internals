@@ -11,7 +11,7 @@ TaskMetrics is <<creating-instance, created>> when:
 [[creating-instance]]
 TaskMetrics takes no arguments to be created.
 
-TaskMetrics is available using <<spark-TaskContext.md#taskMetrics, TaskContext.taskMetrics>>.
+TaskMetrics is available using [TaskContext.taskMetrics](../scheduler/TaskContext.md#taskMetrics).
 
 TIP: Use ROOT:SparkListener.md#onTaskEnd[SparkListener.onTaskEnd] to intercept ROOT:SparkListener.md#SparkListenerTaskEnd[SparkListenerTaskEnd] events to access the <<TaskMetrics, TaskMetrics>> of a task that has finished successfully.
 
@@ -195,16 +195,13 @@ empty: TaskMetrics
 
 `empty`...FIXME
 
-[NOTE]
-====
 `empty` is used when:
 
-* `TaskContextImpl` is <<spark-TaskContextImpl.md#taskMetrics, created>>
+* `TaskContextImpl` is [created](../scheduler/TaskContextImpl.md#taskMetrics)
 
 * TaskMetrics utility is requested to <<registered, registered>>
 
 * JsonProtocol utility is requested to spark-history-server:JsonProtocol.md#taskMetricsFromJson[taskMetricsFromJson]
-====
 
 == [[registered]] `registered` Factory Method
 

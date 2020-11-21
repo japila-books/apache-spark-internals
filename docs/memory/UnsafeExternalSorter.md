@@ -1,15 +1,13 @@
-= [[UnsafeExternalSorter]] UnsafeExternalSorter
+# UnsafeExternalSorter
 
-*UnsafeExternalSorter* is...FIXME
-
-== [[creating-instance]] Creating Instance
+## Creating Instance
 
 UnsafeExternalSorter takes the following to be created:
 
 * [[taskMemoryManager]] memory:TaskMemoryManager.md[TaskMemoryManager]
 * [[blockManager]] storage:BlockManager.md[BlockManager]
 * <<serializerManager, SerializerManager>>
-* [[taskContext]] scheduler:spark-TaskContext.md[TaskContext]
+* [[taskContext]] [TaskContext](../scheduler/TaskContext.md)
 * [[recordComparatorSupplier]] Supplier<RecordComparator>
 * [[prefixComparator]] PrefixComparator
 * [[initialSize]] Initial size
