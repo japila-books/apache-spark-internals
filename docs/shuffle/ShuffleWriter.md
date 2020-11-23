@@ -2,7 +2,7 @@
 
 `ShuffleWriter[K, V]` (of `K` keys and `V` values) is an [abstraction](#contract) of [shuffle writers](#implementations) that can [write out key-value records](#write) (of a RDD partition) to a shuffle system.
 
-`ShuffleWriter` is used when [ShuffleMapTask](../scheduler/ShuffleMapTask.md) is requested to [run](../scheduler/ShuffleMapTask.md#runTask).
+`ShuffleWriter` is used when [ShuffleMapTask](../scheduler/ShuffleMapTask.md) is requested to [run](../scheduler/ShuffleMapTask.md#runTask) (and uses a `ShuffleWriteProcessor` to [write partition records to a shuffle system](ShuffleWriteProcessor.md#write)).
 
 ## Contract
 
