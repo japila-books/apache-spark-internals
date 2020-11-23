@@ -90,11 +90,11 @@ onJobStart(jobStart: SparkListenerJobStart): Unit
 
 `onJobStart` looks the job ids for the group id (in <<jobGroupToJobIds, jobGroupToJobIds>> registry) and adds the job id.
 
-The internal <<pendingStages, pendingStages>> is updated with scheduler:spark-scheduler-StageInfo.md[StageInfo] for the stage id (for every `StageInfo` in `SparkListenerJobStart.stageInfos` collection).
+The internal <<pendingStages, pendingStages>> is updated with [StageInfo](../scheduler/StageInfo.md) for the stage id (for every `StageInfo` in `SparkListenerJobStart.stageInfos` collection).
 
 `onJobStart` records the stages of the job in <<stageIdToActiveJobIds, stageIdToActiveJobIds>>.
 
-`onJobStart` records scheduler:spark-scheduler-StageInfo.md[StageInfos] in <<stageIdToInfo, stageIdToInfo>> and <<stageIdToData, stageIdToData>>.
+`onJobStart` records [StageInfos](../scheduler/StageInfo.md) in <<stageIdToInfo, stageIdToInfo>> and <<stageIdToData, stageIdToData>>.
 
 === [[onJobEnd]] `onJobEnd` Method
 

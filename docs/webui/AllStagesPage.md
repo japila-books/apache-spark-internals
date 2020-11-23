@@ -30,7 +30,7 @@ It uses the parent's spark-webui-JobProgressListener.md[JobProgressListener] to 
 * the number of completed stages (as `numCompletedStages`)
 * the number of failed stages (as `numFailedStages`)
 
-NOTE: Stage information is available as scheduler:spark-scheduler-StageInfo.md[StageInfo] object.
+NOTE: Stage information is available as [StageInfo](../scheduler/StageInfo.md) object.
 
 There are 4 different tables for the different states of stages - active, pending, completed, and failed. They are displayed only when there are stages in a given state.
 

@@ -1,4 +1,4 @@
-== [[ResultTask]] ResultTask -- Task to Compute Result for ResultStage
+# ResultTask
 
 `ResultTask` is a scheduler:Task.md[Task] that <<runTask, executes a function on the records in a RDD partition>>.
 
@@ -24,14 +24,14 @@ Used exclusively when `ResultTask` is requested for <<preferredLocations, prefer
 
 |===
 
-=== [[creating-instance]] Creating ResultTask Instance
+## Creating Instance
 
 `ResultTask` takes the following when created:
 
 * `stageId` -- the stage the task is executed for
 * `stageAttemptId` -- the stage attempt id
 * [[taskBinary]] ROOT:Broadcast.md[] with the serialized task (as `Array[Byte]`). The broadcast contains of a serialized pair of `RDD` and the function to execute.
-* [[partition]] spark-rdd-Partition.md[Partition] to compute
+* [[partition]] [Partition](../rdd/Partition.md) to compute
 * [[locs]] Collection of scheduler:TaskLocation.md[TaskLocations], i.e. preferred locations (executors) to execute the task on
 * [[outputId]] `outputId`
 * [[localProperties]] local `Properties`

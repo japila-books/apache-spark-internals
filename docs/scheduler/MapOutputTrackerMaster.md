@@ -159,7 +159,7 @@ getPreferredLocationsForShuffle(
   partitionId: Int): Seq[String]
 ----
 
-getPreferredLocationsForShuffle computes the locations (storage:BlockManager.md[BlockManagers]) with the most shuffle map outputs for the input [ShuffleDependency](../rdd/ShuffleDependency.md) and [Partition](../rdd/spark-rdd-Partition.md).
+getPreferredLocationsForShuffle computes the locations (storage:BlockManager.md[BlockManagers]) with the most shuffle map outputs for the input [ShuffleDependency](../rdd/ShuffleDependency.md) and [Partition](../rdd/Partition.md).
 
 getPreferredLocationsForShuffle computes the locations when all of the following are met:
 

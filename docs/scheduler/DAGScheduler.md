@@ -421,7 +421,7 @@ Internally, `abortStage` looks the `failedStage` stage up in the internal <<stag
 
 If it was, `abortStage` finds all the active jobs (in the internal <<activeJobs, activeJobs>> registry) with the <<stageDependsOn, final stage depending on the `failedStage` stage>>.
 
-At this time, the `completionTime` property (of the failed stage's spark-scheduler-StageInfo.md[StageInfo]) is assigned to the current time (millis).
+At this time, the `completionTime` property (of the failed stage's [StageInfo](StageInfo.md)) is assigned to the current time (millis).
 
 All the active jobs that depend on the failed stage (as calculated above) and the stages that do not belong to other jobs (aka _independent stages_) are <<failJobAndIndependentStages, failed>> (with the failure reason being "Job aborted due to stage failure: [reason]" and the input `exception`).
 
@@ -540,7 +540,7 @@ If `TaskScheduler` reports that a task failed because a map output file from a p
 
 Please note that tasks from the old attempts of a stage could still be running.
 
-A stage object tracks multiple spark-scheduler-StageInfo.md[StageInfo] objects to pass to Spark listeners or the web UI.
+A stage object tracks multiple [StageInfo](StageInfo.md) objects to pass to Spark listeners or the web UI.
 
 The latest `StageInfo` for the most recent attempt for a stage is accessible through `latestInfo`.
 

@@ -194,7 +194,7 @@ a| [[partitionId]]
 partitionId(): Int
 ----
 
-ID of the spark-rdd-Partition.md[Partition] computed by the task
+ID of the [Partition](../rdd/Partition.md) computed by the task
 
 Used when...FIXME
 

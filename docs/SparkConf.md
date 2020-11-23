@@ -24,7 +24,7 @@ spark.submit.deployMode=client
 Use `sc.getConf.toDebugString` to have a richer output once SparkContext has finished initializing.
 ====
 
-You can query for the values of Spark properties in [Spark shell](../tools/spark-shell.md) as follows:
+You can query for the values of Spark properties in [Spark shell](tools/spark-shell.md) as follows:
 
 ```text
 scala> sc.getConf.getOption("spark.local.dir")

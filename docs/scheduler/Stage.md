@@ -8,12 +8,12 @@ A stage is a set of parallel tasks -- one task per partition (of an RDD that com
 
 In other words, a Spark job is a computation with that computation sliced into stages.
 
-A stage is uniquely identified by `id`. When a stage is created, scheduler:DAGScheduler.md[DAGScheduler] increments internal counter `nextStageId` to track the number of scheduler:DAGScheduler.md#submitStage[stage submissions].
+A stage is uniquely identified by `id`. When a stage is created, DAGScheduler.md[DAGScheduler] increments internal counter `nextStageId` to track the number of DAGScheduler.md#submitStage[stage submissions].
 
 [[rdd]]
 A stage can only work on the partitions of a single RDD (identified by `rdd`), but can be associated with many other dependent parent stages (via internal field `parents`), with the boundary of a stage marked by shuffle dependencies.
 
-Submitting a stage can therefore trigger execution of a series of dependent parent stages (refer to scheduler:DAGScheduler.md#runJob[RDDs, Job Execution, Stages, and Partitions]).
+Submitting a stage can therefore trigger execution of a series of dependent parent stages (refer to DAGScheduler.md#runJob[RDDs, Job Execution, Stages, and Partitions]).
 
 ![Submitting a job triggers execution of the stage and its parent stages](../images/scheduler/job-stage.png)
 
@@ -21,10 +21,10 @@ Finally, every stage has a `firstJobId` that is the id of the job that submitted
 
 There are two types of stages:
 
-* scheduler:ShuffleMapStage.md[ShuffleMapStage] is an intermediate stage (in the execution DAG) that produces data for other stage(s). It writes *map output files* for a shuffle. It can also be the final stage in a job in scheduler:DAGScheduler.md#adaptive-query-planning[Adaptive Query Planning / Adaptive Scheduling].
-* scheduler:ResultStage.md[ResultStage] is the final stage that executes rdd:index.md#actions[a Spark action] in a user program by running a function on an RDD.
+* ShuffleMapStage.md[ShuffleMapStage] is an intermediate stage (in the execution DAG) that produces data for other stage(s). It writes *map output files* for a shuffle. It can also be the final stage in a job in DAGScheduler.md#adaptive-query-planning[Adaptive Query Planning / Adaptive Scheduling].
+* ResultStage.md[ResultStage] is the final stage that executes rdd:index.md#actions[a Spark action] in a user program by running a function on an RDD.
 
-When a job is submitted, a new stage is created with the parent scheduler:ShuffleMapStage.md[ShuffleMapStage] linked -- they can be created from scratch or linked to, i.e. shared, if other jobs use them already.
+When a job is submitted, a new stage is created with the parent ShuffleMapStage.md[ShuffleMapStage] linked -- they can be created from scratch or linked to, i.e. shared, if other jobs use them already.
 
 ![DAGScheduler and Stages for a job](../images/scheduler/scheduler-job-shuffles-result-stages.png)
 
@@ -42,7 +42,7 @@ RDD operations with rdd:index.md[narrow dependencies], like `map()` and `filter(
 
 In the end, every stage will have only shuffle dependencies on other stages, and may compute multiple operations inside it. The actual pipelining of these operations happens in the `RDD.compute()` functions of various RDDs, e.g. `MappedRDD`, `FilteredRDD`, etc.
 
-At some point of time in a stage's life, every partition of the stage gets transformed into a task - scheduler:ShuffleMapTask.md[ShuffleMapTask] or scheduler:ResultTask.md[ResultTask] for scheduler:ShuffleMapStage.md[ShuffleMapStage] and scheduler:ResultStage.md[ResultStage], respectively.
+At some point of time in a stage's life, every partition of the stage gets transformed into a task - ShuffleMapTask.md[ShuffleMapTask] or ResultTask.md[ResultTask] for ShuffleMapStage.md[ShuffleMapStage] and ResultStage.md[ResultStage], respectively.
 
 Partitions are computed in jobs, and result stages may not always need to compute all partitions in their target RDD, e.g. for actions like `first()` and `lookup()`.
 
@@ -58,7 +58,7 @@ There is also the following DEBUG message with pending partitions:
 New pending partitions: Set(0)
 ```
 
-Tasks are later submitted to scheduler:TaskScheduler.md[Task Scheduler] (via `taskScheduler.submitTasks`).
+Tasks are later submitted to TaskScheduler.md[Task Scheduler] (via `taskScheduler.submitTasks`).
 
 When no tasks in a stage can be submitted, the following DEBUG message shows in the logs:
 
@@ -75,7 +75,7 @@ findMissingPartitions(): Seq[Int]
 
 findMissingPartitions gives the partition ids that are missing and need to be computed.
 
-findMissingPartitions is used when DAGScheduler is requested to scheduler:DAGScheduler.md#submitMissingTasks[submitMissingTasks] and scheduler:DAGScheduler.md#handleTaskCompletion[handleTaskCompletion].
+findMissingPartitions is used when DAGScheduler is requested to DAGScheduler.md#submitMissingTasks[submitMissingTasks] and DAGScheduler.md#handleTaskCompletion[handleTaskCompletion].
 
 == [[failedOnFetchAndShouldAbort]] `failedOnFetchAndShouldAbort` Method
 
@@ -105,11 +105,11 @@ makeNewStageAttempt executor:TaskMetrics.md[creates a new `TaskMetrics`] and exe
 
 NOTE: makeNewStageAttempt uses <<rdd, rdd>> that was defined when <<creating-instance, `Stage` was created>>.
 
-makeNewStageAttempt sets <<_latestInfo, _latestInfo>> to be a scheduler:spark-scheduler-StageInfo.md#fromStage[`StageInfo` from the current stage] (with <<nextAttemptId, nextAttemptId>>, `numPartitionsToCompute`, and `taskLocalityPreferences`).
+makeNewStageAttempt sets <<_latestInfo, _latestInfo>> to be a [`StageInfo` from the current stage](StageInfo.md#fromStage) (with <<nextAttemptId, nextAttemptId>>, `numPartitionsToCompute`, and `taskLocalityPreferences`).
 
 makeNewStageAttempt increments <<nextAttemptId, nextAttemptId>> counter.
 
-makeNewStageAttempt is used when `DAGScheduler` is requested to scheduler:DAGScheduler.md#submitMissingTasks[submit the missing tasks of a stage].
+makeNewStageAttempt is used when `DAGScheduler` is requested to DAGScheduler.md#submitMissingTasks[submit the missing tasks of a stage].
 
 == [[internal-properties]] Internal Properties
 

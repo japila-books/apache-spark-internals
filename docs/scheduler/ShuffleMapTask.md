@@ -11,7 +11,7 @@
 * [[stageId]] Stage ID
 * [[stageAttemptId]] Stage attempt ID
 * <<taskBinary, Broadcast variable with a serialized task binary>>
-* [[partition]] [Partition](../rdd/spark-rdd-Partition.md)
+* [[partition]] [Partition](../rdd/Partition.md)
 * [[locs]] [TaskLocations](TaskLocation.md)
 * [[localProperties]] Task-specific local properties
 * [[serializedTaskMetrics]] Serialized task metrics (`Array[Byte]`)

@@ -1,4 +1,4 @@
-== [[Partition]] Partition
+# Partition
 
 `Partition` is a <<contract, contract>> of a <<index, partition index>> of a RDD.
 

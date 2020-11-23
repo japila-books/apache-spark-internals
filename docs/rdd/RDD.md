@@ -68,7 +68,7 @@ getPreferredLocations(
   split: Partition): Seq[String] = Nil
 ----
 
-getPreferredLocations is used when RDD is requested for the <<preferredLocations, preferred locations>> of a given spark-rdd-Partition.md[partition].
+getPreferredLocations is used when RDD is requested for the <<preferredLocations, preferred locations>> of a given [partition](Partition.md).
 
 === [[partitioner]] Partitioner
 
@@ -162,7 +162,7 @@ getOrCompute(
   context: TaskContext): Iterator[T]
 ----
 
-`getOrCompute` creates a storage:BlockId.md#RDDBlockId[RDDBlockId] for the <<id, RDD id>> and the spark-rdd-Partition.md#index[partition index].
+`getOrCompute` creates a storage:BlockId.md#RDDBlockId[RDDBlockId] for the <<id, RDD id>> and the [partition index](Partition.md#index).
 
 `getOrCompute` requests the `BlockManager` to storage:BlockManager.md#getOrElseUpdate[getOrElseUpdate] for the block ID (with the <<storageLevel, storage level>> and the `makeIterator` function).
 
@@ -250,7 +250,7 @@ getNarrowAncestors: Seq[RDD[_]]
 
 getNarrowAncestors...FIXME
 
-getNarrowAncestors is used when StageInfo is requested to scheduler:spark-scheduler-StageInfo.md#fromStage[fromStage].
+getNarrowAncestors is used when StageInfo is requested to [fromStage](../scheduler/StageInfo.md#fromStage).
 
 == [[toLocalIterator]] toLocalIterator Method
 

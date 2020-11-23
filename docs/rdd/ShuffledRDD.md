@@ -51,7 +51,7 @@ compute requests the only RDD.md#dependencies[dependency] (that is assumed a [Sh
 
 compute uses the [SparkEnv](../SparkEnv.md) to access the [ShuffleManager](../SparkEnv.md#shuffleManager).
 
-compute requests the shuffle:ShuffleManager.md#shuffleManager[ShuffleManager] for the shuffle:ShuffleManager.md#getReader[ShuffleReader] (for the ShuffleHandle, the spark-rdd-Partition.md[partition]).
+compute requests the shuffle:ShuffleManager.md#shuffleManager[ShuffleManager] for the shuffle:ShuffleManager.md#getReader[ShuffleReader] (for the ShuffleHandle, the [partition](Partition.md)).
 
 In the end, compute requests the ShuffleReader to shuffle:spark-shuffle-ShuffleReader.md#read[read] the combined key-value pairs (of type `(K, C)`).
 
@@ -65,7 +65,7 @@ getPreferredLocations(
   partition: Partition): Seq[String]
 ----
 
-getPreferredLocations requests `MapOutputTrackerMaster` for the scheduler:MapOutputTrackerMaster.md#getPreferredLocationsForShuffle[preferred locations] of the given spark-rdd-Partition.md[partition] (storage:BlockManager.md[BlockManagers] with the most map outputs).
+getPreferredLocations requests `MapOutputTrackerMaster` for the scheduler:MapOutputTrackerMaster.md#getPreferredLocationsForShuffle[preferred locations] of the given [partition](Partition.md) (storage:BlockManager.md[BlockManagers] with the most map outputs).
 
 getPreferredLocations uses SparkEnv to access the current core:SparkEnv.md#mapOutputTracker[MapOutputTrackerMaster].
 
