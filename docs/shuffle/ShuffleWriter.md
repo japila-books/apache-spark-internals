@@ -1,48 +1,39 @@
 # ShuffleWriter
 
-`ShuffleWriter` of `K` keys and `V` values (`ShuffleWriter[K, V]`) is an abstraction of <<implementations, shuffle writers>> that can <<write, write key-value records>> (of a RDD partition) to a shuffle system.
+`ShuffleWriter[K, V]` (of `K` keys and `V` values) is an [abstraction](#contract) of [shuffle writers](#implementations) that can [write out key-value records](#write) (of a RDD partition) to a shuffle system.
 
-ShuffleWriter is used when scheduler:ShuffleMapTask.md[ShuffleMapTask] is requested to scheduler:ShuffleMapTask.md#runTask[run].
+`ShuffleWriter` is used when [ShuffleMapTask](../scheduler/ShuffleMapTask.md) is requested to [run](../scheduler/ShuffleMapTask.md#runTask).
 
-== [[implementations]] ShuffleWriters
+## Contract
 
-.ShuffleWriters
-[cols="40m,60",options="header",width="100%"]
-|===
-| ShuffleWriter
-| Description
+### <span id="write"> Writing Out Partition Records to Shuffle System
 
-| shuffle:BypassMergeSortShuffleWriter.md[BypassMergeSortShuffleWriter]
-| [[BypassMergeSortShuffleWriter]] ShuffleWriter for a shuffle:BypassMergeSortShuffleHandle.md[BypassMergeSortShuffleHandle]
-
-| shuffle:SortShuffleWriter.md[SortShuffleWriter]
-| [[SortShuffleWriter]] Fallback ShuffleWriter (when neither <<BypassMergeSortShuffleWriter, BypassMergeSortShuffleWriter>> nor <<UnsafeShuffleWriter, UnsafeShuffleWriter>> could be used)
-
-| shuffle:UnsafeShuffleWriter.md[UnsafeShuffleWriter]
-| [[UnsafeShuffleWriter]] ShuffleWriter for shuffle:SerializedShuffleHandle.md[SerializedShuffleHandles]
-
-|===
-
-== [[stop]] Stopping ShuffleWriter
-
-[source, scala]
-----
-stop(
-  success: Boolean): Option[MapStatus]
-----
-
-Stops (_closes_) the ShuffleWriter and returns a scheduler:MapStatus.md[MapStatus] if the writing completed successfully. The `success` flag is the status of the task execution.
-
-stop is used when ShuffleMapTask is requested to scheduler:ShuffleMapTask.md#runTask[run].
-
-== [[write]] Writing Partition Records Out to Shuffle System
-
-[source, scala]
-----
+```scala
 write(
   records: Iterator[Product2[K, V]]): Unit
-----
+```
 
-Writes key-value records out to a shuffle system.
+Writes key-value records (of a partition) out to a shuffle system
 
-write is used when `ShuffleMapTask` is requested to scheduler:ShuffleMapTask.md#runTask[run].
+Used when:
+
+* `ShuffleWriteProcessor` is requested to [write](ShuffleWriteProcessor.md#write)
+
+### <span id="stop"> Stopping ShuffleWriter
+
+```scala
+stop(
+  success: Boolean): Option[MapStatus]
+```
+
+Stops (_closes_) the `ShuffleWriter` and returns a [MapStatus](../scheduler/MapStatus.md) if the writing completed successfully. The `success` flag is the status of the task execution.
+
+Used when:
+
+* `ShuffleWriteProcessor` is requested to [write](ShuffleWriteProcessor.md#write)
+
+## Implementations
+
+* [BypassMergeSortShuffleWriter](BypassMergeSortShuffleWriter.md)
+* [SortShuffleWriter](SortShuffleWriter.md)
+* [UnsafeShuffleWriter](UnsafeShuffleWriter.md)
