@@ -8,6 +8,14 @@ Default: `false`
 
 Used when `BlockManager` is requested for a [DiskBlockObjectWriter](storage/BlockManager.md#getDiskWriter)
 
+## <span id="spark.file.transferTo"> spark.file.transferTo
+
+Controls whether to use Java [FileChannel]({{ java.api }}/java.base/java/nio/channels/FileChannel.html)s (Java NIO) for copying data between two Java FileInputStreams to improve copy performance
+
+Default: `true`
+
+Used when [BypassMergeSortShuffleWriter](shuffle/BypassMergeSortShuffleWriter.md#transferToEnabled) and [UnsafeShuffleWriter](shuffle/UnsafeShuffleWriter.md#transferToEnabled) are created
+
 ## <span id="spark.diskStore.subDirectories"><span id="DISKSTORE_SUB_DIRECTORIES"> spark.diskStore.subDirectories
 
 Number of subdirectories inside each path listed in [spark.local.dir](#spark.local.dir) for hashing block files into.
@@ -468,12 +476,6 @@ Default: `0`
 Time to wait for sufficient resources available
 
 Default: `30s`
-
-== [[spark.file.transferTo]] spark.file.transferTo
-
-When enabled (`true`), copying data between two Java FileInputStreams uses Java FileChannels (Java NIO) to improve copy performance.
-
-Default: `true`
 
 == [[spark.shuffle.service.enabled]][[SHUFFLE_SERVICE_ENABLED]] spark.shuffle.service.enabled
 

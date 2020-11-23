@@ -1,22 +1,21 @@
 # BypassMergeSortShuffleWriter
 
-`BypassMergeSortShuffleWriter` is a shuffle:ShuffleWriter.md[ShuffleWriter] for scheduler:ShuffleMapTask.md[ShuffleMapTasks] to <<write, write records into one single shuffle block data file>>.
+`BypassMergeSortShuffleWriter<K, V>` is a [ShuffleWriter](ShuffleWriter.md) for [ShuffleMapTasks](../scheduler/ShuffleMapTask.md) to [write records into one single shuffle block data file](#write).
 
-.BypassMergeSortShuffleWriter and DiskBlockObjectWriters
-image::BypassMergeSortShuffleWriter-write.png[align="center"]
+![BypassMergeSortShuffleWriter and DiskBlockObjectWriters](../images/shuffle/BypassMergeSortShuffleWriter-write.png)
 
 ## Creating Instance
 
-BypassMergeSortShuffleWriter takes the following to be created:
+`BypassMergeSortShuffleWriter` takes the following to be created:
 
-* [[blockManager]] storage:BlockManager.md[BlockManager]
-* <<shuffleBlockResolver, IndexShuffleBlockResolver>>
-* [[handle]] shuffle:BypassMergeSortShuffleHandle.md[BypassMergeSortShuffleHandle<K, V>]
-* [[mapId]] Map ID
-* [[taskContext]] [TaskContext](../scheduler/TaskContext.md)
-* [[conf]] ROOT:SparkConf.md[SparkConf]
+* <span id="blockManager"> [BlockManager](../storage/BlockManager.md)
+* <span id="handle"> [BypassMergeSortShuffleHandle](BypassMergeSortShuffleHandle.md) (of `K` keys and `V` values)
+* <span id="mapId"> Map ID
+* <span id="conf"> [SparkConf](../SparkConf.md)
+* <span id="writeMetrics"> `ShuffleWriteMetricsReporter`
+* <span id="shuffleExecutorComponents"> `ShuffleExecutorComponents`
 
-BypassMergeSortShuffleWriter is created when SortShuffleManager is requested for a SortShuffleManager.md#getWriter[ShuffleWriter] (for a <<handle, BypassMergeSortShuffleHandle>>).
+`BypassMergeSortShuffleWriter` is created when `SortShuffleManager` is requested for a [ShuffleWriter](SortShuffleManager.md#getWriter) (for a [BypassMergeSortShuffleHandle](#handle)).
 
 ## <span id="partitionWriters"> Partition Writers
 
@@ -41,110 +40,141 @@ In other words, after [writePartitionedData](#writePartitionedData) `partitionWr
 * [writePartitionedData](#writePartitionedData)
 * [stop](#stop)
 
-== [[shuffleBlockResolver]] IndexShuffleBlockResolver
+## <span id="shuffleBlockResolver"> IndexShuffleBlockResolver
 
-BypassMergeSortShuffleWriter is given a shuffle:IndexShuffleBlockResolver.md[IndexShuffleBlockResolver] to be created.
+`BypassMergeSortShuffleWriter` is given a [IndexShuffleBlockResolver](IndexShuffleBlockResolver.md) when [created](#creating-instance).
 
-BypassMergeSortShuffleWriter uses the IndexShuffleBlockResolver for <<write, writing records>> (to shuffle:IndexShuffleBlockResolver.md#writeIndexFileAndCommit[writeIndexFileAndCommit] and shuffle:IndexShuffleBlockResolver.md#getDataFile[getDataFile]).
+`BypassMergeSortShuffleWriter` uses the `IndexShuffleBlockResolver` for [writing out records](#write) (to [writeIndexFileAndCommit](IndexShuffleBlockResolver.md#writeIndexFileAndCommit) and [getDataFile](IndexShuffleBlockResolver.md#getDataFile)).
 
-== [[serializer]] Serializer
+## <span id="serializer"> Serializer
 
-When created, BypassMergeSortShuffleWriter requests the shuffle:spark-shuffle-BaseShuffleHandle.md#dependency[ShuffleDependency] (of the given <<handle, BypassMergeSortShuffleHandle>>) for the [Serializer](../rdd/ShuffleDependency.md#serializer).
+When created, `BypassMergeSortShuffleWriter` requests the [ShuffleDependency](BaseShuffleHandle.md#dependency) (of the given [BypassMergeSortShuffleHandle](#handle)) for the [Serializer](../rdd/ShuffleDependency.md#serializer).
 
-BypassMergeSortShuffleWriter creates a new instance of the Serializer for <<write, writing records>>.
+`BypassMergeSortShuffleWriter` creates a new instance of the `Serializer` for [writing out records](#write).
 
-== [[configuration-properties]] Configuration Properties
+## Configuration Properties
 
-=== [[fileBufferSize]][[spark.shuffle.file.buffer]] spark.shuffle.file.buffer
+### <span id="fileBufferSize"><span id="spark.shuffle.file.buffer"> spark.shuffle.file.buffer
 
-BypassMergeSortShuffleWriter uses ROOT:configuration-properties.md#spark.shuffle.file.buffer[spark.shuffle.file.buffer] configuration property for...FIXME
+`BypassMergeSortShuffleWriter` uses [spark.shuffle.file.buffer](../configuration-properties.md#spark.shuffle.file.buffer) configuration property for...FIXME
 
-=== [[transferToEnabled]][[spark.file.transferTo]] spark.file.transferTo
+### <span id="transferToEnabled"><span id="spark.file.transferTo"> spark.file.transferTo
 
-BypassMergeSortShuffleWriter uses ROOT:configuration-properties.md#spark.file.transferTo[spark.file.transferTo] configuration property to control whether to use Java New I/O while <<writePartitionedFile, writing to a partitioned file>>.
+BypassMergeSortShuffleWriter uses [spark.file.transferTo](../configuration-properties.md#spark.file.transferTo) configuration property to control whether to use Java New I/O while [writing to a partitioned file](#writePartitionedFile).
 
-== [[write]] Writing Records to Shuffle File
+## <span id="write"> Writing Out Records to Shuffle File
 
-[source, java]
-----
+```scala
 void write(
   Iterator<Product2<K, V>> records)
-----
+```
 
-write creates a new instance of the <<serializer, Serializer>>.
+`write` is part of the [ShuffleWriter](ShuffleWriter.md#write) abstraction.
 
-write initializes the <<partitionWriters, partitionWriters>> and <<partitionWriterSegments, partitionWriterSegments>> internal registries (for storage:DiskBlockObjectWriter.md[DiskBlockObjectWriters] and FileSegments for <<numPartitions, every partition>>, respectively).
+`write` creates a new instance of the [Serializer](#serializer).
 
-write requests the <<blockManager, BlockManager>> for the storage:BlockManager.md#diskBlockManager[DiskBlockManager] and for <<numPartitions, every partition>> write requests it for a storage:DiskBlockManager.md#createTempShuffleBlock[shuffle block ID and the file]. write creates a storage:BlockManager.md#getDiskWriter[DiskBlockObjectWriter] for the shuffle block (using the <<blockManager, BlockManager>>). write stores the reference to DiskBlockObjectWriters in the <<partitionWriters, partitionWriters>> internal registry.
+`write` initializes the [partitionWriters](#partitionWriters) and [partitionWriterSegments](#partitionWriterSegments) internal registries (for [DiskBlockObjectWriters](../storage/DiskBlockObjectWriter.md) and FileSegments for [every partition](#numPartitions), respectively).
 
-After all DiskBlockObjectWriters are created, write requests the <<writeMetrics, ShuffleWriteMetrics>> to executor:ShuffleWriteMetrics.md#incWriteTime[increment shuffle write time metric].
+`write` requests the [BlockManager](#blockManager) for the [DiskBlockManager](../storage/BlockManager.md#diskBlockManager) and for [every partition](#numPartitions) `write` requests it for a [shuffle block ID and the file](../storage/DiskBlockManager.md#createTempShuffleBlock). `write` creates a [DiskBlockObjectWriter](../storage/BlockManager.md#getDiskWriter) for the shuffle block (using the [BlockManager](#blockManager)). `write` stores the reference to `DiskBlockObjectWriters` in the [partitionWriters](#partitionWriters) internal registry.
 
-For every record (a key-value pair), write requests the <<partitioner, Partitioner>> for the rdd:Partitioner.md#getPartition[partition ID] for the key. The partition ID is then used as an index of the partition writer (among the <<partitionWriters, DiskBlockObjectWriters>>) to storage:DiskBlockObjectWriter.md#write[write the current record out to a block file].
+After all `DiskBlockObjectWriters` are created, `write` requests the [ShuffleWriteMetrics](#writeMetrics) to [increment shuffle write time metric](../executor/ShuffleWriteMetrics.md#incWriteTime).
 
-Once all records have been writted out to their respective block files, write does the following for every <<partitionWriters, DiskBlockObjectWriter>>:
+For every record (a key-value pair), write requests the [Partitioner](#partitioner) for the [partition ID](../rdd/Partitioner.md#getPartition) for the key. The partition ID is then used as an index of the partition writer (among the [DiskBlockObjectWriters](#partitionWriters)) to [write the current record out to a block file](../storage/DiskBlockObjectWriter.md#write).
 
-. Requests the DiskBlockObjectWriter to storage:DiskBlockObjectWriter.md#commitAndGet[commit and return a corresponding FileSegment of the shuffle block]
+Once all records have been writted out to their respective block files, write does the following for every [DiskBlockObjectWriter](#partitionWriters):
 
-. Saves the (reference to) FileSegments in the <<partitionWriterSegments, partitionWriterSegments>> internal registry
+1. Requests the `DiskBlockObjectWriter` to [commit and return a corresponding FileSegment of the shuffle block](../storage/DiskBlockObjectWriter.md#commitAndGet)
 
-. Requests the DiskBlockObjectWriter to storage:DiskBlockObjectWriter.md#close[close]
+1. Saves the (reference to) `FileSegments` in the [partitionWriterSegments](#partitionWriterSegments) internal registry
 
-NOTE: At this point, all the records are in shuffle block files on a local disk. The records are split across block files by key.
+1. Requests the `DiskBlockObjectWriter` to [close](../storage/DiskBlockObjectWriter.md#close)
 
-write requests the <<shuffleBlockResolver, IndexShuffleBlockResolver>> for the shuffle:IndexShuffleBlockResolver.md#getDataFile[shuffle file] for the <<shuffleId, shuffle>> and the <<mapId, map IDs>>.
+!!! note
+    At this point, all the records are in shuffle block files on a local disk. The records are split across block files by key.
 
-write creates a temporary file (based on the name of the shuffle file) and <<writePartitionedFile, writes all the per-partition shuffle files to it>>. The size of every per-partition shuffle files is saved as the <<partitionLengths, partitionLengths>> internal registry.
+`write` requests the [IndexShuffleBlockResolver](#shuffleBlockResolver) for the [shuffle file](IndexShuffleBlockResolver.md#getDataFile) for the [shuffle](#shuffleId) and the [map](#mapId)Ds>>.
 
-NOTE: At this point, all the per-partition shuffle block files are one single map shuffle data file.
+`write` creates a temporary file (based on the name of the shuffle file) and [writes all the per-partition shuffle files to it](#writePartitionedFile). The size of every per-partition shuffle files is saved as the [partitionLengths](#partitionLengths) internal registry.
 
-write requests the <<shuffleBlockResolver, IndexShuffleBlockResolver>> to shuffle:IndexShuffleBlockResolver.md#writeIndexFileAndCommit[write shuffle index and data files] for the <<shuffleId, shuffle>> and the <<mapId, map IDs>> (with the <<partitionLengths, partitionLengths>> and the temporary shuffle output file).
+!!! note
+    At this point, all the per-partition shuffle block files are one single map shuffle data file.
 
-write returns a scheduler:MapStatus.md[shuffle map output status] (with the storage:BlockManager.md#shuffleServerId[shuffle server ID] and the <<partitionLengths, partitionLengths>>).
+`write` requests the [IndexShuffleBlockResolver](#shuffleBlockResolver) to [write shuffle index and data files](IndexShuffleBlockResolver.md#writeIndexFileAndCommit) for the [shuffle](#shuffleId) and the [map IDs](#mapId) (with the [partitionLengths](#partitionLengths) and the temporary shuffle output file).
 
-write is part of shuffle:ShuffleWriter.md#write[ShuffleWriter] abstraction.
+`write` returns a [shuffle map output status](../scheduler/MapStatus.md) (with the [shuffle server ID](../storage/BlockManager.md#shuffleServerId) and the [partitionLengths](#partitionLengths)).
 
-=== [[write-no-records]] No Records
+### <span id="write-no-records"> No Records
 
-When there is no records to write out, write initializes the <<partitionLengths, partitionLengths>> internal array (of <<numPartitions, numPartitions>> size) with all elements being 0.
+When there is no records to write out, `write` initializes the [partitionLengths](#partitionLengths) internal array (of [numPartitions](#numPartitions) size) with all elements being 0.
 
-write requests the <<shuffleBlockResolver, IndexShuffleBlockResolver>> to shuffle:IndexShuffleBlockResolver.md#writeIndexFileAndCommit[write shuffle index and data files], but the difference (compared to when there are records to write) is that the `dataTmp` argument is simply `null`.
+`write` requests the [IndexShuffleBlockResolver](#shuffleBlockResolver) to [write shuffle index and data files](IndexShuffleBlockResolver.md#writeIndexFileAndCommit), but the difference (compared to when there are records to write) is that the `dataTmp` argument is simply `null`.
 
-write sets the internal `mapStatus` (with the address of storage:BlockManager.md[BlockManager] in use and <<partitionLengths, partitionLengths>>).
+`write` sets the internal `mapStatus` (with the address of [BlockManager](../storage/BlockManager.md) in use and [partitionLengths](#partitionLengths)).
 
-=== [[write-requirements]] Requirements
+### <span id="write-requirements"> Requirements
 
-write requires that there are no <<partitionWriters, DiskBlockObjectWriters>>.
+`write` requires that there are no [DiskBlockObjectWriters](#partitionWriters).
 
-== [[writePartitionedFile]] Concatenating Per-Partition Files Into Single File
+### <span id="writePartitionedData"> writePartitionedData
 
-[source, java]
-----
+```java
+long[] writePartitionedData(
+  ShuffleMapOutputWriter mapOutputWriter)
+```
+
+`writePartitionedData`...FIXME
+
+### <span id="writePartitionedDataWithChannel"> writePartitionedDataWithChannel
+
+```java
+void writePartitionedDataWithChannel(
+  File file,
+  WritableByteChannelWrapper outputChannel)
+```
+
+`writePartitionedDataWithChannel`...FIXME
+
+### <span id="writePartitionedDataWithStream"> writePartitionedDataWithStream
+
+```java
+void writePartitionedDataWithStream(
+  File file,
+  ShufflePartitionWriter writer)
+```
+
+`writePartitionedDataWithStream`...FIXME
+
+## <span id="writePartitionedFile"> FIXME Concatenating Per-Partition Files Into Single File
+
+```java
 long[] writePartitionedFile(
   File outputFile)
-----
+```
 
-writePartitionedFile creates a file output stream for the input `outputFile` in append mode.
+!!! important
+    `writePartitionedFile` is no longer available.
 
-writePartitionedFile starts tracking write time (as `writeStartTime`).
+`writePartitionedFile` creates a file output stream for the input `outputFile` in append mode.
+
+`writePartitionedFile` starts tracking write time (as `writeStartTime`).
 
 For every <<numPartitions, numPartitions>> partition, writePartitionedFile takes the file from the `FileSegment` (from <<partitionWriterSegments, partitionWriterSegments>>) and creates a file input stream to read raw bytes.
 
-writePartitionedFile then <<copyStream, copies the raw bytes from each partition segment input stream to `outputFile`>> (possibly using Java New I/O per <<transferToEnabled, transferToEnabled>> flag set when <<creating-instance, BypassMergeSortShuffleWriter was created>>) and records the length of the shuffle data file (in `lengths` internal array).
+`writePartitionedFile` then <<copyStream, copies the raw bytes from each partition segment input stream to `outputFile`>> (possibly using Java New I/O per <<transferToEnabled, transferToEnabled>> flag set when <<creating-instance, BypassMergeSortShuffleWriter was created>>) and records the length of the shuffle data file (in `lengths` internal array).
 
-In the end, writePartitionedFile executor:ShuffleWriteMetrics.md#incWriteTime[increments shuffle write time], clears <<partitionWriters, partitionWriters>> array and returns the lengths of the shuffle data files per partition.
+In the end, `writePartitionedFile` executor:ShuffleWriteMetrics.md#incWriteTime[increments shuffle write time], clears <<partitionWriters, partitionWriters>> array and returns the lengths of the shuffle data files per partition.
 
-writePartitionedFile is used when BypassMergeSortShuffleWriter is requested to <<write, write records>>.
+`writePartitionedFile` is used when `BypassMergeSortShuffleWriter` is requested to [write out records](#write).
 
-== [[copyStream]] Copying Raw Bytes Between Input Streams
+## <span id="copyStream"> Copying Raw Bytes Between Input Streams
 
-[source, scala]
-----
+```scala
 copyStream(
   in: InputStream,
   out: OutputStream,
   closeStreams: Boolean = false,
   transferToEnabled: Boolean = false): Long
-----
+```
 
 copyStream branches off depending on the type of `in` and `out` streams, i.e. whether they are both `FileInputStream` with `transferToEnabled` input flag is enabled.
 
@@ -158,44 +188,52 @@ copyStream can optionally close `in` and `out` streams (depending on the input `
 
 NOTE: `Utils.copyStream` is used when <<writePartitionedFile, BypassMergeSortShuffleWriter writes records into one single shuffle block data file>> (among other places).
 
-TIP: Visit the official web site of https://jcp.org/jsr/detail/51.jsp[JSR 51: New I/O APIs for the Java Platform] and read up on {java-javadoc-url}/java/nio/package-summary.html[java.nio package].
+!!! tip
+    Visit the official web site of [JSR 51: New I/O APIs for the Java Platform](https://jcp.org/jsr/detail/51.jsp) and read up on [java.nio package]({{ java.api }}/java.base/java/nio/package-summary.html).
 
-== [[logging]] Logging
+## <span id="stop"> Stopping ShuffleWriter
+
+```java
+Option<MapStatus> stop(
+  boolean success)
+```
+
+`stop`...FIXME
+
+`stop` is part of the [ShuffleWriter](ShuffleWriter.md#stop) abstraction.
+
+## <span id="partitionLengths"> Temporary Array of Partition Lengths
+
+```java
+long[] partitionLengths
+```
+
+Temporary array of partition lengths after records are [written to a shuffle system](#write).
+
+Initialized every time `BypassMergeSortShuffleWriter` [writes out records](#write) (before passing it in to [IndexShuffleBlockResolver](IndexShuffleBlockResolver.md#writeIndexFileAndCommit)). After `IndexShuffleBlockResolver` finishes, it is used to initialize [mapStatus](#mapStatus) internal property.
+
+## Logging
 
 Enable `ALL` logging level for `org.apache.spark.shuffle.sort.BypassMergeSortShuffleWriter` logger to see what happens inside.
 
 Add the following line to `conf/log4j.properties`:
 
-[source,plaintext]
-----
+```text
 log4j.logger.org.apache.spark.shuffle.sort.BypassMergeSortShuffleWriter=ALL
-----
+```
 
-Refer to ROOT:spark-logging.md[Logging].
+Refer to [Logging](../spark-logging.md).
 
-== [[internal-properties]] Internal Properties
+## Internal Properties
 
-[cols="30m,70",options="header",width="100%"]
-|===
-| Name
-| Description
+### <span id="numPartitions"> numPartitions
 
-| numPartitions
-| [[numPartitions]]
+### <span id="partitionWriterSegments"> partitionWriterSegments
 
-| partitionWriterSegments
-| [[partitionWriterSegments]]
+### <span id="mapStatus"> mapStatus
 
-| mapStatus
-| [[mapStatus]] scheduler:MapStatus.md[MapStatus] that <<stop, BypassMergeSortShuffleWriter returns when stopped>>
+[MapStatus](../scheduler/MapStatus.md) that [BypassMergeSortShuffleWriter returns when stopped](#stop)
 
-Initialized every time BypassMergeSortShuffleWriter <<write, writes records>>.
+Initialized every time `BypassMergeSortShuffleWriter` [writes out records](#write).
 
-Used when <<stop, BypassMergeSortShuffleWriter stops>> (with `success` enabled) as a marker if <<write, any records were written>> and <<stop, returned if they did>>.
-
-| partitionLengths
-| [[partitionLengths]] Temporary array of partition lengths after records are <<write, written to a shuffle system>>.
-
-Initialized every time BypassMergeSortShuffleWriter <<write, writes records>> before passing it in to IndexShuffleBlockResolver.md#writeIndexFileAndCommit[IndexShuffleBlockResolver]). After IndexShuffleBlockResolver finishes, it is used to initialize <<mapStatus, mapStatus>> internal property.
-
-|===
+Used when [BypassMergeSortShuffleWriter stops](#stop) (with `success` enabled) as a marker if [any records were written](#write) and [returned if they did](#stop).
