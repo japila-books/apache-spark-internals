@@ -1,187 +1,152 @@
 # DiskBlockObjectWriter
 
-`DiskBlockObjectWriter` is a custom [java.io.OutputStream]({{ java.doc }}/java/io/OutputStream.html) that [BlockManager](BlockManager.md#getDiskWriter) offers for [writing data blocks to disk](#write).
+`DiskBlockObjectWriter` is a custom [java.io.OutputStream]({{ java.api }}/java.base/java/io/OutputStream.html) that [BlockManager](BlockManager.md#getDiskWriter) offers for [writing data blocks to disk](#write).
 
-DiskBlockObjectWriter is used when:
+`DiskBlockObjectWriter` is used when:
 
-* BypassMergeSortShuffleWriter is requested for shuffle:BypassMergeSortShuffleWriter.md#partitionWriters[partition writers]
+* `BypassMergeSortShuffleWriter` is requested for [partition writers](../shuffle/BypassMergeSortShuffleWriter.md#partitionWriters)
 
-* UnsafeSorterSpillWriter is requested for a memory:UnsafeSorterSpillWriter.md#writer[partition writer]
+* `UnsafeSorterSpillWriter` is requested for a [partition writer](../memory/UnsafeSorterSpillWriter.md#writer)
 
-* ShuffleExternalSorter is requested to shuffle:ShuffleExternalSorter.md#writeSortedFile[writeSortedFile]
+* `ShuffleExternalSorter` is requested to [writeSortedFile](../shuffle/ShuffleExternalSorter.md#writeSortedFile)
 
-* ExternalSorter is requested to shuffle:ExternalSorter.md#spillMemoryIteratorToDisk[spillMemoryIteratorToDisk]
+* `ExternalSorter` is requested to [spillMemoryIteratorToDisk](../shuffle/ExternalSorter.md#spillMemoryIteratorToDisk)
 
-== [[creating-instance]] Creating Instance
+## Creating Instance
 
-DiskBlockObjectWriter takes the following to be created:
+`DiskBlockObjectWriter` takes the following to be created:
 
-* [[file]] Java {java-javadoc-url}/java/io/File.html[File]
-* [[serializerManager]] serializer:SerializerManager.md[]
-* [[serializerInstance]] serializer:SerializerInstance.md[]
-* [[bufferSize]] Buffer size
-* [[syncWrites]] syncWrites flag
-* [[writeMetrics]] executor:ShuffleWriteMetrics.md[]
-* [[blockId]] storage:BlockId.md[] (default: `null`)
+* <span id="file"> Java [File]({{ java.api }}/java.base/java/io/File.html)
+* <span id="serializerManager"> [SerializerManager](../serializer/SerializerManager.md)
+* <span id="serializerInstance"> [SerializerInstance](../serializer/SerializerInstance.md)
+* <span id="bufferSize"> Buffer size
+* <span id="syncWrites"> `syncWrites` flag (based on [spark.shuffle.sync](../configuration-properties.md#spark.shuffle.sync) configuration property)
+* <span id="writeMetrics"> `ShuffleWriteMetricsReporter`
+* <span id="blockId"> [BlockId](BlockId.md) (default: `null`)
 
-DiskBlockObjectWriter is created when:
+`DiskBlockObjectWriter` is created when:
 
-* BlockManager is requested for storage:BlockManager.md#getDiskWriter[one]
+* `BlockManager` is requested for [one](BlockManager.md#getDiskWriter)
 
-* BypassMergeSortShuffleWriter is requested to shuffle:BypassMergeSortShuffleWriter.md#write[write records] (as shuffle:BypassMergeSortShuffleWriter.md#partitionWriters[partition writers])
+## <span id="objOut"> SerializationStream
 
-== [[objOut]] SerializationStream
+`DiskBlockObjectWriter` manages a [SerializationStream](../serializer/SerializationStream.md) for [writing a key-value record](#write):
 
-DiskBlockObjectWriter manages a serializer:SerializationStream.md[SerializationStream] for <<write, writing a key-value record>>:
+* Opens it when requested to [open](#open)
 
-* Opens it when requested to <<open, open>>
+* Closes it when requested to [commitAndGet](#commitAndGet)
 
-* Closes it when requested to <<commitAndGet, commitAndGet>>
+* Dereferences it (``null``s it) when [closeResources](#closeResources)
 
-* Dereferences it (``null``s it) when <<closeResources, closeResources>>
+## <span id="states"><span id="streamOpen"> States
 
-== [[states]][[streamOpen]] States
+`DiskBlockObjectWriter` can be in one of the following states (that match the state of the underlying output streams):
 
-DiskBlockObjectWriter can be in the following states (that match the state of the underlying output streams):
+* Initialized
+* Open
+* Closed
 
-. Initialized
-. Open
-. Closed
+## <span id="write"> Writing Out Record
 
-== [[write]] Writing Key and Value (of Record)
-
-[source, scala]
-----
+```scala
 write(
   key: Any,
   value: Any): Unit
-----
-
-write <<open, opens the underlying stream>> unless <<streamOpen, open>> already.
-
-write requests the <<objOut, SerializationStream>> to serializer:SerializationStream.md#writeKey[write the key] and then the serializer:SerializationStream.md#writeValue[value].
-
-In the end, write <<recordWritten, updates the write metrics>>.
-
-write is used when:
-
-* BypassMergeSortShuffleWriter is requested to shuffle:BypassMergeSortShuffleWriter.md#write[write records of a partition]
-
-* ExternalAppendOnlyMap is requested to shuffle:ExternalAppendOnlyMap.md#spillMemoryIteratorToDisk[spillMemoryIteratorToDisk]
-
-* ExternalSorter is requested to shuffle:ExternalSorter.md#writePartitionedFile[write all records into a partitioned file]
-** SpillableIterator is requested to spill
-
-* WritablePartitionedPairCollection is requested for a destructiveSortedWritablePartitionedIterator
-
-== [[commitAndGet]] commitAndGet Method
-
-[source, scala]
-----
-commitAndGet(): FileSegment
-----
-
-commitAndGet...FIXME
-
-commitAndGet is used when...FIXME
-
-== [[close]] Committing Writes and Closing Resources
-
-[source, scala]
-----
-close(): Unit
-----
-
-close...FIXME
-
-close is used when...FIXME
-
-== [[revertPartialWritesAndClose]] revertPartialWritesAndClose Method
-
-[source, scala]
-----
-revertPartialWritesAndClose(): File
-----
-
-revertPartialWritesAndClose...FIXME
-
-revertPartialWritesAndClose is used when...FIXME
-
-== [[updateBytesWritten]] updateBytesWritten Method
-
-CAUTION: FIXME
-
-== [[initialize]] initialize Method
-
-CAUTION: FIXME
-
-== [[write-bytes]] Writing Bytes (From Byte Array Starting From Offset)
-
-[source, scala]
-----
-write(kvBytes: Array[Byte], offs: Int, len: Int): Unit
-----
-
-write...FIXME
-
-CAUTION: FIXME
-
-== [[recordWritten]] recordWritten Method
-
-CAUTION: FIXME
-
-== [[open]] Opening DiskBlockObjectWriter
-
-[source, scala]
-----
-open(): DiskBlockObjectWriter
-----
-
-`open` opens DiskBlockObjectWriter, i.e. <<initialize, initializes>> and re-sets <<bs, bs>> and <<objOut, objOut>> internal output streams.
-
-Internally, `open` makes sure that DiskBlockObjectWriter is not closed (i.e. <<hasBeenClosed, hasBeenClosed>> flag is disabled). If it was, `open` throws a `IllegalStateException`:
-
 ```
+
+`write` [opens the underlying stream](#open) unless [open](#streamOpen) already.
+
+`write` requests the [SerializationStream](#objOut) to [write the key](../serializer/SerializationStream.md#writeKey) and then the [value](../serializer/SerializationStream.md#writeValue).
+
+In the end, `write` [updates the write metrics](#recordWritten).
+
+`write` is used when:
+
+* `BypassMergeSortShuffleWriter` is requested to [write records of a partition](../shuffle/BypassMergeSortShuffleWriter.md#write)
+
+* `ExternalAppendOnlyMap` is requested to [spillMemoryIteratorToDisk](../shuffle/ExternalAppendOnlyMap.md#spillMemoryIteratorToDisk)
+
+* `ExternalSorter` is requested to [write all records into a partitioned file](../shuffle/ExternalSorter.md#writePartitionedFile)
+    * `SpillableIterator` is requested to `spill`
+
+* `WritablePartitionedPairCollection` is requested for a `destructiveSortedWritablePartitionedIterator`
+
+## <span id="commitAndGet"> commitAndGet
+
+```scala
+commitAndGet(): FileSegment
+```
+
+`commitAndGet`...FIXME
+
+`commitAndGet` is used when...FIXME
+
+## <span id="close"> Committing Writes and Closing Resources
+
+```scala
+close(): Unit
+```
+
+`close`...FIXME
+
+`close` is used when...FIXME
+
+## <span id="revertPartialWritesAndClose"> revertPartialWritesAndClose
+
+```scala
+revertPartialWritesAndClose(): File
+```
+
+`revertPartialWritesAndClose`...FIXME
+
+`revertPartialWritesAndClose` is used when...FIXME
+
+## <span id="write-bytes"> Writing Bytes (From Byte Array Starting From Offset)
+
+```scala
+write(
+  kvBytes: Array[Byte],
+  offs: Int,
+  len: Int): Unit
+```
+
+`write`...FIXME
+
+`write` is used when...FIXME
+
+## <span id="open"> Opening DiskBlockObjectWriter
+
+```scala
+open(): DiskBlockObjectWriter
+```
+
+`open` opens the `DiskBlockObjectWriter`, i.e. [initializes](#initialize) and re-sets [bs](#bs) and [objOut](#objOut) internal output streams.
+
+Internally, `open` makes sure that `DiskBlockObjectWriter` is not closed ([hasBeenClosed](#hasBeenClosed) flag is disabled). If it was, `open` throws a `IllegalStateException`:
+
+```text
 Writer already closed. Cannot be reopened.
 ```
 
-Unless DiskBlockObjectWriter has already been initialized (i.e. <<initialized, initialized>> flag is enabled), `open` <<initialize, initializes>> it (and turns <<initialized, initialized>> flag on).
+Unless `DiskBlockObjectWriter` has already been initialized ([initialized](#initialized) flag is enabled), `open` [initializes](#initialize) it (and turns [initialized](#initialized) flag on).
 
-Regardless of whether DiskBlockObjectWriter was already initialized or not, `open` serializer:SerializerManager.md#wrapStream[requests `SerializerManager` to wrap `mcs` output stream for encryption and compression] (for <<blockId, blockId>>) and sets it as <<bs, bs>>.
+Regardless of whether `DiskBlockObjectWriter` was already initialized or not, `open` [requests `SerializerManager` to wrap `mcs` output stream for encryption and compression](../serializer/SerializerManager.md#wrapStream) (for [blockId](#blockId)) and sets it as [bs](#bs).
 
-`open` requests the <<serializerInstance, SerializerInstance>> to serializer:SerializerInstance.md#serializeStream[serialize `bs` output stream] and sets it as <<objOut, objOut>>.
+`open` requests the [SerializerInstance](#serializerInstance) to [serialize `bs` output stream](../serializer/SerializerInstance.md#serializeStream) and sets it as [objOut](#objOut).
 
-NOTE: `open` uses `SerializerInstance` that was specified when <<creating-instance, DiskBlockObjectWriter was created>>
+!!! note
+    `open` uses the [SerializerInstance](#serializerInstance) that was used to create the `DiskBlockObjectWriter`.
 
-In the end, `open` turns <<streamOpen, streamOpen>> flag on.
+In the end, `open` turns [streamOpen](#streamOpen) flag on.
 
-NOTE: `open` is used exclusively when DiskBlockObjectWriter <<write, writes a key-value pair>> or <<write-bytes, bytes from a specified byte array>> but the <<streamOpen, stream is not open yet>>.
+`open` is used when `DiskBlockObjectWriter` [writes out a record](#write) or [bytes from a specified byte array](#write-bytes) and the [stream is not open yet](#streamOpen).
 
-== [[internal-properties]] Internal Properties
+## Internal Properties
 
-[cols="30m,70",options="header",width="100%"]
-|===
-| Name
-| Description
+### <span id="initialized"> initialized Flag
 
-| initialized
-| [[initialized]] Internal flag...FIXME
+### <span id="hasBeenClosed"> hasBeenClosed Flag
 
-Used when...FIXME
+### <span id="mcs"> mcs
 
-| hasBeenClosed
-| [[hasBeenClosed]] Internal flag...FIXME
-
-Used when...FIXME
-
-| mcs
-| [[mcs]] FIXME
-
-Used when...FIXME
-
-| bs
-| [[bs]] FIXME
-
-Used when...FIXME
-
-|===
+### <span id="bs"> bs

@@ -917,7 +917,7 @@ getDiskWriter creates a [DiskBlockObjectWriter](DiskBlockObjectWriter.md) (with 
 
 `getDiskWriter` is used when:
 
-* `BypassMergeSortShuffleWriter` is requested to shuffle:BypassMergeSortShuffleWriter.md#write[write records (of a partition)]
+* `BypassMergeSortShuffleWriter` is requested to [write records (of a partition)](../shuffle/BypassMergeSortShuffleWriter.md#write)
 
 * `ShuffleExternalSorter` is requested to [writeSortedFile](../shuffle/ShuffleExternalSorter.md#writeSortedFile)
 

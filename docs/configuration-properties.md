@@ -1,5 +1,13 @@
 # Spark Configuration Properties
 
+## <span id="spark.shuffle.sync"><span id="SHUFFLE_SYNC"> spark.shuffle.sync
+
+Controls whether `DiskBlockObjectWriter` should force outstanding writes to disk while [committing a single atomic block](storage/DiskBlockObjectWriter.md#commitAndGet) (i.e. all operating system buffers should synchronize with the disk to ensure that all changes to a file are in fact recorded in the storage)
+
+Default: `false`
+
+Used when `BlockManager` is requested for a [DiskBlockObjectWriter](storage/BlockManager.md#getDiskWriter)
+
 ## <span id="spark.diskStore.subDirectories"><span id="DISKSTORE_SUB_DIRECTORIES"> spark.diskStore.subDirectories
 
 Number of subdirectories inside each path listed in [spark.local.dir](#spark.local.dir) for hashing block files into.
@@ -434,14 +442,6 @@ Initial buffer size for sorting
 Default: shuffle:UnsafeShuffleWriter.md#DEFAULT_INITIAL_SORT_BUFFER_SIZE[4096]
 
 Used exclusively when `UnsafeShuffleWriter` is requested to shuffle:UnsafeShuffleWriter.md#open[open] (and creates a shuffle:ShuffleExternalSorter.md[ShuffleExternalSorter])
-
-== [[spark.shuffle.sync]] spark.shuffle.sync
-
-Controls whether DiskBlockObjectWriter should force outstanding writes to disk while storage:DiskBlockObjectWriter.md#commitAndGet[committing a single atomic block], i.e. all operating system buffers should synchronize with the disk to ensure that all changes to a file are in fact recorded in the storage.
-
-Default: `false`
-
-Used when BlockManager is requested for a storage:BlockManager.md#getDiskWriter[DiskBlockObjectWriter]
 
 == [[spark.shuffle.unsafe.file.output.buffer]] spark.shuffle.unsafe.file.output.buffer
 

@@ -18,9 +18,28 @@ BypassMergeSortShuffleWriter takes the following to be created:
 
 BypassMergeSortShuffleWriter is created when SortShuffleManager is requested for a SortShuffleManager.md#getWriter[ShuffleWriter] (for a <<handle, BypassMergeSortShuffleHandle>>).
 
-== [[partitionWriters]] Per-Partition DiskBlockObjectWriters
+## <span id="partitionWriters"> Partition Writers
 
-BypassMergeSortShuffleWriter uses storage:DiskBlockObjectWriter.md[DiskBlockObjectWriter] when...FIXME
+```java
+DiskBlockObjectWriter[] partitionWriters
+```
+
+`BypassMergeSortShuffleWriter` uses a [DiskBlockObjectWriter](../storage/DiskBlockObjectWriter.md) per [partition](#numPartitions) (based on the [Partitioner](#partitioner)).
+
+`BypassMergeSortShuffleWriter` asserts that no `partitionWriters` has been initialized (`null`) while [writing](#write).
+
+While [writing](#write), `BypassMergeSortShuffleWriter` requests the [BlockManager](#blockManager) for as many [DiskBlockObjectWriter](../storage/BlockManager.md#getDiskWriter)s as there are [partition](#numPartitions) (in the [Partitioner](#partitioner)).
+
+While [writing](#write), `BypassMergeSortShuffleWriter` requests the [Partitioner](#partitioner) for a [partition](../rdd/Partitioner.md#getPartition) for records (using keys) and finds the per-partition `DiskBlockObjectWriter` that is requested to [write out the record](../storage/DiskBlockObjectWriter.md#write). After all records are written out to their shuffle files, the `DiskBlockObjectWriter`s are requested to [commitAndGet](../storage/DiskBlockObjectWriter.md#commitAndGet).
+
+`BypassMergeSortShuffleWriter` uses the partition writers while [writePartitionedData](#writePartitionedData) and removes references to them (`null`ify them) in the end.
+
+In other words, after [writePartitionedData](#writePartitionedData) `partitionWriters` internal registry is `null`.
+
+`partitionWriters` internal registry becomes `null` after `BypassMergeSortShuffleWriter` has finished:
+
+* [writePartitionedData](#writePartitionedData)
+* [stop](#stop)
 
 == [[shuffleBlockResolver]] IndexShuffleBlockResolver
 
