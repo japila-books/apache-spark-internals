@@ -1,6 +1,8 @@
 # ShuffleMapTask
 
-`ShuffleMapTask` is one of the two types of [tasks](Task.md) that, when <<runTask, executed>>, writes the result of executing a <<taskBinary, serialized task code>> over the records (of a <<partition, RDD partition>>) to the shuffle:ShuffleManager.md[shuffle system] and returns a MapStatus.md[MapStatus] (information about the storage:BlockManager.md[BlockManager] and estimated size of the result shuffle blocks).
+`ShuffleMapTask` is a [Task](Task.md) to produce a [MapStatus](MapStatus.md) (`Task[MapStatus]`).
+
+`ShuffleMapTask` is one of the two types of [Task](Task.md)s. When [executed](#runTask), `ShuffleMapTask` writes the result of executing a [serialized task code](#taskBinary) over the records (of a [RDD partition](#partition)) to the [shuffle system](../shuffle/ShuffleManager.md) and returns a [MapStatus](MapStatus.md) (with the [BlockManager](../storage/BlockManager.md) and estimated size of the result shuffle blocks).
 
 ![ShuffleMapTask and DAGScheduler](../images/scheduler/ShuffleMapTask.png)
 
@@ -8,87 +10,84 @@
 
 `ShuffleMapTask` takes the following to be created:
 
-* [[stageId]] Stage ID
-* [[stageAttemptId]] Stage attempt ID
-* <<taskBinary, Broadcast variable with a serialized task binary>>
-* [[partition]] [Partition](../rdd/Partition.md)
-* [[locs]] [TaskLocations](TaskLocation.md)
-* [[localProperties]] Task-specific local properties
-* [[serializedTaskMetrics]] Serialized task metrics (`Array[Byte]`)
-* [[jobId]] Optional [job ID](ActiveJob.md) (default: `None`)
-* [[appId]] Optional application ID (default: `None`)
-* [[appAttemptId]] Optional application attempt ID (default: `None`)
-* [[isBarrier]] isBarrier flag (default: `false`)
+* <span id="stageId"> Stage ID
+* <span id="stageAttemptId"> Stage Attempt ID
+* [Broadcast variable with a serialized task binary](#taskBinary)
+* <span id="partition"> [Partition](../rdd/Partition.md)
+* <span id="locs"> [TaskLocation](TaskLocation.md)s
+* <span id="localProperties"> Local Properties
+* <span id="serializedTaskMetrics"> Serialized task metrics
+* <span id="jobId"> [Job ID](ActiveJob.md) (default: `None`)
+* <span id="appId"> Application ID (default: `None`)
+* <span id="appAttemptId"> Application Attempt ID (default: `None`)
+* <span id="isBarrier"> `isBarrier` Flag (default: `false`)
 
-ShuffleMapTask is created when DAGScheduler is requested to DAGScheduler.md#submitMissingTasks[submit tasks for all missing partitions of a ShuffleMapStage].
+`ShuffleMapTask` is created when `DAGScheduler` is requested to [submit tasks for all missing partitions of a ShuffleMapStage](DAGScheduler.md#submitMissingTasks).
 
-== [[taskBinary]] Broadcast Variable and Serialized Task Binary
+## <span id="taskBinary"> Serialized Task Binary
 
-ShuffleMapTask is given a ROOT:Broadcast.md[] with a reference to a serialized task binary (`Broadcast[Array[Byte]]`).
+```scala
+taskBinary: Broadcast[Array[Byte]]
+```
 
-<<runTask, runTask>> expects that the serialized task binary is a tuple of an ../rdd/RDD.md[RDD] and a [ShuffleDependency](../rdd/ShuffleDependency.md).
+`ShuffleMapTask` is given a [broadcast variable](../Broadcast.md) with a reference to a serialized task binary.
 
-== [[runTask]] Running Task
+[runTask](#runTask) expects that the serialized task binary is a tuple of an [RDD](../rdd/RDD.md) and a [ShuffleDependency](../rdd/ShuffleDependency.md).
 
-[source, scala]
-----
+## <span id="runTask"> Running Task
+
+```scala
 runTask(
   context: TaskContext): MapStatus
-----
+```
 
-runTask writes the result (_records_) of executing the <<taskBinary, serialized task code>> over the records (in the <<partition, RDD partition>>) to the shuffle:ShuffleManager.md[shuffle system] and returns a MapStatus.md[MapStatus] (with the storage:BlockManager.md[BlockManager] and an estimated size of the result shuffle blocks).
+`runTask` writes the result (_records_) of executing the [serialized task code](#taskBinary) over the records (in the [RDD partition](#partition)) to the [shuffle system](../shuffle/ShuffleManager.md) and returns a [MapStatus](MapStatus.md) (with the [BlockManager](../storage/BlockManager.md) and an estimated size of the result shuffle blocks).
 
-Internally, runTask requests the core:SparkEnv.md[SparkEnv] for the new instance of core:SparkEnv.md#closureSerializer[closure serializer] and requests it to serializer:Serializer.md#deserialize[deserialize] the <<taskBinary, taskBinary>> (into a tuple of a ../rdd/RDD.md[RDD] and a [ShuffleDependency](../rdd/ShuffleDependency.md)).
+Internally, `runTask` requests the [SparkEnv](../SparkEnv.md) for the new instance of [closure serializer](../SparkEnv.md#closureSerializer) and requests it to [deserialize](../serializer/Serializer.md#deserialize) the [serialized task code](#taskBinary) (into a tuple of a [RDD](../rdd/RDD.md) and a [ShuffleDependency](../rdd/ShuffleDependency.md)).
 
-runTask measures the Task.md#_executorDeserializeTime[thread] and Task.md#_executorDeserializeCpuTime[CPU] deserialization times.
+`runTask` measures the [thread](Task.md#_executorDeserializeTime) and [CPU](Task.md#_executorDeserializeCpuTime) deserialization times.
 
-runTask requests the core:SparkEnv.md[SparkEnv] for the core:SparkEnv.md#shuffleManager[ShuffleManager] and requests it for a shuffle:ShuffleManager.md#getWriter[ShuffleWriter] (for the [ShuffleHandle](../rdd/ShuffleDependency.md#shuffleHandle), the [RDD partition](Task.md#partitionId), and the [TaskContext](TaskContext.md)).
+`runTask` requests the [SparkEnv](../SparkEnv.md) for the [ShuffleManager](../SparkEnv.md#shuffleManager) and requests it for a [ShuffleWriter](../shuffle/ShuffleManager.md#getWriter) (for the [ShuffleHandle](../rdd/ShuffleDependency.md#shuffleHandle) and the [partition](Task.md#partitionId)).
 
-runTask then requests the <<rdd, RDD>> for the ../rdd/RDD.md#iterator[records] (of the <<partition, partition>>) that the `ShuffleWriter` is requested to shuffle:ShuffleWriter.md#write[write out] (to the shuffle system).
+`runTask` then requests the [RDD](#rdd) for the [records](../rdd/RDD.md#iterator) (of the [partition](#partition)) that the `ShuffleWriter` is requested to [write out](../shuffle/ShuffleWriter.md#write) (to the shuffle system).
 
-In the end, runTask requests the `ShuffleWriter` to shuffle:ShuffleWriter.md#stop[stop] (with the `success` flag on) and returns the MapStatus.md[shuffle map output status].
+In the end, `runTask` requests the `ShuffleWriter` to [stop](../shuffle/ShuffleWriter.md#stop) (with the `success` flag on) and returns the [shuffle map output status](MapStatus.md).
 
-NOTE: This is the moment in ``Task``'s lifecycle (and its corresponding RDD) when a ../rdd/index.md#iterator[RDD partition is computed] and in turn becomes a sequence of records (i.e. real data) on an executor.
+!!! note
+    This is the moment in ``Task``'s lifecycle (and its corresponding RDD) when a [RDD partition is computed](../rdd/index.md#iterator) and in turn becomes a sequence of records (i.e. real data) on an executor.
 
-In case of any exceptions, runTask requests the `ShuffleWriter` to shuffle:ShuffleWriter.md#stop[stop] (with the `success` flag off) and (re)throws the exception.
+In case of any exceptions, `runTask` requests the `ShuffleWriter` to [stop](../shuffle/ShuffleWriter.md#stop) (with the `success` flag off) and (re)throws the exception.
 
-runTask may also print out the following DEBUG message to the logs when the `ShuffleWriter` could not be shuffle:ShuffleWriter.md#stop[stopped].
+`runTask` may also print out the following DEBUG message to the logs when the `ShuffleWriter` could not be [stopped](../shuffle/ShuffleWriter.md#stop).
 
-[source,plaintext]
-----
+```text
 Could not stop writer
-----
+```
 
-runTask is part of Task.md#runTask[Task] abstraction.
+`runTask` is part of the [Task](Task.md#runTask) abstraction.
 
-== [[preferredLocations]] preferredLocations Method
+## <span id="preferredLocations"><span id="preferredLocs">  Preferred Locations
 
-[source, scala]
-----
+```scala
 preferredLocations: Seq[TaskLocation]
-----
+```
 
-preferredLocations simply returns the <<preferredLocs, preferredLocs>> internal property.
+`preferredLocations` is part of the [Task](Task.md#preferredLocations) abstraction.
 
-preferredLocations is part of Task.md#preferredLocations[Task] abstraction.
+`preferredLocations` returns `preferredLocs` internal property.
 
-== [[logging]] Logging
+`ShuffleMapTask` tracks [TaskLocation](TaskLocation.md)s as unique entries in the given [locs](#locs) (with the only rule that when `locs` is not defined, it is empty, and no task location preferences are defined).
+
+`ShuffleMapTask` initializes the `preferredLocs` internal property when [created](#creating-instance)
+
+## Logging
 
 Enable `ALL` logging level for `org.apache.spark.scheduler.ShuffleMapTask` logger to see what happens inside.
 
 Add the following line to `conf/log4j.properties`:
 
-[source,plaintext]
-----
+```text
 log4j.logger.org.apache.spark.scheduler.ShuffleMapTask=ALL
-----
+```
 
-Refer to ROOT:spark-logging.md[Logging].
-
-== [[preferredLocs]] Preferred Locations
-
-TaskLocation.md[TaskLocations] that are the unique entries in the given <<locs, locs>> with the only rule that when `locs` is not defined, it is empty, and no task location preferences are defined.
-
-Initialized when ShuffleMapTask is <<creating-instance, created>>
-
-Used exclusively when ShuffleMapTask is requested for the <<preferredLocations, preferred locations>>
+Refer to [Logging](../spark-logging.md).
