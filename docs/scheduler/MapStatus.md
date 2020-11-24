@@ -1,94 +1,80 @@
-= MapStatus
+# MapStatus
 
-*MapStatus* is an <<contract, abstraction>> of <<implementations, shuffle map output statuses>> that are metadata of shuffle map outputs with <<getSizeForBlock, estimated size for the reduce block>> and <<location, block location>>.
+`MapStatus` is an [abstraction](#contract) of [shuffle map output statuses](#implementations) with an [estimated size](#getSizeForBlock), [location](#location) and [map Id](#mapId).
 
-MapStatus is <<apply, created>> as the result of scheduler:ShuffleMapTask.md#runTask[executing a ShuffleMapTask] (after a shuffle:ShuffleManager.md#getWriter[ShuffleWriter] has shuffle:ShuffleWriter.md#stop[finished writing partition records successfully]).
+`MapStatus` is a result of [executing a ShuffleMapTask](ShuffleMapTask.md#runTask).
 
-After a scheduler:ShuffleMapTask.md#runTask[ShuffleMapTask has finished execution successfully], `DAGScheduler` is requested to scheduler:DAGScheduler.md#handleTaskCompletion[handleTaskCompletion] (of the `ShuffleMapTask`) that requests the scheduler:DAGScheduler.md#mapOutputTracker[MapOutputTrackerMaster] to scheduler:MapOutputTrackerMaster.md#registerMapOutput[register the MapStatus].
+After a [ShuffleMapTask has finished execution successfully](ShuffleMapTask.md#runTask), `DAGScheduler` is requested to [handle a ShuffleMapTask completion](DAGScheduler.md#handleTaskCompletion) that in turn requests the [MapOutputTrackerMaster](DAGScheduler.md#mapOutputTracker) to [register the MapStatus](MapOutputTrackerMaster.md#registerMapOutput).
 
-== [[contract]] Contract
+## Contract
 
-[cols="30,70",options="header",width="100%"]
-|===
-| Method
-| Description
+### <span id="getSizeForBlock"> Estimated Size
 
-| getSizeForBlock
-a| [[getSizeForBlock]]
+```scala
+getSizeForBlock(
+  reduceId: Int): Long
+```
 
-[source, scala]
-----
-getSizeForBlock(reduceId: Int): Long
-----
-
-Estimated size for the reduce block (in bytes)
+Estimated size (in bytes)
 
 Used when:
 
-* `MapOutputTrackerMaster` is requested for a scheduler:MapOutputTrackerMaster.md#getStatistics[MapOutputStatistics] and scheduler:MapOutputTrackerMaster.md#getLocationsWithLargestOutputs[locations with largest number of shuffle map outputs]
+* `MapOutputTrackerMaster` is requested for a [MapOutputStatistics](MapOutputTrackerMaster.md#getStatistics) and [locations with the largest number of shuffle map outputs](MapOutputTrackerMaster.md#getLocationsWithLargestOutputs)
+* `MapOutputTracker` utility is used to [convert MapStatuses](MapOutputTracker.md#convertMapStatuses)
+* `OptimizeSkewedJoin` ([Spark SQL]({{ book.spark_sql }}/physical-optimizations/OptimizeSkewedJoin/)) physical optimization is executed
 
-* `MapOutputTracker` object is requested to scheduler:MapOutputTracker.md#convertMapStatuses[convert MapStatuses To BlockManagerIds with ShuffleBlockIds and Their Sizes]
+### <span id="location"> Location
 
-| location
-a| [[location]]
-
-[source, scala]
-----
+```scala
 location: BlockManagerId
-----
+```
 
-Block location, i.e. the <<BlockManager.md#, BlockManager>> where a `ShuffleMapTask` ran and the result is stored.
+[BlockManagerId](../storage/BlockManagerId.md) of the shuffle map output (i.e. the [BlockManager](../storage/BlockManager.md) where a `ShuffleMapTask` ran and the result is stored)
 
 Used when:
 
-* `DAGScheduler` is requested to scheduler:DAGScheduler.md#handleTaskCompletion[handleTaskCompletion] (of a `ShuffleMapTask`)
+* `ShuffleStatus` is requested to [removeMapOutput](ShuffleStatus.md#removeMapOutput) and [removeOutputsByFilter](ShuffleStatus.md##removeOutputsByFilter)
+* `MapOutputTrackerMaster` is requested for [locations with the largest number of shuffle map outputs](MapOutputTrackerMaster.md#getLocationsWithLargestOutputs) and [getMapLocation](MapOutputTrackerMaster.md#getMapLocation)
+* `MapOutputTracker` utility is used to [convert MapStatuses](MapOutputTracker.md#convertMapStatuses)
+* `DAGScheduler` is requested to [handle a ShuffleMapTask completion](DAGScheduler.md#handleTaskCompletion)
 
-* `ShuffleStatus` is requested to `removeMapOutput` and `removeOutputsByFilter`
+### <span id="mapId"> Map Id
 
-* `MapOutputTrackerMaster` is requested for scheduler:MapOutputTrackerMaster.md#getLocationsWithLargestOutputs[locations with largest number of shuffle map outputs]
+```scala
+mapId: Long
+```
 
-* `MapOutputTracker` object is requested to scheduler:MapOutputTracker.md#convertMapStatuses[convert MapStatuses To BlockManagerIds with ShuffleBlockIds and Their Sizes]
+Map Id of the shuffle map output
 
-|===
+Used when:
 
-== [[implementations]] MapStatuses
+* `MapOutputTracker` utility is used to [convert MapStatuses](MapOutputTracker.md#convertMapStatuses)
 
-[cols="30,70",options="header",width="100%"]
-|===
-| MapStatus
-| Description
+## Implementations
 
-| CompressedMapStatus
-| [[CompressedMapStatus]] Default MapStatus that compresses the <<getSizeForBlock, estimated map output size>> to 8 bits (`Byte`) for efficient reporting
+* [CompressedMapStatus](CompressedMapStatus.md)
+* [HighlyCompressedMapStatus](HighlyCompressedMapStatus.md)
 
-| HighlyCompressedMapStatus
-| [[HighlyCompressedMapStatus]] Stores the average size of non-empty blocks, and a compressed bitmap for tracking which blocks are empty. Used when the number of partitions is above the <<minPartitionsToUseHighlyCompressMapStatus, spark.shuffle.minNumPartitionsToHighlyCompress>> threshold
+??? note "Sealed Trait"
+    `MapStatus` is a Scala **sealed trait** which means that all of the implementations are in the same compilation unit (a single file).
 
-|===
+## <span id="minPartitionsToUseHighlyCompressMapStatus"> spark.shuffle.minNumPartitionsToHighlyCompress
 
-== [[minPartitionsToUseHighlyCompressMapStatus]] Minimum Number of Partitions Threshold
+`MapStatus` utility uses [spark.shuffle.minNumPartitionsToHighlyCompress](../configuration-properties.md#spark.shuffle.minNumPartitionsToHighlyCompress) internal configuration property for the **minimum number of partitions** to [prefer a HighlyCompressedMapStatus](#apply).
 
-MapStatus object uses ROOT:configuration-properties.md#spark.shuffle.minNumPartitionsToHighlyCompress[spark.shuffle.minNumPartitionsToHighlyCompress] internal configuration property for the *minimum number of partitions* threshold to create a <<HighlyCompressedMapStatus, HighlyCompressedMapStatus>> when requested to <<apply, create a MapStatus>>.
+## <span id="apply"> Creating MapStatus
 
-== [[apply]] Creating MapStatus
-
-[source, scala]
-----
+```scala
 apply(
   loc: BlockManagerId,
-  uncompressedSizes: Array[Long]): MapStatus
-----
+  uncompressedSizes: Array[Long],
+  mapTaskId: Long): MapStatus
+```
 
-apply creates a concrete <<MapStatus, MapStatus>> per the size of the given `uncompressedSizes` array:
+`apply` creates a [HighlyCompressedMapStatus](HighlyCompressedMapStatus.md) when the number of `uncompressedSizes` is above [minPartitionsToUseHighlyCompressMapStatus](#minPartitionsToUseHighlyCompressMapStatus) threshold. Otherwise, `apply` creates a [CompressedMapStatus](CompressedMapStatus.md).
 
-* <<HighlyCompressedMapStatus, HighlyCompressedMapStatus>> when above the <<minPartitionsToUseHighlyCompressMapStatus, minPartitionsToUseHighlyCompressMapStatus>> threshold
+`apply` is used when:
 
-* <<CompressedMapStatus, CompressedMapStatus>> otherwise
-
-apply is used when:
-
-* SortShuffleWriter is requested to shuffle:SortShuffleWriter.md#write[write records (into shuffle partitioned file in disk store)]
-
-* BypassMergeSortShuffleWriter is requested to shuffle:BypassMergeSortShuffleWriter.md#write[write records (into one single shuffle block data file)]
-
-* UnsafeShuffleWriter is requested to shuffle:UnsafeShuffleWriter.md#closeAndWriteOutput[close the internal resources and write out merged spill files]
+* `SortShuffleWriter` is requested to [write records](../shuffle/SortShuffleWriter.md#write)
+* `BypassMergeSortShuffleWriter` is requested to [write records](../shuffle/BypassMergeSortShuffleWriter.md#write)
+* `UnsafeShuffleWriter` is requested to [close resources and write out merged spill files](../shuffle/UnsafeShuffleWriter.md#closeAndWriteOutput)

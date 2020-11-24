@@ -8,6 +8,14 @@ Default: `false`
 
 Used when `BlockManager` is requested for a [DiskBlockObjectWriter](storage/BlockManager.md#getDiskWriter)
 
+## <span id="spark.shuffle.minNumPartitionsToHighlyCompress"><span id="SHUFFLE_MIN_NUM_PARTS_TO_HIGHLY_COMPRESS"> spark.shuffle.minNumPartitionsToHighlyCompress
+
+**(internal)** Minimum number of partitions (threshold) for `MapStatus` utility to prefer a [HighlyCompressedMapStatus](scheduler/MapStatus.md#HighlyCompressedMapStatus) (over [CompressedMapStatus](scheduler/MapStatus.md#CompressedMapStatus)) (for [ShuffleWriters](shuffle/ShuffleWriter.md)).
+
+Default: `2000`
+
+Must be a positive integer (above `0`)
+
 ## <span id="spark.file.transferTo"> spark.file.transferTo
 
 Controls whether to use Java [FileChannel]({{ java.api }}/java.base/java/nio/channels/FileChannel.html)s (Java NIO) for copying data between two Java FileInputStreams to improve copy performance
@@ -420,14 +428,6 @@ Default: `128`
 Generally only applies to map output size (serialized) information sent between executors and the driver.
 
 Increase this if you are running jobs with many thousands of map and reduce tasks and see messages about the RPC message size.
-
-== [[spark.shuffle.minNumPartitionsToHighlyCompress]] spark.shuffle.minNumPartitionsToHighlyCompress
-
-*(internal)* Minimum number of partitions (threshold) when `MapStatus` object creates a scheduler:MapStatus.md#HighlyCompressedMapStatus[HighlyCompressedMapStatus] (over scheduler:MapStatus.md#CompressedMapStatus[CompressedMapStatus]) when requested for scheduler:MapStatus.md#apply[one] (for shuffle:ShuffleWriter.md[ShuffleWriters]).
-
-Default: `2000`
-
-Must be a positive integer (above `0`)
 
 == [[spark.shuffle.reduceLocality.enabled]] spark.shuffle.reduceLocality.enabled
 

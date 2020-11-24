@@ -1,0 +1,3 @@
+# CompressedMapStatus
+
+`CompressedMapStatus` is...FIXME
