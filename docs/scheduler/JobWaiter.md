@@ -19,7 +19,7 @@
 jobPromise: Promise[Unit]
 ```
 
-`jobPromise` is a Scala [Promise]({{ scala.doc }}/scala/concurrent/Promise.html) that is completed when [all tasks have finished successfully](#taskSucceeded) or [failed with an exception](#jobFailed).
+`jobPromise` is a Scala [Promise]({{ scala.api }}/scala/concurrent/Promise.html) that is completed when [all tasks have finished successfully](#taskSucceeded) or [failed with an exception](#jobFailed).
 
 ## <span id="taskSucceeded"> taskSucceeded
 

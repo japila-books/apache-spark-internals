@@ -1,8 +1,8 @@
-== Transformations -- Lazy Operations on RDD (to Create One or More RDDs)
+# Transformations -- Lazy Operations on RDD (to Create One or More RDDs)
 
-*Transformations* are lazy operations on an rdd:RDD.md[RDD] that create one or many new RDDs.
+**Transformations** are lazy operations on an rdd:RDD.md[RDD] that create one or many new RDDs.
 
-```
+```scala
 // T and U are Scala types
 transformation: RDD[T] => RDD[U]
 transformation: RDD[T] => Seq[RDD[U]]

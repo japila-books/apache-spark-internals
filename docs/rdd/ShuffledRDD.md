@@ -11,7 +11,7 @@
 
 `ShuffledRDD` is created for the following RDD operators:
 
-* [OrderedRDDFunctions.sortByKey](spark-rdd-OrderedRDDFunctions.md#sortByKey) and [OrderedRDDFunctions.repartitionAndSortWithinPartitions](spark-rdd-OrderedRDDFunctions.md#repartitionAndSortWithinPartitions)
+* [OrderedRDDFunctions.sortByKey](OrderedRDDFunctions.md#sortByKey) and [OrderedRDDFunctions.repartitionAndSortWithinPartitions](OrderedRDDFunctions.md#repartitionAndSortWithinPartitions)
 
 * [PairRDDFunctions.combineByKeyWithClassTag](PairRDDFunctions.md#combineByKeyWithClassTag) and [PairRDDFunctions.partitionBy](PairRDDFunctions.md#partitionBy)
 

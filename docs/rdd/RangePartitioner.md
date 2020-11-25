@@ -5,9 +5,9 @@
 [[ordering]]
 `RangePartitioner[K : Ordering : ClassTag, V]` is a parameterized type of `K` keys that can be sorted (_ordered_) and `V` values.
 
-RangePartitioner is used for rdd:spark-rdd-OrderedRDDFunctions.md#sortByKey[sortByKey] operator.
+RangePartitioner is used for [sortByKey](OrderedRDDFunctions.md#sortByKey) operator.
 
-== [[creating-instance]] Creating Instance
+## Creating Instance
 
 RangePartitioner takes the following to be created:
 

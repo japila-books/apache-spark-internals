@@ -21,6 +21,22 @@ doCheckpoint(): Unit
 
 `doCheckpoint` is used when `SparkContext` is requested to [run a job synchronously](../SparkContext.md#runJob).
 
+## Implicit Methods
+
+### <span id="rddToOrderedRDDFunctions"> rddToOrderedRDDFunctions
+
+```scala
+rddToOrderedRDDFunctions[K : Ordering : ClassTag, V: ClassTag](
+  rdd: RDD[(K, V)]): OrderedRDDFunctions[K, V, (K, V)]
+```
+
+`rddToOrderedRDDFunctions` is an Scala implicit method that creates a [OrderedRDDFunctions](OrderedRDDFunctions.md).
+
+`rddToOrderedRDDFunctions` is used (implicitly) when:
+
+* [RDD.sortBy](spark-rdd-transformations.md#sortBy)
+* [PairRDDFunctions.combineByKey](PairRDDFunctions.md#combineByKey)
+
 == [[contract]] RDD Contract
 
 === [[compute]] Computing Partition (in TaskContext)
