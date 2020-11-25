@@ -1,55 +1,32 @@
 # Partitioner
 
-Partitioner is an abstraction to define how the elements in a key-value pair RDD are partitioned by key. Partitioner <<getPartition, maps keys to partition IDs>> (from 0 to <<numPartitions, numPartitions>> - 1).
+`Partitioner` is an [abstraction](#contract) of [partitioners](#implementations) that define how the elements in a key-value pair RDD are partitioned by key.
 
-Partitioner is used to ensure that records for a given key have to reside on a single partition.
+`Partitioner` [maps keys to partition IDs](#getPartition) (from 0 to [numPartitions](#numPartitions) exclusive).
 
-== [[implementations]] Available Partitioners
+`Partitioner` ensures that records with the same key are in the same partition.
 
-[cols="30,70",options="header",width="100%"]
-|===
-| Partitioner
-| Description
+`Partitioner` is a Java `Serializable`.
 
-| rdd:HashPartitioner.md[HashPartitioner]
-| [[HashPartitioner]] Hash-based partitioning
+## Contract
 
-| rdd:RangePartitioner.md[RangePartitioner]
-| [[RangePartitioner]]
+### <span id="getPartition"> Partition for Key
 
-|===
+```scala
+getPartition(
+  key: Any): Int
+```
 
-== [[numPartitions]] numPartitions Method
+Partition ID for the given key
 
-[source, scala]
-----
+### <span id="numPartitions"> Number of Partitions
+
+```scala
 numPartitions: Int
-----
+```
 
-numPartitions is the number of partition to use for <<getPartition, mapping keys to partition IDs>>.
+## Implementations
 
-numPartitions is used when...FIXME
-
-== [[getPartition]] getPartition Method
-
-[source, scala]
-----
-getPartition(key: Any): Int
-----
-
-getPartition maps a given key to a partition ID (from 0 to <<numPartitions, numPartitions>> - 1)
-
-getPartition is used when...FIXME
-
-== [[defaultPartitioner]] defaultPartitioner Method
-
-[source, scala]
-----
-defaultPartitioner(
-  rdd: RDD[_],
-  others: RDD[_]*): Partitioner
-----
-
-defaultPartitioner...FIXME
-
-defaultPartitioner is used when...FIXME
+* CoalescedPartitioner (Spark SQL)
+* [HashPartitioner](HashPartitioner.md)
+* [RangePartitioner](RangePartitioner.md)
