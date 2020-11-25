@@ -25,11 +25,12 @@ Event handler: [handleBeginEvent](DAGScheduler.md#handleBeginEvent)
 
 Carries the following:
 
-* Completed [Task](Task.md)
-* Reason
-* Result (value computed)
-* [Accumulator](../accumulators.md) updates
-* [TaskInfo](TaskInfo.md)
+* <span id="CompletionEvent-task"> Completed [Task](Task.md)
+* <span id="CompletionEvent-reason"> `TaskEndReason`
+* <span id="CompletionEvent-result"> Result (value computed)
+* <span id="CompletionEvent-accumUpdates"> [AccumulatorV2](../accumulators/AccumulatorV2.md) Updates
+* <span id="CompletionEvent-metricPeaks"> Metric Peaks
+* <span id="CompletionEvent-taskInfo"> [TaskInfo](TaskInfo.md)
 
 Posted when `DAGScheduler` is requested to [taskEnded](DAGScheduler.md#taskEnded)
 

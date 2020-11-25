@@ -1,6 +1,6 @@
 # TaskMetrics
 
-`TaskMetrics` is a <<metrics, collection of metrics>> (as <<spark-accumulators.md#, AccumulatorV2s>>) tracked during execution of a scheduler:Task.md[Task].
+`TaskMetrics` is a <<metrics, collection of metrics>> (as [AccumulatorV2s](../accumulators/index.md)) tracked during execution of a [Task](../scheduler/Task.md).
 
 TaskMetrics is <<creating-instance, created>> when:
 
@@ -19,7 +19,7 @@ TIP: Use <<spark-SparkListener-StatsReportListener.md#, StatsReportListener>> fo
 
 TIP: Use spark-history-server:EventLoggingListener.md[EventLoggingListener] for post-execution (history) statistics.
 
-TaskMetrics uses spark-accumulators.md[accumulators] to represent the metrics and offers "increment" methods to increment them.
+TaskMetrics uses [accumulators](../accumulators/index.md) to represent the metrics and offers "increment" methods to increment them.
 
 NOTE: The local values of the accumulators for a scheduler:Task.md[task] (as accumulated while the scheduler:Task.md#run[task runs]) are sent from the executor to the driver when the task completes (and <<fromAccumulators, `DAGScheduler` re-creates TaskMetrics>>).
 
@@ -52,21 +52,21 @@ NOTE: The local values of the accumulators for a scheduler:Task.md[task] (as acc
 | Description
 
 | [[nameToAccums]] `nameToAccums`
-| Internal spark-accumulators.md[accumulators] indexed by their names.
+| Internal [accumulators](../accumulators/index.md) indexed by their names.
 
 Used when TaskMetrics <<fromAccumulators, re-creates TaskMetrics from `AccumulatorV2s`>>, ...FIXME
 
 NOTE: `nameToAccums` is a `transient` and `lazy` value.
 
 | [[internalAccums]] `internalAccums`
-| Collection of internal spark-accumulators.md[AccumulatorV2] objects.
+| Collection of internal [AccumulatorV2](../accumulators/index.md) objects.
 
 Used when...FIXME
 
 NOTE: `internalAccums` is a `transient` and `lazy` value.
 
 | [[externalAccums]] `externalAccums`
-| Collection of external spark-accumulators.md[AccumulatorV2] objects.
+| Collection of external [AccumulatorV2](../accumulators/index.md) objects.
 
 Used when TaskMetrics <<fromAccumulators, re-creates TaskMetrics from `AccumulatorV2s`>>, ...FIXME
 
@@ -128,7 +128,7 @@ fromAccumulators(accums: Seq[AccumulatorV2[_, _]]): TaskMetrics
 
 Internally, `fromAccumulators` creates a new TaskMetrics. It then splits `accums` into internal and external task metrics collections (using <<nameToAccums, nameToAccums>> internal registry).
 
-For every internal task metrics, `fromAccumulators` finds the metrics in <<nameToAccums, nameToAccums>> internal registry (of the new TaskMetrics instance), copies spark-accumulators.md#metadata[metadata], and spark-accumulators.md#merge[merges state].
+For every internal task metrics, `fromAccumulators` finds the metrics in <<nameToAccums, nameToAccums>> internal registry (of the new TaskMetrics instance), copies [metadata](../accumulators/index.md#metadata), and [merges state](../accumulators/index.md#merge).
 
 In the end, `fromAccumulators` <<externalAccums, adds the external accumulators to the new TaskMetrics instance>>.
 
@@ -175,14 +175,14 @@ incUpdatedBlockStatuses(v: (BlockId, BlockStatus)): Unit
 
 NOTE: `incUpdatedBlockStatuses` is used exclusively when storage:BlockManager.md#addUpdatedBlockStatusToTaskMetrics[`BlockManager` does `addUpdatedBlockStatusToTaskMetrics`].
 
-== [[register]] Registering Internal Accumulators -- `register` Method
+## <span id="register"> Registering Internal Accumulators
 
-[source, scala]
-----
-register(sc: SparkContext): Unit
-----
+```scala
+register(
+  sc: SparkContext): Unit
+```
 
-`register` spark-accumulators.md#register[registers the internal accumulators] (from <<nameToAccums, nameToAccums>> internal registry) with `countFailedValues` enabled (`true`).
+`register` [registers the internal accumulators](../accumulators/index.md#register) (from <<nameToAccums, nameToAccums>> internal registry) with `countFailedValues` enabled (`true`).
 
 NOTE: `register` is used exclusively when scheduler:Stage.md#makeNewStageAttempt[`Stage` is requested for its new attempt].
 

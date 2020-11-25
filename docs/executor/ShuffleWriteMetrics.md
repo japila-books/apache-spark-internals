@@ -1,14 +1,15 @@
-= ShuffleWriteMetrics
+# ShuffleWriteMetrics
 
-*ShuffleWriteMetrics* is a <<accumulators, collection of accumulators>> that represents task metrics about writing shuffle data.
+`ShuffleWriteMetrics` is a <<accumulators, collection of accumulators>> that represents task metrics about writing shuffle data.
 
-ShuffleWriteMetrics tracks the following task metrics:
+`ShuffleWriteMetrics` tracks the following task metrics:
 
 1. <<bytesWritten, Shuffle Bytes Written>>
 2. <<writeTime, Shuffle Write Time>>
 3. <<recordsWritten, Shuffle Records Written>>
 
-NOTE: ROOT:spark-accumulators.md[Accumulators] allow tasks (running on executors) to communicate with the driver.
+!!! note
+    [Accumulators](../accumulators/index.md) allow tasks (running on executors) to communicate with the driver.
 
 [[accumulators]]
 .ShuffleWriteMetrics's Accumulators

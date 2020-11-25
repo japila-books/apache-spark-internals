@@ -1,4 +1,4 @@
-== [[AccumulatorV2]] Accumulators
+# Accumulators
 
 *Accumulators* are variables that are "added" to through an associative and commutative "add" operation. They act as a container for accumulating partial values across multiple tasks (running on executors). They are designed to be used safely and efficiently in parallel and distributed Spark computations and are meant for distributed counters and sums (e.g. executor:TaskMetrics.md[task metrics]).
 
@@ -71,7 +71,7 @@ register(
   countFailedValues: Boolean = false): Unit
 ----
 
-`register` creates a <<metadata, AccumulatorMetadata>> metadata object for the accumulator (with a spark-AccumulatorContext.md#newId[new unique identifier]) that is then used to spark-AccumulatorContext.md#register[register the accumulator with].
+`register` creates a <<metadata, AccumulatorMetadata>> metadata object for the accumulator (with a [new unique identifier](AccumulatorContext.md#newId)) that is then used to [register the accumulator with](AccumulatorContext.md#register).
 
 In the end, `register` core:ContextCleaner.md#registerAccumulatorForCleanup[registers the accumulator for cleanup] (only when ROOT:SparkContext.md#cleaner[`ContextCleaner` is defined in the `SparkContext`]).
 
@@ -111,21 +111,19 @@ An accumulator can have an optional name that you can specify when ROOT:SparkCon
 val counter = sc.longAccumulator("counter")
 ----
 
-=== [[AccumulableInfo]] AccumulableInfo
+## AccumulableInfo
 
-`AccumulableInfo` contains information about a task's local updates to an <<Accumulable, Accumulable>>.
+`AccumulableInfo` represents an update to a [AccumulatorV2](AccumulatorV2.md).
 
-* `id` of the accumulator
-* optional `name` of the accumulator
-* optional partial `update` to the accumulator from a task
-* `value`
-* whether or not it is `internal`
-* whether or not to `countFailedValues` to the final value of the accumulator for failed tasks
-* optional `metadata`
+* <span id="AccumulableInfo-id"> Accumulator ID
+* <span id="AccumulableInfo-name"> Name
+* <span id="AccumulableInfo-update"> Partial Update
+* <span id="AccumulableInfo-value"> Partial Value
+* <span id="AccumulableInfo-internal"> `internal` flag
+* <span id="AccumulableInfo-countFailedValues"> `countFailedValues` flag
+* <span id="AccumulableInfo-metadata"> Metadata (default: `None`)
 
 `AccumulableInfo` is used to transfer accumulator updates from executors to the driver every executor heartbeat or when a task finishes.
-
-Create an [[AccumulableInfo]] representation of this [[Accumulable]] with the provided values.
 
 === When are Accumulators Updated?
 

@@ -1,6 +1,6 @@
-= TaskRunner
+# TaskRunner
 
-TaskRunner is a *thread of execution* (a {java-javadoc-url}/java/lang/Runnable.html[java.lang.Runnable]) of a <<taskDescription, task>>.
+`TaskRunner` is a **thread of execution** (a {java-javadoc-url}/java/lang/Runnable.html[java.lang.Runnable]) of a <<taskDescription, task>>.
 
 .Executor creates and runs TaskRunner
 image::TaskRunner.png[align="center"]

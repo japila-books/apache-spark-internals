@@ -1,9 +1,8 @@
-= JsonProtocol Utility
-:navtitle: JsonProtocol
+# JsonProtocol Utility
 
-JsonProtocol is an utility to convert SparkListenerEvents <<sparkEventToJson, to>> and <<sparkEventFromJson, from>> JSON format.
+`JsonProtocol` is an utility to convert SparkListenerEvents <<sparkEventToJson, to>> and <<sparkEventFromJson, from>> JSON format.
 
-JsonProtocol is used by spark-history-server:EventLoggingListener.md[] and spark-history-server:ReplayListenerBus.md[] (to spark-history-server:EventLoggingListener.md#logEvent[log] and spark-history-server:ReplayListenerBus.md#replay[replay] events for spark-history-server:index.md[], respectively).
+`JsonProtocol` is used by spark-history-server:EventLoggingListener.md[] and spark-history-server:ReplayListenerBus.md[] (to spark-history-server:EventLoggingListener.md#logEvent[log] and spark-history-server:ReplayListenerBus.md#replay[replay] events for spark-history-server:index.md[], respectively).
 
 == [[sparkEventFromJson]] sparkEventFromJson Utility
 

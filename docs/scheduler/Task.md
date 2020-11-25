@@ -131,7 +131,7 @@ collectAccumulatorUpdates(
   taskFailed: Boolean = false): Seq[AccumulableInfo]
 ```
 
-`collectAccumulatorUpdates` collects the latest values of internal and external accumulators from a task (and returns the values as a collection of [AccumulableInfo](../accumulators.md#AccumulableInfo)).
+`collectAccumulatorUpdates` collects the latest values of internal and external accumulators from a task (and returns the values as a collection of [AccumulableInfo](../accumulators/index.md#AccumulableInfo)).
 
 Internally, `collectAccumulatorUpdates` [takes `TaskMetrics`](TaskContextImpl.md#taskMetrics).
 
@@ -142,7 +142,7 @@ Internally, `collectAccumulatorUpdates` [takes `TaskMetrics`](TaskContextImpl.md
 
 * [internal accumulators](../executor/TaskMetrics.md#internalAccums) whose current value is not the zero value and the `RESULT_SIZE` accumulator (regardless whether the value is its zero or not).
 
-* [external accumulators](../executor/TaskMetrics.md#externalAccums) when `taskFailed` is disabled (`false`) or which [should be included on failures](../accumulators.md#countFailedValues).
+* [external accumulators](../executor/TaskMetrics.md#externalAccums) when `taskFailed` is disabled (`false`) or which [should be included on failures](../accumulators/index.md#countFailedValues).
 
 `collectAccumulatorUpdates` returns an empty collection when [TaskContextImpl](#context) is not initialized.
 

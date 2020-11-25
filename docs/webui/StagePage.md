@@ -134,16 +134,16 @@ It gets `executorSummary` from `StageUIData` (for the stage and stage attempt id
 
 It also spark-webui-JobProgressListener.md#blockManagerIds[requests BlockManagers (from JobProgressListener)] to map executor ids to a pair of host and port to display in Address column.
 
-=== [[accumulators]] Accumulators
+## Accumulators
 
-Stage page displays the table with spark-accumulators.md#named[named accumulators] (only if they exist). It contains the name and value of the accumulators.
+Stage page displays the table with [named accumulators](../accumulators/index.md#named) (only if they exist). It contains the name and value of the accumulators.
 
-.Accumulators Section
-image::spark-webui-stage-accumulators.png[align="center"]
+![Accumulators Section](../images/webui/spark-webui-stage-accumulators.png)
 
-NOTE: The information with name and value is stored in spark-accumulators.md#AccumulableInfo[AccumulableInfo] (that is available in spark-webui-JobProgressListener.md#StageUIData[StageUIData]).
+!!! note
+    The information with name and value is stored in [AccumulableInfo](../accumulators/index.md#AccumulableInfo) (that is available in [StageUIData](JobProgressListener.md#StageUIData)).
 
-=== [[creating-instance]] Creating StagePage Instance
+## Creating Instance
 
 `StagePage` takes the following when created:
 

@@ -526,11 +526,11 @@ If however there are missing parent stages for the `stage`, `submitStage` <<subm
 
 `submitStage` is used recursively for missing parents of the given stage and when DAGScheduler is requested for the following:
 
-* <<resubmitFailedStages, resubmitFailedStages>> (ResubmitFailedStages event)
+* [resubmitFailedStages](#resubmitFailedStages) (ResubmitFailedStages event)
 
-* <<submitWaitingChildStages, submitWaitingChildStages>> (CompletionEvent event)
+* [submitWaitingChildStages](#submitWaitingChildStages) (CompletionEvent event)
 
-* Handle <<handleJobSubmitted, JobSubmitted>>, <<handleMapStageSubmitted, MapStageSubmitted>> and <<handleTaskCompletion, TaskCompletion>> events
+* Handle [JobSubmitted](#handleJobSubmitted), [MapStageSubmitted](#handleMapStageSubmitted) and [TaskCompletion](#handleTaskCompletion) events
 
 ## <span id="stage-attempts"> Stage Attempts
 
@@ -739,28 +739,6 @@ stop(): Unit
 
 `stop` is used when `SparkContext` is requested to [stop](../SparkContext.md#stop).
 
-## <span id="updateAccumulators"> Updating Accumulators with Partial Values from Completed Tasks
-
-```scala
-updateAccumulators(
-  event: CompletionEvent): Unit
-```
-
-`updateAccumulators` merges the partial values of accumulators from a completed task into their "source" accumulators on the driver.
-
-NOTE: It is called by <<handleTaskCompletion, handleTaskCompletion>>.
-
-For each spark-accumulators.md#AccumulableInfo[AccumulableInfo] in the `CompletionEvent`, a partial value from a task is obtained (from `AccumulableInfo.update`) and added to the driver's accumulator (using `Accumulable.++=` method).
-
-For named accumulators with the update value being a non-zero value, i.e. not `Accumulable.zero`:
-
-* `stage.latestInfo.accumulables` for the `AccumulableInfo.id` is set
-* `CompletionEvent.taskInfo.accumulables` has a new spark-accumulators.md#AccumulableInfo[AccumulableInfo] added.
-
-CAUTION: FIXME Where are `Stage.latestInfo.accumulables` and `CompletionEvent.taskInfo.accumulables` used?
-
-`updateAccumulators` is used when `DAGScheduler` is requested to [handle a task completion](#handleTaskCompletion).
-
 ## <span id="checkBarrierStageWithNumSlots"> checkBarrierStageWithNumSlots
 
 ```scala
@@ -896,7 +874,7 @@ handleTaskCompletion(
 
 `handleTaskCompletion` starts by scheduler:OutputCommitCoordinator.md#taskCompleted[notifying `OutputCommitCoordinator` that a task completed].
 
-`handleTaskCompletion` executor:TaskMetrics.md#fromAccumulators[re-creates `TaskMetrics`] (using <<CompletionEvent-accumUpdates, `accumUpdates` accumulators of the input `event`>>).
+`handleTaskCompletion` executor:TaskMetrics.md#fromAccumulators[re-creates `TaskMetrics`] (using [`accumUpdates` accumulators of the input `event`](#CompletionEvent-accumUpdates)).
 
 NOTE: executor:TaskMetrics.md[] can be empty when the task has failed.
 
@@ -1585,6 +1563,28 @@ Used when `TaskSetManager` is requested to [start a task](TaskSetManager.md#reso
 Posts a [WorkerRemoved](DAGSchedulerEvent.md#WorkerRemoved)
 
 Used when `TaskSchedulerImpl` is requested to [handle a removed worker event](TaskSchedulerImpl.md#workerRemoved)
+
+## <span id="updateAccumulators"> Updating Accumulators of Completed Tasks
+
+```scala
+updateAccumulators(
+  event: CompletionEvent): Unit
+```
+
+`updateAccumulators` merges the partial values of accumulators from a completed task (based on the given [CompletionEvent](DAGSchedulerEvent.md#CompletionEvent)) into their "source" accumulators on the driver.
+
+For every [AccumulatorV2](DAGSchedulerEvent.md#CompletionEvent-accumUpdates) update (in the given [CompletionEvent](DAGSchedulerEvent.md#CompletionEvent)), `updateAccumulators` [finds the corresponding accumulator on the driver](../accumulators/AccumulatorContext.md#get) and requests the `AccumulatorV2` to [merge the updates](../accumulators/AccumulatorV2.md#merge).
+
+`updateAccumulators`...FIXME
+
+For named accumulators with the update value being a non-zero value, i.e. not `Accumulable.zero`:
+
+* `stage.latestInfo.accumulables` for the `AccumulableInfo.id` is set
+* `CompletionEvent.taskInfo.accumulables` has a new [AccumulableInfo](../accumulators/index.md#AccumulableInfo) added.
+
+CAUTION: FIXME Where are `Stage.latestInfo.accumulables` and `CompletionEvent.taskInfo.accumulables` used?
+
+`updateAccumulators` is used when `DAGScheduler` is requested to [handle a task completion](#handleTaskCompletion).
 
 ## Logging
 
