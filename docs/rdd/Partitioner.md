@@ -1,4 +1,4 @@
-= Partitioner
+# Partitioner
 
 Partitioner is an abstraction to define how the elements in a key-value pair RDD are partitioned by key. Partitioner <<getPartition, maps keys to partition IDs>> (from 0 to <<numPartitions, numPartitions>> - 1).
 

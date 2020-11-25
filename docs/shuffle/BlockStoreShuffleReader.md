@@ -1,6 +1,6 @@
 # BlockStoreShuffleReader
 
-`BlockStoreShuffleReader` is the one and only known spark-shuffle-ShuffleReader.md[ShuffleReader] that <<read, reads the combined key-values for the reduce task>> (for a range of <<startPartition, start>> and <<endPartition, end>> reduce partitions) from a shuffle by requesting them from block managers.
+`BlockStoreShuffleReader` is the one and only known ShuffleReader.md[ShuffleReader] that <<read, reads the combined key-values for the reduce task>> (for a range of <<startPartition, start>> and <<endPartition, end>> reduce partitions) from a shuffle by requesting them from block managers.
 
 `BlockStoreShuffleReader` is <<creating-instance, created>> exclusively when `SortShuffleManager` is requested for the SortShuffleManager.md#getReader[ShuffleReader] for a range of reduce partitions.
 
@@ -11,7 +11,7 @@
 read(): Iterator[Product2[K, C]]
 ----
 
-NOTE: `read` is part of spark-shuffle-ShuffleReader.md#read[ShuffleReader Contract].
+NOTE: `read` is part of ShuffleReader.md#read[ShuffleReader Contract].
 
 Internally, `read` first storage:ShuffleBlockFetcherIterator.md#creating-instance[creates a `ShuffleBlockFetcherIterator`] (passing in the values of <<spark_reducer_maxSizeInFlight, spark.reducer.maxSizeInFlight>>, <<spark_reducer_maxReqsInFlight, spark.reducer.maxReqsInFlight>> and <<spark_shuffle_detectCorrupt, spark.shuffle.detectCorrupt>> Spark properties).
 

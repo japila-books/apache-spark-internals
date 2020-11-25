@@ -61,7 +61,7 @@ shuffleHandle: ShuffleHandle
 
 shuffleHandle is the `ShuffleHandle` of a ShuffleDependency as assigned eagerly when <<creating-instance, ShuffleDependency was created>>.
 
-shuffleHandle is used to compute [CoGroupedRDDs](CoGroupedRDD.md#compute), ShuffledRDD.md#compute[ShuffledRDD], [SubtractedRDD](SubtractedRDD.md#compute), and spark-sql-ShuffledRowRDD.md[ShuffledRowRDD] (to get a spark-shuffle-ShuffleReader.md[ShuffleReader] for a ShuffleDependency) and when a scheduler:ShuffleMapTask.md#runTask[`ShuffleMapTask` runs] (to get a `ShuffleWriter` for a ShuffleDependency).
+shuffleHandle is used to compute [CoGroupedRDDs](CoGroupedRDD.md#compute), ShuffledRDD.md#compute[ShuffledRDD], [SubtractedRDD](SubtractedRDD.md#compute), and spark-sql-ShuffledRowRDD.md[ShuffledRowRDD] (to get a ShuffleReader.md[ShuffleReader] for a ShuffleDependency) and when a scheduler:ShuffleMapTask.md#runTask[`ShuffleMapTask` runs] (to get a `ShuffleWriter` for a ShuffleDependency).
 
 == [[mapSideCombine]] Map-Size Partial Aggregation Flag
 
