@@ -1,43 +1,53 @@
 # RangePartitioner
 
-`RangePartitioner` is a [Partitioner](Partitioner.md).
+`RangePartitioner` is a [Partitioner](Partitioner.md) for **bucketed partitioning**.
 
-[[ordering]]
-`RangePartitioner[K : Ordering : ClassTag, V]` is a parameterized type of `K` keys that can be sorted (_ordered_) and `V` values.
-
-RangePartitioner is used for [sortByKey](OrderedRDDFunctions.md#sortByKey) operator.
+`RangePartitioner` is used for [sortByKey](OrderedRDDFunctions.md#sortByKey) operator (among other uses).
 
 ## Creating Instance
 
-RangePartitioner takes the following to be created:
+`RangePartitioner` takes the following to be created:
 
-* [[partitions]] Number of partitions
-* [[rdd]] rdd:RDD.md[RDD] (`RDD[_ <: Product2[K, V]]`)
-* [[ascending]] ascending flag (default: `true`)
-* [[samplePointsPerPartitionHint]] samplePointsPerPartitionHint (default: 20)
+* <span id="partitions"> Number of Partitions
+* <span id="rdd"> Key-Value [RDD](RDD.md) (`RDD[_ <: Product2[K, V]]`)
+* <span id="ascending"> `ascending` flag (default: `true`)
+* <span id="samplePointsPerPartitionHint"> samplePointsPerPartitionHint (default: `20`)
 
-== [[rangeBounds]] rangeBounds Array
+## <span id="numPartitions"> Number of Partitions
 
-RangePartitioner uses rangeBounds registry (of type `Array[K]`) when requested for <<getPartition, getPartition>> and <<hashCode, hashCode>>, <<numPartitions, number of partitions>>.
-
-== [[numPartitions]] Number of Partitions
-
-[source,scala]
-----
+```scala
 numPartitions: Int
-----
+```
 
-numPartitions is simply one more than the length of the <<rangeBounds, rangeBounds>> array.
+`numPartitions` is the length of the [rangeBounds](#rangeBounds) array plus `1`.
 
-numPartitions is part of the rdd:Partitioner.md#numPartitions[Partitioner] abstraction.
+`numPartitions` is part of the [Partitioner](Partitioner.md#numPartitions) abstraction.
 
-== [[getPartition]] Finding Partition ID for Key
+## <span id="getPartition"> Partition for Key
 
-[source, scala]
-----
-getPartition(key: Any): Int
-----
+```scala
+getPartition(
+  key: Any): Int
+```
 
-getPartition...FIXME
+`getPartition`...FIXME
 
-getPartition is part of the rdd:Partitioner.md#getPartition[Partitioner] abstraction.
+`getPartition` is part of the [Partitioner](Partitioner.md#getPartition) abstraction.
+
+## <span id="rangeBounds"> Range Bounds
+
+```scala
+rangeBounds: Array[K]
+```
+
+`rangeBounds` is an `Array[K]`...FIXME
+
+### <span id="determineBounds"> determineBounds Utility
+
+```scala
+determineBounds[K : Ordering : ClassTag](
+  candidates: ArrayBuffer[(K, Float)],
+  partitions: Int): Array[K]
+```
+
+`determineBounds`...FIXME

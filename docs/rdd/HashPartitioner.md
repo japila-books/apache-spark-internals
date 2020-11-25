@@ -5,15 +5,13 @@
 !!! important
     `HashPartitioner` [places null keys in 0th partition](#getPartition).
 
-`HashPartitioner` is used as the default `Partitioner`.
+`HashPartitioner` is used as the [default Partitioner](Partitioner.md#defaultPartitioner).
 
 ## Creating Instance
 
 `HashPartitioner` takes the following to be created:
 
 * <span id="partitions"> Number of partitions
-
-`HashPartitioner` is created when...FIXME
 
 ## <span id="numPartitions"> Number of Partitions
 
