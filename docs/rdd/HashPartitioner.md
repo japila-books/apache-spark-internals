@@ -1,42 +1,39 @@
-= HashPartitioner
+# HashPartitioner
 
-*HashPartitioner* is a rdd:Partitioner.md[Partitioner] for hash-based partitioning.
+`HashPartitioner` is a [Partitioner](Partitioner.md) for **hash-based partitioning**.
 
-HashPartitioner is used as the default Partitioner.
+!!! important
+    `HashPartitioner` [places null keys in 0th partition](#getPartition).
 
-== [[partitions]][[numPartitions]] Number of Partitions
+`HashPartitioner` is used as the default `Partitioner`.
 
-HashPartitioner takes a number of partitions to be created.
+## Creating Instance
 
-HashPartitioner uses the number of partitions to find the <<getPartition, partition ID for a given key>> (of a key-value record).
+`HashPartitioner` takes the following to be created:
 
-== [[getPartition]] Finding Partition ID for Key
+* <span id="partitions"> Number of partitions
 
-[source, scala]
-----
-getPartition(key: Any): Int
-----
+`HashPartitioner` is created when...FIXME
 
-getPartition returns 0 as the partition ID for `null` keys.
+## <span id="numPartitions"> Number of Partitions
 
-For non-``null`` keys, getPartition uses the key's {java-javadoc-url}/java/lang/Object.html#++hashCode--++[Object.hashCode] modulo the configured <<numPartitions, number of partitions>>. For a negative result, getPartition adds the <<numPartitions, number of partitions>> (used for the modulo operator) to make it positive.
+```scala
+numPartitions: Int
+```
 
-getPartition is part of the rdd:Partitioner.md#getPartition[Partitioner] abstraction.
+`numPartitions` returns the given [number of partitions](#partitions).
 
-== [[equals]] equals Method
+`numPartitions` is part of the [Partitioner](Partitioner.md#numPartitions) abstraction.
 
-[source, scala]
-----
-equals(other: Any): Boolean
-----
+## <span id="getPartition"> Partition for Key
 
-Two HashPartitioners are considered equal when the <<numPartitions, number of partitions>> are the same.
+```scala
+getPartition(
+  key: Any): Int
+```
 
-== [[hashCode]] hashCode Method
+For `null` keys `getPartition` simply returns `0`.
 
-[source, scala]
-----
-hashCode: Int
-----
+For non-`null` keys, `getPartition` uses the [Object.hashCode]({{ java.api }}/java.base/java/lang/Object.html#hashCode()) of the key  modulo the [number of partitions](#numPartitions). For negative results, `getPartition` adds the number of partitions to make it non-negative.
 
-hashCode is the <<numPartitions, number of partitions>>.
+`getPartition` is part of the [Partitioner](Partitioner.md#getPartition) abstraction.
