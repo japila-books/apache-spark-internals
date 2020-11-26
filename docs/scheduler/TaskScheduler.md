@@ -34,7 +34,7 @@ Handles a heartbeat from an executor
 
 Returns `true` when the `execId` executor is managed by the TaskScheduler. `false` indicates that the executor:Executor.md#reportHeartBeat[block manager (on the executor) should re-register].
 
-Used when HeartbeatReceiver RPC endpoint is requested to ROOT:spark-HeartbeatReceiver.md#Heartbeat[handle a Heartbeat (with task metrics) from an executor]
+Used when HeartbeatReceiver RPC endpoint is requested to [handle a Heartbeat (with task metrics) from an executor](../HeartbeatReceiver.md#Heartbeat)
 
 == [[killTaskAttempt]] Killing Task
 
@@ -105,7 +105,7 @@ defaultParallelism(): Int
 
 *Default level of parallelism*
 
-Used when `SparkContext` is requested for the ROOT:SparkContext.md#defaultParallelism[default level of parallelism]
+Used when `SparkContext` is requested for the [default level of parallelism](../SparkContext.md#defaultParallelism)
 
 | executorLost
 a| [[executorLost]]
@@ -121,7 +121,7 @@ Handles an executor lost event
 
 Used when:
 
-* `HeartbeatReceiver` RPC endpoint is requested to ROOT:spark-HeartbeatReceiver.md#expireDeadHosts[expireDeadHosts]
+* `HeartbeatReceiver` RPC endpoint is requested to [expireDeadHosts](../HeartbeatReceiver.md#expireDeadHosts)
 
 * DriverEndpoint RPC endpoint is requested to scheduler:CoarseGrainedSchedulerBackend-DriverEndpoint.md#removeExecutor[removes] (_forgets_) and scheduler:CoarseGrainedSchedulerBackend-DriverEndpoint.md#disableExecutor[disables] a malfunctioning executor (i.e. either lost or blacklisted for some reason)
 
@@ -158,7 +158,7 @@ Used when:
 
 * `TaskSchedulerImpl` is requested to scheduler:TaskSchedulerImpl.md#initialize[initialize]
 
-* `SparkContext` is requested to ROOT:SparkContext.md#getAllPools[getAllPools] and ROOT:SparkContext.md#getPoolForName[getPoolForName]
+* `SparkContext` is requested to SparkContext.md#getAllPools[getAllPools] and SparkContext.md#getPoolForName[getPoolForName]
 
 * `TaskSchedulerImpl` is requested to scheduler:TaskSchedulerImpl.md#resourceOffers[resourceOffers], scheduler:TaskSchedulerImpl.md#checkSpeculatableTasks[checkSpeculatableTasks], and scheduler:TaskSchedulerImpl.md#removeExecutor[removeExecutor]
 
@@ -176,7 +176,7 @@ Used when:
 
 * `TaskSchedulerImpl` is scheduler:TaskSchedulerImpl.md#rootPool[created] and scheduler:TaskSchedulerImpl.md#initialize[initialized]
 
-* `SparkContext` is requested to ROOT:SparkContext.md#getSchedulingMode[getSchedulingMode]
+* `SparkContext` is requested to SparkContext.md#getSchedulingMode[getSchedulingMode]
 
 | setDAGScheduler
 a| [[setDAGScheduler]]
@@ -234,24 +234,23 @@ Used when DAGScheduler is requested to scheduler:DAGScheduler.md#stop[stop]
 
 |===
 
-== [[lifecycle]] Lifecycle
+## Lifecycle
 
-A TaskScheduler is created while ROOT:SparkContext.md#creating-instance[SparkContext is being created] (by calling ROOT:SparkContext.md#createTaskScheduler[SparkContext.createTaskScheduler] for a given ROOT:spark-deployment-environments.md[master URL] and tools:spark-submit.md#deploy-mode[deploy mode]).
+A `TaskScheduler` is created while [SparkContext is being created](../SparkContext.md#creating-instance) (by calling [SparkContext.createTaskScheduler](../SparkContext.md#createTaskScheduler) for a given [master URL](../spark-deployment-environments.md) and [deploy mode](../tools/spark-submit.md#deploy-mode)).
 
-.TaskScheduler uses SchedulerBackend to support different clusters
-image::taskscheduler-uses-schedulerbackend.png[align="center"]
+![TaskScheduler uses SchedulerBackend to support different clusters](../images/scheduler/taskscheduler-uses-schedulerbackend.png)
 
-At this point in SparkContext's lifecycle, the internal `_taskScheduler` points at the TaskScheduler (and it is "announced" by sending a blocking ROOT:spark-HeartbeatReceiver.md#TaskSchedulerIsSet[`TaskSchedulerIsSet` message to HeartbeatReceiver RPC endpoint]).
+At this point in SparkContext's lifecycle, the internal `_taskScheduler` points at the TaskScheduler (and it is "announced" by sending a blocking [`TaskSchedulerIsSet` message to HeartbeatReceiver RPC endpoint](../HeartbeatReceiver.md#TaskSchedulerIsSet)).
 
 The <<start, TaskScheduler is started>> right after the blocking `TaskSchedulerIsSet` message receives a response.
 
-The <<applicationId, application ID>> and the <<applicationAttemptId, application's attempt ID>> are set at this point (and `SparkContext` uses the application id to set ROOT:SparkConf.md#spark.app.id[spark.app.id] Spark property, and configure webui:spark-webui-SparkUI.md[SparkUI], and storage:BlockManager.md[BlockManager]).
+The <<applicationId, application ID>> and the <<applicationAttemptId, application's attempt ID>> are set at this point (and `SparkContext` uses the application id to set SparkConf.md#spark.app.id[spark.app.id] Spark property, and configure webui:spark-webui-SparkUI.md[SparkUI], and storage:BlockManager.md[BlockManager]).
 
 CAUTION: FIXME The application id is described as "associated with the job." in TaskScheduler, but I think it is "associated with the application" and you can have many jobs per application.
 
 Right before SparkContext is fully initialized, <<postStartHook, TaskScheduler.postStartHook>> is called.
 
-The internal `_taskScheduler` is cleared (i.e. set to `null`) while ROOT:SparkContext.md#stop[SparkContext is being stopped].
+The internal `_taskScheduler` is cleared (i.e. set to `null`) while SparkContext.md#stop[SparkContext is being stopped].
 
 <<stop, TaskScheduler is stopped>> while scheduler:DAGScheduler.md#stop[DAGScheduler is being stopped].
 

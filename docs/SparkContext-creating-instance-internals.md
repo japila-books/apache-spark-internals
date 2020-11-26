@@ -1,9 +1,8 @@
-== Inside Creating SparkContext
+# Inside Creating SparkContext
 
 This document describes what happens when you ROOT:SparkContext.md#creating-instance[create a new SparkContext].
 
-[source, scala]
-----
+```text
 import org.apache.spark.{SparkConf, SparkContext}
 
 // 1. Create Spark configuration
@@ -13,7 +12,7 @@ val conf = new SparkConf()
 
 // 2. Create Spark context
 val sc = new SparkContext(conf)
-----
+```
 
 NOTE: The example uses Spark in local/spark-local.md[local mode], but the initialization with spark-cluster.md[the other cluster modes] would follow similar steps.
 
@@ -101,7 +100,7 @@ TIP: Read about compression codecs in core:BroadcastManager.md#compression[Compr
 
 `SparkContext` creates a scheduler:LiveListenerBus.md#creating-instance[LiveListenerBus].
 
-=== [[_statusStore]] Creating Live AppStatusStore
+## <span id="_statusStore"> Creating AppStatusStore
 
 `SparkContext` requests `AppStatusStore` to create a core:AppStatusStore.md#createLiveStore[live store] (i.e. the `AppStatusStore` for a live Spark application) and requests <<listenerBus, LiveListenerBus>> to add the core:AppStatusStore.md#listener[AppStatusListener] to the scheduler:LiveListenerBus.md#addToStatusQueue[status queue].
 
@@ -165,8 +164,9 @@ FIXME
 
 The Mesos scheduler backend's configuration is included in `executorEnvs`, i.e. ROOT:SparkContext.md#environment-variables[SPARK_EXECUTOR_MEMORY], `_conf.getExecutorEnv`, and `SPARK_USER`.
 
-[[_heartbeatReceiver]]
-`SparkContext` registers spark-HeartbeatReceiver.md[HeartbeatReceiver RPC endpoint].
+## <span id="_heartbeatReceiver"> Registering HeartbeatReceiver
+
+`SparkContext` registers [HeartbeatReceiver RPC endpoint](HeartbeatReceiver.md).
 
 `SparkContext` object is requested to ROOT:SparkContext.md#createTaskScheduler[create the SchedulerBackend with the TaskScheduler] (for the given master URL) and the result becomes the internal `_schedulerBackend` and `_taskScheduler`.
 
@@ -174,8 +174,9 @@ NOTE: The internal `_schedulerBackend` and `_taskScheduler` are used by `schedul
 
 scheduler:DAGScheduler.md#creating-instance[DAGScheduler is created] (as `_dagScheduler`).
 
-[[TaskSchedulerIsSet]]
-`SparkContext` sends a blocking spark-HeartbeatReceiver.md#TaskSchedulerIsSet[`TaskSchedulerIsSet` message to HeartbeatReceiver RPC endpoint] (to inform that the `TaskScheduler` is now available).
+## <span id="TaskSchedulerIsSet"> Sending Blocking TaskSchedulerIsSet
+
+`SparkContext` sends a blocking [`TaskSchedulerIsSet` message to HeartbeatReceiver RPC endpoint](HeartbeatReceiver.md#TaskSchedulerIsSet) (to inform that the `TaskScheduler` is now available).
 
 === [[taskScheduler-start]] Starting TaskScheduler
 
@@ -209,12 +210,14 @@ NOTE: `SparkContext` starts `MetricsSystem` after <<spark.app.id, setting spark.
 
 `SparkContext` requests the `MetricsSystem` for a spark-metrics-MetricsSystem.md#getServletHandlers[JSON servlet handler] and requests the <<_ui, SparkUI>> to spark-webui-WebUI.md#attachHandler[attach it].
 
-[[_eventLogger]]
+## <span id="_eventLogger"> Starting EventLoggingListener (with Event Log Enabled)
+
 `_eventLogger` is created and started if `isEventLogEnabled`. It uses spark-history-server:EventLoggingListener.md[EventLoggingListener] that gets registered to scheduler:LiveListenerBus.md[].
 
 CAUTION: FIXME Why is `_eventLogger` required to be the internal field of SparkContext? Where is this used?
 
-[[ExecutorAllocationManager]]
+## <span id="ExecutorAllocationManager"> ExecutorAllocationManager
+
 For ROOT:spark-dynamic-allocation.md[], spark-ExecutorAllocationManager.md#creating-instance[`ExecutorAllocationManager` is created] (as `_executorAllocationManager`) and immediately spark-ExecutorAllocationManager.md#start[started].
 
 NOTE: `_executorAllocationManager` is exposed (as a method) to yarn/spark-yarn-yarnschedulerbackend.md#reset[YARN scheduler backends to reset their state to the initial state].
@@ -291,14 +294,13 @@ NOTE: `getClusterManager` uses Java's ++https://docs.oracle.com/javase/8/docs/ap
 
 NOTE: `getClusterManager` is used to find a cluster manager for a master URL when ROOT:SparkContext.md#createTaskScheduler[creating a `SchedulerBackend` and a `TaskScheduler` for the driver].
 
-=== [[setupAndStartListenerBus]] setupAndStartListenerBus
+## <span id="setupAndStartListenerBus"> setupAndStartListenerBus
 
-[source, scala]
-----
+```scala
 setupAndStartListenerBus(): Unit
-----
+```
 
-`setupAndStartListenerBus` is an internal method that reads ROOT:configuration-properties.md#spark.extraListeners[spark.extraListeners] configuration property from the current ROOT:SparkConf.md[SparkConf] to create and register ROOT:SparkListener.md#SparkListenerInterface[SparkListenerInterface] listeners.
+`setupAndStartListenerBus` is an internal method that reads ROOT:configuration-properties.md#spark.extraListeners[spark.extraListeners] configuration property from the current ROOT:SparkConf.md[SparkConf] to create and register [SparkListenerInterface](SparkListenerInterface.md) listeners.
 
 It expects that the class name represents a `SparkListenerInterface` listener with one of the following constructors (in this order):
 
@@ -321,9 +323,9 @@ When no single-`SparkConf` or zero-argument constructor could be found for a cla
 [className] did not have a zero-argument constructor or a single-argument constructor that accepts SparkConf. Note: if the class is defined inside of another Scala class, then its constructors may accept an implicit parameter that references the enclosing class; in this case, you must define the listener as a top-level class in order to prevent this extra parameter from breaking Spark's ability to find a valid constructor.
 ```
 
-Any exception while registering a ROOT:SparkListener.md#SparkListenerInterface[SparkListenerInterface] listener ROOT:SparkContext.md#stop[stops the SparkContext] and a `SparkException` is thrown and the source exception's message.
+Any exception while registering a [SparkListenerInterface](SparkListenerInterface.md) listener [stops the SparkContext](SparkContext.md#stop) and a `SparkException` is thrown and the source exception's message.
 
-```
+```text
 Exception when registering SparkListener
 ```
 

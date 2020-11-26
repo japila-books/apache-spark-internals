@@ -855,16 +855,17 @@ Ultimately, you should see the following INFO message in the logs:
 Successfully stopped SparkContext
 ```
 
-== [[addSparkListener]] Registering SparkListener -- `addSparkListener` Method
+## <span id="addSparkListener"> Registering SparkListener
 
-[source, scala]
-----
-addSparkListener(listener: SparkListenerInterface): Unit
-----
+```scala
+addSparkListener(
+  listener: SparkListenerInterface): Unit
+```
 
-You can register a custom ROOT:SparkListener.md#SparkListenerInterface[SparkListenerInterface] using `addSparkListener` method
+`addSparkListener` registers a custom [SparkListenerInterface](SparkListenerInterface.md).
 
-NOTE: You can also register custom listeners using ROOT:configuration-properties.md#spark.extraListeners[spark.extraListeners] configuration property.
+!!! note
+    Custom listeners can also be registered declaratively using [spark.extraListeners](configuration-properties.md#spark.extraListeners) configuration property.
 
 == [[custom-schedulers]] Custom SchedulerBackend, TaskScheduler and DAGScheduler
 

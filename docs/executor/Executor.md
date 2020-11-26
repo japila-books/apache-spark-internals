@@ -2,7 +2,7 @@
 
 Executor is a process that is used for executing scheduler:Task.md[tasks].
 
-Executor _typically_ runs for the entire lifetime of a Spark application which is called *static allocation of executors* (but you could also opt in for ROOT:spark-dynamic-allocation.md[dynamic allocation]).
+Executor _typically_ runs for the entire lifetime of a Spark application which is called *static allocation of executors* (but you could also opt in for spark-dynamic-allocation.md[dynamic allocation]).
 
 Executors are managed by executor:ExecutorBackend.md[executor backends].
 
@@ -28,7 +28,7 @@ Executors send <<metrics, metrics>> (and heartbeats) using the <<heartbeater, in
 
 It is recommended to have as many executors as data nodes and as many cores as you can get from the cluster.
 
-Executors are described by their *id*, *hostname*, *environment* (as `SparkEnv`), and *classpath* (and, less importantly, and more for internal optimization, whether they run in spark-local:index.md[local] or ROOT:spark-cluster.md[cluster] mode).
+Executors are described by their *id*, *hostname*, *environment* (as `SparkEnv`), and *classpath* (and, less importantly, and more for internal optimization, whether they run in spark-local:index.md[local] or spark-cluster.md[cluster] mode).
 
 == [[creating-instance]] Creating Instance
 
@@ -49,7 +49,7 @@ Starting executor ID [executorId] on host [executorHostname]
 
 (only for <<isLocal, non-local modes>>) Executor sets `SparkUncaughtExceptionHandler` as the default handler invoked when a thread abruptly terminates due to an uncaught exception.
 
-(only for <<isLocal, non-local modes>>) Executor requests the core:SparkEnv.md#blockManager[BlockManager] to storage:BlockManager.md#initialize[initialize] (with the ROOT:SparkConf.md#getAppId[Spark application id] of the core:SparkEnv.md#conf[SparkConf]).
+(only for <<isLocal, non-local modes>>) Executor requests the core:SparkEnv.md#blockManager[BlockManager] to storage:BlockManager.md#initialize[initialize] (with the SparkConf.md#getAppId[Spark application id] of the core:SparkEnv.md#conf[SparkConf]).
 
 [[creating-instance-BlockManager-shuffleMetricsSource]]
 (only for <<isLocal, non-local modes>>) Executor requests the core:SparkEnv.md#metricsSystem[MetricsSystem] to metrics:spark-metrics-MetricsSystem.md#registerSource[register] the <<executorSource, ExecutorSource>> and storage:BlockManager.md#shuffleMetricsSource[shuffleMetricsSource] of the core:SparkEnv.md#blockManager[BlockManager].
@@ -78,15 +78,15 @@ The flag is turned on for spark-local:index.md[Spark local] (via spark-local:spa
 
 Executor is given user-defined jars when created. There are no jars defined by default.
 
-The jars are specified using ROOT:configuration-properties.md#spark.executor.extraClassPath[spark.executor.extraClassPath] configuration property (via executor:CoarseGrainedExecutorBackend.md#main[--user-class-path] command-line option of CoarseGrainedExecutorBackend).
+The jars are specified using configuration-properties.md#spark.executor.extraClassPath[spark.executor.extraClassPath] configuration property (via executor:CoarseGrainedExecutorBackend.md#main[--user-class-path] command-line option of CoarseGrainedExecutorBackend).
 
 == [[runningTasks]] Running Tasks
 
 Executor tracks running tasks in a registry of executor:TaskRunner.md[TaskRunners] per task ID.
 
-== [[heartbeatReceiverRef]] HeartbeatReceiver RPC Endpoint Reference
+## <span id="heartbeatReceiverRef"> HeartbeatReceiver RPC Endpoint Reference
 
-rpc:RpcEndpointRef.md[RPC endpoint reference] to ROOT:spark-HeartbeatReceiver.md[HeartbeatReceiver] on the ROOT:spark-driver.md[driver].
+[RPC endpoint reference](../rpc/RpcEndpointRef.md) to [HeartbeatReceiver](../HeartbeatReceiver.md) on the [driver](../driver.md).
 
 Set when Executor <<creating-instance, is created>>.
 
@@ -151,11 +151,11 @@ threadPool is created when <<creating-instance, Executor is created>> and shut d
 
 == [[memory]] Executor Memory
 
-You can control the amount of memory per executor using ROOT:configuration-properties.md#spark.executor.memory[spark.executor.memory] configuration property. It sets the available memory equally for all executors per application.
+You can control the amount of memory per executor using configuration-properties.md#spark.executor.memory[spark.executor.memory] configuration property. It sets the available memory equally for all executors per application.
 
-The amount of memory per executor is looked up when ROOT:SparkContext.md#creating-instance[SparkContext is created].
+The amount of memory per executor is looked up when SparkContext.md#creating-instance[SparkContext is created].
 
-You can change the assigned memory per executor per node in spark-standalone:index.md[standalone cluster] using ROOT:SparkContext.md#environment-variables[SPARK_EXECUTOR_MEMORY] environment variable.
+You can change the assigned memory per executor per node in spark-standalone:index.md[standalone cluster] using SparkContext.md#environment-variables[SPARK_EXECUTOR_MEMORY] environment variable.
 
 You can find the value displayed as *Memory per Node* in spark-standalone:spark-standalone-Master.md[web UI for standalone Master] (as depicted in the figure below).
 
@@ -247,7 +247,7 @@ reportHeartBeat then records the latest values of executor:TaskMetrics.md#accumu
 
 NOTE: Internal accumulators are a task's metrics while external accumulators are a Spark application's accumulators that a user has created.
 
-reportHeartBeat sends a blocking ROOT:spark-HeartbeatReceiver.md#Heartbeat[Heartbeat] message to <<heartbeatReceiverRef, `HeartbeatReceiver` endpoint>> (running on the driver). reportHeartBeat uses the value of ROOT:configuration-properties.md#spark.executor.heartbeatInterval[spark.executor.heartbeatInterval] configuration property for the RPC timeout.
+reportHeartBeat sends a blocking [Heartbeat](../HeartbeatReceiver.md#Heartbeat) message to <<heartbeatReceiverRef, `HeartbeatReceiver` endpoint>> (running on the driver). reportHeartBeat uses the value of configuration-properties.md#spark.executor.heartbeatInterval[spark.executor.heartbeatInterval] configuration property for the RPC timeout.
 
 NOTE: A `Heartbeat` message contains the executor identifier, the accumulator updates, and the identifier of the storage:BlockManager.md[].
 
@@ -258,7 +258,7 @@ If the response (from <<heartbeatReceiverRef, `HeartbeatReceiver` endpoint>>) is
 Told to re-register on heartbeat
 ----
 
-HeartbeatResponse requests the BlockManager to re-register when either scheduler:TaskScheduler.md#executorHeartbeatReceived[TaskScheduler] or ROOT:spark-HeartbeatReceiver.md#Heartbeat[HeartbeatReceiver] know nothing about the executor.
+HeartbeatResponse requests the BlockManager to re-register when either scheduler:TaskScheduler.md#executorHeartbeatReceived[TaskScheduler] or [HeartbeatReceiver](../HeartbeatReceiver.md#Heartbeat) know nothing about the executor.
 
 When posting the `Heartbeat` was successful, reportHeartBeat resets <<heartbeatFailures, heartbeatFailures>> internal counter.
 
@@ -268,13 +268,13 @@ In case of a non-fatal exception, you should see the following WARN message in t
 Issue communicating with driver in heartbeater
 ```
 
-Every failure reportHeartBeat increments <<heartbeatFailures, heartbeat failures>> up to ROOT:configuration-properties.md#spark.executor.heartbeat.maxFailures[spark.executor.heartbeat.maxFailures] configuration property. When the heartbeat failures reaches the maximum, you should see the following ERROR message in the logs and the executor terminates with the error code: `56`.
+Every failure reportHeartBeat increments <<heartbeatFailures, heartbeat failures>> up to configuration-properties.md#spark.executor.heartbeat.maxFailures[spark.executor.heartbeat.maxFailures] configuration property. When the heartbeat failures reaches the maximum, you should see the following ERROR message in the logs and the executor terminates with the error code: `56`.
 
 ```
 Exit as unable to send heartbeats to driver more than [HEARTBEAT_MAX_FAILURES] times
 ```
 
-reportHeartBeat is used when Executor is requested to <<startDriverHeartbeater, schedule reporting heartbeat and partial metrics for active tasks to the driver>> (that happens every ROOT:configuration-properties.md#spark.executor.heartbeatInterval[spark.executor.heartbeatInterval]).
+reportHeartBeat is used when Executor is requested to <<startDriverHeartbeater, schedule reporting heartbeat and partial metrics for active tasks to the driver>> (that happens every configuration-properties.md#spark.executor.heartbeatInterval[spark.executor.heartbeatInterval]).
 
 == [[startDriverHeartbeater]][[heartbeats-and-active-task-metrics]] Sending Heartbeats and Active Tasks Metrics
 
@@ -292,11 +292,11 @@ For each scheduler:Task.md[task] in executor:TaskRunner.md[] (in <<runningTasks,
 
 NOTE: Executors track the executor:TaskRunner.md[] that run scheduler:Task.md[tasks]. A executor:TaskRunner.md#run[task might not be assigned to a TaskRunner yet] when the executor sends a heartbeat.
 
-A blocking ROOT:spark-HeartbeatReceiver.md#Heartbeat[Heartbeat] message that holds the executor id, all accumulator updates (per task id), and storage:BlockManagerId.md[] is sent to ROOT:spark-HeartbeatReceiver.md[HeartbeatReceiver RPC endpoint] (with <<spark.executor.heartbeatInterval, spark.executor.heartbeatInterval>> timeout).
+A blocking [Heartbeat](../HeartbeatReceiver.md#Heartbeat) message that holds the executor id, all accumulator updates (per task id), and storage:BlockManagerId.md[] is sent to [HeartbeatReceiver RPC endpoint](../HeartbeatReceiver.md) (with <<spark.executor.heartbeatInterval, spark.executor.heartbeatInterval>> timeout).
 
-If the response ROOT:spark-HeartbeatReceiver.md#Heartbeat[requests to reregister BlockManager], you should see the following INFO message in the logs:
+If the response [requests to reregister BlockManager](../HeartbeatReceiver.md#Heartbeat), you should see the following INFO message in the logs:
 
-```
+```text
 Told to re-register on heartbeat
 ```
 
@@ -330,7 +330,7 @@ Add the following line to `conf/log4j.properties`:
 log4j.logger.org.apache.spark.executor.Executor=ALL
 ----
 
-Refer to ROOT:spark-logging.md[Logging].
+Refer to spark-logging.md[Logging].
 
 == [[internal-properties]] Internal Properties
 

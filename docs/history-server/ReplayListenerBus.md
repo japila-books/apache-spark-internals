@@ -1,20 +1,19 @@
-= ReplayListenerBus
+# ReplayListenerBus
 
-ReplayListenerBus is a ROOT:spark-SparkListenerBus.md[] that can <<replay, replay JSON-encoded `SparkListenerEvent` events>>.
+`ReplayListenerBus` is a [SparkListenerBus](../SparkListenerBus.md) that can [replay JSON-encoded `SparkListenerEvent` events](#replay).
 
-ReplayListenerBus is used by spark-history-server:FsHistoryProvider.md[].
+`ReplayListenerBus` is used by [FsHistoryProvider](FsHistoryProvider.md).
 
-== [[replay]] Replaying JSON-encoded SparkListenerEvents from Stream
+## <span id="replay"> Replaying JSON-encoded SparkListenerEvents
 
-[source, scala]
-----
+```scala
 replay(
   logData: InputStream,
   sourceName: String,
   maybeTruncated: Boolean = false): Unit
-----
+```
 
-`replay` reads JSON-encoded ROOT:SparkListener.md#SparkListenerEvent[SparkListenerEvent] events from `logData` (one event per line) and posts them to all registered ROOT:SparkListener.md#SparkListenerInterface[SparkListenerInterface listeners].
+`replay` reads JSON-encoded ROOT:SparkListener.md#SparkListenerEvent[SparkListenerEvent] events from `logData` (one event per line) and posts them to all registered [SparkListenerInterface](../SparkListenerInterface.md)s.
 
 `replay` uses spark-history-server:JsonProtocol.md#sparkEventFromJson[`JsonProtocol` to convert JSON-encoded events to `SparkListenerEvent` objects].
 
