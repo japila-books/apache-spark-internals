@@ -1,8 +1,6 @@
 # Configuration Properties
 
-The following contains the configuration properties of <<EventLoggingListener, EventLoggingListener>> and <<HistoryServer, Spark History Server>>.
-
-NOTE: EventLoggingListener.md[EventLoggingListener] is responsible for writing out JSON-encoded events of a Spark application to an event log file that HistoryServer.md[HistoryServer] can display in a web UI-based interface.
+The following contains the configuration properties of [EventLoggingListener](EventLoggingListener.md) and [HistoryServer](HistoryServer.md).
 
 ## <span id="spark.eventLog.dir"> spark.eventLog.dir
 
@@ -12,90 +10,80 @@ Default: `/tmp/spark-events`
 
 The directory must exist before [SparkContext](../SparkContext.md) is created.
 
-[[EventLoggingListener]]
-.EventLoggingListener's Spark Properties
-[cols="30m,70",options="header",width="100%"]
-|===
-| Name
-| Description
+## <span id="spark.eventLog.buffer.kb"> spark.eventLog.buffer.kb
 
-| spark.eventLog.buffer.kb
-a| [[spark.eventLog.buffer.kb]] Size of the buffer to use when writing to output streams.
+Size of the buffer to use when writing to output streams.
 
 Default: `100`
 
-| spark.eventLog.compress
-a| [[spark.eventLog.compress]] Whether to enable (`true`) or disable (`false`) event compression (using a io:CompressionCodec.md[CompressionCodec])
+## <span id="spark.eventLog.compress"> spark.eventLog.compress
+
+Whether to enable (`true`) or disable (`false`) event compression (using a [CompressionCodec](../CompressionCodec.md))
 
 Default: `false`
 
-| spark.eventLog.enabled
-a| [[spark.eventLog.enabled]] Whether to enable (`true`) or disable (`false`) persisting Spark events.
+## <span id="spark.eventLog.enabled"> spark.eventLog.enabled
+
+Whether to enable (`true`) or disable (`false`) persisting Spark events.
 
 Default: `false`
 
-| spark.eventLog.logBlockUpdates.enabled
-a| [[spark.eventLog.logBlockUpdates.enabled]][[EVENT_LOG_BLOCK_UPDATES]] Whether EventLoggingListener.md[EventLoggingListener] should log RDD block updates (`true`) or not (`false`)
+## <span id="spark.eventLog.logBlockUpdates.enabled"><span id="EVENT_LOG_BLOCK_UPDATES"> spark.eventLog.logBlockUpdates.enabled
+
+Whether [EventLoggingListener](EventLoggingListener.md) should log RDD block updates (`true`) or not (`false`)
 
 Default: `false`
 
-| spark.eventLog.overwrite
-a| [[spark.eventLog.overwrite]] Whether to enable (`true`) or disable (`false`) deleting (or at least overwriting) an existing EventLoggingListener.md#inprogress[.inprogress] event log files
+## <span id="spark.eventLog.overwrite"> spark.eventLog.overwrite
+
+Whether to enable (`true`) or disable (`false`) deleting (or at least overwriting) an existing [.inprogress](EventLoggingListener.md#inprogress) event log files
 
 Default: `false`
 
-| spark.eventLog.testing
-a| [[spark.eventLog.testing]] *(internal)* Whether to enable (`true`) or disable (`false`) adding JSON-encoded events to the internal `loggedEvents` array for testing
+## <span id="spark.history.fs.logDirectory"> spark.history.fs.logDirectory
 
-Default: `false`
-
-|===
-
-[[HistoryServer]]
-.HistoryServer's Spark Properties
-[cols="30m,70",options="header",width="100%"]
-|===
-| Name
-| Description
-
-| spark.history.fs.logDirectory
-| [[spark.history.fs.logDirectory]] The directory for event log files. The directory has to exist before starting History Server.
+The directory for event log files. The directory has to exist before starting History Server.
 
 Default: `file:/tmp/spark-events`
 
-| spark.history.kerberos.enabled
-| [[spark.history.kerberos.enabled]] Whether to enable (`true`) or disable (`false`) security when working with HDFS with security enabled (Kerberos).
+## <span id="spark.history.kerberos.enabled"> spark.history.kerberos.enabled
+
+Whether to enable (`true`) or disable (`false`) security when working with HDFS with security enabled (Kerberos).
 
 Default: `false`
 
-| spark.history.kerberos.keytab
-| [[spark.history.kerberos.keytab]] Keytab to use for login to Kerberos. Required when `spark.history.kerberos.enabled` is enabled.
+## <span id="spark.history.kerberos.keytab"> spark.history.kerberos.keytab
+
+Keytab to use for login to Kerberos. Required when `spark.history.kerberos.enabled` is enabled.
 
 Default: (empty)
 
-| spark.history.kerberos.principal
-| [[spark.history.kerberos.principal]] Kerberos principal. Required when `spark.history.kerberos.enabled` is enabled.
+## <span id="spark.history.kerberos.principal"> spark.history.kerberos.principal
+
+Kerberos principal. Required when `spark.history.kerberos.enabled` is enabled.
 
 Default: (empty)
 
-| spark.history.provider
-| [[spark.history.provider]] Fully-qualified class name of the ApplicationHistoryProvider.md[ApplicationHistoryProvider]
+## <span id="spark.history.provider"> spark.history.provider
 
-Default: FsHistoryProvider.md[org.apache.spark.deploy.history.FsHistoryProvider]
+Fully-qualified class name of the [ApplicationHistoryProvider](ApplicationHistoryProvider.md)
 
-| spark.history.retainedApplications
-| [[spark.history.retainedApplications]] How many Spark applications HistoryServer.md#retainedApplications[HistoryServer] should retain
+Default: [org.apache.spark.deploy.history.FsHistoryProvider](FsHistoryProvider.md)
+
+## <span id="spark.history.retainedApplications"> spark.history.retainedApplications
+
+How many Spark applications [HistoryServer](HistoryServer.md#retainedApplications) should retain
 
 Default: `50`
 
-| spark.history.ui.maxApplications
-| [[spark.history.ui.maxApplications]][[HISTORY_UI_MAX_APPS]] How many Spark applications HistoryServer.md#maxApplications[HistoryServer] should show in the UI
+## <span id="spark.history.ui.maxApplications"><span id="HISTORY_UI_MAX_APPS"> spark.history.ui.maxApplications
+
+How many Spark applications [HistoryServer](HistoryServer.md#maxApplications) should show in the UI
 
 Default: (unbounded)
 
-| spark.history.ui.port
-| [[spark.history.ui.port]][[HISTORY_SERVER_UI_PORT]] The port of History Server's web UI.
+## <span id="spark.history.ui.port"><span id="HISTORY_SERVER_UI_PORT"> spark.history.ui.port
+
+The port of History Server's web UI.
 
 Default: `18080`
-
-|===

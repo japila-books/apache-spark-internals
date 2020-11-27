@@ -1,6 +1,6 @@
-= CompressionCodec
+# CompressionCodec
 
-*CompressionCodec* is an abstraction of <<implementations, IO compression codecs>>.
+`CompressionCodec` is an abstraction of <<implementations, IO compression codecs>>.
 
 A concrete CompressionCodec is supposed to <<createCodec, come with a constructor that accepts a single argument being SparkConf>>.
 

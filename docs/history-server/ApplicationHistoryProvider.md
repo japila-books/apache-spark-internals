@@ -1,46 +1,51 @@
-== [[ApplicationHistoryProvider]] ApplicationHistoryProvider
+# ApplicationHistoryProvider
 
-`ApplicationHistoryProvider` is the <<contract, base>> of the <<implementations, history providers>> of <<getListing, Spark applications>>.
+`ApplicationHistoryProvider` is an [abstraction](#contract) of [history providers](#implementations).
 
-[[contract]]
-[source, scala]
-----
-package org.apache.spark.deploy.history
+## Contract
 
-abstract class ApplicationHistoryProvider {
-  // only required methods that have no implementation
-  // the others follow
-  def getListing(): Iterator[ApplicationInfo]
-  def getAppUI(appId: String, attemptId: Option[String]): Option[LoadedAppUI]
-  def writeEventLogs(appId: String, attemptId: Option[String], zipStream: ZipOutputStream): Unit
-  def getApplicationInfo(appId: String): Option[ApplicationInfo]
-}
-----
+### <span id="getApplicationInfo"> getApplicationInfo
 
-NOTE: `ApplicationHistoryProvider` is a `private[history]` contract.
+```scala
+getApplicationInfo(
+  appId: String): Option[ApplicationInfo]
+```
 
-.(Subset of) ApplicationHistoryProvider Contract
-[cols="1,2",options="header",width="100%"]
-|===
-| Method
-| Description
+Used when...FIXME
 
-| `getListing`
-| [[getListing]]
+### <span id="getAppUI"> getAppUI
 
-| `getAppUI`
-| [[getAppUI]] spark-webui-SparkUI.md[SparkUI] (the UI of a Spark application)
+```scala
+getAppUI(
+  appId: String,
+  attemptId: Option[String]): Option[LoadedAppUI]
+```
 
-Used exclusively when `HistoryServer` is requested for the HistoryServer.md#getAppUI[UI of a Spark application]
+[SparkUI](../webui/SparkUI.md) for a given application (by `appId`)
 
-| `writeEventLogs`
-| [[writeEventLogs]] Writes events to a stream
+Used when `HistoryServer` is requested for the [UI of a Spark application](HistoryServer.md#getAppUI)
 
-| `getApplicationInfo`
-| [[getApplicationInfo]]
-|===
+### <span id="getListing"> getListing
 
-`ApplicationHistoryProvider` is a Scala abstract class and cannot be created directly, but only as one of the <<implementations, implementations>>.
+```scala
+getListing(): Iterator[ApplicationInfo]
+```
 
-[[implementations]]
-NOTE: FsHistoryProvider.md[FsHistoryProvider] is the one and only known implementation of <<contract, ApplicationHistoryProvider contract>> in Apache Spark.
+Used when...FIXME
+
+### <span id="writeEventLogs"> writeEventLogs
+
+```scala
+writeEventLogs(
+  appId: String,
+  attemptId: Option[String],
+  zipStream: ZipOutputStream): Unit
+```
+
+Writes events to a stream
+
+Used when...FIXME
+
+## Implementations
+
+* [FsHistoryProvider](FsHistoryProvider.md)

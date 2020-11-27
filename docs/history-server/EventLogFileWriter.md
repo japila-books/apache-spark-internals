@@ -1,0 +1,3 @@
+# EventLogFileWriter
+
+`EventLogFileWriter` is...FIXME

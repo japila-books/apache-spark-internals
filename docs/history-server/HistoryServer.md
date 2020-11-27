@@ -1,148 +1,91 @@
-= [[HistoryServer]] HistoryServer -- WebUI For Active And Completed Spark Applications
+# HistoryServer
 
-`HistoryServer` is an extension of the webui:spark-webui-WebUI.md[web UI] for reviewing event logs of running (active) and completed Spark applications with event log collection enabled (based on configuration-properties.md#spark.eventLog.enabled[spark.eventLog.enabled] configuration property).
+`HistoryServer` is an extension of the [web UI](../webui/WebUI.md) for reviewing event logs of running (active) and completed Spark applications with event log collection enabled (based on [spark.eventLog.enabled](configuration-properties.md#spark.eventLog.enabled) configuration property).
 
-`HistoryServer` supports custom spark-history-server:configuration-properties.md#HistoryServer[configuration properties].
+## <span id="main"> Starting HistoryServer Standalone Application
 
-`HistoryServer` is <<creating-instance, created>> when...FIXME
-
-`HistoryServer` uses the <<loaderServlet, HttpServlet>> to handle requests to `/*` URI that <<doGet, FIXME>>.
-
-[[ApplicationCacheOperations]]
-`HistoryServer` is a ApplicationCacheOperations.md[ApplicationCacheOperations].
-
-[[UIRoot]]
-`HistoryServer` is a rest-api:spark-api-UIRoot.md[UIRoot].
-
-[[retainedApplications]]
-`HistoryServer` uses configuration-properties.md#spark.history.retainedApplications[spark.history.retainedApplications] configuration property (default: `50`) for...FIXME
-
-[[maxApplications]]
-`HistoryServer` uses configuration-properties.md#spark.history.ui.maxApplications[spark.history.ui.maxApplications] configuration property (default: `unbounded`) for...FIXME
-
-[[logging]]
-[TIP]
-====
-Enable `ALL` logging level for `org.apache.spark.deploy.history.HistoryServer` logger to see what happens inside.
-
-Add the following line to `conf/log4j.properties`:
-
-```
-log4j.logger.org.apache.spark.deploy.history.HistoryServer=ALL
+```scala
+main(
+  argStrings: Array[String]): Unit
 ```
 
-Refer to spark-logging.md[Logging].
-====
+`main` creates a [HistoryServerArguments](HistoryServerArguments.md) (with the given `argStrings` arguments).
 
-== [[creating-instance]] Creating HistoryServer Instance
+`main` initializes security.
+
+`main` creates an [ApplicationHistoryProvider](ApplicationHistoryProvider.md) (based on [spark.history.provider](configuration-properties.md#spark.history.provider) configuration property).
+
+`main` creates a [HistoryServer](HistoryServer.md) (with the `ApplicationHistoryProvider` and [spark.history.ui.port](configuration-properties.md#spark.history.ui.port) configuration property) and requests it to [bind](HistoryServer.md#bind).
+
+`main` requests the `ApplicationHistoryProvider` to [start](ApplicationHistoryProvider.md#start).
+
+`main` registers a shutdown hook that requests the `HistoryServer` to [stop](HistoryServer.md#stop) and sleeps..._till the end of the world_ (giving the daemon thread a go).
+
+## Creating Instance
 
 `HistoryServer` takes the following to be created:
 
-* [[conf]] SparkConf.md[SparkConf]
-* [[provider]] ApplicationHistoryProvider.md[ApplicationHistoryProvider]
-* [[securityManager]] `SecurityManager`
-* [[port]] Port number
+* <span id="conf"> [SparkConf](../SparkConf.md)
+* <span id="provider"> [ApplicationHistoryProvider](ApplicationHistoryProvider.md)
+* <span id="securityManager"> `SecurityManager`
+* <span id="port"> Port number
 
-`HistoryServer` initializes the <<internal-properties, internal properties>>.
+When created, `HistoryServer` [initializes itself](#initialize).
 
-While being created, `HistoryServer` is requested to <<initialize, initialize>>.
+`HistoryServer` is created when [HistoryServer](#main) standalone application is started.
 
-== [[initialize]] Initializing HistoryServer -- `initialize` Method
+## <span id="ApplicationCacheOperations"> ApplicationCacheOperations
 
-[source, scala]
-----
+`HistoryServer` is a [ApplicationCacheOperations](ApplicationCacheOperations.md).
+
+## <span id="UIRoot"> UIRoot
+
+`HistoryServer` is a [UIRoot](../rest/UIRoot.md).
+
+## <span id="initialize"> Initializing HistoryServer
+
+```scala
 initialize(): Unit
-----
+```
 
-NOTE: `initialize` is part of webui:spark-webui-WebUI.md#initialize[WebUI Contract] to initialize web components.
+`initialize` is part of the [WebUI](../webui/WebUI.md#initialize) abstraction.
 
 `initialize`...FIXME
 
-== [[attachSparkUI]] `attachSparkUI` Method
+## <span id="attachSparkUI"> Attaching SparkUI
 
-[source, scala]
-----
+```scala
 attachSparkUI(
   appId: String,
   attemptId: Option[String],
   ui: SparkUI,
   completed: Boolean): Unit
-----
+```
 
-NOTE: `attachSparkUI` is part of ApplicationCacheOperations.md#attachSparkUI[ApplicationCacheOperations Contract] to...FIXME.
+`attachSparkUI` is part of the [ApplicationCacheOperations](ApplicationCacheOperations.md#attachSparkUI) abstraction.
 
 `attachSparkUI`...FIXME
 
-== [[main]] Launching HistoryServer Standalone Application -- `main` Method
+## <span id="getAppUI"> Spark UI
 
-[source, scala]
-----
-main(argStrings: Array[String]): Unit
-----
+```scala
+getAppUI(
+  appId: String,
+  attemptId: Option[String]): Option[LoadedAppUI]
+```
 
-`main`...FIXME
+`getAppUI` is part of the [ApplicationCacheOperations](ApplicationCacheOperations.md#getAppUI) abstraction.
 
-== [[getAppUI]] Requesting Spark Application UI -- `getAppUI` Method
+`getAppUI` requests the [ApplicationHistoryProvider](#provider) for the [Spark UI](ApplicationHistoryProvider.md#getAppUI) of a Spark application (based on the `appId` and `attemptId`).
 
-[source, scala]
-----
-getAppUI(appId: String, attemptId: Option[String]): Option[LoadedAppUI]
-----
+## Logging
 
-NOTE: `getAppUI` is part of ApplicationCacheOperations.md#getAppUI[ApplicationCacheOperations Contract] to...FIXME.
+Enable `ALL` logging level for `org.apache.spark.deploy.history.HistoryServer` logger to see what happens inside.
 
-`getAppUI`...FIXME
+Add the following line to `conf/log4j.properties`:
 
-== [[withSparkUI]] `withSparkUI` Method
+```text
+log4j.logger.org.apache.spark.deploy.history.HistoryServer=ALL
+```
 
-[source, scala]
-----
-withSparkUI[T](appId: String, attemptId: Option[String])(fn: SparkUI => T): T
-----
-
-NOTE: `withSparkUI` is part of spark-api-UIRoot.md#withSparkUI[UIRoot Contract] to...FIXME.
-
-`withSparkUI`...FIXME
-
-== [[loadAppUi]] `loadAppUi` Internal Method
-
-[source, scala]
-----
-loadAppUi(appId: String, attemptId: Option[String]): Boolean
-----
-
-`loadAppUi`...FIXME
-
-NOTE: `loadAppUi` is used exclusively when `HistoryServer` is <<loaderServlet, created>>.
-
-== [[doGet]] `doGet` Method
-
-[source, scala]
-----
-doGet(req: HttpServletRequest, res: HttpServletResponse): Unit
-----
-
-NOTE: `doGet` is part of Java Servlet's https://docs.oracle.com/javaee/7/api/javax/servlet/http/HttpServlet.html[HttpServlet] to handle HTTP GET requests.
-
-`doGet`...FIXME
-
-NOTE: `doGet` is used when...FIXME
-
-== [[internal-properties]] Internal Properties
-
-[cols="30m,70",options="header",width="100%"]
-|===
-| Name
-| Description
-
-| appCache
-a| [[appCache]] ApplicationCache.md[ApplicationCache] for this `HistoryServer` and <<retainedApplications, retainedApplications>>
-
-Used when...FIXME
-
-| loaderServlet
-a| [[loaderServlet]] Java Servlets' https://docs.oracle.com/javaee/7/api/javax/servlet/http/HttpServlet.html[HttpServlet]
-
-Used exclusively when `HistoryServer` is requested to <<initialize, initialize>> (and spark-webui-WebUI.md#attachHandler[attaches the servlet to the web UI] to handle `/*` URI)
-
-|===
+Refer to [Logging](../spark-logging.md).

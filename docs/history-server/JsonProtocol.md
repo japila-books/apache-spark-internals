@@ -1,174 +1,29 @@
 # JsonProtocol Utility
 
-`JsonProtocol` is an utility to convert SparkListenerEvents <<sparkEventToJson, to>> and <<sparkEventFromJson, from>> JSON format.
+`JsonProtocol` is an utility to convert [SparkListenerEvent](../SparkListenerEvent.md)s [to](#sparkEventToJson) and [from JSON format](#sparkEventFromJson).
 
-`JsonProtocol` is used by spark-history-server:EventLoggingListener.md[] and spark-history-server:ReplayListenerBus.md[] (to spark-history-server:EventLoggingListener.md#logEvent[log] and spark-history-server:ReplayListenerBus.md#replay[replay] events for spark-history-server:index.md[], respectively).
+## <span id="mapper"> ObjectMapper
 
-== [[sparkEventFromJson]] sparkEventFromJson Utility
+`JsonProtocol` uses an Jackson Databind [ObjectMapper]({{ jackson.api }}/com/fasterxml/jackson/databind/ObjectMapper.html) for performing conversions to and from JSON.
 
-[source,scala]
-----
+## <span id="sparkEventToJson"> Converting Spark Event to JSON
+
+```scala
+sparkEventToJson(
+  event: SparkListenerEvent): JValue
+```
+
+`sparkEventToJson` converts the given [SparkListenerEvent](../SparkListenerEvent.md) to JSON format.
+
+`sparkEventToJson` is used when...FIXME
+
+## <span id="sparkEventFromJson"> Converting JSON to Spark Event
+
+```scala
 sparkEventFromJson(
   json: JValue): SparkListenerEvent
-----
+```
 
-sparkEventFromJson...FIXME
+`sparkEventFromJson` converts a JSON-encoded event to a [SparkListenerEvent](../SparkListenerEvent.md).
 
-sparkEventFromJson is used when ReplayListenerBus is requested to spark-history-server:ReplayListenerBus.md#replay[replay].
-
-== [[logStartToJson]] logStartToJson Utility
-
-[source,scala]
-----
-logStartToJson(
-  logStart: SparkListenerLogStart): JValue
-----
-
-logStartToJson...FIXME
-
-logStartToJson is used when...FIXME
-
-== [[taskEndFromJson]] taskEndFromJson Utility
-
-[source,scala]
-----
-taskEndFromJson(
-  json: JValue): SparkListenerTaskEnd
-----
-
-taskEndFromJson...FIXME
-
-taskEndFromJson is used when JsonProtocol utility is used to <<sparkEventFromJson, sparkEventFromJson>>.
-
-== [[executorMetricsUpdateFromJson]] executorMetricsUpdateFromJson Utility
-
-[source,scala]
-----
-executorMetricsUpdateFromJson(
-  json: JValue): SparkListenerExecutorMetricsUpdate
-----
-
-executorMetricsUpdateFromJson...FIXME
-
-executorMetricsUpdateFromJson is used when JsonProtocol utility is used to <<sparkEventFromJson, sparkEventFromJson>>.
-
-== [[taskEndReasonFromJson]] taskEndReasonFromJson Utility
-
-[source,scala]
-----
-taskEndReasonFromJson(
-  json: JValue): TaskEndReason
-----
-
-taskEndReasonFromJson...FIXME
-
-taskEndReasonFromJson is used when JsonProtocol utility is used to <<taskEndFromJson, taskEndFromJson>>.
-
-== [[stageInfoFromJson]] stageInfoFromJson Utility
-
-[source,scala]
-----
-stageInfoFromJson(
-  json: JValue): StageInfo
-----
-
-stageInfoFromJson...FIXME
-
-stageInfoFromJson is used when JsonProtocol utility is used to <<jobStartFromJson, jobStartFromJson>>, <<stageSubmittedFromJson, stageSubmittedFromJson>>, <<stageCompletedFromJson, stageCompletedFromJson>>.
-
-== [[taskInfoFromJson]] taskInfoFromJson Utility
-
-[source,scala]
-----
-taskInfoFromJson(
-  json: JValue): TaskInfo
-----
-
-taskInfoFromJson...FIXME
-
-taskInfoFromJson is used when JsonProtocol utility is used to <<taskStartFromJson, taskStartFromJson>>, <<taskGettingResultFromJson, taskGettingResultFromJson>>, <<taskEndFromJson, taskEndFromJson>>.
-
-== [[accumulableInfoFromJson]] accumulableInfoFromJson Utility
-
-[source,scala]
-----
-accumulableInfoFromJson(
-  json: JValue): AccumulableInfo
-----
-
-accumulableInfoFromJson...FIXME
-
-accumulableInfoFromJson is used when JsonProtocol utility is used to <<taskEndReasonFromJson, taskEndReasonFromJson>>, <<executorMetricsUpdateFromJson, executorMetricsUpdateFromJson>>, <<stageInfoFromJson, stageInfoFromJson>>, <<taskInfoFromJson, taskInfoFromJson>>.
-
-== [[accumValueFromJson]] accumValueFromJson Utility
-
-[source,scala]
-----
-accumValueFromJson(
-  name: Option[String],
-  value: JValue): Any
-----
-
-accumValueFromJson...FIXME
-
-accumValueFromJson is used when JsonProtocol utility is used to <<accumulableInfoFromJson, accumulableInfoFromJson>>.
-
-== [[taskMetricsFromJson]] taskMetricsFromJson Utility
-
-[source,scala]
-----
-taskMetricsFromJson(
-  json: JValue): TaskMetrics
-----
-
-taskMetricsFromJson...FIXME
-
-taskMetricsFromJson is used when JsonProtocol utility is used to <<taskEndFromJson, taskEndFromJson>> and <<taskEndReasonFromJson, taskEndReasonFromJson>>.
-
-== [[taskEndToJson]] taskEndToJson Utility
-
-[source,scala]
-----
-taskEndToJson(
-  taskEnd: SparkListenerTaskEnd): JValue
-----
-
-taskEndToJson...FIXME
-
-taskEndToJson is used when JsonProtocol utility is used to <<sparkEventToJson, convert a SparkListenerEvent to JSON>> (_serialize a SparkListenerEvent to JSON_).
-
-== [[taskMetricsToJson]] taskMetricsToJson Utility
-
-[source,scala]
-----
-taskMetricsToJson(
-  taskMetrics: TaskMetrics): JValue
-----
-
-taskMetricsToJson...FIXME
-
-taskMetricsToJson is used when JsonProtocol utility is used to <<taskEndToJson, taskEndToJson>>.
-
-== [[blockUpdateFromJson]] blockUpdateFromJson Utility
-
-[source,scala]
-----
-blockUpdateFromJson(
-  json: JValue): SparkListenerBlockUpdated
-----
-
-blockUpdateFromJson...FIXME
-
-blockUpdateFromJson is used when JsonProtocol utility is used to <<sparkEventFromJson, sparkEventFromJson>>.
-
-== [[blockUpdatedInfoFromJson]] blockUpdatedInfoFromJson Utility
-
-[source,scala]
-----
-blockUpdatedInfoFromJson(
-  json: JValue): BlockUpdatedInfo
-----
-
-blockUpdatedInfoFromJson...FIXME
-
-blockUpdatedInfoFromJson is used when JsonProtocol utility is used to <<blockUpdateFromJson, blockUpdateFromJson>>.
+`sparkEventFromJson` is used when...FIXME

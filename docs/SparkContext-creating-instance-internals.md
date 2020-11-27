@@ -212,9 +212,15 @@ NOTE: `SparkContext` starts `MetricsSystem` after <<spark.app.id, setting spark.
 
 ## <span id="_eventLogger"> Starting EventLoggingListener (with Event Log Enabled)
 
-`_eventLogger` is created and started if `isEventLogEnabled`. It uses spark-history-server:EventLoggingListener.md[EventLoggingListener] that gets registered to scheduler:LiveListenerBus.md[].
+```scala
+_eventLogger: Option[EventLoggingListener]
+```
 
-CAUTION: FIXME Why is `_eventLogger` required to be the internal field of SparkContext? Where is this used?
+With [spark.eventLog.enabled](history-server/configuration-properties.md#spark.eventLog.enabled) configuration property enabled, `SparkContext` creates an [EventLoggingListener](history-server/EventLoggingListener.md) and requests it to [start](history-server/EventLoggingListener.md#start).
+
+`SparkContext` requests the [LiveListenerBus](#listenerBus) to [add](scheduler/LiveListenerBus.md#addToEventLogQueue) the `EventLoggingListener` to `eventLog` event queue.
+
+With `spark.eventLog.enabled` disabled, `_eventLogger` is `None` (undefined).
 
 ## <span id="ExecutorAllocationManager"> ExecutorAllocationManager
 
