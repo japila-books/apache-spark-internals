@@ -2,6 +2,15 @@
 
 `SparkListenerInterface` is an abstraction of [event listeners](#implementations) (that `SparkListenerBus` notifies about [scheduling events](SparkListenerBus.md#doPostEvent)).
 
+`SparkListenerInterface` is a way to intercept scheduling events from the Spark Scheduler that are emitted over the course of execution of a Spark application.
+
+`SparkListenerInterface` is used heavily to manage communication between internal components in the distributed environment for a Spark application (e.g. [web UI](webui/index.md), [event persistence for History Server](history-server/EventLoggingListener.md), [dynamic allocation of executors](ExecutorAllocationManager.md), [keeping track of executors](HeartbeatReceiver.md)).
+
+`SparkListenerInterface` can be registered in a Spark application using [SparkContext.addSparkListener](SparkContext.md#addSparkListener) method or [spark.extraListeners](configuration-properties.md#spark.extraListeners) configuration property.
+
+!!! tip
+    Enable `INFO` logging level for [org.apache.spark.SparkContext](SparkContext.md#logging) logger to see what and when custom Spark listeners are registered.
+
 ## <span id="onApplicationEnd"> onApplicationEnd
 
 ```scala
