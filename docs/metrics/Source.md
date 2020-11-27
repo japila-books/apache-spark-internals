@@ -40,7 +40,7 @@ Used when...FIXME
 | `ApplicationSource`
 | [[ApplicationSource]]
 
-| storage:spark-BlockManager-BlockManagerSource.md[BlockManagerSource]
+| [BlockManagerSource](../storage/BlockManagerSource.md)
 | [[BlockManagerSource]]
 
 | `CacheMetrics`
@@ -52,7 +52,7 @@ Used when...FIXME
 | [DAGSchedulerSource](../scheduler/DAGSchedulerSource.md)
 | [[DAGSchedulerSource]]
 
-| ROOT:spark-service-ExecutorAllocationManagerSource.md[ExecutorAllocationManagerSource]
+| [ExecutorAllocationManagerSource](../dynamic-allocation/ExecutorAllocationManagerSource.md)
 | [[ExecutorAllocationManagerSource]]
 
 | executor:ExecutorSource.md[]

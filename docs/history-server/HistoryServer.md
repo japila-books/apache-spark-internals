@@ -1,6 +1,6 @@
 = [[HistoryServer]] HistoryServer -- WebUI For Active And Completed Spark Applications
 
-`HistoryServer` is an extension of the webui:spark-webui-WebUI.md[web UI] for reviewing event logs of running (active) and completed Spark applications with event log collection enabled (based on ROOT:configuration-properties.md#spark.eventLog.enabled[spark.eventLog.enabled] configuration property).
+`HistoryServer` is an extension of the webui:spark-webui-WebUI.md[web UI] for reviewing event logs of running (active) and completed Spark applications with event log collection enabled (based on configuration-properties.md#spark.eventLog.enabled[spark.eventLog.enabled] configuration property).
 
 `HistoryServer` supports custom spark-history-server:configuration-properties.md#HistoryServer[configuration properties].
 
@@ -15,10 +15,10 @@
 `HistoryServer` is a rest-api:spark-api-UIRoot.md[UIRoot].
 
 [[retainedApplications]]
-`HistoryServer` uses ROOT:configuration-properties.md#spark.history.retainedApplications[spark.history.retainedApplications] configuration property (default: `50`) for...FIXME
+`HistoryServer` uses configuration-properties.md#spark.history.retainedApplications[spark.history.retainedApplications] configuration property (default: `50`) for...FIXME
 
 [[maxApplications]]
-`HistoryServer` uses ROOT:configuration-properties.md#spark.history.ui.maxApplications[spark.history.ui.maxApplications] configuration property (default: `unbounded`) for...FIXME
+`HistoryServer` uses configuration-properties.md#spark.history.ui.maxApplications[spark.history.ui.maxApplications] configuration property (default: `unbounded`) for...FIXME
 
 [[logging]]
 [TIP]
@@ -31,14 +31,14 @@ Add the following line to `conf/log4j.properties`:
 log4j.logger.org.apache.spark.deploy.history.HistoryServer=ALL
 ```
 
-Refer to ROOT:spark-logging.md[Logging].
+Refer to spark-logging.md[Logging].
 ====
 
 == [[creating-instance]] Creating HistoryServer Instance
 
 `HistoryServer` takes the following to be created:
 
-* [[conf]] ROOT:SparkConf.md[SparkConf]
+* [[conf]] SparkConf.md[SparkConf]
 * [[provider]] ApplicationHistoryProvider.md[ApplicationHistoryProvider]
 * [[securityManager]] `SecurityManager`
 * [[port]] Port number

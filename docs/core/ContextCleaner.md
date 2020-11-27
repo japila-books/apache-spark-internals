@@ -8,9 +8,9 @@
 
 ContextCleaner takes the following to be created:
 
-* [[sc]] ROOT:SparkContext.md[]
+* [[sc]] SparkContext.md[]
 
-`ContextCleaner` is created and requested to [start](#start) when [SparkContext](../SparkContext.md) is created with ROOT:configuration-properties.md#spark.cleaner.referenceTracking[spark.cleaner.referenceTracking] configuration property enabled.
+`ContextCleaner` is created and requested to [start](#start) when [SparkContext](../SparkContext.md) is created with configuration-properties.md#spark.cleaner.referenceTracking[spark.cleaner.referenceTracking] configuration property enabled.
 
 == [[cleaningThread]] Spark Context Cleaner Cleaning Thread
 
@@ -70,7 +70,7 @@ registerRDDCheckpointDataForCleanup[T](
 
 registerRDDCheckpointDataForCleanup...FIXME
 
-registerRDDCheckpointDataForCleanup is used when ContextCleaner is requested to <<doCheckpoint, doCheckpoint>> (with ROOT:configuration-properties.md#spark.cleaner.referenceTracking.cleanCheckpoints[spark.cleaner.referenceTracking.cleanCheckpoints] configuration property enabled).
+registerRDDCheckpointDataForCleanup is used when ContextCleaner is requested to <<doCheckpoint, doCheckpoint>> (with configuration-properties.md#spark.cleaner.referenceTracking.cleanCheckpoints[spark.cleaner.referenceTracking.cleanCheckpoints] configuration property enabled).
 
 == [[registerBroadcastForCleanup]] registerBroadcastForCleanup Method
 
@@ -82,7 +82,7 @@ registerBroadcastForCleanup[T](
 
 registerBroadcastForCleanup...FIXME
 
-registerBroadcastForCleanup is used when SparkContext is used to ROOT:SparkContext.md#broadcast[create a broadcast variable].
+registerBroadcastForCleanup is used when SparkContext is used to SparkContext.md#broadcast[create a broadcast variable].
 
 == [[registerRDDForCleanup]] registerRDDForCleanup Method
 
@@ -117,7 +117,7 @@ stop(): Unit
 
 stop...FIXME
 
-stop is used when SparkContext is requested to ROOT:SparkContext.md#stop[stop].
+stop is used when SparkContext is requested to SparkContext.md#stop[stop].
 
 == [[start]] Starting ContextCleaner
 
@@ -126,7 +126,7 @@ stop is used when SparkContext is requested to ROOT:SparkContext.md#stop[stop].
 start(): Unit
 ----
 
-start starts the <<cleaningThread, cleaning thread>> and an action to request the JVM garbage collector (using `System.gc()`) on regular basis per ROOT:configuration-properties.md#spark.cleaner.periodicGC.interval[spark.cleaner.periodicGC.interval] configuration property.
+start starts the <<cleaningThread, cleaning thread>> and an action to request the JVM garbage collector (using `System.gc()`) on regular basis per configuration-properties.md#spark.cleaner.periodicGC.interval[spark.cleaner.periodicGC.interval] configuration property.
 
 The action to request the JVM GC is scheduled on <<periodicGCService, periodicGCService executor service>>.
 
@@ -218,7 +218,7 @@ Add the following line to `conf/log4j.properties`:
 log4j.logger.org.apache.spark.ContextCleaner=ALL
 ----
 
-Refer to ROOT:spark-logging.md[Logging].
+Refer to spark-logging.md[Logging].
 
 == [[internal-properties]] Internal Properties
 

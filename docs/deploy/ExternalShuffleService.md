@@ -3,7 +3,7 @@
 
 *ExternalShuffleService* is a Spark service that can serve shuffle blocks from outside an executor:Executor.md[Executor] process. It runs as a standalone application and manages shuffle output files so they are available for executors at all time. As the shuffle output files are managed externally to the executors it offers an uninterrupted access to the shuffle output files regardless of executors being killed or down.
 
-You start ExternalShuffleService using <<start-script, `start-shuffle-service.sh` shell script>> and enable its use by the driver and executors using ROOT:configuration-properties.md#spark.shuffle.service.enabled[spark.shuffle.service.enabled].
+You start ExternalShuffleService using <<start-script, `start-shuffle-service.sh` shell script>> and enable its use by the driver and executors using configuration-properties.md#spark.shuffle.service.enabled[spark.shuffle.service.enabled].
 
 There is a custom external shuffle service for Spark on YARN -- spark-on-yarn:spark-yarn-YarnShuffleService.md[YarnShuffleService].
 
@@ -45,7 +45,7 @@ CAUTION: FIXME `Utils.initDaemon(log)`? See spark-submit.
 
 It loads default Spark properties and creates a `SecurityManager`.
 
-It sets ROOT:configuration-properties.md#spark.shuffle.service.enabled[spark.shuffle.service.enabled] to `true` (as <<create-instance, later it is checked whether it is enabled or not>>).
+It sets configuration-properties.md#spark.shuffle.service.enabled[spark.shuffle.service.enabled] to `true` (as <<create-instance, later it is checked whether it is enabled or not>>).
 
 A ExternalShuffleService is <<create-instance, created>> and <<start, started>>.
 
@@ -74,9 +74,9 @@ Successfully cleaned up directory: [localDir]
 
 == [[creating-instance]] Creating Instance
 
-ExternalShuffleService requires a ROOT:SparkConf.md[SparkConf] and spark-security.md[SecurityManager].
+ExternalShuffleService requires a SparkConf.md[SparkConf] and spark-security.md[SecurityManager].
 
-When created, it reads ROOT:configuration-properties.md#spark.shuffle.service.enabled[spark.shuffle.service.enabled] configuration property (disabled by default) and <<spark.shuffle.service.port, spark.shuffle.service.port>> (defaults to `7337`) configuration settings. It also checks whether authentication is enabled.
+When created, it reads configuration-properties.md#spark.shuffle.service.enabled[spark.shuffle.service.enabled] configuration property (disabled by default) and <<spark.shuffle.service.port, spark.shuffle.service.port>> (defaults to `7337`) configuration settings. It also checks whether authentication is enabled.
 
 CAUTION: FIXME Review `securityManager.isAuthenticationEnabled()`
 
@@ -132,4 +132,4 @@ Add the following line to `conf/log4j.properties`:
 log4j.logger.org.apache.spark.deploy.ExternalShuffleService=ALL
 ----
 
-Refer to ROOT:spark-logging.md[Logging].
+Refer to spark-logging.md[Logging].

@@ -4,7 +4,7 @@
 
 A concrete CompressionCodec is supposed to <<createCodec, come with a constructor that accepts a single argument being SparkConf>>.
 
-The default compression codec is configured using ROOT:configuration-properties.md#spark.io.compression.codec[spark.io.compression.codec] configuration property.
+The default compression codec is configured using configuration-properties.md#spark.io.compression.codec[spark.io.compression.codec] configuration property.
 
 == [[implementations]][[shortCompressionCodecNames]] Available CompressionCodecs
 
@@ -18,9 +18,9 @@ The default compression codec is configured using ROOT:configuration-properties.
 | lz4
 a| [[LZ4CompressionCodec]] https://github.com/lz4/lz4-java[LZ4 compression]
 
-* The default compression codec based on ROOT:configuration-properties.md#spark.io.compression.codec[spark.io.compression.codec] configuration property
+* The default compression codec based on configuration-properties.md#spark.io.compression.codec[spark.io.compression.codec] configuration property
 
-* Uses ROOT:configuration-properties.md#spark.io.compression.lz4.blockSize[spark.io.compression.lz4.blockSize] configuration property for the block size
+* Uses configuration-properties.md#spark.io.compression.lz4.blockSize[spark.io.compression.lz4.blockSize] configuration property for the block size
 
 | LZFCompressionCodec
 | lzf
@@ -30,15 +30,15 @@ a| [[LZ4CompressionCodec]] https://github.com/lz4/lz4-java[LZ4 compression]
 | snappy
 a| [[SnappyCompressionCodec]] https://google.github.io/snappy/[Snappy compression]
 
-* Uses ROOT:configuration-properties.md#spark.io.compression.snappy.blockSize[spark.io.compression.snappy.blockSize] configuration property for the block size
+* Uses configuration-properties.md#spark.io.compression.snappy.blockSize[spark.io.compression.snappy.blockSize] configuration property for the block size
 
 | ZStdCompressionCodec
 | zstd
 a| [[ZStdCompressionCodec]] https://facebook.github.io/zstd/[ZStandard compression]
 
-* ROOT:configuration-properties.md#spark.io.compression.zstd.bufferSize[spark.io.compression.zstd.bufferSize] for the buffer size
+* configuration-properties.md#spark.io.compression.zstd.bufferSize[spark.io.compression.zstd.bufferSize] for the buffer size
 
-* ROOT:configuration-properties.md#spark.io.compression.zstd.level[spark.io.compression.zstd.level] for the compression level
+* configuration-properties.md#spark.io.compression.zstd.level[spark.io.compression.zstd.level] for the compression level
 
 |===
 
@@ -97,7 +97,7 @@ createCodec(
   codecName: String): CompressionCodec
 ----
 
-createCodec creates an instance of the compression codec by the given name (using a constructor that accepts a ROOT:SparkConf.md[SparkConf]).
+createCodec creates an instance of the compression codec by the given name (using a constructor that accepts a SparkConf.md[SparkConf]).
 
 createCodec uses <<getCodecName, getCodecName>> utility to find the codec name unless specified explicitly.
 
@@ -131,7 +131,7 @@ getCodecName(
   conf: SparkConf): String
 ```
 
-`getCodecName` takes the name of a compression codec based on ROOT:configuration-properties.md#spark.io.compression.codec[spark.io.compression.codec] configuration property (using the ROOT:SparkConf.md[SparkConf]) if available or defaults to `lz4`.
+`getCodecName` takes the name of a compression codec based on configuration-properties.md#spark.io.compression.codec[spark.io.compression.codec] configuration property (using the SparkConf.md[SparkConf]) if available or defaults to `lz4`.
 
 `getCodecName` is used when:
 

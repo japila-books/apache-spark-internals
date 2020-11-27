@@ -13,7 +13,7 @@ replay(
   maybeTruncated: Boolean = false): Unit
 ```
 
-`replay` reads JSON-encoded ROOT:SparkListener.md#SparkListenerEvent[SparkListenerEvent] events from `logData` (one event per line) and posts them to all registered [SparkListenerInterface](../SparkListenerInterface.md)s.
+`replay` reads JSON-encoded SparkListener.md#SparkListenerEvent[SparkListenerEvent] events from `logData` (one event per line) and posts them to all registered [SparkListenerInterface](../SparkListenerInterface.md)s.
 
 `replay` uses spark-history-server:JsonProtocol.md#sparkEventFromJson[`JsonProtocol` to convert JSON-encoded events to `SparkListenerEvent` objects].
 

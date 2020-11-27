@@ -3,7 +3,7 @@
 [[prefix]]
 `PoolPage` is a spark-webui-WebUIPage.md[WebUIPage] with *pool* spark-webui-WebUIPage.md#prefix[prefix].
 
-The Fair Scheduler Pool Details page shows information about a spark-scheduler-Pool.md[`Schedulable` pool] and is only available when a Spark application uses the spark-scheduler-SchedulingMode.md#FAIR[FAIR scheduling mode] (which is controlled by ROOT:configuration-properties.md#spark.scheduler.mode[spark.scheduler.mode] configuration property).
+The Fair Scheduler Pool Details page shows information about a spark-scheduler-Pool.md[`Schedulable` pool] and is only available when a Spark application uses the spark-scheduler-SchedulingMode.md#FAIR[FAIR scheduling mode] (which is controlled by configuration-properties.md#spark.scheduler.mode[spark.scheduler.mode] configuration property).
 
 .Details Page for production Pool
 image::spark-webui-pool-details.png[align="center"]
@@ -16,7 +16,7 @@ image::spark-webui-pool-details.png[align="center"]
 [[parent]]
 `PoolPage` takes a spark-webui-StagesTab.md[StagesTab] when created.
 
-`PoolPage` uses the parent's ROOT:SparkContext.md#getPoolForName[`SparkContext` to access information about the pool] and spark-webui-JobProgressListener.md#poolToActiveStages[`JobProgressListener` for active stages in the pool] (sorted by `submissionTime` in descending order by default).
+`PoolPage` uses the parent's SparkContext.md#getPoolForName[`SparkContext` to access information about the pool] and spark-webui-JobProgressListener.md#poolToActiveStages[`JobProgressListener` for active stages in the pool] (sorted by `submissionTime` in descending order by default).
 
 === [[PoolTable]][[pool-summary]] Summary Table
 

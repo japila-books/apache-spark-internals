@@ -1,13 +1,13 @@
 = AppStatusListener
 
-*AppStatusListener* is a ROOT:SparkListener.md[].
+*AppStatusListener* is a SparkListener.md[].
 
 == [[creating-instance]] Creating Instance
 
 AppStatusListener takes the following to be created:
 
 * [[kvstore]] core:ElementTrackingStore.md[]
-* [[conf]] ROOT:SparkConf.md[]
+* [[conf]] SparkConf.md[]
 * <<live, live Flag>>
 * [[lastUpdateTime]] Optional lastUpdateTime (default: `None`)
 
@@ -102,7 +102,7 @@ AppStatusListener is given a flag that indicates whether it is created for a liv
 onStageSubmitted(event: SparkListenerStageSubmitted): Unit
 ----
 
-NOTE: `onStageSubmitted` is part of ROOT:SparkListener.md#onStageSubmitted[SparkListener Contract] to...FIXME.
+NOTE: `onStageSubmitted` is part of SparkListener.md#onStageSubmitted[SparkListener Contract] to...FIXME.
 
 `onStageSubmitted`...FIXME
 
@@ -168,7 +168,7 @@ NOTE: `updateStreamBlock` is used exclusively when AppStatusListener is requeste
 onBlockUpdated(event: SparkListenerBlockUpdated): Unit
 ----
 
-NOTE: `onBlockUpdated` is part of ROOT:SparkListener.md#onBlockUpdated[SparkListener Contract] to...FIXME.
+NOTE: `onBlockUpdated` is part of SparkListener.md#onBlockUpdated[SparkListener Contract] to...FIXME.
 
 `onBlockUpdated` simply dispatches to the following event-specific handlers (per storage:BlockId.md[] type):
 

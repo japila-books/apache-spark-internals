@@ -277,7 +277,7 @@ a| [[spark.executor.memory]] Amount of memory to use for an executor:Executor.md
 
 Default: `1g`
 
-Equivalent to ROOT:SparkContext.md#environment-variables[SPARK_EXECUTOR_MEMORY] environment variable.
+Equivalent to SparkContext.md#environment-variables[SPARK_EXECUTOR_MEMORY] environment variable.
 
 Refer to executor:Executor.md#memory[Executor Memory -- spark.executor.memory or SPARK_EXECUTOR_MEMORY settings]
 
@@ -359,7 +359,7 @@ Default: `1`
 
 Used when:
 
-* `ExecutorAllocationManager` is <<spark-ExecutorAllocationManager.md#tasksPerExecutorForFullParallelism, created>>
+* `ExecutorAllocationManager` is [created](dynamic-allocation/ExecutorAllocationManager.md#tasksPerExecutorForFullParallelism)
 
 * `TaskSchedulerImpl` is scheduler:TaskSchedulerImpl.md#CPUS_PER_TASK[created]
 
@@ -676,13 +676,13 @@ Default: `120s`
 
 == [[spark.speculation]] spark.speculation
 
-Enables (`true`) or disables (`false`) ROOT:speculative-execution-of-tasks.md[]
+Enables (`true`) or disables (`false`) speculative-execution-of-tasks.md[]
 
 Default: `false`
 
 == [[spark.speculation.interval]] spark.speculation.interval
 
-The time interval to use before checking for speculative tasks in ROOT:speculative-execution-of-tasks.md[].
+The time interval to use before checking for speculative tasks in speculative-execution-of-tasks.md[].
 
 Default: `100ms`
 
@@ -692,7 +692,7 @@ Default: `1.5`
 
 == [[spark.speculation.quantile]] spark.speculation.quantile
 
-The percentage of tasks that has not finished yet at which to start speculation in ROOT:speculative-execution-of-tasks.md[].
+The percentage of tasks that has not finished yet at which to start speculation in speculative-execution-of-tasks.md[].
 
 Default: `0.75`
 

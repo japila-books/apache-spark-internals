@@ -2,7 +2,7 @@
 
 LocalSchedulerBackend is a <<../SchedulerBackend.md#, SchedulerBackend>> and an executor:ExecutorBackend.md[] for the <<spark-local.md#, Spark local>>.
 
-LocalSchedulerBackend is <<creating-instance, created>> when `SparkContext` is requested to ROOT:SparkContext.md#createTaskScheduler[create the SchedulerBackend with the TaskScheduler] for the following master URLs:
+LocalSchedulerBackend is <<creating-instance, created>> when `SparkContext` is requested to SparkContext.md#createTaskScheduler[create the SchedulerBackend with the TaskScheduler] for the following master URLs:
 
 * *local* (with exactly <<totalCores, 1 CPU core>>)
 
@@ -98,7 +98,7 @@ NOTE: `start` is part of the <<../SchedulerBackend.md#start, SchedulerBackend Co
 
 `start` then creates a <<spark-LocalEndpoint.md#, LocalEndpoint>> and requests the `RpcEnv` to rpc:RpcEnv.md#setupEndpoint[register it] as *LocalSchedulerBackendEndpoint* RPC endpoint.
 
-`start` requests the <<listenerBus, LiveListenerBus>> to scheduler:LiveListenerBus.md#post[post] a ROOT:SparkListener.md#SparkListenerExecutorAdded[SparkListenerExecutorAdded] event.
+`start` requests the <<listenerBus, LiveListenerBus>> to scheduler:LiveListenerBus.md#post[post] a SparkListener.md#SparkListenerExecutorAdded[SparkListenerExecutorAdded] event.
 
 In the end, `start` requests the <<launcherBackend, LauncherBackend>> to <<../spark-LauncherBackend.md#setAppId, setAppId>> as the <<appId, appId>> and <<../spark-LauncherBackend.md#setState, setState>> as `RUNNING`.
 

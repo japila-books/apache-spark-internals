@@ -1,6 +1,6 @@
 # BroadcastManager
 
-`BroadcastManager` is a Spark service to manage ROOT:Broadcast.md[]s in a Spark application.
+`BroadcastManager` is a Spark service to manage Broadcast.md[]s in a Spark application.
 
 [BroadcastManager, SparkEnv and BroadcastFactory](../images/core/BroadcastManager.png)
 
@@ -13,7 +13,7 @@ BroadcastManager is used to create a scheduler:MapOutputTrackerMaster.md#Broadca
 BroadcastManager takes the following to be created:
 
 * <<isDriver, isDriver>> flag
-* [[conf]] ROOT:SparkConf.md[SparkConf]
+* [[conf]] SparkConf.md[SparkConf]
 * [[securityManager]] SecurityManager
 
 When created, BroadcastManager <<initialize, initializes>>.
@@ -90,4 +90,4 @@ newBroadcast is used when:
 
 * MapOutputTracker utility is used to scheduler:MapOutputTracker.md#serializeMapStatuses[serializeMapStatuses]
 
-* SparkContext is requested for a ROOT:SparkContext.md#broadcast[new broadcast variable]
+* SparkContext is requested for a SparkContext.md#broadcast[new broadcast variable]

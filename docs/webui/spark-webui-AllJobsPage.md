@@ -40,7 +40,7 @@ The Event Timeline section shows not only jobs but also executors.
 .Executors in Event Timeline
 image::spark-webui-jobs-timeline-executors.png[align="center"]
 
-TIP: Use ROOT:SparkContext.md#dynamic-allocation[Programmable Dynamic Allocation] (using `SparkContext`) to manage executors for demo purposes.
+TIP: Use SparkContext.md#dynamic-allocation[Programmable Dynamic Allocation] (using `SparkContext`) to manage executors for demo purposes.
 
 === [[creating-instance]] Creating AllJobsPage Instance
 

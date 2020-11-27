@@ -12,7 +12,7 @@ ReliableRDDCheckpointData is created for rdd:RDD.md#checkpoint[RDD.checkpoint] o
 
 == [[cpDir]][[checkpointPath]] Checkpoint Directory
 
-ReliableRDDCheckpointData creates a subdirectory of the ROOT:SparkContext.md#checkpointDir[application-wide checkpoint directory] for <<doCheckpoint, checkpointing>> the given <<rdd, RDD>>.
+ReliableRDDCheckpointData creates a subdirectory of the SparkContext.md#checkpointDir[application-wide checkpoint directory] for <<doCheckpoint, checkpointing>> the given <<rdd, RDD>>.
 
 The name of the subdirectory uses the rdd:RDD.md#id[unique identifier] of the <<rdd, RDD>>:
 
@@ -30,7 +30,7 @@ doCheckpoint(): CheckpointRDD[T]
 
 doCheckpoint rdd:ReliableCheckpointRDD.md#writeRDDToCheckpointDirectory[writes] the <<rdd, RDD>> to the <<cpDir, checkpoint directory>> (that creates a new RDD).
 
-With ROOT:configuration-properties.md#spark.cleaner.referenceTracking.cleanCheckpoints[spark.cleaner.referenceTracking.cleanCheckpoints] configuration property enabled, doCheckpoint requests the ROOT:SparkContext.md#cleaner[ContextCleaner] to core:ContextCleaner.md#registerRDDCheckpointDataForCleanup[registerRDDCheckpointDataForCleanup] for the new RDD.
+With configuration-properties.md#spark.cleaner.referenceTracking.cleanCheckpoints[spark.cleaner.referenceTracking.cleanCheckpoints] configuration property enabled, doCheckpoint requests the SparkContext.md#cleaner[ContextCleaner] to core:ContextCleaner.md#registerRDDCheckpointDataForCleanup[registerRDDCheckpointDataForCleanup] for the new RDD.
 
 In the end, doCheckpoint prints out the following INFO message to the logs and returns the new RDD.
 

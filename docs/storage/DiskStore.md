@@ -9,7 +9,7 @@ image::DiskStore-BlockManager.png[align="center"]
 
 DiskStore takes the following to be created:
 
-* [[conf]] ROOT:SparkConf.md[]
+* [[conf]] SparkConf.md[]
 * [[diskManager]] storage:DiskBlockManager.md[]
 * [[securityManager]] SecurityManager
 
@@ -143,4 +143,4 @@ Add the following line to `conf/log4j.properties`:
 log4j.logger.org.apache.spark.storage.DiskStore=ALL
 ----
 
-Refer to ROOT:spark-logging.md[Logging].
+Refer to spark-logging.md[Logging].

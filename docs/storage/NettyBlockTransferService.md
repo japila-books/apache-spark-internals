@@ -9,7 +9,7 @@ image::NettyBlockTransferService.png[align="center"]
 
 NettyBlockTransferService takes the following to be created:
 
-* [[conf]] ROOT:SparkConf.md[SparkConf]
+* [[conf]] SparkConf.md[SparkConf]
 * [[securityManager]] SecurityManager
 * [[bindAddress]] Bind address
 * [[hostName]] Host name
@@ -126,7 +126,7 @@ init(
   blockDataManager: BlockDataManager): Unit
 ----
 
-init creates a storage:NettyBlockRpcServer.md[] (for the ROOT:SparkConf.md#getAppId[application id], a JavaSerializer and the given storage:BlockDataManager.md[BlockDataManager]) that is used to create a <<transportContext, TransportContext>>.
+init creates a storage:NettyBlockRpcServer.md[] (for the SparkConf.md#getAppId[application id], a JavaSerializer and the given storage:BlockDataManager.md[BlockDataManager]) that is used to create a <<transportContext, TransportContext>>.
 
 init creates the internal `clientFactory` and a server.
 
@@ -220,4 +220,4 @@ Add the following line to `conf/log4j.properties`:
 log4j.logger.org.apache.spark.network.netty.NettyBlockTransferService=ALL
 ----
 
-Refer to ROOT:spark-logging.md[Logging].
+Refer to spark-logging.md[Logging].

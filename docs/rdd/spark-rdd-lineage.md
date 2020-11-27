@@ -29,7 +29,7 @@ You can learn about a RDD lineage graph using <<toDebugString, RDD.toDebugString
 
 *Logical Execution Plan* starts with the earliest RDDs (those with no dependencies on other RDDs or reference cached data) and ends with the RDD that produces the result of the action that has been called to execute.
 
-NOTE: A logical plan, i.e. a DAG, is materialized and executed when  ROOT:SparkContext.md#runJob[`SparkContext` is requested to run a Spark job].
+NOTE: A logical plan, i.e. a DAG, is materialized and executed when  SparkContext.md#runJob[`SparkContext` is requested to run a Spark job].
 
 === [[toDebugString]] Getting RDD Lineage Graph -- `toDebugString` Method
 
@@ -81,5 +81,5 @@ scala> sc.textFile("README.md", 4).count
 [cols="1,1,2",options="header",width="100%"]
 |===
 | Spark Property | Default Value | Description
-| [[spark_logLineage]] `spark.logLineage` | `false` | When enabled (i.e. `true`), executing an action (and hence ROOT:SparkContext.md#runJob[running a job]) will also print out the RDD lineage graph using <<toDebugString, RDD.toDebugString>>.
+| [[spark_logLineage]] `spark.logLineage` | `false` | When enabled (i.e. `true`), executing an action (and hence SparkContext.md#runJob[running a job]) will also print out the RDD lineage graph using <<toDebugString, RDD.toDebugString>>.
 |===

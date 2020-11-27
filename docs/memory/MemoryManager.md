@@ -118,7 +118,7 @@ maxOnHeapStorageMemory is used when:
 
 MemoryManager takes the following to be created:
 
-* [[conf]] ROOT:SparkConf.md[]
+* [[conf]] SparkConf.md[]
 * [[numCores]] Number of CPU cores
 * [[onHeapStorageMemory]] Size of the on-heap storage memory
 * [[onHeapExecutionMemory]] Size of the on-heap execution memory
@@ -133,7 +133,7 @@ MemoryManager immediately requests them to memory:MemoryPool.md#incrementPoolSiz
 
 * On-heap storage memory pool is initialized to the assigned <<onHeapStorageMemory, onHeapStorageMemory>> size
 
-* Off-heap storage memory pool is initialized to the ROOT:configuration-properties.md#spark.memory.storageFraction[spark.memory.storageFraction] of ROOT:configuration-properties.md#spark.memory.offHeap.size[spark.memory.offHeap.size]
+* Off-heap storage memory pool is initialized to the configuration-properties.md#spark.memory.storageFraction[spark.memory.storageFraction] of configuration-properties.md#spark.memory.offHeap.size[spark.memory.offHeap.size]
 
 MemoryManager requests the MemoryPools to memory:StorageMemoryPool.md#setMemoryStore[use a given MemoryStore] when requested to <<setMemoryStore, setMemoryStore>>.
 
@@ -158,7 +158,7 @@ org.apache.spark.memory.MemoryManager
 
 == [[spark.memory.useLegacyMode]] spark.memory.useLegacyMode Configuration Property
 
-A <<implementations, concrete MemoryManager>> is chosen based on ROOT:configuration-properties.md#spark.memory.useLegacyMode[spark.memory.useLegacyMode] configuration property (when core:SparkEnv.md#memoryManager[SparkEnv] is created for the driver and executors).
+A <<implementations, concrete MemoryManager>> is chosen based on configuration-properties.md#spark.memory.useLegacyMode[spark.memory.useLegacyMode] configuration property (when core:SparkEnv.md#memoryManager[SparkEnv] is created for the driver and executors).
 
 == [[executionMemoryUsed]] executionMemoryUsed Method
 
@@ -241,15 +241,15 @@ tungstenMemoryMode: MemoryMode
 
 `tungstenMemoryMode` returns `OFF_HEAP` only when the following are all met:
 
-* ROOT:configuration-properties.md#spark.memory.offHeap.enabled[spark.memory.offHeap.enabled] configuration property is enabled (it is not by default)
+* configuration-properties.md#spark.memory.offHeap.enabled[spark.memory.offHeap.enabled] configuration property is enabled (it is not by default)
 
-* ROOT:configuration-properties.md#spark.memory.offHeap.size[spark.memory.offHeap.size] configuration property is greater than `0` (it is `0` by default)
+* configuration-properties.md#spark.memory.offHeap.size[spark.memory.offHeap.size] configuration property is greater than `0` (it is `0` by default)
 
 * JVM supports unaligned memory access (aka *unaligned Unsafe*, i.e. `sun.misc.Unsafe` package is available and the underlying system has unaligned-access capability)
 
 Otherwise, `tungstenMemoryMode` returns `ON_HEAP`.
 
-NOTE: Given that ROOT:configuration-properties.md#spark.memory.offHeap.enabled[spark.memory.offHeap.enabled] configuration property is disabled (`false`) by default and ROOT:configuration-properties.md#spark.memory.offHeap.size[spark.memory.offHeap.size] configuration property is `0` by default, Spark seems to encourage using Tungsten memory allocated on the JVM heap (`ON_HEAP`).
+NOTE: Given that configuration-properties.md#spark.memory.offHeap.enabled[spark.memory.offHeap.enabled] configuration property is disabled (`false`) by default and configuration-properties.md#spark.memory.offHeap.size[spark.memory.offHeap.size] configuration property is `0` by default, Spark seems to encourage using Tungsten memory allocated on the JVM heap (`ON_HEAP`).
 
 NOTE: `tungstenMemoryMode` is a Scala `final val` and cannot be changed by custom <<implementations, MemoryManagers>>.
 

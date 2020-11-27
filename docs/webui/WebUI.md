@@ -138,7 +138,7 @@ Refer to spark-logging.md[Logging].
 * [[securityManager]] `SecurityManager`
 * [[sslOptions]] `SSLOptions`
 * [[port]] Port number
-* [[conf]] ROOT:SparkConf.md[SparkConf]
+* [[conf]] SparkConf.md[SparkConf]
 * [[basePath]] `basePath` (default: empty)
 * [[name]] Name (default: empty)
 

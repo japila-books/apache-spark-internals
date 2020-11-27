@@ -2,7 +2,7 @@
 
 `MetricsConfig` is the configuration of the [MetricsSystem](MetricsSystem.md) (i.e. metrics [sources](Source.md) and [sinks](Sink.md)).
 
-`MetricsConfig` is <<creating-instance, created>> when spark-metrics-MetricsSystem.md#creating-instance[MetricsSystem] is.
+`MetricsConfig` is <<creating-instance, created>> when [MetricsSystem](MetricsSystem.md#creating-instance) is.
 
 `MetricsConfig` uses *metrics.properties* as the default metrics configuration file. It is configured using spark-metrics-properties.md#spark.metrics.conf[spark.metrics.conf] configuration property. The file is first loaded from the path directly before using Spark's CLASSPATH.
 
@@ -43,7 +43,7 @@ The order of precedence of metrics configuration settings is as follows:
 
 [[creating-instance]]
 [[conf]]
-`MetricsConfig` takes a ROOT:SparkConf.md[SparkConf] when created.
+`MetricsConfig` takes a SparkConf.md[SparkConf] when created.
 
 [[internal-registries]]
 .MetricsConfig's Internal Registries and Counters
@@ -76,7 +76,7 @@ In the end, `initialize` splits <<perInstanceSubProperties, configuration per Sp
 
 NOTE: `initialize` accepts `*` (star) for the default configuration or any combination of lower- and upper-case letters for Spark subsystem names.
 
-NOTE: `initialize` is used exclusively when `MetricsSystem` is spark-metrics-MetricsSystem.md#creating-instance[created].
+NOTE: `initialize` is used exclusively when `MetricsSystem` is [created](MetricsSystem.md#creating-instance).
 
 === [[setDefaultProperties]] `setDefaultProperties` Internal Method
 
@@ -122,7 +122,7 @@ subProperties(prop: Properties, regex: Regex): mutable.HashMap[String, Propertie
 driver.hello.world => (driver, (hello.world))
 ----
 
-NOTE: `subProperties` is used when `MetricsConfig` <<initialize, is initialized>> (to apply the default metrics configuration) and when `MetricsSystem` spark-metrics-MetricsSystem.md#registerSources[registers metrics sources] and spark-metrics-MetricsSystem.md#registerSinks[sinks].
+NOTE: `subProperties` is used when `MetricsConfig` <<initialize, is initialized>> (to apply the default metrics configuration) and when `MetricsSystem` [registers metrics sources](MetricsSystem.md#registerSources) and [sinks](MetricsSystem.md#registerSinks).
 
 === [[getInstance]] `getInstance` Method
 

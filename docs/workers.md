@@ -16,7 +16,7 @@ Explain task execution in Spark and understand Spark’s underlying execution mo
 
 New vocabulary often faced in Spark UI
 
-ROOT:SparkContext.md[When you create SparkContext], each worker starts an executor. This is a separate process (JVM), and it loads your jar, too. The executors connect back to your driver program. Now the driver can send them commands, like `flatMap`, `map` and `reduceByKey`. When the driver quits, the executors shut down.
+SparkContext.md[When you create SparkContext], each worker starts an executor. This is a separate process (JVM), and it loads your jar, too. The executors connect back to your driver program. Now the driver can send them commands, like `flatMap`, `map` and `reduceByKey`. When the driver quits, the executors shut down.
 
 A new process is not started for each step. A new process is started on each worker when the SparkContext is constructed.
 

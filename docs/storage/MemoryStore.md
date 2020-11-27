@@ -8,7 +8,7 @@
 
 MemoryStore takes the following to be created:
 
-* [[conf]] ROOT:SparkConf.md[]
+* [[conf]] SparkConf.md[]
 * <<blockInfoManager, BlockInfoManager>>
 * [[serializerManager]] serializer:SerializerManager.md[]
 * [[memoryManager]] memory:MemoryManager.md[]
@@ -37,7 +37,7 @@ SparkEnv.get.blockManager.memoryStore
 
 == [[unrollMemoryThreshold]][[spark.storage.unrollMemoryThreshold]] spark.storage.unrollMemoryThreshold Configuration Property
 
-MemoryStore uses ROOT:configuration-properties.md#spark.storage.unrollMemoryThreshold[spark.storage.unrollMemoryThreshold] configuration property for <<putIterator, putIterator>> and <<putIteratorAsBytes, putIteratorAsBytes>>.
+MemoryStore uses configuration-properties.md#spark.storage.unrollMemoryThreshold[spark.storage.unrollMemoryThreshold] configuration property for <<putIterator, putIterator>> and <<putIteratorAsBytes, putIteratorAsBytes>>.
 
 == [[releaseUnrollMemoryForThisTask]] releaseUnrollMemoryForThisTask Method
 
@@ -328,7 +328,7 @@ Add the following line to `conf/log4j.properties`:
 log4j.logger.org.apache.spark.storage.memory.MemoryStore=ALL
 ----
 
-Refer to ROOT:spark-logging.md[Logging].
+Refer to spark-logging.md[Logging].
 
 == [[internal-registries]] Internal Registries
 

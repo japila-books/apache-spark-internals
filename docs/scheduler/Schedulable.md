@@ -154,7 +154,7 @@ Queue of <<spark-scheduler-Schedulable.md#, schedulables>> (as https://docs.orac
 
 Used when:
 
-* `SparkContext` is requested to ROOT:SparkContext.md#getAllPools[getAllPools]
+* `SparkContext` is requested to SparkContext.md#getAllPools[getAllPools]
 
 * `Pool` is requested to <<spark-scheduler-Pool.md#addSchedulable, addSchedulable>>, <<spark-scheduler-Pool.md#removeSchedulable, removeSchedulable>>, <<spark-scheduler-Pool.md#getSchedulableByName, getSchedulableByName>>, <<spark-scheduler-Pool.md#executorLost, executorLost>>, <<spark-scheduler-Pool.md#checkSpeculatableTasks, checkSpeculatableTasks>>, and <<spark-scheduler-Pool.md#getSortedTaskSetQueue, getSortedTaskSetQueue>>
 

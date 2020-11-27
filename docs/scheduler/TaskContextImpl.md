@@ -12,8 +12,8 @@
 * [[attemptNumber]] Attempt ID
 * [[taskMemoryManager]] memory:TaskMemoryManager.md[TaskMemoryManager]
 * [[localProperties]] Local properties
-* [[metricsSystem]] metrics:spark-metrics-MetricsSystem.md[MetricsSystem]
-* [[taskMetrics]] executor:TaskMetrics.md[]
+* [[metricsSystem]] [MetricsSystem](../metrics/MetricsSystem.md)
+* [[taskMetrics]] [TaskMetrics](../executor/TaskMetrics.md)
 
 [[internal-registries]]
 .TaskContextImpl's Internal Properties (e.g. Registries, Counters and Flags)

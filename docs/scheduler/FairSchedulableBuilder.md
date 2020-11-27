@@ -1,17 +1,17 @@
 == [[FairSchedulableBuilder]] FairSchedulableBuilder -- SchedulableBuilder for FAIR Scheduling Mode
 
-`FairSchedulableBuilder` is a <<spark-scheduler-SchedulableBuilder.md#, SchedulableBuilder>> that is <<creating-instance, created>> exclusively for scheduler:TaskSchedulerImpl.md[TaskSchedulerImpl] for *FAIR scheduling mode* (when ROOT:configuration-properties.md#spark.scheduler.mode[spark.scheduler.mode] configuration property is `FAIR`).
+`FairSchedulableBuilder` is a <<spark-scheduler-SchedulableBuilder.md#, SchedulableBuilder>> that is <<creating-instance, created>> exclusively for scheduler:TaskSchedulerImpl.md[TaskSchedulerImpl] for *FAIR scheduling mode* (when configuration-properties.md#spark.scheduler.mode[spark.scheduler.mode] configuration property is `FAIR`).
 
 [[creating-instance]]
 `FairSchedulableBuilder` takes the following to be created:
 
 * [[rootPool]] <<spark-scheduler-Pool.md#, Root pool of schedulables>>
-* [[conf]] ROOT:SparkConf.md[]
+* [[conf]] SparkConf.md[]
 
 Once <<creating-instance, created>>, `TaskSchedulerImpl` requests the `FairSchedulableBuilder` to <<buildPools, build the pools>>.
 
 [[DEFAULT_SCHEDULER_FILE]]
-`FairSchedulableBuilder` uses the pools defined in an <<allocations-file, allocation pools configuration file>> that is assumed to be the value of the ROOT:configuration-properties.md#spark.scheduler.allocation.file[spark.scheduler.allocation.file] configuration property or the default *fairscheduler.xml* (that is <<buildPools, expected to be available on a Spark application's class path>>).
+`FairSchedulableBuilder` uses the pools defined in an <<allocations-file, allocation pools configuration file>> that is assumed to be the value of the configuration-properties.md#spark.scheduler.allocation.file[spark.scheduler.allocation.file] configuration property or the default *fairscheduler.xml* (that is <<buildPools, expected to be available on a Spark application's class path>>).
 
 TIP: Use *conf/fairscheduler.xml.template* as a template for the <<allocations-file, allocation pools configuration file>>.
 
@@ -84,19 +84,19 @@ NOTE: `buildPools` is part of the <<spark-scheduler-SchedulableBuilder.md#buildP
 
 `buildPools` <<buildFairSchedulerPool, creates Fair Scheduler pools from a configuration file>> if available and then <<buildDefaultPool, builds the default pool>>.
 
-`buildPools` prints out the following INFO message to the logs when the configuration file (per the ROOT:configuration-properties.md#spark.scheduler.allocation.file[spark.scheduler.allocation.file] configuration property) could be read:
+`buildPools` prints out the following INFO message to the logs when the configuration file (per the configuration-properties.md#spark.scheduler.allocation.file[spark.scheduler.allocation.file] configuration property) could be read:
 
 ```
 Creating Fair Scheduler pools from [file]
 ```
 
-`buildPools` prints out the following INFO message to the logs when the ROOT:configuration-properties.md#spark.scheduler.allocation.file[spark.scheduler.allocation.file] configuration property was not used to define the configuration file and the <<DEFAULT_SCHEDULER_FILE, default configuration file>> is used instead:
+`buildPools` prints out the following INFO message to the logs when the configuration-properties.md#spark.scheduler.allocation.file[spark.scheduler.allocation.file] configuration property was not used to define the configuration file and the <<DEFAULT_SCHEDULER_FILE, default configuration file>> is used instead:
 
 ```
 Creating Fair Scheduler pools from default file: [DEFAULT_SCHEDULER_FILE]
 ```
 
-When neither ROOT:configuration-properties.md#spark.scheduler.allocation.file[spark.scheduler.allocation.file] configuration property nor the <<DEFAULT_SCHEDULER_FILE, default configuration file>> could be used, `buildPools` prints out the following WARN message to the logs:
+When neither configuration-properties.md#spark.scheduler.allocation.file[spark.scheduler.allocation.file] configuration property nor the <<DEFAULT_SCHEDULER_FILE, default configuration file>> could be used, `buildPools` prints out the following WARN message to the logs:
 
 ```
 Fair Scheduler configuration file not found so jobs will be scheduled in FIFO order. To use fair scheduling, configure pools in [DEFAULT_SCHEDULER_FILE] or set spark.scheduler.allocation.file to a file that contains the configuration.

@@ -2,7 +2,7 @@
 
 Executor is a process that is used for executing scheduler:Task.md[tasks].
 
-Executor _typically_ runs for the entire lifetime of a Spark application which is called *static allocation of executors* (but you could also opt in for spark-dynamic-allocation.md[dynamic allocation]).
+Executor _typically_ runs for the entire lifetime of a Spark application which is called *static allocation of executors* (but you could also opt in for [dynamic allocation](../dynamic-allocation/index.md)).
 
 Executors are managed by executor:ExecutorBackend.md[executor backends].
 
@@ -52,7 +52,7 @@ Starting executor ID [executorId] on host [executorHostname]
 (only for <<isLocal, non-local modes>>) Executor requests the core:SparkEnv.md#blockManager[BlockManager] to storage:BlockManager.md#initialize[initialize] (with the SparkConf.md#getAppId[Spark application id] of the core:SparkEnv.md#conf[SparkConf]).
 
 [[creating-instance-BlockManager-shuffleMetricsSource]]
-(only for <<isLocal, non-local modes>>) Executor requests the core:SparkEnv.md#metricsSystem[MetricsSystem] to metrics:spark-metrics-MetricsSystem.md#registerSource[register] the <<executorSource, ExecutorSource>> and storage:BlockManager.md#shuffleMetricsSource[shuffleMetricsSource] of the core:SparkEnv.md#blockManager[BlockManager].
+(only for <<isLocal, non-local modes>>) Executor requests the core:SparkEnv.md#metricsSystem[MetricsSystem] to [register](../metrics/MetricsSystem.md#registerSource) the <<executorSource, ExecutorSource>> and storage:BlockManager.md#shuffleMetricsSource[shuffleMetricsSource] of the core:SparkEnv.md#blockManager[BlockManager].
 
 Executor uses SparkEnv to access the core:SparkEnv.md#metricsSystem[MetricsSystem] and core:SparkEnv.md#blockManager[BlockManager].
 
@@ -168,9 +168,9 @@ The above figure shows the result of running tools:spark-shell.md[Spark shell] w
 ./bin/spark-shell --master spark://localhost:7077 -c spark.executor.memory=2g
 ```
 
-== [[metrics]] Metrics
+## Metrics
 
-Every executor registers its own executor:ExecutorSource.md[] to metrics:spark-metrics-MetricsSystem.md#report[report metrics].
+Every executor registers its own executor:ExecutorSource.md[] to [report metrics](../metrics/MetricsSystem.md#report).
 
 == [[stop]] Stopping Executor
 
@@ -179,7 +179,7 @@ Every executor registers its own executor:ExecutorSource.md[] to metrics:spark-m
 stop(): Unit
 ----
 
-stop requests core:SparkEnv.md#metricsSystem[MetricsSystem] for a metrics:spark-metrics-MetricsSystem.md#report[report].
+stop requests core:SparkEnv.md#metricsSystem[MetricsSystem] for a [report](../metrics/MetricsSystem.md#report).
 
 stop shuts <<heartbeater, driver-heartbeater thread>> down (and waits at most 10 seconds).
 

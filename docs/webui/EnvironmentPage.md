@@ -10,5 +10,5 @@
 `EnvironmentPage` takes the following when created:
 
 * [[parent]] Parent spark-webui-EnvironmentTab.md[EnvironmentTab]
-* [[conf]] ROOT:SparkConf.md[SparkConf]
+* [[conf]] SparkConf.md[SparkConf]
 * [[store]] core:AppStatusStore.md[]

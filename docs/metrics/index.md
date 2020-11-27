@@ -48,7 +48,7 @@ Registered when `Worker` (Spark Standalone) is created
 
 Spark Metrics uses [MetricsSystem](MetricsSystem.md).
 
-`MetricsSystem` uses Dropwizard Metrics' spark-metrics-MetricsSystem.md#registry[MetricRegistry] that acts as the integration point between Spark and the metrics library.
+`MetricsSystem` uses Dropwizard Metrics' [MetricRegistry](MetricsSystem.md#registry) that acts as the integration point between Spark and the metrics library.
 
 A Spark subsystem can access the `MetricsSystem` through the [SparkEnv.metricsSystem](../SparkEnv.md#metricsSystem) property.
 
@@ -58,7 +58,7 @@ val metricsSystem = SparkEnv.get.metricsSystem
 
 ## <span id="MetricsConfig"> MetricsConfig
 
-`MetricsConfig` is the configuration of the spark-metrics-MetricsSystem.md[MetricsSystem] (i.e. metrics spark-metrics-Source.md[sources] and spark-metrics-Sink.md[sinks]).
+`MetricsConfig` is the configuration of the [MetricsSystem](MetricsSystem.md) (i.e. metrics spark-metrics-Source.md[sources] and spark-metrics-Sink.md[sinks]).
 
 *metrics.properties* is the default metrics configuration file. It is configured using spark-metrics-properties.md#spark.metrics.conf[spark.metrics.conf] configuration property. The file is first loaded from the path directly before using Spark's CLASSPATH.
 

@@ -1,6 +1,6 @@
 = BroadcastFactory
 
-*BroadcastFactory* is an <<contract, abstraction>> for <<implementations, factories>> that core:BroadcastManager.md[BroadcastManager] uses for ROOT:Broadcast.md[].
+*BroadcastFactory* is an <<contract, abstraction>> for <<implementations, factories>> that core:BroadcastManager.md[BroadcastManager] uses for Broadcast.md[].
 
 NOTE: As of https://issues.apache.org/jira/browse/SPARK-12588[Spark 2.0], it is no longer possible to plug a custom BroadcastFactory in, and core:TorrentBroadcastFactory.md[TorrentBroadcastFactory] is the one and only known implementation.
 

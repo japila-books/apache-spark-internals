@@ -9,7 +9,7 @@ BlockManagerMaster uses storage:BlockManagerMasterEndpoint.md[] registered under
 BlockManagerMaster takes the following to be created:
 
 * [[driverEndpoint]] rpc:RpcEndpointRef.md[]
-* [[conf]] ROOT:SparkConf.md[]
+* [[conf]] SparkConf.md[]
 * [[isDriver]] Flag whether BlockManagerMaster is created for the driver or executors
 
 BlockManagerMaster is created when SparkEnv utility is used to core:SparkEnv.md#create[create a SparkEnv (for the driver and executors)] (to create a storage:BlockManager.md[]).
@@ -307,4 +307,4 @@ Add the following line to `conf/log4j.properties`:
 log4j.logger.org.apache.spark.storage.BlockManagerMaster=ALL
 ----
 
-Refer to ROOT:spark-logging.md[Logging].
+Refer to spark-logging.md[Logging].

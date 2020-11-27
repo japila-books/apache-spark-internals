@@ -2,7 +2,7 @@
 
 `SchedulableBuilder` is the <<contract, abstraction>> of <<implementations, schedulable builders>> that manage a <<rootPool, root pool (of Schedulables)>>, which is to <<buildPools, build a pool>> and <<addTaskSetManager, register a new Schedulable (with the pool)>>.
 
-`SchedulableBuilder` is a `private[spark]` Scala trait that is used exclusively by scheduler:TaskSchedulerImpl.md[TaskSchedulerImpl] (the default Spark scheduler). When requested to scheduler:TaskSchedulerImpl.md#initialize[initialize], `TaskSchedulerImpl` uses the ROOT:configuration-properties.md#spark.scheduler.mode[spark.scheduler.mode] configuration property (default: `FIFO`) to select one of the <<implementations, available schedulable builders>>.
+`SchedulableBuilder` is a `private[spark]` Scala trait that is used exclusively by scheduler:TaskSchedulerImpl.md[TaskSchedulerImpl] (the default Spark scheduler). When requested to scheduler:TaskSchedulerImpl.md#initialize[initialize], `TaskSchedulerImpl` uses the configuration-properties.md#spark.scheduler.mode[spark.scheduler.mode] configuration property (default: `FIFO`) to select one of the <<implementations, available schedulable builders>>.
 
 [[contract]]
 .SchedulableBuilder Contract
@@ -33,7 +33,7 @@ buildPools(): Unit
 
 Builds a tree of <<spark-scheduler-Pool.md#, pools (of Schedulables)>>
 
-Used exclusively when `TaskSchedulerImpl` is requested to scheduler:TaskSchedulerImpl.md#initialize[initialize] (and creates a scheduler:TaskSchedulerImpl.md#schedulableBuilder[SchedulableBuilder] per ROOT:configuration-properties.md#spark.scheduler.mode[spark.scheduler.mode] configuration property)
+Used exclusively when `TaskSchedulerImpl` is requested to scheduler:TaskSchedulerImpl.md#initialize[initialize] (and creates a scheduler:TaskSchedulerImpl.md#schedulableBuilder[SchedulableBuilder] per configuration-properties.md#spark.scheduler.mode[spark.scheduler.mode] configuration property)
 
 | rootPool
 a| [[rootPool]]
@@ -61,9 +61,9 @@ Used when:
 | Description
 
 | <<spark-scheduler-FairSchedulableBuilder.md#, FairSchedulableBuilder>>
-| [[FairSchedulableBuilder]] Used when the ROOT:configuration-properties.md#spark.scheduler.mode[spark.scheduler.mode] configuration property is `FAIR`
+| [[FairSchedulableBuilder]] Used when the configuration-properties.md#spark.scheduler.mode[spark.scheduler.mode] configuration property is `FAIR`
 
 | <<spark-scheduler-FIFOSchedulableBuilder.md#, FIFOSchedulableBuilder>>
-| [[FIFOSchedulableBuilder]] Default `SchedulableBuilder` that is used when the ROOT:configuration-properties.md#spark.scheduler.mode[spark.scheduler.mode] configuration property is `FIFO` (default)
+| [[FIFOSchedulableBuilder]] Default `SchedulableBuilder` that is used when the configuration-properties.md#spark.scheduler.mode[spark.scheduler.mode] configuration property is `FIFO` (default)
 
 |===

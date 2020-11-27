@@ -31,7 +31,7 @@ Used when:
 
 === [[BroadcastBlockId]] BroadcastBlockId
 
-BlockId for ROOT:Broadcast.md[]s with `broadcastId` identifier and optional `field` name (default: `empty`)
+BlockId for Broadcast.md[]s with `broadcastId` identifier and optional `field` name (default: `empty`)
 
 Uses `broadcast_` prefix for the <<name, name>>
 
@@ -65,7 +65,7 @@ Used when:
 
 * `AppStatusListener` is requested to core:AppStatusListener.md#updateRDDBlock[updateRDDBlock] (when core:AppStatusListener.md#onBlockUpdated[onBlockUpdated] for a `RDDBlockId`)
 
-serializer:SerializerManager.md#shouldCompress[Compressed] when ROOT:configuration-properties.md#spark.rdd.compress[spark.rdd.compress] configuration property is enabled (default: `false`)
+serializer:SerializerManager.md#shouldCompress[Compressed] when configuration-properties.md#spark.rdd.compress[spark.rdd.compress] configuration property is enabled (default: `false`)
 
 === [[ShuffleBlockId]] ShuffleBlockId
 
@@ -83,7 +83,7 @@ Used when:
 
 * `ShuffleBlockResolver` is requested for a shuffle:ShuffleBlockResolver.md#getBlockData[ManagedBuffer to read shuffle block data file]
 
-serializer:SerializerManager.md#shouldCompress[Compressed] when ROOT:configuration-properties.md#spark.shuffle.compress[spark.shuffle.compress] configuration property is enabled (default: `true`)
+serializer:SerializerManager.md#shouldCompress[Compressed] when configuration-properties.md#spark.shuffle.compress[spark.shuffle.compress] configuration property is enabled (default: `true`)
 
 === [[ShuffleDataBlockId]] ShuffleDataBlockId
 

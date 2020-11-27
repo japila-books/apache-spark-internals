@@ -4,7 +4,7 @@
 
 The scheduling mode `schedulingMode` attribute is part of the scheduler:TaskScheduler.md#schedulingMode[TaskScheduler Contract].
 
-The only implementation of the `TaskScheduler` contract in Spark -- scheduler:TaskSchedulerImpl.md[TaskSchedulerImpl] -- uses ROOT:configuration-properties.md#spark.scheduler.mode[spark.scheduler.mode] setting to configure `schedulingMode` that is _merely_ used to set up the scheduler:TaskScheduler.md#rootPool[rootPool] attribute (with `FIFO` being the default). It happens when scheduler:TaskSchedulerImpl.md#initialize[`TaskSchedulerImpl` is initialized].
+The only implementation of the `TaskScheduler` contract in Spark -- scheduler:TaskSchedulerImpl.md[TaskSchedulerImpl] -- uses configuration-properties.md#spark.scheduler.mode[spark.scheduler.mode] setting to configure `schedulingMode` that is _merely_ used to set up the scheduler:TaskScheduler.md#rootPool[rootPool] attribute (with `FIFO` being the default). It happens when scheduler:TaskSchedulerImpl.md#initialize[`TaskSchedulerImpl` is initialized].
 
 There are three acceptable scheduling modes:
 

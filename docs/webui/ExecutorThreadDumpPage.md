@@ -12,4 +12,4 @@ NOTE: `spark.ui.threadDumpsEnabled` configuration property is enabled (i.e. `tru
 `ExecutorThreadDumpPage` takes the following when created:
 
 * [[parent]] spark-webui-SparkUITab.md[SparkUITab]
-* [[sc]] Optional ROOT:SparkContext.md[]
+* [[sc]] Optional SparkContext.md[]

@@ -60,7 +60,7 @@ The screenshot of Web UI shows 3 stages with two `parallelize` to Shuffle Write 
 
 CAUTION: FIXME Just learnt about sc.range(0, 5) as a shorter version of sc.parallelize(0 to 5)
 
-`join` operation is one of the *cogroup operations* that uses `defaultPartitioner`, i.e. walks through spark-rdd-lineage.md[the RDD lineage graph] (sorted by the number of partitions decreasing) and picks the partitioner with positive number of output partitions. Otherwise, it checks ROOT:configuration-properties.md#spark.default.parallelism[spark.default.parallelism] configuration and if defined picks rdd:HashPartitioner.md[HashPartitioner] with the default parallelism of the scheduler:SchedulerBackend.md[SchedulerBackend].
+`join` operation is one of the *cogroup operations* that uses `defaultPartitioner`, i.e. walks through spark-rdd-lineage.md[the RDD lineage graph] (sorted by the number of partitions decreasing) and picks the partitioner with positive number of output partitions. Otherwise, it checks configuration-properties.md#spark.default.parallelism[spark.default.parallelism] configuration and if defined picks rdd:HashPartitioner.md[HashPartitioner] with the default parallelism of the scheduler:SchedulerBackend.md[SchedulerBackend].
 
 `join` is almost `CoGroupedRDD.mapValues`.
 

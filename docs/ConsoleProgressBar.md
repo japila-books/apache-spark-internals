@@ -10,7 +10,7 @@ The progress includes the stage id, the number of completed, active, and total t
 
 TIP: `ConsoleProgressBar` may be useful when you `ssh` to workers and want to see the progress of active stages.
 
-<<creating-instance, `ConsoleProgressBar` is created>> when [SparkContext](SparkContext.md) is created with spark-webui-properties.md#spark.ui.showConsoleProgress[spark.ui.showConsoleProgress] enabled and the logging level of ROOT:SparkContext.md[org.apache.spark.SparkContext] logger as `WARN` or higher (i.e. less messages are printed out and so there is a "space" for `ConsoleProgressBar`).
+<<creating-instance, `ConsoleProgressBar` is created>> when [SparkContext](SparkContext.md) is created with spark-webui-properties.md#spark.ui.showConsoleProgress[spark.ui.showConsoleProgress] enabled and the logging level of SparkContext.md[org.apache.spark.SparkContext] logger as `WARN` or higher (i.e. less messages are printed out and so there is a "space" for `ConsoleProgressBar`).
 
 [source, scala]
 ----
@@ -59,13 +59,13 @@ scala> a.union(b).count()
 
 === [[creating-instance]] Creating ConsoleProgressBar Instance
 
-`ConsoleProgressBar` requires a ROOT:SparkContext.md[SparkContext].
+`ConsoleProgressBar` requires a SparkContext.md[SparkContext].
 
 When being created, `ConsoleProgressBar` reads spark-webui-properties.md#spark.ui.consoleProgress.update.interval[spark.ui.consoleProgress.update.interval] configuration property to set up the update interval and `COLUMNS` environment variable for the terminal width (or assumes `80` columns).
 
 `ConsoleProgressBar` starts the internal timer `refresh progress` that does <<refresh, refresh>> and shows progress.
 
-NOTE: `ConsoleProgressBar` is created when [SparkContext](SparkContext.md) is created, spark-webui-properties.md#spark.ui.showConsoleProgress[spark.ui.showConsoleProgress] configuration property is enabled, and the logging level of ROOT:SparkContext.md[org.apache.spark.SparkContext] logger is `WARN` or higher (i.e. less messages are printed out and so there is a "space" for `ConsoleProgressBar`).
+NOTE: `ConsoleProgressBar` is created when [SparkContext](SparkContext.md) is created, spark-webui-properties.md#spark.ui.showConsoleProgress[spark.ui.showConsoleProgress] configuration property is enabled, and the logging level of SparkContext.md[org.apache.spark.SparkContext] logger is `WARN` or higher (i.e. less messages are printed out and so there is a "space" for `ConsoleProgressBar`).
 
 NOTE: Once created, `ConsoleProgressBar` is available internally as `_progressBar`.
 
@@ -82,7 +82,7 @@ stop(): Unit
 
 `stop` cancels (stops) the internal timer.
 
-NOTE: `stop` is executed when ROOT:SparkContext.md#stop[`SparkContext` stops].
+NOTE: `stop` is executed when SparkContext.md#stop[`SparkContext` stops].
 
 === [[refresh]] `refresh` Internal Method
 

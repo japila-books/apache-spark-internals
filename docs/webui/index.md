@@ -18,4 +18,4 @@ web UI comes with the following tabs (_pages_):
 
 TIP: You can use the web UI after the application has finished by persisting events (using spark-history-server:EventLoggingListener.md[EventLoggingListener]) and using spark-history-server:index.md[Spark History Server].
 
-NOTE: All the information that is displayed in web UI is available thanks to spark-webui-JobProgressListener.md[JobProgressListener] and other ROOT:SparkListener.md[]s. One could say that web UI is a web layer over Spark listeners.
+NOTE: All the information that is displayed in web UI is available thanks to spark-webui-JobProgressListener.md[JobProgressListener] and other SparkListener.md[]s. One could say that web UI is a web layer over Spark listeners.

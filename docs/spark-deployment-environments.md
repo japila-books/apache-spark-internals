@@ -27,8 +27,8 @@ You can specify the master URL of a Spark application as follows:
 
 1. spark-submit.md[spark-submit's `--master` command-line option],
 
-2. ROOT:SparkConf.md#spark.master[`spark.master` Spark property],
+2. SparkConf.md#spark.master[`spark.master` Spark property],
 
-3. When creating a  ROOT:SparkContext.md#getOrCreate[`SparkContext` (using `setMaster` method)],
+3. When creating a  SparkContext.md#getOrCreate[`SparkContext` (using `setMaster` method)],
 
 4. When creating a spark-sql-sparksession-builder.md[`SparkSession` (using `master` method of the builder interface)].

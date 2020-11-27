@@ -1,14 +1,14 @@
 == [[StorageStatus]] StorageStatus
 
-`StorageStatus` is a developer API that Spark uses to pass "just enough" information about registered storage:BlockManager.md[BlockManagers] in a Spark application between Spark services (mostly for monitoring purposes like spark-webui.md[web UI] or ROOT:SparkListener.md[]s).
+`StorageStatus` is a developer API that Spark uses to pass "just enough" information about registered storage:BlockManager.md[BlockManagers] in a Spark application between Spark services (mostly for monitoring purposes like spark-webui.md[web UI] or SparkListener.md[]s).
 
 [NOTE]
 ====
 There are two ways to access `StorageStatus` about all the known `BlockManagers` in a Spark application:
 
-* ROOT:SparkContext.md#getExecutorStorageStatus[SparkContext.getExecutorStorageStatus]
+* SparkContext.md#getExecutorStorageStatus[SparkContext.getExecutorStorageStatus]
 
-* Being a ROOT:SparkListener.md[] and intercepting ROOT:SparkListener.md#onBlockManagerAdded[onBlockManagerAdded] and ROOT:SparkListener.md#onBlockManagerRemoved[onBlockManagerRemoved] events
+* Being a SparkListener.md[] and intercepting SparkListener.md#onBlockManagerAdded[onBlockManagerAdded] and SparkListener.md#onBlockManagerRemoved[onBlockManagerRemoved] events
 ====
 
 `StorageStatus` is <<creating-instance, created>> when:

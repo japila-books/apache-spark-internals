@@ -4,7 +4,7 @@
 
 *Speculative execution of tasks* is a health-check procedure that checks for tasks to be *speculated*, i.e. running slower in a stage than the median of all successfully completed tasks in a taskset (FIXME the setting). Such slow tasks will be re-submitted to another worker. It will not stop the slow tasks, but run a new copy in parallel.
 
-The thread starts as `TaskSchedulerImpl` starts in ROOT:spark-cluster.md[clustered deployment modes] with ROOT:configuration-properties.md#spark.speculation[spark.speculation] enabled. It executes periodically every ROOT:configuration-properties.md#spark.speculation.interval[spark.speculation.interval] after the initial `spark.speculation.interval` passes.
+The thread starts as `TaskSchedulerImpl` starts in spark-cluster.md[clustered deployment modes] with configuration-properties.md#spark.speculation[spark.speculation] enabled. It executes periodically every configuration-properties.md#spark.speculation.interval[spark.speculation.interval] after the initial `spark.speculation.interval` passes.
 
 When enabled, you should see the following INFO message in the logs:
 

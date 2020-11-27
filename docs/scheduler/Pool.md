@@ -50,7 +50,7 @@ schedulableNameToSchedulable = new ConcurrentHashMap[String, Schedulable]
 
 `schedulableNameToSchedulable` is a lookup table of spark-scheduler-Schedulable.md[Schedulable] objects by their names.
 
-Beside the obvious usage in the housekeeping methods like `addSchedulable`, `removeSchedulable`, `getSchedulableByName` from the spark-scheduler-Schedulable.md#contract[Schedulable Contract], it is exclusively used in ROOT:SparkContext.md#getPoolForName[SparkContext.getPoolForName].
+Beside the obvious usage in the housekeeping methods like `addSchedulable`, `removeSchedulable`, `getSchedulableByName` from the spark-scheduler-Schedulable.md#contract[Schedulable Contract], it is exclusively used in SparkContext.md#getPoolForName[SparkContext.getPoolForName].
 
 === [[addSchedulable]] `addSchedulable` Method
 

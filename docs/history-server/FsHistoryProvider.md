@@ -46,7 +46,7 @@ NOTE: `getAppUI` is part of ApplicationHistoryProvider.md#getAppUI[ApplicationHi
 
 FsHistoryProvider takes the following when created:
 
-* [[conf]] ROOT:SparkConf.md[SparkConf]
+* [[conf]] SparkConf.md[SparkConf]
 * [[clock]] `Clock` (default: `SystemClock`)
 
 FsHistoryProvider initializes the <<internal-registries, internal registries and counters>>.

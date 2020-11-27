@@ -17,7 +17,7 @@ ShuffleDependency takes the following to be created:
 * <<aggregator, Aggregator>> (`Option[Aggregator[K, V, C]]`)
 * <<mapSideCombine, mapSideCombine>> flag (default: `false`)
 
-When created, ShuffleDependency gets ROOT:SparkContext.md#nextShuffleId[shuffle id] (as `shuffleId`).
+When created, ShuffleDependency gets SparkContext.md#nextShuffleId[shuffle id] (as `shuffleId`).
 
 NOTE: ShuffleDependency uses the index.md#context[input RDD to access `SparkContext`] and so the `shuffleId`.
 
@@ -27,7 +27,7 @@ NOTE: ShuffleDependency accesses core:SparkEnv.md#shuffleManager[`ShuffleManager
 
 In the end, ShuffleDependency core:ContextCleaner.md#registerShuffleForCleanup[registers itself for cleanup with `ContextCleaner`].
 
-NOTE: ShuffleDependency accesses the ROOT:SparkContext.md#cleaner[optional `ContextCleaner` through `SparkContext`].
+NOTE: ShuffleDependency accesses the SparkContext.md#cleaner[optional `ContextCleaner` through `SparkContext`].
 
 NOTE: ShuffleDependency is created when ShuffledRDD.md#getDependencies[ShuffledRDD], [CoGroupedRDD](CoGroupedRDD.md#getDependencies), and [SubtractedRDD](SubtractedRDD.md#getDependencies) return their RDD dependencies.
 
@@ -35,7 +35,7 @@ NOTE: ShuffleDependency is created when ShuffledRDD.md#getDependencies[ShuffledR
 
 Every ShuffleDependency has a unique application-wide *shuffle ID* that is assigned when <<creating-instance, ShuffleDependency is created>> (and is used throughout Spark's code to reference a ShuffleDependency).
 
-Shuffle IDs are tracked by ROOT:SparkContext.md#nextShuffleId[SparkContext].
+Shuffle IDs are tracked by SparkContext.md#nextShuffleId[SparkContext].
 
 == [[rdd]] Parent RDD
 

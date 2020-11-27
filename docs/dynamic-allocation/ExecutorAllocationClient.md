@@ -27,25 +27,21 @@ NOTE: `ExecutorAllocationClient` is a `private[spark]` contract.
 | [[getExecutorIds]] `getExecutorIds`
 | Finds identifiers of the executors in use.
 
-Used when ROOT:SparkContext.md#getExecutorIds[`SparkContext` calculates the executors in use] and also when spark-streaming/spark-streaming-dynamic-allocation.md[Spark Streaming manages executors].
+Used when [`SparkContext` calculates the executors in use](../SparkContext.md#getExecutorIds)
 
 | [[requestTotalExecutors]] `requestTotalExecutors`
 a| Updates the cluster manager with the exact number of executors desired. It returns whether the request has been acknowledged by the cluster manager (`true`) or not (`false`).
 
 Used when:
 
-* ROOT:SparkContext.md#requestTotalExecutors[`SparkContext` requests executors] (for coarse-grained scheduler backends only).
+* [`SparkContext` requests executors](../SparkContext.md#requestTotalExecutors) (for coarse-grained scheduler backends only).
 
-* `ExecutorAllocationManager` spark-ExecutorAllocationManager.md#start[starts], does spark-ExecutorAllocationManager.md#updateAndSyncNumExecutorsTarget[updateAndSyncNumExecutorsTarget], and spark-ExecutorAllocationManager.md#addExecutors[addExecutors].
-
-* Streaming `ExecutorAllocationManager` spark-streaming/spark-streaming-ExecutorAllocationManager.md#requestExecutors[requests executors].
-
-* yarn/spark-yarn-yarnschedulerbackend.md#stop[`YarnSchedulerBackend` stops].
+* `ExecutorAllocationManager` [starts](ExecutorAllocationManager.md#start), does [updateAndSyncNumExecutorsTarget](ExecutorAllocationManager.md#updateAndSyncNumExecutorsTarget), and [addExecutors](ExecutorAllocationManager.md#addExecutors).
 
 | [[requestExecutors]] `requestExecutors`
 | Requests additional executors from a cluster manager and returns whether the request has been acknowledged by the cluster manager (`true`) or not (`false`).
 
-Used when ROOT:SparkContext.md#requestExecutors[`SparkContext` requests additional executors] (for coarse-grained scheduler backends only).
+Used when [`SparkContext` requests additional executors](../SparkContext.md#requestExecutors) (for coarse-grained scheduler backends only).
 
 | [[killExecutor]] `killExecutor`
 a| Requests a cluster manager to kill a single executor that is no longer in use and returns whether the request has been acknowledged by the cluster manager (`true`) or not (`false`).
@@ -54,11 +50,9 @@ The default implementation simply calls <<killExecutors, killExecutors>> (with a
 
 Used when:
 
-* `ExecutorAllocationManager` spark-ExecutorAllocationManager.md#removeExecutor[removes an executor].
+* `ExecutorAllocationManager` [removes an executor](ExecutorAllocationManager.md#removeExecutor).
 
-* `SparkContext` ROOT:SparkContext.md#killExecutors[is requested to kill executors].
-
-* Streaming `ExecutorAllocationManager` spark-streaming/spark-streaming-ExecutorAllocationManager.md#killExecutor[is requested to kill executors].
+* `SparkContext` [is requested to kill executors](../SparkContext.md#killExecutors).
 
 | [[killExecutors]] `killExecutors`
 | Requests that a cluster manager to kill one or many executors that are no longer in use and returns whether the request has been acknowledged by the cluster manager (`true`) or not (`false`).

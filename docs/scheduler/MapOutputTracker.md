@@ -25,7 +25,7 @@ SparkEnv.get.mapOutputTracker
 
 == [[creating-instance]][[conf]] Creating Instance
 
-MapOutputTracker takes a single ROOT:SparkConf.md[SparkConf] to be created.
+MapOutputTracker takes a single SparkConf.md[SparkConf] to be created.
 
 == [[trackerEndpoint]][[ENDPOINT_NAME]] MapOutputTracker RPC Endpoint
 

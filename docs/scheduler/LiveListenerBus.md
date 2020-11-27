@@ -157,7 +157,7 @@ addToManagementQueue(
 
 `addToManagementQueue` is used when:
 
-* `ExecutorAllocationManager` is requested to [start](../ExecutorAllocationManager.md#start)
+* `ExecutorAllocationManager` is requested to [start](../dynamic-allocation/ExecutorAllocationManager.md#start)
 * `HeartbeatReceiver` is [created](../HeartbeatReceiver.md#creating-instance)
 
 ## <span id="addToEventLogQueue"> Registering Listener with eventLog Queue

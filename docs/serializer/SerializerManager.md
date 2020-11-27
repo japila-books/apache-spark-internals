@@ -7,7 +7,7 @@
 SerializerManager takes the following to be created:
 
 * [[defaultSerializer]] serializer:Serializer.md[Serializer]
-* [[conf]] ROOT:SparkConf.md[SparkConf]
+* [[conf]] SparkConf.md[SparkConf]
 * [[encryptionKey]] Optional encryption key (`[Array[Byte]]`)
 
 SerializerManager is created when SparkEnv utility is used to core:SparkEnv.md#create[create a SparkEnv for the driver and executors].

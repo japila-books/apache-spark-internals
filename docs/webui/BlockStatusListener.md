@@ -1,6 +1,6 @@
 == [[BlockStatusListener]] BlockStatusListener Spark Listener
 
-`BlockStatusListener` is a ROOT:SparkListener.md[]s that tracks storage:BlockManager.md[BlockManagers] and the blocks for spark-webui-storage.md[Storage tab] in web UI.
+`BlockStatusListener` is a SparkListener.md[]s that tracks storage:BlockManager.md[BlockManagers] and the blocks for spark-webui-storage.md[Storage tab] in web UI.
 
 .`BlockStatusListener` Registries
 [cols="1,2",options="header",width="100%"]

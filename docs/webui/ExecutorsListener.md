@@ -1,6 +1,6 @@
 == [[ExecutorsListener]] ExecutorsListener Spark Listener
 
-`ExecutorsListener` is a ROOT:SparkListener.md[] that tracks <<internal-registries, executors and their tasks>> in a Spark application for spark-webui-StagePage.md[Stage Details] page, spark-webui-jobs.md[Jobs] tab and `/allexecutors` REST endpoint.
+`ExecutorsListener` is a SparkListener.md[] that tracks <<internal-registries, executors and their tasks>> in a Spark application for spark-webui-StagePage.md[Stage Details] page, spark-webui-jobs.md[Jobs] tab and `/allexecutors` REST endpoint.
 
 [[SparkListener-callbacks]]
 .ExecutorsListener's SparkListener Callbacks (in alphabetical order)
@@ -41,7 +41,7 @@ Adds an entry to <<executorEvents, executorEvents>> registry and optionally remo
 | May create an entry for an executor in <<executorToTaskSummary, executorToTaskSummary>> registry.
 |===
 
-`ExecutorsListener` requires a spark-webui-StorageStatusListener.md[StorageStatusListener] and ROOT:SparkConf.md[SparkConf].
+`ExecutorsListener` requires a spark-webui-StorageStatusListener.md[StorageStatusListener] and SparkConf.md[SparkConf].
 
 [[internal-registries]]
 .ExecutorsListener's Internal Registries and Counters
@@ -56,7 +56,7 @@ Adds an entry to <<executorEvents, executorEvents>> registry and optionally remo
 Used to build a `ExecutorSummary` for `/allexecutors` REST endpoint, to display stdout and stderr logs in spark-webui-StagePage.md#tasks[Tasks] and spark-webui-StagePage.md#aggregated-metrics-by-executor[Aggregated Metrics by Executor] sections in spark-webui-StagePage.md[Stage Details] page.
 
 | [[executorEvents]] `executorEvents`
-| A collection of ROOT:SparkListener.md#SparkListenerEvent[SparkListenerEvent]s.
+| A collection of SparkListener.md#SparkListenerEvent[SparkListenerEvent]s.
 
 Used to build the event timeline in spark-webui-AllJobsPage.md[AllJobsPage] and spark-webui-jobs.md#JobPage[Details for Job] pages.
 |===
@@ -88,7 +88,7 @@ CAUTION: FIXME
 onApplicationStart(applicationStart: SparkListenerApplicationStart): Unit
 ----
 
-NOTE: `onApplicationStart` is part of ROOT:SparkListener.md#onApplicationStart[SparkListener contract] to announce that a Spark application has been started.
+NOTE: `onApplicationStart` is part of SparkListener.md#onApplicationStart[SparkListener contract] to announce that a Spark application has been started.
 
 `onApplicationStart` takes `driverLogs` property from the input `applicationStart` (if defined) and finds the driver's active spark-blockmanager-StorageStatus.md[StorageStatus] (using the current spark-webui-StorageStatusListener.md[StorageStatusListener]). `onApplicationStart` then uses the driver's spark-blockmanager-StorageStatus.md[StorageStatus] (if defined) to set `executorLogs`.
 
@@ -106,7 +106,7 @@ NOTE: `onApplicationStart` is part of ROOT:SparkListener.md#onApplicationStart[S
 onExecutorAdded(executorAdded: SparkListenerExecutorAdded): Unit
 ----
 
-NOTE: `onExecutorAdded` is part of ROOT:SparkListener.md#onExecutorAdded[SparkListener contract] to announce that a new executor has been registered with the Spark application.
+NOTE: `onExecutorAdded` is part of SparkListener.md#onExecutorAdded[SparkListener contract] to announce that a new executor has been registered with the Spark application.
 
 `onExecutorAdded` finds the executor (using the input `executorAdded`) in the internal <<executorToTaskSummary, `executorToTaskSummary` registry>> and sets the attributes. If not found, `onExecutorAdded` creates a new entry.
 
@@ -116,7 +116,7 @@ NOTE: `onExecutorAdded` is part of ROOT:SparkListener.md#onExecutorAdded[SparkLi
 | ExecutorTaskSummary Attribute | ExecutorInfo Attribute
 | `executorLogs` | `logUrlMap`
 | `totalCores` | `totalCores`
-| `tasksMax` | `totalCores` / ROOT:configuration-properties.md#spark.task.cpus[spark.task.cpus]
+| `tasksMax` | `totalCores` / configuration-properties.md#spark.task.cpus[spark.task.cpus]
 |===
 
 `onExecutorAdded` adds the input `executorAdded` to <<executorEvents, `executorEvents` collection>>. If the number of elements in `executorEvents` collection is greater than spark-webui-properties.md#spark.ui.timeline.executors.maximum[spark.ui.timeline.executors.maximum] configuration property, the first/oldest event is removed.
@@ -130,7 +130,7 @@ NOTE: `onExecutorAdded` is part of ROOT:SparkListener.md#onExecutorAdded[SparkLi
 onExecutorRemoved(executorRemoved: SparkListenerExecutorRemoved): Unit
 ----
 
-NOTE: `onExecutorRemoved` is part of ROOT:SparkListener.md#onExecutorRemoved[SparkListener contract] to announce that an executor has been unregistered with the Spark application.
+NOTE: `onExecutorRemoved` is part of SparkListener.md#onExecutorRemoved[SparkListener contract] to announce that an executor has been unregistered with the Spark application.
 
 `onExecutorRemoved` adds the input `executorRemoved` to <<executorEvents, `executorEvents` collection>>. It then removes the oldest event if the number of elements in `executorEvents` collection is greater than spark-webui-properties.md#spark.ui.timeline.executors.maximum[spark.ui.timeline.executors.maximum] configuration property.
 
@@ -143,7 +143,7 @@ The executor is marked as removed/inactive in <<executorToTaskSummary, `executor
 onTaskStart(taskStart: SparkListenerTaskStart): Unit
 ----
 
-NOTE: `onTaskStart` is part of ROOT:SparkListener.md#onTaskStart[SparkListener contract] to announce that a task has been started.
+NOTE: `onTaskStart` is part of SparkListener.md#onTaskStart[SparkListener contract] to announce that a task has been started.
 
 `onTaskStart` increments `tasksActive` for the executor (using the input `SparkListenerTaskStart`).
 
@@ -161,7 +161,7 @@ NOTE: `onTaskStart` is part of ROOT:SparkListener.md#onTaskStart[SparkListener c
 onTaskEnd(taskEnd: SparkListenerTaskEnd): Unit
 ----
 
-NOTE: `onTaskEnd` is part of ROOT:SparkListener.md#onTaskEnd[SparkListener contract] to announce that a task has ended.
+NOTE: `onTaskEnd` is part of SparkListener.md#onTaskEnd[SparkListener contract] to announce that a task has ended.
 
 `onTaskEnd` takes [TaskInfo](../scheduler/TaskInfo.md) from the input `taskEnd` (if available).
 

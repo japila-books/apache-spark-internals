@@ -17,10 +17,10 @@ When <<creating-instance, created>> with a given <<taskSet, TaskSet>>, `TaskSetM
 
 * `1` for local/spark-local.md[`local` run mode]
 * `maxFailures` in local/spark-local.md#local-with-retries[Spark local-with-retries] (i.e. `local[N, maxFailures]`)
-* ROOT:configuration-properties.md#spark.task.maxFailures[spark.task.maxFailures] configuration property for local/spark-local.md[Spark local-cluster] and spark-cluster.md[Spark clustered] (using Spark Standalone, Mesos and YARN)
+* configuration-properties.md#spark.task.maxFailures[spark.task.maxFailures] configuration property for local/spark-local.md[Spark local-cluster] and spark-cluster.md[Spark clustered] (using Spark Standalone, Mesos and YARN)
 
 [[maxResultSize]]
-`TaskSetManager` uses ROOT:configuration-properties.md#MAX_RESULT_SIZE[spark.driver.maxResultSize] configuration property (default: `1g`) to <<canFetchMoreResults, check available memory for task results>>.
+`TaskSetManager` uses configuration-properties.md#MAX_RESULT_SIZE[spark.driver.maxResultSize] configuration property (default: `1g`) to <<canFetchMoreResults, check available memory for task results>>.
 
 The responsibilities of a `TaskSetManager` include:
 
@@ -358,13 +358,13 @@ NOTE: `checkSpeculatableTasks` is part of the spark-scheduler-Schedulable.md#con
 
 `checkSpeculatableTasks` checks whether there are speculatable tasks in a `TaskSet`.
 
-NOTE: `checkSpeculatableTasks` is called when for ROOT:speculative-execution-of-tasks.md[].
+NOTE: `checkSpeculatableTasks` is called when for speculative-execution-of-tasks.md[].
 
 If the TaskSetManager is <<zombie-state, zombie>> or has a single task in TaskSet, it assumes no speculatable tasks.
 
 The method goes on with the assumption of no speculatable tasks by default.
 
-It computes the minimum number of finished tasks for speculation (as ROOT:configuration-properties.md#spark.speculation.quantile[spark.speculation.quantile] of all the finished tasks).
+It computes the minimum number of finished tasks for speculation (as configuration-properties.md#spark.speculation.quantile[spark.speculation.quantile] of all the finished tasks).
 
 You should see the DEBUG message in the logs:
 
@@ -374,7 +374,7 @@ DEBUG Checking for speculative tasks: minFinished = [minFinishedForSpeculation]
 
 It then checks whether the number is equal or greater than the number of tasks completed successfully (using `tasksSuccessful`).
 
-Having done that, it computes the median duration of all the successfully completed tasks (using <<taskInfos, `taskInfos` internal registry>>) and task length threshold using the median duration multiplied by ROOT:configuration-properties.md#spark.speculation.multiplier[spark.speculation.multiplier] that has to be equal or less than `100`.
+Having done that, it computes the median duration of all the successfully completed tasks (using <<taskInfos, `taskInfos` internal registry>>) and task length threshold using the median duration multiplied by configuration-properties.md#spark.speculation.multiplier[spark.speculation.multiplier] that has to be equal or less than `100`.
 
 You should see the DEBUG message in the logs:
 
@@ -662,13 +662,13 @@ maybeFinishTaskSet(): Unit
 
 CAUTION: FIXME
 
-Up to ROOT:configuration-properties.md#spark.task.maxFailures[spark.task.maxFailures] attempts
+Up to configuration-properties.md#spark.task.maxFailures[spark.task.maxFailures] attempts
 
 === Task retries and `spark.task.maxFailures`
 
-When you start Spark program you set up ROOT:configuration-properties.md#spark.task.maxFailures[spark.task.maxFailures] for the number of failures that are acceptable until `TaskSetManager` gives up and marks a job failed.
+When you start Spark program you set up configuration-properties.md#spark.task.maxFailures[spark.task.maxFailures] for the number of failures that are acceptable until `TaskSetManager` gives up and marks a job failed.
 
-TIP: In Spark shell with local master, ROOT:configuration-properties.md#spark.task.maxFailures[spark.task.maxFailures] is fixed to `1` and you need to use local/spark-local.md[local-with-retries master] to change it to some other value.
+TIP: In Spark shell with local master, configuration-properties.md#spark.task.maxFailures[spark.task.maxFailures] is fixed to `1` and you need to use local/spark-local.md[local-with-retries master] to change it to some other value.
 
 In the following example, you are going to execute a job with two partitions and keep one failing at all times (by throwing an exception). The aim is to learn the behavior of retrying task execution in a stage in TaskSet. You will only look at a single task execution, namely `0.0`.
 
@@ -757,7 +757,7 @@ In the end, `abort` <<maybeFinishTaskSet, attempts to mark the `TaskSet` finishe
 
 `TaskSetManager` initializes the <<internal-registries, internal registries and counters>>.
 
-NOTE: `maxTaskFailures` is `1` for `local` run mode, `maxFailures` for Spark local-with-retries, and ROOT:configuration-properties.md#spark.task.maxFailures[spark.task.maxFailures] configuration property for Spark local-cluster and Spark with cluster managers (Spark Standalone, Mesos and YARN).
+NOTE: `maxTaskFailures` is `1` for `local` run mode, `maxFailures` for Spark local-with-retries, and configuration-properties.md#spark.task.maxFailures[spark.task.maxFailures] configuration property for Spark local-cluster and Spark with cluster managers (Spark Standalone, Mesos and YARN).
 
 `TaskSetManager` scheduler:MapOutputTracker.md#getEpoch[requests the current epoch from `MapOutputTracker`] and sets it on all tasks in the taskset.
 
@@ -798,7 +798,7 @@ NOTE: `handleFailedTask` is executed after scheduler:TaskSchedulerImpl.md#handle
 
 `handleFailedTask` decrements the number of the running copies of `tid` task (in <<copiesRunning, copiesRunning>> internal registry).
 
-NOTE: With ROOT:speculative-execution-of-tasks.md[] enabled, there can be many copies of a task running simultaneuosly.
+NOTE: With speculative-execution-of-tasks.md[] enabled, there can be many copies of a task running simultaneuosly.
 
 `handleFailedTask` uses the following pattern as the reason of the failure:
 
@@ -826,7 +826,7 @@ If `tid` task has already been marked as completed (in <<successful, successful>
 INFO Task [id] in stage [id] (TID [tid]) failed, but the task will not be re-executed (either because the task failed with a shuffle data fetch failure, so the previous stage needs to be re-run, or because a different copy of the task has already succeeded).
 ----
 
-TIP: Read up on ROOT:speculative-execution-of-tasks.md[] to find out why a single task could be executed multiple times.
+TIP: Read up on speculative-execution-of-tasks.md[] to find out why a single task could be executed multiple times.
 
 If however `tid` task was not recorded as <<successful, completed>>, `handleFailedTask` <<addPendingTask, records it as pending>>.
 
@@ -881,7 +881,7 @@ And `handleFailedTask` <<abort, aborts the `TaskSet`>> and then quits.
 
 Otherwise, if the exception is not of type `NotSerializableException`, `handleFailedTask` accesses accumulators and calculates whether to print the WARN message (with the failure reason) or the INFO message.
 
-If the failure has already been reported (and is therefore a duplication), ROOT:configuration-properties.md#spark.logging.exceptionPrintInterval[spark.logging.exceptionPrintInterval] is checked before reprinting the duplicate exception in its entirety.
+If the failure has already been reported (and is therefore a duplication), configuration-properties.md#spark.logging.exceptionPrintInterval[spark.logging.exceptionPrintInterval] is checked before reprinting the duplicate exception in its entirety.
 
 For full printout of the `ExceptionFailure`, the following WARN appears in the logs:
 
@@ -969,7 +969,7 @@ Internally, `executorLost` first checks whether the <<tasks, tasks>> are schedul
 
 NOTE: `executorLost` checks out the first task in <<tasks, tasks>> as it is assumed the other belong to the same stage. If the task is a scheduler:ShuffleMapTask.md[ShuffleMapTask], the entire <<taskSet, TaskSet>> is for a scheduler:ShuffleMapStage.md[ShuffleMapStage].
 
-NOTE: `executorLost` uses core:SparkEnv.md#blockManager[`SparkEnv` to access the current `BlockManager`] and finds out whether an storage:BlockManager.md#externalShuffleServiceEnabled[external shuffle service is enabled] or not (based on ROOT:configuration-properties.md#spark.shuffle.service.enabled[spark.shuffle.service.enabled] configuration property).
+NOTE: `executorLost` uses core:SparkEnv.md#blockManager[`SparkEnv` to access the current `BlockManager`] and finds out whether an storage:BlockManager.md#externalShuffleServiceEnabled[external shuffle service is enabled] or not (based on configuration-properties.md#spark.shuffle.service.enabled[spark.shuffle.service.enabled] configuration property).
 
 If `executorLost` is indeed due to an executor lost that executed tasks for a scheduler:ShuffleMapStage.md[ShuffleMapStage] (that this `TaskSetManager` manages) and no external shuffle server is enabled, `executorLost` finds <<taskInfos, all the tasks>> that were scheduled on this lost executor and marks the <<successful, ones that were already successfully completed>> as not executed yet.
 
@@ -1061,7 +1061,7 @@ getLocalityWait(level: TaskLocality): Long
 
 `getLocalityWait` finds *locality wait* (in milliseconds) for a given scheduler:TaskSchedulerImpl.md#TaskLocality[TaskLocality].
 
-`getLocalityWait` uses ROOT:configuration-properties.md#spark.locality.wait[spark.locality.wait] (default: `3s`) when the ``TaskLocality``-specific property is not defined or `0` for `NO_PREF` and `ANY`.
+`getLocalityWait` uses configuration-properties.md#spark.locality.wait[spark.locality.wait] (default: `3s`) when the ``TaskLocality``-specific property is not defined or `0` for `NO_PREF` and `ANY`.
 
 NOTE: `NO_PREF` and `ANY` task localities have no locality wait.
 
@@ -1072,13 +1072,13 @@ NOTE: `NO_PREF` and `ANY` task localities have no locality wait.
 | Spark Property
 
 | PROCESS_LOCAL
-| ROOT:configuration-properties.md#spark.locality.wait.process[spark.locality.wait.process]
+| configuration-properties.md#spark.locality.wait.process[spark.locality.wait.process]
 
 | NODE_LOCAL
-| ROOT:configuration-properties.md#spark.locality.wait.node[spark.locality.wait.node]
+| configuration-properties.md#spark.locality.wait.node[spark.locality.wait.node]
 
 | RACK_LOCAL
-| ROOT:configuration-properties.md#spark.locality.wait.rack[spark.locality.wait.rack]
+| configuration-properties.md#spark.locality.wait.rack[spark.locality.wait.rack]
 |===
 
 NOTE: `getLocalityWait` is used when `TaskSetManager` calculates <<localityWaits, localityWaits>>, <<computeValidLocalityLevels, computes locality levels (for scheduled tasks)>> and <<recomputeLocality, recomputes locality preferences>>.
@@ -1094,13 +1094,13 @@ canFetchMoreResults(size: Long): Boolean
 
 Internally, `canFetchMoreResults` increments the internal <<totalResultSize, totalResultSize>> with the input `size` (which is the size of the result of a task) and increments the internal <<calculatedTasks, calculatedTasks>>.
 
-If the current internal <<totalResultSize, totalResultSize>> is bigger than the ROOT:configuration-properties.md#maxResultSize[maximum result size], `canFetchMoreResults` prints out the following ERROR message to the logs:
+If the current internal <<totalResultSize, totalResultSize>> is bigger than the configuration-properties.md#maxResultSize[maximum result size], `canFetchMoreResults` prints out the following ERROR message to the logs:
 
 ```
 Total size of serialized results of [calculatedTasks] tasks ([totalResultSize]) is bigger than spark.driver.maxResultSize ([maxResultSize])
 ```
 
-NOTE: `canFetchMoreResults` uses ROOT:configuration-properties.md#spark.driver.maxResultSize[spark.driver.maxResultSize] configuration property to control the maximum result size. The default value is `1g`.
+NOTE: `canFetchMoreResults` uses configuration-properties.md#spark.driver.maxResultSize[spark.driver.maxResultSize] configuration property to control the maximum result size. The default value is `1g`.
 
 In the end, `canFetchMoreResults` <<abort, aborts>> the <<taskSet, TaskSet>> and returns `false`.
 

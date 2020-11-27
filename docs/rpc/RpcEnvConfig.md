@@ -4,7 +4,7 @@
 [[creating-instance]]
 *RpcEnvConfig* is a configuration of an rpc:RpcEnv.md[]:
 
-* [[conf]] ROOT:SparkConf.md[]
+* [[conf]] SparkConf.md[]
 * [[name]] System Name
 * [[bindAddress]] Bind Address
 * [[advertiseAddress]] Advertised Address

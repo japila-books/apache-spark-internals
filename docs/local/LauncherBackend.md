@@ -17,9 +17,9 @@ a| [[conf]]
 conf: SparkConf
 ----
 
-ROOT:SparkConf.md[]
+SparkConf.md[]
 
-Used exclusively when `LauncherBackend` is requested to <<connect, connect>> (to access ROOT:configuration-properties.md#spark.launcher.port[spark.launcher.port] and ROOT:configuration-properties.md#spark.launcher.secret[spark.launcher.secret] configuration properties)
+Used exclusively when `LauncherBackend` is requested to <<connect, connect>> (to access configuration-properties.md#spark.launcher.port[spark.launcher.port] and configuration-properties.md#spark.launcher.secret[spark.launcher.secret] configuration properties)
 
 | onStopRequest
 a| [[onStopRequest]]

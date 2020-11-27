@@ -1,6 +1,6 @@
 # Driver
 
-A *Spark driver* (_aka_ *an application's driver process*) is a JVM process that hosts ROOT:SparkContext.md[SparkContext] for a Spark application. It is the master node in a Spark application.
+A *Spark driver* (_aka_ *an application's driver process*) is a JVM process that hosts SparkContext.md[SparkContext] for a Spark application. It is the master node in a Spark application.
 
 It is the cockpit of jobs and tasks execution (using scheduler:DAGScheduler.md[DAGScheduler] and scheduler:TaskScheduler.md[Task Scheduler]). It hosts spark-webui.md[Web UI] for the environment.
 
@@ -21,7 +21,7 @@ Driver requires the additional services (beside the common ones like shuffle:Shu
 * rpc:index.md[]
 * scheduler:MapOutputTrackerMaster.md[] with the name *MapOutputTracker*
 * storage:BlockManagerMaster.md[] with the name *BlockManagerMaster*
-* metrics:spark-metrics-MetricsSystem.md[] with the name *driver*
+* [MetricsSystem](metrics/MetricsSystem.md) with the name *driver*
 * scheduler:OutputCommitCoordinator.md[] with the endpoint's name *OutputCommitCoordinator*
 
 CAUTION: FIXME Diagram of RpcEnv for a driver (and later executors). Perhaps it should be in the notes about RpcEnv?
@@ -60,11 +60,11 @@ More precisely, `spark.driver.blockManager.port` is used when core:SparkEnv.md#N
 | [localHostName](SparkContext-creating-instance-internals.md#localHostName)
 | The address of the node where the driver runs on.
 
-Set when ROOT:SparkContext.md#creating-instance[`SparkContext` is created]
+Set when SparkContext.md#creating-instance[`SparkContext` is created]
 
 | [[spark_driver_port]][[spark.driver.port]] `spark.driver.port`
 | `0`
-| The port the driver listens to. It is first set to `0` in the driver when ROOT:SparkContext.md#creating-instance[SparkContext is initialized].
+| The port the driver listens to. It is first set to `0` in the driver when SparkContext.md#creating-instance[SparkContext is initialized].
 
 Set to the port of rpc:index.md[RpcEnv] of the driver (in <<create, SparkEnv.create>>) or when yarn/spark-yarn-applicationmaster.md#waitForSparkDriver[client-mode `ApplicationMaster` connected to the driver] (in Spark on YARN).
 
@@ -98,7 +98,7 @@ Refer to <<driver-cores, Driver's Cores>>.
 ====
 For spark-deploy-mode.md#client[`client` deploy mode] you can use a properties file or command line to set `spark.driver.extraClassPath`.
 
-Do not use ROOT:SparkConf.md[SparkConf] since it is too late for `client` deploy mode given the JVM has already been set up to start a Spark application.
+Do not use SparkConf.md[SparkConf] since it is too late for `client` deploy mode given the JVM has already been set up to start a Spark application.
 
 Refer to spark-class.md#buildSparkSubmitCommand[`buildSparkSubmitCommand` Internal Method] for the very low-level details of how it is handled internally.
 ====

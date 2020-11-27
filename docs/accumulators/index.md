@@ -2,7 +2,7 @@
 
 *Accumulators* are variables that are "added" to through an associative and commutative "add" operation. They act as a container for accumulating partial values across multiple tasks (running on executors). They are designed to be used safely and efficiently in parallel and distributed Spark computations and are meant for distributed counters and sums (e.g. executor:TaskMetrics.md[task metrics]).
 
-You can create built-in accumulators for ROOT:SparkContext.md#creating-accumulators[longs, doubles, or collections] or register custom accumulators using the ROOT:SparkContext.md#register[SparkContext.register] methods. You can create accumulators with or without a name, but only <<named, named accumulators>> are displayed in spark-webui-StagePage.md#accumulators[web UI] (under Stages tab for a given stage).
+You can create built-in accumulators for SparkContext.md#creating-accumulators[longs, doubles, or collections] or register custom accumulators using the SparkContext.md#register[SparkContext.register] methods. You can create accumulators with or without a name, but only <<named, named accumulators>> are displayed in spark-webui-StagePage.md#accumulators[web UI] (under Stages tab for a given stage).
 
 .Accumulators in the Spark UI
 image::spark-webui-accumulators.png[align="center"]
@@ -26,7 +26,7 @@ val counter = sc.longAccumulator("counter")
 sc.parallelize(1 to 9).foreach(x => counter.add(x))
 ----
 
-Internally, ROOT:SparkContext.md#longAccumulator[longAccumulator], ROOT:SparkContext.md#doubleAccumulator[doubleAccumulator], and ROOT:SparkContext.md#collectionAccumulator[collectionAccumulator] methods create the built-in typed accumulators and call ROOT:SparkContext.md#register[SparkContext.register].
+Internally, SparkContext.md#longAccumulator[longAccumulator], SparkContext.md#doubleAccumulator[doubleAccumulator], and SparkContext.md#collectionAccumulator[collectionAccumulator] methods create the built-in typed accumulators and call SparkContext.md#register[SparkContext.register].
 
 TIP: Read the official documentation about http://spark.apache.org/docs/latest/programming-guide.html#accumulators[Accumulators].
 
@@ -73,7 +73,7 @@ register(
 
 `register` creates a <<metadata, AccumulatorMetadata>> metadata object for the accumulator (with a [new unique identifier](AccumulatorContext.md#newId)) that is then used to [register the accumulator with](AccumulatorContext.md#register).
 
-In the end, `register` core:ContextCleaner.md#registerAccumulatorForCleanup[registers the accumulator for cleanup] (only when ROOT:SparkContext.md#cleaner[`ContextCleaner` is defined in the `SparkContext`]).
+In the end, `register` core:ContextCleaner.md#registerAccumulatorForCleanup[registers the accumulator for cleanup] (only when SparkContext.md#cleaner[`ContextCleaner` is defined in the `SparkContext`]).
 
 `register` reports a `IllegalStateException` if <<metadata, metadata>> is already defined (which means that `register` was called already).
 
@@ -87,7 +87,7 @@ NOTE: `register` is a `private[spark]` method.
 ====
 `register` is used when:
 
-* `SparkContext` ROOT:SparkContext.md#register[registers accumulators]
+* `SparkContext` SparkContext.md#register[registers accumulators]
 * `TaskMetrics` executor:TaskMetrics.md#register[registers the internal accumulators]
 * spark-sql-SQLMetric.md[SQLMetrics] creates metrics.
 ====
@@ -104,7 +104,7 @@ NOTE: `countFailedValues` is used exclusively when scheduler:Task.md#collectAccu
 
 === [[named]] Named Accumulators
 
-An accumulator can have an optional name that you can specify when ROOT:SparkContext.md#creating-accumulators[creating an accumulator].
+An accumulator can have an optional name that you can specify when SparkContext.md#creating-accumulators[creating an accumulator].
 
 [source, scala]
 ----

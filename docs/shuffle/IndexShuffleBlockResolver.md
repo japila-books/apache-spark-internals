@@ -16,7 +16,7 @@ IndexShuffleBlockResolver is later used to create the SortShuffleManager.md#getW
 
 IndexShuffleBlockResolver takes the following to be created:
 
-* [[conf]] ROOT:SparkConf.md[SparkConf]
+* [[conf]] SparkConf.md[SparkConf]
 * [[_blockManager]][[blockManager]] storage:BlockManager.md[BlockManager]
 
 IndexShuffleBlockResolver initializes the <<internal-properties, internal properties>>.
@@ -187,7 +187,7 @@ Add the following line to `conf/log4j.properties`:
 log4j.logger.org.apache.spark.shuffle.IndexShuffleBlockResolver=ALL
 ----
 
-Refer to ROOT:spark-logging.md[Logging].
+Refer to spark-logging.md[Logging].
 
 == [[internal-properties]] Internal Properties
 

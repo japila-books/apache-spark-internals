@@ -54,7 +54,7 @@ compute is implemented by any type of RDD in Spark and is called every time the 
 
 When an RDD is spark-rdd-caching.md[cached], for specified storage:StorageLevel.md[storage levels] (i.e. all but `NONE`)...FIXME
 
-compute runs on the ROOT:spark-driver.md[driver].
+compute runs on the spark-driver.md[driver].
 
 compute is used when RDD is requested to <<computeOrReadCheckpoint, computeOrReadCheckpoint>>.
 
@@ -126,7 +126,7 @@ RDD can have a Partitioner.md[Partitioner] defined.
 
 RDD takes the following to be created:
 
-* [[_sc]] ROOT:SparkContext.md[]
+* [[_sc]] SparkContext.md[]
 * [[deps]] *Parent RDDs*, i.e. [Dependencies](Dependency.md) (that have to be all computed successfully before this RDD)
 
 RDD is an abstract class and cannot be created directly. It is created indirectly for the <<implementations, concrete RDDs>>.
@@ -155,11 +155,11 @@ id: Int
 
 id is an *unique identifier* (aka *RDD ID*) in the given <<_sc, SparkContext>>.
 
-id requests the <<sc, SparkContext>> for ROOT:SparkContext.md#newRddId[newRddId] right when RDD is created.
+id requests the <<sc, SparkContext>> for SparkContext.md#newRddId[newRddId] right when RDD is created.
 
 == [[isBarrier_]][[isBarrier]] Barrier Stage
 
-An RDD can be part of a ROOT:spark-barrier-execution-mode.md#barrier-stage[barrier stage]. By default, `isBarrier` flag is enabled (`true`) when:
+An RDD can be part of a spark-barrier-execution-mode.md#barrier-stage[barrier stage]. By default, `isBarrier` flag is enabled (`true`) when:
 
 . There are no [ShuffleDependencies](ShuffleDependency.md) among the <<dependencies, RDD dependencies>>
 

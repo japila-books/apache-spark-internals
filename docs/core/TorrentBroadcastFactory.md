@@ -1,6 +1,6 @@
 = TorrentBroadcastFactory
 
-*TorrentBroadcastFactory* is a core:BroadcastFactory.md[BroadcastFactory] of core:TorrentBroadcast.md[TorrentBroadcast]s (for BitTorrent-like ROOT:Broadcast.md[]s).
+*TorrentBroadcastFactory* is a core:BroadcastFactory.md[BroadcastFactory] of core:TorrentBroadcast.md[TorrentBroadcast]s (for BitTorrent-like Broadcast.md[]s).
 
 NOTE: As of https://issues.apache.org/jira/browse/SPARK-12588[Spark 2.0] TorrentBroadcastFactory is is the one and only known core:BroadcastFactory.md[BroadcastFactory].
 

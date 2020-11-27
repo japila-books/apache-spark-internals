@@ -2,7 +2,7 @@
 
 `CoarseGrainedSchedulerBackend` is a [SchedulerBackend](SchedulerBackend.md).
 
-`CoarseGrainedSchedulerBackend` is an [ExecutorAllocationClient](../ExecutorAllocationClient.md).
+`CoarseGrainedSchedulerBackend` is an [ExecutorAllocationClient](../dynamic-allocation/ExecutorAllocationClient.md).
 
 `CoarseGrainedSchedulerBackend` is responsible for requesting resources from a cluster manager for executors that it in turn uses to CoarseGrainedSchedulerBackend-DriverEndpoint.md#launchTasks[launch tasks] (on executor:CoarseGrainedExecutorBackend.md[]).
 
@@ -163,7 +163,7 @@ It then requests scheduler:TaskSchedulerImpl.md#resourceOffers[`TaskSchedulerImp
 
 When called, `getExecutorIds` simply returns executor ids from the internal <<executorDataMap, executorDataMap>> registry.
 
-NOTE: It is called when ROOT:SparkContext.md#getExecutorIds[SparkContext calculates executor ids].
+NOTE: It is called when SparkContext.md#getExecutorIds[SparkContext calculates executor ids].
 
 == [[contract]] CoarseGrainedSchedulerBackend Contract
 
@@ -234,7 +234,7 @@ requestExecutors(numAdditionalExecutors: Int): Boolean
 
 `requestExecutors` is a "decorator" method that ultimately calls a cluster-specific <<doRequestTotalExecutors, doRequestTotalExecutors>> method and returns whether the request was acknowledged or not (it is assumed `false` by default).
 
-NOTE: `requestExecutors` method is part of spark-service-ExecutorAllocationClient.md[ExecutorAllocationClient Contract] that ROOT:SparkContext.md#requestExecutors[SparkContext uses for requesting additional executors] (as a part of a developer API for dynamic allocation of executors).
+`requestExecutors` method is part of the [ExecutorAllocationClient](../dynamic-allocation/ExecutorAllocationClient.md#requestExecutors) abstraction.
 
 When called, you should see the following INFO message followed by DEBUG message in the logs:
 
@@ -269,7 +269,7 @@ requestTotalExecutors(
 
 `requestTotalExecutors` is a "decorator" method that ultimately calls a cluster-specific <<doRequestTotalExecutors, doRequestTotalExecutors>> method and returns whether the request was acknowledged or not (it is assumed `false` by default).
 
-NOTE: `requestTotalExecutors` is part of spark-service-ExecutorAllocationClient.md[ExecutorAllocationClient Contract] that ROOT:SparkContext.md#requestTotalExecutors[SparkContext uses for requesting the exact number of executors].
+`requestTotalExecutors` is part of the [ExecutorAllocationClient](../dynamic-allocation/ExecutorAllocationClient.md#requestTotalExecutors) abstraction.
 
 It sets the internal <<localityAwareTasks, localityAwareTasks>> and <<hostToLocalTaskCount, hostToLocalTaskCount>> registries. It then calculates the exact number of executors which is the input `numExecutors` and the <<executorsPendingToRemove, executors pending removal>> decreased by the number of <<numExistingExecutors, already-assigned executors>>.
 
@@ -292,7 +292,7 @@ defaultParallelism(): Int
 
 NOTE: `defaultParallelism` is part of the scheduler:SchedulerBackend.md#contract[SchedulerBackend Contract].
 
-`defaultParallelism` is ROOT:configuration-properties.md#spark.default.parallelism[spark.default.parallelism] configuration property if defined.
+`defaultParallelism` is configuration-properties.md#spark.default.parallelism[spark.default.parallelism] configuration property if defined.
 
 Otherwise, `defaultParallelism` is the maximum of <<totalCoreCount, totalCoreCount>> or `2`.
 
@@ -352,7 +352,7 @@ When <<start, CoarseGrainedSchedulerBackend starts>>, it registers *CoarseGraine
 
 `driverEndpoint` is a scheduler:CoarseGrainedSchedulerBackend-DriverEndpoint.md[DriverEndpoint].
 
-NOTE: `CoarseGrainedSchedulerBackend` is created while ROOT:SparkContext.md#createTaskScheduler[SparkContext is being created] that in turn lives inside a spark-driver.md[Spark driver]. That explains the name `driverEndpoint` (at least partially).
+NOTE: `CoarseGrainedSchedulerBackend` is created while SparkContext.md#createTaskScheduler[SparkContext is being created] that in turn lives inside a spark-driver.md[Spark driver]. That explains the name `driverEndpoint` (at least partially).
 
 It is called *standalone scheduler's driver endpoint* internally.
 
@@ -376,7 +376,7 @@ NOTE: `start` is part of the scheduler:SchedulerBackend.md#contract[SchedulerBac
 .CoarseGrainedScheduler Endpoint
 image::CoarseGrainedScheduler-rpc-endpoint.png[align="center"]
 
-NOTE: `start` uses <<scheduler, TaskSchedulerImpl>> to access the current ROOT:SparkContext.md[SparkContext] and in turn ROOT:SparkConf.md[SparkConf].
+NOTE: `start` uses <<scheduler, TaskSchedulerImpl>> to access the current SparkContext.md[SparkContext] and in turn SparkConf.md[SparkConf].
 
 NOTE: `start` uses <<rpcEnv, RpcEnv>> that was given when <<creating-instance, `CoarseGrainedSchedulerBackend` was created>>.
 

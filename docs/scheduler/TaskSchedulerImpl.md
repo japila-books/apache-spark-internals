@@ -2,7 +2,7 @@
 
 `TaskSchedulerImpl` is the default [TaskScheduler](TaskScheduler.md) that uses a [SchedulerBackend](#backend) to schedule tasks (for execution on a cluster manager).
 
-When a Spark application starts (and so an instance of ROOT:SparkContext.md#creating-instance[SparkContext is created]) TaskSchedulerImpl with a scheduler:SchedulerBackend.md[SchedulerBackend] and scheduler:DAGScheduler.md[DAGScheduler] are created and soon started.
+When a Spark application starts (and so an instance of SparkContext.md#creating-instance[SparkContext is created]) TaskSchedulerImpl with a scheduler:SchedulerBackend.md[SchedulerBackend] and scheduler:DAGScheduler.md[DAGScheduler] are created and soon started.
 
 ![TaskSchedulerImpl and Other Services](../images/scheduler/taskschedulerimpl-sparkcontext-schedulerbackend-dagscheduler.png)
 
@@ -10,24 +10,24 @@ TaskSchedulerImpl <<resourceOffers, generates tasks for executor resource offers
 
 TaskSchedulerImpl can <<getRackForHost, track racks per host and port>> (that however is spark-on-yarn:spark-yarn-yarnscheduler.md[only used with Hadoop YARN cluster manager]).
 
-Using ROOT:configuration-properties.md#spark.scheduler.mode[spark.scheduler.mode] configuration property you can select the scheduler:spark-scheduler-SchedulingMode.md[scheduling policy].
+Using configuration-properties.md#spark.scheduler.mode[spark.scheduler.mode] configuration property you can select the scheduler:spark-scheduler-SchedulingMode.md[scheduling policy].
 
 TaskSchedulerImpl <<submitTasks, submits tasks>> using scheduler:spark-scheduler-SchedulableBuilder.md[SchedulableBuilders].
 
 [[CPUS_PER_TASK]]
-TaskSchedulerImpl uses ROOT:configuration-properties.md#spark.task.cpus[spark.task.cpus] configuration property for...FIXME
+TaskSchedulerImpl uses configuration-properties.md#spark.task.cpus[spark.task.cpus] configuration property for...FIXME
 
 ## Creating Instance
 
 TaskSchedulerImpl takes the following to be created:
 
-* [[sc]] ROOT:SparkContext.md[]
+* [[sc]] SparkContext.md[]
 * <<maxTaskFailures, Acceptable number of task failures>>
 * [[isLocal]] isLocal flag for local and cluster run modes (default: `false`)
 
 TaskSchedulerImpl initializes the <<internal-properties, internal properties>>.
 
-TaskSchedulerImpl sets scheduler:TaskScheduler.md#schedulingMode[schedulingMode] to the value of ROOT:configuration-properties.md#spark.scheduler.mode[spark.scheduler.mode] configuration property.
+TaskSchedulerImpl sets scheduler:TaskScheduler.md#schedulingMode[schedulingMode] to the value of configuration-properties.md#spark.scheduler.mode[spark.scheduler.mode] configuration property.
 
 NOTE: `schedulingMode` is part of scheduler:TaskScheduler.md#schedulingMode[TaskScheduler] contract.
 
@@ -218,7 +218,7 @@ NOTE: <<schedulingMode, schedulingMode>> and <<rootPool, rootPool>> are a part o
 
 CAUTION: FIXME Why are `rootPool` and `schedulableBuilder` created only now? What do they need that it is not available when TaskSchedulerImpl is created?
 
-NOTE: `initialize` is called while ROOT:SparkContext.md#createTaskScheduler[SparkContext is created and creates SchedulerBackend and `TaskScheduler`].
+NOTE: `initialize` is called while SparkContext.md#createTaskScheduler[SparkContext is created and creates SchedulerBackend and `TaskScheduler`].
 
 == [[start]] Starting TaskSchedulerImpl
 
@@ -282,9 +282,9 @@ CAUTION: FIXME image with scheduler backends calling `TaskSchedulerImpl.statusUp
 
 == [[speculationScheduler]][[task-scheduler-speculation]] task-scheduler-speculation Scheduled Executor Service -- `speculationScheduler` Internal Attribute
 
-`speculationScheduler` is a http://docs.oracle.com/javase/8/docs/api/java/util/concurrent/ScheduledExecutorService.html[java.util.concurrent.ScheduledExecutorService] with the name *task-scheduler-speculation* for ROOT:speculative-execution-of-tasks.md[].
+`speculationScheduler` is a http://docs.oracle.com/javase/8/docs/api/java/util/concurrent/ScheduledExecutorService.html[java.util.concurrent.ScheduledExecutorService] with the name *task-scheduler-speculation* for speculative-execution-of-tasks.md[].
 
-When <<start, TaskSchedulerImpl starts>> (in non-local run mode) with ROOT:configuration-properties.md#spark.speculation[spark.speculation] enabled, `speculationScheduler` is used to schedule <<checkSpeculatableTasks, checkSpeculatableTasks>> to execute periodically every ROOT:configuration-properties.md#spark.speculation.interval[spark.speculation.interval] after the initial `spark.speculation.interval` passes.
+When <<start, TaskSchedulerImpl starts>> (in non-local run mode) with configuration-properties.md#spark.speculation[spark.speculation] enabled, `speculationScheduler` is used to schedule <<checkSpeculatableTasks, checkSpeculatableTasks>> to execute periodically every configuration-properties.md#spark.speculation.interval[spark.speculation.interval] after the initial `spark.speculation.interval` passes.
 
 `speculationScheduler` is shut down when <<stop, TaskSchedulerImpl stops>>.
 
@@ -297,11 +297,11 @@ checkSpeculatableTasks(): Unit
 
 `checkSpeculatableTasks` requests `rootPool` to check for speculatable tasks (if they ran for more than `100` ms) and, if there any, requests scheduler:SchedulerBackend.md#reviveOffers[SchedulerBackend to revive offers].
 
-NOTE: `checkSpeculatableTasks` is executed periodically as part of ROOT:speculative-execution-of-tasks.md[].
+NOTE: `checkSpeculatableTasks` is executed periodically as part of speculative-execution-of-tasks.md[].
 
 == [[maxTaskFailures]] Acceptable Number of Task Failures
 
-TaskSchedulerImpl can be given the acceptable number of task failures when created or defaults to ROOT:configuration-properties.md#spark.task.maxFailures[spark.task.maxFailures] configuration property.
+TaskSchedulerImpl can be given the acceptable number of task failures when created or defaults to configuration-properties.md#spark.task.maxFailures[spark.task.maxFailures] configuration property.
 
 The number of task failures is used when <<submitTasks, submitting tasks>> through scheduler:TaskSetManager.md[TaskSetManager].
 
@@ -349,7 +349,7 @@ NOTE: `defaultParallelism` is part of scheduler:TaskScheduler.md#defaultParallel
 
 `defaultParallelism` simply requests <<backend, SchedulerBackend>> for the scheduler:SchedulerBackend.md#defaultParallelism[default level of parallelism].
 
-NOTE: *Default level of parallelism* is a hint for sizing jobs that `SparkContext` ROOT:SparkContext.md#defaultParallelism[uses to create RDDs with the right number of partitions when not specified explicitly].
+NOTE: *Default level of parallelism* is a hint for sizing jobs that `SparkContext` SparkContext.md#defaultParallelism[uses to create RDDs with the right number of partitions when not specified explicitly].
 
 == [[submitTasks]] Submitting Tasks (of TaskSet) for Execution -- `submitTasks` Method
 
@@ -393,9 +393,9 @@ NOTE: The scheduler:TaskScheduler.md#rootPool[schedulable pool] can be a single 
 
 `submitTasks` <<submitTasks-starvationTimer, schedules a starvation task>> to make sure that the requested resources (i.e. CPU and memory) are assigned to the Spark application for a <<isLocal, non-local environment>> (the very first time the Spark application is started per <<hasReceivedTask, hasReceivedTask>> flag).
 
-NOTE: The very first time (<<hasReceivedTask, hasReceivedTask>> flag is `false`) in cluster mode only (i.e. `isLocal` of the TaskSchedulerImpl is `false`), `starvationTimer` is scheduled to execute after ROOT:configuration-properties.md#spark.starvation.timeout[spark.starvation.timeout]  to ensure that the requested resources, i.e. CPUs and memory, were assigned by a cluster manager.
+NOTE: The very first time (<<hasReceivedTask, hasReceivedTask>> flag is `false`) in cluster mode only (i.e. `isLocal` of the TaskSchedulerImpl is `false`), `starvationTimer` is scheduled to execute after configuration-properties.md#spark.starvation.timeout[spark.starvation.timeout]  to ensure that the requested resources, i.e. CPUs and memory, were assigned by a cluster manager.
 
-NOTE: After the first ROOT:configuration-properties.md#spark.starvation.timeout[spark.starvation.timeout] passes, the <<hasReceivedTask, hasReceivedTask>> internal flag is `true`.
+NOTE: After the first configuration-properties.md#spark.starvation.timeout[spark.starvation.timeout] passes, the <<hasReceivedTask, hasReceivedTask>> internal flag is `true`.
 
 In the end, `submitTasks` requests the <<backend, SchedulerBackend>> to scheduler:SchedulerBackend.md#reviveOffers[reviveOffers].
 
@@ -483,7 +483,7 @@ NOTE: `executorAdded` uses <<dagScheduler, DAGScheduler>> that was given when <<
 waitBackendReady(): Unit
 ----
 
-`waitBackendReady` waits until the <<backend, SchedulerBackend>> is scheduler:SchedulerBackend.md#isReady[ready]. If it is, `waitBackendReady` returns immediately. Otherwise, `waitBackendReady` keeps checking every `100` milliseconds (hardcoded) or the <<sc, SparkContext>> is ROOT:SparkContext.md#stopped[stopped].
+`waitBackendReady` waits until the <<backend, SchedulerBackend>> is scheduler:SchedulerBackend.md#isReady[ready]. If it is, `waitBackendReady` returns immediately. Otherwise, `waitBackendReady` keeps checking every `100` milliseconds (hardcoded) or the <<sc, SparkContext>> is SparkContext.md#stopped[stopped].
 
 NOTE: A SchedulerBackend is scheduler:SchedulerBackend.md#isReady[ready] by default.
 
@@ -584,7 +584,7 @@ resourceOfferSingleTaskSet(
   tasks: Seq[ArrayBuffer[TaskDescription]]): Boolean
 ----
 
-`resourceOfferSingleTaskSet` takes every `WorkerOffer` (from the input `shuffledOffers`) and (only if the number of available CPU cores (using the input `availableCpus`) is at least ROOT:configuration-properties.md#spark.task.cpus[spark.task.cpus]) scheduler:TaskSetManager.md#resourceOffer[requests `TaskSetManager` (as the input `taskSet`) to find a `Task` to execute (given the resource offer)] (as an executor, a host, and the input `maxLocality`).
+`resourceOfferSingleTaskSet` takes every `WorkerOffer` (from the input `shuffledOffers`) and (only if the number of available CPU cores (using the input `availableCpus`) is at least configuration-properties.md#spark.task.cpus[spark.task.cpus]) scheduler:TaskSetManager.md#resourceOffer[requests `TaskSetManager` (as the input `taskSet`) to find a `Task` to execute (given the resource offer)] (as an executor, a host, and the input `maxLocality`).
 
 `resourceOfferSingleTaskSet` adds the task to the input `tasks` collection.
 
@@ -594,7 +594,7 @@ resourceOfferSingleTaskSet(
 * <<taskIdToExecutorId, taskIdToExecutorId>>
 * <<executorIdToRunningTaskIds, executorIdToRunningTaskIds>>
 
-`resourceOfferSingleTaskSet` decreases ROOT:configuration-properties.md#spark.task.cpus[spark.task.cpus] from the input `availableCpus` (for the `WorkerOffer`).
+`resourceOfferSingleTaskSet` decreases configuration-properties.md#spark.task.cpus[spark.task.cpus] from the input `availableCpus` (for the `WorkerOffer`).
 
 NOTE: `resourceOfferSingleTaskSet` makes sure that the number of available CPU cores (in the input `availableCpus` per `WorkerOffer`) is at least `0`.
 
@@ -669,7 +669,7 @@ Add the following line to `conf/log4j.properties`:
 log4j.logger.org.apache.spark.scheduler.TaskSchedulerImpl=ALL
 ----
 
-Refer to ROOT:spark-logging.md[Logging].
+Refer to spark-logging.md[Logging].
 
 == [[internal-properties]] Internal Properties
 
@@ -733,7 +733,7 @@ Created when TaskSchedulerImpl is requested to <<initialize, initialize>> and ca
 
 * spark-scheduler-FairSchedulableBuilder.md[FairSchedulableBuilder] for FAIR scheduling policy.
 
-NOTE: Use ROOT:configuration-properties.md#spark.scheduler.mode[spark.scheduler.mode] configuration property to select the scheduling policy.
+NOTE: Use configuration-properties.md#spark.scheduler.mode[spark.scheduler.mode] configuration property to select the scheduling policy.
 
 | schedulingMode
 a| [[schedulingMode]] spark-scheduler-SchedulingMode.md[SchedulingMode]

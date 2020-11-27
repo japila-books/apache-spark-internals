@@ -78,11 +78,11 @@ Technically, RDDs follow the <<contract, contract>> defined by the five main int
 This RDD abstraction supports an expressive set of operations without having to modify scheduler for each one.
 
 [[context]]
-An RDD is a named (by `name`) and uniquely identified (by `id`) entity in a ROOT:SparkContext.md[] (available as `context` property).
+An RDD is a named (by `name`) and uniquely identified (by `id`) entity in a SparkContext.md[] (available as `context` property).
 
-RDDs live in one and only one ROOT:SparkContext.md[] that creates a logical boundary.
+RDDs live in one and only one SparkContext.md[] that creates a logical boundary.
 
-NOTE: RDDs cannot be shared between `SparkContexts` (see ROOT:SparkContext.md#sparkcontext-and-rdd[SparkContext and RDDs]).
+NOTE: RDDs cannot be shared between `SparkContexts` (see SparkContext.md#sparkcontext-and-rdd[SparkContext and RDDs]).
 
 An RDD can optionally have a friendly name accessible using `name` that can be changed using `=`:
 

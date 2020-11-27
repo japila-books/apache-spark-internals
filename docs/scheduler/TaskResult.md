@@ -19,7 +19,7 @@ DirectTaskResult[T](
 extends TaskResult[T] with Externalizable
 ----
 
-`DirectTaskResult` is the <<TaskResult, TaskResult>> of scheduler:Task.md#run[running a task] (that is later executor:TaskRunner.md#run[returned serialized to the driver]) when the size of the task's result is smaller than ROOT:configuration-properties.md#spark.driver.maxResultSize[spark.driver.maxResultSize] and executor:Executor.md#spark.task.maxDirectResultSize[spark.task.maxDirectResultSize] (or scheduler:CoarseGrainedSchedulerBackend.md#spark.rpc.message.maxSize[spark.rpc.message.maxSize] whatever is smaller).
+`DirectTaskResult` is the <<TaskResult, TaskResult>> of scheduler:Task.md#run[running a task] (that is later executor:TaskRunner.md#run[returned serialized to the driver]) when the size of the task's result is smaller than configuration-properties.md#spark.driver.maxResultSize[spark.driver.maxResultSize] and executor:Executor.md#spark.task.maxDirectResultSize[spark.task.maxDirectResultSize] (or scheduler:CoarseGrainedSchedulerBackend.md#spark.rpc.message.maxSize[spark.rpc.message.maxSize] whatever is smaller).
 
 NOTE: `DirectTaskResult` is Java's https://docs.oracle.com/javase/8/docs/api/java/io/Externalizable.html[java.io.Externalizable].
 

@@ -48,7 +48,7 @@ fetchFile(
 ====
 `fetchFile` is used when:
 
-* `SparkContext` is requested to ROOT:SparkContext.md#addFile[addFile]
+* `SparkContext` is requested to SparkContext.md#addFile[addFile]
 
 * `Executor` is requested to executor:Executor.md#updateDependencies[updateDependencies]
 

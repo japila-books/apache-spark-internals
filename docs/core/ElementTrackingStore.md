@@ -7,7 +7,7 @@
 ElementTrackingStore takes the following to be created:
 
 * [[store]] core:KVStore.md[]
-* [[conf]] ROOT:SparkConf.md[]
+* [[conf]] SparkConf.md[]
 
 ElementTrackingStore is created when...FIXME
 

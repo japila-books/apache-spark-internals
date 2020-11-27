@@ -2,7 +2,7 @@
 
 ![AppStatusStore in Spark Application](../images/core/AppStatusStore-createLiveStore.png)
 
-AppStatusStore is available as ROOT:SparkContext.md#statusStore[SparkContext.statusStore] to other Spark services.
+AppStatusStore is available as SparkContext.md#statusStore[SparkContext.statusStore] to other Spark services.
 
 ## Creating Instance
 
@@ -49,7 +49,7 @@ createLiveStore(
 
 createLiveStore creates a fully-initialized AppStatusStore.
 
-Internally, createLiveStore creates a core:ElementTrackingStore.md[] (with a new core:InMemoryStore.md[] and the input ROOT:SparkConf.md[SparkConf]).
+Internally, createLiveStore creates a core:ElementTrackingStore.md[] (with a new core:InMemoryStore.md[] and the input SparkConf.md[SparkConf]).
 
 createLiveStore creates a core:AppStatusListener.md[] (with the `ElementTrackingStore` created, the input `SparkConf` and the `live` flag enabled).
 

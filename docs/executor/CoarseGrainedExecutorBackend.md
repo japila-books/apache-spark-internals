@@ -193,11 +193,11 @@ NOTE: `run` expects a clear `hostname` with no `:` included (for a port perhaps)
 
 IMPORTANT: This is the first moment when CoarseGrainedExecutorBackend initiates communication with the driver available at `driverUrl` through `RpcEnv`.
 
-`run` uses `SparkAppConfig` to get the driver's `sparkProperties` and adds ROOT:SparkConf.md#spark.app.id[spark.app.id] Spark property with the value of the input `appId`.
+`run` uses `SparkAppConfig` to get the driver's `sparkProperties` and adds SparkConf.md#spark.app.id[spark.app.id] Spark property with the value of the input `appId`.
 
 `run` rpc:index.md#shutdown[shuts `driverPropsFetcher` RPC Endpoint down].
 
-`run` creates a ROOT:SparkConf.md[SparkConf] using the Spark properties fetched from the driver, i.e. with the ROOT:SparkConf.md#isExecutorStartupConf[executor-related Spark settings] if they ROOT:SparkConf.md#setIfMissing[were missing] and the ROOT:SparkConf.md#set[rest unconditionally].
+`run` creates a SparkConf.md[SparkConf] using the Spark properties fetched from the driver, i.e. with the SparkConf.md#isExecutorStartupConf[executor-related Spark settings] if they SparkConf.md#setIfMissing[were missing] and the SparkConf.md#set[rest unconditionally].
 
 If yarn/spark-yarn-settings.md#spark.yarn.credentials.file[spark.yarn.credentials.file] Spark property is defined in `SparkConf`, you should see the following INFO message in the logs:
 
@@ -427,7 +427,7 @@ Add the following line to `conf/log4j.properties`:
 log4j.logger.org.apache.spark.executor.CoarseGrainedExecutorBackend=ALL
 ----
 
-Refer to ROOT:spark-logging.md[Logging].
+Refer to spark-logging.md[Logging].
 
 == [[internal-properties]] Internal Properties
 

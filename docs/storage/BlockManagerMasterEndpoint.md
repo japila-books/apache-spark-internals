@@ -13,7 +13,7 @@ BlockManagerMasterEndpoint takes the following to be created:
 
 * [[rpcEnv]] rpc:RpcEnv.md[]
 * [[isLocal]] Flag whether BlockManagerMasterEndpoint works in local or cluster mode
-* [[conf]] ROOT:SparkConf.md[]
+* [[conf]] SparkConf.md[]
 * [[listenerBus]] scheduler:LiveListenerBus.md[]
 
 BlockManagerMasterEndpoint is created for the core:SparkEnv.md#create[SparkEnv] on the driver (to create a storage:BlockManagerMaster.md[] for a storage:BlockManager.md#master[BlockManager]).
@@ -357,7 +357,7 @@ The `BlockManager` is recorded in the internal registries:
 * <<blockManagerIdByExecutor, blockManagerIdByExecutor>>
 * <<blockManagerInfo, blockManagerInfo>>
 
-In the end, register requests the <<listenerBus, LiveListenerBus>> to scheduler:LiveListenerBus.md#post[post] a ROOT:SparkListener.md#SparkListenerBlockManagerAdded[SparkListenerBlockManagerAdded] message.
+In the end, register requests the <<listenerBus, LiveListenerBus>> to scheduler:LiveListenerBus.md#post[post] a SparkListener.md#SparkListenerBlockManagerAdded[SparkListenerBlockManagerAdded] message.
 
 register is used when BlockManagerMasterEndpoint is requested to handle <<RegisterBlockManager, RegisterBlockManager>> message.
 
@@ -395,7 +395,7 @@ removeBlockManager looks up `blockManagerId` and removes the executor it was wor
 
 It then goes over all the blocks for the `BlockManager`, and removes the executor for each block from `blockLocations` registry.
 
-ROOT:SparkListener.md#SparkListenerBlockManagerRemoved[SparkListenerBlockManagerRemoved(System.currentTimeMillis(), blockManagerId)] is posted to ROOT:SparkContext.md#listenerBus[listenerBus].
+SparkListener.md#SparkListenerBlockManagerRemoved[SparkListenerBlockManagerRemoved(System.currentTimeMillis(), blockManagerId)] is posted to SparkContext.md#listenerBus[listenerBus].
 
 You should then see the following INFO message in the logs:
 
@@ -429,7 +429,7 @@ Add the following line to `conf/log4j.properties`:
 log4j.logger.org.apache.spark.storage.BlockManagerMasterEndpoint=ALL
 ----
 
-Refer to ROOT:spark-logging.md[Logging].
+Refer to spark-logging.md[Logging].
 
 == [[internal-properties]] Internal Properties
 

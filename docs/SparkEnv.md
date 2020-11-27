@@ -58,7 +58,7 @@ createDriverEnv(
 
 ![Spark Environment for driver](images/sparkenv-driver.png)
 
-`createDriverEnv` accepts an instance of ROOT:SparkConf.md[SparkConf], spark-deployment-environments.md[whether it runs in local mode or not], scheduler:LiveListenerBus.md[], the number of cores to use for execution in local mode or `0` otherwise, and a scheduler:OutputCommitCoordinator.md[OutputCommitCoordinator] (default: none).
+`createDriverEnv` accepts an instance of SparkConf.md[SparkConf], spark-deployment-environments.md[whether it runs in local mode or not], scheduler:LiveListenerBus.md[], the number of cores to use for execution in local mode or `0` otherwise, and a scheduler:OutputCommitCoordinator.md[OutputCommitCoordinator] (default: none).
 
 `createDriverEnv` ensures that spark-driver.md#spark_driver_host[spark.driver.host] and spark-driver.md#spark_driver_port[spark.driver.port] settings are defined.
 
@@ -142,10 +142,10 @@ Using serializer: [serializer]
 create creates a closure `Serializer` (based on <<spark_closure_serializer, spark.closure.serializer>>).
 
 [[ShuffleManager]][[create-ShuffleManager]]
-create creates a shuffle:ShuffleManager.md[ShuffleManager] given the value of ROOT:configuration-properties.md#spark.shuffle.manager[spark.shuffle.manager] configuration property.
+create creates a shuffle:ShuffleManager.md[ShuffleManager] given the value of configuration-properties.md#spark.shuffle.manager[spark.shuffle.manager] configuration property.
 
 [[MemoryManager]][[create-MemoryManager]]
-create creates a memory:MemoryManager.md[MemoryManager] based on ROOT:configuration-properties.md#spark.memory.useLegacyMode[spark.memory.useLegacyMode] setting (with memory:UnifiedMemoryManager.md[UnifiedMemoryManager] being the default and `numCores` the input `numUsableCores`).
+create creates a memory:MemoryManager.md[MemoryManager] based on configuration-properties.md#spark.memory.useLegacyMode[spark.memory.useLegacyMode] setting (with memory:UnifiedMemoryManager.md[UnifiedMemoryManager] being the default and `numCores` the input `numUsableCores`).
 
 [[NettyBlockTransferService]][[create-NettyBlockTransferService]]
 create creates a storage:NettyBlockTransferService.md#creating-instance[NettyBlockTransferService] with the following ports:
@@ -159,7 +159,7 @@ NOTE: create uses the `NettyBlockTransferService` to <<create-BlockManager, crea
 CAUTION: FIXME A picture with SparkEnv, `NettyBlockTransferService` and the ports "armed".
 
 [[BlockManagerMaster]][[create-BlockManagerMaster]]
-create creates a storage:BlockManagerMaster.md#creating-instance[BlockManagerMaster] object with the `BlockManagerMaster` RPC endpoint reference (by <<registerOrLookupEndpoint, registering or looking it up by name>> and storage:BlockManagerMasterEndpoint.md[]), the input ROOT:SparkConf.md[SparkConf], and the input `isDriver` flag.
+create creates a storage:BlockManagerMaster.md#creating-instance[BlockManagerMaster] object with the `BlockManagerMaster` RPC endpoint reference (by <<registerOrLookupEndpoint, registering or looking it up by name>> and storage:BlockManagerMasterEndpoint.md[]), the input SparkConf.md[SparkConf], and the input `isDriver` flag.
 
 .Creating BlockManager for the Driver
 image::sparkenv-driver-blockmanager.png[align="center"]
@@ -251,7 +251,7 @@ Otherwise, stop turns `isStopped` flag on, stops all `pythonWorkers` and request
 3. core:BroadcastManager.md#stop[BroadcastManager]
 4. storage:BlockManager.md#stop[BlockManager]
 5. storage:BlockManagerMaster.md#stop[BlockManagerMaster]
-6. spark-metrics-MetricsSystem.md#stop[MetricsSystem]
+6. [MetricsSystem](metrics/MetricsSystem.md#stop)
 7. scheduler:OutputCommitCoordinator.md#stop[OutputCommitCoordinator]
 
 stop rpc:index.md#shutdown[requests `RpcEnv` to shut down] and rpc:index.md#awaitTermination[waits till it terminates].
@@ -262,7 +262,7 @@ Only on the driver, stop deletes the <<driverTmpDir, temporary directory>>. You 
 Exception while deleting Spark temp dir: [path]
 ```
 
-NOTE: stop is used when ROOT:SparkContext.md#stop[`SparkContext` stops] (on the driver) and executor:Executor.md#stop[`Executor` stops].
+NOTE: stop is used when SparkContext.md#stop[`SparkContext` stops] (on the driver) and executor:Executor.md#stop[`Executor` stops].
 
 == [[set]] `set` Method
 
@@ -288,7 +288,7 @@ environmentDetails(
 
 environmentDetails...FIXME
 
-environmentDetails is used when SparkContext is requested to ROOT:SparkContext.md#postEnvironmentUpdate[post a SparkListenerEnvironmentUpdate event].
+environmentDetails is used when SparkContext is requested to SparkContext.md#postEnvironmentUpdate[post a SparkListenerEnvironmentUpdate event].
 
 == [[logging]] Logging
 
@@ -301,7 +301,7 @@ Add the following line to `conf/log4j.properties`:
 log4j.logger.org.apache.spark.SparkEnv=ALL
 ----
 
-Refer to ROOT:spark-logging.md[Logging].
+Refer to spark-logging.md[Logging].
 
 == [[internal-properties]] Internal Properties
 

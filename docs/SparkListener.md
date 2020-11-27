@@ -15,7 +15,7 @@
 * BasicEventFilterBuilder (Spark History Server)
 * [EventLoggingListener](history-server/EventLoggingListener.md) (Spark History Server)
 * ExecutionListenerBus
-* [ExecutorAllocationListener](ExecutorAllocationListener.md)
+* [ExecutorAllocationListener](dynamic-allocation/ExecutorAllocationListener.md)
 * ExecutorMonitor
 * [HeartbeatReceiver](HeartbeatReceiver.md)
 * HiveThriftServer2Listener (Spark Thrift Server)

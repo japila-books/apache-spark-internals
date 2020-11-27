@@ -1,12 +1,12 @@
 = [[UnifiedMemoryManager]] UnifiedMemoryManager
 
-*UnifiedMemoryManager* is the default MemoryManager.md[MemoryManager] (based on ROOT:configuration-properties.md#spark.memory.useLegacyMode[spark.memory.useLegacyMode] configuration property).
+*UnifiedMemoryManager* is the default MemoryManager.md[MemoryManager] (based on configuration-properties.md#spark.memory.useLegacyMode[spark.memory.useLegacyMode] configuration property).
 
 == [[creating-instance]] Creating Instance
 
 UnifiedMemoryManager takes the following to be created:
 
-* [[conf]] ROOT:SparkConf.md[SparkConf]
+* [[conf]] SparkConf.md[SparkConf]
 * [[maxHeapMemory]] Maximum heap memory
 * [[onHeapStorageRegionSize]] Size of the on-heap storage region
 * [[numCores]] Number of CPU cores
@@ -15,7 +15,7 @@ UnifiedMemoryManager requires that:
 
 * Sum of the pool size of the MemoryManager.md#onHeapExecutionMemoryPool[on-heap ExecutionMemoryPool] and MemoryManager.md#onHeapStorageMemoryPool[on-heap StorageMemoryPool] is exactly the <<maxHeapMemory, maximum heap memory>>
 
-* Sum of the pool size of the MemoryManager.md#offHeapExecutionMemoryPool[off-heap ExecutionMemoryPool] and MemoryManager.md#offHeapStorageMemoryPool[off-heap StorageMemoryPool] is exactly the maximum off-heap memory (based on ROOT:configuration-properties.md#spark.memory.offHeap.size[spark.memory.offHeap.size] configuration property)
+* Sum of the pool size of the MemoryManager.md#offHeapExecutionMemoryPool[off-heap ExecutionMemoryPool] and MemoryManager.md#offHeapStorageMemoryPool[off-heap StorageMemoryPool] is exactly the maximum off-heap memory (based on configuration-properties.md#spark.memory.offHeap.size[spark.memory.offHeap.size] configuration property)
 
 == [[apply]] Creating UnifiedMemoryManager
 
@@ -26,9 +26,9 @@ apply(
   numCores: Int): UnifiedMemoryManager
 ----
 
-`apply` computes the <<getMaxMemory, maximum heap memory>> (using the input ROOT:SparkConf.md[SparkConf]).
+`apply` computes the <<getMaxMemory, maximum heap memory>> (using the input SparkConf.md[SparkConf]).
 
-`apply` computes the size of the on-heap storage region which is a fraction of the maximum heap memory based on ROOT:configuration-properties.md#spark.memory.storageFraction[spark.memory.storageFraction] configuration property (default: `0.5`).
+`apply` computes the size of the on-heap storage region which is a fraction of the maximum heap memory based on configuration-properties.md#spark.memory.storageFraction[spark.memory.storageFraction] configuration property (default: `0.5`).
 
 In the end, `apply` creates a <<creating-instance, UnifiedMemoryManager>> (with the given and computed values).
 

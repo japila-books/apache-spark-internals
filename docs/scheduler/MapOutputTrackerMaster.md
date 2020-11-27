@@ -8,7 +8,7 @@
 
 MapOutputTrackerMaster takes the following to be created:
 
-* [[conf]] ROOT:SparkConf.md[SparkConf]
+* [[conf]] SparkConf.md[SparkConf]
 * <<broadcastManager, BroadcastManager>>
 * [[isLocal]] isLocal flag (whether MapOutputTrackerMaster runs in local or on a cluster)
 
@@ -40,11 +40,11 @@ MapOutputTrackerMaster removes (_clears_) all shuffles when requested to <<stop,
 
 MapOutputTrackerMaster uses the following configuration properties:
 
-* [[spark.shuffle.mapOutput.minSizeForBroadcast]][[minSizeForBroadcast]] ROOT:configuration-properties.md#spark.shuffle.mapOutput.minSizeForBroadcast[spark.shuffle.mapOutput.minSizeForBroadcast]
+* [[spark.shuffle.mapOutput.minSizeForBroadcast]][[minSizeForBroadcast]] configuration-properties.md#spark.shuffle.mapOutput.minSizeForBroadcast[spark.shuffle.mapOutput.minSizeForBroadcast]
 
-* [[spark.shuffle.mapOutput.dispatcher.numThreads]] ROOT:configuration-properties.md#spark.shuffle.mapOutput.dispatcher.numThreads[spark.shuffle.mapOutput.dispatcher.numThreads]
+* [[spark.shuffle.mapOutput.dispatcher.numThreads]] configuration-properties.md#spark.shuffle.mapOutput.dispatcher.numThreads[spark.shuffle.mapOutput.dispatcher.numThreads]
 
-* [[spark.shuffle.reduceLocality.enabled]][[shuffleLocalityEnabled]] ROOT:configuration-properties.md#spark.shuffle.reduceLocality.enabled[spark.shuffle.reduceLocality.enabled]
+* [[spark.shuffle.reduceLocality.enabled]][[shuffleLocalityEnabled]] configuration-properties.md#spark.shuffle.reduceLocality.enabled[spark.shuffle.reduceLocality.enabled]
 
 == [[SHUFFLE_PREF_MAP_THRESHOLD]][[SHUFFLE_PREF_REDUCE_THRESHOLD]] Map and Reduce Task Thresholds for Preferred Locations
 
@@ -97,7 +97,7 @@ threadpool: ThreadPoolExecutor
 
 threadpool is a daemon fixed thread pool registered with *map-output-dispatcher* thread name prefix.
 
-threadpool uses ROOT:configuration-properties.md#spark.shuffle.mapOutput.dispatcher.numThreads[spark.shuffle.mapOutput.dispatcher.numThreads] configuration property for the number of <<MessageLoop, MessageLoop dispatcher threads>> to process received `GetMapOutputMessage` messages.
+threadpool uses configuration-properties.md#spark.shuffle.mapOutput.dispatcher.numThreads[spark.shuffle.mapOutput.dispatcher.numThreads] configuration property for the number of <<MessageLoop, MessageLoop dispatcher threads>> to process received `GetMapOutputMessage` messages.
 
 The dispatcher threads are started immediately when <<creating-instance, MapOutputTrackerMaster is created>>.
 
@@ -469,4 +469,4 @@ Add the following line to `conf/log4j.properties`:
 log4j.logger.org.apache.spark.MapOutputTrackerMaster=ALL
 ----
 
-Refer to ROOT:spark-logging.md[Logging].
+Refer to spark-logging.md[Logging].

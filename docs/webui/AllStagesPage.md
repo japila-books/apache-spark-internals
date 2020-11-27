@@ -8,7 +8,7 @@ image::spark-webui-stages-alljobs.png[align="center"]
 [[pool-names]]
 In spark-scheduler-SchedulingMode.md#FAIR[FAIR scheduling mode] you have access to the table showing the scheduler pools as well as the pool names per stage.
 
-NOTE: Pool names are calculated using ROOT:SparkContext.md#getAllPools[SparkContext.getAllPools].
+NOTE: Pool names are calculated using SparkContext.md#getAllPools[SparkContext.getAllPools].
 
 Internally, `AllStagesPage` is a spark-webui-WebUIPage.md[WebUIPage] with access to the parent spark-webui-StagesTab.md[Stages tab] and more importantly the spark-webui-JobProgressListener.md[JobProgressListener] to have access to current state of the entire Spark application.
 

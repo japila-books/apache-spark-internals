@@ -89,7 +89,7 @@ fileServer: RpcEnvFileServer
 
 rpc:RpcEnvFileServer.md[] of the RPC system
 
-Used when ROOT:SparkContext.md[] is created (and registers the REPL's output directory) and requested to ROOT:SparkContext.md#addFile[addFile] or ROOT:SparkContext.md#addJar[addJar]
+Used when SparkContext.md[] is created (and registers the REPL's output directory) and requested to SparkContext.md#addFile[addFile] or SparkContext.md#addJar[addJar]
 
 === [[openChannel]] openChannel Method
 
@@ -215,7 +215,7 @@ stop(
 
 Used when:
 
-* SparkContext is requested to ROOT:SparkContext.md#stop[stop]
+* SparkContext is requested to SparkContext.md#stop[stop]
 
 * RpcEndpoint is requested to rpc:RpcEndpoint.md#stop[stop]
 
@@ -229,7 +229,7 @@ When a remote endpoint is resolved, a local RPC environment connects to the remo
 
 It is a prioritized list of *lookup timeout* properties (the higher on the list, the more important):
 
-* ROOT:configuration-properties.md#spark.rpc.lookupTimeout[spark.rpc.lookupTimeout]
+* configuration-properties.md#spark.rpc.lookupTimeout[spark.rpc.lookupTimeout]
 * <<spark.network.timeout, spark.network.timeout>>
 
 Their value can be a number alone (seconds) or any number with time suffix, e.g. `50s`, `100ms`, or `250us`. See <<settings, Settings>>.
@@ -238,7 +238,7 @@ Their value can be a number alone (seconds) or any number with time suffix, e.g.
 
 RpcEnv takes the following to be created:
 
-* [[conf]] ROOT:SparkConf.md[]
+* [[conf]] SparkConf.md[]
 
 RpcEnv is created using <<create, RpcEnv.create>> utility.
 

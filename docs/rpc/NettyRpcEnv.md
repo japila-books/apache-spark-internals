@@ -6,7 +6,7 @@
 
 `NettyRpcEnv` takes the following to be created:
 
-* [[conf]] ROOT:SparkConf.md[]
+* [[conf]] SparkConf.md[]
 * [[javaSerializerInstance]] JavaSerializerInstance
 * [[host]] Host name
 * [[securityManager]] SecurityManager

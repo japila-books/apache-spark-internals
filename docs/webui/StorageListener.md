@@ -72,7 +72,7 @@ onBlockUpdated(blockUpdated: SparkListenerBlockUpdated): Unit
 
 `onBlockUpdated` creates a `BlockStatus` (from the input `SparkListenerBlockUpdated`) and <<updateRDDInfo, updates registered RDDInfos (with block updates from BlockManagers)>> (passing in storage:BlockId.md[] and `BlockStatus` as a single-element collection of updated blocks).
 
-NOTE: `onBlockUpdated` is part of ROOT:SparkListener.md#onBlockUpdated[SparkListener contract] to announce that there was a change in a block status (on a `BlockManager` on an executor).
+NOTE: `onBlockUpdated` is part of SparkListener.md#onBlockUpdated[SparkListener contract] to announce that there was a change in a block status (on a `BlockManager` on an executor).
 
 == [[onStageCompleted]] Intercepting Stage Completed Events -- `onStageCompleted` Callback
 
@@ -83,7 +83,7 @@ onStageCompleted(stageCompleted: SparkListenerStageCompleted): Unit
 
 `onStageCompleted` finds the identifiers of the RDDs that have participated in the completed stage and removes them from <<_rddInfoMap, _rddInfoMap>> registry as well as the RDDs that are no longer cached.
 
-NOTE: `onStageCompleted` is part of ROOT:SparkListener.md#onStageCompleted[SparkListener contract] to announce that a stage has finished.
+NOTE: `onStageCompleted` is part of SparkListener.md#onStageCompleted[SparkListener contract] to announce that a stage has finished.
 
 == [[onStageSubmitted]] Intercepting Stage Submitted Events -- `onStageSubmitted` Callback
 
@@ -94,7 +94,7 @@ onStageSubmitted(stageSubmitted: SparkListenerStageSubmitted): Unit
 
 `onStageSubmitted` updates <<_rddInfoMap, _rddInfoMap>> registry with the names of every storage:RDDInfo.md[RDDInfo] in `stageSubmitted`, possibly adding new storage:RDDInfo.md[RDDInfo] instances if they were not registered yet.
 
-NOTE: `onStageSubmitted` is part of ROOT:SparkListener.md#onStageSubmitted[SparkListener contract] to announce that the missing tasks of a stage were submitted for execution.
+NOTE: `onStageSubmitted` is part of SparkListener.md#onStageSubmitted[SparkListener contract] to announce that the missing tasks of a stage were submitted for execution.
 
 == [[onUnpersistRDD]] Intercepting Unpersist RDD Events -- `onUnpersistRDD` Callback
 
@@ -105,7 +105,7 @@ onUnpersistRDD(unpersistRDD: SparkListenerUnpersistRDD): Unit
 
 `onUnpersistRDD` removes the storage:RDDInfo.md[RDDInfo] from <<_rddInfoMap, _rddInfoMap>> registry for the unpersisted RDD (from `unpersistRDD`).
 
-NOTE: `onUnpersistRDD` is part of ROOT:SparkListener.md#onUnpersistRDD[SparkListener contract] to announce that an RDD has been unpersisted.
+NOTE: `onUnpersistRDD` is part of SparkListener.md#onUnpersistRDD[SparkListener contract] to announce that an RDD has been unpersisted.
 
 == [[updateRDDInfo]] Updating Registered RDDInfos (with Block Updates from BlockManagers)
 
@@ -135,6 +135,6 @@ CAUTION: FIXME
 ====
 `updateRddInfo` is used when:
 
-* `SparkContext` ROOT:SparkContext.md#getRDDStorageInfo[is requested for storage status of cached RDDs]
+* `SparkContext` SparkContext.md#getRDDStorageInfo[is requested for storage status of cached RDDs]
 * StorageListener <<updateRDDInfo, updates registered RDDInfos (with block updates from BlockManagers)>>
 ====

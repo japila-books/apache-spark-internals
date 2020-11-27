@@ -180,11 +180,11 @@ NOTE: The input `tasks` collection contains one or more spark-scheduler-TaskDesc
 
 NOTE: The scheduler:CoarseGrainedSchedulerBackend.md#maxRpcMessageSize[maximum RPC message size] is calculated when `CoarseGrainedSchedulerBackend` scheduler:CoarseGrainedSchedulerBackend.md#creating-instance[is created] and corresponds to scheduler:CoarseGrainedSchedulerBackend.md#spark.rpc.message.maxSize[spark.rpc.message.maxSize] Spark property (with maximum of `2047` MB).
 
-If the size of the encoded task is acceptable, `launchTasks` finds the `ExecutorData` of the executor that has been assigned to execute the task (in scheduler:CoarseGrainedSchedulerBackend.md#executorDataMap[executorDataMap] internal registry) and decreases the executor's ROOT:configuration-properties.md#spark.task.cpus[available number of cores].
+If the size of the encoded task is acceptable, `launchTasks` finds the `ExecutorData` of the executor that has been assigned to execute the task (in scheduler:CoarseGrainedSchedulerBackend.md#executorDataMap[executorDataMap] internal registry) and decreases the executor's configuration-properties.md#spark.task.cpus[available number of cores].
 
 NOTE: `ExecutorData` tracks the number of free cores of an executor (as `freeCores`).
 
-NOTE: The default task scheduler in Spark -- scheduler:TaskSchedulerImpl.md[TaskSchedulerImpl] -- uses ROOT:configuration-properties.md#spark.task.cpus[spark.task.cpus] Spark property to control the number of tasks that can be scheduled per executor.
+NOTE: The default task scheduler in Spark -- scheduler:TaskSchedulerImpl.md[TaskSchedulerImpl] -- uses configuration-properties.md#spark.task.cpus[spark.task.cpus] Spark property to control the number of tasks that can be scheduled per executor.
 
 You should see the following DEBUG message in the logs:
 
@@ -268,7 +268,7 @@ NOTE: DriverEndpoint uses the input `executorRef` as the executor's rpc:RpcEndpo
 
 DriverEndpoint replies `true` (to acknowledge the message).
 
-DriverEndpoint then announces the new executor by posting ROOT:SparkListener.md#SparkListenerExecutorAdded[SparkListenerExecutorAdded] to scheduler:LiveListenerBus.md[] (with the current time, executor id, and `ExecutorData`).
+DriverEndpoint then announces the new executor by posting SparkListener.md#SparkListenerExecutorAdded[SparkListenerExecutorAdded] to scheduler:LiveListenerBus.md[] (with the current time, executor id, and `ExecutorData`).
 
 In the end, DriverEndpoint <<makeOffers, makes executor resource offers (for launching tasks)>>.
 
@@ -308,7 +308,7 @@ When `StatusUpdate` is received, DriverEndpoint requests the scheduler:CoarseGra
 
 If the scheduler:Task.md#TaskState[task has finished], DriverEndpoint updates the number of cores available for work on the corresponding executor (registered in scheduler:CoarseGrainedSchedulerBackend.md#executorDataMap[executorDataMap]).
 
-NOTE: DriverEndpoint uses ``TaskSchedulerImpl``'s ROOT:configuration-properties.md#spark.task.cpus[spark.task.cpus] as the number of cores that became available after the task has finished.
+NOTE: DriverEndpoint uses ``TaskSchedulerImpl``'s configuration-properties.md#spark.task.cpus[spark.task.cpus] as the number of cores that became available after the task has finished.
 
 DriverEndpoint <<makeOffers, makes an executor resource offer on the single executor>>.
 
@@ -372,7 +372,7 @@ In the end, `removeExecutor` notifies `TaskSchedulerImpl` that an scheduler:Task
 
 NOTE: `removeExecutor` uses scheduler:CoarseGrainedSchedulerBackend.md#scheduler[TaskSchedulerImpl] that is specified when `CoarseGrainedSchedulerBackend` scheduler:CoarseGrainedSchedulerBackend.md#creating-instance[is created].
 
-`removeExecutor` posts ROOT:SparkListener.md#SparkListenerExecutorRemoved[SparkListenerExecutorRemoved] to scheduler:LiveListenerBus.md[] (with the `executorId` executor).
+`removeExecutor` posts SparkListener.md#SparkListenerExecutorRemoved[SparkListenerExecutorRemoved] to scheduler:LiveListenerBus.md[] (with the `executorId` executor).
 
 If however the `executorId` executor could not be found, `removeExecutor` storage:BlockManagerMaster.md#removeExecutorAsync[requests `BlockManagerMaster` to remove the executor asynchronously].
 

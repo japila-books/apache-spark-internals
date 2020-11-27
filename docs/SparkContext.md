@@ -271,7 +271,7 @@ NOTE: `unpersistRDD` uses `SparkEnv` core:SparkEnv.md#blockManager[to access the
 
 `unpersistRDD` removes `rddId` from <<persistentRdds, persistentRdds>> registry.
 
-In the end, `unpersistRDD` posts a ROOT:SparkListener.md#SparkListenerUnpersistRDD[SparkListenerUnpersistRDD] (with `rddId`) to <<listenerBus, LiveListenerBus Event Bus>>.
+In the end, `unpersistRDD` posts a SparkListener.md#SparkListenerUnpersistRDD[SparkListenerUnpersistRDD] (with `rddId`) to <<listenerBus, LiveListenerBus Event Bus>>.
 
 [NOTE]
 ====
@@ -336,9 +336,9 @@ cancelStage(stageId: Int, reason: String): Unit
 
 NOTE: `cancelStage` is used when `StagesTab` spark-webui-StagesTab.md#handleKillRequest[handles a kill request] (from a user in web UI).
 
-== [[dynamic-allocation]] Programmable Dynamic Allocation
+## <span id="dynamic-allocation"> Programmable Dynamic Allocation
 
-SparkContext offers the following methods as the developer API for ROOT:spark-dynamic-allocation.md[]:
+SparkContext offers the following methods as the developer API for [Dynamic Allocation of Executors](dynamic-allocation/index.md):
 
 * <<requestExecutors, requestExecutors>>
 * <<killExecutors, killExecutors>>
@@ -379,20 +379,21 @@ NOTE: It works for scheduler:CoarseGrainedSchedulerBackend.md[coarse-grained sch
 
 When called for other scheduler backends you should see the following WARN message in the logs:
 
+```text
+Requesting executors is only supported in coarse-grained mode
 ```
-WARN Requesting executors is only supported in coarse-grained mode
-```
 
-=== [[getExecutorIds]] Getting Executor Ids -- `getExecutorIds` Method
+## <span id="getExecutorIds"> Executor IDs
 
-`getExecutorIds` is a `private[spark]` method that is part of spark-service-ExecutorAllocationClient.md[ExecutorAllocationClient contract]. It simply scheduler:CoarseGrainedSchedulerBackend.md#getExecutorIds[passes the call on to the current coarse-grained scheduler backend, i.e. calls `getExecutorIds`].
+`getExecutorIds` is a `private[spark]` method that is part of [ExecutorAllocationClient contract](dynamic-allocation/ExecutorAllocationClient.md). It simply [passes the call on to the current coarse-grained scheduler backend, i.e. calls `getExecutorIds`](scheduler:CoarseGrainedSchedulerBackend.md#getExecutorIds).
 
-NOTE: It works for scheduler:CoarseGrainedSchedulerBackend.md[coarse-grained scheduler backends] only.
+!!! important
+    It works for [coarse-grained scheduler backends](scheduler:CoarseGrainedSchedulerBackend.md) only.
 
 When called for other scheduler backends you should see the following WARN message in the logs:
 
-```
-WARN Requesting executors is only supported in coarse-grained mode
+```text
+Requesting executors is only supported in coarse-grained mode
 ```
 
 CAUTION: FIXME Why does SparkContext implement the method for coarse-grained scheduler backends? Why doesn't SparkContext throw an exception when the method is called? Nobody seems to be using it (!)
@@ -469,7 +470,7 @@ CAUTION: FIXME
 getConf: SparkConf
 ----
 
-`getConf` returns the current ROOT:SparkConf.md[SparkConf].
+`getConf` returns the current SparkConf.md[SparkConf].
 
 NOTE: Changing the `SparkConf` object does not change the current configuration (as the method returns a copy).
 
@@ -480,7 +481,7 @@ NOTE: Changing the `SparkConf` object does not change the current configuration 
 master: String
 ----
 
-`master` method returns the current value of ROOT:configuration-properties.md#spark.master[spark.master] which is the spark-deployment-environments.md[deployment environment] in use.
+`master` method returns the current value of configuration-properties.md#spark.master[spark.master] which is the spark-deployment-environments.md[deployment environment] in use.
 
 == [[appName]] Application Name -- `appName` Method
 
@@ -489,7 +490,7 @@ master: String
 appName: String
 ----
 
-`appName` gives the value of the mandatory ROOT:SparkConf.md#spark.app.name[spark.app.name] setting.
+`appName` gives the value of the mandatory SparkConf.md#spark.app.name[spark.app.name] setting.
 
 NOTE: `appName` is used when spark-standalone.md#SparkDeploySchedulerBackend[`SparkDeploySchedulerBackend` starts], spark-webui-SparkUI.md#createLiveUI[`SparkUI` creates a web UI], when `postApplicationStart` is executed, and for Mesos and checkpointing in Spark Streaming.
 
@@ -674,7 +675,7 @@ CAUTION: FIXME
 
 `unpersist` removes an RDD from the master's storage:BlockManager.md[Block Manager] (calls `removeRdd(rddId: Int, blocking: Boolean)`) and the internal <<persistentRdds, persistentRdds>> mapping.
 
-It finally posts ROOT:SparkListener.md#SparkListenerUnpersistRDD[SparkListenerUnpersistRDD] message to `listenerBus`.
+It finally posts SparkListener.md#SparkListenerUnpersistRDD[SparkListenerUnpersistRDD] message to `listenerBus`.
 
 == [[setCheckpointDir]] Setting Checkpoint Directory -- `setCheckpointDir` Method
 
@@ -752,7 +753,7 @@ broadcast[T](
   value: T): Broadcast[T]
 ----
 
-broadcast method creates a ROOT:Broadcast.md[]. It is a shared memory with `value` (as broadcast blocks) on the driver and later on all Spark executors.
+broadcast method creates a Broadcast.md[]. It is a shared memory with `value` (as broadcast blocks) on the driver and later on all Spark executors.
 
 [source,plaintext]
 ----
@@ -836,9 +837,9 @@ SparkContext already stopped.
 1. Removes `_shutdownHookRef` from `ShutdownHookManager`
 2. <<postApplicationEnd, Posts a `SparkListenerApplicationEnd`>> (to <<listenerBus, LiveListenerBus Event Bus>>)
 3. spark-webui-SparkUI.md#stop[Stops web UI]
-4. spark-metrics-MetricsSystem.md#report[Requests `MetricSystem` to report metrics] (from all registered sinks)
+4. [Requests `MetricSystem` to report metrics](metrics/MetricsSystem.md#report) (from all registered sinks)
 5. core:ContextCleaner.md#stop[Stops `ContextCleaner`]
-6. spark-ExecutorAllocationManager.md#stop[Requests `ExecutorAllocationManager` to stop]
+6. [Requests `ExecutorAllocationManager` to stop](dynamic-allocation/ExecutorAllocationManager.md#stop)
 7. If `LiveListenerBus` was started, scheduler:LiveListenerBus.md#stop[requests `LiveListenerBus` to stop]
 8. Requests spark-history-server:EventLoggingListener.md#stop[`EventLoggingListener` to stop]
 9. Requests scheduler:DAGScheduler.md#stop[`DAGScheduler` to stop]
@@ -877,7 +878,7 @@ CAUTION: FIXME Make it an advanced exercise.
 
 == [[events]] Events
 
-When a Spark context starts, it triggers ROOT:SparkListener.md#SparkListenerEnvironmentUpdate[SparkListenerEnvironmentUpdate] and ROOT:SparkListener.md#SparkListenerApplicationStart[SparkListenerApplicationStart] messages.
+When a Spark context starts, it triggers SparkListener.md#SparkListenerEnvironmentUpdate[SparkListenerEnvironmentUpdate] and SparkListener.md#SparkListenerApplicationStart[SparkListenerApplicationStart] messages.
 
 Refer to the section <<creating-instance, SparkContext's initialization>>.
 
@@ -1007,7 +1008,7 @@ cleaner: Option[ContextCleaner]
 
 SparkContext may have a core:ContextCleaner.md[ContextCleaner] defined.
 
-`ContextCleaner` is created when `SparkContext` is created with ROOT:configuration-properties.md#spark.cleaner.referenceTracking[spark.cleaner.referenceTracking] configuration property enabled.
+`ContextCleaner` is created when `SparkContext` is created with configuration-properties.md#spark.cleaner.referenceTracking[spark.cleaner.referenceTracking] configuration property enabled.
 
 == [[getPreferredLocs]] Finding Preferred Locations (Placement Preferences) for RDD Partition
 
@@ -1212,7 +1213,7 @@ Add the following line to `conf/log4j.properties`:
 log4j.logger.org.apache.spark.SparkContext=ALL
 ----
 
-Refer to ROOT:spark-logging.md[Logging].
+Refer to spark-logging.md[Logging].
 
 == [[internal-properties]] Internal Properties
 

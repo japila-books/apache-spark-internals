@@ -89,7 +89,7 @@ Internally, the enqueued task first deserializes `serializedData` to a `TaskResu
 
 The spark-scheduler-TaskResult.md[TaskResult] could be a spark-scheduler-TaskResult.md#DirectTaskResult[DirectTaskResult] or a spark-scheduler-TaskResult.md#IndirectTaskResult[IndirectTaskResult].
 
-For a spark-scheduler-TaskResult.md#DirectTaskResult[DirectTaskResult], the task scheduler:TaskSetManager.md#canFetchMoreResults[checks the available memory for the task result] and, when the size overflows ROOT:configuration-properties.md#spark.driver.maxResultSize[spark.driver.maxResultSize], it simply returns.
+For a spark-scheduler-TaskResult.md#DirectTaskResult[DirectTaskResult], the task scheduler:TaskSetManager.md#canFetchMoreResults[checks the available memory for the task result] and, when the size overflows configuration-properties.md#spark.driver.maxResultSize[spark.driver.maxResultSize], it simply returns.
 
 NOTE: `enqueueSuccessfulTask` is a mere thread so returning from a thread is to do nothing else. That is why the scheduler:TaskSetManager.md#canFetchMoreResults[check for quota does abort] when there is not enough memory.
 

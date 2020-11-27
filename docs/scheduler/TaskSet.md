@@ -8,7 +8,7 @@ NOTE: Since the <<tasks, tasks>> of a TaskSet are only the missing tasks, their 
 
 TaskSet is <<creating-instance, created>> exclusively when `DAGScheduler` is requested to scheduler:DAGScheduler.md#submitMissingTasks[submit the missing tasks of a stage].
 
-NOTE: Once scheduler:DAGScheduler.md#submitMissingTasks[submitted] for execution (to a scheduler:TaskScheduler.md[TaskScheduler]), the execution of the TaskSet is managed by a scheduler:TaskSetManager.md[TaskSetManager] that allows for ROOT:configuration-properties.md#spark.task.maxFailures[spark.task.maxFailures] (default: `1` for <<local/spark-local.md#, Spark on local>> and `4` for <<spark-cluster.md#, Spark clustered>>).
+NOTE: Once scheduler:DAGScheduler.md#submitMissingTasks[submitted] for execution (to a scheduler:TaskScheduler.md[TaskScheduler]), the execution of the TaskSet is managed by a scheduler:TaskSetManager.md[TaskSetManager] that allows for configuration-properties.md#spark.task.maxFailures[spark.task.maxFailures] (default: `1` for <<local/spark-local.md#, Spark on local>> and `4` for <<spark-cluster.md#, Spark clustered>>).
 
 [[creating-instance]]
 TaskSet takes the following to be created:

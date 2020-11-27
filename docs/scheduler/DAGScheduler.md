@@ -878,7 +878,7 @@ handleTaskCompletion(
 
 NOTE: executor:TaskMetrics.md[] can be empty when the task has failed.
 
-`handleTaskCompletion` announces task completion application-wide (by posting a ROOT:SparkListener.md#SparkListenerTaskEnd[SparkListenerTaskEnd] to scheduler:LiveListenerBus.md[]).
+`handleTaskCompletion` announces task completion application-wide (by posting a SparkListener.md#SparkListenerTaskEnd[SparkListenerTaskEnd] to scheduler:LiveListenerBus.md[]).
 
 `handleTaskCompletion` checks the stage of the task out in the scheduler:DAGScheduler.md#stageIdToStage[`stageIdToStage` internal registry] and if not found, it simply exits.
 
@@ -958,7 +958,7 @@ If the `ActiveJob` has finished (when the number of partitions computed is exact
 
 1. scheduler:DAGScheduler.md#markStageAsFinished[Marks `ResultStage` computed].
 2. scheduler:DAGScheduler.md#cleanupStateForJobAndIndependentStages[Cleans up after `ActiveJob` and independent stages].
-3. Announces the job completion application-wide (by posting a ROOT:SparkListener.md#SparkListenerJobEnd[SparkListenerJobEnd] to scheduler:LiveListenerBus.md[]).
+3. Announces the job completion application-wide (by posting a SparkListener.md#SparkListenerJobEnd[SparkListenerJobEnd] to scheduler:LiveListenerBus.md[]).
 
 In the end, `handleTaskCompletion` [notifies `JobListener` of the `ActiveJob` that the task succeeded](JobListener.md#taskSucceeded).
 

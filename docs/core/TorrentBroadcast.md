@@ -1,11 +1,11 @@
 = TorrentBroadcast
 
-*TorrentBroadcast* is a ROOT:Broadcast.md[] that uses a BitTorrent-like protocol for broadcast blocks distribution.
+*TorrentBroadcast* is a Broadcast.md[] that uses a BitTorrent-like protocol for broadcast blocks distribution.
 
 .TorrentBroadcast -- Broadcasting using BitTorrent
 image::sparkcontext-broadcast-bittorrent.png[align="center"]
 
-When a ROOT:SparkContext.md#broadcast[broadcast variable is created (using `SparkContext.broadcast`)] on the driver, a <<creating-instance, new instance of TorrentBroadcast is created>>.
+When a SparkContext.md#broadcast[broadcast variable is created (using `SparkContext.broadcast`)] on the driver, a <<creating-instance, new instance of TorrentBroadcast is created>>.
 
 [source, scala]
 ----
@@ -59,7 +59,7 @@ def getValue(): T
 
 getValue returns the <<_value, _value>>.
 
-getValue is part of the ROOT:Broadcast.md#getValue[Broadcast] abstraction.
+getValue is part of the Broadcast.md#getValue[Broadcast] abstraction.
 
 == [[broadcastId]] BroadcastBlockId
 
@@ -123,7 +123,7 @@ setConf(
   conf: SparkConf): Unit
 ----
 
-setConf uses the input `conf` ROOT:SparkConf.md[SparkConf] to set compression codec and the block size.
+setConf uses the input `conf` SparkConf.md[SparkConf] to set compression codec and the block size.
 
 Internally, setConf reads core:BroadcastManager.md#spark.broadcast.compress[spark.broadcast.compress] configuration property and if enabled (which it is by default) sets a io:CompressionCodec.md#createCodec[CompressionCodec] (as an internal `compressionCodec` property).
 
@@ -186,7 +186,7 @@ doUnpersist(blocking: Boolean): Unit
 
 `doUnpersist` <<unpersist, removes all the persisted state associated with a broadcast variable on executors>>.
 
-NOTE: `doUnpersist` is part of the ROOT:Broadcast.md#contract[`Broadcast` Variable Contract] and is executed from <<unpersist, unpersist>> method.
+NOTE: `doUnpersist` is part of the Broadcast.md#contract[`Broadcast` Variable Contract] and is executed from <<unpersist, unpersist>> method.
 
 == [[doDestroy]] `doDestroy` Method
 
@@ -197,7 +197,7 @@ doDestroy(blocking: Boolean): Unit
 
 `doDestroy` <<unpersist, removes all the persisted state associated with a broadcast variable on all the nodes in a Spark application>>, i.e. the driver and executors.
 
-NOTE: `doDestroy` is executed when ROOT:Broadcast.md#destroy-internal[`Broadcast` removes the persisted data and metadata related to a broadcast variable].
+NOTE: `doDestroy` is executed when Broadcast.md#destroy-internal[`Broadcast` removes the persisted data and metadata related to a broadcast variable].
 
 == [[unpersist]] unpersist Utility
 
@@ -300,4 +300,4 @@ Add the following line to `conf/log4j.properties`:
 log4j.logger.org.apache.spark.broadcast.TorrentBroadcast=ALL
 ----
 
-Refer to ROOT:spark-logging.md[Logging].
+Refer to spark-logging.md[Logging].

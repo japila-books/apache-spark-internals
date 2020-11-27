@@ -1,6 +1,6 @@
 # SparkConf
 
-Every user program starts with creating an instance of `SparkConf` that holds the ROOT:spark-deployment-environments.md#master-urls[master URL] to connect to (`spark.master`), the name for your Spark application (that is later displayed in webui:index.md[web UI] and becomes `spark.app.name`) and other Spark properties required for proper runs. The instance of `SparkConf` can be used to create ROOT:SparkContext.md[SparkContext].
+Every user program starts with creating an instance of `SparkConf` that holds the spark-deployment-environments.md#master-urls[master URL] to connect to (`spark.master`), the name for your Spark application (that is later displayed in webui:index.md[web UI] and becomes `spark.app.name`) and other Spark properties required for proper runs. The instance of `SparkConf` can be used to create SparkContext.md[SparkContext].
 
 [TIP]
 ====
@@ -53,7 +53,7 @@ CAUTION: FIXME
 
 There are the following places where a Spark application looks for Spark properties (in the order of importance from the least important to the most important):
 
-* `conf/spark-defaults.conf` - the configuration file with the default Spark properties. Read ROOT:spark-properties.md#spark-defaults-conf[spark-defaults.conf].
+* `conf/spark-defaults.conf` - the configuration file with the default Spark properties. Read spark-properties.md#spark-defaults-conf[spark-defaults.conf].
 * `--conf` or `-c` - the command-line option used by tools:spark-submit.md[spark-submit] (and other shell scripts that use `spark-submit` or `spark-class` under the covers, e.g. `spark-shell`)
 * `SparkConf`
 
@@ -97,7 +97,7 @@ spark.submit.deployMode=client
 getAppId: String
 ----
 
-getAppId returns the value of ROOT:configuration-properties.md#spark.app.id[spark.app.id] configuration property or throws a `NoSuchElementException` if not set.
+getAppId returns the value of configuration-properties.md#spark.app.id[spark.app.id] configuration property or throws a `NoSuchElementException` if not set.
 
 getAppId is used when:
 

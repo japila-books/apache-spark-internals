@@ -13,7 +13,7 @@ TaskMetrics takes no arguments to be created.
 
 TaskMetrics is available using [TaskContext.taskMetrics](../scheduler/TaskContext.md#taskMetrics).
 
-TIP: Use ROOT:SparkListener.md#onTaskEnd[SparkListener.onTaskEnd] to intercept ROOT:SparkListener.md#SparkListenerTaskEnd[SparkListenerTaskEnd] events to access the <<TaskMetrics, TaskMetrics>> of a task that has finished successfully.
+TIP: Use SparkListener.md#onTaskEnd[SparkListener.onTaskEnd] to intercept SparkListener.md#SparkListenerTaskEnd[SparkListenerTaskEnd] events to access the <<TaskMetrics, TaskMetrics>> of a task that has finished successfully.
 
 TIP: Use <<spark-SparkListener-StatsReportListener.md#, StatsReportListener>> for summary statistics at runtime (after a stage completes).
 

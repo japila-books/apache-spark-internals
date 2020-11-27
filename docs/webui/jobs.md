@@ -1,6 +1,6 @@
 # Jobs Tab
 
-*Jobs* tab in index.md[web UI] shows spark-webui-AllJobsPage.md[status of all Spark jobs] in a Spark application (ROOT:SparkContext.md[]).
+*Jobs* tab in index.md[web UI] shows spark-webui-AllJobsPage.md[status of all Spark jobs] in a Spark application (SparkContext.md[]).
 
 .Jobs Tab in Web UI
 image::spark-webui-jobs.png[align="center"]

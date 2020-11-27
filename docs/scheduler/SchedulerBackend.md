@@ -95,7 +95,7 @@ getDriverLogUrls: Option[Map[String, String]]
 
 Default: `None` (undefined)
 
-Used exclusively when `SparkContext` is requested to ROOT:SparkContext.md#postApplicationStart[postApplicationStart]
+Used exclusively when `SparkContext` is requested to SparkContext.md#postApplicationStart[postApplicationStart]
 
 | isReady
 a| [[isReady]]
@@ -143,7 +143,7 @@ maxNumConcurrentTasks(): Int
 
 *Maximum number of concurrent tasks* that can be launched now
 
-Used exclusively when `SparkContext` is requested to ROOT:SparkContext.md#maxNumConcurrentTasks[maxNumConcurrentTasks]
+Used exclusively when `SparkContext` is requested to SparkContext.md#maxNumConcurrentTasks[maxNumConcurrentTasks]
 
 | reviveOffers
 a| [[reviveOffers]]

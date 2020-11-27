@@ -1,6 +1,6 @@
 == [[StorageStatusListener]] StorageStatusListener -- Spark Listener for Tracking BlockManagers
 
-`StorageStatusListener` is a ROOT:SparkListener.md[] that uses <<SparkListener-callbacks, SparkListener callbacks>> to track status of every storage:BlockManager.md[BlockManager] in a Spark application.
+`StorageStatusListener` is a SparkListener.md[] that uses <<SparkListener-callbacks, SparkListener callbacks>> to track status of every storage:BlockManager.md[BlockManager] in a Spark application.
 
 `StorageStatusListener` is created and registered when `SparkUI` spark-webui-SparkUI.md#create[is created]. It is later used to create spark-webui-executors-ExecutorsListener.md[ExecutorsListener] and spark-webui-StorageListener.md[StorageListener] Spark listeners.
 

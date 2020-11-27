@@ -13,7 +13,7 @@ When <<creating-instance, created>>, `StagesTab` creates the following pages and
 
 * spark-webui-PoolPage.md[PoolPage]
 
-*Stages* tab in spark-webui.md[web UI] shows spark-webui-AllStagesPage.md[the current state of all stages of all jobs in a Spark application] (i.e. a ROOT:SparkContext.md[]) with two optional pages for spark-webui-StagePage.md[the tasks and statistics for a stage] (when a stage is selected) and spark-webui-PoolPage.md[pool details] (when the application works in spark-scheduler-SchedulingMode.md#FAIR[FAIR scheduling mode]).
+*Stages* tab in spark-webui.md[web UI] shows spark-webui-AllStagesPage.md[the current state of all stages of all jobs in a Spark application] (i.e. a SparkContext.md[]) with two optional pages for spark-webui-StagePage.md[the tasks and statistics for a stage] (when a stage is selected) and spark-webui-PoolPage.md[pool details] (when the application works in spark-scheduler-SchedulingMode.md#FAIR[FAIR scheduling mode]).
 
 The title of the tab is *Stages for All Jobs*.
 
@@ -38,7 +38,7 @@ image::spark-webui-stages-fairschedulerpools.png[align="center"]
 
 Internally, the page is represented by https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/ui/jobs/StagesTab.scala[org.apache.spark.ui.jobs.StagesTab] class.
 
-The page uses the parent's spark-webui-SparkUI.md[SparkUI] to access required services, i.e. ROOT:SparkContext.md[], spark-sql-SQLConf.md[SparkConf], spark-webui-JobProgressListener.md[JobProgressListener], spark-webui-RDDOperationGraphListener.md[RDDOperationGraphListener], and to know whether <<killEnabled, kill is enabled or not>>.
+The page uses the parent's spark-webui-SparkUI.md[SparkUI] to access required services, i.e. SparkContext.md[], spark-sql-SQLConf.md[SparkConf], spark-webui-JobProgressListener.md[JobProgressListener], spark-webui-RDDOperationGraphListener.md[RDDOperationGraphListener], and to know whether <<killEnabled, kill is enabled or not>>.
 
 `StagesTab` is <<creating-instance, created>> when...FIXME
 

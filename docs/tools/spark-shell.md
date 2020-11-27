@@ -17,7 +17,7 @@ $ ./bin/spark-shell
 scala>
 ```
 
-`spark-shell` is an extension of Scala REPL with automatic instantiation of spark-sql-SparkSession.md[SparkSession] as `spark` (and ROOT:SparkContext.md[] as `sc`).
+`spark-shell` is an extension of Scala REPL with automatic instantiation of spark-sql-SparkSession.md[SparkSession] as `spark` (and SparkContext.md[] as `sc`).
 
 [source, scala]
 ----
@@ -84,7 +84,7 @@ scala> :type spark
 org.apache.spark.sql.SparkSession
 ```
 
-Besides, there is also `sc` value created which is an instance of ROOT:SparkContext.md[].
+Besides, there is also `sc` value created which is an instance of SparkContext.md[].
 
 ```
 scala> :type sc

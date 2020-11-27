@@ -79,7 +79,7 @@ NOTE: run uses core:SparkEnv.md#mapOutputTracker[`SparkEnv` to access the curren
 
 run records the current time as the task's start time (as `taskStart`).
 
-run scheduler:Task.md#run[runs the task] (with `taskAttemptId` as <<taskId, taskId>>, `attemptNumber` from `TaskDescription`, and `metricsSystem` as the current metrics:spark-metrics-MetricsSystem.md[MetricsSystem]).
+run scheduler:Task.md#run[runs the task] (with `taskAttemptId` as <<taskId, taskId>>, `attemptNumber` from `TaskDescription`, and `metricsSystem` as the current [MetricsSystem](../metrics/MetricsSystem.md)).
 
 NOTE: run uses core:SparkEnv.md#metricsSystem[`SparkEnv` to access the current `MetricsSystem`].
 
@@ -89,13 +89,13 @@ After the task's run has finished (inside the "finally" block of the "monitored"
 
 run then memory:TaskMemoryManager.md#cleanUpAllAllocatedMemory[requests `TaskMemoryManager` to clean up allocated memory] (that helps finding memory leaks).
 
-If run detects memory leak of the managed memory (i.e. the memory freed is greater than `0`) and ROOT:configuration-properties.md#spark.unsafe.exceptionOnMemoryLeak[spark.unsafe.exceptionOnMemoryLeak] Spark property is enabled (it is not by default) and no exception was reported while the task ran, run reports a `SparkException`:
+If run detects memory leak of the managed memory (i.e. the memory freed is greater than `0`) and configuration-properties.md#spark.unsafe.exceptionOnMemoryLeak[spark.unsafe.exceptionOnMemoryLeak] Spark property is enabled (it is not by default) and no exception was reported while the task ran, run reports a `SparkException`:
 
 ```
 Managed memory leak detected; size = [freedMemory] bytes, TID = [taskId]
 ```
 
-Otherwise, if ROOT:configuration-properties.md#spark.unsafe.exceptionOnMemoryLeak[spark.unsafe.exceptionOnMemoryLeak] is disabled, you should see the following ERROR message in the logs instead:
+Otherwise, if configuration-properties.md#spark.unsafe.exceptionOnMemoryLeak[spark.unsafe.exceptionOnMemoryLeak] is disabled, you should see the following ERROR message in the logs instead:
 
 ```
 Managed memory leak detected; size = [freedMemory] bytes, TID = [taskId]
@@ -103,14 +103,14 @@ Managed memory leak detected; size = [freedMemory] bytes, TID = [taskId]
 
 NOTE: If run detects a memory leak, it leads to a `SparkException` or ERROR message in the logs.
 
-If run detects lock leaking (i.e. the number of locks released) and ROOT:configuration-properties.md#spark.storage.exceptionOnPinLeak[spark.storage.exceptionOnPinLeak] configuration property is enabled (it is not by default) and no exception was reported while the task ran, run reports a `SparkException`:
+If run detects lock leaking (i.e. the number of locks released) and configuration-properties.md#spark.storage.exceptionOnPinLeak[spark.storage.exceptionOnPinLeak] configuration property is enabled (it is not by default) and no exception was reported while the task ran, run reports a `SparkException`:
 
 ```
 [releasedLocks] block locks were not released by TID = [taskId]:
 [releasedLocks separated by comma]
 ```
 
-Otherwise, if ROOT:configuration-properties.md#spark.storage.exceptionOnPinLeak[spark.storage.exceptionOnPinLeak] is disabled or the task reported an exception, you should see the following INFO message in the logs instead:
+Otherwise, if configuration-properties.md#spark.storage.exceptionOnPinLeak[spark.storage.exceptionOnPinLeak] is disabled or the task reported an exception, you should see the following INFO message in the logs instead:
 
 ```
 [releasedLocks] block locks were not released by TID = [taskId]:
@@ -156,7 +156,7 @@ When executor:Executor.md#maxResultSize[maxResultSize] is greater than `0` and t
 Finished [taskName] (TID [taskId]). Result is larger than maxResultSize ([resultSize] > [maxResultSize]), dropping it.
 ```
 
-TIP: Read about ROOT:configuration-properties.md#spark.driver.maxResultSize[spark.driver.maxResultSize].
+TIP: Read about configuration-properties.md#spark.driver.maxResultSize[spark.driver.maxResultSize].
 
 ```
 $ ./bin/spark-shell -c spark.driver.maxResultSize=1m
@@ -374,7 +374,7 @@ Add the following line to `conf/log4j.properties`:
 log4j.logger.org.apache.spark.executor.Executor=ALL
 ----
 
-Refer to ROOT:spark-logging.md[Logging].
+Refer to spark-logging.md[Logging].
 
 == [[internal-properties]] Internal Properties
 

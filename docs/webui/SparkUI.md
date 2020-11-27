@@ -15,7 +15,7 @@ When <<create, created>> (while `SparkContext` is created for a live Spark appli
 
 * Live [AppStatusStore](../SparkContext-creating-instance-internals.md#_statusStore) (with a core:ElementTrackingStore.md[] using an core:InMemoryStore.md[] and a core:AppStatusListener.md[] for a live Spark application)
 
-* Name of the Spark application that is exactly the value of ROOT:SparkConf.md#spark.app.name[spark.app.name] configuration property
+* Name of the Spark application that is exactly the value of SparkConf.md#spark.app.name[spark.app.name] configuration property
 
 * Empty base path
 
@@ -186,8 +186,8 @@ Internally, `create` simply creates a new <<creating-instance, SparkUI>> (with t
 SparkUI takes the following when created:
 
 * [[store]] core:AppStatusStore.md[]
-* [[sc]] ROOT:SparkContext.md[]
-* [[conf]] ROOT:SparkConf.md[SparkConf]
+* [[sc]] SparkContext.md[]
+* [[conf]] SparkConf.md[SparkConf]
 * [[securityManager]] `SecurityManager`
 * [[appName]] Application name
 * [[basePath]] `basePath`

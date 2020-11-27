@@ -9,7 +9,7 @@ TaskLocation is available as scheduler:Task.md#preferredLocations[preferredLocat
 [[host]]
 Every TaskLocation describes the location by host name, but could also use other location-related metadata.
 
-TaskLocations of an RDD and a partition is available using ROOT:SparkContext.md#getPreferredLocs[SparkContext.getPreferredLocs] method.
+TaskLocations of an RDD and a partition is available using SparkContext.md#getPreferredLocs[SparkContext.getPreferredLocs] method.
 
 ??? note "Sealed"
     `TaskLocation` is a Scala `private[spark] sealed` trait so all the available implementations of TaskLocation trait are in a single Scala file.

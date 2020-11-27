@@ -1,8 +1,8 @@
 == [[JobProgressListener]] `JobProgressListener` Spark Listener
 
-`JobProgressListener` is a ROOT:SparkListener.md[] for spark-webui.md[web UI].
+`JobProgressListener` is a SparkListener.md[] for spark-webui.md[web UI].
 
-`JobProgressListener` intercepts the following ROOT:SparkListener.md#SparkListenerEvent[Spark events].
+`JobProgressListener` intercepts the following SparkListener.md#SparkListenerEvent[Spark events].
 
 .`JobProgressListener` Events
 [cols="1,2",options="header",width="100%"]
@@ -18,7 +18,7 @@
 
 | <<onExecutorMetricsUpdate, onExecutorMetricsUpdate>> |
 
-| `onEnvironmentUpdate` | Sets `schedulingMode` property using the current ROOT:configuration-properties.md#spark.scheduler.mode[spark.scheduler.mode] (from `Spark Properties` environment details).
+| `onEnvironmentUpdate` | Sets `schedulingMode` property using the current configuration-properties.md#spark.scheduler.mode[spark.scheduler.mode] (from `Spark Properties` environment details).
 
 Used in spark-webui-AllJobsPage.md[AllJobsPage] (for the Scheduling Mode), and to display pools in spark-webui-JobsTab.md[JobsTab] and spark-webui-StagesTab.md[StagesTab].
 

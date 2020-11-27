@@ -45,7 +45,7 @@ write[K, V: ClassTag](
 `write` requests the `HadoopMapReduceCommitProtocol` to <<HadoopMapReduceCommitProtocol.md#setupJob, setupJob>> (with the <<write-jobContext, jobContext>>).
 
 [[write-runJob]][[write-executeTask]]
-`write` uses the `SparkContext` (of the given RDD) to ROOT:SparkContext.md#runJob[run a Spark job asynchronously] for the given RDD with the <<executeTask, executeTask>> partition function.
+`write` uses the `SparkContext` (of the given RDD) to SparkContext.md#runJob[run a Spark job asynchronously] for the given RDD with the <<executeTask, executeTask>> partition function.
 
 [[write-commitJob]]
 In the end, `write` requests the <<write-committer, HadoopMapReduceCommitProtocol>> to <<HadoopMapReduceCommitProtocol.md#commitJob, commit the job>> and prints out the following INFO message to the logs:
