@@ -50,7 +50,7 @@ compute(
 
 compute computes the input `split` spark-rdd-partitions.md[partition] in the [TaskContext](../scheduler/TaskContext.md) to produce a collection of values (of type `T`).
 
-compute is implemented by any type of RDD in Spark and is called every time the records are requested unless RDD is spark-rdd-caching.md[cached] or ROOT:rdd-checkpointing.md[checkpointed] (and the records can be read from an external storage, but this time closer to the compute node).
+compute is implemented by any type of RDD in Spark and is called every time the records are requested unless RDD is spark-rdd-caching.md[cached] or [checkpointed](checkpointing.md) (and the records can be read from an external storage, but this time closer to the compute node).
 
 When an RDD is spark-rdd-caching.md[cached], for specified storage:StorageLevel.md[storage levels] (i.e. all but `NONE`)...FIXME
 
@@ -216,7 +216,7 @@ dependencies: Seq[Dependency[_]]
 
 NOTE: `dependencies` is a final method that no class in Spark can ever override.
 
-Internally, `dependencies` checks out whether the RDD is ROOT:rdd-checkpointing.md[checkpointed] and acts accordingly.
+Internally, `dependencies` checks out whether the RDD is [checkpointed](checkpointing.md) and acts accordingly.
 
 For a RDD being checkpointed, `dependencies` returns a single-element collection with a [OneToOneDependency](NarrowDependency.md#OneToOneDependency).
 
@@ -317,7 +317,7 @@ unpersist...FIXME
 localCheckpoint(): this.type
 ----
 
-localCheckpoint marks this RDD for ROOT:rdd-checkpointing.md[local checkpointing] using Spark's caching layer.
+localCheckpoint marks this RDD for [local checkpointing](checkpointing.md) using Spark's caching layer.
 
 == [[computeOrReadCheckpoint]] Computing Partition or Reading From Checkpoint
 

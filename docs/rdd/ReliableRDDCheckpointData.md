@@ -1,8 +1,8 @@
-= ReliableRDDCheckpointData
+# ReliableRDDCheckpointData
 
-*ReliableRDDCheckpointData* is a rdd:RDDCheckpointData.md[RDDCheckpointData] for ROOT:rdd-checkpointing.md#reliable-checkpointing[Reliable Checkpointing].
+`ReliableRDDCheckpointData` is a [RDDCheckpointData](RDDCheckpointData.md) for [Reliable Checkpointing](checkpointing.md#reliable-checkpointing).
 
-== [[creating-instance]] Creating Instance
+## Creating Instance
 
 ReliableRDDCheckpointData takes the following to be created:
 

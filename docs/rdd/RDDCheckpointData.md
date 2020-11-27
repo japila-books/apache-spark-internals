@@ -13,7 +13,7 @@
 | [[LocalRDDCheckpointData]]
 
 | rdd:ReliableRDDCheckpointData.md[ReliableRDDCheckpointData]
-| [[ReliableRDDCheckpointData]] ROOT:rdd-checkpointing.md#reliable-checkpointing[Reliable Checkpointing]
+| [[ReliableRDDCheckpointData]] [Reliable Checkpointing](checkpointing.md#reliable-checkpointing)
 
 |===
 

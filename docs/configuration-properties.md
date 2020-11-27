@@ -1,5 +1,29 @@
 # Spark Configuration Properties
 
+## <span id="spark.storage.blockManagerTimeoutIntervalMs"><span id="STORAGE_BLOCKMANAGER_TIMEOUTINTERVAL"> spark.storage.blockManagerTimeoutIntervalMs
+
+(in millis)
+
+Default: `60s`
+
+## <span id="spark.storage.blockManagerSlaveTimeoutMs"><span id="STORAGE_BLOCKMANAGER_SLAVE_TIMEOUT"> spark.storage.blockManagerSlaveTimeoutMs
+
+(in millis)
+
+Default: [spark.network.timeout](#NETWORK_TIMEOUT)
+
+## <span id="spark.network.timeout"><span id="NETWORK_TIMEOUT"> spark.network.timeout
+
+Network timeout (in seconds) to use for RPC remote endpoint lookup
+
+Default: `120s`
+
+## <span id="spark.network.timeoutInterval"><span id="NETWORK_TIMEOUT_INTERVAL"> spark.network.timeoutInterval
+
+(in millis)
+
+Default: [spark.storage.blockManagerTimeoutIntervalMs](#STORAGE_BLOCKMANAGER_TIMEOUTINTERVAL)
+
 ## <span id="spark.shuffle.sync"><span id="SHUFFLE_SYNC"> spark.shuffle.sync
 
 Controls whether `DiskBlockObjectWriter` should force outstanding writes to disk while [committing a single atomic block](storage/DiskBlockObjectWriter.md#commitAndGet) (i.e. all operating system buffers should synchronize with the disk to ensure that all changes to a file are in fact recorded in the storage)
@@ -647,12 +671,6 @@ Default: `3s`
 == [[spark.rpc.askTimeout]] spark.rpc.askTimeout
 
 Timeout for RPC ask calls
-
-Default: `120s`
-
-== [[spark.network.timeout]] spark.network.timeout
-
-Network timeout to use for RPC remote endpoint lookup. Fallback for <<spark.rpc.askTimeout, spark.rpc.askTimeout>>.
 
 Default: `120s`
 
