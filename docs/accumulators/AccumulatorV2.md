@@ -13,7 +13,7 @@ add(
   v: IN): Unit
 ```
 
-Used when...FIXME
+Accumulates (_adds_) the given `v` value to this accumulator
 
 ### <span id="copy"> Copying Accumulator
 
@@ -21,15 +21,11 @@ Used when...FIXME
 copy(): AccumulatorV2[IN, OUT]
 ```
 
-Used when...FIXME
-
 ### <span id="isZero"> Is Zero Value
 
 ```scala
 isZero: Boolean
 ```
-
-Used when...FIXME
 
 ### <span id="merge"> Merging Updates
 
@@ -38,15 +34,11 @@ merge(
   other: AccumulatorV2[IN, OUT]): Unit
 ```
 
-Used when...FIXME
-
 ### <span id="reset"> Resetting Accumulator
 
 ```scala
 reset(): Unit
 ```
-
-Used when...FIXME
 
 ### <span id="value"> Value
 
@@ -54,7 +46,17 @@ Used when...FIXME
 value: OUT
 ```
 
-Used when...FIXME
+The current value of this accumulator
+
+Used when:
+
+* `TaskRunner` is requested to [collectAccumulatorsAndResetStatusOnFailure](../executor/TaskRunner.md#collectAccumulatorsAndResetStatusOnFailure)
+* `AccumulatorSource` is requested to [register](AccumulatorSource.md#register)
+* `DAGScheduler` is requested to [update accumulators](../scheduler/DAGScheduler.md#updateAccumulators)
+* `TaskSchedulerImpl` is requested to [executorHeartbeatReceived](../scheduler/TaskSchedulerImpl.md#executorHeartbeatReceived)
+* `TaskSetManager` is requested to [handleSuccessfulTask](../scheduler/TaskSetManager.md#handleSuccessfulTask)
+* `JsonProtocol` is requested to [taskEndReasonFromJson](../history-server/JsonProtocol.md#taskEndReasonFromJson)
+* _others_
 
 ## Implementations
 

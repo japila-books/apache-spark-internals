@@ -1,0 +1,3 @@
+# AccumulatorSource
+
+`AccumulatorSource` is...FIXME
