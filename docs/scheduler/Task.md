@@ -131,7 +131,7 @@ collectAccumulatorUpdates(
   taskFailed: Boolean = false): Seq[AccumulableInfo]
 ```
 
-`collectAccumulatorUpdates` collects the latest values of internal and external accumulators from a task (and returns the values as a collection of [AccumulableInfo](../accumulators/index.md#AccumulableInfo)).
+`collectAccumulatorUpdates` collects the latest values of internal and external accumulators from a task (and returns the values as a collection of [AccumulableInfo](../accumulators/AccumulableInfo.md)).
 
 Internally, `collectAccumulatorUpdates` [takes `TaskMetrics`](TaskContextImpl.md#taskMetrics).
 

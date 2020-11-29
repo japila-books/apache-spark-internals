@@ -11,7 +11,7 @@
 * BarrierCoordinator
 * SparkSession ([Spark SQL]({{ book.spark_sql }}/SparkSession/#registerContextListener))
 * AppListingListener (Spark History Server)
-* [AppStatusListener](core/AppStatusListener.md)
+* [AppStatusListener](AppStatusListener.md)
 * BasicEventFilterBuilder (Spark History Server)
 * [EventLoggingListener](history-server/EventLoggingListener.md) (Spark History Server)
 * ExecutionListenerBus

@@ -76,9 +76,7 @@ toInfo(
   value: Option[Any]): AccumulableInfo
 ```
 
-`toInfo` determines whether the accumulator is internal based on the [name](#name) (and whether it uses the [internal.metrics](InternalAccumulator.md#METRICS_PREFIX) prefix).
-
-`toInfo` creates an [AccumulableInfo](index.md#AccumulableInfo).
+`toInfo` determines whether the accumulator is internal based on the [name](#name) (and whether it uses the [internal.metrics](InternalAccumulator.md#METRICS_PREFIX) prefix) that is required to create an [AccumulableInfo](AccumulableInfo.md).
 
 `toInfo` is used when:
 

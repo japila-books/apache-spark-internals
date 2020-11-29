@@ -363,7 +363,7 @@ Used when:
 
 * `TaskSchedulerImpl` is scheduler:TaskSchedulerImpl.md#CPUS_PER_TASK[created]
 
-* AppStatusListener is requested to core:AppStatusListener.md#onEnvironmentUpdate[handle an SparkListenerEnvironmentUpdate event]
+* AppStatusListener is requested to [handle an SparkListenerEnvironmentUpdate event](AppStatusListener.md#onEnvironmentUpdate)
 
 * `LocalityPreferredContainerPlacementStrategy` is requested to `numExecutorsPending`
 

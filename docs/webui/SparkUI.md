@@ -13,7 +13,7 @@ image::spark-webui-SparkUI.png[align="center"]
 
 When <<create, created>> (while `SparkContext` is created for a live Spark application), SparkUI gets the following:
 
-* Live [AppStatusStore](../SparkContext-creating-instance-internals.md#_statusStore) (with a core:ElementTrackingStore.md[] using an core:InMemoryStore.md[] and a core:AppStatusListener.md[] for a live Spark application)
+* Live [AppStatusStore](../SparkContext-creating-instance-internals.md#_statusStore) (with a core:ElementTrackingStore.md[] using an core:InMemoryStore.md[] and a [AppStatusListener](../AppStatusListener.md) for a live Spark application)
 
 * Name of the Spark application that is exactly the value of SparkConf.md#spark.app.name[spark.app.name] configuration property
 

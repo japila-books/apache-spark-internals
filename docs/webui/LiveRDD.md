@@ -1,20 +1,19 @@
-== [[LiveRDD]] LiveRDD
+# LiveRDD
 
-`LiveRDD` is a spark-core-LiveEntity.md[LiveEntity] that...FIXME
+`LiveRDD` is a [LiveEntity](LiveEntity.md) that...FIXME
 
-`LiveRDD` is <<creating-instance, created>> exclusively when `AppStatusListener` is requested to core:AppStatusListener.md#onStageSubmitted[handle onStageSubmitted event]
+`LiveRDD` is <<creating-instance, created>> exclusively when `AppStatusListener` is requested to [handle onStageSubmitted event](../AppStatusListener.md#onStageSubmitted)
 
 [[creating-instance]]
 [[info]]
 `LiveRDD` takes a storage:RDDInfo.md[RDDInfo] when created.
 
-=== [[doUpdate]] `doUpdate` Method
+## <span id="doUpdate"> doUpdate
 
-[source, scala]
-----
+```scala
 doUpdate(): Any
-----
+```
 
-NOTE: `doUpdate` is part of spark-core-LiveEntity.md#doUpdate[LiveEntity Contract] to...FIXME.
+`doUpdate` is part of the [LiveEntity](LiveEntity.md#doUpdate) abstraction.
 
 `doUpdate`...FIXME

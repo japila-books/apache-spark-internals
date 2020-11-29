@@ -1580,7 +1580,7 @@ For every [AccumulatorV2](DAGSchedulerEvent.md#CompletionEvent-accumUpdates) upd
 For named accumulators with the update value being a non-zero value, i.e. not `Accumulable.zero`:
 
 * `stage.latestInfo.accumulables` for the `AccumulableInfo.id` is set
-* `CompletionEvent.taskInfo.accumulables` has a new [AccumulableInfo](../accumulators/index.md#AccumulableInfo) added.
+* `CompletionEvent.taskInfo.accumulables` has a new [AccumulableInfo](../accumulators/AccumulableInfo.md) added.
 
 CAUTION: FIXME Where are `Stage.latestInfo.accumulables` and `CompletionEvent.taskInfo.accumulables` used?
 

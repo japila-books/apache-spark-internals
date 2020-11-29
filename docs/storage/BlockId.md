@@ -17,7 +17,7 @@ Used when:
 
 * NettyBlockTransferService is requested to storage:NettyBlockTransferService.md#uploadBlock[upload a block]
 
-* AppStatusListener is requested to core:AppStatusListener.md#updateRDDBlock[updateRDDBlock], core:AppStatusListener.md#updateStreamBlock[updateStreamBlock]
+* AppStatusListener is requested to [updateRDDBlock](../AppStatusListener.md#updateRDDBlock), [updateStreamBlock](../AppStatusListener.md#updateStreamBlock)
 
 * BlockManager is requested to storage:BlockManager.md#putBlockDataAsStream[putBlockDataAsStream]
 
@@ -41,7 +41,7 @@ Used when:
 
 * BlockManager is requested to storage:BlockManager.md#removeBroadcast[remove all the blocks of a broadcast variable]
 
-* AppStatusListener is requested to core:AppStatusListener.md#updateBroadcastBlock[updateBroadcastBlock] (when core:AppStatusListener.md#onBlockUpdated[onBlockUpdated] for a `BroadcastBlockId`)
+* AppStatusListener is requested to [updateBroadcastBlock](../AppStatusListener.md#updateBroadcastBlock) (when [onBlockUpdated](../AppStatusListener.md#onBlockUpdated) for a `BroadcastBlockId`)
 
 serializer:SerializerManager.md#shouldCompress[Compressed] when core:BroadcastManager.md#spark.broadcast.compress[spark.broadcast.compress] configuration property is enabled
 
@@ -63,7 +63,7 @@ Used when:
 
 * `DAGScheduler` is requested for the scheduler:DAGScheduler.md#getCacheLocs[BlockManagers (executors) for cached RDD partitions]
 
-* `AppStatusListener` is requested to core:AppStatusListener.md#updateRDDBlock[updateRDDBlock] (when core:AppStatusListener.md#onBlockUpdated[onBlockUpdated] for a `RDDBlockId`)
+* `AppStatusListener` is requested to [updateRDDBlock](../AppStatusListener.md#updateRDDBlock) (when [onBlockUpdated](../AppStatusListener.md#onBlockUpdated) for a `RDDBlockId`)
 
 serializer:SerializerManager.md#shouldCompress[Compressed] when configuration-properties.md#spark.rdd.compress[spark.rdd.compress] configuration property is enabled (default: `false`)
 

@@ -214,16 +214,16 @@ registered: TaskMetrics
 
 NOTE: `registered` is used exclusively when `Task` is scheduler:Task.md#serializedTaskMetrics[created].
 
-== [[fromAccumulatorInfos]] `fromAccumulatorInfos` Factory Method
+## <span id="fromAccumulatorInfos"> fromAccumulatorInfos
 
-[source, scala]
-----
-fromAccumulatorInfos(infos: Seq[AccumulableInfo]): TaskMetrics
-----
+```scala
+fromAccumulatorInfos(
+  infos: Seq[AccumulableInfo]): TaskMetrics
+```
 
 `fromAccumulatorInfos`...FIXME
 
-NOTE: `fromAccumulatorInfos` is used exclusively when `AppStatusListener` is requested to core:AppStatusListener.md#onExecutorMetricsUpdate[onExecutorMetricsUpdate] (for spark-history-server:index.md[Spark History Server] only).
+`fromAccumulatorInfos` is used when `AppStatusListener` is requested to [onExecutorMetricsUpdate](../AppStatusListener.md#onExecutorMetricsUpdate).
 
 == [[fromAccumulators]] `fromAccumulators` Factory Method
 

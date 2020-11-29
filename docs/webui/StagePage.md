@@ -141,7 +141,7 @@ Stage page displays the table with [named accumulators](../accumulators/index.md
 ![Accumulators Section](../images/webui/spark-webui-stage-accumulators.png)
 
 !!! note
-    The information with name and value is stored in [AccumulableInfo](../accumulators/index.md#AccumulableInfo) (that is available in [StageUIData](JobProgressListener.md#StageUIData)).
+    The information with name and value is stored in [AccumulableInfo](../accumulators/AccumulableInfo.md) (that is available in [StageUIData](JobProgressListener.md#StageUIData)).
 
 ## Creating Instance
 

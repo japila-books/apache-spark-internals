@@ -329,17 +329,16 @@ Executor is trying to kill [taskName] (TID [taskId]), reason: [reason]
 
 NOTE: <<killed, killed>> flag is checked periodically in <<run, run>> to stop executing the task. Once killed, the task will eventually stop.
 
-== [[collectAccumulatorsAndResetStatusOnFailure]] collectAccumulatorsAndResetStatusOnFailure Method
+## <span id="collectAccumulatorsAndResetStatusOnFailure"> collectAccumulatorsAndResetStatusOnFailure
 
-[source, scala]
-----
+```scala
 collectAccumulatorsAndResetStatusOnFailure(
   taskStartTime: Long): (Seq[AccumulatorV2[_, _]], Seq[AccumulableInfo])
-----
+```
 
-collectAccumulatorsAndResetStatusOnFailure...FIXME
+`collectAccumulatorsAndResetStatusOnFailure`...FIXME
 
-collectAccumulatorsAndResetStatusOnFailure is used when TaskRunner is requested to <<run, run>>.
+`collectAccumulatorsAndResetStatusOnFailure` is used when `TaskRunner` is requested to [run](#run).
 
 == [[hasFetchFailure]] hasFetchFailure Method
 

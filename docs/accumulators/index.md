@@ -27,20 +27,6 @@ println(counter.value)
 !!! tip
     Learn more about [Accumulators]({{ spark.doc }}/rdd-programming-guide.html#accumulators) in the official documentation of Apache Spark.
 
-## AccumulableInfo
-
-`AccumulableInfo` represents an update to a [AccumulatorV2](AccumulatorV2.md).
-
-* <span id="AccumulableInfo-id"> Accumulator ID
-* <span id="AccumulableInfo-name"> Name
-* <span id="AccumulableInfo-update"> Partial Update
-* <span id="AccumulableInfo-value"> Partial Value
-* <span id="AccumulableInfo-internal"> `internal` flag
-* <span id="AccumulableInfo-countFailedValues"> `countFailedValues` flag
-* <span id="AccumulableInfo-metadata"> Metadata (default: `None`)
-
-`AccumulableInfo` is used to transfer accumulator updates from executors to the driver every executor heartbeat or when a task finishes.
-
 ## Further Reading
 
 * [Performance and Scalability of Broadcast in Spark](https://www.mosharaf.com/wp-content/uploads/mosharaf-spark-bc-report-spring10.pdf)

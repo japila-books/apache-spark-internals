@@ -9,7 +9,7 @@ AppStatusStore is available as SparkContext.md#statusStore[SparkContext.statusSt
 AppStatusStore takes the following to be created:
 
 * [[store]] core:KVStore.md[]
-* [[listener]] Optional core:AppStatusListener.md[] (default: `None`)
+* [[listener]] [AppStatusListener](../AppStatusListener.md) (default: `None`)
 
 AppStatusStore is created when:
 
@@ -39,19 +39,18 @@ activeStages(): Seq[v1.StageData]
 
 NOTE: `activeStages` is used when...FIXME
 
-== [[createLiveStore]] Creating Event Store
+## <span id="createLiveStore"> Creating Event Store
 
-[source, scala]
-----
+```scala
 createLiveStore(
   conf: SparkConf): AppStatusStore
-----
+```
 
 createLiveStore creates a fully-initialized AppStatusStore.
 
 Internally, createLiveStore creates a core:ElementTrackingStore.md[] (with a new core:InMemoryStore.md[] and the input SparkConf.md[SparkConf]).
 
-createLiveStore creates a core:AppStatusListener.md[] (with the `ElementTrackingStore` created, the input `SparkConf` and the `live` flag enabled).
+createLiveStore creates a [AppStatusListener](../AppStatusListener.md) (with the `ElementTrackingStore` created, the input `SparkConf` and the `live` flag enabled).
 
 In the end, createLiveStore creates an <<creating-instance, AppStatusStore>> (with the `ElementTrackingStore` and `AppStatusListener` just created).
 

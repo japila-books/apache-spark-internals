@@ -1,95 +1,77 @@
-= KVStore
+# KVStore
 
-*KVStore* is an <<contract, abstraction>> of <<implementations, key-value stores>>.
+`KVStore` is an [abstraction](#contract) of [key-value stores](#implementations).
 
-== [[contract]] Contract
+`KVStore` is a Java [Closeable]({{ java.api }}/java.base/java/io/Closeable.html).
 
-=== [[count]] count
+## Contract
 
-[source,java]
-----
+### <span id="count"> count
+
+```java
 long count(
   Class<?> type)
 long count(
   Class<?> type,
   String index,
   Object indexedValue)
-----
+```
 
-=== [[delete]] delete
+### <span id="delete"> delete
 
-[source,java]
-----
+```java
 void delete(
   Class<?> type,
   Object naturalKey)
-----
+```
 
-=== [[getMetadata]] getMetadata
+### <span id="getMetadata"> getMetadata
 
-[source,java]
-----
-T getMetadata(
+```java
+<T> T getMetadata(
   Class<T> klass)
-----
+```
 
-=== [[read]] read
+### <span id="read"> read
 
-[source,java]
-----
-T read(
+```java
+<T> T read(
   Class<T> klass,
   Object naturalKey)
-----
+```
 
-=== [[removeAllByIndexValues]] removeAllByIndexValues
+### <span id="removeAllByIndexValues"> removeAllByIndexValues
 
-[source,java]
-----
-boolean removeAllByIndexValues(
+```java
+<T> boolean removeAllByIndexValues(
   Class<T> klass,
   String index,
   Collection<?> indexValues)
-----
+```
 
-=== [[setMetadata]] setMetadata
+### <span id="setMetadata"> setMetadata
 
-[source,java]
-----
+```java
 void setMetadata(
   Object value)
-----
+```
 
-=== [[view]] view
+### <span id="view"> view
 
-[source,java]
-----
-KVStoreView<T> view(
+```java
+<T> KVStoreView<T> view(
   Class<T> type)
-----
+```
 
-=== [[write]] write
+### <span id="write"> write
 
-[source,java]
-----
+```java
 void write(
   Object value)
-----
+```
 
-== [[implementations]] KVStores
+## Implementations
 
-[cols="30,70",options="header",width="100%"]
-|===
-| KVStore
-| Description
-
-| core:ElementTrackingStore.md[]
-| [[ElementTrackingStore]]
-
-| core:InMemoryStore.md[]
-| [[InMemoryStore]]
-
-| core:LevelDB.md[]
-| [[LevelDB]]
-
-|===
+* [ElementTrackingStore](ElementTrackingStore.md)
+* [InMemoryStore](InMemoryStore.md)
+* [LevelDB](LevelDB.md)

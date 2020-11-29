@@ -1,4 +1,4 @@
-== [[LiveEntity]] LiveEntity
+# LiveEntity
 
 `LiveEntity` is the <<contract, contract>> of a live entity in Spark that...FIXME
 
@@ -40,11 +40,8 @@ write(store: ElementTrackingStore, now: Long, checkTriggers: Boolean = false): U
 
 In the end, `write` records the time in the <<lastWriteTime, lastWriteTime>>.
 
-[NOTE]
-====
 `write` is used when:
 
-. AppStatusListener is requested to core:AppStatusListener.md#update[update]
+* `AppStatusListener` is requested to [update](../AppStatusListener.md#update)
 
-. SQLAppStatusListener is created (and registers a flush trigger) and requested to `update`
-====
+* `SQLAppStatusListener` is created (and registers a flush trigger) and requested to `update`

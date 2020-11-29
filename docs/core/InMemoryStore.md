@@ -1,13 +1,12 @@
-= InMemoryStore
+# InMemoryStore
 
-InMemoryStore is a core:KVStore.md[].
+`InMemoryStore` is a [KVStore](KVStore.md).
 
-== [[creating-instance]] Creating Instance
+## Creating Instance
 
-InMemoryStore takes no arguments when created.
+`InMemoryStore` takes no arguments to be created.
 
-InMemoryStore is created when:
+`InMemoryStore` is created when:
 
-* FsHistoryProvider is spark-history-server:FsHistoryProvider.md#listing[created] and requested to spark-history-server:FsHistoryProvider.md#createInMemoryStore[createInMemoryStore]
-
-* AppStatusStore utility is used to core:AppStatusStore.md#createLiveStore[create an AppStatusStore for a live Spark application]
+* `FsHistoryProvider` is [created](../history-server/FsHistoryProvider.md#listing) and requested to [createInMemoryStore](../history-server/FsHistoryProvider.md#createInMemoryStore)
+* `AppStatusStore` utility is used to [create an AppStatusStore for a live Spark application](AppStatusStore.md#createLiveStore)
