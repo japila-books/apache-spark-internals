@@ -68,7 +68,7 @@ Used when:
 * SetAccumulator (Spark SQL)
 * SQLMetric ([Spark SQL]({{ book.spark_sql }}/physical-operators/SQLMetric))
 
-## <span id="toInfo"> toInfo
+## <span id="toInfo"> Converting this Accumulator to AccumulableInfo
 
 ```scala
 toInfo(
@@ -76,7 +76,7 @@ toInfo(
   value: Option[Any]): AccumulableInfo
 ```
 
-`toInfo` determines whether the accumulator is internal based on the [name](#name) (and whether it uses the [internal.metrics](InternalAccumulator.md#METRICS_PREFIX) prefix) that is required to create an [AccumulableInfo](AccumulableInfo.md).
+`toInfo` determines whether the accumulator is internal based on the [name](#name) (and whether it uses the [internal.metrics](InternalAccumulator.md#METRICS_PREFIX) prefix) and uses it to create an [AccumulableInfo](AccumulableInfo.md).
 
 `toInfo` is used when:
 

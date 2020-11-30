@@ -8,5 +8,5 @@
 
 `internal.metrics.` is used when:
 
-* `AccumulatorV2` is requested to [toInfo](AccumulatorV2.md#toInfo) and [writeReplace](AccumulatorV2.md#writeReplace)
+* `AccumulatorV2` is requested to [convert itself to AccumulableInfo](AccumulatorV2.md#toInfo) and [writeReplace](AccumulatorV2.md#writeReplace)
 * `JsonProtocol` is requested to [accumValueToJson](../history-server/JsonProtocol.md#accumValueToJson) and [accumValueFromJson](../history-server/JsonProtocol.md#accumValueFromJson)
