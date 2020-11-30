@@ -83,50 +83,21 @@ Task [taskId]'s epoch is [epoch]
 !!! note
     The task runs inside a "monitored" block (`try-finally` block) to detect any memory and lock leaks after the task's run finishes regardless of the final outcome - the computed value or an exception thrown.
 
+`run` creates a [Serializer](../serializer/Serializer.md#newInstance) and requests it to [serialize](../serializer/SerializerInstance.md#serialize) the task result (`valueBytes`).
+
+!!! note
+    `run` uses `SparkEnv` to [access the Serializer](../SparkEnv.md#serializer).
+
+`run` updates the [metrics](../scheduler/Task.md#metrics) of the [Task](#task) executed.
+
+`run` updates the metric counters in the [ExecutorSource](#executorSource).
+
+`run` requests the [Task](#task) executed for [accumulator updates](../scheduler/Task.md#collectAccumulatorUpdates) and the [ExecutorMetricsPoller](#metricsPoller) for [metric peaks](ExecutorMetricsPoller.md#getTaskMetricPeaks).
+
+`run` creates a [DirectTaskResult](../scheduler/TaskResult.md#DirectTaskResult) (with the task result serialized, the accumulator updates and the metric peaks) and requests the [closure Serializer](../serializer/SerializerInstance.md) to [serialize it](../serializer/SerializerInstance.md#serialize).
+
 !!! danger
     `run`...FIXME
-
-After the task's run has finished (inside the "finally" block of the "monitored" block), run BlockManager.md#releaseAllLocksForTask[requests `BlockManager` to release all locks of the task] (for the task's <<taskId, taskId>>). The locks are later used for lock leak detection.
-
-run then memory:TaskMemoryManager.md#cleanUpAllAllocatedMemory[requests `TaskMemoryManager` to clean up allocated memory] (that helps finding memory leaks).
-
-If run detects memory leak of the managed memory (i.e. the memory freed is greater than `0`) and configuration-properties.md#spark.unsafe.exceptionOnMemoryLeak[spark.unsafe.exceptionOnMemoryLeak] Spark property is enabled (it is not by default) and no exception was reported while the task ran, run reports a `SparkException`:
-
-```
-Managed memory leak detected; size = [freedMemory] bytes, TID = [taskId]
-```
-
-Otherwise, if configuration-properties.md#spark.unsafe.exceptionOnMemoryLeak[spark.unsafe.exceptionOnMemoryLeak] is disabled, you should see the following ERROR message in the logs instead:
-
-```
-Managed memory leak detected; size = [freedMemory] bytes, TID = [taskId]
-```
-
-NOTE: If run detects a memory leak, it leads to a `SparkException` or ERROR message in the logs.
-
-If run detects lock leaking (i.e. the number of locks released) and configuration-properties.md#spark.storage.exceptionOnPinLeak[spark.storage.exceptionOnPinLeak] configuration property is enabled (it is not by default) and no exception was reported while the task ran, run reports a `SparkException`:
-
-```
-[releasedLocks] block locks were not released by TID = [taskId]:
-[releasedLocks separated by comma]
-```
-
-Otherwise, if configuration-properties.md#spark.storage.exceptionOnPinLeak[spark.storage.exceptionOnPinLeak] is disabled or the task reported an exception, you should see the following INFO message in the logs instead:
-
-```
-[releasedLocks] block locks were not released by TID = [taskId]:
-[releasedLocks separated by comma]
-```
-
-NOTE: If run detects any lock leak, it leads to a `SparkException` or INFO message in the logs.
-
-Rigth after the "monitored" block, run records the current time as the task's finish time (as `taskFinish`).
-
-If the scheduler:Task.md#kill[task was killed] (while it was running), run reports a `TaskKilledException` (and the TaskRunner exits).
-
-run serializer:Serializer.md#newInstance[creates a `Serializer`] and serializer:Serializer.md#serialize[serializes the task's result]. run measures the time to serialize the result.
-
-NOTE: run uses `SparkEnv` core:SparkEnv.md#serializer[to access the current `Serializer`]. `SparkEnv` was specified when Executor.md#creating-instance[the owning `Executor` was created].
 
 IMPORTANT: This is when `TaskExecutor` serializes the computed value of a task to be sent back to the driver.
 
