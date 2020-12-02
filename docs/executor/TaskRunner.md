@@ -139,7 +139,7 @@ Task [taskId]'s epoch is [epoch]
 `run` creates a [DirectTaskResult](../scheduler/TaskResult.md#DirectTaskResult) (with the serialized task result, the accumulator updates and the metric peaks) and requests the [closure Serializer](../serializer/SerializerInstance.md) to [serialize it](../serializer/SerializerInstance.md#serialize).
 
 !!! note
-    The serialized `DirectTaskResult` is Java's [java.nio.ByteBuffer]({{ java.api }}/java.base/java/nio/ByteBuffer.html).
+    The serialized `DirectTaskResult` is a [java.nio.ByteBuffer]({{ java.api }}/java.base/java/nio/ByteBuffer.html).
 
 `run` selects between the `DirectTaskResult` and an [IndirectTaskResult](../scheduler/TaskResult.md#IndirectTaskResult) based on the size of the serialized task result (_limit_ of this `serializedDirectResult` byte buffer):
 

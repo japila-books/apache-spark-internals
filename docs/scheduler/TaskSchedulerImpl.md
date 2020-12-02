@@ -234,14 +234,16 @@ image::taskschedulerimpl-start-standalone.png[align="center"]
 
 `start` also starts <<task-scheduler-speculation, `task-scheduler-speculation` executor service>>.
 
-== [[statusUpdate]] Handling Task Status Update -- `statusUpdate` Method
+## <span id="statusUpdate"> Handling Task Status Update
 
-[source, scala]
-----
-statusUpdate(tid: Long, state: TaskState, serializedData: ByteBuffer): Unit
-----
+```scala
+statusUpdate(
+  tid: Long,
+  state: TaskState,
+  serializedData: ByteBuffer): Unit
+```
 
-`statusUpdate` finds scheduler:TaskSetManager.md[TaskSetManager] for the input `tid` task (in <<taskIdToTaskSetManager, taskIdToTaskSetManager>>).
+`statusUpdate` finds [TaskSetManager](TaskSetManager.md) for the input `tid` task (in <<taskIdToTaskSetManager, taskIdToTaskSetManager>>).
 
 When `state` is `LOST`, `statusUpdate`...FIXME
 
@@ -257,28 +259,23 @@ If a task is in `LOST` state, `statusUpdate` scheduler:DAGScheduler.md#executorL
 
 In case the `TaskSetManager` for `tid` could not be found (in <<taskIdToTaskSetManager, taskIdToTaskSetManager>> registry), you should see the following ERROR message in the logs:
 
-```
-ERROR Ignoring update with state [state] for TID [tid] because its task set is gone (this is likely the result of receiving duplicate task finished status updates)
+```text
+Ignoring update with state [state] for TID [tid] because its task set is gone (this is likely the result of receiving duplicate task finished status updates)
 ```
 
 Any exception is caught and reported as ERROR message in the logs:
 
-```
-ERROR Exception in statusUpdate
+```text
+Exception in statusUpdate
 ```
 
 CAUTION: FIXME image with scheduler backends calling `TaskSchedulerImpl.statusUpdate`.
 
-[NOTE]
-====
 `statusUpdate` is used when:
 
-* `DriverEndpoint` (of scheduler:CoarseGrainedSchedulerBackend.md[CoarseGrainedSchedulerBackend]) is requested to scheduler:CoarseGrainedSchedulerBackend-DriverEndpoint.md#StatusUpdate[handle a StatusUpdate message]
+* `DriverEndpoint` (of [CoarseGrainedSchedulerBackend](CoarseGrainedSchedulerBackend.md)) is requested to [handle a StatusUpdate message](CoarseGrainedSchedulerBackend-DriverEndpoint.md#StatusUpdate)
 
-* `LocalEndpoint` is requested to spark-local:spark-LocalEndpoint.md#StatusUpdate[handle a StatusUpdate message]
-
-* `MesosFineGrainedSchedulerBackend` is requested to handle a task status update
-====
+* `LocalEndpoint` is requested to [handle a StatusUpdate message](../local/LocalEndpoint.md#StatusUpdate)
 
 == [[speculationScheduler]][[task-scheduler-speculation]] task-scheduler-speculation Scheduled Executor Service -- `speculationScheduler` Internal Attribute
 
@@ -561,16 +558,11 @@ If `resourceOffers` did not manage to offer resources to a `TaskSetManager` so i
 
 When `resourceOffers` managed to launch a task, the internal <<hasLaunchedTask, hasLaunchedTask>> flag gets enabled (that effectively means what the name says _"there were executors and I managed to launch a task"_).
 
-[NOTE]
-====
 `resourceOffers` is used when:
 
-* scheduler:CoarseGrainedSchedulerBackend-DriverEndpoint.md#makeOffers[`CoarseGrainedSchedulerBackend` (via RPC endpoint) makes executor resource offers]
+* `CoarseGrainedSchedulerBackend` (via `DriverEndpoint` RPC endpoint) is requested to [make executor resource offers](CoarseGrainedSchedulerBackend-DriverEndpoint.md#makeOffers)
 
-* spark-local:spark-LocalEndpoint.md#reviveOffers[`LocalEndpoint` revives resource offers]
-
-* Spark on Mesos' `MesosFineGrainedSchedulerBackend` does `resourceOffers`
-====
+* `LocalEndpoint` is requested to [revive resource offers](../local/LocalEndpoint.md#reviveOffers)
 
 == [[resourceOfferSingleTaskSet]] Finding Tasks from TaskSetManager to Schedule on Executors -- `resourceOfferSingleTaskSet` Internal Method
 

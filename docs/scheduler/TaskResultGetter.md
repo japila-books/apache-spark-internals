@@ -1,4 +1,4 @@
-== [[TaskResultGetter]] TaskResultGetter
+# TaskResultGetter
 
 `TaskResultGetter` is a helper class of scheduler:TaskSchedulerImpl.md#statusUpdate[TaskSchedulerImpl] for _asynchronous_ deserialization of <<enqueueSuccessfulTask, task results of tasks that have finished successfully>> (possibly fetching remote blocks) or <<enqueueFailedTask, the failures for failed tasks>>.
 
@@ -71,15 +71,14 @@ When created for a new thread, `taskResultSerializer` is initialized with a new 
 
 NOTE: `TaskResultGetter` uses https://docs.oracle.com/javase/8/docs/api/java/lang/ThreadLocal.html[java.lang.ThreadLocal] for the thread-local `SerializerInstance` variable.
 
-=== [[enqueueSuccessfulTask]] Enqueuing Successful Task (Deserializing Task Result and Notifying TaskSchedulerImpl) -- `enqueueSuccessfulTask` Method
+## <span id="enqueueSuccessfulTask"> Enqueuing Successful Task
 
-[source, scala]
-----
+```scala
 enqueueSuccessfulTask(
   taskSetManager: TaskSetManager,
   tid: Long,
   serializedData: ByteBuffer): Unit
-----
+```
 
 `enqueueSuccessfulTask` submits an asynchronous task (to <<getTaskResultExecutor, task-result-getter>> asynchronous task executor) that first deserializes `serializedData` to a `DirectTaskResult`, then updates the internal accumulator (with the size of the `DirectTaskResult`) and ultimately notifies the `TaskSchedulerImpl` that the `tid` task was completed and scheduler:TaskSchedulerImpl.md#handleSuccessfulTask[the task result was received successfully] or scheduler:TaskSchedulerImpl.md#handleFailedTask[not].
 
@@ -89,7 +88,8 @@ Internally, the enqueued task first deserializes `serializedData` to a `TaskResu
 
 For a [DirectTaskResult](TaskResult.md#DirectTaskResult), the task scheduler:TaskSetManager.md#canFetchMoreResults[checks the available memory for the task result] and, when the size overflows configuration-properties.md#spark.driver.maxResultSize[spark.driver.maxResultSize], it simply returns.
 
-NOTE: `enqueueSuccessfulTask` is a mere thread so returning from a thread is to do nothing else. That is why the scheduler:TaskSetManager.md#canFetchMoreResults[check for quota does abort] when there is not enough memory.
+!!! note
+    `enqueueSuccessfulTask` is a mere thread so returning from a thread is to do nothing else. That is why the [check for quota does abort](TaskSetManager.md#canFetchMoreResults) when there is not enough memory.
 
 Otherwise, when there _is_ enough memory to hold the task result, it deserializes the `DirectTaskResult` (using the internal thread-local <<taskResultSerializer, taskResultSerializer>>).
 
@@ -97,8 +97,8 @@ For an [IndirectTaskResult](TaskResult.md#IndirectTaskResult), the task checks t
 
 Otherwise, when there _is_ enough memory to hold the task result, you should see the following DEBUG message in the logs:
 
-```
-DEBUG Fetching indirect task result for TID [tid]
+```text
+Fetching indirect task result for TID [tid]
 ```
 
 The task scheduler:TaskSchedulerImpl.md#handleTaskGettingResult[notifies `TaskSchedulerImpl` that it is about to fetch a remote block for a task result]. It then storage:BlockManager.md#getRemoteBytes[gets the block from remote block managers (as serialized bytes)].
@@ -116,11 +116,11 @@ With no exceptions thrown, `enqueueSuccessfulTask` scheduler:TaskSchedulerImpl.m
 
 A `ClassNotFoundException` leads to scheduler:TaskSetManager.md#abort[aborting the `TaskSet`] (with `ClassNotFound with classloader: [loader]` error message) while any non-fatal exception shows the following ERROR message in the logs followed by scheduler:TaskSetManager.md#abort[aborting the `TaskSet`].
 
-```
-ERROR Exception while getting task result
+```text
+Exception while getting task result
 ```
 
-NOTE: `enqueueSuccessfulTask` is used exclusively when `TaskSchedulerImpl` is requested to  scheduler:TaskSchedulerImpl.md#statusUpdate[handle a task status update] (and the task has finished successfully).
+`enqueueSuccessfulTask` is used when `TaskSchedulerImpl` is requested to [handle task status update](TaskSchedulerImpl.md#statusUpdate) (and the task has finished successfully).
 
 === [[enqueueFailedTask]] Deserializing TaskFailedReason and Notifying TaskSchedulerImpl -- `enqueueFailedTask` Method
 

@@ -1,36 +1,33 @@
-== [[TaskResult]] TaskResults -- DirectTaskResult and IndirectTaskResult
+# TaskResult
 
-`TaskResult` models a task result. It has exactly two concrete implementations:
+`TaskResult` is an abstraction of task results (of type `T`).
 
-1. <<DirectTaskResult, DirectTaskResult>> is the `TaskResult` to be serialized and sent over the wire to the driver together with the result bytes and accumulators.
-2. <<IndirectTaskResult, IndirectTaskResult>> is the `TaskResult` that is just a pointer to a task result in a `BlockManager`.
+The decision what `TaskResult` type to use is made when `TaskRunner` [finishes running a task](../executor/TaskRunner.md#run-serializedResult).
 
-The decision of the concrete `TaskResult` is made when a executor:TaskRunner.md#run[`TaskRunner` finishes running a task and checks the size of the result].
+??? note "Sealed Trait"
+    `TaskResult` is a Scala **sealed trait** which means that all of the implementations are in the same compilation unit (a single file).
 
-NOTE: The types are `private[spark]`.
+    ```scala
+    sealed trait TaskResult[T]
+    ```
 
-=== [[DirectTaskResult]] `DirectTaskResult` Task Result
+## <span id="DirectTaskResult"> DirectTaskResult
 
-[source, scala]
-----
-DirectTaskResult[T](
-  var valueBytes: ByteBuffer,
-  var accumUpdates: Seq[AccumulatorV2[_, _]])
-extends TaskResult[T] with Externalizable
-----
+`DirectTaskResult` is a `TaskResult` to be serialized and sent over the wire to the driver together with the following:
 
-`DirectTaskResult` is the <<TaskResult, TaskResult>> of scheduler:Task.md#run[running a task] (that is later executor:TaskRunner.md#run[returned serialized to the driver]) when the size of the task's result is smaller than configuration-properties.md#spark.driver.maxResultSize[spark.driver.maxResultSize] and executor:Executor.md#spark.task.maxDirectResultSize[spark.task.maxDirectResultSize] (or scheduler:CoarseGrainedSchedulerBackend.md#spark.rpc.message.maxSize[spark.rpc.message.maxSize] whatever is smaller).
+* <span id="valueBytes"> Value Bytes ([java.nio.ByteBuffer]({{ java.api }}/java.base/java/nio/ByteBuffer.html))
+* <span id="accumUpdates"> [Accumulator](../accumulators/AccumulatorV2.md) updates
+* <span id="metricPeaks"> Metric Peaks
 
-NOTE: `DirectTaskResult` is Java's https://docs.oracle.com/javase/8/docs/api/java/io/Externalizable.html[java.io.Externalizable].
+`DirectTaskResult` is used when the size of a task result is below [spark.driver.maxResultSize](../configuration-properties.md#spark.driver.maxResultSize) and the [maximum size of direct results](../executor/Executor.md#maxDirectResultSize).
 
-=== [[IndirectTaskResult]] `IndirectTaskResult` Task Result
+`DirectTaskResult` is a [java.io.Externalizable]({{ java.api }}/java.base/java/io/Externalizable.html).
 
-[source, scala]
-----
-IndirectTaskResult[T](blockId: BlockId, size: Int)
-extends TaskResult[T] with Serializable
-----
+## <span id="IndirectTaskResult"> IndirectTaskResult
 
-`IndirectTaskResult` is a <<TaskResult, TaskResult>> that...
+`IndirectTaskResult` is a "pointer" to a task result that is available in a [BlockManager](../storage/BlockManager.md):
 
-NOTE: `IndirectTaskResult` is Java's https://docs.oracle.com/javase/8/docs/api/java/io/Serializable.html[java.io.Serializable].
+* <span id="IndirectTaskResult-blockId"> [BlockId](../storage/BlockId.md)
+* <span id="IndirectTaskResult-size"> Size
+
+`IndirectTaskResult` is a [java.io.Serializable]({{ java.api }}/java.base/java/io/Serializable.html).

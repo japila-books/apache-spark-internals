@@ -1,6 +1,4 @@
-= RpcUtils
-
-RpcUtils is an utility for...FIXME
+# RpcUtils
 
 == [[makeDriverRef]] makeDriverRef Method
 

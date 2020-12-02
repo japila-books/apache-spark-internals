@@ -8,15 +8,13 @@ Executors are managed by executor:ExecutorBackend.md[executor backends].
 
 Executors <<startDriverHeartbeater, reports heartbeat and partial metrics for active tasks>> to the <<heartbeatReceiverRef, HeartbeatReceiver RPC Endpoint>> on the driver.
 
-.HeartbeatReceiver's Heartbeat Message Handler
-image::HeartbeatReceiver-Heartbeat.png[align="center"]
+![HeartbeatReceiver's Heartbeat Message Handler](../images/executor/HeartbeatReceiver-Heartbeat.png)
 
 Executors provide in-memory storage for RDDs that are cached in Spark applications (via storage:BlockManager.md[]).
 
 When started, an executor first registers itself with the driver that establishes a communication channel directly to the driver to accept tasks for execution.
 
-.Launching tasks on executor using TaskRunners
-image::executor-taskrunner-executorbackend.png[align="center"]
+![Launching tasks on executor using TaskRunners]()../images/executor/executor-taskrunner-executorbackend.png)
 
 *Executor offers* are described by executor id and the host on which an executor runs (see <<resource-offers, Resource Offers>> in this document).
 
@@ -30,7 +28,15 @@ It is recommended to have as many executors as data nodes and as many cores as y
 
 Executors are described by their *id*, *hostname*, *environment* (as `SparkEnv`), and *classpath* (and, less importantly, and more for internal optimization, whether they run in spark-local:index.md[local] or spark-cluster.md[cluster] mode).
 
-== [[creating-instance]] Creating Instance
+## <span id="maxResultSize"> spark.driver.maxResultSize
+
+`Executor` uses the [spark.driver.maxResultSize](../configuration-properties.md#spark.driver.maxResultSize) for `TaskRunner` when requested to [run a task](TaskRunner.md#run) (and [decide on a serialized task result](TaskRunner.md#run-serializedResult)).
+
+## <span id="maxDirectResultSize"> Maximum Size of Direct Results
+
+`Executor` uses the minimum of [spark.task.maxDirectResultSize](../configuration-properties.md#spark.task.maxDirectResultSize) and [maxMessageSizeBytes](../rpc/RpcUtils.md#maxMessageSizeBytes) for `TaskRunner` is requested to [run a task](TaskRunner.md#run) (and [decide on the type of a serialized task result](TaskRunner.md#run-serializedResult))
+
+## Creating Instance
 
 Executor takes the following to be created:
 
@@ -343,9 +349,3 @@ Refer to spark-logging.md[Logging].
 executor:ExecutorSource.md[]
 
 === [[heartbeatFailures]] heartbeatFailures
-
-=== [[maxDirectResultSize]] maxDirectResultSize
-
-=== [[maxResultSize]] maxResultSize
-
-Used exclusively when TaskRunner is requested to executor:TaskRunner.md#run[run] (and creates a serialized `ByteBuffer` result that is a `IndirectTaskResult`)

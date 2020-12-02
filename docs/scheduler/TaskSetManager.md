@@ -19,9 +19,6 @@ When <<creating-instance, created>> with a given <<taskSet, TaskSet>>, `TaskSetM
 * `maxFailures` in local/spark-local.md#local-with-retries[Spark local-with-retries] (i.e. `local[N, maxFailures]`)
 * configuration-properties.md#spark.task.maxFailures[spark.task.maxFailures] configuration property for local/spark-local.md[Spark local-cluster] and spark-cluster.md[Spark clustered] (using Spark Standalone, Mesos and YARN)
 
-[[maxResultSize]]
-`TaskSetManager` uses configuration-properties.md#MAX_RESULT_SIZE[spark.driver.maxResultSize] configuration property (default: `1g`) to <<canFetchMoreResults, check available memory for task results>>.
-
 The responsibilities of a `TaskSetManager` include:
 
 * <<scheduling-tasks, Scheduling the tasks in a taskset>>
@@ -230,6 +227,10 @@ log4j.logger.org.apache.spark.scheduler.TaskSetManager=DEBUG
 
 Refer to spark-logging.md[Logging].
 ====
+
+## <span id="maxResultSize"> spark.driver.maxResultSize
+
+`TaskSetManager` uses [spark.driver.maxResultSize](../configuration-properties.md#spark.driver.maxResultSize) configuration property to [check available memory for more task results](#canFetchMoreResults).
 
 === [[isTaskBlacklistedOnExecOrNode]] `isTaskBlacklistedOnExecOrNode` Internal Method
 
@@ -1083,12 +1084,12 @@ NOTE: `NO_PREF` and `ANY` task localities have no locality wait.
 
 NOTE: `getLocalityWait` is used when `TaskSetManager` calculates <<localityWaits, localityWaits>>, <<computeValidLocalityLevels, computes locality levels (for scheduled tasks)>> and <<recomputeLocality, recomputes locality preferences>>.
 
-=== [[canFetchMoreResults]] Checking Available Memory For Task Results -- `canFetchMoreResults` Method
+## <span id="canFetchMoreResults"> Checking Available Memory For More Task Results
 
-[source, scala]
-----
-canFetchMoreResults(size: Long): Boolean
-----
+```scala
+canFetchMoreResults(
+  size: Long): Boolean
+```
 
 `canFetchMoreResults` checks whether there is enough memory to fetch the result of a task.
 
@@ -1096,14 +1097,12 @@ Internally, `canFetchMoreResults` increments the internal <<totalResultSize, tot
 
 If the current internal <<totalResultSize, totalResultSize>> is bigger than the configuration-properties.md#maxResultSize[maximum result size], `canFetchMoreResults` prints out the following ERROR message to the logs:
 
-```
+```text
 Total size of serialized results of [calculatedTasks] tasks ([totalResultSize]) is bigger than spark.driver.maxResultSize ([maxResultSize])
 ```
-
-NOTE: `canFetchMoreResults` uses configuration-properties.md#spark.driver.maxResultSize[spark.driver.maxResultSize] configuration property to control the maximum result size. The default value is `1g`.
 
 In the end, `canFetchMoreResults` <<abort, aborts>> the <<taskSet, TaskSet>> and returns `false`.
 
 Otherwise, `canFetchMoreResults` returns `true`.
 
-NOTE: `canFetchMoreResults` is used exclusively when `TaskResultGetter` is requested to  scheduler:TaskResultGetter.md#enqueueSuccessfulTask[enqueue a successful task].
+`canFetchMoreResults` is used when `TaskResultGetter` is requested to [enqueue a successful task](TaskResultGetter.md#enqueueSuccessfulTask).

@@ -1,5 +1,37 @@
 # Spark Configuration Properties
 
+## <span id="spark.rpc.message.maxSize"> spark.rpc.message.maxSize
+
+Maximum allowed message size for RPC communication (in `MB` unless specified)
+
+Default: `128`
+
+Generally only applies to map output size (serialized) information sent between executors and the driver.
+
+Increase this if you are running jobs with many thousands of map and reduce tasks and see messages about the RPC message size.
+
+## <span id="spark.task.maxDirectResultSize"><span id="TASK_MAX_DIRECT_RESULT_SIZE"> spark.task.maxDirectResultSize
+
+Maximum size of a task result (in bytes) to be sent to the driver as a [DirectTaskResult](scheduler/TaskResult.md#DirectTaskResult)
+
+Default: `1048576B` (`1L << 20`)
+
+Used when:
+
+* `TaskRunner` is requested to [run a task](executor/TaskRunner.md#run) (and [decide on the type of a serialized task result](executor/TaskRunner.md#run-serializedResult))
+
+## <span id="spark.driver.maxResultSize"><span id="MAX_RESULT_SIZE"> spark.driver.maxResultSize
+
+Maximum size of task results (in bytes)
+
+Default: `1g`
+
+Used when:
+
+* `TaskRunner` is requested to [run a task](executor/TaskRunner.md#run) (and [decide on the type of a serialized task result](executor/TaskRunner.md#run-serializedResult))
+
+* `TaskSetManager` is requested to [check available memory for task results](scheduler/TaskSetManager.md#canFetchMoreResults)
+
 ## <span id="spark.storage.blockManagerTimeoutIntervalMs"><span id="STORAGE_BLOCKMANAGER_TIMEOUTINTERVAL"> spark.storage.blockManagerTimeoutIntervalMs
 
 (in millis)
@@ -182,17 +214,6 @@ a| [[spark.driver.blockManager.port]][[DRIVER_BLOCK_MANAGER_PORT]] Port the stor
 
 Default: <<spark.blockManager.port, spark.blockManager.port>>
 
-| spark.driver.maxResultSize
-a| [[maxResultSize]][[spark.driver.maxResultSize]][[MAX_RESULT_SIZE]] The maximum size of all results of the tasks in a `TaskSet`
-
-Default: `1g`
-
-Used when:
-
-* `Executor` is executor:Executor.md#maxResultSize[created] (and later for a executor:TaskRunner.md[])
-
-* `TaskSetManager` is scheduler:TaskSetManager.md#maxResultSize[created] (and later requested to scheduler:TaskSetManager.md#canFetchMoreResults[check available memory for task results])
-
 | spark.executor.extraClassPath
 a| [[spark.executor.extraClassPath]][[EXECUTOR_CLASS_PATH]] *User-defined class path for executors*, i.e. URLs representing user-defined class path entries that are added to an executor's class path. URLs are separated by system-dependent path separator, i.e. `:` on Unix-like systems and `;` on Microsoft Windows.
 
@@ -261,11 +282,6 @@ NOTE: Introduced in https://issues.apache.org/jira/browse/SPARK-13522[SPARK-1352
 a| [[spark.executor.instances]] Number of executor:Executor.md[] in use
 
 Default: `0`
-
-| spark.task.maxDirectResultSize
-a| [[spark.task.maxDirectResultSize]]
-
-Default: `1048576B`
 
 | spark.executor.userClassPathFirst
 a| [[spark.executor.userClassPathFirst]] Flag to control whether to load classes in user jars before those in Spark jars
@@ -442,16 +458,6 @@ Size of serialized shuffle map output statuses when scheduler:MapOutputTrackerMa
 Default: `512k`
 
 Must be below <<spark.rpc.message.maxSize, spark.rpc.message.maxSize>> (to prevent sending an RPC message that is too large)
-
-== [[spark.rpc.message.maxSize]] spark.rpc.message.maxSize
-
-Maximum allowed message size for RPC communication (in `MB` unless specified)
-
-Default: `128`
-
-Generally only applies to map output size (serialized) information sent between executors and the driver.
-
-Increase this if you are running jobs with many thousands of map and reduce tasks and see messages about the RPC message size.
 
 == [[spark.shuffle.reduceLocality.enabled]] spark.shuffle.reduceLocality.enabled
 
