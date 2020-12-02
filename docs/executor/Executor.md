@@ -80,9 +80,13 @@ Executor is given user-defined jars when created. There are no jars defined by d
 
 The jars are specified using configuration-properties.md#spark.executor.extraClassPath[spark.executor.extraClassPath] configuration property (via executor:CoarseGrainedExecutorBackend.md#main[--user-class-path] command-line option of CoarseGrainedExecutorBackend).
 
-== [[runningTasks]] Running Tasks
+## <span id="runningTasks"> Running Tasks Registry
 
-Executor tracks running tasks in a registry of executor:TaskRunner.md[TaskRunners] per task ID.
+```scala
+runningTasks: Map[Long, TaskRunner]
+```
+
+`Executor` tracks [TaskRunners](executor:TaskRunner.md) by task IDs.
 
 ## <span id="heartbeatReceiverRef"> HeartbeatReceiver RPC Endpoint Reference
 

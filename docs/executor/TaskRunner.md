@@ -1,20 +1,58 @@
 # TaskRunner
 
-`TaskRunner` is a **thread of execution** (a [java.lang.Runnable]({{ java.api }}/java.base/java/lang/Runnable.html)) of a [task](#taskDescription).
+`TaskRunner` is a **thread of execution** to [run a task](#run).
 
 ![Executor creates and runs TaskRunner](../images/executor/TaskRunner.png)
 
 !!! note
     `TaskRunner` is an internal class of the [Executor](Executor.md) class and has access to its internals (properties and methods).
 
+`TaskRunner` is a [java.lang.Runnable]({{ java.api }}/java.base/java/lang/Runnable.html) so once a [TaskRunner has completed execution](#run) it must not be restarted.
+
 ## Creating Instance
 
 `TaskRunner` takes the following to be created:
 
 * <span id="execBackend"> [ExecutorBackend](ExecutorBackend.md) (that manages the parent [Executor](Executor.md))
-* <span id="taskDescription"> [TaskDescription](../scheduler/TaskDescription.md)
+* <span id="taskDescription"><span id="taskId"> [TaskDescription](../scheduler/TaskDescription.md)
 
 `TaskRunner` is created when `Executor` is requested to [launch a task](Executor.md#launchTask).
+
+## Demo
+
+```text
+./bin/spark-shell --conf spark.driver.maxResultSize=1m
+```
+
+```text
+scala> println(sc.version)
+3.0.1
+```
+
+```text
+val maxResultSize = sc.getConf.get("spark.driver.maxResultSize")
+assert(maxResultSize == "1m")
+```
+
+```text
+val rddOver1m = sc.range(0, 1024 * 1024 + 10, 1)
+```
+
+```text
+scala> rddOver1m.collect
+ERROR TaskSetManager: Total size of serialized results of 2 tasks (1030.8 KiB) is bigger than spark.driver.maxResultSize (1024.0 KiB)
+ERROR TaskSetManager: Total size of serialized results of 3 tasks (1546.2 KiB) is bigger than spark.driver.maxResultSize (1024.0 KiB)
+ERROR TaskSetManager: Total size of serialized results of 4 tasks (2.0 MiB) is bigger than spark.driver.maxResultSize (1024.0 KiB)
+WARN TaskSetManager: Lost task 7.0 in stage 0.0 (TID 7, 192.168.68.105, executor driver): TaskKilled (Tasks result size has exceeded maxResultSize)
+WARN TaskSetManager: Lost task 5.0 in stage 0.0 (TID 5, 192.168.68.105, executor driver): TaskKilled (Tasks result size has exceeded maxResultSize)
+WARN TaskSetManager: Lost task 12.0 in stage 0.0 (TID 12, 192.168.68.105, executor driver): TaskKilled (Tasks result size has exceeded maxResultSize)
+ERROR TaskSetManager: Total size of serialized results of 5 tasks (2.5 MiB) is bigger than spark.driver.maxResultSize (1024.0 KiB)
+WARN TaskSetManager: Lost task 8.0 in stage 0.0 (TID 8, 192.168.68.105, executor driver): TaskKilled (Tasks result size has exceeded maxResultSize)
+...
+org.apache.spark.SparkException: Job aborted due to stage failure: Total size of serialized results of 2 tasks (1030.8 KiB) is bigger than spark.driver.maxResultSize (1024.0 KiB)
+  at org.apache.spark.scheduler.DAGScheduler.failJobAndIndependentStages(DAGScheduler.scala:2059)
+  ...
+```
 
 ## <span id="threadName"> Thread Name
 
@@ -31,6 +69,8 @@ run(): Unit
 ```
 
 `run` is part of the [java.lang.Runnable]({{ java.api }}/java.base/java/lang/Runnable.html#run()) abstraction.
+
+### <span id="run-initialization"> Initialization
 
 `run` initializes the [threadId](#threadId) internal registry as the current thread identifier (using [Thread.getId]({{ java.api }}/java.base/java/lang/Thread.html#getId())).
 
@@ -94,126 +134,70 @@ Task [taskId]'s epoch is [epoch]
 
 `run` requests the [Task](#task) executed for [accumulator updates](../scheduler/Task.md#collectAccumulatorUpdates) and the [ExecutorMetricsPoller](#metricsPoller) for [metric peaks](ExecutorMetricsPoller.md#getTaskMetricPeaks).
 
-`run` creates a [DirectTaskResult](../scheduler/TaskResult.md#DirectTaskResult) (with the task result serialized, the accumulator updates and the metric peaks) and requests the [closure Serializer](../serializer/SerializerInstance.md) to [serialize it](../serializer/SerializerInstance.md#serialize).
+### <span id="run-serializedResult"> Serialized Task Result
 
-!!! danger
-    `run`...FIXME
+`run` creates a [DirectTaskResult](../scheduler/TaskResult.md#DirectTaskResult) (with the serialized task result, the accumulator updates and the metric peaks) and requests the [closure Serializer](../serializer/SerializerInstance.md) to [serialize it](../serializer/SerializerInstance.md#serialize).
 
-IMPORTANT: This is when `TaskExecutor` serializes the computed value of a task to be sent back to the driver.
+!!! note
+    The serialized `DirectTaskResult` is Java's [java.nio.ByteBuffer]({{ java.api }}/java.base/java/nio/ByteBuffer.html).
 
-run records the scheduler:Task.md#metrics[task metrics]:
+`run` selects between the `DirectTaskResult` and an [IndirectTaskResult](../scheduler/TaskResult.md#IndirectTaskResult) based on the size of the serialized task result (_limit_ of this `serializedDirectResult` byte buffer):
 
-* TaskMetrics.md#setExecutorDeserializeTime[executorDeserializeTime]
-* TaskMetrics.md#setExecutorDeserializeCpuTime[executorDeserializeCpuTime]
-* TaskMetrics.md#setExecutorRunTime[executorRunTime]
-* TaskMetrics.md#setExecutorCpuTime[executorCpuTime]
-* TaskMetrics.md#setJvmGCTime[jvmGCTime]
-* TaskMetrics.md#setResultSerializationTime[resultSerializationTime]
+1. With the size above [spark.driver.maxResultSize](../configuration-properties.md#spark.driver.maxResultSize), `run` prints out the following WARN message to the logs and serializes an `IndirectTaskResult` with a [TaskResultBlockId](../storage/BlockId.md#TaskResultBlockId).
 
-run scheduler:Task.md#collectAccumulatorUpdates[collects the latest values of internal and external accumulators used in the task].
+    ```text
+    Finished [taskName] (TID [taskId]). Result is larger than maxResultSize ([resultSize] > [maxResultSize]), dropping it.
+    ```
 
-run creates a spark-scheduler-TaskResult.md#DirectTaskResult[DirectTaskResult] (with the serialized result and the latest values of accumulators).
+1. With the size above [maxDirectResultSize](Executor.md#maxDirectResultSize), `run` creates an `TaskResultBlockId` and requests the `BlockManager` to [store the task result locally](../storage/BlockManager.md#putBytes) (with `MEMORY_AND_DISK_SER`). `run` prints out the following INFO message to the logs and serializes an `IndirectTaskResult` with a `TaskResultBlockId`.
 
-run serializer:Serializer.md#serialize[serializes the `DirectTaskResult`] and gets the byte buffer's limit.
+    ```text
+    Finished [taskName] (TID [taskId]). [resultSize] bytes result sent via BlockManager)
+    ```
 
-NOTE: A serialized `DirectTaskResult` is Java's https://docs.oracle.com/javase/8/docs/api/java/nio/ByteBuffer.html[java.nio.ByteBuffer].
+1. `run` prints out the following INFO message to the logs and uses the `DirectTaskResult` created earlier.
 
-run selects the proper serialized version of the result before ExecutorBackend.md#statusUpdate[sending it to `ExecutorBackend`].
+    ```text
+    Finished [taskName] (TID [taskId]). [resultSize] bytes result sent to driver
+    ```
 
-run branches off based on the serialized `DirectTaskResult` byte buffer's limit.
+!!! note
+    `serializedResult` is either a [IndirectTaskResult](../scheduler/TaskResult.md#IndirectTaskResult) (possibly with the block stored in `BlockManager`) or a [DirectTaskResult](../scheduler/TaskResult.md#DirectTaskResult).
 
-When Executor.md#maxResultSize[maxResultSize] is greater than `0` and the serialized `DirectTaskResult` buffer limit exceeds it, the following WARN message is displayed in the logs:
+### <span id="run-ExecutorSource-succeededTasks"> Incrementing succeededTasks Counter
 
-```
-Finished [taskName] (TID [taskId]). Result is larger than maxResultSize ([resultSize] > [maxResultSize]), dropping it.
-```
+`run` requests the [ExecutorSource](#executorSource) to increment `succeededTasks` counter.
 
-TIP: Read about configuration-properties.md#spark.driver.maxResultSize[spark.driver.maxResultSize].
+### <span id="run-setTaskFinishedAndClearInterruptStatus"> Marking Task Finished
 
-```
-$ ./bin/spark-shell -c spark.driver.maxResultSize=1m
+`run` [setTaskFinishedAndClearInterruptStatus](#setTaskFinishedAndClearInterruptStatus).
 
-scala> sc.version
-res0: String = 2.0.0-SNAPSHOT
+### <span id="run-statusUpdate-FINISHED"> Notifying ExecutorBackend that Task Finished
 
-scala> sc.getConf.get("spark.driver.maxResultSize")
-res1: String = 1m
+`run` notifies the [ExecutorBackend](#execBackend) that the status of the [taskId](#taskId) has [changed](ExecutorBackend.md#statusUpdate) to `FINISHED`.
 
-scala> sc.range(0, 1024 * 1024 + 10, 1).collect
-WARN  Finished task 4.0 in stage 0.0 (TID 4). Result is larger than maxResultSize (1031.4 KB > 1024.0 KB), dropping it.
-...
-ERROR TaskSetManager: Total size of serialized results of 1 tasks (1031.4 KB) is bigger than spark.driver.maxResultSize (1024.0 KB)
-...
-org.apache.spark.SparkException: Job aborted due to stage failure: Total size of serialized results of 1 tasks (1031.4 KB) is bigger than spark.driver.maxResultSize (1024.0 KB)
-  at org.apache.spark.scheduler.DAGScheduler.org$apache$spark$scheduler$DAGScheduler$$failJobAndIndependentStages(DAGScheduler.scala:1448)
-...
-```
+!!! note
+    `ExecutorBackend` is given when the [TaskRunner](#execBackend) is created.
 
-In this case, run creates a spark-scheduler-TaskResult.md#IndirectTaskResult[IndirectTaskResult] (with a `TaskResultBlockId` for the task's <<taskId, taskId>> and `resultSize`) and serializer:Serializer.md#serialize[serializes it].
+### <span id="run-finally"> Wrapping Up
 
-<span id="run-result-sent-via-blockmanager">
-When `maxResultSize` is not positive or `resultSize` is smaller than `maxResultSize` but greater than Executor.md#maxDirectResultSize[maxDirectResultSize], run creates a `TaskResultBlockId` for the task's <<taskId, taskId>> and BlockManager.md#putBytes[stores the serialized `DirectTaskResult` in `BlockManager`] (as the `TaskResultBlockId` with `MEMORY_AND_DISK_SER` storage level).
+In the end, regardless of the task's execution status (successful or failed), `run` removes the [taskId](#taskId) from [runningTasks](Executor.md#runningTasks) registry.
 
-You should see the following INFO message in the logs:
+In case a [onTaskStart](ExecutorMetricsPoller.md#onTaskStart) notification was sent out, `run` requests the [ExecutorMetricsPoller](#metricsPoller) to [onTaskCompletion](ExecutorMetricsPoller.md#onTaskCompletion).
 
-```
-Finished [taskName] (TID [taskId]). [resultSize] bytes result sent via BlockManager)
-```
+### <span id="run-exceptions"> Exceptions
 
-In this case, run creates a spark-scheduler-TaskResult.md#IndirectTaskResult[IndirectTaskResult] (with a `TaskResultBlockId` for the task's <<taskId, taskId>> and `resultSize`) and serializer:Serializer.md#serialize[serializes it].
+`run` handles certain exceptions.
 
-NOTE: The difference between the two above cases is that the result is dropped or stored in `BlockManager` with `MEMORY_AND_DISK_SER` storage level.
+Exception Type | TaskState | Serialized ByteBuffer
+---------------|-----------|----------------------
+[FetchFailedException](#run-FetchFailedException) | `FAILED` | `TaskFailedReason`
+[TaskKilledException](#run-TaskKilledException) | `KILLED` | `TaskKilled`
+[InterruptedException](#run-InterruptedException) | `KILLED` | `TaskKilled`
+[CommitDeniedException](#run-CommitDeniedException) | `FAILED` | `TaskFailedReason`
+[Throwable](#run-Throwable) | `FAILED` | `ExceptionFailure`
 
-When the two cases above do not hold, you should see the following INFO message in the logs:
-
-```text
-Finished [taskName] (TID [taskId]). [resultSize] bytes result sent to driver
-```
-
-run uses the serialized `DirectTaskResult` byte buffer as the final `serializedResult`.
-
-NOTE: The final `serializedResult` is either a spark-scheduler-TaskResult.md#IndirectTaskResult[IndirectTaskResult] (possibly with the block stored in `BlockManager`) or a spark-scheduler-TaskResult.md#DirectTaskResult[DirectTaskResult].
-
-run ExecutorBackend.md#statusUpdate[notifies `ExecutorBackend`] that <<taskId, taskId>> is in `TaskState.FINISHED` state with the serialized result and removes <<taskId, taskId>> from the owning executor's Executor.md#runningTasks[ runningTasks] registry.
-
-NOTE: run uses `ExecutorBackend` that is specified when TaskRunner <<creating-instance, is created>>.
-
-NOTE: TaskRunner is Java's https://docs.oracle.com/javase/8/docs/api/java/lang/Runnable.html[Runnable] and the contract requires that once a TaskRunner has completed execution it must not be restarted.
-
-When run catches a exception while executing the task, run acts according to its type (as presented in the following "run's Exception Cases" table and the following sections linked from the table).
-
-.run's Exception Cases, TaskState and Serialized ByteBuffer
-[cols="1,1,2",options="header",width="100%"]
-|===
-| Exception Type
-| TaskState
-| Serialized ByteBuffer
-
-| <<run-FetchFailedException, FetchFailedException>>
-| `FAILED`
-| `TaskFailedReason`
-
-| <<run-TaskKilledException, TaskKilledException>>
-| `KILLED`
-| `TaskKilled`
-
-| <<run-InterruptedException, InterruptedException>>
-| `KILLED`
-| `TaskKilled`
-
-| <<run-CommitDeniedException, CommitDeniedException>>
-| `FAILED`
-| `TaskFailedReason`
-
-| <<run-Throwable, Throwable>>
-| `FAILED`
-| `ExceptionFailure`
-
-|===
-
-run is part of {java-javadoc-url}/java/lang/Runnable.html[java.lang.Runnable] contract.
-
-### <span id="run-FetchFailedException"> FetchFailedException
+#### <span id="run-FetchFailedException"> FetchFailedException
 
 When shuffle:FetchFailedException.md[FetchFailedException] is reported while running a task, run <<setTaskFinishedAndClearInterruptStatus, setTaskFinishedAndClearInterruptStatus>>.
 
@@ -223,7 +207,7 @@ NOTE: `ExecutorBackend` was specified when <<creating-instance, TaskRunner was c
 
 NOTE:  run uses a closure serializer:Serializer.md[Serializer] to serialize the failure reason. The `Serializer` was created before run ran the task.
 
-### <span id="run-TaskKilledException"> TaskKilledException
+#### <span id="run-TaskKilledException"> TaskKilledException
 
 When `TaskKilledException` is reported while running a task, you should see the following INFO message in the logs:
 
@@ -233,7 +217,7 @@ Executor killed [taskName] (TID [taskId]), reason: [reason]
 
 run then <<setTaskFinishedAndClearInterruptStatus, setTaskFinishedAndClearInterruptStatus>> and ExecutorBackend.md#statusUpdate[notifies `ExecutorBackend` that the task has been killed] (with <<taskId, taskId>>, `TaskState.KILLED`, and a serialized `TaskKilled` object).
 
-### <span id=run-InterruptedException"> InterruptedException (with Task Killed)
+#### <span id=run-InterruptedException"> InterruptedException (with Task Killed)
 
 When `InterruptedException` is reported while running a task, and the task has been killed, you should see the following INFO message in the logs:
 
@@ -245,13 +229,13 @@ run then <<setTaskFinishedAndClearInterruptStatus, setTaskFinishedAndClearInterr
 
 NOTE: The difference between this `InterruptedException` and <<run-TaskKilledException, TaskKilledException>> is the INFO message in the logs.
 
-### <span id="run-CommitDeniedException"> CommitDeniedException
+#### <span id="run-CommitDeniedException"> CommitDeniedException
 
 When `CommitDeniedException` is reported while running a task, run <<setTaskFinishedAndClearInterruptStatus, setTaskFinishedAndClearInterruptStatus>> and ExecutorBackend.md#statusUpdate[notifies `ExecutorBackend` that the task has failed] (with <<taskId, taskId>>, `TaskState.FAILED`, and a serialized `TaskKilled` object).
 
 NOTE: The difference between this `CommitDeniedException` and <<run-FetchFailedException, FetchFailedException>> is just the reason being sent to `ExecutorBackend`.
 
-### <span id="run-Throwable"> Throwable
+#### <span id="run-Throwable"> Throwable
 
 When run catches a `Throwable`, you should see the following ERROR message in the logs (followed by the exception).
 
@@ -280,6 +264,15 @@ run may also trigger `SparkUncaughtExceptionHandler.uncaughtException(t)` if thi
 
 NOTE: The difference between this most `Throwable` case and other `FAILED` cases (i.e. <<run-FetchFailedException, FetchFailedException>> and <<run-CommitDeniedException, CommitDeniedException>>) is just the serialized `ExceptionFailure` vs a reason being sent to `ExecutorBackend`, respectively.
 
+#### <span id="collectAccumulatorsAndResetStatusOnFailure"> collectAccumulatorsAndResetStatusOnFailure
+
+```scala
+collectAccumulatorsAndResetStatusOnFailure(
+  taskStartTimeNs: Long)
+```
+
+`collectAccumulatorsAndResetStatusOnFailure`...FIXME
+
 ## <span id="kill"> Killing Task
 
 ```scala
@@ -299,17 +292,6 @@ Executor is trying to kill [taskName] (TID [taskId]), reason: [reason]
 ```
 
 NOTE: <<killed, killed>> flag is checked periodically in <<run, run>> to stop executing the task. Once killed, the task will eventually stop.
-
-## <span id="collectAccumulatorsAndResetStatusOnFailure"> collectAccumulatorsAndResetStatusOnFailure
-
-```scala
-collectAccumulatorsAndResetStatusOnFailure(
-  taskStartTime: Long): (Seq[AccumulatorV2[_, _]], Seq[AccumulableInfo])
-```
-
-`collectAccumulatorsAndResetStatusOnFailure`...FIXME
-
-`collectAccumulatorsAndResetStatusOnFailure` is used when `TaskRunner` is requested to [run](#run).
 
 ## Logging
 
@@ -356,16 +338,6 @@ Deserialized scheduler:Task.md[task] to execute
 Used when:
 
 * TaskRunner is requested to <<kill, kill the task>>, <<collectAccumulatorsAndResetStatusOnFailure, collectAccumulatorsAndResetStatusOnFailure>>, <<run, run the task>>, <<hasFetchFailure, hasFetchFailure>>
-
-* `Executor` is requested to Executor.md#reportHeartBeat[reportHeartBeat]
-
-### <span id="taskId"> Task Id
-
-The <<spark-scheduler-TaskDescription.md#taskId, task ID>> (of the <<taskDescription, TaskDescription>>)
-
-Used when:
-
-* TaskRunner is requested to <<run, run>> (to create a memory:TaskMemoryManager.md[TaskMemoryManager] and serialize a `IndirectTaskResult` for a large task result) and <<kill, kill>> the task and for the <<threadName, threadName>>
 
 * `Executor` is requested to Executor.md#reportHeartBeat[reportHeartBeat]
 

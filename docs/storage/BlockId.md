@@ -1,4 +1,4 @@
-= BlockId
+# BlockId
 
 *BlockId* is an <<contract, abstraction>> of <<implementations, data block identifiers>> based on an unique <<name, name>>.
 
@@ -91,7 +91,7 @@ serializer:SerializerManager.md#shouldCompress[Compressed] when configuration-pr
 
 === [[StreamBlockId]] StreamBlockId
 
-=== [[TaskResultBlockId]] TaskResultBlockId
+### <span id="TaskResultBlockId"> TaskResultBlockId
 
 === [[TempLocalBlockId]] TempLocalBlockId
 

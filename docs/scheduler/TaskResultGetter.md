@@ -87,15 +87,13 @@ NOTE: `enqueueSuccessfulTask` is just the asynchronous task enqueued for executi
 
 Internally, the enqueued task first deserializes `serializedData` to a `TaskResult` (using the internal thread-local <<serializer, serializer>>).
 
-The spark-scheduler-TaskResult.md[TaskResult] could be a spark-scheduler-TaskResult.md#DirectTaskResult[DirectTaskResult] or a spark-scheduler-TaskResult.md#IndirectTaskResult[IndirectTaskResult].
-
-For a spark-scheduler-TaskResult.md#DirectTaskResult[DirectTaskResult], the task scheduler:TaskSetManager.md#canFetchMoreResults[checks the available memory for the task result] and, when the size overflows configuration-properties.md#spark.driver.maxResultSize[spark.driver.maxResultSize], it simply returns.
+For a [DirectTaskResult](TaskResult.md#DirectTaskResult), the task scheduler:TaskSetManager.md#canFetchMoreResults[checks the available memory for the task result] and, when the size overflows configuration-properties.md#spark.driver.maxResultSize[spark.driver.maxResultSize], it simply returns.
 
 NOTE: `enqueueSuccessfulTask` is a mere thread so returning from a thread is to do nothing else. That is why the scheduler:TaskSetManager.md#canFetchMoreResults[check for quota does abort] when there is not enough memory.
 
 Otherwise, when there _is_ enough memory to hold the task result, it deserializes the `DirectTaskResult` (using the internal thread-local <<taskResultSerializer, taskResultSerializer>>).
 
-For a spark-scheduler-TaskResult.md#IndirectTaskResult[IndirectTaskResult], the task checks the available memory for the task result and, when the size could overflow the maximum result size, it storage:BlockManagerMaster.md#removeBlock[removes the block] and simply returns.
+For an [IndirectTaskResult](TaskResult.md#IndirectTaskResult), the task checks the available memory for the task result and, when the size could overflow the maximum result size, it storage:BlockManagerMaster.md#removeBlock[removes the block] and simply returns.
 
 Otherwise, when there _is_ enough memory to hold the task result, you should see the following DEBUG message in the logs:
 
@@ -109,9 +107,10 @@ When the block could not be fetched, scheduler:TaskSchedulerImpl.md#handleFailed
 
 NOTE: `enqueueSuccessfulTask` is a mere thread so returning from a thread is to do nothing else and so the real handling is when scheduler:TaskSchedulerImpl.md#handleFailedTask[`TaskSchedulerImpl` is informed].
 
-The task result (as a serialized byte buffer) is then deserialized to a spark-scheduler-TaskResult.md#DirectTaskResult[DirectTaskResult] (using the internal thread-local <<serializer, serializer>>) and deserialized again using the internal thread-local <<taskResultSerializer, taskResultSerializer>> (just like for the `DirectTaskResult` case). The  storage:BlockManagerMaster.md#removeBlock[block is removed from `BlockManagerMaster`] and simply returns.
+The task result (as a serialized byte buffer) is then deserialized to a [DirectTaskResult](TaskResult.md#DirectTaskResult) (using the internal thread-local <<serializer, serializer>>) and deserialized again using the internal thread-local <<taskResultSerializer, taskResultSerializer>> (just like for the `DirectTaskResult` case). The  storage:BlockManagerMaster.md#removeBlock[block is removed from `BlockManagerMaster`] and simply returns.
 
-NOTE: A spark-scheduler-TaskResult.md#IndirectTaskResult[IndirectTaskResult] is deserialized twice to become the final deserialized task result (using <<serializer, serializer>> for a `DirectTaskResult`). Compare it to a `DirectTaskResult` task result that is deserialized once only.
+!!! note
+    A [IndirectTaskResult](TaskResult.md#IndirectTaskResult) is deserialized twice to become the final deserialized task result (using <<serializer, serializer>> for a `DirectTaskResult`). Compare it to a `DirectTaskResult` task result that is deserialized once only.
 
 With no exceptions thrown, `enqueueSuccessfulTask` scheduler:TaskSchedulerImpl.md#handleSuccessfulTask[informs the `TaskSchedulerImpl` that the `tid` task was completed and the task result was received].
 
