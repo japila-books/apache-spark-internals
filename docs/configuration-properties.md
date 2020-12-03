@@ -1,14 +1,16 @@
 # Spark Configuration Properties
 
-## <span id="spark.rpc.message.maxSize"> spark.rpc.message.maxSize
+## <span id="spark.rpc.message.maxSize"><span id="RPC_MESSAGE_MAX_SIZE"> spark.rpc.message.maxSize
 
 Maximum allowed message size for RPC communication (in `MB` unless specified)
 
 Default: `128`
 
-Generally only applies to map output size (serialized) information sent between executors and the driver.
+Must be below [2047MB](rpc/RpcUtils.md#MAX_MESSAGE_SIZE_IN_MB) (`Int.MaxValue / 1024 / 1024`)
 
-Increase this if you are running jobs with many thousands of map and reduce tasks and see messages about the RPC message size.
+Used when:
+
+* `RpcUtils` is requested for the [maximum message size](rpc/RpcUtils.md#maxMessageSizeBytes)
 
 ## <span id="spark.task.maxDirectResultSize"><span id="TASK_MAX_DIRECT_RESULT_SIZE"> spark.task.maxDirectResultSize
 

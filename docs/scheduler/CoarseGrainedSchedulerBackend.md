@@ -92,16 +92,6 @@ Element added when scheduler:CoarseGrainedSchedulerBackend-DriverEndpoint.md#Reg
 | <<spark.scheduler.maxRegisteredResourcesWaitingTime, spark.scheduler.maxRegisteredResourcesWaitingTime>>
 |
 
-| [[maxRpcMessageSize]] `maxRpcMessageSize`
-| <<spark.rpc.message.maxSize, spark.rpc.message.maxSize>> but not greater than `2047`
-a| Maximum RPC message size in MB.
-
-When above `2047` MB you should see the following `IllegalArgumentException`:
-
-```
-spark.rpc.message.maxSize should not be greater than 2047 MB
-```
-
 | [[_minRegisteredRatio]] `_minRegisteredRatio`
 | <<spark.scheduler.minRegisteredResourcesRatio, spark.scheduler.minRegisteredResourcesRatio>>
 |
@@ -131,6 +121,10 @@ log4j.logger.org.apache.spark.scheduler.cluster.CoarseGrainedSchedulerBackend=DE
 
 Refer to spark-logging.md[Logging].
 ====
+
+## <span id="maxRpcMessageSize"> maxRpcMessageSize
+
+`maxRpcMessageSize` is the value of [spark.rpc.message.maxSize](../configuration-properties.md#spark.rpc.message.maxSize) configuration property.
 
 == [[killExecutorsOnHost]] Killing All Executors on Node -- `killExecutorsOnHost` Method
 
