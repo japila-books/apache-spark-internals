@@ -305,7 +305,18 @@ createDriverEndpointRef(
 
 `createDriverEndpointRef` <<createDriverEndpoint, creates DriverEndpoint>> and rpc:index.md#setupEndpoint[registers it] as *CoarseGrainedScheduler*.
 
-`createDriverEndpointRef` is used when CoarseGrainedSchedulerBackend is requested to <<start, start>>.
+`createDriverEndpointRef` is used when `CoarseGrainedSchedulerBackend` is requested to <<start, start>>.
+
+## <span id="isExecutorActive"> Checking Whether Executor is Active
+
+```scala
+isExecutorActive(
+  id: String): Boolean
+```
+
+`isExecutorActive` is part of the [ExecutorAllocationClient](../dynamic-allocation/ExecutorAllocationClient.md#isExecutorActive) abstraction.
+
+`isExecutorActive`...FIXME
 
 ## Logging
 
