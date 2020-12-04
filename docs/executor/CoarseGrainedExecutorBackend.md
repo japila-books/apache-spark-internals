@@ -9,10 +9,9 @@ CoarseGrainedExecutorBackend is a rpc:RpcEndpoint.md#ThreadSafeRpcEndpoint[Threa
 
 CoarseGrainedExecutorBackend is started in a resource container (as a <<main, standalone application>>).
 
-When <<run, started>>, CoarseGrainedExecutorBackend <<creating-instance, registers the Executor RPC endpoint>> to communicate with the driver (i.e. with scheduler:CoarseGrainedSchedulerBackend-DriverEndpoint.md[]).
+When <<run, started>>, CoarseGrainedExecutorBackend <<creating-instance, registers the Executor RPC endpoint>> to communicate with the driver (with [DriverEndpoint](../scheduler/DriverEndpoint.md)).
 
-.CoarseGrainedExecutorBackend Communicates with Driver's CoarseGrainedSchedulerBackend Endpoint
-image::CoarseGrainedExecutorBackend.png[align="center"]
+![CoarseGrainedExecutorBackend Communicates with Driver's CoarseGrainedSchedulerBackend Endpoint](../images/executor/CoarseGrainedExecutorBackend.png)
 
 When <<main, launched>>, CoarseGrainedExecutorBackend immediately connects to the owning scheduler:CoarseGrainedSchedulerBackend.md[CoarseGrainedSchedulerBackend] to inform that it is ready to launch tasks.
 
@@ -54,21 +53,21 @@ LaunchTask(data: SerializableBuffer) extends CoarseGrainedClusterMessage
 
 NOTE: CoarseGrainedExecutorBackend acts as a proxy between the driver and the managed single <<executor, executor>> and merely re-packages `LaunchTask` payload (as serialized `data`) to pass it along for execution.
 
-`LaunchTask` first spark-scheduler-TaskDescription.md#decode[decodes `TaskDescription` from `data`]. You should see the following INFO message in the logs:
+`LaunchTask` first [decodes `TaskDescription` from `data`](../scheduler/TaskDescription.md#decode). You should see the following INFO message in the logs:
 
 ```
 INFO CoarseGrainedExecutorBackend: Got assigned task [id]
 ```
 
-`LaunchTask` then executor:Executor.md#launchTask[launches the task on the executor] (passing itself as the owning executor:ExecutorBackend.md[] and decoded scheduler:spark-scheduler-TaskDescription.md[TaskDescription]).
+`LaunchTask` then executor:Executor.md#launchTask[launches the task on the executor] (passing itself as the owning executor:ExecutorBackend.md[] and decoded [TaskDescription](../scheduler/TaskDescription.md)).
 
 If <<executor, executor>> is not available, `LaunchTask` <<exitExecutor, terminates CoarseGrainedExecutorBackend>> with the error code `1` and `ExecutorLossReason` with the following message:
 
-```
+```text
 Received LaunchTask command but executor was null
 ```
 
-NOTE: `LaunchTask` is sent when `CoarseGrainedSchedulerBackend` is requested to scheduler:CoarseGrainedSchedulerBackend-DriverEndpoint.md#launchTasks[launch tasks] (one `LaunchTask` per task).
+NOTE: `LaunchTask` is sent when `CoarseGrainedSchedulerBackend` is requested to [launch tasks](../scheduler/DriverEndpoint.md#launchTasks) (one `LaunchTask` per task).
 
 == [[statusUpdate]] Sending Task Status Updates to Driver -- `statusUpdate` Method
 
@@ -79,7 +78,7 @@ statusUpdate(taskId: Long, state: TaskState, data: ByteBuffer): Unit
 
 NOTE: `statusUpdate` is part of executor:ExecutorBackend.md#statusUpdate[ExecutorBackend Contract] to send task status updates to a scheduler (on the driver).
 
-`statusUpdate` creates a scheduler:CoarseGrainedSchedulerBackend-DriverEndpoint.md#StatusUpdate[StatusUpdate] (with the input `taskId`, `state`, and `data` together with the <<executorId, executor id>>) and sends it to the <<driver, driver>> (if connected already).
+`statusUpdate` creates a [StatusUpdate](../scheduler/DriverEndpoint.md#StatusUpdate) (with the input `taskId`, `state`, and `data` together with the <<executorId, executor id>>) and sends it to the <<driver, driver>> (if connected already).
 
 .CoarseGrainedExecutorBackend Sending Task Status Updates to Driver's CoarseGrainedScheduler Endpoint
 image::CoarseGrainedExecutorBackend-statusUpdate.png[align="center"]
@@ -295,11 +294,11 @@ NOTE: CoarseGrainedExecutorBackend uses `executorId`, `hostname`, `env`, `userCl
 
 If creating the `Executor` fails with a non-fatal exception, `RegisteredExecutor` <<exitExecutor, terminates CoarseGrainedExecutorBackend>> with the reason:
 
-```
+```text
 Unable to create executor due to [message]
 ```
 
-NOTE: `RegisteredExecutor` is sent exclusively when `CoarseGrainedSchedulerBackend` RPC Endpoint scheduler:CoarseGrainedSchedulerBackend-DriverEndpoint.md#RegisterExecutor[receives a `RegisterExecutor`] (that is sent right before CoarseGrainedExecutorBackend RPC Endpoint <<onStart, starts accepting messages>> which happens when CoarseGrainedExecutorBackend <<run, is started>>).
+NOTE: `RegisteredExecutor` is sent when `CoarseGrainedSchedulerBackend` RPC Endpoint [receives a `RegisterExecutor`](../scheduler/DriverEndpoint.md#RegisterExecutor) (that is sent right before `CoarseGrainedExecutorBackend` RPC Endpoint <<onStart, starts accepting messages>> which happens when `CoarseGrainedExecutorBackend` <<run, is started>>).
 
 == [[RegisterExecutorFailed]] RegisterExecutorFailed
 
@@ -342,7 +341,7 @@ INFO CoarseGrainedExecutorBackend: Driver commanded a shutdown
 
 In the end, the handler sends a <<Shutdown, Shutdown>> message to itself.
 
-NOTE: `StopExecutor` message is sent when `CoarseGrainedSchedulerBackend` RPC Endpoint (aka `DriverEndpoint`) processes scheduler:CoarseGrainedSchedulerBackend-DriverEndpoint.md#StopExecutors[StopExecutors] or scheduler:CoarseGrainedSchedulerBackend-DriverEndpoint.md#RemoveExecutor[RemoveExecutor] messages.
+`StopExecutor` message is sent when `CoarseGrainedSchedulerBackend` RPC Endpoint (aka `DriverEndpoint`) processes [StopExecutors](../scheduler/DriverEndpoint.md#StopExecutors) or [RemoveExecutor](../scheduler/DriverEndpoint.md#RemoveExecutor) messages.
 
 == [[Shutdown]] Shutdown Handler
 
@@ -369,15 +368,15 @@ exitExecutor(
 
 When `exitExecutor` is executed, you should see the following ERROR message in the logs (followed by `throwable` if available):
 
-```
-ERROR Executor self-exiting due to : [reason]
+```text
+Executor self-exiting due to : [reason]
 ```
 
-If `notifyDriver` is enabled (it is by default) `exitExecutor` informs the <<driver, driver>> that the executor should be removed (by sending a scheduler:CoarseGrainedSchedulerBackend-DriverEndpoint.md#RemoveExecutor[blocking `RemoveExecutor` message] with <<executorId, executor id>> and a `ExecutorLossReason` with the input `reason`).
+If `notifyDriver` is enabled (it is by default) `exitExecutor` informs the <<driver, driver>> that the executor should be removed (by sending a [blocking `RemoveExecutor` message](../scheduler/DriverEndpoint.md#RemoveExecutor) with <<executorId, executor id>> and a `ExecutorLossReason` with the input `reason`).
 
 You may see the following WARN message in the logs when the notification fails.
 
-```
+```text
 Unable to notify the driver due to [message]
 ```
 

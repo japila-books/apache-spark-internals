@@ -60,7 +60,7 @@ workerRemoved(
   message: String): Unit
 ----
 
-Used when DriverEndpoint is requested to scheduler:CoarseGrainedSchedulerBackend-DriverEndpoint.md#removeWorker[handle a RemoveWorker event]
+Used when `DriverEndpoint` is requested to [handle a RemoveWorker event](DriverEndpoint.md#removeWorker)
 
 == [[contract]] Contract
 
@@ -91,9 +91,9 @@ cancelTasks(
   interruptThread: Boolean): Unit
 ----
 
-Cancels all the tasks of a given scheduler:Stage.md[stage]
+Cancels all the tasks of a given Stage.md[stage]
 
-Used when DAGScheduler is requested to scheduler:DAGScheduler.md#failJobAndIndependentStages[failJobAndIndependentStages]
+Used when DAGScheduler is requested to DAGScheduler.md#failJobAndIndependentStages[failJobAndIndependentStages]
 
 | defaultParallelism
 a| [[defaultParallelism]]
@@ -123,9 +123,7 @@ Used when:
 
 * `HeartbeatReceiver` RPC endpoint is requested to [expireDeadHosts](../HeartbeatReceiver.md#expireDeadHosts)
 
-* DriverEndpoint RPC endpoint is requested to scheduler:CoarseGrainedSchedulerBackend-DriverEndpoint.md#removeExecutor[removes] (_forgets_) and scheduler:CoarseGrainedSchedulerBackend-DriverEndpoint.md#disableExecutor[disables] a malfunctioning executor (i.e. either lost or blacklisted for some reason)
-
-* Spark on Mesos' `MesosFineGrainedSchedulerBackend` is requested to `recordSlaveLost`
+* `DriverEndpoint` RPC endpoint is requested to [removes](DriverEndpoint.md#removeExecutor) (_forgets_) and [disables](DriverEndpoint.md#disableExecutor) a malfunctioning executor (i.e. either lost or blacklisted for some reason)
 
 | killAllTaskAttempts
 a| [[killAllTaskAttempts]]
@@ -140,9 +138,9 @@ killAllTaskAttempts(
 
 Used when:
 
-* DAGScheduler is requested to scheduler:DAGScheduler.md#handleTaskCompletion[handleTaskCompletion]
+* DAGScheduler is requested to DAGScheduler.md#handleTaskCompletion[handleTaskCompletion]
 
-* `TaskSchedulerImpl` is requested to scheduler:TaskSchedulerImpl.md#cancelTasks[cancel all the tasks of a stage]
+* `TaskSchedulerImpl` is requested to TaskSchedulerImpl.md#cancelTasks[cancel all the tasks of a stage]
 
 | rootPool
 a| [[rootPool]]

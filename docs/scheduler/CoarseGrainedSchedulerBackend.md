@@ -4,14 +4,14 @@
 
 `CoarseGrainedSchedulerBackend` is an [ExecutorAllocationClient](../dynamic-allocation/ExecutorAllocationClient.md).
 
-`CoarseGrainedSchedulerBackend` is responsible for requesting resources from a cluster manager for executors that it in turn uses to [launch tasks](CoarseGrainedSchedulerBackend-DriverEndpoint.md#launchTasks) (on [CoarseGrainedExecutorBackend](../executor/CoarseGrainedExecutorBackend.md)).
+`CoarseGrainedSchedulerBackend` is responsible for requesting resources from a cluster manager for executors that it in turn uses to [launch tasks](DriverEndpoint.md#launchTasks) (on [CoarseGrainedExecutorBackend](../executor/CoarseGrainedExecutorBackend.md)).
 
 `CoarseGrainedSchedulerBackend` holds executors for the duration of the Spark job rather than relinquishing executors whenever a task is done and asking the scheduler to launch a new executor for each new task.
 
 `CoarseGrainedSchedulerBackend` registers <<CoarseGrainedScheduler, CoarseGrainedScheduler RPC Endpoint>> that executors use for RPC communication.
 
 !!! note
-    **Active executors** are executors that are not <<executorsPendingToRemove, pending to be removed>> or [lost](CoarseGrainedSchedulerBackend-DriverEndpoint.md#executorsPendingLossReason).
+    **Active executors** are executors that are not <<executorsPendingToRemove, pending to be removed>> or [lost](DriverEndpoint.md#executorsPendingLossReason).
 
 ## Implementations
 
@@ -26,6 +26,40 @@
 
 * <span id="scheduler"> [TaskSchedulerImpl](TaskSchedulerImpl.md)
 * <span id="rpcEnv"> [RpcEnv](../rpc/RpcEnv.md)
+
+### <span id="createDriverEndpoint"> Creating DriverEndpoint
+
+```scala
+createDriverEndpoint(
+  properties: Seq[(String, String)]): DriverEndpoint
+```
+
+`createDriverEndpoint` creates a [DriverEndpoint](DriverEndpoint.md).
+
+!!! note
+    The purpose of `createDriverEndpoint` is to let [CoarseGrainedSchedulerBackends](#implementations) to provide custom implementations (e.g. [KubernetesClusterSchedulerBackend](../kubernetes/KubernetesClusterSchedulerBackend.md#createDriverEndpoint)).
+
+`createDriverEndpoint` is used when `CoarseGrainedSchedulerBackend` is [created](#creating-instance) (and initializes the [driverEndpoint](#driverEndpoint) internal reference).
+
+## <span id="driverEndpoint"> DriverEndpoint
+
+```scala
+driverEndpoint: RpcEndpointRef
+```
+
+`CoarseGrainedSchedulerBackend` creates a [DriverEndpoint](DriverEndpoint.md) when [created](#creating-instance).
+
+The `DriverEndpoint` is used to communicate with the driver (by sending RPC messages).
+
+## <span id="reviveThread"> Revive Messages Scheduler Service
+
+```scala
+reviveThread: ScheduledExecutorService
+```
+
+`CoarseGrainedSchedulerBackend` creates a Java [ScheduledExecutorService]({{ java.api }}/java.base/java/util/concurrent/ScheduledExecutorService.html) when [created](#creating-instance).
+
+The `ScheduledExecutorService` is used by `DriverEndpoint` RPC Endpoint to [post ReviveOffers messages regularly](DriverEndpoint.md#onStart).
 
 ## <span id="maxRpcMessageSize"> maxRpcMessageSize
 
@@ -43,7 +77,7 @@ makeOffers(
 
 CAUTION: Only free cores are considered in making offers. Memory is not! Why?!
 
-It then requests TaskSchedulerImpl.md#resourceOffers[`TaskSchedulerImpl` to process the resource offers] to create a collection of spark-scheduler-TaskDescription.md[TaskDescription] collections that it in turn uses to CoarseGrainedSchedulerBackend-DriverEndpoint.md#launchTasks[launch tasks].
+It then requests TaskSchedulerImpl.md#resourceOffers[`TaskSchedulerImpl` to process the resource offers] to create a collection of [TaskDescription](TaskDescription.md) collections that it in turn uses to [launch tasks](DriverEndpoint.md#launchTasks).
 
 ## <span id="getExecutorIds"> Getting Executor Ids
 
@@ -131,7 +165,7 @@ killTask(
 
 `killTask` is part of the [SchedulerBackend](SchedulerBackend.md#killTask) abstraction.
 
-`killTask` simply sends a [KillTask](CoarseGrainedSchedulerBackend-DriverEndpoint.md#KillTask) message to <<driverEndpoint, driverEndpoint>>.
+`killTask` simply sends a [KillTask](DriverEndpoint.md#KillTask) message to <<driverEndpoint, driverEndpoint>>.
 
 ## <span id="stopExecutors"> Stopping All Executors
 
@@ -173,9 +207,10 @@ NOTE: It is called by subclasses spark-standalone.md#SparkDeploySchedulerBackend
 
 When <<start, CoarseGrainedSchedulerBackend starts>>, it registers *CoarseGrainedScheduler* RPC endpoint to be the driver's communication endpoint.
 
-`driverEndpoint` is a CoarseGrainedSchedulerBackend-DriverEndpoint.md[DriverEndpoint].
+`driverEndpoint` is a [DriverEndpoint](DriverEndpoint.md).
 
-NOTE: `CoarseGrainedSchedulerBackend` is created while SparkContext.md#createTaskScheduler[SparkContext is being created] that in turn lives inside a spark-driver.md[Spark driver]. That explains the name `driverEndpoint` (at least partially).
+!!! note
+    `CoarseGrainedSchedulerBackend` is created while [SparkContext is being created](../SparkContext.md#createTaskScheduler) that in turn lives inside a [Spark driver](../driver.md). That explains the name `driverEndpoint` (at least partially).
 
 It is called *standalone scheduler's driver endpoint* internally.
 
@@ -193,7 +228,7 @@ start(): Unit
 
 `start` is part of the [SchedulerBackend](SchedulerBackend.md#start) abstraction.
 
-`start` takes all ``spark.``-prefixed properties and registers the <<driverEndpoint, `CoarseGrainedScheduler` RPC endpoint>> (backed by CoarseGrainedSchedulerBackend-DriverEndpoint.md[DriverEndpoint ThreadSafeRpcEndpoint]).
+`start` takes all ``spark.``-prefixed properties and registers the <<driverEndpoint, `CoarseGrainedScheduler` RPC endpoint>> (backed by [DriverEndpoint ThreadSafeRpcEndpoint](DriverEndpoint.md)).
 
 ![CoarseGrainedScheduler Endpoint](../images/CoarseGrainedScheduler-rpc-endpoint.png)
 
@@ -241,7 +276,7 @@ reviveOffers(): Unit
 
 `reviveOffers` is part of the [SchedulerBackend](SchedulerBackend.md#reviveOffers) abstraction.
 
-`reviveOffers` simply sends a CoarseGrainedSchedulerBackend-DriverEndpoint.md#ReviveOffers[ReviveOffers] message to <<driverEndpoint, `CoarseGrainedSchedulerBackend` RPC endpoint>>.
+`reviveOffers` simply sends a [ReviveOffers](DriverEndpoint.md#ReviveOffers) message to [CoarseGrainedSchedulerBackend RPC endpoint](#driverEndpoint).
 
 ![CoarseGrainedExecutorBackend Revives Offers](../images/CoarseGrainedExecutorBackend-reviveOffers.png)
 
@@ -253,7 +288,7 @@ stop(): Unit
 
 `stop` is part of the [SchedulerBackend](SchedulerBackend.md#stop) abstraction.
 
-`stop` <<stopExecutors, stops all executors>> and <<driverEndpoint, `CoarseGrainedScheduler` RPC endpoint>> (by sending a blocking CoarseGrainedSchedulerBackend-DriverEndpoint.md#StopDriver[StopDriver] message).
+`stop` <<stopExecutors, stops all executors>> and <<driverEndpoint, `CoarseGrainedScheduler` RPC endpoint>> (by sending a blocking [StopDriver](DriverEndpoint.md#StopDriver) message).
 
 In case of any `Exception`, `stop` reports a `SparkException` with the message:
 
@@ -271,21 +306,6 @@ createDriverEndpointRef(
 `createDriverEndpointRef` <<createDriverEndpoint, creates DriverEndpoint>> and rpc:index.md#setupEndpoint[registers it] as *CoarseGrainedScheduler*.
 
 `createDriverEndpointRef` is used when CoarseGrainedSchedulerBackend is requested to <<start, start>>.
-
-## <span id="createDriverEndpoint"> Creating DriverEndpoint
-
-```scala
-createDriverEndpoint(
-  properties: Seq[(String, String)]): DriverEndpoint
-```
-
-`createDriverEndpoint` simply creates a CoarseGrainedSchedulerBackend-DriverEndpoint.md#creating-instance[DriverEndpoint].
-
-NOTE: CoarseGrainedSchedulerBackend-DriverEndpoint.md[DriverEndpoint] is the <<driverEndpoint, RPC endpoint of `CoarseGrainedSchedulerBackend`>>.
-
-NOTE: The purpose of `createDriverEndpoint` is to allow YARN to use the custom `YarnDriverEndpoint`.
-
-NOTE: `createDriverEndpoint` is used when `CoarseGrainedSchedulerBackend` <<createDriverEndpointRef, createDriverEndpointRef>>.
 
 ## Logging
 
@@ -323,7 +343,7 @@ Used exclusively in yarn/spark-yarn-cluster-YarnSchedulerEndpoint.md#RetrieveLas
 
 | [[driverEndpoint]] `driverEndpoint`
 | (uninitialized)
-a| rpc:RpcEndpointRef.md[RPC endpoint reference] to `CoarseGrainedScheduler` RPC endpoint (with CoarseGrainedSchedulerBackend-DriverEndpoint.md[DriverEndpoint] as the message handler).
+a| rpc:RpcEndpointRef.md[RPC endpoint reference] to `CoarseGrainedScheduler` RPC endpoint (with [DriverEndpoint](DriverEndpoint.md) as the message handler).
 
 Initialized when `CoarseGrainedSchedulerBackend` <<start, starts>>.
 
@@ -342,7 +362,7 @@ Used when `CoarseGrainedSchedulerBackend` executes the following (asynchronously
 
 NOTE: `ExecutorData` holds an executor's endpoint reference, address, host, the number of free and total CPU cores, the URL of execution logs.
 
-Element added when CoarseGrainedSchedulerBackend-DriverEndpoint.md#RegisterExecutor[`DriverEndpoint` receives `RegisterExecutor` message] and removed when CoarseGrainedSchedulerBackend-DriverEndpoint.md#RemoveExecutor[`DriverEndpoint` receives `RemoveExecutor` message] or CoarseGrainedSchedulerBackend-DriverEndpoint.md#onDisconnected[a remote host (with one or many executors) disconnects].
+Element added when [`DriverEndpoint` receives `RegisterExecutor` message](DriverEndpoint.md#RegisterExecutor) and removed when [`DriverEndpoint` receives `RemoveExecutor` message](DriverEndpoint.md#RemoveExecutor) or [a remote host (with one or many executors) disconnects](DriverEndpoint.md#onDisconnected).
 
 | [[executorsPendingToRemove]] `executorsPendingToRemove`
 | empty

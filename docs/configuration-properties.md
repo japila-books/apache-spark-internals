@@ -1,5 +1,30 @@
 # Spark Configuration Properties
 
+## <span id="spark.task.cpus"><span id="CPUS_PER_TASK"> spark.task.cpus
+
+The number of CPU cores to schedule (_allocate_) to a task
+
+Default: `1`
+
+Used when:
+
+* `ExecutorAllocationManager` is [created](dynamic-allocation/ExecutorAllocationManager.md#tasksPerExecutorForFullParallelism)
+* `TaskSchedulerImpl` is [created](scheduler/TaskSchedulerImpl.md#CPUS_PER_TASK)
+* `AppStatusListener` is requested to [handle a SparkListenerEnvironmentUpdate event](AppStatusListener.md#onEnvironmentUpdate)
+* `SparkContext` utility is used to [create a TaskScheduler](SparkContext.md#createTaskScheduler)
+* `ResourceProfile` is requested to [getDefaultTaskResources](ResourceProfile.md#getDefaultTaskResources)
+* `LocalityPreferredContainerPlacementStrategy` is requested to `numExecutorsPending`
+
+## <span id="spark.scheduler.revive.interval"><span id="SCHEDULER_REVIVE_INTERVAL"> spark.scheduler.revive.interval
+
+**Revive Interval** - time (in millis) between resource offers revives
+
+Default: `1s`
+
+Used when:
+
+* `DriverEndpoint` is requested to [onStart](scheduler/DriverEndpoint.md#onStart)
+
 ## <span id="spark.rpc.message.maxSize"><span id="RPC_MESSAGE_MAX_SIZE"> spark.rpc.message.maxSize
 
 Maximum allowed message size for RPC communication (in `MB` unless specified)
@@ -370,21 +395,6 @@ Default: `15s`
 | spark.storage.exceptionOnPinLeak
 a| [[spark.storage.exceptionOnPinLeak]]
 
-| spark.task.cpus
-a| [[spark.task.cpus]][[CPUS_PER_TASK]] The number of CPU cores used to schedule (_allocate for_) a task
-
-Default: `1`
-
-Used when:
-
-* `ExecutorAllocationManager` is [created](dynamic-allocation/ExecutorAllocationManager.md#tasksPerExecutorForFullParallelism)
-
-* `TaskSchedulerImpl` is scheduler:TaskSchedulerImpl.md#CPUS_PER_TASK[created]
-
-* AppStatusListener is requested to [handle an SparkListenerEnvironmentUpdate event](AppStatusListener.md#onEnvironmentUpdate)
-
-* `LocalityPreferredContainerPlacementStrategy` is requested to `numExecutorsPending`
-
 | spark.task.maxFailures
 a| [[spark.task.maxFailures]] The number of individual task failures before giving up on the entire scheduler:TaskSet.md[TaskSet] and the job afterwards
 
@@ -490,12 +500,6 @@ The file system for this buffer size after each partition is written in unsafe s
 Default: `32k`
 
 Must be greater than `0` and less than or equal to `2097151` (`(Integer.MAX_VALUE - 15) / 1024`)
-
-== [[spark.scheduler.revive.interval]] spark.scheduler.revive.interval
-
-Time (in ms) between resource offers revives
-
-Default: `1s`
 
 == [[spark.scheduler.minRegisteredResourcesRatio]] spark.scheduler.minRegisteredResourcesRatio
 

@@ -124,7 +124,7 @@ launchTask(
   taskDescription: TaskDescription): Unit
 ----
 
-launchTask simply creates a executor:TaskRunner.md[] (with the given executor:ExecutorBackend.md[] and the scheduler:spark-scheduler-TaskDescription.md[TaskDescription]) and adds it to the <<runningTasks, runningTasks>> internal registry.
+launchTask simply creates a executor:TaskRunner.md[] (with the given executor:ExecutorBackend.md[] and the [TaskDescription](../scheduler/TaskDescription.md)) and adds it to the <<runningTasks, runningTasks>> internal registry.
 
 In the end, launchTask requests the <<threadPool, "Executor task launch worker" thread pool>> to execute the TaskRunner (sometime in the future).
 

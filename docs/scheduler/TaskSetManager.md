@@ -2,9 +2,9 @@
 
 `TaskSetManager` is a <<schedulable, Schedulable>> that manages scheduling of tasks of a <<taskSet, TaskSet>>.
 
-NOTE: A scheduler:TaskSet.md[TaskSet] represents a set of scheduler:Task.md[tasks] that correspond to missing spark-rdd-partitions.md[partitions] of a scheduler:Stage.md[stage].
+NOTE: A TaskSet.md[TaskSet] represents a set of Task.md[tasks] that correspond to missing spark-rdd-partitions.md[partitions] of a Stage.md[stage].
 
-`TaskSetManager` is <<creating-instance, created>> exclusively when `TaskSchedulerImpl` is requested to scheduler:TaskSchedulerImpl.md#createTaskSetManager[create one] (when submitting tasks for a given `TaskSet`).
+`TaskSetManager` is <<creating-instance, created>> exclusively when `TaskSchedulerImpl` is requested to TaskSchedulerImpl.md#createTaskSetManager[create one] (when submitting tasks for a given `TaskSet`).
 
 .TaskSetManager and its Dependencies
 image::TaskSetManager-TaskSchedulerImpl-TaskSet.png[align="center"]
@@ -416,7 +416,7 @@ resourceOffer(
 
 (only if <<taskSetBlacklistHelperOpt, TaskSetBlacklist>> is defined) `resourceOffer` requests `TaskSetBlacklist` to check if the input spark-scheduler-TaskSetBlacklist.md#isExecutorBlacklistedForTaskSet[`execId` executor] or spark-scheduler-TaskSetBlacklist.md#isNodeBlacklistedForTaskSet[`host` node] are blacklisted.
 
-When `TaskSetManager` is a <<zombie-state, zombie>> or the resource offer (as executor and host) is blacklisted, `resourceOffer` finds no tasks to execute (and returns no spark-scheduler-TaskDescription.md[TaskDescription]).
+When `TaskSetManager` is a <<zombie-state, zombie>> or the resource offer (as executor and host) is blacklisted, `resourceOffer` finds no tasks to execute (and returns no [TaskDescription](TaskDescription.md)).
 
 NOTE: `resourceOffer` finds a task to schedule for a resource offer when neither `TaskSetManager` is a <<zombie-state, zombie>> nor the resource offer is blacklisted.
 
@@ -733,8 +733,6 @@ The TaskSetManager enters <<zombie-state, zombie state>>.
 
 In the end, `abort` <<maybeFinishTaskSet, attempts to mark the `TaskSet` finished>>.
 
-[NOTE]
-====
 `abort` is used when:
 
 * `TaskResultGetter` is requested to scheduler:TaskResultGetter.md#enqueueSuccessfulTask[enqueueSuccessfulTask] (that has failed)
@@ -743,15 +741,14 @@ In the end, `abort` <<maybeFinishTaskSet, attempts to mark the `TaskSet` finishe
 
 * `TaskSetManager` is requested to <<resourceOffer, resourceOffer>>, <<abortIfCompletelyBlacklisted, abortIfCompletelyBlacklisted>>, <<canFetchMoreResults, canFetchMoreResults>>, and <<handleFailedTask, handleFailedTask>>
 
-* `DriverEndpoint` is requested to scheduler:CoarseGrainedSchedulerBackend-DriverEndpoint.md#launchTasks[launch tasks on executors]
-====
+* `DriverEndpoint` is requested to [launch tasks on executors](DriverEndpoint.md#launchTasks)
 
-=== [[creating-instance]] Creating TaskSetManager Instance
+## Creating Instance
 
 `TaskSetManager` takes the following to be created:
 
-* [[sched]] scheduler:TaskSchedulerImpl.md[TaskSchedulerImpl]
-* [[taskSet]] scheduler:TaskSet.md[TaskSet]
+* [[sched]] TaskSchedulerImpl.md[TaskSchedulerImpl]
+* [[taskSet]] TaskSet.md[TaskSet]
 * [[maxTaskFailures]] Number of task failures, i.e. how many times a <<handleFailedTask, single task can fail>> before an entire TaskSet is <<abort, aborted>>
 * [[blacklistTracker]] (optional) BlacklistTracker (default: `None`)
 * [[clock]] `Clock` (default: `SystemClock`)
@@ -760,9 +757,9 @@ In the end, `abort` <<maybeFinishTaskSet, attempts to mark the `TaskSet` finishe
 
 NOTE: `maxTaskFailures` is `1` for `local` run mode, `maxFailures` for Spark local-with-retries, and configuration-properties.md#spark.task.maxFailures[spark.task.maxFailures] configuration property for Spark local-cluster and Spark with cluster managers (Spark Standalone, Mesos and YARN).
 
-`TaskSetManager` scheduler:MapOutputTracker.md#getEpoch[requests the current epoch from `MapOutputTracker`] and sets it on all tasks in the taskset.
+`TaskSetManager` MapOutputTracker.md#getEpoch[requests the current epoch from `MapOutputTracker`] and sets it on all tasks in the taskset.
 
-NOTE: `TaskSetManager` uses <<sched, TaskSchedulerImpl>> (that was given when <<creating-instance, created>>) to scheduler:TaskSchedulerImpl.md#mapOutputTracker[access the current `MapOutputTracker`].
+NOTE: `TaskSetManager` uses <<sched, TaskSchedulerImpl>> (that was given when <<creating-instance, created>>) to TaskSchedulerImpl.md#mapOutputTracker[access the current `MapOutputTracker`].
 
 You should see the following DEBUG in the logs:
 
@@ -772,7 +769,7 @@ DEBUG Epoch for [taskSet]: [epoch]
 
 CAUTION: FIXME Why is the epoch important?
 
-NOTE: `TaskSetManager` requests scheduler:TaskSchedulerImpl.md#mapOutputTracker[`MapOutputTracker` from `TaskSchedulerImpl`] which is _likely_ for unit testing only since core:SparkEnv.md#mapOutputTracker[`MapOutputTracker` is available using `SparkEnv`].
+NOTE: `TaskSetManager` requests TaskSchedulerImpl.md#mapOutputTracker[`MapOutputTracker` from `TaskSchedulerImpl`] which is _likely_ for unit testing only since core:SparkEnv.md#mapOutputTracker[`MapOutputTracker` is available using `SparkEnv`].
 
 `TaskSetManager` <<addPendingTask, adds the tasks as pending execution>> (in reverse order from the highest partition to the lowest).
 
@@ -793,7 +790,7 @@ handleFailedTask(
 .TaskSetManager Gets Notified that Task Has Failed
 image::TaskSetManager-handleFailedTask.png[align="center"]
 
-NOTE: `handleFailedTask` is executed after scheduler:TaskSchedulerImpl.md#handleFailedTask[`TaskSchedulerImpl` has been informed that `tid` task failed] or <<executorLost, an executor was lost>>. In either case, tasks could not finish successfully or could not report their status back.
+NOTE: `handleFailedTask` is executed after TaskSchedulerImpl.md#handleFailedTask[`TaskSchedulerImpl` has been informed that `tid` task failed] or <<executorLost, an executor was lost>>. In either case, tasks could not finish successfully or could not report their status back.
 
 `handleFailedTask` <<removeRunningTask, unregisters `tid` task from the internal registry of running tasks>> and then [marks the corresponding `TaskInfo` as finished](TaskInfo.md#markFinished) (passing in the input `state`).
 
@@ -816,7 +813,7 @@ Lost task [id] in stage [taskSetId] (TID [tid], [host], executor [executorId]): 
 
 NOTE: Description of how the final failure exception is "computed" was moved to respective sections below to make the reading slightly more pleasant and comprehensible.
 
-`handleFailedTask` scheduler:DAGScheduler.md#taskEnded[informs `DAGScheduler` that `tid` task has ended] (passing on the `Task` instance from <<tasks, tasks>> internal registry, the input `reason`, `null` result, calculated `accumUpdates` per failure, and the [TaskInfo](TaskInfo.md)).
+`handleFailedTask` DAGScheduler.md#taskEnded[informs `DAGScheduler` that `tid` task has ended] (passing on the `Task` instance from <<tasks, tasks>> internal registry, the input `reason`, `null` result, calculated `accumUpdates` per failure, and the [TaskInfo](TaskInfo.md)).
 
 IMPORTANT: This is the moment when `TaskSetManager` informs `DAGScheduler` that a task has ended.
 
@@ -851,7 +848,7 @@ In the end (except when the number of failures of `tid` task grew beyond the acc
 ====
 `handleFailedTask` is used when:
 
-* `TaskSchedulerImpl` is requested to scheduler:TaskSchedulerImpl.md#handleFailedTask[handle a failed task]
+* `TaskSchedulerImpl` is requested to TaskSchedulerImpl.md#handleFailedTask[handle a failed task]
 
 * `TaskSetManager` is requested to <<handleSuccessfulTask, handle a successful task>> and <<executorLost, handle a lost executor>>
 ====
@@ -927,13 +924,13 @@ addPendingTask(index: Int): Unit
 
 `addPendingTask` registers a `index` task in the pending-task lists that the task should be eventually scheduled to (per its preferred locations).
 
-Internally, `addPendingTask` takes the scheduler:Task.md#preferredLocations[preferred locations of the task] (given `index`) and registers the task in the internal pending-task registries for every preferred location:
+Internally, `addPendingTask` takes the Task.md#preferredLocations[preferred locations of the task] (given `index`) and registers the task in the internal pending-task registries for every preferred location:
 
-* <<pendingTasksForExecutor, pendingTasksForExecutor>> when the scheduler:TaskLocation.md[TaskLocation] is `ExecutorCacheTaskLocation`.
-* <<pendingTasksForHost, pendingTasksForHost>> for the hosts of a scheduler:TaskLocation.md[TaskLocation].
-* <<pendingTasksForRack, pendingTasksForRack>> for the scheduler:TaskSchedulerImpl.md#getRackForHost[racks from  `TaskSchedulerImpl` per the host] (of a scheduler:TaskLocation.md[TaskLocation]).
+* <<pendingTasksForExecutor, pendingTasksForExecutor>> when the TaskLocation.md[TaskLocation] is `ExecutorCacheTaskLocation`.
+* <<pendingTasksForHost, pendingTasksForHost>> for the hosts of a TaskLocation.md[TaskLocation].
+* <<pendingTasksForRack, pendingTasksForRack>> for the TaskSchedulerImpl.md#getRackForHost[racks from  `TaskSchedulerImpl` per the host] (of a TaskLocation.md[TaskLocation]).
 
-For a scheduler:TaskLocation.md[TaskLocation] being `HDFSCacheTaskLocation`, `addPendingTask` scheduler:TaskSchedulerImpl.md#getExecutorsAliveOnHost[requests `TaskSchedulerImpl` for the executors on the host] (of a preferred location) and registers the task in <<pendingTasksForExecutor, pendingTasksForExecutor>> for every executor (if available).
+For a TaskLocation.md[TaskLocation] being `HDFSCacheTaskLocation`, `addPendingTask` TaskSchedulerImpl.md#getExecutorsAliveOnHost[requests `TaskSchedulerImpl` for the executors on the host] (of a preferred location) and registers the task in <<pendingTasksForExecutor, pendingTasksForExecutor>> for every executor (if available).
 
 You should see the following INFO message in the logs:
 
@@ -960,27 +957,27 @@ NOTE: `addPendingTask` is used immediatelly when `TaskSetManager` <<creating-ins
 executorLost(execId: String, host: String, reason: ExecutorLossReason): Unit
 ----
 
-`executorLost` re-enqueues all the scheduler:ShuffleMapTask.md[ShuffleMapTasks] that have completed already on the lost executor (when deploy:ExternalShuffleService.md[external shuffle service] is not in use) and <<handleFailedTask, reports all currently-running tasks on the lost executor as failed>>.
+`executorLost` re-enqueues all the ShuffleMapTask.md[ShuffleMapTasks] that have completed already on the lost executor (when deploy:ExternalShuffleService.md[external shuffle service] is not in use) and <<handleFailedTask, reports all currently-running tasks on the lost executor as failed>>.
 
-NOTE: `executorLost` is part of the spark-scheduler-Schedulable.md#contract[Schedulable contract] that scheduler:TaskSchedulerImpl.md#removeExecutor[`TaskSchedulerImpl` uses to inform `TaskSetManagers` about lost executors].
+NOTE: `executorLost` is part of the spark-scheduler-Schedulable.md#contract[Schedulable contract] that TaskSchedulerImpl.md#removeExecutor[`TaskSchedulerImpl` uses to inform `TaskSetManagers` about lost executors].
 
-NOTE: Since `TaskSetManager` manages execution of the tasks in a single scheduler:TaskSet.md[TaskSet], when an executor gets lost, the affected tasks that have been running on the failed executor need to be re-enqueued. `executorLost` is the mechanism to "announce" the event to all `TaskSetManagers`.
+NOTE: Since `TaskSetManager` manages execution of the tasks in a single TaskSet.md[TaskSet], when an executor gets lost, the affected tasks that have been running on the failed executor need to be re-enqueued. `executorLost` is the mechanism to "announce" the event to all `TaskSetManagers`.
 
-Internally, `executorLost` first checks whether the <<tasks, tasks>> are scheduler:ShuffleMapTask.md[ShuffleMapTasks] and whether an deploy:ExternalShuffleService.md[external shuffle service] is enabled (that could serve the map shuffle outputs in case of failure).
+Internally, `executorLost` first checks whether the <<tasks, tasks>> are ShuffleMapTask.md[ShuffleMapTasks] and whether an deploy:ExternalShuffleService.md[external shuffle service] is enabled (that could serve the map shuffle outputs in case of failure).
 
-NOTE: `executorLost` checks out the first task in <<tasks, tasks>> as it is assumed the other belong to the same stage. If the task is a scheduler:ShuffleMapTask.md[ShuffleMapTask], the entire <<taskSet, TaskSet>> is for a scheduler:ShuffleMapStage.md[ShuffleMapStage].
+NOTE: `executorLost` checks out the first task in <<tasks, tasks>> as it is assumed the other belong to the same stage. If the task is a ShuffleMapTask.md[ShuffleMapTask], the entire <<taskSet, TaskSet>> is for a ShuffleMapStage.md[ShuffleMapStage].
 
 NOTE: `executorLost` uses core:SparkEnv.md#blockManager[`SparkEnv` to access the current `BlockManager`] and finds out whether an storage:BlockManager.md#externalShuffleServiceEnabled[external shuffle service is enabled] or not (based on configuration-properties.md#spark.shuffle.service.enabled[spark.shuffle.service.enabled] configuration property).
 
-If `executorLost` is indeed due to an executor lost that executed tasks for a scheduler:ShuffleMapStage.md[ShuffleMapStage] (that this `TaskSetManager` manages) and no external shuffle server is enabled, `executorLost` finds <<taskInfos, all the tasks>> that were scheduled on this lost executor and marks the <<successful, ones that were already successfully completed>> as not executed yet.
+If `executorLost` is indeed due to an executor lost that executed tasks for a ShuffleMapStage.md[ShuffleMapStage] (that this `TaskSetManager` manages) and no external shuffle server is enabled, `executorLost` finds <<taskInfos, all the tasks>> that were scheduled on this lost executor and marks the <<successful, ones that were already successfully completed>> as not executed yet.
 
 NOTE: `executorLost` uses records every tasks on the lost executor in <<successful, successful>> (as `false`) and decrements <<copiesRunning copiesRunning>>, and <<tasksSuccessful, tasksSuccessful>> for every task.
 
-`executorLost` <<addPendingTask, registers every task as pending execution (per preferred locations)>> and scheduler:DAGScheduler.md#taskEnded[informs `DAGScheduler` that the tasks (on the lost executor) have ended] (with scheduler:DAGScheduler.md#handleTaskCompletion-Resubmitted[Resubmitted] reason).
+`executorLost` <<addPendingTask, registers every task as pending execution (per preferred locations)>> and DAGScheduler.md#taskEnded[informs `DAGScheduler` that the tasks (on the lost executor) have ended] (with DAGScheduler.md#handleTaskCompletion-Resubmitted[Resubmitted] reason).
 
-NOTE: `executorLost` uses scheduler:TaskSchedulerImpl.md#dagScheduler[`TaskSchedulerImpl` to access the `DAGScheduler`]. `TaskSchedulerImpl` is given when the <<creating-instance, `TaskSetManager` was created>>.
+NOTE: `executorLost` uses TaskSchedulerImpl.md#dagScheduler[`TaskSchedulerImpl` to access the `DAGScheduler`]. `TaskSchedulerImpl` is given when the <<creating-instance, `TaskSetManager` was created>>.
 
-Regardless of whether this `TaskSetManager` manages `ShuffleMapTasks` or not (it could also manage scheduler:ResultTask.md[ResultTasks]) and whether the external shuffle service is used or not, `executorLost` finds all <<taskInfos, currently-running tasks>> on this lost executor and <<handleFailedTask, reports them as failed>> (with the task state `FAILED`).
+Regardless of whether this `TaskSetManager` manages `ShuffleMapTasks` or not (it could also manage ResultTask.md[ResultTasks]) and whether the external shuffle service is used or not, `executorLost` finds all <<taskInfos, currently-running tasks>> on this lost executor and <<handleFailedTask, reports them as failed>> (with the task state `FAILED`).
 
 NOTE: `executorLost` finds out if the reason for the executor lost is due to application fault, i.e. assumes ``ExecutorExited``'s exit status as the indicator, `ExecutorKilled` for non-application's fault and any other reason is an application fault.
 
@@ -997,7 +994,7 @@ recomputeLocality(): Unit
 
 CAUTION: FIXME But *why* are the caches important (and have to be recomputed)?
 
-`recomputeLocality` records the current scheduler:TaskSchedulerImpl.md#TaskLocality[TaskLocality] level of this `TaskSetManager` (that is <<currentLocalityIndex, currentLocalityIndex>> in <<myLocalityLevels, myLocalityLevels>>).
+`recomputeLocality` records the current TaskSchedulerImpl.md#TaskLocality[TaskLocality] level of this `TaskSetManager` (that is <<currentLocalityIndex, currentLocalityIndex>> in <<myLocalityLevels, myLocalityLevels>>).
 
 NOTE: `TaskLocality` is one of `PROCESS_LOCAL`, `NODE_LOCAL`, `NO_PREF`, `RACK_LOCAL` and `ANY` values.
 
@@ -1018,7 +1015,7 @@ computeValidLocalityLevels(): Array[TaskLocality]
 
 `computeValidLocalityLevels` computes valid locality levels for tasks that were registered in corresponding registries per locality level.
 
-NOTE: scheduler:TaskSchedulerImpl.md[TaskLocality] is a task locality preference and can be the most localized `PROCESS_LOCAL`, `NODE_LOCAL` through `NO_PREF` and `RACK_LOCAL` to `ANY`.
+NOTE: TaskSchedulerImpl.md[TaskLocality] is a task locality preference and can be the most localized `PROCESS_LOCAL`, `NODE_LOCAL` through `NO_PREF` and `RACK_LOCAL` to `ANY`.
 
 .TaskLocalities and Corresponding Internal Registries
 [cols="1,2",options="header",width="100%"]
@@ -1039,7 +1036,7 @@ NOTE: scheduler:TaskSchedulerImpl.md[TaskLocality] is a task locality preference
 
 `computeValidLocalityLevels` walks over every internal registry and if it is not empty <<getLocalityWait, computes locality wait>> for the corresponding `TaskLocality` and proceeds with it only when the locality wait is not `0`.
 
-For `TaskLocality` with pending tasks, `computeValidLocalityLevels` asks `TaskSchedulerImpl` whether there is at least one executor alive (for scheduler:TaskSchedulerImpl.md#isExecutorAlive[PROCESS_LOCAL], scheduler:TaskSchedulerImpl.md#hasExecutorsAliveOnHost[NODE_LOCAL] and scheduler:TaskSchedulerImpl.md#hasHostAliveOnRack[RACK_LOCAL]) and if so registers the `TaskLocality`.
+For `TaskLocality` with pending tasks, `computeValidLocalityLevels` asks `TaskSchedulerImpl` whether there is at least one executor alive (for TaskSchedulerImpl.md#isExecutorAlive[PROCESS_LOCAL], TaskSchedulerImpl.md#hasExecutorsAliveOnHost[NODE_LOCAL] and TaskSchedulerImpl.md#hasHostAliveOnRack[RACK_LOCAL]) and if so registers the `TaskLocality`.
 
 NOTE: `computeValidLocalityLevels` uses <<sched, TaskSchedulerImpl>> that was given when <<TaskSetManager, `TaskSetManager` was created>>.
 
@@ -1060,7 +1057,7 @@ NOTE: `computeValidLocalityLevels` is used when `TaskSetManager` <<creating-inst
 getLocalityWait(level: TaskLocality): Long
 ----
 
-`getLocalityWait` finds *locality wait* (in milliseconds) for a given scheduler:TaskSchedulerImpl.md#TaskLocality[TaskLocality].
+`getLocalityWait` finds *locality wait* (in milliseconds) for a given TaskSchedulerImpl.md#TaskLocality[TaskLocality].
 
 `getLocalityWait` uses configuration-properties.md#spark.locality.wait[spark.locality.wait] (default: `3s`) when the ``TaskLocality``-specific property is not defined or `0` for `NO_PREF` and `ANY`.
 

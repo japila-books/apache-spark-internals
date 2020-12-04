@@ -343,7 +343,7 @@ Used when:
 
 ### <span id="taskName"> Task Name
 
-The <<spark-scheduler-TaskDescription.md#name, name of the task>> (of the <<taskDescription, TaskDescription>>) that is used exclusively for <<logging, logging>> purposes when TaskRunner is requested to <<run, run>> and <<kill, kill>> the task
+The [name of the task](../scheduler/TaskDescription.md#name) (of the [TaskDescription](#taskDescription)) that is used exclusively for <<logging, logging>> purposes when TaskRunner is requested to <<run, run>> and <<kill, kill>> the task
 
 ### <span id="threadId"><span id="getThreadId"> Thread Id
 

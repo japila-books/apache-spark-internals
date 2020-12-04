@@ -1,3 +1,3 @@
 # KubernetesDriverEndpoint
 
-`KubernetesDriverEndpoint` is a [DriverEndpoint](../scheduler/CoarseGrainedSchedulerBackend-DriverEndpoint.md).
+`KubernetesDriverEndpoint` is a [DriverEndpoint](../scheduler/DriverEndpoint.md).

@@ -1,4 +1,4 @@
-= RpcEndpoint
+# RpcEndpoint
 
 RpcEndpoint is a <<contract, contract>> to define an RPC endpoint that can <<receive, receive>> *messages* using *callbacks*, i.e. *functions* to execute when a message arrives.
 
@@ -54,6 +54,6 @@ CAUTION: FIXME
 
 CAUTION: FIXME
 
-== [[ThreadSafeRpcEndpoint]] ThreadSafeRpcEndpoint
+## <span id="ThreadSafeRpcEndpoint"> ThreadSafeRpcEndpoint
 
-ThreadSafeRpcEndpoint is an RpcEndpoint for endpoints that...FIXME
+`ThreadSafeRpcEndpoint` is an `RpcEndpoint` for endpoints that...FIXME

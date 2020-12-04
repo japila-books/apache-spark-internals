@@ -1,13 +1,13 @@
 = TaskDescription
 
 [[creating-instance]]
-`TaskDescription` is a metadata of a scheduler:Task.md[task] with the following properties:
+`TaskDescription` is a metadata of a Task.md[task] with the following properties:
 
 * [[taskId]] Task ID
 * [[attemptNumber]] Task attempt number
 * [[executorId]] Executor ID
 * [[name]] Task name
-* [[index]] Task index (within the scheduler:TaskSet.md[TaskSet])
+* [[index]] Task index (within the TaskSet.md[TaskSet])
 * [[addedFiles]] Added files (as `Map[String, Long]`)
 * [[addedJars]] Added JAR files (as `Map[String, Long]`)
 * [[properties]] `Properties`
@@ -19,7 +19,7 @@ The <<name, name>> of the task is of the format:
 task [taskID] in stage [taskSetID]
 ```
 
-`TaskDescription` is <<creating-instance, created>> exclusively when `TaskSetManager` is requested to scheduler:TaskSetManager.md#resourceOffer[find a task ready for execution (given a resource offer)].
+`TaskDescription` is <<creating-instance, created>> exclusively when `TaskSetManager` is requested to TaskSetManager.md#resourceOffer[find a task ready for execution (given a resource offer)].
 
 [[toString]]
 The textual representation of a `TaskDescription` is as follows:
@@ -59,11 +59,6 @@ encode(taskDescription: TaskDescription): ByteBuffer
 
 Internally, `encode`...FIXME
 
-[NOTE]
-====
 `encode` is used when:
 
-* `DriverEndpoint` (of `CoarseGrainedSchedulerBackend`) is requested to scheduler:CoarseGrainedSchedulerBackend-DriverEndpoint.md#launchTasks[launchTasks]
-
-* Spark on Mesos' `MesosFineGrainedSchedulerBackend` is requested to `createMesosTask`
-====
+* `DriverEndpoint` (of `CoarseGrainedSchedulerBackend`) is requested to [launchTasks](DriverEndpoint.md#launchTasks)

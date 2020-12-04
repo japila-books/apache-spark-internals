@@ -273,7 +273,7 @@ CAUTION: FIXME image with scheduler backends calling `TaskSchedulerImpl.statusUp
 
 `statusUpdate` is used when:
 
-* `DriverEndpoint` (of [CoarseGrainedSchedulerBackend](CoarseGrainedSchedulerBackend.md)) is requested to [handle a StatusUpdate message](CoarseGrainedSchedulerBackend-DriverEndpoint.md#StatusUpdate)
+* `DriverEndpoint` (of [CoarseGrainedSchedulerBackend](CoarseGrainedSchedulerBackend.md)) is requested to [handle a StatusUpdate message](DriverEndpoint.md#StatusUpdate)
 
 * `LocalEndpoint` is requested to [handle a StatusUpdate message](../local/LocalEndpoint.md#StatusUpdate)
 
@@ -500,7 +500,7 @@ resourceOffers(
   offers: Seq[WorkerOffer]): Seq[Seq[TaskDescription]]
 ----
 
-`resourceOffers` takes the resources `offers` (as <<WorkerOffer, WorkerOffers>>) and generates a collection of tasks (as spark-scheduler-TaskDescription.md[TaskDescription]) to launch (given the resources available).
+`resourceOffers` takes the resources `offers` (as <<WorkerOffer, WorkerOffers>>) and generates a collection of tasks (as [TaskDescription](TaskDescription.md)) to launch (given the resources available).
 
 NOTE: <<WorkerOffer, WorkerOffer>> represents a resource offer with CPU cores free to use on an executor.
 
@@ -560,7 +560,7 @@ When `resourceOffers` managed to launch a task, the internal <<hasLaunchedTask, 
 
 `resourceOffers` is used when:
 
-* `CoarseGrainedSchedulerBackend` (via `DriverEndpoint` RPC endpoint) is requested to [make executor resource offers](CoarseGrainedSchedulerBackend-DriverEndpoint.md#makeOffers)
+* `CoarseGrainedSchedulerBackend` (via `DriverEndpoint` RPC endpoint) is requested to [make executor resource offers](DriverEndpoint.md#makeOffers)
 
 * `LocalEndpoint` is requested to [revive resource offers](../local/LocalEndpoint.md#reviveOffers)
 
