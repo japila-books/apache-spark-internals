@@ -12,7 +12,7 @@ Used when:
 * `TaskSchedulerImpl` is [created](scheduler/TaskSchedulerImpl.md#CPUS_PER_TASK)
 * `AppStatusListener` is requested to [handle a SparkListenerEnvironmentUpdate event](AppStatusListener.md#onEnvironmentUpdate)
 * `SparkContext` utility is used to [create a TaskScheduler](SparkContext.md#createTaskScheduler)
-* `ResourceProfile` is requested to [getDefaultTaskResources](ResourceProfile.md#getDefaultTaskResources)
+* `ResourceProfile` is requested to [getDefaultTaskResources](stage-level-scheduling/ResourceProfile.md#getDefaultTaskResources)
 * `LocalityPreferredContainerPlacementStrategy` is requested to `numExecutorsPending`
 
 ## <span id="spark.scheduler.revive.interval"><span id="SCHEDULER_REVIVE_INTERVAL"> spark.scheduler.revive.interval

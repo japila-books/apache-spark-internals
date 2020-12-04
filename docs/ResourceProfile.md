@@ -1,3 +1,0 @@
-# ResourceProfile
-
-`ResourceProfile` is...FIXME

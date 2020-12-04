@@ -126,6 +126,22 @@ Executor is blacklisted: [executorId]
 
 ### <span id="RetrieveSparkAppConfig"> RetrieveSparkAppConfig
 
+```scala
+RetrieveSparkAppConfig(
+  resourceProfileId: Int)
+```
+
+Posted when:
+
+* `CoarseGrainedExecutorBackend` standalone application is [started](../executor/CoarseGrainedExecutorBackend.md#run)
+
+When [received](#receiveAndReply), `DriverEndpoint` replies with a `SparkAppConfig` message with the following:
+
+1. `spark`-prefixed configuration properties
+1. IO Encryption Key
+1. Delegation tokens
+1. [Default profile](../stage-level-scheduling/ResourceProfile.md#getOrCreateDefaultProfile)
+
 ### <span id="ReviveOffers"> ReviveOffers
 
 Posted when:
