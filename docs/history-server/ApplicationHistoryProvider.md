@@ -33,6 +33,17 @@ getListing(): Iterator[ApplicationInfo]
 
 Used when...FIXME
 
+### <span id="onUIDetached"> onUIDetached
+
+```scala
+onUIDetached(
+  appId: String,
+  attemptId: Option[String],
+  ui: SparkUI): Unit
+```
+
+Used when...FIXME
+
 ### <span id="writeEventLogs"> writeEventLogs
 
 ```scala

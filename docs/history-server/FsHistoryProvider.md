@@ -1,52 +1,141 @@
-= FsHistoryProvider
+# FsHistoryProvider
 
-*FsHistoryProvider* is the default ApplicationHistoryProvider.md[ApplicationHistoryProvider] for index.md[Spark History Server].
+`FsHistoryProvider` is the default [ApplicationHistoryProvider](ApplicationHistoryProvider.md) for [Spark History Server](index.md).
 
-FsHistoryProvider is <<creating-instance, created>> exclusively when `HistoryServer` is HistoryServer.md#main[started] as a standalone application and `spark.history.provider` configuration property was not defined.
+## Creating Instance
 
-[TIP]
-====
-Enable `INFO` or `DEBUG` logging levels for `org.apache.spark.deploy.history.FsHistoryProvider` logger to see what happens inside.
+`FsHistoryProvider` takes the following to be created:
 
-Add the following line to `conf/log4j.properties`:
+* <span id="conf"> [SparkConf](../SparkConf.md)
+* <span id="clock"> `Clock` (default: `SystemClock`)
 
+`FsHistoryProvider` is created when `HistoryServer` standalone application is [started](HistoryServer.md#main) (and no [spark.history.provider](configuration-properties.md#spark.history.provider) configuration property was defined).
+
+## <span id="storePath"> Path of Application History Cache
+
+```scala
+storePath: Option[File]
 ```
-log4j.logger.org.apache.spark.deploy.history.FsHistoryProvider=DEBUG
+
+`FsHistoryProvider` uses [spark.history.store.path](configuration-properties.md#spark.history.store.path) configuration property for the directory to cache application history.
+
+With `storePath` defined, `FsHistoryProvider` uses a [LevelDB](../core/LevelDB.md) as the [KVStore](#listing). Otherwise, a [InMemoryStore](../core/InMemoryStore.md).
+
+With `storePath` defined, `FsHistoryProvider` uses a [HistoryServerDiskManager](HistoryServerDiskManager.md) as the [disk manager](#diskManager).
+
+## <span id="diskManager"> Disk Manager
+
+```scala
+diskManager: Option[HistoryServerDiskManager]
 ```
 
-Refer to spark-logging.md[Logging].
-====
+`FsHistoryProvider` creates a [HistoryServerDiskManager](HistoryServerDiskManager.md) when [created](#creating-instance) (with [storePath](#storePath) defined based on [spark.history.store.path](configuration-properties.md#spark.history.store.path) configuration property).
 
-== [[rebuildAppStore]] `rebuildAppStore` Internal Method
+`FsHistoryProvider` uses the `HistoryServerDiskManager` for the following:
 
-[source, scala]
-----
-rebuildAppStore(
-  store: KVStore,
-  eventLog: FileStatus,
-  lastUpdated: Long): Unit
-----
+* [startPolling](#startPolling)
+* [getAppUI](#getAppUI)
+* [onUIDetached](#onUIDetached)
+* [cleanAppData](#cleanAppData)
 
-`rebuildAppStore`...FIXME
+## <span id="getAppUI"> SparkUI of Spark Application
 
-NOTE: `rebuildAppStore` is used when...FIXME
+```scala
+getAppUI(
+  appId: String,
+  attemptId: Option[String]): Option[LoadedAppUI]
+```
 
-== [[getAppUI]] `getAppUI` Method
-
-[source, scala]
-----
-getAppUI(appId: String, attemptId: Option[String]): Option[LoadedAppUI]
-----
-
-NOTE: `getAppUI` is part of ApplicationHistoryProvider.md#getAppUI[ApplicationHistoryProvider Contract] to...FIXME.
+`getAppUI` is part of the [ApplicationHistoryProvider](ApplicationHistoryProvider.md#getAppUI) abstraction.
 
 `getAppUI`...FIXME
 
-== [[creating-instance]] Creating FsHistoryProvider Instance
+## <span id="onUIDetached"> onUIDetached
 
-FsHistoryProvider takes the following when created:
+```scala
+onUIDetached(): Unit
+```
 
-* [[conf]] SparkConf.md[SparkConf]
-* [[clock]] `Clock` (default: `SystemClock`)
+`onUIDetached` is part of the [ApplicationHistoryProvider](ApplicationHistoryProvider.md#onUIDetached) abstraction.
 
-FsHistoryProvider initializes the <<internal-registries, internal registries and counters>>.
+`onUIDetached`...FIXME
+
+## <span id="loadDiskStore"> loadDiskStore
+
+```scala
+loadDiskStore(
+  dm: HistoryServerDiskManager,
+  appId: String,
+  attempt: AttemptInfoWrapper): KVStore
+```
+
+`loadDiskStore`...FIXME
+
+`loadDiskStore` is used in [getAppUI](#getAppUI) (with [HistoryServerDiskManager](#diskManager) available).
+
+## <span id="createInMemoryStore"> createInMemoryStore
+
+```scala
+createInMemoryStore(
+  attempt: AttemptInfoWrapper): KVStore
+```
+
+`createInMemoryStore`...FIXME
+
+`createInMemoryStore` is used in [getAppUI](#getAppUI).
+
+## <span id="rebuildAppStore"> rebuildAppStore
+
+```scala
+rebuildAppStore(
+  store: KVStore,
+  reader: EventLogFileReader,
+  lastUpdated: Long): Unit
+```
+
+`rebuildAppStore`...FIXME
+
+`rebuildAppStore` is used in [loadDiskStore](#loadDiskStore) and [createInMemoryStore](#createInMemoryStore).
+
+## <span id="cleanAppData"> cleanAppData
+
+```scala
+cleanAppData(
+  appId: String,
+  attemptId: Option[String],
+  logPath: String): Unit
+```
+
+`cleanAppData`...FIXME
+
+`cleanAppData` is used in [checkForLogs](#checkForLogs) and [deleteAttemptLogs](#deleteAttemptLogs).
+
+## <span id="startPolling"> Polling for Logs
+
+```scala
+startPolling(): Unit
+```
+
+`startPolling`...FIXME
+
+`startPolling` is used in [initialize](#initialize) and [startSafeModeCheckThread](#startSafeModeCheckThread).
+
+### <span id="checkForLogs"> Checking Available Event Logs
+
+```scala
+checkForLogs(): Unit
+```
+
+`checkForLogs`...FIXME
+
+## Logging
+
+Enable `ALL` logging level for `org.apache.spark.deploy.history.FsHistoryProvider` logger to see what happens inside.
+
+Add the following line to `conf/log4j.properties`:
+
+```text
+log4j.logger.org.apache.spark.deploy.history.FsHistoryProvider=ALL
+```
+
+Refer to [Logging](../spark-logging.md).

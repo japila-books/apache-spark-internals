@@ -64,11 +64,17 @@ Kerberos principal. Required when `spark.history.kerberos.enabled` is enabled.
 
 Default: (empty)
 
-## <span id="spark.history.provider"> spark.history.provider
+## <span id="spark.history.provider"><span id="PROVIDER"> spark.history.provider
 
-Fully-qualified class name of the [ApplicationHistoryProvider](ApplicationHistoryProvider.md)
+Fully-qualified class name of an [ApplicationHistoryProvider](ApplicationHistoryProvider.md) for [HistoryServer](HistoryServer.md#main).
 
 Default: [org.apache.spark.deploy.history.FsHistoryProvider](FsHistoryProvider.md)
+
+## <span id="spark.history.store.path"><span id="LOCAL_STORE_DIR"> spark.history.store.path
+
+Local directory where to cache application history information (by )
+
+Default: (undefined) (i.e. all history information will be kept in memory)
 
 ## <span id="spark.history.retainedApplications"> spark.history.retainedApplications
 

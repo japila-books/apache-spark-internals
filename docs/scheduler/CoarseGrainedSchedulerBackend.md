@@ -51,6 +51,18 @@ driverEndpoint: RpcEndpointRef
 
 The `DriverEndpoint` is used to communicate with the driver (by sending RPC messages).
 
+## <span id="executorDataMap"> Available Executors Registry
+
+```scala
+executorDataMap: HashMap[String, ExecutorData]
+```
+
+`CoarseGrainedSchedulerBackend` tracks available executors using `executorDataMap` registry (of [ExecutorData](ExecutorData.md)s by executor id).
+
+A new entry is added when `DriverEndpoint` is requested to handle [RegisterExecutor](DriverEndpoint.md#RegisterExecutor) message.
+
+An entry is removed when `DriverEndpoint` is requested to handle [RemoveExecutor](DriverEndpoint.md#RemoveExecutor) message or [a remote host (with one or many executors) disconnects](DriverEndpoint.md#onDisconnected).
+
 ## <span id="reviveThread"> Revive Messages Scheduler Service
 
 ```scala
@@ -366,14 +378,6 @@ Used when `CoarseGrainedSchedulerBackend` executes the following (asynchronously
 * <<reviveOffers, reviveOffers>>
 * <<stop, stop>>
 * <<stopExecutors, stopExecutors>>
-
-| [[executorDataMap]] `executorDataMap`
-| empty
-| Registry of `ExecutorData` by executor id.
-
-NOTE: `ExecutorData` holds an executor's endpoint reference, address, host, the number of free and total CPU cores, the URL of execution logs.
-
-Element added when [`DriverEndpoint` receives `RegisterExecutor` message](DriverEndpoint.md#RegisterExecutor) and removed when [`DriverEndpoint` receives `RemoveExecutor` message](DriverEndpoint.md#RemoveExecutor) or [a remote host (with one or many executors) disconnects](DriverEndpoint.md#onDisconnected).
 
 | [[executorsPendingToRemove]] `executorsPendingToRemove`
 | empty

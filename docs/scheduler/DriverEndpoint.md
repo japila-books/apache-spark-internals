@@ -14,6 +14,16 @@
 
 `DriverEndpoint` is created when `CoarseGrainedSchedulerBackend` is requested for [one](CoarseGrainedSchedulerBackend.md#createDriverEndpoint).
 
+## <span id="logUrlHandler"> ExecutorLogUrlHandler
+
+```scala
+logUrlHandler: ExecutorLogUrlHandler
+```
+
+`DriverEndpoint` creates an [ExecutorLogUrlHandler](../executor/ExecutorLogUrlHandler.md) (based on [spark.ui.custom.executor.log.url](../webui/configuration-properties.md#CUSTOM_EXECUTOR_LOG_URL) configuration property) when [created](#creating-instance).
+
+`DriverEndpoint` uses the `ExecutorLogUrlHandler` to create an [ExecutorData](ExecutorData.md) when requested to handle a [RegisterExecutor](#RegisterExecutor) message.
+
 ## <span id="onStart"> Starting DriverEndpoint
 
 ```scala

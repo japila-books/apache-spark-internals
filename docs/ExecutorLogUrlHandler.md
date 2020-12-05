@@ -1,3 +1,0 @@
-# ExecutorLogUrlHandler
-
-`ExecutorLogUrlHandler` is...FIXME
