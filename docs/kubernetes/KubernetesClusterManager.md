@@ -24,6 +24,11 @@ createSchedulerBackend(
   scheduler: TaskScheduler): SchedulerBackend
 ```
 
+`createSchedulerBackend` creates a [KubernetesClusterSchedulerBackend](KubernetesClusterSchedulerBackend.md).
+
+!!! note
+    `createSchedulerBackend` assumes that the given [TaskScheduler](../scheduler/TaskScheduler.md) is [TaskSchedulerImpl](../scheduler/TaskSchedulerImpl.md).
+
 `createSchedulerBackend`...FIXME
 
 `createSchedulerBackend` is part of the [ExternalClusterManager](../scheduler/ExternalClusterManager.md#createSchedulerBackend) abstraction.

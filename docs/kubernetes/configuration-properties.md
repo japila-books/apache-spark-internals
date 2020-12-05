@@ -1,10 +1,25 @@
 # Configuration Properties of Kubernetes Cluster Manager
 
+## <span id="spark.kubernetes.allocation.batch.delay"><span id="KUBERNETES_ALLOCATION_BATCH_DELAY"> spark.kubernetes.allocation.batch.delay
+
+Time (in millis) to wait between each round of executor allocation
+
+Default: `1s`
+
+Used when:
+
+* [ExecutorPodsAllocator](ExecutorPodsAllocator.md#podAllocationDelay) is created
+
 ## <span id="spark.kubernetes.submitInDriver"><span id="KUBERNETES_DRIVER_SUBMIT_CHECK"> spark.kubernetes.submitInDriver
 
 **(internal)**
 
 Default: `false`
+
+Used when:
+
+* `BasicDriverFeatureStep` is requested to [getAdditionalPodSystemProperties](BasicDriverFeatureStep.md#getAdditionalPodSystemProperties)
+* `KubernetesClusterManager` is requested for a [SchedulerBackend](KubernetesClusterManager.md#createSchedulerBackend)
 
 ## <span id="spark.kubernetes.driver.pod.name"><span id="KUBERNETES_DRIVER_POD_NAME"> spark.kubernetes.driver.pod.name
 
