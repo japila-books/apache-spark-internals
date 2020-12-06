@@ -1,18 +1,27 @@
-== [[Utils]] Utils Helper Object
+# Utils Utility
 
-`Utils` is a Scala object that...FIXME
+## <span id="checkAndGetK8sMasterUrl"> checkAndGetK8sMasterUrl
 
-=== [[getLocalDir]] `getLocalDir` Method
+```scala
+checkAndGetK8sMasterUrl(
+  rawMasterURL: String): String
+```
 
-[source, scala]
-----
-getLocalDir(conf: SparkConf): String
-----
+`checkAndGetK8sMasterUrl`...FIXME
+
+`checkAndGetK8sMasterUrl` is used when:
+
+* `SparkSubmit` is requested to [prepareSubmitEnvironment](tools/SparkSubmit.md#prepareSubmitEnvironment) (for Kubernetes cluster manager)
+
+## <span id="getLocalDir"> getLocalDir
+
+```scala
+getLocalDir(
+  conf: SparkConf): String
+```
 
 `getLocalDir`...FIXME
 
-[NOTE]
-====
 `getLocalDir` is used when:
 
 * `Utils` is requested to <<fetchFile, fetchFile>>
@@ -26,12 +35,10 @@ getLocalDir(conf: SparkConf): String
 * PySpark's  `PythonBroadcast` is requested to `readObject`
 
 * PySpark's  `EvalPythonExec` is requested to `doExecute`
-====
 
-=== [[fetchFile]] `fetchFile` Method
+## <span id="fetchFile"> fetchFile
 
-[source, scala]
-----
+```scala
 fetchFile(
   url: String,
   targetDir: File,
@@ -40,12 +47,10 @@ fetchFile(
   hadoopConf: Configuration,
   timestamp: Long,
   useCache: Boolean): File
-----
+```
 
 `fetchFile`...FIXME
 
-[NOTE]
-====
 `fetchFile` is used when:
 
 * `SparkContext` is requested to SparkContext.md#addFile[addFile]
@@ -53,33 +58,29 @@ fetchFile(
 * `Executor` is requested to executor:Executor.md#updateDependencies[updateDependencies]
 
 * Spark Standalone's `DriverRunner` is requested to `downloadUserJar`
-====
 
-=== [[getOrCreateLocalRootDirsImpl]] `getOrCreateLocalRootDirsImpl` Internal Method
+## <span id="getOrCreateLocalRootDirs"> getOrCreateLocalRootDirs
 
-[source, scala]
-----
-getOrCreateLocalRootDirsImpl(conf: SparkConf): Array[String]
-----
-
-`getOrCreateLocalRootDirsImpl`...FIXME
-
-NOTE: `getOrCreateLocalRootDirsImpl` is used exclusively when `Utils` is requested to <<getOrCreateLocalRootDirs, getOrCreateLocalRootDirs>>
-
-=== [[getOrCreateLocalRootDirs]] `getOrCreateLocalRootDirs` Internal Method
-
-[source, scala]
-----
-getOrCreateLocalRootDirs(conf: SparkConf): Array[String]
-----
+```scala
+getOrCreateLocalRootDirs(
+  conf: SparkConf): Array[String]
+```
 
 `getOrCreateLocalRootDirs`...FIXME
 
-[NOTE]
-====
 `getOrCreateLocalRootDirs` is used when:
 
 * `Utils` is requested to <<getLocalDir, getLocalDir>>
 
 * `Worker` is requested to spark-standalone-worker.md#receive[handle a LaunchExecutor message]
-====
+
+### <span id="getOrCreateLocalRootDirsImpl"> getOrCreateLocalRootDirsImpl
+
+```scala
+getOrCreateLocalRootDirsImpl(
+  conf: SparkConf): Array[String]
+```
+
+`getOrCreateLocalRootDirsImpl`...FIXME
+
+`getOrCreateLocalRootDirsImpl` is used when `Utils` is requested to [getOrCreateLocalRootDirs](#getOrCreateLocalRootDirs)

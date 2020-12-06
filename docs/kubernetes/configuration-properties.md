@@ -1,5 +1,31 @@
 # Configuration Properties of Kubernetes Cluster Manager
 
+## <span id="spark.kubernetes.container.image"><span id="CONTAINER_IMAGE"> spark.kubernetes.container.image
+
+Container image to use for Spark containers (unless [spark.kubernetes.driver.container.image](#spark.kubernetes.driver.container.image) or [spark.kubernetes.executor.container.image](#spark.kubernetes.executor.container.image) are defined)
+
+Default: (undefined)
+
+## <span id="spark.kubernetes.driver.container.image"><span id="DRIVER_CONTAINER_IMAGE"> spark.kubernetes.driver.container.image
+
+Container image for drivers
+
+Default: [spark.kubernetes.container.image](#spark.kubernetes.container.image)
+
+Used when:
+
+* `BasicDriverFeatureStep` is requested for a [driverContainerImage](BasicDriverFeatureStep.md#driverContainerImage)
+
+## <span id="spark.kubernetes.executor.container.image"><span id="EXECUTOR_CONTAINER_IMAGE"> spark.kubernetes.executor.container.image
+
+Container image for executors
+
+Default: [spark.kubernetes.container.image](#spark.kubernetes.container.image)
+
+Used when:
+
+* `BasicExecutorFeatureStep` is requested for a [driverContainerImage](BasicExecutorFeatureStep.md#executorContainerImage)
+
 ## <span id="spark.kubernetes.allocation.batch.delay"><span id="KUBERNETES_ALLOCATION_BATCH_DELAY"> spark.kubernetes.allocation.batch.delay
 
 Time (in millis) to wait between each round of executor allocation

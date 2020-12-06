@@ -1,4 +1,4 @@
-== [[SparkSubmitArguments]] `SparkSubmitArguments` -- spark-submit's Command-Line Argument Parser
+# SparkSubmitArguments
 
 `SparkSubmitArguments` is a custom `SparkSubmitArgumentsParser` to <<handle, handle>> the command-line arguments of spark-submit.md[`spark-submit` script] that the spark-submit.md#actions[actions] (i.e. spark-submit.md#submit[submit], spark-submit.md#kill[kill] and spark-submit.md#status[status]) use for their execution (possibly with the explicit `env` environment).
 
