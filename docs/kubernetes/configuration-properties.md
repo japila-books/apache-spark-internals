@@ -1,5 +1,58 @@
 # Configuration Properties of Kubernetes Cluster Manager
 
+## <span id="spark.kubernetes.submitInDriver"><span id="KUBERNETES_DRIVER_SUBMIT_CHECK"> spark.kubernetes.submitInDriver
+
+**(internal)** Whether executing in `cluster` deploy mode
+
+Default: `false`
+
+`spark.kubernetes.submitInDriver` is `true` in [BasicDriverFeatureStep](BasicDriverFeatureStep.md#getAdditionalPodSystemProperties).
+
+Used when:
+
+* `BasicDriverFeatureStep` is requested to [getAdditionalPodSystemProperties](BasicDriverFeatureStep.md#getAdditionalPodSystemProperties)
+* `KubernetesClusterManager` is requested for a [SchedulerBackend](KubernetesClusterManager.md#createSchedulerBackend)
+
+## <span id="spark.kubernetes.driver.podTemplateFile"><span id="KUBERNETES_DRIVER_PODTEMPLATE_FILE"> spark.kubernetes.driver.podTemplateFile
+
+Pod template file for drivers
+
+Default: (undefined)
+
+Used when:
+
+* `KubernetesDriverBuilder` is requested to [buildFromFeatures](KubernetesDriverBuilder.md#buildFromFeatures)
+
+## <span id="spark.kubernetes.executor.podTemplateFile"><span id="KUBERNETES_EXECUTOR_PODTEMPLATE_FILE"> spark.kubernetes.executor.podTemplateFile
+
+Pod template file for executors
+
+Default: (undefined)
+
+Used when:
+
+* `KubernetesClusterManager` is requested to [createSchedulerBackend](KubernetesClusterManager.md#createSchedulerBackend)
+* `KubernetesExecutorBuilder` is requested to [buildFromFeatures](KubernetesExecutorBuilder.md#buildFromFeatures)
+* `PodTemplateConfigMapStep` is [created](PodTemplateConfigMapStep.md#hasTemplate) and requested to [configurePod](PodTemplateConfigMapStep.md#configurePod), [getAdditionalPodSystemProperties](PodTemplateConfigMapStep.md#getAdditionalPodSystemProperties), [getAdditionalKubernetesResources](PodTemplateConfigMapStep.md#getAdditionalKubernetesResources)
+
+## <span id="spark.kubernetes.driver.podTemplateContainerName"><span id="KUBERNETES_DRIVER_PODTEMPLATE_CONTAINER_NAME"> spark.kubernetes.driver.podTemplateContainerName
+
+Container name for a driver in the given [pod template](#spark.kubernetes.driver.podTemplateFile)
+
+Default: (undefined)
+
+Used when:
+
+* `KubernetesDriverBuilder` is requested to [buildFromFeatures](KubernetesDriverBuilder.md#buildFromFeatures)
+
+## <span id="spark.kubernetes.memoryOverheadFactor"><span id="MEMORY_OVERHEAD_FACTOR"> spark.kubernetes.memoryOverheadFactor
+
+**Memory Overhead Factor** that will allocate memory to non-JVM jobs which in the case of JVM tasks will default to 0.10 and 0.40 for non-JVM jobs
+
+Must be a double between (0, 1.0)
+
+Default: `0.1`
+
 ## <span id="spark.kubernetes.container.image"><span id="CONTAINER_IMAGE"> spark.kubernetes.container.image
 
 Container image to use for Spark containers (unless [spark.kubernetes.driver.container.image](#spark.kubernetes.driver.container.image) or [spark.kubernetes.executor.container.image](#spark.kubernetes.executor.container.image) are defined)
@@ -36,17 +89,6 @@ Used when:
 
 * [ExecutorPodsAllocator](ExecutorPodsAllocator.md#podAllocationDelay) is created
 
-## <span id="spark.kubernetes.submitInDriver"><span id="KUBERNETES_DRIVER_SUBMIT_CHECK"> spark.kubernetes.submitInDriver
-
-**(internal)**
-
-Default: `false`
-
-Used when:
-
-* `BasicDriverFeatureStep` is requested to [getAdditionalPodSystemProperties](BasicDriverFeatureStep.md#getAdditionalPodSystemProperties)
-* `KubernetesClusterManager` is requested for a [SchedulerBackend](KubernetesClusterManager.md#createSchedulerBackend)
-
 ## <span id="spark.kubernetes.driver.pod.name"><span id="KUBERNETES_DRIVER_POD_NAME"> spark.kubernetes.driver.pod.name
 
 Name of the driver pod
@@ -66,12 +108,6 @@ Default: `(undefined)`
 The namespace that will be used for running the driver and executor pods.
 
 Default: `default`
-
-## <span id="spark.kubernetes.executor.podTemplateFile"><span id="KUBERNETES_EXECUTOR_PODTEMPLATE_FILE"> spark.kubernetes.executor.podTemplateFile
-
-File containing a template pod spec for executors
-
-Default: `(undefined)`
 
 ## <span id="spark.kubernetes.executor.podTemplateContainerName"><span id="KUBERNETES_EXECUTOR_PODTEMPLATE_CONTAINER_NAME"> spark.kubernetes.executor.podTemplateContainerName
 

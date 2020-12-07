@@ -29,6 +29,8 @@ createSchedulerBackend(
 !!! note
     `createSchedulerBackend` assumes that the given [TaskScheduler](../scheduler/TaskScheduler.md) is [TaskSchedulerImpl](../scheduler/TaskSchedulerImpl.md).
 
+`createSchedulerBackend` uses [spark.kubernetes.submitInDriver](configuration-properties.md#spark.kubernetes.submitInDriver) configuration property to determine whether executing in `cluster` deploy mode.
+
 `createSchedulerBackend`...FIXME
 
 `createSchedulerBackend` is part of the [ExternalClusterManager](../scheduler/ExternalClusterManager.md#createSchedulerBackend) abstraction.
