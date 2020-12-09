@@ -1,6 +1,6 @@
-# Demo: Spark on Minikube
+# Demo: spark-shell on minikube
 
-This demo shows how to run Spark applications on [Kubernetes](../kubernetes/index.md) (using [minikube](https://minikube.sigs.k8s.io/docs/)).
+This demo shows how to run [spark-shell](../tools/spark-shell.md) on [Kubernetes](../kubernetes/index.md) (using [minikube](https://minikube.sigs.k8s.io/docs/)).
 
 ## Minikube
 
@@ -105,7 +105,6 @@ cd $SPARK_HOME
 K8S_SERVER=$(kubectl config view --output=jsonpath='{.clusters[].cluster.server}') \
 ./bin/spark-shell \
   --master k8s://$K8S_SERVER \
-  --deploy-mode client \
   --conf spark.kubernetes.container.image=spark:spark-jacek-testing \
   --verbose
 ```

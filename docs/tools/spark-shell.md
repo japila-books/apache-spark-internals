@@ -1,6 +1,6 @@
-== [[spark-shell]] Spark Shell -- spark-shell shell script
+# spark-shell shell script
 
-*Spark shell* is an interactive environment where you can learn how to make the most out of Apache Spark quickly and conveniently.
+**Spark shell** is an interactive environment where you can learn how to make the most out of Apache Spark quickly and conveniently.
 
 TIP: Spark shell is particularly helpful for fast interactive prototyping.
 
