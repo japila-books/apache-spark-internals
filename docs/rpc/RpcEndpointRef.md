@@ -1,7 +1,6 @@
-= RpcEndpointRef -- Reference to RPC Endpoint
-:navtitle: RpcEndpointRef
+# RpcEndpointRef
 
-RpcEndpointRef is a reference to a rpc:RpcEndpoint.md[RpcEndpoint] in a rpc:index.md[RpcEnv].
+`RpcEndpointRef` is a reference to a rpc:RpcEndpoint.md[RpcEndpoint] in a rpc:index.md[RpcEnv].
 
 RpcEndpointRef is a serializable entity and so you can send it over a network or save it for later use (it can however be deserialized using the owning `RpcEnv` only).
 

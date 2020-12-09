@@ -1,4 +1,4 @@
-= [[MapOutputTrackerMasterEndpoint]] MapOutputTrackerMasterEndpoint
+# MapOutputTrackerMasterEndpoint
 
 *MapOutputTrackerMasterEndpoint* is a rpc:RpcEndpoint.md[RpcEndpoint] for scheduler:MapOutputTrackerMaster.md[MapOutputTrackerMaster] to <<receiveAndReply, handle>> the following messages:
 

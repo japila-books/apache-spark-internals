@@ -1,59 +1,133 @@
 # RpcEndpoint
 
-RpcEndpoint is a <<contract, contract>> to define an RPC endpoint that can <<receive, receive>> *messages* using *callbacks*, i.e. *functions* to execute when a message arrives.
+`RpcEndpoint` is an [abstraction](#contract) of [RPC endpoints](#implementations) that are registered to an [RpcEnv](#rpcEnv) to process [one-](#receive) (_fire-and-forget_) or [two-way](#receiveAndReply) messages.
 
-RpcEndpoint defines how to handle *messages* (what *functions* to execute given a message). RpcEndpoints register (with a name or uri) to `RpcEnv` to receive messages from rpc:RpcEndpointRef.md[RpcEndpointRefs].
+## Contract
 
-[[contract]]
-[source, scala]
-----
-package org.apache.spark.rpc
+### <span id="onConnected"> onConnected
 
-trait RpcEndpoint {
-  def onConnected(remoteAddress: RpcAddress): Unit
-  def onDisconnected(remoteAddress: RpcAddress): Unit
-  def onError(cause: Throwable): Unit
-  def onNetworkError(cause: Throwable, remoteAddress: RpcAddress): Unit
-  def onStart(): Unit
-  def onStop(): Unit
-  def receive: PartialFunction[Any, Unit]
-  def receiveAndReply(context: RpcCallContext): PartialFunction[Any, Unit]
-  val rpcEnv: RpcEnv
-}
-----
+```scala
+onConnected(
+  remoteAddress: RpcAddress): Unit
+```
 
-RpcEndpoint lives in rpc:index.md[RpcEnv] after being registered by a name.
+Invoked when [RpcAddress](RpcAddress.md) is connected to the current node
 
-A RpcEndpoint can be registered to one and only one RpcEnv.
+Used when:
 
-The lifecycle of a RpcEndpoint is `onStart`, `receive` and `onStop` in sequence.
+* `Inbox` is requested to process a `RemoteProcessConnected` message
 
-`receive` can be called concurrently.
+### <span id="onDisconnected"> onDisconnected
 
-TIP: If you want `receive` to be thread-safe, use <<ThreadSafeRpcEndpoint, ThreadSafeRpcEndpoint>>.
+```scala
+onDisconnected(
+  remoteAddress: RpcAddress): Unit
+```
 
-`onError` method is called for any exception thrown.
+Used when:
 
-.RpcEndpoint Contract
-[cols="1,2",options="header",width="100%"]
-|===
-| Method
-| Description
+* `Inbox` is requested to process a `RemoteProcessDisconnected` message
 
-| [[receive]] `receive`
-| Receives and processes a message
-|===
+### <span id="onError"> onError
 
-NOTE: RpcEndpoint is a `private[spark]` contract.
+```scala
+onError(
+  cause: Throwable): Unit
+```
 
-== [[onStart]] Activating RPC Endpoint (Just Before Handling Messages)
+Used when:
 
-CAUTION: FIXME
+* `Inbox` is requested to process a message that threw a `NonFatal` exception
 
-== [[stop]] Stopping RpcEndpoint
+### <span id="onNetworkError"> onNetworkError
 
-CAUTION: FIXME
+```scala
+onNetworkError(
+  cause: Throwable,
+  remoteAddress: RpcAddress): Unit
+```
 
-## <span id="ThreadSafeRpcEndpoint"> ThreadSafeRpcEndpoint
+Used when:
 
-`ThreadSafeRpcEndpoint` is an `RpcEndpoint` for endpoints that...FIXME
+* `Inbox` is requested to process a `RemoteProcessConnectionError` message
+
+### <span id="onStart"> onStart
+
+```scala
+onStart(): Unit
+```
+
+Used when:
+
+* `Inbox` is requested to process an `OnStart` message
+
+### <span id="onStop"> onStop
+
+```scala
+onStop(): Unit
+```
+
+Used when:
+
+* `Inbox` is requested to process an `OnStop` message
+
+### <span id="receive"> Processing One-Way Messages
+
+```scala
+receive: PartialFunction[Any, Unit]
+```
+
+Used when:
+
+* `Inbox` is requested to process an `OneWayMessage` message
+
+### <span id="receiveAndReply"> Processing Two-Way Messages
+
+```scala
+receiveAndReply(
+  context: RpcCallContext): PartialFunction[Any, Unit]
+```
+
+Used when:
+
+* `Inbox` is requested to process a `RpcMessage` message
+
+### <span id="rpcEnv"> RpcEnv
+
+```scala
+rpcEnv: RpcEnv
+```
+
+[RpcEnv](RpcEnv.md) this `RpcEndpoint` is registered to
+
+## Implementations
+
+* AMEndpoint
+* <span id="IsolatedRpcEndpoint" /> IsolatedRpcEndpoint
+* [MapOutputTrackerMasterEndpoint](../scheduler/MapOutputTrackerMasterEndpoint.md)
+* OutputCommitCoordinatorEndpoint
+* RpcEndpointVerifier
+* <span id="ThreadSafeRpcEndpoint" /> ThreadSafeRpcEndpoint
+* WorkerWatcher
+
+## <span id="self"> self
+
+```scala
+self: RpcEndpointRef
+```
+
+`self` requests the [RpcEnv](#rpcEnv) for the [RpcEndpointRef](RpcEnv.md#endpointRef) of this `RpcEndpoint`.
+
+`self` throws an `IllegalArgumentException` when the [RpcEnv](#rpcEnv) has not been initialized:
+
+```text
+rpcEnv has not been initialized
+```
+
+## <span id="stop"> Stopping RpcEndpoint
+
+```scala
+stop(): Unit
+```
+
+`stop` requests the [RpcEnv](#rpcEnv) to [stop](RpcEnv.md#stop) this [RpcEndpoint](#self)

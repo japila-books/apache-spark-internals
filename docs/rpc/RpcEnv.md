@@ -1,6 +1,6 @@
 # RpcEnv
 
-RpcEnv is an <<contract, abstraction>> of <<implementations, RPC systems>>.
+`RpcEnv` is an <<contract, abstraction>> of <<implementations, RPC systems>>.
 
 == [[implementations]] Available RpcEnvs
 
