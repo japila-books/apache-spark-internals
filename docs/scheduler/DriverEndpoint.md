@@ -336,17 +336,6 @@ In the end, `removeWorker` simply requests the [TaskSchedulerImpl](CoarseGrained
 
 `removeWorker` is used when `DriverEndpoint` is requested to handle a [RemoveWorker](#RemoveWorker) event.
 
-## <span id="disableExecutor"> Disabling Executor
-
-```scala
-disableExecutor(
-  executorId: String): Boolean
-```
-
-`disableExecutor`...FIXME
-
-`disableExecutor` is used when...FIXME
-
 ## <span id="receive"> Processing One-Way Messages
 
 ```scala
@@ -387,3 +376,42 @@ addressToExecutorId: Map[RpcAddress, String]
 Executor addresses (host and port) for executors.
 
 Set when an executor connects to register itself.
+
+## <span id="disableExecutor"> Disabling Executor
+
+```scala
+disableExecutor(
+  executorId: String): Boolean
+```
+
+`disableExecutor` [checks whether the executor is active](#isExecutorActive):
+
+* If so, `disableExecutor` adds the executor to the [executorsPendingLossReason](CoarseGrainedSchedulerBackend.md#executorsPendingLossReason) registry
+* Otherwise, `disableExecutor` checks whether added to [executorsPendingToRemove](CoarseGrainedSchedulerBackend.md#executorsPendingToRemove) registry
+
+`disableExecutor` determines whether the executor should really be disabled (as active or registered in [executorsPendingToRemove](CoarseGrainedSchedulerBackend.md#executorsPendingToRemove) registry).
+
+If the executor should be disabled, `disableExecutor` prints out the following INFO message to the logs and notifies the [TaskSchedulerImpl](CoarseGrainedSchedulerBackend.md#scheduler) that the [executor is lost](TaskSchedulerImpl.md#executorLost).
+
+```text
+Disabling executor [executorId].
+```
+
+`disableExecutor` returns the indication whether the executor should have been disabled or not.
+
+`disableExecutor` is used when:
+
+* `KubernetesDriverEndpoint` is requested to [handle onDisconnected event](../kubernetes/KubernetesDriverEndpoint.md#onDisconnected)
+* `YarnDriverEndpoint` is requested to handle onDisconnected event
+
+## Logging
+
+Enable `ALL` logging level for `org.apache.spark.scheduler.cluster.CoarseGrainedSchedulerBackend.DriverEndpoint` logger to see what happens inside.
+
+Add the following line to `conf/log4j.properties`:
+
+```text
+log4j.logger.org.apache.spark.scheduler.cluster.CoarseGrainedSchedulerBackend.DriverEndpoint=ALL
+```
+
+Refer to [Logging](../spark-logging.md).
