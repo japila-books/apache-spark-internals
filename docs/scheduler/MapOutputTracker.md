@@ -1,6 +1,66 @@
 # MapOutputTracker
 
-`MapOutputTracker` is a base abstraction of <<extensions, shuffle map output location registries>> that can <<getMapSizesByExecutorId, find shuffle blocks by executor>> and <<unregisterShuffle, deregister map output status information of a shuffle stage>>.
+`MapOutputTracker` is an [base abstraction](#contract) of [shuffle map output location registries](#implementations).
+
+## Contract
+
+### <span id="getMapSizesByExecutorId"> getMapSizesByExecutorId
+
+```scala
+getMapSizesByExecutorId(
+  shuffleId: Int,
+  startPartition: Int,
+  endPartition: Int): Iterator[(BlockManagerId, Seq[(BlockId, Long, Int)])]
+```
+
+Used when:
+
+* `SortShuffleManager` is requested for a [ShuffleReader](../shuffle/SortShuffleManager.md#getReader)
+
+### <span id="getMapSizesByRange"> getMapSizesByRange
+
+```scala
+getMapSizesByRange(
+  shuffleId: Int,
+  startMapIndex: Int,
+  endMapIndex: Int,
+  startPartition: Int,
+  endPartition: Int): Iterator[(BlockManagerId, Seq[(BlockId, Long, Int)])]
+```
+
+Used when:
+
+* `SortShuffleManager` is requested for a [ShuffleReader](../shuffle/SortShuffleManager.md#getReaderForRange)
+
+### <span id="unregisterShuffle"> unregisterShuffle
+
+```scala
+unregisterShuffle(
+  shuffleId: Int): Unit
+```
+
+Deletes map output status information for the specified shuffle stage
+
+Used when:
+
+* `ContextCleaner` is requested to [doCleanupShuffle](../core/ContextCleaner.md#doCleanupShuffle)
+* `BlockManagerSlaveEndpoint` is requested to [handle a RemoveShuffle message](../storage/BlockManagerSlaveEndpoint.md#RemoveShuffle)
+
+## Implementations
+
+* [MapOutputTrackerMaster](MapOutputTrackerMaster.md)
+* [MapOutputTrackerWorker](MapOutputTrackerWorker.md)
+
+## Creating Instance
+
+`MapOutputTracker` takes the following to be created:
+
+* <span id="conf"> [SparkConf](../SparkConf.md)
+
+??? note "Abstract Class"
+    `MapOutputTracker` is an abstract class and cannot be created directly. It is created indirectly for the [concrete MapOutputTrackers](#implementations).
+
+## Accessing MapOutputTracker
 
 `MapOutputTracker` is available using [SparkEnv](../SparkEnv.md#mapOutputTracker) (on the driver and executors).
 
@@ -8,192 +68,147 @@
 SparkEnv.get.mapOutputTracker
 ```
 
-== [[extensions]] MapOutputTrackers
+## <span id="trackerEndpoint"><span id="ENDPOINT_NAME"> MapOutputTracker RPC Endpoint
 
-[cols="30,70",options="header",width="100%"]
-|===
-| MapOutputTracker
-| Description
+`trackerEndpoint` is a [RpcEndpointRef](../rpc/RpcEndpointRef.md) of the **MapOutputTracker** RPC endpoint.
 
-| scheduler:MapOutputTrackerMaster.md[MapOutputTrackerMaster]
-| [[MapOutputTrackerMaster]] Runs on the driver
+`trackerEndpoint` is initialized (registered or looked up) when `SparkEnv` is [created](../SparkEnv.md#create) for the driver and executors.
 
-| scheduler:MapOutputTrackerWorker.md[MapOutputTrackerWorker]
-| [[MapOutputTrackerWorker]] Runs on executors
+`trackerEndpoint` is used to [communicate (synchronously)](#askTracker).
 
-|===
+`trackerEndpoint` is cleared (`null`) when `MapOutputTrackerMaster` is requested to [stop](MapOutputTrackerMaster.md#stop).
 
-== [[creating-instance]][[conf]] Creating Instance
+## <span id="unregisterShuffle"> Deregistering Map Output Status Information of Shuffle Stage
 
-MapOutputTracker takes a single SparkConf.md[SparkConf] to be created.
-
-== [[trackerEndpoint]][[ENDPOINT_NAME]] MapOutputTracker RPC Endpoint
-
-trackerEndpoint is a rpc:RpcEndpointRef.md[RpcEndpointRef] of the *MapOutputTracker* RPC endpoint.
-
-trackerEndpoint is initialized (registered or looked up) when SparkEnv is core:SparkEnv.md#create[created] for the driver and executors.
-
-trackerEndpoint is used to <<askTracker, communicate (synchronously)>>.
-
-trackerEndpoint is cleared (`null`) when MapOutputTrackerMaster is requested to scheduler:MapOutputTrackerMaster.md#stop[stop].
-
-== [[serializeMapStatuses]] serializeMapStatuses Utility
-
-[source, scala]
-----
-serializeMapStatuses(
-  statuses: Array[MapStatus],
-  broadcastManager: BroadcastManager,
-  isLocal: Boolean,
-  minBroadcastSize: Int): (Array[Byte], Broadcast[Array[Byte]])
-----
-
-serializeMapStatuses serializes the given array of map output locations into an efficient byte format (to send to reduce tasks). serializeMapStatuses compresses the serialized bytes using GZIP. They are supposed to be pretty compressible because many map outputs will be on the same hostname.
-
-Internally, serializeMapStatuses creates a Java {java-javadoc-url}/java/io/ByteArrayOutputStream.html[ByteArrayOutputStream].
-
-serializeMapStatuses writes out 0 (direct) first.
-
-serializeMapStatuses creates a Java {java-javadoc-url}/java/util/zip/GZIPOutputStream.html[GZIPOutputStream] (with the ByteArrayOutputStream created) and writes out the given statuses array.
-
-serializeMapStatuses decides whether to return the output array (of the output stream) or use a broadcast variable based on the size of the byte array.
-
-If the size of the result byte array is the given minBroadcastSize threshold or bigger, serializeMapStatuses requests the input BroadcastManager to core:BroadcastManager.md#newBroadcast[create a broadcast variable].
-
-serializeMapStatuses resets the ByteArrayOutputStream and starts over.
-
-serializeMapStatuses writes out 1 (broadcast) first.
-
-serializeMapStatuses creates a new Java GZIPOutputStream (with the ByteArrayOutputStream created) and writes out the broadcast variable.
-
-serializeMapStatuses prints out the following INFO message to the logs:
-
-[source,plaintext]
-----
-Broadcast mapstatuses size = [length], actual size = [length]
-----
-
-serializeMapStatuses is used when ShuffleStatus is requested to scheduler:ShuffleStatus.md#serializedMapStatus[serialize shuffle map output statuses].
-
-== [[deserializeMapStatuses]] deserializeMapStatuses Utility
-
-[source, scala]
-----
-deserializeMapStatuses(
-  bytes: Array[Byte]): Array[MapStatus]
-----
-
-deserializeMapStatuses...FIXME
-
-deserializeMapStatuses is used when...FIXME
-
-== [[sendTracker]] sendTracker Utility
-
-[source, scala]
-----
-sendTracker(
-  message: Any): Unit
-----
-
-sendTracker...FIXME
-
-sendTracker is used when...FIXME
-
-== [[getMapSizesByExecutorId]] Finding Locations with Blocks and Sizes
-
-[source, scala]
-----
-getMapSizesByExecutorId(
-  shuffleId: Int,
-  startPartition: Int,
-  endPartition: Int): Seq[(BlockManagerId, Seq[(BlockId, Long)])]
-----
-
-getMapSizesByExecutorId returns a collection of storage:BlockManagerId.md[]s with their blocks and sizes.
-
-When executed, you should see the following DEBUG message in the logs:
-
-```
-Fetching outputs for shuffle [id], partitions [startPartition]-[endPartition]
-```
-
-getMapSizesByExecutorId <<getStatuses, finds map outputs>> for the input `shuffleId`.
-
-NOTE: getMapSizesByExecutorId gets the map outputs for all the partitions (despite the method's signature).
-
-In the end, getMapSizesByExecutorId <<convertMapStatuses, converts shuffle map outputs>> (as `MapStatuses`) into the collection of storage:BlockManagerId.md[]s with their blocks and sizes.
-
-getMapSizesByExecutorId is used when BlockStoreShuffleReader is requested to shuffle:BlockStoreShuffleReader.md#read[read combined records for a reduce task].
-
-== [[unregisterShuffle]] Deregistering Map Output Status Information of Shuffle Stage
-
-[source, scala]
-----
+```scala
 unregisterShuffle(
   shuffleId: Int): Unit
-----
+```
 
 Deregisters map output status information for the given shuffle stage
 
 Used when:
 
-* ContextCleaner is requested for core:ContextCleaner.md#doCleanupShuffle[shuffle cleanup]
+* `ContextCleaner` is requested for [shuffle cleanup](../core/ContextCleaner.md#doCleanupShuffle)
 
-* BlockManagerSlaveEndpoint is requested to storage:BlockManagerSlaveEndpoint.md#RemoveShuffle[remove a shuffle]
+* `BlockManagerSlaveEndpoint` is requested to [remove a shuffle](../storage/BlockManagerSlaveEndpoint.md#RemoveShuffle)
 
-== [[stop]] Stopping MapOutputTracker
+## <span id="stop"> Stopping MapOutputTracker
 
-[source, scala]
-----
+```scala
 stop(): Unit
-----
+```
 
-stop does nothing at all.
+`stop` does nothing at all.
 
-stop is used when SparkEnv is requested to core:SparkEnv.md#stop[stop] (and stops all the services, incl. MapOutputTracker).
+`stop` is used when `SparkEnv` is requested to [stop](../SparkEnv.md#stop) (and stops all the services, incl. `MapOutputTracker`).
 
-== [[convertMapStatuses]] Converting MapStatuses To BlockManagerIds with ShuffleBlockIds and Their Sizes
+## <span id="convertMapStatuses"> Converting MapStatuses To BlockManagerIds with ShuffleBlockIds and Their Sizes
 
-[source, scala]
-----
+```scala
 convertMapStatuses(
   shuffleId: Int,
   startPartition: Int,
   endPartition: Int,
   statuses: Array[MapStatus]): Seq[(BlockManagerId, Seq[(BlockId, Long)])]
-----
-
-convertMapStatuses iterates over the input `statuses` array (of scheduler:MapStatus.md[MapStatus] entries indexed by map id) and creates a collection of storage:BlockManagerId.md[]s (for each `MapStatus` entry) with a storage:BlockId.md#ShuffleBlockId[ShuffleBlockId] (with the input `shuffleId`, a `mapId`, and `partition` ranging from the input `startPartition` and `endPartition`) and scheduler:MapStatus.md#getSizeForBlock[estimated size for the reduce block] for every status and partitions.
-
-For any empty `MapStatus`, you should see the following ERROR message in the logs:
-
 ```
+
+`convertMapStatuses` iterates over the input `statuses` array (of [MapStatus](MapStatus.md) entries indexed by map id) and creates a collection of [BlockManagerId](../storage/BlockManagerId.md)s (for each `MapStatus` entry) with a [ShuffleBlockId](../storage/BlockId.md#ShuffleBlockId) (with the input `shuffleId`, a `mapId`, and `partition` ranging from the input `startPartition` and `endPartition`) and [estimated size for the reduce block](MapStatus.md#getSizeForBlock) for every status and partitions.
+
+For any empty `MapStatus`, `convertMapStatuses` prints out the following ERROR message to the logs:
+
+```text
 Missing an output location for shuffle [id]
 ```
 
-And convertMapStatuses throws a `MetadataFetchFailedException` (with `shuffleId`, `startPartition`, and the above error message).
+And `convertMapStatuses` throws a `MetadataFetchFailedException` (with `shuffleId`, `startPartition`, and the above error message).
 
-convertMapStatuses is used when <<getMapSizesByExecutorId, MapOutputTracker computes ``BlockManagerId``s with their ``ShuffleBlockId``s and sizes>>.
+`convertMapStatuses` is used when [MapOutputTracker computes ``BlockManagerId``s with their ``ShuffleBlockId``s and sizes](#getMapSizesByExecutorId).
 
-== [[askTracker]] Sending Blocking Messages To trackerEndpoint RpcEndpointRef
+## <span id="askTracker"> Sending Blocking Messages To trackerEndpoint RpcEndpointRef
 
-[source, scala]
-----
+```scala
 askTracker[T](message: Any): T
-----
-
-askTracker rpc:RpcEndpointRef.md#askWithRetry[sends the `message`] to <<trackerEndpoint, trackerEndpoint RpcEndpointRef>> and waits for a result.
-
-When an exception happens, you should see the following ERROR message in the logs and askTracker throws a `SparkException`.
-
 ```
+
+`askTracker` [sends](../rpc/RpcEndpointRef.md#askWithRetry) the input `message` to [trackerEndpoint RpcEndpointRef](#trackerEndpoint) and waits for a result.
+
+When an exception happens, `askTracker` prints out the following ERROR message to the logs and throws a `SparkException`.
+
+```text
 Error communicating with MapOutputTracker
 ```
 
-askTracker is used when MapOutputTracker <<getStatuses, fetches map outputs for `ShuffleDependency` remotely>> and <<sendTracker, sends a one-way message>>.
+`askTracker` is used when `MapOutputTracker` is requested to [fetches map outputs for `ShuffleDependency` remotely](#getStatuses) and [sends a one-way message](#sendTracker).
 
-== [[epoch]][[epochLock]] Epoch
+## <span id="epoch"><span id="epochLock"> Epoch
 
-Starts from `0` when <<creating-instance, MapOutputTracker is created>>.
+Starts from `0` when `MapOutputTracker` is [created](#creating-instance).
 
-Can be <<updateEpoch, updated>> (on `MapOutputTrackerWorkers`) or scheduler:MapOutputTrackerMaster.md#incrementEpoch[incremented] (on the driver's `MapOutputTrackerMaster`).
+Can be [updated](#updateEpoch) (on `MapOutputTrackerWorkers`) or [incremented](MapOutputTrackerMaster.md#incrementEpoch) (on the driver's `MapOutputTrackerMaster`).
+
+## <span id="sendTracker"> sendTracker
+
+```scala
+sendTracker(
+  message: Any): Unit
+```
+
+`sendTracker`...FIXME
+
+`sendTracker` is used when:
+
+* `MapOutputTrackerMaster` is requested to [stop](MapOutputTrackerMaster.md#stop)
+
+## Utilities
+
+### <span id="serializeMapStatuses"> serializeMapStatuses
+
+```scala
+serializeMapStatuses(
+  statuses: Array[MapStatus],
+  broadcastManager: BroadcastManager,
+  isLocal: Boolean,
+  minBroadcastSize: Int,
+  conf: SparkConf): (Array[Byte], Broadcast[Array[Byte]])
+```
+
+`serializeMapStatuses` serializes the given array of map output locations into an efficient byte format (to send to reduce tasks). `serializeMapStatuses` compresses the serialized bytes using GZIP. They are supposed to be pretty compressible because many map outputs will be on the same hostname.
+
+Internally, `serializeMapStatuses` creates a Java [ByteArrayOutputStream]({{ java.api }}/java.base/java/io/ByteArrayOutputStream.html).
+
+`serializeMapStatuses` writes out 0 (direct) first.
+
+`serializeMapStatuses` creates a Java [GZIPOutputStream]({{ java.api }}/java.base/java/util/zip/GZIPOutputStream.html) (with the `ByteArrayOutputStream` created) and writes out the given statuses array.
+
+`serializeMapStatuses` decides whether to return the output array (of the output stream) or use a broadcast variable based on the size of the byte array.
+
+If the size of the result byte array is the given `minBroadcastSize` threshold or bigger, `serializeMapStatuses` requests the input `BroadcastManager` to [create a broadcast variable](../core/BroadcastManager.md#newBroadcast).
+
+`serializeMapStatuses` resets the `ByteArrayOutputStream` and starts over.
+
+`serializeMapStatuses` writes out 1 (broadcast) first.
+
+`serializeMapStatuses` creates a new Java `GZIPOutputStream` (with the `ByteArrayOutputStream` created) and writes out the broadcast variable.
+
+`serializeMapStatuses` prints out the following INFO message to the logs:
+
+```scala
+Broadcast mapstatuses size = [length], actual size = [length]
+```
+
+`serializeMapStatuses` is used when `ShuffleStatus` is requested to [serialize shuffle map output statuses](ShuffleStatus.md#serializedMapStatus).
+
+### <span id="deserializeMapStatuses"> deserializeMapStatuses
+
+```scala
+deserializeMapStatuses(
+  bytes: Array[Byte],
+  conf: SparkConf): Array[MapStatus]
+```
+
+`deserializeMapStatuses`...FIXME
+
+`deserializeMapStatuses` is used when:
+
+* `MapOutputTrackerWorker` is requested to [getStatuses](MapOutputTrackerWorker.md#getStatuses)

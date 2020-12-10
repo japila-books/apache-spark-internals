@@ -1,70 +1,66 @@
 # MapOutputTrackerMasterEndpoint
 
-*MapOutputTrackerMasterEndpoint* is a rpc:RpcEndpoint.md[RpcEndpoint] for scheduler:MapOutputTrackerMaster.md[MapOutputTrackerMaster] to <<receiveAndReply, handle>> the following messages:
+`MapOutputTrackerMasterEndpoint` is an [RpcEndpoint](../rpc/RpcEndpoint.md) for [MapOutputTrackerMaster](MapOutputTrackerMaster.md).
 
-* <<GetMapOutputStatuses, GetMapOutputStatuses>>
-* <<StopMapOutputTracker, StopMapOutputTracker>>
+`MapOutputTrackerMasterEndpoint` is registered under the name of **MapOutputTracker** (on the [driver](../SparkEnv.md#create)).
 
-== [[creating-instance]] Creating Instance
+## Creating Instance
 
-MapOutputTrackerMasterEndpoint takes the following to be created:
+`MapOutputTrackerMasterEndpoint` takes the following to be created:
 
-* [[rpcEnv]] rpc:RpcEnv.md[]
-* [[tracker]] scheduler:MapOutputTrackerMaster.md[MapOutputTrackerMaster]
-* [[conf]] SparkConf.md[SparkConf]
+* <span id="rpcEnv"> [RpcEnv](../rpc/RpcEnv.md)
+* <span id="tracker"> [MapOutputTrackerMaster](MapOutputTrackerMaster.md)
+* <span id="conf"> [SparkConf](../SparkConf.md)
 
-While being created, MapOutputTrackerMasterEndpoint prints out the following DEBUG message to the logs:
+`MapOutputTrackerMasterEndpoint` is created when:
 
-```
+* `SparkEnv` is [created](../SparkEnv.md#create) (for the driver and executors)
+
+While being created, `MapOutputTrackerMasterEndpoint` prints out the following DEBUG message to the logs:
+
+```text
 init
 ```
 
-== [[messages]][[receiveAndReply]] Messages
+## <span id="receiveAndReply"><span id="messages"> Messages
 
-=== [[GetMapOutputStatuses]] GetMapOutputStatuses
+### <span id="GetMapOutputStatuses"> GetMapOutputStatuses
 
-[source, scala]
-----
-GetMapOutputStatuses(shuffleId: Int)
-----
+```scala
+GetMapOutputStatuses(
+  shuffleId: Int)
+```
 
-When received, MapOutputTrackerMasterEndpoint prints out the following INFO message to the logs:
+Posted when `MapOutputTrackerWorker` is requested for [shuffle map outputs for a given shuffle ID](MapOutputTrackerWorker.md#getStatuses)
 
-[source,plaintext]
-----
+When received, `MapOutputTrackerMasterEndpoint` prints out the following INFO message to the logs:
+
+```text
 Asked to send map output locations for shuffle [shuffleId] to [hostPort]
-----
-
-MapOutputTrackerMasterEndpoint requests the <<tracker, MapOutputTrackerMaster>> to scheduler:MapOutputTrackerMaster.md#post[post a GetMapOutputMessage].
-
-GetMapOutputStatuses is posted when MapOutputTrackerWorker is requested for scheduler:MapOutputTrackerWorker.md#getStatuses[shuffle map outputs for a given shuffle ID].
-
-=== [[StopMapOutputTracker]] StopMapOutputTracker
-
-[source, scala]
-----
-StopMapOutputTracker
-----
-
-When StopMapOutputTracker arrives, you should see the following INFO message in the logs:
-
-```
-INFO MapOutputTrackerMasterEndpoint stopped!
 ```
 
-MapOutputTrackerMasterEndpoint confirms the request (by replying `true`) and rpc:RpcEndpoint.md#stop[stops itself] (and stops accepting messages).
+In the end, `MapOutputTrackerMasterEndpoint` requests the [MapOutputTrackerMaster](#tracker) to [post](MapOutputTrackerMaster.md#post) a `GetMapOutputMessage` (with the input `shuffleId`). Whatever is returned from `MapOutputTrackerMaster` becomes the response.
 
-StopMapOutputTracker is posted when MapOutputTrackerMaster is requested to scheduler:MapOutputTrackerMaster.md#stop[stop].
+### <span id="StopMapOutputTracker"> StopMapOutputTracker
 
-== [[logging]] Logging
+Posted when `MapOutputTrackerMaster` is requested to [stop](MapOutputTrackerMaster.md#stop).
+
+When received, `MapOutputTrackerMasterEndpoint` prints out the following INFO message to the logs:
+
+```text
+MapOutputTrackerMasterEndpoint stopped!
+```
+
+`MapOutputTrackerMasterEndpoint` confirms the request (by replying `true`) and [stops](../rpc/RpcEndpoint.md#stop).
+
+## Logging
 
 Enable `ALL` logging level for `org.apache.spark.MapOutputTrackerMasterEndpoint` logger to see what happens inside.
 
 Add the following line to `conf/log4j.properties`:
 
-[source]
-----
+```text
 log4j.logger.org.apache.spark.MapOutputTrackerMasterEndpoint=ALL
-----
+```
 
-Refer to spark-logging.md[Logging].
+Refer to [Logging](../spark-logging.md).

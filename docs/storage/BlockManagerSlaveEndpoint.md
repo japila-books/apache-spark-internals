@@ -1,16 +1,16 @@
-= BlockManagerSlaveEndpoint
+# BlockManagerSlaveEndpoint
 
-*BlockManagerSlaveEndpoint* is a rpc:RpcEndpoint.md#ThreadSafeRpcEndpoint[ThreadSafeRpcEndpoint] for storage:BlockManager.md#slaveEndpoint[BlockManager].
+**BlockManagerSlaveEndpoint** is a [ThreadSafeRpcEndpoint](../rpc/RpcEndpoint.md#ThreadSafeRpcEndpoint) for [BlockManager](BlockManager.md#slaveEndpoint).
 
-== [[creating-instance]] Creating Instance
+## Creating Instance
 
 BlockManagerSlaveEndpoint takes the following to be created:
 
 * [[rpcEnv]] rpc:RpcEnv.md[]
-* [[blockManager]] Parent storage:BlockManager.md[]
+* [[blockManager]] Parent BlockManager.md[]
 * [[mapOutputTracker]] scheduler:MapOutputTracker.md[]
 
-BlockManagerSlaveEndpoint is created for storage:BlockManager.md#slaveEndpoint[BlockManager] (and registered under the name *BlockManagerEndpoint[ID]*).
+BlockManagerSlaveEndpoint is created for BlockManager.md#slaveEndpoint[BlockManager] (and registered under the name *BlockManagerEndpoint[ID]*).
 
 == [[messages]] Messages
 
@@ -23,7 +23,7 @@ GetBlockStatus(
   askSlaves: Boolean = true)
 ----
 
-When received, BlockManagerSlaveEndpoint requests the <<blockManager, BlockManager>> for the storage:BlockManager.md#getStatus[status of a given block] (by storage:BlockId.md[]) and sends it back to a sender.
+When received, BlockManagerSlaveEndpoint requests the <<blockManager, BlockManager>> for the BlockManager.md#getStatus[status of a given block] (by BlockId.md[]) and sends it back to a sender.
 
 Posted when...FIXME
 

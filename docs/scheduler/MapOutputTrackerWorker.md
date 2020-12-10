@@ -1,8 +1,8 @@
-= [[MapOutputTrackerWorker]] MapOutputTrackerWorker
+# MapOutputTrackerWorker
 
-*MapOutputTrackerWorker* is the scheduler:MapOutputTracker.md[MapOutputTracker] for executors.
+`MapOutputTrackerWorker` is the [MapOutputTracker](MapOutputTracker.md) for executors.
 
-`MapOutputTrackerWorker` uses Java's thread-safe https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/ConcurrentHashMap.html[java.util.concurrent.ConcurrentHashMap] for scheduler:MapOutputTracker.md#mapStatuses[`mapStatuses` internal cache] and any lookup cache miss triggers a fetch from the driver's scheduler:MapOutputTrackerMaster.md[MapOutputTrackerMaster].
+`MapOutputTrackerWorker` uses Java's thread-safe [java.util.concurrent.ConcurrentHashMap]({{ java.api }}/java.base/java/util/concurrent/ConcurrentHashMap.html) for [mapStatuses](MapOutputTracker.md#mapStatuses) internal cache and any lookup cache miss triggers a fetch from the driver's [MapOutputTrackerMaster](MapOutputTrackerMaster.md).
 
 == [[getStatuses]] Finding Shuffle Map Outputs
 
@@ -12,7 +12,7 @@ getStatuses(
   shuffleId: Int): Array[MapStatus]
 ----
 
-`getStatuses` finds scheduler:MapStatus.md[MapStatuses] for the input `shuffleId` in the <<mapStatuses, mapStatuses>> internal cache and, when not available, fetches them from a remote scheduler:MapOutputTrackerMaster.md[MapOutputTrackerMaster] (using RPC).
+`getStatuses` finds MapStatus.md[MapStatuses] for the input `shuffleId` in the <<mapStatuses, mapStatuses>> internal cache and, when not available, fetches them from a remote MapOutputTrackerMaster.md[MapOutputTrackerMaster] (using RPC).
 
 Internally, `getStatuses` first queries the <<mapStatuses, `mapStatuses` internal cache>> and returns the map outputs if found.
 
