@@ -1,5 +1,17 @@
 # Configuration Properties of Kubernetes Cluster Manager
 
+## <span id="spark.kubernetes.namespace"><span id="KUBERNETES_NAMESPACE"> spark.kubernetes.namespace
+
+[Namespace]({{ k8s.doc }}/concepts/overview/working-with-objects/namespaces/) for running the driver and executor pods
+
+Default: `default`
+
+Used when:
+
+* `KubernetesConf` is requested for [namespace](KubernetesConf.md#namespace)
+* `KubernetesClusterManager` is requested for a [SchedulerBackend](KubernetesClusterManager.md#createSchedulerBackend)
+* `ExecutorPodsAllocator` is created (and initializes [namespace](ExecutorPodsAllocator.md#namespace))
+
 ## <span id="spark.kubernetes.context"><span id="KUBERNETES_CONTEXT"> spark.kubernetes.context
 
 The desired context from your K8S config file used to configure the K8S client for interacting with the cluster. Useful if your config file has multiple clusters or user identities defined. The client library used locates the config file via the `KUBECONFIG` environment variable or by defaulting to `.kube/config` under your home directory. If not specified then your current context is used.  You can always override specific aspects of the config file provided configuration using other Spark on K8S configuration options.
@@ -112,12 +124,6 @@ Must be provided if a Spark application is deployed using `spark-submit` in clus
 **(internal)** Prefix to use in front of the executor pod names
 
 Default: `(undefined)`
-
-## <span id="spark.kubernetes.namespace"><span id="KUBERNETES_NAMESPACE"> spark.kubernetes.namespace
-
-The namespace that will be used for running the driver and executor pods.
-
-Default: `default`
 
 ## <span id="spark.kubernetes.executor.podTemplateContainerName"><span id="KUBERNETES_EXECUTOR_PODTEMPLATE_CONTAINER_NAME"> spark.kubernetes.executor.podTemplateContainerName
 
