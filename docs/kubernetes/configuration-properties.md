@@ -1,5 +1,15 @@
 # Configuration Properties of Kubernetes Cluster Manager
 
+## <span id="spark.kubernetes.context"><span id="KUBERNETES_CONTEXT"> spark.kubernetes.context
+
+The desired context from your K8S config file used to configure the K8S client for interacting with the cluster. Useful if your config file has multiple clusters or user identities defined. The client library used locates the config file via the `KUBECONFIG` environment variable or by defaulting to `.kube/config` under your home directory. If not specified then your current context is used.  You can always override specific aspects of the config file provided configuration using other Spark on K8S configuration options.
+
+Default: (undefined)
+
+Used when:
+
+* `SparkKubernetesClientFactory` is requested to [create a KubernetesClient](SparkKubernetesClientFactory.md#createKubernetesClient)
+
 ## <span id="spark.kubernetes.submitInDriver"><span id="KUBERNETES_DRIVER_SUBMIT_CHECK"> spark.kubernetes.submitInDriver
 
 **(internal)** Whether executing in `cluster` deploy mode
