@@ -2,6 +2,46 @@
 
 `SparkSubmit` is the [entry point](#main) to [spark-submit](spark-submit.md) shell script.
 
+## <span id="actions"> Actions
+
+`SparkSubmit` [executes actions](#doSubmit) (based on the [action](SparkSubmitArguments.md#action) argument).
+
+### <span id="kill"><span id="KILL"> Killing Submission
+
+```scala
+kill(
+  args: SparkSubmitArguments): Unit
+```
+
+`kill`...FIXME
+
+### <span id="printVersion"><span id="PRINT_VERSION"> Displaying Version
+
+```scala
+printVersion(): Unit
+```
+
+`printVersion`...FIXME
+
+### <span id="requestStatus"><span id="REQUEST_STATUS"> Submission Status
+
+```scala
+requestStatus(
+  args: SparkSubmitArguments): Unit
+```
+
+`requestStatus`...FIXME
+
+### <span id="submit"><span id="SUBMIT"> Submission
+
+```scala
+submit(
+  args: SparkSubmitArguments,
+  uninitLog: Boolean): Unit
+```
+
+`submit`...FIXME
+
 ## <span id="clusterManager"> Cluster Managers
 
 `SparkSubmit` has a built-in support for some cluster managers (that are selected based on the [master](SparkSubmitArguments.md#master) argument).
@@ -36,16 +76,6 @@ doSubmit(
 
 * `InProcessSparkSubmit` standalone application is started
 * `SparkSubmit` standalone application is [started](#main)
-
-### <span id="submit"> submit
-
-```scala
-submit(
-  args: SparkSubmitArguments,
-  uninitLog: Boolean): Unit
-```
-
-`submit`...FIXME
 
 ### <span id="runMain"> Running Main Class
 
