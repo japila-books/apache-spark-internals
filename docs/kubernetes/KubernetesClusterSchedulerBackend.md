@@ -20,7 +20,37 @@
 
 * `KubernetesClusterManager` is requested for a [SchedulerBackend](KubernetesClusterManager.md#createSchedulerBackend)
 
-## <span id="start"> Starting
+## <span id="sufficientResourcesRegistered"> Sufficient Resources Registered
+
+```scala
+sufficientResourcesRegistered(): Boolean
+```
+
+`sufficientResourcesRegistered` is part of the [CoarseGrainedSchedulerBackend](../scheduler/CoarseGrainedSchedulerBackend.md#sufficientResourcesRegistered) abstraction.
+
+`sufficientResourcesRegistered` holds (is `true`) when the [totalRegisteredExecutors](../scheduler/CoarseGrainedSchedulerBackend.md#totalRegisteredExecutors) is at least the [ratio](#minRegisteredRatio) of the [initial executors](#initialExecutors).
+
+## <span id="initialExecutors"> Initial Executors
+
+```scala
+initialExecutors: Int
+```
+
+`KubernetesClusterSchedulerBackend` [calculates the initial target number of executors](../scheduler/SchedulerBackendUtils.md#getInitialTargetExecutorNumber) when [created](#creating-instance).
+
+`initialExecutors` is used when `KubernetesClusterSchedulerBackend` is requested to [start](#start) and [whether or not sufficient resources registered](#sufficientResourcesRegistered).
+
+## <span id="minRegisteredRatio"> Minimum Resources Available Ratio
+
+```scala
+minRegisteredRatio: Double
+```
+
+`minRegisteredRatio` is part of the [CoarseGrainedSchedulerBackend](../scheduler/CoarseGrainedSchedulerBackend.md#minRegisteredRatio) abstraction.
+
+`minRegisteredRatio` is `0.8` unless [spark.scheduler.minRegisteredResourcesRatio](../configuration-properties.md#spark.scheduler.minRegisteredResourcesRatio) is defined.
+
+## <span id="start"> Starting SchedulerBackend
 
 ```scala
 start(): Unit

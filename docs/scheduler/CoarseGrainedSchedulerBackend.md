@@ -8,10 +8,10 @@
 
 `CoarseGrainedSchedulerBackend` holds executors for the duration of the Spark job rather than relinquishing executors whenever a task is done and asking the scheduler to launch a new executor for each new task.
 
-`CoarseGrainedSchedulerBackend` registers <<CoarseGrainedScheduler, CoarseGrainedScheduler RPC Endpoint>> that executors use for RPC communication.
+`CoarseGrainedSchedulerBackend` registers [CoarseGrainedScheduler RPC Endpoint](#CoarseGrainedScheduler) that executors use for RPC communication.
 
 !!! note
-    **Active executors** are executors that are not <<executorsPendingToRemove, pending to be removed>> or [lost](DriverEndpoint.md#executorsPendingLossReason).
+    **Active executors** are executors that are not [pending to be removed](#executorsPendingToRemove) or [lost](DriverEndpoint.md#executorsPendingLossReason).
 
 ## Implementations
 
@@ -40,6 +40,62 @@ createDriverEndpoint(
     The purpose of `createDriverEndpoint` is to let [CoarseGrainedSchedulerBackends](#implementations) to provide custom implementations (e.g. [KubernetesClusterSchedulerBackend](../kubernetes/KubernetesClusterSchedulerBackend.md#createDriverEndpoint)).
 
 `createDriverEndpoint` is used when `CoarseGrainedSchedulerBackend` is [created](#creating-instance) (and initializes the [driverEndpoint](#driverEndpoint) internal reference).
+
+## <span id="totalRegisteredExecutors"> totalRegisteredExecutors Registry
+
+```scala
+totalRegisteredExecutors: AtomicInteger
+```
+
+`totalRegisteredExecutors` is an internal registry of the number of registered executors (a Java [AtomicInteger]({{ java.api }}/java.base/java/util/concurrent/atomic/AtomicInteger.html)).
+
+`totalRegisteredExecutors` starts from `0`.
+
+`totalRegisteredExecutors` is incremented when:
+
+* `DriverEndpoint` is requested to [handle a RegisterExecutor message](DriverEndpoint.md#RegisterExecutor)
+
+`totalRegisteredExecutors` is decremented when:
+
+* `DriverEndpoint` is requested to [remove an executor](DriverEndpoint.md#removeExecutor)
+
+## <span id="isReady"> isReady
+
+```scala
+isReady(): Boolean
+```
+
+`isReady` is part of the [SchedulerBackend](SchedulerBackend.md#isReady) abstraction.
+
+`isReady`...FIXME
+
+### <span id="sufficientResourcesRegistered"> Sufficient Resources Registered
+
+```scala
+sufficientResourcesRegistered(): Boolean
+```
+
+`sufficientResourcesRegistered` is `true` (and is supposed to be overriden by [custom CoarseGrainedSchedulerBackends](#implementations)).
+
+### <span id="minRegisteredRatio"><span id="_minRegisteredRatio"> Minimum Resources Available Ratio
+
+```scala
+minRegisteredRatio: Double
+```
+
+`minRegisteredRatio` is a ratio of the minimum resources available to the total expected resources for the `CoarseGrainedSchedulerBackend` to be ready for scheduling tasks (for execution).
+
+`minRegisteredRatio` uses [spark.scheduler.minRegisteredResourcesRatio](../configuration-properties.md#spark.scheduler.minRegisteredResourcesRatio) configuration property if defined or defaults to `0.0`.
+
+`minRegisteredRatio` can be between `0.0` and `1.0` (inclusive).
+
+`minRegisteredRatio` is used when:
+
+* `CoarseGrainedSchedulerBackend` is requested to [isReady](#isReady)
+* `StandaloneSchedulerBackend` is requested to `sufficientResourcesRegistered`
+* `KubernetesClusterSchedulerBackend` is requested to [sufficientResourcesRegistered](../kubernetes/KubernetesClusterSchedulerBackend.md#sufficientResourcesRegistered)
+* `MesosCoarseGrainedSchedulerBackend` is requested to `sufficientResourcesRegistered`
+* `YarnSchedulerBackend` is requested to `sufficientResourcesRegistered`
 
 ## <span id="driverEndpoint"> DriverEndpoint
 
@@ -268,8 +324,6 @@ If the <<sufficientResourcesRegistered, resources are available>>, you should se
 SchedulerBackend is ready for scheduling beginning after reached minRegisteredResourcesRatio: [minRegisteredRatio]
 ```
 
-NOTE: <<minRegisteredRatio, minRegisteredRatio>> is in the range 0 to 1 (uses <<settings, spark.scheduler.minRegisteredResourcesRatio>>) to denote the minimum ratio of registered resources to total expected resources before submitting tasks.
-
 If there are no sufficient resources available yet (the above requirement does not hold), `isReady` checks whether the time since <<createTime, startup>> passed <<spark.scheduler.maxRegisteredResourcesWaitingTime, spark.scheduler.maxRegisteredResourcesWaitingTime>> to give a way to launch tasks (even when <<minRegisteredRatio, minRegisteredRatio>> not being reached yet).
 
 You should see the following INFO message in the logs and `isReady` is positive.
@@ -395,10 +449,6 @@ Used when `CoarseGrainedSchedulerBackend` executes the following (asynchronously
 | <<spark.scheduler.maxRegisteredResourcesWaitingTime, spark.scheduler.maxRegisteredResourcesWaitingTime>>
 |
 
-| [[_minRegisteredRatio]] `_minRegisteredRatio`
-| <<spark.scheduler.minRegisteredResourcesRatio, spark.scheduler.minRegisteredResourcesRatio>>
-|
-
 | [[numPendingExecutors]] `numPendingExecutors`
 | `0`
 |
@@ -406,8 +456,4 @@ Used when `CoarseGrainedSchedulerBackend` executes the following (asynchronously
 | [[totalCoreCount]] `totalCoreCount`
 | `0`
 | Total number of CPU cores, i.e. the sum of all the cores on all executors.
-
-| [[totalRegisteredExecutors]] `totalRegisteredExecutors`
-| `0`
-| Total number of registered executors
 |===

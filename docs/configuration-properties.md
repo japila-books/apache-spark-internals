@@ -1,5 +1,11 @@
 # Spark Configuration Properties
 
+## <span id="spark.scheduler.minRegisteredResourcesRatio"> spark.scheduler.minRegisteredResourcesRatio
+
+Minimum ratio of (registered resources / total expected resources) before submitting tasks
+
+Default: (undefined)
+
 ## <span id="spark.task.cpus"><span id="CPUS_PER_TASK"> spark.task.cpus
 
 The number of CPU cores to schedule (_allocate_) to a task
@@ -500,12 +506,6 @@ The file system for this buffer size after each partition is written in unsafe s
 Default: `32k`
 
 Must be greater than `0` and less than or equal to `2097151` (`(Integer.MAX_VALUE - 15) / 1024`)
-
-== [[spark.scheduler.minRegisteredResourcesRatio]] spark.scheduler.minRegisteredResourcesRatio
-
-Minimum ratio of (registered resources / total expected resources) before submitting tasks
-
-Default: `0`
 
 == [[spark.scheduler.maxRegisteredResourcesWaitingTime]] spark.scheduler.maxRegisteredResourcesWaitingTime
 
