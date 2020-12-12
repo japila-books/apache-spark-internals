@@ -1,3 +1,0 @@
-# SparkApplication
-
-`SparkApplication` is...FIXME

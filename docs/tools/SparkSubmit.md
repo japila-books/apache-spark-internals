@@ -42,6 +42,38 @@ submit(
 
 `submit`...FIXME
 
+#### <span id="runMain"> Running Main Class
+
+```scala
+runMain(
+  args: SparkSubmitArguments,
+  uninitLog: Boolean): Unit
+```
+
+`runMain` [prepareSubmitEnvironment](#prepareSubmitEnvironment) with the given [SparkSubmitArguments](SparkSubmitArguments.md) (that gives a 4-element tuple of `childArgs`, `childClasspath`, `sparkConf` and [childMainClass](#childMainClass)).
+
+With [verbose](SparkSubmitArguments.md#verbose) enabled, `runMain` prints out the following INFO messages to the logs:
+
+```text
+Main class:
+[childMainClass]
+Arguments:
+[childArgs]
+Spark config:
+[sparkConf_redacted]
+Classpath elements:
+[childClasspath]
+```
+
+`runMain`...FIXME
+
+<span id="runMain-mainClass" />
+`runMain` loads the main class (`childMainClass`).
+
+`runMain` creates an instance of a [SparkApplication](SparkApplication.md) (if the main class is a subtype of) or creates a [JavaMainApplication](JavaMainApplication.md) (with the main class).
+
+`runMain` requests the `SparkApplication` to [start](SparkApplication.md#start) (with the `childArgs` and `sparkConf`).
+
 ## <span id="clusterManager"> Cluster Managers
 
 `SparkSubmit` has a built-in support for some cluster managers (that are selected based on the [master](SparkSubmitArguments.md#master) argument).
@@ -76,38 +108,6 @@ doSubmit(
 
 * `InProcessSparkSubmit` standalone application is started
 * `SparkSubmit` standalone application is [started](#main)
-
-### <span id="runMain"> Running Main Class
-
-```scala
-runMain(
-  args: SparkSubmitArguments,
-  uninitLog: Boolean): Unit
-```
-
-`runMain` [prepareSubmitEnvironment](#prepareSubmitEnvironment) with the given [SparkSubmitArguments](SparkSubmitArguments.md) (that gives a 4-element tuple of `childArgs`, `childClasspath`, `sparkConf` and [childMainClass](#childMainClass)).
-
-With [verbose](SparkSubmitArguments.md#verbose) enabled, `runMain` prints out the following INFO messages to the logs:
-
-```text
-Main class:
-[childMainClass]
-Arguments:
-[childArgs]
-Spark config:
-[sparkConf_redacted]
-Classpath elements:
-[childClasspath]
-```
-
-`runMain`...FIXME
-
-<span id="runMain-mainClass" />
-`runMain` loads the main class (`childMainClass`).
-
-`runMain` creates an instance of a [SparkApplication](../SparkApplication.md) (if the main class is a subtype of) or creates a [JavaMainApplication](../JavaMainApplication.md) (with the main class).
-
-`runMain` requests the `SparkApplication` to [start](../SparkApplication.md#start) (with the `childArgs` and `sparkConf`).
 
 ### <span id="prepareSubmitEnvironment"> prepareSubmitEnvironment
 

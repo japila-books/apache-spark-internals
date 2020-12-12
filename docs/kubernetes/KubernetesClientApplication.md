@@ -1,6 +1,6 @@
 # KubernetesClientApplication
 
-`KubernetesClientApplication` is a [SparkApplication](../SparkApplication.md) for [Kubernetes resource manager](index.md).
+`KubernetesClientApplication` is a [SparkApplication](../tools/SparkApplication.md) for [Kubernetes resource manager](index.md).
 
 ## Creating Instance
 
@@ -18,7 +18,7 @@ start(
   conf: SparkConf): Unit
 ```
 
-`start` is part of the [SparkApplication](../SparkApplication.md#start) abstraction.
+`start` is part of the [SparkApplication](../tools/SparkApplication.md#start) abstraction.
 
 `start`...FIXME
 
