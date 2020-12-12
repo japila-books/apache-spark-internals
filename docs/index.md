@@ -2,7 +2,7 @@
 
 Welcome to **The Internals of Apache Spark** online book!
 
-I'm [Jacek Laskowski](https://pl.linkedin.com/in/jaceklaskowski), a Seasoned IT Professional specializing in [Apache Spark](https://spark.apache.org/), [Delta Lake](https://delta.io/), [Apache Kafka](https://kafka.apache.org/) and [Kafka Streams](https://kafka.apache.org/documentation/streams/).
+I'm [Jacek Laskowski](https://pl.linkedin.com/in/jaceklaskowski), is an IT freelancer specializing in [Apache Spark](https://spark.apache.org/), [Delta Lake](https://delta.io/) and [Apache Kafka](https://kafka.apache.org/) (with brief forays into a wider data engineering space, e.g. [Presto](https://prestosql.io/)).
 
 I'm very excited to have you here and hope you will enjoy exploring the internals of Apache Spark as much as I have.
 
