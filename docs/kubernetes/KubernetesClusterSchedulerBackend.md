@@ -11,14 +11,24 @@
 * <span id="kubernetesClient"> `KubernetesClient`
 * <span id="executorService"> Java's [ScheduledExecutorService]({{ java.api }}/java.base/java/util/concurrent/ScheduledExecutorService.html)
 * <span id="snapshotsStore"> [ExecutorPodsSnapshotsStore](ExecutorPodsSnapshotsStore.md)
-* <span id="podAllocator"> ExecutorPodsAllocator
+* <span id="podAllocator"> [ExecutorPodsAllocator](ExecutorPodsAllocator.md)
 * <span id="lifecycleEventHandler"> [ExecutorPodsLifecycleManager](ExecutorPodsLifecycleManager.md)
-* <span id="watchEvents"> ExecutorPodsWatchSnapshotSource
-* <span id="pollEvents"> ExecutorPodsPollingSnapshotSource
+* <span id="watchEvents"> [ExecutorPodsWatchSnapshotSource](ExecutorPodsWatchSnapshotSource.md)
+* <span id="pollEvents"> [ExecutorPodsPollingSnapshotSource](ExecutorPodsPollingSnapshotSource.md)
 
 `KubernetesClusterSchedulerBackend` is created when:
 
 * `KubernetesClusterManager` is requested for a [SchedulerBackend](KubernetesClusterManager.md#createSchedulerBackend)
+
+## <span id="applicationId"> Application Id
+
+```scala
+applicationId(): String
+```
+
+`applicationId` is part of the [SchedulerBackend](../scheduler/SchedulerBackend.md#applicationId) abstraction.
+
+`applicationId` is the value of [spark.app.id](../configuration-properties.md#spark.app.id) configuration property if defined or the default [applicationId](../scheduler/SchedulerBackend.md#applicationId).
 
 ## <span id="sufficientResourcesRegistered"> Sufficient Resources Registered
 
@@ -62,7 +72,13 @@ start(): Unit
 
 `start` requests the [ExecutorPodsAllocator](#podAllocator) to [setTotalExpectedExecutors](ExecutorPodsAllocator.md#setTotalExpectedExecutors) to [initialExecutors](#initialExecutors).
 
-`start`...FIXME
+`start` requests the [ExecutorPodsLifecycleManager](#lifecycleEventHandler) to [start](ExecutorPodsLifecycleManager.md#start) (with this `KubernetesClusterSchedulerBackend`).
+
+`start` requests the [ExecutorPodsAllocator](#podAllocator) to [start](ExecutorPodsAllocator.md#start) (with the [applicationId](#applicationId))
+
+`start` requests the [ExecutorPodsWatchSnapshotSource](#watchEvents) to [start](ExecutorPodsWatchSnapshotSource.md#start) (with the [applicationId](#applicationId))
+
+`start` requests the [ExecutorPodsPollingSnapshotSource](#pollEvents) to [start](ExecutorPodsPollingSnapshotSource.md#start) (with the [applicationId](#applicationId))
 
 ## <span id="createDriverEndpoint"> Creating DriverEndpoint
 
