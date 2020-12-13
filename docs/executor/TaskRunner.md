@@ -4,8 +4,8 @@
 
 ![Executor creates and runs TaskRunner](../images/executor/TaskRunner.png)
 
-!!! note
-    `TaskRunner` is an internal class of the [Executor](Executor.md) class and has access to its internals (properties and methods).
+!!! note "Internal Class"
+    `TaskRunner` is an internal class of [Executor](Executor.md) with full access to internal registries.
 
 `TaskRunner` is a [java.lang.Runnable]({{ java.api }}/java.base/java/lang/Runnable.html) so once a [TaskRunner has completed execution](#run) it must not be restarted.
 

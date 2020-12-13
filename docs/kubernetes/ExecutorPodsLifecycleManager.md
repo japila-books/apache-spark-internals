@@ -1,6 +1,8 @@
 # ExecutorPodsLifecycleManager
 
-`ExecutorPodsLifecycleManager` is...FIXME
+## <span id="eventProcessingInterval"> spark.kubernetes.executor.eventProcessingInterval
+
+`ExecutorPodsLifecycleManager` uses the [spark.kubernetes.executor.eventProcessingInterval](configuration-properties.md#spark.kubernetes.executor.eventProcessingInterval) configuration property when [started](#start) to register a new subscriber.
 
 ## Creating Instance
 
