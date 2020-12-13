@@ -1,186 +1,171 @@
 # SchedulerBackend
 
-`SchedulerBackend` is an abstraction of <<implementations, task scheduling systems>> that can <<reviveOffers, revive resource offers>> from cluster managers.
+`SchedulerBackend` is an [abstraction](#contract) of [task scheduling backends](#implementations) that can [revive resource offers](#reviveOffers) from cluster managers.
 
-SchedulerBackend abstraction allows TaskSchedulerImpl to use variety of cluster managers (with their own resource offers and task scheduling modes).
+`SchedulerBackend` abstraction allows `TaskSchedulerImpl` to use variety of cluster managers (with their own resource offers and task scheduling modes).
 
 !!! note
     Being a scheduler backend system assumes a [Apache Mesos](http://mesos.apache.org/)-like scheduling model in which "an application" gets **resource offers** as machines become available so it is possible to launch tasks on them. Once required resource allocation is obtained, the scheduler backend can start executors.
 
-== [[implementations]] Direct Implementations and Extensions
+## Contract
 
-[cols="30m,70",options="header",width="100%"]
-|===
-| SchedulerBackend
-| Description
+### <span id="applicationAttemptId"> applicationAttemptId
 
-| scheduler:CoarseGrainedSchedulerBackend.md[CoarseGrainedSchedulerBackend]
-| [[CoarseGrainedSchedulerBackend]] Base SchedulerBackend for coarse-grained scheduling systems
-
-| spark-local:spark-LocalSchedulerBackend.md[LocalSchedulerBackend]
-| [[LocalSchedulerBackend]] Spark local
-
-| MesosFineGrainedSchedulerBackend
-| [[MesosFineGrainedSchedulerBackend]] Fine-grained scheduling system for Apache Mesos
-
-|===
-
-== [[start]] Starting SchedulerBackend
-
-[source, scala]
-----
-start(): Unit
-----
-
-Starts the SchedulerBackend
-
-Used when TaskSchedulerImpl is requested to scheduler:TaskSchedulerImpl.md#start[start]
-
-== [[contract]] Contract
-
-[cols="30m,70",options="header",width="100%"]
-|===
-| Method
-| Description
-
-| applicationAttemptId
-a| [[applicationAttemptId]]
-
-[source, scala]
-----
+```scala
 applicationAttemptId(): Option[String]
-----
+```
 
-*Execution attempt ID* of the Spark application
+**Execution attempt ID** of this Spark application
 
 Default: `None` (undefined)
 
-Used exclusively when `TaskSchedulerImpl` is requested for the scheduler:TaskSchedulerImpl.md#applicationAttemptId[execution attempt ID of a Spark application]
+Used when:
 
-| applicationId
-a| [[applicationId]][[appId]]
+* `TaskSchedulerImpl` is requested for the [execution attempt ID of a Spark application](TaskSchedulerImpl.md#applicationAttemptId)
 
-[source, scala]
-----
+### <span id="applicationId"><span id="appId"> applicationId
+
+```scala
 applicationId(): String
-----
+```
 
-*Unique identifier* of the Spark Application
+**Unique identifier** of this Spark application
 
 Default: `spark-application-[currentTimeMillis]`
 
-Used exclusively when `TaskSchedulerImpl` is requested for the scheduler:TaskSchedulerImpl.md#applicationId[unique identifier of a Spark application]
+Used when:
 
-| defaultParallelism
-a| [[defaultParallelism]]
+* `TaskSchedulerImpl` is requested for the [unique identifier of a Spark application](TaskSchedulerImpl.md#applicationId)
 
-[source, scala]
-----
+### <span id="defaultParallelism"> Default Parallelism
+
+```scala
 defaultParallelism(): Int
-----
+```
 
-*Default parallelism*, i.e. a hint for the number of tasks in stages while sizing jobs
+**Default parallelism**, i.e. a hint for the number of tasks in stages while sizing jobs
 
-Used exclusively when `TaskSchedulerImpl` is requested for the scheduler:TaskSchedulerImpl.md#defaultParallelism[default parallelism]
+Used when:
 
-| getDriverLogUrls
-a| [[getDriverLogUrls]]
+* `TaskSchedulerImpl` is requested for the [default parallelism](TaskSchedulerImpl.md#defaultParallelism)
 
-[source, scala]
-----
+### <span id="getDriverAttributes"> getDriverAttributes
+
+```scala
+getDriverAttributes: Option[Map[String, String]]
+```
+
+Default: `None`
+
+Used when:
+
+* `SparkContext` is requested to [postApplicationStart](../SparkContext.md#postApplicationStart)
+
+### <span id="getDriverLogUrls"> getDriverLogUrls
+
+```scala
 getDriverLogUrls: Option[Map[String, String]]
-----
+```
 
-*Driver log URLs*
+**Driver log URLs**
 
 Default: `None` (undefined)
 
-Used exclusively when `SparkContext` is requested to SparkContext.md#postApplicationStart[postApplicationStart]
+Used when:
 
-| isReady
-a| [[isReady]]
+* `SparkContext` is requested to [postApplicationStart](../SparkContext.md#postApplicationStart)
 
-[source, scala]
-----
+### <span id="isReady"> isReady
+
+```scala
 isReady(): Boolean
-----
+```
 
-Controls whether the scheduler:SchedulerBackend.md[SchedulerBackend] is ready (`true`) or not (`false`)
+Controls whether this `SchedulerBackend` is ready (`true`) or not (`false`)
 
 Default: `true`
 
-Used exclusively when `TaskSchedulerImpl` is requested to scheduler:TaskSchedulerImpl.md#waitBackendReady[wait until scheduling backend is ready]
+Used when:
 
-| killTask
-a| [[killTask]]
+* `TaskSchedulerImpl` is requested to [wait until scheduling backend is ready](TaskSchedulerImpl.md#waitBackendReady)
 
-[source, scala]
-----
+### <span id="killTask"> Killing Task
+
+```scala
 killTask(
   taskId: Long,
   executorId: String,
   interruptThread: Boolean,
   reason: String): Unit
-----
+```
 
 Kills a given task
 
-Default: Throws an `UnsupportedOperationException`
+Default: `UnsupportedOperationException`
 
 Used when:
 
-* `TaskSchedulerImpl` is requested to scheduler:TaskSchedulerImpl.md#killTaskAttempt[killTaskAttempt] and scheduler:TaskSchedulerImpl.md#killAllTaskAttempts[killAllTaskAttempts]
+* `TaskSchedulerImpl` is requested to [killTaskAttempt](TaskSchedulerImpl.md#killTaskAttempt) and [killAllTaskAttempts](TaskSchedulerImpl.md#killAllTaskAttempts)
+* `TaskSetManager` is requested to [handle a successful task attempt](TaskSetManager.md#handleSuccessfulTask)
 
-* `TaskSetManager` is requested to scheduler:TaskSetManager.md#handleSuccessfulTask[handle a successful task attempt]
+### <span id="maxNumConcurrentTasks"> maxNumConcurrentTasks
 
-| maxNumConcurrentTasks
-a| [[maxNumConcurrentTasks]]
-
-[source, scala]
-----
+```scala
 maxNumConcurrentTasks(): Int
-----
+```
 
-*Maximum number of concurrent tasks* that can be launched now
+**Maximum number of concurrent tasks** that can currently be launched
 
-Used exclusively when `SparkContext` is requested to SparkContext.md#maxNumConcurrentTasks[maxNumConcurrentTasks]
+Used when:
 
-| reviveOffers
-a| [[reviveOffers]]
+* `SparkContext` is requested to [maxNumConcurrentTasks](../SparkContext.md#maxNumConcurrentTasks)
 
-[source, scala]
-----
+### <span id="reviveOffers"> reviveOffers
+
+```scala
 reviveOffers(): Unit
-----
+```
 
 Handles resource allocation offers (from the scheduling system)
 
 Used when `TaskSchedulerImpl` is requested to:
 
-* scheduler:TaskSchedulerImpl.md#submitTasks[Submit tasks (from a TaskSet)]
+* [Submit tasks (from a TaskSet)](TaskSchedulerImpl.md#submitTasks)
 
-* scheduler:TaskSchedulerImpl.md#statusUpdate[Handle a task status update]
+* [Handle a task status update](TaskSchedulerImpl.md#statusUpdate)
 
-* scheduler:TaskSchedulerImpl.md#handleFailedTask[Notify the TaskSetManager that a task has failed]
+* [Notify the TaskSetManager that a task has failed](TaskSchedulerImpl.md#handleFailedTask)
 
-* scheduler:TaskSchedulerImpl.md#checkSpeculatableTasks[Check for speculatable tasks]
+* [Check for speculatable tasks](TaskSchedulerImpl.md#checkSpeculatableTasks)
 
-* scheduler:TaskSchedulerImpl.md#executorLost[Handle a lost executor event]
+* [Handle a lost executor event](TaskSchedulerImpl.md#executorLost)
 
-| stop
-a| [[stop]]
+### <span id="start"> Starting SchedulerBackend
 
-[source, scala]
-----
-stop(): Unit
-----
+```scala
+start(): Unit
+```
 
-Stops the SchedulerBackend
+Starts this `SchedulerBackend`
 
 Used when:
 
-* `TaskSchedulerImpl` is requested to scheduler:TaskSchedulerImpl.md#stop[stop]
+* `TaskSchedulerImpl` is requested to [start](TaskSchedulerImpl.md#start)
 
-* `MesosCoarseGrainedSchedulerBackend` is requested to <<spark-mesos/spark-mesos-MesosCoarseGrainedSchedulerBackend.md#stopSchedulerBackend, stopSchedulerBackend>>
+### <span id="stop"> stop
 
-|===
+```scala
+stop(): Unit
+```
+
+Stops this `SchedulerBackend`
+
+Used when:
+
+* `TaskSchedulerImpl` is requested to [stop](TaskSchedulerImpl.md#stop)
+
+## Implementations
+
+* [CoarseGrainedSchedulerBackend](CoarseGrainedSchedulerBackend.md)
+* [LocalSchedulerBackend](../local/LocalSchedulerBackend.md)
+* MesosFineGrainedSchedulerBackend
