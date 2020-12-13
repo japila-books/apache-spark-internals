@@ -11,7 +11,7 @@
 * <span id="kubernetesClient"> `KubernetesClient`
 * <span id="executorService"> Java's [ScheduledExecutorService]({{ java.api }}/java.base/java/util/concurrent/ScheduledExecutorService.html)
 * <span id="snapshotsStore"> [ExecutorPodsSnapshotsStore](ExecutorPodsSnapshotsStore.md)
-* <span id="podAllocator"> [ExecutorPodsAllocator](ExecutorPodsAllocator.md)
+* [ExecutorPodsAllocator](#podAllocator)
 * <span id="lifecycleEventHandler"> [ExecutorPodsLifecycleManager](ExecutorPodsLifecycleManager.md)
 * <span id="watchEvents"> [ExecutorPodsWatchSnapshotSource](ExecutorPodsWatchSnapshotSource.md)
 * <span id="pollEvents"> [ExecutorPodsPollingSnapshotSource](ExecutorPodsPollingSnapshotSource.md)
@@ -19,6 +19,16 @@
 `KubernetesClusterSchedulerBackend` is created when:
 
 * `KubernetesClusterManager` is requested for a [SchedulerBackend](KubernetesClusterManager.md#createSchedulerBackend)
+
+## <span id="podAllocator"><span id="ExecutorPodsAllocator"> ExecutorPodsAllocator
+
+`KubernetesClusterSchedulerBackend` is given an [ExecutorPodsAllocator](ExecutorPodsAllocator.md) to be [created](#creating-instance).
+
+When [started](#start), `KubernetesClusterSchedulerBackend` requests the `ExecutorPodsAllocator` to [setTotalExpectedExecutors](ExecutorPodsAllocator.md#setTotalExpectedExecutors) to the [number of initial executors](#initialExecutors) and [starts it](ExecutorPodsAllocator.md#start) with [application Id](#applicationId).
+
+When requested for the [expected number of executors](#doRequestTotalExecutors), `KubernetesClusterSchedulerBackend` requests the `ExecutorPodsAllocator` to [setTotalExpectedExecutors](ExecutorPodsAllocator.md#setTotalExpectedExecutors) to the given total number of executors.
+
+When requested to [isBlacklisted](#isBlacklisted), `KubernetesClusterSchedulerBackend` requests the `ExecutorPodsAllocator` to [isDeleted](ExecutorPodsAllocator.md#isDeleted) with a given executor.
 
 ## <span id="applicationId"> Application Id
 
@@ -89,3 +99,16 @@ createDriverEndpoint(): DriverEndpoint
 `createDriverEndpoint` is part of the [CoarseGrainedSchedulerBackend](../scheduler/CoarseGrainedSchedulerBackend.md#createDriverEndpoint) abstraction.
 
 `createDriverEndpoint` creates a [KubernetesDriverEndpoint](KubernetesDriverEndpoint.md).
+
+## <span id="doRequestTotalExecutors"> Requesting Executors from Cluster Manager
+
+```scala
+doRequestTotalExecutors(
+  requestedTotal: Int): Future[Boolean]
+```
+
+`doRequestTotalExecutors` is part of the [CoarseGrainedSchedulerBackend](../scheduler/CoarseGrainedSchedulerBackend.md#doRequestTotalExecutors) abstraction.
+
+`doRequestTotalExecutors` requests the [ExecutorPodsAllocator](#podAllocator) to [setTotalExpectedExecutors](ExecutorPodsAllocator.md#setTotalExpectedExecutors) to the given `requestedTotal`.
+
+In the end, `doRequestTotalExecutors` returns a completed `Future` with `true` value.

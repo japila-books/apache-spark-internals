@@ -160,7 +160,7 @@ requestExecutors(
   numAdditionalExecutors: Int): Boolean
 ```
 
-`requestExecutors` is a "decorator" method that ultimately calls a cluster-specific <<doRequestTotalExecutors, doRequestTotalExecutors>> method and returns whether the request was acknowledged or not (it is assumed `false` by default).
+`requestExecutors` is a "decorator" method that ultimately calls a cluster-specific [doRequestTotalExecutors](#doRequestTotalExecutors) method and returns whether the request was acknowledged or not (it is assumed `false` by default).
 
 `requestExecutors` method is part of the [ExecutorAllocationClient](../dynamic-allocation/ExecutorAllocationClient.md#requestExecutors) abstraction.
 
@@ -173,7 +173,7 @@ Number of pending executors is now [numPendingExecutors]
 
 <<numPendingExecutors, numPendingExecutors>> is increased by the input `numAdditionalExecutors`.
 
-`requestExecutors` <<doRequestTotalExecutors, requests executors from a cluster manager>> (that reflects the current computation needs). The "new executor total" is a sum of the internal <<numExistingExecutors, numExistingExecutors>> and <<numPendingExecutors, numPendingExecutors>> decreased by the <<executorsPendingToRemove, number of executors pending to be removed>>.
+`requestExecutors` [requests executors from a cluster manager](#doRequestTotalExecutors) (that reflects the current computation needs). The "new executor total" is a sum of the internal <<numExistingExecutors, numExistingExecutors>> and <<numPendingExecutors, numPendingExecutors>> decreased by the <<executorsPendingToRemove, number of executors pending to be removed>>.
 
 If `numAdditionalExecutors` is negative, a `IllegalArgumentException` is thrown:
 
@@ -194,7 +194,7 @@ requestTotalExecutors(
   hostToLocalTaskCount: Map[String, Int]): Boolean
 ```
 
-`requestTotalExecutors` is a "decorator" method that ultimately calls a cluster-specific <<doRequestTotalExecutors, doRequestTotalExecutors>> method and returns whether the request was acknowledged or not (it is assumed `false` by default).
+`requestTotalExecutors` is a "decorator" method that ultimately calls a cluster-specific [doRequestTotalExecutors](#doRequestTotalExecutors) method and returns whether the request was acknowledged or not (it is assumed `false` by default).
 
 `requestTotalExecutors` is part of the [ExecutorAllocationClient](../dynamic-allocation/ExecutorAllocationClient.md#requestTotalExecutors) abstraction.
 
@@ -383,6 +383,19 @@ isExecutorActive(
 `isExecutorActive` is part of the [ExecutorAllocationClient](../dynamic-allocation/ExecutorAllocationClient.md#isExecutorActive) abstraction.
 
 `isExecutorActive`...FIXME
+
+## <span id="doRequestTotalExecutors"> Requesting Executors from Cluster Manager
+
+```scala
+doRequestTotalExecutors(
+  requestedTotal: Int): Future[Boolean]
+```
+
+`doRequestTotalExecutors` returns a completed `Future` with `false` value.
+
+`doRequestTotalExecutors` is used when:
+
+* `CoarseGrainedSchedulerBackend` is requested to [requestExecutors](#requestExecutors), [requestTotalExecutors](#requestTotalExecutors) and [killExecutors](#killExecutors)
 
 ## Logging
 
