@@ -346,7 +346,7 @@ reviveOffers(): Unit
 
 ![CoarseGrainedExecutorBackend Revives Offers](../images/CoarseGrainedExecutorBackend-reviveOffers.png)
 
-## <span id="stop"> Stopping CoarseGrainedSchedulerBackend
+## <span id="stop"> Stopping SchedulerBackend
 
 ```scala
 stop(): Unit

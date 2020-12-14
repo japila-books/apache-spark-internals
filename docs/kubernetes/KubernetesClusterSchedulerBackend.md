@@ -12,13 +12,19 @@
 * <span id="executorService"> Java's [ScheduledExecutorService]({{ java.api }}/java.base/java/util/concurrent/ScheduledExecutorService.html)
 * <span id="snapshotsStore"> [ExecutorPodsSnapshotsStore](ExecutorPodsSnapshotsStore.md)
 * [ExecutorPodsAllocator](#podAllocator)
-* <span id="lifecycleEventHandler"> [ExecutorPodsLifecycleManager](ExecutorPodsLifecycleManager.md)
+* [ExecutorPodsLifecycleManager](#lifecycleEventHandler)
 * <span id="watchEvents"> [ExecutorPodsWatchSnapshotSource](ExecutorPodsWatchSnapshotSource.md)
 * <span id="pollEvents"> [ExecutorPodsPollingSnapshotSource](ExecutorPodsPollingSnapshotSource.md)
 
 `KubernetesClusterSchedulerBackend` is created when:
 
 * `KubernetesClusterManager` is requested for a [SchedulerBackend](KubernetesClusterManager.md#createSchedulerBackend)
+
+## <span id="lifecycleEventHandler"><span id="ExecutorPodsLifecycleManager"> ExecutorPodsLifecycleManager
+
+`KubernetesClusterSchedulerBackend` is given an [ExecutorPodsLifecycleManager](ExecutorPodsLifecycleManager.md) to be [created](#creating-instance).
+
+`KubernetesClusterSchedulerBackend` requests the `ExecutorPodsLifecycleManager` to [start](ExecutorPodsLifecycleManager.md#start) (with itself) when [started](#start).
 
 ## <span id="podAllocator"><span id="ExecutorPodsAllocator"> ExecutorPodsAllocator
 
@@ -112,3 +118,13 @@ doRequestTotalExecutors(
 `doRequestTotalExecutors` requests the [ExecutorPodsAllocator](#podAllocator) to [setTotalExpectedExecutors](ExecutorPodsAllocator.md#setTotalExpectedExecutors) to the given `requestedTotal`.
 
 In the end, `doRequestTotalExecutors` returns a completed `Future` with `true` value.
+
+## <span id="stop"> Stopping SchedulerBackend
+
+```scala
+stop(): Unit
+```
+
+`stop` is part of the [CoarseGrainedSchedulerBackend](../scheduler/CoarseGrainedSchedulerBackend.md#stop) abstraction.
+
+`stop`...FIXME

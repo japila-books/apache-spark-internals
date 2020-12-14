@@ -63,14 +63,27 @@ Internally, `createTaskScheduler` branches off per the given master URL ([master
 
 `createTaskScheduler` is used when `SparkContext` is [created](#creating-instance).
 
-## <span id="getClusterManager"> Finding ExternalClusterManager for Master URL
+## <span id="getClusterManager"> Loading ExternalClusterManager
 
 ```scala
 getClusterManager(
   url: String): Option[ExternalClusterManager]
 ```
 
-`getClusterManager`...FIXME
+`getClusterManager` uses Java's [ServiceLoader]({{ java.api }}/java.base/java/util/ServiceLoader.html) to find and load an [ExternalClusterManager](scheduler/ExternalClusterManager.md) that [supports](scheduler/ExternalClusterManager.md#canCreate) the given master URL.
+
+!!! note "ExternalClusterManager Service Discovery"
+    For [ServiceLoader]({{ java.api }}/java.base/java/util/ServiceLoader.html) to find [ExternalClusterManager](scheduler/ExternalClusterManager.md)s, they have to be registered using the following file:
+    
+    ```text
+    META-INF/services/org.apache.spark.scheduler.ExternalClusterManager
+    ```
+
+`getClusterManager` throws a `SparkException` when multiple cluster managers were found:
+
+```text
+Multiple external cluster managers registered for the url [url]: [serviceLoaders]
+```
 
 `getClusterManager` is used when `SparkContext` is requested for a [SchedulerBackend and TaskScheduler](#createTaskScheduler).
 

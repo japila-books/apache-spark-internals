@@ -1,7 +1,15 @@
 # KubernetesClusterManager
 
 <span id="canCreate">
-`KubernetesClusterManager` is an [ExternalClusterManager](../scheduler/ExternalClusterManager.md) for **k8s** master URLs.
+`KubernetesClusterManager` is an [ExternalClusterManager](../scheduler/ExternalClusterManager.md) that supports **k8s** master URLs.
+
+## Creating Instance
+
+`KubernetesClusterManager` takes no arguments to be created.
+
+`KubernetesClusterManager` is created when:
+
+* `SparkContext` is requested for an [ExternalClusterManager](../SparkContext.md#getClusterManager) (for a certain master URL)
 
 ## <span id="createTaskScheduler"> Creating TaskScheduler
 

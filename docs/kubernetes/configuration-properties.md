@@ -1,5 +1,17 @@
 # Configuration Properties of Kubernetes Cluster Manager
 
+## <span id="spark.kubernetes.executor.deleteOnTermination"><span id="KUBERNETES_DELETE_EXECUTORS"> spark.kubernetes.executor.deleteOnTermination
+
+When disabled (`false`), executor pods will not be deleted in case of failure or normal termination
+
+Default: `true`
+
+Used when:
+
+* `ExecutorPodsAllocator` is requested to [onNewSnapshots](ExecutorPodsAllocator.md#onNewSnapshots)
+* `ExecutorPodsLifecycleManager` is requested to [onFinalNonDeletedState](ExecutorPodsLifecycleManager.md#onFinalNonDeletedState)
+* `KubernetesClusterSchedulerBackend` is requested to [stop](KubernetesClusterSchedulerBackend.md#stop)
+
 ## <span id="spark.kubernetes.executor.apiPollingInterval"><span id="KUBERNETES_EXECUTOR_API_POLLING_INTERVAL"> spark.kubernetes.executor.apiPollingInterval
 
 Interval (in millis) between polls against the Kubernetes API server to inspect the state of executors.
@@ -164,9 +176,3 @@ Default: `https://kubernetes.default.svc`
 ## <span id="spark.kubernetes.authenticate"><span id="KUBERNETES_AUTH_CLIENT_MODE_PREFIX"> spark.kubernetes.authenticate
 
 FIXME
-
-## <span id="spark.kubernetes.executor.deleteOnTermination"><span id="KUBERNETES_DELETE_EXECUTORS"> spark.kubernetes.executor.deleteOnTermination
-
-When disabled (`false`), executor pods will not be deleted in case of failure or normal termination
-
-Default: `true`
