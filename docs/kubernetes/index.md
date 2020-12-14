@@ -6,7 +6,8 @@ Apache Spark supports `Kebernetes` as a scheduler using [KubernetesClusterManage
 
 ## Demo
 
-[spark-shell on minikube](../demo/spark-shell-on-minikube.md)
+1. [spark-shell on minikube](../demo/spark-shell-on-minikube.md)
+1. [Running Spark Application on minikube](../demo/running-spark-application-on-minikube.md)
 
 ## Resources
 

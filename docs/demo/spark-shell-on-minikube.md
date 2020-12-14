@@ -79,10 +79,16 @@ $ minikube dashboard
 
 ## Building Spark Images
 
-Go to `kubernetes/dockerfiles/spark` (in your Spark installation) or `resource-managers/kubernetes/docker` (in the Spark source code).
-
 ```text
 cd $SPARK_HOME
+```
+
+Go to `kubernetes/dockerfiles/spark` (in your Spark installation) or `resource-managers/kubernetes/docker` (in the Spark source code).
+
+Point the shell to minikube's Docker daemon.
+
+```text
+eval $(minikube -p minikube docker-env)
 ```
 
 Note `-m` option to use minikube's Docker daemon.
@@ -91,12 +97,6 @@ Note `-m` option to use minikube's Docker daemon.
 $ ./bin/docker-image-tool.sh -m -t jacek-testing build
 ...
 Successfully tagged spark:jacek-testing
-```
-
-Point the shell to minikube's Docker daemon.
-
-```text
-eval $(minikube -p minikube docker-env)
 ```
 
 List available images.
