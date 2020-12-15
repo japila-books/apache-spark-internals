@@ -45,17 +45,6 @@ kube-system   kube-scheduler-minikube            0/1     Running   0          26
 kube-system   storage-provisioner                1/1     Running   0          26s
 ```
 
-## Accessing Kubernetes Dashboard
-
-```text
-$ minikube dashboard
-🔌  Enabling dashboard ...
-🤔  Weryfikowanie statusu dashboardu...
-🚀  Launching proxy ...
-🤔  Weryfikowanie statusu proxy...
-🎉  Opening http://127.0.0.1:49755/api/v1/namespaces/kubernetes-dashboard/services/http:kubernetes-dashboard:/proxy/ in your default browser...
-```
-
 ## Building Spark Image
 
 ```text
@@ -63,12 +52,6 @@ cd $SPARK_HOME
 ```
 
 Go to `kubernetes/dockerfiles/spark` (in your Spark installation) or `resource-managers/kubernetes/docker` (in the Spark source code).
-
-Point the shell to minikube's Docker daemon.
-
-```text
-eval $(minikube -p minikube docker-env)
-```
 
 Note `-m` option to use minikube's Docker daemon.
 
@@ -296,6 +279,17 @@ Access the logs.
 
 ```text
 kubectl --namespace=spark-demo logs -f [driver-pod-name]
+```
+
+## Accessing Kubernetes Dashboard
+
+```text
+$ minikube dashboard
+🔌  Enabling dashboard ...
+🤔  Weryfikowanie statusu dashboardu...
+🚀  Launching proxy ...
+🤔  Weryfikowanie statusu proxy...
+🎉  Opening http://127.0.0.1:49755/api/v1/namespaces/kubernetes-dashboard/services/http:kubernetes-dashboard:/proxy/ in your default browser...
 ```
 
 ## Stopping Cluster

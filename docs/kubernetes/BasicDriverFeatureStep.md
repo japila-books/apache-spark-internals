@@ -29,7 +29,7 @@ Name     | Value
  [spark.kubernetes.memoryOverheadFactor](configuration-properties.md#spark.kubernetes.memoryOverheadFactor) | [overheadFactor](#overheadFactor)
  `spark.app.id` | [appId](KubernetesDriverConf.md#appId) (of the [KubernetesDriverConf](#conf))
 
-`getAdditionalPodSystemProperties` uploads local and resolvable files ([spark.jars](../configuration-properties.md#spark.jars) and [spark.files](../configuration-properties.md#spark.files)) to a Hadoop-compatible file system and adds them to the additional properties (as comma-separated file URIs).
+`getAdditionalPodSystemProperties` [uploads local and resolvable files](KubernetesUtils.md#uploadAndTransformFileUris) (specified using [spark.jars](../configuration-properties.md#spark.jars) and [spark.files](../configuration-properties.md#spark.files) configuration properties) to a Hadoop-compatible file system and adds them to the additional properties (as comma-separated file URIs).
 
 ## <span id="configurePod"> Configuring Pod for Driver
 

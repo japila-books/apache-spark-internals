@@ -18,7 +18,7 @@
 * <span id="driverKubernetesResources"> Driver Resources
 * <span id="systemProperties"> System Properties
 
-## <span id="buildFromFeatures"> buildFromFeatures
+## <span id="buildFromFeatures"> Building KubernetesDriverSpec from Features
 
 ```scala
 buildFromFeatures(
@@ -40,7 +40,7 @@ In the end, `buildFromFeatures` configures the driver pod specification using th
 * MountSecretsFeatureStep
 * EnvSecretsFeatureStep
 * MountVolumesFeatureStep
-* DriverCommandFeatureStep
+* [DriverCommandFeatureStep](DriverCommandFeatureStep.md)
 * HadoopConfDriverFeatureStep
 * KerberosConfDriverFeatureStep
 * [PodTemplateConfigMapStep](PodTemplateConfigMapStep.md)

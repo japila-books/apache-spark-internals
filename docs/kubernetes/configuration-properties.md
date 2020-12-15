@@ -1,5 +1,15 @@
 # Configuration Properties of Kubernetes Cluster Manager
 
+## <span id="spark.kubernetes.file.upload.path"><span id="KUBERNETES_FILE_UPLOAD_PATH"> spark.kubernetes.file.upload.path
+
+Hadoop DFS-compatible file system path where files from the local file system will be uploded to in `cluster` mode.
+
+Default: (undefined)
+
+Used when:
+
+* `KubernetesUtils` is requested to [uploadFileUri](KubernetesUtils.md#uploadFileUri)
+
 ## <span id="spark.kubernetes.executor.deleteOnTermination"><span id="KUBERNETES_DELETE_EXECUTORS"> spark.kubernetes.executor.deleteOnTermination
 
 When disabled (`false`), executor pods will not be deleted in case of failure or normal termination

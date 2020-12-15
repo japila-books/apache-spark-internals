@@ -48,7 +48,7 @@ Used when:
 
 * [BasicDriverFeatureStep](BasicDriverFeatureStep.md)
 * [BasicExecutorFeatureStep](BasicExecutorFeatureStep.md)
-* DriverCommandFeatureStep
+* [DriverCommandFeatureStep](DriverCommandFeatureStep.md)
 * DriverKubernetesCredentialsFeatureStep
 * DriverServiceFeatureStep
 * EnvSecretsFeatureStep
