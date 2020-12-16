@@ -4,6 +4,13 @@
 
 Default: `false`
 
+Used when:
+
+* `Utils` utility is requested to [isDynamicAllocationEnabled](../Utils.md#isDynamicAllocationEnabled)
+* `SparkSubmitArguments` is requested to [loadEnvironmentArguments](../tools/SparkSubmitArguments.md#loadEnvironmentArguments) (and [validates numExecutors argument](../tools/SparkSubmitArguments.md#validateSubmitArguments))
+* `RDD` is requested to [localCheckpoint](../rdd/RDD.md#localCheckpoint)
+* `DAGScheduler` is requested to [checkBarrierStageWithDynamicAllocation](../scheduler/DAGScheduler.md#checkBarrierStageWithDynamicAllocation)
+
 ## <span id="spark.dynamicAllocation.minExecutors"><span id="DYN_ALLOCATION_MIN_EXECUTORS"> spark.dynamicAllocation.minExecutors
 
 Default: `0`

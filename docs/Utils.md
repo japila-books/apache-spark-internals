@@ -1,5 +1,26 @@
 # Utils Utility
 
+## <span id="isDynamicAllocationEnabled"> isDynamicAllocationEnabled
+
+```scala
+isDynamicAllocationEnabled(
+  conf: SparkConf): Boolean
+```
+
+`isDynamicAllocationEnabled` is `true` when the following hold:
+
+* [spark.dynamicAllocation.enabled](dynamic-allocation/configuration-properties.md#spark.dynamicAllocation.enabled) configuration property is `true`
+* Spark application uses non-`local` master URL
+
+`isDynamicAllocationEnabled` is used when:
+
+* `SparkContext` is created (to [start an ExecutorAllocationManager](SparkContext-creating-instance-internals.md#ExecutorAllocationManager))
+* `DAGScheduler` is requested to [checkBarrierStageWithDynamicAllocation](scheduler/DAGScheduler.md#checkBarrierStageWithDynamicAllocation)
+* `SchedulerBackendUtils` is requested to [getInitialTargetExecutorNumber](scheduler/SchedulerBackendUtils.md#getInitialTargetExecutorNumber)
+* `StandaloneSchedulerBackend` (Spark Standalone) is requested to `start`
+* `ExecutorPodsAllocator` (Spark on Kubernetes) is requested to [onNewSnapshots](kubernetes/ExecutorPodsAllocator.md#onNewSnapshots)
+* `ApplicationMaster` (Spark on YARN) is created
+
 ## <span id="checkAndGetK8sMasterUrl"> checkAndGetK8sMasterUrl
 
 ```scala
