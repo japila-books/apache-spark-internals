@@ -6,7 +6,18 @@ Controls whether to use the [External Shuffle Service](deploy/ExternalShuffleSer
 
 Default: `false`
 
-When enabled (`true`), the driver registers itself with the shuffle service.
+!!! note
+    `LocalSparkCluster` turns this property off explicitly when started.
+
+Used when:
+
+* `BlacklistTracker` is requested to [updateBlacklistForFetchFailure](scheduler/BlacklistTracker.md#updateBlacklistForFetchFailure)
+* `ExecutorMonitor` is created
+* `ExecutorAllocationManager` is requested to [validateSettings](dynamic-allocation/ExecutorAllocationManager.md#validateSettings)
+* `SparkEnv` utility is requested to [create a "base" SparkEnv](SparkEnv.md#create)
+* `ExternalShuffleService` is [created](deploy/ExternalShuffleService.md#enabled) and [started](deploy/ExternalShuffleService.md#main)
+* `Worker` (Spark Standalone) is requested to handle a `WorkDirCleanup` message or started
+* `ExecutorRunnable` (Spark on YARN) is requested to `startContainer`
 
 ## <span id="spark.scheduler.minRegisteredResourcesRatio"> spark.scheduler.minRegisteredResourcesRatio
 
