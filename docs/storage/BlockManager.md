@@ -31,8 +31,8 @@ When [External Shuffle Service is enabled](#externalShuffleServiceEnabled), Bloc
 * [MapOutputTracker](#mapOutputTracker)
 * [ShuffleManager](#shuffleManager)
 * [BlockTransferService](#blockTransferService)
-* <span id="securityManager"> SecurityManager
-* <span id="externalBlockStoreClient"> ExternalBlockStoreClient
+* <span id="securityManager"> `SecurityManager`
+* <span id="externalBlockStoreClient"> [ExternalBlockStoreClient](ExternalBlockStoreClient.md)
 
 When created, BlockManager sets [externalShuffleServiceEnabled](#externalShuffleServiceEnabled) internal flag based on [spark.shuffle.service.enabled](../configuration-properties.md#spark.shuffle.service.enabled) configuration property.
 

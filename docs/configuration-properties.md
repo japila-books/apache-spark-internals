@@ -1,5 +1,13 @@
 # Spark Configuration Properties
 
+## <span id="spark.shuffle.service.enabled"><span id="SHUFFLE_SERVICE_ENABLED"> spark.shuffle.service.enabled
+
+Controls whether to use the [External Shuffle Service](deploy/ExternalShuffleService.md)
+
+Default: `false`
+
+When enabled (`true`), the driver registers itself with the shuffle service.
+
 ## <span id="spark.scheduler.minRegisteredResourcesRatio"> spark.scheduler.minRegisteredResourcesRatio
 
 Minimum ratio of (registered resources / total expected resources) before submitting tasks
@@ -512,14 +520,6 @@ Must be greater than `0` and less than or equal to `2097151` (`(Integer.MAX_VALU
 Time to wait for sufficient resources available
 
 Default: `30s`
-
-== [[spark.shuffle.service.enabled]][[SHUFFLE_SERVICE_ENABLED]] spark.shuffle.service.enabled
-
-Controls whether to use the deploy:ExternalShuffleService.md[External Shuffle Service]
-
-Default: `false`
-
-When enabled (`true`), the driver registers itself with the shuffle service.
 
 == [[spark.shuffle.service.port]] spark.shuffle.service.port
 
