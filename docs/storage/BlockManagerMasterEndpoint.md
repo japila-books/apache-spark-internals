@@ -1,5 +1,4 @@
-= BlockManagerMasterEndpoint -- BlockManagerMaster RPC Endpoint
-:navtitle: BlockManagerMasterEndpoint
+# BlockManagerMasterEndpoint
 
 *BlockManagerMasterEndpoint* is a rpc:RpcEndpoint.md#ThreadSafeRpcEndpoint[ThreadSafeRpcEndpoint] for storage:BlockManagerMaster.md[BlockManagerMaster].
 

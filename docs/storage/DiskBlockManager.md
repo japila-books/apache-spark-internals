@@ -140,7 +140,7 @@ getConfiguredLocalDirs(
 
 `getConfiguredLocalDirs` returns the local directories where Spark can write files.
 
-Internally, `getConfiguredLocalDirs` uses `conf` [SparkConf](../SparkConf.md) to know if [External Shuffle Service](../deploy/ExternalShuffleService.md) is enabled (based on [spark.shuffle.service.enabled](../configuration-properties.md#spark.shuffle.service.enabled) configuration property).
+Internally, `getConfiguredLocalDirs` uses `conf` [SparkConf](../SparkConf.md) to know if [External Shuffle Service](../external-shuffle-service/ExternalShuffleService.md) is enabled (based on [spark.shuffle.service.enabled](../configuration-properties.md#spark.shuffle.service.enabled) configuration property).
 
 `getConfiguredLocalDirs` checks if [Spark runs on YARN](#isRunningInYarnContainer) and if so, returns [LOCAL_DIRS](#getYarnLocalDirs)-controlled local directories.
 

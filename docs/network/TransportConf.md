@@ -1,6 +1,6 @@
-= TransportConf
+# TransportConf
 
-TransportConf is a class for the transport-related network configuration for modules, e.g. deploy:ExternalShuffleService.md[ExternalShuffleService] or spark-on-yarn:spark-yarn-YarnShuffleService.md[YarnShuffleService].
+TransportConf is a class for the transport-related network configuration for modules, e.g. [ExternalShuffleService](../external-shuffle-service/ExternalShuffleService.md) or spark-on-yarn:spark-yarn-YarnShuffleService.md[YarnShuffleService].
 
 TransportConf exposes methods to access settings for a single module as <<spark.module.prefix, spark.module.prefix>> or <<general-settings, general network-related settings>>.
 

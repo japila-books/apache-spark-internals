@@ -57,6 +57,10 @@ BlockManager is created when SparkEnv is [created](../SparkEnv.md#create-BlockMa
 
 ![BlockManager and SparkEnv](../images/storage/BlockManager-SparkEnv.png)
 
+## <span id="externalShuffleServicePort"> externalShuffleServicePort
+
+`BlockManager` determines the [port of an external shuffle service](StorageUtils.md#externalShuffleServicePort) when [created](#creating-instance).
+
 ## <span id="subDirsPerLocalDir"> spark.diskStore.subDirectories Configuration Property
 
 `BlockManager` uses [spark.diskStore.subDirectories](../configuration-properties.md#spark.diskStore.subDirectories) configuration property to initialize a `subDirsPerLocalDir` local value.
@@ -746,7 +750,7 @@ Ultimately, if the initialization happens on an executor and the [External Shuff
 registerWithExternalShuffleServer(): Unit
 ```
 
-registerWithExternalShuffleServer is an internal helper method to register the BlockManager for an executor with an deploy:ExternalShuffleService.md[external shuffle server].
+registerWithExternalShuffleServer is an internal helper method to register the BlockManager for an executor with an [external shuffle server](../external-shuffle-service/index.md).
 
 !!! note
     It is executed when a [BlockManager is initialized on an executor and an external shuffle service is used](#initialize).

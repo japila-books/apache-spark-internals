@@ -957,13 +957,13 @@ NOTE: `addPendingTask` is used immediatelly when `TaskSetManager` <<creating-ins
 executorLost(execId: String, host: String, reason: ExecutorLossReason): Unit
 ----
 
-`executorLost` re-enqueues all the ShuffleMapTask.md[ShuffleMapTasks] that have completed already on the lost executor (when deploy:ExternalShuffleService.md[external shuffle service] is not in use) and <<handleFailedTask, reports all currently-running tasks on the lost executor as failed>>.
+`executorLost` re-enqueues all the ShuffleMapTask.md[ShuffleMapTasks] that have completed already on the lost executor (when [external shuffle service](../external-shuffle-service/index.md) is not in use) and <<handleFailedTask, reports all currently-running tasks on the lost executor as failed>>.
 
 NOTE: `executorLost` is part of the spark-scheduler-Schedulable.md#contract[Schedulable contract] that TaskSchedulerImpl.md#removeExecutor[`TaskSchedulerImpl` uses to inform `TaskSetManagers` about lost executors].
 
 NOTE: Since `TaskSetManager` manages execution of the tasks in a single TaskSet.md[TaskSet], when an executor gets lost, the affected tasks that have been running on the failed executor need to be re-enqueued. `executorLost` is the mechanism to "announce" the event to all `TaskSetManagers`.
 
-Internally, `executorLost` first checks whether the <<tasks, tasks>> are ShuffleMapTask.md[ShuffleMapTasks] and whether an deploy:ExternalShuffleService.md[external shuffle service] is enabled (that could serve the map shuffle outputs in case of failure).
+Internally, `executorLost` first checks whether the <<tasks, tasks>> are ShuffleMapTask.md[ShuffleMapTasks] and whether an [external shuffle service](../external-shuffle-service/index.md) is enabled (that could serve the map shuffle outputs in case of failure).
 
 NOTE: `executorLost` checks out the first task in <<tasks, tasks>> as it is assumed the other belong to the same stage. If the task is a ShuffleMapTask.md[ShuffleMapTask], the entire <<taskSet, TaskSet>> is for a ShuffleMapStage.md[ShuffleMapStage].
 

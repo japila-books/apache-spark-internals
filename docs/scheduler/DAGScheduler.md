@@ -1184,12 +1184,12 @@ storage:BlockManagerMaster.md#removeExecutor[`BlockManagerMaster` is requested t
 
 CAUTION: FIXME Review what's `filesLost`.
 
-`handleExecutorLost` exits unless the `ExecutorLost` event was for a map output fetch operation (and the input `filesLost` is `true`) or deploy:ExternalShuffleService.md[external shuffle service] is _not_ used.
+`handleExecutorLost` exits unless the `ExecutorLost` event was for a map output fetch operation (and the input `filesLost` is `true`) or [external shuffle service](../external-shuffle-service/index.md) is _not_ used.
 
 In such a case, you should see the following INFO message in the logs:
 
-```
-INFO Shuffle files lost for executor: [execId] (epoch [epoch])
+```text
+Shuffle files lost for executor: [execId] (epoch [epoch])
 ```
 
 `handleExecutorLost` walks over all scheduler:ShuffleMapStage.md[ShuffleMapStage]s in scheduler:DAGScheduler.md#shuffleToMapStage[DAGScheduler's `shuffleToMapStage` internal registry] and do the following (in order):

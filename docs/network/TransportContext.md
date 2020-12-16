@@ -85,6 +85,6 @@ createServer is used when:
 
 * `NettyRpcEnv` is requested to `startServer`
 
-* `ExternalShuffleService` is requested to deploy:ExternalShuffleService.md#start[start]
+* `ExternalShuffleService` is requested to [start](../external-shuffle-service/ExternalShuffleService.md)
 
 * Spark on YARN's `YarnShuffleService` is requested to `serviceInit`

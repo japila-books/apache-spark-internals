@@ -1,6 +1,6 @@
-= ExternalShuffleBlockHandler
+# ExternalShuffleBlockHandler
 
-*ExternalShuffleBlockHandler* is a network:RpcHandler.md[].
+`ExternalShuffleBlockHandler` is a network:RpcHandler.md[].
 
 When created, ExternalShuffleBlockHandler requires a network:OneForOneStreamManager.md[] and network:TransportConf.md[] with a `registeredExecutorFile` to create a `ExternalShuffleBlockResolver`.
 

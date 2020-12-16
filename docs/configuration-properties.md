@@ -1,8 +1,19 @@
 # Spark Configuration Properties
 
+## <span id="spark.shuffle.service.port"><span id="SHUFFLE_SERVICE_PORT"> spark.shuffle.service.port
+
+Port of the [external shuffle service](external-shuffle-service/ExternalShuffleService.md)
+
+Default: `7337`
+
+Used when:
+
+* `ExternalShuffleService` is [created](external-shuffle-service/ExternalShuffleService.md#port)
+* `StorageUtils` utility is requested for the [port of an external shuffle service](storage/StorageUtils.md#externalShuffleServicePort)
+
 ## <span id="spark.shuffle.service.enabled"><span id="SHUFFLE_SERVICE_ENABLED"> spark.shuffle.service.enabled
 
-Controls whether to use the [External Shuffle Service](deploy/ExternalShuffleService.md)
+Controls whether to use the [External Shuffle Service](external-shuffle-service/ExternalShuffleService.md)
 
 Default: `false`
 
@@ -15,7 +26,7 @@ Used when:
 * `ExecutorMonitor` is created
 * `ExecutorAllocationManager` is requested to [validateSettings](dynamic-allocation/ExecutorAllocationManager.md#validateSettings)
 * `SparkEnv` utility is requested to [create a "base" SparkEnv](SparkEnv.md#create)
-* `ExternalShuffleService` is [created](deploy/ExternalShuffleService.md#enabled) and [started](deploy/ExternalShuffleService.md#main)
+* `ExternalShuffleService` is [created](external-shuffle-service/ExternalShuffleService.md#enabled) and [started](external-shuffle-service/ExternalShuffleService.md#main)
 * `Worker` (Spark Standalone) is requested to handle a `WorkDirCleanup` message or started
 * `ExecutorRunnable` (Spark on YARN) is requested to `startContainer`
 
@@ -531,10 +542,6 @@ Must be greater than `0` and less than or equal to `2097151` (`(Integer.MAX_VALU
 Time to wait for sufficient resources available
 
 Default: `30s`
-
-== [[spark.shuffle.service.port]] spark.shuffle.service.port
-
-Default: `7337`
 
 == [[spark.shuffle.compress]] spark.shuffle.compress
 
