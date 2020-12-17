@@ -1,35 +1,12 @@
-== [[LocalSparkCluster]] LocalSparkCluster -- Single-JVM Spark Standalone Cluster
+# LocalSparkCluster
 
-`LocalSparkCluster` is responsible for *local-cluster* master URL.
+`LocalSparkCluster` is a single-JVM Spark Standalone cluster that is available as `local-cluster` master URL.
 
 NOTE: `local-cluster` master URL matches `local-cluster[numWorkers,coresPerWorker,memoryPerWorker]` pattern where <<numWorkers, numWorkers>>, <<coresPerWorker, coresPerWorker>> and <<memoryPerWorker, memoryPerWorker>> are all numbers separated by the comma.
 
 `LocalSparkCluster` can be particularly useful to test distributed operation and fault recovery without spinning up a lot of processes.
 
 `LocalSparkCluster` is <<creating-instance, created>> when `SparkContext` is created for *local-cluster* master URL (and so requested to xref:ROOT:SparkContext.md#createTaskScheduler[create the SchedulerBackend and the TaskScheduler]).
-
-[[internal-registries]]
-.LocalSparkCluster's Internal Properties (e.g. Registries, Counters and Flags)
-[cols="1,2",options="header",width="100%"]
-|===
-| Name
-| Description
-
-| `localHostname`
-| [[localHostname]] FIXME
-
-Used when...FIXME
-
-| `masterRpcEnvs`
-| [[masterRpcEnvs]] FIXME
-
-Used when...FIXME
-
-| `workerRpcEnvs`
-| [[workerRpcEnvs]] FIXME
-
-Used when...FIXME
-|===
 
 [[logging]]
 [TIP]
@@ -56,16 +33,15 @@ Refer to link:spark-logging.md[Logging].
 
 `LocalSparkCluster` initializes the <<internal-registries, internal registries and counters>>.
 
-=== [[start]] `start` Method
+## <span id="start"> Starting
 
-[source, scala]
-----
+```scala
 start(): Array[String]
-----
+```
 
 `start`...FIXME
 
-NOTE: `start` is used when...FIXME
+`start` is used when...FIXME
 
 === [[stop]] Stopping LocalSparkCluster
 

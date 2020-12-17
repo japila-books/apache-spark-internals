@@ -1,6 +1,8 @@
-== [[Master]] Standalone Master -- Cluster Manager of Spark Standalone
+# Master
 
-`Master` (*Standalone Master* or *standalone Master*) is the cluster manager (the master) of a Spark Standalone cluster.
+`Master` is the cluster manager of a Spark Standalone cluster.
+
+## To be Reviewed
 
 `Master` is <<creating-instance, created>> exclusively when requested to <<startRpcEnvAndEndpoint, startRpcEnvAndEndpoint>> (which is when `Master` standalone application is <<main, launched>> or `LocalSparkCluster` is requested to `start`).
 
@@ -35,24 +37,6 @@ INFO Master: Running Spark version 1.6.0-SNAPSHOT
 
 `Master` can be <<main, started>> and stopped using link:spark-standalone-master-scripts.md[custom management scripts for standalone Master].
 
-[[internal-registries]]
-.Master's Internal Properties (e.g. Registries, Counters and Flags)
-[cols="1,2",options="header",width="100%"]
-|===
-| Name
-| Description
-
-| `forwardMessageThread`
-| [[forwardMessageThread]] FIXME
-
-Used when...FIXME
-
-| `hadoopConf`
-| [[hadoopConf]] FIXME
-
-Used when...FIXME
-|===
-
 === Master WebUI
 
 FIXME MasterWebUI
@@ -72,8 +56,6 @@ Master can be in the following states:
 * `ALIVE` - start scheduling resources among applications.
 * `RECOVERING`
 * `COMPLETING_RECOVERY`
-
-CAUTION: FIXME
 
 === [[rpcenv]] RPC Environment
 
@@ -376,15 +358,6 @@ main(argStrings: Array[String]): Unit
 ----
 
 `main`...FIXME
-
-[[command-line-arguments]]
-.Main's Command-Line Arguments
-[cols="1,^1,2",options="header",width="100%"]
-|===
-| Argument
-| Required?
-| Description
-|===
 
 [source]
 ----

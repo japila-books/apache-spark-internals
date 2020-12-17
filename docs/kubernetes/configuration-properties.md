@@ -1,4 +1,4 @@
-# Configuration Properties of Kubernetes Cluster Manager
+# Configuration Properties of Spark on Kubernetes
 
 ## <span id="spark.kubernetes.file.upload.path"><span id="KUBERNETES_FILE_UPLOAD_PATH"> spark.kubernetes.file.upload.path
 
