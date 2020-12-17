@@ -1,0 +1,3 @@
+# StandaloneAppClient
+
+`StandaloneAppClient` is...FIXME

@@ -1,5 +1,27 @@
 # Utils Utility
 
+## <span id="extractHostPortFromSparkUrl"> extractHostPortFromSparkUrl
+
+```scala
+extractHostPortFromSparkUrl(
+  sparkUrl: String): (String, Int)
+```
+
+`extractHostPortFromSparkUrl` creates a Java [URI]({{ java.api }}/java.base/java/net/URI.html) with the input `sparkUrl` and takes the host and port parts.
+
+`extractHostPortFromSparkUrl` asserts that the input `sparkURL` uses **spark** scheme.
+
+`extractHostPortFromSparkUrl` throws a `SparkException` for unparseable spark URLs:
+
+```text
+Invalid master URL: [sparkUrl]
+```
+
+`extractHostPortFromSparkUrl` is used when:
+
+* `StandaloneSubmitRequestServlet` is requested to `buildDriverDescription`
+* `RpcAddress` is requested to [extract an RpcAddress from a Spark master URL](rpc/RpcAddress.md#fromSparkURL)
+
 ## <span id="isDynamicAllocationEnabled"> isDynamicAllocationEnabled
 
 ```scala

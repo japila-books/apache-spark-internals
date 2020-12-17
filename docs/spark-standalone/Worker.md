@@ -4,7 +4,9 @@
 
 `Worker` is a standalone application that can be [launched from command line](#launching-standalone-worker).
 
-`Worker` is a [ThreadSafeRpcEndpoint](../rpc/RpcEndpoint.md#ThreadSafeRpcEndpoint).
+## <span id="ENDPOINT_NAME"> Worker RPC Endpoint
+
+`Worker` is a [ThreadSafeRpcEndpoint](../rpc/RpcEndpoint.md#ThreadSafeRpcEndpoint) and is registered under **Worker** name (when [launched as a command-line application](#launching-standalone-worker) and requested to [set up an RPC environment](#startRpcEnvAndEndpoint)).
 
 ## Launching Standalone Worker
 
@@ -13,6 +15,9 @@
 ```text
 spark-class org.apache.spark.deploy.worker.Worker
 ```
+
+!!! note
+    At least one [master URL](#master) is required.
 
 ### <span id="main"> main Entry Point
 
@@ -23,7 +28,28 @@ main(
 
 `main` is the entry point of `Worker` standalone application.
 
-`main`...FIXME
+`main` prints out the following INFO message to the logs:
+
+```text
+Started daemon with process name: [processName]
+```
+
+`main` registers signal handlers for `TERM`, `HUP`, `INT` signals.
+
+`main` parses [command-line options](#options) (using `WorkerArguments`) and [initializes an RpcEnv](#startRpcEnvAndEndpoint).
+
+`main` asserts that:
+
+1. [External shuffle service](../external-shuffle-service/index.md) is not used (based on [spark.shuffle.service.enabled](../configuration-properties.md#spark.shuffle.service.enabled) configuration property)
+1. Number of worker instances is `1` (based on `SPARK_WORKER_INSTANCES` environment variable)
+
+`main` throws an `IllegalArgumentException` when the above does not hold:
+
+```text
+Starting multiple workers on one host is failed because we may launch no more than one external shuffle service on each host, please set spark.shuffle.service.enabled to false or set SPARK_WORKER_INSTANCES to 1 to resolve the conflict.
+```
+
+In the end, `main` requests the `RpcEnv` to be notified when [terminated](../rpc/RpcEnv.md#awaitTermination).
 
 ## <span id="options"> Command-Line Options
 
@@ -51,6 +77,14 @@ Options:
 ### host
 
 ### ip
+
+### <span id="master"><span id="masters"> Master URLs
+
+**(required)** Comma-separated standalone Master's URLs in the form:
+
+```text
+spark://host1:port1,host2:port2,...
+```
 
 ### memory
 
@@ -82,7 +116,7 @@ Options:
 
 * `Worker` utility is requested to [startRpcEnvAndEndpoint](Worker.md#startRpcEnvAndEndpoint)
 
-## <span id="startRpcEnvAndEndpoint"> Starting Worker RPC Endpoint
+## <span id="startRpcEnvAndEndpoint"> Setting Up RPC Environment
 
 ```scala
 startRpcEnvAndEndpoint(
@@ -98,11 +132,11 @@ startRpcEnvAndEndpoint(
   resourceFileOpt: Option[String] = None): RpcEnv
 ```
 
-`startRpcEnvAndEndpoint` creates a xref:rpc:index.md#create[RpcEnv] for the input `host` and `port`.
+`startRpcEnvAndEndpoint` creates an [RpcEnv](../rpc/RpcEnv.md#create) with the name `sparkWorker` and the given `host` and `port`.
 
-`startRpcEnvAndEndpoint` <<creating-instance, creates a Worker RPC endpoint>> (for the RPC environment and the input `webUiPort`, `cores`, `memory`, `masterUrls`, `workDir` and `conf`).
+`startRpcEnvAndEndpoint` [translates the given masterUrls to RpcAddresses](../rpc/RpcAddress.md#fromSparkURL).
 
-`startRpcEnvAndEndpoint` requests the `RpcEnv` to xref:rpc:index.md#setupEndpoint[register the Worker RPC endpoint] under the name <<ENDPOINT_NAME, Worker>>.
+`startRpcEnvAndEndpoint` creates a [Worker](#creating-instance) and requests the `RpcEnv` to [set it up as an RPC endpoint](../rpc/RpcEnv.md#setupEndpoint) under the [Worker](#ENDPOINT_NAME) name.
 
 `startRpcEnvAndEndpoint` is used when:
 
@@ -142,25 +176,3 @@ log4j.logger.org.apache.spark.deploy.worker.Worker=ALL
 ```
 
 Refer to [Logging](../spark-logging.md).
-
-## To be Reviewed
-
-[[ENDPOINT_NAME]]
-`Worker` is a xref:rpc:RpcEndpoint.md#ThreadSafeRpcEndpoint[ThreadSafeRpcEndpoint] that uses *Worker* for the RPC endpoint name when <<startRpcEnvAndEndpoint, registered>>.
-
-[[internal-registries]]
-.Worker's Internal Properties (e.g. Registries, Counters and Flags)
-[cols="1,2",options="header",width="100%"]
-|===
-| Name
-| Description
-
-| [[workDir]] `workDir`
-| Working directory of the executors that the `Worker` manages
-
-Initialized when `Worker` is requested to <<createWorkDir, createWorkDir>> (when `Worker` RPC Endpoint is requested to <<onStart, start>> on a RPC environment).
-
-Used when `Worker` is requested to <<handleRegisterResponse, handleRegisterResponse>> and <<receive, receives>> a `WorkDirCleanup` message.
-
-Used when `Worker` is requested to <<onStart, onStart>> (to create a `WorkerWebUI`), <<receive, receives>> `LaunchExecutor` or `LaunchDriver` messages.
-|===

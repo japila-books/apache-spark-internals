@@ -129,7 +129,6 @@ The Recovery Mode enables <<leader-election, election of the leader master>> amo
 
 TIP: Check out the exercise link:exercises/spark-exercise-standalone-master-ha.md[Spark Standalone - Using ZooKeeper for High-Availability of Master].
 
-
 === [[leader-election]] Leader Election
 
 Master endpoint is `LeaderElectable`, i.e. FIXME
@@ -361,7 +360,7 @@ main(argStrings: Array[String]): Unit
 
 [source]
 ----
-$ ./bin/spark-class org.apache.spark.deploy.master.Main
+$ ./bin/spark-class org.apache.spark.deploy.master.Master
 ...FIXME
 ----
 
