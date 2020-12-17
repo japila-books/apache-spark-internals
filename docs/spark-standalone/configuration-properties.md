@@ -1,8 +1,8 @@
 # Configuration Properties of Spark Standalone
 
-## <span id="spark.deploy.spreadOut"> spark.deploy.spreadOut
+## <span id="spark.deploy.spreadOut"><span id="SPREAD_OUT_APPS"> spark.deploy.spreadOut
 
-Controls whether standalone Master should perform round-robin scheduling across the nodes
+Controls whether standalone `Master` should [perform round-robin scheduling across worker nodes](Master.md#spreadOutApps) (spreading out each app among all the nodes) instead of trying to consolidate each app onto a small number of nodes
 
 Default: `true`
 

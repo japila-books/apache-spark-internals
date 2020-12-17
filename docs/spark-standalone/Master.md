@@ -1,108 +1,154 @@
 # Master
 
-`Master` is the cluster manager of a Spark Standalone cluster.
+`Master` is a cluster manager of a Spark Standalone cluster.
 
-## To be Reviewed
+`Master` can be [launched from command line](#launch).
 
-`Master` is <<creating-instance, created>> exclusively when requested to <<startRpcEnvAndEndpoint, startRpcEnvAndEndpoint>> (which is when `Master` standalone application is <<main, launched>> or `LocalSparkCluster` is requested to `start`).
+## <span id="ENDPOINT_NAME"> Master RPC Endpoint
 
-A standalone Master is pretty much the Master RPC Endpoint that you can access using RPC port (low-level operation communication) or link:spark-webui.md[Web UI].
+`Master` is a [ThreadSafeRpcEndpoint](../rpc/RpcEndpoint.md#ThreadSafeRpcEndpoint) and is registered under **Master** name (when [launched as a command-line application](#launch) and requested to [start up an RPC environment](#startRpcEnvAndEndpoint)).
 
-Application ids follows the pattern `app-yyyyMMddHHmmss`.
+## <span id="launch"> Launching Standalone Master
 
-Master keeps track of the following:
+`Master` can be launched as a standalone application using [spark-class](../tools/spark-class.md).
 
-* workers (`workers`)
-* mapping between ids and applications (`idToApp`)
-* waiting applications (`waitingApps`)
-* applications (`apps`)
-* mapping between ids and workers (`idToWorker`)
-* mapping between RPC address and workers (`addressToWorker`)
-* `endpointToApp`
-* `addressToApp`
-* `completedApps`
-* `nextAppNumber`
-* mapping between application ids and their Web UIs (`appIdToUI`)
-* drivers (`drivers`)
-* `completedDrivers`
-* drivers currently spooled for scheduling (`waitingDrivers`)
-* `nextDriverNumber`
-
-The following INFO shows up when the Master endpoint starts up (`Master#onStart` is called):
-
-```
-INFO Master: Starting Spark master at spark://japila.local:7077
-INFO Master: Running Spark version 1.6.0-SNAPSHOT
+```text
+./bin/spark-class org.apache.spark.deploy.master.Master
 ```
 
-`Master` can be <<main, started>> and stopped using link:spark-standalone-master-scripts.md[custom management scripts for standalone Master].
+### <span id="main"> main Entry Point
 
-=== Master WebUI
-
-FIXME MasterWebUI
-
-`MasterWebUI` is the Web UI server for the standalone master. Master starts Web UI to listen to `http://[master's hostname]:webUIPort`, e.g. `http://localhost:8080`.
-
-```
-INFO Utils: Successfully started service 'MasterUI' on port 8080.
-INFO MasterWebUI: Started MasterWebUI at http://192.168.1.4:8080
+```scala
+main(
+  argStrings: Array[String]): Unit
 ```
 
-=== States
+`main` is the entry point of `Master` standalone application.
+
+`main` prints out the following INFO message to the logs:
+
+```text
+Started daemon with process name: [processName]
+```
+
+`main` registers signal handlers for `TERM`, `HUP`, `INT` signals.
+
+`main` parses [command-line options](#options) (using `MasterArguments`) and [initializes an RpcEnv](#startRpcEnvAndEndpoint).
+
+In the end, `main` requests the `RpcEnv` to be notified when [terminated](../rpc/RpcEnv.md#awaitTermination).
+
+## <span id="options"> Command-Line Options
+
+`Master` supports command-line options.
+
+```text
+Usage: Master [options]
+
+Options:
+  -i HOST, --ip HOST     Hostname to listen on (deprecated, please use --host or -h)
+  -h HOST, --host HOST   Hostname to listen on
+  -p PORT, --port PORT   Port to listen on (default: 7077)
+  --webui-port PORT      Port for web UI (default: 8080)
+  --properties-file FILE Path to a custom Spark properties file.
+                         Default is conf/spark-defaults.conf.
+```
+
+### host
+
+### ip
+
+### port
+
+### properties-file
+
+### webui-port
+
+## Creating Instance
+
+`Master` takes the following to be created:
+
+* <span id="rpcEnv"> [RpcEnv](../rpc/RpcEnv.md)
+* <span id="address"> [RpcAddress](../rpc/RpcAddress.md)
+* <span id="webUiPort"> web UI's Port
+* <span id="securityMgr"> `SecurityManager`
+* <span id="conf"> [SparkConf](../SparkConf.md)
+
+`Master` is created when:
+
+* `Master` utility is requested to [start up RPC environment](Master.md#startRpcEnvAndEndpoint)
+
+## <span id="startRpcEnvAndEndpoint"> Starting Up RPC Environment
+
+```scala
+startRpcEnvAndEndpoint(
+  host: String,
+  port: Int,
+  webUiPort: Int,
+  conf: SparkConf): (RpcEnv, Int, Option[Int])
+```
+
+`startRpcEnvAndEndpoint`...FIXME
+
+![sparkMaster - the RPC Environment for Spark Standalone's master](../images/sparkMaster-rpcenv.png)
+
+`startRpcEnvAndEndpoint` is used when:
+
+* `LocalSparkCluster` is requested to [start](LocalSparkCluster.md#start)
+* `Master` standalone application is [launched](#main)
+
+## <span id="spreadOutApps"> spreadOutApps
+
+`Master` uses [spark.deploy.spreadOut](configuration-properties.md#spark.deploy.spreadOut) configuration property when requested to [startExecutorsOnWorkers](#startExecutorsOnWorkers).
+
+## <span id="schedule"> Scheduling Resources Among Waiting Applications
+
+```scala
+schedule(): Unit
+```
+
+`schedule`...FIXME
+
+`schedule` is used when:
+
+* `Master` is requested to [schedule resources among waiting applications](#schedule)
+
+### <span id="startExecutorsOnWorkers"> startExecutorsOnWorkers
+
+```scala
+startExecutorsOnWorkers(): Unit
+```
+
+`startExecutorsOnWorkers`...FIXME
+
+## WebUI
+
+`MasterWebUI` is the Web UI server for the standalone master. Master starts Web UI to listen to `http://[master's hostname]:webUIPort` (e.g. `http://localhost:8080`).
+
+```text
+Successfully started service 'MasterUI' on port 8080.
+Started MasterWebUI at http://192.168.1.4:8080
+```
+
+## States
 
 Master can be in the following states:
 
-* `STANDBY` - the initial state while Master is initializing
-* `ALIVE` - start scheduling resources among applications.
+* `STANDBY` - the initial state while `Master` is initializing
+* `ALIVE` - start scheduling resources among applications
 * `RECOVERING`
 * `COMPLETING_RECOVERY`
 
-=== [[rpcenv]] RPC Environment
+## <span id="LeaderElectable"> LeaderElectable
 
-The `org.apache.spark.deploy.master.Master` class starts xref:rpc:index.md[sparkMaster RPC environment].
+`Master` is `LeaderElectable`.
 
-```
-INFO Utils: Successfully started service 'sparkMaster' on port 7077.
-```
+## To be Reviewed
 
-It then registers `Master` endpoint.
+Application ids follows the pattern `app-yyyyMMddHHmmss`.
 
-.sparkMaster - the RPC Environment for Spark Standalone's master
-image::sparkMaster-rpcenv.png[align="center"]
+`Master` can be <<main, started>> and stopped using link:spark-standalone-master-scripts.md[custom management scripts for standalone Master].
 
-Master endpoint is a xref:rpc:RpcEndpoint.md#ThreadSafeRpcEndpoint[ThreadSafeRpcEndpoint] and `LeaderElectable` (see <<leader-election, Leader Election>>).
-
-The Master endpoint starts the daemon single-thread scheduler pool `master-forward-message-thread`. It is used for worker management, i.e. removing any timed-out workers.
-
-```
-"master-forward-message-thread" #46 daemon prio=5 os_prio=31 tid=0x00007ff322abb000 nid=0x7f03 waiting on condition [0x000000011cad9000]
-```
-
-## Metrics
-
-Master uses [Spark Metrics System](../metrics/MetricsSystem.md) (via `MasterSource`) to report metrics about internal status.
-
-The name of the source is *master*.
-
-It emits the following metrics:
-
-* `workers` - the number of all workers (any state)
-* `aliveWorkers` - the number of alive workers
-* `apps` - the number of applications
-* `waitingApps` - the number of waiting applications
-
-The name of the other source is *applications*
-
-[CAUTION]
-====
-FIXME
-
-* Review `org.apache.spark.metrics.MetricsConfig`
-* How to access the metrics for master? See `Master#onStart`
-* Review `masterMetricsSystem` and `applicationMetricsSystem`
-====
-
-=== [[rest-server]] REST Server
+### REST Server
 
 The standalone Master starts the REST Server service for alternative application submission that is supposed to work across Spark versions. It is enabled by default (see <<settings, spark.master.rest.enabled>>) and used by link:spark-submit.md[spark-submit] for the link:spark-standalone.md#deployment-modes[standalone cluster mode], i.e. `--deploy-mode` is `cluster`.
 
@@ -117,7 +163,7 @@ INFO Utils: Successfully started service on port 6066.
 INFO StandaloneRestServer: Started REST server for submitting applications on port 6066
 ```
 
-=== [[recovery-mode]] Recovery Mode
+### Recovery Mode
 
 A standalone Master can run with *recovery mode* enabled and be able to recover state among the available swarm of masters. By default, there is no recovery, i.e. no persistence and no election.
 
@@ -129,13 +175,7 @@ The Recovery Mode enables <<leader-election, election of the leader master>> amo
 
 TIP: Check out the exercise link:exercises/spark-exercise-standalone-master-ha.md[Spark Standalone - Using ZooKeeper for High-Availability of Master].
 
-=== [[leader-election]] Leader Election
-
-Master endpoint is `LeaderElectable`, i.e. FIXME
-
-CAUTION: FIXME
-
-=== RPC Messages
+### RPC Messages
 
 Master communicates with drivers, executors and configures itself using *RPC messages*.
 
@@ -161,7 +201,7 @@ The following message types are accepted by master (see `Master#receive` or `Mas
 * `RequestExecutors`
 * `KillExecutors`
 
-==== [[RegisterApplication]] RegisterApplication event
+#### RegisterApplication event
 
 A *RegisterApplication* event is sent by link:spark-standalone.md#AppClient[AppClient] to the standalone Master. The event holds information about the application being deployed (`ApplicationDescription`) and the driver's endpoint reference.
 
@@ -199,7 +239,7 @@ Worker in `WorkerState.ALIVE` state can accept applications.
 
 A driver has a state, i.e. `driver.state` and when it's in `DriverState.RUNNING` state the driver has been assigned to a worker for execution.
 
-==== [[LaunchDriver]] LaunchDriver RPC message
+#### LaunchDriver RPC message
 
 WARNING: It seems a dead message. Disregard it for now.
 
@@ -230,33 +270,7 @@ Workers' free memory and cores are considered when assigning some to waiting dri
 
 CAUTION: FIXME Go over `waitingDrivers`...
 
-=== [[DriverRunner]] DriverRunner
-
-WARNING: It seems a dead piece of code. Disregard it for now.
-
-A `DriverRunner` manages the execution of one driver.
-
-It is a `java.lang.Process`
-
-When started, it spawns a thread `DriverRunner for [driver.id]` that:
-
-1. Creates the working directory for this driver.
-2. Downloads the user jar FIXME `downloadUserJar`
-3. Substitutes variables like `WORKER_URL` or `USER_JAR` that are set when...FIXME
-
-=== [[startup-internals]] Internals of org.apache.spark.deploy.master.Master
-
-[TIP]
-====
-You can debug a Standalone master using the following command:
-
-[source]
-----
-java -agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005 -cp /Users/jacek/dev/oss/spark/conf/:/Users/jacek/dev/oss/spark/assembly/target/scala-2.11/spark-assembly-1.6.0-SNAPSHOT-hadoop2.7.1.jar:/Users/jacek/dev/oss/spark/lib_managed/jars/datanucleus-api-jdo-3.2.6.jar:/Users/jacek/dev/oss/spark/lib_managed/jars/datanucleus-core-3.2.10.jar:/Users/jacek/dev/oss/spark/lib_managed/jars/datanucleus-rdbms-3.2.9.jar -Xms1g -Xmx1g org.apache.spark.deploy.master.Master --ip japila.local --port 7077 --webui-port 8080
-----
-
-The above command suspends (`suspend=y`) the process until a JPDA debugging client, e.g. your IDE, is connected, and that Spark is available under `/Users/jacek/dev/oss/spark`. Change it to meet your environment.
-====
+### Internals of org.apache.spark.deploy.master.Master
 
 When `Master` starts, it first creates the xref:ROOT:SparkConf.md#default-configuration[default SparkConf configuration] whose values it then overrides using  <<environment-variables, environment variables>> and <<command-line-options, command-line options>>.
 
@@ -266,7 +280,7 @@ TIP: When in troubles, consult link:spark-tips-and-tricks.md[Spark Tips and Tric
 
 It starts <<rpcenv, RPC Environment>> with necessary endpoints and lives until the RPC environment terminates.
 
-=== [[worker-management]] Worker Management
+### Worker Management
 
 Master uses `master-forward-message-thread` to schedule a thread every `spark.worker.timeout` to check workers' availability and remove timed-out workers.
 
@@ -278,7 +292,7 @@ When a worker hasn't responded for `spark.worker.timeout`, it is assumed dead an
 WARN Removing [worker.id] because we got no heartbeat in [spark.worker.timeout] seconds
 ```
 
-=== [[environment-variables]] System Environment Variables
+### System Environment Variables
 
 Master uses the following system environment variables (directly or indirectly):
 
@@ -291,14 +305,7 @@ Master uses the following system environment variables (directly or indirectly):
 * `SPARK_PUBLIC_DNS` (default: hostname) - the custom master hostname for WebUI's http URL and master's address.
 * `SPARK_CONF_DIR` (default: `$SPARK_HOME/conf`) - the directory of the default properties file link:spark-properties.md#spark-defaults-conf[spark-defaults.conf] from which all properties that start with `spark.` prefix are loaded.
 
-=== [[settings]] Settings
-
-[CAUTION]
-====
-FIXME
-
-* Where are `RETAINED_`'s properties used?
-====
+### Settings
 
 Master uses the following properties:
 
@@ -314,54 +321,3 @@ Master uses the following properties:
 * `spark.deploy.defaultCores` (default: `Int.MaxValue`, i.e. unbounded) - the number of maxCores for applications that don't specify it.
 * `spark.master.rest.enabled` (default: `true`) - <<rest-server, master's REST Server>> for alternative application submission that is supposed to work across Spark versions.
 * `spark.master.rest.port` (default: `6066`) - the port of <<rest-server, master's REST Server>>
-
-=== [[creating-instance]] Creating Master Instance
-
-`Master` takes the following when created:
-
-* [[rpcEnv]] xref:rpc:index.md[RpcEnv]
-* [[address]] xref:rpc:index.md#RpcAddress[RpcAddress]
-* [[webUiPort]] Port of the web UI
-* [[securityMgr]] `SecurityManager`
-* [[conf]] xref:ROOT:SparkConf.md[SparkConf]
-
-`Master` initializes the <<internal-registries, internal registries and counters>>.
-
-=== [[startRpcEnvAndEndpoint]] `startRpcEnvAndEndpoint` Method
-
-[source, scala]
-----
-startRpcEnvAndEndpoint(
-  host: String,
-  port: Int,
-  webUiPort: Int,
-  conf: SparkConf): (RpcEnv, Int, Option[Int])
-----
-
-`startRpcEnvAndEndpoint`...FIXME
-
-[NOTE]
-====
-`startRpcEnvAndEndpoint` is used when:
-
-* `Master` standalone application is <<main, launched>>
-
-* `LocalSparkCluster` is requested to `start`
-====
-
-=== [[main]] Launching Main Standalone Application -- `main` Method
-
-[source, scala]
-----
-main(argStrings: Array[String]): Unit
-----
-
-`main`...FIXME
-
-[source]
-----
-$ ./bin/spark-class org.apache.spark.deploy.master.Master
-...FIXME
-----
-
-NOTE: `main` is used when...FIXME

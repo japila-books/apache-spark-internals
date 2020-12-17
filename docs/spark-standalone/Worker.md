@@ -1,19 +1,19 @@
 # Worker
 
-`Worker` is a logical node in a Spark Standalone cluster.
+`Worker` is a logical worker node in a Spark Standalone cluster.
 
-`Worker` is a standalone application that can be [launched from command line](#launching-standalone-worker).
+`Worker` can be [launched from command line](#launch).
 
 ## <span id="ENDPOINT_NAME"> Worker RPC Endpoint
 
-`Worker` is a [ThreadSafeRpcEndpoint](../rpc/RpcEndpoint.md#ThreadSafeRpcEndpoint) and is registered under **Worker** name (when [launched as a command-line application](#launching-standalone-worker) and requested to [set up an RPC environment](#startRpcEnvAndEndpoint)).
+`Worker` is a [ThreadSafeRpcEndpoint](../rpc/RpcEndpoint.md#ThreadSafeRpcEndpoint) and is registered under **Worker** name (when [launched as a command-line application](#launch) and requested to [set up an RPC environment](#startRpcEnvAndEndpoint)).
 
-## Launching Standalone Worker
+## <span id="launch"> Launching Standalone Worker
 
 `Worker` can be launched as a standalone application using [spark-class](../tools/spark-class.md).
 
 ```text
-spark-class org.apache.spark.deploy.worker.Worker
+./bin/spark-class org.apache.spark.deploy.worker.Worker
 ```
 
 !!! note
@@ -116,7 +116,7 @@ spark://host1:port1,host2:port2,...
 
 * `Worker` utility is requested to [startRpcEnvAndEndpoint](Worker.md#startRpcEnvAndEndpoint)
 
-## <span id="startRpcEnvAndEndpoint"> Setting Up RPC Environment
+## <span id="startRpcEnvAndEndpoint"> Starting Up RPC Environment
 
 ```scala
 startRpcEnvAndEndpoint(
