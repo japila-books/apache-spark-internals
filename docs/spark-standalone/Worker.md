@@ -116,6 +116,20 @@ spark://host1:port1,host2:port2,...
 
 * `Worker` utility is requested to [startRpcEnvAndEndpoint](Worker.md#startRpcEnvAndEndpoint)
 
+## <span id="shuffleService"> ExternalShuffleService
+
+`Worker` initializes an [ExternalShuffleService](../external-shuffle-service/ExternalShuffleService.md) (directly or indirectly using a [Supplier](#externalShuffleServiceSupplier) if given).
+
+`ExternalShuffleService` is [started](../external-shuffle-service/ExternalShuffleService.md#startIfEnabled) when `Worker` is requested to [startExternalShuffleService](#startExternalShuffleService).
+
+`ExternalShuffleService` is used as follows:
+
+* Informed about an [application removed](../external-shuffle-service/ExternalShuffleService.md#applicationRemoved) when `Worker` handles a [WorkDirCleanup](#WorkDirCleanup) message or [maybeCleanupApplication](#maybeCleanupApplication)
+
+* Informed about an [executor removed](../external-shuffle-service/ExternalShuffleService.md#executorRemoved) when `Worker` is requested to [handleExecutorStateChanged](#handleExecutorStateChanged)
+
+`ExternalShuffleService` is [stopped](../external-shuffle-service/ExternalShuffleService.md#stop) when `Worker` is requested to [stop](#stop).
+
 ## <span id="startRpcEnvAndEndpoint"> Starting Up RPC Environment
 
 ```scala

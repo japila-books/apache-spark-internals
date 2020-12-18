@@ -4,14 +4,14 @@
 
 `ExternalShuffleService` manages shuffle output files so they are available to executors. As the shuffle output files are managed externally to the executors it offers an uninterrupted access to the shuffle output files regardless of executors being killed or down (esp. with [Dynamic Allocation of Executors](../dynamic-allocation/index.md)).
 
-`ExternalShuffleService` is a standalone application that can be [launched from command line](#launching-externalshuffleservice).
+`ExternalShuffleService` can be [launched from command line](#launch).
 
 `ExternalShuffleService` is enabled on the driver and executors using [spark.shuffle.service.enabled](../configuration-properties.md#spark.shuffle.service.enabled) configuration property.
 
 !!! note
     Spark on YARN uses a custom external shuffle service (`YarnShuffleService`).
 
-## Launching ExternalShuffleService
+## <span id="launch"> Launching ExternalShuffleService
 
 `ExternalShuffleService` can be launched as a standalone application using [spark-class](../tools/spark-class.md).
 
@@ -65,8 +65,8 @@ Shutting down shuffle service.
 
 `ExternalShuffleService` is created when:
 
-* `ExternalShuffleService` standalone application is [started](#launching-externalshuffleservice)
-* `Worker` (Spark Standalone) is created (and initializes an `ExternalShuffleService`)
+* `ExternalShuffleService` standalone application is [started](#launch)
+* `Worker` (Spark Standalone) is [created](../spark-standalone/Worker.md#shuffleService) (and initializes an `ExternalShuffleService`)
 
 ## <span id="server"> TransportServer
 
@@ -125,7 +125,7 @@ Starting shuffle service on port [port] (auth enabled = [authEnabled])
 
 `start` is used when:
 
-* `ExternalShuffleService` is requested to [startIfEnabled](#startIfEnabled) and is [launched](#launching-externalshuffleservice) (as a command-line application)
+* `ExternalShuffleService` is requested to [startIfEnabled](#startIfEnabled) and is [launched](#launch) (as a command-line application)
 
 ## <span id="startIfEnabled"> startIfEnabled
 
