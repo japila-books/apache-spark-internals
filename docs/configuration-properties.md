@@ -30,6 +30,17 @@ Used when:
 * `Worker` (Spark Standalone) is requested to handle a `WorkDirCleanup` message or started
 * `ExecutorRunnable` (Spark on YARN) is requested to `startContainer`
 
+## <span id="spark.shuffle.service.db.enabled"><span id="SHUFFLE_SERVICE_DB_ENABLED"> spark.shuffle.service.db.enabled
+
+Whether to use db in [ExternalShuffleService](external-shuffle-service/ExternalShuffleService.md). Note that this only affects standalone mode.
+
+Default: `true`
+
+Used when:
+
+* `ExternalShuffleService` is requested for an [ExternalBlockHandler](external-shuffle-service/ExternalShuffleService.md#newShuffleBlockHandler)
+* `Worker` (Spark Standalone) is requested to [handle a WorkDirCleanup message](spark-standalone/Worker.md#WorkDirCleanup)
+
 ## <span id="spark.scheduler.minRegisteredResourcesRatio"> spark.scheduler.minRegisteredResourcesRatio
 
 Minimum ratio of (registered resources / total expected resources) before submitting tasks

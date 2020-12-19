@@ -1,6 +1,34 @@
 # ExternalShuffleBlockResolver
 
-*ExternalShuffleBlockResolver* is...FIXME
+## Creating Instance
+
+`ExternalShuffleBlockResolver` takes the following to be created:
+
+* <span id="conf"> [TransportConf](../network/TransportConf.md)
+* <span id="registeredExecutorFile"> `registeredExecutor` File (Java's [File]({{ java.api }}/java.base/java/io/File.html))
+* [Directory Cleaner](#directoryCleaner)
+
+`ExternalShuffleBlockResolver` is created when:
+
+* `ExternalBlockHandler` is [created](ExternalBlockHandler.md#blockManager)
+
+## <span id="directoryCleaner"> Directory Cleaner Executor
+
+`ExternalShuffleBlockResolver` can be given a Java [Executor]({{ java.api }}/java.base/java/util/concurrent/Executor.html) or use a single worker thread executor (with **spark-shuffle-directory-cleaner** thread prefix).
+
+## Logging
+
+Enable `ALL` logging level for `org.apache.spark.network.shuffle.ExternalShuffleBlockResolver` logger to see what happens inside.
+
+Add the following line to `conf/log4j.properties`:
+
+```text
+log4j.logger.org.apache.spark.network.shuffle.ExternalShuffleBlockResolver=ALL
+```
+
+Refer to [Logging](../spark-logging.md).
+
+## Others
 
 == [[getBlockData]] getBlockData Method
 
@@ -37,16 +65,3 @@ It throws a `RuntimeException` when no `ExecutorShuffleInfo` could be found.
 ```
 Executor is not registered (appId=[appId], execId=[execId])"
 ```
-
-== [[logging]] Logging
-
-Enable `ALL` logging level for `org.apache.spark.network.shuffle.ExternalShuffleBlockResolver` logger to see what happens inside.
-
-Add the following line to `conf/log4j.properties`:
-
-[source,plaintext]
-----
-log4j.logger.org.apache.spark.network.shuffle.ExternalShuffleBlockResolver=ALL
-----
-
-Refer to spark-logging.md[Logging].

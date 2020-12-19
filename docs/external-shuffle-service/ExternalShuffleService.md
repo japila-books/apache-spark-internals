@@ -88,9 +88,9 @@ server: TransportServer
 
 ## <span id="enabled"><span id="spark.shuffle.service.enabled"> spark.shuffle.service.enabled
 
-`ExternalShuffleService` uses [spark.shuffle.service.enabled](../configuration-properties.md#spark.shuffle.service.enabled) configuration property to control whether or not is enabled (and should be [start](#startIfEnabled) when requested).
+`ExternalShuffleService` uses [spark.shuffle.service.enabled](../configuration-properties.md#spark.shuffle.service.enabled) configuration property to control whether or not is enabled (and should be [started](#startIfEnabled) when requested).
 
-## <span id="blockHandler"><span id="newShuffleBlockHandler"><span id="getBlockHandler"> ExternalBlockHandler
+## <span id="blockHandler"><span id="newShuffleBlockHandler"><span id="getBlockHandler"><span id="registeredExecutorsDB"> ExternalBlockHandler
 
 ```scala
 blockHandler: ExternalBlockHandler
@@ -98,12 +98,31 @@ blockHandler: ExternalBlockHandler
 
 `ExternalShuffleService` creates an [ExternalBlockHandler](ExternalBlockHandler.md) when [created](#creating-instance).
 
+With [spark.shuffle.service.db.enabled](../configuration-properties.md#spark.shuffle.service.db.enabled) and [spark.shuffle.service.enabled](#enabled) configuration properties enabled, the `ExternalBlockHandler` is given a [local directory with a registeredExecutors.ldb file](#findRegisteredExecutorsDBFile).
+
 `blockHandler` is used to create a [TransportContext](../network/TransportContext.md) that creates the [TransportServer](#server).
 
 `blockHandler` is used when:
 
 * [applicationRemoved](#applicationRemoved)
 * [executorRemoved](#executorRemoved)
+
+### <span id="findRegisteredExecutorsDBFile"> findRegisteredExecutorsDBFile
+
+```scala
+findRegisteredExecutorsDBFile(
+  dbName: String): File
+```
+
+`findRegisteredExecutorsDBFile` returns one of the local directories (defined using [spark.local.dir](../configuration-properties.md#spark.local.dir) configuration property) with the input `dbName` file or `null` when no directories defined.
+
+`findRegisteredExecutorsDBFile` searches the local directories (defined using [spark.local.dir](../configuration-properties.md#spark.local.dir) configuration property) for the input `dbName` file. Unless found, `findRegisteredExecutorsDBFile` takes the first local directory.
+
+With no local directories defined in [spark.local.dir](../configuration-properties.md#spark.local.dir) configuration property, `findRegisteredExecutorsDBFile` prints out the following WARN message to the logs and returns `null`.
+
+```text
+'spark.local.dir' should be set first when we use db in ExternalShuffleService. Note that this only affects standalone mode.
+```
 
 ## <span id="start"> Starting ExternalShuffleService
 
