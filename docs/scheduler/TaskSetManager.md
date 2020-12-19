@@ -967,7 +967,7 @@ Internally, `executorLost` first checks whether the <<tasks, tasks>> are Shuffle
 
 NOTE: `executorLost` checks out the first task in <<tasks, tasks>> as it is assumed the other belong to the same stage. If the task is a ShuffleMapTask.md[ShuffleMapTask], the entire <<taskSet, TaskSet>> is for a ShuffleMapStage.md[ShuffleMapStage].
 
-NOTE: `executorLost` uses core:SparkEnv.md#blockManager[`SparkEnv` to access the current `BlockManager`] and finds out whether an storage:BlockManager.md#externalShuffleServiceEnabled[external shuffle service is enabled] or not (based on configuration-properties.md#spark.shuffle.service.enabled[spark.shuffle.service.enabled] configuration property).
+NOTE: `executorLost` uses core:SparkEnv.md#blockManager[`SparkEnv` to access the current `BlockManager`] and finds out whether an storage:BlockManager.md#externalShuffleServiceEnabled[external shuffle service is enabled] or not (based on [spark.shuffle.service.enabled](../external-shuffle-service/configuration-properties.md#spark.shuffle.service.enabled) configuration property).
 
 If `executorLost` is indeed due to an executor lost that executed tasks for a ShuffleMapStage.md[ShuffleMapStage] (that this `TaskSetManager` manages) and no external shuffle server is enabled, `executorLost` finds <<taskInfos, all the tasks>> that were scheduled on this lost executor and marks the <<successful, ones that were already successfully completed>> as not executed yet.
 

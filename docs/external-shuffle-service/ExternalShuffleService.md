@@ -6,7 +6,7 @@
 
 `ExternalShuffleService` can be [launched from command line](#launch).
 
-`ExternalShuffleService` is enabled on the driver and executors using [spark.shuffle.service.enabled](../configuration-properties.md#spark.shuffle.service.enabled) configuration property.
+`ExternalShuffleService` is enabled on the driver and executors using [spark.shuffle.service.enabled](configuration-properties.md#spark.shuffle.service.enabled) configuration property.
 
 !!! note
     Spark on YARN uses a custom external shuffle service (`YarnShuffleService`).
@@ -40,7 +40,7 @@ Started daemon with process name: [name]
 
 `main` creates a `SecurityManager`.
 
-`main` turns [spark.shuffle.service.enabled](../configuration-properties.md#spark.shuffle.service.enabled) to `true` explicitly (since this service is started from the command line for a reason).
+`main` turns [spark.shuffle.service.enabled](configuration-properties.md#spark.shuffle.service.enabled) to `true` explicitly (since this service is started from the command line for a reason).
 
 `main` creates an [ExternalShuffleService](#creating-instance) and [starts it](#start).
 
@@ -84,11 +84,11 @@ server: TransportServer
 
 ## <span id="port"><span id="spark.shuffle.service.port"> Port
 
-`ExternalShuffleService` uses [spark.shuffle.service.port](../configuration-properties.md#spark.shuffle.service.port) configuration property for the port to listen to when [started](#start).
+`ExternalShuffleService` uses [spark.shuffle.service.port](configuration-properties.md#spark.shuffle.service.port) configuration property for the port to listen to when [started](#start).
 
 ## <span id="enabled"><span id="spark.shuffle.service.enabled"> spark.shuffle.service.enabled
 
-`ExternalShuffleService` uses [spark.shuffle.service.enabled](../configuration-properties.md#spark.shuffle.service.enabled) configuration property to control whether or not is enabled (and should be [started](#startIfEnabled) when requested).
+`ExternalShuffleService` uses [spark.shuffle.service.enabled](configuration-properties.md#spark.shuffle.service.enabled) configuration property to control whether or not is enabled (and should be [started](#startIfEnabled) when requested).
 
 ## <span id="blockHandler"><span id="newShuffleBlockHandler"><span id="getBlockHandler"><span id="registeredExecutorsDB"> ExternalBlockHandler
 
@@ -98,7 +98,7 @@ blockHandler: ExternalBlockHandler
 
 `ExternalShuffleService` creates an [ExternalBlockHandler](ExternalBlockHandler.md) when [created](#creating-instance).
 
-With [spark.shuffle.service.db.enabled](../configuration-properties.md#spark.shuffle.service.db.enabled) and [spark.shuffle.service.enabled](#enabled) configuration properties enabled, the `ExternalBlockHandler` is given a [local directory with a registeredExecutors.ldb file](#findRegisteredExecutorsDBFile).
+With [spark.shuffle.service.db.enabled](configuration-properties.md#spark.shuffle.service.db.enabled) and [spark.shuffle.service.enabled](#enabled) configuration properties enabled, the `ExternalBlockHandler` is given a [local directory with a registeredExecutors.ldb file](#findRegisteredExecutorsDBFile).
 
 `blockHandler` is used to create a [TransportContext](../network/TransportContext.md) that creates the [TransportServer](#server).
 
@@ -157,6 +157,33 @@ startIfEnabled(): Unit
 `startIfEnabled` is used when:
 
 * `Worker` (Spark Standalone) is requested to `startExternalShuffleService`
+
+## <span id="executorRemoved"> Executor Removed Notification
+
+```scala
+executorRemoved(
+  executorId: String,
+  appId: String): Unit
+```
+
+`executorRemoved` requests the [ExternalBlockHandler](#blockHandler) to [executorRemoved](ExternalBlockHandler.md#executorRemoved).
+
+`executorRemoved` is used when:
+
+* `Worker` (Spark Standalone) is requested to [handleExecutorStateChanged](../spark-standalone/Worker.md#handleExecutorStateChanged)
+
+## <span id="applicationRemoved"> Application Finished Notification
+
+```scala
+applicationRemoved(
+  appId: String): Unit
+```
+
+`applicationRemoved` requests the [ExternalBlockHandler](#blockHandler) to [applicationRemoved](ExternalBlockHandler.md#applicationRemoved) (with `cleanupLocalDirs` flag enabled).
+
+`applicationRemoved` is used when:
+
+* `Worker` (Spark Standalone) is requested to handle [WorkDirCleanup](../spark-standalone/Worker.md#WorkDirCleanup) message and [maybeCleanupApplication](../spark-standalone/Worker.md#maybeCleanupApplication)
 
 ## Logging
 

@@ -34,7 +34,7 @@ validateSettings(): Unit
 
 * [spark.dynamicAllocation.executorIdleTimeout](configuration-properties.md#spark.dynamicAllocation.executorIdleTimeout) must be greater than `0`
 
-* [spark.shuffle.service.enabled](configuration-properties.md#spark.shuffle.service.enabled) must be enabled.
+* [spark.shuffle.service.enabled](../external-shuffle-service/configuration-properties.md#spark.shuffle.service.enabled) must be enabled.
 
 * The number of tasks per core, i.e. [spark.executor.cores](../executor/Executor.md#spark.executor.cores) divided by [spark.task.cpus](configuration-properties.md#spark.task.cpus), is not zero.
 

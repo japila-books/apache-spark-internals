@@ -34,7 +34,7 @@ When [External Shuffle Service is enabled](#externalShuffleServiceEnabled), Bloc
 * <span id="securityManager"> `SecurityManager`
 * <span id="externalBlockStoreClient"> [ExternalBlockStoreClient](ExternalBlockStoreClient.md)
 
-When created, BlockManager sets [externalShuffleServiceEnabled](#externalShuffleServiceEnabled) internal flag based on [spark.shuffle.service.enabled](../configuration-properties.md#spark.shuffle.service.enabled) configuration property.
+When created, BlockManager sets [externalShuffleServiceEnabled](#externalShuffleServiceEnabled) internal flag based on [spark.shuffle.service.enabled](../external-shuffle-service/configuration-properties.md#spark.shuffle.service.enabled) configuration property.
 
 BlockManager then creates an instance of [DiskBlockManager](DiskBlockManager.md) (requesting `deleteFilesOnStop` when an external shuffle service is not in use).
 
@@ -111,7 +111,7 @@ readDiskBlockFromSameHostExecutor(
 
 * Closes when requested to [stop](#stop)
 
-The `ShuffleClient` can be an [ExternalShuffleClient](ExternalShuffleClient.md) or the given [BlockTransferService](#blockTransferService) based on [spark.shuffle.service.enabled](../configuration-properties.md#spark.shuffle.service.enabled) configuration property. When enabled, BlockManager uses the [ExternalShuffleClient](ExternalShuffleClient.md).
+The `ShuffleClient` can be an [ExternalShuffleClient](ExternalShuffleClient.md) or the given [BlockTransferService](#blockTransferService) based on [spark.shuffle.service.enabled](../external-shuffle-service/configuration-properties.md#spark.shuffle.service.enabled) configuration property. When enabled, BlockManager uses the [ExternalShuffleClient](ExternalShuffleClient.md).
 
 The `ShuffleClient` is available to other Spark services (using `shuffleClient` value) and is used when BlockStoreShuffleReader is requested to [read combined key-value records for a reduce task](../shuffle/BlockStoreShuffleReader.md#read).
 
@@ -197,7 +197,7 @@ org.apache.spark.storage.BlockManager
 
 `BlockManager` is given a [BlockTransferService](BlockTransferService.md) when [created](#creating-instance).
 
-`BlockTransferService` is used as the [ShuffleClient](#shuffleClient) when `BlockManager` is configured with no external shuffle service (based on [spark.shuffle.service.enabled](../configuration-properties.md#spark.shuffle.service.enabled) configuration property).
+`BlockTransferService` is used as the [ShuffleClient](#shuffleClient) when `BlockManager` is configured with no external shuffle service (based on [spark.shuffle.service.enabled](../external-shuffle-service/configuration-properties.md#spark.shuffle.service.enabled) configuration property).
 
 `BlockTransferService` is [initialized](BlockTransferService.md#init) when `BlockManager` [is](#initialize).
 
@@ -949,11 +949,11 @@ addUpdatedBlockStatusToTaskMetrics(
 shuffleMetricsSource: Source
 ```
 
-`shuffleMetricsSource` requests the [ShuffleClient](#shuffleClient) for the [shuffle metrics](ShuffleClient.md#shuffleMetrics) and creates a [ShuffleMetricsSource](ShuffleMetricsSource.md) with the [source name](ShuffleMetricsSource.md#sourceName) based on [spark.shuffle.service.enabled](../configuration-properties.md#spark.shuffle.service.enabled) configuration property:
+`shuffleMetricsSource` requests the [ShuffleClient](#shuffleClient) for the [shuffle metrics](ShuffleClient.md#shuffleMetrics) and creates a [ShuffleMetricsSource](ShuffleMetricsSource.md) with the [source name](ShuffleMetricsSource.md#sourceName) based on [spark.shuffle.service.enabled](../external-shuffle-service/configuration-properties.md#spark.shuffle.service.enabled) configuration property:
 
-* **ExternalShuffle** when [spark.shuffle.service.enabled](../configuration-properties.md#spark.shuffle.service.enabled) configuration property is on (`true`)
+* **ExternalShuffle** when [spark.shuffle.service.enabled](../external-shuffle-service/configuration-properties.md#spark.shuffle.service.enabled) configuration property is on (`true`)
 
-* **NettyBlockTransfer** when [spark.shuffle.service.enabled](../configuration-properties.md#spark.shuffle.service.enabled) configuration property is off (`false`)
+* **NettyBlockTransfer** when [spark.shuffle.service.enabled](../external-shuffle-service/configuration-properties.md#spark.shuffle.service.enabled) configuration property is off (`false`)
 
 `shuffleMetricsSource` is used when [Executor](../executor/Executor.md) is created (for non-local / cluster modes).
 

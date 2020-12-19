@@ -4,7 +4,7 @@
 
 Unlike the "traditional" static allocation where a Spark application reserves CPU and memory resources upfront (irrespective of how much it may eventually use), in dynamic allocation you get as much as needed and no more. It scales the number of executors up and down based on workload, i.e. idle executors are removed, and when there are pending tasks waiting for executors to be launched on, dynamic allocation requests them.
 
-Dynamic allocation is enabled using [spark.dynamicAllocation.enabled](configuration-properties.md#spark.dynamicAllocation.enabled) configuration property. When enabled, it is assumed that the [External Shuffle Service](../external-shuffle-service/ExternalShuffleService.md) is also used (it is not by default as controlled by [spark.shuffle.service.enabled](../configuration-properties.md#spark.shuffle.service.enabled) configuration property).
+Dynamic allocation is enabled using [spark.dynamicAllocation.enabled](configuration-properties.md#spark.dynamicAllocation.enabled) configuration property. When enabled, it is assumed that the [External Shuffle Service](../external-shuffle-service/ExternalShuffleService.md) is also used (it is not by default as controlled by [spark.shuffle.service.enabled](../external-shuffle-service/configuration-properties.md#spark.shuffle.service.enabled) configuration property).
 
 [ExecutorAllocationManager](ExecutorAllocationManager.md) is responsible for dynamic allocation of executors.
 

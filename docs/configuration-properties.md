@@ -1,46 +1,5 @@
 # Spark Configuration Properties
 
-## <span id="spark.shuffle.service.port"><span id="SHUFFLE_SERVICE_PORT"> spark.shuffle.service.port
-
-Port of the [external shuffle service](external-shuffle-service/ExternalShuffleService.md)
-
-Default: `7337`
-
-Used when:
-
-* `ExternalShuffleService` is [created](external-shuffle-service/ExternalShuffleService.md#port)
-* `StorageUtils` utility is requested for the [port of an external shuffle service](storage/StorageUtils.md#externalShuffleServicePort)
-
-## <span id="spark.shuffle.service.enabled"><span id="SHUFFLE_SERVICE_ENABLED"> spark.shuffle.service.enabled
-
-Controls whether to use the [External Shuffle Service](external-shuffle-service/ExternalShuffleService.md)
-
-Default: `false`
-
-!!! note
-    `LocalSparkCluster` turns this property off explicitly when started.
-
-Used when:
-
-* `BlacklistTracker` is requested to [updateBlacklistForFetchFailure](scheduler/BlacklistTracker.md#updateBlacklistForFetchFailure)
-* `ExecutorMonitor` is created
-* `ExecutorAllocationManager` is requested to [validateSettings](dynamic-allocation/ExecutorAllocationManager.md#validateSettings)
-* `SparkEnv` utility is requested to [create a "base" SparkEnv](SparkEnv.md#create)
-* `ExternalShuffleService` is [created](external-shuffle-service/ExternalShuffleService.md#enabled) and [started](external-shuffle-service/ExternalShuffleService.md#main)
-* `Worker` (Spark Standalone) is requested to handle a `WorkDirCleanup` message or started
-* `ExecutorRunnable` (Spark on YARN) is requested to `startContainer`
-
-## <span id="spark.shuffle.service.db.enabled"><span id="SHUFFLE_SERVICE_DB_ENABLED"> spark.shuffle.service.db.enabled
-
-Whether to use db in [ExternalShuffleService](external-shuffle-service/ExternalShuffleService.md). Note that this only affects standalone mode.
-
-Default: `true`
-
-Used when:
-
-* `ExternalShuffleService` is requested for an [ExternalBlockHandler](external-shuffle-service/ExternalShuffleService.md#newShuffleBlockHandler)
-* `Worker` (Spark Standalone) is requested to [handle a WorkDirCleanup message](spark-standalone/Worker.md#WorkDirCleanup)
-
 ## <span id="spark.scheduler.minRegisteredResourcesRatio"> spark.scheduler.minRegisteredResourcesRatio
 
 Minimum ratio of (registered resources / total expected resources) before submitting tasks

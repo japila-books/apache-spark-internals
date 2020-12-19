@@ -29,3 +29,32 @@
 ## <span id="blockManager"> ExternalShuffleBlockResolver
 
 `ExternalBlockHandler` can be given or creates an [ExternalShuffleBlockResolver](ExternalShuffleBlockResolver.md) to be [created](#creating-instance).
+
+## <span id="executorRemoved"> Executor Removed Notification
+
+```java
+void executorRemoved(
+  String executorId,
+  String appId)
+```
+
+`executorRemoved` requests the [ExternalShuffleBlockResolver](#blockManager) to [executorRemoved](ExternalShuffleBlockResolver.md#executorRemoved).
+
+`executorRemoved` is used when:
+
+* `ExternalShuffleService` is requested to [executorRemoved](ExternalShuffleService.md#executorRemoved)
+
+## <span id="applicationRemoved"> Application Finished Notification
+
+```java
+void applicationRemoved(
+  String appId,
+  boolean cleanupLocalDirs)
+```
+
+`applicationRemoved` requests the [ExternalShuffleBlockResolver](#blockManager) to [applicationRemoved](ExternalShuffleBlockResolver.md#applicationRemoved).
+
+`applicationRemoved` is used when:
+
+* `ExternalShuffleService` is requested to [applicationRemoved](ExternalShuffleService.md#applicationRemoved)
+* `YarnShuffleService` (Spark on YARN) is requested to `stopApplication`

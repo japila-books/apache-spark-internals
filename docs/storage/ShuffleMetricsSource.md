@@ -26,6 +26,6 @@ The MetricSet is requested from the storage:ShuffleClient.md#shuffleMetrics[Shuf
 
 ShuffleMetricsSource is given a name when <<creating-instance, created>> that is one of the following:
 
-* *NettyBlockTransfer* when configuration-properties.md#spark.shuffle.service.enabled[spark.shuffle.service.enabled] configuration property is off (`false`)
+* **NettyBlockTransfer** when [spark.shuffle.service.enabled](../external-shuffle-service/configuration-properties.md#spark.shuffle.service.enabled) configuration property is off (`false`)
 
-* *ExternalShuffle* when configuration-properties.md#spark.shuffle.service.enabled[spark.shuffle.service.enabled] configuration property is on (`true`)
+* **ExternalShuffle** when [spark.shuffle.service.enabled](../external-shuffle-service/configuration-properties.md#spark.shuffle.service.enabled) configuration property is on (`true`)

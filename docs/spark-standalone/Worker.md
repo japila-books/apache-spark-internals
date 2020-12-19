@@ -40,7 +40,7 @@ Started daemon with process name: [processName]
 
 `main` asserts that:
 
-1. [External shuffle service](../external-shuffle-service/index.md) is not used (based on [spark.shuffle.service.enabled](../configuration-properties.md#spark.shuffle.service.enabled) configuration property)
+1. [External shuffle service](../external-shuffle-service/index.md) is not used (based on [spark.shuffle.service.enabled](../external-shuffle-service/configuration-properties.md#spark.shuffle.service.enabled) configuration property)
 1. Number of worker instances is `1` (based on `SPARK_WORKER_INSTANCES` environment variable)
 
 `main` throws an `IllegalArgumentException` when the above does not hold:
@@ -178,6 +178,77 @@ createWorkDir(): Unit
 In the end, `createWorkDir` creates <<workDir, workDir>> directory (including any necessary but nonexistent parent directories).
 
 `createWorkDir` reports...FIXME
+
+## Messages
+
+### <span id="ApplicationFinished"> ApplicationFinished
+
+### <span id="DriverStateChanged"> DriverStateChanged
+
+### <span id="ExecutorStateChanged"> ExecutorStateChanged
+
+```scala
+ExecutorStateChanged(
+  appId: String,
+  execId: Int,
+  state: ExecutorState,
+  message: Option[String],
+  exitStatus: Option[Int])
+```
+
+Message Handler: [handleExecutorStateChanged](#handleExecutorStateChanged)
+
+Posted when:
+
+* `ExecutorRunner` is requested to [killProcess](ExecutorRunner.md#killProcess) and [fetchAndRunExecutor](ExecutorRunner.md#fetchAndRunExecutor)
+
+### <span id="KillDriver"> KillDriver
+
+### <span id="KillExecutor"> KillExecutor
+
+### <span id="LaunchDriver"> LaunchDriver
+
+### <span id="LaunchExecutor"> LaunchExecutor
+
+### <span id="MasterChanged"> MasterChanged
+
+### <span id="ReconnectWorker"> ReconnectWorker
+
+### <span id="RegisterWorkerResponse"> RegisterWorkerResponse
+
+### <span id="ReregisterWithMaster"> ReregisterWithMaster
+
+### <span id="RequestWorkerState"> RequestWorkerState
+
+### <span id="SendHeartbeat"> SendHeartbeat
+
+### <span id="WorkDirCleanup"> WorkDirCleanup
+
+## <span id="handleExecutorStateChanged"> handleExecutorStateChanged
+
+```scala
+handleExecutorStateChanged(
+  executorStateChanged: ExecutorStateChanged): Unit
+```
+
+`handleExecutorStateChanged`...FIXME
+
+`handleExecutorStateChanged` is used when:
+
+* `Worker` is requested to handle [ExecutorStateChanged](#ExecutorStateChanged) message
+
+## <span id="maybeCleanupApplication"> maybeCleanupApplication
+
+```scala
+maybeCleanupApplication(
+  id: String): Unit
+```
+
+`maybeCleanupApplication`...FIXME
+
+`maybeCleanupApplication` is used when:
+
+* `Worker` is requested to [handle a ApplicationFinished message](#ApplicationFinished) and [handleExecutorStateChanged](#handleExecutorStateChanged)
 
 ## Logging
 
