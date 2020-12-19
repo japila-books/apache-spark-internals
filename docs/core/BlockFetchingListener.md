@@ -1,6 +1,6 @@
-= BlockFetchingListener
+# BlockFetchingListener
 
-*BlockFetchingListener* is the <<contract, contract>> of <<implementations, EventListeners>> that want to be notified about <<onBlockFetchSuccess, onBlockFetchSuccess>> and <<onBlockFetchFailure, onBlockFetchFailure>>.
+`BlockFetchingListener` is the <<contract, contract>> of <<implementations, EventListeners>> that want to be notified about <<onBlockFetchSuccess, onBlockFetchSuccess>> and <<onBlockFetchFailure, onBlockFetchFailure>>.
 
 BlockFetchingListener is used when:
 

@@ -1,5 +1,7 @@
 # ExternalShuffleBlockResolver
 
+`ExternalShuffleBlockResolver` manages converting shuffle [BlockId](../storage/BlockId.md)s into physical segments of local files (from a process outside of [Executor](../executor/Executor.md)s).
+
 ## Creating Instance
 
 `ExternalShuffleBlockResolver` takes the following to be created:
@@ -12,6 +14,14 @@
 
 * `ExternalBlockHandler` is [created](ExternalBlockHandler.md#blockManager)
 
+## <span id="executors"> Executors
+
+`ExternalShuffleBlockResolver` uses a mapping of `ExecutorShuffleInfo`s by `AppExecId`.
+
+`ExternalShuffleBlockResolver` can (re)load this mapping from a [registeredExecutor file](#registeredExecutorFile) or simply start from scratch.
+
+A new mapping is added when [registering an executor](#registerExecutor).
+
 ## <span id="directoryCleaner"> Directory Cleaner Executor
 
 `ExternalShuffleBlockResolver` can be given a Java [Executor]({{ java.api }}/java.base/java/util/concurrent/Executor.html) or use a single worker thread executor (with **spark-shuffle-directory-cleaner** thread prefix).
@@ -21,6 +31,21 @@ The `Executor` is used to schedule a thread to clean up [executor's local direct
 ## <span id="rddFetchEnabled"> spark.shuffle.service.fetch.rdd.enabled
 
 `ExternalShuffleBlockResolver` uses [spark.shuffle.service.fetch.rdd.enabled](configuration-properties.md#spark.shuffle.service.fetch.rdd.enabled) configuration property to [control whether or not to remove cached RDD files](#deleteNonShuffleServiceServedFiles) (alongside shuffle output files).
+
+## <span id="registerExecutor"> Registering Executor
+
+```java
+void registerExecutor(
+  String appId,
+  String execId,
+  ExecutorShuffleInfo executorInfo)
+```
+
+`registerExecutor`...FIXME
+
+`registerExecutor` is used when:
+
+* `ExternalBlockHandler` is requested to [handle a RegisterExecutor message](ExternalBlockHandler.md#RegisterExecutor) and [reregisterExecutor](ExternalBlockHandler.md#reregisterExecutor)
 
 ## <span id="executorRemoved"> Cleaning Up Local Directories for Removed Executor
 
@@ -80,7 +105,7 @@ In case of any exceptions, `deleteNonShuffleServiceServedFiles` prints out the f
 Failed to delete files not served by shuffle service in directory: [localDir]
 ```
 
-## <span id="deleteExecutorDirs"> deleteExecutorDirs
+## <span id="applicationRemoved"> Application Removed Notification
 
 ```java
 void applicationRemoved(
@@ -88,9 +113,9 @@ void applicationRemoved(
   boolean cleanupLocalDirs)
 ```
 
-`deleteExecutorDirs`...FIXME
+`applicationRemoved`...FIXME
 
-`deleteExecutorDirs` is used when:
+`applicationRemoved` is used when:
 
 * `ExternalBlockHandler` is requested to [applicationRemoved](ExternalBlockHandler.md#applicationRemoved)
 

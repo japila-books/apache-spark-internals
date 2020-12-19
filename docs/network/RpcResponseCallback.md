@@ -28,11 +28,7 @@ a| [[onSuccess]] Used when:
 
 * `TransportResponseHandler` is requested to handle a `RpcResponse` message
 
-* `ExternalShuffleBlockHandler` is requested to `handleMessage` (i.e. `OpenBlocks` and `RegisterExecutor` messages)
-
 * `AuthRpcHandler` and `SaslRpcHandler` are requested to `receive`
-
-* Spark on Mesos' `MesosExternalShuffleBlockHandler` is requested to `handleMessage` (i.e. `RegisterDriverParam` message)
 
 | `onFailure`
 | [[onFailure]] Used when...FIXME

@@ -1,34 +1,29 @@
-= OneForOneBlockFetcher
+# OneForOneBlockFetcher
 
-*OneForOneBlockFetcher* is...FIXME
+## Creating Instance
 
-== [[creating-instance]] Creating Instance
+`OneForOneBlockFetcher` takes the following to be created:
 
-OneForOneBlockFetcher takes the following to be created:
+* <span id="client"> `TransportClient`
+* <span id="appId"> Application ID
+* <span id="execId"> Executor ID
+* <span id="blockIds"> Block IDs
+* <span id="listener"> [BlockFetchingListener](../core/BlockFetchingListener.md)
+* <span id="transportConf"> [TransportConf](../network/TransportConf.md)
+* <span id="downloadFileManager"> `DownloadFileManager`
 
-* [[client]] TransportClient
-* [[appId]] Application ID
-* [[execId]] Executor ID
-* [[blockIds]] Block IDs
-* [[listener]] core:BlockFetchingListener.md[]
-* [[transportConf]] network:TransportConf.md[]
-* [[downloadFileManager]] DownloadFileManager
+`OneForOneBlockFetcher` is created when:
 
-OneForOneBlockFetcher is created when storage:NettyBlockTransferService.md#fetchBlocks[NettyBlockTransferService] and storage:ExternalShuffleClient.md#fetchBlocks[ExternalShuffleClient] are requested to fetch blocks.
+* `NettyBlockTransferService` is requested to [fetch blocks](NettyBlockTransferService.md#fetchBlocks)
+* `ExternalBlockStoreClient` is requested to [fetch blocks](ExternalBlockStoreClient.md#fetchBlocks)
 
-== [[openMessage]] OpenBlocks Message
+### <span id="createFetchShuffleBlocksMsg"> createFetchShuffleBlocksMsg
 
-OneForOneBlockFetcher creates a OpenBlocks message (for the given <<appId, application>>, <<execId, executor>> and <<blockIds, blocks>>) when <<creating-instance, created>>.
+```java
+FetchShuffleBlocks createFetchShuffleBlocksMsg(
+  String appId,
+  String execId,
+  String[] blockIds)
+```
 
-The OpenBlocks message is posted when OneForOneBlockFetcher is requested to <<start, start>>.
-
-== [[start]] start Method
-
-[source,java]
-----
-void start()
-----
-
-start...FIXME
-
-start is used when storage:NettyBlockTransferService.md#fetchBlocks[NettyBlockTransferService] and storage:ExternalShuffleClient.md#fetchBlocks[ExternalShuffleClient] are requested to fetch blocks.
+`createFetchShuffleBlocksMsg`...FIXME

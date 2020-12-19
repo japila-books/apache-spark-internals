@@ -50,9 +50,6 @@ a| [[receive]] Used when:
 | `AuthRpcHandler`
 | [[AuthRpcHandler]]
 
-| deploy:ExternalShuffleBlockHandler.md[]
-| [[ExternalShuffleBlockHandler]]
-
 | storage:NettyBlockRpcServer.md[]
 | [[NettyBlockRpcServer]]
 

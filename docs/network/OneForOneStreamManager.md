@@ -1,12 +1,12 @@
-= OneForOneStreamManager
+# OneForOneStreamManager
 
-*OneForOneStreamManager* is a network:StreamManager.md[].
+`OneForOneStreamManager` is a [StreamManager](StreamManager.md).
 
-== [[creating-instance]] Creating Instance
+## Creating Instance
 
 OneForOneStreamManager takes no arguments to be created.
 
-OneForOneStreamManager is created for deploy:ExternalShuffleBlockHandler.md[] and storage:ExternalShuffleClient.md[ExternalShuffleClient] (indirectly via NoOpRpcHandler).
+OneForOneStreamManager is created when...FIXME
 
 == [[registerStream]] registerStream Method
 
