@@ -7,7 +7,7 @@
 `ExternalBlockHandler` takes the following to be created:
 
 * <span id="conf"> [TransportConf](../network/TransportConf.md)
-* <span id="registeredExecutorFile"> `registeredExecutor` File (Java's [File]({{ java.api }}/java.base/java/io/File.html))
+* [Registered Executors File](#registeredExecutorFile)
 
 `ExternalBlockHandler` creates the following:
 
@@ -24,9 +24,31 @@
 
 `ExternalBlockHandler` can be given or creates an [OneForOneStreamManager](../network/OneForOneStreamManager.md) to be [created](#creating-instance).
 
-## <span id="blockManager"> ExternalShuffleBlockResolver
+## <span id="blockManager"><span id="getBlockResolver"><span id="ExternalShuffleBlockResolver"> ExternalShuffleBlockResolver
 
 `ExternalBlockHandler` can be given or creates an [ExternalShuffleBlockResolver](ExternalShuffleBlockResolver.md) to be [created](#creating-instance).
+
+`ExternalShuffleBlockResolver` is used for the following:
+
+* [registerExecutor](ExternalShuffleBlockResolver.md#registerExecutor) when `ExternalBlockHandler` is requested to [handle a RegisterExecutor message](#RegisterExecutor)
+* [removeBlocks](ExternalShuffleBlockResolver.md#removeBlocks) when `ExternalBlockHandler` is requested to [handle a RemoveBlocks message](#RemoveBlocks)
+* [getLocalDirs](ExternalShuffleBlockResolver.md#getLocalDirs) when `ExternalBlockHandler` is requested to [handle a GetLocalDirsForExecutors message](#GetLocalDirsForExecutors)
+* [applicationRemoved](ExternalShuffleBlockResolver.md#applicationRemoved) when `ExternalBlockHandler` is requested to [applicationRemoved](#applicationRemoved)
+* [executorRemoved](ExternalShuffleBlockResolver.md#executorRemoved) when `ExternalBlockHandler` is requested to [executorRemoved](#executorRemoved)
+* [registerExecutor](ExternalShuffleBlockResolver.md#registerExecutor) when `ExternalBlockHandler` is requested to [reregisterExecutor](#reregisterExecutor)
+
+`ExternalShuffleBlockResolver` is used for the following:
+
+* [getBlockData](ExternalShuffleBlockResolver.md#getBlockData) and [getRddBlockData](ExternalShuffleBlockResolver.md#getRddBlockData) for `ManagedBufferIterator`
+* [getBlockData](ExternalShuffleBlockResolver.md#getBlockData) and [getContinuousBlocksData](ExternalShuffleBlockResolver.md#getContinuousBlocksData) for `ShuffleManagedBufferIterator`
+
+`ExternalShuffleBlockResolver` is [closed](ExternalShuffleBlockResolver.md#registerExecutor) when is [ExternalBlockHandler](#close).
+
+## <span id="registeredExecutorFile"> Registered Executors File
+
+`ExternalBlockHandler` can be given a Java's [File]({{ java.api }}/java.base/java/io/File.html) (or `null`) to be [created](#creating-instance).
+
+This file is simply to create an [ExternalShuffleBlockResolver](#blockManager).
 
 ## <span id="receive"><span id="handleMessage"><span id="messages"> Messages
 
