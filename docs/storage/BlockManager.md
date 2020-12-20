@@ -744,40 +744,31 @@ Ultimately, if the initialization happens on an executor and the [External Shuff
 
 `initialize` is used when [SparkContext](../SparkContext.md) is created and when an executor:Executor.md#creating-instance[`Executor` is created] (for executor:CoarseGrainedExecutorBackend.md#RegisteredExecutor[CoarseGrainedExecutorBackend] and spark-on-mesos:spark-executor-backends-MesosExecutorBackend.md[MesosExecutorBackend]).
 
-## <span id="registerWithExternalShuffleServer"> Registering Executor's BlockManager with External Shuffle Server
+### <span id="registerWithExternalShuffleServer"> Registering Executor's BlockManager with External Shuffle Server
 
 ```scala
 registerWithExternalShuffleServer(): Unit
 ```
 
-registerWithExternalShuffleServer is an internal helper method to register the BlockManager for an executor with an [external shuffle server](../external-shuffle-service/index.md).
+`registerWithExternalShuffleServer` registers the `BlockManager` (for an executor) with [External Shuffle Service](../external-shuffle-service/index.md).
 
-!!! note
-    It is executed when a [BlockManager is initialized on an executor and an external shuffle service is used](#initialize).
-
-When executed, you should see the following INFO message in the logs:
+`registerWithExternalShuffleServer` prints out the following INFO message to the logs:
 
 ```text
 Registering executor with local external shuffle service.
 ```
 
-It uses [shuffleClient](#shuffleClient) to [register the block manager](ExternalShuffleClient.md#registerWithShuffleServer) using [shuffleServerId](#shuffleServerId) (i.e. the host, the port and the executorId) and a `ExecutorShuffleInfo`.
+`registerWithExternalShuffleServer` creates an [ExecutorShuffleInfo](../external-shuffle-service/ExecutorShuffleInfo.md) (with the [localDirs](DiskBlockManager.md#localDirs) and [subDirsPerLocalDir](DiskBlockManager.md#subDirsPerLocalDir) of the [DiskBlockManager](#diskBlockManager), and the class name of the [ShuffleManager](#shuffleManager)).
 
-!!! note
-    The `ExecutorShuffleInfo` uses `localDirs` and `subDirsPerLocalDir` from [DiskBlockManager](DiskBlockManager.md) and the class name of the constructor [ShuffleManager](../shuffle/ShuffleManager.md).
+`registerWithExternalShuffleServer` uses [spark.shuffle.registration.maxAttempts](../configuration-properties.md#spark.shuffle.registration.maxAttempts) configuration property and `5` sleep time when requesting the [ExternalBlockStoreClient](#blockStoreClient) to [registerWithShuffleServer](ExternalBlockStoreClient.md#registerWithShuffleServer) (using the [BlockManagerId](#shuffleServerId) and the `ExecutorShuffleInfo`).
 
-It tries to register at most 3 times with 5-second sleeps in-between.
-
-!!! note
-    The maximum number of attempts and the sleep time in-between are hard-coded, i.e. they are not configured.
-
-Any issues while connecting to the external shuffle service are reported as ERROR messages in the logs:
+In case of any exception that happen below the maximum number of attempts, `registerWithExternalShuffleServer` prints out the following ERROR message to the logs and sleeps 5 seconds:
 
 ```text
-Failed to connect to external shuffle server, will retry [#attempts] more times after waiting 5 seconds...
+Failed to connect to external shuffle server, will retry [attempts] more times after waiting 5 seconds...
 ```
 
-registerWithExternalShuffleServer is used when BlockManager is requested to [initialize](#initialize) (when executed on an executor with [externalShuffleServiceEnabled](#externalShuffleServiceEnabled)).
+`registerWithExternalShuffleServer` is used when `BlockManager` is requested to [initialize](#initialize) (when executed on an executor with [external shuffle service enabled](#externalShuffleServiceEnabled)).
 
 ## <span id="reregister"> Re-registering BlockManager with Driver and Reporting Blocks
 

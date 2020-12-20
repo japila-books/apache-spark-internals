@@ -63,7 +63,7 @@ Clean up non-shuffle and non-RDD files associated with the finished executor [ex
 
 `executorRemoved` looks up the executor in the [executors](#executors) internal registry.
 
-When found, `executorRemoved` prints out the following INFO message to the logs and requests the [Directory Cleaner Executor](#directoryCleaner) to execute [deletion](#deleteNonShuffleServiceServedFiles) (on a separate thread).
+When found, `executorRemoved` prints out the following INFO message to the logs and requests the [Directory Cleaner Executor](#directoryCleaner) to execute asynchronous [deletion](#deleteNonShuffleServiceServedFiles) of the executor's local directories (on a separate thread).
 
 ```text
 Cleaning up non-shuffle and non-RDD files in executor [AppExecId]'s [localDirs] local dirs

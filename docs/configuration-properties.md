@@ -89,6 +89,14 @@ Default: `120s`
 
 Default: [spark.storage.blockManagerTimeoutIntervalMs](#STORAGE_BLOCKMANAGER_TIMEOUTINTERVAL)
 
+## <span id="spark.shuffle.registration.maxAttempts"><span id="SHUFFLE_REGISTRATION_MAX_ATTEMPTS"> spark.shuffle.registration.maxAttempts
+
+How many attempts to [register a BlockManager with External Shuffle Service](storage/BlockManager.md#registerWithExternalShuffleServer)
+
+Default: `3`
+
+Used when `BlockManager` is requested to [register with External Shuffle Server](storage/BlockManager.md#registerWithExternalShuffleServer)
+
 ## <span id="spark.shuffle.sync"><span id="SHUFFLE_SYNC"> spark.shuffle.sync
 
 Controls whether `DiskBlockObjectWriter` should force outstanding writes to disk while [committing a single atomic block](storage/DiskBlockObjectWriter.md#commitAndGet) (i.e. all operating system buffers should synchronize with the disk to ensure that all changes to a file are in fact recorded in the storage)
