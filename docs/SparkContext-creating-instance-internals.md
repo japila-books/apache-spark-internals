@@ -196,7 +196,7 @@ NOTE: `_applicationAttemptId` is used when `SparkContext` is requested for the S
 
 `SparkContext` sets SparkConf.md#spark.app.id[spark.app.id] property to be the <<_applicationId, unique identifier of a Spark application>> and, if enabled, spark-webui-SparkUI.md#setAppId[passes it on to `SparkUI`].
 
-=== [[BlockManager-initialization]] Initializing BlockManager
+## <span id="BlockManager-initialization"> Initializing BlockManager
 
 The storage:BlockManager.md#initialize[BlockManager (for the driver) is initialized] (with `_applicationId`).
 

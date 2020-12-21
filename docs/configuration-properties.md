@@ -1,5 +1,27 @@
 # Spark Configuration Properties
 
+## <span id="spark.shuffle.readHostLocalDisk"><span id="SHUFFLE_HOST_LOCAL_DISK_READING_ENABLED"> spark.shuffle.readHostLocalDisk
+
+If enabled (with [spark.shuffle.useOldFetchProtocol](#spark.shuffle.useOldFetchProtocol) disabled and [spark.shuffle.service.enabled](../external-shuffle-service/configuration-properties.md#spark.shuffle.service.enabled) enabled), shuffle blocks requested from those block managers which are running on the same host are read from the disk directly instead of being fetched as remote blocks over the network.
+
+Default: `true`
+
+## <span id="spark.storage.localDiskByExecutors.cacheSize"><span id="STORAGE_LOCAL_DISK_BY_EXECUTORS_CACHE_SIZE"> spark.storage.localDiskByExecutors.cacheSize
+
+The max number of executors for which the local dirs are stored. This size is both applied for the driver and both for the executors side to avoid having an unbounded store. This cache will be used to avoid the network in case of fetching disk persisted RDD blocks or shuffle blocks (when [spark.shuffle.readHostLocalDisk](#spark.shuffle.readHostLocalDisk) is set) from the same host.
+
+Default: `1000`
+
+## <span id="spark.shuffle.useOldFetchProtocol"><span id="SHUFFLE_USE_OLD_FETCH_PROTOCOL"> spark.shuffle.useOldFetchProtocol
+
+Whether to use the old protocol while doing the shuffle block fetching. It is only enabled while we need the compatibility in the scenario of new Spark version job fetching shuffle blocks from old version external shuffle service.
+
+Default: `false`
+
+## <span id="spark.storage.replication.policy"> spark.storage.replication.policy
+
+Default: [RandomBlockReplicationPolicy](storage/RandomBlockReplicationPolicy.md)
+
 ## <span id="spark.scheduler.minRegisteredResourcesRatio"> spark.scheduler.minRegisteredResourcesRatio
 
 Minimum ratio of (registered resources / total expected resources) before submitting tasks

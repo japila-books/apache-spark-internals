@@ -4,7 +4,7 @@
 
 ![BlockManager and Stores](../images/storage/BlockManager.png)
 
-`BlockManager` runs on the [driver](../driver.md) and [executors](../executor/Executor.md).
+`BlockManager` runs as part of the [driver](../driver.md) and [executor](../executor/Executor.md) processes.
 
 `BlockManager` provides interface for uploading and fetching blocks both locally and remotely using various [stores](#stores) (i.e. memory, disk, and off-heap).
 
@@ -32,30 +32,107 @@ When [External Shuffle Service is enabled](#externalShuffleServiceEnabled), Bloc
 * [ShuffleManager](#shuffleManager)
 * [BlockTransferService](#blockTransferService)
 * <span id="securityManager"> `SecurityManager`
-* <span id="externalBlockStoreClient"> [ExternalBlockStoreClient](ExternalBlockStoreClient.md)
+* <span id="externalBlockStoreClient"> Optional [ExternalBlockStoreClient](ExternalBlockStoreClient.md)
 
-When created, BlockManager sets [externalShuffleServiceEnabled](#externalShuffleServiceEnabled) internal flag based on [spark.shuffle.service.enabled](../external-shuffle-service/configuration-properties.md#spark.shuffle.service.enabled) configuration property.
+When created, `BlockManager` sets [externalShuffleServiceEnabled](#externalShuffleServiceEnabled) internal flag based on [spark.shuffle.service.enabled](../external-shuffle-service/configuration-properties.md#spark.shuffle.service.enabled) configuration property.
 
-BlockManager then creates an instance of [DiskBlockManager](DiskBlockManager.md) (requesting `deleteFilesOnStop` when an external shuffle service is not in use).
+`BlockManager` then creates an instance of [DiskBlockManager](DiskBlockManager.md) (requesting `deleteFilesOnStop` when an external shuffle service is not in use).
 
-BlockManager creates **block-manager-future** daemon cached thread pool with 128 threads maximum (as `futureExecutionContext`).
+`BlockManager` creates **block-manager-future** daemon cached thread pool with 128 threads maximum (as `futureExecutionContext`).
 
-BlockManager calculates the maximum memory to use (as `maxMemory`) by requesting the maximum [on-heap](../memory/MemoryManager.md#maxOnHeapStorageMemory) and [off-heap](../memory/MemoryManager.md#maxOffHeapStorageMemory) storage memory from the assigned `MemoryManager`.
+`BlockManager` calculates the maximum memory to use (as `maxMemory`) by requesting the maximum [on-heap](../memory/MemoryManager.md#maxOnHeapStorageMemory) and [off-heap](../memory/MemoryManager.md#maxOffHeapStorageMemory) storage memory from the assigned `MemoryManager`.
 
-BlockManager calculates the port used by the external shuffle service (as `externalShuffleServicePort`).
+`BlockManager` calculates the port used by the external shuffle service (as `externalShuffleServicePort`).
 
-!!! note
-    It is computed specially in Spark on YARN.
+`BlockManager` creates a client to read other executors' shuffle files (as `shuffleClient`). If the external shuffle service is used an [ExternalShuffleClient](ExternalShuffleClient.md) is created or the input [BlockTransferService](BlockTransferService.md) is used.
 
-BlockManager creates a client to read other executors' shuffle files (as `shuffleClient`). If the external shuffle service is used an [ExternalShuffleClient](ExternalShuffleClient.md) is created or the input [BlockTransferService](BlockTransferService.md) is used.
+`BlockManager` sets the [maximum number of failures](../configuration-properties.md#spark.block.failures.beforeLocationRefresh) before this block manager refreshes the block locations from the driver (as `maxFailuresBeforeLocationRefresh`).
 
-BlockManager sets the [maximum number of failures](../configuration-properties.md#spark.block.failures.beforeLocationRefresh) before this block manager refreshes the block locations from the driver (as `maxFailuresBeforeLocationRefresh`).
+`BlockManager` registers a [BlockManagerSlaveEndpoint](BlockManagerSlaveEndpoint.md) with the input [RpcEnv](../rpc/RpcEnv.md), itself, and [MapOutputTracker](../scheduler/MapOutputTracker.md) (as `slaveEndpoint`).
 
-BlockManager registers a [BlockManagerSlaveEndpoint](BlockManagerSlaveEndpoint.md) with the input [RpcEnv](../rpc/RpcEnv.md), itself, and [MapOutputTracker](../scheduler/MapOutputTracker.md) (as `slaveEndpoint`).
-
-BlockManager is created when SparkEnv is [created](../SparkEnv.md#create-BlockManager) (for the driver and executors) when a Spark application starts.
+`BlockManager` is created when SparkEnv is [created](../SparkEnv.md#create-BlockManager) (for the driver and executors) when a Spark application starts.
 
 ![BlockManager and SparkEnv](../images/storage/BlockManager-SparkEnv.png)
+
+## <span id="initialize"> Initializing BlockManager
+
+```scala
+initialize(
+  appId: String): Unit
+```
+
+`initialize` requests the [BlockTransferService](#blockTransferService) to [initialize](BlockTransferService.md#init).
+
+`initialize` requests the [ExternalBlockStoreClient](#externalBlockStoreClient) to [initialize](ExternalBlockStoreClient.md#init) (if given).
+
+`initialize` determines the [BlockReplicationPolicy](#blockReplicationPolicy) based on [spark.storage.replication.policy](../configuration-properties.md#spark.storage.replication.policy) configuration property and prints out the following INFO message to the logs:
+
+```text
+Using [priorityClass] for block replication policy
+```
+
+`initialize` creates a [BlockManagerId](BlockManagerId.md) and requests the [BlockManagerMaster](#master) to [registerBlockManager](BlockManagerMaster.md#registerBlockManager) (with the `BlockManagerId`, the [local directories](DiskBlockManager.md#localDirs) of the [DiskBlockManager](#diskBlockManager), the [maxOnHeapMemory](#maxOnHeapMemory), the [maxOffHeapMemory](#maxOffHeapMemory) and the [slaveEndpoint](#slaveEndpoint)).
+
+`initialize` sets the internal [BlockManagerId](#blockManagerId) to be the response from the [BlockManagerMaster](#master) (if available) or the `BlockManagerId` just created.
+
+`initialize` initializes the [BlockManagerId](#shuffleServerId) of an External Shuffle Service if [used](#externalShuffleServiceEnabled) and prints out the following INFO message to the logs (with the [externalShuffleServicePort](#externalShuffleServicePort)):
+
+```text
+external shuffle service port = [externalShuffleServicePort]
+```
+
+(only for executors and [External Shuffle Service enabled](#externalShuffleServiceEnabled)) `initialize` [registers with the External Shuffle Server](#registerWithExternalShuffleServer).
+
+`initialize` determines the [hostLocalDirManager](#hostLocalDirManager). With [spark.shuffle.readHostLocalDisk](../configuration-properties.md#spark.shuffle.readHostLocalDisk) configuration property enabled and [spark.shuffle.useOldFetchProtocol](../configuration-properties.md#spark.shuffle.useOldFetchProtocol) disabled, `initialize` uses the [ExternalBlockStoreClient](#externalBlockStoreClient) to create a `HostLocalDirManager` (with [spark.storage.localDiskByExecutors.cacheSize](../configuration-properties.md#spark.storage.localDiskByExecutors.cacheSize) configuration property).
+
+In the end, `initialize` prints out the following INFO message to the logs (with the [blockManagerId](#blockManagerId)):
+
+```text
+Initialized BlockManager: [blockManagerId]
+```
+
+`initialize` is used when:
+
+* `SparkContext` is [created](../SparkContext-creating-instance-internals.md#BlockManager-initialization) (on the driver)
+* `Executor` is [created](../executor/Executor.md) (with `isLocal` flag disabled)
+
+### <span id="registerWithExternalShuffleServer"> Registering Executor's BlockManager with External Shuffle Server
+
+```scala
+registerWithExternalShuffleServer(): Unit
+```
+
+`registerWithExternalShuffleServer` registers the `BlockManager` (for an executor) with [External Shuffle Service](../external-shuffle-service/index.md).
+
+`registerWithExternalShuffleServer` prints out the following INFO message to the logs:
+
+```text
+Registering executor with local external shuffle service.
+```
+
+`registerWithExternalShuffleServer` creates an [ExecutorShuffleInfo](../external-shuffle-service/ExecutorShuffleInfo.md) (with the [localDirs](DiskBlockManager.md#localDirs) and [subDirsPerLocalDir](DiskBlockManager.md#subDirsPerLocalDir) of the [DiskBlockManager](#diskBlockManager), and the class name of the [ShuffleManager](#shuffleManager)).
+
+`registerWithExternalShuffleServer` uses [spark.shuffle.registration.maxAttempts](../configuration-properties.md#spark.shuffle.registration.maxAttempts) configuration property and `5` sleep time when requesting the [ExternalBlockStoreClient](#blockStoreClient) to [registerWithShuffleServer](ExternalBlockStoreClient.md#registerWithShuffleServer) (using the [BlockManagerId](#shuffleServerId) and the `ExecutorShuffleInfo`).
+
+In case of any exception that happen below the maximum number of attempts, `registerWithExternalShuffleServer` prints out the following ERROR message to the logs and sleeps 5 seconds:
+
+```text
+Failed to connect to external shuffle server, will retry [attempts] more times after waiting 5 seconds...
+```
+
+## <span id="blockManagerId"> BlockManagerId
+
+`BlockManager` uses a [BlockManagerId](BlockManagerId.md) for...FIXME
+
+## <span id="hostLocalDirManager"> HostLocalDirManager
+
+`BlockManager` can use a `HostLocalDirManager`.
+
+Default: (undefined)
+
+## <span id="blockReplicationPolicy"> BlockReplicationPolicy
+
+`BlockManager` uses a [BlockReplicationPolicy](BlockReplicationPolicy.md) for...FIXME
 
 ## <span id="externalShuffleServicePort"> externalShuffleServicePort
 
@@ -705,70 +782,6 @@ getStatus(
 `getStatus`...FIXME
 
 `getStatus` is used when `BlockManagerSlaveEndpoint` is requested to handle [GetBlockStatus](BlockManagerSlaveEndpoint.md#GetBlockStatus) message.
-
-## <span id="initialize"> Initializing BlockManager
-
-```scala
-initialize(
-  appId: String): Unit
-```
-
-`initialize` initializes a `BlockManager` on the driver and executors (see [Creating SparkContext Instance](../SparkContext.md#creating-instance) and [Creating Executor Instance](../executor/Executor.md#creating-instance), respectively).
-
-!!! note
-    The method must be called before a BlockManager can be considered fully operable.
-
-initialize does the following in order:
-
-1. Initializes BlockTransferService.md#init[BlockTransferService]
-2. Initializes the internal shuffle client, be it ExternalShuffleClient.md[ExternalShuffleClient] or BlockTransferService.md[BlockTransferService].
-3. BlockManagerMaster.md#registerBlockManager[Registers itself with the driver's `BlockManagerMaster`] (using the `id`, `maxMemory` and its `slaveEndpoint`).
-+
-The `BlockManagerMaster` reference is passed in when the <<creating-instance, BlockManager is created>> on the driver and executors.
-4. Sets <<shuffleServerId, shuffleServerId>> to an instance of BlockManagerId.md[] given an executor id, host name and port for BlockTransferService.md[BlockTransferService].
-5. It creates the address of the server that serves this executor's shuffle files (using <<shuffleServerId, shuffleServerId>>)
-
-CAUTION: FIXME Review the initialize procedure again
-
-CAUTION: FIXME Describe `shuffleServerId`. Where is it used?
-
-If the [External Shuffle Service is used](#externalShuffleServiceEnabled), initialize prints out the following INFO message to the logs:
-
-```text
-external shuffle service port = [externalShuffleServicePort]
-```
-
-It [registers itself to the driver's BlockManagerMaster](BlockManagerMaster.md#registerBlockManager) passing the [BlockManagerId](BlockManagerId.md), the maximum memory (as `maxMemory`), and the [BlockManagerSlaveEndpoint](BlockManagerSlaveEndpoint.md).
-
-Ultimately, if the initialization happens on an executor and the [External Shuffle Service is used](#externalShuffleServiceEnabled), it [registers to the shuffle service](#registerWithExternalShuffleServer).
-
-`initialize` is used when [SparkContext](../SparkContext.md) is created and when an executor:Executor.md#creating-instance[`Executor` is created] (for executor:CoarseGrainedExecutorBackend.md#RegisteredExecutor[CoarseGrainedExecutorBackend] and spark-on-mesos:spark-executor-backends-MesosExecutorBackend.md[MesosExecutorBackend]).
-
-### <span id="registerWithExternalShuffleServer"> Registering Executor's BlockManager with External Shuffle Server
-
-```scala
-registerWithExternalShuffleServer(): Unit
-```
-
-`registerWithExternalShuffleServer` registers the `BlockManager` (for an executor) with [External Shuffle Service](../external-shuffle-service/index.md).
-
-`registerWithExternalShuffleServer` prints out the following INFO message to the logs:
-
-```text
-Registering executor with local external shuffle service.
-```
-
-`registerWithExternalShuffleServer` creates an [ExecutorShuffleInfo](../external-shuffle-service/ExecutorShuffleInfo.md) (with the [localDirs](DiskBlockManager.md#localDirs) and [subDirsPerLocalDir](DiskBlockManager.md#subDirsPerLocalDir) of the [DiskBlockManager](#diskBlockManager), and the class name of the [ShuffleManager](#shuffleManager)).
-
-`registerWithExternalShuffleServer` uses [spark.shuffle.registration.maxAttempts](../configuration-properties.md#spark.shuffle.registration.maxAttempts) configuration property and `5` sleep time when requesting the [ExternalBlockStoreClient](#blockStoreClient) to [registerWithShuffleServer](ExternalBlockStoreClient.md#registerWithShuffleServer) (using the [BlockManagerId](#shuffleServerId) and the `ExecutorShuffleInfo`).
-
-In case of any exception that happen below the maximum number of attempts, `registerWithExternalShuffleServer` prints out the following ERROR message to the logs and sleeps 5 seconds:
-
-```text
-Failed to connect to external shuffle server, will retry [attempts] more times after waiting 5 seconds...
-```
-
-`registerWithExternalShuffleServer` is used when `BlockManager` is requested to [initialize](#initialize) (when executed on an executor with [external shuffle service enabled](#externalShuffleServiceEnabled)).
 
 ## <span id="reregister"> Re-registering BlockManager with Driver and Reporting Blocks
 
