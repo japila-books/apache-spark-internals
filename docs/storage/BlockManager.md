@@ -134,9 +134,13 @@ Default: (undefined)
 
 `BlockManager` uses a [BlockReplicationPolicy](BlockReplicationPolicy.md) for...FIXME
 
-## <span id="externalShuffleServicePort"> externalShuffleServicePort
+## <span id="externalShuffleServicePort"> External Shuffle Service's Port
 
 `BlockManager` determines the [port of an external shuffle service](StorageUtils.md#externalShuffleServicePort) when [created](#creating-instance).
+
+The port is used to create the [shuffleServerId](#shuffleServerId) and a [HostLocalDirManager](#hostLocalDirManager).
+
+The port is also used for [preferExecutors](#preferExecutors).
 
 ## <span id="subDirsPerLocalDir"> spark.diskStore.subDirectories Configuration Property
 
@@ -155,9 +159,65 @@ getRemoteBlock[T](
   bufferTransformer: ManagedBuffer => T): Option[T]
 ```
 
-`getRemoteBlock`...FIXME
-
 `getRemoteBlock` is used for [getRemoteValues](#getRemoteValues) and [getRemoteBytes](#getRemoteBytes).
+
+`getRemoteBlock` prints out the following DEBUG message to the logs:
+
+```text
+Getting remote block [blockId]
+```
+
+`getRemoteBlock` requests the [BlockManagerMaster](#master) for [locations and status](BlockManagerMaster.md#getLocationsAndStatus) of the input [BlockId](BlockId.md) (with the host of [BlockManagerId](#blockManagerId)).
+
+With some locations, `getRemoteBlock` determines the size of the block (max of `diskSize` and `memSize`). `getRemoteBlock` tries to [read the block from the local directories of another executor on the same host](#readDiskBlockFromSameHostExecutor). `getRemoteBlock` prints out the following INFO message to the logs:
+
+```text
+Read [blockId] from the disk of a same host executor is [successful|failed].
+```
+
+When a data block could not be found in any of the local directories, `getRemoteBlock` [fetchRemoteManagedBuffer](#fetchRemoteManagedBuffer).
+
+For no locations from the [BlockManagerMaster](#master), `getRemoteBlock` prints out the following DEBUG message to the logs:
+
+### <span id="readDiskBlockFromSameHostExecutor"> readDiskBlockFromSameHostExecutor
+
+```scala
+readDiskBlockFromSameHostExecutor(
+  blockId: BlockId,
+  localDirs: Array[String],
+  blockSize: Long): Option[ManagedBuffer]
+```
+
+`readDiskBlockFromSameHostExecutor`...FIXME
+
+### <span id="fetchRemoteManagedBuffer"> fetchRemoteManagedBuffer
+
+```scala
+fetchRemoteManagedBuffer(
+  blockId: BlockId,
+  blockSize: Long,
+  locationsAndStatus: BlockManagerMessages.BlockLocationsAndStatus): Option[ManagedBuffer]
+```
+
+`fetchRemoteManagedBuffer`...FIXME
+
+### <span id="sortLocations"> sortLocations
+
+```scala
+sortLocations(
+  locations: Seq[BlockManagerId]): Seq[BlockManagerId]
+```
+
+`sortLocations`...FIXME
+
+### <span id="preferExecutors"> preferExecutors
+
+```scala
+preferExecutors(
+  locations: Seq[BlockManagerId]): Seq[BlockManagerId]
+```
+
+`preferExecutors`...FIXME
 
 ### <span id="readDiskBlockFromSameHostExecutor"> readDiskBlockFromSameHostExecutor
 
