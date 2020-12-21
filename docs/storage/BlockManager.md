@@ -75,7 +75,7 @@ Using [priorityClass] for block replication policy
 
 `initialize` sets the internal [BlockManagerId](#blockManagerId) to be the response from the [BlockManagerMaster](#master) (if available) or the `BlockManagerId` just created.
 
-`initialize` initializes the [BlockManagerId](#shuffleServerId) of an External Shuffle Service if [used](#externalShuffleServiceEnabled) and prints out the following INFO message to the logs (with the [externalShuffleServicePort](#externalShuffleServicePort)):
+`initialize` initializes the [External Shuffle Server's Address](#shuffleServerId) when [enabled](#externalShuffleServiceEnabled) and prints out the following INFO message to the logs (with the [externalShuffleServicePort](#externalShuffleServicePort)):
 
 ```text
 external shuffle service port = [externalShuffleServicePort]
@@ -750,7 +750,7 @@ removeBroadcast(broadcastId: Long, tellMaster: Boolean): Int
 
 Internally, it starts by printing out the following DEBUG message to the logs:
 
-```
+```text
 Removing broadcast [broadcastId]
 ```
 
@@ -758,19 +758,23 @@ It then requests all the BlockId.md#BroadcastBlockId[BroadcastBlockId] objects t
 
 The number of blocks removed is the final result.
 
-NOTE: It is used by storage:BlockManagerSlaveEndpoint.md#RemoveBroadcast[`BlockManagerSlaveEndpoint` while handling `RemoveBroadcast` messages].
+NOTE: It is used by BlockManagerSlaveEndpoint.md#RemoveBroadcast[`BlockManagerSlaveEndpoint` while handling `RemoveBroadcast` messages].
 
-## <span id="shuffleServerId"> BlockManagerId of Shuffle Server
+## <span id="shuffleServerId"> External Shuffle Server's Address
 
-BlockManager uses storage:BlockManagerId.md[] for the location (address) of the server that serves shuffle files of this executor.
+```scala
+shuffleServerId: BlockManagerId
+```
 
-The BlockManagerId is either the BlockManagerId of the external shuffle service (when <<externalShuffleServiceEnabled, enabled>>) or the <<blockManagerId, blockManagerId>>.
+When requested to [initialize](#initialize), `BlockManager` records the location ([BlockManagerId](BlockManagerId.md)) of [External Shuffle Service](../external-shuffle-service/index.md) if [enabled](#externalShuffleServiceEnabled) or simply uses the [non-external-shuffle-service BlockManagerId](#blockManagerId).
 
-The BlockManagerId of the Shuffle Server is used for the location of a scheduler:MapStatus.md[shuffle map output] when:
+The `BlockManagerId` is used to [register an executor with a local external shuffle service](#registerWithExternalShuffleServer).
 
-* BypassMergeSortShuffleWriter is requested to shuffle:BypassMergeSortShuffleWriter.md#write[write partition records to a shuffle file]
+The `BlockManagerId` is used as the location of a [shuffle map output](../scheduler/MapStatus.md) when:
 
-* UnsafeShuffleWriter is requested to shuffle:UnsafeShuffleWriter.md#closeAndWriteOutput[close and write output]
+* `BypassMergeSortShuffleWriter` is requested to [write partition records to a shuffle file](../shuffle/BypassMergeSortShuffleWriter.md#write)
+* `UnsafeShuffleWriter` is requested to [close and write output](../shuffle/UnsafeShuffleWriter.md#closeAndWriteOutput)
+* `SortShuffleWriter` is requested to [write output](../shuffle/SortShuffleWriter.md#write)
 
 ## <span id="getStatus"> getStatus
 
