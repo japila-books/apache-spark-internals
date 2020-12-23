@@ -1,5 +1,17 @@
 # Spark Configuration Properties
 
+## <span id="spark.rdd.compress"> spark.rdd.compress
+
+Controls whether to compress RDD partitions when stored serialized
+
+Default: `false`
+
+## <span id="spark.shuffle.compress"> spark.shuffle.compress
+
+Controls whether to compress shuffle output when stored
+
+Default: `true`
+
 ## <span id="spark.shuffle.readHostLocalDisk"><span id="SHUFFLE_HOST_LOCAL_DISK_READING_ENABLED"> spark.shuffle.readHostLocalDisk
 
 If enabled (with [spark.shuffle.useOldFetchProtocol](#spark.shuffle.useOldFetchProtocol) disabled and [spark.shuffle.service.enabled](external-shuffle-service/configuration-properties.md#spark.shuffle.service.enabled) enabled), shuffle blocks requested from those block managers which are running on the same host are read from the disk directly instead of being fetched as remote blocks over the network.
@@ -543,23 +555,11 @@ Time to wait for sufficient resources available
 
 Default: `30s`
 
-== [[spark.shuffle.compress]] spark.shuffle.compress
-
-Controls whether to compress shuffle output when stored
-
-Default: `true`
-
 == [[spark.shuffle.unsafe.fastMergeEnabled]] spark.shuffle.unsafe.fastMergeEnabled
 
 Enables fast merge strategy for UnsafeShuffleWriter to shuffle:UnsafeShuffleWriter.md#mergeSpills[merge spill files].
 
 Default: `true`
-
-== [[spark.rdd.compress]] spark.rdd.compress
-
-Controls whether to compress RDD partitions when stored serialized.
-
-Default: `false`
 
 == [[spark.shuffle.spill.compress]] spark.shuffle.spill.compress
 

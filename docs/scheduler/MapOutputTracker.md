@@ -123,7 +123,10 @@ Missing an output location for shuffle [id]
 
 And `convertMapStatuses` throws a `MetadataFetchFailedException` (with `shuffleId`, `startPartition`, and the above error message).
 
-`convertMapStatuses` is used when [MapOutputTracker computes ``BlockManagerId``s with their ``ShuffleBlockId``s and sizes](#getMapSizesByExecutorId).
+`convertMapStatuses` is used when:
+
+* `MapOutputTrackerMaster` is requested for the sizes of shuffle map outputs by [executor](MapOutputTrackerMaster.md#getMapSizesByExecutorId) and [range](#getMapSizesByRange)
+* `MapOutputTrackerWorker` is requested to sizes of shuffle map outputs by [executor](MapOutputTrackerWorker.md#getMapSizesByExecutorId) and [range](MapOutputTrackerWorker.md#getMapSizesByRange)
 
 ## <span id="askTracker"> Sending Blocking Messages To trackerEndpoint RpcEndpointRef
 
