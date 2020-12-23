@@ -38,6 +38,41 @@ validateSettings(): Unit
 
 * The number of tasks per core, i.e. [spark.executor.cores](../executor/Executor.md#spark.executor.cores) divided by [spark.task.cpus](configuration-properties.md#spark.task.cpus), is not zero.
 
+## <span id="listener"> ExecutorAllocationListener
+
+`ExecutorAllocationManager` creates an [ExecutorAllocationListener](ExecutorAllocationListener.md) when [created](#creating-instance) to intercept Spark events that impact the allocation policy.
+
+`ExecutorAllocationListener` is [added to management queue](../scheduler/LiveListenerBus.md#addToManagementQueue) (of [LiveListenerBus](#listenerBus)) when `ExecutorAllocationManager` is [started](#start).
+
+`ExecutorAllocationListener` is used to calculate the [maximum number of executors needed](#maxNumExecutorsNeeded).
+
+## <span id="executorAllocationRatio"><span id="spark.dynamicAllocation.executorAllocationRatio"> spark.dynamicAllocation.executorAllocationRatio
+
+`ExecutorAllocationManager` uses [spark.dynamicAllocation.executorAllocationRatio](configuration-properties.md#spark.dynamicAllocation.executorAllocationRatio) configuration property for [maxNumExecutorsNeeded](#maxNumExecutorsNeeded).
+
+## <span id="tasksPerExecutorForFullParallelism"> tasksPerExecutorForFullParallelism
+
+`ExecutorAllocationManager` uses [spark.executor.cores](../configuration-properties.md#spark.executor.cores) and [spark.task.cpus](../configuration-properties.md#spark.task.cpus) configuration properties for the number of tasks that can be submitted to an executor for full parallelism.
+
+Used when:
+
+* [maxNumExecutorsNeeded](#maxNumExecutorsNeeded)
+
+## <span id="maxNumExecutorsNeeded"> Maximum Number of Executors Needed
+
+```scala
+maxNumExecutorsNeeded(): Int
+```
+
+`maxNumExecutorsNeeded` requests the [ExecutorAllocationListener](#listener) for the number of [pending](ExecutorAllocationListener.md#totalPendingTasks) and [running](ExecutorAllocationListener.md#totalRunningTasks) tasks.
+
+`maxNumExecutorsNeeded` is the smallest integer value that is greater than or equal to the multiplication of the total number of pending and running tasks by [executorAllocationRatio](#executorAllocationRatio) divided by [tasksPerExecutorForFullParallelism](#tasksPerExecutorForFullParallelism).
+
+`maxNumExecutorsNeeded` is used for:
+
+* [updateAndSyncNumExecutorsTarget](#updateAndSyncNumExecutorsTarget)
+* [numberMaxNeededExecutors](#numberMaxNeededExecutors) performance metric
+
 ## <span id="client"><span id="ExecutorAllocationClient"> ExecutorAllocationClient
 
 `ExecutorAllocationManager` is given an [ExecutorAllocationClient](ExecutorAllocationClient.md) when [created](#creating-instance).
@@ -72,6 +107,8 @@ It then go over <<removeTimes, removeTimes>> to remove expired executors, i.e. e
 updateAndSyncNumExecutorsTarget(
   now: Long): Int
 ```
+
+`updateAndSyncNumExecutorsTarget` [maxNumExecutorsNeeded](#maxNumExecutorsNeeded).
 
 `updateAndSyncNumExecutorsTarget`...FIXME
 

@@ -27,6 +27,12 @@ Default: The largest value representable as an Int
 
 Default: `1.0`
 
+Must be between `0` (exclusive) and `1.0` (inclusive)
+
+Used when:
+
+* `ExecutorAllocationManager` is [created](ExecutorAllocationManager.md#executorAllocationRatio)
+
 ## <span id="spark.dynamicAllocation.cachedExecutorIdleTimeout"><span id="DYN_ALLOCATION_CACHED_EXECUTOR_IDLE_TIMEOUT"> spark.dynamicAllocation.cachedExecutorIdleTimeout
 
 (in seconds)

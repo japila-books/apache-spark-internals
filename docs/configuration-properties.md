@@ -1,5 +1,11 @@
 # Spark Configuration Properties
 
+## <span id="spark.executor.cores"><span id="EXECUTOR_CORES"> spark.executor.cores
+
+Number of CPU cores for [Executor](executor/Executor.md)
+
+Default: `1`
+
 ## <span id="spark.rdd.compress"> spark.rdd.compress
 
 Controls whether to compress RDD partitions when stored serialized
@@ -307,9 +313,6 @@ Used when:
 * Spark on Kubernetes' `BasicExecutorFeatureStep` is requested to `configurePod`
 
 * Spark on YARN's `ExecutorRunnable` is requested to spark-on-yarn:spark-yarn-ExecutorRunnable.md#prepareEnvironment[prepareEnvironment] (for `CoarseGrainedExecutorBackend`)
-
-| spark.executor.cores
-a| [[spark.executor.cores]] Number of cores of an executor:Executor.md[]
 
 | spark.executor.extraJavaOptions
 a| [[spark.executor.extraJavaOptions]] Extra Java options of an executor:Executor.md[]
