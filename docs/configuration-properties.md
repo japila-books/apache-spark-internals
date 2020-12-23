@@ -2,7 +2,7 @@
 
 ## <span id="spark.shuffle.readHostLocalDisk"><span id="SHUFFLE_HOST_LOCAL_DISK_READING_ENABLED"> spark.shuffle.readHostLocalDisk
 
-If enabled (with [spark.shuffle.useOldFetchProtocol](#spark.shuffle.useOldFetchProtocol) disabled and [spark.shuffle.service.enabled](../external-shuffle-service/configuration-properties.md#spark.shuffle.service.enabled) enabled), shuffle blocks requested from those block managers which are running on the same host are read from the disk directly instead of being fetched as remote blocks over the network.
+If enabled (with [spark.shuffle.useOldFetchProtocol](#spark.shuffle.useOldFetchProtocol) disabled and [spark.shuffle.service.enabled](external-shuffle-service/configuration-properties.md#spark.shuffle.service.enabled) enabled), shuffle blocks requested from those block managers which are running on the same host are read from the disk directly instead of being fetched as remote blocks over the network.
 
 Default: `true`
 

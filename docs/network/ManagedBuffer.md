@@ -1,6 +1,6 @@
-= ManagedBuffer
+# ManagedBuffer
 
-*ManagedBuffer* is the <<contract, abstraction>> of <<extensions, FIXMEs>> that <<FIXME, FIXME>>.
+`ManagedBuffer` is the <<contract, abstraction>> of <<extensions, FIXMEs>> that <<FIXME, FIXME>>.
 
 == [[contract]] Contract
 

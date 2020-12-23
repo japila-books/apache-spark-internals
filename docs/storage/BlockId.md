@@ -45,7 +45,7 @@ Used when:
 
 serializer:SerializerManager.md#shouldCompress[Compressed] when core:BroadcastManager.md#spark.broadcast.compress[spark.broadcast.compress] configuration property is enabled
 
-=== [[RDDBlockId]] RDDBlockId
+## <span id="RDDBlockId"> RDDBlockId
 
 BlockId for RDD partitions with `rddId` and `splitIndex` identifiers
 

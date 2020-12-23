@@ -151,6 +151,100 @@ The port is also used for [preferExecutors](#preferExecutors).
 * `IndexShuffleBlockResolver` is requested to [getDataFile](../shuffle/IndexShuffleBlockResolver.md#getDataFile) and [getIndexFile](../shuffle/IndexShuffleBlockResolver.md#getIndexFile)
 * `BlockManager` is requested to [readDiskBlockFromSameHostExecutor](#readDiskBlockFromSameHostExecutor)
 
+## <span id="getOrElseUpdate"> Fetching Block or Computing (and Storing) it
+
+```scala
+getOrElseUpdate[T](
+  blockId: BlockId,
+  level: StorageLevel,
+  classTag: ClassTag[T],
+  makeIterator: () => Iterator[T]): Either[BlockResult, Iterator[T]]
+```
+
+!!! note "Map.getOrElseUpdate"
+    _I think_ it is fair to say that `getOrElseUpdate` is like [getOrElseUpdate]({{ scala.api }}/scala/collection/mutable/Map.html#getOrElseUpdate(key:K,op:=%3EV):V) of [scala.collection.mutable.Map]({{ scala.api }}/scala/collection/mutable/Map.html) in Scala.
+
+    ```scala
+    getOrElseUpdate(key: K, op: ⇒ V): V
+    ```
+
+    Quoting the official scaladoc:
+
+    > If given key `K` is already in this map, `getOrElseUpdate` returns the associated value `V`.
+
+    > Otherwise, `getOrElseUpdate` computes a value `V` from given expression `op`, stores with the key `K` in the map and returns that value.
+
+    Since `BlockManager` is a key-value store of blocks of data identified by a block ID that seems to fit so well.
+
+`getOrElseUpdate` first attempts to [get the block](#get) by the `BlockId` (from the local block manager first and, if unavailable, requesting remote peers).
+
+`getOrElseUpdate` gives the `BlockResult` of the block if found.
+
+If however the block was not found (in any block manager in a Spark cluster), `getOrElseUpdate` [doPutIterator](#doPutIterator) (for the input `BlockId`, the `makeIterator` function and the `StorageLevel`).
+
+`getOrElseUpdate` branches off per the result.
+
+For `None`, `getOrElseUpdate` [getLocalValues](#getLocalValues) for the `BlockId` and eventually returns the `BlockResult` (unless terminated by a `SparkException` due to some internal error).
+
+For `Some(iter)`, `getOrElseUpdate` returns an iterator of `T` values.
+
+`getOrElseUpdate` is used when:
+
+* `RDD` is requested to [get or compute an RDD partition](../rdd/RDD.md#getOrCompute) (for an `RDDBlockId` with the RDD's [id](../rdd/RDD.md#id) and partition index).
+
+### <span id="get"> Fetching Block from Local or Remote Block Managers
+
+```scala
+get[T: ClassTag](
+  blockId: BlockId): Option[BlockResult]
+```
+
+`get` attempts to get the `blockId` block from a local block manager first before requesting it from remote block managers.
+
+Internally, `get` tries to [get the block from the local BlockManager](#getLocalValues). If the block was found, you should see the following INFO message in the logs and `get` returns the local [BlockResult](#BlockResult).
+
+```text
+Found block [blockId] locally
+```
+
+If however the block was not found locally, `get` tries to [get the block from remote block managers](#getRemoteValues). If retrieved from a remote block manager, you should see the following INFO message in the logs and `get` returns the remote [BlockResult](#BlockResult).
+
+```text
+Found block [blockId] remotely
+```
+
+In the end, `get` returns "nothing" (i.e. `NONE`) when the `blockId` block was not found either in the local BlockManager or any remote BlockManager.
+
+`get` is used when:
+
+* `BlockManager` is requested to [getOrElseUpdate](#getOrElseUpdate)
+
+### <span id="getRemoteValues"> getRemoteValues
+
+```scala
+getRemoteValues[T: ClassTag](
+  blockId: BlockId): Option[BlockResult]
+```
+
+`getRemoteValues` [getRemoteBlock](#getRemoteBlock) with the `bufferTransformer` function that takes a [ManagedBuffer](../network/ManagedBuffer.md) and does the following:
+
+* Requests the [SerializerManager](#serializerManager) to [deserialize values from an input stream](../serializer/SerializerManager.md#dataDeserializeStream) from the `ManagedBuffer`
+* Creates a `BlockResult` with the values (and their total size, and `Network` read method)
+
+## <span id="getRemoteBytes"> Fetching Block Bytes From Remote Block Managers
+
+```scala
+getRemoteBytes(
+  blockId: BlockId): Option[ChunkedByteBuffer]
+```
+
+`getRemoteBytes` [getRemoteBlock](#getRemoteBlock) with the `bufferTransformer` function that takes a [ManagedBuffer](../network/ManagedBuffer.md) and creates a `ChunkedByteBuffer`.
+
+`getRemoteBytes` is used when:
+
+* `TorrentBroadcast` is requested to [readBlocks](../core/TorrentBroadcast.md#readBlocks)
+* `TaskResultGetter` is requested to [enqueueSuccessfulTask](../scheduler/TaskResultGetter.md#enqueueSuccessfulTask)
+
 ## <span id="getRemoteBlock"> Fetching Remote Block
 
 ```scala
@@ -524,42 +618,6 @@ maybeCacheDiskValuesInMemory[T](
 `maybeCacheDiskValuesInMemory`...FIXME
 
 `maybeCacheDiskValuesInMemory` is used when `BlockManager` is requested to [getLocalValues](#getLocalValues).
-
-## <span id="get"> Retrieving Block from Local or Remote Block Managers
-
-```scala
-get[T: ClassTag](
-  blockId: BlockId): Option[BlockResult]
-```
-
-`get` attempts to get the `blockId` block from a local block manager first before requesting it from remote block managers.
-
-Internally, `get` tries to [get the block from the local BlockManager](#getLocalValues). If the block was found, you should see the following INFO message in the logs and `get` returns the local [BlockResult](#BlockResult).
-
-```text
-Found block [blockId] locally
-```
-
-If however the block was not found locally, `get` tries to [get the block from remote block managers](#getRemoteValues). If retrieved from a remote block manager, you should see the following INFO message in the logs and `get` returns the remote [BlockResult](#BlockResult).
-
-```text
-Found block [blockId] remotely
-```
-
-In the end, `get` returns "nothing" (i.e. `NONE`) when the `blockId` block was not found either in the local BlockManager or any remote BlockManager.
-
-`get` is used when:
-
-* `BlockManager` is requested to [getOrElseUpdate](#getOrElseUpdate)
-
-### <span id="getRemoteValues"> getRemoteValues
-
-```scala
-getRemoteValues[T: ClassTag](
-  blockId: BlockId): Option[BlockResult]
-```
-
-`getRemoteValues`...FIXME
 
 ## <span id="getBlockData"> Retrieving Block Data
 
@@ -1082,59 +1140,6 @@ putSingle[T: ClassTag](
 `putSingle`...FIXME
 
 `putSingle` is used when `TorrentBroadcast` is requested to [write the blocks](../core/TorrentBroadcast.md#writeBlocks) and [readBroadcastBlock](../core/TorrentBroadcast.md#readBroadcastBlock).
-
-## <span id="getRemoteBytes"> Fetching Block Bytes From Remote Nodes
-
-```scala
-getRemoteBytes(
-  blockId: BlockId): Option[ChunkedByteBuffer]
-```
-
-`getRemoteBytes`...FIXME
-
-`getRemoteBytes` is used when:
-
-* `TorrentBroadcast` is requested to [readBlocks](../core/TorrentBroadcast.md#readBlocks)
-* `TaskResultGetter` is requested to [enqueueSuccessfulTask](../scheduler/TaskResultGetter.md#enqueueSuccessfulTask)
-
-## <span id="getOrElseUpdate"> Getting Block or Computing and Storing it
-
-```scala
-getOrElseUpdate[T](
-  blockId: BlockId,
-  level: StorageLevel,
-  classTag: ClassTag[T],
-  makeIterator: () => Iterator[T]): Either[BlockResult, Iterator[T]]
-```
-
-!!! note
-    _I think_ it is fair to say that `getOrElseUpdate` is like [getOrElseUpdate]({{ scala.api }}/scala/collection/mutable/Map.html#getOrElseUpdate(key:K,op:=%3EV):V) of [scala.collection.mutable.Map]({{ scala.api }}/scala/collection/mutable/Map.html) in Scala.
-
-    ```scala
-    getOrElseUpdate(key: K, op: ⇒ V): V
-    ```
-
-    Quoting the official scaladoc:
-
-    > If given key `K` is already in this map, `getOrElseUpdate` returns the associated value `V`.
-
-    > Otherwise, `getOrElseUpdate` computes a value `V` from given expression `op`, stores with the key `K` in the map and returns that value.
-
-    Since `BlockManager` is a key-value store of blocks of data identified by a block ID that seems to fit so well.
-
-`getOrElseUpdate` first attempts to [get the block](#get) by the `BlockId` (from the local block manager first and, if unavailable, requesting remote peers).
-
-`getOrElseUpdate` gives the `BlockResult` of the block if found.
-
-If however the block was not found (in any block manager in a Spark cluster), `getOrElseUpdate` [doPutIterator](#doPutIterator) (for the input `BlockId`, the `makeIterator` function and the `StorageLevel`).
-
-`getOrElseUpdate` branches off per the result.
-
-For `None`, `getOrElseUpdate` [getLocalValues](#getLocalValues) for the `BlockId` and eventually returns the `BlockResult` (unless terminated by a `SparkException` due to some internal error).
-
-For `Some(iter)`, `getOrElseUpdate` returns an iterator of `T` values.
-
-`getOrElseUpdate` is used when `RDD` is requested to [get or compute an RDD partition](../rdd/RDD.md#getOrCompute) (for an `RDDBlockId` with the RDD's [id](../rdd/RDD.md#id) and partition index).
 
 ## <span id="doPutIterator"> doPutIterator
 
