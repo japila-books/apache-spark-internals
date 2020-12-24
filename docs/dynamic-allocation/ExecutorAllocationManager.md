@@ -38,11 +38,32 @@ validateSettings(): Unit
 
 * The number of tasks per core, i.e. [spark.executor.cores](../executor/Executor.md#spark.executor.cores) divided by [spark.task.cpus](configuration-properties.md#spark.task.cpus), is not zero.
 
+## <span id="executorMonitor"> ExecutorMonitor
+
+`ExecutorAllocationManager` creates an [ExecutorMonitor](ExecutorMonitor.md) when [created](#creating-instance).
+
+`ExecutorMonitor` is [added to the management queue](../scheduler/LiveListenerBus.md#addToManagementQueue) (of [LiveListenerBus](#listenerBus)) when `ExecutorAllocationManager` is [started](#start).
+
+`ExecutorMonitor` is [attached](../core/ContextCleaner.md#attachListener) (to the [ContextCleaner](#cleaner)) when `ExecutorAllocationManager` is [started](#start).
+
+`ExecutorMonitor` is requested to [reset](ExecutorMonitor.md#reset) when `ExecutorAllocationManager` is requested to [reset](#reset).
+
+`ExecutorMonitor` is used for the performance metrics:
+
+* [numberExecutorsPendingToRemove](#numberExecutorsPendingToRemove) (based on [pendingRemovalCount](ExecutorMonitor.md#pendingRemovalCount))
+* [numberAllExecutors](#numberAllExecutors) (based on [executorCount](ExecutorMonitor.md#executorCount))
+
+`ExecutorMonitor` is used for the following:
+
+* [timedOutExecutors](ExecutorMonitor.md#timedOutExecutors) when `ExecutorAllocationManager` is requested to [schedule](#schedule)
+* [executorCount](ExecutorMonitor.md#executorCount) when `ExecutorAllocationManager` is requested to [addExecutors](#addExecutors)
+* [executorCount](ExecutorMonitor.md#executorCount), [pendingRemovalCount](ExecutorMonitor.md#pendingRemovalCount) and [executorsKilled](ExecutorMonitor.md#executorsKilled) when `ExecutorAllocationManager` is requested to [removeExecutors](#removeExecutors)
+
 ## <span id="listener"> ExecutorAllocationListener
 
 `ExecutorAllocationManager` creates an [ExecutorAllocationListener](ExecutorAllocationListener.md) when [created](#creating-instance) to intercept Spark events that impact the allocation policy.
 
-`ExecutorAllocationListener` is [added to management queue](../scheduler/LiveListenerBus.md#addToManagementQueue) (of [LiveListenerBus](#listenerBus)) when `ExecutorAllocationManager` is [started](#start).
+`ExecutorAllocationListener` is [added to the management queue](../scheduler/LiveListenerBus.md#addToManagementQueue) (of [LiveListenerBus](#listenerBus)) when `ExecutorAllocationManager` is [started](#start).
 
 `ExecutorAllocationListener` is used to calculate the [maximum number of executors needed](#maxNumExecutorsNeeded).
 
@@ -83,13 +104,27 @@ maxNumExecutorsNeeded(): Int
 start(): Unit
 ```
 
-`start` registers [ExecutorAllocationListener](ExecutorAllocationListener.md) (with [LiveListenerBus](../scheduler/LiveListenerBus.md)) to monitor scheduler events and make decisions when to add and remove executors. It then immediately starts <<spark-dynamic-executor-allocation, spark-dynamic-executor-allocation allocation executor>> that is responsible for the <<schedule, scheduling>> every `100` milliseconds.
+`start` requests the [LiveListenerBus](#listenerBus) to [add to the management queue](../scheduler/LiveListenerBus.md#addToManagementQueue):
 
-NOTE: `100` milliseconds for the period between successive <<schedule, scheduling>> is fixed, i.e. not configurable.
+* [ExecutorAllocationListener](#listener)
+* [ExecutorMonitor](#executorMonitor)
 
-It [requests executors](ExecutorAllocationClient.md#requestTotalExecutors) using the input [ExecutorAllocationClient](ExecutorAllocationClient.md). It requests [spark.dynamicAllocation.initialExecutors](index.md#spark.dynamicAllocation.initialExecutors).
+`start` requests the [ContextCleaner](#cleaner) (if defined) to [attach](../core/ContextCleaner.md#attachListener) the [ExecutorMonitor](#executorMonitor).
 
-`start` is used when [SparkContext](../SparkContext.md) is created.
+creates a `scheduleTask` (a Java [Runnable]({{ java.api }}/java.base/java/lang/Runnable.html)) for [schedule](#schedule) when started.
+
+`start` requests the [ScheduledExecutorService](#executor) to schedule the `scheduleTask` every `100` ms.
+
+!!! note
+    The schedule delay of `100` is not configurable.
+
+`start` requests the [ExecutorAllocationClient](#client) to [request the total executors](ExecutorAllocationClient.md#requestTotalExecutors) with the following:
+
+* [numExecutorsTarget](#numExecutorsTarget)
+* [localityAwareTasks](#localityAwareTasks)
+* [hostToLocalTaskCount](#hostToLocalTaskCount)
+
+`start` is used when `SparkContext` is [created](../SparkContext-creating-instance-internals.md#ExecutorAllocationManager).
 
 ### <span id="schedule"> Scheduling Executors
 

@@ -232,16 +232,24 @@ With [spark.cleaner.referenceTracking](configuration-properties.md#spark.cleaner
 
 CAUTION: FIXME It'd be quite useful to have all the properties with their default values in `sc.getConf.toDebugString`, so when a configuration is not included but does change Spark runtime configuration, it should be added to `_conf`.
 
-[[registering_SparkListeners]]
+## <span id="_executorAllocationManager"><span id="ExecutorAllocationManager"> ExecutorAllocationManager
+
+With [Dynamic Resource Allocation](Utils.md#isDynamicAllocationEnabled) enabled, `SparkContext`...FIXME
+
+## <span id="registering_SparkListeners"> Registering User-Defined SparkListeners
+
 It <<setupAndStartListenerBus, registers user-defined listeners and starts `SparkListenerEvent` event delivery to the listeners>>.
 
-[[postEnvironmentUpdate]]
+## <span id="postEnvironmentUpdate"> postEnvironmentUpdate
+
 `postEnvironmentUpdate` is called that posts SparkListener.md#SparkListenerEnvironmentUpdate[SparkListenerEnvironmentUpdate] message on scheduler:LiveListenerBus.md[] with information about Task Scheduler's scheduling mode, added jar and file paths, and other environmental details. They are displayed in web UI's spark-webui-environment.md[Environment tab].
 
-[[postApplicationStart]]
+## <span id="postApplicationStart"> postApplicationStart
+
 SparkListener.md#SparkListenerApplicationStart[SparkListenerApplicationStart] message is posted to scheduler:LiveListenerBus.md[] (using the internal `postApplicationStart` method).
 
-[[postStartHook]]
+## <span id="postStartHook"> postStartHook
+
 `TaskScheduler` scheduler:TaskScheduler.md#postStartHook[is notified that `SparkContext` is almost fully initialized].
 
 NOTE: scheduler:TaskScheduler.md#postStartHook[TaskScheduler.postStartHook] does nothing by default, but custom implementations offer more advanced features, i.e. `TaskSchedulerImpl` scheduler:TaskSchedulerImpl.md#postStartHook[blocks the current thread until `SchedulerBackend` is ready]. There is also `YarnClusterScheduler` for Spark on YARN in `cluster` deploy mode.
