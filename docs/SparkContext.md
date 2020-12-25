@@ -19,9 +19,15 @@ While being created, `SparkContext` [sets up core services](SparkContext-creatin
 
 ## Services
 
-### <span id="executorAllocationManager"> ExecutorAllocationManager
+### <span id="executorAllocationManager"><span id="_executorAllocationManager"><span id="ExecutorAllocationManager"> ExecutorAllocationManager
+
+```scala
+executorAllocationManager: Option[ExecutorAllocationManager]
+```
 
 [ExecutorAllocationManager](dynamic-allocation/ExecutorAllocationManager.md)
+
+Created and started when `SparkContext` is [created](SparkContext-creating-instance-internals.md#ExecutorAllocationManager) with [Dynamic Allocation of Executors](dynamic-allocation/index.md) enabled
 
 ### <span id="schedulerBackend"> SchedulerBackend
 

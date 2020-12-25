@@ -12,16 +12,22 @@ Dynamic Allocation is enabled (and `SparkContext` creates an [ExecutorAllocation
 
 1. [SchedulerBackend](../SparkContext.md#schedulerBackend) is an [ExecutorAllocationClient](ExecutorAllocationClient.md)
 
+[ExecutorAllocationManager](ExecutorAllocationManager.md) is the heart of Dynamic Resource Allocation.
+
 When enabled, it is recommended to use the [External Shuffle Service](../external-shuffle-service/index.md).
-
-[ExecutorAllocationManager](ExecutorAllocationManager.md) is responsible for Dynamic Resource Allocation.
-
-Dynamic allocation reports the current state using [ExecutorAllocationManagerSource](ExecutorAllocationManagerSource.md) metric source.
 
 Dynamic Allocation comes with the policy of scaling executors up and down as follows:
 
 1. **Scale Up Policy** requests new executors when there are pending tasks and increases the number of executors exponentially since executors start slow and Spark application may need slightly more.
 2. **Scale Down Policy** removes executors that have been idle for [spark.dynamicAllocation.executorIdleTimeout](configuration-properties.md#spark.dynamicAllocation.executorIdleTimeout) seconds.
+
+## Performance Metrics
+
+[ExecutorAllocationManagerSource](ExecutorAllocationManagerSource.md) metric source is used to report performance metrics.
+
+## SparkContext.killExecutors
+
+[SparkContext.killExecutors](../SparkContext.md#killExecutors) is unsupported with Dynamic Allocation enabled.
 
 ## Programmable Dynamic Allocation
 

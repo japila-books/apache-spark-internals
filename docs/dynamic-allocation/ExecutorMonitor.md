@@ -15,17 +15,35 @@
 
 * `ExecutorAllocationManager` is [created](ExecutorAllocationManager.md#executorMonitor)
 
-## <span id="executors"> executors
+## <span id="executors"> Executors Registry
 
 ```scala
 executors: ConcurrentHashMap[String, Tracker]
 ```
 
-`ExecutorMonitor` uses a Java [ConcurrentHashMap]({{ java.api }}/java.base/java/util/concurrent/ConcurrentHashMap.html) for an internal registry of available executors.
+`ExecutorMonitor` uses a Java [ConcurrentHashMap]({{ java.api }}/java.base/java/util/concurrent/ConcurrentHashMap.html) to track available executors.
 
-`executors` is cleared when [reset](#reset).
+An executor is added when (via [ensureExecutorIsTracked](#ensureExecutorIsTracked)):
 
-`executors` is used when...FIXME
+* [onBlockUpdated](#onBlockUpdated)
+* [onExecutorAdded](#onExecutorAdded)
+* [onTaskStart](#onTaskStart)
+
+An executor is removed when [onExecutorRemoved](#onExecutorRemoved).
+
+All executors are removed when [reset](#reset).
+
+`executors` is used when:
+
+* [onOtherEvent](#onOtherEvent) ([cleanupShuffle](#cleanupShuffle))
+* [executorCount](#executorCount)
+* [executorsKilled](#executorsKilled)
+* [onUnpersistRDD](#onUnpersistRDD)
+* [onTaskEnd](#onTaskEnd)
+* [onJobStart](#onJobStart)
+* [onJobEnd](#onJobEnd)
+* [pendingRemovalCount](#pendingRemovalCount)
+* [timedOutExecutors](#timedOutExecutors)
 
 ## <span id="shuffleTrackingEnabled"> shuffleTrackingEnabled
 
@@ -53,6 +71,72 @@ onExecutorAdded(
 
 `onExecutorAdded`...FIXME
 
+## <span id="onExecutorRemoved"> onExecutorRemoved
+
+```scala
+onExecutorRemoved(
+  event: SparkListenerExecutorRemoved): Unit
+```
+
+`onExecutorRemoved` is part of the [SparkListenerInterface](../SparkListenerInterface.md#onExecutorRemoved) abstraction.
+
+`onExecutorRemoved`...FIXME
+
+## <span id="onJobEnd"> onJobEnd
+
+```scala
+onJobEnd(
+  event: SparkListenerJobEnd): Unit
+```
+
+`onJobEnd` is part of the [SparkListenerInterface](../SparkListenerInterface.md#onJobEnd) abstraction.
+
+`onJobEnd`...FIXME
+
+## <span id="onJobStart"> onJobStart
+
+```scala
+onJobStart(
+  event: SparkListenerJobStart): Unit
+```
+
+`onJobStart` is part of the [SparkListenerInterface](../SparkListenerInterface.md#onJobStart) abstraction.
+
+`onJobStart`...FIXME
+
+## <span id="onOtherEvent"> onOtherEvent
+
+```scala
+onOtherEvent(
+  event: SparkListenerEvent): Unit
+```
+
+`onOtherEvent` is part of the [SparkListenerInterface](../SparkListenerInterface.md#onOtherEvent) abstraction.
+
+`onOtherEvent`...FIXME
+
+### <span id="cleanupShuffle"> cleanupShuffle
+
+```scala
+cleanupShuffle(
+  id: Int): Unit
+```
+
+`cleanupShuffle`...FIXME
+
+`cleanupShuffle` is used when [onOtherEvent](#onOtherEvent)
+
+## <span id="onTaskEnd"> onTaskEnd
+
+```scala
+onTaskEnd(
+  event: SparkListenerTaskEnd): Unit
+```
+
+`onTaskEnd` is part of the [SparkListenerInterface](../SparkListenerInterface.md#onTaskEnd) abstraction.
+
+`onTaskEnd`...FIXME
+
 ## <span id="onTaskStart"> onTaskStart
 
 ```scala
@@ -63,6 +147,17 @@ onTaskStart(
 `onTaskStart` is part of the [SparkListenerInterface](../SparkListenerInterface.md#onTaskStart) abstraction.
 
 `onTaskStart`...FIXME
+
+## <span id="onUnpersistRDD"> onUnpersistRDD
+
+```scala
+onUnpersistRDD(
+  event: SparkListenerUnpersistRDD): Unit
+```
+
+`onUnpersistRDD` is part of the [SparkListenerInterface](../SparkListenerInterface.md#onUnpersistRDD) abstraction.
+
+`onUnpersistRDD`...FIXME
 
 ## <span id="reset"> reset
 
@@ -100,7 +195,8 @@ executorCount: Int
 
 `executorCount` is used when:
 
-* FIXME
+* `ExecutorAllocationManager` is requested to [addExecutors](ExecutorAllocationManager.md#addExecutors) and [removeExecutors](ExecutorAllocationManager.md#removeExecutors)
+* `ExecutorAllocationManagerSource` is requested for [numberAllExecutors](ExecutorAllocationManagerSource.md#numberAllExecutors) performance metric
 
 ## <span id="pendingRemovalCount"> pendingRemovalCount
 
@@ -112,7 +208,8 @@ pendingRemovalCount: Int
 
 `pendingRemovalCount` is used when:
 
-* FIXME
+* `ExecutorAllocationManager` is requested to [removeExecutors](ExecutorAllocationManager.md#removeExecutors)
+* `ExecutorAllocationManagerSource` is requested for [numberExecutorsPendingToRemove](ExecutorAllocationManagerSource.md#numberExecutorsPendingToRemove) performance metric
 
 ## <span id="executorsKilled"> executorsKilled
 
@@ -125,7 +222,7 @@ executorsKilled(
 
 `executorsKilled` is used when:
 
-* FIXME
+* `ExecutorAllocationManager` is requested to [removeExecutors](ExecutorAllocationManager.md#removeExecutors)
 
 ## <span id="ensureExecutorIsTracked"> ensureExecutorIsTracked
 
@@ -139,6 +236,17 @@ ensureExecutorIsTracked(
 
 `ensureExecutorIsTracked` is used when:
 
-* [onTaskStart](#onTaskStart)
-* [onExecutorAdded](#onExecutorAdded)
 * [onBlockUpdated](#onBlockUpdated)
+* [onExecutorAdded](#onExecutorAdded)
+* [onTaskStart](#onTaskStart)
+
+## <span id="getResourceProfileId"> getResourceProfileId
+
+```scala
+getResourceProfileId(
+  executorId: String): Int
+```
+
+`getResourceProfileId`...FIXME
+
+`getResourceProfileId` is used for testing only.

@@ -38,6 +38,10 @@ validateSettings(): Unit
 
 * The number of tasks per core, i.e. [spark.executor.cores](../executor/Executor.md#spark.executor.cores) divided by [spark.task.cpus](configuration-properties.md#spark.task.cpus), is not zero.
 
+## Performance Metrics
+
+`ExecutorAllocationManager` uses [ExecutorAllocationManagerSource](ExecutorAllocationManagerSource.md) for performance metrics.
+
 ## <span id="executorMonitor"> ExecutorMonitor
 
 `ExecutorAllocationManager` creates an [ExecutorMonitor](ExecutorMonitor.md) when [created](#creating-instance).
