@@ -31,8 +31,8 @@ isDynamicAllocationEnabled(
 
 `isDynamicAllocationEnabled` is `true` when the following hold:
 
-* [spark.dynamicAllocation.enabled](dynamic-allocation/configuration-properties.md#spark.dynamicAllocation.enabled) configuration property is `true`
-* Spark application uses non-`local` master URL
+1. [spark.dynamicAllocation.enabled](dynamic-allocation/configuration-properties.md#spark.dynamicAllocation.enabled) configuration property is `true`
+1. [spark.master](configuration-properties.md#spark.master) is non-`local`
 
 `isDynamicAllocationEnabled` is used when:
 

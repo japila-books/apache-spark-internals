@@ -6,6 +6,10 @@ Number of CPU cores for [Executor](executor/Executor.md)
 
 Default: `1`
 
+## <span id="spark.master"> spark.master
+
+**Master URL** of the cluster manager to connect the Spark application to
+
 ## <span id="spark.rdd.compress"> spark.rdd.compress
 
 Controls whether to compress RDD partitions when stored serialized
@@ -408,9 +412,6 @@ Default: The value of <<spark.locality.wait, spark.locality.wait>>
 a| [[spark.logging.exceptionPrintInterval]] How frequently to reprint duplicate exceptions in full (in millis).
 
 Default: `10000`
-
-| spark.master
-a| [[spark.master]] *Master URL* to connect a Spark application to
 
 | spark.scheduler.allocation.file
 a| [[spark.scheduler.allocation.file]] Path to the configuration file of <<spark-scheduler-FairSchedulableBuilder.md#, FairSchedulableBuilder>>

@@ -17,6 +17,18 @@
 
 While being created, `SparkContext` [sets up core services](SparkContext-creating-instance-internals.md) and establishes a connection to a [Spark execution environment](spark-deployment-environments.md).
 
+## Services
+
+### <span id="executorAllocationManager"> ExecutorAllocationManager
+
+[ExecutorAllocationManager](dynamic-allocation/ExecutorAllocationManager.md)
+
+### <span id="schedulerBackend"> SchedulerBackend
+
+[SchedulerBackend](scheduler/SchedulerBackend.md)
+
+### others
+
 ## <span id="getOrCreate"> getOrCreate Utility
 
 ```scala

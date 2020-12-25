@@ -222,9 +222,21 @@ With [spark.eventLog.enabled](history-server/configuration-properties.md#spark.e
 
 With `spark.eventLog.enabled` disabled, `_eventLogger` is `None` (undefined).
 
-## <span id="ExecutorAllocationManager"> ExecutorAllocationManager
+## <span id="ExecutorAllocationManager"><span id="_executorAllocationManager"> ExecutorAllocationManager
 
-With [Dynamic Allocation of Executors](dynamic-allocation/index.md) enabled, `SparkContext` creates an [ExecutorAllocationManager](dynamic-allocation/ExecutorAllocationManager.md) and requests it to [start](dynamic-allocation/ExecutorAllocationManager.md#start).
+```scala
+_executorAllocationManager: Option[ExecutorAllocationManager]
+```
+
+`SparkContext` initializes `_executorAllocationManager` internal registry.
+
+`SparkContext` creates an [ExecutorAllocationManager](dynamic-allocation/ExecutorAllocationManager.md) when:
+
+* [Dynamic Allocation of Executors](dynamic-allocation/index.md) is enabled (based on [spark.dynamicAllocation.enabled](Utils.md#isDynamicAllocationEnabled) configuration property and the master URL)
+
+* [SchedulerBackend](SparkContext.md#schedulerBackend) is an [ExecutorAllocationClient](dynamic-allocation/ExecutorAllocationClient.md)
+
+The `ExecutorAllocationManager` is requested to [start](dynamic-allocation/ExecutorAllocationManager.md#start).
 
 ## <span id="_cleaner"><span id="ContextCleaner"> ContextCleaner
 

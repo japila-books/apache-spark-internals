@@ -1,36 +1,27 @@
 # Dynamic Allocation of Executors
 
-**Dynamic Allocation (of Executors)** (_Elastic Scaling_) is a Spark feature that allows for adding or removing [Spark executors](../executor/Executor.md) dynamically to match the workload.
+**Dynamic Allocation of Executors** (_Dynamic Resource Allocation_ or _Elastic Scaling_) is a Spark service for adding and removing [Spark executors](../executor/Executor.md) dynamically on demand to match workload.
 
 Unlike the "traditional" static allocation where a Spark application reserves CPU and memory resources upfront (irrespective of how much it may eventually use), in dynamic allocation you get as much as needed and no more. It scales the number of executors up and down based on workload, i.e. idle executors are removed, and when there are pending tasks waiting for executors to be launched on, dynamic allocation requests them.
 
-Dynamic allocation is enabled using [spark.dynamicAllocation.enabled](configuration-properties.md#spark.dynamicAllocation.enabled) configuration property. When enabled, it is assumed that the [External Shuffle Service](../external-shuffle-service/ExternalShuffleService.md) is also used (it is not by default as controlled by [spark.shuffle.service.enabled](../external-shuffle-service/configuration-properties.md#spark.shuffle.service.enabled) configuration property).
+Dynamic Allocation is enabled (and `SparkContext` creates an [ExecutorAllocationManager](../SparkContext-creating-instance-internals.md#ExecutorAllocationManager)) when:
 
-[ExecutorAllocationManager](ExecutorAllocationManager.md) is responsible for dynamic allocation of executors.
+1. [spark.dynamicAllocation.enabled](configuration-properties.md#spark.dynamicAllocation.enabled) configuration property is enabled
 
-Dynamic allocation reports the current state using [ExecutorAllocationManager](ExecutorAllocationManagerSource.md) metric source.
+1. [spark.master](../configuration-properties.md#spark.master) is non-`local`
+
+1. [SchedulerBackend](../SparkContext.md#schedulerBackend) is an [ExecutorAllocationClient](ExecutorAllocationClient.md)
+
+When enabled, it is recommended to use the [External Shuffle Service](../external-shuffle-service/index.md).
+
+[ExecutorAllocationManager](ExecutorAllocationManager.md) is responsible for Dynamic Resource Allocation.
+
+Dynamic allocation reports the current state using [ExecutorAllocationManagerSource](ExecutorAllocationManagerSource.md) metric source.
 
 Dynamic Allocation comes with the policy of scaling executors up and down as follows:
 
 1. **Scale Up Policy** requests new executors when there are pending tasks and increases the number of executors exponentially since executors start slow and Spark application may need slightly more.
 2. **Scale Down Policy** removes executors that have been idle for [spark.dynamicAllocation.executorIdleTimeout](configuration-properties.md#spark.dynamicAllocation.executorIdleTimeout) seconds.
-
-## <span id="isDynamicAllocationEnabled"> Is Dynamic Allocation Enabled
-
-```scala
-isDynamicAllocationEnabled(
-  conf: SparkConf): Boolean
-```
-
-`isDynamicAllocationEnabled` returns `true` if all the following conditions hold:
-
-* [spark.dynamicAllocation.enabled](configuration-properties.md#spark.dynamicAllocation.enabled) is enabled
-* [spark.master](../configuration-properties.md#spark.master) is non-`local`
-* [spark.dynamicAllocation.testing](configuration-properties.md#spark.dynamicAllocation.testing) is enabled
-
-Otherwise, `isDynamicAllocationEnabled` returns `false`.
-
-`isDynamicAllocationEnabled` is used when Spark calculates the initial number of executors for [coarse-grained scheduler backends](../scheduler/CoarseGrainedSchedulerBackend.md).
 
 ## Programmable Dynamic Allocation
 
@@ -81,9 +72,9 @@ Using initial executors = [initialExecutors], max of spark.dynamicAllocation.ini
 
 ### Documentation
 
-* [Dynamic Allocation](https://spark.apache.org/docs/latest/configuration.html#dynamic-allocation) in the documentation of Apache Spark
+* [Dynamic Allocation](https://spark.apache.org/docs/latest/configuration.html#dynamic-allocation) in the official documentation of Apache Spark
 * [Dynamic allocation](https://docs.cloudera.com/runtime/latest/running-spark-applications/topics/spark-yarn-dynamic-allocation.html) in the documentation of Cloudera Data Platform (CDP)
 
 ### Slides
 
-* [Dynamic Allocation in Spark](http://www.slideshare.net/databricks/dynamic-allocation-in-spark) from Databricks
+* [Dynamic Allocation in Spark](http://www.slideshare.net/databricks/dynamic-allocation-in-spark) by Databricks

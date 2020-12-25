@@ -57,7 +57,7 @@ Default: `false`
 
 Used when:
 
-* `ExecutorMonitor` is [created](dynamic-allocation/ExecutorMonitor.md#shuffleTrackingEnabled)
+* `ExecutorMonitor` is [created](ExecutorMonitor.md#shuffleTrackingEnabled)
 
 ## <span id="spark.dynamicAllocation.shuffleTracking.timeout"><span id="DYN_ALLOCATION_SHUFFLE_TRACKING_TIMEOUT"> spark.dynamicAllocation.shuffleTracking.timeout
 

@@ -7,7 +7,7 @@
 * [CoarseGrainedSchedulerBackend](../scheduler/CoarseGrainedSchedulerBackend.md)
 * [KubernetesClusterSchedulerBackend](../kubernetes/KubernetesClusterSchedulerBackend.md)
 * MesosCoarseGrainedSchedulerBackend
-* StandaloneSchedulerBackend
+* [StandaloneSchedulerBackend](../spark-standalone/StandaloneSchedulerBackend.md)
 * YarnSchedulerBackend
 
 ## <span id="getExecutorIds"> Active Executors

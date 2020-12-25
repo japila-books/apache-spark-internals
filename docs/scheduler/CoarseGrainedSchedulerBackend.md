@@ -17,7 +17,7 @@
 
 * [KubernetesClusterSchedulerBackend](../kubernetes/KubernetesClusterSchedulerBackend.md)
 * MesosCoarseGrainedSchedulerBackend
-* StandaloneSchedulerBackend
+* [StandaloneSchedulerBackend](../spark-standalone/StandaloneSchedulerBackend.md)
 * YarnSchedulerBackend
 
 ## Creating Instance
