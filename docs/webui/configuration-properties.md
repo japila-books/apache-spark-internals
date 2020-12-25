@@ -1,5 +1,11 @@
 # web UI Configuration Properties
 
+## <span id="spark.ui.enabled"> spark.ui.enabled
+
+Controls whether the web UI is started for the Spark application
+
+Default: `true`
+
 ## <span id="CUSTOM_EXECUTOR_LOG_URL"><span id="spark.ui.custom.executor.log.url"> spark.ui.custom.executor.log.url
 
 Specifies custom spark executor log url for supporting external log service instead of using cluster managers' application log urls in the Spark UI. Spark will support some path variables via patterns which can vary on cluster manager. Please check the documentation for your cluster manager to see which patterns are supported, if any. This configuration replaces original log urls in event log, which will be also effective when accessing the application on history server. The new log urls must be permanent, otherwise you might have dead link for executor log urls.
@@ -25,10 +31,6 @@ Used exclusively when `JettyUtils` is requested to spark-webui-JettyUtils.md#cre
 | [[spark.ui.consoleProgress.update.interval]] `spark.ui.consoleProgress.update.interval`
 | `200` (ms)
 | Update interval, i.e. how often to show the progress.
-
-| [[spark.ui.enabled]] `spark.ui.enabled`
-| `true`
-| The flag to control whether the web UI is started (`true`) or not (`false`).
 
 | [[spark.ui.port]] `spark.ui.port`
 | `4040`

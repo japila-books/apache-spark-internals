@@ -1,5 +1,44 @@
 # Utils Utility
 
+## <span id="getCurrentUserName"> getCurrentUserName
+
+```scala
+getCurrentUserName(): String
+```
+
+`getCurrentUserName` computes the user name who has started the SparkContext.md[SparkContext] instance.
+
+NOTE: It is later available as SparkContext.md#sparkUser[SparkContext.sparkUser].
+
+Internally, it reads SparkContext.md#SPARK_USER[SPARK_USER] environment variable and, if not set, reverts to Hadoop Security API's `UserGroupInformation.getCurrentUser().getShortUserName()`.
+
+NOTE: It is another place where Spark relies on Hadoop API for its operation.
+
+## <span id="localHostName"> localHostName
+
+```scala
+localHostName(): String
+```
+
+`localHostName` computes the local host name.
+
+It starts by checking `SPARK_LOCAL_HOSTNAME` environment variable for the value. If it is not defined, it uses `SPARK_LOCAL_IP` to find the name (using `InetAddress.getByName`). If it is not defined either, it calls `InetAddress.getLocalHost` for the name.
+
+NOTE: `Utils.localHostName` is executed while SparkContext.md#creating-instance[`SparkContext` is created] and also to compute the default value of spark-driver.md#spark_driver_host[spark.driver.host Spark property].
+
+## <span id="getUserJars"> getUserJars
+
+```scala
+getUserJars(
+  conf: SparkConf): Seq[String]
+```
+
+`getUserJars` is the [spark.jars](configuration-properties.md#spark.jars) configuration property with non-empty entries.
+
+`getUserJars` is used when:
+
+* `SparkContext` is [created](SparkContext-creating-instance-internals.md#_jars)
+
 ## <span id="extractHostPortFromSparkUrl"> extractHostPortFromSparkUrl
 
 ```scala

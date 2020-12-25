@@ -31,7 +31,7 @@ Enable `DEBUG` logging level for `org.apache.spark.scheduler.TaskSchedulerImpl` 
 
 A cluster manager is recommended since it gives more task localization choices (with YARN additionally supporting rack localization).
 
-```
+```text
 $ ./bin/spark-shell --master yarn --conf spark.ui.showConsoleProgress=false
 
 // Keep # partitions low to keep # messages low

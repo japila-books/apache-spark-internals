@@ -56,18 +56,6 @@ NOTE: It is printed out to the standard error output in spark-submit.md#verbose-
 
 More precisely, `spark.driver.blockManager.port` is used when core:SparkEnv.md#NettyBlockTransferService[`NettyBlockTransferService` is created] (while `SparkEnv` is created for the driver).
 
-| [[spark_driver_host]][[spark.driver.host]] `spark.driver.host`
-| [localHostName](SparkContext-creating-instance-internals.md#localHostName)
-| The address of the node where the driver runs on.
-
-Set when SparkContext.md#creating-instance[`SparkContext` is created]
-
-| [[spark_driver_port]][[spark.driver.port]] `spark.driver.port`
-| `0`
-| The port the driver listens to. It is first set to `0` in the driver when SparkContext.md#creating-instance[SparkContext is initialized].
-
-Set to the port of rpc:index.md[RpcEnv] of the driver (in <<create, SparkEnv.create>>) or when yarn/spark-yarn-applicationmaster.md#waitForSparkDriver[client-mode `ApplicationMaster` connected to the driver] (in Spark on YARN).
-
 | [[spark_driver_memory]] `spark.driver.memory` | `1g` | The driver's memory size (in MiBs).
 
 Refer to <<driver-memory, Driver's Memory>>.

@@ -548,14 +548,11 @@ getExecutorStorageStatus: Array[StorageStatus]
 
 NOTE: `getExecutorStorageStatus` is a developer API.
 
-[NOTE]
-====
 `getExecutorStorageStatus` is used when:
 
-* SparkContext <<getRDDStorageInfo, is requested for storage status of cached RDDs>>
+* `SparkContext` is requested for [storage status of cached RDDs](#getRDDStorageInfo)
 
-* `SparkStatusTracker` spark-sparkcontext-SparkStatusTracker.md#getExecutorInfos[is requested for information about all known executors]
-====
+* `SparkStatusTracker` is requested for [known executors](SparkStatusTracker.md#getExecutorInfos)
 
 == [[deployMode]] Deploy Mode -- `deployMode` Method
 
@@ -1078,35 +1075,6 @@ In the end, `getRDDStorageInfo` gives only the RDD that are cached (i.e. the sum
 
 NOTE: `getRDDStorageInfo` is used when `RDD` spark-rdd-lineage.md#toDebugString[is requested for RDD lineage graph].
 
-== [[settings]] Settings
-
-=== [[spark.driver.allowMultipleContexts]] spark.driver.allowMultipleContexts
-
-Quoting the scaladoc of  http://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.SparkContext[org.apache.spark.SparkContext]:
-
-> Only one SparkContext may be active per JVM. You must `stop()` the active SparkContext before creating a new one.
-
-You can however control the behaviour using `spark.driver.allowMultipleContexts` flag.
-
-It is disabled, i.e. `false`, by default.
-
-If enabled (i.e. `true`), Spark prints the following WARN message to the logs:
-
-```
-WARN Multiple running SparkContexts detected in the same JVM!
-```
-
-If disabled (default), it will throw an `SparkException` exception:
-
-```
-Only one SparkContext may be running in this JVM (see SPARK-2243). To ignore this error, set spark.driver.allowMultipleContexts = true. The currently running SparkContext was created at:
-[ctx.creationSite.longForm]
-```
-
-When creating an instance of SparkContext, Spark marks the current thread as having it being created (very early in the instantiation process).
-
-CAUTION: It's not guaranteed that Spark will work properly with two or more SparkContexts. Consider the feature a work in progress.
-
 == [[statusStore]] Accessing AppStatusStore
 
 [source, scala]
@@ -1262,10 +1230,23 @@ Used when SparkContext is requested to:
 * <<getPersistentRDDs, getPersistentRDDs>>
 * <<unpersistRDD, unpersistRDD>>
 
-=== [[stopped]] stopped Flag
+## <span id="createSparkEnv"> Creating SparkEnv for Driver
 
-Flag that says whether...FIXME (`true`) or not (`false`)
+```scala
+createSparkEnv(
+  conf: SparkConf,
+  isLocal: Boolean,
+  listenerBus: LiveListenerBus): SparkEnv
+```
 
-=== [[_taskScheduler]] TaskScheduler
+`createSparkEnv` uses the `SparkEnv` utility to [create a SparkEnv for the driver](SparkEnv.md#createDriverEnv) (with the arguments and [numDriverCores](#numDriverCores)).
 
-scheduler:TaskScheduler.md[TaskScheduler]
+### <span id="numDriverCores"> numDriverCores
+
+```scala
+numDriverCores(
+  master: String,
+  conf: SparkConf): Int
+```
+
+`numDriverCores`...FIXME

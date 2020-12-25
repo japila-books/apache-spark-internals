@@ -1,16 +1,56 @@
 # Spark Configuration Properties
 
+## <span id="spark.cleaner.referenceTracking"><span id="CLEANER_REFERENCE_TRACKING"> spark.cleaner.referenceTracking
+
+Controls whether to enable [ContextCleaner](core/ContextCleaner.md)
+
+Default: `true`
+
+## <span id="spark.driver.host"><span id="DRIVER_HOST_ADDRESS"> spark.driver.host
+
+Address of the driver (endpoints)
+
+Default: [Utils.localCanonicalHostName](Utils.md#localCanonicalHostName)
+
+## <span id="spark.driver.port"><span id="DRIVER_PORT"> spark.driver.port
+
+Port of the driver (endpoints)
+
+Default: `0`
+
 ## <span id="spark.executor.cores"><span id="EXECUTOR_CORES"> spark.executor.cores
 
 Number of CPU cores for [Executor](executor/Executor.md)
 
 Default: `1`
 
+## <span id="spark.executor.id"> spark.executor.id
+
+Default: (undefined)
+
+## <span id="spark.files"> spark.files
+
+Default: (empty)
+
+## <span id="spark.jars"> spark.jars
+
+Default: (empty)
+
+## <span id="spark.logConf"> spark.logConf
+
+Default: `false`
+
 ## <span id="spark.master"> spark.master
 
 **Master URL** of the cluster manager to connect the Spark application to
 
 ## <span id="spark.rdd.compress"> spark.rdd.compress
+
+Controls whether to compress RDD partitions when stored serialized
+
+Default: `false`
+
+## <span id="spark.repl.class.uri"> spark.repl.class.uri
 
 Controls whether to compress RDD partitions when stored serialized
 
@@ -179,11 +219,11 @@ A comma-separated list of directories that are used as a temporary storage for "
 
 Default: `/tmp`
 
-## <span id="spark.ui.showConsoleProgress"> spark.ui.showConsoleProgress
+## <span id="spark.ui.showConsoleProgress"><span id="UI_SHOW_CONSOLE_PROGRESS"> spark.ui.showConsoleProgress
 
-Enables [ConsoleProgressBar](ConsoleProgressBar.md)
+Controls whether to enable [ConsoleProgressBar](ConsoleProgressBar.md) and show the progress bar in the console
 
-Default: `true`
+Default: `false`
 
 ## <span id="spark.logLineage"> spark.logLineage
 
@@ -342,9 +382,6 @@ a| [[spark.executor.logs.rolling.maxRetainedFiles]]
 
 | spark.executor.logs.rolling.maxSize
 a| [[spark.executor.logs.rolling.maxSize]]
-
-| spark.executor.id
-a| [[spark.executor.id]]
 
 | spark.executor.heartbeatInterval
 a| [[spark.executor.heartbeatInterval]] Interval after which an executor:Executor.md[] reports heartbeat and metrics for active tasks to the driver
@@ -643,12 +680,6 @@ Default: `false`
 Controls how often to trigger a garbage collection
 
 Default: `30min`
-
-== [[spark.cleaner.referenceTracking]] spark.cleaner.referenceTracking
-
-Controls whether to enable ContextCleaner
-
-Default: `true`
 
 == [[spark.cleaner.referenceTracking.blocking]] spark.cleaner.referenceTracking.blocking
 

@@ -1,6 +1,6 @@
 # ConsoleProgressBar
 
-`ConsoleProgressBar` shows the progress of active stages to standard error, i.e. `stderr`. It uses spark-sparkcontext-SparkStatusTracker.md[SparkStatusTracker] to poll the status of stages periodically and print out active stages with more than one task. It keeps overwriting itself to hold in one line for at most 3 first concurrent stages at a time.
+`ConsoleProgressBar` shows the progress of active stages to standard error, i.e. `stderr`. It uses [SparkStatusTracker](SparkStatusTracker.md) to poll the status of stages periodically and print out active stages with more than one task. It keeps overwriting itself to hold in one line for at most 3 first concurrent stages at a time.
 
 ```text
 [Stage 0:====>          (316 + 4) / 1000][Stage 1:>                (0 + 0) / 1000][Stage 2:>                (0 + 0) / 1000]]]
@@ -10,7 +10,7 @@ The progress includes the stage id, the number of completed, active, and total t
 
 TIP: `ConsoleProgressBar` may be useful when you `ssh` to workers and want to see the progress of active stages.
 
-<<creating-instance, `ConsoleProgressBar` is created>> when [SparkContext](SparkContext.md) is created with spark-webui-properties.md#spark.ui.showConsoleProgress[spark.ui.showConsoleProgress] enabled and the logging level of SparkContext.md[org.apache.spark.SparkContext] logger as `WARN` or higher (i.e. less messages are printed out and so there is a "space" for `ConsoleProgressBar`).
+<<creating-instance, `ConsoleProgressBar` is created>> when [SparkContext](SparkContext.md) is created with [spark.ui.showConsoleProgress](configuration-properties.md#spark.ui.showConsoleProgress) enabled and the logging level of SparkContext.md[org.apache.spark.SparkContext] logger as `WARN` or higher (i.e. less messages are printed out and so there is a "space" for `ConsoleProgressBar`).
 
 [source, scala]
 ----
@@ -65,7 +65,7 @@ When being created, `ConsoleProgressBar` reads spark-webui-properties.md#spark.u
 
 `ConsoleProgressBar` starts the internal timer `refresh progress` that does <<refresh, refresh>> and shows progress.
 
-NOTE: `ConsoleProgressBar` is created when [SparkContext](SparkContext.md) is created, spark-webui-properties.md#spark.ui.showConsoleProgress[spark.ui.showConsoleProgress] configuration property is enabled, and the logging level of SparkContext.md[org.apache.spark.SparkContext] logger is `WARN` or higher (i.e. less messages are printed out and so there is a "space" for `ConsoleProgressBar`).
+NOTE: `ConsoleProgressBar` is created when [SparkContext](SparkContext.md) is created, [spark.ui.showConsoleProgress](configuration-properties.md#spark.ui.showConsoleProgress) configuration property is enabled, and the logging level of SparkContext.md[org.apache.spark.SparkContext] logger is `WARN` or higher (i.e. less messages are printed out and so there is a "space" for `ConsoleProgressBar`).
 
 NOTE: Once created, `ConsoleProgressBar` is available internally as `_progressBar`.
 

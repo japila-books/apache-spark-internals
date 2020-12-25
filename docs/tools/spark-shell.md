@@ -96,17 +96,3 @@ To close Spark shell, you press `Ctrl+D` or type in `:q` (or any subset of `:qui
 ```
 scala> :q
 ```
-
-=== [[settings]] Settings
-
-.Spark Properties
-[cols="1,1,2",options="header",width="100%"]
-|===
-| Spark Property | Default Value | Description
-| [[spark_repl_class_uri]] `spark.repl.class.uri` | `null` | Used in `spark-shell` to create REPL ClassLoader to load new classes defined in the Scala REPL as a user types code.
-
-Enable `INFO` logging level for executor:Executor.md[org.apache.spark.executor.Executor] logger to have the value printed out to the logs:
-
-`INFO Using REPL class URI: [classUri]`
-
-|===

@@ -1,6 +1,6 @@
 # Inside Creating SparkContext
 
-This document describes what happens when you SparkContext.md#creating-instance[create a new SparkContext].
+This document describes the internals of what happens when a new `SparkContext` is [created](SparkContext.md#creating-instance).
 
 ```text
 import org.apache.spark.{SparkConf, SparkContext}
@@ -8,169 +8,282 @@ import org.apache.spark.{SparkConf, SparkContext}
 // 1. Create Spark configuration
 val conf = new SparkConf()
   .setAppName("SparkMe Application")
-  .setMaster("local[*]")  // local mode
+  .setMaster("local[*]")
 
 // 2. Create Spark context
 val sc = new SparkContext(conf)
 ```
 
-NOTE: The example uses Spark in local/spark-local.md[local mode], but the initialization with spark-cluster.md[the other cluster modes] would follow similar steps.
+## <span id="creationSite"> creationSite
 
-Creating `SparkContext` instance starts by setting the internal `allowMultipleContexts` field with the value of SparkContext.md#spark.driver.allowMultipleContexts[spark.driver.allowMultipleContexts] and marking this `SparkContext` instance as partially constructed. It makes sure that no other thread is creating a `SparkContext` instance in this JVM. It does so by synchronizing on `SPARK_CONTEXT_CONSTRUCTOR_LOCK` and using the internal atomic reference `activeContext` (that eventually has a fully-created `SparkContext` instance).
-
-[NOTE]
-====
-The entire code of `SparkContext` that creates a fully-working `SparkContext` instance is between two statements:
-
-[source, scala]
-----
-SparkContext.markPartiallyConstructed(this, allowMultipleContexts)
-
-// the SparkContext code goes here
-
-SparkContext.setActiveContext(this, allowMultipleContexts)
-----
-====
-
-SparkContext.md#startTime[startTime] is set to the current time in milliseconds.
-
-<<stopped, stopped>> internal flag is set to `false`.
-
-The very first information printed out is the version of Spark as an INFO message:
-
-```
-INFO SparkContext: Running Spark version 2.0.0-SNAPSHOT
+```scala
+creationSite: CallSite
 ```
 
-TIP: You can use SparkContext.md#version[version] method to learn about the current Spark version or `org.apache.spark.SPARK_VERSION` value.
+`SparkContext` determines **call site**.
 
-A scheduler:LiveListenerBus.md#creating-instance[LiveListenerBus instance is created] (as `listenerBus`).
+## <span id="assertOnDriver"> assertOnDriver
 
-[[sparkUser]]
-The SparkContext.md#sparkUser[current user name] is computed.
+`SparkContext`...FIXME
 
-CAUTION: FIXME Where is `sparkUser` used?
+## <span id="markPartiallyConstructed"> markPartiallyConstructed
 
-It saves the input `SparkConf` (as `_conf`).
+`SparkContext`...FIXME
 
-CAUTION: FIXME Review `_conf.validateSettings()`
+## <span id="startTime"> startTime
 
-It ensures that the first mandatory setting - `spark.master` is defined. `SparkException` is thrown if not.
-
+```scala
+startTime: Long
 ```
+
+`SparkContext` records the current time (in ms).
+
+## <span id="stopped"> stopped
+
+```scala
+stopped: AtomicBoolean
+```
+
+`SparkContext` initializes `stopped` flag to `false`.
+
+## <span id="spark-version"> Printing Out Spark Version
+
+`SparkContext` prints out the following INFO message to the logs:
+
+```text
+Running Spark version [SPARK_VERSION]
+```
+
+## <span id="sparkUser"> sparkUser
+
+```scala
+sparkUser: String
+```
+
+`SparkContext` determines **Spark user**.
+
+## <span id="_conf"> SparkConf
+
+```scala
+_conf: SparkConf
+```
+
+`SparkContext` clones the [SparkConf](#config) and requests it to [validateSettings](SparkConf.md#validateSettings).
+
+## <span id="spark.master"> Enforcing Mandatory Configuration Properties
+
+`SparkContext` asserts that [spark.master](configuration-properties.md#spark.master) and [spark.app.name](configuration-properties.md#spark.app.name) are defined (in the [SparkConf](#config)).
+
+```text
 A master URL must be set in your configuration
 ```
 
-It ensures that the other mandatory setting - `spark.app.name` is defined. `SparkException` is thrown if not.
-
-```
+```text
 An application name must be set in your configuration
 ```
 
-For yarn/spark-yarn-cluster-yarnclusterschedulerbackend.md[Spark on YARN in cluster deploy mode], it checks existence of `spark.yarn.app.id`. `SparkException` is thrown if it does not exist.
+## <span id="_driverLogger"> DriverLogger
 
+```scala
+_driverLogger: Option[DriverLogger]
 ```
+
+`SparkContext` creates a `DriverLogger`.
+
+## <span id="ResourceInformation"> ResourceInformation
+
+```scala
+_resources: Map[String, ResourceInformation]
+```
+
+`SparkContext` uses [spark.driver.resourcesFile](configuration-properties.md#spark.driver.resourcesFile) configuration property to discovery driver resources and prints out the following INFO message to the logs:
+
+```text
+==============================================================
+Resources for [componentName]:
+[resources]
+==============================================================
+```
+
+## Submitted Application
+
+`SparkContext` prints out the following INFO message to the logs (with the value of [spark.app.name](configuration-properties.md#spark.app.name) configuration property):
+
+```text
+Submitted application: [appName]
+```
+
+## Spark on YARN and spark.yarn.app.id
+
+For Spark on YARN in cluster deploy mode], `SparkContext` checks whether `spark.yarn.app.id` configuration property is defined. `SparkException` is thrown if it does not exist.
+
+```text
 Detected yarn cluster mode, but isn't running on a cluster. Deployment to YARN is not supported directly by SparkContext. Please use spark-submit.
 ```
 
-CAUTION: FIXME How to "trigger" the exception? What are the steps?
+## Displaying Spark Configuration
 
-When `spark.logConf` is enabled SparkConf.md[SparkConf.toDebugString] is called.
+With [spark.logConf](configuration-properties.md#spark.logConf) configuration property enabled, `SparkContext` prints out the following INFO message to the logs:
 
-NOTE: `SparkConf.toDebugString` is called very early in the initialization process and other settings configured afterwards are not included. Use `sc.getConf.toDebugString` once SparkContext is initialized.
+```text
+Spark configuration:
+[conf.toDebugString]
+```
 
-The driver's host and port are set if missing. spark-driver.md#spark_driver_host[spark.driver.host] becomes the value of <<localHostName, Utils.localHostName>> (or an exception is thrown) while spark-driver.md#spark_driver_port[spark.driver.port] is set to `0`.
+!!! note
+    `SparkConf.toDebugString` is used very early in the initialization process and other settings configured afterwards are not included. Use `SparkContext.getConf.toDebugString` once `SparkContext` is initialized.
 
-NOTE: spark-driver.md#spark_driver_host[spark.driver.host] and spark-driver.md#spark_driver_port[spark.driver.port] are expected to be set on the driver. It is later asserted by core:SparkEnv.md#createDriverEnv[SparkEnv].
+## Setting Configuration Properties
 
-executor:Executor.md#spark.executor.id[spark.executor.id] setting is set to `driver`.
+* [spark.driver.host](configuration-properties.md#spark.driver.host) to the current value of the property (to override the default)
+* [spark.driver.port](configuration-properties.md#spark.driver.port) to `0` unless defined already
+* [spark.executor.id](configuration-properties.md#spark.executor.id) to `driver`
 
-TIP: Use `sc.getConf.get("spark.executor.id")` to know where the code is executed -- core:SparkEnv.md[driver or executors].
+## <span id="_jars"> User-Defined Jar Files
 
-It sets the jars and files based on `spark.jars` and `spark.files`, respectively. These are files that are required for proper task execution on executors.
+```scala
+_jars: Seq[String]
+```
+
+`SparkContext` sets the `_jars` to [spark.jars](configuration-properties.md#spark.jars) configuration property.
+
+## <span id="_files"> User-Defined Files
+
+```scala
+_files: Seq[String]
+```
+
+`SparkContext` sets the `_files` to [spark.files](configuration-properties.md#spark.files) configuration property.
+
+## <span id="_eventLogDir"><span id="spark.eventLog.dir"> spark.eventLog.dir
+
+```scala
+_eventLogDir: Option[URI]
+```
 
 If spark-history-server:EventLoggingListener.md[event logging] is enabled, i.e. EventLoggingListener.md#spark_eventLog_enabled[spark.eventLog.enabled] flag is `true`, the internal field `_eventLogDir` is set to the value of EventLoggingListener.md#spark_eventLog_dir[spark.eventLog.dir] setting or the default value `/tmp/spark-events`.
 
-[[_eventLogCodec]]
+## <span id="_eventLogCodec"><span id="spark.eventLog.compress"> spark.eventLog.compress
+
+```scala
+_eventLogCodec: Option[String]
+```
+
 Also, if spark-history-server:EventLoggingListener.md#spark_eventLog_compress[spark.eventLog.compress] is enabled (it is not by default), the short name of the io:CompressionCodec.md[CompressionCodec] is assigned to `_eventLogCodec`. The config key is core:BroadcastManager.md#spark_io_compression_codec[spark.io.compression.codec] (default: `lz4`).
 
-TIP: Read about compression codecs in core:BroadcastManager.md#compression[Compression].
+## <span id="_listenerBus"> Creating LiveListenerBus
 
-=== [[_listenerBus]] Creating LiveListenerBus
+```scala
+_listenerBus: LiveListenerBus
+```
 
-`SparkContext` creates a scheduler:LiveListenerBus.md#creating-instance[LiveListenerBus].
+`SparkContext` creates a [LiveListenerBus](scheduler/LiveListenerBus.md).
 
 ## <span id="_statusStore"> Creating AppStatusStore
+
+```scala
+_statusStore: AppStatusStore
+```
 
 `SparkContext` requests `AppStatusStore` to create a core:AppStatusStore.md#createLiveStore[live store] (i.e. the `AppStatusStore` for a live Spark application) and requests <<listenerBus, LiveListenerBus>> to add the core:AppStatusStore.md#listener[AppStatusListener] to the scheduler:LiveListenerBus.md#addToStatusQueue[status queue].
 
 NOTE: The current `AppStatusStore` is available as SparkContext.md#statusStore[statusStore] property of the `SparkContext`.
 
-=== [[_env]] Creating SparkEnv
+## <span id="_env"> Creating SparkEnv
 
-`SparkContext` creates a <<createSparkEnv, SparkEnv>> and requests `SparkEnv` to core:SparkEnv.md#set[use the instance as the default SparkEnv].
+```scala
+_env: SparkEnv
+```
 
-CAUTION: FIXME Describe the following steps.
+`SparkContext` creates a [SparkEnv](#createSparkEnv) and requests `SparkEnv` to [use the instance as the default SparkEnv](SparkEnv.md#set).
 
-`MetadataCleaner` is created.
+## <span id="spark.repl.class.uri"> spark.repl.class.uri
 
-CAUTION: FIXME What's MetadataCleaner?
+With [spark.repl.class.outputDir](configuration-properties.md#spark.repl.class.outputDir) configuration property defined, `SparkContext` sets [spark.repl.class.uri](configuration-properties.md#spark.repl.class.uri) configuration property to be...FIXME
 
-=== [[_statusTracker]] Creating SparkStatusTracker
+## <span id="_statusTracker"> Creating SparkStatusTracker
 
-`SparkContext` creates a spark-sparkcontext-SparkStatusTracker.md#creating-instance[SparkStatusTracker] (with itself and the <<_statusStore, AppStatusStore>>).
+```scala
+_statusTracker: SparkStatusTracker
+```
 
-=== [[_progressBar]] Creating ConsoleProgressBar
+`SparkContext` creates a [SparkStatusTracker](SparkStatusTracker.md) (with itself and the [AppStatusStore](#_statusStore)).
 
-`SparkContext` creates the optional [ConsoleProgressBar](ConsoleProgressBar.md#creating-instance) when spark-webui-properties.md#spark.ui.showConsoleProgress[spark.ui.showConsoleProgress] property is enabled and the `INFO` logging level for `SparkContext` is disabled.
+## <span id="_progressBar"> Creating ConsoleProgressBar
 
-=== [[_ui]][[ui]] Creating SparkUI
+```scala
+_progressBar: Option[ConsoleProgressBar]
+```
 
-`SparkContext` creates a spark-webui-SparkUI.md#create[SparkUI] when spark-webui-properties.md#spark.ui.enabled[spark.ui.enabled] configuration property is enabled (i.e. `true`) with the following:
+`SparkContext` creates a [ConsoleProgressBar](ConsoleProgressBar.md) only when [spark.ui.showConsoleProgress](configuration-properties.md#spark.ui.showConsoleProgress) configuration property is enabled.
 
-* <<_statusStore, AppStatusStore>>
+## <span id="_ui"><span id="ui"> Creating SparkUI
 
-* Name of the Spark application that is exactly the value of SparkConf.md#spark.app.name[spark.app.name] configuration property
+```scala
+_ui: Option[SparkUI]
+```
 
-* Empty base path
+`SparkContext` creates a [SparkUI](webui/SparkUI.md#create) only when [spark.ui.enabled](webui/configuration-properties.md#spark.ui.enabled) configuration property is enabled.
 
-NOTE: spark-webui-properties.md#spark.ui.enabled[spark.ui.enabled] Spark property is assumed enabled when undefined.
+`SparkContext` requests the `SparkUI` to [bind](webui/SparkUI.md#bind).
 
-CAUTION: FIXME Where's `_ui` used?
+## <span id="_hadoopConfiguration"> Hadoop Configuration
 
-A Hadoop configuration is created. See SparkContext.md#hadoopConfiguration[Hadoop Configuration].
+```scala
+_hadoopConfiguration: Configuration
+```
 
-[[jars]]
-If there are jars given through the SparkContext constructor, they are added using `addJar`.
+`SparkContext` creates a new Hadoop `Configuration`.
 
-[[files]]
-If there were files specified, they are added using SparkContext.md#addFile[addFile].
+## <span id="jars"> Adding User-Defined Jar Files
 
-At this point in time, the amount of memory to allocate to each executor (as `_executorMemory`) is calculated. It is the value of executor:Executor.md#spark.executor.memory[spark.executor.memory] setting, or SparkContext.md#environment-variables[SPARK_EXECUTOR_MEMORY] environment variable (or currently-deprecated `SPARK_MEM`), or defaults to `1024`.
+If there are jars given through the `SparkContext` constructor, they are added using `addJar`.
+
+## <span id="files"> Adding User-Defined Files
+
+If there were files specified, they are added using [addFile](SparkContext.md#addFile).
+
+## <span id="_executorMemory"> _executorMemory
+
+```scala
+_executorMemory: Int
+```
+
+`SparkContext` determines the amount of memory to allocate to each executor. It is the value of executor:Executor.md#spark.executor.memory[spark.executor.memory] setting, or SparkContext.md#environment-variables[SPARK_EXECUTOR_MEMORY] environment variable (or currently-deprecated `SPARK_MEM`), or defaults to `1024`.
 
 `_executorMemory` is later available as `sc.executorMemory` and used for LOCAL_CLUSTER_REGEX, spark-standalone.md#SparkDeploySchedulerBackend[Spark Standalone's SparkDeploySchedulerBackend], to set `executorEnvs("SPARK_EXECUTOR_MEMORY")`, MesosSchedulerBackend, CoarseMesosSchedulerBackend.
 
+## <span id="SPARK_PREPEND_CLASSES"> SPARK_PREPEND_CLASSES Environment Variable
+
 The value of `SPARK_PREPEND_CLASSES` environment variable is included in `executorEnvs`.
 
-[CAUTION]
-====
-FIXME
-
-* What's `_executorMemory`?
-* What's the unit of the value of `_executorMemory` exactly?
-* What are "SPARK_TESTING", "spark.testing"? How do they contribute to `executorEnvs`?
-* What's `executorEnvs`?
-====
+## For Mesos SchedulerBackend Only
 
 The Mesos scheduler backend's configuration is included in `executorEnvs`, i.e. SparkContext.md#environment-variables[SPARK_EXECUTOR_MEMORY], `_conf.getExecutorEnv`, and `SPARK_USER`.
+
+## <span id="_shuffleDriverComponents"> ShuffleDriverComponents
+
+```scala
+_shuffleDriverComponents: ShuffleDriverComponents
+```
+
+`SparkContext`...FIXME
 
 ## <span id="_heartbeatReceiver"> Registering HeartbeatReceiver
 
 `SparkContext` registers [HeartbeatReceiver RPC endpoint](HeartbeatReceiver.md).
 
-`SparkContext` object is requested to SparkContext.md#createTaskScheduler[create the SchedulerBackend with the TaskScheduler] (for the given master URL) and the result becomes the internal `_schedulerBackend` and `_taskScheduler`.
+## <span id="_plugins"> PluginContainer
 
-NOTE: The internal `_schedulerBackend` and `_taskScheduler` are used by `schedulerBackend` and `taskScheduler` methods, respectively.
+```scala
+_plugins: Option[PluginContainer]
+```
+
+`SparkContext` creates a [PluginContainer](plugins/PluginContainer.md) (with itself and the [_resources](#_resources)).
+
+## Creating SchedulerBackend and TaskScheduler
+
+`SparkContext` object is requested to SparkContext.md#createTaskScheduler[create the SchedulerBackend with the TaskScheduler] (for the given master URL) and the result becomes the internal `_schedulerBackend` and `_taskScheduler`.
 
 scheduler:DAGScheduler.md#creating-instance[DAGScheduler is created] (as `_dagScheduler`).
 
@@ -178,11 +291,19 @@ scheduler:DAGScheduler.md#creating-instance[DAGScheduler is created] (as `_dagSc
 
 `SparkContext` sends a blocking [`TaskSchedulerIsSet` message to HeartbeatReceiver RPC endpoint](HeartbeatReceiver.md#TaskSchedulerIsSet) (to inform that the `TaskScheduler` is now available).
 
-=== [[taskScheduler-start]] Starting TaskScheduler
+## <span id="_heartbeater"> Heartbeater
 
-`SparkContext` scheduler:TaskScheduler.md#start[starts `TaskScheduler`].
+```scala
+_heartbeater: Heartbeater
+```
 
-=== [[_applicationId]][[_applicationAttemptId]] Setting Spark Application's and Execution Attempt's IDs -- `_applicationId` and `_applicationAttemptId`
+`SparkContext` creates a `Heartbeater` and starts it.
+
+## <span id="taskScheduler-start"> Starting TaskScheduler
+
+`SparkContext` requests the [TaskScheduler](#_taskScheduler) to [start](scheduler/TaskScheduler.md#start).
+
+## <span id="_applicationId"><span id="_applicationAttemptId"> Setting Spark Application's and Execution Attempt's IDs
 
 `SparkContext` sets the internal fields -- `_applicationId` and `_applicationAttemptId` -- (using `applicationId` and `applicationAttemptId` methods from the scheduler:TaskScheduler.md#contract[TaskScheduler Contract]).
 
@@ -192,21 +313,27 @@ NOTE: The unique identifier of a Spark application is used to initialize spark-w
 
 NOTE: `_applicationAttemptId` is used when `SparkContext` is requested for the SparkContext.md#applicationAttemptId[unique identifier of execution attempt of a Spark application] and when `EventLoggingListener` spark-history-server:EventLoggingListener.md#creating-instance[is created].
 
-=== [[spark.app.id]] Setting spark.app.id Spark Property in SparkConf
+## <span id="spark.app.id"> Setting spark.app.id Spark Property in SparkConf
 
 `SparkContext` sets SparkConf.md#spark.app.id[spark.app.id] property to be the <<_applicationId, unique identifier of a Spark application>> and, if enabled, spark-webui-SparkUI.md#setAppId[passes it on to `SparkUI`].
 
-## <span id="BlockManager-initialization"> Initializing BlockManager
+## <span id="spark.ui.proxyBase"> spark.ui.proxyBase
+
+## Initializing SparkUI
+
+`SparkContext` requests the [SparkUI](#_ui) (if defined) to [setAppId](webui/SparkUI.md#setAppId) with the [_applicationId](#_applicationId).
+
+## Initializing BlockManager
 
 The storage:BlockManager.md#initialize[BlockManager (for the driver) is initialized] (with `_applicationId`).
 
-=== [[MetricsSystem-start]] Starting MetricsSystem
+## Starting MetricsSystem
 
 `SparkContext` requests the `MetricsSystem` to [start](metrics/MetricsSystem.md#start).
 
 NOTE: `SparkContext` starts `MetricsSystem` after <<spark.app.id, setting spark.app.id Spark property>> as `MetricsSystem` uses it to [build unique identifiers fo metrics sources](metrics/MetricsSystem.md#buildRegistryName).
 
-## <span id="MetricsSystem-getServletHandlers"> Requesting JSON Servlet Handler
+## Attaching JSON Servlet Handler
 
 `SparkContext` requests the `MetricsSystem` for a [JSON servlet handler](metrics/MetricsSystem.md#getServletHandlers) and requests the <<_ui, SparkUI>> to spark-webui-WebUI.md#attachHandler[attach it].
 
@@ -221,6 +348,16 @@ With [spark.eventLog.enabled](history-server/configuration-properties.md#spark.e
 `SparkContext` requests the [LiveListenerBus](#listenerBus) to [add](scheduler/LiveListenerBus.md#addToEventLogQueue) the `EventLoggingListener` to `eventLog` event queue.
 
 With `spark.eventLog.enabled` disabled, `_eventLogger` is `None` (undefined).
+
+## <span id="_cleaner"><span id="ContextCleaner"> ContextCleaner
+
+```scala
+_cleaner: Option[ContextCleaner]
+```
+
+With [spark.cleaner.referenceTracking](configuration-properties.md#spark.cleaner.referenceTracking) configuration property enabled, `SparkContext` creates a [ContextCleaner](core/ContextCleaner.md) (with itself and the [_shuffleDriverComponents](#_shuffleDriverComponents)).
+
+`SparkContext` requests the `ContextCleaner` to [start](core/ContextCleaner.md#start)
 
 ## <span id="ExecutorAllocationManager"><span id="_executorAllocationManager"> ExecutorAllocationManager
 
@@ -238,19 +375,9 @@ _executorAllocationManager: Option[ExecutorAllocationManager]
 
 The `ExecutorAllocationManager` is requested to [start](dynamic-allocation/ExecutorAllocationManager.md#start).
 
-## <span id="_cleaner"><span id="ContextCleaner"> ContextCleaner
+## Registering User-Defined SparkListeners
 
-With [spark.cleaner.referenceTracking](configuration-properties.md#spark.cleaner.referenceTracking) configuration property enabled, `SparkContext` core:ContextCleaner.md#creating-instance[creates `ContextCleaner`] (as `_cleaner`) and core:ContextCleaner.md#start[started] immediately. Otherwise, `_cleaner` is empty.
-
-CAUTION: FIXME It'd be quite useful to have all the properties with their default values in `sc.getConf.toDebugString`, so when a configuration is not included but does change Spark runtime configuration, it should be added to `_conf`.
-
-## <span id="_executorAllocationManager"><span id="ExecutorAllocationManager"> ExecutorAllocationManager
-
-With [Dynamic Resource Allocation](Utils.md#isDynamicAllocationEnabled) enabled, `SparkContext`...FIXME
-
-## <span id="registering_SparkListeners"> Registering User-Defined SparkListeners
-
-It <<setupAndStartListenerBus, registers user-defined listeners and starts `SparkListenerEvent` event delivery to the listeners>>.
+`SparkContext` [registers user-defined listeners and starts `SparkListenerEvent` event delivery to the listeners](#setupAndStartListenerBus).
 
 ## <span id="postEnvironmentUpdate"> postEnvironmentUpdate
 
@@ -266,7 +393,7 @@ SparkListener.md#SparkListenerApplicationStart[SparkListenerApplicationStart] me
 
 NOTE: scheduler:TaskScheduler.md#postStartHook[TaskScheduler.postStartHook] does nothing by default, but custom implementations offer more advanced features, i.e. `TaskSchedulerImpl` scheduler:TaskSchedulerImpl.md#postStartHook[blocks the current thread until `SchedulerBackend` is ready]. There is also `YarnClusterScheduler` for Spark on YARN in `cluster` deploy mode.
 
-## <span id="registerSource"> Registering Metrics Sources
+## Registering Metrics Sources
 
 `SparkContext` requests `MetricsSystem` to [register metrics sources](metrics/MetricsSystem.md#registerSource) for the following services:
 
@@ -292,7 +419,7 @@ CAUTION: FIXME What does `NonFatal` represent in Scala?
 
 CAUTION: FIXME Finish me
 
-=== [[nextShuffleId]][[nextRddId]] Initializing nextShuffleId and nextRddId Internal Counters
+## <span id="nextShuffleId"><span id="nextRddId"> Initializing nextShuffleId and nextRddId Internal Counters
 
 `nextShuffleId` and `nextRddId` start with `0`.
 
@@ -300,12 +427,12 @@ CAUTION: FIXME Where are `nextShuffleId` and `nextRddId` used?
 
 A new instance of Spark context is created and ready for operation.
 
-=== [[getClusterManager]] Loading External Cluster Manager for URL (getClusterManager method)
+## <span id="getClusterManager"> Loading External Cluster Manager for URL (getClusterManager method)
 
-[source, scala]
-----
-getClusterManager(url: String): Option[ExternalClusterManager]
-----
+```scala
+getClusterManager(
+  url: String): Option[ExternalClusterManager]
+```
 
 `getClusterManager` loads scheduler:ExternalClusterManager.md[] that scheduler:ExternalClusterManager.md#canCreate[can handle the input `url`].
 
@@ -354,54 +481,9 @@ Any exception while registering a [SparkListenerInterface](SparkListenerInterfac
 Exception when registering SparkListener
 ```
 
-[TIP]
-====
-Set `INFO` on `org.apache.spark.SparkContext` logger to see the extra listeners being registered.
+!!! tip
+    Set `INFO` logging level for `org.apache.spark.SparkContext` logger to see the extra listeners being registered.
 
-```
-INFO SparkContext: Registered listener pl.japila.spark.CustomSparkListener
-```
-====
-
-=== [[createSparkEnv]] Creating SparkEnv for Driver -- `createSparkEnv` Method
-
-[source, scala]
-----
-createSparkEnv(
-  conf: SparkConf,
-  isLocal: Boolean,
-  listenerBus: LiveListenerBus): SparkEnv
-----
-
-`createSparkEnv` simply delegates the call to core:SparkEnv.md#createDriverEnv[SparkEnv to create a `SparkEnv` for the driver].
-
-It calculates the number of cores to `1` for `local` master URL, the number of processors available for JVM for `*` or the exact number in the master URL, or `0` for the cluster master URLs.
-
-=== [[getCurrentUserName]] `Utils.getCurrentUserName` Method
-
-[source, scala]
-----
-getCurrentUserName(): String
-----
-
-`getCurrentUserName` computes the user name who has started the SparkContext.md[SparkContext] instance.
-
-NOTE: It is later available as SparkContext.md#sparkUser[SparkContext.sparkUser].
-
-Internally, it reads SparkContext.md#SPARK_USER[SPARK_USER] environment variable and, if not set, reverts to Hadoop Security API's `UserGroupInformation.getCurrentUser().getShortUserName()`.
-
-NOTE: It is another place where Spark relies on Hadoop API for its operation.
-
-=== [[localHostName]] `Utils.localHostName` Method
-
-`localHostName` computes the local host name.
-
-It starts by checking `SPARK_LOCAL_HOSTNAME` environment variable for the value. If it is not defined, it uses `SPARK_LOCAL_IP` to find the name (using `InetAddress.getByName`). If it is not defined either, it calls `InetAddress.getLocalHost` for the name.
-
-NOTE: `Utils.localHostName` is executed while SparkContext.md#creating-instance[`SparkContext` is created] and also to compute the default value of spark-driver.md#spark_driver_host[spark.driver.host Spark property].
-
-CAUTION: FIXME Review the rest.
-
-=== [[stopped]] `stopped` Flag
-
-CAUTION: FIXME Where is this used?
+    ```text
+    Registered listener pl.japila.spark.CustomSparkListener
+    ```
