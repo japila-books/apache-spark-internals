@@ -34,7 +34,7 @@ Used when:
 
 ## <span id="spark.shuffle.service.fetch.rdd.enabled"><span id="SHUFFLE_SERVICE_FETCH_RDD_ENABLED"> spark.shuffle.service.fetch.rdd.enabled
 
-Whether to use the [ExternalShuffleService](ExternalShuffleService.md) for fetching disk persisted RDD blocks.
+Enables [ExternalShuffleService](ExternalShuffleService.md) for fetching disk persisted RDD blocks.
 
 When enabled with [Dynamic Resource Allocation](../dynamic-allocation/index.md) executors having only disk persisted blocks are considered idle after [spark.dynamicAllocation.executorIdleTimeout](../dynamic-allocation/configuration-properties.md#spark.dynamicAllocation.executorIdleTimeout) and will be released accordingly.
 

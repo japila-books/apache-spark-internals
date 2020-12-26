@@ -15,6 +15,20 @@
 
 * `ExecutorAllocationManager` is [created](ExecutorAllocationManager.md#executorMonitor)
 
+## <span id="shuffleIds"> shuffleIds Registry
+
+```scala
+shuffleIds: Set[Int]
+```
+
+`ExecutorMonitor` uses a mutable `HashSet` to track shuffle IDs...FIXME
+
+`shuffleIds` is initialized only when [shuffleTrackingEnabled](#shuffleTrackingEnabled) is enabled.
+
+`shuffleIds` is used by `Tracker` internal class for the following:
+
+* `updateTimeout`, `addShuffle`, `removeShuffle` and `updateActiveShuffles`
+
 ## <span id="executors"> Executors Registry
 
 ```scala
@@ -45,9 +59,43 @@ All executors are removed when [reset](#reset).
 * [pendingRemovalCount](#pendingRemovalCount)
 * [timedOutExecutors](#timedOutExecutors)
 
-## <span id="shuffleTrackingEnabled"> shuffleTrackingEnabled
+## <span id="fetchFromShuffleSvcEnabled"> fetchFromShuffleSvcEnabled Flag
 
-`ExecutorMonitor`...FIXME
+```scala
+fetchFromShuffleSvcEnabled: Boolean
+```
+
+`ExecutorMonitor` initializes `fetchFromShuffleSvcEnabled` internal flag based on the values of [spark.shuffle.service.enabled](../external-shuffle-service/configuration-properties.md#spark.shuffle.service.enabled) and [spark.shuffle.service.fetch.rdd.enabled](../external-shuffle-service/configuration-properties.md#spark.shuffle.service.fetch.rdd.enabled) configuration properties.
+
+`fetchFromShuffleSvcEnabled` is enabled (`true`) when the aforementioned configuration properties are.
+
+`fetchFromShuffleSvcEnabled` is used when:
+
+* [onBlockUpdated](#onBlockUpdated)
+
+## <span id="shuffleTrackingEnabled"> shuffleTrackingEnabled Flag
+
+```scala
+shuffleTrackingEnabled: Boolean
+```
+
+`ExecutorMonitor` initializes `shuffleTrackingEnabled` internal flag based on the values of [spark.shuffle.service.enabled](../external-shuffle-service/configuration-properties.md#spark.shuffle.service.enabled) and [spark.dynamicAllocation.shuffleTracking.enabled](configuration-properties.md#spark.dynamicAllocation.shuffleTracking.enabled) configuration properties.
+
+`shuffleTrackingEnabled` is enabled (`true`) when the following holds:
+
+1. [spark.shuffle.service.enabled](../external-shuffle-service/configuration-properties.md#spark.shuffle.service.enabled) is disabled
+1. [spark.dynamicAllocation.shuffleTracking.enabled](configuration-properties.md#spark.dynamicAllocation.shuffleTracking.enabled) is enabled
+
+When enabled, `ExecutorMonitor` uses `shuffleTrackingEnabled` to guard execution of the following (making them noops):
+
+* [onJobStart](#onJobStart)
+* [onJobEnd](#onJobEnd)
+
+When disabled, `ExecutorMonitor` uses `shuffleTrackingEnabled` for the following:
+
+* [onTaskEnd](#onTaskEnd)
+* [shuffleCleaned](#shuffleCleaned)
+* [shuffleIds](#shuffleIds)
 
 ## <span id="onBlockUpdated"> onBlockUpdated
 
@@ -170,6 +218,17 @@ reset(): Unit
 `reset` is used when:
 
 * FIXME
+
+## <span id="shuffleCleaned"> shuffleCleaned
+
+```scala
+shuffleCleaned(
+  shuffleId: Int): Unit
+```
+
+`shuffleCleaned` is part of the [CleanerListener](../core/CleanerListener.md#shuffleCleaned) abstraction.
+
+`shuffleCleaned`...FIXME
 
 ## <span id="timedOutExecutors"> timedOutExecutors
 
