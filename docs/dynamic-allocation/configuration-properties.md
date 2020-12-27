@@ -2,9 +2,16 @@
 
 ## <span id="spark.dynamicAllocation.cachedExecutorIdleTimeout"><span id="DYN_ALLOCATION_CACHED_EXECUTOR_IDLE_TIMEOUT"> spark.dynamicAllocation.cachedExecutorIdleTimeout
 
-(in seconds)
+How long (in seconds) to keep blocks cached
 
 Default: The largest value representable as an Int
+
+Must be >= `0`
+
+Used when:
+
+* `ExecutorMonitor` is [created](ExecutorMonitor.md#storageTimeoutNs)
+* `RDD` is requested to [localCheckpoint](../rdd/RDD.md#localCheckpoint) (simply to print out a WARN message)
 
 ## <span id="spark.dynamicAllocation.enabled"><span id="DYN_ALLOCATION_ENABLED"> spark.dynamicAllocation.enabled
 
@@ -28,8 +35,6 @@ Used when:
 * `ExecutorAllocationManager` is [created](ExecutorAllocationManager.md#executorAllocationRatio)
 
 ## <span id="spark.dynamicAllocation.executorIdleTimeout"><span id="DYN_ALLOCATION_EXECUTOR_IDLE_TIMEOUT"> spark.dynamicAllocation.executorIdleTimeout
-
-(in seconds)
 
 Default: `60`
 

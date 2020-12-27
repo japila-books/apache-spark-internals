@@ -97,6 +97,10 @@ When disabled, `ExecutorMonitor` uses `shuffleTrackingEnabled` for the following
 * [shuffleCleaned](#shuffleCleaned)
 * [shuffleIds](#shuffleIds)
 
+## <span id="storageTimeoutNs"> spark.dynamicAllocation.cachedExecutorIdleTimeout
+
+`ExecutorMonitor` reads [spark.dynamicAllocation.cachedExecutorIdleTimeout](configuration-properties.md#spark.dynamicAllocation.cachedExecutorIdleTimeout) configuration property for `Tracker` to [updateTimeout](Tracker.md#updateTimeout).
+
 ## <span id="onBlockUpdated"> onBlockUpdated
 
 ```scala
