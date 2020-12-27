@@ -12,6 +12,19 @@
 
 * `ExecutorMonitor` is requested to [ensureExecutorIsTracked](ExecutorMonitor.md#ensureExecutorIsTracked)
 
+## <span id="cachedBlocks"> cachedBlocks Internal Registry
+
+```scala
+cachedBlocks: Map[Int, BitSet]
+```
+
+`Tracker` uses `cachedBlocks` internal registry for cached blocks (RDD IDs and partition IDs stored in an executor).
+
+`cachedBlocks` is used when:
+
+* `ExecutorMonitor` is requested to [onBlockUpdated](ExecutorMonitor.md#onBlockUpdated), [onUnpersistRDD](ExecutorMonitor.md#onUnpersistRDD)
+* `Tracker` is requested to [updateTimeout](#updateTimeout)
+
 ## <span id="removeShuffle"> removeShuffle
 
 ```scala
