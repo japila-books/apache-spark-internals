@@ -617,7 +617,7 @@ submitMissingTasks([stage])
 
 `submitMissingTasks` notifies the [OutputCommitCoordinator](#outputCommitCoordinator) that [stage execution started](OutputCommitCoordinator.md#stageStart).
 
-### <span id="submitMissingTasks-taskIdToLocations">
+<span id="submitMissingTasks-taskIdToLocations">
 `submitMissingTasks` [determines preferred locations](#getPreferredLocs) (_task locality preferences_) of the missing partitions.
 
 `submitMissingTasks` requests the stage for a [new stage attempt](Stage.md#makeNewStageAttempt).

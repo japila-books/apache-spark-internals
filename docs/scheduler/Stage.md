@@ -1,6 +1,6 @@
 # Stage
 
-`Stage` is a physical unit of execution. It is a step in a physical execution plan.
+`Stage` is a unit of execution (_step_) in a physical execution plan.
 
 A stage is a set of parallel tasks -- one task per partition (of an RDD that computes partial results of a function executed as part of a Spark job).
 
@@ -66,6 +66,37 @@ When no tasks in a stage can be submitted, the following DEBUG message shows in 
 FIXME
 ```
 
+## <span id="_latestInfo"> Latest StageInfo Registry
+
+```scala
+_latestInfo: StageInfo
+```
+
+`Stage` uses `_latestInfo` internal registry for...FIXME
+
+## <span id="makeNewStageAttempt"> Making New Stage Attempt
+
+```scala
+makeNewStageAttempt(
+  numPartitionsToCompute: Int,
+  taskLocalityPreferences: Seq[Seq[TaskLocation]] = Seq.empty): Unit
+```
+
+`makeNewStageAttempt` creates a new [TaskMetrics](../executor/TaskMetrics.md) and requests it to [register itself](./executor/TaskMetrics.md#register) with the [SparkContext](../rdd/RDD.md#sparkContext) of the [RDD](#rdd).
+
+`makeNewStageAttempt` [creates a StageInfo](StageInfo.md#fromStage) from this `Stage` (and the [nextAttemptId](#nextAttemptId)). This `StageInfo` is saved in the [_latestInfo](#_latestInfo) internal registry.
+
+In the end, `makeNewStageAttempt` increments the [nextAttemptId](#nextAttemptId) internal counter.
+
+!!! note
+    `makeNewStageAttempt` returns `Unit` (nothing) and its purpose is to update the [latest StageInfo](#_latestInfo) internal registry.
+
+`makeNewStageAttempt` is used when:
+
+* `DAGScheduler` is requested to [submit the missing tasks of a stage](DAGScheduler.md#submitMissingTasks)
+
+## Others to be Reviewed
+
 == [[findMissingPartitions]] Finding Missing Partitions
 
 [source, scala]
@@ -91,25 +122,6 @@ latestInfo: StageInfo
 ----
 
 `latestInfo` simply returns the <<_latestInfo, most recent `StageInfo`>> (i.e. makes it accessible).
-
-== [[makeNewStageAttempt]] Creating New Stage Attempt
-
-[source, scala]
-----
-makeNewStageAttempt(
-  numPartitionsToCompute: Int,
-  taskLocalityPreferences: Seq[Seq[TaskLocation]] = Seq.empty): Unit
-----
-
-makeNewStageAttempt executor:TaskMetrics.md[creates a new `TaskMetrics`] and executor:TaskMetrics.md#register[registers the internal accumulators (using the RDD's `SparkContext`)].
-
-NOTE: makeNewStageAttempt uses <<rdd, rdd>> that was defined when <<creating-instance, `Stage` was created>>.
-
-makeNewStageAttempt sets <<_latestInfo, _latestInfo>> to be a [`StageInfo` from the current stage](StageInfo.md#fromStage) (with <<nextAttemptId, nextAttemptId>>, `numPartitionsToCompute`, and `taskLocalityPreferences`).
-
-makeNewStageAttempt increments <<nextAttemptId, nextAttemptId>> counter.
-
-makeNewStageAttempt is used when `DAGScheduler` is requested to DAGScheduler.md#submitMissingTasks[submit the missing tasks of a stage].
 
 == [[internal-properties]] Internal Properties
 
@@ -150,11 +162,6 @@ Used when...FIXME
 
 | [[pendingPartitions]] `pendingPartitions`
 | Set of pending spark-rdd-partitions.md[partitions]
-
-Used when...FIXME
-
-| [[_latestInfo]] `_latestInfo`
-| Internal cache with...FIXME
 
 Used when...FIXME
 |===

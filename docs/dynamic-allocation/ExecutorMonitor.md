@@ -86,12 +86,12 @@ shuffleTrackingEnabled: Boolean
 1. [spark.shuffle.service.enabled](../external-shuffle-service/configuration-properties.md#spark.shuffle.service.enabled) is disabled
 1. [spark.dynamicAllocation.shuffleTracking.enabled](configuration-properties.md#spark.dynamicAllocation.shuffleTracking.enabled) is enabled
 
-When enabled, `ExecutorMonitor` uses `shuffleTrackingEnabled` to guard execution of the following (making them noops):
+When enabled, `shuffleTrackingEnabled` is used to skip execution of the following (making them noops):
 
 * [onJobStart](#onJobStart)
 * [onJobEnd](#onJobEnd)
 
-When disabled, `ExecutorMonitor` uses `shuffleTrackingEnabled` for the following:
+When disabled, `shuffleTrackingEnabled` is used for the following:
 
 * [onTaskEnd](#onTaskEnd)
 * [shuffleCleaned](#shuffleCleaned)
@@ -154,7 +154,10 @@ onJobStart(
 
 `onJobStart` is part of the [SparkListenerInterface](../SparkListenerInterface.md#onJobStart) abstraction.
 
-`onJobStart`...FIXME
+!!! note
+    `onJobStart` does nothing and simply returns when the [shuffleTrackingEnabled](#shuffleTrackingEnabled) flag is turned off (`false`).
+
+`onJobStart` requests the input `SparkListenerJobStart` for the [StageInfo](../SparkListenerEvent.md#SparkListenerJobStart-stageInfos)s and converts...FIXME
 
 ## <span id="onOtherEvent"> onOtherEvent
 
