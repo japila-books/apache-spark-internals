@@ -82,7 +82,7 @@ makeNewStageAttempt(
   taskLocalityPreferences: Seq[Seq[TaskLocation]] = Seq.empty): Unit
 ```
 
-`makeNewStageAttempt` creates a new [TaskMetrics](../executor/TaskMetrics.md) and requests it to [register itself](./executor/TaskMetrics.md#register) with the [SparkContext](../rdd/RDD.md#sparkContext) of the [RDD](#rdd).
+`makeNewStageAttempt` creates a new [TaskMetrics](../executor/TaskMetrics.md) and requests it to [register itself](../executor/TaskMetrics.md#register) with the [SparkContext](../rdd/RDD.md#sparkContext) of the [RDD](#rdd).
 
 `makeNewStageAttempt` [creates a StageInfo](StageInfo.md#fromStage) from this `Stage` (and the [nextAttemptId](#nextAttemptId)). This `StageInfo` is saved in the [_latestInfo](#_latestInfo) internal registry.
 
