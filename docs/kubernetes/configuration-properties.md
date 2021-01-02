@@ -1,5 +1,19 @@
 # Configuration Properties of Spark on Kubernetes
 
+## <span id="spark.kubernetes.container.image.pullPolicy"><span id="CONTAINER_IMAGE_PULL_POLICY"> spark.kubernetes.container.image.pullPolicy
+
+Kubernetes image pull policy:
+
+* `Always`
+* `Never`
+* `IfNotPresent`
+
+Default: `IfNotPresent`
+
+Used when:
+
+* `KubernetesConf` is requested to [imagePullPolicy](KubernetesConf.md#imagePullPolicy)
+
 ## <span id="spark.kubernetes.file.upload.path"><span id="KUBERNETES_FILE_UPLOAD_PATH"> spark.kubernetes.file.upload.path
 
 Hadoop DFS-compatible file system path where files from the local file system will be uploded to in `cluster` mode.

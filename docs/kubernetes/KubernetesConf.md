@@ -96,13 +96,26 @@ Used when:
 namespace: String
 ```
 
-`namespace` gives the value of [spark.kubernetes.namespace](configuration-properties.md#spark.kubernetes.namespace) configuration property.
+`namespace` is the value of [spark.kubernetes.namespace](configuration-properties.md#spark.kubernetes.namespace) configuration property.
 
 `namespace` is used when:
 
 * `DriverServiceFeatureStep` is requested to [getAdditionalPodSystemProperties](DriverServiceFeatureStep.md#getAdditionalPodSystemProperties)
 * `Client` is requested to [run](Client.md#run)
 * `KubernetesClientApplication` is requested to [start](KubernetesClientApplication.md#start)
+
+## <span id="imagePullPolicy"> imagePullPolicy
+
+```scala
+imagePullPolicy: String
+```
+
+`imagePullPolicy` is the value of [spark.kubernetes.container.image.pullPolicy](configuration-properties.md#spark.kubernetes.container.image.pullPolicy) configuration property.
+
+`imagePullPolicy` is used when:
+
+* `BasicDriverFeatureStep` is requested to [configurePod](BasicDriverFeatureStep.md#configurePod)
+* `BasicExecutorFeatureStep` is requested to [configurePod](BasicExecutorFeatureStep.md#configurePod)
 
 ## <span id="createDriverConf"> Creating KubernetesDriverConf
 
