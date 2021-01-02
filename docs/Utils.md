@@ -1,5 +1,27 @@
 # Utils Utility
 
+## <span id="LOCAL_SCHEME"> Local URI Scheme
+
+`Utils` defines a `local` URI scheme for files that are locally available on worker nodes in the cluster.
+
+The `local` URL scheme is used when:
+
+* `Utils` is used to [isLocalUri](#isLocalUri)
+* `Client` (Spark on YARN) is used
+
+## <span id="isLocalUri"> isLocalUri
+
+```scala
+isLocalUri(
+  uri: String): Boolean
+```
+
+`isLocalUri` is `true` when the URI is a `local:` URI (the given `uri` starts with [local:](#LOCAL_SCHEME) scheme).
+
+`isLocalUri` is used when:
+
+* FIXME
+
 ## <span id="getCurrentUserName"> getCurrentUserName
 
 ```scala

@@ -37,11 +37,13 @@ configureForJava(
   res: String): SparkPod
 ```
 
-`configureForJava`...FIXME
+`configureForJava` builds the [base driver container](#baseDriverContainer) for the given `SparkPod` and the primary resource.
+
+In the end, `configureForJava` creates another `SparkPod` (for the pod of the given `SparkPod`) and the driver container.
 
 `configureForJava` is used when:
 
-* `DriverCommandFeatureStep` is requested to [configurePod](#configurePod)
+* `DriverCommandFeatureStep` is requested to [configurePod](#configurePod) for a `JavaMainAppResource` (based on the [mainAppResource](KubernetesDriverConf.md#mainAppResource) of the [KubernetesDriverConf](#conf))
 
 ## <span id="configureForPython"> configureForPython
 
@@ -79,8 +81,19 @@ baseDriverContainer(
   resource: String): ContainerBuilder
 ```
 
-`baseDriverContainer`...FIXME
+`baseDriverContainer` [renames](KubernetesUtils.md#renameMainAppResource) the given primary resource when the [MainAppResource](KubernetesDriverConf.md#mainAppResource) is a `JavaMainAppResource`. Otherwise, `baseDriverContainer` leaves the primary resource as-is.
+
+`baseDriverContainer` creates a `ContainerBuilder` (for the pod of the given `SparkPod`) and adds the following arguments (in that order):
+
+1. `driver`
+1. `--properties-file` with `/opt/spark/conf/spark.properties`
+1. `--class` with the [mainClass](KubernetesDriverConf.md#mainClass) of the [KubernetesDriverConf](#conf)
+1. the primary resource (possibly renamed when a `MainAppResource`)
+1. [appArgs](KubernetesDriverConf.md#appArgs) of the [KubernetesDriverConf](#conf)
+
+!!! note
+    The arguments are then used by the default `entrypoint.sh` of the official Docker image of Apache Spark (in `resource-managers/kubernetes/docker/src/main/dockerfiles/spark/`).
 
 `baseDriverContainer` is used when:
 
-* `DriverCommandFeatureStep` is requested to [baseDriverContainer](DriverCommandFeatureStep.md#)
+* `DriverCommandFeatureStep` is requested to [configureForJava](#configureForJava), [configureForPython](#configureForPython), and [configureForR](#configureForR)
