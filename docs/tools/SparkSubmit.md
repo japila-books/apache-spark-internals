@@ -174,3 +174,35 @@ Deploy Mode | Master URL | childMainClass
 ## <span id="YARN_CLUSTER_SUBMIT_CLASS"> YarnClusterApplication
 
 `SparkSubmit` hardcodes...FIXME
+
+## <span id="isInternal"> Checking Whether Resource is Internal
+
+```scala
+isInternal(
+  res: String): Boolean
+```
+
+`isInternal` is `true` when the given `res` is [spark-internal](SparkLauncher.md#NO_RESOURCE).
+
+`isInternal` is used when:
+
+* `SparkSubmit` is requested to [isUserJar](#isUserJar)
+* `SparkSubmitArguments` is requested to [handleUnknown](SparkSubmitArguments.md#handleUnknown)
+
+## <span id="isUserJar"> Checking Whether Resource is User Jar
+
+```scala
+isUserJar(
+  res: String): Boolean
+```
+
+`isUserJar` is `true` when the given `res` is none of the following:
+
+* `isShell`
+* `isPython`
+* [isInternal](#isInternal)
+* `isR`
+
+`isUserJar` is used when:
+
+* FIXME
