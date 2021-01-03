@@ -1,5 +1,22 @@
 # DependencyUtils
 
+## <span id="resolveMavenDependencies"> resolveMavenDependencies
+
+```scala
+resolveMavenDependencies(
+  packagesExclusions: String,
+  packages: String,
+  repositories: String,
+  ivyRepoPath: String,
+  ivySettingsPath: Option[String]): String
+```
+
+`resolveMavenDependencies`...FIXME
+
+`resolveMavenDependencies` is used when:
+
+* `SparkSubmit` is requested to [prepareSubmitEnvironment](SparkSubmit.md#prepareSubmitEnvironment) (for all resource managers but [Spark Standalone](../spark-standalone/index.md) and Apache Mesos)
+
 ## <span id="addJarToClasspath"> Adding Local Jars to ClassLoader
 
 ```scala
@@ -22,4 +39,5 @@ For all other URIs, the following warning is printed out to the logs:
 Warning: Skip remote jar hdfs://fake.jar.
 ```
 
-NOTE: `addJarToClasspath` assumes `file` URI when `localJar` has no URI specified, e.g. `/path/to/local.jar`.
+!!! note
+    `addJarToClasspath` assumes `file` URI when `localJar` has no URI specified, e.g. `/path/to/local.jar`.

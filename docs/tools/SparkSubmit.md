@@ -78,13 +78,13 @@ Classpath elements:
 
 `SparkSubmit` has a built-in support for some cluster managers (that are selected based on the [master](SparkSubmitArguments.md#master) argument).
 
-Nickname | master URL
+Nickname | Master URL
 ---------|------------
-<span id="YARN"> YARN | `yarn`
-<span id="STANDALONE"> STANDALONE | `spark`-prefix
+<span id="KUBERNETES"> KUBERNETES | `k8s://`-prefix
+<span id="LOCAL"> LOCAL | `local`-prefix
 <span id="MESOS"> MESOS | `mesos`-prefix
-<span id="LOCAL"> LOCAL | `k8s://`-prefix
-<span id="KUBERNETES"> KUBERNETES | `local`-prefix
+<span id="STANDALONE"> STANDALONE | `spark`-prefix
+<span id="YARN"> YARN | `yarn`
 
 ## <span id="main"> Launching Standalone Application
 
@@ -117,7 +117,7 @@ prepareSubmitEnvironment(
   conf: Option[HadoopConfiguration] = None): (Seq[String], Seq[String], SparkConf, String)
 ```
 
-`prepareSubmitEnvironment` creates a 4-element tuple:
+`prepareSubmitEnvironment` creates a 4-element tuple made up of the following:
 
 1. `childArgs` for arguments
 1. `childClasspath` for Classpath elements
@@ -139,7 +139,7 @@ For [KUBERNETES](#KUBERNETES), `prepareSubmitEnvironment` [checkAndGetK8sMasterU
 
 ### <span id="childMainClass"> childMainClass
 
-`childMainClass` is the last fourth argument in the result tuple of [prepareSubmitEnvironment](#prepareSubmitEnvironment).
+`childMainClass` is the last 4th argument in the result tuple of [prepareSubmitEnvironment](#prepareSubmitEnvironment).
 
 ```scala
 // (childArgs, childClasspath, sparkConf, childMainClass)
@@ -150,30 +150,19 @@ For [KUBERNETES](#KUBERNETES), `prepareSubmitEnvironment` [checkAndGetK8sMasterU
 
 Deploy Mode | Master URL | childMainClass
 ---------|----------|---------
- `client` | | [mainClass](SparkSubmitArguments.md#mainClass)
- `cluster` | [KUBERNETES](#KUBERNETES) | [KubernetesClientApplication](#KUBERNETES_CLUSTER_SUBMIT_CLASS)
+ `client` | any | [mainClass](SparkSubmitArguments.md#mainClass)
+<span id="isKubernetesCluster"> `cluster` | [KUBERNETES](#KUBERNETES) | <span id="KUBERNETES_CLUSTER_SUBMIT_CLASS"><span id="KubernetesClientApplication"> [KubernetesClientApplication](../kubernetes/KubernetesClientApplication.md)
  `cluster` | [MESOS](#MESOS) | [RestSubmissionClientApp](#REST_CLUSTER_SUBMIT_CLASS) (for [REST submission API](SparkSubmitArguments.md#useRest))
- `cluster` | [STANDALONE](#STANDALONE) | [RestSubmissionClientApp](#REST_CLUSTER_SUBMIT_CLASS) (for [REST submission API](SparkSubmitArguments.md#useRest))
- `cluster` | [STANDALONE](#STANDALONE) | [ClientApp](#STANDALONE_CLUSTER_SUBMIT_CLASS)
- `cluster` | [YARN](#YARN) | [YarnClusterApplication](#YARN_CLUSTER_SUBMIT_CLASS)
+ `cluster` | [STANDALONE](#STANDALONE) | <span id="REST_CLUSTER_SUBMIT_CLASS"> `RestSubmissionClientApp` (for [REST submission API](SparkSubmitArguments.md#useRest))
+ `cluster` | [STANDALONE](#STANDALONE) | <span id="STANDALONE_CLUSTER_SUBMIT_CLASS"> `ClientApp`
+ `cluster` | [YARN](#YARN) | <span id="YARN_CLUSTER_SUBMIT_CLASS"> `YarnClusterApplication`
 
-## <span id="KUBERNETES_CLUSTER_SUBMIT_CLASS"> KubernetesClientApplication
+### <span id="isKubernetesClient"> isKubernetesClient
 
-`SparkSubmit` hardcodes the fully-qualified class name of the [KubernetesClientApplication](../kubernetes/KubernetesClientApplication.md).
+`prepareSubmitEnvironment` uses `isKubernetesClient` flag to indicate that:
 
-`SparkSubmit` uses it when requested to [prepareSubmitEnvironment](#prepareSubmitEnvironment) (for [KUBERNETES](#KUBERNETES) in `cluster` deploy mode).
-
-## <span id="REST_CLUSTER_SUBMIT_CLASS"> RestSubmissionClientApp
-
-`SparkSubmit` hardcodes...FIXME
-
-## <span id="STANDALONE_CLUSTER_SUBMIT_CLASS"> ClientApp
-
-`SparkSubmit` hardcodes...FIXME
-
-## <span id="YARN_CLUSTER_SUBMIT_CLASS"> YarnClusterApplication
-
-`SparkSubmit` hardcodes...FIXME
+* [Cluster manager](#clusterManager) is [Kubernetes](#KUBERNETES)
+* [Deploy mode](#deployMode) is [client](#CLIENT)
 
 ## <span id="isInternal"> Checking Whether Resource is Internal
 

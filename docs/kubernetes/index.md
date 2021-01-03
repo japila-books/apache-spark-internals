@@ -1,8 +1,8 @@
-# Kebernetes
+# Spark on Kubernetes
 
-[Kebernetes](https://kubernetes.io/), also known as k8s, is an open-source system for automating deployment, scaling, and management of containerized applications.
+[Kubernetes](https://kubernetes.io/) is an open-source system for automating deployment, scaling, and management of containerized applications.
 
-Apache Spark supports `Kebernetes` as a scheduler using [KubernetesClusterManager](KubernetesClusterManager.md) and **k8s://**-prefixed master URLs.
+Apache Spark supports `Kubernetes` resource manager as a scheduler using [KubernetesClusterManager](KubernetesClusterManager.md) for **k8s://**-prefixed master URLs (that point at a [Kubernetes API server](https://kubernetes.io/docs/concepts/overview/components/#kube-apiserver)).
 
 ## Demo
 
