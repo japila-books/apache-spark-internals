@@ -1,6 +1,6 @@
 # Client
 
-`Client` submits a Spark application to run on Kubernetes by creating the driver pod and starting a watcher that monitors and logs the application status.
+`Client` submits a Spark application to [run on Kubernetes](#run) (by creating the driver pod and starting a watcher that monitors and logs the application status).
 
 ## Creating Instance
 
@@ -15,7 +15,7 @@
 
 * `KubernetesClientApplication` is requested to [start](KubernetesClientApplication.md#start)
 
-## <span id="run"> Running
+## <span id="run"> Running Driver Pod
 
 ```scala
 run(): Unit

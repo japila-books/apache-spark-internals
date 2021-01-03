@@ -2,7 +2,7 @@
 
 `SparkKubernetesClientFactory` is a [Spark-opinionated builder for Kubernetes clients](#createKubernetesClient).
 
-## <span id="createKubernetesClient"> createKubernetesClient Utility
+## <span id="createKubernetesClient"> Creating KubernetesClient
 
 ```scala
 createKubernetesClient(
@@ -15,7 +15,7 @@ createKubernetesClient(
   defaultServiceAccountCaCert: Option[File]): KubernetesClient
 ```
 
-`createKubernetesClient` takes the OAuth token-related configuration properties from the input [SparkConf](../SparkConf.md):
+`createKubernetesClient` utility takes the OAuth token-related configuration properties from the input [SparkConf](../SparkConf.md):
 
 * `kubernetesAuthConfPrefix`.oauthTokenFile (or defaults to the input `defaultServiceAccountToken`)
 * `kubernetesAuthConfPrefix`.oauthToken
