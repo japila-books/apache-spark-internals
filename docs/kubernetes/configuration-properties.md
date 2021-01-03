@@ -24,6 +24,16 @@ Used when:
 
 * `KubernetesUtils` is requested to [uploadFileUri](KubernetesUtils.md#uploadFileUri)
 
+## <span id="spark.kubernetes.report.interval"><span id="REPORT_INTERVAL"> spark.kubernetes.report.interval
+
+Interval between reports of the current app status in cluster mode
+
+Default: `1s`
+
+Used when:
+
+* `LoggingPodStatusWatcherImpl` is requested to [watchOrStop](LoggingPodStatusWatcherImpl.md#watchOrStop)
+
 ## <span id="spark.kubernetes.executor.deleteOnTermination"><span id="KUBERNETES_DELETE_EXECUTORS"> spark.kubernetes.executor.deleteOnTermination
 
 When disabled (`false`), executor pods will not be deleted in case of failure or normal termination
