@@ -1,3 +1,0 @@
-# MountVolumesFeatureStep
-
-`MountVolumesFeatureStep` is...FIXME

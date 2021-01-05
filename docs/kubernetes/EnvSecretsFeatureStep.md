@@ -1,3 +1,0 @@
-# EnvSecretsFeatureStep
-
-`EnvSecretsFeatureStep` is...FIXME

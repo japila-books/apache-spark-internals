@@ -59,6 +59,6 @@ Used when [SparkContext](../SparkContext.md) is created (and requested for a [Sc
 
 ## Implementations
 
-* [KubernetesClusterManager](../kubernetes/KubernetesClusterManager.md)
+* `KubernetesClusterManager` ([Spark on Kubernetes]({{ book.spark_k8s }}/KubernetesClusterManager))
 * `MesosClusterManager`
 * `YarnClusterManager`

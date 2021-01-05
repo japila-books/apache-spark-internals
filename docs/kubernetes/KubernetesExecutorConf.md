@@ -1,3 +1,0 @@
-# KubernetesExecutorConf
-
-`KubernetesExecutorConf` is...FIXME

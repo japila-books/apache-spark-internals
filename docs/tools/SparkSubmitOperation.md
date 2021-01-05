@@ -45,4 +45,4 @@ Used when:
 
 ## Implementations
 
-* [K8SSparkSubmitOperation](../kubernetes/K8SSparkSubmitOperation.md)
+* `K8SSparkSubmitOperation` ([Spark on Kubernetes]({{ book.spark_k8s }}/K8SSparkSubmitOperation))

@@ -1,3 +1,0 @@
-# KubernetesExecutorBuilder
-
-`KubernetesExecutorBuilder` is...FIXME

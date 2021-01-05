@@ -101,7 +101,7 @@ isDynamicAllocationEnabled(
 * `DAGScheduler` is requested to [checkBarrierStageWithDynamicAllocation](scheduler/DAGScheduler.md#checkBarrierStageWithDynamicAllocation)
 * `SchedulerBackendUtils` is requested to [getInitialTargetExecutorNumber](scheduler/SchedulerBackendUtils.md#getInitialTargetExecutorNumber)
 * `StandaloneSchedulerBackend` (Spark Standalone) is requested to `start`
-* `ExecutorPodsAllocator` (Spark on Kubernetes) is requested to [onNewSnapshots](kubernetes/ExecutorPodsAllocator.md#onNewSnapshots)
+* `ExecutorPodsAllocator` (Spark on Kubernetes) is requested to `onNewSnapshots`
 * `ApplicationMaster` (Spark on YARN) is created
 
 ## <span id="checkAndGetK8sMasterUrl"> checkAndGetK8sMasterUrl

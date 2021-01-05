@@ -151,7 +151,7 @@ For [KUBERNETES](#KUBERNETES), `prepareSubmitEnvironment` [checkAndGetK8sMasterU
 Deploy Mode | Master URL | childMainClass
 ---------|----------|---------
  `client` | any | [mainClass](SparkSubmitArguments.md#mainClass)
-<span id="isKubernetesCluster"> `cluster` | [KUBERNETES](#KUBERNETES) | <span id="KUBERNETES_CLUSTER_SUBMIT_CLASS"><span id="KubernetesClientApplication"> [KubernetesClientApplication](../kubernetes/KubernetesClientApplication.md)
+<span id="isKubernetesCluster"> `cluster` | [KUBERNETES](#KUBERNETES) | <span id="KUBERNETES_CLUSTER_SUBMIT_CLASS"><span id="KubernetesClientApplication"> `KubernetesClientApplication`
  `cluster` | [MESOS](#MESOS) | [RestSubmissionClientApp](#REST_CLUSTER_SUBMIT_CLASS) (for [REST submission API](SparkSubmitArguments.md#useRest))
  `cluster` | [STANDALONE](#STANDALONE) | <span id="REST_CLUSTER_SUBMIT_CLASS"> `RestSubmissionClientApp` (for [REST submission API](SparkSubmitArguments.md#useRest))
  `cluster` | [STANDALONE](#STANDALONE) | <span id="STANDALONE_CLUSTER_SUBMIT_CLASS"> `ClientApp`

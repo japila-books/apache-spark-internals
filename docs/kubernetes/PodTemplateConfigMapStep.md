@@ -1,3 +1,0 @@
-# PodTemplateConfigMapStep
-
-`PodTemplateConfigMapStep` is...FIXME

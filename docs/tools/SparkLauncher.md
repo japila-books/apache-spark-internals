@@ -6,13 +6,13 @@
 
 ## <span id="NO_RESOURCE"> spark-internal
 
-`SparkLauncher` defines `spark-internal` (`NO_RESOURCE`) as a special value to inform Spark not to try to process the application resource (_primary resource_) as a regular file (but as an imaginary resource that cluster managers would know how to look up and submit for execution, e.g. Spark on YARN or [Spark on Kubernetes](../kubernetes/index.md)).
+`SparkLauncher` defines `spark-internal` (`NO_RESOURCE`) as a special value to inform Spark not to try to process the application resource (_primary resource_) as a regular file (but as an imaginary resource that cluster managers would know how to look up and submit for execution, e.g. Spark on YARN or [Spark on Kubernetes]({{ book.spark_k8s }})).
 
 `spark-internal` special value is used when:
 
 * `SparkSubmit` is requested to [prepareSubmitEnvironment](SparkSubmit.md#prepareSubmitEnvironment) and checks whether to add the [primaryResource](SparkSubmitArguments.md#primaryResource) as part of the following:
   * `--jar` (for Spark on YARN in `cluster` deploy mode)
-  * `--primary-*` arguments and define the `--main-class` argument (for [Spark on Kubernetes](../kubernetes/index.md) in `cluster` deploy mode with [KubernetesClientApplication](KubernetesClientApplication.md) main class)
+  * `--primary-*` arguments and define the `--main-class` argument (for [Spark on Kubernetes]({{ book.spark_k8s }}) in `cluster` deploy mode with `KubernetesClientApplication` main class)
 * `SparkSubmit` is requested to [check whether a resource is internal or not](SparkSubmit.md#isInternal)
 
 ## Other

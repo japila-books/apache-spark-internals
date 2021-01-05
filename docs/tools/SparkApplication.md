@@ -19,6 +19,6 @@ Used when:
 
 * ClientApp
 * [JavaMainApplication](JavaMainApplication.md)
-* [KubernetesClientApplication](../kubernetes/KubernetesClientApplication.md)
+* `KubernetesClientApplication` ([Spark on Kubernetes]({{ book.spark_k8s }}/KubernetesClientApplication))
 * RestSubmissionClientApp
 * YarnClusterApplication

@@ -5,7 +5,7 @@
 ## Implementations
 
 * [CoarseGrainedSchedulerBackend](../scheduler/CoarseGrainedSchedulerBackend.md)
-* [KubernetesClusterSchedulerBackend](../kubernetes/KubernetesClusterSchedulerBackend.md)
+* `KubernetesClusterSchedulerBackend` ([Spark on Kubernetes]({{ book.spark_k8s }}/KubernetesClusterSchedulerBackend))
 * MesosCoarseGrainedSchedulerBackend
 * [StandaloneSchedulerBackend](../spark-standalone/StandaloneSchedulerBackend.md)
 * YarnSchedulerBackend

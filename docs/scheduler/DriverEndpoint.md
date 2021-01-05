@@ -401,8 +401,8 @@ Disabling executor [executorId].
 
 `disableExecutor` is used when:
 
-* `KubernetesDriverEndpoint` is requested to [handle onDisconnected event](../kubernetes/KubernetesDriverEndpoint.md#onDisconnected)
-* `YarnDriverEndpoint` is requested to handle onDisconnected event
+* `KubernetesDriverEndpoint` is requested to handle `onDisconnected` event
+* `YarnDriverEndpoint` is requested to handle `onDisconnected` event
 
 ## Logging
 

@@ -15,7 +15,7 @@
 
 ## Implementations
 
-* [KubernetesClusterSchedulerBackend](../kubernetes/KubernetesClusterSchedulerBackend.md)
+* `KubernetesClusterSchedulerBackend` ([Spark on Kubernetes]({{ book.spark_k8s }}/KubernetesClusterSchedulerBackend))
 * MesosCoarseGrainedSchedulerBackend
 * [StandaloneSchedulerBackend](../spark-standalone/StandaloneSchedulerBackend.md)
 * YarnSchedulerBackend
@@ -37,7 +37,7 @@ createDriverEndpoint(
 `createDriverEndpoint` creates a [DriverEndpoint](DriverEndpoint.md).
 
 !!! note
-    The purpose of `createDriverEndpoint` is to let [CoarseGrainedSchedulerBackends](#implementations) to provide custom implementations (e.g. [KubernetesClusterSchedulerBackend](../kubernetes/KubernetesClusterSchedulerBackend.md#createDriverEndpoint)).
+    The purpose of `createDriverEndpoint` is to let [CoarseGrainedSchedulerBackends](#implementations) to provide custom implementations (e.g. `KubernetesClusterSchedulerBackend`).
 
 `createDriverEndpoint` is used when `CoarseGrainedSchedulerBackend` is [created](#creating-instance) (and initializes the [driverEndpoint](#driverEndpoint) internal reference).
 
@@ -93,7 +93,7 @@ minRegisteredRatio: Double
 
 * `CoarseGrainedSchedulerBackend` is requested to [isReady](#isReady)
 * `StandaloneSchedulerBackend` is requested to `sufficientResourcesRegistered`
-* `KubernetesClusterSchedulerBackend` is requested to [sufficientResourcesRegistered](../kubernetes/KubernetesClusterSchedulerBackend.md#sufficientResourcesRegistered)
+* `KubernetesClusterSchedulerBackend` is requested to `sufficientResourcesRegistered`
 * `MesosCoarseGrainedSchedulerBackend` is requested to `sufficientResourcesRegistered`
 * `YarnSchedulerBackend` is requested to `sufficientResourcesRegistered`
 

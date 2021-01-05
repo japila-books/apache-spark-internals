@@ -1,3 +1,0 @@
-# ExecutorPodsWatcher
-
-`ExecutorPodsWatcher` is...FIXME
