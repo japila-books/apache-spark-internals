@@ -65,14 +65,15 @@ Classpath elements:
 [childClasspath]
 ```
 
-`runMain`...FIXME
+<span id="runMain-getSubmitClassLoader" />
+`runMain` creates and sets a context classloader (based on `spark.driver.userClassPathFirst` configuration property) and adds the jars (from `childClasspath`).
 
 <span id="runMain-mainClass" />
 `runMain` loads the main class (`childMainClass`).
 
-`runMain` creates an instance of a [SparkApplication](SparkApplication.md) (if the main class is a subtype of) or creates a [JavaMainApplication](JavaMainApplication.md) (with the main class).
+`runMain` creates a [SparkApplication](SparkApplication.md) (if the main class is a subtype of) or creates a [JavaMainApplication](JavaMainApplication.md) (with the main class).
 
-`runMain` requests the `SparkApplication` to [start](SparkApplication.md#start) (with the `childArgs` and `sparkConf`).
+In the end, `runMain` requests the `SparkApplication` to [start](SparkApplication.md#start) (with the `childArgs` and `sparkConf`).
 
 ## <span id="clusterManager"> Cluster Managers
 
