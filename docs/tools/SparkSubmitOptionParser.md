@@ -1,6 +1,12 @@
-== [[SparkSubmitOptionParser]] `SparkSubmitOptionParser` -- spark-submit's Command-Line Parser
+# SparkSubmitOptionParser
 
-`SparkSubmitOptionParser` is the parser of spark-submit.md[spark-submit]'s command-line options.
+`SparkSubmitOptionParser` is the parser of [spark-submit](spark-submit.md)'s command-line options.
+
+## <span id="FILES"> --files
+
+A comma-separated sequence of paths
+
+## Others
 
 .`spark-submit` Command-Line Options
 [cols="1,2",options="header",width="100%"]

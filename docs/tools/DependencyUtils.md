@@ -1,4 +1,58 @@
-# DependencyUtils
+# DependencyUtils Utilities
+
+## <span id="resolveGlobPaths"> resolveGlobPaths
+
+```scala
+resolveGlobPaths(
+  paths: String,
+  hadoopConf: Configuration): String
+```
+
+`resolveGlobPaths`...FIXME
+
+`resolveGlobPaths` is used when:
+
+* `SparkSubmit` is requested to [prepareSubmitEnvironment](SparkSubmit.md#prepareSubmitEnvironment)
+* `DependencyUtils` is used to [resolveAndDownloadJars](#resolveAndDownloadJars)
+
+## <span id="downloadFile"> downloadFile
+
+```scala
+downloadFile(
+  path: String,
+  targetDir: File,
+  sparkConf: SparkConf,
+  hadoopConf: Configuration,
+  secMgr: SecurityManager): String
+```
+
+`downloadFile` resolves the path to a well-formed URI and branches off based on the scheme:
+
+* For `file` and `local` schemes, `downloadFile` returns the input `path`
+* For other schemes, `downloadFile`...FIXME
+
+`downloadFile` is used when:
+
+* `SparkSubmit` is requested to [prepareSubmitEnvironment](SparkSubmit.md#prepareSubmitEnvironment)
+* `DependencyUtils` is used to [downloadFileList](#downloadFileList)
+
+## <span id="downloadFileList"> downloadFileList
+
+```scala
+downloadFileList(
+  fileList: String,
+  targetDir: File,
+  sparkConf: SparkConf,
+  hadoopConf: Configuration,
+  secMgr: SecurityManager): String
+```
+
+`downloadFileList`...FIXME
+
+`downloadFileList` is used when:
+
+* `SparkSubmit` is requested to [prepareSubmitEnvironment](SparkSubmit.md#prepareSubmitEnvironment)
+* `DependencyUtils` is used to [resolveAndDownloadJars](#resolveAndDownloadJars)
 
 ## <span id="resolveMavenDependencies"> resolveMavenDependencies
 
@@ -41,3 +95,20 @@ Warning: Skip remote jar hdfs://fake.jar.
 
 !!! note
     `addJarToClasspath` assumes `file` URI when `localJar` has no URI specified, e.g. `/path/to/local.jar`.
+
+## <span id="resolveAndDownloadJars"> resolveAndDownloadJars
+
+```scala
+resolveAndDownloadJars(
+  jars: String,
+  userJar: String,
+  sparkConf: SparkConf,
+  hadoopConf: Configuration,
+  secMgr: SecurityManager): String
+```
+
+`resolveAndDownloadJars`...FIXME
+
+`resolveAndDownloadJars` is used when:
+
+* `DriverWrapper` is requested to `setupDependencies` (Spark Standalone cluster mode)

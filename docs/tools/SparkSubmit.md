@@ -165,6 +165,34 @@ Deploy Mode | Master URL | childMainClass
 * [Cluster manager](#clusterManager) is [Kubernetes](#KUBERNETES)
 * [Deploy mode](#deployMode) is [client](#CLIENT)
 
+### <span id="isKubernetesClusterModeDriver"> isKubernetesClusterModeDriver
+
+`prepareSubmitEnvironment` uses `isKubernetesClusterModeDriver` flag to indicate that:
+
+* [isKubernetesClient](#isKubernetesClient)
+* `spark.kubernetes.submitInDriver` configuration property is enabled ([Spark on Kubernetes]({{ book.spark_k8s }}/configuration-properties/#spark.kubernetes.submitInDriver))
+
+### <span id="renameResourcesToLocalFS"> renameResourcesToLocalFS
+
+```scala
+renameResourcesToLocalFS(
+  resources: String,
+  localResources: String): String
+```
+
+`renameResourcesToLocalFS`...FIXME
+
+`renameResourcesToLocalFS` is used for [isKubernetesClusterModeDriver](#isKubernetesClusterModeDriver) mode.
+
+### <span id="downloadResource"> downloadResource
+
+```scala
+downloadResource(
+  resource: String): String
+```
+
+`downloadResource`...FIXME
+
 ## <span id="isInternal"> Checking Whether Resource is Internal
 
 ```scala
