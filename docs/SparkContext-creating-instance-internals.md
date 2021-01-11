@@ -239,9 +239,9 @@ _hadoopConfiguration: Configuration
 
 If there are jars given through the `SparkContext` constructor, they are added using `addJar`.
 
-## <span id="files"> Adding User-Defined Files
+## <span id="files"><span id="addFile"> Adding User-Defined Files
 
-If there were files specified, they are added using [addFile](SparkContext.md#addFile).
+`SparkContext` [adds the files](SparkContext.md#addFile) in [spark.files](configuration-properties.md#spark.files) configuration property.
 
 ## <span id="_executorMemory"> _executorMemory
 

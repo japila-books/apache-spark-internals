@@ -140,7 +140,7 @@ getLocalDir(
 
 * PySpark's  `EvalPythonExec` is requested to `doExecute`
 
-## <span id="fetchFile"> fetchFile
+## <span id="fetchFile"> Fetching File
 
 ```scala
 fetchFile(

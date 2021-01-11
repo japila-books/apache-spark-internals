@@ -30,7 +30,13 @@ Default: (undefined)
 
 ## <span id="spark.files"> spark.files
 
+The files [to be added](SparkContext.md#addFile) to a Spark application (that can be defined directly as a configuration property or indirectly using `--files` option of `spark-submit` script)
+
 Default: (empty)
+
+Used when:
+
+* `SparkContext` is [created](SparkContext-creating-instance-internals.md#files)
 
 ## <span id="spark.jars"> spark.jars
 

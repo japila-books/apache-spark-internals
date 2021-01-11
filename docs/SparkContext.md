@@ -17,6 +17,88 @@
 
 While being created, `SparkContext` [sets up core services](SparkContext-creating-instance-internals.md) and establishes a connection to a [Spark execution environment](spark-deployment-environments.md).
 
+## Static Files
+
+### <span id="addFile"> addFile
+
+```scala
+addFile(
+  path: String,
+  recursive: Boolean): Unit
+// recursive = false
+addFile(
+  path: String): Unit
+```
+
+`addFile` creates a Hadoop `Path` from the given `path`. For a no-schema path, `addFile` converts it to a canonical form.
+
+`addFile` prints out the following WARN message to the logs and exits.
+
+```text
+File with 'local' scheme is not supported to add to file server, since it is already available on every node.
+```
+
+`addFile`...FIXME
+
+In the end, `addFile` adds the file to the [addedFiles](#addedFiles) internal registry (with the current timestamp):
+
+* For new files, `addFile` prints out the following INFO message to the logs, [fetches the file](Utils.md#fetchFile) (to the root directory and without using the cache) and [postEnvironmentUpdate](#postEnvironmentUpdate).
+
+    ```text
+    Added file [path] at [key] with timestamp [timestamp]
+    ```
+
+* For files that were already added, `addFile` prints out the following WARN message to the logs:
+
+    ```text
+    The path $path has been added already. Overwriting of added paths is not supported in the current version.
+    ```
+
+`addFile` is used when:
+
+* `SparkContext` is [created](SparkContext-creating-instance-internals.md#addFile)
+
+### <span id="listFiles"> listFiles
+
+```scala
+listFiles(): Seq[String]
+```
+
+`listFiles` is the [files added](#addedFiles).
+
+### <span id="addedFiles"> addedFiles Internal Registry
+
+```scala
+addedFiles: Map[String, Long]
+```
+
+`addedFiles` is a collection of static files by the timestamp the were [added](#addFile) at.
+
+`addedFiles` is used when:
+
+* `SparkContext` is requested to [postEnvironmentUpdate](#postEnvironmentUpdate) and [listFiles](#listFiles)
+* `TaskSetManager` is [created](scheduler/TaskSetManager.md#addedFiles) (and [resourceOffer](scheduler/TaskSetManager.md#resourceOffer))
+
+### <span id="files"><span id="_files"> files
+
+```scala
+files: Seq[String]
+```
+
+`files` is a collection of file paths defined by [spark.files](configuration-properties.md#spark.files) configuration property.
+
+## <span id="postEnvironmentUpdate"> Posting SparkListenerEnvironmentUpdate Event
+
+```scala
+postEnvironmentUpdate(): Unit
+```
+
+`postEnvironmentUpdate`...FIXME
+
+`postEnvironmentUpdate` is used when:
+
+* `SparkContext` is requested to [addFile](#addFile) and [addJar](#addJar)
+
 ## Services
 
 ### <span id="executorAllocationManager"><span id="_executorAllocationManager"><span id="ExecutorAllocationManager"> ExecutorAllocationManager
@@ -231,7 +313,19 @@ With `DEBUG` logging level you should see the following messages in the logs:
 +++ closure [func] ([func.getClass.getName]) is now cleaned +++
 ```
 
-## Old Information
+## Logging
+
+Enable `ALL` logging level for `org.apache.spark.SparkContext` logger to see what happens inside.
+
+Add the following line to `conf/log4j.properties`:
+
+```text
+log4j.logger.org.apache.spark.SparkContext=ALL
+```
+
+Refer to [Logging](spark-logging.md).
+
+## To Be Reviewed
 
 SparkContext offers the following functions:
 
@@ -275,26 +369,13 @@ SparkContext offers the following functions:
 
 TIP: Read the scaladoc of  http://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.SparkContext[org.apache.spark.SparkContext].
 
-== [[addFile]] addFile Method
+### <span id="unpersistRDD"> Removing RDD Blocks from BlockManagerMaster
 
-[source, scala]
-----
-addFile(
-  path: String): Unit // <1>
-addFile(
-  path: String,
-  recursive: Boolean): Unit
-----
-<1> `recursive` flag is off
-
-`addFile` adds the `path` file to be downloaded...FIXME
-
-== [[unpersistRDD]] Removing RDD Blocks from BlockManagerMaster -- `unpersistRDD` Internal Method
-
-[source, scala]
-----
-unpersistRDD(rddId: Int, blocking: Boolean = true): Unit
-----
+```scala
+unpersistRDD(
+  rddId: Int,
+  blocking: Boolean = true): Unit
+```
 
 `unpersistRDD` requests `BlockManagerMaster` to storage:BlockManagerMaster.md#removeRdd[remove the blocks for the RDD] (given `rddId`).
 
@@ -1137,17 +1218,6 @@ See executor:Executor.md#memory[Executor Memory].
 |
 | The user who is running SparkContext. Available later as <<sparkUser, sparkUser>>.
 |===
-
-== [[postEnvironmentUpdate]] Posting SparkListenerEnvironmentUpdate Event
-
-[source, scala]
-----
-postEnvironmentUpdate(): Unit
-----
-
-`postEnvironmentUpdate`...FIXME
-
-`postEnvironmentUpdate` is used when [SparkContext](SparkContext.md) is created, and requested to <<addFile, addFile>> and <<addJar, addJar>>.
 
 == [[addJar-internals]] `addJar` Method
 
