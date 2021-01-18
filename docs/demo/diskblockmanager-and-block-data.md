@@ -1,3 +1,8 @@
+---
+hide:
+  - navigation
+---
+
 # Demo: DiskBlockManager and Block Data
 
 The demo shows how Spark stores data blocks on local disk (using [DiskBlockManager](../storage/DiskBlockManager.md) and [DiskStore](../storage/DiskStore.md) among the services).

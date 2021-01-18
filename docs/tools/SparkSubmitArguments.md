@@ -62,4 +62,4 @@ handle(
 mergeDefaultSparkProperties(): Unit
 ```
 
-`mergeDefaultSparkProperties` merges Spark properties from the [default Spark properties file, i.e. `spark-defaults.conf`](spark-properties.md#spark-defaults-conf) with those specified through `--conf` command-line option.
+`mergeDefaultSparkProperties` merges Spark properties from the [default Spark properties file, i.e. `spark-defaults.conf`](../spark-properties.md#spark-defaults-conf) with those specified through `--conf` command-line option.
