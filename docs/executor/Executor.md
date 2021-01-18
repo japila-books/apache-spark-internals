@@ -28,6 +28,74 @@ It is recommended to have as many executors as data nodes and as many cores as y
 
 Executors are described by their *id*, *hostname*, *environment* (as `SparkEnv`), and *classpath* (and, less importantly, and more for internal optimization, whether they run in spark-local:index.md[local] or spark-cluster.md[cluster] mode).
 
+## Creating Instance
+
+`Executor` takes the following to be created:
+
+* <span id="executorId"> Executor ID
+* <span id="executorHostname"> Host name
+* <span id="env"> [SparkEnv](../SparkEnv.md)
+* [User-defined jars](#userClassPath) (default: `empty`)
+* [isLocal flag](#isLocal) (default: `false`)
+* <span id="uncaughtExceptionHandler"> Java's UncaughtExceptionHandler (default: `SparkUncaughtExceptionHandler`)
+* <span id="resources"> Resources (`Map[String, ResourceInformation]`)
+
+`Executor` is created when:
+
+* `CoarseGrainedExecutorBackend` is requested to [handle a RegisteredExecutor message](CoarseGrainedExecutorBackend.md#RegisteredExecutor) (after having registered with the driver)
+
+* `LocalEndpoint` is [created](../local/LocalEndpoint.md#executor)
+
+### When Created
+
+When created, `Executor` prints out the following INFO messages to the logs:
+
+```text
+Starting executor ID [executorId] on host [executorHostname]
+```
+
+(only for [non-local](#isLocal) modes) `Executor` sets `SparkUncaughtExceptionHandler` as the default handler invoked when a thread abruptly terminates due to an uncaught exception.
+
+(only for [non-local](#isLocal) modes) `Executor` requests the [BlockManager](../SparkEnv.md#blockManager) to [initialize](../storage/BlockManager.md#initialize) (with the [Spark application id](../SparkConf.md#getAppId) of the [SparkConf](../SparkEnv.md#conf)).
+
+<span id="creating-instance-BlockManager-shuffleMetricsSource">
+
+(only for [non-local](#isLocal) modes) `Executor` requests the [MetricsSystem](../SparkEnv.md#metricsSystem) to [register](../metrics/MetricsSystem.md#registerSource) the [ExecutorSource](#executorSource) and [shuffleMetricsSource](../storage/BlockManager.md#shuffleMetricsSource) of the [BlockManager](../SparkEnv.md#blockManager).
+
+`Executor` uses `SparkEnv` to access the [MetricsSystem](../SparkEnv.md#metricsSystem) and [BlockManager](../SparkEnv.md#blockManager).
+
+`Executor` [creates a task class loader](#createClassLoader) (optionally with [REPL support](#addReplClassLoaderIfNeeded)) and requests the system `Serializer` to [use as the default classloader](../serializer/Serializer.md#setDefaultClassLoader) (for deserializing tasks).
+
+`Executor` [starts sending heartbeats with the metrics of active tasks](#startDriverHeartbeater).
+
+## <span id="updateDependencies"> Fetching File and Jar Dependencies
+
+```scala
+updateDependencies(
+  newFiles: Map[String, Long],
+  newJars: Map[String, Long]): Unit
+```
+
+`updateDependencies` fetches missing or outdated extra files (in the given `newFiles`). For every name-timestamp pair that...FIXME..., `updateDependencies` prints out the following INFO message to the logs:
+
+```text
+Fetching [name] with timestamp [timestamp]
+```
+
+`updateDependencies` fetches missing or outdated extra jars (in the given `newJars`). For every name-timestamp pair that...FIXME..., `updateDependencies` prints out the following INFO message to the logs:
+
+```text
+Fetching [name] with timestamp [timestamp]
+```
+
+`updateDependencies` [fetches the file](Utils.md#fetchFile) to the [SparkFiles root directory](../SparkFiles.md#getRootDirectory).
+
+`updateDependencies`...FIXME
+
+`updateDependencies` is used when:
+
+* `TaskRunner` is requested to [start](TaskRunner.md#run) (and run a task)
+
 ## <span id="maxResultSize"> spark.driver.maxResultSize
 
 `Executor` uses the [spark.driver.maxResultSize](../configuration-properties.md#spark.driver.maxResultSize) for `TaskRunner` when requested to [run a task](TaskRunner.md#run) (and [decide on a serialized task result](TaskRunner.md#run-serializedResult)).
@@ -36,43 +104,19 @@ Executors are described by their *id*, *hostname*, *environment* (as `SparkEnv`)
 
 `Executor` uses the minimum of [spark.task.maxDirectResultSize](../configuration-properties.md#spark.task.maxDirectResultSize) and [maxMessageSizeBytes](../rpc/RpcUtils.md#maxMessageSizeBytes) for `TaskRunner` is requested to [run a task](TaskRunner.md#run) (and [decide on the type of a serialized task result](TaskRunner.md#run-serializedResult))
 
-## Creating Instance
+## Logging
 
-Executor takes the following to be created:
+Enable `ALL` logging level for `org.apache.spark.executor.Executor` logger to see what happens inside.
 
-* [[executorId]] Executor ID
-* [[executorHostname]] Host name
-* [[env]] core:SparkEnv.md[]
-* <<userClassPath, User-defined jars>>
-* <<isLocal, isLocal flag>>
-* [[uncaughtExceptionHandler]] Java's UncaughtExceptionHandler (default: `SparkUncaughtExceptionHandler`)
+Add the following line to `conf/log4j.properties`:
 
-When created, Executor prints out the following INFO messages to the logs:
-
-```
-Starting executor ID [executorId] on host [executorHostname]
+```text
+log4j.logger.org.apache.spark.executor.Executor=ALL
 ```
 
-(only for <<isLocal, non-local modes>>) Executor sets `SparkUncaughtExceptionHandler` as the default handler invoked when a thread abruptly terminates due to an uncaught exception.
+Refer to [Logging](../spark-logging.md).
 
-(only for <<isLocal, non-local modes>>) Executor requests the core:SparkEnv.md#blockManager[BlockManager] to storage:BlockManager.md#initialize[initialize] (with the SparkConf.md#getAppId[Spark application id] of the core:SparkEnv.md#conf[SparkConf]).
-
-[[creating-instance-BlockManager-shuffleMetricsSource]]
-(only for <<isLocal, non-local modes>>) Executor requests the core:SparkEnv.md#metricsSystem[MetricsSystem] to [register](../metrics/MetricsSystem.md#registerSource) the <<executorSource, ExecutorSource>> and storage:BlockManager.md#shuffleMetricsSource[shuffleMetricsSource] of the core:SparkEnv.md#blockManager[BlockManager].
-
-Executor uses SparkEnv to access the core:SparkEnv.md#metricsSystem[MetricsSystem] and core:SparkEnv.md#blockManager[BlockManager].
-
-Executor <<createClassLoader, creates a task class loader>> (optionally with <<addReplClassLoaderIfNeeded, REPL support>>) and requests the system Serializer to serializer:Serializer.md#setDefaultClassLoader[use as the default classloader] (for deserializing tasks).
-
-Executor <<startDriverHeartbeater, starts sending heartbeats with the metrics of active tasks>>.
-
-Executor is created when:
-
-* CoarseGrainedExecutorBackend executor:CoarseGrainedExecutorBackend.md#RegisteredExecutor[receives RegisteredExecutor message]
-
-* (Spark on Mesos) MesosExecutorBackend is requested to spark-on-mesos:spark-executor-backends-MesosExecutorBackend.md#registered[registered]
-
-* spark-local:spark-LocalEndpoint.md[LocalEndpoint] is created
+## Review Me
 
 == [[isLocal]] isLocal Flag
 
@@ -101,19 +145,6 @@ runningTasks: Map[Long, TaskRunner]
 Set when Executor <<creating-instance, is created>>.
 
 Used exclusively when Executor <<reportHeartBeat, reports heartbeats and partial metrics for active tasks to the driver>> (that happens every <<spark.executor.heartbeatInterval, spark.executor.heartbeatInterval>> interval).
-
-== [[updateDependencies]] updateDependencies Method
-
-[source, scala]
-----
-updateDependencies(
-  newFiles: Map[String, Long],
-  newJars: Map[String, Long]): Unit
-----
-
-updateDependencies...FIXME
-
-updateDependencies is used when TaskRunner is requested to executor:TaskRunner.md#run[start] (and run a task).
 
 == [[launchTask]] Launching Task
 
@@ -328,19 +359,6 @@ Exit as unable to send heartbeats to driver more than [HEARTBEAT_MAX_FAILURES] t
 ```
 
 The executor exits (using `System.exit` and exit code 56).
-
-== [[logging]] Logging
-
-Enable `ALL` logging level for `org.apache.spark.executor.Executor` logger to see what happens inside.
-
-Add the following line to `conf/log4j.properties`:
-
-[source,plaintext]
-----
-log4j.logger.org.apache.spark.executor.Executor=ALL
-----
-
-Refer to spark-logging.md[Logging].
 
 == [[internal-properties]] Internal Properties
 

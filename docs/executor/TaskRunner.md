@@ -16,7 +16,9 @@
 * <span id="execBackend"> [ExecutorBackend](ExecutorBackend.md) (that manages the parent [Executor](Executor.md))
 * <span id="taskDescription"><span id="taskId"> [TaskDescription](../scheduler/TaskDescription.md)
 
-`TaskRunner` is created when `Executor` is requested to [launch a task](Executor.md#launchTask).
+`TaskRunner` is created when:
+
+* `Executor` is requested to [launch a task](Executor.md#launchTask)
 
 ## Demo
 
@@ -76,17 +78,11 @@ run(): Unit
 
 `run` sets the name of the current thread of execution as the [threadName](#threadName).
 
-`run` creates a [TaskMemoryManager](../memory/TaskMemoryManager.md) (for the current [MemoryManager](../memory/MemoryManager.md) and [taskId](#taskId)).
-
-!!! note
-    `run` uses `SparkEnv` to [access the current MemoryManager](../SparkEnv.md#memoryManager).
+`run` creates a [TaskMemoryManager](../memory/TaskMemoryManager.md) (for the current [MemoryManager](../memory/MemoryManager.md) and [taskId](#taskId)). `run` uses `SparkEnv` to [access the current MemoryManager](../SparkEnv.md#memoryManager).
 
 `run` starts tracking the time to deserialize a task and sets the current thread's context classloader.
 
-`run` creates a [closure Serializer](../serializer/Serializer.md#newInstance).
-
-!!! note
-    `run` uses `SparkEnv` to [access the closure Serializer](../SparkEnv.md#closureSerializer).
+`run` creates a [closure Serializer](../serializer/Serializer.md#newInstance). `run` uses `SparkEnv` to [access the closure Serializer](../SparkEnv.md#closureSerializer).
 
 `run` prints out the following INFO message to the logs (with the [taskName](#taskName) and [taskId](#taskId)):
 
@@ -98,18 +94,15 @@ Running [taskName] (TID [taskId])
 
 `run` [computes the total amount of time this JVM process has spent in garbage collection](#computeTotalGcTime).
 
-`run` uses the [addedFiles](../scheduler/TaskDescription.md#addedFiles) and [addedJars](../scheduler/TaskDescription.md#addedJars) of the given [TaskDescription](#taskDescription) to [update dependencies](#updateDependencies).
+`run` uses the [addedFiles](../scheduler/TaskDescription.md#addedFiles) and [addedJars](../scheduler/TaskDescription.md#addedJars) (of the given [TaskDescription](#taskDescription)) to [update dependencies](Executor.md#updateDependencies).
 
 `run` takes the [serializedTask](../scheduler/TaskDescription.md#serializedTask) of the given [TaskDescription](#taskDescription) and requests the closure `Serializer` to [deserialize the task](../serializer/SerializerInstance.md#deserialize). `run` sets the [task](#task) internal reference to hold the deserialized task.
 
-For non-local environments, `run` prints out the following DEBUG message to the logs before requesting the `MapOutputTrackerWorker` to [update the epoch](../scheduler/MapOutputTrackerWorker.md#updateEpoch) (using the [epoch](../scheduler/Task.md#epoch) of the [Task](#task) to be executed).
+For non-local environments, `run` prints out the following DEBUG message to the logs before requesting the `MapOutputTrackerWorker` to [update the epoch](../scheduler/MapOutputTrackerWorker.md#updateEpoch) (using the [epoch](../scheduler/Task.md#epoch) of the [Task](#task) to be executed). `run` uses `SparkEnv` to [access the MapOutputTrackerWorker](../SparkEnv.md#mapOutputTracker).
 
 ```text
 Task [taskId]'s epoch is [epoch]
 ```
-
-!!! note
-    `run` uses `SparkEnv` to [access the MapOutputTrackerWorker](../SparkEnv.md#mapOutputTracker).
 
 `run` requests the `metricsPoller`...FIXME
 

@@ -51,7 +51,7 @@ In the end, `addFile` adds the file to the [addedFiles](#addedFiles) internal re
 * For files that were already added, `addFile` prints out the following WARN message to the logs:
 
     ```text
-    The path $path has been added already. Overwriting of added paths is not supported in the current version.
+    The path [path] has been added already. Overwriting of added paths is not supported in the current version.
     ```
 
 `addFile` is used when:

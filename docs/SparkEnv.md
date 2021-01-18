@@ -43,6 +43,16 @@ Property | Service
 
 `SparkEnv` is created using [create](#create) utility.
 
+## <span id="driverTmpDir"> Temporary Directory of Driver
+
+```scala
+driverTmpDir: Option[String]
+```
+
+`SparkEnv` defines `driverTmpDir` internal registry for the driver to be used as the [root directory](SparkFiles.md#getRootDirectory) of files added using [SparkContext.addFile](SparkContext.md#addFile).
+
+`driverTmpDir` is undefined initially and is defined for the driver only when `SparkEnv` utility is used to [create a "base" SparkEnv](#create).
+
 ## <span id="createDriverEnv"> Creating SparkEnv for Driver
 
 ```scala
@@ -314,8 +324,5 @@ Refer to spark-logging.md[Logging].
 | [[isStopped]] Used to mark SparkEnv stopped
 
 Default: `false`
-
-| driverTmpDir
-| [[driverTmpDir]]
 
 |===
