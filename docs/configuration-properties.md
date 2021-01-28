@@ -1,16 +1,44 @@
 # Spark Configuration Properties
 
+## <span id="spark.app.id"> spark.app.id
+
+Unique identifier of a Spark application that Spark uses to uniquely identify [metric sources](metrics/MetricsSystem.md#buildRegistryName).
+
+Default: [TaskScheduler.applicationId()](scheduler/TaskScheduler.md#applicationId)
+
+Set when [SparkContext](SparkContext.md) is created
+
 ## <span id="spark.cleaner.referenceTracking"><span id="CLEANER_REFERENCE_TRACKING"> spark.cleaner.referenceTracking
 
 Controls whether to enable [ContextCleaner](core/ContextCleaner.md)
 
 Default: `true`
 
+## <span id="spark.diskStore.subDirectories"><span id="DISKSTORE_SUB_DIRECTORIES"> spark.diskStore.subDirectories
+
+Number of subdirectories inside each path listed in [spark.local.dir](#spark.local.dir) for hashing block files into.
+
+Default: `64`
+
+Used by [BlockManager](storage/BlockManager.md#subDirsPerLocalDir) and [DiskBlockManager](storage/DiskBlockManager.md#subDirsPerLocalDir)
+
 ## <span id="spark.driver.host"><span id="DRIVER_HOST_ADDRESS"> spark.driver.host
 
 Address of the driver (endpoints)
 
 Default: [Utils.localCanonicalHostName](Utils.md#localCanonicalHostName)
+
+## <span id="spark.driver.maxResultSize"><span id="MAX_RESULT_SIZE"> spark.driver.maxResultSize
+
+Maximum size of task results (in bytes)
+
+Default: `1g`
+
+Used when:
+
+* `TaskRunner` is requested to [run a task](executor/TaskRunner.md#run) (and [decide on the type of a serialized task result](executor/TaskRunner.md#run-serializedResult))
+
+* `TaskSetManager` is requested to [check available memory for task results](scheduler/TaskSetManager.md#canFetchMoreResults)
 
 ## <span id="spark.driver.port"><span id="DRIVER_PORT"> spark.driver.port
 
@@ -28,6 +56,20 @@ Default: `1`
 
 Default: (undefined)
 
+## <span id="spark.extraListeners"> spark.extraListeners
+
+A comma-separated list of fully-qualified class names of [SparkListener](SparkListener.md)s (to be registered when [SparkContext](SparkContext.md) is created)
+
+Default: (empty)
+
+## <span id="spark.file.transferTo"> spark.file.transferTo
+
+Controls whether to use Java [FileChannel]({{ java.api }}/java.base/java/nio/channels/FileChannel.html)s (Java NIO) for copying data between two Java FileInputStreams to improve copy performance
+
+Default: `true`
+
+Used when [BypassMergeSortShuffleWriter](shuffle/BypassMergeSortShuffleWriter.md#transferToEnabled) and [UnsafeShuffleWriter](shuffle/UnsafeShuffleWriter.md#transferToEnabled) are created
+
 ## <span id="spark.files"> spark.files
 
 The files [to be added](SparkContext.md#addFile) to a Spark application (that can be defined directly as a configuration property or indirectly using `--files` option of `spark-submit` script)
@@ -42,130 +84,23 @@ Used when:
 
 Default: (empty)
 
+## <span id="spark.local.dir"> spark.local.dir
+
+A comma-separated list of directories that are used as a temporary storage for "scratch" space (incl. map output files and RDDs that get stored on disk). This should be on a fast, local disk in your system.
+
+Default: `/tmp`
+
 ## <span id="spark.logConf"> spark.logConf
+
+Default: `false`
+
+## <span id="spark.logLineage"> spark.logLineage
 
 Default: `false`
 
 ## <span id="spark.master"> spark.master
 
 **Master URL** of the cluster manager to connect the Spark application to
-
-## <span id="spark.rdd.compress"> spark.rdd.compress
-
-Controls whether to compress RDD partitions when stored serialized
-
-Default: `false`
-
-## <span id="spark.repl.class.uri"> spark.repl.class.uri
-
-Controls whether to compress RDD partitions when stored serialized
-
-Default: `false`
-
-## <span id="spark.shuffle.compress"> spark.shuffle.compress
-
-Controls whether to compress shuffle output when stored
-
-Default: `true`
-
-## <span id="spark.shuffle.readHostLocalDisk"><span id="SHUFFLE_HOST_LOCAL_DISK_READING_ENABLED"> spark.shuffle.readHostLocalDisk
-
-If enabled (with [spark.shuffle.useOldFetchProtocol](#spark.shuffle.useOldFetchProtocol) disabled and [spark.shuffle.service.enabled](external-shuffle-service/configuration-properties.md#spark.shuffle.service.enabled) enabled), shuffle blocks requested from those block managers which are running on the same host are read from the disk directly instead of being fetched as remote blocks over the network.
-
-Default: `true`
-
-## <span id="spark.storage.localDiskByExecutors.cacheSize"><span id="STORAGE_LOCAL_DISK_BY_EXECUTORS_CACHE_SIZE"> spark.storage.localDiskByExecutors.cacheSize
-
-The max number of executors for which the local dirs are stored. This size is both applied for the driver and both for the executors side to avoid having an unbounded store. This cache will be used to avoid the network in case of fetching disk persisted RDD blocks or shuffle blocks (when [spark.shuffle.readHostLocalDisk](#spark.shuffle.readHostLocalDisk) is set) from the same host.
-
-Default: `1000`
-
-## <span id="spark.shuffle.useOldFetchProtocol"><span id="SHUFFLE_USE_OLD_FETCH_PROTOCOL"> spark.shuffle.useOldFetchProtocol
-
-Whether to use the old protocol while doing the shuffle block fetching. It is only enabled while we need the compatibility in the scenario of new Spark version job fetching shuffle blocks from old version external shuffle service.
-
-Default: `false`
-
-## <span id="spark.storage.replication.policy"> spark.storage.replication.policy
-
-Default: [RandomBlockReplicationPolicy](storage/RandomBlockReplicationPolicy.md)
-
-## <span id="spark.scheduler.minRegisteredResourcesRatio"> spark.scheduler.minRegisteredResourcesRatio
-
-Minimum ratio of (registered resources / total expected resources) before submitting tasks
-
-Default: (undefined)
-
-## <span id="spark.task.cpus"><span id="CPUS_PER_TASK"> spark.task.cpus
-
-The number of CPU cores to schedule (_allocate_) to a task
-
-Default: `1`
-
-Used when:
-
-* `ExecutorAllocationManager` is [created](dynamic-allocation/ExecutorAllocationManager.md#tasksPerExecutorForFullParallelism)
-* `TaskSchedulerImpl` is [created](scheduler/TaskSchedulerImpl.md#CPUS_PER_TASK)
-* `AppStatusListener` is requested to [handle a SparkListenerEnvironmentUpdate event](AppStatusListener.md#onEnvironmentUpdate)
-* `SparkContext` utility is used to [create a TaskScheduler](SparkContext.md#createTaskScheduler)
-* `ResourceProfile` is requested to [getDefaultTaskResources](stage-level-scheduling/ResourceProfile.md#getDefaultTaskResources)
-* `LocalityPreferredContainerPlacementStrategy` is requested to `numExecutorsPending`
-
-## <span id="spark.scheduler.revive.interval"><span id="SCHEDULER_REVIVE_INTERVAL"> spark.scheduler.revive.interval
-
-**Revive Interval** - time (in millis) between resource offers revives
-
-Default: `1s`
-
-Used when:
-
-* `DriverEndpoint` is requested to [onStart](scheduler/DriverEndpoint.md#onStart)
-
-## <span id="spark.rpc.message.maxSize"><span id="RPC_MESSAGE_MAX_SIZE"> spark.rpc.message.maxSize
-
-Maximum allowed message size for RPC communication (in `MB` unless specified)
-
-Default: `128`
-
-Must be below [2047MB](rpc/RpcUtils.md#MAX_MESSAGE_SIZE_IN_MB) (`Int.MaxValue / 1024 / 1024`)
-
-Used when:
-
-* `RpcUtils` is requested for the [maximum message size](rpc/RpcUtils.md#maxMessageSizeBytes)
-
-## <span id="spark.task.maxDirectResultSize"><span id="TASK_MAX_DIRECT_RESULT_SIZE"> spark.task.maxDirectResultSize
-
-Maximum size of a task result (in bytes) to be sent to the driver as a [DirectTaskResult](scheduler/TaskResult.md#DirectTaskResult)
-
-Default: `1048576B` (`1L << 20`)
-
-Used when:
-
-* `TaskRunner` is requested to [run a task](executor/TaskRunner.md#run) (and [decide on the type of a serialized task result](executor/TaskRunner.md#run-serializedResult))
-
-## <span id="spark.driver.maxResultSize"><span id="MAX_RESULT_SIZE"> spark.driver.maxResultSize
-
-Maximum size of task results (in bytes)
-
-Default: `1g`
-
-Used when:
-
-* `TaskRunner` is requested to [run a task](executor/TaskRunner.md#run) (and [decide on the type of a serialized task result](executor/TaskRunner.md#run-serializedResult))
-
-* `TaskSetManager` is requested to [check available memory for task results](scheduler/TaskSetManager.md#canFetchMoreResults)
-
-## <span id="spark.storage.blockManagerTimeoutIntervalMs"><span id="STORAGE_BLOCKMANAGER_TIMEOUTINTERVAL"> spark.storage.blockManagerTimeoutIntervalMs
-
-(in millis)
-
-Default: `60s`
-
-## <span id="spark.storage.blockManagerSlaveTimeoutMs"><span id="STORAGE_BLOCKMANAGER_SLAVE_TIMEOUT"> spark.storage.blockManagerSlaveTimeoutMs
-
-(in millis)
-
-Default: [spark.network.timeout](#NETWORK_TIMEOUT)
 
 ## <span id="spark.network.timeout"><span id="NETWORK_TIMEOUT"> spark.network.timeout
 
@@ -179,69 +114,67 @@ Default: `120s`
 
 Default: [spark.storage.blockManagerTimeoutIntervalMs](#STORAGE_BLOCKMANAGER_TIMEOUTINTERVAL)
 
-## <span id="spark.shuffle.registration.maxAttempts"><span id="SHUFFLE_REGISTRATION_MAX_ATTEMPTS"> spark.shuffle.registration.maxAttempts
+## <span id="spark.rdd.compress"> spark.rdd.compress
 
-How many attempts to [register a BlockManager with External Shuffle Service](storage/BlockManager.md#registerWithExternalShuffleServer)
-
-Default: `3`
-
-Used when `BlockManager` is requested to [register with External Shuffle Server](storage/BlockManager.md#registerWithExternalShuffleServer)
-
-## <span id="spark.shuffle.sync"><span id="SHUFFLE_SYNC"> spark.shuffle.sync
-
-Controls whether `DiskBlockObjectWriter` should force outstanding writes to disk while [committing a single atomic block](storage/DiskBlockObjectWriter.md#commitAndGet) (i.e. all operating system buffers should synchronize with the disk to ensure that all changes to a file are in fact recorded in the storage)
+Controls whether to compress RDD partitions when stored serialized
 
 Default: `false`
 
-Used when `BlockManager` is requested for a [DiskBlockObjectWriter](storage/BlockManager.md#getDiskWriter)
+## <span id="spark.repl.class.uri"> spark.repl.class.uri
 
-## <span id="spark.shuffle.minNumPartitionsToHighlyCompress"><span id="SHUFFLE_MIN_NUM_PARTS_TO_HIGHLY_COMPRESS"> spark.shuffle.minNumPartitionsToHighlyCompress
+Controls whether to compress RDD partitions when stored serialized
 
-**(internal)** Minimum number of partitions (threshold) for `MapStatus` utility to prefer a [HighlyCompressedMapStatus](scheduler/MapStatus.md#HighlyCompressedMapStatus) (over [CompressedMapStatus](scheduler/MapStatus.md#CompressedMapStatus)) (for [ShuffleWriters](shuffle/ShuffleWriter.md)).
+Default: `false`
 
-Default: `2000`
+## <span id="spark.rpc.message.maxSize"><span id="RPC_MESSAGE_MAX_SIZE"> spark.rpc.message.maxSize
 
-Must be a positive integer (above `0`)
+Maximum allowed message size for RPC communication (in `MB` unless specified)
 
-## <span id="spark.file.transferTo"> spark.file.transferTo
+Default: `128`
 
-Controls whether to use Java [FileChannel]({{ java.api }}/java.base/java/nio/channels/FileChannel.html)s (Java NIO) for copying data between two Java FileInputStreams to improve copy performance
+Must be below [2047MB](rpc/RpcUtils.md#MAX_MESSAGE_SIZE_IN_MB) (`Int.MaxValue / 1024 / 1024`)
+
+Used when:
+
+* `RpcUtils` is requested for the [maximum message size](rpc/RpcUtils.md#maxMessageSizeBytes)
+
+## <span id="spark.scheduler.minRegisteredResourcesRatio"> spark.scheduler.minRegisteredResourcesRatio
+
+Minimum ratio of (registered resources / total expected resources) before submitting tasks
+
+Default: (undefined)
+
+## <span id="spark.scheduler.revive.interval"><span id="SCHEDULER_REVIVE_INTERVAL"> spark.scheduler.revive.interval
+
+**Revive Interval** that is the time (in millis) between resource offers revives
+
+Default: `1s`
+
+Used when:
+
+* `DriverEndpoint` is requested to [onStart](scheduler/DriverEndpoint.md#onStart)
+
+## <span id="spark.shuffle.compress"> spark.shuffle.compress
+
+Controls whether to compress shuffle output when stored
 
 Default: `true`
 
-Used when [BypassMergeSortShuffleWriter](shuffle/BypassMergeSortShuffleWriter.md#transferToEnabled) and [UnsafeShuffleWriter](shuffle/UnsafeShuffleWriter.md#transferToEnabled) are created
+## <span id="spark.shuffle.file.buffer"> spark.shuffle.file.buffer
 
-## <span id="spark.diskStore.subDirectories"><span id="DISKSTORE_SUB_DIRECTORIES"> spark.diskStore.subDirectories
+Size of the in-memory buffer for each shuffle file output stream, in KiB unless otherwise specified. These buffers reduce the number of disk seeks and system calls made in creating intermediate shuffle files.
 
-Number of subdirectories inside each path listed in [spark.local.dir](#spark.local.dir) for hashing block files into.
+Default: `32k`
 
-Default: `64`
+Must be greater than `0` and less than or equal to `2097151` (`(Integer.MAX_VALUE - 15) / 1024`)
 
-Used by [BlockManager](storage/BlockManager.md#subDirsPerLocalDir) and [DiskBlockManager](storage/DiskBlockManager.md#subDirsPerLocalDir)
+Used when the following are created:
 
-## <span id="spark.local.dir"> spark.local.dir
-
-A comma-separated list of directories that are used as a temporary storage for "scratch" space (incl. map output files and RDDs that get stored on disk). This should be on a fast, local disk in your system.
-
-Default: `/tmp`
-
-## <span id="spark.ui.showConsoleProgress"><span id="UI_SHOW_CONSOLE_PROGRESS"> spark.ui.showConsoleProgress
-
-Controls whether to enable [ConsoleProgressBar](ConsoleProgressBar.md) and show the progress bar in the console
-
-Default: `false`
-
-## <span id="spark.logLineage"> spark.logLineage
-
-Default: `false`
-
-## <span id="spark.shuffle.spill.initialMemoryThreshold"> spark.shuffle.spill.initialMemoryThreshold
-
-Initial threshold for the size of an in-memory collection
-
-Default: 5MB
-
-Used by [Spillable](shuffle/Spillable.md#initialMemoryThreshold)
+* [BypassMergeSortShuffleWriter](shuffle/BypassMergeSortShuffleWriter.md)
+* [ShuffleExternalSorter](shuffle/ShuffleExternalSorter.md)
+* [UnsafeShuffleWriter](shuffle/UnsafeShuffleWriter.md)
+* [ExternalAppendOnlyMap](shuffle/ExternalAppendOnlyMap.md)
+* [ExternalSorter](shuffle/ExternalSorter.md)
 
 ## <span id="spark.shuffle.manager"> spark.shuffle.manager
 
@@ -255,6 +188,36 @@ Supported aliases:
 * `tungsten-sort`
 
 Used when `SparkEnv` object is requested to [create a "base" SparkEnv for a driver or an executor](SparkEnv.md#create)
+
+## <span id="spark.shuffle.minNumPartitionsToHighlyCompress"><span id="SHUFFLE_MIN_NUM_PARTS_TO_HIGHLY_COMPRESS"> spark.shuffle.minNumPartitionsToHighlyCompress
+
+**(internal)** Minimum number of partitions (threshold) for `MapStatus` utility to prefer a [HighlyCompressedMapStatus](scheduler/MapStatus.md#HighlyCompressedMapStatus) (over [CompressedMapStatus](scheduler/MapStatus.md#CompressedMapStatus)) (for [ShuffleWriters](shuffle/ShuffleWriter.md)).
+
+Default: `2000`
+
+Must be a positive integer (above `0`)
+
+## <span id="spark.shuffle.readHostLocalDisk"><span id="SHUFFLE_HOST_LOCAL_DISK_READING_ENABLED"> spark.shuffle.readHostLocalDisk
+
+If enabled (with [spark.shuffle.useOldFetchProtocol](#spark.shuffle.useOldFetchProtocol) disabled and [spark.shuffle.service.enabled](external-shuffle-service/configuration-properties.md#spark.shuffle.service.enabled) enabled), shuffle blocks requested from those block managers which are running on the same host are read from the disk directly instead of being fetched as remote blocks over the network.
+
+Default: `true`
+
+## <span id="spark.shuffle.registration.maxAttempts"><span id="SHUFFLE_REGISTRATION_MAX_ATTEMPTS"> spark.shuffle.registration.maxAttempts
+
+How many attempts to [register a BlockManager with External Shuffle Service](storage/BlockManager.md#registerWithExternalShuffleServer)
+
+Default: `3`
+
+Used when `BlockManager` is requested to [register with External Shuffle Server](storage/BlockManager.md#registerWithExternalShuffleServer)
+
+## <span id="spark.shuffle.spill.initialMemoryThreshold"> spark.shuffle.spill.initialMemoryThreshold
+
+Initial threshold for the size of an in-memory collection
+
+Default: 5MB
+
+Used by [Spillable](shuffle/Spillable.md#initialMemoryThreshold)
 
 ## <span id="spark.shuffle.spill.numElementsForceSpillThreshold"><span id="SHUFFLE_SPILL_NUM_ELEMENTS_FORCE_SPILL_THRESHOLD"> spark.shuffle.spill.numElementsForceSpillThreshold
 
@@ -273,21 +236,94 @@ Used when:
 * Spark SQL's `UnsafeExternalRowSorter` is created
 * Spark SQL's `UnsafeFixedWidthAggregationMap` is requested for an `UnsafeKVExternalSorter`
 
-## <span id="spark.shuffle.file.buffer"> spark.shuffle.file.buffer
+## <span id="spark.shuffle.sync"><span id="SHUFFLE_SYNC"> spark.shuffle.sync
 
-Size of the in-memory buffer for each shuffle file output stream, in KiB unless otherwise specified. These buffers reduce the number of disk seeks and system calls made in creating intermediate shuffle files.
+Controls whether `DiskBlockObjectWriter` should force outstanding writes to disk while [committing a single atomic block](storage/DiskBlockObjectWriter.md#commitAndGet) (i.e. all operating system buffers should synchronize with the disk to ensure that all changes to a file are in fact recorded in the storage)
 
-Default: `32k`
+Default: `false`
 
-Must be greater than `0` and less than or equal to `2097151` (`(Integer.MAX_VALUE - 15) / 1024`)
+Used when `BlockManager` is requested for a [DiskBlockObjectWriter](storage/BlockManager.md#getDiskWriter)
 
-Used when the following are created:
+## <span id="spark.shuffle.useOldFetchProtocol"><span id="SHUFFLE_USE_OLD_FETCH_PROTOCOL"> spark.shuffle.useOldFetchProtocol
 
-* [BypassMergeSortShuffleWriter](shuffle/BypassMergeSortShuffleWriter.md)
-* [ShuffleExternalSorter](shuffle/ShuffleExternalSorter.md)
-* [UnsafeShuffleWriter](shuffle/UnsafeShuffleWriter.md)
-* [ExternalAppendOnlyMap](shuffle/ExternalAppendOnlyMap.md)
-* [ExternalSorter](shuffle/ExternalSorter.md)
+Whether to use the old protocol while doing the shuffle block fetching. It is only enabled while we need the compatibility in the scenario of new Spark version job fetching shuffle blocks from old version external shuffle service.
+
+Default: `false`
+
+## <span id="spark.speculation"> spark.speculation
+
+Controls [Speculative Execution of Tasks](speculative-execution-of-tasks.md)
+
+Default: `false`
+
+## <span id="spark.speculation.interval"> spark.speculation.interval
+
+The time interval to use before checking for speculative tasks in [Speculative Execution of Tasks](speculative-execution-of-tasks.md).
+
+Default: `100ms`
+
+## <span id="spark.speculation.multiplier"> spark.speculation.multiplier
+
+Default: `1.5`
+
+## <span id="spark.speculation.quantile"> spark.speculation.quantile
+
+The percentage of tasks that has not finished yet at which to start speculation in [Speculative Execution of Tasks](speculative-execution-of-tasks.md).
+
+Default: `0.75`
+
+## <span id="spark.storage.blockManagerSlaveTimeoutMs"><span id="STORAGE_BLOCKMANAGER_SLAVE_TIMEOUT"> spark.storage.blockManagerSlaveTimeoutMs
+
+(in millis)
+
+Default: [spark.network.timeout](#NETWORK_TIMEOUT)
+
+## <span id="spark.storage.blockManagerTimeoutIntervalMs"><span id="STORAGE_BLOCKMANAGER_TIMEOUTINTERVAL"> spark.storage.blockManagerTimeoutIntervalMs
+
+(in millis)
+
+Default: `60s`
+
+## <span id="spark.storage.localDiskByExecutors.cacheSize"><span id="STORAGE_LOCAL_DISK_BY_EXECUTORS_CACHE_SIZE"> spark.storage.localDiskByExecutors.cacheSize
+
+The max number of executors for which the local dirs are stored. This size is both applied for the driver and both for the executors side to avoid having an unbounded store. This cache will be used to avoid the network in case of fetching disk persisted RDD blocks or shuffle blocks (when [spark.shuffle.readHostLocalDisk](#spark.shuffle.readHostLocalDisk) is set) from the same host.
+
+Default: `1000`
+
+## <span id="spark.storage.replication.policy"> spark.storage.replication.policy
+
+Default: [RandomBlockReplicationPolicy](storage/RandomBlockReplicationPolicy.md)
+
+## <span id="spark.task.cpus"><span id="CPUS_PER_TASK"> spark.task.cpus
+
+The number of CPU cores to schedule (_allocate_) to a task
+
+Default: `1`
+
+Used when:
+
+* `ExecutorAllocationManager` is [created](dynamic-allocation/ExecutorAllocationManager.md#tasksPerExecutorForFullParallelism)
+* `TaskSchedulerImpl` is [created](scheduler/TaskSchedulerImpl.md#CPUS_PER_TASK)
+* `AppStatusListener` is requested to [handle a SparkListenerEnvironmentUpdate event](AppStatusListener.md#onEnvironmentUpdate)
+* `SparkContext` utility is used to [create a TaskScheduler](SparkContext.md#createTaskScheduler)
+* `ResourceProfile` is requested to [getDefaultTaskResources](stage-level-scheduling/ResourceProfile.md#getDefaultTaskResources)
+* `LocalityPreferredContainerPlacementStrategy` is requested to `numExecutorsPending`
+
+## <span id="spark.task.maxDirectResultSize"><span id="TASK_MAX_DIRECT_RESULT_SIZE"> spark.task.maxDirectResultSize
+
+Maximum size of a task result (in bytes) to be sent to the driver as a [DirectTaskResult](scheduler/TaskResult.md#DirectTaskResult)
+
+Default: `1048576B` (`1L << 20`)
+
+Used when:
+
+* `TaskRunner` is requested to [run a task](executor/TaskRunner.md#run) (and [decide on the type of a serialized task result](executor/TaskRunner.md#run-serializedResult))
+
+## <span id="spark.task.maxFailures"><span id="TASK_MAX_FAILURES"> spark.task.maxFailures
+
+Number of failures of a single task (of a [TaskSet](../scheduler/TaskSet.md)) before giving up on the entire `TaskSet` and then the job
+
+Default: `4`
 
 ## <span id="spark.plugins"> spark.plugins
 
@@ -303,19 +339,11 @@ Set when [SparkContext](SparkContext.md) is created
 
 FIXME
 
-## <span id="spark.app.id"> spark.app.id
+## <span id="spark.ui.showConsoleProgress"><span id="UI_SHOW_CONSOLE_PROGRESS"> spark.ui.showConsoleProgress
 
-Unique identifier of a Spark application that Spark uses to uniquely identify [metric sources](metrics/MetricsSystem.md#buildRegistryName).
+Controls whether to enable [ConsoleProgressBar](ConsoleProgressBar.md) and show the progress bar in the console
 
-Default: [TaskScheduler.applicationId()](scheduler/TaskScheduler.md#applicationId)
-
-Set when [SparkContext](SparkContext.md) is created
-
-## <span id="spark.extraListeners"> spark.extraListeners
-
-A comma-separated list of fully-qualified class names of [SparkListener](SparkListener.md)s (to be registered when [SparkContext](SparkContext.md) is created)
-
-Default: (empty)
+Default: `false`
 
 == [[properties]] Properties
 
@@ -489,15 +517,6 @@ Default: `15s`
 
 | spark.storage.exceptionOnPinLeak
 a| [[spark.storage.exceptionOnPinLeak]]
-
-| spark.task.maxFailures
-a| [[spark.task.maxFailures]] The number of individual task failures before giving up on the entire scheduler:TaskSet.md[TaskSet] and the job afterwards
-
-Default:
-
-* `1` in spark-local:spark-local.md[local]
-* `maxFailures` in spark-local:spark-local.md#masterURL[local-with-retries]
-* `4` in spark-cluster.md[cluster mode]
 
 | spark.unsafe.exceptionOnMemoryLeak
 a| [[spark.unsafe.exceptionOnMemoryLeak]]
@@ -744,28 +763,6 @@ Default: `3s`
 Timeout for RPC ask calls
 
 Default: `120s`
-
-== [[spark.speculation]] spark.speculation
-
-Enables (`true`) or disables (`false`) speculative-execution-of-tasks.md[]
-
-Default: `false`
-
-== [[spark.speculation.interval]] spark.speculation.interval
-
-The time interval to use before checking for speculative tasks in speculative-execution-of-tasks.md[].
-
-Default: `100ms`
-
-== [[spark.speculation.multiplier]] spark.speculation.multiplier
-
-Default: `1.5`
-
-== [[spark.speculation.quantile]] spark.speculation.quantile
-
-The percentage of tasks that has not finished yet at which to start speculation in speculative-execution-of-tasks.md[].
-
-Default: `0.75`
 
 == [[spark.storage.unrollMemoryThreshold]] spark.storage.unrollMemoryThreshold
 
