@@ -158,6 +158,14 @@ prepareSubmitEnvironment(
 
 `prepareSubmitEnvironment`...FIXME
 
+For [isPython](SparkSubmitArguments.md#isPython) in `CLIENT` deploy mode, `prepareSubmitEnvironment` sets the following based on [primaryResource](SparkSubmitArguments.md#primaryResource):
+
+* For [pyspark-shell](#PYSPARK_SHELL) the [mainClass](SparkSubmitArguments.md#mainClass) is `org.apache.spark.api.python.PythonGatewayServer`
+
+* Otherwise, the [mainClass](SparkSubmitArguments.md#mainClass) is `org.apache.spark.deploy.PythonRunner` and the main python file, extra python files and the [childArgs](SparkSubmitArguments.md#childArgs)
+
+`prepareSubmitEnvironment`...FIXME
+
 `prepareSubmitEnvironment` determines the cluster manager based on [master](#clusterManager) argument.
 
 For [KUBERNETES](#KUBERNETES), `prepareSubmitEnvironment` [checkAndGetK8sMasterUrl](../Utils.md#checkAndGetK8sMasterUrl).
