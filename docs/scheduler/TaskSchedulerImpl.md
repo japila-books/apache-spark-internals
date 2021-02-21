@@ -2,7 +2,7 @@
 
 `TaskSchedulerImpl` is a [TaskScheduler](TaskScheduler.md) that uses a [SchedulerBackend](#backend) to schedule tasks (for execution on a cluster manager).
 
-When a Spark application starts (and so an instance of `SparkContext` is [created](SparkContext.md#creating-instance)) `TaskSchedulerImpl` with a [SchedulerBackend](SchedulerBackend.md) and [DAGScheduler](DAGScheduler.md) are created and soon started.
+When a Spark application starts (and so an instance of `SparkContext` is [created](../SparkContext.md#creating-instance)) `TaskSchedulerImpl` with a [SchedulerBackend](SchedulerBackend.md) and [DAGScheduler](DAGScheduler.md) are created and soon started.
 
 ![TaskSchedulerImpl and Other Services](../images/scheduler/taskschedulerimpl-sparkcontext-schedulerbackend-dagscheduler.png)
 

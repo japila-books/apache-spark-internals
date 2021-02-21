@@ -63,3 +63,11 @@ mergeDefaultSparkProperties(): Unit
 ```
 
 `mergeDefaultSparkProperties` merges Spark properties from the [default Spark properties file, i.e. `spark-defaults.conf`](../spark-properties.md#spark-defaults-conf) with those specified through `--conf` command-line option.
+
+## <span id="isPython"> isPython Flag
+
+```scala
+isPython: Boolean = false
+```
+
+`isPython` indicates whether the application resource is a [PySpark application](SparkSubmit.md#isPython) (a Python script or `pyspark` shell).

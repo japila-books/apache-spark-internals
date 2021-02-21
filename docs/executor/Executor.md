@@ -88,7 +88,7 @@ Fetching [name] with timestamp [timestamp]
 Fetching [name] with timestamp [timestamp]
 ```
 
-`updateDependencies` [fetches the file](Utils.md#fetchFile) to the [SparkFiles root directory](../SparkFiles.md#getRootDirectory).
+`updateDependencies` [fetches the file](../Utils.md#fetchFile) to the [SparkFiles root directory](../SparkFiles.md#getRootDirectory).
 
 `updateDependencies`...FIXME
 

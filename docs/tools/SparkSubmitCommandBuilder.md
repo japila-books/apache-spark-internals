@@ -1,14 +1,16 @@
-== [[SparkSubmitCommandBuilder]] `SparkSubmitCommandBuilder` Command Builder
+# SparkSubmitCommandBuilder
 
-`SparkSubmitCommandBuilder` is used to build a command that spark-submit.md#main[spark-submit] and spark-SparkLauncher.md[SparkLauncher] use to launch a Spark application.
+`SparkSubmitCommandBuilder` is an [AbstractCommandBuilder](AbstractCommandBuilder.md).
 
-`SparkSubmitCommandBuilder` uses the first argument to distinguish between shells:
+`SparkSubmitCommandBuilder` is used to build a command that [spark-submit](spark-submit.md#main) and [SparkLauncher](SparkLauncher.md) use to launch a Spark application.
+
+`SparkSubmitCommandBuilder` uses the first argument to distinguish the shells:
 
 1. `pyspark-shell-main`
 2. `sparkr-shell-main`
 3. `run-example`
 
-CAUTION: FIXME Describe `run-example`
+??? FIXME "Describe `run-example`"
 
 `SparkSubmitCommandBuilder` parses command-line arguments using `OptionParser` (which is a spark-submit-SparkSubmitOptionParser.md[SparkSubmitOptionParser]). `OptionParser` comes with the following methods:
 
@@ -18,75 +20,99 @@ CAUTION: FIXME Describe `run-example`
 
 3. `handleExtraArgs` to handle extra arguments that are considered a Spark application's arguments.
 
-NOTE: For `spark-shell` it assumes that the application arguments are after ``spark-submit``'s arguments.
+!!! NOTE
+    For `spark-shell` it assumes that the application arguments are after ``spark-submit``'s arguments.
 
-=== [[buildCommand]] `SparkSubmitCommandBuilder.buildCommand` / `buildSparkSubmitCommand`
+## <span id="PYSPARK_SHELL"><span id="pyspark-shell-main"> pyspark-shell-main App Resource
 
-[source, java]
-----
-public List<String> buildCommand(Map<String, String> env)
-----
+`SparkSubmitCommandBuilder` uses `pyspark-shell-main` as the name of the app resource to identify the PySpark shell.
 
-NOTE: `buildCommand` is part of the spark-AbstractCommandBuilder.md[AbstractCommandBuilder] public API.
+`pyspark-shell-main` is used when:
 
-`SparkSubmitCommandBuilder.buildCommand` simply passes calls on to <<buildSparkSubmitCommand, buildSparkSubmitCommand>> private method (unless it was executed for `pyspark` or `sparkr` scripts which we are not interested in in this document).
+* `SparkSubmitCommandBuilder` is [created](#creating-instance) and requested to [buildCommand](#buildCommand)
 
-==== [[buildSparkSubmitCommand]] `buildSparkSubmitCommand` Internal Method
+## <span id="buildCommand"> buildCommand
 
-[source, java]
-----
-private List<String> buildSparkSubmitCommand(Map<String, String> env)
-----
+```java
+List<String> buildCommand(
+  Map<String, String> env)
+```
 
-`buildSparkSubmitCommand` starts by <<getEffectiveConfig, building so-called effective config>>. When in <<isClientMode, client mode>>, `buildSparkSubmitCommand` adds spark-driver.md#spark_driver_extraClassPath[spark.driver.extraClassPath] to the result Spark command.
+`buildCommand` is part of the [AbstractCommandBuilder](AbstractCommandBuilder.md#buildCommand) abstraction.
 
-NOTE: Use `spark-submit` to have spark-driver.md#spark_driver_extraClassPath[spark.driver.extraClassPath] in effect.
+`buildCommand` branches off based on the [appResource](AbstractCommandBuilder.md#appResource):
 
-`buildSparkSubmitCommand` spark-AbstractCommandBuilder.md#buildJavaCommand[builds the first part of the Java command] passing in the extra classpath (only for `client` deploy mode).
+* [buildPySparkShellCommand](#buildPySparkShellCommand) for [PYSPARK_SHELL](#PYSPARK_SHELL)
+* `buildSparkRCommand` for SparkR
+* [buildSparkSubmitCommand](#buildSparkSubmitCommand)
 
-CAUTION: FIXME Add `isThriftServer` case.
+### <span id="buildPySparkShellCommand"> buildPySparkShellCommand
+
+```java
+List<String> buildPySparkShellCommand(
+  Map<String, String> env)
+```
+
+`buildPySparkShellCommand`...FIXME
+
+### <span id="buildSparkSubmitCommand"> buildSparkSubmitCommand
+
+```java
+List<String> buildSparkSubmitCommand(
+  Map<String, String> env)
+```
+
+`buildSparkSubmitCommand` starts by [building so-called effective config](#getEffectiveConfig). When in [client mode](#isClientMode), `buildSparkSubmitCommand` adds [spark.driver.extraClassPath](../driver.md#spark_driver_extraClassPath) to the result Spark command.
+
+`buildSparkSubmitCommand` [builds the first part of the Java command](AbstractCommandBuilder.md#buildJavaCommand) passing in the extra classpath (only for `client` deploy mode).
+
+??? FIXME "Add `isThriftServer` case"
 
 `buildSparkSubmitCommand` appends `SPARK_SUBMIT_OPTS` and `SPARK_JAVA_OPTS` environment variables.
 
 (only for `client` deploy mode) ...
 
-CAUTION: FIXME Elaborate on the client deply mode case.
+??? FIXME "Elaborate on the client deply mode case"
 
 `addPermGenSizeOpt` case...elaborate
 
-CAUTION: FIXME Elaborate on `addPermGenSizeOpt`
+??? FIXME "Elaborate on `addPermGenSizeOpt`"
 
-`buildSparkSubmitCommand` appends `org.apache.spark.deploy.SparkSubmit` and the command-line arguments (using <<buildSparkSubmitArgs, buildSparkSubmitArgs>>).
+`buildSparkSubmitCommand` appends `org.apache.spark.deploy.SparkSubmit` and the command-line arguments (using [buildSparkSubmitArgs](#buildSparkSubmitArgs)).
 
-==== [[buildSparkSubmitArgs]] `buildSparkSubmitArgs` method
+## <span id="buildSparkSubmitArgs"> buildSparkSubmitArgs
 
-[source, java]
-----
+```java
 List<String> buildSparkSubmitArgs()
-----
+```
 
-`buildSparkSubmitArgs` builds a list of command-line arguments for spark-submit.md[spark-submit].
+`buildSparkSubmitArgs` builds a list of command-line arguments for [spark-submit](spark-submit.md).
 
-`buildSparkSubmitArgs` uses a spark-submit-SparkSubmitOptionParser.md[SparkSubmitOptionParser] to add the command-line arguments that `spark-submit` recognizes (when it is executed later on and uses the very same `SparkSubmitOptionParser` parser to parse command-line arguments).
+`buildSparkSubmitArgs` uses a [SparkSubmitOptionParser](SparkSubmitOptionParser.md) to add the command-line arguments that `spark-submit` recognizes (when it is executed later on and uses the very same `SparkSubmitOptionParser` parser to parse command-line arguments).
 
-.`SparkSubmitCommandBuilder` Properties and Corresponding `SparkSubmitOptionParser` Attributes
-[options="header",width="100%"]
-|===
-| `SparkSubmitCommandBuilder` Property | `SparkSubmitOptionParser` Attribute
-| `verbose` | `VERBOSE`
-| `master` | `MASTER [master]`
-| `deployMode` | `DEPLOY_MODE [deployMode]`
-| `appName` | `NAME [appName]`
-| `conf` | `CONF [key=value]*`
-| `propertiesFile` | `PROPERTIES_FILE [propertiesFile]`
-| `jars` | `JARS [comma-separated jars]`
-| `files` | `FILES [comma-separated files]`
-| `pyFiles` | `PY_FILES [comma-separated pyFiles]`
-| `mainClass` | `CLASS [mainClass]`
-| `sparkArgs` | `sparkArgs` (passed straight through)
-| `appResource` | `appResource` (passed straight through)
-| `appArgs` | `appArgs` (passed straight through)
-|===
+`buildSparkSubmitArgs` is used when:
+
+* `InProcessLauncher` is requested to `startApplication`
+* `SparkLauncher` is requested to [createBuilder](SparkLauncher.md#createBuilder)
+* `SparkSubmitCommandBuilder` is requested to [buildSparkSubmitCommand](#buildSparkSubmitCommand) and [constructEnvVarArgs](#constructEnvVarArgs)
+
+## SparkSubmitCommandBuilder Properties and SparkSubmitOptionParser Attributes
+
+SparkSubmitCommandBuilder Property | SparkSubmitOptionParser Attribute
+---------|---------
+ `verbose` | `VERBOSE`
+ `master` | `MASTER [master]`
+ `deployMode` | `DEPLOY_MODE [deployMode]`
+ `appName` | `NAME [appName]`
+ `conf` | `CONF [key=value]*`
+ `propertiesFile` | `PROPERTIES_FILE [propertiesFile]`
+ `jars` | `JARS [comma-separated jars]`
+ `files` | `FILES [comma-separated files]`
+ `pyFiles` | `PY_FILES [comma-separated pyFiles]`
+ `mainClass` | `CLASS [mainClass]`
+ `sparkArgs` | `sparkArgs` (passed straight through)
+ `appResource` | `appResource` (passed straight through)
+ `appArgs` | `appArgs` (passed straight through)
 
 ==== [[getEffectiveConfig]] `getEffectiveConfig` Internal Method
 

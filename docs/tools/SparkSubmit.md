@@ -2,6 +2,34 @@
 
 `SparkSubmit` is the [entry point](#main) to [spark-submit](spark-submit.md) shell script.
 
+## <span id="shells"><span id="SPARK_SHELL"><span id="SPARKR_SHELL"> Special Primary Resource Names
+
+`SparkSubmit` uses the following special primary resource names to represent Spark shells rather than application jars:
+
+* `spark-shell`
+* [pyspark-shell](#PYSPARK_SHELL)
+* `sparkr-shell`
+
+### <span id="PYSPARK_SHELL"> pyspark-shell
+
+`SparkSubmit` uses `pyspark-shell` when:
+
+* `SparkSubmit` is requested to [prepareSubmitEnvironment](#prepareSubmitEnvironment) for `.py` scripts or `pyspark`, [isShell](#isShell) and [isPython](#isPython)
+
+## <span id="isShell"> isShell
+
+```scala
+isShell(
+  res: String): Boolean
+```
+
+`isShell` is `true` when the given `res` primary resource represents a [Spark shell](#shells).
+
+`isShell` is used when:
+
+* `SparkSubmit` is requested to [prepareSubmitEnvironment](#prepareSubmitEnvironment) and [isUserJar](#isUserJar)
+* `SparkSubmitArguments` is requested to [handleUnknown](SparkSubmitArguments.md#handleUnknown) (and determine a primary application resource)
+
 ## <span id="actions"> Actions
 
 `SparkSubmit` [executes actions](#doSubmit) (based on the [action](SparkSubmitArguments.md#action) argument).
@@ -207,7 +235,7 @@ isInternal(
 * `SparkSubmit` is requested to [isUserJar](#isUserJar)
 * `SparkSubmitArguments` is requested to [handleUnknown](SparkSubmitArguments.md#handleUnknown)
 
-## <span id="isUserJar"> Checking Whether Resource is User Jar
+## <span id="isUserJar"> isUserJar
 
 ```scala
 isUserJar(
@@ -217,10 +245,27 @@ isUserJar(
 `isUserJar` is `true` when the given `res` is none of the following:
 
 * `isShell`
-* `isPython`
+* [isPython](#isPython)
 * [isInternal](#isInternal)
 * `isR`
 
 `isUserJar` is used when:
 
 * FIXME
+
+## <span id="isPython"> isPython Utility
+
+```scala
+isPython(
+  res: String): Boolean
+```
+
+`isPython` is `true` when the given `res` primary resource represents a PySpark application:
+
+* `.py` script
+* [pyspark-shell](#PYSPARK_SHELL)
+
+`isPython` is used when:
+
+* `SparkSubmit` is requested to [isUserJar](#isUserJar)
+* `SparkSubmitArguments` is requested to [handleUnknown](SparkSubmitArguments.md#handleUnknown) (and set `isPython` internal flag)

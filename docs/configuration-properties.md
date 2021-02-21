@@ -321,7 +321,7 @@ Used when:
 
 ## <span id="spark.task.maxFailures"><span id="TASK_MAX_FAILURES"> spark.task.maxFailures
 
-Number of failures of a single task (of a [TaskSet](../scheduler/TaskSet.md)) before giving up on the entire `TaskSet` and then the job
+Number of failures of a single task (of a [TaskSet](scheduler/TaskSet.md)) before giving up on the entire `TaskSet` and then the job
 
 Default: `4`
 

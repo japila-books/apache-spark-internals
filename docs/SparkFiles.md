@@ -22,5 +22,5 @@ getRootDirectory(): String
 `getRootDirectory` is used when:
 
 * `SparkContext` is requested to [addFile](SparkContext.md#addFile)
-* `Executor` is requested to [updateDependencies](Executor.md#updateDependencies)
+* `Executor` is requested to [updateDependencies](executor/Executor.md#updateDependencies)
 * `SparkFiles` utility is requested to [get the absolute path of a file](#get)
