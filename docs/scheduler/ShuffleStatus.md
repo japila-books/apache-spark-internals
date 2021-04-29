@@ -1,8 +1,8 @@
-= [[ShuffleStatus]] ShuffleStatus
+# ShuffleStatus
 
-*ShuffleStatus* is a registry of shuffle map outputs (of a shuffle stage).
+`ShuffleStatus` is a registry of shuffle map outputs (of a shuffle stage).
 
-ShuffleStatus is managed by scheduler:MapOutputTrackerMaster.md#shuffleStatuses[MapOutputTrackerMaster] to keep track of shuffle map outputs across shuffle stages.
+`ShuffleStatus` is managed by [MapOutputTrackerMaster](MapOutputTrackerMaster.md#shuffleStatuses) to keep track of shuffle map outputs across shuffle stages.
 
 == [[creating-instance]][[numPartitions]] Creating Instance
 

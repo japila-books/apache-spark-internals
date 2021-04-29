@@ -10,7 +10,7 @@
 
 * <span id="conf"> [SparkConf](../SparkConf.md)
 * [BroadcastManager](#broadcastManager)
-* <span id="isLocal"> `isLocal` flag (to indicate whether `MapOutputTrackerMaster` runs in local or on a cluster)
+* <span id="isLocal"> `isLocal` flag (to indicate whether `MapOutputTrackerMaster` runs in local or a cluster)
 
 When created, `MapOutputTrackerMaster` starts [dispatcher threads](#MessageLoop) on the [map-output-dispatcher thread pool](#threadpool).
 
@@ -356,16 +356,36 @@ registerMapOutput(
 
 `registerMapOutput` is used when `DAGScheduler` is requested to [handle a ShuffleMapTask completion](DAGScheduler.md#handleTaskCompletion).
 
-## <span id="getStatistics"> Calculating Shuffle Map Output Statistics
+## <span id="getStatistics"> Map Output Statistics for ShuffleDependency
 
 ```scala
 getStatistics(
   dep: ShuffleDependency[_, _, _]): MapOutputStatistics
 ```
 
-`getStatistics`...FIXME
+`getStatistics` looks up the [ShuffleStatus](ShuffleStatus.md) for the [shuffleId](../rdd/ShuffleDependency.md#shuffleId) (of the input [ShuffleDependency](../rdd/ShuffleDependency.md)) in the [shuffleStatuses](#shuffleStatuses) registry.
 
-`getStatistics` is used when `DAGScheduler` is requested to [handle a ShuffleMapStage submission](DAGScheduler.md#handleMapStageSubmitted) (and the stage has finished) and [markMapStageJobsAsFinished](DAGScheduler.md#markMapStageJobsAsFinished).
+!!! note
+    It is assumed that the [shuffleStatuses](#shuffleStatuses) registry does have the `ShuffleStatus`. That makes _me_ believe "someone else" is taking care of whether it is available or not.
+
+`getStatistics` requests the `ShuffleStatus` for the [MapStatus](ShuffleStatus.md#withMapStatuses)es (of the `ShuffleDependency`).
+
+`getStatistics` uses the [spark.shuffle.mapOutput.parallelAggregationThreshold](../configuration-properties.md#spark.shuffle.mapOutput.parallelAggregationThreshold) configuration property to decide on parallelism to calculate the statistics.
+
+With no parallelism, `getStatistics` simply traverses over the `MapStatus`es and requests them (one by one) for the [size](MapStatus.md#getSizeForBlock) of every reduce shuffle block.
+
+!!! note
+    `getStatistics` requests the given `ShuffleDependency` for the [Partitioner](../rdd/ShuffleDependency.md#partitioner) that in turn is requested for the [number of partitions](../rdd/Partitioner.md#numPartitions).
+
+    The number of reduce blocks is the number of `MapStatus`es multiplied by the number of partitions.
+
+    And hence the need for parallelism based on the [spark.shuffle.mapOutput.parallelAggregationThreshold](../configuration-properties.md#spark.shuffle.mapOutput.parallelAggregationThreshold) configuration property.
+
+In the end, `getStatistics` creates a `MapOutputStatistics` with the shuffle ID and the total sizes (sumed up for every partition).
+
+`getStatistics` is used when:
+
+* `DAGScheduler` is requested to [handle a successful ShuffleMapStage submission](DAGScheduler.md#handleMapStageSubmitted) and [markMapStageJobsAsFinished](DAGScheduler.md#markMapStageJobsAsFinished)
 
 ## <span id="unregisterAllMapOutput"> Deregistering All Map Outputs of Shuffle Stage
 

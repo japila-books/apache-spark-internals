@@ -189,6 +189,16 @@ Supported aliases:
 
 Used when `SparkEnv` object is requested to [create a "base" SparkEnv for a driver or an executor](SparkEnv.md#create)
 
+## <span id="spark.shuffle.mapOutput.parallelAggregationThreshold"><span id="SHUFFLE_MAP_OUTPUT_PARALLEL_AGGREGATION_THRESHOLD"> spark.shuffle.mapOutput.parallelAggregationThreshold
+
+**(internal)** Multi-thread is used when the number of mappers * shuffle partitions is greater than or equal to this threshold. Note that the actual parallelism is calculated by number of mappers * shuffle partitions / this threshold + 1, so this threshold should be positive.
+
+Default: `10000000`
+
+Used when:
+
+* `MapOutputTrackerMaster` is requested for the [statistics of a ShuffleDependency](scheduler/MapOutputTrackerMaster.md#getStatistics)
+
 ## <span id="spark.shuffle.minNumPartitionsToHighlyCompress"><span id="SHUFFLE_MIN_NUM_PARTS_TO_HIGHLY_COMPRESS"> spark.shuffle.minNumPartitionsToHighlyCompress
 
 **(internal)** Minimum number of partitions (threshold) for `MapStatus` utility to prefer a [HighlyCompressedMapStatus](scheduler/MapStatus.md#HighlyCompressedMapStatus) (over [CompressedMapStatus](scheduler/MapStatus.md#CompressedMapStatus)) (for [ShuffleWriters](shuffle/ShuffleWriter.md)).
