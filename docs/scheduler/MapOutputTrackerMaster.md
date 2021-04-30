@@ -253,7 +253,7 @@ registerShuffle(
   numMaps: Int): Unit
 ```
 
-`registerShuffle` adds the input shuffle ID and the number of partitions (as a [ShuffleStatus](ShuffleStatus.md)) to [shuffleStatuses](#shuffleStatuses) internal registry.
+`registerShuffle` registers a new [ShuffleStatus](ShuffleStatus.md) (for the given shuffle ID and the number of partitions) to the [shuffleStatuses](#shuffleStatuses) internal registry.
 
 `registerShuffle` throws an `IllegalArgumentException` when the shuffle ID has already been registered:
 
@@ -261,7 +261,9 @@ registerShuffle(
 Shuffle ID [shuffleId] registered twice
 ```
 
-`registerShuffle` is used when `DAGScheduler` is requested to [create a ShuffleMapStage](DAGScheduler.md#createShuffleMapStage) (for a [ShuffleDependency](../rdd/ShuffleDependency.md)).
+`registerShuffle` is used when:
+
+* `DAGScheduler` is requested to [create a ShuffleMapStage](DAGScheduler.md#createShuffleMapStage) (for a [ShuffleDependency](../rdd/ShuffleDependency.md))
 
 ## <span id="registerMapOutputs"> Registering Map Outputs for Shuffle (Possibly with Epoch Change)
 

@@ -223,7 +223,9 @@ Registering RDD [id] ([creationSite]) as input to shuffle [shuffleId]
 
 ![DAGScheduler Asks `MapOutputTrackerMaster` Whether Shuffle Map Output Is Already Tracked](../images/scheduler/DAGScheduler-MapOutputTrackerMaster-containsShuffle.png)
 
-`createShuffleMapStage` is used when `DAGScheduler` is requested to [find or create a ShuffleMapStage for a given ShuffleDependency](#getOrCreateShuffleMapStage).
+`createShuffleMapStage` is used when:
+
+* `DAGScheduler` is requested to [find or create a ShuffleMapStage for a given ShuffleDependency](#getOrCreateShuffleMapStage)
 
 ## <span id="cleanupStateForJobAndIndependentStages"> Cleaning Up After Job and Independent Stages
 
@@ -341,7 +343,9 @@ getOrCreateShuffleMapStage(
 
 If not found, `getOrCreateShuffleMapStage` [finds all the missing ancestor shuffle dependencies](#getMissingAncestorShuffleDependencies) and [creates the missing ShuffleMapStage stages](#createShuffleMapStage) (including one for the input `ShuffleDependency`).
 
-`getOrCreateShuffleMapStage` is used when `DAGScheduler` is requested to [find or create missing direct parent ShuffleMapStages of an RDD](#getOrCreateParentStages), [find missing parent ShuffleMapStages for a stage](#getMissingParentStages), [handle a MapStageSubmitted event](#handleMapStageSubmitted), and [check out stage dependency on a stage](#stageDependsOn).
+`getOrCreateShuffleMapStage` is used when:
+
+* `DAGScheduler` is requested to [find or create missing direct parent ShuffleMapStages of an RDD](#getOrCreateParentStages), [find missing parent ShuffleMapStages for a stage](#getMissingParentStages), [handle a MapStageSubmitted event](#handleMapStageSubmitted), and [check out stage dependency on a stage](#stageDependsOn)
 
 ## <span id="getMissingAncestorShuffleDependencies"> Finding Missing ShuffleDependencies For RDD
 

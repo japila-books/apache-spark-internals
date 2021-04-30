@@ -1,115 +1,81 @@
 # ShuffleStatus
 
-`ShuffleStatus` is a registry of shuffle map outputs (of a shuffle stage).
+`ShuffleStatus` is used by [MapOutputTrackerMaster](MapOutputTrackerMaster.md) to keep track of the [shuffle map outputs](MapOutputTrackerMaster.md#shuffleStatuses) of a [ShuffleMapStage](ShuffleMapStage.md).
 
-`ShuffleStatus` is managed by [MapOutputTrackerMaster](MapOutputTrackerMaster.md#shuffleStatuses) to keep track of shuffle map outputs across shuffle stages.
+## Creating Instance
 
-== [[creating-instance]][[numPartitions]] Creating Instance
+`ShuffleStatus` takes the following to be created:
 
-ShuffleStatus takes a single number of partitions to be created.
+* <span id="numPartitions"> Number of Partitions (of the [RDD](../rdd/ShuffleDependency.md#rdd) of a [ShuffleDependency](../rdd/ShuffleDependency.md))
 
-== [[addMapOutput]] Registering Shuffle Map Output
+`ShuffleStatus` is created when:
 
-[source, scala]
-----
+* `MapOutputTrackerMaster` is requested to [register a shuffle](MapOutputTrackerMaster.md#registerShuffle) (when `DAGScheduler` is requested to [createShuffleMapStage](DAGScheduler.md#createShuffleMapStage))
+
+## <span id="addMapOutput"> Registering Shuffle Map Output
+
+```scala
 addMapOutput(
-  mapId: Int,
+  mapIndex: Int,
   status: MapStatus): Unit
-----
+```
 
-addMapOutput...FIXME
+`addMapOutput`...FIXME
 
-addMapOutput is used when MapOutputTrackerMaster is requested to scheduler:MapOutputTrackerMaster.md#registerMapOutput[register a shuffle map output].
+`addMapOutput` is used when:
 
-== [[removeMapOutput]] Deregistering Shuffle Map Output
+* `MapOutputTrackerMaster` is requested to [registerMapOutput](MapOutputTrackerMaster.md#registerMapOutput)
 
-[source, scala]
-----
+## <span id="removeMapOutput"> Deregistering Shuffle Map Output
+
+```scala
 removeMapOutput(
-  mapId: Int,
+  mapIndex: Int,
   bmAddress: BlockManagerId): Unit
-----
+```
 
-removeMapOutput...FIXME
+`removeMapOutput`...FIXME
 
-removeMapOutput is used when MapOutputTrackerMaster is requested to scheduler:MapOutputTrackerMaster.md#unregisterMapOutput[unregister a shuffle map output].
+`removeMapOutput` is used when:
 
-== [[serializedMapStatus]] Serializing Shuffle Map Output Statuses
+* `MapOutputTrackerMaster` is requested to [unregisterMapOutput](MapOutputTrackerMaster.md#unregisterMapOutput)
 
-[source, scala]
-----
+## <span id="findMissingPartitions"> Missing Partitions
+
+```scala
+findMissingPartitions(): Seq[Int]
+```
+
+`findMissingPartitions`...FIXME
+
+`findMissingPartitions` is used when:
+
+* `MapOutputTrackerMaster` is requested to [findMissingPartitions](MapOutputTrackerMaster.md#findMissingPartitions)
+
+## <span id="serializedMapStatus"> Serializing Shuffle Map Output Statuses
+
+```scala
 serializedMapStatus(
   broadcastManager: BroadcastManager,
   isLocal: Boolean,
-  minBroadcastSize: Int): Array[Byte]
-----
+  minBroadcastSize: Int,
+  conf: SparkConf): Array[Byte]
+```
 
-serializedMapStatus...FIXME
+`serializedMapStatus`...FIXME
 
-serializedMapStatus is used when MapOutputTrackerMaster is requested to scheduler:MapOutputTrackerMaster.md#run[send the map output locations of a shuffle] (on the MessageLoop dispatcher thread).
+`serializedMapStatus` is used when:
 
-== [[findMissingPartitions]] Finding Missing Partitions
+* `MessageLoop` (of the [MapOutputTrackerMaster](MapOutputTrackerMaster.md)) is requested to send map output locations for shuffle
 
-[source, scala]
-----
-findMissingPartitions(): Seq[Int]
-----
+## Logging
 
-findMissingPartitions...FIXME
+Enable `ALL` logging level for `org.apache.spark.ShuffleStatus` logger to see what happens inside.
 
-findMissingPartitions is used when MapOutputTrackerMaster is requested for scheduler:MapOutputTrackerMaster.md#findMissingPartitions[missing partitions (that need to be computed)].
+Add the following line to `conf/log4j.properties`:
 
-== [[invalidateSerializedMapOutputStatusCache]] Invalidating Serialized Map Output Status Cache
+```text
+log4j.logger.org.apache.spark.ShuffleStatus=ALL
+```
 
-[source, scala]
-----
-invalidateSerializedMapOutputStatusCache(): Unit
-----
-
-invalidateSerializedMapOutputStatusCache...FIXME
-
-invalidateSerializedMapOutputStatusCache is used when:
-
-* ShuffleStatus is requested to <<addMapOutput, addMapOutput>>, <<removeMapOutput, removeMapOutput>>, <<removeOutputsByFilter, removeOutputsByFilter>>
-
-* MapOutputTrackerMaster is requested to scheduler:MapOutputTrackerMaster.md#unregisterShuffle[unregister a shuffle]
-
-== [[removeOutputsByFilter]] Deregistering Shuffle Map Outputs by Filter
-
-[source, scala]
-----
-removeOutputsByFilter(
-  f: (BlockManagerId) => Boolean): Unit
-----
-
-removeOutputsByFilter...FIXME
-
-removeOutputsByFilter is used when:
-
-* ShuffleStatus is requested to <<removeOutputsOnExecutor, removeOutputsOnExecutor>>, <<removeOutputsOnHost, removeOutputsOnHost>>
-
-* MapOutputTrackerMaster is requested to scheduler:MapOutputTrackerMaster.md#unregisterAllMapOutput[unregister all map outputs of a given shuffle stage]
-
-== [[removeOutputsOnExecutor]] Deregistering Shuffle Map Outputs Associated with Executor
-
-[source, scala]
-----
-removeOutputsOnExecutor(
-  execId: String): Unit
-----
-
-removeOutputsOnExecutor...FIXME
-
-removeOutputsOnExecutor is used when MapOutputTrackerMaster is requested to scheduler:MapOutputTrackerMaster.md#removeOutputsOnExecutor[delete shuffle outputs associated with an executor].
-
-== [[removeOutputsOnHost]] Deregistering Shuffle Map Outputs Associated with Host
-
-[source, scala]
-----
-removeOutputsOnHost(
-  host: String): Unit
-----
-
-removeOutputsOnHost...FIXME
-
-removeOutputsOnHost is used when MapOutputTrackerMaster is requested to scheduler:MapOutputTrackerMaster.md#removeOutputsOnHost[delete shuffle outputs associated with a host].
+Refer to [Logging](../spark-logging.md).
