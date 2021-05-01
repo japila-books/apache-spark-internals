@@ -17,6 +17,19 @@
 
 While being created, `SparkContext` [sets up core services](SparkContext-creating-instance-internals.md) and establishes a connection to a [Spark execution environment](spark-deployment-environments.md).
 
+## <span id="shuffleDriverComponents"><span id="_shuffleDriverComponents"> ShuffleDriverComponents
+
+`SparkContext` creates a [ShuffleDriverComponents](shuffle/ShuffleDriverComponents.md) when [created](#creating-instance).
+
+`SparkContext` [loads the ShuffleDataIO](shuffle/ShuffleDataIOUtils.md#loadShuffleDataIO) that is in turn requested for the [ShuffleDriverComponents](shuffle/ShuffleDataIO.md#driver). `SparkContext` requests the `ShuffleDriverComponents` to [initialize](shuffle/ShuffleDriverComponents.md#initializeApplication).
+
+The `ShuffleDriverComponents` is used when:
+
+* `ShuffleDependency` is [created](rdd/ShuffleDependency.md)
+* `SparkContext` creates the [ContextCleaner](#cleaner) (if enabled)
+
+`SparkContext` requests the `ShuffleDriverComponents` to [clean up](shuffle/ShuffleDriverComponents.md#cleanupApplication) when [stopping](#stop).
+
 ## Static Files
 
 ### <span id="addFile"> addFile

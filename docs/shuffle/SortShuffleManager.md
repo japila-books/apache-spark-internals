@@ -36,6 +36,31 @@ ShuffleHandle | ShuffleWriter
 
 `getWriter` is part of the [ShuffleManager](ShuffleManager.md#getWriter) abstraction.
 
+## <span id="shuffleExecutorComponents"> ShuffleExecutorComponents
+
+```scala
+shuffleExecutorComponents: ShuffleExecutorComponents
+```
+
+`SortShuffleManager` defines the `shuffleExecutorComponents` internal registry for a [ShuffleExecutorComponents](ShuffleExecutorComponents.md).
+
+`shuffleExecutorComponents` is used when:
+
+* `SortShuffleManager` is requested for the [ShuffleWriter](#getWriter)
+
+### <span id="loadShuffleExecutorComponents"> loadShuffleExecutorComponents
+
+```scala
+loadShuffleExecutorComponents(
+  conf: SparkConf): ShuffleExecutorComponents
+```
+
+`loadShuffleExecutorComponents` [loads the ShuffleDataIO](ShuffleDataIOUtils.md#loadShuffleDataIO) that is then requested for the [ShuffleExecutorComponents](ShuffleDataIO.md#executor).
+
+`loadShuffleExecutorComponents` requests the `ShuffleExecutorComponents` to [initialize](ShuffleExecutorComponents.md#initializeExecutor) before returning it.
+
+## Review Me
+
 == [[MAX_SHUFFLE_OUTPUT_PARTITIONS_FOR_SERIALIZED_MODE]] Maximum Number of Partition Identifiers
 
 SortShuffleManager allows for `(1 << 24)` partition identifiers that can be encoded (i.e. `16777216`).

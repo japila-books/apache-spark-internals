@@ -1,0 +1,3 @@
+# ShuffleMapOutputWriter
+
+`ShuffleMapOutputWriter` is...FIXME

@@ -31,7 +31,7 @@ When created, `ShuffleDependency` gets the [shuffle id](../SparkContext.md#nextS
 
 `ShuffleDependency` [registers itself with the ShuffleManager](../shuffle/ShuffleManager.md#registerShuffle) and gets a `ShuffleHandle` (available as [shuffleHandle](#shuffleHandle)). `ShuffleDependency` uses [SparkEnv](../SparkEnv.md#shuffleManager) to access the [ShuffleManager](../shuffle/ShuffleManager.md).
 
-In the end, `ShuffleDependency` [registers itself with the ContextCleaner](../core/ContextCleaner.md#registerShuffleForCleanup). `ShuffleDependency` uses [SparkContext](../SparkContext.md#cleaner) to access the [ContextCleaner](../core/ContextCleaner.md).
+In the end, `ShuffleDependency` registers itself with the [ContextCleaner](../core/ContextCleaner.md#registerShuffleForCleanup) (if configured) and the [ShuffleDriverComponents](../shuffle/ShuffleDriverComponents.md#registerShuffle).
 
 ## <span id="aggregator"> Aggregator
 

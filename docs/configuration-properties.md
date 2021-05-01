@@ -232,6 +232,12 @@ Used when:
 * `SortShuffleWriter` utility is used to [shouldBypassMergeSort](shuffle/SortShuffleWriter.md#shouldBypassMergeSort)
 * `ShuffleExchangeExec` ([Spark SQL]({{ book.spark_sql }}/physical-operators/ShuffleExchangeExec)) physical operator is requested to `prepareShuffleDependency`
 
+## <span id="spark.shuffle.sort.io.plugin.class"><span id="SHUFFLE_IO_PLUGIN_CLASS"> spark.shuffle.sort.io.plugin.class
+
+Name of the class to use for [shuffle IO](shuffle/ShuffleDataIO.md)
+
+Default: [LocalDiskShuffleDataIO](shuffle/LocalDiskShuffleDataIO.md)
+
 ## <span id="spark.shuffle.spill.initialMemoryThreshold"> spark.shuffle.spill.initialMemoryThreshold
 
 Initial threshold for the size of an in-memory collection

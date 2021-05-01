@@ -1,0 +1,3 @@
+# SingleSpillShuffleMapOutputWriter
+
+`SingleSpillShuffleMapOutputWriter` is...FIXME
