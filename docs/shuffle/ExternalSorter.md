@@ -1,198 +1,226 @@
 # ExternalSorter
 
-`ExternalSorter` is a shuffle:Spillable.md[Spillable] of WritablePartitionedPairCollection of pairs (of K keys and C values).
+`ExternalSorter` is a [Spillable](Spillable.md) of `WritablePartitionedPairCollection` of pairs (of K keys and C values).
 
 `ExternalSorter[K, V, C]` is a parameterized type of `K` keys, `V` values, and `C` combiner (partial) values.
 
+`ExternalSorter` is used for the following:
+
+* [SortShuffleWriter](SortShuffleWriter.md#sorter) to write records
+* [BlockStoreShuffleReader](BlockStoreShuffleReader.md) to read records (with a key ordering defined)
+
 ## Creating Instance
 
-ExternalSorter takes the following to be created:
+`ExternalSorter` takes the following to be created:
 
-* [[context]] [TaskContext](../scheduler/TaskContext.md)
-* [[aggregator]] Optional rdd:Aggregator.md[Aggregator] (default: undefined)
-* [[partitioner]] Optional rdd:Partitioner[Partitioner] (default: undefined)
-* [[ordering]] Optional Scala's http://www.scala-lang.org/api/current/scala/math/Ordering.html[Ordering] for keys (default: undefined)
-* [[serializer]] Optional serializer:Serializer.md[Serializer] (default: core:SparkEnv.md#serializer[system Serializer])
+* <span id="context"> [TaskContext](../scheduler/TaskContext.md)
+* <span id="aggregator"> Optional [Aggregator](../rdd/Aggregator.md) (default: undefined)
+* <span id="partitioner"> Optional [Partitioner](../rdd/Partitioner) (default: undefined)
+* <span id="ordering"> Optional [Ordering] ([Scala]({{ scala.api }}/scala/math/Ordering.html)) for keys (default: undefined)
+* <span id="serializer"> [Serializer](../serializer/Serializer.md) (default: [Serializer](../SparkEnv.md#serializer))
 
-ExternalSorter is created when:
+`ExternalSorter` is created when:
 
-* SortShuffleWriter is requested to shuffle:SortShuffleWriter.md#write[write records] (as a `ExternalSorter[K, V, C]` or `ExternalSorter[K, V, V]` based on [Map-Size Partial Aggregation Flag](../rdd/ShuffleDependency.md#mapSideCombine))
+* `BlockStoreShuffleReader` is requested to [read records](BlockStoreShuffleReader.md#read) (for a reduce task)
+* `SortShuffleWriter` is requested to [write records](SortShuffleWriter.md#read) (as a `ExternalSorter[K, V, C]` or `ExternalSorter[K, V, V]` based on [Map-Size Partial Aggregation Flag](../rdd/ShuffleDependency.md#mapSideCombine))
 
-* BlockStoreShuffleReader is requested to shuffle:BlockStoreShuffleReader.md#read[read records] (with sort ordering defined)
+## <span id="insertAll"> Inserting Records
 
-== [[in-memory-collection]][[buffer]][[map]] In-Memory Collections of Records
+```scala
+insertAll(
+  records: Iterator[Product2[K, V]]): Unit
+```
 
-ExternalSorter uses PartitionedPairBuffers or PartitionedAppendOnlyMaps to store records in memory before spilling to disk. ExternalSorter uses PartitionedPairBuffers when created with no <<aggregator, Aggregator>> specified. Otherwise, ExternalSorter uses PartitionedAppendOnlyMaps.
+`insertAll` branches off per whether the optional [Aggregator](#aggregator) was [specified](#insertAll-shouldCombine) or [not](#insertAll-no-aggregator) (when [creating the ExternalSorter](#creating-instance)).
 
-ExternalSorter creates a PartitionedPairBuffer and a PartitionedAppendOnlyMap when created.
+`insertAll` takes all records eagerly and materializes the given records iterator.
 
-ExternalSorter inserts records to the collections when <<insertAll, insertAll>>.
+### <span id="insertAll-shouldCombine"> Map-Side Aggregator Specified
 
-ExternalSorter <<maybeSpillCollection, spills the in-memory collection to disk if needed>> and, shuffle:Spillable.md#maybeSpill[if so], creates a new collection.
+With an [Aggregator](#aggregator) given, `insertAll` creates an update function based on the [mergeValue](../rdd/Aggregator.md#mergeValue) and [createCombiner](../rdd/Aggregator.md#createCombiner) functions of the `Aggregator`.
 
-ExternalSorter releases the collections (``null``s them) when requested to <<forceSpill, forceSpill>> and <<stop, stop>>. That is when the JVM garbage collector takes care of evicting them from memory completely.
+For every record, `insertAll` [increment internal read counter](Spillable.md#addElementsRead).
 
-== [[peakMemoryUsedBytes]][[_peakMemoryUsedBytes]] Peak Size of In-Memory Collection
+`insertAll` requests the [PartitionedAppendOnlyMap](#map) to `changeValue` for the key (made up of the [partition](#getPartition) of the key of the current record and the key itself, i.e. `(partition, key)`) with the update function.
 
-ExternalSorter tracks the peak size (in bytes) of the <<in-memory-collection, in-memory collection>> whenever requested to <<maybeSpillCollection, spill the in-memory collection to disk if needed>>.
+In the end, `insertAll` [spills the in-memory collection to disk if needed](#maybeSpillCollection) with the `usingMap` flag enabled (to indicate that the [PartitionedAppendOnlyMap](#map) was updated).
+
+### <span id="insertAll-no-aggregator"> No Map-Side Aggregator Specified
+
+With no [Aggregator](#aggregator) given, `insertAll` iterates over all the records and uses the [PartitionedPairBuffer](#buffer) instead.
+
+For every record, `insertAll` [increment internal read counter](Spillable.md#addElementsRead).
+
+`insertAll` requests the [PartitionedPairBuffer](#buffer) to insert with the [partition](#getPartition) of the key of the current record, the key itself and the value of the current record.
+
+In the end, `insertAll` [spills the in-memory collection to disk if needed](#maybeSpillCollection) with the `usingMap` flag disabled (since this time the [PartitionedPairBuffer](#buffer) was updated, not the [PartitionedAppendOnlyMap](#map)).
+
+### <span id="maybeSpillCollection"> Spilling In-Memory Collection to Disk
+
+```scala
+maybeSpillCollection(
+  usingMap: Boolean): Unit
+```
+
+`maybeSpillCollection` branches per the input `usingMap` flag (to indicate which [in-memory collection](#in-memory-collection) to use, the [PartitionedAppendOnlyMap](#map) or the [PartitionedPairBuffer](#buffer)).
+
+`maybeSpillCollection` requests the collection to estimate size (in bytes) that is tracked as the [peakMemoryUsedBytes](#peakMemoryUsedBytes) metric (for every size bigger than what is currently recorded).
+
+`maybeSpillCollection` [spills the collection to disk if needed](Spillable.md#maybeSpill). If spilled, `maybeSpillCollection` creates a new collection (a new `PartitionedAppendOnlyMap` or a new `PartitionedPairBuffer`).
+
+### <span id="insertAll-usage"> Usage
+
+`insertAll` is used when:
+
+* `SortShuffleWriter` is requested to [write records](SortShuffleWriter.md#write) (as a `ExternalSorter[K, V, C]` or `ExternalSorter[K, V, V]` based on [Map-Size Partial Aggregation Flag](../rdd/ShuffleDependency.md#mapSideCombine))
+* `BlockStoreShuffleReader` is requested to [read records](BlockStoreShuffleReader.md#read) (with a key sorting defined)
+
+## <span id="in-memory-collection"><span id="buffer"><span id="map"> In-Memory Collections of Records
+
+`ExternalSorter` uses `PartitionedPairBuffer`s or `PartitionedAppendOnlyMap`s to store records in memory before [spilling to disk](#spill).
+
+`ExternalSorter` uses `PartitionedPairBuffer`s when [created](#creating-instance) with no [Aggregator](#aggregator). Otherwise, `ExternalSorter` uses `PartitionedAppendOnlyMap`s.
+
+`ExternalSorter` inserts records to the collections when [insertAll](#insertAll).
+
+`ExternalSorter` [spills the in-memory collection to disk if needed](#maybeSpillCollection) and, [if so](Spillable.md#maybeSpill), creates a new collection.
+
+`ExternalSorter` releases the collections (`null`s them) when requested to [forceSpill](#forceSpill) and [stop](#stop). That is when the JVM garbage collector takes care of evicting them from memory completely.
+
+## <span id="peakMemoryUsedBytes"><span id="_peakMemoryUsedBytes"> Peak Size of In-Memory Collection
+
+`ExternalSorter` tracks the peak size (in bytes) of the [in-memory collection](#in-memory-collection) whenever requested to [spill the in-memory collection to disk if needed](#maybeSpillCollection).
 
 The peak size is used when:
 
-* BlockStoreShuffleReader is requested to shuffle:BlockStoreShuffleReader.md#read[read combined records for a reduce task] (with a sort ordering defined)
+* `BlockStoreShuffleReader` is requested to [read combined records for a reduce task](BlockStoreShuffleReader.md#read) (with an ordering defined)
+* `ExternalSorter` is requested to [writePartitionedMapOutput](#writePartitionedMapOutput)
 
-* ExternalSorter is requested to <<writePartitionedFile, write all records into a partitioned file>>
+## <span id="spills"> Spills
 
-== [[spills]] Spills Internal Registry
+```scala
+spills: ArrayBuffer[SpilledFile]
+```
 
-ExternalSorter manages spilled files.
+`ExternalSorter` creates the `spills` internal buffer of [SpilledFile](#SpilledFile)s when [created](#creating-instance).
 
-== [[insertAll]] Inserting Records
+A new `SpilledFile` is added when `ExternalSorter` is requested to [spill](#spill).
 
-[source, scala]
-----
-insertAll(
-  records: Iterator[Product2[K, V]]): Unit
-----
+!!! note
+    No elements in `spills` indicate that there is only in-memory data.
 
-insertAll branches off per whether the optional <<aggregator, Aggregator>> was <<insertAll-shouldCombine, specified>> or <<insertAll-no-aggregator, not>> (to create the <<creating-instance, ExternalSorter>>).
+`SpilledFile`s are deleted physically from disk and the `spills` buffer is cleared when `ExternalSorter` is requested to [stop](#stop).
 
-insertAll takes all records eagerly and materializes the given records iterator.
+`ExternalSorter` uses the `spills` buffer when requested for an [partitionedIterator](#partitionedIterator).
 
-=== [[insertAll-shouldCombine]] Map-Side Aggregator Specified
+### <span id="numSpills"> Number of Spills
 
-If there is an Aggregator specified, insertAll creates an update function based on the rdd:Aggregator.md#mergeValue[mergeValue] and rdd:Aggregator.md#createCombiner[createCombiner] functions of the Aggregator.
+```scala
+numSpills: Int
+```
 
-For every record, insertAll shuffle:Spillable.md#addElementsRead[increment internal read counter].
+`numSpills` is the number of [spill files](#spills) this sorter has [spilled](#spill).
 
-insertAll requests the <<map, PartitionedAppendOnlyMap>> to changeValue for the key (made up of the <<getPartition, partition>> of the key of the current record and the key itself, i.e. `(partition, key)`) with the update function.
+### <span id="SpilledFile"> SpilledFile
 
-In the end, insertAll <<maybeSpillCollection, spills the in-memory collection to disk if needed>> (with the usingMap flag on since the <<map, PartitionedAppendOnlyMap>> was updated).
+`SpilledFile` is a metadata of a spilled file:
 
-=== [[insertAll-no-aggregator]] No Map-Side Aggregator Specified
+* <span id="SpilledFile-file"> `File` ([Java]({{ java.api }}/java.base/java/io/File.html))
+* <span id="SpilledFile-blockId"> [BlockId](../storage/BlockId.md)
+* <span id="SpilledFile-serializerBatchSizes"> Serializer Batch Sizes (`Array[Long]`)
+* <span id="SpilledFile-elementsPerPartition"> Elements per Partition (`Array[Long]`)
 
-With no Aggregator specified, insertAll iterates over all the records and uses the <<buffer, PartitionedPairBuffer>> instead.
+## <span id="spill"> Spilling Data to Disk
 
-For every record, insertAll shuffle:Spillable.md#addElementsRead[increment internal read counter].
-
-insertAll requests the <<buffer, PartitionedPairBuffer>> to insert with the <<getPartition, partition>> of the key of the current record, the key itself and the value of the current record.
-
-In the end, insertAll <<maybeSpillCollection, spills the in-memory collection to disk if needed>> (with the usingMap flag off since this time the <<buffer, PartitionedPairBuffer>> was updated, not the <<map, PartitionedAppendOnlyMap>>).
-
-=== [[insertAll-usage]] Usage
-
-insertAll is used when:
-
-* SortShuffleWriter is requested to shuffle:SortShuffleWriter.md#write[write records] (as a `ExternalSorter[K, V, C]` or `ExternalSorter[K, V, V]` based on [Map-Size Partial Aggregation Flag](../rdd/ShuffleDependency.md#mapSideCombine))
-
-* BlockStoreShuffleReader is requested to shuffle:BlockStoreShuffleReader.md#read[read records] (with sort ordering defined)
-
-== [[writePartitionedFile]] Writing All Records Into Partitioned File
-
-[source, scala]
-----
-writePartitionedFile(
-  blockId: BlockId,
-  outputFile: File): Array[Long]
-----
-
-writePartitionedFile...FIXME
-
-writePartitionedFile is used when SortShuffleWriter is requested to shuffle:SortShuffleWriter.md#write[write records].
-
-== [[stop]] Stopping ExternalSorter
-
-[source, scala]
-----
-stop(): Unit
-----
-
-stop...FIXME
-
-stop is used when:
-
-* BlockStoreShuffleReader is requested to shuffle:BlockStoreShuffleReader.md#read[read records] (with sort ordering defined)
-
-* SortShuffleWriter is requested to shuffle:SortShuffleWriter.md#stop[stop]
-
-== [[spill]] Spilling Data to Disk
-
-[source, scala]
-----
+```scala
 spill(
   collection: WritablePartitionedPairCollection[K, C]): Unit
-----
+```
 
-spill requests the given WritablePartitionedPairCollection for a destructive WritablePartitionedIterator.
+`spill` is part of the [Spillable](Spillable.md#spill) abstraction.
 
-spill <<spillMemoryIteratorToDisk, spillMemoryIteratorToDisk>> (with the destructive WritablePartitionedIterator) that creates a SpilledFile.
+`spill` requests the given `WritablePartitionedPairCollection` for a destructive `WritablePartitionedIterator`.
 
-spill adds the SpilledFile to the <<spills, spills>> internal registry.
+`spill` [spillMemoryIteratorToDisk](#spillMemoryIteratorToDisk) (with the destructive `WritablePartitionedIterator`) that creates a [SpilledFile](#SpilledFile).
 
-spill is part of the Spillable.md#spill[Spillable] abstraction.
+In the end, `spill` adds the `SpilledFile` to the [spills](#spills) internal registry.
 
-== [[spillMemoryIteratorToDisk]] spillMemoryIteratorToDisk Method
+### <span id="spillMemoryIteratorToDisk"> spillMemoryIteratorToDisk
 
-[source, scala]
-----
+```scala
 spillMemoryIteratorToDisk(
   inMemoryIterator: WritablePartitionedIterator): SpilledFile
-----
+```
 
-spillMemoryIteratorToDisk...FIXME
+`spillMemoryIteratorToDisk`...FIXME
 
-spillMemoryIteratorToDisk is used when:
+`spillMemoryIteratorToDisk` is used when:
 
-* ExternalSorter is requested to <<spill, spill>>
+* `ExternalSorter` is requested to [spill](#spill)
+* `SpillableIterator` is requested to `spill`
 
-* SpillableIterator is requested to spill
+## <span id="partitionedIterator"> partitionedIterator
 
-== [[maybeSpillCollection]] Spilling In-Memory Collection to Disk
-
-[source, scala]
-----
-maybeSpillCollection(
-  usingMap: Boolean): Unit
-----
-
-maybeSpillCollection branches per the input usingMap flag (that is to determine which in-memory collection to use, the <<map, PartitionedAppendOnlyMap>> or the <<buffer, PartitionedPairBuffer>>).
-
-maybeSpillCollection requests the collection to estimate size (in bytes) that is tracked as the <<peakMemoryUsedBytes, peakMemoryUsedBytes>> metric (for every size bigger than what is currently recorded).
-
-maybeSpillCollection shuffle:Spillable.md#maybeSpill[spills the collection to disk if needed]. If spilled, maybeSpillCollection creates a new collection (a new PartitionedAppendOnlyMap or a new PartitionedPairBuffer).
-
-maybeSpillCollection is used when ExternalSorter is requested to <<insertAll, insertAll>>.
-
-== [[iterator]] iterator Method
-
-[source, scala]
-----
-iterator: Iterator[Product2[K, C]]
-----
-
-iterator...FIXME
-
-iterator is used when BlockStoreShuffleReader is requested to shuffle:BlockStoreShuffleReader.md#read[read combined records for a reduce task].
-
-== [[partitionedIterator]] partitionedIterator Method
-
-[source, scala]
-----
+```scala
 partitionedIterator: Iterator[(Int, Iterator[Product2[K, C]])]
-----
+```
 
-partitionedIterator...FIXME
+`partitionedIterator`...FIXME
 
-partitionedIterator is used when ExternalSorter is requested for an <<iterator, iterator>> and to <<writePartitionedFile, write a partitioned file>>
+`partitionedIterator` is used when:
 
-== [[logging]] Logging
+* `ExternalSorter` is requested for an [iterator](#iterator) and to [writePartitionedMapOutput](#writePartitionedMapOutput)
+
+## <span id="writePartitionedMapOutput"> writePartitionedMapOutput
+
+```scala
+writePartitionedMapOutput(
+  shuffleId: Int,
+  mapId: Long,
+  mapOutputWriter: ShuffleMapOutputWriter): Unit
+```
+
+`writePartitionedMapOutput`...FIXME
+
+`writePartitionedMapOutput` is used when:
+
+* `SortShuffleWriter` is requested to [write records](SortShuffleWriter.md#write)
+
+## <span id="iterator"> Iterator
+
+```scala
+iterator: Iterator[Product2[K, C]]
+```
+
+`iterator` turns the [isShuffleSort](#isShuffleSort) flag off (`false`).
+
+`iterator` [partitionedIterator](#partitionedIterator) and takes the combined values (the second elements) only.
+
+`iterator` is used when:
+
+* `BlockStoreShuffleReader` is requested to [read combined records for a reduce task](BlockStoreShuffleReader.md#read)
+
+## <span id="stop"> Stopping ExternalSorter
+
+```scala
+stop(): Unit
+```
+
+`stop`...FIXME
+
+`stop` is used when:
+
+* `BlockStoreShuffleReader` is requested to [read records](BlockStoreShuffleReader.md#read) (with ordering defined)
+* `SortShuffleWriter` is requested to [stop](SortShuffleWriter.md#stop)
+
+## Logging
 
 Enable `ALL` logging level for `org.apache.spark.util.collection.ExternalSorter` logger to see what happens inside.
 
 Add the following line to `conf/log4j.properties`:
 
-[source]
-----
+```text
 log4j.logger.org.apache.spark.util.collection.ExternalSorter=ALL
-----
+```
 
-Refer to spark-logging.md[Logging].
+Refer to [Logging](../spark-logging.md).
