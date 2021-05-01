@@ -1,93 +1,91 @@
 # ShuffleDependency
 
-`ShuffleDependency` is a [Dependency](Dependency.md) on the output of a scheduler:ShuffleMapStage.md[ShuffleMapStage] for a <<rdd, key-value pair RDD>>.
+`ShuffleDependency` is a [Dependency](Dependency.md) on the output of a [ShuffleMapStage](../scheduler/ShuffleMapStage.md) of a [key-value RDD](#rdd).
 
-ShuffleDependency uses the <<rdd, RDD>> to know the number of (map-side/pre-shuffle) partitions and the <<partitioner, Partitioner>> for the number of (reduce-size/post-shuffle) partitions.
+`ShuffleDependency` uses the [RDD](#rdd) to know the number of (map-side/pre-shuffle) partitions and the [Partitioner](#partitioner) for the number of (reduce-size/post-shuffle) partitions.
 
-ShuffleDependency is created as a dependency of ShuffledRDD.md[ShuffledRDD]. ShuffleDependency can also be created as a dependency of [CoGroupedRDD](CoGroupedRDD.md) and [SubtractedRDD](SubtractedRDD.md).
+```scala
+ShuffleDependency[K: ClassTag, V: ClassTag, C: ClassTag]
+```
 
-== [[creating-instance]] Creating Instance
+## Creating Instance
 
-ShuffleDependency takes the following to be created:
+`ShuffleDependency` takes the following to be created:
 
-* <<rdd, RDD>> of key-value pairs (`RDD[_ <: Product2[K, V]]`)
-* <<partitioner, Partitioner>>
-* [[serializer]] serializer:Serializer.md[Serializer]
-* [[keyOrdering]] Ordering for K keys (`Option[Ordering[K]]`)
-* <<aggregator, Aggregator>> (`Option[Aggregator[K, V, C]]`)
-* <<mapSideCombine, mapSideCombine>> flag (default: `false`)
+* <span id="_rdd"> [RDD](RDD.md) of key-value pairs (`RDD[_ <: Product2[K, V]]`)
+* [Partitioner](#partitioner)
+* <span id="serializer"> [Serializer](../serializer/Serializer.md) (default: [SparkEnv.get.serializer](../SparkEnv.md#serializer))
+* <span id="keyOrdering"> Optional Key Ordering (default: undefined)
+* Optional [Aggregator](#aggregator)
+* [mapSideCombine](#mapSideCombine)
+* <span id="shuffleWriterProcessor"> [ShuffleWriteProcessor](../shuffle/ShuffleWriteProcessor.md)
 
-When created, ShuffleDependency gets SparkContext.md#nextShuffleId[shuffle id] (as `shuffleId`).
+`ShuffleDependency` is created when:
 
-NOTE: ShuffleDependency uses the index.md#context[input RDD to access `SparkContext`] and so the `shuffleId`.
+* `CoGroupedRDD` is requested for the [dependencies](CoGroupedRDD.md#getDependencies) (for RDDs with different partitioners)
+* `ShuffledRDD` is requested for the [dependencies](ShuffledRDD.md#getDependencies)
+* `SubtractedRDD` is requested for the [dependencies](SubtractedRDD.md#getDependencies) (for an RDD with different partitioner)
+* `ShuffleExchangeExec` ([Spark SQL]({{ book.spark_sql }}/physical-operators/ShuffleExchangeExec)) physical operator is requested to prepare a `ShuffleDependency`
 
-ShuffleDependency shuffle:ShuffleManager.md#registerShuffle[registers itself with `ShuffleManager`] and gets a `ShuffleHandle` (available as <<shuffleHandle, shuffleHandle>> property).
+When created, `ShuffleDependency` gets the [shuffle id](../SparkContext.md#nextShuffleId).
 
-NOTE: ShuffleDependency accesses core:SparkEnv.md#shuffleManager[`ShuffleManager` using `SparkEnv`].
+`ShuffleDependency` [registers itself with the ShuffleManager](../shuffle/ShuffleManager.md#registerShuffle) and gets a `ShuffleHandle` (available as [shuffleHandle](#shuffleHandle)). `ShuffleDependency` uses [SparkEnv](../SparkEnv.md#shuffleManager) to access the [ShuffleManager](../shuffle/ShuffleManager.md).
 
-In the end, ShuffleDependency core:ContextCleaner.md#registerShuffleForCleanup[registers itself for cleanup with `ContextCleaner`].
+In the end, `ShuffleDependency` [registers itself with the ContextCleaner](../core/ContextCleaner.md#registerShuffleForCleanup). `ShuffleDependency` uses [SparkContext](../SparkContext.md#cleaner) to access the [ContextCleaner](../core/ContextCleaner.md).
 
-NOTE: ShuffleDependency accesses the SparkContext.md#cleaner[optional `ContextCleaner` through `SparkContext`].
+## <span id="aggregator"> Aggregator
 
-NOTE: ShuffleDependency is created when ShuffledRDD.md#getDependencies[ShuffledRDD], [CoGroupedRDD](CoGroupedRDD.md#getDependencies), and [SubtractedRDD](SubtractedRDD.md#getDependencies) return their RDD dependencies.
+```scala
+aggregator: Option[Aggregator[K, V, C]]
+```
 
-== [[shuffleId]] Shuffle ID
+`ShuffleDependency` may be given a [map/reduce-side Aggregator](Aggregator.md) when [created](#creating-instance).
 
-Every ShuffleDependency has a unique application-wide *shuffle ID* that is assigned when <<creating-instance, ShuffleDependency is created>> (and is used throughout Spark's code to reference a ShuffleDependency).
+`ShuffleDependency` asserts (when [created](#creating-instance)) that an `Aggregator` is defined when the [mapSideCombine](#mapSideCombine) flag is enabled.
 
-Shuffle IDs are tracked by SparkContext.md#nextShuffleId[SparkContext].
+`aggregator` is used when:
 
-== [[rdd]] Parent RDD
+* `SortShuffleWriter` is requested to [write records](../shuffle/SortShuffleWriter.md#write) (for mapper tasks)
+* `BlockStoreShuffleReader` is requested to [read records](../shuffle/BlockStoreShuffleReader.md#read) (for reducer tasks)
 
-ShuffleDependency is given the parent RDD.md[RDD] of key-value pairs (`RDD[_ <: Product2[K, V]]`).
+## <span id="shuffleId"> Shuffle ID
 
-The parent RDD is available as rdd property that is part of the [Dependency](Dependency.md#rdd) abstraction.
+```scala
+shuffleId: Int
+```
 
-[source,scala]
-----
- RDD[Product2[K, V]]
-----
+`ShuffleDependency` is identified uniquely by an application-wide **shuffle ID** (that is requested from [SparkContext](../SparkContext.md#newShuffleId) when [created](#creating-instance)).
 
-== [[partitioner]] Partitioner
+## <span id="partitioner"> Partitioner
 
-ShuffleDependency is given a Partitioner.md[Partitioner] that is used to partition the shuffle output (when shuffle:SortShuffleWriter.md[SortShuffleWriter], shuffle:BypassMergeSortShuffleWriter.md[BypassMergeSortShuffleWriter] and shuffle:UnsafeShuffleWriter.md[UnsafeShuffleWriter] are requested to write).
+`ShuffleDependency` is given a [Partitioner](Partitioner.md) (when [created](#creating-instance)).
 
-== [[shuffleHandle]] ShuffleHandle
+`ShuffleDependency` uses the `Partitioner` to partition the shuffle output.
 
-[source, scala]
-----
-shuffleHandle: ShuffleHandle
-----
+The `Partitioner` is used when:
 
-shuffleHandle is the `ShuffleHandle` of a ShuffleDependency as assigned eagerly when <<creating-instance, ShuffleDependency was created>>.
+* `SortShuffleWriter` is requested to [write records](../shuffle/SortShuffleWriter.md#write) (and create an [ExternalSorter](../shuffle/ExternalSorter.md))
+* _others_ (FIXME)
 
-shuffleHandle is used to compute [CoGroupedRDDs](CoGroupedRDD.md#compute), ShuffledRDD.md#compute[ShuffledRDD], [SubtractedRDD](SubtractedRDD.md#compute), and spark-sql-ShuffledRowRDD.md[ShuffledRowRDD] (to get a ShuffleReader.md[ShuffleReader] for a ShuffleDependency) and when a scheduler:ShuffleMapTask.md#runTask[`ShuffleMapTask` runs] (to get a `ShuffleWriter` for a ShuffleDependency).
+## <span id="shuffleHandle"> ShuffleHandle
 
-== [[mapSideCombine]] Map-Size Partial Aggregation Flag
+`ShuffleDependency` [registers itself](../shuffle/ShuffleManager.md#registerShuffle) with the [ShuffleManager](../shuffle/ShuffleManager.md) when [created](#creating-instance).
 
-ShuffleDependency uses a mapSideCombine flag that controls whether to perform *map-side partial aggregation* (_map-side combine_) using an <<aggregator, Aggregator>>.
+The `ShuffleHandle` is used when:
 
-mapSideCombine is disabled (`false`) by default and can be enabled (`true`) for some use cases of ShuffledRDD.md#mapSideCombine[ShuffledRDD].
+* [CoGroupedRDDs](CoGroupedRDD.md#compute), [ShuffledRDD](ShuffledRDD.md#compute), [SubtractedRDD](SubtractedRDD.md#compute), and `ShuffledRowRDD` ([Spark SQL]({{ book.spark_sql }}/ShuffledRowRDD)) are requested to compute a partition (to get a [ShuffleReader](../shuffle/ShuffleReader.md) for a `ShuffleDependency`)
+* `ShuffleMapTask` is requested to [run](../scheduler/ShuffleMapTask.md#runTask) (to get a `ShuffleWriter` for a ShuffleDependency).
 
-ShuffleDependency requires that the optional <<aggregator, Aggregator>> is defined when the flag is enabled.
+## <span id="mapSideCombine"> Map-Size Partial Aggregation Flag
 
-mapSideCombine is used when:
+`ShuffleDependency` uses a `mapSideCombine` flag that controls whether to perform **map-side partial aggregation** (_map-side combine_) using the [Aggregator](#aggregator).
 
-* BlockStoreShuffleReader is requested to shuffle:BlockStoreShuffleReader.md#read[read combined records for a reduce task]
+`mapSideCombine` is disabled (`false`) by default and can be enabled (`true`) for some uses of [ShuffledRDD](ShuffledRDD.md#mapSideCombine).
 
-* SortShuffleManager is requested to shuffle:SortShuffleManager.md#registerShuffle[register a shuffle]
+`ShuffleDependency` requires that the optional [Aggregator](#aggregator) is actually defined for the flag enabled.
 
-* SortShuffleWriter is requested to shuffle:SortShuffleWriter.md#write[write records]
+`mapSideCombine` is used when:
 
-== [[aggregator]] Optional Aggregator
-
-[source, scala]
-----
-aggregator: Option[Aggregator[K, V, C]] = None
-----
-
-`aggregator` is a Aggregator.md[map/reduce-side Aggregator] (for a RDD's shuffle).
-
-`aggregator` is by default undefined (i.e. `None`) when <<creating-instance, ShuffleDependency is created>>.
-
-NOTE: `aggregator` is used when shuffle:SortShuffleWriter.md#write[`SortShuffleWriter` writes records] and shuffle:BlockStoreShuffleReader.md#read[`BlockStoreShuffleReader` reads combined key-values for a reduce task].
+* `BlockStoreShuffleReader` is requested to [read combined records for a reduce task](../shuffle/BlockStoreShuffleReader.md#read)
+* `SortShuffleManager` is requested to [register a shuffle](../shuffle/SortShuffleManager.md#registerShuffle)
+* `SortShuffleWriter` is requested to [write records](../shuffle/SortShuffleWriter.md#write)
