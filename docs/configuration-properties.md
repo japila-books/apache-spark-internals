@@ -221,6 +221,17 @@ Default: `3`
 
 Used when `BlockManager` is requested to [register with External Shuffle Server](storage/BlockManager.md#registerWithExternalShuffleServer)
 
+## <span id="spark.shuffle.sort.bypassMergeThreshold"><span id="SHUFFLE_SORT_BYPASS_MERGE_THRESHOLD"> spark.shuffle.sort.bypassMergeThreshold
+
+Maximum number of reduce partitions below which [SortShuffleManager](shuffle/SortShuffleManager.md) avoids merge-sorting data for no map-side aggregation
+
+Default: `200`
+
+Used when:
+
+* `SortShuffleWriter` utility is used to [shouldBypassMergeSort](shuffle/SortShuffleWriter.md#shouldBypassMergeSort)
+* `ShuffleExchangeExec` ([Spark SQL]({{ book.spark_sql }}/physical-operators/ShuffleExchangeExec)) physical operator is requested to `prepareShuffleDependency`
+
 ## <span id="spark.shuffle.spill.initialMemoryThreshold"> spark.shuffle.spill.initialMemoryThreshold
 
 Initial threshold for the size of an in-memory collection
@@ -602,12 +613,6 @@ Enables locality preferences for reduce tasks
 Default: `true`
 
 When enabled (`true`), MapOutputTrackerMaster will scheduler:MapOutputTrackerMaster.md#getPreferredLocationsForShuffle[compute the preferred hosts] on which to run a given map output partition in a given shuffle, i.e. the nodes that the most outputs for that partition are on.
-
-== [[spark.shuffle.sort.bypassMergeThreshold]] spark.shuffle.sort.bypassMergeThreshold
-
-Maximum number of reduce partitions below which shuffle:SortShuffleManager.md[SortShuffleManager] avoids merge-sorting data for no map-side aggregation
-
-Default: `200`
 
 == [[spark.shuffle.sort.initialBufferSize]] spark.shuffle.sort.initialBufferSize
 
