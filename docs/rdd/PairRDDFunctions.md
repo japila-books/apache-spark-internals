@@ -1,178 +1,12 @@
-= [[PairRDDFunctions]] PairRDDFunctions
-:page-toctitle: Transformations
+# PairRDDFunctions
 
-*PairRDDFunctions* is an extension of RDD API to provide additional <<transformations, transformations>> for RDDs of key-value pairs (`RDD[(K, V)]`).
+`PairRDDFunctions` is an extension of [RDD](RDD.md) API for extra methods for key-value RDDs (`RDD[(K, V)]`).
 
-PairRDDFunctions is available in RDDs of key-value pairs via Scala implicit conversion.
+`PairRDDFunctions` is available in RDDs of key-value pairs via Scala implicit conversion.
 
-[[transformations]]
-.PairRDDFunctions' Transformations
-[cols="30m,70",options="header",width="100%"]
-|===
-| Method
-| Description
+## <span id="saveAsNewAPIHadoopFile"> saveAsNewAPIHadoopFile
 
-| aggregateByKey
-a| [[aggregateByKey]]
-
-[source, scala]
-----
-aggregateByKey[U: ClassTag](
-  zeroValue: U)(
-    seqOp: (U, V) => U,
-    combOp: (U, U) => U): RDD[(K, U)]
-aggregateByKey[U: ClassTag](
-  zeroValue: U, numPartitions: Int)(
-    seqOp: (U, V) => U,
-    combOp: (U, U) => U): RDD[(K, U)]
-aggregateByKey[U: ClassTag](
-  zeroValue: U, partitioner: Partitioner)(
-    seqOp: (U, V) => U,
-    combOp: (U, U) => U): RDD[(K, U)]
-----
-
-| combineByKey
-a| [[combineByKey]]
-
-[source, scala]
-----
-combineByKey[C](
-  createCombiner: V => C,
-  mergeValue: (C, V) => C,
-  mergeCombiners: (C, C) => C): RDD[(K, C)]
-combineByKey[C](
-  createCombiner: V => C,
-  mergeValue: (C, V) => C,
-  mergeCombiners: (C, C) => C,
-  numPartitions: Int): RDD[(K, C)]
-combineByKey[C](
-  createCombiner: V => C,
-  mergeValue: (C, V) => C,
-  mergeCombiners: (C, C) => C,
-  partitioner: Partitioner,
-  mapSideCombine: Boolean = true,
-  serializer: Serializer = null): RDD[(K, C)]
-----
-
-| countApproxDistinctByKey
-a| [[countApproxDistinctByKey]]
-
-[source, scala]
-----
-countApproxDistinctByKey(
-  relativeSD: Double = 0.05): RDD[(K, Long)]
-countApproxDistinctByKey(
-  relativeSD: Double,
-  numPartitions: Int): RDD[(K, Long)]
-countApproxDistinctByKey(
-  relativeSD: Double,
-  partitioner: Partitioner): RDD[(K, Long)]
-countApproxDistinctByKey(
-  p: Int,
-  sp: Int,
-  partitioner: Partitioner): RDD[(K, Long)]
-----
-
-| flatMapValues
-a| [[flatMapValues]]
-
-[source, scala]
-----
-flatMapValues[U](
-  f: V => TraversableOnce[U]): RDD[(K, U)]
-----
-
-| foldByKey
-a| [[foldByKey]]
-
-[source, scala]
-----
-foldByKey(
-  zeroValue: V)(
-    func: (V, V) => V): RDD[(K, V)]
-foldByKey(
-  zeroValue: V, numPartitions: Int)(
-    func: (V, V) => V): RDD[(K, V)]
-foldByKey(
-  zeroValue: V,
-  partitioner: Partitioner)(
-    func: (V, V) => V): RDD[(K, V)]
-----
-
-| mapValues
-a| [[mapValues]]
-
-[source, scala]
-----
-mapValues[U](
-  f: V => U): RDD[(K, U)]
-----
-
-| partitionBy
-a| [[partitionBy]]
-
-[source, scala]
-----
-partitionBy(
-  partitioner: Partitioner): RDD[(K, V)]
-----
-
-| saveAsHadoopDataset
-a| [[saveAsHadoopDataset]]
-
-[source, scala]
-----
-saveAsHadoopDataset(
-  conf: JobConf): Unit
-----
-
-`saveAsHadoopDataset` uses the `SparkHadoopWriter` utility to <<spark-internal-io-SparkHadoopWriter.md#write, write the key-value RDD out>> with a <<spark-internal-io-HadoopMapRedWriteConfigUtil.md#, HadoopMapRedWriteConfigUtil>> (for the given Hadoop https://hadoop.apache.org/docs/r2.7.3/api/org/apache/hadoop/mapred/JobConf.html[JobConf])
-
-| saveAsHadoopFile
-a| [[saveAsHadoopFile]]
-
-[source, scala]
-----
-saveAsHadoopFile(
-  path: String,
-  keyClass: Class[_],
-  valueClass: Class[_],
-  outputFormatClass: Class[_ <: OutputFormat[_, _]],
-  codec: Class[_ <: CompressionCodec]): Unit
-saveAsHadoopFile(
-  path: String,
-  keyClass: Class[_],
-  valueClass: Class[_],
-  outputFormatClass: Class[_ <: OutputFormat[_, _]],
-  conf: JobConf = new JobConf(self.context.hadoopConfiguration),
-  codec: Option[Class[_ <: CompressionCodec]] = None): Unit
-saveAsHadoopFile[F <: OutputFormat[K, V]](
-  path: String)(implicit fm: ClassTag[F]): Unit
-saveAsHadoopFile[F <: OutputFormat[K, V]](
-  path: String,
-  codec: Class[_ <: CompressionCodec])(implicit fm: ClassTag[F]): Unit
-----
-
-| saveAsNewAPIHadoopDataset
-a| [[saveAsNewAPIHadoopDataset]]
-
-[source, scala]
-----
-saveAsNewAPIHadoopDataset(
-  conf: Configuration): Unit
-----
-
-Saves this RDD of key-value pairs (`RDD[K,V]`) to any Hadoop-supported storage system with new Hadoop API (using a Hadoop https://hadoop.apache.org/docs/r2.7.3/api/org/apache/hadoop/conf/Configuration.html[Configuration] object for that storage system).
-
-The configuration should set relevant output params (an https://hadoop.apache.org/docs/r2.7.3/api/org/apache/hadoop/mapreduce/OutputFormat.html[output format], output paths, e.g. a table name to write to) in the same way as it would be configured for a Hadoop MapReduce job.
-
-`saveAsNewAPIHadoopDataset` uses the `SparkHadoopWriter` utility to <<spark-internal-io-SparkHadoopWriter.md#write, write the key-value RDD out>> with a <<spark-internal-io-HadoopMapReduceWriteConfigUtil.md#, HadoopMapReduceWriteConfigUtil>> (for the given Hadoop https://hadoop.apache.org/docs/r2.7.3/api/org/apache/hadoop/conf/Configuration.html[Configuration])
-
-| saveAsNewAPIHadoopFile
-a| [[saveAsNewAPIHadoopFile]]
-
-[source, scala]
-----
+```scala
 saveAsNewAPIHadoopFile(
   path: String,
   keyClass: Class[_],
@@ -181,23 +15,57 @@ saveAsNewAPIHadoopFile(
   conf: Configuration = self.context.hadoopConfiguration): Unit
 saveAsNewAPIHadoopFile[F <: NewOutputFormat[K, V]](
   path: String)(implicit fm: ClassTag[F]): Unit
-----
+```
 
-|===
+`saveAsNewAPIHadoopFile` creates a new `Job` ([Hadoop MapReduce]({{ hadoop.api }}/org/apache/hadoop/mapreduce/Job.html)) for the given `Configuration` ([Hadoop]({{ hadoop.api }}/org/apache/hadoop/conf/Configuration.html)).
 
-== [[reduceByKey]][[groupByKey]] groupByKey and reduceByKey
+`saveAsNewAPIHadoopFile` configures the `Job` (with the given `keyClass`, `valueClass` and `outputFormatClass`).
 
-`reduceByKey` is sort of a particular case of <<aggregateByKey, aggregateByKey>>.
+`saveAsNewAPIHadoopFile` sets `mapreduce.output.fileoutputformat.outputdir` configuration property to be the given `path` and [saveAsNewAPIHadoopDataset](#saveAsNewAPIHadoopDataset).
+
+## <span id="saveAsNewAPIHadoopDataset"> saveAsNewAPIHadoopDataset
+
+```scala
+saveAsNewAPIHadoopDataset(
+  conf: Configuration): Unit
+```
+
+`saveAsNewAPIHadoopDataset` creates a new [HadoopMapReduceWriteConfigUtil](../HadoopMapReduceWriteConfigUtil.md) (with the given `Configuration`) and [writes the RDD out](../SparkHadoopWriter.md#write).
+
+`Configuration` should have all the relevant output params set (an [output format]({{ hadoop.api }}/org/apache/hadoop/mapreduce/OutputFormat.html), output paths, e.g. a table name to write to) in the same way as it would be configured for a Hadoop MapReduce job.
+
+## <span id="reduceByKey"><span id="groupByKey"> groupByKey and reduceByKey
+
+```scala
+reduceByKey(
+  func: (V, V) => V): RDD[(K, V)]
+reduceByKey(
+  func: (V, V) => V,
+  numPartitions: Int): RDD[(K, V)]
+reduceByKey(
+  partitioner: Partitioner,
+  func: (V, V) => V): RDD[(K, V)]
+```
+
+`reduceByKey` is sort of a particular case of [aggregateByKey](#aggregateByKey).
 
 You may want to look at the number of partitions from another angle.
 
 It may often not be important to have a given number of partitions upfront (at RDD creation time upon spark-data-sources.md[loading data from data sources]), so only "regrouping" the data by key after it is an RDD might be...the key (_pun not intended_).
 
-You can use `groupByKey` or another PairRDDFunctions method to have a key in one processing flow.
+You can use `groupByKey` or another `PairRDDFunctions` method to have a key in one processing flow.
+
+```scala
+groupByKey(): RDD[(K, Iterable[V])]
+groupByKey(
+  numPartitions: Int): RDD[(K, Iterable[V])]
+groupByKey(
+  partitioner: Partitioner): RDD[(K, Iterable[V])]
+```
 
 You could use `partitionBy` that is available for RDDs to be RDDs of tuples, i.e. `PairRDD`:
 
-```
+```scala
 rdd.keyBy(_.kind)
   .partitionBy(new HashPartitioner(PARTITIONS))
   .foreachPartition(...)
@@ -207,16 +75,15 @@ Think of situations where `kind` has low cardinality or highly skewed distributi
 
 You could do as follows:
 
-```
+```scala
 rdd.keyBy(_.kind).reduceByKey(....)
 ```
 
-or `mapValues` or plenty of other solutions. _FIXME, man_.
+or `mapValues` or plenty of other solutions. _FIXME_
 
-== [[combineByKeyWithClassTag]] combineByKeyWithClassTag
+## <span id="combineByKeyWithClassTag"> combineByKeyWithClassTag
 
-[source, scala]
-----
+```scala
 combineByKeyWithClassTag[C](
   createCombiner: V => C,
   mergeValue: (C, V) => C,
@@ -233,60 +100,54 @@ combineByKeyWithClassTag[C](
   partitioner: Partitioner,
   mapSideCombine: Boolean = true,
   serializer: Serializer = null)(implicit ct: ClassTag[C]): RDD[(K, C)]
-----
-<1> Uses the rdd:Partitioner.md#defaultPartitioner[default partitioner]
-<2> Uses a rdd:HashPartitioner.md[HashPartitioner] with the given number of partitions
+```
 
-combineByKeyWithClassTag creates an rdd:Aggregator.md[Aggregator] for the given aggregation functions.
+`combineByKeyWithClassTag` creates an [Aggregator](Aggregator.md) for the given aggregation functions.
 
-combineByKeyWithClassTag branches off per the given rdd:Partitioner.md[Partitioner].
+`combineByKeyWithClassTag` branches off per the given [Partitioner](Partitioner.md).
 
-If the input partitioner and the RDD's are the same, combineByKeyWithClassTag simply rdd:spark-rdd-transformations.md#mapPartitions[mapPartitions] on the RDD with the following arguments:
+If the input partitioner and the RDD's are the same, `combineByKeyWithClassTag` simply [mapPartitions](spark-rdd-transformations.md#mapPartitions) on the RDD with the following arguments:
 
-* Iterator of the rdd:Aggregator.md#combineValuesByKey[Aggregator]
+* Iterator of the [Aggregator](Aggregator.md#combineValuesByKey)
 
-* preservesPartitioning flag turned on
+* `preservesPartitioning` flag turned on
 
-If the input partitioner is different than the RDD's, combineByKeyWithClassTag creates a rdd:ShuffledRDD.md[ShuffledRDD] (with the Serializer, the Aggregator, and the mapSideCombine flag).
+If the input partitioner is different than the RDD's, `combineByKeyWithClassTag` creates a [ShuffledRDD](ShuffledRDD.md) (with the `Serializer`, the `Aggregator`, and the `mapSideCombine` flag).
 
-=== [[combineByKeyWithClassTag-usage]] Usage
+### <span id="combineByKeyWithClassTag-usage"> Usage
 
-combineByKeyWithClassTag lays the foundation for the following transformations:
+`combineByKeyWithClassTag` lays the foundation for the following transformations:
 
-* <<aggregateByKey, aggregateByKey>>
-* <<combineByKey, combineByKey>>
-* <<countApproxDistinctByKey, countApproxDistinctByKey>>
-* <<foldByKey, foldByKey>>
-* <<groupByKey, groupByKey>>
-* <<reduceByKey, reduceByKey>>
+* aggregateByKey
+* combineByKey
+* countApproxDistinctByKey
+* foldByKey
+* groupByKey
+* reduceByKey
 
-=== [[combineByKeyWithClassTag-requirements]] Requirements
+### <span id="combineByKeyWithClassTag-requirements"> Requirements
 
-combineByKeyWithClassTag requires that the mergeCombiners is defined (not-``null``) or throws an IllegalArgumentException:
+`combineByKeyWithClassTag` requires that the `mergeCombiners` is defined (not-``null``) or throws an `IllegalArgumentException`:
 
-[source,plaintext]
-----
+```text
 mergeCombiners must be defined
-----
+```
 
-combineByKeyWithClassTag throws a SparkException for the keys being of type array with the mapSideCombine flag enabled:
+`combineByKeyWithClassTag` throws a `SparkException` for the keys being of type array with the `mapSideCombine` flag enabled:
 
-[source,plaintext]
-----
+```text
 Cannot use map-side combining with array keys.
-----
+```
 
-combineByKeyWithClassTag throws a SparkException for the keys being of type array with the partitioner being a rdd:HashPartitioner.md[HashPartitioner]:
+`combineByKeyWithClassTag` throws a `SparkException` for the keys being of type `array` with the partitioner being a [HashPartitioner](HashPartitioner.md):
 
-[source,plaintext]
-----
+```text
 HashPartitioner cannot partition array keys.
-----
+```
 
-=== [[combineByKeyWithClassTag-example]] Example
+### <span id="combineByKeyWithClassTag-example"> Example
 
-[source,scala]
-----
+```text
 val nums = sc.parallelize(0 to 9, numSlices = 4)
 val groups = nums.keyBy(_ % 2)
 def createCombiner(n: Int) = {
@@ -311,4 +172,4 @@ println(countByGroup.toDebugString)
  +-(4) MapPartitionsRDD[1] at keyBy at <console>:25 []
     |  ParallelCollectionRDD[0] at parallelize at <console>:24 []
 */
-----
+```

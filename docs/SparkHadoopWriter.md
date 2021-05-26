@@ -1,77 +1,66 @@
-# SparkHadoopWriter
+# SparkHadoopWriter Utility
 
-`SparkHadoopWriter` utility is used to <<write, write a key-value RDD (as a Hadoop OutputFormat)>>.
+## <span id="write"> Writing Key-Value RDD Out (As Hadoop OutputFormat)
 
-`SparkHadoopWriter` utility is used by rdd:PairRDDFunctions.md#saveAsNewAPIHadoopDataset[saveAsNewAPIHadoopDataset] and rdd:PairRDDFunctions.md#saveAsHadoopDataset[saveAsHadoopDataset] transformations.
-
-[[logging]]
-[TIP]
-====
-Enable `ALL` logging level for `org.apache.spark.internal.io.SparkHadoopWriter` logger to see what happens inside.
-
-Add the following line to `conf/log4j.properties`:
-
-```
-log4j.logger.org.apache.spark.internal.io.SparkHadoopWriter=ALL
-```
-
-Refer to <<spark-logging.md#, Logging>>.
-====
-
-== [[write]] Writing Key-Value RDD Out (As Hadoop OutputFormat) -- `write` Utility
-
-[source, scala]
-----
+```scala
 write[K, V: ClassTag](
   rdd: RDD[(K, V)],
   config: HadoopWriteConfigUtil[K, V]): Unit
-----
+```
 
-[[write-commitJobId]]
+!!! FIXME
+    Review Me
+
+<span id="write-commitJobId">
 `write` uses the id of the given RDD as the `commitJobId`.
 
-[[write-jobTrackerId]]
+<span id="write-jobTrackerId">
 `write` creates a `jobTrackerId` with the current date.
 
-[[write-jobContext]]
-`write` requests the given `HadoopWriteConfigUtil` to <<HadoopWriteConfigUtil.md#createJobContext, create a Hadoop JobContext>> (for the <<write-jobTrackerId, jobTrackerId>> and <<write-commitJobId, commitJobId>>).
+<span id="write-jobContext">
+`write` requests the given `HadoopWriteConfigUtil` to [create a Hadoop JobContext](HadoopWriteConfigUtil.md#createJobContext) (for the [jobTrackerId](#write-jobTrackerId) and [commitJobId](#write-commitJobId)).
 
-`write` requests the given `HadoopWriteConfigUtil` to <<HadoopWriteConfigUtil.md#initOutputFormat, initOutputFormat>> with the Hadoop https://hadoop.apache.org/docs/r2.7.3/api/org/apache/hadoop/mapreduce/JobContext.html[JobContext].
+`write` requests the given `HadoopWriteConfigUtil` to [initOutputFormat](HadoopWriteConfigUtil.md#initOutputFormat) with the Hadoop [JobContext]({{ hadoop.api }}/api/org/apache/hadoop/mapreduce/JobContext.html).
 
-`write` requests the given `HadoopWriteConfigUtil` to <<HadoopWriteConfigUtil.md#assertConf, assertConf>>.
+`write` requests the given `HadoopWriteConfigUtil` to [assertConf](HadoopWriteConfigUtil.md#assertConf).
 
-`write` requests the given `HadoopWriteConfigUtil` to <<HadoopWriteConfigUtil.md#createCommitter, create a HadoopMapReduceCommitProtocol committer>> for the <<write-commitJobId, commitJobId>>.
+`write` requests the given `HadoopWriteConfigUtil` to [create a HadoopMapReduceCommitProtocol committer](HadoopWriteConfigUtil.md#createCommitter) for the [commitJobId](#write-commitJobId).
 
-`write` requests the `HadoopMapReduceCommitProtocol` to <<HadoopMapReduceCommitProtocol.md#setupJob, setupJob>> (with the <<write-jobContext, jobContext>>).
+`write` requests the `HadoopMapReduceCommitProtocol` to [setupJob](HadoopMapReduceCommitProtocol.md#setupJob) (with the [jobContext](#write-jobContext)).
 
-[[write-runJob]][[write-executeTask]]
-`write` uses the `SparkContext` (of the given RDD) to SparkContext.md#runJob[run a Spark job asynchronously] for the given RDD with the <<executeTask, executeTask>> partition function.
+<span id="write-runJob"><span id="write-executeTask">
+`write` uses the `SparkContext` (of the given RDD) to [run a Spark job asynchronously](SparkContext.md#runJob) for the given RDD with the [executeTask](#executeTask) partition function.
 
-[[write-commitJob]]
-In the end, `write` requests the <<write-committer, HadoopMapReduceCommitProtocol>> to <<HadoopMapReduceCommitProtocol.md#commitJob, commit the job>> and prints out the following INFO message to the logs:
+<span id="write-commitJob">
+In the end, `write` requests the [HadoopMapReduceCommitProtocol](#write-committer) to [commit the job](HadoopMapReduceCommitProtocol.md#commitJob) and prints out the following INFO message to the logs:
 
-```
+```text
 Job [getJobID] committed.
 ```
 
-NOTE: `write` is used when `PairRDDFunctions` is requested to rdd:PairRDDFunctions.md#saveAsNewAPIHadoopDataset[saveAsNewAPIHadoopDataset] and rdd:PairRDDFunctions.md#saveAsHadoopDataset[saveAsHadoopDataset].
-
-=== [[write-Throwable]] `write` Utility And Throwables
+### <span id="write-Throwable"> Throwables
 
 In case of any `Throwable`, `write` prints out the following ERROR message to the logs:
 
-```
+```text
 Aborting job [getJobID].
 ```
 
-[[write-abortJob]]
-`write` requests the <<write-committer, HadoopMapReduceCommitProtocol>> to <<HadoopMapReduceCommitProtocol.md#abortJob, abort the job>> and throws a `SparkException`:
+<span id="write-abortJob">
+`write` requests the [HadoopMapReduceCommitProtocol](#write-committer) to [abort the job](HadoopMapReduceCommitProtocol.md#abortJob) and throws a `SparkException`:
 
 ```text
 Job aborted.
 ```
 
-## <span id="executeTask"> Writing RDD Partition
+### <span id="write-usage"> Usage
+
+`write` is used when:
+
+* [PairRDDFunctions.saveAsNewAPIHadoopDataset](rdd/PairRDDFunctions.md#saveAsNewAPIHadoopDataset)
+* [PairRDDFunctions.saveAsHadoopDataset](rdd/PairRDDFunctions.md#saveAsHadoopDataset)
+
+### <span id="executeTask"> Writing RDD Partition
 
 ```scala
 executeTask[K, V: ClassTag](
@@ -84,6 +73,9 @@ executeTask[K, V: ClassTag](
   committer: FileCommitProtocol,
   iterator: Iterator[(K, V)]): TaskCommitMessage
 ```
+
+!!! FIXME
+    Review Me
 
 `executeTask` requests the given `HadoopWriteConfigUtil` to [create a TaskAttemptContext](HadoopWriteConfigUtil.md#createTaskAttemptContext).
 
@@ -103,16 +95,18 @@ In case of any errors, `executeTask` requests the given `HadoopWriteConfigUtil` 
 Task [taskAttemptID] aborted.
 ```
 
-`executeTask` is used when `SparkHadoopWriter` utility is used to [write](#write).
+`executeTask` is used when:
 
-== [[initHadoopOutputMetrics]] `initHadoopOutputMetrics` Utility
+* `SparkHadoopWriter` utility is used to [write](#write)
 
-[source, scala]
-----
-initHadoopOutputMetrics(
-  context: TaskContext): (OutputMetrics, () => Long)
-----
+## Logging
 
-`initHadoopOutputMetrics`...FIXME
+Enable `ALL` logging level for `org.apache.spark.internal.io.SparkHadoopWriter` logger to see what happens inside.
 
-NOTE: `initHadoopOutputMetrics` is used when `SparkHadoopWriter` utility is used to <<executeTask, executeTask>>.
+Add the following line to `conf/log4j.properties`:
+
+```text
+log4j.logger.org.apache.spark.internal.io.SparkHadoopWriter=ALL
+```
+
+Refer to [Logging](spark-logging.md).
