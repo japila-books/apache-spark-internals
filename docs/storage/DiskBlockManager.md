@@ -179,7 +179,7 @@ isRunningInYarnContainer(
   conf: SparkConf): Boolean
 ```
 
-`isRunningInYarnContainer` uses `conf` [SparkConf](../SparkConf.md) to read Hadoop YARN's [CONTAINER_ID]({{ hadoop.doc }}/hadoop-yarn/hadoop-yarn-api/apidocs/org/apache/hadoop/yarn/api/ApplicationConstants.Environment.html#CONTAINER_ID) environment variable to find out if Spark runs in a YARN container (that is exported by YARN NodeManager).
+`isRunningInYarnContainer` uses `conf` [SparkConf](../SparkConf.md) to read Hadoop YARN's [CONTAINER_ID]({{ hadoop.docs }}/hadoop-yarn/hadoop-yarn-api/apidocs/org/apache/hadoop/yarn/api/ApplicationConstants.Environment.html#CONTAINER_ID) environment variable to find out if Spark runs in a YARN container (that is exported by YARN NodeManager).
 
 ## <span id="getAllBlocks"> Getting All Blocks (From Files Stored On Disk)
 

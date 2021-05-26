@@ -25,7 +25,7 @@ println(counter.value)
 ```
 
 !!! tip
-    Learn more about [Accumulators]({{ spark.doc }}/rdd-programming-guide.html#accumulators) in the official documentation of Apache Spark.
+    Learn more about [Accumulators]({{ spark.docs }}/rdd-programming-guide.html#accumulators) in the official documentation of Apache Spark.
 
 ## Further Reading
 
