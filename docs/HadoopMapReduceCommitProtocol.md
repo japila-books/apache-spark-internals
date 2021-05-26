@@ -1,3 +1,3 @@
-= HadoopMapReduceCommitProtocol
+# HadoopMapReduceCommitProtocol
 
 `HadoopMapReduceCommitProtocol` is...FIXME

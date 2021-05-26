@@ -8,11 +8,14 @@ write[K, V: ClassTag](
   config: HadoopWriteConfigUtil[K, V]): Unit
 ```
 
-!!! FIXME
-    Review Me
+`write` [runs a Spark job](SparkContext.md#runJob) to [write out partition records](#executeTask) (for all partitions of the given key-value `RDD`) with the given [HadoopWriteConfigUtil](HadoopWriteConfigUtil.md) and a [HadoopMapReduceCommitProtocol](HadoopMapReduceCommitProtocol.md) committer.
+
+The number of writer tasks (_parallelism_) is the number of the partitions in the given key-value `RDD`.
+
+### <span id="write-internals"> Internals
 
 <span id="write-commitJobId">
-`write` uses the id of the given RDD as the `commitJobId`.
+Internally, `write` uses the id of the given RDD as the `commitJobId`.
 
 <span id="write-jobTrackerId">
 `write` creates a `jobTrackerId` with the current date.

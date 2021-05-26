@@ -1,113 +1,86 @@
-= HadoopWriteConfigUtil
+# HadoopWriteConfigUtil
 
-`HadoopWriteConfigUtil[K, V]` is an <<contract, abstraction>> of <<implementations, writer configurers>>.
+`HadoopWriteConfigUtil[K, V]` is an [abstraction](#contract) of [writer configurers](#implementations) for [SparkHadoopWriter](SparkHadoopWriter.md) to [write a key-value RDD](SparkHadoopWriter.md#write) (for [RDD.saveAsNewAPIHadoopDataset](rdd/PairRDDFunctions.md#saveAsNewAPIHadoopDataset) and [RDD.saveAsHadoopDataset](rdd/PairRDDFunctions.md#saveAsHadoopDataset) operators).
 
-`HadoopWriteConfigUtil` is used for <<spark-internal-io-SparkHadoopWriter.md#, SparkHadoopWriter>> utility when requested to <<spark-internal-io-SparkHadoopWriter.md#write, write an RDD of key-value pairs>> (for rdd:PairRDDFunctions.md#saveAsNewAPIHadoopDataset[saveAsNewAPIHadoopDataset] and rdd:PairRDDFunctions.md#saveAsHadoopDataset[saveAsHadoopDataset] transformations).
+## Contract
 
-[[contract]]
-.HadoopWriteConfigUtil Contract
-[cols="30m,70",options="header",width="100%"]
-|===
-| Method
-| Description
+### <span id="assertConf"> assertConf
 
-| assertConf
-a| [[assertConf]]
-
-[source, scala]
-----
+```scala
 assertConf(
   jobContext: JobContext,
   conf: SparkConf): Unit
-----
+```
 
-| closeWriter
-a| [[closeWriter]]
+### <span id="closeWriter"> closeWriter
 
-[source, scala]
-----
+```scala
 closeWriter(
   taskContext: TaskAttemptContext): Unit
-----
+```
 
-| createCommitter
-a| [[createCommitter]]
+### <span id="createCommitter"> createCommitter
 
-[source, scala]
-----
+```scala
 createCommitter(
   jobId: Int): HadoopMapReduceCommitProtocol
-----
+```
 
-| createJobContext
-a| [[createJobContext]]
+Creates a [HadoopMapReduceCommitProtocol](HadoopMapReduceCommitProtocol.md) committer
 
-[source, scala]
-----
+Used when:
+
+* `SparkHadoopWriter` is requested to [write data out](SparkHadoopWriter.md#write)
+
+### <span id="createJobContext"> createJobContext
+
+```scala
 createJobContext(
   jobTrackerId: String,
   jobId: Int): JobContext
-----
+```
 
-| createTaskAttemptContext
-a| [[createTaskAttemptContext]]
+### <span id="createTaskAttemptContext"> createTaskAttemptContext
 
-[source, scala]
-----
+```scala
 createTaskAttemptContext(
   jobTrackerId: String,
   jobId: Int,
   splitId: Int,
   taskAttemptId: Int): TaskAttemptContext
-----
+```
 
-Creates a Hadoop https://hadoop.apache.org/docs/r2.7.3/api/org/apache/hadoop/mapreduce/TaskAttemptContext.html[TaskAttemptContext]
+Creates a Hadoop [TaskAttemptContext]({{ hadoop.api }}/org/apache/hadoop/mapreduce/TaskAttemptContext.html)
 
-| initOutputFormat
-a| [[initOutputFormat]]
+### <span id="initOutputFormat"> initOutputFormat
 
-[source, scala]
-----
+```scala
 initOutputFormat(
   jobContext: JobContext): Unit
-----
+```
 
-| initWriter
-a| [[initWriter]]
+### <span id="initWriter"> initWriter
 
-[source, scala]
-----
+```scala
 initWriter(
   taskContext: TaskAttemptContext,
   splitId: Int): Unit
-----
+```
 
-| write
-a| [[write]]
+### <span id="write"> write
 
-[source, scala]
-----
+```scala
 write(
   pair: (K, V)): Unit
-----
+```
 
 Writes out the key-value pair
 
-Used when `SparkHadoopWriter` is requested to <<spark-internal-io-SparkHadoopWriter.md#executeTask, executeTask>> (while <<spark-internal-io-SparkHadoopWriter.md#write, writing out key-value pairs of a partition>>)
+Used when:
 
-|===
+* `SparkHadoopWriter` is requested to [executeTask](SparkHadoopWriter.md#executeTask)
 
-[[implementations]]
-.HadoopWriteConfigUtils
-[cols="30,70",options="header",width="100%"]
-|===
-| HadoopWriteConfigUtil
-| Description
+## Implementations
 
-| <<spark-internal-io-HadoopMapReduceWriteConfigUtil.md#, HadoopMapReduceWriteConfigUtil>>
-| [[HadoopMapReduceWriteConfigUtil]]
-
-| <<spark-internal-io-HadoopMapRedWriteConfigUtil.md#, HadoopMapRedWriteConfigUtil>>
-| [[HadoopMapRedWriteConfigUtil]]
-
-|===
+* [HadoopMapReduceWriteConfigUtil](HadoopMapReduceWriteConfigUtil.md)
+* [HadoopMapRedWriteConfigUtil](HadoopMapRedWriteConfigUtil.md)
