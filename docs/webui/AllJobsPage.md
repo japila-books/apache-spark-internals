@@ -1,17 +1,15 @@
-== [[AllJobsPage]] AllJobsPage -- Showing All Jobs in Web UI
+# AllJobsPage
 
 [[prefix]]
 `AllJobsPage` is a spark-webui-WebUIPage.md[WebUIPage] with an empty spark-webui-WebUIPage.md#prefix[prefix].
 
-`AllJobsPage` is <<creating-instance, created>> exclusively when `JobsTab` is spark-webui-JobsTab.md#creating-instance[created].
+`AllJobsPage` is <<creating-instance, created>> exclusively when `JobsTab` is [created](JobsTab.md#creating-instance).
 
 `AllJobsPage` renders a summary, an event timeline, and active, completed, and failed jobs of a Spark application.
 
 TIP: Jobs (in any state) are displayed when their number is greater than `0`.
 
 `AllJobsPage` displays the *Summary* section with the spark-webui-SparkUI.md#getSparkUser[current Spark user], total uptime, scheduling mode, and the number of jobs per status.
-
-NOTE: `AllJobsPage` uses spark-webui-JobProgressListener.md[JobProgressListener] for `Scheduling Mode`.
 
 .Summary Section in Jobs Tab
 image::spark-webui-jobs-summary-section.png[align="center"]
@@ -21,7 +19,7 @@ Under the summary section is the *Event Timeline* section.
 .Event Timeline in Jobs Tab
 image::spark-webui-jobs-event-timeline.png[align="center"]
 
-NOTE: spark-webui-AllJobsPage.md[AllJobsPage] uses spark-webui-executors-ExecutorsListener.md[ExecutorsListener] to build the event timeline.
+NOTE: [AllJobsPage](AllJobsPage.md) uses spark-webui-executors-ExecutorsListener.md[ExecutorsListener] to build the event timeline.
 
 *Active Jobs*, *Completed Jobs*, and *Failed Jobs* sections follow.
 
@@ -46,5 +44,5 @@ TIP: Use SparkContext.md#dynamic-allocation[Programmable Dynamic Allocation] (us
 
 `AllJobsPage` takes the following when created:
 
-* [[parent]] Parent spark-webui-JobsTab.md[JobsTab]
+* [[parent]] Parent [JobsTab](JobsTab.md)
 * [[store]] core:AppStatusStore.md[]

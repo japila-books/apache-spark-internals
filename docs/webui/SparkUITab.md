@@ -45,7 +45,7 @@ NOTE: `SparkUITab` is a `private[spark]` contract.
 | spark-webui-ExecutorsTab.md[ExecutorsTab]
 | [[ExecutorsTab]]
 
-| spark-webui-JobsTab.md[JobsTab]
+| [JobsTab](JobsTab.md)
 | [[JobsTab]]
 
 | spark-webui-StagesTab.md[StagesTab]

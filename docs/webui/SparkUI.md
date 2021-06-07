@@ -1,6 +1,85 @@
 # SparkUI
 
-`SparkUI` is the [web UI](WebUI.md) of a Spark application (aka **Application UI**).
+`SparkUI` is a [WebUI](WebUI.md) of Spark applications.
+
+![Welcome Page of web UI &mdash; Jobs Tab](../images/webui/spark-webui-jobs.png)
+
+## Creating Instance
+
+`SparkUI` takes the following to be created:
+
+* <span id="store"> [AppStatusStore](../core/AppStatusStore.md)
+* <span id="sc"> [SparkContext](../SparkContext.md)
+* <span id="conf"> [SparkConf](../SparkConf.md)
+* <span id="securityManager"> `SecurityManager`
+* <span id="appName"> Application Name
+* <span id="basePath"> Base Path
+* <span id="startTime"> Start Time
+* <span id="appSparkVersion"> Spark Version
+
+While being created, `SparkUI` [initializes itself](#initialize).
+
+`SparkUI` is created using [create](#create) utility.
+
+### <span id="getUIPort"> UI Port
+
+```scala
+getUIPort(
+  conf: SparkConf): Int
+```
+
+`getUIPort` requests the [SparkConf](../SparkConf.md) for the value of [spark.ui.port](configuration-properties.md#spark.ui.port) configuration property.
+
+`getUIPort` is used when:
+
+* `SparkUI` is [created](#creating-instance)
+
+## <span id="create"> Creating SparkUI
+
+```scala
+create(
+  sc: Option[SparkContext],
+  store: AppStatusStore,
+  conf: SparkConf,
+  securityManager: SecurityManager,
+  appName: String,
+  basePath: String,
+  startTime: Long,
+  appSparkVersion: String): SparkUI
+```
+
+`create` creates a new `SparkUI` with `appSparkVersion` being the current Spark version.
+
+`create` is used when:
+
+* `SparkContext` is [created](../SparkContext-creating-instance-internals.md#_ui) (with the [spark.ui.enabled](configuration-properties.md#spark.ui.enabled) configuration property turned on)
+* `FsHistoryProvider` (Spark History Server) is requested for the [web UI of a Spark application](../history-server/FsHistoryProvider.md#getAppUI)
+
+## <span id="initialize"> initialize
+
+```scala
+initialize(): Unit
+```
+
+`initialize` is part of the [WebUI](WebUI.md#initialize) abstraction.
+
+`initialize` creates and attaches the following tabs:
+
+1. [JobsTab](JobsTab.md)
+1. [StagesTab](StagesTab.md)
+1. [StorageTab](StorageTab.md)
+1. [EnvironmentTab](EnvironmentTab.md)
+1. [ExecutorsTab](ExecutorsTab.md)
+
+`initialize` [attaches itself](../rest/ApiRootResource.md#getServletHandler) as the [UIRoot](#UIRoot).
+
+`initialize` [attaches the PrometheusResource](PrometheusResource.md#getServletHandler) for executor metrics based on [spark.ui.prometheus.enabled](configuration-properties.md#spark.ui.prometheus.enabled) configuration property.
+
+## <span id="UIRoot"> UIRoot
+
+`SparkUI` is an [UIRoot](../rest/UIRoot.md)
+
+## Review Me
 
 SparkUI is <<creating-instance, created>> along with the following:
 
@@ -25,7 +104,7 @@ NOTE: With spark-webui-properties.md#spark.ui.killEnabled[spark.ui.killEnabled] 
 
 SparkUI gets an <<store, AppStatusStore>> that is then used for the following:
 
-* <<initialize, Initializing tabs>>, i.e. spark-webui-JobsTab.md#creating-instance[JobsTab], spark-webui-StagesTab.md#creating-instance[StagesTab], spark-webui-StorageTab.md#creating-instance[StorageTab], spark-webui-EnvironmentTab.md#creating-instance[EnvironmentTab]
+* <<initialize, Initializing tabs>>, i.e. JobsTab.md#creating-instance[JobsTab], spark-webui-StagesTab.md#creating-instance[StagesTab], spark-webui-StorageTab.md#creating-instance[StorageTab], spark-webui-EnvironmentTab.md#creating-instance[EnvironmentTab]
 
 * `AbstractApplicationResource` is requested for spark-api-AbstractApplicationResource.md#jobsList[jobsList], spark-api-AbstractApplicationResource.md#oneJob[oneJob], spark-api-AbstractApplicationResource.md#executorList[executorList], spark-api-AbstractApplicationResource.md#allExecutorList[allExecutorList], spark-api-AbstractApplicationResource.md#rddList[rddList], spark-api-AbstractApplicationResource.md#rddData[rddData], spark-api-AbstractApplicationResource.md#environmentInfo[environmentInfo]
 
@@ -207,7 +286,6 @@ NOTE: `initialize` is part of spark-webui-WebUI.md#initialize[WebUI Contract] to
 
 `initialize` creates and <<attachTab, attaches>> the following tabs (with the reference to the SparkUI and its <<store, AppStatusStore>>):
 
-. spark-webui-JobsTab.md[JobsTab]
 . spark-webui-StagesTab.md[StagesTab]
 . spark-webui-StorageTab.md[StorageTab]
 . spark-webui-EnvironmentTab.md[EnvironmentTab]
@@ -221,6 +299,6 @@ In the end, `initialize` creates and spark-webui-WebUI.md#attachHandler[attaches
 
 . spark-api-ApiRootResource.md#getServletHandler[Creates the /api/* context handler] for the spark-api.md[Status REST API]
 
-. spark-webui-JettyUtils.md#createRedirectHandler[Creates a redirect handler] to redirect `/jobs/job/kill` to `/jobs/` and request the `JobsTab` to execute spark-webui-JobsTab.md#handleKillRequest[handleKillRequest] before redirection
+. spark-webui-JettyUtils.md#createRedirectHandler[Creates a redirect handler] to redirect `/jobs/job/kill` to `/jobs/` and request the `JobsTab` to execute [handleKillRequest](JobsTab.md#handleKillRequest) before redirection
 
 . spark-webui-JettyUtils.md#createRedirectHandler[Creates a redirect handler] to redirect `/stages/stage/kill` to `/stages/` and request the `StagesTab` to execute spark-webui-StagesTab.md#handleKillRequest[handleKillRequest] before redirection

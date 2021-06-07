@@ -47,7 +47,7 @@ NOTE: `WebUIPage` is a `private[spark]` contract.
 | `AllExecutionsPage`
 | [[AllExecutionsPage]] Used in Spark SQL module
 
-| spark-webui-AllJobsPage.md[AllJobsPage]
+| [AllJobsPage](AllJobsPage.md)
 | [[AllJobsPage]]
 
 | spark-webui-AllStagesPage.md[AllStagesPage]

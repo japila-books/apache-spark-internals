@@ -10,8 +10,6 @@ In spark-scheduler-SchedulingMode.md#FAIR[FAIR scheduling mode] you have access 
 
 NOTE: Pool names are calculated using SparkContext.md#getAllPools[SparkContext.getAllPools].
 
-Internally, `AllStagesPage` is a spark-webui-WebUIPage.md[WebUIPage] with access to the parent spark-webui-StagesTab.md[Stages tab] and more importantly the spark-webui-JobProgressListener.md[JobProgressListener] to have access to current state of the entire Spark application.
-
 === [[render]] Rendering AllStagesPage (render method)
 
 [source, scala]
@@ -21,7 +19,7 @@ render(request: HttpServletRequest): Seq[Node]
 
 `render` generates a HTML page to display in a web browser.
 
-It uses the parent's spark-webui-JobProgressListener.md[JobProgressListener] to know about:
+It uses the parent to know about:
 
 * active stages (as `activeStages`)
 * pending stages (as `pendingStages`)

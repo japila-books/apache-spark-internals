@@ -38,13 +38,7 @@ image::spark-webui-stages-fairschedulerpools.png[align="center"]
 
 Internally, the page is represented by https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/ui/jobs/StagesTab.scala[org.apache.spark.ui.jobs.StagesTab] class.
 
-The page uses the parent's spark-webui-SparkUI.md[SparkUI] to access required services, i.e. SparkContext.md[], spark-sql-SQLConf.md[SparkConf], spark-webui-JobProgressListener.md[JobProgressListener], spark-webui-RDDOperationGraphListener.md[RDDOperationGraphListener], and to know whether <<killEnabled, kill is enabled or not>>.
-
 `StagesTab` is <<creating-instance, created>> when...FIXME
-
-=== [[killEnabled]] `killEnabled` flag
-
-CAUTION: FIXME
 
 === [[creating-instance]] Creating StagesTab Instance
 

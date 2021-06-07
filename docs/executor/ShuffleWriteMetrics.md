@@ -83,8 +83,6 @@ Internally, `bytesWritten` returns the sum of <<_bytesWritten, _bytesWritten>> i
 5. spark-history-server:JsonProtocol.md#taskMetricsToJson[`JsonProtocol` converts ShuffleWriteMetrics to JSON]
 
 6. spark-webui-executors-ExecutorsListener.md#onTaskEnd[`ExecutorsListener` intercepts task end events] to update executor metrics
-
-7. spark-webui-JobProgressListener.md#updateAggregateMetrics[`JobProgressListener` updates stage and executor metrics]
 ====
 
 == [[incBytesWritten]] Incrementing Shuffle Bytes Written Metrics -- `incBytesWritten` Method

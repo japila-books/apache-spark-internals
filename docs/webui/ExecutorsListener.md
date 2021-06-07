@@ -58,7 +58,7 @@ Used to build a `ExecutorSummary` for `/allexecutors` REST endpoint, to display 
 | [[executorEvents]] `executorEvents`
 | A collection of SparkListener.md#SparkListenerEvent[SparkListenerEvent]s.
 
-Used to build the event timeline in spark-webui-AllJobsPage.md[AllJobsPage] and spark-webui-jobs.md#JobPage[Details for Job] pages.
+Used to build the event timeline in [AllJobsPage](AllJobsPage.md) and spark-webui-jobs.md#JobPage[Details for Job] pages.
 |===
 
 === [[updateExecutorBlacklist]] `updateExecutorBlacklist` Method

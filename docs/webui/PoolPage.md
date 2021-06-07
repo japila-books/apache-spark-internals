@@ -16,8 +16,6 @@ image::spark-webui-pool-details.png[align="center"]
 [[parent]]
 `PoolPage` takes a spark-webui-StagesTab.md[StagesTab] when created.
 
-`PoolPage` uses the parent's SparkContext.md#getPoolForName[`SparkContext` to access information about the pool] and spark-webui-JobProgressListener.md#poolToActiveStages[`JobProgressListener` for active stages in the pool] (sorted by `submissionTime` in descending order by default).
-
 === [[PoolTable]][[pool-summary]] Summary Table
 
 The *Summary* table shows the details of a spark-scheduler-Schedulable.md[`Schedulable` pool].
@@ -33,8 +31,6 @@ It uses the following columns:
 * *Active Stages* - the number of the active stages in a `Schedulable` pool.
 * *Running Tasks*
 * *SchedulingMode*
-
-All the columns are the attributes of a `Schedulable` but the number of active stages which is calculated using the spark-webui-JobProgressListener.md#poolToActiveStages[list of active stages of a pool] (from the parent's spark-webui-JobProgressListener.md[JobProgressListener]).
 
 === [[StageTableBase]][[active-stages]] Active Stages Table
 
@@ -55,8 +51,6 @@ It uses the following columns:
 * *Output* -- Bytes and records written to Hadoop.
 * *Shuffle Read* -- Total shuffle bytes and records read (includes both data read locally and data read from remote executors).
 * *Shuffle Write* -- Bytes and records written to disk in order to be read by a shuffle in a future stage.
-
-The table uses spark-webui-JobProgressListener.md#stageIdToData[`JobProgressListener` for information per stage in the pool].
 
 === [[parameters]] Request Parameters
 

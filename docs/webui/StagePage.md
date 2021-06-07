@@ -12,16 +12,12 @@ image::spark-webui-stage-details.png[align="center"]
 
 `StagePage` renders a page available under `/stage` URL that requires two <<parameters, request parameters>> -- `id` and `attempt`, e.g. http://localhost:4040/stages/stage/?id=2&attempt=0.
 
-`StagePage` uses the parent's spark-webui-JobProgressListener.md[JobProgressListener] and spark-webui-RDDOperationGraphListener.md[RDDOperationGraphListener] to calculate the <<metrics, metrics>>. More specifically, `StagePage` uses ``JobProgressListener``'s spark-webui-JobProgressListener.md#stageIdToData[stageIdToData] registry to access the stage for given stage `id` and `attempt`.
-
 `StagePage` uses spark-webui-executors-ExecutorsListener.md[ExecutorsListener] to display stdout and stderr logs of the executors in <<tasks, Tasks section>>.
 
 === [[tasks]][[TaskPagedTable]] Tasks Section
 
 .Tasks Section
 image::spark-webui-stage-tasks.png[align="center"]
-
-Tasks paged table displays spark-webui-JobProgressListener.md#StageUIData[StageUIData] that spark-webui-JobProgressListener.md#stageIdToData[`JobProgressListener` collected for a stage and stage attempt].
 
 NOTE: The section uses spark-webui-executors-ExecutorsListener.md[ExecutorsListener] to access stdout and stderr logs for `Executor ID / Host` column.
 
@@ -69,8 +65,6 @@ If the stage has bytes spilled, the following two rows are *Shuffle spill (memor
 `id` is...
 
 `attempt` is...
-
-NOTE: `id` and `attempt` uniquely identify the stage in spark-webui-JobProgressListener.md#stageIdToData[JobProgressListener.stageIdToData] to retrieve `StageUIData`.
 
 `task.page` (default: `1`) is...
 
@@ -132,16 +126,11 @@ image::spark-webui-stage-aggregated-metrics-by-executor.png[align="center"]
 
 It gets `executorSummary` from `StageUIData` (for the stage and stage attempt id) and creates rows per executor.
 
-It also spark-webui-JobProgressListener.md#blockManagerIds[requests BlockManagers (from JobProgressListener)] to map executor ids to a pair of host and port to display in Address column.
-
 ## Accumulators
 
 Stage page displays the table with [named accumulators](../accumulators/index.md#named) (only if they exist). It contains the name and value of the accumulators.
 
 ![Accumulators Section](../images/webui/spark-webui-stage-accumulators.png)
-
-!!! note
-    The information with name and value is stored in [AccumulableInfo](../accumulators/AccumulableInfo.md) (that is available in [StageUIData](JobProgressListener.md#StageUIData)).
 
 ## Creating Instance
 

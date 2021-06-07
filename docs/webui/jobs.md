@@ -1,6 +1,6 @@
 # Jobs Tab
 
-*Jobs* tab in index.md[web UI] shows spark-webui-AllJobsPage.md[status of all Spark jobs] in a Spark application (SparkContext.md[]).
+*Jobs* tab in index.md[web UI] shows [status of all Spark jobs](AllJobsPage.md) in a Spark application (SparkContext.md[]).
 
 .Jobs Tab in Web UI
 image::spark-webui-jobs.png[align="center"]
@@ -10,13 +10,13 @@ Jobs tab is available under `/jobs` URL (e.g. http://localhost:4040/jobs).
 .Event Timeline in Jobs Tab
 image::spark-webui-jobs-event-timeline.png[align="center"]
 
-The Jobs tab consists of two pages, i.e. spark-webui-AllJobsPage.md[All Jobs] and <<JobPage, Details for Job>> pages.
+The Jobs tab consists of two pages, i.e. [All Jobs](AllJobsPage.md) and <<JobPage, Details for Job>> pages.
 
-Internally, the Jobs tab is represented by spark-webui-JobsTab.md[JobsTab].
+Internally, the Jobs tab is represented by [JobsTab](JobsTab.md).
 
 == [[JobPage]] Details for Job -- `JobPage` Page
 
-When you click a job in spark-webui-AllJobsPage.md[AllJobsPage], you see the *Details for Job* page.
+When you click a job in [AllJobsPage](AllJobsPage.md), you see the *Details for Job* page.
 
 .Details for Job Page
 image::spark-webui-jobs-details-for-job.png[align="center"]
