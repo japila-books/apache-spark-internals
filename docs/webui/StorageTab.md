@@ -1,18 +1,21 @@
-== [[StorageTab]] StorageTab
+# StorageTab
 
-[[prefix]]
-`StorageTab` is a spark-webui-SparkUITab.md[SparkUITab] with *storage* spark-webui-SparkUITab.md#prefix[prefix].
+`StorageTab` is a [SparkUITab](SparkUITab.md) with `storage` URL prefix.
 
-`StorageTab` is <<creating-instance, created>> exclusively when `SparkUI` is spark-webui-SparkUI.md#initialize[initialized].
+## Creating Instance
 
-[[creating-instance]]
-`StorageTab` takes the following when created:
+`StorageTab` takes the following to be created:
 
-* [[parent]] Parent spark-webui-SparkUI.md[SparkUI]
-* [[store]] core:AppStatusStore.md[]
+* <span id="parent"> Parent [SparkUI](SparkUI.md)
+* <span id="store"> [AppStatusStore](../core/AppStatusStore.md)
 
-When <<creating-instance, created>>, `StorageTab` creates the following pages and spark-webui-WebUITab.md#attachPage[attaches] them immediately:
+`StorageTab` is created when:
 
-* spark-webui-StoragePage.md[StoragePage]
+* `SparkUI` is requested to [initialize](SparkUI.md#initialize)
 
-* spark-webui-RDDPage.md[RDDPage]
+## Pages
+
+When [created](#creating-instance), `StorageTab` [attaches](WebUITab.md#attachPage) the following pages:
+
+* [StoragePage](StoragePage.md)
+* [RDDPage](RDDPage.md)

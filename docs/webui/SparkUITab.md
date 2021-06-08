@@ -15,7 +15,7 @@
 `SparkUITab` takes the following to be created:
 
 * <span id="parent"> Parent [SparkUI](SparkUI.md)
-* <span id="prefix"> Prefix
+* <span id="prefix"> URL Prefix
 
 ??? note "Abstract Class"
     `SparkUITab` is an abstract class and cannot be created directly. It is created indirectly for the [concrete SparkUITabs](#implementations).
