@@ -14,7 +14,7 @@
 * <span id="cleaner"> [ContextCleaner](../core/ContextCleaner.md) (default: `None`)
 * <span id="clock"> `Clock` (default: `SystemClock`)
 
-`ExecutorAllocationManager` is created when [SparkContext](../SparkContext.md) is created.
+`ExecutorAllocationManager` is created (and started) when [SparkContext](../SparkContext.md) is [created](SparkContext-creating-instance-internals.md#ExecutorAllocationManager) (with [Dynamic Allocation of Executors](index.md) enabled)
 
 ### <span id="validateSettings"> Validating Configuration
 

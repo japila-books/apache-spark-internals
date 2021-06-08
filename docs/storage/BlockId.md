@@ -89,6 +89,19 @@ Used when:
 
 ### <span id="StreamBlockId"> StreamBlockId
 
+`BlockId` for ...FIXME:
+
+* `streamId`
+* `uniqueId`
+
+Uses the following [name](#name):
+
+```text
+input-[streamId]-[uniqueId]
+```
+
+Used in Spark Streaming
+
 ### <span id="TaskResultBlockId"> TaskResultBlockId
 
 ### <span id="TempLocalBlockId"> TempLocalBlockId

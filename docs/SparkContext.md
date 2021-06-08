@@ -17,6 +17,16 @@
 
 While being created, `SparkContext` [sets up core services](SparkContext-creating-instance-internals.md) and establishes a connection to a [Spark execution environment](spark-deployment-environments.md).
 
+## Services
+
+* <span id="statusStore"><span id="AppStatusStore"><span id="_statusStore"> [AppStatusStore](core/AppStatusStore.md)
+
+* <span id="executorAllocationManager"><span id="_executorAllocationManager"><span id="ExecutorAllocationManager"> [ExecutorAllocationManager](dynamic-allocation/ExecutorAllocationManager.md) (optional)
+
+* <span id="schedulerBackend"> [SchedulerBackend](scheduler/SchedulerBackend.md)
+
+* _others_
+
 ## <span id="shuffleDriverComponents"><span id="_shuffleDriverComponents"> ShuffleDriverComponents
 
 `SparkContext` creates a [ShuffleDriverComponents](shuffle/ShuffleDriverComponents.md) when [created](#creating-instance).
@@ -111,24 +121,6 @@ postEnvironmentUpdate(): Unit
 `postEnvironmentUpdate` is used when:
 
 * `SparkContext` is requested to [addFile](#addFile) and [addJar](#addJar)
-
-## Services
-
-### <span id="executorAllocationManager"><span id="_executorAllocationManager"><span id="ExecutorAllocationManager"> ExecutorAllocationManager
-
-```scala
-executorAllocationManager: Option[ExecutorAllocationManager]
-```
-
-[ExecutorAllocationManager](dynamic-allocation/ExecutorAllocationManager.md)
-
-Created and started when `SparkContext` is [created](SparkContext-creating-instance-internals.md#ExecutorAllocationManager) with [Dynamic Allocation of Executors](dynamic-allocation/index.md) enabled
-
-### <span id="schedulerBackend"> SchedulerBackend
-
-[SchedulerBackend](scheduler/SchedulerBackend.md)
-
-### others
 
 ## <span id="getOrCreate"> getOrCreate Utility
 

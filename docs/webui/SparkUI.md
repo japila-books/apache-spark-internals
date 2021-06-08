@@ -55,7 +55,7 @@ create(
 * `SparkContext` is [created](../SparkContext-creating-instance-internals.md#_ui) (with the [spark.ui.enabled](configuration-properties.md#spark.ui.enabled) configuration property turned on)
 * `FsHistoryProvider` (Spark History Server) is requested for the [web UI of a Spark application](../history-server/FsHistoryProvider.md#getAppUI)
 
-## <span id="initialize"> initialize
+## <span id="initialize"> Initializing
 
 ```scala
 initialize(): Unit

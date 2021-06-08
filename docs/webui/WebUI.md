@@ -4,7 +4,7 @@
 
 ## Contract
 
-### <span id="initialize"> initialize
+### <span id="initialize"> Initializing
 
 ```scala
 initialize(): Unit

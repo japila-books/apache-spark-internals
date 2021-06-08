@@ -22,7 +22,7 @@ render(
 
 `render` is part of the [WebUIPage](WebUIPage.md#render) abstraction.
 
-`render` renders a `Storage` page with the [RDDs](../core/AppStatusStore.md#rddList) and [streamBlocks](../core/AppStatusStore.md#streamBlocksList) (from the [AppStatusStore](#store)).
+`render` renders a `Storage` page with the [RDDs](../core/AppStatusStore.md#rddList) and [streaming blocks](../core/AppStatusStore.md#streamBlocksList) (from the [AppStatusStore](#store)).
 
 ## <span id="rddHeader"> RDD Table's Headers
 

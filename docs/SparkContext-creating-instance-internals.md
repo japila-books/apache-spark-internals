@@ -179,15 +179,17 @@ _listenerBus: LiveListenerBus
 
 `SparkContext` creates a [LiveListenerBus](scheduler/LiveListenerBus.md).
 
-## <span id="_statusStore"> Creating AppStatusStore
+## <span id="_statusStore"><span id="appStatusSource"> Creating AppStatusStore (and AppStatusSource)
 
 ```scala
 _statusStore: AppStatusStore
 ```
 
-`SparkContext` requests `AppStatusStore` to create a core:AppStatusStore.md#createLiveStore[live store] (i.e. the `AppStatusStore` for a live Spark application) and requests <<listenerBus, LiveListenerBus>> to add the core:AppStatusStore.md#listener[AppStatusListener] to the scheduler:LiveListenerBus.md#addToStatusQueue[status queue].
+`SparkContext` [creates an AppStatusSource](core/AppStatusSource.md#createSource) (if [enabled](metrics/configuration-properties.md#spark.metrics.appStatusSource.enabled)).
 
-NOTE: The current `AppStatusStore` is available as SparkContext.md#statusStore[statusStore] property of the `SparkContext`.
+`SparkContext` [creates an in-memory store](core/AppStatusStore.md#createLiveStore) (with the optional `AppStatusSource`) and requests the [LiveListenerBus](#listenerBus) to register the [AppStatusListener](core/AppStatusStore.md#listener) with the [status queue](scheduler/LiveListenerBus.md#addToStatusQueue).
+
+The `AppStatusStore` is available using the [statusStore](SparkContext.md#statusStore) property of the `SparkContext`.
 
 ## <span id="_env"> Creating SparkEnv
 

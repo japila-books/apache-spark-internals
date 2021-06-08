@@ -63,6 +63,8 @@ void setMetadata(
   Class<T> type)
 ```
 
+`KVStoreView` over entities of the given `type`
+
 ### <span id="write"> write
 
 ```java

@@ -1,92 +1,71 @@
 # AppStatusStore
 
-![AppStatusStore in Spark Application](../images/core/AppStatusStore-createLiveStore.png)
-
-AppStatusStore is available as SparkContext.md#statusStore[SparkContext.statusStore] to other Spark services.
+`AppStatusStore` stores the state of a running (_live_) [Spark application](#SparkContext).
 
 ## Creating Instance
 
-AppStatusStore takes the following to be created:
+`AppStatusStore` takes the following to be created:
 
-* [[store]] core:KVStore.md[]
-* [[listener]] [AppStatusListener](../AppStatusListener.md) (default: `None`)
+* <span id="store"> [KVStore](KVStore.md)
+* <span id="listener"> [AppStatusListener](../AppStatusListener.md)
 
-AppStatusStore is created when:
+`AppStatusStore` is created using [createLiveStore](#createLiveStore) utility.
 
-* [SparkContext](../SparkContext.md) is created (that triggers <<createLiveStore, creating an AppStatusStore for an active Spark application>>)
+![AppStatusStore in Spark Application](../images/core/AppStatusStore-createLiveStore.png)
 
-* FsHistoryProvider is requested to spark-history-server:FsHistoryProvider.md#getAppUI[create a LoadedAppUI]
-
-== [[streamBlocksList]] `streamBlocksList` Method
-
-[source, scala]
-----
-streamBlocksList(): Seq[StreamBlockData]
-----
-
-`streamBlocksList`...FIXME
-
-NOTE: `streamBlocksList` is used when...FIXME
-
-== [[activeStages]] `activeStages` Method
-
-[source, scala]
-----
-activeStages(): Seq[v1.StageData]
-----
-
-`activeStages`...FIXME
-
-NOTE: `activeStages` is used when...FIXME
-
-## <span id="createLiveStore"> Creating Event Store
+## <span id="createLiveStore"> Creating In-Memory Store for Live Spark Application
 
 ```scala
 createLiveStore(
-  conf: SparkConf): AppStatusStore
+  conf: SparkConf,
+  appStatusSource: Option[AppStatusSource] = None): AppStatusStore
 ```
 
-createLiveStore creates a fully-initialized AppStatusStore.
+`createLiveStore` creates an [ElementTrackingStore](ElementTrackingStore.md) (with [InMemoryStore](InMemoryStore.md) and the [SparkConf](../SparkConf.md)).
 
-Internally, createLiveStore creates a core:ElementTrackingStore.md[] (with a new core:InMemoryStore.md[] and the input SparkConf.md[SparkConf]).
+`createLiveStore` creates an [AppStatusListener](../AppStatusListener.md) (with the `ElementTrackingStore`, [live](../AppStatusListener.md#live) flag on and the `AppStatusSource`).
 
-createLiveStore creates a [AppStatusListener](../AppStatusListener.md) (with the `ElementTrackingStore` created, the input `SparkConf` and the `live` flag enabled).
+In the end, creates an [AppStatusStore](#creating-instance) (with the `ElementTrackingStore` and `AppStatusListener`).
 
-In the end, createLiveStore creates an <<creating-instance, AppStatusStore>> (with the `ElementTrackingStore` and `AppStatusListener` just created).
+`createLiveStore` is used when:
 
-`createLiveStore` is used when [SparkContext](../SparkContext.md) is created.
+* `SparkContext` is [created](../SparkContext-creating-instance-internals.md#_statusStore)
 
-== [[close]] Closing AppStatusStore
+## <span id="SparkContext"> Accessing AppStatusStore
 
-[source, scala]
-----
-close(): Unit
-----
+`AppStatusStore` is available using [SparkContext](../SparkContext.md#statusStore).
 
-`close` simply requests <<store, KVStore>> to core:KVStore.md#close[close].
+## <span id="SparkStatusTracker"> SparkStatusTracker
 
-NOTE: `close` is used when...FIXME
+`AppStatusStore` is used to create [SparkStatusTracker](../SparkStatusTracker.md).
 
-== [[rddList]] `rddList` Method
+## <span id="SparkUI"> SparkUI
 
-[source, scala]
-----
-rddList(cachedOnly: Boolean = true): Seq[v1.RDDStorageInfo]
-----
+`AppStatusStore` is used to create [SparkUI](../webui/SparkUI.md).
 
-`rddList` requests the <<store, KVStore>> for a core:KVStore.md#view[view] over `RDDStorageInfoWrapper` entities.
+## <span id="rddList"> RDDs
 
-In the end, `rddList` takes `RDDStorageInfos` with at least one spark-webui-RDDStorageInfo.md#numCachedPartitions[partition cached] (when `cachedOnly` flag is on) or all `RDDStorageInfos` (when `cachedOnly` flag is off).
+```scala
+rddList(
+  cachedOnly: Boolean = true): Seq[v1.RDDStorageInfo]
+```
 
-NOTE: `cachedOnly` flag is on and therefore `rddList` gives RDDs cached only.
+`rddList` requests the [KVStore](#store) for (a [view](KVStore.md#view) over) [RDDStorageInfo](../webui/RDDStorageInfo.md)s (cached or not based on the given `cachedOnly` flag).
 
-[NOTE]
-====
-`rddList` is used when:
+`rddList` is used when:
 
-* `StoragePage` is requested to spark-webui-StoragePage.md#render[render] itself
+* `AbstractApplicationResource` is requested for the [RDDs](../rest/AbstractApplicationResource.md#rddList)
+* `StageTableBase` is created (and renders a stage table for [AllStagesPage](../webui/AllStagesPage.md), [JobPage](../webui/JobPage.md) and [PoolPage](../webui/PoolPage.md))
+* `StoragePage` is requested to [render](../webui/StoragePage.md#render)
 
-* `AbstractApplicationResource` is requested to handle spark-api-AbstractApplicationResource.md#storage_rdd[ storage/rdd] REST API
+## <span id="streamBlocksList"> Streaming Blocks
 
-* `StagePagedTable` is requested to `makeDescription`
-====
+```scala
+streamBlocksList(): Seq[StreamBlockData]
+```
+
+`streamBlocksList` requests the [KVStore](#store) for (a [view](KVStore.md#view) over) [StreamBlockData](../webui/StreamBlockData.md)s.
+
+`streamBlocksList` is used when:
+
+* `StoragePage` is requested to [render](../webui/StoragePage.md#render)

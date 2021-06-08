@@ -1,5 +1,15 @@
 # Configuration Properties
 
+## <span id="spark.metrics.appStatusSource.enabled"><span id="METRICS_APP_STATUS_SOURCE_ENABLED"> spark.metrics.appStatusSource.enabled
+
+Enables Dropwizard/Codahale metrics with the status of a live Spark application
+
+Default: `false`
+
+Used when:
+
+* `AppStatusSource` utility is used to [create an AppStatusSource](../core/AppStatusSource.md#createSource)
+
 ## <span id="spark.metrics.conf"> spark.metrics.conf
 
 The metrics configuration file

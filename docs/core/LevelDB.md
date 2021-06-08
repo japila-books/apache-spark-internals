@@ -1,12 +1,14 @@
-= LevelDB
+# LevelDB
 
-LevelDB is a core:KVStore.md[].
+`LevelDB` is a [KVStore](KVStore.md) for [FsHistoryProvider](../history-server/FsHistoryProvider.md).
 
-== [[creating-instance]] Creating Instance
+## Creating Instance
 
-LevelDB takes the following to be created:
+`LevelDB` takes the following to be created:
 
-* [[path]] File
-* [[serializer]] KVStoreSerializer
+* <span id="path"> Path
+* <span id="serializer"> `KVStoreSerializer`
 
-LevelDB is created when KVUtils utility is used to open or create a LevelDB store (for spark-history-server:FsHistoryProvider.md[]).
+`LevelDB` is created when:
+
+* `KVUtils` utility is used to `open` (a LevelDB store)
