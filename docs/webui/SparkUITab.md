@@ -1,65 +1,37 @@
-== [[SparkUITab]] SparkUITab
+# SparkUITab
 
-`SparkUITab` is the <<contract, contract>> of spark-webui-WebUITab.md[WebUITab] extensions with two additional properties:
+`SparkUITab` is an extension of the [WebUITab](WebUITab.md) abstraction for [UI tabs](#implementations) with the [application name](#appName) and [Spark version](#appSparkVersion).
 
-* <<appName, appName>>
-* <<appSparkVersion, appSparkVersion>>
+## Implementations
 
-[[contract]]
-[source, scala]
-----
-package org.apache.spark.ui
+* [EnvironmentTab](EnvironmentTab.md)
+* [ExecutorsTab](ExecutorsTab.md)
+* [JobsTab](JobsTab.md)
+* [StagesTab](StagesTab.md)
+* [StorageTab](StorageTab.md)
 
-abstract class SparkUITab(parent: SparkUI, prefix: String)
-  extends WebUITab(parent, prefix) {
-  def appName: String
-  def appSparkVersion: String
-}
-----
+## Creating Instance
 
-NOTE: `SparkUITab` is a `private[spark]` contract.
+`SparkUITab` takes the following to be created:
 
-.SparkUITab Contract
-[cols="1,2",options="header",width="100%"]
-|===
-| Method
-| Description
+* <span id="parent"> Parent [SparkUI](SparkUI.md)
+* <span id="prefix"> Prefix
 
-| `appName`
-| [[appName]] Used when...FIXME
+??? note "Abstract Class"
+    `SparkUITab` is an abstract class and cannot be created directly. It is created indirectly for the [concrete SparkUITabs](#implementations).
 
-| `appSparkVersion`
-| [[appSparkVersion]] Used when...FIXME
-|===
+## <span id="appName"> Application Name
 
-[[implementations]]
-.SparkUITabs
-[cols="1,2",options="header",width="100%"]
-|===
-| SparkUITab
-| Description
+```scala
+appName: String
+```
 
-| spark-webui-EnvironmentTab.md[EnvironmentTab]
-| [[EnvironmentTab]]
+`appName` requests the [parent SparkUI](#parent) for the [appName](SparkUI.md#appName).
 
-| spark-webui-ExecutorsTab.md[ExecutorsTab]
-| [[ExecutorsTab]]
+## <span id="appSparkVersion"> Spark Version
 
-| [JobsTab](JobsTab.md)
-| [[JobsTab]]
+```scala
+appSparkVersion: String
+```
 
-| spark-webui-StagesTab.md[StagesTab]
-| [[StagesTab]]
-
-| spark-webui-StorageTab.md[StorageTab]
-| [[StorageTab]]
-
-| `SQLTab`
-| [[SQLTab]] Used in Spark SQL module
-
-| `StreamingTab`
-| [[StreamingTab]] Used in Spark Streaming module
-
-| `ThriftServerTab`
-| [[ThriftServerTab]] Used in Spark Thrift Server
-|===
+`appSparkVersion` requests the [parent SparkUI](#parent) for the [appSparkVersion](SparkUI.md#appSparkVersion).
