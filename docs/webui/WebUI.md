@@ -42,27 +42,60 @@ Used by the [implementations](#implementations) themselves.
 
 ## <span id="tabs"><span id="getTabs"> Tabs
 
-`WebUI` uses `tabs` registry of [WebUITab](WebUITab.md)s.
+`WebUI` uses `tabs` registry for [WebUITab](WebUITab.md)s (that have been [attached](#attachTab)).
 
-A tab can be registered (_attached_) and deregistered (_detached_) using [attachTab](#attachTab) and [detachTab](#detachTab), respectively.
+Tabs can be [attached](#attachTab) and [detached](#detachTab).
 
-## <span id="attachTab"> Attaching Tab
+### <span id="attachTab"> Attaching Tab
 
 ```scala
 attachTab(
   tab: WebUITab): Unit
 ```
 
-`attachTab`...FIXME
+`attachTab` [attaches](#attachPage) the [pages](WebUITab.md#pages) of the given [WebUITab](WebUITab.md) (and adds it to the [tabs](#tabs)).
 
-## <span id="detachTab"> Detaching Tab
+### <span id="detachTab"> Detaching Tab
 
 ```scala
 detachTab(
   tab: WebUITab): Unit
 ```
 
-`detachTab`...FIXME
+`detachTab` [detaches](#detachPage) the [pages](WebUITab.md#pages) of the given [WebUITab](WebUITab.md) (and removes it from the [tabs](#tabs)).
+
+## <span id="pageToHandlers"> Pages
+
+`WebUI` uses `pageToHandlers` registry for [WebUIPage](WebUIPage.md)s and their associated `ServletContextHandler`s.
+
+Pages can be [attached](#attachPage) and [detached](#detachPage).
+
+### <span id="attachPage"> Attaching Page
+
+```scala
+attachPage(
+  page: WebUIPage): Unit
+```
+
+`attachPage`...FIXME
+
+`attachPage` is used when:
+
+* `WebUI` is requested to [attach a tab](#attachTab)
+* _others_
+
+### <span id="detachPage"> Detaching Page
+
+```scala
+detachPage(
+  page: WebUIPage): Unit
+```
+
+`detachPage` removes the given [WebUIPage](WebUIPage.md) from the UI (the [pageToHandlers](#pageToHandlers) registry) with all of the handlers.
+
+`detachPage` is used when:
+
+* `WebUI` is requested to [detach a tab](#detachTab)
 
 ## Logging
 

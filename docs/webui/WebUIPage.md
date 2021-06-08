@@ -1,115 +1,66 @@
-== [[WebUIPage]] WebUIPage -- Contract of Pages in Web UI
+# WebUIPage
 
-`WebUIPage` is the <<contract, contract>> of <<implementations, web pages>> of a spark-webui-WebUI.md[WebUI] that can be rendered in <<render, HTML>> and <<renderJson, JSON>>.
+`WebUIPage` is an [abstraction](#contract) of [pages](#implementations) (of a [WebUI](WebUI.md)) that can be rendered to [HTML](#render) and [JSON](#renderJson).
 
-`WebUIPage` can be:
+## Contract
 
-* spark-webui-WebUI.md#attachPage[attached] or spark-webui-WebUI.md#detachPage[detached] from a `WebUI`
+### <span id="render"> Rendering Page (to HTML)
 
-* spark-webui-WebUITab.md#attachPage[attached] to a `WebUITab`
+```scala
+render(
+  request: HttpServletRequest): Seq[Node]
+```
 
-[[prefix]]
-`WebUIPage` has a prefix that...FIXME
+Used when:
 
-[[contract]]
-[source, scala]
-----
-package org.apache.spark.ui
+* `WebUI` is requested to [attach a page](WebUI.md#attachPage) (to handle the [URL](#prefix))
 
-abstract class WebUIPage(var prefix: String) {
-  def render(request: HttpServletRequest): Seq[Node]
-  def renderJson(request: HttpServletRequest): JValue = JNothing
-}
-----
+## Implementations
 
-NOTE: `WebUIPage` is a `private[spark]` contract.
+* AllExecutionsPage
+* AllJobsPage
+* AllStagesPage
+* ApplicationPage
+* BatchPage
+* DriverPage
+* EnvironmentPage
+* ExecutionPage
+* ExecutorsPage
+* ExecutorThreadDumpPage
+* HistoryPage
+* JobPage
+* LogPage
+* MasterPage
+* MesosClusterPage
+* PoolPage
+* RDDPage
+* StagePage
+* StoragePage
+* StreamingPage
+* StreamingQueryPage
+* StreamingQueryStatisticsPage
+* ThriftServerPage
+* ThriftServerSessionPage
+* WorkerPage
 
-.WebUIPage Contract
-[cols="1,2",options="header",width="100%"]
-|===
-| Method
-| Description
+## Creating Instance
 
-| `render`
-| [[render]] Used exclusively when `WebUI` is requested to spark-webui-WebUI.md#attachPage[attach a page] (and...FIXME)
+`WebUIPage` takes the following to be created:
 
-| `renderJson`
-| [[renderJson]] Used when...FIXME
-|===
+* <span id="prefix"> URL Prefix
 
-[[implementations]]
-.WebUIPages
-[cols="1,2",options="header",width="100%"]
-|===
-| WebUIPage
-| Description
+??? note "Abstract Class"
+    `WebUIPage` is an abstract class and cannot be created directly. It is created indirectly for the [concrete WebUIPages](#implementations).
 
-| `AllExecutionsPage`
-| [[AllExecutionsPage]] Used in Spark SQL module
+## <span id="renderJson"> Rendering Page to JSON
 
-| [AllJobsPage](AllJobsPage.md)
-| [[AllJobsPage]]
+```scala
+renderJson(
+  request: HttpServletRequest): JValue
+```
 
-| spark-webui-AllStagesPage.md[AllStagesPage]
-| [[AllStagesPage]]
+`renderJson` returns a `JNothing` by default.
 
-| spark-standalone-webui-ApplicationPage.md[ApplicationPage]
-| [[ApplicationPage]] Used in Spark Standalone cluster manager
+`renderJson` is used when:
 
-| `BatchPage`
-| [[BatchPage]] Used in Spark Streaming module
-
-| `DriverPage`
-| [[DriverPage]] Used in Spark on Mesos module
-
-| spark-webui-EnvironmentPage.md[EnvironmentPage]
-| [[EnvironmentPage]]
-
-| `ExecutionPage`
-| [[ExecutionPage]] Used in Spark SQL module
-
-| spark-webui-ExecutorsPage.md[ExecutorsPage]
-| [[ExecutorsPage]]
-
-| spark-webui-executors.md#ExecutorThreadDumpPage[ExecutorThreadDumpPage]
-| [[ExecutorThreadDumpPage]]
-
-| `HistoryPage`
-| [[HistoryPage]] Used in Spark History Server module
-
-| spark-webui-jobs.md[JobPage]
-| [[JobPage]]
-
-| `LogPage`
-| [[LogPage]] Used in Spark Standalone cluster manager
-
-| `MasterPage`
-| [[MasterPage]] Used in Spark Standalone cluster manager
-
-| `MesosClusterPage`
-| [[MesosClusterPage]] Used in Spark on Mesos module
-
-| spark-webui-PoolPage.md[PoolPage]
-| [[PoolPage]]
-
-| spark-webui-RDDPage.md[RDDPage]
-| [[RDDPage]]
-
-| spark-webui-StagePage.md[StagePage]
-| [[StagePage]]
-
-| spark-webui-StoragePage.md[StoragePage]
-| [[StoragePage]]
-
-| `StreamingPage`
-| [[StreamingPage]] Used in Spark Streaming module
-
-| `ThriftServerPage`
-| [[ThriftServerPage]] Used in Spark Thrift Server module
-
-| `ThriftServerSessionPage`
-| [[ThriftServerSessionPage]] Used in Spark Thrift Server module
-
-| `WorkerPage`
-| [[WorkerPage]] Used in Spark Standalone cluster manager
-|===
+* `WebUI` is requested to [attach a page](WebUI.md#attachPage) (and handle the `/json` URL)
