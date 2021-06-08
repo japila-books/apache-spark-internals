@@ -1,60 +1,39 @@
-== [[StoragePage]] StoragePage
+# StoragePage
 
-[[prefix]]
-`StoragePage` is a spark-webui-WebUIPage.md[WebUIPage] with an empty spark-webui-WebUIPage.md#prefix[prefix].
+`StoragePage` is a [WebUIPage](WebUIPage.md) of [StorageTab](StorageTab.md).
 
-`StoragePage` is <<creating-instance, created>> exclusively when `StorageTab` is spark-webui-StorageTab.md#creating-instance[created].
+## Creating Instance
 
-[[creating-instance]]
-`StoragePage` takes the following when created:
+`StoragePage` takes the following to be created:
 
-* [[parent]] Parent spark-webui-SparkUITab.md[SparkUITab]
-* [[store]] core:AppStatusStore.md[]
+* <span id="parent"> Parent [SparkUITab](SparkUITab.md)
+* <span id="store"> [AppStatusStore](../core/AppStatusStore.md)
 
-=== [[rddRow]] Rendering HTML Table Row for RDD Details -- `rddRow` Internal Method
+`StoragePage` is created when:
 
-[source, scala]
-----
-rddRow(rdd: v1.RDDStorageInfo): Seq[Node]
-----
+* [StorageTab](StorageTab.md) is created
 
-`rddRow`...FIXME
+## <span id="render"> Rendering Page
 
-NOTE: `rddRow` is used when...FIXME
+```scala
+render(
+  request: HttpServletRequest): Seq[Node]
+```
 
-=== [[rddTable]] Rendering HTML Table with RDD Details -- `rddTable` Method
+`render` is part of the [WebUIPage](WebUIPage.md#render) abstraction.
 
-[source, scala]
-----
-rddTable(rdds: Seq[v1.RDDStorageInfo]): Seq[Node]
-----
+`render` renders a `Storage` page with the [RDDs](../core/AppStatusStore.md#rddList) and [streamBlocks](../core/AppStatusStore.md#streamBlocksList) (from the [AppStatusStore](#store)).
 
-`rddTable`...FIXME
+## <span id="rddHeader"> RDD Table's Headers
 
-NOTE: `rddTable` is used when...FIXME
+`StoragePage` uses the following headers and tooltips for the RDD table.
 
-=== [[receiverBlockTables]] `receiverBlockTables` Method
-
-[source, scala]
-----
-receiverBlockTables(blocks: Seq[StreamBlockData]): Seq[Node]
-----
-
-`receiverBlockTables`...FIXME
-
-NOTE: `receiverBlockTables` is used when...FIXME
-
-=== [[render]] Rendering Page -- `render` Method
-
-[source, scala]
-----
-render(request: HttpServletRequest): Seq[Node]
-----
-
-NOTE: `render` is part of spark-webui-WebUIPage.md#render[WebUIPage Contract] to...FIXME.
-
-`render` requests the <<store, AppStatusStore>> for core:AppStatusStore.md#rddList[rddList] and <<rddTable, renders an HTML table with their details>> (if available).
-
-`render` requests the <<store, AppStatusStore>> for core:AppStatusStore.md#streamBlocksList[streamBlocksList] and <<receiverBlockTables, renders an HTML table with receiver blocks>> (if available).
-
-In the end, `render` requests `UIUtils` to `headerSparkPage` (with `Storage` title).
+Header   | Tooltip
+---------|----------
+ ID |
+ RDD Name | Name of the persisted RDD
+ Storage Level | StorageLevel displays where the persisted RDD is stored, format of the persisted RDD (serialized or de-serialized) and replication factor of the persisted RDD
+ Cached Partitions | Number of partitions cached
+ Fraction Cached | Fraction of total partitions cached
+ Size in Memory | Total size of partitions in memory
+ Size on Disk | Total size of partitions on the disk
