@@ -40,6 +40,30 @@ Used by the [implementations](#implementations) themselves.
 ??? note "Abstract Class"
     `WebUI` is an abstract class and cannot be created directly. It is created indirectly for the [concrete WebUIs](#implementations).
 
+## <span id="tabs"><span id="getTabs"> Tabs
+
+`WebUI` uses `tabs` registry of [WebUITab](WebUITab.md)s.
+
+A tab can be registered (_attached_) and deregistered (_detached_) using [attachTab](#attachTab) and [detachTab](#detachTab), respectively.
+
+## <span id="attachTab"> Attaching Tab
+
+```scala
+attachTab(
+  tab: WebUITab): Unit
+```
+
+`attachTab`...FIXME
+
+## <span id="detachTab"> Detaching Tab
+
+```scala
+detachTab(
+  tab: WebUITab): Unit
+```
+
+`detachTab`...FIXME
+
 ## Logging
 
 Since `WebUI` is an abstract class, logging is configured using the logger of the [implementations](#implementations).
