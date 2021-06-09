@@ -15,8 +15,6 @@ There are two ways to access `StorageStatus` about all the known `BlockManagers`
 
 * `BlockManagerMasterEndpoint` storage:BlockManagerMasterEndpoint.md#storageStatus[is requested for storage status] (of every storage:BlockManager.md[BlockManager] in a Spark application)
 
-* `StorageStatusListener` spark-webui-StorageStatusListener.md#onBlockManagerAdded[gets notified about a new `BlockManager`] (in a Spark application)
-
 [[internal-registries]]
 .StorageStatus's Internal Registries and Counters
 [cols="1,2",options="header",width="100%"]
@@ -66,16 +64,6 @@ rddBlocksById(rddId: Int): Map[BlockId, BlockStatus]
 
 `rddBlocksById` gives the blocks (as `BlockId` with their status as `BlockStatus`) that belong to `rddId` RDD.
 
-[NOTE]
-====
-`rddBlocksById` is used when:
-
-* `StorageStatusListener` spark-webui-StorageStatusListener.md#updateStorageStatus-unpersistedRDD[removes the RDD blocks of an unpersisted RDD].
-
-* `AllRDDResource` does `getRDDStorageInfo`
-* `StorageUtils` does `getRddBlockLocations`
-====
-
 === [[removeBlock]] Removing Block (From Internal Registries) -- `removeBlock` Internal Method
 
 [source, scala]
@@ -92,8 +80,6 @@ Internally, `removeBlock` <<updateStorageInfo, updates block status>> of `blockI
 For a `RDDBlockId`, `removeBlock` finds the RDD in <<_rddBlocks, _rddBlocks>> and removes the `blockId`. `removeBlock` removes the RDD (from <<_rddBlocks, _rddBlocks>>) completely, if there are no more blocks registered.
 
 For a non-``RDDBlockId``, `removeBlock` removes `blockId` from <<_nonRddBlocks, _nonRddBlocks>> registry.
-
-NOTE: `removeBlock` is used when `StorageStatusListener` spark-webui-StorageStatusListener.md#updateStorageStatus-unpersistedRDD[removes RDD blocks for an unpersisted RDD] or spark-webui-StorageStatusListener.md#updateStorageStatus-executor[updates storage status for an executor].
 
 === [[addBlock]] Registering Status of Data Block -- `addBlock` Method
 

@@ -64,7 +64,7 @@ Used exclusively when `SparkUI` is requested to spark-webui-SparkUI.md#initializ
 
 | [[spark.ui.retainedDeadExecutors]] `spark.ui.retainedDeadExecutors`
 | `100`
-| The maximum number of entries in spark-webui-executors-ExecutorsListener.md#executorToTaskSummary[executorToTaskSummary] (in `ExecutorsListener`) and spark-webui-StorageStatusListener.md#deadExecutorStorageStatus[deadExecutorStorageStatus] (in `StorageStatusListener`) internal registries.
+|
 
 | [[spark.ui.timeline.executors.maximum]] `spark.ui.timeline.executors.maximum`
 | `1000`

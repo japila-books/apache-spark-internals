@@ -771,7 +771,7 @@ You use a Spark context to create RDDs (see <<creating-rdds, Creating RDD>>).
 When an RDD is created, it belongs to and is completely owned by the Spark context it originated from. RDDs can't by design be shared between SparkContexts.
 
 .A Spark context creates a living space for RDDs.
-image::diagrams/sparkcontext-rdds.png[align="center"]
+image::diagrams/sparkcontext-rdds.png)
 
 == [[creating-rdds]][[parallelize]] Creating RDD -- `parallelize` Method
 
@@ -879,7 +879,7 @@ hello: org.apache.spark.broadcast.Broadcast[String] = Broadcast(0)
 Spark transfers the value to Spark executors _once_, and tasks can share it without incurring repetitive network transmissions when the broadcast variable is used multiple times.
 
 .Broadcasting a value to executors
-image::sparkcontext-broadcast-executors.png[align="center"]
+image::sparkcontext-broadcast-executors.png)
 
 Internally, broadcast requests BroadcastManager for a core:BroadcastManager.md#newBroadcast[new broadcast variable].
 
@@ -906,10 +906,9 @@ java.lang.IllegalArgumentException: requirement failed: Can not directly broadca
 ```
 ====
 
-Once created, the broadcast variable (and other blocks) are displayed per executor and the driver in web UI (under spark-webui-executors.md[Executors tab]).
+Once created, the broadcast variable (and other blocks) are displayed per executor and the driver in web UI.
 
-.Broadcast Variables In web UI's Executors Tab
-image::spark-broadcast-webui-executors-rdd-blocks.png[align="center"]
+![Broadcast Variables In web UI's Executors Tab](images/spark-broadcast-webui-executors-rdd-blocks.png)
 
 == [[jars]] Distribute JARs to workers
 
@@ -1161,7 +1160,7 @@ getRDDStorageInfo(filter: RDD[_] => Boolean): Array[RDDInfo]  // <2>
 
 `getRDDStorageInfo` takes all the RDDs (from <<persistentRdds, persistentRdds>> registry) that match `filter` and creates a collection of storage:RDDInfo.md[RDDInfo] instances.
 
-`getRDDStorageInfo` then spark-webui-StorageListener.md#StorageUtils.updateRddInfo[updates the RDDInfos] with the <<getExecutorStorageStatus, current status of all BlockManagers>> (in a Spark application).
+`getRDDStorageInfo`...FIXME
 
 In the end, `getRDDStorageInfo` gives only the RDD that are cached (i.e. the sum of memory and disk sizes as well as the number of partitions cached are greater than `0`).
 

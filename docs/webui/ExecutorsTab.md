@@ -1,4 +1,8 @@
-== [[ExecutorsTab]] ExecutorsTab
+# ExecutorsTab
+
+![Executors Tab in web UI (local mode)](../images/webui/spark-webui-executors.png)
+
+## Review Me
 
 [[prefix]]
 `ExecutorsTab` is a spark-webui-SparkUITab.md[SparkUITab] with *executors* spark-webui-SparkUITab.md#prefix[prefix].
@@ -14,5 +18,3 @@ When <<creating-instance, created>>, `ExecutorsTab` creates the following pages 
 * spark-webui-ExecutorsPage.md[ExecutorsPage]
 
 * spark-webui-ExecutorThreadDumpPage.md[ExecutorThreadDumpPage]
-
-`ExecutorsTab` uses spark-webui-executors-ExecutorsListener.md[ExecutorsListener] to collect information about executors in a Spark application.

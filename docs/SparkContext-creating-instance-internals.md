@@ -383,7 +383,7 @@ The `ExecutorAllocationManager` is requested to [start](dynamic-allocation/Execu
 
 ## <span id="postEnvironmentUpdate"> postEnvironmentUpdate
 
-`postEnvironmentUpdate` is called that posts SparkListener.md#SparkListenerEnvironmentUpdate[SparkListenerEnvironmentUpdate] message on scheduler:LiveListenerBus.md[] with information about Task Scheduler's scheduling mode, added jar and file paths, and other environmental details. They are displayed in web UI's spark-webui-environment.md[Environment tab].
+`postEnvironmentUpdate` is called that posts SparkListener.md#SparkListenerEnvironmentUpdate[SparkListenerEnvironmentUpdate] message on scheduler:LiveListenerBus.md[] with information about Task Scheduler's scheduling mode, added jar and file paths, and other environmental details.
 
 ## <span id="postApplicationStart"> postApplicationStart
 

@@ -177,19 +177,6 @@ appUIAddress: String
 
 Internally, `appUIAddress` uses <<appUIHostPort, appUIHostPort>>.
 
-== [[getSparkUser]] Accessing Spark User -- `getSparkUser` Method
-
-[source, scala]
-----
-getSparkUser: String
-----
-
-`getSparkUser` returns the name of the user a Spark application runs as.
-
-Internally, `getSparkUser` requests `user.name` System property from spark-webui-EnvironmentListener.md[EnvironmentListener] Spark listener.
-
-NOTE: `getSparkUser` is used...FIXME
-
 == [[createLiveUI]] `createLiveUI` Method
 
 [source, scala]
@@ -294,8 +281,6 @@ NOTE: `initialize` is part of spark-webui-WebUI.md#initialize[WebUI Contract] to
 In the end, `initialize` creates and spark-webui-WebUI.md#attachHandler[attaches] the following `ServletContextHandlers`:
 
 . spark-webui-JettyUtils.md#createStaticHandler[Creates a static handler] for serving files from a static directory, i.e. `/static` to serve static files from `org/apache/spark/ui/static` directory (on CLASSPATH)
-
-. spark-webui-JettyUtils.md#createRedirectHandler[Creates a redirect handler] to redirect `/` to `/jobs/` (and so the spark-webui-jobs.md[Jobs tab] is the welcome tab when you open the web UI)
 
 . spark-api-ApiRootResource.md#getServletHandler[Creates the /api/* context handler] for the spark-api.md[Status REST API]
 

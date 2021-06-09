@@ -2,6 +2,8 @@
 
 `StorageTab` is a [SparkUITab](SparkUITab.md) with `storage` [URL prefix](SparkUITab.md#prefix).
 
+![Storage Tab in Web UI](../images/webui/spark-webui-storage.png)
+
 ## Creating Instance
 
 `StorageTab` takes the following to be created:

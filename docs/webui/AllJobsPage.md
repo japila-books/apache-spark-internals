@@ -1,5 +1,7 @@
 # AllJobsPage
 
+## Review Me
+
 [[prefix]]
 `AllJobsPage` is a spark-webui-WebUIPage.md[WebUIPage] with an empty spark-webui-WebUIPage.md#prefix[prefix].
 
@@ -18,8 +20,6 @@ Under the summary section is the *Event Timeline* section.
 
 .Event Timeline in Jobs Tab
 image::spark-webui-jobs-event-timeline.png[align="center"]
-
-NOTE: [AllJobsPage](AllJobsPage.md) uses spark-webui-executors-ExecutorsListener.md[ExecutorsListener] to build the event timeline.
 
 *Active Jobs*, *Completed Jobs*, and *Failed Jobs* sections follow.
 

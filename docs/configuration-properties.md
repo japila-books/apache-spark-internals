@@ -535,8 +535,6 @@ Supported values:
 
 Scheduling mode is particularly useful in multi-tenant environments in which a single `SparkContext` could be shared across different users (to make a cluster resource utilization more efficient).
 
-TIP: Use web UI to know the current scheduling mode (e.g. <<spark-webui-environment.md#, Environment>> tab as part of *Spark Properties* and <<spark-webui-jobs.md#, Jobs>> tab as *Scheduling Mode*).
-
 | spark.starvation.timeout
 a| [[spark.starvation.timeout]] Threshold above which Spark warns a user that an initial TaskSet may be starved
 

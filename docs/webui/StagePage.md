@@ -1,109 +1,80 @@
-== [[StagePage]] StagePage -- Stage Details
+# StagePage
 
-[[prefix]]
-`StagePage` is a spark-webui-WebUIPage.md[WebUIPage] with *stage* spark-webui-WebUIPage.md#prefix[prefix].
+`StagePage` is a [WebUIPage](WebUIPage.md) of [StagesTab](StagesTab.md).
 
-`StagePage` is <<creating-instance, created>> exclusively when `StagesTab` is spark-webui-StagesTab.md#creating-instance[created].
+![Details for Stage](../images/webui/spark-webui-stage-details.png)
 
-`StagePage` shows the task details for a stage given its id and attempt id.
+## Creating Instance
 
-.Details for Stage
-image::spark-webui-stage-details.png[align="center"]
+`StagePage` takes the following to be created:
 
-`StagePage` renders a page available under `/stage` URL that requires two <<parameters, request parameters>> -- `id` and `attempt`, e.g. http://localhost:4040/stages/stage/?id=2&attempt=0.
+* <span id="parent"> Parent [StagesTab](StagesTab.md)
+* <span id="store"> [AppStatusStore](../core/AppStatusStore.md)
 
-`StagePage` uses spark-webui-executors-ExecutorsListener.md[ExecutorsListener] to display stdout and stderr logs of the executors in <<tasks, Tasks section>>.
+## <span id="prefix"> URL Prefix
 
-=== [[tasks]][[TaskPagedTable]] Tasks Section
+`StagePage` uses `stage` [URL prefix](WebUIPage.md#prefix).
 
-.Tasks Section
-image::spark-webui-stage-tasks.png[align="center"]
+## <span id="render"> Rendering Page
 
-NOTE: The section uses spark-webui-executors-ExecutorsListener.md[ExecutorsListener] to access stdout and stderr logs for `Executor ID / Host` column.
+```scala
+render(
+  request: HttpServletRequest): Seq[Node]
+```
 
-=== [[summary-task-metrics]] Summary Metrics for Completed Tasks in Stage
+`render` is part of the [WebUIPage](WebUIPage.md#render) abstraction.
 
-The summary metrics table shows the metrics for the tasks in a given stage that have already finished with SUCCESS status and metrics available.
+`render` requires `id` and `attempt` request parameters.
 
-The table consists of the following columns: *Metric*, *Min*, *25th percentile*, *Median*, *75th percentile*, *Max*.
+`render`...FIXME
 
-.Summary Metrics for Completed Tasks in Stage
-image::spark-webui-stage-summary-metrics-tasks.png[align="center"]
+## Tasks Section
 
-NOTE: All the quantiles are doubles using `TaskUIData.metrics` (sorted in ascending order).
+![Tasks Section](../images/webui/spark-webui-stage-tasks.png)
 
-The 1st row is *Duration* which includes the quantiles based on `executorRunTime`.
+## Summary Metrics for Completed Tasks in Stage
 
-The 2nd row is the optional *Scheduler Delay* which includes the time to ship the task from the scheduler to executors, and the time to send the task result from the executors to the scheduler. It is not enabled by default and you should select *Scheduler Delay* checkbox under *Show Additional Metrics* to include it in the summary table.
+The summary metrics table shows the metrics for the tasks in a given stage that have already finished with `SUCCESS` status and metrics available.
 
-TIP: If Scheduler Delay is large, consider decreasing the size of tasks or decreasing the size of task results.
+![Summary Metrics for Completed Tasks in Stage](../images/webui/spark-webui-stage-summary-metrics-tasks.png)
 
-The 3rd row is the optional *Task Deserialization Time* which includes the quantiles based on `executorDeserializeTime` task metric. It is not enabled by default and you should select *Task Deserialization Time* checkbox under *Show Additional Metrics* to include it in the summary table.
+The 1st row is **Duration** which includes the quantiles based on `executorRunTime`.
 
-The 4th row is *GC Time* which is the time that an executor spent paused for Java garbage collection while the task was running (using `jvmGCTime` task metric).
+The 2nd row is the optional **Scheduler Delay** which includes the time to ship the task from the scheduler to executors, and the time to send the task result from the executors to the scheduler. It is not enabled by default and you should select **Scheduler Delay** checkbox under **Show Additional Metrics** to include it in the summary table.
 
-The 5th row is the optional *Result Serialization Time* which is the time spent serializing the task result on a executor before sending it back to the driver (using `resultSerializationTime` task metric). It is not enabled by default and you should select *Result Serialization Time* checkbox under *Show Additional Metrics* to include it in the summary table.
+The 3rd row is the optional **Task Deserialization Time** which includes the quantiles based on `executorDeserializeTime` task metric. It is not enabled by default and you should select **Task Deserialization Time** checkbox under **Show Additional Metrics** to include it in the summary table.
 
-The 6th row is the optional *Getting Result Time* which is the time that the driver spends fetching task results from workers. It is not enabled by default and you should select *Getting Result Time* checkbox under *Show Additional Metrics* to include it in the summary table.
+The 4th row is **GC Time** which is the time that an executor spent paused for Java garbage collection while the task was running (using `jvmGCTime` task metric).
 
-TIP: If Getting Result Time is large, consider decreasing the amount of data returned from each task.
+The 5th row is the optional **Result Serialization Time** which is the time spent serializing the task result on a executor before sending it back to the driver (using `resultSerializationTime` task metric). It is not enabled by default and you should select *Result Serialization Time* checkbox under **Show Additional Metrics** to include it in the summary table.
 
-If <<spark.sql.unsafe.enabled, Tungsten is enabled>> (it is by default), the 7th row is the optional *Peak Execution Memory* which is the sum of the peak sizes of the internal data structures created during shuffles, aggregations and joins (using `peakExecutionMemory` task metric). For SQL jobs, this only tracks all unsafe operators, broadcast joins, and external sort. It is not enabled by default and you should select *Peak Execution Memory* checkbox under *Show Additional Metrics* to include it in the summary table.
+The 6th row is the optional **Getting Result Time** which is the time that the driver spends fetching task results from workers. It is not enabled by default and you should select **Getting Result Time** checkbox under **Show Additional Metrics** to include it in the summary table.
 
-If the stage has an input, the 8th row is *Input Size / Records* which is the bytes and records read from Hadoop or from a Spark storage (using `inputMetrics.bytesRead` and `inputMetrics.recordsRead` task metrics).
+The 7th row is the optional **Peak Execution Memory** which is the sum of the peak sizes of the internal data structures created during shuffles, aggregations and joins (using `peakExecutionMemory` task metric).
 
-If the stage has an output, the 9th row is *Output Size / Records* which is the bytes and records written to Hadoop or to a Spark storage (using `outputMetrics.bytesWritten` and `outputMetrics.recordsWritten` task metrics).
+If the stage has an input, the 8th row is **Input Size / Records** which is the bytes and records read from Hadoop or from a Spark storage (using `inputMetrics.bytesRead` and `inputMetrics.recordsRead` task metrics).
 
-If the stage has shuffle read there will be three more rows in the table. The first row is *Shuffle Read Blocked Time* which is the time that tasks spent blocked waiting for shuffle data to be read from remote machines (using `shuffleReadMetrics.fetchWaitTime` task metric). The other row is *Shuffle Read Size / Records* which is the total shuffle bytes and records read (including both data read locally and data read from remote executors using `shuffleReadMetrics.totalBytesRead` and `shuffleReadMetrics.recordsRead` task metrics). And the last row is *Shuffle Remote Reads* which is the total shuffle bytes read from remote executors (which is a subset of the shuffle read bytes; the remaining shuffle data is read locally). It uses `shuffleReadMetrics.remoteBytesRead` task metric.
+If the stage has an output, the 9th row is **Output Size / Records** which is the bytes and records written to Hadoop or to a Spark storage (using `outputMetrics.bytesWritten` and `outputMetrics.recordsWritten` task metrics).
 
-If the stage has shuffle write, the following row is *Shuffle Write Size / Records* (using executor:ShuffleWriteMetrics.md#bytesWritten[shuffleWriteMetrics.bytesWritten] and executor:ShuffleWriteMetrics.md#recordsWritten[shuffleWriteMetrics.recordsWritten] task metrics).
+If the stage has shuffle read there will be three more rows in the table. The first row is **Shuffle Read Blocked Time** which is the time that tasks spent blocked waiting for shuffle data to be read from remote machines (using `shuffleReadMetrics.fetchWaitTime` task metric). The other row is **Shuffle Read Size / Records** which is the total shuffle bytes and records read (including both data read locally and data read from remote executors using `shuffleReadMetrics.totalBytesRead` and `shuffleReadMetrics.recordsRead` task metrics). And the last row is **Shuffle Remote Reads** which is the total shuffle bytes read from remote executors (which is a subset of the shuffle read bytes; the remaining shuffle data is read locally). It uses `shuffleReadMetrics.remoteBytesRead` task metric.
 
-If the stage has bytes spilled, the following two rows are *Shuffle spill (memory)* (using `memoryBytesSpilled` task metric) and *Shuffle spill (disk)* (using `diskBytesSpilled` task metric).
+If the stage has shuffle write, the following row is **Shuffle Write Size / Records** (using [shuffleWriteMetrics.bytesWritten](../executor/ShuffleWriteMetrics.md#bytesWritten) and [shuffleWriteMetrics.recordsWritten](../executor/ShuffleWriteMetrics.md#recordsWritten) task metrics).
 
-=== [[parameters]] Request Parameters
+If the stage has bytes spilled, the following two rows are **Shuffle spill (memory)** (using `memoryBytesSpilled` task metric) and **Shuffle spill (disk)** (using `diskBytesSpilled` task metric).
 
-`id` is...
+## DAG Visualization
 
-`attempt` is...
+![DAG Visualization](../images/webui/spark-webui-stage-dagvisualization.png)
 
-`task.page` (default: `1`) is...
+## Event Timeline
 
-`task.sort` (default: `Index`)
+![Event Timeline](../images/webui/spark-webui-stage-eventtimeline.png)
 
-`task.desc` (default: `false`)
+## Stage Task and Shuffle Stats
 
-`task.pageSize` (default: `100`)
+![Stage Task and Shuffle Stats](../images/webui/spark-webui-stage-header.png)
 
-`task.prevPageSize` (default: `task.pageSize`)
-
-=== [[metrics]] Metrics
-
-Scheduler Delay is...FIXME
-
-Task Deserialization Time is...FIXME
-
-Result Serialization Time is...FIXME
-
-Getting Result Time is...FIXME
-
-Peak Execution Memory is...FIXME
-
-Shuffle Read Time is...FIXME
-
-Executor Computing Time is...FIXME
-
-Shuffle Write Time is...FIXME
-
-.DAG Visualization
-image::spark-webui-stage-dagvisualization.png[align="center"]
-
-.Event Timeline
-image::spark-webui-stage-eventtimeline.png[align="center"]
-
-.Stage Task and Shuffle Stats
-image::spark-webui-stage-header.png[align="center"]
-
-=== [[aggregated-metrics-by-executor]][[ExecutorTable]] Aggregated Metrics by Executor
+## Aggregated Metrics by Executor
 
 `ExecutorTable` table shows the following columns:
 
@@ -121,8 +92,7 @@ image::spark-webui-stage-header.png[align="center"]
 * (optional) Shuffle Spill (Memory) (only when the stage spilled memory bytes)
 * (optional) Shuffle Spill (Disk) (only when the stage spilled bytes to disk)
 
-.Aggregated Metrics by Executor
-image::spark-webui-stage-aggregated-metrics-by-executor.png[align="center"]
+![Aggregated Metrics by Executor](../images/webui/spark-webui-stage-aggregated-metrics-by-executor.png)
 
 It gets `executorSummary` from `StageUIData` (for the stage and stage attempt id) and creates rows per executor.
 
@@ -131,10 +101,3 @@ It gets `executorSummary` from `StageUIData` (for the stage and stage attempt id
 Stage page displays the table with [named accumulators](../accumulators/index.md#named) (only if they exist). It contains the name and value of the accumulators.
 
 ![Accumulators Section](../images/webui/spark-webui-stage-accumulators.png)
-
-## Creating Instance
-
-`StagePage` takes the following when created:
-
-* [[parent]] Parent spark-webui-StagesTab.md[StagesTab]
-* [[store]] core:AppStatusStore.md[]

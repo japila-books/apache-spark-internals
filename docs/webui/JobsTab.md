@@ -1,5 +1,25 @@
 # JobsTab
 
+![Jobs Tab in Web UI](../images/webui/spark-webui-jobs.png)
+
+## Event Timeline
+
+![Event Timeline in Jobs Tab](../images/webui/spark-webui-jobs-event-timeline.png)
+
+## Details for Job
+
+Clicking a job in [AllJobsPage](AllJobsPage.md), leads to **Details for Job** page.
+
+![Details for Job Page](../images/webui/spark-webui-jobs-details-for-job.png)
+
+When a job id is not found, you should see "No information to display for job ID" message.
+
+!["No information to display for job" in Details for Job Page](../images/webui/spark-webui-jobs-details-for-job-no-job.png)
+
+![Details for Job Page with Active and Pending Stages](../images/webui/spark-webui-jobs-details-for-job-active-pending-stages.png)
+
+![Details for Job Page with Four Stages](../images/webui/spark-webui-jobs-details-for-job-four-stages.png)
+
 ## Review Me
 
 [[prefix]]

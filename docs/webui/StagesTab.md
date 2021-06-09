@@ -2,6 +2,8 @@
 
 `StagesTab` is a [SparkUITab](SparkUITab.md) with `stages` [URL prefix](SparkUITab.md#prefix).
 
+![Stages Tab in Web UI](../images/webui/spark-webui-stages.png)
+
 ## Creating Instance
 
 `StagesTab` takes the following to be created:

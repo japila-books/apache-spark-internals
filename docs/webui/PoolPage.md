@@ -1,59 +1,53 @@
-== [[PoolPage]] PoolPage -- Fair Scheduler Pool Details Page
+# PoolPage
 
-[[prefix]]
-`PoolPage` is a spark-webui-WebUIPage.md[WebUIPage] with *pool* spark-webui-WebUIPage.md#prefix[prefix].
+`PoolPage` is a [WebUIPage](WebUIPage.md) of [StagesTab](StagesTab.md).
 
-The Fair Scheduler Pool Details page shows information about a spark-scheduler-Pool.md[`Schedulable` pool] and is only available when a Spark application uses the spark-scheduler-SchedulingMode.md#FAIR[FAIR scheduling mode] (which is controlled by configuration-properties.md#spark.scheduler.mode[spark.scheduler.mode] configuration property).
+![Details Page for production Pool](../images/webui/spark-webui-pool-details.png)
 
-.Details Page for production Pool
-image::spark-webui-pool-details.png[align="center"]
+## Creating Instance
 
-`PoolPage` renders a page under `/pool` URL and requires one request parameter <<poolname, poolname>> that is the name of the pool to display, e.g. http://localhost:4040/stages/pool/?poolname=production. It is made up of two tables: <<pool-summary, Summary>> (with the details of the pool) and <<active-stages, Active Stages>> (with the active stages in the pool).
+`PoolPage` takes the following to be created:
 
-`PoolPage` is <<creating-instance, created>> exclusively when `StagesTab` is spark-webui-StagesTab.md#creating-instance[created].
+* <span id="parent"> Parent [StagesTab](StagesTab.md)
 
-[[creating-instance]]
-[[parent]]
-`PoolPage` takes a spark-webui-StagesTab.md[StagesTab] when created.
+## <span id="prefix"> URL Prefix
 
-=== [[PoolTable]][[pool-summary]] Summary Table
+`PoolPage` uses `pool` [URL prefix](WebUIPage.md#prefix).
 
-The *Summary* table shows the details of a spark-scheduler-Schedulable.md[`Schedulable` pool].
+## <span id="render"> Rendering Page
 
-.Summary for production Pool
-image::spark-webui-pool-summary.png[align="center"]
+```scala
+render(
+  request: HttpServletRequest): Seq[Node]
+```
 
-It uses the following columns:
+`render` is part of the [WebUIPage](WebUIPage.md#render) abstraction.
 
-* *Pool Name*
-* *Minimum Share*
-* *Pool Weight*
-* *Active Stages* - the number of the active stages in a `Schedulable` pool.
-* *Running Tasks*
-* *SchedulingMode*
+`render` requires `poolname` and `attempt` request parameters.
 
-=== [[StageTableBase]][[active-stages]] Active Stages Table
+`render` renders a `Fair Scheduler Pool` page with the [PoolData](../core/AppStatusStore.md#pool) (from the [AppStatusStore](../core/AppStatusStore.md) of the [parent StagesTab](#parent)).
 
-The *Active Stages* table shows the active stages in a pool.
+## Introduction
 
-.Active Stages for production Pool
-image::spark-webui-active-stages.png[align="center"]
+The Fair Scheduler Pool Details page shows information about a [Schedulable pool](../scheduler/Pool.md) and is only available when a Spark application uses the [FAIR](../scheduler/SchedulingMode.md#FAIR) scheduling mode.
+
+### Summary Table
+
+The **Summary** table shows the details of a [Schedulable](../scheduler/Schedulable.md) pool.
+
+![Summary for production Pool](../images/webui/spark-webui-pool-summary.png)
 
 It uses the following columns:
 
-* *Stage Id*
-* (optional) *Pool Name* - only available when in FAIR scheduling mode.
-* *Description*
-* *Submitted*
-* *Duration*
-* *Tasks: Succeeded/Total*
-* *Input* -- Bytes and records read from Hadoop or from Spark storage.
-* *Output* -- Bytes and records written to Hadoop.
-* *Shuffle Read* -- Total shuffle bytes and records read (includes both data read locally and data read from remote executors).
-* *Shuffle Write* -- Bytes and records written to disk in order to be read by a shuffle in a future stage.
+* Pool Name
+* Minimum Share
+* Pool Weight
+* Active Stages (the number of the active stages in a `Schedulable` pool)
+* Running Tasks
+* SchedulingMode
 
-=== [[parameters]] Request Parameters
+### Active Stages Table
 
-==== [[poolname]] poolname
+The **Active Stages** table shows the active stages in a pool.
 
-`poolname` is the name of the scheduler pool to display on the page. It is a mandatory request parameter.
+![Active Stages for production Pool](../images/webui/spark-webui-active-stages.png)

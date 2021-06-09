@@ -1,4 +1,8 @@
-= EnvironmentTab
+# EnvironmentTab
+
+![Environment Tab in Web UI](../images/webui/spark-webui-environment.png)
+
+## Review Me
 
 [[prefix]]
 `EnvironmentTab` is a spark-webui-SparkUITab.md[SparkUITab] with *environment* spark-webui-SparkUITab.md#prefix[prefix].
