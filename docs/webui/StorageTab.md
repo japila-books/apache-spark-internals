@@ -1,6 +1,6 @@
 # StorageTab
 
-`StorageTab` is a [SparkUITab](SparkUITab.md) with `storage` URL prefix.
+`StorageTab` is a [SparkUITab](SparkUITab.md) with `storage` [URL prefix](SparkUITab.md#prefix).
 
 ## Creating Instance
 
@@ -15,7 +15,7 @@
 
 ## Pages
 
-When [created](#creating-instance), `StorageTab` [attaches](WebUITab.md#attachPage) the following pages:
+When [created](#creating-instance), `StorageTab` [attaches](WebUITab.md#attachPage) the following pages (with a reference to itself and the [AppStatusStore](#store)):
 
 * [StoragePage](StoragePage.md)
 * [RDDPage](RDDPage.md)

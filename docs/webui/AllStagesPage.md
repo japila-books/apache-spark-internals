@@ -1,40 +1,42 @@
-== [[AllStagesPage]] Stages for All Jobs Page
+# AllStagesPage
 
-`AllStagesPage` is a web page (section) that is registered with the spark-webui-StagesTab.md[Stages tab] that <<render, displays all stages in a Spark application>> - active, pending, completed, and failed stages with their count.
+`AllStagesPage` is a [WebUIPage](WebUIPage.md) of [StagesTab](StagesTab.md).
 
-.Stages Tab in web UI for FAIR scheduling mode (with pools only)
-image::spark-webui-stages-alljobs.png[align="center"]
+![Stages Tab in web UI for FAIR scheduling mode (with pools only)](../images/webui/spark-webui-stages-alljobs.png)
 
-[[pool-names]]
-In spark-scheduler-SchedulingMode.md#FAIR[FAIR scheduling mode] you have access to the table showing the scheduler pools as well as the pool names per stage.
+![Stages Tab in web UI for FAIR scheduling mode (with pools and stages)](../images/webui/spark-webui-stages.png)
 
-NOTE: Pool names are calculated using SparkContext.md#getAllPools[SparkContext.getAllPools].
+## Creating Instance
 
-=== [[render]] Rendering AllStagesPage (render method)
+`AllStagesPage` takes the following to be created:
 
-[source, scala]
-----
-render(request: HttpServletRequest): Seq[Node]
-----
+* <span id="parent"> Parent [StagesTab](StagesTab.md)
 
-`render` generates a HTML page to display in a web browser.
+## <span id="render"> Rendering Page
 
-It uses the parent to know about:
+```scala
+render(
+  request: HttpServletRequest): Seq[Node]
+```
 
-* active stages (as `activeStages`)
-* pending stages (as `pendingStages`)
-* completed stages (as `completedStages`)
-* failed stages (as `failedStages`)
-* the number of completed stages (as `numCompletedStages`)
-* the number of failed stages (as `numFailedStages`)
+`render` is part of the [WebUIPage](WebUIPage.md#render) abstraction.
 
-NOTE: Stage information is available as [StageInfo](../scheduler/StageInfo.md) object.
+`render` renders a `Stages for All Jobs` page with the [stages](../core/AppStatusStore.md#stageList) and [application summary](../core/AppStatusStore.md#appSummary) (from the [AppStatusStore](../core/AppStatusStore.md) of the [parent StagesTab](#parent)).
 
-There are 4 different tables for the different states of stages - active, pending, completed, and failed. They are displayed only when there are stages in a given state.
+## <span id="headers"> Stage Headers
 
-.Stages Tab in web UI for FAIR scheduling mode (with pools and stages)
-image::spark-webui-stages.png[align="center"]
+`AllStagesPage` uses the following headers and tooltips for the Stages table.
 
-You could also notice "retry" for stage when it was retried.
-
-CAUTION: FIXME A screenshot
+Header   | Tooltip
+---------|----------
+ Stage Id |
+ Pool Name |
+ Description |
+ Submitted |
+ Duration | Elapsed time since the stage was submitted until execution completion of all its tasks.
+ Tasks: Succeeded/Total |
+ Input | Bytes read from Hadoop or from Spark storage.
+ Output | Bytes written to Hadoop.
+ Shuffle Read | Total shuffle bytes and records read (includes both data read locally and data read from remote executors).
+ Shuffle Write | Bytes and records written to disk in order to be read by a shuffle in a future stage.
+ Failure Reason | Bytes and records written to disk in order to be read by a shuffle in a future stage.

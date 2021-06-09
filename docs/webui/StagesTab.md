@@ -1,59 +1,47 @@
-== [[StagesTab]] StagesTab -- Stages for All Jobs
+# StagesTab
 
-[[prefix]]
-`StagesTab` is a spark-webui-SparkUITab.md[SparkUITab] with *stages* spark-webui-SparkUITab.md#prefix[prefix].
+`StagesTab` is a [SparkUITab](SparkUITab.md) with `stages` [URL prefix](SparkUITab.md#prefix).
 
-`StagesTab` is <<creating-instance, created>> exclusively when `SparkUI` is spark-webui-SparkUI.md#initialize[initialized].
+## Creating Instance
 
-When <<creating-instance, created>>, `StagesTab` creates the following pages and spark-webui-WebUITab.md#attachPage[attaches] them immediately:
+`StagesTab` takes the following to be created:
 
-* spark-webui-AllStagesPage.md[AllStagesPage]
+* <span id="parent"> Parent [SparkUI](SparkUI.md)
+* <span id="store"> [AppStatusStore](../core/AppStatusStore.md)
 
-* spark-webui-StagePage.md[StagePage]
+`StagesTab` is created when:
 
-* spark-webui-PoolPage.md[PoolPage]
+* `SparkUI` is requested to [initialize](SparkUI.md#initialize)
 
-*Stages* tab in spark-webui.md[web UI] shows spark-webui-AllStagesPage.md[the current state of all stages of all jobs in a Spark application] (i.e. a SparkContext.md[]) with two optional pages for spark-webui-StagePage.md[the tasks and statistics for a stage] (when a stage is selected) and spark-webui-PoolPage.md[pool details] (when the application works in spark-scheduler-SchedulingMode.md#FAIR[FAIR scheduling mode]).
+## Pages
 
-The title of the tab is *Stages for All Jobs*.
+When [created](#creating-instance), `StagesTab` [attaches](WebUITab.md#attachPage) the following pages:
 
-You can access the Stages tab under `/stages` URL, i.e. http://localhost:4040/stages.
+* [AllStagesPage](AllStagesPage.md)
+* [StagePage](StagePage.md) (with the [AppStatusStore](#store))
+* [PoolPage](PoolPage.md)
+
+## Introduction
+
+**Stages** tab shows [the current state of all stages of all jobs in a Spark application](AllStagesPage.md) with two optional pages for [the tasks and statistics for a stage](StagePage.md) (when a stage is selected) and [pool details](PoolPage.md) (when the application works in [FAIR scheduling mode](../scheduler/SchedulingMode.md#FAIR)).
+
+The title of the tab is **Stages for All Jobs**.
 
 With no jobs submitted yet (and hence no stages to display), the page shows nothing but the title.
 
-.Stages Page Empty
-image::spark-webui-stages-empty.png[align="center"]
+![Stages Page Empty](../images/webui/spark-webui-stages-empty.png)
 
-The Stages page shows the stages in a Spark application per state in their respective sections -- *Active Stages*, *Pending Stages*, *Completed Stages*, and *Failed Stages*.
+The Stages page shows the stages in a Spark application per state in their respective sections:
 
-.Stages Page With One Stage Completed
-image::spark-webui-stages-completed.png[align="center"]
+* Active Stages
+* Pending Stages
+* Completed Stages
+* Failed Stages
 
-NOTE: The state sections are only displayed when there are stages in a given state. Refer to spark-webui-AllStagesPage.md[Stages for All Jobs].
+![Stages Page With One Stage Completed](../images/webui/spark-webui-stages-completed.png)
 
-In spark-scheduler-SchedulingMode.md#FAIR[FAIR scheduling mode] you have access to the table showing the scheduler pools.
+The state sections are only displayed when there are stages in a given state.
 
-.Fair Scheduler Pools Table
-image::spark-webui-stages-fairschedulerpools.png[align="center"]
+In [FAIR scheduling mode](../scheduler/SchedulingMode.md#FAIR) you have access to the table showing the scheduler pools.
 
-Internally, the page is represented by https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/ui/jobs/StagesTab.scala[org.apache.spark.ui.jobs.StagesTab] class.
-
-`StagesTab` is <<creating-instance, created>> when...FIXME
-
-=== [[creating-instance]] Creating StagesTab Instance
-
-`StagesTab` takes the following when created:
-
-* [[parent]] spark-webui-SparkUI.md[SparkUI]
-* [[store]] core:AppStatusStore.md[]
-
-=== [[handleKillRequest]] Handling Request to Kill Stage (from web UI) -- `handleKillRequest` Method
-
-[source, scala]
-----
-handleKillRequest(request: HttpServletRequest): Unit
-----
-
-`handleKillRequest`...FIXME
-
-NOTE: `handleKillRequest` is used when...FIXME
+![Fair Scheduler Pools Table](../images/webui/spark-webui-stages-fairschedulerpools.png)

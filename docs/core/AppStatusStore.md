@@ -69,3 +69,31 @@ streamBlocksList(): Seq[StreamBlockData]
 `streamBlocksList` is used when:
 
 * `StoragePage` is requested to [render](../webui/StoragePage.md#render)
+
+## <span id="stageList"> Stages
+
+```scala
+stageList(
+  statuses: JList[v1.StageStatus]): Seq[v1.StageData]
+```
+
+`stageList` requests the [KVStore](#store) for (a [view](KVStore.md#view) over) `StageData`s.
+
+`stageList` is used when:
+
+* `SparkStatusTracker` is requested for [active stage IDs](../SparkStatusTracker.md#getActiveStageIds)
+* `StagesResource` is requested for [stages](../rest/StagesResource.md#stages)
+* `AllStagesPage` is requested to [render](../webui/AllStagesPage.md#render)
+
+## <span id="appSummary"> Application Summary
+
+```scala
+appSummary(): AppSummary
+```
+
+`appSummary` requests the [KVStore](#store) to [read](KVStore.md#read) the `AppSummary`.
+
+`appSummary` is used when:
+
+* `AllJobsPage` is requested to [render](../webui/AllJobsPage.md#render)
+* `AllStagesPage` is requested to [render](../webui/AllStagesPage.md#render)
