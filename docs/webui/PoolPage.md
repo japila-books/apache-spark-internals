@@ -25,7 +25,7 @@ render(
 
 `render` requires `poolname` and `attempt` request parameters.
 
-`render` renders a `Fair Scheduler Pool` page with the [PoolData](../core/AppStatusStore.md#pool) (from the [AppStatusStore](../core/AppStatusStore.md) of the [parent StagesTab](#parent)).
+`render` renders a `Fair Scheduler Pool` page with the [PoolData](../status/AppStatusStore.md#pool) (from the [AppStatusStore](../status/AppStatusStore.md) of the [parent StagesTab](#parent)).
 
 ## Introduction
 

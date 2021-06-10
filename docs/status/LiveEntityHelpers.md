@@ -1,7 +1,5 @@
 # LiveEntityHelpers
 
-`LiveEntityHelpers` is...FIXME
-
 ## <span id="newAccumulatorInfos"> newAccumulatorInfos
 
 ```scala
@@ -11,4 +9,6 @@ newAccumulatorInfos(
 
 `newAccumulatorInfos`...FIXME
 
-`newAccumulatorInfos` is used when...FIXME
+`newAccumulatorInfos` is used when:
+
+* FIXME

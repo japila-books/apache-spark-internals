@@ -38,7 +38,7 @@ Used when:
 * `TorrentBroadcast` is [created](../core/TorrentBroadcast.md#broadcastId), requested to [store a broadcast and the blocks in a local BlockManager](../core/TorrentBroadcast.md#writeBlocks), and [read blocks](../core/TorrentBroadcast.md#readBlocks)
 * `BlockManager` is requested to [remove all the blocks of a broadcast variable](BlockManager.md#removeBroadcast)
 * `SerializerManager` is requested to [shouldCompress](../serializer/SerializerManager.md#shouldCompress)
-* `AppStatusListener` is requested to [onBlockUpdated](../AppStatusListener.md#onBlockUpdated)
+* `AppStatusListener` is requested to [onBlockUpdated](../status/AppStatusListener.md#onBlockUpdated)
 
 ### <span id="RDDBlockId"> RDDBlockId
 
@@ -56,7 +56,7 @@ Used when:
 * `RDD` is requested to [getOrCompute](../rdd/RDD.md#getOrCompute)
 * `DAGScheduler` is requested for the [BlockManagers (executors) for cached RDD partitions](../scheduler/DAGScheduler.md#getCacheLocs)
 * `BlockManagerMasterEndpoint` is requested to [removeRdd](BlockManagerMasterEndpoint.md#removeRdd)
-* `AppStatusListener` is requested to [updateRDDBlock](../AppStatusListener.md#updateRDDBlock) (when [onBlockUpdated](../AppStatusListener.md#onBlockUpdated) for an `RDDBlockId`)
+* `AppStatusListener` is requested to [updateRDDBlock](../status/AppStatusListener.md#updateRDDBlock) (when [onBlockUpdated](../status/AppStatusListener.md#onBlockUpdated) for an `RDDBlockId`)
 
 [Compressed](../serializer/SerializerManager.md#shouldCompress) when [spark.rdd.compress](../configuration-properties.md#spark.rdd.compress) configuration property is enabled
 

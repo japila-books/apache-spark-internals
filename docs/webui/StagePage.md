@@ -9,7 +9,7 @@
 `StagePage` takes the following to be created:
 
 * <span id="parent"> Parent [StagesTab](StagesTab.md)
-* <span id="store"> [AppStatusStore](../core/AppStatusStore.md)
+* <span id="store"> [AppStatusStore](../status/AppStatusStore.md)
 
 ## <span id="prefix"> URL Prefix
 

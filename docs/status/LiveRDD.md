@@ -2,7 +2,7 @@
 
 `LiveRDD` is a [LiveEntity](LiveEntity.md) that...FIXME
 
-`LiveRDD` is <<creating-instance, created>> exclusively when `AppStatusListener` is requested to [handle onStageSubmitted event](../AppStatusListener.md#onStageSubmitted)
+`LiveRDD` is <<creating-instance, created>> exclusively when `AppStatusListener` is requested to [handle onStageSubmitted event](../status/AppStatusListener.md#onStageSubmitted)
 
 [[creating-instance]]
 [[info]]

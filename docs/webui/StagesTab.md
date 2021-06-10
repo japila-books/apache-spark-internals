@@ -9,7 +9,7 @@
 `StagesTab` takes the following to be created:
 
 * <span id="parent"> Parent [SparkUI](SparkUI.md)
-* <span id="store"> [AppStatusStore](../core/AppStatusStore.md)
+* <span id="store"> [AppStatusStore](../status/AppStatusStore.md)
 
 `StagesTab` is created when:
 

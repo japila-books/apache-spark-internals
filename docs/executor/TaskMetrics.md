@@ -223,7 +223,7 @@ fromAccumulatorInfos(
 
 `fromAccumulatorInfos`...FIXME
 
-`fromAccumulatorInfos` is used when `AppStatusListener` is requested to [onExecutorMetricsUpdate](../AppStatusListener.md#onExecutorMetricsUpdate).
+`fromAccumulatorInfos` is used when `AppStatusListener` is requested to [onExecutorMetricsUpdate](../status/AppStatusListener.md#onExecutorMetricsUpdate).
 
 == [[fromAccumulators]] `fromAccumulators` Factory Method
 

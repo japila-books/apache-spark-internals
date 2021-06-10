@@ -331,7 +331,7 @@ Used when:
 
 * `ExecutorAllocationManager` is [created](dynamic-allocation/ExecutorAllocationManager.md#tasksPerExecutorForFullParallelism)
 * `TaskSchedulerImpl` is [created](scheduler/TaskSchedulerImpl.md#CPUS_PER_TASK)
-* `AppStatusListener` is requested to [handle a SparkListenerEnvironmentUpdate event](AppStatusListener.md#onEnvironmentUpdate)
+* `AppStatusListener` is requested to [handle a SparkListenerEnvironmentUpdate event](status/AppStatusListener.md#onEnvironmentUpdate)
 * `SparkContext` utility is used to [create a TaskScheduler](SparkContext.md#createTaskScheduler)
 * `ResourceProfile` is requested to [getDefaultTaskResources](stage-level-scheduling/ResourceProfile.md#getDefaultTaskResources)
 * `LocalityPreferredContainerPlacementStrategy` is requested to `numExecutorsPending`

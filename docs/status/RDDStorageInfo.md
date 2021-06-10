@@ -1,4 +1,4 @@
-== [[RDDStorageInfo]] RDDStorageInfo
+# RDDStorageInfo
 
 [[creating-instance]]
 `RDDStorageInfo` contains information about RDD persistence:
@@ -13,7 +13,7 @@
 * [[dataDistribution]] Data distribution (as `Seq[RDDDataDistribution]`)
 * [[partitions]] Partitions (as `Seq[RDDPartitionInfo]]`)
 
-`RDDStorageInfo` is <<creating-instance, created>> exclusively when `LiveRDD` is requested to webui:spark-core-LiveRDD.md#doUpdate[doUpdate] (when requested to spark-core-LiveEntity.md#write[write]).
+`RDDStorageInfo` is <<creating-instance, created>> exclusively when `LiveRDD` is requested to [doUpdate](../status/LiveRDD.md#doUpdate) (when requested to [write](../status/LiveEntity.md#write)).
 
 `RDDStorageInfo` is used when:
 

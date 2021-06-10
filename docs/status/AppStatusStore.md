@@ -6,8 +6,8 @@
 
 `AppStatusStore` takes the following to be created:
 
-* <span id="store"> [KVStore](KVStore.md)
-* <span id="listener"> [AppStatusListener](../AppStatusListener.md)
+* <span id="store"> [KVStore](../core/KVStore.md)
+* <span id="listener"> [AppStatusListener](../status/AppStatusListener.md)
 
 `AppStatusStore` is created using [createLiveStore](#createLiveStore) utility.
 
@@ -21,9 +21,9 @@ createLiveStore(
   appStatusSource: Option[AppStatusSource] = None): AppStatusStore
 ```
 
-`createLiveStore` creates an [ElementTrackingStore](ElementTrackingStore.md) (with [InMemoryStore](InMemoryStore.md) and the [SparkConf](../SparkConf.md)).
+`createLiveStore` creates an [ElementTrackingStore](ElementTrackingStore.md) (with [InMemoryStore](../core/InMemoryStore.md) and the [SparkConf](../SparkConf.md)).
 
-`createLiveStore` creates an [AppStatusListener](../AppStatusListener.md) (with the `ElementTrackingStore`, [live](../AppStatusListener.md#live) flag on and the `AppStatusSource`).
+`createLiveStore` creates an [AppStatusListener](../status/AppStatusListener.md) (with the `ElementTrackingStore`, [live](../status/AppStatusListener.md#live) flag on and the `AppStatusSource`).
 
 In the end, creates an [AppStatusStore](#creating-instance) (with the `ElementTrackingStore` and `AppStatusListener`).
 
@@ -50,7 +50,7 @@ rddList(
   cachedOnly: Boolean = true): Seq[v1.RDDStorageInfo]
 ```
 
-`rddList` requests the [KVStore](#store) for (a [view](KVStore.md#view) over) [RDDStorageInfo](../webui/RDDStorageInfo.md)s (cached or not based on the given `cachedOnly` flag).
+`rddList` requests the [KVStore](#store) for (a [view](../core/KVStore.md#view) over) [RDDStorageInfo](RDDStorageInfo.md)s (cached or not based on the given `cachedOnly` flag).
 
 `rddList` is used when:
 
@@ -64,7 +64,7 @@ rddList(
 streamBlocksList(): Seq[StreamBlockData]
 ```
 
-`streamBlocksList` requests the [KVStore](#store) for (a [view](KVStore.md#view) over) [StreamBlockData](../webui/StreamBlockData.md)s.
+`streamBlocksList` requests the [KVStore](#store) for (a [view](../core/KVStore.md#view) over) [StreamBlockData](../status/StreamBlockData.md)s.
 
 `streamBlocksList` is used when:
 
@@ -77,7 +77,7 @@ stageList(
   statuses: JList[v1.StageStatus]): Seq[v1.StageData]
 ```
 
-`stageList` requests the [KVStore](#store) for (a [view](KVStore.md#view) over) `StageData`s.
+`stageList` requests the [KVStore](#store) for (a [view](../core/KVStore.md#view) over) `StageData`s.
 
 `stageList` is used when:
 
@@ -85,13 +85,41 @@ stageList(
 * `StagesResource` is requested for [stages](../rest/StagesResource.md#stages)
 * `AllStagesPage` is requested to [render](../webui/AllStagesPage.md#render)
 
+## <span id="jobsList"> Jobs
+
+```scala
+jobsList(
+  statuses: JList[JobExecutionStatus]): Seq[v1.JobData]
+```
+
+`jobsList` requests the [KVStore](#store) for (a [view](../core/KVStore.md#view) over) `JobData`s.
+
+`jobsList` is used when:
+
+* `SparkStatusTracker` is requested for [getJobIdsForGroup](../SparkStatusTracker.md#getJobIdsForGroup) and [getActiveJobIds](../SparkStatusTracker.md#getActiveJobIds)
+* `AbstractApplicationResource` is requested for [jobs](../rest/AbstractApplicationResource.md#jobsList)
+* `AllJobsPage` is requested to [render](../webui/AllJobsPage.md#render)
+
+## <span id="executorList"> Executors
+
+```scala
+executorList(
+  activeOnly: Boolean): Seq[v1.ExecutorSummary]
+```
+
+`executorList` requests the [KVStore](#store) for (a [view](../core/KVStore.md#view) over) `ExecutorSummary`s.
+
+`executorList` is used when:
+
+* FIXME
+
 ## <span id="appSummary"> Application Summary
 
 ```scala
 appSummary(): AppSummary
 ```
 
-`appSummary` requests the [KVStore](#store) to [read](KVStore.md#read) the `AppSummary`.
+`appSummary` requests the [KVStore](#store) to [read](../core/KVStore.md#read) the `AppSummary`.
 
 `appSummary` is used when:
 

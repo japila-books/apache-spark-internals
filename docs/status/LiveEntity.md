@@ -36,12 +36,12 @@ NOTE: `LiveEntity` is a `private[spark]` contract.
 write(store: ElementTrackingStore, now: Long, checkTriggers: Boolean = false): Unit
 ----
 
-`write` requests the input `ElementTrackingStore` to core:ElementTrackingStore.md#write[write] the <<doUpdate, updated>> value.
+`write` requests the input `ElementTrackingStore` to [write](../status/ElementTrackingStore.md#write) the <<doUpdate, updated>> value.
 
 In the end, `write` records the time in the <<lastWriteTime, lastWriteTime>>.
 
 `write` is used when:
 
-* `AppStatusListener` is requested to [update](../AppStatusListener.md#update)
+* `AppStatusListener` is requested to [update](../status/AppStatusListener.md#update)
 
 * `SQLAppStatusListener` is created (and registers a flush trigger) and requested to `update`

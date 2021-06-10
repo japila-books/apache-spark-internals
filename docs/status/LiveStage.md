@@ -1,6 +1,6 @@
 # LiveStage
 
-`LiveStage` is an [LiveEntity](webui/LiveEntity.md).
+`LiveStage` is an [LiveEntity](LiveEntity.md).
 
 ## Creating Instance
 
@@ -18,4 +18,4 @@ doUpdate(): Any
 
 `doUpdate`...FIXME
 
-`doUpdate` is part of the [LiveEntity](webui/LiveEntity.md#doUpdate) abstraction.
+`doUpdate` is part of the [LiveEntity](LiveEntity.md#doUpdate) abstraction.

@@ -19,7 +19,7 @@ While being created, `SparkContext` [sets up core services](SparkContext-creatin
 
 ## Services
 
-* <span id="statusStore"><span id="AppStatusStore"><span id="_statusStore"> [AppStatusStore](core/AppStatusStore.md)
+* <span id="statusStore"><span id="AppStatusStore"><span id="_statusStore"> [AppStatusStore](status/AppStatusStore.md)
 
 * <span id="executorAllocationManager"><span id="_executorAllocationManager"><span id="ExecutorAllocationManager"> [ExecutorAllocationManager](dynamic-allocation/ExecutorAllocationManager.md) (optional)
 

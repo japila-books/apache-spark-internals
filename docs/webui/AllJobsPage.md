@@ -1,48 +1,47 @@
 # AllJobsPage
 
-## Review Me
+`AllJobsPage` is a [WebUIPage](WebUIPage.md) of [JobsTab](JobsTab.md).
 
-[[prefix]]
-`AllJobsPage` is a spark-webui-WebUIPage.md[WebUIPage] with an empty spark-webui-WebUIPage.md#prefix[prefix].
+## Creating Instance
 
-`AllJobsPage` is <<creating-instance, created>> exclusively when `JobsTab` is [created](JobsTab.md#creating-instance).
+`AllJobsPage` takes the following to be created:
+
+* <span id="parent"> Parent [JobsTab](JobsTab.md)
+* <span id="store"> [AppStatusStore](../status/AppStatusStore.md)
+
+## <span id="render"> Rendering Page
+
+```scala
+render(
+  request: HttpServletRequest): Seq[Node]
+```
+
+`render` is part of the [WebUIPage](WebUIPage.md#render) abstraction.
+
+`render` renders a `Spark Jobs` page with the [jobs](../status/AppStatusStore.md#jobsList) and [executors](../status/AppStatusStore.md#executorList) alongside [applicationInfo](../status/AppStatusStore.md#applicationInfo) and [appSummary](../status/AppStatusStore.md#appSummary) (from the [AppStatusStore](#store)).
+
+## Introduction
 
 `AllJobsPage` renders a summary, an event timeline, and active, completed, and failed jobs of a Spark application.
 
-TIP: Jobs (in any state) are displayed when their number is greater than `0`.
+`AllJobsPage` displays the **Summary** section with the current Spark user, total uptime, scheduling mode, and the number of jobs per status.
 
-`AllJobsPage` displays the *Summary* section with the spark-webui-SparkUI.md#getSparkUser[current Spark user], total uptime, scheduling mode, and the number of jobs per status.
+![Summary Section in Jobs Tab](../images/webui/spark-webui-jobs-summary-section.png)
 
-.Summary Section in Jobs Tab
-image::spark-webui-jobs-summary-section.png[align="center"]
+Under the summary section is the **Event Timeline** section.
 
-Under the summary section is the *Event Timeline* section.
+![Event Timeline in Jobs Tab](../images/webui/spark-webui-jobs-event-timeline.png)
 
-.Event Timeline in Jobs Tab
-image::spark-webui-jobs-event-timeline.png[align="center"]
+**Active Jobs**, **Completed Jobs**, and **Failed Jobs** sections follow.
 
-*Active Jobs*, *Completed Jobs*, and *Failed Jobs* sections follow.
+![Job Status Section in Jobs Tab](../images/webui/spark-webui-jobs-status-section.png)
 
-.Job Status Section in Jobs Tab
-image::spark-webui-jobs-status-section.png[align="center"]
-
-Jobs are clickable, i.e. you can click on a job to <<JobPage, see information about the stages of tasks inside it>>.
+Jobs are clickable (and give information about the stages of tasks inside it).
 
 When you hover over a job in Event Timeline not only you see the job legend but also the job is highlighted in the Summary section.
 
-.Hovering Over Job in Event Timeline Highlights The Job in Status Section
-image::spark-webui-jobs-timeline-popup.png[align="center"]
+![Hovering Over Job in Event Timeline Highlights The Job in Status Section](../images/webui/spark-webui-jobs-timeline-popup.png)
 
 The Event Timeline section shows not only jobs but also executors.
 
-.Executors in Event Timeline
-image::spark-webui-jobs-timeline-executors.png[align="center"]
-
-TIP: Use SparkContext.md#dynamic-allocation[Programmable Dynamic Allocation] (using `SparkContext`) to manage executors for demo purposes.
-
-=== [[creating-instance]] Creating AllJobsPage Instance
-
-`AllJobsPage` takes the following when created:
-
-* [[parent]] Parent [JobsTab](JobsTab.md)
-* [[store]] core:AppStatusStore.md[]
+![Executors in Event Timeline](../images/webui/spark-webui-jobs-timeline-executors.png)

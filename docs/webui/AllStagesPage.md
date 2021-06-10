@@ -21,7 +21,7 @@ render(
 
 `render` is part of the [WebUIPage](WebUIPage.md#render) abstraction.
 
-`render` renders a `Stages for All Jobs` page with the [stages](../core/AppStatusStore.md#stageList) and [application summary](../core/AppStatusStore.md#appSummary) (from the [AppStatusStore](../core/AppStatusStore.md) of the [parent StagesTab](#parent)).
+`render` renders a `Stages for All Jobs` page with the [stages](../status/AppStatusStore.md#stageList) and [application summary](../status/AppStatusStore.md#appSummary) (from the [AppStatusStore](../status/AppStatusStore.md) of the [parent StagesTab](#parent)).
 
 ## <span id="headers"> Stage Headers
 

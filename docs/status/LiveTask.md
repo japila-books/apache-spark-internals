@@ -1,12 +1,12 @@
 # LiveTask
 
-`LiveTask` is an [LiveEntity](webui/LiveEntity.md).
+`LiveTask` is an [LiveEntity](LiveEntity.md).
 
 ## Creating Instance
 
 `LiveTask` takes the following to be created:
 
-* <span id="info"> [TaskInfo](scheduler/TaskInfo.md)
+* <span id="info"> [TaskInfo](../scheduler/TaskInfo.md)
 * <span id="stageId"> Stage ID
 * <span id="stageAttemptId"> Stage Attempt ID
 * <span id="lastUpdateTime"> Last Update Time
@@ -23,4 +23,4 @@ doUpdate(): Any
 
 `doUpdate`...FIXME
 
-`doUpdate` is part of the [LiveEntity](webui/LiveEntity.md#doUpdate) abstraction.
+`doUpdate` is part of the [LiveEntity](LiveEntity.md#doUpdate) abstraction.

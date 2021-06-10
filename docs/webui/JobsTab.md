@@ -1,6 +1,26 @@
 # JobsTab
 
+`JobsTab` is a [SparkUITab](SparkUITab.md) with `jobs` [URL prefix](SparkUITab.md#prefix).
+
 ![Jobs Tab in Web UI](../images/webui/spark-webui-jobs.png)
+
+## Creating Instance
+
+`JobsTab` takes the following to be created:
+
+* <span id="parent"> Parent [SparkUI](SparkUI.md)
+* <span id="store"> [AppStatusStore](../status/AppStatusStore.md)
+
+`JobsTab` is created when:
+
+* `SparkUI` is requested to [initialize](SparkUI.md#initialize)
+
+## Pages
+
+When [created](#creating-instance), `JobsTab` [attaches](WebUITab.md#attachPage) the following pages (with a reference to itself and the [AppStatusStore](#store)):
+
+* [AllJobsPage](AllJobsPage.md)
+* [JobPage](JobPage.md)
 
 ## Event Timeline
 
@@ -19,39 +39,3 @@ When a job id is not found, you should see "No information to display for job ID
 ![Details for Job Page with Active and Pending Stages](../images/webui/spark-webui-jobs-details-for-job-active-pending-stages.png)
 
 ![Details for Job Page with Four Stages](../images/webui/spark-webui-jobs-details-for-job-four-stages.png)
-
-## Review Me
-
-[[prefix]]
-`JobsTab` is a spark-webui-SparkUITab.md[SparkUITab] with the spark-webui-SparkUITab.md#prefix[prefix] as *jobs* and the following pages:
-
-* [AllJobsPage](AllJobsPage.md)
-
-* [JobPage](JobPage.md)
-
-`JobsTab` is <<creating-instance, created>> when `SparkUI` is requested to spark-webui-SparkUI.md#initialize[initialize].
-
-== [[creating-instance]] Creating JobsTab Instance
-
-`JobsTab` takes the following to be created:
-
-* [[parent]] spark-webui-SparkUI.md[SparkUI]
-* [[store]] core:AppStatusStore.md[]
-
-While <<creating-instance, being created>>, `JobsTab` creates and spark-webui-WebUITab.md#attachPage[attaches] the pages:
-
-* [AllJobsPage](AllJobsPage.md)
-
-* [JobPage](JobPage.md)
-
-== [[handleKillRequest]] `handleKillRequest` Method
-
-[source, scala]
-----
-handleKillRequest(
-  request: HttpServletRequest): Unit
-----
-
-`handleKillRequest`...FIXME
-
-NOTE: `handleKillRequest` is used when `SparkUI` is requested to spark-webui-SparkUI.md#initialize[initialize] (and registers the `/jobs/job/kill` URL handler).

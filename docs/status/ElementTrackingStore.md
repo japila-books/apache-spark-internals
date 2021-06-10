@@ -1,12 +1,12 @@
 # ElementTrackingStore
 
-`ElementTrackingStore` is a [KVStore](KVStore.md).
+`ElementTrackingStore` is a [KVStore](../core/KVStore.md).
 
 ## Creating Instance
 
 `ElementTrackingStore` takes the following to be created:
 
-* <span id="store"> [KVStore](KVStore.md)
+* <span id="store"> [KVStore](../core/KVStore.md)
 * <span id="conf"> [SparkConf](../SparkConf.md)
 
 `ElementTrackingStore` is created when:

@@ -14,4 +14,4 @@
 
 `StreamBlockData` is created when:
 
-* `AppStatusListener` is requested to [update a StreamBlock](../AppStatusListener.md#updateStreamBlock)
+* `AppStatusListener` is requested to [update a StreamBlock](../status/AppStatusListener.md#updateStreamBlock)

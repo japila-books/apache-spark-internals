@@ -7,7 +7,7 @@
 `StoragePage` takes the following to be created:
 
 * <span id="parent"> Parent [SparkUITab](SparkUITab.md)
-* <span id="store"> [AppStatusStore](../core/AppStatusStore.md)
+* <span id="store"> [AppStatusStore](../status/AppStatusStore.md)
 
 `StoragePage` is created when:
 
@@ -22,7 +22,7 @@ render(
 
 `render` is part of the [WebUIPage](WebUIPage.md#render) abstraction.
 
-`render` renders a `Storage` page with the [RDDs](../core/AppStatusStore.md#rddList) and [streaming blocks](../core/AppStatusStore.md#streamBlocksList) (from the [AppStatusStore](#store)).
+`render` renders a `Storage` page with the [RDDs](../status/AppStatusStore.md#rddList) and [streaming blocks](../status/AppStatusStore.md#streamBlocksList) (from the [AppStatusStore](#store)).
 
 ## <span id="rddHeader"> RDD Table's Headers
 

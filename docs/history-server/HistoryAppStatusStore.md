@@ -1,6 +1,6 @@
 # HistoryAppStatusStore
 
-`HistoryAppStatusStore` is an [AppStatusStore](../core/AppStatusStore.md) for [SparkUI](../webui/SparkUI.md)s in [Spark History Server](index.md).
+`HistoryAppStatusStore` is an [AppStatusStore](../status/AppStatusStore.md) for [SparkUI](../webui/SparkUI.md)s in [Spark History Server](index.md).
 
 ## Creating Instance
 
@@ -33,7 +33,7 @@ executorList(
 
 `executorList`...FIXME
 
-`executorList` is part of the [AppStatusStore](../core/AppStatusStore.md#executorList) abstraction.
+`executorList` is part of the [AppStatusStore](../status/AppStatusStore.md#executorList) abstraction.
 
 ## <span id="executorSummary"> executorSummary
 
@@ -44,7 +44,7 @@ executorSummary(
 
 `executorSummary`...FIXME
 
-`executorSummary` is part of the [AppStatusStore](../core/AppStatusStore.md#executorSummary) abstraction.
+`executorSummary` is part of the [AppStatusStore](../status/AppStatusStore.md#executorSummary) abstraction.
 
 ## <span id="replaceLogUrls"> replaceLogUrls
 

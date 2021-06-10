@@ -8,7 +8,7 @@ Default: `false`
 
 Used when:
 
-* `AppStatusSource` utility is used to [create an AppStatusSource](../core/AppStatusSource.md#createSource)
+* `AppStatusSource` utility is used to [create an AppStatusSource](../status/AppStatusSource.md#createSource)
 
 ## <span id="spark.metrics.conf"> spark.metrics.conf
 

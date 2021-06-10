@@ -74,6 +74,6 @@ void write(
 
 ## Implementations
 
-* [ElementTrackingStore](ElementTrackingStore.md)
+* [ElementTrackingStore](../status/ElementTrackingStore.md)
 * [InMemoryStore](InMemoryStore.md)
 * [LevelDB](LevelDB.md)
