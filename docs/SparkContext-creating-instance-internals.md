@@ -185,9 +185,7 @@ _listenerBus: LiveListenerBus
 _statusStore: AppStatusStore
 ```
 
-`SparkContext` [creates an AppStatusSource](status/AppStatusSource.md#createSource) (if [enabled](metrics/configuration-properties.md#spark.metrics.appStatusSource.enabled)).
-
-`SparkContext` [creates an in-memory store](status/AppStatusStore.md#createLiveStore) (with the optional `AppStatusSource`) and requests the [LiveListenerBus](#listenerBus) to register the [AppStatusListener](status/AppStatusStore.md#listener) with the [status queue](scheduler/LiveListenerBus.md#addToStatusQueue).
+`SparkContext` [creates an in-memory store](status/AppStatusStore.md#createLiveStore) (with an optional [AppStatusSource](status/AppStatusSource.md#createSource) if [enabled](metrics/configuration-properties.md#spark.metrics.appStatusSource.enabled)) and requests the [LiveListenerBus](#listenerBus) to register the [AppStatusListener](status/AppStatusStore.md#listener) with the [status queue](scheduler/LiveListenerBus.md#addToStatusQueue).
 
 The `AppStatusStore` is available using the [statusStore](SparkContext.md#statusStore) property of the `SparkContext`.
 

@@ -1,6 +1,6 @@
 # AppStatusStore
 
-`AppStatusStore` stores the state of a running (_live_) [Spark application](#SparkContext).
+`AppStatusStore` stores the state of a Spark application in a [data store](#store) (listening to state changes using [AppStatusListener](#listener)).
 
 ## Creating Instance
 
@@ -50,7 +50,7 @@ rddList(
   cachedOnly: Boolean = true): Seq[v1.RDDStorageInfo]
 ```
 
-`rddList` requests the [KVStore](#store) for (a [view](../core/KVStore.md#view) over) [RDDStorageInfo](RDDStorageInfo.md)s (cached or not based on the given `cachedOnly` flag).
+`rddList` requests the [KVStore](#store) for (a [view](../core/KVStore.md#view) over) `RDDStorageInfo`s (cached or not based on the given `cachedOnly` flag).
 
 `rddList` is used when:
 
@@ -64,7 +64,7 @@ rddList(
 streamBlocksList(): Seq[StreamBlockData]
 ```
 
-`streamBlocksList` requests the [KVStore](#store) for (a [view](../core/KVStore.md#view) over) [StreamBlockData](../status/StreamBlockData.md)s.
+`streamBlocksList` requests the [KVStore](#store) for (a [view](../core/KVStore.md#view) over) `StreamBlockData`s.
 
 `streamBlocksList` is used when:
 

@@ -1,47 +1,48 @@
 # LiveEntity
 
-`LiveEntity` is the <<contract, contract>> of a live entity in Spark that...FIXME
+`LiveEntity` is an [abstraction](#contract) of [entities](#implementations) of a running (_live_) Spark application.
 
-[[contract]]
-[source, scala]
-----
-package org.apache.spark.status
+## Contract
 
-abstract class LiveEntity {
-  // only required methods that have no implementation
-  // the others follow
-  protected def doUpdate(): Any
-}
-----
+### <span id="doUpdate"> doUpdate
 
-NOTE: `LiveEntity` is a `private[spark]` contract.
+```scala
+doUpdate(): Any
+```
 
-.LiveEntity Contract
-[cols="1,2",options="header",width="100%"]
-|===
-| Method
-| Description
+Updated view of this entity's data
 
-| `doUpdate`
-| [[doUpdate]] Used exclusivey when `LiveEntity` is requested to <<write, write>>.
-|===
+Used when:
 
-[[lastWriteTime]]
-`LiveEntity` tracks the last <<write, write>> time (in `lastWriteTime` internal registry).
+* `LiveEntity` is requested to [write out to the store](#write)
 
-=== [[write]] `write` Method
+## Implementations
 
-[source, scala]
-----
-write(store: ElementTrackingStore, now: Long, checkTriggers: Boolean = false): Unit
-----
+* LiveExecutionData (Spark SQL)
+* LiveExecutionData (Spark Thrift Server)
+* LiveExecutor
+* LiveExecutorStageSummary
+* LiveJob
+* LiveRDD
+* LiveResourceProfile
+* LiveSessionData
+* LiveStage
+* LiveTask
+* SchedulerPool
 
-`write` requests the input `ElementTrackingStore` to [write](../status/ElementTrackingStore.md#write) the <<doUpdate, updated>> value.
+## <span id="write"> Writing Out to Store
 
-In the end, `write` records the time in the <<lastWriteTime, lastWriteTime>>.
+```scala
+write(
+  store: ElementTrackingStore,
+  now: Long,
+  checkTriggers: Boolean = false): Unit
+```
 
-`write` is used when:
+`write`...FIXME
 
-* `AppStatusListener` is requested to [update](../status/AppStatusListener.md#update)
+`write` is used when:
 
-* `SQLAppStatusListener` is created (and registers a flush trigger) and requested to `update`
+* `AppStatusListener` is requested to [update](AppStatusListener.md#update)
+* `HiveThriftServer2Listener` (Spark Thrift Server) is requested to `updateStoreWithTriggerEnabled` and `updateLiveStore`
+* `SQLAppStatusListener` (Spark SQL) is requested to `update`

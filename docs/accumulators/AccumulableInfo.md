@@ -34,5 +34,5 @@ internal: Boolean
 
 `internal` is used when:
 
-* `LiveEntityHelpers` is requested to [newAccumulatorInfos](../status/LiveEntityHelpers.md#newAccumulatorInfos)
+* `LiveEntityHelpers` is requested for `newAccumulatorInfos`
 * `JsonProtocol` is requested to [accumulableInfoToJson](../history-server/JsonProtocol.md#accumulableInfoToJson)
