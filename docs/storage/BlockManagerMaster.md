@@ -1,310 +1,121 @@
-= BlockManagerMaster
+# BlockManagerMaster
 
-BlockManagerMaster core:SparkEnv.md#BlockManagerMaster[runs on the driver].
+`BlockManagerMaster` runs on the driver and executors to exchange block metadata (status and locations) in a Spark application.
 
-BlockManagerMaster uses storage:BlockManagerMasterEndpoint.md[] registered under *BlockManagerMaster* RPC endpoint name on the driver (with the endpoint references on executors) to allow executors for sending block status updates to it and hence keep track of block statuses.
+`BlockManagerMaster` uses [BlockManagerMasterEndpoint](BlockManagerMasterEndpoint.md) (registered as **BlockManagerMaster** RPC endpoint on the driver with the endpoint references on executors) for executors to send block status updates and so let the driver keep track of block status and locations.
 
-== [[creating-instance]] Creating Instance
+## Creating Instance
 
-BlockManagerMaster takes the following to be created:
+`BlockManagerMaster` takes the following to be created:
 
-* [[driverEndpoint]] rpc:RpcEndpointRef.md[]
-* [[conf]] SparkConf.md[]
-* [[isDriver]] Flag whether BlockManagerMaster is created for the driver or executors
+* [Driver Endpoint](#driverEndpoint)
+* [Heartbeat Endpoint](#driverHeartbeatEndPoint)
+* <span id="conf"> [SparkConf](../SparkConf.md)
+* <span id="isDriver"> `isDriver` flag (whether it is created for the driver or executors)
 
-BlockManagerMaster is created when SparkEnv utility is used to core:SparkEnv.md#create[create a SparkEnv (for the driver and executors)] (to create a storage:BlockManager.md[]).
+`BlockManagerMaster` is created when:
 
-== [[removeExecutorAsync]] `removeExecutorAsync` Method
+* `SparkEnv` utility is used to [create a SparkEnv](SparkEnv.md#create) (and create a [BlockManager](BlockManager.md))
 
-CAUTION: FIXME
+### <span id="driverEndpoint"> Driver Endpoint
 
-== [[contains]] `contains` Method
+`BlockManagerMaster` is given a [RpcEndpointRef](../rpc/RpcEndpointRef.md) of the [BlockManagerMaster RPC Endpoint](BlockManagerMasterEndpoint.md) (on the driver) when [created](#creating-instance).
 
-CAUTION: FIXME
+### <span id="driverHeartbeatEndPoint"> Heartbeat Endpoint
 
-== [[removeExecutor]] Removing Executor -- `removeExecutor` Method
+`BlockManagerMaster` is given a [RpcEndpointRef](../rpc/RpcEndpointRef.md) of the [BlockManagerMasterHeartbeat RPC Endpoint](BlockManagerMasterHeartbeatEndpoint.md) (on the driver) when [created](#creating-instance).
 
-[source, scala]
-----
-removeExecutor(execId: String): Unit
-----
+The endpoint is used (mainly) when:
 
-`removeExecutor` posts storage:BlockManagerMasterEndpoint.md#RemoveExecutor[`RemoveExecutor` to BlockManagerMaster RPC endpoint] and waits for a response.
+* `DAGScheduler` is requested to [executorHeartbeatReceived](../scheduler/DAGScheduler.md#executorHeartbeatReceived)
 
-If `false` in response comes in, a `SparkException` is thrown with the following message:
+## <span id="registerBlockManager"> Registering BlockManager (on Executor) with Driver
 
-```
-BlockManagerMasterEndpoint returned false, expected true.
-```
-
-If all goes fine, you should see the following INFO message in the logs:
-
-```
-INFO BlockManagerMaster: Removed executor [execId]
-```
-
-NOTE: `removeExecutor` is executed when scheduler:DAGSchedulerEventProcessLoop.md#handleExecutorLost[`DAGScheduler` processes `ExecutorLost` event].
-
-== [[removeBlock]] Removing Block -- `removeBlock` Method
-
-[source, scala]
-----
-removeBlock(blockId: BlockId): Unit
-----
-
-`removeBlock` simply posts a `RemoveBlock` blocking message to storage:BlockManagerMasterEndpoint.md[] (and ultimately disregards the reponse).
-
-== [[removeRdd]] Removing RDD Blocks -- `removeRdd` Method
-
-[source, scala]
-----
-removeRdd(rddId: Int, blocking: Boolean)
-----
-
-`removeRdd` removes all the blocks of `rddId` RDD, possibly in `blocking` fashion.
-
-Internally, `removeRdd` posts a `RemoveRdd(rddId)` message to storage:BlockManagerMasterEndpoint.md[] on a separate thread.
-
-If there is an issue, you should see the following WARN message in the logs and the entire exception:
-
-```
-WARN Failed to remove RDD [rddId] - [exception]
-```
-
-If it is a `blocking` operation, it waits for a result for rpc:index.md#spark.rpc.askTimeout[spark.rpc.askTimeout], rpc:index.md#spark.network.timeout[spark.network.timeout] or `120` secs.
-
-== [[removeShuffle]] Removing Shuffle Blocks -- `removeShuffle` Method
-
-[source, scala]
-----
-removeShuffle(shuffleId: Int, blocking: Boolean)
-----
-
-`removeShuffle` removes all the blocks of `shuffleId` shuffle, possibly in a `blocking` fashion.
-
-It posts a `RemoveShuffle(shuffleId)` message to storage:BlockManagerMasterEndpoint.md[] on a separate thread.
-
-If there is an issue, you should see the following WARN message in the logs and the entire exception:
-
-```
-WARN Failed to remove shuffle [shuffleId] - [exception]
-```
-
-If it is a `blocking` operation, it waits for the result for rpc:index.md#spark.rpc.askTimeout[spark.rpc.askTimeout], rpc:index.md#spark.network.timeout[spark.network.timeout] or `120` secs.
-
-NOTE: `removeShuffle` is used exclusively when core:ContextCleaner.md#doCleanupShuffle[`ContextCleaner` removes a shuffle].
-
-== [[removeBroadcast]] Removing Broadcast Blocks -- `removeBroadcast` Method
-
-[source, scala]
-----
-removeBroadcast(broadcastId: Long, removeFromMaster: Boolean, blocking: Boolean)
-----
-
-`removeBroadcast` removes all the blocks of `broadcastId` broadcast, possibly in a `blocking` fashion.
-
-It posts a `RemoveBroadcast(broadcastId, removeFromMaster)` message to storage:BlockManagerMasterEndpoint.md[] on a separate thread.
-
-If there is an issue, you should see the following WARN message in the logs and the entire exception:
-
-```
-WARN Failed to remove broadcast [broadcastId] with removeFromMaster = [removeFromMaster] - [exception]
-```
-
-If it is a `blocking` operation, it waits for the result for rpc:index.md#spark.rpc.askTimeout[spark.rpc.askTimeout], rpc:index.md#spark.network.timeout[spark.network.timeout] or `120` secs.
-
-== [[stop]] Stopping BlockManagerMaster -- `stop` Method
-
-[source, scala]
-----
-stop(): Unit
-----
-
-`stop` sends a `StopBlockManagerMaster` message to storage:BlockManagerMasterEndpoint.md[] and waits for a response.
-
-NOTE: It is only executed for the driver.
-
-If all goes fine, you should see the following INFO message in the logs:
-
-```
-INFO BlockManagerMaster: BlockManagerMaster stopped
-```
-
-Otherwise, a `SparkException` is thrown.
-
-```
-BlockManagerMasterEndpoint returned false, expected true.
-```
-
-== [[registerBlockManager]] Registering BlockManager with Driver
-
-[source, scala]
-----
+```scala
 registerBlockManager(
-  blockManagerId: BlockManagerId,
-  maxMemSize: Long,
-  slaveEndpoint: RpcEndpointRef): BlockManagerId
-----
+  id: BlockManagerId,
+  localDirs: Array[String],
+  maxOnHeapMemSize: Long,
+  maxOffHeapMemSize: Long,
+  storageEndpoint: RpcEndpointRef): BlockManagerId
+```
 
-registerBlockManager prints the following INFO message to the logs:
+`registerBlockManager` prints out the following INFO message to the logs (with the given [BlockManagerId](BlockManagerId.md)):
 
-[source,plaintext]
-----
-Registering BlockManager [blockManagerId]
-----
+```text
+Registering BlockManager [id]
+```
 
-.Registering BlockManager with the Driver
-image::BlockManagerMaster-RegisterBlockManager.png[align="center"]
+![Registering BlockManager with the Driver](../images/storage/BlockManagerMaster-RegisterBlockManager.png)
 
-registerBlockManager then notifies the driver that the storage:BlockManagerId.md[] is registering itself. registerBlockManager posts a storage:BlockManagerMasterEndpoint.md#RegisterBlockManager[blocking `RegisterBlockManager` message to BlockManagerMaster RPC endpoint].
+`registerBlockManager` notifies the driver (using the [BlockManagerMaster RPC endpoint](#driverEndpoint)) that the [BlockManagerId](BlockManagerId.md) wants to register (and [sends](../rpc/RpcEndpointRef.md#askSync) a blocking [RegisterBlockManager](BlockManagerMasterEndpoint.md#RegisterBlockManager) message).
 
-NOTE: The input `maxMemSize` is the storage:BlockManager.md#maxMemory[total available on-heap and off-heap memory for storage on a `BlockManager`].
+!!! note
+    The input `maxMemSize` is the [total available on-heap and off-heap memory for storage](BlockManager.md#maxMemory) on the `BlockManager`.
 
-registerBlockManager waits until a confirmation comes (as storage:BlockManagerId.md[]).
+`registerBlockManager` waits until a confirmation comes (as a possibly-updated [BlockManagerId](BlockManagerId.md)).
 
-In the end, registerBlockManager prints the following INFO message to the logs and returns the storage:BlockManagerId.md[] received.
+In the end, `registerBlockManager` prints out the following INFO message to the logs and returns the [BlockManagerId](BlockManagerId.md) received.
 
-[source,plaintext]
-----
+```text
 Registered BlockManager [updatedId]
-----
-
-registerBlockManager is used when BlockManager is requested to storage:BlockManager.md#initialize[initialize] and storage:BlockManager.md#reregister[re-register itself with the driver].
-
-== [[updateBlockInfo]] Relaying Block Status Update From BlockManager to Driver
-
-[source, scala]
-----
-updateBlockInfo(
-  blockManagerId: BlockManagerId,
-  blockId: BlockId,
-  storageLevel: StorageLevel,
-  memSize: Long,
-  diskSize: Long): Boolean
-----
-
-`updateBlockInfo` sends a blocking storage:BlockManagerMasterEndpoint.md#UpdateBlockInfo[UpdateBlockInfo] event to <<driverEndpoint, BlockManagerMaster RPC endpoint>> (and waits for a response).
-
-`updateBlockInfo` prints out the following DEBUG message to the logs:
-
-```
-DEBUG BlockManagerMaster: Updated info of block [blockId]
 ```
 
-`updateBlockInfo` returns the response from the <<driverEndpoint, BlockManagerMaster RPC endpoint>>.
+`registerBlockManager` is used when:
 
-NOTE: `updateBlockInfo` is used exclusively when `BlockManager` is requested to storage:BlockManager.md#tryToReportBlockStatus[report a block status update to the driver].
+* `BlockManager` is requested to [initialize](BlockManager.md#initialize) and [reregister](BlockManager.md#reregister)
+* `FallbackStorage` utility is used to [registerBlockManagerIfNeeded](FallbackStorage.md#registerBlockManagerIfNeeded)
 
-== [[getLocations-block]] Get Block Locations of One Block -- `getLocations` Method
+## <span id="getLocations-blockid"> Finding Block Locations for Single Block
 
-[source, scala]
-----
-getLocations(blockId: BlockId): Seq[BlockManagerId]
-----
-
-`getLocations` storage:BlockManagerMasterEndpoint.md#GetLocations[posts a blocking `GetLocations` message to BlockManagerMaster RPC endpoint] and returns the response.
-
-NOTE: `getLocations` is used when <<contains, BlockManagerMaster checks if a block was registered>> and storage:BlockManager.md#getLocations[`BlockManager` getLocations].
-
-== [[getLocations-block-array]] Get Block Locations for Multiple Blocks -- `getLocations` Method
-
-[source, scala]
-----
-getLocations(blockIds: Array[BlockId]): IndexedSeq[Seq[BlockManagerId]]
-----
-
-`getLocations` storage:BlockManagerMasterEndpoint.md#GetLocationsMultipleBlockIds[posts a blocking `GetLocationsMultipleBlockIds` message to BlockManagerMaster RPC endpoint] and returns the response.
-
-NOTE: `getLocations` is used when scheduler:DAGScheduler.md#getCacheLocs[`DAGScheduler` finds BlockManagers (and so executors) for cached RDD partitions] and when `BlockManager` storage:BlockManager.md#getLocationBlockIds[getLocationBlockIds] and storage:BlockManager.md#blockIdsToHosts[blockIdsToHosts].
-
-== [[getPeers]] Finding Peers of BlockManager -- `getPeers` Internal Method
-
-[source, scala]
-----
-getPeers(blockManagerId: BlockManagerId): Seq[BlockManagerId]
-----
-
-`getPeers` storage:BlockManagerMasterEndpoint.md#GetPeers[posts a blocking `GetPeers` message to BlockManagerMaster RPC endpoint] and returns the response.
-
-NOTE: *Peers* of a storage:BlockManager.md[BlockManager] are the other BlockManagers in a cluster (except the driver's BlockManager). Peers are used to know the available executors in a Spark application.
-
-NOTE: `getPeers` is used when storage:BlockManager.md#getPeers[`BlockManager` finds the peers of a `BlockManager`], Structured Streaming's `KafkaSource` and Spark Streaming's `KafkaRDD`.
-
-== [[getExecutorEndpointRef]] `getExecutorEndpointRef` Method
-
-[source, scala]
-----
-getExecutorEndpointRef(executorId: String): Option[RpcEndpointRef]
-----
-
-`getExecutorEndpointRef` posts `GetExecutorEndpointRef(executorId)` message to storage:BlockManagerMasterEndpoint.md[] and waits for a response which becomes the return value.
-
-== [[getMemoryStatus]] `getMemoryStatus` Method
-
-[source, scala]
-----
-getMemoryStatus: Map[BlockManagerId, (Long, Long)]
-----
-
-`getMemoryStatus` posts a `GetMemoryStatus` message storage:BlockManagerMasterEndpoint.md[] and waits for a response which becomes the return value.
-
-== [[getStorageStatus]] Storage Status (Posting GetStorageStatus to BlockManagerMaster RPC endpoint) -- `getStorageStatus` Method
-
-[source, scala]
-----
-getStorageStatus: Array[StorageStatus]
-----
-
-`getStorageStatus` posts a `GetStorageStatus` message to storage:BlockManagerMasterEndpoint.md[] and waits for a response which becomes the return value.
-
-== [[getBlockStatus]] `getBlockStatus` Method
-
-[source, scala]
-----
-getBlockStatus(
-  blockId: BlockId,
-  askSlaves: Boolean = true): Map[BlockManagerId, BlockStatus]
-----
-
-`getBlockStatus` posts a `GetBlockStatus(blockId, askSlaves)` message to storage:BlockManagerMasterEndpoint.md[] and waits for a response (of type `Map[BlockManagerId, Future[Option[BlockStatus]]]`).
-
-It then builds a sequence of future results that are `BlockStatus` statuses and waits for a result for rpc:index.md#spark.rpc.askTimeout[spark.rpc.askTimeout], rpc:index.md#spark.network.timeout[spark.network.timeout] or `120` secs.
-
-No result leads to a `SparkException` with the following message:
-
-```
-BlockManager returned null for BlockStatus query: [blockId]
+```scala
+getLocations(
+  blockId: BlockId): Seq[BlockManagerId]
 ```
 
-== [[getMatchingBlockIds]] `getMatchingBlockIds` Method
+`getLocations` requests the driver (using the [BlockManagerMaster RPC endpoint](#driverEndpoint)) for [BlockManagerId](BlockManagerId.md)s of the given [BlockId](BlockId.md) (and [sends](../rpc/RpcEndpointRef.md#askSync) a blocking [GetLocations](BlockManagerMasterEndpoint.md#GetLocations) message).
 
-[source, scala]
-----
-getMatchingBlockIds(
-  filter: BlockId => Boolean,
-  askSlaves: Boolean): Seq[BlockId]
-----
+`getLocations` is used when:
 
-`getMatchingBlockIds` posts a `GetMatchingBlockIds(filter, askSlaves)` message to storage:BlockManagerMasterEndpoint.md[] and waits for a response which becomes the result for rpc:index.md#spark.rpc.askTimeout[spark.rpc.askTimeout], rpc:index.md#spark.network.timeout[spark.network.timeout] or `120` secs.
+* `BlockManager` is requested to [fetchRemoteManagedBuffer](BlockManager.md#fetchRemoteManagedBuffer)
+* `BlockManagerMaster` is requested to [contains a BlockId](BlockManagerMaster.md#contains)
 
-== [[hasCachedBlocks]] `hasCachedBlocks` Method
+## <span id="getLocations-array-blockid"> Finding Block Locations for Multiple Blocks
 
-[source, scala]
-----
-hasCachedBlocks(executorId: String): Boolean
-----
+```scala
+getLocations(
+  blockIds: Array[BlockId]): IndexedSeq[Seq[BlockManagerId]]
+```
 
-`hasCachedBlocks` posts a `HasCachedBlocks(executorId)` message to storage:BlockManagerMasterEndpoint.md[] and waits for a response which becomes the result.
+`getLocations` requests the driver (using the [BlockManagerMaster RPC endpoint](#driverEndpoint)) for [BlockManagerId](BlockManagerId.md)s of the given [BlockId](BlockId.md)s (and [sends](../rpc/RpcEndpointRef.md#askSync) a blocking [GetLocationsMultipleBlockIds](BlockManagerMasterEndpoint.md#GetLocationsMultipleBlockIds) message).
 
-== [[logging]] Logging
+`getLocations` is used when:
+
+* `DAGScheduler` is requested for [BlockManagers (executors) for cached RDD partitions](../scheduler/DAGScheduler.md#getCacheLocs)
+* `BlockManager` is requested to [getLocationBlockIds](BlockManager.md#getLocationBlockIds)
+* `BlockManager` utility is used to [blockIdsToLocations](BlockManager.md#blockIdsToLocations)
+
+## <span id="contains"> contains
+
+```scala
+contains(
+  blockId: BlockId): Boolean
+```
+
+`contains` is positive (`true`) when there is at least one [executor](#getLocations) with the given [BlockId](BlockId.md).
+
+`contains` is used when:
+
+* `LocalRDDCheckpointData` is requested to [doCheckpoint](../rdd/LocalRDDCheckpointData.md#doCheckpoint)
+
+## Logging
 
 Enable `ALL` logging level for `org.apache.spark.storage.BlockManagerMaster` logger to see what happens inside.
 
 Add the following line to `conf/log4j.properties`:
 
-[source]
-----
+```text
 log4j.logger.org.apache.spark.storage.BlockManagerMaster=ALL
-----
+```
 
-Refer to spark-logging.md[Logging].
+Refer to [Logging](../spark-logging.md).
