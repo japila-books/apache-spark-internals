@@ -1,54 +1,50 @@
 # SerializerInstance
 
-*SerializerInstance* is an abstraction of instances of a serializer, for use by one thread at a time.
+`SerializerInstance` is an [abstraction](#contract) of [serializer instances](#implementations) (for use by one thread at a time).
 
-== [[serialize]] serialize Method
+## Contract
 
-[source, scala]
-----
-serialize[T: ClassTag](
-  t: T): ByteBuffer
-----
+### <span id="deserialize"> deserialize
 
-serialize...FIXME
-
-serialize is used when...FIXME
-
-== [[deserialize]] deserialize Method
-
-[source, scala]
-----
+```scala
 deserialize[T: ClassTag](
   bytes: ByteBuffer): T
 deserialize[T: ClassTag](
   bytes: ByteBuffer,
   loader: ClassLoader): T
-----
+```
 
-deserialize...FIXME
+Used when:
 
-deserialize is used when...FIXME
+* `TaskRunner` is requested to [run](../executor/TaskRunner.md#run)
+* `ResultTask` is requested to [run](../scheduler/ResultTask.md#runTask)
+* `ShuffleMapTask` is requested to [run](../scheduler/ShuffleMapTask.md#runTask)
+* `TaskResultGetter` is requested to [enqueueFailedTask](../scheduler/TaskResultGetter.md#enqueueFailedTask)
+* _others_
 
-== [[serializeStream]] Serializing Output Stream
+### <span id="deserializeStream"> deserializeStream
 
-[source, scala]
-----
-serializeStream(
-  s: OutputStream): SerializationStream
-----
-
-serializeStream...FIXME
-
-serializeStream is used when...FIXME
-
-== [[deserializeStream]] Deserializing Input Stream
-
-[source, scala]
-----
+```scala
 deserializeStream(
   s: InputStream): DeserializationStream
-----
+```
 
-deserializeStream...FIXME
+### <span id="serialize"> serialize
 
-deserializeStream is used when...FIXME
+```scala
+serialize[T: ClassTag](
+  t: T): ByteBuffer
+```
+
+### <span id="serializeStream"> serializeStream
+
+```scala
+serializeStream(
+  s: OutputStream): SerializationStream
+```
+
+## Implementations
+
+* JavaSerializerInstance
+* KryoSerializerInstance
+* UnsafeRowSerializerInstance ([Spark SQL]({{ book.spark_sql }}/UnsafeRowSerializerInstance))
