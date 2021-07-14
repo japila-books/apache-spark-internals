@@ -1,58 +1,65 @@
 # Serializer
 
-## Review Me
+`Serializer` is an [abstraction](#contract) of [serializers](#implementations) for serialization and deserialization of [tasks](#SparkEnv-closureSerializer) (closures) and [data blocks](#SparkEnv-serializer) in a Spark application.
 
-`Serializer` is an abstraction of <<implementations, serializers>> that are intended to be used to serialize/de-serialize data in a single Spark application.
+## Contract
 
-== [[implementations]] Available Serializers
+### <span id="newInstance"> newInstance
 
-[cols="30,70",options="header",width="100%"]
-|===
-| Serializer
-| Description
-
-| JavaSerializer
-| [[JavaSerializer]]
-
-| KryoSerializer
-| [[KryoSerializer]]
-
-|===
-
-== [[newInstance]] newInstance Method
-
-[source, scala]
-----
+```scala
 newInstance(): SerializerInstance
-----
+```
 
-newInstance...FIXME
+Creates a new [SerializerInstance](SerializerInstance.md)
 
-newInstance is used when...FIXME
+Used when:
 
-== [[setDefaultClassLoader]] setDefaultClassLoader Method
+* `Task` is [created](../scheduler/Task.md#serializedTaskMetrics) (only used in tests)
+* `SerializerSupport` (Spark SQL) utility is used to `newSerializer`
+* `RangePartitioner` is requested to [writeObject](../rdd/RangePartitioner.md#writeObject) and [readObject](../rdd/RangePartitioner.md#readObject)
+* `TorrentBroadcast` utility is used to [blockifyObject](../core/TorrentBroadcast.md#blockifyObject) and [unBlockifyObject](../core/TorrentBroadcast.md#unBlockifyObject)
+* `TaskRunner` is requested to [run](../executor/TaskRunner.md#run)
+* `NettyBlockRpcServer` is requested to [deserializeMetadata](../storage/NettyBlockRpcServer.md#deserializeMetadata)
+* `NettyBlockTransferService` is requested to [uploadBlock](../storage/NettyBlockTransferService.md#uploadBlock)
+* `PairRDDFunctions` is requested to...FIXME
+* `ParallelCollectionPartition` is requested to...FIXME
+* `RDD` is requested to...FIXME
+* `ReliableCheckpointRDD` utility is used to...FIXME
+* `NettyRpcEnvFactory` is requested to [create a RpcEnv](../rpc/NettyRpcEnvFactory.md#create)
+* `DAGScheduler` is [created](../scheduler/DAGScheduler.md#closureSerializer)
+* _others_
 
-[source, scala]
-----
-setDefaultClassLoader(
-  classLoader: ClassLoader): Serializer
-----
+## Implementations
 
-setDefaultClassLoader...FIXME
+* `JavaSerializer`
+* [KryoSerializer](KryoSerializer.md)
+* `UnsafeRowSerializer` ([Spark SQL]({{ book.spark_sql }}/UnsafeRowSerializer))
 
-setDefaultClassLoader is used when...FIXME
+## Accessing Serializer
 
-== [[supportsRelocationOfSerializedObjects]] supportsRelocationOfSerializedObjects Property
+`Serializer` is available using [SparkEnv](../SparkEnv.md) as the [closureSerializer](../SparkEnv.md#closureSerializer) and [serializer](../SparkEnv.md#serializer).
 
-[source, scala]
-----
+### <span id="SparkEnv-closureSerializer"> closureSerializer
+
+```scala
+SparkEnv.get.closureSerializer
+```
+
+### <span id="SparkEnv-serializer"> serializer
+
+```scala
+SparkEnv.get.serializer
+```
+
+## <span id="supportsRelocationOfSerializedObjects"> supportsRelocationOfSerializedObjects Flag
+
+```scala
 supportsRelocationOfSerializedObjects: Boolean
-----
+```
 
-supportsRelocationOfSerializedObjects should be enabled (i.e. true) only when reordering the bytes of serialized objects in serialization stream output is equivalent to having re-ordered those elements prior to serializing them.
+`supportsRelocationOfSerializedObjects` is disabled (`false`) by default.
 
-supportsRelocationOfSerializedObjects is disabled (`false`) by default.
+`supportsRelocationOfSerializedObjects` is used when:
 
-NOTE: `KryoSerializer` uses `autoReset` for supportsRelocationOfSerializedObjects.
-
-NOTE: supportsRelocationOfSerializedObjects is enabled in `UnsafeRowSerializer`.
+* `BlockStoreShuffleReader` is requested to [fetchContinuousBlocksInBatch](../shuffle/BlockStoreShuffleReader.md#fetchContinuousBlocksInBatch)
+* `SortShuffleManager` is requested to [canUseSerializedShuffle](../shuffle/SortShuffleManager.md#canUseSerializedShuffle)

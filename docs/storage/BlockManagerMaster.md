@@ -15,7 +15,7 @@
 
 `BlockManagerMaster` is created when:
 
-* `SparkEnv` utility is used to [create a SparkEnv](SparkEnv.md#create) (and create a [BlockManager](BlockManager.md))
+* `SparkEnv` utility is used to [create a SparkEnv](../SparkEnv.md#create) (and create a [BlockManager](BlockManager.md))
 
 ### <span id="driverEndpoint"> Driver Endpoint
 

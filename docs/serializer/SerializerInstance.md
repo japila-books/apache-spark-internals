@@ -1,4 +1,4 @@
-= SerializerInstance
+# SerializerInstance
 
 *SerializerInstance* is an abstraction of instances of a serializer, for use by one thread at a time.
 

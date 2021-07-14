@@ -90,7 +90,7 @@ Default: `true`
 
 Used when:
 
-* `KryoSerializer` is [created](KryoSerializer.md#usePool)
+* `KryoSerializer` is [created](serializer/KryoSerializer.md#usePool)
 
 ## <span id="spark.local.dir"> spark.local.dir
 
