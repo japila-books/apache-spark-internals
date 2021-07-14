@@ -84,6 +84,14 @@ Used when:
 
 Default: (empty)
 
+## <span id="spark.kryo.pool"><span id="KRYO_USE_POOL"> spark.kryo.pool
+
+Default: `true`
+
+Used when:
+
+* `KryoSerializer` is [created](KryoSerializer.md#usePool)
+
 ## <span id="spark.local.dir"> spark.local.dir
 
 A comma-separated list of directories that are used as a temporary storage for "scratch" space (incl. map output files and RDDs that get stored on disk). This should be on a fast, local disk in your system.
@@ -153,6 +161,17 @@ Default: `1s`
 Used when:
 
 * `DriverEndpoint` is requested to [onStart](scheduler/DriverEndpoint.md#onStart)
+
+## <span id="spark.serializer"> spark.serializer
+
+The fully-qualified class name of the [Serializer](serializer/Serializer.md)
+
+Default: `org.apache.spark.serializer.JavaSerializer`
+
+Used when:
+
+* `SparkEnv` utility is used to [create a SparkEnv](SparkEnv.md#create)
+* `SparkConf` is requested to [registerKryoClasses](SparkConf.md#registerKryoClasses)
 
 ## <span id="spark.shuffle.compress"> spark.shuffle.compress
 
@@ -663,12 +682,6 @@ Controls whether to use IO encryption
 Default: `false`
 
 == [[spark.closure.serializer]] spark.closure.serializer
-
-serializer:Serializer.md[Serializer]
-
-Default: `org.apache.spark.serializer.JavaSerializer`
-
-== [[spark.serializer]] spark.serializer
 
 serializer:Serializer.md[Serializer]
 

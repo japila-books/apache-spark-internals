@@ -1,167 +1,121 @@
 # SerializerManager
 
-`SerializerManager` is used to <<getSerializer, select a serializer>> for shuffle blocks (either the default <<defaultSerializer, JavaSerializer>> or <<kryoSerializer, KryoSerializer>> based on the key and value of a record).
+`SerializerManager` is used to [select the Serializer](#getSerializer) for shuffle blocks.
 
-== [[creating-instance]] Creating Instance
+## Creating Instance
 
-SerializerManager takes the following to be created:
+`SerializerManager` takes the following to be created:
 
-* [[defaultSerializer]] serializer:Serializer.md[Serializer]
-* [[conf]] SparkConf.md[SparkConf]
-* [[encryptionKey]] Optional encryption key (`[Array[Byte]]`)
+* [Default Serializer](#defaultSerializer)
+* <span id="conf"> [SparkConf](../SparkConf.md)
+* <span id="encryptionKey"> (optional) Encryption Key (`Option[Array[Byte]]`)
 
-SerializerManager is created when SparkEnv utility is used to core:SparkEnv.md#create[create a SparkEnv for the driver and executors].
+`SerializerManager` is created when:
 
-== [[SparkEnv]] Accessing SerializerManager Using SparkEnv
+* `SparkEnv` utility is used to [create a SparkEnv](../SparkEnv.md#create) (for the driver and executors)
 
-SerializerManager is available using core:SparkEnv.md#serializerManager[SparkEnv] on the driver and executors.
+## <span id="defaultSerializer"> Default Serializer
 
-[source, scala]
-----
+`SerializerManager` is given a [Serializer](Serializer.md) when [created](#creating-instance) (based on [spark.serializer](../configuration-properties.md#spark.serializer) configuration property).
+
+!!! tip
+    Enable `DEBUG` logging level of [SparkEnv](../SparkEnv.md#logging) to be told about the selected `Serializer`.
+
+    ```text
+    Using serializer: [serializer]
+    ```
+
+## <span id="SparkEnv"> Accessing SerializerManager
+
+`SerializerManager` is available using [SparkEnv](../SparkEnv.md#serializerManager) on the driver and executors.
+
+```scala
 import org.apache.spark.SparkEnv
 SparkEnv.get.serializerManager
-----
+```
 
-== [[kryoSerializer]] KryoSerializer
+## <span id="kryoSerializer"> KryoSerializer
 
-SerializerManager creates a KryoSerializer when created.
+`SerializerManager` creates a [KryoSerializer](KryoSerializer.md) when [created](#creating-instance).
 
-KryoSerializer is used as a <<getSerializer, serializer>> when the type of a given key and value is <<canUseKryo, compatible with Kryo>>.
+`KryoSerializer` is used as the [serializer](#getSerializer) when the type of a given key and value is [compatible with Kryo](#canUseKryo).
 
-== [[wrapForCompression]] Wrapping Input or Output Stream of Block for Compression
+## <span id="canUseKryo"> Checking Whether Kryo Serializer Could Be Used
 
-[source, scala]
-----
-wrapForCompression(
-  blockId: BlockId,
-  s: OutputStream): OutputStream
-wrapForCompression(
-  blockId: BlockId,
-  s: InputStream): InputStream
-----
+```scala
+canUseKryo(
+  ct: ClassTag[_]): Boolean
+```
 
-wrapForCompression...FIXME
+`canUseKryo` is `true` when the given `ClassTag` is a primitive, an array of primitives or a `String`. Otherwise, `canUseKryo` is `false`.
 
-wrapForCompression is used when:
+`canUseKryo` is used when:
 
-* SerializerManager is requested to <<wrapStream, wrapStream>>, <<dataSerializeStream, dataSerializeStream>>, <<dataDeserializeStream, dataDeserializeStream>> and <<dataSerializeWithExplicitClassTag, dataSerializeWithExplicitClassTag>>
+* `SerializerManager` is requested for a [Serializer](#getSerializer)
 
-* SerializedValuesHolder (of storage:MemoryStore.md[MemoryStore]) is requested for a SerializationStream
+## <span id="getSerializer"> Selecting Serializer
 
-== [[wrapStream]] Wrapping Input or Output Stream for Block
-
-[source, scala]
-----
-wrapStream(
-  blockId: BlockId,
-  s: InputStream): InputStream
-wrapStream(
-  blockId: BlockId,
-  s: OutputStream): OutputStream
-----
-
-wrapStream...FIXME
-
-wrapStream is used when:
-
-* BlockStoreShuffleReader is requested to shuffle:BlockStoreShuffleReader.md#read[read combined records for a reduce task]
-
-* DiskMapIterator (of shuffle:ExternalAppendOnlyMap.md[ExternalAppendOnlyMap]) is requested for nextBatchStream
-
-* SpillReader (of shuffle:ExternalSorter.md[ExternalSorter]) is requested for nextBatchStream
-
-* memory:UnsafeSorterSpillReader.md[UnsafeSorterSpillReader] is created
-
-* DiskBlockObjectWriter is requested to storage:DiskBlockObjectWriter.md#open[open]
-
-== [[dataSerializeStream]] dataSerializeStream Method
-
-[source, scala]
-----
-dataSerializeStream[T: ClassTag](
-  blockId: BlockId,
-  outputStream: OutputStream,
-  values: Iterator[T]): Unit
-----
-
-dataSerializeStream...FIXME
-
-dataSerializeStream is used when BlockManager is requested to storage:BlockManager.md#doPutIterator[doPutIterator] and storage:BlockManager.md#dropFromMemory[dropFromMemory].
-
-== [[dataSerializeWithExplicitClassTag]] dataSerializeWithExplicitClassTag Method
-
-[source, scala]
-----
-dataSerializeWithExplicitClassTag(
-  blockId: BlockId,
-  values: Iterator[_],
-  classTag: ClassTag[_]): ChunkedByteBuffer
-----
-
-dataSerializeWithExplicitClassTag...FIXME
-
-dataSerializeWithExplicitClassTag is used when BlockManager is requested to storage:BlockManager.md#doGetLocalBytes[doGetLocalBytes].
-
-== [[dataDeserializeStream]] dataDeserializeStream Method
-
-[source, scala]
-----
-dataDeserializeStream[T](
-  blockId: BlockId,
-  inputStream: InputStream)
-  (classTag: ClassTag[T]): Iterator[T]
-----
-
-dataDeserializeStream...FIXME
-
-dataDeserializeStream is used when:
-
-* BlockManager is requested to storage:BlockManager.md#getLocalValues[getLocalValues], storage:BlockManager.md#getRemoteValues[getRemoteValues] and storage:BlockManager.md#doPutBytes[doPutBytes]
-
-* MemoryStore is requested to storage:MemoryStore.md#putIteratorAsBytes[putIteratorAsBytes] (when PartiallySerializedBlock is requested for a PartiallyUnrolledIterator)
-
-== [[getSerializer]] Selecting Serializer
-
-[source, scala]
-----
+```scala
 getSerializer(
   ct: ClassTag[_],
   autoPick: Boolean): Serializer
 getSerializer(
   keyClassTag: ClassTag[_],
   valueClassTag: ClassTag[_]): Serializer
-----
+```
 
-getSerializer returns the <<kryoSerializer, KryoSerializer>> when the given arguments are <<canUseKryo, compatible with Kryo>>. Otherwise, getSerializer returns the <<defaultSerializer, Serializer>>.
+`getSerializer` returns the [KryoSerializer](#kryoSerializer) when the given arguments are [kryo-compatible](#canUseKryo) (and the given `autoPick` flag is `true`). Otherwise, `getSerializer` returns the [default Serializer](#defaultSerializer).
 
-getSerializer is used when:
+`getSerializer` is used when:
 
-* ShuffledRDD is requested for rdd:ShuffledRDD.md#getDependencies[dependencies].
+* `ShuffledRDD` is requested for [dependencies](../rdd/ShuffledRDD.md#getDependencies)
+* `SerializerManager` is requested to [dataSerializeStream](#dataSerializeStream), [dataSerializeWithExplicitClassTag](#dataSerializeWithExplicitClassTag) and [dataDeserializeStream](#dataDeserializeStream)
+* `SerializedValuesHolder` (of [MemoryStore](../storage/MemoryStore.md)) is requested for a `SerializationStream`
 
-* SerializerManager is requested to <<dataSerializeStream, dataSerializeStream>>, <<dataSerializeWithExplicitClassTag, dataSerializeWithExplicitClassTag>> and <<dataDeserializeStream, dataDeserializeStream>>
+## <span id="dataSerializeStream"> dataSerializeStream
 
-* SerializedValuesHolder (of storage:MemoryStore.md[MemoryStore]) is requested for a SerializationStream
+```scala
+dataSerializeStream[T: ClassTag](
+  blockId: BlockId,
+  outputStream: OutputStream,
+  values: Iterator[T]): Unit
+```
 
-== [[canUseKryo]] Checking Whether Kryo Serializer Could Be Used
+`dataSerializeStream`...FIXME
 
-[source, scala]
-----
-canUseKryo(
-  ct: ClassTag[_]): Boolean
-----
+`dataSerializeStream` is used when:
 
-canUseKryo is `true` when the given ClassTag is a primitive, an array of primitives or a String. Otherwise, canUseKryo is `false`.
+* `BlockManager` is requested to [doPutIterator](../storage/BlockManager.md#doPutIterator) and [dropFromMemory](../storage/BlockManager.md#dropFromMemory)
 
-canUseKryo is used when SerializerManager is requested for a <<getSerializer, Serializer>>.
+## <span id="dataSerializeWithExplicitClassTag"> dataSerializeWithExplicitClassTag
 
-== [[shouldCompress]] shouldCompress Method
+```scala
+dataSerializeWithExplicitClassTag(
+  blockId: BlockId,
+  values: Iterator[_],
+  classTag: ClassTag[_]): ChunkedByteBuffer
+```
 
-[source, scala]
-----
-shouldCompress(
-  blockId: BlockId): Boolean
-----
+`dataSerializeWithExplicitClassTag`...FIXME
 
-shouldCompress...FIXME
+`dataSerializeWithExplicitClassTag` is used when:
 
-shouldCompress is used when SerializerManager is requested to <<wrapForCompression, wrapForCompression>>.
+* `BlockManager` is requested to [doGetLocalBytes](../storage/BlockManager.md#doGetLocalBytes)
+* `SerializerManager` is requested to [dataSerialize](#dataSerialize)
+
+## <span id="dataDeserializeStream"> dataDeserializeStream
+
+```scala
+dataDeserializeStream[T](
+  blockId: BlockId,
+  inputStream: InputStream)
+  (classTag: ClassTag[T]): Iterator[T]
+```
+
+`dataDeserializeStream`...FIXME
+
+`dataDeserializeStream` is used when:
+
+* `BlockStoreUpdater` is requested to `saveDeserializedValuesToMemoryStore`
+* `BlockManager` is requested to [getLocalValues](../storage/BlockManager.md#getLocalValues) and [getRemoteValues](../storage/BlockManager.md#getRemoteValues)
+* `MemoryStore` is requested to [putIteratorAsBytes](../storage/MemoryStore.md#putIteratorAsBytes) (when `PartiallySerializedBlock` is requested for a `PartiallyUnrolledIterator`)
