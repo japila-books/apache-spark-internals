@@ -46,5 +46,5 @@ serializeStream(
 ## Implementations
 
 * JavaSerializerInstance
-* KryoSerializerInstance
+* [KryoSerializerInstance](KryoSerializerInstance.md)
 * UnsafeRowSerializerInstance ([Spark SQL]({{ book.spark_sql }}/UnsafeRowSerializerInstance))

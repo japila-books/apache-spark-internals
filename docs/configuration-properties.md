@@ -92,6 +92,16 @@ Used when:
 
 * `KryoSerializer` is [created](serializer/KryoSerializer.md#usePool)
 
+## <span id="spark.kryo.unsafe"><span id="KRYO_USE_UNSAFE"> spark.kryo.unsafe
+
+Whether `KryoSerializer` should use unsafe-based IO for serialization
+
+Default: `false`
+
+Used when:
+
+* `KryoSerializer` is [created](serializer/KryoSerializer.md#useUnsafe)
+
 ## <span id="spark.local.dir"> spark.local.dir
 
 A comma-separated list of directories that are used as a temporary storage for "scratch" space (incl. map output files and RDDs that get stored on disk). This should be on a fast, local disk in your system.

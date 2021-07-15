@@ -4,7 +4,7 @@
 
 ## Contract
 
-### <span id="newInstance"> newInstance
+### <span id="newInstance"> Creating New SerializerInstance
 
 ```scala
 newInstance(): SerializerInstance
