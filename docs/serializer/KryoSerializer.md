@@ -44,3 +44,43 @@ newKryoOutput(): KryoOutput
 `newKryoOutput` is used when:
 
 * `KryoSerializerInstance` is requested for the [output](KryoSerializerInstance.md#output)
+
+## <span id="newKryo"> newKryo
+
+```scala
+newKryo(): Kryo
+```
+
+`newKryo`...FIXME
+
+`newKryo` is used when:
+
+* `KryoSerializer` is requested for a [KryoFactory](#factory)
+* `KryoSerializerInstance` is requested to [borrowKryo](KryoSerializerInstance.md#borrowKryo)
+
+## <span id="factory"> KryoFactory
+
+```scala
+factory: KryoFactory
+```
+
+`KryoSerializer` creates a `KryoFactory` lazily (on demand and once only) for [internalPool](#internalPool).
+
+## <span id="internalPool"> KryoPool
+
+`KryoSerializer` creates a custom `KryoPool` lazily (on demand and once only).
+
+`KryoPool` is used when:
+
+* [pool](#pool)
+* [setDefaultClassLoader](#setDefaultClassLoader)
+
+## <span id="supportsRelocationOfSerializedObjects"> supportsRelocationOfSerializedObjects
+
+```scala
+supportsRelocationOfSerializedObjects: Boolean
+```
+
+`supportsRelocationOfSerializedObjects` is part of the [Serializer](Serializer.md#supportsRelocationOfSerializedObjects) abstraction.
+
+`supportsRelocationOfSerializedObjects` [creates a new SerializerInstance](#newInstance) (that is assumed to be a [KryoSerializerInstance](KryoSerializerInstance.md)) and requests it to [get the value of the autoReset field](KryoSerializerInstance.md#getAutoReset).

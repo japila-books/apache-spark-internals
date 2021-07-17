@@ -51,7 +51,7 @@ SparkEnv.get.closureSerializer
 SparkEnv.get.serializer
 ```
 
-## <span id="supportsRelocationOfSerializedObjects"> supportsRelocationOfSerializedObjects Flag
+## <span id="supportsRelocationOfSerializedObjects"> Serialized Objects Relocation Requirements
 
 ```scala
 supportsRelocationOfSerializedObjects: Boolean
@@ -62,4 +62,4 @@ supportsRelocationOfSerializedObjects: Boolean
 `supportsRelocationOfSerializedObjects` is used when:
 
 * `BlockStoreShuffleReader` is requested to [fetchContinuousBlocksInBatch](../shuffle/BlockStoreShuffleReader.md#fetchContinuousBlocksInBatch)
-* `SortShuffleManager` is requested to [canUseSerializedShuffle](../shuffle/SortShuffleManager.md#canUseSerializedShuffle)
+* `SortShuffleManager` is requested to [create a ShuffleHandle for a given ShuffleDependency](../shuffle/SortShuffleManager.md#registerShuffle) (and [checks out SerializedShuffleHandle requirements](../shuffle/SortShuffleManager.md#canUseSerializedShuffle))

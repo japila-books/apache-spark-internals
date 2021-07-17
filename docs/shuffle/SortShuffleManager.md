@@ -59,6 +59,75 @@ loadShuffleExecutorComponents(
 
 `loadShuffleExecutorComponents` requests the `ShuffleExecutorComponents` to [initialize](ShuffleExecutorComponents.md#initializeExecutor) before returning it.
 
+## <span id="registerShuffle"> Creating ShuffleHandle for ShuffleDependency
+
+```scala
+registerShuffle[K, V, C](
+  shuffleId: Int,
+  dependency: ShuffleDependency[K, V, C]): ShuffleHandle
+```
+
+`registerShuffle` is part of the [ShuffleManager](ShuffleManager.md#registerShuffle) abstraction.
+
+`registerShuffle` creates a new [ShuffleHandle](ShuffleHandle.md) (for the given [ShuffleDependency](../rdd/ShuffleDependency.md)) that is one of the following:
+
+1. [BypassMergeSortShuffleHandle](BypassMergeSortShuffleHandle.md) (with `ShuffleDependency[K, V, V]`) when [shouldBypassMergeSort](SortShuffleWriter.md#shouldBypassMergeSort) condition holds
+
+2. [SerializedShuffleHandle](SerializedShuffleHandle.md) (with `ShuffleDependency[K, V, V]`) when [canUseSerializedShuffle](#canUseSerializedShuffle) condition holds
+
+3. [BaseShuffleHandle](BaseShuffleHandle.md)
+
+### <span id="canUseSerializedShuffle"> SerializedShuffleHandle Requirements
+
+```scala
+canUseSerializedShuffle(
+  dependency: ShuffleDependency[_, _, _]): Boolean
+```
+
+`canUseSerializedShuffle` is `true` when all of the following hold for the given [ShuffleDependency](../rdd/ShuffleDependency.md):
+
+1. [Serializer](../rdd/ShuffleDependency.md#serializer) (of the given `ShuffleDependency`) [supports relocation of serialized objects](../serializer/Serializer.md#supportsRelocationOfSerializedObjects)
+
+1. [mapSideCombine](../rdd/ShuffleDependency.md#mapSideCombine) flag (of the given `ShuffleDependency`) is `false`
+
+1. [Number of partitions](../rdd/Partitioner.md#numPartitions) (of the [Partitioner](../rdd/ShuffleDependency.md#partitioner) of the given `ShuffleDependency`) is not greater than the [supported maximum number](#MAX_SHUFFLE_OUTPUT_PARTITIONS_FOR_SERIALIZED_MODE)
+
+With all of the above positive, `canUseSerializedShuffle` prints out the following DEBUG message to the logs:
+
+```text
+Can use serialized shuffle for shuffle [shuffleId]
+```
+
+Otherwise, `canUseSerializedShuffle` is `false` and prints out one of the following DEBUG messages based on the failed requirement:
+
+```text
+Can't use serialized shuffle for shuffle [id] because the serializer, [name], does not support object relocation
+```
+
+```text
+Can't use serialized shuffle for shuffle [id] because we need to do map-side aggregation
+```
+
+```text
+Can't use serialized shuffle for shuffle [id] because it has more than [number] partitions
+```
+
+`canUseSerializedShuffle` is used when:
+
+* `SortShuffleManager` is requested to [register a shuffle (and creates a ShuffleHandle)](#registerShuffle)
+
+## Logging
+
+Enable `ALL` logging level for `org.apache.spark.shuffle.sort.SortShuffleManager` logger to see what happens inside.
+
+Add the following line to `conf/log4j.properties`:
+
+```text
+log4j.logger.org.apache.spark.shuffle.sort.SortShuffleManager=ALL
+```
+
+Refer to [Logging](../spark-logging.md).
+
 ## Review Me
 
 == [[MAX_SHUFFLE_OUTPUT_PARTITIONS_FOR_SERIALIZED_MODE]] Maximum Number of Partition Identifiers
@@ -76,11 +145,11 @@ Lookup table with the number of mappers producing the output for a shuffle (as {
 shuffleBlockResolver: ShuffleBlockResolver
 ----
 
-shuffleBlockResolver is an shuffle:IndexShuffleBlockResolver.md[IndexShuffleBlockResolver] that is created immediately when SortShuffleManager is.
+shuffleBlockResolver is an IndexShuffleBlockResolver.md[IndexShuffleBlockResolver] that is created immediately when SortShuffleManager is.
 
 shuffleBlockResolver is used when SortShuffleManager is requested for a <<getWriter, ShuffleWriter for a given partition>>, to <<unregisterShuffle, unregister a shuffle metadata>> and <<stop, stop>>.
 
-shuffleBlockResolver is part of the shuffle:ShuffleManager.md#shuffleBlockResolver[ShuffleManager] abstraction.
+shuffleBlockResolver is part of the ShuffleManager.md#shuffleBlockResolver[ShuffleManager] abstraction.
 
 == [[unregisterShuffle]] Unregistering Shuffle
 
@@ -94,29 +163,7 @@ unregisterShuffle tries to remove the given `shuffleId` from the <<numMapsForShu
 
 If the given `shuffleId` was registered, unregisterShuffle requests the <<shuffleBlockResolver, IndexShuffleBlockResolver>> to <<IndexShuffleBlockResolver.md#removeDataByMap, remove the shuffle index and data files>> one by one (up to the number of mappers producing the output for the shuffle).
 
-unregisterShuffle is part of the shuffle:ShuffleManager.md#unregisterShuffle[ShuffleManager] abstraction.
-
-== [[registerShuffle]] Creating ShuffleHandle (For ShuffleDependency)
-
-[source, scala]
-----
-registerShuffle[K, V, C](
-  shuffleId: Int,
-  numMaps: Int,
-  dependency: ShuffleDependency[K, V, C]): ShuffleHandle
-----
-
-CAUTION: FIXME Copy the conditions
-
-`registerShuffle` returns a new `ShuffleHandle` that can be one of the following:
-
-1. shuffle:BypassMergeSortShuffleHandle.md[BypassMergeSortShuffleHandle] (with `ShuffleDependency[K, V, V]`) when shuffle:SortShuffleWriter.md#shouldBypassMergeSort[shouldBypassMergeSort] condition holds.
-
-2. shuffle:SerializedShuffleHandle.md[SerializedShuffleHandle] (with `ShuffleDependency[K, V, V]`) when <<canUseSerializedShuffle, canUseSerializedShuffle condition holds>>.
-
-3. shuffle:spark-shuffle-BaseShuffleHandle.md[BaseShuffleHandle]
-
-registerShuffle is part of the shuffle:ShuffleManager.md#registerShuffle[ShuffleManager] abstraction.
+unregisterShuffle is part of the ShuffleManager.md#unregisterShuffle[ShuffleManager] abstraction.
 
 == [[getReader]] Creating BlockStoreShuffleReader For ShuffleHandle And Reduce Partitions
 
@@ -129,11 +176,11 @@ getReader[K, C](
   context: TaskContext): ShuffleReader[K, C]
 ----
 
-getReader returns a new shuffle:BlockStoreShuffleReader.md[BlockStoreShuffleReader] passing all the input parameters on to it.
+getReader returns a new BlockStoreShuffleReader.md[BlockStoreShuffleReader] passing all the input parameters on to it.
 
-getReader assumes that the input `ShuffleHandle` is of type shuffle:spark-shuffle-BaseShuffleHandle.md[BaseShuffleHandle].
+getReader assumes that the input `ShuffleHandle` is of type BaseShuffleHandle.md[BaseShuffleHandle].
 
-getReader is part of the shuffle:ShuffleManager.md#getReader[ShuffleManager] abstraction.
+getReader is part of the ShuffleManager.md#getReader[ShuffleManager] abstraction.
 
 == [[stop]] Stopping SortShuffleManager
 
@@ -142,55 +189,6 @@ getReader is part of the shuffle:ShuffleManager.md#getReader[ShuffleManager] abs
 stop(): Unit
 ----
 
-stop simply requests the <<shuffleBlockResolver, IndexShuffleBlockResolver>> to shuffle:IndexShuffleBlockResolver.md#stop[stop] (which actually does nothing).
+stop simply requests the <<shuffleBlockResolver, IndexShuffleBlockResolver>> to IndexShuffleBlockResolver.md#stop[stop] (which actually does nothing).
 
-stop is part of the shuffle:ShuffleManager.md#stop[ShuffleManager] abstraction.
-
-== [[canUseSerializedShuffle]] Requirements of SerializedShuffleHandle (as ShuffleHandle)
-
-[source, scala]
-----
-canUseSerializedShuffle(
-  dependency: ShuffleDependency[_, _, _]): Boolean
-----
-
-canUseSerializedShuffle returns `true` when all of the following hold:
-
-. [Serializer](../rdd/ShuffleDependency.md#serializer) (of the given [ShuffleDependency](../rdd/ShuffleDependency.md)) serializer:Serializer.md#supportsRelocationOfSerializedObjects[supports relocation of serialized objects]
-
-. No map-side aggregation (the [mapSideCombine](../rdd/ShuffleDependency.md#mapSideCombine) flag of the given [ShuffleDependency](../rdd/ShuffleDependency.md) is off)
-
-. [Number of partitions](../rdd/Partitioner.md#numPartitions) (of the [Partitioner](../rdd/ShuffleDependency.md#partitioner) of the given [ShuffleDependency](../rdd/ShuffleDependency.md)) is not greater than the <<MAX_SHUFFLE_OUTPUT_PARTITIONS_FOR_SERIALIZED_MODE, supported maximum number>> (i.e. `(1 << 24) - 1`, i.e. `16777215`)
-
-canUseSerializedShuffle prints out the following DEBUG message to the logs:
-
-[source,plaintext]
-----
-Can use serialized shuffle for shuffle [shuffleId]
-----
-
-Otherwise, canUseSerializedShuffle does not hold and prints out one of the following DEBUG messages:
-
-[source,plaintext]
-----
-Can't use serialized shuffle for shuffle [id] because the serializer, [name], does not support object relocation
-
-Can't use serialized shuffle for shuffle [id] because an aggregator is defined
-
-Can't use serialized shuffle for shuffle [id] because it has more than [number] partitions
-----
-
-shouldBypassMergeSort is used when SortShuffleManager is requested to shuffle:SortShuffleManager.md#registerShuffle[register a shuffle (and creates a ShuffleHandle)].
-
-== [[logging]] Logging
-
-Enable `ALL` logging level for `org.apache.spark.shuffle.sort.SortShuffleManager` logger to see what happens inside.
-
-Add the following line to `conf/log4j.properties`:
-
-[source,plaintext]
-----
-log4j.logger.org.apache.spark.shuffle.sort.SortShuffleManager=ALL
-----
-
-Refer to spark-logging.md[Logging].
+stop is part of the ShuffleManager.md#stop[ShuffleManager] abstraction.

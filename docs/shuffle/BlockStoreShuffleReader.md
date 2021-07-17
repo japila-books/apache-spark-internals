@@ -75,7 +75,7 @@ Used when <<read, `BlockStoreShuffleReader` creates a `ShuffleBlockFetcherIterat
 
 `BlockStoreShuffleReader` takes the following when created:
 
-* [[handle]] spark-shuffle-BaseShuffleHandle.md[BaseShuffleHandle]
+* [[handle]] BaseShuffleHandle.md[BaseShuffleHandle]
 * [[startPartition]] Reduce start partition index
 * [[endPartition]] Reduce end partition index
 * [[context]] [TaskContext](../scheduler/TaskContext.md)

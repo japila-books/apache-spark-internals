@@ -317,7 +317,7 @@ Returned when UnsafeShuffleWriter is requested to <<stop, stop>>
 
 ### <span id="partitioner"> Partitioner
 
-[Partitioner](../rdd/Partitioner.md) (as used by the spark-shuffle-BaseShuffleHandle.md#dependency[ShuffleDependency] of the <<handle, SerializedShuffleHandle>>)
+[Partitioner](../rdd/Partitioner.md) (as used by the BaseShuffleHandle.md#dependency[ShuffleDependency] of the <<handle, SerializedShuffleHandle>>)
 
 Used when UnsafeShuffleWriter is requested for the following:
 
@@ -347,7 +347,7 @@ Destroyed (`null`) when requested to <<closeAndWriteOutput, close internal resou
 
 === [[serializer]] serializer
 
-serializer:SerializerInstance.md[SerializerInstance] (that is a new instance of the [Serializer](../rdd/ShuffleDependency.md#serializer) of the spark-shuffle-BaseShuffleHandle.md#dependency[ShuffleDependency] of the <<handle, SerializedShuffleHandle>>)
+serializer:SerializerInstance.md[SerializerInstance] (that is a new instance of the [Serializer](../rdd/ShuffleDependency.md#serializer) of the BaseShuffleHandle.md#dependency[ShuffleDependency] of the <<handle, SerializedShuffleHandle>>)
 
 Used exclusively when UnsafeShuffleWriter is requested to <<open, open>> (and creates the <<serOutputStream, SerializationStream>>)
 
