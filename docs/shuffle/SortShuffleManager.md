@@ -12,7 +12,19 @@
 
 `SortShuffleManager` is created when `SparkEnv` is [created](../SparkEnv.md#ShuffleManager) (on the driver and executors at the very beginning of a Spark application's lifecycle).
 
-## <span id="getWriter"> Getting ShuffleWriter For Partition and ShuffleHandle
+## <span id="taskIdMapsForShuffle"> taskIdMapsForShuffle Registry
+
+```scala
+taskIdMapsForShuffle: ConcurrentHashMap[Int, OpenHashSet[Long]]
+```
+
+`SortShuffleManager` uses `taskIdMapsForShuffle` internal registry to track task (attempt) IDs by shuffle.
+
+A new shuffle and task IDs are added when `SortShuffleManager` is requested for a [ShuffleWriter](#getWriter) (for a partition and a `ShuffleHandle`).
+
+A shuffle ID (and associated task IDs) are removed when `SortShuffleManager` is requested to [unregister a shuffle](#unregisterShuffle).
+
+## <span id="getWriter"> Getting ShuffleWriter for Partition and ShuffleHandle
 
 ```scala
 getWriter[K, V](
@@ -21,7 +33,7 @@ getWriter[K, V](
   context: TaskContext): ShuffleWriter[K, V]
 ```
 
-`getWriter` registers the given [ShuffleHandle](ShuffleHandle.md) (by the [shuffleId](ShuffleHandle.md#shuffleId) and [numMaps](BaseShuffleHandle.md#numMaps)) in the [numMapsForShuffle](#numMapsForShuffle) internal registry unless already done.
+`getWriter` registers the given [ShuffleHandle](ShuffleHandle.md) (by the [shuffleId](ShuffleHandle.md#shuffleId) and [numMaps](BaseShuffleHandle.md#numMaps)) in the [taskIdMapsForShuffle](#taskIdMapsForShuffle) internal registry unless already done.
 
 !!! note
     `getWriter` expects that the input `ShuffleHandle` is a [BaseShuffleHandle](BaseShuffleHandle.md). Moreover, `getWriter` expects that in two (out of three cases) it is a more specialized [IndexShuffleBlockResolver](IndexShuffleBlockResolver.md).
@@ -116,6 +128,70 @@ Can't use serialized shuffle for shuffle [id] because it has more than [number] 
 
 * `SortShuffleManager` is requested to [register a shuffle (and creates a ShuffleHandle)](#registerShuffle)
 
+## <span id="MAX_SHUFFLE_OUTPUT_PARTITIONS_FOR_SERIALIZED_MODE"> Maximum Number of Partition Identifiers for Serialized Mode
+
+`SortShuffleManager` defines `MAX_SHUFFLE_OUTPUT_PARTITIONS_FOR_SERIALIZED_MODE` internal constant to be `(1 << 24)` (`16777216`) for the maximum number of shuffle output partitions.
+
+`MAX_SHUFFLE_OUTPUT_PARTITIONS_FOR_SERIALIZED_MODE` is used when:
+
+* `UnsafeShuffleWriter` is [created](UnsafeShuffleWriter.md)
+* `SortShuffleManager` utility is used to [check out SerializedShuffleHandle requirements](#canUseSerializedShuffle)
+* `ShuffleExchangeExec` ([Spark SQL]({{ book.spark_sql }}/physical-operators/ShuffleExchangeExec)) utility is used to `needToCopyObjectsBeforeShuffle`
+
+## <span id="shuffleBlockResolver"> Creating ShuffleBlockResolver
+
+```scala
+shuffleBlockResolver: IndexShuffleBlockResolver
+```
+
+`shuffleBlockResolver` is part of the [ShuffleManager](ShuffleManager.md#shuffleBlockResolver) abstraction.
+
+`shuffleBlockResolver` is a [IndexShuffleBlockResolver](IndexShuffleBlockResolver.md) (and is created immediately alongside this [SortShuffleManager](#creating-instance)).
+
+## <span id="unregisterShuffle"> Unregistering Shuffle
+
+```scala
+unregisterShuffle(
+  shuffleId: Int): Boolean
+```
+
+`unregisterShuffle` is part of the [ShuffleManager](ShuffleManager.md#unregisterShuffle) abstraction.
+
+`unregisterShuffle` removes the given `shuffleId` from the [taskIdMapsForShuffle](#taskIdMapsForShuffle) internal registry.
+
+If the `shuffleId` was found and removed successfully, `unregisterShuffle` requests the [IndexShuffleBlockResolver](#shuffleBlockResolver) to [remove the shuffle index and data files](IndexShuffleBlockResolver.md#removeDataByMap) for every `mapTaskId` (mappers producing the output for the shuffle).
+
+`unregisterShuffle` is always `true`.
+
+## <span id="getReader"> Getting ShuffleReader for ShuffleHandle
+
+```scala
+getReader[K, C](
+  handle: ShuffleHandle,
+  startMapIndex: Int,
+  endMapIndex: Int,
+  startPartition: Int,
+  endPartition: Int,
+  context: TaskContext,
+  metrics: ShuffleReadMetricsReporter): ShuffleReader[K, C]
+```
+
+`getReader` is part of the [ShuffleManager](ShuffleManager.md#getReader) abstraction.
+
+`getReader` requests the [MapOutputTracker](../scheduler/MapOutputTracker.md) (via [SparkEnv](../SparkEnv.md#mapOutputTracker)) for the [getMapSizesByExecutorId](../scheduler/MapOutputTracker.md#getMapSizesByExecutorId) for the `shuffleId` (of the given [ShuffleHandle](ShuffleHandle.md)).
+
+In the end, `getReader` creates a new [BlockStoreShuffleReader](BlockStoreShuffleReader.md).
+
+## <span id="stop"> Stopping ShuffleManager
+
+```scala
+stop(): Unit
+```
+
+`stop` is part of the [ShuffleManager](ShuffleManager.md#stop) abstraction.
+
+`stop` requests the [IndexShuffleBlockResolver](#shuffleBlockResolver) to [stop](IndexShuffleBlockResolver.md#stop).
+
 ## Logging
 
 Enable `ALL` logging level for `org.apache.spark.shuffle.sort.SortShuffleManager` logger to see what happens inside.
@@ -127,68 +203,3 @@ log4j.logger.org.apache.spark.shuffle.sort.SortShuffleManager=ALL
 ```
 
 Refer to [Logging](../spark-logging.md).
-
-## Review Me
-
-== [[MAX_SHUFFLE_OUTPUT_PARTITIONS_FOR_SERIALIZED_MODE]] Maximum Number of Partition Identifiers
-
-SortShuffleManager allows for `(1 << 24)` partition identifiers that can be encoded (i.e. `16777216`).
-
-== [[numMapsForShuffle]] numMapsForShuffle
-
-Lookup table with the number of mappers producing the output for a shuffle (as {java-javadoc-url}/java/util/concurrent/ConcurrentHashMap.html[java.util.concurrent.ConcurrentHashMap])
-
-== [[shuffleBlockResolver]] IndexShuffleBlockResolver
-
-[source, scala]
-----
-shuffleBlockResolver: ShuffleBlockResolver
-----
-
-shuffleBlockResolver is an IndexShuffleBlockResolver.md[IndexShuffleBlockResolver] that is created immediately when SortShuffleManager is.
-
-shuffleBlockResolver is used when SortShuffleManager is requested for a <<getWriter, ShuffleWriter for a given partition>>, to <<unregisterShuffle, unregister a shuffle metadata>> and <<stop, stop>>.
-
-shuffleBlockResolver is part of the ShuffleManager.md#shuffleBlockResolver[ShuffleManager] abstraction.
-
-== [[unregisterShuffle]] Unregistering Shuffle
-
-[source, scala]
-----
-unregisterShuffle(
-  shuffleId: Int): Boolean
-----
-
-unregisterShuffle tries to remove the given `shuffleId` from the <<numMapsForShuffle, numMapsForShuffle>> internal registry.
-
-If the given `shuffleId` was registered, unregisterShuffle requests the <<shuffleBlockResolver, IndexShuffleBlockResolver>> to <<IndexShuffleBlockResolver.md#removeDataByMap, remove the shuffle index and data files>> one by one (up to the number of mappers producing the output for the shuffle).
-
-unregisterShuffle is part of the ShuffleManager.md#unregisterShuffle[ShuffleManager] abstraction.
-
-== [[getReader]] Creating BlockStoreShuffleReader For ShuffleHandle And Reduce Partitions
-
-[source, scala]
-----
-getReader[K, C](
-  handle: ShuffleHandle,
-  startPartition: Int,
-  endPartition: Int,
-  context: TaskContext): ShuffleReader[K, C]
-----
-
-getReader returns a new BlockStoreShuffleReader.md[BlockStoreShuffleReader] passing all the input parameters on to it.
-
-getReader assumes that the input `ShuffleHandle` is of type BaseShuffleHandle.md[BaseShuffleHandle].
-
-getReader is part of the ShuffleManager.md#getReader[ShuffleManager] abstraction.
-
-== [[stop]] Stopping SortShuffleManager
-
-[source, scala]
-----
-stop(): Unit
-----
-
-stop simply requests the <<shuffleBlockResolver, IndexShuffleBlockResolver>> to IndexShuffleBlockResolver.md#stop[stop] (which actually does nothing).
-
-stop is part of the ShuffleManager.md#stop[ShuffleManager] abstraction.
