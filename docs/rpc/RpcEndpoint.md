@@ -103,11 +103,11 @@ rpcEnv: RpcEnv
 ## Implementations
 
 * AMEndpoint
-* <span id="IsolatedRpcEndpoint" /> IsolatedRpcEndpoint
+* <span id="IsolatedRpcEndpoint"> IsolatedRpcEndpoint
 * [MapOutputTrackerMasterEndpoint](../scheduler/MapOutputTrackerMasterEndpoint.md)
 * OutputCommitCoordinatorEndpoint
 * RpcEndpointVerifier
-* <span id="ThreadSafeRpcEndpoint" /> ThreadSafeRpcEndpoint
+* <span id="ThreadSafeRpcEndpoint"> ThreadSafeRpcEndpoint
 * WorkerWatcher
 
 ## <span id="self"> self

@@ -1,4 +1,26 @@
-= CoarseGrainedExecutorBackend
+# CoarseGrainedExecutorBackend
+
+## <span id="decommissionSelf"> decommissionSelf
+
+```scala
+decommissionSelf(): Unit
+```
+
+`decommissionSelf`...FIXME
+
+`decommissionSelf` is used when:
+
+* `CoarseGrainedExecutorBackend` is requested to [handle a DecommissionExecutor message](#DecommissionExecutor)
+
+## Messages
+
+### <span id="DecommissionExecutor"> DecommissionExecutor
+
+`DecommissionExecutor` is sent out when `CoarseGrainedSchedulerBackend` is requested to [decommissionExecutors](../scheduler/CoarseGrainedSchedulerBackend.md#decommissionExecutors)
+
+When received, `CoarseGrainedExecutorBackend` [decommissionSelf](#decommissionSelf).
+
+## Review Me
 
 CoarseGrainedExecutorBackend is an executor:ExecutorBackend.md[] that controls the lifecycle of a single <<executor, executor>> and sends <<statusUpdate, the executor's status updates>> to the driver.
 

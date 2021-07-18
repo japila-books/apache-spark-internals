@@ -2,7 +2,7 @@
 
 `StandaloneSchedulerBackend` is a [CoarseGrainedSchedulerBackend](../scheduler/CoarseGrainedSchedulerBackend.md).
 
-`StandaloneSchedulerBackend` is a `StandaloneAppClientListener`.
+`StandaloneSchedulerBackend` is a [StandaloneAppClientListener](StandaloneAppClientListener.md).
 
 ## Creating Instance
 
@@ -14,7 +14,7 @@
 
 `StandaloneSchedulerBackend` is created when:
 
-* FIXME
+* `SparkContext` is requested for a [SchedulerBackend and TaskScheduler](../SparkContext.md#createTaskScheduler) (for `spark://` and `local-cluster` master URLs)
 
 ## <span id="start"> Starting SchedulerBackend
 
@@ -25,3 +25,15 @@ start(): Unit
 `start` is part of the [SchedulerBackend](../scheduler/SchedulerBackend.md#start) abstraction.
 
 `start`...FIXME
+
+## <span id="executorDecommissioned"> executorDecommissioned
+
+```scala
+executorDecommissioned(
+  fullId: String,
+  decommissionInfo: ExecutorDecommissionInfo): Unit
+```
+
+`executorDecommissioned` is part of the [StandaloneAppClientListener](StandaloneAppClientListener.md#executorDecommissioned) abstraction.
+
+`executorDecommissioned`...FIXME

@@ -54,6 +54,27 @@ When created, `BlockManager` sets [externalShuffleServiceEnabled](#externalShuff
 
 ![BlockManager and SparkEnv](../images/storage/BlockManager-SparkEnv.png)
 
+## <span id="migratableResolver"> MigratableResolver
+
+```scala
+migratableResolver: MigratableResolver
+```
+
+`BlockManager` creates a reference to a [MigratableResolver](../shuffle/MigratableResolver.md) by requesting the [ShuffleManager](#shuffleManager) for the [ShuffleBlockResolver](../shuffle/ShuffleManager.md#shuffleBlockResolver) (that is assumed a `MigratableResolver`).
+
+??? note "Lazy Value"
+    `migratableResolver` is a Scala **lazy value** to guarantee that the code to initialize it is executed once only (when accessed for the first time) and the computed value never changes afterwards.
+
+!!! note "private[storage]"
+    `migratableResolver` is a `private[storage]` so it is available to others in the `org.apache.spark.storage` package.
+
+`migratableResolver` is used when:
+
+* `BlockManager` is requested to [putBlockDataAsStream](#putBlockDataAsStream)
+* `ShuffleMigrationRunnable` is requested to [run](ShuffleMigrationRunnable.md#run)
+* `BlockManagerDecommissioner` is requested to [refreshOffloadingShuffleBlocks](BlockManagerDecommissioner.md#refreshOffloadingShuffleBlocks)
+* `FallbackStorage` is requested to [copy](FallbackStorage.md#copy)
+
 ## <span id="initialize"> Initializing BlockManager
 
 ```scala
@@ -1256,19 +1277,67 @@ putBlockDataAsStream(
   classTag: ClassTag[_]): StreamCallbackWithID
 ```
 
-`putBlockDataAsStream`...FIXME
-
 `putBlockDataAsStream` is part of the [BlockDataManager](BlockDataManager.md#putBlockDataAsStream) abstraction.
+
+`putBlockDataAsStream`...FIXME
 
 ## <span id="maxMemory"> Maximum Memory
 
-Total maximum value that BlockManager can ever possibly use (that depends on <<memoryManager, MemoryManager>> and may vary over time).
+Total maximum value that `BlockManager` can ever possibly use (that depends on [MemoryManager](#memoryManager) and may vary over time).
 
-Total available memory:MemoryManager.md#maxOnHeapStorageMemory[on-heap] and memory:MemoryManager.md#maxOffHeapStorageMemory[off-heap] memory for storage (in bytes)
+Total available [on-heap](../memory/MemoryManager.md#maxOnHeapStorageMemory) and [off-heap](../memory/MemoryManager.md#maxOffHeapStorageMemory) memory for storage (in bytes)
 
 ## <span id="maxOffHeapMemory"> Maximum Off-Heap Memory
 
 ## <span id="maxOnHeapMemory"> Maximum On-Heap Memory
+
+## <span id="decommissionSelf"> decommissionSelf
+
+```scala
+decommissionSelf(): Unit
+```
+
+`decommissionSelf`...FIXME
+
+`decommissionSelf` is used when:
+
+* `BlockManagerStorageEndpoint` is requested to [handle a DecommissionBlockManager message](BlockManagerStorageEndpoint.md#DecommissionBlockManager)
+
+## <span id="decommissionBlockManager"> decommissionBlockManager
+
+```scala
+decommissionBlockManager(): Unit
+```
+
+`decommissionBlockManager` sends a `DecommissionBlockManager` message to the [BlockManagerStorageEndpoint](#storageEndpoint).
+
+`decommissionBlockManager` is used when:
+
+* `CoarseGrainedExecutorBackend` is requested to [decommissionSelf](../executor/CoarseGrainedExecutorBackend.md#decommissionSelf)
+
+## <span id="storageEndpoint"> BlockManagerStorageEndpoint
+
+```scala
+storageEndpoint: RpcEndpointRef
+```
+
+`BlockManager` sets up a [RpcEndpointRef](../rpc/RpcEndpointRef.md) (within the [RpcEnv](#rpcEnv)) under the name `BlockManagerEndpoint[ID]` with a [BlockManagerStorageEndpoint](BlockManagerStorageEndpoint.md) message handler.
+
+## <span id="decommissioner"> BlockManagerDecommissioner
+
+```scala
+decommissioner: Option[BlockManagerDecommissioner]
+```
+
+`BlockManager` defines `decommissioner` internal registry for a [BlockManagerDecommissioner](BlockManagerDecommissioner.md).
+
+`decommissioner` is undefined (`None`) by default.
+
+`BlockManager` creates and [starts](BlockManagerDecommissioner.md#start) a `BlockManagerDecommissioner` when requested to [decommissionSelf](#decommissionSelf).
+
+`decommissioner` is used for [isDecommissioning](#isDecommissioning) and [lastMigrationInfo](#lastMigrationInfo).
+
+`BlockManager` requests the `BlockManagerDecommissioner` to [stop](BlockManagerDecommissioner.md#stop) when [stopped](#stop).
 
 ## Logging
 

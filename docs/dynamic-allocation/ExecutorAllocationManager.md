@@ -136,9 +136,13 @@ creates a `scheduleTask` (a Java [Runnable]({{ java.api }}/java.base/java/lang/R
 schedule(): Unit
 ```
 
-`schedule` calls <<updateAndSyncNumExecutorsTarget, updateAndSyncNumExecutorsTarget>> to...FIXME
+`schedule` requests the [ExecutorMonitor](#executorMonitor) for [timedOutExecutors](ExecutorMonitor.md#timedOutExecutors).
 
-It then go over <<removeTimes, removeTimes>> to remove expired executors, i.e. executors for which expiration time has elapsed.
+If there are executors to be removed, `schedule` turns the [initializing](#initializing) internal flag off.
+
+`schedule` [updateAndSyncNumExecutorsTarget](#updateAndSyncNumExecutorsTarget) with the current time.
+
+In the end, `schedule` [removes the executors](#removeExecutors) to be removed if there are any.
 
 ### <span id="updateAndSyncNumExecutorsTarget"> updateAndSyncNumExecutorsTarget
 
@@ -171,6 +175,19 @@ stop(): Unit
 ## <span id="executorAllocationManagerSource"> ExecutorAllocationManagerSource
 
 [ExecutorAllocationManagerSource](ExecutorAllocationManagerSource.md)
+
+## <span id="removeExecutors"> Removing Executors
+
+```scala
+removeExecutors(
+  executors: Seq[(String, Int)]): Seq[String]
+```
+
+`removeExecutors`...FIXME
+
+`removeExecutors` is used when:
+
+* `ExecutorAllocationManager` is requested to [schedule executors](#schedule)
 
 ## Logging
 

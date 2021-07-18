@@ -41,6 +41,19 @@ createDriverEndpoint(
 
 `createDriverEndpoint` is used when `CoarseGrainedSchedulerBackend` is [created](#creating-instance) (and initializes the [driverEndpoint](#driverEndpoint) internal reference).
 
+## <span id="decommissionExecutors"> decommissionExecutors
+
+```scala
+decommissionExecutors(
+  executorsAndDecomInfo: Array[(String, ExecutorDecommissionInfo)],
+  adjustTargetNumExecutors: Boolean,
+  triggeredByExecutor: Boolean): Seq[String]
+```
+
+`decommissionExecutors` is part of the [ExecutorAllocationClient](../dynamic-allocation/ExecutorAllocationClient.md#decommissionExecutors) abstraction.
+
+`decommissionExecutors`...FIXME
+
 ## <span id="totalRegisteredExecutors"> totalRegisteredExecutors Registry
 
 ```scala
