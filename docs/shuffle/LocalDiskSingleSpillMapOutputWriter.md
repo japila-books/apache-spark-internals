@@ -1,0 +1,3 @@
+# LocalDiskSingleSpillMapOutputWriter
+
+`LocalDiskSingleSpillMapOutputWriter` is...FIXME

@@ -1,0 +1,3 @@
+# LocalDiskShuffleMapOutputWriter
+
+`LocalDiskShuffleMapOutputWriter` is...FIXME
