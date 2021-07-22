@@ -1,110 +1,132 @@
 # NettyBlockRpcServer
 
-NettyBlockRpcServer is an network:RpcHandler.md[] to handle <<messages, messages>> for storage:NettyBlockTransferService.md[NettyBlockTransferService].
+`NettyBlockRpcServer` is a [RpcHandler](../network/RpcHandler.md) to handle [messages](#messages) for [NettyBlockTransferService](NettyBlockTransferService.md).
 
-.NettyBlockRpcServer and NettyBlockTransferService
-image::NettyBlockRpcServer.png[align="center"]
+![NettyBlockRpcServer and NettyBlockTransferService](../images/storage/NettyBlockRpcServer.png)
 
-== [[creating-instance]] Creating Instance
+## Creating Instance
 
-NettyBlockRpcServer takes the following to be created:
+`NettyBlockRpcServer` takes the following to be created:
 
-* [[appId]] Application ID
-* [[serializer]] serializer:Serializer.md[]
-* [[blockManager]] storage:BlockDataManager.md[]
+* <span id="appId"> Application ID
+* <span id="serializer"> [Serializer](../serializer/Serializer.md)
+* <span id="blockManager"> [BlockDataManager](BlockDataManager.md)
 
-NettyBlockRpcServer is created when NettyBlockTransferService is requested to storage:NettyBlockTransferService.md#init[initialize].
+`NettyBlockRpcServer` is created when:
 
-== [[streamManager]] OneForOneStreamManager
+* `NettyBlockTransferService` is requested to [initialize](NettyBlockTransferService.md#init)
 
-NettyBlockRpcServer uses a network:OneForOneStreamManager.md[] for...FIXME
+## <span id="streamManager"> OneForOneStreamManager
 
-== [[receive]] Receiving RPC Messages
+`NettyBlockRpcServer` uses a [OneForOneStreamManager](../network/OneForOneStreamManager.md).
 
-[source, scala]
-----
+## <span id="receive"> Receiving RPC Messages
+
+```scala
 receive(
   client: TransportClient,
   rpcMessage: ByteBuffer,
   responseContext: RpcResponseCallback): Unit
-----
+```
 
-receive...FIXME
+`receive` is part of the [RpcHandler](../network/RpcHandler.md#receive) abstraction.
 
-receive is part of network:RpcHandler.md#receive[RpcHandler] abstraction.
+`receive` deserializes the incoming RPC message (from `ByteBuffer` to `BlockTransferMessage`) and prints out the following TRACE message to the logs:
 
-== [[messages]] Messages
+```text
+Received request: [message]
+```
 
-=== [[OpenBlocks]] OpenBlocks
+`receive` handles the message.
 
-[source,java]
-----
-OpenBlocks(
-  String appId,
-  String execId,
-  String[] blockIds)
-----
+### <span id="FetchShuffleBlocks"> FetchShuffleBlocks
 
-When received, NettyBlockRpcServer requests the <<blockManager, BlockDataManager>> for storage:BlockDataManager.md#getBlockData[block data] for every block id in the message. The block data is a collection of network:ManagedBuffer.md[] for every block id in the incoming message.
+`FetchShuffleBlocks` carries the following:
 
-NettyBlockRpcServer then network:OneForOneStreamManager.md#registerStream[registers a stream of ``ManagedBuffer``s (for the blocks) with the internal `StreamManager`] under `streamId`.
+* Application ID
+* Executor ID
+* Shuffle ID
+* Map IDs (`long[]`)
+* Reduce IDs (`long[][]`)
+* `batchFetchEnabled` flag
 
-NOTE: The internal `StreamManager` is network:OneForOneStreamManager.md[OneForOneStreamManager] and is created when <<creating-instance, NettyBlockRpcServer is created>>.
+When received, `receive`...FIXME
 
-You should see the following TRACE message in the logs:
+`receive` prints out the following TRACE message in the logs:
 
-[source,plaintext]
-----
-NettyBlockRpcServer: Registered streamId [streamId]  with [size] buffers
-----
+```text
+Registered streamId [streamId] with [numBlockIds] buffers
+```
 
-In the end, NettyBlockRpcServer responds with a `StreamHandle` (with the `streamId` and the number of blocks). The response is serialized as a `ByteBuffer`.
+In the end, `receive` responds with a `StreamHandle` (with the `streamId` and the number of blocks). The response is serialized to a `ByteBuffer`.
 
-Posted when OneForOneBlockFetcher is requested to storage:OneForOneBlockFetcher.md#start[start].
+`FetchShuffleBlocks` is posted when:
 
-=== [[UploadBlock]] UploadBlock
+* `OneForOneBlockFetcher` is requested to [createFetchShuffleBlocksMsgAndBuildBlockIds](../storage/OneForOneBlockFetcher.md#createFetchShuffleBlocksMsgAndBuildBlockIds)
 
-[source,java]
-----
-UploadBlock(
-  String appId,
-  String execId,
-  String blockId,
-  byte[] metadata,
-  byte[] blockData)
-----
+### <span id="GetLocalDirsForExecutors"> GetLocalDirsForExecutors
 
-When received, NettyBlockRpcServer deserializes the `metadata` of the input message to get the storage:StorageLevel.md[StorageLevel] and `ClassTag` of the block being uploaded.
+### <span id="OpenBlocks"> OpenBlocks
 
-NettyBlockRpcServer creates a storage:BlockId.md[] for the block id and requests the <<blockManager, BlockDataManager>> to storage:BlockDataManager.md#putBlockData[store the block].
+`OpenBlocks` carries the following:
 
-In the end, NettyBlockRpcServer responds with a `0`-capacity `ByteBuffer`.
+* Application ID
+* Executor ID
+* Block IDs
 
-Posted when NettyBlockTransferService is requested to storage:NettyBlockTransferService.md#uploadBlock[upload a block].
+When received, `receive`...FIXME
 
-== [[receiveStream]] Receiving RPC Message with Streamed Data
+`receive` prints out the following TRACE message in the logs:
 
-[source, scala]
-----
+```text
+Registered streamId [streamId] with [blocksNum] buffers
+```
+
+In the end, `receive` responds with a `StreamHandle` (with the `streamId` and the number of blocks). The response is serialized to a `ByteBuffer`.
+
+`OpenBlocks` is posted when:
+
+* `OneForOneBlockFetcher` is requested to [start](../storage/OneForOneBlockFetcher.md#start)
+
+### <span id="UploadBlock"> UploadBlock
+
+`UploadBlock` carries the following:
+
+* Application ID
+* Executor ID
+* Block ID
+* Metadata (`byte[]`)
+* Block Data (`byte[]`)
+
+When received, `receive` deserializes the `metadata` to get the [StorageLevel](StorageLevel.md) and `ClassTag` of the block being uploaded.
+
+`receive`...FIXME
+
+`UploadBlock` is posted when:
+
+* `NettyBlockTransferService` is requested to [upload a block](../storage/NettyBlockTransferService.md#uploadBlock)
+
+## <span id="receiveStream"> receiveStream
+
+```scala
 receiveStream(
   client: TransportClient,
   messageHeader: ByteBuffer,
   responseContext: RpcResponseCallback): StreamCallbackWithID
-----
+```
 
-receiveStream...FIXME
+`receiveStream` is part of the [RpcHandler](../network/RpcHandler.md#receiveStream) abstraction.
 
-receiveStream is part of network:RpcHandler.md#receive[RpcHandler] abstraction.
+`receiveStream`...FIXME
 
-== [[logging]] Logging
+## Logging
 
 Enable `ALL` logging level for `org.apache.spark.network.netty.NettyBlockRpcServer` logger to see what happens inside.
 
 Add the following line to `conf/log4j.properties`:
 
-[source,plaintext]
-----
+```text
 log4j.logger.org.apache.spark.network.netty.NettyBlockRpcServer=ALL
-----
+```
 
-Refer to spark-logging.md[Logging].
+Refer to [Logging](../spark-logging.md).

@@ -1,9 +1,10 @@
-= NettyBlockTransferService
+# NettyBlockTransferService
+
+![NettyBlockTransferService, SparkEnv and BlockManager](../images/storage/NettyBlockTransferService.png)
+
+## Review Me
 
 *NettyBlockTransferService* is a storage:BlockTransferService.md[] that uses Netty for <<uploadBlock, uploading>> or <<fetchBlocks, fetching>> blocks of data.
-
-.NettyBlockTransferService, SparkEnv and BlockManager
-image::NettyBlockTransferService.png[align="center"]
 
 == [[creating-instance]] Creating Instance
 

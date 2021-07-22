@@ -1,6 +1,6 @@
 # BlockStoreClient
 
-`BlockStoreClient` is an [abstraction](#contract) of [block clients](#implementations) that can [fetch blocks from a remote node](#fetchBlocks).
+`BlockStoreClient` is an [abstraction](#contract) of [block clients](#implementations) that can [fetch blocks from a remote node](#fetchBlocks) (an executor or an external service).
 
 `BlockStoreClient` is a Java [Closeable]({{ java.api }}/java.base/java/io/Closeable.html).
 

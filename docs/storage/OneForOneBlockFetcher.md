@@ -17,7 +17,7 @@
 * `NettyBlockTransferService` is requested to [fetch blocks](NettyBlockTransferService.md#fetchBlocks)
 * `ExternalBlockStoreClient` is requested to [fetch blocks](ExternalBlockStoreClient.md#fetchBlocks)
 
-### <span id="createFetchShuffleBlocksMsg"> createFetchShuffleBlocksMsg
+## <span id="createFetchShuffleBlocksMsg"> createFetchShuffleBlocksMsg
 
 ```java
 FetchShuffleBlocks createFetchShuffleBlocksMsg(
