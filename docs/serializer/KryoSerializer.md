@@ -16,7 +16,7 @@
 
 ## <span id="useUnsafe"> useUnsafe Flag
 
-`KryoSerializer` initializes `useUnsafe` flag when [created](#creating-instance) based on [spark.kryo.unsafe](../configuration-properties.md#spark.kryo.unsafe) configuration property.
+`KryoSerializer` uses the [spark.kryo.unsafe](../configuration-properties.md#spark.kryo.unsafe) configuration property for `useUnsafe` flag (initialized when `KryoSerializer` is [created](#creating-instance)).
 
 `useUnsafe` is used when `KryoSerializer` is requested to create the following:
 

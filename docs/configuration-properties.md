@@ -94,13 +94,9 @@ Used when:
 
 ## <span id="spark.kryo.unsafe"><span id="KRYO_USE_UNSAFE"> spark.kryo.unsafe
 
-Whether `KryoSerializer` should use unsafe-based IO for serialization
+Whether [KryoSerializer](serializer/KryoSerializer.md#useUnsafe) should use Unsafe-based IO for serialization
 
 Default: `false`
-
-Used when:
-
-* `KryoSerializer` is [created](serializer/KryoSerializer.md#useUnsafe)
 
 ## <span id="spark.local.dir"> spark.local.dir
 
@@ -180,14 +176,14 @@ Used when:
 
 ## <span id="spark.serializer"> spark.serializer
 
-The fully-qualified class name of the [Serializer](serializer/Serializer.md)
+The fully-qualified class name of the [Serializer](serializer/Serializer.md) (of the [driver and executors](SparkEnv.md#create))
 
 Default: `org.apache.spark.serializer.JavaSerializer`
 
 Used when:
 
 * `SparkEnv` utility is used to [create a SparkEnv](SparkEnv.md#create)
-* `SparkConf` is requested to [registerKryoClasses](SparkConf.md#registerKryoClasses)
+* `SparkConf` is requested to [registerKryoClasses](SparkConf.md#registerKryoClasses) (as a side-effect)
 
 ## <span id="spark.shuffle.compress"> spark.shuffle.compress
 
