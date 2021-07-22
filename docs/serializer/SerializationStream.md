@@ -31,7 +31,7 @@ writeObject[T: ClassTag](
 Used when:
 
 * `MemoryStore` is requested to [putIteratorAsBytes](../storage/MemoryStore.md#putIteratorAsBytes)
-* `JavaSerializerInstance` is requested to `serialize`
+* `JavaSerializerInstance` is requested to [serialize](JavaSerializerInstance.md#serialize)
 * `RequestMessage` is requested to `serialize` (for [NettyRpcEnv](../rpc/NettyRpcEnv.md))
 * `ParallelCollectionPartition` is requested to `writeObject` (for [ParallelCollectionRDD](../rdd/spark-rdd-ParallelCollectionRDD.md))
 * `ReliableRDDCheckpointData` is requested to [doCheckpoint](../rdd/ReliableRDDCheckpointData.md#doCheckpoint)

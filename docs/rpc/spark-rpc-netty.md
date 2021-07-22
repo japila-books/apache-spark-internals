@@ -1,4 +1,4 @@
-= Netty-based RpcEnv
+# Netty-Based RpcEnv
 
 Netty-based RPC Environment is created by `NettyRpcEnvFactory` when rpc:index.md#settings[spark.rpc] is `netty` or `org.apache.spark.rpc.netty.NettyRpcEnvFactory`.
 

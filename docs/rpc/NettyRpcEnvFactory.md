@@ -9,7 +9,7 @@ create(
   config: RpcEnvConfig): RpcEnv
 ```
 
-`create` creates a `JavaSerializerInstance` (using a JavaSerializer).
+`create` creates a [JavaSerializerInstance](../serializer/JavaSerializerInstance.md) (using a JavaSerializer).
 
 !!! note
     `KryoSerializer` is not supported.
