@@ -1,77 +1,90 @@
-= BlockDataManager
+# BlockDataManager
 
-*BlockDataManager* is an <<contract, abstraction>> of <<implementations, block data managers>> that manage storage for blocks of data (aka _block storage management API_).
+`BlockDataManager` is an [abstraction](#contract) of [block data managers](#implementations) that manage storage for blocks of data (aka _block storage management API_).
 
-BlockDataManager uses storage:BlockId.md[] to uniquely identify blocks of data and network:ManagedBuffer.md[] to represent them.
+`BlockDataManager` uses [BlockId](BlockId.md) to uniquely identify blocks of data and [ManagedBuffer](../network/ManagedBuffer.md) to represent them.
 
-BlockDataManager is used to initialize a storage:BlockTransferService.md#init[].
+`BlockDataManager` is used to initialize a [BlockTransferService](BlockTransferService.md#init).
 
-BlockDataManager is used to create a storage:NettyBlockRpcServer.md[].
+`BlockDataManager` is used to create a [NettyBlockRpcServer](NettyBlockRpcServer.md).
 
-== [[contract]] Contract
+## Contract
 
-=== [[getBlockData]] getBlockData
+### <span id="getHostLocalShuffleData"> getHostLocalShuffleData
 
-[source,scala]
-----
-getBlockData(
-  blockId: BlockId): ManagedBuffer
-----
-
-Fetches a block data (as a network:ManagedBuffer.md[]) for the given storage:BlockId.md[]
+```scala
+getHostLocalShuffleData(
+  blockId: BlockId,
+  dirs: Array[String]): ManagedBuffer
+```
 
 Used when:
 
-* NettyBlockRpcServer is requested to storage:NettyBlockRpcServer.md#OpenBlocks[handle a OpenBlocks message]
+* `ShuffleBlockFetcherIterator` is requested to [fetchHostLocalBlock](ShuffleBlockFetcherIterator.md#fetchHostLocalBlock)
 
-* ShuffleBlockFetcherIterator is requested to storage:ShuffleBlockFetcherIterator.md#fetchLocalBlocks[fetchLocalBlocks]
+### <span id="getLocalBlockData"> getLocalBlockData
 
-=== [[putBlockData]] putBlockData
+```scala
+getLocalBlockData(
+  blockId: BlockId): ManagedBuffer
+```
 
-[source, scala]
-----
+Used when:
+
+* `NettyBlockRpcServer` is requested to [receive a request](NettyBlockRpcServer.md#receive) (`OpenBlocks` and `FetchShuffleBlocks`)
+
+### <span id="getLocalDiskDirs"> getLocalDiskDirs
+
+```scala
+getLocalDiskDirs: Array[String]
+```
+
+Used when:
+
+* `NettyBlockRpcServer` is requested to [receive a GetLocalDirsForExecutors request](NettyBlockRpcServer.md#receive)
+
+### <span id="putBlockData"> putBlockData
+
+```scala
 putBlockData(
   blockId: BlockId,
   data: ManagedBuffer,
   level: StorageLevel,
   classTag: ClassTag[_]): Boolean
-----
+```
 
-Stores (_puts_) a block data (as a network:ManagedBuffer.md[]) for the given storage:BlockId.md[]. Returns `true` when completed successfully or `false` when failed.
+Stores (_puts_) a block data (as a [ManagedBuffer](../network/ManagedBuffer.md)) for the given [BlockId](BlockId.md). Returns `true` when completed successfully or `false` when failed.
 
-Used when NettyBlockRpcServer is requested to storage:NettyBlockRpcServer.md#UploadBlock[handle an UploadBlock message]
+Used when:
 
-=== [[putBlockDataAsStream]] putBlockDataAsStream
+* `NettyBlockRpcServer` is requested to [receive a UploadBlock request](NettyBlockRpcServer.md#UploadBlock)
 
-[source, scala]
-----
+### <span id="putBlockDataAsStream"> putBlockDataAsStream
+
+```scala
 putBlockDataAsStream(
   blockId: BlockId,
   level: StorageLevel,
   classTag: ClassTag[_]): StreamCallbackWithID
-----
-
-Stores a block data that will be received as a stream
-
-Used when NettyBlockRpcServer is requested to storage:NettyBlockRpcServer.md#receiveStream[receiveStream]
-
-=== [[releaseLock]] releaseLock
-
-[source, scala]
-----
-releaseLock(
-  blockId: BlockId,
-  taskAttemptId: Option[Long]): Unit
-----
-
-Releases a lock
+```
 
 Used when:
 
-* TorrentBroadcast is requested to core:TorrentBroadcast.md#releaseLock[releaseLock]
+* `NettyBlockRpcServer` is requested to [receiveStream](NettyBlockRpcServer.md#receiveStream)
 
-* BlockManager is requested to storage:BlockManager.md#handleLocalReadFailure[handleLocalReadFailure], storage:BlockManager.md#getLocalValues[getLocalValues], storage:BlockManager.md#getOrElseUpdate[getOrElseUpdate], storage:BlockManager.md#doPut[doPut], and storage:BlockManager.md#releaseLockAndDispose[releaseLockAndDispose]
+### <span id="releaseLock"> releaseLock
 
-== [[implementations]] Available BlockDataManagers
+```scala
+releaseLock(
+  blockId: BlockId,
+  taskContext: Option[TaskContext]): Unit
+```
 
-storage:BlockManager.md[] is the default and only known BlockDataManager in Apache Spark.
+Used when:
+
+* `TorrentBroadcast` is requested to [releaseBlockManagerLock](../core/TorrentBroadcast.md#releaseBlockManagerLock)
+* `BlockManager` is requested to [handleLocalReadFailure](BlockManager.md#handleLocalReadFailure), [getLocalValues](BlockManager.md#getLocalValues), [getOrElseUpdate](BlockManager.md#getOrElseUpdate), [doPut](BlockManager.md#doPut), [releaseLockAndDispose](BlockManager.md#releaseLockAndDispose)
+
+## Implementations
+
+* [BlockManager](BlockManager.md)

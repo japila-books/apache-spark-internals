@@ -706,11 +706,9 @@ putBlockData(
   classTag: ClassTag[_]): Boolean
 ```
 
-`putBlockData` simply <<putBytes, stores `blockId` locally>> (given the given storage `level`).
-
 `putBlockData` is part of the [BlockDataManager](BlockDataManager.md#putBlockData) abstraction.
 
-Internally, `putBlockData` wraps `ChunkedByteBuffer` around `data` buffer's NIO `ByteBuffer` and calls <<putBytes, putBytes>>.
+`putBlockData` [putBytes](#putBytes) with Java NIO's [ByteBuffer](../network/ManagedBuffer.md#nioByteBuffer) of the given [ManagedBuffer](../network/ManagedBuffer.md).
 
 ## <span id="putBytes"> Storing Block Bytes Locally
 
@@ -722,15 +720,13 @@ putBytes(
   tellMaster: Boolean = true): Boolean
 ```
 
-`putBytes` makes sure that the `bytes` are not `null` and <<doPutBytes, doPutBytes>>.
+`putBytes` creates a `ByteBufferBlockStoreUpdater` and requests it to [store the bytes](BlockStoreUpdater.md#save).
 
 `putBytes` is used when:
 
-* BlockManager is requested to <<putBlockData, puts a block data locally>>
-
-* `TaskRunner` is requested to executor:TaskRunner.md#run-result-sent-via-blockmanager[run] (and the result size is above executor:Executor.md#maxDirectResultSize[maxDirectResultSize])
-
-* `TorrentBroadcast` is requested to core:TorrentBroadcast.md#writeBlocks[writeBlocks] and core:TorrentBroadcast.md#readBlocks[readBlocks]
+* `BlockManager` is requested to [puts a block data locally](#putBlockData)
+* `TaskRunner` is requested to [run](../executor/TaskRunner.md#run-result-sent-via-blockmanager) (and the result size is above [maxDirectResultSize](../executor/Executor.md#maxDirectResultSize))
+* `TorrentBroadcast` is requested to [writeBlocks](../core/TorrentBroadcast.md#writeBlocks) and [readBlocks](../core/TorrentBroadcast.md#readBlocks)
 
 ### <span id="doPutBytes"> doPutBytes
 

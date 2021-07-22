@@ -1,4 +1,4 @@
-= NettyBlockRpcServer
+# NettyBlockRpcServer
 
 NettyBlockRpcServer is an network:RpcHandler.md[] to handle <<messages, messages>> for storage:NettyBlockTransferService.md[NettyBlockTransferService].
 
