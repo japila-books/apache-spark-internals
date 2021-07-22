@@ -198,7 +198,7 @@ The amount of memory per executor is looked up when SparkContext.md#creating-ins
 
 You can change the assigned memory per executor per node in spark-standalone:index.md[standalone cluster] using SparkContext.md#environment-variables[SPARK_EXECUTOR_MEMORY] environment variable.
 
-You can find the value displayed as *Memory per Node* in spark-standalone:spark-standalone-Master.md[web UI for standalone Master] (as depicted in the figure below).
+You can find the value displayed as *Memory per Node* in spark-standalone:Master.md[web UI for standalone Master] (as depicted in the figure below).
 
 .Memory per Node in Spark Standalone's web UI
 image::spark-standalone-webui-memory-per-node.png[align="center"]

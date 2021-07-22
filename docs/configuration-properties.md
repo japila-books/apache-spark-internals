@@ -144,6 +144,12 @@ Controls whether to compress RDD partitions when stored serialized
 
 Default: `false`
 
+## <span id="spark.rpc.lookupTimeout"> spark.rpc.lookupTimeout
+
+[Default Endpoint Lookup Timeout](rpc/RpcEnv.md#defaultLookupTimeout)
+
+Default: `120s`
+
 ## <span id="spark.rpc.message.maxSize"><span id="RPC_MESSAGE_MAX_SIZE"> spark.rpc.message.maxSize
 
 Maximum allowed message size for RPC communication (in `MB` unless specified)
@@ -436,7 +442,7 @@ Default: `(empty)`
 
 Used when:
 
-* Spark Standalone's `StandaloneSchedulerBackend` is requested to spark-standalone:spark-standalone-StandaloneSchedulerBackend.md#start[start] (and creates a command for executor:CoarseGrainedExecutorBackend.md[])
+* Spark Standalone's `StandaloneSchedulerBackend` is requested to spark-standalone:StandaloneSchedulerBackend.md#start[start] (and creates a command for executor:CoarseGrainedExecutorBackend.md[])
 
 * Spark local's `LocalSchedulerBackend` is requested for the spark-local:spark-LocalSchedulerBackend.md#getUserClasspath[user-defined class path for executors]
 
@@ -781,12 +787,6 @@ Used when core:TorrentBroadcast.md#creating-instance[`TorrentBroadcast` is creat
 Application Name
 
 Default: (undefined)
-
-== [[spark.rpc.lookupTimeout]] spark.rpc.lookupTimeout
-
-Timeout to use for the rpc:RpcEnv.md#defaultLookupTimeout[Default Endpoint Lookup Timeout]
-
-Default: `120s`
 
 == [[spark.rpc.numRetries]] spark.rpc.numRetries
 

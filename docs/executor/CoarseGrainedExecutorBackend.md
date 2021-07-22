@@ -179,7 +179,7 @@ Usage: CoarseGrainedExecutorBackend [options]
 
 main is used when:
 
-* (Spark Standalone) StandaloneSchedulerBackend is requested to spark-standalone:spark-standalone-StandaloneSchedulerBackend.md#start[start]
+* (Spark Standalone) StandaloneSchedulerBackend is requested to spark-standalone:StandaloneSchedulerBackend.md#start[start]
 
 * (Spark on YARN) ExecutorRunnable is requested to spark-on-yarn:spark-yarn-ExecutorRunnable.md#run[start] (in a YARN resource container).
 

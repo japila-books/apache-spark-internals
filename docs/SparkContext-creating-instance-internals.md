@@ -197,7 +197,7 @@ _env: SparkEnv
 
 `SparkContext` creates a [SparkEnv](#createSparkEnv) and requests `SparkEnv` to [use the instance as the default SparkEnv](SparkEnv.md#set).
 
-## <span id="spark.repl.class.uri"> spark.repl.class.uri
+## <span id="spark.repl.class.uri"><span id="spark.repl.class.outputDir"> spark.repl.class.uri
 
 With [spark.repl.class.outputDir](configuration-properties.md#spark.repl.class.outputDir) configuration property defined, `SparkContext` sets [spark.repl.class.uri](configuration-properties.md#spark.repl.class.uri) configuration property to be...FIXME
 
