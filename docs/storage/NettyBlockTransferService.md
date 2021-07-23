@@ -1,23 +1,38 @@
 # NettyBlockTransferService
 
+`NettyBlockTransferService` is a [BlockTransferService](BlockTransferService.md) that uses Netty for [uploading](#uploadBlock) and [fetching](#fetchBlocks) blocks of data.
+
 ![NettyBlockTransferService, SparkEnv and BlockManager](../images/storage/NettyBlockTransferService.png)
 
+## Creating Instance
+
+`NettyBlockTransferService` takes the following to be created:
+
+* <span id="conf"> [SparkConf](../SparkConf.md)
+* <span id="securityManager"> `SecurityManager`
+* <span id="bindAddress"> Bind Address
+* <span id="hostName"> Host Name
+* <span id="_port"> Port
+* <span id="numCores"> Number of CPU Cores
+* <span id="driverEndPointRef"> Driver [RpcEndpointRef](../rpc/RpcEndpointRef.md)
+
+`NettyBlockTransferService` is created when:
+
+* `SparkEnv` utility is used to [create a SparkEnv](../SparkEnv.md#create-NettyBlockTransferService) (for the driver and executors and [creates a BlockManager](../SparkEnv.md#create-BlockManager))
+
+## Logging
+
+Enable `ALL` logging level for `org.apache.spark.network.netty.NettyBlockTransferService` logger to see what happens inside.
+
+Add the following line to `conf/log4j.properties`:
+
+```text
+log4j.logger.org.apache.spark.network.netty.NettyBlockTransferService=ALL
+```
+
+Refer to [Logging](../spark-logging.md).
+
 ## Review Me
-
-*NettyBlockTransferService* is a storage:BlockTransferService.md[] that uses Netty for <<uploadBlock, uploading>> or <<fetchBlocks, fetching>> blocks of data.
-
-== [[creating-instance]] Creating Instance
-
-NettyBlockTransferService takes the following to be created:
-
-* [[conf]] SparkConf.md[SparkConf]
-* [[securityManager]] SecurityManager
-* [[bindAddress]] Bind address
-* [[hostName]] Host name
-* [[_port]] Port number
-* [[numCores]] Number of CPU cores
-
-NettyBlockTransferService is created when SparkEnv is core:SparkEnv.md#create-NettyBlockTransferService[created] for the driver and executors (and core:SparkEnv.md#create-BlockManager[creates the BlockManager]).
 
 == [[transportConf]][[transportContext]] TransportConf, TransportContext
 
@@ -105,19 +120,6 @@ ERROR Exception while beginning fetchBlocks
 ```
 
 fetchBlocks is part of storage:BlockTransferService.md#fetchBlocks[BlockTransferService] abstraction.
-
-== [[appId]] Application Id
-
-== [[close]] Closing NettyBlockTransferService
-
-[source, scala]
-----
-close(): Unit
-----
-
-close...FIXME
-
-close is part of the storage:BlockTransferService.md#close[BlockTransferService] abstraction.
 
 == [[init]] Initializing NettyBlockTransferService
 
@@ -209,16 +211,3 @@ createServer(
 createServer...FIXME
 
 createServer is used when NettyBlockTransferService is requested to <<init, initialize>>.
-
-== [[logging]] Logging
-
-Enable `ALL` logging level for `org.apache.spark.network.netty.NettyBlockTransferService` logger to see what happens inside.
-
-Add the following line to `conf/log4j.properties`:
-
-[source,plaintext]
-----
-log4j.logger.org.apache.spark.network.netty.NettyBlockTransferService=ALL
-----
-
-Refer to spark-logging.md[Logging].

@@ -1,73 +1,49 @@
-= BlockTransferService
+# BlockTransferService
 
-*BlockTransferService* is an <<contract, extension>> of the storage:ShuffleClient.md[] abstraction for <<implementations, shuffle clients>> that can <<fetchBlocks, fetch>> and <<uploadBlock, upload>> blocks of data synchronously or asynchronously.
+`BlockTransferService` is an [extension](#contract) of the [BlockStoreClient](BlockStoreClient.md) abstraction for [shuffle clients](#implementations) that can [fetch](#fetchBlocks) and [upload](#uploadBlock) blocks of data (synchronously or asynchronously).
 
-BlockTransferService is a networking service available by a <<hostName, host name>> and a <<port, port>>.
+`BlockTransferService` is a network service available by a [host name](#hostName) and a [port](#port).
 
-BlockTransferService was introduced in https://issues.apache.org/jira/browse/SPARK-3019[SPARK-3019 Pluggable block transfer interface (BlockTransferService)].
+`BlockTransferService` was introduced in [SPARK-3019 Pluggable block transfer interface (BlockTransferService)](https://issues.apache.org/jira/browse/SPARK-3019).
 
-== [[contract]] Contract
+## Contract
 
-=== [[close]] close
+### <span id="hostName"> Host Name
 
-[source,scala]
-----
-close(): Unit
-----
-
-Used when BlockManager is requested to storage:BlockManager.md#stop[stop]
-
-=== [[fetchBlocks]] fetchBlocks
-
-[source,scala]
-----
-fetchBlocks(
-  host: String,
-  port: Int,
-  execId: String,
-  blockIds: Array[String],
-  listener: BlockFetchingListener,
-  tempFileManager: DownloadFileManager): Unit
-----
-
-Fetches a sequence of blocks from a remote node asynchronously
-
-fetchBlocks is part of the storage:ShuffleClient.md#fetchBlocks[ShuffleClient] abstraction.
-
-Used when BlockTransferService is requested to <<fetchBlockSync, fetch only one block (in a blocking fashion)>>
-
-=== [[hostName]] hostName
-
-[source,scala]
-----
+```scala
 hostName: String
-----
+```
 
-Used when BlockManager is requested to storage:BlockManager.md#initialize[initialize]
+Host name this service is listening on
 
-=== [[init]] init
+Used when:
 
-[source,scala]
-----
+* `BlockManager` is requested to [initialize](BlockManager.md#initialize)
+
+### <span id="init"> Initializing
+
+```scala
 init(
   blockDataManager: BlockDataManager): Unit
-----
+```
 
-Used when BlockManager is requested to storage:BlockManager.md#initialize[initialize] (with the storage:BlockDataManager.md[] being the BlockManager itself)
+Used when:
 
-=== [[port]] port
+* `BlockManager` is requested to [initialize](BlockManager.md#initialize)
 
-[source,scala]
-----
+### <span id="port"> Port
+
+```scala
 port: Int
-----
+```
 
-Used when BlockManager is requested to storage:BlockManager.md#initialize[initialize]
+Used when:
 
-=== [[uploadBlock]] uploadBlock
+* `BlockManager` is requested to [initialize](BlockManager.md#initialize)
 
-[source,scala]
-----
+### <span id="uploadBlock"> Uploading Block Asynchronously
+
+```scala
 uploadBlock(
   hostname: String,
   port: Int,
@@ -76,38 +52,19 @@ uploadBlock(
   blockData: ManagedBuffer,
   level: StorageLevel,
   classTag: ClassTag[_]): Future[Unit]
-----
+```
 
-Used when BlockTransferService is requested to <<uploadBlockSync, upload a single block to a remote node (in a blocking fashion)>>
+Used when:
 
-== [[implementations]] BlockTransferServices
+* `BlockTransferService` is requested to [uploadBlockSync](#uploadBlockSync)
 
-storage:NettyBlockTransferService.md[] is the default and only known BlockTransferService.
+## Implementations
 
-== [[fetchBlockSync]] fetchBlockSync Method
+* [NettyBlockTransferService](NettyBlockTransferService.md)
 
-[source, scala]
-----
-fetchBlockSync(
-  host: String,
-  port: Int,
-  execId: String,
-  blockId: String,
-  tempFileManager: TempFileManager): ManagedBuffer
-----
+## <span id="uploadBlockSync"> Uploading Block Synchronously
 
-fetchBlockSync...FIXME
-
-Synchronous (and hence blocking) fetchBlockSync to fetch one block `blockId` (that corresponds to the storage:ShuffleClient.md[] parent's asynchronous storage:ShuffleClient.md#fetchBlocks[fetchBlocks]).
-
-fetchBlockSync is a mere wrapper around storage:ShuffleClient.md#fetchBlocks[fetchBlocks] to fetch one `blockId` block that waits until the fetch finishes.
-
-fetchBlockSync is used when...FIXME
-
-== [[uploadBlockSync]] Uploading Single Block to Remote Node (Blocking Fashion)
-
-[source, scala]
-----
+```scala
 uploadBlockSync(
   hostname: String,
   port: Int,
@@ -116,10 +73,11 @@ uploadBlockSync(
   blockData: ManagedBuffer,
   level: StorageLevel,
   classTag: ClassTag[_]): Unit
-----
+```
 
-uploadBlockSync...FIXME
+`uploadBlockSync` [uploadBlock](#uploadBlock) and waits till it finishes.
 
-uploadBlockSync is a mere blocking wrapper around <<uploadBlock, uploadBlock>> that waits until the upload finishes.
+`uploadBlockSync` is used when:
 
-uploadBlockSync is used when BlockManager is requested to storage:BlockManager.md#replicate[replicate] (when a storage:StorageLevel.md[replication level is greater than 1]).
+* `BlockManager` is requested to [replicate](BlockManager.md#replicate)
+* `ShuffleMigrationRunnable` is requested to [run](ShuffleMigrationRunnable.md#run)
