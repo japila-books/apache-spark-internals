@@ -1,8 +1,138 @@
 # ShuffleBlockFetcherIterator
 
-`ShuffleBlockFetcherIterator` is a Scala http://www.scala-lang.org/api/current/scala/collection/Iterator.html[Iterator] that fetches shuffle blocks (aka _shuffle map outputs_) from block managers.
+`ShuffleBlockFetcherIterator` is a `Iterator[(BlockId, InputStream)]` ([Scala]({{ scala.api }}/scala/collection/Iterator.html)) that fetches shuffle blocks (aka _shuffle map outputs_) from block managers.
 
-ShuffleBlockFetcherIterator is <<creating-instance, created>> exclusively when `BlockStoreShuffleReader` is requested to shuffle:BlockStoreShuffleReader.md#read[read combined key-value records for a reduce task].
+## Creating Instance
+
+`ShuffleBlockFetcherIterator` takes the following to be created:
+
+* <span id="context"> [TaskContext](../scheduler/TaskContext.md)
+* <span id="shuffleClient"> [BlockStoreClient](BlockStoreClient.md)
+* <span id="blockManager"> [BlockManager](BlockManager.md)
+* <span id="blocksByAddress"> Blocks by [Address](BlockManagerId.md) (`Iterator[(BlockManagerId, Seq[(BlockId, Long, Int)])]`)
+* <span id="streamWrapper"> Stream Wrapper Function (`(BlockId, InputStream) => InputStream`)
+* <span id="maxBytesInFlight"> maxBytesInFlight
+* <span id="maxReqsInFlight"> maxReqsInFlight
+* <span id="maxBlocksInFlightPerAddress"> maxBlocksInFlightPerAddress
+* <span id="maxReqSizeShuffleToMem"> maxReqSizeShuffleToMem
+* <span id="detectCorrupt"> `detectCorrupt` flag
+* <span id="detectCorruptUseExtraMemory"> `detectCorruptUseExtraMemory` flag
+* <span id="shuffleMetrics"> `ShuffleReadMetricsReporter`
+* <span id="doBatchFetch"> `doBatchFetch` flag
+
+While being created, `ShuffleBlockFetcherIterator` is requested to [initialize](#initialize).
+
+`ShuffleBlockFetcherIterator` is created when:
+
+* `BlockStoreShuffleReader` is requested to [read combined key-value records for a reduce task](../shuffle/BlockStoreShuffleReader.md#read)
+
+### <span id="initialize"> Initializing
+
+```scala
+initialize(): Unit
+```
+
+`initialize`...FIXME
+
+### <span id="partitionBlocksByFetchMode"> partitionBlocksByFetchMode
+
+```scala
+partitionBlocksByFetchMode(): ArrayBuffer[FetchRequest]
+```
+
+`partitionBlocksByFetchMode`...FIXME
+
+### <span id="collectFetchRequests"> collectFetchRequests
+
+```scala
+collectFetchRequests(
+  address: BlockManagerId,
+  blockInfos: Seq[(BlockId, Long, Int)],
+  collectedRemoteRequests: ArrayBuffer[FetchRequest]): Unit
+```
+
+`collectFetchRequests`...FIXME
+
+### <span id="createFetchRequests"> createFetchRequests
+
+```scala
+createFetchRequests(
+  curBlocks: Seq[FetchBlockInfo],
+  address: BlockManagerId,
+  isLast: Boolean,
+  collectedRemoteRequests: ArrayBuffer[FetchRequest]): Seq[FetchBlockInfo]
+```
+
+`createFetchRequests`...FIXME
+
+## <span id="DownloadFileManager"> DownloadFileManager
+
+`ShuffleBlockFetcherIterator` is [DownloadFileManager](../shuffle/DownloadFileManager.md).
+
+## <span id="hasNext"> hasNext
+
+```scala
+hasNext: Boolean
+```
+
+`hasNext` is part of the `Iterator` ([Scala]({{ scala.api }}/scala/collection/Iterator.html#hasNext:Boolean)) abstraction (to test whether this iterator can provide another element).
+
+`hasNext` is `true` when [numBlocksProcessed](#numBlocksProcessed) is below [numBlocksToFetch](#numBlocksToFetch).
+
+## <span id="next"> Retrieving Next Element
+
+```scala
+next(): (BlockId, InputStream)
+```
+
+`next` is part of the `Iterator` ([Scala]({{ scala.api }}/scala/collection/Iterator.html#next():A)) abstraction (to produce the next element of this iterator).
+
+`next`...FIXME
+
+## <span id="numBlocksProcessed"> numBlocksProcessed
+
+The number of blocks [fetched and consumed](#next)
+
+## <span id="numBlocksToFetch"> numBlocksToFetch
+
+Total number of blocks to [fetch and consume](#next)
+
+`ShuffleBlockFetcherIterator` can [produce](#hasNext) up to `numBlocksToFetch` elements.
+
+`numBlocksToFetch` is increased every time `ShuffleBlockFetcherIterator` is requested to [partitionBlocksByFetchMode](#partitionBlocksByFetchMode) that prints it out as the INFO message to the logs:
+
+```text
+Getting [numBlocksToFetch] non-empty blocks out of [totalBlocks] blocks
+```
+
+## <span id="releaseCurrentResultBuffer"> releaseCurrentResultBuffer
+
+```scala
+releaseCurrentResultBuffer(): Unit
+```
+
+`releaseCurrentResultBuffer` is part of the [HERE](HERE.md#releaseCurrentResultBuffer) abstraction.
+
+`releaseCurrentResultBuffer`...FIXME
+
+`releaseCurrentResultBuffer` is used when:
+
+* `ShuffleBlockFetcherIterator` is requested to [cleanup](#cleanup)
+* `BufferReleasingInputStream` is requested to `close`
+
+## Logging
+
+Enable `ALL` logging level for `org.apache.spark.storage.ShuffleBlockFetcherIterator` logger to see what happens inside.
+
+Add the following line to `conf/log4j.properties`:
+
+```text
+log4j.logger.org.apache.spark.storage.ShuffleBlockFetcherIterator=ALL
+```
+
+Refer to [Logging](../spark-logging.md).
+
+## Review Me
 
 ShuffleBlockFetcherIterator allows for <<next, iterating over a sequence of blocks>> as `(BlockId, InputStream)` pairs so a caller can handle shuffle blocks in a pipelined fashion as they are received.
 
@@ -16,20 +146,6 @@ ShuffleBlockFetcherIterator <<fetchUpToMaxBytes, throttles the remote fetches>> 
 |===
 | Name
 | Description
-
-| `numBlocksProcessed`
-| [[numBlocksProcessed]] The number of blocks <<next, fetched and consumed>>.
-
-| `numBlocksToFetch`
-a| [[numBlocksToFetch]] Total number of blocks to <<next, fetch and consume>>.
-
-ShuffleBlockFetcherIterator can <<hasNext, produce>> up to `numBlocksToFetch` elements.
-
-`numBlocksToFetch` is increased every time ShuffleBlockFetcherIterator is requested to <<splitLocalRemoteBlocks, splitLocalRemoteBlocks>> that prints it out as the INFO message to the logs:
-
-```
-Getting [numBlocksToFetch] non-empty blocks out of [totalBlocks] blocks
-```
 
 | [[results]] `results`
 | Internal FIFO blocking queue (using Java's https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/LinkedBlockingQueue.html[java.util.concurrent.LinkedBlockingQueue]) to hold `FetchResult` remote and local fetch results.
@@ -82,23 +198,6 @@ ShuffleBlockFetcherIterator makes sure that the invariant of `reqsInFlight` belo
 
 Set when ShuffleBlockFetcherIterator <<next, returns the next `(BlockId, InputStream)` tuple>> and <<releaseCurrentResultBuffer, released>> (on <<cleanup, cleanup>>).
 |===
-
-[TIP]
-====
-Enable `ERROR`, `WARN`, `INFO`, `DEBUG` or `TRACE` logging levels for `org.apache.spark.storage.ShuffleBlockFetcherIterator` logger to see what happens in ShuffleBlockFetcherIterator.
-
-Add the following line to `conf/log4j.properties`:
-
-```
-log4j.logger.org.apache.spark.storage.ShuffleBlockFetcherIterator=TRACE
-```
-
-Refer to spark-logging.md[Logging].
-====
-
-== [[fetchUpToMaxBytes]] `fetchUpToMaxBytes` Method
-
-CAUTION: FIXME
 
 ## Creating Instance
 
@@ -255,62 +354,3 @@ Internally, `cleanup` marks ShuffleBlockFetcherIterator a <<isZombie, zombie>>.
 `cleanup` iterates over <<results, results>> internal queue and for every `SuccessFetchResult`, increments remote bytes read and blocks fetched shuffle task metrics, and eventually releases the managed buffer.
 
 NOTE: `cleanup` is used when <<initialize, ShuffleBlockFetcherIterator initializes itself>>.
-
-== [[releaseCurrentResultBuffer]] Decrementing Reference Count Of and Releasing Result Buffer (for SuccessFetchResult) -- `releaseCurrentResultBuffer` Internal Method
-
-[source, scala]
-----
-releaseCurrentResultBuffer(): Unit
-----
-
-`releaseCurrentResultBuffer` decrements the <<currentResult, currently-processed `SuccessFetchResult` reference>>'s buffer reference count if there is any.
-
-`releaseCurrentResultBuffer` releases <<currentResult, currentResult>>.
-
-NOTE: `releaseCurrentResultBuffer` is used when <<cleanup, ShuffleBlockFetcherIterator releases resources>> and `BufferReleasingInputStream` closes.
-
-== [[fetchLocalBlocks]] `fetchLocalBlocks` Internal Method
-
-[source, scala]
-----
-fetchLocalBlocks(): Unit
-----
-
-`fetchLocalBlocks`...FIXME
-
-NOTE: `fetchLocalBlocks` is used when...FIXME
-
-== [[hasNext]] `hasNext` Method
-
-[source, scala]
-----
-hasNext: Boolean
-----
-
-NOTE: `hasNext` is part of Scala's ++https://www.scala-lang.org/api/current/scala/collection/Iterator.html#hasNext:Boolean++[Iterator Contract] to test whether this iterator can provide another element.
-
-`hasNext` is positive (`true`) when <<numBlocksProcessed, numBlocksProcessed>> is less than <<numBlocksToFetch, numBlocksToFetch>>.
-
-Otherwise, `hasNext` is negative (`false`).
-
-== [[splitLocalRemoteBlocks]] `splitLocalRemoteBlocks` Internal Method
-
-[source, scala]
-----
-splitLocalRemoteBlocks(): ArrayBuffer[FetchRequest]
-----
-
-`splitLocalRemoteBlocks`...FIXME
-
-NOTE: `splitLocalRemoteBlocks` is used exclusively when ShuffleBlockFetcherIterator is requested to <<initialize, initialize>>.
-
-== [[next]] Retrieving Next Element -- `next` Method
-
-[source, scala]
-----
-next(): (BlockId, InputStream)
-----
-
-NOTE: `next` is part of Scala's ++https://www.scala-lang.org/api/current/scala/collection/Iterator.html#next():A++[Iterator Contract] to produce the next element of this iterator.
-
-`next`...FIXME

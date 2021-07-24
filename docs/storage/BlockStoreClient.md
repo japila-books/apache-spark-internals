@@ -18,7 +18,7 @@ void fetchBlocks(
   DownloadFileManager downloadFileManager)
 ```
 
-Fetches blocks from a remote node
+Fetches blocks from a remote node (using [DownloadFileManager](../shuffle/DownloadFileManager.md))
 
 Used when:
 

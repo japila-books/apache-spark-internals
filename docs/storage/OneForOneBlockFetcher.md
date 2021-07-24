@@ -10,7 +10,7 @@
 * <span id="blockIds"> Block IDs
 * <span id="listener"> [BlockFetchingListener](../core/BlockFetchingListener.md)
 * <span id="transportConf"> [TransportConf](../network/TransportConf.md)
-* <span id="downloadFileManager"> `DownloadFileManager`
+* <span id="downloadFileManager"> [DownloadFileManager](../shuffle/DownloadFileManager.md)
 
 `OneForOneBlockFetcher` is created when:
 
