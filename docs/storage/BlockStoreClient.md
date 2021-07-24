@@ -6,7 +6,7 @@
 
 ## Contract
 
-### <span id="fetchBlocks"> fetchBlocks
+### <span id="fetchBlocks"> Fetching Blocks
 
 ```java
 void fetchBlocks(
@@ -25,7 +25,7 @@ Used when:
 * `BlockTransferService` is requested to [fetchBlockSync](BlockTransferService.md#fetchBlockSync)
 * `ShuffleBlockFetcherIterator` is requested to [sendRequest](ShuffleBlockFetcherIterator.md#sendRequest)
 
-### <span id="shuffleMetrics"> shuffleMetrics
+### <span id="shuffleMetrics"> Shuffle Metrics
 
 ```java
 MetricSet shuffleMetrics()
@@ -37,7 +37,7 @@ Default: (empty)
 
 Used when:
 
-* `BlockManager` is requested for a [Shuffle Metrics Source](BlockManager.md#shuffleMetricsSource)
+* `BlockManager` is requested for the [Shuffle Metrics Source](BlockManager.md#shuffleMetricsSource)
 
 ## Implementations
 

@@ -1100,19 +1100,26 @@ addUpdatedBlockStatusToTaskMetrics(
 
 `addUpdatedBlockStatusToTaskMetrics` is used when BlockManager [doPutBytes](#doPutBytes) (for a block that was successfully stored), [doPut](#doPut), [doPutIterator](#doPutIterator), [removes blocks from memory](#dropFromMemory) (possibly spilling it to disk) and [removes block from memory and disk](#removeBlock).
 
-## <span id="shuffleMetricsSource"> Requesting Shuffle-Related Spark Metrics Source
+## <span id="shuffleMetricsSource"> Shuffle Metrics Source
 
 ```scala
 shuffleMetricsSource: Source
 ```
 
-`shuffleMetricsSource` requests the [ShuffleClient](#shuffleClient) for the [shuffle metrics](ShuffleClient.md#shuffleMetrics) and creates a [ShuffleMetricsSource](ShuffleMetricsSource.md) with the [source name](ShuffleMetricsSource.md#sourceName) based on [spark.shuffle.service.enabled](../external-shuffle-service/configuration-properties.md#spark.shuffle.service.enabled) configuration property:
+`shuffleMetricsSource` creates a [ShuffleMetricsSource](ShuffleMetricsSource.md) with the [shuffleMetrics](BlockStoreClient.md#shuffleMetrics) (of the [ BlockStoreClient](#blockStoreClient)) and the [source name](ShuffleMetricsSource.md#sourceName) as follows:
 
-* **ExternalShuffle** when [spark.shuffle.service.enabled](../external-shuffle-service/configuration-properties.md#spark.shuffle.service.enabled) configuration property is on (`true`)
+* **ExternalShuffle** when [ExternalBlockStoreClient](#externalBlockStoreClient) is specified
+* **NettyBlockTransfer** otherwise
 
-* **NettyBlockTransfer** when [spark.shuffle.service.enabled](../external-shuffle-service/configuration-properties.md#spark.shuffle.service.enabled) configuration property is off (`false`)
+`shuffleMetricsSource` is available using [SparkEnv](../SparkEnv.md):
 
-`shuffleMetricsSource` is used when [Executor](../executor/Executor.md) is created (for non-local / cluster modes).
+```scala
+env.blockManager.shuffleMetricsSource
+```
+
+`shuffleMetricsSource` is used when:
+
+* [Executor](../executor/Executor.md) is created (for non-local / cluster modes)
 
 ## <span id="replicate"> Replicating Block To Peers
 
