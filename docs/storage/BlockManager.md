@@ -445,17 +445,31 @@ scala> :type bm
 org.apache.spark.storage.BlockManager
 ```
 
+## <span id="blockStoreClient"> BlockStoreClient
+
+`BlockManager` uses a [BlockStoreClient](BlockStoreClient.md) to read other executors' blocks. This is an [ExternalBlockStoreClient](#externalBlockStoreClient) (when given and an external shuffle service is used) or a [BlockTransferService](#blockTransferService) (to directly connect to other executors).
+
+This `BlockStoreClient` is used when:
+
+* `BlockStoreShuffleReader` is requested to [read combined key-values for a reduce task](../shuffle/BlockStoreShuffleReader.md#read)
+* Create the [HostLocalDirManager](#hostLocalDirManager) (when `BlockManager` is [initialized](#initialize))
+* As the [shuffleMetricsSource](#shuffleMetricsSource)
+* [registerWithExternalShuffleServer](#registerWithExternalShuffleServer) (when an external shuffle server is used and the [ExternalBlockStoreClient](#externalBlockStoreClient) defined)
+
 ## <span id="blockTransferService"> BlockTransferService
 
 `BlockManager` is given a [BlockTransferService](BlockTransferService.md) when [created](#creating-instance).
 
-`BlockTransferService` is used as the [ShuffleClient](#shuffleClient) when `BlockManager` is configured with no external shuffle service (based on [spark.shuffle.service.enabled](../external-shuffle-service/configuration-properties.md#spark.shuffle.service.enabled) configuration property).
+!!! note
+    There is only one concrete `BlockTransferService` that is [NettyBlockTransferService](NettyBlockTransferService.md) and there seem to be no way to reconfigure Apache Spark to use a different implementation (if there were any).
 
-`BlockTransferService` is [initialized](BlockTransferService.md#init) when `BlockManager` [is](#initialize).
+`BlockTransferService` is used when `BlockManager` is requested to [fetch a block from](#getRemoteBytes) and [replicate a block to](#replicate) remote block managers.
+
+`BlockTransferService` is used as the [BlockStoreClient](#blockStoreClient) (unless an [ExternalBlockStoreClient](#externalBlockStoreClient) is specified).
+
+`BlockTransferService` is [initialized](BlockTransferService.md#init) with this [BlockManager](#initialize).
 
 `BlockTransferService` is [closed](BlockTransferService.md#close) when `BlockManager` is requested to [stop](#stop).
-
-`BlockTransferService` is used when `BlockManager` is requested to [fetching a block from](#getRemoteBytes) or [replicate a block to](#replicate) remote block managers.
 
 ## <span id="memoryManager"> MemoryManager
 
