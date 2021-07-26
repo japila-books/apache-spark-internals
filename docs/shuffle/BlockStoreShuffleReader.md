@@ -1,17 +1,39 @@
 # BlockStoreShuffleReader
 
-`BlockStoreShuffleReader` is the one and only known ShuffleReader.md[ShuffleReader] that <<read, reads the combined key-values for the reduce task>> (for a range of <<startPartition, start>> and <<endPartition, end>> reduce partitions) from a shuffle by requesting them from block managers.
+`BlockStoreShuffleReader` is a [ShuffleReader](ShuffleReader.md).
 
-`BlockStoreShuffleReader` is <<creating-instance, created>> exclusively when `SortShuffleManager` is requested for the SortShuffleManager.md#getReader[ShuffleReader] for a range of reduce partitions.
+## Creating Instance
+
+`BlockStoreShuffleReader` takes the following to be created:
+
+* <span id="handle"> [BaseShuffleHandle](BaseShuffleHandle.md)
+* <span id="blocksByAddress"> [Block](../storage/BlockId.md)s by [Address](../storage/BlockManagerId.md) (`Iterator[(BlockManagerId, Seq[(BlockId, Long, Int)])]`)
+* <span id="context"> [TaskContext](../scheduler/TaskContext.md)
+* <span id="readMetrics"> `ShuffleReadMetricsReporter`
+* <span id="serializerManager"> [SerializerManager](../serializer/SerializerManager.md)
+* <span id="blockManager"> [BlockManager](../storage/BlockManager.md)
+* <span id="mapOutputTracker"> [MapOutputTracker](../scheduler/MapOutputTracker.md)
+* <span id="shouldBatchFetch"> `shouldBatchFetch` flag (default: `false`)
+
+`BlockStoreShuffleReader` is created when:
+
+* `SortShuffleManager` is requested for a [ShuffleReader](SortShuffleManager.md#getReader) (for a `ShuffleHandle` and a range of reduce partitions)
+
+## <span id="read"> Reading Combined Records for Reduce Task
+
+```scala
+read(): Iterator[Product2[K, C]]
+```
+
+`read` is part of the [ShuffleReader](ShuffleReader.md#read) abstraction.
+
+`read` creates a [ShuffleBlockFetcherIterator](../storage/ShuffleBlockFetcherIterator.md).
+
+`read`...FIXME
+
+## Review Me
 
 === [[read]] Reading Combined Records For Reduce Task
-
-[source, scala]
-----
-read(): Iterator[Product2[K, C]]
-----
-
-NOTE: `read` is part of ShuffleReader.md#read[ShuffleReader Contract].
 
 Internally, `read` first storage:ShuffleBlockFetcherIterator.md#creating-instance[creates a `ShuffleBlockFetcherIterator`] (passing in the values of <<spark_reducer_maxSizeInFlight, spark.reducer.maxSizeInFlight>>, <<spark_reducer_maxReqsInFlight, spark.reducer.maxReqsInFlight>> and <<spark_shuffle_detectCorrupt, spark.shuffle.detectCorrupt>> Spark properties).
 
@@ -37,52 +59,3 @@ For [keyOrdering](../rdd/ShuffleDependency.md#keyOrdering) defined in the `Shuff
 2. shuffle:ExternalSorter.md#insertAll[Inserts all the records] into the `ExternalSorter`
 3. Updates context `TaskMetrics`
 4. Returns a `CompletionIterator` for the `ExternalSorter`
-
-=== [[settings]] Settings
-
-.Spark Properties
-[cols="1,1,2",options="header",width="100%"]
-|===
-| Spark Property
-| Default Value
-| Description
-
-| [[spark_reducer_maxSizeInFlight]] `spark.reducer.maxSizeInFlight`
-| `48m`
-| Maximum size (in bytes) of map outputs to fetch simultaneously from each reduce task.
-
-Since each output requires a new buffer to receive it, this represents a fixed memory overhead per reduce task, so keep it small unless you have a large amount of memory.
-
-Used when <<read, `BlockStoreShuffleReader` creates a `ShuffleBlockFetcherIterator` to read records>>.
-
-| [[spark_reducer_maxReqsInFlight]] `spark.reducer.maxReqsInFlight`
-| (unlimited)
-| The maximum number of remote requests to fetch blocks at any given point.
-
-When the number of hosts in the cluster increases, it might lead to very large number of in-bound connections to one or more nodes, causing the workers to fail under load. By allowing it to limit the number of fetch requests, this scenario can be mitigated.
-
-Used when <<read, `BlockStoreShuffleReader` creates a `ShuffleBlockFetcherIterator` to read records>>.
-
-| [[spark_shuffle_detectCorrupt]] `spark.shuffle.detectCorrupt`
-| `true`
-| Controls whether to detect any corruption in fetched blocks.
-
-Used when <<read, `BlockStoreShuffleReader` creates a `ShuffleBlockFetcherIterator` to read records>>.
-
-|===
-
-## Creating Instance
-
-`BlockStoreShuffleReader` takes the following when created:
-
-* [[handle]] BaseShuffleHandle.md[BaseShuffleHandle]
-* [[startPartition]] Reduce start partition index
-* [[endPartition]] Reduce end partition index
-* [[context]] [TaskContext](../scheduler/TaskContext.md)
-* [[serializerManager]] serializer:SerializerManager.md[SerializerManager]
-* [[blockManager]] storage:BlockManager.md[BlockManager]
-* [[mapOutputTracker]] scheduler:MapOutputTracker.md[MapOutputTracker]
-
-`BlockStoreShuffleReader` initializes the <<internal-registries, internal registries and counters>>.
-
-NOTE: `BlockStoreShuffleReader` uses `SparkEnv` to access the <<serializerManager, SerializerManager>>, <<blockManager, BlockManager>> and <<mapOutputTracker, MapOutputTracker>>.

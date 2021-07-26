@@ -9,7 +9,7 @@
 * <span id="context"> [TaskContext](../scheduler/TaskContext.md)
 * <span id="shuffleClient"> [BlockStoreClient](BlockStoreClient.md)
 * <span id="blockManager"> [BlockManager](BlockManager.md)
-* <span id="blocksByAddress"> Blocks by [Address](BlockManagerId.md) (`Iterator[(BlockManagerId, Seq[(BlockId, Long, Int)])]`)
+* <span id="blocksByAddress"> [Block](BlockId.md)s by [Address](BlockManagerId.md) (`Iterator[(BlockManagerId, Seq[(BlockId, Long, Int)])]`)
 * <span id="streamWrapper"> Stream Wrapper Function (`(BlockId, InputStream) => InputStream`)
 * <span id="maxBytesInFlight"> maxBytesInFlight
 * <span id="maxReqsInFlight"> maxReqsInFlight
@@ -110,8 +110,6 @@ Getting [numBlocksToFetch] non-empty blocks out of [totalBlocks] blocks
 ```scala
 releaseCurrentResultBuffer(): Unit
 ```
-
-`releaseCurrentResultBuffer` is part of the [HERE](HERE.md#releaseCurrentResultBuffer) abstraction.
 
 `releaseCurrentResultBuffer`...FIXME
 

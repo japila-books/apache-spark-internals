@@ -116,6 +116,22 @@ Default: `false`
 
 **Master URL** of the cluster manager to connect the Spark application to
 
+## <span id="spark.network.maxRemoteBlockSizeFetchToMem"><span id="MAX_REMOTE_BLOCK_SIZE_FETCH_TO_MEM"> spark.network.maxRemoteBlockSizeFetchToMem
+
+Remote block will be fetched to disk when size of the block is above this threshold in bytes
+
+This is to avoid a giant request takes too much memory. Note this configuration will affect both shuffle fetch and block manager remote block fetch.
+
+With an external shuffle service use at least 2.3.0
+
+Default: `200m`
+
+Used when:
+
+* `BlockStoreShuffleReader` is requested to [read combined records for a reduce task](shuffle/BlockStoreShuffleReader.md#read)
+* `NettyBlockTransferService` is requested to [uploadBlock](storage/NettyBlockTransferService.md#uploadBlock)
+* `BlockManager` is requested to [fetchRemoteManagedBuffer](storage/BlockManager.md#fetchRemoteManagedBuffer)
+
 ## <span id="spark.network.timeout"><span id="NETWORK_TIMEOUT"> spark.network.timeout
 
 Network timeout (in seconds) to use for RPC remote endpoint lookup
@@ -133,6 +149,42 @@ Default: [spark.storage.blockManagerTimeoutIntervalMs](#STORAGE_BLOCKMANAGER_TIM
 Controls whether to compress RDD partitions when stored serialized
 
 Default: `false`
+
+## <span id="spark.reducer.maxBlocksInFlightPerAddress"><span id="REDUCER_MAX_BLOCKS_IN_FLIGHT_PER_ADDRESS"> spark.reducer.maxBlocksInFlightPerAddress
+
+Maximum number of remote blocks being fetched per reduce task from a given host port
+
+When a large number of blocks are being requested from a given address in a single fetch or simultaneously, this could crash the serving executor or a Node Manager. This is especially useful to reduce the load on the Node Manager when external shuffle is enabled. You can mitigate the issue by setting it to a lower value.
+
+Default: (unlimited)
+
+Used when:
+
+* `BlockStoreShuffleReader` is requested to [read combined records for a reduce task](shuffle/BlockStoreShuffleReader.md#read)
+
+## <span id="spark.reducer.maxReqsInFlight"><span id="REDUCER_MAX_REQS_IN_FLIGHT"> spark.reducer.maxReqsInFlight
+
+Maximum number of remote requests to fetch blocks at any given point
+
+When the number of hosts in the cluster increase, it might lead to very large number of inbound connections to one or more nodes, causing the workers to fail under load. By allowing it to limit the number of fetch requests, this scenario can be mitigated
+
+Default: (unlimited)
+
+Used when:
+
+* `BlockStoreShuffleReader` is requested to [read combined records for a reduce task](shuffle/BlockStoreShuffleReader.md#read)
+
+## <span id="spark.reducer.maxSizeInFlight"><span id="REDUCER_MAX_SIZE_IN_FLIGHT"> spark.reducer.maxSizeInFlight
+
+Maximum size of map outputs to fetch simultaneously from each reduce task (in MiB unless otherwise specified)
+
+Since each output requires us to create a buffer to receive it, this represents a fixed memory overhead per reduce task, so keep it small unless you have a large amount of memory
+
+Default: `48m`
+
+Used when:
+
+* `BlockStoreShuffleReader` is requested to [read combined records for a reduce task](shuffle/BlockStoreShuffleReader.md#read)
 
 ## <span id="spark.repl.class.uri"> spark.repl.class.uri
 
@@ -190,6 +242,26 @@ Used when:
 Controls whether to compress shuffle output when stored
 
 Default: `true`
+
+## <span id="spark.shuffle.detectCorrupt"><span id="SHUFFLE_DETECT_CORRUPT"> spark.shuffle.detectCorrupt
+
+Controls corruption detection in fetched blocks
+
+Default: `true`
+
+Used when:
+
+* `BlockStoreShuffleReader` is requested to [read combined records for a reduce task](shuffle/BlockStoreShuffleReader.md#read)
+
+## <span id="spark.shuffle.detectCorrupt.useExtraMemory"><span id="SHUFFLE_DETECT_CORRUPT_MEMORY"> spark.shuffle.detectCorrupt.useExtraMemory
+
+If enabled, part of a compressed/encrypted stream will be de-compressed/de-crypted by using extra memory to detect early corruption. Any `IOException` thrown will cause the task to be retried once and if it fails again with same exception, then `FetchFailedException` will be thrown to retry previous stage
+
+Default: `false`
+
+Used when:
+
+* `BlockStoreShuffleReader` is requested to [read combined records for a reduce task](shuffle/BlockStoreShuffleReader.md#read)
 
 ## <span id="spark.shuffle.file.buffer"> spark.shuffle.file.buffer
 
