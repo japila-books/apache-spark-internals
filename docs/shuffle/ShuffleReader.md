@@ -1,34 +1,20 @@
 # ShuffleReader
 
-`ShuffleReader` is a <<contract, contract>> of <<implementations, shuffle readers>> to <<read, read combined key-value records for a reduce task>>.
+`ShuffleReader` is an [abstraction](#contract) of [shuffle block readers](#implementations) that can [read combined key-value records for a reduce task](#read).
 
-[[contract]]
-[source, scala]
-----
-package org.apache.spark.shuffle
+## Contract
 
-trait ShuffleReader[K, C] {
-  def read(): Iterator[Product2[K, C]]
-}
-----
+### <span id="read"> Reading Combined Records (for Reduce Task)
 
-NOTE: `ShuffleReader` is a `private[spark]` contract.
-
-.ShuffleReader Contract
-[cols="1,2",options="header",width="100%"]
-|===
-| Method
-| Description
-
-| `read`
-a| [[read]] Reading combined key-value records for a reduce task
+```scala
+read(): Iterator[Product2[K, C]]
+```
 
 Used when:
 
 * [CoGroupedRDD](../rdd/CoGroupedRDD.md#compute), [ShuffledRDD](../rdd/ShuffledRDD.md#compute), and [SubtractedRDD](../rdd/SubtractedRDD.md#compute) are requested to compute a partition (for a `ShuffleDependency` dependency)
+* `ShuffledRowRDD` ([Spark SQL]({{ book.spark_sql }}/ShuffledRowRDD)) is requested to `compute` a partition
 
-* Spark SQL's `ShuffledRowRDD` is requested to `compute` a partition
-|===
+## Implementations
 
-[[implementations]]
-NOTE: shuffle:BlockStoreShuffleReader.md[BlockStoreShuffleReader] is the one and only known <<contract, ShuffleReader>> in Apache Spark.
+* [BlockStoreShuffleReader](BlockStoreShuffleReader.md)
