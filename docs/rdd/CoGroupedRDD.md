@@ -1,20 +1,20 @@
 # CoGroupedRDD
 
-A RDD that cogroups its pair RDD parents. For each key k in parent RDDs, the resulting RDD contains a tuple with the list of values for that key.
+`CoGroupedRDD[K]` is an [RDD](RDD.md) that cogroups the [parent RDDs](#rdds).
 
-Use `RDD.cogroup(...)` to create one.
+```scala
+RDD[(K, Array[Iterable[_]])]
+```
 
-== [[getDependencies]] getDependencies Method
+For each key `k` in parent RDDs, the resulting RDD contains a tuple with the list of values for that key.
 
-CAUTION: FIXME
+## Creating Instance
 
-== [[compute]] Computing Partition (in TaskContext)
+`CoGroupedRDD` takes the following to be created:
 
-[source, scala]
-----
-compute(s: Partition, context: TaskContext): Iterator[(K, Array[Iterable[_]])]
-----
+* <span id="rdds"> Key-Value [RDD](RDD.md)s (`Seq[RDD[_ <: Product2[K, _]]]`)
+* <span id="part"> [Partitioner](Partitioner.md)
 
-compute...FIXME
+`CoGroupedRDD` is created when:
 
-compute is part of rdd:RDD.md#compute[RDD] abstraction.
+* [RDD.cogroup](PairRDDFunctions.md#cogroup) operator is used
