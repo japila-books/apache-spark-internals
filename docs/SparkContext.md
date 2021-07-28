@@ -711,7 +711,7 @@ NOTE: *Default level of parallelism* specifies the number of spark-rdd-partition
 ====
 `defaultParallelism` is used in <<parallelize, SparkContext.parallelize>>, `SparkContext.range` and <<makeRDD, SparkContext.makeRDD>> (as well as Spark Streaming's `DStream.countByValue` and `DStream.countByValueAndWindow` et al.).
 
-`defaultParallelism` is also used to instantiate rdd:HashPartitioner.md[HashPartitioner] and for the minimum number of partitions in rdd:spark-rdd-HadoopRDD.md[HadoopRDDs].
+`defaultParallelism` is also used to instantiate rdd:HashPartitioner.md[HashPartitioner] and for the minimum number of partitions in rdd:HadoopRDD.md[HadoopRDDs].
 ====
 
 == [[taskScheduler]] Current Spark Scheduler (aka TaskScheduler) -- `taskScheduler` Property

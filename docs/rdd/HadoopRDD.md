@@ -1,4 +1,4 @@
-== HadoopRDD
+# HadoopRDD
 
 https://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.rdd.HadoopRDD[HadoopRDD] is an RDD that provides core functionality for reading data stored in HDFS, a local file system (available on all nodes), or any Hadoop-supported file system URI using the older MapReduce API (https://hadoop.apache.org/docs/current/api/org/apache/hadoop/mapred/package-summary.html[org.apache.hadoop.mapred]).
 

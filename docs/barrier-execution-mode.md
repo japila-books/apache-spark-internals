@@ -26,7 +26,7 @@ mapPartitions[S: ClassTag](
   preservesPartitioning: Boolean = false): RDD[S]
 ----
 
-`mapPartitions` is simply changes the regular <<spark-rdd-transformations.md#mapPartitions, RDD.mapPartitions>> transformation to create a rdd:spark-rdd-MapPartitionsRDD.md[MapPartitionsRDD] with the rdd:spark-rdd-MapPartitionsRDD.md#isFromBarrier[isFromBarrier] flag enabled.
+`mapPartitions` is simply changes the regular <<spark-rdd-transformations.md#mapPartitions, RDD.mapPartitions>> transformation to create a rdd:MapPartitionsRDD.md[MapPartitionsRDD] with the rdd:MapPartitionsRDD.md#isFromBarrier[isFromBarrier] flag enabled.
 
 * `Task` has a scheduler:Task.md#isBarrier[isBarrier] flag that says whether this task belongs to a barrier stage (default: `false`).
 
@@ -36,9 +36,9 @@ An RDD is in a <<barrier-stage, barrier stage>>, if at least one of its parent R
 
 rdd:ShuffledRDD.md[ShuffledRDD] has the rdd:RDD.md#isBarrier[isBarrier] flag always disabled (`false`).
 
-rdd:spark-rdd-MapPartitionsRDD.md[MapPartitionsRDD] is the only one RDD that can have the rdd:RDD.md#isBarrier_[isBarrier] flag enabled.
+rdd:MapPartitionsRDD.md[MapPartitionsRDD] is the only one RDD that can have the rdd:RDD.md#isBarrier_[isBarrier] flag enabled.
 
-rdd:spark-RDDBarrier.md#mapPartitions[RDDBarrier.mapPartitions] is the only transformation that creates a rdd:spark-rdd-MapPartitionsRDD.md[MapPartitionsRDD] with the rdd:spark-rdd-MapPartitionsRDD.md#isFromBarrier[isFromBarrier] flag enabled.
+rdd:spark-RDDBarrier.md#mapPartitions[RDDBarrier.mapPartitions] is the only transformation that creates a rdd:MapPartitionsRDD.md[MapPartitionsRDD] with the rdd:MapPartitionsRDD.md#isFromBarrier[isFromBarrier] flag enabled.
 
 == [[barrier-stage]] Barrier Stage
 

@@ -10,7 +10,7 @@ Quoting the official Scala https://www.scala-lang.org/api/2.11.x/index.html#scal
 
 * `RDD` is requested to rdd:RDD.md#getOrCompute[get or compute a RDD partition]
 
-* [CoGroupedRDD](rdd/CoGroupedRDD.md#compute), rdd:spark-rdd-HadoopRDD.md#compute[HadoopRDD], rdd:spark-rdd-NewHadoopRDD.md#compute[NewHadoopRDD], rdd:spark-rdd-ParallelCollectionRDD.md#compute[ParallelCollectionRDD] are requested to `compute` a partition
+* [CoGroupedRDD](rdd/CoGroupedRDD.md#compute), rdd:HadoopRDD.md#compute[HadoopRDD], rdd:NewHadoopRDD.md#compute[NewHadoopRDD], rdd:ParallelCollectionRDD.md#compute[ParallelCollectionRDD] are requested to `compute` a partition
 
 * `BlockStoreShuffleReader` is requested to shuffle:BlockStoreShuffleReader.md#read[read combined key-value records for a reduce task]
 

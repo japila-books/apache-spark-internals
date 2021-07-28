@@ -11,7 +11,7 @@ barrier(): RDDBarrier[T]
 
 [[creating-instance]]
 [[rdd]]
-`RDDBarrier` takes a single rdd:RDD.md[RDD] to be created and gives the single <<mapPartitions, mapPartitions>> transformation (on the `RDD`) that simply changes the regular rdd:spark-rdd-transformations.md#mapPartitions[RDD.mapPartitions] transformation to create a rdd:spark-rdd-MapPartitionsRDD.md[MapPartitionsRDD] with the rdd:spark-rdd-MapPartitionsRDD.md#isFromBarrier[isFromBarrier] flag enabled.
+`RDDBarrier` takes a single rdd:RDD.md[RDD] to be created and gives the single <<mapPartitions, mapPartitions>> transformation (on the `RDD`) that simply changes the regular rdd:spark-rdd-transformations.md#mapPartitions[RDD.mapPartitions] transformation to create a rdd:MapPartitionsRDD.md[MapPartitionsRDD] with the rdd:MapPartitionsRDD.md#isFromBarrier[isFromBarrier] flag enabled.
 
 [[mapPartitions]]
 [source, scala]

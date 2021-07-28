@@ -24,7 +24,7 @@ ExecutorCacheTaskLocation informs the Scheduler to prefer a given executor, but 
 
 HDFSCacheTaskLocation describes a <<host, host>> that is cached by HDFS.
 
-Used exclusively when rdd:spark-rdd-HadoopRDD.md#getPreferredLocations[HadoopRDD] and rdd:spark-rdd-NewHadoopRDD.md#getPreferredLocations[NewHadoopRDD] are requested for their placement preferences (aka _preferred locations_).
+Used exclusively when rdd:HadoopRDD.md#getPreferredLocations[HadoopRDD] and rdd:NewHadoopRDD.md#getPreferredLocations[NewHadoopRDD] are requested for their placement preferences (aka _preferred locations_).
 
 == [[HostTaskLocation]] HostTaskLocation
 

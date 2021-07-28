@@ -1,0 +1,3 @@
+# CoalescedRDD
+
+`CoalescedRDD` is...FIXME

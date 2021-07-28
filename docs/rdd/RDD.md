@@ -1,7 +1,71 @@
 # RDD &mdash; Description of Distributed Computation
 
-[[T]]
-`RDD` is a description of a fault-tolerant and resilient computation over a possibly distributed collection of records (of type `T`).
+`RDD[T]` is an [abstraction](#contract) of [fault-tolerant resilient distributed datasets](#implementations) that are mere descriptions of computations over a distributed collection of records (of type `T`).
+
+## Contract
+
+### <span id="compute"> Computing Partition
+
+```scala
+compute(
+  split: Partition,
+  context: TaskContext): Iterator[T]
+```
+
+Computes the input [Partition](Partition.md) (with the [TaskContext](../scheduler/TaskContext.md)) to produce values (of type `T`).
+
+Used when:
+
+* `RDD` is requested to [computeOrReadCheckpoint](#computeOrReadCheckpoint)
+
+### <span id="getPartitions"> Partitions
+
+```scala
+getPartitions: Array[Partition]
+```
+
+Used when:
+
+* `RDD` is requested for the [partitions](#partitions)
+
+## Implementations
+
+* [CheckpointRDD](CheckpointRDD.md)
+* CoalescedRDD
+* [CoGroupedRDD](CoGroupedRDD.md)
+* [HadoopRDD](HadoopRDD.md)
+* [MapPartitionsRDD](MapPartitionsRDD.md)
+* [NewHadoopRDD](NewHadoopRDD.md)
+* [ParallelCollectionRDD](ParallelCollectionRDD.md)
+* [ReliableCheckpointRDD](ReliableCheckpointRDD.md)
+* [ShuffledRDD](ShuffledRDD.md)
+* [SubtractedRDD](SubtractedRDD.md)
+* _others_
+
+## Creating Instance
+
+`RDD` takes the following to be created:
+
+* <span id="_sc"> [SparkContext](../SparkContext.md)
+* <span id="deps"> [Dependencies](Dependency.md) (**Parent RDDs** that should be computed successfully before this RDD)
+
+??? note "Abstract Class"
+    `RDD` is an abstract class and cannot be created directly. It is created indirectly for the [concrete RDDs](#implementations).
+
+## <span id="partitions"> partitions
+
+```scala
+partitions: Array[Partition]
+```
+
+`partitions`...FIXME
+
+`partitions` is used when:
+
+* `DAGScheduler` is requested to [getPreferredLocsInternal](../scheduler/DAGScheduler.md#getPreferredLocsInternal)
+* `SparkContext` is requested to [runJob](../SparkContext.md#runJob)
+* `Stage` is [created](../scheduler/Stage.md#numPartitions)
+* _others_
 
 ## <span id="toDebugString"> Recursive Dependencies
 
@@ -19,7 +83,42 @@ doCheckpoint(): Unit
 
 `doCheckpoint`...FIXME
 
-`doCheckpoint` is used when `SparkContext` is requested to [run a job synchronously](../SparkContext.md#runJob).
+`doCheckpoint` is used when:
+
+* `SparkContext` is requested to [run a job synchronously](../SparkContext.md#runJob)
+
+## <span id="iterator"> iterator
+
+```scala
+iterator(
+  split: Partition,
+  context: TaskContext): Iterator[T]
+```
+
+`iterator`...FIXME
+
+!!! note "Final Method"
+    `iterator` is a `final` method and may not be overridden in subclasses. See [5.2.6 final]({{ scala.spec }}/05-classes-and-objects.html) in the [Scala Language Specification]({{ scala.spec }}).
+
+### <span id="getOrCompute"> getOrCompute
+
+```scala
+getOrCompute(
+  partition: Partition,
+  context: TaskContext): Iterator[T]
+```
+
+`getOrCompute`...FIXME
+
+### <span id="computeOrReadCheckpoint"> computeOrReadCheckpoint
+
+```scala
+computeOrReadCheckpoint(
+  split: Partition,
+  context: TaskContext): Iterator[T]
+```
+
+`computeOrReadCheckpoint`...FIXME
 
 ## Implicit Methods
 
@@ -30,70 +129,14 @@ rddToOrderedRDDFunctions[K : Ordering : ClassTag, V: ClassTag](
   rdd: RDD[(K, V)]): OrderedRDDFunctions[K, V, (K, V)]
 ```
 
-`rddToOrderedRDDFunctions` is an Scala implicit method that creates a [OrderedRDDFunctions](OrderedRDDFunctions.md).
+`rddToOrderedRDDFunctions` is an Scala implicit method that creates an [OrderedRDDFunctions](OrderedRDDFunctions.md).
 
 `rddToOrderedRDDFunctions` is used (implicitly) when:
 
 * [RDD.sortBy](spark-rdd-transformations.md#sortBy)
 * [PairRDDFunctions.combineByKey](PairRDDFunctions.md#combineByKey)
 
-== [[contract]] RDD Contract
-
-=== [[compute]] Computing Partition (in TaskContext)
-
-[source, scala]
-----
-compute(
-  split: Partition,
-  context: TaskContext): Iterator[T]
-----
-
-compute computes the input `split` spark-rdd-partitions.md[partition] in the [TaskContext](../scheduler/TaskContext.md) to produce a collection of values (of type `T`).
-
-compute is implemented by any type of RDD in Spark and is called every time the records are requested unless RDD is spark-rdd-caching.md[cached] or [checkpointed](checkpointing.md) (and the records can be read from an external storage, but this time closer to the compute node).
-
-When an RDD is spark-rdd-caching.md[cached], for specified storage:StorageLevel.md[storage levels] (i.e. all but `NONE`)...FIXME
-
-compute runs on the spark-driver.md[driver].
-
-compute is used when RDD is requested to <<computeOrReadCheckpoint, computeOrReadCheckpoint>>.
-
-=== [[getPartitions]] Partitions
-
-[source, scala]
-----
-getPartitions: Array[Partition]
-----
-
-getPartitions is used when RDD is requested for the <<partitions, partitions>> (called only once as the value is cached afterwards).
-
-=== [[getDependencies]] Dependencies
-
-[source, scala]
-----
-getDependencies: Seq[Dependency[_]]
-----
-
-getDependencies is used when RDD is requested for the <<dependencies, dependencies>> (called only once as the value is cached afterwards).
-
-=== [[getPreferredLocations]] Preferred Locations (Placement Preferences)
-
-[source, scala]
-----
-getPreferredLocations(
-  split: Partition): Seq[String] = Nil
-----
-
-getPreferredLocations is used when RDD is requested for the <<preferredLocations, preferred locations>> of a given [partition](Partition.md).
-
-=== [[partitioner]] Partitioner
-
-[source, scala]
-----
-partitioner: Option[Partitioner] = None
-----
-
-RDD can have a Partitioner.md[Partitioner] defined.
+## Review Me
 
 == [[extensions]][[implementations]] (Subset of) Available RDDs
 
@@ -108,28 +151,19 @@ RDD can have a Partitioner.md[Partitioner] defined.
 | CoalescedRDD
 | [[CoalescedRDD]] Result of spark-rdd-partitions.md#repartition[repartition] or spark-rdd-partitions.md#coalesce[coalesce] transformations
 
-| spark-rdd-HadoopRDD.md[HadoopRDD]
+| HadoopRDD.md[HadoopRDD]
 | [[HadoopRDD]] Allows for reading data stored in HDFS using the older MapReduce API. The most notable use case is the return RDD of `SparkContext.textFile`.
 
-| spark-rdd-MapPartitionsRDD.md[MapPartitionsRDD]
+| MapPartitionsRDD.md[MapPartitionsRDD]
 | [[MapPartitionsRDD]] Result of calling map-like operations (e.g. `map`, `flatMap`, `filter`, spark-rdd-transformations.md#mapPartitions[mapPartitions])
 
-| spark-rdd-ParallelCollectionRDD.md[ParallelCollectionRDD]
+| ParallelCollectionRDD.md[ParallelCollectionRDD]
 | [[ParallelCollectionRDD]]
 
 | ShuffledRDD.md[ShuffledRDD]
 | [[ShuffledRDD]] Result of "shuffle" operators (e.g. spark-rdd-partitions.md#repartition[repartition] or spark-rdd-partitions.md#coalesce[coalesce])
 
 |===
-
-== [[creating-instance]] Creating Instance
-
-RDD takes the following to be created:
-
-* [[_sc]] SparkContext.md[]
-* [[deps]] *Parent RDDs*, i.e. [Dependencies](Dependency.md) (that have to be all computed successfully before this RDD)
-
-RDD is an abstract class and cannot be created directly. It is created indirectly for the <<implementations, concrete RDDs>>.
 
 == [[storageLevel]][[getStorageLevel]] StorageLevel
 
@@ -167,7 +201,7 @@ An RDD can be part of a spark-barrier-execution-mode.md#barrier-stage[barrier st
 
 ShuffledRDD.md[ShuffledRDD] has the flag always disabled.
 
-spark-rdd-MapPartitionsRDD.md[MapPartitionsRDD] is the only one RDD that can have the flag enabled.
+MapPartitionsRDD.md[MapPartitionsRDD] is the only one RDD that can have the flag enabled.
 
 == [[getOrCompute]] Getting Or Computing RDD Partition
 
@@ -224,17 +258,6 @@ For a non-checkpointed RDD, `dependencies` collection is computed using <<contra
 
 NOTE: `getDependencies` method is an abstract method that custom RDDs are required to provide.
 
-== [[iterator]] Accessing Records For Partition Lazily
-
-[source, scala]
-----
-iterator(
-  split: Partition,
-  context: TaskContext): Iterator[T]
-----
-
-iterator <<getOrCompute, gets or computes the `split` partition>> when spark-rdd-caching.md[cached] or <<computeOrReadCheckpoint, computes it (possibly by reading from checkpoint)>>.
-
 == [[checkpointRDD]] Getting CheckpointRDD
 
 [source, scala]
@@ -268,15 +291,6 @@ getNarrowAncestors...FIXME
 
 getNarrowAncestors is used when StageInfo is requested to [fromStage](../scheduler/StageInfo.md#fromStage).
 
-== [[toLocalIterator]] toLocalIterator Method
-
-[source, scala]
-----
-toLocalIterator: Iterator[T]
-----
-
-toLocalIterator...FIXME
-
 == [[persist]] Persisting RDD
 
 [source, scala]
@@ -301,24 +315,6 @@ persist...FIXME
 
 persist (private) is used when RDD is requested to <<persist, persist>> and <<localCheckpoint, localCheckpoint>>.
 
-== [[unpersist]] unpersist Method
-
-[source, scala]
-----
-unpersist(blocking: Boolean = true): this.type
-----
-
-unpersist...FIXME
-
-== [[localCheckpoint]] localCheckpoint Method
-
-[source, scala]
-----
-localCheckpoint(): this.type
-----
-
-localCheckpoint marks this RDD for [local checkpointing](checkpointing.md) using Spark's caching layer.
-
 == [[computeOrReadCheckpoint]] Computing Partition or Reading From Checkpoint
 
 [source, scala]
@@ -331,24 +327,6 @@ computeOrReadCheckpoint(
 computeOrReadCheckpoint reads `split` partition from a checkpoint (<<isCheckpointedAndMaterialized, if available already>>) or <<compute, computes it>> yourself.
 
 computeOrReadCheckpoint is used when RDD is requested to <<iterator, compute records for a partition>> or <<getOrCompute, getOrCompute>>.
-
-== [[getNumPartitions]] Getting Number of Partitions
-
-[source, scala]
-----
-getNumPartitions: Int
-----
-
-getNumPartitions gives the number of partitions of a RDD.
-
-[source, scala]
-----
-scala> sc.textFile("README.md").getNumPartitions
-res0: Int = 2
-
-scala> sc.textFile("README.md", 5).getNumPartitions
-res1: Int = 5
-----
 
 == [[preferredLocations]] Defining Placement Preferences of RDD Partition
 
@@ -377,17 +355,6 @@ partitions requests CheckpointRDD for the <<checkpointRDD, partitions>> (if the 
 
 Partitions have the property that their internal index should be equal to their position in the owning RDD.
 
-== [[markCheckpointed]] markCheckpointed Method
-
-[source, scala]
-----
-markCheckpointed(): Unit
-----
-
-markCheckpointed...FIXME
-
-markCheckpointed is used when...FIXME
-
 == [[checkpoint]] Reliable Checkpointing -- checkpoint Method
 
 [source, scala]
@@ -398,25 +365,3 @@ checkpoint(): Unit
 checkpoint...FIXME
 
 checkpoint is used when...FIXME
-
-== [[isReliablyCheckpointed]] isReliablyCheckpointed Method
-
-[source, scala]
-----
-isReliablyCheckpointed: Boolean
-----
-
-isReliablyCheckpointed...FIXME
-
-isReliablyCheckpointed is used when...FIXME
-
-== [[getCheckpointFile]] getCheckpointFile Method
-
-[source, scala]
-----
-getCheckpointFile: Option[String]
-----
-
-getCheckpointFile...FIXME
-
-getCheckpointFile is used when...FIXME
