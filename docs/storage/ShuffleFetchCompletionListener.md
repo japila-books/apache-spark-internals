@@ -1,6 +1,16 @@
 # ShuffleFetchCompletionListener
 
-`ShuffleFetchCompletionListener` is a [TaskCompletionListener](../TaskCompletionListener.md).
+`ShuffleFetchCompletionListener` is a [TaskCompletionListener](../TaskCompletionListener.md) (that [ShuffleBlockFetcherIterator](#data) uses to [clean up](ShuffleBlockFetcherIterator.md#cleanup) after the owning task is completed).
+
+## Creating Instance
+
+`ShuffleFetchCompletionListener` takes the following to be created:
+
+* <span id="data"> [ShuffleBlockFetcherIterator](ShuffleBlockFetcherIterator.md)
+
+`ShuffleFetchCompletionListener` is created when:
+
+* `ShuffleBlockFetcherIterator` is [created](ShuffleBlockFetcherIterator.md#onCompleteCallback)
 
 ## <span id="onTaskCompletion"><span id="onComplete"> onTaskCompletion
 

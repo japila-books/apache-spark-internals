@@ -118,6 +118,24 @@ releaseCurrentResultBuffer(): Unit
 * `ShuffleBlockFetcherIterator` is requested to [cleanup](#cleanup)
 * `BufferReleasingInputStream` is requested to `close`
 
+## <span id="onCompleteCallback"> ShuffleFetchCompletionListener
+
+`ShuffleBlockFetcherIterator` creates a [ShuffleFetchCompletionListener](ShuffleFetchCompletionListener.md) when [created](#creating-instance).
+
+`ShuffleFetchCompletionListener` is used when [initialize](#initialize) and [toCompletionIterator](#toCompletionIterator).
+
+## <span id="cleanup"> Cleaning Up
+
+```scala
+cleanup(): Unit
+```
+
+`cleanup` marks this `ShuffleBlockFetcherIterator` a [zombie](#isZombie).
+
+`cleanup` [releases the current result buffer](#releaseCurrentResultBuffer).
+
+`cleanup` iterates over [results](#results) internal queue and for every `SuccessFetchResult`, increments remote bytes read and blocks fetched shuffle task metrics, and eventually releases the managed buffer.
+
 ## Logging
 
 Enable `ALL` logging level for `org.apache.spark.storage.ShuffleBlockFetcherIterator` logger to see what happens inside.
@@ -337,18 +355,3 @@ Failed to get block [blockId], which is not a shuffle block
 ```
 
 NOTE: `throwFetchFailedException` is used when ShuffleBlockFetcherIterator is requested for the <<next, next element>>.
-
-== [[cleanup]] Releasing Resources -- `cleanup` Internal Method
-
-[source, scala]
-----
-cleanup(): Unit
-----
-
-Internally, `cleanup` marks ShuffleBlockFetcherIterator a <<isZombie, zombie>>.
-
-`cleanup` <<releaseCurrentResultBuffer, releases the current result buffer>>.
-
-`cleanup` iterates over <<results, results>> internal queue and for every `SuccessFetchResult`, increments remote bytes read and blocks fetched shuffle task metrics, and eventually releases the managed buffer.
-
-NOTE: `cleanup` is used when <<initialize, ShuffleBlockFetcherIterator initializes itself>>.
