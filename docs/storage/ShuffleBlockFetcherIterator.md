@@ -1,6 +1,6 @@
 # ShuffleBlockFetcherIterator
 
-`ShuffleBlockFetcherIterator` is a `Iterator[(BlockId, InputStream)]` ([Scala]({{ scala.api }}/scala/collection/Iterator.html)) that fetches shuffle blocks from [local](#blockManager) or remote [BlockManager](BlockManager.md)s (and makes them available as an `InputStream`).
+`ShuffleBlockFetcherIterator` is an `Iterator[(BlockId, InputStream)]` ([Scala]({{ scala.api }}/scala/collection/Iterator.html)) that fetches shuffle blocks from [local](#blockManager) or remote [BlockManager](BlockManager.md)s (and makes them available as an `InputStream`).
 
 `ShuffleBlockFetcherIterator` allows for a [synchronous iteration](#next) over shuffle blocks so a caller can handle them in a pipelined fashion as they are received.
 

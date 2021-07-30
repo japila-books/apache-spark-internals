@@ -1,52 +1,29 @@
 # BlockFetchingListener
 
-`BlockFetchingListener` is the <<contract, contract>> of <<implementations, EventListeners>> that want to be notified about <<onBlockFetchSuccess, onBlockFetchSuccess>> and <<onBlockFetchFailure, onBlockFetchFailure>>.
+`BlockFetchingListener` is an [extension](#contract) of the `EventListener` ([Java]({{ java.api }}/java.base/java/util/EventListener.html)) abstraction that want to be notified about [block fetch success](#onBlockFetchSuccess) and [failures](#onBlockFetchFailure).
 
-BlockFetchingListener is used when:
+`BlockFetchingListener` is used to create a [OneForOneBlockFetcher](../storage/OneForOneBlockFetcher.md), `OneForOneBlockPusher` and [RetryingBlockFetcher](RetryingBlockFetcher.md).
 
-* storage:ShuffleClient.md#fetchBlocks[ShuffleClient], storage:BlockTransferService.md#fetchBlocks[BlockTransferService], storage:NettyBlockTransferService.md#fetchBlocks[NettyBlockTransferService], and storage:ExternalShuffleClient.md#fetchBlocks[ExternalShuffleClient] are requested to fetch a sequence of blocks
+## Contract
 
-* `BlockFetchStarter` is requested to core:BlockFetchStarter.md#createAndStart[createAndStart]
+### <span id="onBlockFetchFailure"> onBlockFetchFailure
 
-* core:RetryingBlockFetcher.md[] and storage:OneForOneBlockFetcher.md[] are created
+```java
+void onBlockFetchFailure(
+  String blockId,
+  Throwable exception)
+```
 
-[[contract]]
-[source, java]
-----
-package org.apache.spark.network.shuffle;
+### <span id="onBlockFetchSuccess"> onBlockFetchSuccess
 
-interface BlockFetchingListener extends EventListener {
-  void onBlockFetchSuccess(String blockId, ManagedBuffer data);
-  void onBlockFetchFailure(String blockId, Throwable exception);
-}
-----
+```java
+void onBlockFetchSuccess(
+  String blockId,
+  ManagedBuffer data)
+```
 
-.BlockFetchingListener Contract
-[cols="1,2",options="header",width="100%"]
-|===
-| Method
-| Description
+## Implementations
 
-| `onBlockFetchSuccess`
-| [[onBlockFetchSuccess]] Used when...FIXME
-
-| `onBlockFetchFailure`
-| [[onBlockFetchFailure]] Used when...FIXME
-|===
-
-[[implementations]]
-.BlockFetchingListeners
-[cols="1,2",options="header",width="100%"]
-|===
-| BlockFetchingListener
-| Description
-
-| core:RetryingBlockFetcher.md#RetryingBlockFetchListener[RetryingBlockFetchListener]
-| [[RetryingBlockFetchListener]]
-
-| "Unnamed" in storage:ShuffleBlockFetcherIterator.md#sendRequest[ShuffleBlockFetcherIterator]
-| [[ShuffleBlockFetcherIterator]]
-
-| "Unnamed" in storage:BlockTransferService.md#fetchBlockSync[BlockTransferService]
-| [[BlockTransferService]]
-|===
+* "Unnamed" in [ShuffleBlockFetcherIterator](../storage/ShuffleBlockFetcherIterator.md#sendRequest)
+* "Unnamed" in [BlockTransferService](../storage/BlockTransferService.md#fetchBlockSync)
+* [RetryingBlockFetchListener](core/RetryingBlockFetcher.md#RetryingBlockFetchListener)
