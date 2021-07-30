@@ -176,7 +176,7 @@ Used when:
 
 ## <span id="spark.reducer.maxSizeInFlight"><span id="REDUCER_MAX_SIZE_IN_FLIGHT"> spark.reducer.maxSizeInFlight
 
-Maximum size of map outputs to fetch simultaneously from each reduce task (in MiB unless otherwise specified)
+Maximum size of all map outputs to fetch simultaneously from each reduce task (in MiB unless otherwise specified)
 
 Since each output requires us to create a buffer to receive it, this represents a fixed memory overhead per reduce task, so keep it small unless you have a large amount of memory
 

@@ -1,6 +1,12 @@
 # ShuffleBlockFetcherIterator
 
-`ShuffleBlockFetcherIterator` is a `Iterator[(BlockId, InputStream)]` ([Scala]({{ scala.api }}/scala/collection/Iterator.html)) that fetches shuffle blocks (aka _shuffle map outputs_) from block managers.
+`ShuffleBlockFetcherIterator` is a `Iterator[(BlockId, InputStream)]` ([Scala]({{ scala.api }}/scala/collection/Iterator.html)) that fetches shuffle blocks from [local](#blockManager) or remote [BlockManager](BlockManager.md)s (and makes them available as an `InputStream`).
+
+`ShuffleBlockFetcherIterator` allows for a [synchronous iteration](#next) over shuffle blocks so a caller can handle them in a pipelined fashion as they are received.
+
+`ShuffleBlockFetcherIterator` is exhausted (and [can provide no elements](#hasNext)) when the [number of blocks already processed](#numBlocksProcessed) is at least the [total number of blocks to fetch](#numBlocksToFetch).
+
+`ShuffleBlockFetcherIterator` [throttles the remote fetches](#fetchUpToMaxBytes) to avoid consuming too much memory.
 
 ## Creating Instance
 
@@ -9,18 +15,18 @@
 * <span id="context"> [TaskContext](../scheduler/TaskContext.md)
 * <span id="shuffleClient"> [BlockStoreClient](BlockStoreClient.md)
 * <span id="blockManager"> [BlockManager](BlockManager.md)
-* <span id="blocksByAddress"> [Block](BlockId.md)s by [Address](BlockManagerId.md) (`Iterator[(BlockManagerId, Seq[(BlockId, Long, Int)])]`)
+* <span id="blocksByAddress"> [Block](BlockId.md)s to Fetch by [Address](BlockManagerId.md) (`Iterator[(BlockManagerId, Seq[(BlockId, Long, Int)])]`)
 * <span id="streamWrapper"> Stream Wrapper Function (`(BlockId, InputStream) => InputStream`)
-* <span id="maxBytesInFlight"> maxBytesInFlight
-* <span id="maxReqsInFlight"> maxReqsInFlight
-* <span id="maxBlocksInFlightPerAddress"> maxBlocksInFlightPerAddress
-* <span id="maxReqSizeShuffleToMem"> maxReqSizeShuffleToMem
-* <span id="detectCorrupt"> `detectCorrupt` flag
-* <span id="detectCorruptUseExtraMemory"> `detectCorruptUseExtraMemory` flag
+* <span id="maxBytesInFlight"> [spark.reducer.maxSizeInFlight](../configuration-properties.md#spark.reducer.maxSizeInFlight)
+* <span id="maxReqsInFlight"> [spark.reducer.maxReqsInFlight](../configuration-properties.md#spark.reducer.maxReqsInFlight)
+* <span id="maxBlocksInFlightPerAddress"> [spark.reducer.maxBlocksInFlightPerAddress](../configuration-properties.md#spark.reducer.maxBlocksInFlightPerAddress)
+* <span id="maxReqSizeShuffleToMem"> [spark.network.maxRemoteBlockSizeFetchToMem](../configuration-properties.md#spark.network.maxRemoteBlockSizeFetchToMem)
+* <span id="detectCorrupt"> [spark.shuffle.detectCorrupt](../configuration-properties.md#spark.shuffle.detectCorrupt)
+* <span id="detectCorruptUseExtraMemory"> [spark.shuffle.detectCorrupt.useExtraMemory](../configuration-properties.md#spark.shuffle.detectCorrupt.useExtraMemory)
 * <span id="shuffleMetrics"> `ShuffleReadMetricsReporter`
 * <span id="doBatchFetch"> `doBatchFetch` flag
 
-While being created, `ShuffleBlockFetcherIterator` is requested to [initialize](#initialize).
+While being created, `ShuffleBlockFetcherIterator` [initializes itself](#initialize).
 
 `ShuffleBlockFetcherIterator` is created when:
 
@@ -31,6 +37,12 @@ While being created, `ShuffleBlockFetcherIterator` is requested to [initialize](
 ```scala
 initialize(): Unit
 ```
+
+`initialize` registers a [task cleanup](#onCompleteCallback) and fetches shuffle blocks from remote and local storage:BlockManager.md[BlockManagers].
+
+Internally, `initialize` uses the [TaskContext](#context) to [register](../scheduler/TaskContext.md#addTaskCompletionListener) the [ShuffleFetchCompletionListener](#onCompleteCallback) (to [cleanup](#cleanup)).
+
+`initialize` [partitionBlocksByFetchMode](#partitionBlocksByFetchMode).
 
 `initialize`...FIXME
 
@@ -65,9 +77,93 @@ createFetchRequests(
 
 `createFetchRequests`...FIXME
 
-## <span id="DownloadFileManager"> DownloadFileManager
+## <span id="fetchUpToMaxBytes"> fetchUpToMaxBytes
 
-`ShuffleBlockFetcherIterator` is [DownloadFileManager](../shuffle/DownloadFileManager.md).
+```scala
+fetchUpToMaxBytes(): Unit
+```
+
+`fetchUpToMaxBytes`...FIXME
+
+`fetchUpToMaxBytes` is used when:
+
+* `ShuffleBlockFetcherIterator` is requested to [initialize](#initialize) and [next](#next)
+
+## <span id="sendRequest"> Sending Remote Shuffle Block Fetch Request
+
+```scala
+sendRequest(
+  req: FetchRequest): Unit
+```
+
+`sendRequest` prints out the following DEBUG message to the logs:
+
+```text
+Sending request for [n] blocks ([size]) from [hostPort]
+```
+
+`sendRequest` add the size of the blocks in the `FetchRequest` to [bytesInFlight](#bytesInFlight) and increments the [reqsInFlight](#reqsInFlight) internal counters.
+
+`sendRequest` requests the [ShuffleClient](#shuffleClient) to [fetch the blocks](#fetchBlocks) with a new [BlockFetchingListener](#BlockFetchingListener) (and this `ShuffleBlockFetcherIterator` when the size of the blocks in the `FetchRequest` is higher than the [maxReqSizeShuffleToMem](#maxReqSizeShuffleToMem)).
+
+`sendRequest` is used when:
+
+* `ShuffleBlockFetcherIterator` is requested to [fetch remote shuffle blocks](#fetchUpToMaxBytes)
+
+### <span id="BlockFetchingListener"> BlockFetchingListener
+
+`sendRequest` creates a new [BlockFetchingListener](../core/BlockFetchingListener.md) to be notified about [successes](#onBlockFetchSuccess) or [failures](#onBlockFetchFailure) of shuffle block fetch requests.
+
+#### <span id="onBlockFetchSuccess"> onBlockFetchSuccess
+
+On [onBlockFetchSuccess](../core/BlockFetchingListener.md#onBlockFetchSuccess) the `BlockFetchingListener` adds a `SuccessFetchResult` to the [results](#results) registry and prints out the following DEBUG message to the logs (when not a [zombie](#isZombie)):
+
+```text
+remainingBlocks: [remainingBlocks]
+```
+
+In the end, `onBlockFetchSuccess` prints out the following TRACE message to the logs:
+
+```text
+Got remote block [blockId] after [time]
+```
+
+#### <span id="onBlockFetchFailure"> onBlockFetchFailure
+
+On [onBlockFetchFailure](../core/BlockFetchingListener.md#onBlockFetchFailure) the `BlockFetchingListener` adds a `FailureFetchResult` to the [results](#results) registry and prints out the following ERROR message to the logs:
+
+```text
+Failed to get block(s) from [host]:[port]
+```
+
+## <span id="results"> FetchResults
+
+```scala
+results: LinkedBlockingQueue[FetchResult]
+```
+
+`ShuffleBlockFetcherIterator` uses an internal FIFO blocking queue ([Java]({{ java.api }}/java.base/java/util/concurrent/LinkedBlockingQueue.html)) of `FetchResult`s.
+
+`results` is used for [fetching the next element](#next).
+
+For remote blocks, `FetchResult`s are added in [sendRequest](#sendRequest):
+
+* `SuccessFetchResult`s after a `BlockFetchingListener` is notified about [onBlockFetchSuccess](../core/BlockFetchingListener.md#onBlockFetchSuccess)
+* `FailureFetchResult`s after a `BlockFetchingListener` is notified about [onBlockFetchFailure](../core/BlockFetchingListener.md#onBlockFetchFailure)
+
+For local blocks, `FetchResult`s are added in [fetchLocalBlocks](#fetchLocalBlocks):
+
+* `SuccessFetchResult`s after the [BlockManager](#blockManager) has successfully [getLocalBlockData](BlockManager.md#getLocalBlockData)
+* `FailureFetchResult`s otherwise
+
+For local blocks, `FetchResult`s are added in [fetchHostLocalBlock](#fetchHostLocalBlock):
+
+* `SuccessFetchResult`s after the [BlockManager](#blockManager) has successfully [getHostLocalShuffleData](BlockManager.md#getHostLocalShuffleData)
+* `FailureFetchResult`s otherwise
+
+`FailureFetchResult`s can also be added in [fetchHostLocalBlocks](#fetchHostLocalBlocks).
+
+Cleaned up in [cleanup](#cleanup)
 
 ## <span id="hasNext"> hasNext
 
@@ -136,6 +232,40 @@ cleanup(): Unit
 
 `cleanup` iterates over [results](#results) internal queue and for every `SuccessFetchResult`, increments remote bytes read and blocks fetched shuffle task metrics, and eventually releases the managed buffer.
 
+## <span id="bytesInFlight"> bytesInFlight
+
+The bytes of fetched remote shuffle blocks in flight
+
+Starts at `0` when `ShuffleBlockFetcherIterator` is [created](#creating-instance)
+
+Incremented every [sendRequest](#sendRequest) and decremented every [next](#next).
+
+`ShuffleBlockFetcherIterator` makes sure that the invariant of `bytesInFlight` is below [maxBytesInFlight](#maxBytesInFlight) every [remote shuffle block fetch](#fetchUpToMaxBytes).
+
+## <span id="reqsInFlight"> reqsInFlight
+
+The number of remote shuffle block fetch requests in flight.
+
+Starts at `0` when `ShuffleBlockFetcherIterator` is [created](#creating-instance)
+
+Incremented every [sendRequest](#sendRequest) and decremented every [next](#next).
+
+`ShuffleBlockFetcherIterator` makes sure that the invariant of `reqsInFlight` is below [maxReqsInFlight](#maxReqsInFlight) every [remote shuffle block fetch](#fetchUpToMaxBytes).
+
+## <span id="isZombie"> isZombie
+
+Controls whether `ShuffleBlockFetcherIterator` is still active and records `SuccessFetchResult`s on [successful shuffle block fetches](#onBlockFetchSuccess).
+
+Starts `false` when `ShuffleBlockFetcherIterator` is [created](#creating-instance)
+
+Enabled (`true`) in [cleanup](#cleanup).
+
+When enabled, [registerTempFileToClean](#registerTempFileToClean) is a noop.
+
+## <span id="DownloadFileManager"> DownloadFileManager
+
+`ShuffleBlockFetcherIterator` is [DownloadFileManager](../shuffle/DownloadFileManager.md).
+
 ## Logging
 
 Enable `ALL` logging level for `org.apache.spark.storage.ShuffleBlockFetcherIterator` logger to see what happens inside.
@@ -147,211 +277,3 @@ log4j.logger.org.apache.spark.storage.ShuffleBlockFetcherIterator=ALL
 ```
 
 Refer to [Logging](../spark-logging.md).
-
-## Review Me
-
-ShuffleBlockFetcherIterator allows for <<next, iterating over a sequence of blocks>> as `(BlockId, InputStream)` pairs so a caller can handle shuffle blocks in a pipelined fashion as they are received.
-
-ShuffleBlockFetcherIterator is exhausted (i.e. <<hasNext, can provide no elements>>) when the <<numBlocksProcessed, number of blocks already processed>> is at least the <<numBlocksToFetch, total number of blocks to fetch>>.
-
-ShuffleBlockFetcherIterator <<fetchUpToMaxBytes, throttles the remote fetches>> to avoid consuming too much memory.
-
-[[internal-registries]]
-.ShuffleBlockFetcherIterator's Internal Registries and Counters
-[cols="1,2",options="header",width="100%"]
-|===
-| Name
-| Description
-
-| [[results]] `results`
-| Internal FIFO blocking queue (using Java's https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/LinkedBlockingQueue.html[java.util.concurrent.LinkedBlockingQueue]) to hold `FetchResult` remote and local fetch results.
-
-Used in:
-
-1. <<next, next>> to take one `FetchResult` off the queue,
-
-2. <<sendRequest, sendRequest>> to put `SuccessFetchResult` or `FailureFetchResult` remote fetch results (as part of `BlockFetchingListener` callback),
-
-3. <<fetchLocalBlocks, fetchLocalBlocks>> (similarly to <<sendRequest, sendRequest>>) to put local fetch results,
-
-4. <<cleanup, cleanup>> to release managed buffers for `SuccessFetchResult` results.
-
-| [[maxBytesInFlight]] `maxBytesInFlight`
-| The maximum size (in bytes) of all the remote shuffle blocks to fetch.
-
-Set when <<creating-instance, ShuffleBlockFetcherIterator is created>>.
-
-| [[maxReqsInFlight]] `maxReqsInFlight`
-| The maximum number of remote requests to fetch shuffle blocks.
-
-Set when <<creating-instance, ShuffleBlockFetcherIterator is created>>.
-
-| [[bytesInFlight]] `bytesInFlight`
-| The bytes of fetched remote shuffle blocks in flight
-
-Starts at `0` when <<creating-instance, ShuffleBlockFetcherIterator is created>>.
-
-Incremented every <<sendRequest, sendRequest>> and decremented every <<next, next>>.
-
-ShuffleBlockFetcherIterator makes sure that the invariant of `bytesInFlight` below <<maxBytesInFlight, maxBytesInFlight>> holds every <<fetchUpToMaxBytes, remote shuffle block fetch>>.
-
-| [[reqsInFlight]] `reqsInFlight`
-| The number of remote shuffle block fetch requests in flight.
-
-Starts at `0` when <<creating-instance, ShuffleBlockFetcherIterator is created>>.
-
-Incremented every <<sendRequest, sendRequest>> and decremented every <<next, next>>.
-
-ShuffleBlockFetcherIterator makes sure that the invariant of `reqsInFlight` below <<maxReqsInFlight, maxReqsInFlight>> holds every <<fetchUpToMaxBytes, remote shuffle block fetch>>.
-
-| [[isZombie]] `isZombie`
-| Flag whether ShuffleBlockFetcherIterator is still active. It is disabled, i.e. `false`, when <<creating-instance, ShuffleBlockFetcherIterator is created>>.
-
-<<cleanup, When enabled>> (when the task using ShuffleBlockFetcherIterator finishes), the <<sendRequest-BlockFetchingListener-onBlockFetchSuccess, block fetch successful callback>> (registered in `sendRequest`) will no longer add fetched remote shuffle blocks into <<results, results>> internal queue.
-
-| [[currentResult]] `currentResult`
-| The currently-processed `SuccessFetchResult`
-
-Set when ShuffleBlockFetcherIterator <<next, returns the next `(BlockId, InputStream)` tuple>> and <<releaseCurrentResultBuffer, released>> (on <<cleanup, cleanup>>).
-|===
-
-## Creating Instance
-
-When created, ShuffleBlockFetcherIterator takes the following:
-
-* [[context]] [TaskContext](../scheduler/TaskContext.md)
-* [[shuffleClient]] storage:ShuffleClient.md[]
-* [[blockManager]] storage:BlockManager.md[BlockManager]
-* [[blocksByAddress]] Blocks to fetch per storage:BlockManager.md[BlockManager] (as `Seq[(BlockManagerId, Seq[(BlockId, Long)])]`)
-* [[streamWrapper]] Function to wrap the returned input stream (as `(BlockId, InputStream) => InputStream`)
-* <<maxBytesInFlight, maxBytesInFlight>> -- the maximum size (in bytes) of map outputs to fetch simultaneously from each reduce task (controlled by shuffle:BlockStoreShuffleReader.md#spark_reducer_maxSizeInFlight[spark.reducer.maxSizeInFlight] Spark property)
-* <<maxReqsInFlight, maxReqsInFlight>> -- the maximum number of remote requests to fetch blocks at any given point (controlled by shuffle:BlockStoreShuffleReader.md#spark_reducer_maxReqsInFlight[spark.reducer.maxReqsInFlight] Spark property)
-* [[maxBlocksInFlightPerAddress]] `maxBlocksInFlightPerAddress`
-* [[maxReqSizeShuffleToMem]] `maxReqSizeShuffleToMem`
-* [[detectCorrupt]] `detectCorrupt` flag to detect any corruption in fetched blocks (controlled by shuffle:BlockStoreShuffleReader.md#spark_shuffle_detectCorrupt[spark.shuffle.detectCorrupt] Spark property)
-
-== [[initialize]] Initializing ShuffleBlockFetcherIterator -- `initialize` Internal Method
-
-[source, scala]
-----
-initialize(): Unit
-----
-
-`initialize` registers a task cleanup and fetches shuffle blocks from remote and local storage:BlockManager.md[BlockManagers].
-
-Internally, `initialize` [registers a `TaskCompletionListener`](../scheduler/TaskContext.md#addTaskCompletionListener) (that will <<cleanup, clean up>> right after the task finishes).
-
-`initialize` <<splitLocalRemoteBlocks, splitLocalRemoteBlocks>>.
-
-`initialize` <<fetchRequests, registers the new remote fetch requests (with `fetchRequests` internal registry)>>.
-
-As ShuffleBlockFetcherIterator is in initialization phase, `initialize` makes sure that <<reqsInFlight, reqsInFlight>> and <<bytesInFlight, bytesInFlight>> internal counters are both `0`. Otherwise, `initialize` throws an exception.
-
-`initialize` <<fetchUpToMaxBytes, fetches shuffle blocks>> (from remote storage:BlockManager.md[BlockManagers]).
-
-You should see the following INFO message in the logs:
-
-```
-INFO ShuffleBlockFetcherIterator: Started [numFetches] remote fetches in [time] ms
-```
-
-`initialize` <<fetchLocalBlocks, fetches local shuffle blocks>>.
-
-You should see the following DEBUG message in the logs:
-
-```
-DEBUG ShuffleBlockFetcherIterator: Got local blocks in  [time] ms
-```
-
-NOTE: `initialize` is used exclusively when ShuffleBlockFetcherIterator is <<creating-instance, created>>.
-
-== [[sendRequest]] Sending Remote Shuffle Block Fetch Request -- `sendRequest` Internal Method
-
-[source, scala]
-----
-sendRequest(req: FetchRequest): Unit
-----
-
-Internally, when `sendRequest` runs, you should see the following DEBUG message in the logs:
-
-```
-DEBUG ShuffleBlockFetcherIterator: Sending request for [blocks.size] blocks ([size] B) from [hostPort]
-```
-
-`sendRequest` increments <<bytesInFlight, bytesInFlight>> and <<reqsInFlight, reqsInFlight>> internal counters.
-
-NOTE: The input `FetchRequest` contains the remote storage:BlockManagerId.md[] address and the shuffle blocks to fetch (as a sequence of storage:BlockId.md[] and their sizes).
-
-`sendRequest` storage:ShuffleClient.md#fetchBlocks[requests `ShuffleClient` to fetch shuffle blocks] (from the host, the port, and the executor as defined in the input `FetchRequest`).
-
-NOTE: `ShuffleClient` was defined when <<creating-instance, ShuffleBlockFetcherIterator was created>>.
-
-`sendRequest` registers a `BlockFetchingListener` with `ShuffleClient` that:
-
-1. <<sendRequest-BlockFetchingListener-onBlockFetchSuccess, For every successfully fetched shuffle block>> adds it as `SuccessFetchResult` to <<results, results>> internal queue.
-
-2. <<sendRequest-BlockFetchingListener-onBlockFetchFailure, For every shuffle block fetch failure>> adds it as `FailureFetchResult` to <<results, results>> internal queue.
-
-NOTE: `sendRequest` is used exclusively when ShuffleBlockFetcherIterator is requested to <<fetchUpToMaxBytes, fetch remote shuffle blocks>>.
-
-=== [[sendRequest-BlockFetchingListener-onBlockFetchSuccess]] onBlockFetchSuccess Callback
-
-[source, scala]
-----
-onBlockFetchSuccess(blockId: String, buf: ManagedBuffer): Unit
-----
-
-Internally, `onBlockFetchSuccess` checks if the <<isZombie, iterator is not zombie>> and does the further processing if it is not.
-
-`onBlockFetchSuccess` marks the input `blockId` as received (i.e. removes it from all the blocks to fetch as requested in <<sendRequest, sendRequest>>).
-
-`onBlockFetchSuccess` adds the managed `buf` (as `SuccessFetchResult`) to <<results, results>> internal queue.
-
-You should see the following DEBUG message in the logs:
-
-```
-DEBUG ShuffleBlockFetcherIterator: remainingBlocks: [blocks]
-```
-
-Regardless of zombie state of ShuffleBlockFetcherIterator, you should see the following TRACE message in the logs:
-
-```
-TRACE ShuffleBlockFetcherIterator: Got remote block [blockId] after [time] ms
-```
-
-=== [[sendRequest-BlockFetchingListener-onBlockFetchFailure]] onBlockFetchFailure Callback
-
-[source, scala]
-----
-onBlockFetchFailure(blockId: String, e: Throwable): Unit
-----
-
-When `onBlockFetchFailure` is called, you should see the following ERROR message in the logs:
-
-```
-ERROR ShuffleBlockFetcherIterator: Failed to get block(s) from [hostPort]
-```
-
-`onBlockFetchFailure` adds the block (as `FailureFetchResult`) to <<results, results>> internal queue.
-
-== [[throwFetchFailedException]] Throwing FetchFailedException (for ShuffleBlockId) -- `throwFetchFailedException` Internal Method
-
-[source, scala]
-----
-throwFetchFailedException(
-  blockId: BlockId,
-  address: BlockManagerId,
-  e: Throwable): Nothing
-----
-
-`throwFetchFailedException` throws a shuffle:FetchFailedException.md[FetchFailedException] when the input `blockId` is a `ShuffleBlockId`.
-
-NOTE: `throwFetchFailedException` creates a `FetchFailedException` passing on the root cause of a failure, i.e. the input `e`.
-
-Otherwise, `throwFetchFailedException` throws a `SparkException`:
-
-```
-Failed to get block [blockId], which is not a shuffle block
-```
-
-NOTE: `throwFetchFailedException` is used when ShuffleBlockFetcherIterator is requested for the <<next, next element>>.
