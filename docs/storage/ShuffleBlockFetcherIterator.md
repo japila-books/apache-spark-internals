@@ -264,7 +264,7 @@ When enabled, [registerTempFileToClean](#registerTempFileToClean) is a noop.
 
 ## <span id="DownloadFileManager"> DownloadFileManager
 
-`ShuffleBlockFetcherIterator` is [DownloadFileManager](../shuffle/DownloadFileManager.md).
+`ShuffleBlockFetcherIterator` is a [DownloadFileManager](../shuffle/DownloadFileManager.md).
 
 ## Logging
 
