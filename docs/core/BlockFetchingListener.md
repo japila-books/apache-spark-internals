@@ -26,4 +26,4 @@ void onBlockFetchSuccess(
 
 * "Unnamed" in [ShuffleBlockFetcherIterator](../storage/ShuffleBlockFetcherIterator.md#sendRequest)
 * "Unnamed" in [BlockTransferService](../storage/BlockTransferService.md#fetchBlockSync)
-* [RetryingBlockFetchListener](core/RetryingBlockFetcher.md#RetryingBlockFetchListener)
+* [RetryingBlockFetchListener](RetryingBlockFetcher.md#RetryingBlockFetchListener)
