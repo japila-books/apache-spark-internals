@@ -830,17 +830,6 @@ executorHeartbeatReceived(
 
 `executorHeartbeatReceived` is used when `TaskSchedulerImpl` is requested to [handle an executor heartbeat](TaskSchedulerImpl.md#executorHeartbeatReceived).
 
-## <span id="postTaskEnd"> postTaskEnd
-
-```scala
-postTaskEnd(
-  event: CompletionEvent): Unit
-```
-
-`postTaskEnd`...FIXME
-
-`postTaskEnd` is used when `DAGScheduler` is requested to [handle a task completion](#handleTaskCompletion).
-
 ## Event Handlers
 
 ### <span id="doCancelAllJobs"> AllJobsCancelled Event Handler
@@ -876,53 +865,23 @@ handleTaskCompletion(
 
 `handleTaskCompletion` handles a [CompletionEvent](DAGSchedulerEvent.md#CompletionEvent).
 
-`handleTaskCompletion` starts by scheduler:OutputCommitCoordinator.md#taskCompleted[notifying `OutputCommitCoordinator` that a task completed].
+`handleTaskCompletion` notifies the [OutputCommitCoordinator](OutputCommitCoordinator.md) that a [task completed](OutputCommitCoordinator.md#taskCompleted).
 
-`handleTaskCompletion` executor:TaskMetrics.md#fromAccumulators[re-creates `TaskMetrics`] (using [`accumUpdates` accumulators of the input `event`](#CompletionEvent-accumUpdates)).
+`handleTaskCompletion` finds the stage in the [stageIdToStage](#stageIdToStage) registry. If not found, `handleTaskCompletion` [postTaskEnd](#postTaskEnd) and quits.
 
-NOTE: executor:TaskMetrics.md[] can be empty when the task has failed.
+`handleTaskCompletion` [updateAccumulators](#updateAccumulators).
 
-`handleTaskCompletion` announces task completion application-wide (by posting a [SparkListenerTaskEnd](../SparkListenerTaskEnd.md) to scheduler:LiveListenerBus.md[]).
-
-`handleTaskCompletion` checks the stage of the task out in the scheduler:DAGScheduler.md#stageIdToStage[`stageIdToStage` internal registry] and if not found, it simply exits.
+`handleTaskCompletion` [announces task completion application-wide](#postTaskEnd).
 
 `handleTaskCompletion` branches off per `TaskEndReason` (as `event.reason`).
 
-.`handleTaskCompletion` Branches per `TaskEndReason`
-[cols="1,2",options="header",width="100%"]
-|===
-| TaskEndReason
-| Description
+TaskEndReason | Description
+--------------|----------
+ [Success](#handleTaskCompletion-Success) | Acts according to the type of the task that completed, i.e. [ShuffleMapTask](#handleTaskCompletion-Success-ShuffleMapTask) and [ResultTask](#handleTaskCompletion-Success-ResultTask)
+ [Resubmitted](#handleTaskCompletion-Resubmitted) |
+ _others_ |
 
-| <<handleTaskCompletion-Success, Success>>
-| Acts according to the type of the task that completed, i.e. <<handleTaskCompletion-Success-ShuffleMapTask, ShuffleMapTask>> and <<handleTaskCompletion-Success-ResultTask, ResultTask>>.
-
-| <<handleTaskCompletion-Resubmitted, Resubmitted>>
-|
-
-| <<handleTaskCompletion-FetchFailed, FetchFailed>>
-|
-
-| `ExceptionFailure`
-| scheduler:DAGScheduler.md#updateAccumulators[Updates accumulators] (with partial values from the task).
-
-| `ExecutorLostFailure`
-| Does nothing
-
-| `TaskCommitDenied`
-| Does nothing
-
-| `TaskKilled`
-| Does nothing
-
-| `TaskResultLost`
-| Does nothing
-
-| `UnknownReason`
-| Does nothing
-|===
-
-=== [[handleTaskCompletion-Success]] Handling Successful Task Completion
+#### <span id="handleTaskCompletion-Success"> Handling Successful Task Completion
 
 When a task has finished successfully (i.e. `Success` end reason), `handleTaskCompletion` marks the partition as no longer pending (i.e. the partition the task worked on is removed from `pendingPartitions` of the stage).
 
@@ -930,7 +889,7 @@ NOTE: A `Stage` tracks its own pending partitions using scheduler:Stage.md#pendi
 
 `handleTaskCompletion` branches off given the type of the task that completed, i.e. <<handleTaskCompletion-Success-ShuffleMapTask, ShuffleMapTask>> and <<handleTaskCompletion-Success-ResultTask, ResultTask>>.
 
-==== [[handleTaskCompletion-Success-ResultTask]] Handling Successful `ResultTask` Completion
+##### <span id="handleTaskCompletion-Success-ResultTask"> Handling Successful ResultTask Completion
 
 For scheduler:ResultTask.md[ResultTask], the stage is assumed a scheduler:ResultStage.md[ResultStage].
 
@@ -940,7 +899,7 @@ NOTE: scheduler:ResultStage.md[ResultStage] tracks the optional `ActiveJob` as s
 
 If there is _no_ job for the `ResultStage`, you should see the following INFO message in the logs:
 
-```
+```text
 Ignoring result from [task] because its job has finished
 ```
 
@@ -970,7 +929,7 @@ NOTE: A task succeeded notification holds the output index and the result.
 
 When the notification throws an exception (because it runs user code), `handleTaskCompletion` [notifies `JobListener` about the failure](JobListener.md#jobFailed) (wrapping it inside a `SparkDriverExecutionException` exception).
 
-==== [[handleTaskCompletion-Success-ShuffleMapTask]] Handling Successful `ShuffleMapTask` Completion
+##### <span id="handleTaskCompletion-Success-ShuffleMapTask"> Handling Successful ShuffleMapTask Completion
 
 For scheduler:ShuffleMapTask.md[ShuffleMapTask], the stage is assumed a  scheduler:ShuffleMapStage.md[ShuffleMapStage].
 
@@ -980,14 +939,14 @@ The task's result is assumed scheduler:MapStatus.md[MapStatus] that knows the ex
 
 You should see the following DEBUG message in the logs:
 
-```
-DEBUG DAGScheduler: ShuffleMapTask finished on [execId]
+```text
+ShuffleMapTask finished on [execId]
 ```
 
 If the executor is registered in scheduler:DAGScheduler.md#failedEpoch[`failedEpoch` internal registry] and the epoch of the completed task is not greater than that of the executor (as in `failedEpoch` registry), you should see the following INFO message in the logs:
 
-```
-INFO DAGScheduler: Ignoring possibly bogus [task] completion from executor [executorId]
+```text
+Ignoring possibly bogus [task] completion from executor [executorId]
 ```
 
 Otherwise, `handleTaskCompletion` scheduler:ShuffleMapStage.md#addOutputLoc[registers the `MapStatus` result for the partition with the stage] (of the completed task).
@@ -998,11 +957,11 @@ The `ShuffleMapStage` is <<markStageAsFinished, marked as finished>>.
 
 You should see the following INFO messages in the logs:
 
-```
-INFO DAGScheduler: looking for newly runnable stages
-INFO DAGScheduler: running: [runningStages]
-INFO DAGScheduler: waiting: [waitingStages]
-INFO DAGScheduler: failed: [failedStages]
+```text
+looking for newly runnable stages
+running: [runningStages]
+waiting: [waitingStages]
+failed: [failedStages]
 ```
 
 `handleTaskCompletion` scheduler:MapOutputTrackerMaster.md#registerMapOutputs[registers the shuffle map outputs of the `ShuffleDependency` with `MapOutputTrackerMaster`] (with the epoch incremented) and scheduler:DAGScheduler.md#clearCacheLocs[clears internal cache of the stage's RDD block locations].
@@ -1017,28 +976,27 @@ Eventually, `handleTaskCompletion` scheduler:DAGScheduler.md#submitWaitingChildS
 
 If however the `ShuffleMapStage` is _not_ ready, you should see the following INFO message in the logs:
 
-```
-INFO DAGScheduler: Resubmitting [shuffleStage] ([shuffleStage.name]) because some of its tasks had failed: [missingPartitions]
+```text
+Resubmitting [shuffleStage] ([shuffleStage.name]) because some of its tasks had failed: [missingPartitions]
 ```
 
 In the end, `handleTaskCompletion` scheduler:DAGScheduler.md#submitStage[submits the `ShuffleMapStage` for execution].
 
-=== [[handleTaskCompletion-Resubmitted]] TaskEndReason: Resubmitted
+#### <span id="handleTaskCompletion-Resubmitted"> TaskEndReason: Resubmitted
 
 For `Resubmitted` case, you should see the following INFO message in the logs:
 
-```
-INFO Resubmitted [task], so marking it as still running
+```text
+Resubmitted [task], so marking it as still running
 ```
 
 The task (by `task.partitionId`) is added to the collection of pending partitions of the stage (using `stage.pendingPartitions`).
 
 TIP: A stage knows how many partitions are yet to be calculated. A task knows about the partition id for which it was launched.
 
-=== [[handleTaskCompletion-FetchFailed]] Task Failed with `FetchFailed` Exception -- TaskEndReason: FetchFailed
+#### <span id="handleTaskCompletion-FetchFailed"> Task Failed with FetchFailed Exception
 
-[source, scala]
-----
+```scala
 FetchFailed(
   bmAddress: BlockManagerId,
   shuffleId: Int,
@@ -1046,38 +1004,14 @@ FetchFailed(
   reduceId: Int,
   message: String)
 extends TaskFailedReason
-----
-
-.`FetchFailed` Properties
-[cols="1,2",options="header",width="100%"]
-|===
-| Name
-| Description
-
-| `bmAddress`
-| storage:BlockManagerId.md[]
-
-| `shuffleId`
-| Used when...
-
-| `mapId`
-| Used when...
-
-| `reduceId`
-| Used when...
-
-| `failureMessage`
-| Used when...
-|===
-
-NOTE: A task knows about the id of the stage it belongs to.
+```
 
 When `FetchFailed` happens, `stageIdToStage` is used to access the failed stage (using `task.stageId` and the `task` is available in `event` in `handleTaskCompletion(event: CompletionEvent)`). `shuffleToMapStage` is used to access the map stage (using `shuffleId`).
 
 If `failedStage.latestInfo.attemptId != task.stageAttemptId`, you should see the following INFO in the logs:
 
-```
-INFO Ignoring fetch failure from [task] as it's from [failedStage] attempt [task.stageAttemptId] and there is a more recent attempt for that stage (attempt ID [failedStage.latestInfo.attemptId]) running
+```text
+Ignoring fetch failure from [task] as it's from [failedStage] attempt [task.stageAttemptId] and there is a more recent attempt for that stage (attempt ID [failedStage.latestInfo.attemptId]) running
 ```
 
 CAUTION: FIXME What does `failedStage.latestInfo.attemptId != task.stageAttemptId` mean?
@@ -1086,8 +1020,8 @@ And the case finishes. Otherwise, the case continues.
 
 If the failed stage is in `runningStages`, the following INFO message shows in the logs:
 
-```
-INFO Marking [failedStage] ([failedStage.name]) as failed due to a fetch failure from [mapStage] ([mapStage.name])
+```text
+Marking [failedStage] ([failedStage.name]) as failed due to a fetch failure from [mapStage] ([mapStage.name])
 ```
 
 `markStageAsFinished(failedStage, Some(failureMessage))` is called.
@@ -1096,8 +1030,8 @@ CAUTION: FIXME What does `markStageAsFinished` do?
 
 If the failed stage is not in `runningStages`, the following DEBUG message shows in the logs:
 
-```
-DEBUG Received fetch failure from [task], but its from [failedStage] which is no longer running
+```text
+Received fetch failure from [task], but its from [failedStage] which is no longer running
 ```
 
 When `disallowStageRetryForTest` is set, `abortStage(failedStage, "Fetch failure will not retry stage due to testing config", None)` is called.
@@ -1106,19 +1040,19 @@ CAUTION: FIXME Describe `disallowStageRetryForTest` and `abortStage`.
 
 If the scheduler:Stage.md#failedOnFetchAndShouldAbort[number of fetch failed attempts for the stage exceeds the allowed number], the scheduler:DAGScheduler.md#abortStage[failed stage is aborted] with the reason:
 
-```
+```text
 [failedStage] ([name]) has failed the maximum allowable number of times: 4. Most recent failure reason: [failureMessage]
 ```
 
 If there are no failed stages reported (scheduler:DAGScheduler.md#failedStages[DAGScheduler.failedStages] is empty), the following INFO shows in the logs:
 
-```
-INFO Resubmitting [mapStage] ([mapStage.name]) and [failedStage] ([failedStage.name]) due to fetch failure
+```text
+Resubmitting [mapStage] ([mapStage.name]) and [failedStage] ([failedStage.name]) due to fetch failure
 ```
 
 And the following code is executed:
 
-```
+```text
 messageScheduler.schedule(
   new Runnable {
     override def run(): Unit = eventProcessLoop.post(ResubmitFailedStages)
@@ -1135,7 +1069,9 @@ CAUTION: FIXME What does `mapStage.removeOutputLoc` do?
 
 If `BlockManagerId` (as `bmAddress` in the `FetchFailed` object) is defined, `handleTaskCompletion` <<handleExecutorLost, notifies DAGScheduler that an executor was lost>> (with `filesLost` enabled and `maybeEpoch` from the scheduler:Task.md#epoch[Task] that completed).
 
-`handleTaskCompletion` is used when [DAGSchedulerEventProcessLoop](DAGSchedulerEventProcessLoop.md) is requested to handle a [CompletionEvent](DAGSchedulerEvent.md#CompletionEvent) event.
+`handleTaskCompletion` is used when:
+
+* [DAGSchedulerEventProcessLoop](DAGSchedulerEventProcessLoop.md) is requested to handle a [CompletionEvent](DAGSchedulerEvent.md#CompletionEvent) event.
 
 ### <span id="handleExecutorAdded"> ExecutorAdded Event Handler
 
@@ -1589,6 +1525,21 @@ For named accumulators with the update value being a non-zero value, i.e. not `A
 CAUTION: FIXME Where are `Stage.latestInfo.accumulables` and `CompletionEvent.taskInfo.accumulables` used?
 
 `updateAccumulators` is used when `DAGScheduler` is requested to [handle a task completion](#handleTaskCompletion).
+
+## <span id="postTaskEnd"> Posting SparkListenerTaskEnd (at Task Completion)
+
+```scala
+postTaskEnd(
+  event: CompletionEvent): Unit
+```
+
+`postTaskEnd` [reconstructs task metrics](../executor/TaskMetrics.md#fromAccumulators) (from the accumulator updates in the `CompletionEvent`).
+
+In the end, `postTaskEnd` creates a [SparkListenerTaskEnd](../SparkListenerTaskEnd.md) and requests the [LiveListenerBus](#listenerBus) to [post it](LiveListenerBus.md#post).
+
+`postTaskEnd` is used when:
+
+* `DAGScheduler` is requested to [handle a task completion](#handleTaskCompletion)
 
 ## Logging
 
