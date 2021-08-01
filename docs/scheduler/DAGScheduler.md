@@ -619,7 +619,7 @@ submitMissingTasks([stage])
 
 `submitMissingTasks` adds the stage to the [runningStages](#runningStages) internal registry.
 
-`submitMissingTasks` notifies the [OutputCommitCoordinator](#outputCommitCoordinator) that [stage execution started](OutputCommitCoordinator.md#stageStart).
+`submitMissingTasks` notifies the [OutputCommitCoordinator](#outputCommitCoordinator) that [stage execution started](../OutputCommitCoordinator.md#stageStart).
 
 <span id="submitMissingTasks-taskIdToLocations">
 `submitMissingTasks` [determines preferred locations](#getPreferredLocs) (_task locality preferences_) of the missing partitions.
@@ -865,7 +865,7 @@ handleTaskCompletion(
 
 `handleTaskCompletion` handles a [CompletionEvent](DAGSchedulerEvent.md#CompletionEvent).
 
-`handleTaskCompletion` notifies the [OutputCommitCoordinator](OutputCommitCoordinator.md) that a [task completed](OutputCommitCoordinator.md#taskCompleted).
+`handleTaskCompletion` notifies the [OutputCommitCoordinator](../OutputCommitCoordinator.md) that a [task completed](../OutputCommitCoordinator.md#taskCompleted).
 
 `handleTaskCompletion` finds the stage in the [stageIdToStage](#stageIdToStage) registry. If not found, `handleTaskCompletion` [postTaskEnd](#postTaskEnd) and quits.
 

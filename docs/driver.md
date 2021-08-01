@@ -22,7 +22,7 @@ Driver requires the additional services (beside the common ones like shuffle:Shu
 * scheduler:MapOutputTrackerMaster.md[] with the name *MapOutputTracker*
 * storage:BlockManagerMaster.md[] with the name *BlockManagerMaster*
 * [MetricsSystem](metrics/MetricsSystem.md) with the name *driver*
-* scheduler:OutputCommitCoordinator.md[] with the endpoint's name *OutputCommitCoordinator*
+* [OutputCommitCoordinator](OutputCommitCoordinator.md)
 
 CAUTION: FIXME Diagram of RpcEnv for a driver (and later executors). Perhaps it should be in the notes about RpcEnv?
 

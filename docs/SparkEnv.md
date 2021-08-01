@@ -15,7 +15,7 @@ Property | Service
  <span id="mapOutputTracker"> mapOutputTracker | [MapOutputTracker](scheduler/MapOutputTracker.md)
  <span id="memoryManager"> memoryManager | [MemoryManager](memory/MemoryManager.md)
  <span id="metricsSystem"> metricsSystem | [MetricsSystem](metrics/MetricsSystem.md)
- <span id="outputCommitCoordinator"> outputCommitCoordinator | [OutputCommitCoordinator](scheduler/OutputCommitCoordinator.md)
+ <span id="outputCommitCoordinator"> outputCommitCoordinator | [OutputCommitCoordinator](OutputCommitCoordinator.md)
  <span id="rpcEnv"> rpcEnv | [RpcEnv](rpc/RpcEnv.md)
  <span id="securityManager"> securityManager | SecurityManager
  <span id="serializer"> serializer | [Serializer](serializer/Serializer.md)
@@ -68,7 +68,7 @@ createDriverEnv(
 
 ![Spark Environment for driver](images/sparkenv-driver.png)
 
-`createDriverEnv` accepts an instance of SparkConf.md[SparkConf], spark-deployment-environments.md[whether it runs in local mode or not], scheduler:LiveListenerBus.md[], the number of cores to use for execution in local mode or `0` otherwise, and a scheduler:OutputCommitCoordinator.md[OutputCommitCoordinator] (default: none).
+`createDriverEnv` accepts an instance of SparkConf.md[SparkConf], spark-deployment-environments.md[whether it runs in local mode or not], scheduler:LiveListenerBus.md[], the number of cores to use for execution in local mode or `0` otherwise, and a [OutputCommitCoordinator](OutputCommitCoordinator.md) (default: none).
 
 `createDriverEnv` ensures that spark-driver.md#spark_driver_host[spark.driver.host] and spark-driver.md#spark_driver_port[spark.driver.port] settings are defined.
 
@@ -262,7 +262,7 @@ Otherwise, stop turns `isStopped` flag on, stops all `pythonWorkers` and request
 4. storage:BlockManager.md#stop[BlockManager]
 5. storage:BlockManagerMaster.md#stop[BlockManagerMaster]
 6. [MetricsSystem](metrics/MetricsSystem.md#stop)
-7. scheduler:OutputCommitCoordinator.md#stop[OutputCommitCoordinator]
+7. [OutputCommitCoordinator](OutputCommitCoordinator.md#stop)
 
 stop rpc:index.md#shutdown[requests `RpcEnv` to shut down] and rpc:index.md#awaitTermination[waits till it terminates].
 
