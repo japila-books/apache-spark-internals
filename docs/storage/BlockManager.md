@@ -44,7 +44,7 @@ When created, `BlockManager` sets [externalShuffleServiceEnabled](#externalShuff
 
 `BlockManager` calculates the port used by the external shuffle service (as `externalShuffleServicePort`).
 
-`BlockManager` creates a client to read other executors' shuffle files (as `shuffleClient`). If the external shuffle service is used an [ExternalShuffleClient](ExternalShuffleClient.md) is created or the input [BlockTransferService](BlockTransferService.md) is used.
+`BlockManager` creates a client to read other executors' shuffle files (as `shuffleClient`). If the external shuffle service is used...FIXME
 
 `BlockManager` sets the [maximum number of failures](../configuration-properties.md#spark.block.failures.beforeLocationRefresh) before this block manager refreshes the block locations from the driver (as `maxFailuresBeforeLocationRefresh`).
 
@@ -355,19 +355,22 @@ readDiskBlockFromSameHostExecutor(
 
 ## <span id="shuffleClient"><span id="externalShuffleServiceEnabled"> ShuffleClient and External Shuffle Service
 
-`BlockManager` manages the lifecycle of a [ShuffleClient](ShuffleClient.md):
+!!! danger Outdated
+    FIXME `ShuffleClient` and `ExternalShuffleClient` are dead. Long live [BlockStoreClient](BlockStoreClient.md) and [ExternalBlockStoreClient](ExternalBlockStoreClient.md).
+
+`BlockManager` manages the lifecycle of a `ShuffleClient`:
 
 * Creates when [created](#creating-instance)
 
-* [Inits](ShuffleClient.md#init) (and possibly [registers with an external shuffle server](#registerWithExternalShuffleServer)) when requested to [initialize](#initialize)
+* Inits (and possibly [registers with an external shuffle server](#registerWithExternalShuffleServer)) when requested to [initialize](#initialize)
 
 * Closes when requested to [stop](#stop)
 
-The `ShuffleClient` can be an [ExternalShuffleClient](ExternalShuffleClient.md) or the given [BlockTransferService](#blockTransferService) based on [spark.shuffle.service.enabled](../external-shuffle-service/configuration-properties.md#spark.shuffle.service.enabled) configuration property. When enabled, BlockManager uses the [ExternalShuffleClient](ExternalShuffleClient.md).
+The `ShuffleClient` can be an `ExternalShuffleClient` or the given [BlockTransferService](#blockTransferService) based on [spark.shuffle.service.enabled](../external-shuffle-service/configuration-properties.md#spark.shuffle.service.enabled) configuration property. When enabled, BlockManager uses the `ExternalShuffleClient`.
 
 The `ShuffleClient` is available to other Spark services (using `shuffleClient` value) and is used when BlockStoreShuffleReader is requested to [read combined key-value records for a reduce task](../shuffle/BlockStoreShuffleReader.md#read).
 
-When requested for [shuffle metrics](#shuffleMetricsSource), BlockManager simply requests [them](ShuffleClient.md#shuffleMetrics) from the `ShuffleClient`.
+When requested for [shuffle metrics](#shuffleMetricsSource), BlockManager simply requests them from the `ShuffleClient`.
 
 ## <span id="rpcEnv"> BlockManager and RpcEnv
 

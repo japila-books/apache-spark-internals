@@ -76,17 +76,6 @@ NettyBlockTransferService requests the TransportServer to network:TransportServe
 
 NettyBlockTransferService simply requests the <<server, TransportServer>> for the network:TransportServer.md#getPort[port].
 
-== [[shuffleMetrics]] Shuffle Metrics
-
-[source,scala]
-----
-shuffleMetrics(): MetricSet
-----
-
-shuffleMetrics...FIXME
-
-shuffleMetrics is part of the storage:ShuffleClient.md#shuffleMetrics[ShuffleClient] abstraction.
-
 == [[fetchBlocks]] Fetching Blocks
 
 [source, scala]

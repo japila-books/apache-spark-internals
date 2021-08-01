@@ -1,12 +1,10 @@
-= RetryingBlockFetcher
+# RetryingBlockFetcher
 
 *RetryingBlockFetcher* is...FIXME
 
 RetryingBlockFetcher is <<creating-instance, created>> and immediately <<start, started>> when:
 
 * `NettyBlockTransferService` is requested to storage:NettyBlockTransferService.md#fetchBlocks[fetchBlocks] (when network:TransportConf.md#io.maxRetries[maxIORetries] is greater than `0` which it is by default)
-
-* `ExternalShuffleClient` is requested to storage:ExternalShuffleClient.md#fetchBlocks[fetchBlocks] (when network:TransportConf.md#io.maxRetries[maxIORetries] is greater than `0` which it is by default)
 
 RetryingBlockFetcher uses a <<fetchStarter, BlockFetchStarter>> to core:BlockFetchStarter.md#createAndStart[createAndStart] when requested to <<start, start>> and later <<initiateRetry, initiateRetry>>.
 
@@ -42,14 +40,9 @@ void start()
 
 `start` simply <<fetchAllOutstanding, fetchAllOutstanding>>.
 
-[NOTE]
-====
 `start` is used when:
 
 * `NettyBlockTransferService` is requested to storage:NettyBlockTransferService.md#fetchBlocks[fetchBlocks] (when network:TransportConf.md#io.maxRetries[maxIORetries] is greater than `0` which it is by default)
-
-* `ExternalShuffleClient` is requested to storage:ExternalShuffleClient.md#fetchBlocks[fetchBlocks] (when network:TransportConf.md#io.maxRetries[maxIORetries] is greater than `0` which it is by default)
-====
 
 == [[initiateRetry]] `initiateRetry` Internal Method
 

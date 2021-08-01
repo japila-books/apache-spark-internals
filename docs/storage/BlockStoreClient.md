@@ -4,6 +4,9 @@
 
 `BlockStoreClient` is a Java [Closeable]({{ java.api }}/java.base/java/io/Closeable.html).
 
+!!! note
+    `BlockStoreClient` was known previously as `ShuffleClient` ([SPARK-28593](https://issues.apache.org/jira/browse/SPARK-28593)).
+
 ## Contract
 
 ### <span id="fetchBlocks"> Fetching Blocks

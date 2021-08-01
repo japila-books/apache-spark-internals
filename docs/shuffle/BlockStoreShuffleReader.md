@@ -37,8 +37,6 @@ read(): Iterator[Product2[K, C]]
 
 Internally, `read` first storage:ShuffleBlockFetcherIterator.md#creating-instance[creates a `ShuffleBlockFetcherIterator`] (passing in the values of <<spark_reducer_maxSizeInFlight, spark.reducer.maxSizeInFlight>>, <<spark_reducer_maxReqsInFlight, spark.reducer.maxReqsInFlight>> and <<spark_shuffle_detectCorrupt, spark.shuffle.detectCorrupt>> Spark properties).
 
-NOTE: `read` uses storage:BlockManager.md#shuffleClient[`BlockManager` to access `ShuffleClient`] to create `ShuffleBlockFetcherIterator`.
-
 NOTE: `read` uses scheduler:MapOutputTracker.md#getMapSizesByExecutorId[`MapOutputTracker` to find the BlockManagers with the shuffle blocks and sizes] to create `ShuffleBlockFetcherIterator`.
 
 `read` creates a new serializer:SerializerInstance.md[SerializerInstance] (using [`Serializer` from ShuffleDependency](../rdd/ShuffleDependency.md#serializer)).

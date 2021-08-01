@@ -16,12 +16,6 @@ ShuffleMetricsSource takes the following to be created:
 
 ShuffleMetricsSource is created when BlockManager is requested for the storage:BlockManager.md#shuffleMetricsSource[shuffle metrics source].
 
-== [[metricSet]] MetricSet
-
-ShuffleMetricsSource is given a Dropwizard Metrics https://metrics.dropwizard.io/3.1.0/apidocs/com/codahale/metrics/MetricSet.html[MetricSet] when <<creating-instance, created>>.
-
-The MetricSet is requested from the storage:ShuffleClient.md#shuffleMetrics[ShuffleClient] (of storage:BlockManager.md#shuffleClient[BlockManager]).
-
 == [[sourceName]] Source Name
 
 ShuffleMetricsSource is given a name when <<creating-instance, created>> that is one of the following:

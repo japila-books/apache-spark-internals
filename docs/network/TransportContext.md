@@ -1,4 +1,4 @@
-= TransportContext
+# TransportContext
 
 *TransportContext* is used to create a <<createServer, server>> or <<createClientFactory, ClientFactory>>.
 
@@ -11,8 +11,6 @@ TransportContext takes the following to be created:
 * [[closeIdleConnections]] closeIdleConnections flag (default: `false`)
 
 TransportContext is created when:
-
-* ExternalShuffleClient is requested to storage:ExternalShuffleClient.md#init[initialize]
 
 * YarnShuffleService is requested to spark-on-yarn:spark-yarn-YarnShuffleService.md#serviceInit[serviceInit]
 
