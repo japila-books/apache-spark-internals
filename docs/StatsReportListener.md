@@ -1,8 +1,8 @@
-== [[StatsReportListener]] StatsReportListener -- Logging Summary Statistics
+# StatsReportListener &mdash; Logging Summary Statistics
 
 `org.apache.spark.scheduler.StatsReportListener` (see https://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.scheduler.StatsReportListener[the listener's scaladoc]) is a SparkListener.md[] that logs summary statistics when each stage completes.
 
-`StatsReportListener` listens to SparkListener.md#SparkListenerTaskEnd[SparkListenerTaskEnd] and SparkListener.md#SparkListenerStageCompleted[SparkListenerStageCompleted] events and prints them out at `INFO` logging level.
+`StatsReportListener` listens to [SparkListenerTaskEnd](SparkListenerTaskEnd.md) and [SparkListenerStageCompleted](SparkListener.md#SparkListenerStageCompleted) events and prints them out at `INFO` logging level.
 
 [TIP]
 ====

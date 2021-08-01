@@ -882,7 +882,7 @@ handleTaskCompletion(
 
 NOTE: executor:TaskMetrics.md[] can be empty when the task has failed.
 
-`handleTaskCompletion` announces task completion application-wide (by posting a SparkListener.md#SparkListenerTaskEnd[SparkListenerTaskEnd] to scheduler:LiveListenerBus.md[]).
+`handleTaskCompletion` announces task completion application-wide (by posting a [SparkListenerTaskEnd](../SparkListenerTaskEnd.md) to scheduler:LiveListenerBus.md[]).
 
 `handleTaskCompletion` checks the stage of the task out in the scheduler:DAGScheduler.md#stageIdToStage[`stageIdToStage` internal registry] and if not found, it simply exits.
 

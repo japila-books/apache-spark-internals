@@ -54,7 +54,7 @@ task.metrics
 
 ## <span id="SparkListener"> SparkListener
 
-`TaskMetrics` is available using [SparkListener](../SparkListener.md) and intercepting [SparkListenerTaskEnd](../SparkListenerEvent.md#SparkListenerTaskEnd) events.
+`TaskMetrics` is available using [SparkListener](../SparkListener.md) and intercepting [SparkListenerTaskEnd](../SparkListenerTaskEnd.md) events.
 
 ## <span id="StatsReportListener"> StatsReportListener
 

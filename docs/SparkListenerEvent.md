@@ -76,6 +76,8 @@ Default: `true`
 
 ### <span id="SparkListenerTaskEnd"> SparkListenerTaskEnd
 
+[SparkListenerTaskEnd](SparkListenerTaskEnd.md)
+
 ### <span id="SparkListenerTaskGettingResult"> SparkListenerTaskGettingResult
 
 ### <span id="SparkListenerTaskStart"> SparkListenerTaskStart
