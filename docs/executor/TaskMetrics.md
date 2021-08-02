@@ -1,3 +1,8 @@
+---
+tags:
+  - DeveloperApi
+---
+
 # TaskMetrics
 
 `TaskMetrics` is a collection of [metrics](#metrics) ([accumulators](../accumulators/index.md)) tracked during execution of a [task](#Task).
@@ -39,10 +44,6 @@ TaskContext.get.taskMetrics
 ## <span id="Serializable"> Serializable
 
 `TaskMetrics` is a `Serializable` ([Java]({{ java.api }}/java.base/java/io/Serializable.html)).
-
-## <span id="DeveloperApi"> DeveloperApi
-
-`TaskMetrics` is a `DeveloperApi` (a lower-level, unstable API intended for Spark developers).
 
 ## <span id="Task"> Task
 

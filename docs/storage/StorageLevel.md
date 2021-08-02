@@ -1,4 +1,9 @@
-= StorageLevel
+---
+tags:
+  - DeveloperApi
+---
+
+# StorageLevel
 
 `StorageLevel` describes how an RDD is persisted (and addresses the following concerns):
 

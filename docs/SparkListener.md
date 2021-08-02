@@ -1,3 +1,8 @@
+---
+tags:
+  - DeveloperApi
+---
+
 # SparkListener
 
 `SparkListener` is an extension of the [SparkListenerInterface](SparkListenerInterface.md) abstraction for [event listeners](#implementations) with a no-op implementation for callback methods.
@@ -20,7 +25,3 @@
 * SQLEventFilterBuilder
 * [StatsReportListener](StatsReportListener.md)
 * StreamingQueryListenerBus ([Spark Structured Streaming]({{ book.structured_streaming }}/StreamingQueryListenerBus/))
-
-## <span id="DeveloperApi"> DeveloperApi
-
-`SparkListener` is a `DeveloperApi` (a lower-level, unstable API intended for Spark developers).

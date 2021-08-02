@@ -1,4 +1,4 @@
-= RDDCheckpointData
+# RDDCheckpointData
 
 *RDDCheckpointData* is an abstraction of information related to RDD checkpointing.
 
