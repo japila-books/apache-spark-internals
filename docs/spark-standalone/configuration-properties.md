@@ -6,6 +6,23 @@ Controls whether standalone `Master` should [perform round-robin scheduling acro
 
 Default: `true`
 
+## <span id="spark.master.rest.enabled"><span id="MASTER_REST_SERVER_ENABLED"> spark.master.rest.enabled
+
+Default: `false`
+
+Used when:
+
+* `Master` standalone application is requested to [onStart](Master.md#onStart)
+
+## <span id="spark.master.rest.port"><span id="MASTER_REST_SERVER_PORT"> spark.master.rest.port
+
+Default: `6066`
+
+Used when:
+
+* `Master` standalone application is requested to [onStart](Master.md#onStart)
+* `StandaloneSubmitRequestServlet` is requested to `buildDriverDescription`
+
 ## <span id="spark.worker.resourcesFile"><span id="SPARK_WORKER_RESOURCE_FILE"> spark.worker.resourcesFile
 
 **(internal)** Path to a file containing the resources allocated to the worker. The file should be formatted as a JSON array of ResourceAllocation objects. Only used internally in standalone mode.

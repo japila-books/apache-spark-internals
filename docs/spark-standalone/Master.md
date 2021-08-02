@@ -1,8 +1,14 @@
 # Master
 
-`Master` is a cluster manager of a Spark Standalone cluster.
+`Master` is the manager of a [Spark Standalone](index.md) cluster.
 
 `Master` can be [launched from command line](#launch).
+
+## <span id="restServerBoundPort"><span id="restServer"><span id="restServerEnabled"> StandaloneRestServer
+
+`Master` can start [StandaloneRestServer](StandaloneRestServer.md) when enabled using [spark.master.rest.enabled](configuration-properties.md#spark.master.rest.enabled) configuration property.
+
+`StandaloneRestServer` is requested to [start](StandaloneRestServer.md#start) in [onStart](#onStart) and [stop](StandaloneRestServer.md#stop) in [onStop](#onStop)
 
 ## <span id="ENDPOINT_NAME"> Master RPC Endpoint
 
@@ -23,7 +29,7 @@ main(
   argStrings: Array[String]): Unit
 ```
 
-`main` is the entry point of `Master` standalone application.
+`main` is the entry point of the `Master` standalone application.
 
 `main` prints out the following INFO message to the logs:
 
@@ -87,7 +93,9 @@ startRpcEnvAndEndpoint(
   conf: SparkConf): (RpcEnv, Int, Option[Int])
 ```
 
-`startRpcEnvAndEndpoint`...FIXME
+`startRpcEnvAndEndpoint` creates a [RPC Environment](../rpc/RpcEnv.md#create) with **sparkMaster** name (and the input arguments) and registers [Master](#creating-instance) endpoint with **Master** name.
+
+In the end, `startRpcEnvAndEndpoint` sends `BoundPortsResponse` message (synchronously) to the Master endpoint and returns the [RpcEnv](../rpc/RpcEnv.md) with the ports of the [web UI](#webUi) and the [REST Server](#restServerBoundPort).
 
 ![sparkMaster - the RPC Environment for Spark Standalone's master](../images/sparkMaster-rpcenv.png)
 
@@ -310,14 +318,12 @@ Master uses the following system environment variables (directly or indirectly):
 Master uses the following properties:
 
 * `spark.cores.max` (default: `0`) - total expected number of cores. When set, an application could get executors of different sizes (in terms of cores).
-* `spark.worker.timeout` (default: `60`) - time (in seconds) when no heartbeat from a worker means it is lost. See <<worker-management, Worker Management>>.
+* `spark.dead.worker.persistence` (default: `15`)
 * `spark.deploy.retainedApplications` (default: `200`)
 * `spark.deploy.retainedDrivers` (default: `200`)
-* `spark.dead.worker.persistence` (default: `15`)
 * `spark.deploy.recoveryMode` (default: `NONE`) - possible modes: `ZOOKEEPER`, `FILESYSTEM`, or `CUSTOM`. Refer to <<recovery-mode, Recovery Mode>>.
 * `spark.deploy.recoveryMode.factory` - the class name of the custom `StandaloneRecoveryModeFactory`.
 * `spark.deploy.recoveryDirectory` (default: empty) - the directory to persist recovery state
 * link:spark-standalone.md#spark.deploy.spreadOut[spark.deploy.spreadOut] to perform link:spark-standalone.md#round-robin-scheduling[round-robin scheduling across the nodes].
 * `spark.deploy.defaultCores` (default: `Int.MaxValue`, i.e. unbounded) - the number of maxCores for applications that don't specify it.
-* `spark.master.rest.enabled` (default: `true`) - <<rest-server, master's REST Server>> for alternative application submission that is supposed to work across Spark versions.
-* `spark.master.rest.port` (default: `6066`) - the port of <<rest-server, master's REST Server>>
+* `spark.worker.timeout` (default: `60`) - time (in seconds) when no heartbeat from a worker means it is lost. See <<worker-management, Worker Management>>.
