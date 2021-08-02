@@ -1,6 +1,6 @@
 # RestSubmissionServer
 
-`RestSubmissionServer` is an [abstraction](#contract) of [REST servers](#implementations) that can handle [submit](#submitRequestServlet), [kill](#killRequestServlet) and [status](#statusRequestServlet) requests using [REST API](#contextToServlet) (JSON over HTTP).
+`RestSubmissionServer` is an [abstraction](#contract) of [Application Submission Gateways](#implementations) that can handle [submit](#submitRequestServlet), [kill](#killRequestServlet) and [status](#statusRequestServlet) requests using [REST API](#contextToServlet) (JSON over HTTP).
 
 ## <span id="contextToServlet"> URLs and RestServlets
 
