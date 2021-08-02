@@ -1,88 +1,54 @@
 # TransportContext
 
-*TransportContext* is used to create a <<createServer, server>> or <<createClientFactory, ClientFactory>>.
+## Creating Instance
 
-== [[creating-instance]] Creating Instance
+`TransportContext` takes the following to be created:
 
-TransportContext takes the following to be created:
+* <span id="conf"> [TransportConf](TransportConf.md)
+* <span id="rpcHandler"> [RpcHandler](RpcHandler.md)
+* <span id="closeIdleConnections"> `closeIdleConnections` flag
+* <span id="isClientOnly"> `isClientOnly` flag
 
-* [[conf]] network:TransportConf.md[]
-* [[rpcHandler]] network:RpcHandler.md[]
-* [[closeIdleConnections]] closeIdleConnections flag (default: `false`)
+`TransportContext` is created when:
 
-TransportContext is created when:
+* `ExternalBlockStoreClient` is requested to [init](../storage/ExternalBlockStoreClient.md#init)
+* `ExternalShuffleService` is requested to [start](../external-shuffle-service/ExternalShuffleService.md#start)
+* `NettyBlockTransferService` is requested to [init](../storage/NettyBlockTransferService.md#init)
+* `NettyRpcEnv` is [created](../rpc/NettyRpcEnv.md#transportContext) and requested to [downloadClient](../rpc/NettyRpcEnv.md#downloadClient)
+* `YarnShuffleService` (Spark on YARN) is requested to `serviceInit`
 
-* YarnShuffleService is requested to spark-on-yarn:spark-yarn-YarnShuffleService.md#serviceInit[serviceInit]
+## <span id="createServer"> Creating Server
 
-== [[createClientFactory]] createClientFactory Method
-
-[source,java]
-----
-TransportClientFactory createClientFactory(
-  List<TransportClientBootstrap> bootstraps)
-----
-
-createClientFactory...FIXME
-
-createClientFactory is used when TransportContext is requested to <<initializePipeline, initializePipeline>>.
-
-== [[createChannelHandler]] createChannelHandler Method
-
-[source, java]
-----
-TransportChannelHandler createChannelHandler(
-  Channel channel,
-  RpcHandler rpcHandler)
-----
-
-createChannelHandler...FIXME
-
-createChannelHandler is used when TransportContext is requested to <<initializePipeline, initializePipeline>>.
-
-== [[initializePipeline]] initializePipeline Method
-
-[source, java]
-----
-TransportChannelHandler initializePipeline(
-  SocketChannel channel) // <1>
-TransportChannelHandler initializePipeline(
-  SocketChannel channel,
-  RpcHandler channelRpcHandler)
-----
-<1> Uses the <<rpcHandler, RpcHandler>>
-
-initializePipeline...FIXME
-
-initializePipeline is used when:
-
-* `TransportServer` is requested to network:TransportServer.md#init[init]
-
-* `TransportClientFactory` is requested to network:TransportClientFactory.md#createClient[createClient]
-
-== [[createServer]] Creating Server
-
-[source, java]
-----
-TransportServer createServer()
+```java
 TransportServer createServer(
   int port,
-  List<TransportServerBootstrap> bootstraps)
-TransportServer createServer(
   List<TransportServerBootstrap> bootstraps)
 TransportServer createServer(
   String host,
   int port,
   List<TransportServerBootstrap> bootstraps)
-----
+```
 
-createServer simply creates a TransportServer (with the current TransportContext, the host, the port, the <<rpcHandler, RpcHandler>> and the bootstraps).
+`createServer` creates a [TransportServer](TransportServer.md) (with the [RpcHandler](#rpcHandler) and the input arguments).
 
-createServer is used when:
+`createServer` is used when:
 
-* `NettyBlockTransferService` is requested to storage:NettyBlockTransferService.md#createServer[createServer]
+* `YarnShuffleService` (Spark on YARN) is requested to `serviceInit`
+* `ExternalShuffleService` is requested to [start](../external-shuffle-service/ExternalShuffleService.md#start)
+* `NettyBlockTransferService` is requested to [createServer](../storage/NettyBlockTransferService.md#createServer)
+* `NettyRpcEnv` is requested to [startServer](../rpc/NettyRpcEnv.md#startServer)
 
-* `NettyRpcEnv` is requested to `startServer`
+## <span id="createClientFactory"> Creating TransportClientFactory
 
-* `ExternalShuffleService` is requested to [start](../external-shuffle-service/ExternalShuffleService.md)
+```java
+TransportClientFactory createClientFactory(
+  List<TransportClientBootstrap> bootstraps)
+```
 
-* Spark on YARN's `YarnShuffleService` is requested to `serviceInit`
+`createClientFactory`...FIXME
+
+`createClientFactory` is used when:
+
+* `ExternalBlockStoreClient` is requested to [init](../storage/ExternalBlockStoreClient.md#init)
+* `NettyBlockTransferService` is requested to [init](../storage/NettyBlockTransferService.md#init)
+* `NettyRpcEnv` is [created](../rpc/NettyRpcEnv.md#clientFactory) and requested to [downloadClient](../rpc/NettyRpcEnv.md#downloadClient)

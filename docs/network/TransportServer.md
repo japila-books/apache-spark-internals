@@ -1,6 +1,4 @@
-= TransportServer
-
-*TransportServer* is...FIXME
+# TransportServer
 
 == [[creating-instance]] Creating TransportServer Instance
 

@@ -40,11 +40,11 @@ NettyBlockTransferService creates a network:TransportConf.md[] for *shuffle* mod
 
 NettyBlockTransferService uses the TransportConf for the following:
 
-* Create a network:TransportContext.md[] when requested to <<init, initialize>>
+* Create a [TransportContext](../network/TransportContext.md) when requested to <<init, initialize>>
 
 * Create a storage:OneForOneBlockFetcher.md[] and a core:RetryingBlockFetcher.md[RetryingBlockFetcher] when requested to <<fetchBlocks, fetch blocks>>
 
-NettyBlockTransferService uses the TransportContext to create the <<clientFactory, TransportClientFactory>> and the <<server, TransportServer>>.
+NettyBlockTransferService uses the `TransportContext` to create the <<clientFactory, TransportClientFactory>> and the <<server, TransportServer>>.
 
 == [[clientFactory]] TransportClientFactory
 

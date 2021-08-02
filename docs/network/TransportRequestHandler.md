@@ -1,6 +1,6 @@
-= TransportRequestHandler
+# TransportRequestHandler
 
-*TransportRequestHandler* is a network:MessageHandler.md[] of <<handle, RequestMessage messages>> from Netty's <<channel, Channel>>.
+`TransportRequestHandler` is a network:MessageHandler.md[] of <<handle, RequestMessage messages>> from Netty's <<channel, Channel>>.
 
 == [[creating-instance]] Creating Instance
 
