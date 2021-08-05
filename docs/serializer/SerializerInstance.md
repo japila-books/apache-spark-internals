@@ -4,7 +4,7 @@
 
 ## Contract
 
-### <span id="deserialize"> deserialize
+### <span id="deserialize"> Deserializing (from ByteBuffer)
 
 ```scala
 deserialize[T: ClassTag](
@@ -22,21 +22,21 @@ Used when:
 * `TaskResultGetter` is requested to [enqueueFailedTask](../scheduler/TaskResultGetter.md#enqueueFailedTask)
 * _others_
 
-### <span id="deserializeStream"> deserializeStream
+### <span id="deserializeStream"> Deserializing (from InputStream)
 
 ```scala
 deserializeStream(
   s: InputStream): DeserializationStream
 ```
 
-### <span id="serialize"> serialize
+### <span id="serialize"> Serializing (to ByteBuffer)
 
 ```scala
 serialize[T: ClassTag](
   t: T): ByteBuffer
 ```
 
-### <span id="serializeStream"> serializeStream
+### <span id="serializeStream"> Serializing (to OutputStream)
 
 ```scala
 serializeStream(

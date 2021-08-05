@@ -1,12 +1,9 @@
-# BaseShuffleHandle &mdash; Fallback Shuffle Handle
+# BaseShuffleHandle
 
-`BaseShuffleHandle` is a [ShuffleHandle](ShuffleHandle.md) that is created solely to capture the parameters when [`SortShuffleManager` is requested for a `ShuffleHandle`](SortShuffleManager.md#registerShuffle) (for a `ShuffleDependency`):
+`BaseShuffleHandle` is a fall-back [ShuffleHandle](ShuffleHandle.md) that is used to capture the parameters when `SortShuffleManager` is requested for a [ShuffleHandle](SortShuffleManager.md#registerShuffle) (and other `ShuffleHandle`s could not be used):
 
-1. [[shuffleId]] `shuffleId`
-2. [[numMaps]] `numMaps`
-3. [[dependency]] [ShuffleDependency](../rdd/ShuffleDependency.md)
-
-NOTE: `BaseShuffleHandle` is the last possible choice when SortShuffleManager.md#registerShuffle[`SortShuffleManager` is requested for a `ShuffleHandle`] (after shuffle:BypassMergeSortShuffleHandle.md[BypassMergeSortShuffleHandle] and shuffle:SerializedShuffleHandle.md[SerializedShuffleHandle] have already been considered and failed the check).
+* <span id="shuffleId"> Shuffle ID
+* <span id="dependency"> [ShuffleDependency](../rdd/ShuffleDependency.md)
 
 ## Demo
 
