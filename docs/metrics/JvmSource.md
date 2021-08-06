@@ -5,7 +5,7 @@
 <span id="sourceName">
 The name of the source is **jvm**.
 
-`JvmSource` registers the build-in Codehale metrics:
+`JvmSource` registers the build-in Codahale metrics:
 
 * `GarbageCollectorMetricSet`
 * `MemoryUsageGaugeSet`

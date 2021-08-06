@@ -2,7 +2,7 @@
 
 **Spark Metrics** gives you execution metrics of [Spark subsystems](MetricsSystem.md#subsystems) (_metrics instances_, e.g. the driver of a Spark application or the master of a Spark Standalone cluster).
 
-Spark Metrics uses [Dropwizard Metrics 3.1.0](http://metrics.dropwizard.io/3.1.0/) Java library for the metrics infrastructure.
+Spark Metrics uses [Dropwizard Metrics]({{ codahale.home }}) Java library for the metrics infrastructure.
 
 > **Metrics** is a Java library which gives you unparalleled insight into what your code does in production.
 >

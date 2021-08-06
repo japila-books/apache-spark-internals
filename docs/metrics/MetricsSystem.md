@@ -45,7 +45,7 @@ registerSource(
 
 `registerSource` [creates an identifier](#buildRegistryName) for the metrics source and registers it with the [MetricRegistry](#registry).
 
-`registerSource` uses Metrics' [MetricRegistry.register](http://metrics.dropwizard.io/3.1.0/apidocs/com/codahale/metrics/MetricRegistry.html#register-java.lang.String-T-) to register a metrics source under a given name.
+`registerSource` registers the metrics source under a given name.
 
 `registerSource` prints out the following INFO message to the logs when registering a name more than once:
 
@@ -63,9 +63,6 @@ buildRegistryName(
 `buildRegistryName` uses spark-metrics-properties.md#spark.metrics.namespace[spark.metrics.namespace] and executor:Executor.md#spark.executor.id[spark.executor.id] Spark properties to differentiate between a Spark application's driver and executors, and the other Spark framework's components.
 
 (only when <<instance, instance>> is `driver` or `executor`) `buildRegistryName` builds metrics source name that is made up of spark-metrics-properties.md#spark.metrics.namespace[spark.metrics.namespace], executor:Executor.md#spark.executor.id[spark.executor.id] and the name of the `source`.
-
-!!! note
-    `buildRegistryName` uses Dropwizard Metrics' [MetricRegistry](https://metrics.dropwizard.io/3.1.0/apidocs/com/codahale/metrics/MetricRegistry.html) to build metrics source identifiers.
 
 FIXME Finish for the other components.
 
@@ -191,7 +188,7 @@ Refer to [Logging](../spark-logging.md).
 
 ### <span id="registry"> MetricRegistry
 
-Integration point to Dropwizard Metrics' [MetricRegistry](https://metrics.dropwizard.io/3.1.0/apidocs/com/codahale/metrics/MetricRegistry.html)
+Integration point to Dropwizard Metrics' [MetricRegistry]({{ codahale.api }}/com/codahale/metrics/MetricRegistry.html)
 
 Used when MetricsSystem is requested to:
 

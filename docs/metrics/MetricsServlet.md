@@ -55,7 +55,7 @@ X-XSS-Protection: 1; mode=block
 
 `MetricsServlet` can be configured using configuration properties with *sink.servlet* prefix (in spark-metrics-MetricsConfig.md[metrics configuration]). That is not required since `MetricsConfig` spark-metrics-MetricsConfig.md#setDefaultProperties[makes sure] that `MetricsServlet` is always configured.
 
-`MetricsServlet` uses https://fasterxml.github.io/jackson-databind/[jackson-databind], the general data-binding package for Jackson (as <<mapper, ObjectMapper>>) with https://metrics.dropwizard.io/3.1.0/[Dropwizard Metrics] library (i.e. registering a Coda Hale `MetricsModule`).
+`MetricsServlet` uses https://fasterxml.github.io/jackson-databind/[jackson-databind], the general data-binding package for Jackson (as <<mapper, ObjectMapper>>) with [Dropwizard Metrics]({{ codahale.home }}) library (i.e. registering a Coda Hale `MetricsModule`).
 
 [[properties]]
 .MetricsServlet's Configuration Properties
@@ -84,7 +84,7 @@ X-XSS-Protection: 1; mode=block
 | `mapper`
 | [[mapper]] Jaxson's https://fasterxml.github.io/jackson-databind/javadoc/2.6/com/fasterxml/jackson/databind/ObjectMapper.html[com.fasterxml.jackson.databind.ObjectMapper] that _"provides functionality for reading and writing JSON, either to and from basic POJOs (Plain Old Java Objects), or to and from a general-purpose JSON Tree Model (JsonNode), as well as related functionality for performing conversions."_
 
-When created, `mapper` is requested to register a Coda Hale https://metrics.dropwizard.io/3.1.0/apidocs/com/codahale/metrics/json/MetricsModule.html[com.codahale.metrics.json.MetricsModule].
+When created, `mapper` is requested to register a Coda Hale [com.codahale.metrics.json.MetricsModule]({{ codahale.api }}/com/codahale/metrics/json/MetricsModule.html).
 
 Used exclusively when `MetricsServlet` is requested to <<getMetricsSnapshot, getMetricsSnapshot>>.
 
@@ -96,15 +96,15 @@ Used exclusively when `MetricsServlet` is requested to <<getMetricsSnapshot, get
 
 `servletShowSample` is the value of <<sample, sample>> configuration property (if defined) or `false`.
 
-Used when <<mapper, ObjectMapper>> is requested to register a Coda Hale https://metrics.dropwizard.io/3.1.0/apidocs/com/codahale/metrics/json/MetricsModule.html[com.codahale.metrics.json.MetricsModule].
+Used when <<mapper, ObjectMapper>> is requested to register a Coda Hale [com.codahale.metrics.json.MetricsModule]({{ codahale.api }}/com/codahale/metrics/json/MetricsModule.html).
 |===
 
-=== [[creating-instance]] Creating MetricsServlet Instance
+## Creating Instance
 
 `MetricsServlet` takes the following when created:
 
 * [[property]] Configuration Properties (as Java `Properties`)
-* [[registry]] Dropwizard Metrics' https://metrics.dropwizard.io/3.1.0/apidocs/com/codahale/metrics/MetricRegistry.html[MetricRegistry]
+* [[registry]] `MetricRegistry` ([Dropwizard Metrics]({{ codahale.api }}/com/codahale/metrics/MetricRegistry.html)
 * [[securityMgr]] `SecurityManager`
 
 `MetricsServlet` initializes the <<internal-registries, internal registries and counters>>.

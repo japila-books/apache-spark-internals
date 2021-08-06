@@ -1,87 +1,50 @@
-== [[Source]] Source -- Contract of Metrics Sources
+# Source
 
-`Source` is a <<contract, contract>> of *metrics sources*.
+`Source` is an [abstraction](#contract) of [metrics sources](#implementations).
 
-[[contract]]
-[source, scala]
-----
-package org.apache.spark.metrics.source
+## Contract
 
-trait Source {
-  def sourceName: String
-  def metricRegistry: MetricRegistry
-}
-----
+### <span id="metricRegistry"> MetricRegistry
 
-NOTE: `Source` is a `private[spark]` contract.
+```scala
+metricRegistry: MetricRegistry
+```
 
-.Source Contract
-[cols="1,2",options="header",width="100%"]
-|===
-| Method
-| Description
+`MetricRegistry` ([Codahale Metrics]({{ codahale.api }}/com/codahale/metrics/MetricRegistry.html))
 
-| `sourceName`
-| [[sourceName]] Used when...FIXME
+Used when:
 
-| `metricRegistry`
-| [[metricRegistry]] Dropwizard Metrics' https://metrics.dropwizard.io/3.1.0/apidocs/com/codahale/metrics/MetricRegistry.html[MetricRegistry]
+* `MetricsSystem` is requested to [register a metrics source](MetricsSystem.md#registerSource)
 
-Used when...FIXME
-|===
+### <span id="sourceName"> Source Name
 
-[[implementations]]
-.Sources
-[cols="1,2",options="header",width="100%"]
-|===
-| Source
-| Description
+```scala
+sourceName: String
+```
 
-| `ApplicationSource`
-| [[ApplicationSource]]
+Used when:
 
-| [BlockManagerSource](../storage/BlockManagerSource.md)
-| [[BlockManagerSource]]
+* `MetricsSystem` is requested to [build a metrics source identifier](MetricsSystem.md#buildRegistryName) and [getSourcesByName](MetricsSystem.md#getSourcesByName)
 
-| `CacheMetrics`
-| [[CacheMetrics]]
+## Implementations
 
-| `CodegenMetrics`
-| [[CodegenMetrics]]
-
-| [DAGSchedulerSource](../scheduler/DAGSchedulerSource.md)
-| [[DAGSchedulerSource]]
-
-| [ExecutorAllocationManagerSource](../dynamic-allocation/ExecutorAllocationManagerSource.md)
-| [[ExecutorAllocationManagerSource]]
-
-| executor:ExecutorSource.md[]
-| [[ExecutorSource]]
-
-| `ExternalShuffleServiceSource`
-| [[ExternalShuffleServiceSource]]
-
-| `HiveCatalogMetrics`
-| [[HiveCatalogMetrics]]
-
-| metrics:JvmSource.md[JvmSource]
-| [[JvmSource]]
-
-| `LiveListenerBusMetrics`
-| [[LiveListenerBusMetrics]]
-
-| `MasterSource`
-| [[MasterSource]]
-
-| `MesosClusterSchedulerSource`
-| [[MesosClusterSchedulerSource]]
-
-| storage:ShuffleMetricsSource.md[]
-| [[ShuffleMetricsSource]]
-
-| `StreamingSource`
-| [[StreamingSource]]
-
-| `WorkerSource`
-| [[WorkerSource]]
-|===
+* [AccumulatorSource](../accumulators/AccumulatorSource.md)
+* ApplicationMasterSource
+* ApplicationSource
+* [AppStatusSource](../status/AppStatusSource.md)
+* [BlockManagerSource](../storage/BlockManagerSource.md)
+* CacheMetrics
+* CodegenMetrics
+* [DAGSchedulerSource](../scheduler/DAGSchedulerSource.md)
+* [ExecutorAllocationManagerSource](../dynamic-allocation/ExecutorAllocationManagerSource.md)
+* ExecutorMetricsSource
+* [ExecutorSource](../executor/ExecutorSource.md)
+* ExternalShuffleServiceSource
+* HiveCatalogMetrics
+* JVMCPUSource
+* [JvmSource](JvmSource.md)
+* LiveListenerBusMetrics
+* MasterSource
+* PluginMetricsSource
+* [ShuffleMetricsSource](../storage/ShuffleMetricsSource.md)
+* WorkerSource
