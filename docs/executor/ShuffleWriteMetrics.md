@@ -1,152 +1,34 @@
+---
+tags:
+  - DeveloperApi
+---
+
 # ShuffleWriteMetrics
 
-`ShuffleWriteMetrics` is a <<accumulators, collection of accumulators>> that represents task metrics about writing shuffle data.
+`ShuffleWriteMetrics` is a [ShuffleWriteMetricsReporter](../shuffle/ShuffleWriteMetricsReporter.md) of metrics ([accumulators](../accumulators/index.md)) related to writing shuffle data (in shuffle map tasks):
 
-`ShuffleWriteMetrics` tracks the following task metrics:
+* Shuffle Bytes Written
+* Shuffle Write Time
+* Shuffle Records Written
 
-1. <<bytesWritten, Shuffle Bytes Written>>
-2. <<writeTime, Shuffle Write Time>>
-3. <<recordsWritten, Shuffle Records Written>>
+## Creating Instance
 
-!!! note
-    [Accumulators](../accumulators/index.md) allow tasks (running on executors) to communicate with the driver.
+`ShuffleWriteMetrics` takes no input arguments to be created.
 
-[[accumulators]]
-.ShuffleWriteMetrics's Accumulators
-[cols="1,2",options="header",width="100%"]
-|===
-| Name
-| Description
+`ShuffleWriteMetrics` is created when:
 
-| [[_bytesWritten]] `_bytesWritten`
-| Accumulator to track how many shuffle bytes were written in a shuffle task.
+* `TaskMetrics` is [created](TaskMetrics.md#shuffleWriteMetrics)
+* `ShuffleExternalSorter` is requested to [writeSortedFile](../shuffle/ShuffleExternalSorter.md#writeSortedFile)
+* `MapIterator` (of [BytesToBytesMap](../memory/BytesToBytesMap.md)) is requested to `spill`
+* `ExternalAppendOnlyMap` is [created](../shuffle/ExternalAppendOnlyMap.md#writeMetrics)
+* `ExternalSorter` is requested to [spillMemoryIteratorToDisk](../shuffle/ExternalSorter.md#spillMemoryIteratorToDisk)
+* `UnsafeExternalSorter` is requested to [spill](../memory/UnsafeExternalSorter.md#spill)
+* `SpillableIterator` (of [UnsafeExternalSorter](../memory/UnsafeExternalSorter.md)) is requested to `spill`
 
-Used when ShuffleWriteMetrics is requested the <<bytesWritten, shuffle bytes written>> and to <<incBytesWritten, increment>> or <<decBytesWritten, decrement>> it.
+## <span id="TaskMetrics"> TaskMetrics
 
-NOTE: `_bytesWritten` is available as `internal.metrics.shuffle.write.bytesWritten` (internally `shuffleWrite.BYTES_WRITTEN`) in executor:TaskMetrics.md[TaskMetrics].
+`ShuffleWriteMetrics` is available using [TaskMetrics.shuffleWriteMetrics](TaskMetrics.md#shuffleWriteMetrics).
 
-| [[_writeTime]] `_writeTime`
-| Accumulator to track shuffle write time (as 64-bit integer) of a shuffle task.
+## <span id="Serializable"> Serializable
 
-Used when ShuffleWriteMetrics is requested the <<writeTime, shuffle write time>> and to <<incWriteTime, increment it>>.
-
-NOTE: `_writeTime` is available as `internal.metrics.shuffle.write.writeTime` (internally `shuffleWrite.WRITE_TIME`) in executor:TaskMetrics.md[TaskMetrics].
-
-| [[_recordsWritten]] `_recordsWritten`
-| Accumulator to track how many shuffle records were written in a shuffle task.
-
-Used when ShuffleWriteMetrics is requested the <<recordsWritten, shuffle records written>> and to <<incRecordsWritten, increment>> or <<decRecordsWritten, decrement>> it.
-
-NOTE: `_recordsWritten` is available as `internal.metrics.shuffle.write.recordsWritten` (internally `shuffleWrite.RECORDS_WRITTEN`) in executor:TaskMetrics.md[TaskMetrics].
-
-|===
-
-== [[decRecordsWritten]] `decRecordsWritten` Method
-
-CAUTION: FIXME
-
-== [[decBytesWritten]] `decBytesWritten` Method
-
-CAUTION: FIXME
-
-== [[writeTime]] `writeTime` Method
-
-CAUTION: FIXME
-
-== [[recordsWritten]] `recordsWritten` Method
-
-CAUTION: FIXME
-
-== [[bytesWritten]] Returning Number of Shuffle Bytes Written -- `bytesWritten` Method
-
-[source, scala]
-----
-bytesWritten: Long
-----
-
-`bytesWritten` represents the *shuffle bytes written* metrics of a shuffle task.
-
-Internally, `bytesWritten` returns the sum of <<_bytesWritten, _bytesWritten>> internal accumulator.
-
-[NOTE]
-====
-`bytesWritten` is used when:
-
-1. `ShuffleWriteMetricsUIData` is created
-
-2. In <<decBytesWritten, decBytesWritten>>
-
-3. spark-SparkListener-StatsReportListener.md#onStageCompleted[`StatsReportListener` intercepts stage completed events] to show shuffle bytes written
-
-4. shuffle:ShuffleExternalSorter.md#writeSortedFile[`ShuffleExternalSorter` does `writeSortedFile`] (to `incDiskBytesSpilled`)
-
-5. spark-history-server:JsonProtocol.md#taskMetricsToJson[`JsonProtocol` converts ShuffleWriteMetrics to JSON]
-====
-
-== [[incBytesWritten]] Incrementing Shuffle Bytes Written Metrics -- `incBytesWritten` Method
-
-[source, scala]
-----
-incBytesWritten(v: Long): Unit
-----
-
-`incBytesWritten` simply adds `v` to <<_bytesWritten, _bytesWritten>> internal accumulator.
-
-[NOTE]
-====
-`incBytesWritten` is used when:
-
-1. shuffle:UnsafeShuffleWriter.md#mergeSpills[`UnsafeShuffleWriter` does `mergeSpills`]
-
-2. storage:DiskBlockObjectWriter.md#updateBytesWritten[`DiskBlockObjectWriter` does `updateBytesWritten`]
-
-3. spark-history-server:JsonProtocol.md#taskMetricsFromJson[`JsonProtocol` creates `TaskMetrics` from JSON]
-
-====
-
-== [[incWriteTime]] Incrementing Shuffle Write Time Metrics -- `incWriteTime` Method
-
-[source, scala]
-----
-incWriteTime(v: Long): Unit
-----
-
-`incWriteTime` simply adds `v` to <<_writeTime, _writeTime>> internal accumulator.
-
-[NOTE]
-====
-`incWriteTime` is used when:
-
-1. shuffle:SortShuffleWriter.md#stop[`SortShuffleWriter` stops].
-
-2. `BypassMergeSortShuffleWriter` shuffle:BypassMergeSortShuffleWriter.md#write[writes records] (i.e. when it initializes `DiskBlockObjectWriter` partition writers) and later when shuffle:BypassMergeSortShuffleWriter.md#writePartitionedFile[concatenates per-partition files into a single file].
-
-3. shuffle:UnsafeShuffleWriter.md#mergeSpillsWithTransferTo[`UnsafeShuffleWriter` does `mergeSpillsWithTransferTo`].
-
-4. storage:DiskBlockObjectWriter.md#commitAndGet[`DiskBlockObjectWriter` does `commitAndGet`] (but only when `syncWrites` flag is enabled that forces outstanding writes to disk).
-
-5. spark-history-server:JsonProtocol.md#taskMetricsFromJson[`JsonProtocol` creates `TaskMetrics` from JSON]
-
-6. `TimeTrackingOutputStream` does its operation (after all it is an output stream to track shuffle write time).
-====
-
-== [[incRecordsWritten]] Incrementing Shuffle Records Written Metrics -- `incRecordsWritten` Method
-
-[source, scala]
-----
-incRecordsWritten(v: Long): Unit
-----
-
-`incRecordsWritten` simply adds `v` to <<_recordsWritten, _recordsWritten>> internal accumulator.
-
-[NOTE]
-====
-`incRecordsWritten` is used when:
-
-1. shuffle:ShuffleExternalSorter.md#writeSortedFile[`ShuffleExternalSorter` does `writeSortedFile`]
-
-2. storage:DiskBlockObjectWriter.md#recordWritten[`DiskBlockObjectWriter` does `recordWritten`]
-
-3. spark-history-server:JsonProtocol.md#taskMetricsFromJson[`JsonProtocol` creates `TaskMetrics` from JSON]
-
-====
+`ShuffleWriteMetrics` is a `Serializable` ([Java]({{ java.api }}/java.base/java/io/Serializable.html)).

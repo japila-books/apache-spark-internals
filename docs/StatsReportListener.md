@@ -1,3 +1,8 @@
+---
+tags:
+  - DeveloperApi
+---
+
 # StatsReportListener &mdash; Logging Summary Statistics
 
 `org.apache.spark.scheduler.StatsReportListener` (see https://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.scheduler.StatsReportListener[the listener's scaladoc]) is a SparkListener.md[] that logs summary statistics when each stage completes.

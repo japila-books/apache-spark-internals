@@ -17,6 +17,38 @@ tags:
 
 ## Metrics
 
+### <span id="shuffleWriteMetrics"> ShuffleWriteMetrics
+
+[ShuffleWriteMetrics](ShuffleWriteMetrics.md)
+
+* shuffle.write.bytesWritten
+* shuffle.write.recordsWritten
+* shuffle.write.writeTime
+
+`ShuffleWriteMetrics` is exposed using Dropwizard metrics system using [ExecutorSource](ExecutorSource.md) (when `TaskRunner` is about to finish [running](TaskRunner.md#run)):
+
+* shuffleBytesWritten
+* shuffleRecordsWritten
+* shuffleWriteTime
+
+`ShuffleWriteMetrics` can be monitored using:
+
+* [StatsReportListener](../StatsReportListener.md) (when a [stage completes](../StatsReportListener.md#onStageCompleted))
+    * shuffle bytes written
+* [JsonProtocol](../history-server/JsonProtocol.md) (when requested to [taskMetricsToJson](../history-server/JsonProtocol.md#taskMetricsToJson))
+    * Shuffle Bytes Written
+    * Shuffle Write Time
+    * Shuffle Records Written
+
+`shuffleWriteMetrics` is used when:
+
+* `ShuffleWriteProcessor` is requested for a [ShuffleWriteMetricsReporter](../shuffle/ShuffleWriteProcessor.md#createMetricsReporter)
+* `SortShuffleWriter` is [created](../shuffle/SortShuffleWriter.md#writeMetrics)
+* `AppStatusListener` is requested to [handle a SparkListenerTaskEnd](../status/AppStatusListener.md#onTaskEnd)
+* `LiveTask` is requested to `updateMetrics`
+* `ExternalSorter` is requested to [writePartitionedFile](../shuffle/ExternalSorter.md#writePartitionedFile) (to create a [DiskBlockObjectWriter](../storage/DiskBlockObjectWriter.md#writeMetrics)), [writePartitionedMapOutput](../shuffle/ExternalSorter.md#writePartitionedMapOutput)
+* `ShuffleExchangeExec` ([Spark SQL]({{ book.spark_sql }}/physical-operators/ShuffleExchangeExec)) is requested for a `ShuffleWriteProcessor` (to create a [ShuffleDependency](../rdd/ShuffleDependency.md#shuffleWriterProcessor))
+
 ### <span id="_memoryBytesSpilled"><span id="memoryBytesSpilled"><span id="incMemoryBytesSpilled"><span id="MEMORY_BYTES_SPILLED"> Memory Bytes Spilled
 
 `memoryBytesSpilled` metric
