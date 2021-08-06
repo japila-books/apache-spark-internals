@@ -1,6 +1,6 @@
 # BypassMergeSortShuffleWriter
 
-`BypassMergeSortShuffleWriter<K, V>` is a [ShuffleWriter](ShuffleWriter.md) for [ShuffleMapTasks](../scheduler/ShuffleMapTask.md) to [write records into one single shuffle block data file](#write).
+`BypassMergeSortShuffleWriter&lt;K, V&gt;` is a [ShuffleWriter](ShuffleWriter.md) for [ShuffleMapTasks](../scheduler/ShuffleMapTask.md) to [write records into one single shuffle block data file](#write).
 
 ![BypassMergeSortShuffleWriter and DiskBlockObjectWriters](../images/shuffle/BypassMergeSortShuffleWriter-write.png)
 
@@ -12,12 +12,14 @@
 * <span id="handle"> [BypassMergeSortShuffleHandle](BypassMergeSortShuffleHandle.md) (of `K` keys and `V` values)
 * <span id="mapId"> Map ID
 * <span id="conf"> [SparkConf](../SparkConf.md)
-* <span id="writeMetrics"> `ShuffleWriteMetricsReporter`
+* <span id="writeMetrics"> [ShuffleWriteMetricsReporter](ShuffleWriteMetricsReporter.md)
 * <span id="shuffleExecutorComponents"> `ShuffleExecutorComponents`
 
-`BypassMergeSortShuffleWriter` is created when `SortShuffleManager` is requested for a [ShuffleWriter](SortShuffleManager.md#getWriter) (for a [BypassMergeSortShuffleHandle](#handle)).
+`BypassMergeSortShuffleWriter` is created when:
 
-## <span id="partitionWriters"> Partition Writers
+* `SortShuffleManager` is requested for a [ShuffleWriter](SortShuffleManager.md#getWriter) (for a [BypassMergeSortShuffleHandle](#handle))
+
+## <span id="partitionWriters"> DiskBlockObjectWriters
 
 ```java
 DiskBlockObjectWriter[] partitionWriters
@@ -25,20 +27,20 @@ DiskBlockObjectWriter[] partitionWriters
 
 `BypassMergeSortShuffleWriter` uses a [DiskBlockObjectWriter](../storage/DiskBlockObjectWriter.md) per [partition](#numPartitions) (based on the [Partitioner](#partitioner)).
 
-`BypassMergeSortShuffleWriter` asserts that no `partitionWriters` has been initialized (`null`) while [writing](#write).
+`BypassMergeSortShuffleWriter` asserts that no `partitionWriters` are created while [writing out records to a shuffle file](#write).
 
-While [writing](#write), `BypassMergeSortShuffleWriter` requests the [BlockManager](#blockManager) for as many [DiskBlockObjectWriter](../storage/BlockManager.md#getDiskWriter)s as there are [partition](#numPartitions) (in the [Partitioner](#partitioner)).
+While [writing](#write), `BypassMergeSortShuffleWriter` requests the [BlockManager](#blockManager) for as many [DiskBlockObjectWriter](../storage/BlockManager.md#getDiskWriter)s as there are [partition](#numPartitions)s (in the [Partitioner](#partitioner)).
 
-While [writing](#write), `BypassMergeSortShuffleWriter` requests the [Partitioner](#partitioner) for a [partition](../rdd/Partitioner.md#getPartition) for records (using keys) and finds the per-partition `DiskBlockObjectWriter` that is requested to [write out the record](../storage/DiskBlockObjectWriter.md#write). After all records are written out to their shuffle files, the `DiskBlockObjectWriter`s are requested to [commitAndGet](../storage/DiskBlockObjectWriter.md#commitAndGet).
+While [writing](#write), `BypassMergeSortShuffleWriter` requests the [Partitioner](#partitioner) for a [partition](../rdd/Partitioner.md#getPartition) for records (using keys) and finds the per-partition `DiskBlockObjectWriter` that is requested to [write out the partition records](../storage/DiskBlockObjectWriter.md#write). After all records are written out to their shuffle files, the `DiskBlockObjectWriter`s are requested to [commitAndGet](../storage/DiskBlockObjectWriter.md#commitAndGet).
 
-`BypassMergeSortShuffleWriter` uses the partition writers while [writePartitionedData](#writePartitionedData) and removes references to them (`null`ify them) in the end.
+`BypassMergeSortShuffleWriter` uses the partition writers while [writing out partition data](#writePartitionedData) and removes references to them (`null`ify them) in the end.
 
-In other words, after [writePartitionedData](#writePartitionedData) `partitionWriters` internal registry is `null`.
+In other words, after [writing out partition data](#writePartitionedData) `partitionWriters` internal registry is `null`.
 
 `partitionWriters` internal registry becomes `null` after `BypassMergeSortShuffleWriter` has finished:
 
-* [writePartitionedData](#writePartitionedData)
-* [stop](#stop)
+* [Writing out partition data](#writePartitionedData)
+* [Stopping](#stop)
 
 ## <span id="shuffleBlockResolver"> IndexShuffleBlockResolver
 
@@ -115,56 +117,20 @@ When there is no records to write out, `write` initializes the [partitionLengths
 
 `write` requires that there are no [DiskBlockObjectWriters](#partitionWriters).
 
-### <span id="writePartitionedData"> writePartitionedData
+### <span id="writePartitionedData"> Writing Out Partitioned Data
 
 ```java
 long[] writePartitionedData(
   ShuffleMapOutputWriter mapOutputWriter)
 ```
 
-`writePartitionedData`...FIXME
+`writePartitionedData` makes sure that [DiskBlockObjectWriter](#partitionWriters)s are available (`partitionWriters != null`).
 
-### <span id="writePartitionedDataWithChannel"> writePartitionedDataWithChannel
+For [every partition](#numPartitions), `writePartitionedData` takes the partition file (from the [FileSegment](#partitionWriterSegments)s). Only when the partition file exists, `writePartitionedData` requests the given [ShuffleMapOutputWriter](ShuffleMapOutputWriter.md) for a [ShufflePartitionWriter](ShuffleMapOutputWriter.md#getPartitionWriter) and writes out the partitioned data. At the end, `writePartitionedData` deletes the file.
 
-```java
-void writePartitionedDataWithChannel(
-  File file,
-  WritableByteChannelWrapper outputChannel)
-```
+`writePartitionedData` requests the [ShuffleWriteMetricsReporter](#writeMetrics) to [increment the write time](ShuffleWriteMetricsReporter.md#incWriteTime).
 
-`writePartitionedDataWithChannel`...FIXME
-
-### <span id="writePartitionedDataWithStream"> writePartitionedDataWithStream
-
-```java
-void writePartitionedDataWithStream(
-  File file,
-  ShufflePartitionWriter writer)
-```
-
-`writePartitionedDataWithStream`...FIXME
-
-## <span id="writePartitionedFile"> FIXME Concatenating Per-Partition Files Into Single File
-
-```java
-long[] writePartitionedFile(
-  File outputFile)
-```
-
-!!! important
-    `writePartitionedFile` is no longer available.
-
-`writePartitionedFile` creates a file output stream for the input `outputFile` in append mode.
-
-`writePartitionedFile` starts tracking write time (as `writeStartTime`).
-
-For every <<numPartitions, numPartitions>> partition, writePartitionedFile takes the file from the `FileSegment` (from <<partitionWriterSegments, partitionWriterSegments>>) and creates a file input stream to read raw bytes.
-
-`writePartitionedFile` then <<copyStream, copies the raw bytes from each partition segment input stream to `outputFile`>> (possibly using Java New I/O per <<transferToEnabled, transferToEnabled>> flag set when <<creating-instance, BypassMergeSortShuffleWriter was created>>) and records the length of the shuffle data file (in `lengths` internal array).
-
-In the end, `writePartitionedFile` executor:ShuffleWriteMetrics.md#incWriteTime[increments shuffle write time], clears <<partitionWriters, partitionWriters>> array and returns the lengths of the shuffle data files per partition.
-
-`writePartitionedFile` is used when `BypassMergeSortShuffleWriter` is requested to [write out records](#write).
+In the end, `writePartitionedData` requests the `ShuffleMapOutputWriter` to [commitAllPartitions](ShuffleMapOutputWriter.md#commitAllPartitions) and returns the size of each partition of the output map file.
 
 ## <span id="copyStream"> Copying Raw Bytes Between Input Streams
 

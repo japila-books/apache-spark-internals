@@ -23,7 +23,7 @@ In case of any `Exception`s, `write` requests the `ShuffleWriter` to [stop](Shuf
 
 `write` is used when `ShuffleMapTask` is requested to [run](../scheduler/ShuffleMapTask.md#runTask).
 
-### <span id="createMetricsReporter"> createMetricsReporter
+### <span id="createMetricsReporter"> Creating MetricsReporter
 
 ```scala
 createMetricsReporter(

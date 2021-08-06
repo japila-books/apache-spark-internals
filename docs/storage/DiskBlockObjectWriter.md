@@ -21,7 +21,7 @@
 * <span id="serializerInstance"> [SerializerInstance](../serializer/SerializerInstance.md)
 * <span id="bufferSize"> Buffer size
 * <span id="syncWrites"> `syncWrites` flag (based on [spark.shuffle.sync](../configuration-properties.md#spark.shuffle.sync) configuration property)
-* <span id="writeMetrics"> `ShuffleWriteMetricsReporter`
+* <span id="writeMetrics"> [ShuffleWriteMetricsReporter](../shuffle/ShuffleWriteMetricsReporter.md)
 * <span id="blockId"> [BlockId](BlockId.md) (default: `null`)
 
 `DiskBlockObjectWriter` is created when:

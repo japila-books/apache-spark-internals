@@ -18,7 +18,7 @@
 * <span id="mapId"> Map ID
 * <span id="taskContext"> [TaskContext](../scheduler/TaskContext.md)
 * <span id="sparkConf"> [SparkConf](../SparkConf.md)
-* <span id="writeMetrics"> `ShuffleWriteMetricsReporter`
+* <span id="writeMetrics"> [ShuffleWriteMetricsReporter](ShuffleWriteMetricsReporter.md)
 * <span id="shuffleExecutorComponents"> `ShuffleExecutorComponents`
 
 `UnsafeShuffleWriter` is created when `SortShuffleManager` is requested for a [ShuffleWriter](SortShuffleManager.md#getWriter) for a [SerializedShuffleHandle](SerializedShuffleHandle.md).

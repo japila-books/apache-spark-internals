@@ -64,11 +64,13 @@ Default: (empty)
 
 ## <span id="spark.file.transferTo"> spark.file.transferTo
 
-Controls whether to use Java [FileChannel]({{ java.api }}/java.base/java/nio/channels/FileChannel.html)s (Java NIO) for copying data between two Java FileInputStreams to improve copy performance
+Controls whether to use Java [FileChannel]({{ java.api }}/java.base/java/nio/channels/FileChannel.html)s (Java NIO) for copying data between two Java `FileInputStream`s to improve copy performance
 
 Default: `true`
 
-Used when [BypassMergeSortShuffleWriter](shuffle/BypassMergeSortShuffleWriter.md#transferToEnabled) and [UnsafeShuffleWriter](shuffle/UnsafeShuffleWriter.md#transferToEnabled) are created
+Used when:
+
+* [BypassMergeSortShuffleWriter](shuffle/BypassMergeSortShuffleWriter.md#transferToEnabled) and [UnsafeShuffleWriter](shuffle/UnsafeShuffleWriter.md#transferToEnabled) are created
 
 ## <span id="spark.files"> spark.files
 

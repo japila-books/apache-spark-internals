@@ -34,7 +34,7 @@
 * <span id="initialSize"> Initial Size
 * <span id="numPartitions"> Number of Partitions
 * <span id="conf"> [SparkConf](../SparkConf.md)
-* <span id="writeMetrics"> `ShuffleWriteMetricsReporter`
+* <span id="writeMetrics"> [ShuffleWriteMetricsReporter](ShuffleWriteMetricsReporter.md)
 
 `ShuffleExternalSorter` is created when `UnsafeShuffleWriter` is requested to [open a ShuffleExternalSorter](UnsafeShuffleWriter.md#open).
 
