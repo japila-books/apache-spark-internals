@@ -56,6 +56,12 @@ Default: `1`
 
 Default: (undefined)
 
+## <span id="spark.executor.metrics.fileSystemSchemes"><span id="EXECUTOR_METRICS_FILESYSTEM_SCHEMES"> spark.executor.metrics.fileSystemSchemes
+
+A comma-separated list of the file system schemes to report in [executor metrics](executor/ExecutorSource.md#fileSystemSchemes)
+
+Default: `file,hdfs`
+
 ## <span id="spark.extraListeners"> spark.extraListeners
 
 A comma-separated list of fully-qualified class names of [SparkListener](SparkListener.md)s (to be registered when [SparkContext](SparkContext.md) is created)

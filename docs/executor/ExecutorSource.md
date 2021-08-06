@@ -1,38 +1,34 @@
-= ExecutorSource
+# ExecutorSource
 
-ExecutorSource is a spark-metrics-Source.md[metrics source] of an executor:Executor.md[]. It uses an executor's executor:Executor.md#threadPool[threadPool] for calculating the gauges.
+`ExecutorSource` is a [Source](../metrics/Source.md) of [Executor](Executor.md#executorSource)s.
 
-NOTE: Every executor has its own separate ExecutorSource that is registered when executor:CoarseGrainedExecutorBackend.md#RegisteredExecutor[`CoarseGrainedExecutorBackend` receives a `RegisteredExecutor`].
+![ExecutorSource in JConsole (using Spark Standalone)](../images/executor/spark-executorsource-jconsole.png)
 
-The name of a ExecutorSource is **executor**.
+## Creating Instance
 
-.ExecutorSource in JConsole (using Spark Standalone)
-image::spark-executorsource-jconsole.png[align="center"]
+`ExecutorSource` takes the following to be created:
 
-.ExecutorSource Gauges
-[cols="1,2",options="header",width="100%"]
-|===
-| Gauge | Description
-| threadpool.activeTasks | Approximate number of threads that are actively executing tasks.
+* <span id="threadPool"> [ThreadPoolExecutor](Executor.md#threadPool)
+* <span id="executorId"> [Executor ID](Executor.md#executorId) (_unused_)
+* <span id="fileSystemSchemes"> File System Schemes (to report based on [spark.executor.metrics.fileSystemSchemes](../configuration-properties.md#spark.executor.metrics.fileSystemSchemes))
 
-Uses http://docs.oracle.com/javase/8/docs/api/java/util/concurrent/ThreadPoolExecutor.html[ThreadPoolExecutor.getActiveCount()].
-| threadpool.completeTasks | Approximate total number of tasks that have completed execution.
+`ExecutorSource` is created when:
 
-Uses http://docs.oracle.com/javase/8/docs/api/java/util/concurrent/ThreadPoolExecutor.html[ThreadPoolExecutor.getCompletedTaskCount()].
-| threadpool.currentPool_size | Current number of threads in the pool.
+* `Executor` is [created](Executor.md#executorSource)
 
-Uses http://docs.oracle.com/javase/8/docs/api/java/util/concurrent/ThreadPoolExecutor.html[ThreadPoolExecutor.getPoolSize()].
-| threadpool.maxPool_size | Maximum allowed number of threads that have ever simultaneously been in the pool
+## <span id="sourceName"> Name
 
-Uses http://docs.oracle.com/javase/8/docs/api/java/util/concurrent/ThreadPoolExecutor.html[ThreadPoolExecutor.getMaximumPoolSize()].
-| filesystem.hdfs.read_bytes | Uses Hadoop's https://hadoop.apache.org/docs/current/api/org/apache/hadoop/fs/FileSystem.html[FileSystem.getAllStatistics()] and `getBytesRead()`.
-| filesystem.hdfs.write_bytes | Uses Hadoop's https://hadoop.apache.org/docs/current/api/org/apache/hadoop/fs/FileSystem.html[FileSystem.getAllStatistics()] and `getBytesWritten()`.
-| filesystem.hdfs.read_ops | Uses Hadoop's https://hadoop.apache.org/docs/current/api/org/apache/hadoop/fs/FileSystem.html[FileSystem.getAllStatistics()] and `getReadOps()`
-| filesystem.hdfs.largeRead_ops | Uses Hadoop's https://hadoop.apache.org/docs/current/api/org/apache/hadoop/fs/FileSystem.html[FileSystem.getAllStatistics()] and `getLargeReadOps()`.
-| filesystem.hdfs.write_ops | Uses Hadoop's https://hadoop.apache.org/docs/current/api/org/apache/hadoop/fs/FileSystem.html[FileSystem.getAllStatistics()] and `getWriteOps()`.
-| filesystem.file.read_bytes | The same as `hdfs` but for `file` scheme.
-| filesystem.file.write_bytes | The same as `hdfs` but for `file` scheme.
-| filesystem.file.read_ops | The same as `hdfs` but for `file` scheme.
-| filesystem.file.largeRead_ops | The same as `hdfs` but for `file` scheme.
-| filesystem.file.write_ops | The same as `hdfs` but for `file` scheme.
-|===
+`ExecutorSource` is known under the name **executor**.
+
+## <span id="metricRegistry"> Metrics
+
+```scala
+metricRegistry: MetricRegistry
+```
+
+`metricRegistry` is part of the [Source](../metrics/Source.md#metricRegistry) abstraction.
+
+Name | Description
+-----|----------
+ threadpool.activeTasks | Approximate number of threads that are actively executing tasks (based on [ThreadPoolExecutor.getActiveCount]({{ java.api }}/java.base/java/util/concurrent/ThreadPoolExecutor.html))
+ _others_ |
