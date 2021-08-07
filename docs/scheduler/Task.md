@@ -28,12 +28,12 @@ Used when `Task` is requested to [run](#run)
 
 `Task` takes the following to be created:
 
-* <span id="stageId"> Stage ID
+* <span id="stageId"> [Stage](Stage.md) ID
 * <span id="stageAttemptId"> Stage (execution) Attempt ID
-* <span id="partitionId"> Partition ID
-* <span id="localProperties"> Local Properties
+* <span id="partitionId"> [Partition](../rdd/Partition.md) ID to compute
+* <span id="localProperties"> [Local Properties](../SparkContext.md#localProperties)
 * <span id="serializedTaskMetrics"> Serialized [TaskMetrics](../executor/TaskMetrics.md) (`Array[Byte]`)
-* <span id="jobId"> Job ID (default: `None`)
+* <span id="jobId"> [ActiveJob](ActiveJob.md) ID (default: `None`)
 * <span id="appId"> Application ID (default: `None`)
 * <span id="appAttemptId"> Application Attempt ID (default: `None`)
 * <span id="isBarrier"> `isBarrier` flag (default: `false`)
