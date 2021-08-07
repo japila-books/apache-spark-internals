@@ -1,4 +1,4 @@
-== [[FairSchedulableBuilder]] FairSchedulableBuilder -- SchedulableBuilder for FAIR Scheduling Mode
+# FairSchedulableBuilder
 
 `FairSchedulableBuilder` is a <<spark-scheduler-SchedulableBuilder.md#, SchedulableBuilder>> that is <<creating-instance, created>> exclusively for scheduler:TaskSchedulerImpl.md[TaskSchedulerImpl] for *FAIR scheduling mode* (when configuration-properties.md#spark.scheduler.mode[spark.scheduler.mode] configuration property is `FAIR`).
 
@@ -22,7 +22,8 @@ TIP: Use *conf/fairscheduler.xml.template* as a template for the <<allocations-f
 [[spark.scheduler.pool]]
 `FairSchedulableBuilder` uses *spark.scheduler.pool* local property for the name of the pool to use when requested to <<addTaskSetManager, addTaskSetManager>> (default: <<DEFAULT_POOL_NAME, default>>).
 
-NOTE: Use spark-sparkcontext-local-properties.md#setLocalProperty[SparkContext.setLocalProperty] to set properties per thread (aka *local properties*) to group jobs in logical groups, e.g. to allow `FairSchedulableBuilder` to use `spark.scheduler.pool` property and to group jobs from different threads to be submitted for execution on a non-<<DEFAULT_POOL_NAME, default>> pool.
+!!! note
+    [SparkContext.setLocalProperty](../SparkContext.md#setLocalProperty) lets you set local properties per thread to group jobs in logical groups, e.g. to allow `FairSchedulableBuilder` to use `spark.scheduler.pool` property and to group jobs from different threads to be submitted for execution on a non-<<DEFAULT_POOL_NAME, default>> pool.
 
 [source, scala]
 ----

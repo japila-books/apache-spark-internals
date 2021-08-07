@@ -15,7 +15,7 @@
 * [Broadcast variable with a serialized task binary](#taskBinary)
 * <span id="partition"> [Partition](../rdd/Partition.md)
 * <span id="locs"> [TaskLocation](TaskLocation.md)s
-* <span id="localProperties"> Local Properties
+* <span id="localProperties"> [Local Properties](../SparkContext.md#localProperties)
 * <span id="serializedTaskMetrics"> Serialized task metrics
 * <span id="jobId"> [Job ID](ActiveJob.md) (default: `None`)
 * <span id="appId"> Application ID (default: `None`)

@@ -17,6 +17,47 @@
 
 While being created, `SparkContext` [sets up core services](SparkContext-creating-instance-internals.md) and establishes a connection to a [Spark execution environment](spark-deployment-environments.md).
 
+## <span id="localProperties"><span id="getLocalProperties"><span id="setLocalProperties"><span id="setLocalProperty"> Local Properties
+
+```scala
+localProperties: InheritableThreadLocal[Properties]
+```
+
+`SparkContext` uses an `InheritableThreadLocal` ([Java]({{ java.api }}/java.base/java/lang/InheritableThreadLocal.html)) of key-value pairs of thread-local properties to pass extra information from a parent thread (on the driver) to child threads.
+
+`localProperties` is meant to be used by developers using [SparkContext.setLocalProperty](#setLocalProperty) and [SparkContext.getLocalProperty](#getLocalProperty).
+
+Local Properties are available using [TaskContext.getLocalProperty](scheduler/TaskContext.md#getLocalProperty).
+
+Local Properties are available to [SparkListener](SparkListener.md)s using the following events:
+
+* [SparkListenerJobStart](SparkListenerEvent.md#SparkListenerJobStart)
+* [SparkListenerStageSubmitted](SparkListenerEvent.md#SparkListenerStageSubmitted)
+
+`localProperties` are passed down when `SparkContext` is requested for the following:
+
+* [Running Job](#runJob) (that in turn makes the local properties available to the [DAGScheduler](#dagScheduler) to [run a job](scheduler/DAGScheduler.md#runJob))
+* [Running Approximate Job](#runApproximateJob)
+* [Submitting Job](#submitJob)
+* [Submitting MapStage](#submitMapStage)
+
+`DAGScheduler` passes down local properties when scheduling:
+
+* [ShuffleMapTask](scheduler/ShuffleMapTask.md#localProperties)s
+* [ResultTask](scheduler/ResultTask.md#localProperties)s
+* [TaskSet](scheduler/TaskSet.md#properties)s
+
+Spark (Core) defines the following local properties.
+
+Name | Default Value | Setter
+-----|---------------|-------------
+ <span id="LONG_FORM"> `callSite.long` |
+ <span id="SHORT_FORM"><span id="setCallSite"> `callSite.short` | | `SparkContext.setCallSite`
+ <span id="SPARK_JOB_DESCRIPTION"><span id="setJobDescription"> `spark.job.description` | [callSite.short](#SHORT_FORM) | `SparkContext.setJobDescription` <br> (`SparkContext.setJobGroup`)
+ <span id="SPARK_JOB_INTERRUPT_ON_CANCEL"> `spark.job.interruptOnCancel` | | `SparkContext.setJobGroup`
+ <span id="SPARK_JOB_GROUP_ID"><span id="setJobGroup"> `spark.jobGroup.id` | | `SparkContext.setJobGroup`
+ <span id="SPARK_SCHEDULER_POOL"> `spark.scheduler.pool` | |
+
 ## Services
 
 * <span id="statusStore"><span id="AppStatusStore"><span id="_statusStore"> [AppStatusStore](status/AppStatusStore.md)
@@ -350,7 +391,7 @@ SparkContext offers the following functions:
 
 * Setting Configuration
 ** <<master-url, master URL>>
-** spark-sparkcontext-local-properties.md[Local Properties -- Creating Logical Job Groups]
+** [Local Properties](#localProperties)
 ** <<setJobGroup, Setting Local Properties to Group Spark Jobs>>
 ** <<setting-default-log-level, Default Logging Level>>
 
@@ -1087,30 +1128,6 @@ NOTE: `cancelJobGroup` is used exclusively when `SparkExecuteStatementOperation`
 CAUTION: FIXME
 
 NOTE: `cancelAllJobs` is used when spark-shell.md[spark-shell] is terminated (e.g. using Ctrl+C, so it can in turn terminate all active Spark jobs) or `SparkSQLCLIDriver` is terminated.
-
-== [[setJobGroup]] Setting Local Properties to Group Spark Jobs -- `setJobGroup` Method
-
-[source, scala]
-----
-setJobGroup(
-  groupId: String,
-  description: String,
-  interruptOnCancel: Boolean = false): Unit
-----
-
-`setJobGroup` spark-sparkcontext-local-properties.md#setLocalProperty[sets local properties]:
-
-* `spark.jobGroup.id` as `groupId`
-* `spark.job.description` as `description`
-* `spark.job.interruptOnCancel` as `interruptOnCancel`
-
-[NOTE]
-====
-`setJobGroup` is used when:
-
-* Spark Thrift Server's `SparkExecuteStatementOperation` runs a query
-* Structured Streaming's `StreamExecution` runs batches
-====
 
 == [[cleaner]] ContextCleaner
 

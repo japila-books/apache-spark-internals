@@ -111,7 +111,9 @@ Job [jobId] finished: [callSite], took [time] s
 Job [jobId] failed: [callSite], took [time] s
 ```
 
-`runJob` is used when `SparkContext` is requested to [run a job](../SparkContext.md#runJob).
+`runJob` is used when:
+
+* `SparkContext` is requested to [run a job](../SparkContext.md#runJob)
 
 ## <span id="submitJob"> Submitting Job
 

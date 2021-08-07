@@ -93,15 +93,17 @@ Event handler: [handleJobGroupCancelled](DAGScheduler.md#handleJobGroupCancelled
 
 Carries the following:
 
-* Job ID
+* [Job ID](DAGScheduler.md#nextJobId)
 * [RDD](../rdd/RDD.md)
-* Partition function (`(TaskContext, Iterator[_]) => _`)
-* Partitions to compute
-* CallSite
+* Partition processing function (with a [TaskContext](TaskContext.md) and the partition data, i.e. `(TaskContext, Iterator[_]) => _`)
+* Partition IDs to compute
+* `CallSite`
 * [JobListener](JobListener.md) to keep updated about the status of the stage execution
-* Execution properties
+* [Execution properties](../SparkContext.md#localProperties)
 
-Posted when `DAGScheduler` is requested to [submit a job](DAGScheduler.md#submitJob), [run an approximate job](DAGScheduler.md#runApproximateJob) and [handleJobSubmitted](DAGScheduler.md#handleJobSubmitted)
+Posted when:
+
+* `DAGScheduler` is requested to [submit a job](DAGScheduler.md#submitJob), [run an approximate job](DAGScheduler.md#runApproximateJob) and [handleJobSubmitted](DAGScheduler.md#handleJobSubmitted)
 
 Event handler: [handleJobSubmitted](DAGScheduler.md#handleJobSubmitted)
 
