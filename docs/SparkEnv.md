@@ -1,3 +1,8 @@
+---
+tags:
+  - DeveloperApi
+---
+
 # SparkEnv
 
 `SparkEnv` is a handle to **Spark Execution Environment** with the [core services](#services) of Apache Spark (that interact with each other to establish a distributed computing platform for a Spark application).
@@ -43,7 +48,7 @@ Property | Service
 
 `SparkEnv` is created using [create](#create) utility.
 
-## <span id="driverTmpDir"> Temporary Directory of Driver
+## <span id="driverTmpDir"> Driver's Temporary Directory
 
 ```scala
 driverTmpDir: Option[String]
@@ -52,6 +57,35 @@ driverTmpDir: Option[String]
 `SparkEnv` defines `driverTmpDir` internal registry for the driver to be used as the [root directory](SparkFiles.md#getRootDirectory) of files added using [SparkContext.addFile](SparkContext.md#addFile).
 
 `driverTmpDir` is undefined initially and is defined for the driver only when `SparkEnv` utility is used to [create a "base" SparkEnv](#create).
+
+### <span id="driverTmpDir-demo"> Demo
+
+```text
+import org.apache.spark.SparkEnv
+```
+
+```scala
+// :pa -raw
+// BEGIN
+package org.apache.spark
+object BypassPrivateSpark {
+  def driverTmpDir(sparkEnv: SparkEnv) = {
+    sparkEnv.driverTmpDir
+  }
+}
+// END
+```
+
+```scala
+val driverTmpDir = org.apache.spark.BypassPrivateSpark.driverTmpDir(SparkEnv.get).get
+```
+
+The above is equivalent to the following snippet.
+
+```scala
+import org.apache.spark.SparkFiles
+SparkFiles.getRootDirectory
+```
 
 ## <span id="createDriverEnv"> Creating SparkEnv for Driver
 
@@ -122,24 +156,7 @@ create(
   mockOutputCommitCoordinator: Option[OutputCommitCoordinator] = None): SparkEnv
 ```
 
-create is an utility to create the "base" SparkEnv (that is "enhanced" for the driver and executors later on).
-
-.create's Input Arguments and Their Usage
-[cols="1,2",options="header",width="100%"]
-|===
-| Input Argument
-| Usage
-
-| `bindAddress`
-| Used to create rpc:index.md[RpcEnv] and storage:NettyBlockTransferService.md#creating-instance[NettyBlockTransferService].
-
-| `advertiseAddress`
-| Used to create rpc:index.md[RpcEnv] and storage:NettyBlockTransferService.md#creating-instance[NettyBlockTransferService].
-
-| `numUsableCores`
-| Used to create memory:MemoryManager.md[MemoryManager],
- storage:NettyBlockTransferService.md#creating-instance[NettyBlockTransferService] and storage:BlockManager.md#creating-instance[BlockManager].
-|===
+`create` creates the "base" `SparkEnv` (that is common across the driver and executors).
 
 [[create-Serializer]]
 create creates a `Serializer` (based on <<spark_serializer, spark.serializer>> setting). You should see the following `DEBUG` message in the logs:
@@ -164,15 +181,10 @@ create creates a storage:NettyBlockTransferService.md#creating-instance[NettyBlo
 
 * storage:BlockManager.md#spark_blockManager_port[spark.blockManager.port] for an executor (default: `0`)
 
-NOTE: create uses the `NettyBlockTransferService` to <<create-BlockManager, create a BlockManager>>.
-
-CAUTION: FIXME A picture with SparkEnv, `NettyBlockTransferService` and the ports "armed".
-
 [[BlockManagerMaster]][[create-BlockManagerMaster]]
 create creates a storage:BlockManagerMaster.md#creating-instance[BlockManagerMaster] object with the `BlockManagerMaster` RPC endpoint reference (by <<registerOrLookupEndpoint, registering or looking it up by name>> and storage:BlockManagerMasterEndpoint.md[]), the input SparkConf.md[SparkConf], and the input `isDriver` flag.
 
-.Creating BlockManager for the Driver
-image::sparkenv-driver-blockmanager.png[align="center"]
+![Creating BlockManager for the Driver](images/core/sparkenv-driver-blockmanager.png)
 
 NOTE: create registers the *BlockManagerMaster* RPC endpoint for the driver and looks it up for executors.
 
@@ -205,124 +217,14 @@ It initializes `userFiles` temporary directory used for downloading dependencies
 [[create-OutputCommitCoordinator]]
 An OutputCommitCoordinator is created.
 
-### Usage
-
-`create` is used when `SparkEnv` utility is used to create a `SparkEnv` for the [driver](#createDriverEnv) and [executors](#createExecutorEnv).
-
-== [[get]] Accessing SparkEnv
-
-[source, scala]
-----
-get: SparkEnv
-----
-
-get returns the SparkEnv on the driver and executors.
-
-[source, scala]
-----
-import org.apache.spark.SparkEnv
-assert(SparkEnv.get.isInstanceOf[SparkEnv])
-----
-
-== [[registerOrLookupEndpoint]] Registering or Looking up RPC Endpoint by Name
-
-[source, scala]
-----
-registerOrLookupEndpoint(
-  name: String,
-  endpointCreator: => RpcEndpoint)
-----
-
-`registerOrLookupEndpoint` registers or looks up a RPC endpoint by `name`.
-
-If called from the driver, you should see the following INFO message in the logs:
-
-```
-Registering [name]
-```
-
-And the RPC endpoint is registered in the RPC environment.
-
-Otherwise, it obtains a RPC endpoint reference by `name`.
-
-== [[stop]] Stopping SparkEnv
-
-[source, scala]
-----
-stop(): Unit
-----
-
-stop checks <<isStopped, isStopped>> internal flag and does nothing when enabled already.
-
-Otherwise, stop turns `isStopped` flag on, stops all `pythonWorkers` and requests the following services to stop:
-
-1. scheduler:MapOutputTracker.md#stop[MapOutputTracker]
-2. shuffle:ShuffleManager.md#stop[ShuffleManager]
-3. core:BroadcastManager.md#stop[BroadcastManager]
-4. storage:BlockManager.md#stop[BlockManager]
-5. storage:BlockManagerMaster.md#stop[BlockManagerMaster]
-6. [MetricsSystem](metrics/MetricsSystem.md#stop)
-7. [OutputCommitCoordinator](OutputCommitCoordinator.md#stop)
-
-stop rpc:index.md#shutdown[requests `RpcEnv` to shut down] and rpc:index.md#awaitTermination[waits till it terminates].
-
-Only on the driver, stop deletes the <<driverTmpDir, temporary directory>>. You can see the following WARN message in the logs if the deletion fails.
-
-```
-Exception while deleting Spark temp dir: [path]
-```
-
-NOTE: stop is used when SparkContext.md#stop[`SparkContext` stops] (on the driver) and executor:Executor.md#stop[`Executor` stops].
-
-== [[set]] `set` Method
-
-[source, scala]
-----
-set(e: SparkEnv): Unit
-----
-
-`set` saves the input SparkEnv to <<env, env>> internal registry (as the default SparkEnv).
-
-NOTE: `set` is used when...FIXME
-
-== [[environmentDetails]] environmentDetails Utility
-
-[source, scala]
-----
-environmentDetails(
-  conf: SparkConf,
-  schedulingMode: String,
-  addedJars: Seq[String],
-  addedFiles: Seq[String]): Map[String, Seq[(String, String)]]
-----
-
-environmentDetails...FIXME
-
-environmentDetails is used when SparkContext is requested to SparkContext.md#postEnvironmentUpdate[post a SparkListenerEnvironmentUpdate event].
-
-== [[logging]] Logging
+## Logging
 
 Enable `ALL` logging level for `org.apache.spark.SparkEnv` logger to see what happens inside.
 
 Add the following line to `conf/log4j.properties`:
 
-[source]
-----
+```text
 log4j.logger.org.apache.spark.SparkEnv=ALL
-----
+```
 
-Refer to spark-logging.md[Logging].
-
-== [[internal-properties]] Internal Properties
-
-[cols="30m,70",options="header",width="100%"]
-|===
-| Name
-| Description
-
-| isStopped
-| [[isStopped]] Used to mark SparkEnv stopped
-
-Default: `false`
-
-|===
+Refer to [Logging](spark-logging.md).
