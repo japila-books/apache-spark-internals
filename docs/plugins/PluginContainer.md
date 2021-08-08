@@ -6,16 +6,59 @@
 
 ## Contract
 
-### <span id="registerMetrics"> registerMetrics
+### <span id="onTaskFailed"> Listening to Task Failures
+
+```scala
+onTaskFailed(
+  failureReason: TaskFailedReason): Unit
+```
+
+For [ExecutorPluginContainer](ExecutorPluginContainer.md) only
+
+Used when:
+
+* `TaskRunner` is requested to [run](../executor/TaskRunner.md#run) (and the task has failed)
+
+### <span id="onTaskStart"> Listening to Task Start
+
+```scala
+onTaskStart(): Unit
+```
+
+For [ExecutorPluginContainer](ExecutorPluginContainer.md) only
+
+Used when:
+
+* `TaskRunner` is requested to [run](../executor/TaskRunner.md#run) (and the task has just started)
+
+### <span id="onTaskSucceeded"> Listening to Task Success
+
+```scala
+onTaskSucceeded(): Unit
+```
+
+For [ExecutorPluginContainer](ExecutorPluginContainer.md) only
+
+Used when:
+
+* `TaskRunner` is requested to [run](../executor/TaskRunner.md#run) (and the task has finished successfully)
+
+### <span id="registerMetrics"> Registering Metrics
 
 ```scala
 registerMetrics(
   appId: String): Unit
 ```
 
-Used when [SparkContext](../SparkContext.md) is created
+Registers metrics for the [application ID](../SparkContext.md#applicationId)
 
-### <span id="shutdown"> shutdown
+For [DriverPluginContainer](DriverPluginContainer.md) only
+
+Used when:
+
+* [SparkContext](../SparkContext.md) is created
+
+### <span id="shutdown"> Shutdown
 
 ```scala
 shutdown(): Unit

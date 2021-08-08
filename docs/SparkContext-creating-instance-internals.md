@@ -273,7 +273,7 @@ _shuffleDriverComponents: ShuffleDriverComponents
 
 `SparkContext` registers [HeartbeatReceiver RPC endpoint](HeartbeatReceiver.md).
 
-## <span id="_plugins"> PluginContainer
+## <span id="_plugins"><span id="PluginContainer"> PluginContainer
 
 ```scala
 _plugins: Option[PluginContainer]
