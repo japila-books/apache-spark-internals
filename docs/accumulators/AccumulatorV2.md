@@ -104,18 +104,27 @@ register(
 * `CollectMetricsExec` ([Spark SQL]({{ book.spark_sql }}/physical-operators/CollectMetricsExec/)) is requested for an `AggregatingAccumulator`
 * `SQLMetrics` ([Spark SQL]({{ book.spark_sql }}/physical-operators/SQLMetric)) is used to create a performance metric
 
-## <span id="writeReplace"> writeReplace
+## <span id="writeReplace"> Serializing AccumulatorV2
 
 ```scala
 writeReplace(): Any
 ```
 
+`writeReplace` is part of the `Serializable` ([Java]({{ java.api }}/java.base/java/io/Serializable.html)) abstraction (to designate an alternative object to be used when writing an object to the stream).
+
 `writeReplace`...FIXME
 
-!!! note
-    `writeReplace` is part of the [java.io.Serializable]({{ java.api }}/java.base/java/io/Serializable.html) abstraction.
-    
-    !!! quote
-        Serializable classes that need to designate an alternative object to be used when writing an object to the stream should implement this special method with the exact signature:
+## <span id="readObject"> Deserializing AccumulatorV2
 
-        `ANY-ACCESS-MODIFIER Object writeReplace() throws ObjectStreamException;`
+```scala
+readObject(
+  in: ObjectInputStream): Unit
+```
+
+`readObject` is part of the `Serializable` ([Java]({{ java.api }}/java.base/java/io/Serializable.html)) abstraction (for special handling during deserialization).
+
+`readObject` reads the non-static and non-transient fields of the `AccumulatorV2` from the given `ObjectInputStream`.
+
+If the `atDriverSide` internal flag is turned on, `readObject` turns it off (to indicate `readObject` is executed on an executor). Otherwise, `atDriverSide` internal flag is turned on.
+
+`readObject` requests the active [TaskContext](../scheduler/TaskContext.md#get) to [register this accumulator](../scheduler/TaskContext.md#registerAccumulator).

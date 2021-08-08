@@ -133,6 +133,19 @@ isInterrupted(): Boolean
 killTaskIfInterrupted(): Unit
 ```
 
+### <span id="registerAccumulator"> Registering Accumulator
+
+```scala
+registerAccumulator(
+  a: AccumulatorV2[_, _]): Unit
+```
+
+Registers a [AccumulatorV2](../accumulators/AccumulatorV2.md)
+
+Used when:
+
+* `AccumulatorV2` is requested to [deserialize itself](../accumulators/AccumulatorV2.md#readObject)
+
 ### <span id="resources"> resources
 
 ```scala
