@@ -140,7 +140,7 @@ NOTE: The number of cores `numCores` is configured using `--cores` command-line 
 
 `createExecutorEnv` is used when `CoarseGrainedExecutorBackend` utility is requested to `run`.
 
-## <span id="create"> Creating "Base" SparkEnv (for Driver and Executors)
+## <span id="create"> Creating "Base" SparkEnv
 
 ```scala
 create(
@@ -158,64 +158,47 @@ create(
 
 `create` creates the "base" `SparkEnv` (that is common across the driver and executors).
 
-[[create-Serializer]]
-create creates a `Serializer` (based on <<spark_serializer, spark.serializer>> setting). You should see the following `DEBUG` message in the logs:
+`create` [creates a RpcEnv](rpc/RpcEnv.md#create) as **sparkDriver** on the driver and **sparkExecutor** on executors.
 
-```
+`create` creates a [Serializer](serializer/Serializer.md) (based on [spark.serializer](configuration-properties.md#spark.serializer) configuration property). `create` prints out the following DEBUG message to the logs:
+
+```text
 Using serializer: [serializer]
 ```
 
-[[create-closure-Serializer]]
-create creates a closure `Serializer` (based on <<spark_closure_serializer, spark.closure.serializer>>).
+`create` creates a [SerializerManager](serializer/SerializerManager.md).
 
-[[ShuffleManager]][[create-ShuffleManager]]
-create creates a shuffle:ShuffleManager.md[ShuffleManager] given the value of configuration-properties.md#spark.shuffle.manager[spark.shuffle.manager] configuration property.
+`create` creates a `JavaSerializer` as the closure serializer.
 
-[[MemoryManager]][[create-MemoryManager]]
-create creates a memory:MemoryManager.md[MemoryManager] based on configuration-properties.md#spark.memory.useLegacyMode[spark.memory.useLegacyMode] setting (with memory:UnifiedMemoryManager.md[UnifiedMemoryManager] being the default and `numCores` the input `numUsableCores`).
+`creates` creates a [BroadcastManager](core/BroadcastManager.md).
 
-[[NettyBlockTransferService]][[create-NettyBlockTransferService]]
-create creates a storage:NettyBlockTransferService.md#creating-instance[NettyBlockTransferService] with the following ports:
+`creates` creates a [MapOutputTrackerMaster](scheduler/MapOutputTrackerMaster.md) (on the driver) or a [MapOutputTrackerWorker](scheduler/MapOutputTrackerWorker.md) (on executors). `creates` registers or looks up a [MapOutputTrackerMasterEndpoint](scheduler/MapOutputTrackerMasterEndpoint.md) under the name of **MapOutputTracker**. `creates` prints out the following INFO message to the logs (on the driver only):
 
-* spark-driver.md#spark_driver_blockManager_port[spark.driver.blockManager.port] for the driver (default: `0`)
+```text
+Registering MapOutputTracker
+```
 
-* storage:BlockManager.md#spark_blockManager_port[spark.blockManager.port] for an executor (default: `0`)
+`creates` creates a [ShuffleManager](shuffle/ShuffleManager.md) (based on [spark.shuffle.manager](configuration-properties.md#spark.shuffle.manager) configuration property).
 
-[[BlockManagerMaster]][[create-BlockManagerMaster]]
-create creates a storage:BlockManagerMaster.md#creating-instance[BlockManagerMaster] object with the `BlockManagerMaster` RPC endpoint reference (by <<registerOrLookupEndpoint, registering or looking it up by name>> and storage:BlockManagerMasterEndpoint.md[]), the input SparkConf.md[SparkConf], and the input `isDriver` flag.
+`create` creates a [UnifiedMemoryManager](memory/UnifiedMemoryManager.md).
+
+With [spark.shuffle.service.enabled](external-shuffle-service/configuration-properties.md#spark.shuffle.service.enabled) configuration property enabled, `create` creates an [ExternalBlockStoreClient](storage/ExternalBlockStoreClient.md).
+
+`create` creates a [BlockManagerMaster](storage/BlockManagerMaster.md).
+
+`create` creates a [NettyBlockTransferService](storage/NettyBlockTransferService.md).
 
 ![Creating BlockManager for the Driver](images/core/sparkenv-driver-blockmanager.png)
 
-NOTE: create registers the *BlockManagerMaster* RPC endpoint for the driver and looks it up for executors.
+![Creating BlockManager for Executor](images/core/sparkenv-executor-blockmanager.png)
 
-.Creating BlockManager for Executor
-image::sparkenv-executor-blockmanager.png[align="center"]
+`create` creates a [BlockManager](storage/BlockManager.md).
 
-[[BlockManager]][[create-BlockManager]]
-create creates a storage:BlockManager.md#creating-instance[BlockManager] (using the above <<BlockManagerMaster, BlockManagerMaster>>, <<create-NettyBlockTransferService, NettyBlockTransferService>> and other services).
+`create` creates a [MetricsSystem](metrics/MetricsSystem.md#createMetricsSystem).
 
-create creates a core:BroadcastManager.md[].
+`create` creates a [OutputCommitCoordinator](OutputCommitCoordinator.md) and registers or looks up a `OutputCommitCoordinatorEndpoint` under the name of **OutputCommitCoordinator**.
 
-[[MapOutputTracker]][[create-MapOutputTracker]]
-create creates a scheduler:MapOutputTrackerMaster.md[MapOutputTrackerMaster] or scheduler:MapOutputTrackerWorker.md[MapOutputTrackerWorker] for the driver and executors, respectively.
-
-NOTE: The choice of the real implementation of scheduler:MapOutputTracker.md[MapOutputTracker] is based on whether the input `executorId` is *driver* or not.
-
-[[MapOutputTrackerMasterEndpoint]][[create-MapOutputTrackerMasterEndpoint]]
-create <<registerOrLookupEndpoint, registers or looks up `RpcEndpoint`>> as *MapOutputTracker*. It registers scheduler:MapOutputTrackerMasterEndpoint.md[MapOutputTrackerMasterEndpoint] on the driver and creates a RPC endpoint reference on executors. The RPC endpoint reference gets assigned as the scheduler:MapOutputTracker.md#trackerEndpoint[MapOutputTracker RPC endpoint].
-
-CAUTION: FIXME
-
-[[create-CacheManager]]
-It creates a CacheManager.
-
-[[create-MetricsSystem]]
-It creates a MetricsSystem for a driver and a worker separately.
-
-It initializes `userFiles` temporary directory used for downloading dependencies for a driver while this is the executor's current working directory for an executor.
-
-[[create-OutputCommitCoordinator]]
-An OutputCommitCoordinator is created.
+`create` creates a [SparkEnv](#creating-instance) (with all the services "stitched" together).
 
 ## Logging
 
