@@ -102,7 +102,7 @@ Fetching [name] with timestamp [timestamp]
 
 ## <span id="maxDirectResultSize"> Maximum Size of Direct Results
 
-`Executor` uses the minimum of [spark.task.maxDirectResultSize](../configuration-properties.md#spark.task.maxDirectResultSize) and [maxMessageSizeBytes](../rpc/RpcUtils.md#maxMessageSizeBytes) for `TaskRunner` is requested to [run a task](TaskRunner.md#run) (and [decide on the type of a serialized task result](TaskRunner.md#run-serializedResult))
+`Executor` uses the minimum of [spark.task.maxDirectResultSize](../configuration-properties.md#spark.task.maxDirectResultSize) and [spark.rpc.message.maxSize](../rpc/RpcUtils.md#maxMessageSizeBytes) when `TaskRunner` is requested to [run a task](TaskRunner.md#run) (and [decide on the type of a serialized task result](TaskRunner.md#run-serializedResult)).
 
 ## Logging
 

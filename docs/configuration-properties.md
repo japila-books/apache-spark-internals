@@ -216,7 +216,10 @@ Must be below [2047MB](rpc/RpcUtils.md#MAX_MESSAGE_SIZE_IN_MB) (`Int.MaxValue / 
 
 Used when:
 
+* `CoarseGrainedSchedulerBackend` is requested to [launch tasks](scheduler/CoarseGrainedSchedulerBackend.md#launchTasks)
 * `RpcUtils` is requested for the [maximum message size](rpc/RpcUtils.md#maxMessageSizeBytes)
+    * `Executor` is [created](executor/Executor.md#maxDirectResultSize)
+    * `MapOutputTrackerMaster` is [created](scheduler/MapOutputTrackerMaster.md#maxRpcMessageSize) (and makes sure that [spark.shuffle.mapOutput.minSizeForBroadcast](#spark.shuffle.mapOutput.minSizeForBroadcast) is below the threshold)
 
 ## <span id="spark.scheduler.minRegisteredResourcesRatio"> spark.scheduler.minRegisteredResourcesRatio
 
@@ -719,7 +722,7 @@ Size of serialized shuffle map output statuses when scheduler:MapOutputTrackerMa
 
 Default: `512k`
 
-Must be below <<spark.rpc.message.maxSize, spark.rpc.message.maxSize>> (to prevent sending an RPC message that is too large)
+Must be below [spark.rpc.message.maxSize](#spark.rpc.message.maxSize) (to prevent sending an RPC message that is too large)
 
 == [[spark.shuffle.reduceLocality.enabled]] spark.shuffle.reduceLocality.enabled
 

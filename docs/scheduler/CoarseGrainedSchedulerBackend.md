@@ -142,7 +142,7 @@ reviveThread: ScheduledExecutorService
 
 The `ScheduledExecutorService` is used by `DriverEndpoint` RPC Endpoint to [post ReviveOffers messages regularly](DriverEndpoint.md#onStart).
 
-## <span id="maxRpcMessageSize"> maxRpcMessageSize
+## <span id="maxRpcMessageSize"><span id="spark.rpc.message.maxSize"> Maximum Size of RPC Message
 
 `maxRpcMessageSize` is the value of [spark.rpc.message.maxSize](../configuration-properties.md#spark.rpc.message.maxSize) configuration property.
 
