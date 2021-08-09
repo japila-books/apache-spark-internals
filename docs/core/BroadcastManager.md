@@ -1,93 +1,58 @@
 # BroadcastManager
 
-`BroadcastManager` is a Spark service to manage Broadcast.md[]s in a Spark application.
+![BroadcastManager, SparkEnv and BroadcastFactory](../images/core/BroadcastManager.png)
 
-[BroadcastManager, SparkEnv and BroadcastFactory](../images/core/BroadcastManager.png)
+## Creating Instance
 
-BroadcastManager assigns <<nextBroadcastId, unique identifiers>> to broadcast variables.
+`BroadcastManager` takes the following to be created:
 
-BroadcastManager is used to create a scheduler:MapOutputTrackerMaster.md#BroadcastManager[MapOutputTrackerMaster]
+* <span id="isDriver"> `isDriver` flag
+* <span id="conf"> [SparkConf](../SparkConf.md)
+* <span id="securityManager"> `SecurityManager`
 
-== [[creating-instance]] Creating Instance
+While being created, `BroadcastManager` is requested to [initialize](#initialize).
 
-BroadcastManager takes the following to be created:
+`BroadcastManager` is created when:
 
-* <<isDriver, isDriver>> flag
-* [[conf]] SparkConf.md[SparkConf]
-* [[securityManager]] SecurityManager
+* `SparkEnv` utility is used to [create a base SparkEnv](../SparkEnv.md#create) (for the driver and executors)
 
-When created, BroadcastManager <<initialize, initializes>>.
+### <span id="initialize"> Initializing
 
-BroadcastManager is created when SparkEnv is core:SparkEnv.md[created] (for the driver and executors and hence the need for the <<isDriver, isDriver>> flag).
-
-== [[isDriver]] isDriver Flag
-
-BroadcastManager is given `isDriver` flag when <<creating-instance, created>>.
-
-The isDriver flag indicates whether the initialization happens on the driver (`true`) or executors (`false`).
-
-BroadcastManager uses the flag when requested to <<initialize, initialize>> for the <<broadcastFactory, TorrentBroadcastFactory>> to TorrentBroadcastFactory.md#initialize[initialize].
-
-== [[broadcastFactory]] TorrentBroadcastFactory
-
-BroadcastManager manages a core:BroadcastFactory.md[BroadcastFactory]:
-
-* It is created and initialized in <<initialize, initialize>>
-
-* It is stopped in <<stop, stop>> (and that is all it does)
-
-BroadcastManager uses the BroadcastFactory when requested to <<newBroadcast, newBroadcast>> and <<unbroadcast, unbroadcast>>.
-
-== [[cachedValues]] cachedValues Registry
-
-[source,scala]
-----
-cachedValues: ReferenceMap
-----
-
-== [[nextBroadcastId]] Unique Identifiers of Broadcast Variables
-
-BroadcastManager tracks broadcast variables and controls their identifiers.
-
-Every <<newBroadcast, newBroadcast>> is given a new and unique identifier.
-
-== [[initialize]][[initialized]] Initializing BroadcastManager
-
-[source, scala]
-----
+```scala
 initialize(): Unit
-----
+```
 
-initialize creates a <<broadcastFactory, TorrentBroadcastFactory>> and requests it to core:TorrentBroadcastFactory.md#initialize[initialize].
+Unless initialized already, `initialize` creates a [TorrentBroadcastFactory](#broadcastFactory) and requests it to [initialize itself](TorrentBroadcastFactory.md#initialize).
 
-initialize turns `initialized` internal flag on to guard against multiple initializations. With the initialized flag already enabled, initialize does nothing.
+## <span id="broadcastFactory"> TorrentBroadcastFactory
 
-initialize is used once when BroadcastManager is <<creating-instance, created>>.
+`BroadcastManager` manages a [BroadcastFactory](BroadcastFactory.md):
 
-== [[stop]] Stopping BroadcastManager
+* Creates and initializes it when [created](#creating-instance) (and requested to [initialize](#initialize))
 
-[source, scala]
-----
-stop(): Unit
-----
+* Stops it when stopped
 
-stop requests the <<broadcastFactory, BroadcastFactory>> to core:BroadcastFactory.md#stop[stop].
+`BroadcastManager` uses the `BroadcastFactory` in [newBroadcast](#newBroadcast) and [unbroadcast](#unbroadcast).
 
-== [[newBroadcast]] Creating Broadcast Variable
+## <span id="newBroadcast"> Creating Broadcast Variable
 
-[source, scala]
-----
-newBroadcast[T](
+```scala
+newBroadcast[T: ClassTag](
   value_ : T,
   isLocal: Boolean): Broadcast[T]
-----
+```
 
-newBroadcast requests the core:BroadcastFactory.md[current `BroadcastFactory` for a new broadcast variable].
+`newBroadcast` requests the [BroadcastFactory](#broadcastFactory) for a [new broadcast variable](BroadcastFactory.md#newBroadcast) (with the [next available broadcast ID](#nextBroadcastId)).
 
-The `BroadcastFactory` is created when <<initialize, BroadcastManager is initialized>>.
+`newBroadcast` is used when:
 
-newBroadcast is used when:
+* `SparkContext` is requested for a [new broadcast variable](../SparkContext.md#broadcast)
+* `MapOutputTracker` utility is used to [serializeMapStatuses](../scheduler/MapOutputTracker.md#serializeMapStatuses)
 
-* MapOutputTracker utility is used to scheduler:MapOutputTracker.md#serializeMapStatuses[serializeMapStatuses]
+## <span id="nextBroadcastId"> Unique Identifiers of Broadcast Variables
 
-* SparkContext is requested for a SparkContext.md#broadcast[new broadcast variable]
+`BroadcastManager` tracks [broadcast variables](#newBroadcast) and assigns unique and continuous identifiers.
+
+## <span id="MapOutputTrackerMaster"> MapOutputTrackerMaster
+
+`BroadcastManager` is used to create a [MapOutputTrackerMaster](../scheduler/MapOutputTrackerMaster.md#BroadcastManager)
