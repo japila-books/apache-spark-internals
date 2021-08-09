@@ -124,6 +124,21 @@ Default: `false`
 
 **Master URL** of the cluster manager to connect the Spark application to
 
+## <span id="spark.memory.storageFraction"><span id="MEMORY_STORAGE_FRACTION"> spark.memory.storageFraction
+
+Amount of storage memory immune to eviction, expressed as a fraction of the size of the region set aside by spark.memory.fraction.
+
+The higher this is, the less working memory may be available to execution and tasks may spill to disk more often. Leaving this at the default value is recommended
+
+Default: `0.5`
+
+Must be in `[0,1)`
+
+Used when:
+
+* `UnifiedMemoryManager` is [created](memory/UnifiedMemoryManager.md#apply)
+* `MemoryManager` is [created](memory/MemoryManager.md#offHeapStorageMemory)
+
 ## <span id="spark.network.maxRemoteBlockSizeFetchToMem"><span id="MAX_REMOTE_BLOCK_SIZE_FETCH_TO_MEM"> spark.network.maxRemoteBlockSizeFetchToMem
 
 Remote block will be fetched to disk when size of the block is above this threshold in bytes
@@ -673,12 +688,6 @@ This setting has no impact on heap memory usage, so if your executors' total mem
 Must be set to a positive value when <<spark.memory.offHeap.enabled, spark.memory.offHeap.enabled>> is enabled (`true`).
 
 Must not be negative
-
-== [[spark.memory.storageFraction]] spark.memory.storageFraction
-
-Fraction of the memory to use for off-heap storage region.
-
-Default: `0.5`
 
 == [[spark.memory.fraction]] spark.memory.fraction
 

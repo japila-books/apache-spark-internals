@@ -1,51 +1,61 @@
-= [[UnifiedMemoryManager]] UnifiedMemoryManager
+# UnifiedMemoryManager
 
-*UnifiedMemoryManager* is the default MemoryManager.md[MemoryManager] (based on configuration-properties.md#spark.memory.useLegacyMode[spark.memory.useLegacyMode] configuration property).
+`UnifiedMemoryManager` is a [MemoryManager](MemoryManager.md) (with the [onHeapExecutionMemory](MemoryManager.md#onHeapExecutionMemory) being the [Maximum Heap Memory](#maxHeapMemory) with the [onHeapStorageRegionSize](#onHeapStorageRegionSize) taken out).
 
-== [[creating-instance]] Creating Instance
+`UnifiedMemoryManager` allows for soft boundaries between storage and execution memory (allowing requests for memory in one region to be fulfilled by borrowing memory from the other).
 
-UnifiedMemoryManager takes the following to be created:
+## Creating Instance
 
-* [[conf]] SparkConf.md[SparkConf]
-* [[maxHeapMemory]] Maximum heap memory
-* [[onHeapStorageRegionSize]] Size of the on-heap storage region
-* [[numCores]] Number of CPU cores
+`UnifiedMemoryManager` takes the following to be created:
 
-UnifiedMemoryManager requires that:
+* <span id="conf"> [SparkConf](../SparkConf.md)
+* <span id="maxHeapMemory"> Maximum Heap Memory
+* <span id="onHeapStorageRegionSize">  Size of the On-Heap Storage Region
+* <span id="numCores"> Number of CPU Cores
 
-* Sum of the pool size of the MemoryManager.md#onHeapExecutionMemoryPool[on-heap ExecutionMemoryPool] and MemoryManager.md#onHeapStorageMemoryPool[on-heap StorageMemoryPool] is exactly the <<maxHeapMemory, maximum heap memory>>
+While being created, `UnifiedMemoryManager` [asserts the invariants](#assertInvariants).
 
-* Sum of the pool size of the MemoryManager.md#offHeapExecutionMemoryPool[off-heap ExecutionMemoryPool] and MemoryManager.md#offHeapStorageMemoryPool[off-heap StorageMemoryPool] is exactly the maximum off-heap memory (based on configuration-properties.md#spark.memory.offHeap.size[spark.memory.offHeap.size] configuration property)
+`UnifiedMemoryManager` is created using [apply](#apply) factory.
 
-== [[apply]] Creating UnifiedMemoryManager
+### <span id="assertInvariants"> Invariants
 
-[source, scala]
-----
+`UnifiedMemoryManager` asserts the following:
+
+* Sum of the pool size of the [on-heap ExecutionMemoryPool](MemoryManager.md#onHeapExecutionMemoryPool) and [on-heap StorageMemoryPool](MemoryManager.md#onHeapStorageMemoryPool) is exactly the [maximum heap memory](#maxHeapMemory)
+
+* Sum of the pool size of the [off-heap ExecutionMemoryPool](MemoryManager.md#offHeapExecutionMemoryPool) and [off-heap StorageMemoryPool](MemoryManager.md#offHeapStorageMemoryPool) is exactly the [maximum off-heap memory](MemoryManager.md#maxOffHeapMemory)
+
+## <span id="apply"> Creating UnifiedMemoryManager
+
+```scala
 apply(
   conf: SparkConf,
   numCores: Int): UnifiedMemoryManager
-----
+```
 
-`apply` computes the <<getMaxMemory, maximum heap memory>> (using the input SparkConf.md[SparkConf]).
+`apply` creates a [UnifiedMemoryManager](#creating-instance) with the following:
 
-`apply` computes the size of the on-heap storage region which is a fraction of the maximum heap memory based on configuration-properties.md#spark.memory.storageFraction[spark.memory.storageFraction] configuration property (default: `0.5`).
+Property | Value
+---------|---------
+ [Maximum Heap Memory](#maxHeapMemory) | [Maximum Memory](#getMaxMemory)
+ [onHeapStorageRegionSize](#onHeapStorageRegionSize) | [spark.memory.storageFraction](#spark.memory.storageFraction) of the [Maximum Memory](#getMaxMemory)
 
-In the end, `apply` creates a <<creating-instance, UnifiedMemoryManager>> (with the given and computed values).
+`apply` is used when:
 
-`apply` is used when `SparkEnv` utility is used to core:SparkEnv.md#create[create a SparkEnv] (for the driver and executors).
+* `SparkEnv` utility is used to [create a base SparkEnv](../SparkEnv.md#create) (for the driver and executors)
 
-== [[getMaxMemory]] Calculating Maximum Heap Memory
+### <span id="getMaxMemory"> Maximum Heap Memory
 
-[source, scala]
-----
+```scala
 getMaxMemory(
   conf: SparkConf): Long
-----
+```
 
-`getMaxMemory` calculates the maximum memory to use for execution and storage.
+`getMaxMemory` calculates the maximum memory to use for execution and storage based on...FIXME
 
-[source, scala]
-----
+### Demo
+
+```text
 // local mode with --conf spark.driver.memory=2g
 scala> sc.getConf.getSizeAsBytes("spark.driver.memory")
 res0: Long = 2147483648
@@ -67,117 +77,14 @@ maxMemory: Long = 956615884
 import org.apache.spark.network.util.JavaUtils
 scala> JavaUtils.byteStringAsMb(maxMemory + "b")
 res1: Long = 912
-----
-
-`getMaxMemory` reads <<spark_testing_memory, the maximum amount of memory that the Java virtual machine will attempt to use>> and decrements it by <<spark_testing_reservedMemory, reserved system memory>> (for non-storage and non-execution purposes).
-
-`getMaxMemory` makes sure that the following requirements are met:
-
-1. System memory is not smaller than about 1,5 of the reserved system memory.
-2. executor:Executor.md#spark.executor.memory[spark.executor.memory] is not smaller than about 1,5 of the reserved system memory.
-
-Ultimately, `getMaxMemory` returns <<spark_memory_fraction, spark.memory.fraction>> of the maximum amount of memory for the JVM (minus the reserved system memory).
-
-CAUTION: FIXME omnigraffle it.
-
-== [[acquireExecutionMemory]] `acquireExecutionMemory` Method
-
-[source, scala]
-----
-acquireExecutionMemory(
-  numBytes: Long,
-  taskAttemptId: Long,
-  memoryMode: MemoryMode): Long
-----
-
-NOTE: `acquireExecutionMemory` is part of the memory:MemoryManager.md#acquireExecutionMemory[MemoryManager] contract
-
-`acquireExecutionMemory` does...FIXME
-
-Internally, `acquireExecutionMemory` varies per `MemoryMode`, i.e. `ON_HEAP` and `OFF_HEAP`.
-
-.`acquireExecutionMemory` and `MemoryMode`
-[cols="1m,1m,1m",options="header",width="100%"]
-|===
-|
-| ON_HEAP
-| OFF_HEAP
-
-| executionPool
-| onHeapExecutionMemoryPool
-| offHeapExecutionMemoryPool
-
-| storagePool
-| onHeapStorageMemoryPool
-| offHeapStorageMemoryPool
-
-| storageRegionSize
-| onHeapStorageRegionSize
-| offHeapStorageMemory
-
-| maxMemory
-| maxHeapMemory
-| maxOffHeapMemory
-|===
-
-CAUTION: FIXME
-
-== [[acquireStorageMemory]] `acquireStorageMemory` Method
-
-[source, scala]
-----
-acquireStorageMemory(
-  blockId: BlockId,
-  numBytes: Long,
-  memoryMode: MemoryMode): Boolean
-----
-
-NOTE: `acquireStorageMemory` is part of the memory:MemoryManager.md#acquireStorageMemory[MemoryManager] contract.
-
-`acquireStorageMemory` has two modes of operation per `memoryMode`, i.e. `MemoryMode.ON_HEAP` or `MemoryMode.OFF_HEAP`, for execution and storage pools, and the maximum amount of memory to use.
-
-CAUTION: FIXME Where are they used?
-
-In `MemoryMode.ON_HEAP`, `onHeapExecutionMemoryPool`, `onHeapStorageMemoryPool`, and <<maxOnHeapStorageMemory, maxOnHeapStorageMemory>> are used.
-
-In `MemoryMode.OFF_HEAP`, `offHeapExecutionMemoryPool`, `offHeapStorageMemoryPool`, and `maxOffHeapMemory` are used.
-
-CAUTION: FIXME What is the difference between them?
-
-It makes sure that the requested number of bytes `numBytes` (for a block to store) fits the available memory. If it is not the case, you should see the following INFO message in the logs and the method returns `false`.
-
-```
-INFO Will not store [blockId] as the required space ([numBytes] bytes) exceeds our memory limit ([maxMemory] bytes)
 ```
 
-If the requested number of bytes `numBytes` is greater than `memoryFree` in the storage pool, `acquireStorageMemory` will attempt to use the free memory from the execution pool.
+## <span id="maxOnHeapStorageMemory"> Total Available On-Heap Memory for Storage
 
-NOTE: The storage pool can use the free memory from the execution pool.
-
-It will take as much memory as required to fit `numBytes` from `memoryFree` in the execution pool (up to the whole free memory in the pool).
-
-Ultimately, `acquireStorageMemory` requests the storage pool for `numBytes` for `blockId`.
-
-[NOTE]
-====
-`acquireStorageMemory` is used when `MemoryStore` storage:MemoryStore.md#putBytes[acquires storage memory to putBytes] or storage:MemoryStore.md#putIteratorAsValues[putIteratorAsValues] and storage:MemoryStore.md#putIteratorAsBytes[putIteratorAsBytes].
-
-It is also used internally when UnifiedMemoryManager <<acquireUnrollMemory, acquires unroll memory>>.
-====
-
-== [[acquireUnrollMemory]] `acquireUnrollMemory` Method
-
-NOTE: `acquireUnrollMemory` is part of the memory:MemoryManager.md#acquireUnrollMemory[MemoryManager] contract.
-
-`acquireUnrollMemory` simply forwards all the calls to <<acquireStorageMemory, acquireStorageMemory>>.
-
-== [[maxOnHeapStorageMemory]] `maxOnHeapStorageMemory` Method
-
-[source, scala]
-----
+```scala
 maxOnHeapStorageMemory: Long
-----
+```
 
-NOTE: `maxOnHeapStorageMemory` is part of the memory:MemoryManager.md#acquireExecutionMemory[MemoryManager] contract
+`maxOnHeapStorageMemory` is part of the [MemoryManager](MemoryManager.md#maxOnHeapStorageMemory) abstraction.
 
-`maxOnHeapStorageMemory` is the difference between `maxHeapMemory` of the UnifiedMemoryManager and the memory currently in use in `onHeapExecutionMemoryPool` execution memory pool.
+`maxOnHeapStorageMemory` is the difference between [Maximum Heap Memory](#maxHeapMemory) and the [memory used](ExecutionMemoryPool.md#memoryUsed) in the [on-heap execution memory pool](MemoryManager.md#onHeapExecutionMemoryPool).
