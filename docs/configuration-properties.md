@@ -124,6 +124,28 @@ Default: `false`
 
 **Master URL** of the cluster manager to connect the Spark application to
 
+## <span id="spark.memory.offHeap.enabled"><span id="MEMORY_OFFHEAP_ENABLED"> spark.memory.offHeap.enabled
+
+Controls whether Tungsten memory will be allocated on the JVM heap (`false`) or off-heap (`true` / using `sun.misc.Unsafe`).
+
+Default: `false`
+
+When enabled, [spark.memory.offHeap.size](#spark.memory.offHeap.size) must be [greater than 0](memory/MemoryManager.md#tungstenMemoryMode).
+
+Used when:
+
+* `MemoryManager` is requested for [tungstenMemoryMode](memory/MemoryManager.md#tungstenMemoryMode)
+
+## <span id="spark.memory.offHeap.size"><span id="MEMORY_OFFHEAP_SIZE"> spark.memory.offHeap.size
+
+Maximum memory (in bytes) for off-heap memory allocation
+
+Default: `0`
+
+This setting has no impact on heap memory usage, so if your executors' total memory consumption must fit within some hard limit then be sure to shrink your JVM heap size accordingly.
+
+Must not be negative and be set to a positive value when [spark.memory.offHeap.enabled](#spark.memory.offHeap.enabled) is enabled
+
 ## <span id="spark.memory.storageFraction"><span id="MEMORY_STORAGE_FRACTION"> spark.memory.storageFraction
 
 Amount of storage memory immune to eviction, expressed as a fraction of the size of the region set aside by spark.memory.fraction.
@@ -677,18 +699,6 @@ a| [[spark.unsafe.exceptionOnMemoryLeak]]
 
 |===
 
-== [[spark.memory.offHeap.size]][[MEMORY_OFFHEAP_SIZE]] spark.memory.offHeap.size
-
-Maximum memory (in bytes) for off-heap memory allocation.
-
-Default: `0`
-
-This setting has no impact on heap memory usage, so if your executors' total memory consumption must fit within some hard limit then be sure to shrink your JVM heap size accordingly.
-
-Must be set to a positive value when <<spark.memory.offHeap.enabled, spark.memory.offHeap.enabled>> is enabled (`true`).
-
-Must not be negative
-
 == [[spark.memory.fraction]] spark.memory.fraction
 
 `spark.memory.fraction` is the fraction of JVM heap space used for execution and storage.
@@ -700,18 +710,6 @@ Default: `0.6`
 Controls the type of memory:MemoryManager.md[MemoryManager] to use. When enabled (i.e. `true`) it is the legacy memory:StaticMemoryManager.md[StaticMemoryManager] while memory:UnifiedMemoryManager.md[UnifiedMemoryManager] otherwise (i.e. `false`).
 
 Default: `false`
-
-== [[spark.memory.offHeap.enabled]] spark.memory.offHeap.enabled
-
-`spark.memory.offHeap.enabled` controls whether Spark will attempt to use off-heap memory for certain operations (`true`) or not (`false`).
-
-Default: `false`
-
-Tracks whether Tungsten memory will be allocated on the JVM heap or off-heap (using `sun.misc.Unsafe`).
-
-If enabled, <<spark.memory.offHeap.size, spark.memory.offHeap.size>> has to be memory:MemoryManager.md#tungstenMemoryMode[greater than 0].
-
-Used when MemoryManager is requested for memory:MemoryManager.md#tungstenMemoryMode[tungstenMemoryMode].
 
 == [[spark.shuffle.spill.batchSize]] spark.shuffle.spill.batchSize
 

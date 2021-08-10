@@ -1,344 +1,202 @@
 # MemoryManager
 
-`MemoryManager` is an <<contract, abstraction>> of <<implementations, memory managers>> that manage shared memory for task execution (memory:TaskMemoryManager.md#memoryManager[TaskMemoryManager]) and block storage (storage:BlockManager.md#memoryManager[BlockManager]).
-
-`MemoryManager` splits available memory into two regions:
-
-* *Execution memory* for computations in shuffles, joins, sorts and aggregations
-
-* *Storage memory* for caching and propagating internal data across Spark nodes (in <<onHeapStorageMemoryPool, on->> and <<offHeapStorageMemoryPool, off-heap>> mode)
-
-`MemoryManager` is used to create storage:BlockManager.md#memoryManager[BlockManager] (and storage:MemoryStore.md#memoryManager[MemoryStore]) and memory:TaskMemoryManager.md#memoryManager[TaskMemoryManager].
+`MemoryManager` is an [abstraction](#contract) of [memory managers](#implementations) that can enforce how memory is shared between task execution ([TaskMemoryManager](TaskMemoryManager.md#memoryManager)) and storage ([BlockManager](../storage/BlockManager.md#memoryManager)).
 
 ![MemoryManager and Core Services](../images/memory/MemoryManager.png)
 
-== [[contract]] Contract
+`MemoryManager` splits assigned memory into two regions:
 
-=== [[acquireExecutionMemory]] Acquiring Execution Memory for Task
+* **Execution Memory** for shuffles, joins, sorts and aggregations
 
-[source,scala]
-----
+* **Storage Memory** for caching and propagating internal data across Spark nodes (in [on](#onHeapStorageMemoryPool)- and [off-heap](#offHeapStorageMemoryPool) modes)
+
+`MemoryManager` is used to create [BlockManager](../storage/BlockManager.md#memoryManager) (and [MemoryStore](../storage/MemoryStore.md#memoryManager)) and [TaskMemoryManager](TaskMemoryManager.md#memoryManager).
+
+## Contract
+
+### <span id="acquireExecutionMemory"> Acquiring Execution Memory for Task
+
+```scala
 acquireExecutionMemory(
   numBytes: Long,
   taskAttemptId: Long,
   memoryMode: MemoryMode): Long
-----
+```
 
-acquireExecutionMemory tries to acquire up to `numBytes` of execution memory for the current task (by `taskAttemptId`) and return the number of bytes obtained, or 0 if none can be allocated.
+Used when:
 
-acquireExecutionMemory is used when TaskMemoryManager is requested to memory:TaskMemoryManager.md#acquireExecutionMemory[acquire execution memory].
+* `TaskMemoryManager` is requested to [acquireExecutionMemory](TaskMemoryManager.md#acquireExecutionMemory)
 
-=== [[acquireStorageMemory]] Acquiring Storage Memory for Block
+### <span id="acquireStorageMemory"> Acquiring Storage Memory for Block
 
-[source, scala]
-----
+```scala
 acquireStorageMemory(
   blockId: BlockId,
   numBytes: Long,
   memoryMode: MemoryMode): Boolean
-----
+```
 
-acquireStorageMemory tries to acquire `numBytes` bytes of memory to cache the given storage:BlockId.md[block], evicting existing ones if necessary.
+Used when:
 
-acquireStorageMemory is used when:
+* `MemoryStore` is requested for the [putBytes](../storage/MemoryStore.md#putBytes) and [putIterator](../storage/MemoryStore.md#putIterator)
 
-* UnifiedMemoryManager is requested to memory:UnifiedMemoryManager.md#acquireUnrollMemory[acquireUnrollMemory]
+### <span id="acquireUnrollMemory"> Acquiring Unroll Memory for Block
 
-* `MemoryStore` is requested to storage:MemoryStore.md#putBytes[putBytes] and storage:MemoryStore.md#putIterator[putIterator]
-
-=== [[acquireUnrollMemory]] Acquiring Unroll Memory for Block
-
-[source, scala]
-----
+```scala
 acquireUnrollMemory(
   blockId: BlockId,
   numBytes: Long,
   memoryMode: MemoryMode): Boolean
-----
+```
 
-acquireUnrollMemory tries to acquire `numBytes` bytes of memory to unroll the given storage:BlockId.md[block], evicting existing ones if necessary.
+Used when:
 
-acquireUnrollMemory is used when MemoryStore is requested to storage:MemoryStore.md#reserveUnrollMemoryForThisTask[reserveUnrollMemoryForThisTask].
+* `MemoryStore` is requested for the [reserveUnrollMemoryForThisTask](../storage/MemoryStore.md#reserveUnrollMemoryForThisTask)
 
-=== [[maxOffHeapStorageMemory]] Total Available Off-Heap Storage Memory
+### <span id="maxOffHeapStorageMemory"> Total Available Off-Heap Storage Memory
 
-[source, scala]
-----
+```scala
 maxOffHeapStorageMemory: Long
-----
+```
 
-maxOffHeapStorageMemory is the total available off-heap memory for storage (in bytes).
+May vary over time
 
-maxOffHeapStorageMemory may vary over time.
+Used when:
 
-maxOffHeapStorageMemory is used when:
+* `BlockManager` is [created](../storage/BlockManager.md#maxOffHeapMemory)
+* `MemoryStore` is requested for the [maxMemory](../storage/MemoryStore.md#maxMemory)
 
-* UnifiedMemoryManager is requested to memory:UnifiedMemoryManager.md#acquireStorageMemory[acquireStorageMemory]
+### <span id="maxOnHeapStorageMemory"> Total Available On-Heap Storage Memory
 
-* BlockManager is storage:BlockManager.md#maxOffHeapMemory[created]
-
-* MemoryStore is requested for the storage:MemoryStore.md#maxMemory[total amount of memory available]
-
-=== [[maxOnHeapStorageMemory]] Total Available On-Heap Storage Memory
-
-[source, scala]
-----
+```scala
 maxOnHeapStorageMemory: Long
-----
+```
 
-maxOnHeapStorageMemory is the total available on-heap memory for storage (in bytes).
+May vary over time
 
-maxOnHeapStorageMemory may vary over time.
+Used when:
 
-maxOnHeapStorageMemory is used when:
+* `BlockManager` is [created](../storage/BlockManager.md#maxOnHeapMemory)
+* `MemoryStore` is requested for the [maxMemory](../storage/MemoryStore.md#maxMemory)
 
-* UnifiedMemoryManager is requested to memory:UnifiedMemoryManager.md#acquireStorageMemory[acquireStorageMemory]
+## Implementations
 
-* BlockManager is storage:BlockManager.md#maxOnHeapMemory[created]
+* [UnifiedMemoryManager](UnifiedMemoryManager.md)
 
-* MemoryStore is requested for the storage:MemoryStore.md#maxMemory[total amount of memory available]
+## Creating Instance
 
-* (legacy) StaticMemoryManager is memory:StaticMemoryManager.md#maxOnHeapStorageMemory[created] and requested to memory:StaticMemoryManager.md#acquireStorageMemory[acquireStorageMemory]
+`MemoryManager` takes the following to be created:
 
-== [[implementations]] Available MemoryManagers
+* <span id="conf"> [SparkConf](../SparkConf.md)
+* <span id="numCores"> Number of CPU Cores
+* <span id="onHeapStorageMemory"> Size of the On-Heap Storage Memory
+* <span id="onHeapExecutionMemory"> Size of the On-Heap Execution Memory
 
-[cols="30m,70",options="header",width="100%"]
-|===
-| MemoryManager
-| Description
+??? note "Abstract Class"
+    `MemoryManager` is an abstract class and cannot be created directly. It is created indirectly for the [concrete MemoryManagers](#implementations).
 
-| StaticMemoryManager.md[StaticMemoryManager]
-| [[StaticMemoryManager]] Legacy memory manager
+## <span id="SparkEnv"> Accessing MemoryManager (SparkEnv)
 
-| UnifiedMemoryManager.md[UnifiedMemoryManager]
-| [[UnifiedMemoryManager]] Default memory manager
-|===
+`MemoryManager` is available as [SparkEnv.memoryManager](../SparkEnv.md#memoryManager) on the driver and executors.
 
-== [[creating-instance]] Creating Instance
-
-MemoryManager takes the following to be created:
-
-* [[conf]] SparkConf.md[]
-* [[numCores]] Number of CPU cores
-* [[onHeapStorageMemory]] Size of the on-heap storage memory
-* [[onHeapExecutionMemory]] Size of the on-heap execution memory
-
-MemoryManager is an abstract class and cannot be created directly. It is created indirectly for the <<implementations, concrete MemoryManagers>>.
-
-== [[onHeapStorageMemoryPool]][[offHeapStorageMemoryPool]] MemoryPools for Storage
-
-MemoryManager creates two memory:StorageMemoryPool.md[]s for on- and off-heap storage (ON_HEAP and OFF_HEAP memory modes, respectively) when <<creating-instance, created>>.
-
-MemoryManager immediately requests them to memory:MemoryPool.md#incrementPoolSize[incrementPoolSize] as follows:
-
-* On-heap storage memory pool is initialized to the assigned <<onHeapStorageMemory, onHeapStorageMemory>> size
-
-* Off-heap storage memory pool is initialized to the configuration-properties.md#spark.memory.storageFraction[spark.memory.storageFraction] of configuration-properties.md#spark.memory.offHeap.size[spark.memory.offHeap.size]
-
-MemoryManager requests the MemoryPools to memory:StorageMemoryPool.md#setMemoryStore[use a given MemoryStore] when requested to <<setMemoryStore, setMemoryStore>>.
-
-MemoryManager requests the MemoryPools to memory:StorageMemoryPool.md#releaseMemory[releaseMemory] when requested to <<releaseStorageMemory, releaseStorageMemory>>.
-
-MemoryManager requests the MemoryPools to memory:StorageMemoryPool.md#releaseAllMemory[releaseAllMemory] when requested to <<releaseAllStorageMemory, releaseAllStorageMemory>>.
-
-MemoryManager requests the MemoryPools for the memory:StorageMemoryPool.md#memoryUsed[memoryUsed] when requested for <<storageMemoryUsed, storageMemoryUsed>>.
-
-== [[SparkEnv]] Accessing MemoryManager Using SparkEnv
-
-MemoryManager is available as core:SparkEnv.md#memoryManager[SparkEnv] on the driver and executors.
-
-[source,plaintext]
-----
+```text
 import org.apache.spark.SparkEnv
 val mm = SparkEnv.get.memoryManager
 
 scala> :type mm
 org.apache.spark.memory.MemoryManager
-----
+```
 
-== [[spark.memory.useLegacyMode]] spark.memory.useLegacyMode Configuration Property
+## <span id="setMemoryStore"> Associating MemoryStore with Storage MemoryPools
 
-A <<implementations, concrete MemoryManager>> is chosen based on configuration-properties.md#spark.memory.useLegacyMode[spark.memory.useLegacyMode] configuration property (when core:SparkEnv.md#memoryManager[SparkEnv] is created for the driver and executors).
-
-== [[executionMemoryUsed]] executionMemoryUsed Method
-
-[source,scala]
-----
-executionMemoryUsed: Long
-----
-
-executionMemoryUsed...FIXME
-
-executionMemoryUsed is used when...FIXME
-
-== [[releaseAllStorageMemory]] releaseAllStorageMemory Method
-
-[source,scala]
-----
-releaseAllStorageMemory(): Unit
-----
-
-releaseAllStorageMemory...FIXME
-
-releaseAllStorageMemory is used when...FIXME
-
-== [[releaseUnrollMemory]] releaseUnrollMemory Method
-
-[source,scala]
-----
-releaseUnrollMemory(
-  numBytes: Long,
-  memoryMode: MemoryMode): Unit
-----
-
-releaseUnrollMemory...FIXME
-
-releaseUnrollMemory is used when...FIXME
-
-== [[setMemoryStore]] Associating MemoryStore with Storage MemoryPools
-
-[source,scala]
-----
+```scala
 setMemoryStore(
   store: MemoryStore): Unit
-----
+```
 
-setMemoryStore requests the <<onHeapStorageMemoryPool, onHeapStorageMemoryPool>> and <<offHeapStorageMemoryPool, offHeapStorageMemoryPool>> to memory:StorageMemoryPool.md#setMemoryStore[use] the given storage:MemoryStore.md[].
+`setMemoryStore` requests the [on-heap](#onHeapStorageMemoryPool) and [off-heap](#offHeapStorageMemoryPool) storage memory pools to [use](StorageMemoryPool.md#setMemoryStore) the given [MemoryStore](../storage/MemoryStore.md).
 
-setMemoryStore is used when storage:BlockManager.md[] is created.
+`setMemoryStore` is used when:
 
-== [[releaseExecutionMemory]] `releaseExecutionMemory` Method
+* `BlockManager` is [created](../storage/BlockManager.md#creating-instance)
 
-[source, scala]
-----
-releaseExecutionMemory(
-  numBytes: Long,
-  taskAttemptId: Long,
-  memoryMode: MemoryMode): Unit
-----
+## Storage Memory Pools
 
-`releaseExecutionMemory`...FIXME
+### <span id="onHeapStorageMemoryPool"> On-Heap
 
-NOTE: `releaseExecutionMemory` is used when `TaskMemoryManager` is requested to TaskMemoryManager.md#releaseExecutionMemory[releaseExecutionMemory] and TaskMemoryManager.md#cleanUpAllAllocatedMemory[cleanUpAllAllocatedMemory]
+```scala
+onHeapStorageMemoryPool: StorageMemoryPool
+```
 
-== [[releaseAllExecutionMemoryForTask]] `releaseAllExecutionMemoryForTask` Method
+`MemoryManager` creates a [StorageMemoryPool](StorageMemoryPool.md) with `ON_HEAP` memory mode when [created](#creating-instance) and immediately requests it to [incrementPoolSize](MemoryPool.md#incrementPoolSize) to [onHeapExecutionMemory](#onHeapExecutionMemory).
 
-[source, scala]
-----
-releaseAllExecutionMemoryForTask(taskAttemptId: Long): Long
-----
+`onHeapStorageMemoryPool` is requested to [setMemoryStore](StorageMemoryPool.md#setMemoryStore) when `MemoryManager` is requested to [setMemoryStore](#setMemoryStore).
 
-`releaseAllExecutionMemoryForTask`...FIXME
+`onHeapStorageMemoryPool` is requested to [release memory](StorageMemoryPool.md#releaseMemory) when `MemoryManager` is requested to [release on-heap storage memory](#releaseStorageMemory).
 
-NOTE: `releaseAllExecutionMemoryForTask` is used exclusively when `TaskRunner` is requested to executor:TaskRunner.md#run[run] (and cleans up after itself).
+`onHeapStorageMemoryPool` is requested to [release all memory](StorageMemoryPool.md#releaseAllMemory) when `MemoryManager` is requested to [release all storage memory](#releaseAllStorageMemory).
 
-== [[tungstenMemoryMode]] `tungstenMemoryMode` Flag
+`onHeapStorageMemoryPool` is used when:
 
-[source, scala]
-----
+* `MemoryManager` is requested for the [storageMemoryUsed](#storageMemoryUsed) and [onHeapStorageMemoryUsed](#onHeapStorageMemoryUsed)
+* `UnifiedMemoryManager` is requested to acquire on-heap [execution](UnifiedMemoryManager.md#acquireExecutionMemory) and [storage](UnifiedMemoryManager.md#acquireStorageMemory) memory
+
+### <span id="offHeapStorageMemoryPool"> Off-Heap
+
+```scala
+offHeapStorageMemoryPool: StorageMemoryPool
+```
+
+`MemoryManager` creates a [StorageMemoryPool](StorageMemoryPool.md) with `OFF_HEAP` memory mode when [created](#creating-instance) and immediately requested it to [incrementPoolSize](MemoryPool.md#incrementPoolSize) to [offHeapStorageMemory](#offHeapStorageMemory).
+
+`MemoryManager` requests the `MemoryPool`s to [use a given MemoryStore](StorageMemoryPool.md#setMemoryStore) when requested to [setMemoryStore](#setMemoryStore).
+
+`MemoryManager` requests the `MemoryPool`s to [release memory](StorageMemoryPool.md#releaseMemory) when requested to [releaseStorageMemory](#releaseStorageMemory).
+
+`MemoryManager` requests the `MemoryPool`s to [release all memory](StorageMemoryPool.md#releaseAllMemory) when requested to [release all storage memory](#releaseAllStorageMemory).
+
+`MemoryManager` requests the `MemoryPool`s for the [memoryUsed](StorageMemoryPool.md#memoryUsed) when requested for [storageMemoryUsed](#storageMemoryUsed).
+
+`offHeapStorageMemoryPool` is used when:
+
+* `MemoryManager` is requested for the [offHeapStorageMemoryUsed](#offHeapStorageMemoryUsed)
+* `UnifiedMemoryManager` is requested to acquire off-heap [execution](UnifiedMemoryManager.md#acquireExecutionMemory) and [storage](UnifiedMemoryManager.md#acquireStorageMemory) memory
+
+## <span id="storageMemoryUsed"> Total Storage Memory Used
+
+```scala
+storageMemoryUsed: Long
+```
+
+`storageMemoryUsed` is the sum of the [memory used](StorageMemoryPool.md#memoryUsed) of the [on-heap](#onHeapStorageMemoryPool) and [off-heap](#offHeapStorageMemoryPool) storage memory pools.
+
+`storageMemoryUsed` is used when:
+
+* `TaskMemoryManager` is requested to [showMemoryUsage](TaskMemoryManager.md#showMemoryUsage)
+* `MemoryStore` is requested to [memoryUsed](../storage/MemoryStore.md#memoryUsed)
+
+## <span id="tungstenMemoryMode"> MemoryMode
+
+```scala
 tungstenMemoryMode: MemoryMode
-----
+```
 
-`tungstenMemoryMode` returns `OFF_HEAP` only when the following are all met:
+`tungstenMemoryMode` tracks whether Tungsten memory will be allocated on the JVM heap or off-heap (using `sun.misc.Unsafe`).
 
-* configuration-properties.md#spark.memory.offHeap.enabled[spark.memory.offHeap.enabled] configuration property is enabled (it is not by default)
+`tungstenMemoryMode` is `OFF_HEAP` when the following are all met:
 
-* configuration-properties.md#spark.memory.offHeap.size[spark.memory.offHeap.size] configuration property is greater than `0` (it is `0` by default)
+* [spark.memory.offHeap.enabled](../configuration-properties.md#spark.memory.offHeap.enabled) configuration property is enabled
 
-* JVM supports unaligned memory access (aka *unaligned Unsafe*, i.e. `sun.misc.Unsafe` package is available and the underlying system has unaligned-access capability)
+* [spark.memory.offHeap.size](../configuration-properties.md#spark.memory.offHeap.size) configuration property is greater than `0`
 
-Otherwise, `tungstenMemoryMode` returns `ON_HEAP`.
+* JVM supports unaligned memory access (aka **unaligned Unsafe**, i.e. `sun.misc.Unsafe` package is available and the underlying system has unaligned-access capability)
 
-NOTE: Given that configuration-properties.md#spark.memory.offHeap.enabled[spark.memory.offHeap.enabled] configuration property is disabled (`false`) by default and configuration-properties.md#spark.memory.offHeap.size[spark.memory.offHeap.size] configuration property is `0` by default, Spark seems to encourage using Tungsten memory allocated on the JVM heap (`ON_HEAP`).
+Otherwise, `tungstenMemoryMode` is `ON_HEAP`.
 
-NOTE: `tungstenMemoryMode` is a Scala `final val` and cannot be changed by custom <<implementations, MemoryManagers>>.
+!!! note
+    Given that [spark.memory.offHeap.enabled](../configuration-properties.md#spark.memory.offHeap.enabled) configuration property is turned off by default and [spark.memory.offHeap.size](../configuration-properties.md#spark.memory.offHeap.size) configuration property is `0` by default, Apache Spark seems to encourage using Tungsten memory allocated on the JVM heap (`ON_HEAP`).
 
-[NOTE]
-====
 `tungstenMemoryMode` is used when:
 
-* `TaskMemoryManager` is TaskMemoryManager.md#tungstenMemoryMode[created]
-
-* MemoryManager is created (and initializes the <<pageSizeBytes, pageSizeBytes>> and <<tungstenMemoryAllocator, tungstenMemoryAllocator>> internal properties)
-====
-
-== [[freePage]] `freePage` Method
-
-[source, java]
-----
-void freePage(MemoryBlock page)
-----
-
-`freePage`...FIXME
-
-NOTE: `freePage` is used when...FIXME
-
-== [[storageMemoryUsed]] storageMemoryUsed Method
-
-[source, scala]
-----
-storageMemoryUsed: Long
-----
-
-storageMemoryUsed gives the total of the memory used by the <<onHeapStorageMemoryPool, on-heap>> and <<offHeapStorageMemoryPool, off-heap>> StorageMemoryPools.
-
-storageMemoryUsed is used when:
-
-* MemoryStore is requested for storage:MemoryStore.md#memoryUsed[memoryUsed]
-
-* TaskMemoryManager is requested to memory:TaskMemoryManager.md#showMemoryUsage[showMemoryUsage]
-
-== [[releaseStorageMemory]] releaseStorageMemory Method
-
-[source, scala]
-----
-releaseStorageMemory(
-  numBytes: Long,
-  memoryMode: MemoryMode): Unit
-----
-
-releaseStorageMemory...FIXME
-
-releaseStorageMemory is used when:
-
-* MemoryManager is requested to <<releaseUnrollMemory, releaseUnrollMemory>>
-
-* MemoryStore is requested to storage:MemoryStore.md#remove[remove a block]
-
-== [[getExecutionMemoryUsageForTask]] getExecutionMemoryUsageForTask Method
-
-[source, scala]
-----
-getExecutionMemoryUsageForTask(
-  taskAttemptId: Long): Long
-----
-
-getExecutionMemoryUsageForTask...FIXME
-
-getExecutionMemoryUsageForTask is used when...FIXME
-
-== [[maxOffHeapMemory]] maxOffHeapMemory
-
-[source, scala]
-----
-maxOffHeapMemory: Long
-----
-
-maxOffHeapMemory...FIXME
-
-maxOffHeapMemory is used when...FIXME
-
-== [[internal-properties]] Internal Properties
-
-[cols="30m,70",options="header",width="100%"]
-|===
-| Name
-| Description
-
-| pageSizeBytes
-| [[pageSizeBytes]] FIXME
-
-| tungstenMemoryAllocator
-a| [[tungstenMemoryAllocator]] FIXME
-
-|===
+* `MemoryManager` is created (and initializes the [pageSizeBytes](MemoryManager.md#pageSizeBytes) and [tungstenMemoryAllocator](MemoryManager.md#tungstenMemoryAllocator) internal properties)
+* `TaskMemoryManager` is [created](TaskMemoryManager.md#tungstenMemoryMode)
