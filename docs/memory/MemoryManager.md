@@ -107,7 +107,7 @@ scala> :type mm
 org.apache.spark.memory.MemoryManager
 ```
 
-## <span id="setMemoryStore"> Associating MemoryStore with Storage MemoryPools
+## <span id="setMemoryStore"> Associating MemoryStore with Storage Memory Pools
 
 ```scala
 setMemoryStore(

@@ -1,82 +1,54 @@
-= StorageMemoryPool
+# StorageMemoryPool
 
-*StorageMemoryPool* is a memory:MemoryPool.md[].
+`StorageMemoryPool` is a [MemoryPool](MemoryPool.md).
 
-StorageMemoryPool is <<creating-instance, created>> along with MemoryManager.md#creating-instance[MemoryManager] (as MemoryManager.md#onHeapStorageMemoryPool[onHeapStorageMemoryPool] and MemoryManager.md#offHeapStorageMemoryPool[offHeapStorageMemoryPool] pools).
+## Creating Instance
 
-[[internal-registries]]
-.StorageMemoryPool's Internal Properties (e.g. Registries, Counters and Flags)
-[cols="1,2",options="header",width="100%"]
-|===
-| Name
-| Description
+`StorageMemoryPool` takes the following to be created:
 
-| `poolName`
-| [[poolName]] FIXME
+* <span id="lock"> Object Lock
+* <span id="memoryMode"> `MemoryMode` (`ON_HEAP` or `OFF_HEAP`)
 
-Used when...FIXME
+`StorageMemoryPool` is created when:
 
-| `_memoryUsed`
-| [[_memoryUsed]][[memoryUsed]] The amount of memory in use for storage (caching)
+* `MemoryManager` is created (and initializes [on-heap](MemoryManager.md#onHeapStorageMemoryPool) and [off-heap](MemoryManager.md#offHeapStorageMemoryPool) storage memory pools)
 
-Used when...FIXME
+## <span id="_memoryStore"><span id="memoryStore"><span id="setMemoryStore"> MemoryStore
 
-| `_memoryStore`
-| [[_memoryStore]][[memoryStore]] storage:MemoryStore.md[MemoryStore]
+`StorageMemoryPool` is given a [MemoryStore](../storage/MemoryStore.md) when `MemoryManager` is requested to [associate one with storage memory pools](MemoryManager.md#setMemoryStore).
 
-Used when...FIXME
-|===
+`MemoryStore` is used when `StorageMemoryPool` is requested to:
 
-== [[memoryFree]] `memoryFree` Method
+* [Acquire Memory](#acquireMemory)
+* [Free Space to Shrink Pool](#freeSpaceToShrinkPool)
 
-[source, scala]
-----
-memoryFree: Long
-----
+## <span id="acquireMemory"> Acquiring Memory
 
-`memoryFree`...FIXME
-
-NOTE: `memoryFree` is used when...FIXME
-
-== [[acquireMemory]] `acquireMemory` Method
-
-[source, scala]
-----
-acquireMemory(blockId: BlockId, numBytes: Long): Boolean  // <1>
+```scala
+acquireMemory(
+  blockId: BlockId,
+  numBytes: Long): Boolean
 acquireMemory(
   blockId: BlockId,
   numBytesToAcquire: Long,
   numBytesToFree: Long): Boolean
-----
-<1> Calls `acquireMemory` with `numBytesToFree` as a difference between `numBytes` and <<memoryFree, memoryFree>>
+```
 
 `acquireMemory`...FIXME
 
-[NOTE]
-====
-`acquireMemory` is used when:
+`acquireMemory` is used when:
 
-* `StaticMemoryManager` is requested to StaticMemoryManager.md#acquireUnrollMemory[acquireUnrollMemory] and StaticMemoryManager.md#acquireStorageMemory[acquireStorageMemory]
+* `UnifiedMemoryManager` is requested to [acquire storage memory](UnifiedMemoryManager.md#acquireStorageMemory)
 
-* `UnifiedMemoryManager` is requested to UnifiedMemoryManager.md#acquireStorageMemory[acquireStorageMemory]
-====
+## <span id="freeSpaceToShrinkPool"> freeSpaceToShrinkPool
 
-== [[freeSpaceToShrinkPool]] `freeSpaceToShrinkPool` Method
-
-[source, scala]
-----
-freeSpaceToShrinkPool(spaceToFree: Long): Long
-----
+```scala
+freeSpaceToShrinkPool(
+  spaceToFree: Long): Long
+```
 
 `freeSpaceToShrinkPool`...FIXME
 
-NOTE: `freeSpaceToShrinkPool` is used exclusively when `UnifiedMemoryManager` is requested to UnifiedMemoryManager.md#acquireExecutionMemory[acquireExecutionMemory].
+`freeSpaceToShrinkPool` is used when:
 
-== [[creating-instance]] Creating StorageMemoryPool Instance
-
-StorageMemoryPool takes the following when created:
-
-* [[lock]] Lock
-* [[memoryMode]] `MemoryMode` (either `ON_HEAP` or `OFF_HEAP`)
-
-StorageMemoryPool initializes the <<internal-registries, internal registries and counters>>.
+* `UnifiedMemoryManager` is requested to [acquire execution memory](UnifiedMemoryManager.md#acquireExecutionMemory)
