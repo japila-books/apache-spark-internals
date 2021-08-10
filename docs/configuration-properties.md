@@ -705,12 +705,6 @@ a| [[spark.unsafe.exceptionOnMemoryLeak]]
 
 Default: `0.6`
 
-== [[spark.memory.useLegacyMode]] spark.memory.useLegacyMode
-
-Controls the type of memory:MemoryManager.md[MemoryManager] to use. When enabled (i.e. `true`) it is the legacy memory:StaticMemoryManager.md[StaticMemoryManager] while memory:UnifiedMemoryManager.md[UnifiedMemoryManager] otherwise (i.e. `false`).
-
-Default: `false`
-
 == [[spark.shuffle.spill.batchSize]] spark.shuffle.spill.batchSize
 
 Size of object batches when reading or writing from serializers.
