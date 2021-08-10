@@ -6,7 +6,7 @@
 
 `StorageMemoryPool` takes the following to be created:
 
-* <span id="lock"> Object Lock
+* <span id="lock"> Lock Object
 * <span id="memoryMode"> `MemoryMode` (`ON_HEAP` or `OFF_HEAP`)
 
 `StorageMemoryPool` is created when:

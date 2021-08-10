@@ -1,102 +1,56 @@
-= MemoryPool
+# MemoryPool
 
-*MemoryPool* is a bookkeeping abstraction of <<extensions, memory pools>>.
+`MemoryPool` is an [abstraction](#contract) of [memory pools](#implementations).
 
-MemoryPool is used by the memory:MemoryManager.md[MemoryManager] to track the division of memory between storage and execution.
+## Contract
 
-== [[extensions]] Extensions
+### <span id="memoryUsed"> Memory Used
 
-.MemoryPools
-[cols="30,70",options="header",width="100%"]
-|===
-| MemoryPool
-| Description
-
-| ExecutionMemoryPool.md[ExecutionMemoryPool]
-| [[ExecutionMemoryPool]]
-
-| StorageMemoryPool.md[StorageMemoryPool]
-| [[StorageMemoryPool]]
-
-|===
-
-== [[creating-instance]][[lock]] Creating Instance
-
-MemoryPool takes a single lock object to be created (used for synchronization).
-
-== [[_poolSize]][[poolSize]] Pool Size
-
-[source,scala]
-----
-_poolSize: Long = 0
-----
-
-++_poolSize++ is the maximum size of the memory pool.
-
-++_poolSize++ can be <<incrementPoolSize, expanded>> or <<decrementPoolSize, shrinked>>.
-
-++_poolSize++ is used to report <<memoryFree, memory free>>.
-
-== [[memoryUsed]] Amount of Memory Used
-
-[source, scala]
-----
+```scala
 memoryUsed: Long
-----
+```
 
-memoryUsed gives the amount of memory used in this pool (in bytes).
+Used when:
 
-memoryUsed is used when:
+* `MemoryPool` is requested for the [amount of free memory](#memoryFree) and [decrementPoolSize](#decrementPoolSize)
 
-* MemoryManager is requested for the memory:MemoryManager.md#storageMemoryUsed[total storage memory in use]
+## Implementations
 
-* MemoryPool is requested for the current <<memoryFree, memory free>> and to <<decrementPoolSize, shrink pool size>>
+* [ExecutionMemoryPool](ExecutionMemoryPool.md)
+* [StorageMemoryPool](StorageMemoryPool.md)
 
-* StorageMemoryPool is requested to acquireMemory
+## Creating Instance
 
-* UnifiedMemoryManager is requested to memory:UnifiedMemoryManager.md#maxOnHeapStorageMemory[maxOnHeapStorageMemory], memory:UnifiedMemoryManager.md#maxOffHeapStorageMemory[maxOffHeapStorageMemory] and memory:UnifiedMemoryManager.md#acquireExecutionMemory[acquireExecutionMemory]
+`MemoryPool` takes the following to be created:
 
-== [[memoryFree]] Amount of Free Memory
+* <span id="lock"> Lock Object
 
-[source, scala]
-----
-memoryFree: Long
-----
+??? note "Abstract Class"
+    `MemoryPool` is an abstract class and cannot be created directly. It is created indirectly for the [concrete MemoryPools](#implementations).
 
-memoryFree gives the amount of free memory in the pool (in bytes) by simply subtracting the <<memoryUsed, memory used>> from the <<_poolSize, _poolSize>>.
+## <span id="memoryFree"> Free Memory
 
-memoryFree is used when...FIXME
+```scala
+memoryFree
+```
 
-== [[decrementPoolSize]] Shrinking Pool Size
+`memoryFree`...FIXME
 
-[source, scala]
-----
+`memoryFree` is used when:
+
+* `ExecutionMemoryPool` is requested to [acquireMemory](ExecutionMemoryPool.md#acquireMemory)
+* `StorageMemoryPool` is requested to [acquireMemory](StorageMemoryPool.md#acquireMemory) and [freeSpaceToShrinkPool](StorageMemoryPool.md#freeSpaceToShrinkPool)
+* `UnifiedMemoryManager` is requested to acquire [execution](UnifiedMemoryManager.md#acquireExecutionMemory) and [storage](UnifiedMemoryManager.md#acquireStorageMemory) memory
+
+## <span id="decrementPoolSize"> decrementPoolSize
+
+```scala
 decrementPoolSize(
   delta: Long): Unit
-----
+```
 
-decrementPoolSize makes the <<_poolSize, _poolSize>> smaller by the given `delta` bytes.
+`decrementPoolSize`...FIXME
 
-decrementPoolSize requires that the given delta bytes has to meet the requirements:
+`decrementPoolSize` is used when:
 
-* be positive
-
-* up to the current <<_poolSize, _poolSize>>
-
-* Does not shrink the current <<_poolSize, _poolSize>> below the <<memoryUsed, memory used>> threshold
-
-decrementPoolSize is used when...FIXME
-
-== [[incrementPoolSize]] Expanding Pool Size
-
-[source, scala]
-----
-incrementPoolSize(
-  delta: Long): Unit
-----
-
-incrementPoolSize makes the <<_poolSize, _poolSize>> bigger by the given `delta` bytes.
-
-incrementPoolSize requires that the given delta bytes has to be positive.
-
-incrementPoolSize is used when...FIXME
+* `UnifiedMemoryManager` is requested to [acquireExecutionMemory](UnifiedMemoryManager.md#acquireExecutionMemory) and [acquireStorageMemory](UnifiedMemoryManager.md#acquireStorageMemory)
