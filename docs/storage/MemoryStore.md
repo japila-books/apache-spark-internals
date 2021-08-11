@@ -6,34 +6,107 @@
 
 ## Creating Instance
 
-MemoryStore takes the following to be created:
+`MemoryStore` takes the following to be created:
 
-* [[conf]] SparkConf.md[]
-* <<blockInfoManager, BlockInfoManager>>
-* [[serializerManager]] serializer:SerializerManager.md[]
-* [[memoryManager]] memory:MemoryManager.md[]
-* [[blockEvictionHandler]] storage:BlockEvictionHandler.md[]
+* <span id="conf"> [SparkConf](../SparkConf.md)
+* [BlockInfoManager](#blockInfoManager)
+* <span id="serializerManager"> [SerializerManager](../serializer/SerializerManager.md)
+* <span id="memoryManager"> [MemoryManager](../memory/MemoryManager.md)
+* <span id="blockEvictionHandler"> [BlockEvictionHandler](BlockEvictionHandler.md)
 
-MemoryStore is created for storage:BlockManager.md#memoryStore[BlockManager].
+`MemoryStore` is created when:
 
-.Creating MemoryStore
-image::spark-MemoryStore.png[align="center"]
+* `BlockManager` is [created](BlockManager.md#memoryStore)
 
-== [[blockInfoManager]] BlockInfoManager
+![Creating MemoryStore](../images/storage/spark-MemoryStore.png)
 
-MemoryStore is given a storage:BlockInfoManager.md[] when <<creating-instance, created>>.
+## <span id="blockInfoManager"> BlockInfoManager
 
-MemoryStore uses the BlockInfoManager when requested to <<evictBlocksToFreeSpace, evictBlocksToFreeSpace>>.
+`MemoryStore` is given a [BlockInfoManager](BlockInfoManager.md) when [created](#creating-instance).
 
-== [[memoryStore]] Accessing MemoryStore
+`MemoryStore` uses the `BlockInfoManager` when requested to [evict blocks](#evictBlocksToFreeSpace).
 
-MemoryStore is available using storage:BlockManager.md#memoryStore[BlockManager.memoryStore] reference to other Spark services.
+## <span id="entries"> MemoryEntries by BlockId
 
-[source,scala]
-----
+```scala
+entries: LinkedHashMap[BlockId, MemoryEntry[_]]
+```
+
+`MemoryStore` creates a `LinkedHashMap` ([Java]({{ java.api }}/java.base/java/util/LinkedHashMap.html)) of `MemoryEntries` per [BlockId](BlockId.md) when [created](#creating-instance).
+
+`entries` uses **access-order** ordering mode where the order of iteration is the order in which the entries were last accessed (from least-recently accessed to most-recently). That gives **LRU cache** behaviour when `MemoryStore` is requested to [evict blocks](#evictBlocksToFreeSpace).
+
+## <span id="evictBlocksToFreeSpace"> Evicting Blocks
+
+```scala
+evictBlocksToFreeSpace(
+  blockId: Option[BlockId],
+  space: Long,
+  memoryMode: MemoryMode): Long
+```
+
+`evictBlocksToFreeSpace` finds blocks to evict in the [entries](#entries) registry (based on least-recently accessed order and until the required `space` to free up is met or there are no more blocks).
+
+Once done, `evictBlocksToFreeSpace` returns the memory freed up.
+
+When there is enough blocks to drop to free up memory, `evictBlocksToFreeSpace` prints out the following INFO message to the logs:
+
+```text
+[n] blocks selected for dropping ([freedMemory]) bytes)
+```
+
+`evictBlocksToFreeSpace` [drops the blocks](#dropBlock) one by one.
+
+`evictBlocksToFreeSpace` prints out the following INFO message to the logs:
+
+```text
+After dropping [n] blocks, free memory is [memory]
+```
+
+When there is not enough blocks to drop to make room for the given block (if any), `evictBlocksToFreeSpace` prints out the following INFO message to the logs:
+
+```text
+Will not store [blockId]
+```
+
+`evictBlocksToFreeSpace` is used when:
+
+* `StorageMemoryPool` is requested to [acquireMemory](../memory/StorageMemoryPool.md#acquireMemory) and [freeSpaceToShrinkPool](../memory/StorageMemoryPool.md#freeSpaceToShrinkPool)
+
+### <span id="dropBlock"> Dropping Block
+
+```scala
+dropBlock[T](
+  blockId: BlockId,
+  entry: MemoryEntry[T]): Unit
+```
+
+`dropBlock` requests the [BlockEvictionHandler](#blockEvictionHandler) to [drop the block from memory](BlockEvictionHandler.md#dropFromMemory).
+
+If the block is no longer available in any other store, `dropBlock` requests the [BlockInfoManager](#blockInfoManager) to [remove the block (info)](BlockInfoManager.md#removeBlock).
+
+## Accessing MemoryStore
+
+`MemoryStore` is available to other Spark services using [BlockManager.memoryStore](BlockManager.md#memoryStore).
+
+```scala
 import org.apache.spark.SparkEnv
 SparkEnv.get.blockManager.memoryStore
-----
+```
+
+## Logging
+
+Enable `ALL` logging level for `org.apache.spark.storage.memory.MemoryStore` logger to see what happens inside.
+
+Add the following line to `conf/log4j.properties`:
+
+```text
+log4j.logger.org.apache.spark.storage.memory.MemoryStore=ALL
+```
+
+Refer to [Logging](../spark-logging.md).
+
+## Review Me
 
 == [[unrollMemoryThreshold]][[spark.storage.unrollMemoryThreshold]] spark.storage.unrollMemoryThreshold Configuration Property
 
@@ -60,45 +133,6 @@ releaseUnrollMemoryForThisTask is used when:
 
 * PartiallySerializedBlock is requested to discard and finishWritingToStream
 
-== [[getValues]] getValues Method
-
-[source, scala]
-----
-getValues(
-  blockId: BlockId): Option[Iterator[_]]
-----
-
-getValues...FIXME
-
-getValues is used when BlockManager is requested to storage:BlockManager.md#doGetLocalBytes[doGetLocalBytes], storage:BlockManager.md#getLocalValues[getLocalValues] and storage:BlockManager.md#maybeCacheDiskBytesInMemory[maybeCacheDiskBytesInMemory].
-
-== [[getBytes]] getBytes Method
-
-[source, scala]
-----
-getBytes(
-  blockId: BlockId): Option[ChunkedByteBuffer]
-----
-
-getBytes...FIXME
-
-getBytes is used when BlockManager is requested to storage:BlockManager.md#doGetLocalBytes[doGetLocalBytes], storage:BlockManager.md#getLocalValues[getLocalValues] and storage:BlockManager.md#maybeCacheDiskBytesInMemory[maybeCacheDiskBytesInMemory].
-
-== [[putIteratorAsBytes]] putIteratorAsBytes Method
-
-[source, scala]
-----
-putIteratorAsBytes[T](
-  blockId: BlockId,
-  values: Iterator[T],
-  classTag: ClassTag[T],
-  memoryMode: MemoryMode): Either[PartiallySerializedBlock[T], Long]
-----
-
-putIteratorAsBytes...FIXME
-
-putIteratorAsBytes is used when BlockManager is requested to storage:BlockManager.md#doPutIterator[doPutIterator].
-
 == [[remove]] Dropping Block from Memory
 
 [source, scala]
@@ -107,7 +141,7 @@ remove(
   blockId: BlockId): Boolean
 ----
 
-remove removes the given storage:BlockId.md[] from the <<entries, entries>> internal registry and branches off based on whether the <<remove-block-removed, block was found and removed>> or <<remove-no-block, not>>.
+remove removes the given BlockId.md[] from the <<entries, entries>> internal registry and branches off based on whether the <<remove-block-removed, block was found and removed>> or <<remove-no-block, not>>.
 
 === [[remove-block-removed]] Block Removed
 
@@ -126,7 +160,7 @@ If no BlockId was registered and removed, remove returns `false`.
 
 === [[remove-usage]] Usage
 
-remove is used when BlockManager is requested to storage:BlockManager.md#dropFromMemory[dropFromMemory] and storage:BlockManager.md#removeBlockInternal[removeBlockInternal].
+remove is used when BlockManager is requested to BlockManager.md#dropFromMemory[dropFromMemory] and BlockManager.md#removeBlockInternal[removeBlockInternal].
 
 == [[putBytes]] Acquiring Storage Memory for Blocks
 
@@ -147,7 +181,7 @@ putBytes then requests memory:MemoryManager.md#acquireStorageMemory[`size` memor
 
 [NOTE]
 ====
-`memoryMode` can be `ON_HEAP` or `OFF_HEAP` and is a property of a storage:StorageLevel.md[StorageLevel].
+`memoryMode` can be `ON_HEAP` or `OFF_HEAP` and is a property of a StorageLevel.md[StorageLevel].
 
 ```
 import org.apache.spark.storage.StorageLevel._
@@ -169,21 +203,7 @@ Block [blockId] stored as bytes in memory (estimated size [size], free [bytes])
 
 putBytes returns `true` only after `blockId` was successfully registered in the internal <<entries, entries>> registry.
 
-putBytes is used when BlockManager is requested to storage:BlockManager.md#doPutBytes[doPutBytes] and storage:BlockManager.md#maybeCacheDiskBytesInMemory[maybeCacheDiskBytesInMemory].
-
-== [[evictBlocksToFreeSpace]] Evicting Blocks
-
-[source, scala]
-----
-evictBlocksToFreeSpace(
-  blockId: Option[BlockId],
-  space: Long,
-  memoryMode: MemoryMode): Long
-----
-
-evictBlocksToFreeSpace...FIXME
-
-evictBlocksToFreeSpace is used when StorageMemoryPool is requested to memory:StorageMemoryPool.md#acquireMemory[acquireMemory] and memory:StorageMemoryPool.md#freeSpaceToShrinkPool[freeSpaceToShrinkPool].
+putBytes is used when BlockManager is requested to BlockManager.md#doPutBytes[doPutBytes] and BlockManager.md#maybeCacheDiskBytesInMemory[maybeCacheDiskBytesInMemory].
 
 == [[contains]] Checking Whether Block Exists In MemoryStore
 
@@ -219,7 +239,7 @@ CAUTION: FIXME
 
 putIteratorAsValues tries to put the `blockId` block in memory store as `values`.
 
-putIteratorAsValues is used when BlockManager is requested to store storage:BlockManager.md#doPutBytes[bytes] or storage:BlockManager.md#doPutIterator[values] of a block or when storage:BlockManager.md#maybeCacheDiskValuesInMemory[attempting to cache spilled values read from disk].
+putIteratorAsValues is used when BlockManager is requested to store BlockManager.md#doPutBytes[bytes] or BlockManager.md#doPutIterator[values] of a block or when BlockManager.md#maybeCacheDiskValuesInMemory[attempting to cache spilled values read from disk].
 
 == [[reserveUnrollMemoryForThisTask]] `reserveUnrollMemoryForThisTask` Method
 
@@ -316,29 +336,3 @@ blocksMemoryUsed: Long
 blocksMemoryUsed is the <<memoryUsed, total memory used>> without the <<currentUnrollMemory, current memory used for unrolling>>.
 
 blocksMemoryUsed is used for logging purposes when MemoryStore is requested to <<putBytes, putBytes>>, <<putIterator, putIterator>>, <<remove, remove>>, <<evictBlocksToFreeSpace, evictBlocksToFreeSpace>> and <<logMemoryUsage, logMemoryUsage>>.
-
-== [[logging]] Logging
-
-Enable `ALL` logging level for `org.apache.spark.storage.memory.MemoryStore` logger to see what happens inside.
-
-Add the following line to `conf/log4j.properties`:
-
-[source]
-----
-log4j.logger.org.apache.spark.storage.memory.MemoryStore=ALL
-----
-
-Refer to spark-logging.md[Logging].
-
-== [[internal-registries]] Internal Registries
-
-=== [[entries]] MemoryEntries by BlockId
-
-[source, scala]
-----
-entries: LinkedHashMap[BlockId, MemoryEntry[_]]
-----
-
-MemoryStore creates a Java {java-javadoc-url}/java/util/LinkedHashMap.html[LinkedHashMap] of `MemoryEntries` per storage:BlockId.md[] (with the initial capacity of `32` and the load factor of `0.75`) when <<creating-instance>>.
-
-entries uses *access-order* ordering mode where the order of iteration is the order in which the entries were last accessed (from least-recently accessed to most-recently). That gives *LRU cache* behaviour when MemoryStore is requested to <<evictBlocksToFreeSpace, evict blocks>>.
