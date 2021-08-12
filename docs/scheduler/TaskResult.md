@@ -21,8 +21,6 @@ The decision what `TaskResult` type to use is made when `TaskRunner` [finishes r
 
 `DirectTaskResult` is used when the size of a task result is below [spark.driver.maxResultSize](../configuration-properties.md#spark.driver.maxResultSize) and the [maximum size of direct results](../executor/Executor.md#maxDirectResultSize).
 
-`DirectTaskResult` is a [java.io.Externalizable]({{ java.api }}/java.base/java/io/Externalizable.html).
-
 ## <span id="IndirectTaskResult"> IndirectTaskResult
 
 `IndirectTaskResult` is a "pointer" to a task result that is available in a [BlockManager](../storage/BlockManager.md):
@@ -31,3 +29,7 @@ The decision what `TaskResult` type to use is made when `TaskRunner` [finishes r
 * <span id="IndirectTaskResult-size"> Size
 
 `IndirectTaskResult` is a [java.io.Serializable]({{ java.api }}/java.base/java/io/Serializable.html).
+
+## <span id="Externalizable"> Externalizable
+
+`DirectTaskResult` is an `Externalizable` ([Java]({{ java.api }}/java.base/java/io/Externalizable.html)).
