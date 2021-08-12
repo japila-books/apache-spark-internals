@@ -20,21 +20,35 @@
 
 ![Creating MemoryStore](../images/storage/spark-MemoryStore.png)
 
-## <span id="blockInfoManager"> BlockInfoManager
-
-`MemoryStore` is given a [BlockInfoManager](BlockInfoManager.md) when [created](#creating-instance).
-
-`MemoryStore` uses the `BlockInfoManager` when requested to [evict blocks](#evictBlocksToFreeSpace).
-
-## <span id="entries"> MemoryEntries by BlockId
+## <span id="entries"><span id="MemoryEntry"> Blocks
 
 ```scala
 entries: LinkedHashMap[BlockId, MemoryEntry[_]]
 ```
 
-`MemoryStore` creates a `LinkedHashMap` ([Java]({{ java.api }}/java.base/java/util/LinkedHashMap.html)) of `MemoryEntries` per [BlockId](BlockId.md) when [created](#creating-instance).
+`MemoryStore` creates a `LinkedHashMap` ([Java]({{ java.api }}/java.base/java/util/LinkedHashMap.html)) of blocks (as `MemoryEntries` per [BlockId](BlockId.md)) when [created](#creating-instance).
 
 `entries` uses **access-order** ordering mode where the order of iteration is the order in which the entries were last accessed (from least-recently accessed to most-recently). That gives **LRU cache** behaviour when `MemoryStore` is requested to [evict blocks](#evictBlocksToFreeSpace).
+
+`MemoryEntries` are added in [putBytes](#putBytes) and [putIterator](#putIterator).
+
+`MemoryEntries` are removed in [remove](#remove), [clear](#clear), and while [evicting blocks to free up memory](#evictBlocksToFreeSpace).
+
+### <span id="DeserializedMemoryEntry"> DeserializedMemoryEntry
+
+`DeserializedMemoryEntry` is a `MemoryEntry` for block values with the following:
+
+* `Array[T]` (for the values)
+* `size`
+* `ON_HEAP` memory mode
+
+### <span id="SerializedMemoryEntry"> SerializedMemoryEntry
+
+`SerializedMemoryEntry` is a `MemoryEntry` for block bytes with the following:
+
+* `ChunkedByteBuffer` (for the serialized values)
+* `size`
+* `MemoryMode`
 
 ## <span id="evictBlocksToFreeSpace"> Evicting Blocks
 
@@ -85,6 +99,12 @@ dropBlock[T](
 
 If the block is no longer available in any other store, `dropBlock` requests the [BlockInfoManager](#blockInfoManager) to [remove the block (info)](BlockInfoManager.md#removeBlock).
 
+## <span id="blockInfoManager"> BlockInfoManager
+
+`MemoryStore` is given a [BlockInfoManager](BlockInfoManager.md) when [created](#creating-instance).
+
+`MemoryStore` uses the `BlockInfoManager` when requested to [evict blocks](#evictBlocksToFreeSpace).
+
 ## Accessing MemoryStore
 
 `MemoryStore` is available to other Spark services using [BlockManager.memoryStore](BlockManager.md#memoryStore).
@@ -93,6 +113,98 @@ If the block is no longer available in any other store, `dropBlock` requests the
 import org.apache.spark.SparkEnv
 SparkEnv.get.blockManager.memoryStore
 ```
+
+## <span id="getBytes"> Serialized Block Bytes
+
+```scala
+getBytes(
+  blockId: BlockId): Option[ChunkedByteBuffer]
+```
+
+`getBytes` returns the bytes of the [SerializedMemoryEntry](#SerializedMemoryEntry) of a block (if found in the [entries](#entries) registry).
+
+`getBytes` is used (for blocks with a [serialized and in-memory storage level](StorageLevel.md)) when:
+
+* `BlockManager` is requested for the [serialized bytes of a block (from a local block manager)](BlockManager.md#doGetLocalBytes), [getLocalValues](BlockManager.md#getLocalValues), [maybeCacheDiskBytesInMemory](BlockManager.md#maybeCacheDiskBytesInMemory)
+
+## <span id="getValues"> Deserialized Block Values
+
+```scala
+getValues(
+  blockId: BlockId): Option[Iterator[_]]
+```
+
+`getValues` returns the values of the [DeserializedMemoryEntry](#DeserializedMemoryEntry) of a block (if found in the [entries](#entries) registry).
+
+`getValues` is used (for blocks with a [deserialized and in-memory storage level](StorageLevel.md)) when:
+
+* `BlockManager` is requested for the [serialized bytes of a block (from a local block manager)](BlockManager.md#doGetLocalBytes), [getLocalValues](BlockManager.md#getLocalValues), [maybeCacheDiskBytesInMemory](BlockManager.md#maybeCacheDiskBytesInMemory)
+
+## <span id="putIteratorAsValues"> putIteratorAsValues
+
+```scala
+putIteratorAsValues[T](
+  blockId: BlockId,
+  values: Iterator[T],
+  classTag: ClassTag[T]): Either[PartiallyUnrolledIterator[T], Long]
+```
+
+`putIteratorAsValues`...FIXME
+
+`putIteratorAsValues` is used when:
+
+* `BlockStoreUpdater` is requested to [saveDeserializedValuesToMemoryStore](BlockStoreUpdater.md#saveDeserializedValuesToMemoryStore)
+* `BlockManager` is requested to [doPutIterator](BlockManager.md#doPutIterator) and [maybeCacheDiskValuesInMemory](BlockManager.md#maybeCacheDiskValuesInMemory)
+
+## <span id="putIteratorAsBytes"> putIteratorAsBytes
+
+```scala
+putIteratorAsBytes[T](
+  blockId: BlockId,
+  values: Iterator[T],
+  classTag: ClassTag[T],
+  memoryMode: MemoryMode): Either[PartiallySerializedBlock[T], Long]
+```
+
+`putIteratorAsBytes`...FIXME
+
+`putIteratorAsBytes` is used when:
+
+* `BlockManager` is requested to [doPutIterator](BlockManager.md#doPutIterator)
+
+## <span id="putIterator"> putIterator
+
+```scala
+putIterator[T](
+  blockId: BlockId,
+  values: Iterator[T],
+  classTag: ClassTag[T],
+  memoryMode: MemoryMode,
+  valuesHolder: ValuesHolder[T]): Either[Long, Long]
+```
+
+`putIterator`...FIXME
+
+`putIterator` is used when:
+
+* `MemoryStore` is requested to [putIteratorAsValues](#putIteratorAsValues) and [putIteratorAsBytes](#putIteratorAsBytes)
+
+## <span id="putBytes"> putBytes
+
+```scala
+putBytes[T: ClassTag](
+  blockId: BlockId,
+  size: Long,
+  memoryMode: MemoryMode,
+  _bytes: () => ChunkedByteBuffer): Boolean
+```
+
+`putBytes`...FIXME
+
+`putBytes` is used when:
+
+* `BlockStoreUpdater` is requested to [saveSerializedValuesToMemoryStore](BlockStoreUpdater.md#saveSerializedValuesToMemoryStore)
+* `BlockManager` is requested to [maybeCacheDiskBytesInMemory](BlockManager.md#maybeCacheDiskBytesInMemory)
 
 ## Logging
 
@@ -217,30 +329,6 @@ contains is positive (`true`) when the <<entries, entries>> internal registry co
 
 contains is used when...FIXME
 
-== [[putIteratorAsValues]] putIteratorAsValues Method
-
-[source, scala]
-----
-putIteratorAsValues[T](
-  blockId: BlockId,
-  values: Iterator[T],
-  classTag: ClassTag[T]): Either[PartiallyUnrolledIterator[T], Long]
-----
-
-putIteratorAsValues makes sure that the `BlockId` does not exist or throws an `IllegalArgumentException`:
-
-```
-requirement failed: Block [blockId] is already present in the MemoryStore
-```
-
-putIteratorAsValues <<reserveUnrollMemoryForThisTask, reserveUnrollMemoryForThisTask>> (with the <<unrollMemoryThreshold, initial memory threshold>> and `ON_HEAP` memory mode).
-
-CAUTION: FIXME
-
-putIteratorAsValues tries to put the `blockId` block in memory store as `values`.
-
-putIteratorAsValues is used when BlockManager is requested to store BlockManager.md#doPutBytes[bytes] or BlockManager.md#doPutIterator[values] of a block or when BlockManager.md#maybeCacheDiskValuesInMemory[attempting to cache spilled values read from disk].
-
 == [[reserveUnrollMemoryForThisTask]] `reserveUnrollMemoryForThisTask` Method
 
 [source, scala]
@@ -274,22 +362,6 @@ MemoryStore started with capacity [maxMemory] MB
 ====
 
 NOTE: `maxMemory` is used for <<logging, logging>> purposes only.
-
-== [[putIterator]] putIterator Internal Method
-
-[source, scala]
-----
-putIterator[T](
-  blockId: BlockId,
-  values: Iterator[T],
-  classTag: ClassTag[T],
-  memoryMode: MemoryMode,
-  valuesHolder: ValuesHolder[T]): Either[Long, Long]
-----
-
-putIterator...FIXME
-
-putIterator is used when MemoryStore is requested to <<putIteratorAsValues, putIteratorAsValues>> and <<putIteratorAsBytes, putIteratorAsBytes>>.
 
 == [[logUnrollFailureMessage]] logUnrollFailureMessage Internal Method
 
