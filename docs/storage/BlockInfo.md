@@ -1,49 +1,49 @@
 # BlockInfo
 
-*BlockInfo* is a metadata of storage:BlockId.md[memory block] -- the memory block's <<size, size>>, the <<readerCount, number of readers>> and the <<writerTask, id of the writer task>>.
+`BlockInfo` is a metadata of [data block](BlockId.md)s (stored in [MemoryStore](MemoryStore.md) or [DiskStore](DiskStore.md)).
 
-BlockInfo has a storage:StorageLevel.md[], `ClassTag` and `tellMaster` flag.
+## Creating Instance
 
-== [[size]] Size
+`BlockInfo` takes the following to be created:
 
-`size` attribute is the size of the memory block. It starts with `0`.
+* <span id="level"> [StorageLevel](StorageLevel.md)
+* <span id="classTag"> `ClassTag` ([Scala]({{ scala.api }}/scala/reflect/ClassTag.html))
+* <span id="tellMaster"> `tellMaster` flag
 
-It represents the number of bytes that storage:BlockManager.md#putBytes[`BlockManager` saved] or storage:BlockManager.md#doPutIterator[BlockManager.doPutIterator].
+`BlockInfo` is created when:
 
-== [[readerCount]] Reader Count -- `readerCount` Counter
+* `BlockManager` is requested to [doPut](BlockManager.md#doPut)
 
-`readerCount` counter is the number of readers of the memory block, i.e. the number of read locks. It starts with `0`.
+## <span id="size"><span id="_size"> Block Size
 
-`readerCount` is incremented when a storage:BlockInfoManager.md#lockForReading[read lock is acquired] and decreases when the following happens:
+`BlockInfo` knows the size of the block (in bytes).
 
-* The storage:BlockManager.md#unlock[memory block is unlocked]
+The size is `0` by default and changes when:
 
-* storage:BlockInfoManager.md#releaseAllLocksForTask[All locks for the memory block obtained by a task are released].
+* `BlockStoreUpdater` is requested to [save](BlockStoreUpdater.md#save)
+* `BlockManager` is requested to [doPutIterator](BlockManager.md#doPutIterator)
 
-* storage:BlockInfoManager.md#removeBlock[memory block is removed]
+## <span id="readerCount"> Reader Count
 
-* storage:BlockInfoManager.md#clear[Clearing the current state of `BlockInfoManager`].
+`readerCount` is the number of times that this block has been locked for reading
 
-== [[writerTask]] Writer Task -- `writerTask` Attribute
+`readerCount` is `0` by default.
 
-`writerTask` attribute is the task that owns the write lock for the memory block.
+`readerCount` changes back to `0` when:
 
-A writer task can be one of the three possible identifiers:
+* `BlockInfoManager` is requested to [remove a block](BlockInfoManager.md#removeBlock) and [clear](BlockInfoManager.md#clear)
 
-* [[NO_WRITER]] `NO_WRITER` (i.e. `-1`) to denote no writers and hence no write lock in use.
+`readerCount` is incremented when a [read lock is acquired](BlockInfoManager.md#lockForReading) and decreases when the following happens:
 
-* [[NON_TASK_WRITER]] `NON_TASK_WRITER` (i.e. `-1024`) for non-task threads, e.g. by a driver thread or by unit test code.
+* `BlockInfoManager` is requested to [release a lock](BlockInfoManager.md#unlock) and [releaseAllLocksForTask](BlockInfoManager.md#releaseAllLocksForTask)
 
-* the task attempt id of the task which currently holds the write lock for this block.
+## <span id="writerTask"><span id="NO_WRITER"> Writer Task
 
-The writer task is assigned in the following scenarios:
+`writerTask` attribute is the task ID that owns the [write lock for the block](BlockInfoManager.md#lockForWriting) or the following:
 
-* A storage:BlockInfoManager.md#lockForWriting[write lock is requested for a memory block (with no writer and readers)]
+* <span id="NO_WRITER"> `-1` for no writers and hence no write lock in use
+* <span id="NON_TASK_WRITER"> `-1024` for non-task threads (by a driver thread or by unit test code)
 
-* A storage:BlockInfoManager.md#unlock[memory block is unlocked]
+`writerTask` is assigned a task ID when:
 
-* storage:BlockInfoManager.md#releaseAllLocksForTask[All locks obtained by a task are released]
-
-* A storage:BlockInfoManager.md#removeBlock[memory block is removed]
-
-* storage:BlockInfoManager.md#clear[Clearing the current state of `BlockInfoManager`].
+* `BlockInfoManager` is requested to [lockForWriting](BlockInfoManager.md#lockForWriting), [unlock](#unlock), [releaseAllLocksForTask](#releaseAllLocksForTask), [removeBlock](#removeBlock), [clear](#clear)
