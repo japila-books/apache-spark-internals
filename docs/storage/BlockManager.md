@@ -802,7 +802,7 @@ The final result of `doPutBytes` is the result of storing the block successful o
 
 NOTE: `doPutBytes` is used exclusively when BlockManager is requested to <<putBytes, putBytes>>.
 
-## <span id="doPut"> doPut
+## <span id="doPut"> Putting New Block
 
 ```scala
 doPut[T](
@@ -813,37 +813,32 @@ doPut[T](
   keepReadLock: Boolean)(putBody: BlockInfo => Option[T]): Option[T]
 ```
 
-doPut executes the input `putBody` function with a BlockInfo.md[] being a new `BlockInfo` object (with `level` storage level) that BlockInfoManager.md#lockNewBlockForWriting[`BlockInfoManager` managed to create a write lock for].
+`doPut` requires that the given [StorageLevel](StorageLevel.md) is [valid](StorageLevel.md#isValid).
 
-If the block has already been created (and BlockInfoManager.md#lockNewBlockForWriting[`BlockInfoManager` did not manage to create a write lock for]), the following WARN message is printed out to the logs:
+`doPut` creates a new [BlockInfo](BlockInfo.md) and requests the [BlockInfoManager](#blockInfoManager) for a [write lock for the block](BlockInfoManager.md#lockNewBlockForWriting).
 
-```text
-Block [blockId] already exists on this machine; not re-adding it
-```
+`doPut` executes the given `putBody` function (with the `BlockInfo`).
 
-doPut <<releaseLock, releases the read lock for the block>> when `keepReadLock` flag is disabled and returns `None` immediately.
+If the result of `putBody` function is `None`, the block is considered saved successfully.
 
-If however the write lock has been given, doPut executes `putBody`.
+For successful save, `doPut` requests the [BlockInfoManager](#blockInfoManager) to [downgradeLock](BlockInfoManager.md#downgradeLock) or [unlock](BlockInfoManager.md#unlock) based on the given `keepReadLock` flag (`true` and `false`, respectively).
 
-If the result of `putBody` is `None` the block is considered saved successfully.
-
-For successful save and `keepReadLock` enabled, BlockInfoManager.md#downgradeLock[`BlockInfoManager` is requested to downgrade an exclusive write lock for `blockId` to a shared read lock].
-
-For successful save and `keepReadLock` disabled, BlockInfoManager.md#unlock[`BlockInfoManager` is requested to release lock on `blockId`].
-
-For unsuccessful save, <<removeBlockInternal, the block is removed from memory and disk stores>> and the following WARN message is printed out to the logs:
+For unsuccessful save (when `putBody` returned some value), `doPut` [removeBlockInternal](#removeBlockInternal) and prints out the following WARN message to the logs:
 
 ```text
 Putting block [blockId] failed
 ```
 
-In the end, doPut prints out the following DEBUG message to the logs:
+In the end, `doPut` prints out the following DEBUG message to the logs:
 
 ```text
 Putting block [blockId] [withOrWithout] replication took [usedTime] ms
 ```
 
-doPut is used when BlockManager is requested to <<doPutBytes, doPutBytes>> and <<doPutIterator, doPutIterator>>.
+`doPut` is used when:
+
+* `BlockStoreUpdater` is requested to [save](BlockStoreUpdater.md#save)
+* `BlockManager` is requested to [doPutIterator](#doPutIterator)
 
 ## <span id="removeBlock"> Removing Block From Memory and Disk
 
