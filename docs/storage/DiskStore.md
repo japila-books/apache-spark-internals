@@ -1,4 +1,4 @@
-= DiskStore
+# DiskStore
 
 *DiskStore* manages data blocks on disk for storage:BlockManager.md#diskStore[BlockManager].
 

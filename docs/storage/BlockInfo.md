@@ -1,4 +1,4 @@
-= BlockInfo
+# BlockInfo
 
 *BlockInfo* is a metadata of storage:BlockId.md[memory block] -- the memory block's <<size, size>>, the <<readerCount, number of readers>> and the <<writerTask, id of the writer task>>.
 

@@ -1248,34 +1248,33 @@ dropFromMemory(
 Dropping block [blockId] from memory
 ```
 
-`dropFromMemory` asserts that the block is [locked for writing](BlockInfoManager.md#assertBlockIsLockedForWriting).
+`dropFromMemory` requests the [BlockInfoManager](#blockInfoManager) to assert that the block is [locked for writing](BlockInfoManager.md#assertBlockIsLockedForWriting) (that gives a [BlockInfo](BlockInfo.md) or throws a `SparkException`).
 
-!!! note
-    Review Me
+---
 
-If the block's StorageLevel.md[StorageLevel] uses disks and the internal DiskStore.md[DiskStore] object (`diskStore`) does not contain the block, it is saved then. You should see the following INFO message in the logs:
+`dropFromMemory` drops to disk if the [current storage level](StorageLevel.md#useDisk) requires so (based on the given `BlockInfo`) and the block [is not](DiskStore.md#contains) in the [DiskStore](#diskStore) already. `dropFromMemory` prints out the following INFO message to the logs:
 
-```
+```text
 Writing block [blockId] to disk
 ```
 
-CAUTION: FIXME Describe the case with saving a block to disk.
+`dropFromMemory` uses the given `data` to determine whether the [DiskStore](#diskStore) is requested to [put](DiskStore.md#put) or [putBytes](DiskStore.md#putBytes) (`Array[T]` or `ChunkedByteBuffer`, respectively).
 
-The block's memory size is fetched and recorded (using `MemoryStore.getSize`).
+---
 
-The block is MemoryStore.md#remove[removed from memory] if exists. If not, you should see the following WARN message in the logs:
+`dropFromMemory` requests the [MemoryStore](#memoryStore) to [remove the block](MemoryStore.md#remove). `dropFromMemory` prints out the following WARN message to the logs if the block was not found in the [MemoryStore](#memoryStore):
 
-```
+```text
 Block [blockId] could not be dropped from memory as it does not exist
 ```
 
-It then <<getCurrentBlockStatus, calculates the current storage status of the block>> and <<reportBlockStatus, reports it to the driver>>. It only happens when `info.tellMaster`.
+`dropFromMemory` [gets the current block status](#getCurrentBlockStatus) and [reportBlockStatus](#reportBlockStatus) when requested (when the [tellMaster](BlockInfo.md#tellMaster) flag of the `BlockInfo` is turned on).
 
-CAUTION: FIXME When would `info.tellMaster` be `true`?
+`dropFromMemory` [addUpdatedBlockStatusToTaskMetrics](#addUpdatedBlockStatusToTaskMetrics) when the block has been updated (dropped to disk or removed from the `MemoryStore`).
 
-A block is considered updated when it was written to disk or removed from memory or both. If either happened, the executor:TaskMetrics.md#incUpdatedBlockStatuses[current TaskContext metrics are updated with the change].
+In the end, `dropFromMemory` returns the current [StorageLevel](StorageLevel.md) of the block (off the `BlockStatus`).
 
-In the end, `dropFromMemory` returns the current storage level of the block.
+---
 
 `dropFromMemory` is part of the [BlockEvictionHandler](BlockEvictionHandler.md#dropFromMemory) abstraction.
 
