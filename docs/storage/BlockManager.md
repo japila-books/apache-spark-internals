@@ -1244,11 +1244,14 @@ dropFromMemory(
 
 `dropFromMemory` prints out the following INFO message to the logs:
 
-```
+```text
 Dropping block [blockId] from memory
 ```
 
-`dropFromMemory` then asserts that the given block is BlockInfoManager.md#assertBlockIsLockedForWriting[locked for writing].
+`dropFromMemory` asserts that the block is [locked for writing](BlockInfoManager.md#assertBlockIsLockedForWriting).
+
+!!! note
+    Review Me
 
 If the block's StorageLevel.md[StorageLevel] uses disks and the internal DiskStore.md[DiskStore] object (`diskStore`) does not contain the block, it is saved then. You should see the following INFO message in the logs:
 

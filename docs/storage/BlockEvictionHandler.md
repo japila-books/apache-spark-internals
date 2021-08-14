@@ -1,20 +1,21 @@
-= BlockEvictionHandler
+# BlockEvictionHandler
 
-*BlockEvictionHandler* is an <<contract, abstraction>> of <<implementations, eviction handlers>> that can <<dropFromMemory, drop a block from memory>>.
+`BlockEvictionHandler` is an [abstraction](#contract) of [block eviction handlers](#implementations) that can [drop blocks from memory](#dropFromMemory).
 
-== [[contract]] Contract
+## Contract
 
-=== [[dropFromMemory]] dropFromMemory Method
+### <span id="dropFromMemory"> Dropping Block from Memory
 
-[source,scala]
-----
+```scala
 dropFromMemory[T: ClassTag](
   blockId: BlockId,
   data: () => Either[Array[T], ChunkedByteBuffer]): StorageLevel
-----
+```
 
-Used when MemoryStore is requested to storage:MemoryStore.md#evictBlocksToFreeSpace[evictBlocksToFreeSpace].
+Used when:
 
-== [[implementations]] Available BlockEvictionHandlers
+* `MemoryStore` is requested to [evict blocks](MemoryStore.md#evictBlocksToFreeSpace)
 
-storage:BlockManager.md[] is the default and only known BlockEvictionHandler in Apache Spark.
+## Implementations
+
+* [BlockManager](BlockManager.md)
