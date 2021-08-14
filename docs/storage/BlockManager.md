@@ -552,11 +552,24 @@ The MemoryStore is used (via `SparkEnv.get.blockManager.memoryStore` reference) 
 
 ## <span id="diskStore"> DiskStore
 
-BlockManager creates a [DiskStore](DiskStore.md) (with the [DiskBlockManager](#diskBlockManager)) when [created](#creating-instance).
+`BlockManager` creates a [DiskStore](DiskStore.md) (with the [DiskBlockManager](#diskBlockManager)) when [created](#creating-instance).
 
 ![DiskStore and BlockManager](../images/storage/DiskStore-BlockManager.png)
 
-BlockManager uses the DiskStore when requested to [getStatus](#getStatus), [getCurrentBlockStatus](#getCurrentBlockStatus), [getLocalValues](#getLocalValues), [doGetLocalBytes](#doGetLocalBytes), [doPutBytes](#doPutBytes), [doPutIterator](#doPutIterator), [dropFromMemory](#dropFromMemory), [removeBlockInternal](#removeBlockInternal).
+`BlockManager` uses the `DiskStore` when requested for the following:
+
+* [getStatus](#getStatus)
+* [getCurrentBlockStatus](#getCurrentBlockStatus)
+* [getLocalValues](#getLocalValues)
+* [doGetLocalBytes](#doGetLocalBytes)
+* [doPutIterator](#doPutIterator)
+* [dropFromMemory](#dropFromMemory)
+* [removeBlockInternal](#removeBlockInternal)
+
+`DiskStore` is used when:
+
+* `ByteBufferBlockStoreUpdater` is requested to `saveToDiskStore`
+* `TempFileBasedBlockStoreUpdater` is requested to `blockData` and `saveToDiskStore`
 
 ## <span id="metrics"> Performance Metrics
 
