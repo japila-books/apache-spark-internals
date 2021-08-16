@@ -712,19 +712,29 @@ removeBlockInternal(
   tellMaster: Boolean): Unit
 ```
 
-`removeBlockInternal`...FIXME
+For `tellMaster` turned on, `removeBlockInternal` requests the [BlockInfoManager](#blockInfoManager) to [assert that the block is locked for writing](BlockInfoManager.md#assertBlockIsLockedForWriting) and remembers the [current block status](#getCurrentBlockStatus). Otherwise, `removeBlockInternal` leaves the block status undetermined.
 
-`removeBlockInternal` is used when BlockManager is requested to <<doPut, doPut>> and <<removeBlock, removeBlock>>.
+`removeBlockInternal` requests the [MemoryStore](#memoryStore) to [remove the block](MemoryStore.md#remove).
 
-## <span id="stores"> Stores
+`removeBlockInternal` requests the [DiskStore](#diskStore) to [remove the block](DiskStore.md#remove).
 
-A *Store* is the place where blocks are held.
+`removeBlockInternal` requests the [BlockInfoManager](#blockInfoManager) to [remove the block metadata](BlockInfoManager.md#removeBlock).
 
-There are the following possible stores:
+In the end, `removeBlockInternal` [reports the block status](#reportBlockStatus) (to the master) with the storage level changed to `NONE`.
 
-* MemoryStore.md[MemoryStore] for memory storage level.
-* DiskStore.md[DiskStore] for disk storage level.
-* `ExternalBlockStore` for OFF_HEAP storage level.
+---
+
+`removeBlockInternal` prints out the following WARN message when the block was not stored in the [MemoryStore](#memoryStore) and the [DiskStore](#diskStore):
+
+```text
+Block [blockId] could not be removed as it was not found on disk or in memory
+```
+
+---
+
+`removeBlockInternal` is used when:
+
+* `BlockManager` is requested to [put a new block](#doPut) and [remove a block from memory and disk](#removeBlock)
 
 ## <span id="putBlockData"> Storing Block Data Locally
 
@@ -1038,7 +1048,7 @@ reportBlockStatus is used when BlockManager is requested to [getBlockData](#getB
 ## <span id="tryToReportBlockStatus"> Reporting Block Status Update to Driver
 
 ```scala
-def tryToReportBlockStatus(
+tryToReportBlockStatus(
   blockId: BlockId,
   info: BlockInfo,
   status: BlockStatus,
