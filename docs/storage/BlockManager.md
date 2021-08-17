@@ -922,47 +922,46 @@ getStatus(
 
 `getStatus` is used when `BlockManagerSlaveEndpoint` is requested to handle [GetBlockStatus](BlockManagerSlaveEndpoint.md#GetBlockStatus) message.
 
-## <span id="reregister"> Re-registering BlockManager with Driver and Reporting Blocks
+## <span id="reregister"> Re-registering BlockManager with Driver
 
 ```scala
 reregister(): Unit
 ```
 
-When executed, reregister prints the following INFO message to the logs:
+`reregister` prints out the following INFO message to the logs:
 
 ```text
 BlockManager [blockManagerId] re-registering with master
 ```
 
-reregister then BlockManagerMaster.md#registerBlockManager[registers itself to the driver's `BlockManagerMaster`] (just as it was when [BlockManager was initializing](#initialize)). It passes the BlockManagerId.md[], the maximum memory (as `maxMemory`), and the BlockManagerSlaveEndpoint.md[].
+`reregister` requests the [BlockManagerMaster](#master) to [register this BlockManager](BlockManagerMaster.md#registerBlockManager).
 
-reregister will then report all the local blocks to the BlockManagerMaster.md[BlockManagerMaster].
+In the end, `reregister` [reportAllBlocks](#reportAllBlocks).
 
-You should see the following INFO message in the logs:
+`reregister` is used when:
 
-```text
-Reporting [blockInfoManager.size] blocks to the master.
-```
+* `Executor` is requested to [reportHeartBeat](../executor/Executor.md#reportHeartBeat) (and informed to re-register)
+* `BlockManager` is requested to [asyncReregister](#asyncReregister)
 
-For each block metadata (in BlockInfoManager.md[]) it [gets block current status](#getCurrentBlockStatus) and [tries to send it to the BlockManagerMaster](#tryToReportBlockStatus).
-
-If there is an issue communicating to the BlockManagerMaster.md[BlockManagerMaster], you should see the following ERROR message in the logs:
-
-```text
-Failed to report [blockId] to master; giving up.
-```
-
-After the ERROR message, reregister stops reporting.
-
-`reregister` is used when an [`Executor` was informed to re-register while sending heartbeats](../executor/Executor.md#heartbeats-and-active-task-metrics).
-
-### <span id="reportAllBlocks"> reportAllBlocks
+### <span id="reportAllBlocks"> Reporting All Blocks
 
 ```scala
 reportAllBlocks(): Unit
 ```
 
-`reportAllBlocks`...FIXME
+`reportAllBlocks` prints out the following INFO message to the logs:
+
+```text
+Reporting [n] blocks to the master.
+```
+
+For [all the blocks](BlockInfoManager.md#entries) in the [BlockInfoManager](#blockInfoManager), `reportAllBlocks` [getCurrentBlockStatus](#getCurrentBlockStatus) and [tryToReportBlockStatus](#tryToReportBlockStatus) (for [blocks tracked by the master](BlockInfo.md#tellMaster)).
+
+`reportAllBlocks` prints out the following ERROR message to the logs and exits when block status reporting fails for any block:
+
+```text
+Failed to report [blockId] to master; giving up.
+```
 
 ## <span id="getCurrentBlockStatus"> Calculate Current Block Status
 
@@ -989,40 +988,44 @@ NOTE: It is acceptable that the `BlockInfo` says to use memory or disk yet the b
 ```scala
 reportBlockStatus(
   blockId: BlockId,
-  info: BlockInfo,
   status: BlockStatus,
   droppedMemorySize: Long = 0L): Unit
 ```
 
-reportBlockStatus is an for <<tryToReportBlockStatus, reporting a block status to the driver>> and if told to re-register it prints out the following INFO message to the logs:
+`reportBlockStatus` [tryToReportBlockStatus](#tryToReportBlockStatus).
+
+ If told to re-register, `reportBlockStatus` prints out the following INFO message to the logs followed by [asynchronous re-registration](#asyncReregister):
 
 ```text
 Got told to re-register updating block [blockId]
 ```
 
-It does asynchronous reregistration (using `asyncReregister`).
-
-In either case, it prints out the following DEBUG message to the logs:
+In the end, `reportBlockStatus` prints out the following DEBUG message to the logs:
 
 ```text
 Told master about block [blockId]
 ```
 
-reportBlockStatus is used when BlockManager is requested to [getBlockData](#getBlockData), [doPutBytes](#doPutBytes), [doPutIterator](#doPutIterator), [dropFromMemory](#dropFromMemory) and [removeBlockInternal](#removeBlockInternal).
+`reportBlockStatus` is used when:
+
+* `IndexShuffleBlockResolver` is requested to [](../shuffle/IndexShuffleBlockResolver.md#putShuffleBlockAsStream)
+* `BlockStoreUpdater` is requested to [save](BlockStoreUpdater.md#save)
+* `BlockManager` is requested to [getLocalBlockData](#getLocalBlockData), [doPutIterator](#doPutIterator), [dropFromMemory](#dropFromMemory), [removeBlockInternal](#removeBlockInternal)
 
 ## <span id="tryToReportBlockStatus"> Reporting Block Status Update to Driver
 
 ```scala
 tryToReportBlockStatus(
   blockId: BlockId,
-  info: BlockInfo,
   status: BlockStatus,
   droppedMemorySize: Long = 0L): Boolean
 ```
 
-`tryToReportBlockStatus` [reports block status update](BlockManagerMaster.md#updateBlockInfo) to [BlockManagerMaster](#master) and returns its response.
+`tryToReportBlockStatus` [reports block status update](BlockManagerMaster.md#updateBlockInfo) to the [BlockManagerMaster](#master) and returns its response.
 
-`tryToReportBlockStatus` is used when BlockManager is requested to [reportAllBlocks](#reportAllBlocks) or [reportBlockStatus](#reportBlockStatus).
+`tryToReportBlockStatus` is used when:
+
+* `BlockManager` is requested to [reportAllBlocks](#reportAllBlocks), [reportBlockStatus](#reportBlockStatus)
 
 ## <span id="execution-context"> Execution Context
 

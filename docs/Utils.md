@@ -26,7 +26,7 @@ In the end, when no earlier environment variables were found, `getConfiguredLoca
 
 `getConfiguredLocalDirs` is used when:
 
-* `DiskBlockManager` is requested to [createLocalDirs](../storage/DiskBlockManager.md#createLocalDirs)
+* `DiskBlockManager` is requested to [createLocalDirs](storage/DiskBlockManager.md#createLocalDirs)
 * `Utils` utility is used to [get a local directory](#getLocalDir) and [getOrCreateLocalRootDirsImpl](#getOrCreateLocalRootDirsImpl)
 
 ## <span id="LOCAL_SCHEME"> Local URI Scheme
