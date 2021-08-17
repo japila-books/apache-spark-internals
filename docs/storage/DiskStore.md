@@ -38,7 +38,7 @@ putBytes(
 
 `putBytes` is used when:
 
-* `ByteBufferBlockStoreUpdater` is requested to `saveToDiskStore`
+* `ByteBufferBlockStoreUpdater` is requested to [saveToDiskStore](ByteBufferBlockStoreUpdater.md#saveToDiskStore)
 * `BlockManager` is requested to [dropFromMemory](BlockManager.md#dropFromMemory)
 
 ## <span id="getBytes"> getBytes
@@ -57,7 +57,7 @@ getBytes(
 
 `getBytes` is used when:
 
-* `TempFileBasedBlockStoreUpdater` is requested to `blockData`
+* `TempFileBasedBlockStoreUpdater` is requested to [blockData](TempFileBasedBlockStoreUpdater.md#blockData)
 * `BlockManager` is requested to [getLocalValues](BlockManager.md#getLocalValues), [doGetLocalBytes](BlockManager.md#doGetLocalBytes)
 
 ## <span id="getSize"> getSize
@@ -87,7 +87,7 @@ moveFileToBlock(
 
 `moveFileToBlock` is used when:
 
-* `TempFileBasedBlockStoreUpdater` is requested to `saveToDiskStore`
+* `TempFileBasedBlockStoreUpdater` is requested to [saveToDiskStore](TempFileBasedBlockStoreUpdater.md#saveToDiskStore)
 
 ## <span id="contains"> Checking if Block File Exists
 

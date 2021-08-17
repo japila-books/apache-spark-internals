@@ -6,7 +6,7 @@
 
 ## Contract
 
-### <span id="blockData"> blockData
+### <span id="blockData"> Block Data
 
 ```scala
 blockData(): BlockData
@@ -17,7 +17,7 @@ blockData(): BlockData
 Used when:
 
 * `BlockStoreUpdater` is requested to [save](#save)
-* `TempFileBasedBlockStoreUpdater` is requested to `readToByteBuffer`
+* `TempFileBasedBlockStoreUpdater` is requested to [readToByteBuffer](TempFileBasedBlockStoreUpdater.md#readToByteBuffer)
 
 ### <span id="readToByteBuffer"> readToByteBuffer
 
@@ -29,7 +29,7 @@ Used when:
 
 * `BlockStoreUpdater` is requested to [save](#save)
 
-### <span id="saveToDiskStore"> Saving to DiskStore
+### <span id="saveToDiskStore"> Storing Block to Disk
 
 ```scala
 saveToDiskStore(): Unit
@@ -41,8 +41,8 @@ Used when:
 
 ## Implementations
 
-* `ByteBufferBlockStoreUpdater`
-* `TempFileBasedBlockStoreUpdater`
+* [ByteBufferBlockStoreUpdater](ByteBufferBlockStoreUpdater.md)
+* [TempFileBasedBlockStoreUpdater](TempFileBasedBlockStoreUpdater.md)
 
 ## Creating Instance
 

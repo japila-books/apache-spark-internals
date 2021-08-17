@@ -568,8 +568,8 @@ The MemoryStore is used (via `SparkEnv.get.blockManager.memoryStore` reference) 
 
 `DiskStore` is used when:
 
-* `ByteBufferBlockStoreUpdater` is requested to `saveToDiskStore`
-* `TempFileBasedBlockStoreUpdater` is requested to `blockData` and `saveToDiskStore`
+* `ByteBufferBlockStoreUpdater` is requested to [saveToDiskStore](ByteBufferBlockStoreUpdater.md#saveToDiskStore)
+* `TempFileBasedBlockStoreUpdater` is requested to [blockData](TempFileBasedBlockStoreUpdater.md#blockData) and [saveToDiskStore](TempFileBasedBlockStoreUpdater.md#saveToDiskStore)
 
 ## <span id="metrics"> Performance Metrics
 
@@ -718,7 +718,7 @@ putBlockData(
 
 `putBlockData` [putBytes](#putBytes) with Java NIO's [ByteBuffer](../network/ManagedBuffer.md#nioByteBuffer) of the given [ManagedBuffer](../network/ManagedBuffer.md).
 
-## <span id="putBytes"> Storing Block Bytes Locally
+## <span id="putBytes"> Storing Block (ByteBuffer) Locally
 
 ```scala
 putBytes(
@@ -728,7 +728,7 @@ putBytes(
   tellMaster: Boolean = true): Boolean
 ```
 
-`putBytes` creates a `ByteBufferBlockStoreUpdater` and requests it to [store the bytes](BlockStoreUpdater.md#save).
+`putBytes` creates a [ByteBufferBlockStoreUpdater](ByteBufferBlockStoreUpdater.md) that is then requested to [store the bytes](BlockStoreUpdater.md#save).
 
 `putBytes` is used when:
 
