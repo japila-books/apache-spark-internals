@@ -4,14 +4,11 @@
 
 ![DiskBlockManager and BlockManager](../images/storage/DiskBlockManager-BlockManager.png)
 
-By default, one block is mapped to one file with a name given by its `BlockId`. It is however possible to have a block map to only a segment of a file.
+By default, one block is mapped to one file with a name given by its [BlockId](BlockId.md). It is however possible to have a block to be mapped to a segment of a file only.
 
 Block files are hashed among the [local directories](#getConfiguredLocalDirs).
 
 `DiskBlockManager` is used to create a [DiskStore](DiskStore.md).
-
-!!! tip
-    Consult [Demo: DiskBlockManager and Block Data](../demo/diskblockmanager-and-block-data.md).
 
 ## Creating Instance
 
@@ -32,7 +29,7 @@ In the end, `DiskBlockManager` [registers a shutdown hook](#addShutdownHook) to 
 localDirs: Array[File]
 ```
 
-While being created, `DiskBlockManager` [creates local directories](#createLocalDirs) for block data. `DiskBlockManager` expects at least one local directory or prints out the following ERROR message to the logs and exits the JVM (with exit code 53):
+`DiskBlockManager` [creates local directories](#createLocalDirs) to store block data when [created](#creating-instance). `DiskBlockManager` expects at least one local directory or prints out the following ERROR message to the logs and exits the JVM (with exit code 53):
 
 ```text
 Failed to create any local dir.
@@ -50,15 +47,15 @@ createLocalDirs(
   conf: SparkConf): Array[File]
 ```
 
-`createLocalDirs` creates `blockmgr-[random UUID]` directory under local directories to store block data.
-
-Internally, `createLocalDirs` [finds the configured local directories where Spark can write files](#getConfiguredLocalDirs) and creates a subdirectory `blockmgr-[UUID]` under every configured parent directory.
+`createLocalDirs` creates `blockmgr-[random UUID]` directory under every [local directory](../Utils.md#getConfiguredLocalDirs) to store block data.
 
 For every local directory, `createLocalDirs` prints out the following INFO message to the logs:
 
 ```text
 Created local directory at [localDir]
 ```
+
+---
 
 In case of an exception, `createLocalDirs` prints out the following ERROR message to the logs and skips the directory:
 
@@ -78,7 +75,9 @@ The number of block subdirectories is controlled by [spark.diskStore.subDirector
 
 `subDirs(dirId)(subDirId)` is used to access `subDirId` subdirectory in `dirId` local directory.
 
-`subDirs` is used when `DiskBlockManager` is requested for a [block file](#getFile) or [all block files](#getAllFiles).
+`subDirs` is used when:
+
+* `DiskBlockManager` is requested for a [block file](#getFile) and [all the block files](#getAllFiles)
 
 ## <span id="getFile"> Finding Block File (and Creating Parent Directories)
 
@@ -131,32 +130,6 @@ Adding shutdown hook
 Shutdown hook called
 ```
 
-## <span id="getConfiguredLocalDirs"> Getting Local Directories for Spark to Write Files
-
-```scala
-getConfiguredLocalDirs(
-  conf: SparkConf): Array[String]
-```
-
-`getConfiguredLocalDirs` returns the local directories where Spark can write files.
-
-Internally, `getConfiguredLocalDirs` uses `conf` [SparkConf](../SparkConf.md) to know if [External Shuffle Service](../external-shuffle-service/ExternalShuffleService.md) is enabled (based on [spark.shuffle.service.enabled](../external-shuffle-service/configuration-properties.md#spark.shuffle.service.enabled) configuration property).
-
-`getConfiguredLocalDirs` checks if [Spark runs on YARN](#isRunningInYarnContainer) and if so, returns [LOCAL_DIRS](#getYarnLocalDirs)-controlled local directories.
-
-In non-YARN mode (or for the driver in yarn-client mode), `getConfiguredLocalDirs` checks the following environment variables (in the order) and returns the value of the first met:
-
-1. `SPARK_EXECUTOR_DIRS` environment variable
-2. `SPARK_LOCAL_DIRS` environment variable
-3. `MESOS_DIRECTORY` environment variable (only when External Shuffle Service is not used)
-
-In the end, when no earlier environment variables were found, `getConfiguredLocalDirs` uses [spark.local.dir](../configuration-properties.md#spark.local.dir) configuration property or falls back to `java.io.tmpdir` System property.
-
-`getConfiguredLocalDirs` is used when:
-
-* `DiskBlockManager` is requested to [createLocalDirs](#createLocalDirs)
-* `Utils` helper is requested to [getLocalDir](../Utils.md#getLocalDir) and [getOrCreateLocalRootDirsImpl](../Utils.md#getOrCreateLocalRootDirsImpl)
-
 ## <span id="getYarnLocalDirs"> Getting Writable Directories in YARN
 
 ```scala
@@ -199,7 +172,7 @@ Internally, `getAllBlocks` takes the [block files](#getAllFiles) and returns the
 getAllFiles(): Seq[File]
 ```
 
-`getAllFiles`...FIXME
+`getAllFiles` uses the [subDirs](#subDirs) registry to list all the files (in all the directories) that are currently stored on disk by this disk manager.
 
 ## <span id="stop"> Stopping
 
@@ -220,6 +193,10 @@ doStop(): Unit
 `doStop` deletes the local directories recursively (only when the constructor's `deleteFilesOnStop` is enabled and the parent directories are not registered to be removed at shutdown).
 
 `doStop` is used when `DiskBlockManager` is requested to [shut down](#addShutdownHook) or [stop](#stop).
+
+## Demo
+
+[Demo: DiskBlockManager and Block Data](../demo/diskblockmanager-and-block-data.md)
 
 ## Logging
 

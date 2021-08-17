@@ -1,5 +1,34 @@
 # Utils Utility
 
+## <span id="getConfiguredLocalDirs"> Local Directories for Storing Files
+
+```scala
+getConfiguredLocalDirs(
+  conf: SparkConf): Array[String]
+```
+
+`getConfiguredLocalDirs` returns the local directories where Spark can write files to.
+
+Internally, `getConfiguredLocalDirs` uses the given [SparkConf](SparkConf.md) to know if [External Shuffle Service](external-shuffle-service/ExternalShuffleService.md) is enabled (based on [spark.shuffle.service.enabled](external-shuffle-service/configuration-properties.md#spark.shuffle.service.enabled) configuration property).
+
+`getConfiguredLocalDirs` checks if [Spark runs on YARN](#isRunningInYarnContainer) and if so, returns [LOCAL_DIRS](#getYarnLocalDirs)-controlled local directories.
+
+In non-YARN mode (or for the driver in yarn-client mode), `getConfiguredLocalDirs` checks the following environment variables (in the order) and returns the value of the first met:
+
+1. `SPARK_EXECUTOR_DIRS` environment variable
+1. `SPARK_LOCAL_DIRS` environment variable
+1. `MESOS_DIRECTORY` environment variable (only when External Shuffle Service is not used)
+
+In the end, when no earlier environment variables were found, `getConfiguredLocalDirs` uses the following properties (in the order):
+
+1. [spark.local.dir](configuration-properties.md#spark.local.dir) configuration property
+1. `java.io.tmpdir` System property
+
+`getConfiguredLocalDirs` is used when:
+
+* `DiskBlockManager` is requested to [createLocalDirs](../storage/DiskBlockManager.md#createLocalDirs)
+* `Utils` utility is used to [get a local directory](#getLocalDir) and [getOrCreateLocalRootDirsImpl](#getOrCreateLocalRootDirsImpl)
+
 ## <span id="LOCAL_SCHEME"> Local URI Scheme
 
 `Utils` defines a `local` URI scheme for files that are locally available on worker nodes in the cluster.
