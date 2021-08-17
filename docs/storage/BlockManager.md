@@ -704,38 +704,6 @@ getLocalBytes(
 
 * BlockManager is requested for the <<getBlockData, block data>> (of a non-shuffle block)
 
-## <span id="removeBlockInternal"> removeBlockInternal
-
-```scala
-removeBlockInternal(
-  blockId: BlockId,
-  tellMaster: Boolean): Unit
-```
-
-For `tellMaster` turned on, `removeBlockInternal` requests the [BlockInfoManager](#blockInfoManager) to [assert that the block is locked for writing](BlockInfoManager.md#assertBlockIsLockedForWriting) and remembers the [current block status](#getCurrentBlockStatus). Otherwise, `removeBlockInternal` leaves the block status undetermined.
-
-`removeBlockInternal` requests the [MemoryStore](#memoryStore) to [remove the block](MemoryStore.md#remove).
-
-`removeBlockInternal` requests the [DiskStore](#diskStore) to [remove the block](DiskStore.md#remove).
-
-`removeBlockInternal` requests the [BlockInfoManager](#blockInfoManager) to [remove the block metadata](BlockInfoManager.md#removeBlock).
-
-In the end, `removeBlockInternal` [reports the block status](#reportBlockStatus) (to the master) with the storage level changed to `NONE`.
-
----
-
-`removeBlockInternal` prints out the following WARN message when the block was not stored in the [MemoryStore](#memoryStore) and the [DiskStore](#diskStore):
-
-```text
-Block [blockId] could not be removed as it was not found on disk or in memory
-```
-
----
-
-`removeBlockInternal` is used when:
-
-* `BlockManager` is requested to [put a new block](#doPut) and [remove a block from memory and disk](#removeBlock)
-
 ## <span id="putBlockData"> Storing Block Data Locally
 
 ```scala
@@ -850,7 +818,7 @@ Putting block [blockId] [withOrWithout] replication took [usedTime] ms
 * `BlockStoreUpdater` is requested to [save](BlockStoreUpdater.md#save)
 * `BlockManager` is requested to [doPutIterator](#doPutIterator)
 
-## <span id="removeBlock"> Removing Block From Memory and Disk
+## <span id="removeBlock"> Removing Block
 
 ```scala
 removeBlock(
@@ -858,42 +826,39 @@ removeBlock(
   tellMaster: Boolean = true): Unit
 ```
 
-removeBlock removes the `blockId` block from the MemoryStore.md[MemoryStore] and DiskStore.md[DiskStore].
+`removeBlock` prints out the following DEBUG message to the logs:
 
-When executed, it prints out the following DEBUG message to the logs:
-
-```
+```text
 Removing block [blockId]
 ```
 
-It requests BlockInfoManager.md[] for lock for writing for the `blockId` block. If it receives none, it prints out the following WARN message to the logs and quits.
+`removeBlock` requests the [BlockInfoManager](#blockInfoManager) for [write lock](BlockInfoManager.md#lockForWriting) on the [block](BlockId.md).
 
-```
+With a write lock on the block, `removeBlock` [removeBlockInternal](#removeBlockInternal) (with the `tellMaster` flag turned on when the input `tellMaster` flag and the [tellMaster](BlockInfo.md#tellMaster) of the block itself are both turned on).
+
+In the end, `removeBlock` [addUpdatedBlockStatusToTaskMetrics](#addUpdatedBlockStatusToTaskMetrics) (with an empty `BlockStatus`).
+
+---
+
+In case the block is no longer available (`None`), `removeBlock` prints out the following WARN message to the logs:
+
+```text
 Asked to remove block [blockId], which does not exist
 ```
 
-Otherwise, with a write lock for the block, the block is removed from MemoryStore.md[MemoryStore] and DiskStore.md[DiskStore] (see MemoryStore.md#remove[Removing Block in `MemoryStore`] and DiskStore.md#remove[Removing Block in `DiskStore`]).
+---
 
-If both removals fail, it prints out the following WARN message:
+`removeBlock` is used when:
 
-```
-Block [blockId] could not be removed as it was not found in either the disk, memory, or external block store
-```
-
-The block is removed from BlockInfoManager.md[].
-
-removeBlock then <<getCurrentBlockStatus, calculates the current block status>> that is used to <<reportBlockStatus, report the block status to the driver>> (if the input `tellMaster` and the info's `tellMaster` are both enabled, i.e. `true`) and the executor:TaskMetrics.md#incUpdatedBlockStatuses[current TaskContext metrics are updated with the change].
-
-removeBlock is used when:
-
-* BlockManager is requested to <<handleLocalReadFailure, handleLocalReadFailure>>, <<removeRdd, remove an RDD>> and <<removeBroadcast, broadcast>>
-
-* BlockManagerSlaveEndpoint is requested to handle a BlockManagerSlaveEndpoint.md#RemoveBlock[RemoveBlock] message
+* `BlockManager` is requested to [handleLocalReadFailure](#handleLocalReadFailure), [removeRdd](#removeRdd), [removeBroadcast](#removeBroadcast)
+* `BlockManagerDecommissioner` is requested to [migrate a block](BlockManagerDecommissioner.md#migrateBlock)
+* `BlockManagerStorageEndpoint` is requested to [handle a RemoveBlock message](BlockManagerStorageEndpoint.md#RemoveBlock)
 
 ## <span id="removeRdd"> Removing RDD Blocks
 
 ```scala
-removeRdd(rddId: Int): Int
+removeRdd(
+  rddId: Int): Int
 ```
 
 `removeRdd` removes all the blocks that belong to the `rddId` RDD.
@@ -1378,6 +1343,38 @@ decommissioner: Option[BlockManagerDecommissioner]
 `decommissioner` is used for [isDecommissioning](#isDecommissioning) and [lastMigrationInfo](#lastMigrationInfo).
 
 `BlockManager` requests the `BlockManagerDecommissioner` to [stop](BlockManagerDecommissioner.md#stop) when [stopped](#stop).
+
+## <span id="removeBlockInternal"> Removing Block from Memory and Disk
+
+```scala
+removeBlockInternal(
+  blockId: BlockId,
+  tellMaster: Boolean): Unit
+```
+
+For `tellMaster` turned on, `removeBlockInternal` requests the [BlockInfoManager](#blockInfoManager) to [assert that the block is locked for writing](BlockInfoManager.md#assertBlockIsLockedForWriting) and remembers the [current block status](#getCurrentBlockStatus). Otherwise, `removeBlockInternal` leaves the block status undetermined.
+
+`removeBlockInternal` requests the [MemoryStore](#memoryStore) to [remove the block](MemoryStore.md#remove).
+
+`removeBlockInternal` requests the [DiskStore](#diskStore) to [remove the block](DiskStore.md#remove).
+
+`removeBlockInternal` requests the [BlockInfoManager](#blockInfoManager) to [remove the block metadata](BlockInfoManager.md#removeBlock).
+
+In the end, `removeBlockInternal` [reports the block status](#reportBlockStatus) (to the master) with the storage level changed to `NONE`.
+
+---
+
+`removeBlockInternal` prints out the following WARN message when the block was not stored in the [MemoryStore](#memoryStore) and the [DiskStore](#diskStore):
+
+```text
+Block [blockId] could not be removed as it was not found on disk or in memory
+```
+
+---
+
+`removeBlockInternal` is used when:
+
+* `BlockManager` is requested to [put a new block](#doPut) and [remove a block](#removeBlock)
 
 ## Logging
 
