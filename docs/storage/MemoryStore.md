@@ -170,7 +170,7 @@ putIteratorAsBytes[T](
 
 `putIteratorAsBytes` is used when:
 
-* `BlockManager` is requested to [doPutIterator](BlockManager.md#doPutIterator)
+* `BlockManager` is requested to [doPutIterator](BlockManager.md#doPutIterator) (for a block with [StorageLevel](StorageLevel.md) with [useMemory](StorageLevel.md#useMemory) and [serialized](StorageLevel.md#deserialized))
 
 ## <span id="putIterator"> putIterator
 

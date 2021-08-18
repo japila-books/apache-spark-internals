@@ -1093,7 +1093,7 @@ getDiskWriter creates a [DiskBlockObjectWriter](DiskBlockObjectWriter.md) (with 
 
 * [UnsafeSorterSpillWriter](../memory/UnsafeSorterSpillWriter.md) is created
 
-## <span id="addUpdatedBlockStatusToTaskMetrics"> Recording Updated BlockStatus In Current Task's TaskMetrics
+## <span id="addUpdatedBlockStatusToTaskMetrics"> Recording Updated BlockStatus in TaskMetrics (of Current Task)
 
 ```scala
 addUpdatedBlockStatusToTaskMetrics(
@@ -1196,45 +1196,57 @@ doPutIterator[T](
   keepReadLock: Boolean = false): Option[PartiallyUnrolledIterator[T]]
 ```
 
-`doPutIterator` simply <<doPut, doPut>> with the `putBody` function that accepts a `BlockInfo` and does the following:
+`doPutIterator` [doPut](#doPut) with the [putBody](#doPutIterator-putBody) function.
 
-. `putBody` branches off per whether the `StorageLevel` indicates to use a StorageLevel.md#useMemory[memory] or simply a StorageLevel.md#useDisk[disk], i.e.
+`doPutIterator` is used when:
 
-* When the input `StorageLevel` indicates to StorageLevel.md#useMemory[use a memory] for storage in StorageLevel.md#deserialized[deserialized] format, `putBody` requests <<memoryStore, MemoryStore>> to MemoryStore.md#putIteratorAsValues[putIteratorAsValues] (for the `BlockId` and with the `iterator` factory function).
-+
-If the <<memoryStore, MemoryStore>> returned a correct value, the internal `size` is set to the value.
-+
-If however the <<memoryStore, MemoryStore>> failed to give a correct value, FIXME
+* `BlockManager` is requested to [getOrElseUpdate](#getOrElseUpdate) and [putIterator](#putIterator)
 
-* When the input `StorageLevel` indicates to StorageLevel.md#useMemory[use memory] for storage in StorageLevel.md#deserialized[serialized] format, `putBody`...FIXME
+### <span id="doPutIterator-putBody"> putBody
 
-* When the input `StorageLevel` does not indicate to use memory for storage but StorageLevel.md#useDisk[disk] instead, `putBody`...FIXME
-
-. `putBody` requests the <<getCurrentBlockStatus, current block status>>
-
-. Only when the block was successfully stored in either the memory or disk store:
-
-* `putBody` <<reportBlockStatus, reports the block status>> to the <<master, BlockManagerMaster>> when the input `tellMaster` flag (default: enabled) and the `tellMaster` flag of the block info are both enabled.
-
-* `putBody` <<addUpdatedBlockStatusToTaskMetrics, addUpdatedBlockStatusToTaskMetrics>> (with the `BlockId` and `BlockStatus`)
-
-* `putBody` prints out the following DEBUG message to the logs:
-+
-```
-Put block [blockId] locally took [time] ms
+```scala
+putBody: BlockInfo => Option[T]
 ```
 
-* When the input `StorageLevel` indicates to use StorageLevel.md#replication[replication], `putBody` <<doGetLocalBytes, doGetLocalBytes>> followed by <<replicate, replicate>> (with the input `BlockId` and the `StorageLevel` as well as the `BlockData` to replicate)
+For the given [StorageLevel](StorageLevel.md) that indicates to [use memory](StorageLevel.md#useMemory) for storage, `putBody` requests the [MemoryStore](#memoryStore) to [putIteratorAsValues](MemoryStore.md#putIteratorAsValues) or [putIteratorAsBytes](MemoryStore.md#putIteratorAsBytes) based on the `StorageLevel` (that indicates to use [deserialized](StorageLevel.md#deserialized) format or not, respectively).
 
-* With a successful replication, `putBody` prints out the following DEBUG message to the logs:
-+
+In case storing the block in memory was not possible (due to lack of available memory), `putBody` prints out the following WARN message to the logs and falls back on the [DiskStore](#diskStore) to [store the block](DiskStore.md#put).
+
+```text
+Persisting block [blockId] to disk instead.
 ```
-Put block [blockId] remotely took [time] ms
+
+For the given [StorageLevel](StorageLevel.md) that indicates to [use disk](StorageLevel.md#useDisk) storage only ([useMemory](StorageLevel.md#useMemory) flag is disabled), `putBody` requests the [DiskStore](#diskStore) to [store the block](DiskStore.md#put).
+
+`putBody` [gets the current block status](#getCurrentBlockStatus) and checks whether the `StorageLevel` is [valid](StorageLevel.md#isValid) (that indicates that the block was stored successfully).
+
+If the block was stored successfully, `putBody` [reports the block status](#reportBlockStatus) (only if indicated by the the given `tellMaster` flag and the [tellMaster](BlockInfo.md#tellMaster) flag of the associated [BlockInfo](BlockInfo.md)) and [addUpdatedBlockStatusToTaskMetrics](#addUpdatedBlockStatusToTaskMetrics).
+
+`putBody` prints out the following DEBUG message to the logs:
+
+```text
+Put block [blockId] locally took [duration] ms
 ```
 
-. In the end, `putBody` may or may not give a `PartiallyUnrolledIterator` if...FIXME
+For the given [StorageLevel](StorageLevel.md) with [replication](StorageLevel.md#replication) enabled (above `1`), `putBody` [doGetLocalBytes](#doGetLocalBytes) and [replicates the block (to other BlockManagers)](#replicate). `putBody` prints out the following DEBUG message to the logs:
 
-NOTE: `doPutIterator` is used when BlockManager is requested to <<getOrElseUpdate, get a block from block managers or computing and storing it otherwise>> and <<putIterator, putIterator>>.
+```text
+Put block [blockId] remotely took [duration] ms
+```
+
+## <span id="doGetLocalBytes"> doGetLocalBytes
+
+```scala
+doGetLocalBytes(
+  blockId: BlockId,
+  info: BlockInfo): BlockData
+```
+
+`doGetLocalBytes`...FIXME
+
+`doGetLocalBytes` is used when:
+
+* `BlockManager` is requested to [getLocalBytes](#getLocalBytes), [doPutIterator](#doPutIterator) and [replicateBlock](#replicateBlock)
 
 ## <span id="dropFromMemory"> Dropping Block from Memory
 
