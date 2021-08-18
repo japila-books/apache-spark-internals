@@ -106,7 +106,7 @@ Put block [blockId] locally took [timeUsed] ms
 Persisting block [blockId] to disk instead.
 ```
 
-## <span id="saveDeserializedValuesToMemoryStore"> saveDeserializedValuesToMemoryStore
+## <span id="saveDeserializedValuesToMemoryStore"> Saving Deserialized Values to MemoryStore
 
 ```scala
 saveDeserializedValuesToMemoryStore(
@@ -117,7 +117,20 @@ saveDeserializedValuesToMemoryStore(
 
 `saveDeserializedValuesToMemoryStore` is used when:
 
-* `BlockStoreUpdater` is requested to [save a block to a block store](#save)
+* `BlockStoreUpdater` is requested to [save a block](#save) (with [memory deserialized storage level](StorageLevel.md))
+
+## <span id="saveSerializedValuesToMemoryStore"> Saving Serialized Values to MemoryStore
+
+```scala
+saveSerializedValuesToMemoryStore(
+  bytes: ChunkedByteBuffer): Boolean
+```
+
+`saveSerializedValuesToMemoryStore`...FIXME
+
+`saveSerializedValuesToMemoryStore` is used when:
+
+* `BlockStoreUpdater` is requested to [save a block](#save) (with [memory serialized storage level](StorageLevel.md))
 
 ## Logging
 

@@ -1407,6 +1407,22 @@ Block [blockId] could not be removed as it was not found on disk or in memory
 
 * `BlockManager` is requested to [put a new block](#doPut) and [remove a block](#removeBlock)
 
+## <span id="maybeCacheDiskBytesInMemory"> maybeCacheDiskBytesInMemory
+
+```scala
+maybeCacheDiskBytesInMemory(
+  blockInfo: BlockInfo,
+  blockId: BlockId,
+  level: StorageLevel,
+  diskData: BlockData): Option[ChunkedByteBuffer]
+```
+
+`maybeCacheDiskBytesInMemory`...FIXME
+
+`maybeCacheDiskBytesInMemory` is used when:
+
+* `BlockManager` is requested to [getLocalValues](#getLocalValues) and [doGetLocalBytes](#doGetLocalBytes)
+
 ## Logging
 
 Enable `ALL` logging level for `org.apache.spark.storage.BlockManager` logger to see what happens inside.

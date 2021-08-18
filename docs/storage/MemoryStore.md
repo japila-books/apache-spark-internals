@@ -1,6 +1,6 @@
 # MemoryStore
 
-`MemoryStore` manages blocks of data in memory for [BlockManager](BlockManager.md#memoryStore).
+`MemoryStore` manages [blocks of data](#entries) in memory for [BlockManager](BlockManager.md#memoryStore).
 
 ![MemoryStore and BlockManager](../images/storage/MemoryStore-BlockManager.png)
 
@@ -20,7 +20,7 @@
 
 ![Creating MemoryStore](../images/storage/spark-MemoryStore.png)
 
-## <span id="entries"><span id="MemoryEntry"> Blocks
+## <span id="entries"><span id="MemoryEntry"><span id="contains"> Blocks
 
 ```scala
 entries: LinkedHashMap[BlockId, MemoryEntry[_]]
@@ -49,6 +49,13 @@ entries: LinkedHashMap[BlockId, MemoryEntry[_]]
 * `ChunkedByteBuffer` (for the serialized values)
 * `size`
 * `MemoryMode`
+
+## <span id="unrollMemoryThreshold"> spark.storage.unrollMemoryThreshold
+
+`MemoryStore` uses [spark.storage.unrollMemoryThreshold](../configuration-properties.md#spark.storage.unrollMemoryThreshold) configuration property when requested for the following:
+
+* [putIterator](#putIterator)
+* [putIteratorAsBytes](#putIteratorAsBytes)
 
 ## <span id="evictBlocksToFreeSpace"> Evicting Blocks
 
@@ -127,14 +134,14 @@ getBytes(
 
 * `BlockManager` is requested for the [serialized bytes of a block (from a local block manager)](BlockManager.md#doGetLocalBytes), [getLocalValues](BlockManager.md#getLocalValues), [maybeCacheDiskBytesInMemory](BlockManager.md#maybeCacheDiskBytesInMemory)
 
-## <span id="getValues"> Deserialized Block Values
+## <span id="getValues"> Fetching Deserialized Block Values
 
 ```scala
 getValues(
   blockId: BlockId): Option[Iterator[_]]
 ```
 
-`getValues` returns the values of the [DeserializedMemoryEntry](#DeserializedMemoryEntry) of a block (if found in the [entries](#entries) registry).
+`getValues` returns the values of the [DeserializedMemoryEntry](#DeserializedMemoryEntry) of the given block (if available in the [entries](#entries) registry).
 
 `getValues` is used (for blocks with a [deserialized and in-memory storage level](StorageLevel.md)) when:
 
@@ -189,7 +196,35 @@ putIterator[T](
 
 * `MemoryStore` is requested to [putIteratorAsValues](#putIteratorAsValues) and [putIteratorAsBytes](#putIteratorAsBytes)
 
-## <span id="putBytes"> putBytes
+### <span id="logUnrollFailureMessage"> logUnrollFailureMessage
+
+```scala
+logUnrollFailureMessage(
+  blockId: BlockId,
+  finalVectorSize: Long): Unit
+```
+
+`logUnrollFailureMessage` prints out the following WARN message to the logs and [logMemoryUsage](#logMemoryUsage).
+
+```text
+Not enough space to cache [blockId] in memory! (computed [size] so far)
+```
+
+### <span id="logMemoryUsage"> logMemoryUsage
+
+```scala
+logMemoryUsage(): Unit
+```
+
+`logMemoryUsage` prints out the following INFO message to the logs (with the [blocksMemoryUsed](#blocksMemoryUsed), [currentUnrollMemory](#currentUnrollMemory), [numTasksUnrolling](#numTasksUnrolling), [memoryUsed](#memoryUsed), and [maxMemory](#maxMemory)):
+
+```text
+Memory use = [blocksMemoryUsed] (blocks) + [currentUnrollMemory]
+(scratch space shared across [numTasksUnrolling] tasks(s)) = [memoryUsed].
+Storage limit = [maxMemory].
+```
+
+## <span id="putBytes"> Storing Block
 
 ```scala
 putBytes[T: ClassTag](
@@ -199,19 +234,88 @@ putBytes[T: ClassTag](
   _bytes: () => ChunkedByteBuffer): Boolean
 ```
 
-`putBytes`...FIXME
+`putBytes` returns `true` only after there was enough memory to store the block ([BlockId](BlockId.md)) in [entries](#entries) registry.
 
-`putBytes` is used when:
+---
 
-* `BlockStoreUpdater` is requested to [saveSerializedValuesToMemoryStore](BlockStoreUpdater.md#saveSerializedValuesToMemoryStore)
+`putBytes` asserts that the block is not [stored](#contains) yet.
+
+`putBytes` requests the [MemoryManager](#memoryManager) for [memory](../memory/MemoryManager.md#acquireStorageMemory) (to store the block) and, when successful, adds the block to the [entries](#entries) registry (as a [SerializedMemoryEntry](#SerializedMemoryEntry) with the `_bytes` and the `MemoryMode`).
+
+In the end, `putBytes` prints out the following INFO message to the logs:
+
+```text
+Block [blockId] stored as bytes in memory (estimated size [size], free [size])
+```
+
+`putBytes` is used when:
+
+* `BlockStoreUpdater` is requested to [save serialized values (to MemoryStore)](BlockStoreUpdater.md#saveSerializedValuesToMemoryStore)
 * `BlockManager` is requested to [maybeCacheDiskBytesInMemory](BlockManager.md#maybeCacheDiskBytesInMemory)
 
-## <span id="unrollMemoryThreshold"> spark.storage.unrollMemoryThreshold
+## <span id="blocksMemoryUsed"> Memory Used for Caching Blocks
 
-`MemoryStore` uses [spark.storage.unrollMemoryThreshold](../configuration-properties.md#spark.storage.unrollMemoryThreshold) configuration property when requested for the following:
+```scala
+blocksMemoryUsed: Long
+```
 
-* [putIterator](#putIterator)
-* [putIteratorAsBytes](#putIteratorAsBytes)
+`blocksMemoryUsed` is the [total memory used](#memoryUsed) without (_minus_) the [memory used for unrolling](#currentUnrollMemory).
+
+`blocksMemoryUsed` is used for logging purposes (when `MemoryStore` is requested to [putBytes](#putBytes), [putIterator](#putIterator), [remove](#remove), [evictBlocksToFreeSpace](#evictBlocksToFreeSpace) and [logMemoryUsage](#logMemoryUsage)).
+
+## <span id="memoryUsed"> Total Storage Memory in Use
+
+```scala
+memoryUsed: Long
+```
+
+`memoryUsed` requests the [MemoryManager](#memoryManager) for the [total storage memory](../memory/MemoryManager.md#storageMemoryUsed).
+
+`memoryUsed` is used when:
+
+* `MemoryStore` is requested for [blocksMemoryUsed](#blocksMemoryUsed) and to [logMemoryUsage](#logMemoryUsage)
+
+## <span id="maxMemory"> Maximum Storage Memory
+
+```scala
+maxMemory: Long
+```
+
+`maxMemory` is the total amount of memory available for storage (in bytes) and is the sum of the [maxOnHeapStorageMemory](../memory/MemoryManager.md#maxOnHeapStorageMemory) and [maxOffHeapStorageMemory](../memory/MemoryManager.md#maxOffHeapStorageMemory) of the [MemoryManager](#memoryManager).
+
+!!! tip
+    Enable [INFO](#logging) logging for `MemoryStore` to print out the `maxMemory` to the logs when [created](#creating-instance):
+
+    ```text
+    MemoryStore started with capacity [maxMemory] MB
+    ```
+
+`maxMemory` is used when:
+
+* `MemoryStore` is requested for the [blocksMemoryUsed](#blocksMemoryUsed) and to [logMemoryUsage](#logMemoryUsage)
+
+## <span id="remove"> Dropping Block from Memory
+
+```scala
+remove(
+  blockId: BlockId): Boolean
+```
+
+`remove` returns `true` when the given block ([BlockId](BlockId.md)) was (found and) removed from the [entries](#entries) registry successfully and the [memory released](MemoryManager.md#releaseStorageMemory) (from the [MemoryManager](#memoryManager)).
+
+---
+
+`remove` removes (_drops_) the block ([BlockId](BlockId.md)) from the [entries](#entries) registry.
+
+If found and removed, `remove` requests the [MemoryManager](#memoryManager) to [releaseStorageMemory](MemoryManager.md#releaseStorageMemory) and prints out the following DEBUG message to the logs (with the [maxMemory](#maxMemory) and [blocksMemoryUsed](#blocksMemoryUsed)):
+
+```text
+Block [blockId] of size [size] dropped from memory (free [memory])
+```
+
+`remove` is used when:
+
+* `BlockManager` is requested to [dropFromMemory](BlockManager.md#dropFromMemory) and [removeBlockInternal](BlockManager.md#removeBlockInternal)
 
 ## Logging
 
@@ -224,190 +328,3 @@ log4j.logger.org.apache.spark.storage.memory.MemoryStore=ALL
 ```
 
 Refer to [Logging](../spark-logging.md).
-
-## Review Me
-
-== [[releaseUnrollMemoryForThisTask]] releaseUnrollMemoryForThisTask Method
-
-[source, scala]
-----
-releaseUnrollMemoryForThisTask(
-  memoryMode: MemoryMode,
-  memory: Long = Long.MaxValue): Unit
-----
-
-releaseUnrollMemoryForThisTask...FIXME
-
-releaseUnrollMemoryForThisTask is used when:
-
-* Task is requested to scheduler:Task.md#run[run] (and cleans up after itself)
-
-* MemoryStore is requested to <<putIterator, putIterator>>
-
-* PartiallyUnrolledIterator is requested to releaseUnrollMemory
-
-* PartiallySerializedBlock is requested to discard and finishWritingToStream
-
-== [[remove]] Dropping Block from Memory
-
-[source, scala]
-----
-remove(
-  blockId: BlockId): Boolean
-----
-
-remove removes the given BlockId.md[] from the <<entries, entries>> internal registry and branches off based on whether the <<remove-block-removed, block was found and removed>> or <<remove-no-block, not>>.
-
-=== [[remove-block-removed]] Block Removed
-
-When found and removed, remove requests the <<memoryManager, MemoryManager>> to memory:MemoryManager.md#releaseStorageMemory[releaseStorageMemory] and prints out the following DEBUG message to the logs:
-
-[source,plaintext]
-----
-Block [blockId] of size [size] dropped from memory (free [memory])
-----
-
-remove returns `true`.
-
-=== [[remove-no-block]] No Block Removed
-
-If no BlockId was registered and removed, remove returns `false`.
-
-=== [[remove-usage]] Usage
-
-remove is used when BlockManager is requested to BlockManager.md#dropFromMemory[dropFromMemory] and BlockManager.md#removeBlockInternal[removeBlockInternal].
-
-== [[putBytes]] Acquiring Storage Memory for Blocks
-
-[source, scala]
-----
-putBytes[T: ClassTag](
-  blockId: BlockId,
-  size: Long,
-  memoryMode: MemoryMode,
-  _bytes: () => ChunkedByteBuffer): Boolean
-----
-
-putBytes requests memory:MemoryManager.md#acquireStorageMemory[storage memory  for `blockId` from `MemoryManager`] and registers the block in <<entries, entries>> internal registry.
-
-Internally, putBytes first makes sure that `blockId` block has not been registered already in <<entries, entries>> internal registry.
-
-putBytes then requests memory:MemoryManager.md#acquireStorageMemory[`size` memory for the `blockId` block in a given `memoryMode` from the current `MemoryManager`].
-
-[NOTE]
-====
-`memoryMode` can be `ON_HEAP` or `OFF_HEAP` and is a property of a StorageLevel.md[StorageLevel].
-
-```
-import org.apache.spark.storage.StorageLevel._
-scala> MEMORY_AND_DISK.useOffHeap
-res0: Boolean = false
-
-scala> OFF_HEAP.useOffHeap
-res1: Boolean = true
-```
-====
-
-If successful, putBytes "materializes" `_bytes` byte buffer and makes sure that the size is exactly `size`. It then registers a `SerializedMemoryEntry` (for the bytes and `memoryMode`) for `blockId` in the internal <<entries, entries>> registry.
-
-You should see the following INFO message in the logs:
-
-```
-Block [blockId] stored as bytes in memory (estimated size [size], free [bytes])
-```
-
-putBytes returns `true` only after `blockId` was successfully registered in the internal <<entries, entries>> registry.
-
-putBytes is used when BlockManager is requested to BlockManager.md#doPutBytes[doPutBytes] and BlockManager.md#maybeCacheDiskBytesInMemory[maybeCacheDiskBytesInMemory].
-
-== [[contains]] Checking Whether Block Exists In MemoryStore
-
-[source, scala]
-----
-contains(
-  blockId: BlockId): Boolean
-----
-
-contains is positive (`true`) when the <<entries, entries>> internal registry contains `blockId` key.
-
-contains is used when...FIXME
-
-== [[reserveUnrollMemoryForThisTask]] `reserveUnrollMemoryForThisTask` Method
-
-[source, scala]
-----
-reserveUnrollMemoryForThisTask(
-  blockId: BlockId,
-  memory: Long,
-  memoryMode: MemoryMode): Boolean
-----
-
-`reserveUnrollMemoryForThisTask` acquires a lock on <<memoryManager, MemoryManager>> and requests it to memory:MemoryManager.md#acquireUnrollMemory[acquireUnrollMemory].
-
-NOTE: `reserveUnrollMemoryForThisTask` is used when MemoryStore is requested to <<putIteratorAsValues, putIteratorAsValues>> and <<putIteratorAsBytes, putIteratorAsBytes>>.
-
-== [[maxMemory]] Total Amount Of Memory Available For Storage
-
-[source, scala]
-----
-maxMemory: Long
-----
-
-`maxMemory` requests the <<memoryManager, MemoryManager>> for the current memory:MemoryManager.md#maxOnHeapStorageMemory[maxOnHeapStorageMemory] and memory:MemoryManager.md#maxOffHeapStorageMemory[maxOffHeapStorageMemory], and simply returns their sum.
-
-[TIP]
-====
-Enable INFO <<logging, logging>> to find the `maxMemory` in the logs when MemoryStore is <<creating-instance, created>>:
-
-```
-MemoryStore started with capacity [maxMemory] MB
-```
-====
-
-NOTE: `maxMemory` is used for <<logging, logging>> purposes only.
-
-== [[logUnrollFailureMessage]] logUnrollFailureMessage Internal Method
-
-[source, scala]
-----
-logUnrollFailureMessage(
-  blockId: BlockId,
-  finalVectorSize: Long): Unit
-----
-
-logUnrollFailureMessage...FIXME
-
-logUnrollFailureMessage is used when MemoryStore is requested to <<putIterator, putIterator>>.
-
-== [[logMemoryUsage]] logMemoryUsage Internal Method
-
-[source, scala]
-----
-logMemoryUsage(): Unit
-----
-
-logMemoryUsage...FIXME
-
-logMemoryUsage is used when MemoryStore is requested to <<logUnrollFailureMessage, logUnrollFailureMessage>>.
-
-== [[memoryUsed]] Total Memory Used
-
-[source, scala]
-----
-memoryUsed: Long
-----
-
-memoryUsed requests the <<memoryManager, MemoryManager>> for the memory:MemoryManager.md#storageMemoryUsed[storageMemoryUsed].
-
-memoryUsed is used when MemoryStore is requested for <<blocksMemoryUsed, blocksMemoryUsed>> and to <<logMemoryUsage, logMemoryUsage>>.
-
-== [[blocksMemoryUsed]] Memory Used for Caching Blocks
-
-[source, scala]
-----
-blocksMemoryUsed: Long
-----
-
-blocksMemoryUsed is the <<memoryUsed, total memory used>> without the <<currentUnrollMemory, current memory used for unrolling>>.
-
-blocksMemoryUsed is used for logging purposes when MemoryStore is requested to <<putBytes, putBytes>>, <<putIterator, putIterator>>, <<remove, remove>>, <<evictBlocksToFreeSpace, evictBlocksToFreeSpace>> and <<logMemoryUsage, logMemoryUsage>>.
