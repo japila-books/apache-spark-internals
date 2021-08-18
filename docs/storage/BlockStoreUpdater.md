@@ -58,7 +58,7 @@ Used when:
 ??? note "Abstract Class"
     `BlockStoreUpdater` is an abstract class and cannot be created directly. It is created indirectly for the [concrete BlockStoreUpdaters](#implementations).
 
-## <span id="save"> Persisting Block
+## <span id="save"> Saving Block to Block Store
 
 ```scala
 save(): Boolean
@@ -105,6 +105,19 @@ Put block [blockId] locally took [timeUsed] ms
 ```text
 Persisting block [blockId] to disk instead.
 ```
+
+## <span id="saveDeserializedValuesToMemoryStore"> saveDeserializedValuesToMemoryStore
+
+```scala
+saveDeserializedValuesToMemoryStore(
+  inputStream: InputStream): Boolean
+```
+
+`saveDeserializedValuesToMemoryStore`...FIXME
+
+`saveDeserializedValuesToMemoryStore` is used when:
+
+* `BlockStoreUpdater` is requested to [save a block to a block store](#save)
 
 ## Logging
 

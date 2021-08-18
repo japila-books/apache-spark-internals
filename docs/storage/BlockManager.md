@@ -213,32 +213,28 @@ For `Some(iter)`, `getOrElseUpdate` returns an iterator of `T` values.
 
 * `RDD` is requested to [get or compute an RDD partition](../rdd/RDD.md#getOrCompute) (for an `RDDBlockId` with the RDD's [id](../rdd/RDD.md#id) and partition index).
 
-### <span id="get"> Fetching Block from Local or Remote Block Managers
+### <span id="get"> Fetching Block
 
 ```scala
 get[T: ClassTag](
   blockId: BlockId): Option[BlockResult]
 ```
 
-`get` attempts to get the `blockId` block from a local block manager first before requesting it from remote block managers.
+`get` attempts to fetch the block ([BlockId](BlockId.md)) from a local block manager first before requesting it from remote block managers. `get` returns a [BlockResult](#BlockResult) or `None` (to denote "a block is not available").
 
-Internally, `get` tries to [get the block from the local BlockManager](#getLocalValues). If the block was found, you should see the following INFO message in the logs and `get` returns the local [BlockResult](#BlockResult).
+---
+
+Internally, `get` tries to [fetch the block from the local BlockManager](#getLocalValues). If found, `get` prints out the following INFO message to the logs and returns a `BlockResult`.
 
 ```text
 Found block [blockId] locally
 ```
 
-If however the block was not found locally, `get` tries to [get the block from remote block managers](#getRemoteValues). If retrieved from a remote block manager, you should see the following INFO message in the logs and `get` returns the remote [BlockResult](#BlockResult).
+If however the block was not found locally, `get` tries to [fetch the block from remote BlockManagers](#getRemoteValues). If fetched,  `get` prints out the following INFO message to the logs and returns a `BlockResult`.
 
 ```text
 Found block [blockId] remotely
 ```
-
-In the end, `get` returns "nothing" (i.e. `NONE`) when the `blockId` block was not found either in the local BlockManager or any remote BlockManager.
-
-`get` is used when:
-
-* `BlockManager` is requested to [getOrElseUpdate](#getOrElseUpdate)
 
 ### <span id="getRemoteValues"> getRemoteValues
 
@@ -668,8 +664,6 @@ maybeCacheDiskValuesInMemory[T](
 
 `maybeCacheDiskValuesInMemory`...FIXME
 
-`maybeCacheDiskValuesInMemory` is used when `BlockManager` is requested to [getLocalValues](#getLocalValues).
-
 ## <span id="getBlockData"> Retrieving Block Data
 
 ```scala
@@ -1037,7 +1031,29 @@ The underlying abstraction for blocks in Spark is a `ByteBuffer` that limits the
 
 ## <span id="BlockResult"> BlockResult
 
-`BlockResult` is a description of a fetched block with the `readMethod` and `bytes`.
+`BlockResult` is a metadata of a fetched block:
+
+* <span id="BlockResult-data"> Data (`Iterator[Any]`)
+* <span id="BlockResult-readMethod"> [DataReadMethod](#DataReadMethod)
+* <span id="BlockResult-bytes"> Size (bytes)
+
+`BlockResult` is created and returned when `BlockManager` is requested for the following:
+
+* [getOrElseUpdate](#getOrElseUpdate)
+* [get](#get)
+* [getLocalValues](#getLocalValues)
+* [getRemoteValues](#getRemoteValues)
+
+### <span id="DataReadMethod"> DataReadMethod
+
+`DataReadMethod` describes how [block data](#BlockResult-data) was read.
+
+DataReadMethod | Source
+---------------|---------
+ `Disk`    | [DiskStore](#diskStore) (while [getLocalValues](#getLocalValues))
+ `Hadoop`  | _seems unused_
+ `Memory`  | [MemoryStore](#memoryStore) (while [getLocalValues](#getLocalValues))
+ `Network` | [Remote BlockManagers](#getRemoteValues) (aka _network_)
 
 ## <span id="registerTask"> Registering Task
 

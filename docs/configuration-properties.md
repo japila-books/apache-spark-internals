@@ -472,6 +472,18 @@ Default: `1000`
 
 Default: [RandomBlockReplicationPolicy](storage/RandomBlockReplicationPolicy.md)
 
+## <span id="spark.storage.unrollMemoryThreshold"><span id="STORAGE_UNROLL_MEMORY_THRESHOLD"> spark.storage.unrollMemoryThreshold
+
+Initial memory threshold (in bytes) to unroll (materialize) a block to store in memory
+
+Default: `1024 * 1024`
+
+Must be at most the [total amount of memory available for storage](storage/MemoryStore.md#maxMemory)
+
+Used when:
+
+* `MemoryStore` is [created](storage/MemoryStore.md#unrollMemoryThreshold)
+
 ## <span id="spark.task.cpus"><span id="CPUS_PER_TASK"> spark.task.cpus
 
 The number of CPU cores to schedule (_allocate_) to a task
@@ -885,13 +897,3 @@ Default: `3s`
 Timeout for RPC ask calls
 
 Default: `120s`
-
-== [[spark.storage.unrollMemoryThreshold]] spark.storage.unrollMemoryThreshold
-
-Initial per-task memory size needed to store a block in memory.
-
-Default: `1024 * 1024`
-
-Must be at most the storage:MemoryStore.md#maxMemory[total amount of memory available for storage]
-
-Used when MemoryStore is requested to storage:MemoryStore.md#putIterator[putIterator] and storage:MemoryStore.md#putIteratorAsBytes[putIteratorAsBytes]

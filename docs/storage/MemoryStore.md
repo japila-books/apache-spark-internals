@@ -206,6 +206,13 @@ putBytes[T: ClassTag](
 * `BlockStoreUpdater` is requested to [saveSerializedValuesToMemoryStore](BlockStoreUpdater.md#saveSerializedValuesToMemoryStore)
 * `BlockManager` is requested to [maybeCacheDiskBytesInMemory](BlockManager.md#maybeCacheDiskBytesInMemory)
 
+## <span id="unrollMemoryThreshold"> spark.storage.unrollMemoryThreshold
+
+`MemoryStore` uses [spark.storage.unrollMemoryThreshold](../configuration-properties.md#spark.storage.unrollMemoryThreshold) configuration property when requested for the following:
+
+* [putIterator](#putIterator)
+* [putIteratorAsBytes](#putIteratorAsBytes)
+
 ## Logging
 
 Enable `ALL` logging level for `org.apache.spark.storage.memory.MemoryStore` logger to see what happens inside.
@@ -219,10 +226,6 @@ log4j.logger.org.apache.spark.storage.memory.MemoryStore=ALL
 Refer to [Logging](../spark-logging.md).
 
 ## Review Me
-
-== [[unrollMemoryThreshold]][[spark.storage.unrollMemoryThreshold]] spark.storage.unrollMemoryThreshold Configuration Property
-
-MemoryStore uses configuration-properties.md#spark.storage.unrollMemoryThreshold[spark.storage.unrollMemoryThreshold] configuration property for <<putIterator, putIterator>> and <<putIteratorAsBytes, putIteratorAsBytes>>.
 
 == [[releaseUnrollMemoryForThisTask]] releaseUnrollMemoryForThisTask Method
 
