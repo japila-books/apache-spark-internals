@@ -1,8 +1,6 @@
 # Task
 
-`Task` is an [abstraction](#contract) of mallest individual [units of execution](#implementations) that can be [executed](#run) to compute an RDD partition.
-
-`Task` is created when `DAGScheduler` is requested to [submit missing tasks of a stage](DAGScheduler.md#submitMissingTasks).
+`Task` is an [abstraction](#contract) of the smallest individual [units of execution](#implementations) that can be [executed](#run) (to compute an RDD partition).
 
 ![Tasks Are Runtime Representation of RDD Partitions](../images/scheduler/spark-rdd-partitions-job-stage-tasks.png)
 
@@ -38,12 +36,22 @@ Used when `Task` is requested to [run](#run)
 * <span id="appAttemptId"> Application Attempt ID (default: `None`)
 * <span id="isBarrier"> `isBarrier` flag (default: `false`)
 
+`Task` is created when:
+
+* `DAGScheduler` is requested to [submit missing tasks of a stage](DAGScheduler.md#submitMissingTasks)
+
 ??? note "Abstract Class"
     `Task` is an abstract class and cannot be created directly. It is created indirectly for the [concrete Tasks](#implementations).
 
-## Serializable
+## <span id="taskMemoryManager"><span id="setTaskMemoryManager"> TaskMemoryManager
 
-`Task` is a Java `Serializable` so it can be serialized and send over the wire from the driver to executors.
+`Task` is given a [TaskMemoryManager](../memory/TaskMemoryManager.md) when `TaskRunner` is requested to [run a task](../executor/TaskRunner.md#run) (right after deserializing the task for [execution](#run)).
+
+`Task` uses the `TaskMemoryManager` to create a [TaskContextImpl](TaskContextImpl.md) (when requested to [run](#run)).
+
+## <span id="Serializable"> Serializable
+
+`Task` is a `Serializable` ([Java]({{ java.api }}/java.base/java/io/Serializable.html)) so it can be serialized (to bytes) and send over the wire for execution from the driver to executors.
 
 ## <span id="preferredLocations"> Preferred Locations
 
