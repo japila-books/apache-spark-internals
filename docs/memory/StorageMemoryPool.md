@@ -15,9 +15,9 @@
 
 ## <span id="_memoryStore"><span id="memoryStore"><span id="setMemoryStore"> MemoryStore
 
-`StorageMemoryPool` is given a [MemoryStore](../storage/MemoryStore.md) when `MemoryManager` is requested to [associate one with storage memory pools](MemoryManager.md#setMemoryStore).
+`StorageMemoryPool` is given a [MemoryStore](../storage/MemoryStore.md) when `MemoryManager` is requested to [associate one with the on- and off-heap storage memory pools](MemoryManager.md#setMemoryStore).
 
-`MemoryStore` is used when `StorageMemoryPool` is requested to:
+`StorageMemoryPool` uses the `MemoryStore` (to [evict blocks](../storage/MemoryStore.md#evictBlocksToFreeSpace)) when requested to:
 
 * [Acquire Memory](#acquireMemory)
 * [Free Space to Shrink Pool](#freeSpaceToShrinkPool)
@@ -40,7 +40,7 @@ acquireMemory(
 
 * `UnifiedMemoryManager` is requested to [acquire storage memory](UnifiedMemoryManager.md#acquireStorageMemory)
 
-## <span id="freeSpaceToShrinkPool"> freeSpaceToShrinkPool
+## <span id="freeSpaceToShrinkPool"> Freeing Space to Shrink Pool
 
 ```scala
 freeSpaceToShrinkPool(

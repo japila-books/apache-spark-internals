@@ -92,7 +92,7 @@ Will not store [blockId]
 
 `evictBlocksToFreeSpace` is used when:
 
-* `StorageMemoryPool` is requested to [acquireMemory](../memory/StorageMemoryPool.md#acquireMemory) and [freeSpaceToShrinkPool](../memory/StorageMemoryPool.md#freeSpaceToShrinkPool)
+* `StorageMemoryPool` is requested to [acquire memory](../memory/StorageMemoryPool.md#acquireMemory) and [free up space to shrink pool](../memory/StorageMemoryPool.md#freeSpaceToShrinkPool)
 
 ### <span id="dropBlock"> Dropping Block
 
@@ -316,6 +316,27 @@ Block [blockId] of size [size] dropped from memory (free [memory])
 `remove` is used when:
 
 * `BlockManager` is requested to [dropFromMemory](BlockManager.md#dropFromMemory) and [removeBlockInternal](BlockManager.md#removeBlockInternal)
+
+## <span id="releaseUnrollMemoryForThisTask"> Releasing Unroll Memory for Task
+
+```scala
+releaseUnrollMemoryForThisTask(
+  memoryMode: MemoryMode,
+  memory: Long = Long.MaxValue): Unit
+```
+
+`releaseUnrollMemoryForThisTask` finds the task attempt ID of the current task.
+
+`releaseUnrollMemoryForThisTask` uses the [onHeapUnrollMemoryMap](#onHeapUnrollMemoryMap) or [offHeapUnrollMemoryMap](#offHeapUnrollMemoryMap) based on the given `MemoryMode`.
+
+(Only when the unroll memory map contains the task attempt ID) `releaseUnrollMemoryForThisTask` descreases the memory registered in the unroll memory map by the given memory amount and requests the [MemoryManager](#memoryManager) to [releaseUnrollMemory](../memory/MemoryManager.md#releaseUnrollMemory). In the end, `releaseUnrollMemoryForThisTask` removes the task attempt ID (entry) from the unroll memory map if the memory used is `0`.
+
+`releaseUnrollMemoryForThisTask` is used when:
+
+* `Task` is requested to [run](../scheduler/Task.md#run) (and is about to finish)
+* `MemoryStore` is requested to [putIterator](#putIterator)
+* `PartiallyUnrolledIterator` is requested to `releaseUnrollMemory`
+* `PartiallySerializedBlock` is requested to `discard` and `finishWritingToStream`
 
 ## Logging
 

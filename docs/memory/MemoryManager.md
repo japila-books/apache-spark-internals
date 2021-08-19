@@ -1,6 +1,6 @@
 # MemoryManager
 
-`MemoryManager` is an [abstraction](#contract) of [memory managers](#implementations) that can enforce how memory is shared between task execution ([TaskMemoryManager](TaskMemoryManager.md#memoryManager)) and storage ([BlockManager](../storage/BlockManager.md#memoryManager)).
+`MemoryManager` is an [abstraction](#contract) of [memory managers](#implementations) that can share available memory between task execution ([TaskMemoryManager](TaskMemoryManager.md#memoryManager)) and storage ([BlockManager](../storage/BlockManager.md#memoryManager)).
 
 ![MemoryManager and Core Services](../images/memory/MemoryManager.png)
 

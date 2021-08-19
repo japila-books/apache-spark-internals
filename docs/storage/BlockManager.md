@@ -50,9 +50,19 @@ When created, `BlockManager` sets [externalShuffleServiceEnabled](#externalShuff
 
 `BlockManager` registers a [BlockManagerSlaveEndpoint](BlockManagerSlaveEndpoint.md) with the input [RpcEnv](../rpc/RpcEnv.md), itself, and [MapOutputTracker](../scheduler/MapOutputTracker.md) (as `slaveEndpoint`).
 
-`BlockManager` is created when SparkEnv is [created](../SparkEnv.md#create-BlockManager) (for the driver and executors) when a Spark application starts.
+`BlockManager` is created when `SparkEnv` is [created](../SparkEnv.md#create-BlockManager) (for the driver and executors) when a Spark application starts.
 
 ![BlockManager and SparkEnv](../images/storage/BlockManager-SparkEnv.png)
+
+## <span id="memoryManager"> MemoryManager
+
+`BlockManager` is given a [MemoryManager](../memory/MemoryManager.md) when [created](#creating-instance).
+
+`BlockManager` uses the `MemoryManager` for the following:
+
+* Create a [MemoryStore](#memoryStore) (that is then assigned to [MemoryManager](../memory/MemoryManager.md#setMemoryStore) as a "circular dependency")
+
+* Initialize [maxOnHeapMemory](#maxOnHeapMemory) and [maxOffHeapMemory](#maxOffHeapMemory) (for reporting)
 
 ## <span id="migratableResolver"> MigratableResolver
 
@@ -470,16 +480,6 @@ This `BlockStoreClient` is used when:
 
 `BlockTransferService` is [closed](BlockTransferService.md#close) when `BlockManager` is requested to [stop](#stop).
 
-## <span id="memoryManager"> MemoryManager
-
-BlockManager is given a [MemoryManager](../memory/MemoryManager.md) when [created](#creating-instance).
-
-BlockManager uses the `MemoryManager` for the following:
-
-* Create the [MemoryStore](#memoryStore) (that is then assigned to [MemoryManager](../memory/MemoryManager.md#setMemoryStore) as a "circular dependency")
-
-* Initialize [maxOnHeapMemory](#maxOnHeapMemory) and [maxOffHeapMemory](#maxOffHeapMemory) (for reporting)
-
 ## <span id="shuffleManager"> ShuffleManager
 
 `BlockManager` is given a [ShuffleManager](../shuffle/ShuffleManager.md) when [created](#creating-instance).
@@ -513,7 +513,7 @@ SparkEnv.get.blockManager.diskBlockManager
 
 ## <span id="memoryStore"> MemoryStore
 
-BlockManager creates a [MemoryStore](MemoryStore.md) when [created](#creating-instance) (with the [BlockInfoManager](#blockInfoManager), the [SerializerManager](#serializerManager), the [MemoryManager](#memoryManager) and itself as a [BlockEvictionHandler](BlockEvictionHandler.md)).
+`BlockManager` creates a [MemoryStore](MemoryStore.md) when [created](#creating-instance) (with the [BlockInfoManager](#blockInfoManager), the [SerializerManager](#serializerManager), the [MemoryManager](#memoryManager) and itself as a [BlockEvictionHandler](BlockEvictionHandler.md)).
 
 ![MemoryStore and BlockManager](../images/storage/MemoryStore-BlockManager.png)
 
@@ -537,14 +537,14 @@ BlockManager creates a [MemoryStore](MemoryStore.md) when [created](#creating-in
 
 The `MemoryStore` is requested to [clear](MemoryStore.md#clear) when `BlockManager` is requested to [stop](#stop).
 
-The MemoryStore is available as `memoryStore` private reference to other Spark services.
+The `MemoryStore` is available as `memoryStore` private reference to other Spark services.
 
 ```scala
 import org.apache.spark.SparkEnv
 SparkEnv.get.blockManager.memoryStore
 ```
 
-The MemoryStore is used (via `SparkEnv.get.blockManager.memoryStore` reference) when Task is requested to [run](../scheduler/Task.md#run) (that has finished and requests the MemoryStore to [releaseUnrollMemoryForThisTask](MemoryStore.md#releaseUnrollMemoryForThisTask)).
+The `MemoryStore` is used (via `SparkEnv.get.blockManager.memoryStore` reference) when `Task` is requested to [run](../scheduler/Task.md#run) (that has just finished execution and requests the `MemoryStore` to [release unroll memory](MemoryStore.md#releaseUnrollMemoryForThisTask)).
 
 ## <span id="diskStore"> DiskStore
 
