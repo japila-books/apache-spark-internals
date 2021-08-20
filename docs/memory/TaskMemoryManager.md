@@ -2,6 +2,13 @@
 
 `TaskMemoryManager` manages the memory allocated to a [single task](#taskAttemptId) (using [MemoryManager](#memoryManager)).
 
+`TaskMemoryManager` assumes that:
+
+1. <span id="PAGE_NUMBER_BITS"> The number of bits to address pages is `13`
+1. <span id="OFFSET_BITS"> The number of bits to encode offsets in pages is `51` (64 bits - [13 bits](#PAGE_NUMBER_BITS))
+1. <span id="PAGE_TABLE_SIZE"> Number of pages in the [page table](#pageTable) and [to be allocated](#allocatedPages) is `8192` (`1 <<` [13](#PAGE_NUMBER_BITS))
+1. <span id="MAXIMUM_PAGE_SIZE_BYTES"> The maximum page size is `15GB` (`((1L << 31) - 1) * 8L`)
+
 ## Creating Instance
 
 `TaskMemoryManager` takes the following to be created:
@@ -28,6 +35,21 @@
 * [freePage](#freePage)
 * [getMemoryConsumptionForThisTask](#getMemoryConsumptionForThisTask)
 
+## <span id="pageTable"> Page Table (MemoryBlocks)
+
+`TaskMemoryManager` uses an array of `MemoryBlock`s (to mimic an operating system's page table).
+
+The page table uses 13 bits for addressing pages.
+
+A page is "stored" in [allocatePage](#allocatePage) and "removed" in [freePage](#freePage).
+
+All pages are released (_removed_) in [cleanUpAllAllocatedMemory](#cleanUpAllAllocatedMemory).
+
+`TaskMemoryManager` uses the page table when requested to:
+
+* [getPage](#getPage)
+* [getOffsetInPage](#getOffsetInPage)
+
 ## <span id="consumers"> Spillable Memory Consumers
 
 ```java
@@ -41,6 +63,44 @@ HashSet<MemoryConsumer> consumers
 `TaskMemoryManager` removes (_clears_) all registered memory consumers when [cleaning up all the allocated memory](#cleanUpAllAllocatedMemory).
 
 Memory consumers are used to report memory usage when `TaskMemoryManager` is requested to [show memory usage](#showMemoryUsage).
+
+## <span id="acquiredButNotUsed"> Memory Acquired But Not Used
+
+`TaskMemoryManager` tracks the size of memory [allocated](#allocatePage) but not used (by any of the [MemoryConsumer](#consumers)s due to a `OutOfMemoryError` upon trying to use it).
+
+`TaskMemoryManager` releases the memory when [cleaning up all the allocated memory](#cleanUpAllAllocatedMemory).
+
+## <span id="allocatedPages"> Allocated Pages
+
+```java
+BitSet allocatedPages
+```
+
+`TaskMemoryManager` uses a `BitSet` ([Java]({{ java.api }}/java.base.java/util/BitSet.html)) to track [allocated pages](#allocatePage).
+
+The size is exactly the number of entries in the [page table](#pageTable) ([8192](#PAGE_TABLE_SIZE)).
+
+## <span id="tungstenMemoryMode"><span id="getTungstenMemoryMode"> MemoryMode
+
+`TaskMemoryManager` can be in `ON_HEAP` or `OFF_HEAP` mode (to avoid extra work for off-heap and hoping that the JIT handles branching well).
+
+`TaskMemoryManager` is given the `MemoryMode` matching the [MemoryMode](MemoryManager.md#tungstenMemoryMode) (of the given [MemoryManager](#memoryManager)) when [created](#creating-instance).
+
+`TaskMemoryManager` uses the `MemoryMode` to match to for the following:
+
+* [allocatePage](#allocatePage)
+* [cleanUpAllAllocatedMemory](#cleanUpAllAllocatedMemory)
+
+For `OFF_HEAP` mode, `TaskMemoryManager` has to change offset while [encodePageNumberAndOffset](#encodePageNumberAndOffset) and [getOffsetInPage](#getOffsetInPage).
+
+For `OFF_HEAP` mode, `TaskMemoryManager` returns no [page](#getPage).
+
+The `MemoryMode` is used when:
+
+* `ShuffleExternalSorter` is [created](../shuffle/ShuffleExternalSorter.md)
+* `BytesToBytesMap` is [created](BytesToBytesMap.md)
+* `UnsafeExternalSorter` is [created](UnsafeExternalSorter.md)
+* `Spillable` is requested to [spill](../shuffle/Spillable.md#spill) (only when in `ON_HEAP` mode)
 
 ## <span id="acquireExecutionMemory"> Acquiring Execution Memory
 
@@ -162,6 +222,143 @@ Acquired by [consumer]: [memUsage]
 
 * `MemoryConsumer` is requested to [throw an OutOfMemoryError](MemoryConsumer.md#throwOom)
 
+## <span id="cleanUpAllAllocatedMemory"> Cleaning Up All Allocated Memory
+
+```java
+long cleanUpAllAllocatedMemory()
+```
+
+The `consumers` collection is then cleared.
+
+`cleanUpAllAllocatedMemory` finds all the registered [MemoryConsumer](MemoryConsumer.md)s (in the [consumers](#consumers) registry) that still keep [some memory used](MemoryConsumer.md#getUsed) and, for every such consumer, prints out the following DEBUG message to the logs:
+
+```text
+unreleased [getUsed] memory from [consumer]
+```
+
+`cleanUpAllAllocatedMemory` removes all the [consumers](#consumers).
+
+---
+
+For every `MemoryBlock` in the [pageTable](#pageTable), `cleanUpAllAllocatedMemory` prints out the following DEBUG message to the logs:
+
+```text
+unreleased page: [page] in task [taskAttemptId]
+```
+
+`cleanUpAllAllocatedMemory` marks the pages to be freed (`FREED_IN_TMM_PAGE_NUMBER`) and requests the [MemoryManager](#memoryManager) for the [tungstenMemoryAllocator](MemoryManager.md#tungstenMemoryAllocator) to [free up the MemoryBlock](MemoryAllocator.md#free).
+
+`cleanUpAllAllocatedMemory` clears the [pageTable](#pageTable) registry (by assigning `null` values).
+
+---
+
+`cleanUpAllAllocatedMemory` requests the [MemoryManager](#memoryManager) to [release execution memory](MemoryManager.md#releaseExecutionMemory) that is not used by any consumer (with the [acquiredButNotUsed](#acquiredButNotUsed) and the [tungstenMemoryMode](#tungstenMemoryMode)).
+
+In the end, `cleanUpAllAllocatedMemory` requests the [MemoryManager](#memoryManager) to [release all execution memory for the task](MemoryManager.md#releaseAllExecutionMemoryForTask).
+
+---
+
+`cleanUpAllAllocatedMemory` is used when:
+
+* `TaskRunner` is requested to [run a task](../executor/TaskRunner.md#run) (and the task has finished successfully)
+
+## <span id="allocatePage"> Allocating Memory Page
+
+```java
+MemoryBlock allocatePage(
+  long size,
+  MemoryConsumer consumer)
+```
+
+`allocatePage` allocates a block of memory (_page_) that is:
+
+1. Below [MAXIMUM_PAGE_SIZE_BYTES](#MAXIMUM_PAGE_SIZE_BYTES) maximum size
+1. For [MemoryConsumer](MemoryConsumer.md)s with the same [MemoryMode](MemoryConsumer.md#getMode) as the [TaskMemoryManager](#tungstenMemoryMode)
+
+`allocatePage` [acquireExecutionMemory](#acquireExecutionMemory) (for the `size` and the [MemoryConsumer](MemoryConsumer.md)). `allocatePage` returns immediately (with `null`) when this allocation ended up with `0` or less bytes.
+
+`allocatePage` allocates the first clear bit in the [allocatedPages](#allocatedPages) (unless the whole page table is taken and `allocatePage` throws an `IllegalStateException`).
+
+`allocatePage` requests the [MemoryManager](#memoryManager) for the [tungstenMemoryAllocator](MemoryManager.md#tungstenMemoryAllocator) that is requested to [allocate the acquired memory](MemoryAllocator.md#allocate).
+
+`allocatePage` registers the page in the [pageTable](#pageTable).
+
+In the end, `allocatePage` prints out the following TRACE message to the logs and returns the `MemoryBlock` allocated.
+
+```text
+Allocate page number [pageNumber] ([acquired] bytes)
+```
+
+### <span id="allocatePage-usage"> Usage
+
+`allocatePage` is used when:
+
+* `MemoryConsumer` is requested to allocate an [array](MemoryConsumer.md#allocateArray) and a [page](MemoryConsumer.md#allocatePage)
+
+### <span id="allocatePage-TooLargePageException"> TooLargePageException
+
+For sizes larger than the [MAXIMUM_PAGE_SIZE_BYTES](#MAXIMUM_PAGE_SIZE_BYTES) `allocatePage` throws a `TooLargePageException`.
+
+### <span id="allocatePage-OutOfMemoryError"> OutOfMemoryError
+
+Requesting the [tungstenMemoryAllocator](MemoryManager.md#tungstenMemoryAllocator) to [allocate the acquired memory](MemoryAllocator.md#allocate) may throw an `OutOfMemoryError`. If so, `allocatePage` prints out the following WARN message to the logs:
+
+```text
+Failed to allocate a page ([acquired] bytes), try again.
+```
+
+`allocatePage` adds the acquired memory to the [acquiredButNotUsed](#acquiredButNotUsed) and removes the page from the [allocatedPages](#allocatedPages) (by clearing the bit).
+
+In the end, `allocatePage` tries to [allocate the page](#allocatePage) again (recursively).
+
+## <span id="freePage"> Freeing Memory Page
+
+```java
+void freePage(
+  MemoryBlock page,
+  MemoryConsumer consumer)
+```
+
+`pageSizeBytes` requests the [MemoryManager](#memoryManager) for [pageSizeBytes](MemoryManager.md#pageSizeBytes).
+
+`pageSizeBytes` is used when:
+
+* `MemoryConsumer` is requested to [freePage](MemoryConsumer.md#freePage) and [throwOom](MemoryConsumer.md#throwOom)
+
+## <span id="getPage"> Getting Page
+
+```java
+Object getPage(
+  long pagePlusOffsetAddress)
+```
+
+`getPage` handles the `ON_HEAP` mode of the [tungstenMemoryMode](#tungstenMemoryMode) only.
+
+`getPage` looks up the page (by the given address) in the [page table](#pageTable) and requests it for the base object.
+
+`getPage` is used when:
+
+* `ShuffleExternalSorter` is requested to [writeSortedFile](../shuffle/ShuffleExternalSorter.md#writeSortedFile)
+* `Location` (of [BytesToBytesMap](BytesToBytesMap.md)) is requested to `updateAddressesAndSizes`
+* `SortComparator` (of [UnsafeInMemorySorter](UnsafeInMemorySorter.md)) is requested to `compare` two record pointers
+* `SortedIterator` (of [UnsafeInMemorySorter](UnsafeInMemorySorter.md)) is requested to `loadNext` record
+
+## <span id="getOffsetInPage"> getOffsetInPage
+
+```java
+long getOffsetInPage(
+  long pagePlusOffsetAddress)
+```
+
+`getOffsetInPage` gives the offset associated with the given `pagePlusOffsetAddress` (encoded by `encodePageNumberAndOffset`).
+
+`getOffsetInPage` is used when:
+
+* `ShuffleExternalSorter` is requested to [writeSortedFile](../shuffle/ShuffleExternalSorter.md#writeSortedFile)
+* `Location` (of [BytesToBytesMap](BytesToBytesMap.md)) is requested to `updateAddressesAndSizes`
+* `SortComparator` (of [UnsafeInMemorySorter](UnsafeInMemorySorter.md)) is requested to `compare` two record pointers
+* `SortedIterator` (of [UnsafeInMemorySorter](UnsafeInMemorySorter.md)) is requested to `loadNext` record
+
 ## Logging
 
 Enable `ALL` logging level for `org.apache.spark.memory.TaskMemoryManager` logger to see what happens inside.
@@ -173,170 +370,3 @@ log4j.logger.org.apache.spark.memory.TaskMemoryManager=ALL
 ```
 
 Refer to [Logging](../spark-logging.md).
-
-## Review Me
-
-TaskMemoryManager assumes that:
-
-* The number of bits to address pages (aka `PAGE_NUMBER_BITS`) is `13`
-* The number of bits to encode offsets in data pages (aka `OFFSET_BITS`) is `51` (i.e. 64 bits - `PAGE_NUMBER_BITS`)
-* The number of entries in the <<pageTable, page table>> and <<allocatedPages, allocated pages>> (aka `PAGE_TABLE_SIZE`) is `8192` (i.e. 1 << `PAGE_NUMBER_BITS`)
-* The maximum page size (aka `MAXIMUM_PAGE_SIZE_BYTES`) is `15GB` (i.e. `((1L << 31) - 1) * 8L`)
-
-== [[cleanUpAllAllocatedMemory]] Cleaning Up All Allocated Memory
-
-[source, java]
-----
-long cleanUpAllAllocatedMemory()
-----
-
-`cleanUpAllAllocatedMemory` clears <<pageTable, page table>>.
-
-CAUTION: FIXME
-
-All recorded <<consumers, consumers>> are queried for the size of used memory. If the memory used is greater than 0, the following WARN message is printed out to the logs:
-
-```
-WARN TaskMemoryManager: leak [bytes] memory from [consumer]
-```
-
-The `consumers` collection is then cleared.
-
-MemoryManager.md#releaseExecutionMemory[MemoryManager.releaseExecutionMemory] is executed to release the memory that is not used by any consumer.
-
-Before `cleanUpAllAllocatedMemory` returns, it calls MemoryManager.md#releaseAllExecutionMemoryForTask[MemoryManager.releaseAllExecutionMemoryForTask] that in turn becomes the return value.
-
-CAUTION: FIXME Image with the interactions to `MemoryManager`.
-
-NOTE: `cleanUpAllAllocatedMemory` is used exclusively when `TaskRunner` is requested to executor:TaskRunner.md#run[run] (and cleans up after itself).
-
-== [[allocatePage]] Allocating Memory Block for Tungsten Consumers
-
-[source, java]
-----
-MemoryBlock allocatePage(
-  long size,
-  MemoryConsumer consumer)
-----
-
-NOTE: It only handles *Tungsten Consumers*, i.e. MemoryConsumer.md[MemoryConsumers] in `tungstenMemoryMode` mode.
-
-`allocatePage` allocates a block of memory (aka _page_) smaller than `MAXIMUM_PAGE_SIZE_BYTES` maximum size.
-
-It checks `size` against the internal `MAXIMUM_PAGE_SIZE_BYTES` maximum size. If it is greater than the maximum size, the following `IllegalArgumentException` is thrown:
-
-```
-Cannot allocate a page with more than [MAXIMUM_PAGE_SIZE_BYTES] bytes
-```
-
-It then <<acquireExecutionMemory, acquires execution memory>> (for the input `size` and `consumer`).
-
-It finishes by returning `null` when no execution memory could be acquired.
-
-With the execution memory acquired, it finds the smallest unallocated page index and records the page number (using <<allocatedPages, allocatedPages>> registry).
-
-If the index is `PAGE_TABLE_SIZE` or higher, <<releaseExecutionMemory, releaseExecutionMemory(acquired, consumer)>> is called and then the following `IllegalStateException` is thrown:
-
-```
-Have already allocated a maximum of [PAGE_TABLE_SIZE] pages
-```
-
-It then attempts to allocate a `MemoryBlock` from `Tungsten MemoryAllocator` (calling `memoryManager.tungstenMemoryAllocator().allocate(acquired)`).
-
-CAUTION: FIXME What is `MemoryAllocator`?
-
-When successful, `MemoryBlock` gets assigned `pageNumber` and it gets added to the internal <<pageTable, pageTable>> registry.
-
-You should see the following TRACE message in the logs:
-
-```
-TRACE Allocate page number [pageNumber] ([acquired] bytes)
-```
-
-The `page` is returned.
-
-If a `OutOfMemoryError` is thrown when allocating a `MemoryBlock` page, the following WARN message is printed out to the logs:
-
-```
-WARN Failed to allocate a page ([acquired] bytes), try again.
-```
-
-And `acquiredButNotUsed` gets `acquired` memory space with the `pageNumber` cleared in <<allocatedPages, allocatedPages>> (i.e. the index for `pageNumber` gets `false`).
-
-CAUTION: FIXME Why is the code tracking `acquiredButNotUsed`?
-
-Another <<allocatePage, allocatePage>> attempt is recursively tried.
-
-CAUTION: FIXME Why is there a hope for being able to allocate a page?
-
-== [[getMemoryConsumptionForThisTask]] `getMemoryConsumptionForThisTask` Method
-
-[source, java]
-----
-long getMemoryConsumptionForThisTask()
-----
-
-`getMemoryConsumptionForThisTask`...FIXME
-
-NOTE: `getMemoryConsumptionForThisTask` is used exclusively in Spark tests.
-
-== [[freePage]] Freeing Memory Page -- `freePage` Method
-
-[source, java]
-----
-void freePage(MemoryBlock page, MemoryConsumer consumer)
-----
-
-`pageSizeBytes` simply requests the <<memoryManager, MemoryManager>> for MemoryManager.md#pageSizeBytes[pageSizeBytes].
-
-NOTE: `pageSizeBytes` is used when `MemoryConsumer` is requested to MemoryConsumer.md#freePage[freePage] and MemoryConsumer.md#throwOom[throwOom].
-
-== [[getPage]] Getting Page -- `getPage` Method
-
-[source, java]
-----
-Object getPage(long pagePlusOffsetAddress)
-----
-
-`getPage`...FIXME
-
-NOTE: `getPage` is used when...FIXME
-
-== [[getOffsetInPage]] Getting Page Offset -- `getOffsetInPage` Method
-
-[source, java]
-----
-long getOffsetInPage(long pagePlusOffsetAddress)
-----
-
-`getPage`...FIXME
-
-NOTE: `getPage` is used when...FIXME
-
-== [[internal-properties]] Internal Properties
-
-[cols="30m,70",options="header",width="100%"]
-|===
-| Name
-| Description
-
-| acquiredButNotUsed
-| [[acquiredButNotUsed]] The size of memory allocated but not used.
-
-| allocatedPages
-| [[allocatedPages]] Collection of flags (`true` or `false` values) of size `PAGE_TABLE_SIZE` with all bits initially disabled (i.e. `false`).
-
-TIP: `allocatedPages` is https://docs.oracle.com/javase/8/docs/api/java/util/BitSet.html[java.util.BitSet].
-
-When <<allocatePage, allocatePage>> is called, it will record the page in the registry by setting the bit at the specified index (that corresponds to the allocated page) to `true`.
-
-| pageTable
-| [[pageTable]] The array of size `PAGE_TABLE_SIZE` with indices being `MemoryBlock` objects.
-
-When <<allocatePage, allocating a `MemoryBlock` page for Tungsten consumers>>, the index corresponds to `pageNumber` that points to the `MemoryBlock` page allocated.
-
-| tungstenMemoryMode
-| [[tungstenMemoryMode]] `MemoryMode` (i.e. `OFF_HEAP` or `ON_HEAP`)
-
-Set to the MemoryManager.md#tungstenMemoryMode[tungstenMemoryMode] of the <<memoryManager, MemoryManager>> while TaskMemoryManager is <<creating-instance, created>>
-|===

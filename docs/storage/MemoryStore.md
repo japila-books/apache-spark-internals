@@ -301,13 +301,13 @@ remove(
   blockId: BlockId): Boolean
 ```
 
-`remove` returns `true` when the given block ([BlockId](BlockId.md)) was (found and) removed from the [entries](#entries) registry successfully and the [memory released](MemoryManager.md#releaseStorageMemory) (from the [MemoryManager](#memoryManager)).
+`remove` returns `true` when the given block ([BlockId](BlockId.md)) was (found and) removed from the [entries](#entries) registry successfully and the [memory released](../memory/MemoryManager.md#releaseStorageMemory) (from the [MemoryManager](#memoryManager)).
 
 ---
 
 `remove` removes (_drops_) the block ([BlockId](BlockId.md)) from the [entries](#entries) registry.
 
-If found and removed, `remove` requests the [MemoryManager](#memoryManager) to [releaseStorageMemory](MemoryManager.md#releaseStorageMemory) and prints out the following DEBUG message to the logs (with the [maxMemory](#maxMemory) and [blocksMemoryUsed](#blocksMemoryUsed)):
+If found and removed, `remove` requests the [MemoryManager](#memoryManager) to [releaseStorageMemory](../memory/MemoryManager.md#releaseStorageMemory) and prints out the following DEBUG message to the logs (with the [maxMemory](#maxMemory) and [blocksMemoryUsed](#blocksMemoryUsed)):
 
 ```text
 Block [blockId] of size [size] dropped from memory (free [memory])
