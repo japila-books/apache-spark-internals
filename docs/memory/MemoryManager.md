@@ -183,6 +183,9 @@ tungstenMemoryMode: MemoryMode
 
 `tungstenMemoryMode` tracks whether Tungsten memory will be allocated on the JVM heap or off-heap (using `sun.misc.Unsafe`).
 
+!!! note "final val"
+    `tungstenMemoryMode` is a `final val`ue so initialized once when `MemoryManager` is [created](#creating-instance).
+
 `tungstenMemoryMode` is `OFF_HEAP` when the following are all met:
 
 * [spark.memory.offHeap.enabled](../configuration-properties.md#spark.memory.offHeap.enabled) configuration property is enabled
@@ -198,5 +201,25 @@ Otherwise, `tungstenMemoryMode` is `ON_HEAP`.
 
 `tungstenMemoryMode` is used when:
 
-* `MemoryManager` is created (and initializes the [pageSizeBytes](MemoryManager.md#pageSizeBytes) and [tungstenMemoryAllocator](MemoryManager.md#tungstenMemoryAllocator) internal properties)
+* `MemoryManager` is [created](#creating-instance) (and initializes the [pageSizeBytes](#pageSizeBytes) and [tungstenMemoryAllocator](#tungstenMemoryAllocator) internal properties)
 * `TaskMemoryManager` is [created](TaskMemoryManager.md#tungstenMemoryMode)
+
+## <span id="tungstenMemoryAllocator"> MemoryAllocator
+
+```scala
+tungstenMemoryAllocator: MemoryAllocator
+```
+
+`MemoryManager` selects the [MemoryAllocator](MemoryAllocator.md) to use based on the [MemoryMode](#tungstenMemoryMode).
+
+!!! note "final val"
+    `tungstenMemoryAllocator` is a `final val`ue so initialized once when `MemoryManager` is [created](#creating-instance).
+
+MemoryMode  | MemoryAllocator
+------------|----------------
+ `ON_HEAP`  | [HeapMemoryAllocator](MemoryAllocator.md#HEAP)
+ `OFF_HEAP` | [UnsafeMemoryAllocator](MemoryAllocator.md#UNSAFE)
+
+`tungstenMemoryAllocator` is used when:
+
+* `TaskMemoryManager` is requested to [allocate a memory page](TaskMemoryManager.md#allocatePage), [release a memory page](TaskMemoryManager.md#freePage) and [clean up all the allocated memory](TaskMemoryManager.md#cleanUpAllAllocatedMemory)

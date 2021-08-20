@@ -311,7 +311,7 @@ Failed to allocate a page ([acquired] bytes), try again.
 
 In the end, `allocatePage` tries to [allocate the page](#allocatePage) again (recursively).
 
-## <span id="freePage"> Freeing Memory Page
+## <span id="freePage"> Releasing Memory Page
 
 ```java
 void freePage(
