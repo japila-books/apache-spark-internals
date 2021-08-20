@@ -112,6 +112,19 @@ In the end, `releaseExecutionMemory` requests the [MemoryManager](#memoryManager
 * `MemoryConsumer` is requested to [free up memory](MemoryConsumer.md#freeMemory)
 * `TaskMemoryManager` is requested to [allocatePage](#allocatePage) and [freePage](#freePage)
 
+## <span id="pageSizeBytes"> Page Size
+
+```java
+long pageSizeBytes()
+```
+
+`pageSizeBytes` requests the [MemoryManager](#memoryManager) for the [pageSizeBytes](MemoryManager.md#pageSizeBytes).
+
+`pageSizeBytes` is used when:
+
+* `MemoryConsumer` is [created](MemoryConsumer.md#pageSize)
+* `ShuffleExternalSorter` is [created](../shuffle/ShuffleExternalSorter.md#pageSize) (as a `MemoryConsumer`)
+
 ## <span id="showMemoryUsage"> Reporting Memory Usage
 
 ```java
@@ -266,17 +279,6 @@ long getMemoryConsumptionForThisTask()
 `getMemoryConsumptionForThisTask`...FIXME
 
 NOTE: `getMemoryConsumptionForThisTask` is used exclusively in Spark tests.
-
-== [[pageSizeBytes]] `pageSizeBytes` Method
-
-[source, java]
-----
-long pageSizeBytes()
-----
-
-`pageSizeBytes` simply requests the <<memoryManager, MemoryManager>> for MemoryManager.md#pageSizeBytes[pageSizeBytes].
-
-NOTE: `pageSizeBytes` is used when...FIXME
 
 == [[freePage]] Freeing Memory Page -- `freePage` Method
 
