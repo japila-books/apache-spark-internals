@@ -1,10 +1,146 @@
 # TaskMemoryManager
 
-`TaskMemoryManager` manages the memory allocated to execute a single <<taskAttemptId, task>> (using <<memoryManager, MemoryManager>>).
+`TaskMemoryManager` manages the memory allocated to a [single task](#taskAttemptId) (using [MemoryManager](#memoryManager)).
 
-`TaskMemoryManager` is <<creating-instance, created>> when `TaskRunner` is requested to executor:TaskRunner.md#run[run].
+## Creating Instance
+
+`TaskMemoryManager` takes the following to be created:
+
+* [MemoryManager](#memoryManager)
+* <span id="taskAttemptId"> Task Attempt ID
+
+`TaskMemoryManager` is created when:
+
+* `TaskRunner` is requested to [run](../executor/TaskRunner.md#run)
 
 ![Creating TaskMemoryManager for Task](../images/memory/TaskMemoryManager.png)
+
+## <span id="memoryManager"> MemoryManager
+
+`TaskMemoryManager` is given a [MemoryManager](MemoryManager.md) when [created](#creating-instance).
+
+`TaskMemoryManager` uses the `MemoryManager` when requested for the following:
+
+* [Acquiring](#acquireExecutionMemory), [releasing](#releaseExecutionMemory) or [cleaning up](#cleanUpAllAllocatedMemory) execution memory
+* [Report memory usage](#showMemoryUsage)
+* [pageSizeBytes](#pageSizeBytes)
+* [Allocating a memory block for Tungsten consumers](#allocatePage)
+* [freePage](#freePage)
+* [getMemoryConsumptionForThisTask](#getMemoryConsumptionForThisTask)
+
+## <span id="consumers"> Spillable Memory Consumers
+
+```java
+HashSet<MemoryConsumer> consumers
+```
+
+`TaskMemoryManager` tracks [spillable memory consumers](MemoryConsumer.md).
+
+`TaskMemoryManager` registers a new memory consumer when requested to [acquire execution memory](#acquireExecutionMemory).
+
+`TaskMemoryManager` removes (_clears_) all registered memory consumers when [cleaning up all the allocated memory](#cleanUpAllAllocatedMemory).
+
+Memory consumers are used to report memory usage when `TaskMemoryManager` is requested to [show memory usage](#showMemoryUsage).
+
+## <span id="acquireExecutionMemory"> Acquiring Execution Memory (from MemoryManager)
+
+```java
+long acquireExecutionMemory(
+  long required,
+  MemoryConsumer consumer)
+```
+
+`acquireExecutionMemory` allocates up to `required` execution memory (bytes) for the [MemoryConsumer](MemoryConsumer.md) (from the [MemoryManager](#memoryManager)).
+
+When not enough memory could be allocated initially, `acquireExecutionMemory` requests every consumer (with the same [MemoryMode](MemoryConsumer.md#getMode), itself including) to [spill](MemoryConsumer.md#spill).
+
+`acquireExecutionMemory` returns the amount of memory allocated.
+
+`acquireExecutionMemory` is used when:
+
+* `MemoryConsumer` is requested to [acquire execution memory](MemoryConsumer.md#acquireMemory)
+* `TaskMemoryManager` is requested to [allocate a page](#allocatePage)
+
+---
+
+`acquireExecutionMemory` requests the [MemoryManager](#memoryManager) to [acquire execution memory](MemoryManager.md#acquireExecutionMemory) (with `required` bytes, the [taskAttemptId](#taskAttemptId) and the [MemoryMode](MemoryConsumer.md#getMode) of the [MemoryConsumer](MemoryConsumer.md)).
+
+In the end, `acquireExecutionMemory` registers the `MemoryConsumer` (and adds it to the [consumers](#consumers) registry) and prints out the following DEBUG message to the logs:
+
+```text
+Task [taskAttemptId] acquired [got] for [consumer]
+```
+
+---
+
+In case `MemoryManager` will have offerred less memory than `required`, `acquireExecutionMemory` finds the [MemoryConsumer](MemoryConsumer.md)s (in the [consumers](#consumers) registry) with the [MemoryMode](MemoryConsumer.md#getMode) and non-zero [memory used](MemoryConsumer.md#getUsed), sorts them by memory usage, requests them (one by one) to [spill](MemoryConsumer.md#spill) until enough memory is acquired or there are no more consumers to release memory from (by spilling).
+
+When a `MemoryConsumer` releases memory, `acquireExecutionMemory` prints out the following DEBUG message to the logs:
+
+```text
+Task [taskAttemptId] released [released] from [c] for [consumer]
+```
+
+---
+
+In case there is still not enough memory (less than `required`), `acquireExecutionMemory` requests the `MemoryConsumer` (to acquire memory for) to [spill](MemoryConsumer.md#spill).
+
+`acquireExecutionMemory` prints out the following DEBUG message to the logs:
+
+```text
+Task [taskAttemptId] released [released] from itself ([consumer])
+```
+
+## <span id="showMemoryUsage"> Reporting Memory Usage
+
+```java
+void showMemoryUsage()
+```
+
+`showMemoryUsage` prints out the following INFO message to the logs (with the [taskAttemptId](#taskAttemptId)):
+
+```text
+Memory used in task [taskAttemptId]
+```
+
+`showMemoryUsage` requests every [MemoryConsumer](#consumers) to [report memory used](MemoryConsumer.md#getUsed). For consumers with non-zero memory usage, `showMemoryUsage` prints out the following INFO message to the logs:
+
+```text
+Acquired by [consumer]: [memUsage]
+```
+
+`showMemoryUsage` requests the [MemoryManager](#memoryManager) to [getExecutionMemoryUsageForTask](MemoryManager.md#getExecutionMemoryUsageForTask) to calculate memory not accounted for (that is not associated with a specific consumer).
+
+`showMemoryUsage` prints out the following INFO messages to the logs:
+
+```text
+[memoryNotAccountedFor] bytes of memory were used by task [taskAttemptId] but are not associated with specific consumers
+```
+
+`showMemoryUsage` requests the [MemoryManager](#memoryManager) for the [executionMemoryUsed](MemoryManager.md#executionMemoryUsed) and [storageMemoryUsed](MemoryManager.md#storageMemoryUsed) and prints out the following INFO message to the logs:
+
+```text
+[executionMemoryUsed] bytes of memory are used for execution and
+[storageMemoryUsed] bytes of memory are used for storage
+```
+
+`showMemoryUsage` is used when:
+
+* `MemoryConsumer` is requested to [throw an OutOfMemoryError](MemoryConsumer.md#throwOom)
+
+## Logging
+
+Enable `ALL` logging level for `org.apache.spark.memory.TaskMemoryManager` logger to see what happens inside.
+
+Add the following line to `conf/log4j.properties`:
+
+```text
+log4j.logger.org.apache.spark.memory.TaskMemoryManager=ALL
+```
+
+Refer to [Logging](../spark-logging.md).
+
+## Review Me
 
 TaskMemoryManager assumes that:
 
@@ -12,43 +148,6 @@ TaskMemoryManager assumes that:
 * The number of bits to encode offsets in data pages (aka `OFFSET_BITS`) is `51` (i.e. 64 bits - `PAGE_NUMBER_BITS`)
 * The number of entries in the <<pageTable, page table>> and <<allocatedPages, allocated pages>> (aka `PAGE_TABLE_SIZE`) is `8192` (i.e. 1 << `PAGE_NUMBER_BITS`)
 * The maximum page size (aka `MAXIMUM_PAGE_SIZE_BYTES`) is `15GB` (i.e. `((1L << 31) - 1) * 8L`)
-
-== [[creating-instance]] Creating Instance
-
-TaskMemoryManager takes the following to be created:
-
-* <<memoryManager, MemoryManager>>
-* [[taskAttemptId]] executor:TaskRunner.md#taskId[Task attempt ID]
-
-TaskMemoryManager initializes the <<internal-properties, internal properties>>.
-
-== [[consumers]] Spillable Memory Consumers
-
-TaskMemoryManager tracks memory:MemoryConsumer.md[spillable memory consumers].
-
-TaskMemoryManager registers a new memory consumer when requested to <<acquireExecutionMemory, acquire execution memory>>.
-
-TaskMemoryManager removes (_clears_) all registered memory consumer when requested to <<cleanUpAllAllocatedMemory, clean up all allocated memory>>.
-
-Memory consumers are used to report memory usage when TaskMemoryManager is requested to <<showMemoryUsage, show memory usage>>.
-
-== [[memoryManager]] MemoryManager
-
-TaskMemoryManager is given a memory:MemoryManager.md[MemoryManager] when <<creating-instance, created>>.
-
-TaskMemoryManager uses the MemoryManager for the following:
-
-* <<acquireExecutionMemory, Acquiring>>, <<releaseExecutionMemory, releasing>> or <<cleanUpAllAllocatedMemory, cleaning up>> execution memory
-
-* <<showMemoryUsage, showMemoryUsage>>
-
-* <<pageSizeBytes, pageSizeBytes>>
-
-* <<allocatePage, Allocating a memory block for Tungsten consumers>>
-
-* <<freePage, freePage>>
-
-* <<getMemoryConsumptionForThisTask, getMemoryConsumptionForThisTask>>
 
 == [[cleanUpAllAllocatedMemory]] Cleaning Up All Allocated Memory
 
@@ -76,75 +175,6 @@ Before `cleanUpAllAllocatedMemory` returns, it calls MemoryManager.md#releaseAll
 CAUTION: FIXME Image with the interactions to `MemoryManager`.
 
 NOTE: `cleanUpAllAllocatedMemory` is used exclusively when `TaskRunner` is requested to executor:TaskRunner.md#run[run] (and cleans up after itself).
-
-== [[acquireExecutionMemory]] Acquiring Execution Memory
-
-[source, java]
-----
-long acquireExecutionMemory(
-  long required,
-  MemoryConsumer consumer)
-----
-
-`acquireExecutionMemory` allocates up to `required` size of memory for the memory:MemoryConsumer.md[MemoryConsumer].
-
-When no memory could be allocated, it calls `spill` on every consumer, itself including. Finally, `acquireExecutionMemory` returns the allocated memory.
-
-NOTE: `acquireExecutionMemory` synchronizes on itself, and so no other calls on the object could be completed.
-
-NOTE: memory:MemoryConsumer.md[MemoryConsumer] knows its mode -- on- or off-heap.
-
-`acquireExecutionMemory` first calls `memoryManager.acquireExecutionMemory(required, taskAttemptId, mode)`.
-
-TIP: TaskMemoryManager is a mere wrapper of `MemoryManager` to track <<consumers, consumers>>?
-
-CAUTION: FIXME
-
-When the memory obtained is less than requested (by `required`), `acquireExecutionMemory` requests all <<consumers, consumers>> to MemoryConsumer.md#spill[release memory (by spilling it to disk)].
-
-NOTE: `acquireExecutionMemory` requests memory from consumers that work in the same mode except the requesting one.
-
-You may see the following DEBUG message when `spill` released some memory:
-
-```
-DEBUG Task [taskAttemptId] released [bytes] from [consumer] for [consumer]
-```
-
-`acquireExecutionMemory` calls `memoryManager.acquireExecutionMemory(required, taskAttemptId, mode)` again (it called it at the beginning).
-
-It does the memory acquisition until it gets enough memory or there are no more consumers to request `spill` from.
-
-You may also see the following ERROR message in the logs when there is an error while requesting `spill` with `OutOfMemoryError` followed.
-
-```
-ERROR error while calling spill() on [consumer]
-```
-
-If the earlier `spill` on the consumers did not work out and there is still memory to be acquired, `acquireExecutionMemory` MemoryConsumer.md#spill[requests the input `consumer` to spill memory to disk] (that in fact requested more memory!)
-
-If the `consumer` releases some memory, you should see the following DEBUG message in the logs:
-
-```
-DEBUG Task [taskAttemptId] released [bytes] from itself ([consumer])
-```
-
-`acquireExecutionMemory` calls `memoryManager.acquireExecutionMemory(required, taskAttemptId, mode)` once more.
-
-NOTE: `memoryManager.acquireExecutionMemory(required, taskAttemptId, mode)` could have been called "three" times, i.e. at the very beginning, for each consumer, and on itself.
-
-It records the `consumer` in <<consumers, consumers>> registry.
-
-You should see the following DEBUG message in the logs:
-
-```
-DEBUG Task [taskAttemptId] acquired [bytes] for [consumer]
-```
-
-acquireExecutionMemory is used when:
-
-* MemoryConsumer is requested to memory:MemoryConsumer.md#acquireMemory[acquire execution memory]
-
-* TaskMemoryManager is requested to <<allocatePage, allocate a page>>
 
 == [[allocatePage]] Allocating Memory Block for Tungsten Consumers
 
@@ -234,41 +264,6 @@ long getMemoryConsumptionForThisTask()
 
 NOTE: `getMemoryConsumptionForThisTask` is used exclusively in Spark tests.
 
-== [[showMemoryUsage]] Displaying Memory Usage
-
-[source, java]
-----
-void showMemoryUsage()
-----
-
-showMemoryUsage prints out the following INFO message to the logs (with the <<taskAttemptId, taskAttemptId>>):
-
-[source,plaintext]
-----
-Memory used in task [taskAttemptId]
-----
-
-showMemoryUsage requests every <<consumers, MemoryConsumer>> to memory:MemoryConsumer.md#getUsed[report memory used]. showMemoryUsage prints out the following INFO message to the logs for a MemoryConsumer with some memory usage (and excludes zero-memory consumers):
-
-[source,plaintext]
-----
-Acquired by [consumer]: [memUsage]
-----
-
-showMemoryUsage prints out the following INFO messages to the logs:
-
-[source,plaintext]
-----
-[amount] bytes of memory were used by task [taskAttemptId] but are not associated with specific consumers
-----
-
-[source,plaintext]
-----
-[executionMemoryUsed] bytes of memory are used for execution and [storageMemoryUsed] bytes of memory are used for storage
-----
-
-showMemoryUsage is used when MemoryConsumer is requested to memory:MemoryConsumer.md#throwOom[throw an OutOfMemoryError].
-
 == [[pageSizeBytes]] `pageSizeBytes` Method
 
 [source, java]
@@ -312,20 +307,6 @@ long getOffsetInPage(long pagePlusOffsetAddress)
 `getPage`...FIXME
 
 NOTE: `getPage` is used when...FIXME
-
-== [[logging]] Logging
-
-Enable `ALL` logging level for `org.apache.spark.memory.TaskMemoryManager` logger to see what happens inside.
-
-Add the following line to `conf/log4j.properties`:
-
-
-[source]
-----
-log4j.logger.org.apache.spark.memory.TaskMemoryManager=ALL
-----
-
-Refer to spark-logging.md[Logging].
 
 == [[internal-properties]] Internal Properties
 
