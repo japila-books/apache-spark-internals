@@ -42,7 +42,7 @@ HashSet<MemoryConsumer> consumers
 
 Memory consumers are used to report memory usage when `TaskMemoryManager` is requested to [show memory usage](#showMemoryUsage).
 
-## <span id="acquireExecutionMemory"> Acquiring Execution Memory (from MemoryManager)
+## <span id="acquireExecutionMemory"> Acquiring Execution Memory
 
 ```java
 long acquireExecutionMemory(
@@ -90,6 +90,27 @@ In case there is still not enough memory (less than `required`), `acquireExecuti
 ```text
 Task [taskAttemptId] released [released] from itself ([consumer])
 ```
+
+## <span id="releaseExecutionMemory"> Releasing Execution Memory
+
+```java
+void releaseExecutionMemory(
+  long size,
+  MemoryConsumer consumer)
+```
+
+`releaseExecutionMemory` prints out the following DEBUG message to the logs:
+
+```text
+Task [taskAttemptId] release [size] from [consumer]
+```
+
+In the end, `releaseExecutionMemory` requests the [MemoryManager](#memoryManager) to [releaseExecutionMemory](MemoryManager.md#releaseExecutionMemory).
+
+`releaseExecutionMemory` is used when:
+
+* `MemoryConsumer` is requested to [free up memory](MemoryConsumer.md#freeMemory)
+* `TaskMemoryManager` is requested to [allocatePage](#allocatePage) and [freePage](#freePage)
 
 ## <span id="showMemoryUsage"> Reporting Memory Usage
 
@@ -234,24 +255,6 @@ CAUTION: FIXME Why is the code tracking `acquiredButNotUsed`?
 Another <<allocatePage, allocatePage>> attempt is recursively tried.
 
 CAUTION: FIXME Why is there a hope for being able to allocate a page?
-
-== [[releaseExecutionMemory]] `releaseExecutionMemory` Method
-
-[source, java]
-----
-void releaseExecutionMemory(long size, MemoryConsumer consumer)
-----
-
-`releaseExecutionMemory`...FIXME
-
-[NOTE]
-====
-`releaseExecutionMemory` is used when:
-
-* `MemoryConsumer` is requested to MemoryConsumer.md#freeMemory[freeMemory]
-
-* TaskMemoryManager is requested to <<allocatePage, allocatePage>> and <<freePage, freePage>>
-====
 
 == [[getMemoryConsumptionForThisTask]] `getMemoryConsumptionForThisTask` Method
 
