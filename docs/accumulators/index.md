@@ -24,9 +24,6 @@ sc.parallelize(1 to 9).foreach { x =>
 println(counter.value)
 ```
 
-!!! tip
-    Learn more about [Accumulators]({{ spark.docs }}/rdd-programming-guide.html#accumulators) in the official documentation of Apache Spark.
-
 ## Further Reading
 
 * [Performance and Scalability of Broadcast in Spark](https://www.mosharaf.com/wp-content/uploads/mosharaf-spark-bc-report-spring10.pdf)
