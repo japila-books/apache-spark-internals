@@ -147,22 +147,6 @@ getValues(
 
 * `BlockManager` is requested for the [serialized bytes of a block (from a local block manager)](BlockManager.md#doGetLocalBytes), [getLocalValues](BlockManager.md#getLocalValues), [maybeCacheDiskBytesInMemory](BlockManager.md#maybeCacheDiskBytesInMemory)
 
-## <span id="putIteratorAsValues"> putIteratorAsValues
-
-```scala
-putIteratorAsValues[T](
-  blockId: BlockId,
-  values: Iterator[T],
-  classTag: ClassTag[T]): Either[PartiallyUnrolledIterator[T], Long]
-```
-
-`putIteratorAsValues`...FIXME
-
-`putIteratorAsValues` is used when:
-
-* `BlockStoreUpdater` is requested to [saveDeserializedValuesToMemoryStore](BlockStoreUpdater.md#saveDeserializedValuesToMemoryStore)
-* `BlockManager` is requested to [doPutIterator](BlockManager.md#doPutIterator) and [maybeCacheDiskValuesInMemory](BlockManager.md#maybeCacheDiskValuesInMemory)
-
 ## <span id="putIteratorAsBytes"> putIteratorAsBytes
 
 ```scala
@@ -173,11 +157,45 @@ putIteratorAsBytes[T](
   memoryMode: MemoryMode): Either[PartiallySerializedBlock[T], Long]
 ```
 
-`putIteratorAsBytes`...FIXME
+`putIteratorAsBytes` requires that the [block is not already stored](#contains).
+
+`putIteratorAsBytes` [putIterator](#putIterator) (with the given [BlockId](BlockId.md), the values, the `MemoryMode` and a new `SerializedValuesHolder`).
+
+If successful, `putIteratorAsBytes` returns the estimated size of the block. Otherwise, a `PartiallySerializedBlock`.
+
+---
+
+`putIteratorAsBytes` prints out the following WARN message to the logs when the [initial memory threshold](#unrollMemoryThreshold) is too large:
+
+```text
+Initial memory threshold of [initialMemoryThreshold] is too large to be set as chunk size.
+Chunk size has been capped to "MAX_ROUNDED_ARRAY_LENGTH"
+```
+
+---
 
 `putIteratorAsBytes` is used when:
 
 * `BlockManager` is requested to [doPutIterator](BlockManager.md#doPutIterator) (for a block with [StorageLevel](StorageLevel.md) with [useMemory](StorageLevel.md#useMemory) and [serialized](StorageLevel.md#deserialized))
+
+## <span id="putIteratorAsValues"> putIteratorAsValues
+
+```scala
+putIteratorAsValues[T](
+  blockId: BlockId,
+  values: Iterator[T],
+  memoryMode: MemoryMode,
+  classTag: ClassTag[T]): Either[PartiallyUnrolledIterator[T], Long]
+```
+
+`putIteratorAsValues` [putIterator](#putIterator) (with the given [BlockId](BlockId.md), the values, the `MemoryMode` and a new `DeserializedValuesHolder`).
+
+If successful, `putIteratorAsValues` returns the estimated size of the block. Otherwise, a `PartiallyUnrolledIterator`.
+
+`putIteratorAsValues` is used when:
+
+* `BlockStoreUpdater` is requested to [saveDeserializedValuesToMemoryStore](BlockStoreUpdater.md#saveDeserializedValuesToMemoryStore)
+* `BlockManager` is requested to [doPutIterator](BlockManager.md#doPutIterator) and [maybeCacheDiskValuesInMemory](BlockManager.md#maybeCacheDiskValuesInMemory)
 
 ## <span id="putIterator"> putIterator
 
