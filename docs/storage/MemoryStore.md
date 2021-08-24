@@ -208,7 +208,38 @@ putIterator[T](
   valuesHolder: ValuesHolder[T]): Either[Long, Long]
 ```
 
-`putIterator`...FIXME
+`putIterator` returns the (estimated) size of the block (as `Right`) or the `unrollMemoryUsedByThisBlock` (as `Left`).
+
+`putIterator` requires that the [block is not already in the MemoryStore](#contains).
+
+`putIterator` [reserveUnrollMemoryForThisTask](#reserveUnrollMemoryForThisTask) (with the [spark.storage.unrollMemoryThreshold](../configuration-properties.md#spark.storage.unrollMemoryThreshold) for the initial memory threshold).
+
+If `putIterator` did not manage to reserve the memory for unrolling (computing block in memory), it prints out the following WARN message to the logs:
+
+```text
+Failed to reserve initial memory threshold of [initialMemoryThreshold]
+for computing block [blockId] in memory.
+```
+
+`putIterator` requests the `ValuesHolder` to `storeValue` for every value in the given `values` iterator. `putIterator` checks memory usage regularly (whether it may have exceeded the threshold) and [reserveUnrollMemoryForThisTask](#reserveUnrollMemoryForThisTask) when needed.
+
+`putIterator` requests the `ValuesHolder` for a `MemoryEntryBuilder` (`getBuilder`) that in turn is requested to `build` a `MemoryEntry`.
+
+`putIterator` [releaseUnrollMemoryForThisTask](#releaseUnrollMemoryForThisTask).
+
+`putIterator` requests the [MemoryManager](#memoryManager) to [acquireStorageMemory](../memory/MemoryManager.md#acquireStorageMemory) and stores the block (in the [entries](#entries) registry).
+
+In the end, `putIterator` prints out the following INFO message to the logs:
+
+```text
+Block [blockId] stored as values in memory (estimated size [size], free [free])
+```
+
+---
+
+In case of `putIterator` not having enough memory to store the block, `putIterator` [logUnrollFailureMessage](#logUnrollFailureMessage) and returns the `unrollMemoryUsedByThisBlock`.
+
+---
 
 `putIterator` is used when:
 
