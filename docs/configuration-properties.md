@@ -56,6 +56,14 @@ Default: `1`
 
 Default: (undefined)
 
+## <span id="spark.executor.memory"> spark.executor.memory
+
+Amount of memory to use for an [Executor](executor/Executor.md#memory)
+
+Default: `1g`
+
+Equivalent to [SPARK_EXECUTOR_MEMORY](SparkContext.md#environment-variables) environment variable.
+
 ## <span id="spark.executor.metrics.fileSystemSchemes"><span id="EXECUTOR_METRICS_FILESYSTEM_SCHEMES"> spark.executor.metrics.fileSystemSchemes
 
 A comma-separated list of the file system schemes to report in [executor metrics](executor/ExecutorSource.md#fileSystemSchemes)
@@ -124,6 +132,14 @@ Default: `false`
 
 **Master URL** of the cluster manager to connect the Spark application to
 
+## <span id="spark.memory.fraction"> spark.memory.fraction
+
+Fraction of JVM heap space used for execution and storage.
+
+Default: `0.6`
+
+The lower the more frequent spills and cached data eviction. The purpose of this config is to set aside memory for internal metadata, user data structures, and imprecise size estimation in the case of sparse, unusually large records. Leaving this at the default value is recommended.
+
 ## <span id="spark.memory.offHeap.enabled"><span id="MEMORY_OFFHEAP_ENABLED"> spark.memory.offHeap.enabled
 
 Controls whether Tungsten memory will be allocated on the JVM heap (`false`) or off-heap (`true` / using `sun.misc.Unsafe`).
@@ -148,11 +164,11 @@ Must not be negative and be set to a positive value when [spark.memory.offHeap.e
 
 ## <span id="spark.memory.storageFraction"><span id="MEMORY_STORAGE_FRACTION"> spark.memory.storageFraction
 
-Amount of storage memory immune to eviction, expressed as a fraction of the size of the region set aside by spark.memory.fraction.
-
-The higher this is, the less working memory may be available to execution and tasks may spill to disk more often. Leaving this at the default value is recommended
+Amount of storage memory immune to eviction, expressed as a fraction of the size of the region set aside by [spark.memory.fraction](#spark.memory.fraction).
 
 Default: `0.5`
+
+The higher the less working memory may be available to execution and tasks may spill to disk more often. The default value is recommended.
 
 Must be in `[0,1)`
 
@@ -631,15 +647,6 @@ a| [[spark.executor.userClassPathFirst]] Flag to control whether to load classes
 
 Default: `false`
 
-| spark.executor.memory
-a| [[spark.executor.memory]] Amount of memory to use for an executor:Executor.md[]
-
-Default: `1g`
-
-Equivalent to SparkContext.md#environment-variables[SPARK_EXECUTOR_MEMORY] environment variable.
-
-Refer to executor:Executor.md#memory[Executor Memory -- spark.executor.memory or SPARK_EXECUTOR_MEMORY settings]
-
 | spark.executor.port
 a| [[spark.executor.port]]
 
@@ -710,12 +717,6 @@ a| [[spark.storage.exceptionOnPinLeak]]
 a| [[spark.unsafe.exceptionOnMemoryLeak]]
 
 |===
-
-== [[spark.memory.fraction]] spark.memory.fraction
-
-`spark.memory.fraction` is the fraction of JVM heap space used for execution and storage.
-
-Default: `0.6`
 
 == [[spark.shuffle.spill.batchSize]] spark.shuffle.spill.batchSize
 
