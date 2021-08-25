@@ -25,7 +25,7 @@ acquireExecutionMemory(
 
 Used when:
 
-* `TaskMemoryManager` is requested to [acquireExecutionMemory](TaskMemoryManager.md#acquireExecutionMemory)
+* `TaskMemoryManager` is requested to [acquire execution memory](TaskMemoryManager.md#acquireExecutionMemory)
 
 ### <span id="acquireStorageMemory"> Acquiring Storage Memory for Block
 

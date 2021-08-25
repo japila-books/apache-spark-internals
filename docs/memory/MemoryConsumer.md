@@ -21,7 +21,7 @@ long spill(
 
 Used when:
 
-* `TaskMemoryManager` is requested to [acquireExecutionMemory](TaskMemoryManager.md#acquireExecutionMemory)
+* `TaskMemoryManager` is requested to [acquire execution memory](TaskMemoryManager.md#acquireExecutionMemory)
 * `UnsafeExternalSorter` is requested to [createWithExistingInMemorySorter](UnsafeExternalSorter.md#createWithExistingInMemorySorter)
 
 ## Implementations

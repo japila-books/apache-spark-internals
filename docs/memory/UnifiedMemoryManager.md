@@ -109,3 +109,46 @@ res1: Long = 912
 ## <span id="RESERVED_SYSTEM_MEMORY_BYTES"> Reserved System Memory
 
 `UnifiedMemoryManager` considers `300MB` (`300 * 1024 * 1024` bytes) as a reserved system memory while [calculating the maximum heap memory](#getMaxMemory).
+
+## <span id="acquireExecutionMemory"> Acquiring Execution Memory for Task
+
+```scala
+acquireExecutionMemory(
+  numBytes: Long,
+  taskAttemptId: Long,
+  memoryMode: MemoryMode): Long
+```
+
+`acquireExecutionMemory` [asserts the invariants](#assertInvariants).
+
+`acquireExecutionMemory` selects the execution and storage pools, the storage region size and the maximum memory for the given `MemoryMode`.
+
+MemoryMode | ON_HEAP | OFF_HEAP
+-----------|---------|---------
+executionPool | [onHeapExecutionMemoryPool](MemoryManager.md#onHeapExecutionMemoryPool) | [offHeapExecutionMemoryPool](MemoryManager.md#offHeapExecutionMemoryPool)
+storagePool   | [onHeapStorageMemoryPool](MemoryManager.md#onHeapStorageMemoryPool) | [offHeapStorageMemoryPool](MemoryManager.md#offHeapStorageMemoryPool)
+storageRegionSize | [onHeapStorageRegionSize](#onHeapStorageRegionSize) | [offHeapStorageMemory](MemoryManager.md#offHeapStorageMemory)
+maxMemory     | [maxHeapMemory](#maxHeapMemory) | [maxOffHeapMemory](MemoryManager.md#maxOffHeapMemory)
+
+In the end, `acquireExecutionMemory` requests the execution pool to [acquireMemory](ExecutionMemoryPool.md#acquireMemory) of `numBytes` bytes (with the [maybeGrowExecutionPool](#maybeGrowExecutionPool) and the [computeMaxExecutionPoolSize](#computeMaxExecutionPoolSize) functions).
+
+### <span id="maybeGrowExecutionPool"> maybeGrowExecutionPool
+
+```scala
+maybeGrowExecutionPool(
+  extraMemoryNeeded: Long): Unit
+```
+
+`maybeGrowExecutionPool`...FIXME
+
+### <span id="computeMaxExecutionPoolSize"> computeMaxExecutionPoolSize
+
+```scala
+computeMaxExecutionPoolSize(): Long
+```
+
+`computeMaxExecutionPoolSize`...FIXME
+
+---
+
+`acquireExecutionMemory` is part of the [MemoryManager](MemoryManager.md#acquireExecutionMemory) abstraction.
