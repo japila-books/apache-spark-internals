@@ -10,7 +10,7 @@
 
 * <span id="conf"> [SparkConf](../SparkConf.md)
 * [Maximum Heap Memory](#maxHeapMemory)
-* <span id="onHeapStorageRegionSize"> Size of the On-Heap Storage Region
+* [Size of the On-Heap Storage Region](#onHeapStorageRegionSize)
 * <span id="numCores"> Number of CPU Cores
 
 While being created, `UnifiedMemoryManager` [asserts the invariants](#assertInvariants).
@@ -34,6 +34,14 @@ maxOnHeapStorageMemory: Long
 `maxOnHeapStorageMemory` is part of the [MemoryManager](MemoryManager.md#maxOnHeapStorageMemory) abstraction.
 
 `maxOnHeapStorageMemory` is the difference between [Maximum Heap Memory](#maxHeapMemory) and the [memory used](ExecutionMemoryPool.md#memoryUsed) in the [on-heap execution memory pool](MemoryManager.md#onHeapExecutionMemoryPool).
+
+## <span id="onHeapStorageRegionSize"> Size of the On-Heap Storage Memory
+
+`UnifiedMemoryManager` is given the size of the on-heap storage memory (region) when [created](#creating-instance).
+
+The size is the fraction (based on [spark.memory.storageFraction](../configuration-properties.md#spark.memory.storageFraction) configuration property) of the [maximum heap memory](#getMaxMemory).
+
+The remaining memory space (of the [maximum heap memory](#maxHeapMemory)) is used for the [on-heap execution memory](MemoryManager.md#onHeapExecutionMemory).
 
 ## <span id="apply"> Creating UnifiedMemoryManager
 
