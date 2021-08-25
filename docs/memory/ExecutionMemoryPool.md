@@ -12,3 +12,19 @@
 `ExecutionMemoryPool` is created when:
 
 * `MemoryManager` is created (and initializes [on-heap](MemoryManager.md#onHeapExecutionMemoryPool) and [off-heap](MemoryManager.md#offHeapExecutionMemoryPool) execution memory pools)
+
+## <span id="acquireMemory"> Acquiring Memory
+
+```scala
+acquireMemory(
+  numBytes: Long,
+  taskAttemptId: Long,
+  maybeGrowPool: Long => Unit = (additionalSpaceNeeded: Long) => (),
+  computeMaxPoolSize: () => Long = () => poolSize): Long
+```
+
+`acquireMemory`...FIXME
+
+`acquireMemory` is used when:
+
+* `UnifiedMemoryManager` is requested to [acquire execution memory](UnifiedMemoryManager.md#acquireExecutionMemory)

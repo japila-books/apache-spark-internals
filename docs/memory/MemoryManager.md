@@ -120,6 +120,24 @@ setMemoryStore(
 
 * `BlockManager` is [created](../storage/BlockManager.md#creating-instance)
 
+## Execution Memory Pools
+
+### <span id="onHeapExecutionMemoryPool"> On-Heap
+
+```scala
+onHeapExecutionMemoryPool: ExecutionMemoryPool
+```
+
+`MemoryManager` creates an [ExecutionMemoryPool](ExecutionMemoryPool.md) for `ON_HEAP` memory mode when [created](#creating-instance) and immediately requests it to [incrementPoolSize](MemoryPool.md#incrementPoolSize) to [onHeapExecutionMemory](#onHeapExecutionMemory).
+
+### <span id="offHeapExecutionMemoryPool"> Off-Heap
+
+```scala
+offHeapExecutionMemoryPool: ExecutionMemoryPool
+```
+
+`MemoryManager` creates an [ExecutionMemoryPool](ExecutionMemoryPool.md) for `OFF_HEAP` memory mode when [created](#creating-instance) and immediately requests it to [incrementPoolSize](MemoryPool.md#incrementPoolSize) to...FIXME
+
 ## Storage Memory Pools
 
 ### <span id="onHeapStorageMemoryPool"> On-Heap
@@ -128,7 +146,7 @@ setMemoryStore(
 onHeapStorageMemoryPool: StorageMemoryPool
 ```
 
-`MemoryManager` creates a [StorageMemoryPool](StorageMemoryPool.md) with `ON_HEAP` memory mode when [created](#creating-instance) and immediately requests it to [incrementPoolSize](MemoryPool.md#incrementPoolSize) to [onHeapExecutionMemory](#onHeapExecutionMemory).
+`MemoryManager` creates a [StorageMemoryPool](StorageMemoryPool.md) for `ON_HEAP` memory mode when [created](#creating-instance) and immediately requests it to [incrementPoolSize](MemoryPool.md#incrementPoolSize) to [onHeapExecutionMemory](#onHeapExecutionMemory).
 
 `onHeapStorageMemoryPool` is requested to [setMemoryStore](StorageMemoryPool.md#setMemoryStore) when `MemoryManager` is requested to [setMemoryStore](#setMemoryStore).
 
@@ -147,7 +165,7 @@ onHeapStorageMemoryPool: StorageMemoryPool
 offHeapStorageMemoryPool: StorageMemoryPool
 ```
 
-`MemoryManager` creates a [StorageMemoryPool](StorageMemoryPool.md) with `OFF_HEAP` memory mode when [created](#creating-instance) and immediately requested it to [incrementPoolSize](MemoryPool.md#incrementPoolSize) to [offHeapStorageMemory](#offHeapStorageMemory).
+`MemoryManager` creates a [StorageMemoryPool](StorageMemoryPool.md) for `OFF_HEAP` memory mode when [created](#creating-instance) and immediately requested it to [incrementPoolSize](MemoryPool.md#incrementPoolSize) to [offHeapStorageMemory](#offHeapStorageMemory).
 
 `MemoryManager` requests the `MemoryPool`s to [use a given MemoryStore](StorageMemoryPool.md#setMemoryStore) when requested to [setMemoryStore](#setMemoryStore).
 

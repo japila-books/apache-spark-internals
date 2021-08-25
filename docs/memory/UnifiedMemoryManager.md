@@ -130,7 +130,11 @@ storagePool   | [onHeapStorageMemoryPool](MemoryManager.md#onHeapStorageMemoryPo
 storageRegionSize | [onHeapStorageRegionSize](#onHeapStorageRegionSize) | [offHeapStorageMemory](MemoryManager.md#offHeapStorageMemory)
 maxMemory     | [maxHeapMemory](#maxHeapMemory) | [maxOffHeapMemory](MemoryManager.md#maxOffHeapMemory)
 
-In the end, `acquireExecutionMemory` requests the execution pool to [acquireMemory](ExecutionMemoryPool.md#acquireMemory) of `numBytes` bytes (with the [maybeGrowExecutionPool](#maybeGrowExecutionPool) and the [computeMaxExecutionPoolSize](#computeMaxExecutionPoolSize) functions).
+In the end, `acquireExecutionMemory` requests the [ExecutionMemoryPool](ExecutionMemoryPool.md) to [acquire memory](ExecutionMemoryPool.md#acquireMemory) of `numBytes` bytes (with the [maybeGrowExecutionPool](#maybeGrowExecutionPool) and the [maximum size of execution pool](#computeMaxExecutionPoolSize) functions).
+
+---
+
+`acquireExecutionMemory` is part of the [MemoryManager](MemoryManager.md#acquireExecutionMemory) abstraction.
 
 ### <span id="maybeGrowExecutionPool"> maybeGrowExecutionPool
 
@@ -141,14 +145,15 @@ maybeGrowExecutionPool(
 
 `maybeGrowExecutionPool`...FIXME
 
-### <span id="computeMaxExecutionPoolSize"> computeMaxExecutionPoolSize
+### <span id="computeMaxExecutionPoolSize"> Maximum Size of Execution Pool
 
 ```scala
 computeMaxExecutionPoolSize(): Long
 ```
 
-`computeMaxExecutionPoolSize`...FIXME
+`computeMaxExecutionPoolSize` takes the minimum size of the storage memory regions (based on the memory mode, `ON_HEAP` or `OFF_HEAP`, respectively):
 
----
+* [Memory used](StorageMemoryPool.md#memoryUsed) of the [on-heap](MemoryManager.md#onHeapStorageMemoryPool) or the [off-heap](MemoryManager.md#offHeapStorageMemoryPool) storage memory pool
+* [On-heap](#onHeapStorageRegionSize) or the [off-heap](MemoryManager.md#offHeapStorageMemory) storage memory size
 
-`acquireExecutionMemory` is part of the [MemoryManager](MemoryManager.md#acquireExecutionMemory) abstraction.
+In the end, `computeMaxExecutionPoolSize` returns the size of the remaining memory space of the maximum memory (the [maxHeapMemory](#maxHeapMemory) or the [maxOffHeapMemory](MemoryManager.md#maxOffHeapMemory) for `ON_HEAP` or `OFF_HEAP` memory mode, respectively) without (the minimum size of) the storage memory region.

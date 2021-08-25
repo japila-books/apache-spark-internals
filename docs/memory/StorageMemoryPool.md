@@ -22,6 +22,14 @@
 * [Acquire Memory](#acquireMemory)
 * [Free Space to Shrink Pool](#freeSpaceToShrinkPool)
 
+## <span id="memoryUsed"><span id="_memoryUsed"> Size of Memory Used
+
+`StorageMemoryPool` keeps track of the size of the memory [acquired](#acquireMemory).
+
+The size descreases when `StorageMemoryPool` is requested to [releaseMemory](#releaseMemory) or [releaseAllMemory](#releaseAllMemory).
+
+`memoryUsed` is part of the [MemoryPool](MemoryPool.md#memoryUsed) abstraction.
+
 ## <span id="acquireMemory"> Acquiring Memory
 
 ```scala

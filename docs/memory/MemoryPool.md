@@ -4,7 +4,7 @@
 
 ## Contract
 
-### <span id="memoryUsed"> Memory Used
+### <span id="memoryUsed"> Size of Memory Used
 
 ```scala
 memoryUsed: Long
