@@ -919,16 +919,15 @@ hello: org.apache.spark.broadcast.Broadcast[String] = Broadcast(0)
 
 Spark transfers the value to Spark executors _once_, and tasks can share it without incurring repetitive network transmissions when the broadcast variable is used multiple times.
 
-.Broadcasting a value to executors
-image::sparkcontext-broadcast-executors.png)
+![Broadcasting a value to executors](images/sparkcontext-broadcast-executors.png)
 
-Internally, broadcast requests BroadcastManager for a core:BroadcastManager.md#newBroadcast[new broadcast variable].
+Internally, broadcast requests `BroadcastManager` for a [new broadcast variable](broadcast-variables/BroadcastManager.md#newBroadcast).
 
-NOTE: The current `BroadcastManager` is available using core:SparkEnv.md#broadcastManager[`SparkEnv.broadcastManager`] attribute and is always core:BroadcastManager.md[BroadcastManager] (with few internal configuration changes to reflect where it runs, i.e. inside the driver or executors).
+NOTE: The current `BroadcastManager` is available using core:SparkEnv.md#broadcastManager[`SparkEnv.broadcastManager`] attribute and is always [BroadcastManager](broadcast-variables/BroadcastManager.md) (with few internal configuration changes to reflect where it runs, i.e. inside the driver or executors).
 
 You should see the following INFO message in the logs:
 
-```
+```text
 Created broadcast [id] from [callSite]
 ```
 

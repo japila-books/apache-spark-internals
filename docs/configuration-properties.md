@@ -865,7 +865,9 @@ The size of a block (in kB unless the unit is specified)
 
 Default: `4m`
 
-Used when core:TorrentBroadcast.md#writeBlocks[`TorrentBroadcast` stores brodcast blocks to `BlockManager`]
+Used when:
+
+* `TorrentBroadcast` is requested to [store brodcast blocks](broadcast-variables/TorrentBroadcast.md#writeBlocks) (to `BlockManager`)
 
 == [[spark.broadcast.compress]] spark.broadcast.compress
 
@@ -873,7 +875,10 @@ Controls broadcast compression
 
 Default: `true`
 
-Used when core:TorrentBroadcast.md#creating-instance[`TorrentBroadcast` is created] and later when core:TorrentBroadcast.md#writeBlocks[it stores broadcast blocks to `BlockManager`]. Also in serializer:SerializerManager.md#settings[SerializerManager].
+Used when:
+
+* `TorrentBroadcast` is [created](broadcast-variables/TorrentBroadcast.md#creating-instance) and requested to [store broadcast blocks](broadcast-variables/TorrentBroadcast.md#writeBlocks) (in `BlockManager`)
+* [SerializerManager](serializer/SerializerManager.md#settings)
 
 == [[spark.app.name]] spark.app.name
 

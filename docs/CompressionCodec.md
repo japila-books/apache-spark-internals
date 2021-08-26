@@ -50,9 +50,9 @@ compressedOutputStream(
   s: OutputStream): OutputStream
 ----
 
-compressedOutputStream is used when:
+`compressedOutputStream` is used when:
 
-* TorrentBroadcast is requested to core:TorrentBroadcast.md#blockifyObject[blockifyObject]
+* `TorrentBroadcast` is requested to [blockifyObject](broadcast-variables/TorrentBroadcast.md#blockifyObject)
 
 * ReliableCheckpointRDD is requested to writePartitionToCheckpointFile
 
@@ -72,9 +72,9 @@ compressedInputStream(
   s: InputStream): InputStream
 ----
 
-compressedInputStream is used when:
+`compressedInputStream` is used when:
 
-* TorrentBroadcast is requested to core:TorrentBroadcast.md#unBlockifyObject[unBlockifyObject]
+* `TorrentBroadcast` is requested to [unBlockifyObject](broadcast-variables/TorrentBroadcast.md#unBlockifyObject)
 
 * ReliableCheckpointRDD is requested to readCheckpointFile
 
@@ -110,9 +110,9 @@ createCodec throws an IllegalArgumentException exception if a compression codec 
 Codec [codecName] is not available. Consider setting spark.io.compression.codec=snappy
 ----
 
-createCodec is used when:
+`createCodec` is used when:
 
-* TorrentBroadcast is requested to core:TorrentBroadcast.md#setConf[setConf]
+* `TorrentBroadcast` is requested to [setConf](broadcast-variables/TorrentBroadcast.md#setConf)
 
 * ReliableCheckpointRDD is requested to writePartitionToCheckpointFile and readCheckpointFile
 

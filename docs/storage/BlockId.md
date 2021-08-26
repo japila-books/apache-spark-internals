@@ -26,7 +26,7 @@ Used when:
 
 ### <span id="BroadcastBlockId"> BroadcastBlockId
 
-`BlockId` for [Broadcast](../Broadcast.md) blocks:
+`BlockId` for [broadcast variable](../broadcast-variables/index.md) blocks:
 
 * `broadcastId` identifier
 * Optional `field` name (default: `empty`)
@@ -35,7 +35,7 @@ Uses **broadcast_** prefix for the [name](#name)
 
 Used when:
 
-* `TorrentBroadcast` is [created](../core/TorrentBroadcast.md#broadcastId), requested to [store a broadcast and the blocks in a local BlockManager](../core/TorrentBroadcast.md#writeBlocks), and [read blocks](../core/TorrentBroadcast.md#readBlocks)
+* `TorrentBroadcast` is [created](../broadcast-variables/TorrentBroadcast.md#broadcastId), requested to [store a broadcast and the blocks in a local BlockManager](../broadcast-variables/TorrentBroadcast.md#writeBlocks), and [read blocks](../broadcast-variables/TorrentBroadcast.md#readBlocks)
 * `BlockManager` is requested to [remove all the blocks of a broadcast variable](BlockManager.md#removeBroadcast)
 * `SerializerManager` is requested to [shouldCompress](../serializer/SerializerManager.md#shouldCompress)
 * `AppStatusListener` is requested to [onBlockUpdated](../status/AppStatusListener.md#onBlockUpdated)

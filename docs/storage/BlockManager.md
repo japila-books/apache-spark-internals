@@ -269,7 +269,7 @@ getRemoteBytes(
 
 `getRemoteBytes` is used when:
 
-* `TorrentBroadcast` is requested to [readBlocks](../core/TorrentBroadcast.md#readBlocks)
+* `TorrentBroadcast` is requested to [readBlocks](../broadcast-variables/TorrentBroadcast.md#readBlocks)
 * `TaskResultGetter` is requested to [enqueueSuccessfulTask](../scheduler/TaskResultGetter.md#enqueueSuccessfulTask)
 
 ## <span id="getRemoteBlock"> Fetching Remote Block
@@ -648,7 +648,7 @@ If `blockId` block has memory level and [is registered in `MemoryStore`](MemoryS
 
 `getLocalValues` is used when:
 
-* `TorrentBroadcast` is requested to [readBroadcastBlock](../core/TorrentBroadcast.md#readBroadcastBlock)
+* `TorrentBroadcast` is requested to [readBroadcastBlock](../broadcast-variables/TorrentBroadcast.md#readBroadcastBlock)
 
 * `BlockManager` is requested to [get](#get) and [getOrElseUpdate](#getOrElseUpdate)
 
@@ -694,9 +694,8 @@ getLocalBytes(
 
 `getLocalBytes` is used when:
 
-* TorrentBroadcast is requested to core:TorrentBroadcast.md#readBlocks[readBlocks]
-
-* BlockManager is requested for the <<getBlockData, block data>> (of a non-shuffle block)
+* `TorrentBroadcast` is requested to [readBlocks](../broadcast-variables/TorrentBroadcast.md#readBlocks)
+* `BlockManager` is requested for the [block data](#getBlockData) (of a non-shuffle block)
 
 ## <span id="putBlockData"> Storing Block Data Locally
 
@@ -728,7 +727,7 @@ putBytes(
 
 * `BlockManager` is requested to [puts a block data locally](#putBlockData)
 * `TaskRunner` is requested to [run](../executor/TaskRunner.md#run-result-sent-via-blockmanager) (and the result size is above [maxDirectResultSize](../executor/Executor.md#maxDirectResultSize))
-* `TorrentBroadcast` is requested to [writeBlocks](../core/TorrentBroadcast.md#writeBlocks) and [readBlocks](../core/TorrentBroadcast.md#readBlocks)
+* `TorrentBroadcast` is requested to [writeBlocks](../broadcast-variables/TorrentBroadcast.md#writeBlocks) and [readBlocks](../broadcast-variables/TorrentBroadcast.md#readBlocks)
 
 ### <span id="doPutBytes"> doPutBytes
 
@@ -1170,7 +1169,7 @@ putIterator[T: ClassTag](
 
 * `BlockManager` is requested to [putSingle](#putSingle)
 
-## <span id="putSingle"> putSingle Method
+## <span id="putSingle"> putSingle
 
 ```scala
 putSingle[T: ClassTag](
@@ -1182,7 +1181,7 @@ putSingle[T: ClassTag](
 
 `putSingle`...FIXME
 
-`putSingle` is used when `TorrentBroadcast` is requested to [write the blocks](../core/TorrentBroadcast.md#writeBlocks) and [readBroadcastBlock](../core/TorrentBroadcast.md#readBroadcastBlock).
+`putSingle` is used when `TorrentBroadcast` is requested to [write the blocks](../broadcast-variables/TorrentBroadcast.md#writeBlocks) and [readBroadcastBlock](../broadcast-variables/TorrentBroadcast.md#readBroadcastBlock).
 
 ## <span id="doPutIterator"> doPutIterator
 

@@ -12,7 +12,7 @@ T -- [ResultTask] --> U
 
 * <span id="stageId"> [Stage](Stage.md) ID
 * <span id="stageAttemptId"> Stage Attempt ID
-* <span id="taskBinary"> [Broadcast Variable](../Broadcast.md) with a serialized task (`Broadcast[Array[Byte]]`)
+* <span id="taskBinary"> [Broadcast variable](../broadcast-variables/index.md) with a serialized task (`Broadcast[Array[Byte]]`)
 * <span id="partition"> [Partition](../rdd/Partition.md) to compute
 * <span id="locs"> [TaskLocation](../scheduler/TaskLocation.md)
 * <span id="outputId"> Output ID

@@ -17,7 +17,7 @@ Used when:
 * `Task` is [created](../scheduler/Task.md#serializedTaskMetrics) (only used in tests)
 * `SerializerSupport` (Spark SQL) utility is used to `newSerializer`
 * `RangePartitioner` is requested to [writeObject](../rdd/RangePartitioner.md#writeObject) and [readObject](../rdd/RangePartitioner.md#readObject)
-* `TorrentBroadcast` utility is used to [blockifyObject](../core/TorrentBroadcast.md#blockifyObject) and [unBlockifyObject](../core/TorrentBroadcast.md#unBlockifyObject)
+* `TorrentBroadcast` utility is used to [blockifyObject](../broadcast-variables/TorrentBroadcast.md#blockifyObject) and [unBlockifyObject](../broadcast-variables/TorrentBroadcast.md#unBlockifyObject)
 * `TaskRunner` is requested to [run](../executor/TaskRunner.md#run)
 * `NettyBlockRpcServer` is requested to [deserializeMetadata](../storage/NettyBlockRpcServer.md#deserializeMetadata)
 * `NettyBlockTransferService` is requested to [uploadBlock](../storage/NettyBlockTransferService.md#uploadBlock)

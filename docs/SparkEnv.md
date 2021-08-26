@@ -14,7 +14,7 @@ There are two separate `SparkEnv`s of the [driver](#createDriverEnv) and [execut
 Property | Service
 ---------|----------
  <span id="blockManager"> blockManager | [BlockManager](storage/BlockManager.md)
- <span id="broadcastManager"> broadcastManager | [BroadcastManager](core/BroadcastManager.md)
+ <span id="broadcastManager"> broadcastManager | [BroadcastManager](broadcast-variables/BroadcastManager.md)
  <span id="closureSerializer"> closureSerializer | [Serializer](serializer/Serializer.md)
  <span id="conf"> conf | [SparkConf](SparkConf.md)
  <span id="mapOutputTracker"> mapOutputTracker | [MapOutputTracker](scheduler/MapOutputTracker.md)
@@ -170,7 +170,7 @@ Using serializer: [serializer]
 
 `create` creates a `JavaSerializer` as the closure serializer.
 
-`creates` creates a [BroadcastManager](core/BroadcastManager.md).
+`creates` creates a [BroadcastManager](broadcast-variables/BroadcastManager.md).
 
 `creates` creates a [MapOutputTrackerMaster](scheduler/MapOutputTrackerMaster.md) (on the driver) or a [MapOutputTrackerWorker](scheduler/MapOutputTrackerWorker.md) (on executors). `creates` registers or looks up a [MapOutputTrackerMasterEndpoint](scheduler/MapOutputTrackerMasterEndpoint.md) under the name of **MapOutputTracker**. `creates` prints out the following INFO message to the logs (on the driver only):
 

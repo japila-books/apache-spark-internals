@@ -82,7 +82,7 @@ releaseLock(
 
 Used when:
 
-* `TorrentBroadcast` is requested to [releaseBlockManagerLock](../core/TorrentBroadcast.md#releaseBlockManagerLock)
+* `TorrentBroadcast` is requested to [releaseBlockManagerLock](../broadcast-variables/TorrentBroadcast.md#releaseBlockManagerLock)
 * `BlockManager` is requested to [handleLocalReadFailure](BlockManager.md#handleLocalReadFailure), [getLocalValues](BlockManager.md#getLocalValues), [getOrElseUpdate](BlockManager.md#getOrElseUpdate), [doPut](BlockManager.md#doPut), [releaseLockAndDispose](BlockManager.md#releaseLockAndDispose)
 
 ## Implementations

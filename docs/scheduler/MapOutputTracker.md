@@ -186,7 +186,7 @@ Internally, `serializeMapStatuses` creates a Java [ByteArrayOutputStream]({{ jav
 
 `serializeMapStatuses` decides whether to return the output array (of the output stream) or use a broadcast variable based on the size of the byte array.
 
-If the size of the result byte array is the given `minBroadcastSize` threshold or bigger, `serializeMapStatuses` requests the input `BroadcastManager` to [create a broadcast variable](../core/BroadcastManager.md#newBroadcast).
+If the size of the result byte array is the given `minBroadcastSize` threshold or bigger, `serializeMapStatuses` requests the input `BroadcastManager` to [create a broadcast variable](../broadcast-variables/BroadcastManager.md#newBroadcast).
 
 `serializeMapStatuses` resets the `ByteArrayOutputStream` and starts over.
 

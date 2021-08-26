@@ -1,9 +1,8 @@
-= TorrentBroadcast
+# TorrentBroadcast
 
-*TorrentBroadcast* is a Broadcast.md[] that uses a BitTorrent-like protocol for broadcast blocks distribution.
+`TorrentBroadcast` is a Broadcast.md[] that uses a BitTorrent-like protocol for broadcast blocks distribution.
 
-.TorrentBroadcast -- Broadcasting using BitTorrent
-image::sparkcontext-broadcast-bittorrent.png[align="center"]
+![TorrentBroadcast -- Broadcasting using BitTorrent](../images/sparkcontext-broadcast-bittorrent.png)
 
 When a SparkContext.md#broadcast[broadcast variable is created (using `SparkContext.broadcast`)] on the driver, a <<creating-instance, new instance of TorrentBroadcast is created>>.
 
@@ -15,21 +14,20 @@ val anyScalaValue = ???
 val b = sc.broadcast(anyScalaValue) // <-- TorrentBroadcast is created
 ----
 
-A broadcast variable is stored on the driver's storage:BlockManager.md[BlockManager] as a single value and separately as broadcast blocks (after it was <<blockifyObject, divided into broadcast blocks, i.e. blockified>>). The broadcast block size is the value of core:BroadcastManager.md#spark_broadcast_blockSize[spark.broadcast.blockSize] Spark property.
+A broadcast variable is stored on the driver's storage:BlockManager.md[BlockManager] as a single value and separately as broadcast blocks (after it was <<blockifyObject, divided into broadcast blocks, i.e. blockified>>). The broadcast block size is the value of core:broadcast-variables/BroadcastManager.md#spark_broadcast_blockSize[spark.broadcast.blockSize] Spark property.
 
-.TorrentBroadcast puts broadcast and the chunks to driver's BlockManager
-image::sparkcontext-broadcast-bittorrent-newBroadcast.png[align="center"]
+![TorrentBroadcast puts broadcast and the chunks to driver's BlockManager](../images/sparkcontext-broadcast-bittorrent-newBroadcast.png)
 
-NOTE: TorrentBroadcast-based broadcast variables are created using core:TorrentBroadcastFactory.md[TorrentBroadcastFactory].
+NOTE: `TorrentBroadcast`-based broadcast variables are created using [TorrentBroadcastFactory](TorrentBroadcastFactory.md).
 
-== [[creating-instance]] Creating Instance
+## Creating Instance
 
 TorrentBroadcast takes the following to be created:
 
 * [[obj]] Object (the value) to be broadcast
 * [[id]] ID
 
-TorrentBroadcast is created when TorrentBroadcastFactory is requested for a core:TorrentBroadcastFactory.md#newBroadcast[new broadcast variable].
+TorrentBroadcast is created when TorrentBroadcastFactory is requested for a [new broadcast variable](TorrentBroadcastFactory.md#newBroadcast).
 
 == [[_value]] Transient Lazy Broadcast Value
 
@@ -72,7 +70,7 @@ TorrentBroadcast uses a storage:BlockId.md#BroadcastBlockId[BroadcastBlockId] fo
 readBroadcastBlock(): T
 ----
 
-readBroadcastBlock SparkEnv.md#get[uses the SparkEnv] to access SparkEnv.md#broadcastManager[BroadcastManager] that is requested for BroadcastManager.md#cachedValues[cached broadcast values].
+readBroadcastBlock SparkEnv.md#get[uses the SparkEnv] to access SparkEnv.md#broadcastManager[BroadcastManager] that is requested for broadcast-variables/BroadcastManager.md#cachedValues[cached broadcast values].
 
 readBroadcastBlock looks up the <<broadcastId, BroadcastBlockId>> in the cached broadcast values and returns it if found.
 
@@ -125,9 +123,9 @@ setConf(
 
 setConf uses the input `conf` SparkConf.md[SparkConf] to set compression codec and the block size.
 
-Internally, setConf reads core:BroadcastManager.md#spark.broadcast.compress[spark.broadcast.compress] configuration property and if enabled (which it is by default) sets a io:CompressionCodec.md#createCodec[CompressionCodec] (as an internal `compressionCodec` property).
+Internally, setConf reads core:broadcast-variables/BroadcastManager.md#spark.broadcast.compress[spark.broadcast.compress] configuration property and if enabled (which it is by default) sets a io:CompressionCodec.md#createCodec[CompressionCodec] (as an internal `compressionCodec` property).
 
-setConf also reads core:BroadcastManager.md#spark_broadcast_blockSize[spark.broadcast.blockSize] Spark property and sets the block size (as the internal `blockSize` property).
+setConf also reads core:broadcast-variables/BroadcastManager.md#spark_broadcast_blockSize[spark.broadcast.blockSize] Spark property and sets the block size (as the internal `blockSize` property).
 
 setConf is executed when <<creating-instance, TorrentBroadcast is created>> or <<readBroadcastBlock, re-created when deserialized on executors>>.
 
@@ -222,11 +220,11 @@ unpersist requests storage:BlockManagerMaster.md#removeBroadcast[`BlockManagerMa
 
 NOTE: unpersist uses core:SparkEnv.md#blockManager[`SparkEnv` to get the `BlockManagerMaster`] (through `blockManager` property).
 
-unpersist is used when:
+`unpersist` is used when:
 
-* TorrentBroadcast is requested to <<doUnpersist, unpersist a broadcast variable on executors>> and <<doDestroy, remove a broadcast variable from the driver and executors>>
+* `TorrentBroadcast` is requested to <<doUnpersist, unpersist a broadcast variable on executors>> and <<doDestroy, remove a broadcast variable from the driver and executors>>
 
-* TorrentBroadcastFactory is requested to TorrentBroadcastFactory.md#unbroadcast[unbroadcast]
+* `TorrentBroadcastFactory` is requested to [unbroadcast](TorrentBroadcastFactory.md#unbroadcast)
 
 == [[readBlocks]] Reading Broadcast Blocks
 

@@ -1,6 +1,6 @@
-= Broadcast Variable
+# Broadcast Variable
 
-From http://spark.apache.org/docs/latest/programming-guide.html#broadcast-variables[the official documentation about Broadcast Variables]:
+From [the official documentation about Broadcast Variables](http://spark.apache.org/docs/latest/programming-guide.html#broadcast-variables):
 
 > Broadcast variables allow the programmer to keep a read-only variable cached on each machine rather than shipping a copy of it with tasks.
 
@@ -8,17 +8,15 @@ And later in the document:
 
 > Explicitly creating broadcast variables is only useful when tasks across multiple stages need the same data or when caching the data in deserialized form is important.
 
-.Broadcasting a value to executors
-image::sparkcontext-broadcast-executors.png[align="center"]
+![Broadcasting a value to executors](../images/sparkcontext-broadcast-executors.png)
 
 To use a broadcast value in a Spark transformation you have to create it first using SparkContext.md#broadcast[SparkContext.broadcast] and then use `value` method to access the shared value. Learn it in <<introductory-example, Introductory Example>> section.
 
-The Broadcast feature in Spark uses SparkContext to create broadcast values and core:BroadcastManager.md[] and core:ContextCleaner.md[ContextCleaner] to manage their lifecycle.
+The Broadcast feature in Spark uses SparkContext to create broadcast values and [BroadcastManager](BroadcastManager.md) and core:ContextCleaner.md[ContextCleaner] to manage their lifecycle.
 
-.SparkContext to broadcast using BroadcastManager and ContextCleaner
-image::sparkcontext-broadcastmanager-contextcleaner.png[align="center"]
+![SparkContext to broadcast using BroadcastManager and ContextCleaner](../images/sparkcontext-broadcastmanager-contextcleaner.png)
 
-TIP: Not only can Spark developers use broadcast variables for efficient data distribution, but Spark itself uses them quite often. A very notable use case is when scheduler:DAGScheduler.md#submitMissingTasks[Spark distributes tasks to executors for their execution]. That _does_ change my perspective on the role of broadcast variables in Spark.
+Not only can Spark developers use broadcast variables for efficient data distribution, but Spark itself uses them quite often. A very notable use case is when scheduler:DAGScheduler.md#submitMissingTasks[Spark distributes tasks to executors for their execution]. That _does_ change my perspective on the role of broadcast variables in Spark.
 
 The idea is to transfer values used in transformations from a driver to executors in a most effective way so they are copied once and used many times by tasks (rather than being copied every time a task is launched).
 
@@ -136,7 +134,7 @@ Internally, `value` makes sure that the broadcast variable is **valid**, i.e. <<
 ====
 `getValue` is abstracted and broadcast variable implementations are supposed to provide a concrete behaviour.
 
-Refer to core:TorrentBroadcast.md#getValue[TorrentBroadcast].
+Refer to [TorrentBroadcast](TorrentBroadcast.md#getValue).
 ====
 
 == [[unpersist]] Unpersisting Broadcast Variable -- `unpersist` Methods
@@ -255,7 +253,7 @@ The `Broadcast` contract is made up of the following methods that custom `Broadc
 2. `doUnpersist`
 3. `doDestroy`
 
-NOTE: core:TorrentBroadcast.md[TorrentBroadcast] is the only implementation of the `Broadcast` contract.
+NOTE: [TorrentBroadcast](TorrentBroadcast.md) is the only implementation of the `Broadcast` contract.
 
 NOTE: <<developer-contract, `Broadcast` Spark Developer-Facing Contract>> is the developer-facing `Broadcast` contract that allows Spark developers to use it in their applications.
 

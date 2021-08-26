@@ -15,7 +15,7 @@ A driver coordinates workers and overall execution of tasks.
 
 NOTE: spark-shell.md[Spark shell] is a Spark application and the driver. It creates a `SparkContext` that is available as `sc`.
 
-Driver requires the additional services (beside the common ones like shuffle:ShuffleManager.md[], memory:MemoryManager.md[], storage:BlockTransferService.md[], core:BroadcastManager.md[]):
+Driver requires the additional services (beside the common ones like shuffle:ShuffleManager.md[], memory:MemoryManager.md[], storage:BlockTransferService.md[], [BroadcastManager](broadcast-variables/BroadcastManager.md):
 
 * Listener Bus
 * rpc:index.md[]

@@ -30,7 +30,7 @@
 taskBinary: Broadcast[Array[Byte]]
 ```
 
-`ShuffleMapTask` is given a [broadcast variable](../Broadcast.md) with a reference to a serialized task binary.
+`ShuffleMapTask` is given a [broadcast variable](../broadcast-variables/index.md) with a reference to a serialized task binary.
 
 [runTask](#runTask) expects that the serialized task binary is a tuple of an [RDD](../rdd/RDD.md) and a [ShuffleDependency](../rdd/ShuffleDependency.md).
 

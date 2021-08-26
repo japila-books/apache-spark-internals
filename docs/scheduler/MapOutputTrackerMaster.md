@@ -24,7 +24,7 @@ When created, `MapOutputTrackerMaster` starts [dispatcher threads](#MessageLoop)
 
 ## <span id="broadcastManager"><span id="BroadcastManager"> BroadcastManager
 
-`MapOutputTrackerMaster` is given a [BroadcastManager](../core/BroadcastManager.md) to be created.
+`MapOutputTrackerMaster` is given a [BroadcastManager](../broadcast-variables/BroadcastManager.md) to be created.
 
 ## <span id="shuffleStatuses"> Shuffle Map Output Status Registry
 

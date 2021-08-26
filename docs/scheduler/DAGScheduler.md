@@ -635,7 +635,7 @@ submitMissingTasks([stage])
 `submitMissingTasks` creates a [broadcast variable](../SparkContext.md#broadcast) for the task binary.
 
 !!! note
-    That shows how important [Broadcast](../Broadcast.md)s are for Spark itself to distribute data among executors in a Spark application in the most efficient way.
+    That shows how important [broadcast variable](../broadcast-variables/index.md)s are for Spark itself to distribute data among executors in a Spark application in the most efficient way.
 
 `submitMissingTasks` creates [tasks](Task.md) for every missing partition:
 

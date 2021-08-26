@@ -35,7 +35,7 @@ Used when:
 * `RequestMessage` is requested to `serialize` (for [NettyRpcEnv](../rpc/NettyRpcEnv.md))
 * `ParallelCollectionPartition` is requested to `writeObject` (for [ParallelCollectionRDD](../rdd/ParallelCollectionRDD.md))
 * `ReliableRDDCheckpointData` is requested to [doCheckpoint](../rdd/ReliableRDDCheckpointData.md#doCheckpoint)
-* `TorrentBroadcast` is [created](../core/TorrentBroadcast.md) (and requested to [writeBlocks](../core/TorrentBroadcast.md#writeBlocks))
+* `TorrentBroadcast` is [created](../broadcast-variables/TorrentBroadcast.md) (and requested to [writeBlocks](../broadcast-variables/TorrentBroadcast.md#writeBlocks))
 * `RangePartitioner` is requested to [writeObject](../rdd/RangePartitioner.md#writeObject)
 * `SerializationStream` is requested to [writeKey](#writeKey), [writeValue](#writeValue) or [writeAll](#writeAll)
 * `FileSystemPersistenceEngine` is requested to `serializeIntoFile` (for Spark Standalone's `Master`)
