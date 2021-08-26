@@ -1,8 +1,71 @@
 # TorrentBroadcast
 
-`TorrentBroadcast` is a Broadcast.md[] that uses a BitTorrent-like protocol for broadcast blocks distribution.
+`TorrentBroadcast` is a [Broadcast](Broadcast.md) that uses a BitTorrent-like protocol for broadcast blocks distribution.
 
 ![TorrentBroadcast -- Broadcasting using BitTorrent](../images/sparkcontext-broadcast-bittorrent.png)
+
+## <span id="getValue"> Value
+
+```scala
+getValue(): T
+```
+
+`getValue`...FIXME
+
+`getValue` is part of the [Broadcast](Broadcast.md#getValue) abstraction.
+
+## <span id="compressionCodec"> CompressionCodec
+
+```scala
+compressionCodec: Option[CompressionCodec]
+```
+
+`TorrentBroadcast` uses the [spark.broadcast.compress](../configuration-properties.md#spark.broadcast.compress) configuration property for the [CompressionCodec](../CompressionCodec.md) to use for [writeBlocks](#writeBlocks) and [readBroadcastBlock](#readBroadcastBlock).
+
+## <span id="blockSize"> Broadcast Block Chunk Size
+
+`TorrentBroadcast` uses the [spark.broadcast.blockSize](../configuration-properties.md#spark.broadcast.blockSize) configuration property for the size of the chunks (_pieces_) of a broadcast block.
+
+`TorrentBroadcast` uses the size for [writeBlocks](#writeBlocks) and [readBroadcastBlock](#readBroadcastBlock).
+
+## <span id="writeBlocks"> writeBlocks
+
+```scala
+writeBlocks(
+  value: T): Int
+```
+
+`writeBlocks` returns the number of blocks (_chunks_) of this broadcast variable.
+
+---
+
+`writeBlocks`...FIXME
+
+---
+
+`writeBlocks` is used when:
+
+* `TorrentBroadcast` is [created](#numBlocks)
+
+## <span id="readBroadcastBlock"> readBroadcastBlock
+
+```scala
+readBroadcastBlock(): T
+```
+
+`readBroadcastBlock` returns the value of this broadcast variable.
+
+---
+
+`readBroadcastBlock`...FIXME
+
+---
+
+`readBroadcastBlock` is used when:
+
+* `TorrentBroadcast` is requested for the [value](#getValue)
+
+## Review Me
 
 When a SparkContext.md#broadcast[broadcast variable is created (using `SparkContext.broadcast`)] on the driver, a <<creating-instance, new instance of TorrentBroadcast is created>>.
 

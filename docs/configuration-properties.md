@@ -8,6 +8,31 @@ Default: [TaskScheduler.applicationId()](scheduler/TaskScheduler.md#applicationI
 
 Set when [SparkContext](SparkContext.md) is created
 
+## <span id="spark.broadcast.blockSize"><span id="BROADCAST_BLOCKSIZE"> spark.broadcast.blockSize
+
+The size of each piece of a block  (in kB unless the unit is specified)
+
+Default: `4m`
+
+Too large a value decreases parallelism during broadcast (makes it slower); however, if it is too small, BlockManager might take a performance hit
+
+Used when:
+
+* `TorrentBroadcast` is requested to [setConf](broadcast-variables/TorrentBroadcast.md#blockSize)
+
+## <span id="spark.broadcast.compress"><span id="BROADCAST_COMPRESS"> spark.broadcast.compress
+
+Controls broadcast variable compression (before sending them over the wire)
+
+Default: `true`
+
+Generally a good idea. Compression will use [spark.io.compression.codec](#spark.io.compression.codec)
+
+Used when:
+
+* `TorrentBroadcast` is requested to [setConf](broadcast-variables/TorrentBroadcast.md#compressionCodec)
+* `SerializerManager` is [created](serializer/SerializerManager.md#compressBroadcast)
+
 ## <span id="spark.cleaner.referenceTracking"><span id="CLEANER_REFERENCE_TRACKING"> spark.cleaner.referenceTracking
 
 Controls whether to enable [ContextCleaner](core/ContextCleaner.md)
@@ -858,27 +883,6 @@ Default: `true`
 Controls whether the cleaning thread should block on shuffle cleanup tasks.
 
 Default: `false`
-
-== [[spark.broadcast.blockSize]] spark.broadcast.blockSize
-
-The size of a block (in kB unless the unit is specified)
-
-Default: `4m`
-
-Used when:
-
-* `TorrentBroadcast` is requested to [store brodcast blocks](broadcast-variables/TorrentBroadcast.md#writeBlocks) (to `BlockManager`)
-
-== [[spark.broadcast.compress]] spark.broadcast.compress
-
-Controls broadcast compression
-
-Default: `true`
-
-Used when:
-
-* `TorrentBroadcast` is [created](broadcast-variables/TorrentBroadcast.md#creating-instance) and requested to [store broadcast blocks](broadcast-variables/TorrentBroadcast.md#writeBlocks) (in `BlockManager`)
-* [SerializerManager](serializer/SerializerManager.md#settings)
 
 == [[spark.app.name]] spark.app.name
 
