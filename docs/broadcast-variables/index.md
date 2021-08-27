@@ -20,97 +20,66 @@ Not only can Spark developers use broadcast variables for efficient data distrib
 
 The idea is to transfer values used in transformations from a driver to executors in a most effective way so they are copied once and used many times by tasks (rather than being copied every time a task is launched).
 
-== [[developer-contract]] `Broadcast` Spark Developer-Facing Contract
+## <span id="lifecycle"> Lifecycle of Broadcast Variable
 
-The developer-facing `Broadcast` contract allows Spark developers to use it in their applications.
+Broadcast variables are created using [SparkContext.broadcast](../SparkContext.md#broadcast) method.
 
-.Broadcast API
-[width="100%",cols="1,2",options="header"]
-|===
-| Method Name
-| Description
-
-| `id`
-| The unique identifier
-
-| <<value, value>>
-| The value
-
-| <<unpersist, unpersist>>
-| Asynchronously deletes cached copies of this broadcast on the executors.
-
-| <<destroy, destroy>>
-| Destroys all data and metadata related to this broadcast variable.
-
-| `toString`
-| The string representation
-|===
-
-== [[lifecycle]] Lifecycle of Broadcast Variable
-
-You can create a broadcast variable of type `T` using SparkContext.md#broadcast[SparkContext.broadcast] method.
-
-```
+```text
 scala> val b = sc.broadcast(1)
 b: org.apache.spark.broadcast.Broadcast[Int] = Broadcast(0)
 ```
 
-[TIP]
-====
-Enable `DEBUG` logging level for `org.apache.spark.storage.BlockManager` logger to debug `broadcast` method.
+!!! tip Logging
+    Enable `DEBUG` logging level for `org.apache.spark.storage.BlockManager` logger to debug `broadcast` method.
 
-Read storage:BlockManager.md[BlockManager] to find out how to enable the logging level.
-====
+    Read [BlockManager](../storage/BlockManager.md) to find out how to enable the logging level.
 
 With DEBUG logging level enabled, you should see the following messages in the logs:
 
-```
-DEBUG BlockManager: Put block broadcast_0 locally took  430 ms
-DEBUG BlockManager: Putting block broadcast_0 without replication took  431 ms
-DEBUG BlockManager: Told master about block broadcast_0_piece0
-DEBUG BlockManager: Put block broadcast_0_piece0 locally took  4 ms
-DEBUG BlockManager: Putting block broadcast_0_piece0 without replication took  4 ms
+```text
+Put block broadcast_0 locally took  430 ms
+Putting block broadcast_0 without replication took  431 ms
+Told master about block broadcast_0_piece0
+Put block broadcast_0_piece0 locally took  4 ms
+Putting block broadcast_0_piece0 without replication took  4 ms
 ```
 
-After creating an instance of a broadcast variable, you can then reference the value using <<value, value>> method.
+After creating an instance of a broadcast variable, you can then reference the value using [Broadcast.value](Broadcast.md#value) method.
 
-[source, scala]
-----
+```text
 scala> b.value
 res0: Int = 1
-----
+```
 
-NOTE: `value` method is the only way to access the value of a broadcast variable.
+`Broadcast.value` method is the only way to access the value of a broadcast variable.
 
 With DEBUG logging level enabled, you should see the following messages in the logs:
 
-```
-DEBUG BlockManager: Getting local block broadcast_0
-DEBUG BlockManager: Level for block broadcast_0 is StorageLevel(disk, memory, deserialized, 1 replicas)
+```text
+Getting local block broadcast_0
+Level for block broadcast_0 is StorageLevel(disk, memory, deserialized, 1 replicas)
 ```
 
-When you are done with a broadcast variable, you should <<destroy, destroy>> it to release memory.
+In the end, broadcast variables should be [destroyed](Broadcast.md#destroy) to release memory.
 
-[source, scala]
-----
-scala> b.destroy
-----
+```text
+b.destroy
+```
 
 With DEBUG logging level enabled, you should see the following messages in the logs:
 
-```
-DEBUG BlockManager: Removing broadcast 0
-DEBUG BlockManager: Removing block broadcast_0_piece0
-DEBUG BlockManager: Told master about block broadcast_0_piece0
-DEBUG BlockManager: Removing block broadcast_0
+```text
+Removing broadcast 0
+Removing block broadcast_0_piece0
+Told master about block broadcast_0_piece0
+Removing block broadcast_0
 ```
 
-Before <<destroy, destroying>> a broadcast variable, you may want to <<unpersist, unpersist>> it.
+Broadcast variables can optionally be [unpersisted](Broadcast.md#unpersist).
 
-[source, scala]
-----
-scala> b.unpersist
-----
+```text
+b.unpersist
+```
 
 == [[value]] Getting the Value of Broadcast Variable -- `value` Method
 
@@ -129,21 +98,6 @@ org.apache.spark.SparkException: Attempted to use Broadcast(0) after it was dest
 ```
 
 Internally, `value` makes sure that the broadcast variable is **valid**, i.e. <<destroy, destroy>> was not called, and, if so, calls the abstract `getValue` method.
-
-[NOTE]
-====
-`getValue` is abstracted and broadcast variable implementations are supposed to provide a concrete behaviour.
-
-Refer to [TorrentBroadcast](TorrentBroadcast.md#getValue).
-====
-
-== [[unpersist]] Unpersisting Broadcast Variable -- `unpersist` Methods
-
-[source, scala]
-----
-unpersist(): Unit
-unpersist(blocking: Boolean): Unit
-----
 
 == [[destroy]] Destroying Broadcast Variable -- `destroy` Method
 
@@ -178,21 +132,19 @@ destroy(blocking: Boolean): Unit
 
 `destroy` destroys all data and metadata of a broadcast variable.
 
-NOTE: `destroy` is a `private[spark]` method.
-
 Internally, `destroy` marks a broadcast variable destroyed, i.e. the internal `_isValid` flag is disabled.
 
 You should see the following INFO message in the logs:
 
-```
-INFO TorrentBroadcast: Destroying Broadcast([id]) (from [destroySite])
+```text
+Destroying Broadcast([id]) (from [destroySite])
 ```
 
 In the end, `doDestroy` method is executed (that broadcast implementations are supposed to provide).
 
 NOTE: `doDestroy` is part of the <<contract, Broadcast contract>> for broadcast implementations so they can provide their own custom behaviour.
 
-== [[introductory-example]] Introductory Example
+## Introductory Example
 
 Let's start with an introductory example to check out how to use broadcast variables and build your initial understanding.
 
@@ -219,7 +171,7 @@ val websites = sc.parallelize(Seq("Apache Spark", "Scala")).map(pwsB.value).coll
 
 Semantically, the two computations - with and without the broadcast value - are exactly the same, but the broadcast-based one wins performance-wise when there are more executors spawned to execute many tasks that use `pws` map.
 
-== [[introduction]] Introduction
+## Introduction
 
 *Broadcast* is part of Spark that is responsible for broadcasting information across nodes in a cluster.
 
@@ -229,34 +181,19 @@ When you broadcast a value, it is copied to executors only once (while it is cop
 
 It appears that a Spark idiom emerges that uses `broadcast` with `collectAsMap` to create a `Map` for broadcast. When an RDD is `map` over to a smaller dataset (column-wise not record-wise), `collectAsMap`, and `broadcast`, using the very big RDD to map its elements to the broadcast RDDs is computationally faster.
 
-[source, scala]
-----
+```text
 val acMap = sc.broadcast(myRDD.map { case (a,b,c,b) => (a, c) }.collectAsMap)
 val otherMap = sc.broadcast(myOtherRDD.collectAsMap)
 
 myBigRDD.map { case (a, b, c, d) =>
   (acMap.value.get(a).get, otherMap.value.get(c).get)
 }.collect
-----
+```
 
 Use large broadcasted HashMaps over RDDs whenever possible and leave RDDs with a key to lookup necessary data as demonstrated above.
 
 Spark comes with a BitTorrent implementation.
 
-It is not enabled by default.
+## Further Reading or Watching
 
-== [[contract]] `Broadcast` Contract
-
-The `Broadcast` contract is made up of the following methods that custom `Broadcast` implementations are supposed to provide:
-
-1. `getValue`
-2. `doUnpersist`
-3. `doDestroy`
-
-NOTE: [TorrentBroadcast](TorrentBroadcast.md) is the only implementation of the `Broadcast` contract.
-
-NOTE: <<developer-contract, `Broadcast` Spark Developer-Facing Contract>> is the developer-facing `Broadcast` contract that allows Spark developers to use it in their applications.
-
-== [[i-want-more]] Further Reading or Watching
-
-* http://dmtolpeko.com/2015/02/20/map-side-join-in-spark/[Map-Side Join in Spark]
+* [Map-Side Join in Spark](http://dmtolpeko.com/2015/02/20/map-side-join-in-spark/)
