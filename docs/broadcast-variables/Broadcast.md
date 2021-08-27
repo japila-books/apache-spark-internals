@@ -1,6 +1,6 @@
 # Broadcast
 
-`Broadcast[T]` is an [abstraction](#contract) of [broadcast variables](#implementations) (with [value](#value) of type `T`).
+`Broadcast[T]` is an [abstraction](#contract) of [broadcast variables](#implementations) (with the [value](#value) of type `T`).
 
 ## Contract
 
@@ -40,7 +40,7 @@ Gets the broadcast value
 
 Used when:
 
-* `Broadcast` is requested to [value](#value)
+* `Broadcast` is requested for the [value](#value)
 
 ## Implementations
 
@@ -89,7 +89,7 @@ unpersist(
 value: T
 ```
 
-`value` [validate itself](#assertValid) and [gets the value](#getValue).
+`value` [makes sure that it was not destroyed](#assertValid) and [gets the value](#getValue).
 
 ## <span id="toString"> Text Representation
 

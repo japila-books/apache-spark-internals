@@ -65,6 +65,62 @@ readBroadcastBlock(): T
 
 * `TorrentBroadcast` is requested for the [value](#getValue)
 
+## <span id="doDestroy"> Destroying Variable
+
+```scala
+doDestroy(
+  blocking: Boolean): Unit
+```
+
+`doDestroy` [removes the persisted state](#unpersist) (associated with the broadcast variable) on all the nodes in a Spark application (the driver and executors).
+
+`doDestroy` is part of the [Broadcast](Broadcast.md#doDestroy) abstraction.
+
+## <span id="doUnpersist"> Unpersisting Variable
+
+```scala
+doUnpersist(
+  blocking: Boolean): Unit
+```
+
+`doUnpersist` [removes the persisted state](#unpersist) (associated with the broadcast variable) on executors only.
+
+`doUnpersist` is part of the [Broadcast](Broadcast.md#doUnpersist) abstraction.
+
+## <span id="unpersist"> Removing All Broadcast Blocks
+
+```scala
+unpersist(
+  id: Long,
+  removeFromDriver: Boolean,
+  blocking: Boolean): Unit
+```
+
+`unpersist` prints out the following DEBUG message to the logs:
+
+```text
+Unpersisting TorrentBroadcast [id]
+```
+
+In the end, `unpersist` requests the [BlockManagerMaster](../storage/BlockManagerMaster.md) to [remove the broadcast](../storage/BlockManagerMaster.md#removeBroadcast).
+
+`unpersist` is used when:
+
+* `TorrentBroadcast` is requested to [unpersist](#doUnpersist) and [destroy](#doDestroy)
+* `TorrentBroadcastFactory` is requested to [unbroadcast](TorrentBroadcastFactory.md#unbroadcast)
+
+## Logging
+
+Enable `ALL` logging level for `org.apache.spark.broadcast.TorrentBroadcast` logger to see what happens inside.
+
+Add the following line to `conf/log4j.properties`:
+
+```text
+log4j.logger.org.apache.spark.broadcast.TorrentBroadcast=ALL
+```
+
+Refer to [Logging](../spark-logging.md).
+
 ## Review Me
 
 When a SparkContext.md#broadcast[broadcast variable is created (using `SparkContext.broadcast`)] on the driver, a <<creating-instance, new instance of TorrentBroadcast is created>>.
@@ -126,55 +182,51 @@ getValue is part of the Broadcast.md#getValue[Broadcast] abstraction.
 
 TorrentBroadcast uses a storage:BlockId.md#BroadcastBlockId[BroadcastBlockId] for...FIXME
 
-== [[readBroadcastBlock]] readBroadcastBlock Internal Method
+## <span id="readBroadcastBlock"> readBroadcastBlock
 
-[source, scala]
-----
+```scala
 readBroadcastBlock(): T
-----
+```
 
-readBroadcastBlock SparkEnv.md#get[uses the SparkEnv] to access SparkEnv.md#broadcastManager[BroadcastManager] that is requested for broadcast-variables/BroadcastManager.md#cachedValues[cached broadcast values].
+`readBroadcastBlock` SparkEnv.md#get[uses the SparkEnv] to access SparkEnv.md#broadcastManager[BroadcastManager] that is requested for broadcast-variables/BroadcastManager.md#cachedValues[cached broadcast values].
 
-readBroadcastBlock looks up the <<broadcastId, BroadcastBlockId>> in the cached broadcast values and returns it if found.
+`readBroadcastBlock` looks up the <<broadcastId, BroadcastBlockId>> in the cached broadcast values and returns it if found.
 
-If not found, readBroadcastBlock requests the SparkEnv for the core:SparkEnv.md#conf[SparkConf] and <<setConf, setConf>>.
+If not found, `readBroadcastBlock` requests the SparkEnv for the core:SparkEnv.md#conf[SparkConf] and <<setConf, setConf>>.
 
-readBroadcastBlock SparkEnv.md#get[uses the SparkEnv] to access SparkEnv.md#blockManager[BlockManager].
+`readBroadcastBlock` SparkEnv.md#get[uses the SparkEnv] to access SparkEnv.md#blockManager[BlockManager].
 
-readBroadcastBlock requests the BlockManager for storage:BlockManager.md#getLocalValues[getLocalValues].
+`readBroadcastBlock` requests the BlockManager for storage:BlockManager.md#getLocalValues[getLocalValues].
 
-If the broadcast data was available locally, readBroadcastBlock <<releaseLock, releases a lock>> for the broadcast and returns the value.
+If the broadcast data was available locally, `readBroadcastBlock` <<releaseLock, releases a lock>> for the broadcast and returns the value.
 
 If however the broadcast data was not found locally, you should see the following INFO message in the logs:
 
-[source,plaintext]
-----
+```text
 Started reading broadcast variable [id]
-----
+```
 
-readBroadcastBlock <<readBlocks, reads blocks (as chunks)>> of the broadcast.
+`readBroadcastBlock` <<readBlocks, reads blocks (as chunks)>> of the broadcast.
 
 You should see the following INFO message in the logs:
 
-[source,plaintext]
-----
+```text
 Reading broadcast variable [id] took [usedTimeMs]
-----
+```
 
-readBroadcastBlock <<unBlockifyObject, _unblockifies_ the collection of `ByteBuffer` blocks>>
+`readBroadcastBlock` <<unBlockifyObject, _unblockifies_ the collection of `ByteBuffer` blocks>>
 
-NOTE: readBroadcastBlock uses the core:SparkEnv.md#serializer[current `Serializer`] and the internal io:CompressionCodec.md[CompressionCodec] to bring all the blocks together as one single broadcast variable.
+NOTE: `readBroadcastBlock` uses the core:SparkEnv.md#serializer[current `Serializer`] and the internal io:CompressionCodec.md[CompressionCodec] to bring all the blocks together as one single broadcast variable.
 
-readBroadcastBlock storage:BlockManager.md#putSingle[stores the broadcast variable with `MEMORY_AND_DISK` storage level to the local `BlockManager`]. When storing the broadcast variable was unsuccessful, a `SparkException` is thrown.
+`readBroadcastBlock` storage:BlockManager.md#putSingle[stores the broadcast variable with `MEMORY_AND_DISK` storage level to the local `BlockManager`]. When storing the broadcast variable was unsuccessful, a `SparkException` is thrown.
 
-[source,plaintext]
-----
+```text
 Failed to store [broadcastId] in BlockManager
-----
+```
 
 The broadcast variable is returned.
 
-readBroadcastBlock is used when TorrentBroadcast is requested for the <<_value, broadcast value>>.
+`readBroadcastBlock` is used when TorrentBroadcast is requested for the <<_value, broadcast value>>.
 
 == [[setConf]] setConf Internal Method
 
@@ -216,10 +268,9 @@ With <<checksumEnabled, checksumEnabled>> writeBlocks...FIXME
 
 In case of an error while storing the value or the blocks, writeBlocks throws a SparkException:
 
-[source,plaintext]
-----
+```text
 Failed to store [pieceId] of [broadcastId] in local BlockManager
-----
+```
 
 writeBlocks is used when TorrentBroadcast is <<creating-instance, created>> for the <<numBlocks, numBlocks>> internal registry (that happens on the driver only).
 
@@ -238,57 +289,6 @@ blockifyObject divides (aka _blockifies_) the input `obj` value into blocks (`By
 
 blockifyObject is used when TorrentBroadcast is requested to <<writeBlocks, stores itself as blocks to a local BlockManager>>.
 
-== [[doUnpersist]] `doUnpersist` Method
-
-[source, scala]
-----
-doUnpersist(blocking: Boolean): Unit
-----
-
-`doUnpersist` <<unpersist, removes all the persisted state associated with a broadcast variable on executors>>.
-
-NOTE: `doUnpersist` is part of the Broadcast.md#contract[`Broadcast` Variable Contract] and is executed from <<unpersist, unpersist>> method.
-
-== [[doDestroy]] `doDestroy` Method
-
-[source, scala]
-----
-doDestroy(blocking: Boolean): Unit
-----
-
-`doDestroy` <<unpersist, removes all the persisted state associated with a broadcast variable on all the nodes in a Spark application>>, i.e. the driver and executors.
-
-NOTE: `doDestroy` is executed when Broadcast.md#destroy-internal[`Broadcast` removes the persisted data and metadata related to a broadcast variable].
-
-== [[unpersist]] unpersist Utility
-
-[source, scala]
-----
-unpersist(
-  id: Long,
-  removeFromDriver: Boolean,
-  blocking: Boolean): Unit
-----
-
-unpersist removes all broadcast blocks from executors and, with the given removeFromDriver flag enabled, from the driver.
-
-When executed, unpersist prints out the following DEBUG message in the logs:
-
-[source,plaintext]
-----
-Unpersisting TorrentBroadcast [id]
-----
-
-unpersist requests storage:BlockManagerMaster.md#removeBroadcast[`BlockManagerMaster` to remove the `id` broadcast].
-
-NOTE: unpersist uses core:SparkEnv.md#blockManager[`SparkEnv` to get the `BlockManagerMaster`] (through `blockManager` property).
-
-`unpersist` is used when:
-
-* `TorrentBroadcast` is requested to <<doUnpersist, unpersist a broadcast variable on executors>> and <<doDestroy, remove a broadcast variable from the driver and executors>>
-
-* `TorrentBroadcastFactory` is requested to [unbroadcast](TorrentBroadcastFactory.md#unbroadcast)
-
 == [[readBlocks]] Reading Broadcast Blocks
 
 [source, scala]
@@ -304,10 +304,9 @@ For every block (randomly-chosen by block ID between 0 and <<numBlocks, numBlock
 
 readBlocks prints out the following DEBUG message to the logs:
 
-[source,plaintext]
-----
+```text
 Reading piece [pieceId] of [broadcastId]
-----
+```
 
 readBlocks first tries to look up the piece locally by requesting the BlockManager to storage:BlockManager.md#getLocalBytes[getLocalBytes] and, if found, stores the reference in the local block array (for the piece ID) and <<releaseLock, releaseLock>> for the chunk.
 
@@ -317,12 +316,13 @@ readBlocks...FIXME
 
 readBlocks throws a SparkException for blocks neither available locally nor remotely:
 
-[source,plaintext]
-----
+```text
 Failed to get [pieceId] of [broadcastId]
-----
+```
 
-readBlocks is used when TorrentBroadcast is requested to <<readBroadcastBlock, readBroadcastBlock>>.
+`readBlocks` is used when:
+
+* `TorrentBroadcast` is requested to [readBroadcastBlock](#readBroadcastBlock)
 
 == [[unBlockifyObject]] unBlockifyObject Utility
 
@@ -349,16 +349,3 @@ releaseLock(
 releaseLock...FIXME
 
 releaseLock is used when TorrentBroadcast is requested to <<readBroadcastBlock, readBroadcastBlock>> and <<readBlocks, readBlocks>>.
-
-== [[logging]] Logging
-
-Enable `ALL` logging level for `org.apache.spark.broadcast.TorrentBroadcast` logger to see what happens inside.
-
-Add the following line to `conf/log4j.properties`:
-
-[source]
-----
-log4j.logger.org.apache.spark.broadcast.TorrentBroadcast=ALL
-----
-
-Refer to spark-logging.md[Logging].
