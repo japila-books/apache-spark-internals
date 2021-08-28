@@ -1,56 +1,57 @@
 # BroadcastFactory
 
-`BroadcastFactory` is an <<contract, abstraction>> for <<implementations, factories>> that [BroadcastManager](../broadcast-variables/BroadcastManager.md) uses for Broadcast.md[].
+`BroadcastFactory` is an [abstraction](#contract) of [broadcast variable factories](#implementations) that [BroadcastManager](BroadcastManager.md) uses to [create](#newBroadcast) or [delete](#unbroadcast) broadcast variables.
 
-NOTE: As of https://issues.apache.org/jira/browse/SPARK-12588[Spark 2.0], it is no longer possible to plug a custom BroadcastFactory in, and [TorrentBroadcastFactory](TorrentBroadcastFactory.md) is the one and only known implementation.
+## Contract
 
-== [[contract]] Contract
+### <span id="initialize"> Initializing
 
-=== [[initialize]] initialize Method
-
-[source,scala]
-----
+```scala
 initialize(
   isDriver: Boolean,
-  conf: SparkConf,
-  securityMgr: SecurityManager): Unit
-----
+  conf: SparkConf): Unit
+```
 
-Used when BroadcastManager is broadcast-variables/BroadcastManager.md#creating-instance[created].
+Used when:
 
-=== [[newBroadcast]] newBroadcast Method
+* `BroadcastManager` is requested to [initialize](BroadcastManager.md#initialize)
 
-[source,scala]
-----
-newBroadcast[T: ClassTag](
+### <span id="newBroadcast"> Creating Broadcast Variable
+
+```scala
+newBroadcast(
   value: T,
   isLocal: Boolean,
   id: Long): Broadcast[T]
-----
+```
 
-Used when BroadcastManager is requested for a broadcast-variables/BroadcastManager.md#newBroadcast[new broadcast variable].
+Used when:
 
-=== [[stop]] stop Method
+* `BroadcastManager` is requested for a [new broadcast variable](BroadcastManager.md#newBroadcast)
 
-[source,scala]
-----
+### <span id="stop"> Stopping
+
+```scala
 stop(): Unit
-----
+```
 
-Used when BroadcastManager is requested to broadcast-variables/BroadcastManager.md#stop[stop].
+Used when:
 
-=== [[unbroadcast]] unbroadcast Method
+* `BroadcastManager` is requested to [stop](BroadcastManager.md#stop)
 
-[source,scala]
-----
+### <span id="unbroadcast"> Deleting Broadcast Variable
+
+```scala
 unbroadcast(
   id: Long,
   removeFromDriver: Boolean,
   blocking: Boolean): Unit
-----
+```
 
-Used when BroadcastManager is requested to broadcast-variables/BroadcastManager.md#unbroadcast[unbroadcast a broadcast variable].
+Used when:
 
-## Available BroadcastFactories
+* `BroadcastManager` is requested to [delete a broadcast variable](BroadcastManager.md#unbroadcast)
+
+## Implementations
 
 * [TorrentBroadcastFactory](TorrentBroadcastFactory.md)

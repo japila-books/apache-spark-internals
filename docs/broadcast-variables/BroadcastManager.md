@@ -1,6 +1,11 @@
 # BroadcastManager
 
+`BroadcastManager` manages a [TorrentBroadcastFactory](#broadcastFactory).
+
 ![BroadcastManager, SparkEnv and BroadcastFactory](../images/core/BroadcastManager.png)
+
+!!! note
+    As of [Spark 2.0](https://issues.apache.org/jira/browse/SPARK-12588), it is no longer possible to plug a custom [BroadcastFactory](BroadcastFactory.md) in, and [TorrentBroadcastFactory](TorrentBroadcastFactory.md) is the only known implementation.
 
 ## Creating Instance
 
@@ -32,12 +37,15 @@ Unless initialized already, `initialize` creates a [TorrentBroadcastFactory](#br
 
 * Stops it when stopped
 
-`BroadcastManager` uses the `BroadcastFactory` in [newBroadcast](#newBroadcast) and [unbroadcast](#unbroadcast).
+`BroadcastManager` uses the `BroadcastFactory` when requested for the following:
+
+* [Creating a new broadcast variable](#newBroadcast)
+* [Deleting a broadcast variable](#unbroadcast)
 
 ## <span id="newBroadcast"> Creating Broadcast Variable
 
 ```scala
-newBroadcast[T: ClassTag](
+newBroadcast(
   value_ : T,
   isLocal: Boolean): Broadcast[T]
 ```
@@ -56,3 +64,18 @@ newBroadcast[T: ClassTag](
 ## <span id="MapOutputTrackerMaster"> MapOutputTrackerMaster
 
 `BroadcastManager` is used to create a [MapOutputTrackerMaster](../scheduler/MapOutputTrackerMaster.md#BroadcastManager)
+
+## <span id="unbroadcast"> Deleting Broadcast Variable
+
+```scala
+unbroadcast(
+  id: Long,
+  removeFromDriver: Boolean,
+  blocking: Boolean): Unit
+```
+
+`unbroadcast` requests the [BroadcastFactory](#broadcastFactory) to [delete a broadcast variable](BroadcastFactory.md#unbroadcast) (by `id`).
+
+`unbroadcast` is used when:
+
+* `ContextCleaner` is requested to [clean up a broadcast variable](../core/ContextCleaner.md#doCleanupBroadcast)
