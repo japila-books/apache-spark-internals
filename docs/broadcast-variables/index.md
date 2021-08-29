@@ -1,4 +1,4 @@
-# Broadcast Variable
+# Broadcast Variables
 
 From [the official documentation about Broadcast Variables](http://spark.apache.org/docs/latest/programming-guide.html#broadcast-variables):
 
@@ -9,6 +9,21 @@ And later in the document:
 > Explicitly creating broadcast variables is only useful when tasks across multiple stages need the same data or when caching the data in deserialized form is important.
 
 ![Broadcasting a value to executors](../images/sparkcontext-broadcast-executors.png)
+
+[SparkContext.broadcast](../SparkContext.md#broadcast) creates a new broadcast variable (a [TorrentBroadcast](TorrentBroadcast.md)).
+
+```text
+val sc: SparkContext = ???
+val anyScalaValue = ???
+val b = sc.broadcast(anyScalaValue)
+:type b
+```
+
+A broadcast variable is stored on the driver's [BlockManager](../storage/BlockManager.md) as a single value and separately as chunks (of [spark.broadcast.blockSize](../configuration-properties.md#spark.broadcast.blockSize)).
+
+![TorrentBroadcast puts broadcast and the chunks to driver's BlockManager](../images/sparkcontext-broadcast-bittorrent-newBroadcast.png)
+
+When requested for the [value](TorrentBroadcast.md#getValue), `TorrentBroadcast` [reads the broadcast block](TorrentBroadcast.md#readBroadcastBlock) from the local [BroadcastManager](BroadcastManager.md) and [BlockManager](../storage/BlockManager.md#getLocalValues). Only when the local lookups fail, `TorrentBroadcast` [readBlocks](TorrentBroadcast.md#readBlocks) from others and [persists](../storage/BlockManager.md#putSingle) in `BlockManager` and caches in `BroadcastManager`.
 
 To use a broadcast value in a Spark transformation you have to create it first using SparkContext.md#broadcast[SparkContext.broadcast] and then use `value` method to access the shared value. Learn it in <<introductory-example, Introductory Example>> section.
 
