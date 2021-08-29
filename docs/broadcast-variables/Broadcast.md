@@ -69,7 +69,10 @@ destroy(
 
 1. Non-blocking destroy (`blocking` is `false`)
 
-`destroy`...FIXME
+`destroy` removes persisted data and metadata associated with this broadcast variable.
+
+!!! note
+    Once a broadcast variable has been destroyed, it cannot be used again.
 
 ## <span id="unpersist"> Unpersisting
 

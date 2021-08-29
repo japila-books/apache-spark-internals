@@ -10,34 +10,17 @@ And later in the document:
 
 ![Broadcasting a value to executors](../images/sparkcontext-broadcast-executors.png)
 
-[SparkContext.broadcast](../SparkContext.md#broadcast) creates a new broadcast variable (a [TorrentBroadcast](TorrentBroadcast.md)).
-
-```text
-val sc: SparkContext = ???
-val anyScalaValue = ???
-val b = sc.broadcast(anyScalaValue)
-:type b
-```
-
-A broadcast variable is stored on the driver's [BlockManager](../storage/BlockManager.md) as a single value and separately as chunks (of [spark.broadcast.blockSize](../configuration-properties.md#spark.broadcast.blockSize)).
-
-![TorrentBroadcast puts broadcast and the chunks to driver's BlockManager](../images/sparkcontext-broadcast-bittorrent-newBroadcast.png)
-
-When requested for the [value](TorrentBroadcast.md#getValue), `TorrentBroadcast` [reads the broadcast block](TorrentBroadcast.md#readBroadcastBlock) from the local [BroadcastManager](BroadcastManager.md) and [BlockManager](../storage/BlockManager.md#getLocalValues). Only when the local lookups fail, `TorrentBroadcast` [readBlocks](TorrentBroadcast.md#readBlocks) from others and [persists](../storage/BlockManager.md#putSingle) in `BlockManager` and caches in `BroadcastManager`.
-
-To use a broadcast value in a Spark transformation you have to create it first using SparkContext.md#broadcast[SparkContext.broadcast] and then use `value` method to access the shared value. Learn it in <<introductory-example, Introductory Example>> section.
-
-The Broadcast feature in Spark uses SparkContext to create broadcast values and [BroadcastManager](BroadcastManager.md) and core:ContextCleaner.md[ContextCleaner] to manage their lifecycle.
+Spark uses `SparkContext` to create [broadcast variables](../SparkContext.md#broadcast) and [BroadcastManager](BroadcastManager.md) with [ContextCleaner](../core/ContextCleaner.md) to manage their lifecycle.
 
 ![SparkContext to broadcast using BroadcastManager and ContextCleaner](../images/sparkcontext-broadcastmanager-contextcleaner.png)
 
-Not only can Spark developers use broadcast variables for efficient data distribution, but Spark itself uses them quite often. A very notable use case is when scheduler:DAGScheduler.md#submitMissingTasks[Spark distributes tasks to executors for their execution]. That _does_ change my perspective on the role of broadcast variables in Spark.
+Not only can Spark developers use broadcast variables for efficient data distribution, but Spark itself uses them quite often too. A very notable use case is when [Spark distributes tasks (to executors) for execution](../scheduler/DAGScheduler.md#submitMissingTasks).
 
 The idea is to transfer values used in transformations from a driver to executors in a most effective way so they are copied once and used many times by tasks (rather than being copied every time a task is launched).
 
 ## <span id="lifecycle"> Lifecycle of Broadcast Variable
 
-Broadcast variables are created using [SparkContext.broadcast](../SparkContext.md#broadcast) method.
+Broadcast variables ([TorrentBroadcast](TorrentBroadcast.md)s, actually) are created using [SparkContext.broadcast](../SparkContext.md#broadcast) method.
 
 ```text
 scala> val b = sc.broadcast(1)
@@ -45,11 +28,9 @@ b: org.apache.spark.broadcast.Broadcast[Int] = Broadcast(0)
 ```
 
 !!! tip Logging
-    Enable `DEBUG` logging level for `org.apache.spark.storage.BlockManager` logger to debug `broadcast` method.
+    Enable `DEBUG` logging level for [org.apache.spark.storage.BlockManager](../storage/BlockManager.md#logging) logger to debug `broadcast` method.
 
-    Read [BlockManager](../storage/BlockManager.md) to find out how to enable the logging level.
-
-With DEBUG logging level enabled, you should see the following messages in the logs:
+With DEBUG logging level enabled, there should be the following messages printed out to the logs:
 
 ```text
 Put block broadcast_0 locally took  430 ms
@@ -59,16 +40,20 @@ Put block broadcast_0_piece0 locally took  4 ms
 Putting block broadcast_0_piece0 without replication took  4 ms
 ```
 
-After creating an instance of a broadcast variable, you can then reference the value using [Broadcast.value](Broadcast.md#value) method.
+A broadcast variable is stored on the driver's [BlockManager](../storage/BlockManager.md) as a single value and separately as chunks (of [spark.broadcast.blockSize](../configuration-properties.md#spark.broadcast.blockSize)).
+
+![TorrentBroadcast puts broadcast and the chunks to driver's BlockManager](../images/sparkcontext-broadcast-bittorrent-newBroadcast.png)
+
+When requested for the [broadcast value](Broadcast.md#value), `TorrentBroadcast` [reads the broadcast block](TorrentBroadcast.md#readBroadcastBlock) from the local [BroadcastManager](BroadcastManager.md) and, if fails, from the local [BlockManager](../storage/BlockManager.md#getLocalValues). Only when the local lookups fail, `TorrentBroadcast` [reads the broadcast block chunks](TorrentBroadcast.md#readBlocks) (from the `BlockMannager`s on the other executors), [persists them as a single broadcast variable](../storage/BlockManager.md#putSingle) (in the local `BlockManager`) and caches in `BroadcastManager`.
 
 ```text
 scala> b.value
 res0: Int = 1
 ```
 
-`Broadcast.value` method is the only way to access the value of a broadcast variable.
+[Broadcast.value](Broadcast.md#value) is the only way to access the value of a broadcast variable in a Spark transformation. You can only access the broadcast value any time until the broadcast variable is [destroyed](Broadcast.md#destroy).
 
-With DEBUG logging level enabled, you should see the following messages in the logs:
+With DEBUG logging level enabled, there should be the following messages printed out to the logs:
 
 ```text
 Getting local block broadcast_0
@@ -81,7 +66,7 @@ In the end, broadcast variables should be [destroyed](Broadcast.md#destroy) to r
 b.destroy
 ```
 
-With DEBUG logging level enabled, you should see the following messages in the logs:
+With DEBUG logging level enabled, there should be the following messages printed out to the logs:
 
 ```text
 Removing broadcast 0
@@ -96,99 +81,7 @@ Broadcast variables can optionally be [unpersisted](Broadcast.md#unpersist).
 b.unpersist
 ```
 
-== [[value]] Getting the Value of Broadcast Variable -- `value` Method
-
-[source, scala]
-----
-value: T
-----
-
-`value` returns the value of a broadcast variable. You can only access the value until it is <<destroy, destroyed>> after which you will see the following `SparkException` exception in the logs:
-
-```
-org.apache.spark.SparkException: Attempted to use Broadcast(0) after it was destroyed (destroy at <console>:27)
-  at org.apache.spark.broadcast.Broadcast.assertValid(Broadcast.scala:144)
-  at org.apache.spark.broadcast.Broadcast.value(Broadcast.scala:69)
-  ... 48 elided
-```
-
-Internally, `value` makes sure that the broadcast variable is **valid**, i.e. <<destroy, destroy>> was not called, and, if so, calls the abstract `getValue` method.
-
-== [[destroy]] Destroying Broadcast Variable -- `destroy` Method
-
-[source, scala]
-----
-destroy(): Unit
-----
-
-`destroy` removes a broadcast variable.
-
-NOTE: Once a broadcast variable has been destroyed, it cannot be used again.
-
-If you try to destroy a broadcast variable more than once, you will see the following `SparkException` exception in the logs:
-
-```
-scala> b.destroy
-org.apache.spark.SparkException: Attempted to use Broadcast(0) after it was destroyed (destroy at <console>:27)
-  at org.apache.spark.broadcast.Broadcast.assertValid(Broadcast.scala:144)
-  at org.apache.spark.broadcast.Broadcast.destroy(Broadcast.scala:107)
-  at org.apache.spark.broadcast.Broadcast.destroy(Broadcast.scala:98)
-  ... 48 elided
-```
-
-Internally, `destroy` executes the internal <<destroy-internal, destroy>> (with `blocking` enabled).
-
-== [[destroy-internal]] Removing Persisted Data of Broadcast Variable -- `destroy` Internal Method
-
-[source, scala]
-----
-destroy(blocking: Boolean): Unit
-----
-
-`destroy` destroys all data and metadata of a broadcast variable.
-
-Internally, `destroy` marks a broadcast variable destroyed, i.e. the internal `_isValid` flag is disabled.
-
-You should see the following INFO message in the logs:
-
-```text
-Destroying Broadcast([id]) (from [destroySite])
-```
-
-In the end, `doDestroy` method is executed (that broadcast implementations are supposed to provide).
-
-NOTE: `doDestroy` is part of the <<contract, Broadcast contract>> for broadcast implementations so they can provide their own custom behaviour.
-
-## Introductory Example
-
-Let's start with an introductory example to check out how to use broadcast variables and build your initial understanding.
-
-You're going to use a static mapping of interesting projects with their websites, i.e. `Map[String, String]` that the tasks, i.e. closures (anonymous functions) in transformations, use.
-
-```
-scala> val pws = Map("Apache Spark" -> "http://spark.apache.org/", "Scala" -> "http://www.scala-lang.org/")
-pws: scala.collection.immutable.Map[String,String] = Map(Apache Spark -> http://spark.apache.org/, Scala -> http://www.scala-lang.org/)
-
-scala> val websites = sc.parallelize(Seq("Apache Spark", "Scala")).map(pws).collect
-...
-websites: Array[String] = Array(http://spark.apache.org/, http://www.scala-lang.org/)
-```
-
-It works, but is very ineffective as the `pws` map is sent over the wire to executors while it could have been there already. If there were more tasks that need the `pws` map, you could improve their performance by minimizing the number of bytes that are going to be sent over the network for task execution.
-
-Enter broadcast variables.
-
-```
-val pwsB = sc.broadcast(pws)
-val websites = sc.parallelize(Seq("Apache Spark", "Scala")).map(pwsB.value).collect
-// websites: Array[String] = Array(http://spark.apache.org/, http://www.scala-lang.org/)
-```
-
-Semantically, the two computations - with and without the broadcast value - are exactly the same, but the broadcast-based one wins performance-wise when there are more executors spawned to execute many tasks that use `pws` map.
-
 ## Introduction
-
-*Broadcast* is part of Spark that is responsible for broadcasting information across nodes in a cluster.
 
 You use broadcast variable to implement *map-side join*, i.e. a join using a `map`. For this, lookup tables are distributed across nodes in a cluster using `broadcast` and then looked up inside `map` (to do the join implicitly).
 
@@ -205,9 +98,32 @@ myBigRDD.map { case (a, b, c, d) =>
 }.collect
 ```
 
-Use large broadcasted HashMaps over RDDs whenever possible and leave RDDs with a key to lookup necessary data as demonstrated above.
+Use large broadcasted `HashMap`s over `RDD`s whenever possible and leave `RDD`s with a key to lookup necessary data as demonstrated above.
 
-Spark comes with a BitTorrent implementation.
+## Demo
+
+You're going to use a static mapping of interesting projects with their websites, i.e. `Map[String, String]` that the tasks, i.e. closures (anonymous functions) in transformations, use.
+
+```text
+val pws = Map(
+  "Apache Spark" -> "http://spark.apache.org/",
+  "Scala" -> "http://www.scala-lang.org/")
+
+val websites = sc.parallelize(Seq("Apache Spark", "Scala")).map(pws).collect
+// websites: Array[String] = Array(http://spark.apache.org/, http://www.scala-lang.org/)
+```
+
+It works, but is very ineffective as the `pws` map is sent over the wire to executors while it could have been there already. If there were more tasks that need the `pws` map, you could improve their performance by minimizing the number of bytes that are going to be sent over the network for task execution.
+
+Enter broadcast variables.
+
+```text
+val pwsB = sc.broadcast(pws)
+val websites = sc.parallelize(Seq("Apache Spark", "Scala")).map(pwsB.value).collect
+// websites: Array[String] = Array(http://spark.apache.org/, http://www.scala-lang.org/)
+```
+
+Semantically, the two computations - with and without the broadcast value - are exactly the same, but the broadcast-based one wins performance-wise when there are more executors spawned to execute many tasks that use `pws` map.
 
 ## Further Reading or Watching
 
