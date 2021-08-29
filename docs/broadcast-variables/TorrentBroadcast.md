@@ -87,7 +87,7 @@ doUnpersist(
 
 `doUnpersist` is part of the [Broadcast](Broadcast.md#doUnpersist) abstraction.
 
-## <span id="unpersist"> Removing All Broadcast Blocks
+## <span id="unpersist"> Removing Persisted State (Broadcast Blocks) of Broadcast Variable
 
 ```scala
 unpersist(
@@ -102,7 +102,7 @@ unpersist(
 Unpersisting TorrentBroadcast [id]
 ```
 
-In the end, `unpersist` requests the [BlockManagerMaster](../storage/BlockManagerMaster.md) to [remove the broadcast](../storage/BlockManagerMaster.md#removeBroadcast).
+In the end, `unpersist` requests the [BlockManagerMaster](../storage/BlockManagerMaster.md) to [remove the blocks of the given broadcast](../storage/BlockManagerMaster.md#removeBroadcast).
 
 `unpersist` is used when:
 
