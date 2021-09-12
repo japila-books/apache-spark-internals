@@ -121,6 +121,17 @@ Used when:
 
 * `SparkContext` is [created](SparkContext-creating-instance-internals.md#files)
 
+## <span id="spark.io.encryption.enabled"><span id="IO_ENCRYPTION_ENABLED"> spark.io.encryption.enabled
+
+Controls local disk I/O encryption
+
+Default: `false`
+
+Used when:
+
+* `SparkEnv` utility is used to [create a SparkEnv for the driver](SparkEnv.md#createDriverEnv) (to create a IO encryption key)
+* `BlockStoreShuffleReader` is requested to [read combined records](shuffle/BlockStoreShuffleReader.md#read) (and [fetchContinuousBlocksInBatch](shuffle/BlockStoreShuffleReader.md#fetchContinuousBlocksInBatch))
+
 ## <span id="spark.jars"> spark.jars
 
 Default: (empty)
@@ -808,12 +819,6 @@ Default: `true`
 == [[spark.block.failures.beforeLocationRefresh]] spark.block.failures.beforeLocationRefresh
 
 Default: `5`
-
-== [[spark.io.encryption.enabled]] spark.io.encryption.enabled
-
-Controls whether to use IO encryption
-
-Default: `false`
 
 == [[spark.closure.serializer]] spark.closure.serializer
 

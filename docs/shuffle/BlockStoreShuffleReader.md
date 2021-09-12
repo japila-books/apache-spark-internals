@@ -19,7 +19,7 @@
 
 * `SortShuffleManager` is requested for a [ShuffleReader](SortShuffleManager.md#getReader) (for a `ShuffleHandle` and a range of reduce partitions)
 
-## <span id="read"> Reading Combined Records for Reduce Task
+## <span id="read"> Reading Combined Records (for Reduce Task)
 
 ```scala
 read(): Iterator[Product2[K, C]]
@@ -30,6 +30,14 @@ read(): Iterator[Product2[K, C]]
 `read` creates a [ShuffleBlockFetcherIterator](../storage/ShuffleBlockFetcherIterator.md).
 
 `read`...FIXME
+
+### <span id="fetchContinuousBlocksInBatch"> fetchContinuousBlocksInBatch
+
+```scala
+fetchContinuousBlocksInBatch: Boolean
+```
+
+`fetchContinuousBlocksInBatch`...FIXME
 
 ## Review Me
 

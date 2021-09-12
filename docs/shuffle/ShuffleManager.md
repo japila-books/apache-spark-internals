@@ -19,14 +19,14 @@ getReader[K, C](
   metrics: ShuffleReadMetricsReporter): ShuffleReader[K, C]
 ```
 
-[ShuffleReader](ShuffleReader.md) to read shuffle data in the [ShuffleHandle](ShuffleHandle.md)
+[ShuffleReader](ShuffleReader.md) to read shuffle data (for the given [ShuffleHandle](ShuffleHandle.md))
 
-Used when the following RDDs are requested to compute a partition:
+Used when the following `RDD`s are requested to [compute a partition](../rdd/RDD.md#compute):
 
 * `CoGroupedRDD` is requested to [compute a partition](../rdd/CoGroupedRDD.md#compute)
 * `ShuffledRDD` is requested to [compute a partition](../rdd/ShuffledRDD.md#compute)
 * `SubtractedRDD` is requested to [compute a partition](../rdd/SubtractedRDD.md#compute)
-* `ShuffledRowRDD` (Spark SQL) is requested to `compute` a partition
+* `ShuffledRowRDD` ([Spark SQL]({{ book.spark_sql }}/ShuffledRowRDD)) is requested to `compute` a partition
 
 ### <span id="getReaderForRange"> getReaderForRange
 
