@@ -94,15 +94,26 @@ addFile(
   path: String): Unit
 ```
 
-`addFile` creates a Hadoop `Path` from the given `path`. For a no-schema path, `addFile` converts it to a canonical form.
-
-`addFile` prints out the following WARN message to the logs and exits.
+Firstly, `addFile` validate the schema of given `path`. For a no-schema path, `addFile` converts it to a canonical form. For a local schema path, `addFile` prints out the following WARN message to the logs and exits.
 
 ```text
 File with 'local' scheme is not supported to add to file server, since it is already available on every node.
 ```
+And for other schema path, `addFile` creates a Hadoop Path from the given path.
 
-`addFile`...FIXME
+`addFile` Will validate the URL if the path is an HTTP, HTTPS or FTP URI.
+
+`addFile` Will throw `SparkException` with below message if path is local directories but not in local mode.
+
+```text
+addFile does not support local directories when not running local mode.
+```
+
+`addFile` Will throw `SparkException` with below message if path is directories but not turn on `recursive` flag.
+
+```text
+dded file $hadoopPath is a directory and recursive is not turned on.
+```
 
 In the end, `addFile` adds the file to the [addedFiles](#addedFiles) internal registry (with the current timestamp):
 
