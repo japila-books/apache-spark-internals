@@ -112,7 +112,7 @@ addFile does not support local directories when not running local mode.
 `addFile` Will throw `SparkException` with below message if path is directories but not turn on `recursive` flag.
 
 ```text
-dded file $hadoopPath is a directory and recursive is not turned on.
+Added file $hadoopPath is a directory and recursive is not turned on.
 ```
 
 In the end, `addFile` adds the file to the [addedFiles](#addedFiles) internal registry (with the current timestamp):
