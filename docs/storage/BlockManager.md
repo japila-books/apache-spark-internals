@@ -64,6 +64,24 @@ When created, `BlockManager` sets [externalShuffleServiceEnabled](#externalShuff
 
 * Initialize [maxOnHeapMemory](#maxOnHeapMemory) and [maxOffHeapMemory](#maxOffHeapMemory) (for reporting)
 
+## <span id="diskBlockManager"> DiskBlockManager
+
+`BlockManager` creates a [DiskBlockManager](DiskBlockManager.md) when [created](#creating-instance).
+
+![DiskBlockManager and BlockManager](../images/storage/DiskBlockManager-BlockManager.png)
+
+`BlockManager` uses the `BlockManager` for the following:
+
+* Creating a [DiskStore](#diskStore)
+* [Registering an executor with a local external shuffle service](#registerWithExternalShuffleServer) (when [initialized](#initialize) on an executor with [externalShuffleServiceEnabled](#externalShuffleServiceEnabled))
+
+The `DiskBlockManager` is available as `diskBlockManager` reference to other Spark systems.
+
+```scala
+import org.apache.spark.SparkEnv
+SparkEnv.get.blockManager.diskBlockManager
+```
+
 ## <span id="migratableResolver"> MigratableResolver
 
 ```scala
@@ -84,6 +102,22 @@ migratableResolver: MigratableResolver
 * `ShuffleMigrationRunnable` is requested to [run](ShuffleMigrationRunnable.md#run)
 * `BlockManagerDecommissioner` is requested to [refreshOffloadingShuffleBlocks](BlockManagerDecommissioner.md#refreshOffloadingShuffleBlocks)
 * `FallbackStorage` is requested to [copy](FallbackStorage.md#copy)
+
+## <span id="getLocalDiskDirs"> Local Directories for Block Storage
+
+```scala
+getLocalDiskDirs: Array[String]
+```
+
+`getLocalDiskDirs` requests the [DiskBlockManager](#diskBlockManager) for the [local directories for block storage](DiskBlockManager.md#localDirs).
+
+`getLocalDiskDirs` is part of the [BlockDataManager](BlockDataManager.md#getLocalDiskDirs) abstraction.
+
+`getLocalDiskDirs` is also used by `BlockManager` when requested for the following:
+
+* [Register with a local external shuffle service](#registerWithExternalShuffleServer)
+* [Initialize](#initialize)
+* [Re-register](#reregister)
 
 ## <span id="initialize"> Initializing BlockManager
 
@@ -213,11 +247,10 @@ getOrElseUpdate[T](
 
 If however the block was not found (in any block manager in a Spark cluster), `getOrElseUpdate` [doPutIterator](#doPutIterator) (for the input `BlockId`, the `makeIterator` function and the `StorageLevel`).
 
-`getOrElseUpdate` branches off per the result.
+`getOrElseUpdate` branches off per the result:
 
-For `None`, `getOrElseUpdate` [getLocalValues](#getLocalValues) for the `BlockId` and eventually returns the `BlockResult` (unless terminated by a `SparkException` due to some internal error).
-
-For `Some(iter)`, `getOrElseUpdate` returns an iterator of `T` values.
+* For `None`, `getOrElseUpdate` [getLocalValues](#getLocalValues) for the `BlockId` and eventually returns the `BlockResult` (unless terminated by a `SparkException` due to some internal error)
+* For `Some(iter)`, `getOrElseUpdate` returns an iterator of `T` values
 
 `getOrElseUpdate` is used when:
 
@@ -491,25 +524,6 @@ This `BlockStoreClient` is used when:
 * [Retrieving a non-shuffle block data](#getLocalBytes) (for shuffle blocks anyway)
 
 * [Registering an executor with a local external shuffle service](#registerWithExternalShuffleServer) (when [initialized](#initialize) on an executor with [externalShuffleServiceEnabled](#externalShuffleServiceEnabled))
-
-## <span id="diskBlockManager"> DiskBlockManager
-
-BlockManager creates a [DiskBlockManager](DiskBlockManager.md) when [created](#creating-instance).
-
-![DiskBlockManager and BlockManager](../images/storage/DiskBlockManager-BlockManager.png)
-
-BlockManager uses the BlockManager for the following:
-
-* Creating a [DiskStore](#diskStore)
-
-* [Registering an executor with a local external shuffle service](#registerWithExternalShuffleServer) (when [initialized](#initialize) on an executor with [externalShuffleServiceEnabled](#externalShuffleServiceEnabled))
-
-The `BlockManager` is available as `diskBlockManager` reference to other Spark systems.
-
-```scala
-import org.apache.spark.SparkEnv
-SparkEnv.get.blockManager.diskBlockManager
-```
 
 ## <span id="memoryStore"> MemoryStore
 

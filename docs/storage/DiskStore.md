@@ -117,7 +117,7 @@ put(
 Attempting to put block [blockId]
 ```
 
-`put` requests the [DiskBlockManager](#diskManager) for the [block file](DiskBlockManager.md#getFile) for the input [block](BlockId.md).
+`put` requests the [DiskBlockManager](#diskManager) for the [block file](DiskBlockManager.md#getFile) for the input [BlockId](BlockId.md).
 
 `put` [opens the block file for writing](#openForWrite) (wrapped into a `CountingWritableChannel` to count the bytes written). `put` executes the given `writeFunc` function (with the `WritableByteChannel` of the block file) and saves the bytes written (to the [blockSizes](#blockSizes) registry).
 

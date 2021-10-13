@@ -152,9 +152,9 @@ Default: `false`
 
 ## <span id="spark.local.dir"> spark.local.dir
 
-A comma-separated list of directories that are used as a temporary storage for "scratch" space (incl. map output files and RDDs that get stored on disk). This should be on a fast, local disk in your system.
+A comma-separated list of directory paths for "scratch" space (a temporary storage for map output files, RDDs that get stored on disk, etc.). It is recommended to use paths on fast local disks in your system (e.g. SSDs).
 
-Default: `/tmp`
+Default: `java.io.tmpdir` System property
 
 ## <span id="spark.logConf"> spark.logConf
 

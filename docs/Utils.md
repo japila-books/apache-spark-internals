@@ -1,6 +1,6 @@
 # Utils Utility
 
-## <span id="getConfiguredLocalDirs"> Local Directories for Storing Files
+## <span id="getConfiguredLocalDirs"> Local Directories for Scratch Space
 
 ```scala
 getConfiguredLocalDirs(
@@ -9,25 +9,89 @@ getConfiguredLocalDirs(
 
 `getConfiguredLocalDirs` returns the local directories where Spark can write files to.
 
-Internally, `getConfiguredLocalDirs` uses the given [SparkConf](SparkConf.md) to know if [External Shuffle Service](external-shuffle-service/ExternalShuffleService.md) is enabled (based on [spark.shuffle.service.enabled](external-shuffle-service/configuration-properties.md#spark.shuffle.service.enabled) configuration property).
+---
 
-`getConfiguredLocalDirs` checks if [Spark runs on YARN](#isRunningInYarnContainer) and if so, returns [LOCAL_DIRS](#getYarnLocalDirs)-controlled local directories.
+`getConfiguredLocalDirs` uses the given [SparkConf](SparkConf.md) to know if [External Shuffle Service](external-shuffle-service/ExternalShuffleService.md) is enabled or not (based on [spark.shuffle.service.enabled](external-shuffle-service/configuration-properties.md#spark.shuffle.service.enabled) configuration property).
 
-In non-YARN mode (or for the driver in yarn-client mode), `getConfiguredLocalDirs` checks the following environment variables (in the order) and returns the value of the first met:
+When in a YARN container (`CONTAINER_ID`), `getConfiguredLocalDirs` uses `LOCAL_DIRS` environment variable for YARN-approved local directories.
 
-1. `SPARK_EXECUTOR_DIRS` environment variable
-1. `SPARK_LOCAL_DIRS` environment variable
-1. `MESOS_DIRECTORY` environment variable (only when External Shuffle Service is not used)
+In non-YARN mode (or for the driver in yarn-client mode), `getConfiguredLocalDirs` checks the following environment variables (in order) and returns the value of the first found:
 
-In the end, when no earlier environment variables were found, `getConfiguredLocalDirs` uses the following properties (in the order):
+1. `SPARK_EXECUTOR_DIRS`
+1. `SPARK_LOCAL_DIRS`
+1. `MESOS_DIRECTORY` (only when External Shuffle Service is not used)
 
-1. [spark.local.dir](configuration-properties.md#spark.local.dir) configuration property
-1. `java.io.tmpdir` System property
+The environment variables are a comma-separated list of local directory paths.
+
+In the end, when no earlier environment variables were found, `getConfiguredLocalDirs` uses [spark.local.dir](configuration-properties.md#spark.local.dir) configuration property (with `java.io.tmpdir` System property as the default value).
+
+---
 
 `getConfiguredLocalDirs` is used when:
 
-* `DiskBlockManager` is requested to [createLocalDirs](storage/DiskBlockManager.md#createLocalDirs)
-* `Utils` utility is used to [get a local directory](#getLocalDir) and [getOrCreateLocalRootDirsImpl](#getOrCreateLocalRootDirsImpl)
+* `DiskBlockManager` is requested to [createLocalDirs](storage/DiskBlockManager.md#createLocalDirs) and [createLocalDirsForMergedShuffleBlocks](storage/DiskBlockManager.md#createLocalDirsForMergedShuffleBlocks)
+* `Utils` utility is used to [get a single random local root directory](#getLocalDir) and [create a spark directory in every local root directory](#getOrCreateLocalRootDirsImpl)
+
+## <span id="getLocalDir"> Random Local Directory Path
+
+```scala
+getLocalDir(
+  conf: SparkConf): String
+```
+
+`getLocalDir` takes a random directory path out of the [configured local root directories](#getOrCreateLocalRootDirs)
+
+`getLocalDir` throws an `IOException` if no local directory is defined:
+
+```text
+Failed to get a temp directory under [[configuredLocalDirs]].
+```
+
+`getLocalDir` is used when:
+
+* `SparkEnv` utility is used to [create a base SparkEnv for the driver](SparkEnv.md#create)
+* `Utils` utility is used to [fetchFile](#fetchFile)
+* `DriverLogger` is [created](DriverLogger.md#localLogFile)
+* `RocksDBStateStoreProvider` (Spark Structured Streaming) is requested for a `RocksDB`
+* `PythonBroadcast` (PySpark) is requested to `readObject`
+* `AggregateInPandasExec` (PySpark) is requested to `doExecute`
+* `EvalPythonExec` (PySpark) is requested to `doExecute`
+* `WindowInPandasExec` (PySpark) is requested to `doExecute`
+* `PythonForeachWriter` (PySpark) is requested for a `UnsafeRowBuffer`
+* `Client` (Spark on YARN) is requested to `prepareLocalResources` and `createConfArchive`
+
+## <span id="getOrCreateLocalRootDirs"><span id="localRootDirs"> localRootDirs Registry
+
+`Utils` utility uses `localRootDirs` internal registry so [getOrCreateLocalRootDirsImpl](#getOrCreateLocalRootDirsImpl) is executed just once (when first requested).
+
+`localRootDirs` is available using `getOrCreateLocalRootDirs` method.
+
+```scala
+getOrCreateLocalRootDirs(
+  conf: SparkConf): Array[String]
+```
+
+`getOrCreateLocalRootDirs` is used when:
+
+* `Utils` is used to [getLocalDir](#getLocalDir)
+* `Worker` (Spark Standalone) is requested to [launch an executor](spark-standalone/Worker.md#LaunchExecutor)
+
+### <span id="getOrCreateLocalRootDirsImpl"> Creating spark Directory in Every Local Root Directory
+
+```scala
+getOrCreateLocalRootDirsImpl(
+  conf: SparkConf): Array[String]
+```
+
+`getOrCreateLocalRootDirsImpl` creates a `spark-[randomUUID]` directory under every [root directory for local storage](#getConfiguredLocalDirs) (and registers a shutdown hook to delete the directories at shutdown).
+
+`getOrCreateLocalRootDirsImpl` prints out the following WARN message to the logs when there is a local root directories as a URI (with a scheme):
+
+```text
+The configured local directories are not expected to be URIs;
+however, got suspicious values [[uris]].
+Please check your configured local directories.
+```
 
 ## <span id="LOCAL_SCHEME"> Local URI Scheme
 
@@ -146,29 +210,6 @@ checkAndGetK8sMasterUrl(
 
 * `SparkSubmit` is requested to [prepareSubmitEnvironment](tools/SparkSubmit.md#prepareSubmitEnvironment) (for Kubernetes cluster manager)
 
-## <span id="getLocalDir"> getLocalDir
-
-```scala
-getLocalDir(
-  conf: SparkConf): String
-```
-
-`getLocalDir`...FIXME
-
-`getLocalDir` is used when:
-
-* `Utils` is requested to <<fetchFile, fetchFile>>
-
-* `SparkEnv` is core:SparkEnv.md#create[created] (on the driver)
-
-* spark-shell.md[spark-shell] is launched
-
-* Spark on YARN's `Client` is requested to spark-yarn-client.md#prepareLocalResources[prepareLocalResources] and spark-yarn-client.md#createConfArchive[create ++__spark_conf__.zip++ archive with configuration files and Spark configuration]
-
-* PySpark's  `PythonBroadcast` is requested to `readObject`
-
-* PySpark's  `EvalPythonExec` is requested to `doExecute`
-
 ## <span id="fetchFile"> Fetching File
 
 ```scala
@@ -192,28 +233,36 @@ fetchFile(
 
 * Spark Standalone's `DriverRunner` is requested to `downloadUserJar`
 
-## <span id="getOrCreateLocalRootDirs"> getOrCreateLocalRootDirs
+## <span id="isPushBasedShuffleEnabled"> isPushBasedShuffleEnabled
 
 ```scala
-getOrCreateLocalRootDirs(
-  conf: SparkConf): Array[String]
+isPushBasedShuffleEnabled(
+  conf: SparkConf,
+  isDriver: Boolean,
+  checkSerializer: Boolean = true): Boolean
 ```
 
-`getOrCreateLocalRootDirs`...FIXME
+`isPushBasedShuffleEnabled`...FIXME
 
-`getOrCreateLocalRootDirs` is used when:
+`isPushBasedShuffleEnabled` is used when:
 
-* `Utils` is requested to <<getLocalDir, getLocalDir>>
+* `ShuffleDependency` is requested to [canShuffleMergeBeEnabled](rdd/ShuffleDependency.md#canShuffleMergeBeEnabled)
+* `MapOutputTrackerMaster` is [created](scheduler/MapOutputTrackerMaster.md#pushBasedShuffleEnabled)
+* `MapOutputTrackerWorker` is [created](scheduler/MapOutputTrackerWorker.md#fetchMergeResult)
+* `DAGScheduler` is [created](scheduler/DAGScheduler.md#pushBasedShuffleEnabled)
+* `ShuffleBlockPusher` utility is used to `BLOCK_PUSHER_POOL`
+* `BlockManager` is requested to [initialize](storage/BlockManager.md#initialize) and [registerWithExternalShuffleServer](storage/BlockManager.md#registerWithExternalShuffleServer)
+* `BlockManagerMasterEndpoint` is [created](storage/BlockManagerMasterEndpoint.md#pushBasedShuffleEnabled)
+* `DiskBlockManager` is requested to [createLocalDirsForMergedShuffleBlocks](storage/DiskBlockManager.md#createLocalDirsForMergedShuffleBlocks)
 
-* `Worker` is requested to spark-standalone-worker.md#receive[handle a LaunchExecutor message]
+## Logging
 
-### <span id="getOrCreateLocalRootDirsImpl"> getOrCreateLocalRootDirsImpl
+Enable `ALL` logging level for `org.apache.spark.util.Utils` logger to see what happens inside.
 
-```scala
-getOrCreateLocalRootDirsImpl(
-  conf: SparkConf): Array[String]
+Add the following line to `conf/log4j.properties`:
+
+```text
+log4j.logger.org.apache.spark.util.Utils=ALL
 ```
 
-`getOrCreateLocalRootDirsImpl`...FIXME
-
-`getOrCreateLocalRootDirsImpl` is used when `Utils` is requested to [getOrCreateLocalRootDirs](#getOrCreateLocalRootDirs)
+Refer to [Logging](spark-logging.md).

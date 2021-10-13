@@ -4,9 +4,9 @@
 
 ![DiskBlockManager and BlockManager](../images/storage/DiskBlockManager-BlockManager.png)
 
-By default, one block is mapped to one file with a name given by its [BlockId](BlockId.md). It is however possible to have a block to be mapped to a segment of a file only.
+By default, one block is mapped to one file with a name given by [BlockId](BlockId.md). It is however possible to have a block to be mapped to a segment of a file only.
 
-Block files are hashed among the [local directories](#getConfiguredLocalDirs).
+Block files are hashed among the [local directories](#localDirs).
 
 `DiskBlockManager` is used to create a [DiskStore](DiskStore.md).
 
@@ -17,19 +17,39 @@ Block files are hashed among the [local directories](#getConfiguredLocalDirs).
 * <span id="conf"> [SparkConf](../SparkConf.md)
 * <span id="deleteFilesOnStop"> `deleteFilesOnStop` flag
 
-When created, `DiskBlockManager` [creates one or many local directories to store block data](#localDirs) and initializes the internal [subDirs](#subDirs) collection of locks for every local directory.
+When created, `DiskBlockManager` [creates the local directories for block storage](#localDirs) and initializes the internal [subDirs](#subDirs) collection of locks for every local directory.
+
+`DiskBlockManager` [createLocalDirsForMergedShuffleBlocks](#createLocalDirsForMergedShuffleBlocks).
 
 In the end, `DiskBlockManager` [registers a shutdown hook](#addShutdownHook) to clean up the local directories for blocks.
 
 `DiskBlockManager` is created for [BlockManager](BlockManager.md#diskBlockManager).
 
-## <span id="localDirs"> Local Directories for Blocks
+### <span id="createLocalDirsForMergedShuffleBlocks"> createLocalDirsForMergedShuffleBlocks
 
 ```scala
-localDirs: Array[File]
+createLocalDirsForMergedShuffleBlocks(): Unit
 ```
 
-`DiskBlockManager` [creates local directories](#createLocalDirs) to store block data when [created](#creating-instance). `DiskBlockManager` expects at least one local directory or prints out the following ERROR message to the logs and exits the JVM (with exit code 53):
+`createLocalDirsForMergedShuffleBlocks` is a noop with [isPushBasedShuffleEnabled](../Utils.md#isPushBasedShuffleEnabled) disabled (YARN mode only).
+
+`createLocalDirsForMergedShuffleBlocks`...FIXME
+
+## Accessing DiskBlockManager
+
+`DiskBlockManager` is available using [SparkEnv](../SparkEnv.md).
+
+```scala
+org.apache.spark.SparkEnv.get.blockManager.diskBlockManager
+```
+
+## <span id="localDirs"> Local Directories for Block Storage
+
+`DiskBlockManager` [creates blockmgr directory in every local root directory](#createLocalDirs) when [created](#creating-instance).
+
+`DiskBlockManager` uses `localDirs` internal registry of all the `blockmgr` directories.
+
+`DiskBlockManager` expects at least one local directory or prints out the following ERROR message to the logs and exits the JVM (with exit code 53):
 
 ```text
 Failed to create any local dir.
@@ -37,19 +57,28 @@ Failed to create any local dir.
 
 `localDirs` is used when:
 
-* `DiskBlockManager` is requested to [getFile](#getFile), initialize the [subDirs](#subDirs) internal registry, and to [doStop](#doStop)
+* `DiskBlockManager` is created (and creates [localDirsString](#localDirsString) and [subDirs](#subDirs)), requested to [look up a file (among local subdirectories)](#getFile) and [doStop](#doStop)
 * `BlockManager` is requested to [register with an external shuffle server](BlockManager.md#registerWithExternalShuffleServer)
+* `BasePythonRunner` (PySpark) is requested to `compute`
 
-### <span id="createLocalDirs"> Creating Local Directories
+### <span id="localDirsString"> localDirsString
+
+`DiskBlockManager` uses `localDirsString` internal registry of the paths of the [local blockmgr directories](#localDirs).
+
+`localDirsString` is used by `BlockManager` when requested for [getLocalDiskDirs](BlockManager.md#getLocalDiskDirs).
+
+### <span id="createLocalDirs"> Creating blockmgr Directory in Every Local Root Directory
 
 ```scala
 createLocalDirs(
   conf: SparkConf): Array[File]
 ```
 
-`createLocalDirs` creates `blockmgr-[random UUID]` directory under every [local directory](../Utils.md#getConfiguredLocalDirs) to store block data.
+`createLocalDirs` creates `blockmgr` local directories for storing block data.
 
-For every local directory, `createLocalDirs` prints out the following INFO message to the logs:
+---
+
+`createLocalDirs` creates a `blockmgr-[randomUUID]` directory under every [root directory for local storage](../Utils.md#getConfiguredLocalDirs) and prints out the following INFO message to the logs:
 
 ```text
 Created local directory at [localDir]
@@ -57,13 +86,13 @@ Created local directory at [localDir]
 
 ---
 
-In case of an exception, `createLocalDirs` prints out the following ERROR message to the logs and skips the directory:
+In case of an exception, `createLocalDirs` prints out the following ERROR message to the logs and ignore the directory:
 
 ```text
 Failed to create local dir in [rootDir]. Ignoring this directory.
 ```
 
-## <span id="subDirsPerLocalDir"><span id="subDirs"> File Locks for Local Block Store Directories
+## <span id="subDirs"><span id="subDirsPerLocalDir"> File Locks for Local Block Store Directories
 
 ```scala
 subDirs: Array[Array[File]]
@@ -192,7 +221,9 @@ doStop(): Unit
 
 `doStop` deletes the local directories recursively (only when the constructor's `deleteFilesOnStop` is enabled and the parent directories are not registered to be removed at shutdown).
 
-`doStop` is used when `DiskBlockManager` is requested to [shut down](#addShutdownHook) or [stop](#stop).
+`doStop` is used when:
+
+* `DiskBlockManager` is requested to [shut down](#addShutdownHook) or [stop](#stop)
 
 ## Demo
 

@@ -30,6 +30,8 @@ spark.range(2).persist(StorageLevel.DISK_ONLY).count
 
 ## Observe Block Files
 
+### Command Line
+
 Go to the `blockmgr-[uuid]` directory and observe the block files. There should be a few. Do you know how many and why?
 
 ```text
@@ -52,6 +54,15 @@ local-dirs/blockmgr-b7167b5a-ae8d-404b-8de2-1a0fb101fe00/
     └── shuffle_0_6_0.data
 
 47 directories, 48 files
+```
+
+### DiskBlockManager
+
+The files are managed by [DiskBlockManager](../storage/DiskBlockManager.md) that is available to access all the files as well.
+
+```scala
+import org.apache.spark.SparkEnv
+SparkEnv.get.blockManager.diskBlockManager.getAllFiles()
 ```
 
 ## Use web UI

@@ -10,6 +10,15 @@
 
 ## Contract
 
+### <span id="diagnoseShuffleBlockCorruption"> diagnoseShuffleBlockCorruption
+
+```scala
+diagnoseShuffleBlockCorruption(
+  blockId: BlockId,
+  checksumByReader: Long,
+  algorithm: String): Cause
+```
+
 ### <span id="getHostLocalShuffleData"> getHostLocalShuffleData
 
 ```scala
@@ -41,7 +50,7 @@ getLocalDiskDirs: Array[String]
 
 Used when:
 
-* `NettyBlockRpcServer` is requested to [receive a GetLocalDirsForExecutors request](NettyBlockRpcServer.md#receive)
+* `NettyBlockRpcServer` is requested to [handle a GetLocalDirsForExecutors request](NettyBlockRpcServer.md#receive)
 
 ### <span id="putBlockData"> putBlockData
 
