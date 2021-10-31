@@ -17,6 +17,60 @@
 
 While being created, `SparkContext` [sets up core services](SparkContext-creating-instance-internals.md) and establishes a connection to a [Spark execution environment](spark-deployment-environments.md).
 
+## Services
+
+* <span id="executorAllocationManager"><span id="_executorAllocationManager"><span id="ExecutorAllocationManager"> [ExecutorAllocationManager](dynamic-allocation/ExecutorAllocationManager.md) (optional)
+
+* <span id="schedulerBackend"> [SchedulerBackend](scheduler/SchedulerBackend.md)
+
+## <span id="appStatusSource"> AppStatusSource
+
+`SparkContext` can [create an AppStatusSource](status/AppStatusSource.md#createSource) when [created](#creating-instance) (based on the [spark.metrics.appStatusSource.enabled](metrics/configuration-properties.md#spark.metrics.appStatusSource.enabled) configuration property).
+
+`SparkContext` uses the `AppStatusSource` to create the [AppStatusStore](#_statusStore).
+
+If configured, `SparkContext` [registers](metrics/MetricsSystem.md#registerSource) the `AppStatusSource` with the [MetricsSystem](SparkEnv.md#metricsSystem).
+
+## <span id="_statusStore"><span id="AppStatusStore"> AppStatusStore
+
+`SparkContext` [creates an AppStatusStore](status/AppStatusStore.md#createLiveStore) when [created](#creating-instance) (with itself and the [AppStatusSource](#appStatusSource)).
+
+`SparkContext` requests `AppStatusStore` for the [AppStatusListener](status/AppStatusStore.md#listener) and requests the [LiveListenerBus](#listenerBus) to [add it to the application status queue](scheduler/LiveListenerBus.md#addToStatusQueue).
+
+`SparkContext` uses the `AppStatusStore` to create the following:
+
+* [SparkStatusTracker](#_statusTracker)
+* [SparkUI](#_ui)
+
+`AppStatusStore` is requested to [status/AppStatusStore.md#close](#close) in [stop](#stop).
+
+### <span id="statusStore"> statusStore
+
+```scala
+statusStore: AppStatusStore
+```
+
+`statusStore` returns the [AppStatusStore](#_statusStore).
+
+`statusStore` is used when:
+
+* `SparkContext` is requested to [getRDDStorageInfo](#getRDDStorageInfo)
+* `ConsoleProgressBar` is requested to [refresh](ConsoleProgressBar.md#refresh)
+* `HiveThriftServer2` is requested to `createListenerAndUI`
+* `SharedState` ([Spark SQL]({{ book.spark_sql }}/SharedState)) is requested for a `SQLAppStatusStore` and a `StreamingQueryStatusListener`
+
+## <span id="_statusTracker"><span id="SparkStatusTracker"> SparkStatusTracker
+
+`SparkContext` creates a [SparkStatusTracker](SparkStatusTracker.md) when [created](#creating-instance) (with itself and the [AppStatusStore](#_statusStore)).
+
+### <span id="statusTracker"> statusTracker
+
+```scala
+statusTracker: SparkStatusTracker
+```
+
+`statusTracker` returns the [SparkStatusTracker](#_statusTracker).
+
 ## <span id="localProperties"><span id="getLocalProperties"><span id="setLocalProperties"><span id="setLocalProperty"> Local Properties
 
 ```scala
@@ -57,16 +111,6 @@ Name | Default Value | Setter
  <span id="SPARK_JOB_INTERRUPT_ON_CANCEL"> `spark.job.interruptOnCancel` | | `SparkContext.setJobGroup`
  <span id="SPARK_JOB_GROUP_ID"><span id="setJobGroup"> `spark.jobGroup.id` | | `SparkContext.setJobGroup`
  <span id="SPARK_SCHEDULER_POOL"> `spark.scheduler.pool` | |
-
-## Services
-
-* <span id="statusStore"><span id="AppStatusStore"><span id="_statusStore"> [AppStatusStore](status/AppStatusStore.md)
-
-* <span id="executorAllocationManager"><span id="_executorAllocationManager"><span id="ExecutorAllocationManager"> [ExecutorAllocationManager](dynamic-allocation/ExecutorAllocationManager.md) (optional)
-
-* <span id="schedulerBackend"> [SchedulerBackend](scheduler/SchedulerBackend.md)
-
-* _others_
 
 ## <span id="shuffleDriverComponents"><span id="_shuffleDriverComponents"> ShuffleDriverComponents
 
@@ -910,12 +954,11 @@ broadcast[T](
 
 broadcast method creates a Broadcast.md[]. It is a shared memory with `value` (as broadcast blocks) on the driver and later on all Spark executors.
 
-[source,plaintext]
-----
+```text
 val sc: SparkContext = ???
 scala> val hello = sc.broadcast("hello")
 hello: org.apache.spark.broadcast.Broadcast[String] = Broadcast(0)
-----
+```
 
 Spark transfers the value to Spark executors _once_, and tasks can share it without incurring repetitive network transmissions when the broadcast variable is used multiple times.
 
