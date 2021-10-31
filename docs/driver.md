@@ -38,11 +38,11 @@ It can be set first using spark-submit.md#command-line-options[spark-submit's `-
 
 NOTE: It is printed out to the standard error output in spark-submit.md#verbose-mode[spark-submit's verbose mode].
 
-=== [[driver-memory]] Driver's Cores
+## <span id="driver-memory"> Driver Cores
 
-It can be set first using spark-submit.md#driver-cores[spark-submit's `--driver-cores`] command-line option for spark-deploy-mode.md#cluster[`cluster` deploy mode].
+It can be set first using spark-submit.md#driver-cores[spark-submit's `--driver-cores`] command-line option for `cluster` deploy mode.
 
-NOTE: In spark-deploy-mode.md#client[`client` deploy mode] the driver's memory corresponds to the memory of the JVM process the Spark application runs on.
+NOTE: In `client` deploy mode the driver's memory corresponds to the memory of the JVM process the Spark application runs on.
 
 NOTE: It is printed out to the standard error output in spark-submit.md#verbose-mode[spark-submit's verbose mode].
 
@@ -60,7 +60,7 @@ More precisely, `spark.driver.blockManager.port` is used when core:SparkEnv.md#N
 
 Refer to <<driver-memory, Driver's Memory>>.
 
-| [[spark_driver_cores]] `spark.driver.cores` | `1` | The number of CPU cores assigned to the driver in spark-deploy-mode.md#cluster[cluster deploy mode].
+| [[spark_driver_cores]] `spark.driver.cores` | `1` | The number of CPU cores assigned to the driver in `cluster` deploy mode.
 
 NOTE: When yarn/spark-yarn-client.md#creating-instance[Client is created] (for Spark on YARN in cluster mode only), it sets the number of cores for `ApplicationManager` using `spark.driver.cores`.
 
@@ -78,13 +78,13 @@ Refer to <<driver-cores, Driver's Cores>>.
 
 |===
 
-==== [[spark_driver_extraClassPath]] spark.driver.extraClassPath
+## <span id="spark.driver.extraClassPath"> spark.driver.extraClassPath
 
-`spark.driver.extraClassPath` system property sets the additional classpath entries (e.g. jars and directories) that should be added to the driver's classpath in spark-deploy-mode.md#cluster[`cluster` deploy mode].
+`spark.driver.extraClassPath` system property sets the additional classpath entries (e.g. jars and directories) that should be added to the driver's classpath in `cluster` deploy mode.
 
 [NOTE]
 ====
-For spark-deploy-mode.md#client[`client` deploy mode] you can use a properties file or command line to set `spark.driver.extraClassPath`.
+For `client` deploy mode you can use a properties file or command line to set `spark.driver.extraClassPath`.
 
 Do not use SparkConf.md[SparkConf] since it is too late for `client` deploy mode given the JVM has already been set up to start a Spark application.
 

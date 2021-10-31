@@ -234,7 +234,7 @@ Used when DAGScheduler is requested to scheduler:DAGScheduler.md#stop[stop]
 
 ## Lifecycle
 
-A `TaskScheduler` is created while [SparkContext is being created](../SparkContext.md#creating-instance) (by calling [SparkContext.createTaskScheduler](../SparkContext.md#createTaskScheduler) for a given [master URL](../spark-deployment-environments.md) and [deploy mode](../tools/spark-submit.md#deploy-mode)).
+A `TaskScheduler` is created while [SparkContext is being created](../SparkContext.md#creating-instance) (by calling [SparkContext.createTaskScheduler](../SparkContext.md#createTaskScheduler) for a given master URL and [deploy mode](../tools/spark-submit.md#deploy-mode)).
 
 ![TaskScheduler uses SchedulerBackend to support different clusters](../images/scheduler/taskscheduler-uses-schedulerbackend.png)
 

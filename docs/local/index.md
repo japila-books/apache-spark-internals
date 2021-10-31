@@ -29,14 +29,14 @@ This mode of operation is also called  http://spark.apache.org/docs/latest/progr
 
 `SparkContext.isLocal` returns `true` when Spark runs in local mode.
 
-```
+```text
 scala> sc.isLocal
 res0: Boolean = true
 ```
 
-spark-shell.md[Spark shell] defaults to local mode with `local[*]` as the spark-deployment-environments.md#master-urls[the master URL].
+[Spark shell](../tools/spark-shell.md) defaults to local mode with `local[*]` as the the master URL.
 
-```
+```text
 scala> sc.master
 res0: String = local[*]
 ```
@@ -45,9 +45,9 @@ Tasks are not re-executed on failure in local mode (unless <<masterURL, local-wi
 
 The scheduler:TaskScheduler.md[task scheduler] in local mode works with local/spark-LocalSchedulerBackend.md[LocalSchedulerBackend] task scheduler backend.
 
-== [[masterURL]] Master URL
+## Master URL
 
-You can run Spark in local mode using `local`, `local[n]` or the most general `local[*]` for spark-deployment-environments.md#master-urls[the master URL].
+You can run Spark in local mode using `local`, `local[n]` or the most general `local[*]` for the master URL.
 
 The URL says how many threads can be used in total:
 

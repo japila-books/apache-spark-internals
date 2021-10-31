@@ -1,6 +1,6 @@
 # NettyBlockRpcServer
 
-`NettyBlockRpcServer` is a [RpcHandler](../network/RpcHandler.md) to handle [messages](#messages) for [NettyBlockTransferService](NettyBlockTransferService.md).
+`NettyBlockRpcServer` is a `RpcHandler` to handle [messages](#messages) for [NettyBlockTransferService](NettyBlockTransferService.md).
 
 ![NettyBlockRpcServer and NettyBlockTransferService](../images/storage/NettyBlockRpcServer.png)
 
@@ -18,7 +18,7 @@
 
 ## <span id="streamManager"> OneForOneStreamManager
 
-`NettyBlockRpcServer` uses a [OneForOneStreamManager](../network/OneForOneStreamManager.md).
+`NettyBlockRpcServer` uses a `OneForOneStreamManager`.
 
 ## <span id="receive"> Receiving RPC Messages
 
@@ -29,8 +29,6 @@ receive(
   responseContext: RpcResponseCallback): Unit
 ```
 
-`receive` is part of the [RpcHandler](../network/RpcHandler.md#receive) abstraction.
-
 `receive` deserializes the incoming RPC message (from `ByteBuffer` to `BlockTransferMessage`) and prints out the following TRACE message to the logs:
 
 ```text
@@ -38,6 +36,8 @@ Received request: [message]
 ```
 
 `receive` handles the message.
+
+`receive` is part of the `RpcHandler` abstraction.
 
 ### <span id="FetchShuffleBlocks"> FetchShuffleBlocks
 
@@ -105,19 +105,6 @@ When received, `receive` deserializes the `metadata` to get the [StorageLevel](S
 `UploadBlock` is posted when:
 
 * `NettyBlockTransferService` is requested to [upload a block](../storage/NettyBlockTransferService.md#uploadBlock)
-
-## <span id="receiveStream"> receiveStream
-
-```scala
-receiveStream(
-  client: TransportClient,
-  messageHeader: ByteBuffer,
-  responseContext: RpcResponseCallback): StreamCallbackWithID
-```
-
-`receiveStream` is part of the [RpcHandler](../network/RpcHandler.md#receiveStream) abstraction.
-
-`receiveStream`...FIXME
 
 ## Logging
 

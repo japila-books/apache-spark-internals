@@ -29,4 +29,4 @@ The AM connects to the driver in "client mode", and that connection is used for 
 
 In "general", non-YARN case, `clientMode` flag is therefore enabled for executors and disabled for the driver.
 
-In Spark on YARN in spark-deploy-mode.md#client[`client` deploy mode], `clientMode` flag is however enabled explicitly when Spark on YARN's spark-yarn-applicationmaster.md#runExecutorLauncher-sparkYarnAM[ApplicationMaster] creates the `sparkYarnAM` RPC Environment.
+In Spark on YARN in `client` deploy mode, `clientMode` flag is however enabled explicitly when Spark on YARN's spark-yarn-applicationmaster.md#runExecutorLauncher-sparkYarnAM[ApplicationMaster] creates the `sparkYarnAM` RPC Environment.

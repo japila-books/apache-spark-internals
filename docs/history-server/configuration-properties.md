@@ -18,7 +18,7 @@ Default: `100`
 
 ## <span id="spark.eventLog.compress"> spark.eventLog.compress
 
-Whether to enable (`true`) or disable (`false`) event compression (using a [CompressionCodec](../CompressionCodec.md))
+Whether to enable (`true`) or disable (`false`) event compression (using a `CompressionCodec`)
 
 Default: `false`
 

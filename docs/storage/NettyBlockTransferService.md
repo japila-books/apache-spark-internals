@@ -53,8 +53,6 @@ fetchBlocks(
   tempFileManager: DownloadFileManager): Unit
 ```
 
-`fetchBlocks` is part of the [BlockStoreClient](BlockStoreClient.md#fetchBlocks) abstraction.
-
 `fetchBlocks` prints out the following TRACE message to the logs:
 
 ```text
@@ -74,6 +72,8 @@ In case of any `Exception`, `fetchBlocks` prints out the following ERROR message
 ```text
 Exception while beginning fetchBlocks
 ```
+
+`fetchBlocks` is part of the [BlockStoreClient](BlockStoreClient.md#fetchBlocks) abstraction.
 
 ## <span id="uploadBlock"> Uploading Block
 

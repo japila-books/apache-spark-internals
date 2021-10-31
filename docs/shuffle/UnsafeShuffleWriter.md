@@ -93,7 +93,7 @@ With multiple `SpillInfos` to merge, `mergeSpills` selects between fast and [slo
 
 mergeSpills uses the [spark.shuffle.unsafe.fastMergeEnabled](../configuration-properties.md#spark.shuffle.unsafe.fastMergeEnabled) configuration property to consider one of the fast merge strategies.
 
-A fast merge strategy is supported when [spark.shuffle.compress](../configuration-properties.md#spark.shuffle.compress) configuration property is disabled or the IO compression codec [supports decompression of concatenated compressed streams](../CompressionCodec.md#supportsConcatenationOfSerializedStreams).
+A fast merge strategy is supported when [spark.shuffle.compress](../configuration-properties.md#spark.shuffle.compress) configuration property is disabled or the IO compression codec supports decompression of concatenated compressed streams.
 
 With [spark.shuffle.compress](../configuration-properties.md#spark.shuffle.compress) configuration property enabled, `mergeSpills` will always use the slow merge strategy.
 
@@ -245,24 +245,6 @@ Error while deleting temp file [path]
 ```
 
 `closeAndWriteOutput` is used when `UnsafeShuffleWriter` is requested to [write records](#write).
-
-== [[mergeSpillsWithFileStream]] mergeSpillsWithFileStream Method
-
-[source, java]
-----
-long[] mergeSpillsWithFileStream(
-  SpillInfo[] spills,
-  File outputFile,
-  CompressionCodec compressionCodec)
-----
-
-mergeSpillsWithFileStream will be given an io:CompressionCodec.md[IO compression codec] when shuffle compression is enabled.
-
-mergeSpillsWithFileStream...FIXME
-
-mergeSpillsWithFileStream requires that there are at least two spills to merge.
-
-mergeSpillsWithFileStream is used when UnsafeShuffleWriter is requested to <<mergeSpills, merge spills>>.
 
 == [[getPeakMemoryUsedBytes]] Getting Peak Memory Used
 

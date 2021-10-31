@@ -43,7 +43,7 @@ Beside the above traits (that are directly embedded in the name of the data abst
 
 NOTE: *Preferred location* (aka _locality preferences_ or _placement preferences_ or _locality info_) is information about the locations of RDD records (that Spark's scheduler:DAGScheduler.md#preferred-locations[DAGScheduler] uses to place computing partitions on to have the tasks as close to the data as possible).
 
-Computing partitions in a RDD is a distributed process by design and to achieve even *data distribution* as well as leverage spark-data-locality.md[data locality] (in distributed systems like HDFS or Cassandra in which data is partitioned by default), they are *partitioned* to a fixed number of spark-rdd-partitions.md[partitions] - logical chunks (parts) of data. The logical division is for processing only and internally it is not divided whatsoever. Each partition comprises of *records*.
+Computing partitions in a RDD is a distributed process by design and to achieve even *data distribution* as well as leverage data locality (in distributed systems like HDFS or Apache Kafka in which data is partitioned by default), they are *partitioned* to a fixed number of spark-rdd-partitions.md[partitions] - logical chunks (parts) of data. The logical division is for processing only and internally it is not divided whatsoever. Each partition comprises of *records*.
 
 .RDDs
 image::spark-rdd-partitioned-distributed.png[align="center"]

@@ -48,7 +48,7 @@ Spark Property: [spark.driver.extraClassPath](../driver.md#spark_driver_extraCla
 --driver-cores NUM
 ```
 
-`--driver-cores` command-line option sets the number of cores to `NUM` for the [driver](../driver.md) in the [cluster deploy mode](../spark-deploy-mode.md#cluster).
+`--driver-cores` command-line option sets the number of cores to `NUM` for the [driver](../driver.md) in the `cluster` deploy mode.
 
 Spark Property: [spark.driver.cores](../driver.md#spark_driver_cores)
 

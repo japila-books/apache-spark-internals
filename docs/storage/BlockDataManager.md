@@ -2,7 +2,7 @@
 
 `BlockDataManager` is an [abstraction](#contract) of [block data managers](#implementations) that manage storage for blocks of data (aka _block storage management API_).
 
-`BlockDataManager` uses [BlockId](BlockId.md) to uniquely identify blocks of data and [ManagedBuffer](../network/ManagedBuffer.md) to represent them.
+`BlockDataManager` uses [BlockId](BlockId.md) to uniquely identify blocks of data and `ManagedBuffer` to represent them.
 
 `BlockDataManager` is used to initialize a [BlockTransferService](BlockTransferService.md#init).
 
@@ -62,7 +62,7 @@ putBlockData(
   classTag: ClassTag[_]): Boolean
 ```
 
-Stores (_puts_) a block data (as a [ManagedBuffer](../network/ManagedBuffer.md)) for the given [BlockId](BlockId.md). Returns `true` when completed successfully or `false` when failed.
+Stores (_puts_) a block data (as a `ManagedBuffer`) for the given [BlockId](BlockId.md). Returns `true` when completed successfully or `false` when failed.
 
 Used when:
 

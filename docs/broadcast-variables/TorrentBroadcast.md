@@ -134,7 +134,7 @@ Failed to get [pieceId] of [broadcastId]
 compressionCodec: Option[CompressionCodec]
 ```
 
-`TorrentBroadcast` uses the [spark.broadcast.compress](../configuration-properties.md#spark.broadcast.compress) configuration property for the [CompressionCodec](../CompressionCodec.md) to use for [writeBlocks](#writeBlocks) and [readBroadcastBlock](#readBroadcastBlock).
+`TorrentBroadcast` uses the [spark.broadcast.compress](../configuration-properties.md#spark.broadcast.compress) configuration property for the `CompressionCodec` to use for [writeBlocks](#writeBlocks) and [readBroadcastBlock](#readBroadcastBlock).
 
 ## <span id="blockSize"> Broadcast Block Chunk Size
 
@@ -177,7 +177,7 @@ blockifyObject(
   compressionCodec: Option[CompressionCodec]): Array[ByteBuffer]
 ```
 
-`blockifyObject` divides (_blockifies_) the input `obj` broadcast value into blocks (`ByteBuffer` chunks). `blockifyObject` uses the given [Serializer](../serializer/Serializer.md) to write the value in a serialized format to a `ChunkedByteBufferOutputStream` of the given `blockSize` size with the optional [CompressionCodec](../CompressionCodec.md).
+`blockifyObject` divides (_blockifies_) the input `obj` broadcast value into blocks (`ByteBuffer` chunks). `blockifyObject` uses the given [Serializer](../serializer/Serializer.md) to write the value in a serialized format to a `ChunkedByteBufferOutputStream` of the given `blockSize` size with the optional `CompressionCodec`.
 
 ### <span id="writeBlocks-exceptions"> Error Handling
 

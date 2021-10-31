@@ -1,51 +1,87 @@
 # TransportConf
 
-TransportConf is a class for the transport-related network configuration for modules, e.g. [ExternalShuffleService](../external-shuffle-service/ExternalShuffleService.md) or spark-on-yarn:spark-yarn-YarnShuffleService.md[YarnShuffleService].
+## Creating Instance
 
-TransportConf exposes methods to access settings for a single module as <<spark.module.prefix, spark.module.prefix>> or <<general-settings, general network-related settings>>.
+`TransportConf` takes the following to be created:
 
-== [[spark.module.prefix]] spark.module.prefix Settings
+* [Module Name](#module)
+* <span id="conf"> `ConfigProvider`
 
-The settings can be in the form of *spark.[module].[prefix]* with the following prefixes:
+`TransportConf` is created when:
 
-* `io.mode` (default: `NIO`) -- the IO mode: `nio` or `epoll`.
+* `SparkTransportConf` utility is used to [fromSparkConf](SparkTransportConf.md#fromSparkConf)
+* `YarnShuffleService` (Spark on YARN) is requested to `serviceInit`
 
-* `io.preferDirectBufs` (default: `true`) -- a flag to control whether Spark prefers allocating off-heap byte buffers within Netty (`true`) or not (`false`).
+## <span id="module"> Module Name
 
-* `io.connectionTimeout` (default: rpc:index.md#spark.network.timeout[spark.network.timeout] or `120s`) -- the connection timeout in milliseconds.
+`TransportConf` is given the name of a module the transport-related configuration properties are for and is as follows (per [SparkTransportConf](SparkTransportConf.md#fromSparkConf)):
 
-* `io.backLog` (default: `-1` for no backlog) -- the requested maximum length of the queue of incoming connections.
+* `shuffle`
+* `rpc` for [NettyRpcEnv](../rpc/NettyRpcEnv.md#transportConf)
+* `files` for [NettyRpcEnv](../rpc/NettyRpcEnv.md#downloadClient)
 
-* `io.numConnectionsPerPeer` (default: `1`) -- the number of concurrent connections between two nodes for fetching data.
+### <span id="getModuleName"> getModuleName
 
-* `io.serverThreads` (default: `0` i.e. 2x#cores) -- the number of threads used in the server thread pool.
+```java
+String getModuleName()
+```
 
-* `io.clientThreads` (default: `0` i.e. 2x#cores) -- the number of threads used in the client thread pool.
+`getModuleName` returns the [module name](#module).
 
-* `io.receiveBuffer` (default: `-1`) -- the receive buffer size (SO_RCVBUF).
+## <span id="getConfKey"> getConfKey
 
-* `io.sendBuffer` (default: `-1`) -- the send buffer size (SO_SNDBUF).
+```java
+String getConfKey(
+  String suffix)
+```
 
-* `sasl.timeout` (default: `30s`) -- the timeout (in milliseconds) for a single round trip of SASL token exchange.
+`getConfKey` creates the key of a configuration property (with the [module](#module) and the given [suffix](#suffixes)):
 
-* [[io.maxRetries]] `io.maxRetries` (default: `3`) -- the maximum number of times Spark will try IO exceptions (such as connection timeouts) per request. If set to `0`, Spark will not do any retries.
+```text
+spark.[module].[suffix]
+```
 
-* `io.retryWait` (default: `5s`) -- the time (in milliseconds) that Spark will wait in order to perform a retry after an `IOException`. Only relevant if `io.maxRetries` > 0.
+## Suffixes
 
-* `io.lazyFD` (default: `true`) -- controls whether to initialize `FileDescriptor` lazily (`true`) or not (`false`). If `true`, file descriptors are created only when data is going to be transferred. This can reduce the number of open files.
+### <span id="SPARK_NETWORK_IO_MODE_KEY"><span id="io.mode"><span id="ioMode"> io.mode
 
-== [[general-settings]] General Network-Related Settings
+* `nio` (default)
+* `epoll`
 
-=== [[spark.storage.memoryMapThreshold]] spark.storage.memoryMapThreshold
+### <span id="SPARK_NETWORK_IO_PREFERDIRECTBUFS_KEY"><span id="io.preferDirectBufs"><span id="preferDirectBufs"> io.preferDirectBufs
 
-`spark.storage.memoryMapThreshold` (default: `2m`) is the minimum size of a block that we should start using memory map rather than reading in through normal IO operations.
+Controls whether Spark prefers allocating off-heap byte buffers within Netty (`true`) or not (`false`).
 
-This prevents Spark from memory mapping very small blocks. In general, memory mapping has high overhead for blocks close to or below the page size of the OS.
+Default: `true`
 
-=== [[spark.network.sasl.maxEncryptedBlockSize]] spark.network.sasl.maxEncryptedBlockSize
+### <span id="SPARK_NETWORK_IO_CONNECTIONTIMEOUT_KEY"><span id="io.connectionTimeout"> io.connectionTimeout
 
-`spark.network.sasl.maxEncryptedBlockSize` (default: `64k`) is the maximum number of bytes to be encrypted at a time when SASL encryption is enabled.
+### <span id="SPARK_NETWORK_IO_CONNECTIONCREATIONTIMEOUT_KEY"><span id="io.connectionCreationTimeout"> io.connectionCreationTimeout
 
-=== [[spark.network.sasl.serverAlwaysEncrypt]] spark.network.sasl.serverAlwaysEncrypt
+### <span id="SPARK_NETWORK_IO_BACKLOG_KEY"><span id="io.backLog"><span id="backLog"> io.backLog
 
-`spark.network.sasl.serverAlwaysEncrypt` (default: `false`) controls whether the server should enforce encryption on SASL-authenticated connections (`true`) or not (`false`).
+The requested maximum length of the queue of incoming connections
+
+Default: `-1` (no backlog)
+
+### <span id="SPARK_NETWORK_IO_NUMCONNECTIONSPERPEER_KEY"><span id="io.numConnectionsPerPeer"> io.numConnectionsPerPeer
+
+### <span id="SPARK_NETWORK_IO_SERVERTHREADS_KEY"><span id="io.serverThreads"> io.serverThreads
+
+### <span id="SPARK_NETWORK_IO_CLIENTTHREADS_KEY"><span id="io.clientThreads"> io.clientThreads
+
+### <span id="SPARK_NETWORK_IO_RECEIVEBUFFER_KEY"><span id="io.receiveBuffer"> io.receiveBuffer
+
+### <span id="SPARK_NETWORK_IO_SENDBUFFER_KEY"><span id="io.sendBuffer"> io.sendBuffer
+
+### <span id="SPARK_NETWORK_SASL_TIMEOUT_KEY"><span id="sasl.timeout"> sasl.timeout
+
+### <span id="SPARK_NETWORK_IO_MAXRETRIES_KEY"><span id="io.maxRetries"> io.maxRetries
+
+### <span id="SPARK_NETWORK_IO_RETRYWAIT_KEY"><span id="io.retryWait"> io.retryWait
+
+### <span id="SPARK_NETWORK_IO_LAZYFD_KEY"><span id="io.lazyFD"> io.lazyFD
+
+### <span id="SPARK_NETWORK_VERBOSE_METRICS"><span id="io.enableVerboseMetrics"> io.enableVerboseMetrics
+
+### <span id="SPARK_NETWORK_IO_ENABLETCPKEEPALIVE_KEY"><span id="io.enableTcpKeepAlive"> io.enableTcpKeepAlive

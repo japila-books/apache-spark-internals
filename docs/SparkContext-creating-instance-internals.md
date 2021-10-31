@@ -169,7 +169,7 @@ If spark-history-server:EventLoggingListener.md[event logging] is enabled, i.e. 
 _eventLogCodec: Option[String]
 ```
 
-Also, if spark-history-server:EventLoggingListener.md#spark_eventLog_compress[spark.eventLog.compress] is enabled (it is not by default), the short name of the io:CompressionCodec.md[CompressionCodec] is assigned to `_eventLogCodec`. The config key is [spark.io.compression.codec](broadcast-variables/BroadcastManager.md#spark_io_compression_codec) (default: `lz4`).
+Also, if spark-history-server:EventLoggingListener.md#spark_eventLog_compress[spark.eventLog.compress] is enabled (it is not by default), the short name of the `CompressionCodec` is assigned to `_eventLogCodec`. The config key is [spark.io.compression.codec](broadcast-variables/BroadcastManager.md#spark_io_compression_codec) (default: `lz4`).
 
 ## <span id="_listenerBus"> Creating LiveListenerBus
 

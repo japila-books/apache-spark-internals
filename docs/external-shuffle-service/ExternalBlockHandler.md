@@ -1,6 +1,6 @@
 # ExternalBlockHandler
 
-`ExternalBlockHandler` is an [RpcHandler](../network/RpcHandler.md).
+`ExternalBlockHandler` is an `RpcHandler`.
 
 ## Creating Instance
 
@@ -22,7 +22,7 @@
 
 ## <span id="streamManager"> OneForOneStreamManager
 
-`ExternalBlockHandler` can be given or creates an [OneForOneStreamManager](../network/OneForOneStreamManager.md) to be [created](#creating-instance).
+`ExternalBlockHandler` can be given or creates an `OneForOneStreamManager` when [created](#creating-instance).
 
 ## <span id="blockManager"><span id="getBlockResolver"><span id="ExternalShuffleBlockResolver"> ExternalShuffleBlockResolver
 
@@ -60,7 +60,7 @@ Request to read a set of blocks
 
 * `OneForOneBlockFetcher` is requested to [createFetchShuffleBlocksMsg](../storage/OneForOneBlockFetcher.md#createFetchShuffleBlocksMsg)
 
-When received, `ExternalBlockHandler` requests the [OneForOneStreamManager](#streamManager) to [registerStream](../network/OneForOneStreamManager.md#registerStream) (with a `ShuffleManagedBufferIterator`).
+When received, `ExternalBlockHandler` requests the [OneForOneStreamManager](#streamManager) to `registerStream` (with a `ShuffleManagedBufferIterator`).
 
 `ExternalBlockHandler` prints out the following TRACE message to the logs:
 

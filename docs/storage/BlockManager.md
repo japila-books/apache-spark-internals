@@ -286,7 +286,7 @@ getRemoteValues[T: ClassTag](
   blockId: BlockId): Option[BlockResult]
 ```
 
-`getRemoteValues` [getRemoteBlock](#getRemoteBlock) with the `bufferTransformer` function that takes a [ManagedBuffer](../network/ManagedBuffer.md) and does the following:
+`getRemoteValues` [getRemoteBlock](#getRemoteBlock) with the `bufferTransformer` function that takes a `ManagedBuffer` and does the following:
 
 * Requests the [SerializerManager](#serializerManager) to [deserialize values from an input stream](../serializer/SerializerManager.md#dataDeserializeStream) from the `ManagedBuffer`
 * Creates a `BlockResult` with the values (and their total size, and `Network` read method)
@@ -298,7 +298,7 @@ getRemoteBytes(
   blockId: BlockId): Option[ChunkedByteBuffer]
 ```
 
-`getRemoteBytes` [getRemoteBlock](#getRemoteBlock) with the `bufferTransformer` function that takes a [ManagedBuffer](../network/ManagedBuffer.md) and creates a `ChunkedByteBuffer`.
+`getRemoteBytes` [getRemoteBlock](#getRemoteBlock) with the `bufferTransformer` function that takes a `ManagedBuffer` and creates a `ChunkedByteBuffer`.
 
 `getRemoteBytes` is used when:
 
@@ -723,7 +723,7 @@ putBlockData(
 
 `putBlockData` is part of the [BlockDataManager](BlockDataManager.md#putBlockData) abstraction.
 
-`putBlockData` [putBytes](#putBytes) with Java NIO's [ByteBuffer](../network/ManagedBuffer.md#nioByteBuffer) of the given [ManagedBuffer](../network/ManagedBuffer.md).
+`putBlockData` [putBytes](#putBytes) with Java NIO's `ByteBuffer` of the given `ManagedBuffer`.
 
 ## <span id="putBytes"> Storing Block (ByteBuffer) Locally
 

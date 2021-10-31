@@ -826,40 +826,6 @@ serializer:Serializer.md[Serializer]
 
 Default: `org.apache.spark.serializer.JavaSerializer`
 
-== [[spark.io.compression.codec]] spark.io.compression.codec
-
-The default io:CompressionCodec.md[CompressionCodec]
-
-Default: `lz4`
-
-== [[spark.io.compression.lz4.blockSize]] spark.io.compression.lz4.blockSize
-
-The block size of the io:CompressionCodec.md#LZ4CompressionCodec[LZ4CompressionCodec]
-
-Default: `32k`
-
-== [[spark.io.compression.snappy.blockSize]] spark.io.compression.snappy.blockSize
-
-The block size of the io:CompressionCodec.md#SnappyCompressionCodec[SnappyCompressionCodec]
-
-Default: `32k`
-
-== [[spark.io.compression.zstd.bufferSize]] spark.io.compression.zstd.bufferSize
-
-The buffer size of the BufferedOutputStream of the io:CompressionCodec.md#ZStdCompressionCodec[ZStdCompressionCodec]
-
-Default: `32k`
-
-The buffer is used to avoid the overhead of excessive JNI calls while compressing or uncompressing small amount of data
-
-== [[spark.io.compression.zstd.level]] spark.io.compression.zstd.level
-
-The compression level of the io:CompressionCodec.md#ZStdCompressionCodec[ZStdCompressionCodec]
-
-Default: `1`
-
-The default level is the fastest of all with reasonably high compression ratio
-
 == [[spark.buffer.size]] spark.buffer.size
 
 Default: `65536`

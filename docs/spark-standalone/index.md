@@ -54,9 +54,7 @@ Mesos and YARN can, out of the box, support packing multiple, smaller executors 
 
 ## SparkDeploySchedulerBackend
 
-`SparkDeploySchedulerBackend` is the xref:scheduler:SchedulerBackend.md[Scheduler Backend] for Spark Standalone, i.e. it is used when you xref:ROOT:SparkContext.md#creating-instance[create a SparkContext] using `spark://` link:spark-deployment-environments.md#master-urls[master URL].
-
-It requires a xref:scheduler:TaskScheduler.md[Task Scheduler], a xref:ROOT:SparkContext.md[], and a collection of link:spark-deployment-environments.md#master-urls[master URLs].
+`SparkDeploySchedulerBackend` is the xref:scheduler:SchedulerBackend.md[Scheduler Backend] for Spark Standalone, i.e. it is used when you xref:ROOT:SparkContext.md#creating-instance[create a SparkContext] using `spark://` master URL.
 
 It is a specialized xref:scheduler:CoarseGrainedSchedulerBackend.md[CoarseGrainedSchedulerBackend] that uses <<AppClient, AppClient>> and is a `AppClientListener`.
 
@@ -93,10 +91,9 @@ When it starts, it sends <<RegisterApplication, RegisterApplication>> message to
 
 #### RegisterApplication RPC message
 
-An AppClient registers the Spark application to a single master (regardless of link:spark-deployment-environments.md#master-urls[the number of the standalone masters given in the master URL]).
+An AppClient registers the Spark application to a single master (regardless of the number of the standalone masters given in the master URL).
 
-.AppClient registers application to standalone Master
-image::appclient-registerapplication.png[align="center"]
+![AppClient registers application to standalone Master](../images/appclient-registerapplication.png)
 
 It uses a dedicated thread pool *appclient-register-master-threadpool* to asynchronously send `RegisterApplication` messages, one per standalone master.
 

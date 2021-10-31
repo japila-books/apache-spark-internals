@@ -122,7 +122,7 @@ repartition(numPartitions: Int)(implicit ord: Ordering[T] = null): RDD[T]
 
 `repartition` is <<coalesce, coalesce>> with `numPartitions` and `shuffle` enabled.
 
-With the following computation you can see that `repartition(5)` causes 5 tasks to be started using `NODE_LOCAL` spark-data-locality.md[data locality].
+With the following computation you can see that `repartition(5)` causes 5 tasks to be started using `NODE_LOCAL` data locality.
 
 ```
 scala> lines.repartition(5).count
@@ -137,7 +137,7 @@ scala> lines.repartition(5).count
 ...
 ```
 
-You can see a change after executing `repartition(1)` causes 2 tasks to be started using `PROCESS_LOCAL` spark-data-locality.md[data locality].
+You can see a change after executing `repartition(1)` causes 2 tasks to be started using `PROCESS_LOCAL` data locality.
 
 ```
 scala> lines.repartition(1).count

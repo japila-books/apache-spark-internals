@@ -1,31 +1,42 @@
-= SparkTransportConf
+# SparkTransportConf Utility
 
-*SparkTransportConf* is...FIXME
+## <span id="fromSparkConf"> fromSparkConf
 
-== [[fromSparkConf]] Creating TransportConf
-
-[source,scala]
-----
+```scala
 fromSparkConf(
   _conf: SparkConf,
-  module: String,
-  numUsableCores: Int = 0): TransportConf
-----
+  module: String, // (1)
+  numUsableCores: Int = 0,
+  role: Option[String] = None): TransportConf // (2)
+```
 
-fromSparkConf...FIXME
+1. The given `module` is `shuffle` most of the time except:
+    * `rpc` for [NettyRpcEnv](../rpc/NettyRpcEnv.md#transportConf)
+    * `files` for [NettyRpcEnv](../rpc/NettyRpcEnv.md#downloadClient)
+2. Only defined in [NettyRpcEnv](../rpc/NettyRpcEnv.md#role) to be either `driver` or `executor`
 
-fromSparkConf is used when...FIXME
+`fromSparkConf` makes a copy (_clones_) the given [SparkConf](../SparkConf.md).
 
-== [[defaultNumThreads]] Calculating Default Number of Threads
+`fromSparkConf` sets the following configuration properties (for the given `module`):
 
-[source, scala]
-----
-defaultNumThreads(
-  numUsableCores: Int): Int
-----
+* `spark.[module].io.serverThreads`
+* `spark.[module].io.clientThreads`
 
-defaultNumThreads calculates the default number of threads for both the Netty client and server thread pools that is 8 maximum or `numUsableCores` is smaller. If `numUsableCores` is not specified, defaultNumThreads uses the number of processors available to the Java virtual machine.
+The values are taken using the following properties in the order and until one is found (with `suffix` being `serverThreads` or `clientThreads`, respectively):
 
-NOTE: 8 is the maximum number of threads for Netty and is not configurable.
+1. `spark.[role].[module].io.[suffix]`
+1. `spark.[module].io.[suffix]`
 
-NOTE: defaultNumThreads uses ++https://docs.oracle.com/javase/8/docs/api/java/lang/Runtime.html#availableProcessors--++[Java's Runtime for the number of processors in JVM].
+Unless found, `fromSparkConf` defaults to the default number of threads (based on the given `numUsableCores` and not more than `8`).
+
+In the end, `fromSparkConf` creates a [TransportConf](TransportConf.md) (for the given `module` and the updated `SparkConf`).
+
+`fromSparkConf` is used when:
+
+* `SparkEnv` utility is used to [create a SparkEnv](../SparkEnv.md#create) (with the [spark.shuffle.service.enabled](../external-shuffle-service/configuration-properties.md#spark.shuffle.service.enabled) configuration property enabled)
+* `ExternalShuffleService` is [created](../external-shuffle-service/ExternalShuffleService.md#transportConf)
+* `NettyBlockTransferService` is requested to [init](../storage/NettyBlockTransferService.md#transportConf)
+* `NettyRpcEnv` is [created](../rpc/NettyRpcEnv.md#transportConf) and requested for a [downloadClient](../rpc/NettyRpcEnv.md#downloadClient)
+* `IndexShuffleBlockResolver` is [created](../shuffle/IndexShuffleBlockResolver.md#transportConf)
+* `ShuffleBlockPusher` is requested to [initiateBlockPush](../shuffle/ShuffleBlockPusher.md#initiateBlockPush)
+* `BlockManager` is requested to [readDiskBlockFromSameHostExecutor](../storage/BlockManager.md#readDiskBlockFromSameHostExecutor)

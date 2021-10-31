@@ -5,7 +5,7 @@
 `TransportContext` takes the following to be created:
 
 * <span id="conf"> [TransportConf](TransportConf.md)
-* <span id="rpcHandler"> [RpcHandler](RpcHandler.md)
+* <span id="rpcHandler"> `RpcHandler`
 * <span id="closeIdleConnections"> `closeIdleConnections` flag
 * <span id="isClientOnly"> `isClientOnly` flag
 
@@ -29,7 +29,7 @@ TransportServer createServer(
   List<TransportServerBootstrap> bootstraps)
 ```
 
-`createServer` creates a [TransportServer](TransportServer.md) (with the [RpcHandler](#rpcHandler) and the input arguments).
+`createServer` creates a `TransportServer` (with the [RpcHandler](#rpcHandler) and the input arguments).
 
 `createServer` is used when:
 

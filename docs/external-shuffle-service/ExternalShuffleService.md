@@ -74,11 +74,11 @@ Shutting down shuffle service.
 server: TransportServer
 ```
 
-`ExternalShuffleService` uses an internal reference to a [TransportServer](../network/TransportServer.md) that is created when `ExternalShuffleService` is [started](#start).
+`ExternalShuffleService` uses an internal reference to a `TransportServer` that is created when `ExternalShuffleService` is [started](#start).
 
 `ExternalShuffleService` uses an [ExternalBlockHandler](#blockHandler) to handle RPC messages (and serve RDD blocks and shuffle blocks).
 
-`TransportServer` is [closed](../network/TransportServer.md#close) when `ExternalShuffleService` is requested to [stop](#stop).
+`TransportServer` is requested to `close` when `ExternalShuffleService` is requested to [stop](#stop).
 
 `TransportServer` is used for metrics.
 

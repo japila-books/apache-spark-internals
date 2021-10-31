@@ -1,6 +1,6 @@
 # SparkConf
 
-Every user program starts with creating an instance of `SparkConf` that holds the spark-deployment-environments.md#master-urls[master URL] to connect to (`spark.master`), the name for your Spark application (that is later displayed in webui:index.md[web UI] and becomes `spark.app.name`) and other Spark properties required for proper runs. The instance of `SparkConf` can be used to create SparkContext.md[SparkContext].
+Every user program starts with creating an instance of `SparkConf` that holds the `master URL` to connect to (`spark.master`), the name for your Spark application (that is later displayed in webui:index.md[web UI] and becomes `spark.app.name`) and other Spark properties required for proper runs. The instance of `SparkConf` can be used to create SparkContext.md[SparkContext].
 
 [TIP]
 ====

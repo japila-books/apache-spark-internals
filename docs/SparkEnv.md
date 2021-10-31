@@ -102,7 +102,7 @@ createDriverEnv(
 
 ![Spark Environment for driver](images/sparkenv-driver.png)
 
-`createDriverEnv` accepts an instance of SparkConf.md[SparkConf], spark-deployment-environments.md[whether it runs in local mode or not], scheduler:LiveListenerBus.md[], the number of cores to use for execution in local mode or `0` otherwise, and a [OutputCommitCoordinator](OutputCommitCoordinator.md) (default: none).
+`createDriverEnv` accepts an instance of [SparkConf](SparkConf.md), whether it runs in local mode or not, scheduler:LiveListenerBus.md[], the number of cores to use for execution in local mode or `0` otherwise, and a [OutputCommitCoordinator](OutputCommitCoordinator.md) (default: none).
 
 `createDriverEnv` ensures that spark-driver.md#spark_driver_host[spark.driver.host] and spark-driver.md#spark_driver_port[spark.driver.port] settings are defined.
 

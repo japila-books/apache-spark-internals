@@ -144,7 +144,7 @@ ManagedBuffer getBlockData(
 `getBlockData` is used when:
 
 * `ManagedBufferIterator` is created
-* `ShuffleManagedBufferIterator` is requested for next [ManagedBuffer](../network/ManagedBuffer.md)
+* `ShuffleManagedBufferIterator` is requested for next `ManagedBuffer`
 
 ## Logging
 

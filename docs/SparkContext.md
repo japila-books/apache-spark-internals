@@ -15,7 +15,7 @@
 
 `SparkContext` is created (directly or indirectly using [getOrCreate](#getOrCreate) utility).
 
-While being created, `SparkContext` [sets up core services](SparkContext-creating-instance-internals.md) and establishes a connection to a [Spark execution environment](spark-deployment-environments.md).
+While being created, `SparkContext` [sets up core services](SparkContext-creating-instance-internals.md) and establishes a connection to a cluster manager.
 
 ## Services
 
@@ -240,7 +240,7 @@ createTaskScheduler(
 
 ![SparkContext creates Task Scheduler and Scheduler Backend](images/diagrams/sparkcontext-createtaskscheduler.png)
 
-Internally, `createTaskScheduler` branches off per the given master URL ([master URL](spark-deployment-environments.md#master-urls)) to select the requested implementations.
+Internally, `createTaskScheduler` branches off per the given master URL to select the requested implementations.
 
 `createTaskScheduler` accepts the following master URLs:
 
@@ -661,30 +661,6 @@ Running Spark version 2.0.0-SNAPSHOT
 
 NOTE: Only one SparkContext may be running in a single JVM (check out https://issues.apache.org/jira/browse/SPARK-2243[SPARK-2243 Support multiple SparkContexts in the same JVM]). Sharing access to a SparkContext in the JVM is the solution to share data within Spark (without relying on other means of data sharing using external data stores).
 
-== [[env]] Accessing Current SparkEnv -- `env` Method
-
-CAUTION: FIXME
-
-== [[getConf]] Getting Current SparkConf -- `getConf` Method
-
-[source, scala]
-----
-getConf: SparkConf
-----
-
-`getConf` returns the current SparkConf.md[SparkConf].
-
-NOTE: Changing the `SparkConf` object does not change the current configuration (as the method returns a copy).
-
-== [[master]][[master-url]] Deployment Environment -- `master` Method
-
-[source, scala]
-----
-master: String
-----
-
-`master` method returns the current value of configuration-properties.md#spark.master[spark.master] which is the spark-deployment-environments.md[deployment environment] in use.
-
 == [[appName]] Application Name -- `appName` Method
 
 [source, scala]
@@ -730,24 +706,6 @@ NOTE: `getExecutorStorageStatus` is a developer API.
 * `SparkContext` is requested for [storage status of cached RDDs](#getRDDStorageInfo)
 
 * `SparkStatusTracker` is requested for [known executors](SparkStatusTracker.md#getExecutorInfos)
-
-== [[deployMode]] Deploy Mode -- `deployMode` Method
-
-[source,scala]
-----
-deployMode: String
-----
-
-`deployMode` returns the current value of spark-deploy-mode.md[spark.submit.deployMode] setting or `client` if not set.
-
-== [[getSchedulingMode]] Scheduling Mode -- `getSchedulingMode` Method
-
-[source, scala]
-----
-getSchedulingMode: SchedulingMode.SchedulingMode
-----
-
-`getSchedulingMode` returns the current spark-scheduler-SchedulingMode.md[Scheduling Mode].
 
 == [[getPoolForName]] Schedulable (Pool) by Name -- `getPoolForName` Method
 

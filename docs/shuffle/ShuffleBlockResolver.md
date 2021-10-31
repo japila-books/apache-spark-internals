@@ -23,7 +23,7 @@ getBlockData(
   blockId: ShuffleBlockId): ManagedBuffer
 ----
 
-Retrieves the data (as a network:ManagedBuffer.md[]) for the given storage:BlockId.md#ShuffleBlockId[block] (a tuple of `shuffleId`, `mapId` and `reduceId`).
+Retrieves the data (as a `ManagedBuffer`) for the given storage:BlockId.md#ShuffleBlockId[block] (a tuple of `shuffleId`, `mapId` and `reduceId`).
 
 Used when `BlockManager` is requested to retrieve a storage:BlockManager.md#getLocalBytes[block data from a local block manager] and storage:BlockManager.md#getBlockData[block data]
 
