@@ -181,9 +181,17 @@ hasNext: Boolean
 next(): (BlockId, InputStream)
 ```
 
-`next` is part of the `Iterator` ([Scala]({{ scala.api }}/scala/collection/Iterator.html#next():A)) abstraction (to produce the next element of this iterator).
+`next` increments the [numBlocksProcessed](#numBlocksProcessed) registry.
+
+`next` takes (and removes) the head of the [results](#results) queue.
+
+`next` requests the [ShuffleReadMetricsReporter](#shuffleMetrics) to `incFetchWaitTime`.
 
 `next`...FIXME
+
+`next` throws a `NoSuchElementException` if there is [no element left](#hasNext).
+
+`next` is part of the `Iterator` ([Scala]({{ scala.api }}/scala/collection/Iterator.html#next():A)) abstraction (to produce the next element of this iterator).
 
 ## <span id="numBlocksProcessed"> numBlocksProcessed
 
@@ -265,6 +273,30 @@ When enabled, [registerTempFileToClean](#registerTempFileToClean) is a noop.
 ## <span id="DownloadFileManager"> DownloadFileManager
 
 `ShuffleBlockFetcherIterator` is a [DownloadFileManager](../shuffle/DownloadFileManager.md).
+
+## <span id="throwFetchFailedException"> throwFetchFailedException
+
+```scala
+throwFetchFailedException(
+  blockId: BlockId,
+  mapIndex: Int,
+  address: BlockManagerId,
+  e: Throwable,
+  message: Option[String] = None): Nothing
+```
+
+`throwFetchFailedException` takes the `message` (if defined) or uses the message of the given `Throwable`.
+
+In the end, `throwFetchFailedException` throws a [FetchFailedException](../shuffle/FetchFailedException.md) if the [BlockId](BlockId.md) is either a `ShuffleBlockId` or a `ShuffleBlockBatchId`. Otherwise, `throwFetchFailedException` throws a `SparkException`:
+
+```text
+Failed to get block [blockId], which is not a shuffle block
+```
+
+`throwFetchFailedException` is used when:
+
+* `ShuffleBlockFetcherIterator` is requested to [next](#next)
+* `BufferReleasingInputStream` is requested to `tryOrFetchFailedException`
 
 ## Logging
 
