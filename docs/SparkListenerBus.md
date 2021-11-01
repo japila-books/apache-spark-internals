@@ -18,5 +18,5 @@ doPostEvent(
 
 ## Implementations
 
-* [AsyncEventQueue](AsyncEventQueue.md)
+* `AsyncEventQueue`
 * [ReplayListenerBus](history-server/ReplayListenerBus.md)

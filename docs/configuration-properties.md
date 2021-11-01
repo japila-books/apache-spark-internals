@@ -53,6 +53,36 @@ Address of the driver (endpoints)
 
 Default: [Utils.localCanonicalHostName](Utils.md#localCanonicalHostName)
 
+## <span id="spark.driver.log.allowErasureCoding"><span id="DRIVER_LOG_ALLOW_EC"> spark.driver.log.allowErasureCoding
+
+Default: `false`
+
+Used when:
+
+* `DfsAsyncWriter` is requested to `init`
+
+## <span id="spark.driver.log.dfsDir"><span id="DRIVER_LOG_DFS_DIR"> spark.driver.log.dfsDir
+
+The directory on a Hadoop DFS-compliant file system where [DriverLogger](DriverLogger.md) copies driver logs to
+
+Default: (undefined)
+
+Used when:
+
+* `FsHistoryProvider` is requested to [startPolling](history-server/FsHistoryProvider.md#startPolling) (and [cleanDriverLogs](history-server/FsHistoryProvider.md#cleanDriverLogs))
+* `DfsAsyncWriter` is requested to `init`
+* `DriverLogger` utility is used to [create a DriverLogger](DriverLogger.md#apply) (for a [SparkContext](SparkContext.md#_driverLogger))
+
+## <span id="spark.driver.log.persistToDfs.enabled"><span id="DRIVER_LOG_PERSISTTODFS"> spark.driver.log.persistToDfs.enabled
+
+Enables [DriverLogger](DriverLogger.md)
+
+Default: `false`
+
+Used when:
+
+* `DriverLogger` utility is used to [create a DriverLogger](DriverLogger.md#apply) (for a [SparkContext](SparkContext.md#_driverLogger))
+
 ## <span id="spark.driver.maxResultSize"><span id="MAX_RESULT_SIZE"> spark.driver.maxResultSize
 
 Maximum size of task results (in bytes)
@@ -535,6 +565,11 @@ Must be at most the [total amount of memory available for storage](storage/Memor
 Used when:
 
 * `MemoryStore` is [created](storage/MemoryStore.md#unrollMemoryThreshold)
+
+## <span id="spark.submit.deployMode"><span id="DEPLOY_MODE"> spark.submit.deployMode
+
+* `client` (default)
+* `cluster`
 
 ## <span id="spark.task.cpus"><span id="CPUS_PER_TASK"> spark.task.cpus
 

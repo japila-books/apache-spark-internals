@@ -33,7 +33,7 @@ postToAll(
 
 `postToAll` is used when:
 
-* `AsyncEventQueue` is requested to [dispatch an event](AsyncEventQueue.md#dispatch)
+* `AsyncEventQueue` is requested to dispatch an event
 * `ReplayListenerBus` is requested to [replay events](history-server/ReplayListenerBus.md#replay)
 
 ## <span id="addListener"> Registering Listener

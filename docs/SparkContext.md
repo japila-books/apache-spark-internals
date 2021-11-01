@@ -23,6 +23,12 @@ While being created, `SparkContext` [sets up core services](SparkContext-creatin
 
 * <span id="schedulerBackend"> [SchedulerBackend](scheduler/SchedulerBackend.md)
 
+## <span id="_driverLogger"><span id="DriverLogger"> DriverLogger
+
+`SparkContext` can [create a DriverLogger](DriverLogger.md#apply) when [created](#creating-instance).
+
+`SparkContext` requests the `DriverLogger` to [startSync](DriverLogger.md#startSync) in [postApplicationStart](#postApplicationStart).
+
 ## <span id="appStatusSource"> AppStatusSource
 
 `SparkContext` can [create an AppStatusSource](status/AppStatusSource.md#createSource) when [created](#creating-instance) (based on the [spark.metrics.appStatusSource.enabled](metrics/configuration-properties.md#spark.metrics.appStatusSource.enabled) configuration property).

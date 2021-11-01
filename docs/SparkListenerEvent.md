@@ -4,7 +4,7 @@
 
 ## Dispatching SparkListenerEvents
 
-[SparkListenerBus](SparkListenerBus.md) in general (and [AsyncEventQueue](AsyncEventQueue.md) in particular) are event buses used to dispatch `SparkListenerEvent`s to registered [SparkListener](SparkListenerInterface.md)s.
+[SparkListenerBus](SparkListenerBus.md) in general (and `AsyncEventQueue` are event buses used to dispatch `SparkListenerEvent`s to registered [SparkListener](SparkListenerInterface.md)s.
 
 [LiveListenerBus](scheduler/LiveListenerBus.md) is an event bus to dispatch `SparkListenerEvent`s to registered [SparkListener](SparkListenerInterface.md)s.
 

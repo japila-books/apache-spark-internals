@@ -1,3 +1,0 @@
-# AsyncEventQueue
-
-`AsyncEventQueue` is...FIXME

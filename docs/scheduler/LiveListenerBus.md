@@ -23,7 +23,7 @@
 queues: CopyOnWriteArrayList[AsyncEventQueue]
 ```
 
-`LiveListenerBus` manages [AsyncEventQueue](../AsyncEventQueue.md)s.
+`LiveListenerBus` manages `AsyncEventQueue`s.
 
 `queues` is initialized empty when `LiveListenerBus` is [created](#creating-instance).
 
@@ -47,7 +47,7 @@ metrics: LiveListenerBusMetrics
 `metrics` is used to:
 
 * Increment events posted every [event posting](#post)
-* Create a [AsyncEventQueue](../AsyncEventQueue.md) when [adding a listener to a queue](#addToQueue)
+* Create a `AsyncEventQueue` when [adding a listener to a queue](#addToQueue)
 
 ## <span id="start"> Starting LiveListenerBus
 
@@ -57,7 +57,7 @@ start(
   metricsSystem: MetricsSystem): Unit
 ```
 
-`start` starts [AsyncEventQueue](../AsyncEventQueue.md)s (from the [queues](#queues) internal registry).
+`start` starts `AsyncEventQueue`s (from the [queues](#queues) internal registry).
 
 In the end, `start` requests the given [MetricsSystem](../metrics/MetricsSystem.md) to [register](../metrics/MetricsSystem.md#registerSource) the [LiveListenerBusMetrics](#metrics).
 
@@ -185,24 +185,9 @@ addToQueue(
 
 If found, `addToQueue` requests it to [add the given listener](../ListenerBus.md#addListener)
 
-If not found, `addToQueue` creates a [AsyncEventQueue](../AsyncEventQueue.md) (with the given name, the [LiveListenerBusMetrics](#metrics), and this `LiveListenerBus`) and requests it to [add the given listener](../ListenerBus.md#addListener). The `AsyncEventQueue` is [started](../AsyncEventQueue.md#start) and added to the [queues](#queues) internal registry.
+If not found, `addToQueue` creates a `AsyncEventQueue` (with the given name, the [LiveListenerBusMetrics](#metrics), and this `LiveListenerBus`) and requests it to [add the given listener](../ListenerBus.md#addListener). The `AsyncEventQueue` is started and added to the [queues](#queues) internal registry.
 
 `addToQueue` is used when:
 
 * `LiveListenerBus` is requested to [addToSharedQueue](#addToSharedQueue), [addToManagementQueue](#addToManagementQueue), [addToStatusQueue](#addToStatusQueue), [addToEventLogQueue](#addToEventLogQueue)
 * `StreamingQueryListenerBus` ([Spark Structured Streaming]({{ book.structured_streaming }}/StreamingQueryListenerBus/)) is created
-
-## <span id="removeListener"> Deregistering Listener
-
-```scala
-removeListener(
-  listener: SparkListenerInterface): Unit
-```
-
-`removeListener`...FIXME
-
-`removeListener` is used when:
-
-* `BarrierCoordinator` is requested to `onStop`
-* `SparkContext` is requested to [deregister a SparkListener](../SparkContext.md#removeSparkListener)
-* `AsyncEventQueue` is requested to [deregister a listener on error](../AsyncEventQueue.md#removeListenerOnError)
