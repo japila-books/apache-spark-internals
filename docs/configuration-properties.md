@@ -657,7 +657,7 @@ Default: `(empty)`
 
 Used when:
 
-* Spark Standalone's `StandaloneSchedulerBackend` is requested to spark-standalone:StandaloneSchedulerBackend.md#start[start] (and creates a command for executor:CoarseGrainedExecutorBackend.md[])
+* `StandaloneSchedulerBackend` (Spark Standalone) is requested to `start` (and creates a command for [CoarseGrainedExecutorBackend](executor/CoarseGrainedExecutorBackend.md))
 
 * Spark local's `LocalSchedulerBackend` is requested for the spark-local:spark-LocalSchedulerBackend.md#getUserClasspath[user-defined class path for executors]
 

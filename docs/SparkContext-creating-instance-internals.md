@@ -251,7 +251,7 @@ _executorMemory: Int
 
 `SparkContext` determines the amount of memory to allocate to each executor. It is the value of executor:Executor.md#spark.executor.memory[spark.executor.memory] setting, or SparkContext.md#environment-variables[SPARK_EXECUTOR_MEMORY] environment variable (or currently-deprecated `SPARK_MEM`), or defaults to `1024`.
 
-`_executorMemory` is later available as `sc.executorMemory` and used for LOCAL_CLUSTER_REGEX, spark-standalone.md#SparkDeploySchedulerBackend[Spark Standalone's SparkDeploySchedulerBackend], to set `executorEnvs("SPARK_EXECUTOR_MEMORY")`, MesosSchedulerBackend, CoarseMesosSchedulerBackend.
+`_executorMemory` is later available as `sc.executorMemory` and used for LOCAL_CLUSTER_REGEX, `SparkDeploySchedulerBackend`, to set `executorEnvs("SPARK_EXECUTOR_MEMORY")`, MesosSchedulerBackend, CoarseMesosSchedulerBackend.
 
 ## <span id="SPARK_PREPEND_CLASSES"> SPARK_PREPEND_CLASSES Environment Variable
 

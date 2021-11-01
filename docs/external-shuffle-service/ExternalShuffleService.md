@@ -66,7 +66,7 @@ Shutting down shuffle service.
 `ExternalShuffleService` is created when:
 
 * `ExternalShuffleService` standalone application is [started](#launch)
-* `Worker` (Spark Standalone) is [created](../spark-standalone/Worker.md#shuffleService) (and initializes an `ExternalShuffleService`)
+* `Worker` ([Spark Standalone]({{ book.spark_standalone }}/Worker)) is created (and initializes an `ExternalShuffleService`)
 
 ## <span id="server"> TransportServer
 
@@ -170,7 +170,7 @@ executorRemoved(
 
 `executorRemoved` is used when:
 
-* `Worker` (Spark Standalone) is requested to [handleExecutorStateChanged](../spark-standalone/Worker.md#handleExecutorStateChanged)
+* `Worker` ([Spark Standalone]({{ book.spark_standalone }}/Worker)) is requested to `handleExecutorStateChanged`
 
 ## <span id="applicationRemoved"> Application Finished Notification
 
@@ -183,7 +183,7 @@ applicationRemoved(
 
 `applicationRemoved` is used when:
 
-* `Worker` (Spark Standalone) is requested to handle [WorkDirCleanup](../spark-standalone/Worker.md#WorkDirCleanup) message and [maybeCleanupApplication](../spark-standalone/Worker.md#maybeCleanupApplication)
+* `Worker` ([Spark Standalone]({{ book.spark_standalone }}/Worker)) is requested to handle `WorkDirCleanup` message and `maybeCleanupApplication`
 
 ## Logging
 

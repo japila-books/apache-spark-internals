@@ -22,6 +22,6 @@ fromSparkURL(
 
 `fromSparkURL` is used when:
 
-* `StandaloneAppClient` is [created](../spark-standalone/StandaloneAppClient.md#masterRpcAddresses)
-* `ClientApp` is requested to [start](../spark-standalone/ClientApp.md#start)
-* `Worker` is requested to [startRpcEnvAndEndpoint](../spark-standalone/Worker.md#startRpcEnvAndEndpoint)
+* `StandaloneAppClient` (Spark Standalone) is created
+* `ClientApp` (Spark Standalone) is requested to `start`
+* `Worker` (Spark Standalone) is requested to `startRpcEnvAndEndpoint`

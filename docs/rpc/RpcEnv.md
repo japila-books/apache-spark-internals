@@ -38,9 +38,9 @@ Blocks the current thread till the RPC environment terminates
 Used when:
 
 * `SparkEnv` is requested to [stop](../SparkEnv.md#stop)
-* `ClientApp` is requested to [start](../spark-standalone/ClientApp.md#start)
-* `LocalSparkCluster` is requested to [stop](../spark-standalone/LocalSparkCluster.md#stop)
-* [Master](../spark-standalone/Master.md) and [Worker](../spark-standalone/Worker.md) are launched
+* `ClientApp` (Spark Standalone) is requested to `start`
+* `LocalSparkCluster` (Spark Standalone) is requested to `stop`
+* `Master` (Spark Standalone) and `Worker` (Spark Standalone) are launched
 * `CoarseGrainedExecutorBackend` is requested to [run](../executor/CoarseGrainedExecutorBackend.md#run)
 
 ### <span id="deserialize"> deserialize
@@ -111,7 +111,7 @@ Shuts down this RPC environment asynchronously (and to make sure this `RpcEnv` e
 Used when:
 
 * `SparkEnv` is requested to [stop](../SparkEnv.md#stop)
-* `LocalSparkCluster` is requested to [stop](../spark-standalone/LocalSparkCluster.md#stop)
+* `LocalSparkCluster` (Spark Standalone) is requested to `stop`
 * `DriverWrapper` is launched
 * `CoarseGrainedExecutorBackend` is [launched](../executor/CoarseGrainedExecutorBackend.md#run)
 * `NettyRpcEnvFactory` is requested to [create an RpcEnv](NettyRpcEnvFactory.md#create) (in server mode and failed to assign a port)
@@ -176,9 +176,9 @@ create(
 * With `clientMode` flag `true`:
 
     * `CoarseGrainedExecutorBackend` is requested to [run](../executor/CoarseGrainedExecutorBackend.md#run)
-    * `ClientApp` is requested to [start](../spark-standalone/ClientApp.md)
-    * Spark Standalone's `Master` is requested to [startRpcEnvAndEndpoint](../spark-standalone/Master.md#startRpcEnvAndEndpoint)
-    * Spark Standalone's `Worker` is requested to [startRpcEnvAndEndpoint](../spark-standalone/Worker.md#startRpcEnvAndEndpoint)
+    * `ClientApp` (Spark Standalone) is requested to `start`
+    * `Master` (Spark Standalone) is requested to `startRpcEnvAndEndpoint`
+    * `Worker` (Spark Standalone) is requested to `startRpcEnvAndEndpoint`
     * `DriverWrapper` is launched
     * `ApplicationMaster` (Spark on YARN) is requested to `runExecutorLauncher` (in client deploy mode)
 

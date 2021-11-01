@@ -37,19 +37,19 @@ Spark checks them out before using http://docs.oracle.com/javase/8/docs/api/java
 
 You may see the following WARN messages in the logs when Spark finished the resolving process:
 
-```
-WARN Your hostname, [hostname] resolves to a loopback address: [host-address]; using...
-WARN Set SPARK_LOCAL_IP if you need to bind to another address
-```
-
-== [[spark-standalone-windows]] Starting standalone Master and workers on Windows 7
-
-Windows 7 users can use spark-class.md[spark-class] to start spark-standalone.md[Spark Standalone] as there are no launch scripts for the Windows platform.
-
-```
-$ ./bin/spark-class org.apache.spark.deploy.master.Master -h localhost
+```text
+Your hostname, [hostname] resolves to a loopback address: [host-address]; using...
+Set SPARK_LOCAL_IP if you need to bind to another address
 ```
 
+## Starting standalone Master and workers on Windows 7
+
+Windows 7 users can use [spark-class](tools/spark-class.md) to start Spark Standalone as there are no launch scripts for the Windows platform.
+
+```text
+./bin/spark-class org.apache.spark.deploy.master.Master -h localhost
 ```
-$ ./bin/spark-class org.apache.spark.deploy.worker.Worker spark://localhost:7077
+
+```text
+./bin/spark-class org.apache.spark.deploy.worker.Worker spark://localhost:7077
 ```

@@ -16,9 +16,9 @@
 ## Implementations
 
 * `KubernetesClusterSchedulerBackend` ([Spark on Kubernetes]({{ book.spark_k8s }}/KubernetesClusterSchedulerBackend))
-* MesosCoarseGrainedSchedulerBackend
-* [StandaloneSchedulerBackend](../spark-standalone/StandaloneSchedulerBackend.md)
-* YarnSchedulerBackend
+* `MesosCoarseGrainedSchedulerBackend` (Spark on Mesos)
+* `StandaloneSchedulerBackend` (Spark Standalone)
+* `YarnSchedulerBackend` (Spark on YARN)
 
 ## Creating Instance
 

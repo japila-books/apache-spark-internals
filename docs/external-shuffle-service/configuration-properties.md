@@ -11,7 +11,7 @@ Default: `true`
 Used when:
 
 * `ExternalShuffleService` is requested for an [ExternalBlockHandler](ExternalShuffleService.md#newShuffleBlockHandler)
-* `Worker` (Spark Standalone) is requested to [handle a WorkDirCleanup message](../spark-standalone/Worker.md#WorkDirCleanup)
+* `Worker` ([Spark Standalone]({{ book.spark_standalone }}/Worker)) is requested to handle a `WorkDirCleanup` message
 
 ## <span id="spark.shuffle.service.enabled"><span id="SHUFFLE_SERVICE_ENABLED"> spark.shuffle.service.enabled
 

@@ -92,9 +92,9 @@ Used when:
 
 * [CoarseGrainedSchedulerBackend](../scheduler/CoarseGrainedSchedulerBackend.md)
 * `KubernetesClusterSchedulerBackend` ([Spark on Kubernetes]({{ book.spark_k8s }}/KubernetesClusterSchedulerBackend))
-* MesosCoarseGrainedSchedulerBackend
-* [StandaloneSchedulerBackend](../spark-standalone/StandaloneSchedulerBackend.md)
-* YarnSchedulerBackend
+* `MesosCoarseGrainedSchedulerBackend`
+* `StandaloneSchedulerBackend` ([Spark Standalone]{{ book.spark_standalone }}/StandaloneSchedulerBackend))
+* `YarnSchedulerBackend`
 
 ## <span id="killExecutor"> Killing Single Executor
 
@@ -125,7 +125,7 @@ decommissionExecutors(
 
 * `ExecutorAllocationClient` is requested to [decommission a single executor](#decommissionExecutor)
 * `ExecutorAllocationManager` is requested to [remove executors](ExecutorAllocationManager.md#removeExecutors)
-* `StandaloneSchedulerBackend` is requested to [executorDecommissioned](../spark-standalone/StandaloneSchedulerBackend.md#executorDecommissioned)
+* `StandaloneSchedulerBackend` ([Spark Standalone]({{ book.spark_standalone }}/StandaloneSchedulerBackend)) is requested to `executorDecommissioned`
 
 ## <span id="decommissionExecutor"> Decommissioning Single Executor
 

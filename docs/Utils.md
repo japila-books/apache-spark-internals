@@ -74,7 +74,7 @@ getOrCreateLocalRootDirs(
 `getOrCreateLocalRootDirs` is used when:
 
 * `Utils` is used to [getLocalDir](#getLocalDir)
-* `Worker` (Spark Standalone) is requested to [launch an executor](spark-standalone/Worker.md#LaunchExecutor)
+* `Worker` ([Spark Standalone]({{ book.spark_standalone }}/Worker)) is requested to launch an executor
 
 ### <span id="getOrCreateLocalRootDirsImpl"> Creating spark Directory in Every Local Root Directory
 

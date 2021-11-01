@@ -1,3 +1,0 @@
-# ClientApp
-
-`ClientApp` is...FIXME

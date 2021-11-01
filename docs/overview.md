@@ -35,19 +35,19 @@ It is Spark's goal to be a general-purpose computing platform with various speci
 
 NOTE: When you hear "Apache Spark" it can be two things -- the Spark engine aka *Spark Core* or the Apache Spark open source project which is an "umbrella" term for Spark Core and the accompanying Spark Application Frameworks, i.e. Spark SQL, spark-streaming/spark-streaming.md[Spark Streaming], spark-mllib/spark-mllib.md[Spark MLlib] and spark-graphx.md[Spark GraphX] that sit on top of Spark Core and the main data abstraction in Spark called rdd:index.md[RDD - Resilient Distributed Dataset].
 
-== [[why-spark]] Why Spark
+## Why Spark
 
 Let's list a few of the many reasons for Spark. We are doing it first, and then comes the overview that lends a more technical helping hand.
 
-=== Easy to Get Started
+### Easy to Get Started
 
-Spark offers spark-shell.md[spark-shell] that makes for a very easy head start to writing and running Spark applications on the command line on your laptop.
+Spark offers [spark-shell](tools/spark-shell.md) that makes for a very easy head start to writing and running Spark applications on the command line on your laptop.
 
-You could then use spark-standalone.md[Spark Standalone] built-in cluster manager to deploy your Spark applications to a production-grade cluster to run on a full dataset.
+You could then use Spark Standalone built-in cluster manager to deploy your Spark applications to a production-grade cluster to run on a full dataset.
 
-=== Unified Engine for Diverse Workloads
+### Unified Engine for Diverse Workloads
 
-As said by Matei Zaharia - the author of Apache Spark - in https://youtu.be/49Hr5xZyTEA[Introduction to AmpLab Spark Internals video] (quoting with few changes):
+As said by Matei Zaharia - the author of Apache Spark - in [Introduction to AmpLab Spark Internals video](https://youtu.be/49Hr5xZyTEA) (quoting with few changes):
 
 > One of the Spark project goals was to deliver a platform that supports a very wide array of *diverse workflows* - not only MapReduce *batch* jobs (there were available in Hadoop already at that time), but also *iterative computations* like graph algorithms or Machine Learning.
 >

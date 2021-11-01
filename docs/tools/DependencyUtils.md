@@ -69,7 +69,7 @@ resolveMavenDependencies(
 
 `resolveMavenDependencies` is used when:
 
-* `SparkSubmit` is requested to [prepareSubmitEnvironment](SparkSubmit.md#prepareSubmitEnvironment) (for all resource managers but [Spark Standalone](../spark-standalone/index.md) and Apache Mesos)
+* `SparkSubmit` is requested to [prepareSubmitEnvironment](SparkSubmit.md#prepareSubmitEnvironment) (for all resource managers but Spark Standalone and Apache Mesos)
 
 ## <span id="addJarToClasspath"> Adding Local Jars to ClassLoader
 
