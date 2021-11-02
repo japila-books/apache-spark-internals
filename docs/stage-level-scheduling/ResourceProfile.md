@@ -16,7 +16,17 @@
 * `DriverEndpoint` is requested to [handle a RetrieveSparkAppConfig message](../scheduler/DriverEndpoint.md#RetrieveSparkAppConfig)
 * `ResourceProfileBuilder` utility is requested to [build](ResourceProfileBuilder.md#build)
 
-## <span id="getOrCreateDefaultProfile"> getOrCreateDefaultProfile
+## <span id="defaultProfile"> Default Profile
+
+`ResourceProfile` (object) defines `defaultProfile` internal registry with the default `ResourceProfile` (per JVM instance).
+
+`defaultProfile` is `None` (undefined) by default and gets a new `ResourceProfile` in [getOrCreateDefaultProfile](#getOrCreateDefaultProfile).
+
+`defaultProfile` is available using [getOrCreateDefaultProfile](#getOrCreateDefaultProfile).
+
+`defaultProfile` is cleared (_removed_) in [clearDefaultProfile](#clearDefaultProfile).
+
+### <span id="getOrCreateDefaultProfile"> getOrCreateDefaultProfile
 
 ```scala
 getOrCreateDefaultProfile(
@@ -47,4 +57,25 @@ getDefaultExecutorResources(
   conf: SparkConf): Map[String, ExecutorResourceRequest]
 ```
 
+`getDefaultExecutorResources` creates a `ExecutorResourceRequests`.
+
 `getDefaultExecutorResources`...FIXME
+
+## <span id="getResourcesForClusterManager"> getResourcesForClusterManager
+
+```scala
+getResourcesForClusterManager(
+  rpId: Int,
+  execResources: Map[String, ExecutorResourceRequest],
+  overheadFactor: Double,
+  conf: SparkConf,
+  isPythonApp: Boolean,
+  resourceMappings: Map[String, String]): ExecutorResourcesOrDefaults
+```
+
+`getResourcesForClusterManager`...FIXME
+
+`getResourcesForClusterManager` is used when:
+
+* `BasicExecutorFeatureStep` ([Spark on Kubernetes]({{ book.spark_k8s }}/BasicExecutorFeatureStep#execResources)) is created
+* `YarnAllocator` (Spark on YARN) is requested to `createYarnResourceForResourceProfile`
