@@ -111,6 +111,12 @@ Default: `1`
 
 Default: (undefined)
 
+## <span id="spark.executor.instances"><span id="EXECUTOR_INSTANCES"> spark.executor.instances
+
+Number of [executors](executor/Executor.md) to use
+
+Default: (undefined)
+
 ## <span id="spark.executor.memory"> spark.executor.memory
 
 Amount of memory to use for an [Executor](executor/Executor.md#memory)
@@ -724,11 +730,6 @@ a| [[spark.executor.heartbeat.maxFailures]] Number of times an executor:Executor
 Default: `60`
 
 NOTE: Introduced in https://issues.apache.org/jira/browse/SPARK-13522[SPARK-13522 Executor should kill itself when it's unable to heartbeat to the driver more than N times].
-
-| spark.executor.instances
-a| [[spark.executor.instances]] Number of executor:Executor.md[] in use
-
-Default: `0`
 
 | spark.executor.userClassPathFirst
 a| [[spark.executor.userClassPathFirst]] Flag to control whether to load classes in user jars before those in Spark jars

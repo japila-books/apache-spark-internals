@@ -1,5 +1,46 @@
 # Utils Utility
 
+## <span id="getDynamicAllocationInitialExecutors"> getDynamicAllocationInitialExecutors
+
+```scala
+getDynamicAllocationInitialExecutors(
+  conf: SparkConf): Int
+```
+
+`getDynamicAllocationInitialExecutors` gives the maximum value of the following configuration properties (for the initial number of executors):
+
+* [spark.dynamicAllocation.initialExecutors](dynamic-allocation/configuration-properties.md#spark.dynamicAllocation.initialExecutors)
+* [spark.dynamicAllocation.minExecutors](dynamic-allocation/configuration-properties.md#spark.dynamicAllocation.minExecutors)
+* [spark.executor.instances](configuration-properties.md#spark.executor.instances)
+
+`getDynamicAllocationInitialExecutors` prints out the following INFO message to the logs:
+
+```text
+Using initial executors = [initialExecutors],
+max of spark.dynamicAllocation.initialExecutors, spark.dynamicAllocation.minExecutors and spark.executor.instances
+```
+
+---
+
+With [spark.dynamicAllocation.initialExecutors](dynamic-allocation/configuration-properties.md#spark.dynamicAllocation.initialExecutors) less than [spark.dynamicAllocation.minExecutors](dynamic-allocation/configuration-properties.md#spark.dynamicAllocation.minExecutors), `getDynamicAllocationInitialExecutors` prints out the following WARN message to the logs:
+
+```text
+spark.dynamicAllocation.initialExecutors less than spark.dynamicAllocation.minExecutors is invalid,
+ignoring its setting, please update your configs.
+```
+
+With [spark.executor.instances](configuration-properties.md#spark.executor.instances) less than [spark.dynamicAllocation.minExecutors](dynamic-allocation/configuration-properties.md#spark.dynamicAllocation.minExecutors), `getDynamicAllocationInitialExecutors` prints out the following WARN message to the logs:
+
+```text
+spark.executor.instances less than spark.dynamicAllocation.minExecutors is invalid,
+ignoring its setting, please update your configs.
+```
+
+`getDynamicAllocationInitialExecutors` is used when:
+
+* `ExecutorAllocationManager` is [created](dynamic-allocation/ExecutorAllocationManager.md#initialNumExecutors)
+* `SchedulerBackendUtils` utility is used to [getInitialTargetExecutorNumber](scheduler/SchedulerBackendUtils.md#getInitialTargetExecutorNumber)
+
 ## <span id="getConfiguredLocalDirs"> Local Directories for Scratch Space
 
 ```scala
@@ -193,8 +234,8 @@ isDynamicAllocationEnabled(
 * `SparkContext` is created (to [start an ExecutorAllocationManager](SparkContext-creating-instance-internals.md#ExecutorAllocationManager))
 * `DAGScheduler` is requested to [checkBarrierStageWithDynamicAllocation](scheduler/DAGScheduler.md#checkBarrierStageWithDynamicAllocation)
 * `SchedulerBackendUtils` is requested to [getInitialTargetExecutorNumber](scheduler/SchedulerBackendUtils.md#getInitialTargetExecutorNumber)
-* `StandaloneSchedulerBackend` (Spark Standalone) is requested to `start`
-* `ExecutorPodsAllocator` (Spark on Kubernetes) is requested to `onNewSnapshots`
+* `StandaloneSchedulerBackend` ([Spark Standalone]({{ book.spark_standalone }}/StandaloneSchedulerBackend#start)) is requested to `start`
+* `ExecutorPodsAllocator` ([Spark on Kubernetes]({{ book.spark_k8s }}/ExecutorPodsAllocator#onNewSnapshots)) is requested to `onNewSnapshots`
 * `ApplicationMaster` (Spark on YARN) is created
 
 ## <span id="checkAndGetK8sMasterUrl"> checkAndGetK8sMasterUrl

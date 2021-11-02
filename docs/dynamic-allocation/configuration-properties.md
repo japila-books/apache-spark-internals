@@ -44,7 +44,7 @@ Default: [spark.dynamicAllocation.minExecutors](#DYN_ALLOCATION_MIN_EXECUTORS)
 
 ## <span id="spark.dynamicAllocation.maxExecutors"><span id="DYN_ALLOCATION_MAX_EXECUTORS"> spark.dynamicAllocation.maxExecutors
 
-Default: The largest value representable as an Int
+Default: `Int.MaxValue`
 
 ## <span id="spark.dynamicAllocation.minExecutors"><span id="DYN_ALLOCATION_MIN_EXECUTORS"> spark.dynamicAllocation.minExecutors
 
