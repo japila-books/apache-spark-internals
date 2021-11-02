@@ -59,9 +59,9 @@ fetchBlocks(
 Fetch blocks from [host]:[port] (executor id [execId])
 ```
 
-`fetchBlocks` creates a [BlockFetchStarter](../core/BlockFetchStarter.md).
-
 `fetchBlocks` requests the [TransportConf](#transportConf) for the [maxIORetries](../network/TransportConf.md#maxIORetries).
+
+`fetchBlocks` creates a [BlockTransferStarter](#fetchBlocks-BlockTransferStarter).
 
 With the `maxIORetries` above zero, `fetchBlocks` creates a [RetryingBlockFetcher](../core/RetryingBlockFetcher.md) (with the `BlockFetchStarter`, the `blockIds` and the [BlockFetchingListener](../core/BlockFetchingListener.md)) and [starts it](../core/RetryingBlockFetcher.md#start).
 
@@ -74,6 +74,25 @@ Exception while beginning fetchBlocks
 ```
 
 `fetchBlocks` is part of the [BlockStoreClient](BlockStoreClient.md#fetchBlocks) abstraction.
+
+### <span id="fetchBlocks-BlockTransferStarter"> BlockTransferStarter
+
+`fetchBlocks` creates a `BlockTransferStarter`. When requested to `createAndStart`, the `BlockTransferStarter` requests the [TransportClientFactory](BlockStoreClient.md#clientFactory) to [create a TransportClient](../network/TransportClientFactory.md#createClient).
+
+`createAndStart` creates an [OneForOneBlockFetcher](OneForOneBlockFetcher.md) and requests it to [start](OneForOneBlockFetcher.md#start).
+
+### <span id="fetchBlocks-BlockTransferStarter-IOException"> IOException
+
+In case of an `IOException`, `createAndStart` requests the [driver RpcEndpointRef](#driverEndPointRef) to send an `IsExecutorAlive` message synchronously (with the given `execId`).
+
+If the driver `RpcEndpointRef` replied `false`, `createAndStart` throws an [ExecutorDeadException](../ExecutorDeadException.md):
+
+```text
+The relative remote executor(Id: [execId]),
+which maintains the block data to fetch is dead.
+```
+
+Otherwise, `createAndStart` (re)throws the `IOException`.
 
 ## <span id="uploadBlock"> Uploading Block
 

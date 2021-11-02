@@ -243,6 +243,10 @@ Used when:
 * `UnifiedMemoryManager` is [created](memory/UnifiedMemoryManager.md#apply)
 * `MemoryManager` is [created](memory/MemoryManager.md#offHeapStorageMemory)
 
+## <span id="spark.network.io.preferDirectBufs"> spark.network.io.preferDirectBufs
+
+Default: `true`
+
 ## <span id="spark.network.maxRemoteBlockSizeFetchToMem"><span id="MAX_REMOTE_BLOCK_SIZE_FETCH_TO_MEM"> spark.network.maxRemoteBlockSizeFetchToMem
 
 Remote block will be fetched to disk when size of the block is above this threshold in bytes
@@ -258,6 +262,10 @@ Used when:
 * `BlockStoreShuffleReader` is requested to [read combined records for a reduce task](shuffle/BlockStoreShuffleReader.md#read)
 * `NettyBlockTransferService` is requested to [uploadBlock](storage/NettyBlockTransferService.md#uploadBlock)
 * `BlockManager` is requested to [fetchRemoteManagedBuffer](storage/BlockManager.md#fetchRemoteManagedBuffer)
+
+## <span id="spark.network.sharedByteBufAllocators.enabled"> spark.network.sharedByteBufAllocators.enabled
+
+Default: `true`
 
 ## <span id="spark.network.timeout"><span id="NETWORK_TIMEOUT"> spark.network.timeout
 

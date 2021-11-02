@@ -64,11 +64,15 @@ The requested maximum length of the queue of incoming connections
 
 Default: `-1` (no backlog)
 
-### <span id="SPARK_NETWORK_IO_NUMCONNECTIONSPERPEER_KEY"><span id="io.numConnectionsPerPeer"> io.numConnectionsPerPeer
+### <span id="SPARK_NETWORK_IO_NUMCONNECTIONSPERPEER_KEY"><span id="io.numConnectionsPerPeer"><span id="numConnectionsPerPeer"> io.numConnectionsPerPeer
+
+Default: `1`
 
 ### <span id="SPARK_NETWORK_IO_SERVERTHREADS_KEY"><span id="io.serverThreads"> io.serverThreads
 
-### <span id="SPARK_NETWORK_IO_CLIENTTHREADS_KEY"><span id="io.clientThreads"> io.clientThreads
+### <span id="SPARK_NETWORK_IO_CLIENTTHREADS_KEY"><span id="io.clientThreads"><span id="clientThreads"> io.clientThreads
+
+Default: `0`
 
 ### <span id="SPARK_NETWORK_IO_RECEIVEBUFFER_KEY"><span id="io.receiveBuffer"> io.receiveBuffer
 
@@ -78,10 +82,26 @@ Default: `-1` (no backlog)
 
 ### <span id="SPARK_NETWORK_IO_MAXRETRIES_KEY"><span id="io.maxRetries"> io.maxRetries
 
-### <span id="SPARK_NETWORK_IO_RETRYWAIT_KEY"><span id="io.retryWait"> io.retryWait
+### <span id="SPARK_NETWORK_IO_RETRYWAIT_KEY"><span id="io.retryWait"><span id="ioRetryWaitTimeMs"> io.retryWait
+
+Time that we will wait in order to perform a retry after an `IOException`. Only relevant if [maxIORetries](#maxIORetries) is greater than 0.
+
+Default: `5s`
 
 ### <span id="SPARK_NETWORK_IO_LAZYFD_KEY"><span id="io.lazyFD"> io.lazyFD
 
-### <span id="SPARK_NETWORK_VERBOSE_METRICS"><span id="io.enableVerboseMetrics"> io.enableVerboseMetrics
+### <span id="SPARK_NETWORK_VERBOSE_METRICS"><span id="io.enableVerboseMetrics"><span id="verboseMetrics"> io.enableVerboseMetrics
+
+Enables Netty's memory detailed metrics
+
+Default: `false`
 
 ### <span id="SPARK_NETWORK_IO_ENABLETCPKEEPALIVE_KEY"><span id="io.enableTcpKeepAlive"> io.enableTcpKeepAlive
+
+## <span id="preferDirectBufsForSharedByteBufAllocators"> preferDirectBufsForSharedByteBufAllocators
+
+The value of [spark.network.io.preferDirectBufs](../configuration-properties.md#spark.network.io.preferDirectBufs).
+
+## <span id="sharedByteBufAllocators"> sharedByteBufAllocators
+
+The value of [spark.network.sharedByteBufAllocators.enabled](../configuration-properties.md#spark.network.sharedByteBufAllocators.enabled).

@@ -41,11 +41,14 @@ TransportServer createServer(
 ## <span id="createClientFactory"> Creating TransportClientFactory
 
 ```java
+TransportClientFactory createClientFactory() // (1)
 TransportClientFactory createClientFactory(
   List<TransportClientBootstrap> bootstraps)
 ```
 
-`createClientFactory`...FIXME
+1. Uses empty `bootstraps`
+
+`createClientFactory` creates a [TransportClientFactory](TransportClientFactory.md) (with itself and the given `TransportClientBootstrap`s).
 
 `createClientFactory` is used when:
 
