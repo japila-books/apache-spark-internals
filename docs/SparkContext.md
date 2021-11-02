@@ -23,6 +23,23 @@ While being created, `SparkContext` [sets up core services](SparkContext-creatin
 
 * <span id="schedulerBackend"> [SchedulerBackend](scheduler/SchedulerBackend.md)
 
+## <span id="_resourceProfileManager"><span id="ResourceProfileManager"> ResourceProfileManager
+
+`SparkContext` creates a [ResourceProfileManager](stage-level-scheduling/ResourceProfileManager.md) when [created](#creating-instance).
+
+### <span id="resourceProfileManager"> resourceProfileManager
+
+```scala
+resourceProfileManager: ResourceProfileManager
+```
+
+`resourceProfileManager` returns the [ResourceProfileManager](#_resourceProfileManager).
+
+`resourceProfileManager` is used when:
+
+* `KubernetesClusterSchedulerBackend` ([Spark on Kubernetes]({{ book.spark_k8s }}/KubernetesClusterSchedulerBackend)) is created
+* _others_
+
 ## <span id="_driverLogger"><span id="DriverLogger"> DriverLogger
 
 `SparkContext` can [create a DriverLogger](DriverLogger.md#apply) when [created](#creating-instance).

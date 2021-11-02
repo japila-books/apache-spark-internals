@@ -119,6 +119,15 @@ Default: `1g`
 
 Equivalent to [SPARK_EXECUTOR_MEMORY](SparkContext.md#environment-variables) environment variable.
 
+## <span id="spark.executor.memoryOverhead"><span id="EXECUTOR_MEMORY_OVERHEAD"> spark.executor.memoryOverhead
+
+The amount of non-heap memory (in MiB) to be allocated per executor
+
+Used when:
+
+* `ResourceProfile` is requested for the [default executor resources](stage-level-scheduling/ResourceProfile.md#getDefaultExecutorResources)
+* `Client` (Spark on YARN) is created
+
 ## <span id="spark.executor.metrics.fileSystemSchemes"><span id="EXECUTOR_METRICS_FILESYSTEM_SCHEMES"> spark.executor.metrics.fileSystemSchemes
 
 A comma-separated list of the file system schemes to report in [executor metrics](executor/ExecutorSource.md#fileSystemSchemes)
