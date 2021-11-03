@@ -2,7 +2,7 @@
 
 `KVStore` is an [abstraction](#contract) of [key-value stores](#implementations).
 
-`KVStore` is a Java [Closeable]({{ java.api }}/java.base/java/io/Closeable.html).
+`KVStore` is a Java [Closeable]({{ java.api }}/java/io/Closeable.html).
 
 ## Contract
 

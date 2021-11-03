@@ -7,7 +7,7 @@
 `LiveListenerBus` is a single-JVM [SparkListenerBus](../SparkListenerBus.md) that uses [listenerThread to poll events](#listenerThread).
 
 !!! note
-    The event queue is [java.util.concurrent.LinkedBlockingQueue]({{ java.api }}/java.base/java/util/concurrent/LinkedBlockingQueue.html) with capacity of 10000 `SparkListenerEvent` events.
+    The event queue is [java.util.concurrent.LinkedBlockingQueue]({{ java.api }}/java/util/concurrent/LinkedBlockingQueue.html) with capacity of 10000 `SparkListenerEvent` events.
 
 ## Creating Instance
 

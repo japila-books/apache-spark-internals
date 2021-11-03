@@ -30,5 +30,5 @@ metricRegistry: MetricRegistry
 
 Name | Description
 -----|----------
- threadpool.activeTasks | Approximate number of threads that are actively executing tasks (based on [ThreadPoolExecutor.getActiveCount]({{ java.api }}/java.base/java/util/concurrent/ThreadPoolExecutor.html))
+ threadpool.activeTasks | Approximate number of threads that are actively executing tasks (based on [ThreadPoolExecutor.getActiveCount]({{ java.api }}/java/util/concurrent/ThreadPoolExecutor.html))
  _others_ |

@@ -60,7 +60,7 @@ decommissionExecutors(
 totalRegisteredExecutors: AtomicInteger
 ```
 
-`totalRegisteredExecutors` is an internal registry of the number of registered executors (a Java [AtomicInteger]({{ java.api }}/java.base/java/util/concurrent/atomic/AtomicInteger.html)).
+`totalRegisteredExecutors` is an internal registry of the number of registered executors (a Java [AtomicInteger]({{ java.api }}/java/util/concurrent/atomic/AtomicInteger.html)).
 
 `totalRegisteredExecutors` starts from `0`.
 
@@ -138,7 +138,7 @@ An entry is removed when `DriverEndpoint` is requested to handle [RemoveExecutor
 reviveThread: ScheduledExecutorService
 ```
 
-`CoarseGrainedSchedulerBackend` creates a Java [ScheduledExecutorService]({{ java.api }}/java.base/java/util/concurrent/ScheduledExecutorService.html) when [created](#creating-instance).
+`CoarseGrainedSchedulerBackend` creates a Java [ScheduledExecutorService]({{ java.api }}/java/util/concurrent/ScheduledExecutorService.html) when [created](#creating-instance).
 
 The `ScheduledExecutorService` is used by `DriverEndpoint` RPC Endpoint to [post ReviveOffers messages regularly](DriverEndpoint.md#onStart).
 

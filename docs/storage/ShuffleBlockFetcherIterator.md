@@ -142,7 +142,7 @@ Failed to get block(s) from [host]:[port]
 results: LinkedBlockingQueue[FetchResult]
 ```
 
-`ShuffleBlockFetcherIterator` uses an internal FIFO blocking queue ([Java]({{ java.api }}/java.base/java/util/concurrent/LinkedBlockingQueue.html)) of `FetchResult`s.
+`ShuffleBlockFetcherIterator` uses an internal FIFO blocking queue ([Java]({{ java.api }}/java/util/concurrent/LinkedBlockingQueue.html)) of `FetchResult`s.
 
 `results` is used for [fetching the next element](#next).
 

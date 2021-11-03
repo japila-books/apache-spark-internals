@@ -178,11 +178,11 @@ serializeMapStatuses(
 
 `serializeMapStatuses` serializes the given array of map output locations into an efficient byte format (to send to reduce tasks). `serializeMapStatuses` compresses the serialized bytes using GZIP. They are supposed to be pretty compressible because many map outputs will be on the same hostname.
 
-Internally, `serializeMapStatuses` creates a Java [ByteArrayOutputStream]({{ java.api }}/java.base/java/io/ByteArrayOutputStream.html).
+Internally, `serializeMapStatuses` creates a Java [ByteArrayOutputStream]({{ java.api }}/java/io/ByteArrayOutputStream.html).
 
 `serializeMapStatuses` writes out 0 (direct) first.
 
-`serializeMapStatuses` creates a Java [GZIPOutputStream]({{ java.api }}/java.base/java/util/zip/GZIPOutputStream.html) (with the `ByteArrayOutputStream` created) and writes out the given statuses array.
+`serializeMapStatuses` creates a Java [GZIPOutputStream]({{ java.api }}/java/util/zip/GZIPOutputStream.html) (with the `ByteArrayOutputStream` created) and writes out the given statuses array.
 
 `serializeMapStatuses` decides whether to return the output array (of the output stream) or use a broadcast variable based on the size of the byte array.
 

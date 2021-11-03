@@ -14,7 +14,7 @@
 
 ## <span id="poller"> executor-metrics-poller
 
-`ExecutorMetricsPoller` creates a `ScheduledExecutorService` ([Java]({{ java.api }}/java.base/java/util/concurrent/ScheduledExecutorService.html)) when [created](#creating-instance) with the [spark.executor.metrics.pollingInterval](#pollingInterval) greater than `0`.
+`ExecutorMetricsPoller` creates a `ScheduledExecutorService` ([Java]({{ java.api }}/java/util/concurrent/ScheduledExecutorService.html)) when [created](#creating-instance) with the [spark.executor.metrics.pollingInterval](#pollingInterval) greater than `0`.
 
 The `ScheduledExecutorService` manages 1 daemon thread with `executor-metrics-poller` name prefix.
 

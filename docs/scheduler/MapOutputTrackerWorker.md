@@ -2,7 +2,7 @@
 
 `MapOutputTrackerWorker` is the [MapOutputTracker](MapOutputTracker.md) for executors.
 
-`MapOutputTrackerWorker` uses Java's thread-safe [java.util.concurrent.ConcurrentHashMap]({{ java.api }}/java.base/java/util/concurrent/ConcurrentHashMap.html) for [mapStatuses](MapOutputTracker.md#mapStatuses) internal cache and any lookup cache miss triggers a fetch from the driver's [MapOutputTrackerMaster](MapOutputTrackerMaster.md).
+`MapOutputTrackerWorker` uses Java's thread-safe [java.util.concurrent.ConcurrentHashMap]({{ java.api }}/java/util/concurrent/ConcurrentHashMap.html) for [mapStatuses](MapOutputTracker.md#mapStatuses) internal cache and any lookup cache miss triggers a fetch from the driver's [MapOutputTrackerMaster](MapOutputTrackerMaster.md).
 
 == [[getStatuses]] Finding Shuffle Map Outputs
 

@@ -57,7 +57,7 @@ Used when:
 
 ## <span id="Serializable"> Serializable
 
-`Broadcast` is a `Serializable` ([Java]({{ java.api }}/java.base/java/io/Serializable.html)) so it can be serialized (_converted_ to bytes) and send over the wire from the driver to executors.
+`Broadcast` is a `Serializable` ([Java]({{ java.api }}/java/io/Serializable.html)) so it can be serialized (_converted_ to bytes) and send over the wire from the driver to executors.
 
 ## <span id="destroy"> Destroying
 

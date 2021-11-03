@@ -33,7 +33,7 @@ isValid: Boolean
 
 ## <span id="Externalizable"> Externalizable
 
-`DirectTaskResult` is an `Externalizable` ([Java]({{ java.api }}/java.base/java/io/Externalizable.html)).
+`DirectTaskResult` is an `Externalizable` ([Java]({{ java.api }}/java/io/Externalizable.html)).
 
 ### <span id="writeExternal"> writeExternal
 
@@ -42,7 +42,7 @@ writeExternal(
   out: ObjectOutput): Unit
 ```
 
-`writeExternal` is part of the `Externalizable` ([Java]({{ java.api }}/java.base/java/io/Externalizable.html#writeExternal(java.io.ObjectOutput))) abstraction.
+`writeExternal` is part of the `Externalizable` ([Java]({{ java.api }}/java/io/Externalizable.html#writeExternal(java.io.ObjectOutput))) abstraction.
 
 `writeExternal` writes the [bitwise representation](#toInt) out followed by the [replication](#_replication) of this `StorageLevel`.
 

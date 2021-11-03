@@ -183,13 +183,13 @@ receiveAndReply(
 
 ### <span id="killExecutorThread"><span id="kill-executor-thread"> kill-executor-thread
 
-`killExecutorThread` is a daemon [ScheduledThreadPoolExecutor]({{ java.api }}/java.base/java/util/concurrent/ScheduledThreadPoolExecutor.html) with a single thread.
+`killExecutorThread` is a daemon [ScheduledThreadPoolExecutor]({{ java.api }}/java/util/concurrent/ScheduledThreadPoolExecutor.html) with a single thread.
 
 The name of the thread pool is **kill-executor-thread**.
 
 ### <span id="eventLoopThread"><span id="heartbeat-receiver-event-loop-thread"> heartbeat-receiver-event-loop-thread
 
-`eventLoopThread` is a daemon [ScheduledThreadPoolExecutor]({{ java.api }}/java.base/java/util/concurrent/ScheduledThreadPoolExecutor.html) with a single thread.
+`eventLoopThread` is a daemon [ScheduledThreadPoolExecutor]({{ java.api }}/java/util/concurrent/ScheduledThreadPoolExecutor.html) with a single thread.
 
 The name of the thread pool is **heartbeat-receiver-event-loop-thread**.
 

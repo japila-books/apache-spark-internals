@@ -202,7 +202,7 @@ extractHostPortFromSparkUrl(
   sparkUrl: String): (String, Int)
 ```
 
-`extractHostPortFromSparkUrl` creates a Java [URI]({{ java.api }}/java.base/java/net/URI.html) with the input `sparkUrl` and takes the host and port parts.
+`extractHostPortFromSparkUrl` creates a Java [URI]({{ java.api }}/java/net/URI.html) with the input `sparkUrl` and takes the host and port parts.
 
 `extractHostPortFromSparkUrl` asserts that the input `sparkURL` uses **spark** scheme.
 

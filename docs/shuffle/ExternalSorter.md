@@ -125,7 +125,7 @@ numSpills: Int
 
 `SpilledFile` is a metadata of a spilled file:
 
-* <span id="SpilledFile-file"> `File` ([Java]({{ java.api }}/java.base/java/io/File.html))
+* <span id="SpilledFile-file"> `File` ([Java]({{ java.api }}/java/io/File.html))
 * <span id="SpilledFile-blockId"> [BlockId](../storage/BlockId.md)
 * <span id="SpilledFile-serializerBatchSizes"> Serializer Batch Sizes (`Array[Long]`)
 * <span id="SpilledFile-elementsPerPartition"> Elements per Partition (`Array[Long]`)

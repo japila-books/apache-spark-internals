@@ -115,7 +115,7 @@ start(): Unit
 
 `start` requests the [ContextCleaner](#cleaner) (if defined) to [attach](../core/ContextCleaner.md#attachListener) the [ExecutorMonitor](#executorMonitor).
 
-creates a `scheduleTask` (a Java [Runnable]({{ java.api }}/java.base/java/lang/Runnable.html)) for [schedule](#schedule) when started.
+creates a `scheduleTask` (a Java [Runnable]({{ java.api }}/java/lang/Runnable.html)) for [schedule](#schedule) when started.
 
 `start` requests the [ScheduledExecutorService](#executor) to schedule the `scheduleTask` every `100` ms.
 

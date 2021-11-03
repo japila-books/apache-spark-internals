@@ -2,7 +2,7 @@
 
 `ResourceProfile` is a resource profile (with [executor](#executorResources) and [task](#taskResources) requirements) for [Stage Level Scheduling](index.md).
 
-`ResourceProfile` is a Java [Serializable]({{ java.api }}/java.base/java/io/Serializable.html).
+`ResourceProfile` is a Java [Serializable]({{ java.api }}/java/io/Serializable.html).
 
 ## Creating Instance
 

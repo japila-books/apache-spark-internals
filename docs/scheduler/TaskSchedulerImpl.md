@@ -239,7 +239,7 @@ CAUTION: FIXME image with scheduler backends calling `TaskSchedulerImpl.statusUp
 
 ## <span id="speculationScheduler"><span id="task-scheduler-speculation"> task-scheduler-speculation Scheduled Executor Service
 
-`speculationScheduler` is a [java.util.concurrent.ScheduledExecutorService]({{ java.api }}/java.base/java/util/concurrent/ScheduledExecutorService.html) with the name **task-scheduler-speculation** for [Speculative Execution of Tasks](../speculative-execution-of-tasks.md).
+`speculationScheduler` is a [java.util.concurrent.ScheduledExecutorService]({{ java.api }}/java/util/concurrent/ScheduledExecutorService.html) with the name **task-scheduler-speculation** for [Speculative Execution of Tasks](../speculative-execution-of-tasks.md).
 
 When `TaskSchedulerImpl` is requested to [start](#start) (in non-local run mode) with [spark.speculation](../configuration-properties.md#spark.speculation) enabled, `speculationScheduler` is used to schedule [checkSpeculatableTasks](#checkSpeculatableTasks) to execute periodically every [spark.speculation.interval](../configuration-properties.md#spark.speculation.interval).
 

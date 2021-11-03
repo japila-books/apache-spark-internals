@@ -7,7 +7,7 @@
 !!! note "Internal Class"
     `TaskRunner` is an internal class of [Executor](Executor.md) with full access to internal registries.
 
-`TaskRunner` is a [java.lang.Runnable]({{ java.api }}/java.base/java/lang/Runnable.html) so once a [TaskRunner has completed execution](#run) it must not be restarted.
+`TaskRunner` is a [java.lang.Runnable]({{ java.api }}/java/lang/Runnable.html) so once a [TaskRunner has completed execution](#run) it must not be restarted.
 
 ## Creating Instance
 
@@ -70,11 +70,11 @@ Executor task launch worker for task [taskId]
 run(): Unit
 ```
 
-`run` is part of the [java.lang.Runnable]({{ java.api }}/java.base/java/lang/Runnable.html#run()) abstraction.
+`run` is part of the [java.lang.Runnable]({{ java.api }}/java/lang/Runnable.html#run()) abstraction.
 
 ### <span id="run-initialization"> Initialization
 
-`run` initializes the [threadId](#threadId) internal registry as the current thread identifier (using [Thread.getId]({{ java.api }}/java.base/java/lang/Thread.html#getId())).
+`run` initializes the [threadId](#threadId) internal registry as the current thread identifier (using [Thread.getId]({{ java.api }}/java/lang/Thread.html#getId())).
 
 `run` sets the name of the current thread of execution as the [threadName](#threadName).
 
@@ -132,7 +132,7 @@ Task [taskId]'s epoch is [epoch]
 `run` creates a [DirectTaskResult](../scheduler/TaskResult.md#DirectTaskResult) (with the serialized task result, the accumulator updates and the metric peaks) and requests the [closure Serializer](../serializer/SerializerInstance.md) to [serialize it](../serializer/SerializerInstance.md#serialize).
 
 !!! note
-    The serialized `DirectTaskResult` is a [java.nio.ByteBuffer]({{ java.api }}/java.base/java/nio/ByteBuffer.html).
+    The serialized `DirectTaskResult` is a [java.nio.ByteBuffer]({{ java.api }}/java/nio/ByteBuffer.html).
 
 `run` selects between the `DirectTaskResult` and an [IndirectTaskResult](../scheduler/TaskResult.md#IndirectTaskResult) based on the size of the serialized task result (_limit_ of this `serializedDirectResult` byte buffer):
 

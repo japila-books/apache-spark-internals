@@ -2,7 +2,7 @@
 
 `BlockStoreClient` is an [abstraction](#contract) of [block clients](#implementations) that can [fetch blocks from a remote node](#fetchBlocks) (an executor or an external service).
 
-`BlockStoreClient` is a Java [Closeable]({{ java.api }}/java.base/java/io/Closeable.html).
+`BlockStoreClient` is a Java [Closeable]({{ java.api }}/java/io/Closeable.html).
 
 !!! note
     `BlockStoreClient` was known previously as `ShuffleClient` ([SPARK-28593](https://issues.apache.org/jira/browse/SPARK-28593)).

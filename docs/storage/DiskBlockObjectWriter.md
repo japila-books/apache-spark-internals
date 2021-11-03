@@ -1,6 +1,6 @@
 # DiskBlockObjectWriter
 
-`DiskBlockObjectWriter` is a custom [java.io.OutputStream]({{ java.api }}/java.base/java/io/OutputStream.html) that [BlockManager](BlockManager.md#getDiskWriter) offers for [writing data blocks to disk](#write).
+`DiskBlockObjectWriter` is a custom [java.io.OutputStream]({{ java.api }}/java/io/OutputStream.html) that [BlockManager](BlockManager.md#getDiskWriter) offers for [writing data blocks to disk](#write).
 
 `DiskBlockObjectWriter` is used when:
 
@@ -16,7 +16,7 @@
 
 `DiskBlockObjectWriter` takes the following to be created:
 
-* <span id="file"> Java [File]({{ java.api }}/java.base/java/io/File.html)
+* <span id="file"> Java [File]({{ java.api }}/java/io/File.html)
 * <span id="serializerManager"> [SerializerManager](../serializer/SerializerManager.md)
 * <span id="serializerInstance"> [SerializerInstance](../serializer/SerializerInstance.md)
 * <span id="bufferSize"> Buffer size

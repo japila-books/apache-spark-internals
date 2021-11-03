@@ -7,7 +7,7 @@
 `ExternalShuffleBlockResolver` takes the following to be created:
 
 * <span id="conf"> [TransportConf](../network/TransportConf.md)
-* <span id="registeredExecutorFile"> `registeredExecutor` File (Java's [File]({{ java.api }}/java.base/java/io/File.html))
+* <span id="registeredExecutorFile"> `registeredExecutor` File (Java's [File]({{ java.api }}/java/io/File.html))
 * [Directory Cleaner](#directoryCleaner)
 
 `ExternalShuffleBlockResolver` is created when:
@@ -24,7 +24,7 @@ A new mapping is added when [registering an executor](#registerExecutor).
 
 ## <span id="directoryCleaner"> Directory Cleaner Executor
 
-`ExternalShuffleBlockResolver` can be given a Java [Executor]({{ java.api }}/java.base/java/util/concurrent/Executor.html) or use a single worker thread executor (with **spark-shuffle-directory-cleaner** thread prefix).
+`ExternalShuffleBlockResolver` can be given a Java [Executor]({{ java.api }}/java/util/concurrent/Executor.html) or use a single worker thread executor (with **spark-shuffle-directory-cleaner** thread prefix).
 
 The `Executor` is used to schedule a thread to clean up [executor's local directories](#deleteExecutorDirs) and [non-shuffle and non-RDD files in executor's local directories](#deleteNonShuffleServiceServedFiles).
 
@@ -86,7 +86,7 @@ void deleteNonShuffleServiceServedFiles(
   String[] dirs)
 ```
 
-`deleteNonShuffleServiceServedFiles` creates a Java [FilenameFilter]({{ java.api }}/java.base/java/io/FilenameFilter.html) for files that meet all of the following:
+`deleteNonShuffleServiceServedFiles` creates a Java [FilenameFilter]({{ java.api }}/java/io/FilenameFilter.html) for files that meet all of the following:
 
 1. A file name does not end with `.index` or `.data`
 1. With [rddFetchEnabled](#rddFetchEnabled) is enabled, a file name does not start with `rdd_` prefix

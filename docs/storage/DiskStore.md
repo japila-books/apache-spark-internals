@@ -20,7 +20,7 @@
 blockSizes: ConcurrentHashMap[BlockId, Long]
 ```
 
-`DiskStore` uses `ConcurrentHashMap` ([Java]({{ java.api }}/java.base/java/util/concurrent/ConcurrentHashMap.html)) as a registry of [block](BlockId)s and the data size (on disk).
+`DiskStore` uses `ConcurrentHashMap` ([Java]({{ java.api }}/java/util/concurrent/ConcurrentHashMap.html)) as a registry of [block](BlockId)s and the data size (on disk).
 
 A new entry is added when [put](#put) and [moveFileToBlock](#moveFileToBlock).
 

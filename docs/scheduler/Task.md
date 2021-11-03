@@ -51,7 +51,7 @@ Used when `Task` is requested to [run](#run)
 
 ## <span id="Serializable"> Serializable
 
-`Task` is a `Serializable` ([Java]({{ java.api }}/java.base/java/io/Serializable.html)) so it can be serialized (to bytes) and send over the wire for execution from the driver to executors.
+`Task` is a `Serializable` ([Java]({{ java.api }}/java/io/Serializable.html)) so it can be serialized (to bytes) and send over the wire for execution from the driver to executors.
 
 ## <span id="preferredLocations"> Preferred Locations
 

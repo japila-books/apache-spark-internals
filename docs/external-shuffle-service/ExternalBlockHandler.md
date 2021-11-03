@@ -46,7 +46,7 @@
 
 ## <span id="registeredExecutorFile"> Registered Executors File
 
-`ExternalBlockHandler` can be given a Java's [File]({{ java.api }}/java.base/java/io/File.html) (or `null`) to be [created](#creating-instance).
+`ExternalBlockHandler` can be given a Java's [File]({{ java.api }}/java/io/File.html) (or `null`) to be [created](#creating-instance).
 
 This file is simply to create an [ExternalShuffleBlockResolver](#blockManager).
 

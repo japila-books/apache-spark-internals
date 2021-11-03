@@ -2,7 +2,7 @@
 
 `AccumulatorV2[IN, OUT]` is an [abstraction](#contract) of [accumulators](#implementations)
 
-`AccumulatorV2` is a Java [Serializable]({{ java.api }}/java.base/java/io/Serializable.html).
+`AccumulatorV2` is a Java [Serializable]({{ java.api }}/java/io/Serializable.html).
 
 ## Contract
 
@@ -110,7 +110,7 @@ register(
 writeReplace(): Any
 ```
 
-`writeReplace` is part of the `Serializable` ([Java]({{ java.api }}/java.base/java/io/Serializable.html)) abstraction (to designate an alternative object to be used when writing an object to the stream).
+`writeReplace` is part of the `Serializable` ([Java]({{ java.api }}/java/io/Serializable.html)) abstraction (to designate an alternative object to be used when writing an object to the stream).
 
 `writeReplace`...FIXME
 
@@ -121,7 +121,7 @@ readObject(
   in: ObjectInputStream): Unit
 ```
 
-`readObject` is part of the `Serializable` ([Java]({{ java.api }}/java.base/java/io/Serializable.html)) abstraction (for special handling during deserialization).
+`readObject` is part of the `Serializable` ([Java]({{ java.api }}/java/io/Serializable.html)) abstraction (for special handling during deserialization).
 
 `readObject` reads the non-static and non-transient fields of the `AccumulatorV2` from the given `ObjectInputStream`.
 

@@ -35,7 +35,7 @@ shuffleIds: Set[Int]
 executors: ConcurrentHashMap[String, Tracker]
 ```
 
-`ExecutorMonitor` uses a Java [ConcurrentHashMap]({{ java.api }}/java.base/java/util/concurrent/ConcurrentHashMap.html) to track available executors.
+`ExecutorMonitor` uses a Java [ConcurrentHashMap]({{ java.api }}/java/util/concurrent/ConcurrentHashMap.html) to track available executors.
 
 An executor is added when (via [ensureExecutorIsTracked](#ensureExecutorIsTracked)):
 

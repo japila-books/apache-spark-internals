@@ -26,7 +26,7 @@
 entries: LinkedHashMap[BlockId, MemoryEntry[_]]
 ```
 
-`MemoryStore` creates a `LinkedHashMap` ([Java]({{ java.api }}/java.base/java/util/LinkedHashMap.html)) of blocks (as `MemoryEntries` per [BlockId](BlockId.md)) when [created](#creating-instance).
+`MemoryStore` creates a `LinkedHashMap` ([Java]({{ java.api }}/java/util/LinkedHashMap.html)) of blocks (as `MemoryEntries` per [BlockId](BlockId.md)) when [created](#creating-instance).
 
 `entries` uses **access-order** ordering mode where the order of iteration is the order in which the entries were last accessed (from least-recently accessed to most-recently). That gives **LRU cache** behaviour when `MemoryStore` is requested to [evict blocks](#evictBlocksToFreeSpace).
 

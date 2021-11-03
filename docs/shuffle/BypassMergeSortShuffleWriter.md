@@ -155,7 +155,7 @@ copyStream can optionally close `in` and `out` streams (depending on the input `
 NOTE: `Utils.copyStream` is used when <<writePartitionedFile, BypassMergeSortShuffleWriter writes records into one single shuffle block data file>> (among other places).
 
 !!! tip
-    Visit the official web site of [JSR 51: New I/O APIs for the Java Platform](https://jcp.org/jsr/detail/51.jsp) and read up on [java.nio package]({{ java.api }}/java.base/java/nio/package-summary.html).
+    Visit the official web site of [JSR 51: New I/O APIs for the Java Platform](https://jcp.org/jsr/detail/51.jsp) and read up on [java.nio package]({{ java.api }}/java/nio/package-summary.html).
 
 ## <span id="stop"> Stopping ShuffleWriter
 

@@ -68,7 +68,7 @@ Making this larger will focus on fewer locations where most data can be read loc
 
 ## <span id="mapOutputRequests"><span id="GetMapOutputMessage"> GetMapOutputMessage Queue
 
-`MapOutputTrackerMaster` uses a blocking queue (a Java [LinkedBlockingQueue]({{ java.api }}/java.base/java/util/concurrent/LinkedBlockingQueue.html)) for requests for map output statuses.
+`MapOutputTrackerMaster` uses a blocking queue (a Java [LinkedBlockingQueue]({{ java.api }}/java/util/concurrent/LinkedBlockingQueue.html)) for requests for map output statuses.
 
 ```scala
 GetMapOutputMessage(

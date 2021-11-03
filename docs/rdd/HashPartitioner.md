@@ -32,6 +32,6 @@ getPartition(
 
 For `null` keys `getPartition` simply returns `0`.
 
-For non-`null` keys, `getPartition` uses the [Object.hashCode]({{ java.api }}/java.base/java/lang/Object.html#hashCode()) of the key  modulo the [number of partitions](#numPartitions). For negative results, `getPartition` adds the number of partitions to make it non-negative.
+For non-`null` keys, `getPartition` uses the [Object.hashCode]({{ java.api }}/java/lang/Object.html#hashCode()) of the key  modulo the [number of partitions](#numPartitions). For negative results, `getPartition` adds the number of partitions to make it non-negative.
 
 `getPartition` is part of the [Partitioner](Partitioner.md#getPartition) abstraction.

@@ -15,7 +15,7 @@ The decision what `TaskResult` type to use is made when `TaskRunner` [finishes r
 
 `DirectTaskResult` is a `TaskResult` to be serialized and sent over the wire to the driver together with the following:
 
-* <span id="valueBytes"> Value Bytes ([java.nio.ByteBuffer]({{ java.api }}/java.base/java/nio/ByteBuffer.html))
+* <span id="valueBytes"> Value Bytes ([java.nio.ByteBuffer]({{ java.api }}/java/nio/ByteBuffer.html))
 * <span id="accumUpdates"> [Accumulator](../accumulators/AccumulatorV2.md) updates
 * <span id="metricPeaks"> Metric Peaks
 
@@ -28,8 +28,8 @@ The decision what `TaskResult` type to use is made when `TaskRunner` [finishes r
 * <span id="IndirectTaskResult-blockId"> [BlockId](../storage/BlockId.md)
 * <span id="IndirectTaskResult-size"> Size
 
-`IndirectTaskResult` is a [java.io.Serializable]({{ java.api }}/java.base/java/io/Serializable.html).
+`IndirectTaskResult` is a [java.io.Serializable]({{ java.api }}/java/io/Serializable.html).
 
 ## <span id="Externalizable"> Externalizable
 
-`DirectTaskResult` is an `Externalizable` ([Java]({{ java.api }}/java.base/java/io/Externalizable.html)).
+`DirectTaskResult` is an `Externalizable` ([Java]({{ java.api }}/java/io/Externalizable.html)).

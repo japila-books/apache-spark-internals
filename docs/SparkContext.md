@@ -100,7 +100,7 @@ statusTracker: SparkStatusTracker
 localProperties: InheritableThreadLocal[Properties]
 ```
 
-`SparkContext` uses an `InheritableThreadLocal` ([Java]({{ java.api }}/java.base/java/lang/InheritableThreadLocal.html)) of key-value pairs of thread-local properties to pass extra information from a parent thread (on the driver) to child threads.
+`SparkContext` uses an `InheritableThreadLocal` ([Java]({{ java.api }}/java/lang/InheritableThreadLocal.html)) of key-value pairs of thread-local properties to pass extra information from a parent thread (on the driver) to child threads.
 
 `localProperties` is meant to be used by developers using [SparkContext.setLocalProperty](#setLocalProperty) and [SparkContext.getLocalProperty](#getLocalProperty).
 
@@ -283,10 +283,10 @@ getClusterManager(
   url: String): Option[ExternalClusterManager]
 ```
 
-`getClusterManager` uses Java's [ServiceLoader]({{ java.api }}/java.base/java/util/ServiceLoader.html) to find and load an [ExternalClusterManager](scheduler/ExternalClusterManager.md) that [supports](scheduler/ExternalClusterManager.md#canCreate) the given master URL.
+`getClusterManager` uses Java's [ServiceLoader]({{ java.api }}/java/util/ServiceLoader.html) to find and load an [ExternalClusterManager](scheduler/ExternalClusterManager.md) that [supports](scheduler/ExternalClusterManager.md#canCreate) the given master URL.
 
 !!! note "ExternalClusterManager Service Discovery"
-    For [ServiceLoader]({{ java.api }}/java.base/java/util/ServiceLoader.html) to find [ExternalClusterManager](scheduler/ExternalClusterManager.md)s, they have to be registered using the following file:
+    For [ServiceLoader]({{ java.api }}/java/util/ServiceLoader.html) to find [ExternalClusterManager](scheduler/ExternalClusterManager.md)s, they have to be registered using the following file:
     
     ```text
     META-INF/services/org.apache.spark.scheduler.ExternalClusterManager

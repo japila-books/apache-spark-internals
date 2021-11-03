@@ -13,4 +13,4 @@ tags:
 
 ## <span id="Serializable"> Serializable
 
-`ShuffleReadMetrics` is a `Serializable` ([Java]({{ java.api }}/java.base/java/io/Serializable.html)).
+`ShuffleReadMetrics` is a `Serializable` ([Java]({{ java.api }}/java/io/Serializable.html)).

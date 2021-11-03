@@ -174,7 +174,7 @@ taskMetrics(): TaskMetrics
 
 ## <span id="Serializable"> Serializable
 
-`TaskContext` is a `Serializable` ([Java]({{ java.api }}/java.base/java/io/Serializable.html)).
+`TaskContext` is a `Serializable` ([Java]({{ java.api }}/java/io/Serializable.html)).
 
 ## <span id="get"> Accessing TaskContext
 

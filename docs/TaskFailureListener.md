@@ -5,7 +5,7 @@ tags:
 
 # TaskFailureListener
 
-`TaskFailureListener` is an [extension](#contract) of the `EventListener` ([Java]({{ java.api }}/java.base/java/util/EventListener.html)) abstraction for [task listeners](#implementations) that can be notified [on task failure](#onTaskFailure).
+`TaskFailureListener` is an [extension](#contract) of the `EventListener` ([Java]({{ java.api }}/java/util/EventListener.html)) abstraction for [task listeners](#implementations) that can be notified [on task failure](#onTaskFailure).
 
 ## Contract
 

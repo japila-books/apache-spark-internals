@@ -65,7 +65,7 @@ releaseKryo(
 getAutoReset(): Boolean
 ```
 
-`getAutoReset` uses [Java Reflection]({{ java.api }}/java.base/java/lang/reflect/package-summary.html) to access the value of the `autoReset` field of the `Kryo` class.
+`getAutoReset` uses [Java Reflection]({{ java.api }}/java/lang/reflect/package-summary.html) to access the value of the `autoReset` field of the `Kryo` class.
 
 `getAutoReset` is used when:
 
