@@ -140,6 +140,19 @@ A comma-separated list of the file system schemes to report in [executor metrics
 
 Default: `file,hdfs`
 
+## <span id="spark.executor.metrics.pollingInterval"><span id="EXECUTOR_METRICS_POLLING_INTERVAL"> spark.executor.metrics.pollingInterval
+
+How often to collect executor metrics (in ms):
+
+* `0` - the polling is done on executor heartbeats
+* A positive number - the polling is done at this interval
+
+Default: `0`
+
+Used when:
+
+* `Executor` is [created](executor/Executor.md#METRICS_POLLING_INTERVAL_MS)
+
 ## <span id="spark.extraListeners"> spark.extraListeners
 
 A comma-separated list of fully-qualified class names of [SparkListener](SparkListener.md)s (to be registered when [SparkContext](SparkContext.md) is created)

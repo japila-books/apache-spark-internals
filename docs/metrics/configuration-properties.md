@@ -16,6 +16,17 @@ The metrics configuration file
 
 Default: `metrics.properties`
 
+## <span id="spark.metrics.executorMetricsSource.enabled"><span id="METRICS_EXECUTORMETRICS_SOURCE_ENABLED"> spark.metrics.executorMetricsSource.enabled
+
+Enables registering [ExecutorMetricsSource](../executor/ExecutorMetricsSource.md) with the [metrics system](index.md)
+
+Default: `true`
+
+Used when:
+
+* `SparkContext` is [created](../SparkContext-creating-instance-internals.md#_executorMetricsSource)
+* `Executor` is [created](../executor/Executor.md#executorMetricsSource)
+
 ## <span id="spark.metrics.namespace"> spark.metrics.namespace
 
 Root namespace for metrics reporting

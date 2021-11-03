@@ -1,33 +1,5 @@
 # Executor
 
-Executor is a process that is used for executing scheduler:Task.md[tasks].
-
-Executor _typically_ runs for the entire lifetime of a Spark application which is called *static allocation of executors* (but you could also opt in for [dynamic allocation](../dynamic-allocation/index.md)).
-
-Executors are managed by executor:ExecutorBackend.md[executor backends].
-
-Executors <<startDriverHeartbeater, reports heartbeat and partial metrics for active tasks>> to the <<heartbeatReceiverRef, HeartbeatReceiver RPC Endpoint>> on the driver.
-
-![HeartbeatReceiver's Heartbeat Message Handler](../images/executor/HeartbeatReceiver-Heartbeat.png)
-
-Executors provide in-memory storage for RDDs that are cached in Spark applications (via storage:BlockManager.md[]).
-
-When started, an executor first registers itself with the driver that establishes a communication channel directly to the driver to accept tasks for execution.
-
-![Launching tasks on executor using TaskRunners]()../images/executor/executor-taskrunner-executorbackend.png)
-
-*Executor offers* are described by executor id and the host on which an executor runs (see <<resource-offers, Resource Offers>> in this document).
-
-Executors can run multiple tasks over its lifetime, both in parallel and sequentially. They track executor:TaskRunner.md[running tasks] (by their task ids in <<runningTasks, runningTasks>> internal registry). Consult <<launchTask, Launching Tasks>> section.
-
-Executors use a <<threadPool, Executor task launch worker thread pool>> for <<launchTask, launching tasks>>.
-
-Executors send <<metrics, metrics>> (and heartbeats) using the <<heartbeater, internal heartbeater - Heartbeat Sender Thread>>.
-
-It is recommended to have as many executors as data nodes and as many cores as you can get from the cluster.
-
-Executors are described by their *id*, *hostname*, *environment* (as `SparkEnv`), and *classpath* (and, less importantly, and more for internal optimization, whether they run in spark-local:index.md[local] or spark-cluster.md[cluster] mode).
-
 ## Creating Instance
 
 `Executor` takes the following to be created:
@@ -37,13 +9,12 @@ Executors are described by their *id*, *hostname*, *environment* (as `SparkEnv`)
 * <span id="env"> [SparkEnv](../SparkEnv.md)
 * [User-defined jars](#userClassPath) (default: `empty`)
 * [isLocal flag](#isLocal) (default: `false`)
-* <span id="uncaughtExceptionHandler"> Java's UncaughtExceptionHandler (default: `SparkUncaughtExceptionHandler`)
+* <span id="uncaughtExceptionHandler"> `UncaughtExceptionHandler` (default: `SparkUncaughtExceptionHandler`)
 * <span id="resources"> Resources (`Map[String, ResourceInformation]`)
 
 `Executor` is created when:
 
 * `CoarseGrainedExecutorBackend` is requested to [handle a RegisteredExecutor message](CoarseGrainedExecutorBackend.md#RegisteredExecutor) (after having registered with the driver)
-
 * `LocalEndpoint` is [created](../local/LocalEndpoint.md#executor)
 
 ### When Created
@@ -67,6 +38,28 @@ Starting executor ID [executorId] on host [executorHostname]
 `Executor` [creates a task class loader](#createClassLoader) (optionally with [REPL support](#addReplClassLoaderIfNeeded)) and requests the system `Serializer` to [use as the default classloader](../serializer/Serializer.md#setDefaultClassLoader) (for deserializing tasks).
 
 `Executor` [starts sending heartbeats with the metrics of active tasks](#startDriverHeartbeater).
+
+## <span id="executorMetricsSource"> ExecutorMetricsSource
+
+`Executor` creates an [ExecutorMetricsSource](ExecutorMetricsSource.md) when [created](#creating-instance) with the [spark.metrics.executorMetricsSource.enabled](../metrics/configuration-properties.md#spark.metrics.executorMetricsSource.enabled) enabled.
+
+`Executor` uses the `ExecutorMetricsSource` to create the [ExecutorMetricsPoller](#metricsPoller).
+
+`Executor` requests the `ExecutorMetricsSource` to [register](ExecutorMetricsSource.md#register) immediately when [created](#creating-instance) with the [isLocal](#isLocal) flag disabled.
+
+## <span id="metricsPoller"> ExecutorMetricsPoller
+
+`Executor` creates an [ExecutorMetricsPoller](ExecutorMetricsPoller.md) when [created](#creating-instance) with the following:
+
+* [MemoryManager](../SparkEnv.md#memoryManager) of the [SparkEnv](#env)
+* [spark.executor.metrics.pollingInterval](../configuration-properties.md#spark.executor.metrics.pollingInterval)
+* [ExecutorMetricsSource](#executorMetricsSource)
+
+`Executor` requests the `ExecutorMetricsPoller` to [start](ExecutorMetricsPoller.md#start) immediately when [created](#creating-instance) and to [stop](ExecutorMetricsPoller.md#stop) when requested to [stop](#stop).
+
+`TaskRunner` requests the `ExecutorMetricsPoller` to [onTaskStart](ExecutorMetricsPoller.md#onTaskStart) and [onTaskCompletion](ExecutorMetricsPoller.md#onTaskCompletion) at the beginning and the end of [run](TaskRunner.md#run), respectively.
+
+When requested to [reportHeartBeat](#reportHeartBeat) with [pollOnHeartbeat](#pollOnHeartbeat) enabled, `Executor` requests the `ExecutorMetricsPoller` to [poll](ExecutorMetricsPoller.md#poll).
 
 ## <span id="updateDependencies"> Fetching File and Jar Dependencies
 

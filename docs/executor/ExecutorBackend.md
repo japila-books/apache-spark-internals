@@ -1,9 +1,8 @@
-= ExecutorBackend
+# ExecutorBackend
 
 ExecutorBackend is a <<contract, pluggable interface>> that executor:TaskRunner.md[TaskRunners] use to <<statusUpdate, send task status updates>> to a scheduler.
 
-.ExecutorBackend receives notifications from TaskRunners
-image::ExecutorBackend.png[align="center"]
+![ExecutorBackend receives notifications from TaskRunners](../images/executor/ExecutorBackend.png)
 
 NOTE: `TaskRunner` manages a single individual scheduler:Task.md[task] and is managed by an executor:Executor.md#launchTask[`Executor` to launch a task].
 

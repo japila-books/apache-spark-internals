@@ -281,7 +281,7 @@ _plugins: Option[PluginContainer]
 
 `SparkContext` creates a [PluginContainer](plugins/PluginContainer.md) (with itself and the [_resources](#_resources)).
 
-## Creating SchedulerBackend and TaskScheduler
+## <span id="createTaskScheduler"> Creating SchedulerBackend and TaskScheduler
 
 `SparkContext` object is requested to SparkContext.md#createTaskScheduler[create the SchedulerBackend with the TaskScheduler] (for the given master URL) and the result becomes the internal `_schedulerBackend` and `_taskScheduler`.
 
@@ -291,11 +291,11 @@ scheduler:DAGScheduler.md#creating-instance[DAGScheduler is created] (as `_dagSc
 
 `SparkContext` sends a blocking [`TaskSchedulerIsSet` message to HeartbeatReceiver RPC endpoint](HeartbeatReceiver.md#TaskSchedulerIsSet) (to inform that the `TaskScheduler` is now available).
 
-## <span id="_heartbeater"> Heartbeater
+## <span id="_executorMetricsSource"> ExecutorMetricsSource
 
-```scala
-_heartbeater: Heartbeater
-```
+`SparkContext` creates an [ExecutorMetricsSource](executor/ExecutorMetricsSource.md) when the [spark.metrics.executorMetricsSource.enabled](metrics/configuration-properties.md#spark.metrics.executorMetricsSource.enabled) is enabled.
+
+## <span id="_heartbeater"> Heartbeater
 
 `SparkContext` creates a `Heartbeater` and starts it.
 
@@ -439,7 +439,7 @@ getClusterManager(
 
 If there are two or more external cluster managers that could handle `url`, a `SparkException` is thrown:
 
-```
+```text
 Multiple Cluster Managers ([serviceLoaders]) registered for the url [url].
 ```
 
@@ -472,7 +472,7 @@ It scheduler:LiveListenerBus.md#start[starts LiveListenerBus] and records it in 
 
 When no single-`SparkConf` or zero-argument constructor could be found for a class name in configuration-properties.md#spark.extraListeners[spark.extraListeners] configuration property, a `SparkException` is thrown with the message:
 
-```
+```text
 [className] did not have a zero-argument constructor or a single-argument constructor that accepts SparkConf. Note: if the class is defined inside of another Scala class, then its constructors may accept an implicit parameter that references the enclosing class; in this case, you must define the listener as a top-level class in order to prevent this extra parameter from breaking Spark's ability to find a valid constructor.
 ```
 
