@@ -25,3 +25,14 @@ Default: [Spark Application ID](../SparkConf.md#spark.app.id) (i.e. `spark.app.i
 Since a Spark application's ID changes with every execution of a Spark application, a custom namespace can be specified for an easier metrics reporting.
 
 Used when `MetricsSystem` is requested for a [metrics source identifier](MetricsSystem.md#buildRegistryName) (_metrics namespace_)
+
+## <span id="spark.metrics.staticSources.enabled"><span id="METRICS_STATIC_SOURCES_ENABLED"> spark.metrics.staticSources.enabled
+
+Enables static metric sources
+
+Default: `true`
+
+Used when:
+
+* `SparkContext` is [created](../SparkContext-creating-instance-internals.md#metricsSystem)
+* `SparkEnv` utility is used to [create SparkEnv for executors](../SparkEnv.md#create)

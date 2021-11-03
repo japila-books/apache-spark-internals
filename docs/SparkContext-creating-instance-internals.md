@@ -327,15 +327,16 @@ NOTE: `_applicationAttemptId` is used when `SparkContext` is requested for the S
 
 The storage:BlockManager.md#initialize[BlockManager (for the driver) is initialized] (with `_applicationId`).
 
-## Starting MetricsSystem
+## <span id="metricsSystem"> Starting MetricsSystem
 
-`SparkContext` requests the `MetricsSystem` to [start](metrics/MetricsSystem.md#start).
+`SparkContext` requests the `MetricsSystem` to [start](metrics/MetricsSystem.md#start) (with the value of the[spark.metrics.staticSources.enabled](metrics/configuration-properties.md#spark.metrics.staticSources.enabled) configuration property).
 
-NOTE: `SparkContext` starts `MetricsSystem` after <<spark.app.id, setting spark.app.id Spark property>> as `MetricsSystem` uses it to [build unique identifiers fo metrics sources](metrics/MetricsSystem.md#buildRegistryName).
+!!! NOTE
+    `SparkContext` starts the `MetricsSystem` after <<spark.app.id, setting spark.app.id Spark property>> as `MetricsSystem` uses it to [build unique identifiers fo metrics sources](metrics/MetricsSystem.md#buildRegistryName).
 
-## Attaching JSON Servlet Handler
+## <span id="attach-handlers"> Attaching Servlet Handlers to web UI
 
-`SparkContext` requests the `MetricsSystem` for a [JSON servlet handler](metrics/MetricsSystem.md#getServletHandlers) and requests the <<_ui, SparkUI>> to spark-webui-WebUI.md#attachHandler[attach it].
+`SparkContext` requests the `MetricsSystem` for [servlet handlers](metrics/MetricsSystem.md#getServletHandlers) and requests the [SparkUI](#_ui) to [attach them](webui/WebUI.md#attachHandler).
 
 ## <span id="_eventLogger"> Starting EventLoggingListener (with Event Log Enabled)
 

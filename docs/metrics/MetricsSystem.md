@@ -16,6 +16,25 @@ While being created, `MetricsSystem` requests the [MetricsConfig](#metricsConfig
 
 `MetricsSystem` is created (using [createMetricsSystem](#createMetricsSystem) utility) for the [Metrics Systems](index.md#metrics-systems).
 
+## <span id="prometheusServlet"> PrometheusServlet
+
+`MetricsSystem` creates a [PrometheusServlet](PrometheusServlet.md) when requested to [registerSinks](#registerSinks) for an [instance](#instance) with `sink.prometheusServlet` configuration.
+
+`MetricsSystem` requests the `PrometheusServlet` for [URL handlers](PrometheusServlet.md#getHandlers) when requested for [servlet handlers](#getServletHandlers) (so it can be attached to a web UI and serve HTTP requests).
+
+## <span id="metricsServlet"> MetricsServlet
+
+!!! note
+    review me
+
+[MetricsServlet JSON metrics sink](MetricsServlet.md) that is only available for the <<metrics-instances, metrics instances>> with a web UI (i.e. the driver of a Spark application and Spark Standalone's `Master`).
+
+`MetricsSystem` may have at most one `MetricsServlet` JSON metrics sink (which is [registered by default](MetricsConfig.md#setDefaultProperties)).
+
+Initialized when MetricsSystem registers <<registerSinks, sinks>> (and finds a configuration entry with `servlet` sink name).
+
+Used when MetricsSystem is requested for a <<getServletHandlers, JSON servlet handler>>.
+
 ## <span id="createMetricsSystem"> Creating MetricsSystem
 
 ```scala
@@ -90,15 +109,15 @@ Source class [classPath] cannot be instantiated
 
 `registerSources` is used when `MetricsSystem` is requested to [start](#start).
 
-## <span id="getServletHandlers"> Requesting JSON Servlet Handler
+## <span id="getServletHandlers"> Servlet Handlers
 
 ```scala
 getServletHandlers: Array[ServletContextHandler]
 ```
 
-If the MetricsSystem is <<running, running>> and the <<metricsServlet, MetricsServlet>> is defined for the metrics system, `getServletHandlers` simply requests the <<metricsServlet, MetricsServlet>> for the spark-metrics-MetricsServlet.md#getHandlers[JSON servlet handler].
+`getServletHandlers` requests the [metricsServlet](#metricsServlet) (if defined) and the [prometheusServlet](#prometheusServlet) (if defined) for URL handlers.
 
-When MetricsSystem is not <<running, running>> `getServletHandlers` throws an `IllegalArgumentException`.
+`getServletHandlers` requires that the `MetricsSystem` is [running](#running) or throws an `IllegalArgumentException`:
 
 ```text
 Can only call getServletHandlers on a running MetricsSystem
@@ -106,8 +125,9 @@ Can only call getServletHandlers on a running MetricsSystem
 
 `getServletHandlers` is used when:
 
-* `SparkContext` is [created](../SparkContext-creating-instance-internals.md#MetricsSystem-getServletHandlers)
-* (Spark Standalone) `Master` and `Worker` are requested to start
+* `SparkContext` is [created](../SparkContext-creating-instance-internals.md#attach-handlers) (and attaches the URL handlers to the web UI)
+* `Master` ([Spark Standalone]({{ book.spark_standalone }}/Master#onStart)) is requested to `onStart`
+* `Worker` ([Spark Standalone]({{ book.spark_standalone }}/Worker#onStart)) is requested to `onStart`
 
 ## <span id="registerSinks"> Registering Metrics Sinks
 
@@ -202,16 +222,6 @@ Used when MetricsSystem is requested to:
 Initialized when MetricsSystem is <<creating-instance, created>>.
 
 Used when MetricsSystem registers <<registerSinks, sinks>> and <<registerSources, sources>>.
-
-### <span id="metricsServlet"> MetricsServlet
-
-[MetricsServlet JSON metrics sink](MetricsServlet.md) that is only available for the <<metrics-instances, metrics instances>> with a web UI (i.e. the driver of a Spark application and Spark Standalone's `Master`).
-
-`MetricsSystem` may have at most one `MetricsServlet` JSON metrics sink (which is [registered by default](MetricsConfig.md#setDefaultProperties)).
-
-Initialized when MetricsSystem registers <<registerSinks, sinks>> (and finds a configuration entry with `servlet` sink name).
-
-Used when MetricsSystem is requested for a <<getServletHandlers, JSON servlet handler>>.
 
 ### <span id="running"> running Flag
 
