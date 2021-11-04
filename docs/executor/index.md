@@ -18,8 +18,8 @@ When started, an executor first registers itself with the driver that establishe
 
 [Executor offers](Executor.md#resource-offers) are described by executor id and the host on which an executor runs.
 
-Executors can run multiple tasks over their lifetime, both in parallel and sequentially. They track [running tasks](TaskRunner.md) (by their task ids in <<runningTasks, runningTasks>> internal registry).
+Executors can run multiple tasks over their lifetime, both in parallel and sequentially, and track [running tasks](Executor.md#runningTasks).
 
-Executors use a [Executor task launch worker thread pool](Executor.md#threadPool) for [launching tasks](Executor.md#launchTask).
+Executors use an [Executor task launch worker thread pool](Executor.md#threadPool) for [launching tasks](Executor.md#launchTask).
 
 Executors send [metrics](Executor.md#metrics) (and heartbeats) using the [Heartbeat Sender Thread](Executor.md#heartbeater).

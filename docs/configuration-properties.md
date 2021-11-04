@@ -107,6 +107,28 @@ Number of CPU cores for [Executor](executor/Executor.md)
 
 Default: `1`
 
+## <span id="spark.executor.heartbeat.maxFailures"><span id="EXECUTOR_HEARTBEAT_MAX_FAILURES"> spark.executor.heartbeat.maxFailures
+
+Number of times an [Executor](executor/Executor.md) tries sending heartbeats to the driver before it gives up and exits (with exit code `56`).
+
+Default: `60`
+
+Used whne:
+
+* `Executor` is [created](executor/Executor.md#HEARTBEAT_MAX_FAILURES)
+
+## <span id="spark.executor.heartbeatInterval"><span id="EXECUTOR_HEARTBEAT_INTERVAL"> spark.executor.heartbeatInterval
+
+Interval after which an [Executor](executor/Executor.md#heartbeats-and-active-task-metrics) heartbeats (and reports metrics for active tasks) to the driver
+
+Default: `10s`
+
+Used when:
+
+* `SparkContext` is [created](SparkContext.md#_heartbeater)
+* `Executor` is [created](executor/Executor.md#HEARTBEAT_INTERVAL_MS) and requested to [reportHeartBeat](executor/Executor.md#reportHeartBeat)
+* `HeartbeatReceiver` is [created](HeartbeatReceiver.md#executorHeartbeatIntervalMs)
+
 ## <span id="spark.executor.id"> spark.executor.id
 
 Default: (undefined)
@@ -152,6 +174,18 @@ Default: `0`
 Used when:
 
 * `Executor` is [created](executor/Executor.md#METRICS_POLLING_INTERVAL_MS)
+
+## <span id="spark.executor.userClassPathFirst"><span id="EXECUTOR_USER_CLASS_PATH_FIRST"> spark.executor.userClassPathFirst
+
+Controls whether to load classes in user-defined jars before those in Spark jars
+
+Default: `false`
+
+Used when:
+
+* `CoarseGrainedExecutorBackend` is requested to [create a ClassLoader](executor/CoarseGrainedExecutorBackend.md#createClassLoader)
+* `Executor` is [created](executor/Executor.md#userClassPathFirst)
+* `Client` utility (Spark on YARN) is used to `isUserClassPathFirst`
 
 ## <span id="spark.extraListeners"> spark.extraListeners
 
@@ -729,25 +763,6 @@ a| [[spark.executor.logs.rolling.maxRetainedFiles]]
 
 | spark.executor.logs.rolling.maxSize
 a| [[spark.executor.logs.rolling.maxSize]]
-
-| spark.executor.heartbeatInterval
-a| [[spark.executor.heartbeatInterval]] Interval after which an executor:Executor.md[] reports heartbeat and metrics for active tasks to the driver
-
-Default: `10s`
-
-Refer to executor:Executor.md#heartbeats-and-active-task-metrics[Sending heartbeats and partial metrics for active tasks]
-
-| spark.executor.heartbeat.maxFailures
-a| [[spark.executor.heartbeat.maxFailures]] Number of times an executor:Executor.md[] will try to send heartbeats to the driver before it gives up and exits (with exit code `56`).
-
-Default: `60`
-
-NOTE: Introduced in https://issues.apache.org/jira/browse/SPARK-13522[SPARK-13522 Executor should kill itself when it's unable to heartbeat to the driver more than N times].
-
-| spark.executor.userClassPathFirst
-a| [[spark.executor.userClassPathFirst]] Flag to control whether to load classes in user jars before those in Spark jars
-
-Default: `false`
 
 | spark.executor.port
 a| [[spark.executor.port]]
