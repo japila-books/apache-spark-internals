@@ -7,10 +7,6 @@ The decision what `TaskResult` type to use is made when `TaskRunner` [finishes r
 ??? note "Sealed Trait"
     `TaskResult` is a Scala **sealed trait** which means that all of the implementations are in the same compilation unit (a single file).
 
-    ```scala
-    sealed trait TaskResult[T]
-    ```
-
 ## <span id="DirectTaskResult"> DirectTaskResult
 
 `DirectTaskResult` is a `TaskResult` to be serialized and sent over the wire to the driver together with the following:

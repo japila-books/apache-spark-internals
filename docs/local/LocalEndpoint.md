@@ -1,6 +1,8 @@
-== [[LocalEndpoint]] LocalEndpoint -- RPC Endpoint for LocalSchedulerBackend
+# LocalEndpoint
 
-`LocalEndpoint` is the <<../index.md#ThreadSafeRpcEndpoint, ThreadSafeRpcEndpoint>> for <<executorBackend, LocalSchedulerBackend>> and is registered under the *LocalSchedulerBackendEndpoint* name.
+`LocalEndpoint` is the `ThreadSafeRpcEndpoint` for [LocalSchedulerBackend](#executorBackend) and is registered under the **LocalSchedulerBackendEndpoint** name.
+
+## Review Me
 
 `LocalEndpoint` is <<creating-instance, created>> exclusively when `LocalSchedulerBackend` is requested to <<spark-LocalSchedulerBackend.md#start, start>>.
 

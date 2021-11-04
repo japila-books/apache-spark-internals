@@ -8,7 +8,7 @@
 * <span id="executorHostname"> Host name
 * <span id="env"> [SparkEnv](../SparkEnv.md)
 * [User-defined jars](#userClassPath) (default: `empty`)
-* [isLocal flag](#isLocal) (default: `false`)
+* [isLocal flag](#isLocal)
 * <span id="uncaughtExceptionHandler"> `UncaughtExceptionHandler` (default: `SparkUncaughtExceptionHandler`)
 * <span id="resources"> Resources (`Map[String, ResourceInformation]`)
 
@@ -31,7 +31,12 @@ Starting executor ID [executorId] on host [executorHostname]
 
 <span id="creating-instance-BlockManager-shuffleMetricsSource">
 
-(only for [non-local](#isLocal) modes) `Executor` requests the [MetricsSystem](../SparkEnv.md#metricsSystem) to [register](../metrics/MetricsSystem.md#registerSource) the [ExecutorSource](#executorSource) and [shuffleMetricsSource](../storage/BlockManager.md#shuffleMetricsSource) of the [BlockManager](../SparkEnv.md#blockManager).
+(only for [non-local](#isLocal) modes) `Executor` requests the [MetricsSystem](../SparkEnv.md#metricsSystem) to [register](../metrics/MetricsSystem.md#registerSource) the following metric sources:
+
+* [ExecutorSource](#executorSource)
+* `JVMCPUSource`
+* [ExecutorMetricsSource](#executorMetricsSource)
+* [ShuffleMetricsSource](../storage/BlockManager.md#shuffleMetricsSource) (of the [BlockManager](../SparkEnv.md#blockManager))
 
 `Executor` uses `SparkEnv` to access the [MetricsSystem](../SparkEnv.md#metricsSystem) and [BlockManager](../SparkEnv.md#blockManager).
 
@@ -97,6 +102,14 @@ Fetching [name] with timestamp [timestamp]
 
 `Executor` uses the minimum of [spark.task.maxDirectResultSize](../configuration-properties.md#spark.task.maxDirectResultSize) and [spark.rpc.message.maxSize](../rpc/RpcUtils.md#maxMessageSizeBytes) when `TaskRunner` is requested to [run a task](TaskRunner.md#run) (and [decide on the type of a serialized task result](TaskRunner.md#run-serializedResult)).
 
+## <span id="isLocal"> isLocal Flag
+
+`Executor` is given the `isLocal` flag when [created](#creating-instance) to indicate a non-local mode (whether the executor and the Spark application runs with `local` or cluster-specific master URL).
+
+`isLocal` is disabled (`false`) by default and is off explicitly when `CoarseGrainedExecutorBackend` is requested to [handle a RegisteredExecutor message](CoarseGrainedExecutorBackend.md#RegisteredExecutor).
+
+`isLocal` is enabled (`true`) when `LocalEndpoint` is [created](../local/LocalEndpoint.md#executor)
+
 ## Logging
 
 Enable `ALL` logging level for `org.apache.spark.executor.Executor` logger to see what happens inside.
@@ -110,12 +123,6 @@ log4j.logger.org.apache.spark.executor.Executor=ALL
 Refer to [Logging](../spark-logging.md).
 
 ## Review Me
-
-== [[isLocal]] isLocal Flag
-
-Executor is given a isLocal flag when created. This is how the executor knows whether it runs in local or cluster mode. It is disabled by default.
-
-The flag is turned on for spark-local:index.md[Spark local] (via spark-local:spark-LocalEndpoint.md[LocalEndpoint]).
 
 == [[userClassPath]] User-Defined Jars
 
