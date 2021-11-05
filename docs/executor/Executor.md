@@ -276,7 +276,11 @@ Exit as unable to send heartbeats to driver more than [HEARTBEAT_MAX_FAILURES] t
 
 `reportHeartBeat` is used when:
 
-* Executor is requested to [schedule reporting heartbeat and partial metrics for active tasks to the driver](#startDriverHeartbeater) (that happens every [spark.executor.heartbeatInterval](../configuration-properties.md#spark.executor.heartbeatInterval)).
+* `Executor` is requested to [schedule reporting heartbeat and partial metrics for active tasks to the driver](#startDriverHeartbeater) (that happens every [spark.executor.heartbeatInterval](../configuration-properties.md#spark.executor.heartbeatInterval)).
+
+### <span id="HEARTBEAT_MAX_FAILURES"><span id="spark.executor.heartbeat.maxFailures"> spark.executor.heartbeat.maxFailures
+
+`Executor` uses [spark.executor.heartbeat.maxFailures](../configuration-properties.md#spark.executor.heartbeat.maxFailures) configuration property in [reportHeartBeat](#reportHeartBeat).
 
 ## Logging
 

@@ -1,5 +1,29 @@
 # CoarseGrainedExecutorBackend
 
+`CoarseGrainedExecutorBackend` is an [ExecutorBackend](ExecutorBackend.md) and an [IsolatedRpcEndpoint](../rpc/RpcEndpoint.md#IsolatedRpcEndpoint).
+
+## Creating Instance
+
+`CoarseGrainedExecutorBackend` takes the following to be created:
+
+* <span id="rpcEnv"> [RpcEnv](../rpc/RpcEnv.md)
+* <span id="driverUrl"> Driver URL
+* <span id="executorId"> Executor ID
+* <span id="bindAddress"> Bind Address (_unused_)
+* <span id="hostname"> Hostname
+* <span id="cores"> Number of CPU cores
+* <span id="userClassPath"> User Classpath (`Seq[URL]`)
+* <span id="env"> [SparkEnv](../SparkEnv.md)
+* <span id="resourcesFileOpt"> Resources Configuration File
+* <span id="resourceProfile"> [ResourceProfile](../stage-level-scheduling/ResourceProfile.md)
+
+!!! note
+    [driverUrl](#driverUrl), [executorId](#executorId), [hostname](#hostname), [cores](#cores) and [userClassPath](#userClassPath) correspond to `CoarseGrainedExecutorBackend` standalone application's [command-line arguments](#command-line-arguments).
+
+`CoarseGrainedExecutorBackend` is created when:
+
+* `CoarseGrainedExecutorBackend` standalone application is [launched](#run)
+
 ## <span id="decommissionSelf"> decommissionSelf
 
 ```scala
@@ -252,24 +276,6 @@ Once `RpcEnv` has terminated, `run` spark-SparkHadoopUtil.md#stopCredentialUpdat
 CAUTION: FIXME Think of the place for `Utils.initDaemon`, `Utils.getProcessName` et al.
 
 run is used when CoarseGrainedExecutorBackend standalone application is <<main, launched>>.
-
-== [[creating-instance]] Creating CoarseGrainedExecutorBackend Instance
-
-CoarseGrainedExecutorBackend takes the following when created:
-
-. [[rpcEnv]] rpc:index.md[RpcEnv]
-. `driverUrl`
-. [[executorId]] `executorId`
-. `hostname`
-. `cores`
-. `userClassPath`
-. core:SparkEnv.md[SparkEnv]
-
-NOTE: `driverUrl`, `executorId`, `hostname`, `cores` and `userClassPath` correspond to CoarseGrainedExecutorBackend standalone application's <<command-line-arguments, command-line arguments>>.
-
-CoarseGrainedExecutorBackend initializes the <<internal-properties, internal properties>>.
-
-NOTE: CoarseGrainedExecutorBackend is created (to act as an RPC endpoint) when <<run, `Executor` RPC endpoint is registered>>.
 
 == [[onStart]] Registering with Driver -- `onStart` Method
 

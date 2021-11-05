@@ -1,8 +1,8 @@
 # Executor
 
-[Executor](Executor.md) is a process used for executing [Task](../scheduler/Task.md)s.
+Spark applications start one or more [Executor](Executor.md)s for [executing tasks](Executor.md#launchTask).
 
-Executors _typically_ run for the entire lifetime of a Spark application which is called **static allocation of executors** (but you could also opt in for [dynamic allocation](../dynamic-allocation/index.md)).
+By default (in **Static Allocation of Executors**) executors run for the entire lifetime of a Spark application (unlike in [Dynamic Allocation](../dynamic-allocation/index.md)).
 
 Executors are managed by [ExecutorBackend](ExecutorBackend.md).
 

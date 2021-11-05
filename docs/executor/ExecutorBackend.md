@@ -1,31 +1,30 @@
 # ExecutorBackend
 
-ExecutorBackend is a <<contract, pluggable interface>> that executor:TaskRunner.md[TaskRunners] use to <<statusUpdate, send task status updates>> to a scheduler.
+`ExecutorBackend` is an [abstraction](#contract) of [executor backends](#implementations) (that [TaskRunner](TaskRunner.md)s use to [send task status updates](#statusUpdate) to a scheduler).
 
 ![ExecutorBackend receives notifications from TaskRunners](../images/executor/ExecutorBackend.png)
 
-NOTE: `TaskRunner` manages a single individual scheduler:Task.md[task] and is managed by an executor:Executor.md#launchTask[`Executor` to launch a task].
+`ExecutorBackend` acts as a bridge between executors and the driver.
 
-It is effectively a bridge between the driver and an executor, i.e. there are two endpoints running.
+## Contract
 
-There are three concrete executor backends:
+### <span id="statusUpdate"> statusUpdate
 
-* executor:CoarseGrainedExecutorBackend.md[]
-
-* spark-local:spark-LocalSchedulerBackend.md[] (for spark-local:index.md[Spark local])
-
-* spark-on-mesos:spark-executor-backends-MesosExecutorBackend.md[]
-
-== [[contract]] ExecutorBackend Contract
-
-=== [[statusUpdate]] statusUpdate Method
-
-[source, scala]
-----
+```scala
 statusUpdate(
   taskId: Long,
   state: TaskState,
   data: ByteBuffer): Unit
-----
+```
 
-Used when `TaskRunner` is requested to executor:TaskRunner.md#run[run a task] (to send task status updates).
+Sending a status update to a scheduler
+
+Used when:
+
+* `TaskRunner` is requested to [run a task](TaskRunner.md#run)
+
+## Implementations
+
+* [CoarseGrainedExecutorBackend](CoarseGrainedExecutorBackend.md)
+* [LocalSchedulerBackend](../local/LocalSchedulerBackend.md)
+* `MesosExecutorBackend`

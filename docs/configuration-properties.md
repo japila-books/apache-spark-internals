@@ -113,13 +113,15 @@ Number of times an [Executor](executor/Executor.md) tries sending heartbeats to 
 
 Default: `60`
 
-Used whne:
+For example, with max failures `60` (the default) and [spark.executor.heartbeatInterval](#spark.executor.heartbeatInterval) `10s`, then `Executor` will try to send heartbeats for up to `600s` (10 minutes).
 
-* `Executor` is [created](executor/Executor.md#HEARTBEAT_MAX_FAILURES)
+Used when:
+
+* `Executor` is [created](executor/Executor.md#HEARTBEAT_MAX_FAILURES) (and [reportHeartBeat](executor/Executor.md#reportHeartBeat))
 
 ## <span id="spark.executor.heartbeatInterval"><span id="EXECUTOR_HEARTBEAT_INTERVAL"> spark.executor.heartbeatInterval
 
-Interval after which an [Executor](executor/Executor.md#heartbeats-and-active-task-metrics) heartbeats (and reports metrics for active tasks) to the driver
+Interval between [Executor](executor/Executor.md#heartbeats-and-active-task-metrics) heartbeats (to the driver)
 
 Default: `10s`
 
