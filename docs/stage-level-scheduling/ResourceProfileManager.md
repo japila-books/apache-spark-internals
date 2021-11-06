@@ -11,6 +11,10 @@
 
 * `SparkContext` is [created](../SparkContext.md#_resourceProfileManager)
 
+## Accessing ResourceProfileManager
+
+`ResourceProfileManager` is available to other Spark services using [SparkContext](../SparkContext.md#ResourceProfileManager).
+
 ## <span id="defaultProfile"> Default Profile
 
 `ResourceProfileManager` [finds the default profile](ResourceProfile.md#getOrCreateDefaultProfile) when created and [registers it](#addResourceProfile) immediately.

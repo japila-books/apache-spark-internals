@@ -52,6 +52,37 @@ Used when:
 ??? note "Abstract Class"
     `RDD` is an abstract class and cannot be created directly. It is created indirectly for the [concrete RDDs](#implementations).
 
+## Stage-Level Scheduling
+
+### <span id="withResources"> withResources
+
+```scala
+withResources(
+  rp: ResourceProfile): this.type
+```
+
+`withResources` sets the given [ResourceProfile](../stage-level-scheduling/ResourceProfile.md) as the [resourceProfile](#resourceProfile) and requests the [ResourceProfileManager](../SparkContext.md#resourceProfileManager) to [add the resource profile](../stage-level-scheduling/ResourceProfileManager.md#addResourceProfile).
+
+### <span id="resourceProfile"> resourceProfile
+
+`RDD` uses `resourceProfile` internal registry for a [ResourceProfile](../stage-level-scheduling/ResourceProfile.md).
+
+The `ResourceProfile` is undefined when `RDD` is [created](#creating-instance) and is assigned in [withResources](#withResources).
+
+The `ResourceProfile` is available using [getResourceProfile](#getResourceProfile).
+
+### <span id="getResourceProfile"> getResourceProfile
+
+```scala
+getResourceProfile(): ResourceProfile
+```
+
+`getResourceProfile` returns the [resourceProfile](#resourceProfile) (if defined) or `null`.
+
+`getResourceProfile` is used when:
+
+* `DAGScheduler` is requested for the [shuffle dependencies and resource profiles](../scheduler/DAGScheduler.md#getShuffleDependenciesAndResourceProfiles)
+
 ## <span id="partitions"> partitions
 
 ```scala

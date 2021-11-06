@@ -2,7 +2,7 @@
 
 `ResourceProfile` is a resource profile (with [executor](#executorResources) and [task](#taskResources) requirements) for [Stage Level Scheduling](index.md).
 
-`ResourceProfile` is a Java [Serializable]({{ java.api }}/java/io/Serializable.html).
+`ResourceProfile` is associated with an `RDD` using [withResources](../rdd/RDD.md#withResources) operator.
 
 ## Creating Instance
 
@@ -15,6 +15,10 @@
 
 * `DriverEndpoint` is requested to [handle a RetrieveSparkAppConfig message](../scheduler/DriverEndpoint.md#RetrieveSparkAppConfig)
 * `ResourceProfileBuilder` utility is requested to [build](ResourceProfileBuilder.md#build)
+
+## Serializable
+
+`ResourceProfile` is a Java [Serializable]({{ java.api }}/java/io/Serializable.html).
 
 ## <span id="defaultProfile"> Default Profile
 
@@ -50,16 +54,28 @@ executor resources: [executorResources], task resources: [taskResources]
 * `ResourceProfileManager` is [created](ResourceProfileManager.md#defaultProfile)
 * `YarnAllocator` (Spark on YARN) is requested to `initDefaultProfile`
 
-### <span id="getDefaultExecutorResources"> getDefaultExecutorResources
+### <span id="getDefaultExecutorResources"> Default Executor Resources
 
 ```scala
 getDefaultExecutorResources(
   conf: SparkConf): Map[String, ExecutorResourceRequest]
 ```
 
-`getDefaultExecutorResources` creates an `ExecutorResourceRequests`.
+`getDefaultExecutorResources` creates an [ExecutorResourceRequests](ExecutorResourceRequests.md) with the following:
 
-`getDefaultExecutorResources`...FIXME
+Property | Configuration Property
+---------|----------
+ [cores](ExecutorResourceRequests.md#cores)   | [spark.executor.cores](../configuration-properties.md#spark.executor.cores)
+ [memory](ExecutorResourceRequests.md#memory) | [spark.executor.memory](../configuration-properties.md#spark.executor.memory)
+ [memoryOverhead](ExecutorResourceRequests.md#memoryOverhead) | [spark.executor.memoryOverhead](../configuration-properties.md#spark.executor.memoryOverhead)
+ [pysparkMemory](ExecutorResourceRequests.md#pysparkMemory)   | [spark.executor.pyspark.memory](../configuration-properties.md#spark.executor.pyspark.memory)
+ [offHeapMemory](ExecutorResourceRequests.md#offHeapMemory)   | [spark.memory.offHeap.size](../Utils.md#executorOffHeapMemorySizeAsMb)
+
+`getDefaultExecutorResources` [finds executor resource requests](ResourceUtils.md#parseAllResourceRequests) (with the `spark.executor` component name in the given [SparkConf](../SparkConf.md)) for [ExecutorResourceRequests](ExecutorResourceRequests.md#resource).
+
+`getDefaultExecutorResources` initializes the [defaultProfileExecutorResources](#defaultProfileExecutorResources) (with the executor resource requests).
+
+In the end, `getDefaultExecutorResources` requests the `ExecutorResourceRequests` for [all the resource requests](ExecutorResourceRequests.md#requests)
 
 ## <span id="getResourcesForClusterManager"> getResourcesForClusterManager
 

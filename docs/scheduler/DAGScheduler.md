@@ -61,6 +61,19 @@ When DAGScheduler schedules a job as a result of rdd/index.md#actions[executing 
 
 While being created, `DAGScheduler` requests the [TaskScheduler](#taskScheduler) to [associate itself with](TaskScheduler.md#setDAGScheduler) and requests [DAGScheduler Event Bus](#eventProcessLoop) to start accepting events.
 
+## <span id="getShuffleDependenciesAndResourceProfiles"> Shuffle Dependencies and ResourceProfiles
+
+```scala
+getShuffleDependenciesAndResourceProfiles(
+  rdd: RDD[_]): (HashSet[ShuffleDependency[_, _, _]], HashSet[ResourceProfile])
+```
+
+`getShuffleDependenciesAndResourceProfiles`...FIXME
+
+`getShuffleDependenciesAndResourceProfiles` is used when:
+
+* `DAGScheduler` is requested to create a [ShuffleMapStage](#createShuffleMapStage) and a [ResultStage](#createResultStage), and for the [missing ShuffleDependencies of a RDD](#getMissingAncestorShuffleDependencies)
+
 ## <span id="metricsSource"><span id="DAGSchedulerSource"> DAGSchedulerSource
 
 `DAGScheduler` uses [DAGSchedulerSource](DAGSchedulerSource.md) for performance metrics.
@@ -333,7 +346,7 @@ markStageAsFinished(
 
 `markStageAsFinished` is used when...FIXME
 
-## <span id="getOrCreateShuffleMapStage"> Finding or Creating ShuffleMapStage for ShuffleDependency
+## <span id="getOrCreateShuffleMapStage"> Looking Up ShuffleMapStage for ShuffleDependency
 
 ```scala
 getOrCreateShuffleMapStage(
@@ -349,20 +362,19 @@ If not found, `getOrCreateShuffleMapStage` [finds all the missing ancestor shuff
 
 * `DAGScheduler` is requested to [find or create missing direct parent ShuffleMapStages of an RDD](#getOrCreateParentStages), [find missing parent ShuffleMapStages for a stage](#getMissingParentStages), [handle a MapStageSubmitted event](#handleMapStageSubmitted), and [check out stage dependency on a stage](#stageDependsOn)
 
-## <span id="getMissingAncestorShuffleDependencies"> Finding Missing ShuffleDependencies For RDD
+### <span id="getMissingAncestorShuffleDependencies"> Missing ShuffleDependencies of RDD
 
 ```scala
 getMissingAncestorShuffleDependencies(
    rdd: RDD[_]): Stack[ShuffleDependency[_, _, _]]
 ```
 
-`getMissingAncestorShuffleDependencies` finds all missing [shuffle dependencies](../rdd/ShuffleDependency.md) for the given [RDD](../rdd/index.md) traversing its rdd/spark-rdd-lineage.md[RDD lineage].
+`getMissingAncestorShuffleDependencies` finds all the missing [ShuffleDependencies](../rdd/ShuffleDependency.md) for the given [RDD](../rdd/index.md) (traversing its [RDD lineage](../rdd/spark-rdd-lineage.md)).
 
-NOTE: A *missing shuffle dependency* of a RDD is a dependency not registered in <<shuffleIdToMapStage, `shuffleIdToMapStage` internal registry>>.
+!!! note
+    A [ShuffleDependency](../rdd/ShuffleDependency.md) (of an `RDD`) is considered missing when not registered in the [shuffleIdToMapStage](#shuffleIdToMapStage) internal registry.
 
-Internally, `getMissingAncestorShuffleDependencies` <<getShuffleDependencies, finds direct parent shuffle dependencies>> of the input RDD and collects the ones that are not registered in <<shuffleIdToMapStage, `shuffleIdToMapStage` internal registry>>. It repeats the process for the RDDs of the parent shuffle dependencies.
-
-`getMissingAncestorShuffleDependencies` is used when `DAGScheduler` is requested to [find all ShuffleMapStage stages for a ShuffleDependency](#getOrCreateShuffleMapStage).
+Internally, `getMissingAncestorShuffleDependencies` [finds direct parent shuffle dependencies](#getShuffleDependencies) of the input `RDD` and collects the ones that are not registered in the [shuffleIdToMapStage](#shuffleIdToMapStage) internal registry. It repeats the process for the `RDD`s of the parent shuffle dependencies.
 
 ## <span id="getShuffleDependencies"> Finding Direct Parent Shuffle Dependencies of RDD
 
