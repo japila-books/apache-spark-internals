@@ -57,7 +57,7 @@ getDefaultExecutorResources(
   conf: SparkConf): Map[String, ExecutorResourceRequest]
 ```
 
-`getDefaultExecutorResources` creates a `ExecutorResourceRequests`.
+`getDefaultExecutorResources` creates an `ExecutorResourceRequests`.
 
 `getDefaultExecutorResources`...FIXME
 
@@ -73,7 +73,18 @@ getResourcesForClusterManager(
   resourceMappings: Map[String, String]): ExecutorResourcesOrDefaults
 ```
 
+`getResourcesForClusterManager` [takes the DefaultProfileExecutorResources](#getDefaultProfileExecutorResources).
+
+`getResourcesForClusterManager` [calculates the overhead memory](#calculateOverHeadMemory) with the following:
+
+* `memoryOverheadMiB` and `executorMemoryMiB` of the `DefaultProfileExecutorResources`
+* Given `overheadFactor`
+
+If the given `rpId` resource profile ID is not the default ID (`0`), `getResourcesForClusterManager`...FIXME (_there is so much to "digest"_)
+
 `getResourcesForClusterManager`...FIXME
+
+In the end, `getResourcesForClusterManager` creates a `ExecutorResourcesOrDefaults`.
 
 `getResourcesForClusterManager` is used when:
 

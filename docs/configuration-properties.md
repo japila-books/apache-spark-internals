@@ -512,6 +512,18 @@ Default: `2000`
 
 Must be a positive integer (above `0`)
 
+## <span id="spark.shuffle.push.enabled"><span id="PUSH_BASED_SHUFFLE_ENABLED"> spark.shuffle.push.enabled
+
+Enables push-based shuffle on the client side
+
+Default: `false`
+
+Works in conjunction with the server side flag `spark.shuffle.push.server.mergedShuffleFileManagerImpl` which needs to be set with the appropriate `org.apache.spark.network.shuffle.MergedShuffleFileManager` implementation for push-based shuffle to be enabled
+
+Used when:
+
+* `Utils` utility is used to [determine whether push-based shuffle is enabled or not](Utils.md#isPushBasedShuffleEnabled)
+
 ## <span id="spark.shuffle.readHostLocalDisk"><span id="SHUFFLE_HOST_LOCAL_DISK_READING_ENABLED"> spark.shuffle.readHostLocalDisk
 
 If enabled (with [spark.shuffle.useOldFetchProtocol](#spark.shuffle.useOldFetchProtocol) disabled and [spark.shuffle.service.enabled](external-shuffle-service/configuration-properties.md#spark.shuffle.service.enabled) enabled), shuffle blocks requested from those block managers which are running on the same host are read from the disk directly instead of being fetched as remote blocks over the network.

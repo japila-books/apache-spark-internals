@@ -283,7 +283,25 @@ isPushBasedShuffleEnabled(
   checkSerializer: Boolean = true): Boolean
 ```
 
-`isPushBasedShuffleEnabled`...FIXME
+`isPushBasedShuffleEnabled` takes the value of [spark.shuffle.push.enabled](configuration-properties.md#PUSH_BASED_SHUFFLE_ENABLED) configuration property (from the given [SparkConf](SparkConf.md)).
+
+If `false`, `isPushBasedShuffleEnabled` does nothing and returns `false` as well.
+
+Otherwise, `isPushBasedShuffleEnabled` returns whether it is even possible to use [push-based shuffle](push-based-shuffle.md) or not based on the following:
+
+1. [External Shuffle Service](external-shuffle-service/index.md) is used (based on [spark.shuffle.service.enabled](external-shuffle-service/configuration-properties.md#spark.shuffle.service.enabled) that should be `true`)
+1. [spark.master](configuration-properties.md#spark.master) is `yarn`
+1. (only with `checkSerializer` enabled) [spark.serializer](configuration-properties.md#spark.serializer) is a [Serializer](serializer/Serializer.md) that [supportsRelocationOfSerializedObjects](serializer/Serializer.md#supportsRelocationOfSerializedObjects)
+1. [spark.io.encryption.enabled](configuration-properties.md#spark.io.encryption.enabled) is `false`
+
+In case [spark.shuffle.push.enabled](configuration-properties.md#PUSH_BASED_SHUFFLE_ENABLED) configuration property is enabled but the above requirements did not hold, `isPushBasedShuffleEnabled` prints out the following WARN message to the logs:
+
+```text
+Push-based shuffle can only be enabled
+when the application is submitted to run in YARN mode,
+with external shuffle service enabled, IO encryption disabled,
+and relocation of serialized objects supported.
+```
 
 `isPushBasedShuffleEnabled` is used when:
 
@@ -291,7 +309,7 @@ isPushBasedShuffleEnabled(
 * `MapOutputTrackerMaster` is [created](scheduler/MapOutputTrackerMaster.md#pushBasedShuffleEnabled)
 * `MapOutputTrackerWorker` is [created](scheduler/MapOutputTrackerWorker.md#fetchMergeResult)
 * `DAGScheduler` is [created](scheduler/DAGScheduler.md#pushBasedShuffleEnabled)
-* `ShuffleBlockPusher` utility is used to `BLOCK_PUSHER_POOL`
+* `ShuffleBlockPusher` utility is used to create a `BLOCK_PUSHER_POOL` thread pool
 * `BlockManager` is requested to [initialize](storage/BlockManager.md#initialize) and [registerWithExternalShuffleServer](storage/BlockManager.md#registerWithExternalShuffleServer)
 * `BlockManagerMasterEndpoint` is [created](storage/BlockManagerMasterEndpoint.md#pushBasedShuffleEnabled)
 * `DiskBlockManager` is requested to [createLocalDirsForMergedShuffleBlocks](storage/DiskBlockManager.md#createLocalDirsForMergedShuffleBlocks)
