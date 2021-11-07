@@ -15,10 +15,17 @@
 
 * <span id="execBackend"> [ExecutorBackend](ExecutorBackend.md) (that manages the parent [Executor](Executor.md))
 * <span id="taskDescription"><span id="taskId"> [TaskDescription](../scheduler/TaskDescription.md)
+* [PluginContainer](#plugins)
 
 `TaskRunner` is created when:
 
 * `Executor` is requested to [launch a task](Executor.md#launchTask)
+
+## <span id="plugins"> PluginContainer
+
+`TaskRunner` may be given a [PluginContainer](../plugins/PluginContainer.md) when [created](#creating-instance).
+
+The `PluginContainer` is used when `TaskRunner` is requested to [run](#run) (for the [Task](#task) to [run](../scheduler/Task.md#run)).
 
 ## Demo
 

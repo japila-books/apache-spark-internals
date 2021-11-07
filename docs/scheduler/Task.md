@@ -74,22 +74,20 @@ Empty by default and so no task location preferences are defined that says the t
 run(
   taskAttemptId: Long,
   attemptNumber: Int,
-  metricsSystem: MetricsSystem): T
+  metricsSystem: MetricsSystem,
+  resources: Map[String, ResourceInformation],
+  plugins: Option[PluginContainer]): T
 ```
 
-`run` [registers the task (identified as `taskAttemptId`) with the local `BlockManager`](../storage/BlockManager.md#registerTask).
+`run` [registers the task (attempt)](../storage/BlockManager.md#registerTask) with the [BlockManager](../SparkEnv.md#blockManager).
 
-!!! note
-    `run` uses `SparkEnv` to access the current [BlockManager](../SparkEnv.md#blockManager).
-
-`run` creates a [TaskContextImpl](TaskContextImpl.md) that in turn becomes the task's [TaskContext](TaskContext.md#setTaskContext).
-
-!!! note
-    `run` is a `final` method and so must not be overriden.
+`run` creates a [TaskContextImpl](TaskContextImpl.md) (and perhaps a [BarrierTaskContext](BarrierTaskContext.md) too when the given `isBarrier` flag is enabled) that in turn becomes the task's [TaskContext](TaskContext.md#setTaskContext).
 
 `run` checks [_killed](#_killed) flag and, if enabled, [kills the task](#kill) (with `interruptThread` flag disabled).
 
 `run` creates a Hadoop `CallerContext` and sets it.
+
+`run` informs the given `PluginContainer` that the [task is started](../plugins/PluginContainer.md#onTaskStart).
 
 `run` [runs the task](#runTask).
 

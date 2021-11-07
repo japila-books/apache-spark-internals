@@ -44,6 +44,14 @@ Starting executor ID [executorId] on host [executorHostname]
 
 `Executor` [starts sending heartbeats with the metrics of active tasks](#startDriverHeartbeater).
 
+## <span id="plugins"> PluginContainer
+
+`Executor` creates a [PluginContainer](../plugins/PluginContainer.md#apply) (with the [SparkEnv](#env) and the [resources](#resources)).
+
+The `PluginContainer` is used to create a [TaskRunner](TaskRunner.md#plugins) for [launching a task](#launchTask).
+
+The `PluginContainer` is requested to [shutdown](../plugins/PluginContainer.md#shutdown) in [stop](#stop).
+
 ## <span id="executorSource"> ExecutorSource
 
 When [created](#creating-instance), `Executor` creates an [ExecutorSource](ExecutorSource.md) (with the [threadPool](#threadPool), the [executorId](#executorId) and the [schemes](#schemes)).
@@ -152,7 +160,7 @@ launchTask(
   taskDescription: TaskDescription): Unit
 ```
 
-`launchTask` creates an [TaskRunner](TaskRunner.md) (with the given [ExecutorBackend](ExecutorBackend.md), the [TaskDescription](../scheduler/TaskDescription.md) and the [plugins](#plugins)) and adds it to the [runningTasks](#runningTasks) internal registry.
+`launchTask` creates a [TaskRunner](TaskRunner.md) (with the given [ExecutorBackend](ExecutorBackend.md), the [TaskDescription](../scheduler/TaskDescription.md) and the [PluginContainer](#plugins)) and adds it to the [runningTasks](#runningTasks) internal registry.
 
 `launchTask` requests the ["Executor task launch worker" thread pool](#threadPool) to execute the `TaskRunner` (sometime in the future).
 

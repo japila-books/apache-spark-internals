@@ -2,12 +2,9 @@
 
 **Plugin Framework** is an API for registering custom extensions (_plugins_) to be executed on the driver and executors.
 
-Plugin Framework uses the following main abstractions:
+Plugin Framework uses separate [PluginContainer](PluginContainer.md)s for the driver and executors, and [spark.plugins](../configuration-properties.md#spark.plugins) configuration property for [SparkPlugin](SparkPlugin.md)s to be registered.
 
-* [PluginContainer](PluginContainer.md)
-* [SparkPlugin](SparkPlugin.md)
-
-Plugin Framework was introduced in [Spark 2.4.4](https://issues.apache.org/jira/browse/SPARK-24918) (that only offered an API for executors) with further changes in [Spark 3.0.0](https://issues.apache.org/jira/browse/SPARK-29396) (to cover the driver).
+Plugin Framework was introduced in [Spark 2.4.4](https://issues.apache.org/jira/browse/SPARK-24918) (with an API for executors) with further changes in [Spark 3.0.0](https://issues.apache.org/jira/browse/SPARK-29396) (to cover the driver).
 
 ## Resources
 

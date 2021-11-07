@@ -1,6 +1,6 @@
 # PluginContainer
 
-`PluginContainer` is an [abstraction](#contract) of [plugin containers](#implementations) that can [registerMetrics](#registerMetrics) (for the driver and executors).
+`PluginContainer` is an [abstraction](#contract) of [plugin containers](#implementations) that can [register metrics](#registerMetrics) (for the driver and executors).
 
 `PluginContainer` is created for the driver and executors using [apply](#apply) utility.
 
@@ -14,6 +14,14 @@ onTaskFailed(
 ```
 
 For [ExecutorPluginContainer](ExecutorPluginContainer.md) only
+
+Possible `TaskFailedReason`s:
+
+* `TaskKilledException`
+* `TaskKilled`
+* `FetchFailed`
+* `TaskCommitDenied`
+* `ExceptionFailure`
 
 Used when:
 
