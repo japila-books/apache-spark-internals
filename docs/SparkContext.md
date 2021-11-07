@@ -17,6 +17,14 @@
 
 While being created, `SparkContext` [sets up core services](SparkContext-creating-instance-internals.md) and establishes a connection to a cluster manager.
 
+## <span id="ExecutorMetricsSource"><span id="_executorMetricsSource"> ExecutorMetricsSource
+
+`SparkContext` creates an [ExecutorMetricsSource](executor/ExecutorMetricsSource.md) when [created](#creating-instance) with [spark.metrics.executorMetricsSource.enabled](metrics/configuration-properties.md#spark.metrics.executorMetricsSource.enabled) enabled.
+
+`SparkContext` requests the `ExecutorMetricsSource` to [register](executor/ExecutorMetricsSource.md#register) with the [MetricsSystem](SparkEnv.md#metricsSystem).
+
+`SparkContext` uses the `ExecutorMetricsSource` to create the [Heartbeater](#_heartbeater).
+
 ## Services
 
 * <span id="executorAllocationManager"><span id="_executorAllocationManager"><span id="ExecutorAllocationManager"> [ExecutorAllocationManager](dynamic-allocation/ExecutorAllocationManager.md) (optional)

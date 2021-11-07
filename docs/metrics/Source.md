@@ -29,22 +29,12 @@ Used when:
 ## Implementations
 
 * [AccumulatorSource](../accumulators/AccumulatorSource.md)
-* ApplicationMasterSource
-* ApplicationSource
 * [AppStatusSource](../status/AppStatusSource.md)
 * [BlockManagerSource](../storage/BlockManagerSource.md)
-* CacheMetrics
-* CodegenMetrics
 * [DAGSchedulerSource](../scheduler/DAGSchedulerSource.md)
 * [ExecutorAllocationManagerSource](../dynamic-allocation/ExecutorAllocationManagerSource.md)
-* ExecutorMetricsSource
+* [ExecutorMetricsSource](../executor/ExecutorMetricsSource.md)
 * [ExecutorSource](../executor/ExecutorSource.md)
-* ExternalShuffleServiceSource
-* HiveCatalogMetrics
-* JVMCPUSource
 * [JvmSource](JvmSource.md)
-* LiveListenerBusMetrics
-* MasterSource
-* PluginMetricsSource
 * [ShuffleMetricsSource](../storage/ShuffleMetricsSource.md)
-* WorkerSource
+* _others_
