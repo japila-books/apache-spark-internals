@@ -1540,7 +1540,7 @@ Posts a [SpeculativeTaskSubmitted](DAGSchedulerEvent.md#SpeculativeTaskSubmitted
 
 Used when `TaskSetManager` is requested to [checkAndSubmitSpeculatableTask](TaskSetManager.md#checkAndSubmitSpeculatableTask)
 
-### <span id="submitMapStage"> Posting MapStageSubmitted
+### <span id="submitMapStage"> Posting MapStageSubmitted (submitMapStage)
 
 Posts a [MapStageSubmitted](DAGSchedulerEvent.md#MapStageSubmitted)
 

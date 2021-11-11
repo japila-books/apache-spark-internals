@@ -256,6 +256,8 @@ Default: `false`
 
 ## <span id="spark.logLineage"> spark.logLineage
 
+Enables printing out the RDD lineage graph (using [RDD.toDebugString](rdd/RDD.md#toDebugString)) when executing an action (and [running a job](SparkContext.md#runJob))
+
 Default: `false`
 
 ## <span id="spark.master"> spark.master

@@ -1,76 +1,142 @@
 # ShuffleMapStage
 
-`ShuffleMapStage` (_shuffle map stage_ or simply _map stage_) is one of the two types of [stages](Stage.md) in a physical execution DAG (beside a [ResultStage](ResultStage.md)).
+`ShuffleMapStage` is a [Stage](Stage.md).
 
-NOTE: The *logical DAG* or *logical execution plan* is the [RDD lineage](../rdd/spark-rdd-lineage.md).
+`ShuffleMapStage` (_shuffle map stage_ or simply _map stage_) is one of the two types of [Stage](Stage.md)s in a physical execution DAG (beside a [ResultStage](ResultStage.md)).
 
-ShuffleMapStage corresponds to (and is associated with) a <<shuffleDep, ShuffleDependency>>.
+!!! note
+    The **logical DAG** or **logical execution plan** is the [RDD lineage](../rdd/spark-rdd-lineage.md).
 
-ShuffleMapStage is created when DAGScheduler is requested to DAGScheduler.md#createShuffleMapStage[plan a ShuffleDependency for execution].
+`ShuffleMapStage` corresponds to (and is associated with) a [ShuffleDependency](#shuffleDep).
 
-ShuffleMapStage can also be DAGScheduler.md#submitMapStage[submitted independently as a Spark job] for DAGScheduler.md#adaptive-query-planning[Adaptive Query Planning / Adaptive Scheduling].
-
-ShuffleMapStage is an input for the other following stages in the DAG of stages and is also called a *shuffle dependency's map side*.
+`ShuffleMapStage` can be [submitted independently](DAGScheduler.md#submitMapStage) (from a [ResultStage](ResultStage.md)).
 
 ## Creating Instance
 
-ShuffleMapStage takes the following to be created:
+`ShuffleMapStage` takes the following to be created:
 
-* [[id]] Stage ID
-* [[rdd]] [RDD](../rdd/ShuffleDependency.md#rdd) of the <<shuffleDep, ShuffleDependency>>
-* [[numTasks]] Number of tasks
-* [[parents]] Parent Stage.md[stages]
-* [[firstJobId]] ID of the [ActiveJob](ActiveJob.md) that created it
-* [[callSite]] CallSite
-* [[shuffleDep]] [ShuffleDependency](../rdd/ShuffleDependency.md)
-* [[mapOutputTrackerMaster]] [MapOutputTrackerMaster](MapOutputTrackerMaster.md)
+* <span id="id"> Stage ID
+* <span id="rdd"> [RDD](../rdd/ShuffleDependency.md#rdd) (of the [ShuffleDependency](#shuffleDep))
+* <span id="numTasks"> Number of tasks
+* <span id="parents"> Parent [Stage](Stage.md)s
+* <span id="firstJobId"> First Job ID (of the [ActiveJob](ActiveJob.md) that created it)
+* <span id="callSite"> `CallSite`
+* <span id="shuffleDep"> [ShuffleDependency](../rdd/ShuffleDependency.md)
+* <span id="mapOutputTrackerMaster"> [MapOutputTrackerMaster](MapOutputTrackerMaster.md)
+* <span id="resourceProfileId"> Resource Profile ID
 
-== [[_mapStageJobs]][[mapStageJobs]][[addActiveJob]][[removeActiveJob]] Jobs Registry
+`ShuffleMapStage` is created when:
 
-ShuffleMapStage keeps track of [jobs](ActiveJob.md) that were submitted to execute it independently (if any).
+* `DAGScheduler` is requested to [plan a ShuffleDependency for execution](DAGScheduler.md#createShuffleMapStage)
 
-The registry is used when DAGScheduler is requested to DAGScheduler.md#markMapStageJobsAsFinished[markMapStageJobsAsFinished] (FIXME: when DAGSchedulerEventProcessLoop.md#handleTaskCompletion[`DAGScheduler` is notified that a `ShuffleMapTask` has finished successfully] and the task made ShuffleMapStage completed and so marks any map-stage jobs waiting on this stage as finished).
+## <span id="findMissingPartitions"> Missing Partitions
 
-A new job is registered (_added_) when DAGScheduler is DAGScheduler.md#handleMapStageSubmitted[notified that a ShuffleDependency was submitted for execution (as a MapStageSubmitted event)].
-
-An active job is deregistered (_removed_) when DAGScheduler is requested to DAGScheduler.md#cleanupStateForJobAndIndependentStages[clean up after a job and independent stages].
-
-== [[isAvailable]][[numAvailableOutputs]] ShuffleMapStage is Available (Fully Computed)
-
-When executed, a ShuffleMapStage saves *map output files* (for reduce tasks).
-
-When all <<numPartitions, partitions>> have shuffle map outputs available, ShuffleMapStage is considered *available* (_done_ or _ready_).
-
-ShuffleMapStage is asked about its availability when DAGScheduler is requested for DAGScheduler.md#getMissingParentStages[missing parent map stages for a stage], DAGScheduler.md#handleMapStageSubmitted[handleMapStageSubmitted], DAGScheduler.md#submitMissingTasks[submitMissingTasks], DAGScheduler.md#handleTaskCompletion[handleTaskCompletion], DAGScheduler.md#markMapStageJobsAsFinished[markMapStageJobsAsFinished], DAGScheduler.md#stageDependsOn[stageDependsOn].
-
-ShuffleMapStage uses the <<mapOutputTrackerMaster, MapOutputTrackerMaster>> for the MapOutputTrackerMaster.md#getNumAvailableOutputs[number of partitions with shuffle map outputs available] (of the <<shuffleDep, ShuffleDependency>> by the shuffle ID).
-
-== [[findMissingPartitions]] Finding Missing Partitions
-
-[source, scala]
-----
+```scala
 findMissingPartitions(): Seq[Int]
-----
+```
 
-findMissingPartitions requests the <<mapOutputTrackerMaster, MapOutputTrackerMaster>> for the MapOutputTrackerMaster.md#findMissingPartitions[missing partitions] (of the <<shuffleDep, ShuffleDependency>> by the shuffle ID) and returns them.
+`findMissingPartitions` requests the [MapOutputTrackerMaster](#mapOutputTrackerMaster) for the [missing partitions](MapOutputTrackerMaster.md#findMissingPartitions) (of the [ShuffleDependency](#shuffleDep)) and returns them.
 
-If MapOutputTrackerMaster does not track the ShuffleDependency yet, findMissingPartitions simply returns all the Stage.md#numPartitions[partitions] as missing.
+If not available (`MapOutputTrackerMaster` does not track the `ShuffleDependency`), `findMissingPartitions` simply assumes that all the [partitions](Stage.md#numPartitions) are missing.
 
-findMissingPartitions is part of the Stage.md#findMissingPartitions[Stage] abstraction.
+`findMissingPartitions` is part of the [Stage](Stage.md#findMissingPartitions) abstraction.
 
-== [[stage-sharing]] ShuffleMapStage Sharing
+## ShuffleMapStage Ready
 
-A ShuffleMapStage can be shared across multiple jobs, if these jobs reuse the same RDDs.
+When "executed", a `ShuffleMapStage` saves **map output files** (for reduce tasks).
 
-.Skipped Stages are already-computed ShuffleMapStages
-image::dagscheduler-webui-skipped-stages.png[align="center"]
+When [all partitions have shuffle map outputs available](#isAvailable), `ShuffleMapStage` is considered **ready** (_done_ or _available_).
 
-[source, scala]
-----
-val rdd = sc.parallelize(0 to 5).map((_,1)).sortByKey()  // <1>
-rdd.count  // <2>
-rdd.count  // <3>
-----
-<1> Shuffle at `sortByKey()`
-<2> Submits a job with two stages with two being executed
-<3> Intentionally repeat the last action that submits a new job with two stages with one being shared as already-being-computed
+### <span id="isAvailable"> isAvailable
+
+```scala
+isAvailable: Boolean
+```
+
+`isAvailable` is `true` when the `ShuffleMapStage` is ready and all partitions have shuffle outputs (i.e. the [numAvailableOutputs](#numAvailableOutputs) is exactly the [numPartitions](Stage.md#numPartitions)).
+
+`isAvailable` is used when:
+
+* `DAGScheduler` is requested to [getMissingParentStages](DAGScheduler.md#getMissingParentStages), [handleMapStageSubmitted](DAGScheduler.md#handleMapStageSubmitted), [submitMissingTasks](DAGScheduler.md#submitMissingTasks), [processShuffleMapStageCompletion](DAGScheduler.md#processShuffleMapStageCompletion), [markMapStageJobsAsFinished](DAGScheduler.md#markMapStageJobsAsFinished) and [stageDependsOn](DAGScheduler.md#stageDependsOn)
+
+### <span id="numAvailableOutputs"> Available Outputs
+
+```scala
+numAvailableOutputs: Int
+```
+
+`numAvailableOutputs` requests the [MapOutputTrackerMaster](#mapOutputTrackerMaster) to [getNumAvailableOutputs](MapOutputTrackerMaster.md#getNumAvailableOutputs) (for the [shuffleId](../rdd/ShuffleDependency.md#shuffleId) of the [ShuffleDependency](#shuffleDep)).
+
+`numAvailableOutputs` is used when:
+
+* `DAGScheduler` is requested to [submitMissingTasks](DAGScheduler.md#submitMissingTasks)
+* `ShuffleMapStage` is requested to [isAvailable](#isAvailable)
+
+## <span id="_mapStageJobs"><span id="mapStageJobs"> Active Jobs
+
+`ShuffleMapStage` defines `_mapStageJobs` internal registry of [ActiveJob](ActiveJob.md)s to track jobs that were submitted to execute the stage independently.
+
+A new job is registered (_added_) in [addActiveJob](#addActiveJob).
+
+An active job is deregistered (_removed_) in [removeActiveJob](#removeActiveJob).
+
+### <span id="addActiveJob"> addActiveJob
+
+```scala
+addActiveJob(
+  job: ActiveJob): Unit
+```
+
+`addActiveJob` adds the given [ActiveJob](ActiveJob.md) to (the front of) the [_mapStageJobs](#_mapStageJobs) list.
+
+`addActiveJob` is used when:
+
+* `DAGScheduler` is requested to [handleMapStageSubmitted](DAGScheduler.md#handleMapStageSubmitted)
+
+### <span id="removeActiveJob"> removeActiveJob
+
+```scala
+removeActiveJob(
+  job: ActiveJob): Unit
+```
+
+`removeActiveJob` removes the [ActiveJob](ActiveJob.md) from the [_mapStageJobs](#_mapStageJobs) registry.
+
+`removeActiveJob` is used when:
+
+* `DAGScheduler` is requested to [cleanupStateForJobAndIndependentStages](DAGScheduler.md#cleanupStateForJobAndIndependentStages)
+
+### <span id="mapStageJobs"> mapStageJobs
+
+```scala
+mapStageJobs: Seq[ActiveJob]
+```
+
+`mapStageJobs` returns the [_mapStageJobs](#_mapStageJobs) list.
+
+`mapStageJobs` is used when:
+
+* `DAGScheduler` is requested to [markMapStageJobsAsFinished](DAGScheduler.md#markMapStageJobsAsFinished)
+
+## Demo: ShuffleMapStage Sharing
+
+A `ShuffleMapStage` can be shared across multiple jobs (if these jobs reuse the same RDDs).
+
+![Skipped Stages are already-computed ShuffleMapStages](../images/scheduler/dagscheduler-webui-skipped-stages.png)
+
+```scala
+val keyValuePairs = sc.parallelize(0 to 5).map((_, 1))
+val rdd = keyValuePairs.sortByKey()  // (1)
+
+scala> println(rdd.toDebugString)
+(6) ShuffledRDD[4] at sortByKey at <console>:39 []
+ +-(16) MapPartitionsRDD[1] at map at <console>:39 []
+    |   ParallelCollectionRDD[0] at parallelize at <console>:39 []
+
+rdd.count  // (2)
+rdd.count  // (3)
+```
+
+1. Shuffle at `sortByKey()`
+1. Submits a job with two stages (and two to be executed)
+1. Intentionally repeat the last action that submits a new job with two stages with one being shared as already-computed

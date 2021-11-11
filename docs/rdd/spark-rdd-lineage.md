@@ -1,17 +1,16 @@
-== RDD Lineage -- Logical Execution Plan
+# RDD Lineage &mdash; Logical Execution Plan
 
-*RDD Lineage* (aka _RDD operator graph_ or _RDD dependency graph_) is a graph of all the parent RDDs of a RDD. It is built as a result of applying transformations to the RDD and creates a <<logical-execution-plan, logical execution plan>>.
+**RDD Lineage** (_RDD operator graph_ or _RDD dependency graph_) is a graph of all the parent RDDs of a RDD. It is built as a result of applying transformations to the RDD and creates a <<logical-execution-plan, logical execution plan>>.
 
 NOTE: The *execution DAG* or *physical execution plan* is the scheduler:DAGScheduler.md[DAG of stages].
 
 NOTE: The following diagram uses `cartesian` or `zip` for learning purposes only. You may use other operators to build a RDD graph.
 
-.RDD lineage
-image::rdd-lineage.png[align="center"]
+![RDD lineage](../images/rdd-lineage.png)
 
 The above RDD graph could be the result of the following series of transformations:
 
-```
+```text
 val r00 = sc.parallelize(0 to 9)
 val r01 = sc.parallelize(0 to 90 by 10)
 val r10 = r00 cartesian r01
@@ -25,13 +24,13 @@ A RDD lineage graph is hence a graph of what transformations need to be executed
 
 You can learn about a RDD lineage graph using <<toDebugString, RDD.toDebugString>> method.
 
-=== [[logical-execution-plan]] Logical Execution Plan
+## Logical Execution Plan
 
 *Logical Execution Plan* starts with the earliest RDDs (those with no dependencies on other RDDs or reference cached data) and ends with the RDD that produces the result of the action that has been called to execute.
 
 NOTE: A logical plan, i.e. a DAG, is materialized and executed when  SparkContext.md#runJob[`SparkContext` is requested to run a Spark job].
 
-=== [[toDebugString]] Getting RDD Lineage Graph -- `toDebugString` Method
+## <span id="toDebugString"> RDD Lineage Graph
 
 [source, scala]
 ----
@@ -40,7 +39,7 @@ toDebugString: String
 
 You can learn about a <<lineage, RDD lineage graph>> using `toDebugString` method.
 
-```
+```text
 scala> val wordCount = sc.textFile("README.md").flatMap(_.split("\\s+")).map((_, 1)).reduceByKey(_ + _)
 wordCount: org.apache.spark.rdd.RDD[(String, Int)] = ShuffledRDD[21] at reduceByKey at <console>:24
 
@@ -74,12 +73,3 @@ scala> sc.textFile("README.md", 4).count
 (4) MapPartitionsRDD[1] at textFile at <console>:25 []
  |  README.md HadoopRDD[0] at textFile at <console>:25 []
 ```
-
-=== [[settings]] Settings
-
-.Spark Properties
-[cols="1,1,2",options="header",width="100%"]
-|===
-| Spark Property | Default Value | Description
-| [[spark_logLineage]] `spark.logLineage` | `false` | When enabled (i.e. `true`), executing an action (and hence SparkContext.md#runJob[running a job]) will also print out the RDD lineage graph using <<toDebugString, RDD.toDebugString>>.
-|===
