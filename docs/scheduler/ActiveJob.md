@@ -7,12 +7,11 @@ image::action-job.png[align="center"]
 
 Computing a job is equivalent to computing the partitions of the RDD the action has been executed upon. The number of partitions in a job depends on the type of a stage - scheduler:ResultStage.md[ResultStage] or scheduler:ShuffleMapStage.md[ShuffleMapStage].
 
-A job starts with a single target RDD, but can ultimately include other RDDs that are all part of rdd:spark-rdd-lineage.md[RDD lineage].
+A job starts with a single target RDD, but can ultimately include other RDDs that are all part of [RDD lineage](../rdd/lineage.md).
 
 The parent stages are the instances of scheduler:ShuffleMapStage.md[ShuffleMapStage].
 
-.Computing a job is computing the partitions of an RDD
-image::rdd-job-partitions.png[align="center"]
+![Computing a job is computing the partitions of an RDD](../images/scheduler/rdd-job-partitions.png)
 
 NOTE: Note that not all partitions have always to be computed for scheduler:ResultStage.md[ResultStages] for actions like `first()` and `lookup()`.
 

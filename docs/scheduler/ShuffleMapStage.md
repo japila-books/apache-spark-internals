@@ -5,7 +5,7 @@
 `ShuffleMapStage` (_shuffle map stage_ or simply _map stage_) is one of the two types of [Stage](Stage.md)s in a physical execution DAG (beside a [ResultStage](ResultStage.md)).
 
 !!! note
-    The **logical DAG** or **logical execution plan** is the [RDD lineage](../rdd/spark-rdd-lineage.md).
+    The **logical DAG** or **logical execution plan** is the [RDD lineage](../rdd/lineage.md).
 
 `ShuffleMapStage` corresponds to (and is associated with) a [ShuffleDependency](#shuffleDep).
 

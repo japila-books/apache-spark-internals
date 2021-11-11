@@ -10,7 +10,7 @@
 def rdd: RDD[T]
 ----
 
-Whenever you apply a spark-rdd-transformations.md[transformation] (e.g. `map`, `flatMap`) to a RDD you build the so-called spark-rdd-lineage.md[RDD lineage graph]. ``Dependency``-ies represent the edges in a lineage graph.
+Whenever you apply a spark-rdd-transformations.md[transformation] (e.g. `map`, `flatMap`) to a RDD you build the so-called [RDD lineage graph](lineage.md). ``Dependency``-ies represent the edges in a lineage graph.
 
 NOTE: [NarrowDependency](NarrowDependency.md) and [ShuffleDependency](ShuffleDependency.md) are the two top-level subclasses of `Dependency` abstract class.
 
@@ -46,9 +46,9 @@ scala> myRdd.dependencies.map(_.rdd).foreach(println)
 MapPartitionsRDD[7] at groupBy at <console>:24
 ```
 
-You use spark-rdd-lineage.md#toDebugString[toDebugString] method to print out the RDD lineage in a user-friendly way.
+[toDebugString](lineage.md#toDebugString) is used to print out the RDD lineage in a developer-friendly way.
 
-```
+```text
 scala> myRdd.toDebugString
 res6: String =
 (8) ShuffledRDD[8] at groupBy at <console>:24 []

@@ -8,7 +8,7 @@ action: RDD => a value
 
 NOTE: Actions are synchronous. You can use <<AsyncRDDActions, AsyncRDDActions>> to release a calling thread while calling actions.
 
-They trigger execution of <<transformations, RDD transformations>> to return values. Simply put, an action evaluates the spark-rdd-lineage.md[RDD lineage graph].
+They trigger execution of <<transformations, RDD transformations>> to return values. Simply put, an action evaluates the [RDD lineage graph](lineage.md).
 
 You can think of actions as a valve and until action is fired, the data to be processed is not even in the pipes, i.e. transformations. Only actions can materialize the entire processing pipeline with real data.
 

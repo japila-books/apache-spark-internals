@@ -1,6 +1,6 @@
 # RDD Checkpointing
 
-*RDD Checkpointing* is a process of truncating rdd:spark-rdd-lineage.md[RDD lineage graph] and saving it to a reliable distributed (HDFS) or local file system.
+*RDD Checkpointing* is a process of truncating [RDD lineage graph](lineage.md) and saving it to a reliable distributed (HDFS) or local file system.
 
 There are two types of checkpointing:
 
@@ -27,7 +27,7 @@ Done checkpointing RDD 5 to [path], new parent is RDD [id]
 
 == [[local-checkpointing]] Local Checkpointing
 
-rdd:RDD.md#localCheckpoint[localCheckpoint] allows to truncate rdd:spark-rdd-lineage.md[RDD lineage graph] while skipping the expensive step of replicating the materialized data to a reliable distributed file system.
+[localCheckpoint](RDD.md#localCheckpoint) allows to truncate [RDD lineage graph](lineage.md) while skipping the expensive step of replicating the materialized data to a reliable distributed file system.
 
 This is useful for RDDs with long lineages that need to be truncated periodically, e.g. GraphX.
 

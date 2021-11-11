@@ -1,6 +1,6 @@
 # ShuffledRDD
 
-`ShuffledRDD` is an [RDD](RDD.md) of key-value pairs that represents a **shuffle step** in a [RDD lineage](spark-rdd-lineage.md).
+`ShuffledRDD` is an [RDD](RDD.md) of key-value pairs that represents a **shuffle step** in a [RDD lineage](lineage.md).
 
 ## Creating Instance
 

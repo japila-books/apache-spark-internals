@@ -98,13 +98,49 @@ partitions: Array[Partition]
 * `Stage` is [created](../scheduler/Stage.md#numPartitions)
 * _others_
 
-## <span id="toDebugString"> Recursive Dependencies
+## <span id="toDebugString"> Debugging Recursive Dependencies
 
 ```scala
 toDebugString: String
 ```
 
-`toDebugString`...FIXME
+`toDebugString` returns a [RDD Lineage Graph](lineage.md).
+
+```text
+val wordCount = sc.textFile("README.md")
+  .flatMap(_.split("\\s+"))
+  .map((_, 1))
+  .reduceByKey(_ + _)
+
+scala> println(wordCount.toDebugString)
+(2) ShuffledRDD[21] at reduceByKey at <console>:24 []
+ +-(2) MapPartitionsRDD[20] at map at <console>:24 []
+    |  MapPartitionsRDD[19] at flatMap at <console>:24 []
+    |  README.md MapPartitionsRDD[18] at textFile at <console>:24 []
+    |  README.md HadoopRDD[17] at textFile at <console>:24 []
+```
+
+`toDebugString` uses indentations to indicate a shuffle boundary.
+
+The numbers in round brackets show the level of parallelism at each stage, e.g. `(2)` in the above output.
+
+```text
+scala> wordCount.getNumPartitions
+res14: Int = 2
+```
+
+With [spark.logLineage](../configuration-properties.md#spark.logLineage) enabled, `toDebugString` is included when executing an action.
+
+```text
+$ ./bin/spark-shell --conf spark.logLineage=true
+
+scala> sc.textFile("README.md", 4).count
+...
+15/10/17 14:46:42 INFO SparkContext: Starting job: count at <console>:25
+15/10/17 14:46:42 INFO SparkContext: RDD's recursive dependencies:
+(4) MapPartitionsRDD[1] at textFile at <console>:25 []
+ |  README.md HadoopRDD[0] at textFile at <console>:25 []
+```
 
 ## <span id="doCheckpoint"> doCheckpoint
 

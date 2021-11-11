@@ -7,7 +7,7 @@
 
 `DAGScheduler` is the scheduling layer of Apache Spark that implements **stage-oriented scheduling** using [Jobs](ActiveJob.md) and [Stages](Stage.md).
 
-`DAGScheduler` transforms a **logical execution plan** ([RDD lineage](../rdd/spark-rdd-lineage.md) of dependencies built using [RDD transformations](../rdd/spark-rdd-transformations.md)) to a **physical execution plan** (using [stages](Stage.md)).
+`DAGScheduler` transforms a **logical execution plan** ([RDD lineage](../rdd/lineage.md) of dependencies built using [RDD transformations](../rdd/spark-rdd-transformations.md)) to a **physical execution plan** (using [stages](Stage.md)).
 
 ![DAGScheduler Transforming RDD Lineage Into Stage DAG](../images/scheduler/dagscheduler-rdd-lineage-stage-dag.png)
 
@@ -373,7 +373,7 @@ getMissingAncestorShuffleDependencies(
    rdd: RDD[_]): Stack[ShuffleDependency[_, _, _]]
 ```
 
-`getMissingAncestorShuffleDependencies` finds all the missing [ShuffleDependencies](../rdd/ShuffleDependency.md) for the given [RDD](../rdd/index.md) (traversing its [RDD lineage](../rdd/spark-rdd-lineage.md)).
+`getMissingAncestorShuffleDependencies` finds all the missing [ShuffleDependencies](../rdd/ShuffleDependency.md) for the given [RDD](../rdd/index.md) (traversing its [RDD lineage](../rdd/lineage.md)).
 
 !!! note
     A [ShuffleDependency](../rdd/ShuffleDependency.md) (of an `RDD`) is considered missing when not registered in the [shuffleIdToMapStage](#shuffleIdToMapStage) internal registry.
@@ -391,7 +391,7 @@ getShuffleDependencies(
 
 ![getShuffleDependencies Finds Direct Parent ShuffleDependencies (shuffle1 and shuffle2)](../images/scheduler/spark-DAGScheduler-getShuffleDependencies.png)
 
-Internally, `getShuffleDependencies` takes the direct rdd/index.md#dependencies[shuffle dependencies of the input RDD] and direct shuffle dependencies of all the parent non-``ShuffleDependencies`` in the [dependency chain](../rdd/spark-rdd-lineage.md) (aka _RDD lineage_).
+Internally, `getShuffleDependencies` takes the direct rdd/index.md#dependencies[shuffle dependencies of the input RDD] and direct shuffle dependencies of all the parent non-``ShuffleDependencies`` in the [RDD lineage](../rdd/lineage.md).
 
 `getShuffleDependencies` is used when `DAGScheduler` is requested to [find or create missing direct parent ShuffleMapStages](#getOrCreateParentStages) (for ShuffleDependencies of a RDD) and [find all missing shuffle dependencies for a given RDD](#getMissingAncestorShuffleDependencies).
 

@@ -172,11 +172,12 @@ TIP: It's useful to get familiar with https://hadoop.apache.org/docs/current/api
 coalesce(numPartitions: Int, shuffle: Boolean = false)(implicit ord: Ordering[T] = null): RDD[T]
 ----
 
-The `coalesce` transformation is used to change the number of partitions. It can trigger spark-rdd-shuffle.md[RDD shuffling] depending on the `shuffle` flag (disabled by default, i.e. `false`).
+The `coalesce` transformation is used to change the number of partitions. It can trigger shuffling depending on the `shuffle` flag (disabled by default, i.e. `false`).
 
 In the following sample, you `parallelize` a local 10-number sequence and `coalesce` it first without and then with shuffling (note the `shuffle` parameter being `false` and `true`, respectively).
 
-TIP: Use spark-rdd-lineage.md#toDebugString[toDebugString] to check out the spark-rdd-lineage.md[RDD lineage graph].
+!!! tip
+    Use [toDebugString](lineage.md#toDebugString) to check out the [RDD lineage graph](lineage.md).
 
 ```
 scala> val rdd = sc.parallelize(0 to 10, 8)

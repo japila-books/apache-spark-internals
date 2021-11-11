@@ -45,10 +45,9 @@ NOTE: *Preferred location* (aka _locality preferences_ or _placement preferences
 
 Computing partitions in a RDD is a distributed process by design and to achieve even *data distribution* as well as leverage data locality (in distributed systems like HDFS or Apache Kafka in which data is partitioned by default), they are *partitioned* to a fixed number of spark-rdd-partitions.md[partitions] - logical chunks (parts) of data. The logical division is for processing only and internally it is not divided whatsoever. Each partition comprises of *records*.
 
-.RDDs
-image::spark-rdd-partitioned-distributed.png[align="center"]
+![RDDs](../images/spark-rdd-partitioned-distributed.png)
 
-spark-rdd-partitions.md[Partitions are the units of parallelism]. You can control the number of partitions of a RDD using spark-rdd-partitions.md#repartition[repartition] or spark-rdd-partitions.md#coalesce[coalesce] transformations. Spark tries to be as close to data as possible without wasting time to send data across network by means of spark-rdd-shuffle.md[RDD shuffling], and creates as many partitions as required to follow the storage layout and thus optimize data access. It leads to a one-to-one mapping between (physical) data in distributed data storage, e.g. HDFS or Cassandra, and partitions.
+spark-rdd-partitions.md[Partitions are the units of parallelism]. You can control the number of partitions of a RDD using spark-rdd-partitions.md#repartition[repartition] or spark-rdd-partitions.md#coalesce[coalesce] transformations. Spark tries to be as close to data as possible without wasting time to send data across network by means of RDD shuffling, and creates as many partitions as required to follow the storage layout and thus optimize data access. It leads to a one-to-one mapping between (physical) data in distributed data storage, e.g. HDFS or Cassandra, and partitions.
 
 RDDs support two kinds of operations:
 

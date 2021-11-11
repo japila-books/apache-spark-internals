@@ -137,7 +137,7 @@ persist(newLevel: StorageLevel): this.type
 
 |===
 
-By applying transformations you incrementally build a spark-rdd-lineage.md[RDD lineage] with all the parent RDDs of the final RDD(s).
+By applying transformations you incrementally build a [RDD lineage](lineage.md) with all the parent RDDs of the final RDD(s).
 
 Transformations are lazy, i.e. are not executed immediately. Only after calling an action are transformations executed.
 
@@ -193,9 +193,9 @@ Spark groups narrow transformations as a stage which is called *pipelining*.
 
 NOTE: Wide transformations are also called shuffle transformations as they may or may not depend on a shuffle.
 
-All of the tuples with the same key must end up in the same partition, processed by the same task. To satisfy these operations, Spark must execute spark-rdd-shuffle.md[RDD shuffle], which transfers data across cluster and results in a new stage with a new set of partitions.
+All of the tuples with the same key must end up in the same partition, processed by the same task. To satisfy these operations, Spark must execute a RDD shuffle, which transfers data across cluster and results in a new stage with a new set of partitions.
 
-=== [[zipWithIndex]] zipWithIndex
+## <span id="zipWithIndex"> zipWithIndex
 
 [source, scala]
 ----

@@ -30,7 +30,7 @@ When a job is submitted, a new stage is created with the parent ShuffleMapStage.
 
 A stage tracks the jobs (their ids) it belongs to (using the internal `jobIds` registry).
 
-DAGScheduler splits up a job into a collection of stages. Each stage contains a sequence of rdd:index.md[narrow transformations] that can be completed without rdd:spark-rdd-shuffle.md[shuffling] the entire data set, separated at *shuffle boundaries*, i.e. where shuffle occurs. Stages are thus a result of breaking the RDD graph at shuffle boundaries.
+`DAGScheduler` splits up a job into a collection of stages. Each stage contains a sequence of [narrow transformations](../rdd/index.md) that can be completed without shuffling the entire data set, separated at **shuffle boundaries** (where shuffle occurs). Stages are thus a result of breaking the RDD graph at shuffle boundaries.
 
 ![Graph of Stages](../images/scheduler/dagscheduler-stages.png)
 

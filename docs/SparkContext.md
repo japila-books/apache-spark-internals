@@ -1212,7 +1212,9 @@ getRDDStorageInfo(filter: RDD[_] => Boolean): Array[RDDInfo]  // <2>
 
 In the end, `getRDDStorageInfo` gives only the RDD that are cached (i.e. the sum of memory and disk sizes as well as the number of partitions cached are greater than `0`).
 
-NOTE: `getRDDStorageInfo` is used when `RDD` spark-rdd-lineage.md#toDebugString[is requested for RDD lineage graph].
+`getRDDStorageInfo` is used when"
+
+* `RDD` is requested for [RDD lineage graph](rdd/lineage.md#toDebugString)
 
 == [[statusStore]] Accessing AppStatusStore
 
