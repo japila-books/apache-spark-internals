@@ -12,7 +12,7 @@ ShuffleDependency[K: ClassTag, V: ClassTag, C: ClassTag]
 
 `ShuffleDependency` takes the following to be created:
 
-* <span id="_rdd"> [RDD](RDD.md) of key-value pairs (`RDD[_ <: Product2[K, V]]`)
+* <span id="_rdd"><span id="rdd"> [RDD](RDD.md) (`RDD[_ <: Product2[K, V]]`)
 * [Partitioner](#partitioner)
 * <span id="serializer"> [Serializer](../serializer/Serializer.md) (default: [SparkEnv.get.serializer](../SparkEnv.md#serializer))
 * <span id="keyOrdering"> Optional Key Ordering (default: undefined)
