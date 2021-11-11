@@ -34,6 +34,11 @@ DAGSchedulerEvent | Event Handler
  [TaskSetFailed](DAGSchedulerEvent.md#TaskSetFailed) | [handleTaskSetFailed](DAGScheduler.md#handleTaskSetFailed)
  [WorkerRemoved](DAGSchedulerEvent.md#WorkerRemoved) | [handleWorkerRemoved](DAGScheduler.md#handleWorkerRemoved)
 
+### <span id="ShuffleMergeFinalized"> ShuffleMergeFinalized
+
+* Event: [ShuffleMergeFinalized](DAGSchedulerEvent.md#ShuffleMergeFinalized)
+* Event handler: [handleShuffleMergeFinalized](DAGScheduler.md#handleShuffleMergeFinalized)
+
 ## <span id="timer"> messageProcessingTime Timer
 
 `DAGSchedulerEventProcessLoop` uses [messageProcessingTime](DAGSchedulerSource.md#messageProcessingTimer) timer to measure time of [processing events](#onReceive).

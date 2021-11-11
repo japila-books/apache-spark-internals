@@ -365,25 +365,24 @@ getStatistics(
   dep: ShuffleDependency[_, _, _]): MapOutputStatistics
 ```
 
-`getStatistics` looks up the [ShuffleStatus](ShuffleStatus.md) for the [shuffleId](../rdd/ShuffleDependency.md#shuffleId) (of the input [ShuffleDependency](../rdd/ShuffleDependency.md)) in the [shuffleStatuses](#shuffleStatuses) registry.
+`getStatistics` requests the input [ShuffleDependency](../rdd/ShuffleDependency.md) for the [shuffle ID](../rdd/ShuffleDependency.md#shuffleId) and looks up the corresponding [ShuffleStatus](ShuffleStatus.md) (in the [shuffleStatuses](#shuffleStatuses) registry).
 
-!!! note
-    It is assumed that the [shuffleStatuses](#shuffleStatuses) registry does have the `ShuffleStatus`. That makes _me_ believe "someone else" is taking care of whether it is available or not.
+`getStatistics` assumes that the `ShuffleStatus` is in [shuffleStatuses](#shuffleStatuses) registry.
 
 `getStatistics` requests the `ShuffleStatus` for the [MapStatus](ShuffleStatus.md#withMapStatuses)es (of the `ShuffleDependency`).
 
 `getStatistics` uses the [spark.shuffle.mapOutput.parallelAggregationThreshold](../configuration-properties.md#spark.shuffle.mapOutput.parallelAggregationThreshold) configuration property to decide on parallelism to calculate the statistics.
 
-With no parallelism, `getStatistics` simply traverses over the `MapStatus`es and requests them (one by one) for the [size](MapStatus.md#getSizeForBlock) of every reduce shuffle block.
+With no parallelism, `getStatistics` simply traverses over the `MapStatus`es and requests them (one by one) for the [size](MapStatus.md#getSizeForBlock) of every shuffle block.
 
 !!! note
     `getStatistics` requests the given `ShuffleDependency` for the [Partitioner](../rdd/ShuffleDependency.md#partitioner) that in turn is requested for the [number of partitions](../rdd/Partitioner.md#numPartitions).
 
-    The number of reduce blocks is the number of `MapStatus`es multiplied by the number of partitions.
+    The number of blocks is the number of `MapStatus`es multiplied by the number of partitions.
 
     And hence the need for parallelism based on the [spark.shuffle.mapOutput.parallelAggregationThreshold](../configuration-properties.md#spark.shuffle.mapOutput.parallelAggregationThreshold) configuration property.
 
-In the end, `getStatistics` creates a `MapOutputStatistics` with the shuffle ID and the total sizes (sumed up for every partition).
+In the end, `getStatistics` creates a `MapOutputStatistics` with the shuffle ID (of the given `ShuffleDependency`) and the total sizes (sumed up for every partition).
 
 `getStatistics` is used when:
 

@@ -309,17 +309,21 @@ markMapStageJobAsFinished(
   stats: MapOutputStatistics): Unit
 ```
 
-`markMapStageJobAsFinished` marks the active `job` finished and notifies Spark listeners.
+`markMapStageJobAsFinished` marks the given [ActiveJob](ActiveJob.md) finished and posts a [SparkListenerJobEnd](../SparkListenerEvent.md#SparkListenerJobEnd).
 
-Internally, `markMapStageJobAsFinished` marks the zeroth partition finished and increases the number of tasks finished in `job`.
+---
 
-The [`job` listener is notified about the 0th task succeeded](JobListener.md#taskSucceeded).
+`markMapStageJobAsFinished` requests the given [ActiveJob](ActiveJob.md) to turn on (`true`) the 0th bit in the [finished partitions](ActiveJob.md#finished) registry and [increase the number of tasks finished](ActiveJob.md#numFinished).
 
-The <<cleanupStateForJobAndIndependentStages, state of the `job` and independent stages are cleaned up>>.
+`markMapStageJobAsFinished` requests the given `ActiveJob` for the [JobListener](ActiveJob.md#listener) that is requested to [taskSucceeded](JobListener.md#taskSucceeded) (with the 0th index and the given [MapOutputStatistics](MapOutputStatistics.md)).
 
-Ultimately, [SparkListenerJobEnd](../SparkListener.md#SparkListenerJobEnd) is posted to [LiveListenerBus](LiveListenerBus.md) (as <<listenerBus, listenerBus>>) for the `job`, the current time (in millis) and `JobSucceeded` job result.
+`markMapStageJobAsFinished` [cleanupStateForJobAndIndependentStages](#cleanupStateForJobAndIndependentStages).
 
-`markMapStageJobAsFinished` is used in [handleMapStageSubmitted](DAGSchedulerEventProcessLoop.md#handleMapStageSubmitted) and [handleTaskCompletion](DAGSchedulerEventProcessLoop.md#handleTaskCompletion).
+In the end, `markMapStageJobAsFinished` requests the [LiveListenerBus](#listenerBus) to [post](LiveListenerBus.md#post) a [SparkListenerJobEnd](../SparkListenerEvent.md#SparkListenerJobEnd).
+
+`markMapStageJobAsFinished` is used when:
+
+* `DAGScheduler` is requested to [handleMapStageSubmitted](#handleMapStageSubmitted) and [markMapStageJobsAsFinished](#markMapStageJobsAsFinished)
 
 ## <span id="getOrCreateParentStages"> Finding Or Creating Missing Direct Parent ShuffleMapStages (For ShuffleDependencies) of RDD
 
@@ -812,9 +816,63 @@ markMapStageJobsAsFinished(
   shuffleStage: ShuffleMapStage): Unit
 ```
 
-`markMapStageJobsAsFinished`...FIXME
+`markMapStageJobsAsFinished` checks out whether the given [ShuffleMapStage](ShuffleMapStage.md) is [fully-available](ShuffleMapStage.md#isAvailable) yet there are still [map-stage jobs](ShuffleMapStage.md#mapStageJobs) running.
 
-`markMapStageJobsAsFinished` is used when `DAGScheduler` is requested to [submit missing tasks](#submitMissingTasks) (of a `ShuffleMapStage` that has just been computed) and [handle a task completion](#handleTaskCompletion) (of a `ShuffleMapStage`).
+If so, `markMapStageJobsAsFinished` requests the [MapOutputTrackerMaster](#mapOutputTracker) for the [statistics](MapOutputTrackerMaster.md#getStatistics) (for the [ShuffleDependency](ShuffleMapStage.md#shuffleDep) of the given [ShuffleMapStage](ShuffleMapStage.md)).
+
+For every map-stage job, `markMapStageJobsAsFinished` [marks the map-stage job as finished](#markMapStageJobAsFinished) (with the statistics).
+
+`markMapStageJobsAsFinished` is used when:
+
+* `DAGScheduler` is requested to [submit missing tasks](#submitMissingTasks) (of a `ShuffleMapStage` that has just been computed) and [processShuffleMapStageCompletion](#processShuffleMapStageCompletion)
+
+## <span id="processShuffleMapStageCompletion"> processShuffleMapStageCompletion
+
+```scala
+processShuffleMapStageCompletion(
+  shuffleStage: ShuffleMapStage): Unit
+```
+
+`processShuffleMapStageCompletion`...FIXME
+
+`processShuffleMapStageCompletion` is used when:
+
+* `DAGScheduler` is requested to [handleTaskCompletion](#handleTaskCompletion) and [handleShuffleMergeFinalized](#handleShuffleMergeFinalized)
+
+## <span id="handleShuffleMergeFinalized"> handleShuffleMergeFinalized
+
+```scala
+handleShuffleMergeFinalized(
+  stage: ShuffleMapStage): Unit
+```
+
+`handleShuffleMergeFinalized`...FIXME
+
+`handleShuffleMergeFinalized` is used when:
+
+* `DAGSchedulerEventProcessLoop` is requested to [handle a ShuffleMergeFinalized event](DAGSchedulerEventProcessLoop.md#ShuffleMergeFinalized)
+
+## <span id="scheduleShuffleMergeFinalize"> scheduleShuffleMergeFinalize
+
+```scala
+scheduleShuffleMergeFinalize(
+  stage: ShuffleMapStage): Unit
+```
+
+`scheduleShuffleMergeFinalize`...FIXME
+
+`scheduleShuffleMergeFinalize` is used when:
+
+* `DAGScheduler` is requested to [handle a task completion](#handleTaskCompletion)
+
+### <span id="finalizeShuffleMerge"> finalizeShuffleMerge
+
+```scala
+finalizeShuffleMerge(
+  stage: ShuffleMapStage): Unit
+```
+
+`finalizeShuffleMerge`...FIXME
 
 ## <span id="updateJobIdStageIdMaps"> updateJobIdStageIdMaps
 

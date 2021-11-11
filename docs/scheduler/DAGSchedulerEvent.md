@@ -129,6 +129,18 @@ Posted when `DAGScheduler` is requested to [handleTaskCompletion](DAGScheduler.m
 
 Event handler: [resubmitFailedStages](DAGScheduler.md#resubmitFailedStages)
 
+## <span id="ShuffleMergeFinalized"> ShuffleMergeFinalized
+
+Carries the following:
+
+* [ShuffleMapStage](ShuffleMapStage.md)
+
+Posted when:
+
+* `DAGScheduler` is requested to [finalizeShuffleMerge](DAGScheduler.md#finalizeShuffleMerge)
+
+Event handler: [handleShuffleMergeFinalized](DAGScheduler.md#handleShuffleMergeFinalized)
+
 ## <span id="SpeculativeTaskSubmitted"> SpeculativeTaskSubmitted
 
 Carries the following:
