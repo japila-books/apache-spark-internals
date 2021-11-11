@@ -491,7 +491,7 @@ Only if a new executor was added, `resourceOffers` scheduler:TaskSetManager.md#e
 
 `resourceOffers` then takes every `TaskSetManager` (in scheduling order) and offers them each node in increasing order of locality levels (per scheduler:TaskSetManager.md#computeValidLocalityLevels[TaskSetManager's valid locality levels]).
 
-NOTE: A `TaskSetManager` scheduler:TaskSetManager.md##computeValidLocalityLevels[computes locality levels of the tasks] it manages.
+NOTE: A `TaskSetManager` scheduler:TaskSetManager.md#computeValidLocalityLevels[computes locality levels of the tasks] it manages.
 
 For every `TaskSetManager` and the ``TaskSetManager``'s valid locality level, `resourceOffers` tries to <<resourceOfferSingleTaskSet, find tasks to schedule (on executors)>> as long as the `TaskSetManager` manages to launch a task (given the locality level).
 

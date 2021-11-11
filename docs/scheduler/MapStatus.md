@@ -33,7 +33,7 @@ location: BlockManagerId
 
 Used when:
 
-* `ShuffleStatus` is requested to [removeMapOutput](ShuffleStatus.md#removeMapOutput) and [removeOutputsByFilter](ShuffleStatus.md##removeOutputsByFilter)
+* `ShuffleStatus` is requested to [removeMapOutput](ShuffleStatus.md#removeMapOutput) and [removeOutputsByFilter](ShuffleStatus.md#removeOutputsByFilter)
 * `MapOutputTrackerMaster` is requested for [locations with the largest number of shuffle map outputs](MapOutputTrackerMaster.md#getLocationsWithLargestOutputs) and [getMapLocation](MapOutputTrackerMaster.md#getMapLocation)
 * `MapOutputTracker` utility is used to [convert MapStatuses](MapOutputTracker.md#convertMapStatuses)
 * `DAGScheduler` is requested to [handle a ShuffleMapTask completion](DAGScheduler.md#handleTaskCompletion)
