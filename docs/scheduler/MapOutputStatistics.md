@@ -1,6 +1,6 @@
 # MapOutputStatistics
 
-`MapOutputStatistics` holds statistics about the output sizes in a map stage.
+`MapOutputStatistics` holds statistics about the [output partition sizes](#bytesByPartitionId) in a [map stage](#shuffleId).
 
 `MapOutputStatistics` is the result of executing the following (currently internal APIs):
 
@@ -11,7 +11,7 @@
 
 `MapOutputStatistics` takes the following to be created:
 
-* <span id="shuffleId"> Shuffle Id
+* <span id="shuffleId"> Shuffle Id (of a [ShuffleDependency](../rdd/ShuffleDependency.md))
 * <span id="bytesByPartitionId"> Output Partition Sizes (`Array[Long]`)
 
 `MapOutputStatistics` is created when:

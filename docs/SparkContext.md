@@ -17,6 +17,28 @@
 
 While being created, `SparkContext` [sets up core services](SparkContext-creating-instance-internals.md) and establishes a connection to a cluster manager.
 
+## <span id="checkpointDir"> Checkpoint Directory
+
+`SparkContext` defines `checkpointDir` internal registry for the path to a checkpoint directory.
+
+`checkpointDir` is undefined (`None`) when `SparkContext` is [created](#creating-instance) and is set using [setCheckpointDir](#setCheckpointDir).
+
+`checkpointDir` is required for [Reliable Checkpointing](rdd/RDD.md#checkpoint).
+
+`checkpointDir` is available using [getCheckpointDir](#getCheckpointDir).
+
+### <span id="getCheckpointDir"> getCheckpointDir
+
+```scala
+getCheckpointDir: Option[String]
+```
+
+`getCheckpointDir` returns the [checkpointDir](#checkpointDir).
+
+`getCheckpointDir` is used when:
+
+* `ReliableRDDCheckpointData` is requested for the [checkpoint path](rdd/ReliableRDDCheckpointData.md#checkpointPath)
+
 ## <span id="ExecutorMetricsSource"><span id="_executorMetricsSource"> ExecutorMetricsSource
 
 `SparkContext` creates an [ExecutorMetricsSource](executor/ExecutorMetricsSource.md) when [created](#creating-instance) with [spark.metrics.executorMetricsSource.enabled](metrics/configuration-properties.md#spark.metrics.executorMetricsSource.enabled) enabled.
@@ -1339,15 +1361,6 @@ log4j.logger.org.apache.spark.SparkContext=ALL
 Refer to spark-logging.md[Logging].
 
 == [[internal-properties]] Internal Properties
-
-=== [[checkpointDir]] Checkpoint Directory
-
-[source,scala]
-----
-checkpointDir: Option[String] = None
-----
-
-checkpointDir is...FIXME
 
 === [[persistentRdds]] persistentRdds Lookup Table
 

@@ -18,7 +18,7 @@ Used when:
 
 * `RDD` is requested to [computeOrReadCheckpoint](#computeOrReadCheckpoint)
 
-### <span id="getPartitions"> Partitions
+### <span id="getPartitions"> getPartitions
 
 ```scala
 getPartitions: Array[Partition]
@@ -83,20 +83,181 @@ getResourceProfile(): ResourceProfile
 
 * `DAGScheduler` is requested for the [shuffle dependencies and resource profiles](../scheduler/DAGScheduler.md#getShuffleDependenciesAndResourceProfiles)
 
-## <span id="partitions"> partitions
+## <span id="preferredLocations"> Preferred Locations (Placement Preferences of Partition)
+
+```scala
+preferredLocations(
+  split: Partition): Seq[String]
+```
+
+??? note "Final Method"
+    `preferredLocations` is a Scala **final method** and may not be overridden in [subclasses](#implementations).
+
+    Learn more in the [Scala Language Specification]({{ scala.spec }}/05-classes-and-objects.html#final).
+
+`preferredLocations` requests the [CheckpointRDD](#checkpointRDD) for the [preferred locations](#getPreferredLocations) for the given [Partition](Partition.md) if this `RDD` is checkpointed or[getPreferredLocations](#getPreferredLocations).
+
+---
+
+`preferredLocations` is a template method that uses [getPreferredLocations](#getPreferredLocations) that custom `RDD`s can override to specify placement preferences on their own.
+
+---
+
+`preferredLocations` is used when:
+
+* `DAGScheduler` is requested for [preferred locations](../scheduler/DAGScheduler.md#getPreferredLocs)
+
+## <span id="partitions"> Partitions
 
 ```scala
 partitions: Array[Partition]
 ```
 
-`partitions`...FIXME
+??? note "Final Method"
+    `partitions` is a Scala **final method** and may not be overridden in [subclasses](#implementations).
+
+    Learn more in the [Scala Language Specification]({{ scala.spec }}/05-classes-and-objects.html#final).
+
+`partitions` requests the [CheckpointRDD](#checkpointRDD) for the partitions if this `RDD` is checkpointed.
+
+Otherwise, when this `RDD` is not checkpointed, `partitions` [getPartitions](#getPartitions) (and caches it in the [partitions_](#partitions_)).
+
+!!! note
+    `getPartitions` is an abstract method that custom `RDD`s are required to provide.
+
+---
+
+`partitions` has the property that their internal index should be equal to their position in this `RDD`.
+
+---
 
 `partitions` is used when:
 
 * `DAGScheduler` is requested to [getPreferredLocsInternal](../scheduler/DAGScheduler.md#getPreferredLocsInternal)
-* `SparkContext` is requested to [runJob](../SparkContext.md#runJob)
-* `Stage` is [created](../scheduler/Stage.md#numPartitions)
+* `SparkContext` is requested to [run a job](../SparkContext.md#runJob)
 * _others_
+
+## <span id="dependencies"> dependencies
+
+```scala
+dependencies: Seq[Dependency[_]]
+```
+
+??? note "Final Method"
+    `dependencies` is a Scala **final method** and may not be overridden in [subclasses](#implementations).
+
+    Learn more in the [Scala Language Specification]({{ scala.spec }}/05-classes-and-objects.html#final).
+
+`dependencies` branches off based on [checkpointRDD](#checkpointRDD) (and availability of [CheckpointRDD](#CheckpointRDD)).
+
+With [CheckpointRDD](#CheckpointRDD) available (this `RDD` is checkpointed), `dependencies` returns a [OneToOneDependency](Dependency.md#OneToOneDependency) with the `CheckpointRDD`.
+
+Otherwise, when this `RDD` is not checkpointed, `dependencies` [getDependencies](#getDependencies) (and caches it in the [dependencies_](#dependencies_)).
+
+!!! note
+    `getDependencies` is an abstract method that custom `RDD`s are required to provide.
+
+## <span id="checkpoint"> Reliable Checkpointing
+
+```scala
+checkpoint(): Unit
+```
+
+`checkpoint` creates a new [ReliableRDDCheckpointData](ReliableRDDCheckpointData.md) (with this `RDD`) and saves it in [checkpointData](#checkpointData) registry.
+
+`checkpoint` does nothing when the [checkpointData](#checkpointData) registry has already been defined.
+
+`checkpoint` throws a `SparkException` when the [checkpoint directory](../SparkContext.md#checkpointDir) is not specified:
+
+```text
+Checkpoint directory has not been set in the SparkContext
+```
+
+## <span id="checkpointData"> RDDCheckpointData
+
+`RDD` defines `checkpointData` internal registry for a [RDDCheckpointData[T]](RDDCheckpointData.md) (of `T` type of this `RDD`).
+
+The `checkpointData` registry is undefined (`None`) when `RDD` is [created](#creating-instance) and can be the following values:
+
+* [ReliableRDDCheckpointData](ReliableRDDCheckpointData.md) in [checkpoint](#checkpoint)
+* [LocalRDDCheckpointData](LocalRDDCheckpointData.md) in [localCheckpoint](#localCheckpoint)
+
+Used when:
+
+* [isCheckpointedAndMaterialized](#isCheckpointedAndMaterialized)
+* [isLocallyCheckpointed](#isLocallyCheckpointed)
+* [isReliablyCheckpointed](#isReliablyCheckpointed)
+* [getCheckpointFile](#getCheckpointFile)
+* [doCheckpoint](#doCheckpoint)
+
+### <span id="checkpointRDD"><span id="CheckpointRDD"> CheckpointRDD
+
+```scala
+checkpointRDD: Option[CheckpointRDD[T]]
+```
+
+`checkpointRDD` returns the [CheckpointRDD](RDDCheckpointData.md#checkpointRDD) of the [RDDCheckpointData](#checkpointData) (if defined and so this `RDD` checkpointed).
+
+`checkpointRDD` is used when:
+
+* `RDD` is requested for the [dependencies](#dependencies), [partitions](#partitions) and [preferred locations](#preferredLocations) (all using _final_ methods!)
+
+## <span id="doCheckpoint"> doCheckpoint
+
+```scala
+doCheckpoint(): Unit
+```
+
+`doCheckpoint` executes in `checkpoint` scope.
+
+`doCheckpoint` turns the [doCheckpointCalled](#doCheckpointCalled) flag on (to prevent multiple executions).
+
+`doCheckpoint` branches off based on whether a [RDDCheckpointData](#checkpointData) is defined or not:
+
+1. With the `RDDCheckpointData` defined, `doCheckpoint` checks out the [checkpointAllMarkedAncestors](#checkpointAllMarkedAncestors) flag and if enabled, `doCheckpoint` requests the [Dependencies](#dependencies) for the [RDD](Dependency.md#rdd) that are in turn requested to [doCheckpoint](#doCheckpoint) themselves. Otherwise, `doCheckpoint` requests the [RDDCheckpointData](#checkpointData) to [checkpoint](RDDCheckpointData.md#checkpoint).
+
+1. With the [RDDCheckpointData](#checkpointData) undefined, `doCheckpoint` requests the [Dependencies](#dependencies) for the [RDD](Dependency.md#rdd) that are in turn requested to [doCheckpoint](#doCheckpoint) themselves.
+
+In other words, With the `RDDCheckpointData` defined, requesting [doCheckpointing](#doCheckpoint) of the [Dependencies](#dependencies) is guarded by [checkpointAllMarkedAncestors](#checkpointAllMarkedAncestors) flag.
+
+`doCheckpoint` skips execution if [called earlier](#doCheckpointCalled).
+
+`doCheckpoint` is used when:
+
+* `SparkContext` is requested to [run a job synchronously](../SparkContext.md#runJob)
+
+## <span id="iterator"> iterator
+
+```scala
+iterator(
+  split: Partition,
+  context: TaskContext): Iterator[T]
+```
+
+`iterator`...FIXME
+
+!!! note "Final Method"
+    `iterator` is a `final` method and may not be overridden in subclasses. See [5.2.6 final]({{ scala.spec }}/05-classes-and-objects.html) in the [Scala Language Specification]({{ scala.spec }}).
+
+### <span id="getOrCompute"> getOrCompute
+
+```scala
+getOrCompute(
+  partition: Partition,
+  context: TaskContext): Iterator[T]
+```
+
+`getOrCompute`...FIXME
+
+### <span id="computeOrReadCheckpoint"> computeOrReadCheckpoint
+
+```scala
+computeOrReadCheckpoint(
+  split: Partition,
+  context: TaskContext): Iterator[T]
+```
+
+`computeOrReadCheckpoint`...FIXME
 
 ## <span id="toDebugString"> Debugging Recursive Dependencies
 
@@ -142,51 +303,6 @@ scala> sc.textFile("README.md", 4).count
  |  README.md HadoopRDD[0] at textFile at <console>:25 []
 ```
 
-## <span id="doCheckpoint"> doCheckpoint
-
-```scala
-doCheckpoint(): Unit
-```
-
-`doCheckpoint`...FIXME
-
-`doCheckpoint` is used when:
-
-* `SparkContext` is requested to [run a job synchronously](../SparkContext.md#runJob)
-
-## <span id="iterator"> iterator
-
-```scala
-iterator(
-  split: Partition,
-  context: TaskContext): Iterator[T]
-```
-
-`iterator`...FIXME
-
-!!! note "Final Method"
-    `iterator` is a `final` method and may not be overridden in subclasses. See [5.2.6 final]({{ scala.spec }}/05-classes-and-objects.html) in the [Scala Language Specification]({{ scala.spec }}).
-
-### <span id="getOrCompute"> getOrCompute
-
-```scala
-getOrCompute(
-  partition: Partition,
-  context: TaskContext): Iterator[T]
-```
-
-`getOrCompute`...FIXME
-
-### <span id="computeOrReadCheckpoint"> computeOrReadCheckpoint
-
-```scala
-computeOrReadCheckpoint(
-  split: Partition,
-  context: TaskContext): Iterator[T]
-```
-
-`computeOrReadCheckpoint`...FIXME
-
 ## Implicit Methods
 
 ### <span id="rddToOrderedRDDFunctions"> rddToOrderedRDDFunctions
@@ -204,33 +320,6 @@ rddToOrderedRDDFunctions[K : Ordering : ClassTag, V: ClassTag](
 * [PairRDDFunctions.combineByKey](PairRDDFunctions.md#combineByKey)
 
 ## Review Me
-
-== [[extensions]][[implementations]] (Subset of) Available RDDs
-
-[cols="30,70",options="header",width="100%"]
-|===
-| RDD
-| Description
-
-| [CoGroupedRDD](CoGroupedRDD.md)
-| [[CoGroupedRDD]]
-
-| CoalescedRDD
-| [[CoalescedRDD]] Result of spark-rdd-partitions.md#repartition[repartition] or spark-rdd-partitions.md#coalesce[coalesce] transformations
-
-| HadoopRDD.md[HadoopRDD]
-| [[HadoopRDD]] Allows for reading data stored in HDFS using the older MapReduce API. The most notable use case is the return RDD of `SparkContext.textFile`.
-
-| MapPartitionsRDD.md[MapPartitionsRDD]
-| [[MapPartitionsRDD]] Result of calling map-like operations (e.g. `map`, `flatMap`, `filter`, spark-rdd-transformations.md#mapPartitions[mapPartitions])
-
-| ParallelCollectionRDD.md[ParallelCollectionRDD]
-| [[ParallelCollectionRDD]]
-
-| ShuffledRDD.md[ShuffledRDD]
-| [[ShuffledRDD]] Result of "shuffle" operators (e.g. spark-rdd-partitions.md#repartition[repartition] or spark-rdd-partitions.md#coalesce[coalesce])
-
-|===
 
 == [[storageLevel]][[getStorageLevel]] StorageLevel
 
@@ -306,25 +395,6 @@ NOTE: `getOrCompute` is used on Spark executors.
 
 NOTE: `getOrCompute` is used exclusively when RDD is requested for the <<iterator, iterator over values in a partition>>.
 
-== [[dependencies]] RDD Dependencies
-
-[source, scala]
-----
-dependencies: Seq[Dependency[_]]
-----
-
-`dependencies` returns the [dependencies of a RDD](Dependency.md).
-
-NOTE: `dependencies` is a final method that no class in Spark can ever override.
-
-Internally, `dependencies` checks out whether the RDD is [checkpointed](checkpointing.md) and acts accordingly.
-
-For a RDD being checkpointed, `dependencies` returns a single-element collection with a [OneToOneDependency](NarrowDependency.md#OneToOneDependency).
-
-For a non-checkpointed RDD, `dependencies` collection is computed using <<contract, `getDependencies` method>>.
-
-NOTE: `getDependencies` method is an abstract method that custom RDDs are required to provide.
-
 == [[checkpointRDD]] Getting CheckpointRDD
 
 [source, scala]
@@ -394,41 +464,3 @@ computeOrReadCheckpoint(
 computeOrReadCheckpoint reads `split` partition from a checkpoint (<<isCheckpointedAndMaterialized, if available already>>) or <<compute, computes it>> yourself.
 
 computeOrReadCheckpoint is used when RDD is requested to <<iterator, compute records for a partition>> or <<getOrCompute, getOrCompute>>.
-
-== [[preferredLocations]] Defining Placement Preferences of RDD Partition
-
-[source, scala]
-----
-preferredLocations(
-  split: Partition): Seq[String]
-----
-
-preferredLocations requests the CheckpointRDD for <<checkpointRDD, placement preferences>> (if the RDD is checkpointed) or <<getPreferredLocations, calculates them itself>>.
-
-preferredLocations is a template method that uses  <<getPreferredLocations, getPreferredLocations>> that custom RDDs can override to specify placement preferences for a partition. getPreferredLocations defines no placement preferences by default.
-
-preferredLocations is mainly used when DAGScheduler is requested to scheduler:DAGScheduler.md#getPreferredLocs[compute the preferred locations for missing partitions].
-
-== [[partitions]] Accessing RDD Partitions
-
-[source, scala]
-----
-partitions: Array[Partition]
-----
-
-partitions returns the spark-rdd-partitions.md[Partitions] of a `RDD`.
-
-partitions requests CheckpointRDD for the <<checkpointRDD, partitions>> (if the RDD is checkpointed) or <<getPartitions, finds them itself>> and cache (in <<partitions_, partitions_>> internal registry that is used next time).
-
-Partitions have the property that their internal index should be equal to their position in the owning RDD.
-
-== [[checkpoint]] Reliable Checkpointing -- checkpoint Method
-
-[source, scala]
-----
-checkpoint(): Unit
-----
-
-checkpoint...FIXME
-
-checkpoint is used when...FIXME
