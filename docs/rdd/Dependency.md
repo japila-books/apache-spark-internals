@@ -1,58 +1,55 @@
-# RDD Dependencies
+---
+tags:
+  - DeveloperApi
+---
 
-`Dependency` class is the base (abstract) class to model a dependency relationship between two or more RDDs.
+# Dependency
 
-[[rdd]]
-`Dependency` has a single method `rdd` to access the RDD that is behind a dependency.
+`Dependency[T]` is an [abstraction](#contract) of [dependencies](#implementations) between `RDD`s.
 
-[source, scala]
-----
-def rdd: RDD[T]
-----
+Any time an RDD transformation (e.g. `map`, `flatMap`) is used (and [RDD lineage graph](lineage.md) is built), `Dependency`ies are the edges.
 
-Whenever you apply a spark-rdd-transformations.md[transformation] (e.g. `map`, `flatMap`) to a RDD you build the so-called [RDD lineage graph](lineage.md). ``Dependency``-ies represent the edges in a lineage graph.
+## Contract
 
-NOTE: [NarrowDependency](NarrowDependency.md) and [ShuffleDependency](ShuffleDependency.md) are the two top-level subclasses of `Dependency` abstract class.
+### <span id="rdd"> RDD
 
-.Kinds of Dependencies
-[cols="1,2",options="header",width="100%"]
-|===
-| Name | Description
-| [NarrowDependency](NarrowDependency.md) |
-| [ShuffleDependency](ShuffleDependency.md) |
-| [OneToOneDependency](NarrowDependency.md#OneToOneDependency) |
-| [PruneDependency](NarrowDependency.md#PruneDependency) |
-| [RangeDependency](NarrowDependency.md#RangeDependency) |
-|===
-
-[NOTE]
-====
-The dependencies of a RDD are available using rdd:index.md#dependencies[dependencies] method.
-
-```
-// A demo RDD
-scala> val myRdd = sc.parallelize(0 to 9).groupBy(_ % 2)
-myRdd: org.apache.spark.rdd.RDD[(Int, Iterable[Int])] = ShuffledRDD[8] at groupBy at <console>:24
-
-scala> myRdd.foreach(println)
-(0,CompactBuffer(0, 2, 4, 6, 8))
-(1,CompactBuffer(1, 3, 5, 7, 9))
-
-scala> myRdd.dependencies
-res5: Seq[org.apache.spark.Dependency[_]] = List(org.apache.spark.ShuffleDependency@27ace619)
-
-// Access all RDDs in the demo RDD lineage
-scala> myRdd.dependencies.map(_.rdd).foreach(println)
-MapPartitionsRDD[7] at groupBy at <console>:24
+```scala
+rdd: RDD[T]
 ```
 
-[toDebugString](lineage.md#toDebugString) is used to print out the RDD lineage in a developer-friendly way.
+Used when:
+
+* `DAGScheduler` is requested for the [shuffle dependencies and ResourceProfiles](../scheduler/DAGScheduler.md#getShuffleDependenciesAndResourceProfiles) (of an `RDD`)
+* `RDD` is requested to [getNarrowAncestors](RDD.md#getNarrowAncestors), [cleanShuffleDependencies](RDD.md#cleanShuffleDependencies), [firstParent](RDD.md#firstParent), [parent](RDD.md#parent), [toDebugString](RDD.md#toDebugString), [getOutputDeterministicLevel](RDD.md#getOutputDeterministicLevel)
+
+## Implementations
+
+* [NarrowDependency](NarrowDependency.md)
+* [ShuffleDependency](ShuffleDependency.md)
+
+## Demo
+
+The dependencies of an `RDD` are available using `RDD.dependencies` method.
+
+```scala
+val myRdd = sc.parallelize(0 to 9).groupBy(_ % 2)
+```
 
 ```text
-scala> myRdd.toDebugString
-res6: String =
-(8) ShuffledRDD[8] at groupBy at <console>:24 []
- +-(8) MapPartitionsRDD[7] at groupBy at <console>:24 []
-    |  ParallelCollectionRDD[6] at parallelize at <console>:24 []
+scala> myRdd.dependencies.foreach(println)
+org.apache.spark.ShuffleDependency@41e38d89
 ```
-====
+
+```text
+scala> myRdd.dependencies.map(_.rdd).foreach(println)
+MapPartitionsRDD[6] at groupBy at <console>:39
+```
+
+[RDD.toDebugString](RDD.md#toDebugString) is used to print out the RDD lineage in a developer-friendly way.
+
+```text
+scala> println(myRdd.toDebugString)
+(16) ShuffledRDD[7] at groupBy at <console>:39 []
+ +-(16) MapPartitionsRDD[6] at groupBy at <console>:39 []
+    |   ParallelCollectionRDD[5] at parallelize at <console>:39 []
+```

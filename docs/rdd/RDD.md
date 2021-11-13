@@ -286,11 +286,11 @@ scala> println(wordCount.toDebugString)
 The numbers in round brackets show the level of parallelism at each stage, e.g. `(2)` in the above output.
 
 ```text
-scala> wordCount.getNumPartitions
-res14: Int = 2
+scala> println(wordCount.getNumPartitions)
+2
 ```
 
-With [spark.logLineage](../configuration-properties.md#spark.logLineage) enabled, `toDebugString` is included when executing an action.
+With [spark.logLineage](../configuration-properties.md#spark.logLineage) enabled, `toDebugString` is printed out when executing an action.
 
 ```text
 $ ./bin/spark-shell --conf spark.logLineage=true
