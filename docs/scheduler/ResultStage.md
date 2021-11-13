@@ -1,6 +1,6 @@
 # ResultStage
 
-`ResultStage` is the final stage in a job that applies a function on one or many partitions of the target RDD to compute the result of an action.
+`ResultStage` is the final stage in a job that applies a function to one or many partitions of the target RDD to compute the result of an action.
 
 ![Job creates ResultStage as the first stage](../images/scheduler/dagscheduler-job-resultstage.png)
 

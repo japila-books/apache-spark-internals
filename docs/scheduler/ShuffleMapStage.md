@@ -1,15 +1,10 @@
 # ShuffleMapStage
 
-`ShuffleMapStage` is a [Stage](Stage.md).
-
-`ShuffleMapStage` (_shuffle map stage_ or simply _map stage_) is one of the two types of [Stage](Stage.md)s in a physical execution DAG (beside a [ResultStage](ResultStage.md)).
-
-!!! note
-    The **logical DAG** or **logical execution plan** is the [RDD lineage](../rdd/lineage.md).
+`ShuffleMapStage` (_shuffle map stage_ or simply _map stage_) is a [Stage](Stage.md).
 
 `ShuffleMapStage` corresponds to (and is associated with) a [ShuffleDependency](#shuffleDep).
 
-`ShuffleMapStage` can be [submitted independently](DAGScheduler.md#submitMapStage) (from a [ResultStage](ResultStage.md)).
+`ShuffleMapStage` can be [submitted independently](DAGScheduler.md#submitMapStage) but it is usually an intermediate step in a physical execution plan (with the final step being a [ResultStage](ResultStage.md)).
 
 ## Creating Instance
 
@@ -140,3 +135,7 @@ rdd.count  // (3)
 1. Shuffle at `sortByKey()`
 1. Submits a job with two stages (and two to be executed)
 1. Intentionally repeat the last action that submits a new job with two stages with one being shared as already-computed
+
+## Map Output Files
+
+`ShuffleMapStage` writes out **map output files** (for a shuffle).
