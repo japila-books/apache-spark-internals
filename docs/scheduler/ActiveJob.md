@@ -1,34 +1,41 @@
 # ActiveJob
 
-A *job* (aka _action job_ or _active job_) is a top-level work item (computation) submitted to scheduler:DAGScheduler.md[DAGScheduler] to rdd:spark-rdd-actions.md[compute the result of an action] (or for scheduler:DAGScheduler.md#adaptive-query-planning[Adaptive Query Planning / Adaptive Scheduling]).
+`ActiveJob` (_job_, _action job_) is a top-level work item (computation) submitted to [DAGScheduler](DAGScheduler.md) for execution (usually to compute the result of an `RDD` action).
 
-.RDD actions submit jobs to DAGScheduler
-image::action-job.png[align="center"]
+![RDD actions submit jobs to DAGScheduler](../images/scheduler/action-job.png)
 
-Computing a job is equivalent to computing the partitions of the RDD the action has been executed upon. The number of partitions in a job depends on the type of a stage - scheduler:ResultStage.md[ResultStage] or scheduler:ShuffleMapStage.md[ShuffleMapStage].
+Executing a job is equivalent to computing the partitions of the RDD an action has been executed upon. The number of partitions (`numPartitions`) to compute in a job depends on the type of a stage ([ResultStage](ResultStage.md) or [ShuffleMapStage](ShuffleMapStage.md)).
 
-A job starts with a single target RDD, but can ultimately include other RDDs that are all part of [RDD lineage](../rdd/lineage.md).
+A job starts with a single target RDD, but can ultimately include other `RDD`s that are all part of [RDD lineage](../rdd/lineage.md).
 
-The parent stages are the instances of scheduler:ShuffleMapStage.md[ShuffleMapStage].
+The parent stages are always [ShuffleMapStage](ShuffleMapStage.md)s.
 
 ![Computing a job is computing the partitions of an RDD](../images/scheduler/rdd-job-partitions.png)
 
-NOTE: Note that not all partitions have always to be computed for scheduler:ResultStage.md[ResultStages] for actions like `first()` and `lookup()`.
+!!! note
+    Not always all partitions have to be computed for [ResultStage](ResultStage.md)s (e.g. for actions like `first()` and `lookup()`).
 
-Internally, a job is represented by an instance of https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/scheduler/ActiveJob.scala[private[spark\] class org.apache.spark.scheduler.ActiveJob].
+## Creating Instance
 
-[CAUTION]
-====
-FIXME
+`ActiveJob` takes the following to be created:
 
-* Where are instances of ActiveJob used?
-====
+* <span id="jobId"> Job ID
+* [Final Stage](#finalStage)
+* <span id="callSite"> `CallSite`
+* <span id="listener"> [JobListener](JobListener.md)
+* <span id="properties"> `Properties`
 
-A job can be one of two logical types (that are only distinguished by an internal `finalStage` field of `ActiveJob`):
+`ActiveJob` is created when:
 
-* *Map-stage job* that computes the map output files for a scheduler:ShuffleMapStage.md[ShuffleMapStage] (for `submitMapStage`) before any downstream stages are submitted.
-+
-It is also used for scheduler:DAGScheduler.md#adaptive-query-planning[Adaptive Query Planning / Adaptive Scheduling], to look at map output statistics before submitting later stages.
-* *Result job* that computes a scheduler:ResultStage.md[ResultStage] to execute an action.
+* `DAGScheduler` is requested to [handleJobSubmitted](DAGScheduler.md#handleJobSubmitted) and [handleMapStageSubmitted](DAGScheduler.md#handleMapStageSubmitted)
 
-Jobs track how many partitions have already been computed (using `finished` array of `Boolean` elements).
+## <span id="finalStage"> Final Stage
+
+`ActiveJob` is given a [Stage](Stage.md) when [created](#creating-instance) that determines a logical type:
+
+1. **Map-Stage Job** that computes the map output files for a [ShuffleMapStage](ShuffleMapStage.md) (for `submitMapStage`) before any downstream stages are submitted
+1. **Result job** that computes a [ResultStage](ResultStage.md) to execute an action
+
+## <Span id="finished"> Finished (Computed) Partitions
+
+`ActiveJob` uses `finished` registry of flags to track partitions that have already been computed (`true`) or not (`false`).
