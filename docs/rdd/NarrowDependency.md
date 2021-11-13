@@ -1,75 +1,84 @@
+---
+tags:
+  - DeveloperApi
+---
+
 # NarrowDependency
 
-`NarrowDependency` is a base (abstract) Dependency.md[Dependency] with _narrow_ (limited) number of [partitions](Partition.md) of the parent RDD that are required to compute a partition of the child RDD.
+`NarrowDependency[T]` is an [extension](#contract) of the [Dependency](Dependency.md) abstraction for [narrow dependencies](#implementations) (of [RDD[T]](#rdd)s) where [each partition of the child RDD depends on a small number of partitions of the parent RDD](#getParents).
 
-NOTE: Narrow dependencies allow for pipelined execution.
+## Contract
 
-.Concrete ``NarrowDependency``-ies
-[cols="1,2",options="header",width="100%"]
-|===
-| Name | Description
-| <<OneToOneDependency, OneToOneDependency>> |
-| <<PruneDependency, PruneDependency>> |
-| <<RangeDependency, RangeDependency>> |
-|===
+### <span id="getParents"> getParents
 
-=== [[contract]] `NarrowDependency` Contract
-
-`NarrowDependency` contract assumes that extensions implement `getParents` method.
-
-[source, scala]
-----
-def getParents(partitionId: Int): Seq[Int]
-----
-
-`getParents` returns the partitions of the parent RDD that the input `partitionId` depends on.
-
-=== [[OneToOneDependency]] OneToOneDependency
-
-`OneToOneDependency` is a narrow dependency that represents a one-to-one dependency between partitions of the parent and child RDDs.
-
-```
-scala> val r1 = sc.parallelize(0 to 9)
-r1: org.apache.spark.rdd.RDD[Int] = ParallelCollectionRDD[13] at parallelize at <console>:18
-
-scala> val r3 = r1.map((_, 1))
-r3: org.apache.spark.rdd.RDD[(Int, Int)] = MapPartitionsRDD[19] at map at <console>:20
-
-scala> r3.dependencies
-res32: Seq[org.apache.spark.Dependency[_]] = List(org.apache.spark.OneToOneDependency@7353a0fb)
-
-scala> r3.toDebugString
-res33: String =
-(8) MapPartitionsRDD[19] at map at <console>:20 []
- |  ParallelCollectionRDD[13] at parallelize at <console>:18 []
+```scala
+getParents(
+  partitionId: Int): Seq[Int]
 ```
 
-=== [[PruneDependency]] PruneDependency
+The parent partitions for a given child partition
 
-`PruneDependency` is a narrow dependency that represents a dependency between the `PartitionPruningRDD` and its parent RDD.
+Used when:
 
-=== [[RangeDependency]] RangeDependency
+* `DAGScheduler` is requested for the [preferred locations](../scheduler/DAGScheduler.md#getPreferredLocsInternal) (of a partition of an `RDD`)
 
-`RangeDependency` is a narrow dependency that represents a one-to-one dependency between ranges of partitions in the parent and child RDDs.
+## Implementations
 
-It is used in `UnionRDD` for `SparkContext.union`, `RDD.union` transformation to list only a few.
+### <span id="OneToOneDependency"> OneToOneDependency
 
+`OneToOneDependency` is a `NarrowDependency` with [getParents](#getParents) returning a single-element collection with the given `partitionId`.
+
+```text
+val myRdd = sc.parallelize(0 to 9).map((_, 1))
+
+scala> :type myRdd
+org.apache.spark.rdd.RDD[(Int, Int)]
+
+scala> myRdd.dependencies.foreach(println)
+org.apache.spark.OneToOneDependency@801fe56
+
+import org.apache.spark.OneToOneDependency
+val dep = myRdd.dependencies.head.asInstanceOf[OneToOneDependency[(_, _)]]
+
+scala> println(dep.getParents(0))
+List(0)
+
+scala> println(dep.getParents(1))
+List(1)
 ```
-scala> val r1 = sc.parallelize(0 to 9)
-r1: org.apache.spark.rdd.RDD[Int] = ParallelCollectionRDD[13] at parallelize at <console>:18
 
-scala> val r2 = sc.parallelize(10 to 19)
-r2: org.apache.spark.rdd.RDD[Int] = ParallelCollectionRDD[14] at parallelize at <console>:18
+### <span id="PruneDependency"> PruneDependency
 
-scala> val unioned = sc.union(r1, r2)
-unioned: org.apache.spark.rdd.RDD[Int] = UnionRDD[16] at union at <console>:22
+`PruneDependency` is a `NarrowDependency` that represents a dependency between the `PartitionPruningRDD` and the parent RDD (with a subset of partitions of the parents).
 
-scala> unioned.dependencies
-res19: Seq[org.apache.spark.Dependency[_]] = ArrayBuffer(org.apache.spark.RangeDependency@28408ad7, org.apache.spark.RangeDependency@6e1d2e9f)
+### <span id="RangeDependency"> RangeDependency
 
-scala> unioned.toDebugString
-res18: String =
-(16) UnionRDD[16] at union at <console>:22 []
- |   ParallelCollectionRDD[13] at parallelize at <console>:18 []
- |   ParallelCollectionRDD[14] at parallelize at <console>:18 []
+`RangeDependency` is a `NarrowDependency` that represents a one-to-one dependency between ranges of partitions in the parent and child RDDs.
+
+Used in `UnionRDD` (`SparkContext.union`).
+
+```text
+val r1 = sc.range(0, 4)
+val r2 = sc.range(5, 9)
+
+val unioned = sc.union(r1, r2)
+
+scala> unioned.dependencies.foreach(println)
+org.apache.spark.RangeDependency@76b0e1d9
+org.apache.spark.RangeDependency@3f3e51e0
+
+import org.apache.spark.RangeDependency
+val dep = unioned.dependencies.head.asInstanceOf[RangeDependency[(_, _)]]
+
+scala> println(dep.getParents(0))
+List(0)
 ```
+
+## Creating Instance
+
+`NarrowDependency` takes the following to be created:
+
+* <span id="_rdd"><span id="rdd"> [RDD[T]](RDD.md)
+
+!!! note "Abstract Class"
+    `NarrowDependency` is an abstract class and cannot be created directly. It is created indirectly for the [concrete NarrowDependencies](#implementations).
