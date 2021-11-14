@@ -61,6 +61,28 @@ When DAGScheduler schedules a job as a result of rdd/index.md#actions[executing 
 
 While being created, `DAGScheduler` requests the [TaskScheduler](#taskScheduler) to [associate itself with](TaskScheduler.md#setDAGScheduler) and requests [DAGScheduler Event Bus](#eventProcessLoop) to start accepting events.
 
+## <span id="submitMapStage"> Submitting MapStage for Execution (Posting MapStageSubmitted)
+
+```scala
+submitMapStage[K, V, C](
+  dependency: ShuffleDependency[K, V, C],
+  callback: MapOutputStatistics => Unit,
+  callSite: CallSite,
+  properties: Properties): JobWaiter[MapOutputStatistics]
+```
+
+`submitMapStage` requests the given [ShuffleDependency](../rdd/ShuffleDependency.md) for the [RDD](../rdd/ShuffleDependency.md#rdd).
+
+`submitMapStage` gets the [job ID](#nextJobId) and increments it (for future submissions).
+
+`submitMapStage` creates a [JobWaiter](JobWaiter.md) to wait for a [MapOutputStatistics](MapOutputStatistics.md). The `JobWaiter` waits for 1 task and, when completed successfully, executes the given `callback` function with the computed `MapOutputStatistics`.
+
+In the end, `submitMapStage` posts a [MapStageSubmitted](DAGSchedulerEvent.md#MapStageSubmitted) and returns the `JobWaiter`.
+
+Used when:
+
+* `SparkContext` is requested to [submit a MapStage for execution](../SparkContext.md#submitMapStage)
+
 ## <span id="getShuffleDependenciesAndResourceProfiles"> Shuffle Dependencies and ResourceProfiles
 
 ```scala
@@ -1310,7 +1332,7 @@ In the end, `handleJobSubmitted` posts a [SparkListenerJobStart](../SparkListene
 
 `handleJobSubmitted` is used when `DAGSchedulerEventProcessLoop` is requested to handle a [JobSubmitted](DAGSchedulerEvent.md#JobSubmitted) event.
 
-### <span id="handleMapStageSubmitted"> MapStageSubmitted Event Handler
+### <span id="handleMapStageSubmitted"> MapStageSubmitted
 
 ```scala
 handleMapStageSubmitted(
@@ -1324,16 +1346,13 @@ handleMapStageSubmitted(
 ![MapStageSubmitted Event Handling](../images/scheduler/scheduler-handlemapstagesubmitted.png)
 
 !!! note
-    `MapStageSubmitted` event processing is very similar to <<JobSubmitted, JobSubmitted>> events.
+    `MapStageSubmitted` event processing is very similar to [JobSubmitted](#JobSubmitted) event's.
 
-`handleMapStageSubmitted` [finds or creates a new `ShuffleMapStage`](#getOrCreateShuffleMapStage) for the input [ShuffleDependency](../rdd/ShuffleDependency.md) and `jobId`.
+`handleMapStageSubmitted` [finds or creates a new ShuffleMapStage](#getOrCreateShuffleMapStage) for the given [ShuffleDependency](../rdd/ShuffleDependency.md) and `jobId`.
 
-`handleMapStageSubmitted` creates an [ActiveJob](ActiveJob.md).
+`handleMapStageSubmitted` creates an [ActiveJob](ActiveJob.md) (with the given `jobId`, the `ShuffleMapStage`, the given `JobListener`).
 
 `handleMapStageSubmitted` [clears the internal cache of RDD partition locations](#clearCacheLocs).
-
-!!! important
-    FIXME Why is this clearing here so important?
 
 `handleMapStageSubmitted` prints out the following INFO messages to the logs:
 
@@ -1344,16 +1363,18 @@ Parents of final stage: [parents]
 Missing parents: [missingParentStages]
 ```
 
-`handleMapStageSubmitted` registers the new job in [jobIdToActiveJob](#jobIdToActiveJob) and [activeJobs](#activeJobs) internal registries, and [with the final `ShuffleMapStage`](ShuffleMapStage.md#addActiveJob).
+`handleMapStageSubmitted` adds the new `ActiveJob` to [jobIdToActiveJob](#jobIdToActiveJob) and [activeJobs](#activeJobs) internal registries, and the [ShuffleMapStage](ShuffleMapStage.md#addActiveJob).
 
 !!! note
-    `ShuffleMapStage` can have multiple ``ActiveJob``s registered.
+    `ShuffleMapStage` can have multiple `ActiveJob`s registered.
 
 `handleMapStageSubmitted` [finds all the registered stages for the input `jobId`](#jobIdToStageIds) and collects [their latest `StageInfo`](Stage.md#latestInfo).
 
-In the end, `handleMapStageSubmitted` posts [SparkListenerJobStart](../SparkListener.md#SparkListenerJobStart) message to [LiveListenerBus](LiveListenerBus.md) and [submits the `ShuffleMapStage`](#submitStage).
+In the end, `handleMapStageSubmitted` posts a [SparkListenerJobStart](../SparkListener.md#SparkListenerJobStart) event to the [LiveListenerBus](#listenerBus) and [submits the ShuffleMapStage](#submitStage).
 
-When the [`ShuffleMapStage` is available](ShuffleMapStage.md#isAvailable) already, `handleMapStageSubmitted` [marks the job finished](#markMapStageJobAsFinished).
+When the [ShuffleMapStage is available](ShuffleMapStage.md#isAvailable) already, `handleMapStageSubmitted` [marks the job finished](#markMapStageJobAsFinished).
+
+---
 
 When `handleMapStageSubmitted` could not find or create a `ShuffleMapStage`, `handleMapStageSubmitted` prints out the following WARN message to the logs.
 
@@ -1361,9 +1382,13 @@ When `handleMapStageSubmitted` could not find or create a `ShuffleMapStage`, `ha
 Creating new stage failed due to exception - job: [id]
 ```
 
-`handleMapStageSubmitted` notifies [`listener` about the job failure](JobListener.md#jobFailed) and exits.
+`handleMapStageSubmitted` [notifies the JobListener about the job failure](JobListener.md#jobFailed) and exits.
 
-`handleMapStageSubmitted` is used when `DAGSchedulerEventProcessLoop` is requested to handle a [MapStageSubmitted](DAGSchedulerEvent.md#MapStageSubmitted) event.
+---
+
+`handleMapStageSubmitted` is used when:
+
+* [DAGSchedulerEventProcessLoop](DAGSchedulerEventProcessLoop.md) is requested to handle a [MapStageSubmitted](DAGSchedulerEvent.md#MapStageSubmitted) event
 
 ### <span id="resubmitFailedStages"> ResubmitFailedStages Event Handler
 
@@ -1539,12 +1564,6 @@ Used when `SparkContext` is requested to [run an approximate job](../SparkContex
 Posts a [SpeculativeTaskSubmitted](DAGSchedulerEvent.md#SpeculativeTaskSubmitted)
 
 Used when `TaskSetManager` is requested to [checkAndSubmitSpeculatableTask](TaskSetManager.md#checkAndSubmitSpeculatableTask)
-
-### <span id="submitMapStage"> Posting MapStageSubmitted (submitMapStage)
-
-Posts a [MapStageSubmitted](DAGSchedulerEvent.md#MapStageSubmitted)
-
-Used when `SparkContext` is requested to [submit a MapStage for execution](../SparkContext.md#submitMapStage)
 
 ### <span id="taskEnded"> Posting CompletionEvent
 

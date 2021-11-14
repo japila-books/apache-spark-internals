@@ -12,7 +12,9 @@
 
 * <span id="dagScheduler"> [DAGScheduler](DAGScheduler.md)
 
-`DAGSchedulerEventProcessLoop` is created when `DAGScheduler` is [created](DAGScheduler.md#eventProcessLoop).
+`DAGSchedulerEventProcessLoop` is created when:
+
+* `DAGScheduler` is [created](DAGScheduler.md#eventProcessLoop)
 
 ## <span id="onReceive"><span id="doOnReceive"> Processing Event
 

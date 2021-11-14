@@ -39,6 +39,19 @@ getCheckpointDir: Option[String]
 
 * `ReliableRDDCheckpointData` is requested for the [checkpoint path](rdd/ReliableRDDCheckpointData.md#checkpointPath)
 
+## <span id="submitMapStage"> Submitting MapStage for Execution
+
+```scala
+submitMapStage[K, V, C](
+  dependency: ShuffleDependency[K, V, C]): SimpleFutureAction[MapOutputStatistics]
+```
+
+`submitMapStage` requests the [DAGScheduler](#dagScheduler) to [submit](scheduler/DAGScheduler.md#submitMapStage) the given [ShuffleDependency](rdd/ShuffleDependency.md) for execution (that eventually produces a [MapOutputStatistics](scheduler/MapOutputStatistics.md)).
+
+`submitMapStage` is used when:
+
+* `ShuffleExchangeExec` ([Spark SQL]({{ book.spark_sql }}/physical-operators/ShuffleExchangeExec#mapOutputStatisticsFuture)) unary physical operator is executed
+
 ## <span id="ExecutorMetricsSource"><span id="_executorMetricsSource"> ExecutorMetricsSource
 
 `SparkContext` creates an [ExecutorMetricsSource](executor/ExecutorMetricsSource.md) when [created](#creating-instance) with [spark.metrics.executorMetricsSource.enabled](metrics/configuration-properties.md#spark.metrics.executorMetricsSource.enabled) enabled.
@@ -1148,22 +1161,6 @@ startTime: Long
 scala> sc.startTime
 res0: Long = 1464425605653
 ----
-
-== [[submitMapStage]] Submitting `ShuffleDependency` for Execution -- `submitMapStage` Internal Method
-
-[source, scala]
-----
-submitMapStage[K, V, C](
-  dependency: ShuffleDependency[K, V, C]): SimpleFutureAction[MapOutputStatistics]
-----
-
-`submitMapStage` scheduler:DAGScheduler.md#submitMapStage[submits the input `ShuffleDependency` to `DAGScheduler` for execution] and returns a `SimpleFutureAction`.
-
-Internally, `submitMapStage` <<getCallSite, calculates the call site>> first and submits it with `localProperties`.
-
-NOTE: Interestingly, `submitMapStage` is used exclusively when Spark SQL's spark-sql-SparkPlan-ShuffleExchange.md[ShuffleExchange] physical operator is executed.
-
-NOTE: `submitMapStage` _seems_ related to scheduler:DAGScheduler.md#adaptive-query-planning[Adaptive Query Planning / Adaptive Scheduling].
 
 == [[cancelJobGroup]] Cancelling Job Group -- `cancelJobGroup` Method
 

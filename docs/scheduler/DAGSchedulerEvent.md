@@ -117,7 +117,9 @@ Carries the following:
 * [JobListener](JobListener.md)
 * Execution properties
 
-Posted when `DAGScheduler` is requested to [submitMapStage](DAGScheduler.md#submitMapStage)
+Posted when:
+
+* `DAGScheduler` is requested to [submit a MapStage for execution](DAGScheduler.md#submitMapStage)
 
 Event handler: [handleMapStageSubmitted](DAGScheduler.md#handleMapStageSubmitted)
 
