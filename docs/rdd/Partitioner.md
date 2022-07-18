@@ -27,6 +27,5 @@ numPartitions: Int
 
 ## Implementations
 
-* CoalescedPartitioner (Spark SQL)
 * [HashPartitioner](HashPartitioner.md)
 * [RangePartitioner](RangePartitioner.md)

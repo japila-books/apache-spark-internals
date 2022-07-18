@@ -4,7 +4,7 @@
 
 `DAGSchedulerEventProcessLoop` is registered under the name of **dag-scheduler-event-loop**.
 
-`DAGSchedulerEventProcessLoop` uses [java.util.concurrent.LinkedBlockingDeque]({{ java.doc }}/java/util/concurrent/LinkedBlockingDeque.html) blocking deque that can grow indefinitely.
+`DAGSchedulerEventProcessLoop` uses [java.util.concurrent.LinkedBlockingDeque]({{ java.api }}/java/util/concurrent/LinkedBlockingDeque.html) blocking deque that can grow indefinitely.
 
 ## Creating Instance
 

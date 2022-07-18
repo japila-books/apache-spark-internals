@@ -1483,7 +1483,7 @@ The lookup table of all stages per `ActiveJob` id
 nextJobId: AtomicInteger
 ```
 
-`nextJobId` is a Java [AtomicInteger]({{ java.doc }}/java/util/concurrent/atomic/AtomicInteger.html) for job IDs.
+`nextJobId` is a Java [AtomicInteger]({{ java.api }}/java/util/concurrent/atomic/AtomicInteger.html) for job IDs.
 
 `nextJobId` starts at `0`.
 
