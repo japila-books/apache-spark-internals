@@ -384,11 +384,13 @@ createTaskSetManager(
   maxTaskFailures: Int): TaskSetManager
 ```
 
-`createTaskSetManager` creates a [TaskSetManager](TaskSetManager.md).
+`createTaskSetManager` creates a [TaskSetManager](TaskSetManager.md) (with this `TaskSchedulerImpl`, the given [TaskSet](TaskSet.md) and the `maxTaskFailures`).
+
+---
 
 `createTaskSetManager` is used when:
 
-* `TaskSchedulerImpl` is requested to [submits tasks](#submitTasks)
+* `TaskSchedulerImpl` is requested to [submit a TaskSet](#submitTasks)
 
 ## <span id="handleFailedTask"> Notifying TaskSetManager that Task Failed
 

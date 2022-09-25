@@ -250,6 +250,53 @@ A comma-separated list of directory paths for "scratch" space (a temporary stora
 
 Default: `java.io.tmpdir` System property
 
+## <span id="spark.locality.wait"><span id="LOCALITY_WAIT"> spark.locality.wait
+
+How long to wait until an executor is available for locality-aware delay scheduling (for `PROCESS_LOCAL`, `NODE_LOCAL`, and `RACK_LOCAL` [TaskLocalities](scheduler/TaskSchedulerImpl.md#TaskLocality)) unless locality-specific setting is set (i.e., [spark.locality.wait.process](#spark.locality.wait.process), [spark.locality.wait.node](#spark.locality.wait.node), and [spark.locality.wait.rack](#spark.locality.wait.rack), respectively)
+
+Default: `3s`
+
+## <span id="spark.locality.wait.legacyResetOnTaskLaunch"><span id="LEGACY_LOCALITY_WAIT_RESET"> spark.locality.wait.legacyResetOnTaskLaunch
+
+**(internal)** Whether to use the legacy behavior of locality wait, which resets the delay timer anytime a task is scheduled.
+
+Default: `false`
+
+Used when:
+
+* `TaskSchedulerImpl` is [created](scheduler/TaskSchedulerImpl.md#legacyLocalityWaitReset)
+* `TaskSetManager` is [created](scheduler/TaskSetManager.md#legacyLocalityWaitReset)
+
+## <span id="spark.locality.wait.node"><span id="LOCALITY_WAIT_NODE"> spark.locality.wait.node
+
+Scheduling delay for [TaskLocality.NODE_LOCAL](scheduler/TaskSchedulerImpl.md#TaskLocality)
+
+Default: [spark.locality.wait](#spark.locality.wait)
+
+Used when:
+
+* `TaskSetManager` is requested for the [locality wait](scheduler/TaskSetManager.md#getLocalityWait) (of `TaskLocality.NODE_LOCAL`)
+
+## <span id="spark.locality.wait.process"><span id="LOCALITY_WAIT_PROCESS"> spark.locality.wait.process
+
+Scheduling delay for [TaskLocality.PROCESS_LOCAL](scheduler/TaskSchedulerImpl.md#TaskLocality)
+
+Default: [spark.locality.wait](#spark.locality.wait)
+
+Used when:
+
+* `TaskSetManager` is requested for the [locality wait](scheduler/TaskSetManager.md#getLocalityWait) (of `TaskLocality.PROCESS_LOCAL`)
+
+## <span id="spark.locality.wait.rack"><span id="LOCALITY_WAIT_RACK"> spark.locality.wait.rack
+
+Scheduling delay for [TaskLocality.RACK_LOCAL](scheduler/TaskSchedulerImpl.md#TaskLocality)
+
+Default: [spark.locality.wait](#spark.locality.wait)
+
+Used when:
+
+* `TaskSetManager` is requested for the [locality wait](scheduler/TaskSetManager.md#getLocalityWait) (of `TaskLocality.RACK_LOCAL`)
+
 ## <span id="spark.logConf"> spark.logConf
 
 Default: `false`
@@ -788,26 +835,6 @@ a| [[spark.launcher.port]]
 
 | spark.launcher.secret
 a| [[spark.launcher.secret]]
-
-| spark.locality.wait
-a| [[spark.locality.wait]] For locality-aware delay scheduling for `PROCESS_LOCAL`, `NODE_LOCAL`, and `RACK_LOCAL` scheduler:TaskSchedulerImpl.md#TaskLocality[TaskLocalities] when locality-specific setting is not set.
-
-Default: `3s`
-
-| spark.locality.wait.node
-a| [[spark.locality.wait.node]] Scheduling delay for `NODE_LOCAL` scheduler:TaskSchedulerImpl.md#TaskLocality[TaskLocality]
-
-Default: The value of <<spark.locality.wait, spark.locality.wait>>
-
-| spark.locality.wait.process
-a| [[spark.locality.wait.process]] Scheduling delay for `PROCESS_LOCAL` scheduler:TaskSchedulerImpl.md#TaskLocality[TaskLocality]
-
-Default: The value of <<spark.locality.wait, spark.locality.wait>>
-
-| spark.locality.wait.rack
-a| [[spark.locality.wait.rack]] Scheduling delay for `RACK_LOCAL` scheduler:TaskSchedulerImpl.md#TaskLocality[TaskLocality]
-
-Default: The value of <<spark.locality.wait, spark.locality.wait>>
 
 | spark.logging.exceptionPrintInterval
 a| [[spark.logging.exceptionPrintInterval]] How frequently to reprint duplicate exceptions in full (in millis).

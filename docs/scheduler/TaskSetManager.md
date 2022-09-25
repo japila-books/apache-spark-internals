@@ -1,40 +1,172 @@
 # TaskSetManager
 
-`TaskSetManager` is a <<schedulable, Schedulable>> that manages scheduling of tasks of a <<taskSet, TaskSet>>.
+`TaskSetManager` is a [Schedulable](Schedulable.md) that manages scheduling the tasks of a [TaskSet](#taskSet).
 
-NOTE: A TaskSet.md[TaskSet] represents a set of Task.md[tasks] that correspond to missing spark-rdd-partitions.md[partitions] of a Stage.md[stage].
+<figure markdown>
+  ![TaskSetManager](../images/TaskSetManager-TaskSchedulerImpl-TaskSet.png)
+</figure>
 
-`TaskSetManager` is <<creating-instance, created>> exclusively when `TaskSchedulerImpl` is requested to TaskSchedulerImpl.md#createTaskSetManager[create one] (when submitting tasks for a given `TaskSet`).
+## Creating Instance
 
-.TaskSetManager and its Dependencies
-image::TaskSetManager-TaskSchedulerImpl-TaskSet.png[align="center"]
+`TaskSetManager` takes the following to be created:
 
-When <<creating-instance, created>> with a given <<taskSet, TaskSet>>, `TaskSetManager` <<addPendingTask, registers all the tasks as pending execution>>.
+* <span id="sched"> [TaskSchedulerImpl](TaskSchedulerImpl.md)
+* <span id="taskSet"> [TaskSet](TaskSet.md)
+* [Number of Task Failures](#maxTaskFailures)
+* <span id="healthTracker"> `HealthTracker`
+* <span id="clock"> `Clock`
 
-`TaskSetManager` is notified when a task (from the `TaskSet` it manages) finishes -- <<handleSuccessfulTask, sucessfully>> or due to a <<handleFailedTask, failure>> (in task execution or <<executorLost, an executor being lost>>).
+`TaskSetManager` is created when:
 
-`TaskSetManager` uses <<maxTaskFailures, maxTaskFailures>> to control how many times a <<handleFailedTask, single task can fail>> before an <<abort, entire `TaskSet` gets aborted>> that can take the following values:
+* `TaskSchedulerImpl` is requested to [create a TaskSetManager](TaskSchedulerImpl.md#createTaskSetManager)
 
-* `1` for local/spark-local.md[`local` run mode]
-* `maxFailures` in local/spark-local.md#local-with-retries[Spark local-with-retries] (i.e. `local[N, maxFailures]`)
-* configuration-properties.md#spark.task.maxFailures[spark.task.maxFailures] configuration property for local/spark-local.md[Spark local-cluster] and spark-cluster.md[Spark clustered] (using Spark Standalone, Mesos and YARN)
+---
 
-The responsibilities of a `TaskSetManager` include:
+While being created, `TaskSetManager` [requests the current epoch from `MapOutputTracker`](MapOutputTracker.md#getEpoch) and sets it on all tasks in the taskset.
 
-* <<scheduling-tasks, Scheduling the tasks in a taskset>>
-* <<task-retries, Retrying tasks on failure>>
-* <<locality-aware-scheduling, Locality-aware scheduling via delay scheduling>>
+!!! note
+    `TaskSetManager` uses [TaskSchedulerImpl](#sched) to [access the current `MapOutputTracker`](TaskSchedulerImpl.md#mapOutputTracker).
 
-[TIP]
-====
+`TaskSetManager` prints out the following DEBUG to the logs:
+
+```text
+Epoch for [taskSet]: [epoch]
+```
+
+`TaskSetManager` [adds the tasks as pending execution](#addPendingTask) (in reverse order from the highest partition to the lowest).
+
+### <span id="maxTaskFailures"> Number of Task Failures
+
+`TaskSetManager` is given `maxTaskFailures` value that is how many times a [single task can fail](#handleFailedTask) before the whole [TaskSet](#taskSet) is [aborted](#abort).
+
+Master URL | Number of Task Failures
+-----------|------
+ `local` | 1
+ local-with-retries | `maxFailures`
+ `local-cluster` | [spark.task.maxFailures](../configuration-properties.md#spark.task.maxFailures)
+ Cluster Manager | [spark.task.maxFailures](../configuration-properties.md#spark.task.maxFailures)
+
+## <span id="getLocalityWait"> Locality Wait
+
+```scala
+getLocalityWait(
+  level: TaskLocality.TaskLocality): Long
+```
+
+`getLocalityWait` is `0` for [legacyLocalityWaitReset](#legacyLocalityWaitReset) and [isBarrier](#isBarrier) flags enabled.
+
+`getLocalityWait` determines the value of locality wait based on the given `TaskLocality.TaskLocality`.
+
+TaskLocality | Configuration Property
+-------------|-----------------------
+ `PROCESS_LOCAL` | [spark.locality.wait.process](../configuration-properties.md#LOCALITY_WAIT_PROCESS)
+ `NODE_LOCAL` | [spark.locality.wait.node](../configuration-properties.md#LOCALITY_WAIT_NODE)
+ `RACK_LOCAL` | [spark.locality.wait.rack](../configuration-properties.md#LOCALITY_WAIT_RACK)
+
+Unless the value has been determined, `getLocalityWait` defaults to `0`.
+
+!!! note
+    `NO_PREF` and `ANY` task localities have no locality wait.
+
+---
+
+`getLocalityWait` is used when:
+
+* `TaskSetManager` is [created](#localityWaits) and [recomputes locality preferences](#recomputeLocality)
+
+## <span id="maxResultSize"> spark.driver.maxResultSize
+
+`TaskSetManager` uses [spark.driver.maxResultSize](../configuration-properties.md#spark.driver.maxResultSize) configuration property to [check available memory for more task results](#canFetchMoreResults).
+
+## <span id="recomputeLocality"> Recomputing Task Locality Preferences
+
+```java
+recomputeLocality(): Unit
+```
+
+If [zombie](#isZombie), `recomputeLocality` does nothing.
+
+`recomputeLocality` recomputes [myLocalityLevels](#myLocalityLevels), [localityWaits](#localityWaits) and [currentLocalityIndex](#currentLocalityIndex) internal registries.
+
+`recomputeLocality` [computes locality levels (for scheduled tasks)](#computeValidLocalityLevels) and saves the result in [myLocalityLevels](#myLocalityLevels) internal registry.
+
+`recomputeLocality` computes [localityWaits](#localityWaits) by [determining the locality wait](#getLocalityWait) for every locality level in [myLocalityLevels](#myLocalityLevels).
+
+`recomputeLocality` computes [currentLocalityIndex](#currentLocalityIndex) by [getLocalityIndex](#getLocalityIndex) with the previous locality level. If the current locality index is higher than the previous, `recomputeLocality` recalculates [currentLocalityIndex](#currentLocalityIndex).
+
+---
+
+`recomputeLocality` is used when:
+
+* `TaskSetManager` is notified about status change in executors (i.e., [lost](#executorLost), [decommissioned](#executorDecommission), [added](#executorAdded))
+
+## <span id="zombie"> Zombie
+
+A `TaskSetManager` is a **zombie** when all tasks in a taskset have completed successfully (regardless of the number of task attempts), or if the taskset has been [aborted](#abort).
+
+While in zombie state, a `TaskSetManager` can launch no new tasks and responds with no `TaskDescription`s to [resourceOffers](#resourceOffer).
+
+A `TaskSetManager` remains in the zombie state until all tasks have finished running, i.e. to continue to track and account for the running tasks.
+
+## <span id="computeValidLocalityLevels"> Computing Locality Levels (for Scheduled Tasks)
+
+```scala
+computeValidLocalityLevels(): Array[TaskLocality.TaskLocality]
+```
+
+`computeValidLocalityLevels` computes valid locality levels for tasks that were registered in corresponding registries per locality level.
+
+!!! note
+    [TaskLocality](TaskSchedulerImpl.md) is a locality preference of a task and can be the most localized `PROCESS_LOCAL`, `NODE_LOCAL` through `NO_PREF` and `RACK_LOCAL` to `ANY`.
+
+For every pending task (in [pendingTasks](#pendingTasks) registry), `computeValidLocalityLevels` requests the [TaskSchedulerImpl](#sched) for acceptable `TaskLocality`ies:
+
+* For every executor, `computeValidLocalityLevels` requests the [TaskSchedulerImpl](#sched) to [isExecutorAlive](TaskSchedulerImpl.md#isExecutorAlive) and adds `PROCESS_LOCAL`
+* For every host, `computeValidLocalityLevels` requests the [TaskSchedulerImpl](#sched) to [hasExecutorsAliveOnHost](TaskSchedulerImpl.md#hasExecutorsAliveOnHost) and adds `NODE_LOCAL`
+* For any pending tasks with no locality preference, `computeValidLocalityLevels` adds `NO_PREF`
+* For every rack, `computeValidLocalityLevels` requests the [TaskSchedulerImpl](#sched) to [hasHostAliveOnRack](TaskSchedulerImpl.md#hasHostAliveOnRack) and adds `RACK_LOCAL`
+
+`computeValidLocalityLevels` always registers `ANY` task locality level.
+
+In the end, `computeValidLocalityLevels` prints out the following DEBUG message to the logs:
+
+```text
+Valid locality levels for [taskSet]: [comma-separated levels]
+```
+
+---
+
+`computeValidLocalityLevels` is used when:
+
+* `TaskSetManager` is [created](#myLocalityLevels) and to [recomputeLocality](#recomputeLocality)
+
+## <span id="executorAdded"> executorAdded
+
+```scala
+executorAdded(): Unit
+```
+
+`executorAdded` [recomputeLocality](#recomputeLocality).
+
+---
+
+`executorAdded` is used when:
+
+* `TaskSchedulerImpl` is requested to [handle resource offers](TaskSchedulerImpl.md#resourceOffers)
+
+## Demo
+
 Enable `DEBUG` logging level for `org.apache.spark.scheduler.TaskSchedulerImpl` (or `org.apache.spark.scheduler.cluster.YarnScheduler` for YARN) and `org.apache.spark.scheduler.TaskSetManager` and execute the following two-stage job to see their low-level innerworkings.
 
 A cluster manager is recommended since it gives more task localization choices (with YARN additionally supporting rack localization).
 
-```text
-$ ./bin/spark-shell --master yarn --conf spark.ui.showConsoleProgress=false
+```console
+$ ./bin/spark-shell \
+    --master yarn \
+    --conf spark.ui.showConsoleProgress=false
 
 // Keep # partitions low to keep # messages low
+
 scala> sc.parallelize(0 to 9, 3).groupBy(_ % 3).count
 INFO YarnScheduler: Adding task set 0.0 with 3 tasks
 DEBUG TaskSetManager: Epoch for TaskSet 0.0: 0
@@ -70,7 +202,37 @@ INFO YarnScheduler: Removed TaskSet 1.0, whose tasks have all completed, from po
 res0: Long = 3
 ```
 
-====
+## Logging
+
+Enable `ALL` logging level for `org.apache.spark.scheduler.TaskSetManager` logger to see what happens inside.
+
+Add the following line to `conf/log4j.properties`:
+
+```text
+log4j.logger.org.apache.spark.scheduler.TaskSetManager=ALL
+```
+
+Refer to [Logging](../spark-logging.md)
+
+## Review Me
+
+`TaskSetManager` is <<creating-instance, created>> exclusively when `TaskSchedulerImpl` is requested to TaskSchedulerImpl.md#createTaskSetManager[create one] (when submitting tasks for a given `TaskSet`).
+
+When <<creating-instance, created>> with a given <<taskSet, TaskSet>>, `TaskSetManager` <<addPendingTask, registers all the tasks as pending execution>>.
+
+`TaskSetManager` is notified when a task (from the `TaskSet` it manages) finishes -- <<handleSuccessfulTask, sucessfully>> or due to a <<handleFailedTask, failure>> (in task execution or <<executorLost, an executor being lost>>).
+
+`TaskSetManager` uses <<maxTaskFailures, maxTaskFailures>> to control how many times a <<handleFailedTask, single task can fail>> before an <<abort, entire `TaskSet` gets aborted>> that can take the following values:
+
+* `1` for local/spark-local.md[`local` run mode]
+* `maxFailures` in local/spark-local.md#local-with-retries[Spark local-with-retries] (i.e. `local[N, maxFailures]`)
+* configuration-properties.md#spark.task.maxFailures[spark.task.maxFailures] configuration property for local/spark-local.md[Spark local-cluster] and spark-cluster.md[Spark clustered] (using Spark Standalone, Mesos and YARN)
+
+The responsibilities of a `TaskSetManager` include:
+
+* <<scheduling-tasks, Scheduling the tasks in a taskset>>
+* <<task-retries, Retrying tasks on failure>>
+* <<locality-aware-scheduling, Locality-aware scheduling via delay scheduling>>
 
 [[internal-registries]]
 .TaskSetManager's Internal Properties (e.g. Registries, Counters and Flags)
@@ -105,17 +267,6 @@ The number of task copies of a task is increased when <<resourceOffer, finds a t
 
 Used in <<handleFailedTask, handleFailedTask>>.
 
-| [[isZombie]] `isZombie`
-| Disabled, i.e. `false`, by default.
-
-Read <<zombie-state, Zombie state>> in this document.
-
-| [[lastLaunchTime]] `lastLaunchTime`
-|
-
-| [[localityWaits]] `localityWaits`
-|
-
 | [[myLocalityLevels]] `myLocalityLevels`
 | scheduler:TaskSchedulerImpl.md#TaskLocality[`TaskLocality` locality preferences] of the pending tasks in the <<taskSet, TaskSet>> ranging from `PROCESS_LOCAL` through `NODE_LOCAL`, `NO_PREF`, and `RACK_LOCAL` to `ANY`.
 
@@ -124,9 +275,6 @@ NOTE: `myLocalityLevels` may contain only a few of all the available `TaskLocali
 <<computeValidLocalityLevels, Set>> immediately when <<creating-instance, `TaskSetManager` is created>>.
 
 <<recomputeLocality, Recomputed>> every change in the status of executors.
-
-| [[name]] `name`
-|
 
 | [[numFailures]] `numFailures`
 | Array of the number of task failures per <<tasks, task>>.
@@ -156,21 +304,12 @@ Updated with an task index and rack when `TaskSetManager` <<addPendingTask, regi
 
 Updated with an task index when `TaskSetManager` <<addPendingTask, registers a task as pending execution (per preferred locations)>>.
 
-| [[priority]] `priority`
-|
-
-| [[recentExceptions]] `recentExceptions`
-|
-
 | [[runningTasksSet]] `runningTasksSet`
 | Collection of running tasks that a `TaskSetManager` manages.
 
 Used to implement <<runningTasks, runningTasks>> (that is simply the size of `runningTasksSet` but a required part of any spark-scheduler-Schedulable.md#contract[Schedulable]). `runningTasksSet` is expanded when <<addRunningTask, registering a running task>> and shrinked when <<removeRunningTask, unregistering a running task>>.
 
 Used in scheduler:TaskSchedulerImpl.md#cancelTasks[`TaskSchedulerImpl` to cancel tasks].
-
-| [[speculatableTasks]] `speculatableTasks`
-|
 
 | [[stageId]] `stageId`
 | The stage's id a `TaskSetManager` runs for.
@@ -213,74 +352,6 @@ Starts from `0` when <<creating-instance, `TaskSetManager` is created>>.
 
 Only increased with the size of a task result whenever a `TaskSetManager` <<canFetchMoreResults, checks that there is enough memory to fetch the task result>>.
 |===
-
-[[logging]]
-[TIP]
-====
-Enable `DEBUG` logging level for `org.apache.spark.scheduler.TaskSetManager` logger to see what happens inside.
-
-Add the following line to `conf/log4j.properties`:
-
-```
-log4j.logger.org.apache.spark.scheduler.TaskSetManager=DEBUG
-```
-
-Refer to spark-logging.md[Logging].
-====
-
-## <span id="maxResultSize"> spark.driver.maxResultSize
-
-`TaskSetManager` uses [spark.driver.maxResultSize](../configuration-properties.md#spark.driver.maxResultSize) configuration property to [check available memory for more task results](#canFetchMoreResults).
-
-=== [[isTaskBlacklistedOnExecOrNode]] `isTaskBlacklistedOnExecOrNode` Internal Method
-
-[source, scala]
-----
-isTaskBlacklistedOnExecOrNode(
-  index: Int,
-  execId: String,
-  host: String): Boolean
-----
-
-`isTaskBlacklistedOnExecOrNode`...FIXME
-
-NOTE: `isTaskBlacklistedOnExecOrNode` is used when `TaskSetManager` is requested to <<dequeueTaskFromList, dequeueTaskFromList>> and <<dequeueSpeculativeTask, dequeueSpeculativeTask>>.
-
-=== [[getLocalityIndex]] `getLocalityIndex` Method
-
-[source, scala]
-----
-getLocalityIndex(locality: TaskLocality.TaskLocality): Int
-----
-
-`getLocalityIndex`...FIXME
-
-NOTE: `getLocalityIndex` is used when `TaskSetManager` is requested to <<resourceOffer, resourceOffer>> and <<recomputeLocality, recomputeLocality>>.
-
-=== [[dequeueSpeculativeTask]] `dequeueSpeculativeTask` Internal Method
-
-[source, scala]
-----
-dequeueSpeculativeTask(
-  execId: String,
-  host: String,
-  locality: TaskLocality.Value): Option[(Int, TaskLocality.Value)]
-----
-
-`dequeueSpeculativeTask`...FIXME
-
-NOTE: `dequeueSpeculativeTask` is used exclusively when `TaskSetManager` is requested to <<dequeueTask, dequeueTask>>.
-
-=== [[executorAdded]] `executorAdded` Method
-
-[source, scala]
-----
-executorAdded(): Unit
-----
-
-`executorAdded` simply <<recomputeLocality, recomputeLocality>>.
-
-NOTE: `executorAdded` is used exclusively when `TaskSchedulerImpl` is requested to scheduler:TaskSchedulerImpl.md#resourceOffers[resourceOffers].
 
 === [[abortIfCompletelyBlacklisted]] `abortIfCompletelyBlacklisted` Internal Method
 
@@ -442,23 +513,21 @@ NOTE: `resourceOffer` uses core:SparkEnv.md#closureSerializer[`SparkEnv` to acce
 
 If the task serialization fails, you should see the following ERROR message in the logs:
 
-```
+```text
 Failed to serialize task [taskId], not attempting to retry it.
 ```
 
 `resourceOffer` <<abort, aborts the `TaskSet`>> with the following message and reports a `TaskNotSerializableException`.
 
-[options="wrap"]
-----
+```text
 Failed to serialize task [taskId], not attempting to retry it. Exception during serialization: [exception]
-----
+```
 
 `resourceOffer` checks the size of the serialized task. If it is greater than `100` kB, you should see the following WARN message in the logs:
 
-[options="wrap"]
-----
-WARN Stage [id] contains a task of very large size ([size] KB). The maximum recommended task size is 100 KB.
-----
+```text
+Stage [id] contains a task of very large size ([size] KB). The maximum recommended task size is 100 KB.
+```
 
 NOTE: The size of the serializable task, i.e. `100` kB, is not configurable.
 
@@ -466,17 +535,15 @@ If however the serialization went well and the size is fine too, `resourceOffer`
 
 You should see the following INFO message in the logs:
 
-[options="wrap"]
-----
-INFO TaskSetManager: Starting [name] (TID [id], [host], executor [id], partition [id], [taskLocality], [size] bytes)
-----
+```text
+Starting [name] (TID [id], [host], executor [id], partition [id], [taskLocality], [size] bytes)
+```
 
 For example:
 
-[options="wrap"]
-----
-INFO TaskSetManager: Starting task 1.0 in stage 0.0 (TID 1, localhost, partition 1, PROCESS_LOCAL, 2054 bytes)
-----
+```text
+Starting task 1.0 in stage 0.0 (TID 1, localhost, partition 1, PROCESS_LOCAL, 2054 bytes)
+```
 
 `resourceOffer` scheduler:DAGScheduler.md#taskStarted[notifies `DAGScheduler` that the task has been started].
 
@@ -623,28 +690,25 @@ It then removes `tid` task from <<runningTasksSet, runningTasksSet>> internal re
 
 At this point, `handleSuccessfulTask` finds the other <<taskAttempts, running task attempts>> of `tid` task and scheduler:SchedulerBackend.md#killTask[requests `SchedulerBackend` to kill them] (since they are no longer necessary now when at least one task attempt has completed successfully). You should see the following INFO message in the logs:
 
-[options="wrap"]
-----
-INFO Killing attempt [attemptNumber] for task [id] in stage [id] (TID [id]) on [host] as the attempt [attemptNumber] succeeded on [host]
-----
+```text
+Killing attempt [attemptNumber] for task [id] in stage [id] (TID [id]) on [host] as the attempt [attemptNumber] succeeded on [host]
+```
 
 CAUTION: FIXME Review `taskAttempts`
 
 If `tid` has _not_ yet been recorded as <<successful, successful>>, `handleSuccessfulTask` increases <<tasksSuccessful, tasksSuccessful>> counter. You should see the following INFO message in the logs:
 
-[options="wrap"]
-----
-INFO Finished task [id] in stage [id] (TID [taskId]) in [duration] ms on [host] (executor [executorId]) ([tasksSuccessful]/[numTasks])
-----
+```text
+Finished task [id] in stage [id] (TID [taskId]) in [duration] ms on [host] (executor [executorId]) ([tasksSuccessful]/[numTasks])
+```
 
 `tid` task is marked as <<successful, successful>>. If the number of task that have finished successfully is exactly the number of the tasks to execute (in the `TaskSet`), the `TaskSetManager` becomes a <<isZombie, zombie>>.
 
 If `tid` task was already recorded as <<successful, successful>>, you should _merely_ see the following INFO message in the logs:
 
-[options="wrap"]
-----
-INFO Ignoring task-finished event for [id] in stage [id] because task [index] has already completed successfully
-----
+```text
+Ignoring task-finished event for [id] in stage [id] because task [index] has already completed successfully
+```
 
 Ultimately, `handleSuccessfulTask` <<maybeFinishTaskSet, attempts to mark the `TaskSet` finished>>.
 
@@ -708,14 +772,6 @@ java.lang.Exception: Partition 2 marked failed
 org.apache.spark.SparkException: Job aborted due to stage failure: Task 0 in stage 1.0 failed 5 times, most recent failure: Lost task 0.4 in stage 1.0 (TID 7, localhost): java.lang.Exception: Partition 2 marked failed
 ```
 
-=== [[zombie-state]] Zombie state
-
-A `TaskSetManager` is in *zombie* state when all tasks in a taskset have completed successfully (regardless of the number of task attempts), or if the taskset has been <<abort, aborted>>.
-
-While in zombie state, a `TaskSetManager` can launch no new tasks and <<resourceOffer, responds with no `TaskDescription` to resourceOffers>>.
-
-A `TaskSetManager` remains in the zombie state until all tasks have finished running, i.e. to continue to track and account for the running tasks.
-
 === [[abort]] Aborting TaskSet -- `abort` Method
 
 [source, scala]
@@ -742,38 +798,6 @@ In the end, `abort` <<maybeFinishTaskSet, attempts to mark the `TaskSet` finishe
 * `TaskSetManager` is requested to <<resourceOffer, resourceOffer>>, <<abortIfCompletelyBlacklisted, abortIfCompletelyBlacklisted>>, <<canFetchMoreResults, canFetchMoreResults>>, and <<handleFailedTask, handleFailedTask>>
 
 * `DriverEndpoint` is requested to [launch tasks on executors](DriverEndpoint.md#launchTasks)
-
-## Creating Instance
-
-`TaskSetManager` takes the following to be created:
-
-* [[sched]] TaskSchedulerImpl.md[TaskSchedulerImpl]
-* [[taskSet]] TaskSet.md[TaskSet]
-* [[maxTaskFailures]] Number of task failures, i.e. how many times a <<handleFailedTask, single task can fail>> before an entire TaskSet is <<abort, aborted>>
-* [[blacklistTracker]] (optional) BlacklistTracker (default: `None`)
-* [[clock]] `Clock` (default: `SystemClock`)
-
-`TaskSetManager` initializes the <<internal-registries, internal registries and counters>>.
-
-NOTE: `maxTaskFailures` is `1` for `local` run mode, `maxFailures` for Spark local-with-retries, and configuration-properties.md#spark.task.maxFailures[spark.task.maxFailures] configuration property for Spark local-cluster and Spark with cluster managers (Spark Standalone, Mesos and YARN).
-
-`TaskSetManager` MapOutputTracker.md#getEpoch[requests the current epoch from `MapOutputTracker`] and sets it on all tasks in the taskset.
-
-NOTE: `TaskSetManager` uses <<sched, TaskSchedulerImpl>> (that was given when <<creating-instance, created>>) to TaskSchedulerImpl.md#mapOutputTracker[access the current `MapOutputTracker`].
-
-You should see the following DEBUG in the logs:
-
-```
-DEBUG Epoch for [taskSet]: [epoch]
-```
-
-CAUTION: FIXME Why is the epoch important?
-
-NOTE: `TaskSetManager` requests TaskSchedulerImpl.md#mapOutputTracker[`MapOutputTracker` from `TaskSchedulerImpl`] which is _likely_ for unit testing only since core:SparkEnv.md#mapOutputTracker[`MapOutputTracker` is available using `SparkEnv`].
-
-`TaskSetManager` <<addPendingTask, adds the tasks as pending execution>> (in reverse order from the highest partition to the lowest).
-
-CAUTION: FIXME Why is reverse order important? The code says it's to execute tasks with low indices first.
 
 === [[handleFailedTask]] Getting Notified that Task Failed -- `handleFailedTask` Method
 
@@ -819,10 +843,9 @@ IMPORTANT: This is the moment when `TaskSetManager` informs `DAGScheduler` that 
 
 If `tid` task has already been marked as completed (in <<successful, successful>> internal registry) you should see the following INFO message in the logs:
 
-[options="wrap"]
-----
-INFO Task [id] in stage [id] (TID [tid]) failed, but the task will not be re-executed (either because the task failed with a shuffle data fetch failure, so the previous stage needs to be re-run, or because a different copy of the task has already succeeded).
-----
+```text
+Task [id] in stage [id] (TID [tid]) failed, but the task will not be re-executed (either because the task failed with a shuffle data fetch failure, so the previous stage needs to be re-run, or because a different copy of the task has already succeeded).
+```
 
 TIP: Read up on speculative-execution-of-tasks.md[] to find out why a single task could be executed multiple times.
 
@@ -982,104 +1005,6 @@ Regardless of whether this `TaskSetManager` manages `ShuffleMapTasks` or not (it
 NOTE: `executorLost` finds out if the reason for the executor lost is due to application fault, i.e. assumes ``ExecutorExited``'s exit status as the indicator, `ExecutorKilled` for non-application's fault and any other reason is an application fault.
 
 `executorLost` <<recomputeLocality, recomputes locality preferences>>.
-
-=== [[recomputeLocality]] Recomputing Task Locality Preferences -- `recomputeLocality` Method
-
-[source, scala]
-----
-recomputeLocality(): Unit
-----
-
-`recomputeLocality` recomputes the internal caches: <<myLocalityLevels, myLocalityLevels>>, <<localityWaits, localityWaits>> and <<currentLocalityIndex, currentLocalityIndex>>.
-
-CAUTION: FIXME But *why* are the caches important (and have to be recomputed)?
-
-`recomputeLocality` records the current TaskSchedulerImpl.md#TaskLocality[TaskLocality] level of this `TaskSetManager` (that is <<currentLocalityIndex, currentLocalityIndex>> in <<myLocalityLevels, myLocalityLevels>>).
-
-NOTE: `TaskLocality` is one of `PROCESS_LOCAL`, `NODE_LOCAL`, `NO_PREF`, `RACK_LOCAL` and `ANY` values.
-
-`recomputeLocality` <<computeValidLocalityLevels, computes locality levels (for scheduled tasks)>> and saves the result in <<myLocalityLevels, myLocalityLevels>> internal cache.
-
-`recomputeLocality` computes <<localityWaits, localityWaits>> (by <<getLocalityWait, finding locality wait>> for every locality level in <<myLocalityLevels, myLocalityLevels>> internal cache).
-
-In the end, `recomputeLocality` <<getLocalityIndex, getLocalityIndex>> of the previous locality level and records it in <<currentLocalityIndex, currentLocalityIndex>>.
-
-NOTE: `recomputeLocality` is used when `TaskSetManager` gets notified about status change in executors, i.e. when an executor is <<executorLost, lost>> or <<executorAdded, added>>.
-
-=== [[computeValidLocalityLevels]] Computing Locality Levels (for Scheduled Tasks) -- `computeValidLocalityLevels` Internal Method
-
-[source, scala]
-----
-computeValidLocalityLevels(): Array[TaskLocality]
-----
-
-`computeValidLocalityLevels` computes valid locality levels for tasks that were registered in corresponding registries per locality level.
-
-NOTE: TaskSchedulerImpl.md[TaskLocality] is a task locality preference and can be the most localized `PROCESS_LOCAL`, `NODE_LOCAL` through `NO_PREF` and `RACK_LOCAL` to `ANY`.
-
-.TaskLocalities and Corresponding Internal Registries
-[cols="1,2",options="header",width="100%"]
-|===
-| TaskLocality
-| Internal Registry
-
-| `PROCESS_LOCAL`
-| <<pendingTasksForExecutor, pendingTasksForExecutor>>
-| `NODE_LOCAL`
-| <<pendingTasksForHost, pendingTasksForHost>>
-| `NO_PREF`
-| <<pendingTasksWithNoPrefs, pendingTasksWithNoPrefs>>
-| `RACK_LOCAL`
-| <<pendingTasksForRack, pendingTasksForRack>>
-
-|===
-
-`computeValidLocalityLevels` walks over every internal registry and if it is not empty <<getLocalityWait, computes locality wait>> for the corresponding `TaskLocality` and proceeds with it only when the locality wait is not `0`.
-
-For `TaskLocality` with pending tasks, `computeValidLocalityLevels` asks `TaskSchedulerImpl` whether there is at least one executor alive (for TaskSchedulerImpl.md#isExecutorAlive[PROCESS_LOCAL], TaskSchedulerImpl.md#hasExecutorsAliveOnHost[NODE_LOCAL] and TaskSchedulerImpl.md#hasHostAliveOnRack[RACK_LOCAL]) and if so registers the `TaskLocality`.
-
-NOTE: `computeValidLocalityLevels` uses <<sched, TaskSchedulerImpl>> that was given when <<TaskSetManager, `TaskSetManager` was created>>.
-
-`computeValidLocalityLevels` always registers `ANY` task locality level.
-
-In the end, you should see the following DEBUG message in the logs:
-
-```
-DEBUG TaskSetManager: Valid locality levels for [taskSet]: [comma-separated levels]
-```
-
-NOTE: `computeValidLocalityLevels` is used when `TaskSetManager` <<creating-instance, is created>> and later to <<recomputeLocality, recompute locality>>.
-
-=== [[getLocalityWait]] Finding Locality Wait -- `getLocalityWait` Internal Method
-
-[source, scala]
-----
-getLocalityWait(level: TaskLocality): Long
-----
-
-`getLocalityWait` finds *locality wait* (in milliseconds) for a given TaskSchedulerImpl.md#TaskLocality[TaskLocality].
-
-`getLocalityWait` uses configuration-properties.md#spark.locality.wait[spark.locality.wait] (default: `3s`) when the ``TaskLocality``-specific property is not defined or `0` for `NO_PREF` and `ANY`.
-
-NOTE: `NO_PREF` and `ANY` task localities have no locality wait.
-
-.TaskLocalities and Corresponding Spark Properties
-[cols="1,2",options="header",width="100%"]
-|===
-| TaskLocality
-| Spark Property
-
-| PROCESS_LOCAL
-| configuration-properties.md#spark.locality.wait.process[spark.locality.wait.process]
-
-| NODE_LOCAL
-| configuration-properties.md#spark.locality.wait.node[spark.locality.wait.node]
-
-| RACK_LOCAL
-| configuration-properties.md#spark.locality.wait.rack[spark.locality.wait.rack]
-|===
-
-NOTE: `getLocalityWait` is used when `TaskSetManager` calculates <<localityWaits, localityWaits>>, <<computeValidLocalityLevels, computes locality levels (for scheduled tasks)>> and <<recomputeLocality, recomputes locality preferences>>.
 
 ## <span id="canFetchMoreResults"> Checking Available Memory For More Task Results
 
