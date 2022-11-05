@@ -488,6 +488,14 @@ Used when:
 * `SparkEnv` utility is used to [create a SparkEnv](SparkEnv.md#create)
 * `SparkConf` is requested to [registerKryoClasses](SparkConf.md#registerKryoClasses) (as a side-effect)
 
+## <span id="spark.shuffle.checksum.enabled"><span id="SHUFFLE_CHECKSUM_ENABLED"> spark.shuffle.checksum.enabled
+
+Controls checksuming of shuffle data.
+If enabled, Spark will calculate the checksum values for each partition data within the map output file and store the values in a checksum file on the disk.
+When there's shuffle data corruption detected, Spark will try to diagnose the cause (e.g., network issue, disk issue, etc.) of the corruption by using the checksum file.
+
+Default: `true`
+
 ## <span id="spark.shuffle.compress"> spark.shuffle.compress
 
 Controls whether to compress shuffle output when stored

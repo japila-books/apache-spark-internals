@@ -32,6 +32,14 @@ incRecordsWritten(
   v: Long): Unit
 ```
 
+See [ShuffleWriteMetrics](../executor/ShuffleWriteMetrics.md#incRecordsWritten)
+
+Used when:
+
+* `ShufflePartitionPairsWriter` is requested to `recordWritten`
+* `ShuffleExternalSorter` is requested to [writeSortedFile](ShuffleExternalSorter.md#writeSortedFile)
+* `DiskBlockObjectWriter` is requested to [record bytes written](../storage/DiskBlockObjectWriter.md#recordWritten)
+
 ### <span id="incWriteTime"> incWriteTime
 
 ```scala

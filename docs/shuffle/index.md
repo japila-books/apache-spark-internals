@@ -1,8 +1,8 @@
 # Shuffle System
 
-**Shuffle System** is a core service of Apache Spark that is responsible for shuffle block management.
+**Shuffle System** is a core service of Apache Spark that is responsible for shuffle blocks.
 
-The core abstraction is [ShuffleManager](ShuffleManager.md) with the default and only known implementation being [SortShuffleManager](SortShuffleManager.md).
+The main core abstraction is [ShuffleManager](ShuffleManager.md) with [SortShuffleManager](SortShuffleManager.md) as the default and only known implementation.
 
 [spark.shuffle.manager](../configuration-properties.md#spark.shuffle.manager) configuration property allows for a custom [ShuffleManager](ShuffleManager.md).
 

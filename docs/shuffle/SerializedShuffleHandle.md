@@ -1,15 +1,16 @@
 # SerializedShuffleHandle
 
-`SerializedShuffleHandle` is a [ShuffleHandle](BaseShuffleHandle.md) to identify the choice of a **serialized shuffle**.
+`SerializedShuffleHandle` is a [BaseShuffleHandle](BaseShuffleHandle.md) that `SortShuffleManager` uses when [canUseSerializedShuffle](SortShuffleWriter.md#canUseSerializedShuffle) (when requested to [register a shuffle](SortShuffleManager.md#registerShuffle) and [BypassMergeSortShuffleHandles](BypassMergeSortShuffleHandle.md) could not be selected).
 
-`SerializedShuffleHandle` is used to create an [UnsafeShuffleWriter](UnsafeShuffleWriter.md#handle).
+`SerializedShuffleHandle` tells `SortShuffleManager` to use [UnsafeShuffleWriter](UnsafeShuffleWriter.md) when requested for a [ShuffleWriter](SortShuffleManager.md#getWriter).
 
 ## Creating Instance
 
 `SerializedShuffleHandle` takes the following to be created:
 
-* [[shuffleId]] Shuffle ID
-* [[numMaps]] Number of mappers
-* [[dependency]] [ShuffleDependency[K, V, V]](../rdd/ShuffleDependency.md)
+* <span id="shuffleId"> Shuffle ID
+* <span id="dependency"> [ShuffleDependency](../rdd/ShuffleDependency.md)
 
-`SerializedShuffleHandle` is created when `SortShuffleManager` is requested for a [ShuffleHandle](SortShuffleManager.md#registerShuffle) (for a [ShuffleDependency](../rdd/ShuffleDependency.md)). `SortShuffleManager` determines what shuffle handle to use by first checking out the requirements of [BypassMergeSortShuffleHandle](SortShuffleWriter.md#shouldBypassMergeSort) before [SerializedShuffleHandle](SortShuffleManager.md#canUseSerializedShuffle)'s.
+`SerializedShuffleHandle` is created when:
+
+* `SortShuffleManager` is requested for a [ShuffleHandle](SortShuffleManager.md#registerShuffle) (for the [ShuffleDependency](#dependency))

@@ -1,42 +1,57 @@
-# BypassMergeSortShuffleHandle &mdash; Marker Interface for Bypass Merge Sort Shuffle Handles
+# BypassMergeSortShuffleHandle
 
-`BypassMergeSortShuffleHandles` is a [BaseShuffleHandle](BaseShuffleHandle.md) with no additional methods or fields and serves only to identify the choice of **bypass merge sort shuffle**.
+`BypassMergeSortShuffleHandle` is a [BaseShuffleHandle](BaseShuffleHandle.md) that `SortShuffleManager` uses when [can avoid merge-sorting data](SortShuffleWriter.md#shouldBypassMergeSort) (when requested to [register a shuffle](SortShuffleManager.md#registerShuffle)).
 
-Like [BaseShuffleHandle](BaseShuffleHandle.md), `BypassMergeSortShuffleHandles` takes `shuffleId`, `numMaps`, and a [ShuffleDependency](../rdd/ShuffleDependency.md).
+`SerializedShuffleHandle` tells `SortShuffleManager` to use [BypassMergeSortShuffleWriter](BypassMergeSortShuffleWriter.md) when requested for a [ShuffleWriter](SortShuffleManager.md#getWriter).
 
-`BypassMergeSortShuffleHandle` is created when `SortShuffleManager` is requested for a [ShuffleHandle](SortShuffleManager.md#registerShuffle) (for a `ShuffleDependency`).
+## Creating Instance
+
+`BypassMergeSortShuffleHandle` takes the following to be created:
+
+* <span id="shuffleId"> Shuffle ID
+* <span id="dependency"> [ShuffleDependency](../rdd/ShuffleDependency.md)
+
+`BypassMergeSortShuffleHandle` is created when:
+
+* `SortShuffleManager` is requested for a [ShuffleHandle](SortShuffleManager.md#registerShuffle) (for the [ShuffleDependency](#dependency))
 
 ## Demo
 
-```text
-scala> val rdd = sc.parallelize(0 to 8).groupBy(_ % 3)
-rdd: org.apache.spark.rdd.RDD[(Int, Iterable[Int])] = ShuffledRDD[2] at groupBy at <console>:24
+```scala
+val rdd = sc.parallelize(0 to 8).groupBy(_ % 3)
 
-scala> rdd.dependencies
-res0: Seq[org.apache.spark.Dependency[_]] = List(org.apache.spark.ShuffleDependency@655875bb)
+assert(rdd.dependencies.length == 1)
 
-scala> rdd.getNumPartitions
-res1: Int = 8
-
-scala> import org.apache.spark.ShuffleDependency
 import org.apache.spark.ShuffleDependency
+val shuffleDep = rdd.dependencies.head.asInstanceOf[ShuffleDependency[Int, Int, Int]]
 
-scala> val shuffleDep = rdd.dependencies(0).asInstanceOf[ShuffleDependency[Int, Int, Int]]
-shuffleDep: org.apache.spark.ShuffleDependency[Int,Int,Int] = org.apache.spark.ShuffleDependency@655875bb
+assert(shuffleDep.mapSideCombine == false, "mapSideCombine should be disabled")
+assert(shuffleDep.aggregator.isDefined)
+```
 
-// mapSideCombine is disabled
-scala> shuffleDep.mapSideCombine
-res2: Boolean = false
+```scala
+// Use ':paste -raw' mode to paste the code
+package org.apache.spark
+object open {
+  import org.apache.spark.SparkContext
+  def bypassMergeThreshold(sc: SparkContext) = {
+    import org.apache.spark.internal.config.SHUFFLE_SORT_BYPASS_MERGE_THRESHOLD
+    sc.getConf.get(SHUFFLE_SORT_BYPASS_MERGE_THRESHOLD)
+  }
+}
+```
 
-// aggregator defined
-scala> shuffleDep.aggregator
-res3: Option[org.apache.spark.Aggregator[Int,Int,Int]] = Some(Aggregator(<function1>,<function2>,<function2>))
+```scala
+import org.apache.spark.open
+val bypassMergeThreshold = open.bypassMergeThreshold(sc)
 
-// spark.shuffle.sort.bypassMergeThreshold == 200
-// the number of reduce partitions < spark.shuffle.sort.bypassMergeThreshold
-scala> shuffleDep.partitioner.numPartitions
-res4: Int = 8
+assert(shuffleDep.partitioner.numPartitions < bypassMergeThreshold)
+```
 
-scala> shuffleDep.shuffleHandle
-res5: org.apache.spark.shuffle.ShuffleHandle = org.apache.spark.shuffle.sort.BypassMergeSortShuffleHandle@68893394
+```scala
+import org.apache.spark.shuffle.sort.BypassMergeSortShuffleHandle
+// BypassMergeSortShuffleHandle is private[spark]
+// so the following won't work :(
+// assert(shuffleDep.shuffleHandle.isInstanceOf[BypassMergeSortShuffleHandle[Int, Int]])
+assert(shuffleDep.shuffleHandle.toString.contains("BypassMergeSortShuffleHandle"))
 ```

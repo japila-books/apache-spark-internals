@@ -4,7 +4,7 @@
 
 `ShuffleExternalSorter` uses only 8 bytes of space per record in the sorting array to fit more of the array into cache.
 
-`ShuffleExternalSorter` is created and used by [UnsafeShuffleWriter](UnsafeShuffleWriter.md#ShuffleExternalSorter) only.
+`ShuffleExternalSorter` is [created](#creating-instance) and used by [UnsafeShuffleWriter](UnsafeShuffleWriter.md#ShuffleExternalSorter) only.
 
 ![ShuffleExternalSorter and UnsafeShuffleWriter](../images/shuffle/ShuffleExternalSorter.png)
 
@@ -36,7 +36,9 @@
 * <span id="conf"> [SparkConf](../SparkConf.md)
 * <span id="writeMetrics"> [ShuffleWriteMetricsReporter](ShuffleWriteMetricsReporter.md)
 
-`ShuffleExternalSorter` is created when `UnsafeShuffleWriter` is requested to [open a ShuffleExternalSorter](UnsafeShuffleWriter.md#open).
+`ShuffleExternalSorter` is created when:
+
+* `UnsafeShuffleWriter` is requested to [open a ShuffleExternalSorter](UnsafeShuffleWriter.md#open)
 
 ## <span id="inMemSorter"> ShuffleInMemorySorter
 
@@ -62,6 +64,10 @@ long spill(
   MemoryConsumer trigger)
 ```
 
+`spill` is part of the [MemoryConsumer](../memory/MemoryConsumer.md#spill) abstraction.
+
+---
+
 `spill` returns the memory bytes spilled (_spill size_).
 
 `spill` prints out the following INFO message to the logs:
@@ -77,8 +83,6 @@ Thread [threadId] spilling sort data of [memoryUsage] to disk ([spillsSize] [tim
 `spill` requests the [ShuffleInMemorySorter](#inMemSorter) to [reset](ShuffleInMemorySorter.md#reset).
 
 In the end, `spill` requests the [TaskContext](#taskContext) for [TaskMetrics](../scheduler/TaskContext.md#taskMetrics) to [increase the memory bytes spilled](../executor/TaskMetrics.md#incMemoryBytesSpilled).
-
-`spill` is part of the [MemoryConsumer](../memory/MemoryConsumer.md#spill) abstraction.
 
 ## <span id="closeAndGetSpills"> closeAndGetSpills
 
@@ -119,7 +123,11 @@ void writeSortedFile(
 
 `writeSortedFile`...FIXME
 
-`writeSortedFile` is used when `ShuffleExternalSorter` is requested to [spill](#spill) and [closeAndGetSpills](#closeAndGetSpills).
+---
+
+`writeSortedFile` is used when:
+
+* `ShuffleExternalSorter` is requested to [spill](#spill) and [closeAndGetSpills](#closeAndGetSpills)
 
 ## <span id="cleanupResources"> cleanupResources
 
