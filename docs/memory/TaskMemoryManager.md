@@ -98,7 +98,7 @@ For `OFF_HEAP` mode, `TaskMemoryManager` returns no [page](#getPage).
 The `MemoryMode` is used when:
 
 * `ShuffleExternalSorter` is [created](../shuffle/ShuffleExternalSorter.md)
-* `BytesToBytesMap` is [created](BytesToBytesMap.md)
+* `BytesToBytesMap` is [created](../BytesToBytesMap.md)
 * `UnsafeExternalSorter` is [created](UnsafeExternalSorter.md)
 * `Spillable` is requested to [spill](../shuffle/Spillable.md#spill) (only when in `ON_HEAP` mode)
 
@@ -339,7 +339,7 @@ Object getPage(
 `getPage` is used when:
 
 * `ShuffleExternalSorter` is requested to [writeSortedFile](../shuffle/ShuffleExternalSorter.md#writeSortedFile)
-* `Location` (of [BytesToBytesMap](BytesToBytesMap.md)) is requested to `updateAddressesAndSizes`
+* `Location` (of [BytesToBytesMap](../BytesToBytesMap.md)) is requested to `updateAddressesAndSizes`
 * `SortComparator` (of [UnsafeInMemorySorter](UnsafeInMemorySorter.md)) is requested to `compare` two record pointers
 * `SortedIterator` (of [UnsafeInMemorySorter](UnsafeInMemorySorter.md)) is requested to `loadNext` record
 
@@ -355,7 +355,7 @@ long getOffsetInPage(
 `getOffsetInPage` is used when:
 
 * `ShuffleExternalSorter` is requested to [writeSortedFile](../shuffle/ShuffleExternalSorter.md#writeSortedFile)
-* `Location` (of [BytesToBytesMap](BytesToBytesMap.md)) is requested to `updateAddressesAndSizes`
+* `Location` (of [BytesToBytesMap](../BytesToBytesMap.md)) is requested to `updateAddressesAndSizes`
 * `SortComparator` (of [UnsafeInMemorySorter](UnsafeInMemorySorter.md)) is requested to `compare` two record pointers
 * `SortedIterator` (of [UnsafeInMemorySorter](UnsafeInMemorySorter.md)) is requested to `loadNext` record
 

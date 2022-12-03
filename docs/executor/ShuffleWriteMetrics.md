@@ -19,7 +19,7 @@ tags:
 
 * `TaskMetrics` is [created](TaskMetrics.md#shuffleWriteMetrics)
 * `ShuffleExternalSorter` is requested to [writeSortedFile](../shuffle/ShuffleExternalSorter.md#writeSortedFile)
-* `MapIterator` (of [BytesToBytesMap](../memory/BytesToBytesMap.md)) is requested to `spill`
+* `MapIterator` (of [BytesToBytesMap](../BytesToBytesMap.md)) is requested to `spill`
 * `ExternalAppendOnlyMap` is [created](../shuffle/ExternalAppendOnlyMap.md#writeMetrics)
 * `ExternalSorter` is requested to [spillMemoryIteratorToDisk](../shuffle/ExternalSorter.md#spillMemoryIteratorToDisk)
 * `UnsafeExternalSorter` is requested to [spill](../memory/UnsafeExternalSorter.md#spill)
