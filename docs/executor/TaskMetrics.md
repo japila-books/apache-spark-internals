@@ -51,19 +51,50 @@ tags:
 
 ### <span id="_memoryBytesSpilled"><span id="memoryBytesSpilled"><span id="incMemoryBytesSpilled"><span id="MEMORY_BYTES_SPILLED"> Memory Bytes Spilled
 
-`memoryBytesSpilled` metric
+Number of in-memory bytes spilled by the tasks (of a stage)
 
-`memoryBytesSpilled` is exposed using Dropwizard metrics system using [ExecutorSource](ExecutorSource.md) as [memoryBytesSpilled](ExecutorSource.md#METRIC_MEMORY_BYTES_SPILLED).
+`_memoryBytesSpilled` is a `LongAccumulator` with `internal.metrics.memoryBytesSpilled` name.
+
+`memoryBytesSpilled` metric is exposed using [ExecutorSource](ExecutorSource.md) as [memoryBytesSpilled](ExecutorSource.md#METRIC_MEMORY_BYTES_SPILLED) (using Dropwizard metrics system).
+
+#### memoryBytesSpilled
+
+```scala
+memoryBytesSpilled: Long
+```
+
+`memoryBytesSpilled` is the sum of all memory bytes spilled across all tasks.
+
+---
+
+`memoryBytesSpilled` is used when:
+
+* `SpillListener` is requested to [onStageCompleted](../SpillListener.md#onStageCompleted)
+* `TaskRunner` is requested to [run](TaskRunner.md#run) (and updates task metrics in the Dropwizard metrics system)
+* `LiveTask` is requested to `updateMetrics`
+* `JsonProtocol` is requested to [taskMetricsToJson](../history-server/JsonProtocol.md#taskMetricsToJson)
+
+#### incMemoryBytesSpilled
+
+```scala
+incMemoryBytesSpilled(
+  v: Long): Unit
+```
+
+`incMemoryBytesSpilled` adds the `v` value to the [_memoryBytesSpilled](#_memoryBytesSpilled) metric.
+
+---
 
 `incMemoryBytesSpilled` is used when:
 
 * `Aggregator` is requested to [updateMetrics](../rdd/Aggregator.md#updateMetrics)
-* `CoGroupedRDD` is requested to [compute](../rdd/CoGroupedRDD.md#compute)
-* `BlockStoreShuffleReader` is requested to [read](../shuffle/BlockStoreShuffleReader.md#read)
+* `BasePythonRunner.ReaderIterator` is requested to `handleTimingData`
+* `CoGroupedRDD` is requested to [compute a partition](../rdd/CoGroupedRDD.md#compute)
 * `ShuffleExternalSorter` is requested to [spill](../shuffle/ShuffleExternalSorter.md#spill)
-* `ExternalSorter` is requested to [writePartitionedFile](../shuffle/ExternalSorter.md#writePartitionedFile) and [writePartitionedMapOutput](../shuffle/ExternalSorter.md#writePartitionedMapOutput)
-* `UnsafeExternalSorter` is requested to [createWithExistingInMemorySorter](../memory/UnsafeExternalSorter.md#createWithExistingInMemorySorter) and [spill](../memory/UnsafeExternalSorter.md#spill)
-* `SpillableIterator` (of [UnsafeExternalSorter](../memory/UnsafeExternalSorter.md)) is requested to `spill`
+* `JsonProtocol` is requested to [taskMetricsFromJson](../history-server/JsonProtocol.md#taskMetricsFromJson)
+* `ExternalSorter` is requested to [insertAllAndUpdateMetrics](../shuffle/ExternalSorter.md#insertAllAndUpdateMetrics), [writePartitionedFile](../shuffle/ExternalSorter.md#writePartitionedFile), [writePartitionedMapOutput](../shuffle/ExternalSorter.md#writePartitionedMapOutput)
+* `UnsafeExternalSorter` is requested to [createWithExistingInMemorySorter](../memory/UnsafeExternalSorter.md#createWithExistingInMemorySorter), [spill](../memory/UnsafeExternalSorter.md#spill)
+* `UnsafeExternalSorter.SpillableIterator` is requested to `spill`
 
 ## <span id="TaskContext"> TaskContext
 

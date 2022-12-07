@@ -24,6 +24,8 @@ render(
 
 `render` is part of the [WebUIPage](WebUIPage.md#render) abstraction.
 
+---
+
 `render` requires `id` and `attempt` request parameters.
 
 `render`...FIXME
