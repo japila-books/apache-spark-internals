@@ -222,6 +222,8 @@ In other words, With the `RDDCheckpointData` defined, requesting [doCheckpointin
 
 `doCheckpoint` skips execution if [called earlier](#doCheckpointCalled).
 
+---
+
 `doCheckpoint` is used when:
 
 * `SparkContext` is requested to [run a job synchronously](../SparkContext.md#runJob)
@@ -303,6 +305,24 @@ scala> sc.textFile("README.md", 4).count
  |  README.md HadoopRDD[0] at textFile at <console>:25 []
 ```
 
+## <span id="coalesce"> coalesce
+
+```scala
+coalesce(
+  numPartitions: Int,
+  shuffle: Boolean = false,
+  partitionCoalescer: Option[PartitionCoalescer] = Option.empty)
+  (implicit ord: Ordering[T] = null): RDD[T]
+```
+
+`coalesce`...FIXME
+
+---
+
+`coalesce` is used when:
+
+* [RDD.repartition](#repartition) high-level operator is used
+
 ## Implicit Methods
 
 ### <span id="rddToOrderedRDDFunctions"> rddToOrderedRDDFunctions
@@ -319,6 +339,7 @@ rddToOrderedRDDFunctions[K : Ordering : ClassTag, V: ClassTag](
 * [RDD.sortBy](spark-rdd-transformations.md#sortBy)
 * [PairRDDFunctions.combineByKey](PairRDDFunctions.md#combineByKey)
 
+<!---
 ## Review Me
 
 == [[storageLevel]][[getStorageLevel]] StorageLevel
@@ -464,3 +485,4 @@ computeOrReadCheckpoint(
 computeOrReadCheckpoint reads `split` partition from a checkpoint (<<isCheckpointedAndMaterialized, if available already>>) or <<compute, computes it>> yourself.
 
 computeOrReadCheckpoint is used when RDD is requested to <<iterator, compute records for a partition>> or <<getOrCompute, getOrCompute>>.
+-->

@@ -5,14 +5,14 @@ tags:
 
 # ShuffledRDD
 
-`ShuffledRDD` is an [RDD](RDD.md) of key-value pairs that represents a **shuffle step** in a [RDD lineage](lineage.md).
+`ShuffledRDD` is an [RDD](RDD.md) of key-value pairs that represents a **shuffle step** in a [RDD lineage](lineage.md) (and indicates start of a new stage).
 
 ## Creating Instance
 
 `ShuffledRDD` takes the following to be created:
 
 * <span id="prev"> [RDD](RDD.md) (of `K` keys and `V` values)
-* <span id="part"> [Partitioner](Partitioner.md)
+* [Partitioner](#part)
 
 `ShuffledRDD` is created for the following RDD operators:
 
@@ -21,6 +21,24 @@ tags:
 * [PairRDDFunctions.combineByKeyWithClassTag](PairRDDFunctions.md#combineByKeyWithClassTag) and [PairRDDFunctions.partitionBy](PairRDDFunctions.md#partitionBy)
 
 * [RDD.coalesce](spark-rdd-transformations.md#coalesce) (with `shuffle` flag enabled)
+
+### <span id="part"> Partitioner
+
+`ShuffledRDD` is given a [Partitioner](Partitioner.md) when [created](#creating-instance):
+
+* [RangePartitioner](RangePartitioner.md) for [sortByKey](OrderedRDDFunctions.md#sortByKey)
+* [HashPartitioner](HashPartitioner.md) for [coalesce](RDD.md#coalesce)
+* Whatever passed in to the following high-level RDD operators when different from the current `Partitioner` (of the RDD):
+    * [repartitionAndSortWithinPartitions](OrderedRDDFunctions.md#repartitionAndSortWithinPartitions)
+    * [combineByKeyWithClassTag](PairRDDFunctions.md#combineByKeyWithClassTag)
+    * [partitionBy](PairRDDFunctions.md#partitionBy)
+
+The given `Partitioner` is the [partitioner](#partitioner) of this `ShuffledRDD`.
+
+The `Partitioner` is also used when:
+
+* [getDependencies](#getDependencies) (to create the only [ShuffleDependency](ShuffleDependency.md#partitioner))
+* [getPartitions](#getPartitions) (to create as many `ShuffledRDDPartition`s as the [numPartitions](Partitioner.md#numPartitions) of the `Partitioner`)
 
 ## Key, Value and Combiner Types
 

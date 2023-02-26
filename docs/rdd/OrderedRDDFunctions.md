@@ -42,8 +42,6 @@ repartitionAndSortWithinPartitions(
 !!! note
     `repartitionAndSortWithinPartitions` is a generalization of [sortByKey](#sortByKey) operator.
 
-`repartitionAndSortWithinPartitions` is used when...FIXME
-
 ## <span id="sortByKey"> sortByKey
 
 ```scala
@@ -57,5 +55,6 @@ sortByKey(
 !!! note
     `sortByKey` is a specialization of [repartitionAndSortWithinPartitions](#repartitionAndSortWithinPartitions) operator.
 
-!!! note
-    Spark uses `sortByKey` for [RDD.sortBy](spark-rdd-transformations.md#sortBy) operator.
+`sortByKey` is used when:
+
+* [RDD.sortBy](RDD.md#sortBy) high-level operator is used
