@@ -1,3 +1,8 @@
+---
+tags:
+  - DeveloperApi
+---
+
 # ShuffledRDD
 
 `ShuffledRDD` is an [RDD](RDD.md) of key-value pairs that represents a **shuffle step** in a [RDD lineage](lineage.md).
