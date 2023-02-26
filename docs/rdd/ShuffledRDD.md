@@ -7,6 +7,8 @@ tags:
 
 `ShuffledRDD` is an [RDD](RDD.md) of key-value pairs that represents a **shuffle step** in a [RDD lineage](lineage.md) (and indicates start of a new stage).
 
+When requested to [compute a partition](#compute), `ShuffledRDD` uses the one and only [ShuffleDependency](#getDependencies) for a [ShuffleHandle](ShuffleDependency.md#shuffleHandle) for a [ShuffleReader](../shuffle/ShuffleManager.md#getReader) (from the system [ShuffleManager](../shuffle/ShuffleManager.md)) that is used to [read](../shuffle/ShuffleReader.md#read) the (combined) key-value pairs.
+
 ## Creating Instance
 
 `ShuffledRDD` takes the following to be created:
@@ -40,6 +42,46 @@ The `Partitioner` is also used when:
 * [getDependencies](#getDependencies) (to create the only [ShuffleDependency](ShuffleDependency.md#partitioner))
 * [getPartitions](#getPartitions) (to create as many `ShuffledRDDPartition`s as the [numPartitions](Partitioner.md#numPartitions) of the `Partitioner`)
 
+## <span id="getDependencies"> Dependencies
+
+??? note "Signature"
+
+    ```scala
+    getDependencies: Seq[Dependency[_]]
+    ```
+
+    `getDependencies` is part of the [RDD](RDD.md#getDependencies) abstraction.
+
+`getDependencies` uses the [user-specified Serializer](#userSpecifiedSerializer), if defined, or requests the current [SerializerManager](../serializer/SerializerManager.md) for [one](../serializer/SerializerManager.md#getSerializer).
+
+`getDependencies` uses the [mapSideCombine](#mapSideCombine) internal flag for the types of the keys and values (i.e. `K` and `C` or `K` and `V` when the flag is enabled or not, respectively).
+
+In the end, `getDependencies` creates a single [ShuffleDependency](ShuffleDependency.md) (with the [previous RDD](#prev), the [Partitioner](#part), and the `Serializer`).
+
+## <span id="compute"> Computing Partition
+
+??? note "Signature"
+
+    ```scala
+    compute(
+      split: Partition,
+      context: TaskContext): Iterator[(K, C)]
+    ```
+
+    `compute` is part of the [RDD](RDD.md#compute) abstraction.
+
+`compute` assumes that [ShuffleDependency](ShuffleDependency.md) is the first dependency among the [dependencies](RDD.md#dependencies) (and the only one per [getDependencies](#getDependencies)).
+
+`compute` uses the [SparkEnv](../SparkEnv.md) to access the [ShuffleManager](../SparkEnv.md#shuffleManager). `compute` requests the [ShuffleManager](../shuffle/ShuffleManager.md) for the [ShuffleReader](../shuffle/ShuffleManager.md#getReader) based on the following:
+
+ShuffleReader | Value
+--------------|------
+ [ShuffleHandle](../shuffle/ShuffleHandle.md) | [ShuffleHandle](ShuffleDependency.md#shuffleHandle) of the `ShuffleDependency`
+ `startPartition` | The [index](Partition.md#index) of the given `split` partition
+ `endPartition` | `index + 1`
+
+In the end, `compute` requests the `ShuffleReader` to [read](../shuffle/ShuffleReader.md#read) the (combined) key-value pairs (of type `(K, C)`).
+
 ## Key, Value and Combiner Types
 
 ```scala
@@ -67,50 +109,20 @@ setMapSideCombine(
 
 `setMapSideCombine` is used for [PairRDDFunctions.combineByKeyWithClassTag](PairRDDFunctions.md#combineByKeyWithClassTag) transformation (which defaults to the flag enabled).
 
-## <span id="compute"> Computing Partition
-
-```scala
-compute(
-  split: Partition,
-  context: TaskContext): Iterator[(K, C)]
-```
-
-`compute` requests the only [dependency](RDD.md#dependencies) (that is assumed a [ShuffleDependency](ShuffleDependency.md)) for the [ShuffleHandle](ShuffleDependency.md#shuffleHandle).
-
-`compute` uses the [SparkEnv](../SparkEnv.md) to access the [ShuffleManager](../SparkEnv.md#shuffleManager).
-
-`compute` requests the [ShuffleManager](../shuffle/ShuffleManager.md#shuffleManager) for the [ShuffleReader](../shuffle/ShuffleManager.md#getReader) (for the `ShuffleHandle` and the [partition](Partition.md)).
-
-In the end, `compute` requests the `ShuffleReader` to [read](../shuffle/ShuffleReader.md#read) the combined key-value pairs (of type `(K, C)`).
-
-`compute` is part of the [RDD](RDD.md#compute) abstraction.
-
 ## <span id="getPreferredLocations"> Placement Preferences of Partition
 
-```scala
-getPreferredLocations(
-  partition: Partition): Seq[String]
-```
+??? note "Signature"
+
+    ```scala
+    getPreferredLocations(
+      partition: Partition): Seq[String]
+    ```
+
+    `getPreferredLocations` is part of the [RDD](RDD.md#compute) abstraction.
 
 `getPreferredLocations` requests `MapOutputTrackerMaster` for the [preferred locations](../scheduler/MapOutputTrackerMaster.md#getPreferredLocationsForShuffle) of the given [partition](Partition.md) ([BlockManagers](../storage/BlockManager.md) with the most map outputs).
 
 `getPreferredLocations` uses `SparkEnv` to access the current [MapOutputTrackerMaster](../SparkEnv.md#mapOutputTracker).
-
-`getPreferredLocations` is part of the [RDD](RDD.md#compute) abstraction.
-
-## <span id="getDependencies"> Dependencies
-
-```scala
-getDependencies: Seq[Dependency[_]]
-```
-
-`getDependencies` uses the [user-specified Serializer](#userSpecifiedSerializer) if defined or requests the current [SerializerManager](../serializer/SerializerManager.md) for [one](../serializer/SerializerManager.md#getSerializer).
-
-`getDependencies` uses the [mapSideCombine](#mapSideCombine) internal flag for the types of the keys and values (i.e. `K` and `C` or `K` and `V` when the flag is enabled or not, respectively).
-
-In the end, `getDependencies` returns a single [ShuffleDependency](ShuffleDependency.md) (with the [previous RDD](#prev), the [Partitioner](#part), and the `Serializer`).
-
-`getDependencies` is part of the [RDD](RDD.md#getDependencies) abstraction.
 
 ## <span id="ShuffledRDDPartition"> ShuffledRDDPartition
 

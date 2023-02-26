@@ -1,6 +1,17 @@
 # ShuffleWriteProcessor
 
-`ShuffleWriteProcessor` is used by [ShuffleMapTask](../scheduler/ShuffleMapTask.md) to [write partition records to the shuffle system](#write).
+`ShuffleWriteProcessor` controls write behavior in [ShuffleMapTask](../scheduler/ShuffleMapTask.md)s while [writing partition records out to the shuffle system](#write).
+
+`ShuffleWriteProcessor` is used to create a [ShuffleDependency](../rdd/ShuffleDependency.md#shuffleWriterProcessor).
+
+## Creating Instance
+
+`ShuffleWriteProcessor` takes no arguments to be created.
+
+`ShuffleWriteProcessor` is created when:
+
+* `ShuffleDependency` is [created](../rdd/ShuffleDependency.md#shuffleWriterProcessor)
+* `ShuffleExchangeExec` ([Spark SQL]({{ book.spark_sql }}/physical-operators/ShuffleExchangeExec/)) physical operator is requested to `createShuffleWriteProcessor`
 
 ## <span id="write"> Writing Partition Records to Shuffle System
 

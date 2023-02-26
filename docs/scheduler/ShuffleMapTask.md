@@ -24,7 +24,7 @@
 
 `ShuffleMapTask` is created when `DAGScheduler` is requested to [submit tasks for all missing partitions of a ShuffleMapStage](DAGScheduler.md#submitMissingTasks).
 
-## <span id="taskBinary"> Serialized Task Binary
+### <span id="taskBinary"> Serialized Task Binary
 
 ```scala
 taskBinary: Broadcast[Array[Byte]]
@@ -34,12 +34,34 @@ taskBinary: Broadcast[Array[Byte]]
 
 [runTask](#runTask) expects that the serialized task binary is a tuple of an [RDD](../rdd/RDD.md) and a [ShuffleDependency](../rdd/ShuffleDependency.md).
 
+## <span id="preferredLocations"><span id="preferredLocs">  Preferred Locations
+
+??? note "Signature"
+
+    ```scala
+    preferredLocations: Seq[TaskLocation]
+    ```
+
+    `preferredLocations` is part of the [Task](Task.md#preferredLocations) abstraction.
+
+`preferredLocations` returns `preferredLocs` internal property.
+
+`ShuffleMapTask` tracks [TaskLocation](TaskLocation.md)s as unique entries in the given [locs](#locs) (with the only rule that when `locs` is not defined, it is empty, and no task location preferences are defined).
+
+`ShuffleMapTask` initializes the `preferredLocs` internal property when [created](#creating-instance)
+
 ## <span id="runTask"> Running Task
 
-```scala
-runTask(
-  context: TaskContext): MapStatus
-```
+??? note "Signature"
+
+    ```scala
+    runTask(
+      context: TaskContext): MapStatus
+    ```
+
+    `runTask` is part of the [Task](Task.md#runTask) abstraction.
+
+![Running ShuffleMapTask](../images/ShuffleMapTask-runTask.png)
 
 `runTask` writes the result (_records_) of executing the [serialized task code](#taskBinary) over the records (in the [RDD partition](#partition)) to the [shuffle system](../shuffle/ShuffleManager.md) and returns a [MapStatus](MapStatus.md) (with the [BlockManager](../storage/BlockManager.md) and an estimated size of the result shuffle blocks).
 
@@ -64,30 +86,15 @@ In case of any exceptions, `runTask` requests the `ShuffleWriter` to [stop](../s
 Could not stop writer
 ```
 
-`runTask` is part of the [Task](Task.md#runTask) abstraction.
-
-## <span id="preferredLocations"><span id="preferredLocs">  Preferred Locations
-
-```scala
-preferredLocations: Seq[TaskLocation]
-```
-
-`preferredLocations` is part of the [Task](Task.md#preferredLocations) abstraction.
-
-`preferredLocations` returns `preferredLocs` internal property.
-
-`ShuffleMapTask` tracks [TaskLocation](TaskLocation.md)s as unique entries in the given [locs](#locs) (with the only rule that when `locs` is not defined, it is empty, and no task location preferences are defined).
-
-`ShuffleMapTask` initializes the `preferredLocs` internal property when [created](#creating-instance)
-
 ## Logging
 
 Enable `ALL` logging level for `org.apache.spark.scheduler.ShuffleMapTask` logger to see what happens inside.
 
-Add the following line to `conf/log4j.properties`:
+Add the following line to `conf/log4j2.properties`:
 
 ```text
-log4j.logger.org.apache.spark.scheduler.ShuffleMapTask=ALL
+logger.ShuffleMapTask.name = org.apache.spark.scheduler.ShuffleMapTask
+logger.ShuffleMapTask.level = all
 ```
 
 Refer to [Logging](../spark-logging.md).
