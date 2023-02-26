@@ -20,7 +20,7 @@ I'm very excited to have you here and hope you will enjoy exploring the internal
 
 Expect text and code snippets from a variety of public sources. Attribution follows.
 
-Now, let's take a deep dive into [{{ book.title }}](overview.md) 🔥
+Now, let's take a deep dive into [{{ book.title }}](features/index.md) 🔥
 
 ---
 
