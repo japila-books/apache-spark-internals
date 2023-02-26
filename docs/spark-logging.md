@@ -1,27 +1,61 @@
-# Logging
+# Spark Logging
 
-Spark uses [log4j](http://logging.apache.org/log4j) for logging.
+Apache Spark uses [Apache Log4j 2](https://logging.apache.org/log4j/2.x/index.html) for logging.
+
+## conf/log4j2.properties
+
+The default logging for Spark applications is in `conf/log4j2.properties`.
+
+Use `conf/log4j2.properties.template` as a starting point.
 
 ## <span id="levels"> Logging Levels
 
-The valid logging levels are [log4j's Levels](http://logging.apache.org/log4j/2.x/log4j-api/apidocs/index.html) (from most specific to least):
+The valid logging levels are [log4j's Levels](https://logging.apache.org/log4j/2.x/log4j-api/apidocs/org/apache/logging/log4j/Level.html) (from most specific to least):
 
-* `OFF` (most specific, no logging)
-* `FATAL` (most specific, little data)
-* `ERROR`
-* `WARN`
-* `INFO`
-* `DEBUG`
-* `TRACE` (least specific, a lot of data)
-* `ALL` (least specific, all data)
+Name | Description
+-----|-------------
+ `OFF` | No events will be logged
+ `FATAL` | A fatal event that will prevent the application from continuing
+ `ERROR` | An error in the application, possibly recoverable
+ `WARN` | An event that might possible lead to an error
+ `INFO` | An event for informational purposes
+ `DEBUG` | A general debugging event
+ `TRACE` | A fine-grained debug message, typically capturing the flow through the application
+ `ALL` | All events should be logged
 
-## conf/log4j.properties
+The names of the logging levels are case-insensitive.
 
-You can set up the default logging for Spark shell in `conf/log4j.properties`. Use `conf/log4j.properties.template` as a starting point.
+## Turn Logging Off
+
+The following sample `conf/log4j2.properties` turns all logging of Apache Spark (and Apache Hadoop) off.
+
+```text
+# Set to debug or trace if log4j initialization fails
+status = warn
+
+# Name of the configuration
+name = exploring-internals
+
+# Console appender configuration
+appender.console.type = Console
+appender.console.name = consoleLogger
+appender.console.layout.type = PatternLayout
+appender.console.layout.pattern = %d{YYYY-MM-dd HH:mm:ss} [%t] %-5p %c:%L - %m%n
+appender.console.target = SYSTEM_OUT
+
+rootLogger.level = off
+rootLogger.appenderRef.stdout.ref = consoleLogger
+
+logger.spark.name = org.apache.spark
+logger.spark.level = off
+
+logger.hadoop.name = org.apache.hadoop
+logger.hadoop.level = off
+```
 
 ## <span id="setting-default-log-level"> Setting Default Log Level Programatically
 
-Refer to [Setting Default Log Level Programatically](SparkContext.md#setting-default-log-level) in [SparkContext -- Entry Point to Spark Core](SparkContext.md).
+[Setting Default Log Level Programatically](SparkContext.md#setting-default-log-level)
 
 ## <span id="setting-log-levels-applications"> Setting Log Levels in Spark Applications
 
@@ -32,37 +66,4 @@ import org.apache.log4j.{Level, Logger}
 
 Logger.getLogger(classOf[RackResolver]).getLevel
 Logger.getLogger("org").setLevel(Level.OFF)
-Logger.getLogger("akka").setLevel(Level.OFF)
-```
-
-## sbt
-
-When running a Spark application from within sbt using `run` task, you can use the following `build.sbt` to configure logging levels:
-
-```text
-fork in run := true
-javaOptions in run ++= Seq(
-  "-Dlog4j.debug=true",
-  "-Dlog4j.configuration=log4j.properties")
-outputStrategy := Some(StdoutOutput)
-```
-
-With the above configuration `log4j.properties` file should be on CLASSPATH which can be in `src/main/resources` directory (that is included in CLASSPATH by default).
-
-When `run` starts, you should see the following output in sbt:
-
-```text
-[spark-activator]> run
-[info] Running StreamingApp
-log4j: Trying to find [log4j.properties] using context classloader sun.misc.Launcher$AppClassLoader@1b6d3586.
-log4j: Using URL [file:/Users/jacek/dev/oss/spark-activator/target/scala-2.11/classes/log4j.properties] for automatic log4j configuration.
-log4j: Reading configuration from URL file:/Users/jacek/dev/oss/spark-activator/target/scala-2.11/classes/log4j.properties
-```
-
-## Disabling Logging
-
-Use the following `conf/log4j.properties` to disable logging completely:
-
-```text
-log4j.logger.org=OFF
 ```
