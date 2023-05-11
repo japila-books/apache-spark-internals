@@ -20,9 +20,9 @@
 
 `ResourceProfile` is a Java [Serializable]({{ java.api }}/java/io/Serializable.html).
 
-## <span id="defaultProfile"> Default Profile
+## Default Profile { #defaultProfile }
 
-`ResourceProfile` (object) defines `defaultProfile` internal registry with the default `ResourceProfile` (per JVM instance).
+`ResourceProfile` (object) defines `defaultProfile` internal registry with the default [ResourceProfile](ResourceProfile.md) (per JVM instance).
 
 `defaultProfile` is `None` (undefined) by default and gets a new `ResourceProfile` in [getOrCreateDefaultProfile](#getOrCreateDefaultProfile).
 
@@ -30,7 +30,7 @@
 
 `defaultProfile` is cleared (_removed_) in [clearDefaultProfile](#clearDefaultProfile).
 
-### <span id="getOrCreateDefaultProfile"> getOrCreateDefaultProfile
+### getOrCreateDefaultProfile { #getOrCreateDefaultProfile }
 
 ```scala
 getOrCreateDefaultProfile(
@@ -39,7 +39,7 @@ getOrCreateDefaultProfile(
 
 `getOrCreateDefaultProfile` returns the [default profile](#defaultProfile) (if defined) or creates a new one.
 
-If undefined, `getOrCreateDefaultProfile` creates a [ResourceProfile](#creating-instance) with the default [task](#getDefaultTaskResources) and [executor](#getDefaultExecutorResources) resources and makes it the [defaultProfile](#defaultProfile).
+Unless defined, `getOrCreateDefaultProfile` creates a [ResourceProfile](#creating-instance) with the default [task](#getDefaultTaskResources) and [executor](#getDefaultExecutorResources) resources and makes it the [defaultProfile](#defaultProfile).
 
 `getOrCreateDefaultProfile` prints out the following INFO message to the logs:
 
@@ -48,9 +48,12 @@ Default ResourceProfile created,
 executor resources: [executorResources], task resources: [taskResources]
 ```
 
+---
+
 `getOrCreateDefaultProfile` is used when:
 
-* `ResourceProfile` utility is used to [getDefaultProfileExecutorResources](#getDefaultProfileExecutorResources)
+* `TaskResourceProfile` is requested to [getCustomExecutorResources](TaskResourceProfile.md#getCustomExecutorResources)
+* `ResourceProfile` is requested to [getDefaultProfileExecutorResources](#getDefaultProfileExecutorResources)
 * `ResourceProfileManager` is [created](ResourceProfileManager.md#defaultProfile)
 * `YarnAllocator` (Spark on YARN) is requested to `initDefaultProfile`
 
@@ -102,7 +105,42 @@ If the given `rpId` resource profile ID is not the default ID (`0`), `getResourc
 
 In the end, `getResourcesForClusterManager` creates a `ExecutorResourcesOrDefaults`.
 
+---
+
 `getResourcesForClusterManager` is used when:
 
 * `BasicExecutorFeatureStep` ([Spark on Kubernetes]({{ book.spark_k8s }}/BasicExecutorFeatureStep#execResources)) is created
 * `YarnAllocator` (Spark on YARN) is requested to `createYarnResourceForResourceProfile`
+
+## getCustomExecutorResources { #getCustomExecutorResources }
+
+```scala
+getCustomExecutorResources(): Map[String, ExecutorResourceRequest]
+```
+
+`getCustomExecutorResources`...FIXME
+
+---
+
+`getCustomExecutorResources` is used when:
+
+* `ApplicationDescription` is requested to `resourceReqsPerExecutor`
+* `ApplicationInfo` is requested to `createResourceDescForResourceProfile`
+* `ResourceProfile` is requested to [calculateTasksAndLimitingResource](#calculateTasksAndLimitingResource)
+* `ResourceUtils` is requested to [getOrDiscoverAllResourcesForResourceProfile](ResourceUtils.md#getOrDiscoverAllResourcesForResourceProfile), [warnOnWastedResources](ResourceUtils.md#warnOnWastedResources)
+
+## getDefaultProfileExecutorResources { #getDefaultProfileExecutorResources }
+
+```scala
+getDefaultProfileExecutorResources(
+  conf: SparkConf): DefaultProfileExecutorResources
+```
+
+`getDefaultProfileExecutorResources`...FIXME
+
+---
+
+`getDefaultProfileExecutorResources` is used when:
+
+* `ResourceProfile` is requested to [getResourcesForClusterManager](#getResourcesForClusterManager)
+* `YarnAllocator` (Spark on YARN) is requested to `runAllocatedContainers`
