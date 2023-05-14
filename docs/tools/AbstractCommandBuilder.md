@@ -1,24 +1,30 @@
 # AbstractCommandBuilder
 
-`AbstractCommandBuilder` is an [abstraction](#contract) of [command builders](#implementations).
+`AbstractCommandBuilder` is an [abstraction](#contract) of [launch command builders](#implementations).
 
 ## Contract
 
-### <span id="buildCommand"> buildCommand
+### Building Command { #buildCommand }
 
 ```java
 List<String> buildCommand(
   Map<String, String> env)
 ```
 
+Builds a command to launch a script on command line
+
+See:
+
+* [SparkClassCommandBuilder](SparkClassCommandBuilder.md#buildCommand)
+* [SparkSubmitCommandBuilder](SparkSubmitCommandBuilder.md#buildCommand)
+
 Used when:
 
-* `Main` is requested to [buildCommand](Main.md#buildCommand)
-* `WorkerCommandBuilder` is requested to `buildCommand`
+* `Main` is requested to [build a command](Main.md#buildCommand)
 
 ## Implementations
 
-* SparkClassCommandBuilder
+* [SparkClassCommandBuilder](SparkClassCommandBuilder.md)
 * [SparkSubmitCommandBuilder](SparkSubmitCommandBuilder.md)
 * WorkerCommandBuilder
 
@@ -103,3 +109,32 @@ If `SPARK_HOME` is not set, Spark throws a `IllegalStateException`:
 ```text
 Spark home not found; set it explicitly or use the SPARK_HOME environment variable.
 ```
+
+## Application Resource { #appResource }
+
+```java
+String appResource
+```
+
+`AbstractCommandBuilder` uses `appResource` variable for the name of an application resource.
+
+`appResource` can be one of the following application resource names:
+
+Identifier | appResource
+-----------|------------
+ `pyspark-shell-main` | `pyspark-shell-main`
+ `sparkr-shell-main` | `sparkr-shell-main`
+ `run-example` | [findExamplesAppJar](SparkSubmitCommandBuilder.md#findExamplesAppJar)
+ `pyspark-shell` | [buildPySparkShellCommand](SparkSubmitCommandBuilder.md#buildPySparkShellCommand)
+ `sparkr-shell` | [buildSparkRCommand](SparkSubmitCommandBuilder.md#buildSparkRCommand)
+
+`appResource` can be specified when:
+
+* `AbstractLauncher` is requested to [setAppResource](AbstractLauncher.md#setAppResource)
+* `SparkSubmitCommandBuilder` is [created](SparkSubmitCommandBuilder.md#creating-instance)
+* `SparkSubmitCommandBuilder.OptionParser` is requested to handle [known](SparkSubmitCommandBuilder.OptionParser.md#handle) or [unknown](SparkSubmitCommandBuilder.OptionParser.md#handleUnknown) options
+
+`appResource` is used when:
+
+* `SparkLauncher` is requested to [startApplication](SparkLauncher.md#startApplication)
+* `SparkSubmitCommandBuilder` is requested to [build a command](SparkSubmitCommandBuilder.md#buildCommand), [buildSparkSubmitArgs](SparkSubmitCommandBuilder.md#buildSparkSubmitArgs)

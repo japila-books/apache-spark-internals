@@ -10,8 +10,6 @@
 2. `sparkr-shell-main`
 3. `run-example`
 
-??? FIXME "Describe `run-example`"
-
 `SparkSubmitCommandBuilder` parses command-line arguments using `OptionParser` (which is a spark-submit-SparkSubmitOptionParser.md[SparkSubmitOptionParser]). `OptionParser` comes with the following methods:
 
 1. `handle` to handle the known options (see the table below). It sets up `master`, `deployMode`, `propertiesFile`, `conf`, `mainClass`, `sparkArgs` internal properties.
@@ -31,14 +29,16 @@
 
 * `SparkSubmitCommandBuilder` is [created](#creating-instance) and requested to [buildCommand](#buildCommand)
 
-## <span id="buildCommand"> buildCommand
+## Building Command { #buildCommand }
 
-```java
-List<String> buildCommand(
-  Map<String, String> env)
-```
+??? note "AbstractCommandBuilder"
 
-`buildCommand` is part of the [AbstractCommandBuilder](AbstractCommandBuilder.md#buildCommand) abstraction.
+    ```java
+    List<String> buildCommand(
+      Map<String, String> env)
+    ```
+
+    `buildCommand` is part of the [AbstractCommandBuilder](AbstractCommandBuilder.md#buildCommand) abstraction.
 
 `buildCommand` branches off based on the [appResource](AbstractCommandBuilder.md#appResource):
 
@@ -113,6 +113,9 @@ SparkSubmitCommandBuilder Property | SparkSubmitOptionParser Attribute
  `sparkArgs` | `sparkArgs` (passed straight through)
  `appResource` | `appResource` (passed straight through)
  `appArgs` | `appArgs` (passed straight through)
+
+<!---
+## Review Me
 
 ==== [[getEffectiveConfig]] `getEffectiveConfig` Internal Method
 
@@ -198,3 +201,4 @@ void handleExtraArgs(List<String> extra)
 ----
 
 `handleExtraArgs` adds all the `extra` arguments to `appArgs`.
+-->
