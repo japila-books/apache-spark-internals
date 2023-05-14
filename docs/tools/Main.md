@@ -2,7 +2,7 @@
 
 `Main` is the [standalone application](#main) of [spark-class](spark-class.md) shell script.
 
-## main
+## Launching Application { #main }
 
 ```java
 void main(
@@ -12,7 +12,7 @@ void main(
 !!! note
     `main` requires that at least the class name (`className`) is given as the first argument in the given `argsArray`.
 
-For `org.apache.spark.deploy.SparkSubmit` class name, `main` creates a [SparkSubmitCommandBuilder](SparkSubmitCommandBuilder.md) and [builds a command](AbstractCommandBuilder.md#buildCommand) (with the `SparkSubmitCommandBuilder`).
+For `org.apache.spark.deploy.SparkSubmit` class name, `main` creates a [SparkSubmitCommandBuilder](SparkSubmitCommandBuilder.md) and [builds a command](#buildCommand) (with the `SparkSubmitCommandBuilder`).
 
 Otherwise, `main` creates a [SparkClassCommandBuilder](SparkClassCommandBuilder.md) and [builds a command](#buildCommand) (with the `SparkClassCommandBuilder`).
 
@@ -23,7 +23,7 @@ Class Name | AbstractCommandBuilder
 
 In the end, `main` `prepareWindowsCommand` or [prepareBashCommand](#prepareBashCommand) based on the operating system it runs on, MS Windows or non-Windows, respectively.
 
-### buildCommand { #buildCommand }
+### Building Command { #buildCommand }
 
 ```java
 List<String> buildCommand(

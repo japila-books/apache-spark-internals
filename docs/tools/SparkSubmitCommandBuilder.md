@@ -21,13 +21,13 @@
 !!! NOTE
     For `spark-shell` it assumes that the application arguments are after ``spark-submit``'s arguments.
 
-## <span id="PYSPARK_SHELL"><span id="pyspark-shell-main"> pyspark-shell-main App Resource
+## <span id="PYSPARK_SHELL"> pyspark-shell-main Application Resource { #pyspark-shell-main }
 
-`SparkSubmitCommandBuilder` uses `pyspark-shell-main` as the name of the app resource to identify the PySpark shell.
+When `bin/pyspark` shell script (and `bin\pyspark2.cmd`) are launched, they use [bin/spark-submit](spark-submit.md) with `pyspark-shell-main` application resource as the first argument (followed by `--name "PySparkShell"` option among the others).
 
 `pyspark-shell-main` is used when:
 
-* `SparkSubmitCommandBuilder` is [created](#creating-instance) and requested to [buildCommand](#buildCommand)
+* `SparkSubmitCommandBuilder` is [created](#creating-instance) and then requested to [build a command](#buildCommand) ([buildPySparkShellCommand](#buildPySparkShellCommand) actually)
 
 ## Building Command { #buildCommand }
 
@@ -40,22 +40,54 @@
 
     `buildCommand` is part of the [AbstractCommandBuilder](AbstractCommandBuilder.md#buildCommand) abstraction.
 
-`buildCommand` branches off based on the [appResource](AbstractCommandBuilder.md#appResource):
+`buildCommand` branches off based on the [application resource](AbstractCommandBuilder.md#appResource).
 
-* [buildPySparkShellCommand](#buildPySparkShellCommand) for [PYSPARK_SHELL](#PYSPARK_SHELL)
-* `buildSparkRCommand` for SparkR
-* [buildSparkSubmitCommand](#buildSparkSubmitCommand)
+Application Resource | Command Builder
+---------------------|----------------
+ [pyspark-shell-main](#pyspark-shell-main) (but not [isSpecialCommand](#isSpecialCommand)) | [buildPySparkShellCommand](#buildPySparkShellCommand)
+ `sparkr-shell-main` (but not [isSpecialCommand](#isSpecialCommand)) | [buildSparkRCommand](#buildSparkRCommand)
+ _anything else_ | [buildSparkSubmitCommand](#buildSparkSubmitCommand)
 
-### <span id="buildPySparkShellCommand"> buildPySparkShellCommand
+### buildPySparkShellCommand { #buildPySparkShellCommand }
 
 ```java
 List<String> buildPySparkShellCommand(
   Map<String, String> env)
 ```
 
-`buildPySparkShellCommand`...FIXME
+??? note "appArgs expected to be empty"
+    `buildPySparkShellCommand` makes sure that:
 
-### <span id="buildSparkSubmitCommand"> buildSparkSubmitCommand
+    * There are no [appArgs](#appArgs)
+    * If there are [appArgs](#appArgs) the first argument is not a Python script (a file with `.py` extension)
+
+`buildPySparkShellCommand` sets the [application resource](AbstractCommandBuilder.md#appResource) as `pyspark-shell`.
+
+??? note "pyspark-shell-main redefined to pyspark-shell"
+    `buildPySparkShellCommand` is executed when requested for a [command](#buildCommand) with `pyspark-shell-main` application resource that is re-defined (_reset_) to `pyspark-shell` now.
+
+`buildPySparkShellCommand` [constructEnvVarArgs](#constructEnvVarArgs) with the given `env` and `PYSPARK_SUBMIT_ARGS`.
+
+`buildPySparkShellCommand` defines an internal `pyargs` collection for the parts of the shell command to execute.
+
+`buildPySparkShellCommand` stores the Python executable (in `pyargs`) to be the first specified in the following order:
+
+* `spark.pyspark.driver.python` configuration property
+* `spark.pyspark.python` configuration property
+* `PYSPARK_DRIVER_PYTHON` environment variable
+* `PYSPARK_PYTHON` environment variable
+* `python3`
+
+`buildPySparkShellCommand` sets the environment variables (for the Python executable to use), if specified.
+
+Environment Variable | Configuration Property
+---------------------|-----------------------
+ `PYSPARK_PYTHON` | `spark.pyspark.python`
+ `SPARK_REMOTE` | [remote](AbstractCommandBuilder.md#remote) option or `spark.remote`
+
+In the end, `buildPySparkShellCommand` copies all the options from `PYSPARK_DRIVER_PYTHON_OPTS`, if specified.
+
+### buildSparkSubmitCommand { #buildSparkSubmitCommand }
 
 ```java
 List<String> buildSparkSubmitCommand(
