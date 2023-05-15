@@ -2,7 +2,7 @@
 
 *Spark properties* are the means of tuning the execution environment of a Spark application.
 
-The default Spark properties file is <<spark-defaults-conf, `$SPARK_HOME/conf/spark-defaults.conf`>> that could be overriden using `spark-submit` with the spark-submit.md#properties-file[--properties-file] command-line option.
+The default Spark properties file is <<spark-defaults-conf, `$SPARK_HOME/conf/spark-defaults.conf`>> that could be overriden using `spark-submit` with the spark-submit/index.md#properties-file[--properties-file] command-line option.
 
 .Environment Variables
 [options="header",width="100%"]

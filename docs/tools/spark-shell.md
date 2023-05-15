@@ -40,7 +40,7 @@ scala> :imports
 
 [NOTE]
 ====
-When you execute `spark-shell` you actually execute spark-submit.md[Spark submit] as follows:
+When you execute `spark-shell` you actually execute spark-submit/index.md[Spark submit] as follows:
 
 [options="wrap"]
 ----

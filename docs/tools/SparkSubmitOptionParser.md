@@ -1,6 +1,6 @@
 # SparkSubmitOptionParser
 
-`SparkSubmitOptionParser` is the parser of [spark-submit](spark-submit.md)'s command-line options.
+`SparkSubmitOptionParser` is the parser of [spark-submit](spark-submit/index.md)'s command-line options.
 
 ## <span id="FILES"> --files
 
@@ -34,7 +34,7 @@ A comma-separated sequence of paths
 | `--num-executors` |
 | `--packages` |
 | `--principal` |
-| `--properties-file [FILE]` | `propertiesFile` internal property. Refer to spark-submit.md#properties-file[Custom Spark Properties File -- `--properties-file` command-line option].
+| `--properties-file [FILE]` | `propertiesFile` internal property. Refer to spark-submit/index.md#properties-file[Custom Spark Properties File -- `--properties-file` command-line option].
 | `--proxy-user` |
 | `--py-files` |
 | `--queue` |

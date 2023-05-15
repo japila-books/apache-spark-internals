@@ -1,6 +1,6 @@
 # SparkLauncher
 
-`SparkLauncher` is an interface to launch Spark applications programmatically, i.e. from a code (not spark-submit.md[spark-submit] directly). It uses a builder pattern to configure a Spark application and launch it as a child process using spark-submit.md[spark-submit].
+`SparkLauncher` is an interface to launch Spark applications programmatically, i.e. from a code (not spark-submit/index.md[spark-submit] directly). It uses a builder pattern to configure a Spark application and launch it as a child process using spark-submit/index.md[spark-submit].
 
 `SparkLauncher` uses [SparkSubmitCommandBuilder](SparkSubmitCommandBuilder.md) to build the Spark command of a Spark application to launch.
 

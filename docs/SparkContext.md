@@ -689,7 +689,7 @@ val conf = new SparkConf()
 val sc = SparkContext.getOrCreate(conf)
 ----
 
-The no-param `getOrCreate` method requires that the two mandatory Spark settings - <<master, master>> and <<appName, application name>> - are specified using spark-submit.md[spark-submit].
+The no-param `getOrCreate` method requires that the two mandatory Spark settings - <<master, master>> and <<appName, application name>> - are specified using spark-submit/index.md[spark-submit].
 
 === [[constructors]] Constructors
 

@@ -155,7 +155,7 @@ res2: String = local[*]
 There are the following places where a Spark application looks for Spark properties (in the order of importance from the least important to the most important):
 
 * `conf/spark-defaults.conf` - the configuration file with the default Spark properties. Read spark-properties.md#spark-defaults-conf[spark-defaults.conf].
-* `--conf` or `-c` - the command-line option used by tools:spark-submit.md[spark-submit] (and other shell scripts that use `spark-submit` or `spark-class` under the covers, e.g. `spark-shell`)
+* `--conf` or `-c` - the command-line option used by tools:spark-submit/index.md[spark-submit] (and other shell scripts that use `spark-submit` or `spark-class` under the covers, e.g. `spark-shell`)
 * `SparkConf`
 
 == [[default-configuration]] Default Configuration

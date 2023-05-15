@@ -14,7 +14,7 @@
     Use [Web UI](../webui/index.md) (esp. [Storage](../webui/StorageTab.md) and [Executors](../webui/ExecutorsTab.md) tabs) to monitor the memory used.
 
 !!! tip
-    Use [spark-submit](../tools/spark-submit.md)'s command-line options (i.e. [--driver-memory](../tools/spark-submit.md#driver-memory) for the driver and [--executor-memory](../tools/spark-submit.md#executor-memory) for executors) or their equivalents as Spark properties (i.e. [spark.executor.memory](../tools/spark-submit.md#spark.executor.memory) and [spark.driver.memory](../tools/spark-submit.md#spark_driver_memory)) to control the memory for storage memory.
+    Use [spark-submit](../tools/spark-submit/index.md)'s command-line options (i.e. [--driver-memory](../tools/spark-submit/index.md#driver-memory) for the driver and [--executor-memory](../tools/spark-submit/index.md#executor-memory) for executors) or their equivalents as Spark properties (i.e. [spark.executor.memory](../tools/spark-submit/index.md#spark.executor.memory) and [spark.driver.memory](../tools/spark-submit/index.md#spark_driver_memory)) to control the memory for storage memory.
 
 When [External Shuffle Service is enabled](#externalShuffleServiceEnabled), BlockManager uses [ExternalShuffleClient](#externalBlockStoreClient) to read shuffle files (of other executors).
 

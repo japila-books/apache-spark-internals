@@ -1,26 +1,30 @@
-# spark-submit shell script
+---
+title: spark-submit
+---
 
-`spark-submit` shell script allows you to manage your Spark applications.
+# spark-submit Shell Script
 
-`spark-submit` is a command-line frontend to [SparkSubmit](SparkSubmit.md).
+`spark-submit` shell script allows managing Spark applications.
 
-## <span id="options"> Command-Line Options
+`spark-submit` is a command-line frontend to [SparkSubmit](../SparkSubmit.md).
 
-### <span id="archives"> archives
+## Command-Line Options { #options }
 
-Command-Line Option: `--archives`
-Internal Property: `archives`
+### archives
 
-### <span id="deploy-mode"> deploy-mode
+* Command-Line Option: `--archives`
+* Internal Property: `archives`
+
+### deploy-mode
 
 Deploy mode
 
-Command-Line Option: `--deploy-mode`
-Spark Property: `spark.submit.deployMode`
-Environment Variable: `DEPLOY_MODE`
-Internal Property: `deployMode`
+* Command-Line Option: `--deploy-mode`
+* Spark Property: `spark.submit.deployMode`
+* Environment Variable: `DEPLOY_MODE`
+* Internal Property: `deployMode`
 
-### <span id="driver-class-path"> driver-class-path
+### driver-class-path
 
 ```text
 --driver-class-path
@@ -31,44 +35,44 @@ Extra class path entries (e.g. jars and directories) to pass to a driver's JVM.
 `--driver-class-path` command-line option sets the extra class path entries (e.g. jars and directories) that should be added to a driver's JVM.
 
 !!! tip
-    Use `--driver-class-path` in `client` deploy mode (not [SparkConf](../SparkConf.md)) to ensure that the CLASSPATH is set up with the entries.
+    Use `--driver-class-path` in `client` deploy mode (not [SparkConf](../../SparkConf.md)) to ensure that the CLASSPATH is set up with the entries.
     
     `client` deploy mode uses the same JVM for the driver as `spark-submit`'s.
 
 Internal Property: `driverExtraClassPath`
 
-Spark Property: [spark.driver.extraClassPath](../driver.md#spark_driver_extraClassPath)
+Spark Property: [spark.driver.extraClassPath](../../driver.md#spark_driver_extraClassPath)
 
 !!! note
     Command-line options (e.g. `--driver-class-path`) have higher precedence than their corresponding Spark settings in a Spark properties file (e.g. `spark.driver.extraClassPath`). You can therefore control the final settings by overriding Spark settings on command line using the command-line options.
 
-### <span id="driver-cores"> driver-cores
+### driver-cores
 
 ```text
 --driver-cores NUM
 ```
 
-`--driver-cores` command-line option sets the number of cores to `NUM` for the [driver](../driver.md) in the `cluster` deploy mode.
+`--driver-cores` command-line option sets the number of cores to `NUM` for the [driver](../../driver.md) in the `cluster` deploy mode.
 
-Spark Property: [spark.driver.cores](../driver.md#spark_driver_cores)
+Spark Property: [spark.driver.cores](../../driver.md#spark_driver_cores)
 
 !!! note
     Only available for `cluster` deploy mode (when the driver is executed outside `spark-submit`).
 
 Internal Property: `driverCores`
 
-### <span id="properties-file"> properties-file
+### properties-file
 
 ```text
 --properties-file [FILE]
 ```
 
-`--properties-file` command-line option sets the path to a file `FILE` from which Spark loads extra [Spark properties](../spark-properties.md).
+`--properties-file` command-line option sets the path to a file `FILE` from which Spark loads extra [Spark properties](../../spark-properties.md).
 
 !!! note
-    Spark uses [conf/spark-defaults.conf](../spark-properties.md#spark-defaults-conf) by default.
+    Spark uses [conf/spark-defaults.conf](../../spark-properties.md#spark-defaults-conf) by default.
 
-### <span id="queue"> queue
+### queue
 
 ```text
 --queue QUEUE_NAME
@@ -76,10 +80,10 @@ Internal Property: `driverCores`
 
 YARN resource queue
 
-Spark Property: `spark.yarn.queue`
-Internal Property: `queue`
+* Spark Property: `spark.yarn.queue`
+* Internal Property: `queue`
 
-### <span id="version"> version
+### version
 
 Command-Line Option: `--version`
 
@@ -98,6 +102,18 @@ Revision 1fad5596885aab8b32d2307c0edecbae50d5bd7a
 Url https://github.com/apache/spark.git
 Type --help for more information.
 ```
+
+## SPARK_PRINT_LAUNCH_COMMAND { #SPARK_PRINT_LAUNCH_COMMAND }
+
+[SPARK_PRINT_LAUNCH_COMMAND](../../spark-tips-and-tricks.md#SPARK_PRINT_LAUNCH_COMMAND) environment variable allows to have the complete Spark command printed out to the standard output.
+
+```text
+$ SPARK_PRINT_LAUNCH_COMMAND=1 ./bin/spark-shell
+Spark Command: /Library/Ja...
+```
+
+<!---
+## Review Me
 
 | `--conf` | | | | `sparkProperties`
 | `--driver-java-options` | `spark.driver.extraJavaOptions` | | The driver's JVM options | `driverExtraJavaOptions`
@@ -126,15 +142,6 @@ Type --help for more information.
 | `--total-executor-cores` | `spark.cores.max` | | | `totalExecutorCores`
 | `--verbose` | | | | `verbose`
 | `--help` | | | `printUsageAndExit(0)` |
-
-## <span id="SPARK_PRINT_LAUNCH_COMMAND"> SPARK_PRINT_LAUNCH_COMMAND
-
-[SPARK_PRINT_LAUNCH_COMMAND](../spark-tips-and-tricks.md#SPARK_PRINT_LAUNCH_COMMAND) environment variable allows to have the complete Spark command printed out to the standard output.
-
-```text
-$ SPARK_PRINT_LAUNCH_COMMAND=1 ./bin/spark-shell
-Spark Command: /Library/Ja...
-```
 
 ## Avoid scala.App
 
@@ -257,15 +264,6 @@ List of switches, i.e. command-line options that do not take parameters:
 * `--verbose` or `-v` (see <<verbose-mode, Verbose Mode>>)
 * `--version` (see <<version, Version>>)
 
-YARN-only options:
-
-* `--archives`
-* `--executor-cores`
-* `--keytab`
-* `--num-executors`
-* `--principal`
-* `--queue` (see <<queue, Specifying YARN Resource Queue (--queue switch)>>)
-
 ## Environment Variables
 
 The following is the list of environment variables that are considered when command-line options are not specified:
@@ -287,3 +285,4 @@ The `spark-submit` utility supports specifying external packages using Maven coo
   --packages my:awesome:package \
   --repositories s3n://$aws_ak:$aws_sak@bucket/path/to/repo
 ```
+-->

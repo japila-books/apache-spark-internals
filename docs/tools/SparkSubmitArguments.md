@@ -1,6 +1,6 @@
 # SparkSubmitArguments
 
-`SparkSubmitArguments` is a custom `SparkSubmitArgumentsParser` to [handle](#handle) the command-line arguments of [spark-submit](spark-submit.md) script that the [actions](spark-submit.md#actions) use for execution (possibly with the explicit `env` environment).
+`SparkSubmitArguments` is a custom `SparkSubmitArgumentsParser` to [handle](#handle) the command-line arguments of [spark-submit](spark-submit/index.md) script that the [actions](spark-submit/index.md#actions) use for execution (possibly with the explicit `env` environment).
 
 `SparkSubmitArguments` is created when [launching spark-submit script](#main) with only `args` passed in and later used for printing the arguments in [verbose mode](#verbose-mode).
 
@@ -37,7 +37,7 @@ When `SparkSubmit` is requested to [prepareSubmitEnvironment](SparkSubmit.md#pre
 loadEnvironmentArguments(): Unit
 ```
 
-`loadEnvironmentArguments` loads the Spark properties for the current execution of [spark-submit](spark-submit.md).
+`loadEnvironmentArguments` loads the Spark properties for the current execution of [spark-submit](spark-submit/index.md).
 
 `loadEnvironmentArguments` reads command-line options first followed by Spark properties and System's environment variables.
 
@@ -54,7 +54,7 @@ handle(
 
 `handle` parses the input `opt` argument and returns `true` or throws an `IllegalArgumentException` when it finds an unknown `opt`.
 
-`handle` sets the internal properties in the table [Command-Line Options, Spark Properties and Environment Variables](spark-submit.md#options-properties-variables).
+`handle` sets the internal properties in the table [Command-Line Options, Spark Properties and Environment Variables](spark-submit/index.md#options-properties-variables).
 
 ## <span id="mergeDefaultSparkProperties"> mergeDefaultSparkProperties
 

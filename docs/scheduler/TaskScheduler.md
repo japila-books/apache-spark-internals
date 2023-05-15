@@ -214,27 +214,9 @@ Used when DAGScheduler is requested to scheduler:DAGScheduler.md#stop[stop]
 
 |===
 
-== [[implementations]] TaskSchedulers
-
-[cols="30m,70",options="header",width="100%"]
-|===
-| TaskScheduler
-| Description
-
-| scheduler:TaskSchedulerImpl.md[TaskSchedulerImpl]
-| [[TaskSchedulerImpl]] Default Spark scheduler
-
-| spark-on-yarn:spark-yarn-yarnscheduler.md[YarnScheduler]
-| [[YarnScheduler]] TaskScheduler for tools:spark-submit.md#deploy-mode[client] deploy mode in spark-on-yarn:index.md[Spark on YARN]
-
-| spark-on-yarn:spark-yarn-yarnclusterscheduler.md[YarnClusterScheduler]
-| [[YarnClusterScheduler]] TaskScheduler for tools:spark-submit.md#deploy-mode[cluster] deploy mode in spark-on-yarn:index.md[Spark on YARN]
-
-|===
-
 ## Lifecycle
 
-A `TaskScheduler` is created while [SparkContext is being created](../SparkContext.md#creating-instance) (by calling [SparkContext.createTaskScheduler](../SparkContext.md#createTaskScheduler) for a given master URL and [deploy mode](../tools/spark-submit.md#deploy-mode)).
+A `TaskScheduler` is created while [SparkContext is being created](../SparkContext.md#creating-instance) (by calling [SparkContext.createTaskScheduler](../SparkContext.md#createTaskScheduler) for a given master URL and [deploy mode](../tools/spark-submit/index.md#deploy-mode)).
 
 ![TaskScheduler uses SchedulerBackend to support different clusters](../images/scheduler/taskscheduler-uses-schedulerbackend.png)
 

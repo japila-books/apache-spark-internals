@@ -1,6 +1,6 @@
 # SparkApplication
 
-`SparkApplication` is an [abstraction](#contract) of [entry points](#implementations) to Spark applications that can be [started](#start) (_submitted for execution_ using [spark-submit](spark-submit.md)).
+`SparkApplication` is an [abstraction](#contract) of [entry points](#implementations) to Spark applications that can be [started](#start) (_submitted for execution_ using [spark-submit](spark-submit/index.md)).
 
 ## Contract
 

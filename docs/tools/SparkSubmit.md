@@ -1,6 +1,6 @@
 # SparkSubmit
 
-`SparkSubmit` is the [entry point](#main) to [spark-submit](spark-submit.md) shell script.
+`SparkSubmit` is the [entry point](#main) to [spark-submit](spark-submit/index.md) shell script.
 
 ## <span id="shells"><span id="SPARK_SHELL"><span id="SPARKR_SHELL"> Special Primary Resource Names
 

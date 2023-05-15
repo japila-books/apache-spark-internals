@@ -34,17 +34,17 @@ CAUTION: FIXME Diagram of RpcEnv for a driver (and later executors). Perhaps it 
 
 === [[driver-memory]] Driver's Memory
 
-It can be set first using spark-submit.md#command-line-options[spark-submit's `--driver-memory`] command-line option or <<spark_driver_memory, spark.driver.memory>> and falls back to spark-submit.md#environment-variables[SPARK_DRIVER_MEMORY] if not set earlier.
+It can be set first using spark-submit/index.md#command-line-options[spark-submit's `--driver-memory`] command-line option or <<spark_driver_memory, spark.driver.memory>> and falls back to spark-submit/index.md#environment-variables[SPARK_DRIVER_MEMORY] if not set earlier.
 
-NOTE: It is printed out to the standard error output in spark-submit.md#verbose-mode[spark-submit's verbose mode].
+NOTE: It is printed out to the standard error output in spark-submit/index.md#verbose-mode[spark-submit's verbose mode].
 
 ## <span id="driver-memory"> Driver Cores
 
-It can be set first using spark-submit.md#driver-cores[spark-submit's `--driver-cores`] command-line option for `cluster` deploy mode.
+It can be set first using spark-submit/index.md#driver-cores[spark-submit's `--driver-cores`] command-line option for `cluster` deploy mode.
 
 NOTE: In `client` deploy mode the driver's memory corresponds to the memory of the JVM process the Spark application runs on.
 
-NOTE: It is printed out to the standard error output in spark-submit.md#verbose-mode[spark-submit's verbose mode].
+NOTE: It is printed out to the standard error output in spark-submit/index.md#verbose-mode[spark-submit's verbose mode].
 
 === [[settings]] Settings
 
@@ -93,4 +93,4 @@ Refer to spark-class.md#buildSparkSubmitCommand[`buildSparkSubmitCommand` Intern
 
 `spark.driver.extraClassPath` uses a OS-specific path separator.
 
-NOTE: Use ``spark-submit``'s spark-submit.md#driver-class-path[`--driver-class-path` command-line option] on command line to override `spark.driver.extraClassPath` from a spark-properties.md#spark-defaults-conf[Spark properties file].
+NOTE: Use ``spark-submit``'s spark-submit/index.md#driver-class-path[`--driver-class-path` command-line option] on command line to override `spark.driver.extraClassPath` from a spark-properties.md#spark-defaults-conf[Spark properties file].

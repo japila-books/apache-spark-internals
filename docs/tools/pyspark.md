@@ -4,7 +4,7 @@ title: pyspark
 
 # pyspark Shell Script
 
-`pyspark` shell script runs [spark-submit](spark-submit.md) with [pyspark-shell-main](#pyspark-shell-main) application resource as the first argument followed by `--name "PySparkShell"` option (with other command-line arguments, if specified).
+`pyspark` shell script runs [spark-submit](spark-submit/index.md) with [pyspark-shell-main](#pyspark-shell-main) application resource as the first argument followed by `--name "PySparkShell"` option (with other command-line arguments, if specified).
 
 ## pyspark/shell.py { #pyspark-shell }
 

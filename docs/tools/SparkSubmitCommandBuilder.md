@@ -2,7 +2,7 @@
 
 `SparkSubmitCommandBuilder` is an [AbstractCommandBuilder](AbstractCommandBuilder.md).
 
-`SparkSubmitCommandBuilder` is used to build a command that [spark-submit](spark-submit.md#main) and [SparkLauncher](SparkLauncher.md) use to launch a Spark application.
+`SparkSubmitCommandBuilder` is used to build a command that [spark-submit](spark-submit/index.md#main) and [SparkLauncher](SparkLauncher.md) use to launch a Spark application.
 
 `SparkSubmitCommandBuilder` uses the first argument to distinguish the shells:
 
@@ -23,7 +23,7 @@
 
 ## <span id="PYSPARK_SHELL"> pyspark-shell-main Application Resource { #pyspark-shell-main }
 
-When `bin/pyspark` shell script (and `bin\pyspark2.cmd`) are launched, they use [bin/spark-submit](spark-submit.md) with `pyspark-shell-main` application resource as the first argument (followed by `--name "PySparkShell"` option among the others).
+When `bin/pyspark` shell script (and `bin\pyspark2.cmd`) are launched, they use [bin/spark-submit](spark-submit/index.md) with `pyspark-shell-main` application resource as the first argument (followed by `--name "PySparkShell"` option among the others).
 
 `pyspark-shell-main` is used when:
 
@@ -118,7 +118,7 @@ List<String> buildSparkSubmitCommand(
 List<String> buildSparkSubmitArgs()
 ```
 
-`buildSparkSubmitArgs` builds a list of command-line arguments for [spark-submit](spark-submit.md).
+`buildSparkSubmitArgs` builds a list of command-line arguments for [spark-submit](spark-submit/index.md).
 
 `buildSparkSubmitArgs` uses a [SparkSubmitOptionParser](SparkSubmitOptionParser.md) to add the command-line arguments that `spark-submit` recognizes (when it is executed later on and uses the very same `SparkSubmitOptionParser` parser to parse command-line arguments).
 
