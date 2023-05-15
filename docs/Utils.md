@@ -249,7 +249,7 @@ checkAndGetK8sMasterUrl(
 
 `checkAndGetK8sMasterUrl` is used when:
 
-* `SparkSubmit` is requested to [prepareSubmitEnvironment](tools/SparkSubmit.md#prepareSubmitEnvironment) (for Kubernetes cluster manager)
+* `SparkSubmit` is requested to [prepareSubmitEnvironment](tools/spark-submit/SparkSubmit.md#prepareSubmitEnvironment) (for Kubernetes cluster manager)
 
 ## <span id="fetchFile"> Fetching File
 

@@ -1,8 +1,8 @@
 # SparkSubmitCommandBuilder
 
-`SparkSubmitCommandBuilder` is an [AbstractCommandBuilder](AbstractCommandBuilder.md).
+`SparkSubmitCommandBuilder` is an [AbstractCommandBuilder](../AbstractCommandBuilder.md).
 
-`SparkSubmitCommandBuilder` is used to build a command that [spark-submit](spark-submit/index.md#main) and [SparkLauncher](SparkLauncher.md) use to launch a Spark application.
+`SparkSubmitCommandBuilder` is used to build a command that [spark-submit](index.md#main) and [SparkLauncher](../SparkLauncher.md) use to launch a Spark application.
 
 `SparkSubmitCommandBuilder` uses the first argument to distinguish the shells:
 
@@ -23,7 +23,7 @@
 
 ## <span id="PYSPARK_SHELL"> pyspark-shell-main Application Resource { #pyspark-shell-main }
 
-When `bin/pyspark` shell script (and `bin\pyspark2.cmd`) are launched, they use [bin/spark-submit](spark-submit/index.md) with `pyspark-shell-main` application resource as the first argument (followed by `--name "PySparkShell"` option among the others).
+When `bin/pyspark` shell script (and `bin\pyspark2.cmd`) are launched, they use [bin/spark-submit](index.md) with `pyspark-shell-main` application resource as the first argument (followed by `--name "PySparkShell"` option among the others).
 
 `pyspark-shell-main` is used when:
 
@@ -38,9 +38,9 @@ When `bin/pyspark` shell script (and `bin\pyspark2.cmd`) are launched, they use 
       Map<String, String> env)
     ```
 
-    `buildCommand` is part of the [AbstractCommandBuilder](AbstractCommandBuilder.md#buildCommand) abstraction.
+    `buildCommand` is part of the [AbstractCommandBuilder](../AbstractCommandBuilder.md#buildCommand) abstraction.
 
-`buildCommand` branches off based on the [application resource](AbstractCommandBuilder.md#appResource).
+`buildCommand` branches off based on the [application resource](../AbstractCommandBuilder.md#appResource).
 
 Application Resource | Command Builder
 ---------------------|----------------
@@ -61,7 +61,7 @@ List<String> buildPySparkShellCommand(
     * There are no [appArgs](#appArgs)
     * If there are [appArgs](#appArgs) the first argument is not a Python script (a file with `.py` extension)
 
-`buildPySparkShellCommand` sets the [application resource](AbstractCommandBuilder.md#appResource) as `pyspark-shell`.
+`buildPySparkShellCommand` sets the [application resource](../AbstractCommandBuilder.md#appResource) as `pyspark-shell`.
 
 ??? note "pyspark-shell-main redefined to pyspark-shell"
     `buildPySparkShellCommand` is executed when requested for a [command](#buildCommand) with `pyspark-shell-main` application resource that is re-defined (_reset_) to `pyspark-shell` now.
@@ -83,7 +83,7 @@ List<String> buildPySparkShellCommand(
 Environment Variable | Configuration Property
 ---------------------|-----------------------
  `PYSPARK_PYTHON` | `spark.pyspark.python`
- `SPARK_REMOTE` | [remote](AbstractCommandBuilder.md#remote) option or `spark.remote`
+ `SPARK_REMOTE` | [remote](../AbstractCommandBuilder.md#remote) option or `spark.remote`
 
 In the end, `buildPySparkShellCommand` copies all the options from `PYSPARK_DRIVER_PYTHON_OPTS`, if specified.
 
@@ -94,9 +94,9 @@ List<String> buildSparkSubmitCommand(
   Map<String, String> env)
 ```
 
-`buildSparkSubmitCommand` starts by [building so-called effective config](#getEffectiveConfig). When in [client mode](#isClientMode), `buildSparkSubmitCommand` adds [spark.driver.extraClassPath](../driver.md#spark_driver_extraClassPath) to the result Spark command.
+`buildSparkSubmitCommand` starts by [building so-called effective config](#getEffectiveConfig). When in [client mode](#isClientMode), `buildSparkSubmitCommand` adds [spark.driver.extraClassPath](../../driver.md#spark_driver_extraClassPath) to the result Spark command.
 
-`buildSparkSubmitCommand` [builds the first part of the Java command](AbstractCommandBuilder.md#buildJavaCommand) passing in the extra classpath (only for `client` deploy mode).
+`buildSparkSubmitCommand` [builds the first part of the Java command](../AbstractCommandBuilder.md#buildJavaCommand) passing in the extra classpath (only for `client` deploy mode).
 
 ??? FIXME "Add `isThriftServer` case"
 
@@ -118,14 +118,14 @@ List<String> buildSparkSubmitCommand(
 List<String> buildSparkSubmitArgs()
 ```
 
-`buildSparkSubmitArgs` builds a list of command-line arguments for [spark-submit](spark-submit/index.md).
+`buildSparkSubmitArgs` builds a list of command-line arguments for [spark-submit](index.md).
 
 `buildSparkSubmitArgs` uses a [SparkSubmitOptionParser](SparkSubmitOptionParser.md) to add the command-line arguments that `spark-submit` recognizes (when it is executed later on and uses the very same `SparkSubmitOptionParser` parser to parse command-line arguments).
 
 `buildSparkSubmitArgs` is used when:
 
 * `InProcessLauncher` is requested to `startApplication`
-* `SparkLauncher` is requested to [createBuilder](SparkLauncher.md#createBuilder)
+* `SparkLauncher` is requested to [createBuilder](../SparkLauncher.md#createBuilder)
 * `SparkSubmitCommandBuilder` is requested to [buildSparkSubmitCommand](#buildSparkSubmitCommand) and [constructEnvVarArgs](#constructEnvVarArgs)
 
 ## SparkSubmitCommandBuilder Properties and SparkSubmitOptionParser Attributes

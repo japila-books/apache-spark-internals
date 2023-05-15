@@ -1,10 +1,13 @@
 # SparkSubmitOptionParser
 
-`SparkSubmitOptionParser` is the parser of [spark-submit](spark-submit/index.md)'s command-line options.
+`SparkSubmitOptionParser` is the parser of [spark-submit](index.md)'s command-line options.
 
 ## <span id="FILES"> --files
 
 A comma-separated sequence of paths
+
+<!---
+## Review Me
 
 ## Others
 
@@ -78,3 +81,4 @@ final void parse(List<String> args)
 `parse` keeps processing command-line arguments until `handle` or `handleUnknown` callback return `false` or all command-line arguments have been consumed.
 
 Ultimately, `parse` calls `handleExtraArgs` callback.
+-->

@@ -6,7 +6,7 @@ title: spark-submit
 
 `spark-submit` shell script allows managing Spark applications.
 
-`spark-submit` is a command-line frontend to [SparkSubmit](../SparkSubmit.md).
+`spark-submit` is a command-line frontend to [SparkSubmit](SparkSubmit.md).
 
 ## Command-Line Options { #options }
 

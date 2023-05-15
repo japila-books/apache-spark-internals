@@ -13,12 +13,12 @@ start(
 
 Used when:
 
-* `SparkSubmit` is requested to [submit an application for execution](SparkSubmit.md#runMain)
+* `SparkSubmit` is requested to [submit an application for execution](spark-submit/SparkSubmit.md#runMain)
 
 ## Implementations
 
-* ClientApp
+* `ClientApp`
 * [JavaMainApplication](JavaMainApplication.md)
 * `KubernetesClientApplication` ([Spark on Kubernetes]({{ book.spark_k8s }}/KubernetesClientApplication))
-* RestSubmissionClientApp
-* YarnClusterApplication
+* `RestSubmissionClientApp`
+* `YarnClusterApplication`

@@ -1,6 +1,6 @@
 # SparkSubmitOperation
 
-`SparkSubmitOperation` is an [abstraction](#contract) of [operations](#implementations) of [spark-submit](spark-submit/index.md) (when requested to [kill a submission](SparkSubmit.md#kill) or for a [submission status](SparkSubmit.md#requestStatus)).
+`SparkSubmitOperation` is an [abstraction](#contract) of [operations](#implementations) of [spark-submit](index.md) (when requested to [kill a submission](SparkSubmit.md#kill) or for a [submission status](SparkSubmit.md#requestStatus)).
 
 ## Contract
 

@@ -1,22 +1,41 @@
 # SparkSubmitArguments
 
-`SparkSubmitArguments` is a custom `SparkSubmitArgumentsParser` to [handle](#handle) the command-line arguments of [spark-submit](spark-submit/index.md) script that the [actions](spark-submit/index.md#actions) use for execution (possibly with the explicit `env` environment).
+`SparkSubmitArguments` is created  for `SparkSubmit` to [parseArguments](SparkSubmit.md#parseArguments).
+
+`SparkSubmitArguments` is a custom `SparkSubmitArgumentsParser` to [handle](#handle) the command-line arguments of [spark-submit](index.md) script that the [actions](index.md#actions) use for execution (possibly with the explicit `env` environment).
 
 `SparkSubmitArguments` is created when [launching spark-submit script](#main) with only `args` passed in and later used for printing the arguments in [verbose mode](#verbose-mode).
+
+## Action
+
+```scala
+action: SparkSubmitAction
+```
+
+`action` is used by [SparkSubmit](SparkSubmit.md) to determine what to do when [executed](SparkSubmit.md#doSubmit).
+
+`action` can be one of the following `SparkSubmitAction`s:
+
+* `SUBMIT` (default)
+* `KILL`
+* `REQUEST_STATUS`
+* `PRINT_VERSION`
+
+`action` is undefined (`null`) by default (when `SparkSubmitAction` is [created](#creating-instance)).
 
 ## Command-Line Options
 
 ### <span id="files"> --files
 
-* Configuration Property: [spark.files](../configuration-properties.md#spark.files)
+* Configuration Property: [spark.files](../../configuration-properties.md#spark.files)
 * Configuration Property (Spark on YARN): `spark.yarn.dist.files`
 
 Printed out to standard output for `--verbose` option
 
 When `SparkSubmit` is requested to [prepareSubmitEnvironment](SparkSubmit.md#prepareSubmitEnvironment), the files are:
 
-* [resolveGlobPaths](DependencyUtils.md#resolveGlobPaths)
-* [downloadFileList](DependencyUtils.md#downloadFileList)
+* [resolveGlobPaths](../DependencyUtils.md#resolveGlobPaths)
+* [downloadFileList](../DependencyUtils.md#downloadFileList)
 * [renameResourcesToLocalFS](SparkSubmit.md#renameResourcesToLocalFS)
 * [downloadResource](SparkSubmit.md#downloadResource)
 
@@ -29,7 +48,7 @@ When `SparkSubmit` is requested to [prepareSubmitEnvironment](SparkSubmit.md#pre
 
 `SparkSubmitArguments` is created when:
 
-* `SparkSubmit` is requested to [parseArguments](SparkSubmit.md#parseArguments) and [launched as a command-line application](SparkSubmit.md#main)
+* `SparkSubmit` is requested to [parseArguments](SparkSubmit.md#parseArguments)
 
 ## <span id="loadEnvironmentArguments"> Loading Spark Properties
 
@@ -37,7 +56,7 @@ When `SparkSubmit` is requested to [prepareSubmitEnvironment](SparkSubmit.md#pre
 loadEnvironmentArguments(): Unit
 ```
 
-`loadEnvironmentArguments` loads the Spark properties for the current execution of [spark-submit](spark-submit/index.md).
+`loadEnvironmentArguments` loads the Spark properties for the current execution of [spark-submit](index.md).
 
 `loadEnvironmentArguments` reads command-line options first followed by Spark properties and System's environment variables.
 
@@ -54,7 +73,7 @@ handle(
 
 `handle` parses the input `opt` argument and returns `true` or throws an `IllegalArgumentException` when it finds an unknown `opt`.
 
-`handle` sets the internal properties in the table [Command-Line Options, Spark Properties and Environment Variables](spark-submit/index.md#options-properties-variables).
+`handle` sets the internal properties in the table [Command-Line Options, Spark Properties and Environment Variables](index.md#options-properties-variables).
 
 ## <span id="mergeDefaultSparkProperties"> mergeDefaultSparkProperties
 
@@ -62,7 +81,7 @@ handle(
 mergeDefaultSparkProperties(): Unit
 ```
 
-`mergeDefaultSparkProperties` merges Spark properties from the [default Spark properties file, i.e. `spark-defaults.conf`](../spark-properties.md#spark-defaults-conf) with those specified through `--conf` command-line option.
+`mergeDefaultSparkProperties` merges Spark properties from the [default Spark properties file, i.e. `spark-defaults.conf`](../../spark-properties.md#spark-defaults-conf) with those specified through `--conf` command-line option.
 
 ## <span id="isPython"> isPython Flag
 

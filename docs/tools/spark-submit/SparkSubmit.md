@@ -1,6 +1,6 @@
 # SparkSubmit
 
-`SparkSubmit` is the [entry point](#main) to [spark-submit](spark-submit/index.md) shell script.
+`SparkSubmit` is the [entry point](#main) to [spark-submit](index.md) shell script.
 
 ## <span id="shells"><span id="SPARK_SHELL"><span id="SPARKR_SHELL"> Special Primary Resource Names
 
@@ -99,9 +99,9 @@ Classpath elements:
 <span id="runMain-mainClass" />
 `runMain` loads the main class (`childMainClass`).
 
-`runMain` creates a [SparkApplication](SparkApplication.md) (if the main class is a subtype of) or creates a [JavaMainApplication](JavaMainApplication.md) (with the main class).
+`runMain` creates a [SparkApplication](../SparkApplication.md) (if the main class is a subtype of) or creates a [JavaMainApplication](../JavaMainApplication.md) (with the main class).
 
-In the end, `runMain` requests the `SparkApplication` to [start](SparkApplication.md#start) (with the `childArgs` and `sparkConf`).
+In the end, `runMain` requests the `SparkApplication` to [start](../SparkApplication.md#start) (with the `childArgs` and `sparkConf`).
 
 ## <span id="clusterManager"> Cluster Managers
 
@@ -115,28 +115,52 @@ Nickname | Master URL
 <span id="STANDALONE"> STANDALONE | `spark`-prefix
 <span id="YARN"> YARN | `yarn`
 
-## <span id="main"> Launching Standalone Application
+## Launching Standalone Application { #main }
 
 ```scala
 main(
   args: Array[String]): Unit
 ```
 
-`main`...FIXME
+`main` creates a `SparkSubmit` to [doSubmit](#doSubmit) (with the given `args`).
 
-## <span id="doSubmit"> doSubmit
+## doSubmit { #doSubmit }
 
 ```scala
 doSubmit(
   args: Array[String]): Unit
 ```
 
-`doSubmit`...FIXME
+`doSubmit` [initializeLogIfNecessary](#initializeLogIfNecessary).
+
+`doSubmit` [parses the arguments](#parseArguments) in the given `args` (that gives a [SparkSubmitArguments](SparkSubmitArguments.md)).
+
+With [verbose](SparkSubmitArguments.md#verbose) option on, `doSubmit` prints out the `appArgs` to standard output.
+
+`doSubmit` branches off based on [action](SparkSubmitArguments.md#action).
+
+Action | Method
+-------|-------
+ `SUBMIT` | [submit](#submit)
+ `KILL` | [kill](#kill)
+ `REQUEST_STATUS` | [requestStatus](#requestStatus)
+ `PRINT_VERSION` | [printVersion](#printVersion)
+
+---
 
 `doSubmit` is used when:
 
 * `InProcessSparkSubmit` standalone application is started
 * `SparkSubmit` standalone application is [started](#main)
+
+### Parsing Arguments { #parseArguments }
+
+```scala
+parseArguments(
+  args: Array[String]): SparkSubmitArguments
+```
+
+`parseArguments` creates a [SparkSubmitArguments](SparkSubmitArguments.md) (with the given `args`).
 
 ### <span id="prepareSubmitEnvironment"> prepareSubmitEnvironment
 
@@ -150,7 +174,7 @@ prepareSubmitEnvironment(
 
 1. `childArgs` for arguments
 1. `childClasspath` for Classpath elements
-1. `sysProps` for [Spark properties](../spark-properties.md)
+1. `sysProps` for [Spark properties](../../spark-properties.md)
 1. [childMainClass](#childMainClass)
 
 !!! tip
@@ -168,7 +192,7 @@ For [isPython](SparkSubmitArguments.md#isPython) in `CLIENT` deploy mode, `prepa
 
 `prepareSubmitEnvironment` determines the cluster manager based on [master](#clusterManager) argument.
 
-For [KUBERNETES](#KUBERNETES), `prepareSubmitEnvironment` [checkAndGetK8sMasterUrl](../Utils.md#checkAndGetK8sMasterUrl).
+For [KUBERNETES](#KUBERNETES), `prepareSubmitEnvironment` [checkAndGetK8sMasterUrl](../../Utils.md#checkAndGetK8sMasterUrl).
 
 `prepareSubmitEnvironment`...FIXME
 
@@ -236,7 +260,7 @@ isInternal(
   res: String): Boolean
 ```
 
-`isInternal` is `true` when the given `res` is [spark-internal](SparkLauncher.md#NO_RESOURCE).
+`isInternal` is `true` when the given `res` is [spark-internal](../SparkLauncher.md#NO_RESOURCE).
 
 `isInternal` is used when:
 

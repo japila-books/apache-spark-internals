@@ -20,7 +20,7 @@ Default: `false`
 Used when:
 
 * `Utils` utility is requested to [isDynamicAllocationEnabled](../Utils.md#isDynamicAllocationEnabled)
-* `SparkSubmitArguments` is requested to [loadEnvironmentArguments](../tools/SparkSubmitArguments.md#loadEnvironmentArguments) (and [validates numExecutors argument](../tools/SparkSubmitArguments.md#validateSubmitArguments))
+* `SparkSubmitArguments` is requested to [loadEnvironmentArguments](../tools/spark-submit/SparkSubmitArguments.md#loadEnvironmentArguments) (and [validates numExecutors argument](../tools/spark-submit/SparkSubmitArguments.md#validateSubmitArguments))
 * `RDD` is requested to [localCheckpoint](../rdd/RDD.md#localCheckpoint)
 * `DAGScheduler` is requested to [checkBarrierStageWithDynamicAllocation](../scheduler/DAGScheduler.md#checkBarrierStageWithDynamicAllocation)
 

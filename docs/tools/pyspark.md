@@ -37,9 +37,9 @@ The idea of `OLD_PYTHONSTARTUP` is to delay execution of the Python startup scri
 ??? note "The Internals of PySpark"
     Learn more about PySpark in [The Internals of PySpark]({{ book.pyspark }}).
 
-`PYSPARK_PYTHON` can be overriden by [PYSPARK_DRIVER_PYTHON](#PYSPARK_DRIVER_PYTHON) and configuration properties when `SparkSubmitCommandBuilder` is requested to [buildPySparkShellCommand](SparkSubmitCommandBuilder.md#buildPySparkShellCommand).
+`PYSPARK_PYTHON` can be overriden by [PYSPARK_DRIVER_PYTHON](#PYSPARK_DRIVER_PYTHON) and configuration properties when `SparkSubmitCommandBuilder` is requested to [buildPySparkShellCommand](spark-submit/SparkSubmitCommandBuilder.md#buildPySparkShellCommand).
 
-`PYSPARK_PYTHON` is overriden by `spark.pyspark.python` configuration property, if defined, when `SparkSubmitCommandBuilder` is requested to [buildPySparkShellCommand](SparkSubmitCommandBuilder.md#buildPySparkShellCommand).
+`PYSPARK_PYTHON` is overriden by `spark.pyspark.python` configuration property, if defined, when `SparkSubmitCommandBuilder` is requested to [buildPySparkShellCommand](spark-submit/SparkSubmitCommandBuilder.md#buildPySparkShellCommand).
 
 ### PYTHONSTARTUP { #PYTHONSTARTUP }
 

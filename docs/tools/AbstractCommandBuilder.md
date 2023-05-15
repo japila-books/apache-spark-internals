@@ -16,7 +16,7 @@ Builds a command to launch a script on command line
 See:
 
 * [SparkClassCommandBuilder](SparkClassCommandBuilder.md#buildCommand)
-* [SparkSubmitCommandBuilder](SparkSubmitCommandBuilder.md#buildCommand)
+* [SparkSubmitCommandBuilder](spark-submit/SparkSubmitCommandBuilder.md#buildCommand)
 
 Used when:
 
@@ -25,7 +25,7 @@ Used when:
 ## Implementations
 
 * [SparkClassCommandBuilder](SparkClassCommandBuilder.md)
-* [SparkSubmitCommandBuilder](SparkSubmitCommandBuilder.md)
+* [SparkSubmitCommandBuilder](spark-submit/SparkSubmitCommandBuilder.md)
 * WorkerCommandBuilder
 
 ## <span id="buildJavaCommand"> buildJavaCommand
@@ -124,17 +124,17 @@ Identifier | appResource
 -----------|------------
  `pyspark-shell-main` | `pyspark-shell-main`
  `sparkr-shell-main` | `sparkr-shell-main`
- `run-example` | [findExamplesAppJar](SparkSubmitCommandBuilder.md#findExamplesAppJar)
- `pyspark-shell` | [buildPySparkShellCommand](SparkSubmitCommandBuilder.md#buildPySparkShellCommand)
- `sparkr-shell` | [buildSparkRCommand](SparkSubmitCommandBuilder.md#buildSparkRCommand)
+ `run-example` | [findExamplesAppJar](spark-submit/SparkSubmitCommandBuilder.md#findExamplesAppJar)
+ `pyspark-shell` | [buildPySparkShellCommand](spark-submit/SparkSubmitCommandBuilder.md#buildPySparkShellCommand)
+ `sparkr-shell` | [buildSparkRCommand](spark-submit/SparkSubmitCommandBuilder.md#buildSparkRCommand)
 
 `appResource` can be specified when:
 
 * `AbstractLauncher` is requested to [setAppResource](AbstractLauncher.md#setAppResource)
-* `SparkSubmitCommandBuilder` is [created](SparkSubmitCommandBuilder.md#creating-instance)
-* `SparkSubmitCommandBuilder.OptionParser` is requested to handle [known](SparkSubmitCommandBuilder.OptionParser.md#handle) or [unknown](SparkSubmitCommandBuilder.OptionParser.md#handleUnknown) options
+* `SparkSubmitCommandBuilder` is [created](spark-submit/SparkSubmitCommandBuilder.md#creating-instance)
+* `SparkSubmitCommandBuilder.OptionParser` is requested to handle [known](spark-submit/SparkSubmitCommandBuilder.OptionParser.md#handle) or [unknown](spark-submit/SparkSubmitCommandBuilder.OptionParser.md#handleUnknown) options
 
 `appResource` is used when:
 
 * `SparkLauncher` is requested to [startApplication](SparkLauncher.md#startApplication)
-* `SparkSubmitCommandBuilder` is requested to [build a command](SparkSubmitCommandBuilder.md#buildCommand), [buildSparkSubmitArgs](SparkSubmitCommandBuilder.md#buildSparkSubmitArgs)
+* `SparkSubmitCommandBuilder` is requested to [build a command](spark-submit/SparkSubmitCommandBuilder.md#buildCommand), [buildSparkSubmitArgs](spark-submit/SparkSubmitCommandBuilder.md#buildSparkSubmitArgs)

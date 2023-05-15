@@ -12,7 +12,7 @@ resolveGlobPaths(
 
 `resolveGlobPaths` is used when:
 
-* `SparkSubmit` is requested to [prepareSubmitEnvironment](SparkSubmit.md#prepareSubmitEnvironment)
+* `SparkSubmit` is requested to [prepareSubmitEnvironment](spark-submit/SparkSubmit.md#prepareSubmitEnvironment)
 * `DependencyUtils` is used to [resolveAndDownloadJars](#resolveAndDownloadJars)
 
 ## <span id="downloadFile"> downloadFile
@@ -33,7 +33,7 @@ downloadFile(
 
 `downloadFile` is used when:
 
-* `SparkSubmit` is requested to [prepareSubmitEnvironment](SparkSubmit.md#prepareSubmitEnvironment)
+* `SparkSubmit` is requested to [prepareSubmitEnvironment](spark-submit/SparkSubmit.md#prepareSubmitEnvironment)
 * `DependencyUtils` is used to [downloadFileList](#downloadFileList)
 
 ## <span id="downloadFileList"> downloadFileList
@@ -51,7 +51,7 @@ downloadFileList(
 
 `downloadFileList` is used when:
 
-* `SparkSubmit` is requested to [prepareSubmitEnvironment](SparkSubmit.md#prepareSubmitEnvironment)
+* `SparkSubmit` is requested to [prepareSubmitEnvironment](spark-submit/SparkSubmit.md#prepareSubmitEnvironment)
 * `DependencyUtils` is used to [resolveAndDownloadJars](#resolveAndDownloadJars)
 
 ## <span id="resolveMavenDependencies"> resolveMavenDependencies
@@ -69,7 +69,7 @@ resolveMavenDependencies(
 
 `resolveMavenDependencies` is used when:
 
-* `SparkSubmit` is requested to [prepareSubmitEnvironment](SparkSubmit.md#prepareSubmitEnvironment) (for all resource managers but Spark Standalone and Apache Mesos)
+* `SparkSubmit` is requested to [prepareSubmitEnvironment](spark-submit/SparkSubmit.md#prepareSubmitEnvironment) (for all resource managers but Spark Standalone and Apache Mesos)
 
 ## <span id="addJarToClasspath"> Adding Local Jars to ClassLoader
 

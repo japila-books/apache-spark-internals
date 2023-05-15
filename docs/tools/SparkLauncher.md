@@ -2,7 +2,7 @@
 
 `SparkLauncher` is an interface to launch Spark applications programmatically, i.e. from a code (not spark-submit/index.md[spark-submit] directly). It uses a builder pattern to configure a Spark application and launch it as a child process using spark-submit/index.md[spark-submit].
 
-`SparkLauncher` uses [SparkSubmitCommandBuilder](SparkSubmitCommandBuilder.md) to build the Spark command of a Spark application to launch.
+`SparkLauncher` uses [SparkSubmitCommandBuilder](spark-submit/SparkSubmitCommandBuilder.md) to build the Spark command of a Spark application to launch.
 
 ## <span id="NO_RESOURCE"> spark-internal
 
@@ -10,10 +10,10 @@
 
 `spark-internal` special value is used when:
 
-* `SparkSubmit` is requested to [prepareSubmitEnvironment](SparkSubmit.md#prepareSubmitEnvironment) and checks whether to add the [primaryResource](SparkSubmitArguments.md#primaryResource) as part of the following:
+* `SparkSubmit` is requested to [prepareSubmitEnvironment](spark-submit/SparkSubmit.md#prepareSubmitEnvironment) and checks whether to add the [primaryResource](spark-submit/SparkSubmitArguments.md#primaryResource) as part of the following:
   * `--jar` (for Spark on YARN in `cluster` deploy mode)
   * `--primary-*` arguments and define the `--main-class` argument (for [Spark on Kubernetes]({{ book.spark_k8s }}) in `cluster` deploy mode with `KubernetesClientApplication` main class)
-* `SparkSubmit` is requested to [check whether a resource is internal or not](SparkSubmit.md#isInternal)
+* `SparkSubmit` is requested to [check whether a resource is internal or not](spark-submit/SparkSubmit.md#isInternal)
 
 ## Other
 
