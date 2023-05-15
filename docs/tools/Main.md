@@ -1,6 +1,6 @@
 # Main
 
-`Main` is the [standalone application](#main) of [spark-class](spark-class.md) shell script.
+`Main` is the [standalone application](#main) that is launched from [spark-class](spark-class.md) shell script.
 
 ## Launching Application { #main }
 
