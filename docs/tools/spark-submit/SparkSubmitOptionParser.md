@@ -2,6 +2,33 @@
 
 `SparkSubmitOptionParser` is the parser of [spark-submit](index.md)'s command-line options.
 
+## Parsing Arguments { #parse }
+
+```java
+void parse(
+  List<String> args)
+```
+
+`parse`...FIXME
+
+---
+
+`parse` is used when:
+
+* `AbstractLauncher` is requested to [addSparkArg](../AbstractLauncher.md#addSparkArg)
+* `Main` is [launched](../Main.md#main)
+* `SparkSubmitCommandBuilder` is [created](SparkSubmitCommandBuilder.md#creating-instance) and requested to [buildSparkSubmitArgs](SparkSubmitCommandBuilder.md#buildSparkSubmitArgs)
+
+### Option Handling { #handle }
+
+```java
+boolean handle(
+  String opt,
+  String value)
+```
+
+`handle` throws an `UnsupportedOperationException` (and expects subclasses to override the default behaviour, e.g. [SparkSubmitArguments](SparkSubmitArguments.md#handle)).
+
 ## <span id="FILES"> --files
 
 A comma-separated sequence of paths

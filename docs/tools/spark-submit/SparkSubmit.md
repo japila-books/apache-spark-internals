@@ -60,7 +60,7 @@ requestStatus(
 
 `requestStatus`...FIXME
 
-### <span id="submit"><span id="SUBMIT"> Submission
+### <span id="SUBMIT"> Application Submission { #submit }
 
 ```scala
 submit(
@@ -68,9 +68,21 @@ submit(
   uninitLog: Boolean): Unit
 ```
 
-`submit`...FIXME
+`submit` [doRunMain](#doRunMain) unless [isStandaloneCluster](SparkSubmitArguments.md#isStandaloneCluster) and [useRest](SparkSubmitArguments.md#useRest).
 
-#### <span id="runMain"> Running Main Class
+For [isStandaloneCluster](SparkSubmitArguments.md#isStandaloneCluster) with [useRest](SparkSubmitArguments.md#useRest) requested, `submit`...FIXME
+
+#### doRunMain { #doRunMain }
+
+```scala
+doRunMain(): Unit
+```
+
+`doRunMain` [runMain](#runMain) unless [proxyUser](SparkSubmitArguments.md#proxyUser) is specified.
+
+With [proxyUser](SparkSubmitArguments.md#proxyUser) specified, `doRunMain`...FIXME
+
+#### Running Main Class { #runMain }
 
 ```scala
 runMain(
@@ -78,7 +90,7 @@ runMain(
   uninitLog: Boolean): Unit
 ```
 
-`runMain` [prepareSubmitEnvironment](#prepareSubmitEnvironment) with the given [SparkSubmitArguments](SparkSubmitArguments.md) (that gives a 4-element tuple of `childArgs`, `childClasspath`, `sparkConf` and [childMainClass](#childMainClass)).
+`runMain` [prepares submit environment](#prepareSubmitEnvironment) for the given [SparkSubmitArguments](SparkSubmitArguments.md) (that gives `childArgs`, `childClasspath`, `sparkConf` and [childMainClass](#childMainClass)).
 
 With [verbose](SparkSubmitArguments.md#verbose) enabled, `runMain` prints out the following INFO messages to the logs:
 
@@ -93,10 +105,10 @@ Classpath elements:
 [childClasspath]
 ```
 
-<span id="runMain-getSubmitClassLoader" />
+<span id="runMain-getSubmitClassLoader">
 `runMain` creates and sets a context classloader (based on `spark.driver.userClassPathFirst` configuration property) and adds the jars (from `childClasspath`).
 
-<span id="runMain-mainClass" />
+<span id="runMain-mainClass">
 `runMain` loads the main class (`childMainClass`).
 
 `runMain` creates a [SparkApplication](../SparkApplication.md) (if the main class is a subtype of) or creates a [JavaMainApplication](../JavaMainApplication.md) (with the main class).
@@ -139,8 +151,8 @@ With [verbose](SparkSubmitArguments.md#verbose) option on, `doSubmit` prints out
 
 `doSubmit` branches off based on [action](SparkSubmitArguments.md#action).
 
-Action | Method
--------|-------
+Action | Handler
+-------|--------
  `SUBMIT` | [submit](#submit)
  `KILL` | [kill](#kill)
  `REQUEST_STATUS` | [requestStatus](#requestStatus)
@@ -162,7 +174,7 @@ parseArguments(
 
 `parseArguments` creates a [SparkSubmitArguments](SparkSubmitArguments.md) (with the given `args`).
 
-### <span id="prepareSubmitEnvironment"> prepareSubmitEnvironment
+### prepareSubmitEnvironment { #prepareSubmitEnvironment }
 
 ```scala
 prepareSubmitEnvironment(
@@ -198,7 +210,7 @@ For [KUBERNETES](#KUBERNETES), `prepareSubmitEnvironment` [checkAndGetK8sMasterU
 
 `prepareSubmitEnvironment` is used when...FIXME
 
-### <span id="childMainClass"> childMainClass
+### childMainClass { #childMainClass }
 
 `childMainClass` is the last 4th argument in the result tuple of [prepareSubmitEnvironment](#prepareSubmitEnvironment).
 
@@ -207,12 +219,12 @@ For [KUBERNETES](#KUBERNETES), `prepareSubmitEnvironment` [checkAndGetK8sMasterU
 (Seq[String], Seq[String], SparkConf, String)
 ```
 
-`childMainClass` can be as follows:
+`childMainClass` can be as follows (based on the [deployMode](SparkSubmitArguments.md#deployMode)):
 
 Deploy Mode | Master URL | childMainClass
 ---------|----------|---------
  `client` | any | [mainClass](SparkSubmitArguments.md#mainClass)
-<span id="isKubernetesCluster"> `cluster` | [KUBERNETES](#KUBERNETES) | <span id="KUBERNETES_CLUSTER_SUBMIT_CLASS"><span id="KubernetesClientApplication"> `KubernetesClientApplication`
+ `cluster` | [KUBERNETES](#KUBERNETES) | <span id="KUBERNETES_CLUSTER_SUBMIT_CLASS"><span id="KubernetesClientApplication"> `KubernetesClientApplication`
  `cluster` | [MESOS](#MESOS) | [RestSubmissionClientApp](#REST_CLUSTER_SUBMIT_CLASS) (for [REST submission API](SparkSubmitArguments.md#useRest))
  `cluster` | [STANDALONE](#STANDALONE) | <span id="REST_CLUSTER_SUBMIT_CLASS"> `RestSubmissionClientApp` (for [REST submission API](SparkSubmitArguments.md#useRest))
  `cluster` | [STANDALONE](#STANDALONE) | <span id="STANDALONE_CLUSTER_SUBMIT_CLASS"> `ClientApp`
@@ -285,19 +297,21 @@ isUserJar(
 
 * FIXME
 
-## <span id="isPython"> isPython Utility
+## isPython { #isPython }
 
 ```scala
 isPython(
   res: String): Boolean
 ```
 
-`isPython` is `true` when the given `res` primary resource represents a PySpark application:
+`isPython` is positive (`true`) when the given `res` primary resource represents a PySpark application:
 
 * `.py` script
 * [pyspark-shell](#PYSPARK_SHELL)
 
+---
+
 `isPython` is used when:
 
 * `SparkSubmit` is requested to [isUserJar](#isUserJar)
-* `SparkSubmitArguments` is requested to [handleUnknown](SparkSubmitArguments.md#handleUnknown) (and set `isPython` internal flag)
+* `SparkSubmitArguments` is requested to [handle an unknown option](SparkSubmitArguments.md#handleUnknown)

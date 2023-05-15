@@ -6,6 +6,17 @@
 
 `SparkSubmitArguments` is created when [launching spark-submit script](#main) with only `args` passed in and later used for printing the arguments in [verbose mode](#verbose-mode).
 
+## Creating Instance
+
+`SparkSubmitArguments` takes the following to be created:
+
+* <span id="args"> Arguments (`Seq[String]`)
+* <span id="env"> Environment Variables (default: `sys.env`)
+
+`SparkSubmitArguments` is created when:
+
+* `SparkSubmit` is requested to [parseArguments](SparkSubmit.md#parseArguments)
+
 ## Action
 
 ```scala
@@ -16,12 +27,16 @@ action: SparkSubmitAction
 
 `action` can be one of the following `SparkSubmitAction`s:
 
-* `SUBMIT` (default)
-* `KILL`
-* `REQUEST_STATUS`
-* `PRINT_VERSION`
+Action | Description
+-------|------------
+ `SUBMIT` | The default action if none specified
+ `KILL` | Indicates [--kill](SparkSubmitOptionParser.md#KILL_SUBMISSION) switch
+ `REQUEST_STATUS` | Indicates [--status](SparkSubmitOptionParser.md#STATUS) switch
+ `PRINT_VERSION` | Indicates [--version](SparkSubmitOptionParser.md#VERSION) switch
 
 `action` is undefined (`null`) by default (when `SparkSubmitAction` is [created](#creating-instance)).
+
+`action` is validated when [validateArguments](#validateArguments).
 
 ## Command-Line Options
 
@@ -39,17 +54,6 @@ When `SparkSubmit` is requested to [prepareSubmitEnvironment](SparkSubmit.md#pre
 * [renameResourcesToLocalFS](SparkSubmit.md#renameResourcesToLocalFS)
 * [downloadResource](SparkSubmit.md#downloadResource)
 
-## Creating Instance
-
-`SparkSubmitArguments` takes the following to be created:
-
-* <span id="args"> Arguments (`Seq[String]`)
-* <span id="env"> Environment Variables (default: `sys.env`)
-
-`SparkSubmitArguments` is created when:
-
-* `SparkSubmit` is requested to [parseArguments](SparkSubmit.md#parseArguments)
-
 ## <span id="loadEnvironmentArguments"> Loading Spark Properties
 
 ```scala
@@ -63,17 +67,29 @@ loadEnvironmentArguments(): Unit
 !!! note
     Spark config properties start with `spark.` prefix and can be set using `--conf [key=value]` command-line option.
 
-## <span id="handle"> Handling Options
+## Option Handling { #handle }
 
-```scala
-handle(
-  opt: String,
-  value: String): Boolean
-```
+??? note "SparkSubmitOptionParser"
 
-`handle` parses the input `opt` argument and returns `true` or throws an `IllegalArgumentException` when it finds an unknown `opt`.
+    ```scala
+    handle(
+      opt: String,
+      value: String): Boolean
+    ```
 
-`handle` sets the internal properties in the table [Command-Line Options, Spark Properties and Environment Variables](index.md#options-properties-variables).
+    `handle` is part of the [SparkSubmitOptionParser](SparkSubmitOptionParser.md#handle) abstraction.
+
+`handle` parses the input `opt` argument and assigns the given `value` to corresponding properties.
+
+In the end, `handle` returns whether it was executed for any [action](#action) but [PRINT_VERSION](#action).
+
+ User Option (`opt`) | Property
+----|---------
+ `--kill` | [action](#action)
+ `--name` | [name](#name)
+ `--status` | [action](#action)
+ `--version` | [action](#action)
+ ... | ...
 
 ## <span id="mergeDefaultSparkProperties"> mergeDefaultSparkProperties
 
@@ -83,10 +99,21 @@ mergeDefaultSparkProperties(): Unit
 
 `mergeDefaultSparkProperties` merges Spark properties from the [default Spark properties file, i.e. `spark-defaults.conf`](../../spark-properties.md#spark-defaults-conf) with those specified through `--conf` command-line option.
 
-## <span id="isPython"> isPython Flag
+## isPython { #isPython }
 
 ```scala
 isPython: Boolean = false
 ```
 
-`isPython` indicates whether the application resource is a [PySpark application](SparkSubmit.md#isPython) (a Python script or `pyspark` shell).
+`isPython` indicates whether the application resource is a [PySpark application](SparkSubmit.md#isPython) (a Python script or [pyspark](../pyspark.md) shell).
+
+`isPython` is [isPython](SparkSubmit.md#isPython) when `SparkSubmitArguments` is requested to [handle a unknown option](#handleUnknown).
+
+### Client Deploy Mode
+
+With [isPython](#isPython) flag enabled, [SparkSubmit](SparkSubmit.md#prepareSubmitEnvironment) determines the [mainClass](#mainClass) (and the [childArgs](#childArgs)) based on the [primaryResource](#primaryResource).
+
+primaryResource | mainClass
+----------------|----------
+ `pyspark-shell` | `org.apache.spark.api.python.PythonGatewayServer` ([PySpark]({{ book.pyspark }}/PythonGatewayServer/))
+ _anything else_ | `org.apache.spark.deploy.PythonRunner` ([PySpark]({{ book.pyspark }}/PythonRunner/))
