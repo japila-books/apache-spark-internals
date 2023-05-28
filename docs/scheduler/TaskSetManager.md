@@ -46,6 +46,48 @@ Master URL | Number of Task Failures
  `local-cluster` | [spark.task.maxFailures](../configuration-properties.md#spark.task.maxFailures)
  Cluster Manager | [spark.task.maxFailures](../configuration-properties.md#spark.task.maxFailures)
 
+## isBarrier { #isBarrier }
+
+```scala
+isBarrier: Boolean
+```
+
+`isBarrier` is enabled (`true`) when this `TaskSetManager` is created for a [TaskSet](#taskSet) with [barrier tasks](Task.md#isBarrier).
+
+---
+
+`isBarrier` is used when:
+
+* `TaskSchedulerImpl` is requested to [resourceOfferSingleTaskSet](TaskSchedulerImpl.md#resourceOfferSingleTaskSet), [resourceOffers](TaskSchedulerImpl.md#resourceOffers)
+* `TaskSetManager` is requested to [resourceOffer](#resourceOffer), [checkSpeculatableTasks](#checkSpeculatableTasks), [getLocalityWait](#getLocalityWait)
+
+## resourceOffer { #resourceOffer }
+
+```scala
+resourceOffer(
+  execId: String,
+  host: String,
+  maxLocality: TaskLocality.TaskLocality,
+  taskCpus: Int = sched.CPUS_PER_TASK,
+  taskResourceAssignments: Map[String, ResourceInformation] = Map.empty): (Option[TaskDescription], Boolean, Int)
+```
+
+`resourceOffer` [determines allowed locality level](#getAllowedLocalityLevel) for the given `TaskLocality` being anything but `NO_PREF`.
+
+`resourceOffer` [dequeueTask](#dequeueTask) for the given `execId` and `host`, and the allowed locality level. This may or may not give a [TaskDescription](TaskDescription.md).
+
+In the end, `resourceOffer` returns the `TaskDescription`, `hasScheduleDelayReject`, and the index of the dequeued task (if any).
+
+---
+
+`resourceOffer` returns a `(None, false, -1)` tuple when this `TaskSetManager` is [isZombie](#isZombie) or the offer (by the given `host` or `execId`) should be ignored (_excluded_).
+
+---
+
+`resourceOffer` is used when:
+
+* `TaskSchedulerImpl` is requested to [resourceOfferSingleTaskSet](TaskSchedulerImpl.md#resourceOfferSingleTaskSet)
+
 ## <span id="getLocalityWait"> Locality Wait
 
 ```scala
@@ -214,6 +256,7 @@ log4j.logger.org.apache.spark.scheduler.TaskSetManager=ALL
 
 Refer to [Logging](../spark-logging.md)
 
+<!---
 ## Review Me
 
 `TaskSetManager` is <<creating-instance, created>> exclusively when `TaskSchedulerImpl` is requested to TaskSchedulerImpl.md#createTaskSetManager[create one] (when submitting tasks for a given `TaskSet`).
@@ -1028,3 +1071,4 @@ In the end, `canFetchMoreResults` <<abort, aborts>> the <<taskSet, TaskSet>> and
 Otherwise, `canFetchMoreResults` returns `true`.
 
 `canFetchMoreResults` is used when `TaskResultGetter` is requested to [enqueue a successful task](TaskResultGetter.md#enqueueSuccessfulTask).
+-->

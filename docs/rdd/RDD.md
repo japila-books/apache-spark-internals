@@ -52,6 +52,42 @@ Used when:
 ??? note "Abstract Class"
     `RDD` is an abstract class and cannot be created directly. It is created indirectly for the [concrete RDDs](#implementations).
 
+## Barrier RDD
+
+**Barrier RDD** is a `RDD` with the [isBarrier](#isBarrier) flag enabled.
+
+[ShuffledRDD](ShuffledRDD.md) can never be a barrier RDD as it overrides [isBarrier](ShuffledRDD.md#isBarrier) method to be always disabled (`false`).
+
+### isBarrier { #isBarrier }
+
+```scala
+isBarrier(): Boolean
+```
+
+`isBarrier` is the value of [isBarrier_](#isBarrier_).
+
+---
+
+`isBarrier` is used when:
+
+* `DAGScheduler` is requested to [submitMissingTasks](../scheduler/DAGScheduler.md#submitMissingTasks) (that are either [ShuffleMapStage](../scheduler/ShuffleMapStage.md)s to create [ShuffleMapTask](../scheduler/ShuffleMapTask.md#isBarrier)s or [ResultStage](../scheduler/ResultStage.md) to create [ResultTask](../scheduler/ResultTask.md#isBarrier)s)
+* `RDDInfo` is [created](../storage/RDDInfo.md#isBarrier)
+* `ShuffleDependency` is requested to [canShuffleMergeBeEnabled](ShuffleDependency.md#canShuffleMergeBeEnabled)
+* `DAGScheduler` is requested to [checkBarrierStageWithRDDChainPattern](../scheduler/DAGScheduler.md#checkBarrierStageWithRDDChainPattern), [checkBarrierStageWithDynamicAllocation](../scheduler/DAGScheduler.md#checkBarrierStageWithDynamicAllocation), [checkBarrierStageWithNumSlots](../scheduler/DAGScheduler.md#checkBarrierStageWithNumSlots), [handleTaskCompletion](../scheduler/DAGScheduler.md#handleTaskCompletion) (`FetchFailed` case to mark a map stage as broken)
+
+### isBarrier_ { #isBarrier_ }
+
+```scala
+isBarrier_ : Boolean // (1)!
+```
+
+1. `@transient protected lazy val`
+
+`isBarrier_` is enabled (`true`) when there is at least one [barrier RDD](#isBarrier) among the [parent RDDs](Dependency.md#rdd) (excluding [ShuffleDependency](ShuffleDependency.md)ies).
+
+!!! note
+    `isBarrier_` is overriden by `PythonRDD` and [MapPartitionsRDD](MapPartitionsRDD.md#isBarrier_) that both accept `isFromBarrier` flag.
+
 ## Stage-Level Scheduling
 
 ### <span id="withResources"> withResources
@@ -367,18 +403,6 @@ id: Int
 id is an *unique identifier* (aka *RDD ID*) in the given <<_sc, SparkContext>>.
 
 id requests the <<sc, SparkContext>> for SparkContext.md#newRddId[newRddId] right when RDD is created.
-
-== [[isBarrier_]][[isBarrier]] Barrier Stage
-
-An RDD can be part of a spark-barrier-execution-mode.md#barrier-stage[barrier stage]. By default, `isBarrier` flag is enabled (`true`) when:
-
-. There are no [ShuffleDependencies](ShuffleDependency.md) among the <<dependencies, RDD dependencies>>
-
-. There is at least one [parent RDD](Dependency.md#rdd) that has the flag enabled
-
-ShuffledRDD.md[ShuffledRDD] has the flag always disabled.
-
-MapPartitionsRDD.md[MapPartitionsRDD] is the only one RDD that can have the flag enabled.
 
 == [[getOrCompute]] Getting Or Computing RDD Partition
 

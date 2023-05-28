@@ -34,7 +34,7 @@ Used when `Task` is requested to [run](#run)
 * <span id="jobId"> [ActiveJob](ActiveJob.md) ID (default: `None`)
 * <span id="appId"> Application ID (default: `None`)
 * <span id="appAttemptId"> Application Attempt ID (default: `None`)
-* <span id="isBarrier"> `isBarrier` flag (default: `false`)
+* [isBarrier](#isBarrier) flag
 
 `Task` is created when:
 
@@ -42,6 +42,18 @@ Used when `Task` is requested to [run](#run)
 
 ??? note "Abstract Class"
     `Task` is an abstract class and cannot be created directly. It is created indirectly for the [concrete Tasks](#implementations).
+
+### isBarrier Flag { #isBarrier }
+
+`Task` can be given `isBarrier` flag when [created](#creating-instance). Unless given, `isBarrier` is assumed disabled (`false`).
+
+`isBarrier` flag indicates whether this `Task` belongs to a [Barrier Stage](../barrier-execution-mode/index.md#barrier-stage) in [Barrier Execution Mode](../barrier-execution-mode/index.md).
+
+`isBarrier` flag is used when:
+
+* `DAGScheduler` is requested to [handleTaskCompletion](DAGScheduler.md#handleTaskCompletion) (of a `FetchFailed` task) to fail the parent stage (and retry a barrier stage when one of the barrier tasks fails)
+* `Task` is requested to [run](#run) (to create a [BarrierTaskContext](../barrier-execution-mode/BarrierTaskContext.md))
+* `TaskSetManager` is requested to [isBarrier](TaskSetManager.md#isBarrier) and [handleFailedTask](TaskSetManager.md#handleFailedTask)
 
 ## <span id="taskMemoryManager"><span id="setTaskMemoryManager"> TaskMemoryManager
 

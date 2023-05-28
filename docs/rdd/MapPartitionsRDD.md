@@ -1,39 +1,46 @@
 # MapPartitionsRDD
 
-`MapPartitionsRDD` is an [RDD](RDD.md) that has exactly [one-to-one narrow dependency](NarrowDependency.md#OneToOneDependency) on the <<prev, parent RDD>> and "describes" a distributed computation of the given <<f, function>> to every RDD partition.
+`MapPartitionsRDD[U, T]` is a [RDD](RDD.md) that transforms (_maps_) input `T` records into `U`s using [partition function](#f).
 
-`MapPartitionsRDD` is <<creating-instance, created>> when:
+`MapPartitionsRDD` is a [RDD](RDD.md) that has exactly [one-to-one narrow dependency](NarrowDependency.md#OneToOneDependency) on the [parent RDD](#prev).
 
-* `PairRDDFunctions` (`RDD[(K, V)]`) is requested to rdd:PairRDDFunctions.md#mapValues[mapValues] and rdd:PairRDDFunctions.md#flatMapValues[flatMapValues] (with the <<preservesPartitioning, preservesPartitioning>> flag enabled)
-
-* `RDD[T]` is requested to <<spark-rdd-transformations.md#map, map>>, <<spark-rdd-transformations.md#flatMap, flatMap>>, <<spark-rdd-transformations.md#filter, filter>>, <<spark-rdd-transformations.md#glom, glom>>, <<spark-rdd-transformations.md#mapPartitions, mapPartitions>>, <<spark-rdd-transformations.md#mapPartitionsWithIndexInternal, mapPartitionsWithIndexInternal>>, <<spark-rdd-transformations.md#mapPartitionsInternal, mapPartitionsInternal>>, and <<spark-rdd-transformations.md#mapPartitionsWithIndex, mapPartitionsWithIndex>>
-
-* `RDDBarrier[T]` is requested to <<spark-RDDBarrier.md#mapPartitions, mapPartitions>> (with the <<isFromBarrier, isFromBarrier>> flag enabled)
-
-By default, it does not preserve partitioning -- the last input parameter `preservesPartitioning` is `false`. If it is `true`, it retains the original RDD's partitioning.
-
-`MapPartitionsRDD` is the result of the following transformations:
-
-* `filter`
-* `glom`
-* spark-rdd-transformations.md#mapPartitions[mapPartitions]
-* `mapPartitionsWithIndex`
-* rdd:PairRDDFunctions.md#mapValues[PairRDDFunctions.mapValues]
-* rdd:PairRDDFunctions.md#flatMapValues[PairRDDFunctions.flatMapValues]
-
-[[isBarrier_]]
-When requested for the rdd:RDD.md#isBarrier_[isBarrier_] flag, `MapPartitionsRDD` gives the <<isFromBarrier, isFromBarrier>> flag or check whether any of the RDDs of the rdd:RDD.md#dependencies[RDD dependencies] are rdd:RDD.md#isBarrier[barrier-enabled].
-
-=== [[creating-instance]] Creating MapPartitionsRDD Instance
+## Creating Instance
 
 `MapPartitionsRDD` takes the following to be created:
 
-* [[prev]] Parent rdd:RDD.md[RDD] (`RDD[T]`)
-* [[f]] Function to execute on partitions
-+
-```
-(TaskContext, partitionID, Iterator[T]) => Iterator[U]
-```
-* [[preservesPartitioning]] `preservesPartitioning` flag (default: `false`)
-* [[isFromBarrier]] `isFromBarrier` flag for <<spark-barrier-execution-mode.md#, Barrier Execution Mode>> (default: `false`)
-* [[isOrderSensitive]] `isOrderSensitive` flag (default: `false`)
+* <span id="prev"> Parent [RDD](RDD.md) (`RDD[T]`)
+* <span id="f"> Partition Function
+* <span id="preservesPartitioning"> `preservesPartitioning` flag
+* [isFromBarrier Flag](#isFromBarrier)
+* <span id="isOrderSensitive"> `isOrderSensitive` flag
+
+`MapPartitionsRDD` is created when:
+
+* `PairRDDFunctions` is requested to [mapValues](PairRDDFunctions.md#mapValues) and [flatMapValues](PairRDDFunctions.md#flatMapValues)
+* `RDD` is requested to [map](RDD.md#map), [flatMap](RDD.md#flatMap), [filter](RDD.md#filter), [glom](RDD.md#glom), [mapPartitions](RDD.md#mapPartitions), [mapPartitionsWithIndexInternal](RDD.md#mapPartitionsWithIndexInternal), [mapPartitionsInternal](RDD.md#mapPartitionsInternal), [mapPartitionsWithIndex](RDD.md#mapPartitionsWithIndex)
+* `RDDBarrier` is requested to [mapPartitions](../barrier-execution-mode/RDDBarrier.md#mapPartitions), [mapPartitionsWithIndex](../barrier-execution-mode/RDDBarrier.md#mapPartitionsWithIndex)
+
+## Barrier RDD
+
+`MapPartitionsRDD` can be a [barrier RDD](RDD.md#isBarrier) in [Barrier Execution Mode](../barrier-execution-mode/index.md).
+
+### isFromBarrier Flag { #isFromBarrier }
+
+`MapPartitionsRDD` can be given `isFromBarrier` flag when [created](#creating-instance).
+
+`isFromBarrier` flag is assumed disabled (`false`) and can only be enabled (`true`) using [RDDBarrier](../barrier-execution-mode/RDDBarrier.md) transformations:
+
+* [RDDBarrier.mapPartitions](../barrier-execution-mode/RDDBarrier.md#mapPartitions)
+* [RDDBarrier.mapPartitionsWithIndex](../barrier-execution-mode/RDDBarrier.md#mapPartitionsWithIndex)
+
+### isBarrier_ { #isBarrier_ }
+
+??? note "RDD"
+
+    ```scala
+    isBarrier_ : Boolean
+    ```
+
+    `isBarrier_` is part of the [RDD](RDD.md#isBarrier_) abstraction.
+
+`isBarrier_` is enabled (`true`) when either this `MapPartitionsRDD` is [isFromBarrier](#isFromBarrier) or any of the [parent RDDs](Dependency.md#rdd) is [isBarrier](RDD.md#isBarrier). Otherwise, `isBarrier_` is disabled (`false`).

@@ -41,7 +41,7 @@ In the end, `TaskSchedulerImpl` creates a [TaskResultGetter](TaskResultGetter.md
 * `SparkContext` is requested for a [TaskScheduler](../SparkContext.md#createTaskScheduler) (for `local` and `spark` master URLs)
 * `KubernetesClusterManager` and `MesosClusterManager` are requested for a `TaskScheduler`
 
-## <span id="maxTaskFailures"> Maximum Number of Task Failures
+## Maximum Number of Task Failures { #maxTaskFailures }
 
 `TaskSchedulerImpl` can be given the maximum number of task failures when [created](#creating-instance) or default to [spark.task.maxFailures](../configuration-properties.md#spark.task.maxFailures) configuration property.
 
@@ -51,7 +51,7 @@ The number of task failures is used when [submitting tasks](#submitTasks) (to [c
 
 `TaskSchedulerImpl` uses [spark.task.cpus](../configuration-properties.md#spark.task.cpus) configuration property for...FIXME
 
-## <span id="backend"> SchedulerBackend
+## SchedulerBackend { #backend }
 
 ```scala
 backend: SchedulerBackend
@@ -81,19 +81,6 @@ applicationId(): String
 `applicationId` is part of the [TaskScheduler](TaskScheduler.md#applicationId) abstraction.
 
 `applicationId` simply request the [SchedulerBackend](#backend) for the [applicationId](SchedulerBackend.md#applicationId).
-
-## <span id="executorHeartbeatReceived"> executorHeartbeatReceived
-
-```scala
-executorHeartbeatReceived(
-  execId: String,
-  accumUpdates: Array[(Long, Seq[AccumulatorV2[_, _]])],
-  blockManagerId: BlockManagerId): Boolean
-```
-
-`executorHeartbeatReceived` is part of the [TaskScheduler](TaskScheduler.md#executorHeartbeatReceived) abstraction.
-
-`executorHeartbeatReceived` is...FIXME
 
 ## <span id="cancelTasks"> Cancelling All Tasks of Stage
 
@@ -139,22 +126,6 @@ handleTaskGettingResult(
 `handleTaskGettingResult` is used when:
 
 * `TaskResultGetter` is requested to [enqueueSuccessfulTask](TaskResultGetter.md#enqueueSuccessfulTask)
-
-## <span id="getRackForHost"> Tracking Racks per Hosts and Ports
-
-```scala
-getRackForHost(value: String): Option[String]
-```
-
-`getRackForHost` is a method to know about the racks per hosts and ports. By default, it assumes that racks are unknown (i.e. the method returns `None`).
-
-`getRackForHost` is currently used in two places:
-
-* <<resourceOffers, TaskSchedulerImpl.resourceOffers>> to track hosts per rack (using the <<internal-registries, internal `hostsByRack` registry>>) while processing resource offers.
-
-* <<removeExecutor, TaskSchedulerImpl.removeExecutor>> to...FIXME
-
-* scheduler:TaskSetManager.md#addPendingTask[TaskSetManager.addPendingTask], scheduler:TaskSetManager.md#[TaskSetManager.dequeueTask], and scheduler:TaskSetManager.md#dequeueSpeculativeTask[TaskSetManager.dequeueSpeculativeTask]
 
 ## <span id="initialize"> Initializing
 
@@ -376,7 +347,7 @@ Initial job has not accepted any resources; check your cluster UI to ensure that
 
 Otherwise, when the `hasLaunchedTask` flag is `true` the timer thread cancels itself.
 
-### <span id="createTaskSetManager"> Creating TaskSetManager
+### Creating TaskSetManager { #createTaskSetManager }
 
 ```scala
 createTaskSetManager(
@@ -515,7 +486,7 @@ maybeInitBarrierCoordinator(): Unit
 
 `maybeInitBarrierCoordinator`...FIXME
 
-## <span id="resourceOfferSingleTaskSet"> Finding Tasks from TaskSetManager to Schedule on Executors
+## Finding Tasks from TaskSetManager to Schedule on Executors { #resourceOfferSingleTaskSet }
 
 ```scala
 resourceOfferSingleTaskSet(
@@ -523,7 +494,8 @@ resourceOfferSingleTaskSet(
   maxLocality: TaskLocality,
   shuffledOffers: Seq[WorkerOffer],
   availableCpus: Array[Int],
-  tasks: Seq[ArrayBuffer[TaskDescription]]): Boolean
+  availableResources: Array[Map[String, Buffer[String]]],
+  tasks: IndexedSeq[ArrayBuffer[TaskDescription]]): (Boolean, Option[TaskLocality])
 ```
 
 `resourceOfferSingleTaskSet` takes every `WorkerOffer` (from the input `shuffledOffers`) and (only if the number of available CPU cores (using the input `availableCpus`) is at least configuration-properties.md#spark.task.cpus[spark.task.cpus]) scheduler:TaskSetManager.md#resourceOffer[requests `TaskSetManager` (as the input `taskSet`) to find a `Task` to execute (given the resource offer)] (as an executor, a host, and the input `maxLocality`).
@@ -552,15 +524,15 @@ Resource offer failed, task set [name] was not serializable
 
 * `TaskSchedulerImpl` is requested to [resourceOffers](#resourceOffers)
 
-## <span id="TaskLocality"> Task Locality Preference
+## Task Locality Preference { #TaskLocality }
 
-`TaskLocality` represents a task locality preference and can be one of the following (from most localized to the widest):
+`TaskLocality` represents a task locality preference and can be one of the following (from the most localized to the widest):
 
-. `PROCESS_LOCAL`
-. `NODE_LOCAL`
-. `NO_PREF`
-. `RACK_LOCAL`
-. `ANY`
+1. `PROCESS_LOCAL`
+1. `NODE_LOCAL`
+1. `NO_PREF`
+1. `RACK_LOCAL`
+1. `ANY`
 
 ## <span id="WorkerOffer"> WorkerOffer &mdash; Free CPU Cores on Executor
 
@@ -604,6 +576,7 @@ log4j.logger.org.apache.spark.scheduler.TaskSchedulerImpl=ALL
 
 Refer to [Logging](../spark-logging.md).
 
+<!---
 ## Internal Properties
 
 [cols="30m,70",options="header",width="100%"]
@@ -683,3 +656,4 @@ a| [[taskIdToExecutorId]] Lookup table of executor:Executor.md[] by task id.
 a| [[taskIdToTaskSetManager]] Registry of active scheduler:TaskSetManager.md[TaskSetManagers] per task id.
 
 |===
+-->

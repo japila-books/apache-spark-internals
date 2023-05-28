@@ -4,7 +4,7 @@ title: BarrierTaskContext
 
 # BarrierTaskContext &mdash; TaskContext for Barrier Tasks
 
-`BarrierTaskContext` is a concrete [TaskContext](../scheduler/TaskContext.md) (of the tasks) of barrier stages.
+`BarrierTaskContext` is a concrete [TaskContext](../scheduler/TaskContext.md) (of the tasks) of [barrier stages](index.md#barrier-stage).
 
 ## Creating Instance
 
@@ -18,4 +18,4 @@ title: BarrierTaskContext
 
 ## RpcEndpointRef { #barrierCoordinator }
 
-BarrierTaskContext creates an RpcEndpointRef for...FIXME
+`BarrierTaskContext` creates an [RpcEndpointRef](../rpc/RpcEndpointRef.md) for...FIXME

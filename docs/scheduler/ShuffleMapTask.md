@@ -20,9 +20,15 @@
 * <span id="jobId"> [Job ID](ActiveJob.md) (default: `None`)
 * <span id="appId"> Application ID (default: `None`)
 * <span id="appAttemptId"> Application Attempt ID (default: `None`)
-* <span id="isBarrier"> `isBarrier` Flag (default: `false`)
+* [isBarrier](#isBarrier) flag
 
 `ShuffleMapTask` is created when `DAGScheduler` is requested to [submit tasks for all missing partitions of a ShuffleMapStage](DAGScheduler.md#submitMissingTasks).
+
+### isBarrier Flag { #isBarrier }
+
+`ShuffleMapTask` can be given `isBarrier` flag when [created](#creating-instance). Unless given, `isBarrier` is assumed disabled (`false`).
+
+`isBarrier` flag is passed to the parent [Task](Task.md#isBarrier).
 
 ### <span id="taskBinary"> Serialized Task Binary
 

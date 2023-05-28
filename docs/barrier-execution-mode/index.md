@@ -9,7 +9,10 @@ From the [Design doc: Barrier Execution Mode]({{ spark.jira }}/SPARK-24582):
 
 Spark launches all the tasks of a [RDDBarrier](RDDBarrier.md) at the same time.
 
-## Main Abstractions
+!!! note "Barrier Scheduling"
+    Barrier Execution Mode is also known as **Barrier Scheduling** (see [TaskSchedulerImpl](../scheduler/TaskSchedulerImpl.md#resourceOffers)).
+
+## Abstractions
 
 * [BarrierTaskContext](BarrierTaskContext.md)
 * [RDDBarrier](RDDBarrier.md)
@@ -30,7 +33,7 @@ mapPartitions[S](
   preservesPartitioning: Boolean = false): RDD[S]
 ```
 
-Under the covers, `RDDBarrier.mapPartitions` creates a rdd:MapPartitionsRDD.md[MapPartitionsRDD] (like the regular `RDD.mapPartitions` transformation) with the [isFromBarrier](../rdd/MapPartitionsRDD.md#isFromBarrier) flag enabled.
+Under the covers, `RDDBarrier.mapPartitions` creates a [MapPartitionsRDD](../rdd/MapPartitionsRDD.md) like the regular `RDD.mapPartitions` transformation but with [isFromBarrier](../rdd/MapPartitionsRDD.md#isFromBarrier) flag enabled.
 
 * `Task` has a [isBarrier](../scheduler/Task.md#isBarrier) flag that says whether this task belongs to a barrier stage (default: `false`).
 
@@ -47,6 +50,10 @@ An RDD is in a [barrier stage](#barrier-stage), if at least one of its parent RD
 [MapPartitionsRDD](../rdd/MapPartitionsRDD.md) is the only RDD that can have the [isBarrier](../rdd/RDD.md#isBarrier_) flag enabled.
 
 [RDDBarrier.mapPartitions](RDDBarrier.md#mapPartitions) is the only transformation that creates a [MapPartitionsRDD](../rdd/MapPartitionsRDD.md) with the [isFromBarrier](../rdd/MapPartitionsRDD.md#isFromBarrier) flag enabled.
+
+## Push-Based Shuffle
+
+[Push-based shuffle](../push-based-shuffle.md) is currently not supported for barrier stages.
 
 ## Learn More
 
