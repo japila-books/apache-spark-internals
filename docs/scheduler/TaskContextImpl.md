@@ -23,4 +23,4 @@
 
 ## <span id="BarrierTaskContext"> BarrierTaskContext
 
-`TaskContextImpl` is available to [barrier tasks](Task.md#isBarrier) as a [BarrierTaskContext](BarrierTaskContext.md).
+`TaskContextImpl` is available to [barrier tasks](Task.md#isBarrier) as a [BarrierTaskContext](../barrier-execution-mode/BarrierTaskContext.md).

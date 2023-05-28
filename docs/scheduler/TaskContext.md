@@ -169,7 +169,7 @@ taskMetrics(): TaskMetrics
 
 ## Implementations
 
-* [BarrierTaskContext](BarrierTaskContext.md)
+* [BarrierTaskContext](../barrier-execution-mode/BarrierTaskContext.md)
 * [TaskContextImpl](TaskContextImpl.md)
 
 ## <span id="Serializable"> Serializable

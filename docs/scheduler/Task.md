@@ -81,7 +81,7 @@ run(
 
 `run` [registers the task (attempt)](../storage/BlockManager.md#registerTask) with the [BlockManager](../SparkEnv.md#blockManager).
 
-`run` creates a [TaskContextImpl](TaskContextImpl.md) (and perhaps a [BarrierTaskContext](BarrierTaskContext.md) too when the given `isBarrier` flag is enabled) that in turn becomes the task's [TaskContext](TaskContext.md#setTaskContext).
+`run` creates a [TaskContextImpl](TaskContextImpl.md) (and perhaps a [BarrierTaskContext](../barrier-execution-mode/BarrierTaskContext.md) too when the given `isBarrier` flag is enabled) that in turn becomes the task's [TaskContext](TaskContext.md#setTaskContext).
 
 `run` checks [_killed](#_killed) flag and, if enabled, [kills the task](#kill) (with `interruptThread` flag disabled).
 

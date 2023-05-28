@@ -32,12 +32,11 @@ makeDriverRef(
 
 `makeDriverRef`...FIXME
 
+---
+
 `makeDriverRef` is used when:
 
-* [BarrierTaskContext](../scheduler/BarrierTaskContext.md#barrierCoordinator) is created
-
+* [BarrierTaskContext](../barrier-execution-mode/BarrierTaskContext.md#barrierCoordinator) is created
 * `SparkEnv` utility is used to [create a SparkEnv](../SparkEnv.md#create) (on executors)
-
 * [Executor](../executor/Executor.md#heartbeatReceiverRef) is created
-
 * `PluginContextImpl` is requested for `driverEndpoint`
