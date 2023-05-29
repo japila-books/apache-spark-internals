@@ -1,0 +1,3 @@
+# BarrierCoordinatorMessage
+
+`BarrierCoordinatorMessage` is...FIXME

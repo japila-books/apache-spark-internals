@@ -53,7 +53,7 @@ barrier(): Unit
 
     `barrier` is used in `BasePythonRunner.WriterThread` ([PySpark]({{ book.pyspark }}/runners/BasePythonRunner/)) when requested to `barrierAndServe`.
 
-## runBarrier { #runBarrier }
+## Global Sync { #runBarrier }
 
 ```scala
 runBarrier(
@@ -73,7 +73,42 @@ Task [taskAttemptId] from Stage [stageId](Attempt [stageAttemptNumber]) has ente
 Current callSite: [callSite]
 ```
 
-`runBarrier`...FIXME
+`runBarrier` schedules a `TimerTask` ([Java]({{ java.api }}/java/util/TimerTask.html)) to print out the following INFO message to the logs every minute:
+
+```text
+Task [taskAttemptId] from Stage [stageId](Attempt [stageAttemptNumber]) waiting under the global sync since [startTime],
+has been waiting for [duration] seconds,
+current barrier epoch is [barrierEpoch].
+```
+
+`runBarrier` requests the [Barrier Coordinator RPC Endpoint](#barrierCoordinator) to [send](../rpc/RpcEndpointRef.md#askAbortable) a [RequestToSync](RequestToSync.md) one-off message and waits 365 days (!) for a response (a collection of responses from all the barrier tasks).
+
+!!! note "1 Year to Wait for Response from Barrier Coordinator"
+    `runBarrier` uses 1 year to wait until the response arrives.
+
+`runBarrier` checks every second if the response "bundle" arrived.
+
+`runBarrier` increments the [barrierEpoch](#barrierEpoch).
+
+`runBarrier` prints out the following INFO message to the logs:
+
+```text
+Task [taskAttemptId] from Stage [stageId](Attempt [stageAttemptNumber]) finished global sync successfully,
+waited for [duration] seconds,
+current barrier epoch is [barrierEpoch].
+```
+
+In the end, `runBarrier` returns the response "bundle" (a collection of responses from all the barrier tasks).
+
+---
+
+In case of a `SparkException`, `runBarrier` prints out the following INFO message to the logs and reports (_re-throws_) the exception up (_the call chain_):
+
+```text
+Task [taskAttemptId] from Stage [stageId](Attempt [stageAttemptNumber]) failed to perform global sync,
+waited for [duration] seconds,
+current barrier epoch is [barrierEpoch].
+```
 
 ---
 

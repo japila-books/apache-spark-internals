@@ -1,0 +1,3 @@
+# BarrierCoordinator
+
+`BarrierCoordinator` is...FIXME
