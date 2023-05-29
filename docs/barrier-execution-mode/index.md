@@ -1,16 +1,33 @@
+---
+title: Barrier Execution Mode
+subtitle: Barrier Scheduling
+---
+
 # Barrier Execution Mode
+
+**Barrier Execution Mode** (_Barrier Scheduling_) introduces a strong requirement on [Spark Scheduler](../scheduler/TaskScheduler.md) to launch all tasks of a [Barrier Stage](#barrier-stage) at the same time or not at all (and consequently wait until required resources are available). Moreover, a failure of a single task of a barrier stage fails the whole stage (and so the other tasks).
+
+Barrier Execution Mode aims at making Distributed Deep Learning with Apache Spark easier (or even possible).
 
 From the [Design doc: Barrier Execution Mode]({{ spark.jira }}/SPARK-24582):
 
 > In Spark, a task in a stage doesn't depend on any other task in the same stage, and hence it can be scheduled independently.
+
+That gives Spark a freedom to schedule tasks in as many task batches as needed. So, 5 tasks can be scheduled on 1 CPU core quite easily in 5 consecutive batches. That's unlike MPI (or non-MapReduce scheduling systems) that allows for greater flexibility and inter-task dependency.
+
+Later in [Design doc: Barrier Execution Mode]({{ spark.jira }}/SPARK-24582):
+
 > In MPI, all workers start at the same time and pass messages around.
 >
 > To embed this workload in Spark, we need to introduce a new scheduling model, tentatively named **"barrier scheduling"**, which launches the tasks at the same time and provides users enough information and tooling to embed distributed DL training into a Spark pipeline.
 
-Spark launches all the tasks of a [RDDBarrier](RDDBarrier.md) at the same time.
+## Barrier RDD
 
-!!! note "Barrier Scheduling"
-    Barrier Execution Mode is also known as **Barrier Scheduling** (see [TaskSchedulerImpl](../scheduler/TaskSchedulerImpl.md#resourceOffers)).
+**Barrier RDD** is a [RDDBarrier](RDDBarrier.md).
+
+## Barrier Stage
+
+**Barrier Stage** is a [Stage](../scheduler/Stage.md) with at least one [Barrier RDD](#barrier-rdd).
 
 ## Abstractions
 
@@ -36,10 +53,6 @@ mapPartitions[S](
 Under the covers, `RDDBarrier.mapPartitions` creates a [MapPartitionsRDD](../rdd/MapPartitionsRDD.md) like the regular `RDD.mapPartitions` transformation but with [isFromBarrier](../rdd/MapPartitionsRDD.md#isFromBarrier) flag enabled.
 
 * `Task` has a [isBarrier](../scheduler/Task.md#isBarrier) flag that says whether this task belongs to a barrier stage (default: `false`).
-
-## Barrier Stage
-
-**Barrier Stage** is a [Stage](../scheduler/Stage.md) that...FIXME
 
 ## isFromBarrier Flag { #isFromBarrier }
 
