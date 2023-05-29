@@ -16,6 +16,16 @@ title: BarrierTaskContext
 
 * `Task` is requested to [run](../scheduler/Task.md#run) (with [isBarrier](../scheduler/Task.md#isBarrier) flag enabled)
 
+## Barrier Coordinator RPC Endpoint { #barrierCoordinator }
+
+```scala
+barrierCoordinator: RpcEndpointRef
+```
+
+`BarrierTaskContext` creates a [RpcEndpointRef](../rpc/RpcUtils.md#makeDriverRef) to **barrierSync** RPC endpoint when [created](#creating-instance).
+
+`barrierCoordinator` is used to handle [barrier](#barrier) and [allGather](#allGather) operators (through [runBarrier](#runBarrier)).
+
 ## allGather { #allGather }
 
 ```scala
@@ -27,7 +37,7 @@ allGather(
 
 ??? note "Public API and PySpark"
     `allGather` is part of a public API.
-    
+
     `allGather` is used in `BasePythonRunner.WriterThread` ([PySpark]({{ book.pyspark }}/runners/BasePythonRunner/)) when requested to `barrierAndServe`.
 
 ## barrier
@@ -40,7 +50,7 @@ barrier(): Unit
 
 ??? note "Public API and PySpark"
     `barrier` is part of a public API.
-    
+
     `barrier` is used in `BasePythonRunner.WriterThread` ([PySpark]({{ book.pyspark }}/runners/BasePythonRunner/)) when requested to `barrierAndServe`.
 
 ## runBarrier { #runBarrier }

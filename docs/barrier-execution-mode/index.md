@@ -9,6 +9,16 @@ subtitle: Barrier Scheduling
 
 Barrier Execution Mode aims at making Distributed Deep Learning with Apache Spark easier (or even possible).
 
+Rephrasing [dmlc/xgboost](https://github.com/dmlc/xgboost/issues/4793), Barrier Execution Mode makes sure that:
+
+1. All tasks of a [barrier stage](#barrier-stage) are all launched at once. If there is not enough task slots, the exception will be produced
+
+1. Tasks either all succeed or fail. Upon a task failure Spark aborts all the other tasks ([TaskScheduler](../scheduler/TaskScheduler.md) will kill all other running tasks) and restarts the whole barrier stage
+
+1. Spark makes no assumption that tasks don't talk to each other. Actually, it is the opposite. Spark provides [BarrierTaskContext](BarrierTaskContext.md) which facilitates tasks discovery (e.g., [barrier](BarrierTaskContext.md#barrier), [allGather](BarrierTaskContext.md#allGather))
+
+1. Permits restarting a training from a known state (_checkpoint_) in case of a failure
+
 From the [Design doc: Barrier Execution Mode]({{ spark.jira }}/SPARK-24582):
 
 > In Spark, a task in a stage doesn't depend on any other task in the same stage, and hence it can be scheduled independently.
@@ -64,9 +74,12 @@ An RDD is in a [barrier stage](#barrier-stage), if at least one of its parent RD
 
 [RDDBarrier.mapPartitions](RDDBarrier.md#mapPartitions) is the only transformation that creates a [MapPartitionsRDD](../rdd/MapPartitionsRDD.md) with the [isFromBarrier](../rdd/MapPartitionsRDD.md#isFromBarrier) flag enabled.
 
-## Push-Based Shuffle
+## Unsupported Spark Features
 
-[Push-based shuffle](../push-based-shuffle.md) is currently not supported for barrier stages.
+The following Spark features are not supported:
+
+* [Push-Based Shuffle](../push-based-shuffle.md)
+* [Dynamic Allocation of Executors](../dynamic-allocation/index.md)
 
 ## Demo
 
