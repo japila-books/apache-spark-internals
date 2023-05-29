@@ -22,7 +22,7 @@ title: BarrierTaskContext
 barrierCoordinator: RpcEndpointRef
 ```
 
-`BarrierTaskContext` creates a [RpcEndpointRef](../rpc/RpcUtils.md#makeDriverRef) to **barrierSync** RPC endpoint when [created](#creating-instance).
+`BarrierTaskContext` creates a [RpcEndpointRef](../rpc/RpcUtils.md#makeDriverRef) to [Barrier Coordinator RPC Endpoint](BarrierCoordinator.md) when [created](#creating-instance).
 
 `barrierCoordinator` is used to handle [barrier](#barrier) and [allGather](#allGather) operators (through [runBarrier](#runBarrier)).
 
