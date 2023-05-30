@@ -1278,7 +1278,7 @@ part of cancelled job group [groupId]
 
 `handleJobGroupCancelled` is used when `DAGScheduler` is requested to handle [JobGroupCancelled](DAGSchedulerEvent.md#JobGroupCancelled) event.
 
-### <span id="handleJobSubmitted"> Handling JobSubmitted Event
+### Handling JobSubmitted Event { #handleJobSubmitted }
 
 ```scala
 handleJobSubmitted(
@@ -1291,22 +1291,23 @@ handleJobSubmitted(
   properties: Properties): Unit
 ```
 
-`handleJobSubmitted` [creates a ResultStage](#createResultStage) (as `finalStage` in the picture below) for the given RDD, `func`, `partitions`, `jobId` and `callSite`.
+`handleJobSubmitted` [creates a ResultStage](#createResultStage) (`finalStage`) for the given [RDD](../rdd/RDD.md), `func`, `partitions`, `jobId` and `callSite`. This may fail with a [BarrierJobSlotsNumberCheckFailed](#handleJobSubmitted-BarrierJobSlotsNumberCheckFailed) exception.
 
 ![DAGScheduler.handleJobSubmitted Method](../images/scheduler/dagscheduler-handleJobSubmitted.png)
 
-`handleJobSubmitted` creates an [ActiveJob](ActiveJob.md) for the [ResultStage](ResultStage.md).
+`handleJobSubmitted` removes the given `jobId` from the [barrierJobIdToNumTasksCheckFailures](#barrierJobIdToNumTasksCheckFailures).
+
+`handleJobSubmitted` creates an [ActiveJob](ActiveJob.md) for the [ResultStage](ResultStage.md) (with the given `jobId`, the `callSite`, the [JobListener](JobListener.md) and the `properties`).
 
 `handleJobSubmitted` [clears the internal cache of RDD partition locations](#clearCacheLocs).
 
-!!! important
-    FIXME Why is this clearing here so important?
+??? note "FIXME Why is this clearing here so important?"
 
 `handleJobSubmitted` prints out the following INFO messages to the logs (with [missingParentStages](#getMissingParentStages)):
 
 ```text
 Got job [id] ([callSite]) with [number] output partitions
-Final stage: [stage] ([name])
+Final stage: [finalStage] ([name])
 Parents of final stage: [parents]
 Missing parents: [missingParentStages]
 ```
@@ -1319,7 +1320,29 @@ Missing parents: [missingParentStages]
 
 In the end, `handleJobSubmitted` posts a [SparkListenerJobStart](../SparkListener.md#SparkListenerJobStart) message to the [LiveListenerBus](#listenerBus) and [submits the ResultStage](#submitStage).
 
-`handleJobSubmitted` is used when `DAGSchedulerEventProcessLoop` is requested to handle a [JobSubmitted](DAGSchedulerEvent.md#JobSubmitted) event.
+---
+
+`handleJobSubmitted` is used when:
+
+* `DAGSchedulerEventProcessLoop` is requested to handle a [JobSubmitted](DAGSchedulerEvent.md#JobSubmitted) event
+
+#### BarrierJobSlotsNumberCheckFailed { #handleJobSubmitted-BarrierJobSlotsNumberCheckFailed }
+
+In case of a [BarrierJobSlotsNumberCheckFailed](../barrier-execution-mode/BarrierJobSlotsNumberCheckFailed.md) exception while [creating a ResultStage](#createResultStage), `handleJobSubmitted` increments the number of failures in the [barrierJobIdToNumTasksCheckFailures](#barrierJobIdToNumTasksCheckFailures) for the given `jobId`.
+
+`handleJobSubmitted` prints out the following WARN message to the logs (with [spark.scheduler.barrier.maxConcurrentTasksCheck.maxFailures](../configuration-properties.md#spark.scheduler.barrier.maxConcurrentTasksCheck.maxFailures)):
+
+```text
+Barrier stage in job [jobId] requires [requiredConcurrentTasks] slots, but only [maxConcurrentTasks] are available.
+Will retry up to [maxFailures] more times
+```
+
+If the number of failures is below the [spark.scheduler.barrier.maxConcurrentTasksCheck.maxFailures](../configuration-properties.md#spark.scheduler.barrier.maxConcurrentTasksCheck.maxFailures) threshold, `handleJobSubmitted` requests the [messageScheduler](#messageScheduler) to schedule a one-shot task that requests the [DAGSchedulerEventProcessLoop](#eventProcessLoop) to post a `JobSubmitted` event (after [spark.scheduler.barrier.maxConcurrentTasksCheck.interval](../configuration-properties.md#spark.scheduler.barrier.maxConcurrentTasksCheck.interval) seconds).
+
+!!! note
+    Posting a `JobSubmitted` event is to request the `DAGScheduler` to re-consider the request, hoping that there will be enough resources to fulfill the resource requirements of a barrier job.
+
+Otherwise, if the number of failures crossed the [spark.scheduler.barrier.maxConcurrentTasksCheck.maxFailures](../configuration-properties.md#spark.scheduler.barrier.maxConcurrentTasksCheck.maxFailures) threshold, `handleJobSubmitted` removes the `jobId` from the [barrierJobIdToNumTasksCheckFailures](#barrierJobIdToNumTasksCheckFailures) and informs the given [JobListener](JobListener.md) that the [jobFailed](JobListener.md#jobFailed).
 
 ### <span id="handleMapStageSubmitted"> MapStageSubmitted
 

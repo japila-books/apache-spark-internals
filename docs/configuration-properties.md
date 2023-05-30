@@ -1,5 +1,15 @@
 # Configuration Properties
 
+## spark.scheduler
+
+### barrier.maxConcurrentTasksCheck.interval { #spark.scheduler.barrier.maxConcurrentTasksCheck.interval }
+
+**spark.scheduler.barrier.maxConcurrentTasksCheck.interval**
+
+### barrier.maxConcurrentTasksCheck.maxFailures { #spark.scheduler.barrier.maxConcurrentTasksCheck.maxFailures }
+
+**spark.scheduler.barrier.maxConcurrentTasksCheck.maxFailures**
+
 ## <span id="spark.shuffle.sort.io.plugin.class"><span id="SHUFFLE_IO_PLUGIN_CLASS"> shuffle.sort.io.plugin.class
 
 **spark.shuffle.sort.io.plugin.class**
@@ -769,6 +779,9 @@ Controls whether to enable [ConsoleProgressBar](ConsoleProgressBar.md) and show 
 
 Default: `false`
 
+<!---
+## Review Me
+
 == [[properties]] Properties
 
 [cols="1m,1",options="header",width="100%"]
@@ -1016,3 +1029,4 @@ Default: `3s`
 Timeout for RPC ask calls
 
 Default: `120s`
+-->
