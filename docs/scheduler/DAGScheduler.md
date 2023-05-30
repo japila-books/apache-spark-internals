@@ -783,17 +783,6 @@ stop(): Unit
 
 `stop` is used when `SparkContext` is requested to [stop](../SparkContext.md#stop).
 
-## <span id="checkBarrierStageWithNumSlots"> checkBarrierStageWithNumSlots
-
-```scala
-checkBarrierStageWithNumSlots(
-  rdd: RDD[_]): Unit
-```
-
-checkBarrierStageWithNumSlots...FIXME
-
-checkBarrierStageWithNumSlots is used when DAGScheduler is requested to create <<createShuffleMapStage, ShuffleMapStage>> and <<createResultStage, ResultStage>> stages.
-
 ## <span id="killTaskAttempt"> Killing Task
 
 ```scala
@@ -1631,6 +1620,29 @@ In the end, `postTaskEnd` creates a [SparkListenerTaskEnd](../SparkListenerTaskE
 `postTaskEnd` is used when:
 
 * `DAGScheduler` is requested to [handle a task completion](#handleTaskCompletion)
+
+## checkBarrierStageWithNumSlots { #checkBarrierStageWithNumSlots }
+
+```scala
+checkBarrierStageWithNumSlots(
+  rdd: RDD[_],
+  rp: ResourceProfile): Unit
+```
+
+??? note "Noop for Non-Barrier RDDs"
+    Unless the given `RDD` is [isBarrier](../rdd/RDD.md#isBarrier), `checkBarrierStageWithNumSlots` does nothing (is a _noop_).
+
+`checkBarrierStageWithNumSlots` requests the given `RDD` for the [number of partitions](../rdd/RDD.md#getNumPartitions).
+
+`checkBarrierStageWithNumSlots` requests the [SparkContext](#sc) for the [maximum number of concurrent tasks](../SparkContext.md#maxNumConcurrentTasks) for the given [ResourceProfile](../stage-level-scheduling/ResourceProfile.md).
+
+If the number of partitions (based on the [RDD](../rdd/RDD.md#getNumPartitions)) is greater than the maximum number of concurrent tasks (based on the [ResourceProfile](../SparkContext.md#maxNumConcurrentTasks)), `checkBarrierStageWithNumSlots` reports a [BarrierJobSlotsNumberCheckFailed](../SparkCoreErrors.md#numPartitionsGreaterThanMaxNumConcurrentTasksError) exception.
+
+---
+
+`checkBarrierStageWithNumSlots` is used when:
+
+* `DAGScheduler` is requested to create a [ShuffleMapStage](#createShuffleMapStage) or a [ResultStage](#createResultStage) stage
 
 ## Logging
 

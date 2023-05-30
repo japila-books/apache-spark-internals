@@ -469,18 +469,35 @@ With `DEBUG` logging level you should see the following messages in the logs:
 +++ closure [func] ([func.getClass.getName]) is now cleaned +++
 ```
 
+## Maximum Number of Concurrent Tasks { #maxNumConcurrentTasks }
+
+```scala
+maxNumConcurrentTasks(
+  rp: ResourceProfile): Int
+```
+
+`maxNumConcurrentTasks` requests the [SchedulerBackend](#schedulerBackend) for the [maximum number of tasks that can be launched concurrently](scheduler/SchedulerBackend.md#maxNumConcurrentTasks) (with the given [ResourceProfile](stage-level-scheduling/ResourceProfile.md)).
+
+---
+
+`maxNumConcurrentTasks` is used when:
+
+* `DAGScheduler` is requested to [checkBarrierStageWithNumSlots](scheduler/DAGScheduler.md#checkBarrierStageWithNumSlots)
+
 ## Logging
 
 Enable `ALL` logging level for `org.apache.spark.SparkContext` logger to see what happens inside.
 
-Add the following line to `conf/log4j.properties`:
+Add the following line to `conf/log4j2.properties`:
 
 ```text
-log4j.logger.org.apache.spark.SparkContext=ALL
+logger.SparkContext.name = org.apache.spark.SparkContext
+logger.SparkContext.level = all
 ```
 
 Refer to [Logging](spark-logging.md).
 
+<!---
 ## To Be Reviewed
 
 SparkContext offers the following functions:
@@ -1261,17 +1278,6 @@ uiWebUrl: Option[String]
 
 `uiWebUrl` requests the `SparkUI` for [webUrl](webui/WebUI.md#webUrl).
 
-== [[maxNumConcurrentTasks]] `maxNumConcurrentTasks` Method
-
-[source, scala]
-----
-maxNumConcurrentTasks(): Int
-----
-
-`maxNumConcurrentTasks` simply requests the <<schedulerBackend, SchedulerBackend>> for the scheduler:SchedulerBackend.md#maxNumConcurrentTasks[maximum number of tasks that can be launched concurrently].
-
-NOTE: `maxNumConcurrentTasks` is used exclusively when `DAGScheduler` is requested to scheduler:DAGScheduler.md#checkBarrierStageWithNumSlots[checkBarrierStageWithNumSlots].
-
 == [[environment-variables]] Environment Variables
 
 .Environment Variables
@@ -1390,3 +1396,4 @@ numDriverCores(
 ```
 
 `numDriverCores`...FIXME
+-->
