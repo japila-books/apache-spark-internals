@@ -7,6 +7,8 @@ subtitle: Barrier Scheduling
 
 **Barrier Execution Mode** (_Barrier Scheduling_) introduces a strong requirement on [Spark Scheduler](../scheduler/TaskScheduler.md) to launch all tasks of a [Barrier Stage](#barrier-stage) at the same time or not at all (and consequently wait until required resources are available). Moreover, a failure of a single task of a barrier stage fails the whole stage (and so the other tasks).
 
+Barrier Execution Mode allows for as many tasks to be executed concurrently as [ResourceProfile](../stage-level-scheduling/ResourceProfile.md) permits (that is enforced upon [scheduling a barrier job](../scheduler/TaskSchedulerImpl.md#calculateAvailableSlots)).
+
 Barrier Execution Mode aims at making Distributed Deep Learning with Apache Spark easier (or even possible).
 
 Rephrasing [dmlc/xgboost](https://github.com/dmlc/xgboost/issues/4793), Barrier Execution Mode makes sure that:

@@ -41,18 +41,20 @@ createDriverEndpoint(
 
 `createDriverEndpoint` is used when `CoarseGrainedSchedulerBackend` is [created](#creating-instance) (and initializes the [driverEndpoint](#driverEndpoint) internal reference).
 
-## <span id="decommissionExecutors"> decommissionExecutors
+## Maximum Number of Concurrent Tasks { #maxNumConcurrentTasks }
 
-```scala
-decommissionExecutors(
-  executorsAndDecomInfo: Array[(String, ExecutorDecommissionInfo)],
-  adjustTargetNumExecutors: Boolean,
-  triggeredByExecutor: Boolean): Seq[String]
-```
+??? note "SchedulerBackend"
 
-`decommissionExecutors` is part of the [ExecutorAllocationClient](../dynamic-allocation/ExecutorAllocationClient.md#decommissionExecutors) abstraction.
+    ```scala
+    maxNumConcurrentTasks(
+      rp: ResourceProfile): Int
+    ```
 
-`decommissionExecutors`...FIXME
+    `maxNumConcurrentTasks` is part of the [SchedulerBackend](SchedulerBackend.md#maxNumConcurrentTasks) abstraction.
+
+`maxNumConcurrentTasks` uses the [Available Executors](#executorDataMap) registry to find out about available [ResourceProfile](../stage-level-scheduling/ResourceProfile.md)s, total number of CPU cores and [ExecutorResourceInfo](../stage-level-scheduling/ExecutorResourceInfo.md)s of every active [executor](ExecutorData.md).
+
+In the end, `maxNumConcurrentTasks` [calculates the available (parallel) slots](TaskSchedulerImpl.md#calculateAvailableSlots) for the given [ResourceProfile](../stage-level-scheduling/ResourceProfile.md#id) (and given the available executor resources).
 
 ## <span id="totalRegisteredExecutors"> totalRegisteredExecutors Registry
 
@@ -71,16 +73,6 @@ totalRegisteredExecutors: AtomicInteger
 `totalRegisteredExecutors` is decremented when:
 
 * `DriverEndpoint` is requested to [remove an executor](DriverEndpoint.md#removeExecutor)
-
-## <span id="isReady"> isReady
-
-```scala
-isReady(): Boolean
-```
-
-`isReady` is part of the [SchedulerBackend](SchedulerBackend.md#isReady) abstraction.
-
-`isReady`...FIXME
 
 ### <span id="sufficientResourcesRegistered"> Sufficient Resources Registered
 
@@ -422,6 +414,8 @@ log4j.logger.org.apache.spark.scheduler.cluster.CoarseGrainedSchedulerBackend=AL
 
 Refer to [Logging](../spark-logging.md).
 
+<!---
+## Review Me
 ## Internal Properties
 
 [cols="1,1,2",options="header",width="100%"]
@@ -483,3 +477,4 @@ Used when `CoarseGrainedSchedulerBackend` executes the following (asynchronously
 | `0`
 | Total number of CPU cores, i.e. the sum of all the cores on all executors.
 |===
+-->

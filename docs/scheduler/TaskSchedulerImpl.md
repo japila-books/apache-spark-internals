@@ -564,14 +564,36 @@ Handle removed worker [workerId]: [message]
 
 In the end, `workerRemoved` requests the [DAGScheduler](#dagScheduler) to [workerRemoved](DAGScheduler.md#workerRemoved).
 
+## calculateAvailableSlots { #calculateAvailableSlots }
+
+```scala
+calculateAvailableSlots(
+  scheduler: TaskSchedulerImpl,
+  conf: SparkConf,
+  rpId: Int,
+  availableRPIds: Array[Int],
+  availableCpus: Array[Int],
+  availableResources: Array[Map[String, Int]]): Int
+```
+
+`calculateAvailableSlots`...FIXME
+
+---
+
+`calculateAvailableSlots` is used when:
+
+* `TaskSchedulerImpl` is requested for [TaskDescriptions for the given executor resource offers](#resourceOffers)
+* `CoarseGrainedSchedulerBackend` is requested for the [maximum number of concurrent tasks](CoarseGrainedSchedulerBackend.md#maxNumConcurrentTasks)
+
 ## Logging
 
 Enable `ALL` logging level for `org.apache.spark.scheduler.TaskSchedulerImpl` logger to see what happens inside.
 
-Add the following line to `conf/log4j.properties`:
+Add the following line to `conf/log4j2.properties`:
 
 ```text
-log4j.logger.org.apache.spark.scheduler.TaskSchedulerImpl=ALL
+logger.TaskSchedulerImpl.name = org.apache.spark.scheduler.TaskSchedulerImpl
+logger.TaskSchedulerImpl.level = all
 ```
 
 Refer to [Logging](../spark-logging.md).
@@ -583,11 +605,6 @@ Refer to [Logging](../spark-logging.md).
 |===
 | Name
 | Description
-
-| dagScheduler
-a| [[dagScheduler]] DAGScheduler.md[DAGScheduler]
-
-Used when...FIXME
 
 | executorIdToHost
 a| [[executorIdToHost]] Lookup table of hosts per executor.
@@ -604,11 +621,6 @@ a| [[executorIdToTaskCount]] Lookup table of the number of running tasks by exec
 
 | executorsByHost
 a| [[executorsByHost]] Collection of executor:Executor.md[executors] per host
-
-| hasLaunchedTask
-a| [[hasLaunchedTask]] Flag...FIXME
-
-Used when...FIXME
 
 | hostToExecutors
 a| [[hostToExecutors]] Lookup table of executors per hosts in a cluster.

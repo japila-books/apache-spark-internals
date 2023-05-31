@@ -108,17 +108,23 @@ Used when:
 * `TaskSchedulerImpl` is requested to [killTaskAttempt](TaskSchedulerImpl.md#killTaskAttempt) and [killAllTaskAttempts](TaskSchedulerImpl.md#killAllTaskAttempts)
 * `TaskSetManager` is requested to [handle a successful task attempt](TaskSetManager.md#handleSuccessfulTask)
 
-### <span id="maxNumConcurrentTasks"> maxNumConcurrentTasks
+### Maximum Number of Concurrent Tasks { #maxNumConcurrentTasks }
 
 ```scala
-maxNumConcurrentTasks(): Int
+maxNumConcurrentTasks(
+  rp: ResourceProfile): Int
 ```
 
-**Maximum number of concurrent tasks** that can currently be launched
+**Maximum number of concurrent tasks** that can be launched (based on the given [ResourceProfile](../stage-level-scheduling/ResourceProfile.md))
+
+See:
+
+* [CoarseGrainedSchedulerBackend](CoarseGrainedSchedulerBackend.md#maxNumConcurrentTasks)
+* [LocalSchedulerBackend](../local/LocalSchedulerBackend.md#maxNumConcurrentTasks)
 
 Used when:
 
-* `SparkContext` is requested to [maxNumConcurrentTasks](../SparkContext.md#maxNumConcurrentTasks)
+* `SparkContext` is requested for the [maximum number of concurrent tasks](../SparkContext.md#maxNumConcurrentTasks)
 
 ### <span id="reviveOffers"> reviveOffers
 

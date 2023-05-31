@@ -1,3 +1,9 @@
+<style>
+code {
+  white-space : pre-wrap !important;
+}
+</style>
+
 # DAGScheduler
 
 !!! note
@@ -1291,7 +1297,10 @@ handleJobSubmitted(
   properties: Properties): Unit
 ```
 
-`handleJobSubmitted` [creates a ResultStage](#createResultStage) (`finalStage`) for the given [RDD](../rdd/RDD.md), `func`, `partitions`, `jobId` and `callSite`. This may fail with a [BarrierJobSlotsNumberCheckFailed](#handleJobSubmitted-BarrierJobSlotsNumberCheckFailed) exception.
+`handleJobSubmitted` [creates a ResultStage](#createResultStage) (`finalStage`) for the given [RDD](../rdd/RDD.md), `func`, `partitions`, `jobId` and `callSite`.
+
+??? danger "BarrierJobSlotsNumberCheckFailed Exception"
+    [Creating a ResultStage](#createResultStage) may fail with a [BarrierJobSlotsNumberCheckFailed](#handleJobSubmitted-BarrierJobSlotsNumberCheckFailed) exception.
 
 ![DAGScheduler.handleJobSubmitted Method](../images/scheduler/dagscheduler-handleJobSubmitted.png)
 
@@ -1333,8 +1342,7 @@ In case of a [BarrierJobSlotsNumberCheckFailed](../barrier-execution-mode/Barrie
 `handleJobSubmitted` prints out the following WARN message to the logs (with [spark.scheduler.barrier.maxConcurrentTasksCheck.maxFailures](../configuration-properties.md#spark.scheduler.barrier.maxConcurrentTasksCheck.maxFailures)):
 
 ```text
-Barrier stage in job [jobId] requires [requiredConcurrentTasks] slots, but only [maxConcurrentTasks] are available.
-Will retry up to [maxFailures] more times
+Barrier stage in job [jobId] requires [requiredConcurrentTasks] slots, but only [maxConcurrentTasks] are available. Will retry up to [maxFailures] more times
 ```
 
 If the number of failures is below the [spark.scheduler.barrier.maxConcurrentTasksCheck.maxFailures](../configuration-properties.md#spark.scheduler.barrier.maxConcurrentTasksCheck.maxFailures) threshold, `handleJobSubmitted` requests the [messageScheduler](#messageScheduler) to schedule a one-shot task that requests the [DAGSchedulerEventProcessLoop](#eventProcessLoop) to post a `JobSubmitted` event (after [spark.scheduler.barrier.maxConcurrentTasksCheck.interval](../configuration-properties.md#spark.scheduler.barrier.maxConcurrentTasksCheck.interval) seconds).
