@@ -1,8 +1,8 @@
 # ResourceProfile
 
-`ResourceProfile` is a resource profile (with [executor](#executorResources) and [task](#taskResources) requirements) for [Stage Level Scheduling](index.md).
+`ResourceProfile` is a resource profile (with [executor](#executorResources) and [task](#taskResources) requirements) for [Stage-Level Scheduling](index.md).
 
-`ResourceProfile` is associated with an `RDD` using [withResources](../rdd/RDD.md#withResources) operator.
+`ResourceProfile` can be associated with an `RDD` using [withResources](../rdd/RDD.md#withResources) operator.
 
 ## Creating Instance
 
@@ -16,9 +16,64 @@
 * `DriverEndpoint` is requested to [handle a RetrieveSparkAppConfig message](../scheduler/DriverEndpoint.md#RetrieveSparkAppConfig)
 * `ResourceProfileBuilder` utility is requested to [build](ResourceProfileBuilder.md#build)
 
-## Serializable
+## Built-In Executor Resources { #allSupportedExecutorResources }
 
-`ResourceProfile` is a Java [Serializable]({{ java.api }}/java/io/Serializable.html).
+`ResourceProfile` defines the following names of the **Supported Executor Resources**:
+
+* `cores`
+* `memory`
+* `memoryOverhead`
+* `pyspark.memory`
+* `offHeap`
+
+All other executor resources are considered [Custom Executor Resources](#getCustomExecutorResources).
+
+## Custom Executor Resources { #getCustomExecutorResources }
+
+```scala
+getCustomExecutorResources(): Map[String, ExecutorResourceRequest]
+```
+
+`getCustomExecutorResources` is the [Executor Resources](#executorResources) that are not [supported executor resources](ResourceProfile.md#allSupportedExecutorResources).
+
+---
+
+`getCustomExecutorResources` is used when:
+
+* `ApplicationDescription` is requested to `resourceReqsPerExecutor`
+* `ApplicationInfo` is requested to `createResourceDescForResourceProfile`
+* `ResourceProfile` is requested to [calculateTasksAndLimitingResource](#calculateTasksAndLimitingResource)
+* `ResourceUtils` is requested to [getOrDiscoverAllResourcesForResourceProfile](ResourceUtils.md#getOrDiscoverAllResourcesForResourceProfile), [warnOnWastedResources](ResourceUtils.md#warnOnWastedResources)
+
+## Limiting Resource { #limitingResource }
+
+```scala
+limitingResource(
+  sparkConf: SparkConf): String
+```
+
+`limitingResource` takes the [_limitingResource](#_limitingResource), if calculated earlier, or [calculateTasksAndLimitingResource](#calculateTasksAndLimitingResource).
+
+---
+
+`limitingResource` is used when:
+
+* `ResourceProfileManager` is requested to [add a new ResourceProfile](ResourceProfileManager.md#addResourceProfile) (to recompute a limiting resource eagerly)
+* `ResourceUtils` is requested to [warnOnWastedResources](ResourceUtils.md#warnOnWastedResources) (for reporting purposes only)
+
+### _limitingResource { #_limitingResource }
+
+```scala
+_limitingResource: Option[String] = None
+```
+
+`ResourceProfile` defines `_limitingResource` variable that is determined (if there is one) while [calculateTasksAndLimitingResource](#calculateTasksAndLimitingResource).
+
+`_limitingResource` can be the following:
+
+* A "special" empty resource identifier (that is assumed `cpus` in [TaskSchedulerImpl](../scheduler/TaskSchedulerImpl.md#calculateAvailableSlots))
+* `cpus` built-in task resource identifier
+* any [custom resource identifier](#getCustomExecutorResources)
 
 ## Default Profile { #defaultProfile }
 
@@ -112,23 +167,6 @@ In the end, `getResourcesForClusterManager` creates a `ExecutorResourcesOrDefaul
 * `BasicExecutorFeatureStep` ([Spark on Kubernetes]({{ book.spark_k8s }}/BasicExecutorFeatureStep#execResources)) is created
 * `YarnAllocator` (Spark on YARN) is requested to `createYarnResourceForResourceProfile`
 
-## getCustomExecutorResources { #getCustomExecutorResources }
-
-```scala
-getCustomExecutorResources(): Map[String, ExecutorResourceRequest]
-```
-
-`getCustomExecutorResources`...FIXME
-
----
-
-`getCustomExecutorResources` is used when:
-
-* `ApplicationDescription` is requested to `resourceReqsPerExecutor`
-* `ApplicationInfo` is requested to `createResourceDescForResourceProfile`
-* `ResourceProfile` is requested to [calculateTasksAndLimitingResource](#calculateTasksAndLimitingResource)
-* `ResourceUtils` is requested to [getOrDiscoverAllResourcesForResourceProfile](ResourceUtils.md#getOrDiscoverAllResourcesForResourceProfile), [warnOnWastedResources](ResourceUtils.md#warnOnWastedResources)
-
 ## getDefaultProfileExecutorResources { #getDefaultProfileExecutorResources }
 
 ```scala
@@ -144,3 +182,20 @@ getDefaultProfileExecutorResources(
 
 * `ResourceProfile` is requested to [getResourcesForClusterManager](#getResourcesForClusterManager)
 * `YarnAllocator` (Spark on YARN) is requested to `runAllocatedContainers`
+
+## Serializable
+
+`ResourceProfile` is a Java [Serializable]({{ java.api }}/java/io/Serializable.html).
+
+## Logging
+
+Enable `ALL` logging level for `org.apache.spark.resource.ResourceProfile` logger to see what happens inside.
+
+Add the following line to `conf/log4j2.properties`:
+
+```text
+logger.ResourceProfile.name = org.apache.spark.resource.ResourceProfile
+logger.ResourceProfile.level = all
+```
+
+Refer to [Logging](../spark-logging.md).
