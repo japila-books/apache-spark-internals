@@ -112,7 +112,7 @@ executor resources: [executorResources], task resources: [taskResources]
 * `ResourceProfileManager` is [created](ResourceProfileManager.md#defaultProfile)
 * `YarnAllocator` (Spark on YARN) is requested to `initDefaultProfile`
 
-### Default Executor Resources { #getDefaultExecutorResources }
+### Default Executor Resource Requests { #getDefaultExecutorResources }
 
 ```scala
 getDefaultExecutorResources(
@@ -135,7 +135,7 @@ Property | Configuration Property
 
 In the end, `getDefaultExecutorResources` requests the `ExecutorResourceRequests` for [all the resource requests](ExecutorResourceRequests.md#requests)
 
-### Default Task Resources { #getDefaultTaskResources }
+### Default Task Resource Requests { #getDefaultTaskResources }
 
 ```scala
 getDefaultTaskResources(
