@@ -1,3 +1,7 @@
+---
+title: Utils
+---
+
 # Utils Utility
 
 ## <span id="getDynamicAllocationInitialExecutors"> getDynamicAllocationInitialExecutors
@@ -217,26 +221,36 @@ Invalid master URL: [sparkUrl]
 * `StandaloneSubmitRequestServlet` is requested to `buildDriverDescription`
 * `RpcAddress` is requested to [extract an RpcAddress from a Spark master URL](rpc/RpcAddress.md#fromSparkURL)
 
-## <span id="isDynamicAllocationEnabled"> isDynamicAllocationEnabled
+## isDynamicAllocationEnabled { #isDynamicAllocationEnabled }
 
 ```scala
 isDynamicAllocationEnabled(
   conf: SparkConf): Boolean
 ```
 
-`isDynamicAllocationEnabled` is `true` when the following hold:
+`isDynamicAllocationEnabled` checks whether [Dynamic Allocation of Executors](dynamic-allocation/index.md) is enabled (`true`) or not (`false`).
+
+---
+
+`isDynamicAllocationEnabled` is positive (`true`) when all the following hold:
 
 1. [spark.dynamicAllocation.enabled](dynamic-allocation/configuration-properties.md#spark.dynamicAllocation.enabled) configuration property is `true`
 1. [spark.master](configuration-properties.md#spark.master) is non-`local`
 
+---
+
 `isDynamicAllocationEnabled` is used when:
 
 * `SparkContext` is created (to [start an ExecutorAllocationManager](SparkContext-creating-instance-internals.md#ExecutorAllocationManager))
+* `TaskResourceProfile` is requested for [custom executor resources](stage-level-scheduling/TaskResourceProfile.md#getCustomExecutorResources)
+* `ResourceProfileManager` is [created](stage-level-scheduling/ResourceProfileManager.md#dynamicEnabled)
 * `DAGScheduler` is requested to [checkBarrierStageWithDynamicAllocation](scheduler/DAGScheduler.md#checkBarrierStageWithDynamicAllocation)
+* `TaskSchedulerImpl` is requested to [resourceOffers](scheduler/TaskSchedulerImpl.md#resourceOffers)
 * `SchedulerBackendUtils` is requested to [getInitialTargetExecutorNumber](scheduler/SchedulerBackendUtils.md#getInitialTargetExecutorNumber)
-* `StandaloneSchedulerBackend` ([Spark Standalone]({{ book.spark_standalone }}/StandaloneSchedulerBackend#start)) is requested to `start`
-* `ExecutorPodsAllocator` ([Spark on Kubernetes]({{ book.spark_k8s }}/ExecutorPodsAllocator#onNewSnapshots)) is requested to `onNewSnapshots`
-* `ApplicationMaster` (Spark on YARN) is created
+* `StandaloneSchedulerBackend` ([Spark Standalone]({{ book.spark_standalone }}/StandaloneSchedulerBackend#start)) is requested to `start` (for reporting purposes)
+* `ExecutorPodsAllocator` ([Spark on Kubernetes]({{ book.spark_k8s }}/ExecutorPodsAllocator#onNewSnapshots)) is created (`maxPVCs`)
+* `ApplicationMaster` (Spark on YARN) is created (`maxNumExecutorFailures`)
+* `YarnSchedulerBackend` (Spark on YARN) is requested to `getShufflePushMergerLocations`
 
 ## <span id="checkAndGetK8sMasterUrl"> checkAndGetK8sMasterUrl
 

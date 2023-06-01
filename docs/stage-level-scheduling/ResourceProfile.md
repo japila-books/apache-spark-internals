@@ -1,6 +1,6 @@
 # ResourceProfile
 
-`ResourceProfile` is a resource profile (with [executor](#executorResources) and [task](#taskResources) requirements) for [Stage-Level Scheduling](index.md).
+`ResourceProfile` is a resource profile that describes [executor](#executorResources) and [task](#taskResources) requirements in [Stage-Level Scheduling](index.md).
 
 `ResourceProfile` can be associated with an `RDD` using [withResources](../rdd/RDD.md#withResources) operator.
 
@@ -18,7 +18,7 @@
 
 ## Built-In Executor Resources { #allSupportedExecutorResources }
 
-`ResourceProfile` defines the following names of the **Supported Executor Resources**:
+`ResourceProfile` defines the following names as the **Supported Executor Resources** (among the specified [executorResources](#executorResources)):
 
 * `cores`
 * `memory`
@@ -26,7 +26,7 @@
 * `pyspark.memory`
 * `offHeap`
 
-All other executor resources are considered [Custom Executor Resources](#getCustomExecutorResources).
+All other executor resources (names) are considered [Custom Executor Resources](#getCustomExecutorResources).
 
 ## Custom Executor Resources { #getCustomExecutorResources }
 
@@ -77,11 +77,11 @@ _limitingResource: Option[String] = None
 
 ## Default Profile { #defaultProfile }
 
-`ResourceProfile` (object) defines `defaultProfile` internal registry with the default [ResourceProfile](ResourceProfile.md) (per JVM instance).
+`ResourceProfile` (Scala object) defines `defaultProfile` internal registry for the default [ResourceProfile](ResourceProfile.md) (per JVM instance).
 
-`defaultProfile` is `None` (undefined) by default and gets a new `ResourceProfile` in [getOrCreateDefaultProfile](#getOrCreateDefaultProfile).
+`defaultProfile` is undefined (`None`) and gets a new `ResourceProfile` when first [requested](#getOrCreateDefaultProfile).
 
-`defaultProfile` is available using [getOrCreateDefaultProfile](#getOrCreateDefaultProfile).
+`defaultProfile` can be accessed using [getOrCreateDefaultProfile](#getOrCreateDefaultProfile).
 
 `defaultProfile` is cleared (_removed_) in [clearDefaultProfile](#clearDefaultProfile).
 
@@ -92,9 +92,9 @@ getOrCreateDefaultProfile(
   conf: SparkConf): ResourceProfile
 ```
 
-`getOrCreateDefaultProfile` returns the [default profile](#defaultProfile) (if defined) or creates a new one.
+`getOrCreateDefaultProfile` returns the [default profile](#defaultProfile) (if already defined) or creates a new one.
 
-Unless defined, `getOrCreateDefaultProfile` creates a [ResourceProfile](#creating-instance) with the default [task](#getDefaultTaskResources) and [executor](#getDefaultExecutorResources) resources and makes it the [defaultProfile](#defaultProfile).
+Unless defined, `getOrCreateDefaultProfile` creates a [ResourceProfile](#creating-instance) with the default [task](#getDefaultTaskResources) and [executor](#getDefaultExecutorResources) resource descriptions and makes it the [defaultProfile](#defaultProfile).
 
 `getOrCreateDefaultProfile` prints out the following INFO message to the logs:
 
@@ -112,7 +112,7 @@ executor resources: [executorResources], task resources: [taskResources]
 * `ResourceProfileManager` is [created](ResourceProfileManager.md#defaultProfile)
 * `YarnAllocator` (Spark on YARN) is requested to `initDefaultProfile`
 
-### <span id="getDefaultExecutorResources"> Default Executor Resources
+### Default Executor Resources { #getDefaultExecutorResources }
 
 ```scala
 getDefaultExecutorResources(
@@ -134,6 +134,19 @@ Property | Configuration Property
 `getDefaultExecutorResources` initializes the [defaultProfileExecutorResources](#defaultProfileExecutorResources) (with the executor resource requests).
 
 In the end, `getDefaultExecutorResources` requests the `ExecutorResourceRequests` for [all the resource requests](ExecutorResourceRequests.md#requests)
+
+### Default Task Resources { #getDefaultTaskResources }
+
+```scala
+getDefaultTaskResources(
+  conf: SparkConf): Map[String, TaskResourceRequest]
+```
+
+`getDefaultTaskResources` creates a new [TaskResourceRequests](TaskResourceRequests.md) with the [cpus](TaskResourceRequests.md#cpus) based on [spark.task.cpus](../configuration-properties.md#spark.task.cpus) configuration property.
+
+`getDefaultTaskResources` [adds task resource requests](ResourceUtils.md#addTaskResourceRequests) (configured in the given [SparkConf](../SparkConf.md) using `spark.task.resource`-prefixed properties).
+
+In the end, `getDefaultTaskResources` requests the `TaskResourceRequests` for the [requests](TaskResourceRequests.md#requests).
 
 ## <span id="getResourcesForClusterManager"> getResourcesForClusterManager
 

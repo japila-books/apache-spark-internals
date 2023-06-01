@@ -1,27 +1,9 @@
 # ResourceProfileBuilder
 
-## Demo
+`ResourceProfileBuilder` allows Spark developers to build a [ResourceProfile](ResourceProfile.md).
 
-```scala
-import org.apache.spark.resource.ResourceProfileBuilder
-val rp1 = new ResourceProfileBuilder()
-
-import org.apache.spark.resource.ExecutorResourceRequests
-val execReqs = new ExecutorResourceRequests().cores(4).resource("gpu", 4)
-
-import org.apache.spark.resource.ExecutorResourceRequests
-val taskReqs = new TaskResourceRequests().cpus(1).resource("gpu", 1)
-
-rp1.require(execReqs).require(taskReqs)
-val rprof1 = rp1.build
-```
-
-```scala
-val rpManager = sc.resourceProfileManager // (1)!
-rpManager.addResourceProfile(rprof1)
-```
-
-1. NOTE: `resourceProfileManager` is `private[spark]`
+??? note "Available in Scala and Python APIs"
+    `ResourceProfileBuilder` is available in Scala and Python APIs.
 
 ## Creating Instance
 
@@ -50,3 +32,26 @@ taskResources: Map[String, TaskResourceRequest]
 ```
 
 `taskResources`...FIXME
+
+## Demo
+
+```scala
+import org.apache.spark.resource.ResourceProfileBuilder
+val rp1 = new ResourceProfileBuilder()
+
+import org.apache.spark.resource.ExecutorResourceRequests
+val execReqs = new ExecutorResourceRequests().cores(4).resource("gpu", 4)
+
+import org.apache.spark.resource.ExecutorResourceRequests
+val taskReqs = new TaskResourceRequests().cpus(1).resource("gpu", 1)
+
+rp1.require(execReqs).require(taskReqs)
+val rprof1 = rp1.build
+```
+
+```scala
+val rpManager = sc.resourceProfileManager // (1)!
+rpManager.addResourceProfile(rprof1)
+```
+
+1. NOTE: `resourceProfileManager` is `private[spark]`
