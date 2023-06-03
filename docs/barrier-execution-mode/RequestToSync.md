@@ -9,9 +9,9 @@ title: RequestToSync
 `RequestToSync` is sent out from [BarrierTaskContext](BarrierTaskContext.md) (i.e., barrier tasks on executors) to a [BarrierCoordinator](BarrierCoordinator.md) (on the driver) to [handle](ContextBarrierState.md#handleRequest).
 
  Operation | Message | Request Message
-----------|---------|----------------
- [allGather](BarrierTaskContext.md#allGather) | User-defined message | `ALL_GATHER`
- [barrier](BarrierTaskContext.md#barrier) | _empty_ | `BARRIER`
+-----------|---------|----------------
+ [allGather](BarrierTaskContext.md#allGather) | User-defined message | [ALL_GATHER](RequestMethod.md#ALL_GATHER)
+ [barrier](BarrierTaskContext.md#barrier) | _empty_ | [BARRIER](RequestMethod.md#BARRIER)
 
 ## Creating Instance
 
@@ -24,7 +24,7 @@ title: RequestToSync
 * <span id="barrierEpoch"> [BarrierEpoch](BarrierTaskContext.md#barrierEpoch)
 * <span id="partitionId"> Partition ID
 * <span id="message"> Message
-* <span id="requestMethod"> Request Method
+* <span id="requestMethod"> [RequestMethod](RequestMethod.md)
 
 `RequestToSync` is created when:
 
