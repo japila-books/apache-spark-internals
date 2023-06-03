@@ -176,6 +176,18 @@ import org.apache.spark.IsBarrier._
 assert(barrierRdd.isBarrier)
 ```
 
+## Examples
+
+!!! tip "Something worth reviewing the source code and learn from it"
+
+### SynapseML
+
+[SynapseML's LightGBM on Apache Spark](https://microsoft.github.io/SynapseML/docs/features/lightgbm/about/#barrier-execution-mode) can be configured to use Barrier Execution Mode in the following modules:
+
+* `synapse.ml.lightgbm.LightGBMClassifier`
+* `synapse.ml.lightgbm.LightGBMRanker`
+* `synapse.ml.lightgbm.LightGBMRegressor`
+
 ## Learn More
 
 1. [SPIP: Support Barrier Execution Mode in Apache Spark]({{ spark.jira }}/SPARK-24374) (esp. [Design: Barrier execution mode]({{ spark.jira }}/SPARK-24582))
