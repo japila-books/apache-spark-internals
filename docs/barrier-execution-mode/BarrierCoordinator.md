@@ -6,9 +6,9 @@ title: BarrierCoordinator
 
 `BarrierCoordinator` is a [ThreadSafeRpcEndpoint](../rpc/RpcEndpoint.md#ThreadSafeRpcEndpoint) that is registered as **barrierSync** RPC Endpoint when `TaskSchedulerImpl` is requested to [maybeInitBarrierCoordinator](../scheduler/TaskSchedulerImpl.md#maybeInitBarrierCoordinator).
 
-`BarrierCoordinator` is responsible to manage [Global Sync](BarrierTaskContext.md#runBarrier)s from barrier tasks (using [BarrierTaskContext](BarrierTaskContext.md) and [RequestToSync](RequestToSync.md) messages).
+`BarrierCoordinator` is responsible for [handling RequestToSync messages](#receiveAndReply) to coordinate [Global Sync](BarrierTaskContext.md#runBarrier)s of barrier tasks (using [allGather](BarrierTaskContext.md#allGather) and [barrier](BarrierTaskContext.md#barrier) operators).
 
-In other words, the driver sets up a `BarrierCoordinator` ([TaskSchedulerImpl](../scheduler/TaskSchedulerImpl.md#maybeInitBarrierCoordinator) precisely) upon startup that [BarrierTaskContext](BarrierTaskContext.md)s talk to using [RequestToSync](RequestToSync.md) messages. `BarrierCoordinator` knows how many tasks to wait for until a barrier stage can be considered complete and a response can be sent back to the tasks to continue (that are [paused](BarrierTaskContext.md#barrier) for 365 days (!)).
+In other words, the driver sets up a `BarrierCoordinator` ([TaskSchedulerImpl](../scheduler/TaskSchedulerImpl.md#maybeInitBarrierCoordinator) precisely) upon startup that [BarrierTaskContext](BarrierTaskContext.md)s talk to using [RequestToSync](RequestToSync.md) messages. `BarrierCoordinator` tracks the number of tasks to wait for until a barrier stage is complete and a response can be sent back to the tasks to continue (that are [paused](BarrierTaskContext.md#barrier) for 365 days (!)).
 
 ## Creating Instance
 
@@ -21,6 +21,31 @@ In other words, the driver sets up a `BarrierCoordinator` ([TaskSchedulerImpl](.
 `BarrierCoordinator` is created when:
 
 * `TaskSchedulerImpl` is requested to [maybeInitBarrierCoordinator](../scheduler/TaskSchedulerImpl.md#maybeInitBarrierCoordinator)
+
+## Processing RequestToSync Messages (from Barrier Tasks) { #receiveAndReply }
+
+??? note "RpcEndpoint"
+
+    ```scala
+    receiveAndReply(
+      context: RpcCallContext): PartialFunction[Any, Unit]
+    ```
+
+    `receiveAndReply` is part of the [RpcEndpoint](../rpc/RpcEndpoint.md#receiveAndReply) abstraction.
+
+`receiveAndReply` handles [RequestToSync](RequestToSync.md) messages.
+
+---
+
+Unless already registered, `receiveAndReply` registers a new `ContextBarrierId` (for the [stageId](RequestToSync.md#stageId) and the [stageAttemptId](RequestToSync.md#stageAttemptId)) in the [Barrier States](#states) registry.
+
+!!! note "Multiple Tasks and One BarrierCoordinator"
+    `receiveAndReply` handles [RequestToSync](RequestToSync.md) messages, one per task in a barrier stage.
+    Out of all the properties of `RequestToSync`, [numTasks](RequestToSync.md#numTasks), [stageId](RequestToSync.md#stageId) and [stageAttemptId](RequestToSync.md#stageAttemptId) are used.
+
+    The very first `RequestToSync` is used to register the [stageId](RequestToSync.md#stageId) and [stageAttemptId](RequestToSync.md#stageAttemptId) (as `ContextBarrierId`) with [numTasks](RequestToSync.md#numTasks).
+
+`receiveAndReply` finds the [ContextBarrierState](ContextBarrierState.md) for the stage and the stage attempt (in the [Barrier States](#states) registry) to [handle the RequestToSync](ContextBarrierState.md#handleRequest).
 
 ## Barrier States { #states }
 

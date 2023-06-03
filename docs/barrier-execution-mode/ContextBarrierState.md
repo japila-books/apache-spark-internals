@@ -1,6 +1,8 @@
 # ContextBarrierState
 
-`ContextBarrierState` is used by [BarrierCoordinator](BarrierCoordinator.md) to keep track of [active barrier stage attempts](BarrierCoordinator.md#states).
+`ContextBarrierState` represents the state of global sync of a [barrier stage](#barrierId) (with the [number of tasks](#numTasks)).
+
+`ContextBarrierState` is used by [BarrierCoordinator](BarrierCoordinator.md) to [handle RequestToSync messages](#handleRequest) (and to keep track of [active barrier stage attempts](BarrierCoordinator.md#states)).
 
 ??? note "ContextBarrierState"
     `ContextBarrierState` is a `private class` of [BarrierCoordinator](BarrierCoordinator.md).
@@ -9,8 +11,8 @@
 
 `ContextBarrierState` takes the following to be created:
 
-* <span id="barrierId"> `ContextBarrierId` (with a stage and stage attempt IDs)
-* <span id="numTasks"> Number of Tasks
+* <span id="barrierId"> `ContextBarrierId` (with a stage and a stage attempt IDs)
+* <span id="numTasks"> Number of Tasks (of a barrier stage)
 
 `ContextBarrierState` is created when:
 
@@ -75,7 +77,26 @@ handleRequest(
   request: RequestToSync): Unit
 ```
 
+`handleRequest` makes sure that the [RequestMethod](RequestMethod.md) (of the given [RequestToSync](RequestToSync.md)) is consistent across barrier tasks (using [requestMethods](#requestMethods) registry).
+
+`handleRequest` asserts that the [number of tasks](RequestToSync.md#numTasks) is the [numTasks](#numTasks), and so consistent across barrier tasks. Otherwise, `handleRequest` reports `IllegalArgumentException`:
+
+```text
+Number of tasks of [barrierId] is [numTasks] from Task [taskId], previously it was [numTasks].
+```
+
 `handleRequest`...FIXME
+
+---
+
+In case of different [RequestMethod](RequestMethod.md)s (in [requestMethods](#requestMethods) registry), `handleRequest` sends back a failure message to the [requesters](#requesters) (incl. the given `requester`):
+
+```text
+Different barrier sync types found for the sync [barrierId]: [requestMethods].
+Please use the same barrier sync type within a single sync.
+```
+
+`handleRequest` [clear](#clear).
 
 ---
 
