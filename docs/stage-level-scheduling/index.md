@@ -19,11 +19,13 @@ Custom Resource Profiles are only supported on YARN, Kubernetes and Spark Standa
 
 `ResourceProfile`s are associated with an `RDD` using [withResources](../rdd/RDD.md#withResources) operator.
 
-## Executor Resources
+## Resource Requests
 
-Executor Resources are specified using [executorResources](ResourceProfile.md#executorResources) of a `ResourceProfile`.
+### Executor
 
-Executor Resources can be the following [built-in resources](ResourceProfile.md#allSupportedExecutorResources):
+Executor Resource Requests are specified using [executorResources](ResourceProfile.md#executorResources) of a `ResourceProfile`.
+
+Executor Resource Requests can be the following [built-in resources](ResourceProfile.md#allSupportedExecutorResources):
 
 * `cores`
 * `memory`
@@ -31,11 +33,15 @@ Executor Resources can be the following [built-in resources](ResourceProfile.md#
 * `pyspark.memory`
 * `offHeap`
 
-Other (deployment environment-specific) executor resources can be defined as [Custom Executor Resources](ResourceProfile.md#getCustomExecutorResources).
+Other (deployment environment-specific) executor resource requests can be defined as [Custom Executor Resources](ResourceProfile.md#getCustomExecutorResources).
 
-## Task Resources
+### Task
 
 [Default Task Resources](ResourceProfile.md#getDefaultTaskResources) are specified based on [spark.task.cpus](../configuration-properties.md#spark.task.cpus) and [spark.task.resource](ResourceUtils.md#addTaskResourceRequests)-prefixed configuration properties.
+
+## SparkListenerResourceProfileAdded
+
+`ResourceProfile`s can be monitored using [SparkListenerResourceProfileAdded](SparkListenerResourceProfileAdded.md).
 
 ## Dynamic Allocation
 
