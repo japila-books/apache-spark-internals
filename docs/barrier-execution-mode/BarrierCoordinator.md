@@ -83,3 +83,16 @@ The `SparkListener` is [addToStatusQueue](../scheduler/LiveListenerBus.md#addToS
     `onStageCompleted` is part of the [SparkListenerInterface](../SparkListenerInterface.md#onStageCompleted) abstraction.
 
 `onStageCompleted` [cleanupBarrierStage](#cleanupBarrierStage) for the stage and the attempt number (based on the given `SparkListenerStageCompleted`).
+
+## Logging
+
+Enable `ALL` logging level for `org.apache.spark.BarrierCoordinator` logger to see what happens inside.
+
+Add the following line to `conf/log4j2.properties`:
+
+```text
+logger.BarrierCoordinator.name = org.apache.spark.BarrierCoordinator
+logger.BarrierCoordinator.level = all
+```
+
+Refer to [Logging](../spark-logging.md).

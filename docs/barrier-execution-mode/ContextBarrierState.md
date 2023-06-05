@@ -11,22 +11,32 @@
 
 `ContextBarrierState` takes the following to be created:
 
-* <span id="barrierId"> `ContextBarrierId` (with a stage and a stage attempt IDs)
+* [ContextBarrierId](#barrierId)
 * <span id="numTasks"> Number of Tasks (of a barrier stage)
 
 `ContextBarrierState` is created when:
 
 * `BarrierCoordinator` is requested to [handle a RequestToSync message](BarrierCoordinator.md#receiveAndReply) for a new stage and stage attempt IDs
 
-## Requester RpcCallContexts { #requesters }
+### Barrier Stage Attempt (ContextBarrierId) { #barrierId }
+
+`ContextBarrierState` is given a `ContextBarrierId` (of a barrier stage) when [created](#creating-instance).
+
+The `ContextBarrierId` uniquely identifies a barrier stage by the stage and stage attempt IDs.
+
+## Barrier Epoch { #barrierEpoch }
+
+`ContextBarrierState` initializes `barrierEpoch` counter to be `0` when [created](#creating-instance).
+
+## Barrier Tasks { #requesters }
 
 ```scala
 requesters: ArrayBuffer[RpcCallContext]
 ```
 
-`requesters` is a registry of `RpcCallContext`s of barrier tasks pending a reply.
+`requesters` is a registry of `RpcCallContext`s of the barrier tasks (of a [barrier stage attempt](#barrierId)) pending a reply.
 
-Once the number of `RpcCallContext`s in the `requesters` reaches the [number of tasks](#numTasks) that is to indicate that all the updates from barrier tasks have been received, this `ContextBarrierState` is considered finished successfully.
+It is only when the number of `RpcCallContext`s in the `requesters` reaches the [number of tasks](#numTasks) expected (while [handling RequestToSync requests](#handleRequest)) that this `ContextBarrierState` is considered finished successfully.
 
 `ContextBarrierState` initializes `requesters` when [created](#creating-instance) to be of [number of tasks](#numTasks) size.
 
@@ -69,6 +79,14 @@ The `TimerTask` is made available as [timerTask](#timerTask).
 
 * `ContextBarrierState` is requested to [handle a RequestToSync message](#handleRequest) (for the first global sync message received when the [requesters](#requesters) is empty)
 
+## messages
+
+`ContextBarrierState` initializes `messages` registry of messages from all [numTasks](#numTasks) barrier tasks (of a [barrier stage attempt](#barrierId)) when [created](#creating-instance).
+
+`messages` registry is empty.
+
+A new message is registered (_added_) when [handling a RequestToSync request](#handleRequest).
+
 ## Handling RequestToSync Message { #handleRequest }
 
 ```scala
@@ -79,13 +97,55 @@ handleRequest(
 
 `handleRequest` makes sure that the [RequestMethod](RequestMethod.md) (of the given [RequestToSync](RequestToSync.md)) is consistent across barrier tasks (using [requestMethods](#requestMethods) registry).
 
-`handleRequest` asserts that the [number of tasks](RequestToSync.md#numTasks) is the [numTasks](#numTasks), and so consistent across barrier tasks. Otherwise, `handleRequest` reports `IllegalArgumentException`:
+`handleRequest` asserts that the [number of tasks](RequestToSync.md#numTasks) is this [numTasks](#numTasks), and so consistent across barrier tasks. Otherwise, `handleRequest` reports `IllegalArgumentException`:
 
 ```text
 Number of tasks of [barrierId] is [numTasks] from Task [taskId], previously it was [numTasks].
 ```
 
-`handleRequest`...FIXME
+`handleRequest` prints out the following INFO message to the logs (with the [ContextBarrierId](#barrierId) and [barrierEpoch](#barrierEpoch)):
+
+```text
+Current barrier epoch for [barrierId] is [barrierEpoch].
+```
+
+For the first sync message received ([requesters](#requesters) is empty), `handleRequest` [initializes the TimerTask](#initTimerTask) and schedules it for execution after the [timeoutInSecs](BarrierCoordinator.md#timeoutInSecs).
+
+!!! note "Timeout"
+    Starting the [timerTask](#timerTask) ensures that a sync may eventually time out (after a configured delay).
+
+`handleRequest` registers the given `requester` in the [requesters](#requesters).
+
+`handleRequest` registers the [message](RequestToSync.md#message) of the [RequestToSync](RequestToSync.md) in the [messages](#messages) for the [partitionId](RequestToSync.md#partitionId).
+
+`handleRequest` prints out the following INFO message to the logs:
+
+```text
+Barrier sync epoch [barrierEpoch] from [barrierId] received update from Task taskId,
+current progress: [requesters]/[numTasks].
+```
+
+### Updates from All Barrier Tasks Received
+
+When the barrier sync received updates from all barrier tasks (i.e., the number of [requesters](#requesters) is the [numTasks](#numTasks)), `handleRequest` replies back to all the [requesters](#requesters) with the [messages](#messages).
+
+`handleRequest` prints out the following INFO message to the logs:
+
+```text
+Barrier sync epoch [barrierEpoch] from [barrierId] received all updates from tasks,
+finished successfully.
+```
+
+`handleRequest` increments the [barrierEpoch](#barrierEpoch), clears the [requesters](#requesters) and the [requestMethods](#requestMethods), and then [cancelTimerTask](#cancelTimerTask).
+
+---
+
+In case of the [epoch](RequestToSync.md#epoch) of the given [RequestToSync](RequestToSync.md) being different from this [barrierEpoch](#barrierEpoch), `handleRequest` sends back a failure message (with a `SparkException`) to the given `requester`:
+
+```text
+The request to sync of [barrierId] with barrier epoch [barrierEpoch] has already finished.
+Maybe task [taskId] is not properly killed.
+```
 
 ---
 
@@ -103,3 +163,7 @@ Please use the same barrier sync type within a single sync.
 `handleRequest` is used when:
 
 * `BarrierCoordinator` is requested to [handle a RequestToSync message](BarrierCoordinator.md#receiveAndReply)
+
+## Logging
+
+`ContextBarrierState` is a private class of [BarrierCoordinator](BarrierCoordinator.md) and logging is configured using the logger of [BarrierCoordinator](BarrierCoordinator.md#logging).
