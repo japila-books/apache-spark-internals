@@ -1,8 +1,10 @@
 # ResourceProfile
 
-`ResourceProfile` is a resource profile that describes [executor](#executorResources) and [task](#taskResources) requirements in [Stage-Level Scheduling](index.md).
+`ResourceProfile` is a resource profile that describes [executor](#executorResources) and [task](#taskResources) requirements of an [RDD](../rdd/RDD.md) in [Stage-Level Scheduling](index.md).
 
-`ResourceProfile` can be associated with an `RDD` using [withResources](../rdd/RDD.md#withResources) operator.
+`ResourceProfile` can be associated with an `RDD` using [RDD.withResources](../rdd/RDD.md#withResources) method.
+
+The `ResourceProfile` of an `RDD` is available using [RDD.getResourceProfile](#getResourceProfile) method.
 
 ## Creating Instance
 

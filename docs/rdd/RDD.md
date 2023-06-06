@@ -88,9 +88,22 @@ isBarrier_ : Boolean // (1)!
 !!! note
     `isBarrier_` is overriden by `PythonRDD` and [MapPartitionsRDD](MapPartitionsRDD.md#isBarrier_) that both accept `isFromBarrier` flag.
 
-## Stage-Level Scheduling
+## ResourceProfile (Stage-Level Scheduling) { #resourceProfile }
 
-### <span id="withResources"> withResources
+`RDD` can be assigned a [ResourceProfile](../stage-level-scheduling/ResourceProfile.md) using [RDD.withResources](#withResources) method.
+
+```scala
+val rdd: RDD[_] = ...
+rdd
+  .withResources(...) // request resources for a computation
+  .mapPartitions(...) // the computation
+```
+
+`RDD` uses `resourceProfile` internal registry for the [ResourceProfile](../stage-level-scheduling/ResourceProfile.md) that is undefined initially.
+
+The `ResourceProfile` is available using [RDD.getResourceProfile](#getResourceProfile) method.
+
+### withResources { #withResources }
 
 ```scala
 withResources(
@@ -99,15 +112,7 @@ withResources(
 
 `withResources` sets the given [ResourceProfile](../stage-level-scheduling/ResourceProfile.md) as the [resourceProfile](#resourceProfile) and requests the [ResourceProfileManager](../SparkContext.md#resourceProfileManager) to [add the resource profile](../stage-level-scheduling/ResourceProfileManager.md#addResourceProfile).
 
-### <span id="resourceProfile"> resourceProfile
-
-`RDD` uses `resourceProfile` internal registry for a [ResourceProfile](../stage-level-scheduling/ResourceProfile.md).
-
-The `ResourceProfile` is undefined when `RDD` is [created](#creating-instance) and is assigned in [withResources](#withResources).
-
-The `ResourceProfile` is available using [getResourceProfile](#getResourceProfile).
-
-### <span id="getResourceProfile"> getResourceProfile
+### getResourceProfile { #getResourceProfile }
 
 ```scala
 getResourceProfile(): ResourceProfile
@@ -115,9 +120,11 @@ getResourceProfile(): ResourceProfile
 
 `getResourceProfile` returns the [resourceProfile](#resourceProfile) (if defined) or `null`.
 
+---
+
 `getResourceProfile` is used when:
 
-* `DAGScheduler` is requested for the [shuffle dependencies and resource profiles](../scheduler/DAGScheduler.md#getShuffleDependenciesAndResourceProfiles)
+* `DAGScheduler` is requested for the [ShuffleDependencies and ResourceProfiles of an RDD](../scheduler/DAGScheduler.md#getShuffleDependenciesAndResourceProfiles)
 
 ## <span id="preferredLocations"> Preferred Locations (Placement Preferences of Partition)
 

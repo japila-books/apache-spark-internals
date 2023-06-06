@@ -89,19 +89,6 @@ Used when:
 
 * `SparkContext` is requested to [submit a MapStage for execution](../SparkContext.md#submitMapStage)
 
-## <span id="getShuffleDependenciesAndResourceProfiles"> Shuffle Dependencies and ResourceProfiles
-
-```scala
-getShuffleDependenciesAndResourceProfiles(
-  rdd: RDD[_]): (HashSet[ShuffleDependency[_, _, _]], HashSet[ResourceProfile])
-```
-
-`getShuffleDependenciesAndResourceProfiles`...FIXME
-
-`getShuffleDependenciesAndResourceProfiles` is used when:
-
-* `DAGScheduler` is requested to create a [ShuffleMapStage](#createShuffleMapStage) and a [ResultStage](#createResultStage), and for the [missing ShuffleDependencies of a RDD](#getMissingAncestorShuffleDependencies)
-
 ## <span id="metricsSource"><span id="DAGSchedulerSource"> DAGSchedulerSource
 
 `DAGScheduler` uses [DAGSchedulerSource](DAGSchedulerSource.md) for performance metrics.
@@ -217,7 +204,7 @@ Used when `DAGScheduler` is requested for the [locations of the cache blocks of 
 
 The number of ActiveJobs is available using [job.activeJobs](DAGSchedulerSource.md#job.activeJobs) performance metric.
 
-## <span id="createResultStage"> Creating ResultStage for RDD
+## Creating ResultStage for RDD { #createResultStage }
 
 ```scala
 createResultStage(
@@ -228,9 +215,35 @@ createResultStage(
   callSite: CallSite): ResultStage
 ```
 
-`createResultStage`...FIXME
+`createResultStage` creates a new [ResultStage](ResultStage.md) for the [ShuffleDependencies and ResourceProfiles](#getShuffleDependenciesAndResourceProfiles) of the given [RDD](../rdd/RDD.md).
 
-`createResultStage` is used when `DAGScheduler` is requested to [handle a JobSubmitted event](#handleJobSubmitted).
+---
+
+`createResultStage` [finds the ShuffleDependencies and ResourceProfiles](#getShuffleDependenciesAndResourceProfiles) for the given [RDD](../rdd/RDD.md).
+
+`createResultStage` [merges the ResourceProfiles for the Stage](#mergeResourceProfilesForStage) (if enabled or reports an exception).
+
+`createResultStage` does the following checks (that may report violations and break the execution):
+
+* [checkBarrierStageWithDynamicAllocation](#checkBarrierStageWithDynamicAllocation)
+* [checkBarrierStageWithNumSlots](#checkBarrierStageWithNumSlots)
+* [checkBarrierStageWithRDDChainPattern](#checkBarrierStageWithRDDChainPattern)
+
+`createResultStage` [getOrCreateParentStages](#getOrCreateParentStages) (with the `ShuffleDependency`ies and the given `jobId`).
+
+`createResultStage` uses the [nextStageId](#nextStageId) counter for a stage ID.
+
+`createResultStage` creates a new [ResultStage](ResultStage.md) (with the unique id of a [ResourceProfile](../stage-level-scheduling/ResourceProfile.md) among others).
+
+`createResultStage` registers the `ResultStage` with the stage ID in [stageIdToStage](#stageIdToStage).
+
+`createResultStage` [updateJobIdStageIdMaps](#updateJobIdStageIdMaps) and returns the `ResultStage`.
+
+---
+
+`createResultStage` is used when:
+
+* `DAGScheduler` is requested to [handle a JobSubmitted event](#handleJobSubmitted)
 
 ## <span id="createShuffleMapStage"> Creating ShuffleMapStage for ShuffleDependency
 
@@ -1674,6 +1687,34 @@ If the number of partitions (based on the [RDD](../rdd/RDD.md#getNumPartitions))
 `checkBarrierStageWithNumSlots` is used when:
 
 * `DAGScheduler` is requested to create a [ShuffleMapStage](#createShuffleMapStage) or a [ResultStage](#createResultStage) stage
+
+## Utilities
+
+!!! danger
+    The section includes (_hides_) utility methods that do not really contribute to the understanding of how `DAGScheduler` works internally.
+
+    It's very likely they should not even be part of this page.
+
+### Finding Shuffle Dependencies and ResourceProfiles of RDD { #getShuffleDependenciesAndResourceProfiles }
+
+```scala
+getShuffleDependenciesAndResourceProfiles(
+  rdd: RDD[_]): (HashSet[ShuffleDependency[_, _, _]], HashSet[ResourceProfile])
+```
+
+`getShuffleDependenciesAndResourceProfiles` returns the direct [ShuffleDependencies](../rdd/RDD.md#dependencies) and all the [ResourceProfiles](../rdd/RDD.md#getResourceProfile) of the given [RDD](../rdd/RDD.md) and parent non-shuffle `RDD`s, if available.
+
+---
+
+`getShuffleDependenciesAndResourceProfiles` collects [ResourceProfiles](../rdd/RDD.md#getResourceProfile) of the given [RDD](../rdd/RDD.md) and any parent `RDD`s, if available.
+
+`getShuffleDependenciesAndResourceProfiles` collects direct [ShuffleDependencies](../rdd/RDD.md#dependencies) of the given [RDD](../rdd/RDD.md) and any parent `RDD`s of non-`ShuffleDependency`ies, if available.
+
+---
+
+`getShuffleDependenciesAndResourceProfiles` is used when:
+
+* `DAGScheduler` is requested to create a [ShuffleMapStage](#createShuffleMapStage) and a [ResultStage](#createResultStage), and for the [missing ShuffleDependencies of a RDD](#getMissingAncestorShuffleDependencies)
 
 ## Logging
 
