@@ -115,6 +115,8 @@ Print out the available partitions and the number of records within each (using 
 +-----------+----+
 ```
 
+### Distributed Training
+
 [RDD.barrier](../rdd/RDD.md#barrier) creates a [Barrier Stage](#barrier-stage) (a [RDDBarrier](RDDBarrier.md)).
 
 ```scala
@@ -130,7 +132,29 @@ val barrierRdd = nums
   .mapPartitions { ns =>
     import org.apache.spark.{BarrierTaskContext, TaskContext}
     val ctx = TaskContext.get.asInstanceOf[BarrierTaskContext]
-    ctx.allGather("waiting for all the barrier tasks")
+    val tid = ctx.partitionId()
+    val port = 10000 + tid
+    val host = "localhost"
+    val message = s"A message from task $tid, e.g. $host:$port it listens at"
+    val allTaskMessages = ctx.allGather(message)
+
+    if (tid == 0) { // only Task 0 prints out status
+      println(">>> Got host:port's from the other tasks")
+      allTaskMessages.foreach(println)
+    }
+
+    if (tid == 0) { // only Task 0 prints out status
+      println(">>> Starting a distributed training at the nodes...")
+    }
+
+    ctx.barrier() // this is BarrierTaskContext.barrier (not RDD.barrier)
+                  // which can be confusing
+
+    if (tid == 0) { // only Task 0 prints out status
+      println(">>> All tasks have finished")
+    }
+
+    // return a model after combining (model) pieces from the nodes
     ns
   }
 ```
