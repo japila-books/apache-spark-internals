@@ -80,7 +80,7 @@ Empty by default and so no task location preferences are defined that says the t
 
 `preferredLocations` is used when `TaskSetManager` is requested to [register a task as pending execution](TaskSetManager.md#addPendingTask) and [dequeueSpeculativeTask](TaskSetManager.md#dequeueSpeculativeTask).
 
-## <span id="run"> Running Task Thread
+## Running Task { #run }
 
 ```scala
 run(
@@ -120,7 +120,11 @@ In case of any exceptions, `run` [notifies `TaskContextImpl` that the task has f
 !!! note
     `run` uses `SparkEnv` to access the current [MemoryManager](../SparkEnv.md#memoryManager).
 
-`run` is used when `TaskRunner` is requested to [run](../executor/TaskRunner.md#run) (when `Executor` is requested to [launch a task (on "Executor task launch worker" thread pool sometime in the future)](../executor/Executor.md#launchTask)).
+---
+
+`run` is used when:
+
+* `TaskRunner` is requested to [run](../executor/TaskRunner.md#run) (when `Executor` is requested to [launch a task (on "Executor task launch worker" thread pool sometime in the future)](../executor/Executor.md#launchTask))
 
 ## <span id="states"><span id="TaskState"> Task States
 

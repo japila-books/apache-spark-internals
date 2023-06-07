@@ -15,12 +15,22 @@
 * <span id="addedFiles"> Added files (as `Map[String, Long]`)
 * <span id="addedJars"> Added JAR files (as `Map[String, Long]`)
 * <span id="properties"> `Properties`
-* <span id="resources"> Resources (`Map[String, ResourceInformation]`)
+* [Resources](#resources)
 * <span id="serializedTask"> Serialized task (as `ByteBuffer`)
 
 `TaskDescription` is created when:
 
 * `TaskSetManager` is requested to [find a task ready for execution (given a resource offer)](TaskSetManager.md#resourceOffer)
+
+### Resources
+
+```scala
+resources: Map[String, ResourceInformation]
+```
+
+`TaskDescription` is given resources when [created](#creating-instance).
+
+The resources are either specified when `TaskSetManager` is requested to [resourceOffer](TaskSetManager.md#resourceOffer) (and [prepareLaunchingTask](TaskSetManager.md#prepareLaunchingTask)) or [decoded from bytes](#deserializeResources).
 
 ## <span id="toString"> Text Representation
 

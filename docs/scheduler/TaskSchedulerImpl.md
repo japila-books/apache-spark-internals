@@ -412,18 +412,21 @@ executorAdded(
 
 NOTE: `executorAdded` uses <<dagScheduler, DAGScheduler>> that was given when <<setDAGScheduler, setDAGScheduler>>.
 
-## <span id="resourceOffers"> Creating TaskDescriptions For Available Executor Resource Offers
+## Creating TaskDescriptions For Available Executor Resource Offers { #resourceOffers }
 
 ```scala
 resourceOffers(
   offers: Seq[WorkerOffer]): Seq[Seq[TaskDescription]]
 ```
 
-`resourceOffers` takes the resources `offers` (as <<WorkerOffer, WorkerOffers>>) and generates a collection of tasks (as [TaskDescription](TaskDescription.md)) to launch (given the resources available).
+`resourceOffers` takes the resources `offers` and generates a collection of tasks (as [TaskDescription](TaskDescription.md)s) to launch (given the resources available).
 
-NOTE: <<WorkerOffer, WorkerOffer>> represents a resource offer with CPU cores free to use on an executor.
+!!! note
+    A `WorkerOffer` represents a resource offer with CPU cores free to use on an executor.
 
 ![Processing Executor Resource Offers](../images/scheduler/taskscheduler-resourceOffers.png)
+
+---
 
 Internally, `resourceOffers` first updates <<hostToExecutors, hostToExecutors>> and <<executorIdToHost, executorIdToHost>> lookup tables to record new hosts and executors (given the input `offers`).
 
@@ -472,10 +475,11 @@ If `resourceOffers` did not manage to offer resources to a `TaskSetManager` so i
 
 When `resourceOffers` managed to launch a task, the internal <<hasLaunchedTask, hasLaunchedTask>> flag gets enabled (that effectively means what the name says _"there were executors and I managed to launch a task"_).
 
+---
+
 `resourceOffers` is used when:
 
-* `CoarseGrainedSchedulerBackend` (via `DriverEndpoint` RPC endpoint) is requested to [make executor resource offers](DriverEndpoint.md#makeOffers)
-
+* `CoarseGrainedSchedulerBackend` (via [DriverEndpoint](DriverEndpoint.md) RPC endpoint) is requested to [make executor resource offers](DriverEndpoint.md#makeOffers)
 * `LocalEndpoint` is requested to [revive resource offers](../local/LocalEndpoint.md#reviveOffers)
 
 ### <span id="maybeInitBarrierCoordinator"> maybeInitBarrierCoordinator
@@ -484,7 +488,13 @@ When `resourceOffers` managed to launch a task, the internal <<hasLaunchedTask, 
 maybeInitBarrierCoordinator(): Unit
 ```
 
-`maybeInitBarrierCoordinator`...FIXME
+Unless a [BarrierCoordinator](#barrierCoordinator) has already been registered, `maybeInitBarrierCoordinator` creates a [BarrierCoordinator](../barrier-execution-mode/BarrierCoordinator.md) and registers it to be known as **barrierSync**.
+
+In the end, `maybeInitBarrierCoordinator` prints out the following INFO message to the logs:
+
+```text
+Registered BarrierCoordinator endpoint
+```
 
 ## Finding Tasks from TaskSetManager to Schedule on Executors { #resourceOfferSingleTaskSet }
 
@@ -502,23 +512,24 @@ resourceOfferSingleTaskSet(
 
 `resourceOfferSingleTaskSet` adds the task to the input `tasks` collection.
 
-`resourceOfferSingleTaskSet` records the task id and `TaskSetManager` in the following registries:
-
-* <<taskIdToTaskSetManager, taskIdToTaskSetManager>>
-* <<taskIdToExecutorId, taskIdToExecutorId>>
-* <<executorIdToRunningTaskIds, executorIdToRunningTaskIds>>
+`resourceOfferSingleTaskSet` records the task id and `TaskSetManager` in _some_ registries.
 
 `resourceOfferSingleTaskSet` decreases configuration-properties.md#spark.task.cpus[spark.task.cpus] from the input `availableCpus` (for the `WorkerOffer`).
 
-NOTE: `resourceOfferSingleTaskSet` makes sure that the number of available CPU cores (in the input `availableCpus` per `WorkerOffer`) is at least `0`.
+`resourceOfferSingleTaskSet` returns whether a task was launched or not.
 
-If there is a `TaskNotSerializableException`, you should see the following ERROR in the logs:
+!!! note
+    `resourceOfferSingleTaskSet` asserts that the number of available CPU cores (in the input `availableCpus` per `WorkerOffer`) is at least `0`.
+
+---
+
+If there is a `TaskNotSerializableException`, `resourceOfferSingleTaskSet` prints out the following ERROR in the logs:
 
 ```text
 Resource offer failed, task set [name] was not serializable
 ```
 
-`resourceOfferSingleTaskSet` returns whether a task was launched or not.
+---
 
 `resourceOfferSingleTaskSet` is used when:
 

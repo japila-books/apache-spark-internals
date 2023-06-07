@@ -2,7 +2,7 @@
 
 `TaskContext` is an [abstraction](#contract) of [task contexts](#implementations).
 
-## Contract
+## Contract (Subset)
 
 ### <span id="addTaskCompletionListener"> addTaskCompletionListener
 
@@ -115,24 +115,6 @@ getMetricsSources(
 
 Looks up [Source](../metrics/Source.md)s by name
 
-### <span id="isCompleted"> isCompleted
-
-```scala
-isCompleted(): Boolean
-```
-
-### <span id="isInterrupted"> isInterrupted
-
-```scala
-isInterrupted(): Boolean
-```
-
-### <span id="killTaskIfInterrupted"> killTaskIfInterrupted
-
-```scala
-killTaskIfInterrupted(): Unit
-```
-
 ### <span id="registerAccumulator"> Registering Accumulator
 
 ```scala
@@ -146,13 +128,17 @@ Used when:
 
 * `AccumulatorV2` is requested to [deserialize itself](../accumulators/AccumulatorV2.md#readObject)
 
-### <span id="resources"> resources
+### Resources
 
 ```scala
 resources(): Map[String, ResourceInformation]
 ```
 
-Resources allocated to the task
+Resources (names) allocated to this task
+
+See:
+
+* [TaskContextImpl](TaskContextImpl.md#resources)
 
 ### <span id="taskMetrics"> taskMetrics
 

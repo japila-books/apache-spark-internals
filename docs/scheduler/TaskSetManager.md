@@ -142,7 +142,7 @@ If [zombie](#isZombie), `recomputeLocality` does nothing.
 
 * `TaskSetManager` is notified about status change in executors (i.e., [lost](#executorLost), [decommissioned](#executorDecommission), [added](#executorAdded))
 
-## <span id="zombie"> Zombie
+## Zombie
 
 A `TaskSetManager` is a **zombie** when all tasks in a taskset have completed successfully (regardless of the number of task attempts), or if the taskset has been [aborted](#abort).
 
@@ -195,6 +195,32 @@ executorAdded(): Unit
 `executorAdded` is used when:
 
 * `TaskSchedulerImpl` is requested to [handle resource offers](TaskSchedulerImpl.md#resourceOffers)
+
+## prepareLaunchingTask { #prepareLaunchingTask }
+
+```scala
+prepareLaunchingTask(
+  execId: String,
+  host: String,
+  index: Int,
+  taskLocality: TaskLocality.Value,
+  speculative: Boolean,
+  taskCpus: Int,
+  taskResourceAssignments: Map[String, ResourceInformation],
+  launchTime: Long): TaskDescription
+```
+
+??? note "taskResourceAssignments"
+    `taskResourceAssignments` are the resources that are passed in to [resourceOffer](#resourceOffer).
+
+`prepareLaunchingTask`...FIXME
+
+---
+
+`prepareLaunchingTask` is used when:
+
+* `TaskSchedulerImpl` is requested to [resourceOffers](TaskSchedulerImpl.md#resourceOffers)
+* `TaskSetManager` is requested to [resourceOffers](#resourceOffers)
 
 ## Demo
 
