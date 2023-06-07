@@ -212,6 +212,34 @@ assert(barrierRdd.isBarrier)
 * `synapse.ml.lightgbm.LightGBMRanker`
 * `synapse.ml.lightgbm.LightGBMRegressor`
 
+### XGBoost4J
+
+[XGBoost4J](https://xgboost.readthedocs.io/en/stable/jvm/index.html) is the JVM package of [xgboost](https://xgboost.readthedocs.io/en/stable/index.html) (an optimized distributed gradient boosting library with machine learning algorithms for regression and classification under the [Gradient Boosting](https://en.wikipedia.org/wiki/Gradient_boosting) framework).
+
+The heart of distributed training in [xgboost4j-spark](https://github.com/dmlc/xgboost/tree/v1.7.5/jvm-packages/xgboost4j-spark) (that can run distributed xgboost on Apache Spark) is [XGBoost.trainDistributed](https://github.com/dmlc/xgboost/blob/v1.7.5/jvm-packages/xgboost4j-spark/src/main/scala/ml/dmlc/xgboost4j/scala/spark/XGBoost.scala#L370).
+
+There's a [familiar line](https://github.com/dmlc/xgboost/blob/v1.7.5/jvm-packages/xgboost4j-spark/src/main/scala/ml/dmlc/xgboost4j/scala/spark/XGBoost.scala#L400) that creates a barrier stage (using `RDD.barrier()`):
+
+```scala
+val boostersAndMetrics = trainingRDD.barrier().mapPartitions {
+  // distributed training using XGBoost happens here
+}
+```
+
+The barrier `mapPartitions` block finishes is followed by `RDD.collect()` that gets XGBoost4J-specific metadata (`booster` and `metrics`):
+
+```scala
+val (booster, metrics) = boostersAndMetrics.collect()(0)
+```
+
+Within the barrier stage (within `mapPartitions` block), xgboost4j-spark [builds a distributed booster](https://github.com/dmlc/xgboost/blob/v1.7.5/jvm-packages/xgboost4j-spark/src/main/scala/ml/dmlc/xgboost4j/scala/spark/XGBoost.scala#L289):
+
+1. Checkpointing, when enabled, happens only by Task 0
+1. All tasks initialize so-called [collective Communicator](https://github.com/dmlc/xgboost/blob/v1.7.5/jvm-packages/xgboost4j/src/main/java/ml/dmlc/xgboost4j/java/Communicator.java#L16) for synchronization
+1. xgboost4j-spark uses [XGBoostJNI](https://github.com/dmlc/xgboost/blob/v1.7.5/jvm-packages/xgboost4j/src/main/java/ml/dmlc/xgboost4j/java/XGBoostJNI.java#L29) to talk to XGBoost using JNI
+1. Only Task 0 returns non-empty iterator (and that's why the `RDD.collect()(0)` gets `(booster, metrics)`)
+1. All tasks execute [SXGBoost.train](https://github.com/dmlc/xgboost/blob/v1.7.5/jvm-packages/xgboost4j/src/main/scala/ml/dmlc/xgboost4j/scala/XGBoost.scala#L95) that eventually leads to [XGBoost.trainAndSaveCheckpoint](https://github.com/dmlc/xgboost/blob/v1.7.5/jvm-packages/xgboost4j/src/main/scala/ml/dmlc/xgboost4j/scala/XGBoost.scala#L32)
+
 ## Learn More
 
 1. [SPIP: Support Barrier Execution Mode in Apache Spark]({{ spark.jira }}/SPARK-24374) (esp. [Design: Barrier execution mode]({{ spark.jira }}/SPARK-24582))
