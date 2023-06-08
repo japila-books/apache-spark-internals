@@ -4,6 +4,8 @@
 
 ![CoarseGrainedSchedulerBackend uses DriverEndpoint for communication with CoarseGrainedExecutorBackend](../images/CoarseGrainedSchedulerBackend-DriverEndpoint-CoarseGrainedExecutorBackend.png)
 
+`DriverEndpoint` is registered under the name [CoarseGrainedScheduler](CoarseGrainedSchedulerBackend.md#driverEndpoint) by [CoarseGrainedSchedulerBackend](CoarseGrainedSchedulerBackend.md).
+
 `DriverEndpoint` uses [executorDataMap](CoarseGrainedSchedulerBackend.md#executorDataMap) internal registry of all the [executors that registered with the driver](executor:CoarseGrainedExecutorBackend.md#onStart). An executor sends a [RegisterExecutor](#RegisterExecutor) message to inform that it wants to register.
 
 ![Executor registration (RegisterExecutor RPC message flow)](../images/CoarseGrainedSchedulerBackend-RegisterExecutor-event.png)
@@ -12,7 +14,9 @@
 
 `DriverEndpoint` takes no arguments to be created.
 
-`DriverEndpoint` is created when `CoarseGrainedSchedulerBackend` is requested for [one](CoarseGrainedSchedulerBackend.md#createDriverEndpoint).
+`DriverEndpoint` is created when:
+
+* `CoarseGrainedSchedulerBackend` is [created](CoarseGrainedSchedulerBackend.md#createDriverEndpoint) (and registers a [CoarseGrainedScheduler RPC endpoint](CoarseGrainedSchedulerBackend.md#driverEndpoint))
 
 ## <span id="logUrlHandler"> ExecutorLogUrlHandler
 
@@ -24,15 +28,92 @@ logUrlHandler: ExecutorLogUrlHandler
 
 `DriverEndpoint` uses the `ExecutorLogUrlHandler` to create an [ExecutorData](ExecutorData.md) when requested to handle a [RegisterExecutor](#RegisterExecutor) message.
 
-## <span id="onStart"> Starting DriverEndpoint
+## Starting DriverEndpoint { #onStart }
 
-```scala
-onStart(): Unit
-```
+??? note "RpcEndpoint"
 
-`onStart` is part of the [RpcEndpoint](../rpc/RpcEndpoint.md#onStart) abstraction.
+    ```scala
+    onStart(): Unit
+    ```
+
+    `onStart` is part of the [RpcEndpoint](../rpc/RpcEndpoint.md#onStart) abstraction.
 
 `onStart` requests the [Revive Messages Scheduler Service](CoarseGrainedSchedulerBackend.md#reviveThread) to schedule a periodic action that sends [ReviveOffers](#ReviveOffers) messages every **revive interval** (based on [spark.scheduler.revive.interval](../configuration-properties.md#spark.scheduler.revive.interval) configuration property).
+
+## Launching Tasks { #makeOffers }
+
+There are two `makeOffers` methods to launch tasks that differ by the number of [active executor](CoarseGrainedSchedulerBackend.md#isExecutorActive) (from the [executorDataMap](#executorDataMap) registry) they work with:
+
+* [All Active Executors](#on-all-active-executors)
+* [Single Executor](#on-single-executor)
+
+### On All Active Executors
+
+```scala
+makeOffers(): Unit
+```
+
+`makeOffers` [builds WorkerOffers](#buildWorkerOffer) for every [active executor](CoarseGrainedSchedulerBackend.md#isExecutorActive) (in the [executorDataMap](#executorDataMap) registry) and requests the [TaskSchedulerImpl](CoarseGrainedSchedulerBackend.md#scheduler) to [generate tasks for the available worker offers](TaskSchedulerImpl.md#resourceOffers) (that creates [TaskDescription](TaskDescription.md)s).
+
+With tasks (`TaskDescription`s) to be launched, `makeOffers` [launches them](#launchTasks).
+
+---
+
+`makeOffers` is used when:
+
+* `DriverEndpoint` handles [ReviveOffers](#ReviveOffers) messages
+
+### On Single Executor
+
+```scala
+makeOffers(
+  executorId: String): Unit
+```
+
+!!! note
+    `makeOffers` with a single executor is [makeOffers](#makeOffers) for all active executors for just one executor.
+
+---
+
+`makeOffers` is used when:
+
+* `DriverEndpoint` handles [StatusUpdate](#StatusUpdate) and [LaunchedExecutor](#LaunchedExecutor) messages
+
+### Launching Tasks { #launchTasks }
+
+```scala
+launchTasks(
+  tasks: Seq[Seq[TaskDescription]]): Unit
+```
+
+!!! note
+    The input `tasks` collection contains one or more [TaskDescription](TaskDescription.md)s per executor (and the "task partitioning" per executor is of no use in `launchTasks` so it simply flattens the input data structure).
+
+For every [TaskDescription](TaskDescription.md) (in the given `tasks` collection), `launchTasks` [encodes it](TaskDescription.md#encode) and makes sure that the encoded task size is below the [allowed message size](CoarseGrainedSchedulerBackend.md#maxRpcMessageSize).
+
+`launchTasks` looks up the `ExecutorData` of the executor that has been assigned to execute the task (in [executorDataMap](CoarseGrainedSchedulerBackend.md#executorDataMap) internal registry) and decreases the executor's free cores (based on [spark.task.cpus](../configuration-properties.md#spark.task.cpus) configuration property).
+
+!!! note
+    Scheduling in Spark relies on cores only (not memory), i.e. the number of tasks Spark can run on an executor is limited by the number of cores available only. When submitting a Spark application for execution both executor resources -- memory and cores -- can however be specified explicitly. It is the job of a cluster manager to monitor the memory and take action when its use exceeds what was assigned.
+
+`launchTasks` prints out the following DEBUG message to the logs:
+
+```text
+Launching task [taskId] on executor id: [executorId] hostname: [executorHost].
+```
+
+In the end, `launchTasks` sends the (serialized) task to the executor (by sending a [LaunchTask](../executor/CoarseGrainedExecutorBackend.md#LaunchTask) message to the executor's RPC endpoint with the serialized task insize `SerializableBuffer`).
+
+!!! note
+    This is the moment in a task's lifecycle when the driver sends the serialized task to an assigned executor.
+
+### <span id="launchTasks-exceeds-max-allowed"> Task Exceeds Allowed Size
+
+In case the size of a serialized `TaskDescription` equals or exceeds the [maximum allowed RPC message size](CoarseGrainedSchedulerBackend.md#maxRpcMessageSize), `launchTasks` looks up the [TaskSetManager](TaskSetManager.md) for the `TaskDescription` (in [taskIdToTaskSetManager](TaskSchedulerImpl.md#taskIdToTaskSetManager) registry) and [aborts it](TaskSetManager.md#abort) with the following message:
+
+```text
+Serialized task [id]:[index] was [limit] bytes, which exceeds max allowed: spark.rpc.message.maxSize ([maxRpcMessageSize] bytes). Consider increasing spark.rpc.message.maxSize or using broadcast variables for large values.
+```
 
 ## Messages
 
@@ -200,77 +281,6 @@ Asking each executor to shut down
 It then sends a [StopExecutor](../executor/CoarseGrainedExecutorBackend.md#StopExecutor) message to every registered executor (from `executorDataMap`).
 
 ### <span id="UpdateDelegationTokens"> UpdateDelegationTokens
-
-## <span id="makeOffers"> Making Executor Resource Offers (for Launching Tasks)
-
-```scala
-makeOffers(): Unit
-```
-
-`makeOffers` creates `WorkerOffer`s for all [active executors](CoarseGrainedSchedulerBackend.md#isExecutorActive).
-
-`makeOffers` requests [TaskSchedulerImpl](CoarseGrainedSchedulerBackend.md#scheduler) to [generate tasks for the available worker offers](TaskSchedulerImpl.md#resourceOffers).
-
-When there are tasks to be launched (from `TaskSchedulerImpl`) `makeOffers` [does so](#launchTasks).
-
-`makeOffers` is used when `DriverEndpoint` handles [ReviveOffers](#ReviveOffers) or [RegisterExecutor](#RegisterExecutor) messages.
-
-## <span id="makeOffers-executorId"> Making Executor Resource Offer on Single Executor (for Launching Tasks)
-
-```scala
-makeOffers(
-  executorId: String): Unit
-```
-
-`makeOffers` makes sure that the [input `executorId` is alive](#executorIsAlive).
-
-NOTE: `makeOffers` does nothing when the input `executorId` is registered as pending to be removed or got lost.
-
-`makeOffers` finds the executor data (in scheduler:CoarseGrainedSchedulerBackend.md#executorDataMap[executorDataMap] registry) and creates a scheduler:TaskSchedulerImpl.md#WorkerOffer[WorkerOffer].
-
-NOTE: `WorkerOffer` represents a resource offer with CPU cores available on an executor.
-
-`makeOffers` then scheduler:TaskSchedulerImpl.md#resourceOffers[requests `TaskSchedulerImpl` to generate tasks for the `WorkerOffer`] followed by [launching the tasks](#launchTasks) (on the executor).
-
-`makeOffers` is used when `CoarseGrainedSchedulerBackend` RPC endpoint (DriverEndpoint) handles a [StatusUpdate](#StatusUpdate) message.
-
-## <span id="launchTasks"> Launching Tasks
-
-```scala
-launchTasks(
-  tasks: Seq[Seq[TaskDescription]]): Unit
-```
-
-!!! note
-    The input `tasks` collection contains one or more [TaskDescription](TaskDescription.md)s per executor (and the "task partitioning" per executor is of no use in `launchTasks` so it simply flattens the input data structure).
-
-For every [TaskDescription](TaskDescription.md) (in the given `tasks` collection), `launchTasks` [encodes it](TaskDescription.md#encode) and makes sure that the encoded task size is below the [allowed message size](CoarseGrainedSchedulerBackend.md#maxRpcMessageSize).
-
-`launchTasks` looks up the `ExecutorData` of the executor that has been assigned to execute the task (in [executorDataMap](CoarseGrainedSchedulerBackend.md#executorDataMap) internal registry) and decreases the executor's free cores (based on [spark.task.cpus](../configuration-properties.md#spark.task.cpus) configuration property).
-
-!!! note
-    Scheduling in Spark relies on cores only (not memory), i.e. the number of tasks Spark can run on an executor is limited by the number of cores available only. When submitting a Spark application for execution both executor resources -- memory and cores -- can however be specified explicitly. It is the job of a cluster manager to monitor the memory and take action when its use exceeds what was assigned.
-
-`launchTasks` prints out the following DEBUG message to the logs:
-
-```text
-Launching task [taskId] on executor id: [executorId] hostname: [executorHost].
-```
-
-In the end, `launchTasks` sends the (serialized) task to the executor (by sending a [LaunchTask](../executor/CoarseGrainedExecutorBackend.md#LaunchTask) message to the executor's RPC endpoint with the serialized task insize `SerializableBuffer`).
-
-!!! note
-    This is the moment in a task's lifecycle when the driver sends the serialized task to an assigned executor.
-
-`launchTasks` is used when `CoarseGrainedSchedulerBackend` is requested to make resource offers on [single](#makeOffers-executorId) or [all](#makeOffers) executors.
-
-### <span id="launchTasks-exceeds-max-allowed"> Task Exceeds Allowed Size
-
-In case the size of a serialized `TaskDescription` equals or exceeds the [maximum allowed RPC message size](CoarseGrainedSchedulerBackend.md#maxRpcMessageSize), `launchTasks` looks up the [TaskSetManager](TaskSetManager.md) for the `TaskDescription` (in [taskIdToTaskSetManager](TaskSchedulerImpl.md#taskIdToTaskSetManager) registry) and [aborts it](TaskSetManager.md#abort) with the following message:
-
-```text
-Serialized task [id]:[index] was [limit] bytes, which exceeds max allowed: spark.rpc.message.maxSize ([maxRpcMessageSize] bytes). Consider increasing spark.rpc.message.maxSize or using broadcast variables for large values.
-```
 
 ## <span id="removeExecutor"> Removing Executor
 

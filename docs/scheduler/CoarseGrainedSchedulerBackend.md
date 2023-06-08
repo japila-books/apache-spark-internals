@@ -27,19 +27,31 @@
 * <span id="scheduler"> [TaskSchedulerImpl](TaskSchedulerImpl.md)
 * <span id="rpcEnv"> [RpcEnv](../rpc/RpcEnv.md)
 
-### <span id="createDriverEndpoint"> Creating DriverEndpoint
+## CoarseGrainedScheduler RPC Endpoint { #driverEndpoint }
 
 ```scala
-createDriverEndpoint(
-  properties: Seq[(String, String)]): DriverEndpoint
+driverEndpoint: RpcEndpointRef
 ```
 
-`createDriverEndpoint` creates a [DriverEndpoint](DriverEndpoint.md).
+`CoarseGrainedSchedulerBackend` registers a [DriverEndpoint](DriverEndpoint.md) RPC endpoint known as **CoarseGrainedScheduler** when [created](#creating-instance).
+
+### Creating DriverEndpoint { #createDriverEndpoint }
+
+```scala
+createDriverEndpoint(): DriverEndpoint
+```
+
+`createDriverEndpoint` creates a new [DriverEndpoint](DriverEndpoint.md).
 
 !!! note
-    The purpose of `createDriverEndpoint` is to let [CoarseGrainedSchedulerBackends](#implementations) to provide custom implementations (e.g. `KubernetesClusterSchedulerBackend`).
+    The purpose of `createDriverEndpoint` is to let [CoarseGrainedSchedulerBackends](#implementations) to provide their own custom implementations:
+    
+    * `KubernetesClusterSchedulerBackend` ([Spark on Kubernetes]({{ book.spark_k8s }}/KubernetesClusterSchedulerBackend/#createDriverEndpoint))
+    * `StandaloneSchedulerBackend`
 
-`createDriverEndpoint` is used when `CoarseGrainedSchedulerBackend` is [created](#creating-instance) (and initializes the [driverEndpoint](#driverEndpoint) internal reference).
+`createDriverEndpoint` is used when:
+
+* `CoarseGrainedSchedulerBackend` is [created](#creating-instance) (and [registers CoarseGrainedScheduler RPC endpoint](#driverEndpoint))
 
 ## Maximum Number of Concurrent Tasks { #maxNumConcurrentTasks }
 
@@ -101,16 +113,6 @@ minRegisteredRatio: Double
 * `KubernetesClusterSchedulerBackend` is requested to `sufficientResourcesRegistered`
 * `MesosCoarseGrainedSchedulerBackend` is requested to `sufficientResourcesRegistered`
 * `YarnSchedulerBackend` is requested to `sufficientResourcesRegistered`
-
-## <span id="driverEndpoint"> DriverEndpoint
-
-```scala
-driverEndpoint: RpcEndpointRef
-```
-
-`CoarseGrainedSchedulerBackend` creates a [DriverEndpoint](DriverEndpoint.md) when [created](#creating-instance).
-
-The `DriverEndpoint` is used to communicate with the driver (by sending RPC messages).
 
 ## <span id="executorDataMap"> Available Executors Registry
 
