@@ -1,12 +1,12 @@
 ---
-title: Apache Spark
+title: Spark Core
 icon: material/home
 hide:
   - toc
   - navigation
 ---
 
-# The Internals of {{ book.title }} {{ spark.version }}
+# The Internals of {{ book.title }} (Apache Spark {{ spark.version }})
 
 Welcome to **The Internals of {{ book.title }}** online book! 🤙
 
