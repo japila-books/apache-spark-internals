@@ -172,13 +172,15 @@ In the end, `releaseExecutionMemory` requests the [MemoryManager](#memoryManager
 * `MemoryConsumer` is requested to [free up memory](MemoryConsumer.md#freeMemory)
 * `TaskMemoryManager` is requested to [allocatePage](#allocatePage) and [freePage](#freePage)
 
-## <span id="pageSizeBytes"> Page Size
+## Page Size { #pageSizeBytes }
 
 ```java
 long pageSizeBytes()
 ```
 
-`pageSizeBytes` requests the [MemoryManager](#memoryManager) for the [pageSizeBytes](MemoryManager.md#pageSizeBytes).
+`pageSizeBytes` requests the [MemoryManager](#memoryManager) for the [page size](MemoryManager.md#pageSizeBytes).
+
+---
 
 `pageSizeBytes` is used when:
 

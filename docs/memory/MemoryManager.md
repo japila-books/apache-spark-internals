@@ -1,6 +1,6 @@
 # MemoryManager
 
-`MemoryManager` is an [abstraction](#contract) of [memory managers](#implementations) that can share available memory between task execution ([TaskMemoryManager](TaskMemoryManager.md#memoryManager)) and storage ([BlockManager](../storage/BlockManager.md#memoryManager)).
+`MemoryManager` is an [abstraction](#contract) of [memory managers](#implementations) that can share available memory between tasks ([TaskMemoryManager](TaskMemoryManager.md#memoryManager)) and storage ([BlockManager](../storage/BlockManager.md#memoryManager)).
 
 ![MemoryManager and Core Services](../images/memory/MemoryManager.png)
 
@@ -95,16 +95,23 @@ Used when:
 ??? note "Abstract Class"
     `MemoryManager` is an abstract class and cannot be created directly. It is created indirectly for the [concrete MemoryManagers](#implementations).
 
-## <span id="SparkEnv"> Accessing MemoryManager (SparkEnv)
+## Accessing MemoryManager { #SparkEnv }
 
 `MemoryManager` is available as [SparkEnv.memoryManager](../SparkEnv.md#memoryManager) on the driver and executors.
 
-```text
+```scala
 import org.apache.spark.SparkEnv
 val mm = SparkEnv.get.memoryManager
+```
 
-scala> :type mm
-org.apache.spark.memory.MemoryManager
+```scala
+// MemoryManager is private[spark]
+// the following won't work unless within org.apache.spark package
+// import org.apache.spark.memory.MemoryManager
+// assert(mm.isInstanceOf[MemoryManager])
+
+// we have to revert to string comparision 😔
+assert("UnifiedMemoryManager".equals(mm.getClass.getSimpleName))
 ```
 
 ## <span id="setMemoryStore"> Associating MemoryStore with Storage Memory Pools
@@ -241,3 +248,22 @@ MemoryMode  | MemoryAllocator
 `tungstenMemoryAllocator` is used when:
 
 * `TaskMemoryManager` is requested to [allocate a memory page](TaskMemoryManager.md#allocatePage), [release a memory page](TaskMemoryManager.md#freePage) and [clean up all the allocated memory](TaskMemoryManager.md#cleanUpAllAllocatedMemory)
+
+## Page Size { #pageSizeBytes }
+
+`pageSizeBytes` is either [spark.buffer.pageSize](../configuration-properties.md#spark.buffer.pageSize), if defined, or the [default page size](#defaultPageSizeBytes).
+
+`pageSizeBytes` is used when:
+
+* `TaskMemoryManager` is requested for the [page size](TaskMemoryManager.md#pageSizeBytes)
+
+### Default Page Size { #defaultPageSizeBytes }
+
+```scala
+defaultPageSizeBytes: Long
+```
+
+??? note "Lazy Value"
+    `defaultPageSizeBytes` is a Scala **lazy value** to guarantee that the code to initialize it is executed once only (when accessed for the first time) and the computed value never changes afterwards.
+
+    Learn more in the [Scala Language Specification]({{ scala.spec }}/05-classes-and-objects.html#lazy).
