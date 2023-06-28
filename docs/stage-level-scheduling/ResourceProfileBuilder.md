@@ -1,6 +1,6 @@
 # ResourceProfileBuilder
 
-`ResourceProfileBuilder` allows Spark developers to build a [ResourceProfile](ResourceProfile.md).
+`ResourceProfileBuilder` is a fluent API for Spark developers to [build ResourceProfiles](#build) (to associate with an RDD).
 
 ??? note "Available in Scala and Python APIs"
     `ResourceProfileBuilder` is available in Scala and Python APIs.
@@ -15,9 +15,12 @@
 build: ResourceProfile
 ```
 
-With [_executorResources](#_executorResources) empty, `build` creates a [TaskResourceProfile](TaskResourceProfile.md) (with the [taskResources](#taskResources)). Otherwise, `build` creates a [ResourceProfile](ResourceProfile.md) (with the [executorResources](#executorResources) and the [taskResources](#taskResources)).
+`build` creates a [ResourceProfile](ResourceProfile.md):
 
-### <span id="executorResources"> Executor Resources
+* [TaskResourceProfile](TaskResourceProfile.md) when [_executorResources](#_executorResources) are undefined
+* [ResourceProfile](ResourceProfile.md) with the [executorResources](#executorResources) and the [taskResources](#taskResources)
+
+### Executor Resources { #executorResources }
 
 ```scala
 executorResources: Map[String, ExecutorResourceRequest]
@@ -25,13 +28,23 @@ executorResources: Map[String, ExecutorResourceRequest]
 
 `executorResources`...FIXME
 
-### <span id="taskResources"> Task Resources
+### <span id="_taskResources"> Task Resources { #taskResources }
 
 ```scala
 taskResources: Map[String, TaskResourceRequest]
 ```
 
-`taskResources`...FIXME
+`taskResources` is [TaskResourceRequest](TaskResourceRequest.md)s specified by users (by their resource names)
+
+`taskResources` are specified using [require](#require) method.
+
+`taskResources` can be removed using [clearTaskResourceRequests](#clearTaskResourceRequests) method.
+
+`taskResources` can be printed out using [toString](#toString) method.
+
+`taskResources` is used when:
+
+* `ResourceProfileBuilder` is requested to [build a ResourceProfile](#build)
 
 ## Demo
 
