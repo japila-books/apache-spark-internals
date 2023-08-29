@@ -43,7 +43,7 @@ DAGScheduler tracks which rdd/spark-rdd-caching.md[RDDs are cached (or persisted
 
 Furthermore, it handles failures due to shuffle output files being lost, in which case old stages may need to be resubmitted. Failures within a stage that are not caused by shuffle file loss are handled by the TaskScheduler itself, which will retry each task a small number of times before cancelling the whole stage.
 
-DAGScheduler uses an **event queue architecture** in which a thread can post `DAGSchedulerEvent` events, e.g. a new job or stage being submitted, that DAGScheduler reads and executes sequentially. See the section <<event-loop, Internal Event Loop - dag-scheduler-event-loop>>.
+DAGScheduler uses an **event queue architecture** in which a thread can post `DAGSchedulerEvent` events, e.g. a new job or stage being submitted, that DAGScheduler reads and executes sequentially. See the section [Event Bus](#event-loop).
 
 DAGScheduler runs stages in topological order.
 
@@ -292,7 +292,7 @@ cleanupStateForJobAndIndependentStages(
 
 `cleanupStateForJobAndIndependentStages` cleans up the state for `job` and any stages that are _not_ part of any other job.
 
-`cleanupStateForJobAndIndependentStages` looks the `job` up in the internal <<jobIdToStageIds, jobIdToStageIds>> registry.
+`cleanupStateForJobAndIndependentStages` looks the `job` up in the internal [jobIdToStageIds](#jobIdToStageIds) registry.
 
 If no stages are found, the following ERROR is printed out to the logs:
 
@@ -300,7 +300,7 @@ If no stages are found, the following ERROR is printed out to the logs:
 No stages registered for job [jobId]
 ```
 
-Oterwise, `cleanupStateForJobAndIndependentStages` uses <<stageIdToStage, stageIdToStage>> registry to find the stages (the real objects not ids!).
+Oterwise, `cleanupStateForJobAndIndependentStages` uses [stageIdToStage](#stageIdToStage) registry to find the stages (the real objects not ids!).
 
 For each stage, `cleanupStateForJobAndIndependentStages` reads the jobs the stage belongs to.
 
@@ -310,33 +310,33 @@ If the `job` does not belong to the jobs of the stage, the following ERROR is pr
 Job [jobId] not registered for stage [stageId] even though that stage was registered for the job
 ```
 
-If the `job` was the only job for the stage, the stage (and the stage id) gets cleaned up from the registries, i.e. <<runningStages, runningStages>>, <<shuffleIdToMapStage, shuffleIdToMapStage>>, <<waitingStages, waitingStages>>, <<failedStages, failedStages>> and <<stageIdToStage, stageIdToStage>>.
+If the `job` was the only job for the stage, the stage (and the stage id) gets cleaned up from the registries, i.e. [runningStages](#runningStages), [shuffleIdToMapStage](#shuffleIdToMapStage), [waitingStages](#waitingStages), [failedStages](#failedStages) and [stageIdToStage](#stageIdToStage).
 
-While removing from <<runningStages, runningStages>>, you should see the following DEBUG message in the logs:
+While removing from [runningStages](#runningStages), you should see the following DEBUG message in the logs:
 
 ```text
 Removing running stage [stageId]
 ```
 
-While removing from <<waitingStages, waitingStages>>, you should see the following DEBUG message in the logs:
+While removing from [waitingStages](#waitingStages), you should see the following DEBUG message in the logs:
 
 ```text
 Removing stage [stageId] from waiting set.
 ```
 
-While removing from <<failedStages, failedStages>>, you should see the following DEBUG message in the logs:
+While removing from [failedStages](#failedStages), you should see the following DEBUG message in the logs:
 
 ```text
 Removing stage [stageId] from failed set.
 ```
 
-After all cleaning (using <<stageIdToStage, stageIdToStage>> as the source registry), if the stage belonged to the one and only `job`, you should see the following DEBUG message in the logs:
+After all cleaning (using [stageIdToStage](#stageIdToStage) as the source registry), if the stage belonged to the one and only `job`, you should see the following DEBUG message in the logs:
 
 ```text
 After removal of stage [stageId], remaining stages = [stageIdToStage.size]
 ```
 
-The `job` is removed from <<jobIdToStageIds, jobIdToStageIds>>, <<jobIdToActiveJob, jobIdToActiveJob>>, <<activeJobs, activeJobs>> registries.
+The `job` is removed from [jobIdToStageIds](#jobIdToStageIds), [jobIdToActiveJob](#jobIdToActiveJob), [activeJobs](#activeJobs) registries.
 
 The final stage of the `job` is removed, i.e. [ResultStage](ResultStage.md#removeActiveJob) or [ShuffleMapStage](ShuffleMapStage.md#removeActiveJob).
 
@@ -447,7 +447,7 @@ failJobAndIndependentStages(
 
 `failJobAndIndependentStages` fails the input `job` and all the stages that are only used by the job.
 
-Internally, `failJobAndIndependentStages` uses <<jobIdToStageIds, `jobIdToStageIds` internal registry>> to look up the stages registered for the job.
+Internally, `failJobAndIndependentStages` uses [`jobIdToStageIds` internal registry](#jobIdToStageIds) to look up the stages registered for the job.
 
 If no stages could be found, you should see the following ERROR message in the logs:
 
@@ -465,7 +465,7 @@ Job [id] not registered for stage [id] even though that stage was registered for
 
 Only when there is exactly one job registered for the stage and the stage is in RUNNING state (in `runningStages` internal registry), TaskScheduler.md#contract[`TaskScheduler` is requested to cancel the stage's tasks] and <<markStageAsFinished, marks the stage finished>>.
 
-NOTE: `failJobAndIndependentStages` uses <<jobIdToStageIds, jobIdToStageIds>>, <<stageIdToStage, stageIdToStage>>, and <<runningStages, runningStages>> internal registries.
+NOTE: `failJobAndIndependentStages` uses [jobIdToStageIds](#jobIdToStageIds), [stageIdToStage](#stageIdToStage), and [runningStages](#runningStages) internal registries.
 
 `failJobAndIndependentStages` is used when...FIXME
 
@@ -480,9 +480,9 @@ abortStage(
 
 `abortStage` is an internal method that finds all the active jobs that depend on the `failedStage` stage and fails them.
 
-Internally, `abortStage` looks the `failedStage` stage up in the internal <<stageIdToStage, stageIdToStage>> registry and exits if there the stage was not registered earlier.
+Internally, `abortStage` looks the `failedStage` stage up in the internal [stageIdToStage](#stageIdToStage) registry and exits if there the stage was not registered earlier.
 
-If it was, `abortStage` finds all the active jobs (in the internal <<activeJobs, activeJobs>> registry) with the <<stageDependsOn, final stage depending on the `failedStage` stage>>.
+If it was, `abortStage` finds all the active jobs (in the internal [activeJobs](#activeJobs) registry) with the <<stageDependsOn, final stage depending on the `failedStage` stage>>.
 
 At this time, the `completionTime` property (of the failed stage's [StageInfo](StageInfo.md)) is assigned to the current time (millis).
 
@@ -523,7 +523,7 @@ submitWaitingChildStages(
 
 `submitWaitingChildStages` submits for execution all waiting stages for which the input `parent` Stage.md[Stage] is the direct parent.
 
-NOTE: *Waiting stages* are the stages registered in <<waitingStages, `waitingStages` internal registry>>.
+NOTE: *Waiting stages* are the stages registered in [`waitingStages` internal registry](#waitingStages).
 
 When executed, you should see the following `TRACE` messages in the logs:
 
@@ -569,7 +569,7 @@ If however there is a job for the `stage`, you should see the following DEBUG me
 submitStage([stage])
 ```
 
-`submitStage` checks the status of the `stage` and continues when it was not recorded in <<waitingStages, waiting>>, <<runningStages, running>> or <<failedStages, failed>> internal registries. It simply exits otherwise.
+`submitStage` checks the status of the `stage` and continues when it was not recorded in [waiting](#waitingStages), [running](#runningStages) or [failed](#failedStages) internal registries. It simply exits otherwise.
 
 With the `stage` ready for submission, `submitStage` calculates the <<getMissingParentStages, list of missing parent stages of the `stage`>> (sorted by their job ids). You should see the following DEBUG message in the logs:
 
@@ -585,7 +585,7 @@ Submitting [stage] ([stage.rdd]), which has no missing parents
 
 `submitStage` <<submitMissingTasks, submits the `stage`>> (with the earliest-created job id) and finishes.
 
-If however there are missing parent stages for the `stage`, `submitStage` <<submitStage, submits all the parent stages>>, and the `stage` is recorded in the internal <<waitingStages, waitingStages>> registry.
+If however there are missing parent stages for the `stage`, `submitStage` <<submitStage, submits all the parent stages>>, and the `stage` is recorded in the internal [waitingStages](#waitingStages) registry.
 
 `submitStage` is used recursively for missing parents of the given stage and when DAGScheduler is requested for the following:
 
@@ -1526,7 +1526,7 @@ Used when `DAGScheduler` is requested for [numTotalJobs](#numTotalJobs), to [sub
 
 The next stage id counting from `0`.
 
-Used when DAGScheduler creates a <<createShuffleMapStage, shuffle map stage>> and a <<createResultStage, result stage>>. It is the key in <<stageIdToStage, stageIdToStage>>.
+Used when DAGScheduler creates a <<createShuffleMapStage, shuffle map stage>> and a <<createResultStage, result stage>>. It is the key in [stageIdToStage](#stageIdToStage).
 
 ### <span id="runningStages"> runningStages
 
