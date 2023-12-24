@@ -17,7 +17,8 @@
 newBroadcast(
   value_ : T,
   isLocal: Boolean,
-  id: Long): Broadcast[T]
+  id: Long,
+  serializedOnly: Boolean = false): Broadcast[T]
 ```
 
 `newBroadcast` creates a new [TorrentBroadcast](TorrentBroadcast.md) with the given `value_` and `id` (and ignoring `isLocal`).

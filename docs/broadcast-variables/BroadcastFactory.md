@@ -22,7 +22,9 @@ Used when:
 newBroadcast(
   value: T,
   isLocal: Boolean,
-  id: Long): Broadcast[T]
+  id: Long,
+  serializedOnly: Boolean = false
+): Broadcast[T]
 ```
 
 Used when:

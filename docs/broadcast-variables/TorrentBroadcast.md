@@ -10,6 +10,7 @@
 
 * <span id="obj"> Broadcast Value (of type `T`)
 * <span id="id"> Identifier
+* <span id="id"> Serialized Only (of type `Boolean`)
 
 `TorrentBroadcast` is created when:
 
