@@ -11,50 +11,59 @@
 
 `TorrentBroadcastFactory` is created for [BroadcastManager](BroadcastManager.md#broadcastFactory).
 
-## <span id="newBroadcast"> Creating Broadcast Variable
+## Creating Broadcast Variable { #newBroadcast }
 
-```scala
-newBroadcast(
-  value_ : T,
-  isLocal: Boolean,
-  id: Long): Broadcast[T]
-```
+??? note "BroadcastFactory"
+
+    ```scala
+    newBroadcast[T: ClassTag](
+      value_ : T,
+      isLocal: Boolean,
+      id: Long,
+      serializedOnly: Boolean = false): Broadcast[T]
+    ```
+
+    `newBroadcast` is part of the [BroadcastFactory](BroadcastFactory.md#newBroadcast) abstraction.
 
 `newBroadcast` creates a new [TorrentBroadcast](TorrentBroadcast.md) with the given `value_` and `id` (and ignoring `isLocal`).
 
-`newBroadcast` is part of the [BroadcastFactory](BroadcastFactory.md#newBroadcast) abstraction.
+## Deleting Broadcast Variable { #unbroadcast }
 
-## <span id="unbroadcast"> Deleting Broadcast Variable
+??? note "BroadcastFactory"
 
-```scala
-unbroadcast(
-  id: Long,
-  removeFromDriver: Boolean,
-  blocking: Boolean): Unit
-```
+    ```scala
+    unbroadcast(
+      id: Long,
+      removeFromDriver: Boolean,
+      blocking: Boolean): Unit
+    ```
+
+    `unbroadcast` is part of the [BroadcastFactory](BroadcastFactory.md#unbroadcast) abstraction.
 
 `unbroadcast` [removes all persisted state associated with the broadcast variable](TorrentBroadcast.md#unpersist) (identified by `id`).
 
-`unbroadcast` is part of the [BroadcastFactory](BroadcastFactory.md#unbroadcast) abstraction.
+## Initializing { #initialize }
 
-## <span id="initialize"> Initializing
+??? note "BroadcastFactory"
 
-```scala
-initialize(
-  isDriver: Boolean,
-  conf: SparkConf): Unit
-```
+    ```scala
+    initialize(
+      isDriver: Boolean,
+      conf: SparkConf): Unit
+    ```
+
+    `initialize` is part of the [BroadcastFactory](BroadcastFactory.md#initialize) abstraction.
 
 `initialize` does nothing (_noop_).
 
-`initialize` is part of the [BroadcastFactory](BroadcastFactory.md#initialize) abstraction.
+## Stopping { #stop }
 
-## <span id="stop"> Stopping
+??? note "BroadcastFactory"
 
-```scala
-stop(): Unit
-```
+    ```scala
+    stop(): Unit
+    ```
+
+    `stop` is part of the [BroadcastFactory](BroadcastFactory.md#stop) abstraction.
 
 `stop` does nothing (_noop_).
-
-`stop` is part of the [BroadcastFactory](BroadcastFactory.md#stop) abstraction.
