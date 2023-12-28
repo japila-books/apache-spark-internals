@@ -67,7 +67,7 @@ When DAGScheduler schedules a job as a result of rdd/index.md#actions[executing 
 
 While being created, `DAGScheduler` requests the [TaskScheduler](#taskScheduler) to [associate itself with](TaskScheduler.md#setDAGScheduler) and requests [DAGScheduler Event Bus](#eventProcessLoop) to start accepting events.
 
-## <span id="submitMapStage"> Submitting MapStage for Execution (Posting MapStageSubmitted)
+## Submitting MapStage for Execution (Posting MapStageSubmitted) { #submitMapStage }
 
 ```scala
 submitMapStage[K, V, C](
@@ -89,11 +89,11 @@ Used when:
 
 * `SparkContext` is requested to [submit a MapStage for execution](../SparkContext.md#submitMapStage)
 
-## <span id="metricsSource"><span id="DAGSchedulerSource"> DAGSchedulerSource
+## <span id="DAGSchedulerSource"> DAGSchedulerSource { #metricsSource }
 
 `DAGScheduler` uses [DAGSchedulerSource](DAGSchedulerSource.md) for performance metrics.
 
-## <span id="event-loop"><span id="eventProcessLoop"> DAGScheduler Event Bus
+## <span id="event-loop"> DAGScheduler Event Bus { #eventProcessLoop }
 
 `DAGScheduler` uses an [event bus](DAGSchedulerEventProcessLoop.md) to process scheduling events on a separate thread (one by one and asynchronously).
 
@@ -101,7 +101,7 @@ Used when:
 
 `DAGScheduler` defines [event-posting methods](#event-posting-methods) for posting [DAGSchedulerEvent](DAGSchedulerEvent.md) events to the event bus.
 
-## <span id="taskScheduler"> TaskScheduler
+## TaskScheduler { #taskScheduler }
 
 `DAGScheduler` is given a [TaskScheduler](TaskScheduler.md) when [created](#creating-instance).
 
@@ -113,7 +113,7 @@ Used when:
 * [Failing a job and all other independent single-job stages](#failJobAndIndependentStages)
 * [Stopping itself](#stop)
 
-## <span id="runJob"> Running Job
+## Running Job { #runJob }
 
 ```scala
 runJob[T, U](
@@ -143,7 +143,7 @@ Job [jobId] failed: [callSite], took [time] s
 
 * `SparkContext` is requested to [run a job](../SparkContext.md#runJob)
 
-## <span id="submitJob"> Submitting Job
+## Submitting Job { #submitJob }
 
 ```scala
 submitJob[T, U](
@@ -176,7 +176,7 @@ Attempting to access a non-existent partition: [p]. Total number of partitions: 
 * `SparkContext` is requested to [submit a job](../SparkContext.md#submitJob)
 * `DAGScheduler` is requested to [run a job](#runJob)
 
-## <span id="cacheLocs"><span id="clearCacheLocs"> Partition Placement Preferences
+## <span id="clearCacheLocs"> Partition Placement Preferences { #cacheLocs }
 
 `DAGScheduler` keeps track of block locations per RDD and partition.
 
@@ -190,7 +190,7 @@ Initialized empty when `DAGScheduler` is [created](#creating-instance).
 
 Used when `DAGScheduler` is requested for the [locations of the cache blocks of a RDD](#getCacheLocs).
 
-## <span id="activeJobs"> ActiveJobs
+## ActiveJobs { #activeJobs }
 
 `DAGScheduler` tracks [ActiveJob](ActiveJob.md)s:
 
@@ -245,7 +245,7 @@ createResultStage(
 
 * `DAGScheduler` is requested to [handle a JobSubmitted event](#handleJobSubmitted)
 
-## <span id="createShuffleMapStage"> Creating ShuffleMapStage for ShuffleDependency
+## Creating ShuffleMapStage for ShuffleDependency { #createShuffleMapStage }
 
 ```scala
 createShuffleMapStage(
@@ -283,7 +283,7 @@ Registering RDD [id] ([creationSite]) as input to shuffle [shuffleId]
 
 * `DAGScheduler` is requested to [find or create a ShuffleMapStage for a given ShuffleDependency](#getOrCreateShuffleMapStage)
 
-## <span id="cleanupStateForJobAndIndependentStages"> Cleaning Up After Job and Independent Stages
+## Cleaning Up After Job and Independent Stages { #cleanupStateForJobAndIndependentStages }
 
 ```scala
 cleanupStateForJobAndIndependentStages(
@@ -342,7 +342,7 @@ The final stage of the `job` is removed, i.e. [ResultStage](ResultStage.md#remov
 
 `cleanupStateForJobAndIndependentStages` is used in [handleTaskCompletion when a `ResultTask` has completed successfully](DAGSchedulerEventProcessLoop.md#handleTaskCompletion-Success-ResultTask), [failJobAndIndependentStages](#failJobAndIndependentStages) and [markMapStageJobAsFinished](#markMapStageJobAsFinished).
 
-## <span id="markMapStageJobAsFinished"> Marking ShuffleMapStage Job Finished
+## Marking ShuffleMapStage Job Finished { #markMapStageJobAsFinished }
 
 ```scala
 markMapStageJobAsFinished(
@@ -366,7 +366,7 @@ In the end, `markMapStageJobAsFinished` requests the [LiveListenerBus](#listener
 
 * `DAGScheduler` is requested to [handleMapStageSubmitted](#handleMapStageSubmitted) and [markMapStageJobsAsFinished](#markMapStageJobsAsFinished)
 
-## <span id="getOrCreateParentStages"> Finding Or Creating Missing Direct Parent ShuffleMapStages (For ShuffleDependencies) of RDD
+## Finding Or Creating Missing Direct Parent ShuffleMapStages (For ShuffleDependencies) of RDD { #getOrCreateParentStages }
 
 ```scala
 getOrCreateParentStages(
@@ -374,11 +374,11 @@ getOrCreateParentStages(
   firstJobId: Int): List[Stage]
 ```
 
-`getOrCreateParentStages` <<getShuffleDependencies, finds all direct parent `ShuffleDependencies`>> of the input `rdd` and then <<getOrCreateShuffleMapStage, finds `ShuffleMapStage` stages>> for each [ShuffleDependency](../rdd/ShuffleDependency.md).
+`getOrCreateParentStages` [finds all direct parent ShuffleDependencies](#getShuffleDependencies) of the input `rdd` and then [finds ShuffleMapStages](#getOrCreateShuffleMapStage) for each [ShuffleDependency](../rdd/ShuffleDependency.md).
 
 `getOrCreateParentStages` is used when `DAGScheduler` is requested to create a [ShuffleMapStage](#createShuffleMapStage) or a [ResultStage](#createResultStage).
 
-## <span id="markStageAsFinished"> Marking Stage Finished
+## Marking Stage Finished { #markStageAsFinished }
 
 ```scala
 markStageAsFinished(
@@ -391,7 +391,7 @@ markStageAsFinished(
 
 `markStageAsFinished` is used when...FIXME
 
-## <span id="getOrCreateShuffleMapStage"> Looking Up ShuffleMapStage for ShuffleDependency
+## Looking Up ShuffleMapStage for ShuffleDependency { #getOrCreateShuffleMapStage }
 
 ```scala
 getOrCreateShuffleMapStage(
@@ -407,7 +407,7 @@ If not found, `getOrCreateShuffleMapStage` [finds all the missing ancestor shuff
 
 * `DAGScheduler` is requested to [find or create missing direct parent ShuffleMapStages of an RDD](#getOrCreateParentStages), [find missing parent ShuffleMapStages for a stage](#getMissingParentStages), [handle a MapStageSubmitted event](#handleMapStageSubmitted), and [check out stage dependency on a stage](#stageDependsOn)
 
-### <span id="getMissingAncestorShuffleDependencies"> Missing ShuffleDependencies of RDD
+### Missing ShuffleDependencies of RDD { #getMissingAncestorShuffleDependencies }
 
 ```scala
 getMissingAncestorShuffleDependencies(
@@ -421,7 +421,7 @@ getMissingAncestorShuffleDependencies(
 
 Internally, `getMissingAncestorShuffleDependencies` [finds direct parent shuffle dependencies](#getShuffleDependencies) of the input `RDD` and collects the ones that are not registered in the [shuffleIdToMapStage](#shuffleIdToMapStage) internal registry. It repeats the process for the `RDD`s of the parent shuffle dependencies.
 
-## <span id="getShuffleDependencies"> Finding Direct Parent Shuffle Dependencies of RDD
+## Finding Direct Parent Shuffle Dependencies of RDD { #getShuffleDependencies }
 
 ```scala
 getShuffleDependencies(
@@ -436,7 +436,7 @@ Internally, `getShuffleDependencies` takes the direct rdd/index.md#dependencies[
 
 `getShuffleDependencies` is used when `DAGScheduler` is requested to [find or create missing direct parent ShuffleMapStages](#getOrCreateParentStages) (for ShuffleDependencies of a RDD) and [find all missing shuffle dependencies for a given RDD](#getMissingAncestorShuffleDependencies).
 
-## <span id="failJobAndIndependentStages"> Failing Job and Independent Single-Job Stages
+## Failing Job and Independent Single-Job Stages { #failJobAndIndependentStages }
 
 ```scala
 failJobAndIndependentStages(
@@ -463,13 +463,13 @@ If no stages could be found or the job is not referenced by the stages, you shou
 Job [id] not registered for stage [id] even though that stage was registered for the job
 ```
 
-Only when there is exactly one job registered for the stage and the stage is in RUNNING state (in `runningStages` internal registry), TaskScheduler.md#contract[`TaskScheduler` is requested to cancel the stage's tasks] and <<markStageAsFinished, marks the stage finished>>.
+Only when there is exactly one job registered for the stage and the stage is in RUNNING state (in `runningStages` internal registry), TaskScheduler.md#contract[`TaskScheduler` is requested to cancel the stage's tasks] and [marks the stage finished](#markStageAsFinished).
 
 NOTE: `failJobAndIndependentStages` uses [jobIdToStageIds](#jobIdToStageIds), [stageIdToStage](#stageIdToStage), and [runningStages](#runningStages) internal registries.
 
 `failJobAndIndependentStages` is used when...FIXME
 
-## <span id="abortStage"> Aborting Stage
+## Aborting Stage { #abortStage }
 
 ```scala
 abortStage(
@@ -482,11 +482,11 @@ abortStage(
 
 Internally, `abortStage` looks the `failedStage` stage up in the internal [stageIdToStage](#stageIdToStage) registry and exits if there the stage was not registered earlier.
 
-If it was, `abortStage` finds all the active jobs (in the internal [activeJobs](#activeJobs) registry) with the <<stageDependsOn, final stage depending on the `failedStage` stage>>.
+If it was, `abortStage` finds all the active jobs (in the internal [activeJobs](#activeJobs) registry) with the [final stage depending on the `failedStage` stage](#stageDependsOn).
 
 At this time, the `completionTime` property (of the failed stage's [StageInfo](StageInfo.md)) is assigned to the current time (millis).
 
-All the active jobs that depend on the failed stage (as calculated above) and the stages that do not belong to other jobs (aka _independent stages_) are <<failJobAndIndependentStages, failed>> (with the failure reason being "Job aborted due to stage failure: [reason]" and the input `exception`).
+All the active jobs that depend on the failed stage (as calculated above) and the stages that do not belong to other jobs (aka _independent stages_) are [failed](#failJobAndIndependentStages) (with the failure reason being "Job aborted due to stage failure: [reason]" and the input `exception`).
 
 If there are no jobs depending on the failed stage, you should see the following INFO message in the logs:
 
@@ -496,7 +496,7 @@ Ignoring failure of [failedStage] because all jobs depending on it are done
 
 `abortStage` is used when `DAGScheduler` is requested to [handle a TaskSetFailed event](#handleTaskSetFailed), [submit a stage](#submitStage), [submit missing tasks of a stage](#submitMissingTasks), [handle a TaskCompletion event](#handleTaskCompletion).
 
-## <span id="stageDependsOn"> Checking Out Stage Dependency on Given Stage
+## Checking Out Stage Dependency on Given Stage { #stageDependsOn }
 
 ```scala
 stageDependsOn(
@@ -508,13 +508,13 @@ stageDependsOn(
 
 NOTE: A stage `A` depends on stage `B` if `B` is among the ancestors of `A`.
 
-Internally, `stageDependsOn` walks through the graph of RDDs of the input `stage`. For every RDD in the RDD's dependencies (using `RDD.dependencies`) `stageDependsOn` adds the RDD of a [NarrowDependency](../rdd/NarrowDependency.md) to a stack of RDDs to visit while for a [ShuffleDependency](../rdd/ShuffleDependency.md) it <<getOrCreateShuffleMapStage, finds `ShuffleMapStage` stages for a `ShuffleDependency`>> for the dependency and the ``stage``'s first job id that it later adds to a stack of RDDs to visit if the map stage is ready, i.e. all the partitions have shuffle outputs.
+Internally, `stageDependsOn` walks through the graph of RDDs of the input `stage`. For every RDD in the RDD's dependencies (using `RDD.dependencies`) `stageDependsOn` adds the RDD of a [NarrowDependency](../rdd/NarrowDependency.md) to a stack of RDDs to visit while for a [ShuffleDependency](../rdd/ShuffleDependency.md) it [finds `ShuffleMapStage` stages for a `ShuffleDependency`](#getOrCreateShuffleMapStage) for the dependency and the ``stage``'s first job id that it later adds to a stack of RDDs to visit if the map stage is ready, i.e. all the partitions have shuffle outputs.
 
 After all the RDDs of the input `stage` are visited, `stageDependsOn` checks if the ``target``'s RDD is among the RDDs of the `stage`, i.e. whether the `stage` depends on `target` stage.
 
 `stageDependsOn` is used when `DAGScheduler` is requested to [abort a stage](#abortStage).
 
-## <span id="submitWaitingChildStages"> Submitting Waiting Child Stages for Execution
+## Submitting Waiting Child Stages for Execution { #submitWaitingChildStages }
 
 ```scala
 submitWaitingChildStages(
@@ -534,11 +534,11 @@ waiting: [waitingStages]
 failed: [failedStages]
 ```
 
-`submitWaitingChildStages` finds child stages of the input `parent` stage, removes them from `waitingStages` internal registry, and <<submitStage, submits>> one by one sorted by their job ids.
+`submitWaitingChildStages` finds child stages of the input `parent` stage, removes them from `waitingStages` internal registry, and [submits](#submitStage) one by one sorted by their job ids.
 
 `submitWaitingChildStages` is used when `DAGScheduler` is requested to [submits missing tasks for a stage](#submitMissingTasks) and [handles a successful ShuffleMapTask completion](#handleTaskCompletion).
 
-## <span id="submitStage"> Submitting Stage (with Missing Parents) for Execution
+## Submitting Stage (with Missing Parents) for Execution { #submitStage }
 
 ```scala
 submitStage(
@@ -557,7 +557,7 @@ NOTE: A stage itself tracks the jobs (their ids) it belongs to (using the intern
 
 The following steps depend on whether there is a job or not.
 
-If there are no jobs that require the `stage`, `submitStage` <<abortStage, aborts it>> with the reason:
+If there are no jobs that require the `stage`, `submitStage` [aborts it](#abortStage) with the reason:
 
 ```text
 No active job for stage [id]
@@ -571,7 +571,7 @@ submitStage([stage])
 
 `submitStage` checks the status of the `stage` and continues when it was not recorded in [waiting](#waitingStages), [running](#runningStages) or [failed](#failedStages) internal registries. It simply exits otherwise.
 
-With the `stage` ready for submission, `submitStage` calculates the <<getMissingParentStages, list of missing parent stages of the `stage`>> (sorted by their job ids). You should see the following DEBUG message in the logs:
+With the `stage` ready for submission, `submitStage` calculates the [list of missing parent stages of the `stage`](#getMissingParentStages) (sorted by their job ids). You should see the following DEBUG message in the logs:
 
 ```text
 missing: [missing]
@@ -583,9 +583,9 @@ When the `stage` has no parent stages missing, you should see the following INFO
 Submitting [stage] ([stage.rdd]), which has no missing parents
 ```
 
-`submitStage` <<submitMissingTasks, submits the `stage`>> (with the earliest-created job id) and finishes.
+`submitStage` [submits the `stage`](#submitMissingTasks) (with the earliest-created job id) and finishes.
 
-If however there are missing parent stages for the `stage`, `submitStage` <<submitStage, submits all the parent stages>>, and the `stage` is recorded in the internal [waitingStages](#waitingStages) registry.
+If however there are missing parent stages for the `stage`, `submitStage` [submits all the parent stages](#submitStage), and the `stage` is recorded in the internal [waitingStages](#waitingStages) registry.
 
 `submitStage` is used recursively for missing parents of the given stage and when DAGScheduler is requested for the following:
 
@@ -595,11 +595,11 @@ If however there are missing parent stages for the `stage`, `submitStage` <<subm
 
 * Handle [JobSubmitted](#handleJobSubmitted), [MapStageSubmitted](#handleMapStageSubmitted) and [TaskCompletion](#handleTaskCompletion) events
 
-## <span id="stage-attempts"> Stage Attempts
+## Stage Attempts
 
 A single stage can be re-executed in multiple *attempts* due to fault recovery. The number of attempts is configured (FIXME).
 
-If `TaskScheduler` reports that a task failed because a map output file from a previous stage was lost, the DAGScheduler resubmits the lost stage. This is detected through a DAGSchedulerEventProcessLoop.md#handleTaskCompletion-FetchFailed[`CompletionEvent` with `FetchFailed`], or an <<ExecutorLost, ExecutorLost>> event. DAGScheduler will wait a small amount of time to see whether other nodes or tasks fail, then resubmit `TaskSets` for any lost stage(s) that compute the missing tasks.
+If `TaskScheduler` reports that a task failed because a map output file from a previous stage was lost, the DAGScheduler resubmits the lost stage. This is detected through a DAGSchedulerEventProcessLoop.md#handleTaskCompletion-FetchFailed[`CompletionEvent` with `FetchFailed`], or an [ExecutorLost](#ExecutorLost) event. DAGScheduler will wait a small amount of time to see whether other nodes or tasks fail, then resubmit `TaskSets` for any lost stage(s) that compute the missing tasks.
 
 Please note that tasks from the old attempts of a stage could still be running.
 
@@ -607,11 +607,11 @@ A stage object tracks multiple [StageInfo](StageInfo.md) objects to pass to Spar
 
 The latest `StageInfo` for the most recent attempt for a stage is accessible through `latestInfo`.
 
-## <span id="preferred-locations"> Preferred Locations
+## Preferred Locations
 
-DAGScheduler computes where to run each task in a stage based on the rdd/index.md#getPreferredLocations[preferred locations of its underlying RDDs], or <<getCacheLocs, the location of cached or shuffle data>>.
+DAGScheduler computes where to run each task in a stage based on the rdd/index.md#getPreferredLocations[preferred locations of its underlying RDDs], or [the location of cached or shuffle data](#getCacheLocs).
 
-## <span id="adaptive-query-planning"> Adaptive Query Planning / Adaptive Scheduling
+## Adaptive Query Planning / Adaptive Scheduling { #adaptive-query-planning }
 
 See [SPARK-9850 Adaptive execution in Spark](https://issues.apache.org/jira/browse/SPARK-9850) for the design document. The work is currently in progress.
 
@@ -625,7 +625,7 @@ DAGScheduler uses the following ScheduledThreadPoolExecutors (with the policy of
 
 They are created using `ThreadUtils.newDaemonSingleThreadScheduledExecutor` method that uses Guava DSL to instantiate a ThreadFactory.
 
-## <span id="getMissingParentStages"> Finding Missing Parent ShuffleMapStages For Stage
+## Finding Missing Parent ShuffleMapStages For Stage { #getMissingParentStages }
 
 ```scala
 getMissingParentStages(
@@ -634,11 +634,11 @@ getMissingParentStages(
 
 `getMissingParentStages` finds missing parent [ShuffleMapStage](ShuffleMapStage.md)s in the dependency graph of the input `stage` (using the [breadth-first search algorithm](https://en.wikipedia.org/wiki/Breadth-first_search)).
 
-Internally, `getMissingParentStages` starts with the ``stage``'s RDD and walks up the tree of all parent RDDs to find <<getCacheLocs, uncached partitions>>.
+Internally, `getMissingParentStages` starts with the ``stage``'s RDD and walks up the tree of all parent RDDs to find [uncached partitions](#getCacheLocs).
 
 NOTE: A `Stage` tracks the associated RDD using Stage.md#rdd[`rdd` property].
 
-NOTE: An *uncached partition* of a RDD is a partition that has `Nil` in the <<cacheLocs, internal registry of partition locations per RDD>> (which results in no RDD blocks in any of the active storage:BlockManager.md[BlockManager]s on executors).
+NOTE: An _uncached partition_ of a RDD is a partition that has `Nil` in the [internal registry of partition locations per RDD](#cacheLocs) (which results in no RDD blocks in any of the active storage:BlockManager.md[BlockManager]s on executors).
 
 `getMissingParentStages` traverses the rdd/index.md#dependencies[parent dependencies of the RDD] and acts according to their type, i.e. [ShuffleDependency](../rdd/ShuffleDependency.md) or [NarrowDependency](../rdd/NarrowDependency.md).
 
@@ -652,7 +652,7 @@ NOTE: [NarrowDependency](../rdd/NarrowDependency.md) is a RDD dependency that al
 
 NOTE: [ShuffleDependency](../rdd/ShuffleDependency.md) is a RDD dependency that represents a dependency on the output of a [ShuffleMapStage](ShuffleMapStage.md), i.e. **shuffle map stage**.
 
-For each `ShuffleDependency`, `getMissingParentStages` <<getOrCreateShuffleMapStage, finds `ShuffleMapStage` stages>>. If the `ShuffleMapStage` is not _available_, it is added to the set of missing (map) stages.
+For each `ShuffleDependency`, `getMissingParentStages` [finds `ShuffleMapStage` stages](#getOrCreateShuffleMapStage). If the `ShuffleMapStage` is not _available_, it is added to the set of missing (map) stages.
 
 NOTE: A `ShuffleMapStage` is *available* when all its partitions are computed, i.e. results are available (as blocks).
 
@@ -660,7 +660,7 @@ CAUTION: FIXME...IMAGE with ShuffleDependencies queried
 
 `getMissingParentStages` is used when `DAGScheduler` is requested to [submit a stage](#submitStage) and handle [JobSubmitted](#handleJobSubmitted) and [MapStageSubmitted](#handleMapStageSubmitted) events.
 
-## <span id="submitMissingTasks"> Submitting Missing Tasks of Stage
+## Submitting Missing Tasks of Stage { #submitMissingTasks }
 
 ```scala
 submitMissingTasks(
@@ -706,9 +706,9 @@ If there are tasks to submit for execution (i.e. there are missing partitions in
 Submitting [size] missing tasks from [stage] ([rdd]) (first 15 tasks are for partitions [partitionIds])
 ```
 
-`submitMissingTasks` requests the <<taskScheduler, TaskScheduler>> to TaskScheduler.md#submitTasks[submit the tasks for execution] (as a new TaskSet.md[TaskSet]).
+`submitMissingTasks` requests the [TaskScheduler](#taskScheduler) to TaskScheduler.md#submitTasks[submit the tasks for execution] (as a new TaskSet.md[TaskSet]).
 
-With no tasks to submit for execution, `submitMissingTasks` <<markStageAsFinished, marks the stage as finished successfully>>.
+With no tasks to submit for execution, `submitMissingTasks` [marks the stage as finished successfully](#markStageAsFinished).
 
 `submitMissingTasks` prints out the following DEBUG messages based on the type of the stage:
 
@@ -724,11 +724,11 @@ Stage [stage] is actually done; (partitions: [numPartitions])
 
 for `ShuffleMapStage` and `ResultStage`, respectively.
 
-In the end, with no tasks to submit for execution, `submitMissingTasks` <<submitWaitingChildStages, submits waiting child stages for execution>> and exits.
+In the end, with no tasks to submit for execution, `submitMissingTasks` [submits waiting child stages for execution](#submitWaitingChildStages) and exits.
 
 `submitMissingTasks` is used when `DAGScheduler` is requested to [submit a stage for execution](#submitStage).
 
-## <span id="getPreferredLocs"> Finding Preferred Locations for Missing Partitions
+## Finding Preferred Locations for Missing Partitions { #getPreferredLocs }
 
 ```scala
 getPreferredLocs(
@@ -736,34 +736,32 @@ getPreferredLocs(
   partition: Int): Seq[TaskLocation]
 ```
 
-`getPreferredLocs` is simply an alias for the internal (recursive) <<getPreferredLocsInternal, getPreferredLocsInternal>>.
+`getPreferredLocs` is simply an alias for the internal (recursive) [getPreferredLocsInternal](#getPreferredLocsInternal).
 
 `getPreferredLocs` is used when...FIXME
 
-## <span id="getCacheLocs"> Finding BlockManagers (Executors) for Cached RDD Partitions (aka Block Location Discovery)
+## Finding BlockManagers (Executors) for Cached RDD Partitions (aka Block Location Discovery) { #getCacheLocs }
 
 ```scala
 getCacheLocs(
    rdd: RDD[_]): IndexedSeq[Seq[TaskLocation]]
 ```
 
-`getCacheLocs` gives [TaskLocations](TaskLocation.md) (block locations) for the partitions of the input `rdd`. `getCacheLocs` caches lookup results in <<cacheLocs, cacheLocs>> internal registry.
+`getCacheLocs` gives [TaskLocations](TaskLocation.md) (block locations) for the partitions of the input `rdd`. `getCacheLocs` caches lookup results in [cacheLocs](#cacheLocs) internal registry.
 
 NOTE: The size of the collection from `getCacheLocs` is exactly the number of partitions in `rdd` RDD.
 
 NOTE: The size of every [TaskLocation](TaskLocation.md) collection (i.e. every entry in the result of `getCacheLocs`) is exactly the number of blocks managed using storage:BlockManager.md[BlockManagers] on executors.
 
-Internally, `getCacheLocs` finds `rdd` in the <<cacheLocs, cacheLocs>> internal registry (of partition locations per RDD).
+Internally, `getCacheLocs` finds `rdd` in the [cacheLocs](#cacheLocs) internal registry (of partition locations per RDD).
 
-If `rdd` is not in <<cacheLocs, cacheLocs>> internal registry, `getCacheLocs` branches per its storage:StorageLevel.md[storage level].
+If `rdd` is not in [cacheLocs](#cacheLocs) internal registry, `getCacheLocs` branches per its storage:StorageLevel.md[storage level].
 
 For `NONE` storage level (i.e. no caching), the result is an empty locations (i.e. no location preference).
 
 For other non-``NONE`` storage levels, `getCacheLocs` storage:BlockManagerMaster.md#getLocations-block-array[requests `BlockManagerMaster` for block locations] that are then mapped to [TaskLocations](TaskLocation.md) with the hostname of the owning `BlockManager` for a block (of a partition) and the executor id.
 
-NOTE: `getCacheLocs` uses <<blockManagerMaster, BlockManagerMaster>> that was defined when <<creating-instance, DAGScheduler was created>>.
-
-`getCacheLocs` records the computed block locations per partition (as [TaskLocation](TaskLocation.md)) in <<cacheLocs, cacheLocs>> internal registry.
+`getCacheLocs` records the computed block locations per partition (as [TaskLocation](TaskLocation.md)) in [cacheLocs](#cacheLocs) internal registry.
 
 NOTE: `getCacheLocs` requests locations from `BlockManagerMaster` using storage:BlockId.md#RDDBlockId[RDDBlockId] with the RDD id and the partition indices (which implies that the order of the partitions matters to request proper blocks).
 
@@ -771,7 +769,7 @@ NOTE: DAGScheduler uses TaskLocation.md[TaskLocations] (with host and executor) 
 
 `getCacheLocs` is used when `DAGScheduler` is requested to find [missing parent MapStages](#getMissingParentStages) and [getPreferredLocsInternal](#getPreferredLocsInternal).
 
-## <span id="getPreferredLocsInternal"> Finding Placement Preferences for RDD Partition (recursively)
+## Finding Placement Preferences for RDD Partition (recursively) { #getPreferredLocsInternal }
 
 ```scala
 getPreferredLocsInternal(
@@ -780,7 +778,7 @@ getPreferredLocsInternal(
   visited: HashSet[(RDD[_], Int)]): Seq[TaskLocation]
 ```
 
-`getPreferredLocsInternal` first <<getCacheLocs, finds the `TaskLocations` for the `partition` of the `rdd`>> (using <<cacheLocs, cacheLocs>> internal cache) and returns them.
+`getPreferredLocsInternal` first [finds the `TaskLocations` for the `partition` of the `rdd`](#getCacheLocs) (using [cacheLocs](#cacheLocs) internal cache) and returns them.
 
 Otherwise, if not found, `getPreferredLocsInternal` rdd/index.md#preferredLocations[requests `rdd` for the preferred locations of `partition`] and returns them.
 
@@ -792,7 +790,7 @@ If all the attempts fail to yield any non-empty result, `getPreferredLocsInterna
 
 `getPreferredLocsInternal` is used when `DAGScheduler` is requested for the [preferred locations for missing partitions](#getPreferredLocs).
 
-## <span id="stop"> Stopping DAGScheduler
+## Stopping DAGScheduler { #stop }
 
 ```scala
 stop(): Unit
@@ -802,7 +800,7 @@ stop(): Unit
 
 `stop` is used when `SparkContext` is requested to [stop](../SparkContext.md#stop).
 
-## <span id="killTaskAttempt"> Killing Task
+## Killing Task { #killTaskAttempt }
 
 ```scala
 killTaskAttempt(
@@ -815,7 +813,7 @@ killTaskAttempt(
 
 `killTaskAttempt` is used when `SparkContext` is requested to [kill a task](../SparkContext.md#killTaskAttempt).
 
-## <span id="cleanUpAfterSchedulerStop"> cleanUpAfterSchedulerStop
+## cleanUpAfterSchedulerStop { #cleanUpAfterSchedulerStop }
 
 ```scala
 cleanUpAfterSchedulerStop(): Unit
@@ -825,7 +823,7 @@ cleanUpAfterSchedulerStop(): Unit
 
 `cleanUpAfterSchedulerStop` is used when `DAGSchedulerEventProcessLoop` is requested to [onStop](DAGSchedulerEventProcessLoop.md#onStop).
 
-## <span id="removeExecutorAndUnregisterOutputs"> removeExecutorAndUnregisterOutputs
+## removeExecutorAndUnregisterOutputs { #removeExecutorAndUnregisterOutputs }
 
 ```scala
 removeExecutorAndUnregisterOutputs(
@@ -837,9 +835,9 @@ removeExecutorAndUnregisterOutputs(
 
 removeExecutorAndUnregisterOutputs...FIXME
 
-removeExecutorAndUnregisterOutputs is used when DAGScheduler is requested to handle <<handleTaskCompletion, task completion>> (due to a fetch failure) and <<handleExecutorLost, executor lost>> events.
+removeExecutorAndUnregisterOutputs is used when DAGScheduler is requested to handle [task completion](#handleTaskCompletion) (due to a fetch failure) and [executor lost](#handleExecutorLost) events.
 
-## <span id="markMapStageJobsAsFinished"> markMapStageJobsAsFinished
+## markMapStageJobsAsFinished { #markMapStageJobsAsFinished }
 
 ```scala
 markMapStageJobsAsFinished(
@@ -856,7 +854,7 @@ For every map-stage job, `markMapStageJobsAsFinished` [marks the map-stage job a
 
 * `DAGScheduler` is requested to [submit missing tasks](#submitMissingTasks) (of a `ShuffleMapStage` that has just been computed) and [processShuffleMapStageCompletion](#processShuffleMapStageCompletion)
 
-## <span id="processShuffleMapStageCompletion"> processShuffleMapStageCompletion
+## processShuffleMapStageCompletion { #processShuffleMapStageCompletion }
 
 ```scala
 processShuffleMapStageCompletion(
@@ -869,7 +867,7 @@ processShuffleMapStageCompletion(
 
 * `DAGScheduler` is requested to [handleTaskCompletion](#handleTaskCompletion) and [handleShuffleMergeFinalized](#handleShuffleMergeFinalized)
 
-## <span id="handleShuffleMergeFinalized"> handleShuffleMergeFinalized
+## handleShuffleMergeFinalized { #handleShuffleMergeFinalized }
 
 ```scala
 handleShuffleMergeFinalized(
@@ -882,7 +880,7 @@ handleShuffleMergeFinalized(
 
 * `DAGSchedulerEventProcessLoop` is requested to [handle a ShuffleMergeFinalized event](DAGSchedulerEventProcessLoop.md#ShuffleMergeFinalized)
 
-## <span id="scheduleShuffleMergeFinalize"> scheduleShuffleMergeFinalize
+## scheduleShuffleMergeFinalize { #scheduleShuffleMergeFinalize }
 
 ```scala
 scheduleShuffleMergeFinalize(
@@ -895,7 +893,7 @@ scheduleShuffleMergeFinalize(
 
 * `DAGScheduler` is requested to [handle a task completion](#handleTaskCompletion)
 
-### <span id="finalizeShuffleMerge"> finalizeShuffleMerge
+### finalizeShuffleMerge { #finalizeShuffleMerge }
 
 ```scala
 finalizeShuffleMerge(
@@ -904,7 +902,7 @@ finalizeShuffleMerge(
 
 `finalizeShuffleMerge`...FIXME
 
-## <span id="updateJobIdStageIdMaps"> updateJobIdStageIdMaps
+## updateJobIdStageIdMaps { #updateJobIdStageIdMaps }
 
 ```scala
 updateJobIdStageIdMaps(
@@ -916,7 +914,7 @@ updateJobIdStageIdMaps(
 
 `updateJobIdStageIdMaps` is used when `DAGScheduler` is requested to create [ShuffleMapStage](#createShuffleMapStage) and [ResultStage](#createResultStage) stages.
 
-## <span id="executorHeartbeatReceived"> executorHeartbeatReceived
+## executorHeartbeatReceived { #executorHeartbeatReceived }
 
 ```scala
 executorHeartbeatReceived(
@@ -934,7 +932,7 @@ executorHeartbeatReceived(
 
 ## Event Handlers
 
-### <span id="doCancelAllJobs"> AllJobsCancelled Event Handler
+### AllJobsCancelled Event Handler { #doCancelAllJobs }
 
 ```scala
 doCancelAllJobs(): Unit
@@ -944,7 +942,7 @@ doCancelAllJobs(): Unit
 
 `doCancelAllJobs` is used when `DAGSchedulerEventProcessLoop` is requested to handle an [AllJobsCancelled](DAGSchedulerEventProcessLoop.md#AllJobsCancelled) event and [onError](DAGSchedulerEventProcessLoop.md#onError).
 
-### <span id="handleBeginEvent"> BeginEvent Event Handler
+### BeginEvent Event Handler { #handleBeginEvent }
 
 ```scala
 handleBeginEvent(
@@ -956,7 +954,7 @@ handleBeginEvent(
 
 `handleBeginEvent` is used when `DAGSchedulerEventProcessLoop` is requested to handle a [BeginEvent](DAGSchedulerEvent.md#BeginEvent) event.
 
-### <span id="handleTaskCompletion"> Handling Task Completion Event
+### Handling Task Completion Event { #handleTaskCompletion }
 
 ```scala
 handleTaskCompletion(
@@ -983,15 +981,15 @@ TaskEndReason | Description
  [Resubmitted](#handleTaskCompletion-Resubmitted) |
  _others_ |
 
-#### <span id="handleTaskCompletion-Success"> Handling Successful Task Completion
+#### Handling Successful Task Completion { #handleTaskCompletion-Success }
 
 When a task has finished successfully (i.e. `Success` end reason), `handleTaskCompletion` marks the partition as no longer pending (i.e. the partition the task worked on is removed from `pendingPartitions` of the stage).
 
 NOTE: A `Stage` tracks its own pending partitions using scheduler:Stage.md#pendingPartitions[`pendingPartitions` property].
 
-`handleTaskCompletion` branches off given the type of the task that completed, i.e. <<handleTaskCompletion-Success-ShuffleMapTask, ShuffleMapTask>> and <<handleTaskCompletion-Success-ResultTask, ResultTask>>.
+`handleTaskCompletion` branches off given the type of the task that completed, i.e. [ShuffleMapTask](#handleTaskCompletion-Success-ShuffleMapTask) and [ResultTask](#handleTaskCompletion-Success-ResultTask).
 
-##### <span id="handleTaskCompletion-Success-ResultTask"> Handling Successful ResultTask Completion
+##### Handling Successful ResultTask Completion { #handleTaskCompletion-Success-ResultTask }
 
 For scheduler:ResultTask.md[ResultTask], the stage is assumed a scheduler:ResultStage.md[ResultStage].
 
@@ -1031,7 +1029,7 @@ NOTE: A task succeeded notification holds the output index and the result.
 
 When the notification throws an exception (because it runs user code), `handleTaskCompletion` [notifies `JobListener` about the failure](JobListener.md#jobFailed) (wrapping it inside a `SparkDriverExecutionException` exception).
 
-##### <span id="handleTaskCompletion-Success-ShuffleMapTask"> Handling Successful ShuffleMapTask Completion
+##### Handling Successful ShuffleMapTask Completion { #handleTaskCompletion-Success-ShuffleMapTask }
 
 For scheduler:ShuffleMapTask.md[ShuffleMapTask], the stage is assumed a  scheduler:ShuffleMapStage.md[ShuffleMapStage].
 
@@ -1055,7 +1053,7 @@ Otherwise, `handleTaskCompletion` scheduler:ShuffleMapStage.md#addOutputLoc[regi
 
 `handleTaskCompletion` does more processing only if the `ShuffleMapStage` is registered as still running (in scheduler:DAGScheduler.md#runningStages[`runningStages` internal registry]) and the scheduler:Stage.md#pendingPartitions[`ShuffleMapStage` stage has no pending partitions to compute].
 
-The `ShuffleMapStage` is <<markStageAsFinished, marked as finished>>.
+The `ShuffleMapStage` is [marked as finished](#markStageAsFinished).
 
 You should see the following INFO messages in the logs:
 
@@ -1084,7 +1082,7 @@ Resubmitting [shuffleStage] ([shuffleStage.name]) because some of its tasks had 
 
 In the end, `handleTaskCompletion` scheduler:DAGScheduler.md#submitStage[submits the `ShuffleMapStage` for execution].
 
-#### <span id="handleTaskCompletion-Resubmitted"> TaskEndReason: Resubmitted
+#### TaskEndReason: Resubmitted { #handleTaskCompletion-Resubmitted }
 
 For `Resubmitted` case, you should see the following INFO message in the logs:
 
@@ -1096,7 +1094,7 @@ The task (by `task.partitionId`) is added to the collection of pending partition
 
 TIP: A stage knows how many partitions are yet to be calculated. A task knows about the partition id for which it was launched.
 
-#### <span id="handleTaskCompletion-FetchFailed"> Task Failed with FetchFailed Exception
+#### Task Failed with FetchFailed Exception { #handleTaskCompletion-FetchFailed }
 
 ```scala
 FetchFailed(
@@ -1169,13 +1167,13 @@ If `mapId` (in the `FetchFailed` object for the case) is provided, the map stage
 
 CAUTION: FIXME What does `mapStage.removeOutputLoc` do?
 
-If `BlockManagerId` (as `bmAddress` in the `FetchFailed` object) is defined, `handleTaskCompletion` <<handleExecutorLost, notifies DAGScheduler that an executor was lost>> (with `filesLost` enabled and `maybeEpoch` from the scheduler:Task.md#epoch[Task] that completed).
+If `BlockManagerId` (as `bmAddress` in the `FetchFailed` object) is defined, `handleTaskCompletion` [notifies DAGScheduler that an executor was lost](#handleExecutorLost) (with `filesLost` enabled and `maybeEpoch` from the scheduler:Task.md#epoch[Task] that completed).
 
 `handleTaskCompletion` is used when:
 
 * [DAGSchedulerEventProcessLoop](DAGSchedulerEventProcessLoop.md) is requested to handle a [CompletionEvent](DAGSchedulerEvent.md#CompletionEvent) event.
 
-### <span id="handleExecutorAdded"> ExecutorAdded Event Handler
+### ExecutorAdded Event Handler { #handleExecutorAdded }
 
 ```scala
 handleExecutorAdded(
@@ -1187,7 +1185,7 @@ handleExecutorAdded(
 
 `handleExecutorAdded` is used when `DAGSchedulerEventProcessLoop` is requested to handle an [ExecutorAdded](DAGSchedulerEvent.md#ExecutorAdded) event.
 
-### <span id="handleExecutorLost"> ExecutorLost Event Handler
+### ExecutorLost Event Handler { #handleExecutorLost }
 
 ```scala
 handleExecutorLost(
@@ -1245,7 +1243,7 @@ Ultimatelly, DAGScheduler scheduler:DAGScheduler.md#clearCacheLocs[clears the in
 
 `handleExecutorLost` is used when `DAGSchedulerEventProcessLoop` is requested to handle an [ExecutorLost](DAGSchedulerEvent.md#ExecutorLost) event.
 
-### <span id="handleGetTaskResult"> GettingResultEvent Event Handler
+### GettingResultEvent Event Handler { #handleGetTaskResult }
 
 ```scala
 handleGetTaskResult(
@@ -1256,7 +1254,7 @@ handleGetTaskResult(
 
 `handleGetTaskResult` is used when `DAGSchedulerEventProcessLoop` is requested to handle a [GettingResultEvent](DAGSchedulerEvent.md#GettingResultEvent) event.
 
-### <span id="handleJobCancellation"> JobCancelled Event Handler
+### JobCancelled Event Handler { #handleJobCancellation }
 
 ```scala
 handleJobCancellation(
@@ -1278,7 +1276,7 @@ Trying to cancel unregistered job [jobId]
 
 `handleJobCancellation` is used when `DAGScheduler` is requested to handle a [JobCancelled](DAGSchedulerEvent.md#JobCancelled) event, [doCancelAllJobs](#doCancelAllJobs), [handleJobGroupCancelled](#handleJobGroupCancelled), [handleStageCancellation](#handleStageCancellation).
 
-### <span id="handleJobGroupCancelled"> JobGroupCancelled Event Handler
+### JobGroupCancelled Event Handler { #handleJobGroupCancelled }
 
 ```scala
 handleJobGroupCancelled(
@@ -1365,7 +1363,7 @@ If the number of failures is below the [spark.scheduler.barrier.maxConcurrentTas
 
 Otherwise, if the number of failures crossed the [spark.scheduler.barrier.maxConcurrentTasksCheck.maxFailures](../configuration-properties.md#spark.scheduler.barrier.maxConcurrentTasksCheck.maxFailures) threshold, `handleJobSubmitted` removes the `jobId` from the [barrierJobIdToNumTasksCheckFailures](#barrierJobIdToNumTasksCheckFailures) and informs the given [JobListener](JobListener.md) that the [jobFailed](JobListener.md#jobFailed).
 
-### <span id="handleMapStageSubmitted"> MapStageSubmitted
+### MapStageSubmitted { #handleMapStageSubmitted }
 
 ```scala
 handleMapStageSubmitted(
@@ -1423,7 +1421,7 @@ Creating new stage failed due to exception - job: [id]
 
 * [DAGSchedulerEventProcessLoop](DAGSchedulerEventProcessLoop.md) is requested to handle a [MapStageSubmitted](DAGSchedulerEvent.md#MapStageSubmitted) event
 
-### <span id="resubmitFailedStages"> ResubmitFailedStages Event Handler
+### ResubmitFailedStages Event Handler { #resubmitFailedStages }
 
 ```scala
 resubmitFailedStages(): Unit
@@ -1449,7 +1447,7 @@ The previously-reported failed stages are sorted by the corresponding job ids in
 
 `resubmitFailedStages` is used when `DAGSchedulerEventProcessLoop` is requested to handle a [ResubmitFailedStages](DAGSchedulerEvent.md#ResubmitFailedStages) event.
 
-### <span id="handleSpeculativeTaskSubmitted"> SpeculativeTaskSubmitted Event Handler
+### SpeculativeTaskSubmitted Event Handler { #handleSpeculativeTaskSubmitted }
 
 ```scala
 handleSpeculativeTaskSubmitted(): Unit
@@ -1459,7 +1457,7 @@ handleSpeculativeTaskSubmitted(): Unit
 
 `handleSpeculativeTaskSubmitted` is used when `DAGSchedulerEventProcessLoop` is requested to handle a [SpeculativeTaskSubmitted](DAGSchedulerEvent.md#SpeculativeTaskSubmitted) event.
 
-### <span id="handleStageCancellation"> StageCancelled Event Handler
+### StageCancelled Event Handler { #handleStageCancellation }
 
 ```scala
 handleStageCancellation(): Unit
@@ -1469,7 +1467,7 @@ handleStageCancellation(): Unit
 
 `handleStageCancellation` is used when `DAGSchedulerEventProcessLoop` is requested to handle a [StageCancelled](DAGSchedulerEvent.md#StageCancelled) event.
 
-### <span id="handleTaskSetFailed"> TaskSetFailed Event Handler
+### TaskSetFailed Event Handler { #handleTaskSetFailed }
 
 ```scala
 handleTaskSetFailed(): Unit
@@ -1479,7 +1477,7 @@ handleTaskSetFailed(): Unit
 
 `handleTaskSetFailed` is used when `DAGSchedulerEventProcessLoop` is requested to handle a [TaskSetFailed](DAGSchedulerEvent.md#TaskSetFailed) event.
 
-### <span id="handleWorkerRemoved"> WorkerRemoved Event Handler
+### WorkerRemoved Event Handler { #handleWorkerRemoved }
 
 ```scala
 handleWorkerRemoved(
@@ -1494,23 +1492,23 @@ handleWorkerRemoved(
 
 ## Internal Properties
 
-### <span id="failedEpoch"> failedEpoch
+### failedEpoch { #failedEpoch }
 
 The lookup table of lost executors and the epoch of the event.
 
-### <span id="failedStages"> failedStages
+### failedStages { #failedStages }
 
 Stages that failed due to fetch failures (when a DAGSchedulerEventProcessLoop.md#handleTaskCompletion-FetchFailed[task fails with `FetchFailed` exception]).
 
-### <span id="jobIdToActiveJob"> jobIdToActiveJob
+### jobIdToActiveJob { #jobIdToActiveJob }
 
 The lookup table of ``ActiveJob``s per job id.
 
-### <span id="jobIdToStageIds"> jobIdToStageIds
+### jobIdToStageIds { #jobIdToStageIds }
 
 The lookup table of all stages per `ActiveJob` id
 
-### <span id="nextJobId"> nextJobId Counter
+### nextJobId Counter { #nextJobId }
 
 ```scala
 nextJobId: AtomicInteger
@@ -1522,113 +1520,113 @@ nextJobId: AtomicInteger
 
 Used when `DAGScheduler` is requested for [numTotalJobs](#numTotalJobs), to [submitJob](#submitJob), [runApproximateJob](#runApproximateJob) and [submitMapStage](#submitMapStage).
 
-### <span id="nextStageId"> nextStageId
+### nextStageId { #nextStageId }
 
 The next stage id counting from `0`.
 
-Used when DAGScheduler creates a <<createShuffleMapStage, shuffle map stage>> and a <<createResultStage, result stage>>. It is the key in [stageIdToStage](#stageIdToStage).
+Used when DAGScheduler creates a [shuffle map stage](#createShuffleMapStage) and a [result stage](#createResultStage). It is the key in [stageIdToStage](#stageIdToStage).
 
-### <span id="runningStages"> runningStages
+### runningStages { #runningStages }
 
 The set of stages that are currently "running".
 
-A stage is added when <<submitMissingTasks, submitMissingTasks>> gets executed (without first checking if the stage has not already been added).
+A stage is added when [submitMissingTasks](#submitMissingTasks) gets executed (without first checking if the stage has not already been added).
 
-### <span id="shuffleIdToMapStage"> shuffleIdToMapStage
+### shuffleIdToMapStage { #shuffleIdToMapStage }
 
 A lookup table of [ShuffleMapStage](ShuffleMapStage.md)s by [ShuffleDependency](../rdd/ShuffleDependency.md)
 
-### <span id="stageIdToStage"> stageIdToStage
+### stageIdToStage { #stageIdToStage }
 
 A lookup table of stages by stage ID
 
 Used when DAGScheduler [creates a shuffle map stage](#createShuffleMapStage), [creates a result stage](#createResultStage), [cleans up job state and independent stages](#cleanupStateForJobAndIndependentStages), is informed that [a task is started](DAGSchedulerEventProcessLoop.md#handleBeginEvent), [a taskset has failed](DAGSchedulerEventProcessLoop.md#handleTaskSetFailed), [a job is submitted (to compute a `ResultStage`)](DAGSchedulerEventProcessLoop.md#handleJobSubmitted), [a map stage was submitted](DAGSchedulerEventProcessLoop.md#handleMapStageSubmitted), [a task has completed](DAGSchedulerEventProcessLoop.md#handleTaskCompletion) or [a stage was cancelled](DAGSchedulerEventProcessLoop.md#handleStageCancellation), [updates accumulators](#updateAccumulators), [aborts a stage](#abortStage) and [fails a job and independent stages](#failJobAndIndependentStages).
 
-### <span id="waitingStages"> waitingStages
+### waitingStages { #waitingStages }
 
 Stages with parents to be computed
 
 ## Event Posting Methods
 
-### <span id="cancelAllJobs"> Posting AllJobsCancelled
+### Posting AllJobsCancelled { #cancelAllJobs }
 
 Posts an [AllJobsCancelled](DAGSchedulerEvent.md#AllJobsCancelled)
 
 Used when `SparkContext` is requested to [cancel all running or scheduled Spark jobs](../SparkContext.md#cancelAllJobs)
 
-### <span id="cancelJob"> Posting JobCancelled
+### Posting JobCancelled { #cancelJob }
 
 Posts a [JobCancelled](DAGSchedulerEvent.md#JobCancelled)
 
 Used when [SparkContext](../SparkContext.md#cancelJob) or [JobWaiter](JobWaiter.md) are requested to cancel a Spark job
 
-### <span id="cancelJobGroup"> Posting JobGroupCancelled
+### Posting JobGroupCancelled { #cancelJobGroup }
 
 Posts a [JobGroupCancelled](DAGSchedulerEvent.md#JobGroupCancelled)
 
 Used when `SparkContext` is requested to [cancel a job group](../SparkContext.md#cancelJobGroup)
 
-### <span id="cancelStage"> Posting StageCancelled
+### Posting StageCancelled { #cancelStage }
 
 Posts a [StageCancelled](DAGSchedulerEvent.md#StageCancelled)
 
 Used when `SparkContext` is requested to [cancel a stage](../SparkContext.md#cancelStage)
 
-### <span id="executorAdded"> Posting ExecutorAdded
+### Posting ExecutorAdded { #executorAdded }
 
 Posts an [ExecutorAdded](DAGSchedulerEvent.md#ExecutorAdded)
 
 Used when `TaskSchedulerImpl` is requested to [handle resource offers](TaskSchedulerImpl.md#resourceOffers) (and a new executor is found in the resource offers)
 
-### <span id="executorLost"> Posting ExecutorLost
+### Posting ExecutorLost { #executorLost }
 
 Posts a [ExecutorLost](DAGSchedulerEvent.md#ExecutorLost)
 
 Used when `TaskSchedulerImpl` is requested to [handle a task status update](TaskSchedulerImpl.md#statusUpdate) (and a task gets lost which is used to indicate that the executor got broken and hence should be considered lost) or [executorLost](TaskSchedulerImpl.md#executorLost)
 
-### <span id="runApproximateJob"> Posting JobSubmitted
+### Posting JobSubmitted { #runApproximateJob }
 
 Posts a [JobSubmitted](DAGSchedulerEvent.md#JobSubmitted)
 
 Used when `SparkContext` is requested to [run an approximate job](../SparkContext.md#runApproximateJob)
 
-### <span id="speculativeTaskSubmitted"> Posting SpeculativeTaskSubmitted
+### Posting SpeculativeTaskSubmitted { #speculativeTaskSubmitted }
 
 Posts a [SpeculativeTaskSubmitted](DAGSchedulerEvent.md#SpeculativeTaskSubmitted)
 
 Used when `TaskSetManager` is requested to [checkAndSubmitSpeculatableTask](TaskSetManager.md#checkAndSubmitSpeculatableTask)
 
-### <span id="taskEnded"> Posting CompletionEvent
+### Posting CompletionEvent { #taskEnded }
 
 Posts a [CompletionEvent](DAGSchedulerEvent.md#CompletionEvent)
 
 Used when `TaskSetManager` is requested to [handleSuccessfulTask](TaskSetManager.md#handleSuccessfulTask), [handleFailedTask](TaskSetManager.md#handleFailedTask), and [executorLost](TaskSetManager.md#executorLost)
 
-### <span id="taskGettingResult"> Posting GettingResultEvent
+### Posting GettingResultEvent { #taskGettingResult }
 
 Posts a [GettingResultEvent](DAGSchedulerEvent.md#GettingResultEvent)
 
 Used when `TaskSetManager` is requested to [handle a task fetching result](TaskSetManager.md#handleTaskGettingResult)
 
-### <span id="taskSetFailed"> Posting TaskSetFailed
+### Posting TaskSetFailed { #taskSetFailed }
 
 Posts a [TaskSetFailed](DAGSchedulerEvent.md#TaskSetFailed)
 
 Used when `TaskSetManager` is requested to [abort](TaskSetManager.md#abort)
 
-### <span id="taskStarted"> Posting BeginEvent
+### Posting BeginEvent { #taskStarted }
 
 Posts a [BeginEvent](DAGSchedulerEvent.md#BeginEvent)
 
 Used when `TaskSetManager` is requested to [start a task](TaskSetManager.md#resourceOffer)
 
-### <span id="workerRemoved"> Posting WorkerRemoved
+### Posting WorkerRemoved { #workerRemoved }
 
 Posts a [WorkerRemoved](DAGSchedulerEvent.md#WorkerRemoved)
 
 Used when `TaskSchedulerImpl` is requested to [handle a removed worker event](TaskSchedulerImpl.md#workerRemoved)
 
-## <span id="updateAccumulators"> Updating Accumulators of Completed Tasks
+## Updating Accumulators of Completed Tasks { #updateAccumulators }
 
 ```scala
 updateAccumulators(
@@ -1650,7 +1648,7 @@ CAUTION: FIXME Where are `Stage.latestInfo.accumulables` and `CompletionEvent.ta
 
 `updateAccumulators` is used when `DAGScheduler` is requested to [handle a task completion](#handleTaskCompletion).
 
-## <span id="postTaskEnd"> Posting SparkListenerTaskEnd (at Task Completion)
+## Posting SparkListenerTaskEnd (at Task Completion) { #postTaskEnd }
 
 ```scala
 postTaskEnd(
@@ -1720,10 +1718,11 @@ getShuffleDependenciesAndResourceProfiles(
 
 Enable `ALL` logging level for `org.apache.spark.scheduler.DAGScheduler` logger to see what happens inside.
 
-Add the following line to `conf/log4j.properties`:
+Add the following line to `conf/log4j2.properties`:
 
 ```text
-log4j.logger.org.apache.spark.scheduler.DAGScheduler=ALL
+logger.DAGScheduler.name = org.apache.spark.scheduler.DAGScheduler
+logger.DAGScheduler.level = all
 ```
 
 Refer to [Logging](../spark-logging.md).
