@@ -1,6 +1,10 @@
 # CoarseGrainedExecutorBackend
 
-`CoarseGrainedExecutorBackend` is an [ExecutorBackend](ExecutorBackend.md) and an [IsolatedRpcEndpoint](../rpc/RpcEndpoint.md#IsolatedRpcEndpoint).
+`CoarseGrainedExecutorBackend` is an [ExecutorBackend](ExecutorBackend.md) that controls the lifecycle of a single [executor](#executor) and sends [executor status updates](#statusUpdate) to the [driver](#driver).
+
+![CoarseGrainedExecutorBackend Sending Task Status Updates to Driver's CoarseGrainedScheduler Endpoint](../images/executor/CoarseGrainedExecutorBackend-statusUpdate.png)
+
+`CoarseGrainedExecutorBackend` is started in a resource container (as a [standalone application](#main)).
 
 ## Creating Instance
 
@@ -12,7 +16,6 @@
 * <span id="bindAddress"> Bind Address (_unused_)
 * <span id="hostname"> Hostname
 * <span id="cores"> Number of CPU cores
-* <span id="userClassPath"> User Classpath (`Seq[URL]`)
 * <span id="env"> [SparkEnv](../SparkEnv.md)
 * <span id="resourcesFileOpt"> Resources Configuration File
 * <span id="resourceProfile"> [ResourceProfile](../stage-level-scheduling/ResourceProfile.md)
@@ -20,40 +23,69 @@
 !!! note
     [driverUrl](#driverUrl), [executorId](#executorId), [hostname](#hostname), [cores](#cores) and [userClassPath](#userClassPath) correspond to `CoarseGrainedExecutorBackend` standalone application's [command-line arguments](#command-line-arguments).
 
-`CoarseGrainedExecutorBackend` is created when:
+`CoarseGrainedExecutorBackend` is created upon launching [CoarseGrainedExecutorBackend](#run) standalone application.
 
-* `CoarseGrainedExecutorBackend` standalone application is [launched](#run)
+## Executor { #executor }
 
-## <span id="decommissionSelf"> decommissionSelf
+`CoarseGrainedExecutorBackend` manages the lifecycle of a single [Executor](Executor.md):
 
-```scala
-decommissionSelf(): Unit
-```
+* An `Executor` is [created](Executor.md#creating-instance) upon [receiving a RegisteredExecutor message](#RegisteredExecutor)
+* [Stopped](Executor.md#stop) upon [receiving a Shutdown message](#Shutdown) (that happens on a separate `CoarseGrainedExecutorBackend-stop-executor` thread)
 
-`decommissionSelf`...FIXME
+The `Executor` is used for the following:
 
-`decommissionSelf` is used when:
+* [decommissionSelf](#decommissionSelf)
+* [Launching a task](Executor.md#launchTask) (upon [receiving a LaunchTask message](#LaunchTask))
+* [Killing a task](Executor.md#killTask) (upon [receiving a KillTask message](#KillTask))
+* Reporting the number of CPU cores used for a given task in [statusUpdate](#statusUpdate)
 
-* `CoarseGrainedExecutorBackend` is requested to [handle a DecommissionExecutor message](#DecommissionExecutor)
+## Reporting Task Status { #statusUpdate }
+
+??? note "ExecutorBackend"
+
+    ```scala
+    statusUpdate(
+      taskId: Long,
+      state: TaskState,
+      data: ByteBuffer): Unit
+    ```
+
+    `statusUpdate` is part of the [ExecutorBackend](ExecutorBackend.md#statusUpdate) abstraction.
+
+`statusUpdate`...FIXME
+
+<!---
+`statusUpdate` creates a [StatusUpdate](../scheduler/DriverEndpoint.md#StatusUpdate) (with the input `taskId`, `state`, and `data` together with the <<executorId, executor id>>) and sends it to the <<driver, driver>> (if connected already).
+
+.CoarseGrainedExecutorBackend Sending Task Status Updates to Driver's CoarseGrainedScheduler Endpoint
+image::CoarseGrainedExecutorBackend-statusUpdate.png[align="center"]
+-->
 
 ## Messages
 
-### <span id="DecommissionExecutor"> DecommissionExecutor
+### DecommissionExecutor { #DecommissionExecutor }
 
 `DecommissionExecutor` is sent out when `CoarseGrainedSchedulerBackend` is requested to [decommissionExecutors](../scheduler/CoarseGrainedSchedulerBackend.md#decommissionExecutors)
 
 When received, `CoarseGrainedExecutorBackend` [decommissionSelf](#decommissionSelf).
 
+## Logging
+
+Enable `ALL` logging level for `org.apache.spark.executor.CoarseGrainedExecutorBackend` logger to see what happens inside.
+
+Add the following line to `conf/log4j2.properties`:
+
+```text
+logger.CoarseGrainedExecutorBackend.name = org.apache.spark.executor.CoarseGrainedExecutorBackend
+logger.CoarseGrainedExecutorBackend.level = all
+```
+
+Refer to [Logging](../spark-logging.md).
+
+<!---
 ## Review Me
 
-CoarseGrainedExecutorBackend is an executor:ExecutorBackend.md[] that controls the lifecycle of a single <<executor, executor>> and sends <<statusUpdate, the executor's status updates>> to the driver.
-
-.CoarseGrainedExecutorBackend Sending Task Status Updates to Driver's CoarseGrainedScheduler Endpoint
-image::CoarseGrainedExecutorBackend-statusUpdate.png[align="center"]
-
 CoarseGrainedExecutorBackend is a rpc:RpcEndpoint.md#ThreadSafeRpcEndpoint[ThreadSafeRpcEndpoint] that <<onStart, connects to the driver>> (before accepting <<messages, messages>>) and <<onDisconnected, shuts down when the driver disconnects>>.
-
-CoarseGrainedExecutorBackend is started in a resource container (as a <<main, standalone application>>).
 
 When <<run, started>>, CoarseGrainedExecutorBackend <<creating-instance, registers the Executor RPC endpoint>> to communicate with the driver (with [DriverEndpoint](../scheduler/DriverEndpoint.md)).
 
@@ -114,26 +146,6 @@ Received LaunchTask command but executor was null
 ```
 
 NOTE: `LaunchTask` is sent when `CoarseGrainedSchedulerBackend` is requested to [launch tasks](../scheduler/DriverEndpoint.md#launchTasks) (one `LaunchTask` per task).
-
-== [[statusUpdate]] Sending Task Status Updates to Driver -- `statusUpdate` Method
-
-[source, scala]
-----
-statusUpdate(taskId: Long, state: TaskState, data: ByteBuffer): Unit
-----
-
-NOTE: `statusUpdate` is part of executor:ExecutorBackend.md#statusUpdate[ExecutorBackend Contract] to send task status updates to a scheduler (on the driver).
-
-`statusUpdate` creates a [StatusUpdate](../scheduler/DriverEndpoint.md#StatusUpdate) (with the input `taskId`, `state`, and `data` together with the <<executorId, executor id>>) and sends it to the <<driver, driver>> (if connected already).
-
-.CoarseGrainedExecutorBackend Sending Task Status Updates to Driver's CoarseGrainedScheduler Endpoint
-image::CoarseGrainedExecutorBackend-statusUpdate.png[align="center"]
-
-When no <<driver, driver>> is available, you should see the following WARN message in the logs:
-
-```
-WARN Drop [msg] because has not yet connected to driver
-```
 
 == [[driverURL]] Driver's URL
 
@@ -443,19 +455,6 @@ CAUTION: FIXME
 
 CAUTION: FIXME
 
-== [[logging]] Logging
-
-Enable `ALL` logging level for `org.apache.spark.executor.CoarseGrainedExecutorBackend` logger to see what happens inside.
-
-Add the following line to `conf/log4j.properties`:
-
-[source,plaintext]
-----
-log4j.logger.org.apache.spark.executor.CoarseGrainedExecutorBackend=ALL
-----
-
-Refer to spark-logging.md[Logging].
-
 == [[internal-properties]] Internal Properties
 
 === [[ser]] SerializerInstance
@@ -465,10 +464,6 @@ serializer:SerializerInstance.md[SerializerInstance]
 Initialized when <<creating-instance, CoarseGrainedExecutorBackend is created>>.
 
 NOTE: CoarseGrainedExecutorBackend uses the input `env` to core:SparkEnv.md#closureSerializer[access `closureSerializer`].
-
-=== [[driver]] Driver RpcEndpointRef
-
-rpc:RpcEndpointRef.md[RpcEndpointRef] of the driver
 
 === [[stopping]] stopping Flag
 
@@ -483,3 +478,4 @@ Used when CoarseGrainedExecutorBackend RPC Endpoint gets notified that <<onDisco
 Single managed coarse-grained executor:Executor.md#coarse-grained-executor[Executor] managed exclusively by the CoarseGrainedExecutorBackend to forward <<LaunchTask, launch>> and <<KillTask, kill>> task requests to from the driver.
 
 Initialized after CoarseGrainedExecutorBackend <<RegisteredExecutor, has registered with `CoarseGrainedSchedulerBackend`>> and stopped when CoarseGrainedExecutorBackend gets requested to <<Shutdown, shut down>>.
+-->

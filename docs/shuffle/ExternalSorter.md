@@ -15,7 +15,7 @@
 
 * <span id="context"> [TaskContext](../scheduler/TaskContext.md)
 * <span id="aggregator"> Optional [Aggregator](../rdd/Aggregator.md) (default: undefined)
-* <span id="partitioner"> Optional [Partitioner](../rdd/Partitioner) (default: undefined)
+* <span id="partitioner"> Optional [Partitioner](../rdd/Partitioner.md) (default: undefined)
 * <span id="ordering"> Optional `Ordering` ([Scala]({{ scala.api }}/scala/math/Ordering.html)) for keys (default: undefined)
 * <span id="serializer"> [Serializer](../serializer/Serializer.md) (default: [Serializer](../SparkEnv.md#serializer))
 

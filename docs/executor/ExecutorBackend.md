@@ -1,6 +1,6 @@
 # ExecutorBackend
 
-`ExecutorBackend` is an [abstraction](#contract) of [executor backends](#implementations) (that [TaskRunner](TaskRunner.md)s use to [send task status updates](#statusUpdate) to a scheduler).
+`ExecutorBackend` is an [abstraction](#contract) of [executor backends](#implementations) (that [TaskRunner](TaskRunner.md)s use to [report task status updates](#statusUpdate) to a scheduler).
 
 ![ExecutorBackend receives notifications from TaskRunners](../images/executor/ExecutorBackend.png)
 
@@ -8,7 +8,7 @@
 
 ## Contract
 
-### <span id="statusUpdate"> statusUpdate
+### Reporting Task Status { #statusUpdate }
 
 ```scala
 statusUpdate(
@@ -17,7 +17,11 @@ statusUpdate(
   data: ByteBuffer): Unit
 ```
 
-Sending a status update to a scheduler
+Reports task status of the given task to a scheduler
+
+See:
+
+* [CoarseGrainedExecutorBackend](CoarseGrainedExecutorBackend.md#statusUpdate)
 
 Used when:
 
