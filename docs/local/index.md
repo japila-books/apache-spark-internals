@@ -8,16 +8,15 @@ Spark local is used for the following *master URLs* (as specified using <<../Spa
 
 * *local[n]* (with exactly `n` CPU cores)
 
-* *++local[*]++* (with the total number of CPU cores that is the number of available CPU cores on the local machine)
+* *local[\*]* (with the total number of CPU cores that is the number of available CPU cores on the local machine)
 
 * *local[n, m]* (with exactly `n` CPU cores and `m` retries when a task fails)
 
-* *++local[*, m]++* (with the total number of CPU cores that is the number of available CPU cores on the local machine)
+* *local[\*, m]* (with the total number of CPU cores that is the number of available CPU cores on the local machine)
 
 Internally, Spark local uses <<spark-LocalSchedulerBackend.md#, LocalSchedulerBackend>> as the <<../SchedulerBackend.md#, SchedulerBackend>> and executor:ExecutorBackend.md[].
 
-.Architecture of Spark local
-image::../diagrams/spark-local-architecture.png[align="center"]
+![Architecture of Spark local](../images/diagrams/spark-local-architecture.png)
 
 In this non-distributed multi-threaded runtime environment, Spark spawns all the main execution components - the spark-driver.md[driver] and an executor:Executor.md[] - in the same single JVM.
 
