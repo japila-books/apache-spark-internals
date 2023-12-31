@@ -354,7 +354,7 @@ Multiple external cluster managers registered for the url [url]: [serviceLoaders
 
 `getClusterManager` is used when `SparkContext` is requested for a [SchedulerBackend and TaskScheduler](#createTaskScheduler).
 
-## <span id="runJob"> Running Job Synchronously
+## Running Job (Synchronously) { #runJob }
 
 ```scala
 runJob[T, U: ClassTag](
@@ -368,7 +368,7 @@ runJob[T, U: ClassTag](
   rdd: RDD[T],
   func: (TaskContext, Iterator[T]) => U,
   partitions: Seq[Int]): Array[U]
-runJob[T, U: ClassTag](
+runJob[T, U: ClassTag]( // (1)!
   rdd: RDD[T],
   func: (TaskContext, Iterator[T]) => U,
   partitions: Seq[Int],
@@ -386,9 +386,11 @@ runJob[T, U: ClassTag](
   partitions: Seq[Int]): Array[U]
 ```
 
+1. Requests the [DAGScheduler](#dagScheduler) to [run a job](scheduler/DAGScheduler.md#runJob)
+
 ![Executing action](images/spark-runjob.png)
 
-`runJob` finds the [call site](#getCallSite) and [cleans up](#clean) the given `func` function.
+`runJob` determines the [call site](#getCallSite) and [cleans up](#clean) the given `func` function.
 
 `runJob` prints out the following INFO message to the logs:
 
@@ -403,19 +405,23 @@ RDD's recursive dependencies:
 [toDebugString]
 ```
 
-`runJob` requests the [DAGScheduler](#dagScheduler) to [run a job](scheduler/DAGScheduler.md#runJob).
+`runJob` requests the [DAGScheduler](#dagScheduler) to [run a job](scheduler/DAGScheduler.md#runJob) with the following:
 
-`runJob` requests the [ConsoleProgressBar](#progressBar) to [finishAll](ConsoleProgressBar.md#finishAll) if defined.
+* The given `rdd`
+* The given `func` [cleaned up](#clean)
+* The given `partitions`
+* The [call site](#getCallSite)
+* The given `resultHandler` function (_procedure_)
+* The [local properties](#localProperties)
+
+!!! note
+    `runJob` is blocked until the job has finished (regardless of the result, successful or not).
+
+`runJob` requests the [ConsoleProgressBar](#progressBar) (if available) to [finishAll](ConsoleProgressBar.md#finishAll).
 
 In the end, `runJob` requests the given `RDD` to [doCheckpoint](rdd/RDD.md#doCheckpoint).
 
-`runJob` throws an `IllegalStateException` when `SparkContext` is [stopped](#stopped):
-
-```text
-SparkContext has been shutdown
-```
-
-### <span id="runJob-demo"> Demo
+### Demo { #runJob-demo }
 
 `runJob` is essentially executing a `func` function on all or a subset of partitions of an RDD and returning the result as an array (with elements being the results per partition).
 
@@ -494,6 +500,18 @@ maxNumConcurrentTasks(
 `maxNumConcurrentTasks` is used when:
 
 * `DAGScheduler` is requested to [checkBarrierStageWithNumSlots](scheduler/DAGScheduler.md#checkBarrierStageWithNumSlots)
+
+## withScope { #withScope }
+
+```scala
+withScope[U](
+  body: => U): U
+```
+
+`withScope` [withScope](rdd/RDDOperationScope.md#withScope) with this `SparkContext`.
+
+!!! note
+    `withScope` is used for most (if not all) `SparkContext` API operators.
 
 ## Logging
 

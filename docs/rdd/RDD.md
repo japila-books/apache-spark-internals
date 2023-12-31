@@ -1,10 +1,15 @@
+---
+title: RDD
+subtitle: Resilient Distributed Dataset
+---
+
 # RDD &mdash; Description of Distributed Computation
 
 `RDD[T]` is an [abstraction](#contract) of [fault-tolerant resilient distributed datasets](#implementations) that are mere descriptions of computations over a distributed collection of records (of type `T`).
 
 ## Contract
 
-### <span id="compute"> Computing Partition
+### Computing Partition { #compute }
 
 ```scala
 compute(
@@ -18,7 +23,7 @@ Used when:
 
 * `RDD` is requested to [computeOrReadCheckpoint](#computeOrReadCheckpoint)
 
-### <span id="getPartitions"> getPartitions
+### getPartitions { #getPartitions }
 
 ```scala
 getPartitions: Array[Partition]
@@ -75,7 +80,7 @@ isBarrier(): Boolean
 * `ShuffleDependency` is requested to [canShuffleMergeBeEnabled](ShuffleDependency.md#canShuffleMergeBeEnabled)
 * `DAGScheduler` is requested to [checkBarrierStageWithRDDChainPattern](../scheduler/DAGScheduler.md#checkBarrierStageWithRDDChainPattern), [checkBarrierStageWithDynamicAllocation](../scheduler/DAGScheduler.md#checkBarrierStageWithDynamicAllocation), [checkBarrierStageWithNumSlots](../scheduler/DAGScheduler.md#checkBarrierStageWithNumSlots), [handleTaskCompletion](../scheduler/DAGScheduler.md#handleTaskCompletion) (`FetchFailed` case to mark a map stage as broken)
 
-### isBarrier_ { #isBarrier_ }
+### isBarrier\_ { #isBarrier_ }
 
 ```scala
 isBarrier_ : Boolean // (1)!
@@ -241,17 +246,26 @@ checkpointRDD: Option[CheckpointRDD[T]]
 
 `checkpointRDD` returns the [CheckpointRDD](RDDCheckpointData.md#checkpointRDD) of the [RDDCheckpointData](#checkpointData) (if defined and so this `RDD` checkpointed).
 
+---
+
 `checkpointRDD` is used when:
 
 * `RDD` is requested for the [dependencies](#dependencies), [partitions](#partitions) and [preferred locations](#preferredLocations) (all using _final_ methods!)
 
-## <span id="doCheckpoint"> doCheckpoint
+## doCheckpoint { #doCheckpoint }
 
 ```scala
 doCheckpoint(): Unit
 ```
 
-`doCheckpoint` executes in `checkpoint` scope.
+!!! note "RDD.doCheckpoint, SparkContext.runJob and Dataset.checkpoint"
+    `doCheckpoint` is called every time a Spark job is submitted (using [SparkContext.runJob](../SparkContext.md#runJob)).
+
+    I found it quite interesting at the very least.
+
+    `doCheckpoint` is triggered when `Dataset.checkpoint` operator ([Spark SQL]({{ book.spark_sql }}/Dataset/#checkpoint)) is executed (with `eager` flag on) which will likely trigger one or more Spark jobs on the underlying RDD anyway.
+
+`doCheckpoint` executes in [checkpoint](RDDOperationScope.md#withScope) scope.
 
 `doCheckpoint` turns the [doCheckpointCalled](#doCheckpointCalled) flag on (to prevent multiple executions).
 
@@ -381,6 +395,18 @@ rddToOrderedRDDFunctions[K : Ordering : ClassTag, V: ClassTag](
 
 * [RDD.sortBy](spark-rdd-transformations.md#sortBy)
 * [PairRDDFunctions.combineByKey](PairRDDFunctions.md#combineByKey)
+
+## withScope { #withScope }
+
+```scala
+withScope[U](
+  body: => U): U
+```
+
+`withScope` [withScope](RDDOperationScope.md#withScope) with this [SparkContext](#sc).
+
+!!! note
+    `withScope` is used for most (if not all) `RDD` API operators.
 
 <!---
 ## Review Me

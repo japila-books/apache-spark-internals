@@ -31,25 +31,25 @@ After an [action](../rdd/spark-rdd-actions.md) has been called on an `RDD`, [Spa
 * Determines the [preferred locations](#preferred-locations) to run each task on
 * Handles failures due to **shuffle output files** being lost
 
-DAGScheduler computes [a directed acyclic graph (DAG)](https://en.wikipedia.org/wiki/Directed_acyclic_graph) of stages for each job, keeps track of which RDDs and stage outputs are materialized, and finds a minimal schedule to run jobs. It then submits stages to [TaskScheduler](TaskScheduler.md).
+`DAGScheduler` computes [a directed acyclic graph (DAG)](https://en.wikipedia.org/wiki/Directed_acyclic_graph) of stages for each job, keeps track of which RDDs and stage outputs are materialized, and finds a minimal schedule to run jobs. It then submits stages to [TaskScheduler](TaskScheduler.md).
 
 ![DAGScheduler.submitJob](../images/scheduler/dagscheduler-submitjob.png)
 
-In addition to coming up with the execution DAG, DAGScheduler also determines the preferred locations to run each task on, based on the current cache status, and passes the information to [TaskScheduler](TaskScheduler.md).
+In addition to coming up with the execution DAG, `DAGScheduler` also determines the preferred locations to run each task on, based on the current cache status, and passes the information to [TaskScheduler](TaskScheduler.md).
 
-DAGScheduler tracks which rdd/spark-rdd-caching.md[RDDs are cached (or persisted)] to avoid "recomputing" them, i.e. redoing the map side of a shuffle. DAGScheduler remembers what ShuffleMapStage.md[ShuffleMapStage]s have already produced output files (that are stored in [BlockManager](../storage/BlockManager.md)s).
+`DAGScheduler` tracks which [RDDs are cached (or persisted)](../rdd/spark-rdd-caching.md) to avoid "recomputing" them (re-doing the map side of a shuffle). `DAGScheduler` remembers what [ShuffleMapStage](ShuffleMapStage.md)s have already produced output files (that are stored in [BlockManager](../storage/BlockManager.md)s).
 
-`DAGScheduler` is only interested in cache location coordinates, i.e. host and executor id, per partition of a RDD.
+`DAGScheduler` is only interested in cache location coordinates (i.e. host and executor id, per partition of a RDD).
 
-Furthermore, it handles failures due to shuffle output files being lost, in which case old stages may need to be resubmitted. Failures within a stage that are not caused by shuffle file loss are handled by the TaskScheduler itself, which will retry each task a small number of times before cancelling the whole stage.
+Furthermore, `DAGScheduler` handles failures due to shuffle output files being lost, in which case old stages may need to be resubmitted. Failures within a stage that are not caused by shuffle file loss are handled by the `TaskScheduler` itself, which will retry each task a small number of times before cancelling the whole stage.
 
-DAGScheduler uses an **event queue architecture** in which a thread can post `DAGSchedulerEvent` events, e.g. a new job or stage being submitted, that DAGScheduler reads and executes sequentially. See the section [Event Bus](#event-loop).
+`DAGScheduler` uses an **event queue architecture** in which a thread can post `DAGSchedulerEvent` events, e.g. a new job or stage being submitted, that `DAGScheduler` reads and executes sequentially. See the section [Event Bus](#event-loop).
 
-DAGScheduler runs stages in topological order.
+`DAGScheduler` runs stages in topological order.
 
-DAGScheduler uses [SparkContext](../SparkContext.md), [TaskScheduler](TaskScheduler.md), LiveListenerBus.md[], MapOutputTracker.md[MapOutputTracker] and storage:BlockManager.md[BlockManager] for its services. However, at the very minimum, DAGScheduler takes a `SparkContext` only (and requests `SparkContext` for the other services).
+`DAGScheduler` uses [SparkContext](../SparkContext.md), [TaskScheduler](TaskScheduler.md), [LiveListenerBus](LiveListenerBus.md), [MapOutputTracker](MapOutputTracker.md) and [BlockManager](../storage/BlockManager.md) for its services. However, at the very minimum, `DAGScheduler` takes a `SparkContext` only (and requests `SparkContext` for the other services).
 
-When DAGScheduler schedules a job as a result of rdd/index.md#actions[executing an action on a RDD] or [calling SparkContext.runJob() method directly](../SparkContext.md#runJob), it spawns parallel tasks to compute (partial) results per partition.
+When `DAGScheduler` schedules a job as a result of [executing an action on a RDD](../rdd/index.md#actions) or [calling SparkContext.runJob directly](../SparkContext.md#runJob), it spawns parallel tasks to compute (partial) results per partition.
 
 ## Creating Instance
 
@@ -84,6 +84,8 @@ submitMapStage[K, V, C](
 `submitMapStage` creates a [JobWaiter](JobWaiter.md) to wait for a [MapOutputStatistics](MapOutputStatistics.md). The `JobWaiter` waits for 1 task and, when completed successfully, executes the given `callback` function with the computed `MapOutputStatistics`.
 
 In the end, `submitMapStage` posts a [MapStageSubmitted](DAGSchedulerEvent.md#MapStageSubmitted) and returns the `JobWaiter`.
+
+---
 
 Used when:
 
@@ -138,6 +140,8 @@ Job [jobId] finished: [callSite], took [time] s
 ```text
 Job [jobId] failed: [callSite], took [time] s
 ```
+
+---
 
 `runJob` is used when:
 
