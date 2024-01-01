@@ -12,7 +12,7 @@ read(): Iterator[Product2[K, C]]
 
 Used when:
 
-* [CoGroupedRDD](../rdd/CoGroupedRDD.md#compute), [ShuffledRDD](../rdd/ShuffledRDD.md#compute), and [SubtractedRDD](../rdd/SubtractedRDD.md#compute) are requested to compute a partition (for a `ShuffleDependency` dependency)
+* [CoGroupedRDD](../rdd/CoGroupedRDD.md#compute), [ShuffledRDD](../rdd/ShuffledRDD.md#compute) are requested to compute a partition (for a `ShuffleDependency` dependency)
 * `ShuffledRowRDD` ([Spark SQL]({{ book.spark_sql }}/ShuffledRowRDD)) is requested to `compute` a partition
 
 ## Implementations

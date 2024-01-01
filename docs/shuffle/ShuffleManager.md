@@ -25,7 +25,6 @@ Used when the following `RDD`s are requested to [compute a partition](../rdd/RDD
 
 * `CoGroupedRDD` is requested to [compute a partition](../rdd/CoGroupedRDD.md#compute)
 * `ShuffledRDD` is requested to [compute a partition](../rdd/ShuffledRDD.md#compute)
-* `SubtractedRDD` is requested to [compute a partition](../rdd/SubtractedRDD.md#compute)
 * `ShuffledRowRDD` ([Spark SQL]({{ book.spark_sql }}/ShuffledRowRDD)) is requested to `compute` a partition
 
 ### <span id="getReaderForRange"> getReaderForRange

@@ -7,7 +7,7 @@
 
     Read the paper and skip the rest of this page. You'll save a great deal of your precious time 😎
 
-An `RDD` is a description of a fault-tolerant and resilient computation over a distributed collection of records (spread over [one or many partitions](#getPartitions)).
+An `RDD` is a description of a fault-tolerant and resilient computation over a distributed collection of records (spread over [one or many partitions](RDD.md#getPartitions)).
 
 !!! note "RDDs and Scala Collections"
     RDDs are like Scala collections, and they only differ by their distribution, i.e. a RDD is computed on many JVMs while a Scala collection lives on a single JVM.

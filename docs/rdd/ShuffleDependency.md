@@ -29,7 +29,6 @@ ShuffleDependency[K: ClassTag, V: ClassTag, C: ClassTag]
 
 * `CoGroupedRDD` is requested for the [dependencies](CoGroupedRDD.md#getDependencies) (for RDDs with different partitioners)
 * `ShuffledRDD` is requested for the [dependencies](ShuffledRDD.md#getDependencies)
-* `SubtractedRDD` is requested for the [dependencies](SubtractedRDD.md#getDependencies) (for an RDD with different partitioner)
 * `ShuffleExchangeExec` ([Spark SQL]({{ book.spark_sql }}/physical-operators/ShuffleExchangeExec)) physical operator is requested to prepare a `ShuffleDependency`
 
 When created, `ShuffleDependency` gets the [shuffle id](../SparkContext.md#nextShuffleId).
@@ -100,5 +99,5 @@ shuffleId: Int
 
 The `ShuffleHandle` is used when:
 
-* [CoGroupedRDDs](CoGroupedRDD.md#compute), [ShuffledRDD](ShuffledRDD.md#compute), [SubtractedRDD](SubtractedRDD.md#compute), and `ShuffledRowRDD` ([Spark SQL]({{ book.spark_sql }}/ShuffledRowRDD)) are requested to compute a partition (to get a [ShuffleReader](../shuffle/ShuffleReader.md) for a `ShuffleDependency`)
+* [CoGroupedRDDs](CoGroupedRDD.md#compute), [ShuffledRDD](ShuffledRDD.md#compute), and `ShuffledRowRDD` ([Spark SQL]({{ book.spark_sql }}/ShuffledRowRDD)) are requested to compute a partition (to get a [ShuffleReader](../shuffle/ShuffleReader.md) for a `ShuffleDependency`)
 * `ShuffleMapTask` is requested to [run](../scheduler/ShuffleMapTask.md#runTask) (to get a `ShuffleWriter` for a ShuffleDependency).

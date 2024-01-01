@@ -17,17 +17,33 @@ compute(
   context: TaskContext): Iterator[T]
 ```
 
-Computes the input [Partition](Partition.md) (with the [TaskContext](../scheduler/TaskContext.md)) to produce values (of type `T`).
+Computes the input [Partition](Partition.md) (with the [TaskContext](../scheduler/TaskContext.md)) to produce values (of type `T`)
+
+See:
+
+* [LocalCheckpointRDD](LocalCheckpointRDD.md#compute)
+* [MapPartitionsRDD](MapPartitionsRDD.md#compute)
+* [ReliableCheckpointRDD](ReliableCheckpointRDD.md#compute)
+* [ShuffledRDD](ShuffledRDD.md#compute)
 
 Used when:
 
 * `RDD` is requested to [computeOrReadCheckpoint](#computeOrReadCheckpoint)
 
-### getPartitions { #getPartitions }
+### Partitions { #getPartitions }
 
 ```scala
 getPartitions: Array[Partition]
 ```
+
+[Partition](Partition.md)s of this `RDD`
+
+See:
+
+* [LocalCheckpointRDD](LocalCheckpointRDD.md#getPartitions)
+* [MapPartitionsRDD](MapPartitionsRDD.md#getPartitions)
+* [ReliableCheckpointRDD](ReliableCheckpointRDD.md#getPartitions)
+* [ShuffledRDD](ShuffledRDD.md#getPartitions)
 
 Used when:
 
@@ -36,7 +52,7 @@ Used when:
 ## Implementations
 
 * [CheckpointRDD](CheckpointRDD.md)
-* CoalescedRDD
+* [CoalescedRDD](CoalescedRDD.md)
 * [CoGroupedRDD](CoGroupedRDD.md)
 * [HadoopRDD](HadoopRDD.md)
 * [MapPartitionsRDD](MapPartitionsRDD.md)
@@ -44,7 +60,6 @@ Used when:
 * [ParallelCollectionRDD](ParallelCollectionRDD.md)
 * [ReliableCheckpointRDD](ReliableCheckpointRDD.md)
 * [ShuffledRDD](ShuffledRDD.md)
-* [SubtractedRDD](SubtractedRDD.md)
 * _others_
 
 ## Creating Instance
