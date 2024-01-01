@@ -1,6 +1,26 @@
 # CoarseGrainedExecutorBackend
 
-`CoarseGrainedExecutorBackend` is an [ExecutorBackend](ExecutorBackend.md) that controls the lifecycle of a single [executor](#executor) and sends [executor status updates](#statusUpdate) to the [driver](#driver).
+`CoarseGrainedExecutorBackend` is an [ExecutorBackend](ExecutorBackend.md) that controls the lifecycle of a single [executor](#executor).
+
+`CoarseGrainedExecutorBackend` is an `IsolatedThreadSafeRpcEndpoint` that [connects to the driver](#onStart) (before accepting [messages](#messages)) and [shuts down when the driver disconnects](#onDisconnected).
+
+`CoarseGrainedExecutorBackend` can [receive](#receive) the following messages:
+
+* [DecommissionExecutor](#DecommissionExecutor)
+* [KillTask](#KillTask)
+* [LaunchTask](#LaunchTask)
+* [RegisteredExecutor](#RegisteredExecutor)
+* [Shutdown](#Shutdown)
+* [StopExecutor](#StopExecutor)
+* [UpdateDelegationTokens](#UpdateDelegationTokens)
+
+When [launched](#main), `CoarseGrainedExecutorBackend` immediately connects to the parent [CoarseGrainedSchedulerBackend](../scheduler/CoarseGrainedSchedulerBackend.md) (to inform that it is ready to launch tasks).
+
+`CoarseGrainedExecutorBackend` [registers the Executor RPC endpoint](#creating-instance) to communicate with the driver (with [DriverEndpoint](../scheduler/DriverEndpoint.md)).
+
+![CoarseGrainedExecutorBackend Communicates with Driver's CoarseGrainedSchedulerBackend Endpoint](../images/executor/CoarseGrainedExecutorBackend.png)
+
+`CoarseGrainedExecutorBackend` sends regular [executor status updates](#statusUpdate) to the [driver](#driver) (to keep the [Spark scheduler](../scheduler/index.md) updated on the number of CPU cores free for task scheduling).
 
 ![CoarseGrainedExecutorBackend Sending Task Status Updates to Driver's CoarseGrainedScheduler Endpoint](../images/executor/CoarseGrainedExecutorBackend-statusUpdate.png)
 
@@ -61,13 +81,63 @@ The `Executor` is used for the following:
 image::CoarseGrainedExecutorBackend-statusUpdate.png[align="center"]
 -->
 
+## Starting Up { #onStart }
+
+??? note "RpcEndpoint"
+
+    ```scala
+    onStart(): Unit
+    ```
+
+    `onStart` is part of the [RpcEndpoint](../rpc/RpcEndpoint.md#onStart) abstraction.
+
+With [spark.decommission.enabled](../configuration-properties.md#spark.decommission.enabled) enabled, `onStart`...FIXME
+
+`onStart` prints out the following INFO message to the logs (with the [driverUrl](#driverUrl)):
+
+```text
+Connecting to driver: [driverUrl]
+```
+
+`onStart` [builds a transport-related configuration](../network/SparkTransportConf.md#fromSparkConf) for `shuffle` module.
+
+`onStart` [parseOrFindResources](#parseOrFindResources) in the given [resourcesFileOpt](#resourcesFileOpt), if defined, and initializes the [_resources](#_resources) internal registry (of `ResourceInformation`s).
+
+`onStart` [asyncSetupEndpointRefByURI](../rpc/RpcEnv.md#asyncSetupEndpointRefByURI) (with the given [driverUrl](#driverUrl)).
+
+If successful, `onStart` initializes the [driver](#driver) internal registry.
+
+`onStart` makes this `CoarseGrainedExecutorBackend` available to other Spark services using the [executorBackend](../SparkEnv.md#executorBackend) registry.
+
+`onStart` sends a blocking [RegisterExecutor](../scheduler/CoarseGrainedSchedulerBackend.md#RegisterExecutor) message. If successful, `onStart` sends a [RegisteredExecutor](#RegisteredExecutor) (to itself).
+
+In case of any failure, `onStart` [terminates this CoarseGrainedExecutorBackend](#exitExecutor) with the error code `1` and the following reason (with no notification to the driver):
+
+```text
+Cannot register with driver: [driverUrl]
+```
+
 ## Messages
 
 ### DecommissionExecutor { #DecommissionExecutor }
 
 `DecommissionExecutor` is sent out when `CoarseGrainedSchedulerBackend` is requested to [decommissionExecutors](../scheduler/CoarseGrainedSchedulerBackend.md#decommissionExecutors)
 
-When received, `CoarseGrainedExecutorBackend` [decommissionSelf](#decommissionSelf).
+When [received](#receive), `CoarseGrainedExecutorBackend` [decommissionSelf](#decommissionSelf).
+
+### RegisteredExecutor { #RegisteredExecutor }
+
+When [received](#receive), `CoarseGrainedExecutorBackend` prints out the following INFO message to the logs:
+
+```text
+Successfully registered with driver
+```
+
+`CoarseGrainedExecutorBackend` initializes the single managed [Executor](#executor) (with the given [executorId](#executorId), the [hostname](#hostname)) and sends a [LaunchedExecutor](#LaunchedExecutor) message back to the [driver](#driver).
+
+---
+
+`RegisteredExecutor` is sent out when `CoarseGrainedSchedulerBackend` has finished [onStart](#onStart) successfully (and registered with the driver).
 
 ## Logging
 
@@ -85,14 +155,6 @@ Refer to [Logging](../spark-logging.md).
 <!---
 ## Review Me
 
-CoarseGrainedExecutorBackend is a rpc:RpcEndpoint.md#ThreadSafeRpcEndpoint[ThreadSafeRpcEndpoint] that <<onStart, connects to the driver>> (before accepting <<messages, messages>>) and <<onDisconnected, shuts down when the driver disconnects>>.
-
-When <<run, started>>, CoarseGrainedExecutorBackend <<creating-instance, registers the Executor RPC endpoint>> to communicate with the driver (with [DriverEndpoint](../scheduler/DriverEndpoint.md)).
-
-![CoarseGrainedExecutorBackend Communicates with Driver's CoarseGrainedSchedulerBackend Endpoint](../images/executor/CoarseGrainedExecutorBackend.png)
-
-When <<main, launched>>, CoarseGrainedExecutorBackend immediately connects to the owning scheduler:CoarseGrainedSchedulerBackend.md[CoarseGrainedSchedulerBackend] to inform that it is ready to launch tasks.
-
 [[messages]]
 .CoarseGrainedExecutorBackend's RPC Messages
 [width="100%",cols="1,2",options="header"]
@@ -105,11 +167,6 @@ When <<main, launched>>, CoarseGrainedExecutorBackend immediately connects to th
 
 | <<LaunchTask, LaunchTask>>
 | Forwards launch task requests from the driver to the single managed coarse-grained <<executor, executor>>.
-
-| <<RegisteredExecutor, RegisteredExecutor>>
-| Creates the single managed <<executor, Executor>>.
-
-Sent exclusively when `CoarseGrainedSchedulerBackend` scheduler:CoarseGrainedSchedulerBackend.md#RegisterExecutor[receives `RegisterExecutor`].
 
 | <<RegisterExecutorFailed, RegisterExecutorFailed>>
 |
@@ -288,31 +345,6 @@ Once `RpcEnv` has terminated, `run` spark-SparkHadoopUtil.md#stopCredentialUpdat
 CAUTION: FIXME Think of the place for `Utils.initDaemon`, `Utils.getProcessName` et al.
 
 run is used when CoarseGrainedExecutorBackend standalone application is <<main, launched>>.
-
-== [[onStart]] Registering with Driver -- `onStart` Method
-
-[source, scala]
-----
-onStart(): Unit
-----
-
-NOTE: `onStart` is part of rpc:RpcEndpoint.md#onStart[RpcEndpoint contract] that is executed before a RPC endpoint starts accepting messages.
-
-When executed, you should see the following INFO message in the logs:
-
-```
-INFO CoarseGrainedExecutorBackend: Connecting to driver: [driverUrl]
-```
-
-NOTE: <<driverUrl, driverUrl>> is given when <<creating-instance, CoarseGrainedExecutorBackend is created>>.
-
-`onStart` then rpc:index.md#asyncSetupEndpointRefByURI[takes the `RpcEndpointRef` of the driver asynchronously] and initializes the internal <<driver, driver>> property. `onStart` sends a blocking scheduler:CoarseGrainedSchedulerBackend.md#RegisterExecutor[RegisterExecutor] message immediately (with <<executorId, executorId>>, rpc:RpcEndpointRef.md[RpcEndpointRef] to itself, <<hostname, hostname>>, <<cores, cores>> and <<extractLogUrls, log URLs>>).
-
-In case of failures, `onStart` <<exitExecutor, terminates CoarseGrainedExecutorBackend>> with the error code `1` and the reason (and no notification to the driver):
-
-```
-Cannot register with driver: [driverUrl]
-```
 
 == [[RegisteredExecutor]] Creating Single Managed Executor -- `RegisteredExecutor` Message Handler
 
