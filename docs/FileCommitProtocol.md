@@ -8,7 +8,7 @@
 
 ## Contract
 
-### <span id="abortJob"> Aborting Job
+### Aborting Job { #abortJob }
 
 ```scala
 abortJob(
@@ -23,7 +23,7 @@ Used when:
 * (Spark SQL) `FileFormatWriter` utility is used to write a result of a structured query (and writing fails)
 * (Spark SQL) `FileBatchWrite` is requested to `abort`
 
-### <span id="abortTask"> Aborting Task
+### Aborting Task { #abortTask }
 
 ```scala
 abortTask(
@@ -37,7 +37,7 @@ Used when:
 * `SparkHadoopWriter` utility is used to [write an RDD partition](SparkHadoopWriter.md#executeTask)
 * (Spark SQL) `FileFormatDataWriter` is requested to `abort`
 
-### <span id="commitJob"> Committing Job
+### Committing Job { #commitJob }
 
 ```scala
 commitJob(
@@ -53,7 +53,7 @@ Used when:
 * (Spark SQL) `FileFormatWriter` utility is used to write a result of a structured query
 * (Spark SQL) `FileBatchWrite` is requested to `commit`
 
-### <span id="commitTask"> Committing Task
+### Committing Task { #commitTask }
 
 ```scala
 commitTask(
@@ -65,7 +65,7 @@ Used when:
 * `SparkHadoopWriter` utility is used to [write an RDD partition](SparkHadoopWriter.md#executeTask)
 * (Spark SQL) `FileFormatDataWriter` is requested to `commit`
 
-### <span id="deleteWithJob"> Deleting Path with Job
+### Deleting Path with Job { #deleteWithJob }
 
 ```scala
 deleteWithJob(
@@ -78,20 +78,32 @@ deleteWithJob(
 
 Used when `InsertIntoHadoopFsRelationCommand` logical command (Spark SQL) is executed
 
-### <span id="newTaskTempFile"> newTaskTempFile
+### New Task Temp File { #newTaskTempFile }
 
 ```scala
 newTaskTempFile(
   taskContext: TaskAttemptContext,
   dir: Option[String],
-  ext: String): String
+  spec: FileNameSpec): String
+newTaskTempFile(
+  taskContext: TaskAttemptContext,
+  dir: Option[String],
+  ext: String): String // @deprecated
 ```
+
+Builds a path of a temporary file (for a task to write data to)
+
+See:
+
+* [HadoopMapReduceCommitProtocol](HadoopMapReduceCommitProtocol.md#newTaskTempFile)
+* `DelayedCommitProtocol` ([Delta Lake]({{ book.delta }}/DelayedCommitProtocol#newTaskTempFile))
 
 Used when:
 
-* (Spark SQL) `SingleDirectoryDataWriter` and `DynamicPartitionDataWriter` are requested to `write` (and in turn `newOutputWriter`)
+* ([Spark SQL]({{ book.spark_sql }}/connectors/SingleDirectoryDataWriter/#write)) `SingleDirectoryDataWriter` is requested to `write` a record out
+* ([Spark SQL]({{ book.spark_sql }}/connectors/BaseDynamicPartitionDataWriter/#write)) `BaseDynamicPartitionDataWriter` is requested to `renewCurrentWriter`
 
-### <span id="newTaskTempFileAbsPath"> newTaskTempFileAbsPath
+### newTaskTempFileAbsPath { #newTaskTempFileAbsPath }
 
 ```scala
 newTaskTempFileAbsPath(
@@ -104,7 +116,7 @@ Used when:
 
 * (Spark SQL) `DynamicPartitionDataWriter` is requested to `write`
 
-### <span id="onTaskCommit"> On Task Committed
+### On Task Committed { #onTaskCommit }
 
 ```scala
 onTaskCommit(
@@ -115,7 +127,7 @@ Used when:
 
 * (Spark SQL) `FileFormatWriter` is requested to `write`
 
-### <span id="setupJob"> Setting Up Job
+### Setting Up Job { #setupJob }
 
 ```scala
 setupJob(
@@ -128,7 +140,7 @@ Used when:
 * (Spark SQL) `FileFormatWriter` utility is used to write a result of a structured query
 * (Spark SQL) `FileWriteBuilder` is requested to `buildForBatch`
 
-### <span id="setupTask"> Setting Up Task
+### Setting Up Task { #setupTask }
 
 ```scala
 setupTask(

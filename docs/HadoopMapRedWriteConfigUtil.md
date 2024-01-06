@@ -1,15 +1,26 @@
 # HadoopMapRedWriteConfigUtil
 
-`HadoopMapRedWriteConfigUtil` is...FIXME
+`HadoopMapRedWriteConfigUtil` is a [HadoopWriteConfigUtil](HadoopWriteConfigUtil.md) for [RDD.saveAsHadoopDataset](rdd/PairRDDFunctions.md#saveAsHadoopDataset) operator.
 
-== [[createCommitter]] `createCommitter` Method
+## Creating Instance
 
-[source, scala]
-----
-createCommitter(
-  jobId: Int): HadoopMapReduceCommitProtocol
-----
+`HadoopMapRedWriteConfigUtil` takes the following to be created:
 
-NOTE: `createCommitter` is part of the <<spark-internal-io-HadoopWriteConfigUtil.md#createCommitter, HadoopWriteConfigUtil>> contract to...FIXME.
+* <span id="conf"> `SerializableJobConf`
 
-`createCommitter`...FIXME
+`HadoopMapRedWriteConfigUtil` is created when:
+
+* `PairRDDFunctions` is requested to [saveAsHadoopDataset](rdd/PairRDDFunctions.md#saveAsHadoopDataset)
+
+## Logging
+
+Enable `ALL` logging level for `org.apache.spark.internal.io.HadoopMapRedWriteConfigUtil` logger to see what happens inside.
+
+Add the following line to `conf/log4j2.properties`:
+
+```text
+logger.HadoopMapRedWriteConfigUtil.name = org.apache.spark.internal.io.HadoopMapRedWriteConfigUtil
+logger.HadoopMapRedWriteConfigUtil.level = all
+```
+
+Refer to [Logging](spark-logging.md).
