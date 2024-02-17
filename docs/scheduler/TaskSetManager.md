@@ -35,7 +35,7 @@ Epoch for [taskSet]: [epoch]
 
 `TaskSetManager` [adds the tasks as pending execution](#addPendingTask) (in reverse order from the highest partition to the lowest).
 
-### <span id="maxTaskFailures"> Number of Task Failures
+### Number of Task Failures { #maxTaskFailures }
 
 `TaskSetManager` is given `maxTaskFailures` value that is how many times a [single task can fail](#handleFailedTask) before the whole [TaskSet](#taskSet) is [aborted](#abort).
 
@@ -88,7 +88,7 @@ In the end, `resourceOffer` returns the `TaskDescription`, `hasScheduleDelayReje
 
 * `TaskSchedulerImpl` is requested to [resourceOfferSingleTaskSet](TaskSchedulerImpl.md#resourceOfferSingleTaskSet)
 
-## <span id="getLocalityWait"> Locality Wait
+## Locality Wait { #getLocalityWait }
 
 ```scala
 getLocalityWait(
@@ -116,11 +116,11 @@ Unless the value has been determined, `getLocalityWait` defaults to `0`.
 
 * `TaskSetManager` is [created](#localityWaits) and [recomputes locality preferences](#recomputeLocality)
 
-## <span id="maxResultSize"> spark.driver.maxResultSize
+## spark.driver.maxResultSize { #maxResultSize }
 
 `TaskSetManager` uses [spark.driver.maxResultSize](../configuration-properties.md#spark.driver.maxResultSize) configuration property to [check available memory for more task results](#canFetchMoreResults).
 
-## <span id="recomputeLocality"> Recomputing Task Locality Preferences
+## Recomputing Task Locality Preferences { #recomputeLocality }
 
 ```java
 recomputeLocality(): Unit
@@ -150,7 +150,7 @@ While in zombie state, a `TaskSetManager` can launch no new tasks and responds w
 
 A `TaskSetManager` remains in the zombie state until all tasks have finished running, i.e. to continue to track and account for the running tasks.
 
-## <span id="computeValidLocalityLevels"> Computing Locality Levels (for Scheduled Tasks)
+## Computing Locality Levels (for Scheduled Tasks) { #computeValidLocalityLevels }
 
 ```scala
 computeValidLocalityLevels(): Array[TaskLocality.TaskLocality]
@@ -182,7 +182,7 @@ Valid locality levels for [taskSet]: [comma-separated levels]
 
 * `TaskSetManager` is [created](#myLocalityLevels) and to [recomputeLocality](#recomputeLocality)
 
-## <span id="executorAdded"> executorAdded
+## executorAdded { #executorAdded }
 
 ```scala
 executorAdded(): Unit
@@ -221,6 +221,27 @@ prepareLaunchingTask(
 
 * `TaskSchedulerImpl` is requested to [resourceOffers](TaskSchedulerImpl.md#resourceOffers)
 * `TaskSetManager` is requested to [resourceOffers](#resourceOffers)
+
+## Serialized Task Size Threshold { #TASK_SIZE_TO_WARN_KIB }
+
+`TaskSetManager` object defines `TASK_SIZE_TO_WARN_KIB` value as the threshold to warn a user if any stages contain a task that has a serialized size greater than `1000` kB.
+
+### DAGScheduler { #TASK_SIZE_TO_WARN_KIB-DAGScheduler }
+
+`DAGScheduler` can print out the following WARN message to the logs when requested to [submitMissingTasks](DAGScheduler.md#submitMissingTasks):
+
+```text
+Broadcasting large task binary with size [taskBinaryBytes] [siByteSuffix]
+```
+
+### TaskSetManager { #TASK_SIZE_TO_WARN_KIB-TaskSetManager }
+
+`TaskSetManager` can print out the following WARN message to the logs when requested to [prepareLaunchingTask](#prepareLaunchingTask):
+
+```text
+Stage [stageId] contains a task of very large size ([serializedTask] KiB).
+The maximum recommended task size is 1000 KiB.
+```
 
 ## Demo
 

@@ -513,6 +513,27 @@ withScope[U](
 !!! note
     `withScope` is used for most (if not all) `SparkContext` API operators.
 
+## Finding Preferred Locations for RDD Partition { #getPreferredLocs }
+
+```scala
+getPreferredLocs(
+  rdd: RDD[_],
+  partition: Int): Seq[TaskLocation]
+```
+
+`getPreferredLocs` requests the [DAGScheduler](#dagScheduler) for the [preferred locations](scheduler/DAGScheduler.md#getPreferredLocs) of the given `partition` (of the given [RDD](rdd/RDD.md)).
+
+!!! note
+    **Preferred locations** of a RDD partition are also referred to as _placement preferences_ or _locality preferences_.
+
+---
+
+`getPreferredLocs` is used when:
+
+* `CoalescedRDDPartition` is requested to `localFraction`
+* `DefaultPartitionCoalescer` is requested to `currPrefLocs`
+* `PartitionerAwareUnionRDD` is requested to `currPrefLocs`
+
 ## Logging
 
 Enable `ALL` logging level for `org.apache.spark.SparkContext` logger to see what happens inside.
@@ -1235,21 +1256,6 @@ cleaner: Option[ContextCleaner]
 SparkContext may have a core:ContextCleaner.md[ContextCleaner] defined.
 
 `ContextCleaner` is created when `SparkContext` is created with configuration-properties.md#spark.cleaner.referenceTracking[spark.cleaner.referenceTracking] configuration property enabled.
-
-== [[getPreferredLocs]] Finding Preferred Locations (Placement Preferences) for RDD Partition
-
-[source, scala]
-----
-getPreferredLocs(
-  rdd: RDD[_],
-  partition: Int): Seq[TaskLocation]
-----
-
-getPreferredLocs simply scheduler:DAGScheduler.md#getPreferredLocs[requests `DAGScheduler` for the preferred locations for `partition`].
-
-NOTE: Preferred locations of a partition of a RDD are also called *placement preferences* or *locality preferences*.
-
-getPreferredLocs is used in CoalescedRDDPartition, DefaultPartitionCoalescer and PartitionerAwareUnionRDD.
 
 == [[persistRDD]] Registering RDD in persistentRdds Internal Registry -- `persistRDD` Internal Method
 

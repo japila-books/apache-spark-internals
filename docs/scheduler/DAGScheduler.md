@@ -736,13 +736,18 @@ In the end, with no tasks to submit for execution, `submitMissingTasks` [submits
 
 ```scala
 getPreferredLocs(
-   rdd: RDD[_],
+  rdd: RDD[_],
   partition: Int): Seq[TaskLocation]
 ```
 
 `getPreferredLocs` is simply an alias for the internal (recursive) [getPreferredLocsInternal](#getPreferredLocsInternal).
 
-`getPreferredLocs` is used when...FIXME
+---
+
+`getPreferredLocs` is used when:
+
+* `SparkContext` is requested to [getPreferredLocs](../SparkContext.md#getPreferredLocs)
+* `DAGScheduler` is requested to [submit the missing tasks of a stage](#submitMissingTasks)
 
 ## Finding BlockManagers (Executors) for Cached RDD Partitions (aka Block Location Discovery) { #getCacheLocs }
 
