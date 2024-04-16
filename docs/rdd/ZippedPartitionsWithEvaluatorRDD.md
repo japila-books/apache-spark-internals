@@ -1,0 +1,3 @@
+# ZippedPartitionsWithEvaluatorRDD
+
+`ZippedPartitionsWithEvaluatorRDD` is...FIXME

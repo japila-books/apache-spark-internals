@@ -445,6 +445,25 @@ withScope[U](
 !!! note
     `withScope` is used for most (if not all) `RDD` API operators.
 
+## mapPartitionsWithEvaluator { #mapPartitionsWithEvaluator }
+
+```scala
+mapPartitionsWithEvaluator[U: ClassTag](
+  evaluatorFactory: PartitionEvaluatorFactory[T, U]): RDD[U]
+```
+
+`mapPartitionsWithEvaluator` creates a [MapPartitionsWithEvaluatorRDD](MapPartitionsWithEvaluatorRDD.md) for this `RDD` and the given [PartitionEvaluatorFactory](../PartitionEvaluatorFactory.md).
+
+## zipPartitionsWithEvaluator { #zipPartitionsWithEvaluator }
+
+```scala
+zipPartitionsWithEvaluator[U: ClassTag](
+  rdd2: RDD[T],
+  evaluatorFactory: PartitionEvaluatorFactory[T, U]): RDD[U]
+```
+
+`zipPartitionsWithEvaluator` creates a [ZippedPartitionsWithEvaluatorRDD](ZippedPartitionsWithEvaluatorRDD.md) for this `RDD` and the given `RDD` and the [PartitionEvaluatorFactory](../PartitionEvaluatorFactory.md).
+
 <!---
 ## Review Me
 
