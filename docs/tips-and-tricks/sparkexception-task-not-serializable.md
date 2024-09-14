@@ -1,8 +1,8 @@
-== org.apache.spark.SparkException: Task not serializable
+# org.apache.spark.SparkException: Task not serializable
 
 When you run into `org.apache.spark.SparkException: Task not serializable` exception, it means that you use a reference to an instance of a non-serializable class inside a transformation. See the following example:
 
-```
+```text
 ➜  spark git:(master) ✗ ./bin/spark-shell
 Welcome to
       ____              __
@@ -68,8 +68,8 @@ Serialization stack:
   ... 57 more
 ```
 
-=== Further reading
+## Learn More
 
-* https://databricks.gitbooks.io/databricks-spark-knowledge-base/content/troubleshooting/javaionotserializableexception.html[Job aborted due to stage failure: Task not serializable]
-* https://issues.apache.org/jira/browse/SPARK-5307[Add utility to help with NotSerializableException debugging]
-* http://stackoverflow.com/q/22592811/1305344[Task not serializable: java.io.NotSerializableException when calling function outside closure only on classes not objects]
+* [Job aborted due to stage failure: Task not serializable](https://databricks.gitbooks.io/databricks-spark-knowledge-base/content/troubleshooting/javaionotserializableexception.html)
+* [Add utility to help with NotSerializableException debugging](https://issues.apache.org/jira/browse/SPARK-5307)
+* [Task not serializable: java.io.NotSerializableException when calling function outside closure only on classes not objects](http://stackoverflow.com/q/22592811/1305344)

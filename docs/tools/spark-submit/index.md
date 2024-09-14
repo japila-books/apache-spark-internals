@@ -105,7 +105,7 @@ Type --help for more information.
 
 ## SPARK_PRINT_LAUNCH_COMMAND { #SPARK_PRINT_LAUNCH_COMMAND }
 
-[SPARK_PRINT_LAUNCH_COMMAND](../../spark-tips-and-tricks.md#SPARK_PRINT_LAUNCH_COMMAND) environment variable allows to have the complete Spark command printed out to the standard output.
+[SPARK_PRINT_LAUNCH_COMMAND](../../tips-and-tricks/index.md#SPARK_PRINT_LAUNCH_COMMAND) environment variable allows to have the complete Spark command printed out to the standard output.
 
 ```text
 $ SPARK_PRINT_LAUNCH_COMMAND=1 ./bin/spark-shell

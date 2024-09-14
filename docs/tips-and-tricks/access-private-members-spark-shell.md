@@ -1,12 +1,12 @@
-== Access private members in Scala in Spark shell
+# Access private members in Scala in Spark shell
 
-If you ever wanted to use `private[spark]` members in Spark using the Scala programming language, e.g. toy with `org.apache.spark.scheduler.DAGScheduler` or similar, you will have to use the following trick in Spark shell - use `:paste -raw` as described in https://issues.scala-lang.org/browse/SI-5299[REPL: support for package definition].
+If you ever wanted to use `private[spark]` members in Spark using the Scala programming language, e.g. toy with `org.apache.spark.scheduler.DAGScheduler` or similar, you will have to use the following trick in Spark shell - use `:paste -raw` as described in [REPL: support for package definition](https://issues.scala-lang.org/browse/SI-5299).
 
 Open `spark-shell` and execute `:paste -raw` that allows you to enter any valid Scala code, including `package`.
 
 The following snippet shows how to access `private[spark]` member `DAGScheduler.RESUBMIT_TIMEOUT`:
 
-```
+```text
 scala> :paste -raw
 // Entering paste mode (ctrl-D to finish)
 
