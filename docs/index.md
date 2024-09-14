@@ -10,7 +10,7 @@ hide:
 
 Welcome to **The Internals of {{ book.title }}** online book! 🤙
 
-I'm [Jacek Laskowski](https://pl.linkedin.com/in/jaceklaskowski), a Freelance Data Engineer specializing in
+I'm [Jacek Laskowski](https://pl.linkedin.com/in/jaceklaskowski), a Freelance Data(bricks) Engineer specializing in
 [Apache Spark](https://books.japila.pl/apache-spark-internals/) (incl. [Spark SQL](https://books.japila.pl/spark-sql-internals/) and [Spark Structured Streaming](https://books.japila.pl/spark-structured-streaming-internals/)),
 [Delta Lake](https://books.japila.pl/delta-lake-internals/),
 [Databricks](https://www.databricks.com/),
