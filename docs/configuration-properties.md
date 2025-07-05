@@ -629,7 +629,7 @@ Must be a positive integer (above `0`)
 
 **spark.shuffle.push.enabled**
 
-Enables push-based shuffle on the client side
+Enables [Push-Based Shuffle](./push-based-shuffle.md) on the client side
 
 Default: `false`
 

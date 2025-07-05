@@ -23,7 +23,7 @@
 * <span id="maxReqSizeShuffleToMem"> [spark.network.maxRemoteBlockSizeFetchToMem](../configuration-properties.md#spark.network.maxRemoteBlockSizeFetchToMem)
 * <span id="detectCorrupt"> [spark.shuffle.detectCorrupt](../configuration-properties.md#spark.shuffle.detectCorrupt)
 * <span id="detectCorruptUseExtraMemory"> [spark.shuffle.detectCorrupt.useExtraMemory](../configuration-properties.md#spark.shuffle.detectCorrupt.useExtraMemory)
-* <span id="shuffleMetrics"> `ShuffleReadMetricsReporter`
+* <span id="shuffleMetrics"> [ShuffleReadMetricsReporter](../shuffle/ShuffleReadMetricsReporter.md)
 * <span id="doBatchFetch"> `doBatchFetch` flag
 
 While being created, `ShuffleBlockFetcherIterator` [initializes itself](#initialize).
@@ -185,7 +185,7 @@ next(): (BlockId, InputStream)
 
 `next` takes (and removes) the head of the [results](#results) queue.
 
-`next` requests the [ShuffleReadMetricsReporter](#shuffleMetrics) to `incFetchWaitTime`.
+`next` requests the [ShuffleReadMetricsReporter](#shuffleMetrics) to [incFetchWaitTime](../shuffle/ShuffleReadMetricsReporter.md#incFetchWaitTime).
 
 `next`...FIXME
 

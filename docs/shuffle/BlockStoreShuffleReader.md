@@ -1,6 +1,6 @@
 # BlockStoreShuffleReader
 
-`BlockStoreShuffleReader` is a [ShuffleReader](ShuffleReader.md).
+`BlockStoreShuffleReader[K, C]` is a [ShuffleReader](ShuffleReader.md) of `K` keys and `C` values.
 
 ## Creating Instance
 
@@ -9,7 +9,7 @@
 * <span id="handle"> [BaseShuffleHandle](BaseShuffleHandle.md)
 * <span id="blocksByAddress"> [Block](../storage/BlockId.md)s by [Address](../storage/BlockManagerId.md) (`Iterator[(BlockManagerId, Seq[(BlockId, Long, Int)])]`)
 * <span id="context"> [TaskContext](../scheduler/TaskContext.md)
-* <span id="readMetrics"> `ShuffleReadMetricsReporter`
+* <span id="readMetrics"> [ShuffleReadMetricsReporter](ShuffleReadMetricsReporter.md)
 * <span id="serializerManager"> [SerializerManager](../serializer/SerializerManager.md)
 * <span id="blockManager"> [BlockManager](../storage/BlockManager.md)
 * <span id="mapOutputTracker"> [MapOutputTracker](../scheduler/MapOutputTracker.md)

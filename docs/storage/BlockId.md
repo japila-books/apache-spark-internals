@@ -4,7 +4,7 @@
 
 ## Contract
 
-### <span id="name"><span id="toString"> Name
+### <span id="toString"> Name { #name }
 
 ```scala
 name: String
@@ -24,7 +24,9 @@ Used when:
 ??? note "Sealed Abstract Class"
     `BlockId` is a Scala **sealed abstract class** which means that all of the implementations are in the same compilation unit (a single file).
 
-### <span id="BroadcastBlockId"> BroadcastBlockId
+    Learn more in the [Scala Language Specification]({{ scala.spec }}/05-classes-and-objects.html#sealed).
+
+### BroadcastBlockId { #BroadcastBlockId }
 
 `BlockId` for [broadcast variable](../broadcast-variables/index.md) blocks:
 
@@ -40,7 +42,15 @@ Used when:
 * `SerializerManager` is requested to [shouldCompress](../serializer/SerializerManager.md#shouldCompress)
 * `AppStatusListener` is requested to [onBlockUpdated](../status/AppStatusListener.md#onBlockUpdated)
 
-### <span id="RDDBlockId"> RDDBlockId
+### CacheId { #CacheId }
+
+`BlockId` for...FIXME
+
+### PythonStreamBlockId { #PythonStreamBlockId }
+
+`BlockId` for...FIXME
+
+### RDDBlockId { #RDDBlockId }
 
 `BlockId` for [RDD](../rdd/RDD.md) partitions:
 
@@ -60,9 +70,22 @@ Used when:
 
 [Compressed](../serializer/SerializerManager.md#shouldCompress) when [spark.rdd.compress](../configuration-properties.md#spark.rdd.compress) configuration property is enabled
 
-### <span id="ShuffleBlockBatchId"> ShuffleBlockBatchId
+### ShuffleBlockBatchId { #ShuffleBlockBatchId }
 
-### <span id="ShuffleBlockId"> ShuffleBlockId
+`BlockId` for...FIXME
+
+### ShuffleBlockChunkId { #ShuffleBlockChunkId }
+
+`BlockId` for shuffle block chunks in [Push-Based Shuffle](../push-based-shuffle.md):
+
+* `shuffleId` identifier
+* `shuffleMergeId` identifier
+* `reduceId` identifier
+* `chunkId` identifier
+
+Uses `shuffleChunk_[shuffleId]_[shuffleMergeId]_[reduceId]_[chunkId]` pattern for the [name](#name)
+
+### ShuffleBlockId { #ShuffleBlockId }
 
 `BlockId` for shuffle blocks:
 
@@ -83,13 +106,41 @@ Used when:
 
 [Compressed](../serializer/SerializerManager.md#shouldCompress) when [spark.shuffle.compress](../configuration-properties.md#spark.shuffle.compress) configuration property is enabled
 
-### <span id="ShuffleDataBlockId"> ShuffleDataBlockId
+### ShuffleChecksumBlockId { #ShuffleChecksumBlockId }
 
-### <span id="ShuffleIndexBlockId"> ShuffleIndexBlockId
+`BlockId` for...FIXME
 
-### <span id="StreamBlockId"> StreamBlockId
+### ShuffleDataBlockId { #ShuffleDataBlockId }
 
-`BlockId` for ...FIXME:
+`BlockId` for...FIXME
+
+### ShuffleIndexBlockId { #ShuffleIndexBlockId }
+
+`BlockId` for...FIXME
+
+### ShuffleMergedBlockId { #ShuffleMergedBlockId }
+
+`BlockId` for...FIXME
+
+### ShuffleMergedDataBlockId { #ShuffleMergedDataBlockId }
+
+`BlockId` for...FIXME
+
+### ShuffleMergedIndexBlockId { #ShuffleMergedIndexBlockId }
+
+`BlockId` for...FIXME
+
+### ShuffleMergedMetaBlockId { #ShuffleMergedMetaBlockId }
+
+`BlockId` for...FIXME
+
+### ShufflePushBlockId { #ShufflePushBlockId }
+
+`BlockId` for...FIXME
+
+### StreamBlockId { #StreamBlockId }
+
+`BlockId` for...FIXME:
 
 * `streamId`
 * `uniqueId`
@@ -102,15 +153,23 @@ input-[streamId]-[uniqueId]
 
 Used in Spark Streaming
 
-### <span id="TaskResultBlockId"> TaskResultBlockId
+### TaskResultBlockId { #TaskResultBlockId }
 
-### <span id="TempLocalBlockId"> TempLocalBlockId
+`BlockId` for...FIXME
 
-### <span id="TempShuffleBlockId"> TempShuffleBlockId
+### TempLocalBlockId { #TempLocalBlockId }
 
-### <span id="TestBlockId"> TestBlockId
+`BlockId` for...FIXME
 
-## <span id="apply"> Creating BlockId by Name
+### TempShuffleBlockId { #TempShuffleBlockId }
+
+`BlockId` for...FIXME
+
+### TestBlockId { #TestBlockId }
+
+`BlockId` for...FIXME
+
+## Creating BlockId by Name { #apply }
 
 ```scala
 apply(
