@@ -1,3 +1,8 @@
+---
+tags:
+  - DeveloperApi
+---
+
 # ShuffleHandle
 
 `ShuffleHandle` is an abstraction of [shuffle handles](#implementations) for [ShuffleManager](ShuffleManager.md) to pass information about shuffles to tasks.
@@ -14,5 +19,5 @@
 
 * <span id="shuffleId"> Shuffle ID
 
-!!! note "Abstract Class"
+??? note "Abstract Class"
     `ShuffleHandle` is an abstract class and cannot be created directly. It is created indirectly for the [concrete ShuffleHandles](#implementations).

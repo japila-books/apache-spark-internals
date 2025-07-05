@@ -32,7 +32,7 @@ While being created, `ShuffleBlockFetcherIterator` [initializes itself](#initial
 
 * `BlockStoreShuffleReader` is requested to [read combined key-value records for a reduce task](../shuffle/BlockStoreShuffleReader.md#read)
 
-### <span id="initialize"> Initializing
+### Initializing { #initialize }
 
 ```scala
 initialize(): Unit
@@ -46,7 +46,7 @@ Internally, `initialize` uses the [TaskContext](#context) to [register](../sched
 
 `initialize`...FIXME
 
-### <span id="partitionBlocksByFetchMode"> partitionBlocksByFetchMode
+### partitionBlocksByFetchMode { #partitionBlocksByFetchMode }
 
 ```scala
 partitionBlocksByFetchMode(): ArrayBuffer[FetchRequest]
@@ -54,7 +54,7 @@ partitionBlocksByFetchMode(): ArrayBuffer[FetchRequest]
 
 `partitionBlocksByFetchMode`...FIXME
 
-### <span id="collectFetchRequests"> collectFetchRequests
+### collectFetchRequests { #collectFetchRequests }
 
 ```scala
 collectFetchRequests(
@@ -65,7 +65,7 @@ collectFetchRequests(
 
 `collectFetchRequests`...FIXME
 
-### <span id="createFetchRequests"> createFetchRequests
+### createFetchRequests { #createFetchRequests }
 
 ```scala
 createFetchRequests(
@@ -77,7 +77,7 @@ createFetchRequests(
 
 `createFetchRequests`...FIXME
 
-## <span id="fetchUpToMaxBytes"> fetchUpToMaxBytes
+## fetchUpToMaxBytes { #fetchUpToMaxBytes }
 
 ```scala
 fetchUpToMaxBytes(): Unit
@@ -89,7 +89,7 @@ fetchUpToMaxBytes(): Unit
 
 * `ShuffleBlockFetcherIterator` is requested to [initialize](#initialize) and [next](#next)
 
-## <span id="sendRequest"> Sending Remote Shuffle Block Fetch Request
+## Sending Remote Shuffle Block Fetch Request { #sendRequest }
 
 ```scala
 sendRequest(
@@ -110,11 +110,11 @@ Sending request for [n] blocks ([size]) from [hostPort]
 
 * `ShuffleBlockFetcherIterator` is requested to [fetch remote shuffle blocks](#fetchUpToMaxBytes)
 
-### <span id="BlockFetchingListener"> BlockFetchingListener
+### BlockFetchingListener { #BlockFetchingListener }
 
 `sendRequest` creates a new [BlockFetchingListener](../core/BlockFetchingListener.md) to be notified about [successes](#onBlockFetchSuccess) or [failures](#onBlockFetchFailure) of shuffle block fetch requests.
 
-#### <span id="onBlockFetchSuccess"> onBlockFetchSuccess
+#### onBlockFetchSuccess { #onBlockFetchSuccess }
 
 On [onBlockFetchSuccess](../core/BlockFetchingListener.md#onBlockFetchSuccess) the `BlockFetchingListener` adds a `SuccessFetchResult` to the [results](#results) registry and prints out the following DEBUG message to the logs (when not a [zombie](#isZombie)):
 
@@ -128,7 +128,7 @@ In the end, `onBlockFetchSuccess` prints out the following TRACE message to the 
 Got remote block [blockId] after [time]
 ```
 
-#### <span id="onBlockFetchFailure"> onBlockFetchFailure
+#### onBlockFetchFailure { #onBlockFetchFailure }
 
 On [onBlockFetchFailure](../core/BlockFetchingListener.md#onBlockFetchFailure) the `BlockFetchingListener` adds a `FailureFetchResult` to the [results](#results) registry and prints out the following ERROR message to the logs:
 
@@ -136,7 +136,7 @@ On [onBlockFetchFailure](../core/BlockFetchingListener.md#onBlockFetchFailure) t
 Failed to get block(s) from [host]:[port]
 ```
 
-## <span id="results"> FetchResults
+## FetchResults { #results }
 
 ```scala
 results: LinkedBlockingQueue[FetchResult]
@@ -165,7 +165,7 @@ For local blocks, `FetchResult`s are added in [fetchHostLocalBlock](#fetchHostLo
 
 Cleaned up in [cleanup](#cleanup)
 
-## <span id="hasNext"> hasNext
+## hasNext { #hasNext }
 
 ```scala
 hasNext: Boolean
@@ -175,7 +175,7 @@ hasNext: Boolean
 
 `hasNext` is `true` when [numBlocksProcessed](#numBlocksProcessed) is below [numBlocksToFetch](#numBlocksToFetch).
 
-## <span id="next"> Retrieving Next Element
+## Retrieving Next Element { #next }
 
 ```scala
 next(): (BlockId, InputStream)
@@ -193,11 +193,11 @@ next(): (BlockId, InputStream)
 
 `next` is part of the `Iterator` ([Scala]({{ scala.api }}/scala/collection/Iterator.html#next():A)) abstraction (to produce the next element of this iterator).
 
-## <span id="numBlocksProcessed"> numBlocksProcessed
+## numBlocksProcessed { #numBlocksProcessed }
 
 The number of blocks [fetched and consumed](#next)
 
-## <span id="numBlocksToFetch"> numBlocksToFetch
+## numBlocksToFetch { #numBlocksToFetch }
 
 Total number of blocks to [fetch and consume](#next)
 
@@ -209,7 +209,7 @@ Total number of blocks to [fetch and consume](#next)
 Getting [numBlocksToFetch] non-empty blocks out of [totalBlocks] blocks
 ```
 
-## <span id="releaseCurrentResultBuffer"> releaseCurrentResultBuffer
+## releaseCurrentResultBuffer { #releaseCurrentResultBuffer }
 
 ```scala
 releaseCurrentResultBuffer(): Unit
@@ -222,13 +222,13 @@ releaseCurrentResultBuffer(): Unit
 * `ShuffleBlockFetcherIterator` is requested to [cleanup](#cleanup)
 * `BufferReleasingInputStream` is requested to `close`
 
-## <span id="onCompleteCallback"> ShuffleFetchCompletionListener
+## ShuffleFetchCompletionListener { #onCompleteCallback }
 
 `ShuffleBlockFetcherIterator` creates a [ShuffleFetchCompletionListener](ShuffleFetchCompletionListener.md) when [created](#creating-instance).
 
 `ShuffleFetchCompletionListener` is used when [initialize](#initialize) and [toCompletionIterator](#toCompletionIterator).
 
-## <span id="cleanup"> Cleaning Up
+## Cleaning Up { #cleanup }
 
 ```scala
 cleanup(): Unit
@@ -240,7 +240,7 @@ cleanup(): Unit
 
 `cleanup` iterates over [results](#results) internal queue and for every `SuccessFetchResult`, increments remote bytes read and blocks fetched shuffle task metrics, and eventually releases the managed buffer.
 
-## <span id="bytesInFlight"> bytesInFlight
+## bytesInFlight { #bytesInFlight }
 
 The bytes of fetched remote shuffle blocks in flight
 
@@ -250,7 +250,7 @@ Incremented every [sendRequest](#sendRequest) and decremented every [next](#next
 
 `ShuffleBlockFetcherIterator` makes sure that the invariant of `bytesInFlight` is below [maxBytesInFlight](#maxBytesInFlight) every [remote shuffle block fetch](#fetchUpToMaxBytes).
 
-## <span id="reqsInFlight"> reqsInFlight
+## reqsInFlight { #reqsInFlight }
 
 The number of remote shuffle block fetch requests in flight.
 
@@ -260,7 +260,7 @@ Incremented every [sendRequest](#sendRequest) and decremented every [next](#next
 
 `ShuffleBlockFetcherIterator` makes sure that the invariant of `reqsInFlight` is below [maxReqsInFlight](#maxReqsInFlight) every [remote shuffle block fetch](#fetchUpToMaxBytes).
 
-## <span id="isZombie"> isZombie
+## isZombie { #isZombie }
 
 Controls whether `ShuffleBlockFetcherIterator` is still active and records `SuccessFetchResult`s on [successful shuffle block fetches](#onBlockFetchSuccess).
 
@@ -270,11 +270,11 @@ Enabled (`true`) in [cleanup](#cleanup).
 
 When enabled, [registerTempFileToClean](#registerTempFileToClean) is a noop.
 
-## <span id="DownloadFileManager"> DownloadFileManager
+## DownloadFileManager { #DownloadFileManager }
 
 `ShuffleBlockFetcherIterator` is a [DownloadFileManager](../shuffle/DownloadFileManager.md).
 
-## <span id="throwFetchFailedException"> throwFetchFailedException
+## throwFetchFailedException { #throwFetchFailedException }
 
 ```scala
 throwFetchFailedException(

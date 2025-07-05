@@ -12,40 +12,60 @@
 
 ## Demo
 
+Start a Spark application (e.g., spark-shell) with the following Spark properties to trigger selection of `BaseShuffleHandle`:
+
+* `spark.shuffle.spill.numElementsForceSpillThreshold=1`
+* `spark.shuffle.sort.bypassMergeThreshold=1`
+
+```bash
+./bin/spark-shell \
+    --conf spark.shuffle.spill.numElementsForceSpillThreshold=1 \
+    --conf spark.shuffle.sort.bypassMergeThreshold=1
+```
+
+Create an RDD with the number of partitions (`numSlices`) greater than the value of [spark.shuffle.sort.bypassMergeThreshold](../configuration-properties.md#spark.shuffle.sort.bypassMergeThreshold) configuration property.
+
+```scala
+val rdd = sc.parallelize(0 to 4, numSlices = 2).groupBy(_ % 2)
+```
+
+```scala
+assert(rdd.getNumPartitions == 2)
+```
+
 ```text
-// Start a Spark application, e.g. spark-shell, with the Spark properties to trigger selection of BaseShuffleHandle:
-// 1. spark.shuffle.spill.numElementsForceSpillThreshold=1
-// 2. spark.shuffle.sort.bypassMergeThreshold=1
-
-// numSlices > spark.shuffle.sort.bypassMergeThreshold
-scala> val rdd = sc.parallelize(0 to 4, numSlices = 2).groupBy(_ % 2)
-rdd: org.apache.spark.rdd.RDD[(Int, Iterable[Int])] = ShuffledRDD[2] at groupBy at <console>:24
-
 scala> rdd.dependencies
 DEBUG SortShuffleManager: Can't use serialized shuffle for shuffle 0 because an aggregator is defined
 res0: Seq[org.apache.spark.Dependency[_]] = List(org.apache.spark.ShuffleDependency@1160c54b)
+```
 
-scala> rdd.getNumPartitions
-res1: Int = 2
-
-scala> import org.apache.spark.ShuffleDependency
+```scala
 import org.apache.spark.ShuffleDependency
+val shuffleDep = rdd.dependencies(0).asInstanceOf[ShuffleDependency[Int, Int, Int]]
+```
 
-scala> val shuffleDep = rdd.dependencies(0).asInstanceOf[ShuffleDependency[Int, Int, Int]]
-shuffleDep: org.apache.spark.ShuffleDependency[Int,Int,Int] = org.apache.spark.ShuffleDependency@1160c54b
-
+```scala
 // mapSideCombine is disabled
-scala> shuffleDep.mapSideCombine
-res2: Boolean = false
+assert(shuffleDep.mapSideCombine == false)
+```
 
+```scala
 // aggregator defined
-scala> shuffleDep.aggregator
-res3: Option[org.apache.spark.Aggregator[Int,Int,Int]] = Some(Aggregator(<function1>,<function2>,<function2>))
+assert(shuffleDep.aggregator.isDefined)
+```
 
-// the number of reduce partitions < spark.shuffle.sort.bypassMergeThreshold
-scala> shuffleDep.partitioner.numPartitions
-res4: Int = 2
+```text
+scala> shuffleDep.aggregator.get.getClass
+val res11: Class[_ <: org.apache.spark.Aggregator[Int,Int,Int]] = class org.apache.spark.Aggregator
+```
 
-scala> shuffleDep.shuffleHandle
-res5: org.apache.spark.shuffle.ShuffleHandle = org.apache.spark.shuffle.BaseShuffleHandle@22b0fe7e
+Note the number of reduce partitions that is smaller than [spark.shuffle.sort.bypassMergeThreshold](../configuration-properties.md#spark.shuffle.sort.bypassMergeThreshold) configuration property.
+
+```scala
+assert(shuffleDep.partitioner.numPartitions == 2)
+```
+
+```text
+scala> print(shuffleDep.shuffleHandle)
+org.apache.spark.shuffle.sort.SerializedShuffleHandle@2b648069
 ```

@@ -19,26 +19,44 @@
 
 * `SortShuffleManager` is requested for a [ShuffleReader](SortShuffleManager.md#getReader) (for a `ShuffleHandle` and a range of reduce partitions)
 
-## <span id="read"> Reading Combined Records (for Reduce Task)
+## Reading Combined Records (for Reduce Task) { #read }
 
-```scala
-read(): Iterator[Product2[K, C]]
-```
+??? note "ShuffleReader"
 
-`read` is part of the [ShuffleReader](ShuffleReader.md#read) abstraction.
+    ```scala
+    read(): Iterator[Product2[K, C]]
+    ```
+
+    `read` is part of the [ShuffleReader](ShuffleReader.md#read) abstraction.
 
 `read` creates a [ShuffleBlockFetcherIterator](../storage/ShuffleBlockFetcherIterator.md).
 
 `read`...FIXME
 
-### <span id="fetchContinuousBlocksInBatch"> fetchContinuousBlocksInBatch
+### fetchContinuousBlocksInBatch { #fetchContinuousBlocksInBatch }
 
 ```scala
 fetchContinuousBlocksInBatch: Boolean
 ```
 
-`fetchContinuousBlocksInBatch`...FIXME
+`fetchContinuousBlocksInBatch` reads the following configuration properties to determine whether continuous shuffle block fetching could be used or not:
 
+* [spark.io.encryption.enabled](../configuration-properties.md#spark.io.encryption.enabled)
+* [spark.shuffle.compress](../configuration-properties.md#spark.shuffle.compress)
+* [spark.shuffle.useOldFetchProtocol](../configuration-properties.md#spark.shuffle.useOldFetchProtocol)
+* [supportsRelocationOfSerializedObjects](../serializer/Serializer.md#supportsRelocationOfSerializedObjects) (of the [Serializer](../rdd/ShuffleDependency.md#serializer) of the [ShuffleDependency](BaseShuffleHandle.md#dependency) of this [BaseShuffleHandle](#handle))
+
+`fetchContinuousBlocksInBatch` prints out the following DEBUG message when continuous shuffle block fetching is requested yet not satisfied by the configuration:
+
+```text
+The feature tag of continuous shuffle block fetching is set to true, but
+we can not enable the feature because other conditions are not satisfied.
+Shuffle compress: [compressed], serializer relocatable: [serializerRelocatable],
+codec concatenation: [codecConcatenation], use old shuffle fetch protocol:
+[useOldFetchProtocol], io encryption: [ioEncryption].
+```
+
+<!---
 ## Review Me
 
 === [[read]] Reading Combined Records For Reduce Task
@@ -65,3 +83,4 @@ For [keyOrdering](../rdd/ShuffleDependency.md#keyOrdering) defined in the `Shuff
 2. shuffle:ExternalSorter.md#insertAll[Inserts all the records] into the `ExternalSorter`
 3. Updates context `TaskMetrics`
 4. Returns a `CompletionIterator` for the `ExternalSorter`
+-->
