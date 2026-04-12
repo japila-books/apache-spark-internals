@@ -87,9 +87,29 @@ In the end, `handle` returns whether it was executed for any [action](#action) b
 ----|---------
  `--kill` | [action](#action)
  `--name` | [name](#name)
+ [--remote](SparkSubmitOptionParser.md#REMOTE) | [maybeRemote](#maybeRemote)
  `--status` | [action](#action)
  `--version` | [action](#action)
  ... | ...
+
+## maybeRemote { #maybeRemote }
+
+```scala
+maybeRemote: Option[String]
+```
+
+`maybeRemote` is the value of the following (in this order of precedence):
+
+1. [--remote](SparkSubmitOptionParser.md#REMOTE) command-line option
+1. `spark.remote` configuration property
+1. `SPARK_REMOTE` environment variable
+
+`maybeRemote` must not be used alongside [master](#maybeMaster) or [deploy mode](#deployMode).
+They are exclusive.
+
+If `maybeRemote` is not specified, [maybeMaster](#maybeMaster) is used.
+
+`maybeRemote` can be displayed when `SparkSubmitArguments` is requested to [toString](#toString).
 
 ## <span id="mergeDefaultSparkProperties"> mergeDefaultSparkProperties
 

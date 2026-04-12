@@ -29,9 +29,11 @@ boolean handle(
 
 `handle` throws an `UnsupportedOperationException` (and expects subclasses to override the default behaviour, e.g. [SparkSubmitArguments](SparkSubmitArguments.md#handle)).
 
-## <span id="FILES"> --files
+## <span id="FILES"> --files { #files }
 
 A comma-separated sequence of paths
+
+## <span id="REMOTE"> --remote { #remote }
 
 <!---
 ## Review Me
